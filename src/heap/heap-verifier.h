@@ -6,9 +6,10 @@
 #define V8_HEAP_HEAP_VERIFIER_H_
 
 #include "src/common/globals.h"
+#include "src/flags/flags.h"
 #include "src/heap/read-only-heap.h"
+#include "src/objects/map.h"
 
-#ifdef VERIFY_HEAP
 namespace v8 {
 namespace internal {
 
@@ -17,6 +18,7 @@ class ReadOnlyHeap;
 
 class HeapVerifier final {
  public:
+#ifdef VERIFY_HEAP
   // Verify the heap is in its normal state before or after a GC.
   V8_EXPORT_PRIVATE static void VerifyHeap(Heap* heap);
 
@@ -43,6 +45,23 @@ class HeapVerifier final {
                                                          HeapObject object,
                                                          Map new_map);
 
+#else
+  static void VerifyHeap(Heap* heap) {}
+  static void VerifyReadOnlyHeap(Heap* heap) {}
+  static void VerifySharedHeap(Heap* heap, Isolate* initiator) {}
+  static void VerifyRememberedSetFor(Heap* heap, HeapObject object) {}
+  static void VerifySafeMapTransition(Heap* heap, HeapObject object,
+                                      Map new_map) {}
+  static void VerifyObjectLayoutChange(Heap* heap, HeapObject object,
+                                       Map new_map) {}
+#endif
+
+  V8_INLINE static void VerifyHeapIfEnabled(Heap* heap) {
+    if (v8_flags.verify_heap) {
+      VerifyHeap(heap);
+    }
+  }
+
  private:
   HeapVerifier();
 };
@@ -50,5 +69,4 @@ class HeapVerifier final {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // VERIFY_HEAP
 #endif  // V8_HEAP_HEAP_VERIFIER_H_

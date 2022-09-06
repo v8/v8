@@ -2263,7 +2263,6 @@ size_t Heap::PerformGarbageCollection(
 
   if (IsYoungGenerationCollector(collector)) {
     CompleteSweepingYoung(collector);
-#ifdef VERIFY_HEAP
     if (v8_flags.verify_heap) {
       // If heap verification is enabled, we want to ensure that sweeping is
       // completed here, as it will be triggered from Heap::Verify anyway.
@@ -2271,7 +2270,6 @@ size_t Heap::PerformGarbageCollection(
       // full GC cycle.
       CompleteSweepingFull();
     }
-#endif  // VERIFY_HEAP
     if (!v8_flags.minor_mc || incremental_marking_->IsStopped()) {
       // If v8_flags.minor_mc is false, then the young GC is Scavenger, which
       // may interrupt an incremental full GC. If MinorMC incremental marking
@@ -2312,14 +2310,7 @@ size_t Heap::PerformGarbageCollection(
 
   collection_barrier_->StopTimeToCollectionTimer();
 
-#ifdef VERIFY_HEAP
-  if (v8_flags.verify_heap) {
-    // We don't really perform a GC here but need this scope for the nested
-    // SafepointScope inside Verify().
-    AllowGarbageCollection allow_gc;
-    HeapVerifier::VerifyHeap(this);
-  }
-#endif  // VERIFY_HEAP
+  HeapVerifier::VerifyHeapIfEnabled(this);
 
   tracer()->StartInSafepoint();
 
@@ -2396,14 +2387,7 @@ size_t Heap::PerformGarbageCollection(
 
   tracer()->StopInSafepoint();
 
-#ifdef VERIFY_HEAP
-  if (v8_flags.verify_heap) {
-    // We don't really perform a GC here but need this scope for the nested
-    // SafepointScope inside Verify().
-    AllowGarbageCollection allow_gc;
-    HeapVerifier::VerifyHeap(this);
-  }
-#endif  // VERIFY_HEAP
+  HeapVerifier::VerifyHeapIfEnabled(this);
 
   return freed_global_handles;
 }
@@ -2443,28 +2427,14 @@ void Heap::PerformSharedGarbageCollection(Isolate* initiator,
       client->heap()->concurrent_marking()->Pause();
     }
 
-#ifdef VERIFY_HEAP
-    if (v8_flags.verify_heap) {
-      // We don't really perform a GC here but need this scope for the nested
-      // SafepointScope inside Verify().
-      AllowGarbageCollection allow_gc;
-      HeapVerifier::VerifyHeap(client->heap());
-    }
-#endif  // VERIFY_HEAP
+    HeapVerifier::VerifyHeapIfEnabled(client->heap());
   });
 
   const GarbageCollector collector = GarbageCollector::MARK_COMPACTOR;
   PerformGarbageCollection(collector, gc_reason, nullptr);
 
   isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
-#ifdef VERIFY_HEAP
-    if (v8_flags.verify_heap) {
-      // We don't really perform a GC here but need this scope for the nested
-      // SafepointScope inside Verify().
-      AllowGarbageCollection allow_gc;
-      HeapVerifier::VerifyHeap(client->heap());
-    }
-#endif  // VERIFY_HEAP
+    HeapVerifier::VerifyHeapIfEnabled(client->heap());
 
     if (v8_flags.concurrent_marking &&
         client->heap()->incremental_marking()->IsMarking()) {
@@ -2936,11 +2906,9 @@ void Heap::ExternalStringTable::UpdateYoungReferences(
 
   DCHECK(last <= end);
   young_strings_.resize(last - start);
-#ifdef VERIFY_HEAP
   if (v8_flags.verify_heap) {
     VerifyYoung();
   }
-#endif
 }
 
 void Heap::ExternalStringTable::PromoteYoung() {
@@ -5744,12 +5712,10 @@ void Heap::StartTearDown() {
 
   FreeMainThreadSharedLinearAllocationAreas();
 
-#ifdef VERIFY_HEAP
   // {StartTearDown} is called fairly early during Isolate teardown, so it's
   // a good time to run heap verification (if requested), before starting to
   // tear down parts of the Isolate.
   if (v8_flags.verify_heap) {
-    AllowGarbageCollection allow_gc;
     HeapVerifier::VerifyHeap(this);
 
     // If this is a client Isolate of a shared Isolate, verify that there are no
@@ -5759,7 +5725,6 @@ void Heap::StartTearDown() {
       HeapVerifier::VerifySharedHeap(shared_isolate->heap(), isolate());
     }
   }
-#endif
 }
 
 void Heap::TearDown() {
@@ -6411,11 +6376,9 @@ void Heap::ExternalStringTable::CleanUpAll() {
     old_strings_[last++] = o;
   }
   old_strings_.resize(last);
-#ifdef VERIFY_HEAP
   if (v8_flags.verify_heap && !v8_flags.enable_third_party_heap) {
     Verify();
   }
-#endif
 }
 
 void Heap::ExternalStringTable::TearDown() {

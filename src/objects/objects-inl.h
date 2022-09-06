@@ -830,7 +830,6 @@ void HeapObject::set_map(Map value, MemoryOrder order, VerificationMode mode) {
   // background threads.
   DCHECK_IMPLIES(mode != VerificationMode::kSafeMapTransition,
                  !LocalHeap::Current());
-#ifdef VERIFY_HEAP
   if (v8_flags.verify_heap && !value.is_null()) {
     Heap* heap = GetHeapFromWritableObject(*this);
     if (mode == VerificationMode::kSafeMapTransition) {
@@ -840,7 +839,6 @@ void HeapObject::set_map(Map value, MemoryOrder order, VerificationMode mode) {
       HeapVerifier::VerifyObjectLayoutChange(heap, *this, value);
     }
   }
-#endif
   set_map_word(MapWord::FromMap(value), order);
 #ifndef V8_DISABLE_WRITE_BARRIERS
   if (!value.is_null()) {

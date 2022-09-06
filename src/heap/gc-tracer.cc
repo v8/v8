@@ -511,16 +511,16 @@ void GCTracer::StopYoungCycleIfNeeded() {
 }
 
 void GCTracer::NotifySweepingCompleted() {
-#ifdef VERIFY_HEAP
-  // If heap verification is enabled, sweeping finalization can also be
-  // triggered from inside a full GC cycle's atomic pause.
-  DCHECK((current_.type == Event::MARK_COMPACTOR ||
-          current_.type == Event::INCREMENTAL_MARK_COMPACTOR) &&
-         (current_.state == Event::State::SWEEPING ||
-          (v8_flags.verify_heap && current_.state == Event::State::ATOMIC)));
-#else
-  DCHECK(IsSweepingInProgress());
-#endif
+  if (v8_flags.verify_heap) {
+    // If heap verification is enabled, sweeping finalization can also be
+    // triggered from inside a full GC cycle's atomic pause.
+    DCHECK((current_.type == Event::MARK_COMPACTOR ||
+            current_.type == Event::INCREMENTAL_MARK_COMPACTOR) &&
+           (current_.state == Event::State::SWEEPING ||
+            (v8_flags.verify_heap && current_.state == Event::State::ATOMIC)));
+  } else {
+    DCHECK(IsSweepingInProgress());
+  }
 
   // Stop a full GC cycle only when both v8 and cppgc (if available) GCs have
   // finished sweeping. This method is invoked by v8.

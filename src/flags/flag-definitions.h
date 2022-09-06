@@ -1365,6 +1365,9 @@ DEFINE_IMPLICATION(trace_detached_contexts, track_detached_contexts)
 DEFINE_BOOL(verify_heap, false, "verify heap pointers before and after GC")
 DEFINE_BOOL(verify_heap_skip_remembered_set, false,
             "disable remembered set verification")
+#else
+DEFINE_BOOL_READONLY(verify_heap, false,
+                     "verify heap pointers before and after GC")
 #endif
 DEFINE_BOOL(move_object_start, true, "enable moving of object starts")
 DEFINE_BOOL(memory_reducer, true, "use memory reducer")

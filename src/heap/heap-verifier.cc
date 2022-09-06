@@ -68,6 +68,7 @@ class HeapVerification final {
 
 void HeapVerification::Verify() {
   CHECK(heap()->HasBeenSetUp());
+  AllowGarbageCollection allow_gc;
   IgnoreLocalGCRequests ignore_gc_requests(heap());
   SafepointScope safepoint_scope(heap());
   HandleScope scope(isolate());
