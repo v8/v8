@@ -1033,9 +1033,11 @@ class WasmContinuationObject
  public:
   static Handle<WasmContinuationObject> New(
       Isolate* isolate, std::unique_ptr<wasm::StackMemory> stack,
+      wasm::JumpBuffer::StackState state,
       AllocationType allocation_type = AllocationType::kYoung);
   static Handle<WasmContinuationObject> New(
-      Isolate* isolate, Handle<WasmContinuationObject> parent);
+      Isolate* isolate, wasm::JumpBuffer::StackState state,
+      Handle<WasmContinuationObject> parent);
 
   DECL_EXTERNAL_POINTER_ACCESSORS(jmpbuf, Address)
 
@@ -1046,7 +1048,7 @@ class WasmContinuationObject
  private:
   static Handle<WasmContinuationObject> New(
       Isolate* isolate, std::unique_ptr<wasm::StackMemory> stack,
-      Handle<HeapObject> parent,
+      wasm::JumpBuffer::StackState state, Handle<HeapObject> parent,
       AllocationType allocation_type = AllocationType::kYoung);
 
   TQ_OBJECT_CONSTRUCTORS(WasmContinuationObject)

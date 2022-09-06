@@ -2869,6 +2869,21 @@ void RestoreAfterBuiltinCall(MacroAssembler* masm, Register function_data,
   __ popq(current_param);
 }
 
+// Check that the stack was in the old state (if generated code assertions are
+// enabled), and switch to the new state.
+void SwitchStackState(MacroAssembler* masm, Register jmpbuf,
+                      wasm::JumpBuffer::StackState old_state,
+                      wasm::JumpBuffer::StackState new_state) {
+  if (FLAG_debug_code) {
+    __ cmpl(MemOperand(jmpbuf, wasm::kJmpBufStateOffset), Immediate(old_state));
+    Label ok;
+    __ j(equal, &ok, Label::kNear);
+    __ Trap();
+    __ bind(&ok);
+  }
+  __ movl(MemOperand(jmpbuf, wasm::kJmpBufStateOffset), Immediate(new_state));
+}
+
 void FillJumpBuffer(MacroAssembler* masm, Register jmpbuf, Label* pc) {
   __ movq(MemOperand(jmpbuf, wasm::kJmpBufSpOffset), rsp);
   __ movq(MemOperand(jmpbuf, wasm::kJmpBufFpOffset), rbp);
@@ -2877,11 +2892,15 @@ void FillJumpBuffer(MacroAssembler* masm, Register jmpbuf, Label* pc) {
   __ movq(MemOperand(jmpbuf, wasm::kJmpBufStackLimitOffset), kScratchRegister);
   __ leaq(kScratchRegister, MemOperand(pc, 0));
   __ movq(MemOperand(jmpbuf, wasm::kJmpBufPcOffset), kScratchRegister);
+  SwitchStackState(masm, jmpbuf, wasm::JumpBuffer::Active,
+                   wasm::JumpBuffer::Inactive);
 }
 
 void LoadJumpBuffer(MacroAssembler* masm, Register jmpbuf, bool load_pc) {
   __ movq(rsp, MemOperand(jmpbuf, wasm::kJmpBufSpOffset));
   __ movq(rbp, MemOperand(jmpbuf, wasm::kJmpBufFpOffset));
+  SwitchStackState(masm, jmpbuf, wasm::JumpBuffer::Inactive,
+                   wasm::JumpBuffer::Active);
   if (load_pc) {
     __ jmp(MemOperand(jmpbuf, wasm::kJmpBufPcOffset));
   }
@@ -2935,14 +2954,15 @@ void ReloadParentContinuation(MacroAssembler* masm, Register wasm_instance,
   Register active_continuation = tmp1;
   __ LoadRoot(active_continuation, RootIndex::kActiveContinuation);
 
-  // Set a null pointer in the jump buffer's SP slot to indicate to the stack
-  // frame iterator that this stack is empty.
+  // We don't need to save the full register state since we are switching out of
+  // this stack for the last time. Mark the stack as retired.
   Register jmpbuf = kScratchRegister;
   __ LoadExternalPointerField(
       jmpbuf,
       FieldOperand(active_continuation, WasmContinuationObject::kJmpbufOffset),
       kWasmContinuationJmpbufTag, tmp2);
-  __ movq(Operand(jmpbuf, wasm::kJmpBufSpOffset), Immediate(kNullAddress));
+  SwitchStackState(masm, jmpbuf, wasm::JumpBuffer::Active,
+                   wasm::JumpBuffer::Retired);
 
   Register parent = tmp2;
   __ LoadAnyTaggedField(

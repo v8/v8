@@ -1969,12 +1969,15 @@ Object Isolate::UnwindAndFindHandler() {
       // switch.
       auto stack = Managed<wasm::StackMemory>::cast(current_stack.stack());
       // Mark this stack as empty.
-      stack.get()->jmpbuf()->sp = 0x0;
+      DCHECK_EQ(stack.get()->jmpbuf()->state, wasm::JumpBuffer::Active);
+      stack.get()->jmpbuf()->state = wasm::JumpBuffer::Retired;
       HeapObject parent = current_stack.parent();
       DCHECK(!parent.IsUndefined());
       current_stack = WasmContinuationObject::cast(parent);
       wasm::StackMemory* parent_stack =
           Managed<wasm::StackMemory>::cast(current_stack.stack()).get().get();
+      DCHECK_EQ(parent_stack->jmpbuf()->state, wasm::JumpBuffer::Inactive);
+      parent_stack->jmpbuf()->state = wasm::JumpBuffer::Active;
       iter.Reset(thread_local_top(), parent_stack);
 
       // Update the continuation and suspender state.
@@ -4452,7 +4455,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     }
     HandleScope scope(this);
     Handle<WasmContinuationObject> continuation = WasmContinuationObject::New(
-        this, std::move(stack), AllocationType::kOld);
+        this, std::move(stack), wasm::JumpBuffer::Active, AllocationType::kOld);
     heap()
         ->roots_table()
         .slot(RootIndex::kActiveContinuation)

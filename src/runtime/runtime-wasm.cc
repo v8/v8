@@ -812,7 +812,7 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
                            isolate->root(RootIndex::kActiveContinuation)),
                        isolate);
   Handle<WasmContinuationObject> target =
-      WasmContinuationObject::New(isolate, parent);
+      WasmContinuationObject::New(isolate, wasm::JumpBuffer::Inactive, parent);
   auto target_stack =
       Managed<wasm::StackMemory>::cast(target->stack()).get().get();
   isolate->wasm_stacks()->Add(target_stack);

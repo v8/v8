@@ -22,13 +22,15 @@ struct JumpBuffer {
   Address fp;
   Address pc;
   void* stack_limit;
-  // TODO(thibaudm/fgm): Add general-purpose registers.
+  enum StackState : int32_t { Active, Inactive, Retired };
+  StackState state;
 };
 
 constexpr int kJmpBufSpOffset = offsetof(JumpBuffer, sp);
 constexpr int kJmpBufFpOffset = offsetof(JumpBuffer, fp);
 constexpr int kJmpBufPcOffset = offsetof(JumpBuffer, pc);
 constexpr int kJmpBufStackLimitOffset = offsetof(JumpBuffer, stack_limit);
+constexpr int kJmpBufStateOffset = offsetof(JumpBuffer, state);
 
 class StackMemory {
  public:
@@ -72,10 +74,7 @@ class StackMemory {
 
   // Track external memory usage for Managed<StackMemory> objects.
   size_t owned_size() { return sizeof(StackMemory) + (owned_ ? size_ : 0); }
-  bool IsActive() {
-    byte* sp = reinterpret_cast<byte*>(GetCurrentStackPosition());
-    return limit_ < sp && sp <= limit_ + size_;
-  }
+  bool IsActive() { return jmpbuf_.state == JumpBuffer::Active; }
 
  private:
 #ifdef DEBUG
