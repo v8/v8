@@ -572,17 +572,17 @@ ExternalReference ExternalReference::address_of_min_int() {
 
 ExternalReference
 ExternalReference::address_of_mock_arraybuffer_allocator_flag() {
-  return ExternalReference(&FLAG_mock_arraybuffer_allocator);
+  return ExternalReference(&v8_flags.mock_arraybuffer_allocator);
 }
 
-// TODO(jgruber): Update the other extrefs pointing at FLAG_ addresses to be
+// TODO(jgruber): Update the other extrefs pointing at v8_flags. addresses to be
 // called address_of_FLAG_foo (easier grep-ability).
 ExternalReference ExternalReference::address_of_FLAG_trace_osr() {
-  return ExternalReference(&FLAG_trace_osr);
+  return ExternalReference(&v8_flags.trace_osr);
 }
 
 ExternalReference ExternalReference::address_of_builtin_subclassing_flag() {
-  return ExternalReference(&FLAG_builtin_subclassing);
+  return ExternalReference(&v8_flags.builtin_subclassing);
 }
 
 ExternalReference ExternalReference::address_of_runtime_stats_flag() {
@@ -590,7 +590,7 @@ ExternalReference ExternalReference::address_of_runtime_stats_flag() {
 }
 
 ExternalReference ExternalReference::address_of_shared_string_table_flag() {
-  return ExternalReference(&FLAG_shared_string_table);
+  return ExternalReference(&v8_flags.shared_string_table);
 }
 
 ExternalReference ExternalReference::address_of_load_from_stack_count(
@@ -702,7 +702,7 @@ ExternalReference ExternalReference::supports_cetss_address() {
 
 ExternalReference
 ExternalReference::address_of_enable_experimental_regexp_engine() {
-  return ExternalReference(&FLAG_enable_experimental_regexp_engine);
+  return ExternalReference(&v8_flags.enable_experimental_regexp_engine);
 }
 
 namespace {
@@ -1439,7 +1439,7 @@ bool operator!=(ExternalReference lhs, ExternalReference rhs) {
 }
 
 size_t hash_value(ExternalReference reference) {
-  if (FLAG_predictable) {
+  if (v8_flags.predictable) {
     // Avoid ASLR non-determinism in predictable mode. For this, just take the
     // lowest 12 bit corresponding to a 4K page size.
     return base::hash<Address>()(reference.address() & 0xfff);

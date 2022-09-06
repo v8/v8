@@ -167,7 +167,8 @@ bool RelocInfo::IsCodedSpecially() {
 }
 
 bool RelocInfo::IsInConstantPool() {
-  if (FLAG_enable_embedded_constant_pool && constant_pool_ != kNullAddress) {
+  if (v8_flags.enable_embedded_constant_pool &&
+      constant_pool_ != kNullAddress) {
     return Assembler::IsConstantPoolLoadStart(pc_);
   }
   return false;
@@ -237,7 +238,7 @@ Assembler::Assembler(const AssemblerOptions& options,
   internal_trampoline_exception_ = false;
   last_bound_pos_ = 0;
   optimizable_cmpi_pos_ = -1;
-  trampoline_emitted_ = FLAG_force_long_branches;
+  trampoline_emitted_ = v8_flags.force_long_branches;
   tracked_branch_count_ = 0;
   relocations_.reserve(128);
 }
@@ -1309,7 +1310,8 @@ int Assembler::instructions_required_for_mov(Register dst,
 
 bool Assembler::use_constant_pool_for_mov(Register dst, const Operand& src,
                                           bool canOptimize) const {
-  if (!FLAG_enable_embedded_constant_pool || !is_constant_pool_available()) {
+  if (!v8_flags.enable_embedded_constant_pool ||
+      !is_constant_pool_available()) {
     // If there is no constant pool available, we must use a mov
     // immediate sequence.
     return false;

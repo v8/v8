@@ -32,7 +32,7 @@ TEST_F(PointerAuthArm64Test, compute_pac) {
 }
 
 TEST_F(PointerAuthArm64Test, add_and_auth_pac) {
-  i::FLAG_sim_abort_on_bad_auth = false;
+  i::v8_flags.sim_abort_on_bad_auth = false;
   Decoder<DispatchingDecoderVisitor>* decoder =
       new Decoder<DispatchingDecoderVisitor>();
   Simulator simulator(decoder);

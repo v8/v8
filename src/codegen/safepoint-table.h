@@ -130,7 +130,7 @@ class SafepointTable {
   using DeoptIndexSizeField = PcSizeField::Next<int, 3>;
   // In 22 bits, we can encode up to 4M bytes, corresponding to 32M frame slots,
   // which is 128MB on 32-bit and 256MB on 64-bit systems. The stack size is
-  // limited to a bit below 1MB anyway (see FLAG_stack_size).
+  // limited to a bit below 1MB anyway (see v8_flags.stack_size).
   using TaggedSlotsBytesField = DeoptIndexSizeField::Next<int, 22>;
 
   SafepointTable(Address instruction_start, Address safepoint_table_address);

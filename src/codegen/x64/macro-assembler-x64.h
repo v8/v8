@@ -919,12 +919,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // ---------------------------------------------------------------------------
   // StatsCounter support
   void IncrementCounter(StatsCounter* counter, int value) {
-    if (!FLAG_native_code_counters) return;
+    if (!v8_flags.native_code_counters) return;
     EmitIncrementCounter(counter, value);
   }
   void EmitIncrementCounter(StatsCounter* counter, int value);
   void DecrementCounter(StatsCounter* counter, int value) {
-    if (!FLAG_native_code_counters) return;
+    if (!v8_flags.native_code_counters) return;
     EmitDecrementCounter(counter, value);
   }
   void EmitDecrementCounter(StatsCounter* counter, int value);

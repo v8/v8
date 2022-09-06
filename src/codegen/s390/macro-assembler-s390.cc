@@ -979,7 +979,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   DCHECK(IsAligned(offset, kTaggedSize));
 
   lay(slot_address, MemOperand(object, offset - kHeapObjectTag));
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     Label ok;
     AndP(r0, slot_address, Operand(kTaggedSize - 1));
     beq(&ok, Label::kNear);
@@ -993,7 +993,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
 
   // Clobber clobbered input registers when running with the debug-code flag
   // turned on to provoke errors.
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     mov(value, Operand(base::bit_cast<intptr_t>(kZapValue + 4)));
     mov(slot_address, Operand(base::bit_cast<intptr_t>(kZapValue + 8)));
   }
@@ -1082,13 +1082,13 @@ void MacroAssembler::RecordWrite(Register object, Register slot_address,
                                  Register value, LinkRegisterStatus lr_status,
                                  SaveFPRegsMode fp_mode, SmiCheck smi_check) {
   DCHECK(!AreAliased(object, slot_address, value));
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     LoadTaggedPointerField(r0, MemOperand(slot_address));
     CmpS64(value, r0);
     Check(eq, AbortReason::kWrongAddressOrValuePassedToRecordWrite);
   }
 
-  if (FLAG_disable_write_barriers) {
+  if (v8_flags.disable_write_barriers) {
     return;
   }
   // First, check if a write barrier is even needed. The tests below
@@ -1116,13 +1116,13 @@ void MacroAssembler::RecordWrite(Register object, Register slot_address,
     pop(r14);
   }
 
-  if (FLAG_debug_code) mov(slot_address, Operand(kZapValue));
+  if (v8_flags.debug_code) mov(slot_address, Operand(kZapValue));
 
   bind(&done);
 
   // Clobber clobbered registers when running with the debug-code flag
   // turned on to provoke errors.
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     mov(slot_address, Operand(base::bit_cast<intptr_t>(kZapValue + 12)));
     mov(value, Operand(base::bit_cast<intptr_t>(kZapValue + 16)));
   }
@@ -1165,12 +1165,12 @@ void TurboAssembler::PushStandardFrame(Register function_reg) {
 }
 
 void TurboAssembler::RestoreFrameStateForTailCall() {
-  // if (FLAG_enable_embedded_constant_pool) {
+  // if (v8_flags.enable_embedded_constant_pool) {
   //   LoadU64(kConstantPoolRegister,
   //         MemOperand(fp, StandardFrameConstants::kConstantPoolOffset));
   //   set_constant_pool_available(false);
   // }
-  DCHECK(!FLAG_enable_embedded_constant_pool);
+  DCHECK(!v8_flags.enable_embedded_constant_pool);
   LoadU64(r14, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
   LoadU64(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
 }
@@ -1561,7 +1561,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
   // Reserve room for saved entry sp.
   lay(sp, MemOperand(fp, -ExitFrameConstants::kFixedFrameSizeFromFp));
 
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     StoreU64(MemOperand(fp, ExitFrameConstants::kSPOffset), Operand::Zero(),
              r1);
   }
@@ -1613,7 +1613,7 @@ int TurboAssembler::ActivationFrameAlignment() {
   // alignment. As the simulator is used to generate snapshots we do not know
   // if the target platform will need alignment, so this is controlled from a
   // flag.
-  return FLAG_sim_stack_alignment;
+  return v8_flags.sim_stack_alignment;
 #endif
 }
 
@@ -2070,7 +2070,7 @@ void TailCallOptimizedCodeSlot(MacroAssembler* masm,
 
 #ifdef V8_ENABLE_DEBUG_CODE
 void MacroAssembler::AssertFeedbackVector(Register object, Register scratch) {
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     CompareObjectType(object, scratch, scratch, FEEDBACK_VECTOR_TYPE);
     Assert(eq, AbortReason::kExpectedFeedbackVector);
   }
@@ -2228,7 +2228,7 @@ void MacroAssembler::EmitIncrementCounter(StatsCounter* counter, int value,
                                           Register scratch1,
                                           Register scratch2) {
   DCHECK(value > 0 && is_int8(value));
-  if (FLAG_native_code_counters && counter->Enabled()) {
+  if (v8_flags.native_code_counters && counter->Enabled()) {
     Move(scratch2, ExternalReference::Create(counter));
     // @TODO(john.yan): can be optimized by asi()
     LoadS32(scratch1, MemOperand(scratch2));
@@ -2241,7 +2241,7 @@ void MacroAssembler::EmitDecrementCounter(StatsCounter* counter, int value,
                                           Register scratch1,
                                           Register scratch2) {
   DCHECK(value > 0 && is_int8(value));
-  if (FLAG_native_code_counters && counter->Enabled()) {
+  if (v8_flags.native_code_counters && counter->Enabled()) {
     Move(scratch2, ExternalReference::Create(counter));
     // @TODO(john.yan): can be optimized by asi()
     LoadS32(scratch1, MemOperand(scratch2));
@@ -2261,7 +2261,7 @@ void TurboAssembler::Check(Condition cond, AbortReason reason, CRegister cr) {
 void TurboAssembler::Abort(AbortReason reason) {
   Label abort_start;
   bind(&abort_start);
-  if (FLAG_code_comments) {
+  if (v8_flags.code_comments) {
     const char* msg = GetAbortReason(reason);
     RecordComment("Abort message: ");
     RecordComment(msg);
@@ -2295,7 +2295,7 @@ void TurboAssembler::Abort(AbortReason reason) {
       // Generate an indirect call via builtins entry table here in order to
       // ensure that the interpreter_entry_return_pc_offset is the same for
       // InterpreterEntryTrampoline and InterpreterEntryTrampolineForProfiling
-      // when FLAG_debug_code is enabled.
+      // when v8_flags.debug_code is enabled.
       LoadEntryFromBuiltin(Builtin::kAbort, ip);
       Call(ip);
     } else {
@@ -2320,15 +2320,15 @@ void MacroAssembler::LoadNativeContextSlot(Register dst, int index) {
 
 #ifdef V8_ENABLE_DEBUG_CODE
 void TurboAssembler::Assert(Condition cond, AbortReason reason, CRegister cr) {
-  if (FLAG_debug_code) Check(cond, reason, cr);
+  if (v8_flags.debug_code) Check(cond, reason, cr);
 }
 
 void TurboAssembler::AssertUnreachable(AbortReason reason) {
-  if (FLAG_debug_code) Abort(reason);
+  if (v8_flags.debug_code) Abort(reason);
 }
 
 void TurboAssembler::AssertNotSmi(Register object) {
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     static_assert(kSmiTag == 0);
     TestIfSmi(object);
     Check(ne, AbortReason::kOperandIsASmi, cr0);
@@ -2336,7 +2336,7 @@ void TurboAssembler::AssertNotSmi(Register object) {
 }
 
 void TurboAssembler::AssertSmi(Register object) {
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     static_assert(kSmiTag == 0);
     TestIfSmi(object);
     Check(eq, AbortReason::kOperandIsNotASmi, cr0);
@@ -2344,7 +2344,7 @@ void TurboAssembler::AssertSmi(Register object) {
 }
 
 void MacroAssembler::AssertConstructor(Register object, Register scratch) {
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     static_assert(kSmiTag == 0);
     TestIfSmi(object);
     Check(ne, AbortReason::kOperandIsASmiAndNotAConstructor);
@@ -2356,7 +2356,7 @@ void MacroAssembler::AssertConstructor(Register object, Register scratch) {
 }
 
 void MacroAssembler::AssertFunction(Register object) {
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     static_assert(kSmiTag == 0);
     TestIfSmi(object);
     Check(ne, AbortReason::kOperandIsASmiAndNotAFunction, cr0);
@@ -2370,7 +2370,7 @@ void MacroAssembler::AssertFunction(Register object) {
 }
 
 void MacroAssembler::AssertCallableFunction(Register object) {
-  if (!FLAG_debug_code) return;
+  if (!v8_flags.debug_code) return;
   ASM_CODE_COMMENT(this);
   static_assert(kSmiTag == 0);
   TestIfSmi(object);
@@ -2384,7 +2384,7 @@ void MacroAssembler::AssertCallableFunction(Register object) {
 }
 
 void MacroAssembler::AssertBoundFunction(Register object) {
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     static_assert(kSmiTag == 0);
     TestIfSmi(object);
     Check(ne, AbortReason::kOperandIsASmiAndNotABoundFunction, cr0);
@@ -2396,7 +2396,7 @@ void MacroAssembler::AssertBoundFunction(Register object) {
 }
 
 void MacroAssembler::AssertGeneratorObject(Register object) {
-  if (!FLAG_debug_code) return;
+  if (!v8_flags.debug_code) return;
   TestIfSmi(object);
   Check(ne, AbortReason::kOperandIsASmiAndNotAGeneratorObject, cr0);
 
@@ -2416,7 +2416,7 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
 
 void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
                                                      Register scratch) {
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     Label done_checking;
     AssertNotSmi(object);
     CompareRoot(object, RootIndex::kUndefinedValue);

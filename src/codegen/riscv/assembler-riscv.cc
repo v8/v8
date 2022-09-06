@@ -205,13 +205,13 @@ Assembler::Assembler(const AssemblerOptions& options,
   trampoline_pool_blocked_nesting_ = 0;
   // We leave space (16 * kTrampolineSlotsSize)
   // for BlockTrampolinePoolScope buffer.
-  next_buffer_check_ = FLAG_force_long_branches
+  next_buffer_check_ = v8_flags.force_long_branches
                            ? kMaxInt
                            : kMaxBranchOffset - kTrampolineSlotsSize * 16;
   internal_trampoline_exception_ = false;
   last_bound_pos_ = 0;
 
-  trampoline_emitted_ = FLAG_force_long_branches;
+  trampoline_emitted_ = v8_flags.force_long_branches;
   unbound_labels_count_ = 0;
   block_buffer_growth_ = false;
 }
@@ -483,7 +483,7 @@ bool Assembler::MustUseReg(RelocInfo::Mode rmode) {
 }
 
 void Assembler::disassembleInstr(Instr instr) {
-  if (!FLAG_riscv_debug) return;
+  if (!v8_flags.riscv_debug) return;
   disasm::NameConverter converter;
   disasm::Disassembler disasm(converter);
   base::EmbeddedVector<char, 128> disasm_buffer;
@@ -758,7 +758,7 @@ uintptr_t Assembler::jump_address(Label* L) {
     }
   }
   uintptr_t imm = reinterpret_cast<uintptr_t>(buffer_start_) + target_pos;
-  if (FLAG_riscv_c_extension)
+  if (v8_flags.riscv_c_extension)
     DCHECK_EQ(imm & 1, 0);
   else
     DCHECK_EQ(imm & 3, 0);
@@ -789,7 +789,7 @@ int32_t Assembler::branch_long_offset(Label* L) {
     }
   }
   intptr_t offset = target_pos - pc_offset();
-  if (FLAG_riscv_c_extension)
+  if (v8_flags.riscv_c_extension)
     DCHECK_EQ(offset & 1, 0);
   else
     DCHECK_EQ(offset & 3, 0);
@@ -863,14 +863,14 @@ void Assembler::label_at_put(Label* L, int at_offset) {
 // Definitions for using compressed vs non compressed
 
 void Assembler::NOP() {
-  if (FLAG_riscv_c_extension)
+  if (v8_flags.riscv_c_extension)
     c_nop();
   else
     nop();
 }
 
 void Assembler::EBREAK() {
-  if (FLAG_riscv_c_extension)
+  if (v8_flags.riscv_c_extension)
     c_ebreak();
   else
     ebreak();

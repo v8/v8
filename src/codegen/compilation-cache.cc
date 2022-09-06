@@ -63,7 +63,7 @@ void CompilationCacheRegExp::Age() {
 
 void CompilationCacheScript::Age() {
   DisallowGarbageCollection no_gc;
-  if (!FLAG_isolate_script_cache_ageing) return;
+  if (!v8_flags.isolate_script_cache_ageing) return;
   if (table_.IsUndefined(isolate())) return;
   CompilationCacheTable table = CompilationCacheTable::cast(table_);
 

@@ -190,7 +190,7 @@ void RelocInfo::set_target_object(Heap* heap, HeapObject target,
                                      icache_flush_mode);
   }
   if (write_barrier_mode == UPDATE_WRITE_BARRIER && !host().is_null() &&
-      !FLAG_disable_write_barriers) {
+      !v8_flags.disable_write_barriers) {
     WriteBarrierForCode(host(), this, target);
   }
 }

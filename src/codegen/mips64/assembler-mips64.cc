@@ -260,13 +260,13 @@ Assembler::Assembler(const AssemblerOptions& options,
   trampoline_pool_blocked_nesting_ = 0;
   // We leave space (16 * kTrampolineSlotsSize)
   // for BlockTrampolinePoolScope buffer.
-  next_buffer_check_ = FLAG_force_long_branches
+  next_buffer_check_ = v8_flags.force_long_branches
                            ? kMaxInt
                            : kMaxBranchOffset - kTrampolineSlotsSize * 16;
   internal_trampoline_exception_ = false;
   last_bound_pos_ = 0;
 
-  trampoline_emitted_ = FLAG_force_long_branches;
+  trampoline_emitted_ = v8_flags.force_long_branches;
   unbound_labels_count_ = 0;
   block_buffer_growth_ = false;
 }

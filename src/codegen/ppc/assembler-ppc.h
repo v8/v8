@@ -310,7 +310,7 @@ class Assembler : public AssemblerBase {
   static constexpr int kTaggedLoadInstructions = 1;
 #endif
   static constexpr int kMovInstructions =
-      FLAG_enable_embedded_constant_pool.value()
+      v8_flags.enable_embedded_constant_pool.value()
           ? kMovInstructionsConstantPool
           : kMovInstructionsNoConstantPool;
 

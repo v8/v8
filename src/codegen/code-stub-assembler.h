@@ -310,9 +310,9 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   EXPAND(TYPED_VARIABLE_CONSTRUCTOR(__VA_ARGS__, this))
 
 #ifdef ENABLE_SLOW_DCHECKS
-#define CSA_SLOW_DCHECK(csa, ...) \
-  if (FLAG_enable_slow_asserts) { \
-    CSA_DCHECK(csa, __VA_ARGS__); \
+#define CSA_SLOW_DCHECK(csa, ...)     \
+  if (v8_flags.enable_slow_asserts) { \
+    CSA_DCHECK(csa, __VA_ARGS__);     \
   }
 #else
 #define CSA_SLOW_DCHECK(csa, ...) ((void)0)

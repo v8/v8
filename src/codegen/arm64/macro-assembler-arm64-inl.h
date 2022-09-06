@@ -1060,7 +1060,7 @@ void TurboAssembler::SmiTag(Register smi) { SmiTag(smi, smi); }
 
 void TurboAssembler::SmiUntag(Register dst, Register src) {
   DCHECK(dst.Is64Bits() && src.Is64Bits());
-  if (FLAG_enable_slow_asserts) {
+  if (v8_flags.enable_slow_asserts) {
     AssertSmi(src);
   }
   DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
@@ -1101,7 +1101,7 @@ void TurboAssembler::SmiUntag(Register smi) { SmiUntag(smi, smi); }
 
 void TurboAssembler::SmiToInt32(Register smi) {
   DCHECK(smi.Is64Bits());
-  if (FLAG_enable_slow_asserts) {
+  if (v8_flags.enable_slow_asserts) {
     AssertSmi(smi);
   }
   DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
@@ -1221,7 +1221,7 @@ void TurboAssembler::Poke(const CPURegister& src, const Operand& offset) {
 
   if (offset.IsImmediate()) {
     DCHECK_GE(offset.ImmediateValue(), 0);
-  } else if (FLAG_debug_code) {
+  } else if (v8_flags.debug_code) {
     Cmp(xzr, offset);
     Check(le, AbortReason::kStackAccessBelowStackPointer);
   }
@@ -1233,7 +1233,7 @@ template <TurboAssembler::LoadLRMode lr_mode>
 void TurboAssembler::Peek(const CPURegister& dst, const Operand& offset) {
   if (offset.IsImmediate()) {
     DCHECK_GE(offset.ImmediateValue(), 0);
-  } else if (FLAG_debug_code) {
+  } else if (v8_flags.debug_code) {
     Cmp(xzr, offset);
     Check(le, AbortReason::kStackAccessBelowStackPointer);
   }

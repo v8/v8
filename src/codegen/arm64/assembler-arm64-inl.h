@@ -709,7 +709,7 @@ void RelocInfo::set_target_object(Heap* heap, HeapObject target,
     Assembler::set_target_address_at(pc_, constant_pool_, target.ptr(),
                                      icache_flush_mode);
   }
-  if (!host().is_null() && !FLAG_disable_write_barriers) {
+  if (!host().is_null() && !v8_flags.disable_write_barriers) {
     WriteBarrierForCode(host(), this, target, write_barrier_mode);
   }
 }

@@ -57,7 +57,7 @@ size_t NearHeapLimitCallback(void* raw_bool, size_t current_heap_limit,
 class FactoryCodeBuilderOOMTest : public TestWithIsolate {
  public:
   static void SetUpTestSuite() {
-    FLAG_max_old_space_size = kInstructionSize / MB / 2;  // In MB.
+    v8_flags.max_old_space_size = kInstructionSize / MB / 2;  // In MB.
   }
 
   void SetUp() override {

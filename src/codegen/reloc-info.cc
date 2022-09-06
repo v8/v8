@@ -350,7 +350,7 @@ void RelocInfo::set_target_address(Address target,
   Assembler::set_target_address_at(pc_, constant_pool_, target,
                                    icache_flush_mode);
   if (!host().is_null() && IsCodeTargetMode(rmode_) &&
-      !FLAG_disable_write_barriers) {
+      !v8_flags.disable_write_barriers) {
     Code target_code = Code::GetCodeFromTargetAddress(target);
     WriteBarrierForCode(host(), this, target_code, write_barrier_mode);
   }

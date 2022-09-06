@@ -63,9 +63,9 @@
 namespace v8 {
 namespace internal {
 
-#define DEBUG_PRINTF(...) \
-  if (FLAG_riscv_debug) { \
-    printf(__VA_ARGS__);  \
+#define DEBUG_PRINTF(...)     \
+  if (v8_flags.riscv_debug) { \
+    printf(__VA_ARGS__);      \
   }
 
 class SafepointTableBuilder;

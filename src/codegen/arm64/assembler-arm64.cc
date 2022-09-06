@@ -45,16 +45,16 @@ namespace {
 
 #ifdef USE_SIMULATOR
 unsigned SimulatorFeaturesFromCommandLine() {
-  if (strcmp(FLAG_sim_arm64_optional_features, "none") == 0) {
+  if (strcmp(v8_flags.sim_arm64_optional_features, "none") == 0) {
     return 0;
   }
-  if (strcmp(FLAG_sim_arm64_optional_features, "all") == 0) {
+  if (strcmp(v8_flags.sim_arm64_optional_features, "all") == 0) {
     return (1u << NUMBER_OF_CPU_FEATURES) - 1;
   }
   fprintf(
       stderr,
       "Error: unrecognised value for --sim-arm64-optional-features ('%s').\n",
-      FLAG_sim_arm64_optional_features.value());
+      v8_flags.sim_arm64_optional_features.value());
   fprintf(stderr,
           "Supported values are:  none\n"
           "                       all\n");

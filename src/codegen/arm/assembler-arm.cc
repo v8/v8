@@ -58,7 +58,7 @@ static const unsigned kArmv8 = kArmv7WithSudiv | (1u << ARMv8);
 
 static unsigned CpuFeaturesFromCommandLine() {
   unsigned result;
-  const char* arm_arch = FLAG_arm_arch;
+  const char* arm_arch = v8_flags.arm_arch;
   if (strcmp(arm_arch, "armv8") == 0) {
     result = kArmv8;
   } else if (strcmp(arm_arch, "armv7+sudiv") == 0) {
@@ -81,12 +81,12 @@ static unsigned CpuFeaturesFromCommandLine() {
   // If any of the old (deprecated) flags are specified, print a warning, but
   // otherwise try to respect them for now.
   // TODO(jbramley): When all the old bots have been updated, remove this.
-  base::Optional<bool> maybe_enable_armv7 = FLAG_enable_armv7;
-  base::Optional<bool> maybe_enable_vfp3 = FLAG_enable_vfp3;
-  base::Optional<bool> maybe_enable_32dregs = FLAG_enable_32dregs;
-  base::Optional<bool> maybe_enable_neon = FLAG_enable_neon;
-  base::Optional<bool> maybe_enable_sudiv = FLAG_enable_sudiv;
-  base::Optional<bool> maybe_enable_armv8 = FLAG_enable_armv8;
+  base::Optional<bool> maybe_enable_armv7 = v8_flags.enable_armv7;
+  base::Optional<bool> maybe_enable_vfp3 = v8_flags.enable_vfp3;
+  base::Optional<bool> maybe_enable_32dregs = v8_flags.enable_32dregs;
+  base::Optional<bool> maybe_enable_neon = v8_flags.enable_neon;
+  base::Optional<bool> maybe_enable_sudiv = v8_flags.enable_sudiv;
+  base::Optional<bool> maybe_enable_armv8 = v8_flags.enable_armv8;
   if (maybe_enable_armv7.has_value() || maybe_enable_vfp3.has_value() ||
       maybe_enable_32dregs.has_value() || maybe_enable_neon.has_value() ||
       maybe_enable_sudiv.has_value() || maybe_enable_armv8.has_value()) {

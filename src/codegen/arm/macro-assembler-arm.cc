@@ -696,7 +696,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   // of the object, so so offset must be a multiple of kPointerSize.
   DCHECK(IsAligned(offset, kPointerSize));
 
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     ASM_CODE_COMMENT_STRING(this, "Verify slot_address");
     Label ok;
     UseScratchRegisterScope temps(this);
@@ -821,7 +821,7 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
                                  Register value, LinkRegisterStatus lr_status,
                                  SaveFPRegsMode fp_mode, SmiCheck smi_check) {
   DCHECK(!AreAliased(object, value));
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     ASM_CODE_COMMENT_STRING(this, "Verify slot_address");
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
@@ -832,7 +832,7 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
     Check(eq, AbortReason::kWrongAddressOrValuePassedToRecordWrite);
   }
 
-  if (FLAG_disable_write_barriers) {
+  if (v8_flags.disable_write_barriers) {
     return;
   }
 
@@ -864,7 +864,7 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
     pop(lr);
   }
 
-  if (FLAG_debug_code) Move(slot_address, Operand(kZapValue));
+  if (v8_flags.debug_code) Move(slot_address, Operand(kZapValue));
 
   bind(&done);
 }
@@ -1483,7 +1483,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
   PushCommonFrame(scratch);
   // Reserve room for saved entry sp.
   sub(sp, fp, Operand(ExitFrameConstants::kFixedFrameSizeFromFp));
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     mov(scratch, Operand::Zero());
     str(scratch, MemOperand(fp, ExitFrameConstants::kSPOffset));
   }
@@ -1532,7 +1532,7 @@ int TurboAssembler::ActivationFrameAlignment() {
   // alignment. As the simulator is used to generate snapshots we do not know
   // if the target platform will need alignment, so this is controlled from a
   // flag.
-  return FLAG_sim_stack_alignment;
+  return v8_flags.sim_stack_alignment;
 #endif  // V8_HOST_ARCH_ARM
 }
 
@@ -2011,7 +2011,7 @@ void TailCallOptimizedCodeSlot(MacroAssembler* masm,
 
 #ifdef V8_ENABLE_DEBUG_CODE
 void MacroAssembler::AssertFeedbackVector(Register object) {
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
     CompareObjectType(object, scratch, scratch, FEEDBACK_VECTOR_TYPE);
@@ -2162,7 +2162,7 @@ void MacroAssembler::EmitIncrementCounter(StatsCounter* counter, int value,
                                           Register scratch1,
                                           Register scratch2) {
   DCHECK_GT(value, 0);
-  if (FLAG_native_code_counters && counter->Enabled()) {
+  if (v8_flags.native_code_counters && counter->Enabled()) {
     ASM_CODE_COMMENT(this);
     Move(scratch2, ExternalReference::Create(counter));
     ldr(scratch1, MemOperand(scratch2));
@@ -2175,7 +2175,7 @@ void MacroAssembler::EmitDecrementCounter(StatsCounter* counter, int value,
                                           Register scratch1,
                                           Register scratch2) {
   DCHECK_GT(value, 0);
-  if (FLAG_native_code_counters && counter->Enabled()) {
+  if (v8_flags.native_code_counters && counter->Enabled()) {
     ASM_CODE_COMMENT(this);
     Move(scratch2, ExternalReference::Create(counter));
     ldr(scratch1, MemOperand(scratch2));
@@ -2186,15 +2186,15 @@ void MacroAssembler::EmitDecrementCounter(StatsCounter* counter, int value,
 
 #ifdef V8_ENABLE_DEBUG_CODE
 void TurboAssembler::Assert(Condition cond, AbortReason reason) {
-  if (FLAG_debug_code) Check(cond, reason);
+  if (v8_flags.debug_code) Check(cond, reason);
 }
 
 void TurboAssembler::AssertUnreachable(AbortReason reason) {
-  if (FLAG_debug_code) Abort(reason);
+  if (v8_flags.debug_code) Abort(reason);
 }
 
 void MacroAssembler::AssertNotSmi(Register object) {
-  if (!FLAG_debug_code) return;
+  if (!v8_flags.debug_code) return;
   ASM_CODE_COMMENT(this);
   static_assert(kSmiTag == 0);
   tst(object, Operand(kSmiTagMask));
@@ -2202,7 +2202,7 @@ void MacroAssembler::AssertNotSmi(Register object) {
 }
 
 void MacroAssembler::AssertSmi(Register object) {
-  if (!FLAG_debug_code) return;
+  if (!v8_flags.debug_code) return;
   ASM_CODE_COMMENT(this);
   static_assert(kSmiTag == 0);
   tst(object, Operand(kSmiTagMask));
@@ -2210,7 +2210,7 @@ void MacroAssembler::AssertSmi(Register object) {
 }
 
 void MacroAssembler::AssertConstructor(Register object) {
-  if (!FLAG_debug_code) return;
+  if (!v8_flags.debug_code) return;
   ASM_CODE_COMMENT(this);
   static_assert(kSmiTag == 0);
   tst(object, Operand(kSmiTagMask));
@@ -2224,7 +2224,7 @@ void MacroAssembler::AssertConstructor(Register object) {
 }
 
 void MacroAssembler::AssertFunction(Register object) {
-  if (!FLAG_debug_code) return;
+  if (!v8_flags.debug_code) return;
   ASM_CODE_COMMENT(this);
   static_assert(kSmiTag == 0);
   tst(object, Operand(kSmiTagMask));
@@ -2238,7 +2238,7 @@ void MacroAssembler::AssertFunction(Register object) {
 }
 
 void MacroAssembler::AssertCallableFunction(Register object) {
-  if (!FLAG_debug_code) return;
+  if (!v8_flags.debug_code) return;
   ASM_CODE_COMMENT(this);
   static_assert(kSmiTag == 0);
   tst(object, Operand(kSmiTagMask));
@@ -2252,7 +2252,7 @@ void MacroAssembler::AssertCallableFunction(Register object) {
 }
 
 void MacroAssembler::AssertBoundFunction(Register object) {
-  if (!FLAG_debug_code) return;
+  if (!v8_flags.debug_code) return;
   ASM_CODE_COMMENT(this);
   static_assert(kSmiTag == 0);
   tst(object, Operand(kSmiTagMask));
@@ -2264,7 +2264,7 @@ void MacroAssembler::AssertBoundFunction(Register object) {
 }
 
 void MacroAssembler::AssertGeneratorObject(Register object) {
-  if (!FLAG_debug_code) return;
+  if (!v8_flags.debug_code) return;
   ASM_CODE_COMMENT(this);
   tst(object, Operand(kSmiTagMask));
   Check(ne, AbortReason::kOperandIsASmiAndNotAGeneratorObject);
@@ -2285,7 +2285,7 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
 
 void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
                                                      Register scratch) {
-  if (!FLAG_debug_code) return;
+  if (!v8_flags.debug_code) return;
   ASM_CODE_COMMENT(this);
   Label done_checking;
   AssertNotSmi(object);
@@ -2310,7 +2310,7 @@ void TurboAssembler::Abort(AbortReason reason) {
   ASM_CODE_COMMENT(this);
   Label abort_start;
   bind(&abort_start);
-  if (FLAG_code_comments) {
+  if (v8_flags.code_comments) {
     const char* msg = GetAbortReason(reason);
     RecordComment("Abort message: ");
     RecordComment(msg);
@@ -2344,7 +2344,7 @@ void TurboAssembler::Abort(AbortReason reason) {
       // Generate an indirect call via builtins entry table here in order to
       // ensure that the interpreter_entry_return_pc_offset is the same for
       // InterpreterEntryTrampoline and InterpreterEntryTrampolineForProfiling
-      // when FLAG_debug_code is enabled.
+      // when v8_flags.debug_code is enabled.
       LoadEntryFromBuiltin(Builtin::kAbort, ip);
       Call(ip);
     } else {
@@ -2695,7 +2695,7 @@ void TurboAssembler::CallCFunctionHelper(Register function,
   // running in the simulator. The simulator has its own alignment check which
   // provides more information.
 #if V8_HOST_ARCH_ARM
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     int frame_alignment = base::OS::ActivationFrameAlignment();
     int frame_alignment_mask = frame_alignment - 1;
     if (frame_alignment > kPointerSize) {

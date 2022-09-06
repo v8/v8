@@ -821,14 +821,14 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   void IncrementCounter(StatsCounter* counter, int value, Register scratch1,
                         Register scratch2) {
-    if (!FLAG_native_code_counters) return;
+    if (!v8_flags.native_code_counters) return;
     EmitIncrementCounter(counter, value, scratch1, scratch2);
   }
   void EmitIncrementCounter(StatsCounter* counter, int value, Register scratch1,
                             Register scratch2);
   void DecrementCounter(StatsCounter* counter, int value, Register scratch1,
                         Register scratch2) {
-    if (!FLAG_native_code_counters) return;
+    if (!v8_flags.native_code_counters) return;
     EmitDecrementCounter(counter, value, scratch1, scratch2);
   }
   void EmitDecrementCounter(StatsCounter* counter, int value, Register scratch1,

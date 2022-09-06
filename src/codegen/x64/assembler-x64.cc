@@ -78,7 +78,7 @@ bool OSHasAVXSupport() {
 bool CpuFeatures::SupportsWasmSimd128() {
 #if V8_ENABLE_WEBASSEMBLY
   if (IsSupported(SSE4_1)) return true;
-  if (FLAG_wasm_simd_ssse3_codegen && IsSupported(SSSE3)) return true;
+  if (v8_flags.wasm_simd_ssse3_codegen && IsSupported(SSSE3)) return true;
 #endif  // V8_ENABLE_WEBASSEMBLY
   return false;
 }
@@ -103,14 +103,14 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   }
 
   // SAHF is not generally available in long mode.
-  if (cpu.has_sahf() && FLAG_enable_sahf) SetSupported(SAHF);
-  if (cpu.has_bmi1() && FLAG_enable_bmi1) SetSupported(BMI1);
-  if (cpu.has_bmi2() && FLAG_enable_bmi2) SetSupported(BMI2);
-  if (cpu.has_lzcnt() && FLAG_enable_lzcnt) SetSupported(LZCNT);
-  if (cpu.has_popcnt() && FLAG_enable_popcnt) SetSupported(POPCNT);
-  if (strcmp(FLAG_mcpu, "auto") == 0) {
+  if (cpu.has_sahf() && v8_flags.enable_sahf) SetSupported(SAHF);
+  if (cpu.has_bmi1() && v8_flags.enable_bmi1) SetSupported(BMI1);
+  if (cpu.has_bmi2() && v8_flags.enable_bmi2) SetSupported(BMI2);
+  if (cpu.has_lzcnt() && v8_flags.enable_lzcnt) SetSupported(LZCNT);
+  if (cpu.has_popcnt() && v8_flags.enable_popcnt) SetSupported(POPCNT);
+  if (strcmp(v8_flags.mcpu, "auto") == 0) {
     if (cpu.is_atom()) SetSupported(INTEL_ATOM);
-  } else if (strcmp(FLAG_mcpu, "atom") == 0) {
+  } else if (strcmp(v8_flags.mcpu, "atom") == 0) {
     SetSupported(INTEL_ATOM);
   }
 
@@ -118,13 +118,13 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   // AVX but not SSE4_2, if we have --enable-avx and --no-enable-sse4-2, the
   // code above would set AVX to supported, and SSE4_2 to unsupported, then the
   // checks below will set AVX to unsupported.
-  if (!FLAG_enable_sse3) SetUnsupported(SSE3);
-  if (!FLAG_enable_ssse3 || !IsSupported(SSE3)) SetUnsupported(SSSE3);
-  if (!FLAG_enable_sse4_1 || !IsSupported(SSSE3)) SetUnsupported(SSE4_1);
-  if (!FLAG_enable_sse4_2 || !IsSupported(SSE4_1)) SetUnsupported(SSE4_2);
-  if (!FLAG_enable_avx || !IsSupported(SSE4_2)) SetUnsupported(AVX);
-  if (!FLAG_enable_avx2 || !IsSupported(AVX)) SetUnsupported(AVX2);
-  if (!FLAG_enable_fma3 || !IsSupported(AVX)) SetUnsupported(FMA3);
+  if (!v8_flags.enable_sse3) SetUnsupported(SSE3);
+  if (!v8_flags.enable_ssse3 || !IsSupported(SSE3)) SetUnsupported(SSSE3);
+  if (!v8_flags.enable_sse4_1 || !IsSupported(SSSE3)) SetUnsupported(SSE4_1);
+  if (!v8_flags.enable_sse4_2 || !IsSupported(SSE4_1)) SetUnsupported(SSE4_2);
+  if (!v8_flags.enable_avx || !IsSupported(SSE4_2)) SetUnsupported(AVX);
+  if (!v8_flags.enable_avx2 || !IsSupported(AVX)) SetUnsupported(AVX2);
+  if (!v8_flags.enable_fma3 || !IsSupported(AVX)) SetUnsupported(FMA3);
 
   // Set a static value on whether Simd is supported.
   // This variable is only used for certain archs to query SupportWasmSimd128()
@@ -267,9 +267,9 @@ bool ConstPool::AddSharedEntry(uint64_t data, int offset) {
 }
 
 bool ConstPool::TryRecordEntry(intptr_t data, RelocInfo::Mode mode) {
-  if (!FLAG_partial_constant_pool) return false;
+  if (!v8_flags.partial_constant_pool) return false;
   DCHECK_WITH_MSG(
-      FLAG_text_is_readable,
+      v8_flags.text_is_readable,
       "The partial constant pool requires a readable .text section");
   if (!RelocInfo::IsShareableRelocMode(mode)) return false;
 
@@ -328,7 +328,7 @@ void Assembler::PatchConstPool() {
 }
 
 bool Assembler::UseConstPoolFor(RelocInfo::Mode rmode) {
-  if (!FLAG_partial_constant_pool) return false;
+  if (!v8_flags.partial_constant_pool) return false;
   return (rmode == RelocInfo::NO_INFO ||
           rmode == RelocInfo::EXTERNAL_REFERENCE ||
           rmode == RelocInfo::OFF_HEAP_TARGET);
@@ -2006,8 +2006,8 @@ void Assembler::Nop(int n) {
 
 void Assembler::emit_trace_instruction(Immediate markid) {
   EnsureSpace ensure_space(this);
-  if (FLAG_wasm_trace_native != nullptr &&
-      !strcmp(FLAG_wasm_trace_native, "cpuid")) {
+  if (v8_flags.wasm_trace_native != nullptr &&
+      !strcmp(v8_flags.wasm_trace_native, "cpuid")) {
     // This is the optionally selected cpuid sequence which computes a magic
     // number based upon the markid. The low 16 bits of the magic number are
     // 0x4711 and the high 16 bits are the low 16 bits of the markid. This

@@ -38,27 +38,27 @@ namespace internal {
 CodeStubAssembler::CodeStubAssembler(compiler::CodeAssemblerState* state)
     : compiler::CodeAssembler(state),
       TorqueGeneratedExportedMacrosAssembler(state) {
-  if (DEBUG_BOOL && FLAG_csa_trap_on_node != nullptr) {
+  if (DEBUG_BOOL && v8_flags.csa_trap_on_node != nullptr) {
     HandleBreakOnNode();
   }
 }
 
 void CodeStubAssembler::HandleBreakOnNode() {
-  // FLAG_csa_trap_on_node should be in a form "STUB,NODE" where STUB is a
+  // v8_flags.csa_trap_on_node should be in a form "STUB,NODE" where STUB is a
   // string specifying the name of a stub and NODE is number specifying node id.
   const char* name = state()->name();
   size_t name_length = strlen(name);
-  if (strncmp(FLAG_csa_trap_on_node, name, name_length) != 0) {
+  if (strncmp(v8_flags.csa_trap_on_node, name, name_length) != 0) {
     // Different name.
     return;
   }
-  size_t option_length = strlen(FLAG_csa_trap_on_node);
+  size_t option_length = strlen(v8_flags.csa_trap_on_node);
   if (option_length < name_length + 2 ||
-      FLAG_csa_trap_on_node[name_length] != ',') {
+      v8_flags.csa_trap_on_node[name_length] != ',') {
     // Option is too short.
     return;
   }
-  const char* start = &FLAG_csa_trap_on_node[name_length + 1];
+  const char* start = &v8_flags.csa_trap_on_node[name_length + 1];
   char* end;
   int node_id = static_cast<int>(strtol(start, &end, 10));
   if (start == end) {
@@ -72,7 +72,7 @@ void CodeStubAssembler::Dcheck(const BranchGenerator& branch,
                                const char* message, const char* file, int line,
                                std::initializer_list<ExtraNode> extra_nodes) {
 #if defined(DEBUG)
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     Check(branch, message, file, line, extra_nodes);
   }
 #endif
@@ -82,7 +82,7 @@ void CodeStubAssembler::Dcheck(const NodeGenerator<BoolT>& condition_body,
                                const char* message, const char* file, int line,
                                std::initializer_list<ExtraNode> extra_nodes) {
 #if defined(DEBUG)
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     Check(condition_body, message, file, line, extra_nodes);
   }
 #endif
@@ -92,7 +92,7 @@ void CodeStubAssembler::Dcheck(TNode<Word32T> condition_node,
                                const char* message, const char* file, int line,
                                std::initializer_list<ExtraNode> extra_nodes) {
 #if defined(DEBUG)
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     Check(condition_node, message, file, line, extra_nodes);
   }
 #endif
@@ -1367,7 +1367,7 @@ TNode<HeapObject> CodeStubAssembler::AllocateInNewSpace(
 TNode<HeapObject> CodeStubAssembler::Allocate(TNode<IntPtrT> size_in_bytes,
                                               AllocationFlags flags) {
   Comment("Allocate");
-  if (FLAG_single_generation) flags |= AllocationFlag::kPretenured;
+  if (v8_flags.single_generation) flags |= AllocationFlag::kPretenured;
   bool const new_space = !(flags & AllocationFlag::kPretenured);
   bool const allow_large_objects =
       flags & AllocationFlag::kAllowLargeObjectAllocation;
@@ -2241,7 +2241,7 @@ CodeStubAssembler::LoadFixedArrayElement<IntPtrT>(TNode<FixedArray>,
 void CodeStubAssembler::FixedArrayBoundsCheck(TNode<FixedArrayBase> array,
                                               TNode<Smi> index,
                                               int additional_offset) {
-  if (!FLAG_fixed_array_bounds_checks) return;
+  if (!v8_flags.fixed_array_bounds_checks) return;
   DCHECK(IsAligned(additional_offset, kTaggedSize));
   TNode<Smi> effective_index;
   Smi constant_index;
@@ -2259,7 +2259,7 @@ void CodeStubAssembler::FixedArrayBoundsCheck(TNode<FixedArrayBase> array,
 void CodeStubAssembler::FixedArrayBoundsCheck(TNode<FixedArrayBase> array,
                                               TNode<IntPtrT> index,
                                               int additional_offset) {
-  if (!FLAG_fixed_array_bounds_checks) return;
+  if (!v8_flags.fixed_array_bounds_checks) return;
   DCHECK(IsAligned(additional_offset, kTaggedSize));
   // IntPtrAdd does constant-folding automatically.
   TNode<IntPtrT> effective_index =
@@ -5379,7 +5379,7 @@ void CodeStubAssembler::InitializeAllocationMemento(
   StoreMapNoWriteBarrier(memento, RootIndex::kAllocationMementoMap);
   StoreObjectFieldNoWriteBarrier(
       memento, AllocationMemento::kAllocationSiteOffset, allocation_site);
-  if (FLAG_allocation_site_pretenuring) {
+  if (v8_flags.allocation_site_pretenuring) {
     TNode<Int32T> count = LoadObjectField<Int32T>(
         allocation_site, AllocationSite::kPretenureCreateCountOffset);
 
@@ -7178,7 +7178,7 @@ TNode<String> ToDirectStringAssembler::TryToDirect(Label* if_bailout) {
   // Sliced string. Fetch parent and correct start index by offset.
   BIND(&if_issliced);
   {
-    if (!FLAG_string_slices || (flags_ & kDontUnpackSlicedStrings)) {
+    if (!v8_flags.string_slices || (flags_ & kDontUnpackSlicedStrings)) {
       Goto(if_bailout);
     } else {
       const TNode<String> string = var_string_.value();
@@ -7980,7 +7980,7 @@ TNode<WordT> CodeStubAssembler::UpdateWord(TNode<WordT> word,
 }
 
 void CodeStubAssembler::SetCounter(StatsCounter* counter, int value) {
-  if (FLAG_native_code_counters && counter->Enabled()) {
+  if (v8_flags.native_code_counters && counter->Enabled()) {
     TNode<ExternalReference> counter_address =
         ExternalConstant(ExternalReference::Create(counter));
     StoreNoWriteBarrier(MachineRepresentation::kWord32, counter_address,
@@ -7990,7 +7990,7 @@ void CodeStubAssembler::SetCounter(StatsCounter* counter, int value) {
 
 void CodeStubAssembler::IncrementCounter(StatsCounter* counter, int delta) {
   DCHECK_GT(delta, 0);
-  if (FLAG_native_code_counters && counter->Enabled()) {
+  if (v8_flags.native_code_counters && counter->Enabled()) {
     TNode<ExternalReference> counter_address =
         ExternalConstant(ExternalReference::Create(counter));
     // This operation has to be exactly 32-bit wide in case the external
@@ -8004,7 +8004,7 @@ void CodeStubAssembler::IncrementCounter(StatsCounter* counter, int delta) {
 
 void CodeStubAssembler::DecrementCounter(StatsCounter* counter, int delta) {
   DCHECK_GT(delta, 0);
-  if (FLAG_native_code_counters && counter->Enabled()) {
+  if (v8_flags.native_code_counters && counter->Enabled()) {
     TNode<ExternalReference> counter_address =
         ExternalConstant(ExternalReference::Create(counter));
     // This operation has to be exactly 32-bit wide in case the external

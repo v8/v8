@@ -67,7 +67,7 @@ AssemblerOptions AssemblerOptions::Default(Isolate* isolate) {
 
   // So here we enable simulator specific code if not generating the snapshot or
   // if we are but we are targetting the simulator *only*.
-  options.enable_simulator_code = !serializer || FLAG_target_is_simulator;
+  options.enable_simulator_code = !serializer || v8_flags.target_is_simulator;
 #endif
 
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
@@ -304,7 +304,7 @@ Handle<HeapObject> AssemblerBase::GetEmbeddedObject(
 
 
 int Assembler::WriteCodeComments() {
-  if (!FLAG_code_comments) return 0;
+  if (!v8_flags.code_comments) return 0;
   CHECK_IMPLIES(code_comments_writer_.entry_count() > 0,
                 options().emit_code_comments);
   if (code_comments_writer_.entry_count() == 0) return 0;

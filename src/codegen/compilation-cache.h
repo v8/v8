@@ -212,11 +212,11 @@ class V8_EXPORT_PRIVATE CompilationCache {
   base::HashMap* EagerOptimizingSet();
 
   bool IsEnabledScriptAndEval() const {
-    return FLAG_compilation_cache && enabled_script_and_eval_;
+    return v8_flags.compilation_cache && enabled_script_and_eval_;
   }
   bool IsEnabledScript(LanguageMode language_mode) {
-    // Tests can change FLAG_use_strict at runtime. The compilation cache only
-    // contains scripts which were compiled with the default language mode.
+    // Tests can change v8_flags.use_strict at runtime. The compilation cache
+    // only contains scripts which were compiled with the default language mode.
     return IsEnabledScriptAndEval() && language_mode == LanguageMode::kSloppy;
   }
 

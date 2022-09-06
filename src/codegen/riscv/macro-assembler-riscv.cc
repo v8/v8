@@ -137,7 +137,7 @@ static void TailCallOptimizedCodeSlot(MacroAssembler* masm,
 }  // namespace
 #ifdef V8_ENABLE_DEBUG_CODE
 void MacroAssembler::AssertFeedbackVector(Register object, Register scratch) {
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     GetObjectType(object, scratch, scratch);
     Assert(eq, AbortReason::kExpectedFeedbackVector, scratch,
            Operand(FEEDBACK_VECTOR_TYPE));
@@ -299,7 +299,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   // of the object, so offset must be a multiple of kTaggedSize.
   DCHECK(IsAligned(offset, kTaggedSize));
 
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     Label ok;
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
@@ -397,7 +397,7 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
                                  SaveFPRegsMode fp_mode, SmiCheck smi_check) {
   DCHECK(!AreAliased(object, value));
 
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     UseScratchRegisterScope temps(this);
     Register temp = temps.Acquire();
     DCHECK(!AreAliased(object, value, temp));
@@ -407,7 +407,7 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
            Operand(value));
   }
 
-  if (FLAG_disable_write_barriers) {
+  if (v8_flags.disable_write_barriers) {
     return;
   }
 
@@ -450,7 +450,7 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
   if (ra_status == kRAHasNotBeenSaved) {
     pop(ra);
   }
-  if (FLAG_debug_code) li(slot_address, Operand(kZapValue));
+  if (v8_flags.debug_code) li(slot_address, Operand(kZapValue));
 
   bind(&done);
 }
@@ -460,7 +460,7 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
 #if V8_TARGET_ARCH_RISCV64
 void TurboAssembler::Add32(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    if (FLAG_riscv_c_extension && (rd.code() == rs.code()) &&
+    if (v8_flags.riscv_c_extension && (rd.code() == rs.code()) &&
         ((rd.code() & 0b11000) == 0b01000) &&
         ((rt.rm().code() & 0b11000) == 0b01000)) {
       c_addw(rd, rt.rm());
@@ -468,7 +468,7 @@ void TurboAssembler::Add32(Register rd, Register rs, const Operand& rt) {
       addw(rd, rs, rt.rm());
     }
   } else {
-    if (FLAG_riscv_c_extension && is_int6(rt.immediate()) &&
+    if (v8_flags.riscv_c_extension && is_int6(rt.immediate()) &&
         (rd.code() == rs.code()) && (rd != zero_reg) &&
         !MustUseReg(rt.rmode())) {
       c_addiw(rd, static_cast<int8_t>(rt.immediate()));
@@ -490,7 +490,7 @@ void TurboAssembler::Add32(Register rd, Register rs, const Operand& rt) {
 
 void TurboAssembler::Sub32(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    if (FLAG_riscv_c_extension && (rd.code() == rs.code()) &&
+    if (v8_flags.riscv_c_extension && (rd.code() == rs.code()) &&
         ((rd.code() & 0b11000) == 0b01000) &&
         ((rt.rm().code() & 0b11000) == 0b01000)) {
       c_subw(rd, rt.rm());
@@ -499,7 +499,7 @@ void TurboAssembler::Sub32(Register rd, Register rs, const Operand& rt) {
     }
   } else {
     DCHECK(is_int32(rt.immediate()));
-    if (FLAG_riscv_c_extension && (rd.code() == rs.code()) &&
+    if (v8_flags.riscv_c_extension && (rd.code() == rs.code()) &&
         (rd != zero_reg) && is_int6(-rt.immediate()) &&
         !MustUseReg(rt.rmode())) {
       c_addiw(
@@ -540,21 +540,21 @@ void TurboAssembler::SubWord(Register rd, Register rs, const Operand& rt) {
 
 void TurboAssembler::Sub64(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    if (FLAG_riscv_c_extension && (rd.code() == rs.code()) &&
+    if (v8_flags.riscv_c_extension && (rd.code() == rs.code()) &&
         ((rd.code() & 0b11000) == 0b01000) &&
         ((rt.rm().code() & 0b11000) == 0b01000)) {
       c_sub(rd, rt.rm());
     } else {
       sub(rd, rs, rt.rm());
     }
-  } else if (FLAG_riscv_c_extension && (rd.code() == rs.code()) &&
+  } else if (v8_flags.riscv_c_extension && (rd.code() == rs.code()) &&
              (rd != zero_reg) && is_int6(-rt.immediate()) &&
              (rt.immediate() != 0) && !MustUseReg(rt.rmode())) {
     c_addi(rd,
            static_cast<int8_t>(
                -rt.immediate()));  // No c_subi instr, use c_addi(x, y, -imm).
 
-  } else if (FLAG_riscv_c_extension && is_int10(-rt.immediate()) &&
+  } else if (v8_flags.riscv_c_extension && is_int10(-rt.immediate()) &&
              (rt.immediate() != 0) && ((rt.immediate() & 0xf) == 0) &&
              (rd.code() == rs.code()) && (rd == sp) &&
              !MustUseReg(rt.rmode())) {
@@ -589,25 +589,26 @@ void TurboAssembler::Sub64(Register rd, Register rs, const Operand& rt) {
 
 void TurboAssembler::Add64(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    if (FLAG_riscv_c_extension && (rd.code() == rs.code()) &&
+    if (v8_flags.riscv_c_extension && (rd.code() == rs.code()) &&
         (rt.rm() != zero_reg) && (rs != zero_reg)) {
       c_add(rd, rt.rm());
     } else {
       add(rd, rs, rt.rm());
     }
   } else {
-    if (FLAG_riscv_c_extension && is_int6(rt.immediate()) &&
+    if (v8_flags.riscv_c_extension && is_int6(rt.immediate()) &&
         (rd.code() == rs.code()) && (rd != zero_reg) && (rt.immediate() != 0) &&
         !MustUseReg(rt.rmode())) {
       c_addi(rd, static_cast<int8_t>(rt.immediate()));
-    } else if (FLAG_riscv_c_extension && is_int10(rt.immediate()) &&
+    } else if (v8_flags.riscv_c_extension && is_int10(rt.immediate()) &&
                (rt.immediate() != 0) && ((rt.immediate() & 0xf) == 0) &&
                (rd.code() == rs.code()) && (rd == sp) &&
                !MustUseReg(rt.rmode())) {
       c_addi16sp(static_cast<int16_t>(rt.immediate()));
-    } else if (FLAG_riscv_c_extension && ((rd.code() & 0b11000) == 0b01000) &&
-               (rs == sp) && is_uint10(rt.immediate()) &&
-               (rt.immediate() != 0) && !MustUseReg(rt.rmode())) {
+    } else if (v8_flags.riscv_c_extension &&
+               ((rd.code() & 0b11000) == 0b01000) && (rs == sp) &&
+               is_uint10(rt.immediate()) && (rt.immediate() != 0) &&
+               !MustUseReg(rt.rmode())) {
       c_addi4spn(rd, static_cast<uint16_t>(rt.immediate()));
     } else if (is_int12(rt.immediate()) && !MustUseReg(rt.rmode())) {
       addi(rd, rs, static_cast<int32_t>(rt.immediate()));
@@ -789,25 +790,26 @@ void TurboAssembler::AddWord(Register rd, Register rs, const Operand& rt) {
 
 void TurboAssembler::Add32(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    if (FLAG_riscv_c_extension && (rd.code() == rs.code()) &&
+    if (v8_flags.riscv_c_extension && (rd.code() == rs.code()) &&
         (rt.rm() != zero_reg) && (rs != zero_reg)) {
       c_add(rd, rt.rm());
     } else {
       add(rd, rs, rt.rm());
     }
   } else {
-    if (FLAG_riscv_c_extension && is_int6(rt.immediate()) &&
+    if (v8_flags.riscv_c_extension && is_int6(rt.immediate()) &&
         (rd.code() == rs.code()) && (rd != zero_reg) && (rt.immediate() != 0) &&
         !MustUseReg(rt.rmode())) {
       c_addi(rd, static_cast<int8_t>(rt.immediate()));
-    } else if (FLAG_riscv_c_extension && is_int10(rt.immediate()) &&
+    } else if (v8_flags.riscv_c_extension && is_int10(rt.immediate()) &&
                (rt.immediate() != 0) && ((rt.immediate() & 0xf) == 0) &&
                (rd.code() == rs.code()) && (rd == sp) &&
                !MustUseReg(rt.rmode())) {
       c_addi16sp(static_cast<int16_t>(rt.immediate()));
-    } else if (FLAG_riscv_c_extension && ((rd.code() & 0b11000) == 0b01000) &&
-               (rs == sp) && is_uint10(rt.immediate()) &&
-               (rt.immediate() != 0) && !MustUseReg(rt.rmode())) {
+    } else if (v8_flags.riscv_c_extension &&
+               ((rd.code() & 0b11000) == 0b01000) && (rs == sp) &&
+               is_uint10(rt.immediate()) && (rt.immediate() != 0) &&
+               !MustUseReg(rt.rmode())) {
       c_addi4spn(rd, static_cast<uint16_t>(rt.immediate()));
     } else if (is_int12(rt.immediate()) && !MustUseReg(rt.rmode())) {
       addi(rd, rs, static_cast<int32_t>(rt.immediate()));
@@ -832,21 +834,21 @@ void TurboAssembler::SubWord(Register rd, Register rs, const Operand& rt) {
 
 void TurboAssembler::Sub32(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    if (FLAG_riscv_c_extension && (rd.code() == rs.code()) &&
+    if (v8_flags.riscv_c_extension && (rd.code() == rs.code()) &&
         ((rd.code() & 0b11000) == 0b01000) &&
         ((rt.rm().code() & 0b11000) == 0b01000)) {
       c_sub(rd, rt.rm());
     } else {
       sub(rd, rs, rt.rm());
     }
-  } else if (FLAG_riscv_c_extension && (rd.code() == rs.code()) &&
+  } else if (v8_flags.riscv_c_extension && (rd.code() == rs.code()) &&
              (rd != zero_reg) && is_int6(-rt.immediate()) &&
              (rt.immediate() != 0) && !MustUseReg(rt.rmode())) {
     c_addi(rd,
            static_cast<int8_t>(
                -rt.immediate()));  // No c_subi instr, use c_addi(x, y, -imm).
 
-  } else if (FLAG_riscv_c_extension && is_int10(-rt.immediate()) &&
+  } else if (v8_flags.riscv_c_extension && is_int10(-rt.immediate()) &&
              (rt.immediate() != 0) && ((rt.immediate() & 0xf) == 0) &&
              (rd.code() == rs.code()) && (rd == sp) &&
              !MustUseReg(rt.rmode())) {
@@ -973,7 +975,7 @@ void TurboAssembler::Divu(Register res, Register rs, const Operand& rt) {
 
 void TurboAssembler::And(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    if (FLAG_riscv_c_extension && (rd.code() == rs.code()) &&
+    if (v8_flags.riscv_c_extension && (rd.code() == rs.code()) &&
         ((rd.code() & 0b11000) == 0b01000) &&
         ((rt.rm().code() & 0b11000) == 0b01000)) {
       c_and(rd, rt.rm());
@@ -981,7 +983,7 @@ void TurboAssembler::And(Register rd, Register rs, const Operand& rt) {
       and_(rd, rs, rt.rm());
     }
   } else {
-    if (FLAG_riscv_c_extension && is_int6(rt.immediate()) &&
+    if (v8_flags.riscv_c_extension && is_int6(rt.immediate()) &&
         !MustUseReg(rt.rmode()) && (rd.code() == rs.code()) &&
         ((rd.code() & 0b11000) == 0b01000)) {
       c_andi(rd, static_cast<int8_t>(rt.immediate()));
@@ -999,7 +1001,7 @@ void TurboAssembler::And(Register rd, Register rs, const Operand& rt) {
 
 void TurboAssembler::Or(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    if (FLAG_riscv_c_extension && (rd.code() == rs.code()) &&
+    if (v8_flags.riscv_c_extension && (rd.code() == rs.code()) &&
         ((rd.code() & 0b11000) == 0b01000) &&
         ((rt.rm().code() & 0b11000) == 0b01000)) {
       c_or(rd, rt.rm());
@@ -1021,7 +1023,7 @@ void TurboAssembler::Or(Register rd, Register rs, const Operand& rt) {
 
 void TurboAssembler::Xor(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    if (FLAG_riscv_c_extension && (rd.code() == rs.code()) &&
+    if (v8_flags.riscv_c_extension && (rd.code() == rs.code()) &&
         ((rd.code() & 0b11000) == 0b01000) &&
         ((rt.rm().code() & 0b11000) == 0b01000)) {
       c_xor(rd, rt.rm());
@@ -1227,7 +1229,7 @@ void TurboAssembler::SraWord(Register rd, Register rs, const Operand& rt) {
 void TurboAssembler::Sra64(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     sra(rd, rs, rt.rm());
-  } else if (FLAG_riscv_c_extension && (rd.code() == rs.code()) &&
+  } else if (v8_flags.riscv_c_extension && (rd.code() == rs.code()) &&
              ((rd.code() & 0b11000) == 0b01000) && is_int6(rt.immediate())) {
     uint8_t shamt = static_cast<uint8_t>(rt.immediate());
     c_srai(rd, shamt);
@@ -1244,7 +1246,7 @@ void TurboAssembler::SrlWord(Register rd, Register rs, const Operand& rt) {
 void TurboAssembler::Srl64(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     srl(rd, rs, rt.rm());
-  } else if (FLAG_riscv_c_extension && (rd.code() == rs.code()) &&
+  } else if (v8_flags.riscv_c_extension && (rd.code() == rs.code()) &&
              ((rd.code() & 0b11000) == 0b01000) && is_int6(rt.immediate())) {
     uint8_t shamt = static_cast<uint8_t>(rt.immediate());
     c_srli(rd, shamt);
@@ -1263,7 +1265,7 @@ void TurboAssembler::Sll64(Register rd, Register rs, const Operand& rt) {
     sll(rd, rs, rt.rm());
   } else {
     uint8_t shamt = static_cast<uint8_t>(rt.immediate());
-    if (FLAG_riscv_c_extension && (rd.code() == rs.code()) &&
+    if (v8_flags.riscv_c_extension && (rd.code() == rs.code()) &&
         (rd != zero_reg) && (shamt != 0) && is_uint6(shamt)) {
       c_slli(rd, shamt);
     } else {
@@ -1384,7 +1386,7 @@ void TurboAssembler::Ror(Register rd, Register rs, const Operand& rt) {
 #endif
 
 void TurboAssembler::Li(Register rd, intptr_t imm) {
-  if (FLAG_riscv_c_extension && (rd != zero_reg) && is_int6(imm)) {
+  if (v8_flags.riscv_c_extension && (rd != zero_reg) && is_int6(imm)) {
     c_li(rd, imm);
   } else {
     RV_li(rd, imm);
@@ -1392,7 +1394,7 @@ void TurboAssembler::Li(Register rd, intptr_t imm) {
 }
 
 void TurboAssembler::Mv(Register rd, const Operand& rt) {
-  if (FLAG_riscv_c_extension && (rd != zero_reg) && (rt.rm() != zero_reg)) {
+  if (v8_flags.riscv_c_extension && (rd != zero_reg) && (rt.rm() != zero_reg)) {
     c_mv(rd, rt.rm());
   } else {
     mv(rd, rt.rm());
@@ -1893,11 +1895,11 @@ void TurboAssembler::Sh(Register rd, const MemOperand& rs) {
 
 void TurboAssembler::Lw(Register rd, const MemOperand& rs) {
   auto fn = [this](Register target, const MemOperand& source) {
-    if (FLAG_riscv_c_extension && ((target.code() & 0b11000) == 0b01000) &&
+    if (v8_flags.riscv_c_extension && ((target.code() & 0b11000) == 0b01000) &&
         ((source.rm().code() & 0b11000) == 0b01000) &&
         is_uint7(source.offset()) && ((source.offset() & 0x3) == 0)) {
       this->c_lw(target, source.rm(), source.offset());
-    } else if (FLAG_riscv_c_extension && (target != zero_reg) &&
+    } else if (v8_flags.riscv_c_extension && (target != zero_reg) &&
                is_uint8(source.offset()) && (source.rm() == sp) &&
                ((source.offset() & 0x3) == 0)) {
       this->c_lwsp(target, source.offset());
@@ -1918,11 +1920,11 @@ void TurboAssembler::Lwu(Register rd, const MemOperand& rs) {
 #endif
 void TurboAssembler::Sw(Register rd, const MemOperand& rs) {
   auto fn = [this](Register value, const MemOperand& source) {
-    if (FLAG_riscv_c_extension && ((value.code() & 0b11000) == 0b01000) &&
+    if (v8_flags.riscv_c_extension && ((value.code() & 0b11000) == 0b01000) &&
         ((source.rm().code() & 0b11000) == 0b01000) &&
         is_uint7(source.offset()) && ((source.offset() & 0x3) == 0)) {
       this->c_sw(value, source.rm(), source.offset());
-    } else if (FLAG_riscv_c_extension && (source.rm() == sp) &&
+    } else if (v8_flags.riscv_c_extension && (source.rm() == sp) &&
                is_uint8(source.offset()) && (((source.offset() & 0x3) == 0))) {
       this->c_swsp(value, source.offset());
     } else {
@@ -1935,11 +1937,11 @@ void TurboAssembler::Sw(Register rd, const MemOperand& rs) {
 #if V8_TARGET_ARCH_RISCV64
 void TurboAssembler::Ld(Register rd, const MemOperand& rs) {
   auto fn = [this](Register target, const MemOperand& source) {
-    if (FLAG_riscv_c_extension && ((target.code() & 0b11000) == 0b01000) &&
+    if (v8_flags.riscv_c_extension && ((target.code() & 0b11000) == 0b01000) &&
         ((source.rm().code() & 0b11000) == 0b01000) &&
         is_uint8(source.offset()) && ((source.offset() & 0x7) == 0)) {
       this->c_ld(target, source.rm(), source.offset());
-    } else if (FLAG_riscv_c_extension && (target != zero_reg) &&
+    } else if (v8_flags.riscv_c_extension && (target != zero_reg) &&
                is_uint9(source.offset()) && (source.rm() == sp) &&
                ((source.offset() & 0x7) == 0)) {
       this->c_ldsp(target, source.offset());
@@ -1952,11 +1954,11 @@ void TurboAssembler::Ld(Register rd, const MemOperand& rs) {
 
 void TurboAssembler::Sd(Register rd, const MemOperand& rs) {
   auto fn = [this](Register value, const MemOperand& source) {
-    if (FLAG_riscv_c_extension && ((value.code() & 0b11000) == 0b01000) &&
+    if (v8_flags.riscv_c_extension && ((value.code() & 0b11000) == 0b01000) &&
         ((source.rm().code() & 0b11000) == 0b01000) &&
         is_uint8(source.offset()) && ((source.offset() & 0x7) == 0)) {
       this->c_sd(value, source.rm(), source.offset());
-    } else if (FLAG_riscv_c_extension && (source.rm() == sp) &&
+    } else if (v8_flags.riscv_c_extension && (source.rm() == sp) &&
                is_uint9(source.offset()) && ((source.offset() & 0x7) == 0)) {
       this->c_sdsp(value, source.offset());
     } else {
@@ -1982,11 +1984,11 @@ void TurboAssembler::StoreFloat(FPURegister fs, const MemOperand& src) {
 
 void TurboAssembler::LoadDouble(FPURegister fd, const MemOperand& src) {
   auto fn = [this](FPURegister target, const MemOperand& source) {
-    if (FLAG_riscv_c_extension && ((target.code() & 0b11000) == 0b01000) &&
+    if (v8_flags.riscv_c_extension && ((target.code() & 0b11000) == 0b01000) &&
         ((source.rm().code() & 0b11000) == 0b01000) &&
         is_uint8(source.offset()) && ((source.offset() & 0x7) == 0)) {
       this->c_fld(target, source.rm(), source.offset());
-    } else if (FLAG_riscv_c_extension && (source.rm() == sp) &&
+    } else if (v8_flags.riscv_c_extension && (source.rm() == sp) &&
                is_uint9(source.offset()) && ((source.offset() & 0x7) == 0)) {
       this->c_fldsp(target, source.offset());
     } else {
@@ -1998,11 +2000,11 @@ void TurboAssembler::LoadDouble(FPURegister fd, const MemOperand& src) {
 
 void TurboAssembler::StoreDouble(FPURegister fs, const MemOperand& src) {
   auto fn = [this](FPURegister value, const MemOperand& source) {
-    if (FLAG_riscv_c_extension && ((value.code() & 0b11000) == 0b01000) &&
+    if (v8_flags.riscv_c_extension && ((value.code() & 0b11000) == 0b01000) &&
         ((source.rm().code() & 0b11000) == 0b01000) &&
         is_uint8(source.offset()) && ((source.offset() & 0x7) == 0)) {
       this->c_fsd(value, source.rm(), source.offset());
-    } else if (FLAG_riscv_c_extension && (source.rm() == sp) &&
+    } else if (v8_flags.riscv_c_extension && (source.rm() == sp) &&
                is_uint9(source.offset()) && ((source.offset() & 0x7) == 0)) {
       this->c_fsdsp(value, source.offset());
     } else {
@@ -2123,7 +2125,7 @@ void TurboAssembler::li(Register rd, Operand j, LiFlags mode) {
     UseScratchRegisterScope temps(this);
     int count = li_estimate(j.immediate(), temps.hasAvailable());
     int reverse_count = li_estimate(~j.immediate(), temps.hasAvailable());
-    if (FLAG_riscv_constant_pool && count >= 4 && reverse_count >= 4) {
+    if (v8_flags.riscv_constant_pool && count >= 4 && reverse_count >= 4) {
       // Ld/Lw a Address from a constant pool.
       RecordEntry((uintptr_t)j.immediate(), j.rmode());
       auipc(rd, 0);
@@ -4478,7 +4480,7 @@ void TurboAssembler::StoreReturnAddressAndCall(Register target) {
   //
   Assembler::BlockTrampolinePoolScope block_trampoline_pool(this);
   int kNumInstructionsToJump = 5;
-  if (FLAG_riscv_c_extension) kNumInstructionsToJump = 4;
+  if (v8_flags.riscv_c_extension) kNumInstructionsToJump = 4;
   Label find_ra;
   // Adjust the value in ra to point to the correct return location, one
   // instruction past the real call into C code (the jalr(t6)), and push it.
@@ -5318,7 +5320,7 @@ void MacroAssembler::JumpToOffHeapInstructionStream(Address entry) {
   // Ld a Address from a constant pool.
   // Record a value into constant pool.
   ASM_CODE_COMMENT(this);
-  if (!FLAG_riscv_constant_pool) {
+  if (!v8_flags.riscv_constant_pool) {
     li(kOffHeapTrampolineRegister, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
   } else {
     RecordEntry(entry, RelocInfo::OFF_HEAP_TARGET);
@@ -5341,7 +5343,7 @@ void MacroAssembler::EmitIncrementCounter(StatsCounter* counter, int value,
                                           Register scratch1,
                                           Register scratch2) {
   DCHECK_GT(value, 0);
-  if (FLAG_native_code_counters && counter->Enabled()) {
+  if (v8_flags.native_code_counters && counter->Enabled()) {
     ASM_CODE_COMMENT(this);
     // This operation has to be exactly 32-bit wide in case the external
     // reference table redirects the counter to a uint32_t
@@ -5357,7 +5359,7 @@ void MacroAssembler::EmitDecrementCounter(StatsCounter* counter, int value,
                                           Register scratch1,
                                           Register scratch2) {
   DCHECK_GT(value, 0);
-  if (FLAG_native_code_counters && counter->Enabled()) {
+  if (v8_flags.native_code_counters && counter->Enabled()) {
     ASM_CODE_COMMENT(this);
     // This operation has to be exactly 32-bit wide in case the external
     // reference table redirects the counter to a uint32_t
@@ -5377,7 +5379,7 @@ void TurboAssembler::DebugBreak() { stop(); }
 
 void TurboAssembler::Assert(Condition cc, AbortReason reason, Register rs,
                             Operand rt) {
-  if (FLAG_debug_code) Check(cc, reason, rs, rt);
+  if (v8_flags.debug_code) Check(cc, reason, rs, rt);
 }
 
 void TurboAssembler::Check(Condition cc, AbortReason reason, Register rs,
@@ -5392,7 +5394,7 @@ void TurboAssembler::Check(Condition cc, AbortReason reason, Register rs,
 void TurboAssembler::Abort(AbortReason reason) {
   Label abort_start;
   bind(&abort_start);
-  if (FLAG_code_comments) {
+  if (v8_flags.code_comments) {
     const char* msg = GetAbortReason(reason);
     RecordComment("Abort message: ");
     RecordComment(msg);
@@ -5423,7 +5425,7 @@ void TurboAssembler::Abort(AbortReason reason) {
       // Generate an indirect call via builtins entry table here in order to
       // ensure that the interpreter_entry_return_pc_offset is the same for
       // InterpreterEntryTrampoline and InterpreterEntryTrampolineForProfiling
-      // when FLAG_debug_code is enabled.
+      // when v8_flags.debug_code is enabled.
       LoadEntryFromBuiltin(Builtin::kAbort, t6);
       Call(t6);
     } else {
@@ -5529,7 +5531,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
   // Set up new frame pointer.
   addi(fp, sp, ExitFrameConstants::kFixedFrameSizeFromFp);
 
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     StoreWord(zero_reg, MemOperand(fp, ExitFrameConstants::kSPOffset));
   }
 
@@ -5612,7 +5614,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
      ExternalReference::Create(IsolateAddressId::kContextAddress, isolate()));
   LoadWord(cp, MemOperand(scratch));
 
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     UseScratchRegisterScope temp(this);
     Register scratch2 = temp.Acquire();
     li(scratch2, Operand(Context::kInvalidContext));
@@ -5651,12 +5653,12 @@ int TurboAssembler::ActivationFrameAlignment() {
   // alignment. As the simulator is used to generate snapshots we do not know
   // if the target platform will need alignment, so this is controlled from a
   // flag.
-  return FLAG_sim_stack_alignment;
+  return v8_flags.sim_stack_alignment;
 #endif  // V8_HOST_ARCH_RISCV64
 }
 
 void MacroAssembler::AssertStackIsAligned() {
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     ASM_CODE_COMMENT(this);
     const int frame_alignment = ActivationFrameAlignment();
     const int frame_alignment_mask = frame_alignment - 1;
@@ -5694,7 +5696,7 @@ void TurboAssembler::SmiUntag(Register dst, const MemOperand& src) {
 
 void TurboAssembler::SmiToInt32(Register smi) {
   ASM_CODE_COMMENT(this);
-  if (FLAG_enable_slow_asserts) {
+  if (v8_flags.enable_slow_asserts) {
     AssertSmi(smi);
   }
   DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
@@ -5735,7 +5737,7 @@ void MacroAssembler::JumpIfNotSmi(Register value, Label* not_smi_label) {
 }
 
 void TurboAssembler::AssertNotSmi(Register object, AbortReason reason) {
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     ASM_CODE_COMMENT(this);
     static_assert(kSmiTag == 0);
     DCHECK(object != kScratchReg);
@@ -5745,7 +5747,7 @@ void TurboAssembler::AssertNotSmi(Register object, AbortReason reason) {
 }
 
 void TurboAssembler::AssertSmi(Register object, AbortReason reason) {
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     ASM_CODE_COMMENT(this);
     static_assert(kSmiTag == 0);
     DCHECK(object != kScratchReg);
@@ -5755,7 +5757,7 @@ void TurboAssembler::AssertSmi(Register object, AbortReason reason) {
 }
 
 void MacroAssembler::AssertConstructor(Register object) {
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     ASM_CODE_COMMENT(this);
     DCHECK(object != kScratchReg);
     BlockTrampolinePoolScope block_trampoline_pool(this);
@@ -5773,7 +5775,7 @@ void MacroAssembler::AssertConstructor(Register object) {
 }
 
 void MacroAssembler::AssertFunction(Register object) {
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     ASM_CODE_COMMENT(this);
     BlockTrampolinePoolScope block_trampoline_pool(this);
     static_assert(kSmiTag == 0);
@@ -5793,7 +5795,7 @@ void MacroAssembler::AssertFunction(Register object) {
 }
 
 void MacroAssembler::AssertCallableFunction(Register object) {
-  if (!FLAG_debug_code) return;
+  if (!v8_flags.debug_code) return;
   ASM_CODE_COMMENT(this);
   static_assert(kSmiTag == 0);
   AssertNotSmi(object, AbortReason::kOperandIsASmiAndNotAFunction);
@@ -5809,7 +5811,7 @@ void MacroAssembler::AssertCallableFunction(Register object) {
 }
 
 void MacroAssembler::AssertBoundFunction(Register object) {
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     ASM_CODE_COMMENT(this);
     BlockTrampolinePoolScope block_trampoline_pool(this);
     static_assert(kSmiTag == 0);
@@ -5824,7 +5826,7 @@ void MacroAssembler::AssertBoundFunction(Register object) {
 }
 
 void MacroAssembler::AssertGeneratorObject(Register object) {
-  if (!FLAG_debug_code) return;
+  if (!v8_flags.debug_code) return;
   ASM_CODE_COMMENT(this);
   BlockTrampolinePoolScope block_trampoline_pool(this);
   static_assert(kSmiTag == 0);
@@ -5843,7 +5845,7 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
 
 void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
                                                      Register scratch) {
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     ASM_CODE_COMMENT(this);
     Label done_checking;
     AssertNotSmi(object);
@@ -6019,7 +6021,7 @@ void TurboAssembler::CallCFunctionHelper(Register function,
   // PrepareCallCFunction.
 
 #if V8_HOST_ARCH_RISCV32 || V8_HOST_ARCH_RISCV64
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     int frame_alignment = base::OS::ActivationFrameAlignment();
     int frame_alignment_mask = frame_alignment - 1;
     if (frame_alignment > kSystemPointerSize) {
@@ -6250,7 +6252,7 @@ void TurboAssembler::DecompressTaggedSigned(const Register& destination,
                                             const MemOperand& field_operand) {
   ASM_CODE_COMMENT(this);
   Lwu(destination, field_operand);
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     // Corrupt the top 32 bits. Made up of 16 fixed bits and 16 pc offset bits.
     AddWord(destination, destination,
             Operand(((kDebugZapValue << 16) | (pc_offset() & 0xffff)) << 32));
