@@ -965,19 +965,31 @@ void GeneratorRestoreRegister::AllocateVreg(
     MaglevVregAllocationState* vreg_state) {
   UseRegister(array_input());
   DefineAsRegister(vreg_state, this);
+  set_temporaries_needed(1);
 }
 void GeneratorRestoreRegister::GenerateCode(MaglevCodeGenState* code_gen_state,
                                             const ProcessingState& state) {
   Register array = ToRegister(array_input());
+  Register result_reg = ToRegister(result());
+  Register temp = temporaries().PopFirst();
+
+  // The input and the output can alias, if that happen we use a temporary
+  // register and a move at the end.
+  Register value = (array == result_reg ? temp : result_reg);
+
   // Loads the current value in the generator register file.
   __ DecompressAnyTagged(
-      ToRegister(result()),
-      FieldOperand(array, FixedArray::OffsetOfElementAt(index())));
+      value, FieldOperand(array, FixedArray::OffsetOfElementAt(index())));
+
   // And trashs it with StaleRegisterConstant.
   __ LoadRoot(kScratchRegister, RootIndex::kStaleRegister);
   __ StoreTaggedField(
       FieldOperand(array, FixedArray::OffsetOfElementAt(index())),
       kScratchRegister);
+
+  if (value != result_reg) {
+    __ Move(result_reg, value);
+  }
 }
 
 void ForInPrepare::AllocateVreg(MaglevVregAllocationState* vreg_state) {
