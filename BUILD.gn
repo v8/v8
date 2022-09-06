@@ -4847,6 +4847,7 @@ v8_source_set("v8_base_without_compiler") {
       "src/wasm/names-provider.cc",
       "src/wasm/signature-map.cc",
       "src/wasm/simd-shuffle.cc",
+      "src/wasm/stacks.cc",
       "src/wasm/streaming-decoder.cc",
       "src/wasm/sync-streaming-decoder.cc",
       "src/wasm/value-type.cc",

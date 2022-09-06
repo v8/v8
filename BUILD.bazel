@@ -2531,6 +2531,7 @@ filegroup(
             "src/wasm/signature-map.h",
             "src/wasm/simd-shuffle.cc",
             "src/wasm/simd-shuffle.h",
+            "src/wasm/stacks.cc",
             "src/wasm/stacks.h",
             "src/wasm/streaming-decoder.cc",
             "src/wasm/streaming-decoder.h",
