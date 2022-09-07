@@ -176,7 +176,8 @@ bool BinaryOperationHasInt32FastPath() {
     case Operation::kBitwiseXor:
     case Operation::kShiftLeft:
     case Operation::kShiftRight:
-    case Operation::kShiftRightLogical:
+      // TODO(v8:13251): Implement with overflow protection.
+      //    case Operation::kShiftRightLogical:
     case Operation::kEqual:
     case Operation::kStrictEqual:
     case Operation::kLessThan:
@@ -204,21 +205,21 @@ bool BinaryOperationHasFloat64FastPath() {
 }  // namespace
 
 // MAP_OPERATION_TO_NODES are tuples with the following format:
-// - Operation name,
-// - Int32 operation node,
-// - Identity of int32 operation (e.g, 0 for add/sub and 1 for mul/div), if it
-//   exists, or otherwise {}.
-#define MAP_OPERATION_TO_INT32_NODE(V)      \
-  V(Add, Int32AddWithOverflow, 0)           \
-  V(Subtract, Int32SubtractWithOverflow, 0) \
-  V(Multiply, Int32MultiplyWithOverflow, 1) \
-  V(Divide, Int32DivideWithOverflow, 1)     \
-  V(BitwiseAnd, Int32BitwiseAnd, ~0)        \
-  V(BitwiseOr, Int32BitwiseOr, 0)           \
-  V(BitwiseXor, Int32BitwiseXor, 0)         \
-  V(ShiftLeft, Int32ShiftLeft, 0)           \
-  V(ShiftRight, Int32ShiftRight, 0)         \
-  V(ShiftRightLogical, Int32ShiftRightLogical, {})
+// (Operation name,
+//  Int32 operation node,
+//  Unit of int32 operation (e.g, 0 for add/sub and 1 for mul/div))
+#define MAP_OPERATION_TO_INT32_NODE(V)                      \
+  V(Add, Int32AddWithOverflow, 0)                           \
+  V(Subtract, Int32SubtractWithOverflow, 0)                 \
+  V(Multiply, Int32MultiplyWithOverflow, 1)                 \
+  V(Divide, Int32DivideWithOverflow, 1)                     \
+  V(BitwiseAnd, Int32BitwiseAnd, ~0)                        \
+  V(BitwiseOr, Int32BitwiseOr, 0)                           \
+  V(BitwiseXor, Int32BitwiseXor, 0)                         \
+  V(ShiftLeft, Int32ShiftLeft, 0)                           \
+  V(ShiftRight, Int32ShiftRight, 0)                         \
+  /* TODO(v8:13251): Implement with overflow protection. */ \
+  V(ShiftRightLogical, Int32ShiftRightLogical, 0)
 
 #define MAP_COMPARE_OPERATION_TO_INT32_NODE(V) \
   V(Equal, Int32Equal)                         \
@@ -237,11 +238,11 @@ bool BinaryOperationHasFloat64FastPath() {
   V(Divide, Float64Divide)
 
 template <Operation kOperation>
-static constexpr base::Optional<int> Int32Identity() {
+static int Int32Unit() {
   switch (kOperation) {
-#define CASE(op, _, identity) \
-  case Operation::k##op:      \
-    return identity;
+#define CASE(op, OpNode, unit) \
+  case Operation::k##op:       \
+    return unit;
     MAP_OPERATION_TO_INT32_NODE(CASE)
 #undef CASE
     default:
@@ -253,8 +254,8 @@ template <Operation kOperation>
 ValueNode* MaglevGraphBuilder::AddNewInt32BinaryOperationNode(
     std::initializer_list<ValueNode*> inputs) {
   switch (kOperation) {
-#define CASE(op, OpNode, _) \
-  case Operation::k##op:    \
+#define CASE(op, OpNode, unit) \
+  case Operation::k##op:       \
     return AddNewNode<OpNode>(inputs);
     MAP_OPERATION_TO_INT32_NODE(CASE)
 #undef CASE
@@ -327,7 +328,7 @@ void MaglevGraphBuilder::BuildInt32BinarySmiOperationNode() {
   // TODO(v8:7700): Do constant folding.
   ValueNode* left = GetAccumulatorInt32();
   int32_t constant = iterator_.GetImmediateOperand(0);
-  if (base::Optional<int>(constant) == Int32Identity<kOperation>()) {
+  if (constant == Int32Unit<kOperation>()) {
     // If the constant is the unit of the operation, it already has the right
     // value, so we can just return.
     return;

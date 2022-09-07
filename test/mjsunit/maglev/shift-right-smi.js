@@ -4,40 +4,55 @@
 
 // Flags: --allow-natives-syntax --maglev
 
-function gen_sarl_smi(y) {
-  return new Function('x', `return x >> ${y};`);
-}
+// Checks Smi shift_right operation and deopt while untagging.
+(function() {
+  function shift_right(x, y) {
+    return x >> y;
+  }
 
-function sarl_test(lhs, rhs, expected_result) {
-  const sarl = gen_sarl_smi(rhs);
+  %PrepareFunctionForOptimization(shift_right);
+  assertEquals(2, shift_right(8, 2));
+  assertEquals(-2, shift_right(-8, 2));
+  assertEquals(-8, shift_right(-8, 0));
+  assertEquals(0, shift_right(8, 10));
+  assertEquals(4, shift_right(8, 33));
 
-  // Warmup.
-  %PrepareFunctionForOptimization(sarl);
-  sarl(1);
-  %OptimizeMaglevOnNextCall(sarl);
+  %OptimizeMaglevOnNextCall(shift_right);
+  assertEquals(2, shift_right(8, 2));
+  assertTrue(isMaglevved(shift_right));
 
-  assertEquals(expected_result, sarl(lhs));
-  assertTrue(isMaglevved(sarl));
+  assertEquals(-2, shift_right(-8, 2));
+  assertTrue(isMaglevved(shift_right));
 
-  %DeoptimizeFunction(sarl);
-  assertEquals(expected_result, sarl(lhs));
-}
+  assertEquals(-8, shift_right(-8, 0));
+  assertTrue(isMaglevved(shift_right));
 
-function sarl_test_expect_deopt(lhs, rhs, expected_result) {
-  const sarl = gen_sarl_smi(rhs);
+  assertEquals(0, shift_right(8, 10));
+  assertTrue(isMaglevved(shift_right));
 
-  // Warmup.
-  %PrepareFunctionForOptimization(sarl);
-  sarl(1);
-  %OptimizeMaglevOnNextCall(sarl);
+  // Shifts are mod 32
+  assertEquals(4, shift_right(8, 33));
+  assertTrue(isMaglevved(shift_right));
 
-  assertEquals(expected_result, sarl(lhs));
-  assertFalse(isMaglevved(sarl));
-}
+  // // We should deopt here in SmiUntag.
+  // assertEquals(0x40000000, shift_right(1, 0x3FFFFFFF));
+  // assertFalse(isMaglevved(shift_right));
+})();
 
-sarl_test(8, 2, 2);
-sarl_test(-8, 2, -2);
-sarl_test(-8, 0, -8);
-sarl_test(8, 10, 0);
-sarl_test(8, 33, 4);
-sarl_test_expect_deopt(0xFFFFFFFF, 0x3FFFFFFF, -1);
+// // Checks when we deopt due to tagging.
+// (function() {
+//   function shift_right(x, y) {
+//     return x + y;
+//   }
+
+//   %PrepareFunctionForOptimization(shift_right);
+//   assertEquals(3, shift_right(1, 2));
+
+//   %OptimizeMaglevOnNextCall(shift_right);
+//   assertEquals(3, shift_right(1, 2));
+//   assertTrue(isMaglevved(shift_right));
+
+//   // We should deopt here in SmiTag.
+//   assertEquals(3.2, shift_right(1.2, 2));
+//   assertFalse(isMaglevved(shift_right));
+// })();

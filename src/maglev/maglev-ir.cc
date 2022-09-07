@@ -2244,13 +2244,6 @@ void Int32ShiftRightLogical::GenerateCode(MaglevAssembler* masm,
   Register left = ToRegister(left_input());
   DCHECK_EQ(rcx, ToRegister(right_input()));
   __ shrl_cl(left);
-  // The result of >>> is unsigned, but Maglev doesn't yet track
-  // signed/unsigned representations. Instead, deopt if the resulting smi would
-  // be negative.
-  // TODO(jgruber): Properly track signed/unsigned representations and
-  // allocated a heap number if the result is outside smi range.
-  __ testl(left, Immediate((1 << 31) | (1 << 30)));
-  EmitEagerDeoptIf(not_equal, masm, DeoptimizeReason::kOverflow, this);
 }
 
 namespace {
