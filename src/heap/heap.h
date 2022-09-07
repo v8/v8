@@ -2011,7 +2011,7 @@ class Heap {
       LocalHeap* local_heap = nullptr);
   bool IsRetryOfFailedAllocation(LocalHeap* local_heap);
   bool IsMainThreadParked(LocalHeap* local_heap);
-  bool IsMarkingComplete(LocalHeap* local_heap);
+  bool IsMajorMarkingComplete(LocalHeap* local_heap);
 
   HeapGrowingMode CurrentHeapGrowingMode();
 

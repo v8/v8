@@ -470,7 +470,7 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
   }
 
   if (incremental_marking()->IsMajorMarking() &&
-      incremental_marking()->IsMarkingComplete() &&
+      incremental_marking()->IsMajorMarkingComplete() &&
       AllocationLimitOvershotByLargeMargin()) {
     *reason = "Incremental marking needs finalization";
     return GarbageCollector::MARK_COMPACTOR;
@@ -3792,7 +3792,7 @@ size_t Heap::NewSpaceCapacity() {
 
 void Heap::FinalizeIncrementalMarkingIfComplete(
     GarbageCollectionReason gc_reason) {
-  if (incremental_marking()->IsMarkingComplete()) {
+  if (incremental_marking()->IsMajorMarkingComplete()) {
     CollectAllGarbage(current_gc_flags_, gc_reason, current_gc_callback_flags_);
   }
 }
@@ -5058,7 +5058,7 @@ bool Heap::ShouldExpandOldGenerationOnSlowAllocation(LocalHeap* local_heap) {
 
   if (ShouldOptimizeForLoadTime()) return true;
 
-  if (IsMarkingComplete(local_heap)) {
+  if (IsMajorMarkingComplete(local_heap)) {
     return !AllocationLimitOvershotByLargeMargin();
   }
 
@@ -5080,9 +5080,9 @@ bool Heap::IsMainThreadParked(LocalHeap* local_heap) {
   return local_heap->main_thread_parked_;
 }
 
-bool Heap::IsMarkingComplete(LocalHeap* local_heap) {
+bool Heap::IsMajorMarkingComplete(LocalHeap* local_heap) {
   if (!local_heap || !local_heap->is_main_thread()) return false;
-  return incremental_marking()->IsMarkingComplete();
+  return incremental_marking()->IsMajorMarkingComplete();
 }
 
 Heap::HeapGrowingMode Heap::CurrentHeapGrowingMode() {

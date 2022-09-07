@@ -197,7 +197,7 @@ void SimulateIncrementalMarking(i::Heap* heap, bool force_completion) {
   MarkingBarrier::PublishAll(heap);
   marking->MarkRootsForTesting();
 
-  while (!marking->IsMarkingComplete()) {
+  while (!marking->IsMajorMarkingComplete()) {
     marking->AdvanceForTesting(kStepSizeInMs);
   }
 }

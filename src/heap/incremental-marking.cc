@@ -757,7 +757,7 @@ void IncrementalMarking::AdvanceOnAllocation() {
   ScheduleBytesToMarkBasedOnAllocation();
   Step(kMaxStepSizeInMs, StepOrigin::kV8);
 
-  if (IsMarkingComplete()) {
+  if (IsMajorMarkingComplete()) {
     // Marking cannot be finalized here. Schedule a completion task instead.
     if (!ShouldWaitForTask()) {
       // When task isn't run soon enough, fall back to stack guard to force
