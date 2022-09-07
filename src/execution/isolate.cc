@@ -503,6 +503,8 @@ base::LazyMutex Isolate::process_wide_shared_isolate_mutex_ =
     LAZY_MUTEX_INITIALIZER;
 Isolate* Isolate::process_wide_shared_isolate_{nullptr};
 
+Isolate* Isolate::process_wide_shared_space_isolate_{nullptr};
+
 base::Thread::LocalStorageKey Isolate::isolate_key_;
 base::Thread::LocalStorageKey Isolate::per_isolate_thread_data_key_;
 std::atomic<bool> Isolate::isolate_key_created_{false};
@@ -3314,7 +3316,7 @@ void Isolate::DeleteProcessWideSharedIsolate() {
 // static
 Isolate* Isolate::New() {
   Isolate* isolate = Allocate(false);
-  if (HasFlagThatRequiresSharedHeap()) {
+  if (HasFlagThatRequiresSharedHeap() && !v8_flags.shared_space) {
     // The Isolate that creates the shared Isolate, which is usually the main
     // thread Isolate, owns the lifetime of shared heap.
     bool created;
@@ -3460,10 +3462,6 @@ Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator,
   InitializeDefaultEmbeddedBlob();
 
   MicrotaskQueue::SetUpDefaultMicrotaskQueue(this);
-
-  if (is_shared_) {
-    global_safepoint_ = std::make_unique<GlobalSafepoint>(this);
-  }
 }
 
 void Isolate::CheckIsolateLayout() {
@@ -3576,7 +3574,9 @@ void Isolate::Deinit() {
   }
 
   // All client isolates should already be detached.
-  if (is_shared()) global_safepoint()->AssertNoClientsOnTearDown();
+  if (is_shared() || is_shared_space_isolate()) {
+    global_safepoint()->AssertNoClientsOnTearDown();
+  }
 
   if (v8_flags.print_deopt_stress) {
     PrintF(stdout, "=== Stress deopt counter: %u\n", stress_deopt_count_);
@@ -3623,6 +3623,7 @@ void Isolate::Deinit() {
     // client isolate before it can actually detach from the shared isolate.
     AllowGarbageCollection allow_shared_gc;
     DetachFromSharedIsolate();
+    DetachFromSharedSpaceIsolate();
   }
 
   // Since there are no other threads left, we can lock this mutex without any
@@ -4130,6 +4131,19 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
   time_millis_at_init_ = heap_.MonotonicallyIncreasingTimeInMs();
 
+  Isolate* attach_to_shared_space_isolate = nullptr;
+
+  if (HasFlagThatRequiresSharedHeap() && v8_flags.shared_space) {
+    if (process_wide_shared_space_isolate_) {
+      attach_to_shared_space_isolate = process_wide_shared_space_isolate_;
+    } else {
+      process_wide_shared_space_isolate_ = this;
+      is_shared_space_isolate_ = true;
+    }
+  }
+
+  CHECK_IMPLIES(is_shared_space_isolate_, V8_CAN_CREATE_SHARED_HEAP_BOOL);
+
   stress_deopt_count_ = v8_flags.deopt_every_n_times;
   force_slow_path_ = v8_flags.force_slow_path;
 
@@ -4162,6 +4176,10 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   heap_profiler_ = new HeapProfiler(heap());
   interpreter_ = new interpreter::Interpreter(this);
   bigint_processor_ = bigint::Processor::New(new BigIntPlatform(this));
+
+  if (is_shared_ || is_shared_space_isolate_) {
+    global_safepoint_ = std::make_unique<GlobalSafepoint>(this);
+  }
 
   if (v8_flags.lazy_compile_dispatcher) {
     lazy_compile_dispatcher_ = std::make_unique<LazyCompileDispatcher>(
@@ -4212,6 +4230,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   // isolate. Otherwise a global safepoint would find an isolate without
   // LocalHeaps and not wait until this thread is ready for a GC.
   AttachToSharedIsolate();
+  AttachToSharedSpaceIsolate(attach_to_shared_space_isolate);
 
   // SetUp the object heap.
   DCHECK(!heap_.HasBeenSetUp());
@@ -5934,6 +5953,23 @@ void Isolate::DetachFromSharedIsolate() {
 #if DEBUG
   attached_to_shared_isolate_ = false;
 #endif  // DEBUG
+}
+
+void Isolate::AttachToSharedSpaceIsolate(Isolate* shared_space_isolate) {
+  DCHECK(!shared_space_isolate_.has_value());
+  shared_space_isolate_ = shared_space_isolate;
+  if (shared_space_isolate) {
+    shared_space_isolate->global_safepoint()->AppendClient(this);
+  }
+}
+
+void Isolate::DetachFromSharedSpaceIsolate() {
+  DCHECK(shared_space_isolate_.has_value());
+  Isolate* shared_space_isolate = shared_space_isolate_.value();
+  if (shared_space_isolate) {
+    shared_space_isolate->global_safepoint()->RemoveClient(this);
+  }
+  shared_space_isolate_.reset();
 }
 
 #ifdef V8_COMPRESS_POINTERS

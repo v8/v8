@@ -1987,6 +1987,11 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return shared_isolate_;
   }
 
+  bool is_shared_space_isolate() const { return is_shared_space_isolate_; }
+  Isolate* shared_space_isolate() const {
+    return shared_space_isolate_.value();
+  }
+
   void set_shared_isolate(Isolate* shared_isolate) {
     DCHECK(shared_isolate->is_shared());
     DCHECK_NULL(shared_isolate_);
@@ -2089,6 +2094,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   static Isolate* GetProcessWideSharedIsolate(bool* created_shared_isolate);
   static void DeleteProcessWideSharedIsolate();
 
+  static Isolate* process_wide_shared_space_isolate_;
+
   static base::Thread::LocalStorageKey per_isolate_thread_data_key_;
   static base::Thread::LocalStorageKey isolate_key_;
   static std::atomic<bool> isolate_key_created_;
@@ -2141,6 +2148,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void AttachToSharedIsolate();
   void DetachFromSharedIsolate();
 
+  void AttachToSharedSpaceIsolate(Isolate* shared_space_isolate);
+  void DetachFromSharedSpaceIsolate();
+
   // This class contains a collection of data accessible from both C++ runtime
   // and compiled code (including assembly stubs, builtins, interpreter bytecode
   // handlers and optimized code).
@@ -2149,6 +2159,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // Set to true if this isolate is used as shared heap. This field must be set
   // before Heap is constructed, as Heap's constructor consults it.
   const bool is_shared_;
+
+  // Set to true if this isolate is used as main isolate with a shared space.
+  bool is_shared_space_isolate_{false};
 
   std::unique_ptr<IsolateAllocator> isolate_allocator_;
   Heap heap_;
@@ -2456,6 +2469,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   //
   // When non-null, it is identical to process_wide_shared_isolate_.
   Isolate* shared_isolate_ = nullptr;
+
+  // Stores the isolate containing the shared space.
+  base::Optional<Isolate*> shared_space_isolate_;
 
 #ifdef V8_COMPRESS_POINTERS
   // The external pointer handle to the Isolate's main thread's WaiterQueueNode.
