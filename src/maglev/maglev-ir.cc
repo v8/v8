@@ -1550,6 +1550,7 @@ void CheckedInternalizedString::GenerateCode(MaglevAssembler* masm,
 
   __ LoadMap(map_tmp, object);
   __ RecordComment("Test IsInternalizedString");
+  // Go to the slow path if this is a non-string, or a non-internalised string.
   __ testw(FieldOperand(map_tmp, Map::kInstanceTypeOffset),
            Immediate(kIsNotStringMask | kIsNotInternalizedMask));
   static_assert((kStringTag | kInternalizedTag) == 0);
@@ -1561,6 +1562,10 @@ void CheckedInternalizedString::GenerateCode(MaglevAssembler* masm,
         __ RecordComment("Deferred Test IsThinString");
         __ movw(map_tmp, FieldOperand(map_tmp, Map::kInstanceTypeOffset));
         static_assert(kThinStringTagBit > 0);
+        // Deopt if this isn't a string.
+        __ testw(map_tmp, Immediate(kIsNotStringMask));
+        __ j(not_zero, &deopt_info->deopt_entry_label);
+        // Deopt if this isn't a thin string.
         __ testb(map_tmp, Immediate(kThinStringTagBit));
         __ j(zero, &deopt_info->deopt_entry_label);
         __ LoadTaggedPointerField(
