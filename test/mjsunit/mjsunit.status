@@ -1726,11 +1726,11 @@
 }], # third_party_heap
 
 ##############################################################################
-['(arch != x64 and arch != arm64) or simulator_run', {
-  # Stack switching is only supported on x64/arm64.
+['arch != x64', {
+  # Stack switching is only supported on x64.
   'wasm/stack-switching': [SKIP],
   'wasm/stack-switching-export': [SKIP],
-}],  # (arch != x64 and arch != arm64) or simulator_run
+}],  # arch != x64
 
 ##############################################################################
 ['arch != x64 and arch != arm64 and arch != loong64 and arch != mips64', {
