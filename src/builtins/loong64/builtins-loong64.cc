@@ -924,16 +924,15 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     __ AssertFeedbackVector(feedback_vector, scratch);
   }
   // Check for an tiering state.
-  Label has_optimized_code_or_state;
-  Register optimization_state = no_reg;
+  Label flags_need_processing;
+  Register flags = no_reg;
   {
     UseScratchRegisterScope temps(masm);
-    optimization_state = temps.Acquire();
-    // optimization_state will be used only in |has_optimized_code_or_state|
+    flags = temps.Acquire();
+    // flags will be used only in |flags_need_processing|
     // and outside it can be reused.
-    __ LoadTieringStateAndJumpIfNeedsProcessing(
-        optimization_state, feedback_vector, CodeKind::BASELINE,
-        &has_optimized_code_or_state);
+    __ LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
+        flags, feedback_vector, CodeKind::BASELINE, &flags_need_processing);
   }
   {
     UseScratchRegisterScope temps(masm);
@@ -1015,16 +1014,15 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   // TODO(v8:11429): Document this frame setup better.
   __ Ret();
 
-  __ bind(&has_optimized_code_or_state);
+  __ bind(&flags_need_processing);
   {
     ASM_CODE_COMMENT_STRING(masm, "Optimized marker check");
     UseScratchRegisterScope temps(masm);
-    temps.Exclude(optimization_state);
-    // Ensure the optimization_state is not allocated again.
+    temps.Exclude(flags);
+    // Ensure the flags is not allocated again.
     // Drop the frame created by the baseline call.
     __ Pop(ra, fp);
-    __ MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(optimization_state,
-                                                    feedback_vector);
+    __ MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(flags, feedback_vector);
     __ Trap();
   }
 
@@ -1115,11 +1113,11 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   __ Branch(&push_stack_frame, ne, a4, Operand(FEEDBACK_VECTOR_TYPE));
 
   // Check the tiering state.
-  Label has_optimized_code_or_state;
-  Register optimization_state = a4;
-  __ LoadTieringStateAndJumpIfNeedsProcessing(
-      optimization_state, feedback_vector, CodeKind::INTERPRETED_FUNCTION,
-      &has_optimized_code_or_state);
+  Label flags_need_processing;
+  Register flags = a4;
+  __ LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
+      flags, feedback_vector, CodeKind::INTERPRETED_FUNCTION,
+      &flags_need_processing);
 
   {
     UseScratchRegisterScope temps(masm);
@@ -1276,9 +1274,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 
   __ jmp(&after_stack_check_interrupt);
 
-  __ bind(&has_optimized_code_or_state);
-  __ MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(optimization_state,
-                                                  feedback_vector);
+  __ bind(&flags_need_processing);
+  __ MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(flags, feedback_vector);
 
   __ bind(&is_baseline);
   {
@@ -1296,9 +1293,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(
     __ Branch(&install_baseline_code, ne, t0, Operand(FEEDBACK_VECTOR_TYPE));
 
     // Check for an tiering state.
-    __ LoadTieringStateAndJumpIfNeedsProcessing(
-        optimization_state, feedback_vector, CodeKind::BASELINE,
-        &has_optimized_code_or_state);
+    __ LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
+        flags, feedback_vector, CodeKind::BASELINE, &flags_need_processing);
 
     // Load the baseline code into the closure.
     __ Move(a2, kInterpreterBytecodeArrayRegister);
@@ -1705,14 +1701,14 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
   // OSR entry tracing.
   {
     Label next;
-    __ li(a1, ExternalReference::address_of_FLAG_trace_osr());
+    __ li(a1, ExternalReference::address_of_log_or_trace_osr());
     __ Ld_bu(a1, MemOperand(a1, 0));
     __ Branch(&next, eq, a1, Operand(zero_reg));
 
     {
       FrameScope scope(masm, StackFrame::INTERNAL);
       __ Push(a0);  // Preserve the code object.
-      __ CallRuntime(Runtime::kTraceOptimizedOSREntry, 0);
+      __ CallRuntime(Runtime::kLogOrTraceOptimizedOSREntry, 0);
       __ Pop(a0);
     }
 

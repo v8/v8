@@ -19,27 +19,54 @@
 namespace v8 {
 namespace internal {
 
+namespace {
+void LogExecution(Isolate* isolate, Handle<JSFunction> function) {
+  DCHECK(v8_flags.log_function_events);
+  if (!function->has_feedback_vector()) return;
+  if (!function->feedback_vector().log_next_execution()) return;
+  Handle<SharedFunctionInfo> sfi(function->shared(), isolate);
+  Handle<String> name = SharedFunctionInfo::DebugName(sfi);
+  DisallowGarbageCollection no_gc;
+  auto raw_sfi = *sfi;
+  std::string event_name = "first-execution";
+  CodeKind kind = function->abstract_code(isolate).kind(isolate);
+  // Not adding "-interpreter" for tooling backwards compatiblity.
+  if (kind != CodeKind::INTERPRETED_FUNCTION) {
+    event_name += "-";
+    event_name += CodeKindToString(kind);
+  }
+  LOG(isolate,
+      FunctionEvent(event_name.c_str(), Script::cast(raw_sfi.script()).id(), 0,
+                    raw_sfi.StartPosition(), raw_sfi.EndPosition(), *name));
+  function->feedback_vector().set_log_next_execution(false);
+}
+}  // namespace
+
 RUNTIME_FUNCTION(Runtime_CompileLazy) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   Handle<JSFunction> function = args.at<JSFunction>(0);
+  StackLimitCheck check(isolate);
+  if (V8_UNLIKELY(
+          check.JsHasOverflowed(kStackSpaceRequiredForCompilation * KB))) {
+    return isolate->StackOverflow();
+  }
 
   Handle<SharedFunctionInfo> sfi(function->shared(), isolate);
 
+  DCHECK(!function->is_compiled());
 #ifdef DEBUG
-  if (FLAG_trace_lazy && !sfi->is_compiled()) {
+  if (FLAG_trace_lazy && sfi->is_compiled()) {
     PrintF("[unoptimized: %s]\n", function->DebugNameCStr().get());
   }
 #endif
-
-  StackLimitCheck check(isolate);
-  if (check.JsHasOverflowed(kStackSpaceRequiredForCompilation * KB)) {
-    return isolate->StackOverflow();
-  }
   IsCompiledScope is_compiled_scope;
   if (!Compiler::Compile(isolate, function, Compiler::KEEP_EXCEPTION,
                          &is_compiled_scope)) {
     return ReadOnlyRoots(isolate).exception();
+  }
+  if (V8_UNLIKELY(v8_flags.log_function_events)) {
+    LogExecution(isolate, function);
   }
   DCHECK(function->is_compiled());
   return function->code();
@@ -56,9 +83,16 @@ RUNTIME_FUNCTION(Runtime_InstallBaselineCode) {
   DCHECK(!function->has_feedback_vector());
   JSFunction::CreateAndAttachFeedbackVector(isolate, function,
                                             &is_compiled_scope);
-  CodeT baseline_code = sfi->baseline_code(kAcquireLoad);
-  function->set_code(baseline_code);
-  return baseline_code;
+  {
+    DisallowGarbageCollection no_gc;
+    CodeT baseline_code = sfi->baseline_code(kAcquireLoad);
+    function->set_code(baseline_code);
+    if V8_LIKELY (!v8_flags.log_function_events) return baseline_code;
+  }
+  DCHECK(v8_flags.log_function_events);
+  LogExecution(isolate, function);
+  // LogExecution might allocate, reload the baseline code
+  return sfi->baseline_code(kAcquireLoad);
 }
 
 RUNTIME_FUNCTION(Runtime_CompileOptimized) {
@@ -105,7 +139,19 @@ RUNTIME_FUNCTION(Runtime_CompileOptimized) {
   Compiler::CompileOptimized(isolate, function, mode, target_kind);
 
   DCHECK(function->is_compiled());
+  if (V8_UNLIKELY(v8_flags.log_function_events)) {
+    LogExecution(isolate, function);
+  }
   return function->code();
+}
+
+RUNTIME_FUNCTION(Runtime_FunctionLogNextExecution) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  Handle<JSFunction> js_function = args.at<JSFunction>(0);
+  DCHECK(v8_flags.log_function_events);
+  LogExecution(isolate, js_function);
+  return js_function->code();
 }
 
 RUNTIME_FUNCTION(Runtime_HealOptimizedCodeSlot) {
@@ -464,7 +510,7 @@ Object CompileOptimizedOSR(Isolate* isolate, Handle<JSFunction> function,
     // based on number of ticks.
     function->reset_tiering_state();
   }
-
+  // First execution logging happens in LogOrTraceOptimizedOSREntry
   return *result;
 }
 
@@ -497,19 +543,23 @@ RUNTIME_FUNCTION(Runtime_CompileOptimizedOSRFromMaglev) {
   return CompileOptimizedOSR(isolate, function, osr_offset);
 }
 
-RUNTIME_FUNCTION(Runtime_TraceOptimizedOSREntry) {
+RUNTIME_FUNCTION(Runtime_LogOrTraceOptimizedOSREntry) {
   HandleScope handle_scope(isolate);
   DCHECK_EQ(0, args.length());
-  CHECK(FLAG_trace_osr);
+  CHECK(FLAG_trace_osr || v8_flags.log_function_events);
 
   BytecodeOffset osr_offset = BytecodeOffset::None();
   Handle<JSFunction> function;
   GetOsrOffsetAndFunctionForOSR(isolate, &osr_offset, &function);
 
-  PrintF(CodeTracer::Scope{isolate->GetCodeTracer()}.file(),
-         "[OSR - entry. function: %s, osr offset: %d]\n",
-         function->DebugNameCStr().get(), osr_offset.ToInt());
-
+  if (FLAG_trace_osr) {
+    PrintF(CodeTracer::Scope{isolate->GetCodeTracer()}.file(),
+           "[OSR - entry. function: %s, osr offset: %d]\n",
+           function->DebugNameCStr().get(), osr_offset.ToInt());
+  }
+  if (V8_UNLIKELY(v8_flags.log_function_events)) {
+    LogExecution(isolate, function);
+  }
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

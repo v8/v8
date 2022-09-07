@@ -582,7 +582,7 @@ void JSFunction::CreateAndAttachFeedbackVector(
   EnsureClosureFeedbackCellArray(function, false);
   Handle<ClosureFeedbackCellArray> closure_feedback_cell_array =
       handle(function->closure_feedback_cell_array(), isolate);
-  Handle<HeapObject> feedback_vector = FeedbackVector::New(
+  Handle<FeedbackVector> feedback_vector = FeedbackVector::New(
       isolate, shared, closure_feedback_cell_array, compiled_scope);
   // EnsureClosureFeedbackCellArray should handle the special case where we need
   // to allocate a new feedback cell. Please look at comment in that function
@@ -591,6 +591,9 @@ void JSFunction::CreateAndAttachFeedbackVector(
          isolate->heap()->many_closures_cell());
   function->raw_feedback_cell().set_value(*feedback_vector, kReleaseStore);
   function->SetInterruptBudget(isolate);
+
+  DCHECK_EQ(v8_flags.log_function_events,
+            feedback_vector->log_next_execution());
 }
 
 // static

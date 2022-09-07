@@ -995,45 +995,43 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
   __ bind(&end);
 }
 
-// Read off the optimization state in the feedback vector and check if there
+// Read off the flags in the feedback vector and check if there
 // is optimized code or a tiering state that needs to be processed.
-static void LoadTieringStateAndJumpIfNeedsProcessing(
-    MacroAssembler* masm, Register optimization_state, Register feedback_vector,
-    CodeKind current_code_kind, Label* has_optimized_code_or_state) {
+static void LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
+    MacroAssembler* masm, Register flags, Register feedback_vector,
+    CodeKind current_code_kind, Label* flags_need_processing) {
   ASM_CODE_COMMENT(masm);
   Register scratch = t6;
-  __ lhu(optimization_state,
-         FieldMemOperand(feedback_vector, FeedbackVector::kFlagsOffset));
-  __ And(
-      scratch, optimization_state,
-      Operand(
-          current_code_kind == CodeKind::MAGLEV
-              ? FeedbackVector::kHasTurbofanCodeOrTieringStateIsAnyRequestMask
-              : FeedbackVector::
-                    kHasAnyOptimizedCodeOrTieringStateIsAnyRequestMask));
-  __ Branch(has_optimized_code_or_state, ne, scratch, Operand(zero_reg));
+  __ lhu(flags, FieldMemOperand(feedback_vector, FeedbackVector::kFlagsOffset));
+  uint32_t kFlagsMask = FeedbackVector::kFlagsTieringStateIsAnyRequested |
+                        FeedbackVector::kFlagsMaybeHasTurbofanCode |
+                        FeedbackVector::kFlagsLogNextExecution;
+  if (current_code_kind != CodeKind::MAGLEV) {
+    kFlagsMask |= FeedbackVector::kFlagsMaybeHasMaglevCode;
+  }
+  __ And(scratch, flags, Operand(kFlagsMask));
+  __ Branch(flags_need_processing, ne, scratch, Operand(zero_reg));
 }
 
 static void MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
-    MacroAssembler* masm, Register optimization_state,
-    Register feedback_vector) {
+    MacroAssembler* masm, Register flags, Register feedback_vector) {
   ASM_CODE_COMMENT(masm);
   Label maybe_has_optimized_code;
   // Check if optimized code marker is available
   {
     UseScratchRegisterScope temps(masm);
     Register scratch = temps.Acquire();
-    __ And(scratch, optimization_state,
-           Operand(FeedbackVector::kTieringStateIsAnyRequestMask));
+    __ And(scratch, flags,
+           Operand(FeedbackVector::kFlagsTieringStateIsAnyRequested));
     __ Branch(&maybe_has_optimized_code, eq, scratch, Operand(zero_reg));
   }
 
-  Register tiering_state = optimization_state;
+  Register tiering_state = flags;
   __ DecodeField<FeedbackVector::TieringStateBits>(tiering_state);
   MaybeOptimizeCode(masm, feedback_vector, tiering_state);
 
   __ bind(&maybe_has_optimized_code);
-  Register optimized_code_entry = optimization_state;
+  Register optimized_code_entry = flags;
   __ Lw(tiering_state,
         FieldMemOperand(feedback_vector,
                         FeedbackVector::kMaybeOptimizedCodeOffset));
@@ -1081,16 +1079,15 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
               Operand(FEEDBACK_VECTOR_TYPE));
   }
   // Check for an tiering state.
-  Label has_optimized_code_or_state;
-  Register optimization_state = no_reg;
+  Label flags_need_processing;
+  Register flags = no_reg;
   {
     UseScratchRegisterScope temps(masm);
-    optimization_state = temps.Acquire();
-    // optimization_state will be used only in |has_optimized_code_or_state|
+    flags = temps.Acquire();
+    // flags will be used only in |flags_need_processing|
     // and outside it can be reused.
-    LoadTieringStateAndJumpIfNeedsProcessing(masm, optimization_state,
-                                             feedback_vector,
-                                             &has_optimized_code_or_state);
+    LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
+        masm, flags, feedback_vector, &flags_need_processing);
   }
   {
     UseScratchRegisterScope temps(masm);
@@ -1174,16 +1171,15 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   // TODO(v8:11429): Document this frame setup better.
   __ Ret();
 
-  __ bind(&has_optimized_code_or_state);
+  __ bind(&flags_need_processing);
   {
     ASM_CODE_COMMENT_STRING(masm, "Optimized marker check");
     UseScratchRegisterScope temps(masm);
-    temps.Exclude(optimization_state);
-    // Ensure the optimization_state is not allocated again.
+    temps.Exclude(flags);
+    // Ensure the flags is not allocated again.
     // Drop the frame created by the baseline call.
     __ Pop(ra, fp);
-    MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(masm, optimization_state,
-                                                 feedback_vector);
+    MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(masm, flags, feedback_vector);
     __ Trap();
   }
 
@@ -1251,10 +1247,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   __ Branch(&push_stack_frame, ne, t0, Operand(FEEDBACK_VECTOR_TYPE));
 
   // Check the tiering state.
-  Label has_optimized_code_or_state;
-  Register optimization_state = t0;
-  LoadTieringStateAndJumpIfNeedsProcessing(
-      masm, optimization_state, feedback_vector, &has_optimized_code_or_state);
+  Label flags_need_processing;
+  Register flags = t0;
+  LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(masm, flags, feedback_vector,
+                                                  &flags_need_processing);
 
   {
     UseScratchRegisterScope temps(masm);
@@ -1409,9 +1405,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 
   __ jmp(&after_stack_check_interrupt);
 
-  __ bind(&has_optimized_code_or_state);
-  MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(masm, optimization_state,
-                                               feedback_vector);
+  __ bind(&flags_need_processing);
+  MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(masm, flags, feedback_vector);
   __ bind(&is_baseline);
   {
     // Load the feedback vector from the closure.
@@ -1428,9 +1423,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(
     __ Branch(&install_baseline_code, ne, t4, Operand(FEEDBACK_VECTOR_TYPE));
 
     // Check for an tiering state.
-    LoadTieringStateAndJumpIfNeedsProcessing(masm, optimization_state,
-                                             feedback_vector,
-                                             &has_optimized_code_or_state);
+    LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
+        masm, flags, feedback_vector, &flags_need_processing);
 
     // Load the baseline code into the closure.
     __ Move(a2, kInterpreterBytecodeArrayRegister);

@@ -989,11 +989,10 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   }
 
   // Check for an tiering state.
-  Label has_optimized_code_or_state;
-  Register optimization_state = temps.Acquire();
-  __ LoadTieringStateAndJumpIfNeedsProcessing(
-      optimization_state, feedback_vector, CodeKind::BASELINE,
-      &has_optimized_code_or_state);
+  Label flags_need_processing;
+  Register flags = temps.Acquire();
+  __ LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
+      flags, feedback_vector, CodeKind::BASELINE, &flags_need_processing);
   {
     UseScratchRegisterScope temps(masm);
     ResetFeedbackVectorOsrUrgency(masm, feedback_vector, temps.Acquire());
@@ -1074,13 +1073,12 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   // TODO(v8:11429): Document this frame setup better.
   __ Ret();
 
-  __ bind(&has_optimized_code_or_state);
+  __ bind(&flags_need_processing);
   {
     ASM_CODE_COMMENT_STRING(masm, "Optimized marker check");
     // Drop the frame created by the baseline call.
     __ Pop(ra, fp);
-    __ MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(optimization_state,
-                                                    feedback_vector);
+    __ MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(flags, feedback_vector);
     __ Trap();
   }
 
@@ -1157,11 +1155,11 @@ void Builtins::Generate_InterpreterEntryTrampoline(
             Label::Distance::kNear);
 
   // Check the tiering state.
-  Label has_optimized_code_or_state;
-  Register optimization_state = a4;
-  __ LoadTieringStateAndJumpIfNeedsProcessing(
-      optimization_state, feedback_vector, CodeKind::INTERPRETED_FUNCTION,
-      &has_optimized_code_or_state);
+  Label flags_need_processing;
+  Register flags = a4;
+  __ LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
+      flags, feedback_vector, CodeKind::INTERPRETED_FUNCTION,
+      &flags_need_processing);
   {
     UseScratchRegisterScope temps(masm);
     ResetFeedbackVectorOsrUrgency(masm, feedback_vector, temps.Acquire());
@@ -1320,9 +1318,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 
   __ Branch(&after_stack_check_interrupt);
 
-  __ bind(&has_optimized_code_or_state);
-  __ MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(optimization_state,
-                                                  feedback_vector);
+  __ bind(&flags_need_processing);
+  __ MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(flags, feedback_vector);
   __ bind(&is_baseline);
   {
     // Load the feedback vector from the closure.
@@ -1342,9 +1339,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(
               Operand(FEEDBACK_VECTOR_TYPE));
 
     // Check for an tiering state.
-    __ LoadTieringStateAndJumpIfNeedsProcessing(
-        optimization_state, feedback_vector, CodeKind::BASELINE,
-        &has_optimized_code_or_state);
+    __ LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
+        flags, feedback_vector, CodeKind::BASELINE, &flags_need_processing);
 
     // Load the baseline code into the closure.
     __ Move(a2, kInterpreterBytecodeArrayRegister);

@@ -561,11 +561,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
                                            Register closure, Register scratch1,
                                            Register slot_address);
   void GenerateTailCallToReturnedCode(Runtime::FunctionId function_id);
-  void LoadTieringStateAndJumpIfNeedsProcessing(
-      Register optimization_state, XMMRegister saved_feedback_vector,
-      CodeKind current_code_kind, Label* has_optimized_code_or_state);
+  void LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
+      Register flags, XMMRegister saved_feedback_vector,
+      CodeKind current_code_kind, Label* flags_need_processing);
   void MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
-      Register optimization_state, XMMRegister saved_feedback_vector);
+      Register flags, XMMRegister saved_feedback_vector);
 
   // Abort execution if argument is not a smi, enabled via --debug-code.
   void AssertSmi(Register object) NOOP_UNLESS_DEBUG_CODE

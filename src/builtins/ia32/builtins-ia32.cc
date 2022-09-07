@@ -923,11 +923,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 
   // Load the optimization state from the feedback vector and re-use the
   // register.
-  Label has_optimized_code_or_state;
-  Register optimization_state = ecx;
-  __ LoadTieringStateAndJumpIfNeedsProcessing(optimization_state, xmm1,
-                                              CodeKind::INTERPRETED_FUNCTION,
-                                              &has_optimized_code_or_state);
+  Label flags_need_processing;
+  Register flags = ecx;
+  __ LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
+      flags, xmm1, CodeKind::INTERPRETED_FUNCTION, &flags_need_processing);
 
   // Reload the feedback vector.
   // TODO(jgruber): Don't clobber it above.
@@ -1108,11 +1107,11 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 
   __ jmp(&after_stack_check_interrupt);
 
-  __ bind(&has_optimized_code_or_state);
+  __ bind(&flags_need_processing);
   {
     // Restore actual argument count.
     __ movd(eax, xmm0);
-    __ MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(optimization_state, xmm1);
+    __ MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(flags, xmm1);
   }
 
   __ bind(&compile_lazy);
@@ -1136,9 +1135,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(
     __ j(not_equal, &install_baseline_code);
 
     // Check the tiering state.
-    __ LoadTieringStateAndJumpIfNeedsProcessing(optimization_state, xmm1,
-                                                CodeKind::BASELINE,
-                                                &has_optimized_code_or_state);
+    __ LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
+        flags, xmm1, CodeKind::BASELINE, &flags_need_processing);
 
     // Load the baseline code into the closure.
     __ movd(ecx, xmm2);
@@ -1558,11 +1556,10 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
 
   // Load the optimization state from the feedback vector and re-use the
   // register.
-  Label has_optimized_code_or_state;
-  Register optimization_state = ecx;
-  __ LoadTieringStateAndJumpIfNeedsProcessing(
-      optimization_state, saved_feedback_vector, CodeKind::BASELINE,
-      &has_optimized_code_or_state);
+  Label flags_need_processing;
+  Register flags = ecx;
+  __ LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
+      flags, saved_feedback_vector, CodeKind::BASELINE, &flags_need_processing);
 
   // Reload the feedback vector.
   __ movd(feedback_vector, saved_feedback_vector);
@@ -1634,7 +1631,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
   __ Ret();
 
-  __ bind(&has_optimized_code_or_state);
+  __ bind(&flags_need_processing);
   {
     ASM_CODE_COMMENT_STRING(masm, "Optimized marker check");
     // Drop the return address and bytecode array, rebalancing the return stack
@@ -1643,7 +1640,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     // requires the stack to only contain valid frames.
     __ Drop(2);
     __ movd(arg_count, saved_arg_count);  // Restore actual argument count.
-    __ MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(optimization_state,
+    __ MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(flags,
                                                     saved_feedback_vector);
     __ Trap();
   }
@@ -2711,14 +2708,14 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
   {
     Label next;
     __ cmpb(__ ExternalReferenceAsOperand(
-                ExternalReference::address_of_FLAG_trace_osr(), ecx),
+                ExternalReference::address_of_log_or_trace_osr(), ecx),
             Immediate(0));
     __ j(equal, &next, Label::kNear);
 
     {
       FrameScope scope(masm, StackFrame::INTERNAL);
       __ Push(eax);  // Preserve the code object.
-      __ CallRuntime(Runtime::kTraceOptimizedOSREntry, 0);
+      __ CallRuntime(Runtime::kLogOrTraceOptimizedOSREntry, 0);
       __ Pop(eax);
     }
 

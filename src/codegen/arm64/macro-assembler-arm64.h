@@ -1839,10 +1839,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void ReplaceClosureCodeWithOptimizedCode(Register optimized_code,
                                            Register closure);
   void GenerateTailCallToReturnedCode(Runtime::FunctionId function_id);
-  void LoadTieringStateAndJumpIfNeedsProcessing(
-      Register optimization_state, Register feedback_vector,
-      CodeKind current_code_kind, Label* has_optimized_code_or_state);
-  void MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(Register optimization_state,
+  void LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
+      Register flags, Register feedback_vector, CodeKind current_code_kind,
+      Label* flags_need_processing);
+  void MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(Register flags,
                                                     Register feedback_vector);
 
   // Helpers ------------------------------------------------------------------

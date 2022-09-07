@@ -1125,7 +1125,7 @@ TEST_F(LogTest, ConsoleTimeEvents) {
 class LogFunctionEventsTest : public LogTest {
  public:
   static void SetUpTestSuite() {
-    i::FLAG_log_function_events = true;
+    i::v8_flags.log_function_events = true;
     LogTest::SetUpTestSuite();
   }
 };

@@ -821,48 +821,51 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
   JumpCodeObject(ecx);
 }
 
-// Read off the optimization state in the feedback vector and check if there
+// Read off the flags in the feedback vector and check if there
 // is optimized code or a tiering state that needs to be processed.
-// Registers optimization_state and feedback_vector must be aliased.
-void MacroAssembler::LoadTieringStateAndJumpIfNeedsProcessing(
-    Register optimization_state, XMMRegister saved_feedback_vector,
-    CodeKind current_code_kind, Label* has_optimized_code_or_state) {
+// Registers flags and feedback_vector must be aliased.
+void MacroAssembler::LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
+    Register flags, XMMRegister saved_feedback_vector,
+    CodeKind current_code_kind, Label* flags_need_processing) {
   ASM_CODE_COMMENT(this);
   DCHECK(CodeKindCanTierUp(current_code_kind));
-  Register feedback_vector = optimization_state;
+  Register feedback_vector = flags;
 
   // Store feedback_vector. We may need it if we need to load the optimize code
   // slot entry.
   movd(saved_feedback_vector, feedback_vector);
-  mov_w(optimization_state,
-        FieldOperand(feedback_vector, FeedbackVector::kFlagsOffset));
+  mov_w(flags, FieldOperand(feedback_vector, FeedbackVector::kFlagsOffset));
 
   // Check if there is optimized code or a tiering state that needes to be
   // processed.
-  test_w(
-      optimization_state,
-      Immediate(
-          current_code_kind == CodeKind::MAGLEV
-              ? FeedbackVector::kHasTurbofanCodeOrTieringStateIsAnyRequestMask
-              : FeedbackVector::
-                    kHasAnyOptimizedCodeOrTieringStateIsAnyRequestMask));
-  j(not_zero, has_optimized_code_or_state);
+  uint32_t kFlagsMask = FeedbackVector::kFlagsTieringStateIsAnyRequested |
+                        FeedbackVector::kFlagsMaybeHasTurbofanCode |
+                        FeedbackVector::kFlagsLogNextExecution;
+  if (current_code_kind != CodeKind::MAGLEV) {
+    kFlagsMask |= FeedbackVector::kFlagsMaybeHasMaglevCode;
+  }
+  test_w(flags, Immediate(kFlagsMask));
+  j(not_zero, flags_need_processing);
 }
 
 void MacroAssembler::MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
-    Register optimization_state, XMMRegister saved_feedback_vector) {
+    Register flags, XMMRegister saved_feedback_vector) {
   ASM_CODE_COMMENT(this);
-  Label maybe_has_optimized_code;
+  Label maybe_has_optimized_code, maybe_needs_logging;
   // Check if optimized code is available.
-  test(optimization_state,
-       Immediate(FeedbackVector::kTieringStateIsAnyRequestMask));
-  j(zero, &maybe_has_optimized_code);
+  test(flags, Immediate(FeedbackVector::kFlagsTieringStateIsAnyRequested));
+  j(zero, &maybe_needs_logging);
 
   GenerateTailCallToReturnedCode(Runtime::kCompileOptimized);
 
+  bind(&maybe_needs_logging);
+  test(flags, Immediate(FeedbackVector::LogNextExecutionBit::kMask));
+  j(zero, &maybe_has_optimized_code);
+  GenerateTailCallToReturnedCode(Runtime::kFunctionLogNextExecution);
+
   bind(&maybe_has_optimized_code);
-  Register optimized_code_entry = optimization_state;
-  Register feedback_vector = optimization_state;
+  Register optimized_code_entry = flags;
+  Register feedback_vector = flags;
   movd(feedback_vector, saved_feedback_vector);  // Restore feedback vector.
   mov(optimized_code_entry,
       FieldOperand(feedback_vector, FeedbackVector::kMaybeOptimizedCodeOffset));

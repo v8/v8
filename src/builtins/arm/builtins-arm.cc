@@ -950,16 +950,15 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   __ AssertFeedbackVector(feedback_vector);
 
   // Check the tiering state.
-  Label has_optimized_code_or_state;
-  Register optimization_state = no_reg;
+  Label flags_need_processing;
+  Register flags = no_reg;
   {
     UseScratchRegisterScope temps(masm);
-    // optimization_state will be used only in |has_optimized_code_or_state|
+    // flags will be used only in |flags_need_processing|
     // and outside it can be reused.
-    optimization_state = temps.Acquire();
-    __ LoadTieringStateAndJumpIfNeedsProcessing(
-        optimization_state, feedback_vector, CodeKind::BASELINE,
-        &has_optimized_code_or_state);
+    flags = temps.Acquire();
+    __ LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
+        flags, feedback_vector, CodeKind::BASELINE, &flags_need_processing);
   }
 
   {
@@ -1043,17 +1042,16 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
   __ Ret();
 
-  __ bind(&has_optimized_code_or_state);
+  __ bind(&flags_need_processing);
   {
     ASM_CODE_COMMENT_STRING(masm, "Optimized marker check");
     UseScratchRegisterScope temps(masm);
-    // Ensure the optimization_state is not allocated again.
-    temps.Exclude(optimization_state);
+    // Ensure the flags is not allocated again.
+    temps.Exclude(flags);
 
     // Drop the frame created by the baseline call.
     __ ldm(ia_w, sp, {fp, lr});
-    __ MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(optimization_state,
-                                                    feedback_vector);
+    __ MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(flags, feedback_vector);
     __ Trap();
   }
 
@@ -1143,11 +1141,11 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   __ cmp(r4, Operand(FEEDBACK_VECTOR_TYPE));
   __ b(ne, &push_stack_frame);
 
-  Register optimization_state = r4;
-  Label has_optimized_code_or_state;
-  __ LoadTieringStateAndJumpIfNeedsProcessing(
-      optimization_state, feedback_vector, CodeKind::INTERPRETED_FUNCTION,
-      &has_optimized_code_or_state);
+  Register flags = r4;
+  Label flags_need_processing;
+  __ LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
+      flags, feedback_vector, CodeKind::INTERPRETED_FUNCTION,
+      &flags_need_processing);
 
   {
     UseScratchRegisterScope temps(masm);
@@ -1301,9 +1299,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 
   __ jmp(&after_stack_check_interrupt);
 
-  __ bind(&has_optimized_code_or_state);
-  __ MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(optimization_state,
-                                                  feedback_vector);
+  __ bind(&flags_need_processing);
+  __ MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(flags, feedback_vector);
 
   __ bind(&is_baseline);
   {
@@ -1322,11 +1319,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(
     __ b(ne, &install_baseline_code);
 
     // Check the tiering state.
-    __ LoadTieringStateAndJumpIfNeedsProcessing(
-        optimization_state, feedback_vector, CodeKind::BASELINE,
-        &has_optimized_code_or_state);
+    __ LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
+        flags, feedback_vector, CodeKind::BASELINE, &flags_need_processing);
 
-    // Load the baseline code into the closure.
+    // oad the baseline code into the closure.
     __ mov(r2, kInterpreterBytecodeArrayRegister);
     static_assert(kJavaScriptCallCodeStartRegister == r2, "ABI mismatch");
     __ ReplaceClosureCodeWithOptimizedCode(r2, closure);
@@ -1739,7 +1735,7 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
   // OSR entry tracing.
   {
     Label next;
-    __ Move(r1, ExternalReference::address_of_FLAG_trace_osr());
+    __ Move(r1, ExternalReference::address_of_log_or_trace_osr());
     __ ldrsb(r1, MemOperand(r1));
     __ tst(r1, Operand(0xFF));  // Mask to the LSB.
     __ b(eq, &next);
@@ -1747,7 +1743,7 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
     {
       FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
       __ Push(r0);  // Preserve the code object.
-      __ CallRuntime(Runtime::kTraceOptimizedOSREntry, 0);
+      __ CallRuntime(Runtime::kLogOrTraceOptimizedOSREntry, 0);
       __ Pop(r0);
     }
 

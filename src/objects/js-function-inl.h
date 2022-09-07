@@ -70,7 +70,14 @@ AbstractCode JSFunction::abstract_code(IsolateT* isolate) {
 int JSFunction::length() { return shared().length(); }
 
 ACCESSORS_RELAXED(JSFunction, code, CodeT, kCodeOffset)
-RELEASE_ACQUIRE_ACCESSORS(JSFunction, code, CodeT, kCodeOffset)
+RELEASE_ACQUIRE_GETTER_CHECKED(JSFunction, code, CodeT, kCodeOffset, true)
+void JSFunction::set_code(CodeT value, ReleaseStoreTag, WriteBarrierMode mode) {
+  TaggedField<CodeT, kCodeOffset>::Release_Store(*this, value);
+  CONDITIONAL_WRITE_BARRIER(*this, kCodeOffset, value, mode);
+  if (V8_UNLIKELY(v8_flags.log_function_events && has_feedback_vector())) {
+    feedback_vector().set_log_next_execution(true);
+  }
+}
 RELEASE_ACQUIRE_ACCESSORS(JSFunction, context, Context, kContextOffset)
 
 #ifdef V8_EXTERNAL_CODE_SPACE

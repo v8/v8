@@ -206,14 +206,17 @@ class FeedbackVector
                                       HeapObject>::maybe_optimized_code;
   DECL_RELEASE_ACQUIRE_WEAK_ACCESSORS(maybe_optimized_code)
 
-  static constexpr uint32_t kHasAnyOptimizedCodeMask =
-      MaybeHasMaglevCodeBit::kMask | MaybeHasTurbofanCodeBit::kMask;
-  static constexpr uint32_t kTieringStateIsAnyRequestMask =
-      kNoneOrInProgressMask << TieringStateBits::kShift;
-  static constexpr uint32_t kHasTurbofanCodeOrTieringStateIsAnyRequestMask =
-      MaybeHasTurbofanCodeBit::kMask | kTieringStateIsAnyRequestMask;
-  static constexpr uint32_t kHasAnyOptimizedCodeOrTieringStateIsAnyRequestMask =
-      kHasAnyOptimizedCodeMask | kTieringStateIsAnyRequestMask;
+  static constexpr uint32_t kFlagsMaybeHasTurbofanCode =
+      FeedbackVector::MaybeHasTurbofanCodeBit::kMask;
+  static constexpr uint32_t kFlagsMaybeHasMaglevCode =
+      FeedbackVector::MaybeHasMaglevCodeBit::kMask;
+  static constexpr uint32_t kFlagsHasAnyOptimizedCode =
+      FeedbackVector::MaybeHasMaglevCodeBit::kMask |
+      FeedbackVector::MaybeHasTurbofanCodeBit::kMask;
+  static constexpr uint32_t kFlagsTieringStateIsAnyRequested =
+      kNoneOrInProgressMask << FeedbackVector::TieringStateBits::kShift;
+  static constexpr uint32_t kFlagsLogNextExecution =
+      FeedbackVector::LogNextExecutionBit::kMask;
 
   inline bool is_empty() const;
 
@@ -253,6 +256,9 @@ class FeedbackVector
   inline CodeT optimized_code() const;
   // Whether maybe_optimized_code contains a cached Code object.
   inline bool has_optimized_code() const;
+
+  inline bool log_next_execution() const;
+  inline void set_log_next_execution(bool value = true);
   // Similar to above, but represented internally as a bit that can be
   // efficiently checked by generated code. May lag behind the actual state of
   // the world, thus 'maybe'.
@@ -260,6 +266,7 @@ class FeedbackVector
   inline void set_maybe_has_maglev_code(bool value);
   inline bool maybe_has_turbofan_code() const;
   inline void set_maybe_has_turbofan_code(bool value);
+
   void SetOptimizedCode(CodeT code);
   void EvictOptimizedCodeMarkedForDeoptimization(SharedFunctionInfo shared,
                                                  const char* reason);

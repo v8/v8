@@ -1115,11 +1115,10 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   __ AssertFeedbackVector(feedback_vector, x4);
 
   // Check the tiering state.
-  Label has_optimized_code_or_state;
-  Register optimization_state = temps.AcquireW();
-  __ LoadTieringStateAndJumpIfNeedsProcessing(
-      optimization_state, feedback_vector, CodeKind::BASELINE,
-      &has_optimized_code_or_state);
+  Label flags_need_processing;
+  Register flags = temps.AcquireW();
+  __ LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
+      flags, feedback_vector, CodeKind::BASELINE, &flags_need_processing);
 
   {
     UseScratchRegisterScope temps(masm);
@@ -1201,13 +1200,12 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   }
   __ Ret();
 
-  __ bind(&has_optimized_code_or_state);
+  __ bind(&flags_need_processing);
   {
     ASM_CODE_COMMENT_STRING(masm, "Optimized marker check");
     // Drop the frame created by the baseline call.
     __ Pop<TurboAssembler::kAuthLR>(fp, lr);
-    __ MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(optimization_state,
-                                                    feedback_vector);
+    __ MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(flags, feedback_vector);
     __ Trap();
   }
 
@@ -1305,11 +1303,11 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   __ B(ne, &push_stack_frame);
 
   // Check the tiering state.
-  Label has_optimized_code_or_state;
-  Register optimization_state = w7;
-  __ LoadTieringStateAndJumpIfNeedsProcessing(
-      optimization_state, feedback_vector, CodeKind::INTERPRETED_FUNCTION,
-      &has_optimized_code_or_state);
+  Label flags_need_processing;
+  Register flags = w7;
+  __ LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
+      flags, feedback_vector, CodeKind::INTERPRETED_FUNCTION,
+      &flags_need_processing);
 
   {
     UseScratchRegisterScope temps(masm);
@@ -1475,9 +1473,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 
   __ jmp(&after_stack_check_interrupt);
 
-  __ bind(&has_optimized_code_or_state);
-  __ MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(optimization_state,
-                                                  feedback_vector);
+  __ bind(&flags_need_processing);
+  __ MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(flags, feedback_vector);
 
   __ bind(&is_baseline);
   {
@@ -1498,9 +1495,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(
     __ B(ne, &install_baseline_code);
 
     // Check the tiering state.
-    __ LoadTieringStateAndJumpIfNeedsProcessing(
-        optimization_state, feedback_vector, CodeKind::BASELINE,
-        &has_optimized_code_or_state);
+    __ LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
+        flags, feedback_vector, CodeKind::BASELINE, &flags_need_processing);
 
     // Load the baseline code into the closure.
     __ Move(x2, kInterpreterBytecodeArrayRegister);
@@ -1975,7 +1971,7 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
   // OSR entry tracing.
   {
     Label next;
-    __ Mov(x1, ExternalReference::address_of_FLAG_trace_osr());
+    __ Mov(x1, ExternalReference::address_of_log_or_trace_osr());
     __ Ldrsb(x1, MemOperand(x1));
     __ Tst(x1, 0xFF);  // Mask to the LSB.
     __ B(eq, &next);
@@ -1983,7 +1979,7 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
     {
       FrameScope scope(masm, StackFrame::INTERNAL);
       __ Push(x0, padreg);  // Preserve the code object.
-      __ CallRuntime(Runtime::kTraceOptimizedOSREntry, 0);
+      __ CallRuntime(Runtime::kLogOrTraceOptimizedOSREntry, 0);
       __ Pop(padreg, x0);
     }
 

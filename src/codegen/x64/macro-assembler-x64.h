@@ -837,11 +837,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
                                            Register slot_address);
   void GenerateTailCallToReturnedCode(Runtime::FunctionId function_id,
                                       JumpMode jump_mode = JumpMode::kJump);
-  void LoadTieringStateAndJumpIfNeedsProcessing(
-      Register optimization_state, Register feedback_vector,
-      CodeKind current_code_kind, Label* has_optimized_code_or_state);
+  void LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
+      Register flags, Register feedback_vector, CodeKind current_code_kind,
+      Label* flags_need_processing);
   void MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
-      Register optimization_state, Register feedback_vector, Register closure,
+      Register flags, Register feedback_vector, Register closure,
       JumpMode jump_mode = JumpMode::kJump);
 
   // Abort execution if argument is not a CodeT, enabled via --debug-code.

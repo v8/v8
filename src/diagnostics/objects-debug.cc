@@ -1909,7 +1909,7 @@ void AllocationSite::AllocationSiteVerify(Isolate* isolate) {
 
 void Script::ScriptVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::ScriptVerify(*this, isolate);
-  if V8_UNLIKELY (type() == Script::TYPE_WEB_SNAPSHOT) {
+  if (V8_UNLIKELY(type() == Script::TYPE_WEB_SNAPSHOT)) {
     CHECK_LE(shared_function_info_count(), shared_function_infos().length());
   } else {
     // No overallocating shared_function_infos.

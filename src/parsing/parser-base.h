@@ -4516,7 +4516,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
                 : RuntimeCallCounterId::kParseArrowFunctionLiteral,
             RuntimeCallStats::kThreadSpecific);
   base::ElapsedTimer timer;
-  if (V8_UNLIKELY(FLAG_log_function_events)) timer.Start();
+  if (V8_UNLIKELY(v8_flags.log_function_events)) timer.Start();
 
   DCHECK_IMPLIES(!has_error(), peek() == Token::ARROW);
   if (!impl()->HasCheckedSyntax() && scanner_->HasLineTerminatorBeforeNext()) {
@@ -4660,7 +4660,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
   impl()->RecordFunctionLiteralSourceRange(function_literal);
   impl()->AddFunctionForNameInference(function_literal);
 
-  if (V8_UNLIKELY((FLAG_log_function_events))) {
+  if (V8_UNLIKELY(v8_flags.log_function_events)) {
     Scope* scope = formal_parameters.scope;
     double ms = timer.Elapsed().InMillisecondsF();
     const char* event_name =

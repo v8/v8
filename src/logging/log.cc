@@ -1675,7 +1675,7 @@ void AppendFunctionMessage(LogFile::MessageBuilder& msg, const char* reason,
 void V8FileLogger::FunctionEvent(const char* reason, int script_id,
                                  double time_delta, int start_position,
                                  int end_position, String function_name) {
-  if (!FLAG_log_function_events) return;
+  if (!v8_flags.log_function_events) return;
   MSG_BUILDER();
   AppendFunctionMessage(msg, reason, script_id, time_delta, start_position,
                         end_position, Time());
@@ -1688,7 +1688,7 @@ void V8FileLogger::FunctionEvent(const char* reason, int script_id,
                                  int end_position, const char* function_name,
                                  size_t function_name_length,
                                  bool is_one_byte) {
-  if (!FLAG_log_function_events) return;
+  if (!v8_flags.log_function_events) return;
   MSG_BUILDER();
   AppendFunctionMessage(msg, reason, script_id, time_delta, start_position,
                         end_position, Time());
@@ -1701,7 +1701,7 @@ void V8FileLogger::FunctionEvent(const char* reason, int script_id,
 void V8FileLogger::CompilationCacheEvent(const char* action,
                                          const char* cache_type,
                                          SharedFunctionInfo sfi) {
-  if (!FLAG_log_function_events) return;
+  if (!v8_flags.log_function_events) return;
   MSG_BUILDER();
   int script_id = -1;
   if (sfi.script().IsScript()) {
@@ -1715,7 +1715,7 @@ void V8FileLogger::CompilationCacheEvent(const char* action,
 }
 
 void V8FileLogger::ScriptEvent(ScriptEventType type, int script_id) {
-  if (!FLAG_log_function_events) return;
+  if (!v8_flags.log_function_events) return;
   MSG_BUILDER();
   msg << "script" << V8FileLogger::kNext;
   switch (type) {
@@ -1740,7 +1740,7 @@ void V8FileLogger::ScriptEvent(ScriptEventType type, int script_id) {
 }
 
 void V8FileLogger::ScriptDetails(Script script) {
-  if (!FLAG_log_function_events) return;
+  if (!v8_flags.log_function_events) return;
   {
     MSG_BUILDER();
     msg << "script-details" << V8FileLogger::kNext << script.id()

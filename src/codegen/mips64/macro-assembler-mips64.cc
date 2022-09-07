@@ -6298,40 +6298,40 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
   Jump(a2);
 }
 
-void MacroAssembler::LoadTieringStateAndJumpIfNeedsProcessing(
-    Register optimization_state, Register feedback_vector,
-    CodeKind current_code_kind, Label* has_optimized_code_or_state) {
+void MacroAssembler::LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
+    Register flags, Register feedback_vector, CodeKind current_code_kind,
+    Label* flags_need_processing) {
   ASM_CODE_COMMENT(this);
   DCHECK(CodeKindCanTierUp(current_code_kind));
   Register scratch = t2;
-  Lhu(optimization_state,
-      FieldMemOperand(feedback_vector, FeedbackVector::kFlagsOffset));
-  And(scratch, optimization_state,
-      Operand(
-          current_code_kind == CodeKind::MAGLEV
-              ? FeedbackVector::kHasTurbofanCodeOrTieringStateIsAnyRequestMask
-              : FeedbackVector::
-                    kHasAnyOptimizedCodeOrTieringStateIsAnyRequestMask));
-  Branch(has_optimized_code_or_state, ne, scratch, Operand(zero_reg));
+  Lhu(flags, FieldMemOperand(feedback_vector, FeedbackVector::kFlagsOffset));
+  uint32_t kFlagsMask = FeedbackVector::kFlagsTieringStateIsAnyRequested |
+                        FeedbackVector::kFlagsMaybeHasTurbofanCode |
+                        FeedbackVector::kFlagsLogNextExecution;
+  if (current_code_kind != CodeKind::MAGLEV) {
+    kFlagsMask |= FeedbackVector::kFlagsMaybeHasMaglevCode;
+  }
+  And(scratch, flags, Operand(kFlagsMask));
+  Branch(flags_need_processing, ne, scratch, Operand(zero_reg));
 }
 
 void MacroAssembler::MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
-    Register optimization_state, Register feedback_vector) {
+    Register flags, Register feedback_vector) {
   ASM_CODE_COMMENT(this);
   Label maybe_has_optimized_code;
   // Check if optimized code marker is available.
   {
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
-    And(scratch, optimization_state,
-        Operand(FeedbackVector::kTieringStateIsAnyRequestMask));
+    And(scratch, flags,
+        Operand(FeedbackVector::kFlagsTieringStateIsAnyRequested));
     Branch(&maybe_has_optimized_code, eq, scratch, Operand(zero_reg));
   }
 
   GenerateTailCallToReturnedCode(Runtime::kCompileOptimized);
 
   bind(&maybe_has_optimized_code);
-  Register optimized_code_entry = optimization_state;
+  Register optimized_code_entry = flags;
   Ld(optimized_code_entry,
      FieldMemOperand(feedback_vector,
                      FeedbackVector::kMaybeOptimizedCodeOffset));

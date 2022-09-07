@@ -581,8 +581,8 @@ ExternalReference::address_of_FLAG_harmony_regexp_unicode_sets() {
 
 // TODO(jgruber): Update the other extrefs pointing at v8_flags. addresses to be
 // called address_of_FLAG_foo (easier grep-ability).
-ExternalReference ExternalReference::address_of_FLAG_trace_osr() {
-  return ExternalReference(&v8_flags.trace_osr);
+ExternalReference ExternalReference::address_of_log_or_trace_osr() {
+  return ExternalReference(&v8_flags.log_or_trace_osr);
 }
 
 ExternalReference ExternalReference::address_of_builtin_subclassing_flag() {

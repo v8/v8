@@ -1036,11 +1036,11 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   __ j(not_equal, &push_stack_frame);
 
   // Check the tiering state.
-  Label has_optimized_code_or_state;
-  Register optimization_state = rcx;
-  __ LoadTieringStateAndJumpIfNeedsProcessing(
-      optimization_state, feedback_vector, CodeKind::INTERPRETED_FUNCTION,
-      &has_optimized_code_or_state);
+  Label flags_need_processing;
+  Register flags = rcx;
+  __ LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
+      flags, feedback_vector, CodeKind::INTERPRETED_FUNCTION,
+      &flags_need_processing);
 
   ResetFeedbackVectorOsrUrgency(masm, feedback_vector, kScratchRegister);
 
@@ -1196,9 +1196,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   __ GenerateTailCallToReturnedCode(Runtime::kCompileLazy);
   __ int3();  // Should not return.
 
-  __ bind(&has_optimized_code_or_state);
-  __ MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(optimization_state,
-                                                  feedback_vector, closure);
+  __ bind(&flags_need_processing);
+  __ MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(flags, feedback_vector,
+                                                  closure);
 
   __ bind(&is_baseline);
   {
@@ -1217,9 +1217,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(
     __ j(not_equal, &install_baseline_code);
 
     // Check the tiering state.
-    __ LoadTieringStateAndJumpIfNeedsProcessing(
-        optimization_state, feedback_vector, CodeKind::BASELINE,
-        &has_optimized_code_or_state);
+    __ LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
+        flags, feedback_vector, CodeKind::BASELINE, &flags_need_processing);
 
     // Load the baseline code into the closure.
     __ Move(rcx, kInterpreterBytecodeArrayRegister);
@@ -1525,13 +1524,12 @@ void Builtins::Generate_InterpreterEnterAtBytecode(MacroAssembler* masm) {
 // static
 void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   Register feedback_vector = r8;
-  Register optimization_state = rcx;
+  Register flags = rcx;
   Register return_address = r15;
 
 #ifdef DEBUG
   for (auto reg : BaselineOutOfLinePrologueDescriptor::registers()) {
-    DCHECK(
-        !AreAliased(feedback_vector, optimization_state, return_address, reg));
+    DCHECK(!AreAliased(feedback_vector, flags, return_address, reg));
   }
 #endif
 
@@ -1548,10 +1546,9 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   __ AssertFeedbackVector(feedback_vector);
 
   // Check the tiering state.
-  Label has_optimized_code_or_state;
-  __ LoadTieringStateAndJumpIfNeedsProcessing(
-      optimization_state, feedback_vector, CodeKind::BASELINE,
-      &has_optimized_code_or_state);
+  Label flags_need_processing;
+  __ LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
+      flags, feedback_vector, CodeKind::BASELINE, &flags_need_processing);
 
   ResetFeedbackVectorOsrUrgency(masm, feedback_vector, kScratchRegister);
 
@@ -1622,7 +1619,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
   __ Ret();
 
-  __ bind(&has_optimized_code_or_state);
+  __ bind(&flags_need_processing);
   {
     ASM_CODE_COMMENT_STRING(masm, "Optimized marker check");
     // Drop the return address, rebalancing the return stack buffer by using
@@ -1631,7 +1628,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     // stack to only contain valid frames.
     __ Drop(1);
     __ MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
-        optimization_state, feedback_vector, closure, JumpMode::kPushAndReturn);
+        flags, feedback_vector, closure, JumpMode::kPushAndReturn);
     __ Trap();
   }
 
@@ -2639,14 +2636,14 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
     Label next;
     __ cmpb(
         __ ExternalReferenceAsOperand(
-            ExternalReference::address_of_FLAG_trace_osr(), kScratchRegister),
+            ExternalReference::address_of_log_or_trace_osr(), kScratchRegister),
         Immediate(0));
     __ j(equal, &next, Label::kNear);
 
     {
       FrameScope scope(masm, StackFrame::INTERNAL);
       __ Push(rax);  // Preserve the code object.
-      __ CallRuntime(Runtime::kTraceOptimizedOSREntry, 0);
+      __ CallRuntime(Runtime::kLogOrTraceOptimizedOSREntry, 0);
       __ Pop(rax);
     }
 

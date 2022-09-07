@@ -521,6 +521,7 @@ Handle<FeedbackVector> Factory::NewFeedbackVector(
   vector.set_placeholder0(0);
   vector.reset_osr_state();
   vector.reset_flags();
+  vector.set_log_next_execution(v8_flags.log_function_events);
   vector.set_closure_feedback_cell_array(*closure_feedback_cell_array);
 
   // TODO(leszeks): Initialize based on the feedback metadata.

@@ -31,23 +31,31 @@ void LazyBuiltinsAssembler::GenerateTailCallToReturnedCode(
 
 void LazyBuiltinsAssembler::MaybeTailCallOptimizedCodeSlot(
     TNode<JSFunction> function, TNode<FeedbackVector> feedback_vector) {
-  Label fallthrough(this), may_have_optimized_code(this);
+  Label fallthrough(this), may_have_optimized_code(this),
+      maybe_needs_logging(this);
 
-  TNode<Uint16T> optimization_state =
+  TNode<Uint16T> flags =
       LoadObjectField<Uint16T>(feedback_vector, FeedbackVector::kFlagsOffset);
 
   // Fall through if no optimization trigger or optimized code.
   GotoIfNot(
-      IsSetWord32(
-          optimization_state,
-          FeedbackVector::kHasAnyOptimizedCodeOrTieringStateIsAnyRequestMask),
+      IsSetWord32(flags, FeedbackVector::kFlagsHasAnyOptimizedCode |
+                             FeedbackVector::kFlagsTieringStateIsAnyRequested |
+                             FeedbackVector::kFlagsLogNextExecution),
       &fallthrough);
 
-  GotoIfNot(IsSetWord32(optimization_state,
-                        FeedbackVector::kTieringStateIsAnyRequestMask),
-            &may_have_optimized_code);
-
+  GotoIfNot(
+      IsSetWord32(flags, FeedbackVector::kFlagsTieringStateIsAnyRequested),
+      &maybe_needs_logging);
   GenerateTailCallToReturnedCode(Runtime::kCompileOptimized, function);
+
+  BIND(&maybe_needs_logging);
+  {
+    GotoIfNot(IsSetWord32(flags, FeedbackVector::kFlagsLogNextExecution),
+              &may_have_optimized_code);
+    GenerateTailCallToReturnedCode(Runtime::kFunctionLogNextExecution,
+                                   function);
+  }
 
   BIND(&may_have_optimized_code);
   {

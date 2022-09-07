@@ -5122,8 +5122,9 @@ MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
     Handle<Script> script, IsolateT* isolate,
     FunctionLiteral* function_literal) {
   int function_literal_id = function_literal->function_literal_id();
-  if V8_UNLIKELY (script->type() == Script::TYPE_WEB_SNAPSHOT &&
-                  function_literal_id >= script->shared_function_info_count()) {
+  if (V8_UNLIKELY(script->type() == Script::TYPE_WEB_SNAPSHOT &&
+                  function_literal_id >=
+                      script->shared_function_info_count())) {
     return FindWebSnapshotSharedFunctionInfo(script, isolate, function_literal);
   }
 

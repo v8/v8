@@ -443,6 +443,7 @@ void FeedbackVector::set_tiering_state(TieringState state) {
 
 void FeedbackVector::reset_flags() {
   set_flags(TieringStateBits::encode(TieringState::kNone) |
+            LogNextExecutionBit::encode(false) |
             MaybeHasMaglevCodeBit::encode(false) |
             MaybeHasTurbofanCodeBit::encode(false) |
             OsrTieringStateBit::encode(TieringState::kNone) |

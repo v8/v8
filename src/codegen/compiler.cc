@@ -353,7 +353,7 @@ void Compiler::LogFunctionCompilation(Isolate* isolate,
       name = "maglev";
       break;
     case CodeKind::TURBOFAN:
-      name = "optimize";
+      name = "turbofan";
       break;
     default:
       UNREACHABLE();
@@ -441,10 +441,11 @@ CompilationJob::Status UnoptimizedCompilationJob::FinalizeJob(
 }
 
 namespace {
-void RecordUnoptimizedFunctionCompilation(
-    Isolate* isolate, LogEventListener::CodeTag code_type,
-    Handle<SharedFunctionInfo> shared, base::TimeDelta time_taken_to_execute,
-    base::TimeDelta time_taken_to_finalize) {
+void LogUnoptimizedCompilation(Isolate* isolate,
+                               Handle<SharedFunctionInfo> shared,
+                               LogEventListener::CodeTag code_type,
+                               base::TimeDelta time_taken_to_execute,
+                               base::TimeDelta time_taken_to_finalize) {
   Handle<AbstractCode> abstract_code;
   if (shared->HasBytecodeArray()) {
     abstract_code =
@@ -699,16 +700,6 @@ void InstallUnoptimizedCode(UnoptimizedCompilationInfo* compilation_info,
     UNREACHABLE();
 #endif  // V8_ENABLE_WEBASSEMBLY
   }
-}
-
-void LogUnoptimizedCompilation(Isolate* isolate,
-                               Handle<SharedFunctionInfo> shared_info,
-                               LogEventListener::CodeTag log_tag,
-                               base::TimeDelta time_taken_to_execute,
-                               base::TimeDelta time_taken_to_finalize) {
-  RecordUnoptimizedFunctionCompilation(isolate, log_tag, shared_info,
-                                       time_taken_to_execute,
-                                       time_taken_to_finalize);
 }
 
 template <typename IsolateT>
@@ -2603,7 +2594,6 @@ bool Compiler::Compile(Isolate* isolate, Handle<JSFunction> function,
 
   // Install code on closure.
   function->set_code(*code, kReleaseStore);
-
   // Install a feedback vector if necessary.
   if (code->kind() == CodeKind::BASELINE) {
     JSFunction::EnsureFeedbackVector(isolate, function, is_compiled_scope);
@@ -2679,7 +2669,6 @@ bool Compiler::CompileBaseline(Isolate* isolate, Handle<JSFunction> function,
   CodeT baseline_code = shared->baseline_code(kAcquireLoad);
   DCHECK_EQ(baseline_code.kind(), CodeKind::BASELINE);
   function->set_code(baseline_code);
-
   return true;
 }
 
@@ -2702,7 +2691,6 @@ bool Compiler::CompileMaglev(Isolate* isolate, Handle<JSFunction> function,
 
   DCHECK_EQ(code->kind(), CodeKind::MAGLEV);
   function->set_code(*code);
-
   return true;
 #else
   return false;

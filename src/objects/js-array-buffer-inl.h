@@ -51,7 +51,7 @@ std::shared_ptr<BackingStore> JSArrayBuffer::GetBackingStore() const {
 }
 
 size_t JSArrayBuffer::GetByteLength() const {
-  if V8_UNLIKELY (is_shared() && is_resizable()) {
+  if (V8_UNLIKELY(is_shared() && is_resizable())) {
     // Invariant: byte_length for GSAB is 0 (it needs to be read from the
     // BackingStore).
     DCHECK_EQ(0, byte_length());

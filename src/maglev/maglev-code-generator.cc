@@ -650,7 +650,7 @@ class MaglevCodeGeneratingNodeProcessor {
     {
       // Scratch registers. Don't clobber regs related to the calling
       // convention (e.g. kJavaScriptCallArgCountRegister).
-      Register optimization_state = rcx;
+      Register flags = rcx;
       Register feedback_vector = r9;
 
       // Load the feedback vector.
@@ -661,18 +661,16 @@ class MaglevCodeGeneratingNodeProcessor {
           feedback_vector, FieldOperand(feedback_vector, Cell::kValueOffset));
       __ AssertFeedbackVector(feedback_vector);
 
-      Label has_optimized_code_or_state, next;
-      __ LoadTieringStateAndJumpIfNeedsProcessing(
-          optimization_state, feedback_vector, CodeKind::MAGLEV,
-          &has_optimized_code_or_state);
+      Label flags_need_processing, next;
+      __ LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
+          flags, feedback_vector, CodeKind::MAGLEV, &flags_need_processing);
       __ jmp(&next);
 
-      __ bind(&has_optimized_code_or_state);
+      __ bind(&flags_need_processing);
       {
         ASM_CODE_COMMENT_STRING(masm(), "Optimized marker check");
         __ MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
-            optimization_state, feedback_vector, kJSFunctionRegister,
-            JumpMode::kJump);
+            flags, feedback_vector, kJSFunctionRegister, JumpMode::kJump);
         __ Trap();
       }
 

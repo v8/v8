@@ -369,7 +369,7 @@ void FinalizeDeserialization(Isolate* isolate,
                             : ReadOnlyRoots(isolate).empty_string(),
                         isolate);
 
-    if (v8_flags.log_function_events) {
+    if (V8_UNLIKELY(v8_flags.log_function_events)) {
       LOG(isolate,
           FunctionEvent("deserialize", script->id(),
                         timer.Elapsed().InMillisecondsF(),

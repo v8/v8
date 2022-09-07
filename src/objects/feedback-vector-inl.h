@@ -195,6 +195,14 @@ void FeedbackVector::set_maybe_has_turbofan_code(bool value) {
   set_flags(MaybeHasTurbofanCodeBit::update(flags(), value));
 }
 
+bool FeedbackVector::log_next_execution() const {
+  return LogNextExecutionBit::decode(flags());
+}
+
+void FeedbackVector::set_log_next_execution(bool value) {
+  set_flags(LogNextExecutionBit::update(flags(), value));
+}
+
 base::Optional<CodeT> FeedbackVector::GetOptimizedOsrCode(Isolate* isolate,
                                                           FeedbackSlot slot) {
   MaybeObject maybe_code = Get(isolate, slot);

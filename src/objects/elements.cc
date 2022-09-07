@@ -3493,11 +3493,11 @@ class TypedElementsAccessor
     // If this is called via Array.prototype.indexOf (not
     // TypedArray.prototype.indexOf), it's possible that the TypedArray is
     // detached / out of bounds here.
-    if V8_UNLIKELY (typed_array.WasDetached()) return Just<int64_t>(-1);
+    if (V8_UNLIKELY(typed_array.WasDetached())) return Just<int64_t>(-1);
     bool out_of_bounds = false;
     size_t typed_array_length =
         typed_array.GetLengthOrOutOfBounds(out_of_bounds);
-    if V8_UNLIKELY (out_of_bounds) {
+    if (V8_UNLIKELY(out_of_bounds)) {
       return Just<int64_t>(-1);
     }
 

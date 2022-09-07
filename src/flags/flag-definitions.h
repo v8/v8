@@ -865,7 +865,13 @@ DEFINE_BOOL(turbo_inline_array_builtins, true,
 DEFINE_BOOL(use_osr, true, "use on-stack replacement")
 DEFINE_BOOL(concurrent_osr, true, "enable concurrent OSR")
 DEFINE_WEAK_IMPLICATION(future, concurrent_osr)
+
 DEFINE_BOOL(trace_osr, false, "trace on-stack replacement")
+DEFINE_BOOL(log_or_trace_osr, false,
+            "internal helper flag, please use --trace-osr instead.")
+DEFINE_IMPLICATION(trace_osr, log_or_trace_osr)
+DEFINE_IMPLICATION(log_function_events, log_or_trace_osr)
+
 DEFINE_BOOL(analyze_environment_liveness, true,
             "analyze liveness of environment slots and zap dead values")
 DEFINE_BOOL(trace_environment_liveness, false,

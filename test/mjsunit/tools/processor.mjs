@@ -33,6 +33,7 @@ const result = doWork();
  // log code end
 
 const logString = d8.log.getAndStop();
+assertTrue(logString.length > 0);
 const processor = new Processor();
 await processor.processChunk(logString);
 await processor.finalize();

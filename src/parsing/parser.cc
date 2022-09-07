@@ -546,7 +546,7 @@ void Parser::ParseProgram(Isolate* isolate, Handle<Script> script,
                                      : RuntimeCallCounterId::kParseProgram);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.ParseProgram");
   base::ElapsedTimer timer;
-  if (V8_UNLIKELY(FLAG_log_function_events)) timer.Start();
+  if (V8_UNLIKELY(v8_flags.log_function_events)) timer.Start();
 
   // Initialize parser state.
   DeserializeScopeChain(isolate, info, maybe_outer_scope_info,
@@ -564,7 +564,7 @@ void Parser::ParseProgram(Isolate* isolate, Handle<Script> script,
 
   HandleSourceURLComments(isolate, script);
 
-  if (V8_UNLIKELY(FLAG_log_function_events) && result != nullptr) {
+  if (V8_UNLIKELY(v8_flags.log_function_events && result != nullptr)) {
     double ms = timer.Elapsed().InMillisecondsF();
     const char* event_name = "parse-eval";
     int start = -1;
@@ -841,7 +841,7 @@ void Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
   RCS_SCOPE(runtime_call_stats_, RuntimeCallCounterId::kParseFunction);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.ParseFunction");
   base::ElapsedTimer timer;
-  if (V8_UNLIKELY(FLAG_log_function_events)) timer.Start();
+  if (V8_UNLIKELY(v8_flags.log_function_events)) timer.Start();
 
   MaybeHandle<ScopeInfo> maybe_outer_scope_info;
   if (shared_info->HasOuterScopeInfo()) {
@@ -889,7 +889,7 @@ void Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
   }
 
   int function_literal_id = shared_info->function_literal_id();
-  if V8_UNLIKELY (script->type() == Script::TYPE_WEB_SNAPSHOT) {
+  if (V8_UNLIKELY(script->type() == Script::TYPE_WEB_SNAPSHOT)) {
     // Function literal IDs for inner functions haven't been allocated when
     // deserializing. Put the inner function SFIs to the end of the list;
     // they'll be deduplicated later (if the corresponding SFIs exist already)
@@ -927,7 +927,7 @@ void Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
     result->set_function_literal_id(shared_info->function_literal_id());
   }
   PostProcessParseResult(isolate, info, result);
-  if (V8_UNLIKELY(FLAG_log_function_events) && result != nullptr) {
+  if (V8_UNLIKELY(v8_flags.log_function_events && result != nullptr)) {
     double ms = timer.Elapsed().InMillisecondsF();
     // We should already be internalized by now, so the debug name will be
     // available.
@@ -2695,7 +2695,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   RCS_SCOPE(runtime_call_stats_, RuntimeCallCounterId::kParseFunctionLiteral,
             RuntimeCallStats::kThreadSpecific);
   base::ElapsedTimer timer;
-  if (V8_UNLIKELY(FLAG_log_function_events)) timer.Start();
+  if (V8_UNLIKELY(v8_flags.log_function_events)) timer.Start();
 
   // Determine whether we can lazy parse the inner function. Lazy compilation
   // has to be enabled, which is either forced by overall parse flags or via a
@@ -2770,7 +2770,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
                   arguments_for_wrapped_function);
   }
 
-  if (V8_UNLIKELY(FLAG_log_function_events)) {
+  if (V8_UNLIKELY(v8_flags.log_function_events)) {
     double ms = timer.Elapsed().InMillisecondsF();
     const char* event_name =
         should_preparse
