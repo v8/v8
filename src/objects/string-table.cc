@@ -390,17 +390,29 @@ class InternalizedStringKey final : public StringTableKey {
     const bool can_avoid_copy =
         !v8_flags.shared_string_table && !shape.IsUncachedExternal();
     if (can_avoid_copy && shape.IsExternalOneByte()) {
+      // Shared external strings are always in-place internalizable.
+      // If this assumption is invalidated in the future, make sure that we
+      // fully initialize (copy contents) for shared external strings, as the
+      // original string is not transitioned to a ThinString (setting the
+      // resource) immediately.
+      DCHECK(!shape.IsShared());
       string_ =
           isolate->factory()->InternalizeExternalString<ExternalOneByteString>(
               string_);
     } else if (can_avoid_copy && shape.IsExternalTwoByte()) {
+      // Shared external strings are always in-place internalizable.
+      // If this assumption is invalidated in the future, make sure that we
+      // fully initialize (copy contents) for shared external strings, as the
+      // original string is not transitioned to a ThinString (setting the
+      // resource) immediately.
+      DCHECK(!shape.IsShared());
       string_ =
           isolate->factory()->InternalizeExternalString<ExternalTwoByteString>(
               string_);
     } else {
       // Otherwise allocate a new internalized string.
-      string_ = isolate->factory()->NewInternalizedStringImpl(
-          string_, string_->length(), string_->raw_hash_field());
+      string_ = isolate->factory()->NewInternalizedStringImpl(string_, length(),
+                                                              raw_hash_field());
     }
   }
 
@@ -435,13 +447,12 @@ namespace {
 
 void SetInternalizedReference(Isolate* isolate, String string,
                               String internalized) {
-  // TODO(v8:12007): Support external strings.
   DCHECK(!string.IsThinString());
+  DCHECK(!string.IsInternalizedString());
   DCHECK(internalized.IsInternalizedString());
-  DCHECK(!internalized.HasForwardingIndex(kAcquireLoad));
-  if ((string.IsShared() || v8_flags.always_use_string_forwarding_table) &&
-      !string.IsExternalString()) {
-    uint32_t field = string.raw_hash_field();
+  DCHECK(!internalized.HasInternalizedForwardingIndex(kAcquireLoad));
+  if (string.IsShared() || v8_flags.always_use_string_forwarding_table) {
+    uint32_t field = string.raw_hash_field(kAcquireLoad);
     // Don't use the forwarding table for strings that have an integer index.
     // Using the hash field for the integer index is more beneficial than
     // using it to store the forwarding index to the internalized string.
@@ -450,20 +461,27 @@ void SetInternalizedReference(Isolate* isolate, String string,
     // to prevent too many copies of the string in the forwarding table.
     if (Name::IsInternalizedForwardingIndex(field)) return;
 
-    const int forwarding_index =
-        isolate->string_forwarding_table()->AddForwardString(string,
-                                                             internalized);
-    string.set_raw_hash_field(
-        String::CreateInternalizedForwardingIndex(forwarding_index),
-        kReleaseStore);
-  } else {
-    if (V8_UNLIKELY(v8_flags.always_use_string_forwarding_table)) {
-      // It is possible that the string has a forwarding index (the string was
-      // externalized after it had its forwarding index set). Overwrite the
-      // hash field to avoid having a ThinString with a forwarding index.
-      DCHECK(string.IsExternalString());
-      string.set_raw_hash_field(internalized.raw_hash_field());
+    // If we already have an entry for an external resource in the table, update
+    // the entry instead of creating a new one. There is no guarantee that we
+    // will always update existing records instead of creating new ones, but
+    // races should be rare.
+    if (Name::IsForwardingIndex(field)) {
+      const int forwarding_index =
+          Name::ForwardingIndexValueBits::decode(field);
+      isolate->string_forwarding_table()->UpdateForwardString(forwarding_index,
+                                                              internalized);
+      // Update the forwarding index type to include internalized.
+      field = Name::IsInternalizedForwardingIndexBit::update(field, true);
+      string.set_raw_hash_field(field, kReleaseStore);
+    } else {
+      const int forwarding_index =
+          isolate->string_forwarding_table()->AddForwardString(string,
+                                                               internalized);
+      string.set_raw_hash_field(
+          String::CreateInternalizedForwardingIndex(forwarding_index),
+          kReleaseStore);
     }
+  } else {
     DCHECK(!string.HasForwardingIndex(kAcquireLoad));
     string.MakeThin(isolate, internalized);
   }
