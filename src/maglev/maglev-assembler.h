@@ -12,6 +12,25 @@ namespace v8 {
 namespace internal {
 namespace maglev {
 
+// Label allowed to be passed to deferred code.
+class ZoneLabelRef {
+ public:
+  explicit ZoneLabelRef(Zone* zone) : label_(zone->New<Label>()) {}
+
+  static ZoneLabelRef UnsafeFromLabelPointer(Label* label) {
+    // This is an unsafe operation, {label} must be zone allocated.
+    return ZoneLabelRef(label);
+  }
+
+  Label* operator*() { return label_; }
+
+ private:
+  Label* label_;
+
+  // Unsafe constructor. {label} must be zone allocated.
+  explicit ZoneLabelRef(Label* label) : label_(label) {}
+};
+
 class MaglevAssembler : public MacroAssembler {
  public:
   explicit MaglevAssembler(MaglevCodeGenState* code_gen_state)
@@ -47,6 +66,13 @@ class MaglevAssembler : public MacroAssembler {
   inline void DefineLazyDeoptPoint(LazyDeoptInfo* info);
   inline void DefineExceptionHandlerPoint(NodeBase* node);
   inline void DefineExceptionHandlerAndLazyDeoptPoint(NodeBase* node);
+
+  template <typename Function, typename... Args>
+  inline DeferredCodeInfo* PushDeferredCode(Function&& deferred_code_gen,
+                                            Args&&... args);
+  template <typename Function, typename... Args>
+  inline void JumpToDeferredIf(Condition cond, Function&& deferred_code_gen,
+                               Args&&... args);
 
   compiler::NativeContextRef native_context() const {
     return code_gen_state()->broker()->target_native_context();

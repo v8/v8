@@ -140,196 +140,6 @@ class SaveRegisterStateForCall {
 };
 
 // ---
-// Deferred code handling.
-// ---
-
-// Label allowed to be passed to deferred code.
-class ZoneLabelRef {
- public:
-  explicit ZoneLabelRef(Zone* zone) : label_(zone->New<Label>()) {}
-
-  static ZoneLabelRef UnsafeFromLabelPointer(Label* label) {
-    // This is an unsafe operation, {label} must be zone allocated.
-    return ZoneLabelRef(label);
-  }
-
-  Label* operator*() { return label_; }
-
- private:
-  Label* label_;
-
-  // Unsafe constructor. {label} must be zone allocated.
-  explicit ZoneLabelRef(Label* label) : label_(label) {}
-};
-
-// Base case provides an error.
-template <typename T, typename Enable = void>
-struct CopyForDeferredHelper {
-  template <typename U>
-  struct No_Copy_Helper_Implemented_For_Type;
-  static void Copy(MaglevCompilationInfo* compilation_info,
-                   No_Copy_Helper_Implemented_For_Type<T>);
-};
-
-// Helper for copies by value.
-template <typename T, typename Enable = void>
-struct CopyForDeferredByValue {
-  static T Copy(MaglevCompilationInfo* compilation_info, T node) {
-    return node;
-  }
-};
-
-// Node pointers are copied by value.
-template <typename T>
-struct CopyForDeferredHelper<
-    T*, typename std::enable_if<std::is_base_of<NodeBase, T>::value>::type>
-    : public CopyForDeferredByValue<T*> {};
-// Arithmetic values and enums are copied by value.
-template <typename T>
-struct CopyForDeferredHelper<
-    T, typename std::enable_if<std::is_arithmetic<T>::value>::type>
-    : public CopyForDeferredByValue<T> {};
-template <typename T>
-struct CopyForDeferredHelper<
-    T, typename std::enable_if<std::is_enum<T>::value>::type>
-    : public CopyForDeferredByValue<T> {};
-// MaglevCompilationInfos are copied by value.
-template <>
-struct CopyForDeferredHelper<MaglevCompilationInfo*>
-    : public CopyForDeferredByValue<MaglevCompilationInfo*> {};
-// Machine registers are copied by value.
-template <>
-struct CopyForDeferredHelper<Register>
-    : public CopyForDeferredByValue<Register> {};
-// Bytecode offsets are copied by value.
-template <>
-struct CopyForDeferredHelper<BytecodeOffset>
-    : public CopyForDeferredByValue<BytecodeOffset> {};
-// EagerDeoptInfo pointers are copied by value.
-template <>
-struct CopyForDeferredHelper<EagerDeoptInfo*>
-    : public CopyForDeferredByValue<EagerDeoptInfo*> {};
-// ZoneLabelRef is copied by value.
-template <>
-struct CopyForDeferredHelper<ZoneLabelRef>
-    : public CopyForDeferredByValue<ZoneLabelRef> {};
-// Register snapshots are copied by value.
-template <>
-struct CopyForDeferredHelper<RegisterSnapshot>
-    : public CopyForDeferredByValue<RegisterSnapshot> {};
-// Feedback slots are copied by value.
-template <>
-struct CopyForDeferredHelper<FeedbackSlot>
-    : public CopyForDeferredByValue<FeedbackSlot> {};
-
-template <typename T>
-T CopyForDeferred(MaglevCompilationInfo* compilation_info, T&& value) {
-  return CopyForDeferredHelper<T>::Copy(compilation_info,
-                                        std::forward<T>(value));
-}
-
-template <typename T>
-T CopyForDeferred(MaglevCompilationInfo* compilation_info, T& value) {
-  return CopyForDeferredHelper<T>::Copy(compilation_info, value);
-}
-
-template <typename T>
-T CopyForDeferred(MaglevCompilationInfo* compilation_info, const T& value) {
-  return CopyForDeferredHelper<T>::Copy(compilation_info, value);
-}
-
-template <typename Function>
-struct FunctionArgumentsTupleHelper
-    : public FunctionArgumentsTupleHelper<decltype(&Function::operator())> {};
-
-template <typename C, typename R, typename... A>
-struct FunctionArgumentsTupleHelper<R (C::*)(A...) const> {
-  using FunctionPointer = R (*)(A...);
-  using Tuple = std::tuple<A...>;
-  static constexpr size_t kSize = sizeof...(A);
-};
-
-template <typename R, typename... A>
-struct FunctionArgumentsTupleHelper<R (&)(A...)> {
-  using FunctionPointer = R (*)(A...);
-  using Tuple = std::tuple<A...>;
-  static constexpr size_t kSize = sizeof...(A);
-};
-
-template <typename T>
-struct StripFirstTwoTupleArgs;
-
-template <typename T1, typename T2, typename... T>
-struct StripFirstTwoTupleArgs<std::tuple<T1, T2, T...>> {
-  using Stripped = std::tuple<T...>;
-};
-
-template <typename Function>
-class DeferredCodeInfoImpl final : public DeferredCodeInfo {
- public:
-  using FunctionPointer =
-      typename FunctionArgumentsTupleHelper<Function>::FunctionPointer;
-  using Tuple = typename StripFirstTwoTupleArgs<
-      typename FunctionArgumentsTupleHelper<Function>::Tuple>::Stripped;
-  static constexpr size_t kSize = FunctionArgumentsTupleHelper<Function>::kSize;
-
-  template <typename... InArgs>
-  explicit DeferredCodeInfoImpl(MaglevCompilationInfo* compilation_info,
-                                FunctionPointer function, InArgs&&... args)
-      : function(function),
-        args(CopyForDeferred(compilation_info, std::forward<InArgs>(args))...) {
-  }
-
-  DeferredCodeInfoImpl(DeferredCodeInfoImpl&&) = delete;
-  DeferredCodeInfoImpl(const DeferredCodeInfoImpl&) = delete;
-
-  void Generate(MaglevAssembler* masm, Label* return_label) override {
-    DoCall(masm, return_label, std::make_index_sequence<kSize - 2>{});
-  }
-
- private:
-  template <size_t... I>
-  auto DoCall(MaglevAssembler* masm, Label* return_label,
-              std::index_sequence<I...>) {
-    // TODO(leszeks): This could be replaced with std::apply in C++17.
-    return function(masm, return_label, std::get<I>(args)...);
-  }
-
-  FunctionPointer function;
-  Tuple args;
-};
-
-template <typename Function, typename... Args>
-DeferredCodeInfo* PushDeferredCode(MaglevAssembler* masm,
-                                   Function&& deferred_code_gen,
-                                   Args&&... args) {
-  using DeferredCodeInfoT = DeferredCodeInfoImpl<Function>;
-  DeferredCodeInfoT* deferred_code =
-      masm->compilation_info()->zone()->New<DeferredCodeInfoT>(
-          masm->compilation_info(), deferred_code_gen,
-          std::forward<Args>(args)...);
-
-  masm->code_gen_state()->PushDeferredCode(deferred_code);
-  return deferred_code;
-}
-
-// Note this doesn't take capturing lambdas by design, since state may
-// change until `deferred_code_gen` is actually executed. Use either a
-// non-capturing lambda, or a plain function pointer.
-template <typename Function, typename... Args>
-void JumpToDeferredIf(Condition cond, MaglevAssembler* masm,
-                      Function&& deferred_code_gen, Args&&... args) {
-  DeferredCodeInfo* deferred_code = PushDeferredCode<Function, Args...>(
-      masm, std::forward<Function>(deferred_code_gen),
-      std::forward<Args>(args)...);
-  if (FLAG_code_comments) {
-    __ RecordComment("-- Jump to deferred code");
-  }
-  __ j(cond, &deferred_code->deferred_code_label);
-  __ bind(&deferred_code->return_label);
-}
-
-// ---
 // Inlined computations.
 // ---
 
@@ -361,8 +171,8 @@ void AllocateRaw(MaglevAssembler* masm, RegisterSnapshot& register_snapshot,
   __ leaq(new_top, Operand(object, size_in_bytes));
   __ cmpq(new_top, __ ExternalReferenceAsOperand(limit));
   // Otherwise call runtime.
-  JumpToDeferredIf(
-      greater_equal, masm,
+  __ JumpToDeferredIf(
+      greater_equal,
       [](MaglevAssembler* masm, Label* return_label,
          RegisterSnapshot register_snapshot, Register object, Builtin builtin,
          int size_in_bytes, ZoneLabelRef done) {
@@ -395,8 +205,8 @@ void ToBoolean(MaglevAssembler* masm, Register value, ZoneLabelRef is_true,
 
   // Check if {{value}} is Smi.
   __ CheckSmi(value);
-  JumpToDeferredIf(
-      zero, masm,
+  __ JumpToDeferredIf(
+      zero,
       [](MaglevAssembler* masm, Label* return_label, Register value,
          ZoneLabelRef is_true, ZoneLabelRef is_false) {
         // Check if {value} is not zero.
@@ -422,8 +232,8 @@ void ToBoolean(MaglevAssembler* masm, Register value, ZoneLabelRef is_true,
 
   // Check if {{value}} is a HeapNumber.
   __ CompareRoot(map, RootIndex::kHeapNumberMap);
-  JumpToDeferredIf(
-      equal, masm,
+  __ JumpToDeferredIf(
+      equal,
       [](MaglevAssembler* masm, Label* return_label, Register value,
          ZoneLabelRef is_true, ZoneLabelRef is_false) {
         // Sets scratch register to 0.0.
@@ -438,8 +248,8 @@ void ToBoolean(MaglevAssembler* masm, Register value, ZoneLabelRef is_true,
 
   // Check if {{value}} is a BigInt.
   __ CompareRoot(map, RootIndex::kBigIntMap);
-  JumpToDeferredIf(
-      equal, masm,
+  __ JumpToDeferredIf(
+      equal,
       [](MaglevAssembler* masm, Label* return_label, Register value,
          ZoneLabelRef is_true, ZoneLabelRef is_false) {
         __ testl(FieldOperand(value, BigInt::kBitfieldOffset),
@@ -793,8 +603,7 @@ void GeneratorStore::GenerateCode(MaglevAssembler* masm,
         __ FromAnyToRegister(parameters_and_registers(i),
                              WriteBarrierDescriptor::SlotAddressRegister());
 
-    DeferredCodeInfo* deferred_write_barrier = PushDeferredCode(
-        masm,
+    DeferredCodeInfo* deferred_write_barrier = __ PushDeferredCode(
         [](MaglevAssembler* masm, Label* return_label, Register value,
            Register array, GeneratorStore* node, int32_t offset) {
           ASM_CODE_COMMENT_STRING(masm, "Write barrier slow path");
@@ -840,8 +649,7 @@ void GeneratorStore::GenerateCode(MaglevAssembler* masm,
   Register context = __ FromAnyToRegister(
       context_input(), WriteBarrierDescriptor::SlotAddressRegister());
 
-  DeferredCodeInfo* deferred_context_write_barrier = PushDeferredCode(
-      masm,
+  DeferredCodeInfo* deferred_context_write_barrier = __ PushDeferredCode(
       [](MaglevAssembler* masm, Label* return_label, Register context,
          Register generator, GeneratorStore* node) {
         ASM_CODE_COMMENT_STRING(masm, "Write barrier slow path");
@@ -1471,8 +1279,8 @@ void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
   }
   __ Cmp(FieldOperand(object, HeapObject::kMapOffset), map().object());
 
-  JumpToDeferredIf(
-      not_equal, masm,
+  __ JumpToDeferredIf(
+      not_equal,
       [](MaglevAssembler* masm, Label* return_label, Register object,
          CheckMapsWithMigration* node, EagerDeoptInfo* deopt_info) {
         RegisterEagerDeopt(masm, deopt_info, DeoptimizeReason::kWrongMap);
@@ -1554,8 +1362,8 @@ void CheckedInternalizedString::GenerateCode(MaglevAssembler* masm,
   __ testw(FieldOperand(map_tmp, Map::kInstanceTypeOffset),
            Immediate(kIsNotStringMask | kIsNotInternalizedMask));
   static_assert((kStringTag | kInternalizedTag) == 0);
-  JumpToDeferredIf(
-      not_zero, masm,
+  __ JumpToDeferredIf(
+      not_zero,
       [](MaglevAssembler* masm, Label* return_label, Register object,
          CheckedInternalizedString* node, EagerDeoptInfo* deopt_info,
          Register map_tmp) {
@@ -1653,8 +1461,7 @@ void StoreTaggedFieldWithWriteBarrier::GenerateCode(
   __ AssertNotSmi(object);
   __ StoreTaggedField(FieldOperand(object, offset()), value);
 
-  DeferredCodeInfo* deferred_write_barrier = PushDeferredCode(
-      masm,
+  DeferredCodeInfo* deferred_write_barrier = __ PushDeferredCode(
       [](MaglevAssembler* masm, Label* return_label, Register value,
          Register object, StoreTaggedFieldWithWriteBarrier* node) {
         ASM_CODE_COMMENT_STRING(masm, "Write barrier slow path");
@@ -2125,8 +1932,8 @@ void Int32DivideWithOverflow::GenerateCode(MaglevAssembler* masm,
 
   // Check if {right} is positive (and not zero).
   __ cmpl(right, Immediate(0));
-  JumpToDeferredIf(
-      less_equal, masm,
+  __ JumpToDeferredIf(
+      less_equal,
       [](MaglevAssembler* masm, Label* return_label, Register right,
          Int32DivideWithOverflow* node) {
         // {right} is negative or zero.
@@ -3147,8 +2954,8 @@ void ReduceInterruptBudget::GenerateCode(MaglevAssembler* masm,
       scratch, FieldOperand(scratch, JSFunction::kFeedbackCellOffset));
   __ subl(FieldOperand(scratch, FeedbackCell::kInterruptBudgetOffset),
           Immediate(amount()));
-  JumpToDeferredIf(
-      less, masm,
+  __ JumpToDeferredIf(
+      less,
       [](MaglevAssembler* masm, Label* return_label,
          ReduceInterruptBudget* node) {
         {
@@ -3182,8 +2989,8 @@ void ThrowReferenceErrorIfHole::GenerateCode(MaglevAssembler* masm,
     DCHECK(value().operand().IsStackSlot());
     __ CompareRoot(masm->ToMemOperand(value()), RootIndex::kTheHoleValue);
   }
-  JumpToDeferredIf(
-      equal, masm,
+  __ JumpToDeferredIf(
+      equal,
       [](MaglevAssembler* masm, Label* return_label,
          ThrowReferenceErrorIfHole* node) {
         __ Move(kContextRegister, masm->native_context().object());
@@ -3207,8 +3014,8 @@ void ThrowSuperNotCalledIfHole::GenerateCode(MaglevAssembler* masm,
     DCHECK(value().operand().IsStackSlot());
     __ CompareRoot(masm->ToMemOperand(value()), RootIndex::kTheHoleValue);
   }
-  JumpToDeferredIf(
-      equal, masm,
+  __ JumpToDeferredIf(
+      equal,
       [](MaglevAssembler* masm, Label* return_label,
          ThrowSuperNotCalledIfHole* node) {
         __ Move(kContextRegister, masm->native_context().object());
@@ -3231,8 +3038,8 @@ void ThrowSuperAlreadyCalledIfNotHole::GenerateCode(
     DCHECK(value().operand().IsStackSlot());
     __ CompareRoot(masm->ToMemOperand(value()), RootIndex::kTheHoleValue);
   }
-  JumpToDeferredIf(
-      not_equal, masm,
+  __ JumpToDeferredIf(
+      not_equal,
       [](MaglevAssembler* masm, Label* return_label,
          ThrowSuperAlreadyCalledIfNotHole* node) {
         __ Move(kContextRegister, masm->native_context().object());
@@ -3253,8 +3060,8 @@ void ThrowIfNotSuperConstructor::GenerateCode(MaglevAssembler* masm,
   __ LoadMap(kScratchRegister, ToRegister(constructor()));
   __ testl(FieldOperand(kScratchRegister, Map::kBitFieldOffset),
            Immediate(Map::Bits1::IsConstructorBit::kMask));
-  JumpToDeferredIf(
-      equal, masm,
+  __ JumpToDeferredIf(
+      equal,
       [](MaglevAssembler* masm, Label* return_label,
          ThrowIfNotSuperConstructor* node) {
         __ Move(kContextRegister, masm->native_context().object());
@@ -3472,8 +3279,8 @@ void JumpLoopPrologue::GenerateCode(MaglevAssembler* masm,
   static_assert(FeedbackVector::MaybeHasOptimizedOsrCodeBit::encode(true) >
                 FeedbackVector::kMaxOsrUrgency);
   __ cmpl(osr_state, Immediate(loop_depth_));
-  JumpToDeferredIf(above, masm, AttemptOnStackReplacement, this, scratch0,
-                   scratch1, loop_depth_, feedback_slot_, osr_offset_);
+  __ JumpToDeferredIf(above, AttemptOnStackReplacement, this, scratch0,
+                      scratch1, loop_depth_, feedback_slot_, osr_offset_);
 }
 
 void JumpLoop::AllocateVreg(MaglevVregAllocationState* vreg_state) {}
