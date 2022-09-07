@@ -4516,6 +4516,23 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
     }
   }
 
+  if (v8_flags.stress_compaction || v8_flags.stress_compaction_random) {
+    // Stress aborting of evacuation by aborting ~10% of evacuation candidates
+    // when stress testing.
+    const double kFraction = 0.1;
+
+    for (Page* page : old_space_evacuation_pages_) {
+      if (page->IsFlagSet(Page::COMPACTION_WAS_ABORTED)) continue;
+
+      if (isolate()->fuzzer_rng()->NextDouble() < kFraction) {
+        ReportAbortedEvacuationCandidateDueToFlags(page->area_start(), page);
+        // Set this flag early on in this case to allow filtering such pages
+        // below.
+        page->SetFlag(Page::COMPACTION_WAS_ABORTED);
+      }
+    }
+  }
+
   for (Page* page : old_space_evacuation_pages_) {
     if (page->IsFlagSet(Page::COMPACTION_WAS_ABORTED)) continue;
 
