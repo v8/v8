@@ -156,8 +156,8 @@ size_t hash_value(LoadLaneParameters params) {
 }
 
 std::ostream& operator<<(std::ostream& os, LoadLaneParameters params) {
-  return os << "(" << params.kind << " " << params.rep << " " << params.laneidx
-            << ")";
+  return os << "(" << params.kind << " " << params.rep << " "
+            << static_cast<uint32_t>(params.laneidx) << ")";
 }
 
 LoadLaneParameters const& LoadLaneParametersOf(Operator const* op) {
