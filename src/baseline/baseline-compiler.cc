@@ -1164,7 +1164,6 @@ void BaselineCompiler::VisitFindNonDefaultConstructor() {
   CallBuiltin<Builtin::kFindNonDefaultConstructor>(RegisterOperand(0),
                                                    RegisterOperand(1));
   StoreRegister(2, kReturnRegister1);
-  StoreRegister(3, kReturnRegister2);
 }
 
 namespace {

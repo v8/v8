@@ -1519,13 +1519,13 @@ TF_BUILTIN(FindNonDefaultConstructor, CodeStubAssembler) {
     // Create an object directly, without calling the default base ctor.
     TNode<Object> instance = CallBuiltin(Builtin::kFastNewObject, context,
                                          constructor.value(), new_target);
-    Return(TrueConstant(), constructor.value(), instance);
+    Return(TrueConstant(), instance);
   }
 
   BIND(&found_something_else);
   {
     // Not a base ctor (or bailed out).
-    Return(FalseConstant(), constructor.value(), UndefinedConstant());
+    Return(FalseConstant(), constructor.value());
   }
 }
 

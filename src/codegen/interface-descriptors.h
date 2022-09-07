@@ -1821,11 +1821,10 @@ class FindNonDefaultConstructorDescriptor
     : public StaticCallInterfaceDescriptor<
           FindNonDefaultConstructorDescriptor> {
  public:
-  DEFINE_RESULT_AND_PARAMETERS(3, kThisFunction, kNewTarget)
+  DEFINE_RESULT_AND_PARAMETERS(2, kThisFunction, kNewTarget)
   DEFINE_RESULT_AND_PARAMETER_TYPES(
       MachineType::AnyTagged(),  // result 1 (true / false)
-      MachineType::AnyTagged(),  // result 2 (constructor)
-      MachineType::AnyTagged(),  // result 3 (instance)
+      MachineType::AnyTagged(),  // result 2 (constructor_or_instance)
       MachineType::AnyTagged(),  // kThisFunction
       MachineType::AnyTagged())  // kNewTarget
   DECLARE_DESCRIPTOR(FindNonDefaultConstructorDescriptor)

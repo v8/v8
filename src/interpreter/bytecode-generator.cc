@@ -3369,8 +3369,10 @@ void BytecodeGenerator::BuildFillArrayWithIterator(
 void BytecodeGenerator::BuildCreateArrayLiteral(
     const ZonePtrList<Expression>* elements, ArrayLiteral* expr) {
   RegisterAllocationScope register_scope(this);
-  Register index = register_allocator()->NewRegister();
+  // Make this the first register allocated so that it has a chance of aliasing
+  // the next register allocated after returning from this function.
   Register array = register_allocator()->NewRegister();
+  Register index = register_allocator()->NewRegister();
   SharedFeedbackSlot element_slot(feedback_spec(),
                                   FeedbackSlotKind::kStoreInArrayLiteral);
   ZonePtrList<Expression>::const_iterator current = elements->begin();
@@ -5646,35 +5648,48 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
 
   // Prepare the constructor to the super call.
   Register this_function = VisitForRegisterValue(super->this_function_var());
-  Register instance = register_allocator()->NewRegister();
+  // This register will initially hold the constructor, then afterward it will
+  // hold the instance -- the lifetimes of the two don't need to overlap, and
+  // this way FindNonDefaultConstructor can choose to write either the instance
+  // or the constructor into the same register.
+  Register constructor_then_instance = register_allocator()->NewRegister();
 
   BytecodeLabel super_ctor_call_done;
   bool omit_super_ctor = FLAG_omit_default_ctors &&
                          IsDerivedConstructor(info()->literal()->kind());
 
   if (spread_position == Call::kHasNonFinalSpread) {
-    // First generate the array containing all arguments.
+    RegisterAllocationScope register_scope(this);
+    RegisterList construct_args(constructor_then_instance);
+    const Register& constructor = constructor_then_instance;
+
+    // Generate the array containing all arguments.
     BuildCreateArrayLiteral(args, nullptr);
-    RegisterList construct_args = register_allocator()->NewRegisterList(3);
-    builder()->StoreAccumulatorInRegister(construct_args[1]);
-    VisitForRegisterValue(super->new_target_var(), construct_args[2]);
+    Register args_array =
+        register_allocator()->GrowRegisterList(&construct_args);
+    builder()->StoreAccumulatorInRegister(args_array);
+
+    Register new_target =
+        register_allocator()->GrowRegisterList(&construct_args);
+    VisitForRegisterValue(super->new_target_var(), new_target);
 
     if (omit_super_ctor) {
-      BuildSuperCallOptimization(this_function, construct_args[2],
-                                 construct_args[0], instance,
+      BuildSuperCallOptimization(this_function, new_target,
+                                 constructor_then_instance,
                                  &super_ctor_call_done);
     } else {
       builder()
           ->LoadAccumulatorWithRegister(this_function)
-          .GetSuperConstructor(construct_args[0]);
+          .GetSuperConstructor(constructor);
     }
 
     // Check if the constructor is in fact a constructor.
-    builder()->ThrowIfNotSuperConstructor(construct_args[0]);
+    builder()->ThrowIfNotSuperConstructor(constructor);
 
     // Now pass that array to %reflect_construct.
     builder()->CallJSRuntime(Context::REFLECT_CONSTRUCT_INDEX, construct_args);
   } else {
+    RegisterAllocationScope register_scope(this);
     RegisterList args_regs = register_allocator()->NewGrowableRegisterList();
     VisitArguments(args, &args_regs);
 
@@ -5683,10 +5698,11 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
     Register new_target = register_allocator()->NewRegister();
     VisitForRegisterValue(super->new_target_var(), new_target);
 
-    Register constructor = register_allocator()->NewRegister();
+    const Register& constructor = constructor_then_instance;
     if (omit_super_ctor) {
-      BuildSuperCallOptimization(this_function, new_target, constructor,
-                                 instance, &super_ctor_call_done);
+      BuildSuperCallOptimization(this_function, new_target,
+                                 constructor_then_instance,
+                                 &super_ctor_call_done);
     } else {
       builder()
           ->LoadAccumulatorWithRegister(this_function)
@@ -5715,6 +5731,9 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
       builder()->Construct(constructor, args_regs, feedback_slot_index);
     }
   }
+
+  // From here onwards, constructor_then_instance will hold the instance.
+  const Register& instance = constructor_then_instance;
   builder()->StoreAccumulatorInRegister(instance);
   builder()->Bind(&super_ctor_call_done);
 
@@ -5769,11 +5788,11 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
 }
 
 void BytecodeGenerator::BuildSuperCallOptimization(
-    Register this_function, Register new_target, Register constructor,
-    Register instance, BytecodeLabel* super_ctor_call_done) {
+    Register this_function, Register new_target,
+    Register constructor_then_instance, BytecodeLabel* super_ctor_call_done) {
   DCHECK(FLAG_omit_default_ctors);
-  builder()->FindNonDefaultConstructor(this_function, new_target, constructor,
-                                       instance);
+  builder()->FindNonDefaultConstructor(this_function, new_target,
+                                       constructor_then_instance);
   builder()->JumpIfTrue(ToBooleanMode::kAlreadyBoolean, super_ctor_call_done);
 }
 
