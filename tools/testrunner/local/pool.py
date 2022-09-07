@@ -318,14 +318,25 @@ class DefaultExecutionPool(ContextPool):
     # Drain the queues to prevent stderr chatter when queues are garbage
     # collected.
     self.notify("Draining queues")
+    # TODO(https://crbug.com/v8/13113): Remove extra logging after
+    # investigation.
+    elem_count = 0
     try:
-      while True: self.work_queue.get(False)
+      while True:
+        self.work_queue.get(False)
+        elem_count += 1
+        if elem_count < 200:
+          logging.info('Drained an element from work queue.')
     except Empty:
       pass
     except:
       logging.exception('Error draining work queue.')
     try:
-      while True: self.done_queue.get(False)
+      while True:
+        self.done_queue.get(False)
+        elem_count += 1
+        if elem_count < 200:
+          logging.info('Drained an element from done queue.')
     except Empty:
       pass
     except:
