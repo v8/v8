@@ -572,7 +572,7 @@ bool MarkCompactCollector::StartCompaction(StartCompactionMode mode) {
 
   // Bailouts for completely disabled compaction.
   if (!v8_flags.compact ||
-      (mode == StartCompactionMode::kAtomic && !heap()->IsGCWithoutStack() &&
+      (mode == StartCompactionMode::kAtomic && heap()->IsGCWithStack() &&
        !v8_flags.compact_with_stack) ||
       (v8_flags.gc_experiment_less_compaction &&
        !heap_->ShouldReduceMemory())) {
@@ -586,7 +586,7 @@ bool MarkCompactCollector::StartCompaction(StartCompactionMode mode) {
   }
 
   if (v8_flags.compact_code_space &&
-      (heap()->IsGCWithoutStack() || v8_flags.compact_code_space_with_stack)) {
+      (!heap()->IsGCWithStack() || v8_flags.compact_code_space_with_stack)) {
     CollectEvacuationCandidates(heap()->code_space());
   } else if (v8_flags.trace_fragmentation) {
     TraceFragmentation(heap()->code_space());
@@ -4507,7 +4507,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
   // Evacuation of new space pages cannot be aborted, so it needs to run
   // before old space evacuation.
   bool force_page_promotion =
-      !heap()->IsGCWithoutStack() && !v8_flags.compact_with_stack;
+      heap()->IsGCWithStack() && !v8_flags.compact_with_stack;
   for (Page* page : new_space_evacuation_pages_) {
     intptr_t live_bytes_on_page = non_atomic_marking_state()->live_bytes(page);
     DCHECK_LT(0, live_bytes_on_page);
@@ -4524,7 +4524,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
     evacuation_items.emplace_back(ParallelWorkItem{}, page);
   }
 
-  if (!heap()->IsGCWithoutStack()) {
+  if (heap()->IsGCWithStack()) {
     if (!v8_flags.compact_with_stack ||
         !v8_flags.compact_code_space_with_stack) {
       for (Page* page : old_space_evacuation_pages_) {

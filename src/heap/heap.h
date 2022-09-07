@@ -693,7 +693,7 @@ class Heap {
 
   inline bool IsInGCPostProcessing() { return gc_post_processing_depth_ > 0; }
 
-  bool IsGCWithoutStack() const;
+  bool IsGCWithStack() const;
 
   // If an object has an AllocationMemento trailing it, return it, otherwise
   // return a null AllocationMemento.

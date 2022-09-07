@@ -501,9 +501,9 @@ void Heap::SetGCState(HeapState state) {
   gc_state_.store(state, std::memory_order_relaxed);
 }
 
-bool Heap::IsGCWithoutStack() const {
+bool Heap::IsGCWithStack() const {
   return local_embedder_heap_tracer()->embedder_stack_state() ==
-         cppgc::EmbedderStackState::kNoHeapPointers;
+         cppgc::EmbedderStackState::kMayContainHeapPointers;
 }
 
 void Heap::PrintShortHeapStatistics() {
