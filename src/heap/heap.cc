@@ -16,7 +16,6 @@
 #include "src/base/bits.h"
 #include "src/base/flags.h"
 #include "src/base/logging.h"
-#include "src/base/macros.h"
 #include "src/base/once.h"
 #include "src/base/platform/memory.h"
 #include "src/base/platform/mutex.h"
@@ -3095,9 +3094,6 @@ static_assert(!USE_ALLOCATION_ALIGNMENT_BOOL ||
               (HeapNumber::kValueOffset & kDoubleAlignmentMask) == kTaggedSize);
 
 int Heap::GetMaximumFillToAlign(AllocationAlignment alignment) {
-  if (V8_COMPRESS_POINTERS_8GB_BOOL)
-    return kObjectAlignment8GbHeap - kTaggedSize;
-
   switch (alignment) {
     case kTaggedAligned:
       return 0;
@@ -3111,11 +3107,6 @@ int Heap::GetMaximumFillToAlign(AllocationAlignment alignment) {
 
 // static
 int Heap::GetFillToAlign(Address address, AllocationAlignment alignment) {
-  if (V8_COMPRESS_POINTERS_8GB_BOOL) {
-    return IsAligned(address, kObjectAlignment8GbHeap)
-               ? 0
-               : kObjectAlignment8GbHeap - kTaggedSize;
-  }
   if (alignment == kDoubleAligned && (address & kDoubleAlignmentMask) != 0)
     return kTaggedSize;
   if (alignment == kDoubleUnaligned && (address & kDoubleAlignmentMask) == 0)

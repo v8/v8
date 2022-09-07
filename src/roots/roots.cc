@@ -40,13 +40,7 @@ void ReadOnlyRoots::VerifyNameForProtectors() {
       // Make sure the objects are adjacent in memory.
       CHECK_LT(prev.address(), current.address());
       Address computed_address = prev.address() + prev.Size();
-      // TODO(teodutu): remove the need for this special case by ensuring that
-      // all object sizes are properly aligned.
-      if (V8_COMPRESS_POINTERS_8GB_BOOL) {
-        CHECK_LE(current.address() - computed_address, 4);
-      } else {
-        CHECK_EQ(computed_address, current.address());
-      }
+      CHECK_EQ(computed_address, current.address());
     }
     prev = current;
   }

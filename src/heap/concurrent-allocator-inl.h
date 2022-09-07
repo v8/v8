@@ -33,8 +33,7 @@ AllocationResult ConcurrentAllocator::AllocateRaw(int size_in_bytes,
   }
 
   AllocationResult result;
-  if (V8_COMPRESS_POINTERS_8GB_BOOL ||
-      (USE_ALLOCATION_ALIGNMENT_BOOL && alignment != kTaggedAligned)) {
+  if (USE_ALLOCATION_ALIGNMENT_BOOL && alignment != kTaggedAligned) {
     result = lab_.AllocateRawAligned(size_in_bytes, alignment);
   } else {
     result = lab_.AllocateRawUnaligned(size_in_bytes);

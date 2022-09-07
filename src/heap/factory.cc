@@ -11,7 +11,6 @@
 
 #include "src/ast/ast-source-ranges.h"
 #include "src/base/bits.h"
-#include "src/base/macros.h"
 #include "src/builtins/accessors.h"
 #include "src/builtins/constants-table-builder.h"
 #include "src/codegen/compilation-cache.h"
@@ -2124,9 +2123,6 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
   if (!site.is_null()) {
     DCHECK(V8_ALLOCATION_SITE_TRACKING_BOOL);
     adjusted_object_size += AllocationMemento::kSize;
-    if (V8_COMPRESS_POINTERS_8GB_BOOL &&
-        !IsAligned(object_size, kObjectAlignment8GbHeap))
-      adjusted_object_size += kObjectAlignment8GbHeap - kTaggedSize;
   }
   HeapObject raw_clone =
       allocator()->AllocateRawWith<HeapAllocator::kRetryOrFail>(
@@ -2145,14 +2141,8 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
     isolate()->heap()->WriteBarrierForRange(raw_clone, start, end);
   }
   if (!site.is_null()) {
-    if (V8_COMPRESS_POINTERS_8GB_BOOL &&
-        !IsAligned(object_size, kObjectAlignment8GbHeap)) {
-      isolate()->heap()->CreateFillerObjectAt(
-          raw_clone.address() + object_size,
-          kObjectAlignment8GbHeap - kTaggedSize);
-    }
-    AllocationMemento alloc_memento = AllocationMemento::unchecked_cast(Object(
-        raw_clone.ptr() + adjusted_object_size - AllocationMemento::kSize));
+    AllocationMemento alloc_memento = AllocationMemento::unchecked_cast(
+        Object(raw_clone.ptr() + object_size));
     InitializeAllocationMemento(alloc_memento, *site);
   }
 

@@ -256,8 +256,7 @@ AllocationResult SpaceWithLinearArea::AllocateRaw(int size_in_bytes,
 
   AllocationResult result;
 
-  if (V8_COMPRESS_POINTERS_8GB_BOOL ||
-      (USE_ALLOCATION_ALIGNMENT_BOOL && alignment != kTaggedAligned)) {
+  if (USE_ALLOCATION_ALIGNMENT_BOOL && alignment != kTaggedAligned) {
     result = AllocateFastAligned(size_in_bytes, nullptr, alignment, origin);
   } else {
     result = AllocateFastUnaligned(size_in_bytes, origin);
@@ -323,8 +322,7 @@ AllocationResult SpaceWithLinearArea::AllocateRawAligned(
 AllocationResult SpaceWithLinearArea::AllocateRawSlow(
     int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin) {
   AllocationResult result =
-      V8_COMPRESS_POINTERS_8GB_BOOL ||
-              (USE_ALLOCATION_ALIGNMENT_BOOL && alignment != kTaggedAligned)
+      USE_ALLOCATION_ALIGNMENT_BOOL && alignment != kTaggedAligned
           ? AllocateRawAligned(size_in_bytes, alignment, origin)
           : AllocateRawUnaligned(size_in_bytes, origin);
   return result;

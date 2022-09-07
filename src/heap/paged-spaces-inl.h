@@ -100,13 +100,7 @@ V8_INLINE bool PagedSpaceBase::EnsureAllocation(int size_in_bytes,
 
   // We don't know exactly how much filler we need to align until space is
   // allocated, so assume the worst case.
-  // TODO(teodutu): remove the need for this special case by ensuring that the
-  // allocation top stays properly aligned after allocations.
-  if (V8_COMPRESS_POINTERS_8GB_BOOL && executable_ == EXECUTABLE) {
-    DCHECK(IsAligned(allocation_info_.top(), kCodeAlignment));
-  } else {
-    size_in_bytes += Heap::GetMaximumFillToAlign(alignment);
-  }
+  size_in_bytes += Heap::GetMaximumFillToAlign(alignment);
   if (out_max_aligned_size) {
     *out_max_aligned_size = size_in_bytes;
   }
