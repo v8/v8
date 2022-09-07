@@ -26,8 +26,8 @@ d8.file.execute('test/mjsunit/web-snapshot/web-snapshot-helpers.js');
     }
   }
   const { growableArrayBuffer, arrayBuffer } = takeAndUseWebSnapshot(createObjects, ['growableArrayBuffer', 'arrayBuffer']);
-  assertEquals(growableArrayBuffer.byteLength, 5);
-  assertEquals(growableArrayBuffer.maxByteLength, 10);
+  assertEquals(5, growableArrayBuffer.byteLength);
+  assertEquals(10, growableArrayBuffer.maxByteLength);
   assertTrue(growableArrayBuffer.growable);
   const array1 = new Uint8Array(growableArrayBuffer);
   for (let i = 0; i < 5; i++) {
@@ -64,22 +64,22 @@ d8.file.execute('test/mjsunit/web-snapshot/web-snapshot-helpers.js');
     globalThis.detachedArrayBuffer = detachedArrayBuffer;
   }
   const { resizableArrayBuffer, arrayBuffer, detachedArrayBuffer } = takeAndUseWebSnapshot(createObjects, ['resizableArrayBuffer', 'arrayBuffer', 'detachedArrayBuffer']);
-  assertEquals(resizableArrayBuffer.byteLength, 5);
-  assertEquals(resizableArrayBuffer.maxByteLength, 10);
+  assertEquals(5, resizableArrayBuffer.byteLength);
+  assertEquals(10, resizableArrayBuffer.maxByteLength);
   assertTrue(resizableArrayBuffer.resizable)
   const array1 = new Uint8Array(resizableArrayBuffer);
   for (let i = 0; i < 5; i++) {
     assertEquals(array1[i], i);
   }
 
-  assertEquals(arrayBuffer.byteLength, 5);
-  assertEquals(arrayBuffer.maxByteLength, 5);
+  assertEquals(5, arrayBuffer.byteLength);
+  assertEquals(5, arrayBuffer.maxByteLength);
   assertFalse(arrayBuffer.resizable)
   const array2 = new Uint8Array(arrayBuffer);
   for (let i = 0; i < 5; i++) {
     assertEquals(array2[i], i);
   }
 
-  assertEquals(detachedArrayBuffer.byteLength, 0);
-  assertEquals(detachedArrayBuffer.maxByteLength, 0);
+  assertEquals(0, detachedArrayBuffer.byteLength);
+  assertEquals(0, detachedArrayBuffer.maxByteLength);
 })()

@@ -116,7 +116,7 @@ d8.file.execute('test/mjsunit/web-snapshot/web-snapshot-helpers.js');
   assertEquals(1, Foo.key2);
   assertEquals(2.2, Foo.key3);
   assertEquals([1, 2], Foo.key4);
-  assertEquals({ 'key': 'value' }, Foo.key5 );
+  assertEquals({'key': 'value'}, Foo.key5);
 })();
 
 (function TestClassWithStaticMethods() {

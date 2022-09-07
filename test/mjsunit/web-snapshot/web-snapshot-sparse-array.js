@@ -22,7 +22,7 @@ d8.file.execute('test/mjsunit/web-snapshot/web-snapshot-helpers.js');
   assertTrue(%HasDictionaryElements(foo));
   assertEquals(2 ** 30 + 1, foo.length);
   for (let i = 0; i < 10; i++) {
-    assertEquals(i,foo[i * 101]);
+    assertEquals(i, foo[i * 101]);
   }
 })();
 
@@ -40,7 +40,7 @@ d8.file.execute('test/mjsunit/web-snapshot/web-snapshot-helpers.js');
   assertTrue(%HasDictionaryElements(foo));
   assertEquals(2 ** 30 + 1, foo.length);
   for (let i = 0; i < 10; i++) {
-    assertEquals([i],foo[i * 101]);
+    assertEquals([i], foo[i * 101]);
   }
 })();
 
@@ -50,7 +50,7 @@ d8.file.execute('test/mjsunit/web-snapshot/web-snapshot-helpers.js');
     // Add a large index to force dictionary elements.
     array[2 ** 30] = 10;
     for (let i = 0; i < 10; i++) {
-      array[i * 101] = {i:i};
+      array[i * 101] = {i: i};
     }
     globalThis.foo = array;
   }
@@ -58,7 +58,7 @@ d8.file.execute('test/mjsunit/web-snapshot/web-snapshot-helpers.js');
   assertTrue(%HasDictionaryElements(foo));
   assertEquals(2 ** 30 + 1, foo.length);
   for (let i = 0; i < 10; i++) {
-    assertEquals({i:i}, foo[i * 101]);
+    assertEquals({i: i}, foo[i * 101]);
   }
 })();
 

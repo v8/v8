@@ -392,7 +392,7 @@ d8.file.execute('test/mjsunit/web-snapshot/web-snapshot-helpers.js');
     })()
   }
   const {bar} = takeAndUseWebSnapshot(createObjects, ['bar']);
-  assertEquals(bar(), 1);
+  assertEquals(1, bar());
 })();
 
 (function TestMoreThanOneScopeLocalInContext() {

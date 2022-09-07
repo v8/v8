@@ -16,8 +16,8 @@ d8.file.execute('test/mjsunit/web-snapshot/web-snapshot-helpers.js');
   const realm = Realm.create();
   const {obj1, obj2} = takeAndUseWebSnapshot(
       createObjects, ['obj1', 'obj2'], realm);
-  assertTrue(obj1.a === Realm.eval(realm, "Error"));
-  assertTrue(obj2.b === Realm.eval(realm, "Error.prototype"));
+  assertSame(Realm.eval(realm, 'Error'), obj1.a);
+  assertSame(Realm.eval(realm, 'Error.prototype'), obj2.b);
 })();
 
 (function TestInheritFromBuiltin() {
@@ -35,5 +35,5 @@ d8.file.execute('test/mjsunit/web-snapshot/web-snapshot-helpers.js');
   const realm = Realm.create();
   const {MyError} = takeAndUseWebSnapshot(createObjects, ['MyError'], realm);
   const obj = new MyError();
-  assertTrue(obj.__proto__.__proto__ === Realm.eval(realm, "Error.prototype"));
+  assertSame(Realm.eval(realm, 'Error.prototype'), obj.__proto__.__proto__);
 })();

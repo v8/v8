@@ -27,16 +27,16 @@ d8.file.execute('test/mjsunit/web-snapshot/web-snapshot-helpers.js');
     'array2',
     'array3'
   ]);
-  assertEquals(array1.byteLength, 5);
-  assertEquals(array1.byteOffset, 0);
-  assertEquals(array2.byteLength, 5);
-  assertEquals(array2.byteOffset, 5);
-  assertEquals(array3.byteLength, 5);
-  assertEquals(array3.byteOffset, 2);
+  assertEquals(5, array1.byteLength);
+  assertEquals(0, array1.byteOffset);
+  assertEquals(5, array2.byteLength);
+  assertEquals(5, array2.byteOffset);
+  assertEquals(5, array3.byteLength);
+  assertEquals(2, array3.byteOffset);
 
   for (let i = 0; i < 5; i++) {
-    assertEquals(array1.getUint8(i), i);
-    assertEquals(array2.getUint8(i), i);
+    assertEquals(i, array1.getUint8(i));
+    assertEquals(i, array2.getUint8(i));
   }
   assertSame(array1.buffer, array2.buffer);
   assertSame(array1.buffer, array3.buffer);
@@ -69,18 +69,18 @@ d8.file.execute('test/mjsunit/web-snapshot/web-snapshot-helpers.js');
     'array3',
   ]);
   assertTrue(array1.buffer.resizable);
-  assertEquals(array1.buffer.maxByteLength, 2048);
-  assertEquals(array1.byteLength, 1024);
-  assertEquals(array1.byteOffset, 0);
-  assertEquals(array2.byteLength, 768); // 1024 - 256
-  assertEquals(array2.byteOffset, 256);
-  assertEquals(array3.byteLength, 4);
-  assertEquals(array3.byteOffset, 128);
+  assertEquals(2048, array1.buffer.maxByteLength);
+  assertEquals(1024, array1.byteLength);
+  assertEquals(0, array1.byteOffset, 0);
+  assertEquals(768, array2.byteLength); // 1024 - 256
+  assertEquals(256, array2.byteOffset);
+  assertEquals(4, array3.byteLength);
+  assertEquals(128, array3.byteOffset);
 
   array1.buffer.resize(1024 * 2);
-  assertEquals(array1.byteLength, 2048);
-  assertEquals(array2.byteLength, 1792);  // 2048 - 256
-  assertEquals(array3.byteLength, 4);
+  assertEquals(2048, array1.byteLength);
+  assertEquals(1792, array2.byteLength);  // 2048 - 256
+  assertEquals(4, array3.byteLength);
 
   assertSame(array1.buffer, array2.buffer);
   assertSame(array1.buffer, array3.buffer);
@@ -109,18 +109,18 @@ d8.file.execute('test/mjsunit/web-snapshot/web-snapshot-helpers.js');
     'array3',
   ]);
   assertTrue(array1.buffer.growable);
-  assertEquals(array1.buffer.maxByteLength, 2048);
-  assertEquals(array1.byteLength, 1024);
-  assertEquals(array1.byteOffset, 0);
-  assertEquals(array2.byteLength, 768); // 1024 - 256
-  assertEquals(array2.byteOffset, 256);
-  assertEquals(array3.byteLength, 4);
-  assertEquals(array3.byteOffset, 128);
+  assertEquals(2048, array1.buffer.maxByteLength);
+  assertEquals(1024, array1.byteLength);
+  assertEquals(0, array1.byteOffset);
+  assertEquals(768, array2.byteLength); // 1024 - 256
+  assertEquals(256, array2.byteOffset);
+  assertEquals(4, array3.byteLength);
+  assertEquals(128, array3.byteOffset);
 
   array1.buffer.grow(1024 * 2);
-  assertEquals(array1.byteLength, 2048);
-  assertEquals(array2.byteLength, 1792);  // 2048 - 256
-  assertEquals(array3.byteLength, 4);
+  assertEquals(2048, array1.byteLength);
+  assertEquals(1792, array2.byteLength);  // 2048 - 256
+  assertEquals(4, array3.byteLength);
 
   assertSame(array1.buffer, array2.buffer);
   assertSame(array1.buffer, array3.buffer);

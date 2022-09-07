@@ -65,16 +65,18 @@ d8.file.execute('test/mjsunit/web-snapshot/web-snapshot-helpers.js');
       n: 42,
     };
   }
-  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
-  assertEquals(Object.prototype, Object.getPrototypeOf(foo));
+  const realm = Realm.create();
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo'], realm);
+  assertSame(Realm.eval(realm, 'Object.prototype'), Object.getPrototypeOf(foo));
 })();
 
 (function TestEmptyObjectProto() {
   function createObjects() {
     globalThis.foo = {};
   }
-  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
-  assertEquals(Object.prototype, Object.getPrototypeOf(foo));
+  const realm = Realm.create();
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo'], realm);
+  assertSame(Realm.eval(realm, 'Object.prototype'), Object.getPrototypeOf(foo));
 })();
 
 (function TestObjectProto() {
@@ -96,7 +98,8 @@ d8.file.execute('test/mjsunit/web-snapshot/web-snapshot-helpers.js');
       y: 11
     };
   }
-  const { o1, o2 } = takeAndUseWebSnapshot(createObjects, ['o1', 'o2']);
-  assertEquals(o1, Object.getPrototypeOf(o2));
-  assertEquals(Object.prototype, Object.getPrototypeOf(o1));
+  const realm = Realm.create();
+  const { o1, o2 } = takeAndUseWebSnapshot(createObjects, ['o1', 'o2'], realm);
+  assertSame(o1, Object.getPrototypeOf(o2));
+  assertSame(Realm.eval(realm, 'Object.prototype'), Object.getPrototypeOf(o1));
 })();

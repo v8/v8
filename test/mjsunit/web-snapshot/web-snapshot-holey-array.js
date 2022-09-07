@@ -18,10 +18,10 @@ d8.file.execute('test/mjsunit/web-snapshot/web-snapshot-helpers.js');
 
 (function TestHoleyElementsArray() {
   function createObjects() {
-    globalThis.foo = [1,,"123"];
+    globalThis.foo = [1,,'123'];
   }
   const {foo} = takeAndUseWebSnapshot(createObjects, ['foo']);
-  assertEquals([1,,"123"], foo);
+  assertEquals([1,,'123'], foo);
 })();
 
 (function TestHoleyArrayContainingDoubleAndSmi() {
