@@ -209,11 +209,8 @@ class MaglevGraphBuilder {
       // live again.
       //
       // So, manually advance the iterator to the resume, go through the motions
-      // of processing the merge state, but immediately emit an abort (which
-      // also kills the resume).
-      //
-      // TODO(leszeks): Instead of emitting an Abort, we could shrink the
-      // generator switch, removing this resume as an option.
+      // of processing the merge state, but immediately emit an unconditional
+      // deopt (which also kills the resume).
       iterator_.Advance();
       DCHECK_EQ(iterator_.current_bytecode(),
                 interpreter::Bytecode::kResumeGenerator);
@@ -221,7 +218,12 @@ class MaglevGraphBuilder {
       DCHECK_EQ(NumPredecessors(resume_offset), 1);
       ProcessMergePoint(resume_offset);
       StartNewBlock(resume_offset);
-      BuildAbort(AbortReason::kInvalidParametersAndRegistersInGenerator);
+      // TODO(v8:7700): This approach is not ideal. We can create a deopt-reopt
+      // loop: the interpreted code runs, creates a generator while feedback is
+      // still not yet allocated, then suspends the generator, tiers up to
+      // maglev, and reaches this deopt. We then deopt, but since the generator
+      // is never created again, we re-opt without the suspend part and we loop!
+      EmitUnconditionalDeopt(DeoptimizeReason::kSuspendGeneratorIsDead);
       return;
     }
 
