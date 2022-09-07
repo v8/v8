@@ -4531,9 +4531,6 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
         if (!v8_flags.compact_with_stack ||
             page->owner_identity() == CODE_SPACE) {
           ReportAbortedEvacuationCandidateDueToFlags(page->area_start(), page);
-          // Set this flag early on in this case to allow filtering such pages
-          // below.
-          page->SetFlag(Page::COMPACTION_WAS_ABORTED);
         }
       }
     }
@@ -4549,9 +4546,6 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
 
       if (isolate()->fuzzer_rng()->NextDouble() < kFraction) {
         ReportAbortedEvacuationCandidateDueToFlags(page->area_start(), page);
-        // Set this flag early on in this case to allow filtering such pages
-        // below.
-        page->SetFlag(Page::COMPACTION_WAS_ABORTED);
       }
     }
   }
@@ -5401,6 +5395,8 @@ void MarkCompactCollector::UpdatePointersInClientHeap(Isolate* client) {
 
 void MarkCompactCollector::ReportAbortedEvacuationCandidateDueToOOM(
     Address failed_start, Page* page) {
+  DCHECK(!page->IsFlagSet(Page::COMPACTION_WAS_ABORTED));
+  page->SetFlag(Page::COMPACTION_WAS_ABORTED);
   base::MutexGuard guard(&mutex_);
   aborted_evacuation_candidates_due_to_oom_.push_back(
       std::make_pair(failed_start, page));
@@ -5408,6 +5404,8 @@ void MarkCompactCollector::ReportAbortedEvacuationCandidateDueToOOM(
 
 void MarkCompactCollector::ReportAbortedEvacuationCandidateDueToFlags(
     Address failed_start, Page* page) {
+  DCHECK(!page->IsFlagSet(Page::COMPACTION_WAS_ABORTED));
+  page->SetFlag(Page::COMPACTION_WAS_ABORTED);
   base::MutexGuard guard(&mutex_);
   aborted_evacuation_candidates_due_to_flags_.push_back(
       std::make_pair(failed_start, page));
@@ -5418,7 +5416,8 @@ namespace {
 void ReRecordPage(Heap* heap,
                   v8::internal::NonAtomicMarkingState* marking_state,
                   Address failed_start, Page* page) {
-  page->SetFlag(Page::COMPACTION_WAS_ABORTED);
+  DCHECK(page->IsFlagSet(Page::COMPACTION_WAS_ABORTED));
+
   // Aborted compaction page. We have to record slots here, since we
   // might not have recorded them in first place.
 
