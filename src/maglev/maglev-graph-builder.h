@@ -167,6 +167,13 @@ class MaglevGraphBuilder {
 
   void MarkBytecodeDead() {
     DCHECK_NULL(current_block_);
+    if (FLAG_trace_maglev_graph_building) {
+      std::cout << "== Dead ==\n"
+                << std::setw(4) << iterator_.current_offset() << " : ";
+      interpreter::BytecodeDecoder::Decode(std::cout,
+                                           iterator_.current_address());
+      std::cout << std::endl;
+    }
 
     // If the current bytecode is a jump to elsewhere, then this jump is
     // also dead and we should make sure to merge it as a dead predecessor.
