@@ -2156,12 +2156,17 @@ void MacroAssembler::LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
 void MacroAssembler::MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
     Register flags, Register feedback_vector) {
   DCHECK(!AreAliased(flags, feedback_vector));
-  Label maybe_has_optimized_code;
+  Label maybe_has_optimized_code, maybe_needs_logging;
   // Check if optimized code is available
-  TestBitMask(flags, ((FeedbackVector::kFlagsTieringStateIsAnyRequested, r0);
-  beq(&maybe_has_optimized_code, cr0);
+  TestBitMask(flags, FeedbackVector::kFlagsTieringStateIsAnyRequested, r0);
+  beq(&maybe_needs_logging, cr0);
 
   GenerateTailCallToReturnedCode(Runtime::kCompileOptimized);
+
+  bind(&maybe_needs_logging);
+  TestBitMask(flags, FeedbackVector::LogNextExecutionBit::kMask, r0);
+  beq(&maybe_has_optimized_code, cr0);
+  GenerateTailCallToReturnedCode(Runtime::kFunctionLogNextExecution);
 
   bind(&maybe_has_optimized_code);
   Register optimized_code_entry = flags;
