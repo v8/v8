@@ -458,8 +458,7 @@ RUNTIME_FUNCTION(Runtime_WasmFunctionTableGet) {
     return ThrowWasmError(isolate, MessageTemplate::kWasmTrapTableOutOfBounds);
   }
 
-  return *WasmTableObject::Get(isolate, table, entry_index,
-                               WasmTableObject::kWasm);
+  return *WasmTableObject::Get(isolate, table, entry_index);
 }
 
 RUNTIME_FUNCTION(Runtime_WasmFunctionTableSet) {
@@ -483,8 +482,7 @@ RUNTIME_FUNCTION(Runtime_WasmFunctionTableSet) {
   if (!WasmTableObject::IsInBounds(isolate, table, entry_index)) {
     return ThrowWasmError(isolate, MessageTemplate::kWasmTrapTableOutOfBounds);
   }
-  WasmTableObject::Set(isolate, table, entry_index, element,
-                       WasmTableObject::kWasm);
+  WasmTableObject::Set(isolate, table, entry_index, element);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -548,8 +546,7 @@ RUNTIME_FUNCTION(Runtime_WasmTableGrow) {
 
   Handle<WasmTableObject> table(
       WasmTableObject::cast(instance.tables().get(table_index)), isolate);
-  int result = WasmTableObject::Grow(isolate, table, delta, value,
-                                     WasmTableObject::kWasm);
+  int result = WasmTableObject::Grow(isolate, table, delta, value);
 
   return Smi::FromInt(result);
 }

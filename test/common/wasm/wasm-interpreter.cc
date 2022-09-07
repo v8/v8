@@ -1942,8 +1942,7 @@ class WasmInterpreterInternals {
             isolate_);
         auto delta = Pop().to<uint32_t>();
         auto value = Pop().to_ref();
-        int32_t result = WasmTableObject::Grow(isolate_, table, delta, value,
-                                               WasmTableObject::kWasm);
+        int32_t result = WasmTableObject::Grow(isolate_, table, delta, value);
         Push(WasmValue(result));
         *len += imm.length;
         return true;
@@ -3703,8 +3702,8 @@ class WasmInterpreterInternals {
           if (entry_index >= table_size) {
             return DoTrap(kTrapTableOutOfBounds, pc);
           }
-          Handle<Object> value = WasmTableObject::Get(
-              isolate_, table, entry_index, WasmTableObject::kWasm);
+          Handle<Object> value =
+              WasmTableObject::Get(isolate_, table, entry_index);
           Push(WasmValue(value, table->type()));
           len = 1 + imm.length;
           break;
@@ -3722,8 +3721,7 @@ class WasmInterpreterInternals {
           if (entry_index >= table_size) {
             return DoTrap(kTrapTableOutOfBounds, pc);
           }
-          WasmTableObject::Set(isolate_, table, entry_index, value,
-                               WasmTableObject::kWasm);
+          WasmTableObject::Set(isolate_, table, entry_index, value);
           len = 1 + imm.length;
           break;
         }

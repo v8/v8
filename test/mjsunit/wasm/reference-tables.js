@@ -99,7 +99,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertThrows(
       () => instance.exports.table.set(0, exporting_instance.exports.addition),
       TypeError,
-      /Argument 1 is invalid for table of type \(ref null 0\)/);
+      /Argument 1 is invalid for table: assigned exported function has to be a subtype of the expected type/);
 })();
 
 (function TestNonNullableTables() {

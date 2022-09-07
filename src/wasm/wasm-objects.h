@@ -176,12 +176,9 @@ class WasmTableObject
  public:
   inline wasm::ValueType type();
 
-  enum ValueRepr { kJS, kWasm };
-
   V8_EXPORT_PRIVATE static int Grow(Isolate* isolate,
                                     Handle<WasmTableObject> table,
-                                    uint32_t count, Handle<Object> init_value,
-                                    ValueRepr entry_repr);
+                                    uint32_t count, Handle<Object> init_value);
 
   V8_EXPORT_PRIVATE static Handle<WasmTableObject> New(
       Isolate* isolate, Handle<WasmInstanceObject> instance,
@@ -196,18 +193,21 @@ class WasmTableObject
   static bool IsInBounds(Isolate* isolate, Handle<WasmTableObject> table,
                          uint32_t entry_index);
 
-  static bool IsValidJSElement(Isolate* isolate, Handle<WasmTableObject> table,
-                               Handle<Object> entry);
+  // Thin wrapper around {JsToWasmObject}.
+  static MaybeHandle<Object> JSToWasmElement(Isolate* isolate,
+                                             Handle<WasmTableObject> table,
+                                             Handle<Object> entry,
+                                             const char** error_message);
 
+  // This function will not handle JS objects; i.e., {entry} needs to be in wasm
+  // representation.
   V8_EXPORT_PRIVATE static void Set(Isolate* isolate,
                                     Handle<WasmTableObject> table,
-                                    uint32_t index, Handle<Object> entry,
-                                    ValueRepr entry_repr);
+                                    uint32_t index, Handle<Object> entry);
 
   V8_EXPORT_PRIVATE static Handle<Object> Get(Isolate* isolate,
                                               Handle<WasmTableObject> table,
-                                              uint32_t index,
-                                              ValueRepr as_repr);
+                                              uint32_t index);
 
   V8_EXPORT_PRIVATE static void Fill(Isolate* isolate,
                                      Handle<WasmTableObject> table,
@@ -249,7 +249,7 @@ class WasmTableObject
   static void SetFunctionTableEntry(Isolate* isolate,
                                     Handle<WasmTableObject> table,
                                     Handle<FixedArray> entries, int entry_index,
-                                    Handle<Object> entry, ValueRepr entry_repr);
+                                    Handle<Object> entry);
 
   TQ_OBJECT_CONSTRUCTORS(WasmTableObject)
 };
@@ -314,10 +314,8 @@ class WasmGlobalObject
   inline void SetI64(int64_t value);
   inline void SetF32(float value);
   inline void SetF64(double value);
-  inline void SetExternRef(Handle<Object> value);
-  inline void SetAnyRef(Handle<Object> value);
-  inline bool SetFuncRef(Isolate* isolate, Handle<Object> value);
-  inline void SetStringRef(Handle<Object> value);
+  // {value} must be an object in Wasm representation.
+  inline void SetRef(Handle<Object> value);
 
  private:
   // This function returns the address of the global's data in the
@@ -1075,11 +1073,6 @@ namespace wasm {
 MaybeHandle<Object> JSToWasmObject(Isolate* isolate, const WasmModule* module,
                                    Handle<Object> value, ValueType expected,
                                    const char** error_message);
-
-// If {in_out_value} is a wrapped wasm struct/array, it gets unwrapped in-place
-// and this returns {true}. Otherwise, the value remains unchanged and this
-// returns {false}.
-bool TryUnpackObjectWrapper(Isolate* isolate, Handle<Object>& in_out_value);
 }  // namespace wasm
 
 }  // namespace internal

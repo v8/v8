@@ -1535,25 +1535,14 @@ bool InstanceBuilder::ProcessImportedGlobal(Handle<WasmInstanceObject> instance,
 
   if (global.type.is_reference()) {
     const char* error_message;
-    if (wasm::JSToWasmObject(isolate_, module_, value, global.type,
-                             &error_message)
-            .is_null()) {
+    Handle<Object> wasm_value;
+    if (!wasm::JSToWasmObject(isolate_, module_, value, global.type,
+                              &error_message)
+             .ToHandle(&wasm_value)) {
       ReportLinkError(error_message, global_index, module_name, import_name);
       return false;
     }
-    if (IsSubtypeOf(global.type, kWasmFuncRef, module_) && !value->IsNull()) {
-      value =
-          WasmInternalFunction::FromExternal(value, isolate_).ToHandleChecked();
-    } else if (!v8_flags.wasm_gc_js_interop &&
-               global.type.heap_representation() != HeapType::kExtern &&
-               !value->IsNull()) {
-      bool unpacked = TryUnpackObjectWrapper(isolate_, value);
-      // Excluding SMIs and stringrefs, every value received here, must have
-      // been wrapped. This is ensured by JSToWasmObject().
-      DCHECK_EQ(unpacked, !value->IsSmi() && !value->IsString());
-      USE(unpacked);  // Prevent nused warning if DCHECKs disabled.
-    }
-    WriteGlobalValue(global, WasmValue(value, global.type));
+    WriteGlobalValue(global, WasmValue(wasm_value, global.type));
     return true;
   }
 
@@ -2011,8 +2000,7 @@ void InstanceBuilder::SetTableInitialValues(
         for (uint32_t entry_index = 0; entry_index < table.initial_size;
              entry_index++) {
           WasmTableObject::Set(isolate_, table_object, entry_index,
-                               to_value(result).to_ref(),
-                               WasmTableObject::kWasm);
+                               to_value(result).to_ref());
         }
       }
     }
@@ -2061,7 +2049,7 @@ base::Optional<MessageTemplate> LoadElemSegmentImpl(
           zone, entry, elem_segment.type, isolate, instance);
       if (is_error(result)) return to_error(result);
       WasmTableObject::Set(isolate, table_object, entry_index,
-                           to_value(result).to_ref(), WasmTableObject::kWasm);
+                           to_value(result).to_ref());
     }
   }
   return {};

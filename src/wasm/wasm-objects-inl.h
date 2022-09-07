@@ -166,33 +166,8 @@ void WasmGlobalObject::SetF64(double value) {
   base::WriteUnalignedValue(address(), value);
 }
 
-void WasmGlobalObject::SetExternRef(Handle<Object> value) {
-  DCHECK(type().is_reference_to(wasm::HeapType::kExtern));
-  tagged_buffer().set(offset(), *value);
-}
-
-void WasmGlobalObject::SetAnyRef(Handle<Object> value) {
-  DCHECK(type().is_reference_to(wasm::HeapType::kAny) ||
-         type().is_reference_to(wasm::HeapType::kEq) ||
-         type().is_reference_to(wasm::HeapType::kData) ||
-         type().is_reference_to(wasm::HeapType::kArray) ||
-         type().is_reference_to(wasm::HeapType::kI31));
-  tagged_buffer().set(offset(), *value);
-}
-
-bool WasmGlobalObject::SetFuncRef(Isolate* isolate, Handle<Object> value) {
-  DCHECK_EQ(type(), wasm::kWasmFuncRef);
-  if (value->IsNull() ||
-      WasmInternalFunction::FromExternal(value, isolate).ToHandle(&value)) {
-    tagged_buffer().set(offset(), *value);
-    return true;
-  }
-  return false;
-}
-
-void WasmGlobalObject::SetStringRef(Handle<Object> value) {
-  DCHECK_EQ(type(), wasm::kWasmStringRef);
-  DCHECK(value->IsNull() || value->IsString());
+void WasmGlobalObject::SetRef(Handle<Object> value) {
+  DCHECK(type().is_object_reference());
   tagged_buffer().set(offset(), *value);
 }
 
