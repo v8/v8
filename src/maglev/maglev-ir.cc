@@ -3585,6 +3585,10 @@ void BranchIfRootConstant::GenerateCode(MaglevCodeGenState* code_gen_state,
   __ CompareRoot(ToRegister(condition_input()), root_index());
   Branch(code_gen_state, equal, if_true(), if_false(), state.next_block());
 }
+void BranchIfRootConstant::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << RootsTable::name(root_index_) << ")";
+}
 
 void BranchIfUndefinedOrNull::AllocateVreg(
     MaglevVregAllocationState* vreg_state) {

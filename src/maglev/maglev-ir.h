@@ -3928,7 +3928,7 @@ class BranchIfRootConstant
 
   void AllocateVreg(MaglevVregAllocationState*);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
  private:
   RootIndex root_index_;
