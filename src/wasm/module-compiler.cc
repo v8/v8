@@ -5,6 +5,7 @@
 #include "src/wasm/module-compiler.h"
 
 #include <algorithm>
+#include <mutex>  // NOLINT(build/c++11)
 #include <queue>
 #include <shared_mutex>
 
