@@ -1717,6 +1717,31 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
     observers_.push_back(observer);
   }
 
+#if DEBUG
+  void DisableAbortEvacuationAtAddress(MemoryChunk* chunk) {
+    abort_evacuation_at_address_ = chunk->area_end();
+  }
+
+  void SetUpAbortEvacuationAtAddress(MemoryChunk* chunk) {
+    if (v8_flags.stress_compaction || v8_flags.stress_compaction_random) {
+      // Stress aborting of evacuation by aborting ~10% of evacuation candidates
+      // when stress testing.
+      const double kFraction = 0.05;
+
+      if (heap_->isolate()->fuzzer_rng()->NextDouble() < kFraction) {
+        const double abort_evacuation_percentage =
+            heap_->isolate()->fuzzer_rng()->NextDouble();
+        abort_evacuation_at_address_ =
+            chunk->area_start() +
+            abort_evacuation_percentage * chunk->area_size();
+        return;
+      }
+    }
+
+    abort_evacuation_at_address_ = chunk->area_end();
+  }
+#endif  // DEBUG
+
  protected:
   enum MigrationMode { kFast, kObserved };
 
@@ -1793,10 +1818,17 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
 
   inline bool TryEvacuateObject(AllocationSpace target_space, HeapObject object,
                                 int size, HeapObject* target_object) {
-#ifdef DEBUG
-    if (v8_flags.stress_compaction && AbortCompactionForTesting(object))
+#if DEBUG
+    DCHECK_LE(abort_evacuation_at_address_,
+              MemoryChunk::FromHeapObject(object)->area_end());
+    DCHECK_GE(abort_evacuation_at_address_,
+              MemoryChunk::FromHeapObject(object)->area_start());
+
+    if (V8_UNLIKELY(object.address() >= abort_evacuation_at_address_)) {
       return false;
+    }
 #endif  // DEBUG
+
     Map map = object.map(cage_base());
     AllocationAlignment alignment = HeapObject::RequiredAlignment(map);
     AllocationResult allocation;
@@ -1840,25 +1872,6 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
     migration_function_(this, dst, src, size, dest);
   }
 
-#ifdef DEBUG
-  bool AbortCompactionForTesting(HeapObject object) {
-    if (v8_flags.stress_compaction) {
-      const uintptr_t mask = static_cast<uintptr_t>(v8_flags.random_seed) &
-                             kPageAlignmentMask & ~kObjectAlignmentMask;
-      if ((object.ptr() & kPageAlignmentMask) == mask) {
-        Page* page = Page::FromHeapObject(object);
-        if (page->IsFlagSet(Page::COMPACTION_WAS_ABORTED_FOR_TESTING)) {
-          page->ClearFlag(Page::COMPACTION_WAS_ABORTED_FOR_TESTING);
-        } else {
-          page->SetFlag(Page::COMPACTION_WAS_ABORTED_FOR_TESTING);
-          return true;
-        }
-      }
-    }
-    return false;
-  }
-#endif  // DEBUG
-
   Heap* heap_;
   EvacuationAllocator* local_allocator_;
   ConcurrentAllocator* shared_old_allocator_;
@@ -1866,6 +1879,9 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
   std::vector<MigrationObserver*> observers_;
   MigrateFunction migration_function_;
   bool shared_string_table_ = false;
+#if DEBUG
+  Address abort_evacuation_at_address_{kNullAddress};
+#endif  // DEBUG
 };
 
 class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
@@ -4294,6 +4310,7 @@ class FullEvacuator : public Evacuator {
 
  protected:
   void RawEvacuatePage(MemoryChunk* chunk, intptr_t* live_bytes) override;
+
   EphemeronRememberedSet ephemeron_remembered_set_;
   RecordMigratedSlotVisitor record_visitor_;
   EvacuationAllocator local_allocator_;
@@ -4311,6 +4328,9 @@ void FullEvacuator::RawEvacuatePage(MemoryChunk* chunk, intptr_t* live_bytes) {
   HeapObject failed_object;
   switch (evacuation_mode) {
     case kObjectsNewToOld:
+#if DEBUG
+      new_space_visitor_.DisableAbortEvacuationAtAddress(chunk);
+#endif  // DEBUG
       LiveObjectVisitor::VisitBlackObjectsNoFail(
           chunk, marking_state, &new_space_visitor_,
           LiveObjectVisitor::kClearMarkbits);
@@ -4334,6 +4354,9 @@ void FullEvacuator::RawEvacuatePage(MemoryChunk* chunk, intptr_t* live_bytes) {
       RwxMemoryWriteScope rwx_write_scope(
           "Evacuation of objects in Code space requires write access for the "
           "current worker thread.");
+#if DEBUG
+      old_space_visitor_.SetUpAbortEvacuationAtAddress(chunk);
+#endif  // DEBUG
       const bool success = LiveObjectVisitor::VisitBlackObjects(
           chunk, marking_state, &old_space_visitor_,
           LiveObjectVisitor::kClearMarkbits, &failed_object);
@@ -4519,7 +4542,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
   if (v8_flags.stress_compaction || v8_flags.stress_compaction_random) {
     // Stress aborting of evacuation by aborting ~10% of evacuation candidates
     // when stress testing.
-    const double kFraction = 0.1;
+    const double kFraction = 0.05;
 
     for (Page* page : old_space_evacuation_pages_) {
       if (page->IsFlagSet(Page::COMPACTION_WAS_ABORTED)) continue;

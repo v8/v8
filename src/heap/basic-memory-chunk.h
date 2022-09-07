@@ -97,11 +97,6 @@ class BasicMemoryChunk {
     //   has been aborted and needs special handling by the sweeper.
     COMPACTION_WAS_ABORTED = 1u << 16,
 
-    // |COMPACTION_WAS_ABORTED_FOR_TESTING|: During stress testing evacuation
-    // on pages is sometimes aborted. The flag is used to avoid repeatedly
-    // triggering on the same page.
-    COMPACTION_WAS_ABORTED_FOR_TESTING = 1u << 17,
-
     NEW_SPACE_BELOW_AGE_MARK = 1u << 18,
 
     // The memory chunk freeing bookkeeping has been performed but the chunk has
