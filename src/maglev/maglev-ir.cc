@@ -98,59 +98,6 @@ void UseFixed(Input& input, Register reg) {
 // Code gen helpers.
 // ---
 
-void Branch(MaglevAssembler* masm, Condition condition, BasicBlock* if_true,
-            BasicBlock* if_false, BasicBlock* next_block) {
-  // We don't have any branch probability information, so try to jump
-  // over whatever the next block emitted is.
-  if (if_false == next_block) {
-    // Jump over the false block if true, otherwise fall through into it.
-    __ j(condition, if_true->label());
-  } else {
-    // Jump to the false block if true.
-    __ j(NegateCondition(condition), if_false->label());
-    // Jump to the true block if it's not the next block.
-    if (if_true != next_block) {
-      __ jmp(if_true->label());
-    }
-  }
-}
-
-void PushInput(MaglevAssembler* masm, const Input& input) {
-  if (input.operand().IsConstant()) {
-    input.node()->LoadToRegister(masm, kScratchRegister);
-    __ Push(kScratchRegister);
-  } else {
-    // TODO(leszeks): Consider special casing the value. (Toon: could possibly
-    // be done through Input directly?)
-    const compiler::AllocatedOperand& operand =
-        compiler::AllocatedOperand::cast(input.operand());
-
-    if (operand.IsRegister()) {
-      __ Push(operand.GetRegister());
-    } else {
-      DCHECK(operand.IsStackSlot());
-      __ Push(masm->GetStackSlot(operand));
-    }
-  }
-}
-
-Register FromAnyToRegister(MaglevAssembler* masm, Register scratch,
-                           const Input& input) {
-  if (input.operand().IsConstant()) {
-    input.node()->LoadToRegister(masm, scratch);
-    return scratch;
-  }
-  const compiler::AllocatedOperand& operand =
-      compiler::AllocatedOperand::cast(input.operand());
-  if (operand.IsRegister()) {
-    return ToRegister(input);
-  } else {
-    DCHECK(operand.IsStackSlot());
-    __ movq(scratch, masm->ToMemOperand(input));
-    return scratch;
-  }
-}
-
 class SaveRegisterStateForCall {
  public:
   SaveRegisterStateForCall(MaglevAssembler* masm, RegisterSnapshot snapshot)
@@ -843,8 +790,8 @@ void GeneratorStore::GenerateCode(MaglevAssembler* masm,
     // generates better code when value == scratch. Can't use kScratchRegister
     // because CheckPageFlag uses it.
     Register value =
-        FromAnyToRegister(masm, WriteBarrierDescriptor::SlotAddressRegister(),
-                          parameters_and_registers(i));
+        __ FromAnyToRegister(parameters_and_registers(i),
+                             WriteBarrierDescriptor::SlotAddressRegister());
 
     DeferredCodeInfo* deferred_write_barrier = PushDeferredCode(
         masm,
@@ -890,8 +837,8 @@ void GeneratorStore::GenerateCode(MaglevAssembler* masm,
 
   // Use WriteBarrierDescriptor::SlotAddressRegister() as the scratch
   // register, see comment above.
-  Register context = FromAnyToRegister(
-      masm, WriteBarrierDescriptor::SlotAddressRegister(), context_input());
+  Register context = __ FromAnyToRegister(
+      context_input(), WriteBarrierDescriptor::SlotAddressRegister());
 
   DeferredCodeInfo* deferred_context_write_barrier = PushDeferredCode(
       masm,
@@ -2934,7 +2881,7 @@ void Call::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   DCHECK_EQ(ToRegister(context()), kContextRegister);
 
   for (int i = num_args() - 1; i >= 0; --i) {
-    PushInput(masm, arg(i));
+    __ PushInput(arg(i));
   }
 
   uint32_t arg_count = num_args();
@@ -2977,7 +2924,7 @@ void Construct::GenerateCode(MaglevAssembler* masm,
   DCHECK_EQ(ToRegister(context()), kContextRegister);
 
   for (int i = num_args() - 1; i >= 0; --i) {
-    PushInput(masm, arg(i));
+    __ PushInput(arg(i));
   }
 
   uint32_t arg_count = num_args();
@@ -3073,7 +3020,7 @@ void CallBuiltin::GenerateCode(MaglevAssembler* masm,
 
   if (descriptor.GetStackArgumentOrder() == StackArgumentOrder::kDefault) {
     for (int i = InputsInRegisterCount(); i < InputCountWithoutContext(); ++i) {
-      PushInput(masm, input(i));
+      __ PushInput(input(i));
     }
     if (has_feedback()) {
       PushFeedback(masm);
@@ -3085,7 +3032,7 @@ void CallBuiltin::GenerateCode(MaglevAssembler* masm,
     }
     for (int i = InputCountWithoutContext() - 1; i >= InputsInRegisterCount();
          --i) {
-      PushInput(masm, input(i));
+      __ PushInput(input(i));
     }
   }
   __ CallBuiltin(builtin());
@@ -3107,7 +3054,7 @@ void CallRuntime::GenerateCode(MaglevAssembler* masm,
                                const ProcessingState& state) {
   DCHECK_EQ(ToRegister(context()), kContextRegister);
   for (int i = 0; i < num_args(); i++) {
-    PushInput(masm, arg(i));
+    __ PushInput(arg(i));
   }
   __ CallRuntime(function_id(), num_args());
   // TODO(victorgomes): Not sure if this is needed for all runtime calls.
@@ -3136,7 +3083,7 @@ void CallWithSpread::GenerateCode(MaglevAssembler* masm,
   // Push other arguments (other than the spread) to the stack.
   int argc_no_spread = num_args() - 1;
   for (int i = argc_no_spread - 1; i >= 0; --i) {
-    PushInput(masm, arg(i));
+    __ PushInput(arg(i));
   }
   __ Move(D::GetRegisterParameter(D::kArgumentsCount),
           Immediate(argc_no_spread));
@@ -3164,7 +3111,7 @@ void ConstructWithSpread::GenerateCode(MaglevAssembler* masm,
   // Push other arguments (other than the spread) to the stack.
   int argc_no_spread = num_args() - 1;
   for (int i = argc_no_spread - 1; i >= 0; --i) {
-    PushInput(masm, arg(i));
+    __ PushInput(arg(i));
   }
   __ Move(D::GetRegisterParameter(D::kActualArgumentsCount),
           Immediate(argc_no_spread));
@@ -3543,7 +3490,7 @@ void BranchIfRootConstant::AllocateVreg(MaglevVregAllocationState* vreg_state) {
 void BranchIfRootConstant::GenerateCode(MaglevAssembler* masm,
                                         const ProcessingState& state) {
   __ CompareRoot(ToRegister(condition_input()), root_index());
-  Branch(masm, equal, if_true(), if_false(), state.next_block());
+  __ Branch(equal, if_true(), if_false(), state.next_block());
 }
 void BranchIfRootConstant::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
@@ -3574,7 +3521,7 @@ void BranchIfJSReceiver::GenerateCode(MaglevAssembler* masm,
   __ JumpIfSmi(value, if_false()->label());
   __ LoadMap(kScratchRegister, value);
   __ CmpInstanceType(kScratchRegister, FIRST_JS_RECEIVER_TYPE);
-  Branch(masm, above_equal, if_true(), if_false(), state.next_block());
+  __ Branch(above_equal, if_true(), if_false(), state.next_block());
 }
 
 void BranchIfInt32Compare::AllocateVreg(MaglevVregAllocationState* vreg_state) {
@@ -3586,8 +3533,8 @@ void BranchIfInt32Compare::GenerateCode(MaglevAssembler* masm,
   Register left = ToRegister(left_input());
   Register right = ToRegister(right_input());
   __ cmpl(left, right);
-  Branch(masm, ConditionFor(operation_), if_true(), if_false(),
-         state.next_block());
+  __ Branch(ConditionFor(operation_), if_true(), if_false(),
+            state.next_block());
 }
 void BranchIfFloat64Compare::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
@@ -3604,8 +3551,8 @@ void BranchIfFloat64Compare::GenerateCode(MaglevAssembler* masm,
   DoubleRegister left = ToDoubleRegister(left_input());
   DoubleRegister right = ToDoubleRegister(right_input());
   __ Ucomisd(left, right);
-  Branch(masm, ConditionFor(operation_), if_true(), if_false(),
-         state.next_block());
+  __ Branch(ConditionFor(operation_), if_true(), if_false(),
+            state.next_block());
 }
 void BranchIfInt32Compare::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
@@ -3622,8 +3569,8 @@ void BranchIfReferenceCompare::GenerateCode(MaglevAssembler* masm,
   Register left = ToRegister(left_input());
   Register right = ToRegister(right_input());
   __ cmp_tagged(left, right);
-  Branch(masm, ConditionFor(operation_), if_true(), if_false(),
-         state.next_block());
+  __ Branch(ConditionFor(operation_), if_true(), if_false(),
+            state.next_block());
 }
 void BranchIfReferenceCompare::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {

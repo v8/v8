@@ -39,6 +39,11 @@ class MaglevAssembler : public MacroAssembler {
     return GetFramePointerOffsetForStackSlot(index);
   }
 
+  inline void Branch(Condition condition, BasicBlock* if_true,
+                     BasicBlock* if_false, BasicBlock* next_block);
+  inline void PushInput(const Input& input);
+  inline Register FromAnyToRegister(const Input& input, Register scratch);
+
   inline void DefineLazyDeoptPoint(LazyDeoptInfo* info);
   inline void DefineExceptionHandlerPoint(NodeBase* node);
   inline void DefineExceptionHandlerAndLazyDeoptPoint(NodeBase* node);
