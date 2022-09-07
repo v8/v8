@@ -1108,6 +1108,15 @@ void ExternalString::InitExternalPointerFields(Isolate* isolate) {
       kResourceDataOffset, isolate, kNullAddress);
 }
 
+void ExternalString::VisitExternalPointers(ObjectVisitor* visitor) const {
+  visitor->VisitExternalPointer(*this, RawExternalPointerField(kResourceOffset),
+                                kExternalStringResourceTag);
+  if (is_uncached()) return;
+  visitor->VisitExternalPointer(*this,
+                                RawExternalPointerField(kResourceDataOffset),
+                                kExternalStringResourceDataTag);
+}
+
 DEF_GETTER(ExternalString, resource_as_address, Address) {
   Isolate* isolate = GetIsolateForSandbox(*this);
   return ReadExternalPointerField<kExternalStringResourceTag>(kResourceOffset,

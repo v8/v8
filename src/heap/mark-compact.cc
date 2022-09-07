@@ -1449,6 +1449,69 @@ class ExternalStringTableCleaner : public RootVisitor {
   Heap* heap_;
 };
 
+#ifdef V8_ENABLE_SANDBOX
+class MarkExternalPointerFromExternalStringTable : public RootVisitor {
+ public:
+  explicit MarkExternalPointerFromExternalStringTable(
+      ExternalPointerTable* shared_table)
+      : visitor(shared_table) {}
+
+  void VisitRootPointers(Root root, const char* description,
+                         FullObjectSlot start, FullObjectSlot end) override {
+    // Visit all HeapObject pointers in [start, end).
+    for (FullObjectSlot p = start; p < end; ++p) {
+      Object o = *p;
+      if (o.IsHeapObject()) {
+        HeapObject heap_object = HeapObject::cast(o);
+        if (heap_object.IsExternalString()) {
+          ExternalString string = ExternalString::cast(heap_object);
+          string.VisitExternalPointers(&visitor);
+        } else {
+          // The original external string may have been internalized.
+          DCHECK(o.IsThinString());
+        }
+      }
+    }
+  }
+
+ private:
+  class MarkExternalPointerTableVisitor : public ObjectVisitor {
+   public:
+    explicit MarkExternalPointerTableVisitor(ExternalPointerTable* table)
+        : table_(table) {}
+    void VisitExternalPointer(HeapObject host, ExternalPointerSlot slot,
+                              ExternalPointerTag tag) override {
+      if (!IsSandboxedExternalPointerType(tag)) return;
+      DCHECK(IsSharedExternalPointerType(tag));
+      ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
+      table_->Mark(handle, slot.address());
+    }
+    void VisitPointers(HeapObject host, ObjectSlot start,
+                       ObjectSlot end) override {
+      UNREACHABLE();
+    }
+    void VisitPointers(HeapObject host, MaybeObjectSlot start,
+                       MaybeObjectSlot end) override {
+      UNREACHABLE();
+    }
+    void VisitCodePointer(HeapObject host, CodeObjectSlot slot) override {
+      UNREACHABLE();
+    }
+    void VisitCodeTarget(Code host, RelocInfo* rinfo) override {
+      UNREACHABLE();
+    }
+    void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
+      UNREACHABLE();
+    }
+
+   private:
+    ExternalPointerTable* table_;
+  };
+
+  MarkExternalPointerTableVisitor visitor;
+};
+#endif
+
 // Implementation of WeakObjectRetainer for mark compact GCs. All marked objects
 // are retained.
 class MarkCompactWeakObjectRetainer : public WeakObjectRetainer {
@@ -2271,6 +2334,17 @@ void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
     table.Mark(handle, reinterpret_cast<Address>(handle_location));
   }
 #endif  // V8_COMPRESS_POINTERS
+
+#ifdef V8_ENABLE_SANDBOX
+  if (IsSandboxedExternalPointerType(kExternalStringResourceTag) ||
+      IsSandboxedExternalPointerType(kExternalStringResourceDataTag)) {
+    // All ExternalString resources are stored in the shared external pointer
+    // table. Mark entries from client heaps.
+    ExternalPointerTable& table = client->shared_external_pointer_table();
+    MarkExternalPointerFromExternalStringTable external_string_visitor(&table);
+    heap->external_string_table_.IterateAll(&external_string_visitor);
+  }
+#endif  // V8_ENABLE_SANDBOX
 }
 
 void MarkCompactCollector::VisitObject(HeapObject obj) {

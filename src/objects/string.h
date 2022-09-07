@@ -911,6 +911,7 @@ class ExternalString
       kResourceOffset + FIELD_SIZE(kResourceOffset);
 
   inline void InitExternalPointerFields(Isolate* isolate);
+  inline void VisitExternalPointers(ObjectVisitor* visitor) const;
 
   // Return whether the external string data pointer is not cached.
   inline bool is_uncached() const;
