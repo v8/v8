@@ -4,34 +4,34 @@
 
 // Flags: --allow-natives-syntax --maglev
 
-function gen_sarl_smi(y) {
-  return new Function('x', `return x >> ${y};`);
+function gen_sarl() {
+  return new Function('x', 'y', 'return x >> y;');
 }
 
 function sarl_test(lhs, rhs, expected_result) {
-  const sarl = gen_sarl_smi(rhs);
+  const sarl = gen_sarl();
 
   // Warmup.
   %PrepareFunctionForOptimization(sarl);
-  sarl(1);
+  sarl(1, 1);
   %OptimizeMaglevOnNextCall(sarl);
 
-  assertEquals(expected_result, sarl(lhs));
+  assertEquals(expected_result, sarl(lhs, rhs));
   assertTrue(isMaglevved(sarl));
 
   %DeoptimizeFunction(sarl);
-  assertEquals(expected_result, sarl(lhs));
+  assertEquals(expected_result, sarl(lhs, rhs));
 }
 
 function sarl_test_expect_deopt(lhs, rhs, expected_result) {
-  const sarl = gen_sarl_smi(rhs);
+  const sarl = gen_sarl();
 
   // Warmup.
   %PrepareFunctionForOptimization(sarl);
-  sarl(1);
+  sarl(1, 1);
   %OptimizeMaglevOnNextCall(sarl);
 
-  assertEquals(expected_result, sarl(lhs));
+  assertEquals(expected_result, sarl(lhs, rhs));
   assertFalse(isMaglevved(sarl));
 }
 
