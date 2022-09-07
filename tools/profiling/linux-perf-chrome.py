@@ -3,17 +3,21 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+from datetime import datetime
+from datetime import timedelta
+import multiprocessing
 import optparse
-from pathlib import Path
-from datetime import datetime, timedelta
 import os
+from pathlib import Path
 import shlex
-import subprocess
+import shutil
 import signal
+import subprocess
+import sys
 import tempfile
 import time
+
 import psutil
-import multiprocessing
 
 renderer_cmd_file = Path(__file__).parent / 'linux-perf-chrome-renderer-cmd.sh'
 assert renderer_cmd_file.is_file()
@@ -28,7 +32,7 @@ support to resolve JS function names.
 
 The perf data is written to OUT_DIR separate by renderer process.
 
-See http://v8.dev//linux-perf for more detailed instructions.
+See https://v8.dev/docs/linux-perf for more detailed instructions.
 """
 parser = optparse.OptionParser(usage=usage)
 parser.add_option(
@@ -73,7 +77,6 @@ def log(*args):
   print("=" * 80)
   print(*args)
   print("=" * 80)
-
 
 # ==============================================================================
 
@@ -135,7 +138,10 @@ with tempfile.TemporaryDirectory(prefix="chrome-") as tmp_dir_path:
   if options.user_data_dir is None:
     cmd.append(f"--user-data-dir={tempdir}")
   cmd += [
-      "--no-sandbox", "--incognito", "--enable-benchmarking", "--no-first-run",
+      "--no-sandbox",
+      "--incognito",
+      "--enable-benchmarking",
+      "--no-first-run",
       "--no-default-browser-check",
       f"--renderer-cmd-prefix={options.renderer_cmd_prefix}",
   ]
@@ -189,7 +195,8 @@ with tempfile.TemporaryDirectory(prefix="chrome-") as tmp_dir_path:
       process.wait()
     elif return_status != 0:
       log("ERROR running perf record")
-  # ==============================================================================
+
+# ==============================================================================
 log("PARALLEL POST PROCESSING: Injecting JS symbols")
 
 
@@ -219,6 +226,7 @@ if len(results) == 0:
   print("No perf files were successfully processed"
         " Check for errors or partial results in '{options.perf_data_dir}'")
   exit(1)
+
 log(f"RESULTS in '{options.perf_data_dir}'")
 results.sort(key=lambda x: x.stat().st_size)
 BYTES_TO_MIB = 1 / 1024 / 1024
@@ -227,6 +235,38 @@ for output_file in reversed(results):
       f"{output_file.name:67}{(output_file.stat().st_size*BYTES_TO_MIB):10.2f}MiB"
   )
 
+# ==============================================================================
+path_strings = [str(path.relative_to(old_cwd)) for path in results]
+largest_result = path_strings[-1]
+results_str = ' '.join(path_strings)
+
+if not shutil.which('gcertstatus'):
+  log("ANALYSIS")
+  print(f"perf report --input='{largest_result}'")
+  print(f"pprof {path_strings}")
+  exit(0)
+
 log("PPROF")
-path_strings = map(lambda f: str(f.relative_to(old_cwd)), results)
-print(f"pprof -flame { ' '.join(path_strings)}")
+has_gcert = False
+try:
+  print("# Checking gcert status for googlers")
+  subprocess.check_call("gcertstatus >&/dev/null || gcert", shell=True)
+  has_gcert = True
+
+  cmd = ["pprof", "-flame", f"-add_comment={shlex.join(sys.argv)}"]
+  print("# Processing and uploading largest pprof result")
+  url = subprocess.check_output(cmd + [largest_result]).decode('utf-8').strip()
+  print("# PPROF RESULT")
+  print(url)
+
+  print("# Processing and uploading combined pprof result")
+  url = subprocess.check_output(cmd + path_strings).decode('utf-8').strip()
+  print("# PPROF RESULT")
+  print(url)
+except subprocess.CalledProcessError as e:
+  if has_gcert:
+    raise Exception("Could not generate pprof results") from e
+  print("# Please run `gcert` for generating pprof results")
+  print(f"pprof -flame {' '.join(path_strings)}")
+except KeyboardInterrupt:
+  exit(1)
