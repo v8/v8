@@ -431,6 +431,8 @@
       {'name': 'mjsunit', 'variant': 'stress_snapshot'},
       # Maglev.
       {'name': 'mjsunit', 'variant': 'maglev'},
+      # Stress maglev.
+      {'name': 'mjsunit', 'variant': 'stress_maglev'},
       # Experimental regexp engine.
       {'name': 'mjsunit', 'variant': 'experimental_regexp'},
       # Wasm write protect code space.
@@ -1386,6 +1388,8 @@
       {'name': 'mjsunit', 'variant': 'stress_snapshot'},
       # Maglev.
       {'name': 'mjsunit', 'variant': 'maglev'},
+      # Stress maglev.
+      {'name': 'mjsunit', 'variant': 'stress_maglev'},
       # Experimental regexp engine.
       {'name': 'mjsunit', 'variant': 'experimental_regexp'},
       # Wasm write protect code space.
@@ -1450,6 +1454,8 @@
       {'name': 'mjsunit', 'variant': 'stress_snapshot'},
       # Maglev.
       {'name': 'mjsunit', 'variant': 'maglev'},
+      # Stress maglev.
+      {'name': 'mjsunit', 'variant': 'stress_maglev'},
       # Experimental regexp engine.
       {'name': 'mjsunit', 'variant': 'experimental_regexp'},
       # Wasm write protect code space.

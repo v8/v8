@@ -16,6 +16,7 @@ ALL_VARIANT_FLAGS = {
     "jitless": [["--jitless"]],
     "sparkplug": [["--sparkplug"]],
     "maglev": [["--maglev"]],
+    "stress_maglev": [["--maglev", "--stress-maglev"]],
     "turboshaft": [["--turboshaft"]],
     "concurrent_sparkplug": [["--concurrent-sparkplug", "--sparkplug"]],
     "always_sparkplug": [["--always-sparkplug", "--sparkplug"]],
@@ -80,6 +81,7 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
     "sparkplug": ["--jitless", "--no-sparkplug"],
     "concurrent_sparkplug": ["--jitless"],
     "maglev": ["--jitless"],
+    "stress_maglev": ["--jitless"],
     "always_sparkplug": ["--jitless", "--no-sparkplug"],
     "code_serializer": [
         "--cache=after-execute", "--cache=full-code-cache", "--cache=none"

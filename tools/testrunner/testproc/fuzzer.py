@@ -17,6 +17,7 @@ EXTRA_FLAGS = [
     (0.1, '--force-slow-path'),
     (0.2, '--future'),
     (0.1, '--interrupt-budget=100'),
+    (0.1, '--interrupt-budget-for-maglev=100'),
     (0.1, '--liftoff'),
     (0.1, '--maglev'),
     (0.2, '--no-analyze-environment-liveness'),
@@ -319,17 +320,18 @@ class CompactionFuzzer(Fuzzer):
 class InterruptBudgetFuzzer(Fuzzer):
   def create_flags_generator(self, rng, test, analysis_value):
     while True:
-      # Half with half without lazy feedback allocation. The first flag
+      # Half with, half without lazy feedback allocation. The first flag
       # overwrites potential flag negations from the extra flags list.
       flag1 = rng.choice(
           '--lazy-feedback-allocation', '--no-lazy-feedback-allocation')
-      # For most code paths, only one of the flags below has a meaning
-      # based on the flag above.
       flag2 = '--interrupt-budget=%d' % rng.randint(0, 135168)
-      flag3 = '--interrupt-budget-for-feedback-allocation=%d' % rng.randint(
+      flag3 = '--interrupt-budget-for-maglev=%d' % rng.randint(0, 40960)
+      flag4 = '--interrupt-budget-for-feedback-allocation=%d' % rng.randint(
           0, 940)
+      flag5 = '--interrupt-budget-factor-for-feedback-allocation=%d' % rng.randint(
+          1, 8)
 
-      yield [flag1, flag2, flag3]
+      yield [flag1, flag2, flag3, flag4, flag5]
 
 
 class StackSizeFuzzer(Fuzzer):
