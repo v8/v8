@@ -2578,7 +2578,9 @@ UTEST_RVV_FMA_VF_FORM_WITH_RES(vfnmsac_vf, ARRAY_FLOAT,
     for (float rs1_fval : compiler::ValueHelper::GetVector<float>()) { \
       std::vector<double> temp_arr(kRvvVLEN / 32,                      \
                                    static_cast<double>(rs1_fval));     \
-      double expect_res = rs1_fval;                                    \
+      double expect_res = base::bit_cast<double>(                      \
+          (uint64_t)base::bit_cast<uint32_t>(rs1_fval) << 32 |         \
+          base::bit_cast<uint32_t>(rs1_fval));                         \
       for (double val : temp_arr) {                                    \
         expect_res += val;                                             \
         if (std::isnan(expect_res)) {                                  \

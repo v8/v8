@@ -6861,7 +6861,7 @@ void Simulator::DecodeRvvFVV() {
         }
         case E32: {
           double& vd = Rvvelt<double>(rvv_vd_reg(), 0, true);
-          float vs1 = Rvvelt<float>(rvv_vs1_reg(), 0);
+          double vs1 = Rvvelt<double>(rvv_vs1_reg(), 0);
           double alu_out = vs1;
           for (uint64_t i = rvv_vstart(); i < rvv_vl(); ++i) {
             double vs2 = static_cast<double>(Rvvelt<float>(rvv_vs2_reg(), i));
