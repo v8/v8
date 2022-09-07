@@ -276,7 +276,6 @@
 ['lite_mode or variant == jitless', {
 
   # Tests that generate code at runtime.
-  'CodeGenTest.*': [SKIP],
   'CodePagesTest.*': [SKIP],
   'MacroAssemblerX64Test.EmbeddedObj': [SKIP],
   'RegExpTest.MacroAssemblernativeAtStart': [SKIP],
@@ -329,11 +328,5 @@
 ['no_i18n == True', {
   'RegExpTestWithContext.UnicodePropertyEscapeCodeSize': [SKIP],
 }],  # no_i18n == True
-
-##############################################################################
-['variant == nooptimization', {
-  # %ObserveNode tests rely on TurboFan.
-  'SloppyEqualityTest.*' : [SKIP],
-}],  # variant == nooptimization
 
 ]
