@@ -13,7 +13,6 @@
 #include "src/base/threaded-list.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/machine-type.h"
-#include "src/codegen/macro-assembler.h"
 #include "src/codegen/register.h"
 #include "src/codegen/reglist.h"
 #include "src/common/globals.h"

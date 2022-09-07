@@ -3615,6 +3615,8 @@ v8_header_set("v8_internal_headers") {
 
   if (v8_enable_maglev) {
     sources += [
+      "src/maglev/maglev-assembler-inl.h",
+      "src/maglev/maglev-assembler.h",
       "src/maglev/maglev-basic-block.h",
       "src/maglev/maglev-code-gen-state.h",
       "src/maglev/maglev-code-generator.h",
