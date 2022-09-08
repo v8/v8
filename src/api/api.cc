@@ -1188,6 +1188,15 @@ void Template::SetAccessorProperty(v8::Local<v8::Name> name,
                                    v8::Local<FunctionTemplate> setter,
                                    v8::PropertyAttribute attribute,
                                    v8::AccessControl access_control) {
+  Utils::ApiCheck(
+      getter.IsEmpty() ||
+          !Utils::OpenHandle(*getter)->call_code(kAcquireLoad).IsUndefined(),
+      "v8::Template::SetAccessorProperty", "Getter must have a call handler");
+  Utils::ApiCheck(
+      setter.IsEmpty() ||
+          !Utils::OpenHandle(*setter)->call_code(kAcquireLoad).IsUndefined(),
+      "v8::Template::SetAccessorProperty", "Setter must have a call handler");
+
   // TODO(verwaest): Remove |access_control|.
   DCHECK_EQ(v8::DEFAULT, access_control);
   auto templ = Utils::OpenHandle(this);
