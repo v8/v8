@@ -127,11 +127,11 @@ V8InspectorSessionImpl::V8InspectorSessionImpl(
       this, this, agentState(protocol::Console::Metainfo::domainName)));
   protocol::Console::Dispatcher::wire(&m_dispatcher, m_consoleAgent.get());
 
-  if (m_clientTrustLevel == V8Inspector::kFullyTrusted) {
-    m_profilerAgent.reset(new V8ProfilerAgentImpl(
-        this, this, agentState(protocol::Profiler::Metainfo::domainName)));
-    protocol::Profiler::Dispatcher::wire(&m_dispatcher, m_profilerAgent.get());
+  m_profilerAgent.reset(new V8ProfilerAgentImpl(
+      this, this, agentState(protocol::Profiler::Metainfo::domainName)));
+  protocol::Profiler::Dispatcher::wire(&m_dispatcher, m_profilerAgent.get());
 
+  if (m_clientTrustLevel == V8Inspector::kFullyTrusted) {
     m_heapProfilerAgent.reset(new V8HeapProfilerAgentImpl(
         this, this, agentState(protocol::HeapProfiler::Metainfo::domainName)));
     protocol::HeapProfiler::Dispatcher::wire(&m_dispatcher,
@@ -145,7 +145,7 @@ V8InspectorSessionImpl::V8InspectorSessionImpl(
     m_runtimeAgent->restore();
     m_debuggerAgent->restore();
     if (m_heapProfilerAgent) m_heapProfilerAgent->restore();
-    if (m_profilerAgent) m_profilerAgent->restore();
+    m_profilerAgent->restore();
     m_consoleAgent->restore();
   }
 }
@@ -154,7 +154,7 @@ V8InspectorSessionImpl::~V8InspectorSessionImpl() {
   v8::Isolate::Scope scope(m_inspector->isolate());
   discardInjectedScripts();
   m_consoleAgent->disable();
-  if (m_profilerAgent) m_profilerAgent->disable();
+  m_profilerAgent->disable();
   if (m_heapProfilerAgent) m_heapProfilerAgent->disable();
   m_debuggerAgent->disable();
   m_runtimeAgent->disable();
@@ -503,8 +503,7 @@ V8InspectorSessionImpl::searchInTextByLines(StringView text, StringView query,
 
 void V8InspectorSessionImpl::triggerPreciseCoverageDeltaUpdate(
     StringView occasion) {
-  if (m_profilerAgent)
-    m_profilerAgent->triggerPreciseCoverageDeltaUpdate(toString16(occasion));
+  m_profilerAgent->triggerPreciseCoverageDeltaUpdate(toString16(occasion));
 }
 
 }  // namespace v8_inspector
