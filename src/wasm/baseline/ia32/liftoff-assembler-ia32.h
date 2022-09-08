@@ -1286,6 +1286,10 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
   }
 }
 
+void LiftoffAssembler::LoadSpillAddress(Register dst, int offset) {
+  lea(dst, liftoff::GetStackSlot(offset));
+}
+
 void LiftoffAssembler::emit_i32_add(Register dst, Register lhs, Register rhs) {
   if (lhs != dst) {
     lea(dst, Operand(lhs, rhs, times_1, 0));

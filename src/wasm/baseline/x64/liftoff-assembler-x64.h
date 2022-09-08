@@ -1018,6 +1018,10 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
   }
 }
 
+void LiftoffAssembler::LoadSpillAddress(Register dst, int offset) {
+  leaq(dst, liftoff::GetStackSlot(offset));
+}
+
 void LiftoffAssembler::emit_trace_instruction(uint32_t markid) {
   Assembler::emit_trace_instruction(Immediate(markid));
 }

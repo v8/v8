@@ -1033,6 +1033,10 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
   }
 }
 
+void LiftoffAssembler::LoadSpillAddress(Register dst, int offset) {
+  Sub(dst, fp, offset);
+}
+
 #define I32_BINOP(name, instruction)                             \
   void LiftoffAssembler::emit_##name(Register dst, Register lhs, \
                                      Register rhs) {             \

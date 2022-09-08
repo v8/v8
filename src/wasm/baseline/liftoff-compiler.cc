@@ -2345,40 +2345,28 @@ class LiftoffCompiler {
     CODE_COMMENT("trace function exit");
     // Before making the runtime call, spill all cache registers.
     __ SpillAllRegisters();
-    LiftoffRegList pinned;
-    // Get a register to hold the stack slot for the return value.
-    LiftoffRegister info = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    __ AllocateStackSlot(info.gp(), sizeof(int64_t));
 
     // Store the return value if there is exactly one. Multiple return values
     // are not handled yet.
     size_t num_returns = decoder->sig_->return_count();
-    if (num_returns == 1) {
-      ValueKind return_kind = decoder->sig_->GetReturn(0).kind();
-      LiftoffRegister return_reg =
-          __ LoadToRegister(__ cache_state()->stack_state.back(), pinned);
-      if (is_reference(return_kind)) {
-        __ StoreTaggedPointer(info.gp(), no_reg, 0, return_reg, pinned);
-      } else {
-        __ Store(info.gp(), no_reg, 0, return_reg,
-                 StoreType::ForValueKind(return_kind), pinned);
-      }
-    }
     // Put the parameter in its place.
     WasmTraceExitDescriptor descriptor;
     DCHECK_EQ(0, descriptor.GetStackParameterCount());
     DCHECK_EQ(1, descriptor.GetRegisterParameterCount());
     Register param_reg = descriptor.GetRegisterParameter(0);
-    if (info.gp() != param_reg) {
-      __ Move(param_reg, info.gp(), kPointerKind);
+    if (num_returns == 1) {
+      auto& return_slot = __ cache_state()->stack_state.back();
+      if (return_slot.is_const()) {
+        __ Spill(&return_slot);
+      }
+      DCHECK(return_slot.is_stack());
+      __ LoadSpillAddress(param_reg, return_slot.offset());
     }
 
     source_position_table_builder_.AddPosition(
         __ pc_offset(), SourcePosition(decoder->position()), false);
     __ CallRuntimeStub(WasmCode::kWasmTraceExit);
     DefineSafepoint();
-
-    __ DeallocateStackSlot(sizeof(int64_t));
   }
 
   void TierupCheckOnTailCall(FullDecoder* decoder) {
