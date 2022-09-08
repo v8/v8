@@ -4946,7 +4946,8 @@ class RememberedSetUpdatingItem : public UpdatingItem {
       return REMOVE_SLOT;
     }
     if (Heap::InFromPage(heap_object)) {
-      DCHECK(!v8_flags.minor_mc);
+      DCHECK_IMPLIES(v8_flags.minor_mc,
+                     Page::FromHeapObject(heap_object)->IsLargePage());
       MapWord map_word = heap_object.map_word(kRelaxedLoad);
       if (map_word.IsForwardingAddress()) {
         HeapObjectReference::Update(THeapObjectSlot(slot),

@@ -228,7 +228,13 @@ TEST_F(HeapTest, GrowAndShrinkNewSpace) {
   old_capacity = new_space->TotalCapacity();
   new_space->Shrink();
   new_capacity = new_space->TotalCapacity();
-  CHECK_EQ(old_capacity, 2 * new_capacity);
+  if (v8_flags.minor_mc) {
+    // Shrinking may not be able to remove any pages if all contain live
+    // objects.
+    CHECK_GE(old_capacity, new_capacity);
+  } else {
+    CHECK_EQ(old_capacity, 2 * new_capacity);
+  }
 
   // Consecutive shrinking should not affect space capacity.
   old_capacity = new_space->TotalCapacity();
