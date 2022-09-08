@@ -177,6 +177,10 @@ template <typename T>
 void GenAndRunTestForLoadStore(T value, Func test_generator) {
   DCHECK(sizeof(T) == 4 || sizeof(T) == 8);
 
+  using INT_T = typename std::conditional<
+      std::is_integral<T>::value, T,
+      typename std::conditional<sizeof(T) == 4, int32_t, int64_t>::type>::type;
+
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
@@ -194,6 +198,11 @@ void GenAndRunTestForLoadStore(T value, Func test_generator) {
     assm.fmv_x_w(a0, fa0);
   } else if (std::is_same<double, T>::value) {
     assm.fmv_x_d(a0, fa0);
+  } else if (std::is_same<uint32_t, T>::value) {
+    if (base::bit_cast<INT_T>(value) & 0x80000000) {
+      assm.RV_li(t5, 0xffffffff00000000);
+      assm.xor_(a0, a0, t5);
+    }
   }
   assm.jr(ra);
 
@@ -201,10 +210,6 @@ void GenAndRunTestForLoadStore(T value, Func test_generator) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-
-  using INT_T = typename std::conditional<
-      std::is_integral<T>::value, T,
-      typename std::conditional<sizeof(T) == 4, int32_t, int64_t>::type>::type;
 
   auto f = GeneratedCode<INT_T(void* base, INT_T val)>::FromCode(*code);
 
