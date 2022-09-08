@@ -1215,6 +1215,7 @@ ValueDeserializer::ValueDeserializer(Isolate* isolate, const uint8_t* data,
           ReadOnlyRoots(isolate_).empty_fixed_array())) {}
 
 ValueDeserializer::~ValueDeserializer() {
+  DCHECK_LE(position_, end_);
   GlobalHandles::Destroy(id_map_.location());
 
   Handle<Object> transfer_map_handle;
@@ -1280,7 +1281,11 @@ Maybe<T> ValueDeserializer::ReadVarint() {
   // DCHECK code to make sure the manually unrolled loop yields the exact
   // same end state and result.
   auto previous_position = position_;
-  T expected_value = ReadVarintLoop<T>().ToChecked();
+  Maybe<T> maybe_expected_value = ReadVarintLoop<T>();
+  if (FLAG_fuzzing && maybe_expected_value.IsNothing()) {
+    return maybe_expected_value;
+  }
+  T expected_value = maybe_expected_value.ToChecked();
   auto expected_position = position_;
   position_ = previous_position;
 #endif  // DEBUG
@@ -1657,8 +1662,9 @@ bool ValueDeserializer::ReadExpectedString(Handle<String> expected) {
     return {};
   }
   // Length is also checked in ReadRawBytes.
-  DCHECK_LE(byte_length,
-            static_cast<uint32_t>(std::numeric_limits<int32_t>::max()));
+  DCHECK_IMPLIES(!FLAG_fuzzing,
+                 byte_length <= static_cast<uint32_t>(
+                                    std::numeric_limits<int32_t>::max()));
   if (!ReadRawBytes(byte_length).To(&bytes)) {
     position_ = original_position;
     return false;
