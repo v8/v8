@@ -2094,7 +2094,7 @@ class EvacuateRecordOnlyVisitor final : public HeapObjectVisitor {
     RecordMigratedSlotVisitor visitor(heap_->mark_compact_collector(),
                                       &heap_->ephemeron_remembered_set_);
     Map map = object.map(cage_base());
-    // Instead of calling object.IterateBodyFast(cage_base(), &visitor) here
+    // Instead of calling object.IterateFast(cage_base(), &visitor) here
     // we can shortcut and use the precomputed size value passed to the visitor.
     DCHECK_EQ(object.SizeFromMap(map), size);
     object.IterateFast(map, size, &visitor);
@@ -4585,7 +4585,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
         this, std::move(evacuation_items), nullptr);
   }
 
-  const size_t aborted_pages = PostProcessEvacuationCandidates();
+  const size_t aborted_pages = PostProcessAbortedEvacuationCandidates();
 
   if (v8_flags.trace_evacuation) {
     TraceEvacuation(isolate(), pages_count, wanted_num_tasks, live_bytes,
@@ -5168,6 +5168,9 @@ int CollectRememberedSetUpdatingItems(
     IterateableSpace* space, RememberedSetUpdatingMode mode) {
   int pages = 0;
   for (MemoryChunk* chunk : *space) {
+    // No need to update pointers on evacuation candidates. Evacuated pages will
+    // be released after this phase.
+    if (chunk->IsEvacuationCandidate()) continue;
     const bool contains_old_to_old_slots =
         chunk->slot_set<OLD_TO_OLD>() != nullptr ||
         chunk->typed_slot_set<OLD_TO_OLD>() != nullptr;
@@ -5445,7 +5448,7 @@ void ReRecordPage(Heap* heap,
 
 }  // namespace
 
-size_t MarkCompactCollector::PostProcessEvacuationCandidates() {
+size_t MarkCompactCollector::PostProcessAbortedEvacuationCandidates() {
   CHECK_IMPLIES(v8_flags.crash_on_aborted_evacuation,
                 aborted_evacuation_candidates_due_to_oom_.empty());
   for (auto start_and_page : aborted_evacuation_candidates_due_to_oom_) {
@@ -5462,14 +5465,15 @@ size_t MarkCompactCollector::PostProcessEvacuationCandidates() {
   size_t aborted_pages_verified = 0;
   for (Page* p : old_space_evacuation_pages_) {
     if (p->IsFlagSet(Page::COMPACTION_WAS_ABORTED)) {
-      // After clearing the evacuation candidate flag the page is again in a
-      // regular state.
+      // Only clear EVACUATION_CANDIDATE flag after all slots were re-recorded
+      // on all aborted pages. Necessary since repopulating
+      // OLD_TO_OLD still requires the EVACUATION_CANDIDATE flag. After clearing
+      // the evacuation candidate flag the page is again in a regular state.
       p->ClearEvacuationCandidate();
       aborted_pages_verified++;
     } else {
       DCHECK(p->IsEvacuationCandidate());
       DCHECK(p->SweepingDone());
-      p->owner()->memory_chunk_list().Remove(p);
     }
   }
   DCHECK_EQ(aborted_pages_verified, aborted_pages);
@@ -5483,6 +5487,7 @@ void MarkCompactCollector::ReleaseEvacuationCandidates() {
     PagedSpace* space = static_cast<PagedSpace*>(p->owner());
     non_atomic_marking_state()->SetLiveBytes(p, 0);
     CHECK(p->SweepingDone());
+    space->memory_chunk_list().Remove(p);
     space->ReleasePage(p);
   }
   old_space_evacuation_pages_.clear();

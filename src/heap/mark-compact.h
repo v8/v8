@@ -688,7 +688,7 @@ class MarkCompactCollector final : public CollectorBase {
 
   void ReleaseEvacuationCandidates();
   // Returns number of aborted pages.
-  size_t PostProcessEvacuationCandidates();
+  size_t PostProcessAbortedEvacuationCandidates();
   void ReportAbortedEvacuationCandidateDueToOOM(Address failed_start,
                                                 Page* page);
   void ReportAbortedEvacuationCandidateDueToFlags(Address failed_start,
