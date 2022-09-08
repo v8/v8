@@ -184,6 +184,7 @@ class CompactInterpreterFrameState;
   V(GapMove)
 
 #define NODE_LIST(V)                  \
+  V(AssertInt32)                      \
   V(CheckMaps)                        \
   V(CheckSmi)                         \
   V(CheckNumber)                      \
@@ -2453,6 +2454,33 @@ class CreateClosure : public FixedInputValueNodeT<1, CreateClosure> {
   const compiler::SharedFunctionInfoRef shared_function_info_;
   const compiler::FeedbackCellRef feedback_cell_;
   const bool pretenured_;
+};
+
+enum class AssertCondition {
+  kLess,
+  kLessOrEqual,
+  kGreater,
+  kGeaterOrEqual,
+  kEqual,
+  kNotEqual,
+};
+
+class AssertInt32 : public FixedInputNodeT<2, AssertInt32> {
+  using Base = FixedInputNodeT<2, AssertInt32>;
+
+ public:
+  explicit AssertInt32(uint64_t bitfield, AssertCondition condition,
+                       AbortReason reason)
+      : Base(bitfield), condition_(condition), reason_(reason) {}
+
+  Input& left_input() { return input(0); }
+  Input& right_input() { return input(1); }
+
+  DECL_NODE_INTERFACE()
+
+ private:
+  AssertCondition condition_;
+  AbortReason reason_;
 };
 
 enum class CheckType { kCheckHeapObject, kOmitHeapObjectCheck };

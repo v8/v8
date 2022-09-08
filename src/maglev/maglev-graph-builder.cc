@@ -2927,6 +2927,20 @@ void MaglevGraphBuilder::VisitResumeGenerator() {
   ValueNode* array = AddNewNode<LoadTaggedField>(
       {generator}, JSGeneratorObject::kParametersAndRegistersOffset);
   interpreter::RegisterList registers = iterator_.GetRegisterListOperand(1);
+
+  if (FLAG_maglev_assert) {
+    // Check if register count is invalid, that is, larger than the
+    // register file length.
+    ValueNode* array_length_smi =
+        AddNewNode<LoadTaggedField>({array}, FixedArrayBase::kLengthOffset);
+    ValueNode* array_length = AddNewNode<CheckedSmiUntag>({array_length_smi});
+    ValueNode* register_size = GetInt32Constant(
+        parameter_count_without_receiver() + registers.register_count());
+    AddNewNode<AssertInt32>(
+        {register_size, array_length}, AssertCondition::kLessOrEqual,
+        AbortReason::kInvalidParametersAndRegistersInGenerator);
+  }
+
   const compiler::BytecodeLivenessState* liveness =
       GetOutLivenessFor(next_offset());
   for (int i = 0; i < registers.register_count(); ++i) {

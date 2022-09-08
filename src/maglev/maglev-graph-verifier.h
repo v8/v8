@@ -213,6 +213,7 @@ class MaglevGraphVerifier {
         CheckValueInputIs(node, 2, ValueRepresentation::kTagged);
         CheckValueInputIs(node, 3, ValueRepresentation::kTagged);
         break;
+      case Opcode::kAssertInt32:
       case Opcode::kInt32AddWithOverflow:
       case Opcode::kInt32SubtractWithOverflow:
       case Opcode::kInt32MultiplyWithOverflow:

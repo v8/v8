@@ -1157,6 +1157,63 @@ void Abort::PrintParams(std::ostream& os,
   os << "(" << GetAbortReason(reason()) << ")";
 }
 
+namespace {
+Condition ToCondition(AssertCondition cond) {
+  switch (cond) {
+    case AssertCondition::kLess:
+      return less;
+    case AssertCondition::kLessOrEqual:
+      return less_equal;
+    case AssertCondition::kGreater:
+      return greater;
+    case AssertCondition::kGeaterOrEqual:
+      return greater_equal;
+    case AssertCondition::kEqual:
+      return equal;
+    case AssertCondition::kNotEqual:
+      return not_equal;
+  }
+}
+
+std::ostream& operator<<(std::ostream& os, const AssertCondition cond) {
+  switch (cond) {
+    case AssertCondition::kLess:
+      os << "Less";
+      break;
+    case AssertCondition::kLessOrEqual:
+      os << "LessOrEqual";
+      break;
+    case AssertCondition::kGreater:
+      os << "Greater";
+      break;
+    case AssertCondition::kGeaterOrEqual:
+      os << "GeaterOrEqual";
+      break;
+    case AssertCondition::kEqual:
+      os << "Equal";
+      break;
+    case AssertCondition::kNotEqual:
+      os << "NotEqual";
+      break;
+  }
+  return os;
+}
+}  // namespace
+
+void AssertInt32::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  UseRegister(left_input());
+  UseRegister(right_input());
+}
+void AssertInt32::GenerateCode(MaglevAssembler* masm,
+                               const ProcessingState& state) {
+  __ cmpq(ToRegister(left_input()), ToRegister(right_input()));
+  __ Check(ToCondition(condition_), reason_);
+}
+void AssertInt32::PrintParams(std::ostream& os,
+                              MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << condition_ << ")";
+}
+
 void CheckMaps::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseRegister(receiver_input());
 }
