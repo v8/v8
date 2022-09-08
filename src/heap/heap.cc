@@ -193,6 +193,8 @@ class ScavengeTaskObserver final : public AllocationObserver {
 
 class MinorMCTaskObserver final : public AllocationObserver {
  public:
+  static constexpr size_t kStepSize = 64 * KB;
+
   MinorMCTaskObserver(Heap* heap, intptr_t step_size)
       : AllocationObserver(step_size), heap_(heap) {}
 
@@ -5471,13 +5473,13 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
       // v8_flags.concurrent_minor_mc can then be changed to v8_flags.minor_mc
       // (here and at the RemoveAllocationObserver call site).
       minor_mc_task_observer_.reset(
-          new MinorMCTaskObserver(this, MinorMCTaskTriggerSize()));
+          new MinorMCTaskObserver(this, MinorMCTaskObserver::kStepSize));
       new_space()->AddAllocationObserver(minor_mc_task_observer_.get());
     } else {
       // ScavengeJob is used by atomic MinorMC and Scavenger.
       scavenge_job_.reset(new ScavengeJob());
-      scavenge_task_observer_.reset(new ScavengeTaskObserver(
-          this, ScavengeJob::YoungGenerationTaskTriggerSize(this)));
+      scavenge_task_observer_.reset(
+          new ScavengeTaskObserver(this, ScavengeJob::kStepSize));
       new_space()->AddAllocationObserver(scavenge_task_observer_.get());
     }
   }
