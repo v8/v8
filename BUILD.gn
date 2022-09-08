@@ -6385,25 +6385,18 @@ group("v8_archive") {
 # TODO(dglazkov): Remove the "!build_with_chromium" condition once this clause
 # is removed from Chromium.
 if (is_fuchsia && !build_with_chromium) {
-  import("//build/config/fuchsia/generate_runner_scripts.gni")
-  import("//third_party/fuchsia-sdk/sdk/build/component.gni")
-  import("//third_party/fuchsia-sdk/sdk/build/package.gni")
+  import("//build/config/fuchsia/rules.gni")
 
-  fuchsia_component("d8_component") {
+  cr_fuchsia_package("d8_fuchsia_pkg") {
     testonly = true
-    manifest = "gni/v8.cml"
-    data_deps = [ ":d8" ]
-  }
-
-  fuchsia_package("d8_pkg") {
-    testonly = true
-    package_name = "d8"
-    deps = [ ":d8_component" ]
+    binary = ":d8"
+    manifest = "gni/v8.cmx"
+    package_name_override = "d8"
   }
 
   fuchsia_package_installer("d8_fuchsia") {
     testonly = true
-    package = ":d8_pkg"
+    package = ":d8_fuchsia_pkg"
     package_name = "d8"
   }
 }
