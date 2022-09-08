@@ -156,25 +156,17 @@ class LiveObjectRange {
 
 class LiveObjectVisitor : AllStatic {
  public:
-  enum IterationMode {
-    kKeepMarking,
-    kClearMarkbits,
-  };
-
   // Visits black objects on a MemoryChunk until the Visitor returns |false| for
-  // an object. If IterationMode::kClearMarkbits is passed the markbits and
-  // slots for visited objects are cleared for each successfully visited object.
+  // an object.
   template <class Visitor, typename MarkingState>
   static bool VisitBlackObjects(MemoryChunk* chunk, MarkingState* state,
-                                Visitor* visitor, IterationMode iteration_mode,
-                                HeapObject* failed_object);
+                                Visitor* visitor, HeapObject* failed_object);
 
   // Visits black objects on a MemoryChunk. The visitor is not allowed to fail
   // visitation for an object.
   template <class Visitor, typename MarkingState>
   static void VisitBlackObjectsNoFail(MemoryChunk* chunk, MarkingState* state,
-                                      Visitor* visitor,
-                                      IterationMode iteration_mode);
+                                      Visitor* visitor);
 
   template <typename MarkingState>
   static void RecomputeLiveBytes(MemoryChunk* chunk, MarkingState* state);

@@ -4331,22 +4331,20 @@ void FullEvacuator::RawEvacuatePage(MemoryChunk* chunk, intptr_t* live_bytes) {
 #if DEBUG
       new_space_visitor_.DisableAbortEvacuationAtAddress(chunk);
 #endif  // DEBUG
-      LiveObjectVisitor::VisitBlackObjectsNoFail(
-          chunk, marking_state, &new_space_visitor_,
-          LiveObjectVisitor::kClearMarkbits);
+      LiveObjectVisitor::VisitBlackObjectsNoFail(chunk, marking_state,
+                                                 &new_space_visitor_);
+      marking_state->ClearLiveness(chunk);
       break;
     case kPageNewToOld:
-      LiveObjectVisitor::VisitBlackObjectsNoFail(
-          chunk, marking_state, &new_to_old_page_visitor_,
-          LiveObjectVisitor::kKeepMarking);
+      LiveObjectVisitor::VisitBlackObjectsNoFail(chunk, marking_state,
+                                                 &new_to_old_page_visitor_);
       new_to_old_page_visitor_.account_moved_bytes(
           marking_state->live_bytes(chunk));
       break;
     case kPageNewToNew:
       DCHECK(!v8_flags.minor_mc);
-      LiveObjectVisitor::VisitBlackObjectsNoFail(
-          chunk, marking_state, &new_to_new_page_visitor_,
-          LiveObjectVisitor::kKeepMarking);
+      LiveObjectVisitor::VisitBlackObjectsNoFail(chunk, marking_state,
+                                                 &new_to_new_page_visitor_);
       new_to_new_page_visitor_.account_moved_bytes(
           marking_state->live_bytes(chunk));
       break;
@@ -4358,9 +4356,10 @@ void FullEvacuator::RawEvacuatePage(MemoryChunk* chunk, intptr_t* live_bytes) {
       old_space_visitor_.SetUpAbortEvacuationAtAddress(chunk);
 #endif  // DEBUG
       const bool success = LiveObjectVisitor::VisitBlackObjects(
-          chunk, marking_state, &old_space_visitor_,
-          LiveObjectVisitor::kClearMarkbits, &failed_object);
-      if (!success) {
+          chunk, marking_state, &old_space_visitor_, &failed_object);
+      if (success) {
+        marking_state->ClearLiveness(chunk);
+      } else {
         if (v8_flags.crash_on_aborted_evacuation) {
           heap_->FatalProcessOutOfMemory("FullEvacuator::RawEvacuatePage");
         } else {
@@ -4611,15 +4610,13 @@ class EvacuationWeakObjectRetainer : public WeakObjectRetainer {
 void MarkCompactCollector::RecordLiveSlotsOnPage(Page* page) {
   EvacuateRecordOnlyVisitor visitor(heap());
   LiveObjectVisitor::VisitBlackObjectsNoFail(page, non_atomic_marking_state(),
-                                             &visitor,
-                                             LiveObjectVisitor::kKeepMarking);
+                                             &visitor);
 }
 
 template <class Visitor, typename MarkingState>
 bool LiveObjectVisitor::VisitBlackObjects(MemoryChunk* chunk,
                                           MarkingState* marking_state,
                                           Visitor* visitor,
-                                          IterationMode iteration_mode,
                                           HeapObject* failed_object) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                "LiveObjectVisitor::VisitBlackObjects");
@@ -4627,17 +4624,9 @@ bool LiveObjectVisitor::VisitBlackObjects(MemoryChunk* chunk,
        LiveObjectRange<kBlackObjects>(chunk, marking_state->bitmap(chunk))) {
     HeapObject const object = object_and_size.first;
     if (!visitor->Visit(object, object_and_size.second)) {
-      if (iteration_mode == kClearMarkbits) {
-        marking_state->bitmap(chunk)->ClearRange(
-            chunk->AddressToMarkbitIndex(chunk->area_start()),
-            chunk->AddressToMarkbitIndex(object.address()));
-        *failed_object = object;
-      }
+      *failed_object = object;
       return false;
     }
-  }
-  if (iteration_mode == kClearMarkbits) {
-    marking_state->ClearLiveness(chunk);
   }
   return true;
 }
@@ -4645,8 +4634,7 @@ bool LiveObjectVisitor::VisitBlackObjects(MemoryChunk* chunk,
 template <class Visitor, typename MarkingState>
 void LiveObjectVisitor::VisitBlackObjectsNoFail(MemoryChunk* chunk,
                                                 MarkingState* marking_state,
-                                                Visitor* visitor,
-                                                IterationMode iteration_mode) {
+                                                Visitor* visitor) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                "LiveObjectVisitor::VisitBlackObjectsNoFail");
   if (chunk->IsLargePage()) {
@@ -4665,9 +4653,6 @@ void LiveObjectVisitor::VisitBlackObjectsNoFail(MemoryChunk* chunk,
       USE(success);
       DCHECK(success);
     }
-  }
-  if (iteration_mode == kClearMarkbits) {
-    marking_state->ClearLiveness(chunk);
   }
 }
 
@@ -5422,6 +5407,11 @@ void ReRecordPage(Heap* heap,
   // Aborted compaction page. We have to record slots here, since we
   // might not have recorded them in first place.
 
+  // Remove mark bits in evacuated area.
+  marking_state->bitmap(page)->ClearRange(
+      page->AddressToMarkbitIndex(page->area_start()),
+      page->AddressToMarkbitIndex(failed_start));
+
   // Remove outdated slots.
   RememberedSet<OLD_TO_NEW>::RemoveRange(page, page->address(), failed_start,
                                          SlotSet::FREE_EMPTY_BUCKETS);
@@ -5448,8 +5438,8 @@ void ReRecordPage(Heap* heap,
   LiveObjectVisitor::RecomputeLiveBytes(page, marking_state);
   // Re-record slots.
   EvacuateRecordOnlyVisitor record_visitor(heap);
-  LiveObjectVisitor::VisitBlackObjectsNoFail(
-      page, marking_state, &record_visitor, LiveObjectVisitor::kKeepMarking);
+  LiveObjectVisitor::VisitBlackObjectsNoFail(page, marking_state,
+                                             &record_visitor);
   // Array buffers will be processed during pointer updating.
 }
 
@@ -6646,8 +6636,7 @@ void YoungGenerationEvacuator::RawEvacuatePage(MemoryChunk* chunk,
   *live_bytes = marking_state->live_bytes(chunk);
   DCHECK_EQ(kPageNewToOld, ComputeEvacuationMode(chunk));
   LiveObjectVisitor::VisitBlackObjectsNoFail(chunk, marking_state,
-                                             &new_to_old_page_visitor_,
-                                             LiveObjectVisitor::kKeepMarking);
+                                             &new_to_old_page_visitor_);
   new_to_old_page_visitor_.account_moved_bytes(
       marking_state->live_bytes(chunk));
   if (!chunk->IsLargePage()) {
