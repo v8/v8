@@ -13,8 +13,6 @@
 #include "src/compiler/backend/arm64/instruction-codes-arm64.h"
 #elif V8_TARGET_ARCH_IA32
 #include "src/compiler/backend/ia32/instruction-codes-ia32.h"
-#elif V8_TARGET_ARCH_MIPS
-#include "src/compiler/backend/mips/instruction-codes-mips.h"
 #elif V8_TARGET_ARCH_MIPS64
 #include "src/compiler/backend/mips64/instruction-codes-mips64.h"
 #elif V8_TARGET_ARCH_LOONG64

@@ -17,8 +17,6 @@
 #include "src/codegen/arm/register-arm.h"
 #elif V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
 #include "src/codegen/ppc/register-ppc.h"
-#elif V8_TARGET_ARCH_MIPS
-#include "src/codegen/mips/register-mips.h"
 #elif V8_TARGET_ARCH_MIPS64
 #include "src/codegen/mips64/register-mips64.h"
 #elif V8_TARGET_ARCH_LOONG64

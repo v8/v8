@@ -607,11 +607,6 @@ v8_source_set("unittests_sources") {
       "assembler/turbo-assembler-ia32-unittest.cc",
       "compiler/ia32/instruction-selector-ia32-unittest.cc",
     ]
-  } else if (v8_current_cpu == "mips" || v8_current_cpu == "mipsel") {
-    sources += [
-      "assembler/turbo-assembler-mips-unittest.cc",
-      "compiler/mips/instruction-selector-mips-unittest.cc",
-    ]
   } else if (v8_current_cpu == "mips64" || v8_current_cpu == "mips64el") {
     sources += [
       "assembler/disasm-mips64-unittest.cc",

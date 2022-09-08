@@ -142,8 +142,6 @@ from testrunner.objects.output import Output, NULL_OUTPUT
 
 SUPPORTED_ARCHS = ['arm',
                    'ia32',
-                   'mips',
-                   'mipsel',
                    'x64',
                    'arm64',
                    'riscv64']

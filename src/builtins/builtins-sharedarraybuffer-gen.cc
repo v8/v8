@@ -251,16 +251,6 @@ TF_BUILTIN(AtomicsLoad, SharedArrayBufferBuiltinsAssembler) {
   BIND(&u32);
   Return(ChangeUint32ToTagged(AtomicLoad<Uint32T>(
       AtomicMemoryOrder::kSeqCst, backing_store, WordShl(index_word, 2))));
-#if (V8_TARGET_ARCH_MIPS && !_MIPS_ARCH_MIPS32R6)
-  BIND(&i64);
-  Goto(&u64);
-
-  BIND(&u64);
-  {
-    TNode<Number> index_number = ChangeUintPtrToTagged(index_word);
-    Return(CallRuntime(Runtime::kAtomicsLoad64, context, array, index_number));
-  }
-#else
   BIND(&i64);
   Return(BigIntFromSigned64(AtomicLoad64<AtomicInt64>(
       AtomicMemoryOrder::kSeqCst, backing_store, WordShl(index_word, 3))));
@@ -268,7 +258,6 @@ TF_BUILTIN(AtomicsLoad, SharedArrayBufferBuiltinsAssembler) {
   BIND(&u64);
   Return(BigIntFromUnsigned64(AtomicLoad64<AtomicUint64>(
       AtomicMemoryOrder::kSeqCst, backing_store, WordShl(index_word, 3))));
-#endif  //(V8_TARGET_ARCH_MIPS && !_MIPS_ARCH_MIPS32R6)
 
   // This shouldn't happen, we've already validated the type.
   BIND(&other);
@@ -358,11 +347,6 @@ TF_BUILTIN(AtomicsStore, SharedArrayBufferBuiltinsAssembler) {
   Return(value_integer);
 
   BIND(&u64);
-#if V8_TARGET_ARCH_MIPS && !_MIPS_ARCH_MIPS32R6
-  TNode<Number> index_number = ChangeUintPtrToTagged(index_word);
-  Return(CallRuntime(Runtime::kAtomicsStore64, context, array, index_number,
-                     value));
-#else
   // 4. If arrayTypeName is "BigUint64Array" or "BigInt64Array",
   //    let v be ? ToBigInt(value).
   TNode<BigInt> value_bigint = ToBigInt(context, value);
@@ -379,7 +363,6 @@ TF_BUILTIN(AtomicsStore, SharedArrayBufferBuiltinsAssembler) {
   AtomicStore64(AtomicMemoryOrder::kSeqCst, backing_store,
                 WordShl(index_word, 3), var_low.value(), high);
   Return(value_bigint);
-#endif
 
   // This shouldn't happen, we've already validated the type.
   BIND(&other);
@@ -423,7 +406,7 @@ TF_BUILTIN(AtomicsExchange, SharedArrayBufferBuiltinsAssembler) {
   TNode<UintPtrT> index_word =
       ValidateAtomicAccess(array, index_or_field_name, context);
 
-#if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
+#if V8_TARGET_ARCH_MIPS64
   TNode<Number> index_number = ChangeUintPtrToTagged(index_word);
   Return(CallRuntime(Runtime::kAtomicsExchange, context, array, index_number,
                      value));
@@ -523,7 +506,7 @@ TF_BUILTIN(AtomicsExchange, SharedArrayBufferBuiltinsAssembler) {
   // This shouldn't happen, we've already validated the type.
   BIND(&other);
   Unreachable();
-#endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
+#endif  // V8_TARGET_ARCH_MIPS64
 
   BIND(&detached_or_out_of_bounds);
   {
@@ -558,7 +541,7 @@ TF_BUILTIN(AtomicsCompareExchange, SharedArrayBufferBuiltinsAssembler) {
   // 2. Let i be ? ValidateAtomicAccess(typedArray, index).
   TNode<UintPtrT> index_word = ValidateAtomicAccess(array, index, context);
 
-#if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
+#if V8_TARGET_ARCH_MIPS64
   TNode<Number> index_number = ChangeUintPtrToTagged(index_word);
   Return(CallRuntime(Runtime::kAtomicsCompareExchange, context, array,
                      index_number, old_value, new_value));
@@ -677,7 +660,7 @@ TF_BUILTIN(AtomicsCompareExchange, SharedArrayBufferBuiltinsAssembler) {
   // This shouldn't happen, we've already validated the type.
   BIND(&other);
   Unreachable();
-#endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
+#endif  // V8_TARGET_ARCH_MIPS64
 
   BIND(&detached_or_out_of_bounds);
   {
@@ -728,7 +711,7 @@ void SharedArrayBufferBuiltinsAssembler::AtomicBinopBuiltinCommon(
   // 2. Let i be ? ValidateAtomicAccess(typedArray, index).
   TNode<UintPtrT> index_word = ValidateAtomicAccess(array, index, context);
 
-#if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
+#if V8_TARGET_ARCH_MIPS64
   TNode<Number> index_number = ChangeUintPtrToTagged(index_word);
   Return(CallRuntime(runtime_function, context, array, index_number, value));
 #else
@@ -818,7 +801,7 @@ void SharedArrayBufferBuiltinsAssembler::AtomicBinopBuiltinCommon(
   // // This shouldn't happen, we've already validated the type.
   BIND(&other);
   Unreachable();
-#endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
+#endif  // V8_TARGET_ARCH_MIPS64
 
   BIND(&detached_or_out_of_bounds);
   ThrowTypeError(context, MessageTemplate::kDetachedOperation, method_name);

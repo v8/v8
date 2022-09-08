@@ -43,11 +43,6 @@
 #elif defined(V8_HOST_ARCH_ARM64) || \
     (defined(V8_HOST_ARCH_ARM) && __ARM_ARCH >= 6)
 #define YIELD_PROCESSOR __asm__ __volatile__("yield")
-#elif defined(V8_HOST_ARCH_MIPS)
-// The MIPS32 docs state that the PAUSE instruction is a no-op on older
-// architectures (first added in MIPS32r2). To avoid assembler errors when
-// targeting pre-r2, we must encode the instruction manually.
-#define YIELD_PROCESSOR __asm__ __volatile__(".word 0x00000140")
 #elif defined(V8_HOST_ARCH_MIPS64EL) && __mips_isa_rev >= 2
 // Don't bother doing using .word here since r2 is the lowest supported mips64
 // that Chromium supports.

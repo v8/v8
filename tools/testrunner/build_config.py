@@ -6,8 +6,8 @@ from testrunner.local import utils
 
 # Increase the timeout for these:
 SLOW_ARCHS = [
-    "arm", "arm64", "mips", "mipsel", "mips64", "mips64el", "s390", "s390x",
-    "riscv32", "riscv64", "loong64"
+    "arm", "arm64", "mips64", "mips64el", "s390", "s390x", "riscv32", "riscv64",
+    "loong64"
 ]
 
 
@@ -52,7 +52,7 @@ class BuildConfig(object):
     self.dict_property_const_tracking = build_config[
         'v8_dict_property_const_tracking']
     # Export only for MIPS target
-    if self.arch in ['mips', 'mipsel', 'mips64', 'mips64el']:
+    if self.arch in ['mips64', 'mips64el']:
       self._mips_arch_variant = build_config['mips_arch_variant']
       self.mips_use_msa = build_config['mips_use_msa']
 
@@ -68,7 +68,7 @@ class BuildConfig(object):
 
   @property
   def is_mips_arch(self):
-    return self.arch in ['mipsel', 'mips', 'mips64', 'mips64el']
+    return self.arch in ['mips64', 'mips64el']
 
   @property
   def simd_mips(self):
@@ -89,8 +89,7 @@ class BuildConfig(object):
     ])
 
     # Set no_simd_hardware on architectures without Simd enabled.
-    if self.arch == 'mips64el' or \
-       self.arch == 'mipsel':
+    if self.arch == 'mips64el':
       no_simd_hardware = not self.simd_mips
 
     if self.arch == 'loong64'  or \

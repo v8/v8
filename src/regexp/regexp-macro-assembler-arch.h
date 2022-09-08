@@ -17,8 +17,6 @@
 #include "src/regexp/arm/regexp-macro-assembler-arm.h"
 #elif V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
 #include "src/regexp/ppc/regexp-macro-assembler-ppc.h"
-#elif V8_TARGET_ARCH_MIPS
-#include "src/regexp/mips/regexp-macro-assembler-mips.h"
 #elif V8_TARGET_ARCH_MIPS64
 #include "src/regexp/mips64/regexp-macro-assembler-mips64.h"
 #elif V8_TARGET_ARCH_LOONG64

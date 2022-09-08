@@ -199,8 +199,7 @@ if ((is_posix || is_fuchsia) &&
 }
 
 # On MIPS gcc_target_rpath and ldso_path might be needed for all builds.
-if (target_cpu == "mipsel" || target_cpu == "mips64el" ||
-    target_cpu == "mips" || target_cpu == "mips64") {
+if (target_cpu == "mips64el" || target_cpu == "mips64") {
   v8_add_configs += [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
 }
 

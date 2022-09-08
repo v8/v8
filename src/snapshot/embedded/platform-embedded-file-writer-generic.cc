@@ -163,8 +163,7 @@ int PlatformEmbeddedFileWriterGeneric::IndentedDataDirective(
 
 DataDirective PlatformEmbeddedFileWriterGeneric::ByteChunkDataDirective()
     const {
-#if defined(V8_TARGET_ARCH_MIPS) || defined(V8_TARGET_ARCH_MIPS64) || \
-    defined(V8_TARGET_ARCH_LOONG64)
+#if defined(V8_TARGET_ARCH_MIPS64) || defined(V8_TARGET_ARCH_LOONG64)
   // MIPS and LOONG64 uses a fixed 4 byte instruction set, using .long
   // to prevent any unnecessary padding.
   return kLong;

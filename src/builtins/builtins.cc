@@ -576,14 +576,14 @@ bool Builtins::CodeObjectIsExecutable(Builtin builtin) {
     case Builtin::kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit:
       return true;
     default:
-#if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
+#if V8_TARGET_ARCH_MIPS64
       // TODO(Loongson): Move non-JS linkage builtins code objects into RO_SPACE
       // caused MIPS platform to crash, and we need some time to handle it. Now
       // disable this change temporarily on MIPS platform.
       return true;
 #else
       return false;
-#endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
+#endif  // V8_TARGET_ARCH_MIPS64
   }
 }
 

@@ -422,10 +422,6 @@ void SignalHandler::FillRegisterState(void* context, RegisterState* state) {
   state->fp = reinterpret_cast<void*>(mcontext.regs[29]);
   // LR is an alias for x30.
   state->lr = reinterpret_cast<void*>(mcontext.regs[30]);
-#elif V8_HOST_ARCH_MIPS
-  state->pc = reinterpret_cast<void*>(mcontext.pc);
-  state->sp = reinterpret_cast<void*>(mcontext.gregs[29]);
-  state->fp = reinterpret_cast<void*>(mcontext.gregs[30]);
 #elif V8_HOST_ARCH_MIPS64
   state->pc = reinterpret_cast<void*>(mcontext.pc);
   state->sp = reinterpret_cast<void*>(mcontext.gregs[29]);

@@ -232,18 +232,6 @@ v8_source_set("cctest_sources") {
       "test-assembler-ia32.cc",
       "test-log-stack-tracer.cc",
     ]
-  } else if (v8_current_cpu == "mips") {
-    sources += [  ### gcmole(arch:mips) ###
-      "test-assembler-mips.cc",
-      "test-disasm-mips.cc",
-      "test-macro-assembler-mips.cc",
-    ]
-  } else if (v8_current_cpu == "mipsel") {
-    sources += [  ### gcmole(arch:mipsel) ###
-      "test-assembler-mips.cc",
-      "test-disasm-mips.cc",
-      "test-macro-assembler-mips.cc",
-    ]
   } else if (v8_current_cpu == "mips64") {
     sources += [  ### gcmole(arch:mips64) ###
       "test-assembler-mips64.cc",
@@ -375,8 +363,7 @@ v8_source_set("cctest_sources") {
   if (v8_current_cpu == "ppc" || v8_current_cpu == "ppc64" ||
       v8_current_cpu == "arm" || v8_current_cpu == "arm64" ||
       v8_current_cpu == "s390" || v8_current_cpu == "s390x" ||
-      v8_current_cpu == "mips" || v8_current_cpu == "mips64" ||
-      v8_current_cpu == "mipsel" || v8_current_cpu == "mipsel64" ||
+      v8_current_cpu == "mips64" || v8_current_cpu == "mips64el" ||
       v8_current_cpu == "riscv64" || v8_current_cpu == "loong64" ||
       v8_current_cpu == "riscv32") {
     # Disable fmadd/fmsub so that expected results match generated code in

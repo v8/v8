@@ -1119,47 +1119,9 @@ config("toolchain") {
     }
   }
 
-  # Mips64el/mipsel simulators.
-  if (target_is_simulator &&
-      (v8_current_cpu == "mipsel" || v8_current_cpu == "mips64el")) {
+  # Mips64el simulators.
+  if (target_is_simulator && v8_current_cpu == "mips64el") {
     defines += [ "_MIPS_TARGET_SIMULATOR" ]
-  }
-
-  if (v8_current_cpu == "mipsel" || v8_current_cpu == "mips") {
-    defines += [ "V8_TARGET_ARCH_MIPS" ]
-    if (v8_can_use_fpu_instructions) {
-      defines += [ "CAN_USE_FPU_INSTRUCTIONS" ]
-    }
-    if (v8_use_mips_abi_hardfloat) {
-      defines += [
-        "__mips_hard_float=1",
-        "CAN_USE_FPU_INSTRUCTIONS",
-      ]
-    } else {
-      defines += [ "__mips_soft_float=1" ]
-    }
-    if (mips_arch_variant == "r6") {
-      defines += [
-        "_MIPS_ARCH_MIPS32R6",
-        "FPU_MODE_FP64",
-      ]
-      if (mips_use_msa) {
-        defines += [ "_MIPS_MSA" ]
-      }
-    } else if (mips_arch_variant == "r2") {
-      defines += [ "_MIPS_ARCH_MIPS32R2" ]
-      if (mips_fpu_mode == "fp64") {
-        defines += [ "FPU_MODE_FP64" ]
-      } else if (mips_fpu_mode == "fpxx") {
-        defines += [ "FPU_MODE_FPXX" ]
-      } else if (mips_fpu_mode == "fp32") {
-        defines += [ "FPU_MODE_FP32" ]
-      }
-    } else if (mips_arch_variant == "r1") {
-      defines += [ "FPU_MODE_FP32" ]
-    }
-
-    # TODO(infra): Add support for mips_arch_variant rx and loongson.
   }
 
   if (v8_current_cpu == "mips64el" || v8_current_cpu == "mips64") {
@@ -1335,6 +1297,7 @@ config("toolchain") {
   if (is_clang) {
     cflags += [
       "-Wmissing-field-initializers",
+      "-Wunreachable-code",
 
       # Google3 enables this warning, so we should also enable it to find issue
       # earlier. See https://reviews.llvm.org/D56731 for details about this
@@ -1344,11 +1307,6 @@ config("toolchain") {
       # TODO(v8:12245): Fix shadowing instances and remove.
       "-Wno-shadow",
     ]
-
-    if (v8_current_cpu != "mips" && v8_current_cpu != "mipsel") {
-      # We exclude MIPS because the IsMipsArchVariant macro causes trouble.
-      cflags += [ "-Wunreachable-code" ]
-    }
 
     if (v8_current_cpu == "x64" || v8_current_cpu == "arm64" ||
         v8_current_cpu == "mips64el" || v8_current_cpu == "riscv64") {
@@ -1609,8 +1567,7 @@ if (is_android && enable_java_templates) {
     if (v8_use_external_startup_data) {
       deps = [ "//v8" ]
       renaming_sources = [ "$root_out_dir/snapshot_blob.bin" ]
-      if (current_cpu == "arm" || current_cpu == "x86" ||
-          current_cpu == "mipsel") {
+      if (current_cpu == "arm" || current_cpu == "x86") {
         renaming_destinations = [ "snapshot_blob_32.bin" ]
       } else {
         renaming_destinations = [ "snapshot_blob_64.bin" ]
@@ -2340,8 +2297,7 @@ action("v8_dump_build_config") {
     "v8_enable_cet_shadow_stack=$v8_enable_cet_shadow_stack",
   ]
 
-  if (v8_current_cpu == "mips" || v8_current_cpu == "mipsel" ||
-      v8_current_cpu == "mips64" || v8_current_cpu == "mips64el") {
+  if (v8_current_cpu == "mips64" || v8_current_cpu == "mips64el") {
     args += [
       "mips_arch_variant=\"$mips_arch_variant\"",
       "mips_use_msa=$mips_use_msa",
@@ -2513,11 +2469,6 @@ v8_source_set("v8_initializers") {
     sources += [
       ### gcmole(arch:arm64) ###
       "src/builtins/arm64/builtins-arm64.cc",
-    ]
-  } else if (v8_current_cpu == "mips" || v8_current_cpu == "mipsel") {
-    sources += [
-      ### gcmole(arch:mipsel) ###
-      "src/builtins/mips/builtins-mips.cc",
     ]
   } else if (v8_current_cpu == "mips64" || v8_current_cpu == "mips64el") {
     sources += [
@@ -3898,22 +3849,6 @@ v8_header_set("v8_internal_headers") {
     if (is_win) {
       sources += [ "src/diagnostics/unwinding-info-win64.h" ]
     }
-  } else if (v8_current_cpu == "mips" || v8_current_cpu == "mipsel") {
-    sources += [  ### gcmole(arch:mipsel) ###
-      "src/baseline/mips/baseline-assembler-mips-inl.h",
-      "src/baseline/mips/baseline-compiler-mips-inl.h",
-      "src/codegen/mips/assembler-mips-inl.h",
-      "src/codegen/mips/assembler-mips.h",
-      "src/codegen/mips/constants-mips.h",
-      "src/codegen/mips/macro-assembler-mips.h",
-      "src/codegen/mips/register-mips.h",
-      "src/codegen/mips/reglist-mips.h",
-      "src/compiler/backend/mips/instruction-codes-mips.h",
-      "src/execution/mips/frame-constants-mips.h",
-      "src/execution/mips/simulator-mips.h",
-      "src/regexp/mips/regexp-macro-assembler-mips.h",
-      "src/wasm/baseline/mips/liftoff-assembler-mips.h",
-    ]
   } else if (v8_current_cpu == "mips64" || v8_current_cpu == "mips64el") {
     sources += [  ### gcmole(arch:mips64el) ###
       "src/baseline/mips64/baseline-assembler-mips64-inl.h",
@@ -5004,23 +4939,6 @@ v8_source_set("v8_base_without_compiler") {
     if (is_win) {
       sources += [ "src/diagnostics/unwinding-info-win64.cc" ]
     }
-  } else if (v8_current_cpu == "mips" || v8_current_cpu == "mipsel") {
-    sources += [  ### gcmole(arch:mipsel) ###
-      "src/codegen/mips/assembler-mips.cc",
-      "src/codegen/mips/constants-mips.cc",
-      "src/codegen/mips/cpu-mips.cc",
-      "src/codegen/mips/interface-descriptors-mips-inl.h",
-      "src/codegen/mips/macro-assembler-mips.cc",
-      "src/compiler/backend/mips/code-generator-mips.cc",
-      "src/compiler/backend/mips/instruction-scheduler-mips.cc",
-      "src/compiler/backend/mips/instruction-selector-mips.cc",
-      "src/deoptimizer/mips/deoptimizer-mips.cc",
-      "src/diagnostics/mips/disasm-mips.cc",
-      "src/diagnostics/mips/unwinder-mips.cc",
-      "src/execution/mips/frame-constants-mips.cc",
-      "src/execution/mips/simulator-mips.cc",
-      "src/regexp/mips/regexp-macro-assembler-mips.cc",
-    ]
   } else if (v8_current_cpu == "mips64" || v8_current_cpu == "mips64el") {
     sources += [  ### gcmole(arch:mips64el) ###
       "src/codegen/mips64/assembler-mips64.cc",
@@ -5246,8 +5164,7 @@ v8_source_set("v8_base_without_compiler") {
 
   # Platforms that don't have CAS support need to link atomic library
   # to implement atomic memory access
-  if (v8_current_cpu == "mips" || v8_current_cpu == "mipsel" ||
-      v8_current_cpu == "mips64" || v8_current_cpu == "mips64el" ||
+  if (v8_current_cpu == "mips64" || v8_current_cpu == "mips64el" ||
       v8_current_cpu == "ppc" || v8_current_cpu == "ppc64" ||
       v8_current_cpu == "s390" || v8_current_cpu == "s390x" ||
       v8_current_cpu == "riscv64" || v8_current_cpu == "riscv32") {
@@ -5637,7 +5554,7 @@ v8_component("v8_libbase") {
     data_deps += [ "//build/win:runtime_libs" ]
   }
 
-  if (v8_current_cpu == "mips" || v8_current_cpu == "mips64") {
+  if (v8_current_cpu == "mips64") {
     # Add runtime libs for mips.
     data += [
       "tools/mips_toolchain/sysroot/usr/lib/",
@@ -5645,8 +5562,7 @@ v8_component("v8_libbase") {
     ]
   }
 
-  if (is_ubsan && (v8_current_cpu == "x86" || v8_current_cpu == "arm" ||
-                   v8_current_cpu == "mips")) {
+  if (is_ubsan && (v8_current_cpu == "x86" || v8_current_cpu == "arm")) {
     # Special UBSan 32-bit requirement.
     sources += [ "src/base/ubsan.cc" ]
   }
@@ -5826,8 +5742,6 @@ v8_source_set("v8_heap_base") {
       sources += [ "src/heap/base/asm/ppc/push_registers_asm.cc" ]
     } else if (current_cpu == "s390x") {
       sources += [ "src/heap/base/asm/s390/push_registers_asm.cc" ]
-    } else if (current_cpu == "mipsel") {
-      sources += [ "src/heap/base/asm/mips/push_registers_asm.cc" ]
     } else if (current_cpu == "mips64el") {
       sources += [ "src/heap/base/asm/mips64/push_registers_asm.cc" ]
     } else if (current_cpu == "loong64") {

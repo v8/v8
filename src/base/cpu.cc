@@ -89,8 +89,8 @@ static V8_INLINE void __cpuid(int cpu_info[4], int info_type) {
 
 #endif  // !V8_LIBC_MSVCRT
 
-#elif V8_HOST_ARCH_ARM || V8_HOST_ARCH_ARM64 || V8_HOST_ARCH_MIPS || \
-    V8_HOST_ARCH_MIPS64 || V8_HOST_ARCH_RISCV64
+#elif V8_HOST_ARCH_ARM || V8_HOST_ARCH_ARM64 || V8_HOST_ARCH_MIPS64 || \
+    V8_HOST_ARCH_RISCV64
 
 #if V8_OS_LINUX
 
@@ -197,48 +197,6 @@ static uint32_t ReadELFHWCaps() {
 }
 
 #endif  // V8_HOST_ARCH_ARM || V8_HOST_ARCH_ARM64
-
-#if V8_HOST_ARCH_MIPS
-int __detect_fp64_mode(void) {
-  double result = 0;
-  // Bit representation of (double)1 is 0x3FF0000000000000.
-  __asm__ volatile(
-      ".set push\n\t"
-      ".set noreorder\n\t"
-      ".set oddspreg\n\t"
-      "lui $t0, 0x3FF0\n\t"
-      "ldc1 $f0, %0\n\t"
-      "mtc1 $t0, $f1\n\t"
-      "sdc1 $f0, %0\n\t"
-      ".set pop\n\t"
-      : "+m"(result)
-      :
-      : "t0", "$f0", "$f1", "memory");
-
-  return !(result == 1);
-}
-
-
-int __detect_mips_arch_revision(void) {
-  // TODO(dusmil): Do the specific syscall as soon as it is implemented in mips
-  // kernel.
-  uint32_t result = 0;
-  __asm__ volatile(
-      "move $v0, $zero\n\t"
-      // Encoding for "addi $v0, $v0, 1" on non-r6,
-      // which is encoding for "bovc $v0, %v0, 1" on r6.
-      // Use machine code directly to avoid compilation errors with different
-      // toolchains and maintain compatibility.
-      ".word 0x20420001\n\t"
-      "sw $v0, %0\n\t"
-      : "=m"(result)
-      :
-      : "v0", "memory");
-  // Result is 0 on r6 architectures, 1 on other architecture revisions.
-  // Fall-back to the least common denominator which is mips32 revision 1.
-  return result ? 1 : 6;
-}
-#endif  // V8_HOST_ARCH_MIPS
 
 // Extract the information exposed by the kernel via /proc/cpuinfo.
 class CPUInfo final {
@@ -359,7 +317,7 @@ static bool HasListItem(const char* list, const char* item) {
 #endif  // V8_OS_LINUX
 
 #endif  // V8_HOST_ARCH_ARM || V8_HOST_ARCH_ARM64 ||
-        // V8_HOST_ARCH_MIPS || V8_HOST_ARCH_MIPS64 || V8_HOST_ARCH_RISCV64
+        // V8_HOST_ARCH_MIPS64 || V8_HOST_ARCH_RISCV64
 
 #if defined(V8_OS_STARBOARD)
 
@@ -742,7 +700,7 @@ CPU::CPU()
 
 #endif  // V8_OS_LINUX
 
-#elif V8_HOST_ARCH_MIPS || V8_HOST_ARCH_MIPS64
+#elif V8_HOST_ARCH_MIPS64
 
   // Simple detection of FPU at runtime for Linux.
   // It is based on /proc/cpuinfo, which reveals hardware configuration
@@ -756,10 +714,6 @@ CPU::CPU()
   has_msa_ = HasListItem(ASEs, "msa");
   delete[] cpu_model;
   delete[] ASEs;
-#ifdef V8_HOST_ARCH_MIPS
-  is_fp64_mode_ = __detect_fp64_mode();
-  architecture_ = __detect_mips_arch_revision();
-#endif
 
 #elif V8_HOST_ARCH_ARM64
 #ifdef V8_OS_WIN

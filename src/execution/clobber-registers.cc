@@ -18,8 +18,6 @@
 #include "src/codegen/x64/register-x64.h"
 #elif V8_HOST_ARCH_LOONG64 && V8_TARGET_ARCH_LOONG64
 #include "src/codegen/loong64/register-loong64.h"
-#elif V8_HOST_ARCH_MIPS && V8_TARGET_ARCH_MIPS
-#include "src/codegen/mips/register-mips.h"
 #elif V8_HOST_ARCH_MIPS64 && V8_TARGET_ARCH_MIPS64
 #include "src/codegen/mips64/register-mips64.h"
 #endif
@@ -51,9 +49,6 @@ namespace internal {
 
 #elif V8_HOST_ARCH_LOONG64 && V8_TARGET_ARCH_LOONG64
 #define CLOBBER_REGISTER(R) __asm__ volatile("movgr2fr.d $" #R ",$zero" :::);
-
-#elif V8_HOST_ARCH_MIPS && V8_TARGET_ARCH_MIPS
-#define CLOBBER_USE_REGISTER(R) __asm__ volatile("mtc1 $zero,$" #R :::);
 
 #elif V8_HOST_ARCH_MIPS64 && V8_TARGET_ARCH_MIPS64
 #define CLOBBER_USE_REGISTER(R) __asm__ volatile("dmtc1 $zero,$" #R :::);

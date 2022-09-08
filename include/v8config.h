@@ -653,9 +653,6 @@ V8 shared library set USING_V8_SHARED.
 #elif defined(__mips64)
 #define V8_HOST_ARCH_MIPS64 1
 #define V8_HOST_ARCH_64_BIT 1
-#elif defined(__MIPSEB__) || defined(__MIPSEL__)
-#define V8_HOST_ARCH_MIPS 1
-#define V8_HOST_ARCH_32_BIT 1
 #elif defined(__loongarch64)
 #define V8_HOST_ARCH_LOONG64 1
 #define V8_HOST_ARCH_64_BIT 1
@@ -691,10 +688,10 @@ V8 shared library set USING_V8_SHARED.
 // The macros may be set externally. If not, detect in the same way as the host
 // architecture, that is, target the native environment as presented by the
 // compiler.
-#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM &&      \
-    !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64 && \
-    !V8_TARGET_ARCH_PPC && !V8_TARGET_ARCH_PPC64 && !V8_TARGET_ARCH_S390 &&    \
-    !V8_TARGET_ARCH_RISCV64 && !V8_TARGET_ARCH_LOONG64 &&                      \
+#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM &&     \
+    !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_MIPS64 && !V8_TARGET_ARCH_PPC && \
+    !V8_TARGET_ARCH_PPC64 && !V8_TARGET_ARCH_S390 &&                          \
+    !V8_TARGET_ARCH_RISCV64 && !V8_TARGET_ARCH_LOONG64 &&                     \
     !V8_TARGET_ARCH_RISCV32
 #if defined(_M_X64) || defined(__x86_64__)
 #define V8_TARGET_ARCH_X64 1
@@ -706,8 +703,6 @@ V8 shared library set USING_V8_SHARED.
 #define V8_TARGET_ARCH_ARM 1
 #elif defined(__mips64)
 #define V8_TARGET_ARCH_MIPS64 1
-#elif defined(__MIPSEB__) || defined(__MIPSEL__)
-#define V8_TARGET_ARCH_MIPS 1
 #elif defined(_ARCH_PPC64)
 #define V8_TARGET_ARCH_PPC64 1
 #elif defined(_ARCH_PPC)
@@ -785,9 +780,6 @@ V8 shared library set USING_V8_SHARED.
 #if (V8_TARGET_ARCH_ARM64 && !(V8_HOST_ARCH_X64 || V8_HOST_ARCH_ARM64))
 #error Target architecture arm64 is only supported on arm64 and x64 host
 #endif
-#if (V8_TARGET_ARCH_MIPS && !(V8_HOST_ARCH_IA32 || V8_HOST_ARCH_MIPS))
-#error Target architecture mips is only supported on mips and ia32 host
-#endif
 #if (V8_TARGET_ARCH_MIPS64 && !(V8_HOST_ARCH_X64 || V8_HOST_ARCH_MIPS64))
 #error Target architecture mips64 is only supported on mips64 and x64 host
 #endif
@@ -812,12 +804,6 @@ V8 shared library set USING_V8_SHARED.
 #define V8_TARGET_LITTLE_ENDIAN 1
 #elif V8_TARGET_ARCH_LOONG64
 #define V8_TARGET_LITTLE_ENDIAN 1
-#elif V8_TARGET_ARCH_MIPS
-#if defined(__MIPSEB__)
-#define V8_TARGET_BIG_ENDIAN 1
-#else
-#define V8_TARGET_LITTLE_ENDIAN 1
-#endif
 #elif V8_TARGET_ARCH_MIPS64
 #if defined(__MIPSEB__) || defined(V8_TARGET_ARCH_MIPS64_BE)
 #define V8_TARGET_BIG_ENDIAN 1

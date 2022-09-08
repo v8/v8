@@ -103,12 +103,6 @@
 }],  # arch == ppc64
 
 ##############################################################################
-['arch == mips', {
-  # TODO(mips-team): Currently fails on mips board.
-  'ParsingTest.TooManyArguments': [SKIP],
-}],  # 'arch == mips'
-
-##############################################################################
 ['arch == mips64el', {
   # TODO(mips-team): mips64 do not allocate odd register in liftoff.
   'WasmRegisterTest.SpreadSetBitsToAdjacentFpRegs': [SKIP],

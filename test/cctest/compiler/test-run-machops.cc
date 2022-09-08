@@ -4428,8 +4428,7 @@ TEST(RunTruncateFloat32ToInt32) {
       if (i < upper_bound && i >= lower_bound) {
         CHECK_EQ(static_cast<int32_t>(i), m.Call(i));
       } else if (i < lower_bound) {
-#if (V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64) && !_MIPS_ARCH_MIPS32R6 && \
-    !_MIPS_ARCH_MIPS64R6
+#if V8_TARGET_ARCH_MIPS64 && !_MIPS_ARCH_MIPS64R6
         CHECK_EQ(std::numeric_limits<int32_t>::max(), m.Call(i));
 #else
         CHECK_EQ(std::numeric_limits<int32_t>::min(), m.Call(i));

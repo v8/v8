@@ -7,8 +7,6 @@
 #include "src/execution/ia32/frame-constants-ia32.h"
 #elif V8_TARGET_ARCH_X64
 #include "src/execution/x64/frame-constants-x64.h"
-#elif V8_TARGET_ARCH_MIPS
-#include "src/execution/mips/frame-constants-mips.h"
 #elif V8_TARGET_ARCH_MIPS64
 #include "src/execution/mips64/frame-constants-mips64.h"
 #elif V8_TARGET_ARCH_LOONG64

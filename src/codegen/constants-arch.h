@@ -11,8 +11,6 @@
 #include "src/codegen/arm64/constants-arm64.h"
 #elif V8_TARGET_ARCH_IA32
 #include "src/codegen/ia32/constants-ia32.h"
-#elif V8_TARGET_ARCH_MIPS
-#include "src/codegen/mips/constants-mips.h"
 #elif V8_TARGET_ARCH_MIPS64
 #include "src/codegen/mips64/constants-mips64.h"
 #elif V8_TARGET_ARCH_LOONG64

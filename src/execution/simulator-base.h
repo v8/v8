@@ -146,7 +146,6 @@ class SimulatorBase {
 // The following are trapping instructions used for various architectures:
 //  - V8_TARGET_ARCH_ARM: svc (Supervisor Call)
 //  - V8_TARGET_ARCH_ARM64: svc (Supervisor Call)
-//  - V8_TARGET_ARCH_MIPS: swi (software-interrupt)
 //  - V8_TARGET_ARCH_MIPS64: swi (software-interrupt)
 //  - V8_TARGET_ARCH_PPC: svc (Supervisor Call)
 //  - V8_TARGET_ARCH_PPC64: svc (Supervisor Call)

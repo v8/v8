@@ -20,7 +20,7 @@ namespace internal {
 using Address = uintptr_t;
 
 // ----------------------------------------------------------------------------
-// Generated memcpy/memmove for ia32, arm, and mips.
+// Generated memcpy/memmove for ia32 and arm.
 
 void init_memcopy_functions();
 
@@ -59,24 +59,6 @@ V8_EXPORT_PRIVATE V8_INLINE void MemMove(void* dest, const void* src,
 
 // For values < 12, the assembler function is slower than the inlined C code.
 const int kMinComplexConvertMemCopy = 12;
-#elif defined(V8_HOST_ARCH_MIPS)
-using MemCopyUint8Function = void (*)(uint8_t* dest, const uint8_t* src,
-                                      size_t size);
-V8_EXPORT_PRIVATE extern MemCopyUint8Function memcopy_uint8_function;
-V8_INLINE void MemCopyUint8Wrapper(uint8_t* dest, const uint8_t* src,
-                                   size_t chars) {
-  memcpy(dest, src, chars);
-}
-// For values < 16, the assembler function is slower than the inlined C code.
-const size_t kMinComplexMemCopy = 16;
-V8_INLINE void MemCopy(void* dest, const void* src, size_t size) {
-  (*memcopy_uint8_function)(reinterpret_cast<uint8_t*>(dest),
-                            reinterpret_cast<const uint8_t*>(src), size);
-}
-V8_EXPORT_PRIVATE V8_INLINE void MemMove(void* dest, const void* src,
-                                         size_t size) {
-  memmove(dest, src, size);
-}
 #else
 // Copy memory area to disjoint memory area.
 inline void MemCopy(void* dest, const void* src, size_t size) {

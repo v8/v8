@@ -51,9 +51,6 @@ enum class SmiCheck { kOmit, kInline };
 #elif V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
 #include "src/codegen/ppc/constants-ppc.h"
 #include "src/codegen/ppc/macro-assembler-ppc.h"
-#elif V8_TARGET_ARCH_MIPS
-#include "src/codegen/mips/constants-mips.h"
-#include "src/codegen/mips/macro-assembler-mips.h"
 #elif V8_TARGET_ARCH_MIPS64
 #include "src/codegen/mips64/constants-mips64.h"
 #include "src/codegen/mips64/macro-assembler-mips64.h"

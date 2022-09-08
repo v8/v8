@@ -416,8 +416,6 @@ inline static int FrameSlotToFPOffset(int slot) {
 #include "src/execution/arm/frame-constants-arm.h"
 #elif V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
 #include "src/execution/ppc/frame-constants-ppc.h"
-#elif V8_TARGET_ARCH_MIPS
-#include "src/execution/mips/frame-constants-mips.h"
 #elif V8_TARGET_ARCH_MIPS64
 #include "src/execution/mips64/frame-constants-mips64.h"
 #elif V8_TARGET_ARCH_LOONG64

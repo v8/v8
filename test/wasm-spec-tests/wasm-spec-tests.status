@@ -50,7 +50,7 @@
   'simd_f32x4_pmin_pmax' : [PASS, FAIL],
 }],  # arch == arm and not simulator_run
 
-['arch == mipsel or arch == mips64el or arch == mips or arch == mips64', {
+['arch == mips64el or arch == mips64', {
   # These tests fail because mips does not support the correct NaN bit patterns.
   'float_misc': [SKIP],
   'float_exprs': [SKIP],
@@ -80,19 +80,19 @@
   'proposals/tail-call/float_exprs': [SKIP],
   'proposals/tail-call/float_misc': [SKIP],
   'proposals/tail-call/conversions': [SKIP],
-}],  # 'arch == mipsel or arch == mips64el or arch == mips or arch == mips64'
+}],  # 'arch == mips64el or arch == mips64'
 
-['(arch == mipsel or arch == mips64el or arch == mips or arch == mips64) and not simulator_run', {
+['(arch == mips64el or arch == mips64) and not simulator_run', {
   # This test fail because mips does not support the correct NaN bit patterns.
   # But it doesn't fail in simulator.
   'conversions': [SKIP],
-}],  # '(arch == mipsel or arch == mips64el or arch == mips or arch == mips64) and not simulator_run'
+}],  # '(arch == mips64el or arch == mips64) and not simulator_run'
 
-['(arch == mipsel or arch == mips64el or arch == loong64) and simulator_run', {
+['(arch == mips64el or arch == loong64) and simulator_run', {
   # These tests need larger stack size on simulator.
   'skip-stack-guard-page': '--sim-stack-size=8192',
   'proposals/tail-call/skip-stack-guard-page': '--sim-stack-size=8192',
-}],  # '(arch == mipsel or arch == mips64el) and simulator_run'
+}],  # '(arch == mips64el or arch == loong64) and simulator_run'
 
 ['arch == riscv64', {
    # These tests need larger stack size on simulator.
