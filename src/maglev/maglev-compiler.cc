@@ -547,7 +547,7 @@ void MaglevCompiler::Compile(LocalIsolate* local_isolate,
         compilation_info->toplevel_compilation_unit();
     std::cout << "Compiling " << Brief(*top_level_unit->function().object())
               << " with Maglev\n";
-    top_level_unit->bytecode().object()->Disassemble(std::cout);
+    BytecodeArray::Disassemble(top_level_unit->bytecode().object(), std::cout);
     top_level_unit->feedback().object()->Print(std::cout);
   }
 

@@ -1281,6 +1281,9 @@ class BytecodeArray
   V8_EXPORT_PRIVATE void PrintJson(std::ostream& os);
   V8_EXPORT_PRIVATE void Disassemble(std::ostream& os);
 
+  V8_EXPORT_PRIVATE static void Disassemble(Handle<BytecodeArray> handle,
+                                            std::ostream& os);
+
   void CopyBytecodesTo(BytecodeArray to);
 
   // Bytecode aging

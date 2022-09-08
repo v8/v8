@@ -752,19 +752,26 @@ void BytecodeArray::PrintJson(std::ostream& os) {
 
 void BytecodeArray::Disassemble(std::ostream& os) {
   DisallowGarbageCollection no_gc;
-
-  os << "Parameter count " << parameter_count() << "\n";
-  os << "Register count " << register_count() << "\n";
-  os << "Frame size " << frame_size() << "\n";
-  os << "Bytecode age: " << bytecode_age() << "\n";
-
-  Address base_address = GetFirstBytecodeAddress();
-  SourcePositionTableIterator source_positions(SourcePositionTable());
-
   // Storage for backing the handle passed to the iterator. This handle won't be
   // updated by the gc, but that's ok because we've disallowed GCs anyway.
   BytecodeArray handle_storage = *this;
   Handle<BytecodeArray> handle(reinterpret_cast<Address*>(&handle_storage));
+  Disassemble(handle, os);
+}
+
+// static
+void BytecodeArray::Disassemble(Handle<BytecodeArray> handle,
+                                std::ostream& os) {
+  DisallowGarbageCollection no_gc;
+
+  os << "Parameter count " << handle->parameter_count() << "\n";
+  os << "Register count " << handle->register_count() << "\n";
+  os << "Frame size " << handle->frame_size() << "\n";
+  os << "Bytecode age: " << handle->bytecode_age() << "\n";
+
+  Address base_address = handle->GetFirstBytecodeAddress();
+  SourcePositionTableIterator source_positions(handle->SourcePositionTable());
+
   interpreter::BytecodeArrayIterator iterator(handle);
   while (!iterator.done()) {
     if (!source_positions.done() &&
@@ -803,22 +810,22 @@ void BytecodeArray::Disassemble(std::ostream& os) {
     iterator.Advance();
   }
 
-  os << "Constant pool (size = " << constant_pool().length() << ")\n";
+  os << "Constant pool (size = " << handle->constant_pool().length() << ")\n";
 #ifdef OBJECT_PRINT
-  if (constant_pool().length() > 0) {
-    constant_pool().Print(os);
+  if (handle->constant_pool().length() > 0) {
+    handle->constant_pool().Print(os);
   }
 #endif
 
-  os << "Handler Table (size = " << handler_table().length() << ")\n";
+  os << "Handler Table (size = " << handle->handler_table().length() << ")\n";
 #ifdef ENABLE_DISASSEMBLER
-  if (handler_table().length() > 0) {
-    HandlerTable table(*this);
+  if (handle->handler_table().length() > 0) {
+    HandlerTable table(*handle);
     table.HandlerTableRangePrint(os);
   }
 #endif
 
-  ByteArray source_position_table = SourcePositionTable();
+  ByteArray source_position_table = handle->SourcePositionTable();
   os << "Source Position Table (size = " << source_position_table.length()
      << ")\n";
 #ifdef OBJECT_PRINT
