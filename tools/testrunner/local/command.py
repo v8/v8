@@ -43,11 +43,22 @@ def handle_sigterm(process, abort_fun, enabled):
   """
   # Variable to communicate with the signal handler.
   abort_occured = [False]
-  def handler(signum, frame):
-    abort_fun(process, abort_occured)
 
   if enabled:
-    previous = signal.signal(signal.SIGTERM, handler)
+    # TODO(https://crbug.com/v8/13113): There is a race condition on
+    # signal handler registration. In rare cases, the SIGTERM for stopping
+    # a worker might be caught right after a long running process has been
+    # started (or logic that starts it isn't interrupted), but before the
+    # registration of the abort_fun. In this case, process.communicate will
+    # block until the process is done.
+    previous = signal.getsignal(signal.SIGTERM)
+    def handler(signum, frame):
+      abort_fun(process, abort_occured)
+      if previous and callable(previous):
+        # Call default signal handler. If this command is called from a worker
+        # process, its signal handler will gracefully stop processing.
+        previous(signum, frame)
+    signal.signal(signal.SIGTERM, handler)
   try:
     yield
   finally:

@@ -66,15 +66,29 @@ def Worker(fn, work_queue, done_queue,
   """Worker to be run in a child process.
   The worker stops when the poison pill "STOP" is reached.
   """
+  # Install a default signal handler for SIGTERM that stops the processing
+  # loop below on the next occasion. The job function "fn" is supposed to
+  # register their own handler to avoid blocking, but still chain to this
+  # handler on SIGTERM to terminate the loop quickly.
+  stop = [False]
+  def handler(signum, frame):
+    stop[0] = True
+  signal.signal(signal.SIGTERM, handler)
+
   try:
     kwargs = {}
     if process_context_fn and process_context_args is not None:
       kwargs.update(process_context=process_context_fn(*process_context_args))
     for args in iter(work_queue.get, "STOP"):
+      if stop[0]:
+        # SIGINT, SIGTERM or internal hard timeout caught outside the execution
+        # of "fn".
+        break
       try:
         done_queue.put(NormalResult(fn(*args, **kwargs)))
       except AbortException:
-        # SIGINT, SIGTERM or internal hard timeout.
+        # SIGINT, SIGTERM or internal hard timeout caught during execution of
+        # "fn".
         break
       except Exception as e:
         logging.exception('Unhandled error during worker execution.')
@@ -309,6 +323,9 @@ class DefaultExecutionPool(ContextPool):
       # per worker to make them stop.
       self.work_queue.put("STOP")
 
+    # Send a SIGTERM to all workers. They will gracefully terminate their
+    # processing loop and if the signal is caught during job execution they
+    # will try to terminate the ongoing test processes quickly.
     if self.abort_now:
       self._terminate_processes()
 
