@@ -239,7 +239,7 @@ inline bool IsSharedArrayElementsKind(ElementsKind kind) {
 
 inline bool IsTerminalElementsKind(ElementsKind kind) {
   return kind == TERMINAL_FAST_ELEMENTS_KIND ||
-         IsTypedArrayElementsKind(kind) ||
+         IsTypedArrayOrRabGsabTypedArrayElementsKind(kind) ||
          IsRabGsabTypedArrayElementsKind(kind);
 }
 
@@ -249,7 +249,8 @@ inline bool IsFastElementsKind(ElementsKind kind) {
 }
 
 inline bool IsTransitionElementsKind(ElementsKind kind) {
-  return IsFastElementsKind(kind) || IsTypedArrayElementsKind(kind) ||
+  return IsFastElementsKind(kind) ||
+         IsTypedArrayOrRabGsabTypedArrayElementsKind(kind) ||
          kind == FAST_SLOPPY_ARGUMENTS_ELEMENTS ||
          kind == FAST_STRING_WRAPPER_ELEMENTS;
 }

@@ -4114,7 +4114,7 @@ bool TestElementsIntegrityLevel(JSObject object, PropertyAttributes level) {
         NumberDictionary::cast(object.elements()), object.GetReadOnlyRoots(),
         level);
   }
-  if (IsTypedArrayElementsKind(kind)) {
+  if (IsTypedArrayOrRabGsabTypedArrayElementsKind(kind)) {
     if (level == FROZEN && JSArrayBufferView::cast(object).byte_length() > 0) {
       return false;  // TypedArrays with elements can't be frozen.
     }

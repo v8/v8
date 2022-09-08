@@ -371,7 +371,7 @@ base::Optional<Map> MapUpdater::TryUpdateNoLock(Isolate* isolate, Map old_map,
     // the integrity level transition sets the elements to dictionary mode.
     DCHECK(to_kind == DICTIONARY_ELEMENTS ||
            to_kind == SLOW_STRING_WRAPPER_ELEMENTS ||
-           IsTypedArrayElementsKind(to_kind) ||
+           IsTypedArrayOrRabGsabTypedArrayElementsKind(to_kind) ||
            IsAnyHoleyNonextensibleElementsKind(to_kind));
     to_kind = info.integrity_level_source_map.elements_kind();
   }
@@ -584,7 +584,7 @@ MapUpdater::State MapUpdater::FindRootMap() {
     // the seal transitions), so change {to_kind} accordingly.
     DCHECK(to_kind == DICTIONARY_ELEMENTS ||
            to_kind == SLOW_STRING_WRAPPER_ELEMENTS ||
-           IsTypedArrayElementsKind(to_kind) ||
+           IsTypedArrayOrRabGsabTypedArrayElementsKind(to_kind) ||
            IsAnyNonextensibleElementsKind(to_kind));
     to_kind = integrity_source_map_->elements_kind();
   }
