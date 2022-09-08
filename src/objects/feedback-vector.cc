@@ -479,7 +479,7 @@ void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(
   }
 }
 
-bool FeedbackVector::ClearSlots(Isolate* isolate) {
+bool FeedbackVector::ClearSlots(Isolate* isolate, ClearBehavior behavior) {
   if (!shared_function_info().HasFeedbackMetadata()) return false;
   MaybeObject uninitialized_sentinel = MaybeObject::FromObject(
       FeedbackVector::RawUninitializedSentinel(isolate));
@@ -492,7 +492,7 @@ bool FeedbackVector::ClearSlots(Isolate* isolate) {
     MaybeObject obj = Get(slot);
     if (obj != uninitialized_sentinel) {
       FeedbackNexus nexus(*this, slot);
-      feedback_updated |= nexus.Clear();
+      feedback_updated |= nexus.Clear(behavior);
     }
   }
   return feedback_updated;
@@ -609,23 +609,37 @@ void FeedbackNexus::ConfigureUninitialized() {
   }
 }
 
-bool FeedbackNexus::Clear() {
+bool FeedbackNexus::Clear(ClearBehavior behavior) {
   bool feedback_updated = false;
 
   switch (kind()) {
     case FeedbackSlotKind::kTypeProfile:
-      // We don't clear these kinds ever.
+      if (V8_LIKELY(behavior == ClearBehavior::kDefault)) {
+        // We don't clear these kinds ever.
+      } else if (!IsCleared()) {
+        DCHECK_EQ(behavior, ClearBehavior::kClearAll);
+        SetFeedback(UninitializedSentinel(), SKIP_WRITE_BARRIER);
+        feedback_updated = true;
+      }
       break;
 
     case FeedbackSlotKind::kCompareOp:
     case FeedbackSlotKind::kForIn:
     case FeedbackSlotKind::kBinaryOp:
-      // We don't clear these, either.
+      if (V8_LIKELY(behavior == ClearBehavior::kDefault)) {
+        // We don't clear these, either.
+      } else if (!IsCleared()) {
+        DCHECK_EQ(behavior, ClearBehavior::kClearAll);
+        SetFeedback(Smi::zero(), SKIP_WRITE_BARRIER);
+        feedback_updated = true;
+      }
       break;
 
     case FeedbackSlotKind::kLiteral:
-      SetFeedback(Smi::zero(), SKIP_WRITE_BARRIER);
-      feedback_updated = true;
+      if (!IsCleared()) {
+        SetFeedback(Smi::zero(), SKIP_WRITE_BARRIER);
+        feedback_updated = true;
+      }
       break;
 
     case FeedbackSlotKind::kSetNamedSloppy:

@@ -243,8 +243,9 @@ class JSFunction : public TorqueGeneratedJSFunction<
                                      IsCompiledScope* compiled_scope,
                                      bool reset_budget_for_feedback_allocation);
 
-  // Unconditionally clear the type feedback vector.
-  void ClearTypeFeedbackInfo();
+  // Unconditionally clear the type feedback vector, even those that we usually
+  // keep (e.g.: BinaryOp feedback).
+  void ClearAllTypeFeedbackInfoForTesting();
 
   // Resets function to clear compiled data after bytecode has been flushed.
   inline bool NeedsResetDueToFlushedBytecode();
