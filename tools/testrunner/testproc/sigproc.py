@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import faulthandler
 import logging
 import signal
 
@@ -20,11 +21,15 @@ class SignalProc(base.TestProcObserver):
     logging.warning('Ctrl-C detected, early abort...')
     self.exit_code = utils.EXIT_CODE_INTERRUPTED
     self.stop()
+    if logging.getLogger().isEnabledFor(logging.INFO):
+      faulthandler.dump_traceback()
 
   def _on_sigterm(self, _signum, _stack_frame):
     logging.warning('SIGTERM received, early abort...')
     self.exit_code = utils.EXIT_CODE_TERMINATED
     self.stop()
+    if logging.getLogger().isEnabledFor(logging.INFO):
+      faulthandler.dump_traceback()
 
   def worst_exit_code(self, results):
     exit_code = results.exit_code()

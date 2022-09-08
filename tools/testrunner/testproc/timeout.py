@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import faulthandler
 import logging
 import time
 
@@ -34,3 +35,5 @@ class TimeoutProc(base.TestProcObserver):
       if time.time() - self._start > self._duration_sec:
         logging.info('Total timeout reached.')
         self.stop()
+        if logging.getLogger().isEnabledFor(logging.INFO):
+          faulthandler.dump_traceback()
