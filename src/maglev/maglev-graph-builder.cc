@@ -986,12 +986,19 @@ bool MaglevGraphBuilder::TryBuildMonomorphicLoad(ValueNode* object,
   if (handler->IsSmi()) {
     return TryBuildMonomorphicLoadFromSmiHandler(object, map,
                                                  handler->ToSmi().value());
-  } else if (handler->GetHeapObject().IsCodeT()) {
+  }
+  HeapObject ho_handler;
+  if (!handler->GetHeapObject(&ho_handler)) return false;
+
+  if (ho_handler.IsCodeT()) {
     // TODO(leszeks): Call the code object directly.
+    return false;
+  } else if (ho_handler.IsAccessorPair()) {
+    // TODO(leszeks): Call the getter directly.
     return false;
   } else {
     return TryBuildMonomorphicLoadFromLoadHandler(
-        object, map, LoadHandler::cast(handler->GetHeapObject()));
+        object, map, LoadHandler::cast(ho_handler));
   }
 }
 

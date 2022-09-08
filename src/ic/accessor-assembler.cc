@@ -192,23 +192,25 @@ void AccessorAssembler::TryMegaDOMCase(TNode<Object> lookup_start_object,
 }
 
 void AccessorAssembler::HandleLoadICHandlerCase(
-    const LazyLoadICParameters* p, TNode<Object> handler, Label* miss,
+    const LazyLoadICParameters* p, TNode<MaybeObject> handler, Label* miss,
     ExitPoint* exit_point, ICMode ic_mode, OnNonExistent on_nonexistent,
     ElementSupport support_elements, LoadAccessMode access_mode) {
   Comment("have_handler");
 
   TVARIABLE(Object, var_holder, p->lookup_start_object());
-  TVARIABLE(Object, var_smi_handler, handler);
+  TVARIABLE(MaybeObject, var_smi_handler, handler);
 
   Label if_smi_handler(this, {&var_holder, &var_smi_handler});
   Label try_proto_handler(this, Label::kDeferred),
-      call_handler(this, Label::kDeferred);
+      call_code_handler(this, Label::kDeferred),
+      call_getter(this, Label::kDeferred);
 
   Branch(TaggedIsSmi(handler), &if_smi_handler, &try_proto_handler);
 
   BIND(&try_proto_handler);
   {
-    GotoIf(IsCodeT(CAST(handler)), &call_handler);
+    GotoIf(IsWeakOrCleared(handler), &call_getter);
+    GotoIf(IsCodeT(CAST(handler)), &call_code_handler);
     HandleLoadICProtoHandler(p, CAST(handler), &var_holder, &var_smi_handler,
                              &if_smi_handler, miss, exit_point, ic_mode,
                              access_mode);
@@ -223,7 +225,14 @@ void AccessorAssembler::HandleLoadICHandlerCase(
         exit_point, ic_mode, on_nonexistent, support_elements, access_mode);
   }
 
-  BIND(&call_handler);
+  BIND(&call_getter);
+  {
+    TNode<HeapObject> strong_handler = GetHeapObjectAssumeWeak(handler, miss);
+    TNode<Object> getter = LoadAccessorPairGetter(CAST(strong_handler));
+    exit_point->Return(Call(p->context(), getter, p->receiver()));
+  }
+
+  BIND(&call_code_handler);
   {
     TNode<CodeT> code_handler = CAST(handler);
     exit_point->ReturnCallStub(LoadWithVectorDescriptor{}, code_handler,
@@ -458,9 +467,9 @@ TNode<MaybeObject> AccessorAssembler::LoadDescriptorValueOrFieldType(
 
 void AccessorAssembler::HandleLoadICSmiHandlerCase(
     const LazyLoadICParameters* p, TNode<Object> holder, TNode<Smi> smi_handler,
-    TNode<Object> handler, Label* miss, ExitPoint* exit_point, ICMode ic_mode,
-    OnNonExistent on_nonexistent, ElementSupport support_elements,
-    LoadAccessMode access_mode) {
+    TNode<MaybeObject> handler, Label* miss, ExitPoint* exit_point,
+    ICMode ic_mode, OnNonExistent on_nonexistent,
+    ElementSupport support_elements, LoadAccessMode access_mode) {
   TVARIABLE(Float64T, var_double_value);
   Label rebox_double(this, &var_double_value);
 
@@ -632,8 +641,9 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
     const LazyLoadICParameters* p, TNode<Object> holder,
     TNode<Uint32T> handler_kind, TNode<Word32T> handler_word,
     Label* rebox_double, TVariable<Float64T>* var_double_value,
-    TNode<Object> handler, Label* miss, ExitPoint* exit_point, ICMode ic_mode,
-    OnNonExistent on_nonexistent, ElementSupport support_elements) {
+    TNode<MaybeObject> handler, Label* miss, ExitPoint* exit_point,
+    ICMode ic_mode, OnNonExistent on_nonexistent,
+    ElementSupport support_elements) {
   Label constant(this), field(this), normal(this, Label::kDeferred),
       slow(this, Label::kDeferred), interceptor(this, Label::kDeferred),
       nonexistent(this), accessor(this, Label::kDeferred),
@@ -651,7 +661,8 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
 
   GotoIf(Word32Equal(handler_kind, LOAD_KIND(kNormal)), &normal);
 
-  GotoIf(Word32Equal(handler_kind, LOAD_KIND(kAccessor)), &accessor);
+  GotoIf(Word32Equal(handler_kind, LOAD_KIND(kAccessorFromPrototype)),
+         &accessor);
 
   GotoIf(Word32Equal(handler_kind, LOAD_KIND(kNativeDataProperty)),
          &native_data_property);
@@ -732,13 +743,10 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
   BIND(&accessor);
   {
     Comment("accessor_load");
-    TNode<IntPtrT> descriptor =
-        Signed(DecodeWordFromWord32<LoadHandler::DescriptorBits>(handler_word));
-    TNode<AccessorPair> accessor_pair =
-        CAST(LoadDescriptorValue(LoadMap(CAST(holder)), descriptor));
-    TNode<Object> getter =
-        LoadObjectField(accessor_pair, AccessorPair::kGetterOffset);
-    CSA_DCHECK(this, Word32BinaryNot(IsTheHole(getter)));
+    // The "holder" slot (data1) in the from-prototype LoadHandler is instead
+    // directly the getter function.
+    TNode<HeapObject> getter = CAST(holder);
+    CSA_DCHECK(this, IsCallable(getter));
 
     exit_point->Return(Call(p->context(), getter, p->receiver()));
   }
@@ -889,7 +897,8 @@ void AccessorAssembler::HandleLoadICSmiHandlerHasNamedCase(
 
   GotoIf(Word32Equal(handler_kind, LOAD_KIND(kNormal)), &normal);
 
-  GotoIf(Word32Equal(handler_kind, LOAD_KIND(kAccessor)), &return_true);
+  GotoIf(Word32Equal(handler_kind, LOAD_KIND(kAccessorFromPrototype)),
+         &return_true);
 
   GotoIf(Word32Equal(handler_kind, LOAD_KIND(kNativeDataProperty)),
          &return_true);
@@ -1078,7 +1087,7 @@ TNode<Object> AccessorAssembler::HandleProtoHandler(
 
 void AccessorAssembler::HandleLoadICProtoHandler(
     const LazyLoadICParameters* p, TNode<DataHandler> handler,
-    TVariable<Object>* var_holder, TVariable<Object>* var_smi_handler,
+    TVariable<Object>* var_holder, TVariable<MaybeObject>* var_smi_handler,
     Label* if_smi_handler, Label* miss, ExitPoint* exit_point, ICMode ic_mode,
     LoadAccessMode access_mode) {
   TNode<Smi> smi_handler = CAST(HandleProtoHandler<LoadHandler>(
@@ -2746,8 +2755,8 @@ void AccessorAssembler::GenericPropertyLoad(
       BIND(&found_handler);
       {
         LazyLoadICParameters lazy_p(p);
-        HandleLoadICHandlerCase(&lazy_p, CAST(var_handler.value()),
-                                &stub_cache_miss, &direct_exit);
+        HandleLoadICHandlerCase(&lazy_p, var_handler.value(), &stub_cache_miss,
+                                &direct_exit);
       }
 
       BIND(&stub_cache_miss);
@@ -3039,7 +3048,7 @@ void AccessorAssembler::LoadIC_BytecodeHandler(const LazyLoadICParameters* p,
         &var_handler, &try_polymorphic);
 
     BIND(&if_handler);
-    HandleLoadICHandlerCase(p, CAST(var_handler.value()), &miss, exit_point);
+    HandleLoadICHandlerCase(p, var_handler.value(), &miss, exit_point);
 
     BIND(&try_polymorphic);
     {
@@ -3106,8 +3115,7 @@ void AccessorAssembler::LoadIC(const LoadICParameters* p) {
   BIND(&if_handler);
   {
     LazyLoadICParameters lazy_p(p);
-    HandleLoadICHandlerCase(&lazy_p, CAST(var_handler.value()), &miss,
-                            &direct_exit);
+    HandleLoadICHandlerCase(&lazy_p, var_handler.value(), &miss, &direct_exit);
   }
 
   BIND(&try_polymorphic);
@@ -3164,8 +3172,7 @@ void AccessorAssembler::LoadSuperIC(const LoadICParameters* p) {
   BIND(&if_handler);
   {
     LazyLoadICParameters lazy_p(p);
-    HandleLoadICHandlerCase(&lazy_p, CAST(var_handler.value()), &miss,
-                            &direct_exit);
+    HandleLoadICHandlerCase(&lazy_p, var_handler.value(), &miss, &direct_exit);
   }
 
   BIND(&no_feedback);
@@ -3475,10 +3482,9 @@ void AccessorAssembler::KeyedLoadIC(const LoadICParameters* p,
   BIND(&if_handler);
   {
     LazyLoadICParameters lazy_p(p);
-    HandleLoadICHandlerCase(&lazy_p, CAST(var_handler.value()), &miss,
-                            &direct_exit, ICMode::kNonGlobalIC,
-                            OnNonExistent::kReturnUndefined, kSupportElements,
-                            access_mode);
+    HandleLoadICHandlerCase(
+        &lazy_p, var_handler.value(), &miss, &direct_exit, ICMode::kNonGlobalIC,
+        OnNonExistent::kReturnUndefined, kSupportElements, access_mode);
   }
 
   BIND(&try_polymorphic);
@@ -3690,10 +3696,9 @@ void AccessorAssembler::KeyedLoadICPolymorphicName(const LoadICParameters* p,
   {
     ExitPoint direct_exit(this);
     LazyLoadICParameters lazy_p(p);
-    HandleLoadICHandlerCase(&lazy_p, CAST(var_handler.value()), &miss,
-                            &direct_exit, ICMode::kNonGlobalIC,
-                            OnNonExistent::kReturnUndefined, kOnlyProperties,
-                            access_mode);
+    HandleLoadICHandlerCase(
+        &lazy_p, var_handler.value(), &miss, &direct_exit, ICMode::kNonGlobalIC,
+        OnNonExistent::kReturnUndefined, kOnlyProperties, access_mode);
   }
 
   BIND(&miss);
@@ -4202,7 +4207,7 @@ void AccessorAssembler::GenerateLoadIC_Megamorphic() {
       [=] { return name; },
       // lazy_slot
       [=] { return slot; }, vector);
-  HandleLoadICHandlerCase(&p, CAST(var_handler.value()), &miss, &direct_exit);
+  HandleLoadICHandlerCase(&p, var_handler.value(), &miss, &direct_exit);
 
   BIND(&miss);
   direct_exit.ReturnCallRuntime(Runtime::kLoadIC_Miss, context, receiver, name,
@@ -4233,8 +4238,7 @@ void AccessorAssembler::GenerateLoadIC_Noninlined() {
   BIND(&if_handler);
   {
     LazyLoadICParameters lazy_p(&p);
-    HandleLoadICHandlerCase(&lazy_p, CAST(var_handler.value()), &miss,
-                            &direct_exit);
+    HandleLoadICHandlerCase(&lazy_p, var_handler.value(), &miss, &direct_exit);
   }
 
   BIND(&miss);

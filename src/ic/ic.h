@@ -203,7 +203,7 @@ class LoadIC : public IC {
   void UpdateCaches(LookupIterator* lookup);
 
  private:
-  Handle<Object> ComputeHandler(LookupIterator* lookup);
+  MaybeObjectHandle ComputeHandler(LookupIterator* lookup);
 
   friend class IC;
   friend class NamedLoadHandlerCompiler;

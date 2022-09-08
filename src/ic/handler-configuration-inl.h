@@ -70,9 +70,8 @@ Handle<Smi> LoadHandler::LoadConstantFromPrototype(Isolate* isolate) {
   return handle(Smi::FromInt(config), isolate);
 }
 
-Handle<Smi> LoadHandler::LoadAccessor(Isolate* isolate, int descriptor) {
-  int config =
-      KindBits::encode(Kind::kAccessor) | DescriptorBits::encode(descriptor);
+Handle<Smi> LoadHandler::LoadAccessorFromPrototype(Isolate* isolate) {
+  int config = KindBits::encode(Kind::kAccessorFromPrototype);
   return handle(Smi::FromInt(config), isolate);
 }
 

@@ -55,7 +55,7 @@ class LoadHandler final : public DataHandler {
     kGlobal,
     kField,
     kConstantFromPrototype,
-    kAccessor,
+    kAccessorFromPrototype,
     kNativeDataProperty,
     kApiGetter,
     kApiGetterHolderIsPrototype,
@@ -80,7 +80,7 @@ class LoadHandler final : public DataHandler {
       DoAccessCheckOnLookupStartObjectBits::Next<bool, 1>;
 
   //
-  // Encoding when KindBits contains kAccessor or kNativeDataProperty.
+  // Encoding when KindBits contains kNativeDataProperty.
   //
 
   // Index of a value entry in the descriptor array.
@@ -171,7 +171,7 @@ class LoadHandler final : public DataHandler {
   static inline Handle<Smi> LoadConstantFromPrototype(Isolate* isolate);
 
   // Creates a Smi-handler for calling a getter on a fast object.
-  static inline Handle<Smi> LoadAccessor(Isolate* isolate, int descriptor);
+  static inline Handle<Smi> LoadAccessorFromPrototype(Isolate* isolate);
 
   // Creates a Smi-handler for calling a getter on a proxy.
   static inline Handle<Smi> LoadProxy(Isolate* isolate);

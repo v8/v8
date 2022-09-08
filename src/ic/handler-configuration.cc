@@ -393,13 +393,11 @@ void PrintSmiLoadHandler(int raw_handler, std::ostream& os) {
       }
       break;
     }
-    case LoadHandler::Kind::kConstantFromPrototype: {
-      os << "kConstantFromPrototype ";
+    case LoadHandler::Kind::kConstantFromPrototype:
+      os << "kConstantFromPrototype";
       break;
-    }
-    case LoadHandler::Kind::kAccessor:
-      os << "kAccessor, descriptor = "
-         << LoadHandler::DescriptorBits::decode(raw_handler);
+    case LoadHandler::Kind::kAccessorFromPrototype:
+      os << "kAccessorFromPrototype";
       break;
     case LoadHandler::Kind::kNativeDataProperty:
       os << "kNativeDataProperty, descriptor = "
