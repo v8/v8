@@ -232,6 +232,7 @@ class DefaultExecutionPool(ContextPool):
           except:
             # TODO(machenbach): Handle a few known types of internal errors
             # gracefully, e.g. missing test files.
+            logging.exception('Internal error in a worker process.')
             internal_error = True
             continue
           finally:
@@ -251,7 +252,7 @@ class DefaultExecutionPool(ContextPool):
       self._terminate()
 
     if internal_error:
-      raise Exception("Internal error in a worker process.")
+      raise Exception('Internal error in a worker process.')
 
   def _advance_more(self, gen):
     while self.processing_count < self.num_workers * self.BUFFER_FACTOR:
