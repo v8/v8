@@ -62,6 +62,7 @@ class AugmentedOptions(optparse.Values):
         fuzzers.append(fuzzer.create_fuzzer_config(name, prob, *args))
 
     add('compaction', self.stress_compaction)
+    add('interrupt', self.stress_interrupt_budget)
     add('marking', self.stress_marking)
     add('scavenge', self.stress_scavenge)
     add('gc_interval', self.stress_gc)

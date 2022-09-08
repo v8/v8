@@ -324,7 +324,7 @@ class InterruptBudgetFuzzer(Fuzzer):
       # Half with, half without lazy feedback allocation. The first flag
       # overwrites potential flag negations from the extra flags list.
       flag1 = rng.choice(
-          '--lazy-feedback-allocation', '--no-lazy-feedback-allocation')
+          ['--lazy-feedback-allocation', '--no-lazy-feedback-allocation'])
       flag2 = '--interrupt-budget=%d' % rng.randint(0, 135168)
       flag3 = '--interrupt-budget-for-maglev=%d' % rng.randint(0, 40960)
       flag4 = '--interrupt-budget-for-feedback-allocation=%d' % rng.randint(
@@ -391,15 +391,15 @@ class DeoptFuzzer(Fuzzer):
 
 
 FUZZERS = {
-  'compaction': (None, CompactionFuzzer),
-  'delay': (None, TaskDelayFuzzer),
-  'deopt': (DeoptAnalyzer, DeoptFuzzer),
-  'gc_interval': (GcIntervalAnalyzer, GcIntervalFuzzer),
-  'interrupt': InterruptBudgetFuzzer,
-  'marking': (MarkingAnalyzer, MarkingFuzzer),
-  'scavenge': (ScavengeAnalyzer, ScavengeFuzzer),
-  'stack': (None, StackSizeFuzzer),
-  'threads': (None, ThreadPoolSizeFuzzer),
+    'compaction': (None, CompactionFuzzer),
+    'delay': (None, TaskDelayFuzzer),
+    'deopt': (DeoptAnalyzer, DeoptFuzzer),
+    'gc_interval': (GcIntervalAnalyzer, GcIntervalFuzzer),
+    'interrupt': (None, InterruptBudgetFuzzer),
+    'marking': (MarkingAnalyzer, MarkingFuzzer),
+    'scavenge': (ScavengeAnalyzer, ScavengeFuzzer),
+    'stack': (None, StackSizeFuzzer),
+    'threads': (None, ThreadPoolSizeFuzzer),
 }
 
 
