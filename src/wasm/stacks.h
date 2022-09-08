@@ -38,7 +38,7 @@ class StackMemory {
   static StackMemory* GetCurrentStackView(Isolate* isolate);
 
   ~StackMemory();
-  void* jslimit() const { return limit_ + kJSLimitOffsetKB; }
+  void* jslimit() const { return limit_ + kJSLimitOffsetKB * KB; }
   Address base() const { return reinterpret_cast<Address>(limit_ + size_); }
   JumpBuffer* jmpbuf() { return &jmpbuf_; }
   int id() { return id_; }
