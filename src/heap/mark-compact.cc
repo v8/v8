@@ -4150,10 +4150,8 @@ class Evacuator : public Malloced {
   // NewSpacePages with more live bytes than this threshold qualify for fast
   // evacuation.
   static intptr_t NewSpacePageEvacuationThreshold() {
-    if (v8_flags.page_promotion)
-      return v8_flags.page_promotion_threshold *
-             MemoryChunkLayout::AllocatableMemoryInDataPage() / 100;
-    return MemoryChunkLayout::AllocatableMemoryInDataPage() + kTaggedSize;
+    return v8_flags.page_promotion_threshold *
+           MemoryChunkLayout::AllocatableMemoryInDataPage() / 100;
   }
 
   Evacuator(Heap* heap, RecordMigratedSlotVisitor* record_visitor,
@@ -4469,12 +4467,15 @@ size_t CreateAndExecuteEvacuationTasks(
   return wanted_num_tasks;
 }
 
-bool ShouldMovePage(Page* p, intptr_t live_bytes,
+bool ShouldMovePage(Page* p, intptr_t live_bytes, intptr_t wasted_bytes,
+                    MemoryReductionMode memory_reduction_mode,
                     AlwaysPromoteYoung always_promote_young) {
   Heap* heap = p->heap();
-  const bool reduce_memory = heap->ShouldReduceMemory();
-  return !reduce_memory && !p->NeverEvacuate() &&
-         (live_bytes > Evacuator::NewSpacePageEvacuationThreshold()) &&
+  return v8_flags.page_promotion &&
+         (memory_reduction_mode == MemoryReductionMode::kNone) &&
+         !p->NeverEvacuate() &&
+         (live_bytes + wasted_bytes >
+          Evacuator::NewSpacePageEvacuationThreshold()) &&
          (always_promote_young == AlwaysPromoteYoung::kYes ||
           heap->new_space()->IsPromotionCandidate(p)) &&
          heap->CanExpandOldGeneration(live_bytes);
@@ -4511,7 +4512,11 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
     intptr_t live_bytes_on_page = non_atomic_marking_state()->live_bytes(page);
     DCHECK_LT(0, live_bytes_on_page);
     live_bytes += live_bytes_on_page;
-    if (ShouldMovePage(page, live_bytes_on_page, AlwaysPromoteYoung::kYes) ||
+    MemoryReductionMode memory_reduction_mode =
+        heap()->ShouldReduceMemory() ? MemoryReductionMode::kShouldReduceMemory
+                                     : MemoryReductionMode::kNone;
+    if (ShouldMovePage(page, live_bytes_on_page, 0, memory_reduction_mode,
+                       AlwaysPromoteYoung::kYes) ||
         force_page_promotion) {
       EvacuateNewSpacePageVisitor<NEW_TO_OLD>::Move(page);
       DCHECK_EQ(heap()->old_space(), page->owner());
@@ -6669,7 +6674,8 @@ void MinorMarkCompactCollector::EvacuatePagesInParallel() {
     intptr_t live_bytes_on_page = non_atomic_marking_state()->live_bytes(page);
     DCHECK_LT(0, live_bytes_on_page);
     live_bytes += live_bytes_on_page;
-    if (ShouldMovePage(page, live_bytes_on_page, AlwaysPromoteYoung::kNo)) {
+    if (ShouldMovePage(page, live_bytes_on_page, page->wasted_memory(),
+                       MemoryReductionMode::kNone, AlwaysPromoteYoung::kNo)) {
       EvacuateNewSpacePageVisitor<NEW_TO_OLD>::Move(page);
       evacuation_items.emplace_back(ParallelWorkItem{}, page);
     }
