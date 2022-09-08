@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "GCLIENT_VARS", "GOMA", "ci_pair_factory", "greedy_batching_of_1", "in_branch_console", "main_multibranch_builder")
+load("//lib/lib.star", "GCLIENT_VARS", "GOMA", "RECLIENT", "ci_pair_factory", "greedy_batching_of_1", "in_branch_console", "main_multibranch_builder")
 
 in_category = in_branch_console("main")
 main_multibranch_builder_pair = ci_pair_factory(main_multibranch_builder)
@@ -15,12 +15,14 @@ in_category(
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"binary_size_tracking": {"category": "linux32", "binary": "d8"}},
         gclient_vars = [GCLIENT_VARS.GCMOLE],
-        use_goma = GOMA.DEFAULT,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
     ),
     main_multibranch_builder_pair(
         name = "V8 Linux - debug",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-        use_goma = GOMA.DEFAULT,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
     ),
     main_multibranch_builder_pair(
         name = "V8 Linux - full debug",
