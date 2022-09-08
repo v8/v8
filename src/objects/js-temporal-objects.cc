@@ -3765,7 +3765,7 @@ Maybe<DurationRecord> CreateDurationRecord(Isolate* isolate,
   return Just(duration);
 }
 
-inline int64_t IfEmptyReturnZero(int64_t value) {
+inline double IfEmptyReturnZero(double value) {
   return value == ParsedISO8601Duration::kEmpty ? 0 : value;
 }
 
@@ -3774,18 +3774,10 @@ Maybe<DurationRecord> ParseTemporalDurationString(Isolate* isolate,
                                                   Handle<String> iso_string) {
   TEMPORAL_ENTER_FUNC();
   // In this funciton, we use 'double' as type for all mathematical values
-  // except the three three units < seconds. For all others, we use 'double'
   // because in
   // https://tc39.es/proposal-temporal/#sec-properties-of-temporal-duration-instances
   // they are "A float64-representable integer representing the number" in the
   // internal slots.
-  // For milliseconds_mv, microseconds_mv, and nanoseconds_mv, we use int32_t
-  // instead because their maximum number during calculation is 999999999,
-  // which can be encoded in 30 bits and the parsed.seconds_fraction return from
-  // the ISO8601 parser are stored in an integer, in the unit of nanoseconds.
-  // Therefore, use "int32_t" will avoid rounding error for the final
-  // calculating of nanoseconds_mv.
-  //
   // 1. Let duration be ParseText(StringToCodePoints(isoString),
   // TemporalDurationString).
   // 2. If duration is a List of errors, throw a RangeError exception.
@@ -3827,7 +3819,11 @@ Maybe<DurationRecord> ParseTemporalDurationString(Isolate* isolate,
                                    Nothing<DurationRecord>());
     }
     // b. Let fHoursDigits be the substring of CodePointsToString(fHours)
-    // from 1. c. Let fHoursScale be the length of fHoursDigits. d. Let
+    // from 1.
+    //
+    // c. Let fHoursScale be the length of fHoursDigits.
+    //
+    // d. Let
     // minutesMV be ! ToIntegerOrInfinity(fHoursDigits) / 10^fHoursScale × 60.
     minutes_mv = IfEmptyReturnZero(parsed->hours_fraction) * 60.0 / 1e9;
     // 10. Else,
@@ -3847,9 +3843,12 @@ Maybe<DurationRecord> ParseTemporalDurationString(Isolate* isolate,
                                    Nothing<DurationRecord>());
     }
     // b. Let fMinutesDigits be the substring of CodePointsToString(fMinutes)
-    // from 1. c. Let fMinutesScale be the length of fMinutesDigits. d. Let
-    // secondsMV be ! ToIntegerOrInfinity(fMinutesDigits) / 10^fMinutesScale
-    // × 60.
+    // from 1.
+    //
+    // c. Let fMinutesScale be the length of fMinutesDigits.
+    //
+    // d. Let secondsMV be ! ToIntegerOrInfinity(fMinutesDigits) /
+    // 10^fMinutesScale × 60.
     seconds_mv = IfEmptyReturnZero(parsed->minutes_fraction) * 60.0 / 1e9;
     // 12. Else if seconds is not empty, then
   } else if (parsed->whole_seconds != ParsedISO8601Duration::kEmpty) {
@@ -3860,13 +3859,21 @@ Maybe<DurationRecord> ParseTemporalDurationString(Isolate* isolate,
     // a. Let secondsMV be remainder(minutesMV, 1) × 60.
     seconds_mv = (minutes_mv - std::floor(minutes_mv)) * 60.0;
   }
-  int32_t milliseconds_mv;
-  int32_t nanoseconds_mv;
+  double milliseconds_mv, microseconds_mv, nanoseconds_mv;
+  // Note: In step 14-17, we calculate from nanoseconds_mv to miilliseconds_mv
+  // in the reversee order of the spec text to avoid numerical errors would be
+  // introduced by multiple division inside the remainder operations. If we
+  // strickly follow the order by using double, the end result of nanoseconds_mv
+  // will be wrong due to numerical errors.
+  //
   // 14. If fSeconds is not empty, then
   if (parsed->seconds_fraction != ParsedISO8601Duration::kEmpty) {
     // a. Let fSecondsDigits be the substring of CodePointsToString(fSeconds)
-    // from 1. b. Let fSecondsScale be the length of fSecondsDigits. c. Let
-    // millisecondsMV be ! ToIntegerOrInfinity(fSecondsDigits) /
+    // from 1.
+    //
+    // b. Let fSecondsScale be the length of fSecondsDigits.
+    //
+    // c. Let millisecondsMV be ! ToIntegerOrInfinity(fSecondsDigits) /
     // 10^fSecondsScale × 1000.
     DCHECK_LE(IfEmptyReturnZero(parsed->seconds_fraction), 1e9);
     nanoseconds_mv = std::round(IfEmptyReturnZero(parsed->seconds_fraction));
@@ -3875,15 +3882,13 @@ Maybe<DurationRecord> ParseTemporalDurationString(Isolate* isolate,
     // a. Let millisecondsMV be remainder(secondsMV, 1) × 1000.
     nanoseconds_mv = std::round((seconds_mv - std::floor(seconds_mv)) * 1e9);
   }
-  milliseconds_mv = nanoseconds_mv / 1000000;
+  milliseconds_mv = std::floor(nanoseconds_mv / 1000000);
   // 16. Let microsecondsMV be remainder(millisecondsMV, 1) × 1000.
-  int32_t microseconds_mv = (nanoseconds_mv / 1000) % 1000;
+  microseconds_mv = std::floor(nanoseconds_mv / 1000) -
+                    std::floor(nanoseconds_mv / 1000000) * 1000;
   // 17. Let nanosecondsMV be remainder(microsecondsMV, 1) × 1000.
-  nanoseconds_mv = nanoseconds_mv % 1000;
+  nanoseconds_mv -= std::floor(nanoseconds_mv / 1000) * 1000;
 
-  DCHECK_LE(milliseconds_mv, 1000);
-  DCHECK_LE(microseconds_mv, 1000);
-  DCHECK_LE(nanoseconds_mv, 1000);
   // 18. If sign contains the code point 0x002D (HYPHEN-MINUS) or 0x2212 (MINUS
   // SIGN), then a. Let factor be −1.
   // 19. Else,
