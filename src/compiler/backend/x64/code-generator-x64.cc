@@ -5211,7 +5211,17 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
   switch (MoveType::InferMove(source, destination)) {
     case MoveType::kRegisterToRegister:
       if (source->IsRegister()) {
-        __ movq(g.ToRegister(destination), g.ToRegister(source));
+        MachineRepresentation src_rep =
+            LocationOperand::cast(source)->representation();
+        MachineRepresentation dest_rep =
+            LocationOperand::cast(destination)->representation();
+        if (dest_rep == MachineRepresentation::kWord32 &&
+            src_rep == MachineRepresentation::kWord32) {
+          DCHECK(destination->IsRegister());
+          __ movl(g.ToRegister(destination), g.ToRegister(source));
+        } else {
+          __ movq(g.ToRegister(destination), g.ToRegister(source));
+        }
       } else {
         DCHECK(source->IsFPRegister());
         __ Movapd(g.ToDoubleRegister(destination), g.ToDoubleRegister(source));
