@@ -1786,6 +1786,7 @@ class Heap {
 
   // Checks whether a global GC is necessary
   GarbageCollector SelectGarbageCollector(AllocationSpace space,
+                                          GarbageCollectionReason gc_reason,
                                           const char** reason);
 
   // Free all LABs in the heap.

@@ -456,7 +456,14 @@ bool Heap::HasBeenSetUp() const {
 }
 
 GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
+                                              GarbageCollectionReason gc_reason,
                                               const char** reason) {
+  if (gc_reason == GarbageCollectionReason::kFinalizeMinorMC) {
+    DCHECK(new_space());
+    *reason = "finalize MinorMC";
+    return GarbageCollector::MINOR_MARK_COMPACTOR;
+  }
+
   // Is global GC requested?
   if (space != NEW_SPACE && space != NEW_LO_SPACE) {
     isolate_->counters()->gc_compactor_caused_by_request()->Increment();
@@ -1801,12 +1808,7 @@ bool Heap::CollectGarbage(AllocationSpace space,
   GarbageCollector collector;
   const char* collector_reason = nullptr;
 
-  if (gc_reason == GarbageCollectionReason::kFinalizeMinorMC) {
-    collector = GarbageCollector::MINOR_MARK_COMPACTOR;
-    collector_reason = "finalize MinorMC";
-  } else {
-    collector = SelectGarbageCollector(space, &collector_reason);
-  }
+  collector = SelectGarbageCollector(space, gc_reason, &collector_reason);
 
   if (collector == GarbageCollector::MARK_COMPACTOR &&
       incremental_marking()->IsMinorMarking()) {
@@ -2061,6 +2063,13 @@ void Heap::CompleteSweepingFull() {
 
 void Heap::StartIncrementalMarkingIfAllocationLimitIsReached(
     int gc_flags, const GCCallbackFlags gc_callback_flags) {
+  if (v8_flags.separate_gc_phases && gc_callbacks_depth_ > 0) {
+    // Do not start incremental marking while invoking GC callbacks.
+    // Heap::CollectGarbage already decided which GC is going to be invoked. In
+    // case it chose a young-gen GC, starting an incremental full GC during
+    // callbacks would break the seperate GC phases guarantee.
+    return;
+  }
   if (incremental_marking()->IsStopped()) {
     switch (IncrementalMarkingLimitReached()) {
       case IncrementalMarkingLimit::kHardLimit:
