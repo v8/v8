@@ -113,7 +113,6 @@ class MemoryLowering final : public Reducer {
   Node* ComputeIndex(ElementAccess const& access, Node* node);
   void EnsureAllocateOperator();
   Node* GetWasmInstanceNode();
-  Node* AlignIf8GbCompression(Node* address);
 
   Graph* graph() const { return graph_; }
   Isolate* isolate() const { return isolate_; }

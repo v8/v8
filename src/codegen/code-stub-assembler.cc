@@ -15,7 +15,6 @@
 #include "src/execution/frames.h"
 #include "src/execution/protectors.h"
 #include "src/heap/heap-inl.h"  // For MemoryChunk. TODO(jkummerow): Drop.
-#include "src/heap/heap.h"
 #include "src/heap/memory-chunk.h"
 #include "src/logging/counters.h"
 #include "src/numbers/integer-literal-inl.h"
@@ -24,7 +23,6 @@
 #include "src/objects/descriptor-array.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/heap-number.h"
-#include "src/objects/heap-object.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/oddball.h"
@@ -1345,10 +1343,7 @@ TNode<HeapObject> CodeStubAssembler::AllocateRawDoubleAligned(
 // unaligned access since both x64 and arm64 architectures (where pointer
 // compression is supported) allow unaligned access to doubles and full words.
 #endif  // V8_COMPRESS_POINTERS
-  if (V8_COMPRESS_POINTERS_8GB_BOOL) {
-    return AllocateRaw(size_in_bytes, flags | AllocationFlag::kDoubleAlignment,
-                       top_address, limit_address);
-  }
+  // Allocation on 64 bit machine is naturally double aligned
   return AllocateRaw(size_in_bytes, flags & ~AllocationFlag::kDoubleAlignment,
                      top_address, limit_address);
 #else
@@ -1417,8 +1412,7 @@ TNode<HeapObject> CodeStubAssembler::Allocate(TNode<IntPtrT> size_in_bytes,
       IntPtrAdd(ReinterpretCast<IntPtrT>(top_address),
                 IntPtrConstant(kSystemPointerSize));
 
-  if (V8_COMPRESS_POINTERS_8GB_BOOL ||
-      (flags & AllocationFlag::kDoubleAlignment)) {
+  if (flags & AllocationFlag::kDoubleAlignment) {
     return AllocateRawDoubleAligned(size_in_bytes, flags,
                                     ReinterpretCast<RawPtrT>(top_address),
                                     ReinterpretCast<RawPtrT>(limit_address));
@@ -4032,14 +4026,10 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
       base_size += AllocationMemento::kSize;
     }
 
-    const int elements_offset =
-        V8_COMPRESS_POINTERS_8GB_BOOL
-            ? RoundUp<kObjectAlignment8GbHeap>(base_size)
-            : base_size;
-    const int unaligned_elements_offset = base_size;
+    const int elements_offset = base_size;
 
     // Compute space for elements
-    base_size = elements_offset + FixedArray::kHeaderSize;
+    base_size += FixedArray::kHeaderSize;
     TNode<IntPtrT> size = ElementOffsetFromIndex(capacity, kind, base_size);
 
     // For very large arrays in which the requested allocation exceeds the
@@ -4076,11 +4066,6 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
     // Fold all objects into a single new space allocation.
     array =
         AllocateUninitializedJSArray(array_map, length, allocation_site, size);
-    if (V8_COMPRESS_POINTERS_8GB_BOOL &&
-        elements_offset != unaligned_elements_offset) {
-      StoreObjectFieldNoWriteBarrier(array.value(), unaligned_elements_offset,
-                                     OnePointerFillerMapConstant());
-    }
     elements = InnerAllocateElements(this, array.value(), elements_offset);
 
     StoreObjectFieldNoWriteBarrier(array.value(), JSObject::kElementsOffset,

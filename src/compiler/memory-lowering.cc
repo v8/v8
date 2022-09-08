@@ -5,19 +5,14 @@
 #include "src/compiler/memory-lowering.h"
 
 #include "src/codegen/interface-descriptors-inl.h"
-#include "src/codegen/machine-type.h"
-#include "src/common/globals.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/compiler/write-barrier-kind.h"
-#include "src/heap/factory-inl.h"
 #include "src/roots/roots-inl.h"
 #include "src/sandbox/external-pointer-inl.h"
-#include "src/utils/utils.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-linkage.h"
@@ -135,31 +130,6 @@ Node* MemoryLowering::GetWasmInstanceNode() {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 #define __ gasm()->
-
-Node* MemoryLowering::AlignIf8GbCompression(Node* address) {
-  if (!V8_COMPRESS_POINTERS_8GB_BOOL) return address;
-
-  auto already_aligned = __ MakeLabel(MachineRepresentation::kWord64);
-  Node* alignment_check = __ WordEqual(
-      __ WordAnd(address, __ UintPtrConstant(kObjectAlignment8GbHeapMask)),
-      __ UintPtrConstant(0));
-
-  __ GotoIf(alignment_check, &already_aligned, address);
-  {
-    Node* one_pointer_filler_map =
-        __ HeapConstant(__ isolate()->factory()->one_pointer_filler_map());
-    __ Store(StoreRepresentation(MachineRepresentation::kCompressedPointer,
-                                 kNoWriteBarrier),
-             address, __ IntPtrConstant(0), one_pointer_filler_map);
-    Node* aligned_address =
-        __ IntPtrAdd(address, __ UintPtrConstant(kTaggedSize));
-    __ Goto(&already_aligned, aligned_address);
-  }
-
-  __ Bind(&already_aligned);
-
-  return already_aligned.PhiAt(0);
-}
 
 Reduction MemoryLowering::ReduceAllocateRaw(
     Node* node, AllocationType allocation_type,
@@ -360,8 +330,8 @@ Reduction MemoryLowering::ReduceAllocateRaw(
     auto done = __ MakeLabel(MachineRepresentation::kTaggedPointer);
 
     // Load allocation top and limit.
-    Node* top = AlignIf8GbCompression(
-        __ Load(MachineType::Pointer(), top_address, __ IntPtrConstant(0)));
+    Node* top =
+        __ Load(MachineType::Pointer(), top_address, __ IntPtrConstant(0));
     Node* limit =
         __ Load(MachineType::Pointer(), limit_address, __ IntPtrConstant(0));
 
