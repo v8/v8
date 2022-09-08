@@ -1052,7 +1052,9 @@ bool MaglevGraphBuilder::TryBuildMonomorphicLoadFromLoadHandler(
   bool lookup_on_lookup_start_object =
       LoadHandler::LookupOnLookupStartObjectBits::decode(smi_handler);
   if (lookup_on_lookup_start_object) return false;
-  if (kind != LoadHandler::Kind::kConstantFromPrototype) return false;
+  if (kind != LoadHandler::Kind::kConstantFromPrototype &&
+      kind != LoadHandler::Kind::kAccessorFromPrototype)
+    return false;
 
   if (map.IsStringMap()) {
     // Check for string maps before checking if we need to do an access check.
@@ -1087,12 +1089,34 @@ bool MaglevGraphBuilder::TryBuildMonomorphicLoadFromLoadHandler(
   } else {
     DCHECK_EQ(Smi::ToInt(validity_cell), Map::kPrototypeChainValid);
   }
-  MaybeObject value = handler.data1(local_isolate_);
-  if (value.IsSmi()) {
-    SetAccumulator(GetSmiConstant(value.ToSmi().value()));
-  } else {
-    SetAccumulator(GetConstant(MakeRefAssumeMemoryFence(
-        broker(), broker()->CanonicalPersistentHandle(value.GetHeapObject()))));
+
+  switch (kind) {
+    case LoadHandler::Kind::kConstantFromPrototype: {
+      MaybeObject value = handler.data1(local_isolate_);
+      if (value.IsSmi()) {
+        SetAccumulator(GetSmiConstant(value.ToSmi().value()));
+      } else {
+        SetAccumulator(GetConstant(MakeRefAssumeMemoryFence(
+            broker(),
+            broker()->CanonicalPersistentHandle(value.GetHeapObject()))));
+      }
+      break;
+    }
+    case LoadHandler::Kind::kAccessorFromPrototype: {
+      MaybeObject getter = handler.data1(local_isolate_);
+      compiler::ObjectRef getter_ref = MakeRefAssumeMemoryFence(
+          broker(),
+          broker()->CanonicalPersistentHandle(getter.GetHeapObject()));
+
+      Call* call = CreateNewNode<Call>(Call::kFixedInputCount + 1,
+                                       ConvertReceiverMode::kNotNullOrUndefined,
+                                       GetConstant(getter_ref), GetContext());
+      call->set_arg(0, object);
+      SetAccumulator(AddNode(call));
+      break;
+    }
+    default:
+      UNREACHABLE();
   }
   return true;
 }
