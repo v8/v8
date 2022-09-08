@@ -5448,10 +5448,9 @@ MaybeHandle<BigInt> AddZonedDateTime(Isolate* isolate,
   // 2. If all of years, months, weeks, and days are 0, then
   if (duration.years == 0 && duration.months == 0 && duration.weeks == 0 &&
       time_duration.days == 0) {
-    // a. Return ! AddInstant(epochNanoseconds, hours, minutes, seconds,
+    // a. Return ? AddInstant(epochNanoseconds, hours, minutes, seconds,
     // milliseconds, microseconds, nanoseconds).
-    return AddInstant(isolate, epoch_nanoseconds, time_duration)
-        .ToHandleChecked();
+    return AddInstant(isolate, epoch_nanoseconds, time_duration);
   }
   // 3. Let instant be ! CreateTemporalInstant(epochNanoseconds).
   Handle<JSTemporalInstant> instant =
@@ -5522,13 +5521,12 @@ MaybeHandle<BigInt> AddZonedDateTime(Isolate* isolate,
       BuiltinTimeZoneGetInstantFor(isolate, time_zone, intermediate_date_time,
                                    Disambiguation::kCompatible, method_name),
       BigInt);
-  // 10. Return ! AddInstant(intermediateInstant.[[Nanoseconds]], hours,
+  // 10. Return ? AddInstant(intermediateInstant.[[Nanoseconds]], hours,
   // minutes, seconds, milliseconds, microseconds, nanoseconds).
   time_duration.days = 0;
   return AddInstant(isolate,
                     handle(intermediate_instant->nanoseconds(), isolate),
-                    time_duration)
-      .ToHandleChecked();
+                    time_duration);
 }
 
 Maybe<NanosecondsToDaysResult> NanosecondsToDays(Isolate* isolate,
@@ -5854,65 +5852,67 @@ MaybeHandle<BigInt> AddInstant(Isolate* isolate,
                                Handle<BigInt> epoch_nanoseconds,
                                const TimeDurationRecord& addend) {
   TEMPORAL_ENTER_FUNC();
+  Factory* factory = isolate->factory();
 
   // 1. Assert: hours, minutes, seconds, milliseconds, microseconds, and
   // nanoseconds are integer Number values.
   // 2. Let result be epochNanoseconds + ℤ(nanoseconds) +
   // ℤ(microseconds) × 1000ℤ + ℤ(milliseconds) × 10^6ℤ + ℤ(seconds) × 10^9ℤ +
   // ℤ(minutes) × 60ℤ × 10^9ℤ + ℤ(hours) × 3600ℤ × 10^9ℤ.
-  Handle<BigInt> result;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, result,
-      BigInt::Add(isolate, epoch_nanoseconds,
-                  BigInt::FromInt64(isolate, addend.nanoseconds)),
-      BigInt);
-  Handle<BigInt> temp;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, temp,
-      BigInt::Multiply(isolate, BigInt::FromInt64(isolate, addend.microseconds),
-                       BigInt::FromInt64(isolate, 1000)),
-      BigInt);
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
-                             BigInt::Add(isolate, result, temp), BigInt);
 
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, temp,
-      BigInt::Multiply(isolate, BigInt::FromInt64(isolate, addend.milliseconds),
-                       BigInt::FromInt64(isolate, 1000000)),
-      BigInt);
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
-                             BigInt::Add(isolate, result, temp), BigInt);
+  // epochNanoseconds + ℤ(nanoseconds)
+  Handle<BigInt> result =
+      BigInt::Add(
+          isolate, epoch_nanoseconds,
+          BigInt::FromNumber(isolate, factory->NewNumber(addend.nanoseconds))
+              .ToHandleChecked())
+          .ToHandleChecked();
 
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, temp,
-      BigInt::Multiply(isolate, BigInt::FromInt64(isolate, addend.seconds),
-                       BigInt::FromInt64(isolate, 1000000000)),
-      BigInt);
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
-                             BigInt::Add(isolate, result, temp), BigInt);
+  // + ℤ(microseconds) × 1000ℤ
+  Handle<BigInt> temp =
+      BigInt::Multiply(
+          isolate,
+          BigInt::FromNumber(isolate, factory->NewNumber(addend.microseconds))
+              .ToHandleChecked(),
+          BigInt::FromInt64(isolate, 1000))
+          .ToHandleChecked();
+  result = BigInt::Add(isolate, result, temp).ToHandleChecked();
 
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, temp,
-      BigInt::Multiply(isolate, BigInt::FromInt64(isolate, addend.minutes),
-                       BigInt::FromInt64(isolate, 1000000000)),
-      BigInt);
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, temp,
-      BigInt::Multiply(isolate, temp, BigInt::FromInt64(isolate, 60)), BigInt);
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
-                             BigInt::Add(isolate, result, temp), BigInt);
+  // + ℤ(milliseconds) × 10^6ℤ
+  temp = BigInt::Multiply(isolate,
+                          BigInt::FromNumber(
+                              isolate, factory->NewNumber(addend.milliseconds))
+                              .ToHandleChecked(),
+                          BigInt::FromInt64(isolate, 1000000))
+             .ToHandleChecked();
+  result = BigInt::Add(isolate, result, temp).ToHandleChecked();
 
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, temp,
-      BigInt::Multiply(isolate, BigInt::FromInt64(isolate, addend.hours),
-                       BigInt::FromInt64(isolate, 1000000000)),
-      BigInt);
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, temp,
-      BigInt::Multiply(isolate, temp, BigInt::FromInt64(isolate, 3600)),
-      BigInt);
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
-                             BigInt::Add(isolate, result, temp), BigInt);
+  // + ℤ(seconds) × 10^9ℤ
+  temp = BigInt::Multiply(
+             isolate,
+             BigInt::FromNumber(isolate, factory->NewNumber(addend.seconds))
+                 .ToHandleChecked(),
+             BigInt::FromInt64(isolate, 1000000000))
+             .ToHandleChecked();
+  result = BigInt::Add(isolate, result, temp).ToHandleChecked();
+
+  // + ℤ(minutes) × 60ℤ × 10^9ℤ.
+  temp = BigInt::Multiply(
+             isolate,
+             BigInt::FromNumber(isolate, factory->NewNumber(addend.minutes))
+                 .ToHandleChecked(),
+             BigInt::FromInt64(isolate, 60000000000))
+             .ToHandleChecked();
+  result = BigInt::Add(isolate, result, temp).ToHandleChecked();
+
+  // + ℤ(hours) × 3600ℤ × 10^9ℤ.
+  temp = BigInt::Multiply(
+             isolate,
+             BigInt::FromNumber(isolate, factory->NewNumber(addend.hours))
+                 .ToHandleChecked(),
+             BigInt::FromInt64(isolate, 3600000000000))
+             .ToHandleChecked();
+  result = BigInt::Add(isolate, result, temp).ToHandleChecked();
 
   // 3. If ! IsValidEpochNanoseconds(result) is false, throw a RangeError
   // exception.

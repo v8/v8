@@ -583,9 +583,7 @@
   'intl402/Temporal/Calendar/prototype/yearMonthFromFields/order-of-operations': [FAIL],
   'intl402/Temporal/Duration/compare/relativeto-hour': [FAIL],
   'built-ins/Temporal/PlainTime/prototype/equals/argument-string-no-implicit-midnight': [FAIL],
-  'built-ins/Temporal/Duration/prototype/add/nanoseconds-is-number-max-value-1': [FAIL],
   'built-ins/Temporal/Duration/prototype/round/total-duration-nanoseconds-too-large-with-zoned-datetime': [PASS, FAIL],
-  'built-ins/Temporal/Duration/prototype/subtract/nanoseconds-is-number-max-value-1': [FAIL],
   'built-ins/Temporal/Duration/prototype/total/relativeto-zoneddatetime-with-fractional-days-different-sign': [FAIL],
   'built-ins/Temporal/Duration/prototype/total/relativeto-zoneddatetime-with-fractional-days': [FAIL],
   'built-ins/Temporal/PlainTime/prototype/add/argument-string-duration-too-large': [FAIL],
@@ -593,8 +591,6 @@
   'intl402/Temporal/TimeZone/prototype/getNextTransition/subtract-second-and-nanosecond-from-last-transition': [FAIL],
   'intl402/Temporal/TimeZone/prototype/getPreviousTransition/nanoseconds-subtracted-or-added-at-dst-transition': [FAIL],
 
-  'built-ins/Temporal/Instant/prototype/add/minimum-maximum-instant': [FAIL],
-  'built-ins/Temporal/Instant/prototype/subtract/minimum-maximum-instant': [FAIL],
   'intl402/Temporal/TimeZone/from/etc-timezone': [FAIL],
   'intl402/Temporal/TimeZone/from/iana-legacy-names': [FAIL],
   'intl402/Temporal/TimeZone/prototype/getNextTransition/transition-at-instant-boundaries': [FAIL],
@@ -628,10 +624,6 @@
 
   # UBSan complain about static_cast<int32_t> from double in AddISODate()
   'built-ins/Temporal/Calendar/prototype/dateAdd/argument-duration-years-and-months-number-max-value': [SKIP],
-
-  # Flaky and cause timeout sometimes
-  'built-ins/Temporal/Duration/prototype/add/days-is-number-max-value-with-zoneddatetime': [SKIP],
-  'built-ins/Temporal/Duration/prototype/subtract/days-is-number-max-value-with-zoneddatetime': [SKIP],
 
   'harness/temporalHelpers-one-shift-time-zone': [SKIP],
 
