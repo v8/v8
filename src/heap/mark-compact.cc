@@ -5809,7 +5809,7 @@ void MinorMarkCompactCollector::FinishConcurrentMarking() {
   if (v8_flags.concurrent_marking) {
     DCHECK_EQ(heap()->concurrent_marking()->garbage_collector(),
               GarbageCollector::MINOR_MARK_COMPACTOR);
-    heap()->concurrent_marking()->Join();
+    heap()->concurrent_marking()->Cancel();
     heap()->concurrent_marking()->FlushMemoryChunkData(
         non_atomic_marking_state());
   }

@@ -954,6 +954,11 @@ bool ConcurrentMarking::Pause() {
   return true;
 }
 
+void ConcurrentMarking::Cancel() {
+  Pause();
+  garbage_collector_.reset();
+}
+
 bool ConcurrentMarking::IsStopped() {
   if (!v8_flags.concurrent_marking && !v8_flags.parallel_marking) return true;
 

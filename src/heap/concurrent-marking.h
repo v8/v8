@@ -67,6 +67,7 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
   // Preempts ongoing job ASAP. Returns true if concurrent marking was in
   // progress, false otherwise.
   bool Pause();
+  void Cancel();
 
   // Schedules asynchronous job to perform concurrent marking at |priority| if
   // not already running, otherwise adjusts the number of workers running job
