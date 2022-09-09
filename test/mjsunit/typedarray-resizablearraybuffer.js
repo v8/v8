@@ -6682,11 +6682,11 @@ Reverse(ArrayReverseHelper, false);
     assertEquals(4, fixedLengthSubFull.length);
     assertEquals(2, fixedLengthWithOffsetSubFull.length);
 
-    // TODO(v8:11111): Are subarrays of length-tracking TAs also
-    // length-tracking? See
-    // https://github.com/tc39/proposal-resizablearraybuffer/issues/91
-    assertEquals(4, lengthTrackingSubFull.length);
-    assertEquals(2, lengthTrackingWithOffsetSubFull.length);
+    // Subarrays of length-tracking TAs that don't pass an explicit end argument
+    // are also length-tracking.
+    assertEquals(lengthTracking.length, lengthTrackingSubFull.length);
+    assertEquals(lengthTrackingWithOffset.length,
+                 lengthTrackingWithOffsetSubFull.length);
   }
 })();
 
@@ -6779,7 +6779,9 @@ Reverse(ArrayReverseHelper, false);
       rab.resize(2 * ctor.BYTES_PER_ELEMENT);
       return 0;
     }};
-    assertThrows(() => { lengthTracking.subarray(evil); });
+    assertThrows(() => {
+      lengthTracking.subarray(evil, lengthTracking.length);
+    });
   }
 
   // Like the previous test, but now we construct a smaller subarray and it
@@ -6874,7 +6876,8 @@ Reverse(ArrayReverseHelper, false);
     const evil = { valueOf: () => { rab.resize(6 * ctor.BYTES_PER_ELEMENT);
                                     return 0;}};
 
-    assertEquals([0, 2, 4, 6], ToNumbers(lengthTracking.subarray(evil)));
+    assertEquals([0, 2, 4, 6], ToNumbers(
+      lengthTracking.subarray(evil, lengthTracking.length)));
   }
 })();
 

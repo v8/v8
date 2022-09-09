@@ -478,12 +478,12 @@ transitioning macro TypedArraySpeciesCreateByLength(implicit context: Context)(
 
 transitioning macro TypedArraySpeciesCreateByBuffer(implicit context: Context)(
     methodName: constexpr string, exemplar: JSTypedArray, buffer: JSArrayBuffer,
-    beginByteOffset: uintptr, newLength: uintptr): JSTypedArray {
+    beginByteOffset: uintptr, newLength: NumberOrUndefined): JSTypedArray {
   const numArgs: constexpr int31 = 3;
   // TODO(v8:4153): pass length further as uintptr.
   const typedArray: JSTypedArray = TypedArraySpeciesCreate(
       methodName, numArgs, exemplar, buffer, Convert<Number>(beginByteOffset),
-      Convert<Number>(newLength));
+      newLength);
   return typedArray;
 }
 
