@@ -789,7 +789,41 @@ void EmitTSANRelaxedLoadOOLIfNeeded(Zone* zone, CodeGenerator* codegen,
     }                                                            \
   } while (false)
 
-#define ASSEMBLE_COMPARE(asm_instr)                              \
+#define ASSEMBLE_COMPARE(cmp_instr, test_instr)                     \
+  do {                                                              \
+    if (HasAddressingMode(instr)) {                                 \
+      size_t index = 0;                                             \
+      Operand left = i.MemoryOperand(&index);                       \
+      if (HasImmediateInput(instr, index)) {                        \
+        __ cmp_instr(left, i.InputImmediate(index));                \
+      } else {                                                      \
+        __ cmp_instr(left, i.InputRegister(index));                 \
+      }                                                             \
+    } else {                                                        \
+      if (HasImmediateInput(instr, 1)) {                            \
+        Immediate right = i.InputImmediate(1);                      \
+        if (HasRegisterInput(instr, 0)) {                           \
+          if (right.value() == 0 &&                                 \
+              (FlagsConditionField::decode(opcode) == kEqual ||     \
+               FlagsConditionField::decode(opcode) == kNotEqual)) { \
+            __ test_instr(i.InputRegister(0), i.InputRegister(0));  \
+          } else {                                                  \
+            __ cmp_instr(i.InputRegister(0), right);                \
+          }                                                         \
+        } else {                                                    \
+          __ cmp_instr(i.InputOperand(0), right);                   \
+        }                                                           \
+      } else {                                                      \
+        if (HasRegisterInput(instr, 1)) {                           \
+          __ cmp_instr(i.InputRegister(0), i.InputRegister(1));     \
+        } else {                                                    \
+          __ cmp_instr(i.InputRegister(0), i.InputOperand(1));      \
+        }                                                           \
+      }                                                             \
+    }                                                               \
+  } while (false)
+
+#define ASSEMBLE_TEST(asm_instr)                                 \
   do {                                                           \
     if (HasAddressingMode(instr)) {                              \
       size_t index = 0;                                          \
@@ -1639,28 +1673,28 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_BINOP(andq);
       break;
     case kX64Cmp8:
-      ASSEMBLE_COMPARE(cmpb);
+      ASSEMBLE_COMPARE(cmpb, testb);
       break;
     case kX64Cmp16:
-      ASSEMBLE_COMPARE(cmpw);
+      ASSEMBLE_COMPARE(cmpw, testw);
       break;
     case kX64Cmp32:
-      ASSEMBLE_COMPARE(cmpl);
+      ASSEMBLE_COMPARE(cmpl, testl);
       break;
     case kX64Cmp:
-      ASSEMBLE_COMPARE(cmpq);
+      ASSEMBLE_COMPARE(cmpq, testq);
       break;
     case kX64Test8:
-      ASSEMBLE_COMPARE(testb);
+      ASSEMBLE_TEST(testb);
       break;
     case kX64Test16:
-      ASSEMBLE_COMPARE(testw);
+      ASSEMBLE_TEST(testw);
       break;
     case kX64Test32:
-      ASSEMBLE_COMPARE(testl);
+      ASSEMBLE_TEST(testl);
       break;
     case kX64Test:
-      ASSEMBLE_COMPARE(testq);
+      ASSEMBLE_TEST(testq);
       break;
     case kX64Imul32:
       ASSEMBLE_MULT(imull);
