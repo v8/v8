@@ -112,10 +112,11 @@ class MaglevGraphBuilder {
 
     // Set up edge-split.
     int predecessor_index = merge_state.predecessor_count() - 1;
-    if (merge_state.is_unmerged_loop()) {
+    if (merge_state.is_loop()) {
       // For loops, the JumpLoop block hasn't been generated yet, and so isn't
       // in the list of jump targets. IT's the last predecessor, so drop the
       // index by one.
+      DCHECK(merge_state.is_unmerged_loop());
       predecessor_index--;
     }
     BasicBlockRef* old_jump_targets = jump_targets_[offset].Reset();
@@ -244,8 +245,9 @@ class MaglevGraphBuilder {
                            graph()->last_block(), offset);
       }
       if (FLAG_trace_maglev_graph_building) {
-        auto detail =
-            merge_state->is_exception_handler() ? "exception handler" : "merge";
+        auto detail = merge_state->is_exception_handler() ? "exception handler"
+                      : merge_state->is_loop()            ? "loop header"
+                                                          : "merge";
         std::cout << "== New block (" << detail << ") ==" << std::endl;
       }
 

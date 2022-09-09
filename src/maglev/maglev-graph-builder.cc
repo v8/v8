@@ -76,6 +76,10 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
     int offset = offset_and_info.first;
     const compiler::LoopInfo& loop_info = offset_and_info.second;
     const compiler::BytecodeLivenessState* liveness = GetInLivenessFor(offset);
+    DCHECK_NULL(merge_states_[offset]);
+    if (FLAG_trace_maglev_graph_building) {
+      std::cout << "- Creating loop merge state at @" << offset << std::endl;
+    }
     merge_states_[offset] = MergePointInterpreterFrameState::NewForLoop(
         *compilation_unit_, offset, NumPredecessors(offset), liveness,
         &loop_info);
@@ -88,6 +92,11 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
       const compiler::BytecodeLivenessState* liveness =
           GetInLivenessFor(offset);
       DCHECK_EQ(NumPredecessors(offset), 0);
+      DCHECK_NULL(merge_states_[offset]);
+      if (FLAG_trace_maglev_graph_building) {
+        std::cout << "- Creating exception merge state at @" << offset
+                  << std::endl;
+      }
       merge_states_[offset] = MergePointInterpreterFrameState::NewForCatchBlock(
           *compilation_unit_, liveness, offset);
     }
@@ -2503,7 +2512,7 @@ void MaglevGraphBuilder::VisitJumpLoop() {
                                BytecodeOffset(iterator_.current_offset()),
                                compilation_unit_);
   BasicBlock* block =
-      target == iterator_.current_offset()
+      target == block_offset_
           ? FinishBlock<JumpLoop>(next_offset(), {}, &jump_targets_[target])
           : FinishBlock<JumpLoop>(next_offset(), {},
                                   jump_targets_[target].block_ptr());
@@ -2573,6 +2582,9 @@ void MaglevGraphBuilder::MergeDeadIntoFrameState(int target) {
     // If this merge is the last one which kills a loop merge, remove that
     // merge state.
     if (merge_states_[target]->is_unreachable_loop()) {
+      if (FLAG_trace_maglev_graph_building) {
+        std::cout << "! Killing loop merge state at @" << target << std::endl;
+      }
       merge_states_[target] = nullptr;
     }
   }
