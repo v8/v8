@@ -1552,6 +1552,10 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
   pop(r0);
 }
 
+void LiftoffAssembler::LoadSpillAddress(Register dst, int offset) {
+  SubS64(dst, fp, Operand(offset));
+}
+
 #define SIGN_EXT(r) lgfr(r, r)
 #define INT32_AND_WITH_1F(x) Operand(x & 0x1f)
 #define REGISTER_AND_WITH_1F    \

@@ -1093,6 +1093,10 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
   }
 }
 
+void LiftoffAssembler::LoadSpillAddress(Register dst, int offset) {
+  SubS64(dst, fp, Operand(offset));
+}
+
 #define SIGN_EXT(r) extsw(r, r)
 #define ROUND_F64_TO_F32(fpr) frsp(fpr, fpr)
 #define INT32_AND_WITH_1F(x) Operand(x & 0x1f)
