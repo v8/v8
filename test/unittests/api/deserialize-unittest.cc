@@ -617,4 +617,19 @@ TEST_F(MergeDeserializedCodeTest, MainThreadReMerge) {
                      true);                  // lazy_should_be_compiled
 }
 
+TEST_F(MergeDeserializedCodeTest, Regress1360024) {
+  // This test case triggers a re-merge on the main thread, similar to
+  // MainThreadReMerge. However, it does not retain the lazy function's SFI at
+  // any step, which causes the merge to use the SFI from the newly deserialized
+  // script for that function. This exercises a bug in the original
+  // implementation where the re-merging on the main thread would crash if the
+  // merge algorithm had selected any uncompiled SFIs from the new script.
+  TestOffThreadMerge(kToplevelAndEager,      // retained_before_background_merge
+                     kToplevelAndEager,      // aged_before_background_merge
+                     true,                   // run_code_after_background_merge
+                     kToplevelAndEager,      // retained_after_background_merge
+                     kToplevelSfiFlag,       // aged_after_background_merge
+                     true);                  // lazy_should_be_compiled
+}
+
 }  // namespace v8

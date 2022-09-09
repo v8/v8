@@ -2099,11 +2099,15 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
   // pools is required.
   if (forwarder.HasAnythingToForward()) {
     for (Handle<SharedFunctionInfo> new_sfi : used_new_sfis_) {
-      forwarder.AddBytecodeArray(new_sfi->GetBytecodeArray(isolate));
+      if (new_sfi->HasBytecodeArray(isolate)) {
+        forwarder.AddBytecodeArray(new_sfi->GetBytecodeArray(isolate));
+      }
     }
     for (const auto& new_compiled_data : new_compiled_data_for_cached_sfis_) {
-      forwarder.AddBytecodeArray(
-          new_compiled_data.cached_sfi->GetBytecodeArray(isolate));
+      if (new_compiled_data.cached_sfi->HasBytecodeArray(isolate)) {
+        forwarder.AddBytecodeArray(
+            new_compiled_data.cached_sfi->GetBytecodeArray(isolate));
+      }
     }
     forwarder.IterateAndForwardPointers();
   }
