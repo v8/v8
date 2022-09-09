@@ -5791,9 +5791,11 @@ void BytecodeGenerator::BuildSuperCallOptimization(
     Register this_function, Register new_target,
     Register constructor_then_instance, BytecodeLabel* super_ctor_call_done) {
   DCHECK(FLAG_omit_default_ctors);
-  builder()->FindNonDefaultConstructor(this_function, new_target,
-                                       constructor_then_instance);
-  builder()->JumpIfTrue(ToBooleanMode::kAlreadyBoolean, super_ctor_call_done);
+  RegisterList output = register_allocator()->NewRegisterList(2);
+  builder()->FindNonDefaultConstructor(this_function, new_target, output);
+  builder()->MoveRegister(output[1], constructor_then_instance);
+  builder()->LoadAccumulatorWithRegister(output[0]).JumpIfTrue(
+      ToBooleanMode::kAlreadyBoolean, super_ctor_call_done);
 }
 
 void BytecodeGenerator::VisitCallNew(CallNew* expr) {

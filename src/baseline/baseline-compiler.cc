@@ -1161,9 +1161,10 @@ void BaselineCompiler::VisitGetSuperConstructor() {
 }
 
 void BaselineCompiler::VisitFindNonDefaultConstructor() {
+  SaveAccumulatorScope accumulator_scope(&basm_);
   CallBuiltin<Builtin::kFindNonDefaultConstructor>(RegisterOperand(0),
                                                    RegisterOperand(1));
-  StoreRegister(2, kReturnRegister1);
+  StoreRegisterPair(2, kReturnRegister0, kReturnRegister1);
 }
 
 namespace {

@@ -2781,14 +2781,13 @@ IGNITION_HANDLER(ThrowIfNotSuperConstructor, InterpreterAssembler) {
   }
 }
 
-// FinNonDefaultConstructor <this_function> <new_target>
-//     <constructor_or_instance>
+// FinNonDefaultConstructor <this_function> <new_target> <output>
 //
 // Walks the prototype chain from <this_function>'s super ctor until we see a
 // non-default ctor. If the walk ends at a default base ctor, creates an
-// instance and stores it in <constructor_or_instance> and stores true into the
-// accumulator. Otherwise, stores the first non-default ctor into
-// <constructor_or_instance> and false into the accumulator.
+// instance and stores it in <output[1]> and stores true into output[0].
+// Otherwise, stores the first non-default ctor into <output[1]> and false into
+// <output[0]>.
 IGNITION_HANDLER(FindNonDefaultConstructor, InterpreterAssembler) {
   TNode<Context> context = GetContext();
   TVARIABLE(Object, constructor);
@@ -2806,16 +2805,15 @@ IGNITION_HANDLER(FindNonDefaultConstructor, InterpreterAssembler) {
     TNode<Object> new_target = LoadRegisterAtOperandIndex(1);
     TNode<Object> instance = CallBuiltin(Builtin::kFastNewObject, context,
                                          constructor.value(), new_target);
-    StoreRegisterAtOperandIndex(instance, 2);
-    SetAccumulator(TrueConstant());
+
+    StoreRegisterPairAtOperandIndex(TrueConstant(), instance, 2);
     Dispatch();
   }
 
   BIND(&found_something_else);
   {
     // Not a base ctor (or bailed out).
-    StoreRegisterAtOperandIndex(constructor.value(), 2);
-    SetAccumulator(FalseConstant());
+    StoreRegisterPairAtOperandIndex(FalseConstant(), constructor.value(), 2);
     Dispatch();
   }
 }
