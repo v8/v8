@@ -120,7 +120,8 @@ class WebSnapshotSerializerDeserializer {
       static_cast<uint32_t>(FixedArray::kMaxLength - 1);
   // This ensures indices and lengths can be converted between uint32_t and int
   // without problems:
-  static_assert(kMaxItemCount < std::numeric_limits<int32_t>::max());
+  static_assert(kMaxItemCount <
+                static_cast<uint32_t>(std::numeric_limits<int32_t>::max()));
 
  protected:
   explicit WebSnapshotSerializerDeserializer(Isolate* isolate)
