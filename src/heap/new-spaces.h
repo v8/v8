@@ -298,7 +298,8 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
   // |address|. |address| should be a valid limit on |page| (see
   // BasicMemoryChunk::ContainsLimit).
   void VerifyImpl(Isolate* isolate, const Page* current_page,
-                  Address current_address) const;
+                  Address current_address,
+                  Address stop_iteration_at_address) const;
 #endif
 
 #ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB

@@ -481,7 +481,8 @@ void NewSpace::VerifyTop() const {
 // We do not use the SemiSpaceObjectIterator because verification doesn't assume
 // that it works (it depends on the invariants we are checking).
 void NewSpace::VerifyImpl(Isolate* isolate, const Page* current_page,
-                          Address current_address) const {
+                          Address current_address,
+                          Address stop_iteration_at_address) const {
   DCHECK(current_page->ContainsLimit(current_address));
 
   size_t external_space_bytes[kNumTypes];
@@ -495,16 +496,7 @@ void NewSpace::VerifyImpl(Isolate* isolate, const Page* current_page,
   PtrComprCageBase cage_base(isolate);
   VerifyPointersVisitor visitor(heap());
   const Page* page = current_page;
-  while (true) {
-    if (current_address == top()) {
-      if (v8_flags.minor_mc) {
-        // Jump over the current allocation area.
-        current_address = limit();
-      } else {
-        // Early bailout since everything after top() should be free space.
-        break;
-      }
-    }
+  while (current_address != stop_iteration_at_address) {
     if (!Page::IsAlignedToPageSize(current_address)) {
       // The allocation pointer should not be in the middle of an object.
       CHECK_IMPLIES(!v8_flags.minor_mc,
@@ -777,7 +769,7 @@ void SemiSpaceNewSpace::Verify(Isolate* isolate) const {
   Address current = to_space_.first_page()->area_start();
   CHECK_EQ(current, to_space_.space_start());
 
-  VerifyImpl(isolate, Page::FromAllocationAreaAddress(current), current);
+  VerifyImpl(isolate, Page::FromAllocationAreaAddress(current), current, top());
 
   // Check semi-spaces.
   CHECK_EQ(from_space_.id(), kFromSpace);
@@ -1051,7 +1043,10 @@ PagedNewSpace::~PagedNewSpace() {
 void PagedNewSpace::Verify(Isolate* isolate) const {
   const Page* first_page = paged_space_.first_page();
 
-  if (first_page) VerifyImpl(isolate, first_page, first_page->area_start());
+  if (first_page) {
+    // No bailout needed since all pages are iterable.
+    VerifyImpl(isolate, first_page, first_page->area_start(), kNullAddress);
+  }
 
   // Check paged-spaces.
   VerifyPointersVisitor visitor(heap());
