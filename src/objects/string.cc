@@ -183,6 +183,18 @@ Map ComputeThinStringMap(IsolateT* isolate, StringShape from_string_shape,
   return one_byte ? roots.thin_one_byte_string_map() : roots.thin_string_map();
 }
 
+void InitExternalPointerFieldsDuringExternalization(String string, Map new_map,
+                                                    Isolate* isolate) {
+  string.InitExternalPointerField<kExternalStringResourceTag>(
+      ExternalString::kResourceOffset, isolate, kNullAddress);
+  bool is_uncached = (new_map.instance_type() & kUncachedExternalStringMask) ==
+                     kUncachedExternalStringTag;
+  if (!is_uncached) {
+    string.InitExternalPointerField<kExternalStringResourceDataTag>(
+        ExternalString::kResourceDataOffset, isolate, kNullAddress);
+  }
+}
+
 }  // namespace
 
 template <typename IsolateT>
@@ -347,6 +359,12 @@ void String::MakeExternalDuringGC(Isolate* isolate, T* resource) {
   isolate->heap()->NotifyObjectSizeChange(*this, size, new_size,
                                           ClearRecordedSlots::kNo);
 
+  // The external pointer slots must be initialized before the new map is
+  // installed. Otherwise, a GC marking thread may see the new map before the
+  // slots are initialized and attempt to mark the (invalid) external pointers
+  // table entries as alive.
+  InitExternalPointerFieldsDuringExternalization(*this, new_map, isolate);
+
   // We are storing the new map using release store after creating a filler in
   // the NotifyObjectSizeChange call for the left-over space to avoid races with
   // the sweeper thread.
@@ -354,11 +372,9 @@ void String::MakeExternalDuringGC(Isolate* isolate, T* resource) {
 
   if constexpr (is_one_byte) {
     ExternalOneByteString self = ExternalOneByteString::cast(*this);
-    self.InitExternalPointerFields(isolate);
     self.SetResource(isolate, resource);
   } else {
     ExternalTwoByteString self = ExternalTwoByteString::cast(*this);
-    self.InitExternalPointerFields(isolate);
     self.SetResource(isolate, resource);
   }
   isolate->heap()->RegisterExternalString(*this);
@@ -430,13 +446,18 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
     DCHECK(!has_pointers);
   }
 
+  // The external pointer slots must be initialized before the new map is
+  // installed. Otherwise, a GC marking thread may see the new map before the
+  // slots are initialized and attempt to mark the (invalid) external pointers
+  // table entries as alive.
+  InitExternalPointerFieldsDuringExternalization(*this, new_map, isolate);
+
   // We are storing the new map using release store after creating a filler in
   // the NotifyObjectSizeChange call for the left-over space to avoid races with
   // the sweeper thread.
   this->set_map(new_map, kReleaseStore);
 
   ExternalTwoByteString self = ExternalTwoByteString::cast(*this);
-  self.InitExternalPointerFields(isolate);
   self.SetResource(isolate, resource);
   isolate->heap()->RegisterExternalString(*this);
   // Force regeneration of the hash value.
@@ -509,13 +530,18 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
     DCHECK(!has_pointers);
   }
 
+  // The external pointer slots must be initialized before the new map is
+  // installed. Otherwise, a GC marking thread may see the new map before the
+  // slots are initialized and attempt to mark the (invalid) external pointers
+  // table entries as alive.
+  InitExternalPointerFieldsDuringExternalization(*this, new_map, isolate);
+
   // We are storing the new map using release store after creating a filler in
   // the NotifyObjectSizeChange call for the left-over space to avoid races with
   // the sweeper thread.
   this->set_map(new_map, kReleaseStore);
 
   ExternalOneByteString self = ExternalOneByteString::cast(*this);
-  self.InitExternalPointerFields(isolate);
   self.SetResource(isolate, resource);
   isolate->heap()->RegisterExternalString(*this);
   // Force regeneration of the hash value.
