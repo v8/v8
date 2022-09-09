@@ -4274,17 +4274,27 @@ void MacroAssembler::MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
     Register flags, Register feedback_vector) {
   ASM_CODE_COMMENT(this);
   DCHECK(!AreAliased(flags, feedback_vector));
-  Label maybe_has_optimized_code;
+  Label maybe_has_optimized_code, maybe_needs_logging;
   // Check if optimized code marker is available.
   {
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
     And(scratch, flags,
         Operand(FeedbackVector::kFlagsTieringStateIsAnyRequested));
-    Branch(&maybe_has_optimized_code, eq, scratch, Operand(zero_reg));
+    Branch(&maybe_needs_logging, eq, scratch, Operand(zero_reg));
   }
 
   GenerateTailCallToReturnedCode(Runtime::kCompileOptimized);
+
+  bind(&maybe_needs_logging);
+  {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    And(scratch, flags, Operand(FeedbackVector::LogNextExecutionBit::kMask));
+    Branch(&maybe_has_optimized_code, eq, scratch, Operand(zero_reg));
+  }
+
+  GenerateTailCallToReturnedCode(Runtime::kFunctionLogNextExecution);
 
   bind(&maybe_has_optimized_code);
   Register optimized_code_entry = flags;
