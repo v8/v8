@@ -89,7 +89,6 @@ in_category(
     experiment_builder(
         name = "V8 Fuchsia",
         parent_builder = "V8 Fuchsia - builder",
-        dimensions = {"host_class": "multibot"},
         execution_timeout = 19800,
         notifies = ["v8-infra-cc"],
     ),
@@ -100,7 +99,6 @@ in_category(
     experiment_builder(
         name = "V8 Linux64 - debug - fyi",
         parent_builder = "V8 Linux64 - debug builder",
-        dimensions = {"host_class": "multibot"},
         execution_timeout = 19800,
         notify_owners = ["jgruber@chromium.org"],
         notifies = ["blamelist"],
@@ -108,7 +106,6 @@ in_category(
     experiment_builder(
         name = "V8 Linux64 - fyi",
         parent_builder = "V8 Linux64 - builder",
-        dimensions = {"host_class": "multibot"},
         execution_timeout = 19800,
         notify_owners = ["jgruber@chromium.org"],
         notifies = ["blamelist"],
@@ -151,7 +148,6 @@ in_category(
     experiment_builder(
         name = "V8 Linux64 - minor mc - debug",
         parent_builder = "V8 Linux64 - debug builder",
-        dimensions = {"host_class": "multibot"},
         use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
         notify_owners = ["omerkatz@chromium.org"],
@@ -232,14 +228,12 @@ in_category(
     experiment_builder(
         name = "V8 Mac - arm64 - sim - debug",
         parent_builder = "V8 Mac - arm64 - sim - debug builder",
-        dimensions = {"host_class": "multibot"},
         execution_timeout = 19800,
         notifies = ["sheriffs on new failure", "blamelist"],
     ),
     experiment_builder(
         name = "V8 Mac - arm64 - sim - release",
         parent_builder = "V8 Mac - arm64 - sim - release builder",
-        dimensions = {"host_class": "multibot"},
         execution_timeout = 19800,
         notifies = ["sheriffs on new failure", "blamelist"],
     ),
