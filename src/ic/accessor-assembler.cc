@@ -227,9 +227,13 @@ void AccessorAssembler::HandleLoadICHandlerCase(
 
   BIND(&call_getter);
   {
-    TNode<HeapObject> strong_handler = GetHeapObjectAssumeWeak(handler, miss);
-    TNode<Object> getter = LoadAccessorPairGetter(CAST(strong_handler));
-    exit_point->Return(Call(p->context(), getter, p->receiver()));
+    if (access_mode == LoadAccessMode::kHas) {
+      exit_point->Return(TrueConstant());
+    } else {
+      TNode<HeapObject> strong_handler = GetHeapObjectAssumeWeak(handler, miss);
+      TNode<Object> getter = LoadAccessorPairGetter(CAST(strong_handler));
+      exit_point->Return(Call(p->context(), getter, p->receiver()));
+    }
   }
 
   BIND(&call_code_handler);
