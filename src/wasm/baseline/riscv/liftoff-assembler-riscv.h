@@ -157,6 +157,10 @@ void LiftoffAssembler::PatchPrepareStackFrame(
   GenPCRelativeJump(kScratchReg, imm32);
 }
 
+void LiftoffAssembler::LoadSpillAddress(Register dst, int offset) {
+  SubWord(dst, fp, offset);
+}
+
 void LiftoffAssembler::FinishCode() { ForceConstantPoolEmissionWithoutJump(); }
 
 void LiftoffAssembler::AbortCompilation() { AbortedCodeGeneration(); }
