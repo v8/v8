@@ -124,6 +124,12 @@ namespace internal {
 #define V8_CAN_CREATE_SHARED_HEAP_BOOL false
 #endif
 
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+#define V8_SANDBOXED_EXTERNAL_POINTERS_BOOL true
+#else
+#define V8_SANDBOXED_EXTERNAL_POINTERS_BOOL false
+#endif
+
 #ifdef V8_ENABLE_SANDBOX
 #define V8_ENABLE_SANDBOX_BOOL true
 #else
@@ -505,7 +511,7 @@ static_assert(kPointerSize == (1 << kPointerSizeLog2));
 // This type defines raw storage type for external (or off-V8 heap) pointers
 // stored on V8 heap.
 constexpr int kExternalPointerSlotSize = sizeof(ExternalPointer_t);
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
 static_assert(kExternalPointerSlotSize == kTaggedSize);
 #else
 static_assert(kExternalPointerSlotSize == kSystemPointerSize);
