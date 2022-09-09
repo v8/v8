@@ -573,6 +573,8 @@ class BaseTestRunner(object):
             self.build_config.is_clang,
         "is_full_debug":
             self.build_config.is_full_debug,
+        "interrupt_fuzzer":
+            False,
         "mips_arch_variant":
             self.build_config.mips_arch_variant,
         "mode":

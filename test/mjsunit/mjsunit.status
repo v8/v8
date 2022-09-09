@@ -1101,14 +1101,17 @@
   # BUG(v8:11656) Skipped until we make progress on NumFuzz.
   'baseline/test-osr': [SKIP],
 
+  # BUG(v8:13153) Skipped until issue is fixed to reduce noise on alerts.
+  'regress/regress-1034322': [SKIP],
+}], # gc_fuzzer or deopt_fuzzer
+
+##############################################################################
+['gc_fuzzer or deopt_fuzzer or interrupt_fuzzer', {
   # BUG(v8:12842) Skipped until we remove flakes on NumFuzz.
   'compiler/regress-1224277': [SKIP],
   'regress/regress-1220974': [SKIP],
   'regress/regress-992389': [SKIP],
-
-  # BUG(v8:13153) Skipped until issue is fixed to reduce noise on alerts.
-  'regress/regress-1034322': [SKIP],
-}], # gc_fuzzer or deopt_fuzzer
+}], # gc_fuzzer or deopt_fuzzer or interrupt_fuzzer
 
 ##############################################################################
 ['endurance_fuzzer', {

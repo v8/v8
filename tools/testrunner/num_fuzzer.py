@@ -132,16 +132,23 @@ class NumFuzzer(base_runner.BaseTestRunner):
     variables = (
         super(NumFuzzer, self)._get_statusfile_variables())
     variables.update({
-      'deopt_fuzzer': bool(self.options.stress_deopt),
-      'endurance_fuzzer': bool(self.options.combine_tests),
-      'gc_stress': bool(self.options.stress_gc),
-      'gc_fuzzer': bool(max([self.options.stress_marking,
-                             self.options.stress_scavenge,
-                             self.options.stress_compaction,
-                             self.options.stress_gc,
-                             self.options.stress_delay_tasks,
-                             self.options.stress_stack_size,
-                             self.options.stress_thread_pool_size])),
+        'deopt_fuzzer':
+            bool(self.options.stress_deopt),
+        'interrupt_fuzzer':
+            bool(self.options.stress_interrupt_budget),
+        'endurance_fuzzer':
+            bool(self.options.combine_tests),
+        'gc_stress':
+            bool(self.options.stress_gc),
+        'gc_fuzzer':
+            bool(
+                max([
+                    self.options.stress_marking, self.options.stress_scavenge,
+                    self.options.stress_compaction, self.options.stress_gc,
+                    self.options.stress_delay_tasks,
+                    self.options.stress_stack_size,
+                    self.options.stress_thread_pool_size
+                ])),
     })
     return variables
 
