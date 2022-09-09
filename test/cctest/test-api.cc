@@ -12879,6 +12879,22 @@ TEST(ObjectProtoToStringES6) {
   }
 }
 
+namespace {
+
+void CheckGetConstructorNameOfVar(LocalContext& context, const char* var_name,
+                                  const char* constructor_name) {
+  Local<v8::Value> var = context->Global()
+                             ->Get(context.local(), v8_str(var_name))
+                             .ToLocalChecked();
+  CHECK(var->IsObject() &&
+        var->ToObject(context.local())
+            .ToLocalChecked()
+            ->GetConstructorName()
+            ->Equals(context.local(), v8_str(constructor_name))
+            .FromJust());
+}
+
+}  // namespace
 
 THREADED_TEST(ObjectGetConstructorName) {
   v8::Isolate* isolate = CcTest::isolate();
@@ -12897,41 +12913,10 @@ THREADED_TEST(ObjectGetConstructorName) {
       ->Run(context.local())
       .ToLocalChecked();
 
-  Local<v8::Value> p =
-      context->Global()->Get(context.local(), v8_str("p")).ToLocalChecked();
-  CHECK(p->IsObject() &&
-        p->ToObject(context.local())
-            .ToLocalChecked()
-            ->GetConstructorName()
-            ->Equals(context.local(), v8_str("Parent"))
-            .FromJust());
-
-  Local<v8::Value> c =
-      context->Global()->Get(context.local(), v8_str("c")).ToLocalChecked();
-  CHECK(c->IsObject() &&
-        c->ToObject(context.local())
-            .ToLocalChecked()
-            ->GetConstructorName()
-            ->Equals(context.local(), v8_str("Child"))
-            .FromJust());
-
-  Local<v8::Value> x =
-      context->Global()->Get(context.local(), v8_str("x")).ToLocalChecked();
-  CHECK(x->IsObject() &&
-        x->ToObject(context.local())
-            .ToLocalChecked()
-            ->GetConstructorName()
-            ->Equals(context.local(), v8_str("outer.inner"))
-            .FromJust());
-
-  Local<v8::Value> child_prototype =
-      context->Global()->Get(context.local(), v8_str("proto")).ToLocalChecked();
-  CHECK(child_prototype->IsObject() &&
-        child_prototype->ToObject(context.local())
-            .ToLocalChecked()
-            ->GetConstructorName()
-            ->Equals(context.local(), v8_str("Parent"))
-            .FromJust());
+  CheckGetConstructorNameOfVar(context, "p", "Parent");
+  CheckGetConstructorNameOfVar(context, "c", "Child");
+  CheckGetConstructorNameOfVar(context, "x", "outer.inner");
+  CheckGetConstructorNameOfVar(context, "proto", "Parent");
 }
 
 
@@ -12948,25 +12933,37 @@ THREADED_TEST(SubclassGetConstructorName) {
       ->Run(context.local())
       .ToLocalChecked();
 
-  Local<v8::Value> p =
-      context->Global()->Get(context.local(), v8_str("p")).ToLocalChecked();
-  CHECK(p->IsObject() &&
-        p->ToObject(context.local())
-            .ToLocalChecked()
-            ->GetConstructorName()
-            ->Equals(context.local(), v8_str("Parent"))
-            .FromJust());
-
-  Local<v8::Value> c =
-      context->Global()->Get(context.local(), v8_str("c")).ToLocalChecked();
-  CHECK(c->IsObject() &&
-        c->ToObject(context.local())
-            .ToLocalChecked()
-            ->GetConstructorName()
-            ->Equals(context.local(), v8_str("Child"))
-            .FromJust());
+  CheckGetConstructorNameOfVar(context, "p", "Parent");
+  CheckGetConstructorNameOfVar(context, "c", "Child");
 }
 
+UNINITIALIZED_TEST(SharedObjectGetConstructorName) {
+  i::FLAG_shared_string_table = true;
+  i::FLAG_harmony_struct = true;
+
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  {
+    v8::Isolate::Scope i_scope(isolate);
+    v8::HandleScope scope(isolate);
+    LocalContext context(isolate);
+
+    v8_compile(
+        "var s = new (new SharedStructType(['foo']));"
+        "var a = new SharedArray(1);"
+        "var m = new Atomics.Mutex;"
+        "var c = new Atomics.Condition;")
+        ->Run(context.local())
+        .ToLocalChecked();
+
+    CheckGetConstructorNameOfVar(context, "s", "SharedStruct");
+    CheckGetConstructorNameOfVar(context, "a", "SharedArray");
+    CheckGetConstructorNameOfVar(context, "m", "Atomics.Mutex");
+    CheckGetConstructorNameOfVar(context, "c", "Atomics.Condition");
+  }
+  isolate->Dispose();
+}
 
 bool ApiTestFuzzer::fuzzing_ = false;
 v8::base::Semaphore ApiTestFuzzer::all_tests_done_(0);

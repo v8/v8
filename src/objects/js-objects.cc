@@ -544,6 +544,14 @@ String JSReceiver::class_name() {
   if (IsJSWeakMap()) return roots.WeakMap_string();
   if (IsJSWeakSet()) return roots.WeakSet_string();
   if (IsJSGlobalProxy()) return roots.global_string();
+  if (IsShared()) {
+    if (IsJSSharedStruct()) return roots.SharedStruct_string();
+    if (IsJSSharedArray()) return roots.SharedArray_string();
+    if (IsJSAtomicsMutex()) return roots.AtomicsMutex_string();
+    if (IsJSAtomicsCondition()) return roots.AtomicsCondition_string();
+    // Other shared values are primitives.
+    UNREACHABLE();
+  }
 
   return roots.Object_string();
 }

@@ -157,6 +157,8 @@
   V(_, as_string, "as")                                              \
   V(_, assert_string, "assert")                                      \
   V(_, async_string, "async")                                        \
+  V(_, AtomicsCondition_string, "Atomics.Condition")                 \
+  V(_, AtomicsMutex_string, "Atomics.Mutex")                         \
   V(_, auto_string, "auto")                                          \
   V(_, await_string, "await")                                        \
   V(_, BigInt_string, "BigInt")                                      \
@@ -384,7 +386,9 @@
   V(_, SetIterator_string, "Set Iterator")                           \
   V(_, setPrototypeOf_string, "setPrototypeOf")                      \
   V(_, ShadowRealm_string, "ShadowRealm")                            \
+  V(_, SharedArray_string, "SharedArray")                            \
   V(_, SharedArrayBuffer_string, "SharedArrayBuffer")                \
+  V(_, SharedStruct_string, "SharedStruct")                          \
   V(_, sign_string, "sign")                                          \
   V(_, smallestUnit_string, "smallestUnit")                          \
   V(_, source_string, "source")                                      \
