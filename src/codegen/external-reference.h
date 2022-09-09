@@ -208,6 +208,7 @@ class StatsCounter;
   V(try_string_to_index_or_lookup_existing,                                    \
     "try_string_to_index_or_lookup_existing")                                  \
   V(string_from_forward_table, "string_from_forward_table")                    \
+  V(raw_hash_from_forward_table, "raw_hash_from_forward_table")                \
   IF_WASM(V, wasm_call_trap_callback_for_testing,                              \
           "wasm::call_trap_callback_for_testing")                              \
   IF_WASM(V, wasm_f32_ceil, "wasm::f32_ceil_wrapper")                          \

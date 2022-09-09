@@ -1451,6 +1451,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                               Label* if_hash_not_computed = nullptr);
   TNode<Uint32T> LoadNameHashAssumeComputed(TNode<Name> name);
 
+  // Load the Name::RawHash() value of a name as an uint32 value. Follows
+  // through the forwarding table.
+  TNode<Uint32T> LoadNameRawHash(TNode<Name> name);
+
   // Load length field of a String object as Smi value.
   TNode<Smi> LoadStringLengthAsSmi(TNode<String> string);
   // Load length field of a String object as intptr_t value.
