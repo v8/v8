@@ -111,10 +111,6 @@ void FreeListCategory::Relink(FreeList* owner) {
 
 FreeList* FreeList::CreateFreeList() { return new FreeListManyCachedOrigin(); }
 
-FreeList* FreeList::CreateFreeListForNewSpace() {
-  return new FreeListManyCachedOriginForNewSpace();
-}
-
 FreeSpace FreeList::TryFindNodeIn(FreeListCategoryType type,
                                   size_t minimum_size, size_t* node_size) {
   FreeListCategory* category = categories_[type];
@@ -365,14 +361,12 @@ FreeSpace FreeListManyCachedFastPath::Allocate(size_t size_in_bytes,
   // Fast path part 2: searching the medium categories for tiny objects
   if (node.is_null()) {
     if (size_in_bytes <= kTinyObjectMaxSize) {
-      DCHECK_EQ(kFastPathFirstCategory, first_category);
       for (type = next_nonempty_category[kFastPathFallBackTiny];
            type < kFastPathFirstCategory;
            type = next_nonempty_category[type + 1]) {
         node = TryFindNodeIn(type, size_in_bytes, node_size);
         if (!node.is_null()) break;
       }
-      first_category = kFastPathFallBackTiny;
     }
   }
 
@@ -393,40 +387,18 @@ FreeSpace FreeListManyCachedFastPath::Allocate(size_t size_in_bytes,
     }
   }
 
-  if (!node.is_null()) {
-    if (categories_[type] == nullptr) UpdateCacheAfterRemoval(type);
-    Page::FromHeapObject(node)->IncreaseAllocatedBytes(*node_size);
+  // Updating cache
+  if (!node.is_null() && categories_[type] == nullptr) {
+    UpdateCacheAfterRemoval(type);
   }
 
 #ifdef DEBUG
   CheckCacheIntegrity();
 #endif
 
-  DCHECK(IsVeryLong() || Available() == SumFreeLists());
-  return node;
-}
-
-// ------------------------------------------------
-// FreeListManyCachedFastPath implementation
-
-FreeSpace FreeListManyCachedFastPathForNewSpace::Allocate(
-    size_t size_in_bytes, size_t* node_size, AllocationOrigin origin) {
-  FreeSpace node =
-      FreeListManyCachedFastPath::Allocate(size_in_bytes, node_size, origin);
-  if (!node.is_null()) return node;
-
-  // Search through the precise category for a fit
-  FreeListCategoryType type = SelectFreeListCategoryType(size_in_bytes);
-  node = SearchForNodeInList(type, size_in_bytes, node_size);
-
   if (!node.is_null()) {
-    if (categories_[type] == nullptr) UpdateCacheAfterRemoval(type);
     Page::FromHeapObject(node)->IncreaseAllocatedBytes(*node_size);
   }
-
-#ifdef DEBUG
-  CheckCacheIntegrity();
-#endif
 
   DCHECK(IsVeryLong() || Available() == SumFreeLists());
   return node;
@@ -443,19 +415,6 @@ FreeSpace FreeListManyCachedOrigin::Allocate(size_t size_in_bytes,
   } else {
     return FreeListManyCachedFastPath::Allocate(size_in_bytes, node_size,
                                                 origin);
-  }
-}
-
-// ------------------------------------------------
-// FreeListManyCachedOrigin implementation
-
-FreeSpace FreeListManyCachedOriginForNewSpace::Allocate(
-    size_t size_in_bytes, size_t* node_size, AllocationOrigin origin) {
-  if (origin == AllocationOrigin::kGC) {
-    return FreeListManyCached::Allocate(size_in_bytes, node_size, origin);
-  } else {
-    return FreeListManyCachedOriginForNewSpace::Allocate(size_in_bytes,
-                                                         node_size, origin);
   }
 }
 

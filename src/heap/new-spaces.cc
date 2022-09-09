@@ -902,7 +902,7 @@ PagedSpaceForNewSpace::PagedSpaceForNewSpace(
     LinearAllocationArea& allocation_info,
     LinearAreaOriginalData& linear_area_original_data)
     : PagedSpaceBase(heap, NEW_SPACE, NOT_EXECUTABLE,
-                     FreeList::CreateFreeListForNewSpace(), allocation_counter,
+                     FreeList::CreateFreeList(), allocation_counter,
                      allocation_info, linear_area_original_data,
                      CompactionSpaceKind::kNone),
       initial_capacity_(RoundDown(initial_capacity, Page::kPageSize)),
