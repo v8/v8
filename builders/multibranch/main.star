@@ -27,44 +27,51 @@ in_category(
     main_multibranch_builder_pair(
         name = "V8 Linux - full debug",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-        use_goma = GOMA.DEFAULT,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
         close_tree = False,
     ),
     main_multibranch_builder_pair(
         name = "V8 Linux64 - heap sandbox - debug",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8"},
-        use_goma = GOMA.DEFAULT,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
         first_branch_version = "10.4",
     ),
     main_multibranch_builder_pair(
         name = "V8 Linux - shared",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"binary_size_tracking": {"category": "linux32", "binary": "libv8.so"}},
-        use_goma = GOMA.DEFAULT,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
     ),
     main_multibranch_builder(
         name = "V8 Linux64 - no wasm - builder",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"track_build_dependencies": True, "binary_size_tracking": {"category": "linux64_no_wasm", "binary": "d8"}},
-        use_goma = GOMA.DEFAULT,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
     ),
     main_multibranch_builder_pair(
         name = "V8 Linux - noi18n - debug",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-        use_goma = GOMA.DEFAULT,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
     ),
     main_multibranch_builder_pair(
         name = "V8 Linux - verify csa",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-        use_goma = GOMA.DEFAULT,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
     ),
     # this is only a builder
     main_multibranch_builder(
         name = "V8 Linux - vtunejit",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         gclient_vars = [GCLIENT_VARS.ITTAPI],
-        use_goma = GOMA.DEFAULT,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
     ),
 )
 
