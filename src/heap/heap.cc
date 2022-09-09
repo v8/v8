@@ -199,6 +199,13 @@ class MinorMCTaskObserver final : public AllocationObserver {
       : AllocationObserver(step_size), heap_(heap) {}
 
   void Step(int bytes_allocated, Address, size_t) override {
+    if (v8_flags.concurrent_minor_mc) {
+      if (heap_->incremental_marking()->IsMinorMarking()) {
+        heap_->concurrent_marking()->RescheduleJobIfNeeded(
+            GarbageCollector::MINOR_MARK_COMPACTOR);
+      }
+    }
+
     heap_->StartMinorMCIncrementalMarkingIfNeeded();
   }
 
