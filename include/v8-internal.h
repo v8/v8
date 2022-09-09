@@ -166,6 +166,14 @@ constexpr bool SandboxIsEnabled() {
 #endif
 }
 
+constexpr bool SandboxedExternalPointersAreEnabled() {
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+  return true;
+#else
+  return false;
+#endif
+}
+
 // SandboxedPointers are guaranteed to point into the sandbox. This is achieved
 // for example by storing them as offset rather than as raw pointers.
 using SandboxedPointer_t = Address;
@@ -264,7 +272,7 @@ using ExternalPointerHandle = uint32_t;
 // ExternalPointers point to objects located outside the sandbox. When
 // sandboxed external pointers are enabled, these are stored on heap as
 // ExternalPointerHandles, otherwise they are simply raw pointers.
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
 using ExternalPointer_t = ExternalPointerHandle;
 #else
 using ExternalPointer_t = Address;
@@ -391,8 +399,9 @@ constexpr uint64_t kAllExternalPointerTypeTags[] = {
 
 // When the sandbox is enabled, external pointers marked as "sandboxed" above
 // use the external pointer table (i.e. are sandboxed). This allows a gradual
-// rollout of external pointer sandboxing. If the sandbox is off, no external
-// pointers are sandboxed.
+// rollout of external pointer sandboxing. If V8_SANDBOXED_EXTERNAL_POINTERS is
+// defined, all external pointers are sandboxed. If the sandbox is off, no
+// external pointers are sandboxed.
 //
 // Sandboxed external pointer tags are available when compressing pointers even
 // when the sandbox is off. Some tags (e.g. kWaiterQueueNodeTag) are used
@@ -400,7 +409,9 @@ constexpr uint64_t kAllExternalPointerTypeTags[] = {
 // alignment requirements.
 #define sandboxed(X) (X << kExternalPointerTagShift) | kExternalPointerMarkBit
 #define unsandboxed(X) kUnsandboxedExternalPointerTag
-#if defined(V8_COMPRESS_POINTERS)
+#if defined(V8_SANDBOXED_EXTERNAL_POINTERS)
+#define EXTERNAL_POINTER_TAG_ENUM(Name, State, Bits) Name = sandboxed(Bits),
+#elif defined(V8_COMPRESS_POINTERS)
 #define EXTERNAL_POINTER_TAG_ENUM(Name, State, Bits) Name = State(Bits),
 #else
 #define EXTERNAL_POINTER_TAG_ENUM(Name, State, Bits) Name = unsandboxed(Bits),

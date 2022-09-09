@@ -687,8 +687,9 @@ TEST(MakingExternalStringConditions) {
   CHECK(local_string->CanMakeExternal());
 
   // Tiny strings are not in-place externalizable when pointer compression is
-  // enabled, but they are if the sandbox is enabled.
-  CHECK_EQ(V8_ENABLE_SANDBOX_BOOL || i::kTaggedSize == i::kSystemPointerSize,
+  // enabled, but they are if sandboxed external pointers are enabled.
+  CHECK_EQ(V8_SANDBOXED_EXTERNAL_POINTERS_BOOL ||
+               i::kTaggedSize == i::kSystemPointerSize,
            tiny_local_string->CanMakeExternal());
 }
 
