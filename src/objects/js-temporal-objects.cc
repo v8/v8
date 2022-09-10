@@ -10822,7 +10822,6 @@ MaybeHandle<Smi> JSTemporalCalendar::WeekOfYear(
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, temporal_date,
       ToTemporalDate(isolate, temporal_date_like,
-                     isolate->factory()->NewJSObjectWithNullProto(),
                      "Temporal.Calendar.prototype.weekOfYear"),
       Smi);
   // a. Let value be ! ToISOWeekOfYear(temporalDate.[[ISOYear]],

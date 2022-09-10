@@ -445,7 +445,6 @@
   'built-ins/Temporal/Duration/prototype/total/timezone-getpossibleinstantsfor-iterable': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=11544
-  'built-ins/Temporal/Calendar/prototype/weekOfYear/calendar-datefromfields-called-with-options-undefined': [FAIL],
   'built-ins/Temporal/Duration/prototype/total/balance-negative-result': [FAIL],
   'intl402/Temporal/Calendar/prototype/dateFromFields/infinity-throws-rangeerror': [FAIL],
   'intl402/Temporal/Calendar/prototype/monthDayFromFields/infinity-throws-rangeerror': [FAIL],
