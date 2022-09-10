@@ -7055,9 +7055,16 @@ bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
     return false;
   }
 
-  // It is safe to call GetIsolateFromWritableHeapObject because
-  // SupportsExternalization already checked that the object is writable.
-  i::Isolate* i_isolate = i::GetIsolateFromWritableObject(obj);
+  // TODO(v8:12007): Consider adding
+  // MakeExternal(Isolate*, ExternalStringResource*).
+  i::Isolate* i_isolate;
+  if (obj.IsShared()) {
+    i_isolate = i::Isolate::Current();
+  } else {
+    // It is safe to call GetIsolateFromWritableHeapObject because
+    // SupportsExternalization already checked that the object is writable.
+    i_isolate = i::GetIsolateFromWritableObject(obj);
+  }
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
 
   CHECK(resource && resource->data());
@@ -7081,9 +7088,16 @@ bool v8::String::MakeExternal(
     return false;
   }
 
-  // It is safe to call GetIsolateFromWritableHeapObject because
-  // SupportsExternalization already checked that the object is writable.
-  i::Isolate* i_isolate = i::GetIsolateFromWritableObject(obj);
+  // TODO(v8:12007): Consider adding
+  // MakeExternal(Isolate*, ExternalOneByteStringResource*).
+  i::Isolate* i_isolate;
+  if (obj.IsShared()) {
+    i_isolate = i::Isolate::Current();
+  } else {
+    // It is safe to call GetIsolateFromWritableHeapObject because
+    // SupportsExternalization already checked that the object is writable.
+    i_isolate = i::GetIsolateFromWritableObject(obj);
+  }
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
 
   CHECK(resource && resource->data());
