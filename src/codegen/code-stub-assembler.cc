@@ -1996,56 +1996,19 @@ TNode<IntPtrT> CodeStubAssembler::LoadJSReceiverIdentityHash(
 }
 
 TNode<Uint32T> CodeStubAssembler::LoadNameHashAssumeComputed(TNode<Name> name) {
-  TNode<Uint32T> hash_field = LoadNameRawHash(name);
+  TNode<Uint32T> hash_field = LoadNameRawHashField(name);
   CSA_DCHECK(this, IsClearWord32(hash_field, Name::kHashNotComputedMask));
   return DecodeWord32<Name::HashBits>(hash_field);
 }
 
 TNode<Uint32T> CodeStubAssembler::LoadNameHash(TNode<Name> name,
                                                Label* if_hash_not_computed) {
-  TNode<Uint32T> raw_hash_field = LoadNameRawHash(name);
+  TNode<Uint32T> raw_hash_field = LoadNameRawHashField(name);
   if (if_hash_not_computed != nullptr) {
     GotoIf(IsSetWord32(raw_hash_field, Name::kHashNotComputedMask),
            if_hash_not_computed);
   }
   return DecodeWord32<Name::HashBits>(raw_hash_field);
-}
-
-TNode<Uint32T> CodeStubAssembler::LoadNameRawHash(TNode<Name> name) {
-  TVARIABLE(Uint32T, var_raw_hash);
-
-  Label if_forwarding_index(this), not_forwarding_index(this), done(this);
-
-  TNode<Uint32T> raw_hash_field = LoadNameRawHashField(name);
-  Branch(IsEqualInWord32<Name::HashFieldTypeBits>(
-             raw_hash_field, Name::HashFieldType::kForwardingIndex),
-         &if_forwarding_index, &not_forwarding_index);
-
-  BIND(&not_forwarding_index);
-  {
-    var_raw_hash = raw_hash_field;
-    Goto(&done);
-  }
-
-  BIND(&if_forwarding_index);
-  {
-    TNode<ExternalReference> function =
-        ExternalConstant(ExternalReference::raw_hash_from_forward_table());
-    const TNode<ExternalReference> isolate_ptr =
-        ExternalConstant(ExternalReference::isolate_address(isolate()));
-    TNode<Uint32T> result = UncheckedCast<Uint32T>(CallCFunction(
-        function, MachineType::Uint32(),
-        std::make_pair(MachineType::Pointer(), isolate_ptr),
-        std::make_pair(
-            MachineType::Int32(),
-            DecodeWord32<Name::ForwardingIndexValueBits>(raw_hash_field))));
-
-    var_raw_hash = result;
-    Goto(&done);
-  }
-
-  BIND(&done);
-  return var_raw_hash.value();
 }
 
 TNode<Smi> CodeStubAssembler::LoadStringLengthAsSmi(TNode<String> string) {
@@ -6784,7 +6747,8 @@ TNode<BoolT> CodeStubAssembler::IsUniqueNameNoIndex(TNode<HeapObject> object) {
       IsInternalizedStringInstanceType(instance_type),
       [=] {
         return IsNotEqualInWord32<Name::HashFieldTypeBits>(
-            LoadNameRawHash(CAST(object)), Name::HashFieldType::kIntegerIndex);
+            LoadNameRawHashField(CAST(object)),
+            Name::HashFieldType::kIntegerIndex);
       },
       [=] { return IsSymbolInstanceType(instance_type); });
 }
@@ -6801,7 +6765,7 @@ TNode<BoolT> CodeStubAssembler::IsUniqueNameNoCachedIndex(
   return Select<BoolT>(
       IsInternalizedStringInstanceType(instance_type),
       [=] {
-        return IsSetWord32(LoadNameRawHash(CAST(object)),
+        return IsSetWord32(LoadNameRawHashField(CAST(object)),
                            Name::kDoesNotContainCachedArrayIndexMask);
       },
       [=] { return IsSymbolInstanceType(instance_type); });
@@ -7287,7 +7251,7 @@ TNode<Number> CodeStubAssembler::StringToNumber(TNode<String> input) {
   TVARIABLE(Number, var_result);
 
   // Check if string has a cached array index.
-  TNode<Uint32T> raw_hash_field = LoadNameRawHash(input);
+  TNode<Uint32T> raw_hash_field = LoadNameRawHashField(input);
   GotoIf(IsSetWord32(raw_hash_field, Name::kDoesNotContainCachedArrayIndexMask),
          &runtime);
 

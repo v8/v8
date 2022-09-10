@@ -1024,8 +1024,6 @@ FUNCTION_REFERENCE(try_string_to_index_or_lookup_existing,
                    StringTable::TryStringToIndexOrLookupExisting)
 FUNCTION_REFERENCE(string_from_forward_table,
                    StringForwardingTable::GetForwardStringAddress)
-FUNCTION_REFERENCE(raw_hash_from_forward_table,
-                   StringForwardingTable::GetRawHashStatic)
 FUNCTION_REFERENCE(string_to_array_index_function, String::ToArrayIndex)
 FUNCTION_REFERENCE(array_indexof_includes_smi_or_object,
                    ArrayIndexOfIncludesSmiOrObject)

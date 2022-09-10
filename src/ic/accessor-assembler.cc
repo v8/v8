@@ -2887,7 +2887,7 @@ enum AccessorAssembler::StubCacheTable : int {
 TNode<IntPtrT> AccessorAssembler::StubCachePrimaryOffset(TNode<Name> name,
                                                          TNode<Map> map) {
   // Compute the hash of the name (use entire hash field).
-  TNode<Uint32T> raw_hash_field = LoadNameRawHash(name);
+  TNode<Uint32T> raw_hash_field = LoadNameRawHashField(name);
   CSA_DCHECK(this,
              Word32Equal(Word32And(raw_hash_field,
                                    Int32Constant(Name::kHashNotComputedMask)),
