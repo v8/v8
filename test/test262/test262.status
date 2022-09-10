@@ -225,6 +225,10 @@
   'language/expressions/async-generator/generator-created-after-decl-inst': [FAIL],
   'language/statements/async-generator/generator-created-after-decl-inst': [FAIL],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=13275
+  'language/statements/async-generator/yield-star-promise-not-unwrapped': [FAIL],
+  'language/statements/async-generator/yield-star-return-then-getter-ticks': [FAIL],
+
   # https://bugs.chromium.org/p/v8/issues/detail?id=9875
   'language/expressions/coalesce/tco-pos-undefined': [FAIL],
   'language/expressions/coalesce/tco-pos-null': [FAIL],
@@ -582,6 +586,9 @@
   'staging/Intl402/Temporal/old/non-iso-calendars': [FAIL],
   'staging/Intl402/Temporal/old/yearmonth-toLocaleString': [FAIL],
   'staging/Intl402/Temporal/old/zoneddatetime-toLocaleString': [FAIL],
+
+  # https://github.com/tc39/proposal-intl-numberformat-v3/pull/107
+  'intl402/NumberFormat/test-option-useGrouping': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=11660
   'intl402/DurationFormat/prototype/prototype_attributes': [FAIL],
