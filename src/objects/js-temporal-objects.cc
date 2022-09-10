@@ -152,7 +152,7 @@ struct DateDurationRecord {
 struct TimeZoneRecord {
   bool z;
   Handle<Object> offset_string;  // String or Undefined
-  Handle<String> name;
+  Handle<Object> name;           // String or Undefined
 };
 
 struct ZonedDateTimeRecord {
@@ -3007,27 +3007,15 @@ MaybeHandle<JSReceiver> ToTemporalTimeZone(
       Handle<JSReceiver>());
 
   // 4. If parseResult.[[Name]] is not undefined, then
-  if (parse_result.name->length() > 0) {
+  if (!parse_result.name->IsUndefined()) {
+    DCHECK(parse_result.name->IsString());
     // a. Let name be parseResult.[[Name]].
-    Handle<String> name = parse_result.name;
+    Handle<String> name = Handle<String>::cast(parse_result.name);
     // b. If ParseText(StringToCodePoints(name, TimeZoneNumericUTCOffset)) is
-    // not a List of errors, then
+    // a List of errors, then
     base::Optional<ParsedISO8601Result> parsed_offset =
         TemporalParser::ParseTimeZoneNumericUTCOffset(isolate, name);
-    if (parsed_offset.has_value()) {
-      // i. If parseResult.[[OffsetString]] is not undefined, and !
-      // ParseTimeZoneOffsetString(parseResult.[[OffsetString]]) ≠ !
-      // ParseTimeZoneOffsetString(name), throw a RangeError exception.
-      if (!parse_result.offset_string->IsUndefined() &&
-          ParseTimeZoneOffsetString(
-              isolate, Handle<String>::cast(parse_result.offset_string))
-                  .ToChecked() !=
-              ParseTimeZoneOffsetString(isolate, name).ToChecked()) {
-        THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
-                        JSReceiver);
-      }
-      // c. Else,
-    } else {
+    if (!parsed_offset.has_value()) {
       // i. If ! IsValidTimeZoneName(name) is false, throw a RangeError
       // exception.
       if (!IsValidTimeZoneName(isolate, name)) {
@@ -3036,10 +3024,9 @@ MaybeHandle<JSReceiver> ToTemporalTimeZone(
       }
       // ii. Set name to ! CanonicalizeTimeZoneName(name).
       name = CanonicalizeTimeZoneName(isolate, name);
-
-      // d. Return ! CreateTemporalTimeZone(name).
-      return temporal::CreateTemporalTimeZone(isolate, name);
     }
+    // c. Return ! CreateTemporalTimeZone(name).
+    return temporal::CreateTemporalTimeZone(isolate, name);
   }
   // 5. If parseResult.[[Z]] is true, return ! CreateTemporalTimeZone("UTC").
   if (parse_result.z) {
@@ -3654,6 +3641,7 @@ Maybe<ZonedDateTimeRecord> ParseTemporalRelativeToString(
     // b. Let offsetString be undefined.
     result.time_zone.offset_string = isolate->factory()->undefined_value();
     // c. Let timeZone be undefined.
+    result.time_zone.name = isolate->factory()->undefined_value();
   }
   // 5. Return the Record { [[Year]]: result.[[Year]], [[Month]]:
   // result.[[Month]], [[Day]]: result.[[Day]], [[Hour]]: result.[[Hour]],
@@ -3932,7 +3920,7 @@ Maybe<TimeZoneRecord> ParseTemporalTimeZoneString(Isolate* isolate,
   // productions, or undefined if not present.
   // 4. If name is empty, then
   // a. Set name to undefined.
-  Handle<String> name = isolate->factory()->empty_string();
+  Handle<Object> name = isolate->factory()->undefined_value();
   // 5. Else,
   // a. Set name to CodePointsToString(name).
   if (parsed->tzi_name_length > 0) {
@@ -8195,12 +8183,14 @@ MaybeHandle<Object> ToRelativeTemporalObject(Isolate* isolate,
     offset_string_obj = result.time_zone.offset_string;
 
     // e. Let timeZoneName be result.[[TimeZoneIANAName]].
-    Handle<String> time_zone_name = result.time_zone.name;
+    Handle<Object> time_zone_name_obj = result.time_zone.name;
 
     // f. If timeZoneName is not undefined, then
-    if (!time_zone_name.is_null()) {
+    if (!time_zone_name_obj->IsUndefined()) {
       // i. If ParseText(StringToCodePoints(timeZoneName),
       // TimeZoneNumericUTCOffset) is a List of errors, then
+      DCHECK(time_zone_name_obj->IsString());
+      Handle<String> time_zone_name = Handle<String>::cast(time_zone_name_obj);
       base::Optional<ParsedISO8601Result> parsed =
           TemporalParser::ParseTimeZoneNumericUTCOffset(isolate,
                                                         time_zone_name);
@@ -16066,8 +16056,8 @@ MaybeHandle<JSTemporalZonedDateTime> ToTemporalZonedDateTime(
         Handle<JSTemporalZonedDateTime>());
 
     // e. Assert: timeZoneName is not undefined.
-    Handle<String> time_zone_name = result.time_zone.name;
-    DCHECK(!time_zone_name.is_null());
+    DCHECK(!result.time_zone.name->IsUndefined());
+    Handle<String> time_zone_name = Handle<String>::cast(result.time_zone.name);
 
     // f. If ParseText(StringToCodePoints(timeZoneName),
     // TimeZoneNumericUTCOffset) is a List of errors, then
