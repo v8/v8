@@ -20,6 +20,7 @@
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir-inl.h"
+#include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-regalloc-data.h"
 
 namespace v8 {
@@ -81,11 +82,10 @@ ControlNode* HighestPostDominatingHole(ControlNode* first,
     // Walk the highest branch to find where it goes.
     if (first->id() > second->id()) std::swap(first, second);
 
-    // If the first branch returns or jumps back, we've found highest
+    // If the first branch terminates or jumps back, we've found highest
     // reachable control-node of the longest branch (the second control
     // node).
-    if (first->Is<Return>() || first->Is<Deopt>() || first->Is<Abort>() ||
-        first->Is<JumpLoop>()) {
+    if (first->Is<TerminalControlNode>() || first->Is<JumpLoop>()) {
       return second;
     }
 

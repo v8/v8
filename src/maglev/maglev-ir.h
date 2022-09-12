@@ -224,10 +224,13 @@ class CompactInterpreterFrameState;
   V(JumpToInlined)                         \
   V(JumpFromInlined)
 
+#define TERMINAL_CONTROL_NODE_LIST(V) \
+  V(Abort)                            \
+  V(Return)                           \
+  V(Deopt)
+
 #define CONTROL_NODE_LIST(V)       \
-  V(Abort)                         \
-  V(Return)                        \
-  V(Deopt)                         \
+  TERMINAL_CONTROL_NODE_LIST(V)    \
   CONDITIONAL_CONTROL_NODE_LIST(V) \
   UNCONDITIONAL_CONTROL_NODE_LIST(V)
 
@@ -282,6 +285,11 @@ static constexpr Opcode kLastUnconditionalControlNodeOpcode =
 static constexpr Opcode kFirstUnconditionalControlNodeOpcode =
     std::min({UNCONDITIONAL_CONTROL_NODE_LIST(V) kLastOpcode});
 
+static constexpr Opcode kLastTerminalControlNodeOpcode =
+    std::max({TERMINAL_CONTROL_NODE_LIST(V) kFirstOpcode});
+static constexpr Opcode kFirstTerminalControlNodeOpcode =
+    std::min({TERMINAL_CONTROL_NODE_LIST(V) kLastOpcode});
+
 static constexpr Opcode kFirstControlNodeOpcode =
     std::min({CONTROL_NODE_LIST(V) kLastOpcode});
 static constexpr Opcode kLastControlNodeOpcode =
@@ -313,6 +321,10 @@ constexpr bool IsUnconditionalControlNode(Opcode opcode) {
   return kFirstUnconditionalControlNodeOpcode <= opcode &&
          opcode <= kLastUnconditionalControlNodeOpcode;
 }
+constexpr bool IsTerminalControlNode(Opcode opcode) {
+  return kFirstTerminalControlNodeOpcode <= opcode &&
+         opcode <= kLastTerminalControlNodeOpcode;
+}
 
 // Forward-declare NodeBase sub-hierarchies.
 class Node;
@@ -320,6 +332,7 @@ class ControlNode;
 class ConditionalControlNode;
 class BranchControlNode;
 class UnconditionalControlNode;
+class TerminalControlNode;
 class ValueNode;
 
 enum class ValueRepresentation : uint8_t { kTagged, kInt32, kFloat64 };
@@ -1024,6 +1037,10 @@ constexpr bool NodeBase::Is<ConditionalControlNode>() const {
 template <>
 constexpr bool NodeBase::Is<UnconditionalControlNode>() const {
   return IsUnconditionalControlNode(opcode());
+}
+template <>
+constexpr bool NodeBase::Is<TerminalControlNode>() const {
+  return IsTerminalControlNode(opcode());
 }
 
 // The Node class hierarchy contains all non-control nodes.
@@ -3518,10 +3535,9 @@ class ControlNode : public NodeBase {
     return next_post_dominating_hole_;
   }
   void set_next_post_dominating_hole(ControlNode* node) {
-    DCHECK_IMPLIES(node != nullptr,
-                   node->Is<UnconditionalControlNode>() || node->Is<Abort>() ||
-                       node->Is<Return>() || node->Is<Deopt>() ||
-                       node->Is<Switch>());
+    DCHECK_IMPLIES(node != nullptr, node->Is<UnconditionalControlNode>() ||
+                                        node->Is<TerminalControlNode>() ||
+                                        node->Is<Switch>());
     next_post_dominating_hole_ = node;
   }
 
@@ -3597,6 +3613,26 @@ class BranchControlNode : public ConditionalControlNode {
  private:
   BasicBlockRef if_true_;
   BasicBlockRef if_false_;
+};
+
+class TerminalControlNode : public ControlNode {
+ protected:
+  explicit TerminalControlNode(uint64_t bitfield) : ControlNode(bitfield) {}
+};
+
+template <class Derived>
+class TerminalControlNodeT : public TerminalControlNode {
+  static_assert(IsTerminalControlNode(opcode_of<Derived>));
+
+ public:
+  // Shadowing for static knowledge.
+  constexpr Opcode opcode() const { return NodeBase::opcode_of<Derived>; }
+
+ protected:
+  explicit TerminalControlNodeT(uint64_t bitfield)
+      : TerminalControlNode(bitfield) {
+    DCHECK_EQ(NodeBase::opcode(), opcode_of<Derived>);
+  }
 };
 
 template <size_t InputCount, class Derived>
@@ -3679,10 +3715,10 @@ class JumpFromInlined : public UnconditionalControlNodeT<JumpFromInlined> {
   DECL_NODE_INTERFACE_WITH_EMPTY_PRINT_PARAMS()
 };
 
-class Abort : public ControlNode {
+class Abort : public TerminalControlNode {
  public:
   explicit Abort(uint64_t bitfield, AbortReason reason)
-      : ControlNode(bitfield), reason_(reason) {
+      : TerminalControlNode(bitfield), reason_(reason) {
     DCHECK_EQ(NodeBase::opcode(), opcode_of<Abort>);
   }
 
@@ -3694,9 +3730,9 @@ class Abort : public ControlNode {
   const AbortReason reason_;
 };
 
-class Return : public ControlNode {
+class Return : public TerminalControlNode {
  public:
-  explicit Return(uint64_t bitfield) : ControlNode(bitfield) {
+  explicit Return(uint64_t bitfield) : TerminalControlNode(bitfield) {
     DCHECK_EQ(NodeBase::opcode(), opcode_of<Return>);
   }
 
@@ -3705,10 +3741,10 @@ class Return : public ControlNode {
   DECL_NODE_INTERFACE_WITH_EMPTY_PRINT_PARAMS()
 };
 
-class Deopt : public ControlNode {
+class Deopt : public TerminalControlNode {
  public:
   explicit Deopt(uint64_t bitfield, DeoptimizeReason reason)
-      : ControlNode(bitfield), reason_(reason) {
+      : TerminalControlNode(bitfield), reason_(reason) {
     DCHECK_EQ(NodeBase::opcode(), opcode_of<Deopt>);
   }
 
