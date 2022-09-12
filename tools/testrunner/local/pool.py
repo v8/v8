@@ -93,11 +93,6 @@ def Worker(fn, work_queue, done_queue,
       except Exception as e:
         logging.exception('Unhandled error during worker execution.')
         done_queue.put(ExceptionResult(e))
-    # When we reach here on normal tear down, all items have been pulled from
-    # the done_queue before and this should have no effect. On fast abort, it's
-    # possible that a fast worker left items on the done_queue in memory, which
-    # will never be pulled. This call purges those to avoid a deadlock.
-    done_queue.cancel_join_thread()
   except KeyboardInterrupt:
     assert False, 'Unreachable'
 
