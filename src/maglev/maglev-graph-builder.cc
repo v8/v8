@@ -22,6 +22,7 @@
 #include "src/maglev/maglev-compilation-unit.h"
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/objects/elements-kind.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/name-inl.h"
@@ -1133,6 +1134,60 @@ bool MaglevGraphBuilder::TryBuildMonomorphicLoadFromLoadHandler(
   return true;
 }
 
+bool MaglevGraphBuilder::TryBuildMonomorphicElementLoad(
+    ValueNode* object, ValueNode* index, const compiler::MapRef& map,
+    MaybeObjectHandle handler) {
+  if (handler.is_null()) return false;
+
+  if (handler->IsSmi()) {
+    return TryBuildMonomorphicElementLoadFromSmiHandler(
+        object, index, map, handler->ToSmi().value());
+  }
+  return false;
+}
+
+bool MaglevGraphBuilder::TryBuildMonomorphicElementLoadFromSmiHandler(
+    ValueNode* object, ValueNode* index, const compiler::MapRef& map,
+    int32_t handler) {
+  LoadHandler::Kind kind = LoadHandler::KindBits::decode(handler);
+
+  switch (kind) {
+    case LoadHandler::Kind::kElement: {
+      if (LoadHandler::AllowOutOfBoundsBits::decode(handler)) {
+        return false;
+      }
+      ElementsKind elements_kind =
+          LoadHandler::ElementsKindBits::decode(handler);
+      if (!IsFastElementsKind(elements_kind)) return false;
+
+      // TODO(leszeks): Handle holey elements.
+      if (IsHoleyElementsKind(elements_kind)) return false;
+      DCHECK(!LoadHandler::ConvertHoleBits::decode(handler));
+
+      BuildMapCheck(object, map);
+      BuildCheckSmi(index);
+
+      if (LoadHandler::IsJsArrayBits::decode(handler)) {
+        DCHECK(map.IsJSArrayMap());
+        AddNewNode<CheckJSArrayBounds>({object, index});
+      } else {
+        DCHECK(!map.IsJSArrayMap());
+        DCHECK(map.IsJSObjectMap());
+        AddNewNode<CheckJSObjectElementsBounds>({object, index});
+      }
+      if (elements_kind == ElementsKind::PACKED_DOUBLE_ELEMENTS) {
+        SetAccumulator(AddNewNode<LoadDoubleElement>({object, index}));
+      } else {
+        DCHECK(!IsDoubleElementsKind(elements_kind));
+        SetAccumulator(AddNewNode<LoadTaggedElement>({object, index}));
+      }
+      return true;
+    }
+    default:
+      return false;
+  }
+}
+
 void MaglevGraphBuilder::VisitGetNamedProperty() {
   // GetNamedProperty <object> <name_index> <slot>
   ValueNode* object = LoadRegisterTagged(0);
@@ -1226,6 +1281,8 @@ void MaglevGraphBuilder::VisitGetNamedPropertyFromSuper() {
 void MaglevGraphBuilder::VisitGetKeyedProperty() {
   // GetKeyedProperty <object> <slot>
   ValueNode* object = LoadRegisterTagged(0);
+  // TODO(leszeks): We don't need to tag the key if it's an Int32 and a simple
+  // monomorphic element load.
   ValueNode* key = GetAccumulatorTagged();
   FeedbackSlot slot = GetSlotOperand(1);
   compiler::FeedbackSource feedback_source{feedback(), slot};
@@ -1239,6 +1296,22 @@ void MaglevGraphBuilder::VisitGetKeyedProperty() {
       EmitUnconditionalDeopt(
           DeoptimizeReason::kInsufficientTypeFeedbackForGenericKeyedAccess);
       return;
+
+    case compiler::ProcessedFeedback::kElementAccess: {
+      const compiler::ElementAccessFeedback& element_feedback =
+          processed_feedback.AsElementAccess();
+      if (element_feedback.transition_groups().size() != 1) break;
+      compiler::MapRef map = MakeRefAssumeMemoryFence(
+          broker(), element_feedback.transition_groups()[0].front());
+
+      // Monomorphic load, check the handler.
+      // TODO(leszeks): Make GetFeedbackForPropertyAccess read the handler.
+      MaybeObjectHandle handler =
+          FeedbackNexusForSlot(slot).FindHandlerForMap(map.object());
+
+      if (TryBuildMonomorphicElementLoad(object, key, map, handler)) return;
+      break;
+    }
 
     default:
       break;
