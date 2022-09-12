@@ -38,7 +38,28 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
 (function MultiBlockResultTest() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  // TODO(manoskouk): Rewrite this test.
+  let sig = builder.addType(kSig_ii_ii);
+
+  // f(a, b) = a + b + b + b - a*b*b*b
+  builder.addFunction("main", kSig_i_ii)
+    .addLocals(kWasmI32, 2)
+    .addBody([
+      kExprLocalGet, 0, kExprLocalGet, 0,
+      kExprLoop, sig,
+        kExprLocalSet, 2,  // Temporarily store the second value.
+        kExprLocalGet, 1, kExprI32Add,
+        // multiply the second value by 2
+        kExprLocalGet, 2, kExprLocalGet, 1, kExprI32Mul,
+        // Increment counter, then loop if <= 3.
+        kExprLocalGet, 3, kExprI32Const, 1, kExprI32Add, kExprLocalSet, 3,
+        kExprLocalGet, 3, kExprI32Const, 3, kExprI32LtS,
+        kExprBrIf, 0,
+      kExprEnd,
+      kExprI32Sub])
+    .exportFunc();
+
+  let instance = builder.instantiate();
+  assertEquals(10 + 5 + 5 + 5 - (10 * 5 * 5 * 5), instance.exports.main(10, 5))
 })();
 
 // Test the interaction between tail calls and loop unrolling.
