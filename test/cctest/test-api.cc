@@ -12937,6 +12937,8 @@ THREADED_TEST(SubclassGetConstructorName) {
 }
 
 UNINITIALIZED_TEST(SharedObjectGetConstructorName) {
+  if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
+
   i::FLAG_shared_string_table = true;
   i::FLAG_harmony_struct = true;
 
