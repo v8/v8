@@ -956,12 +956,16 @@ class MaglevGraphBuilder {
   void BuildCheckSymbol(ValueNode* object);
   void BuildMapCheck(ValueNode* object, const compiler::MapRef& map);
 
-  bool TryBuildMonomorphicLoad(ValueNode* object, const compiler::MapRef& map,
+  bool TryBuildMonomorphicLoad(ValueNode* receiver,
+                               ValueNode* lookup_start_object,
+                               const compiler::MapRef& map,
                                MaybeObjectHandle handler);
-  bool TryBuildMonomorphicLoadFromSmiHandler(ValueNode* object,
+  bool TryBuildMonomorphicLoadFromSmiHandler(ValueNode* receiver,
+                                             ValueNode* lookup_start_object,
                                              const compiler::MapRef& map,
                                              int32_t handler);
-  bool TryBuildMonomorphicLoadFromLoadHandler(ValueNode* object,
+  bool TryBuildMonomorphicLoadFromLoadHandler(ValueNode* receiver,
+                                              ValueNode* lookup_start_object,
                                               const compiler::MapRef& map,
                                               LoadHandler handler);
 
