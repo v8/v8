@@ -500,11 +500,6 @@ JSTypeHintLowering::ReduceGetIteratorOperation(const Operator* op,
           DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess)) {
     return LoweringResult::Exit(node);
   }
-  if (Node* node = BuildDeoptIfFeedbackIsInsufficient(
-          call_slot, effect, control,
-          DeoptimizeReason::kInsufficientTypeFeedbackForCall)) {
-    return LoweringResult::Exit(node);
-  }
   return LoweringResult::NoChange();
 }
 
