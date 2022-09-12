@@ -21,20 +21,8 @@ class HeapInternalsBase {
       v8::internal::NewSpace* space,
       std::vector<Handle<FixedArray>>* out_handles = nullptr);
   void SimulateFullSpace(v8::internal::PagedSpace* space);
-  bool FillCurrentPageButNBytes(
-      v8::internal::NewSpace* space, int extra_bytes,
-      std::vector<Handle<FixedArray>>* out_handles = nullptr);
-  bool FillCurrentPage(v8::internal::NewSpace* space,
+  void FillCurrentPage(v8::internal::NewSpace* space,
                        std::vector<Handle<FixedArray>>* out_handles = nullptr);
-  std::vector<Handle<FixedArray>> CreatePadding(
-      Heap* heap, int padding_size, AllocationType allocation,
-      int object_size = kMaxRegularHeapObjectSize);
-  int FixedArrayLenFromSize(int size);
-
- private:
-  void SimulateFullSpace(
-      v8::internal::PagedNewSpace* space,
-      std::vector<Handle<FixedArray>>* out_handles = nullptr);
 };
 
 template <typename TMixin>

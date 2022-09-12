@@ -284,8 +284,8 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
 
   base::Mutex* mutex() { return &space_mutex_; }
 
-  inline void UnlinkFreeListCategories(Page* page);
-  inline size_t RelinkFreeListCategories(Page* page);
+  void UnlinkFreeListCategories(Page* page);
+  size_t RelinkFreeListCategories(Page* page);
 
   Page* first_page() override {
     return reinterpret_cast<Page*>(memory_chunk_list_.front());

@@ -1086,6 +1086,27 @@ void PagedSpaceBase::ReduceActiveSystemPages(
                                    MemoryAllocator::GetCommitPageSize());
 }
 
+void PagedSpaceBase::UnlinkFreeListCategories(Page* page) {
+  DCHECK_EQ(this, page->owner());
+  page->ForAllFreeListCategories([this](FreeListCategory* category) {
+    free_list()->RemoveCategory(category);
+  });
+}
+
+size_t PagedSpaceBase::RelinkFreeListCategories(Page* page) {
+  DCHECK_EQ(this, page->owner());
+  size_t added = 0;
+  page->ForAllFreeListCategories([this, &added](FreeListCategory* category) {
+    added += category->available();
+    category->Relink(free_list());
+  });
+
+  DCHECK_IMPLIES(!page->IsFlagSet(Page::NEVER_ALLOCATE_ON_PAGE),
+                 page->AvailableInFreeList() ==
+                     page->AvailableInFreeListFromAllocatedBytes());
+  return added;
+}
+
 // -----------------------------------------------------------------------------
 // MapSpace implementation
 

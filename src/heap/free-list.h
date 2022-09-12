@@ -78,6 +78,14 @@ class FreeListCategory {
   size_t SumFreeList();
   int FreeListLength();
 
+  template <typename Callback>
+  void IterateNodesForTesting(Callback callback) {
+    for (FreeSpace cur_node = top(); !cur_node.is_null();
+         cur_node = cur_node.next()) {
+      callback(cur_node);
+    }
+  }
+
  private:
   // For debug builds we accurately compute free lists lengths up until
   // {kVeryLongFreeList} by manually walking the list.
@@ -181,6 +189,8 @@ class FreeList {
   FreeListCategoryType last_category() { return last_category_; }
 
   size_t wasted_bytes() { return wasted_bytes_; }
+
+  size_t min_block_size() const { return min_block_size_; }
 
   template <typename Callback>
   void ForAllFreeListCategories(FreeListCategoryType type, Callback callback) {

@@ -3758,7 +3758,8 @@ TEST(Regress169928) {
   // Some flags turn Scavenge collections into Mark-sweep collections
   // and hence are incompatible with this test case.
   if (v8_flags.gc_global || v8_flags.stress_compaction ||
-      v8_flags.stress_incremental_marking || v8_flags.single_generation)
+      v8_flags.stress_incremental_marking || v8_flags.single_generation ||
+      v8_flags.minor_mc)
     return;
 
   // Prepare the environment

@@ -288,7 +288,7 @@ class Page : public MemoryChunk {
     }
   }
 
-  size_t AvailableInFreeList();
+  V8_EXPORT_PRIVATE size_t AvailableInFreeList();
 
   size_t AvailableInFreeListFromAllocatedBytes() {
     DCHECK_GE(area_size(), wasted_memory() + allocated_bytes());

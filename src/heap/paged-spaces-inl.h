@@ -57,27 +57,6 @@ bool PagedSpaceBase::Contains(Object o) const {
   return Page::FromAddress(o.ptr())->owner() == this;
 }
 
-void PagedSpaceBase::UnlinkFreeListCategories(Page* page) {
-  DCHECK_EQ(this, page->owner());
-  page->ForAllFreeListCategories([this](FreeListCategory* category) {
-    free_list()->RemoveCategory(category);
-  });
-}
-
-size_t PagedSpaceBase::RelinkFreeListCategories(Page* page) {
-  DCHECK_EQ(this, page->owner());
-  size_t added = 0;
-  page->ForAllFreeListCategories([this, &added](FreeListCategory* category) {
-    added += category->available();
-    category->Relink(free_list());
-  });
-
-  DCHECK_IMPLIES(!page->IsFlagSet(Page::NEVER_ALLOCATE_ON_PAGE),
-                 page->AvailableInFreeList() ==
-                     page->AvailableInFreeListFromAllocatedBytes());
-  return added;
-}
-
 bool PagedSpaceBase::TryFreeLast(Address object_address, int object_size) {
   if (allocation_info_.top() != kNullAddress) {
     return allocation_info_.DecrementTopIfAdjacent(object_address, object_size);

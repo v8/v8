@@ -966,9 +966,11 @@ UNINITIALIZED_TEST(PromotionMarkCompactOldToShared) {
         raw_one_byte, AllocationType::kYoung);
     CHECK(String::IsInPlaceInternalizable(*one_byte_seq));
     CHECK(MemoryChunk::FromHeapObject(*one_byte_seq)->InYoungGeneration());
+
+    std::vector<Handle<FixedArray>> handles;
     // Fill the page and do a full GC. Page promotion should kick in and promote
     // the page as is to old space.
-    heap::FillCurrentPage(heap->new_space());
+    heap::FillCurrentPage(heap->new_space(), &handles);
     heap->CollectGarbage(OLD_SPACE, GarbageCollectionReason::kTesting);
     // Make sure 'one_byte_seq' is in old space.
     CHECK(!MemoryChunk::FromHeapObject(*one_byte_seq)->InYoungGeneration());

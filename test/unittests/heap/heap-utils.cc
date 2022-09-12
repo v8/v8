@@ -4,9 +4,16 @@
 
 #include "test/unittests/heap/heap-utils.h"
 
+#include <algorithm>
+
+#include "src/common/globals.h"
+#include "src/flags/flags.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact.h"
+#include "src/heap/new-spaces.h"
 #include "src/heap/safepoint.h"
+#include "src/objects/free-space-inl.h"
+#include "v8-internal.h"
 
 namespace v8 {
 namespace internal {
@@ -36,70 +43,89 @@ void HeapInternalsBase::SimulateIncrementalMarking(Heap* heap,
   }
 }
 
-void HeapInternalsBase::SimulateFullSpace(
-    v8::internal::PagedNewSpace* space,
-    std::vector<Handle<FixedArray>>* out_handles) {
-  // If you see this check failing, disable the flag at the start of your test:
-  // v8_flags.stress_concurrent_allocation = false;
-  // Background thread allocating concurrently interferes with this function.
-  CHECK(!v8_flags.stress_concurrent_allocation);
-  Heap* heap = space->heap();
-  if (heap->mark_compact_collector()->sweeping_in_progress()) {
-    heap->mark_compact_collector()->EnsureSweepingCompleted(
-        MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
-  }
-  // MinorMC is atomic so need to ensure it is completed.
+namespace {
 
-  Map unchecked_fixed_array_map =
-      ReadOnlyRoots(heap).unchecked_fixed_array_map();
-  PagedSpaceBase* paged_space = space->paged_space();
-  paged_space->FreeLinearAllocationArea();
-  FreeList* free_list = paged_space->free_list();
-  free_list->ForAllFreeListCategories(
-      [heap, paged_space, free_list, unchecked_fixed_array_map,
-       out_handles](FreeListCategory* category) {
-        // Remove category from the free list to remove it from the available
-        // bytes count.
-        free_list->RemoveCategory(category);
-        // Create FixedArray objects in all free list entries.
-        while (!category->is_empty()) {
-          size_t node_size;
-          FreeSpace node = category->PickNodeFromList(0, &node_size);
-          DCHECK_LT(0, node_size);
-          DCHECK_LE(node_size, std::numeric_limits<int>::max());
-          // Zero the memory to "initialize" it for the FixedArray.
-          memset(reinterpret_cast<void*>(node.address()), 0, node_size);
-          Address address = node.address();
-          Page* page = Page::FromAddress(address);
-          // Fixedarray requires at least 2*kTaggedSize memory.
-          while (node_size >= 2 * kTaggedSize) {
-            // Don't create FixedArrays bigger than max normal object size.
-            int array_size = std::min(static_cast<int>(node_size),
-                                      kMaxRegularHeapObjectSize);
-            // Convert the free space to a FixedArray
-            HeapObject heap_object(HeapObject::FromAddress(address));
-            heap_object.set_map_after_allocation(unchecked_fixed_array_map,
-                                                 SKIP_WRITE_BARRIER);
-            FixedArray arr(FixedArray::cast(heap_object));
-            arr.set_length((array_size - FixedArray::SizeFor(0)) / kTaggedSize);
-            DCHECK_EQ(array_size, arr.AllocatedSize());
-            if (out_handles)
-              out_handles->push_back(handle(arr, heap->isolate()));
-            // Update allocated bytes statistics for the page and the space.
-            page->IncreaseAllocatedBytes(array_size);
-            paged_space->IncreaseAllocatedBytes(array_size, page);
-            node_size -= array_size;
-            address += array_size;
-          }
-          if (node_size > 0) {
-            // Create a filler in any remaining memory.
-            DCHECK_GT(2 * kTaggedSize, node_size);
-            heap->CreateFillerObjectAt(address, static_cast<int>(node_size));
-          }
-        }
-      });
-  paged_space->ResetFreeList();
+int FixedArrayLenFromSize(int size) {
+  return std::min({(size - FixedArray::kHeaderSize) / kTaggedSize,
+                   FixedArray::kMaxRegularLength});
 }
+
+void FillPageInPagedSpace(Page* page,
+                          std::vector<Handle<FixedArray>>* out_handles) {
+  DCHECK(page->SweepingDone());
+  PagedSpaceBase* paged_space = static_cast<PagedSpaceBase*>(page->owner());
+  DCHECK_EQ(kNullAddress, paged_space->top());
+  DCHECK(!page->Contains(paged_space->top()));
+
+  for (Page* p : *paged_space) {
+    if (p != page) paged_space->UnlinkFreeListCategories(p);
+  }
+
+  // If min_block_size is larger than FixedArray::kHeaderSize, all blocks in the
+  // free list can be used to allocate a fixed array. This guarantees that we
+  // can fill the whole page.
+  DCHECK_LT(FixedArray::kHeaderSize,
+            paged_space->free_list()->min_block_size());
+
+  std::vector<int> available_sizes;
+  // Collect all free list block sizes
+  page->ForAllFreeListCategories(
+      [&available_sizes](FreeListCategory* category) {
+        category->IterateNodesForTesting([&available_sizes](FreeSpace node) {
+          int node_size = node.Size();
+          DCHECK_LT(0, FixedArrayLenFromSize(node_size));
+          available_sizes.push_back(node_size);
+        });
+      });
+
+  Isolate* isolate = page->heap()->isolate();
+
+  // Allocate as many max size arrays as possible, while making sure not to
+  // leave behind a block too small to fit a FixedArray.
+  const int max_array_length = FixedArrayLenFromSize(kMaxRegularHeapObjectSize);
+  for (size_t i = 0; i < available_sizes.size(); ++i) {
+    int available_size = available_sizes[i];
+    while (available_size >
+           kMaxRegularHeapObjectSize + FixedArray::kHeaderSize) {
+      Handle<FixedArray> fixed_array = isolate->factory()->NewFixedArray(
+          max_array_length, AllocationType::kYoung);
+      if (out_handles) out_handles->push_back(fixed_array);
+      available_size -= kMaxRegularHeapObjectSize;
+    }
+    if (available_size > kMaxRegularHeapObjectSize) {
+      // Allocate less than kMaxRegularHeapObjectSize to ensure remaining space
+      // can be used to allcoate another FixedArray.
+      int array_size = kMaxRegularHeapObjectSize - FixedArray::kHeaderSize;
+      Handle<FixedArray> fixed_array = isolate->factory()->NewFixedArray(
+          FixedArrayLenFromSize(array_size), AllocationType::kYoung);
+      if (out_handles) out_handles->push_back(fixed_array);
+      available_size -= array_size;
+    }
+    DCHECK_LE(available_size, kMaxRegularHeapObjectSize);
+    DCHECK_LT(0, FixedArrayLenFromSize(available_size));
+    available_sizes[i] = available_size;
+  }
+
+  // Allocate FixedArrays in remaining free list blocks, from largest to
+  // smallest.
+  std::sort(available_sizes.begin(), available_sizes.end(),
+            [](size_t a, size_t b) { return a > b; });
+  for (size_t i = 0; i < available_sizes.size(); ++i) {
+    int available_size = available_sizes[i];
+    DCHECK_LE(available_size, kMaxRegularHeapObjectSize);
+    int array_length = FixedArrayLenFromSize(available_size);
+    DCHECK_LT(0, array_length);
+    Handle<FixedArray> fixed_array =
+        isolate->factory()->NewFixedArray(array_length, AllocationType::kYoung);
+    if (out_handles) out_handles->push_back(fixed_array);
+  }
+
+  for (Page* p : *paged_space) {
+    if (p != page) paged_space->RelinkFreeListCategories(p);
+  }
+}
+
+}  // namespace
 
 void HeapInternalsBase::SimulateFullSpace(
     v8::internal::NewSpace* space,
@@ -109,10 +135,14 @@ void HeapInternalsBase::SimulateFullSpace(
   // Background thread allocating concurrently interferes with this function.
   CHECK(!v8_flags.stress_concurrent_allocation);
   if (v8_flags.minor_mc) {
-    SimulateFullSpace(PagedNewSpace::From(space), out_handles);
-  } else {
-    while (FillCurrentPage(space, out_handles) || space->AddFreshPage()) {
+    for (Page* page : *space) {
+      FillPageInPagedSpace(page, out_handles);
     }
+    DCHECK_EQ(0, space->free_list()->Available());
+  } else {
+    do {
+      FillCurrentPage(space, out_handles);
+    } while (space->AddFreshPage());
   }
 }
 
@@ -131,14 +161,8 @@ void HeapInternalsBase::SimulateFullSpace(v8::internal::PagedSpace* space) {
   space->ResetFreeList();
 }
 
-bool HeapInternalsBase::FillCurrentPage(
-    v8::internal::NewSpace* space,
-    std::vector<Handle<FixedArray>>* out_handles) {
-  return FillCurrentPageButNBytes(space, 0, out_handles);
-}
-
 namespace {
-int GetSpaceRemainingOnCurrentPage(v8::internal::NewSpace* space) {
+int GetSpaceRemainingOnCurrentSemiSpacePage(v8::internal::NewSpace* space) {
   Address top = space->top();
   if ((top & kPageAlignmentMask) == 0) {
     // `top` points to the start of a page signifies that there is not room in
@@ -147,36 +171,9 @@ int GetSpaceRemainingOnCurrentPage(v8::internal::NewSpace* space) {
   }
   return static_cast<int>(Page::FromAddress(space->top())->area_end() - top);
 }
-}  // namespace
 
-bool HeapInternalsBase::FillCurrentPageButNBytes(
-    v8::internal::NewSpace* space, int extra_bytes,
-    std::vector<Handle<FixedArray>>* out_handles) {
-  PauseAllocationObserversScope pause_observers(space->heap());
-  // We cannot rely on `space->limit()` to point to the end of the current page
-  // in the case where inline allocations are disabled, it actually points to
-  // the current allocation pointer.
-  DCHECK_IMPLIES(!space->IsInlineAllocationEnabled(),
-                 space->limit() == space->top());
-  int space_remaining = GetSpaceRemainingOnCurrentPage(space);
-  CHECK(space_remaining >= extra_bytes);
-  int new_linear_size = space_remaining - extra_bytes;
-  if (new_linear_size == 0) return false;
-  std::vector<Handle<FixedArray>> handles =
-      CreatePadding(space->heap(), space_remaining, i::AllocationType::kYoung);
-  if (out_handles != nullptr) {
-    out_handles->insert(out_handles->end(), handles.begin(), handles.end());
-  }
-  return true;
-}
-
-int HeapInternalsBase::FixedArrayLenFromSize(int size) {
-  return std::min({(size - FixedArray::kHeaderSize) / kTaggedSize,
-                   FixedArray::kMaxRegularLength});
-}
-
-std::vector<Handle<FixedArray>> HeapInternalsBase::CreatePadding(
-    Heap* heap, int padding_size, AllocationType allocation, int object_size) {
+std::vector<Handle<FixedArray>> CreatePadding(Heap* heap, int padding_size,
+                                              AllocationType allocation) {
   std::vector<Handle<FixedArray>> handles;
   Isolate* isolate = heap->isolate();
   int allocate_memory;
@@ -191,8 +188,8 @@ std::vector<Handle<FixedArray>> HeapInternalsBase::CreatePadding(
     CHECK(padding_size <= overall_free_memory || overall_free_memory == 0);
   }
   while (free_memory > 0) {
-    if (free_memory > object_size) {
-      allocate_memory = object_size;
+    if (free_memory > kMaxRegularHeapObjectSize) {
+      allocate_memory = kMaxRegularHeapObjectSize;
       length = FixedArrayLenFromSize(allocate_memory);
     } else {
       allocate_memory = free_memory;
@@ -218,6 +215,42 @@ std::vector<Handle<FixedArray>> HeapInternalsBase::CreatePadding(
     free_memory -= handles.back()->Size();
   }
   return handles;
+}
+
+void FillCurrentSemiSpacePage(v8::internal::NewSpace* space,
+                              std::vector<Handle<FixedArray>>* out_handles) {
+  // We cannot rely on `space->limit()` to point to the end of the current page
+  // in the case where inline allocations are disabled, it actually points to
+  // the current allocation pointer.
+  DCHECK_IMPLIES(!space->IsInlineAllocationEnabled(),
+                 space->limit() == space->top());
+  int space_remaining = GetSpaceRemainingOnCurrentSemiSpacePage(space);
+  if (space_remaining == 0) return;
+  std::vector<Handle<FixedArray>> handles =
+      CreatePadding(space->heap(), space_remaining, i::AllocationType::kYoung);
+  if (out_handles != nullptr) {
+    out_handles->insert(out_handles->end(), handles.begin(), handles.end());
+  }
+}
+
+void FillCurrenPagedSpacePage(v8::internal::NewSpace* space,
+                              std::vector<Handle<FixedArray>>* out_handles) {
+  if (space->top() == kNullAddress) return;
+  Page* page = Page::FromAllocationAreaAddress(space->top());
+  space->FreeLinearAllocationArea();
+  FillPageInPagedSpace(page, out_handles);
+}
+
+}  // namespace
+
+void HeapInternalsBase::FillCurrentPage(
+    v8::internal::NewSpace* space,
+    std::vector<Handle<FixedArray>>* out_handles) {
+  PauseAllocationObserversScope pause_observers(space->heap());
+  if (v8_flags.minor_mc)
+    FillCurrenPagedSpacePage(space, out_handles);
+  else
+    FillCurrentSemiSpacePage(space, out_handles);
 }
 
 bool IsNewObjectInCorrectGeneration(HeapObject object) {
