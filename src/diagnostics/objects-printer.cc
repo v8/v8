@@ -1973,13 +1973,39 @@ void WasmArray::WasmArrayPrint(std::ostream& os) {
       PrintTypedArrayElements(os, reinterpret_cast<int16_t*>(data_ptr), len,
                               true);
       break;
-    case wasm::kS128:
     case wasm::kRef:
-    case wasm::kRefNull:
-    case wasm::kRtt:
-      os << "\n   Printing elements of this type is unimplemented, sorry";
-      // TODO(7748): Implement.
+    case wasm::kRefNull: {
+      os << "\n - elements:";
+      constexpr uint32_t kWasmArrayMaximumPrintedElements = 5;
+      for (uint32_t i = 0;
+           i < std::min(this->length(), kWasmArrayMaximumPrintedElements);
+           i++) {
+        os << "\n   " << static_cast<int>(i) << " - "
+           << Brief(TaggedField<Object>::load(*this, this->element_offset(i)));
+      }
+      if (this->length() > kWasmArrayMaximumPrintedElements) os << "\n   ...";
       break;
+    }
+    case wasm::kS128: {
+      os << "\n - elements:";
+      constexpr uint32_t kWasmArrayMaximumPrintedElements = 5;
+      for (uint32_t i = 0;
+           i < std::min(this->length(), kWasmArrayMaximumPrintedElements);
+           i++) {
+        os << "\n   " << static_cast<int>(i) << " - 0x" << std::hex;
+#ifdef V8_TARGET_BIG_ENDIAN
+        for (int j = 0; j < kSimd128Size; j++) {
+#else
+        for (int j = kSimd128Size - 1; j >= 0; j--) {
+#endif
+          os << reinterpret_cast<byte*>(this->ElementAddress(i))[j];
+        }
+        os << std::dec;
+      }
+      if (this->length() > kWasmArrayMaximumPrintedElements) os << "\n   ...";
+      break;
+    }
+    case wasm::kRtt:
     case wasm::kBottom:
     case wasm::kVoid:
       UNREACHABLE();
