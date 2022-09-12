@@ -2288,7 +2288,7 @@ Object Isolate::UnwindAndFindHandler() {
 namespace {
 HandlerTable::CatchPrediction PredictException(JavaScriptFrame* frame) {
   HandlerTable::CatchPrediction prediction;
-  if (frame->is_turbofan()) {
+  if (frame->is_optimized()) {
     if (frame->LookupExceptionHandlerInTable(nullptr, nullptr) > 0) {
       // This optimized frame will catch. It's handler table does not include
       // exception prediction, and we need to use the corresponding handler
@@ -2368,6 +2368,7 @@ Isolate::CatchType Isolate::PredictExceptionCatcher() {
       case StackFrame::INTERPRETED:
       case StackFrame::BASELINE:
       case StackFrame::TURBOFAN:
+      case StackFrame::MAGLEV:
       case StackFrame::BUILTIN: {
         JavaScriptFrame* js_frame = JavaScriptFrame::cast(frame);
         Isolate::CatchType prediction = ToCatchType(PredictException(js_frame));
