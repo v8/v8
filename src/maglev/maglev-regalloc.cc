@@ -799,6 +799,71 @@ void StraightForwardRegisterAllocator::InitializeConditionalBranchTarget(
                                                 target);
 }
 
+#ifdef DEBUG
+namespace {
+
+bool IsReachable(BasicBlock* source_block, BasicBlock* target_block,
+                 std::set<BasicBlock*>& visited) {
+  if (source_block == target_block) return true;
+  if (!visited.insert(source_block).second) return false;
+
+  ControlNode* control_node = source_block->control_node();
+  if (UnconditionalControlNode* unconditional =
+          control_node->TryCast<UnconditionalControlNode>()) {
+    return IsReachable(unconditional->target(), target_block, visited);
+  }
+  if (BranchControlNode* branch = control_node->TryCast<BranchControlNode>()) {
+    return IsReachable(branch->if_true(), target_block, visited) ||
+           IsReachable(branch->if_true(), target_block, visited);
+  }
+  if (Switch* switch_node = control_node->TryCast<Switch>()) {
+    const BasicBlockRef* targets = switch_node->targets();
+    for (int i = 0; i < switch_node->size(); i++) {
+      if (IsReachable(source_block, targets[i].block_ptr(), visited)) {
+        return true;
+      }
+    }
+    if (switch_node->has_fallthrough()) {
+      if (IsReachable(source_block, switch_node->fallthrough(), visited)) {
+        return true;
+      }
+    }
+    return false;
+  }
+  return false;
+}
+
+// Complex predicate for a JumpLoop lifetime extension DCHECK, see comments
+// in AllocateControlNode.
+bool IsValueFromGeneratorResumeThatDoesNotReachJumpLoop(
+    Graph* graph, ValueNode* input_node, BasicBlock* jump_loop_block) {
+  // The given node _must_ be created in the generator resume block. This is
+  // always the third block -- the first is inital values, the second is the
+  // test for an undefined generator, and the third is the generator resume
+  // machinery.
+  DCHECK_GE(graph->num_blocks(), 3);
+  BasicBlock* generator_block = *(graph->begin() + 2);
+  DCHECK_EQ(generator_block->control_node()->opcode(), Opcode::kSwitch);
+
+  bool found_node = false;
+  for (Node* node : generator_block->nodes()) {
+    if (node == input_node) {
+      found_node = true;
+      break;
+    }
+  }
+  DCHECK(found_node);
+
+  std::set<BasicBlock*> visited;
+  bool jump_loop_block_is_reachable_from_generator_block =
+      IsReachable(generator_block, jump_loop_block, visited);
+  DCHECK(!jump_loop_block_is_reachable_from_generator_block);
+
+  return true;
+}
+}  // namespace
+#endif
+
 void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
                                                            BasicBlock* block) {
   current_node_ = node;
@@ -853,7 +918,14 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
     // extended lifetime nodes are dead.
     if (auto jump_loop = node->TryCast<JumpLoop>()) {
       for (Input& input : jump_loop->used_nodes()) {
-        DCHECK(input.node()->has_register() || input.node()->is_loadable());
+        // Since the value is used by the loop, it must be live somewhere (
+        // either in a register or loadable). The exception is when this value
+        // is created in a generator resume, and the use of it cannot reach the
+        // JumpLoop (e.g. because it returns or deopts on resume).
+        DCHECK_IMPLIES(
+            !input.node()->has_register() && !input.node()->is_loadable(),
+            IsValueFromGeneratorResumeThatDoesNotReachJumpLoop(
+                graph_, input.node(), block));
         UpdateUse(&input);
       }
     }
