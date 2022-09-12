@@ -298,6 +298,9 @@ constexpr bool IsConstantNode(Opcode opcode) {
 constexpr bool IsGapMoveNode(Opcode opcode) {
   return kFirstGapMoveNodeOpcode <= opcode && opcode <= kLastGapMoveNodeOpcode;
 }
+constexpr bool IsControlNode(Opcode opcode) {
+  return kFirstControlNodeOpcode <= opcode && opcode <= kLastControlNodeOpcode;
+}
 constexpr bool IsBranchControlNode(Opcode opcode) {
   return kFirstBranchControlNodeOpcode <= opcode &&
          opcode <= kLastBranchControlNodeOpcode;
@@ -1005,6 +1008,10 @@ constexpr bool NodeBase::Is() const {
 template <>
 constexpr bool NodeBase::Is<ValueNode>() const {
   return IsValueNode(opcode());
+}
+template <>
+constexpr bool NodeBase::Is<ControlNode>() const {
+  return IsControlNode(opcode());
 }
 template <>
 constexpr bool NodeBase::Is<BranchControlNode>() const {

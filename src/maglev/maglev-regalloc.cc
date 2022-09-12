@@ -311,10 +311,16 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
 
   for (block_it_ = graph_->begin(); block_it_ != graph_->end(); ++block_it_) {
     BasicBlock* block = *block_it_;
+    current_node_ = nullptr;
 
     // Restore mergepoint state.
-    if (block->has_state() && !block->state()->is_exception_handler()) {
-      InitializeRegisterValues(block->state()->register_state());
+    if (block->has_state()) {
+      if (block->state()->is_exception_handler()) {
+        // Exceptions start from a blank state of register values.
+        ClearRegisterValues();
+      } else {
+        InitializeRegisterValues(block->state()->register_state());
+      }
     } else if (block->is_empty_block()) {
       InitializeRegisterValues(block->empty_block_register_state());
     }
@@ -543,6 +549,11 @@ Register GetNodeResultRegister(Node* node) {
 #endif  // DEBUG
 
 void StraightForwardRegisterAllocator::AllocateNode(Node* node) {
+  // We shouldn't be visiting any gap moves during allocation, we should only
+  // have inserted gap moves in past visits.
+  DCHECK(!node->Is<GapMove>());
+  DCHECK(!node->Is<ConstantGapMove>());
+
   current_node_ = node;
   if (FLAG_trace_maglev_regalloc) {
     printing_visitor_->os()
@@ -562,7 +573,6 @@ void StraightForwardRegisterAllocator::AllocateNode(Node* node) {
     AllocateNodeResult(node->Cast<ValueNode>());
   }
 
-  current_node_ = node;
   if (FLAG_trace_maglev_regalloc) {
     printing_visitor_->os() << "Updating uses...\n";
   }
@@ -570,12 +580,25 @@ void StraightForwardRegisterAllocator::AllocateNode(Node* node) {
   // Update uses only after allocating the node result. This order is necessary
   // to avoid emitting input-clobbering gap moves during node result allocation.
   if (node->properties().can_eager_deopt()) {
+    if (FLAG_trace_maglev_regalloc) {
+      printing_visitor_->os() << "Using eager deopt nodes...\n";
+    }
     UpdateUse(*node->eager_deopt_info());
   }
-  for (Input& input : *node) UpdateUse(&input);
+  for (Input& input : *node) {
+    if (FLAG_trace_maglev_regalloc) {
+      printing_visitor_->os()
+          << "Using input " << PrintNodeLabel(graph_labeller(), input.node())
+          << "...\n";
+    }
+    UpdateUse(&input);
+  }
 
   // Lazy deopts are semantically after the node, so update them last.
   if (node->properties().can_lazy_deopt()) {
+    if (FLAG_trace_maglev_regalloc) {
+      printing_visitor_->os() << "Using lazy deopt nodes...\n";
+    }
     UpdateUse(*node->lazy_deopt_info());
   }
 
@@ -933,6 +956,7 @@ void StraightForwardRegisterAllocator::AddMoveBeforeCurrentNode(
     graph_labeller()->RegisterNode(gap_move);
   }
   if (*node_it_ == nullptr) {
+    DCHECK(current_node_->Is<ControlNode>());
     // We're at the control node, so append instead.
     (*block_it_)->nodes().Add(gap_move);
     node_it_ = (*block_it_)->nodes().end();
@@ -1519,15 +1543,19 @@ void StraightForwardRegisterAllocator::ForEachMergePointRegisterState(
       });
 }
 
-void StraightForwardRegisterAllocator::InitializeRegisterValues(
-    MergePointRegisterState& target_state) {
-  // First clear the register state.
+void StraightForwardRegisterAllocator::ClearRegisterValues() {
   ClearRegisterState(general_registers_);
   ClearRegisterState(double_registers_);
 
   // All registers should be free by now.
   DCHECK_EQ(general_registers_.unblocked_free(), kAllocatableGeneralRegisters);
   DCHECK_EQ(double_registers_.unblocked_free(), kAllocatableDoubleRegisters);
+}
+
+void StraightForwardRegisterAllocator::InitializeRegisterValues(
+    MergePointRegisterState& target_state) {
+  // First clear the register state.
+  ClearRegisterValues();
 
   // Then fill it in with target information.
   auto fill = [&](auto& registers, auto reg, RegisterState& state) {

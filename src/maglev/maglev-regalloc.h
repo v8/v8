@@ -203,6 +203,7 @@ class StraightForwardRegisterAllocator {
   void ForEachMergePointRegisterState(
       MergePointRegisterState& merge_point_state, Function&& f);
 
+  void ClearRegisterValues();
   void InitializeRegisterValues(MergePointRegisterState& target_state);
 #ifdef DEBUG
   bool IsInRegister(MergePointRegisterState& target_state, ValueNode* incoming);
