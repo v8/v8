@@ -2066,11 +2066,11 @@ TEST(CheckCachedDataInternalExternalUncachedString) {
   // that we indeed cached it.
   Handle<ExternalOneByteString> external_string =
       Handle<ExternalOneByteString>::cast(string);
-  // If sandboxed external pointers are enabled, string objects will always be
-  // cacheable because they are smaller.
-  CHECK(V8_SANDBOXED_EXTERNAL_POINTERS_BOOL || external_string->is_uncached());
+  // If the sandbox is enabled, string objects will always be cacheable because
+  // they are smaller.
+  CHECK(V8_ENABLE_SANDBOX_BOOL || external_string->is_uncached());
   CHECK(external_string->resource()->IsCacheable());
-  if (!V8_SANDBOXED_EXTERNAL_POINTERS_BOOL) {
+  if (!V8_ENABLE_SANDBOX_BOOL) {
     CHECK_NOT_NULL(external_string->resource()->cached_data());
     CHECK_EQ(external_string->resource()->cached_data(),
              external_string->resource()->data());
@@ -2109,11 +2109,11 @@ TEST(CheckCachedDataInternalExternalUncachedStringTwoByte) {
   // that we indeed cached it.
   Handle<ExternalTwoByteString> external_string =
       Handle<ExternalTwoByteString>::cast(string);
-  // If sandboxed external pointers are enabled, string objects will always be
-  // cacheable because they are smaller.
-  CHECK(V8_SANDBOXED_EXTERNAL_POINTERS_BOOL || external_string->is_uncached());
+  // If the sandbox is enabled, string objects will always be cacheable because
+  // they are smaller.
+  CHECK(V8_ENABLE_SANDBOX_BOOL || external_string->is_uncached());
   CHECK(external_string->resource()->IsCacheable());
-  if (!V8_SANDBOXED_EXTERNAL_POINTERS_BOOL) {
+  if (!V8_ENABLE_SANDBOX_BOOL) {
     CHECK_NOT_NULL(external_string->resource()->cached_data());
     CHECK_EQ(external_string->resource()->cached_data(),
              external_string->resource()->data());

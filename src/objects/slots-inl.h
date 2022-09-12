@@ -221,7 +221,7 @@ void ExternalPointerSlot::store(Isolate* isolate, Address value,
 ExternalPointerSlot::RawContent
 ExternalPointerSlot::GetAndClearContentForSerialization(
     const DisallowGarbageCollection& no_gc) {
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+#ifdef V8_ENABLE_SANDBOX
   ExternalPointerHandle content = Relaxed_LoadHandle();
   Relaxed_StoreHandle(kNullExternalPointerHandle);
 #else
@@ -234,7 +234,7 @@ ExternalPointerSlot::GetAndClearContentForSerialization(
 void ExternalPointerSlot::RestoreContentAfterSerialization(
     ExternalPointerSlot::RawContent content,
     const DisallowGarbageCollection& no_gc) {
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+#ifdef V8_ENABLE_SANDBOX
   return Relaxed_StoreHandle(content);
 #else
   return WriteMaybeUnalignedValue<Address>(address(), content);

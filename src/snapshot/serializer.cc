@@ -1238,7 +1238,7 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
       // snapshot deterministic.
       CHECK_EQ(CodeDataContainer::kCodeCageBaseUpper32BitsOffset + kTaggedSize,
                CodeDataContainer::kCodeEntryPointOffset);
-      static byte field_value[kTaggedSize + kExternalPointerSlotSize] = {0};
+      static byte field_value[kTaggedSize + kSystemPointerSize] = {0};
       OutputRawWithCustomField(
           sink_, object_start, base, bytes_to_output,
           CodeDataContainer::kCodeCageBaseUpper32BitsOffset,

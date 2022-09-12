@@ -100,9 +100,6 @@ class V8_EXPORT V8 {
     const int kBuildConfiguration =
         (internal::PointerCompressionIsEnabled() ? kPointerCompression : 0) |
         (internal::SmiValuesAre31Bits() ? k31BitSmis : 0) |
-        (internal::SandboxedExternalPointersAreEnabled()
-             ? kSandboxedExternalPointers
-             : 0) |
         (internal::SandboxIsEnabled() ? kSandbox : 0);
     return Initialize(kBuildConfiguration);
   }
@@ -273,8 +270,7 @@ class V8_EXPORT V8 {
   enum BuildConfigurationFeatures {
     kPointerCompression = 1 << 0,
     k31BitSmis = 1 << 1,
-    kSandboxedExternalPointers = 1 << 2,
-    kSandbox = 1 << 3,
+    kSandbox = 1 << 2,
   };
 
   /**
