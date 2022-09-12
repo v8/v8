@@ -74,6 +74,14 @@ class MaglevAssembler : public MacroAssembler {
   inline void JumpToDeferredIf(Condition cond, Function&& deferred_code_gen,
                                Args&&... args);
 
+  inline void RegisterEagerDeopt(EagerDeoptInfo* deopt_info,
+                                 DeoptimizeReason reason);
+  template <typename NodeT>
+  inline void EmitEagerDeopt(NodeT* node, DeoptimizeReason reason);
+  template <typename NodeT>
+  inline void EmitEagerDeoptIf(Condition cond, DeoptimizeReason reason,
+                               NodeT* node);
+
   compiler::NativeContextRef native_context() const {
     return code_gen_state()->broker()->target_native_context();
   }

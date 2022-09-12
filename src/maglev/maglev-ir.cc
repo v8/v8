@@ -266,49 +266,6 @@ void ToBoolean(MaglevAssembler* masm, Register value, ZoneLabelRef is_true,
 }
 
 // ---
-// Deopt
-// ---
-
-void RegisterEagerDeopt(MaglevAssembler* masm, EagerDeoptInfo* deopt_info,
-                        DeoptimizeReason reason) {
-  if (deopt_info->reason != DeoptimizeReason::kUnknown) {
-    DCHECK_EQ(deopt_info->reason, reason);
-  }
-  if (deopt_info->deopt_entry_label.is_unused()) {
-    masm->code_gen_state()->PushEagerDeopt(deopt_info);
-    deopt_info->reason = reason;
-  }
-}
-
-void EmitEagerDeopt(MaglevAssembler* masm, EagerDeoptInfo* deopt_info,
-                    DeoptimizeReason reason) {
-  RegisterEagerDeopt(masm, deopt_info, reason);
-  __ RecordComment("-- Jump to eager deopt");
-  __ jmp(&deopt_info->deopt_entry_label);
-}
-
-template <typename NodeT>
-void EmitEagerDeopt(MaglevAssembler* masm, NodeT* node,
-                    DeoptimizeReason reason) {
-  static_assert(NodeT::kProperties.can_eager_deopt());
-  EmitEagerDeopt(masm, node->eager_deopt_info(), reason);
-}
-
-void EmitEagerDeoptIf(Condition cond, MaglevAssembler* masm,
-                      DeoptimizeReason reason, EagerDeoptInfo* deopt_info) {
-  RegisterEagerDeopt(masm, deopt_info, reason);
-  __ RecordComment("-- Jump to eager deopt");
-  __ j(cond, &deopt_info->deopt_entry_label);
-}
-
-template <typename NodeT>
-void EmitEagerDeoptIf(Condition cond, MaglevAssembler* masm,
-                      DeoptimizeReason reason, NodeT* node) {
-  static_assert(NodeT::kProperties.can_eager_deopt());
-  EmitEagerDeoptIf(cond, masm, reason, node->eager_deopt_info());
-}
-
-// ---
 // Print
 // ---
 
@@ -1225,10 +1182,10 @@ void CheckMaps::GenerateCode(MaglevAssembler* masm,
     __ AssertNotSmi(object);
   } else {
     Condition is_smi = __ CheckSmi(object);
-    EmitEagerDeoptIf(is_smi, masm, DeoptimizeReason::kWrongMap, this);
+    __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kWrongMap, this);
   }
   __ Cmp(FieldOperand(object, HeapObject::kMapOffset), map().object());
-  EmitEagerDeoptIf(not_equal, masm, DeoptimizeReason::kWrongMap, this);
+  __ EmitEagerDeoptIf(not_equal, DeoptimizeReason::kWrongMap, this);
 }
 void CheckMaps::PrintParams(std::ostream& os,
                             MaglevGraphLabeller* graph_labeller) const {
@@ -1241,8 +1198,8 @@ void CheckSmi::GenerateCode(MaglevAssembler* masm,
                             const ProcessingState& state) {
   Register object = ToRegister(receiver_input());
   Condition is_smi = __ CheckSmi(object);
-  EmitEagerDeoptIf(NegateCondition(is_smi), masm, DeoptimizeReason::kNotASmi,
-                   this);
+  __ EmitEagerDeoptIf(NegateCondition(is_smi), DeoptimizeReason::kNotASmi,
+                      this);
 }
 void CheckSmi::PrintParams(std::ostream& os,
                            MaglevGraphLabeller* graph_labeller) const {}
@@ -1266,7 +1223,7 @@ void CheckNumber::GenerateCode(MaglevAssembler* masm,
     __ cmpw(FieldOperand(kScratchRegister, Map::kInstanceTypeOffset),
             Immediate(BIGINT_TYPE));
   }
-  EmitEagerDeoptIf(not_equal, masm, DeoptimizeReason::kNotANumber, this);
+  __ EmitEagerDeoptIf(not_equal, DeoptimizeReason::kNotANumber, this);
   __ bind(&done);
 }
 
@@ -1277,7 +1234,7 @@ void CheckHeapObject::GenerateCode(MaglevAssembler* masm,
                                    const ProcessingState& state) {
   Register object = ToRegister(receiver_input());
   Condition is_smi = __ CheckSmi(object);
-  EmitEagerDeoptIf(is_smi, masm, DeoptimizeReason::kSmi, this);
+  __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kSmi, this);
 }
 void CheckHeapObject::PrintParams(std::ostream& os,
                                   MaglevGraphLabeller* graph_labeller) const {}
@@ -1291,11 +1248,11 @@ void CheckSymbol::GenerateCode(MaglevAssembler* masm,
     __ AssertNotSmi(object);
   } else {
     Condition is_smi = __ CheckSmi(object);
-    EmitEagerDeoptIf(is_smi, masm, DeoptimizeReason::kNotASymbol, this);
+    __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kNotASymbol, this);
   }
   __ LoadMap(kScratchRegister, object);
   __ CmpInstanceType(kScratchRegister, SYMBOL_TYPE);
-  EmitEagerDeoptIf(not_equal, masm, DeoptimizeReason::kNotASymbol, this);
+  __ EmitEagerDeoptIf(not_equal, DeoptimizeReason::kNotASymbol, this);
 }
 void CheckSymbol::PrintParams(std::ostream& os,
                               MaglevGraphLabeller* graph_labeller) const {}
@@ -1310,12 +1267,12 @@ void CheckString::GenerateCode(MaglevAssembler* masm,
     __ AssertNotSmi(object);
   } else {
     Condition is_smi = __ CheckSmi(object);
-    EmitEagerDeoptIf(is_smi, masm, DeoptimizeReason::kNotAString, this);
+    __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kNotAString, this);
   }
   __ LoadMap(kScratchRegister, object);
   __ CmpInstanceTypeRange(kScratchRegister, kScratchRegister, FIRST_STRING_TYPE,
                           LAST_STRING_TYPE);
-  EmitEagerDeoptIf(above, masm, DeoptimizeReason::kNotAString, this);
+  __ EmitEagerDeoptIf(above, DeoptimizeReason::kNotAString, this);
 }
 void CheckString::PrintParams(std::ostream& os,
                               MaglevGraphLabeller* graph_labeller) const {}
@@ -1332,7 +1289,7 @@ void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
     __ AssertNotSmi(object);
   } else {
     Condition is_smi = __ CheckSmi(object);
-    EmitEagerDeoptIf(is_smi, masm, DeoptimizeReason::kWrongMap, this);
+    __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kWrongMap, this);
   }
   __ Cmp(FieldOperand(object, HeapObject::kMapOffset), map().object());
 
@@ -1340,7 +1297,7 @@ void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
       not_equal,
       [](MaglevAssembler* masm, Label* return_label, Register object,
          CheckMapsWithMigration* node, EagerDeoptInfo* deopt_info) {
-        RegisterEagerDeopt(masm, deopt_info, DeoptimizeReason::kWrongMap);
+        __ RegisterEagerDeopt(deopt_info, DeoptimizeReason::kWrongMap);
 
         // Reload the map to avoid needing to save it on a temporary in the fast
         // path.
@@ -1410,7 +1367,7 @@ void CheckedInternalizedString::GenerateCode(MaglevAssembler* masm,
     __ AssertNotSmi(object);
   } else {
     Condition is_smi = __ CheckSmi(object);
-    EmitEagerDeoptIf(is_smi, masm, DeoptimizeReason::kWrongMap, this);
+    __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kWrongMap, this);
   }
 
   __ LoadMap(map_tmp, object);
@@ -1906,7 +1863,7 @@ void Int32AddWithOverflow::GenerateCode(MaglevAssembler* masm,
   Register left = ToRegister(left_input());
   Register right = ToRegister(right_input());
   __ addl(left, right);
-  EmitEagerDeoptIf(overflow, masm, DeoptimizeReason::kOverflow, this);
+  __ EmitEagerDeoptIf(overflow, DeoptimizeReason::kOverflow, this);
 }
 
 void Int32SubtractWithOverflow::AllocateVreg(
@@ -1921,7 +1878,7 @@ void Int32SubtractWithOverflow::GenerateCode(MaglevAssembler* masm,
   Register left = ToRegister(left_input());
   Register right = ToRegister(right_input());
   __ subl(left, right);
-  EmitEagerDeoptIf(overflow, masm, DeoptimizeReason::kOverflow, this);
+  __ EmitEagerDeoptIf(overflow, DeoptimizeReason::kOverflow, this);
 }
 
 void Int32MultiplyWithOverflow::AllocateVreg(
@@ -1942,7 +1899,7 @@ void Int32MultiplyWithOverflow::GenerateCode(MaglevAssembler* masm,
   __ movl(saved_left, result);
   // TODO(leszeks): peephole optimise multiplication by a constant.
   __ imull(result, right);
-  EmitEagerDeoptIf(overflow, masm, DeoptimizeReason::kOverflow, this);
+  __ EmitEagerDeoptIf(overflow, DeoptimizeReason::kOverflow, this);
 
   // If the result is zero, check if either lhs or rhs is negative.
   Label end;
@@ -1955,7 +1912,7 @@ void Int32MultiplyWithOverflow::GenerateCode(MaglevAssembler* masm,
     // so deopt.
     // TODO(leszeks): Consider splitting these deopts to have distinct deopt
     // reasons. Otherwise, the reason has to match the above.
-    EmitEagerDeoptIf(less, masm, DeoptimizeReason::kOverflow, this);
+    __ EmitEagerDeoptIf(less, DeoptimizeReason::kOverflow, this);
   }
   __ bind(&end);
 }
@@ -2001,13 +1958,13 @@ void Int32DivideWithOverflow::GenerateCode(MaglevAssembler* masm,
         // better. Right now all eager deopts in a node have to be the same --
         // we should allow a node to emit multiple eager deopts with different
         // reasons.
-        EmitEagerDeoptIf(equal, masm, DeoptimizeReason::kNotInt32, node);
+        __ EmitEagerDeoptIf(equal, DeoptimizeReason::kNotInt32, node);
 
         // Check if {left} is zero, as that would produce minus zero. Left is in
         // rax already.
         __ cmpl(rax, Immediate(0));
         // TODO(leszeks): Better DeoptimizeReason = kMinusZero.
-        EmitEagerDeoptIf(equal, masm, DeoptimizeReason::kNotInt32, node);
+        __ EmitEagerDeoptIf(equal, DeoptimizeReason::kNotInt32, node);
 
         // Check if {left} is kMinInt and {right} is -1, in which case we'd have
         // to return -kMinInt, which is not representable as Int32.
@@ -2015,9 +1972,9 @@ void Int32DivideWithOverflow::GenerateCode(MaglevAssembler* masm,
         __ j(not_equal, return_label);
         __ cmpl(right, Immediate(-1));
         __ j(not_equal, return_label);
-        // TODO(leszeks): Better DeoptimizeReason = kOverflow.
-        EmitEagerDeopt(masm, node->eager_deopt_info(),
-                       DeoptimizeReason::kNotInt32);
+        // TODO(leszeks): Better DeoptimizeReason = kOverflow, but
+        // eager_deopt_info is already configured as kNotInt32.
+        __ EmitEagerDeopt(node, DeoptimizeReason::kNotInt32);
       },
       right, this);
 
@@ -2026,7 +1983,7 @@ void Int32DivideWithOverflow::GenerateCode(MaglevAssembler* masm,
 
   // Check that the remainder is zero.
   __ cmpl(rdx, Immediate(0));
-  EmitEagerDeoptIf(not_equal, masm, DeoptimizeReason::kNotInt32, this);
+  __ EmitEagerDeoptIf(not_equal, DeoptimizeReason::kNotInt32, this);
   DCHECK_EQ(ToRegister(result()), rax);
 }
 
@@ -2119,7 +2076,7 @@ void Int32ShiftRightLogical::GenerateCode(MaglevAssembler* masm,
   // TODO(jgruber): Properly track signed/unsigned representations and
   // allocated a heap number if the result is outside smi range.
   __ testl(left, Immediate((1 << 31) | (1 << 30)));
-  EmitEagerDeoptIf(not_equal, masm, DeoptimizeReason::kOverflow, this);
+  __ EmitEagerDeoptIf(not_equal, DeoptimizeReason::kOverflow, this);
 }
 
 namespace {
@@ -2298,8 +2255,8 @@ void CheckedSmiUntag::GenerateCode(MaglevAssembler* masm,
   // of the `sarl` for cases where the deopt uses the value from a different
   // register.
   Condition is_smi = __ CheckSmi(value);
-  EmitEagerDeoptIf(NegateCondition(is_smi), masm, DeoptimizeReason::kNotASmi,
-                   this);
+  __ EmitEagerDeoptIf(NegateCondition(is_smi), DeoptimizeReason::kNotASmi,
+                      this);
   __ SmiToInt32(value);
 }
 
@@ -2312,7 +2269,7 @@ void CheckedSmiTag::GenerateCode(MaglevAssembler* masm,
                                  const ProcessingState& state) {
   Register reg = ToRegister(input());
   __ addl(reg, reg);
-  EmitEagerDeoptIf(overflow, masm, DeoptimizeReason::kOverflow, this);
+  __ EmitEagerDeoptIf(overflow, DeoptimizeReason::kOverflow, this);
 }
 
 void Int32Constant::AllocateVreg(MaglevVregAllocationState* vreg_state) {
@@ -2375,7 +2332,7 @@ void CheckedFloat64Unbox::GenerateCode(MaglevAssembler* masm,
   // Check if HeapNumber, deopt otherwise.
   __ CompareRoot(FieldOperand(value, HeapObject::kMapOffset),
                  RootIndex::kHeapNumberMap);
-  EmitEagerDeoptIf(not_equal, masm, DeoptimizeReason::kNotANumber, this);
+  __ EmitEagerDeoptIf(not_equal, DeoptimizeReason::kNotANumber, this);
   __ Movsd(ToDoubleRegister(result()),
            FieldOperand(value, HeapNumber::kValueOffset));
   __ bind(&done);
@@ -3184,7 +3141,7 @@ void Return::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
 
 void Deopt::AllocateVreg(MaglevVregAllocationState* vreg_state) {}
 void Deopt::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
-  EmitEagerDeopt(masm, this, reason());
+  __ EmitEagerDeopt(this, reason());
 }
 void Deopt::PrintParams(std::ostream& os,
                         MaglevGraphLabeller* graph_labeller) const {
@@ -3314,7 +3271,7 @@ void AttemptOnStackReplacement(MaglevAssembler* masm, Label* return_label,
 
   __ bind(&deopt);
   if (V8_LIKELY(FLAG_turbofan)) {
-    EmitEagerDeopt(masm, node, DeoptimizeReason::kPrepareForOnStackReplacement);
+    __ EmitEagerDeopt(node, DeoptimizeReason::kPrepareForOnStackReplacement);
   } else {
     // Fall through. With TF disabled we cannot OSR and thus it doesn't make
     // sense to start the process. We do still perform all remaining

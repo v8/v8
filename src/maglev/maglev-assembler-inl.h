@@ -259,6 +259,40 @@ inline void MaglevAssembler::JumpToDeferredIf(Condition cond,
   bind(&deferred_code->return_label);
 }
 
+// ---
+// Deopt
+// ---
+
+inline void MaglevAssembler::RegisterEagerDeopt(EagerDeoptInfo* deopt_info,
+                                                DeoptimizeReason reason) {
+  if (deopt_info->reason != DeoptimizeReason::kUnknown) {
+    DCHECK_EQ(deopt_info->reason, reason);
+  }
+  if (deopt_info->deopt_entry_label.is_unused()) {
+    code_gen_state()->PushEagerDeopt(deopt_info);
+    deopt_info->reason = reason;
+  }
+}
+
+template <typename NodeT>
+inline void MaglevAssembler::EmitEagerDeopt(NodeT* node,
+                                            DeoptimizeReason reason) {
+  static_assert(NodeT::kProperties.can_eager_deopt());
+  RegisterEagerDeopt(node->eager_deopt_info(), reason);
+  RecordComment("-- Jump to eager deopt");
+  jmp(&node->eager_deopt_info()->deopt_entry_label);
+}
+
+template <typename NodeT>
+inline void MaglevAssembler::EmitEagerDeoptIf(Condition cond,
+                                              DeoptimizeReason reason,
+                                              NodeT* node) {
+  static_assert(NodeT::kProperties.can_eager_deopt());
+  RegisterEagerDeopt(node->eager_deopt_info(), reason);
+  RecordComment("-- Jump to eager deopt");
+  j(cond, &node->eager_deopt_info()->deopt_entry_label);
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8
