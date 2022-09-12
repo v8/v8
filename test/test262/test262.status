@@ -444,10 +444,6 @@
   'built-ins/RegExp/prototype/Symbol.replace/get-flags-err': [FAIL],
   'built-ins/RegExp/prototype/Symbol.replace/get-unicode-error': [FAIL],
 
-  # PlainTime RelativeTime
-  # https://github.com/tc39/proposal-temporal/pull/1862
-  'built-ins/Temporal/Duration/prototype/total/timezone-getpossibleinstantsfor-iterable': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=11544
   'built-ins/Temporal/Duration/prototype/total/balance-negative-result': [FAIL],
   'intl402/Temporal/Calendar/prototype/dateFromFields/infinity-throws-rangeerror': [FAIL],
@@ -530,7 +526,6 @@
   'built-ins/Temporal/Duration/prototype/subtract/relativeto-propertybag-calendar-number': [FAIL],
   'built-ins/Temporal/Duration/prototype/total/relativeto-propertybag-calendar-number': [FAIL],
 
-  'built-ins/Temporal/Duration/prototype/add/relativeto-year': [FAIL],
   'intl402/Temporal/Calendar/prototype/dateFromFields/order-of-operations': [FAIL],
   'intl402/Temporal/Calendar/prototype/monthDayFromFields/order-of-operations': [FAIL],
   'intl402/Temporal/Calendar/prototype/yearMonthFromFields/order-of-operations': [FAIL],
@@ -554,7 +549,6 @@
   'staging/Temporal/Regex/old/timezone': [FAIL],
   'staging/Temporal/TimeZone/old/getNextTransition': [FAIL],
   'staging/Temporal/TimeZone/old/subminute-offset': [FAIL],
-  'staging/Temporal/UserCalendar/old/trivial-protocol-implementation': [FAIL],
   'staging/Temporal/ZonedDateTime/old/construction-and-properties': [FAIL],
   'staging/Temporal/ZonedDateTime/old/dst-math': [FAIL],
   'staging/Temporal/ZonedDateTime/old/dst-properties': [FAIL],

@@ -4964,80 +4964,43 @@ Handle<String> UnitToString(Isolate* isolate, Unit unit) {
   }
 }
 
+// #sec-temporal-create-iso-date-record
+DateRecordCommon CreateISODateRecord(Isolate* isolate,
+                                     const DateRecordCommon& date) {
+  // 1. Assert: IsValidISODate(year, month, day) is true.
+  DCHECK(IsValidISODate(isolate, date));
+  // 2. Return the Record { [[Year]]: year, [[Month]]: month, [[Day]]: day }.
+  return date;
+}
+
 // #sec-temporal-balanceisodate
 DateRecordCommon BalanceISODate(Isolate* isolate,
                                 const DateRecordCommon& date) {
   TEMPORAL_ENTER_FUNC();
+  // 1. Let epochDays be MakeDay(𝔽(year), 𝔽(month - 1), 𝔽(day)).
+  double epoch_days = MakeDay(date.year, date.month - 1, date.day);
+  // 2. Assert: epochDays is finite.
+  DCHECK(std::isfinite(epoch_days));
+  // 3. Let ms be MakeDate(epochDays, +0𝔽).
+  double ms = MakeDate(epoch_days, 0);
+  // 4. Return CreateISODateRecord(ℝ(YearFromTime(ms)), ℝ(MonthFromTime(ms)) +
+  // 1, ℝ(DateFromTime(ms))).
+  int year = 0;
+  int month = 0;
+  int day = 0;
+  int wday = 0;
+  int hour = 0;
+  int minute = 0;
+  int second = 0;
+  int millisecond = 0;
 
-  DateRecordCommon result = date;
-  // 1. Assert: year, month, and day are integers.
-  // 2. Let balancedYearMonth be ! BalanceISOYearMonth(year, month).
-  // 3. Set month to balancedYearMonth.[[Month]].
-  // 4. Set year to balancedYearMonth.[[Year]].
-  BalanceISOYearMonth(isolate, &(result.year), &(result.month));
-  // 5. NOTE: To deal with negative numbers of days whose absolute value is
-  // greater than the number of days in a year, the following section subtracts
-  // years and adds days until the number of days is greater than −366 or −365.
-  // 6. If month > 2, then
-  // a. Let testYear be year.
-  // 7. Else,
-  // a. Let testYear be year − 1.
-  int32_t test_year = (date.month > 2) ? date.year : date.year - 1;
-  // 8. Repeat, while day < −1 × ! ISODaysInYear(testYear),
-  int32_t iso_days_in_year;
-  while (result.day < -(iso_days_in_year = ISODaysInYear(isolate, test_year))) {
-    // a. Set day to day + ! ISODaysInYear(testYear).
-    result.day += iso_days_in_year;
-    // b. Set year to year − 1.
-    (result.year)--;
-    // c. Set testYear to testYear − 1.
-    test_year--;
-  }
-  // 9. NOTE: To deal with numbers of days greater than the number of days in a
-  // year, the following section adds years and subtracts days until the number
-  // of days is less than 366 or 365.
-  // 10. Let testYear be year + 1.
-  test_year = (result.year) + 1;
-  // 11. Repeat, while day > ! ISODaysInYear(testYear),
-  while (result.day > (iso_days_in_year = ISODaysInYear(isolate, test_year))) {
-    // a. Set day to day − ! ISODaysInYear(testYear).
-    result.day -= iso_days_in_year;
-    // b. Set year to year + 1.
-    result.year++;
-    // c. Set testYear to testYear + 1.
-    test_year++;
-  }
-  // 12. NOTE: To deal with negative numbers of days whose absolute value is
-  // greater than the number of days in the current month, the following section
-  // subtracts months and adds days until the number of days is greater than 0.
-  // 13. Repeat, while day < 1,
-  while (result.day < 1) {
-    // a. Set balancedYearMonth to ! BalanceISOYearMonth(year, month − 1).
-    // b. Set year to balancedYearMonth.[[Year]].
-    // c. Set month to balancedYearMonth.[[Month]].
-    result.month -= 1;
-    BalanceISOYearMonth(isolate, &(result.year), &(result.month));
-    // d. Set day to day + ! ISODaysInMonth(year, month).
-    result.day += ISODaysInMonth(isolate, result.year, result.month);
-  }
-  // 14. NOTE: To deal with numbers of days greater than the number of days in
-  // the current month, the following section adds months and subtracts days
-  // until the number of days is less than the number of days in the month.
-  // 15. Repeat, while day > ! ISODaysInMonth(year, month),
-  int32_t iso_days_in_month;
-  while (result.day > (iso_days_in_month = ISODaysInMonth(isolate, result.year,
-                                                          result.month))) {
-    // a. Set day to day − ! ISODaysInMonth(year, month).
-    result.day -= iso_days_in_month;
-    // b. Set balancedYearMonth to ! BalanceISOYearMonth(year, month + 1).
-    // c. Set year to balancedYearMonth.[[Year]].
-    // d. Set month to balancedYearMonth.[[Month]].
-    result.month += 1;
-    BalanceISOYearMonth(isolate, &(result.year), &(result.month));
-  }
-  // 16. Return the new Record { [[Year]]: year, [[Month]]: month, [[Day]]: day
-  // }.
-  return result;
+  DCHECK(std::isfinite(ms));
+  DCHECK_LT(ms, static_cast<double>(std::numeric_limits<int64_t>::max()));
+  DCHECK_GT(ms, static_cast<double>(std::numeric_limits<int64_t>::min()));
+  isolate->date_cache()->BreakDownTime(ms, &year, &month, &day, &wday, &hour,
+                                       &minute, &second, &millisecond);
+
+  return CreateISODateRecord(isolate, {year, month + 1, day});
 }
 
 // #sec-temporal-adddatetime
