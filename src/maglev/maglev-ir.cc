@@ -28,6 +28,7 @@
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir-inl.h"
 #include "src/maglev/maglev-vreg-allocator.h"
+#include "src/objects/instance-type.h"
 
 namespace v8 {
 namespace internal {
@@ -1374,6 +1375,56 @@ void CheckMapsWithMigration::PrintParams(
   os << "(" << *map().object() << ")";
 }
 
+void CheckJSArrayBounds::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  UseRegister(receiver_input());
+  UseRegister(index_input());
+}
+void CheckJSArrayBounds::GenerateCode(MaglevAssembler* masm,
+                                      const ProcessingState& state) {
+  Register object = ToRegister(receiver_input());
+  Register index = ToRegister(index_input());
+  __ AssertNotSmi(object);
+  __ AssertSmi(index);
+
+  if (FLAG_debug_code) {
+    __ CmpObjectType(object, JS_ARRAY_TYPE, kScratchRegister);
+    __ Assert(equal, AbortReason::kUnexpectedValue);
+  }
+  TaggedRegister length(kScratchRegister);
+  __ LoadAnyTaggedField(length, FieldOperand(object, JSArray::kLengthOffset));
+  __ cmp_tagged(index, length.reg());
+  __ EmitEagerDeoptIf(above_equal, DeoptimizeReason::kOutOfBounds, this);
+}
+
+void CheckJSObjectElementsBounds::AllocateVreg(
+    MaglevVregAllocationState* vreg_state) {
+  UseRegister(receiver_input());
+  UseRegister(index_input());
+}
+void CheckJSObjectElementsBounds::GenerateCode(MaglevAssembler* masm,
+                                               const ProcessingState& state) {
+  Register object = ToRegister(receiver_input());
+  Register index = ToRegister(index_input());
+  __ AssertNotSmi(object);
+  __ AssertSmi(index);
+
+  if (FLAG_debug_code) {
+    __ CmpObjectType(object, FIRST_JS_OBJECT_TYPE, kScratchRegister);
+    __ Assert(greater_equal, AbortReason::kUnexpectedValue);
+  }
+  __ LoadAnyTaggedField(
+      kScratchRegister,
+      FieldOperand(object, JSReceiver::kPropertiesOrHashOffset));
+  if (FLAG_debug_code) {
+    __ AssertNotSmi(kScratchRegister);
+  }
+  TaggedRegister length(kScratchRegister);
+  __ LoadAnyTaggedField(
+      length, FieldOperand(kScratchRegister, FixedArray::kLengthOffset));
+  __ cmp_tagged(index, length.reg());
+  __ EmitEagerDeoptIf(above_equal, DeoptimizeReason::kOutOfBounds, this);
+}
+
 void CheckedInternalizedString::AllocateVreg(
     MaglevVregAllocationState* vreg_state) {
   UseRegister(object_input());
@@ -1461,6 +1512,86 @@ void LoadDoubleField::GenerateCode(MaglevAssembler* masm,
 void LoadDoubleField::PrintParams(std::ostream& os,
                                   MaglevGraphLabeller* graph_labeller) const {
   os << "(0x" << std::hex << offset() << std::dec << ")";
+}
+
+void LoadTaggedElement::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  UseRegister(object_input());
+  UseRegister(index_input());
+  DefineAsRegister(vreg_state, this);
+}
+void LoadTaggedElement::GenerateCode(MaglevAssembler* masm,
+                                     const ProcessingState& state) {
+  Register object = ToRegister(object_input());
+  Register index = ToRegister(index_input());
+  Register result_reg = ToRegister(result());
+  __ AssertNotSmi(object);
+  if (FLAG_debug_code) {
+    __ CmpObjectType(object, JS_OBJECT_TYPE, kScratchRegister);
+    __ Assert(above_equal, AbortReason::kUnexpectedValue);
+  }
+  __ DecompressAnyTagged(kScratchRegister,
+                         FieldOperand(object, JSObject::kElementsOffset));
+  if (FLAG_debug_code) {
+    __ CmpObjectType(kScratchRegister, FIXED_ARRAY_TYPE, kScratchRegister);
+    __ Assert(equal, AbortReason::kUnexpectedValue);
+    // Reload since CmpObjectType clobbered the scratch register.
+    __ DecompressAnyTagged(kScratchRegister,
+                           FieldOperand(object, JSObject::kElementsOffset));
+  }
+  __ AssertSmi(index);
+  // Zero out top bits of index reg (these were previously either zero already,
+  // or the cage base). This technically mutates it, but since it's a Smi, that
+  // doesn't matter.
+  __ movl(index, index);
+  static_assert(kSmiTagSize + kSmiShiftSize < times_tagged_size,
+                "Folding the Smi shift into the FixedArray entry size shift "
+                "only works if the shift is small");
+  __ DecompressAnyTagged(
+      result_reg,
+      FieldOperand(kScratchRegister, index,
+                   static_cast<ScaleFactor>(times_tagged_size -
+                                            (kSmiTagSize + kSmiShiftSize)),
+                   FixedArray::kHeaderSize));
+}
+
+void LoadDoubleElement::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  UseRegister(object_input());
+  UseRegister(index_input());
+  DefineAsRegister(vreg_state, this);
+}
+void LoadDoubleElement::GenerateCode(MaglevAssembler* masm,
+                                     const ProcessingState& state) {
+  Register object = ToRegister(object_input());
+  Register index = ToRegister(index_input());
+  DoubleRegister result_reg = ToDoubleRegister(result());
+  __ AssertNotSmi(object);
+  if (FLAG_debug_code) {
+    __ CmpObjectType(object, JS_OBJECT_TYPE, kScratchRegister);
+    __ Assert(above_equal, AbortReason::kUnexpectedValue);
+  }
+  __ DecompressAnyTagged(kScratchRegister,
+                         FieldOperand(object, JSObject::kElementsOffset));
+  if (FLAG_debug_code) {
+    __ CmpObjectType(kScratchRegister, FIXED_DOUBLE_ARRAY_TYPE,
+                     kScratchRegister);
+    __ Assert(equal, AbortReason::kUnexpectedValue);
+    // Reload since CmpObjectType clobbered the scratch register.
+    __ DecompressAnyTagged(kScratchRegister,
+                           FieldOperand(object, JSObject::kElementsOffset));
+  }
+  __ AssertSmi(index);
+  // Zero out top bits of index reg (these were previously either zero already,
+  // or the cage base). This technically mutates it, but since it's a Smi, that
+  // doesn't matter.
+  __ movl(index, index);
+  static_assert(kSmiTagSize + kSmiShiftSize < times_8,
+                "Folding the Smi shift into the FixedArray entry size shift "
+                "only works if the shift is small");
+  __ Movsd(result_reg,
+           FieldOperand(kScratchRegister, index,
+                        static_cast<ScaleFactor>(times_8 -
+                                                 (kSmiTagSize + kSmiShiftSize)),
+                        FixedDoubleArray::kHeaderSize));
 }
 
 void StoreTaggedFieldNoWriteBarrier::AllocateVreg(
