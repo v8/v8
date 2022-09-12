@@ -1552,7 +1552,9 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
   pop(r0);
 }
 
-void LiftoffAssembler::LoadSpillAddress(Register dst, int offset) {
+void LiftoffAssembler::LoadSpillAddress(Register dst, int offset,
+                                        ValueKind kind) {
+  if (kind == kI32) offset = offset + stack_bias;
   SubS64(dst, fp, Operand(offset));
 }
 

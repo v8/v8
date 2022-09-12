@@ -658,7 +658,7 @@ class LiftoffAssembler : public TurboAssembler {
   void Spill(VarState* slot);
   void SpillLocals();
   void SpillAllRegisters();
-  inline void LoadSpillAddress(Register dst, int offset);
+  inline void LoadSpillAddress(Register dst, int offset, ValueKind kind);
 
   // Clear any uses of {reg} in both the cache and in {possible_uses}.
   // Any use in the stack is spilled. If any register in {possible_uses} matches

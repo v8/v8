@@ -157,7 +157,8 @@ void LiftoffAssembler::PatchPrepareStackFrame(
   GenPCRelativeJump(kScratchReg, imm32);
 }
 
-void LiftoffAssembler::LoadSpillAddress(Register dst, int offset) {
+void LiftoffAssembler::LoadSpillAddress(Register dst, int offset,
+                                        ValueKind /* kind */) {
   SubWord(dst, fp, offset);
 }
 

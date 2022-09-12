@@ -2360,7 +2360,7 @@ class LiftoffCompiler {
         __ Spill(&return_slot);
       }
       DCHECK(return_slot.is_stack());
-      __ LoadSpillAddress(param_reg, return_slot.offset());
+      __ LoadSpillAddress(param_reg, return_slot.offset(), return_slot.kind());
     }
 
     source_position_table_builder_.AddPosition(
