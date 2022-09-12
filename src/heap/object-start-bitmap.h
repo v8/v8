@@ -71,7 +71,7 @@ class V8_EXPORT_PRIVATE ObjectStartBitmap {
   inline uint32_t load(size_t cell_index) const;
 
   PtrComprCageBase cage_base() const { return cage_base_; }
-  Address offset() const { return offset_; };
+  Address offset() const { return offset_; }
 
   static constexpr size_t kBitsPerCell = sizeof(uint32_t) * CHAR_BIT;
   static constexpr size_t kCellMask = kBitsPerCell - 1;
