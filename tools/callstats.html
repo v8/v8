@@ -1966,6 +1966,11 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         };
       }
       add(entry) {
+        // Ignore accidentally added Group entries.
+        if (entry.name.startsWith(GroupedEntry.prefix)) {
+          console.warn("Skipping accidentally added Group entry:", entry, this);
+          return;
+        }
         let existingEntry = this.entryDict.get(entry.name);
         if (existingEntry !== undefined) {
           // Duplicate entries happen when multiple runs are combined into a
@@ -1976,11 +1981,6 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
             if (group.addTimeAndCount(entry)) return;
           }
         } else {
-          // Ignore accidentally added Group entries.
-          if (entry.name.startsWith(GroupedEntry.prefix)) {
-            console.warn("Skipping accidentally added Group entry:", entry, this);
-            return;
-          }
           entry.page = this;
           this.entryDict.set(entry.name, entry);
           for (let group of this.groups) {
@@ -2054,12 +2054,22 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         // or the new object style.
         if (Array.isArray(data)) {
           for (let i = 0; i < data.length; i++) {
-            page.add(Entry.fromLegacyJSON(i, data[data.length - i - 1]));
+            const entryData = data[data.length - i - 1];
+            const metricName = entryData[0];
+            if (metricName.startsWith(GroupedEntry.prefix)) {
+              console.warn(`Ignoring input group-entry "${metricName}".`);
+              continue;
+            };
+            page.add(Entry.fromLegacyJSON(i, entryData));
           }
         } else {
           let position = 0;
-          for (let metric_name in data) {
-            page.add(Entry.fromJSON(position, metric_name, data[metric_name]));
+          for (let metricName in data) {
+            if (metricName.startsWith(GroupedEntry.prefix)) {
+              console.warn(`Ignoring input group-entry "${metricName}".`);
+              continue;
+            }
+            page.add(Entry.fromJSON(position, metricName, data[metricName]));
             position++;
           }
         }
