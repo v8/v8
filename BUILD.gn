@@ -285,8 +285,11 @@ declare_args() {
       target_os == "fuchsia"
 
   # Enable control-flow integrity features, such as pointer authentication for
-  # ARM64.
-  v8_control_flow_integrity = false
+  # ARM64. Enable it by default for simulator builds and when native code
+  # supports it as well.
+  v8_control_flow_integrity =
+      v8_current_cpu == "arm64" &&
+      (target_is_simulator || arm_control_flow_integrity != "none")
 
   # Enable heap reservation of size 4GB. Only possible for 64bit archs.
   cppgc_enable_caged_heap =
@@ -495,14 +498,6 @@ assert(!v8_enable_trace_ignition || v8_enable_trace_unoptimized,
        "Ignition tracing requires unoptimized tracing to be enabled.")
 assert(!v8_enable_trace_baseline_exec || v8_enable_trace_unoptimized,
        "Baseline tracing requires unoptimized tracing to be enabled.")
-
-# Check if it is a Chromium build and activate PAC/BTI if needed.
-# TODO(cavalcantii): have a single point of integration with PAC/BTI flags.
-if (build_with_chromium && v8_current_cpu == "arm64" &&
-    (arm_control_flow_integrity == "standard" ||
-     arm_control_flow_integrity == "pac")) {
-  v8_control_flow_integrity = true
-}
 
 if (v8_enable_short_builtin_calls &&
     (!v8_enable_pointer_compression && v8_current_cpu != "x64")) {
@@ -1101,18 +1096,9 @@ config("toolchain") {
   }
   if (v8_current_cpu == "arm64") {
     defines += [ "V8_TARGET_ARCH_ARM64" ]
-    if (current_cpu == "arm64") {
-      # This will enable PAC+BTI in code generation and static code.
-      if (v8_control_flow_integrity &&
-          (!build_with_chromium || arm_control_flow_integrity == "standard")) {
-        cflags += [ "-mbranch-protection=standard" ]
-        asmflags = [ "-mmark-bti-property" ]
-      } else if (build_with_chromium && arm_control_flow_integrity == "pac") {
-        # This should enable PAC only in C++ code (and no CFI in runtime
-        # generated code). For details, see crbug.com/919548.
-        cflags += [ "-mbranch-protection=pac-ret" ]
-        asmflags = [ "-mbranch-protection=pac-ret" ]
-      }
+    if (current_cpu == "arm64" && v8_control_flow_integrity) {
+      # Mark assembly code as BTI-compatible.
+      asmflags = [ "-mmark-bti-property" ]
     }
   }
 
