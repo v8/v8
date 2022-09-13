@@ -565,8 +565,8 @@
   'staging/Intl402/Temporal/old/yearmonth-toLocaleString': [FAIL],
   'staging/Intl402/Temporal/old/zoneddatetime-toLocaleString': [FAIL],
 
-  # https://github.com/tc39/proposal-intl-numberformat-v3/pull/107
-  'intl402/NumberFormat/test-option-useGrouping': [FAIL],
+  # https://github.com/tc39/test262/pull/3659
+  'intl402/NumberFormat/test-option-useGrouping-extended': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=11660
   'intl402/DurationFormat/prototype/prototype_attributes': [FAIL],
