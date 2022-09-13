@@ -79,6 +79,7 @@ void OptimizedCompilationInfo::ConfigureFlags() {
     case CodeKind::BUILTIN:
     case CodeKind::FOR_TESTING:
       if (v8_flags.turbo_splitting) set_splitting();
+      if (v8_flags.enable_allocation_folding) set_allocation_folding();
 #if ENABLE_GDB_JIT_INTERFACE && DEBUG
       set_source_positions();
 #endif  // ENABLE_GDB_JIT_INTERFACE && DEBUG
