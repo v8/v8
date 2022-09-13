@@ -1012,6 +1012,10 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
   }
 }
 
+void LiftoffAssembler::LoadSpillAddress(Register dst, int offset) {
+  Sub_d(dst, fp, Operand(offset));
+}
+
 void LiftoffAssembler::emit_i64_clz(LiftoffRegister dst, LiftoffRegister src) {
   TurboAssembler::Clz_d(dst.gp(), src.gp());
 }
