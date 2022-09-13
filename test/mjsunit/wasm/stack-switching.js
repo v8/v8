@@ -495,3 +495,29 @@ function TestNestedSuspenders(suspend) {
   let wrapper = ToPromising(instance.exports.test);
   assertThrows(wrapper, RangeError, /Maximum call stack size exceeded/);
 })();
+
+(function TestBadSuspender() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let import_index = builder.addImport('m', 'import', kSig_i_r);
+  builder.addFunction("test", kSig_i_r)
+      .addBody([
+          kExprLocalGet, 0,
+          kExprCallFunction, import_index, // suspend
+      ]).exportFunc();
+  builder.addFunction("return_suspender", kSig_r_r)
+      .addBody([
+          kExprLocalGet, 0
+      ]).exportFunc();
+  let js_import = new WebAssembly.Function(
+      {parameters: ['externref'], results: ['i32']},
+      () => Promise.resolve(42),
+      {suspending: 'first'});
+  let instance = builder.instantiate({m: {import: js_import}});
+  let suspender = ToPromising(instance.exports.return_suspender)();
+  for (s of [suspender, null, undefined, {}]) {
+    assertThrows(() => instance.exports.test(s),
+        WebAssembly.RuntimeError,
+        /invalid suspender object for suspend/);
+  }
+})();

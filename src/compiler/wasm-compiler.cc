@@ -6891,12 +6891,20 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     // If value is a promise, suspend to the js-to-wasm prompt, and resume later
     // with the promise's resolved value.
     auto resume = gasm_->MakeLabel(MachineRepresentation::kTagged);
-    gasm_->GotoIf(IsSmi(value), &resume, value);
-    gasm_->GotoIfNot(gasm_->HasInstanceType(value, JS_PROMISE_TYPE), &resume,
-                     BranchHint::kTrue, value);
+    // Trap if the suspender argument is not the active suspender or if there is
+    // no active suspender.
+    auto bad_suspender = gasm_->MakeDeferredLabel();
     Node* native_context = gasm_->Load(
         MachineType::TaggedPointer(), api_function_ref,
         wasm::ObjectAccess::ToTagged(WasmApiFunctionRef::kNativeContextOffset));
+    Node* active_suspender = LOAD_ROOT(ActiveSuspender, active_suspender);
+    gasm_->GotoIf(gasm_->TaggedEqual(active_suspender, UndefinedValue()),
+                  &bad_suspender, BranchHint::kFalse);
+    gasm_->GotoIfNot(gasm_->TaggedEqual(suspender, active_suspender),
+                     &bad_suspender, BranchHint::kFalse);
+    gasm_->GotoIf(IsSmi(value), &resume, value);
+    gasm_->GotoIfNot(gasm_->HasInstanceType(value, JS_PROMISE_TYPE), &resume,
+                     BranchHint::kTrue, value);
     auto* call_descriptor = GetBuiltinCallDescriptor(
         Builtin::kWasmSuspend, zone_, StubCallMode::kCallWasmRuntimeStub);
     Node* call_target = mcgraph()->RelocatableIntPtrConstant(
@@ -6907,6 +6915,10 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Node* resolved =
         gasm_->Call(call_descriptor, call_target, chained_promise, suspender);
     gasm_->Goto(&resume, resolved);
+    gasm_->Bind(&bad_suspender);
+    BuildCallToRuntimeWithContext(Runtime::kThrowBadSuspenderError,
+                                  native_context, nullptr, 0);
+    TerminateThrow(effect(), control());
     gasm_->Bind(&resume);
     return resume.PhiAt(0);
   }

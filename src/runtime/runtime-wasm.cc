@@ -194,6 +194,15 @@ RUNTIME_FUNCTION(Runtime_WasmThrowJSTypeError) {
       isolate, NewTypeError(MessageTemplate::kWasmTrapJSTypeError));
 }
 
+// This error is thrown from a wasm-to-JS wrapper, so unlike
+// Runtime_ThrowWasmError, this function does not check or unset the
+// thread-in-wasm flag.
+RUNTIME_FUNCTION(Runtime_ThrowBadSuspenderError) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+  return ThrowWasmError(isolate, MessageTemplate::kWasmTrapBadSuspender);
+}
+
 RUNTIME_FUNCTION(Runtime_WasmThrow) {
   ClearThreadInWasmScope clear_wasm_flag(isolate);
   HandleScope scope(isolate);
