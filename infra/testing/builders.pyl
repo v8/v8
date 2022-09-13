@@ -1205,16 +1205,6 @@
       {'name': 'v8testing', 'variant': 'default'},
     ],
   },
-  'V8 Linux - predictable': {
-    'swarming_dimensions': {
-      'os': 'Ubuntu-18.04',
-    },
-    'tests': [
-      {'name': 'benchmarks'},
-      {'name': 'd8testing'},
-      {'name': 'mozilla'},
-    ],
-  },
   'V8 Linux64 - predictable': {
     'swarming_dimensions': {
       'cpu': 'x86-64-avx2',

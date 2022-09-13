@@ -126,7 +126,6 @@
       'V8 Linux - vtunejit': 'debug_x86_vtunejit',
       'V8 Linux64 - gcov coverage': 'release_x64_gcc_coverage',
       'V8 Linux64 - Fuzzilli - builder': 'release_x64_fuzzilli',
-      'V8 Linux - predictable - builder': 'release_x86_predictable',
       'V8 Linux64 - predictable - builder': 'release_x64_predictable',
       'V8 Linux - full debug builder': 'full_debug_x86',
       'V8 Mac64 - full debug builder': 'full_debug_x64',
@@ -645,8 +644,6 @@
       'release_trybot', 'x86', 'v8_no_i18n'],
     'release_x64_predictable': [
       'release_bot', 'x64', 'v8_enable_verify_predictable'],
-    'release_x86_predictable': [
-      'release_bot', 'x86', 'v8_enable_verify_predictable'],
     'release_x86_shared_verify_heap': [
       'release', 'x86', 'goma', 'shared', 'v8_verify_heap'],
     'release_x86_trybot': [
