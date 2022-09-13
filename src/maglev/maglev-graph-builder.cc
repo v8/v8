@@ -1040,7 +1040,8 @@ bool MaglevGraphBuilder::TryBuildMonomorphicLoadFromSmiHandler(
     InternalIndex index =
         descriptors.Search(field.property_index(), *map.object());
     DCHECK(index.is_found());
-    DCHECK(descriptors.GetDetails(index).representation().IsDouble());
+    DCHECK(Representation::Double().CanBeInPlaceChangedTo(
+        descriptors.GetDetails(index).representation()));
     const compiler::CompilationDependency* dep =
         broker()->dependencies()->FieldRepresentationDependencyOffTheRecord(
             map, index, Representation::Double());
