@@ -10922,16 +10922,31 @@ MaybeHandle<Object> GetIANATimeZoneTransition(Isolate* isolate,
               .ToHandleChecked()
               ->AsInt64(),
           transition);
-  MAYBE_RETURN(maybe_transition, Handle<Object>());
   // If there are no transition in this timezone, return null.
   if (maybe_transition.IsNothing()) {
     return isolate->factory()->null_value();
   }
 
+  // #sec-temporal-getianatimezonenexttransition and
+  // #sec-temporal-getianatimezoneprevioustransition states:
+  // "The operation returns null if no such transition exists for which t ≤
+  // ℤ(nsMaxInstant)." and "The operation returns null if no such transition
+  // exists for which t ≥ ℤ(nsMinInstant)."
+  //
+  // nsMinInstant = -nsMaxInstant = -8.64 × 10^21 => msMinInstant = -8.64 x
+  // 10^15
+  constexpr int64_t kMsMinInstant = -8.64e15;
+  // nsMaxInstant = 10^8 × nsPerDay = 8.64 × 10^21 => msMaxInstant = 8.64 x
+  // 10^15
+  constexpr int64_t kMsMaxInstant = 8.64e15;
+
+  int64_t ms = maybe_transition.FromJust();
+  if (ms < kMsMinInstant || ms > kMsMaxInstant) {
+    return isolate->factory()->null_value();
+  }
+
   // Convert the transition from milliseconds to nanoseconds.
-  return BigInt::Multiply(
-      isolate, BigInt::FromInt64(isolate, maybe_transition.FromJust()),
-      one_million);
+  return BigInt::Multiply(isolate, BigInt::FromInt64(isolate, ms), one_million);
 }
 // #sec-temporal-getianatimezonenexttransition
 MaybeHandle<Object> GetIANATimeZoneNextTransition(Isolate* isolate,
