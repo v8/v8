@@ -110,7 +110,7 @@ if options.perf_data_dir is None:
   options.perf_data_dir = Path.cwd()
 else:
   options.perf_data_dir = Path(options.perf_data_dir).absolute()
-
+options.perf_data_dir.mkdir(parents=True, exist_ok=True)
 if not options.perf_data_dir.is_dir():
   parser.error(f"--perf-data-dir={options.perf_data_dir} "
                "is not an directory or does not exist.")
@@ -218,8 +218,8 @@ log("POST PROCESSING: Injecting JS symbols")
 def inject_v8_symbols(perf_dat_file):
   output_file = perf_dat_file.with_suffix(".data.jitted")
   cmd = [
-      "perf", "inject", "--jit", f"--input={perf_dat_file}",
-      f"--output={output_file}"
+      "perf", "inject", "--jit", f"--input={perf_dat_file.absolute()}",
+      f"--output={output_file.absolute()}"
   ]
   try:
     subprocess.check_call(cmd)
@@ -252,7 +252,10 @@ try:
   subprocess.check_call("gcertstatus >&/dev/null || gcert", shell=True)
   has_gcert = True
 
-  cmd = ["pprof", "-flame", f"-add_comment={shlex.join(sys.argv)}", str(result)]
+  cmd = [
+      "pprof", "-flame", f"-add_comment={shlex.join(sys.argv)}",
+      str(result.absolute())
+  ]
   print("# Processing and uploading to pprofresult")
   url = subprocess.check_output(cmd).decode('utf-8').strip()
   print(url)

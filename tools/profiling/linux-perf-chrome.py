@@ -100,7 +100,7 @@ if options.perf_data_dir is None:
   options.perf_data_dir = Path.cwd()
 else:
   options.perf_data_dir = Path(options.perf_data_dir).absolute()
-
+options.perf_data_dir.mkdir(parents=True, exist_ok=True)
 if not options.perf_data_dir.is_dir():
   parser.error(f"--perf-data-dir={options.perf_data_dir} "
                "is not an directory or does not exist.")
@@ -203,12 +203,12 @@ log("PARALLEL POST PROCESSING: Injecting JS symbols")
 def inject_v8_symbols(perf_dat_file):
   output_file = perf_dat_file.with_suffix(".data.jitted")
   cmd = [
-      "perf", "inject", "--jit", f"--input={perf_dat_file}",
-      f"--output={output_file}"
+      "perf", "inject", "--jit", f"--input={perf_dat_file.absolute()}",
+      f"--output={output_file.absolute()}"
   ]
   try:
     subprocess.check_call(cmd)
-    print(f"Processed: {output_file}")
+    print(f"Processed: {output_file.name}")
   except:
     print(shlex.join(cmd))
     return None
@@ -236,14 +236,14 @@ for output_file in reversed(results):
   )
 
 # ==============================================================================
-path_strings = [str(path.relative_to(old_cwd)) for path in results]
-largest_result = path_strings[-1]
-results_str = ' '.join(path_strings)
+rel_path_strings = [str(path.relative_to(old_cwd)) for path in results]
+abs_path_strings = [str(path.absolute()) for path in results]
+largest_result = abs_path_strings[-1]
 
 if not shutil.which('gcertstatus'):
   log("ANALYSIS")
   print(f"perf report --input='{largest_result}'")
-  print(f"pprof {path_strings}")
+  print(f"pprof {rel_path_strings}")
   exit(0)
 
 log("PPROF")
@@ -260,13 +260,13 @@ try:
   print(url)
 
   print("# Processing and uploading combined pprof result")
-  url = subprocess.check_output(cmd + path_strings).decode('utf-8').strip()
+  url = subprocess.check_output(cmd + abs_path_strings).decode('utf-8').strip()
   print("# PPROF RESULT")
   print(url)
 except subprocess.CalledProcessError as e:
   if has_gcert:
     raise Exception("Could not generate pprof results") from e
   print("# Please run `gcert` for generating pprof results")
-  print(f"pprof -flame {' '.join(path_strings)}")
+  print(f"pprof -flame {' '.join(rel_path_strings)}")
 except KeyboardInterrupt:
   exit(1)
