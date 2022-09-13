@@ -2217,9 +2217,6 @@ DEFINE_BOOL(enable_etw_stack_walking, false,
             "Enable etw stack walking for windows")
 // Don't move code objects.
 DEFINE_NEG_IMPLICATION(enable_etw_stack_walking, compact_code_space)
-#ifndef V8_TARGET_ARCH_ARM
-DEFINE_IMPLICATION(enable_etw_stack_walking, interpreted_frames_native_stack)
-#endif
 
 //
 // Disassembler only flags
