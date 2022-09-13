@@ -1128,10 +1128,6 @@
   # BUG(v8:12605): flaky test.
   'wasm/grow-shared-memory': [SKIP],
 
-  # BUG(v8:12463)
-  'regress/wasm/regress-1179065': [SKIP],
-  'wasm/speculative-inlining': [SKIP],
-
   # BUG(v8:13234)
   'wasm/shared-memory-worker-gc-stress': [SKIP],
   'object-literal': [SKIP],

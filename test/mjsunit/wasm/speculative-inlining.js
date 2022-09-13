@@ -4,8 +4,7 @@
 
 // Flags: --wasm-speculative-inlining --experimental-wasm-return-call
 // Flags: --experimental-wasm-typed-funcref --experimental-wasm-type-reflection
-// Flags: --no-wasm-tier-up --wasm-dynamic-tiering --wasm-tiering-budget=100
-// Flags: --allow-natives-syntax
+// Flags: --no-wasm-tier-up --wasm-dynamic-tiering --allow-natives-syntax
 
 // These tests check if functions are speculatively inlined as expected. We do
 // not check automatically which functions are inlined. To get more insight, run
@@ -26,17 +25,15 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
                                  [kExprRefFunc, callee.index]);
 
   // g(x) = f(5) + x
-  builder.addFunction("main", kSig_i_i)
+  let main = builder.addFunction("main", kSig_i_i)
     .addBody([kExprI32Const, 5, kExprGlobalGet, global.index,
               kExprCallRef, callee.type_index,
               kExprLocalGet, 0, kExprI32Add])
     .exportAs("main");
 
   let instance = builder.instantiate();
-  // Run 'main' until it is tiered-up.
-  while (%IsLiftoffFunction(instance.exports.main)) {
-    assertEquals(14, instance.exports.main(10));
-  }
+  for (let i = 0; i < 20; i++) assertEquals(14, instance.exports.main(10));
+  %WasmTierUpFunction(instance, main.index);
   // The tiered-up function should have {callee} speculatively inlined.
   assertEquals(14, instance.exports.main(10));
 })();
@@ -61,7 +58,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
                                   [kExprRefFunc, callee1.index]);
 
   // g(x, y) = if (y) { h(5) + x } else { f(7) + x }
-  builder.addFunction("main", kSig_i_ii)
+  let main = builder.addFunction("main", kSig_i_ii)
     .addBody([
       kExprLocalGet, 1,
       kExprIf, kWasmI32,
@@ -77,12 +74,10 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   let instance = builder.instantiate();
 
-  // Run 'main' until it is tiered-up.
-  while (%IsLiftoffFunction(instance.exports.main)) {
-    assertEquals(14, instance.exports.main(10, 1));
-  }
+  for (let i = 0; i < 20; i++) assertEquals(14, instance.exports.main(10, 1));
+  %WasmTierUpFunction(instance, main.index);
   // Tier-up is done, and {callee0} should be inlined in the trace.
-  assertEquals(14, instance.exports.main(10, 1))
+  assertEquals(14, instance.exports.main(10, 1));
 
   // Now, run main with {callee1} instead. The correct reference should still be
   // called after inlining.
@@ -101,17 +96,16 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
                                  [kExprRefFunc, callee.index]);
 
   // g(x) = f(5 + x)
-  builder.addFunction("main", kSig_i_i)
+  let main = builder.addFunction("main", kSig_i_i)
     .addBody([kExprI32Const, 5, kExprLocalGet, 0, kExprI32Add,
               kExprGlobalGet, global.index,
               kExprReturnCallRef, callee.type_index])
     .exportAs("main");
 
   let instance = builder.instantiate();
-  // Run 'main' until it is tiered-up.
-  while (%IsLiftoffFunction(instance.exports.main)) {
-    assertEquals(14, instance.exports.main(10));
-  }
+
+  for (let i = 0; i < 20; i++) assertEquals(14, instance.exports.main(10));
+  %WasmTierUpFunction(instance, main.index);
   // After tier-up, the tail call should be speculatively inlined.
   assertEquals(14, instance.exports.main(10));
 })();
@@ -136,7 +130,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
                                  [kExprRefFunc, callee1.index]);
 
   // g(x, y) = if (y) { h(x) } else { f(x) }
-  builder.addFunction("main", kSig_i_ii)
+  let main = builder.addFunction("main", kSig_i_ii)
     .addBody([
       kExprLocalGet, 1,
       kExprIf, kWasmI32,
@@ -149,10 +143,9 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .exportAs("main");
 
   let instance = builder.instantiate();
-  // Run 'main' until it is tiered-up.
-  while (%IsLiftoffFunction(instance.exports.main)) {
-    assertEquals(9, instance.exports.main(10, 1));
-  }
+
+  assertEquals(9, instance.exports.main(10, 1));
+  %WasmTierUpFunction(instance, main.index);
   // After tier-up, {callee0} should be inlined in the trace.
   assertEquals(9, instance.exports.main(10, 1))
 
@@ -176,6 +169,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     return builder.instantiate({m : { i_f1 : x => x + 1, i_f2 : x => x + 2}});
   }();
 
+  let main = null;
   let instance2 = function() {
     let builder = new WasmModuleBuilder();
 
@@ -186,8 +180,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
       .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprI32Add])
       .exportFunc();
 
-    builder.addFunction("main", makeSig([kWasmI32,
-                                         wasmRefType(sig1)], [kWasmI32]))
+    main = builder.addFunction("main",
+        makeSig([kWasmI32, wasmRefType(sig1)], [kWasmI32]))
       .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprCallRef, sig1])
       .exportFunc();
 
@@ -195,9 +189,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   }();
 
   // Run 'main' until it is tiered-up.
-  while (%IsLiftoffFunction(instance2.exports.main)) {
-    assertEquals(1, instance2.exports.main(0, instance1.exports.f1));
-  }
+  assertEquals(1, instance2.exports.main(0, instance1.exports.f1));
+  %WasmTierUpFunction(instance2, main.index);
   // The function f1 defined in another module should not be inlined.
   assertEquals(1, instance2.exports.main(0, instance1.exports.f1));
 })();
@@ -212,12 +205,13 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let f2 = new WebAssembly.Function({parameters: ["i32"], results: ["i32"]},
                                     x => x * 2);
 
+  let main = null;
   let instance2 = function() {
     let builder = new WasmModuleBuilder();
 
     let sig = builder.addType(kSig_i_i);
 
-    builder.addFunction("main", makeSig(
+    main = builder.addFunction("main", makeSig(
         [kWasmI32, wasmRefType(sig), wasmRefType(sig)], [kWasmI32]))
       .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprCallRef, sig,
                 kExprLocalGet, 0, kExprLocalGet, 2, kExprCallRef, sig,
@@ -231,14 +225,14 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   // Run 'main' until it is tiered-up. The first argument should try to be
   // spec-inlined monomorphically. We pass f2 to the second argument 80% of the
   // time, so it should try to be spec-inlined polymorphically.
-  while (%IsLiftoffFunction(instance2.exports.main)) {
+  for (let i = 0; i < 20; i++) {
     if (i % 5 == 0) {
       assertEquals(12, instance2.exports.main(5, f1, f1));
     } else {
       assertEquals(16, instance2.exports.main(5, f1, f2));
     }
-    i++;
   }
+  %WasmTierUpFunction(instance2, main.index);
   // WebAssembly.Function objects should not be inlined.
   assertEquals(16, instance2.exports.main(5, f1, f2));
   assertEquals(12, instance2.exports.main(5, f1, f1));
