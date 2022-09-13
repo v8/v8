@@ -485,6 +485,8 @@ bool Heap::IsPendingAllocationInternal(HeapObject object) {
       return addr == large_space->pending_object();
     }
 
+    case SHARED_SPACE:
+    case SHARED_LO_SPACE:
     case RO_SPACE:
       UNREACHABLE();
   }

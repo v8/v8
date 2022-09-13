@@ -31,7 +31,7 @@ void HeapAllocator::Setup() {
   shared_map_allocator_ = heap_->shared_map_allocator_
                               ? heap_->shared_map_allocator_.get()
                               : shared_old_allocator_;
-  shared_lo_space_ = heap_->shared_lo_space();
+  shared_lo_space_ = heap_->shared_isolate_lo_space_;
 }
 
 void HeapAllocator::SetReadOnlySpace(ReadOnlySpace* read_only_space) {

@@ -127,7 +127,9 @@ class SafepointScope;
 class ScavengeJob;
 class Scavenger;
 class ScavengerCollector;
+class SharedLargeObjectSpace;
 class SharedReadOnlySpace;
+class SharedSpace;
 class Space;
 class StressScavengeObserver;
 class TimedHistogram;
@@ -876,12 +878,11 @@ class Heap {
   NewSpace* new_space() const { return new_space_; }
   inline PagedNewSpace* paged_new_space() const;
   OldSpace* old_space() const { return old_space_; }
-  OldSpace* shared_old_space() const { return shared_old_space_; }
+  OldSpace* shared_old_space() const { return shared_isolate_old_space_; }
   CodeSpace* code_space() const { return code_space_; }
   MapSpace* map_space() const { return map_space_; }
   inline PagedSpace* space_for_maps();
   OldLargeObjectSpace* lo_space() const { return lo_space_; }
-  OldLargeObjectSpace* shared_lo_space() const { return shared_lo_space_; }
   CodeLargeObjectSpace* code_lo_space() const { return code_lo_space_; }
   NewLargeObjectSpace* new_lo_space() const { return new_lo_space_; }
   ReadOnlySpace* read_only_space() const { return read_only_space_; }
@@ -2190,14 +2191,16 @@ class Heap {
   OldSpace* old_space_ = nullptr;
   CodeSpace* code_space_ = nullptr;
   MapSpace* map_space_ = nullptr;
+  SharedSpace* shared_space_ = nullptr;
   OldLargeObjectSpace* lo_space_ = nullptr;
   CodeLargeObjectSpace* code_lo_space_ = nullptr;
   NewLargeObjectSpace* new_lo_space_ = nullptr;
+  SharedLargeObjectSpace* shared_lo_space_ = nullptr;
   ReadOnlySpace* read_only_space_ = nullptr;
 
-  OldSpace* shared_old_space_ = nullptr;
-  OldLargeObjectSpace* shared_lo_space_ = nullptr;
-  MapSpace* shared_map_space_ = nullptr;
+  OldSpace* shared_isolate_old_space_ = nullptr;
+  OldLargeObjectSpace* shared_isolate_lo_space_ = nullptr;
+  MapSpace* shared_isolate_map_space_ = nullptr;
 
   std::unique_ptr<ConcurrentAllocator> shared_old_allocator_;
   std::unique_ptr<ConcurrentAllocator> shared_map_allocator_;

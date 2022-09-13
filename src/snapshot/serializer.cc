@@ -788,6 +788,8 @@ SnapshotSpace GetSnapshotSpace(HeapObject object) {
         return SnapshotSpace::kCode;
       case MAP_SPACE:
         return SnapshotSpace::kMap;
+      case SHARED_SPACE:
+      case SHARED_LO_SPACE:
       case CODE_LO_SPACE:
       case RO_SPACE:
         UNREACHABLE();
