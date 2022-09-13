@@ -7,12 +7,14 @@ import os
 import sys
 import unittest
 
+from queue import Empty, Full, Queue
+
 # Needed because the test runner contains relative imports.
 TOOLS_PATH = os.path.dirname(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(TOOLS_PATH)
 
-from testrunner.local.pool import DefaultExecutionPool
+from testrunner.local.pool import DefaultExecutionPool, drain_queue_async
 
 
 def Run(x):
@@ -62,6 +64,18 @@ class PoolTest(unittest.TestCase):
         pool.add([result.value + 20])
     self.assertEqual(
         set(range(0, 10)) | set(range(20, 30)) | set(range(40, 50)), results)
+
+
+class QueueTest(unittest.TestCase):
+  def testDrainQueueAsync(self):
+    queue = Queue(1)
+    queue.put('foo')
+    with self.assertRaises(Full):
+      queue.put('bar', timeout=0.01)
+    with drain_queue_async(queue):
+      queue.put('bar')
+    with self.assertRaises(Empty):
+      queue.get(False)
 
 
 if __name__ == '__main__':

@@ -7,6 +7,7 @@ import collections
 import logging
 import os
 import signal
+import threading
 import traceback
 
 from contextlib import contextmanager
@@ -25,8 +26,6 @@ def setup_testing():
   del Process
   from queue import Queue
   from threading import Thread as Process
-  # Monkeypatch threading Queue to look like multiprocessing Queue.
-  Queue.cancel_join_thread = lambda self: None
   # Monkeypatch os.kill and add fake pid property on Thread.
   os.kill = lambda *args: None
   Process.pid = property(lambda self: None)
@@ -106,6 +105,36 @@ def without_sig():
   finally:
     signal.signal(signal.SIGINT, int_handler)
     signal.signal(signal.SIGTERM, term_handler)
+
+
+@contextmanager
+def drain_queue_async(queue):
+  """Drains a queue in a background thread until the wrapped code unblocks.
+
+  This can be used to unblock joining a child process that might still write
+  to the queue. The join should be wrapped by this context manager.
+  """
+  keep_running = True
+
+  def empty_queue():
+    elem_count = 0
+    while keep_running:
+      try:
+        while True:
+          queue.get(True, 0.1)
+          elem_count += 1
+          if elem_count < 200:
+            logging.info('Drained an element from queue.')
+      except Empty:
+        pass
+      except:
+        logging.exception('Error draining queue.')
+
+  emptier = threading.Thread(target=empty_queue)
+  emptier.start()
+  yield
+  keep_running = False
+  emptier.join()
 
 
 class ContextPool():
@@ -325,35 +354,10 @@ class DefaultExecutionPool(ContextPool):
       self._terminate_processes()
 
     self.notify("Joining workers")
-    for p in self.processes:
-      p.join()
+    with drain_queue_async(self.done_queue):
+      for p in self.processes:
+        p.join()
 
-    # Drain the queues to prevent stderr chatter when queues are garbage
-    # collected.
-    self.notify("Draining queues")
-    # TODO(https://crbug.com/v8/13113): Remove extra logging after
-    # investigation.
-    elem_count = 0
-    try:
-      while True:
-        self.work_queue.get(False)
-        elem_count += 1
-        if elem_count < 200:
-          logging.info('Drained an element from work queue.')
-    except Empty:
-      pass
-    except:
-      logging.exception('Error draining work queue.')
-    try:
-      while True:
-        self.done_queue.get(False)
-        elem_count += 1
-        if elem_count < 200:
-          logging.info('Drained an element from done queue.')
-    except Empty:
-      pass
-    except:
-      logging.exception('Error draining done queue.')
     self.notify("Pool terminated")
 
   def _get_result_from_queue(self):
