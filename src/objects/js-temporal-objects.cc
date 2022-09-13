@@ -9744,12 +9744,8 @@ Maybe<DateRecordCommon> AddISODate(Isolate* isolate,
   // 5. Set days to days + 7 × weeks.
   // 6. Let d be intermediate.[[Day]] + days.
   intermediate.day += duration.days + 7 * duration.weeks;
-  // 7. Let intermediate be ! BalanceISODate(intermediate.[[Year]],
-  // intermediate.[[Month]], d).
-  intermediate = BalanceISODate(isolate, intermediate);
-  // 8. Return ? RegulateISODate(intermediate.[[Year]], intermediate.[[Month]],
-  // intermediate.[[Day]], overflow).
-  return RegulateISODate(isolate, overflow, intermediate);
+  // 7. Return BalanceISODate(intermediate.[[Year]], intermediate.[[Month]], d).
+  return Just(BalanceISODate(isolate, intermediate));
 }
 
 // #sec-temporal-differenceisodate
@@ -15867,17 +15863,10 @@ MaybeHandle<Smi> JSTemporalZonedDateTime::HoursInDay(
            {0, 0, 0, 0, 0, 0}},
           iso_calendar),
       Smi);
-  // 11. Let tomorrowFields be ? AddISODate(year, month, day, 0, 0, 0, 1,
-  // "reject").
-  DateRecordCommon tomorrow_fields;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, tomorrow_fields,
-      AddISODate(
-          isolate,
-          {temporal_date_time->iso_year(), temporal_date_time->iso_month(),
-           temporal_date_time->iso_day()},
-          {0, 0, 0, 1}, ShowOverflow::kReject),
-      Handle<Smi>());
+  // 11. Let tomorrowFields be BalanceISODate(year, month, day + 1).
+  DateRecordCommon tomorrow_fields = BalanceISODate(
+      isolate, {temporal_date_time->iso_year(), temporal_date_time->iso_month(),
+                temporal_date_time->iso_day() + 1});
 
   // 12. Let tomorrow be ? CreateTemporalDateTime(tomorrowFields.[[Year]],
   // tomorrowFields.[[Month]], tomorrowFields.[[Day]], 0, 0, 0, 0, 0, 0,
