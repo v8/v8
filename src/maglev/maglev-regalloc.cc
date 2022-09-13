@@ -284,8 +284,9 @@ void StraightForwardRegisterAllocator::PrintLiveRegs() const {
 
 void StraightForwardRegisterAllocator::AllocateRegisters() {
   if (FLAG_trace_maglev_regalloc) {
-    printing_visitor_.reset(new MaglevPrintingVisitor(std::cout));
-    printing_visitor_->PreProcessGraph(compilation_info_, graph_);
+    printing_visitor_.reset(new MaglevPrintingVisitor(
+        compilation_info_->graph_labeller(), std::cout));
+    printing_visitor_->PreProcessGraph(graph_);
   }
 
   for (const auto& [ref, constant] : graph_->constants()) {
@@ -326,7 +327,7 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
     }
 
     if (FLAG_trace_maglev_regalloc) {
-      printing_visitor_->PreProcessBasicBlock(compilation_info_, block);
+      printing_visitor_->PreProcessBasicBlock(block);
       printing_visitor_->os() << "live regs: ";
       PrintLiveRegs();
 
@@ -390,8 +391,7 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
         if (phi->owner() == interpreter::Register::virtual_accumulator()) {
           phi->result().SetAllocated(ForceAllocate(kReturnRegister0, phi));
           if (FLAG_trace_maglev_regalloc) {
-            printing_visitor_->Process(
-                phi, ProcessingState(compilation_info_, block_it_));
+            printing_visitor_->Process(phi, ProcessingState(block_it_));
             printing_visitor_->os() << "phi (exception message object) "
                                     << phi->result().operand() << std::endl;
           }
@@ -411,8 +411,7 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
               general_registers_.AllocateRegister(phi);
           phi->result().SetAllocated(allocation);
           if (FLAG_trace_maglev_regalloc) {
-            printing_visitor_->Process(
-                phi, ProcessingState(compilation_info_, block_it_));
+            printing_visitor_->Process(phi, ProcessingState(block_it_));
             printing_visitor_->os()
                 << "phi (new reg) " << phi->result().operand() << std::endl;
           }
@@ -429,8 +428,7 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
         // TODO(verwaest): Will this be used at all?
         phi->result().SetAllocated(phi->spill_slot());
         if (FLAG_trace_maglev_regalloc) {
-          printing_visitor_->Process(
-              phi, ProcessingState(compilation_info_, block_it_));
+          printing_visitor_->Process(phi, ProcessingState(block_it_));
           printing_visitor_->os()
               << "phi (stack) " << phi->result().operand() << std::endl;
         }
@@ -606,8 +604,7 @@ void StraightForwardRegisterAllocator::AllocateNode(Node* node) {
   if (node->properties().needs_register_snapshot()) SaveRegisterSnapshot(node);
 
   if (FLAG_trace_maglev_regalloc) {
-    printing_visitor_->Process(node,
-                               ProcessingState(compilation_info_, block_it_));
+    printing_visitor_->Process(node, ProcessingState(block_it_));
     printing_visitor_->os() << "live regs: ";
     PrintLiveRegs();
     printing_visitor_->os() << "\n";
@@ -880,8 +877,7 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
     DCHECK_EQ(node->properties(), OpProperties(0));
 
     if (FLAG_trace_maglev_regalloc) {
-      printing_visitor_->Process(node,
-                                 ProcessingState(compilation_info_, block_it_));
+      printing_visitor_->Process(node, ProcessingState(block_it_));
     }
   } else if (node->Is<Deopt>()) {
     // No fixed temporaries.
@@ -893,8 +889,7 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
     UpdateUse(*node->eager_deopt_info());
 
     if (FLAG_trace_maglev_regalloc) {
-      printing_visitor_->Process(node,
-                                 ProcessingState(compilation_info_, block_it_));
+      printing_visitor_->Process(node, ProcessingState(block_it_));
     }
   } else if (auto unconditional = node->TryCast<UnconditionalControlNode>()) {
     // No fixed temporaries.
@@ -932,8 +927,7 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
     }
 
     if (FLAG_trace_maglev_regalloc) {
-      printing_visitor_->Process(node,
-                                 ProcessingState(compilation_info_, block_it_));
+      printing_visitor_->Process(node, ProcessingState(block_it_));
     }
   } else {
     DCHECK(node->Is<ConditionalControlNode>() || node->Is<Return>());
@@ -956,8 +950,7 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
     VerifyRegisterState();
 
     if (FLAG_trace_maglev_regalloc) {
-      printing_visitor_->Process(node,
-                                 ProcessingState(compilation_info_, block_it_));
+      printing_visitor_->Process(node, ProcessingState(block_it_));
     }
 
     // Finally, initialize the merge states of branch targets, including the
@@ -991,8 +984,7 @@ void StraightForwardRegisterAllocator::TryAllocateToInput(Phi* phi) {
         phi->result().SetAllocated(ForceAllocate(reg, phi));
         DCHECK_EQ(general_registers_.GetValue(reg), phi);
         if (FLAG_trace_maglev_regalloc) {
-          printing_visitor_->Process(
-              phi, ProcessingState(compilation_info_, block_it_));
+          printing_visitor_->Process(phi, ProcessingState(block_it_));
           printing_visitor_->os()
               << "phi (reuse) " << input.operand() << std::endl;
         }

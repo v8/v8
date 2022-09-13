@@ -636,7 +636,7 @@ class MaglevCodeGeneratingNodeProcessor {
   explicit MaglevCodeGeneratingNodeProcessor(MaglevAssembler* masm)
       : masm_(masm) {}
 
-  void PreProcessGraph(MaglevCompilationInfo*, Graph* graph) {
+  void PreProcessGraph(Graph* graph) {
     if (FLAG_maglev_break_on_entry) {
       __ int3();
     }
@@ -748,7 +748,7 @@ class MaglevCodeGeneratingNodeProcessor {
     }
   }
 
-  void PostProcessGraph(MaglevCompilationInfo*, Graph*) {
+  void PostProcessGraph(Graph*) {
     __ int3();
     __ bind(&deferred_call_stack_guard_);
     ASM_CODE_COMMENT_STRING(masm(), "Stack/interrupt call");
@@ -763,7 +763,7 @@ class MaglevCodeGeneratingNodeProcessor {
     __ jmp(&deferred_call_stack_guard_return_);
   }
 
-  void PreProcessBasicBlock(MaglevCompilationInfo*, BasicBlock* block) {
+  void PreProcessBasicBlock(BasicBlock* block) {
     if (FLAG_code_comments) {
       std::stringstream ss;
       ss << "-- Block b" << graph_labeller()->BlockId(block);
@@ -955,7 +955,7 @@ class MaglevCodeGeneratorImpl final {
                                  graph->untagged_stack_slots()),
         code_gen_state_(compilation_info, safepoint_table_builder()),
         masm_(&code_gen_state_),
-        processor_(compilation_info, &masm_),
+        processor_(&masm_),
         graph_(graph) {}
 
   MaybeHandle<Code> Generate() {

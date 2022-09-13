@@ -28,11 +28,12 @@ class ProcessingState;
 
 class MaglevPrintingVisitor {
  public:
-  explicit MaglevPrintingVisitor(std::ostream& os);
+  explicit MaglevPrintingVisitor(MaglevGraphLabeller* graph_labeller,
+                                 std::ostream& os);
 
-  void PreProcessGraph(MaglevCompilationInfo*, Graph* graph);
-  void PostProcessGraph(MaglevCompilationInfo*, Graph* graph) {}
-  void PreProcessBasicBlock(MaglevCompilationInfo*, BasicBlock* block);
+  void PreProcessGraph(Graph* graph);
+  void PostProcessGraph(Graph* graph) {}
+  void PreProcessBasicBlock(BasicBlock* block);
   void Process(Phi* phi, const ProcessingState& state);
   void Process(Node* node, const ProcessingState& state);
   void Process(ControlNode* node, const ProcessingState& state);
@@ -40,6 +41,7 @@ class MaglevPrintingVisitor {
   std::ostream& os() { return *os_for_additional_info_; }
 
  private:
+  MaglevGraphLabeller* graph_labeller_;
   std::ostream& os_;
   std::unique_ptr<std::ostream> os_for_additional_info_;
   std::set<BasicBlock*> loop_headers_;

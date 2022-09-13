@@ -26,6 +26,7 @@
 #include "src/ic/handler-configuration.h"
 #include "src/maglev/maglev-basic-block.h"
 #include "src/maglev/maglev-code-generator.h"
+#include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-compilation-unit.h"
 #include "src/maglev/maglev-graph-builder.h"
 #include "src/maglev/maglev-graph-labeller.h"
@@ -48,13 +49,12 @@ namespace maglev {
 
 class UseMarkingProcessor {
  public:
-  void PreProcessGraph(MaglevCompilationInfo*, Graph* graph) {
-    next_node_id_ = kFirstValidNodeId;
-  }
-  void PostProcessGraph(MaglevCompilationInfo*, Graph* graph) {
-    DCHECK(loop_used_nodes_.empty());
-  }
-  void PreProcessBasicBlock(MaglevCompilationInfo*, BasicBlock* block) {
+  explicit UseMarkingProcessor(MaglevCompilationInfo* compilation_info)
+      : compilation_info_(compilation_info) {}
+
+  void PreProcessGraph(Graph* graph) { next_node_id_ = kFirstValidNodeId; }
+  void PostProcessGraph(Graph* graph) { DCHECK(loop_used_nodes_.empty()); }
+  void PreProcessBasicBlock(BasicBlock* block) {
     if (!block->has_state()) return;
     if (block->state()->is_loop()) {
       loop_used_nodes_.push_back(LoopUsedNodes{next_node_id_, {}});
@@ -121,7 +121,7 @@ class UseMarkingProcessor {
       // loop, allow nodes to be "moved" between lifetime extensions.
       LoopUsedNodes* outer_loop_used_nodes = GetCurrentLoopUsedNodes();
       base::Vector<Input> used_node_inputs =
-          state.compilation_info()->zone()->NewVector<Input>(
+          compilation_info_->zone()->NewVector<Input>(
               loop_used_nodes.used_nodes.size());
       int i = 0;
       for (ValueNode* used_node : loop_used_nodes.used_nodes) {
@@ -228,29 +228,31 @@ class UseMarkingProcessor {
         });
   }
 
+  MaglevCompilationInfo* compilation_info_;
   uint32_t next_node_id_;
   std::vector<LoopUsedNodes> loop_used_nodes_;
 };
 
 class TranslationArrayProcessor {
  public:
-  explicit TranslationArrayProcessor(LocalIsolate* local_isolate)
-      : local_isolate_(local_isolate) {}
+  explicit TranslationArrayProcessor(LocalIsolate* local_isolate,
+                                     MaglevCompilationInfo* compilation_info)
+      : local_isolate_(local_isolate), compilation_info_(compilation_info) {}
 
-  void PreProcessGraph(MaglevCompilationInfo* compilation_info, Graph* graph) {
+  void PreProcessGraph(Graph* graph) {
     translation_array_builder_.reset(
-        new TranslationArrayBuilder(compilation_info->zone()));
+        new TranslationArrayBuilder(compilation_info_->zone()));
     deopt_literals_.reset(new IdentityMap<int, base::DefaultAllocationPolicy>(
         local_isolate_->heap()->heap()));
 
     tagged_slots_ = graph->tagged_stack_slots();
   }
 
-  void PostProcessGraph(MaglevCompilationInfo* compilation_info, Graph* graph) {
-    compilation_info->set_translation_array_builder(
+  void PostProcessGraph(Graph* graph) {
+    compilation_info_->set_translation_array_builder(
         std::move(translation_array_builder_), std::move(deopt_literals_));
   }
-  void PreProcessBasicBlock(MaglevCompilationInfo*, BasicBlock* block) {}
+  void PreProcessBasicBlock(BasicBlock* block) {}
 
   void Process(NodeBase* node, const ProcessingState& state) {
     if (node->properties().can_eager_deopt()) {
@@ -524,6 +526,7 @@ class TranslationArrayProcessor {
   }
 
   LocalIsolate* local_isolate_;
+  MaglevCompilationInfo* compilation_info_;
   std::unique_ptr<TranslationArrayBuilder> translation_array_builder_;
   std::unique_ptr<IdentityMap<int, base::DefaultAllocationPolicy>>
       deopt_literals_;
@@ -572,7 +575,7 @@ void MaglevCompiler::Compile(LocalIsolate* local_isolate,
 
   {
     GraphMultiProcessor<UseMarkingProcessor, MaglevVregAllocator> processor(
-        compilation_info);
+        UseMarkingProcessor{compilation_info});
     processor.ProcessGraph(graph_builder.graph());
   }
 
@@ -590,7 +593,7 @@ void MaglevCompiler::Compile(LocalIsolate* local_isolate,
   }
 
   GraphProcessor<TranslationArrayProcessor> build_translation_array(
-      compilation_info, local_isolate);
+      local_isolate, compilation_info);
   build_translation_array.ProcessGraph(graph_builder.graph());
 
   // Stash the compiled graph on the compilation info.

@@ -49,14 +49,15 @@ class Graph;
 // are expected to be tagged/untagged. Add more verification later.
 class MaglevGraphVerifier {
  public:
-  void PreProcessGraph(MaglevCompilationInfo* compilation_info, Graph* graph) {
+  explicit MaglevGraphVerifier(MaglevCompilationInfo* compilation_info) {
     if (compilation_info->has_graph_labeller()) {
       graph_labeller_ = compilation_info->graph_labeller();
     }
   }
 
-  void PostProcessGraph(MaglevCompilationInfo*, Graph* graph) {}
-  void PreProcessBasicBlock(MaglevCompilationInfo*, BasicBlock* block) {}
+  void PreProcessGraph(Graph* graph) {}
+  void PostProcessGraph(Graph* graph) {}
+  void PreProcessBasicBlock(BasicBlock* block) {}
 
   void CheckValueInputIs(NodeBase* node, int i, ValueRepresentation expected) {
     ValueNode* input = node->input(i).node();
