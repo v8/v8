@@ -707,6 +707,10 @@ int32_t ScanTimeZoneBracketedAnnotation(base::Vector<Char> str, int32_t s,
   int32_t len = ScanTimeZoneIdentifier(str, cur, r);
   cur += len;
   if (len == 0 || str.length() < (cur + 1) || (str[cur] != ']')) {
+    // Only ScanTimeZoneBracketedAnnotation know the post condition of
+    // TimeZoneIdentifier is not matched so we need to reset here.
+    r->tzi_name_start = 0;
+    r->tzi_name_length = 0;
     return 0;
   }
   cur++;
@@ -878,6 +882,10 @@ int32_t ScanCalendar(base::Vector<Char> str, int32_t s,
   int32_t len = ScanCalendarName(str, cur, r);
   if (len == 0) return 0;
   if ((str.length() < (cur + len + 1)) || (str[cur + len] != ']')) {
+    // Only ScanCalendar know the post condition of CalendarName is not met and
+    // need to reset here.
+    r->calendar_name_start = 0;
+    r->calendar_name_length = 0;
     return 0;
   }
   return 6 + len + 1;
