@@ -287,11 +287,20 @@ void BaselineAssembler::JumpIfSmi(Condition cc, Register lhs, Register rhs,
   JumpIfHelper(masm_, cc, lhs, rhs, target);
 }
 
+constexpr static int stack_bias = 4;
+
 void BaselineAssembler::JumpIfTagged(Condition cc, Register value,
                                      MemOperand operand, Label* target,
                                      Label::Distance) {
   ASM_CODE_COMMENT(masm_);
-  __ LoadTaggedPointerField(ip, operand, r0);
+  DCHECK(operand.rb() == fp || operand.rx() == fp);
+  if (COMPRESS_POINTERS_BOOL) {
+    MemOperand addr =
+        MemOperand(operand.rx(), operand.rb(), operand.offset() + stack_bias);
+    __ LoadTaggedPointerField(ip, addr, r0);
+  } else {
+    __ LoadTaggedPointerField(ip, operand, r0);
+  }
   JumpIfHelper<COMPRESS_POINTERS_BOOL ? 32 : 64>(masm_, cc, value, ip, target);
 }
 
@@ -299,7 +308,14 @@ void BaselineAssembler::JumpIfTagged(Condition cc, MemOperand operand,
                                      Register value, Label* target,
                                      Label::Distance) {
   ASM_CODE_COMMENT(masm_);
-  __ LoadTaggedPointerField(ip, operand, r0);
+  DCHECK(operand.rb() == fp || operand.rx() == fp);
+  if (COMPRESS_POINTERS_BOOL) {
+    MemOperand addr =
+        MemOperand(operand.rx(), operand.rb(), operand.offset() + stack_bias);
+    __ LoadTaggedPointerField(ip, addr, r0);
+  } else {
+    __ LoadTaggedPointerField(ip, operand, r0);
+  }
   JumpIfHelper<COMPRESS_POINTERS_BOOL ? 32 : 64>(masm_, cc, ip, value, target);
 }
 void BaselineAssembler::JumpIfByte(Condition cc, Register value, int32_t byte,
