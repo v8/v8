@@ -3106,8 +3106,6 @@ void FillJumpBuffer(MacroAssembler* masm, Register jmpbuf, Label* pc,
   __ Str(tmp, MemOperand(jmpbuf, wasm::kJmpBufStackLimitOffset));
   __ Adr(tmp, pc);
   __ Str(tmp, MemOperand(jmpbuf, wasm::kJmpBufPcOffset));
-  SwitchStackState(masm, jmpbuf, tmp, wasm::JumpBuffer::Active,
-                   wasm::JumpBuffer::Inactive);
 }
 
 void LoadJumpBuffer(MacroAssembler* masm, Register jmpbuf, bool load_pc,
@@ -4423,6 +4421,8 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
       FieldMemOperand(continuation, WasmContinuationObject::kJmpbufOffset),
       kWasmContinuationJmpbufTag);
   FillJumpBuffer(masm, jmpbuf, &resume, scratch);
+  SwitchStackState(masm, jmpbuf, scratch, wasm::JumpBuffer::Active,
+                   wasm::JumpBuffer::Inactive);
   __ Move(scratch, Smi::FromInt(WasmSuspenderObject::kSuspended));
   __ StoreTaggedField(
       scratch,
@@ -4573,6 +4573,8 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
                       WasmContinuationObject::kJmpbufOffset),
       kWasmContinuationJmpbufTag);
   FillJumpBuffer(masm, current_jmpbuf, &suspend, scratch);
+  SwitchStackState(masm, current_jmpbuf, scratch, wasm::JumpBuffer::Active,
+                   wasm::JumpBuffer::Inactive);
   FREE_REG(current_jmpbuf);
 
   // -------------------------------------------

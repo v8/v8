@@ -835,6 +835,11 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
   active_suspender_slot.store(*suspender);
 
   SyncStackLimit(isolate);
+  wasm::JumpBuffer* jmpbuf = reinterpret_cast<wasm::JumpBuffer*>(
+      parent->ReadExternalPointerField<kWasmContinuationJmpbufTag>(
+          WasmContinuationObject::kJmpbufOffset, isolate));
+  DCHECK_EQ(jmpbuf->state, wasm::JumpBuffer::Active);
+  jmpbuf->state = wasm::JumpBuffer::Inactive;
   return *suspender;
 }
 

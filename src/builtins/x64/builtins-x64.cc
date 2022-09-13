@@ -2889,8 +2889,6 @@ void FillJumpBuffer(MacroAssembler* masm, Register jmpbuf, Label* pc) {
   __ movq(MemOperand(jmpbuf, wasm::kJmpBufStackLimitOffset), kScratchRegister);
   __ leaq(kScratchRegister, MemOperand(pc, 0));
   __ movq(MemOperand(jmpbuf, wasm::kJmpBufPcOffset), kScratchRegister);
-  SwitchStackState(masm, jmpbuf, wasm::JumpBuffer::Active,
-                   wasm::JumpBuffer::Inactive);
 }
 
 void LoadJumpBuffer(MacroAssembler* masm, Register jmpbuf, bool load_pc) {
@@ -3982,6 +3980,8 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
       jmpbuf, FieldOperand(continuation, WasmContinuationObject::kJmpbufOffset),
       kWasmContinuationJmpbufTag, r8);
   FillJumpBuffer(masm, jmpbuf, &resume);
+  SwitchStackState(masm, jmpbuf, wasm::JumpBuffer::Active,
+                   wasm::JumpBuffer::Inactive);
   __ StoreTaggedSignedField(
       FieldOperand(suspender, WasmSuspenderObject::kStateOffset),
       Smi::FromInt(WasmSuspenderObject::kSuspended));
@@ -4118,6 +4118,8 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
       FieldOperand(active_continuation, WasmContinuationObject::kJmpbufOffset),
       kWasmContinuationJmpbufTag, rdx);
   FillJumpBuffer(masm, current_jmpbuf, &suspend);
+  SwitchStackState(masm, current_jmpbuf, wasm::JumpBuffer::Active,
+                   wasm::JumpBuffer::Inactive);
   current_jmpbuf = no_reg;
 
   // -------------------------------------------
