@@ -5,9 +5,7 @@
 #include "src/ic/ic.h"
 
 #include "src/api/api-arguments-inl.h"
-#include "src/api/api.h"
 #include "src/ast/ast.h"
-#include "src/base/bits.h"
 #include "src/base/logging.h"
 #include "src/builtins/accessors.h"
 #include "src/common/assert-scope.h"
@@ -16,6 +14,7 @@
 #include "src/execution/execution.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
+#include "src/execution/isolate.h"
 #include "src/execution/protectors-inl.h"
 #include "src/execution/tiering-manager.h"
 #include "src/handles/handles-inl.h"
@@ -27,19 +26,13 @@
 #include "src/ic/stub-cache.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/api-callbacks.h"
-#include "src/objects/data-handler-inl.h"
 #include "src/objects/field-type.h"
-#include "src/objects/hash-table-inl.h"
-#include "src/objects/heap-number-inl.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/megadom-handler.h"
-#include "src/objects/module-inl.h"
 #include "src/objects/property-descriptor.h"
 #include "src/objects/prototype.h"
-#include "src/objects/struct-inl.h"
-#include "src/runtime/runtime-utils.h"
 #include "src/runtime/runtime.h"
 #include "src/tracing/trace-event.h"
 #include "src/tracing/tracing-category-observer.h"
@@ -211,6 +204,7 @@ static void LookupForRead(LookupIterator* it, bool is_has_property) {
       case LookupIterator::TRANSITION:
         UNREACHABLE();
       case LookupIterator::JSPROXY:
+      case LookupIterator::WASM_OBJECT:
         return;
       case LookupIterator::INTERCEPTOR: {
         // If there is a getter, return; otherwise loop to perform the lookup.
@@ -870,68 +864,6 @@ void IC::UpdateMegamorphicCache(Handle<Map> map, Handle<Name> name,
   }
 }
 
-namespace {
-
-#if V8_ENABLE_WEBASSEMBLY
-
-inline WasmValueType GetWasmValueType(wasm::ValueType type) {
-#define TYPE_CASE(Name) \
-  case wasm::k##Name:   \
-    return WasmValueType::k##Name;
-
-  switch (type.kind()) {
-    TYPE_CASE(I8)
-    TYPE_CASE(I16)
-    TYPE_CASE(I32)
-    TYPE_CASE(I64)
-    TYPE_CASE(F32)
-    TYPE_CASE(F64)
-    TYPE_CASE(S128)
-    TYPE_CASE(Ref)
-    TYPE_CASE(RefNull)
-
-    case wasm::kRtt:
-      // Rtt values are not supposed to be made available to JavaScript side.
-      UNREACHABLE();
-
-    case wasm::kVoid:
-    case wasm::kBottom:
-      UNREACHABLE();
-  }
-#undef TYPE_CASE
-}
-
-Handle<Smi> MakeLoadWasmStructFieldHandler(Isolate* isolate,
-                                           Handle<JSReceiver> holder,
-                                           LookupIterator* lookup) {
-  DCHECK(holder->IsWasmObject(isolate));
-  WasmValueType type;
-  int field_offset;
-  if (holder->IsWasmArray(isolate)) {
-    // The only named property that WasmArray has is length.
-    DCHECK_EQ(0, lookup->property_details().field_index());
-    DCHECK_EQ(*isolate->factory()->length_string(), *lookup->name());
-    type = WasmValueType::kU32;
-    field_offset = WasmArray::kLengthOffset;
-  } else {
-    wasm::StructType* struct_type = Handle<WasmStruct>::cast(holder)->type();
-    int field_index = lookup->property_details().field_index();
-    type = GetWasmValueType(struct_type->field(field_index));
-    field_offset =
-        WasmStruct::kHeaderSize + struct_type->field_offset(field_index);
-
-    const size_t kMaxWasmFieldOffset =
-        WasmStruct::kHeaderSize + wasm::StructType::kMaxFieldOffset;
-    static_assert(kMaxWasmFieldOffset <= LoadHandler::WasmFieldOffsetBits::kMax,
-                  "Bigger numbers of struct fields require different approach");
-  }
-  return LoadHandler::LoadWasmStructField(isolate, type, field_offset);
-}
-
-#endif  // V8_ENABLE_WEBASSEMBLY
-
-}  // namespace
-
 MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
   Handle<Object> receiver = lookup->GetReceiver();
   ReadOnlyRoots roots(isolate());
@@ -1155,30 +1087,14 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
           return MaybeObjectHandle(smi_handler);
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNormalFromPrototypeDH);
       } else if (lookup->IsElement(*holder)) {
-#if V8_ENABLE_WEBASSEMBLY
-        if (holder_is_lookup_start_object && holder->IsWasmStruct()) {
-          // TODO(ishell): Consider supporting indexed access to WasmStruct
-          // fields.
-          TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNonexistentDH);
-          return MaybeObjectHandle(LoadHandler::LoadNonExistent(isolate()));
-        }
-#endif  // V8_ENABLE_WEBASSEMBLY
         TRACE_HANDLER_STATS(isolate(), LoadIC_SlowStub);
         return MaybeObjectHandle(LoadHandler::LoadSlow(isolate()));
       } else {
         DCHECK_EQ(PropertyLocation::kField,
                   lookup->property_details().location());
-#if V8_ENABLE_WEBASSEMBLY
-        if (V8_UNLIKELY(holder->IsWasmObject(isolate()))) {
-          smi_handler =
-              MakeLoadWasmStructFieldHandler(isolate(), holder, lookup);
-        } else  // NOLINT(readability/braces)
-#endif          // V8_ENABLE_WEBASSEMBLY
-        {
-          DCHECK(holder->IsJSObject(isolate()));
-          FieldIndex field = lookup->GetFieldIndex();
-          smi_handler = LoadHandler::LoadField(isolate(), field);
-        }
+        DCHECK(holder->IsJSObject(isolate()));
+        FieldIndex field = lookup->GetFieldIndex();
+        smi_handler = LoadHandler::LoadField(isolate(), field);
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldDH);
         if (holder_is_lookup_start_object)
           return MaybeObjectHandle(smi_handler);
@@ -1227,6 +1143,9 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
       return MaybeObjectHandle(LoadHandler::LoadFromPrototype(
           isolate(), map, holder_proxy, smi_handler));
     }
+
+    case LookupIterator::WASM_OBJECT:
+      return MaybeObjectHandle(LoadHandler::LoadSlow(isolate()));
     case LookupIterator::ACCESS_CHECK:
     case LookupIterator::NOT_FOUND:
     case LookupIterator::TRANSITION:
@@ -1618,6 +1537,7 @@ bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
       switch (it->state()) {
         case LookupIterator::NOT_FOUND:
         case LookupIterator::TRANSITION:
+        case LookupIterator::WASM_OBJECT:
           UNREACHABLE();
         case LookupIterator::JSPROXY:
           return true;
@@ -1773,11 +1693,15 @@ Maybe<bool> DefineOwnDataProperty(LookupIterator* it,
       return JSProxy::DefineOwnProperty(it->isolate(), it->GetHolder<JSProxy>(),
                                         it->GetName(), &new_desc, should_throw);
     }
+    case LookupIterator::WASM_OBJECT:
+      RETURN_FAILURE(it->isolate(), kThrowOnError,
+                     NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));
     // When lazy feedback is disabled, the original state could be different
     // while the object is already prepared for TRANSITION.
     case LookupIterator::TRANSITION: {
       switch (original_state) {
         case LookupIterator::JSPROXY:
+        case LookupIterator::WASM_OBJECT:
         case LookupIterator::TRANSITION:
         case LookupIterator::DATA:
         case LookupIterator::INTERCEPTOR:
@@ -2200,6 +2124,7 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
     case LookupIterator::INTEGER_INDEXED_EXOTIC:
     case LookupIterator::ACCESS_CHECK:
     case LookupIterator::NOT_FOUND:
+    case LookupIterator::WASM_OBJECT:
       UNREACHABLE();
   }
   return MaybeObjectHandle();
@@ -2550,6 +2475,12 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
       set_slow_stub_reason("map in array prototype");
       use_ic = false;
     }
+#if V8_ENABLE_WEBASSEMBLY
+    if (heap_object->map().IsWasmObjectMap()) {
+      set_slow_stub_reason("wasm object");
+      use_ic = false;
+    }
+#endif
   }
 
   Handle<Map> old_receiver_map;

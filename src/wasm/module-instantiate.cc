@@ -987,6 +987,7 @@ MaybeHandle<Object> InstanceBuilder::LookupImportAsm(
     case LookupIterator::INTEGER_INDEXED_EXOTIC:
     case LookupIterator::INTERCEPTOR:
     case LookupIterator::JSPROXY:
+    case LookupIterator::WASM_OBJECT:
     case LookupIterator::ACCESSOR:
     case LookupIterator::TRANSITION:
       return ReportLinkError("not a data property", index, import_name);

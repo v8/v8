@@ -658,6 +658,7 @@ namespace internal {
   T(WasmTrapStringIsolatedSurrogate,                                           \
     "Failed to encode string as UTF-8: contains unpaired surrogate")           \
   T(WasmExceptionError, "wasm exception")                                      \
+  T(WasmObjectsAreOpaque, "WebAssembly objects are opaque")                    \
   /* Asm.js validation related */                                              \
   T(AsmJsInvalid, "Invalid asm.js: %")                                         \
   T(AsmJsCompiled, "Converted asm.js to WebAssembly: %")                       \
