@@ -44,10 +44,15 @@ class MaglevGraphBuilder {
 
     StartPrologue();
     for (int i = 0; i < parameter_count(); i++) {
-      SetArgument(i, AddNewNode<InitialValue>(
-                         {}, interpreter::Register::FromParameterIndex(i)));
+      // TODO(v8:7700): Consider creating InitialValue nodes lazily.
+      InitialValue* v = AddNewNode<InitialValue>(
+          {}, interpreter::Register::FromParameterIndex(i));
+      DCHECK_EQ(graph()->parameters().size(), static_cast<size_t>(i));
+      graph()->parameters().push_back(v);
+      SetArgument(i, v);
     }
     BuildRegisterFrameInitialization();
+    BuildMergeStates();
     EndPrologue();
     BuildBody();
   }
@@ -56,6 +61,7 @@ class MaglevGraphBuilder {
   void SetArgument(int i, ValueNode* value);
   ValueNode* GetTaggedArgument(int i);
   void BuildRegisterFrameInitialization();
+  void BuildMergeStates();
   BasicBlock* EndPrologue();
 
   void BuildBody() {

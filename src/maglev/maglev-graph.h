@@ -32,6 +32,7 @@ class Graph final : public ZoneObject {
         smi_(zone),
         int_(zone),
         float_(zone),
+        parameters_(zone),
         constants_(zone) {}
 
   BasicBlock* operator[](int i) { return blocks_[i]; }
@@ -65,6 +66,7 @@ class Graph final : public ZoneObject {
   ZoneMap<int, SmiConstant*>& smi() { return smi_; }
   ZoneMap<int, Int32Constant*>& int32() { return int_; }
   ZoneMap<double, Float64Constant*>& float64() { return float_; }
+  ZoneVector<InitialValue*>& parameters() { return parameters_; }
   compiler::ZoneRefMap<compiler::ObjectRef, Constant*>& constants() {
     return constants_;
   }
@@ -82,6 +84,7 @@ class Graph final : public ZoneObject {
   ZoneMap<int, SmiConstant*> smi_;
   ZoneMap<int, Int32Constant*> int_;
   ZoneMap<double, Float64Constant*> float_;
+  ZoneVector<InitialValue*> parameters_;
   compiler::ZoneRefMap<compiler::ObjectRef, Constant*> constants_;
   Float64Constant* nan_ = nullptr;
 };

@@ -481,36 +481,9 @@ class MergePointInterpreterFrameState {
   }
 
   static MergePointInterpreterFrameState* NewForCatchBlock(
-      const MaglevCompilationUnit& info,
-      const compiler::BytecodeLivenessState* liveness, int handler_offset) {
-    MergePointInterpreterFrameState* state =
-        info.zone()->New<MergePointInterpreterFrameState>(
-            info, 0, 0, nullptr, BasicBlockType::kExceptionHandlerStart,
-            liveness);
-    auto& frame_state = state->frame_state_;
-    // If the accumulator is live, the ExceptionPhi associated to it is the
-    // first one in the block. That ensures it gets kReturnValue0 in the
-    // register allocator. See
-    // StraightForwardRegisterAllocator::AllocateRegisters.
-    if (frame_state.liveness()->AccumulatorIsLive()) {
-      frame_state.accumulator(info) = state->NewExceptionPhi(
-          info.zone(), interpreter::Register::virtual_accumulator(),
-          handler_offset);
-    }
-    frame_state.ForEachParameter(
-        info, [&](ValueNode*& entry, interpreter::Register reg) {
-          entry = state->NewExceptionPhi(info.zone(), reg, handler_offset);
-        });
-    frame_state.context(info) = state->NewExceptionPhi(
-        info.zone(), interpreter::Register::current_context(), handler_offset);
-    frame_state.ForEachLocal(
-        info, [&](ValueNode*& entry, interpreter::Register reg) {
-          entry = state->NewExceptionPhi(info.zone(), reg, handler_offset);
-        });
-    state->known_node_aspects_ =
-        info.zone()->New<KnownNodeAspects>(info.zone());
-    return state;
-  }
+      const MaglevCompilationUnit& unit,
+      const compiler::BytecodeLivenessState* liveness, int handler_offset,
+      Graph* graph, bool is_inline);
 
   // Merges an unmerged framestate with a possibly merged framestate into |this|
   // framestate.

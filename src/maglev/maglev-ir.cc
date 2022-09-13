@@ -2827,9 +2827,15 @@ void ChangeInt32ToFloat64::GenerateCode(MaglevAssembler* masm,
 void Phi::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   // Phi inputs are processed in the post-process, once loop phis' inputs'
   // v-regs are allocated.
-  result().SetUnallocated(
-      compiler::UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT,
-      vreg_state->AllocateVirtualRegister());
+
+  // We have to pass a policy, but it is later ignored during register
+  // allocation. See StraightForwardRegisterAllocator::AllocateRegisters
+  // which has special handling for Phis.
+  static const compiler::UnallocatedOperand::ExtendedPolicy kIgnoredPolicy =
+      compiler::UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT;
+
+  result().SetUnallocated(kIgnoredPolicy,
+                          vreg_state->AllocateVirtualRegister());
 }
 // TODO(verwaest): Remove after switching the register allocator.
 void Phi::AllocateVregInPostProcess(MaglevVregAllocationState* vreg_state) {

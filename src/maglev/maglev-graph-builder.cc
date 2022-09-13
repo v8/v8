@@ -72,36 +72,6 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
   }
 
   CalculatePredecessorCounts();
-
-  for (auto& offset_and_info : bytecode_analysis().GetLoopInfos()) {
-    int offset = offset_and_info.first;
-    const compiler::LoopInfo& loop_info = offset_and_info.second;
-    const compiler::BytecodeLivenessState* liveness = GetInLivenessFor(offset);
-    DCHECK_NULL(merge_states_[offset]);
-    if (FLAG_trace_maglev_graph_building) {
-      std::cout << "- Creating loop merge state at @" << offset << std::endl;
-    }
-    merge_states_[offset] = MergePointInterpreterFrameState::NewForLoop(
-        *compilation_unit_, offset, NumPredecessors(offset), liveness,
-        &loop_info);
-  }
-
-  if (bytecode().handler_table_size() > 0) {
-    HandlerTable table(*bytecode().object());
-    for (int i = 0; i < table.NumberOfRangeEntries(); i++) {
-      int offset = table.GetRangeHandler(i);
-      const compiler::BytecodeLivenessState* liveness =
-          GetInLivenessFor(offset);
-      DCHECK_EQ(NumPredecessors(offset), 0);
-      DCHECK_NULL(merge_states_[offset]);
-      if (FLAG_trace_maglev_graph_building) {
-        std::cout << "- Creating exception merge state at @" << offset
-                  << std::endl;
-      }
-      merge_states_[offset] = MergePointInterpreterFrameState::NewForCatchBlock(
-          *compilation_unit_, liveness, offset);
-    }
-  }
 }
 
 void MaglevGraphBuilder::StartPrologue() {
@@ -154,6 +124,38 @@ void MaglevGraphBuilder::BuildRegisterFrameInitialization() {
   }
   for (; register_index < register_count(); register_index++) {
     StoreRegister(interpreter::Register(register_index), undefined_value);
+  }
+}
+
+void MaglevGraphBuilder::BuildMergeStates() {
+  for (auto& offset_and_info : bytecode_analysis().GetLoopInfos()) {
+    int offset = offset_and_info.first;
+    const compiler::LoopInfo& loop_info = offset_and_info.second;
+    const compiler::BytecodeLivenessState* liveness = GetInLivenessFor(offset);
+    DCHECK_NULL(merge_states_[offset]);
+    if (FLAG_trace_maglev_graph_building) {
+      std::cout << "- Creating loop merge state at @" << offset << std::endl;
+    }
+    merge_states_[offset] = MergePointInterpreterFrameState::NewForLoop(
+        *compilation_unit_, offset, NumPredecessors(offset), liveness,
+        &loop_info);
+  }
+
+  if (bytecode().handler_table_size() > 0) {
+    HandlerTable table(*bytecode().object());
+    for (int i = 0; i < table.NumberOfRangeEntries(); i++) {
+      int offset = table.GetRangeHandler(i);
+      const compiler::BytecodeLivenessState* liveness =
+          GetInLivenessFor(offset);
+      DCHECK_EQ(NumPredecessors(offset), 0);
+      DCHECK_NULL(merge_states_[offset]);
+      if (FLAG_trace_maglev_graph_building) {
+        std::cout << "- Creating exception merge state at @" << offset
+                  << std::endl;
+      }
+      merge_states_[offset] = MergePointInterpreterFrameState::NewForCatchBlock(
+          *compilation_unit_, liveness, offset, graph_, is_inline());
+    }
   }
 }
 
@@ -1849,6 +1851,7 @@ void MaglevGraphBuilder::InlineCallFromRegisters(
   // TODO(leszeks): Also correctly set up the closure and context slots, instead
   // of using InitialValue.
   inner_graph_builder.BuildRegisterFrameInitialization();
+  inner_graph_builder.BuildMergeStates();
   BasicBlock* inlined_prologue = inner_graph_builder.EndPrologue();
 
   // Set the entry JumpToInlined to jump to the prologue block.
