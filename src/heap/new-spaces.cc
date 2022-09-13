@@ -743,6 +743,7 @@ bool SemiSpaceNewSpace::AddParkedAllocationBuffer(
 }
 
 void SemiSpaceNewSpace::FreeLinearAllocationArea() {
+  AdvanceAllocationObservers();
   MakeLinearAllocationAreaIterable();
   UpdateInlineAllocationLimit(0);
 }

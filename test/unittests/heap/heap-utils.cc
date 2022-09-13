@@ -134,6 +134,7 @@ void HeapInternalsBase::SimulateFullSpace(
   // v8_flags.stress_concurrent_allocation = false;
   // Background thread allocating concurrently interferes with this function.
   CHECK(!v8_flags.stress_concurrent_allocation);
+  space->FreeLinearAllocationArea();
   if (v8_flags.minor_mc) {
     for (Page* page : *space) {
       FillPageInPagedSpace(page, out_handles);

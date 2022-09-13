@@ -472,7 +472,7 @@ int Sweeper::RawSweep(
 
   if (active_system_pages_after_sweeping) {
     // Decrement accounted memory for discarded memory.
-    PagedSpace* paged_space = static_cast<PagedSpace*>(p->owner());
+    PagedSpaceBase* paged_space = static_cast<PagedSpaceBase*>(p->owner());
     paged_space->ReduceActiveSystemPages(p,
                                          *active_system_pages_after_sweeping);
   }
