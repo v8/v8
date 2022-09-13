@@ -418,6 +418,21 @@ if (v8_enable_pointer_compression == "") {
   v8_enable_pointer_compression =
       v8_current_cpu == "arm64" || v8_current_cpu == "x64"
 }
+
+# Toggle pointer compression for correctness fuzzing when building the
+# clang_x64_pointer_compression toolchain. We'll correctness-compare the
+# default build with the clang_x64_pointer_compression build.
+if (v8_multi_arch_build &&
+    rebase_path(get_label_info(":d8", "root_out_dir"), root_build_dir) ==
+    "clang_x64_pointer_compression") {
+  v8_enable_pointer_compression = !v8_enable_pointer_compression
+}
+
+# Ensure the sandbox is on/off in the same way as pointer compression for
+# correctness fuzzing builds.
+if (v8_multi_arch_build) {
+  v8_enable_sandbox = v8_enable_pointer_compression
+}
 if (v8_enable_pointer_compression_shared_cage == "") {
   v8_enable_pointer_compression_shared_cage = v8_enable_pointer_compression
 }
@@ -480,23 +495,6 @@ assert(!v8_enable_trace_ignition || v8_enable_trace_unoptimized,
        "Ignition tracing requires unoptimized tracing to be enabled.")
 assert(!v8_enable_trace_baseline_exec || v8_enable_trace_unoptimized,
        "Baseline tracing requires unoptimized tracing to be enabled.")
-
-# Toggle pointer compression for correctness fuzzing when building the
-# clang_x64_pointer_compression toolchain. We'll correctness-compare the
-# default build with the clang_x64_pointer_compression build.
-if (v8_multi_arch_build &&
-    rebase_path(get_label_info(":d8", "root_out_dir"), root_build_dir) ==
-    "clang_x64_pointer_compression") {
-  v8_enable_pointer_compression = !v8_enable_pointer_compression
-  v8_enable_pointer_compression_shared_cage = v8_enable_pointer_compression
-  v8_enable_external_code_space = v8_enable_pointer_compression
-}
-
-# Ensure the sandbox is on/off in the same way as pointer compression for
-# correctness fuzzing builds.
-if (v8_multi_arch_build) {
-  v8_enable_sandbox = v8_enable_pointer_compression
-}
 
 # Check if it is a Chromium build and activate PAC/BTI if needed.
 # TODO(cavalcantii): have a single point of integration with PAC/BTI flags.
