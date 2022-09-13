@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/api/api-inl.h"
+#include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/heap/array-buffer-sweeper.h"
 #include "src/heap/heap-inl.h"
@@ -455,8 +456,7 @@ TEST(ArrayBuffer_ExternalBackingStoreSizeIncreasesMarkCompact) {
         v8::ArrayBuffer::New(isolate, kArraybufferSize);
     Handle<JSArrayBuffer> buf1 = v8::Utils::OpenHandle(*ab1);
     CHECK(IsTracked(heap, *buf1));
-    heap::GcAndSweep(heap, NEW_SPACE);
-    heap::GcAndSweep(heap, NEW_SPACE);
+    heap::GcAndSweep(heap, OLD_SPACE);
 
     Page* page_before_gc = Page::FromHeapObject(*buf1);
     heap::ForceEvacuationCandidate(page_before_gc);

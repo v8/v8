@@ -139,8 +139,9 @@ void FillPageInPagedSpace(Page* page,
                           std::vector<Handle<FixedArray>>* out_handles) {
   DCHECK(page->SweepingDone());
   PagedSpaceBase* paged_space = static_cast<PagedSpaceBase*>(page->owner());
-  DCHECK_EQ(kNullAddress, paged_space->top());
-  DCHECK(!page->Contains(paged_space->top()));
+  // Make sure the LAB is empty to guarantee that all free space is accounted
+  // for in the freelist.
+  DCHECK_EQ(paged_space->limit(), paged_space->top());
 
   for (Page* p : *paged_space) {
     if (p != page) paged_space->UnlinkFreeListCategories(p);

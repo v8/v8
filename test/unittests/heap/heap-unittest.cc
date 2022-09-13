@@ -373,8 +373,7 @@ TEST_F(HeapTest, Regress978156) {
   Heap* heap = isolate()->heap();
 
   // 1. Ensure that the new space is empty.
-  CollectGarbage(NEW_SPACE);
-  CollectGarbage(NEW_SPACE);
+  GcAndSweep(OLD_SPACE);
   // 2. Fill the new space with FixedArrays.
   std::vector<Handle<FixedArray>> arrays;
   SimulateFullSpace(heap->new_space(), &arrays);
