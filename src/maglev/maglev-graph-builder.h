@@ -969,14 +969,6 @@ class MaglevGraphBuilder {
                                               const compiler::MapRef& map,
                                               LoadHandler handler);
 
-  bool TryBuildMonomorphicElementLoad(ValueNode* object, ValueNode* index,
-                                      const compiler::MapRef& map,
-                                      MaybeObjectHandle handler);
-  bool TryBuildMonomorphicElementLoadFromSmiHandler(ValueNode* object,
-                                                    ValueNode* index,
-                                                    const compiler::MapRef& map,
-                                                    int32_t handler);
-
   bool TryBuildMonomorphicStore(ValueNode* object, const compiler::MapRef& map,
                                 MaybeObjectHandle handler);
   bool TryBuildMonomorphicStoreFromSmiHandler(ValueNode* object,

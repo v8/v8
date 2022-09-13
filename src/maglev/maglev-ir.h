@@ -144,8 +144,6 @@ class CompactInterpreterFrameState;
   V(InitialValue)                 \
   V(LoadTaggedField)              \
   V(LoadDoubleField)              \
-  V(LoadTaggedElement)            \
-  V(LoadDoubleElement)            \
   V(LoadGlobal)                   \
   V(LoadNamedGeneric)             \
   V(LoadNamedFromSuperGeneric)    \
@@ -194,8 +192,6 @@ class CompactInterpreterFrameState;
   V(CheckSymbol)                      \
   V(CheckString)                      \
   V(CheckMapsWithMigration)           \
-  V(CheckJSArrayBounds)               \
-  V(CheckJSObjectElementsBounds)      \
   V(GeneratorStore)                   \
   V(JumpLoopPrologue)                 \
   V(StoreTaggedFieldNoWriteBarrier)   \
@@ -2646,39 +2642,6 @@ class CheckMapsWithMigration
   const CheckType check_type_;
 };
 
-class CheckJSArrayBounds : public FixedInputNodeT<2, CheckJSArrayBounds> {
-  using Base = FixedInputNodeT<2, CheckJSArrayBounds>;
-
- public:
-  explicit CheckJSArrayBounds(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
-
-  static constexpr int kReceiverIndex = 0;
-  static constexpr int kIndexIndex = 1;
-  Input& receiver_input() { return input(kReceiverIndex); }
-  Input& index_input() { return input(kIndexIndex); }
-
-  DECL_NODE_INTERFACE_WITH_EMPTY_PRINT_PARAMS()
-};
-
-class CheckJSObjectElementsBounds
-    : public FixedInputNodeT<2, CheckJSObjectElementsBounds> {
-  using Base = FixedInputNodeT<2, CheckJSObjectElementsBounds>;
-
- public:
-  explicit CheckJSObjectElementsBounds(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
-
-  static constexpr int kReceiverIndex = 0;
-  static constexpr int kIndexIndex = 1;
-  Input& receiver_input() { return input(kReceiverIndex); }
-  Input& index_input() { return input(kIndexIndex); }
-
-  DECL_NODE_INTERFACE_WITH_EMPTY_PRINT_PARAMS()
-};
-
 class CheckedInternalizedString
     : public FixedInputValueNodeT<1, CheckedInternalizedString> {
   using Base = FixedInputValueNodeT<1, CheckedInternalizedString>;
@@ -2771,39 +2734,6 @@ class LoadDoubleField : public FixedInputValueNodeT<1, LoadDoubleField> {
 
  private:
   const int offset_;
-};
-
-class LoadTaggedElement : public FixedInputValueNodeT<2, LoadTaggedElement> {
-  using Base = FixedInputValueNodeT<2, LoadTaggedElement>;
-
- public:
-  explicit LoadTaggedElement(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties = OpProperties::Reading();
-
-  static constexpr int kObjectIndex = 0;
-  static constexpr int kIndexIndex = 1;
-  Input& object_input() { return input(kObjectIndex); }
-  Input& index_input() { return input(kIndexIndex); }
-
-  DECL_NODE_INTERFACE_WITH_EMPTY_PRINT_PARAMS()
-};
-
-class LoadDoubleElement : public FixedInputValueNodeT<2, LoadDoubleElement> {
-  using Base = FixedInputValueNodeT<2, LoadDoubleElement>;
-
- public:
-  explicit LoadDoubleElement(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties =
-      OpProperties::Reading() | OpProperties::Float64();
-
-  static constexpr int kObjectIndex = 0;
-  static constexpr int kIndexIndex = 1;
-  Input& object_input() { return input(kObjectIndex); }
-  Input& index_input() { return input(kIndexIndex); }
-
-  DECL_NODE_INTERFACE_WITH_EMPTY_PRINT_PARAMS()
 };
 
 class StoreTaggedFieldNoWriteBarrier

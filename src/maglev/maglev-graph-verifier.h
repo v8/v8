@@ -175,10 +175,6 @@ class MaglevGraphVerifier {
       case Opcode::kGenericLessThan:
       case Opcode::kGenericLessThanOrEqual:
       case Opcode::kGenericStrictEqual:
-      case Opcode::kCheckJSArrayBounds:
-      case Opcode::kCheckJSObjectElementsBounds:
-      case Opcode::kLoadTaggedElement:
-      case Opcode::kLoadDoubleElement:
       case Opcode::kGetIterator:
       case Opcode::kTaggedEqual:
       case Opcode::kTaggedNotEqual:

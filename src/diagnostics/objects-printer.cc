@@ -1265,6 +1265,7 @@ void FeedbackNexus::Print(std::ostream& os) {
     case FeedbackSlotKind::kDefineKeyedOwn:
     case FeedbackSlotKind::kHasKeyed:
     case FeedbackSlotKind::kInstanceOf:
+    case FeedbackSlotKind::kLoadKeyed:
     case FeedbackSlotKind::kDefineKeyedOwnPropertyInLiteral:
     case FeedbackSlotKind::kStoreGlobalSloppy:
     case FeedbackSlotKind::kStoreGlobalStrict:
@@ -1290,7 +1291,6 @@ void FeedbackNexus::Print(std::ostream& os) {
       }
       break;
     }
-    case FeedbackSlotKind::kLoadKeyed:
     case FeedbackSlotKind::kLoadProperty: {
       os << InlineCacheState2String(ic_state());
       if (ic_state() == InlineCacheState::MONOMORPHIC) {
