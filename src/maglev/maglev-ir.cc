@@ -345,6 +345,12 @@ void NodeBase::Print(std::ostream& os, MaglevGraphLabeller* graph_labeller,
   UNREACHABLE();
 }
 
+void NodeBase::Print() const {
+  MaglevGraphLabeller labeller;
+  Print(std::cout, &labeller);
+  std::cout << std::endl;
+}
+
 namespace {
 size_t GetInputLocationsArraySize(const MaglevCompilationUnit& compilation_unit,
                                   const CheckpointedInterpreterState& state) {

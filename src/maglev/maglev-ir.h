@@ -871,6 +871,9 @@ class NodeBase : public ZoneObject {
   void Print(std::ostream& os, MaglevGraphLabeller*,
              bool skip_targets = false) const;
 
+  // For GDB: Print any Node with `print node->Print()`.
+  void Print() const;
+
   EagerDeoptInfo* eager_deopt_info() {
     DCHECK(properties().can_eager_deopt());
     DCHECK(!properties().can_lazy_deopt());
