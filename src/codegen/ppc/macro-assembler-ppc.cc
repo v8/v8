@@ -3684,14 +3684,18 @@ void TurboAssembler::StoreF32LE(DoubleRegister dst, const MemOperand& mem,
   V(F64x2Sub, xvsubdp)     \
   V(F64x2Mul, xvmuldp)     \
   V(F64x2Div, xvdivdp)     \
+  V(F64x2Eq, xvcmpeqdp)    \
   V(F32x4Add, vaddfp)      \
   V(F32x4Sub, vsubfp)      \
   V(F32x4Mul, xvmulsp)     \
   V(F32x4Div, xvdivsp)     \
   V(F32x4Min, vminfp)      \
   V(F32x4Max, vmaxfp)      \
+  V(F32x4Eq, xvcmpeqsp)    \
   V(I64x2Add, vaddudm)     \
   V(I64x2Sub, vsubudm)     \
+  V(I64x2Eq, vcmpequd)     \
+  V(I64x2GtS, vcmpgtsd)    \
   V(I32x4Add, vadduwm)     \
   V(I32x4Sub, vsubuwm)     \
   V(I32x4Mul, vmuluwm)     \
@@ -3699,18 +3703,27 @@ void TurboAssembler::StoreF32LE(DoubleRegister dst, const MemOperand& mem,
   V(I32x4MinU, vminuw)     \
   V(I32x4MaxS, vmaxsw)     \
   V(I32x4MaxU, vmaxuw)     \
+  V(I32x4Eq, vcmpequw)     \
+  V(I32x4GtS, vcmpgtsw)    \
+  V(I32x4GtU, vcmpgtuw)    \
   V(I16x8Add, vadduhm)     \
   V(I16x8Sub, vsubuhm)     \
   V(I16x8MinS, vminsh)     \
   V(I16x8MinU, vminuh)     \
   V(I16x8MaxS, vmaxsh)     \
   V(I16x8MaxU, vmaxuh)     \
+  V(I16x8Eq, vcmpequh)     \
+  V(I16x8GtS, vcmpgtsh)    \
+  V(I16x8GtU, vcmpgtuh)    \
   V(I8x16Add, vaddubm)     \
   V(I8x16Sub, vsububm)     \
   V(I8x16MinS, vminsb)     \
   V(I8x16MinU, vminub)     \
   V(I8x16MaxS, vmaxsb)     \
-  V(I8x16MaxU, vmaxub)
+  V(I8x16MaxU, vmaxub)     \
+  V(I8x16Eq, vcmpequb)     \
+  V(I8x16GtS, vcmpgtsb)    \
+  V(I8x16GtU, vcmpgtub)
 
 #define EMIT_SIMD_BINOP(name, op)                                      \
   void TurboAssembler::name(Simd128Register dst, Simd128Register src1, \
@@ -3995,6 +4008,107 @@ void TurboAssembler::F64x2Max(Simd128Register dst, Simd128Register src1,
   F64X2_MIN_MAX_NAN(scratch1)
 }
 #undef F64X2_MIN_MAX_NAN
+
+void TurboAssembler::F64x2Lt(Simd128Register dst, Simd128Register src1,
+                             Simd128Register src2) {
+  xvcmpgtdp(dst, src2, src1);
+}
+
+void TurboAssembler::F64x2Le(Simd128Register dst, Simd128Register src1,
+                             Simd128Register src2) {
+  xvcmpgedp(dst, src2, src1);
+}
+
+void TurboAssembler::F64x2Ne(Simd128Register dst, Simd128Register src1,
+                             Simd128Register src2, Simd128Register scratch) {
+  xvcmpeqdp(scratch, src1, src2);
+  vnor(dst, scratch, scratch);
+}
+
+void TurboAssembler::F32x4Lt(Simd128Register dst, Simd128Register src1,
+                             Simd128Register src2) {
+  xvcmpgtsp(dst, src2, src1);
+}
+
+void TurboAssembler::F32x4Le(Simd128Register dst, Simd128Register src1,
+                             Simd128Register src2) {
+  xvcmpgesp(dst, src2, src1);
+}
+
+void TurboAssembler::F32x4Ne(Simd128Register dst, Simd128Register src1,
+                             Simd128Register src2, Simd128Register scratch) {
+  xvcmpeqsp(scratch, src1, src2);
+  vnor(dst, scratch, scratch);
+}
+
+void TurboAssembler::I64x2Ne(Simd128Register dst, Simd128Register src1,
+                             Simd128Register src2, Simd128Register scratch) {
+  vcmpequd(scratch, src1, src2);
+  vnor(dst, scratch, scratch);
+}
+
+void TurboAssembler::I64x2GeS(Simd128Register dst, Simd128Register src1,
+                              Simd128Register src2, Simd128Register scratch) {
+  vcmpgtsd(scratch, src2, src1);
+  vnor(dst, scratch, scratch);
+}
+
+void TurboAssembler::I32x4Ne(Simd128Register dst, Simd128Register src1,
+                             Simd128Register src2, Simd128Register scratch) {
+  vcmpequw(scratch, src1, src2);
+  vnor(dst, scratch, scratch);
+}
+
+void TurboAssembler::I32x4GeS(Simd128Register dst, Simd128Register src1,
+                              Simd128Register src2, Simd128Register scratch) {
+  vcmpgtsw(scratch, src2, src1);
+  vnor(dst, scratch, scratch);
+}
+
+void TurboAssembler::I32x4GeU(Simd128Register dst, Simd128Register src1,
+                              Simd128Register src2, Simd128Register scratch) {
+  vcmpequw(scratch, src1, src2);
+  vcmpgtuw(dst, src1, src2);
+  vor(dst, dst, scratch);
+}
+
+void TurboAssembler::I16x8Ne(Simd128Register dst, Simd128Register src1,
+                             Simd128Register src2, Simd128Register scratch) {
+  vcmpequh(scratch, src1, src2);
+  vnor(dst, scratch, scratch);
+}
+
+void TurboAssembler::I16x8GeS(Simd128Register dst, Simd128Register src1,
+                              Simd128Register src2, Simd128Register scratch) {
+  vcmpgtsh(scratch, src2, src1);
+  vnor(dst, scratch, scratch);
+}
+
+void TurboAssembler::I16x8GeU(Simd128Register dst, Simd128Register src1,
+                              Simd128Register src2, Simd128Register scratch) {
+  vcmpequh(scratch, src1, src2);
+  vcmpgtuh(dst, src1, src2);
+  vor(dst, dst, scratch);
+}
+
+void TurboAssembler::I8x16Ne(Simd128Register dst, Simd128Register src1,
+                             Simd128Register src2, Simd128Register scratch) {
+  vcmpequb(scratch, src1, src2);
+  vnor(dst, scratch, scratch);
+}
+
+void TurboAssembler::I8x16GeS(Simd128Register dst, Simd128Register src1,
+                              Simd128Register src2, Simd128Register scratch) {
+  vcmpgtsb(scratch, src2, src1);
+  vnor(dst, scratch, scratch);
+}
+
+void TurboAssembler::I8x16GeU(Simd128Register dst, Simd128Register src1,
+                              Simd128Register src2, Simd128Register scratch) {
+  vcmpequb(scratch, src1, src2);
+  vcmpgtub(dst, src1, src2);
+  vor(dst, dst, scratch);
+}
 
 Register GetRegisterThatIsNotOneOf(Register reg1, Register reg2, Register reg3,
                                    Register reg4, Register reg5,
