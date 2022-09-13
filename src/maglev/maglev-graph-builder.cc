@@ -1303,6 +1303,7 @@ void MaglevGraphBuilder::VisitGetKeyedProperty() {
       const compiler::ElementAccessFeedback& element_feedback =
           processed_feedback.AsElementAccess();
       if (element_feedback.transition_groups().size() != 1) break;
+      if (element_feedback.transition_groups()[0].size() != 1) break;
       compiler::MapRef map = MakeRefAssumeMemoryFence(
           broker(), element_feedback.transition_groups()[0].front());
 
