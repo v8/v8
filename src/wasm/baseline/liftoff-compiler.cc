@@ -6262,19 +6262,20 @@ class LiftoffCompiler {
   }
 
   void StringNewWtf8(FullDecoder* decoder,
-                     const EncodeWtf8Immediate<validate>& imm,
-                     const Value& offset, const Value& size, Value* result) {
+                     const MemoryIndexImmediate<validate>& imm,
+                     const unibrow::Utf8Variant variant, const Value& offset,
+                     const Value& size, Value* result) {
     LiftoffRegList pinned;
 
     LiftoffRegister memory_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    LoadSmi(memory_reg, imm.memory.index);
+    LoadSmi(memory_reg, imm.index);
     LiftoffAssembler::VarState memory_var(kSmiKind, memory_reg, 0);
 
-    LiftoffRegister policy_reg =
+    LiftoffRegister variant_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    LoadSmi(policy_reg, static_cast<int32_t>(imm.policy.value));
-    LiftoffAssembler::VarState policy_var(kSmiKind, policy_reg, 0);
+    LoadSmi(variant_reg, static_cast<int32_t>(variant));
+    LiftoffAssembler::VarState variant_var(kSmiKind, variant_reg, 0);
 
     CallRuntimeStub(
         WasmCode::kWasmStringNewWtf8,
@@ -6283,7 +6284,7 @@ class LiftoffCompiler {
             __ cache_state()->stack_state.end()[-2],  // offset
             __ cache_state()->stack_state.end()[-1],  // size
             memory_var,
-            policy_var,
+            variant_var,
         },
         decoder->position());
     __ cache_state()->stack_state.pop_back(2);
@@ -6294,7 +6295,7 @@ class LiftoffCompiler {
   }
 
   void StringNewWtf8Array(FullDecoder* decoder,
-                          const Wtf8PolicyImmediate<validate>& imm,
+                          const unibrow::Utf8Variant variant,
                           const Value& array, const Value& start,
                           const Value& end, Value* result) {
     LiftoffRegList pinned;
@@ -6304,10 +6305,10 @@ class LiftoffCompiler {
     MaybeEmitNullCheck(decoder, array_reg.gp(), pinned, array.type);
     LiftoffAssembler::VarState array_var(kRef, array_reg, 0);
 
-    LiftoffRegister policy_reg =
+    LiftoffRegister variant_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    LoadSmi(policy_reg, static_cast<int32_t>(imm.value));
-    LiftoffAssembler::VarState policy_var(kSmiKind, policy_reg, 0);
+    LoadSmi(variant_reg, static_cast<int32_t>(variant));
+    LiftoffAssembler::VarState variant_var(kSmiKind, variant_reg, 0);
 
     CallRuntimeStub(WasmCode::kWasmStringNewWtf8Array,
                     MakeSig::Returns(kRef).Params(kI32, kI32, kRef, kSmiKind),
@@ -6315,7 +6316,7 @@ class LiftoffCompiler {
                         __ cache_state()->stack_state.end()[-2],  // start
                         __ cache_state()->stack_state.end()[-1],  // end
                         array_var,
-                        policy_var,
+                        variant_var,
                     },
                     decoder->position());
     __ cache_state()->stack_state.pop_back(3);
@@ -6395,20 +6396,20 @@ class LiftoffCompiler {
   }
 
   void StringMeasureWtf8(FullDecoder* decoder,
-                         const Wtf8PolicyImmediate<validate>& imm,
-                         const Value& str, Value* result) {
+                         const unibrow::Utf8Variant variant, const Value& str,
+                         Value* result) {
     LiftoffRegList pinned;
     LiftoffRegister string_reg = pinned.set(__ PopToRegister(pinned));
     MaybeEmitNullCheck(decoder, string_reg.gp(), pinned, str.type);
     LiftoffAssembler::VarState string_var(kRef, string_reg, 0);
 
     WasmCode::RuntimeStubId stub_id;
-    switch (imm.value) {
-      case kWtf8PolicyReject:
+    switch (variant) {
+      case unibrow::Utf8Variant::kUtf8:
         stub_id = WasmCode::kWasmStringMeasureUtf8;
         break;
-      case kWtf8PolicyAccept:
-      case kWtf8PolicyReplace:
+      case unibrow::Utf8Variant::kLossyUtf8:
+      case unibrow::Utf8Variant::kWtf8:
         stub_id = WasmCode::kWasmStringMeasureWtf8;
         break;
     }
@@ -6436,8 +6437,9 @@ class LiftoffCompiler {
   }
 
   void StringEncodeWtf8(FullDecoder* decoder,
-                        const EncodeWtf8Immediate<validate>& imm,
-                        const Value& str, const Value& offset, Value* result) {
+                        const MemoryIndexImmediate<validate>& imm,
+                        const unibrow::Utf8Variant variant, const Value& str,
+                        const Value& offset, Value* result) {
     LiftoffRegList pinned;
 
     LiftoffAssembler::VarState& offset_var =
@@ -6450,13 +6452,13 @@ class LiftoffCompiler {
 
     LiftoffRegister memory_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    LoadSmi(memory_reg, imm.memory.index);
+    LoadSmi(memory_reg, imm.index);
     LiftoffAssembler::VarState memory_var(kSmiKind, memory_reg, 0);
 
-    LiftoffRegister policy_reg =
+    LiftoffRegister variant_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    LoadSmi(policy_reg, static_cast<int32_t>(imm.policy.value));
-    LiftoffAssembler::VarState policy_var(kSmiKind, policy_reg, 0);
+    LoadSmi(variant_reg, static_cast<int32_t>(variant));
+    LiftoffAssembler::VarState variant_var(kSmiKind, variant_reg, 0);
 
     CallRuntimeStub(
         WasmCode::kWasmStringEncodeWtf8,
@@ -6465,7 +6467,7 @@ class LiftoffCompiler {
             string_var,
             offset_var,
             memory_var,
-            policy_var,
+            variant_var,
         },
         decoder->position());
     __ DropValues(2);
@@ -6476,7 +6478,7 @@ class LiftoffCompiler {
   }
 
   void StringEncodeWtf8Array(FullDecoder* decoder,
-                             const Wtf8PolicyImmediate<validate>& imm,
+                             const unibrow::Utf8Variant variant,
                              const Value& str, const Value& array,
                              const Value& start, Value* result) {
     LiftoffRegList pinned;
@@ -6494,10 +6496,10 @@ class LiftoffCompiler {
     LiftoffAssembler::VarState& start_var =
         __ cache_state()->stack_state.end()[-1];
 
-    LiftoffRegister policy_reg =
+    LiftoffRegister variant_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    LoadSmi(policy_reg, static_cast<int32_t>(imm.value));
-    LiftoffAssembler::VarState policy_var(kSmiKind, policy_reg, 0);
+    LoadSmi(variant_reg, static_cast<int32_t>(variant));
+    LiftoffAssembler::VarState variant_var(kSmiKind, variant_reg, 0);
 
     CallRuntimeStub(WasmCode::kWasmStringEncodeWtf8Array,
                     MakeSig::Returns(kI32).Params(kRef, kRef, kI32, kSmiKind),
@@ -6505,7 +6507,7 @@ class LiftoffCompiler {
                         string_var,
                         array_var,
                         start_var,
-                        policy_var,
+                        variant_var,
                     },
                     decoder->position());
     __ DropValues(3);
@@ -6737,7 +6739,8 @@ class LiftoffCompiler {
   }
 
   void StringViewWtf8Encode(FullDecoder* decoder,
-                            const EncodeWtf8Immediate<validate>& imm,
+                            const MemoryIndexImmediate<validate>& imm,
+                            const unibrow::Utf8Variant variant,
                             const Value& view, const Value& addr,
                             const Value& pos, const Value& bytes,
                             Value* next_pos, Value* bytes_written) {
@@ -6757,13 +6760,13 @@ class LiftoffCompiler {
 
     LiftoffRegister memory_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    LoadSmi(memory_reg, imm.memory.index);
+    LoadSmi(memory_reg, imm.index);
     LiftoffAssembler::VarState memory_var(kSmiKind, memory_reg, 0);
 
-    LiftoffRegister policy_reg =
+    LiftoffRegister variant_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    LoadSmi(policy_reg, static_cast<int32_t>(imm.policy.value));
-    LiftoffAssembler::VarState policy_var(kSmiKind, policy_reg, 0);
+    LoadSmi(variant_reg, static_cast<int32_t>(variant));
+    LiftoffAssembler::VarState variant_var(kSmiKind, variant_reg, 0);
 
     CallRuntimeStub(WasmCode::kWasmStringViewWtf8Encode,
                     MakeSig::Returns(kI32, kI32)
@@ -6774,7 +6777,7 @@ class LiftoffCompiler {
                         bytes_var,
                         view_var,
                         memory_var,
-                        policy_var,
+                        variant_var,
                     },
                     decoder->position());
     __ DropValues(4);

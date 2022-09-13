@@ -808,20 +808,20 @@ transitioning javascript builtin ExperimentalWasmConvertStringToArray(
 }
 
 builtin WasmStringNewWtf8(
-    offset: uint32, size: uint32, memory: Smi, policy: Smi): String {
+    offset: uint32, size: uint32, memory: Smi, utf8Variant: Smi): String {
   const instance = LoadInstanceFromFrame();
   tail runtime::WasmStringNewWtf8(
-      LoadContextFromInstance(instance), instance, memory, policy,
+      LoadContextFromInstance(instance), instance, memory, utf8Variant,
       WasmUint32ToNumber(offset), WasmUint32ToNumber(size));
 }
 builtin WasmStringNewWtf8Array(
-    start: uint32, end: uint32, array: WasmArray, policy: Smi): String {
+    start: uint32, end: uint32, array: WasmArray, utf8Variant: Smi): String {
   const context = LoadContextFromFrame();
   try {
     if (array.length < end) goto OffsetOutOfRange;
     if (end < start) goto OffsetOutOfRange;
     tail runtime::WasmStringNewWtf8Array(
-        context, policy, array, SmiFromUint32(start), SmiFromUint32(end));
+        context, utf8Variant, array, SmiFromUint32(start), SmiFromUint32(end));
   } label OffsetOutOfRange deferred {
     const error = MessageTemplate::kWasmTrapArrayOutOfBounds;
     runtime::ThrowWasmError(context, SmiConstant(error));
@@ -863,18 +863,18 @@ builtin WasmStringMeasureWtf8(string: String): int32 {
   return Signed(ChangeNumberToUint32(result));
 }
 builtin WasmStringEncodeWtf8(
-    string: String, offset: uint32, memory: Smi, policy: Smi): uint32 {
+    string: String, offset: uint32, memory: Smi, utf8Variant: Smi): uint32 {
   const instance = LoadInstanceFromFrame();
   const result = runtime::WasmStringEncodeWtf8(
-      LoadContextFromInstance(instance), instance, memory, policy, string,
+      LoadContextFromInstance(instance), instance, memory, utf8Variant, string,
       WasmUint32ToNumber(offset));
   return ChangeNumberToUint32(result);
 }
 builtin WasmStringEncodeWtf8Array(
-    string: String, array: WasmArray, start: uint32, policy: Smi): uint32 {
+    string: String, array: WasmArray, start: uint32, utf8Variant: Smi): uint32 {
   const instance = LoadInstanceFromFrame();
   const result = runtime::WasmStringEncodeWtf8Array(
-      LoadContextFromInstance(instance), policy, string, array,
+      LoadContextFromInstance(instance), utf8Variant, string, array,
       WasmUint32ToNumber(start));
   return ChangeNumberToUint32(result);
 }
@@ -985,7 +985,7 @@ struct NewPositionAndBytesWritten {
 }
 builtin WasmStringViewWtf8Encode(
     addr: uint32, pos: uint32, bytes: uint32, view: ByteArray, memory: Smi,
-    policy: Smi): NewPositionAndBytesWritten {
+    utf8Variant: Smi): NewPositionAndBytesWritten {
   const start = WasmStringViewWtf8Advance(view, pos, 0);
   const end = WasmStringViewWtf8Advance(view, start, bytes);
   const instance = LoadInstanceFromFrame();
@@ -999,7 +999,7 @@ builtin WasmStringViewWtf8Encode(
 
   // Always call out to run-time, to catch invalid addr.
   runtime::WasmStringViewWtf8Encode(
-      context, instance, policy, view, WasmUint32ToNumber(addr),
+      context, instance, utf8Variant, view, WasmUint32ToNumber(addr),
       WasmUint32ToNumber(start), WasmUint32ToNumber(end));
 
   return NewPositionAndBytesWritten{

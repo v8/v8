@@ -516,9 +516,9 @@ class WasmGraphBuilder {
   void BrOnI31(Node* object, Node* rtt, WasmTypeCheckConfig config,
                Node** match_control, Node** match_effect,
                Node** no_match_control, Node** no_match_effect);
-  Node* StringNewWtf8(uint32_t memory, wasm::StringRefWtf8Policy policy,
+  Node* StringNewWtf8(uint32_t memory, unibrow::Utf8Variant variant,
                       Node* offset, Node* size);
-  Node* StringNewWtf8Array(wasm::StringRefWtf8Policy policy, Node* array,
+  Node* StringNewWtf8Array(unibrow::Utf8Variant variant, Node* array,
                            Node* start, Node* end);
   Node* StringNewWtf16(uint32_t memory, Node* offset, Node* size);
   Node* StringNewWtf16Array(Node* array, Node* start, Node* end);
@@ -529,10 +529,10 @@ class WasmGraphBuilder {
                           wasm::WasmCodePosition position);
   Node* StringMeasureWtf16(Node* string, CheckForNull null_check,
                            wasm::WasmCodePosition position);
-  Node* StringEncodeWtf8(uint32_t memory, wasm::StringRefWtf8Policy policy,
+  Node* StringEncodeWtf8(uint32_t memory, unibrow::Utf8Variant variant,
                          Node* string, CheckForNull null_check, Node* offset,
                          wasm::WasmCodePosition position);
-  Node* StringEncodeWtf8Array(wasm::StringRefWtf8Policy policy, Node* string,
+  Node* StringEncodeWtf8Array(unibrow::Utf8Variant variant, Node* string,
                               CheckForNull string_null_check, Node* array,
                               CheckForNull array_null_check, Node* start,
                               wasm::WasmCodePosition position);
@@ -553,7 +553,7 @@ class WasmGraphBuilder {
                      wasm::WasmCodePosition position);
   Node* StringViewWtf8Advance(Node* view, CheckForNull null_check, Node* pos,
                               Node* bytes, wasm::WasmCodePosition position);
-  void StringViewWtf8Encode(uint32_t memory, wasm::StringRefWtf8Policy policy,
+  void StringViewWtf8Encode(uint32_t memory, unibrow::Utf8Variant variant,
                             Node* view, CheckForNull null_check, Node* addr,
                             Node* pos, Node* bytes, Node** next_pos,
                             Node** bytes_written,

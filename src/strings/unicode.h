@@ -154,16 +154,17 @@ class Latin1 {
 };
 
 enum class Utf8Variant : uint8_t {
-  kLossyUtf8,  // Lossy UTF-8: Any byte sequence can be decoded without
-               // error, replacing invalid UTF-8 with the replacement
-               // character (U+FFFD).  Any sequence of codepoints can be
-               // encoded without error, replacing surrogates with U+FFFD.
 #if V8_ENABLE_WEBASSEMBLY
   kUtf8,  // UTF-8.  Decoding an invalid byte sequence or encoding a
           // surrogate codepoint signals an error.
   kWtf8,  // WTF-8: like UTF-8, but allows isolated (but not paired)
           // surrogate codepoints to be encoded and decoded.
 #endif
+  kLossyUtf8,  // Lossy UTF-8: Any byte sequence can be decoded without
+               // error, replacing invalid UTF-8 with the replacement
+               // character (U+FFFD).  Any sequence of codepoints can be
+               // encoded without error, replacing surrogates with U+FFFD.
+  kLastUtf8Variant = kLossyUtf8
 };
 
 class V8_EXPORT_PRIVATE Utf8 {

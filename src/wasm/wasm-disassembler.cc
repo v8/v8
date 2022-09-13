@@ -375,13 +375,6 @@ class ImmediatesPrinter {
     out_ << " " << imm.index;  // --
   }
 
-  void Wtf8Policy(Wtf8PolicyImmediate<validate>& imm) {
-    out_ << (imm.value == kWtf8PolicyReject    ? " reject"
-             : imm.value == kWtf8PolicyAccept  ? " accept"
-             : imm.value == kWtf8PolicyReplace ? " replace"
-                                               : " unknown-policy");
-  }
-
   void TagIndex(TagIndexImmediate<validate>& imm) {
     out_ << " ";
     names()->PrintTagName(out_, imm.index);

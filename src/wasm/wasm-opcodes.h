@@ -726,20 +726,28 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(BrOnNonArray, 0xfb67, _, "br_on_non_array")                                \
   V(ExternInternalize, 0xfb70, _, "extern.internalize")                        \
   V(ExternExternalize, 0xfb71, _, "extern.externalize")                        \
-  V(StringNewWtf8, 0xfb80, _, "string.new_wtf8")                               \
+  V(StringNewUtf8, 0xfb80, _, "string.new_utf8")                               \
   V(StringNewWtf16, 0xfb81, _, "string.new_wtf16")                             \
   V(StringConst, 0xfb82, _, "string.const")                                    \
+  V(StringMeasureUtf8, 0xfb83, _, "string.measure_utf8")                       \
   V(StringMeasureWtf8, 0xfb84, _, "string.measure_wtf8")                       \
   V(StringMeasureWtf16, 0xfb85, _, "string.measure_wtf16")                     \
-  V(StringEncodeWtf8, 0xfb86, _, "string.encode_wtf8")                         \
+  V(StringEncodeUtf8, 0xfb86, _, "string.encode_utf8")                         \
   V(StringEncodeWtf16, 0xfb87, _, "string.encode_wtf16")                       \
   V(StringConcat, 0xfb88, _, "string.concat")                                  \
   V(StringEq, 0xfb89, _, "string.eq")                                          \
   V(StringIsUSVSequence, 0xfb8a, _, "string.is_usv_sequence")                  \
+  V(StringNewLossyUtf8, 0xfb8b, _, "string.new_lossy_utf8")                    \
+  V(StringNewWtf8, 0xfb8c, _, "string.new_wtf8")                               \
+  V(StringEncodeLossyUtf8, 0xfb8d, _, "string.encode_lossy_utf8")              \
+  V(StringEncodeWtf8, 0xfb8e, _, "string.encode_wtf8")                         \
   V(StringAsWtf8, 0xfb90, _, "string.as_wtf8")                                 \
   V(StringViewWtf8Advance, 0xfb91, _, "stringview_wtf8.advance")               \
-  V(StringViewWtf8Encode, 0xfb92, _, "stringview_wtf8.encode")                 \
+  V(StringViewWtf8EncodeUtf8, 0xfb92, _, "stringview_wtf8.encode_utf8")        \
   V(StringViewWtf8Slice, 0xfb93, _, "stringview_wtf8.slice")                   \
+  V(StringViewWtf8EncodeLossyUtf8, 0xfb94, _,                                  \
+    "stringview_wtf8.encode_lossy_utf8")                                       \
+  V(StringViewWtf8EncodeWtf8, 0xfb95, _, "stringview_wtf8.encode_wtf8")        \
   V(StringAsWtf16, 0xfb98, _, "string.as_wtf16")                               \
   V(StringViewWtf16Length, 0xfb99, _, "stringview_wtf16.length")               \
   V(StringViewWtf16GetCodeUnit, 0xfb9a, _, "stringview_wtf16.get_codeunit")    \
@@ -750,10 +758,14 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(StringViewIterAdvance, 0xfba2, _, "stringview_iter.advance")               \
   V(StringViewIterRewind, 0xfba3, _, "stringview_iter.rewind")                 \
   V(StringViewIterSlice, 0xfba4, _, "stringview_iter.slice")                   \
-  V(StringNewWtf8Array, 0xfbb0, _, "string.new_wtf8_array")                    \
+  V(StringNewUtf8Array, 0xfbb0, _, "string.new_utf8_array")                    \
   V(StringNewWtf16Array, 0xfbb1, _, "string.new_wtf16_array")                  \
-  V(StringEncodeWtf8Array, 0xfbb2, _, "string.encode_wtf8_array")              \
-  V(StringEncodeWtf16Array, 0xfbb3, _, "string.encode_wtf16_array")
+  V(StringEncodeUtf8Array, 0xfbb2, _, "string.encode_utf8_array")              \
+  V(StringEncodeWtf16Array, 0xfbb3, _, "string.encode_wtf16_array")            \
+  V(StringNewLossyUtf8Array, 0xfbb4, _, "string.new_lossy_utf8_array")         \
+  V(StringNewWtf8Array, 0xfbb5, _, "string.new_wtf8_array")                    \
+  V(StringEncodeLossyUtf8Array, 0xfbb6, _, "string.encode_lossy_utf8_array")   \
+  V(StringEncodeWtf8Array, 0xfbb7, _, "string.encode_wtf8_array")
 
 // All opcodes.
 #define FOREACH_OPCODE(V)            \

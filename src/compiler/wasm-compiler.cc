@@ -5732,19 +5732,19 @@ void WasmGraphBuilder::ArrayCopy(Node* dst_array, Node* dst_index,
 }
 
 Node* WasmGraphBuilder::StringNewWtf8(uint32_t memory,
-                                      wasm::StringRefWtf8Policy policy,
+                                      unibrow::Utf8Variant variant,
                                       Node* offset, Node* size) {
   return gasm_->CallBuiltin(Builtin::kWasmStringNewWtf8, Operator::kNoDeopt,
                             offset, size, gasm_->SmiConstant(memory),
-                            gasm_->SmiConstant(static_cast<int32_t>(policy)));
+                            gasm_->SmiConstant(static_cast<int32_t>(variant)));
 }
 
-Node* WasmGraphBuilder::StringNewWtf8Array(wasm::StringRefWtf8Policy policy,
+Node* WasmGraphBuilder::StringNewWtf8Array(unibrow::Utf8Variant variant,
                                            Node* array, Node* start,
                                            Node* end) {
   return gasm_->CallBuiltin(Builtin::kWasmStringNewWtf8Array,
                             Operator::kNoDeopt, start, end, array,
-                            gasm_->SmiConstant(static_cast<int32_t>(policy)));
+                            gasm_->SmiConstant(static_cast<int32_t>(variant)));
 }
 
 Node* WasmGraphBuilder::StringNewWtf16(uint32_t memory, Node* offset,
@@ -5794,7 +5794,7 @@ Node* WasmGraphBuilder::StringMeasureWtf16(Node* string,
 }
 
 Node* WasmGraphBuilder::StringEncodeWtf8(uint32_t memory,
-                                         wasm::StringRefWtf8Policy policy,
+                                         unibrow::Utf8Variant variant,
                                          Node* string, CheckForNull null_check,
                                          Node* offset,
                                          wasm::WasmCodePosition position) {
@@ -5803,13 +5803,13 @@ Node* WasmGraphBuilder::StringEncodeWtf8(uint32_t memory,
   }
   return gasm_->CallBuiltin(Builtin::kWasmStringEncodeWtf8, Operator::kNoDeopt,
                             string, offset, gasm_->SmiConstant(memory),
-                            gasm_->SmiConstant(policy));
+                            gasm_->SmiConstant(static_cast<int32_t>(variant)));
 }
 
 Node* WasmGraphBuilder::StringEncodeWtf8Array(
-    wasm::StringRefWtf8Policy policy, Node* string,
-    CheckForNull string_null_check, Node* array, CheckForNull array_null_check,
-    Node* start, wasm::WasmCodePosition position) {
+    unibrow::Utf8Variant variant, Node* string, CheckForNull string_null_check,
+    Node* array, CheckForNull array_null_check, Node* start,
+    wasm::WasmCodePosition position) {
   if (string_null_check == kWithNullCheck) {
     string = AssertNotNull(string, position);
   }
@@ -5818,7 +5818,7 @@ Node* WasmGraphBuilder::StringEncodeWtf8Array(
   }
   return gasm_->CallBuiltin(Builtin::kWasmStringEncodeWtf8Array,
                             Operator::kNoDeopt, string, array, start,
-                            gasm_->SmiConstant(policy));
+                            gasm_->SmiConstant(static_cast<int32_t>(variant)));
 }
 
 Node* WasmGraphBuilder::StringEncodeWtf16(uint32_t memory, Node* string,
@@ -5900,15 +5900,16 @@ Node* WasmGraphBuilder::StringViewWtf8Advance(Node* view,
 }
 
 void WasmGraphBuilder::StringViewWtf8Encode(
-    uint32_t memory, wasm::StringRefWtf8Policy policy, Node* view,
+    uint32_t memory, unibrow::Utf8Variant variant, Node* view,
     CheckForNull null_check, Node* addr, Node* pos, Node* bytes,
     Node** next_pos, Node** bytes_written, wasm::WasmCodePosition position) {
   if (null_check == kWithNullCheck) {
     view = AssertNotNull(view, position);
   }
-  Node* pair = gasm_->CallBuiltin(
-      Builtin::kWasmStringViewWtf8Encode, Operator::kNoDeopt, addr, pos, bytes,
-      view, gasm_->SmiConstant(memory), gasm_->SmiConstant(policy));
+  Node* pair =
+      gasm_->CallBuiltin(Builtin::kWasmStringViewWtf8Encode, Operator::kNoDeopt,
+                         addr, pos, bytes, view, gasm_->SmiConstant(memory),
+                         gasm_->SmiConstant(static_cast<int32_t>(variant)));
   *next_pos = gasm_->Projection(0, pair);
   *bytes_written = gasm_->Projection(1, pair);
 }

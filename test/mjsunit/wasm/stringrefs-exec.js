@@ -162,21 +162,21 @@ function makeWtf8TestDataSegment() {
     .exportFunc()
     .addBody([
       kExprLocalGet, 0, kExprLocalGet, 1,
-      ...GCInstr(kExprStringNewWtf8), 0, kWtf8PolicyReject
+      ...GCInstr(kExprStringNewUtf8), 0
     ]);
 
   builder.addFunction("string_new_wtf8", kSig_w_ii)
     .exportFunc()
     .addBody([
       kExprLocalGet, 0, kExprLocalGet, 1,
-      ...GCInstr(kExprStringNewWtf8), 0, kWtf8PolicyAccept
+      ...GCInstr(kExprStringNewWtf8), 0
     ]);
 
   builder.addFunction("string_new_utf8_sloppy", kSig_w_ii)
     .exportFunc()
     .addBody([
       kExprLocalGet, 0, kExprLocalGet, 1,
-      ...GCInstr(kExprStringNewWtf8), 0, kWtf8PolicyReplace
+      ...GCInstr(kExprStringNewLossyUtf8), 0
     ]);
 
   let instance = builder.instantiate();
@@ -282,50 +282,34 @@ function makeWtf16TestDataSegment() {
     .exportFunc()
     .addBody([
       kExprLocalGet, 0,
-      ...GCInstr(kExprStringMeasureWtf8), 0
+      ...GCInstr(kExprStringMeasureUtf8)
     ]);
 
   builder.addFunction("string_measure_wtf8", kSig_i_w)
     .exportFunc()
     .addBody([
       kExprLocalGet, 0,
-      ...GCInstr(kExprStringMeasureWtf8), 1
-    ]);
-
-  builder.addFunction("string_measure_wtf8_replace", kSig_i_w)
-    .exportFunc()
-    .addBody([
-      kExprLocalGet, 0,
-      ...GCInstr(kExprStringMeasureWtf8), 2
+      ...GCInstr(kExprStringMeasureWtf8)
     ]);
 
   builder.addFunction("string_measure_utf8_null", kSig_i_v)
     .exportFunc()
     .addBody([
       kExprRefNull, kStringRefCode,
-      ...GCInstr(kExprStringMeasureWtf8), 0
+      ...GCInstr(kExprStringMeasureUtf8)
     ]);
 
   builder.addFunction("string_measure_wtf8_null", kSig_i_v)
     .exportFunc()
     .addBody([
       kExprRefNull, kStringRefCode,
-      ...GCInstr(kExprStringMeasureWtf8), 1
-    ]);
-
-  builder.addFunction("string_measure_wtf8_replace_null", kSig_i_v)
-    .exportFunc()
-    .addBody([
-      kExprRefNull, kStringRefCode,
-      ...GCInstr(kExprStringMeasureWtf8), 2
+      ...GCInstr(kExprStringMeasureWtf8)
     ]);
 
   let instance = builder.instantiate();
   for (let str of interestingStrings) {
     let wtf8 = encodeWtf8(str);
     assertEquals(wtf8.length, instance.exports.string_measure_wtf8(str));
-    assertEquals(wtf8.length,
-                 instance.exports.string_measure_wtf8_replace(str));
     if (HasIsolatedSurrogate(str)) {
       assertEquals(-1, instance.exports.string_measure_utf8(str));
     } else {
@@ -336,8 +320,6 @@ function makeWtf16TestDataSegment() {
   assertThrows(() => instance.exports.string_measure_utf8_null(),
                WebAssembly.RuntimeError, "dereferencing a null pointer");
   assertThrows(() => instance.exports.string_measure_wtf8_null(),
-               WebAssembly.RuntimeError, "dereferencing a null pointer");
-  assertThrows(() => instance.exports.string_measure_wtf8_replace_null(),
                WebAssembly.RuntimeError, "dereferencing a null pointer");
 })();
 
@@ -372,13 +354,15 @@ function makeWtf16TestDataSegment() {
 
   builder.addMemory(1, undefined, true /* exported */, false);
 
-  for (let [policy, name] of ["utf8", "wtf8", "replace"].entries()) {
+  for (let [instr, name] of [[kExprStringEncodeUtf8, "utf8"],
+                             [kExprStringEncodeWtf8, "wtf8"],
+                             [kExprStringEncodeLossyUtf8, "replace"]]) {
     builder.addFunction("encode_" + name, kSig_i_wi)
       .exportFunc()
       .addBody([
         kExprLocalGet, 0,
         kExprLocalGet, 1,
-        ...GCInstr(kExprStringEncodeWtf8), 0, policy,
+        ...GCInstr(instr), 0,
       ]);
   }
 
@@ -860,9 +844,10 @@ function makeWtf16TestDataSegment() {
       ...GCInstr(kExprStringViewWtf8Advance)
     ]);
 
-  for (let [name, policy] of Object.entries({utf8: kWtf8PolicyReject,
-                                             wtf8: kWtf8PolicyAccept,
-                                             replace: kWtf8PolicyReplace})) {
+  for (let [instr, name] of
+       [[kExprStringViewWtf8EncodeUtf8, "utf8"],
+        [kExprStringViewWtf8EncodeWtf8, "wtf8"],
+        [kExprStringViewWtf8EncodeLossyUtf8, "replace"]]) {
     builder.addFunction(`encode_${name}`, kSig_ii_wiii)
       .exportFunc()
       .addBody([
@@ -871,7 +856,7 @@ function makeWtf16TestDataSegment() {
         kExprLocalGet, 1,
         kExprLocalGet, 2,
         kExprLocalGet, 3,
-        ...GCInstr(kExprStringViewWtf8Encode), 0, policy
+        ...GCInstr(instr), 0
       ]);
   }
   builder.addFunction("encode_null", kSig_v_v)
@@ -881,7 +866,7 @@ function makeWtf16TestDataSegment() {
       kExprI32Const, 0,
       kExprI32Const, 0,
       kExprI32Const, 0,
-      ...GCInstr(kExprStringViewWtf8Encode), 0, kWtf8PolicyAccept,
+      ...GCInstr(kExprStringViewWtf8EncodeWtf8), 0,
       kExprDrop,
       kExprDrop
     ]);

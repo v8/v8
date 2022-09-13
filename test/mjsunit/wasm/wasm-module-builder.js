@@ -526,20 +526,27 @@ let kExprBrOnNonI31 = 0x65;
 let kExprBrOnNonArray = 0x67;
 let kExprExternInternalize = 0x70;
 let kExprExternExternalize = 0x71;
-let kExprStringNewWtf8 = 0x80;
+let kExprStringNewUtf8 = 0x80;
 let kExprStringNewWtf16 = 0x81;
 let kExprStringConst = 0x82;
+let kExprStringMeasureUtf8 = 0x83;
 let kExprStringMeasureWtf8 = 0x84;
 let kExprStringMeasureWtf16 = 0x85;
-let kExprStringEncodeWtf8 = 0x86;
+let kExprStringEncodeUtf8 = 0x86;
 let kExprStringEncodeWtf16 = 0x87;
 let kExprStringConcat = 0x88;
 let kExprStringEq = 0x89;
 let kExprStringIsUsvSequence = 0x8a;
+let kExprStringNewLossyUtf8 = 0x8b;
+let kExprStringNewWtf8 = 0x8c;
+let kExprStringEncodeLossyUtf8 = 0x8d;
+let kExprStringEncodeWtf8 = 0x8e;
 let kExprStringAsWtf8 = 0x90;
 let kExprStringViewWtf8Advance = 0x91;
-let kExprStringViewWtf8Encode = 0x92;
+let kExprStringViewWtf8EncodeUtf8 = 0x92;
 let kExprStringViewWtf8Slice = 0x93;
+let kExprStringViewWtf8EncodeLossyUtf8 = 0x94;
+let kExprStringViewWtf8EncodeWtf8 = 0x95;
 let kExprStringAsWtf16 = 0x98;
 let kExprStringViewWtf16Length = 0x99;
 let kExprStringViewWtf16GetCodeunit = 0x9a;
@@ -550,10 +557,14 @@ let kExprStringViewIterNext = 0xa1
 let kExprStringViewIterAdvance = 0xa2;
 let kExprStringViewIterRewind = 0xa3
 let kExprStringViewIterSlice = 0xa4;
-let kExprStringNewWtf8Array = 0xb0;
+let kExprStringNewUtf8Array = 0xb0;
 let kExprStringNewWtf16Array = 0xb1;
-let kExprStringEncodeWtf8Array = 0xb2;
+let kExprStringEncodeUtf8Array = 0xb2;
 let kExprStringEncodeWtf16Array = 0xb3;
+let kExprStringNewLossyUtf8Array = 0xb4;
+let kExprStringNewWtf8Array = 0xb5;
+let kExprStringEncodeLossyUtf8Array = 0xb6;
+let kExprStringEncodeWtf8Array = 0xb7;
 
 // Numeric opcodes.
 let kExprI32SConvertSatF32 = 0x00;
@@ -882,11 +893,6 @@ let kExprI32x4TruncSatF64x2SZero = 0xfc;
 let kExprI32x4TruncSatF64x2UZero = 0xfd;
 let kExprF64x2ConvertLowI32x4S = 0xfe;
 let kExprF64x2ConvertLowI32x4U = 0xff;
-
-// WTF-8 parsing policies.
-let kWtf8PolicyReject = 0;
-let kWtf8PolicyAccept = 1;
-let kWtf8PolicyReplace = 2;
 
 // Compilation hint constants.
 let kCompilationHintStrategyDefault = 0x00;

@@ -17,6 +17,7 @@
 #include "src/base/small-vector.h"
 #include "src/base/strings.h"
 #include "src/base/v8-fallthrough.h"
+#include "src/strings/unicode.h"
 #include "src/utils/bit-vector.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/function-body-decoder.h"
@@ -789,33 +790,6 @@ struct StringConstImmediate {
 };
 
 template <Decoder::ValidateFlag validate>
-struct Wtf8PolicyImmediate {
-  StringRefWtf8Policy value;
-  const uint32_t length = 1;
-
-  Wtf8PolicyImmediate(Decoder* decoder, const byte* pc) {
-    uint8_t u8 = decoder->read_u8<validate>(pc, "wtf8 policy");
-    if (!VALIDATE(u8 <= kLastWtf8Policy)) {
-      DecodeError<validate>(
-          decoder, pc, "expected wtf8 policy 0, 1, or 2, but found %u", u8);
-    }
-    value = static_cast<StringRefWtf8Policy>(u8);
-  }
-};
-
-template <Decoder::ValidateFlag validate>
-struct EncodeWtf8Immediate {
-  MemoryIndexImmediate<validate> memory;
-  Wtf8PolicyImmediate<validate> policy;
-  uint32_t length;
-
-  EncodeWtf8Immediate(Decoder* decoder, const byte* pc)
-      : memory(decoder, pc),
-        policy(decoder, pc + memory.length),
-        length(memory.length + policy.length) {}
-};
-
-template <Decoder::ValidateFlag validate>
 struct PcForErrors {
   explicit PcForErrors(const byte* /* pc */) {}
 
@@ -1112,20 +1086,22 @@ struct ControlBase : public PcForErrors<validate> {
     uint32_t br_depth)                                                         \
   F(BrOnNonArray, const Value& object, Value* value_on_fallthrough,            \
     uint32_t br_depth)                                                         \
-  F(StringNewWtf8, const EncodeWtf8Immediate<validate>& imm,                   \
-    const Value& offset, const Value& size, Value* result)                     \
-  F(StringNewWtf8Array, const Wtf8PolicyImmediate<validate>& imm,              \
+  F(StringNewWtf8, const MemoryIndexImmediate<validate>& memory,               \
+    const unibrow::Utf8Variant variant, const Value& offset,                   \
+    const Value& size, Value* result)                                          \
+  F(StringNewWtf8Array, const unibrow::Utf8Variant variant,                    \
     const Value& array, const Value& start, const Value& end, Value* result)   \
-  F(StringNewWtf16, const MemoryIndexImmediate<validate>& imm,                 \
+  F(StringNewWtf16, const MemoryIndexImmediate<validate>& memory,              \
     const Value& offset, const Value& size, Value* result)                     \
   F(StringNewWtf16Array, const Value& array, const Value& start,               \
     const Value& end, Value* result)                                           \
-  F(StringMeasureWtf8, const Wtf8PolicyImmediate<validate>& imm,               \
-    const Value& str, Value* result)                                           \
+  F(StringMeasureWtf8, const unibrow::Utf8Variant variant, const Value& str,   \
+    Value* result)                                                             \
   F(StringMeasureWtf16, const Value& str, Value* result)                       \
-  F(StringEncodeWtf8, const EncodeWtf8Immediate<validate>& memory,             \
-    const Value& str, const Value& address, Value* result)                     \
-  F(StringEncodeWtf8Array, const Wtf8PolicyImmediate<validate>& imm,           \
+  F(StringEncodeWtf8, const MemoryIndexImmediate<validate>& memory,            \
+    const unibrow::Utf8Variant variant, const Value& str,                      \
+    const Value& address, Value* result)                                       \
+  F(StringEncodeWtf8Array, const unibrow::Utf8Variant variant,                 \
     const Value& str, const Value& array, const Value& start, Value* result)   \
   F(StringEncodeWtf16, const MemoryIndexImmediate<validate>& memory,           \
     const Value& str, const Value& address, Value* result)                     \
@@ -1137,9 +1113,10 @@ struct ControlBase : public PcForErrors<validate> {
   F(StringAsWtf8, const Value& str, Value* result)                             \
   F(StringViewWtf8Advance, const Value& view, const Value& pos,                \
     const Value& bytes, Value* result)                                         \
-  F(StringViewWtf8Encode, const EncodeWtf8Immediate<validate>& memory,         \
-    const Value& view, const Value& addr, const Value& pos,                    \
-    const Value& bytes, Value* next_pos, Value* bytes_written)                 \
+  F(StringViewWtf8Encode, const MemoryIndexImmediate<validate>& memory,        \
+    const unibrow::Utf8Variant variant, const Value& view, const Value& addr,  \
+    const Value& pos, const Value& bytes, Value* next_pos,                     \
+    Value* bytes_written)                                                      \
   F(StringViewWtf8Slice, const Value& view, const Value& start,                \
     const Value& end, Value* result)                                           \
   F(StringAsWtf16, const Value& str, Value* result)                            \
@@ -1577,10 +1554,6 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
-  bool Validate(const byte* pc, EncodeWtf8Immediate<validate>& imm) {
-    return Validate(pc, imm.memory);
-  }
-
   bool Validate(const byte* pc, StringConstImmediate<validate>& imm) {
     if (!VALIDATE(imm.index < module_->stringref_literals.size())) {
       DecodeError(pc, "Invalid string literal index: %u", imm.index);
@@ -1667,7 +1640,6 @@ class WasmDecoder : public Decoder {
     void SimdLane(SimdLaneImmediate<validate>& imm) {}
     void Field(FieldImmediate<validate>& imm) {}
     void Length(IndexImmediate<validate>& imm) {}
-    void Wtf8Policy(Wtf8PolicyImmediate<validate>& imm) {}
 
     void TagIndex(TagIndexImmediate<validate>& imm) {}
     void FunctionIndex(IndexImmediate<validate>& imm) {}
@@ -2083,6 +2055,15 @@ class WasmDecoder : public Decoder {
           case kExprExternExternalize:
           case kExprArrayLen:
             return length;
+          case kExprStringNewUtf8:
+          case kExprStringNewLossyUtf8:
+          case kExprStringNewWtf8:
+          case kExprStringEncodeUtf8:
+          case kExprStringEncodeLossyUtf8:
+          case kExprStringEncodeWtf8:
+          case kExprStringViewWtf8EncodeUtf8:
+          case kExprStringViewWtf8EncodeLossyUtf8:
+          case kExprStringViewWtf8EncodeWtf8:
           case kExprStringNewWtf16:
           case kExprStringEncodeWtf16:
           case kExprStringViewWtf16Encode: {
@@ -2090,26 +2071,19 @@ class WasmDecoder : public Decoder {
             if (io) io->MemoryIndex(imm);
             return length + imm.length;
           }
-          case kExprStringNewWtf8:
-          case kExprStringEncodeWtf8:
-          case kExprStringViewWtf8Encode: {
-            EncodeWtf8Immediate<validate> imm(decoder, pc + length);
-            if (io) io->MemoryIndex(imm.memory);
-            if (io) io->Wtf8Policy(imm.policy);
-            return length + imm.length;
-          }
           case kExprStringConst: {
             StringConstImmediate<validate> imm(decoder, pc + length);
             if (io) io->StringConst(imm);
             return length + imm.length;
           }
+          case kExprStringMeasureUtf8:
+          case kExprStringMeasureWtf8:
+          case kExprStringNewUtf8Array:
+          case kExprStringNewLossyUtf8Array:
           case kExprStringNewWtf8Array:
+          case kExprStringEncodeUtf8Array:
+          case kExprStringEncodeLossyUtf8Array:
           case kExprStringEncodeWtf8Array:
-          case kExprStringMeasureWtf8: {
-            Wtf8PolicyImmediate<validate> imm(decoder, pc + length);
-            if (io) io->Wtf8Policy(imm);
-            return length + imm.length;
-          }
           case kExprStringMeasureWtf16:
           case kExprStringConcat:
           case kExprStringEq:
@@ -2314,6 +2288,7 @@ class WasmDecoder : public Decoder {
           }
           case kExprStringConst:
             return { 0, 1 };
+          case kExprStringMeasureUtf8:
           case kExprStringMeasureWtf8:
           case kExprStringMeasureWtf16:
           case kExprStringIsUSVSequence:
@@ -2323,6 +2298,8 @@ class WasmDecoder : public Decoder {
           case kExprStringViewWtf16Length:
           case kExprStringViewIterNext:
             return { 1, 1 };
+          case kExprStringNewUtf8:
+          case kExprStringNewLossyUtf8:
           case kExprStringNewWtf8:
           case kExprStringNewWtf16:
           case kExprStringConcat:
@@ -2332,9 +2309,15 @@ class WasmDecoder : public Decoder {
           case kExprStringViewIterRewind:
           case kExprStringViewIterSlice:
             return { 2, 1 };
+          case kExprStringNewUtf8Array:
+          case kExprStringNewLossyUtf8Array:
           case kExprStringNewWtf8Array:
           case kExprStringNewWtf16Array:
+          case kExprStringEncodeUtf8:
+          case kExprStringEncodeLossyUtf8:
           case kExprStringEncodeWtf8:
+          case kExprStringEncodeUtf8Array:
+          case kExprStringEncodeLossyUtf8Array:
           case kExprStringEncodeWtf8Array:
           case kExprStringEncodeWtf16:
           case kExprStringEncodeWtf16Array:
@@ -2344,7 +2327,9 @@ class WasmDecoder : public Decoder {
             return { 3, 1 };
           case kExprStringViewWtf16Encode:
             return { 4, 1 };
-          case kExprStringViewWtf8Encode:
+          case kExprStringViewWtf8EncodeUtf8:
+          case kExprStringViewWtf8EncodeLossyUtf8:
+          case kExprStringViewWtf8EncodeWtf8:
             return { 4, 2 };
           default:
             UNREACHABLE();
@@ -3692,7 +3677,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     WasmOpcode full_opcode = this->template read_prefixed_opcode<validate>(
         this->pc_, &opcode_length, "gc index");
     trace_msg->AppendOpcode(full_opcode);
-    if (full_opcode >= kExprStringNewWtf8) {
+    if (full_opcode >= kExprStringNewUtf8) {
       CHECK_PROTOTYPE_OPCODE(stringref);
       return DecodeStringRefOpcode(full_opcode, opcode_length);
     } else {
@@ -5146,22 +5131,108 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
 
   enum class WasmArrayAccess { kRead, kWrite };
 
+  int DecodeStringNewWtf8(unibrow::Utf8Variant variant,
+                          uint32_t opcode_length) {
+    NON_CONST_ONLY
+    MemoryIndexImmediate<validate> memory(this, this->pc_ + opcode_length);
+    if (!this->Validate(this->pc_ + opcode_length, memory)) return 0;
+    ValueType addr_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
+    Value offset = Peek(1, 0, addr_type);
+    Value size = Peek(0, 1, kWasmI32);
+    Value result = CreateValue(ValueType::Ref(HeapType::kString));
+    CALL_INTERFACE_IF_OK_AND_REACHABLE(StringNewWtf8, memory, variant, offset,
+                                       size, &result);
+    Drop(2);
+    Push(result);
+    return opcode_length + memory.length;
+  }
+
+  int DecodeStringMeasureWtf8(unibrow::Utf8Variant variant,
+                              uint32_t opcode_length) {
+    NON_CONST_ONLY
+    Value str = Peek(0, 0, kWasmStringRef);
+    Value result = CreateValue(kWasmI32);
+    CALL_INTERFACE_IF_OK_AND_REACHABLE(StringMeasureWtf8, variant, str,
+                                       &result);
+    Drop(str);
+    Push(result);
+    return opcode_length;
+  }
+
+  int DecodeStringEncodeWtf8(unibrow::Utf8Variant variant,
+                             uint32_t opcode_length) {
+    NON_CONST_ONLY
+    MemoryIndexImmediate<validate> memory(this, this->pc_ + opcode_length);
+    if (!this->Validate(this->pc_ + opcode_length, memory)) return 0;
+    ValueType addr_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
+    Value str = Peek(1, 0, kWasmStringRef);
+    Value addr = Peek(0, 1, addr_type);
+    Value result = CreateValue(kWasmI32);
+    CALL_INTERFACE_IF_OK_AND_REACHABLE(StringEncodeWtf8, memory, variant, str,
+                                       addr, &result);
+    Drop(2);
+    Push(result);
+    return opcode_length + memory.length;
+  }
+
+  int DecodeStringViewWtf8Encode(unibrow::Utf8Variant variant,
+                                 uint32_t opcode_length) {
+    NON_CONST_ONLY
+    MemoryIndexImmediate<validate> memory(this, this->pc_ + opcode_length);
+    if (!this->Validate(this->pc_ + opcode_length, memory)) return 0;
+    ValueType addr_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
+    Value view = Peek(3, 0, kWasmStringViewWtf8);
+    Value addr = Peek(2, 1, addr_type);
+    Value pos = Peek(1, 2, kWasmI32);
+    Value bytes = Peek(0, 3, kWasmI32);
+    Value next_pos = CreateValue(kWasmI32);
+    Value bytes_out = CreateValue(kWasmI32);
+    CALL_INTERFACE_IF_OK_AND_REACHABLE(StringViewWtf8Encode, memory, variant,
+                                       view, addr, pos, bytes, &next_pos,
+                                       &bytes_out);
+    Drop(4);
+    Push(next_pos);
+    Push(bytes_out);
+    return opcode_length + memory.length;
+  }
+
+  int DecodeStringNewWtf8Array(unibrow::Utf8Variant variant,
+                               uint32_t opcode_length) {
+    NON_CONST_ONLY
+    Value array = PeekPackedArray(2, 0, kWasmI8, WasmArrayAccess::kRead);
+    Value start = Peek(1, 1, kWasmI32);
+    Value end = Peek(0, 2, kWasmI32);
+    Value result = CreateValue(ValueType::Ref(HeapType::kString));
+    CALL_INTERFACE_IF_OK_AND_REACHABLE(StringNewWtf8Array, variant, array,
+                                       start, end, &result);
+    Drop(3);
+    Push(result);
+    return opcode_length;
+  }
+
+  int DecodeStringEncodeWtf8Array(unibrow::Utf8Variant variant,
+                                  uint32_t opcode_length) {
+    NON_CONST_ONLY
+    Value str = Peek(2, 0, kWasmStringRef);
+    Value array = PeekPackedArray(1, 1, kWasmI8, WasmArrayAccess::kWrite);
+    Value start = Peek(0, 2, kWasmI32);
+    Value result = CreateValue(kWasmI32);
+    CALL_INTERFACE_IF_OK_AND_REACHABLE(StringEncodeWtf8Array, variant, str,
+                                       array, start, &result);
+    Drop(3);
+    Push(result);
+    return opcode_length;
+  }
+
   int DecodeStringRefOpcode(WasmOpcode opcode, uint32_t opcode_length) {
     switch (opcode) {
-      case kExprStringNewWtf8: {
-        NON_CONST_ONLY
-        EncodeWtf8Immediate<validate> imm(this, this->pc_ + opcode_length);
-        if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
-        ValueType addr_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
-        Value offset = Peek(1, 0, addr_type);
-        Value size = Peek(0, 1, kWasmI32);
-        Value result = CreateValue(ValueType::Ref(HeapType::kString));
-        CALL_INTERFACE_IF_OK_AND_REACHABLE(StringNewWtf8, imm, offset, size,
-                                           &result);
-        Drop(2);
-        Push(result);
-        return opcode_length + imm.length;
-      }
+      case kExprStringNewUtf8:
+        return DecodeStringNewWtf8(unibrow::Utf8Variant::kUtf8, opcode_length);
+      case kExprStringNewLossyUtf8:
+        return DecodeStringNewWtf8(unibrow::Utf8Variant::kLossyUtf8,
+                                   opcode_length);
+      case kExprStringNewWtf8:
+        return DecodeStringNewWtf8(unibrow::Utf8Variant::kWtf8, opcode_length);
       case kExprStringNewWtf16: {
         NON_CONST_ONLY
         MemoryIndexImmediate<validate> imm(this, this->pc_ + opcode_length);
@@ -5184,17 +5255,12 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Push(result);
         return opcode_length + imm.length;
       }
-      case kExprStringMeasureWtf8: {
-        NON_CONST_ONLY
-        Wtf8PolicyImmediate<validate> imm(this, this->pc_ + opcode_length);
-        Value str = Peek(0, 0, kWasmStringRef);
-        Value result = CreateValue(kWasmI32);
-        CALL_INTERFACE_IF_OK_AND_REACHABLE(StringMeasureWtf8, imm, str,
-                                           &result);
-        Drop(str);
-        Push(result);
-        return opcode_length + imm.length;
-      }
+      case kExprStringMeasureUtf8:
+        return DecodeStringMeasureWtf8(unibrow::Utf8Variant::kUtf8,
+                                       opcode_length);
+      case kExprStringMeasureWtf8:
+        return DecodeStringMeasureWtf8(unibrow::Utf8Variant::kWtf8,
+                                       opcode_length);
       case kExprStringMeasureWtf16: {
         NON_CONST_ONLY
         Value str = Peek(0, 0, kWasmStringRef);
@@ -5204,20 +5270,15 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Push(result);
         return opcode_length;
       }
-      case kExprStringEncodeWtf8: {
-        NON_CONST_ONLY
-        EncodeWtf8Immediate<validate> imm(this, this->pc_ + opcode_length);
-        if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
-        ValueType addr_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
-        Value str = Peek(1, 0, kWasmStringRef);
-        Value addr = Peek(0, 1, addr_type);
-        Value result = CreateValue(kWasmI32);
-        CALL_INTERFACE_IF_OK_AND_REACHABLE(StringEncodeWtf8, imm, str, addr,
-                                           &result);
-        Drop(2);
-        Push(result);
-        return opcode_length + imm.length;
-      }
+      case kExprStringEncodeUtf8:
+        return DecodeStringEncodeWtf8(unibrow::Utf8Variant::kUtf8,
+                                      opcode_length);
+      case kExprStringEncodeLossyUtf8:
+        return DecodeStringEncodeWtf8(unibrow::Utf8Variant::kLossyUtf8,
+                                      opcode_length);
+      case kExprStringEncodeWtf8:
+        return DecodeStringEncodeWtf8(unibrow::Utf8Variant::kWtf8,
+                                      opcode_length);
       case kExprStringEncodeWtf16: {
         NON_CONST_ONLY
         MemoryIndexImmediate<validate> imm(this, this->pc_ + opcode_length);
@@ -5282,25 +5343,15 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Push(result);
         return opcode_length;
       }
-      case kExprStringViewWtf8Encode: {
-        NON_CONST_ONLY
-        EncodeWtf8Immediate<validate> imm(this, this->pc_ + opcode_length);
-        if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
-        ValueType addr_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
-        Value view = Peek(3, 0, kWasmStringViewWtf8);
-        Value addr = Peek(2, 1, addr_type);
-        Value pos = Peek(1, 2, kWasmI32);
-        Value bytes = Peek(0, 3, kWasmI32);
-        Value next_pos = CreateValue(kWasmI32);
-        Value bytes_out = CreateValue(kWasmI32);
-        CALL_INTERFACE_IF_OK_AND_REACHABLE(StringViewWtf8Encode, imm, view,
-                                           addr, pos, bytes, &next_pos,
-                                           &bytes_out);
-        Drop(4);
-        Push(next_pos);
-        Push(bytes_out);
-        return opcode_length + imm.length;
-      }
+      case kExprStringViewWtf8EncodeUtf8:
+        return DecodeStringViewWtf8Encode(unibrow::Utf8Variant::kUtf8,
+                                          opcode_length);
+      case kExprStringViewWtf8EncodeLossyUtf8:
+        return DecodeStringViewWtf8Encode(unibrow::Utf8Variant::kLossyUtf8,
+                                          opcode_length);
+      case kExprStringViewWtf8EncodeWtf8:
+        return DecodeStringViewWtf8Encode(unibrow::Utf8Variant::kWtf8,
+                                          opcode_length);
       case kExprStringViewWtf8Slice: {
         NON_CONST_ONLY
         Value view = Peek(2, 0, kWasmStringViewWtf8);
@@ -5370,7 +5421,6 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Push(result);
         return opcode_length;
       }
-
       case kExprStringAsIter: {
         NON_CONST_ONLY
         Value str = Peek(0, 0, kWasmStringRef);
@@ -5422,20 +5472,18 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Push(result);
         return opcode_length;
       }
-      case kExprStringNewWtf8Array: {
+      case kExprStringNewUtf8Array:
         CHECK_PROTOTYPE_OPCODE(gc);
-        NON_CONST_ONLY
-        Wtf8PolicyImmediate<validate> imm(this, this->pc_ + opcode_length);
-        Value array = PeekPackedArray(2, 0, kWasmI8, WasmArrayAccess::kRead);
-        Value start = Peek(1, 1, kWasmI32);
-        Value end = Peek(0, 2, kWasmI32);
-        Value result = CreateValue(ValueType::Ref(HeapType::kString));
-        CALL_INTERFACE_IF_OK_AND_REACHABLE(StringNewWtf8Array, imm, array,
-                                           start, end, &result);
-        Drop(3);
-        Push(result);
-        return opcode_length + imm.length;
-      }
+        return DecodeStringNewWtf8Array(unibrow::Utf8Variant::kUtf8,
+                                        opcode_length);
+      case kExprStringNewLossyUtf8Array:
+        CHECK_PROTOTYPE_OPCODE(gc);
+        return DecodeStringNewWtf8Array(unibrow::Utf8Variant::kLossyUtf8,
+                                        opcode_length);
+      case kExprStringNewWtf8Array:
+        CHECK_PROTOTYPE_OPCODE(gc);
+        return DecodeStringNewWtf8Array(unibrow::Utf8Variant::kWtf8,
+                                        opcode_length);
       case kExprStringNewWtf16Array: {
         CHECK_PROTOTYPE_OPCODE(gc);
         NON_CONST_ONLY
@@ -5449,20 +5497,18 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Push(result);
         return opcode_length;
       }
-      case kExprStringEncodeWtf8Array: {
+      case kExprStringEncodeUtf8Array:
         CHECK_PROTOTYPE_OPCODE(gc);
-        NON_CONST_ONLY
-        Wtf8PolicyImmediate<validate> imm(this, this->pc_ + opcode_length);
-        Value str = Peek(2, 0, kWasmStringRef);
-        Value array = PeekPackedArray(1, 1, kWasmI8, WasmArrayAccess::kWrite);
-        Value start = Peek(0, 2, kWasmI32);
-        Value result = CreateValue(kWasmI32);
-        CALL_INTERFACE_IF_OK_AND_REACHABLE(StringEncodeWtf8Array, imm, str,
-                                           array, start, &result);
-        Drop(3);
-        Push(result);
-        return opcode_length + imm.length;
-      }
+        return DecodeStringEncodeWtf8Array(unibrow::Utf8Variant::kUtf8,
+                                           opcode_length);
+      case kExprStringEncodeLossyUtf8Array:
+        CHECK_PROTOTYPE_OPCODE(gc);
+        return DecodeStringEncodeWtf8Array(unibrow::Utf8Variant::kLossyUtf8,
+                                           opcode_length);
+      case kExprStringEncodeWtf8Array:
+        CHECK_PROTOTYPE_OPCODE(gc);
+        return DecodeStringEncodeWtf8Array(unibrow::Utf8Variant::kWtf8,
+                                           opcode_length);
       case kExprStringEncodeWtf16Array: {
         CHECK_PROTOTYPE_OPCODE(gc);
         NON_CONST_ONLY
