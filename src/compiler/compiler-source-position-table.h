@@ -57,6 +57,10 @@ class V8_EXPORT_PRIVATE SourcePositionTable final
   }
   SourcePosition GetCurrentPosition() const { return current_position_; }
 
+  void Disable() { enabled_ = false; }
+
+  bool IsEnabled() const { return enabled_; }
+
   void PrintJson(std::ostream& os) const;
 
  private:
@@ -70,6 +74,7 @@ class V8_EXPORT_PRIVATE SourcePositionTable final
   Decorator* decorator_;
   SourcePosition current_position_;
   NodeAuxData<SourcePosition, UnknownSourcePosition> table_;
+  bool enabled_ = true;
 };
 
 }  // namespace compiler

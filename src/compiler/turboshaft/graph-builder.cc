@@ -224,7 +224,7 @@ base::Optional<BailoutReason> GraphBuilder::Run() {
     DCHECK_NULL(assembler.current_block());
   }
 
-  if (source_positions) {
+  if (source_positions->IsEnabled()) {
     for (OpIndex index : assembler.graph().AllOperationIndices()) {
       compiler::NodeId origin =
           assembler.graph().operation_origins()[index].DecodeTurbofanNodeId();

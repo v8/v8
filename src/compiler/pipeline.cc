@@ -2799,7 +2799,9 @@ void PipelineImpl::InitializeHeapBroker() {
     TurboCfgFile tcf(isolate());
     tcf << AsC1VCompilation(info());
   }
-
+  if (data->info()->bytecode_array()->SourcePositionTable().DataSize() == 0) {
+    data->source_positions()->Disable();
+  }
   data->source_positions()->AddDecorator();
   if (data->info()->trace_turbo_json()) {
     data->node_origins()->AddDecorator();

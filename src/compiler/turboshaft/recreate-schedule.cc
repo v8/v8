@@ -156,7 +156,7 @@ void ScheduleBuilder::ProcessOperation(const Operation& op) {
   OpIndex index = input_graph.Index(op);
   DCHECK_LT(index.id(), nodes.size());
   nodes[index.id()] = node;
-  if (source_positions && node) {
+  if (source_positions->IsEnabled() && node) {
     source_positions->SetSourcePosition(node,
                                         input_graph.source_positions()[index]);
   }

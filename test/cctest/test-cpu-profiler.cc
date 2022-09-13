@@ -1247,6 +1247,8 @@ static void TickLines(bool optimize) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
   i::HandleScope scope(isolate);
+  // Ensure that source positions are collected everywhere.
+  isolate->SetIsProfiling(true);
 
   base::EmbeddedVector<char, 512> script;
   base::EmbeddedVector<char, 64> prepare_opt;
@@ -1850,6 +1852,8 @@ TEST(Inlining) {
   v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
   ProfilerHelper helper(env);
+  // Ensure that source positions are collected everywhere.
+  CcTest::i_isolate()->SetIsProfiling(true);
 
   CompileRun(inlining_test_source);
   v8::Local<v8::Function> function = GetFunction(env, "start");
