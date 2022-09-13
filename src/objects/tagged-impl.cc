@@ -7,6 +7,8 @@
 #include <sstream>
 
 #include "src/objects/objects.h"
+#include "src/objects/smi.h"
+#include "src/objects/tagged-impl-inl.h"
 #include "src/strings/string-stream.h"
 #include "src/utils/ostreams.h"
 
@@ -51,6 +53,34 @@ template <HeapObjectReferenceType kRefType, typename StorageType>
 void TaggedImpl<kRefType, StorageType>::ShortPrint(std::ostream& os) {
   os << Brief(*this);
 }
+
+#ifdef OBJECT_PRINT
+template <HeapObjectReferenceType kRefType, typename StorageType>
+void TaggedImpl<kRefType, StorageType>::Print() {
+  StdoutStream os;
+  this->Print(os);
+  os << std::flush;
+}
+
+template <HeapObjectReferenceType kRefType, typename StorageType>
+void TaggedImpl<kRefType, StorageType>::Print(std::ostream& os) {
+  Smi smi(0);
+  HeapObject heap_object;
+  if (ToSmi(&smi)) {
+    os << "Smi: " << std::hex << "0x" << smi.value();
+    os << std::dec << " (" << smi.value() << ")\n";
+  } else if (IsCleared()) {
+    os << "[cleared]";
+  } else if (GetHeapObjectIfWeak(&heap_object)) {
+    os << "[weak] ";
+    heap_object.HeapObjectPrint(os);
+  } else if (GetHeapObjectIfStrong(&heap_object)) {
+    heap_object.HeapObjectPrint(os);
+  } else {
+    UNREACHABLE();
+  }
+}
+#endif  // OBJECT_PRINT
 
 // Explicit instantiation declarations.
 template class TaggedImpl<HeapObjectReferenceType::STRONG, Address>;

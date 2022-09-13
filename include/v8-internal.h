@@ -52,6 +52,7 @@ const int kHeapObjectTag = 1;
 const int kWeakHeapObjectTag = 3;
 const int kHeapObjectTagSize = 2;
 const intptr_t kHeapObjectTagMask = (1 << kHeapObjectTagSize) - 1;
+const intptr_t kHeapObjectReferenceTagMask = 1 << (kHeapObjectTagSize - 1);
 
 // Tag information for fowarding pointers stored in object headers.
 // 0b00 at the lowest 2 bits in the header indicates that the map word is a

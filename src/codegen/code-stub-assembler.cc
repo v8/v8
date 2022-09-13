@@ -2067,10 +2067,22 @@ TNode<BoolT> CodeStubAssembler::IsStrong(TNode<MaybeObject> value) {
                      Int32Constant(kHeapObjectTag));
 }
 
+TNode<BoolT> CodeStubAssembler::IsStrong(TNode<HeapObjectReference> value) {
+  return IsNotSetWord32(
+      TruncateIntPtrToInt32(BitcastTaggedToWordForTagAndSmiBits(value)),
+      kHeapObjectReferenceTagMask);
+}
+
 TNode<HeapObject> CodeStubAssembler::GetHeapObjectIfStrong(
     TNode<MaybeObject> value, Label* if_not_strong) {
   GotoIfNot(IsStrong(value), if_not_strong);
   return CAST(value);
+}
+
+TNode<HeapObject> CodeStubAssembler::GetHeapObjectIfStrong(
+    TNode<HeapObjectReference> value, Label* if_not_strong) {
+  GotoIfNot(IsStrong(value), if_not_strong);
+  return ReinterpretCast<HeapObject>(value);
 }
 
 TNode<BoolT> CodeStubAssembler::IsWeakOrCleared(TNode<MaybeObject> value) {
@@ -2078,6 +2090,13 @@ TNode<BoolT> CodeStubAssembler::IsWeakOrCleared(TNode<MaybeObject> value) {
                                    BitcastTaggedToWordForTagAndSmiBits(value)),
                                Int32Constant(kHeapObjectTagMask)),
                      Int32Constant(kWeakHeapObjectTag));
+}
+
+TNode<BoolT> CodeStubAssembler::IsWeakOrCleared(
+    TNode<HeapObjectReference> value) {
+  return IsSetWord32(
+      TruncateIntPtrToInt32(BitcastTaggedToWordForTagAndSmiBits(value)),
+      kHeapObjectReferenceTagMask);
 }
 
 TNode<BoolT> CodeStubAssembler::IsCleared(TNode<MaybeObject> value) {

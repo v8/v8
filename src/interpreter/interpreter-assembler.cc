@@ -868,8 +868,8 @@ TNode<Object> InterpreterAssembler::ConstructWithSpread(
   IncrementCallCount(feedback_vector, slot_id);
 
   // Check if we have monomorphic {new_target} feedback already.
-  TNode<MaybeObject> feedback =
-      LoadFeedbackVectorSlot(feedback_vector, slot_id);
+  TNode<HeapObjectReference> feedback =
+      CAST(LoadFeedbackVectorSlot(feedback_vector, slot_id));
   Branch(IsWeakReferenceToObject(feedback, new_target), &construct,
          &extra_checks);
 

@@ -346,12 +346,10 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   // IC dispatcher behavior.
 
   // Checks monomorphic case. Returns {feedback} entry of the vector.
-  TNode<MaybeObject> TryMonomorphicCase(TNode<TaggedIndex> slot,
-                                        TNode<FeedbackVector> vector,
-                                        TNode<Map> lookup_start_object_map,
-                                        Label* if_handler,
-                                        TVariable<MaybeObject>* var_handler,
-                                        Label* if_miss);
+  TNode<HeapObjectReference> TryMonomorphicCase(
+      TNode<TaggedIndex> slot, TNode<FeedbackVector> vector,
+      TNode<Map> lookup_start_object_map, Label* if_handler,
+      TVariable<MaybeObject>* var_handler, Label* if_miss);
   void HandlePolymorphicCase(TNode<Map> lookup_start_object_map,
                              TNode<WeakFixedArray> feedback, Label* if_handler,
                              TVariable<MaybeObject>* var_handler,

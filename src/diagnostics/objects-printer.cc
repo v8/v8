@@ -2599,31 +2599,6 @@ void PreparseData::PreparseDataPrint(std::ostream& os) {
   os << "\n";
 }
 
-template <HeapObjectReferenceType kRefType, typename StorageType>
-void TaggedImpl<kRefType, StorageType>::Print() {
-  StdoutStream os;
-  this->Print(os);
-  os << std::flush;
-}
-
-template <HeapObjectReferenceType kRefType, typename StorageType>
-void TaggedImpl<kRefType, StorageType>::Print(std::ostream& os) {
-  Smi smi;
-  HeapObject heap_object;
-  if (ToSmi(&smi)) {
-    smi.SmiPrint(os);
-  } else if (IsCleared()) {
-    os << "[cleared]";
-  } else if (GetHeapObjectIfWeak(&heap_object)) {
-    os << "[weak] ";
-    heap_object.HeapObjectPrint(os);
-  } else if (GetHeapObjectIfStrong(&heap_object)) {
-    heap_object.HeapObjectPrint(os);
-  } else {
-    UNREACHABLE();
-  }
-}
-
 void HeapNumber::HeapNumberPrint(std::ostream& os) {
   HeapNumberShortPrint(os);
   os << "\n";

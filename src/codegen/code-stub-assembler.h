@@ -1473,10 +1473,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                            TVariable<Object>* extracted);
   // See MaybeObject for semantics of these functions.
   TNode<BoolT> IsStrong(TNode<MaybeObject> value);
+  TNode<BoolT> IsStrong(TNode<HeapObjectReference> value);
   TNode<HeapObject> GetHeapObjectIfStrong(TNode<MaybeObject> value,
+                                          Label* if_not_strong);
+  TNode<HeapObject> GetHeapObjectIfStrong(TNode<HeapObjectReference> value,
                                           Label* if_not_strong);
 
   TNode<BoolT> IsWeakOrCleared(TNode<MaybeObject> value);
+  TNode<BoolT> IsWeakOrCleared(TNode<HeapObjectReference> value);
   TNode<BoolT> IsCleared(TNode<MaybeObject> value);
   TNode<BoolT> IsNotCleared(TNode<MaybeObject> value) {
     return Word32BinaryNot(IsCleared(value));
