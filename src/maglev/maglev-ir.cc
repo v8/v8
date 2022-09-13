@@ -379,6 +379,15 @@ DeoptInfo::DeoptInfo(Zone* zone, const MaglevCompilationUnit& compilation_unit,
   }
 }
 
+bool LazyDeoptInfo::IsResultRegister(interpreter::Register reg) const {
+  if (V8_LIKELY(result_size == 1)) {
+    return reg == result_location;
+  }
+  DCHECK_EQ(result_size, 2);
+  return reg == result_location ||
+         reg == interpreter::Register(result_location.index() + 1);
+}
+
 // ---
 // Nodes
 // ---
@@ -707,6 +716,7 @@ void ForInPrepare::GenerateCode(MaglevAssembler* masm,
           TaggedIndex::FromIntptr(feedback().index()));
   __ Move(D::GetRegisterParameter(D::kFeedbackVector), feedback().vector);
   __ CallBuiltin(Builtin::kForInPrepare);
+  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
 void ForInNext::AllocateVreg(MaglevVregAllocationState* vreg_state) {
@@ -752,6 +762,7 @@ void GetIterator::GenerateCode(MaglevAssembler* masm,
           TaggedIndex::FromIntptr(call_slot()));
   __ Move(D::GetRegisterParameter(D::kMaybeFeedbackVector), feedback());
   __ CallBuiltin(Builtin::kGetIteratorWithFeedback);
+  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
 void GetSecondReturnedValue::AllocateVreg(
@@ -905,6 +916,7 @@ void CreateEmptyArrayLiteral::GenerateCode(MaglevAssembler* masm,
   __ Move(D::GetRegisterParameter(D::kSlot), Smi::FromInt(feedback().index()));
   __ Move(D::GetRegisterParameter(D::kFeedbackVector), feedback().vector);
   __ CallBuiltin(Builtin::kCreateEmptyArrayLiteral);
+  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
 void CreateArrayLiteral::AllocateVreg(MaglevVregAllocationState* vreg_state) {
@@ -935,6 +947,7 @@ void CreateShallowArrayLiteral::GenerateCode(MaglevAssembler* masm,
           constant_elements().object());
   __ Move(D::GetRegisterParameter(D::kFlags), Smi::FromInt(flags()));
   __ CallBuiltin(Builtin::kCreateShallowArrayLiteral);
+  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
 void CreateObjectLiteral::AllocateVreg(MaglevVregAllocationState* vreg_state) {
@@ -988,6 +1001,7 @@ void CreateShallowObjectLiteral::GenerateCode(MaglevAssembler* masm,
   __ Move(D::GetRegisterParameter(D::kDesc), boilerplate_descriptor().object());
   __ Move(D::GetRegisterParameter(D::kFlags), Smi::FromInt(flags()));
   __ CallBuiltin(Builtin::kCreateShallowObjectLiteral);
+  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
 void CreateFunctionContext::AllocateVreg(
@@ -1028,6 +1042,7 @@ void CreateFunctionContext::GenerateCode(MaglevAssembler* masm,
     __ Move(D::GetRegisterParameter(D::kSlots), Immediate(slot_count()));
     __ CallBuiltin(Builtin::kFastNewFunctionContextEval);
   }
+  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 void CreateFunctionContext::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
@@ -1049,6 +1064,7 @@ void FastCreateClosure::GenerateCode(MaglevAssembler* masm,
           shared_function_info().object());
   __ Move(D::GetRegisterParameter(D::kFeedbackCell), feedback_cell().object());
   __ CallBuiltin(Builtin::kFastNewClosure);
+  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 void FastCreateClosure::PrintParams(std::ostream& os,
                                     MaglevGraphLabeller* graph_labeller) const {
@@ -1107,6 +1123,7 @@ void GetTemplateObject::GenerateCode(MaglevAssembler* masm,
   __ Move(D::GetRegisterParameter(D::kSlot), feedback().slot.ToInt());
   __ Move(D::GetRegisterParameter(D::kShared), shared_function_info_.object());
   __ CallBuiltin(Builtin::kGetTemplateObject);
+  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
 void Abort::AllocateVreg(MaglevVregAllocationState* vreg_state) {}

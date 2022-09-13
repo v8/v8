@@ -787,21 +787,27 @@ class MaglevGraphBuilder {
     if (!IsConstantNode(value->opcode())) {
       DCHECK_NE(0, new_nodes_.count(value));
     }
-    MarkAsLazyDeoptResult(value, target);
+    MarkAsLazyDeoptResult(value, target, 1);
     current_interpreter_frame_.set(target, value);
   }
 
-  void StoreRegisterPair(interpreter::Register target, CallRuntime* value) {
+  template <typename NodeT>
+  void StoreRegisterPair(
+      std::pair<interpreter::Register, interpreter::Register> target,
+      NodeT* value) {
+    const interpreter::Register target0 = target.first;
+    const interpreter::Register target1 = target.second;
+
+    DCHECK_EQ(interpreter::Register(target0.index() + 1), target1);
     DCHECK_EQ(value->ReturnCount(), 2);
 
     DCHECK_NE(0, new_nodes_.count(value));
-    MarkAsLazyDeoptResult(value, target, value->ReturnCount());
-    current_interpreter_frame_.set(target, value);
+    MarkAsLazyDeoptResult(value, target0, value->ReturnCount());
+    current_interpreter_frame_.set(target0, value);
 
     ValueNode* second_value = GetSecondValue(value);
     DCHECK_NE(0, new_nodes_.count(second_value));
-    current_interpreter_frame_.set(interpreter::Register(target.index() + 1),
-                                   second_value);
+    current_interpreter_frame_.set(target1, second_value);
   }
 
   CheckpointedInterpreterState GetLatestCheckpointedState() {
@@ -832,7 +838,7 @@ class MaglevGraphBuilder {
   template <typename NodeT>
   void MarkAsLazyDeoptResult(NodeT* value,
                              interpreter::Register result_location,
-                             int result_size = 1) {
+                             int result_size) {
     DCHECK_EQ(NodeT::kProperties.can_lazy_deopt(),
               value->properties().can_lazy_deopt());
     if constexpr (NodeT::kProperties.can_lazy_deopt()) {

@@ -521,8 +521,9 @@ void StraightForwardRegisterAllocator::UpdateUse(
   // See also: UpdateUse(EagerDeoptInfo&).
   checkpoint_state->ForEachValue(
       deopt_info.unit, [&](ValueNode* node, interpreter::Register reg) {
-        // Skip over the result location.
-        if (reg == deopt_info.result_location) return;
+        // Skip over the result location since it is irrelevant for lazy deopts
+        // (unoptimized code will recreate the result).
+        if (deopt_info.IsResultRegister(reg)) return;
         if (FLAG_trace_maglev_regalloc) {
           printing_visitor_->os()
               << "- using " << PrintNodeLabel(graph_labeller(), node) << "\n";

@@ -2008,7 +2008,8 @@ void MaglevGraphBuilder::VisitCallRuntimeForPair() {
   for (int i = 0; i < args.register_count(); ++i) {
     call_runtime->set_arg(i, GetTaggedValue(args[i]));
   }
-  StoreRegisterPair(iterator_.GetRegisterOperand(3), call_runtime);
+  auto result = iterator_.GetRegisterPairOperand(3);
+  StoreRegisterPair(result, call_runtime);
 }
 
 void MaglevGraphBuilder::VisitInvokeIntrinsic() {
@@ -2324,21 +2325,19 @@ void MaglevGraphBuilder::VisitCreateArrayLiteral() {
   int bytecode_flags = GetFlag8Operand(2);
   int literal_flags =
       interpreter::CreateArrayLiteralFlags::FlagsBits::decode(bytecode_flags);
-  ValueNode* result;
   if (interpreter::CreateArrayLiteralFlags::FastCloneSupportedBit::decode(
           bytecode_flags)) {
     // TODO(victorgomes): CreateShallowArrayLiteral should not need the
     // boilerplate descriptor. However the current builtin checks that the
     // feedback exists and fallsback to CreateArrayLiteral if it doesn't.
-    result = AddNewNode<CreateShallowArrayLiteral>(
+    SetAccumulator(AddNewNode<CreateShallowArrayLiteral>(
         {}, constant_elements, compiler::FeedbackSource{feedback(), slot_index},
-        literal_flags);
+        literal_flags));
   } else {
-    result = AddNewNode<CreateArrayLiteral>(
+    SetAccumulator(AddNewNode<CreateArrayLiteral>(
         {}, constant_elements, compiler::FeedbackSource{feedback(), slot_index},
-        literal_flags);
+        literal_flags));
   }
-  SetAccumulator(result);
 }
 
 void MaglevGraphBuilder::VisitCreateArrayFromIterable() {
@@ -2361,21 +2360,19 @@ void MaglevGraphBuilder::VisitCreateObjectLiteral() {
   int bytecode_flags = GetFlag8Operand(2);
   int literal_flags =
       interpreter::CreateObjectLiteralFlags::FlagsBits::decode(bytecode_flags);
-  ValueNode* result;
   if (interpreter::CreateObjectLiteralFlags::FastCloneSupportedBit::decode(
           bytecode_flags)) {
     // TODO(victorgomes): CreateShallowObjectLiteral should not need the
     // boilerplate descriptor. However the current builtin checks that the
     // feedback exists and fallsback to CreateObjectLiteral if it doesn't.
-    result = AddNewNode<CreateShallowObjectLiteral>(
+    SetAccumulator(AddNewNode<CreateShallowObjectLiteral>(
         {}, boilerplate_desc, compiler::FeedbackSource{feedback(), slot_index},
-        literal_flags);
+        literal_flags));
   } else {
-    result = AddNewNode<CreateObjectLiteral>(
+    SetAccumulator(AddNewNode<CreateObjectLiteral>(
         {}, boilerplate_desc, compiler::FeedbackSource{feedback(), slot_index},
-        literal_flags);
+        literal_flags));
   }
-  SetAccumulator(result);
 }
 
 void MaglevGraphBuilder::VisitCreateEmptyObjectLiteral() {
@@ -2751,10 +2748,10 @@ void MaglevGraphBuilder::VisitForInPrepare() {
   // |cache_info_triple + 2|, with the registers holding cache_type,
   // cache_array, and cache_length respectively.
   interpreter::Register first = iterator_.GetRegisterOperand(0);
-  interpreter::Register second(first.index() + 1);
-  interpreter::Register third(first.index() + 2);
-  StoreRegister(second, result);
-  StoreRegister(third, GetSecondValue(result));
+  auto array_and_length =
+      std::make_pair(interpreter::Register{first.index() + 1},
+                     interpreter::Register{first.index() + 2});
+  StoreRegisterPair(array_and_length, result);
 }
 
 void MaglevGraphBuilder::VisitForInContinue() {

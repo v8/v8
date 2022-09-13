@@ -222,7 +222,7 @@ class UseMarkingProcessor {
     register_frame->ForEachValue(
         deopt_info->unit, [&](ValueNode* node, interpreter::Register reg) {
           // Skip over the result location.
-          if (reg == deopt_info->result_location) return;
+          if (deopt_info->IsResultRegister(reg)) return;
           MarkUse(node, use_id, &deopt_info->input_locations[index++],
                   loop_used_nodes);
         });

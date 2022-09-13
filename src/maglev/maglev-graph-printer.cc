@@ -430,7 +430,7 @@ void PrintLazyDeopt(std::ostream& os, std::vector<BasicBlock*> targets,
           os << ", ";
         }
         os << reg.ToString() << ":";
-        if (reg == deopt_info->result_location) {
+        if (deopt_info->IsResultRegister(reg)) {
           os << "<result>";
         } else {
           os << PrintNodeLabel(graph_labeller, node) << ":"
