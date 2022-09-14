@@ -1685,6 +1685,7 @@ DEFINE_BOOL(
     trace_side_effect_free_debug_evaluate, false,
     "print debug messages for side-effect-free debug-evaluate for testing")
 DEFINE_BOOL(hard_abort, true, "abort by crashing")
+DEFINE_NEG_IMPLICATION(fuzzing, hard_abort)
 
 DEFINE_BOOL(experimental_async_stack_tagging_api, true,
             "enable experimental async stacks tagging API")
