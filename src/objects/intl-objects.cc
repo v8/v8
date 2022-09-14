@@ -3040,9 +3040,8 @@ Maybe<int64_t> Intl::GetTimeZoneOffsetMilliseconds(
   int32_t raw_offset;
   int32_t dst_offset;
   UErrorCode status = U_ZERO_ERROR;
-  basic_time_zone->getOffsetFromLocal(time_in_millisecond, UCAL_TZ_LOCAL_FORMER,
-                                      UCAL_TZ_LOCAL_FORMER, raw_offset,
-                                      dst_offset, status);
+  basic_time_zone->getOffset(time_in_millisecond, false, raw_offset, dst_offset,
+                             status);
   DCHECK(U_SUCCESS(status));
   return Just(static_cast<int64_t>(raw_offset + dst_offset));
 }
