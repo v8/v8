@@ -462,24 +462,8 @@ void WasmTableObject::UpdateDispatchTables(Isolate* isolate,
         Smi::cast(dispatch_tables.get(i + kDispatchTableIndexOffset)).value();
     WasmInstanceObject instance = WasmInstanceObject::cast(
         dispatch_tables.get(i + kDispatchTableInstanceOffset));
-    const WasmModule* module = instance.module();
-    int sig_id;
-    if (v8_flags.wasm_type_canonicalization) {
-      sig_id = target_instance.module()
-                   ->isorecursive_canonical_type_ids[original_sig_id];
-    } else {
-      // Try to avoid the signature map lookup by checking if the signature in
-      // {module} at {original_sig_id} matches {func->sig}.
-      if (module->has_signature(original_sig_id) &&
-          *module->signature(original_sig_id) == *func->sig) {
-        sig_id = module->per_module_canonical_type_ids[original_sig_id];
-        DCHECK_EQ(sig_id, module->signature_map.Find(*func->sig));
-      } else {
-        // Note that {SignatureMap::Find} may return {-1} if the signature is
-        // not found; it will simply never match any check.
-        sig_id = module->signature_map.Find(*func->sig);
-      }
-    }
+    int sig_id = target_instance.module()
+                     ->isorecursive_canonical_type_ids[original_sig_id];
     WasmIndirectFunctionTable ift = WasmIndirectFunctionTable::cast(
         instance.indirect_function_tables().get(table_index));
     ift.Set(entry_index, sig_id, call_target, call_ref);
@@ -565,15 +549,8 @@ void WasmTableObject::UpdateDispatchTables(
       isolate->counters()->wasm_reloc_size()->Increment(
           wasm_code->reloc_info().length());
     }
-    // Note that {SignatureMap::Find} may return {-1} if the signature is
-    // not found; it will simply never match any check.
-    // It is safe to use this even when v8_flags.wasm_type_canonicalization, as
-    // the C API cannot refer to user-defined types.
-    auto sig_id = v8_flags.wasm_type_canonicalization
-                      ? canonical_type_index
-                      : instance->module()->signature_map.Find(sig);
     instance->GetIndirectFunctionTable(isolate, table_index)
-        ->Set(entry_index, sig_id, wasm_code->instruction_start(),
+        ->Set(entry_index, canonical_type_index, wasm_code->instruction_start(),
               WasmCapiFunctionData::cast(
                   capi_function->shared().function_data(kAcquireLoad))
                   .internal()
@@ -1439,16 +1416,25 @@ void WasmInstanceObject::ImportWasmJSFunctionIntoTable(
   // not found; it will simply never match any check.
   Zone zone(isolate->allocator(), ZONE_NAME);
   const wasm::FunctionSig* sig = js_function->GetSignature(&zone);
-  // It is safe to look up the signature this way even if
-  // v8_flags.wasm_type_canonicalization: Signatures created in the JS API
-  // cannot contain user-defined (module-dependent) types.
-  auto sig_id = instance->module()->signature_map.Find(*sig);
+  // Get the function's canonical signature index. Note that the function's
+  // signature may not be present in the importing module.
+  uint32_t canonical_sig_index =
+      wasm::GetTypeCanonicalizer()->AddRecursiveGroup(sig);
 
   // Compile a wrapper for the target callable.
   Handle<JSReceiver> callable(js_function->GetCallable(), isolate);
   wasm::WasmCodeRefScope code_ref_scope;
   Address call_target = kNullAddress;
-  if (sig_id >= 0) {
+
+  auto module_canonical_ids =
+      instance->module()->isorecursive_canonical_type_ids;
+  // TODO(manoskouk): Consider adding a set of canonical indices to the module
+  // to avoid this linear search.
+  auto sig_in_module =
+      std::find(module_canonical_ids.begin(), module_canonical_ids.end(),
+                canonical_sig_index);
+
+  if (sig_in_module != module_canonical_ids.end()) {
     wasm::NativeModule* native_module =
         instance->module_object().native_module();
     // TODO(wasm): Cache and reuse wrapper code, to avoid repeated compilation
@@ -1490,14 +1476,10 @@ void WasmInstanceObject::ImportWasmJSFunctionIntoTable(
   wasm::Suspend suspend = js_function->GetSuspend();
   Handle<WasmApiFunctionRef> ref =
       isolate->factory()->NewWasmApiFunctionRef(callable, suspend, instance);
-  uint32_t canonicalized_sig_id =
-      v8_flags.wasm_type_canonicalization && sig_id >= 0
-          ? instance->module()->isorecursive_canonical_type_ids[sig_id]
-          : sig_id;
 
   WasmIndirectFunctionTable::cast(
       instance->indirect_function_tables().get(table_index))
-      .Set(entry_index, canonicalized_sig_id, call_target, *ref);
+      .Set(entry_index, canonical_sig_index, call_target, *ref);
 }
 
 // static

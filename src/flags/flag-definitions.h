@@ -1127,12 +1127,8 @@ DEFINE_BOOL(trace_wasm_inlining, false, "trace wasm inlining")
 DEFINE_BOOL(trace_wasm_speculative_inlining, false,
             "trace wasm speculative inlining")
 DEFINE_BOOL(trace_wasm_typer, false, "trace wasm typer")
-DEFINE_BOOL(wasm_type_canonicalization, false,
-            "apply isorecursive canonicalization on wasm types")
 DEFINE_IMPLICATION(wasm_speculative_inlining, wasm_inlining)
 DEFINE_WEAK_IMPLICATION(experimental_wasm_gc, wasm_speculative_inlining)
-DEFINE_WEAK_IMPLICATION(experimental_wasm_typed_funcref,
-                        wasm_type_canonicalization)
 
 DEFINE_BOOL(wasm_loop_unrolling, true,
             "enable loop unrolling for wasm functions")

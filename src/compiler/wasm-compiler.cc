@@ -2842,17 +2842,11 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
   // Note: Since null entries are identified by having ift_sig_id (-1), we only
   // need one comparison.
   // TODO(9495): Change this if we should do full function subtyping instead.
-  Node* expected_sig_id;
-  if (v8_flags.wasm_type_canonicalization) {
-    Node* isorecursive_canonical_types =
-        LOAD_INSTANCE_FIELD(IsorecursiveCanonicalTypes, MachineType::Pointer());
-    expected_sig_id = gasm_->LoadImmutable(
-        MachineType::Uint32(), isorecursive_canonical_types,
-        gasm_->IntPtrConstant(sig_index * kInt32Size));
-  } else {
-    expected_sig_id =
-        Int32Constant(env_->module->per_module_canonical_type_ids[sig_index]);
-  }
+  Node* isorecursive_canonical_types =
+      LOAD_INSTANCE_FIELD(IsorecursiveCanonicalTypes, MachineType::Pointer());
+  Node* expected_sig_id =
+      gasm_->LoadImmutable(MachineType::Uint32(), isorecursive_canonical_types,
+                           gasm_->IntPtrConstant(sig_index * kInt32Size));
 
   Node* int32_scaled_key = gasm_->BuildChangeUint32ToUintPtr(
       gasm_->Word32Shl(key, Int32Constant(2)));

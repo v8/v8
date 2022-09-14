@@ -185,9 +185,7 @@ uint32_t TestingModuleBuilder::AddFunction(const FunctionSig* sig,
   return index;
 }
 
-void TestingModuleBuilder::FreezeSignatureMapAndInitializeWrapperCache() {
-  if (test_module_->signature_map.is_frozen()) return;
-  test_module_->signature_map.Freeze();
+void TestingModuleBuilder::InitializeWrapperCache() {
   size_t max_num_sigs = MaxNumExportWrappers(test_module_.get());
   Handle<FixedArray> export_wrappers =
       isolate_->factory()->NewFixedArray(static_cast<int>(max_num_sigs));
@@ -196,7 +194,7 @@ void TestingModuleBuilder::FreezeSignatureMapAndInitializeWrapperCache() {
 
 Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {
   CHECK(!interpreter_);
-  FreezeSignatureMapAndInitializeWrapperCache();
+  InitializeWrapperCache();
   return handle(
       JSFunction::cast(WasmInstanceObject::GetOrCreateWasmInternalFunction(
                            isolate_, instance_object(), index)
@@ -244,10 +242,7 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
     for (uint32_t i = 0; i < table_size; ++i) {
       WasmFunction& function = test_module_->functions[function_indexes[i]];
       int sig_id =
-          v8_flags.wasm_type_canonicalization
-              ? test_module_
-                    ->isorecursive_canonical_type_ids[function.sig_index]
-              : test_module_->signature_map.Find(*function.sig);
+          test_module_->isorecursive_canonical_type_ids[function.sig_index];
       FunctionTargetAndRef entry(instance, function.func_index);
       instance->GetIndirectFunctionTable(isolate_, table_index)
           ->Set(i, sig_id, entry.call_target(), *entry.ref());

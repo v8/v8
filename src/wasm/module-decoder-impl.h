@@ -754,7 +754,6 @@ class ModuleDecoderTemplate : public Decoder {
         continue;
       }
     }
-    module_->signature_map.Freeze();
   }
 
   void DecodeImportSection() {

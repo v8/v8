@@ -7184,18 +7184,10 @@ class LiftoffCompiler {
             nullptr, false, false, true);
 
     // Compare against expected signature.
-    if (v8_flags.wasm_type_canonicalization) {
-      LOAD_INSTANCE_FIELD(tmp_const, IsorecursiveCanonicalTypes,
-                          kSystemPointerSize, pinned);
-      __ Load(LiftoffRegister(tmp_const), tmp_const, no_reg,
-              imm.sig_imm.index * kInt32Size, LoadType::kI32Load);
-    } else {
-      uint32_t canonical_sig_num =
-          env_->module->per_module_canonical_type_ids[imm.sig_imm.index];
-      DCHECK_GE(canonical_sig_num, 0);
-      DCHECK_GE(kMaxInt, canonical_sig_num);
-      __ LoadConstant(LiftoffRegister(tmp_const), WasmValue(canonical_sig_num));
-    }
+    LOAD_INSTANCE_FIELD(tmp_const, IsorecursiveCanonicalTypes,
+                        kSystemPointerSize, pinned);
+    __ Load(LiftoffRegister(tmp_const), tmp_const, no_reg,
+            imm.sig_imm.index * kInt32Size, LoadType::kI32Load);
 
     Label* sig_mismatch_label =
         AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapFuncSigMismatch);

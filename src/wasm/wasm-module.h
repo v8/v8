@@ -20,7 +20,6 @@
 #include "src/handles/handles.h"
 #include "src/wasm/branch-hint-map.h"
 #include "src/wasm/constant-expression.h"
-#include "src/wasm/signature-map.h"
 #include "src/wasm/struct-types.h"
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-init-expr.h"
@@ -515,10 +514,6 @@ struct V8_EXPORT_PRIVATE WasmModule {
 
   void add_type(TypeDefinition type) {
     types.push_back(type);
-    uint32_t canonical_id = type.kind == TypeDefinition::kFunction
-                                ? signature_map.FindOrInsert(*type.function_sig)
-                                : 0;
-    per_module_canonical_type_ids.push_back(canonical_id);
     // Isorecursive canonical type will be computed later.
     isorecursive_canonical_type_ids.push_back(kNoSuperType);
   }
@@ -571,14 +566,9 @@ struct V8_EXPORT_PRIVATE WasmModule {
   }
 
   std::vector<TypeDefinition> types;  // by type index
-  // TODO(7748): Unify the following two arrays.
-  // Maps each type index to a canonical index for purposes of call_indirect.
-  std::vector<uint32_t> per_module_canonical_type_ids;
   // Maps each type index to its global (cross-module) canonical index as per
   // isorecursive type canonicalization.
   std::vector<uint32_t> isorecursive_canonical_type_ids;
-  // Canonicalizing map for signature indexes.
-  SignatureMap signature_map;
   std::vector<WasmFunction> functions;
   std::vector<WasmGlobal> globals;
   std::vector<WasmDataSegment> data_segments;

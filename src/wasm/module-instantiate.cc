@@ -188,17 +188,15 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
   uint32_t canonical_type_index =
       module->isorecursive_canonical_type_ids[type_index];
 
-  if (v8_flags.wasm_type_canonicalization) {
-    // Try to find the canonical map for this type in the isolate store.
-    canonical_rtts = handle(isolate->heap()->wasm_canonical_rtts(), isolate);
-    DCHECK_GT(static_cast<uint32_t>(canonical_rtts->length()),
-              canonical_type_index);
-    MaybeObject maybe_canonical_map = canonical_rtts->Get(canonical_type_index);
-    if (maybe_canonical_map.IsStrongOrWeak() &&
-        maybe_canonical_map.GetHeapObject().IsMap()) {
-      maps->set(type_index, maybe_canonical_map.GetHeapObject());
-      return;
-    }
+  // Try to find the canonical map for this type in the isolate store.
+  canonical_rtts = handle(isolate->heap()->wasm_canonical_rtts(), isolate);
+  DCHECK_GT(static_cast<uint32_t>(canonical_rtts->length()),
+            canonical_type_index);
+  MaybeObject maybe_canonical_map = canonical_rtts->Get(canonical_type_index);
+  if (maybe_canonical_map.IsStrongOrWeak() &&
+      maybe_canonical_map.GetHeapObject().IsMap()) {
+    maps->set(type_index, maybe_canonical_map.GetHeapObject());
+    return;
   }
 
   Handle<Map> rtt_parent;
@@ -224,9 +222,7 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
       map = CreateFuncRefMap(isolate, module, rtt_parent, instance);
       break;
   }
-  if (v8_flags.wasm_type_canonicalization) {
-    canonical_rtts->Set(canonical_type_index, HeapObjectReference::Weak(*map));
-  }
+  canonical_rtts->Set(canonical_type_index, HeapObjectReference::Weak(*map));
   maps->set(type_index, *map);
 }
 
@@ -661,10 +657,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   // Set up table storage space.
   //--------------------------------------------------------------------------
-  if (v8_flags.wasm_type_canonicalization) {
-    instance->set_isorecursive_canonical_types(
-        module_->isorecursive_canonical_type_ids.data());
-  }
+  instance->set_isorecursive_canonical_types(
+      module_->isorecursive_canonical_type_ids.data());
   int table_count = static_cast<int>(module_->tables.size());
   {
     for (int i = 0; i < table_count; i++) {
@@ -723,8 +717,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   // list.
   //--------------------------------------------------------------------------
   if (enabled_.has_gc()) {
-    if (v8_flags.wasm_type_canonicalization &&
-        module_->isorecursive_canonical_type_ids.size() > 0) {
+    if (module_->isorecursive_canonical_type_ids.size() > 0) {
       uint32_t maximum_canonical_type_index =
           *std::max_element(module_->isorecursive_canonical_type_ids.begin(),
                             module_->isorecursive_canonical_type_ids.end());
@@ -1272,15 +1265,9 @@ bool InstanceBuilder::InitializeImportedIndirectFunctionTable(
     const WasmModule* target_module = target_instance->module_object().module();
     const WasmFunction& function = target_module->functions[function_index];
 
-    // Look up the signature's canonical id. In the case of
-    // !v8_flags.wasm_type_canonicalization, if there is no canonical id, then
-    // the signature does not appear at all in this module, so putting {-1} in
-    // the table will cause checks to always fail.
     FunctionTargetAndRef entry(target_instance, function_index);
     uint32_t canonicalized_sig_index =
-        v8_flags.wasm_type_canonicalization
-            ? target_module->isorecursive_canonical_type_ids[function.sig_index]
-            : module_->signature_map.Find(*function.sig);
+        target_module->isorecursive_canonical_type_ids[function.sig_index];
     instance->GetIndirectFunctionTable(isolate_, table_index)
         ->Set(i, canonicalized_sig_index, entry.call_target(), *entry.ref());
   }

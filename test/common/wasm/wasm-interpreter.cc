@@ -4103,13 +4103,7 @@ class WasmInterpreterInternals {
                                   uint32_t sig_index) {
     HandleScope handle_scope(isolate_);  // Avoid leaking handles.
     uint32_t expected_sig_id;
-    if (v8_flags.wasm_type_canonicalization) {
-      expected_sig_id = module()->isorecursive_canonical_type_ids[sig_index];
-    } else {
-      expected_sig_id = module()->per_module_canonical_type_ids[sig_index];
-      DCHECK_EQ(static_cast<int>(expected_sig_id),
-                module()->signature_map.Find(*module()->signature(sig_index)));
-    }
+    expected_sig_id = module()->isorecursive_canonical_type_ids[sig_index];
 
     Handle<WasmIndirectFunctionTable> table =
         instance_object_->GetIndirectFunctionTable(isolate_, table_index);

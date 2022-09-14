@@ -640,7 +640,6 @@ size_t EstimateStoredSize(const WasmModule* module) {
          (module->signature_zone ? module->signature_zone->allocation_size()
                                  : 0) +
          VectorSize(module->types) +
-         VectorSize(module->per_module_canonical_type_ids) +
          VectorSize(module->isorecursive_canonical_type_ids) +
          VectorSize(module->functions) + VectorSize(module->data_segments) +
          VectorSize(module->tables) + VectorSize(module->import_table) +

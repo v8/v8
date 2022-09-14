@@ -76,6 +76,7 @@ uint32_t TypeCanonicalizer::AddRecursiveGroup(const FunctionSig* sig) {
     for (auto type : sig->parameters()) builder.AddParam(type);
     const FunctionSig* allocated_sig = builder.Build();
     group.types[0].type_def = TypeDefinition(allocated_sig, kNoSuperType);
+    group.types[0].is_relative_supertype = false;
     canonical_groups_.emplace(group, canonical_index);
     canonical_supertypes_.emplace_back(kNoSuperType);
   }
