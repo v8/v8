@@ -2206,7 +2206,7 @@ class Heap {
   std::unique_ptr<ConcurrentAllocator> shared_map_allocator_;
 
   // Map from the space id to the space.
-  std::unique_ptr<Space> space_[LAST_SPACE + 1];
+  Space* space_[LAST_SPACE + 1];
 
   LocalHeap* main_thread_local_heap_ = nullptr;
 
