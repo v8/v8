@@ -1012,7 +1012,8 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
   }
 }
 
-void LiftoffAssembler::LoadSpillAddress(Register dst, int offset) {
+void LiftoffAssembler::LoadSpillAddress(Register dst, int offset,
+                                        ValueKind /* kind */) {
   Sub_d(dst, fp, Operand(offset));
 }
 

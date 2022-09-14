@@ -1109,8 +1109,9 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
   }
 }
 
-void LiftoffAssembler::LoadSpillAddress(Register dst, int offset) {
-  Dsub(dst, fp, Operand(offset));
+void LiftoffAssembler::LoadSpillAddress(Register dst, int offset,
+                                        ValueKind /* kind */) {
+  Dsubu(dst, fp, Operand(offset));
 }
 
 void LiftoffAssembler::emit_i64_clz(LiftoffRegister dst, LiftoffRegister src) {
