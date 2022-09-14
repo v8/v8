@@ -245,10 +245,11 @@ class FuzzerProc(base.TestProcProducer):
       i += 1
 
   def _try_send_next_test(self, test):
-    if not self.is_stopped:
-      for subtest in self._gens[test.procid]:
-        if self._send_test(subtest):
-          return True
+    for subtest in self._gens[test.procid]:
+      if self._send_test(subtest):
+        return True
+      elif self.is_stopped:
+        return False
 
     del self._gens[test.procid]
     return False
