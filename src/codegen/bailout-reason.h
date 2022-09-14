@@ -17,6 +17,7 @@ namespace internal {
     "32 bit value in register is not zero-extended")                           \
   V(kSignedBitOfSmiIsNotZero, "Signed bit of 31 bit smi register is not zero") \
   V(kAPICallReturnedInvalidObject, "API call returned invalid object")         \
+  V(kAccumulatorClobbered, "Accumulator clobbered")                            \
   V(kAllocatingNonEmptyPackedArray, "Allocating non-empty packed array")       \
   V(kAllocationIsNotDoubleAligned, "Allocation is not double aligned")         \
   V(kExpectedOptimizationSentinel,                                             \

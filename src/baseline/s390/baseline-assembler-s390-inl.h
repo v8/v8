@@ -752,7 +752,7 @@ inline void EnsureAccumulatorPreservedScope::AssertEqualToAccumulator(
   } else {
     assembler_->masm()->CmpU64(reg, kInterpreterAccumulatorRegister);
   }
-  assembler_->masm()->Assert(eq, AbortReason::kUnexpectedValue);
+  assembler_->masm()->Assert(eq, AbortReason::kAccumulatorClobbered);
 }
 
 }  // namespace baseline

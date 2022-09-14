@@ -581,7 +581,7 @@ void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
 
 inline void EnsureAccumulatorPreservedScope::AssertEqualToAccumulator(
     Register reg) {
-  assembler_->masm()->Assert(eq, AbortReason::kUnexpectedValue, reg,
+  assembler_->masm()->Assert(eq, AbortReason::kAccumulatorClobbered, reg,
                              Operand(kInterpreterAccumulatorRegister));
 }
 
