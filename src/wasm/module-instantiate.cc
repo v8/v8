@@ -42,8 +42,9 @@ byte* raw_buffer_ptr(MaybeHandle<JSArrayBuffer> buffer, int offset) {
   return static_cast<byte*>(buffer.ToHandleChecked()->backing_store()) + offset;
 }
 
-using ImportWrapperQueue = WrapperQueue<WasmImportWrapperCache::CacheKey,
-                                        WasmImportWrapperCache::CacheKeyHash>;
+using ImportWrapperQueue =
+    WrapperQueue<WasmImportWrapperCache::CacheKey, const FunctionSig*,
+                 WasmImportWrapperCache::CacheKeyHash>;
 
 class CompileImportWrapperJob final : public JobTask {
  public:
@@ -66,12 +67,15 @@ class CompileImportWrapperJob final : public JobTask {
 
   void Run(JobDelegate* delegate) override {
     TRACE_EVENT0("v8.wasm", "wasm.CompileImportWrapperJob.Run");
-    while (base::Optional<WasmImportWrapperCache::CacheKey> key =
-               queue_->pop()) {
+    while (base::Optional<std::pair<const WasmImportWrapperCache::CacheKey,
+                                    const FunctionSig*>>
+               key = queue_->pop()) {
       // TODO(wasm): Batch code publishing, to avoid repeated locking and
       // permission switching.
-      CompileImportWrapper(native_module_, counters_, key->kind, key->signature,
-                           key->expected_arity, key->suspend, cache_scope_);
+      CompileImportWrapper(native_module_, counters_, key->first.kind,
+                           key->second, key->first.canonical_type_index,
+                           key->first.expected_arity, key->first.suspend,
+                           cache_scope_);
       if (delegate->ShouldYield()) return;
     }
   }
@@ -828,9 +832,13 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   if (module_->start_function_index >= 0) {
     int start_index = module_->start_function_index;
     auto& function = module_->functions[start_index];
+    uint32_t canonical_sig_index =
+        module_->isorecursive_canonical_type_ids[module_->functions[start_index]
+                                                     .sig_index];
     Handle<CodeT> wrapper_code =
         JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
-            isolate_, function.sig, module_, function.imported);
+            isolate_, function.sig, canonical_sig_index, module_,
+            function.imported);
     // TODO(clemensb): Don't generate an exported function for the start
     // function. Use CWasmEntry instead.
     start_function_ = WasmExportedFunction::New(
@@ -1158,15 +1166,18 @@ bool InstanceBuilder::ProcessImportedFunction(
       WasmImportWrapperCache* cache = native_module->import_wrapper_cache();
       // TODO(jkummerow): Consider precompiling CapiCallWrappers in parallel,
       // just like other import wrappers.
-      WasmCode* wasm_code =
-          cache->MaybeGet(kind, expected_sig, expected_arity, kNoSuspend);
+      uint32_t canonical_type_index =
+          module_->isorecursive_canonical_type_ids
+              [module_->functions[func_index].sig_index];
+      WasmCode* wasm_code = cache->MaybeGet(kind, canonical_type_index,
+                                            expected_arity, kNoSuspend);
       if (wasm_code == nullptr) {
         WasmCodeRefScope code_ref_scope;
         WasmImportWrapperCache::ModificationScope cache_scope(cache);
         wasm_code =
             compiler::CompileWasmCapiCallWrapper(native_module, expected_sig);
-        WasmImportWrapperCache::CacheKey key(kind, expected_sig, expected_arity,
-                                             kNoSuspend);
+        WasmImportWrapperCache::CacheKey key(kind, canonical_type_index,
+                                             expected_arity, kNoSuspend);
         cache_scope[key] = wasm_code;
         wasm_code->IncRef();
         isolate_->counters()->wasm_generated_code_size()->Increment(
@@ -1203,8 +1214,11 @@ bool InstanceBuilder::ProcessImportedFunction(
       }
 
       NativeModule* native_module = instance->module_object().native_module();
+      uint32_t canonical_type_index =
+          module_->isorecursive_canonical_type_ids
+              [module_->functions[func_index].sig_index];
       WasmCode* wasm_code = native_module->import_wrapper_cache()->Get(
-          kind, expected_sig, expected_arity, resolved.suspend);
+          kind, canonical_type_index, expected_arity, resolved.suspend);
       DCHECK_NOT_NULL(wasm_code);
       ImportedFunctionEntry entry(instance, func_index);
       if (wasm_code->kind() == WasmCode::kWasmToJsWrapper) {
@@ -1614,14 +1628,16 @@ void InstanceBuilder::CompileImportWrappers(
       expected_arity =
           shared.internal_formal_parameter_count_without_receiver();
     }
-
-    WasmImportWrapperCache::CacheKey key(kind, sig, expected_arity,
-                                         resolved.suspend);
+    uint32_t canonical_type_index =
+        module_->isorecursive_canonical_type_ids[module_->functions[func_index]
+                                                     .sig_index];
+    WasmImportWrapperCache::CacheKey key(kind, canonical_type_index,
+                                         expected_arity, resolved.suspend);
     if (cache_scope[key] != nullptr) {
       // Cache entry already exists, no need to compile it again.
       continue;
     }
-    import_wrapper_queue.insert(key);
+    import_wrapper_queue.insert(key, sig);
   }
 
   auto compile_job_task = std::make_unique<CompileImportWrapperJob>(

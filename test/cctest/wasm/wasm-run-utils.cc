@@ -82,14 +82,17 @@ TestingModuleBuilder::TestingModuleBuilder(
     Handle<JSReceiver> callable = resolved.callable;
     WasmImportWrapperCache::ModificationScope cache_scope(
         native_module_->import_wrapper_cache());
+    uint32_t canonical_type_index =
+        GetTypeCanonicalizer()->AddRecursiveGroup(maybe_import->sig);
     WasmImportWrapperCache::CacheKey key(
-        kind, maybe_import->sig,
+        kind, canonical_type_index,
         static_cast<int>(maybe_import->sig->parameter_count()), kNoSuspend);
     auto import_wrapper = cache_scope[key];
     if (import_wrapper == nullptr) {
       CodeSpaceWriteScope write_scope(native_module_);
       import_wrapper = CompileImportWrapper(
           native_module_, isolate_->counters(), kind, maybe_import->sig,
+          canonical_type_index,
           static_cast<int>(maybe_import->sig->parameter_count()), kNoSuspend,
           &cache_scope);
     }

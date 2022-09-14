@@ -43,6 +43,11 @@ class TypeCanonicalizer {
   // Modifies {module->isorecursive_canonical_type_ids}.
   V8_EXPORT_PRIVATE void AddRecursiveGroup(WasmModule* module, uint32_t size);
 
+  // Adds a module-independent signature as a recursive group, and canonicalizes
+  // it if an identical is found. Returns the canonical index of the added
+  // signature.
+  V8_EXPORT_PRIVATE uint32_t AddRecursiveGroup(const FunctionSig* sig);
+
   // Returns if the type at {sub_index} in {sub_module} is a subtype of the
   // type at {super_index} in {super_module} after canonicalization.
   V8_EXPORT_PRIVATE bool IsCanonicalSubtype(uint32_t sub_index,

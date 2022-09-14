@@ -548,14 +548,16 @@ void WasmTableObject::UpdateDispatchTables(
         instance->module_object().native_module();
     wasm::WasmImportWrapperCache* cache = native_module->import_wrapper_cache();
     auto kind = compiler::WasmImportCallKind::kWasmToCapi;
-    wasm::WasmCode* wasm_code =
-        cache->MaybeGet(kind, &sig, param_count, wasm::kNoSuspend);
+    uint32_t canonical_type_index =
+        wasm::GetTypeCanonicalizer()->AddRecursiveGroup(&sig);
+    wasm::WasmCode* wasm_code = cache->MaybeGet(kind, canonical_type_index,
+                                                param_count, wasm::kNoSuspend);
     if (wasm_code == nullptr) {
       wasm::WasmCodeRefScope code_ref_scope;
       wasm::WasmImportWrapperCache::ModificationScope cache_scope(cache);
       wasm_code = compiler::CompileWasmCapiCallWrapper(native_module, &sig);
-      wasm::WasmImportWrapperCache::CacheKey key(kind, &sig, param_count,
-                                                 wasm::kNoSuspend);
+      wasm::WasmImportWrapperCache::CacheKey key(kind, canonical_type_index,
+                                                 param_count, wasm::kNoSuspend);
       cache_scope[key] = wasm_code;
       wasm_code->IncRef();
       isolate->counters()->wasm_generated_code_size()->Increment(
@@ -567,7 +569,9 @@ void WasmTableObject::UpdateDispatchTables(
     // not found; it will simply never match any check.
     // It is safe to use this even when v8_flags.wasm_type_canonicalization, as
     // the C API cannot refer to user-defined types.
-    auto sig_id = instance->module()->signature_map.Find(sig);
+    auto sig_id = v8_flags.wasm_type_canonicalization
+                      ? canonical_type_index
+                      : instance->module()->signature_map.Find(sig);
     instance->GetIndirectFunctionTable(isolate, table_index)
         ->Set(entry_index, sig_id, wasm_code->instruction_start(),
               WasmCapiFunctionData::cast(
@@ -1379,10 +1383,10 @@ WasmInstanceObject::GetOrCreateWasmInternalFunction(
   Handle<WasmModuleObject> module_object(instance->module_object(), isolate);
   const WasmModule* module = module_object->module();
   const WasmFunction& function = module->functions[function_index];
+  uint32_t canonical_sig_index =
+      module->isorecursive_canonical_type_ids[function.sig_index];
   int wrapper_index =
-      GetExportWrapperIndex(module, function.sig_index, function.imported);
-  DCHECK_EQ(wrapper_index,
-            GetExportWrapperIndex(module, function.sig, function.imported));
+      GetExportWrapperIndex(module, canonical_sig_index, function.imported);
 
   Handle<Object> entry =
       FixedArray::get(module_object->export_wrappers(), wrapper_index, isolate);
@@ -1395,7 +1399,8 @@ WasmInstanceObject::GetOrCreateWasmInternalFunction(
     // this signature. We compile it and store the wrapper in the module for
     // later use.
     wrapper = wasm::JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
-        isolate, function.sig, instance->module(), function.imported);
+        isolate, function.sig, canonical_sig_index, instance->module(),
+        function.imported);
     module_object->export_wrappers().set(wrapper_index, *wrapper);
   }
   auto external = Handle<WasmExternalFunction>::cast(WasmExportedFunction::New(

@@ -293,6 +293,8 @@ RUNTIME_FUNCTION(Runtime_WasmCompileWrapper) {
   const int function_index = function_data->function_index();
   const wasm::WasmFunction& function = module->functions[function_index];
   const wasm::FunctionSig* sig = function.sig;
+  const uint32_t canonical_sig_index =
+      module->isorecursive_canonical_type_ids[function.sig_index];
 
   // The start function is not guaranteed to be registered as
   // an exported function (although it is called as one).
@@ -307,7 +309,7 @@ RUNTIME_FUNCTION(Runtime_WasmCompileWrapper) {
 
   Handle<CodeT> wrapper_code =
       wasm::JSToWasmWrapperCompilationUnit::CompileSpecificJSToWasmWrapper(
-          isolate, sig, module);
+          isolate, sig, canonical_sig_index, module);
 
   // Replace the wrapper for the function that triggered the tier-up.
   // This is to verify that the wrapper is replaced, even if the function
