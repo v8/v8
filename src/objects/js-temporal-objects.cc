@@ -6513,10 +6513,12 @@ Handle<BigInt> RoundTemporalInstant(Isolate* isolate, Handle<BigInt> ns,
                                     RoundingMode rounding_mode);
 
 // #sec-temporal-differenceinstant
-Handle<BigInt> DifferenceInstant(Isolate* isolate, Handle<BigInt> ns1,
-                                 Handle<BigInt> ns2, double rounding_increment,
-                                 Unit smallest_unit,
-                                 RoundingMode rounding_mode);
+TimeDurationRecord DifferenceInstant(Isolate* isolate, Handle<BigInt> ns1,
+                                     Handle<BigInt> ns2,
+                                     double rounding_increment,
+                                     Unit smallest_unit, Unit largest_unit,
+                                     RoundingMode rounding_mode,
+                                     const char* method_name);
 
 // #sec-temporal-differencezoneddatetime
 Maybe<DurationRecord> DifferenceZonedDateTime(
@@ -8376,12 +8378,6 @@ Maybe<DurationRecord> DifferenceZonedDateTime(
                   .ToChecked());
 }
 
-// #sec-temporal-differenceinstant
-Handle<BigInt> DifferenceInstant(Isolate* isolate, Handle<BigInt> ns1,
-                                 Handle<BigInt> ns2, double rounding_increment,
-                                 Unit smallest_unit,
-                                 RoundingMode rounding_mode);
-
 Maybe<DurationRecord> AddDuration(Isolate* isolate, const DurationRecord& dur1,
                                   const DurationRecord& dur2,
                                   Handle<Object> relative_to_obj,
@@ -8548,17 +8544,13 @@ Maybe<DurationRecord> AddDuration(Isolate* isolate, const DurationRecord& dur1,
   // 11. If largestUnit is not one of "year", "month", "week", or "day", then
   if (!(largest_unit == Unit::kYear || largest_unit == Unit::kMonth ||
         largest_unit == Unit::kWeek || largest_unit == Unit::kDay)) {
-    // i. Let diffNs be ! DifferenceInstant(relativeTo.[[Nanoseconds]], endNs,
-    // 1, "nanosecond", "halfExpand").
-    Handle<BigInt> diff_ns = DifferenceInstant(
-        isolate, handle(relative_to->nanoseconds(), isolate), end_ns, 1,
-        Unit::kNanosecond, RoundingMode::kHalfExpand);
-    // ii. Let result be ! BalanceDuration(0, 0, 0, 0, 0, 0, diffNs,
-    // largestUnit).
+    // a. Let result be ! DifferenceInstant(relativeTo.[[Nanoseconds]], endNs,
+    // 1, *"nanosecond"*, largestUnit, *"halfExpand"*).
     result.time_duration =
-        BalanceDuration(isolate, largest_unit, diff_ns, method_name)
-            .ToChecked();
-    // d. Return ! CreateDurationRecord(0, 0, 0, 0, result.[[Hours]],
+        DifferenceInstant(isolate, handle(relative_to->nanoseconds(), isolate),
+                          end_ns, 1, Unit::kNanosecond, largest_unit,
+                          RoundingMode::kHalfExpand, method_name);
+    // b. Return ! CreateDurationRecord(0, 0, 0, 0, result.[[Hours]],
     // result.[[Minutes]], result.[[Seconds]], result.[[Milliseconds]],
     // result.[[Microseconds]], result.[[Nanoseconds]]).
     result.time_duration.days = 0;
@@ -15338,11 +15330,13 @@ Handle<BigInt> ApplyUnsignedRoundingMode(
   // 7. Let d2 be r2 – x.
   Handle<BigInt> dd2 = BigInt::Subtract(isolate, rr2, num).ToHandleChecked();
   // 8. If d1 < d2, return r1.
-  if (BigInt::CompareToBigInt(dd1, dd2) == ComparisonResult::kLessThan)
+  if (BigInt::CompareToBigInt(dd1, dd2) == ComparisonResult::kLessThan) {
     return r1;
+  }
   // 9. If d2 < d1, return r2.
-  if (BigInt::CompareToBigInt(dd2, dd1) == ComparisonResult::kLessThan)
+  if (BigInt::CompareToBigInt(dd2, dd1) == ComparisonResult::kLessThan) {
     return r2;
+  }
   // 10. Assert: d1 is equal to d2.
   DCHECK_EQ(BigInt::CompareToBigInt(dd1, dd2), ComparisonResult::kEqual);
   // 11. If unsignedRoundingMode is half-zero, return r1.
@@ -15402,48 +15396,43 @@ double RoundNumberToIncrement(Isolate* isolate, double x, double increment,
   return rounded * increment;
 }
 
-// For the case that x and return are BigInt.
-Handle<BigInt> RoundNumberToIncrement(Isolate* isolate, Handle<BigInt> x,
-                                      double increment,
-                                      RoundingMode rounding_mode) {
+// #sec-temporal-roundnumbertoincrementasifpositive
+Handle<BigInt> RoundNumberToIncrementAsIfPositive(Isolate* isolate,
+                                                  Handle<BigInt> x,
+                                                  double increment,
+                                                  RoundingMode rounding_mode) {
   TEMPORAL_ENTER_FUNC();
 
   // 1. Let quotient be x / increment.
-  bool is_negative;
-  // 2. If quotient < 0, then
-  if (x->IsNegative() != (increment < 0)) {
-    // a. Let isNegative be true.
-    is_negative = true;
-    // b. Set quotient to -quotient.
-    x = BigInt::UnaryMinus(isolate, x);
-    // 3. Else,
-  } else {
-    // a. Let isNegative be false.
-    is_negative = false;
-  }
-  // 4. Let unsignedRoundingMode be GetUnsignedRoundingMode(roundingMode,
-  // isNegative).
+  // 2. Let unsignedRoundingMode be GetUnsignedRoundingMode(roundingMode,
+  // false).
   UnsignedRoundingMode unsigned_rounding_mode =
-      GetUnsignedRoundingMode(rounding_mode, is_negative);
+      GetUnsignedRoundingMode(rounding_mode, false);
 
-  // 5. Let r1 be the largest integer such that r1 ≤ quotient.
   Handle<BigInt> increment_bigint =
       BigInt::FromNumber(isolate, isolate->factory()->NewNumber(increment))
           .ToHandleChecked();
+  // 3. Let r1 be the largest integer such that r1 ≤ quotient.
   Handle<BigInt> r1 =
       BigInt::Divide(isolate, x, increment_bigint).ToHandleChecked();
-  // 6. Let r2 be the smallest integer such that r2 > quotient.
+
+  // Adjust for negative quotient.
+  if (r1->IsNegative() && BigInt::Remainder(isolate, x, increment_bigint)
+                              .ToHandleChecked()
+                              ->ToBoolean()) {
+    r1 = BigInt::Decrement(isolate, r1).ToHandleChecked();
+  }
+
+  // 4. Let r2 be the smallest integer such that r2 > quotient.
   Handle<BigInt> r2 = BigInt::Increment(isolate, r1).ToHandleChecked();
-  // 7. Let rounded be ApplyUnsignedRoundingMode(quotient, r1, r2,
+  // 5. Let rounded be ApplyUnsignedRoundingMode(quotient, r1, r2,
   // unsignedRoundingMode).
   Handle<BigInt> rounded = ApplyUnsignedRoundingMode(
       isolate, x, increment_bigint, r1, r2, unsigned_rounding_mode);
-  // 8. If isNegative is true, set rounded to -rounded.
-  if (is_negative) {
-    rounded = BigInt::UnaryMinus(isolate, rounded);
-  }
-  // 9. Return rounded × increment.
-  return BigInt::Multiply(isolate, rounded, increment_bigint).ToHandleChecked();
+  // 6. Return rounded × increment.
+  Handle<BigInt> result =
+      BigInt::Multiply(isolate, rounded, increment_bigint).ToHandleChecked();
+  return result;
 }
 
 DateTimeRecordCommon RoundTime(Isolate* isolate, const TimeRecordCommon& time,
@@ -17271,11 +17260,6 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Subtract(
 
 namespace {
 
-Handle<BigInt> DifferenceInstant(Isolate* isolate, Handle<BigInt> ns1,
-                                 Handle<BigInt> ns2, double rounding_increment,
-                                 Unit smallest_unit,
-                                 RoundingMode rounding_mode);
-
 // #sec-temporal-differencetemporalzoneddatetime
 MaybeHandle<JSTemporalDuration> DifferenceTemporalZonedDateTime(
     Isolate* isolate, TimePreposition operation,
@@ -17318,21 +17302,15 @@ MaybeHandle<JSTemporalDuration> DifferenceTemporalZonedDateTime(
       settings.largest_unit != Unit::kMonth &&
       settings.largest_unit != Unit::kWeek &&
       settings.largest_unit != Unit::kDay) {
-    // a. Let differenceNs be ! DifferenceInstant(zonedDateTime.[[Nanoseconds]],
+    // 1. Let result be ! DifferenceInstant(zonedDateTime.[[Nanoseconds]],
     // other.[[Nanoseconds]], settings.[[RoundingIncrement]],
-    // settings.[[SmallestUnit]], settings.[[RoundingMode]]).
-    Handle<BigInt> difference_ns = DifferenceInstant(
+    // settings.[[SmallestUnit]], settings.[[LargestUnit]],
+    // settings.[[RoundingMode]]).
+    TimeDurationRecord balance_result = DifferenceInstant(
         isolate, handle(zoned_date_time->nanoseconds(), isolate),
         handle(other->nanoseconds(), isolate), settings.rounding_increment,
-        settings.smallest_unit, settings.rounding_mode);
-    // b. Assert: The following steps cannot fail due to overflow in the Number
-    // domain because abs(differenceNs) ≤ 2 × nsMaxInstant. c. Let balanceResult
-    // be ! BalanceDuration(0, 0, 0, 0, 0, 0, differenceNs,
-    // settings.[[LargestUnit]]).
-    TimeDurationRecord balance_result =
-        BalanceDuration(isolate, settings.largest_unit, difference_ns,
-                        method_name)
-            .ToChecked();
+        settings.smallest_unit, settings.largest_unit, settings.rounding_mode,
+        method_name);
     // d. Return ! CreateTemporalDuration(0, 0, 0, 0, sign ×
     // balanceResult.[[Hours]], sign × balanceResult.[[Minutes]], sign ×
     // balanceResult.[[Seconds]], sign × balanceResult.[[Milliseconds]], sign ×
@@ -17985,8 +17963,10 @@ Handle<BigInt> RoundTemporalInstant(Isolate* isolate, Handle<BigInt> ns,
     default:
       UNREACHABLE();
   }
-  // 8. Return ! RoundNumberToIncrement(ℝ(ns), incrementNs, roundingMode).
-  return RoundNumberToIncrement(isolate, ns, increment_ns, rounding_mode);
+  // 8. Return ! RoundNumberToIncrementAsIfPositive(ℝ(ns), incrementNs,
+  // roundingMode).
+  return RoundNumberToIncrementAsIfPositive(isolate, ns, increment_ns,
+                                            rounding_mode);
 }
 
 }  // namespace
@@ -18546,17 +18526,50 @@ Maybe<DifferenceSettings> GetDifferenceSettings(
 }
 
 // #sec-temporal-differenceinstant
-Handle<BigInt> DifferenceInstant(Isolate* isolate, Handle<BigInt> ns1,
-                                 Handle<BigInt> ns2, double rounding_increment,
-                                 Unit smallest_unit,
-                                 RoundingMode rounding_mode) {
+TimeDurationRecord DifferenceInstant(Isolate* isolate, Handle<BigInt> ns1,
+                                     Handle<BigInt> ns2,
+                                     double rounding_increment,
+                                     Unit smallest_unit, Unit largest_unit,
+                                     RoundingMode rounding_mode,
+                                     const char* method_name) {
   // 1. Assert: Type(ns1) is BigInt.
   // 2. Assert: Type(ns2) is BigInt.
-  // 3. Return ! RoundTemporalInstant(ns2 - ns1, roundingIncrement,
-  // smallestUnit, roundingMode).
-  return RoundTemporalInstant(
-      isolate, BigInt::Subtract(isolate, ns2, ns1).ToHandleChecked(),
-      rounding_increment, smallest_unit, rounding_mode);
+  // 3. Assert: The following step cannot fail due to overflow in the Number
+  // domain because abs(ns2 - ns1) <= 2 x nsMaxInstant.
+
+  // 4. Let roundResult be ! RoundDuration(0, 0, 0, 0, 0, 0, 0, 0, 0, ns2 - ns1,
+  // roundingIncrement, smallestUnit, roundingMode).[[DurationRecord]].
+  Handle<BigInt> diff = BigInt::Subtract(isolate, ns2, ns1).ToHandleChecked();
+  // Note: Since diff could be very big and over the precision of double can
+  // hold, break diff into diff_hours and diff_nanoseconds before pass into
+  // RoundDuration.
+  Handle<BigInt> nanoseconds_in_a_hour =
+      BigInt::FromUint64(isolate, 3600000000000);
+  double diff_hours =
+      BigInt::ToNumber(isolate,
+                       BigInt::Divide(isolate, diff, nanoseconds_in_a_hour)
+                           .ToHandleChecked())
+          ->Number();
+  double diff_nanoseconds =
+      BigInt::ToNumber(isolate,
+                       BigInt::Remainder(isolate, diff, nanoseconds_in_a_hour)
+                           .ToHandleChecked())
+          ->Number();
+  DurationRecordWithRemainder round_record =
+      RoundDuration(
+          isolate, {0, 0, 0, {0, diff_hours, 0, 0, 0, 0, diff_nanoseconds}},
+          rounding_increment, smallest_unit, rounding_mode, method_name)
+          .ToChecked();
+  // 5. Assert: roundResult.[[Days]] is 0.
+  DCHECK_EQ(0, round_record.record.time_duration.days);
+  // 6. Return ! BalanceDuration(0, roundResult.[[Hours]],
+  // roundResult.[[Minutes]], roundResult.[[Seconds]],
+  // roundResult.[[Milliseconds]], roundResult.[[Microseconds]],
+  // roundResult.[[Nanoseconds]], largestUnit).
+  return BalanceDuration(isolate, largest_unit,
+                         isolate->factory()->undefined_value(),
+                         round_record.record.time_duration, method_name)
+      .ToChecked();
 }
 
 // #sec-temporal-differencetemporalinstant
@@ -18581,22 +18594,16 @@ MaybeHandle<JSTemporalDuration> DifferenceTemporalInstant(
                             DisallowedUnitsInDifferenceSettings::kNone,
                             Unit::kNanosecond, Unit::kSecond, method_name),
       Handle<JSTemporalDuration>());
-  // 4. Let roundedNs be ! DifferenceInstant(instant.[[Nanoseconds]],
+  // 4. Let result be ! DifferenceInstant(instant.[[Nanoseconds]],
   // other.[[Nanoseconds]], settings.[[RoundingIncrement]],
-  // settings.[[SmallestUnit]], settings.[[RoundingMode]]).
-  Handle<BigInt> rounded_ns = DifferenceInstant(
+  // settings.[[SmallestUnit]], settings.[[LargestUnit]],
+  // settings.[[RoundingMode]]).
+  TimeDurationRecord result = DifferenceInstant(
       isolate, handle(instant->nanoseconds(), isolate),
       handle(other->nanoseconds(), isolate), settings.rounding_increment,
-      settings.smallest_unit, settings.rounding_mode);
-  // 5. Assert: The following steps cannot fail due to overflow in the Number
-  // domain because abs(roundedNs) ≤ 2 × nsMaxInstant.
-  // 6. Let result be ! BalanceDuration(0, 0, 0, 0, 0, 0, roundedNs,
-  // settings.[[LargestUnit]]).
-  TimeDurationRecord result =
-      BalanceDuration(isolate, settings.largest_unit, rounded_ns, method_name)
-          .ToChecked();
-
-  // 7. Return ! CreateTemporalDuration(0, 0, 0, 0, sign × result.[[Hours]],
+      settings.smallest_unit, settings.largest_unit, settings.rounding_mode,
+      method_name);
+  // 5. Return ! CreateTemporalDuration(0, 0, 0, 0, sign × result.[[Hours]],
   // sign × result.[[Minutes]], sign × result.[[Seconds]], sign ×
   // result.[[Milliseconds]], sign × result.[[Microseconds]], sign ×
   // result.[[Nanoseconds]]).
