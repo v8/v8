@@ -5,7 +5,9 @@
 import("../../gni/v8.gni")
 
 if (is_fuchsia) {
-  import("//build/config/fuchsia/rules.gni")
+  import("//build/config/fuchsia/generate_runner_scripts.gni")
+  import("//third_party/fuchsia-sdk/sdk/build/component.gni")
+  import("//third_party/fuchsia-sdk/sdk/build/package.gni")
 
   fuchsia_component("v8_unittests_component") {
     testonly = true
