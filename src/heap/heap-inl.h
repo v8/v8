@@ -172,10 +172,10 @@ void Heap::SetPendingOptimizeForTestBytecode(Object hash_table) {
 
 PagedSpace* Heap::paged_space(int idx) {
   DCHECK(idx == OLD_SPACE || idx == CODE_SPACE || idx == MAP_SPACE);
-  return static_cast<PagedSpace*>(space_[idx]);
+  return static_cast<PagedSpace*>(space_[idx].get());
 }
 
-Space* Heap::space(int idx) { return space_[idx]; }
+Space* Heap::space(int idx) { return space_[idx].get(); }
 
 Address* Heap::NewSpaceAllocationTopAddress() {
   return new_space_ ? new_space_->allocation_top_address() : nullptr;

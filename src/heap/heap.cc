@@ -5368,10 +5368,6 @@ void Heap::SetUp(LocalHeap* main_thread_local_heap) {
     concurrent_marking_.reset(new ConcurrentMarking(this, nullptr));
   }
 
-  for (int i = FIRST_SPACE; i <= LAST_SPACE; i++) {
-    space_[i] = nullptr;
-  }
-
   // Set up layout tracing callback.
   if (V8_UNLIKELY(v8_flags.trace_gc_heap_layout)) {
     v8::GCType gc_type = kGCTypeMarkSweepCompact;
@@ -5390,7 +5386,7 @@ void Heap::SetUpFromReadOnlyHeap(ReadOnlyHeap* ro_heap) {
   DCHECK_NOT_NULL(ro_heap);
   DCHECK_IMPLIES(read_only_space_ != nullptr,
                  read_only_space_ == ro_heap->read_only_space());
-  space_[RO_SPACE] = nullptr;
+  DCHECK_NULL(space_[RO_SPACE].get());
   read_only_space_ = ro_heap->read_only_space();
   heap_allocator_.SetReadOnlySpace(read_only_space_);
 }
@@ -5433,30 +5429,49 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
   const bool has_young_gen = !v8_flags.single_generation && !IsShared();
   if (has_young_gen) {
     if (v8_flags.minor_mc) {
-      space_[NEW_SPACE] = new_space_ =
-          new PagedNewSpace(this, initial_semispace_size_, max_semi_space_size_,
-                            new_allocation_info);
+      space_[NEW_SPACE] = std::make_unique<PagedNewSpace>(
+          this, initial_semispace_size_, max_semi_space_size_,
+          new_allocation_info);
     } else {
-      space_[NEW_SPACE] = new_space_ =
-          new SemiSpaceNewSpace(this, initial_semispace_size_,
-                                max_semi_space_size_, new_allocation_info);
+      space_[NEW_SPACE] = std::make_unique<SemiSpaceNewSpace>(
+          this, initial_semispace_size_, max_semi_space_size_,
+          new_allocation_info);
     }
-    space_[NEW_LO_SPACE] = new_lo_space_ =
-        new NewLargeObjectSpace(this, NewSpaceCapacity());
+    new_space_ = static_cast<NewSpace*>(space_[NEW_SPACE].get());
+
+    space_[NEW_LO_SPACE] =
+        std::make_unique<NewLargeObjectSpace>(this, NewSpaceCapacity());
+    new_lo_space_ =
+        static_cast<NewLargeObjectSpace*>(space_[NEW_LO_SPACE].get());
   }
-  space_[OLD_SPACE] = old_space_ = new OldSpace(this, old_allocation_info);
-  space_[CODE_SPACE] = code_space_ = new CodeSpace(this);
+
+  space_[OLD_SPACE] = std::make_unique<OldSpace>(this, old_allocation_info);
+  old_space_ = static_cast<OldSpace*>(space_[OLD_SPACE].get());
+
+  space_[CODE_SPACE] = std::make_unique<CodeSpace>(this);
+  code_space_ = static_cast<CodeSpace*>(space_[CODE_SPACE].get());
+
   if (v8_flags.use_map_space) {
-    space_[MAP_SPACE] = map_space_ = new MapSpace(this);
+    space_[MAP_SPACE] = std::make_unique<MapSpace>(this);
+    map_space_ = static_cast<MapSpace*>(space_[MAP_SPACE].get());
   }
+
   if (v8_flags.shared_space && isolate()->is_shared_space_isolate()) {
-    space_[SHARED_SPACE] = shared_space_ = new SharedSpace(this);
+    space_[SHARED_SPACE] = std::make_unique<SharedSpace>(this);
+    shared_space_ = static_cast<SharedSpace*>(space_[SHARED_SPACE].get());
   }
-  space_[LO_SPACE] = lo_space_ = new OldLargeObjectSpace(this);
-  space_[CODE_LO_SPACE] = code_lo_space_ = new CodeLargeObjectSpace(this);
+
+  space_[LO_SPACE] = std::make_unique<OldLargeObjectSpace>(this);
+  lo_space_ = static_cast<OldLargeObjectSpace*>(space_[LO_SPACE].get());
+
+  space_[CODE_LO_SPACE] = std::make_unique<CodeLargeObjectSpace>(this);
+  code_lo_space_ =
+      static_cast<CodeLargeObjectSpace*>(space_[CODE_LO_SPACE].get());
+
   if (v8_flags.shared_space && isolate()->is_shared_space_isolate()) {
-    space_[SHARED_LO_SPACE] = shared_lo_space_ =
-        new SharedLargeObjectSpace(this);
+    space_[SHARED_LO_SPACE] = std::make_unique<SharedLargeObjectSpace>(this);
+    shared_lo_space_ =
+        static_cast<SharedLargeObjectSpace*>(space_[SHARED_LO_SPACE].get());
   }
 
   for (int i = 0; i < static_cast<int>(v8::Isolate::kUseCounterFeatureCount);
@@ -5863,8 +5878,7 @@ void Heap::TearDown() {
         "Deletion of CODE_SPACE and CODE_LO_SPACE requires write access to "
         "Code page headers");
     for (int i = FIRST_MUTABLE_SPACE; i <= LAST_MUTABLE_SPACE; i++) {
-      delete space_[i];
-      space_[i] = nullptr;
+      space_[i].reset();
     }
   }
 
