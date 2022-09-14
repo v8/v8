@@ -16,7 +16,7 @@ MergePointInterpreterFrameState*
 MergePointInterpreterFrameState::NewForCatchBlock(
     const MaglevCompilationUnit& unit,
     const compiler::BytecodeLivenessState* liveness, int handler_offset,
-    Graph* graph, bool is_inline) {
+    interpreter::Register context_register, Graph* graph, bool is_inline) {
   Zone* const zone = unit.zone();
   MergePointInterpreterFrameState* state =
       zone->New<MergePointInterpreterFrameState>(
@@ -49,8 +49,8 @@ MergePointInterpreterFrameState::NewForCatchBlock(
           entry = state->NewExceptionPhi(zone, reg, handler_offset);
         }
       });
-  frame_state.context(unit) = state->NewExceptionPhi(
-      zone, interpreter::Register::current_context(), handler_offset);
+  frame_state.context(unit) =
+      state->NewExceptionPhi(zone, context_register, handler_offset);
   frame_state.ForEachLocal(
       unit, [&](ValueNode*& entry, interpreter::Register reg) {
         entry = state->NewExceptionPhi(zone, reg, handler_offset);

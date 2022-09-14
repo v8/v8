@@ -144,17 +144,19 @@ void MaglevGraphBuilder::BuildMergeStates() {
   if (bytecode().handler_table_size() > 0) {
     HandlerTable table(*bytecode().object());
     for (int i = 0; i < table.NumberOfRangeEntries(); i++) {
-      int offset = table.GetRangeHandler(i);
+      const int offset = table.GetRangeHandler(i);
+      const interpreter::Register context_reg(table.GetRangeData(i));
       const compiler::BytecodeLivenessState* liveness =
           GetInLivenessFor(offset);
       DCHECK_EQ(NumPredecessors(offset), 0);
       DCHECK_NULL(merge_states_[offset]);
       if (FLAG_trace_maglev_graph_building) {
         std::cout << "- Creating exception merge state at @" << offset
-                  << std::endl;
+                  << ", context register r" << context_reg.index() << std::endl;
       }
       merge_states_[offset] = MergePointInterpreterFrameState::NewForCatchBlock(
-          *compilation_unit_, liveness, offset, graph_, is_inline());
+          *compilation_unit_, liveness, offset, context_reg, graph_,
+          is_inline());
     }
   }
 }

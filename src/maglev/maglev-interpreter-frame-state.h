@@ -483,7 +483,7 @@ class MergePointInterpreterFrameState {
   static MergePointInterpreterFrameState* NewForCatchBlock(
       const MaglevCompilationUnit& unit,
       const compiler::BytecodeLivenessState* liveness, int handler_offset,
-      Graph* graph, bool is_inline);
+      interpreter::Register context_register, Graph* graph, bool is_inline);
 
   // Merges an unmerged framestate with a possibly merged framestate into |this|
   // framestate.
