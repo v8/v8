@@ -10,6 +10,7 @@
 #include "include/v8-inspector.h"
 #include "include/v8-microtask-queue.h"
 #include "src/base/macros.h"
+#include "src/debug/debug-interface.h"
 #include "src/inspector/injected-script.h"
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/string-util.h"
@@ -490,6 +491,9 @@ void V8Console::memorySetterCallback(
 
 void V8Console::createTask(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
+
+  v8::debug::RecordAsyncStackTaggingCreateTaskCall(isolate);
+
   if (info.Length() < 1 || !info[0]->IsString() ||
       !info[0].As<v8::String>()->Length()) {
     isolate->ThrowError("First argument must be a non-empty string.");

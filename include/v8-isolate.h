@@ -535,6 +535,7 @@ class V8_EXPORT Isolate {
     kFunctionPrototypeArguments = 113,
     kFunctionPrototypeCaller = 114,
     kTurboFanOsrCompileStarted = 115,
+    kAsyncStackTaggingCreateTaskCall = 116,
 
     // If you add new values here, you'll also need to update Chromium's:
     // web_feature.mojom, use_counter_callback.cc, and enums.xml. V8 changes to
