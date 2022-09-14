@@ -2839,6 +2839,40 @@ void ChangeInt32ToFloat64::GenerateCode(MaglevAssembler* masm,
   __ Cvtlsi2sd(ToDoubleRegister(result()), ToRegister(input()));
 }
 
+void CheckedTruncateFloat64ToInt32::AllocateVreg(
+    MaglevVregAllocationState* vreg_state) {
+  UseRegister(input());
+  DefineAsRegister(vreg_state, this);
+}
+void CheckedTruncateFloat64ToInt32::GenerateCode(MaglevAssembler* masm,
+                                                 const ProcessingState& state) {
+  DoubleRegister input_reg = ToDoubleRegister(input());
+  Register result_reg = ToRegister(result());
+  DoubleRegister converted_back = kScratchDoubleReg;
+
+  // Convert the input float64 value to int32.
+  __ Cvttsd2si(result_reg, input_reg);
+  // Convert that int32 value back to float64.
+  __ Cvtlsi2sd(converted_back, result_reg);
+  // Check that the result of the float64->int32->float64 is equal to the input
+  // (i.e. that the conversion didn't truncate.
+  __ Ucomisd(input_reg, converted_back);
+  __ EmitEagerDeoptIf(not_equal, DeoptimizeReason::kNotInt32, this);
+
+  // Check if {input} is -0.
+  Label check_done;
+  __ cmpl(result_reg, Immediate(0));
+  __ j(not_equal, &check_done);
+
+  // In case of 0, we need to check the high bits for the IEEE -0 pattern.
+  Register high_word32_of_input = kScratchRegister;
+  __ Pextrd(high_word32_of_input, input_reg, 1);
+  __ cmpl(high_word32_of_input, Immediate(0));
+  __ EmitEagerDeoptIf(less, DeoptimizeReason::kNotInt32, this);
+
+  __ bind(&check_done);
+}
+
 void Phi::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   // Phi inputs are processed in the post-process, once loop phis' inputs'
   // v-regs are allocated.

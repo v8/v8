@@ -152,6 +152,7 @@ class MaglevGraphVerifier {
         CheckValueInputIs(node, 0, ValueRepresentation::kInt32);
         break;
       case Opcode::kFloat64Box:
+      case Opcode::kCheckedTruncateFloat64ToInt32:
         DCHECK_EQ(node->input_count(), 1);
         CheckValueInputIs(node, 0, ValueRepresentation::kFloat64);
         break;

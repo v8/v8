@@ -117,68 +117,69 @@ class CompactInterpreterFrameState;
   V(RootConstant)                   \
   V(SmiConstant)
 
-#define VALUE_NODE_LIST(V)        \
-  V(Call)                         \
-  V(CallBuiltin)                  \
-  V(CallRuntime)                  \
-  V(CallWithSpread)               \
-  V(Construct)                    \
-  V(ConstructWithSpread)          \
-  V(CreateEmptyArrayLiteral)      \
-  V(CreateArrayLiteral)           \
-  V(CreateShallowArrayLiteral)    \
-  V(CreateObjectLiteral)          \
-  V(CreateEmptyObjectLiteral)     \
-  V(CreateShallowObjectLiteral)   \
-  V(CreateFunctionContext)        \
-  V(CreateClosure)                \
-  V(FastCreateClosure)            \
-  V(CreateRegExpLiteral)          \
-  V(DeleteProperty)               \
-  V(ForInPrepare)                 \
-  V(ForInNext)                    \
-  V(GeneratorRestoreRegister)     \
-  V(GetIterator)                  \
-  V(GetSecondReturnedValue)       \
-  V(GetTemplateObject)            \
-  V(InitialValue)                 \
-  V(LoadTaggedField)              \
-  V(LoadDoubleField)              \
-  V(LoadTaggedElement)            \
-  V(LoadDoubleElement)            \
-  V(LoadGlobal)                   \
-  V(LoadNamedGeneric)             \
-  V(LoadNamedFromSuperGeneric)    \
-  V(SetNamedGeneric)              \
-  V(DefineNamedOwnGeneric)        \
-  V(StoreInArrayLiteralGeneric)   \
-  V(StoreGlobal)                  \
-  V(GetKeyedGeneric)              \
-  V(SetKeyedGeneric)              \
-  V(DefineKeyedOwnGeneric)        \
-  V(Phi)                          \
-  V(RegisterInput)                \
-  V(CheckedSmiTag)                \
-  V(CheckedSmiUntag)              \
-  V(CheckedInternalizedString)    \
-  V(ChangeInt32ToFloat64)         \
-  V(Float64Box)                   \
-  V(CheckedFloat64Unbox)          \
-  V(LogicalNot)                   \
-  V(SetPendingMessage)            \
-  V(ToBooleanLogicalNot)          \
-  V(TaggedEqual)                  \
-  V(TaggedNotEqual)               \
-  V(TestInstanceOf)               \
-  V(TestUndetectable)             \
-  V(TestTypeOf)                   \
-  V(ToName)                       \
-  V(ToNumberOrNumeric)            \
-  V(ToObject)                     \
-  V(ToString)                     \
-  CONSTANT_VALUE_NODE_LIST(V)     \
-  INT32_OPERATIONS_NODE_LIST(V)   \
-  FLOAT64_OPERATIONS_NODE_LIST(V) \
+#define VALUE_NODE_LIST(V)         \
+  V(Call)                          \
+  V(CallBuiltin)                   \
+  V(CallRuntime)                   \
+  V(CallWithSpread)                \
+  V(Construct)                     \
+  V(ConstructWithSpread)           \
+  V(CreateEmptyArrayLiteral)       \
+  V(CreateArrayLiteral)            \
+  V(CreateShallowArrayLiteral)     \
+  V(CreateObjectLiteral)           \
+  V(CreateEmptyObjectLiteral)      \
+  V(CreateShallowObjectLiteral)    \
+  V(CreateFunctionContext)         \
+  V(CreateClosure)                 \
+  V(FastCreateClosure)             \
+  V(CreateRegExpLiteral)           \
+  V(DeleteProperty)                \
+  V(ForInPrepare)                  \
+  V(ForInNext)                     \
+  V(GeneratorRestoreRegister)      \
+  V(GetIterator)                   \
+  V(GetSecondReturnedValue)        \
+  V(GetTemplateObject)             \
+  V(InitialValue)                  \
+  V(LoadTaggedField)               \
+  V(LoadDoubleField)               \
+  V(LoadTaggedElement)             \
+  V(LoadDoubleElement)             \
+  V(LoadGlobal)                    \
+  V(LoadNamedGeneric)              \
+  V(LoadNamedFromSuperGeneric)     \
+  V(SetNamedGeneric)               \
+  V(DefineNamedOwnGeneric)         \
+  V(StoreInArrayLiteralGeneric)    \
+  V(StoreGlobal)                   \
+  V(GetKeyedGeneric)               \
+  V(SetKeyedGeneric)               \
+  V(DefineKeyedOwnGeneric)         \
+  V(Phi)                           \
+  V(RegisterInput)                 \
+  V(CheckedSmiTag)                 \
+  V(CheckedSmiUntag)               \
+  V(CheckedInternalizedString)     \
+  V(ChangeInt32ToFloat64)          \
+  V(CheckedTruncateFloat64ToInt32) \
+  V(Float64Box)                    \
+  V(CheckedFloat64Unbox)           \
+  V(LogicalNot)                    \
+  V(SetPendingMessage)             \
+  V(ToBooleanLogicalNot)           \
+  V(TaggedEqual)                   \
+  V(TaggedNotEqual)                \
+  V(TestInstanceOf)                \
+  V(TestUndetectable)              \
+  V(TestTypeOf)                    \
+  V(ToName)                        \
+  V(ToNumberOrNumeric)             \
+  V(ToObject)                      \
+  V(ToString)                      \
+  CONSTANT_VALUE_NODE_LIST(V)      \
+  INT32_OPERATIONS_NODE_LIST(V)    \
+  FLOAT64_OPERATIONS_NODE_LIST(V)  \
   GENERIC_OPERATIONS_NODE_LIST(V)
 
 #define GAP_MOVE_NODE_LIST(V) \
@@ -1740,6 +1741,22 @@ class ChangeInt32ToFloat64
 
   static constexpr OpProperties kProperties =
       OpProperties::Float64() | OpProperties::ConversionNode();
+
+  Input& input() { return Node::input(0); }
+
+  DECL_NODE_INTERFACE_WITH_EMPTY_PRINT_PARAMS()
+};
+
+class CheckedTruncateFloat64ToInt32
+    : public FixedInputValueNodeT<1, CheckedTruncateFloat64ToInt32> {
+  using Base = FixedInputValueNodeT<1, CheckedTruncateFloat64ToInt32>;
+
+ public:
+  explicit CheckedTruncateFloat64ToInt32(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt() |
+                                              OpProperties::Int32() |
+                                              OpProperties::ConversionNode();
 
   Input& input() { return Node::input(0); }
 
