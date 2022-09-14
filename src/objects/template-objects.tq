@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 extern class CachedTemplateObject extends Struct {
+  function_literal_id: Smi;
   slot_id: Smi;
   template_object: JSArray;
   next: CachedTemplateObject|TheHole;

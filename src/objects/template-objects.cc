@@ -23,6 +23,7 @@ Handle<JSArray> TemplateObjectDescription::GetTemplateObject(
 
   // Check the template weakmap to see if the template object already exists.
   Handle<EphemeronHashTable> template_weakmap;
+  Handle<Script> script(Script::cast(shared_info->script(isolate)), isolate);
 
   if (native_context->template_weakmap().IsUndefined(isolate)) {
     template_weakmap = EphemeronHashTable::New(isolate, 1);
@@ -31,11 +32,14 @@ Handle<JSArray> TemplateObjectDescription::GetTemplateObject(
     ReadOnlyRoots roots(isolate);
     template_weakmap = handle(
         EphemeronHashTable::cast(native_context->template_weakmap()), isolate);
-    Object maybe_cached_template = template_weakmap->Lookup(shared_info, hash);
+    Object maybe_cached_template =
+        template_weakmap->Lookup(isolate, script, hash);
+    int function_literal_id = shared_info->function_literal_id();
     while (!maybe_cached_template.IsTheHole(roots)) {
       CachedTemplateObject cached_template =
           CachedTemplateObject::cast(maybe_cached_template);
-      if (cached_template.slot_id() == slot_id) {
+      if (cached_template.function_literal_id() == function_literal_id &&
+          cached_template.slot_id() == slot_id) {
         return handle(cached_template.template_object(), isolate);
       }
       maybe_cached_template = cached_template.next();
@@ -73,20 +77,21 @@ Handle<JSArray> TemplateObjectDescription::GetTemplateObject(
       .ToChecked();
 
   // Insert the template object into the template weakmap.
-  Handle<HeapObject> previous_cached_templates = handle(
-      HeapObject::cast(template_weakmap->Lookup(shared_info, hash)), isolate);
+  Handle<HeapObject> previous_cached_templates =
+      handle(HeapObject::cast(template_weakmap->Lookup(script, hash)), isolate);
   Handle<CachedTemplateObject> cached_template = CachedTemplateObject::New(
-      isolate, slot_id, template_object, previous_cached_templates);
-  template_weakmap = EphemeronHashTable::Put(
-      isolate, template_weakmap, shared_info, cached_template, hash);
+      isolate, shared_info->function_literal_id(), slot_id, template_object,
+      previous_cached_templates);
+  template_weakmap = EphemeronHashTable::Put(isolate, template_weakmap, script,
+                                             cached_template, hash);
   native_context->set_template_weakmap(*template_weakmap);
 
   return template_object;
 }
 
 Handle<CachedTemplateObject> CachedTemplateObject::New(
-    Isolate* isolate, int slot_id, Handle<JSArray> template_object,
-    Handle<HeapObject> next) {
+    Isolate* isolate, int function_literal_id, int slot_id,
+    Handle<JSArray> template_object, Handle<HeapObject> next) {
   DCHECK(next->IsCachedTemplateObject() || next->IsTheHole());
   Handle<CachedTemplateObject> result_handle =
       Handle<CachedTemplateObject>::cast(isolate->factory()->NewStruct(
@@ -94,6 +99,7 @@ Handle<CachedTemplateObject> CachedTemplateObject::New(
   {
     DisallowGarbageCollection no_gc;
     auto result = *result_handle;
+    result.set_function_literal_id(function_literal_id);
     result.set_slot_id(slot_id);
     result.set_template_object(*template_object);
     result.set_next(*next);

@@ -188,6 +188,7 @@ var V8OptimizationStatus = {
   kBaseline: 1 << 15,
   kTopmostFrameIsInterpreted: 1 << 16,
   kTopmostFrameIsBaseline: 1 << 17,
+  kIsLazy: 1 << 18,
 };
 
 // Returns true if --lite-mode is on and we can't ever turn on optimization.
@@ -198,6 +199,9 @@ var isNeverOptimize;
 
 // Returns true if --always-turbofan mode is on.
 var isAlwaysOptimize;
+
+// Returns true if given function in lazily compiled.
+var isLazy;
 
 // Returns true if given function in interpreted.
 var isInterpreted;
@@ -760,6 +764,13 @@ var prettyPrinted;
   isAlwaysOptimize = function isAlwaysOptimize() {
     var opt_status = OptimizationStatus(undefined, "");
     return (opt_status & V8OptimizationStatus.kAlwaysOptimize) !== 0;
+  }
+
+  isLazy = function isLazy(fun) {
+    var opt_status = OptimizationStatus(fun, '');
+    assertTrue((opt_status & V8OptimizationStatus.kIsFunction) !== 0,
+               "not a function");
+    return (opt_status & V8OptimizationStatus.kIsLazy) !== 0;
   }
 
   isInterpreted = function isInterpreted(fun) {

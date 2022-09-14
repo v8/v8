@@ -25,7 +25,8 @@ class StructBodyDescriptor;
 class CachedTemplateObject final
     : public TorqueGeneratedCachedTemplateObject<CachedTemplateObject, Struct> {
  public:
-  static Handle<CachedTemplateObject> New(Isolate* isolate, int slot_id,
+  static Handle<CachedTemplateObject> New(Isolate* isolate,
+                                          int function_literal_id, int slot_id,
                                           Handle<JSArray> template_object,
                                           Handle<HeapObject> next);
 
