@@ -89,6 +89,9 @@ class Loong64OperandConverter final : public InstructionOperandConverter {
       case Constant::kCompressedHeapObject:
       case Constant::kHeapObject:
         break;
+      case Constant::kDelayedStringConstant:
+        return Operand::EmbeddedStringConstant(
+            constant.ToDelayedStringConstant());
       case Constant::kRpoNumber:
         UNREACHABLE();  // TODO(titzer): RPO immediates on loong64?
     }
@@ -2639,6 +2642,9 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           break;
         case Constant::kExternalReference:
           __ li(dst, src.ToExternalReference());
+          break;
+        case Constant::kDelayedStringConstant:
+          __ li(dst, src.ToDelayedStringConstant());
           break;
         case Constant::kHeapObject: {
           Handle<HeapObject> src_object = src.ToHeapObject();
