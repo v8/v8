@@ -1220,6 +1220,8 @@ DEFINE_BOOL(global_gc_scheduling, true,
 DEFINE_BOOL(gc_global, false, "always perform global GCs")
 DEFINE_BOOL(shared_space, false,
             "Implement shared heap as shared space on a main isolate.")
+// Don't use a map space with --shared-space in order to avoid shared map space.
+DEFINE_NEG_IMPLICATION(shared_space, use_map_space)
 
 // TODO(12950): The next two flags only have an effect if
 // V8_ENABLE_ALLOCATION_TIMEOUT is set, so we should only define them in that
