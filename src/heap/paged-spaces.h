@@ -571,32 +571,6 @@ class MapSpace final : public PagedSpace {
   LinearAllocationArea paged_allocation_info_;
 };
 
-// -----------------------------------------------------------------------------
-// Shared space regular object space.
-
-class SharedSpace final : public PagedSpace {
- public:
-  // Creates an old space object. The constructor does not allocate pages
-  // from OS.
-  explicit SharedSpace(Heap* heap)
-      : PagedSpace(heap, SHARED_SPACE, NOT_EXECUTABLE,
-                   FreeList::CreateFreeList(), allocation_info) {}
-
-  static bool IsAtPageStart(Address addr) {
-    return static_cast<intptr_t>(addr & kPageAlignmentMask) ==
-           MemoryChunkLayout::ObjectStartOffsetInDataPage();
-  }
-
-  size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {
-    if (type == ExternalBackingStoreType::kArrayBuffer) return 0;
-    DCHECK_EQ(type, ExternalBackingStoreType::kExternalString);
-    return external_backing_store_bytes_[type];
-  }
-
- private:
-  LinearAllocationArea allocation_info;
-};
-
 // Iterates over the chunks (pages and large object pages) that can contain
 // pointers to new space or to evacuation candidates.
 class OldGenerationMemoryChunkIterator {

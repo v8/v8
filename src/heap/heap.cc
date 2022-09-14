@@ -4317,10 +4317,9 @@ bool Heap::ContainsCode(HeapObject value) const {
 }
 
 bool Heap::SharedHeapContains(HeapObject value) const {
-  if (shared_isolate_old_space_)
-    return shared_isolate_old_space_->Contains(value) ||
-           (shared_isolate_map_space_ &&
-            shared_isolate_map_space_->Contains(value));
+  if (shared_old_space_)
+    return shared_old_space_->Contains(value) ||
+           (shared_map_space_ && shared_map_space_->Contains(value));
   return false;
 }
 
@@ -4351,16 +4350,12 @@ bool Heap::InSpace(HeapObject value, AllocationSpace space) const {
     case MAP_SPACE:
       DCHECK(map_space_);
       return map_space_->Contains(value);
-    case SHARED_SPACE:
-      return shared_space_->Contains(value);
     case LO_SPACE:
       return lo_space_->Contains(value);
     case CODE_LO_SPACE:
       return code_lo_space_->Contains(value);
     case NEW_LO_SPACE:
       return new_lo_space_->Contains(value);
-    case SHARED_LO_SPACE:
-      return shared_lo_space_->Contains(value);
     case RO_SPACE:
       return ReadOnlyHeap::Contains(value);
   }
@@ -4385,16 +4380,12 @@ bool Heap::InSpaceSlow(Address addr, AllocationSpace space) const {
     case MAP_SPACE:
       DCHECK(map_space_);
       return map_space_->ContainsSlow(addr);
-    case SHARED_SPACE:
-      return shared_space_->ContainsSlow(addr);
     case LO_SPACE:
       return lo_space_->ContainsSlow(addr);
     case CODE_LO_SPACE:
       return code_lo_space_->ContainsSlow(addr);
     case NEW_LO_SPACE:
       return new_lo_space_->ContainsSlow(addr);
-    case SHARED_LO_SPACE:
-      return shared_lo_space_->ContainsSlow(addr);
     case RO_SPACE:
       return read_only_space_->ContainsSlow(addr);
   }
@@ -4407,11 +4398,9 @@ bool Heap::IsValidAllocationSpace(AllocationSpace space) {
     case OLD_SPACE:
     case CODE_SPACE:
     case MAP_SPACE:
-    case SHARED_SPACE:
     case LO_SPACE:
     case NEW_LO_SPACE:
     case CODE_LO_SPACE:
-    case SHARED_LO_SPACE:
     case RO_SPACE:
       return true;
     default:
@@ -5449,15 +5438,8 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
   if (v8_flags.use_map_space) {
     space_[MAP_SPACE] = map_space_ = new MapSpace(this);
   }
-  if (v8_flags.shared_space && isolate()->is_shared_space_isolate()) {
-    space_[SHARED_SPACE] = shared_space_ = new SharedSpace(this);
-  }
   space_[LO_SPACE] = lo_space_ = new OldLargeObjectSpace(this);
   space_[CODE_LO_SPACE] = code_lo_space_ = new CodeLargeObjectSpace(this);
-  if (v8_flags.shared_space && isolate()->is_shared_space_isolate()) {
-    space_[SHARED_LO_SPACE] = shared_lo_space_ =
-        new SharedLargeObjectSpace(this);
-  }
 
   for (int i = 0; i < static_cast<int>(v8::Isolate::kUseCounterFeatureCount);
        i++) {
@@ -5535,15 +5517,15 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
   if (isolate()->shared_isolate()) {
     Heap* shared_heap = isolate()->shared_isolate()->heap();
 
-    shared_isolate_old_space_ = shared_heap->old_space();
-    shared_isolate_lo_space_ = shared_heap->lo_space();
-    shared_old_allocator_.reset(new ConcurrentAllocator(
-        main_thread_local_heap(), shared_isolate_old_space_));
+    shared_old_space_ = shared_heap->old_space();
+    shared_lo_space_ = shared_heap->lo_space();
+    shared_old_allocator_.reset(
+        new ConcurrentAllocator(main_thread_local_heap(), shared_old_space_));
 
     if (shared_heap->map_space()) {
-      shared_isolate_map_space_ = shared_heap->map_space();
-      shared_map_allocator_.reset(new ConcurrentAllocator(
-          main_thread_local_heap(), shared_isolate_map_space_));
+      shared_map_space_ = shared_heap->map_space();
+      shared_map_allocator_.reset(
+          new ConcurrentAllocator(main_thread_local_heap(), shared_map_space_));
     }
   }
 
@@ -5852,10 +5834,10 @@ void Heap::TearDown() {
 
   allocation_sites_to_pretenure_.reset();
 
-  shared_isolate_old_space_ = nullptr;
+  shared_old_space_ = nullptr;
   shared_old_allocator_.reset();
 
-  shared_isolate_map_space_ = nullptr;
+  shared_map_space_ = nullptr;
   shared_map_allocator_.reset();
 
   {
@@ -6789,12 +6771,9 @@ bool Heap::AllowedToBeMigrated(Map map, HeapObject obj, AllocationSpace dst) {
       return dst == CODE_SPACE && type == CODE_TYPE;
     case MAP_SPACE:
       return dst == MAP_SPACE && type == MAP_TYPE;
-    case SHARED_SPACE:
-      return dst == SHARED_SPACE;
     case LO_SPACE:
     case CODE_LO_SPACE:
     case NEW_LO_SPACE:
-    case SHARED_LO_SPACE:
     case RO_SPACE:
       return false;
   }
