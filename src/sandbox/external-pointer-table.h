@@ -206,12 +206,12 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
 #endif
   static constexpr size_t kEntriesPerBlock = kBlockSize / kSystemPointerSize;
 
-  // When the table is swept, it first sets the freelist head to this special
-  // value to better catch any violation of the "don't-alloc-while-sweeping"
-  // requirement (see SweepAndCompact()). This value is chosen so it points to
-  // the last entry in the table, which should usually be inaccessible.
-  static constexpr uint32_t kTableIsCurrentlySweepingMarker =
-      (kExternalPointerTableReservationSize / kSystemPointerSize) - 1;
+  // When the table is swept, it first sets the freelist_ to this special value
+  // to better catch any violation of the "don't-alloc-while-sweeping"
+  // requirement (see SweepAndCompact()). This value should never occur as
+  // freelist_ value during normal operations and should be easy to recognize.
+  static constexpr uint64_t kTableIsCurrentlySweepingMarker =
+      static_cast<uint64_t>(-1);
 
   // This value is used for start_of_evacuation_area to indicate that the table
   // is not currently being compacted. It is set to uint32_t max so that
@@ -265,6 +265,55 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
     base::Relaxed_Store(&start_of_evacuation_area_, value);
   }
 
+  // Struct to represent the freelist of a table.
+  // In it's encoded form, this is stored in the freelist_ member of the table.
+  class Freelist {
+   public:
+    Freelist() : encoded_(0) {}
+    Freelist(uint32_t head, uint32_t size)
+        : encoded_((static_cast<uint64_t>(size) << 32) | head) {}
+
+    uint32_t Head() const { return static_cast<uint32_t>(encoded_); }
+    uint32_t Size() const { return static_cast<uint32_t>(encoded_ >> 32); }
+
+    bool IsEmpty() const {
+      DCHECK_EQ(Head() == 0, Size() == 0);
+      return encoded_ == 0;
+    }
+
+    uint64_t Encode() const { return encoded_; }
+
+    static Freelist Decode(uint64_t encoded_form) {
+      DCHECK_NE(encoded_form, kTableIsCurrentlySweepingMarker);
+      return Freelist(encoded_form);
+    }
+
+   private:
+    explicit Freelist(uint64_t encoded_form) : encoded_(encoded_form) {}
+
+    uint64_t encoded_;
+  };
+
+  // Freelist accessors.
+  Freelist Relaxed_GetFreelist() {
+    return Freelist::Decode(base::Relaxed_Load(&freelist_));
+  }
+  Freelist Acquire_GetFreelist() {
+    return Freelist::Decode(base::Acquire_Load(&freelist_));
+  }
+  void Relaxed_SetFreelist(Freelist new_freelist) {
+    base::Relaxed_Store(&freelist_, new_freelist.Encode());
+  }
+  void Release_SetFreelist(Freelist new_freelist) {
+    base::Release_Store(&freelist_, new_freelist.Encode());
+  }
+  bool Relaxed_CompareAndSwapFreelist(Freelist old_freelist,
+                                      Freelist new_freelist) {
+    uint64_t old_val = base::Relaxed_CompareAndSwap(
+        &freelist_, old_freelist.Encode(), new_freelist.Encode());
+    return old_val == old_freelist.Encode();
+  }
+
   // Allocate an entry suitable as evacuation entry during table compaction.
   //
   // This method will always return an entry before the start of the evacuation
@@ -285,14 +334,15 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
   // This method is mostly a wrapper around an atomic compare-and-swap which
   // replaces the current freelist_head with the next entry in the freelist,
   // thereby allocating the entry at the start of the freelist.
-  inline bool TryAllocateEntryFromFreelist(uint32_t freelist_head);
+  inline bool TryAllocateEntryFromFreelist(Freelist freelist);
 
   // Extends the table and adds newly created entries to the freelist. Returns
-  // the new freelist head. When calling this method, mutex_ must be locked.
+  // the new freelist.
+  // When calling this method, mutex_ must be locked.
   // If the table cannot be grown, either because it is already at its maximum
   // size or because the memory for it could not be allocated, this method will
   // fail with an OOM crash.
-  uint32_t Grow(Isolate* isolate);
+  Freelist Grow(Isolate* isolate);
 
   // Stop compacting at the end of sweeping.
   void StopCompacting();
@@ -359,8 +409,7 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
     void SetMarkBit() { value_ |= kExternalPointerMarkBit; }
     void ClearMarkBit() { value_ &= ~kExternalPointerMarkBit; }
 
-    // Returns true if this entry is part of the freelist, in which case
-    // ExtractNextFreelistEntry and ExtractFreelistSize may be used.
+    // Returns true if this entry is part of the freelist.
     bool IsFreelistEntry() const {
       return HasTag(kExternalPointerFreeEntryTag);
     }
@@ -381,14 +430,7 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
     // is only valid if this is a freelist entry. This behaviour is required
     // for efficient entry allocation, see TryAllocateEntryFromFreelist.
     uint32_t ExtractNextFreelistEntry() const {
-      return static_cast<uint32_t>(value_) & 0x00ffffff;
-    }
-
-    // Extract the size of the freelist following this entry. Must only be
-    // called if this is a freelist entry. See also MakeFreelistEntry.
-    uint32_t ExtractFreelistSize() const {
-      DCHECK(IsFreelistEntry());
-      return static_cast<uint32_t>(value_ >> 24) & 0x00ffffff;
+      return static_cast<uint32_t>(value_);
     }
 
     // An evacuation entry contains the address of the Handle to a (regular)
@@ -410,26 +452,11 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
     }
 
     // Constructs a freelist entry given the current freelist head and size.
-    static Entry MakeFreelistEntry(uint32_t current_freelist_head,
-                                   uint32_t current_freelist_size) {
-      // The next freelist entry is stored in the lower 24 bits of the entry.
-      // The freelist size is stored in the next 24 bits. If we ever need larger
-      // tables, and therefore larger indices to encode the next free entry, we
-      // can make the freelist size an approximation and drop some of the bottom
-      // bits of the value when encoding it.
-      // We could also keep the freelist size as an additional uint32_t member,
-      // but encoding it in this way saves one atomic compare-exchange on every
-      // entry allocation.
-      static_assert(kMaxExternalPointers <= (1ULL << 24));
-      static_assert(kExternalPointerFreeEntryTag >= (1ULL << 48));
-      DCHECK_LT(current_freelist_head, kMaxExternalPointers);
-      DCHECK_LT(current_freelist_size, kMaxExternalPointers);
-
-      Address value = current_freelist_size;
-      value <<= 24;
-      value |= current_freelist_head;
-      value |= kExternalPointerFreeEntryTag;
-      return Entry(value);
+    static Entry MakeFreelistEntry(uint32_t next_freelist_entry) {
+      // The next freelist entry is stored in the lower bits of the entry.
+      static_assert(kMaxExternalPointers < (1ULL << kExternalPointerTagShift));
+      DCHECK_LT(next_freelist_entry, kMaxExternalPointers);
+      return Entry(next_freelist_entry | kExternalPointerFreeEntryTag);
     }
 
     // Constructs an evacuation entry containing the given handle location.
@@ -538,9 +565,6 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
   // The current capacity of this table, which is the number of usable entries.
   base::Atomic32 capacity_ = 0;
 
-  // The index of the first entry on the freelist or zero if the list is empty.
-  base::Atomic32 freelist_head_ = 0;
-
   // When compacting the table, this value contains the index of the first
   // entry in the evacuation area. The evacuation area is the region at the end
   // of the table from which entries are moved out of so that the underyling
@@ -555,6 +579,14 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
   // This field must be accessed atomically as it may be written to from
   // background threads during GC marking (for example to abort compaction).
   base::Atomic32 start_of_evacuation_area_ = kNotCompactingMarker;
+
+  // The freelist used by this table.
+  // This field stores an (encoded) Freelist struct, i.e. the index of the
+  // current head of the freelist and the current size of the freelist. These
+  // two values need to be updated together (in a single atomic word) so they
+  // stay correctly synchronized when entries are allocated from the freelist
+  // from multiple threads.
+  base::Atomic64 freelist_ = 0;
 
   // Lock protecting the slow path for entry allocation, in particular Grow().
   // As the size of this structure must be predictable (it's part of

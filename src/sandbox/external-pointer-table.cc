@@ -82,16 +82,16 @@ void ExternalPointerTable::TearDown() {
 
   buffer_ = kNullAddress;
   capacity_ = 0;
-  freelist_head_ = 0;
+  freelist_ = 0;
   mutex_ = nullptr;
 }
 
 uint32_t ExternalPointerTable::SweepAndCompact(Isolate* isolate) {
   // There must not be any entry allocations while the table is being swept as
-  // that would not be safe. Set the freelist head to this special marker value
-  // to better catch any violation of this requirement.
-  uint32_t old_freelist_head = base::Relaxed_Load(&freelist_head_);
-  base::Release_Store(&freelist_head_, kTableIsCurrentlySweepingMarker);
+  // that would not be safe. Set the freelist to this special marker value to
+  // better catch any violation of this requirement.
+  Freelist old_freelist = Relaxed_GetFreelist();
+  base::Release_Store(&freelist_, kTableIsCurrentlySweepingMarker);
 
   // Keep track of the last block (identified by the index of its first entry)
   // that has live entries. Used to decommit empty blocks at the end.
@@ -112,14 +112,14 @@ uint32_t ExternalPointerTable::SweepAndCompact(Isolate* isolate) {
       // Extract the original start_of_evacuation_area value so that the
       // DCHECKs below work correctly.
       first_block_of_evacuation_area &= ~kCompactionAbortedMarker;
-    } else if (!old_freelist_head ||
-               old_freelist_head > first_block_of_evacuation_area) {
+    } else if (old_freelist.IsEmpty() ||
+               old_freelist.Head() > first_block_of_evacuation_area) {
       // In this case, marking finished successfully, but the application
       // afterwards allocated entries inside the area that is being compacted.
       // In this case, we can still compute how many blocks at the end of the
       // table are now empty.
-      if (old_freelist_head) {
-        last_in_use_block = RoundDown(old_freelist_head, kEntriesPerBlock);
+      if (!old_freelist.IsEmpty()) {
+        last_in_use_block = RoundDown(old_freelist.Head(), kEntriesPerBlock);
       }
       outcome = TableCompactionOutcome::kPartialSuccess;
     } else {
@@ -206,8 +206,7 @@ uint32_t ExternalPointerTable::SweepAndCompact(Isolate* isolate) {
       // compaction was already aborted during marking.
     } else if (!entry.IsMarked()) {
       current_freelist_size++;
-      Entry entry = Entry::MakeFreelistEntry(current_freelist_head,
-                                             current_freelist_size);
+      Entry entry = Entry::MakeFreelistEntry(current_freelist_head);
       Store(i, entry);
       current_freelist_head = i;
     } else {
@@ -247,7 +246,8 @@ uint32_t ExternalPointerTable::SweepAndCompact(Isolate* isolate) {
     StopCompacting();
   }
 
-  base::Release_Store(&freelist_head_, current_freelist_head);
+  Freelist new_freelist(current_freelist_head, current_freelist_size);
+  Release_SetFreelist(new_freelist);
 
   uint32_t num_active_entries = capacity() - current_freelist_size;
   isolate->counters()->external_pointers_count()->AddSample(num_active_entries);
@@ -285,9 +285,9 @@ void ExternalPointerTable::StopCompacting() {
   set_start_of_evacuation_area(kNotCompactingMarker);
 }
 
-uint32_t ExternalPointerTable::Grow(Isolate* isolate) {
-  // Freelist should be empty.
-  DCHECK_EQ(0, freelist_head_);
+ExternalPointerTable::Freelist ExternalPointerTable::Grow(Isolate* isolate) {
+  // Freelist should be empty when calling this method.
+  DCHECK(Relaxed_GetFreelist().IsEmpty());
   // Mutex must be held when calling this method.
   mutex_->AssertHeld();
 
@@ -324,18 +324,19 @@ uint32_t ExternalPointerTable::Grow(Isolate* isolate) {
   // Build freelist bottom to top, which might be more cache friendly.
   uint32_t start = std::max<uint32_t>(old_capacity, 1);  // Skip entry zero
   uint32_t last = new_capacity - 1;
-  uint32_t current_freelist_size = 1;
   for (uint32_t i = start; i < last; i++) {
-    uint32_t next_entry = i + 1;
-    Store(i, Entry::MakeFreelistEntry(next_entry, current_freelist_size++));
+    uint32_t next_free_entry = i + 1;
+    Store(i, Entry::MakeFreelistEntry(next_free_entry));
   }
-  Store(last, Entry::MakeFreelistEntry(0, current_freelist_size));
+  Store(last, Entry::MakeFreelistEntry(0));
 
   // This must be a release store to prevent reordering of the preceeding
   // stores to the freelist from being reordered past this store. See
-  // Allocate() for more details.
-  base::Release_Store(&freelist_head_, start);
-  return start;
+  // AllocateAndInitializeEntry() for more details.
+  Freelist new_freelist(start, last - start + 1);
+  Release_SetFreelist(new_freelist);
+
+  return new_freelist;
 }
 
 }  // namespace internal

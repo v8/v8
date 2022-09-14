@@ -520,10 +520,6 @@ class Internals {
 
   // ExternalPointerTable layout guarantees.
   static const int kExternalPointerTableBufferOffset = 0;
-  static const int kExternalPointerTableCapacityOffset =
-      kExternalPointerTableBufferOffset + kApiSystemPointerSize;
-  static const int kExternalPointerTableFreelistHeadOffset =
-      kExternalPointerTableCapacityOffset + kApiInt32Size;
   static const int kExternalPointerTableSize = 4 * kApiSystemPointerSize;
 
   // IsolateData layout guarantees.

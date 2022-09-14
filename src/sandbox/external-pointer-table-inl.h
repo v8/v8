@@ -47,22 +47,27 @@ Address ExternalPointerTable::Exchange(ExternalPointerHandle handle,
   return old_entry.Untag(tag);
 }
 
-bool ExternalPointerTable::TryAllocateEntryFromFreelist(
-    uint32_t freelist_head) {
-  DCHECK(freelist_head);
-  DCHECK_LT(freelist_head, capacity());
+bool ExternalPointerTable::TryAllocateEntryFromFreelist(Freelist freelist) {
+  DCHECK(!freelist.IsEmpty());
+  DCHECK_LT(freelist.Head(), capacity());
+  DCHECK_LT(freelist.Size(), capacity());
 
-  Entry entry = RelaxedLoad(freelist_head);
+  Entry entry = RelaxedLoad(freelist.Head());
   uint32_t new_freelist_head = entry.ExtractNextFreelistEntry();
 
-  uint32_t old_val = base::Relaxed_CompareAndSwap(
-      &freelist_head_, freelist_head, new_freelist_head);
-  bool success = old_val == freelist_head;
+  Freelist new_freelist(new_freelist_head, freelist.Size() - 1);
+  bool success = Relaxed_CompareAndSwapFreelist(freelist, new_freelist);
 
   // When the CAS succeeded, the entry must've been a freelist entry.
   // Otherwise, this is not guaranteed as another thread may have allocated
   // the same entry in the meantime.
-  DCHECK(!success || entry.IsFreelistEntry());
+  if (success) {
+    DCHECK(entry.IsFreelistEntry());
+    DCHECK_LT(new_freelist.Head(), capacity());
+    DCHECK_LT(new_freelist.Size(), capacity());
+    DCHECK_IMPLIES(freelist.Size() > 1, !new_freelist.IsEmpty());
+    DCHECK_IMPLIES(freelist.Size() == 1, new_freelist.IsEmpty());
+  }
   return success;
 }
 
@@ -70,7 +75,7 @@ ExternalPointerHandle ExternalPointerTable::AllocateAndInitializeEntry(
     Isolate* isolate, Address initial_value, ExternalPointerTag tag) {
   DCHECK(is_initialized());
 
-  uint32_t freelist_head;
+  Freelist freelist;
   bool success = false;
   while (!success) {
     // This is essentially DCLP (see
@@ -78,58 +83,62 @@ ExternalPointerHandle ExternalPointerTable::AllocateAndInitializeEntry(
     // and so requires an acquire load as well as a release store in Grow() to
     // prevent reordering of memory accesses, which could for example cause one
     // thread to read a freelist entry before it has been properly initialized.
-    freelist_head = base::Acquire_Load(&freelist_head_);
-    if (!freelist_head) {
+    freelist = Acquire_GetFreelist();
+    if (freelist.IsEmpty()) {
       // Freelist is empty. Need to take the lock, then attempt to grow the
       // table if no other thread has done it in the meantime.
       base::MutexGuard guard(mutex_);
 
       // Reload freelist head in case another thread already grew the table.
-      freelist_head = base::Relaxed_Load(&freelist_head_);
+      freelist = Relaxed_GetFreelist();
 
-      if (!freelist_head) {
+      if (freelist.IsEmpty()) {
         // Freelist is (still) empty so grow the table.
-        freelist_head = Grow(isolate);
+        freelist = Grow(isolate);
+        // Grow() adds one block to the table and so to the freelist.
+        DCHECK_EQ(freelist.Size(), kEntriesPerBlock);
       }
     }
 
-    success = TryAllocateEntryFromFreelist(freelist_head);
+    success = TryAllocateEntryFromFreelist(freelist);
   }
 
-  Entry entry = Entry::MakeRegularEntry(initial_value, tag);
-  RelaxedStore(freelist_head, entry);
+  DCHECK_NE(freelist.Head(), 0);
+  DCHECK_LT(freelist.Head(), capacity());
 
-  return IndexToHandle(freelist_head);
+  uint32_t entry_index = freelist.Head();
+  Entry entry = Entry::MakeRegularEntry(initial_value, tag);
+  RelaxedStore(entry_index, entry);
+
+  return IndexToHandle(entry_index);
 }
 
 ExternalPointerHandle ExternalPointerTable::AllocateEvacuationEntry(
     uint32_t start_of_evacuation_area) {
   DCHECK(is_initialized());
+  DCHECK_LT(start_of_evacuation_area, capacity());
 
-  uint32_t freelist_head;
+  Freelist freelist;
   bool success = false;
   while (!success) {
-    freelist_head = base::Acquire_Load(&freelist_head_);
+    freelist = Acquire_GetFreelist();
     // Check that the next free entry is below the start of the evacuation area.
-    if (!freelist_head || freelist_head >= start_of_evacuation_area)
+    if (freelist.IsEmpty() || freelist.Head() >= start_of_evacuation_area)
       return kNullExternalPointerHandle;
 
-    success = TryAllocateEntryFromFreelist(freelist_head);
+    success = TryAllocateEntryFromFreelist(freelist);
   }
 
-  return IndexToHandle(freelist_head);
+  DCHECK_NE(freelist.Head(), 0);
+  DCHECK_LT(freelist.Head(), start_of_evacuation_area);
+
+  return IndexToHandle(freelist.Head());
 }
 
 uint32_t ExternalPointerTable::FreelistSize() {
-  Entry entry;
-  do {
-    uint32_t freelist_head = base::Relaxed_Load(&freelist_head_);
-    if (!freelist_head) return 0;
-    entry = RelaxedLoad(freelist_head);
-  } while (!entry.IsFreelistEntry());
-  uint32_t freelist_size = entry.ExtractFreelistSize();
-  DCHECK_LE(freelist_size, capacity());
-  return freelist_size;
+  Freelist freelist = Relaxed_GetFreelist();
+  DCHECK_LE(freelist.Size(), capacity());
+  return freelist.Size();
 }
 
 void ExternalPointerTable::Mark(ExternalPointerHandle handle,
