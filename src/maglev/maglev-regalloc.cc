@@ -388,7 +388,8 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
         // the exception message object.
         Phi* phi = block->phis()->first();
         DCHECK_EQ(phi->input_count(), 0);
-        if (phi->owner() == interpreter::Register::virtual_accumulator()) {
+        if (phi->owner() == interpreter::Register::virtual_accumulator() &&
+            !phi->is_dead()) {
           phi->result().SetAllocated(ForceAllocate(kReturnRegister0, phi));
           if (FLAG_trace_maglev_regalloc) {
             printing_visitor_->Process(phi, ProcessingState(block_it_));

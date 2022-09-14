@@ -477,6 +477,7 @@ class ExceptionHandlerTrampolineBuilder {
                    const CompactInterpreterFrameState* register_frame) {
     for (Phi* phi : *block->phis()) {
       DCHECK_EQ(phi->input_count(), 0);
+      if (!phi->has_valid_live_range()) continue;
       if (phi->owner() == interpreter::Register::virtual_accumulator()) {
         // If the accumulator is live, then it is the exception object located
         // at kReturnRegister0. This is also the first phi in the list.
@@ -484,7 +485,6 @@ class ExceptionHandlerTrampolineBuilder {
         save_accumulator_ = true;
         continue;
       }
-      if (!phi->has_valid_live_range()) continue;
       ValueNode* value = register_frame->GetValueOf(phi->owner(), unit);
       DCHECK_NOT_NULL(value);
       switch (value->properties().value_representation()) {
