@@ -1340,6 +1340,9 @@ Maybe<T> ValueDeserializer::ReadVarintLoop() {
       // Since {value} is not modified in this branch we can safely skip the
       // DCHECK when fuzzing.
       DCHECK_IMPLIES(!v8_flags.fuzzing, !has_another_byte);
+      // For consistency with the fast unrolled loop in ReadVarint we return
+      // after we have read size(T) + 1 bytes.
+      return Just(value);
     }
     position_++;
   } while (has_another_byte);
