@@ -1412,9 +1412,8 @@ void CheckJSObjectElementsBounds::GenerateCode(MaglevAssembler* masm,
     __ CmpObjectType(object, FIRST_JS_OBJECT_TYPE, kScratchRegister);
     __ Assert(greater_equal, AbortReason::kUnexpectedValue);
   }
-  __ LoadAnyTaggedField(
-      kScratchRegister,
-      FieldOperand(object, JSReceiver::kPropertiesOrHashOffset));
+  __ LoadAnyTaggedField(kScratchRegister,
+                        FieldOperand(object, JSObject::kElementsOffset));
   if (FLAG_debug_code) {
     __ AssertNotSmi(kScratchRegister);
   }
