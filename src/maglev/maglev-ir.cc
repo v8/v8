@@ -3294,9 +3294,9 @@ void ThrowIfNotSuperConstructor::GenerateCode(MaglevAssembler* masm,
       equal,
       [](MaglevAssembler* masm, Label* return_label,
          ThrowIfNotSuperConstructor* node) {
-        __ Move(kContextRegister, masm->native_context().object());
         __ Push(ToRegister(node->constructor()));
         __ Push(ToRegister(node->function()));
+        __ Move(kContextRegister, masm->native_context().object());
         __ CallRuntime(Runtime::kThrowNotSuperConstructor, 2);
         masm->DefineLazyDeoptPoint(node->lazy_deopt_info());
         __ Abort(AbortReason::kUnexpectedReturnFromThrow);
