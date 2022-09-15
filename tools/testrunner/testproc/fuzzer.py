@@ -17,8 +17,7 @@ EXTRA_FLAGS = [
     (0.1, '--force-slow-path'),
     (0.2, '--future'),
     (0.1, '--interrupt-budget=100'),
-    # TODO(almuthanna): enable again when the FYI bots are greener
-    # (0.1, '--interrupt-budget-for-maglev=100'),
+    (0.1, '--interrupt-budget-for-maglev=100'),
     (0.1, '--liftoff'),
     (0.1, '--maglev'),
     (0.1, '--minor-mc'),
