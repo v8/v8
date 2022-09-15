@@ -70,9 +70,9 @@ class SourcePosition;
 class Ticker;
 
 #undef LOG
-#define LOG(isolate, Call)                                         \
-  do {                                                             \
-    if (v8::internal::FLAG_log) (isolate)->v8_file_logger()->Call; \
+#define LOG(isolate, Call)                                             \
+  do {                                                                 \
+    if (v8::internal::v8_flags.log) (isolate)->v8_file_logger()->Call; \
   } while (false)
 
 #define LOG_CODE_EVENT(isolate, Call)                        \
@@ -299,7 +299,7 @@ class V8FileLogger : public LogEventListener {
   void TickEvent(TickSample* sample, bool overflow);
   void RuntimeCallTimerEvent();
 
-  // Logs a StringEvent regardless of whether FLAG_log is true.
+  // Logs a StringEvent regardless of whether v8_flags.log is true.
   void UncheckedStringEvent(const char* name, const char* value);
 
   // Logs a scripts sources. Keeps track of all logged scripts to ensure that

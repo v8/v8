@@ -127,7 +127,7 @@ const char* ComputeMarker(SharedFunctionInfo shared, AbstractCode code) {
   CodeKind kind = code.kind(cage_base);
   // We record interpreter trampoline builtin copies as having the
   // "interpreted" marker.
-  if (FLAG_interpreted_frames_native_stack && kind == CodeKind::BUILTIN &&
+  if (v8_flags.interpreted_frames_native_stack && kind == CodeKind::BUILTIN &&
       !code.is_off_heap_trampoline(cage_base)) {
     DCHECK_EQ(code.builtin_id(cage_base), Builtin::kInterpreterEntryTrampoline);
     kind = CodeKind::INTERPRETED_FUNCTION;
@@ -416,7 +416,7 @@ void LinuxPerfBasicLogger::LogRecordedBuffer(Handle<AbstractCode> code,
                                              MaybeHandle<SharedFunctionInfo>,
                                              const char* name, int length) {
   PtrComprCageBase cage_base(isolate_);
-  if (FLAG_perf_basic_prof_only_functions &&
+  if (v8_flags.perf_basic_prof_only_functions &&
       CodeKindIsBuiltinOrJSFunction(code->kind(cage_base))) {
     return;
   }
@@ -1128,7 +1128,7 @@ V8FileLogger::~V8FileLogger() = default;
 const LogSeparator V8FileLogger::kNext = LogSeparator::kSeparator;
 
 int64_t V8FileLogger::Time() {
-  if (FLAG_verify_predictable) {
+  if (v8_flags.verify_predictable) {
     return isolate_->heap()->MonotonicallyIncreasingTimeInMs() * 1000;
   }
   return timer_.Elapsed().InMicroseconds();
@@ -1145,12 +1145,13 @@ void V8FileLogger::RemoveLogEventListener(LogEventListener* listener) {
 
 void V8FileLogger::ProfilerBeginEvent() {
   MSG_BUILDER();
-  msg << "profiler" << kNext << "begin" << kNext << FLAG_prof_sampling_interval;
+  msg << "profiler" << kNext << "begin" << kNext
+      << v8_flags.prof_sampling_interval;
   msg.WriteToLogFile();
 }
 
 void V8FileLogger::StringEvent(const char* name, const char* value) {
-  if (FLAG_log) UncheckedStringEvent(name, value);
+  if (v8_flags.log) UncheckedStringEvent(name, value);
 }
 
 void V8FileLogger::UncheckedStringEvent(const char* name, const char* value) {
@@ -1160,7 +1161,7 @@ void V8FileLogger::UncheckedStringEvent(const char* name, const char* value) {
 }
 
 void V8FileLogger::IntPtrTEvent(const char* name, intptr_t value) {
-  if (!FLAG_log) return;
+  if (!v8_flags.log) return;
   MSG_BUILDER();
   msg << name << kNext;
   msg.AppendFormatString("%" V8PRIdPTR, value);
@@ -1170,7 +1171,7 @@ void V8FileLogger::IntPtrTEvent(const char* name, intptr_t value) {
 void V8FileLogger::SharedLibraryEvent(const std::string& library_path,
                                       uintptr_t start, uintptr_t end,
                                       intptr_t aslr_slide) {
-  if (!FLAG_prof_cpp) return;
+  if (!v8_flags.prof_cpp) return;
   MSG_BUILDER();
   msg << "shared-library" << kNext << library_path.c_str() << kNext
       << reinterpret_cast<void*>(start) << kNext << reinterpret_cast<void*>(end)
@@ -1179,14 +1180,14 @@ void V8FileLogger::SharedLibraryEvent(const std::string& library_path,
 }
 
 void V8FileLogger::SharedLibraryEnd() {
-  if (!FLAG_prof_cpp) return;
+  if (!v8_flags.prof_cpp) return;
   MSG_BUILDER();
   msg << "shared-library-end";
   msg.WriteToLogFile();
 }
 
 void V8FileLogger::CurrentTimeEvent() {
-  DCHECK(FLAG_log_internal_timer_events);
+  DCHECK(v8_flags.log_internal_timer_events);
   MSG_BUILDER();
   msg << "current-time" << kNext << Time();
   msg.WriteToLogFile();
@@ -1222,7 +1223,7 @@ TIMER_EVENTS_LIST(V)
 #undef V
 
 void V8FileLogger::NewEvent(const char* name, void* object, size_t size) {
-  if (!FLAG_log) return;
+  if (!v8_flags.log) return;
   MSG_BUILDER();
   msg << "new" << kNext << name << kNext << object << kNext
       << static_cast<unsigned int>(size);
@@ -1230,7 +1231,7 @@ void V8FileLogger::NewEvent(const char* name, void* object, size_t size) {
 }
 
 void V8FileLogger::DeleteEvent(const char* name, void* object) {
-  if (!FLAG_log) return;
+  if (!v8_flags.log) return;
   MSG_BUILDER();
   msg << "delete" << kNext << name << kNext << object;
   msg.WriteToLogFile();
@@ -1288,7 +1289,7 @@ void V8FileLogger::LogSourceCodeInformation(Handle<AbstractCode> code,
   Script script = Script::cast(script_object);
   EnsureLogScriptSource(script);
 
-  if (!FLAG_log_source_position) return;
+  if (!v8_flags.log_source_position) return;
   MSG_BUILDER();
   msg << "code-source-info" << V8FileLogger::kNext
       << reinterpret_cast<void*>(code->InstructionStart(cage_base))
@@ -1349,7 +1350,7 @@ void V8FileLogger::LogSourceCodeInformation(Handle<AbstractCode> code,
 }
 
 void V8FileLogger::LogCodeDisassemble(Handle<AbstractCode> code) {
-  if (!FLAG_log_code_disassemble) return;
+  if (!v8_flags.log_code_disassemble) return;
   PtrComprCageBase cage_base(isolate_);
   MSG_BUILDER();
   msg << "code-disassemble" << V8FileLogger::kNext
@@ -1380,7 +1381,7 @@ void V8FileLogger::LogCodeDisassemble(Handle<AbstractCode> code) {
 void V8FileLogger::CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
                                    const char* name) {
   if (!is_listening_to_code_events()) return;
-  if (!FLAG_log_code) return;
+  if (!v8_flags.log_code) return;
   {
     MSG_BUILDER();
     AppendCodeCreateHeader(isolate_, msg, tag, *code, Time());
@@ -1393,7 +1394,7 @@ void V8FileLogger::CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
 void V8FileLogger::CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
                                    Handle<Name> name) {
   if (!is_listening_to_code_events()) return;
-  if (!FLAG_log_code) return;
+  if (!v8_flags.log_code) return;
   {
     MSG_BUILDER();
     AppendCodeCreateHeader(isolate_, msg, tag, *code, Time());
@@ -1408,7 +1409,7 @@ void V8FileLogger::CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
                                    Handle<SharedFunctionInfo> shared,
                                    Handle<Name> script_name) {
   if (!is_listening_to_code_events()) return;
-  if (!FLAG_log_code) return;
+  if (!v8_flags.log_code) return;
   if (*code ==
       AbstractCode::cast(isolate_->builtins()->code(Builtin::kCompileLazy))) {
     return;
@@ -1427,7 +1428,7 @@ void V8FileLogger::CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
 void V8FileLogger::FeedbackVectorEvent(FeedbackVector vector,
                                        AbstractCode code) {
   DisallowGarbageCollection no_gc;
-  if (!FLAG_log_feedback_vector) return;
+  if (!v8_flags.log_feedback_vector) return;
   PtrComprCageBase cage_base(isolate_);
   MSG_BUILDER();
   msg << "feedback-vector" << kNext << Time();
@@ -1460,7 +1461,7 @@ void V8FileLogger::CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
                                    Handle<Name> script_name, int line,
                                    int column) {
   if (!is_listening_to_code_events()) return;
-  if (!FLAG_log_code) return;
+  if (!v8_flags.log_code) return;
   {
     MSG_BUILDER();
     AppendCodeCreateHeader(isolate_, msg, tag, *code, Time());
@@ -1480,7 +1481,7 @@ void V8FileLogger::CodeCreateEvent(CodeTag tag, const wasm::WasmCode* code,
                                    const char* /*source_url*/,
                                    int /*code_offset*/, int /*script_id*/) {
   if (!is_listening_to_code_events()) return;
-  if (!FLAG_log_code) return;
+  if (!v8_flags.log_code) return;
   MSG_BUILDER();
   AppendCodeCreateHeader(msg, tag, CodeKind::WASM_FUNCTION,
                          code->instructions().begin(),
@@ -1502,7 +1503,7 @@ void V8FileLogger::CodeCreateEvent(CodeTag tag, const wasm::WasmCode* code,
 
 void V8FileLogger::CallbackEventInternal(const char* prefix, Handle<Name> name,
                                          Address entry_point) {
-  if (!FLAG_log_code) return;
+  if (!v8_flags.log_code) return;
   MSG_BUILDER();
   msg << Event::kCodeCreation << kNext << CodeTag::kCallback << kNext << -2
       << kNext << Time() << kNext << reinterpret_cast<void*>(entry_point)
@@ -1525,7 +1526,7 @@ void V8FileLogger::SetterCallbackEvent(Handle<Name> name, Address entry_point) {
 void V8FileLogger::RegExpCodeCreateEvent(Handle<AbstractCode> code,
                                          Handle<String> source) {
   if (!is_listening_to_code_events()) return;
-  if (!FLAG_log_code) return;
+  if (!v8_flags.log_code) return;
   MSG_BUILDER();
   AppendCodeCreateHeader(isolate_, msg, LogEventListener::CodeTag::kRegExp,
                          *code, Time());
@@ -1547,14 +1548,14 @@ void V8FileLogger::SharedFunctionInfoMoveEvent(Address from, Address to) {
 
 void V8FileLogger::CodeMovingGCEvent() {
   if (!is_listening_to_code_events()) return;
-  if (!FLAG_ll_prof) return;
+  if (!v8_flags.ll_prof) return;
   base::OS::SignalCodeMovingGC();
 }
 
 void V8FileLogger::CodeDisableOptEvent(Handle<AbstractCode> code,
                                        Handle<SharedFunctionInfo> shared) {
   if (!is_listening_to_code_events()) return;
-  if (!FLAG_log_code) return;
+  if (!v8_flags.log_code) return;
   MSG_BUILDER();
   msg << Event::kCodeDisableOpt << kNext << shared->DebugNameCStr().get()
       << kNext << GetBailoutReason(shared->disabled_optimization_reason());
@@ -1585,7 +1586,7 @@ void V8FileLogger::ProcessDeoptEvent(Handle<Code> code, SourcePosition position,
 
 void V8FileLogger::CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind,
                                   Address pc, int fp_to_sp_delta) {
-  if (!is_logging() || !FLAG_log_deopt) return;
+  if (!is_logging() || !v8_flags.log_deopt) return;
   Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(*code, pc);
   ProcessDeoptEvent(code, info.position, Deoptimizer::MessageFor(kind),
                     DeoptimizeReasonToString(info.deopt_reason));
@@ -1594,7 +1595,7 @@ void V8FileLogger::CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind,
 void V8FileLogger::CodeDependencyChangeEvent(Handle<Code> code,
                                              Handle<SharedFunctionInfo> sfi,
                                              const char* reason) {
-  if (!is_logging() || !FLAG_log_deopt) return;
+  if (!is_logging() || !v8_flags.log_deopt) return;
   SourcePosition position(sfi->StartPosition(), -1);
   ProcessDeoptEvent(code, position, "dependency-change", reason);
 }
@@ -1647,7 +1648,7 @@ void V8FileLogger::CodeNameEvent(Address addr, int pos, const char* code_name) {
 }
 
 void V8FileLogger::MoveEventInternal(Event event, Address from, Address to) {
-  if (!FLAG_log_code) return;
+  if (!v8_flags.log_code) return;
   MSG_BUILDER();
   msg << event << kNext << reinterpret_cast<void*>(from) << kNext
       << reinterpret_cast<void*>(to);
@@ -1661,7 +1662,7 @@ void AppendFunctionMessage(LogFile::MessageBuilder& msg, const char* reason,
   msg << "function" << V8FileLogger::kNext << reason << V8FileLogger::kNext
       << script_id << V8FileLogger::kNext << start_position
       << V8FileLogger::kNext << end_position << V8FileLogger::kNext;
-  if (V8_UNLIKELY(FLAG_predictable)) {
+  if (V8_UNLIKELY(v8_flags.predictable)) {
     msg << 0.1;
   } else {
     msg << time_delta;
@@ -1757,7 +1758,7 @@ void V8FileLogger::ScriptDetails(Script script) {
 }
 
 bool V8FileLogger::EnsureLogScriptSource(Script script) {
-  if (!FLAG_log_source_code) return true;
+  if (!v8_flags.log_source_code) return true;
   // Make sure the script is written to the log file.
   int script_id = script.id();
   if (logged_source_code_.find(script_id) != logged_source_code_.end()) {
@@ -1800,7 +1801,7 @@ void V8FileLogger::RuntimeCallTimerEvent() {
 }
 
 void V8FileLogger::TickEvent(TickSample* sample, bool overflow) {
-  if (!FLAG_prof_cpp) return;
+  if (!v8_flags.prof_cpp) return;
   if (V8_UNLIKELY(TracingFlags::runtime_stats.load(std::memory_order_relaxed) ==
                   v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE)) {
     RuntimeCallTimerEvent();
@@ -1825,7 +1826,7 @@ void V8FileLogger::TickEvent(TickSample* sample, bool overflow) {
 void V8FileLogger::ICEvent(const char* type, bool keyed, Handle<Map> map,
                            Handle<Object> key, char old_state, char new_state,
                            const char* modifier, const char* slow_stub_reason) {
-  if (!FLAG_log_ic) return;
+  if (!v8_flags.log_ic) return;
   int line;
   int column;
   // GetAbstractPC must come before MSG_BUILDER(), as it can GC, which might
@@ -1854,7 +1855,7 @@ void V8FileLogger::ICEvent(const char* type, bool keyed, Handle<Map> map,
 void V8FileLogger::MapEvent(const char* type, Handle<Map> from, Handle<Map> to,
                             const char* reason,
                             Handle<HeapObject> name_or_sfi) {
-  if (!FLAG_log_maps) return;
+  if (!v8_flags.log_maps) return;
   if (!to.is_null()) MapDetails(*to);
   int line = -1;
   int column = -1;
@@ -1885,7 +1886,7 @@ void V8FileLogger::MapEvent(const char* type, Handle<Map> from, Handle<Map> to,
 }
 
 void V8FileLogger::MapCreate(Map map) {
-  if (!FLAG_log_maps) return;
+  if (!v8_flags.log_maps) return;
   DisallowGarbageCollection no_gc;
   MSG_BUILDER();
   msg << "map-create" << kNext << Time() << kNext << AsHex::Address(map.ptr());
@@ -1893,12 +1894,12 @@ void V8FileLogger::MapCreate(Map map) {
 }
 
 void V8FileLogger::MapDetails(Map map) {
-  if (!FLAG_log_maps) return;
+  if (!v8_flags.log_maps) return;
   DisallowGarbageCollection no_gc;
   MSG_BUILDER();
   msg << "map-details" << kNext << Time() << kNext << AsHex::Address(map.ptr())
       << kNext;
-  if (FLAG_log_maps_details) {
+  if (v8_flags.log_maps_details) {
     std::ostringstream buffer;
     map.PrintMapDetails(buffer);
     msg << buffer.str().c_str();
@@ -2013,7 +2014,7 @@ void V8FileLogger::LogAllMaps() {
 }
 
 static void AddIsolateIdIfNeeded(std::ostream& os, Isolate* isolate) {
-  if (!FLAG_logfile_per_isolate) return;
+  if (!v8_flags.logfile_per_isolate) return;
   os << "isolate-" << isolate << "-" << base::OS::GetCurrentProcessId() << "-";
 }
 
@@ -2067,30 +2068,30 @@ bool V8FileLogger::SetUp(Isolate* isolate) {
   is_initialized_ = true;
 
   std::ostringstream log_file_name;
-  PrepareLogFileName(log_file_name, isolate, FLAG_logfile);
+  PrepareLogFileName(log_file_name, isolate, v8_flags.logfile);
   log_ = std::make_unique<LogFile>(this, log_file_name.str());
 
 #if V8_OS_LINUX
-  if (FLAG_perf_basic_prof) {
+  if (v8_flags.perf_basic_prof) {
     perf_basic_logger_ = std::make_unique<LinuxPerfBasicLogger>(isolate);
     AddLogEventListener(perf_basic_logger_.get());
   }
 
-  if (FLAG_perf_prof) {
+  if (v8_flags.perf_prof) {
     perf_jit_logger_ = std::make_unique<LinuxPerfJitLogger>(isolate);
     AddLogEventListener(perf_jit_logger_.get());
   }
 #else
   static_assert(
-      !FLAG_perf_prof.value(),
+      !v8_flags.perf_prof.value(),
       "--perf-prof should be statically disabled on non-Linux platforms");
   static_assert(
-      !FLAG_perf_basic_prof.value(),
+      !v8_flags.perf_basic_prof.value(),
       "--perf-basic-prof should be statically disabled on non-Linux platforms");
 #endif
 
 #ifdef ENABLE_GDB_JIT_INTERFACE
-  if (i::FLAG_gdbjit) {
+  if (v8_flags.gdbjit) {
     gdb_jit_logger_ =
         std::make_unique<JitLogger>(isolate, i::GDBJITInterface::EventHandler);
     AddLogEventListener(gdb_jit_logger_.get());
@@ -2099,7 +2100,7 @@ bool V8FileLogger::SetUp(Isolate* isolate) {
 #endif  // ENABLE_GDB_JIT_INTERFACE
 
 #if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
-  if (i::FLAG_enable_etw_stack_walking) {
+  if (v8_flags.enable_etw_stack_walking) {
     etw_jit_logger_ =
         std::make_unique<JitLogger>(isolate, i::ETWJITInterface::EventHandler);
     AddLogEventListener(etw_jit_logger_.get());
@@ -2107,16 +2108,16 @@ bool V8FileLogger::SetUp(Isolate* isolate) {
   }
 #endif  // defined(V8_OS_WIN)
 
-  if (FLAG_ll_prof) {
+  if (v8_flags.ll_prof) {
     ll_logger_ =
         std::make_unique<LowLevelLogger>(isolate, log_file_name.str().c_str());
     AddLogEventListener(ll_logger_.get());
   }
-  ticker_ = std::make_unique<Ticker>(isolate, FLAG_prof_sampling_interval);
-  if (FLAG_log) UpdateIsLogging(true);
+  ticker_ = std::make_unique<Ticker>(isolate, v8_flags.prof_sampling_interval);
+  if (v8_flags.log) UpdateIsLogging(true);
   timer_.Start();
-  if (FLAG_prof_cpp) {
-    CHECK(FLAG_log);
+  if (v8_flags.prof_cpp) {
+    CHECK(v8_flags.log);
     CHECK(is_logging());
     profiler_ = std::make_unique<Profiler>(isolate);
     profiler_->Engage();
