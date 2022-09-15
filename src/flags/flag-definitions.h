@@ -453,7 +453,7 @@ DEFINE_BOOL(future, FUTURE_BOOL,
 DEFINE_BOOL(maglev, false, "enable the maglev optimizing compiler")
 DEFINE_BOOL(maglev_inlining, false,
             "enable inlining in the maglev optimizing compiler")
-DEFINE_BOOL(maglev_reuse_stack_slots, false,
+DEFINE_BOOL(maglev_reuse_stack_slots, true,
             "reuse stack slots in the maglev optimizing compiler")
 
 // We stress maglev by setting a very low interrupt budget for maglev. This
