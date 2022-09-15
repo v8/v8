@@ -102,6 +102,11 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   Handle<CodeDataContainer> NewCodeDataContainer(int flags,
                                                  AllocationType allocation);
 
+  Handle<CachedTemplateObject> NewCachedTemplateObject(
+      int function_literal_id, int slot_id, Handle<HeapObject> next,
+      Handle<JSArray> template_object,
+      AllocationType allocation_type = AllocationType::kYoung);
+
   // Allocates a fixed array initialized with undefined values.
   Handle<FixedArray> NewFixedArray(
       int length, AllocationType allocation = AllocationType::kYoung);

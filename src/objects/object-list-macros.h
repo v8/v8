@@ -91,6 +91,7 @@ class ZoneForwardList;
   V(CallHandlerInfo)                            \
   V(Callable)                                   \
   V(Cell)                                       \
+  V(CachedTemplateObject)                       \
   V(ClassBoilerplate)                           \
   V(Code)                                       \
   V(CodeDataContainer)                          \
