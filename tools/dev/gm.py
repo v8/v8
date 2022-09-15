@@ -169,6 +169,7 @@ v8_enable_disassembler = true
 v8_enable_object_print = true
 v8_enable_verify_heap = true
 dcheck_always_on = false
+v8_enable_sandbox = true
 """.replace("{GOMA}", USE_GOMA)
 
 DEBUG_ARGS_TEMPLATE = """\
@@ -181,6 +182,7 @@ v8_enable_backtrace = true
 v8_enable_fast_mksnapshot = true
 v8_enable_slow_dchecks = true
 v8_optimized_debug = false
+v8_enable_sandbox = true
 """.replace("{GOMA}", USE_GOMA)
 
 OPTDEBUG_ARGS_TEMPLATE = """\
@@ -193,6 +195,7 @@ v8_enable_backtrace = true
 v8_enable_fast_mksnapshot = true
 v8_enable_verify_heap = true
 v8_optimized_debug = true
+v8_enable_sandbox = true
 """.replace("{GOMA}", USE_GOMA)
 
 ARGS_TEMPLATES = {

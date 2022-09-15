@@ -31,7 +31,7 @@ static const char* kHeader =
     "# yapf: disable\n\n";
 
 // Debug builds emit debug code, affecting code object sizes.
-#ifndef DEBUG
+#if !defined(DEBUG) && defined(V8_ENABLE_SANDBOX)
 static const char* kBuild = "shipping";
 #else
 static const char* kBuild = "non-shipping";
