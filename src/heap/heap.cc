@@ -2497,7 +2497,11 @@ void Heap::CompleteSweepingYoung(GarbageCollector collector) {
 
 #if defined(CPPGC_YOUNG_GENERATION)
   // Always complete sweeping if young generation is enabled.
-  if (cpp_heap()) CppHeap::From(cpp_heap())->FinishSweepingIfRunning();
+  if (cpp_heap()) {
+    if (auto* iheap = CppHeap::From(cpp_heap());
+        iheap->generational_gc_supported())
+      iheap->FinishSweepingIfRunning();
+  }
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 }
 
