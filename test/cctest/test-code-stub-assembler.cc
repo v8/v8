@@ -493,7 +493,7 @@ TEST(ComputeIntegerHash) {
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
-  base::RandomNumberGenerator rand_gen(FLAG_random_seed);
+  base::RandomNumberGenerator rand_gen(v8_flags.random_seed);
 
   for (int i = 0; i < 1024; i++) {
     int k = rand_gen.NextInt(Smi::kMaxValue);
@@ -976,7 +976,7 @@ TEST(NumberDictionaryLookup) {
   Handle<Object> fake_value(Smi::FromInt(42), isolate);
   PropertyDetails fake_details = PropertyDetails::Empty();
 
-  base::RandomNumberGenerator rand_gen(FLAG_random_seed);
+  base::RandomNumberGenerator rand_gen(v8_flags.random_seed);
 
   for (int i = 0; i < kKeysCount; i++) {
     int random_key = rand_gen.NextInt(Smi::kMaxValue);
@@ -1065,7 +1065,7 @@ TEST(TransitionLookup) {
   Handle<Map> root_map = Map::Create(isolate, 0);
   Handle<Name> keys[kKeysCount];
 
-  base::RandomNumberGenerator rand_gen(FLAG_random_seed);
+  base::RandomNumberGenerator rand_gen(v8_flags.random_seed);
 
   Factory* factory = isolate->factory();
   Handle<FieldType> any = FieldType::Any(isolate);
@@ -1457,7 +1457,7 @@ TEST(TryGetOwnProperty) {
   };
   static_assert(arraysize(values) < arraysize(names));
 
-  base::RandomNumberGenerator rand_gen(FLAG_random_seed);
+  base::RandomNumberGenerator rand_gen(v8_flags.random_seed);
 
   std::vector<Handle<JSObject>> objects;
 
@@ -4029,8 +4029,8 @@ TEST(InstructionSchedulingCallerSavedRegisters) {
   // This is a regression test for v8:9775, where TF's instruction scheduler
   // incorrectly moved pure operations in between a ArchSaveCallerRegisters and
   // a ArchRestoreCallerRegisters instruction.
-  bool old_turbo_instruction_scheduling = FLAG_turbo_instruction_scheduling;
-  FLAG_turbo_instruction_scheduling = true;
+  bool old_turbo_instruction_scheduling = v8_flags.turbo_instruction_scheduling;
+  v8_flags.turbo_instruction_scheduling = true;
 
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 1;
@@ -4059,7 +4059,7 @@ TEST(InstructionSchedulingCallerSavedRegisters) {
   CHECK(result.ToHandleChecked()->IsSmi());
   CHECK_EQ(result.ToHandleChecked()->Number(), 13);
 
-  FLAG_turbo_instruction_scheduling = old_turbo_instruction_scheduling;
+  v8_flags.turbo_instruction_scheduling = old_turbo_instruction_scheduling;
 }
 
 #if V8_ENABLE_WEBASSEMBLY

@@ -79,7 +79,7 @@ using F5 = void*(void* p0, void* p1, int p2, int p3, int p4);
 #define UTEST_R1_FORM_WITH_RES_C(instr_name, in_type, out_type, rs1_val, \
                                  expected_res)                           \
   TEST(RISCV_UTEST_##instr_name) {                                       \
-    i::FLAG_riscv_c_extension = true;                                    \
+    i::v8_flags.riscv_c_extension = true;                                \
     CcTest::InitializeVM();                                              \
     auto fn = [](MacroAssembler& assm) { __ instr_name(a0, a0); };       \
     auto res = GenAndRunTest<out_type, in_type>(rs1_val, fn);            \
@@ -1211,7 +1211,7 @@ TEST(NAN_BOX) {
 
 TEST(RVC_CI) {
   // Test RV64C extension CI type instructions.
-  i::FLAG_riscv_c_extension = true;
+  i::v8_flags.riscv_c_extension = true;
   CcTest::InitializeVM();
 
   // Test c.addi
@@ -1264,7 +1264,7 @@ TEST(RVC_CI) {
 }
 
 TEST(RVC_CIW) {
-  i::FLAG_riscv_c_extension = true;
+  i::v8_flags.riscv_c_extension = true;
   CcTest::InitializeVM();
 
   // Test c.addi4spn
@@ -1282,7 +1282,7 @@ TEST(RVC_CIW) {
 
 TEST(RVC_CR) {
   // Test RV64C extension CR type instructions.
-  i::FLAG_riscv_c_extension = true;
+  i::v8_flags.riscv_c_extension = true;
   CcTest::InitializeVM();
 
   // Test c.add
@@ -1298,7 +1298,7 @@ TEST(RVC_CR) {
 
 TEST(RVC_CA) {
   // Test RV64C extension CA type instructions.
-  i::FLAG_riscv_c_extension = true;
+  i::v8_flags.riscv_c_extension = true;
   CcTest::InitializeVM();
 
   // Test c.sub
@@ -1364,7 +1364,7 @@ TEST(RVC_CA) {
 
 TEST(RVC_LOAD_STORE_SP) {
   // Test RV64C extension fldsp/fsdsp, lwsp/swsp, ldsp/sdsp.
-  i::FLAG_riscv_c_extension = true;
+  i::v8_flags.riscv_c_extension = true;
   CcTest::InitializeVM();
 
   {
@@ -1397,7 +1397,7 @@ TEST(RVC_LOAD_STORE_SP) {
 
 TEST(RVC_LOAD_STORE_COMPRESSED) {
   // Test RV64C extension fld,  lw, ld.
-  i::FLAG_riscv_c_extension = true;
+  i::v8_flags.riscv_c_extension = true;
 
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -1479,7 +1479,7 @@ TEST(RVC_LOAD_STORE_COMPRESSED) {
 }
 
 TEST(RVC_JUMP) {
-  i::FLAG_riscv_c_extension = true;
+  i::v8_flags.riscv_c_extension = true;
   CcTest::InitializeVM();
 
   Label L, C;
@@ -1505,7 +1505,7 @@ TEST(RVC_JUMP) {
 
 TEST(RVC_CB) {
   // Test RV64C extension CI type instructions.
-  FLAG_riscv_c_extension = true;
+  v8_flags.riscv_c_extension = true;
   CcTest::InitializeVM();
 
   // Test c.srai
@@ -1531,7 +1531,7 @@ TEST(RVC_CB) {
 }
 
 TEST(RVC_CB_BRANCH) {
-  FLAG_riscv_c_extension = true;
+  v8_flags.riscv_c_extension = true;
   // Test floating point compare and
   // branch instructions.
   CcTest::InitializeVM();

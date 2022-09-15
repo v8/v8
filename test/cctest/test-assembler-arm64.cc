@@ -131,7 +131,7 @@ static void InitializeVM() {
   RegisterDump core;                                                          \
   HandleScope handle_scope(isolate);                                          \
   Handle<Code> code;                                                          \
-  if (i::FLAG_trace_sim) {                                                    \
+  if (i::v8_flags.trace_sim) {                                                \
     pdis.reset(new PrintDisassembler(stdout));                                \
     decoder->PrependVisitor(pdis.get());                                      \
   }
@@ -166,7 +166,7 @@ static void InitializeVM() {
     CodeDesc desc;                                                             \
     __ GetCode(masm.isolate(), &desc);                                         \
     code = Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build(); \
-    if (FLAG_print_code) code->Print();                                        \
+    if (v8_flags.print_code) code->Print();                                    \
   }
 
 #else  // ifdef USE_SIMULATOR.
@@ -214,7 +214,7 @@ static void InitializeVM() {
     CodeDesc desc;                                                             \
     __ GetCode(masm.isolate(), &desc);                                         \
     code = Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build(); \
-    if (FLAG_print_code) code->Print();                                        \
+    if (v8_flags.print_code) code->Print();                                    \
   }
 
 #endif  // ifdef USE_SIMULATOR.
@@ -11841,7 +11841,7 @@ TEST(system_msr) {
 }
 
 TEST(system_pauth_b) {
-  i::FLAG_sim_abort_on_bad_auth = false;
+  i::v8_flags.sim_abort_on_bad_auth = false;
   SETUP();
   START();
 

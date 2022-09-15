@@ -267,7 +267,7 @@ THREADED_TEST(ArrayBuffer_ExternalizeEmpty) {
 }
 
 THREADED_TEST(SharedArrayBuffer_ApiInternalToExternal) {
-  i::FLAG_harmony_sharedarraybuffer = true;
+  i::v8_flags.harmony_sharedarraybuffer = true;
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope handle_scope(isolate);
@@ -302,7 +302,7 @@ THREADED_TEST(SharedArrayBuffer_ApiInternalToExternal) {
 }
 
 THREADED_TEST(SharedArrayBuffer_JSInternalToExternal) {
-  i::FLAG_harmony_sharedarraybuffer = true;
+  i::v8_flags.harmony_sharedarraybuffer = true;
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope handle_scope(isolate);
