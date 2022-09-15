@@ -181,12 +181,14 @@ in_category(
         name = "V8 Win32 - builder",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         properties = {"binary_size_tracking": {"category": "win32", "binary": "d8.exe"}},
-        use_goma = GOMA.ATS,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
     ),
     main_multibranch_builder(
         name = "V8 Win32 - debug builder",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-        use_goma = GOMA.ATS,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
     ),
     main_multibranch_builder(
         name = "V8 Win32",
@@ -202,12 +204,14 @@ in_category(
         name = "V8 Win64",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         properties = {"binary_size_tracking": {"category": "win64", "binary": "d8.exe"}},
-        use_goma = GOMA.ATS,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
     ),
     main_multibranch_builder_pair(
         name = "V8 Win64 - debug",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-        use_goma = GOMA.ATS,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
     ),
     main_multibranch_builder_pair(
         name = "V8 Win64 - msvc",
