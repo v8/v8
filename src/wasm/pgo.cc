@@ -9,58 +9,78 @@
 
 namespace v8::internal::wasm {
 
-base::OwnedVector<uint8_t> GetProfileData(const WasmModule* module) {
-  const TypeFeedbackStorage& type_feedback = module->type_feedback;
-  AccountingAllocator allocator;
-  Zone zone{&allocator, "wasm::GetProfileData"};
-  ZoneBuffer buffer{&zone};
-  base::MutexGuard mutex_guard{&type_feedback.mutex};
+class ProfileGenerator {
+ public:
+  ProfileGenerator(const WasmModule* module)
+      : module_(module),
+        type_feedback_mutex_guard_(&module->type_feedback.mutex) {}
 
-  // Get an ordered list of function indexes, so we generate deterministic data.
-  std::vector<uint32_t> ordered_func_indexes;
-  ordered_func_indexes.reserve(type_feedback.feedback_for_function.size());
-  for (const auto& entry : type_feedback.feedback_for_function) {
-    ordered_func_indexes.push_back(entry.first);
+  base::OwnedVector<uint8_t> GetProfileData() {
+    ZoneBuffer buffer{&zone_};
+
+    SerializeTypeFeedback(buffer);
+    // TODO(13209): Serialize tiering information.
+
+    return base::OwnedVector<uint8_t>::Of(buffer);
   }
-  std::sort(ordered_func_indexes.begin(), ordered_func_indexes.end());
 
-  buffer.write_u32v(static_cast<uint32_t>(ordered_func_indexes.size()));
-  for (const uint32_t func_index : ordered_func_indexes) {
-    buffer.write_u32v(func_index);
-    // Serialize {feedback_vector}.
-    const FunctionTypeFeedback& feedback =
-        type_feedback.feedback_for_function.at(func_index);
-    buffer.write_u32v(static_cast<uint32_t>(feedback.feedback_vector.size()));
-    for (const CallSiteFeedback& call_site_feedback :
-         feedback.feedback_vector) {
-      int cases = call_site_feedback.num_cases();
-      buffer.write_i32v(cases);
-      for (int i = 0; i < cases; ++i) {
-        buffer.write_i32v(call_site_feedback.function_index(i));
-        buffer.write_i32v(call_site_feedback.call_count(i));
+ private:
+  void SerializeTypeFeedback(ZoneBuffer& buffer) {
+    std::unordered_map<uint32_t, FunctionTypeFeedback>& feedback_for_function =
+        module_->type_feedback.feedback_for_function;
+
+    // Get an ordered list of function indexes, so we generate deterministic
+    // data.
+    std::vector<uint32_t> ordered_function_indexes;
+    ordered_function_indexes.reserve(feedback_for_function.size());
+    for (const auto& entry : feedback_for_function) {
+      // Skip functions for which we have to feedback.
+      if (entry.second.feedback_vector.empty()) continue;
+      ordered_function_indexes.push_back(entry.first);
+    }
+    std::sort(ordered_function_indexes.begin(), ordered_function_indexes.end());
+
+    buffer.write_u32v(static_cast<uint32_t>(ordered_function_indexes.size()));
+    for (const uint32_t func_index : ordered_function_indexes) {
+      buffer.write_u32v(func_index);
+      // Serialize {feedback_vector}.
+      const FunctionTypeFeedback& feedback =
+          feedback_for_function.at(func_index);
+      buffer.write_u32v(static_cast<uint32_t>(feedback.feedback_vector.size()));
+      for (const CallSiteFeedback& call_site_feedback :
+           feedback.feedback_vector) {
+        int cases = call_site_feedback.num_cases();
+        buffer.write_i32v(cases);
+        for (int i = 0; i < cases; ++i) {
+          buffer.write_i32v(call_site_feedback.function_index(i));
+          buffer.write_i32v(call_site_feedback.call_count(i));
+        }
+      }
+      // Serialize {call_targets}.
+      buffer.write_u32v(static_cast<uint32_t>(feedback.call_targets.size()));
+      for (uint32_t call_target : feedback.call_targets) {
+        buffer.write_u32v(call_target);
       }
     }
-    // Serialize {call_targets}.
-    buffer.write_u32v(static_cast<uint32_t>(feedback.call_targets.size()));
-    for (uint32_t call_target : feedback.call_targets) {
-      buffer.write_u32v(call_target);
-    }
   }
-  return base::OwnedVector<uint8_t>::Of(buffer);
-}
 
-void RestoreProfileData(WasmModule* module,
-                        base::Vector<uint8_t> profile_data) {
-  TypeFeedbackStorage& type_feedback = module->type_feedback;
-  Decoder decoder{profile_data.begin(), profile_data.end()};
+ private:
+  const WasmModule* module_;
+  AccountingAllocator allocator_;
+  Zone zone_{&allocator_, "wasm::ProfileGenerator"};
+  base::MutexGuard type_feedback_mutex_guard_;
+};
+
+void DeserializeTypeFeedback(Decoder& decoder, WasmModule* module) {
+  std::unordered_map<uint32_t, FunctionTypeFeedback>& feedback_for_function =
+      module->type_feedback.feedback_for_function;
   uint32_t num_entries = decoder.consume_u32v("num function entries");
   CHECK_LE(num_entries, module->num_declared_functions);
   for (uint32_t missing_entries = num_entries; missing_entries > 0;
        --missing_entries) {
     uint32_t function_index = decoder.consume_u32v("function index");
-    CHECK(!type_feedback.feedback_for_function.count(function_index));
-    FunctionTypeFeedback& feedback =
-        type_feedback.feedback_for_function[function_index];
+    CHECK(!feedback_for_function.count(function_index));
+    FunctionTypeFeedback& feedback = feedback_for_function[function_index];
     // Deserialize {feedback_vector}.
     uint32_t feedback_vector_size =
         decoder.consume_u32v("feedback vector size");
@@ -91,6 +111,14 @@ void RestoreProfileData(WasmModule* module,
       call_target = decoder.consume_u32v("call target");
     }
   }
+}
+
+void RestoreProfileData(WasmModule* module,
+                        base::Vector<uint8_t> profile_data) {
+  Decoder decoder{profile_data.begin(), profile_data.end()};
+
+  DeserializeTypeFeedback(decoder, module);
+
   CHECK(decoder.ok());
   CHECK_EQ(decoder.pc(), decoder.end());
 }
@@ -104,12 +132,15 @@ void DumpProfileToFile(const WasmModule* module,
   uint32_t hash = static_cast<uint32_t>(GetWireBytesHash(wire_bytes));
   base::EmbeddedVector<char, 32> filename;
   SNPrintF(filename, "profile-wasm-%08x", hash);
-  base::OwnedVector<uint8_t> profile_data = GetProfileData(module);
+
+  ProfileGenerator profile_generator{module};
+  base::OwnedVector<uint8_t> profile_data = profile_generator.GetProfileData();
+
   PrintF("Dumping Wasm PGO data to file '%s' (%zu bytes)\n", filename.begin(),
          profile_data.size());
   if (FILE* file = base::OS::FOpen(filename.begin(), "wb")) {
-    CHECK_EQ(profile_data.size(),
-             fwrite(profile_data.begin(), 1, profile_data.size(), file));
+    size_t written = fwrite(profile_data.begin(), 1, profile_data.size(), file);
+    CHECK_EQ(profile_data.size(), written);
     base::Fclose(file);
   }
 }
@@ -148,7 +179,8 @@ void LoadProfileFromFile(WasmModule* module,
   RestoreProfileData(module, profile_data.as_vector());
 
   // Check that the generated profile is deterministic.
-  DCHECK_EQ(profile_data.as_vector(), GetProfileData(module).as_vector());
+  DCHECK_EQ(profile_data.as_vector(),
+            ProfileGenerator{module}.GetProfileData().as_vector());
 }
 
 }  // namespace v8::internal::wasm
