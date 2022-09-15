@@ -45,32 +45,10 @@ class V8_EXPORT CagedHeapBase {
              kHalfWordShift);
   }
 
-  V8_INLINE static bool IsWithinNormalPageReservation(void* address) {
-    return (reinterpret_cast<uintptr_t>(address) - g_heap_base_) <
-           api_constants::kCagedHeapNormalPageReservationSize;
-  }
-
-  V8_INLINE static bool IsWithinLargePageReservation(const void* ptr) {
-    CPPGC_DCHECK(g_heap_base_);
-    auto uptr = reinterpret_cast<uintptr_t>(ptr);
-    return (uptr >= g_heap_base_ +
-                        api_constants::kCagedHeapNormalPageReservationSize) &&
-           (uptr < g_heap_base_ + api_constants::kCagedHeapReservationSize);
-  }
-
   V8_INLINE static uintptr_t GetBase() { return g_heap_base_; }
-
-  V8_INLINE static BasePageHandle& LookupPageFromInnerPointer(void* ptr) {
-    if (V8_LIKELY(IsWithinNormalPageReservation(ptr)))
-      return *BasePageHandle::FromPayload(ptr);
-    else
-      return LookupLargePageFromInnerPointer(ptr);
-  }
 
  private:
   friend class CagedHeap;
-
-  static BasePageHandle& LookupLargePageFromInnerPointer(void* address);
 
   static uintptr_t g_heap_base_;
 };
