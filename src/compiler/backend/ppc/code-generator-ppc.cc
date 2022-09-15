@@ -2255,6 +2255,30 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #undef EMIT_SIMD_BINOP
 #undef SIMD_BINOP_LIST
 
+#define SIMD_SHIFT_LIST(V) \
+  V(I64x2Shl)              \
+  V(I64x2ShrS)             \
+  V(I64x2ShrU)             \
+  V(I32x4Shl)              \
+  V(I32x4ShrS)             \
+  V(I32x4ShrU)             \
+  V(I16x8Shl)              \
+  V(I16x8ShrS)             \
+  V(I16x8ShrU)             \
+  V(I8x16Shl)              \
+  V(I8x16ShrS)             \
+  V(I8x16ShrU)
+
+#define EMIT_SIMD_SHIFT(name)                                     \
+  case kPPC_##name: {                                             \
+    __ name(i.OutputSimd128Register(), i.InputSimd128Register(0), \
+            i.InputRegister(1), kScratchSimd128Reg);              \
+    break;                                                        \
+  }
+      SIMD_SHIFT_LIST(EMIT_SIMD_SHIFT)
+#undef EMIT_SIMD_SHIFT
+#undef SIMD_SHIFT_LIST
+
     case kPPC_F64x2Splat: {
       __ F64x2Splat(i.OutputSimd128Register(), i.InputDoubleRegister(0),
                     kScratchReg);
@@ -2446,62 +2470,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                   i.InputSimd128Register(1), kScratchSimd128Reg);
       break;
     }
-#define VECTOR_SHIFT(op)                                           \
-  {                                                                \
-    __ mtvsrd(kScratchSimd128Reg, i.InputRegister(1));             \
-    __ vspltb(kScratchSimd128Reg, kScratchSimd128Reg, Operand(7)); \
-    __ op(i.OutputSimd128Register(), i.InputSimd128Register(0),    \
-          kScratchSimd128Reg);                                     \
-  }
-    case kPPC_I64x2Shl: {
-      VECTOR_SHIFT(vsld)
-      break;
-    }
-    case kPPC_I64x2ShrS: {
-      VECTOR_SHIFT(vsrad)
-      break;
-    }
-    case kPPC_I64x2ShrU: {
-      VECTOR_SHIFT(vsrd)
-      break;
-    }
-    case kPPC_I32x4Shl: {
-      VECTOR_SHIFT(vslw)
-      break;
-    }
-    case kPPC_I32x4ShrS: {
-      VECTOR_SHIFT(vsraw)
-      break;
-    }
-    case kPPC_I32x4ShrU: {
-      VECTOR_SHIFT(vsrw)
-      break;
-    }
-    case kPPC_I16x8Shl: {
-      VECTOR_SHIFT(vslh)
-      break;
-    }
-    case kPPC_I16x8ShrS: {
-      VECTOR_SHIFT(vsrah)
-      break;
-    }
-    case kPPC_I16x8ShrU: {
-      VECTOR_SHIFT(vsrh)
-      break;
-    }
-    case kPPC_I8x16Shl: {
-      VECTOR_SHIFT(vslb)
-      break;
-    }
-    case kPPC_I8x16ShrS: {
-      VECTOR_SHIFT(vsrab)
-      break;
-    }
-    case kPPC_I8x16ShrU: {
-      VECTOR_SHIFT(vsrb)
-      break;
-    }
-#undef VECTOR_SHIFT
     case kPPC_S128And: {
       Simd128Register dst = i.OutputSimd128Register();
       Simd128Register src = i.InputSimd128Register(1);

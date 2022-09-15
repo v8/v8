@@ -3734,6 +3734,37 @@ SIMD_BINOP_LIST(EMIT_SIMD_BINOP)
 #undef EMIT_SIMD_BINOP
 #undef SIMD_BINOP_LIST
 
+#define SIMD_SHIFT_LIST(V) \
+  V(I64x2Shl, vsld)        \
+  V(I64x2ShrS, vsrad)      \
+  V(I64x2ShrU, vsrd)       \
+  V(I32x4Shl, vslw)        \
+  V(I32x4ShrS, vsraw)      \
+  V(I32x4ShrU, vsrw)       \
+  V(I16x8Shl, vslh)        \
+  V(I16x8ShrS, vsrah)      \
+  V(I16x8ShrU, vsrh)       \
+  V(I8x16Shl, vslb)        \
+  V(I8x16ShrS, vsrab)      \
+  V(I8x16ShrU, vsrb)
+
+#define EMIT_SIMD_SHIFT(name, op)                                      \
+  void TurboAssembler::name(Simd128Register dst, Simd128Register src1, \
+                            Register src2, Simd128Register scratch) {  \
+    mtvsrd(scratch, src2);                                             \
+    vspltb(scratch, scratch, Operand(7));                              \
+    op(dst, src1, scratch);                                            \
+  }                                                                    \
+  void TurboAssembler::name(Simd128Register dst, Simd128Register src1, \
+                            const Operand& src2, Register scratch1,    \
+                            Simd128Register scratch2) {                \
+    mov(scratch1, src2);                                               \
+    name(dst, src1, scratch1, scratch2);                               \
+  }
+SIMD_SHIFT_LIST(EMIT_SIMD_SHIFT)
+#undef EMIT_SIMD_SHIFT
+#undef SIMD_SHIFT_LIST
+
 void TurboAssembler::LoadSimd128(Simd128Register dst, const MemOperand& mem,
                                  Register scratch) {
   GenerateMemoryOperationRR(dst, mem, lxvx);

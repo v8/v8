@@ -1137,6 +1137,29 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 #undef PROTOTYPE_SIMD_BINOP
 #undef SIMD_BINOP_LIST
 
+#define SIMD_SHIFT_LIST(V) \
+  V(I64x2Shl)              \
+  V(I64x2ShrS)             \
+  V(I64x2ShrU)             \
+  V(I32x4Shl)              \
+  V(I32x4ShrS)             \
+  V(I32x4ShrU)             \
+  V(I16x8Shl)              \
+  V(I16x8ShrS)             \
+  V(I16x8ShrU)             \
+  V(I8x16Shl)              \
+  V(I8x16ShrS)             \
+  V(I8x16ShrU)
+
+#define PROTOTYPE_SIMD_SHIFT(name)                                          \
+  void name(Simd128Register dst, Simd128Register src1, Register src2,       \
+            Simd128Register scratch);                                       \
+  void name(Simd128Register dst, Simd128Register src1, const Operand& src2, \
+            Register scratch1, Simd128Register scratch2);
+  SIMD_SHIFT_LIST(PROTOTYPE_SIMD_SHIFT)
+#undef PROTOTYPE_SIMD_SHIFT
+#undef SIMD_SHIFT_LIST
+
   void LoadSimd128(Simd128Register dst, const MemOperand& mem,
                    Register scratch);
   void StoreSimd128(Simd128Register src, const MemOperand& mem,
