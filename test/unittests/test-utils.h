@@ -41,7 +41,7 @@ class WithDefaultPlatformMixin : public TMixin {
     // Allow changing flags in unit tests.
     // TODO(12887): Fix tests to avoid changing flag values after
     // initialization.
-    i::FLAG_freeze_flags_after_init = false;
+    i::v8_flags.freeze_flags_after_init = false;
     v8::V8::Initialize();
   }
 
@@ -60,7 +60,7 @@ class WithDefaultPlatformMixin : public TMixin {
 template <typename TMixin>
 class WithJSSharedMemoryFeatureFlagsMixin : public TMixin {
  public:
-  WithJSSharedMemoryFeatureFlagsMixin() { i::FLAG_harmony_struct = true; }
+  WithJSSharedMemoryFeatureFlagsMixin() { i::v8_flags.harmony_struct = true; }
 };
 
 using CounterMap = std::map<std::string, int>;

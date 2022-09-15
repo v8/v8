@@ -402,7 +402,8 @@ class MergeDeserializedCodeTest : public DeserializeTest {
                           ScriptObjectFlag aged_after_background_merge,
                           bool lazy_should_be_compiled = false,
                           bool eager_should_be_compiled = true) {
-    i::FLAG_merge_background_deserialized_script_with_compilation_cache = true;
+    i::v8_flags.merge_background_deserialized_script_with_compilation_cache =
+        true;
     std::unique_ptr<v8::ScriptCompiler::CachedData> cached_data;
     IsolateAndContextScope scope(this);
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());

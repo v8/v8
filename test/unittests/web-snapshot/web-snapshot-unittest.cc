@@ -503,8 +503,8 @@ TEST_F(WebSnapshotTest, SFIDeduplicationClasses) {
 }
 
 TEST_F(WebSnapshotTest, SFIDeduplicationAfterBytecodeFlushing) {
-  FLAG_stress_flush_code = true;
-  FLAG_flush_bytecode = true;
+  v8_flags.stress_flush_code = true;
+  v8_flags.flush_bytecode = true;
   v8::Isolate* isolate = v8_isolate();
 
   WebSnapshotData snapshot_data;
@@ -587,8 +587,8 @@ TEST_F(WebSnapshotTest, SFIDeduplicationAfterBytecodeFlushing) {
 }
 
 TEST_F(WebSnapshotTest, SFIDeduplicationAfterBytecodeFlushingClasses) {
-  FLAG_stress_flush_code = true;
-  FLAG_flush_bytecode = true;
+  v8_flags.stress_flush_code = true;
+  v8_flags.flush_bytecode = true;
   v8::Isolate* isolate = v8_isolate();
 
   WebSnapshotData snapshot_data;
