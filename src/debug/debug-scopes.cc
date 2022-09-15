@@ -561,7 +561,7 @@ Handle<JSObject> ScopeIterator::ScopeObject(Mode mode) {
   auto visitor = [=](Handle<String> name, Handle<Object> value,
                      ScopeType scope_type) {
     if (value->IsOptimizedOut(isolate_)) {
-      if (FLAG_experimental_value_unavailable) {
+      if (v8_flags.experimental_value_unavailable) {
         JSObject::SetAccessor(scope, name,
                               isolate_->factory()->value_unavailable_accessor(),
                               NONE)
@@ -577,7 +577,7 @@ Handle<JSObject> ScopeIterator::ScopeObject(Mode mode) {
         // REPL mode in a script context. Catch this case.
         return false;
       }
-      if (FLAG_experimental_value_unavailable) {
+      if (v8_flags.experimental_value_unavailable) {
         JSObject::SetAccessor(scope, name,
                               isolate_->factory()->value_unavailable_accessor(),
                               NONE)

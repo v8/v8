@@ -948,8 +948,8 @@ MaybeLocal<UnboundScript> CompileInspectorScript(Isolate* v8_isolate,
             isolate, str, i::ScriptDetails(), cached_data,
             ScriptCompiler::kNoCompileOptions,
             ScriptCompiler::kNoCacheBecauseInspector,
-            i::FLAG_expose_inspector_scripts ? i::NOT_NATIVES_CODE
-                                             : i::INSPECTOR_CODE);
+            i::v8_flags.expose_inspector_scripts ? i::NOT_NATIVES_CODE
+                                                 : i::INSPECTOR_CODE);
     has_pending_exception = !maybe_function_info.ToHandle(&result);
     RETURN_ON_FAILED_EXECUTION(UnboundScript);
   }
@@ -1431,7 +1431,7 @@ MaybeLocal<Message> GetMessageFromPromise(Local<Promise> p) {
 }
 
 bool isExperimentalAsyncStackTaggingApiEnabled() {
-  return v8::internal::FLAG_experimental_async_stack_tagging_api;
+  return i::v8_flags.experimental_async_stack_tagging_api;
 }
 
 void RecordAsyncStackTaggingCreateTaskCall(v8::Isolate* v8_isolate) {

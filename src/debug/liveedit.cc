@@ -814,7 +814,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
   function_data_map.Fill(isolate);
 
   const bool allow_top_frame_live_editing =
-      allow_top_frame_live_editing_param && FLAG_live_edit_top_frame;
+      allow_top_frame_live_editing_param && v8_flags.live_edit_top_frame;
   if (!CanPatchScript(changed, script, new_script, function_data_map,
                       allow_top_frame_live_editing, result)) {
     return;

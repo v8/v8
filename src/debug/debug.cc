@@ -2573,7 +2573,7 @@ void Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode,
 
 #ifdef DEBUG
 void Debug::PrintBreakLocation() {
-  if (!FLAG_print_break_location) return;
+  if (!v8_flags.print_break_location) return;
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   HandleScope scope(isolate_);
   StackTraceFrameIterator iterator(isolate_);
@@ -2783,7 +2783,7 @@ bool Debug::PerformSideEffectCheck(Handle<JSFunction> function,
       debug_info->GetSideEffectState(isolate_);
   switch (side_effect_state) {
     case DebugInfo::kHasSideEffects:
-      if (FLAG_trace_side_effect_free_debug_evaluate) {
+      if (v8_flags.trace_side_effect_free_debug_evaluate) {
         PrintF("[debug-evaluate] Function %s failed side effect check.\n",
                function->shared().DebugNameCStr().get());
       }
@@ -2846,7 +2846,7 @@ bool Debug::PerformSideEffectCheckForCallback(
         case SideEffectType::kHasSideEffect:
           break;
       }
-      if (FLAG_trace_side_effect_free_debug_evaluate) {
+      if (v8_flags.trace_side_effect_free_debug_evaluate) {
         PrintF("[debug-evaluate] API Callback '");
         info.name().ShortPrint();
         PrintF("' may cause side effect.\n");
@@ -2854,13 +2854,13 @@ bool Debug::PerformSideEffectCheckForCallback(
     } else if (callback_info->IsInterceptorInfo()) {
       InterceptorInfo info = InterceptorInfo::cast(*callback_info);
       if (info.has_no_side_effect()) return true;
-      if (FLAG_trace_side_effect_free_debug_evaluate) {
+      if (v8_flags.trace_side_effect_free_debug_evaluate) {
         PrintF("[debug-evaluate] API Interceptor may cause side effect.\n");
       }
     } else if (callback_info->IsCallHandlerInfo()) {
       CallHandlerInfo info = CallHandlerInfo::cast(*callback_info);
       if (info.IsSideEffectFreeCallHandlerInfo()) return true;
-      if (FLAG_trace_side_effect_free_debug_evaluate) {
+      if (v8_flags.trace_side_effect_free_debug_evaluate) {
         PrintF("[debug-evaluate] API CallHandlerInfo may cause side effect.\n");
       }
     }
@@ -2922,7 +2922,7 @@ bool Debug::PerformSideEffectCheckForObject(Handle<Object> object) {
     return true;
   }
 
-  if (FLAG_trace_side_effect_free_debug_evaluate) {
+  if (v8_flags.trace_side_effect_free_debug_evaluate) {
     PrintF("[debug-evaluate] failed runtime side effect check.\n");
   }
   side_effect_check_failed_ = true;
