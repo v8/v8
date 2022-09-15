@@ -147,9 +147,8 @@ std::unique_ptr<PageBackend> HeapBase::InitializePageBackend(
     PageAllocator& allocator, FatalOutOfMemoryHandler& oom_handler) {
 #if defined(CPPGC_CAGED_HEAP)
   auto& caged_heap = CagedHeap::Instance();
-  return std::make_unique<PageBackend>(caged_heap.normal_page_allocator(),
-                                       caged_heap.large_page_allocator(),
-                                       oom_handler);
+  return std::make_unique<PageBackend>(
+      caged_heap.page_allocator(), caged_heap.page_allocator(), oom_handler);
 #else   // !CPPGC_CAGED_HEAP
   return std::make_unique<PageBackend>(allocator, allocator, oom_handler);
 #endif  // !CPPGC_CAGED_HEAP

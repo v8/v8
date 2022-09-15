@@ -268,8 +268,8 @@ struct WriteBarrierTypeForCagedHeapPolicy::ValueModeDispatch<
     if (V8_LIKELY(!WriteBarrier::IsEnabled()))
       return SetAndReturnType<WriteBarrier::Type::kNone>(params);
 
-#if defined(CPPGC_YOUNG_GENERATION)
     HeapHandle& handle = callback();
+#if defined(CPPGC_YOUNG_GENERATION)
     if (V8_LIKELY(!handle.is_incremental_marking_in_progress())) {
       if (!handle.is_young_generation_enabled()) {
         return WriteBarrier::Type::kNone;
@@ -283,7 +283,6 @@ struct WriteBarrierTypeForCagedHeapPolicy::ValueModeDispatch<
       return SetAndReturnType<WriteBarrier::Type::kGenerational>(params);
     }
 #else   // !defined(CPPGC_YOUNG_GENERATION)
-    HeapHandle& handle = callback();
     if (V8_UNLIKELY(!subtle::HeapState::IsMarking(handle))) {
       return SetAndReturnType<WriteBarrier::Type::kNone>(params);
     }
