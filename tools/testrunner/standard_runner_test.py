@@ -28,6 +28,7 @@ TOOLS_ROOT = up(up(os.path.abspath(__file__)))
 sys.path.append(TOOLS_ROOT)
 from testrunner import standard_runner
 from testrunner import num_fuzzer
+from testrunner.testproc import base
 from testrunner.utils.test_utils import (
     temp_base,
     TestRunnerTest,
@@ -511,17 +512,65 @@ class StandardRunnerTest(TestRunnerTest):
     result.has_returncode(0)
 
 
+class FakeTimeoutProc(base.TestProcObserver):
+  """Fake of the total-timeout observer that just stops after counting
+  "count" number of test or result events.
+  """
+  def __init__(self, count):
+    super(FakeTimeoutProc, self).__init__()
+    self._n = 0
+    self._count = count
+
+  def _on_next_test(self, test):
+    self.__on_event()
+
+  def _on_result_for(self, test, result):
+    self.__on_event()
+
+  def __on_event(self):
+    if self._n >= self._count:
+      self.stop()
+    self._n += 1
+
+
 class NumFuzzerTest(TestRunnerTest):
   def get_runner_class(self):
     return num_fuzzer.NumFuzzer
 
   def testNumFuzzer(self):
-    result = self.run_tests(
-      '--command-prefix', sys.executable,
-      '--outdir', 'out/build',
-    )
-    result.has_returncode(0)
-    result.stdout_includes('>>> Autodetected')
+    # TODO(machenbach): Retrieve these flags automatically from the list of
+    # existing fuzzers.
+    # TODO(machenbcah): Figure out how to test fuzzers that have an analysis
+    # phase. Currently the analysis phase isn't mocked in any way and the
+    # fuzzers' expectations after running a test with analysis are not
+    # fullfilled.
+    for fuzz_flag in (
+        '--stress-compaction=1',
+        '--stress-interrupt-budget=1',
+        '--stress-delay-tasks=1',
+        '--stress-stack-size=1',
+        '--stress-thread-pool-size=1'):
+      # The fake timeout observer above will stop after proessing the 10th
+      # test. This still executes an 11th. Each test causes a test- and a
+      # result event internally. We test both paths here.
+      for event_count in (19, 20):
+        with self.subTest(f'fuzz_flag={fuzz_flag} event_count={event_count}'):
+          with patch(
+              'testrunner.testproc.timeout.TimeoutProc.create',
+              lambda x: FakeTimeoutProc(event_count)):
+            result = self.run_tests(
+              '--command-prefix', sys.executable,
+              '--outdir', 'out/build',
+              '--variants=default',
+              '--fuzzer-random-seed=12345',
+              fuzz_flag,
+              '--progress=verbose',
+              'sweet/bananas',
+            )
+            result.has_returncode(0)
+            result.stdout_includes('>>> Autodetected')
+            result.stdout_includes('11 tests ran')
+
 
 class OtherTest(TestRunnerTest):
   def testStatusFilePresubmit(self):
@@ -530,6 +579,7 @@ class OtherTest(TestRunnerTest):
       from testrunner.local import statusfile
       self.assertTrue(statusfile.PresubmitCheck(
           os.path.join(basedir, 'test', 'sweet', 'sweet.status')))
+
 
 if __name__ == '__main__':
   unittest.main()
