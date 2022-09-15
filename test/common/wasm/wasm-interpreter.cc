@@ -4240,7 +4240,6 @@ ControlTransferMap WasmInterpreter::ComputeControlTransfersForTesting(
                         0,       // func_index
                         0,       // sig_index
                         {0, 0},  // code
-                        0,       // feedback slots
                         false,   // imported
                         false,   // exported
                         false};  // declared

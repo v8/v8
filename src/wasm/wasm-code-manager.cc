@@ -2336,16 +2336,6 @@ std::vector<std::unique_ptr<WasmCode>> NativeModule::AddCompiledCode(
   for (auto& result : results) {
     DCHECK(result.succeeded());
     total_code_space += RoundUp<kCodeAlignment>(result.code_desc.instr_size);
-    if (result.result_tier == ExecutionTier::kLiftoff) {
-      int index = result.func_index;
-      int* slots = &module()->functions[index].feedback_slots;
-#if DEBUG
-      int current_value = base::Relaxed_Load(slots);
-      DCHECK(current_value == 0 ||
-             current_value == result.feedback_vector_slots);
-#endif
-      base::Relaxed_Store(slots, result.feedback_vector_slots);
-    }
   }
   base::Vector<byte> code_space;
   NativeModule::JumpTablesRef jump_tables;

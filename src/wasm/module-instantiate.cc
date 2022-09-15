@@ -744,8 +744,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     instance->set_feedback_vectors(*vectors);
     for (int i = 0; i < num_functions; i++) {
       int func_index = module_->num_imported_functions + i;
-      int slots =
-          base::Relaxed_Load(&module_->functions[func_index].feedback_slots);
+      int slots = NumFeedbackSlots(module_, func_index);
       if (slots == 0) continue;
       if (v8_flags.trace_wasm_speculative_inlining) {
         PrintF("[Function %d (declared %d): allocating %d feedback slots]\n",

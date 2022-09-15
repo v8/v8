@@ -63,10 +63,6 @@ struct WasmFunction {
   uint32_t func_index;     // index into the function table.
   uint32_t sig_index;      // index into the signature table.
   WireBytesRef code;       // code of this function.
-  // Required number of slots in a feedback vector. Marked {mutable} because
-  // this is computed late (by Liftoff compilation), when the rest of the
-  // {WasmFunction} is typically considered {const}.
-  mutable int feedback_slots;
   bool imported;
   bool exported;
   bool declared;
@@ -782,6 +778,9 @@ size_t PrintSignature(base::Vector<char> buffer, const wasm::FunctionSig*,
 
 V8_EXPORT_PRIVATE size_t
 GetWireBytesHash(base::Vector<const uint8_t> wire_bytes);
+
+// Get the required number of feedback slots for a function.
+int NumFeedbackSlots(const WasmModule* module, int func_index);
 
 }  // namespace v8::internal::wasm
 

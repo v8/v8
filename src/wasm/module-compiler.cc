@@ -1247,13 +1247,14 @@ bool CompileLazy(Isolate* isolate, Handle<WasmInstanceObject> instance,
   }
 
   // Allocate feedback vector if needed.
-  if (result.feedback_vector_slots > 0) {
+  int feedback_vector_slots = NumFeedbackSlots(module, func_index);
+  if (feedback_vector_slots > 0) {
     DCHECK(v8_flags.wasm_speculative_inlining);
     // We have to save the native_module on the stack, in case the allocation
     // triggers a GC and we need the module to scan WasmCompileLazy stack frame.
     *out_native_module = native_module;
-    Handle<FixedArray> vector = isolate->factory()->NewFixedArrayWithZeroes(
-        result.feedback_vector_slots);
+    Handle<FixedArray> vector =
+        isolate->factory()->NewFixedArrayWithZeroes(feedback_vector_slots);
     instance->feedback_vectors().set(
         declared_function_index(module, func_index), *vector);
   }

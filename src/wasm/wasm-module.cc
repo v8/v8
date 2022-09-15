@@ -678,4 +678,16 @@ size_t GetWireBytesHash(base::Vector<const uint8_t> wire_bytes) {
       kZeroHashSeed);
 }
 
+int NumFeedbackSlots(const WasmModule* module, int func_index) {
+  if (!v8_flags.wasm_speculative_inlining) return 0;
+  // TODO(clemensb): Avoid the mutex once this ships, or at least switch to a
+  // shared mutex.
+  base::MutexGuard type_feedback_guard{&module->type_feedback.mutex};
+  auto it = module->type_feedback.feedback_for_function.find(func_index);
+  if (it == module->type_feedback.feedback_for_function.end()) return 0;
+  // The number of call instructions is capped by max function size.
+  static_assert(kV8MaxWasmFunctionSize < std::numeric_limits<int>::max() / 2);
+  return static_cast<int>(2 * it->second.call_targets.size());
+}
+
 }  // namespace v8::internal::wasm

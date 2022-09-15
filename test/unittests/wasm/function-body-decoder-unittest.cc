@@ -183,7 +183,6 @@ class TestModuleBuilder {
          static_cast<uint32_t>(mod.functions.size()),  // func_index
          sig_index,                                    // sig_index
          {0, 0},                                       // code
-         0,                                            // feedback slots
          false,                                        // import
          false,                                        // export
          declared});                                   // declared

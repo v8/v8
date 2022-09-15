@@ -556,12 +556,6 @@ class LiftoffCompiler {
     return __ GetTotalFrameSlotCountForGC();
   }
 
-  int GetFeedbackVectorSlots() const {
-    // The number of call instructions is capped by max function size.
-    static_assert(kV8MaxWasmFunctionSize < std::numeric_limits<int>::max() / 2);
-    return static_cast<int>(encountered_call_instructions_.size()) * 2;
-  }
-
   void unsupported(FullDecoder* decoder, LiftoffBailoutReason reason,
                    const char* detail) {
     DCHECK_NE(kSuccess, reason);
@@ -7709,7 +7703,6 @@ WasmCompilationResult ExecuteLiftoffCompilation(
   if (auto* debug_sidetable = compiler_options.debug_sidetable) {
     *debug_sidetable = debug_sidetable_builder->GenerateDebugSideTable();
   }
-  result.feedback_vector_slots = compiler->GetFeedbackVectorSlots();
 
   if (V8_UNLIKELY(v8_flags.trace_wasm_compilation_times)) {
     base::TimeDelta time = base::TimeTicks::Now() - start_time;

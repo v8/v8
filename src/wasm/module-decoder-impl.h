@@ -787,7 +787,6 @@ class ModuleDecoderTemplate : public Decoder {
                                         import->index,  // func_index
                                         0,              // sig_index
                                         {0, 0},         // code
-                                        0,              // feedback slots
                                         true,           // imported
                                         false,          // exported
                                         false});        // declared
@@ -884,7 +883,6 @@ class ModuleDecoderTemplate : public Decoder {
                                     func_index,  // func_index
                                     0,           // sig_index
                                     {0, 0},      // code
-                                    0,           // feedback slots
                                     false,       // imported
                                     false,       // exported
                                     false});     // declared
