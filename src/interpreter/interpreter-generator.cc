@@ -3176,7 +3176,7 @@ Handle<Code> GenerateBytecodeHandler(Isolate* isolate, const char* debug_name,
       &state, options, ProfileDataFromFile::TryRead(debug_name));
 
 #ifdef ENABLE_DISASSEMBLER
-  if (FLAG_trace_ignition_codegen) {
+  if (v8_flags.trace_ignition_codegen) {
     StdoutStream os;
     code->Disassemble(Bytecodes::ToString(bytecode), os, isolate);
     os << std::flush;

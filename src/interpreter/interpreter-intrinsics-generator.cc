@@ -82,7 +82,7 @@ TNode<Object> IntrinsicsGenerator::InvokeIntrinsic(
 #define HANDLE_CASE(name, lower_case, expected_arg_count)            \
   __ BIND(&lower_case);                                              \
   {                                                                  \
-    if (FLAG_debug_code && expected_arg_count >= 0) {                \
+    if (v8_flags.debug_code && expected_arg_count >= 0) {            \
       AbortIfArgCountMismatch(expected_arg_count, args.reg_count()); \
     }                                                                \
     TNode<Object> value = name(args, context, expected_arg_count);   \
