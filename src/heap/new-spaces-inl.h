@@ -116,22 +116,21 @@ V8_INLINE bool PagedSpaceForNewSpace::EnsureAllocation(
 // -----------------------------------------------------------------------------
 // SemiSpaceObjectIterator
 
+SemiSpaceObjectIterator::SemiSpaceObjectIterator(const SemiSpaceNewSpace* space)
+    : current_(space->first_allocatable_address()) {}
+
 HeapObject SemiSpaceObjectIterator::Next() {
-  while (current_ != limit_) {
+  while (true) {
     if (Page::IsAlignedToPageSize(current_)) {
       Page* page = Page::FromAllocationAreaAddress(current_);
       page = page->next_page();
-      DCHECK(page);
+      if (page == nullptr) return HeapObject();
       current_ = page->area_start();
-      if (current_ == limit_) return HeapObject();
     }
     HeapObject object = HeapObject::FromAddress(current_);
     current_ += object.Size();
-    if (!object.IsFreeSpaceOrFiller()) {
-      return object;
-    }
+    if (!object.IsFreeSpaceOrFiller()) return object;
   }
-  return HeapObject();
 }
 
 }  // namespace internal

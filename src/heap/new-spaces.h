@@ -217,24 +217,17 @@ class SemiSpace final : public Space {
 };
 
 // A SemiSpaceObjectIterator is an ObjectIterator that iterates over the active
-// semispace of the heap's new space.  It iterates over the objects in the
-// semispace from a given start address (defaulting to the bottom of the
-// semispace) to the top of the semispace.  New objects allocated after the
-// iterator is created are not iterated.
+// semispace of the heap's new space.
 class SemiSpaceObjectIterator : public ObjectIterator {
  public:
-  // Create an iterator over the allocated objects in the given to-space.
-  explicit SemiSpaceObjectIterator(const SemiSpaceNewSpace* space);
+  // Create an iterator over the objects in the given to-space.
+  inline explicit SemiSpaceObjectIterator(const SemiSpaceNewSpace* space);
 
   inline HeapObject Next() final;
 
  private:
-  void Initialize(Address start, Address end);
-
   // The current iteration point.
   Address current_;
-  // The end of iteration.
-  Address limit_;
 };
 
 class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
@@ -294,13 +287,14 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
 
 #ifdef VERIFY_HEAP
   virtual void Verify(Isolate* isolate) const = 0;
-  // VerifyImpl verifies objects on the space starting from |page| and
-  // |address|. |address| should be a valid limit on |page| (see
-  // BasicMemoryChunk::ContainsLimit).
+  // VerifyImpl verifies objects on the space starting from |current_page| and
+  // |current_address|. |current_address| should be a valid limit on
+  // |current_page| (see BasicMemoryChunk::ContainsLimit).
   void VerifyImpl(Isolate* isolate, const Page* current_page,
-                  Address current_address,
-                  Address stop_iteration_at_address) const;
+                  Address current_address) const;
 #endif
+
+  virtual void MakeIterable() = 0;
 
 #ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
   virtual void ClearUnusedObjectStartBitmaps() = 0;
@@ -483,6 +477,11 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
   void Print() override { to_space_.Print(); }
 #endif
 
+  void MakeIterable() override;
+
+  void MakeAllPagesInFromSpaceIterable();
+  void MakeUnusedPagesInToSpaceIterable();
+
 #ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
   void ClearUnusedObjectStartBitmaps() override;
 #endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
@@ -624,6 +623,8 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
 #ifdef VERIFY_HEAP
   void Verify(Isolate* isolate, ObjectVisitor* visitor) const final;
 #endif
+
+  void MakeIterable() { free_list()->RepairLists(heap()); }
 
 #ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
   void ClearUnusedObjectStartBitmaps() {}
@@ -782,6 +783,8 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
   }
 
   PagedSpaceBase* paged_space() { return &paged_space_; }
+
+  void MakeIterable() override { paged_space_.MakeIterable(); }
 
 #ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
   void ClearUnusedObjectStartBitmaps() override {

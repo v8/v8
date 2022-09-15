@@ -75,9 +75,11 @@ bool SetupIsolateDelegate::SetupHeapInternal(Heap* heap) {
 bool Heap::CreateHeapObjects() {
   // Create initial maps.
   if (!CreateInitialMaps()) return false;
-  if (v8_flags.minor_mc && new_space()) {
-    paged_new_space()->paged_space()->free_list()->RepairLists(this);
-  }
+
+  // Ensure that all young generation pages are iterable. It must be after heap
+  // setup, so that the maps have been created.
+  if (new_space()) new_space()->MakeIterable();
+
   CreateApiObjects();
 
   // Create initial objects

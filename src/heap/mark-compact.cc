@@ -2246,9 +2246,11 @@ Address MarkCompactCollector::FindBasePtrForMarking(Address maybe_inner_ptr) {
   if (chunk->IsLargePage()) return chunk->area_start();
   // Otherwise, we have a pointer inside a normal page.
   const Page* page = static_cast<const Page*>(chunk);
+  // Try to find the address of a previous valid object on this page.
   Address base_ptr =
       FindPreviousObjectForConservativeMarking(page, maybe_inner_ptr);
-  // If the markbit is set, then we have an object that does not need be marked.
+  // If the markbit is set, then we have an object that does not need to be
+  // marked.
   if (base_ptr == kNullAddress) return kNullAddress;
   // Iterate through the objects in the page forwards, until we find the object
   // containing maybe_inner_ptr.

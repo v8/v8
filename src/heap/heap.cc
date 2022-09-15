@@ -1485,6 +1485,10 @@ void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
     TRACE_GC(tracer(), GCTracer::Scope::HEAP_EPILOGUE_REDUCE_NEW_SPACE);
     ReduceNewSpaceSize();
 
+    if (!v8_flags.minor_mc) {
+      SemiSpaceNewSpace::From(new_space())->MakeAllPagesInFromSpaceIterable();
+    }
+
 #ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
     new_space()->ClearUnusedObjectStartBitmaps();
 #endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
