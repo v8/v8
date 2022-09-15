@@ -23,6 +23,7 @@
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/module-instantiate.h"
+#include "src/wasm/pgo.h"
 #include "src/wasm/stacks.h"
 #include "src/wasm/streaming-decoder.h"
 #include "src/wasm/wasm-debug.h"

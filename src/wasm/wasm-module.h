@@ -783,12 +783,6 @@ size_t PrintSignature(base::Vector<char> buffer, const wasm::FunctionSig*,
 V8_EXPORT_PRIVATE size_t
 GetWireBytesHash(base::Vector<const uint8_t> wire_bytes);
 
-void DumpProfileToFile(const WasmModule* module,
-                       base::Vector<const uint8_t> wire_bytes);
-
-void LoadProfileFromFile(WasmModule* module,
-                         base::Vector<const uint8_t> wire_bytes);
-
 }  // namespace v8::internal::wasm
 
 #endif  // V8_WASM_WASM_MODULE_H_

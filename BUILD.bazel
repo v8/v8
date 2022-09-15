@@ -2527,6 +2527,8 @@ filegroup(
             "src/wasm/names-provider.cc",
             "src/wasm/names-provider.h",
             "src/wasm/object-access.h",
+            "src/wasm/pgo.cc",
+            "src/wasm/pgo.h",
             "src/wasm/simd-shuffle.cc",
             "src/wasm/simd-shuffle.h",
             "src/wasm/stacks.cc",
