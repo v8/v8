@@ -25,7 +25,7 @@ namespace internal {
 // Let u be a uniformly distributed random number between 0 and 1, then
 // next_sample = (- ln u) / λ
 intptr_t SamplingHeapProfiler::Observer::GetNextSampleInterval(uint64_t rate) {
-  if (FLAG_sampling_heap_profiler_suppress_randomness)
+  if (v8_flags.sampling_heap_profiler_suppress_randomness)
     return static_cast<intptr_t>(rate);
   double u = random_->NextDouble();
   double next = (-base::ieee754::log(u)) * rate;
