@@ -104,7 +104,7 @@ RUNTIME_FUNCTION(Runtime_TerminateExecution) {
   THROW_NEW_ERROR_RETURN_FAILURE(isolate, call(message_id, arg0, arg1, arg2));
 
 RUNTIME_FUNCTION(Runtime_ThrowRangeError) {
-  if (FLAG_correctness_fuzzer_suppressions) {
+  if (v8_flags.correctness_fuzzer_suppressions) {
     DCHECK_LE(1, args.length());
     int message_id_smi = args.smi_value_at(0);
 
@@ -614,7 +614,7 @@ RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
   HandleScope scope(isolate);
   DCHECK_LE(args.length(), 2);
 #ifdef V8_RUNTIME_CALL_STATS
-  if (!FLAG_runtime_call_stats) {
+  if (!v8_flags.runtime_call_stats) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kInvalid,
                               isolate->factory()->NewStringFromAsciiChecked(
