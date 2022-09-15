@@ -134,13 +134,13 @@ void Bootstrapper::Initialize(bool create_heap_objects) {
 
 static const char* GCFunctionName() {
   bool flag_given =
-      FLAG_expose_gc_as != nullptr && strlen(FLAG_expose_gc_as) != 0;
-  return flag_given ? FLAG_expose_gc_as : "gc";
+      v8_flags.expose_gc_as != nullptr && strlen(v8_flags.expose_gc_as) != 0;
+  return flag_given ? v8_flags.expose_gc_as : "gc";
 }
 
 static bool isValidCpuTraceMarkFunctionName() {
-  return FLAG_expose_cputracemark_as != nullptr &&
-         strlen(FLAG_expose_cputracemark_as) != 0;
+  return v8_flags.expose_cputracemark_as != nullptr &&
+         strlen(v8_flags.expose_cputracemark_as) != 0;
 }
 
 void Bootstrapper::InitializeOncePerProcess() {
@@ -150,8 +150,8 @@ void Bootstrapper::InitializeOncePerProcess() {
   v8::RegisterExtension(std::make_unique<TriggerFailureExtension>());
   v8::RegisterExtension(std::make_unique<IgnitionStatisticsExtension>());
   if (isValidCpuTraceMarkFunctionName()) {
-    v8::RegisterExtension(
-        std::make_unique<CpuTraceMarkExtension>(FLAG_expose_cputracemark_as));
+    v8::RegisterExtension(std::make_unique<CpuTraceMarkExtension>(
+        v8_flags.expose_cputracemark_as));
   }
 #ifdef ENABLE_VTUNE_TRACEMARK
   v8::RegisterExtension(
@@ -360,7 +360,7 @@ Handle<JSGlobalProxy> Bootstrapper::NewRemoteContext(
 }
 
 void Bootstrapper::LogAllMaps() {
-  if (!FLAG_log_maps || isolate_->initialized_from_snapshot()) return;
+  if (!v8_flags.log_maps || isolate_->initialized_from_snapshot()) return;
   // Log all created Map objects that are on the heap. For snapshots the Map
   // logging happens during deserialization in order to avoid printing Maps
   // multiple times during partial deserialization.
@@ -3921,7 +3921,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     // The cleanupSome function is created but not exposed, as it is used
     // internally by InvokeFinalizationRegistryCleanupFromTask.
     //
-    // It is exposed by FLAG_harmony_weak_refs_with_cleanup_some.
+    // It is exposed by v8_flags.harmony_weak_refs_with_cleanup_some.
     Handle<JSFunction> cleanup_some_fun = SimpleCreateFunction(
         isolate_, factory->InternalizeUtf8String("cleanupSome"),
         Builtin::kFinalizationRegistryPrototypeCleanupSome, 0, false);
@@ -4514,7 +4514,7 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_best_fit_matcher)
 #undef EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE
 
 void Genesis::InitializeGlobal_harmony_change_array_by_copy() {
-  if (!FLAG_harmony_change_array_by_copy) return;
+  if (!v8_flags.harmony_change_array_by_copy) return;
 
   {
     Handle<JSFunction> array_function(native_context()->array_function(),
@@ -4552,7 +4552,7 @@ void Genesis::InitializeGlobal_harmony_change_array_by_copy() {
 }
 
 void Genesis::InitializeGlobal_harmony_regexp_unicode_sets() {
-  if (!FLAG_harmony_regexp_unicode_sets) return;
+  if (!v8_flags.harmony_regexp_unicode_sets) return;
 
   Handle<JSFunction> regexp_fun(native_context()->regexp_function(), isolate());
   Handle<JSObject> regexp_prototype(
@@ -4566,7 +4566,7 @@ void Genesis::InitializeGlobal_harmony_regexp_unicode_sets() {
 }
 
 void Genesis::InitializeGlobal_harmony_shadow_realm() {
-  if (!FLAG_harmony_shadow_realm) return;
+  if (!v8_flags.harmony_shadow_realm) return;
   Factory* factory = isolate()->factory();
   // -- S h a d o w R e a l m
   // #sec-shadowrealm-objects
@@ -4638,7 +4638,7 @@ void Genesis::InitializeGlobal_harmony_shadow_realm() {
 }
 
 void Genesis::InitializeGlobal_harmony_struct() {
-  if (!FLAG_harmony_struct) return;
+  if (!v8_flags.harmony_struct) return;
 
   Handle<JSGlobalObject> global(native_context()->global_object(), isolate());
   Handle<String> name =
@@ -4728,7 +4728,7 @@ void Genesis::InitializeGlobal_harmony_struct() {
 }
 
 void Genesis::InitializeGlobal_harmony_array_find_last() {
-  if (!FLAG_harmony_array_find_last) return;
+  if (!v8_flags.harmony_array_find_last) return;
 
   {
     Handle<JSFunction> array_function(native_context()->array_function(),
@@ -4761,7 +4761,7 @@ void Genesis::InitializeGlobal_harmony_array_find_last() {
 }
 
 void Genesis::InitializeGlobal_harmony_array_grouping() {
-  if (!FLAG_harmony_array_grouping) return;
+  if (!v8_flags.harmony_array_grouping) return;
 
   Handle<JSFunction> array_function(native_context()->array_function(),
                                     isolate());
@@ -4783,8 +4783,8 @@ void Genesis::InitializeGlobal_harmony_array_grouping() {
 }
 
 void Genesis::InitializeGlobal_harmony_sharedarraybuffer() {
-  if (!FLAG_harmony_sharedarraybuffer ||
-      FLAG_enable_sharedarraybuffer_per_context) {
+  if (!v8_flags.harmony_sharedarraybuffer ||
+      v8_flags.enable_sharedarraybuffer_per_context) {
     return;
   }
 
@@ -4795,7 +4795,7 @@ void Genesis::InitializeGlobal_harmony_sharedarraybuffer() {
 }
 
 void Genesis::InitializeGlobal_harmony_atomics() {
-  if (!FLAG_harmony_atomics) return;
+  if (!v8_flags.harmony_atomics) return;
 
   Handle<JSGlobalObject> global(native_context()->global_object(), isolate());
 
@@ -4805,7 +4805,7 @@ void Genesis::InitializeGlobal_harmony_atomics() {
 }
 
 void Genesis::InitializeGlobal_harmony_weak_refs_with_cleanup_some() {
-  if (!FLAG_harmony_weak_refs_with_cleanup_some) return;
+  if (!v8_flags.harmony_weak_refs_with_cleanup_some) return;
 
   Handle<JSFunction> finalization_registry_fun =
       isolate()->js_finalization_registry_fun();
@@ -4820,7 +4820,7 @@ void Genesis::InitializeGlobal_harmony_weak_refs_with_cleanup_some() {
 }
 
 void Genesis::InitializeGlobal_regexp_linear_flag() {
-  if (!FLAG_enable_experimental_regexp_engine) return;
+  if (!v8_flags.enable_experimental_regexp_engine) return;
 
   Handle<JSFunction> regexp_fun(native_context()->regexp_function(), isolate());
   Handle<JSObject> regexp_prototype(
@@ -4834,7 +4834,7 @@ void Genesis::InitializeGlobal_regexp_linear_flag() {
 }
 
 void Genesis::InitializeGlobal_harmony_rab_gsab() {
-  if (!FLAG_harmony_rab_gsab) return;
+  if (!v8_flags.harmony_rab_gsab) return;
   Handle<JSObject> array_buffer_prototype(
       JSObject::cast(native_context()->array_buffer_fun().instance_prototype()),
       isolate());
@@ -4865,7 +4865,7 @@ void Genesis::InitializeGlobal_harmony_rab_gsab() {
 }
 
 void Genesis::InitializeGlobal_harmony_temporal() {
-  if (!FLAG_harmony_temporal) return;
+  if (!v8_flags.harmony_temporal) return;
   // -- T e m p o r a l
   // #sec-temporal-objects
   Handle<JSObject> temporal =
@@ -5508,7 +5508,7 @@ void Genesis::InitializeGlobal_harmony_temporal() {
 #ifdef V8_INTL_SUPPORT
 
 void Genesis::InitializeGlobal_harmony_intl_number_format_v3() {
-  if (!FLAG_harmony_intl_number_format_v3) return;
+  if (!v8_flags.harmony_intl_number_format_v3) return;
 
   {
     Handle<JSFunction> number_format_constructor =
@@ -5538,7 +5538,7 @@ void Genesis::InitializeGlobal_harmony_intl_number_format_v3() {
 #endif  // V8_INTL_SUPPORT
 
 void Genesis::InitializeGlobal_experimental_web_snapshots() {
-  if (!FLAG_experimental_web_snapshots) return;
+  if (!v8_flags.experimental_web_snapshots) return;
 
   Handle<JSGlobalObject> global(native_context()->global_object(), isolate());
   Handle<JSObject> web_snapshot_object =
@@ -6000,15 +6000,16 @@ bool Genesis::InstallSpecialObjects(Isolate* isolate,
 
   Handle<JSObject> Error = isolate->error_function();
   Handle<String> name = isolate->factory()->stackTraceLimit_string();
-  Handle<Smi> stack_trace_limit(Smi::FromInt(FLAG_stack_trace_limit), isolate);
+  Handle<Smi> stack_trace_limit(Smi::FromInt(v8_flags.stack_trace_limit),
+                                isolate);
   JSObject::AddProperty(isolate, Error, name, stack_trace_limit, NONE);
 
 #if V8_ENABLE_WEBASSEMBLY
-  if (FLAG_expose_wasm) {
+  if (v8_flags.expose_wasm) {
     // Install the internal data structures into the isolate and expose on
     // the global object.
     WasmJs::Install(isolate, true);
-  } else if (FLAG_validate_asm) {
+  } else if (v8_flags.validate_asm) {
     // Install the internal data structures only; these are needed for asm.js
     // translated to Wasm to work correctly.
     WasmJs::Install(isolate, false);
@@ -6051,21 +6052,22 @@ bool Genesis::InstallExtensions(Isolate* isolate,
                                 v8::ExtensionConfiguration* extensions) {
   ExtensionStates extension_states;  // All extensions have state UNVISITED.
   return InstallAutoExtensions(isolate, &extension_states) &&
-         (!FLAG_expose_gc ||
+         (!v8_flags.expose_gc ||
           InstallExtension(isolate, "v8/gc", &extension_states)) &&
-         (!FLAG_expose_externalize_string ||
+         (!v8_flags.expose_externalize_string ||
           InstallExtension(isolate, "v8/externalize", &extension_states)) &&
-         (!(FLAG_expose_statistics || TracingFlags::is_gc_stats_enabled()) ||
+         (!(v8_flags.expose_statistics ||
+            TracingFlags::is_gc_stats_enabled()) ||
           InstallExtension(isolate, "v8/statistics", &extension_states)) &&
-         (!FLAG_expose_trigger_failure ||
+         (!v8_flags.expose_trigger_failure ||
           InstallExtension(isolate, "v8/trigger-failure", &extension_states)) &&
-         (!FLAG_expose_ignition_statistics ||
+         (!v8_flags.expose_ignition_statistics ||
           InstallExtension(isolate, "v8/ignition-statistics",
                            &extension_states)) &&
          (!isValidCpuTraceMarkFunctionName() ||
           InstallExtension(isolate, "v8/cpumark", &extension_states)) &&
 #ifdef ENABLE_VTUNE_TRACEMARK
-         (!FLAG_enable_vtune_domain_support ||
+         (!v8_flags.enable_vtune_domain_support ||
           InstallExtension(isolate, "v8/vtunedomain", &extension_states)) &&
 #endif  // ENABLE_VTUNE_TRACEMARK
          InstallRequestedExtensions(isolate, extensions, &extension_states);
@@ -6465,7 +6467,7 @@ Genesis::Genesis(
     DCHECK(native_context().is_null());
 
     base::ElapsedTimer timer;
-    if (FLAG_profile_deserialization) timer.Start();
+    if (v8_flags.profile_deserialization) timer.Start();
     DCHECK_EQ(0u, context_snapshot_index);
     // We get here if there was no context snapshot.
     CreateRoots();
@@ -6488,7 +6490,7 @@ Genesis::Genesis(
     if (!InstallExtrasBindings()) return;
     if (!ConfigureGlobalObject(global_proxy_template)) return;
 
-    if (FLAG_profile_deserialization) {
+    if (v8_flags.profile_deserialization) {
       double ms = timer.Elapsed().InMillisecondsF();
       PrintF("[Initializing context from scratch took %0.3f ms]\n", ms);
     }
@@ -6515,7 +6517,7 @@ Genesis::Genesis(
         string_function_prototype.map());
   }
 
-  if (FLAG_disallow_code_generation_from_strings) {
+  if (v8_flags.disallow_code_generation_from_strings) {
     native_context()->set_allow_code_gen_from_strings(
         ReadOnlyRoots(isolate).false_value());
   }
