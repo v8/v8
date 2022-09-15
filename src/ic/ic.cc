@@ -19,6 +19,7 @@
 #include "src/execution/protectors-inl.h"
 #include "src/execution/tiering-manager.h"
 #include "src/handles/handles-inl.h"
+#include "src/handles/maybe-handles.h"
 #include "src/ic/call-optimization.h"
 #include "src/ic/handler-configuration-inl.h"
 #include "src/ic/ic-inl.h"
@@ -2571,16 +2572,19 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
   }
 
   DCHECK(store_handle.is_null());
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate(), store_handle,
-      // TODO(v8:12548): refactor DefineKeyedOwnIC as a subclass of StoreIC
-      // so the logic doesn't get mixed here.
+  // TODO(v8:12548): refactor DefineKeyedOwnIC as a subclass of StoreIC
+  // so the logic doesn't get mixed here.
+  MaybeHandle<Object> result =
       IsDefineKeyedOwnIC()
           ? Runtime::DefineObjectOwnProperty(isolate(), object, key, value,
                                              StoreOrigin::kMaybeKeyed)
           : Runtime::SetObjectProperty(isolate(), object, key, value,
-                                       StoreOrigin::kMaybeKeyed),
-      Object);
+                                       StoreOrigin::kMaybeKeyed);
+  if (result.is_null()) {
+    DCHECK(isolate()->has_pending_exception());
+    set_slow_stub_reason("failed to set property");
+    use_ic = false;
+  }
   if (use_ic) {
     if (!old_receiver_map.is_null()) {
       if (is_arguments) {
@@ -2624,7 +2628,7 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
   }
   TraceIC("StoreIC", key);
 
-  return store_handle;
+  return result;
 }
 
 namespace {
