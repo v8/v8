@@ -181,6 +181,7 @@ void AllocateRaw(MaglevAssembler* masm, RegisterSnapshot& register_snapshot,
         // Remove {object} from snapshot, since it is the returned allocated
         // HeapObject.
         register_snapshot.live_registers.clear(object);
+        register_snapshot.live_tagged_registers.clear(object);
         {
           SaveRegisterStateForCall save_register_state(masm, register_snapshot);
           using D = AllocateDescriptor;
@@ -1385,15 +1386,14 @@ void CheckJSArrayBounds::GenerateCode(MaglevAssembler* masm,
   Register object = ToRegister(receiver_input());
   Register index = ToRegister(index_input());
   __ AssertNotSmi(object);
-  __ AssertSmi(index);
 
   if (v8_flags.debug_code) {
     __ CmpObjectType(object, JS_ARRAY_TYPE, kScratchRegister);
     __ Assert(equal, AbortReason::kUnexpectedValue);
   }
-  TaggedRegister length(kScratchRegister);
-  __ LoadAnyTaggedField(length, FieldOperand(object, JSArray::kLengthOffset));
-  __ cmp_tagged(index, length.reg());
+  __ SmiUntagField(kScratchRegister,
+                   FieldOperand(object, JSArray::kLengthOffset));
+  __ cmpl(index, kScratchRegister);
   __ EmitEagerDeoptIf(above_equal, DeoptimizeReason::kOutOfBounds, this);
 }
 
@@ -1407,7 +1407,6 @@ void CheckJSObjectElementsBounds::GenerateCode(MaglevAssembler* masm,
   Register object = ToRegister(receiver_input());
   Register index = ToRegister(index_input());
   __ AssertNotSmi(object);
-  __ AssertSmi(index);
 
   if (v8_flags.debug_code) {
     __ CmpObjectType(object, FIRST_JS_OBJECT_TYPE, kScratchRegister);
@@ -1418,10 +1417,9 @@ void CheckJSObjectElementsBounds::GenerateCode(MaglevAssembler* masm,
   if (v8_flags.debug_code) {
     __ AssertNotSmi(kScratchRegister);
   }
-  TaggedRegister length(kScratchRegister);
-  __ LoadAnyTaggedField(
-      length, FieldOperand(kScratchRegister, FixedArray::kLengthOffset));
-  __ cmp_tagged(index, length.reg());
+  __ SmiUntagField(kScratchRegister,
+                   FieldOperand(kScratchRegister, FixedArray::kLengthOffset));
+  __ cmpl(index, kScratchRegister);
   __ EmitEagerDeoptIf(above_equal, DeoptimizeReason::kOutOfBounds, this);
 }
 
@@ -1477,6 +1475,81 @@ void CheckedInternalizedString::GenerateCode(MaglevAssembler* masm,
         __ jmp(return_label);
       },
       object, this, eager_deopt_info(), map_tmp);
+}
+
+void CheckedObjectToIndex::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  UseRegister(object_input());
+  DefineAsRegister(vreg_state, this);
+  set_double_temporaries_needed(1);
+}
+void CheckedObjectToIndex::GenerateCode(MaglevAssembler* masm,
+                                        const ProcessingState& state) {
+  Register object = ToRegister(object_input());
+  Register result_reg = ToRegister(result());
+
+  ZoneLabelRef done(masm->compilation_info()->zone());
+  Condition is_smi = __ CheckSmi(object);
+  __ JumpToDeferredIf(
+      NegateCondition(is_smi),
+      [](MaglevAssembler* masm, Label* return_label, Register object,
+         Register result_reg, ZoneLabelRef done, CheckedObjectToIndex* node) {
+        Label is_string;
+        __ LoadMap(kScratchRegister, object);
+        __ CmpInstanceTypeRange(kScratchRegister, kScratchRegister,
+                                FIRST_STRING_TYPE, LAST_STRING_TYPE);
+        __ j(below_equal, &is_string);
+
+        __ cmpl(kScratchRegister, Immediate(HEAP_NUMBER_TYPE));
+        // The IC will go generic if it encounters something other than a
+        // Number or String key.
+        __ EmitEagerDeoptIf(not_equal, DeoptimizeReason::kNotInt32, node);
+
+        // Heap Number.
+        {
+          DoubleRegister number_value = node->double_temporaries().first();
+          DoubleRegister converted_back = kScratchDoubleReg;
+          // Convert the input float64 value to int32.
+          __ Cvttsd2si(result_reg, number_value);
+          // Convert that int32 value back to float64.
+          __ Cvtlsi2sd(converted_back, result_reg);
+          // Check that the result of the float64->int32->float64 is equal to
+          // the input (i.e. that the conversion didn't truncate.
+          __ Ucomisd(number_value, converted_back);
+          __ j(equal, *done);
+          __ EmitEagerDeopt(node, DeoptimizeReason::kNotInt32);
+        }
+
+        // String.
+        __ bind(&is_string);
+        {
+          RegisterSnapshot snapshot = node->register_snapshot();
+          snapshot.live_registers.clear(result_reg);
+          DCHECK(!snapshot.live_tagged_registers.has(result_reg));
+          {
+            SaveRegisterStateForCall save_register_state(masm, snapshot);
+            AllowExternalCallThatCantCauseGC scope(masm);
+            __ PrepareCallCFunction(1);
+            __ Move(arg_reg_1, object);
+            __ CallCFunction(
+                ExternalReference::string_to_array_index_function(), 1);
+            // No need for safepoint since this is a fast C call.
+            __ Move(result_reg, kReturnRegister0);
+          }
+          __ cmpl(result_reg, Immediate(0));
+          __ j(greater_equal, *done);
+          __ EmitEagerDeopt(node, DeoptimizeReason::kNotInt32);
+        }
+      },
+      object, result_reg, done, this);
+
+  // If we didn't enter the deferred block, we're a Smi.
+  if (result_reg == object) {
+    __ SmiUntag(object);
+  } else {
+    __ SmiUntag(result_reg, object);
+  }
+
+  __ bind(*done);
 }
 
 void LoadTaggedField::AllocateVreg(MaglevVregAllocationState* vreg_state) {
@@ -1538,20 +1611,9 @@ void LoadTaggedElement::GenerateCode(MaglevAssembler* masm,
     __ DecompressAnyTagged(kScratchRegister,
                            FieldOperand(object, JSObject::kElementsOffset));
   }
-  __ AssertSmi(index);
-  // Zero out top bits of index reg (these were previously either zero already,
-  // or the cage base). This technically mutates it, but since it's a Smi, that
-  // doesn't matter.
-  __ movl(index, index);
-  static_assert(kSmiTagSize + kSmiShiftSize < times_tagged_size,
-                "Folding the Smi shift into the FixedArray entry size shift "
-                "only works if the shift is small");
   __ DecompressAnyTagged(
-      result_reg,
-      FieldOperand(kScratchRegister, index,
-                   static_cast<ScaleFactor>(times_tagged_size -
-                                            (kSmiTagSize + kSmiShiftSize)),
-                   FixedArray::kHeaderSize));
+      result_reg, FieldOperand(kScratchRegister, index, times_tagged_size,
+                               FixedArray::kHeaderSize));
 }
 
 void LoadDoubleElement::AllocateVreg(MaglevVregAllocationState* vreg_state) {
@@ -1579,19 +1641,8 @@ void LoadDoubleElement::GenerateCode(MaglevAssembler* masm,
     __ DecompressAnyTagged(kScratchRegister,
                            FieldOperand(object, JSObject::kElementsOffset));
   }
-  __ AssertSmi(index);
-  // Zero out top bits of index reg (these were previously either zero already,
-  // or the cage base). This technically mutates it, but since it's a Smi, that
-  // doesn't matter.
-  __ movl(index, index);
-  static_assert(kSmiTagSize + kSmiShiftSize < times_8,
-                "Folding the Smi shift into the FixedArray entry size shift "
-                "only works if the shift is small");
-  __ Movsd(result_reg,
-           FieldOperand(kScratchRegister, index,
-                        static_cast<ScaleFactor>(times_8 -
-                                                 (kSmiTagSize + kSmiShiftSize)),
-                        FixedDoubleArray::kHeaderSize));
+  __ Movsd(result_reg, FieldOperand(kScratchRegister, index, times_8,
+                                    FixedDoubleArray::kHeaderSize));
 }
 
 void StoreTaggedFieldNoWriteBarrier::AllocateVreg(

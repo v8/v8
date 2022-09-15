@@ -1184,7 +1184,32 @@ bool MaglevGraphBuilder::TryBuildMonomorphicElementLoadFromSmiHandler(
       DCHECK(!LoadHandler::ConvertHoleBits::decode(handler));
 
       BuildMapCheck(object, map);
-      BuildCheckSmi(index);
+      switch (index->properties().value_representation()) {
+        case ValueRepresentation::kTagged: {
+          if (CheckedSmiTag* checked_untag = index->TryCast<CheckedSmiTag>()) {
+            index = checked_untag->input().node();
+          } else if (SmiConstant* constant = index->TryCast<SmiConstant>()) {
+            index = GetInt32Constant(constant->value().value());
+          } else if (NodeInfo::IsSmi(known_node_aspects().GetInfoFor(index))) {
+            // TODO(leszeks): This could be unchecked.
+            index = AddNewNode<CheckedSmiUntag>({index});
+          } else {
+            index = AddNewNode<CheckedObjectToIndex>({index});
+          }
+          break;
+        }
+        case ValueRepresentation::kInt32: {
+          // Already good.
+          break;
+        }
+        case ValueRepresentation::kFloat64: {
+          // TODO(leszeks): Pass in the index register (probably the
+          // accumulator), so that we can save this truncation on there as a
+          // conversion node.
+          index = AddNewNode<CheckedTruncateFloat64ToInt32>({index});
+          break;
+        }
+      }
 
       if (LoadHandler::IsJsArrayBits::decode(handler)) {
         DCHECK(map.IsJSArrayMap());
@@ -1302,7 +1327,6 @@ void MaglevGraphBuilder::VisitGetKeyedProperty() {
   ValueNode* object = LoadRegisterTagged(0);
   // TODO(leszeks): We don't need to tag the key if it's an Int32 and a simple
   // monomorphic element load.
-  ValueNode* key = GetAccumulatorTagged();
   FeedbackSlot slot = GetSlotOperand(1);
   compiler::FeedbackSource feedback_source{feedback(), slot};
 
@@ -1329,6 +1353,10 @@ void MaglevGraphBuilder::VisitGetKeyedProperty() {
       MaybeObjectHandle handler =
           FeedbackNexusForSlot(slot).FindHandlerForMap(map.object());
 
+      // Get the accumulator without conversion. TryBuildMonomorphicElementLoad
+      // will try to pick the best representation.
+      ValueNode* key = current_interpreter_frame_.accumulator();
+
       if (TryBuildMonomorphicElementLoad(object, key, map, handler)) return;
       break;
     }
@@ -1339,6 +1367,7 @@ void MaglevGraphBuilder::VisitGetKeyedProperty() {
 
   // Create a generic store in the fallthrough.
   ValueNode* context = GetContext();
+  ValueNode* key = GetAccumulatorTagged();
   SetAccumulator(
       AddNewNode<GetKeyedGeneric>({context, object, key}, feedback_source));
 }

@@ -161,6 +161,7 @@ class CompactInterpreterFrameState;
   V(CheckedSmiTag)                 \
   V(CheckedSmiUntag)               \
   V(CheckedInternalizedString)     \
+  V(CheckedObjectToIndex)          \
   V(ChangeInt32ToFloat64)          \
   V(CheckedTruncateFloat64ToInt32) \
   V(Float64Box)                    \
@@ -2773,6 +2774,23 @@ class CheckedInternalizedString
 
  private:
   const CheckType check_type_;
+};
+
+class CheckedObjectToIndex
+    : public FixedInputValueNodeT<1, CheckedObjectToIndex> {
+  using Base = FixedInputValueNodeT<1, CheckedObjectToIndex>;
+
+ public:
+  explicit CheckedObjectToIndex(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::EagerDeopt() | OpProperties::Int32() |
+      OpProperties::DeferredCall() | OpProperties::ConversionNode();
+
+  static constexpr int kObjectIndex = 0;
+  Input& object_input() { return Node::input(kObjectIndex); }
+
+  DECL_NODE_INTERFACE_WITH_EMPTY_PRINT_PARAMS()
 };
 
 class GetTemplateObject : public FixedInputValueNodeT<1, GetTemplateObject> {
