@@ -1063,25 +1063,41 @@ bool MaglevGraphBuilder::TryBuildMonomorphicLoadFromLoadHandler(
     const compiler::MapRef& map, LoadHandler handler) {
   Object maybe_smi_handler = handler.smi_handler(local_isolate_);
   if (!maybe_smi_handler.IsSmi()) return false;
-  int smi_handler = Smi::cast(maybe_smi_handler).value();
+
+  const int smi_handler = Smi::ToInt(maybe_smi_handler);
   LoadHandler::Kind kind = LoadHandler::KindBits::decode(smi_handler);
-  bool do_access_check_on_lookup_start_object =
-      LoadHandler::DoAccessCheckOnLookupStartObjectBits::decode(smi_handler);
-  bool lookup_on_lookup_start_object =
-      LoadHandler::LookupOnLookupStartObjectBits::decode(smi_handler);
-  if (lookup_on_lookup_start_object) return false;
   if (kind != LoadHandler::Kind::kConstantFromPrototype &&
-      kind != LoadHandler::Kind::kAccessorFromPrototype)
+      kind != LoadHandler::Kind::kAccessorFromPrototype) {
     return false;
+  }
+
+  if (LoadHandler::LookupOnLookupStartObjectBits::decode(smi_handler)) {
+    return false;
+  }
+
+  // This fiddly early return is necessary because we can't return `false` any
+  // more once we've started emitting code.
+  if (!map.IsStringMap() &&
+      LoadHandler::DoAccessCheckOnLookupStartObjectBits::decode(smi_handler)) {
+    return false;
+  }
+
+  MaybeObject maybe_data1 = handler.data1(local_isolate_);
+  if (maybe_data1.IsCleared()) {
+    EmitUnconditionalDeopt(
+        DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
+    return true;
+  }
+  const Object data1 = maybe_data1.GetHeapObjectOrSmi();
 
   if (map.IsStringMap()) {
     // Check for string maps before checking if we need to do an access check.
     // Primitive strings always get the prototype from the native context
     // they're operated on, so they don't need the access check.
     BuildCheckString(lookup_start_object);
-  } else if (do_access_check_on_lookup_start_object) {
-    return false;
   } else {
+    DCHECK(!LoadHandler::DoAccessCheckOnLookupStartObjectBits::decode(
+        smi_handler));
     BuildMapCheck(lookup_start_object, map);
   }
 
@@ -1110,21 +1126,19 @@ bool MaglevGraphBuilder::TryBuildMonomorphicLoadFromLoadHandler(
 
   switch (kind) {
     case LoadHandler::Kind::kConstantFromPrototype: {
-      MaybeObject value = handler.data1(local_isolate_);
-      if (value.IsSmi()) {
-        SetAccumulator(GetSmiConstant(value.ToSmi().value()));
+      if (data1.IsSmi()) {
+        // Functionally, the else branch does the same - but we avoid the
+        // broker overhead by dispatching here.
+        SetAccumulator(GetSmiConstant(Smi::ToInt(data1)));
       } else {
         SetAccumulator(GetConstant(MakeRefAssumeMemoryFence(
-            broker(),
-            broker()->CanonicalPersistentHandle(value.GetHeapObject()))));
+            broker(), broker()->CanonicalPersistentHandle(data1))));
       }
       break;
     }
     case LoadHandler::Kind::kAccessorFromPrototype: {
-      MaybeObject getter = handler.data1(local_isolate_);
       compiler::ObjectRef getter_ref = MakeRefAssumeMemoryFence(
-          broker(),
-          broker()->CanonicalPersistentHandle(getter.GetHeapObject()));
+          broker(), broker()->CanonicalPersistentHandle(data1));
 
       Call* call = CreateNewNode<Call>(Call::kFixedInputCount + 1,
                                        ConvertReceiverMode::kNotNullOrUndefined,
