@@ -19,12 +19,13 @@ Handle<JSArray> TemplateObjectDescription::GetTemplateObject(
     Isolate* isolate, Handle<NativeContext> native_context,
     Handle<TemplateObjectDescription> description,
     Handle<SharedFunctionInfo> shared_info, int slot_id) {
-  uint32_t hash = shared_info->Hash();
   int function_literal_id = shared_info->function_literal_id();
 
   // Check the template weakmap to see if the template object already exists.
   Handle<EphemeronHashTable> template_weakmap;
   Handle<Script> script(Script::cast(shared_info->script(isolate)), isolate);
+  int32_t hash =
+      EphemeronHashTable::ShapeT::Hash(ReadOnlyRoots(isolate), script);
   MaybeHandle<CachedTemplateObject> existing_cached_template;
 
   if (native_context->template_weakmap().IsUndefined(isolate)) {
