@@ -47,10 +47,7 @@ constexpr size_t kCagedHeapReservationSize = static_cast<size_t>(2) * kGB;
 constexpr size_t kCagedHeapReservationSize = static_cast<size_t>(4) * kGB;
 #endif  // !defined(CPPGC_2GB_CAGE)
 constexpr size_t kCagedHeapReservationAlignment = kCagedHeapReservationSize;
-
-constexpr size_t kCagedHeapNormalPageReservationSize =
-    kCagedHeapReservationSize / 2;
-#endif
+#endif  // defined(CPPGC_CAGED_HEAP)
 
 static constexpr size_t kDefaultAlignment = sizeof(void*);
 

@@ -25,6 +25,7 @@ namespace cppgc {
 namespace internal {
 
 class HeapBase;
+class HeapBaseHandle;
 
 #if defined(CPPGC_YOUNG_GENERATION)
 
@@ -92,8 +93,6 @@ static_assert(sizeof(AgeTable) == 1 * api_constants::kMB,
 
 #endif  // CPPGC_YOUNG_GENERATION
 
-// TODO(v8:12231): Remove this class entirely so that it doesn't occupy space is
-// when CPPGC_YOUNG_GENERATION is off.
 struct CagedHeapLocalData final {
   V8_INLINE static CagedHeapLocalData& Get() {
     return *reinterpret_cast<CagedHeapLocalData*>(CagedHeapBase::GetBase());
