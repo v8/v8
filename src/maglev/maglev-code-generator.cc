@@ -637,7 +637,7 @@ class MaglevCodeGeneratingNodeProcessor {
       : masm_(masm) {}
 
   void PreProcessGraph(Graph* graph) {
-    if (FLAG_maglev_break_on_entry) {
+    if (v8_flags.maglev_break_on_entry) {
       __ int3();
     }
 
@@ -764,7 +764,7 @@ class MaglevCodeGeneratingNodeProcessor {
   }
 
   void PreProcessBasicBlock(BasicBlock* block) {
-    if (FLAG_code_comments) {
+    if (v8_flags.code_comments) {
       std::stringstream ss;
       ss << "-- Block b" << graph_labeller()->BlockId(block);
       __ RecordComment(ss.str());
@@ -775,14 +775,14 @@ class MaglevCodeGeneratingNodeProcessor {
 
   template <typename NodeT>
   void Process(NodeT* node, const ProcessingState& state) {
-    if (FLAG_code_comments) {
+    if (v8_flags.code_comments) {
       std::stringstream ss;
       ss << "--   " << graph_labeller()->NodeId(node) << ": "
          << PrintNode(graph_labeller(), node);
       __ RecordComment(ss.str());
     }
 
-    if (FLAG_debug_code) {
+    if (v8_flags.debug_code) {
       __ movq(kScratchRegister, rbp);
       __ subq(kScratchRegister, rsp);
       __ cmpq(kScratchRegister,
@@ -806,7 +806,7 @@ class MaglevCodeGeneratingNodeProcessor {
             compiler::AllocatedOperand::cast(value_node->result().operand());
         // We shouldn't spill nodes which already output to the stack.
         if (!source.IsAnyStackSlot()) {
-          if (FLAG_code_comments) __ RecordComment("--   Spill:");
+          if (v8_flags.code_comments) __ RecordComment("--   Spill:");
           if (source.IsRegister()) {
             __ movq(masm()->GetStackSlot(value_node->spill_slot()),
                     ToRegister(source));
@@ -851,7 +851,7 @@ class MaglevCodeGeneratingNodeProcessor {
         // TODO(leszeks): We should remove dead phis entirely and turn this into
         // a DCHECK.
         if (!phi->has_valid_live_range()) {
-          if (FLAG_code_comments) {
+          if (v8_flags.code_comments) {
             std::stringstream ss;
             ss << "--   * "
                << phi->input(state.block()->predecessor_id()).operand() << " → "
@@ -866,7 +866,7 @@ class MaglevCodeGeneratingNodeProcessor {
         compiler::InstructionOperand source = input.operand();
         compiler::AllocatedOperand target =
             compiler::AllocatedOperand::cast(phi->result().operand());
-        if (FLAG_code_comments) {
+        if (v8_flags.code_comments) {
           std::stringstream ss;
           ss << "--   * " << source << " → " << target << " (n"
              << graph_labeller()->NodeId(phi) << ")";
@@ -889,7 +889,7 @@ class MaglevCodeGeneratingNodeProcessor {
           if (LoadMergeState(state, &node, &merge)) {
             compiler::InstructionOperand source =
                 merge->operand(predecessor_id);
-            if (FLAG_code_comments) {
+            if (v8_flags.code_comments) {
               std::stringstream ss;
               ss << "--   * " << source << " → " << reg;
               __ RecordComment(ss.str());
@@ -909,7 +909,7 @@ class MaglevCodeGeneratingNodeProcessor {
           if (LoadMergeState(state, &node, &merge)) {
             compiler::InstructionOperand source =
                 merge->operand(predecessor_id);
-            if (FLAG_code_comments) {
+            if (v8_flags.code_comments) {
               std::stringstream ss;
               ss << "--   * " << source << " → " << reg;
               __ RecordComment(ss.str());

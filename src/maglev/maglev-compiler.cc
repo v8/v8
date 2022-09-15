@@ -539,13 +539,14 @@ void MaglevCompiler::Compile(LocalIsolate* local_isolate,
   compiler::UnparkedScopeIfNeeded unparked_scope(compilation_info->broker());
 
   // Build graph.
-  if (FLAG_print_maglev_code || FLAG_code_comments || FLAG_print_maglev_graph ||
-      FLAG_trace_maglev_graph_building || FLAG_trace_maglev_regalloc) {
+  if (v8_flags.print_maglev_code || v8_flags.code_comments ||
+      v8_flags.print_maglev_graph || v8_flags.trace_maglev_graph_building ||
+      v8_flags.trace_maglev_regalloc) {
     compilation_info->set_graph_labeller(new MaglevGraphLabeller());
   }
 
-  if (FLAG_print_maglev_code || FLAG_print_maglev_graph ||
-      FLAG_trace_maglev_graph_building || FLAG_trace_maglev_regalloc) {
+  if (v8_flags.print_maglev_code || v8_flags.print_maglev_graph ||
+      v8_flags.trace_maglev_graph_building || v8_flags.trace_maglev_regalloc) {
     MaglevCompilationUnit* top_level_unit =
         compilation_info->toplevel_compilation_unit();
     std::cout << "Compiling " << Brief(*top_level_unit->function().object())
@@ -561,7 +562,7 @@ void MaglevCompiler::Compile(LocalIsolate* local_isolate,
 
   graph_builder.Build();
 
-  if (FLAG_print_maglev_graph) {
+  if (v8_flags.print_maglev_graph) {
     std::cout << "\nAfter graph buiding" << std::endl;
     PrintGraph(std::cout, compilation_info, graph_builder.graph());
   }
@@ -579,7 +580,7 @@ void MaglevCompiler::Compile(LocalIsolate* local_isolate,
     processor.ProcessGraph(graph_builder.graph());
   }
 
-  if (FLAG_print_maglev_graph) {
+  if (v8_flags.print_maglev_graph) {
     std::cout << "After node processor" << std::endl;
     PrintGraph(std::cout, compilation_info, graph_builder.graph());
   }
@@ -587,7 +588,7 @@ void MaglevCompiler::Compile(LocalIsolate* local_isolate,
   StraightForwardRegisterAllocator allocator(compilation_info,
                                              graph_builder.graph());
 
-  if (FLAG_print_maglev_graph) {
+  if (v8_flags.print_maglev_graph) {
     std::cout << "After register allocation" << std::endl;
     PrintGraph(std::cout, compilation_info, graph_builder.graph());
   }
@@ -629,7 +630,7 @@ MaybeHandle<CodeT> MaglevCompiler::GenerateCode(
     return {};
   }
 
-  if (FLAG_print_maglev_code) {
+  if (v8_flags.print_maglev_code) {
     code->Print();
   }
 

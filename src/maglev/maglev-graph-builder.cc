@@ -133,7 +133,7 @@ void MaglevGraphBuilder::BuildMergeStates() {
     const compiler::LoopInfo& loop_info = offset_and_info.second;
     const compiler::BytecodeLivenessState* liveness = GetInLivenessFor(offset);
     DCHECK_NULL(merge_states_[offset]);
-    if (FLAG_trace_maglev_graph_building) {
+    if (v8_flags.trace_maglev_graph_building) {
       std::cout << "- Creating loop merge state at @" << offset << std::endl;
     }
     merge_states_[offset] = MergePointInterpreterFrameState::NewForLoop(
@@ -150,7 +150,7 @@ void MaglevGraphBuilder::BuildMergeStates() {
           GetInLivenessFor(offset);
       DCHECK_EQ(NumPredecessors(offset), 0);
       DCHECK_NULL(merge_states_[offset]);
-      if (FLAG_trace_maglev_graph_building) {
+      if (v8_flags.trace_maglev_graph_building) {
         std::cout << "- Creating exception merge state at @" << offset
                   << ", context register r" << context_reg.index() << std::endl;
       }
@@ -1966,7 +1966,7 @@ void MaglevGraphBuilder::BuildCallFromRegisters(
       return;
 
     case compiler::ProcessedFeedback::kCall: {
-      if (!FLAG_maglev_inlining) break;
+      if (!v8_flags.maglev_inlining) break;
 
       const compiler::CallFeedback& call_feedback = processed_feedback.AsCall();
       CallFeedbackContent content = call_feedback.call_feedback_content();
@@ -2677,7 +2677,7 @@ void MaglevGraphBuilder::MergeDeadIntoFrameState(int target) {
     // If this merge is the last one which kills a loop merge, remove that
     // merge state.
     if (merge_states_[target]->is_unreachable_loop()) {
-      if (FLAG_trace_maglev_graph_building) {
+      if (v8_flags.trace_maglev_graph_building) {
         std::cout << "! Killing loop merge state at @" << target << std::endl;
       }
       merge_states_[target] = nullptr;
@@ -3059,7 +3059,7 @@ void MaglevGraphBuilder::VisitResumeGenerator() {
       {generator}, JSGeneratorObject::kParametersAndRegistersOffset);
   interpreter::RegisterList registers = iterator_.GetRegisterListOperand(1);
 
-  if (FLAG_maglev_assert) {
+  if (v8_flags.maglev_assert) {
     // Check if register count is invalid, that is, larger than the
     // register file length.
     ValueNode* array_length_smi =

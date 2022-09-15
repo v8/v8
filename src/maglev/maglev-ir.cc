@@ -151,7 +151,7 @@ void AllocateRaw(MaglevAssembler* masm, RegisterSnapshot& register_snapshot,
   // TODO(victorgomes): Call the runtime for large object allocation.
   // TODO(victorgomes): Support double alignment.
   DCHECK_EQ(alignment, kTaggedAligned);
-  if (FLAG_single_generation) {
+  if (v8_flags.single_generation) {
     alloc_type = AllocationType::kOld;
   }
   bool in_new_space = alloc_type == AllocationType::kYoung;
@@ -1386,7 +1386,7 @@ void CheckJSArrayBounds::GenerateCode(MaglevAssembler* masm,
   __ AssertNotSmi(object);
   __ AssertSmi(index);
 
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     __ CmpObjectType(object, JS_ARRAY_TYPE, kScratchRegister);
     __ Assert(equal, AbortReason::kUnexpectedValue);
   }
@@ -1408,13 +1408,13 @@ void CheckJSObjectElementsBounds::GenerateCode(MaglevAssembler* masm,
   __ AssertNotSmi(object);
   __ AssertSmi(index);
 
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     __ CmpObjectType(object, FIRST_JS_OBJECT_TYPE, kScratchRegister);
     __ Assert(greater_equal, AbortReason::kUnexpectedValue);
   }
   __ LoadAnyTaggedField(kScratchRegister,
                         FieldOperand(object, JSObject::kElementsOffset));
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     __ AssertNotSmi(kScratchRegister);
   }
   TaggedRegister length(kScratchRegister);
@@ -1465,7 +1465,7 @@ void CheckedInternalizedString::GenerateCode(MaglevAssembler* masm,
         __ j(zero, &deopt_info->deopt_entry_label);
         __ LoadTaggedPointerField(
             object, FieldOperand(object, ThinString::kActualOffset));
-        if (FLAG_debug_code) {
+        if (v8_flags.debug_code) {
           __ RecordComment("DCHECK IsInternalizedString");
           __ LoadMap(map_tmp, object);
           __ testw(FieldOperand(map_tmp, Map::kInstanceTypeOffset),
@@ -1524,13 +1524,13 @@ void LoadTaggedElement::GenerateCode(MaglevAssembler* masm,
   Register index = ToRegister(index_input());
   Register result_reg = ToRegister(result());
   __ AssertNotSmi(object);
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     __ CmpObjectType(object, JS_OBJECT_TYPE, kScratchRegister);
     __ Assert(above_equal, AbortReason::kUnexpectedValue);
   }
   __ DecompressAnyTagged(kScratchRegister,
                          FieldOperand(object, JSObject::kElementsOffset));
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     __ CmpObjectType(kScratchRegister, FIXED_ARRAY_TYPE, kScratchRegister);
     __ Assert(equal, AbortReason::kUnexpectedValue);
     // Reload since CmpObjectType clobbered the scratch register.
@@ -1564,13 +1564,13 @@ void LoadDoubleElement::GenerateCode(MaglevAssembler* masm,
   Register index = ToRegister(index_input());
   DoubleRegister result_reg = ToDoubleRegister(result());
   __ AssertNotSmi(object);
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     __ CmpObjectType(object, JS_OBJECT_TYPE, kScratchRegister);
     __ Assert(above_equal, AbortReason::kUnexpectedValue);
   }
   __ DecompressAnyTagged(kScratchRegister,
                          FieldOperand(object, JSObject::kElementsOffset));
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     __ CmpObjectType(kScratchRegister, FIXED_DOUBLE_ARRAY_TYPE,
                      kScratchRegister);
     __ Assert(equal, AbortReason::kUnexpectedValue);
@@ -2500,7 +2500,7 @@ void LogicalNot::GenerateCode(MaglevAssembler* masm,
   Register object = ToRegister(value());
   Register return_value = ToRegister(result());
 
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     // LogicalNot expects either TrueValue or FalseValue.
     Label next;
     __ CompareRoot(object, RootIndex::kFalseValue);
@@ -3479,7 +3479,7 @@ void AttemptOnStackReplacement(MaglevAssembler* masm, Label* return_label,
   }
 
   __ bind(&deopt);
-  if (V8_LIKELY(FLAG_turbofan)) {
+  if (V8_LIKELY(v8_flags.turbofan)) {
     __ EmitEagerDeopt(node, DeoptimizeReason::kPrepareForOnStackReplacement);
   } else {
     // Fall through. With TF disabled we cannot OSR and thus it doesn't make

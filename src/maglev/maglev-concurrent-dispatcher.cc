@@ -88,7 +88,7 @@ MaglevCompilationJob::MaglevCompilationJob(
     std::unique_ptr<MaglevCompilationInfo>&& info)
     : OptimizedCompilationJob(kMaglevCompilerName, State::kReadyToPrepare),
       info_(std::move(info)) {
-  DCHECK(FLAG_maglev);
+  DCHECK(v8_flags.maglev);
 }
 
 MaglevCompilationJob::~MaglevCompilationJob() = default;
@@ -157,7 +157,7 @@ class MaglevConcurrentDispatcher::JobTask final : public v8::JobTask {
 
 MaglevConcurrentDispatcher::MaglevConcurrentDispatcher(Isolate* isolate)
     : isolate_(isolate) {
-  if (FLAG_concurrent_recompilation && FLAG_maglev) {
+  if (v8_flags.concurrent_recompilation && v8_flags.maglev) {
     job_handle_ = V8::GetCurrentPlatform()->PostJob(
         TaskPriority::kUserVisible, std::make_unique<JobTask>(this));
     DCHECK(is_enabled());

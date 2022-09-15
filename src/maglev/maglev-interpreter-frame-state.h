@@ -504,14 +504,14 @@ class MergePointInterpreterFrameState {
       known_node_aspects_->Merge(unmerged.known_node_aspects());
     }
 
-    if (FLAG_trace_maglev_graph_building) {
+    if (v8_flags.trace_maglev_graph_building) {
       std::cout << "Merging..." << std::endl;
     }
     frame_state_.ForEachValue(compilation_unit, [&](ValueNode*& value,
                                                     interpreter::Register reg) {
       CheckIsLoopPhiIfNeeded(compilation_unit, merge_offset, reg, value);
 
-      if (FLAG_trace_maglev_graph_building) {
+      if (v8_flags.trace_maglev_graph_building) {
         std::cout << "  " << reg.ToString() << ": "
                   << PrintNodeLabel(compilation_unit.graph_labeller(), value)
                   << " <- "
@@ -520,7 +520,7 @@ class MergePointInterpreterFrameState {
       }
       value = MergeValue(compilation_unit, reg, value, unmerged.get(reg),
                          merge_offset);
-      if (FLAG_trace_maglev_graph_building) {
+      if (v8_flags.trace_maglev_graph_building) {
         std::cout << " => "
                   << PrintNodeLabel(compilation_unit.graph_labeller(), value)
                   << ": " << PrintNode(compilation_unit.graph_labeller(), value)
@@ -541,14 +541,14 @@ class MergePointInterpreterFrameState {
     DCHECK(is_unmerged_loop());
     predecessors_[predecessor_count_ - 1] = loop_end_block;
 
-    if (FLAG_trace_maglev_graph_building) {
+    if (v8_flags.trace_maglev_graph_building) {
       std::cout << "Merging loop backedge..." << std::endl;
     }
     frame_state_.ForEachValue(compilation_unit, [&](ValueNode* value,
                                                     interpreter::Register reg) {
       CheckIsLoopPhiIfNeeded(compilation_unit, merge_offset, reg, value);
 
-      if (FLAG_trace_maglev_graph_building) {
+      if (v8_flags.trace_maglev_graph_building) {
         std::cout << "  " << reg.ToString() << ": "
                   << PrintNodeLabel(compilation_unit.graph_labeller(), value)
                   << " <- "
@@ -557,7 +557,7 @@ class MergePointInterpreterFrameState {
       }
       MergeLoopValue(compilation_unit, reg, value, loop_end_state.get(reg),
                      merge_offset);
-      if (FLAG_trace_maglev_graph_building) {
+      if (v8_flags.trace_maglev_graph_building) {
         std::cout << " => "
                   << PrintNodeLabel(compilation_unit.graph_labeller(), value)
                   << ": " << PrintNode(compilation_unit.graph_labeller(), value)
@@ -770,7 +770,7 @@ class MergePointInterpreterFrameState {
 
     for (int i = 0; i < predecessors_so_far_; i++) result->set_input(i, merged);
     result->set_input(predecessors_so_far_, unmerged);
-    if (FLAG_trace_maglev_graph_building) {
+    if (v8_flags.trace_maglev_graph_building) {
       for (int i = predecessors_so_far_ + 1; i < predecessor_count_; i++) {
         result->set_input(i, nullptr);
       }
@@ -823,7 +823,7 @@ class MergePointInterpreterFrameState {
     DCHECK_EQ(predecessors_so_far_, 0);
     // Create a new loop phi, which for now is empty.
     Phi* result = Node::New<Phi>(zone, predecessor_count_, reg, merge_offset);
-    if (FLAG_trace_maglev_graph_building) {
+    if (v8_flags.trace_maglev_graph_building) {
       for (int i = 0; i < predecessor_count_; i++) {
         result->set_input(i, nullptr);
       }

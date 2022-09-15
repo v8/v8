@@ -252,7 +252,7 @@ inline void MaglevAssembler::JumpToDeferredIf(Condition cond,
                                               Args&&... args) {
   DeferredCodeInfo* deferred_code = PushDeferredCode<Function, Args...>(
       std::forward<Function>(deferred_code_gen), std::forward<Args>(args)...);
-  if (FLAG_code_comments) {
+  if (v8_flags.code_comments) {
     RecordComment("-- Jump to deferred code");
   }
   j(cond, &deferred_code->deferred_code_label);

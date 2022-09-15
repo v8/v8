@@ -96,7 +96,7 @@ class MaglevGraphBuilder {
     if (has_graph_labeller()) {
       for (Phi* phi : *merge_states_[offset]->phis()) {
         graph_labeller()->RegisterNode(phi);
-        if (FLAG_trace_maglev_graph_building) {
+        if (v8_flags.trace_maglev_graph_building) {
           std::cout << "  " << phi << "  "
                     << PrintNodeLabel(graph_labeller(), phi) << ": "
                     << PrintNode(graph_labeller(), phi) << std::endl;
@@ -147,7 +147,7 @@ class MaglevGraphBuilder {
     if (has_graph_labeller()) {
       for (Phi* phi : *merge_states_[offset]->phis()) {
         graph_labeller()->RegisterNode(phi);
-        if (FLAG_trace_maglev_graph_building) {
+        if (v8_flags.trace_maglev_graph_building) {
           std::cout << "  " << phi << "  "
                     << PrintNodeLabel(graph_labeller(), phi) << ": "
                     << PrintNode(graph_labeller(), phi) << std::endl;
@@ -174,7 +174,7 @@ class MaglevGraphBuilder {
 
   void MarkBytecodeDead() {
     DCHECK_NULL(current_block_);
-    if (FLAG_trace_maglev_graph_building) {
+    if (v8_flags.trace_maglev_graph_building) {
       std::cout << "== Dead ==\n"
                 << std::setw(4) << iterator_.current_offset() << " : ";
       interpreter::BytecodeDecoder::Decode(std::cout,
@@ -250,7 +250,7 @@ class MaglevGraphBuilder {
         merge_state->Merge(*compilation_unit_, current_interpreter_frame_,
                            graph()->last_block(), offset);
       }
-      if (FLAG_trace_maglev_graph_building) {
+      if (v8_flags.trace_maglev_graph_building) {
         auto detail = merge_state->is_exception_handler() ? "exception handler"
                       : merge_state->is_loop()            ? "loop header"
                                                           : "merge";
@@ -316,7 +316,7 @@ class MaglevGraphBuilder {
     }
 
     DCHECK_NOT_NULL(current_block_);
-    if (FLAG_trace_maglev_graph_building) {
+    if (v8_flags.trace_maglev_graph_building) {
       std::cout << std::setw(4) << iterator_.current_offset() << " : ";
       interpreter::BytecodeDecoder::Decode(std::cout,
                                            iterator_.current_address());
@@ -352,7 +352,7 @@ class MaglevGraphBuilder {
     }
     current_block_->nodes().Add(node);
     if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
-    if (FLAG_trace_maglev_graph_building) {
+    if (v8_flags.trace_maglev_graph_building) {
       std::cout << "  " << node << "  "
                 << PrintNodeLabel(graph_labeller(), node) << ": "
                 << PrintNode(graph_labeller(), node) << std::endl;
@@ -900,7 +900,7 @@ class MaglevGraphBuilder {
     graph()->Add(block);
     if (has_graph_labeller()) {
       graph_labeller()->RegisterBasicBlock(block);
-      if (FLAG_trace_maglev_graph_building) {
+      if (v8_flags.trace_maglev_graph_building) {
         bool kSkipTargets = true;
         std::cout << "  " << control_node << "  "
                   << PrintNodeLabel(graph_labeller(), control_node) << ": "
@@ -938,7 +938,7 @@ class MaglevGraphBuilder {
     DCHECK_NULL(current_block_);
     if (std::is_base_of<ConditionalControlNode, ControlNodeT>::value) {
       if (NumPredecessors(next_block_offset) == 1) {
-        if (FLAG_trace_maglev_graph_building) {
+        if (v8_flags.trace_maglev_graph_building) {
           std::cout << "== New block (single fallthrough) ==" << std::endl;
         }
         StartNewBlock(next_block_offset);
