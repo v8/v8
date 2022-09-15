@@ -721,7 +721,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArchCallJSFunction: {
       Register func = i.InputOrZeroRegister(0);
-      if (FLAG_debug_code) {
+      if (v8_flags.debug_code) {
         // Check the function's context matches the context argument.
         __ LoadTaggedPointerField(
             kScratchReg, FieldMemOperand(func, JSFunction::kContextOffset));
@@ -905,7 +905,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       int alignment = i.InputInt32(1);
       DCHECK(alignment == 0 || alignment == 4 || alignment == 8 ||
              alignment == 16);
-      if (FLAG_debug_code && alignment > 0) {
+      if (v8_flags.debug_code && alignment > 0) {
         // Verify that the output_register is properly aligned
         __ And(kScratchReg, i.OutputRegister(),
                Operand(kSystemPointerSize - 1));
@@ -3855,7 +3855,7 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         ReferenceMap* reference_map =
             gen_->zone()->New<ReferenceMap>(gen_->zone());
         gen_->RecordSafepoint(reference_map);
-        if (FLAG_debug_code) {
+        if (v8_flags.debug_code) {
           __ stop();
         }
       }
@@ -4193,7 +4193,8 @@ void CodeGenerator::AssembleConstructFrame() {
       // If the frame is bigger than the stack, we throw the stack overflow
       // exception unconditionally. Thereby we can avoid the integer overflow
       // check in the condition code.
-      if ((required_slots * kSystemPointerSize) < (FLAG_stack_size * 1024)) {
+      if ((required_slots * kSystemPointerSize) <
+          (v8_flags.stack_size * 1024)) {
         __ LoadWord(
             kScratchReg,
             FieldMemOperand(kWasmInstanceRegister,
@@ -4208,7 +4209,7 @@ void CodeGenerator::AssembleConstructFrame() {
       // We come from WebAssembly, there are no references for the GC.
       ReferenceMap* reference_map = zone()->New<ReferenceMap>(zone());
       RecordSafepoint(reference_map);
-      if (FLAG_debug_code) {
+      if (v8_flags.debug_code) {
         __ stop();
       }
 
@@ -4273,7 +4274,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   if (parameter_slots != 0) {
     if (additional_pop_count->IsImmediate()) {
       DCHECK_EQ(g.ToConstant(additional_pop_count).ToInt32(), 0);
-    } else if (FLAG_debug_code) {
+    } else if (v8_flags.debug_code) {
       __ Assert(eq, AbortReason::kUnexpectedAdditionalPopValue,
                 g.ToRegister(additional_pop_count),
                 Operand(static_cast<intptr_t>(0)));

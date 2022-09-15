@@ -2250,7 +2250,7 @@ base::Optional<PropertyCellRef> JSGlobalObjectRef::GetPropertyCell(
 }
 
 std::ostream& operator<<(std::ostream& os, const ObjectRef& ref) {
-  if (!FLAG_concurrent_recompilation) {
+  if (!v8_flags.concurrent_recompilation) {
     // We cannot be in a background thread so it's safe to read the heap.
     AllowHandleDereference allow_handle_dereference;
     return os << ref.data() << " {" << ref.object() << "}";

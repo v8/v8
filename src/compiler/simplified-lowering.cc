@@ -39,9 +39,9 @@ namespace internal {
 namespace compiler {
 
 // Macro for outputting trace information from representation inference.
-#define TRACE(...)                                      \
-  do {                                                  \
-    if (FLAG_trace_representation) PrintF(__VA_ARGS__); \
+#define TRACE(...)                                          \
+  do {                                                      \
+    if (v8_flags.trace_representation) PrintF(__VA_ARGS__); \
   } while (false)
 
 const char* kSimplifiedLoweringReducerName = "SimplifiedLowering";
@@ -515,7 +515,7 @@ class RepresentationSelector {
 
     if (!type.IsInvalid() && new_type.Is(type)) return false;
     GetInfo(node)->set_feedback_type(new_type);
-    if (FLAG_trace_representation) {
+    if (v8_flags.trace_representation) {
       PrintNodeFeedbackType(node);
     }
     return true;
@@ -4142,7 +4142,7 @@ class RepresentationSelector {
           if (inputType.CanBeAsserted()) {
             ChangeOp(node, simplified()->AssertType(inputType));
           } else {
-            if (!FLAG_fuzzing) {
+            if (!v8_flags.fuzzing) {
 #ifdef DEBUG
               inputType.Print();
 #endif
@@ -4440,7 +4440,7 @@ SimplifiedLowering::SimplifiedLowering(
 
 void SimplifiedLowering::LowerAllNodes() {
   SimplifiedLoweringVerifier* verifier = nullptr;
-  if (FLAG_verify_simplified_lowering) {
+  if (v8_flags.verify_simplified_lowering) {
     verifier = zone_->New<SimplifiedLoweringVerifier>(zone_, graph());
   }
   RepresentationChanger changer(jsgraph(), broker_, verifier);

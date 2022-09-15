@@ -785,7 +785,7 @@ void CodeGenerator::AssembleCodeStartRegisterCheck() {
 //    2. test kMarkedForDeoptimizationBit in those flags; and
 //    3. if it is not zero then it jumps to the builtin.
 void CodeGenerator::BailoutIfDeoptimized() {
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     // Check that {kJavaScriptCallCodeStartRegister} is correct.
     __ ComputeCodeStartAddress(ip);
     __ CmpS64(ip, kJavaScriptCallCodeStartRegister);
@@ -908,7 +908,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       v8::internal::Assembler::BlockTrampolinePoolScope block_trampoline_pool(
           tasm());
       Register func = i.InputRegister(0);
-      if (FLAG_debug_code) {
+      if (v8_flags.debug_code) {
         // Check the function's context matches the context argument.
         __ LoadTaggedPointerField(
             kScratchReg, FieldMemOperand(func, JSFunction::kContextOffset), r0);
@@ -1131,7 +1131,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register scratch1 = i.TempRegister(1);
       OutOfLineRecordWrite* ool;
 
-      if (FLAG_debug_code) {
+      if (v8_flags.debug_code) {
         // Checking that |value| is not a cleared weakref: our write barrier
         // does not support that for now.
         __ CmpS64(value, Operand(kClearedWeakHeapObjectLower32), kScratchReg);
@@ -3561,7 +3561,7 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         ReferenceMap* reference_map =
             gen_->zone()->New<ReferenceMap>(gen_->zone());
         gen_->RecordSafepoint(reference_map);
-        if (FLAG_debug_code) {
+        if (v8_flags.debug_code) {
           __ stop();
         }
       }
@@ -3694,13 +3694,13 @@ void CodeGenerator::FinishFrame(Frame* frame) {
   }
   // Save callee-saved registers.
   const RegList saves =
-      FLAG_enable_embedded_constant_pool
+      v8_flags.enable_embedded_constant_pool
           ? call_descriptor->CalleeSavedRegisters() - kConstantPoolRegister
           : call_descriptor->CalleeSavedRegisters();
   if (!saves.is_empty()) {
     // register save area does not include the fp or constant pool pointer.
     const int num_saves =
-        kNumCalleeSaved - 1 - (FLAG_enable_embedded_constant_pool ? 1 : 0);
+        kNumCalleeSaved - 1 - (v8_flags.enable_embedded_constant_pool ? 1 : 0);
     frame->AllocateSavedCalleeRegisterSlots(num_saves);
   }
 }
@@ -3720,7 +3720,7 @@ void CodeGenerator::AssembleConstructFrame() {
 #endif  // V8_ENABLE_WEBASSEMBLY
       } else {
         __ mflr(r0);
-        if (FLAG_enable_embedded_constant_pool) {
+        if (v8_flags.enable_embedded_constant_pool) {
           __ Push(r0, fp, kConstantPoolRegister);
           // Adjust FP to point to saved FP.
           __ SubS64(fp, sp,
@@ -3769,7 +3769,7 @@ void CodeGenerator::AssembleConstructFrame() {
 
   const DoubleRegList saves_fp = call_descriptor->CalleeSavedFPRegisters();
   const RegList saves =
-      FLAG_enable_embedded_constant_pool
+      v8_flags.enable_embedded_constant_pool
           ? call_descriptor->CalleeSavedRegisters() - kConstantPoolRegister
           : call_descriptor->CalleeSavedRegisters();
 
@@ -3785,7 +3785,7 @@ void CodeGenerator::AssembleConstructFrame() {
       // If the frame is bigger than the stack, we throw the stack overflow
       // exception unconditionally. Thereby we can avoid the integer overflow
       // check in the condition code.
-      if (required_slots * kSystemPointerSize < FLAG_stack_size * KB) {
+      if (required_slots * kSystemPointerSize < v8_flags.stack_size * KB) {
         Register scratch = ip;
         __ LoadU64(
             scratch,
@@ -3804,7 +3804,7 @@ void CodeGenerator::AssembleConstructFrame() {
       // define an empty safepoint.
       ReferenceMap* reference_map = zone()->New<ReferenceMap>(zone());
       RecordSafepoint(reference_map);
-      if (FLAG_debug_code) __ stop();
+      if (v8_flags.debug_code) __ stop();
 
       __ bind(&done);
     }
@@ -3845,7 +3845,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
 
   // Restore registers.
   const RegList saves =
-      FLAG_enable_embedded_constant_pool
+      v8_flags.enable_embedded_constant_pool
           ? call_descriptor->CalleeSavedRegisters() - kConstantPoolRegister
           : call_descriptor->CalleeSavedRegisters();
   if (!saves.is_empty()) {
@@ -3869,7 +3869,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   if (parameter_slots != 0) {
     if (additional_pop_count->IsImmediate()) {
       DCHECK_EQ(g.ToConstant(additional_pop_count).ToInt32(), 0);
-    } else if (FLAG_debug_code) {
+    } else if (v8_flags.debug_code) {
       __ cmpi(g.ToRegister(additional_pop_count), Operand(0));
       __ Assert(eq, AbortReason::kUnexpectedAdditionalPopValue);
     }

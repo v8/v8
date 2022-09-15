@@ -214,7 +214,7 @@ void CodeGenerator::AssembleCode() {
   tasm()->CodeEntry();
 
   // Check that {kJavaScriptCallCodeStartRegister} has been set correctly.
-  if (FLAG_debug_code && info->called_with_code_start_register()) {
+  if (v8_flags.debug_code && info->called_with_code_start_register()) {
     tasm()->RecordComment("-- Prologue: check code start register --");
     AssembleCodeStartRegisterCheck();
   }
@@ -274,7 +274,7 @@ void CodeGenerator::AssembleCode() {
     // Bind a label for a block.
     current_block_ = block->rpo_number();
     unwinding_info_writer_.BeginInstructionBlock(tasm()->pc_offset(), block);
-    if (FLAG_code_comments) {
+    if (v8_flags.code_comments) {
       std::ostringstream buffer;
       buffer << "-- B" << block->rpo_number().ToInt() << " start";
       if (block->IsDeferred()) buffer << " (deferred)";
@@ -307,7 +307,7 @@ void CodeGenerator::AssembleCode() {
       }
     }
 
-    if (FLAG_enable_embedded_constant_pool && !block->needs_frame()) {
+    if (v8_flags.enable_embedded_constant_pool && !block->needs_frame()) {
       ConstantPoolUnavailableScope constant_pool_unavailable(tasm());
       result_ = AssembleBlock(block);
     } else {
@@ -813,7 +813,7 @@ void CodeGenerator::AssembleSourcePosition(SourcePosition source_position) {
   if (!source_position.IsKnown()) return;
   source_position_table_builder_.AddPosition(tasm()->pc_offset(),
                                              source_position, false);
-  if (FLAG_code_comments) {
+  if (v8_flags.code_comments) {
     OptimizedCompilationInfo* info = this->info();
     if (!info->IsOptimizing()) {
 #if V8_ENABLE_WEBASSEMBLY

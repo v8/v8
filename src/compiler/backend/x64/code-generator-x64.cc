@@ -481,7 +481,7 @@ class WasmProtectedInstructionTrap final : public WasmOutOfLineTrap {
       : WasmOutOfLineTrap(gen, instr), pc_(pc) {}
 
   void Generate() final {
-    DCHECK(FLAG_wasm_bounds_checks && !FLAG_wasm_enforce_bounds_checks);
+    DCHECK(v8_flags.wasm_bounds_checks && !v8_flags.wasm_enforce_bounds_checks);
     gen_->AddProtectedInstructionLanding(pc_, __ pc_offset());
     GenerateWithTrapId(TrapId::kTrapMemOutOfBounds);
   }
@@ -1318,7 +1318,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArchCallJSFunction: {
       Register func = i.InputRegister(0);
-      if (FLAG_debug_code) {
+      if (v8_flags.debug_code) {
         // Check the function's context matches the context argument.
         __ cmp_tagged(rsi, FieldOperand(func, JSFunction::kContextOffset));
         __ Assert(equal, AbortReason::kWrongFunctionContext);
@@ -1515,7 +1515,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register scratch0 = i.TempRegister(0);
       Register scratch1 = i.TempRegister(1);
 
-      if (FLAG_debug_code) {
+      if (v8_flags.debug_code) {
         // Checking that |value| is not a cleared weakref: our write barrier
         // does not support that for now.
         __ Cmp(value, kClearedWeakHeapObjectLower32);
@@ -4605,7 +4605,7 @@ void CodeGenerator::AssembleArchDeoptBranch(Instruction* instr,
   }
   __ j(FlagsConditionToCondition(branch->condition), tlabel);
 
-  if (FLAG_deopt_every_n_times > 0) {
+  if (v8_flags.deopt_every_n_times > 0) {
     ExternalReference counter =
         ExternalReference::stress_deopt_count(isolate());
 
@@ -4615,7 +4615,7 @@ void CodeGenerator::AssembleArchDeoptBranch(Instruction* instr,
     __ decl(rax);
     __ j(not_zero, &nodeopt, Label::kNear);
 
-    __ Move(rax, FLAG_deopt_every_n_times);
+    __ Move(rax, v8_flags.deopt_every_n_times);
     __ store_rax(counter);
     __ popq(rax);
     __ popfq();
@@ -4840,7 +4840,7 @@ void CodeGenerator::AssembleConstructFrame() {
       // If the frame is bigger than the stack, we throw the stack overflow
       // exception unconditionally. Thereby we can avoid the integer overflow
       // check in the condition code.
-      if (required_slots * kSystemPointerSize < FLAG_stack_size * KB) {
+      if (required_slots * kSystemPointerSize < v8_flags.stack_size * KB) {
         __ movq(kScratchRegister,
                 FieldOperand(kWasmInstanceRegister,
                              WasmInstanceObject::kRealStackLimitAddressOffset));
@@ -4934,7 +4934,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   if (parameter_slots != 0) {
     if (additional_pop_count->IsImmediate()) {
       DCHECK_EQ(g.ToConstant(additional_pop_count).ToInt32(), 0);
-    } else if (FLAG_debug_code) {
+    } else if (v8_flags.debug_code) {
       __ cmpq(g.ToRegister(additional_pop_count), Immediate(0));
       __ Assert(equal, AbortReason::kUnexpectedAdditionalPopValue);
     }
@@ -5015,7 +5015,7 @@ void CodeGenerator::PrepareForDeoptimizationExits(
 
 void CodeGenerator::IncrementStackAccessCounter(
     InstructionOperand* source, InstructionOperand* destination) {
-  DCHECK(FLAG_trace_turbo_stack_accesses);
+  DCHECK(v8_flags.trace_turbo_stack_accesses);
   if (!info()->IsOptimizing()) {
 #if V8_ENABLE_WEBASSEMBLY
     if (!info()->IsWasm()) return;
@@ -5203,7 +5203,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     __ movq(dst, kScratchRegister);
   };
 
-  if (FLAG_trace_turbo_stack_accesses) {
+  if (v8_flags.trace_turbo_stack_accesses) {
     IncrementStackAccessCounter(source, destination);
   }
 
@@ -5322,7 +5322,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
 
 void CodeGenerator::AssembleSwap(InstructionOperand* source,
                                  InstructionOperand* destination) {
-  if (FLAG_trace_turbo_stack_accesses) {
+  if (v8_flags.trace_turbo_stack_accesses) {
     IncrementStackAccessCounter(source, destination);
     IncrementStackAccessCounter(destination, source);
   }

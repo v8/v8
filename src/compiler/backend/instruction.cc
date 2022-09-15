@@ -803,7 +803,7 @@ void InstructionSequence::ComputeAssemblyOrder() {
     if (block->ao_number() != invalid) continue;  // loop rotated.
     if (block->IsLoopHeader()) {
       bool header_align = true;
-      if (FLAG_turbo_loop_rotation) {
+      if (v8_flags.turbo_loop_rotation) {
         // Perform loop rotation for non-deferred loops.
         InstructionBlock* loop_end =
             instruction_blocks_->at(block->loop_end().ToSize() - 1);

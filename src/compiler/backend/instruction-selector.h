@@ -292,7 +292,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
       size_t* max_pushed_argument_count,
       SourcePositionMode source_position_mode = kCallSourcePositions,
       Features features = SupportedFeatures(),
-      EnableScheduling enable_scheduling = FLAG_turbo_instruction_scheduling
+      EnableScheduling enable_scheduling = v8_flags.turbo_instruction_scheduling
                                                ? kEnableScheduling
                                                : kDisableScheduling,
       EnableRootsRelativeAddressing enable_roots_relative_addressing =

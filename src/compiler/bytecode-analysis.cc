@@ -704,7 +704,7 @@ void BytecodeAnalysis::Analyze() {
   }
 
   DCHECK(analyze_liveness_);
-  if (FLAG_trace_environment_liveness) {
+  if (v8_flags.trace_environment_liveness) {
     StdoutStream of;
     PrintLivenessTo(of);
   }

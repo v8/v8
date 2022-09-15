@@ -681,7 +681,7 @@ class IteratingArrayBuiltinReducerAssembler : public JSCallReducerAssembler {
  public:
   IteratingArrayBuiltinReducerAssembler(JSCallReducer* reducer, Node* node)
       : JSCallReducerAssembler(reducer, node) {
-    DCHECK(FLAG_turbo_inline_array_builtins);
+    DCHECK(v8_flags.turbo_inline_array_builtins);
   }
 
   TNode<Object> ReduceArrayPrototypeForEach(
@@ -3400,7 +3400,7 @@ class IteratingArrayBuiltinHelper {
         effect_(NodeProperties::GetEffectInput(node)),
         control_(NodeProperties::GetControlInput(node)),
         inference_(broker, receiver_, effect_) {
-    if (!FLAG_turbo_inline_array_builtins) return;
+    if (!v8_flags.turbo_inline_array_builtins) return;
 
     DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
     const CallParameters& p = CallParametersOf(node->op());
@@ -3698,7 +3698,7 @@ FastApiCallFunctionVector CanOptimizeFastCall(
     Zone* zone, const FunctionTemplateInfoRef& function_template_info,
     size_t argc) {
   FastApiCallFunctionVector result(zone);
-  if (!FLAG_turbo_fast_api_calls) return result;
+  if (!v8_flags.turbo_fast_api_calls) return result;
 
   static constexpr int kReceiver = 1;
 
@@ -4273,7 +4273,7 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
         feedback_source, speculation_mode, feedback_relation);
   }
 
-  if (!FLAG_turbo_optimize_apply) return NoChange();
+  if (!v8_flags.turbo_optimize_apply) return NoChange();
 
   // Optimization of construct nodes not supported yet.
   if (!IsCallWithArrayLikeOrSpread(node)) return NoChange();
@@ -5618,7 +5618,7 @@ void JSCallReducer::CheckIfElementsKind(Node* receiver_elements_kind,
 
 // ES6 section 23.1.3.1 Array.prototype.at ( )
 Reduction JSCallReducer::ReduceArrayPrototypeAt(Node* node) {
-  if (!FLAG_turbo_inline_array_builtins) return NoChange();
+  if (!v8_flags.turbo_inline_array_builtins) return NoChange();
 
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
@@ -6075,7 +6075,7 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
           ElementAccess const access =
               AccessBuilder::ForFixedArrayElement(kind);
 
-          // When disable FLAG_turbo_loop_variable, typer cannot infer index
+          // When disable v8_flags.turbo_loop_variable, typer cannot infer index
           // is in [1, kMaxCopyElements-1], and will break in representing
           // kRepFloat64 (Range(1, inf)) to kRepWord64 when converting
           // input for kLoadElement. So we need to add type guard here.
@@ -6196,7 +6196,7 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
 
 // ES6 section 22.1.3.23 Array.prototype.slice ( )
 Reduction JSCallReducer::ReduceArrayPrototypeSlice(Node* node) {
-  if (!FLAG_turbo_inline_array_builtins) return NoChange();
+  if (!v8_flags.turbo_inline_array_builtins) return NoChange();
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
   if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
@@ -8236,7 +8236,7 @@ Reduction JSCallReducer::ReduceNumberParseInt(Node* node) {
 Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
-  if (FLAG_force_slow_path) return NoChange();
+  if (v8_flags.force_slow_path) return NoChange();
   if (n.ArgumentCount() < 1) return NoChange();
 
   if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {

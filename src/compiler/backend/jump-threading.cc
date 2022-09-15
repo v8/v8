@@ -9,9 +9,9 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-#define TRACE(...)                                \
-  do {                                            \
-    if (FLAG_trace_turbo_jt) PrintF(__VA_ARGS__); \
+#define TRACE(...)                                    \
+  do {                                                \
+    if (v8_flags.trace_turbo_jt) PrintF(__VA_ARGS__); \
   } while (false)
 
 namespace {
@@ -166,7 +166,7 @@ bool JumpThreading::ComputeForwarding(Zone* local_zone,
   }
 #endif
 
-  if (FLAG_trace_turbo_jt) {
+  if (v8_flags.trace_turbo_jt) {
     for (int i = 0; i < static_cast<int>(result->size()); i++) {
       TRACE("B%d ", i);
       int to = (*result)[i].ToInt();
@@ -184,7 +184,7 @@ bool JumpThreading::ComputeForwarding(Zone* local_zone,
 void JumpThreading::ApplyForwarding(Zone* local_zone,
                                     ZoneVector<RpoNumber> const& result,
                                     InstructionSequence* code) {
-  if (!FLAG_turbo_jt) return;
+  if (!v8_flags.turbo_jt) return;
 
   ZoneVector<bool> skip(static_cast<int>(result.size()), false, local_zone);
 

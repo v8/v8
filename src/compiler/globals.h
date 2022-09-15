@@ -22,7 +22,7 @@ namespace compiler {
 // TODO(jgruber): Remove once we've made a decision whether to collect feedback
 // unconditionally.
 inline bool CollectFeedbackInGenericLowering() {
-  return FLAG_turbo_collect_feedback_in_generic_lowering;
+  return v8_flags.turbo_collect_feedback_in_generic_lowering;
 }
 
 enum class StackCheckKind : uint8_t {

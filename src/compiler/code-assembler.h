@@ -435,7 +435,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
               !std::is_convertible<TNode<PreviousType>, TNode<A>>::value,
           "Unnecessary CAST: types are convertible.");
 #ifdef DEBUG
-      if (FLAG_debug_code) {
+      if (v8_flags.debug_code) {
         TNode<ExternalReference> function = code_assembler_->ExternalConstant(
             ExternalReference::check_object_type());
         code_assembler_->CallCFunction(
@@ -618,13 +618,13 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void DebugBreak();
   void Unreachable();
   void Comment(const char* msg) {
-    if (!FLAG_code_comments) return;
+    if (!v8_flags.code_comments) return;
     Comment(std::string(msg));
   }
   void Comment(std::string msg);
   template <class... Args>
   void Comment(Args&&... args) {
-    if (!FLAG_code_comments) return;
+    if (!v8_flags.code_comments) return;
     std::ostringstream s;
     USE((s << std::forward<Args>(args))...);
     Comment(s.str());

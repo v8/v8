@@ -597,7 +597,7 @@ void VisitStoreCommon(InstructionSelector* selector, Node* node,
   const bool is_seqcst =
       atomic_order && *atomic_order == AtomicMemoryOrder::kSeqCst;
 
-  if (FLAG_enable_unconditional_write_barriers &&
+  if (v8_flags.enable_unconditional_write_barriers &&
       CanBeTaggedOrCompressedPointer(store_rep.representation())) {
     write_barrier_kind = kFullWriteBarrier;
   }
@@ -606,7 +606,8 @@ void VisitStoreCommon(InstructionSelector* selector, Node* node,
     ? MemoryAccessMode::kMemoryAccessProtected
     : MemoryAccessMode::kMemoryAccessDirect;
 
-  if (write_barrier_kind != kNoWriteBarrier && !FLAG_disable_write_barriers) {
+  if (write_barrier_kind != kNoWriteBarrier &&
+      !v8_flags.disable_write_barriers) {
     DCHECK(CanBeTaggedOrCompressedPointer(store_rep.representation()));
     AddressingMode addressing_mode;
     InstructionOperand inputs[] = {

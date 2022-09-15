@@ -111,7 +111,7 @@ class OptimizationPhase {
   static void Run(Graph* input, Zone* phase_zone, NodeOriginTable* origins,
                   VisitOrder visit_order = VisitOrder::kAsEmitted) {
     Impl phase{*input, phase_zone, origins, visit_order};
-    if (FLAG_turboshaft_trace_reduction) {
+    if (v8_flags.turboshaft_trace_reduction) {
       phase.template Run<true>();
     } else {
       phase.template Run<false>();

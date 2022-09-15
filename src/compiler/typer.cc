@@ -862,7 +862,7 @@ Type Typer::Visitor::TypeInductionVariablePhi(Node* node) {
     max = +V8_INFINITY;
   }
 
-  if (FLAG_trace_turbo_loop) {
+  if (v8_flags.trace_turbo_loop) {
     StdoutStream{} << std::setprecision(10) << "Loop ("
                    << NodeProperties::GetControlInput(node)->id()
                    << ") variable bounds in "

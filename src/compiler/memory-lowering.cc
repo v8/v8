@@ -48,7 +48,7 @@ class MemoryLowering::AllocationGroup final : public ZoneObject {
   static inline AllocationType CheckAllocationType(AllocationType allocation) {
     // For non-generational heap, all young allocations are redirected to old
     // space.
-    if (FLAG_single_generation && allocation == AllocationType::kYoung) {
+    if (v8_flags.single_generation && allocation == AllocationType::kYoung) {
       return AllocationType::kOld;
     }
     return allocation;
@@ -137,7 +137,7 @@ Reduction MemoryLowering::ReduceAllocateRaw(
   DCHECK_EQ(IrOpcode::kAllocateRaw, node->opcode());
   DCHECK_IMPLIES(allocation_folding_ == AllocationFolding::kDoAllocationFolding,
                  state_ptr != nullptr);
-  if (FLAG_single_generation && allocation_type == AllocationType::kYoung) {
+  if (v8_flags.single_generation && allocation_type == AllocationType::kYoung) {
     allocation_type = AllocationType::kOld;
   }
   // Code objects may have a maximum size smaller than kMaxHeapObjectSize due to
@@ -232,7 +232,7 @@ Reduction MemoryLowering::ReduceAllocateRaw(
   // Check if we can fold this allocation into a previous allocation represented
   // by the incoming {state}.
   IntPtrMatcher m(size);
-  if (m.IsInRange(0, kMaxRegularHeapObjectSize) && FLAG_inline_new &&
+  if (m.IsInRange(0, kMaxRegularHeapObjectSize) && v8_flags.inline_new &&
       allocation_folding_ == AllocationFolding::kDoAllocationFolding) {
     intptr_t const object_size = m.ResolvedValue();
     AllocationState const* state = *state_ptr;
@@ -645,7 +645,7 @@ WriteBarrierKind MemoryLowering::ComputeWriteBarrierKind(
   if (!ValueNeedsWriteBarrier(value, isolate())) {
     write_barrier_kind = kNoWriteBarrier;
   }
-  if (FLAG_disable_write_barriers) {
+  if (v8_flags.disable_write_barriers) {
     write_barrier_kind = kNoWriteBarrier;
   }
   if (write_barrier_kind == WriteBarrierKind::kAssertNoWriteBarrier) {

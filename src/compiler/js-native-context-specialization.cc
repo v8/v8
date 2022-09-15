@@ -1164,7 +1164,7 @@ Reduction JSNativeContextSpecialization::ReduceMegaDOMPropertyAccess(
       simplified()->LoadField(AccessBuilder::ForMapInstanceType()),
       receiver_map, effect, control);
 
-  if (FLAG_embedder_instance_types && range_start != 0) {
+  if (v8_flags.embedder_instance_types && range_start != 0) {
     // Embedder instance ID is set, doing a simple range check.
     Node* diff_to_start =
         graph()->NewNode(simplified()->NumberSubtract(), receiver_instance_type,
@@ -1251,7 +1251,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
   // lookup_start_object = the object where we start looking for the property.
   Node* lookup_start_object;
   if (node->opcode() == IrOpcode::kJSLoadNamedFromSuper) {
-    DCHECK(FLAG_super_ic);
+    DCHECK(v8_flags.super_ic);
     JSLoadNamedFromSuperNode n(node);
     // Lookup start object is the __proto__ of the home object.
     lookup_start_object = effect =

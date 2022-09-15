@@ -326,7 +326,7 @@ void InstructionSelector::VisitStore(Node* node) {
 
   // TODO(riscv): I guess this could be done in a better way.
   if (write_barrier_kind != kNoWriteBarrier &&
-      V8_LIKELY(!FLAG_disable_write_barriers)) {
+      V8_LIKELY(!v8_flags.disable_write_barriers)) {
     DCHECK(CanBeTaggedPointer(rep));
     InstructionOperand inputs[3];
     size_t input_count = 0;
@@ -1441,7 +1441,7 @@ void VisitFullWord32Compare(InstructionSelector* selector, Node* node,
 void VisitOptimizedWord32Compare(InstructionSelector* selector, Node* node,
                                  InstructionCode opcode,
                                  FlagsContinuation* cont) {
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     RiscvOperandGenerator g(selector);
     InstructionOperand leftOp = g.TempRegister();
     InstructionOperand rightOp = g.TempRegister();

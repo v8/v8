@@ -1274,7 +1274,7 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       return JumpLatency();
     case kArchCallJSFunction: {
       int latency = 0;
-      if (FLAG_debug_code) {
+      if (v8_flags.debug_code) {
         latency = 1 + AssertLatency();
       }
       return latency + 1 + DadduLatency(false) + CallLatency();
