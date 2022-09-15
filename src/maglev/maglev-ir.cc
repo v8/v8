@@ -2499,41 +2499,53 @@ void LogicalNot::GenerateCode(MaglevAssembler* masm,
                               const ProcessingState& state) {
   Register object = ToRegister(value());
   Register return_value = ToRegister(result());
-  Label not_equal_true;
-  // We load the constant true to the return value and we return it if the
-  // object is not equal to it. Otherwise we load the constant false.
-  __ LoadRoot(return_value, RootIndex::kTrueValue);
-  __ cmp_tagged(return_value, object);
-  __ j(not_equal, &not_equal_true);
-  __ LoadRoot(return_value, RootIndex::kFalseValue);
+
   if (FLAG_debug_code) {
-    Label is_equal_true;
-    __ jmp(&is_equal_true);
-    __ bind(&not_equal_true);
-    // LogicalNot expects either the constants true or false.
-    // We know it is not true, so it must be false!
+    // LogicalNot expects either TrueValue or FalseValue.
+    Label next;
     __ CompareRoot(object, RootIndex::kFalseValue);
+    __ j(equal, &next);
+    __ CompareRoot(object, RootIndex::kTrueValue);
     __ Check(equal, AbortReason::kUnexpectedValue);
-    __ bind(&is_equal_true);
-  } else {
-    __ bind(&not_equal_true);
+    __ bind(&next);
   }
+
+  Label return_false, done;
+  __ CompareRoot(object, RootIndex::kTrueValue);
+  __ j(equal, &return_false, Label::kNear);
+  __ LoadRoot(return_value, RootIndex::kTrueValue);
+  __ jmp(&done, Label::kNear);
+
+  __ bind(&return_false);
+  __ LoadRoot(return_value, RootIndex::kFalseValue);
+
+  __ bind(&done);
 }
 
 void SetPendingMessage::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseRegister(value());
+  set_temporaries_needed(1);
   DefineAsRegister(vreg_state, this);
 }
 
 void SetPendingMessage::GenerateCode(MaglevAssembler* masm,
                                      const ProcessingState& state) {
-  Register message = ToRegister(value());
+  Register new_message = ToRegister(value());
   Register return_value = ToRegister(result());
-  Isolate* isolate = masm->isolate();
-  MemOperand message_op = __ ExternalReferenceAsOperand(
-      ExternalReference::address_of_pending_message(isolate), kScratchRegister);
-  __ Move(return_value, message_op);
-  __ movq(message_op, message);
+
+  MemOperand pending_message_operand = __ ExternalReferenceAsOperand(
+      ExternalReference::address_of_pending_message(masm->isolate()),
+      kScratchRegister);
+
+  if (new_message != return_value) {
+    __ Move(return_value, pending_message_operand);
+    __ movq(pending_message_operand, new_message);
+  } else {
+    Register scratch = temporaries().PopFirst();
+    __ Move(scratch, pending_message_operand);
+    __ movq(pending_message_operand, new_message);
+    __ Move(return_value, scratch);
+  }
 }
 
 void ToBooleanLogicalNot::AllocateVreg(MaglevVregAllocationState* vreg_state) {
@@ -2550,7 +2562,7 @@ void ToBooleanLogicalNot::GenerateCode(MaglevAssembler* masm,
   ToBoolean(masm, object, object_is_true, object_is_false, true);
   __ bind(*object_is_true);
   __ LoadRoot(return_value, RootIndex::kFalseValue);
-  __ jmp(&done);
+  __ jmp(&done, Label::kNear);
   __ bind(*object_is_false);
   __ LoadRoot(return_value, RootIndex::kTrueValue);
   __ bind(&done);
@@ -2618,18 +2630,22 @@ void TestUndetectable::GenerateCode(MaglevAssembler* masm,
                                     const ProcessingState& state) {
   Register object = ToRegister(value());
   Register return_value = ToRegister(result());
-  RegList temps = temporaries();
-  Register tmp = temps.PopFirst();
-  Label done;
-  __ LoadRoot(return_value, RootIndex::kFalseValue);
-  // If the object is an Smi, return false.
-  __ JumpIfSmi(object, &done);
-  // If it is a HeapObject, load the map and check for the undetectable bit.
-  __ LoadMap(tmp, object);
-  __ testl(FieldOperand(tmp, Map::kBitFieldOffset),
+  Register scratch = temporaries().PopFirst();
+
+  Label return_false, done;
+  __ JumpIfSmi(object, &return_false, Label::kNear);
+  // For heap objects, check the map's undetectable bit.
+  __ LoadMap(scratch, object);
+  __ testl(FieldOperand(scratch, Map::kBitFieldOffset),
            Immediate(Map::Bits1::IsUndetectableBit::kMask));
-  __ j(zero, &done);
+  __ j(zero, &return_false, Label::kNear);
+
   __ LoadRoot(return_value, RootIndex::kTrueValue);
+  __ jmp(&done, Label::kNear);
+
+  __ bind(&return_false);
+  __ LoadRoot(return_value, RootIndex::kFalseValue);
+
   __ bind(&done);
 }
 
@@ -2646,80 +2662,80 @@ void TestTypeOf::GenerateCode(MaglevAssembler* masm,
   Label is_true, is_false, done;
   switch (literal_) {
     case LiteralFlag::kNumber:
-      __ JumpIfSmi(object, &is_true);
+      __ JumpIfSmi(object, &is_true, Label::kNear);
       __ CompareRoot(FieldOperand(object, HeapObject::kMapOffset),
                      RootIndex::kHeapNumberMap);
-      __ j(not_equal, &is_false);
+      __ j(not_equal, &is_false, Label::kNear);
       break;
     case LiteralFlag::kString:
-      __ JumpIfSmi(object, &is_false);
+      __ JumpIfSmi(object, &is_false, Label::kNear);
       __ LoadMap(tmp, object);
       __ cmpw(FieldOperand(tmp, Map::kInstanceTypeOffset),
               Immediate(FIRST_NONSTRING_TYPE));
-      __ j(greater_equal, &is_false);
+      __ j(greater_equal, &is_false, Label::kNear);
       break;
     case LiteralFlag::kSymbol:
-      __ JumpIfSmi(object, &is_false);
+      __ JumpIfSmi(object, &is_false, Label::kNear);
       __ LoadMap(tmp, object);
       __ cmpw(FieldOperand(tmp, Map::kInstanceTypeOffset),
               Immediate(SYMBOL_TYPE));
-      __ j(not_equal, &is_false);
+      __ j(not_equal, &is_false, Label::kNear);
       break;
     case LiteralFlag::kBoolean:
       __ CompareRoot(object, RootIndex::kTrueValue);
-      __ j(equal, &is_true);
+      __ j(equal, &is_true, Label::kNear);
       __ CompareRoot(object, RootIndex::kFalseValue);
-      __ j(not_equal, &is_false);
+      __ j(not_equal, &is_false, Label::kNear);
       break;
     case LiteralFlag::kBigInt:
-      __ JumpIfSmi(object, &is_false);
+      __ JumpIfSmi(object, &is_false, Label::kNear);
       __ LoadMap(tmp, object);
       __ cmpw(FieldOperand(tmp, Map::kInstanceTypeOffset),
               Immediate(BIGINT_TYPE));
-      __ j(not_equal, &is_false);
+      __ j(not_equal, &is_false, Label::kNear);
       break;
     case LiteralFlag::kUndefined:
-      __ JumpIfSmi(object, &is_false);
+      __ JumpIfSmi(object, &is_false, Label::kNear);
       // Check it has the undetectable bit set and it is not null.
       __ LoadMap(tmp, object);
       __ testl(FieldOperand(tmp, Map::kBitFieldOffset),
                Immediate(Map::Bits1::IsUndetectableBit::kMask));
-      __ j(zero, &is_false);
+      __ j(zero, &is_false, Label::kNear);
       __ CompareRoot(object, RootIndex::kNullValue);
-      __ j(equal, &is_false);
+      __ j(equal, &is_false, Label::kNear);
       break;
     case LiteralFlag::kFunction:
-      __ JumpIfSmi(object, &is_false);
+      __ JumpIfSmi(object, &is_false, Label::kNear);
       // Check if callable bit is set and not undetectable.
       __ LoadMap(tmp, object);
       __ movl(tmp, FieldOperand(tmp, Map::kBitFieldOffset));
       __ andl(tmp, Immediate(Map::Bits1::IsUndetectableBit::kMask |
                              Map::Bits1::IsCallableBit::kMask));
       __ cmpl(tmp, Immediate(Map::Bits1::IsCallableBit::kMask));
-      __ j(not_equal, &is_false);
+      __ j(not_equal, &is_false, Label::kNear);
       break;
     case LiteralFlag::kObject:
-      __ JumpIfSmi(object, &is_false);
+      __ JumpIfSmi(object, &is_false, Label::kNear);
       // If the object is null then return true.
       __ CompareRoot(object, RootIndex::kNullValue);
-      __ j(equal, &is_true);
+      __ j(equal, &is_true, Label::kNear);
       // Check if the object is a receiver type,
       __ LoadMap(tmp, object);
       __ cmpw(FieldOperand(tmp, Map::kInstanceTypeOffset),
               Immediate(FIRST_JS_RECEIVER_TYPE));
-      __ j(less, &is_false);
+      __ j(less, &is_false, Label::kNear);
       // ... and is not undefined (undetectable) nor callable.
       __ testl(FieldOperand(tmp, Map::kBitFieldOffset),
                Immediate(Map::Bits1::IsUndetectableBit::kMask |
                          Map::Bits1::IsCallableBit::kMask));
-      __ j(not_zero, &is_false);
+      __ j(not_zero, &is_false, Label::kNear);
       break;
     case LiteralFlag::kOther:
       UNREACHABLE();
   }
   __ bind(&is_true);
   __ LoadRoot(ToRegister(result()), RootIndex::kTrueValue);
-  __ jmp(&done);
+  __ jmp(&done, Label::kNear);
   __ bind(&is_false);
   __ LoadRoot(ToRegister(result()), RootIndex::kFalseValue);
   __ bind(&done);
