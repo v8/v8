@@ -129,16 +129,6 @@ void* AllocWithRetry(size_t size, MallocFn malloc_fn) {
   return result;
 }
 
-base::AllocationResult<void*> AllocAtLeastWithRetry(size_t size) {
-  base::AllocationResult<char*> result = {nullptr, 0u};
-  for (int i = 0; i < kAllocationTries; ++i) {
-    result = base::AllocateAtLeast<char>(size);
-    if (V8_LIKELY(result.ptr != nullptr)) break;
-    OnCriticalMemoryPressure();
-  }
-  return {result.ptr, result.count};
-}
-
 void* AlignedAllocWithRetry(size_t size, size_t alignment) {
   void* result = nullptr;
   for (int i = 0; i < kAllocationTries; ++i) {
