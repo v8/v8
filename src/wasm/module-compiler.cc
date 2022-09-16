@@ -1714,8 +1714,7 @@ CompilationExecutionResult ExecuteCompilationUnits(
   UNREACHABLE();
 }
 
-// (function is imported, canonical type index)
-using JSToWasmWrapperKey = std::pair<bool, uint32_t>;
+using JSToWasmWrapperKey = std::pair<bool, FunctionSig>;
 
 // Returns the number of units added.
 int AddExportWrapperUnits(Isolate* isolate, NativeModule* native_module,
@@ -1724,14 +1723,11 @@ int AddExportWrapperUnits(Isolate* isolate, NativeModule* native_module,
   for (auto exp : native_module->module()->export_table) {
     if (exp.kind != kExternalFunction) continue;
     auto& function = native_module->module()->functions[exp.index];
-    uint32_t canonical_type_index =
-        native_module->module()
-            ->isorecursive_canonical_type_ids[function.sig_index];
-    JSToWasmWrapperKey key(function.imported, canonical_type_index);
+    JSToWasmWrapperKey key(function.imported, *function.sig);
     if (keys.insert(key).second) {
       auto unit = std::make_shared<JSToWasmWrapperCompilationUnit>(
-          isolate, function.sig, canonical_type_index, native_module->module(),
-          function.imported, native_module->enabled_features(),
+          isolate, function.sig, native_module->module(), function.imported,
+          native_module->enabled_features(),
           JSToWasmWrapperCompilationUnit::kAllowGeneric);
       builder->AddJSToWasmWrapperUnit(std::move(unit));
     }
@@ -1748,18 +1744,14 @@ int AddImportWrapperUnits(NativeModule* native_module,
       keys;
   int num_imported_functions = native_module->num_imported_functions();
   for (int func_index = 0; func_index < num_imported_functions; func_index++) {
-    const WasmFunction& function =
-        native_module->module()->functions[func_index];
-    if (!IsJSCompatibleSignature(function.sig, native_module->module(),
+    const FunctionSig* sig = native_module->module()->functions[func_index].sig;
+    if (!IsJSCompatibleSignature(sig, native_module->module(),
                                  native_module->enabled_features())) {
       continue;
     }
-    uint32_t canonical_type_index =
-        native_module->module()
-            ->isorecursive_canonical_type_ids[function.sig_index];
     WasmImportWrapperCache::CacheKey key(
-        compiler::kDefaultImportCallKind, canonical_type_index,
-        static_cast<int>(function.sig->parameter_count()), kNoSuspend);
+        compiler::kDefaultImportCallKind, sig,
+        static_cast<int>(sig->parameter_count()), kNoSuspend);
     auto it = keys.insert(key);
     if (it.second) {
       // Ensure that all keys exist in the cache, so that we can populate the
@@ -3562,8 +3554,8 @@ void CompilationStateImpl::FinalizeJSToWasmWrappers(
   for (auto& unit : js_to_wasm_wrapper_units_) {
     DCHECK_EQ(isolate, unit->isolate());
     Handle<CodeT> code = unit->Finalize();
-    int wrapper_index = GetExportWrapperIndex(
-        module, unit->canonical_sig_index(), unit->is_import());
+    int wrapper_index =
+        GetExportWrapperIndex(module, unit->sig(), unit->is_import());
     (*export_wrappers_out)->set(wrapper_index, *code);
     RecordStats(*code, isolate->counters());
   }
@@ -3761,14 +3753,11 @@ void CompilationStateImpl::PublishCompilationResults(
     DCHECK_LE(0, func_index);
     DCHECK_LT(func_index, native_module_->num_functions());
     if (func_index < num_imported_functions) {
-      const WasmFunction& function =
-          native_module_->module()->functions[func_index];
-      uint32_t canonical_type_index =
-          native_module_->module()
-              ->isorecursive_canonical_type_ids[function.sig_index];
+      const FunctionSig* sig =
+          native_module_->module()->functions[func_index].sig;
       WasmImportWrapperCache::CacheKey key(
-          compiler::kDefaultImportCallKind, canonical_type_index,
-          static_cast<int>(function.sig->parameter_count()), kNoSuspend);
+          compiler::kDefaultImportCallKind, sig,
+          static_cast<int>(sig->parameter_count()), kNoSuspend);
       // If two imported functions have the same key, only one of them should
       // have been added as a compilation unit. So it is always the first time
       // we compile a wrapper for this key here.
@@ -3901,8 +3890,8 @@ void CompilationStateImpl::WaitForCompilationEvent(
 }
 
 namespace {
-using JSToWasmWrapperQueue = WrapperQueue<JSToWasmWrapperKey, std::nullptr_t,
-                                          base::hash<JSToWasmWrapperKey>>;
+using JSToWasmWrapperQueue =
+    WrapperQueue<JSToWasmWrapperKey, base::hash<JSToWasmWrapperKey>>;
 using JSToWasmWrapperUnitMap =
     std::unordered_map<JSToWasmWrapperKey,
                        std::unique_ptr<JSToWasmWrapperCompilationUnit>,
@@ -3917,10 +3906,8 @@ class CompileJSToWasmWrapperJob final : public JobTask {
         outstanding_units_(queue->size()) {}
 
   void Run(JobDelegate* delegate) override {
-    while (base::Optional<std::pair<JSToWasmWrapperKey, std::nullptr_t>> key =
-               queue_->pop()) {
-      JSToWasmWrapperCompilationUnit* unit =
-          (*compilation_units_)[key->first].get();
+    while (base::Optional<JSToWasmWrapperKey> key = queue_->pop()) {
+      JSToWasmWrapperCompilationUnit* unit = (*compilation_units_)[*key].get();
       unit->Execute();
       outstanding_units_.fetch_sub(1, std::memory_order_relaxed);
       if (delegate && delegate->ShouldYield()) return;
@@ -3957,13 +3944,10 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
   for (auto exp : module->export_table) {
     if (exp.kind != kExternalFunction) continue;
     auto& function = module->functions[exp.index];
-    uint32_t canonical_type_index =
-        module->isorecursive_canonical_type_ids[function.sig_index];
-    JSToWasmWrapperKey key(function.imported, canonical_type_index);
-    if (queue.insert(key, nullptr)) {
+    JSToWasmWrapperKey key(function.imported, *function.sig);
+    if (queue.insert(key)) {
       auto unit = std::make_unique<JSToWasmWrapperCompilationUnit>(
-          isolate, function.sig, canonical_type_index, module,
-          function.imported, enabled_features,
+          isolate, function.sig, module, function.imported, enabled_features,
           JSToWasmWrapperCompilationUnit::kAllowGeneric);
       compilation_units.emplace(key, std::move(unit));
     }
@@ -3998,7 +3982,7 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
     JSToWasmWrapperCompilationUnit* unit = pair.second.get();
     DCHECK_EQ(isolate, unit->isolate());
     Handle<CodeT> code = unit->Finalize();
-    int wrapper_index = GetExportWrapperIndex(module, key.second, key.first);
+    int wrapper_index = GetExportWrapperIndex(module, &key.second, key.first);
     (*export_wrappers_out)->set(wrapper_index, *code);
     RecordStats(*code, isolate->counters());
   }
@@ -4007,13 +3991,12 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
 WasmCode* CompileImportWrapper(
     NativeModule* native_module, Counters* counters,
     compiler::WasmImportCallKind kind, const FunctionSig* sig,
-    uint32_t canonical_type_index, int expected_arity, Suspend suspend,
+    int expected_arity, Suspend suspend,
     WasmImportWrapperCache::ModificationScope* cache_scope) {
   // Entry should exist, so that we don't insert a new one and invalidate
   // other threads' iterators/references, but it should not have been compiled
   // yet.
-  WasmImportWrapperCache::CacheKey key(kind, canonical_type_index,
-                                       expected_arity, suspend);
+  WasmImportWrapperCache::CacheKey key(kind, sig, expected_arity, suspend);
   DCHECK_NULL((*cache_scope)[key]);
   bool source_positions = is_asmjs_module(native_module->module());
   // Keep the {WasmCode} alive until we explicitly call {IncRef}.

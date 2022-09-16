@@ -138,8 +138,8 @@ class TestingModuleBuilder {
     DCHECK_EQ(test_module_->types.size(),
               test_module_->per_module_canonical_type_ids.size());
     test_module_->add_signature(sig, kNoSuperType);
-    GetTypeCanonicalizer()->AddRecursiveGroup(test_module_.get(), 1);
     if (v8_flags.wasm_type_canonicalization) {
+      GetTypeCanonicalizer()->AddRecursiveGroup(test_module_.get(), 1);
       instance_object_->set_isorecursive_canonical_types(
           test_module_->isorecursive_canonical_type_ids.data());
     }

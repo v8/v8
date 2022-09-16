@@ -77,13 +77,11 @@ extern class WasmExportedFunctionData extends WasmFunctionData {
 extern class WasmJSFunctionData extends WasmFunctionData {
   serialized_return_count: Smi;
   serialized_parameter_count: Smi;
-  // TODO(7748): Maybe store the canonical type index of the signature instead.
   serialized_signature: PodArrayOfWasmValueType;
 }
 
 extern class WasmCapiFunctionData extends WasmFunctionData {
   embedder_data: Foreign;  // Managed<wasm::FuncData>
-  // TODO(7748): Maybe store the canonical type index of the signature instead.
   serialized_signature: PodArrayOfWasmValueType;
 }
 

@@ -629,11 +629,13 @@ size_t EstimateStoredSize(const WasmModule* module);
 // Returns the number of possible export wrappers for a given module.
 V8_EXPORT_PRIVATE int MaxNumExportWrappers(const WasmModule* module);
 
-// Returns the wrapper index for a function in {module} with isorecursive
-// canonical signature index {canonical_sig_index}, and origin defined by
-// {is_import}.
-int GetExportWrapperIndex(const WasmModule* module,
-                          uint32_t canonical_sig_index, bool is_import);
+// Returns the wrapper index for a function in {module} with signature {sig}
+// or {sig_index} and origin defined by {is_import}.
+// Prefer to use the {sig_index} consuming version, as it is much faster.
+int GetExportWrapperIndex(const WasmModule* module, const FunctionSig* sig,
+                          bool is_import);
+int GetExportWrapperIndex(const WasmModule* module, uint32_t sig_index,
+                          bool is_import);
 
 // Return the byte offset of the function identified by the given index.
 // The offset will be relative to the start of the module bytes.

@@ -684,7 +684,9 @@ class ModuleDecoderTemplate : public Decoder {
             const FunctionSig* sig = consume_sig(module_->signature_zone.get());
             if (!ok()) break;
             module_->add_signature(sig, kNoSuperType);
-            type_canon->AddRecursiveGroup(module_.get(), 1);
+            if (v8_flags.wasm_type_canonicalization) {
+              type_canon->AddRecursiveGroup(module_.get(), 1);
+            }
             break;
           }
           case kWasmArrayTypeCode:
@@ -725,13 +727,17 @@ class ModuleDecoderTemplate : public Decoder {
           TypeDefinition type = consume_subtype_definition();
           if (ok()) module_->add_type(type);
         }
-        if (ok()) type_canon->AddRecursiveGroup(module_.get(), group_size);
+        if (ok() && v8_flags.wasm_type_canonicalization) {
+          type_canon->AddRecursiveGroup(module_.get(), group_size);
+        }
       } else {
         tracer_.TypeOffset(pc_offset());
         TypeDefinition type = consume_subtype_definition();
         if (ok()) {
           module_->add_type(type);
-          type_canon->AddRecursiveGroup(module_.get(), 1);
+          if (v8_flags.wasm_type_canonicalization) {
+            type_canon->AddRecursiveGroup(module_.get(), 1);
+          }
         }
       }
     }

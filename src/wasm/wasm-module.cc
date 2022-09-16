@@ -66,19 +66,29 @@ bool LazilyGeneratedNames::Has(uint32_t function_index) {
 
 // static
 int MaxNumExportWrappers(const WasmModule* module) {
-  if (module->isorecursive_canonical_type_ids.empty()) return 0;
-  // TODO(manoskouk): This will create oversized wrappers for modules with few
-  // types but large canonical type indices. Move wrappers to isolate to avoid
-  // this.
-  uint32_t max_canonical_index =
-      *std::max_element(module->isorecursive_canonical_type_ids.begin(),
-                        module->isorecursive_canonical_type_ids.end());
-  return (max_canonical_index + 1) * 2;
+  // For each signature there may exist a wrapper, both for imported and
+  // internal functions.
+  return static_cast<int>(module->signature_map.size()) * 2;
 }
 
-int GetExportWrapperIndex(const WasmModule* module,
-                          uint32_t canonical_sig_index, bool is_import) {
-  return 2 * canonical_sig_index + (is_import ? 1 : 0);
+int GetExportWrapperIndexInternal(const WasmModule* module,
+                                  int canonical_sig_index, bool is_import) {
+  if (is_import) canonical_sig_index += module->signature_map.size();
+  return canonical_sig_index;
+}
+
+int GetExportWrapperIndex(const WasmModule* module, const FunctionSig* sig,
+                          bool is_import) {
+  int canonical_sig_index = module->signature_map.Find(*sig);
+  CHECK_GE(canonical_sig_index, 0);
+  return GetExportWrapperIndexInternal(module, canonical_sig_index, is_import);
+}
+
+int GetExportWrapperIndex(const WasmModule* module, uint32_t sig_index,
+                          bool is_import) {
+  uint32_t canonical_sig_index =
+      module->per_module_canonical_type_ids[sig_index];
+  return GetExportWrapperIndexInternal(module, canonical_sig_index, is_import);
 }
 
 // static
