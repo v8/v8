@@ -4109,7 +4109,7 @@ void MarkCompactCollector::EvacuateEpilogue() {
 
 namespace {
 ConcurrentAllocator* CreateSharedOldAllocator(Heap* heap) {
-  if (v8_flags.shared_string_table && heap->isolate()->shared_isolate()) {
+  if (v8_flags.shared_string_table && heap->isolate()->has_shared_heap()) {
     return new ConcurrentAllocator(nullptr, heap->shared_old_space());
   }
 
@@ -4876,7 +4876,10 @@ class RememberedSetUpdatingItem : public UpdatingItem {
       : heap_(heap),
         marking_state_(marking_state),
         chunk_(chunk),
-        updating_mode_(updating_mode) {}
+        updating_mode_(updating_mode),
+        record_old_to_shared_slots_(
+            heap->isolate()->has_shared_heap() &&
+            !heap->isolate()->is_shared_space_isolate()) {}
   ~RememberedSetUpdatingItem() override = default;
 
   void Process() override {
@@ -4990,7 +4993,6 @@ class RememberedSetUpdatingItem : public UpdatingItem {
   }
 
   void UpdateUntypedPointers() {
-    const bool has_shared_isolate = this->heap_->isolate()->shared_isolate();
     const PtrComprCageBase cage_base = heap_->isolate();
     if (chunk_->slot_set<OLD_TO_NEW, AccessMode::NON_ATOMIC>() != nullptr) {
       // Marking bits are cleared already when the page is already swept. This
@@ -5005,12 +5007,12 @@ class RememberedSetUpdatingItem : public UpdatingItem {
           InvalidatedSlotsFilter::OldToNew(chunk_, liveness_check);
       int slots = RememberedSet<OLD_TO_NEW>::Iterate(
           chunk_,
-          [this, &filter, has_shared_isolate, cage_base](MaybeObjectSlot slot) {
+          [this, &filter, cage_base](MaybeObjectSlot slot) {
             if (!filter.IsValid(slot.address())) return REMOVE_SLOT;
             SlotCallbackResult result = CheckAndUpdateOldToNewSlot(slot);
             // A new space string might have been promoted into the shared heap
             // during GC.
-            if (has_shared_isolate) {
+            if (record_old_to_shared_slots_) {
               CheckSlotForOldToSharedUntyped(cage_base, chunk_, slot);
             }
             return result;
@@ -5036,12 +5038,12 @@ class RememberedSetUpdatingItem : public UpdatingItem {
           chunk_, InvalidatedSlotsFilter::LivenessCheck::kNo);
       RememberedSet<OLD_TO_OLD>::Iterate(
           chunk_,
-          [this, has_shared_isolate, &filter, cage_base](MaybeObjectSlot slot) {
+          [this, &filter, cage_base](MaybeObjectSlot slot) {
             if (filter.IsValid(slot.address())) {
               UpdateSlot<AccessMode::NON_ATOMIC>(cage_base, slot);
               // A string might have been promoted into the shared heap during
               // GC.
-              if (has_shared_isolate) {
+              if (record_old_to_shared_slots_) {
                 CheckSlotForOldToSharedUntyped(cage_base, chunk_, slot);
               }
             }
@@ -5106,7 +5108,6 @@ class RememberedSetUpdatingItem : public UpdatingItem {
   }
 
   void UpdateTypedPointers() {
-    const bool has_shared_isolate = heap_->isolate()->shared_isolate();
     if (chunk_->typed_slot_set<OLD_TO_NEW, AccessMode::NON_ATOMIC>() !=
         nullptr) {
       CHECK_NE(chunk_->owner(), heap_->map_space());
@@ -5115,14 +5116,13 @@ class RememberedSetUpdatingItem : public UpdatingItem {
             return CheckAndUpdateOldToNewSlot(slot);
           };
       RememberedSet<OLD_TO_NEW>::IterateTyped(
-          chunk_,
-          [this, has_shared_isolate, &check_and_update_old_to_new_slot_fn](
-              SlotType slot_type, Address slot) {
+          chunk_, [this, &check_and_update_old_to_new_slot_fn](
+                      SlotType slot_type, Address slot) {
             SlotCallbackResult result = UpdateTypedSlotHelper::UpdateTypedSlot(
                 heap_, slot_type, slot, check_and_update_old_to_new_slot_fn);
             // A new space string might have been promoted into the shared heap
             // during GC.
-            if (has_shared_isolate) {
+            if (record_old_to_shared_slots_) {
               CheckSlotForOldToSharedTyped(chunk_, slot_type, slot);
             }
             return result;
@@ -5133,7 +5133,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
          nullptr)) {
       CHECK_NE(chunk_->owner(), heap_->map_space());
       RememberedSet<OLD_TO_OLD>::IterateTyped(
-          chunk_, [this, has_shared_isolate](SlotType slot_type, Address slot) {
+          chunk_, [this](SlotType slot_type, Address slot) {
             // Using UpdateStrongSlot is OK here, because there are no weak
             // typed slots.
             PtrComprCageBase cage_base = heap_->isolate();
@@ -5145,7 +5145,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
                   return KEEP_SLOT;
                 });
             // A string might have been promoted into the shared heap during GC.
-            if (has_shared_isolate) {
+            if (record_old_to_shared_slots_) {
               CheckSlotForOldToSharedTyped(chunk_, slot_type, slot);
             }
             return result;
@@ -5158,6 +5158,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
   MarkingState* marking_state_;
   MemoryChunk* chunk_;
   RememberedSetUpdatingMode updating_mode_;
+  const bool record_old_to_shared_slots_;
 };
 
 std::unique_ptr<UpdatingItem>

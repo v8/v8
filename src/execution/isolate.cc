@@ -4132,11 +4132,14 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
   if (HasFlagThatRequiresSharedHeap() && v8_flags.shared_space) {
     if (process_wide_shared_space_isolate_) {
-      attach_to_shared_space_isolate = process_wide_shared_space_isolate_;
+      owns_shareable_data_ = false;
     } else {
       process_wide_shared_space_isolate_ = this;
       is_shared_space_isolate_ = true;
+      DCHECK(owns_shareable_data_);
     }
+
+    attach_to_shared_space_isolate = process_wide_shared_space_isolate_;
   }
 
   CHECK_IMPLIES(is_shared_space_isolate_, V8_CAN_CREATE_SHARED_HEAP_BOOL);
@@ -4229,6 +4232,11 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   AttachToSharedIsolate();
   AttachToSharedSpaceIsolate(attach_to_shared_space_isolate);
 
+  // Ensure that we use at most one of shared_isolate() and
+  // shared_space_isolate().
+  DCHECK_IMPLIES(shared_isolate(), !shared_space_isolate());
+  DCHECK_IMPLIES(shared_space_isolate(), !shared_isolate());
+
   // SetUp the object heap.
   DCHECK(!heap_.HasBeenSetUp());
   heap_.SetUp(main_thread_local_heap());
@@ -4241,9 +4249,11 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     string_forwarding_table_ = std::make_shared<StringForwardingTable>(this);
   } else {
     // Only refer to shared string table after attaching to the shared isolate.
-    DCHECK_NOT_NULL(shared_isolate());
-    string_table_ = shared_isolate()->string_table_;
-    string_forwarding_table_ = shared_isolate()->string_forwarding_table_;
+    DCHECK(has_shared_heap());
+    DCHECK(!is_shared());
+    DCHECK(!is_shared_space_isolate());
+    string_table_ = shared_heap_isolate()->string_table_;
+    string_forwarding_table_ = shared_heap_isolate()->string_forwarding_table_;
   }
 
   if (V8_SHORT_BUILTIN_CALLS_BOOL && v8_flags.short_builtin_calls) {
@@ -4290,9 +4300,9 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     isolate_data_.shared_external_pointer_table_ = new ExternalPointerTable();
     shared_external_pointer_table().Init(this);
   } else {
-    DCHECK_NOT_NULL(shared_isolate());
+    DCHECK(has_shared_heap());
     isolate_data_.shared_external_pointer_table_ =
-        shared_isolate()->isolate_data_.shared_external_pointer_table_;
+        shared_heap_isolate()->isolate_data_.shared_external_pointer_table_;
   }
 #endif  // V8_COMPRESS_POINTERS
 
@@ -5955,7 +5965,7 @@ void Isolate::DetachFromSharedIsolate() {
 void Isolate::AttachToSharedSpaceIsolate(Isolate* shared_space_isolate) {
   DCHECK(!shared_space_isolate_.has_value());
   shared_space_isolate_ = shared_space_isolate;
-  if (shared_space_isolate) {
+  if (shared_space_isolate && shared_space_isolate != this) {
     shared_space_isolate->global_safepoint()->AppendClient(this);
   }
 }
@@ -5963,7 +5973,7 @@ void Isolate::AttachToSharedSpaceIsolate(Isolate* shared_space_isolate) {
 void Isolate::DetachFromSharedSpaceIsolate() {
   DCHECK(shared_space_isolate_.has_value());
   Isolate* shared_space_isolate = shared_space_isolate_.value();
-  if (shared_space_isolate) {
+  if (shared_space_isolate && shared_space_isolate != this) {
     shared_space_isolate->global_safepoint()->RemoveClient(this);
   }
   shared_space_isolate_.reset();

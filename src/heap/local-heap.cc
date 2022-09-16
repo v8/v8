@@ -120,7 +120,7 @@ void LocalHeap::SetUp() {
       std::make_unique<ConcurrentAllocator>(this, heap_->code_space());
 
   DCHECK_NULL(shared_old_space_allocator_);
-  if (heap_->isolate()->shared_isolate()) {
+  if (heap_->isolate()->has_shared_heap()) {
     shared_old_space_allocator_ =
         std::make_unique<ConcurrentAllocator>(this, heap_->shared_old_space());
   }

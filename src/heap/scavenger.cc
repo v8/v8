@@ -598,7 +598,7 @@ Scavenger::PromotionList::Local::Local(Scavenger::PromotionList* promotion_list)
 
 namespace {
 ConcurrentAllocator* CreateSharedOldAllocator(Heap* heap) {
-  if (v8_flags.shared_string_table && heap->isolate()->shared_isolate()) {
+  if (v8_flags.shared_string_table && heap->isolate()->has_shared_heap()) {
     return new ConcurrentAllocator(nullptr, heap->shared_old_space());
   }
   return nullptr;
