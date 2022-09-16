@@ -90,6 +90,8 @@ class TranslationArrayBuilder {
   void StoreRegister(Register reg);
   void StoreInt32Register(Register reg);
   void StoreInt64Register(Register reg);
+  void StoreSignedBigInt64Register(Register reg);
+  void StoreUnsignedBigInt64Register(Register reg);
   void StoreUint32Register(Register reg);
   void StoreBoolRegister(Register reg);
   void StoreFloatRegister(FloatRegister reg);
@@ -97,6 +99,8 @@ class TranslationArrayBuilder {
   void StoreStackSlot(int index);
   void StoreInt32StackSlot(int index);
   void StoreInt64StackSlot(int index);
+  void StoreSignedBigInt64StackSlot(int index);
+  void StoreUnsignedBigInt64StackSlot(int index);
   void StoreUint32StackSlot(int index);
   void StoreBoolStackSlot(int index);
   void StoreFloatStackSlot(int index);
