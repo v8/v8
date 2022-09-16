@@ -4126,7 +4126,7 @@ void MarkCompactCollector::EvacuateEpilogue() {
 namespace {
 ConcurrentAllocator* CreateSharedOldAllocator(Heap* heap) {
   if (v8_flags.shared_string_table && heap->isolate()->has_shared_heap()) {
-    return new ConcurrentAllocator(nullptr, heap->shared_old_space());
+    return new ConcurrentAllocator(nullptr, heap->shared_allocation_space());
   }
 
   return nullptr;

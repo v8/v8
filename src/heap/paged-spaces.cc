@@ -655,7 +655,7 @@ PagedSpaceBase::RawAllocateBackground(LocalHeap* local_heap,
                                       AllocationOrigin origin) {
   DCHECK(!is_compaction_space());
   DCHECK(identity() == OLD_SPACE || identity() == CODE_SPACE ||
-         identity() == MAP_SPACE);
+         identity() == MAP_SPACE || identity() == SHARED_SPACE);
   DCHECK(origin == AllocationOrigin::kRuntime ||
          origin == AllocationOrigin::kGC);
   DCHECK_IMPLIES(!local_heap, origin == AllocationOrigin::kGC);
@@ -725,7 +725,7 @@ PagedSpaceBase::TryAllocationFromFreeListBackground(size_t min_size_in_bytes,
   base::MutexGuard lock(&space_mutex_);
   DCHECK_LE(min_size_in_bytes, max_size_in_bytes);
   DCHECK(identity() == OLD_SPACE || identity() == CODE_SPACE ||
-         identity() == MAP_SPACE);
+         identity() == MAP_SPACE || identity() == SHARED_SPACE);
 
   size_t new_node_size = 0;
   FreeSpace new_node =

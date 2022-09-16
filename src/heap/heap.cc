@@ -3684,7 +3684,7 @@ void Heap::FreeSharedLinearAllocationAreas() {
 
 void Heap::FreeMainThreadSharedLinearAllocationAreas() {
   if (!isolate()->shared_isolate()) return;
-  shared_old_allocator_->FreeLinearAllocationArea();
+  shared_space_allocator_->FreeLinearAllocationArea();
   if (shared_map_allocator_) shared_map_allocator_->FreeLinearAllocationArea();
   main_thread_local_heap()->FreeSharedLinearAllocationArea();
 }
@@ -4353,10 +4353,14 @@ bool Heap::ContainsCode(HeapObject value) const {
 }
 
 bool Heap::SharedHeapContains(HeapObject value) const {
-  if (shared_isolate_old_space_)
-    return shared_isolate_old_space_->Contains(value) ||
-           (shared_isolate_map_space_ &&
-            shared_isolate_map_space_->Contains(value));
+  if (shared_allocation_space_) {
+    if (shared_allocation_space_->Contains(value)) return true;
+    if (shared_lo_allocation_space_->Contains(value)) return true;
+    if (shared_map_allocation_space_ &&
+        shared_map_allocation_space_->Contains(value))
+      return true;
+  }
+
   return false;
 }
 
@@ -5492,7 +5496,7 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
     map_space_ = static_cast<MapSpace*>(space_[MAP_SPACE].get());
   }
 
-  if (v8_flags.shared_space && isolate()->is_shared_space_isolate()) {
+  if (isolate()->is_shared_space_isolate()) {
     space_[SHARED_SPACE] = std::make_unique<SharedSpace>(this);
     shared_space_ = static_cast<SharedSpace*>(space_[SHARED_SPACE].get());
   }
@@ -5504,7 +5508,7 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
   code_lo_space_ =
       static_cast<CodeLargeObjectSpace*>(space_[CODE_LO_SPACE].get());
 
-  if (v8_flags.shared_space && isolate()->is_shared_space_isolate()) {
+  if (isolate()->is_shared_space_isolate()) {
     space_[SHARED_LO_SPACE] = std::make_unique<SharedLargeObjectSpace>(this);
     shared_lo_space_ =
         static_cast<SharedLargeObjectSpace*>(space_[SHARED_LO_SPACE].get());
@@ -5583,19 +5587,33 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
   }
 #endif  // V8_HEAP_USE_PKU_JIT_WRITE_PROTECT
 
-  if (isolate()->shared_isolate()) {
+  if (isolate()->shared_space_isolate()) {
+    Heap* heap = isolate()->shared_space_isolate()->heap();
+
+    shared_space_allocator_ = std::make_unique<ConcurrentAllocator>(
+        main_thread_local_heap(), heap->shared_space_);
+
+    DCHECK_NULL(shared_map_allocator_.get());
+
+    shared_allocation_space_ = heap->shared_space_;
+    shared_lo_allocation_space_ = heap->shared_lo_space_;
+    DCHECK(!v8_flags.use_map_space);
+    shared_map_allocation_space_ = heap->shared_space_;
+
+  } else if (isolate()->shared_isolate()) {
     Heap* shared_heap = isolate()->shared_isolate()->heap();
 
-    shared_isolate_old_space_ = shared_heap->old_space();
-    shared_isolate_lo_space_ = shared_heap->lo_space();
-    shared_old_allocator_.reset(new ConcurrentAllocator(
-        main_thread_local_heap(), shared_isolate_old_space_));
+    shared_space_allocator_ = std::make_unique<ConcurrentAllocator>(
+        main_thread_local_heap(), shared_heap->old_space());
 
     if (shared_heap->map_space()) {
-      shared_isolate_map_space_ = shared_heap->map_space();
-      shared_map_allocator_.reset(new ConcurrentAllocator(
-          main_thread_local_heap(), shared_isolate_map_space_));
+      shared_map_allocator_ = std::make_unique<ConcurrentAllocator>(
+          main_thread_local_heap(), shared_heap->map_space());
     }
+
+    shared_allocation_space_ = shared_heap->old_space();
+    shared_lo_allocation_space_ = shared_heap->lo_space();
+    shared_map_allocation_space_ = shared_heap->map_space();
   }
 
   main_thread_local_heap()->SetUpMainThread();
@@ -5903,10 +5921,7 @@ void Heap::TearDown() {
 
   allocation_sites_to_pretenure_.reset();
 
-  shared_isolate_old_space_ = nullptr;
-  shared_old_allocator_.reset();
-
-  shared_isolate_map_space_ = nullptr;
+  shared_space_allocator_.reset();
   shared_map_allocator_.reset();
 
   {

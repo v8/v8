@@ -878,7 +878,6 @@ class Heap {
   NewSpace* new_space() const { return new_space_; }
   inline PagedNewSpace* paged_new_space() const;
   OldSpace* old_space() const { return old_space_; }
-  OldSpace* shared_old_space() const { return shared_isolate_old_space_; }
   CodeSpace* code_space() const { return code_space_; }
   MapSpace* map_space() const { return map_space_; }
   inline PagedSpace* space_for_maps();
@@ -886,6 +885,13 @@ class Heap {
   CodeLargeObjectSpace* code_lo_space() const { return code_lo_space_; }
   NewLargeObjectSpace* new_lo_space() const { return new_lo_space_; }
   ReadOnlySpace* read_only_space() const { return read_only_space_; }
+
+  PagedSpace* shared_allocation_space() const {
+    return shared_allocation_space_;
+  }
+  OldLargeObjectSpace* shared_lo_allocation_space() const {
+    return shared_lo_allocation_space_;
+  }
 
   inline PagedSpace* paged_space(int idx);
   inline Space* space(int idx);
@@ -2191,6 +2197,7 @@ class Heap {
   // For keeping track of context disposals.
   int contexts_disposed_ = 0;
 
+  // Spaces owned by this heap through space_.
   NewSpace* new_space_ = nullptr;
   OldSpace* old_space_ = nullptr;
   CodeSpace* code_space_ = nullptr;
@@ -2202,11 +2209,14 @@ class Heap {
   SharedLargeObjectSpace* shared_lo_space_ = nullptr;
   ReadOnlySpace* read_only_space_ = nullptr;
 
-  OldSpace* shared_isolate_old_space_ = nullptr;
-  OldLargeObjectSpace* shared_isolate_lo_space_ = nullptr;
-  MapSpace* shared_isolate_map_space_ = nullptr;
+  // Either pointer to owned shared spaces or pointer to unowned shared spaces
+  // in another isolate.
+  PagedSpace* shared_allocation_space_ = nullptr;
+  OldLargeObjectSpace* shared_lo_allocation_space_ = nullptr;
+  PagedSpace* shared_map_allocation_space_ = nullptr;
 
-  std::unique_ptr<ConcurrentAllocator> shared_old_allocator_;
+  // Allocators for the shared spaces.
+  std::unique_ptr<ConcurrentAllocator> shared_space_allocator_;
   std::unique_ptr<ConcurrentAllocator> shared_map_allocator_;
 
   // Map from the space id to the space.

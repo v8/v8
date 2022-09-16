@@ -123,7 +123,7 @@ PagedSpace* Heap::space_for_maps() {
 
 ConcurrentAllocator* Heap::concurrent_allocator_for_maps() {
   return V8_LIKELY(shared_map_allocator_) ? shared_map_allocator_.get()
-                                          : shared_old_allocator_.get();
+                                          : shared_space_allocator_.get();
 }
 
 RootsTable& Heap::roots_table() { return isolate()->roots_table(); }

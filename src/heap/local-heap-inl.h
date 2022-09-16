@@ -64,7 +64,8 @@ AllocationResult LocalHeap::AllocateRaw(int size_in_bytes, AllocationType type,
 
   DCHECK_EQ(type, AllocationType::kSharedOld);
   if (large_object) {
-    return heap()->code_lo_space()->AllocateRawBackground(this, size_in_bytes);
+    return heap()->shared_lo_allocation_space()->AllocateRawBackground(
+        this, size_in_bytes);
   } else {
     return shared_old_space_allocator()->AllocateRaw(size_in_bytes, alignment,
                                                      origin);

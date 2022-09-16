@@ -27,11 +27,11 @@ void HeapAllocator::Setup() {
                         ? static_cast<PagedSpace*>(spaces_[MAP_SPACE])
                         : static_cast<PagedSpace*>(spaces_[OLD_SPACE]);
 
-  shared_old_allocator_ = heap_->shared_old_allocator_.get();
+  shared_old_allocator_ = heap_->shared_space_allocator_.get();
   shared_map_allocator_ = heap_->shared_map_allocator_
                               ? heap_->shared_map_allocator_.get()
                               : shared_old_allocator_;
-  shared_lo_space_ = heap_->shared_isolate_lo_space_;
+  shared_lo_space_ = heap_->shared_lo_allocation_space();
 }
 
 void HeapAllocator::SetReadOnlySpace(ReadOnlySpace* read_only_space) {
