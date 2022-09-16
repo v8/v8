@@ -29,6 +29,7 @@ sys.path.append(TOOLS_ROOT)
 from testrunner import standard_runner
 from testrunner import num_fuzzer
 from testrunner.testproc import base
+from testrunner.testproc import fuzzer
 from testrunner.utils.test_utils import (
     temp_base,
     TestRunnerTest,
@@ -538,18 +539,12 @@ class NumFuzzerTest(TestRunnerTest):
     return num_fuzzer.NumFuzzer
 
   def testNumFuzzer(self):
-    # TODO(machenbach): Retrieve these flags automatically from the list of
-    # existing fuzzers.
-    for fuzz_flag in (
-        '--stress-compaction=1',
-        '--stress-delay-tasks=1',
-        '--stress-deopt=1',
-        '--stress-gc=1',
-        '--stress-interrupt-budget=1',
-        '--stress-marking=1',
-        '--stress-scavenge=1',
-        '--stress-stack-size=1',
-        '--stress-thread-pool-size=1'):
+    fuzz_flags = [
+      f'{flag}=1' for flag in self.get_runner_options()
+      if flag.startswith('--stress-')
+    ]
+    self.assertEqual(len(fuzz_flags), len(fuzzer.FUZZERS))
+    for fuzz_flag in fuzz_flags:
       # The fake timeout observer above will stop after proessing the 10th
       # test. This still executes an 11th. Each test causes a test- and a
       # result event internally. We test both paths here.
