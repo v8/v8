@@ -445,12 +445,12 @@ struct OptimizationPhase<Analyzer, Assembler>::Impl {
   }
   OpIndex ReduceLoad(const LoadOp& op) {
     return assembler.Load(MapToNewGraph(op.base()), op.kind, op.loaded_rep,
-                          op.offset);
+                          op.result_rep, op.offset);
   }
   OpIndex ReduceIndexedLoad(const IndexedLoadOp& op) {
     return assembler.IndexedLoad(
         MapToNewGraph(op.base()), MapToNewGraph(op.index()), op.kind,
-        op.loaded_rep, op.offset, op.element_size_log2);
+        op.loaded_rep, op.result_rep, op.offset, op.element_size_log2);
   }
   OpIndex ReduceStore(const StoreOp& op) {
     return assembler.Store(MapToNewGraph(op.base()), MapToNewGraph(op.value()),

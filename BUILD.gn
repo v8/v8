@@ -2933,6 +2933,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/operations.h",
     "src/compiler/turboshaft/optimization-phase.h",
     "src/compiler/turboshaft/recreate-schedule.h",
+    "src/compiler/turboshaft/representations.h",
     "src/compiler/turboshaft/sidetable.h",
     "src/compiler/turboshaft/utils.h",
     "src/compiler/turboshaft/value-numbering-assembler.h",
@@ -4229,6 +4230,7 @@ v8_source_set("v8_turboshaft") {
     "src/compiler/turboshaft/operations.cc",
     "src/compiler/turboshaft/optimization-phase.cc",
     "src/compiler/turboshaft/recreate-schedule.cc",
+    "src/compiler/turboshaft/representations.cc",
   ]
 
   public_deps = [

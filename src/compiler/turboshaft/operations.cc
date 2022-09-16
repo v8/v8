@@ -100,26 +100,34 @@ std::ostream& operator<<(std::ostream& os, FloatUnaryOp::Kind kind) {
 }
 
 // static
-bool FloatUnaryOp::IsSupported(Kind kind, MachineRepresentation rep) {
-  switch (kind) {
-    case Kind::kRoundDown:
-      return rep == MachineRepresentation::kFloat32
-                 ? SupportedOperations::float32_round_down()
-                 : SupportedOperations::float64_round_down();
-    case Kind::kRoundUp:
-      return rep == MachineRepresentation::kFloat32
-                 ? SupportedOperations::float32_round_up()
-                 : SupportedOperations::float64_round_up();
-    case Kind::kRoundToZero:
-      return rep == MachineRepresentation::kFloat32
-                 ? SupportedOperations::float32_round_to_zero()
-                 : SupportedOperations::float64_round_to_zero();
-    case Kind::kRoundTiesEven:
-      return rep == MachineRepresentation::kFloat32
-                 ? SupportedOperations::float32_round_ties_even()
-                 : SupportedOperations::float64_round_ties_even();
-    default:
-      return true;
+bool FloatUnaryOp::IsSupported(Kind kind, FloatRepresentation rep) {
+  switch (rep) {
+    case FloatRepresentation::Float32():
+      switch (kind) {
+        case Kind::kRoundDown:
+          return SupportedOperations::float32_round_down();
+        case Kind::kRoundUp:
+          return SupportedOperations::float32_round_up();
+        case Kind::kRoundToZero:
+          return SupportedOperations::float32_round_to_zero();
+        case Kind::kRoundTiesEven:
+          return SupportedOperations::float32_round_ties_even();
+        default:
+          return true;
+      }
+    case FloatRepresentation::Float64():
+      switch (kind) {
+        case Kind::kRoundDown:
+          return SupportedOperations::float64_round_down();
+        case Kind::kRoundUp:
+          return SupportedOperations::float64_round_up();
+        case Kind::kRoundToZero:
+          return SupportedOperations::float64_round_to_zero();
+        case Kind::kRoundTiesEven:
+          return SupportedOperations::float64_round_ties_even();
+        default:
+          return true;
+      }
   }
 }
 

@@ -169,7 +169,7 @@ Node* ScheduleBuilder::ProcessOperation(const WordBinopOp& op) {
   using Kind = WordBinopOp::Kind;
   const Operator* o;
   switch (op.rep) {
-    case MachineRepresentation::kWord32:
+    case WordRepresentation::Word32():
       switch (op.kind) {
         case Kind::kAdd:
           o = machine.Int32Add();
@@ -209,7 +209,7 @@ Node* ScheduleBuilder::ProcessOperation(const WordBinopOp& op) {
           break;
       }
       break;
-    case MachineRepresentation::kWord64:
+    case WordRepresentation::Word64():
       switch (op.kind) {
         case Kind::kAdd:
           o = machine.Int64Add();
@@ -255,7 +255,7 @@ Node* ScheduleBuilder::ProcessOperation(const FloatBinopOp& op) {
   using Kind = FloatBinopOp::Kind;
   const Operator* o;
   switch (op.rep) {
-    case MachineRepresentation::kFloat32:
+    case FloatRepresentation::Float32():
       switch (op.kind) {
         case Kind::kAdd:
           o = machine.Float32Add();
@@ -281,7 +281,7 @@ Node* ScheduleBuilder::ProcessOperation(const FloatBinopOp& op) {
           UNREACHABLE();
       }
       break;
-    case MachineRepresentation::kFloat64:
+    case FloatRepresentation::Float64():
       switch (op.kind) {
         case Kind::kAdd:
           o = machine.Float64Add();
@@ -321,7 +321,7 @@ Node* ScheduleBuilder::ProcessOperation(const FloatBinopOp& op) {
 Node* ScheduleBuilder::ProcessOperation(const OverflowCheckedBinopOp& op) {
   const Operator* o;
   switch (op.rep) {
-    case MachineRepresentation::kWord32:
+    case WordRepresentation::Word32():
       switch (op.kind) {
         case OverflowCheckedBinopOp::Kind::kSignedAdd:
           o = machine.Int32AddWithOverflow();
@@ -334,7 +334,7 @@ Node* ScheduleBuilder::ProcessOperation(const OverflowCheckedBinopOp& op) {
           break;
       }
       break;
-    case MachineRepresentation::kWord64:
+    case WordRepresentation::Word64():
       switch (op.kind) {
         case OverflowCheckedBinopOp::Kind::kSignedAdd:
           o = machine.Int64AddWithOverflow();
@@ -352,9 +352,9 @@ Node* ScheduleBuilder::ProcessOperation(const OverflowCheckedBinopOp& op) {
   return AddNode(o, {GetNode(op.left()), GetNode(op.right())});
 }
 Node* ScheduleBuilder::ProcessOperation(const WordUnaryOp& op) {
-  DCHECK(op.rep == MachineRepresentation::kWord32 ||
-         op.rep == MachineRepresentation::kWord64);
-  bool word64 = op.rep == MachineRepresentation::kWord64;
+  DCHECK(op.rep == WordRepresentation::Word32() ||
+         op.rep == WordRepresentation::Word64());
+  bool word64 = op.rep == WordRepresentation::Word64();
   const Operator* o;
   switch (op.kind) {
     case WordUnaryOp::Kind::kReverseBytes:
@@ -367,9 +367,9 @@ Node* ScheduleBuilder::ProcessOperation(const WordUnaryOp& op) {
   return AddNode(o, {GetNode(op.input())});
 }
 Node* ScheduleBuilder::ProcessOperation(const FloatUnaryOp& op) {
-  DCHECK(op.rep == MachineRepresentation::kFloat32 ||
-         op.rep == MachineRepresentation::kFloat64);
-  bool float64 = op.rep == MachineRepresentation::kFloat64;
+  DCHECK(op.rep == FloatRepresentation::Float32() ||
+         op.rep == FloatRepresentation::Float64());
+  bool float64 = op.rep == FloatRepresentation::Float64();
   const Operator* o;
   switch (op.kind) {
     case FloatUnaryOp::Kind::kAbs:
@@ -398,68 +398,68 @@ Node* ScheduleBuilder::ProcessOperation(const FloatUnaryOp& op) {
       o = float64 ? machine.Float64Sqrt() : machine.Float32Sqrt();
       break;
     case FloatUnaryOp::Kind::kSilenceNaN:
-      DCHECK_EQ(op.rep, MachineRepresentation::kFloat64);
+      DCHECK_EQ(op.rep, FloatRepresentation::Float64());
       o = machine.Float64SilenceNaN();
       break;
     case FloatUnaryOp::Kind::kLog:
-      DCHECK_EQ(op.rep, MachineRepresentation::kFloat64);
+      DCHECK_EQ(op.rep, FloatRepresentation::Float64());
       o = machine.Float64Log();
       break;
     case FloatUnaryOp::Kind::kExp:
-      DCHECK_EQ(op.rep, MachineRepresentation::kFloat64);
+      DCHECK_EQ(op.rep, FloatRepresentation::Float64());
       o = machine.Float64Exp();
       break;
     case FloatUnaryOp::Kind::kExpm1:
-      DCHECK_EQ(op.rep, MachineRepresentation::kFloat64);
+      DCHECK_EQ(op.rep, FloatRepresentation::Float64());
       o = machine.Float64Expm1();
       break;
     case FloatUnaryOp::Kind::kSin:
-      DCHECK_EQ(op.rep, MachineRepresentation::kFloat64);
+      DCHECK_EQ(op.rep, FloatRepresentation::Float64());
       o = machine.Float64Sin();
       break;
     case FloatUnaryOp::Kind::kCos:
-      DCHECK_EQ(op.rep, MachineRepresentation::kFloat64);
+      DCHECK_EQ(op.rep, FloatRepresentation::Float64());
       o = machine.Float64Cos();
       break;
     case FloatUnaryOp::Kind::kAsin:
-      DCHECK_EQ(op.rep, MachineRepresentation::kFloat64);
+      DCHECK_EQ(op.rep, FloatRepresentation::Float64());
       o = machine.Float64Asin();
       break;
     case FloatUnaryOp::Kind::kAcos:
-      DCHECK_EQ(op.rep, MachineRepresentation::kFloat64);
+      DCHECK_EQ(op.rep, FloatRepresentation::Float64());
       o = machine.Float64Acos();
       break;
     case FloatUnaryOp::Kind::kSinh:
-      DCHECK_EQ(op.rep, MachineRepresentation::kFloat64);
+      DCHECK_EQ(op.rep, FloatRepresentation::Float64());
       o = machine.Float64Sinh();
       break;
     case FloatUnaryOp::Kind::kCosh:
-      DCHECK_EQ(op.rep, MachineRepresentation::kFloat64);
+      DCHECK_EQ(op.rep, FloatRepresentation::Float64());
       o = machine.Float64Cosh();
       break;
     case FloatUnaryOp::Kind::kAsinh:
-      DCHECK_EQ(op.rep, MachineRepresentation::kFloat64);
+      DCHECK_EQ(op.rep, FloatRepresentation::Float64());
       o = machine.Float64Asinh();
       break;
     case FloatUnaryOp::Kind::kAcosh:
-      DCHECK_EQ(op.rep, MachineRepresentation::kFloat64);
+      DCHECK_EQ(op.rep, FloatRepresentation::Float64());
       o = machine.Float64Acosh();
       break;
     case FloatUnaryOp::Kind::kTan:
-      DCHECK_EQ(op.rep, MachineRepresentation::kFloat64);
+      DCHECK_EQ(op.rep, FloatRepresentation::Float64());
       o = machine.Float64Tan();
       break;
     case FloatUnaryOp::Kind::kTanh:
-      DCHECK_EQ(op.rep, MachineRepresentation::kFloat64);
+      DCHECK_EQ(op.rep, FloatRepresentation::Float64());
       o = machine.Float64Tanh();
       break;
   }
   return AddNode(o, {GetNode(op.input())});
 }
 Node* ScheduleBuilder::ProcessOperation(const ShiftOp& op) {
-  DCHECK(op.rep == MachineRepresentation::kWord32 ||
-         op.rep == MachineRepresentation::kWord64);
-  bool word64 = op.rep == MachineRepresentation::kWord64;
+  DCHECK(op.rep == WordRepresentation::Word32() ||
+         op.rep == WordRepresentation::Word64());
+  bool word64 = op.rep == WordRepresentation::Word64();
   const Operator* o;
   switch (op.kind) {
     case ShiftOp::Kind::kShiftRightArithmeticShiftOutZeros:
@@ -487,16 +487,16 @@ Node* ScheduleBuilder::ProcessOperation(const ShiftOp& op) {
 Node* ScheduleBuilder::ProcessOperation(const EqualOp& op) {
   const Operator* o;
   switch (op.rep) {
-    case MachineRepresentation::kWord32:
+    case RegisterRepresentation::Word32():
       o = machine.Word32Equal();
       break;
-    case MachineRepresentation::kWord64:
+    case RegisterRepresentation::Word64():
       o = machine.Word64Equal();
       break;
-    case MachineRepresentation::kFloat32:
+    case RegisterRepresentation::Float32():
       o = machine.Float32Equal();
       break;
-    case MachineRepresentation::kFloat64:
+    case RegisterRepresentation::Float64():
       o = machine.Float64Equal();
       break;
     default:
@@ -507,7 +507,7 @@ Node* ScheduleBuilder::ProcessOperation(const EqualOp& op) {
 Node* ScheduleBuilder::ProcessOperation(const ComparisonOp& op) {
   const Operator* o;
   switch (op.rep) {
-    case MachineRepresentation::kWord32:
+    case RegisterRepresentation::Word32():
       switch (op.kind) {
         case ComparisonOp::Kind::kSignedLessThan:
           o = machine.Int32LessThan();
@@ -523,7 +523,7 @@ Node* ScheduleBuilder::ProcessOperation(const ComparisonOp& op) {
           break;
       }
       break;
-    case MachineRepresentation::kWord64:
+    case RegisterRepresentation::Word64():
       switch (op.kind) {
         case ComparisonOp::Kind::kSignedLessThan:
           o = machine.Int64LessThan();
@@ -539,7 +539,7 @@ Node* ScheduleBuilder::ProcessOperation(const ComparisonOp& op) {
           break;
       }
       break;
-    case MachineRepresentation::kFloat32:
+    case RegisterRepresentation::Float32():
       switch (op.kind) {
         case ComparisonOp::Kind::kSignedLessThan:
           o = machine.Float32LessThan();
@@ -552,7 +552,7 @@ Node* ScheduleBuilder::ProcessOperation(const ComparisonOp& op) {
           UNREACHABLE();
       }
       break;
-    case MachineRepresentation::kFloat64:
+    case RegisterRepresentation::Float64():
       switch (op.kind) {
         case ComparisonOp::Kind::kSignedLessThan:
           o = machine.Float64LessThan();
@@ -575,125 +575,125 @@ Node* ScheduleBuilder::ProcessOperation(const ChangeOp& op) {
   switch (op.kind) {
     using Kind = ChangeOp::Kind;
     case Kind::kFloatConversion:
-      if (op.from == MachineRepresentation::kFloat64 &&
-          op.to == MachineRepresentation::kFloat32) {
+      if (op.from == FloatRepresentation::Float64() &&
+          op.to == FloatRepresentation::Float32()) {
         o = machine.TruncateFloat64ToFloat32();
-      } else if (op.from == MachineRepresentation::kFloat32 &&
-                 op.to == MachineRepresentation::kFloat64) {
+      } else if (op.from == FloatRepresentation::Float32() &&
+                 op.to == FloatRepresentation::Float64()) {
         o = machine.ChangeFloat32ToFloat64();
       } else {
         UNIMPLEMENTED();
       }
       break;
     case Kind::kSignedFloatTruncate:
-      if (op.from == MachineRepresentation::kFloat64 &&
-          op.to == MachineRepresentation::kWord64) {
+      if (op.from == FloatRepresentation::Float64() &&
+          op.to == WordRepresentation::Word64()) {
         o = machine.TruncateFloat64ToInt64(TruncateKind::kArchitectureDefault);
-      } else if (op.from == MachineRepresentation::kFloat64 &&
-                 op.to == MachineRepresentation::kWord32) {
+      } else if (op.from == FloatRepresentation::Float64() &&
+                 op.to == WordRepresentation::Word32()) {
         o = machine.RoundFloat64ToInt32();
       } else {
         UNIMPLEMENTED();
       }
       break;
     case Kind::kSignedFloatTruncateOverflowToMin:
-      if (op.from == MachineRepresentation::kFloat64 &&
-          op.to == MachineRepresentation::kWord64) {
+      if (op.from == FloatRepresentation::Float64() &&
+          op.to == WordRepresentation::Word64()) {
         o = machine.TruncateFloat64ToInt64(TruncateKind::kSetOverflowToMin);
       } else {
         UNIMPLEMENTED();
       }
       break;
     case Kind::kJSFloatTruncate:
-      if (op.from == MachineRepresentation::kFloat64 &&
-          op.to == MachineRepresentation::kWord32) {
+      if (op.from == FloatRepresentation::Float64() &&
+          op.to == WordRepresentation::Word32()) {
         o = machine.TruncateFloat64ToWord32();
       } else {
         UNIMPLEMENTED();
       }
       break;
     case Kind::kSignedToFloat:
-      if (op.from == MachineRepresentation::kWord32 &&
-          op.to == MachineRepresentation::kFloat64) {
+      if (op.from == WordRepresentation::Word32() &&
+          op.to == FloatRepresentation::Float64()) {
         o = machine.ChangeInt32ToFloat64();
-      } else if (op.from == MachineRepresentation::kWord64 &&
-                 op.to == MachineRepresentation::kFloat64) {
+      } else if (op.from == WordRepresentation::Word64() &&
+                 op.to == FloatRepresentation::Float64()) {
         o = machine.ChangeInt64ToFloat64();
       } else {
         UNIMPLEMENTED();
       }
       break;
     case Kind::kUnsignedToFloat:
-      if (op.from == MachineRepresentation::kWord32 &&
-          op.to == MachineRepresentation::kFloat64) {
+      if (op.from == WordRepresentation::Word32() &&
+          op.to == FloatRepresentation::Float64()) {
         o = machine.ChangeUint32ToFloat64();
       } else {
         UNIMPLEMENTED();
       }
       break;
     case Kind::kExtractHighHalf:
-      DCHECK_EQ(op.from, MachineRepresentation::kFloat64);
-      DCHECK_EQ(op.to, MachineRepresentation::kWord32);
+      DCHECK_EQ(op.from, FloatRepresentation::Float64());
+      DCHECK_EQ(op.to, WordRepresentation::Word32());
       o = machine.Float64ExtractHighWord32();
       break;
     case Kind::kExtractLowHalf:
-      DCHECK_EQ(op.from, MachineRepresentation::kFloat64);
-      DCHECK_EQ(op.to, MachineRepresentation::kWord32);
+      DCHECK_EQ(op.from, FloatRepresentation::Float64());
+      DCHECK_EQ(op.to, WordRepresentation::Word32());
       o = machine.Float64ExtractLowWord32();
       break;
     case Kind::kBitcast:
-      if (op.from == MachineRepresentation::kWord32 &&
-          op.to == MachineRepresentation::kWord64) {
+      if (op.from == WordRepresentation::Word32() &&
+          op.to == WordRepresentation::Word64()) {
         o = machine.BitcastWord32ToWord64();
-      } else if (op.from == MachineRepresentation::kFloat32 &&
-                 op.to == MachineRepresentation::kWord32) {
+      } else if (op.from == FloatRepresentation::Float32() &&
+                 op.to == WordRepresentation::Word32()) {
         o = machine.BitcastFloat32ToInt32();
-      } else if (op.from == MachineRepresentation::kWord32 &&
-                 op.to == MachineRepresentation::kFloat32) {
+      } else if (op.from == WordRepresentation::Word32() &&
+                 op.to == FloatRepresentation::Float32()) {
         o = machine.BitcastInt32ToFloat32();
-      } else if (op.from == MachineRepresentation::kFloat64 &&
-                 op.to == MachineRepresentation::kWord64) {
+      } else if (op.from == FloatRepresentation::Float64() &&
+                 op.to == WordRepresentation::Word64()) {
         o = machine.BitcastFloat64ToInt64();
-      } else if (op.from == MachineRepresentation::kWord64 &&
-                 op.to == MachineRepresentation::kFloat64) {
+      } else if (op.from == WordRepresentation::Word64() &&
+                 op.to == FloatRepresentation::Float64()) {
         o = machine.BitcastInt64ToFloat64();
       } else {
         UNIMPLEMENTED();
       }
       break;
     case Kind::kSignExtend:
-      if (op.from == MachineRepresentation::kWord32 &&
-          op.to == MachineRepresentation::kWord64) {
+      if (op.from == WordRepresentation::Word32() &&
+          op.to == WordRepresentation::Word64()) {
         o = machine.ChangeInt32ToInt64();
       } else {
         UNIMPLEMENTED();
       }
       break;
     case Kind::kZeroExtend:
-      if (op.from == MachineRepresentation::kWord32 &&
-          op.to == MachineRepresentation::kWord64) {
+      if (op.from == WordRepresentation::Word32() &&
+          op.to == WordRepresentation::Word64()) {
         o = machine.ChangeUint32ToUint64();
       } else {
         UNIMPLEMENTED();
       }
       break;
     case Kind::kSignedNarrowing:
-      if (op.from == MachineRepresentation::kFloat64 &&
-          op.to == MachineRepresentation::kWord64) {
+      if (op.from == FloatRepresentation::Float64() &&
+          op.to == WordRepresentation::Word64()) {
         o = machine.ChangeFloat64ToInt64();
-      } else if (op.from == MachineRepresentation::kFloat64 &&
-                 op.to == MachineRepresentation::kWord32) {
+      } else if (op.from == FloatRepresentation::Float64() &&
+                 op.to == WordRepresentation::Word32()) {
         o = machine.ChangeFloat64ToInt32();
       } else {
         UNIMPLEMENTED();
       }
       break;
     case Kind::kUnsignedNarrowing:
-      if (op.from == MachineRepresentation::kFloat64 &&
-          op.to == MachineRepresentation::kWord64) {
+      if (op.from == FloatRepresentation::Float64() &&
+          op.to == WordRepresentation::Word64()) {
         o = machine.ChangeFloat64ToUint64();
-      } else if (op.from == MachineRepresentation::kFloat64 &&
-                 op.to == MachineRepresentation::kWord32) {
+      } else if (op.from == FloatRepresentation::Float64() &&
+                 op.to == WordRepresentation::Word32()) {
         o = machine.ChangeFloat64ToUint32();
       } else {
         UNIMPLEMENTED();
@@ -714,11 +714,11 @@ Node* ScheduleBuilder::ProcessOperation(const Float64InsertWord32Op& op) {
 }
 Node* ScheduleBuilder::ProcessOperation(const TaggedBitcastOp& op) {
   const Operator* o;
-  if (op.from == MachineRepresentation::kTagged &&
-      op.to == MachineType::PointerRepresentation()) {
+  if (op.from == RegisterRepresentation::Tagged() &&
+      op.to == RegisterRepresentation::PointerSized()) {
     o = machine.BitcastTaggedToWord();
-  } else if (op.from == MachineType::PointerRepresentation() &&
-             op.to == MachineRepresentation::kTagged) {
+  } else if (op.from == RegisterRepresentation::PointerSized() &&
+             op.to == RegisterRepresentation::Tagged()) {
     o = machine.BitcastWordToTagged();
   } else {
     UNIMPLEMENTED();
@@ -765,8 +765,8 @@ Node* ScheduleBuilder::ProcessOperation(const LoadOp& op) {
   }
   Node* base = GetNode(op.base());
   return AddNode(IsAlignedAccess(op.kind)
-                     ? machine.Load(op.loaded_rep)
-                     : machine.UnalignedLoad(op.loaded_rep),
+                     ? machine.Load(op.loaded_rep.ToMachineType())
+                     : machine.UnalignedLoad(op.loaded_rep.ToMachineType()),
                  {base, IntPtrConstant(offset)});
 }
 Node* ScheduleBuilder::ProcessOperation(const IndexedLoadOp& op) {
@@ -783,9 +783,16 @@ Node* ScheduleBuilder::ProcessOperation(const IndexedLoadOp& op) {
   if (offset != 0) {
     index = IntPtrAdd(index, IntPtrConstant(offset));
   }
-  return AddNode(IsAlignedAccess(op.kind)
-                     ? machine.Load(op.loaded_rep)
-                     : machine.UnalignedLoad(op.loaded_rep),
+  MachineType loaded_rep = op.loaded_rep.ToMachineType();
+  if (op.result_rep == RegisterRepresentation::Compressed()) {
+    if (loaded_rep == MachineType::AnyTagged()) {
+      loaded_rep = MachineType::AnyCompressed();
+    } else if (loaded_rep == MachineType::TaggedPointer()) {
+      loaded_rep = MachineType::CompressedPointer();
+    }
+  }
+  return AddNode(IsAlignedAccess(op.kind) ? machine.Load(loaded_rep)
+                                          : machine.UnalignedLoad(loaded_rep),
                  {base, index});
 }
 Node* ScheduleBuilder::ProcessOperation(const StoreOp& op) {
@@ -798,10 +805,11 @@ Node* ScheduleBuilder::ProcessOperation(const StoreOp& op) {
   Node* value = GetNode(op.value());
   const Operator* o;
   if (IsAlignedAccess(op.kind)) {
-    o = machine.Store(StoreRepresentation(op.stored_rep, op.write_barrier));
+    o = machine.Store(StoreRepresentation(
+        op.stored_rep.ToMachineType().representation(), op.write_barrier));
   } else {
     DCHECK_EQ(op.write_barrier, WriteBarrierKind::kNoWriteBarrier);
-    o = machine.UnalignedStore(op.stored_rep);
+    o = machine.UnalignedStore(op.stored_rep.ToMachineType().representation());
   }
   return AddNode(o, {base, IntPtrConstant(offset), value});
 }
@@ -822,10 +830,11 @@ Node* ScheduleBuilder::ProcessOperation(const IndexedStoreOp& op) {
   }
   const Operator* o;
   if (IsAlignedAccess(op.kind)) {
-    o = machine.Store(StoreRepresentation(op.stored_rep, op.write_barrier));
+    o = machine.Store(StoreRepresentation(
+        op.stored_rep.ToMachineType().representation(), op.write_barrier));
   } else {
     DCHECK_EQ(op.write_barrier, WriteBarrierKind::kNoWriteBarrier);
-    o = machine.UnalignedStore(op.stored_rep);
+    o = machine.UnalignedStore(op.stored_rep.ToMachineType().representation());
   }
   return AddNode(o, {base, index, value});
 }
@@ -909,7 +918,8 @@ Node* ScheduleBuilder::ProcessOperation(const PhiOp& op) {
     Node* input = GetNode(op.input(0));
     // The second `input` is a placeholder that is patched when we process the
     // backedge.
-    Node* node = AddNode(common.Phi(op.rep, 2), {input, input});
+    Node* node =
+        AddNode(common.Phi(op.rep.machine_representation(), 2), {input, input});
     loop_phis.emplace_back(node, op.input(1));
     return node;
   } else {
@@ -917,7 +927,8 @@ Node* ScheduleBuilder::ProcessOperation(const PhiOp& op) {
     for (OpIndex i : op.inputs()) {
       inputs.push_back(GetNode(i));
     }
-    return AddNode(common.Phi(op.rep, op.input_count), base::VectorOf(inputs));
+    return AddNode(common.Phi(op.rep.machine_representation(), op.input_count),
+                   base::VectorOf(inputs));
   }
 }
 Node* ScheduleBuilder::ProcessOperation(const ProjectionOp& op) {

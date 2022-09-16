@@ -287,7 +287,9 @@ OpIndex GraphBuilder::Process(
 
     case IrOpcode::kPhi: {
       int input_count = op->ValueInputCount();
-      MachineRepresentation rep = PhiRepresentationOf(op);
+      RegisterRepresentation rep =
+          RegisterRepresentation::FromMachineRepresentation(
+              PhiRepresentationOf(op));
       if (assembler.current_block()->IsLoop()) {
         DCHECK_EQ(input_count, 2);
         return assembler.PendingLoopPhi(Map(node->InputAt(0)), rep,
@@ -405,9 +407,9 @@ OpIndex GraphBuilder::Process(
 
     case IrOpcode::kWord64Sar:
     case IrOpcode::kWord32Sar: {
-      MachineRepresentation rep = opcode == IrOpcode::kWord64Sar
-                                      ? MachineRepresentation::kWord64
-                                      : MachineRepresentation::kWord32;
+      WordRepresentation rep = opcode == IrOpcode::kWord64Sar
+                                   ? WordRepresentation::Word64()
+                                   : WordRepresentation::Word32();
       ShiftOp::Kind kind;
       switch (ShiftKindOf(op)) {
         case ShiftKind::kShiftOutZeros:
@@ -463,8 +465,8 @@ OpIndex GraphBuilder::Process(
 #define CHANGE_CASE(opcode, kind, from, to)                                 \
   case IrOpcode::k##opcode:                                                 \
     return assembler.Change(Map(node->InputAt(0)), ChangeOp::Kind::k##kind, \
-                            MachineRepresentation::k##from,                 \
-                            MachineRepresentation::k##to);
+                            RegisterRepresentation::from(),                 \
+                            RegisterRepresentation::to());
 
       CHANGE_CASE(BitcastWord32ToWord64, Bitcast, Word32, Word64)
       CHANGE_CASE(BitcastFloat32ToInt32, Bitcast, Float32, Word32)
@@ -501,8 +503,8 @@ OpIndex GraphBuilder::Process(
           break;
       }
       return assembler.Change(Map(node->InputAt(0)), kind,
-                              MachineRepresentation::kFloat64,
-                              MachineRepresentation::kWord64);
+                              RegisterRepresentation::Float64(),
+                              RegisterRepresentation::Word64());
     }
 
     case IrOpcode::kFloat64InsertLowWord32:
@@ -516,16 +518,18 @@ OpIndex GraphBuilder::Process(
 
     case IrOpcode::kBitcastTaggedToWord:
       return assembler.TaggedBitcast(Map(node->InputAt(0)),
-                                     MachineRepresentation::kTagged,
-                                     MachineType::PointerRepresentation());
+                                     RegisterRepresentation::Tagged(),
+                                     RegisterRepresentation::PointerSized());
     case IrOpcode::kBitcastWordToTagged:
       return assembler.TaggedBitcast(Map(node->InputAt(0)),
-                                     MachineType::PointerRepresentation(),
-                                     MachineRepresentation::kTagged);
+                                     RegisterRepresentation::PointerSized(),
+                                     RegisterRepresentation::Tagged());
 
     case IrOpcode::kLoad:
     case IrOpcode::kUnalignedLoad: {
-      MachineType loaded_rep = LoadRepresentationOf(op);
+      MemoryRepresentation loaded_rep =
+          MemoryRepresentation::FromMachineType(LoadRepresentationOf(op));
+      RegisterRepresentation result_rep = loaded_rep.ToRegisterRepresentation();
       Node* base = node->InputAt(0);
       Node* index = node->InputAt(1);
       LoadOp::Kind kind = opcode == IrOpcode::kLoad
@@ -533,19 +537,19 @@ OpIndex GraphBuilder::Process(
                               : LoadOp::Kind::kRawUnaligned;
       if (index->opcode() == IrOpcode::kInt32Constant) {
         int32_t offset = OpParameter<int32_t>(index->op());
-        return assembler.Load(Map(base), kind, loaded_rep, offset);
+        return assembler.Load(Map(base), kind, loaded_rep, result_rep, offset);
       }
       if (index->opcode() == IrOpcode::kInt64Constant) {
         int64_t offset = OpParameter<int64_t>(index->op());
         if (base::IsValueInRangeForNumericType<int32_t>(offset)) {
-          return assembler.Load(Map(base), kind, loaded_rep,
+          return assembler.Load(Map(base), kind, loaded_rep, result_rep,
                                 static_cast<int32_t>(offset));
         }
       }
       int32_t offset = 0;
       uint8_t element_size_log2 = 0;
       return assembler.IndexedLoad(Map(base), Map(index), kind, loaded_rep,
-                                   offset, element_size_log2);
+                                   result_rep, offset, element_size_log2);
     }
 
     case IrOpcode::kStore:
@@ -563,21 +567,26 @@ OpIndex GraphBuilder::Process(
       if (index->opcode() == IrOpcode::kInt32Constant) {
         int32_t offset = OpParameter<int32_t>(index->op());
         return assembler.Store(Map(base), Map(value), kind,
-                               store_rep.representation(),
+                               MemoryRepresentation::FromMachineRepresentation(
+                                   store_rep.representation()),
                                store_rep.write_barrier_kind(), offset);
       }
       if (index->opcode() == IrOpcode::kInt64Constant) {
         int64_t offset = OpParameter<int64_t>(index->op());
         if (base::IsValueInRangeForNumericType<int32_t>(offset)) {
           return assembler.Store(
-              Map(base), Map(value), kind, store_rep.representation(),
+              Map(base), Map(value), kind,
+              MemoryRepresentation::FromMachineRepresentation(
+                  store_rep.representation()),
               store_rep.write_barrier_kind(), static_cast<int32_t>(offset));
         }
       }
       int32_t offset = 0;
       uint8_t element_size_log2 = 0;
       return assembler.IndexedStore(
-          Map(base), Map(index), Map(value), kind, store_rep.representation(),
+          Map(base), Map(index), Map(value), kind,
+          MemoryRepresentation::FromMachineRepresentation(
+              store_rep.representation()),
           store_rep.write_barrier_kind(), offset, element_size_log2);
     }
 
