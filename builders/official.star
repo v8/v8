@@ -121,7 +121,8 @@ in_category(
         executable = "recipe:v8/archive",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         properties = {"build_config": "Release", "builder_group": "client.v8.official", "target_bits": 32},
-        use_goma = GOMA.ATS,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
     ),
     v8_builder(
         name = "V8 Official Win32 Debug",
@@ -131,7 +132,8 @@ in_category(
         executable = "recipe:v8/archive",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         properties = {"build_config": "Debug", "builder_group": "client.v8.official", "target_bits": 32},
-        use_goma = GOMA.ATS,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
     ),
     v8_builder(
         name = "V8 Official Win64",
@@ -141,7 +143,8 @@ in_category(
         executable = "recipe:v8/archive",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         properties = {"build_config": "Release", "builder_group": "client.v8.official", "target_bits": 64},
-        use_goma = GOMA.ATS,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
     ),
     v8_builder(
         name = "V8 Official Win64 Debug",
@@ -151,7 +154,8 @@ in_category(
         executable = "recipe:v8/archive",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         properties = {"build_config": "Debug", "builder_group": "client.v8.official", "target_bits": 64},
-        use_goma = GOMA.ATS,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
     ),
 )
 in_category(
