@@ -2269,7 +2269,7 @@ bool WebSnapshotDeserializer::Deserialize(
   auto buffer_size = deserializer_->end_ - deserializer_->position_;
 
   base::ElapsedTimer timer;
-  if (FLAG_trace_web_snapshot) {
+  if (v8_flags.trace_web_snapshot) {
     timer.Start();
   }
   if (!DeserializeSnapshot(skip_exports)) {
@@ -2279,7 +2279,7 @@ bool WebSnapshotDeserializer::Deserialize(
     return false;
   }
 
-  if (FLAG_trace_web_snapshot) {
+  if (v8_flags.trace_web_snapshot) {
     double ms = timer.Elapsed().InMillisecondsF();
     PrintF("[Deserializing snapshot (%zu bytes) took %0.3f ms]\n", buffer_size,
            ms);
@@ -2359,7 +2359,7 @@ bool WebSnapshotDeserializer::DeserializeSnapshot(bool skip_exports) {
 
 #ifdef VERIFY_HEAP
   // Verify the objects we produced during deserializing snapshot.
-  if (FLAG_verify_heap && !has_error()) {
+  if (v8_flags.verify_heap && !has_error()) {
     VerifyObjects();
   }
 #endif
@@ -3766,7 +3766,7 @@ void WebSnapshotDeserializer::DeserializeExports(bool skip_exports) {
       // have been deserialized.
       Object export_value = std::get<0>(ReadValue());
 #ifdef VERIFY_HEAP
-      if (FLAG_verify_heap) {
+      if (v8_flags.verify_heap) {
         export_value.ObjectVerify(isolate_);
       }
 #endif
@@ -3797,7 +3797,7 @@ void WebSnapshotDeserializer::DeserializeExports(bool skip_exports) {
     // been deserialized.
     Object export_value = std::get<0>(ReadValue());
 #ifdef VERIFY_HEAP
-    if (FLAG_verify_heap) {
+    if (v8_flags.verify_heap) {
       export_value.ObjectVerify(isolate_);
     }
 #endif
