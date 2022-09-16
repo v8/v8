@@ -615,8 +615,10 @@ void StraightForwardRegisterAllocator::AllocateNode(Node* node) {
   // result, which could be written into a register that was previously
   // considered a temporary.
   DCHECK_EQ(general_registers_.free() |
-                (node->temporaries() - GetNodeResultRegister(node)),
+                (node->general_temporaries() - GetNodeResultRegister(node)),
             general_registers_.free());
+  DCHECK_EQ(double_registers_.free() | node->double_temporaries(),
+            double_registers_.free());
   general_registers_.clear_blocked();
   double_registers_.clear_blocked();
   VerifyRegisterState();
@@ -872,8 +874,10 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
 
   if (node->Is<JumpToInlined>() || node->Is<Abort>()) {
     // Do nothing.
-    DCHECK(node->temporaries().is_empty());
-    DCHECK_EQ(node->num_temporaries_needed(), 0);
+    DCHECK(node->general_temporaries().is_empty());
+    DCHECK(node->double_temporaries().is_empty());
+    DCHECK_EQ(node->num_temporaries_needed<Register>(), 0);
+    DCHECK_EQ(node->num_temporaries_needed<DoubleRegister>(), 0);
     DCHECK_EQ(node->input_count(), 0);
     DCHECK_EQ(node->properties(), OpProperties(0));
 
@@ -882,8 +886,10 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
     }
   } else if (node->Is<Deopt>()) {
     // No fixed temporaries.
-    DCHECK(node->temporaries().is_empty());
-    DCHECK_EQ(node->num_temporaries_needed(), 0);
+    DCHECK(node->general_temporaries().is_empty());
+    DCHECK(node->double_temporaries().is_empty());
+    DCHECK_EQ(node->num_temporaries_needed<Register>(), 0);
+    DCHECK_EQ(node->num_temporaries_needed<DoubleRegister>(), 0);
     DCHECK_EQ(node->input_count(), 0);
     DCHECK_EQ(node->properties(), OpProperties::EagerDeopt());
 
@@ -894,8 +900,10 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
     }
   } else if (auto unconditional = node->TryCast<UnconditionalControlNode>()) {
     // No fixed temporaries.
-    DCHECK(node->temporaries().is_empty());
-    DCHECK_EQ(node->num_temporaries_needed(), 0);
+    DCHECK(node->general_temporaries().is_empty());
+    DCHECK(node->double_temporaries().is_empty());
+    DCHECK_EQ(node->num_temporaries_needed<Register>(), 0);
+    DCHECK_EQ(node->num_temporaries_needed<DoubleRegister>(), 0);
     DCHECK_EQ(node->input_count(), 0);
     DCHECK(!node->properties().can_eager_deopt());
     DCHECK(!node->properties().can_lazy_deopt());
@@ -943,8 +951,10 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
 
     DCHECK(!node->properties().needs_register_snapshot());
 
-    DCHECK_EQ(general_registers_.free() | node->temporaries(),
+    DCHECK_EQ(general_registers_.free() | node->general_temporaries(),
               general_registers_.free());
+    DCHECK_EQ(double_registers_.free() | node->double_temporaries(),
+              double_registers_.free());
 
     general_registers_.clear_blocked();
     double_registers_.clear_blocked();
@@ -1533,55 +1543,79 @@ compiler::AllocatedOperand RegisterFrameState<RegisterT>::AllocateRegister(
                                     reg.code());
 }
 
-void StraightForwardRegisterAllocator::AssignFixedTemporaries(NodeBase* node) {
-  // TODO(victorgomes): Support double registers as temporaries.
-  RegList fixed_temporaries = node->temporaries();
+template <typename RegisterT>
+void StraightForwardRegisterAllocator::AssignFixedTemporaries(
+    RegisterFrameState<RegisterT>& registers, NodeBase* node) {
+  RegListBase<RegisterT> fixed_temporaries = node->temporaries<RegisterT>();
 
   // Make sure that any initially set temporaries are definitely free.
-  for (Register reg : fixed_temporaries) {
-    DCHECK(!general_registers_.is_blocked(reg));
-    if (!general_registers_.free().has(reg)) {
-      DropRegisterValue(general_registers_, reg);
-      general_registers_.AddToFree(reg);
+  for (RegisterT reg : fixed_temporaries) {
+    DCHECK(!registers.is_blocked(reg));
+    if (!registers.free().has(reg)) {
+      DropRegisterValue(registers, reg);
+      registers.AddToFree(reg);
     }
-    general_registers_.block(reg);
+    registers.block(reg);
   }
 
+  if (v8_flags.trace_maglev_regalloc && !fixed_temporaries.is_empty()) {
+    if constexpr (std::is_same_v<RegisterT, Register>) {
+      printing_visitor_->os()
+          << "Fixed Temporaries: " << fixed_temporaries << "\n";
+    } else {
+      printing_visitor_->os()
+          << "Fixed Double Temporaries: " << fixed_temporaries << "\n";
+    }
+  }
+}
+
+void StraightForwardRegisterAllocator::AssignFixedTemporaries(NodeBase* node) {
+  AssignFixedTemporaries(general_registers_, node);
+  AssignFixedTemporaries(double_registers_, node);
+}
+
+template <typename RegisterT>
+void StraightForwardRegisterAllocator::AssignArbitraryTemporaries(
+    RegisterFrameState<RegisterT>& registers, NodeBase* node) {
+  int num_temporaries_needed = node->num_temporaries_needed<RegisterT>();
+  if (num_temporaries_needed == 0) return;
+
+  DCHECK_GT(num_temporaries_needed, 0);
+  RegListBase<RegisterT> temporaries = node->temporaries<RegisterT>();
+  int remaining_temporaries_needed = num_temporaries_needed;
+
+  for (RegisterT reg : registers.unblocked_free()) {
+    registers.block(reg);
+    DCHECK(!temporaries.has(reg));
+    temporaries.set(reg);
+    if (--remaining_temporaries_needed == 0) break;
+  }
+
+  // Free extra registers if necessary.
+  for (int i = 0; i < remaining_temporaries_needed; ++i) {
+    DCHECK(registers.UnblockedFreeIsEmpty());
+    RegisterT reg = FreeUnblockedRegister<RegisterT>();
+    registers.block(reg);
+    DCHECK(!temporaries.has(reg));
+    temporaries.set(reg);
+  }
+
+  DCHECK_GE(temporaries.Count(), num_temporaries_needed);
+
+  node->assign_temporaries(temporaries);
   if (v8_flags.trace_maglev_regalloc) {
-    printing_visitor_->os()
-        << "Fixed temporaries: " << fixed_temporaries << "\n";
+    if constexpr (std::is_same_v<RegisterT, Register>) {
+      printing_visitor_->os() << "Temporaries: " << temporaries << "\n";
+    } else {
+      printing_visitor_->os() << "Double Temporaries: " << temporaries << "\n";
+    }
   }
 }
 
 void StraightForwardRegisterAllocator::AssignArbitraryTemporaries(
     NodeBase* node) {
-  int num_temporaries_needed = node->num_temporaries_needed();
-  if (num_temporaries_needed == 0) return;
-
-  RegList temporaries = node->temporaries();
-
-  // TODO(victorgomes): Support double registers as temporaries.
-  for (Register reg : general_registers_.unblocked_free()) {
-    general_registers_.block(reg);
-    DCHECK(!temporaries.has(reg));
-    temporaries.set(reg);
-    if (--num_temporaries_needed == 0) break;
-  }
-
-  // Free extra registers if necessary.
-  for (int i = 0; i < num_temporaries_needed; ++i) {
-    DCHECK(general_registers_.UnblockedFreeIsEmpty());
-    Register reg = FreeUnblockedRegister<Register>();
-    general_registers_.block(reg);
-    DCHECK(!temporaries.has(reg));
-    temporaries.set(reg);
-  }
-
-  DCHECK_GE(temporaries.Count(), node->num_temporaries_needed());
-  node->assign_temporaries(temporaries);
-  if (v8_flags.trace_maglev_regalloc) {
-    printing_visitor_->os() << "Temporaries: " << temporaries << "\n";
-  }
+  AssignArbitraryTemporaries(general_registers_, node);
+  AssignArbitraryTemporaries(double_registers_, node);
 }
 
 namespace {

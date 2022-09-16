@@ -682,7 +682,7 @@ void GeneratorRestoreRegister::GenerateCode(MaglevAssembler* masm,
                                             const ProcessingState& state) {
   Register array = ToRegister(array_input());
   Register result_reg = ToRegister(result());
-  Register temp = temporaries().PopFirst();
+  Register temp = general_temporaries().PopFirst();
 
   // The input and the output can alias, if that happen we use a temporary
   // register and a move at the end.
@@ -1434,7 +1434,7 @@ void CheckedInternalizedString::AllocateVreg(
 void CheckedInternalizedString::GenerateCode(MaglevAssembler* masm,
                                              const ProcessingState& state) {
   Register object = ToRegister(object_input());
-  RegList temps = temporaries();
+  RegList temps = general_temporaries();
   Register map_tmp = temps.PopFirst();
 
   if (check_type_ == CheckType::kOmitHeapObjectCheck) {
@@ -1501,7 +1501,7 @@ void LoadDoubleField::AllocateVreg(MaglevVregAllocationState* vreg_state) {
 }
 void LoadDoubleField::GenerateCode(MaglevAssembler* masm,
                                    const ProcessingState& state) {
-  Register tmp = temporaries().PopFirst();
+  Register tmp = general_temporaries().PopFirst();
   Register object = ToRegister(object_input());
   __ AssertNotSmi(object);
   __ DecompressAnyTagged(tmp, FieldOperand(object, offset()));
@@ -2049,7 +2049,7 @@ void Int32MultiplyWithOverflow::GenerateCode(MaglevAssembler* masm,
   Register right = ToRegister(right_input());
   DCHECK_EQ(result, ToRegister(left_input()));
 
-  Register saved_left = temporaries().first();
+  Register saved_left = general_temporaries().first();
   __ movl(saved_left, result);
   // TODO(leszeks): peephole optimise multiplication by a constant.
   __ imull(result, right);
@@ -2083,8 +2083,8 @@ void Int32DivideWithOverflow::AllocateVreg(
 
 void Int32DivideWithOverflow::GenerateCode(MaglevAssembler* masm,
                                            const ProcessingState& state) {
-  DCHECK(temporaries().has(rax));
-  DCHECK(temporaries().has(rdx));
+  DCHECK(general_temporaries().has(rax));
+  DCHECK(general_temporaries().has(rdx));
   Register left = ToRegister(left_input());
   Register right = ToRegister(right_input());
   __ movl(rax, left);
@@ -2542,7 +2542,7 @@ void SetPendingMessage::GenerateCode(MaglevAssembler* masm,
     __ Move(return_value, pending_message_operand);
     __ movq(pending_message_operand, new_message);
   } else {
-    Register scratch = temporaries().PopFirst();
+    Register scratch = general_temporaries().PopFirst();
     __ Move(scratch, pending_message_operand);
     __ movq(pending_message_operand, new_message);
     __ Move(return_value, scratch);
@@ -2631,7 +2631,7 @@ void TestUndetectable::GenerateCode(MaglevAssembler* masm,
                                     const ProcessingState& state) {
   Register object = ToRegister(value());
   Register return_value = ToRegister(result());
-  Register scratch = temporaries().PopFirst();
+  Register scratch = general_temporaries().PopFirst();
 
   Label return_false, done;
   __ JumpIfSmi(object, &return_false, Label::kNear);
@@ -3161,7 +3161,7 @@ void IncreaseInterruptBudget::AllocateVreg(
 }
 void IncreaseInterruptBudget::GenerateCode(MaglevAssembler* masm,
                                            const ProcessingState& state) {
-  Register scratch = temporaries().first();
+  Register scratch = general_temporaries().first();
   __ movq(scratch, MemOperand(rbp, StandardFrameConstants::kFunctionOffset));
   __ LoadTaggedPointerField(
       scratch, FieldOperand(scratch, JSFunction::kFeedbackCellOffset));
@@ -3179,7 +3179,7 @@ void ReduceInterruptBudget::AllocateVreg(
 }
 void ReduceInterruptBudget::GenerateCode(MaglevAssembler* masm,
                                          const ProcessingState& state) {
-  Register scratch = temporaries().first();
+  Register scratch = general_temporaries().first();
   __ movq(scratch, MemOperand(rbp, StandardFrameConstants::kFunctionOffset));
   __ LoadTaggedPointerField(
       scratch, FieldOperand(scratch, JSFunction::kFeedbackCellOffset));
@@ -3497,8 +3497,8 @@ void JumpLoopPrologue::AllocateVreg(MaglevVregAllocationState* vreg_state) {
 }
 void JumpLoopPrologue::GenerateCode(MaglevAssembler* masm,
                                     const ProcessingState& state) {
-  Register scratch0 = temporaries().PopFirst();
-  Register scratch1 = temporaries().PopFirst();
+  Register scratch0 = general_temporaries().PopFirst();
+  Register scratch1 = general_temporaries().PopFirst();
 
   const Register osr_state = scratch1;
   __ Move(scratch0, unit_->feedback().object());
