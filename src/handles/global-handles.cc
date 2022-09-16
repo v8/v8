@@ -817,7 +817,7 @@ Handle<Object> GlobalHandles::CopyGlobal(Address* location) {
   GlobalHandles* global_handles =
       Node::FromLocation(location)->global_handles();
 #ifdef VERIFY_HEAP
-  if (i::FLAG_verify_heap) {
+  if (v8_flags.verify_heap) {
     Object(*location).ObjectVerify(global_handles->isolate());
   }
 #endif  // VERIFY_HEAP
@@ -847,7 +847,7 @@ void GlobalHandles::CopyTracedReference(const Address* const* from,
   TracedNode::Verify(from);
   TracedNode::Verify(to);
 #ifdef VERIFY_HEAP
-  if (i::FLAG_verify_heap) {
+  if (v8_flags.verify_heap) {
     Object(**to).ObjectVerify(global_handles->isolate());
   }
 #endif  // VERIFY_HEAP
@@ -1022,7 +1022,7 @@ void GlobalHandles::IterateWeakRootsForPhantomHandles(
 
 void GlobalHandles::ComputeWeaknessForYoungObjects(
     WeakSlotCallback is_unmodified) {
-  if (!FLAG_reclaim_unmodified_wrappers) return;
+  if (!v8_flags.reclaim_unmodified_wrappers) return;
 
   // Treat all objects as roots during incremental marking to avoid corrupting
   // marking worklists.
@@ -1068,7 +1068,7 @@ void GlobalHandles::ProcessWeakYoungObjects(
     }
   }
 
-  if (!FLAG_reclaim_unmodified_wrappers) return;
+  if (!v8_flags.reclaim_unmodified_wrappers) return;
 
   auto* const handler = isolate()->heap()->GetEmbedderRootsHandler();
   for (TracedNode* node : traced_young_nodes_) {
@@ -1220,7 +1220,7 @@ void GlobalHandles::PostGarbageCollectionProcessing(
   DCHECK_EQ(Heap::NOT_IN_GC, isolate_->heap()->gc_state());
 
   const bool synchronous_second_pass =
-      FLAG_optimize_for_size || FLAG_predictable ||
+      v8_flags.optimize_for_size || v8_flags.predictable ||
       isolate_->heap()->IsTearingDown() ||
       (gc_callback_flags &
        (kGCCallbackFlagForced | kGCCallbackFlagCollectAllAvailableGarbage |
