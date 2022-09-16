@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-extern class CachedTemplateObject extends Struct {
+@generateBodyDescriptor
+@generateUniqueMap
+extern class CachedTemplateObject extends HeapObject {
   function_literal_id: Smi;
   slot_id: Smi;
-  template_object: JSArray;
   next: CachedTemplateObject|TheHole;
+  template_object: Weak<JSArray>;
 }
 
 extern class TemplateObjectDescription extends Struct {

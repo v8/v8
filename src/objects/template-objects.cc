@@ -19,11 +19,14 @@ Handle<JSArray> TemplateObjectDescription::GetTemplateObject(
     Isolate* isolate, Handle<NativeContext> native_context,
     Handle<TemplateObjectDescription> description,
     Handle<SharedFunctionInfo> shared_info, int slot_id) {
-  uint32_t hash = shared_info->Hash();
+  int function_literal_id = shared_info->function_literal_id();
 
   // Check the template weakmap to see if the template object already exists.
   Handle<EphemeronHashTable> template_weakmap;
   Handle<Script> script(Script::cast(shared_info->script(isolate)), isolate);
+  int32_t hash =
+      EphemeronHashTable::ShapeT::Hash(ReadOnlyRoots(isolate), script);
+  MaybeHandle<CachedTemplateObject> existing_cached_template;
 
   if (native_context->template_weakmap().IsUndefined(isolate)) {
     template_weakmap = EphemeronHashTable::New(isolate, 1);
@@ -34,14 +37,22 @@ Handle<JSArray> TemplateObjectDescription::GetTemplateObject(
         EphemeronHashTable::cast(native_context->template_weakmap()), isolate);
     Object maybe_cached_template =
         template_weakmap->Lookup(isolate, script, hash);
-    int function_literal_id = shared_info->function_literal_id();
     while (!maybe_cached_template.IsTheHole(roots)) {
       CachedTemplateObject cached_template =
           CachedTemplateObject::cast(maybe_cached_template);
       if (cached_template.function_literal_id() == function_literal_id &&
           cached_template.slot_id() == slot_id) {
-        return handle(cached_template.template_object(), isolate);
+        HeapObject template_object;
+        if (!cached_template.template_object(isolate).GetHeapObject(
+                &template_object)) {
+          // If the existing cached template is a cleared ref, update it
+          // in-place.
+          existing_cached_template = handle(cached_template, isolate);
+          break;
+        }
+        return handle(JSArray::cast(template_object), isolate);
       }
+      // TODO(leszeks): Clean up entries with cleared object refs.
       maybe_cached_template = cached_template.next();
     }
   }
@@ -79,32 +90,24 @@ Handle<JSArray> TemplateObjectDescription::GetTemplateObject(
   // Insert the template object into the template weakmap.
   Handle<HeapObject> previous_cached_templates =
       handle(HeapObject::cast(template_weakmap->Lookup(script, hash)), isolate);
-  Handle<CachedTemplateObject> cached_template = CachedTemplateObject::New(
-      isolate, shared_info->function_literal_id(), slot_id, template_object,
-      previous_cached_templates);
-  template_weakmap = EphemeronHashTable::Put(isolate, template_weakmap, script,
-                                             cached_template, hash);
-  native_context->set_template_weakmap(*template_weakmap);
+  Handle<CachedTemplateObject> cached_template;
+  if (existing_cached_template.ToHandle(&cached_template)) {
+    cached_template->set_template_object(
+        HeapObjectReference::Weak(*template_object));
+    // The existing cached template is already in the weakmap, so don't add it
+    // again.
+  } else {
+    cached_template = isolate->factory()->NewCachedTemplateObject(
+        function_literal_id, slot_id, previous_cached_templates,
+        template_object);
+
+    // Add the new cached template to the weakmap as the new linked list head.
+    template_weakmap = EphemeronHashTable::Put(isolate, template_weakmap,
+                                               script, cached_template, hash);
+    native_context->set_template_weakmap(*template_weakmap);
+  }
 
   return template_object;
-}
-
-Handle<CachedTemplateObject> CachedTemplateObject::New(
-    Isolate* isolate, int function_literal_id, int slot_id,
-    Handle<JSArray> template_object, Handle<HeapObject> next) {
-  DCHECK(next->IsCachedTemplateObject() || next->IsTheHole());
-  Handle<CachedTemplateObject> result_handle =
-      Handle<CachedTemplateObject>::cast(isolate->factory()->NewStruct(
-          CACHED_TEMPLATE_OBJECT_TYPE, AllocationType::kOld));
-  {
-    DisallowGarbageCollection no_gc;
-    auto result = *result_handle;
-    result.set_function_literal_id(function_literal_id);
-    result.set_slot_id(slot_id);
-    result.set_template_object(*template_object);
-    result.set_next(*next);
-  }
-  return result_handle;
 }
 
 }  // namespace internal

@@ -74,6 +74,22 @@ Handle<AccessorPair> FactoryBase<Impl>::NewAccessorPair() {
 }
 
 template <typename Impl>
+Handle<CachedTemplateObject> FactoryBase<Impl>::NewCachedTemplateObject(
+    int function_literal_id, int slot_id, Handle<HeapObject> next,
+    Handle<JSArray> template_object, AllocationType allocation) {
+  DCHECK(next->IsCachedTemplateObject() || next->IsTheHole());
+  Map map = read_only_roots().cached_template_object_map();
+  CachedTemplateObject result = CachedTemplateObject::cast(
+      AllocateRawWithImmortalMap(CachedTemplateObject::kSize, allocation, map));
+  DisallowGarbageCollection no_gc;
+  result.set_function_literal_id(function_literal_id);
+  result.set_slot_id(slot_id);
+  result.set_template_object(HeapObjectReference::Weak(*template_object));
+  result.set_next(*next);
+  return handle(result, isolate());
+}
+
+template <typename Impl>
 Handle<CodeDataContainer> FactoryBase<Impl>::NewCodeDataContainer(
     int flags, AllocationType allocation) {
   Map map = read_only_roots().code_data_container_map();

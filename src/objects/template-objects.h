@@ -23,14 +23,10 @@ class StructBodyDescriptor;
 // created. All the CachedTemplateObject's for a given SharedFunctionInfo form a
 // linked list via the next fields.
 class CachedTemplateObject final
-    : public TorqueGeneratedCachedTemplateObject<CachedTemplateObject, Struct> {
+    : public TorqueGeneratedCachedTemplateObject<CachedTemplateObject,
+                                                 HeapObject> {
  public:
-  static Handle<CachedTemplateObject> New(Isolate* isolate,
-                                          int function_literal_id, int slot_id,
-                                          Handle<JSArray> template_object,
-                                          Handle<HeapObject> next);
-
-  using BodyDescriptor = StructBodyDescriptor;
+  class BodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(CachedTemplateObject)
 };
