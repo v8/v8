@@ -26,17 +26,23 @@ Handle<JSArray> TemplateObjectDescription::GetTemplateObject(
   Handle<Script> script(Script::cast(shared_info->script(isolate)), isolate);
   int32_t hash =
       EphemeronHashTable::ShapeT::Hash(ReadOnlyRoots(isolate), script);
+  Handle<HeapObject> cached_templates_head;
   MaybeHandle<CachedTemplateObject> existing_cached_template;
 
   if (native_context->template_weakmap().IsUndefined(isolate)) {
     template_weakmap = EphemeronHashTable::New(isolate, 1);
+    cached_templates_head = isolate->factory()->the_hole_value();
   } else {
     DisallowGarbageCollection no_gc;
     ReadOnlyRoots roots(isolate);
     template_weakmap = handle(
         EphemeronHashTable::cast(native_context->template_weakmap()), isolate);
-    Object maybe_cached_template =
-        template_weakmap->Lookup(isolate, script, hash);
+    cached_templates_head = handle(
+        HeapObject::cast(template_weakmap->Lookup(isolate, script, hash)),
+        isolate);
+
+    HeapObject maybe_cached_template = *cached_templates_head;
+    CachedTemplateObject previous_cached_template;
     while (!maybe_cached_template.IsTheHole(roots)) {
       CachedTemplateObject cached_template =
           CachedTemplateObject::cast(maybe_cached_template);
@@ -52,8 +58,18 @@ Handle<JSArray> TemplateObjectDescription::GetTemplateObject(
         }
         return handle(JSArray::cast(template_object), isolate);
       }
-      // TODO(leszeks): Clean up entries with cleared object refs.
       maybe_cached_template = cached_template.next();
+
+      // Remove this entry from the list if it has a cleared object ref.
+      if (cached_template.template_object(isolate).IsCleared()) {
+        if (!previous_cached_template.is_null()) {
+          previous_cached_template.set_next(maybe_cached_template);
+        } else {
+          DCHECK_EQ(cached_template, *cached_templates_head);
+          cached_templates_head = handle(maybe_cached_template, isolate);
+        }
+      }
+      previous_cached_template = cached_template;
     }
   }
 
@@ -88,8 +104,6 @@ Handle<JSArray> TemplateObjectDescription::GetTemplateObject(
       .ToChecked();
 
   // Insert the template object into the template weakmap.
-  Handle<HeapObject> previous_cached_templates =
-      handle(HeapObject::cast(template_weakmap->Lookup(script, hash)), isolate);
   Handle<CachedTemplateObject> cached_template;
   if (existing_cached_template.ToHandle(&cached_template)) {
     cached_template->set_template_object(
@@ -98,8 +112,7 @@ Handle<JSArray> TemplateObjectDescription::GetTemplateObject(
     // again.
   } else {
     cached_template = isolate->factory()->NewCachedTemplateObject(
-        function_literal_id, slot_id, previous_cached_templates,
-        template_object);
+        function_literal_id, slot_id, cached_templates_head, template_object);
 
     // Add the new cached template to the weakmap as the new linked list head.
     template_weakmap = EphemeronHashTable::Put(isolate, template_weakmap,
