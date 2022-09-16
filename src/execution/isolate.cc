@@ -4621,7 +4621,11 @@ void Isolate::DumpAndResetStats() {
 #endif  // V8_RUNTIME_CALL_STATS
   if (BasicBlockProfiler::Get()->HasData(this)) {
     if (v8_flags.turbo_profiling_output) {
-      auto f = std::fopen(v8_flags.turbo_profiling_output, "a");
+      FILE* f = std::fopen(v8_flags.turbo_profiling_output, "w");
+      if (f == nullptr) {
+        FATAL("Unable to open file \"%s\" for writing.\n",
+              v8_flags.turbo_profiling_output.value());
+      }
       OFStream pgo_stream(f);
       BasicBlockProfiler::Get()->Log(this, pgo_stream);
     } else {

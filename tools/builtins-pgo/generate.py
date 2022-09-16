@@ -81,7 +81,7 @@ for arch, gn_args in [(args.v8_target_cpu, GN_ARGS_TEMPLATE)]:
   d8_path = build_d8(build_dir, gn_args)
   benchmark_dir = args.benchmark_path.parent
   benchmark_file = args.benchmark_path.name
-  log_path = build_dir / "v8.builtins.pgo"
+  log_path = (build_dir / "v8.builtins.pgo").absolute()
   run([d8_path, f"--turbo-profiling-output={log_path}", benchmark_file],
       cwd=benchmark_dir)
   get_hints_path = tools_pgo_dir / "get_hints.py"
