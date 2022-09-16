@@ -895,7 +895,7 @@ void PagedSpaceBase::VerifyCountersAfterSweeping(Heap* heap) const {
     size_t real_allocated = 0;
     for (HeapObject object = it.Next(); !object.is_null(); object = it.Next()) {
       if (!object.IsFreeSpaceOrFiller()) {
-        real_allocated += object.Size(cage_base);
+        real_allocated += ALIGN_TO_ALLOCATION_ALIGNMENT(object.Size(cage_base));
       }
     }
     total_allocated += page->allocated_bytes();

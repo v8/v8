@@ -554,7 +554,9 @@ class MapSpace final : public PagedSpace {
                    paged_allocation_info_) {}
 
   int RoundSizeDownToObjectAlignment(int size) const override {
-    if (base::bits::IsPowerOfTwo(Map::kSize)) {
+    if (V8_COMPRESS_POINTERS_8GB_BOOL) {
+      return RoundDown(size, kObjectAlignment8GbHeap);
+    } else if (base::bits::IsPowerOfTwo(Map::kSize)) {
       return RoundDown(size, Map::kSize);
     } else {
       return (size / Map::kSize) * Map::kSize;

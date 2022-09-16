@@ -514,7 +514,7 @@ void NewSpace::VerifyImpl(Isolate* isolate, const Page* current_page,
             string_size;
       }
 
-      current_address += size;
+      current_address += ALIGN_TO_ALLOCATION_ALIGNMENT(size);
     } else {
       // At end of page, switch to next page.
       page = page->next_page();
@@ -668,7 +668,8 @@ void SemiSpaceNewSpace::ResetLinearAllocationArea() {
 }
 
 void SemiSpaceNewSpace::UpdateInlineAllocationLimit(size_t min_size) {
-  Address new_limit = ComputeLimit(top(), to_space_.page_high(), min_size);
+  Address new_limit = ComputeLimit(top(), to_space_.page_high(),
+                                   ALIGN_TO_ALLOCATION_ALIGNMENT(min_size));
   DCHECK_LE(top(), new_limit);
   DCHECK_LE(new_limit, to_space_.page_high());
   allocation_info_.SetLimit(new_limit);

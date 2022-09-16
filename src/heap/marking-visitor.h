@@ -94,7 +94,8 @@ class MarkingStateBase {
     MarkBit markbit = MarkBitFrom(chunk, obj.address());
     if (!Marking::GreyToBlack<access_mode>(markbit)) return false;
     static_cast<ConcreteState*>(this)->IncrementLiveBytes(
-        MemoryChunk::cast(chunk), obj.Size(cage_base()));
+        MemoryChunk::cast(chunk),
+        ALIGN_TO_ALLOCATION_ALIGNMENT(obj.Size(cage_base())));
     return true;
   }
 

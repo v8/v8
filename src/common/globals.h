@@ -744,6 +744,13 @@ constexpr intptr_t kObjectAlignmentMask = kObjectAlignment - 1;
 constexpr intptr_t kObjectAlignment8GbHeap = 8;
 constexpr intptr_t kObjectAlignment8GbHeapMask = kObjectAlignment8GbHeap - 1;
 
+#ifdef V8_COMPRESS_POINTERS_8GB
+static_assert(
+    kObjectAlignment8GbHeap == 2 * kTaggedSize,
+    "When the 8GB heap is enabled, all allocations should be aligned to twice "
+    "the size of a tagged value.");
+#endif
+
 // Desired alignment for system pointers.
 constexpr intptr_t kPointerAlignment = (1 << kSystemPointerSizeLog2);
 constexpr intptr_t kPointerAlignmentMask = kPointerAlignment - 1;
@@ -1228,6 +1235,19 @@ constexpr int kIeeeDoubleExponentWordOffset = 0;
 // OBJECT_POINTER_ALIGN returns the value aligned as a HeapObject pointer
 #define OBJECT_POINTER_ALIGN(value) \
   (((value) + ::i::kObjectAlignmentMask) & ~::i::kObjectAlignmentMask)
+
+// OBJECT_POINTER_ALIGN is used to statically align object sizes to
+// kObjectAlignment (which is kTaggedSize). ALIGN_TO_ALLOCATION_ALIGNMENT is
+// used for dynamic allocations to align sizes and addresses to at least 8 bytes
+// when an 8GB+ compressed heap is enabled.
+// TODO(v8:13070): Consider merging this with OBJECT_POINTER_ALIGN.
+#ifdef V8_COMPRESS_POINTERS_8GB
+#define ALIGN_TO_ALLOCATION_ALIGNMENT(value)      \
+  (((value) + ::i::kObjectAlignment8GbHeapMask) & \
+   ~::i::kObjectAlignment8GbHeapMask)
+#else
+#define ALIGN_TO_ALLOCATION_ALIGNMENT(value) (value)
+#endif
 
 // OBJECT_POINTER_PADDING returns the padding size required to align value
 // as a HeapObject pointer

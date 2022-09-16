@@ -434,7 +434,7 @@ int Sweeper::RawSweep(
     }
     Map map = object.map(cage_base, kAcquireLoad);
     DCHECK(MarkCompactCollector::IsMapOrForwarded(map));
-    int size = object.SizeFromMap(map);
+    int size = ALIGN_TO_ALLOCATION_ALIGNMENT(object.SizeFromMap(map));
     live_bytes += size;
     free_start = free_end + size;
 

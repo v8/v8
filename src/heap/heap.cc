@@ -16,6 +16,7 @@
 #include "src/base/bits.h"
 #include "src/base/flags.h"
 #include "src/base/logging.h"
+#include "src/base/macros.h"
 #include "src/base/once.h"
 #include "src/base/platform/memory.h"
 #include "src/base/platform/mutex.h"
@@ -3136,6 +3137,7 @@ static_assert(!USE_ALLOCATION_ALIGNMENT_BOOL ||
               (HeapNumber::kValueOffset & kDoubleAlignmentMask) == kTaggedSize);
 
 int Heap::GetMaximumFillToAlign(AllocationAlignment alignment) {
+  if (V8_COMPRESS_POINTERS_8GB_BOOL) return 0;
   switch (alignment) {
     case kTaggedAligned:
       return 0;
@@ -3149,10 +3151,12 @@ int Heap::GetMaximumFillToAlign(AllocationAlignment alignment) {
 
 // static
 int Heap::GetFillToAlign(Address address, AllocationAlignment alignment) {
+  if (V8_COMPRESS_POINTERS_8GB_BOOL) return 0;
   if (alignment == kDoubleAligned && (address & kDoubleAlignmentMask) != 0)
     return kTaggedSize;
-  if (alignment == kDoubleUnaligned && (address & kDoubleAlignmentMask) == 0)
+  if (alignment == kDoubleUnaligned && (address & kDoubleAlignmentMask) == 0) {
     return kDoubleSize - kTaggedSize;  // No fill if double is always aligned.
+  }
   return 0;
 }
 
@@ -3251,6 +3255,12 @@ namespace {
 void CreateFillerObjectAtImpl(Heap* heap, Address addr, int size,
                               ClearFreedMemoryMode clear_memory_mode) {
   if (size == 0) return;
+  DCHECK_IMPLIES(V8_COMPRESS_POINTERS_8GB_BOOL,
+                 IsAligned(addr, kObjectAlignment8GbHeap));
+  DCHECK_IMPLIES(V8_COMPRESS_POINTERS_8GB_BOOL,
+                 IsAligned(size, kObjectAlignment8GbHeap));
+  // TODO(v8:13070): Filler sizes are irrelevant for 8GB+ heaps. Adding them
+  // should be avoided in this mode.
   HeapObject filler = HeapObject::FromAddress(addr);
   ReadOnlyRoots roots(heap);
   if (size == kTaggedSize) {
@@ -3898,6 +3908,8 @@ void Heap::NotifyObjectLayoutChange(
 
 void Heap::NotifyObjectSizeChange(HeapObject object, int old_size, int new_size,
                                   ClearRecordedSlots clear_recorded_slots) {
+  old_size = ALIGN_TO_ALLOCATION_ALIGNMENT(old_size);
+  new_size = ALIGN_TO_ALLOCATION_ALIGNMENT(new_size);
   DCHECK_LE(new_size, old_size);
   if (new_size == old_size) return;
 
@@ -4948,7 +4960,7 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
   DCHECK(kMaxRegularHeapObjectSize >=
          (JSArray::kHeaderSize +
           FixedArray::SizeFor(JSArray::kInitialMaxFastElementArray) +
-          AllocationMemento::kSize));
+          ALIGN_TO_ALLOCATION_ALIGNMENT(AllocationMemento::kSize)));
 
   code_range_size_ = constraints.code_range_size_in_bytes();
 

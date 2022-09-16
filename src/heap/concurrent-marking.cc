@@ -52,6 +52,8 @@ class ConcurrentMarkingState final
   }
 
   void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by) {
+    DCHECK_IMPLIES(V8_COMPRESS_POINTERS_8GB_BOOL,
+                   IsAligned(by, kObjectAlignment8GbHeap));
     (*memory_chunk_data_)[chunk].live_bytes += by;
   }
 
@@ -501,7 +503,7 @@ class ConcurrentMarkingVisitor final
     DCHECK(length.IsSmi());
     int size = T::SizeFor(Smi::ToInt(length));
     marking_state_.IncrementLiveBytes(MemoryChunk::FromHeapObject(object),
-                                      size);
+                                      ALIGN_TO_ALLOCATION_ALIGNMENT(size));
     VisitMapPointer(object);
     T::BodyDescriptor::IterateBody(map, object, size, this);
     return size;

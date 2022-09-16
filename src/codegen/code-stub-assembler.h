@@ -777,6 +777,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Number> BitwiseSmiOp(TNode<Smi> left32, TNode<Smi> right32,
                              Operation bitwise_op);
 
+  // Align the value to kObjectAlignment8GbHeap if V8_COMPRESS_POINTERS_8GB is
+  // defined.
+  TNode<IntPtrT> AlignToAllocationAlignment(TNode<IntPtrT> value);
+
   // Allocate an object of the given size.
   TNode<HeapObject> AllocateInNewSpace(
       TNode<IntPtrT> size, AllocationFlags flags = AllocationFlag::kNone);

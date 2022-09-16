@@ -351,7 +351,7 @@ HeapObject Factory::AllocateRawWithAllocationSite(
   int size = map->instance_size();
   if (!allocation_site.is_null()) {
     DCHECK(V8_ALLOCATION_SITE_TRACKING_BOOL);
-    size += AllocationMemento::kSize;
+    size += ALIGN_TO_ALLOCATION_ALIGNMENT(AllocationMemento::kSize);
   }
   HeapObject result = allocator()->AllocateRawWith<HeapAllocator::kRetryOrFail>(
       size, allocation);
@@ -360,8 +360,9 @@ HeapObject Factory::AllocateRawWithAllocationSite(
                                             : UPDATE_WRITE_BARRIER;
   result.set_map_after_allocation(*map, write_barrier_mode);
   if (!allocation_site.is_null()) {
-    AllocationMemento alloc_memento = AllocationMemento::unchecked_cast(
-        Object(result.ptr() + map->instance_size()));
+    int aligned_size = ALIGN_TO_ALLOCATION_ALIGNMENT(map->instance_size());
+    AllocationMemento alloc_memento =
+        AllocationMemento::unchecked_cast(Object(result.ptr() + aligned_size));
     InitializeAllocationMemento(alloc_memento, *allocation_site);
   }
   return result;
@@ -2119,10 +2120,12 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
   DCHECK(site.is_null() || AllocationSite::CanTrack(instance_type));
 
   int object_size = map->instance_size();
-  int adjusted_object_size = object_size;
+  int aligned_object_size = ALIGN_TO_ALLOCATION_ALIGNMENT(object_size);
+  int adjusted_object_size = aligned_object_size;
   if (!site.is_null()) {
     DCHECK(V8_ALLOCATION_SITE_TRACKING_BOOL);
-    adjusted_object_size += AllocationMemento::kSize;
+    adjusted_object_size +=
+        ALIGN_TO_ALLOCATION_ALIGNMENT(AllocationMemento::kSize);
   }
   HeapObject raw_clone =
       allocator()->AllocateRawWith<HeapAllocator::kRetryOrFail>(
@@ -2142,7 +2145,7 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
   }
   if (!site.is_null()) {
     AllocationMemento alloc_memento = AllocationMemento::unchecked_cast(
-        Object(raw_clone.ptr() + object_size));
+        Object(raw_clone.ptr() + aligned_object_size));
     InitializeAllocationMemento(alloc_memento, *site);
   }
 

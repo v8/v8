@@ -503,6 +503,8 @@ namespace {
 // Returns true, iff we can use ElementsAccessor for shifting.
 V8_WARN_UNUSED_RESULT bool CanUseFastArrayShift(Isolate* isolate,
                                                 Handle<JSReceiver> receiver) {
+  if (V8_COMPRESS_POINTERS_8GB_BOOL) return false;
+
   if (!EnsureJSArrayWithWritableFastElements(isolate, receiver, nullptr, 0,
                                              0) ||
       !IsJSArrayFastElementMovingAllowed(isolate, JSArray::cast(*receiver))) {

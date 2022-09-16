@@ -436,7 +436,7 @@ class ReadOnlySpaceObjectIterator : public ObjectIterator {
       }
       HeapObject obj = HeapObject::FromAddress(cur_addr_);
       const int obj_size = obj.Size();
-      cur_addr_ += obj_size;
+      cur_addr_ += ALIGN_TO_ALLOCATION_ALIGNMENT(obj_size);
       DCHECK_LE(cur_addr_, cur_end_);
       if (!obj.IsFreeSpaceOrFiller()) {
         if (obj.IsCode()) {
@@ -614,6 +614,7 @@ void ReadOnlySpace::EnsureSpaceForAllocation(int size_in_bytes) {
 
 HeapObject ReadOnlySpace::TryAllocateLinearlyAligned(
     int size_in_bytes, AllocationAlignment alignment) {
+  size_in_bytes = ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes);
   Address current_top = top_;
   int filler_size = Heap::GetFillToAlign(current_top, alignment);
 
@@ -639,6 +640,7 @@ AllocationResult ReadOnlySpace::AllocateRawAligned(
     int size_in_bytes, AllocationAlignment alignment) {
   DCHECK(!v8_flags.enable_third_party_heap);
   DCHECK(!IsDetached());
+  size_in_bytes = ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes);
   int allocation_size = size_in_bytes;
 
   HeapObject object = TryAllocateLinearlyAligned(allocation_size, alignment);
@@ -658,6 +660,7 @@ AllocationResult ReadOnlySpace::AllocateRawAligned(
 
 AllocationResult ReadOnlySpace::AllocateRawUnaligned(int size_in_bytes) {
   DCHECK(!IsDetached());
+  size_in_bytes = ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes);
   EnsureSpaceForAllocation(size_in_bytes);
   Address current_top = top_;
   Address new_top = current_top + size_in_bytes;

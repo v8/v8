@@ -16,6 +16,7 @@ AllocationResult EvacuationAllocator::Allocate(AllocationSpace space,
                                                int object_size,
                                                AllocationOrigin origin,
                                                AllocationAlignment alignment) {
+  object_size = ALIGN_TO_ALLOCATION_ALIGNMENT(object_size);
   switch (space) {
     case NEW_SPACE:
       return AllocateInNewSpace(object_size, origin, alignment);
@@ -35,6 +36,7 @@ AllocationResult EvacuationAllocator::Allocate(AllocationSpace space,
 
 void EvacuationAllocator::FreeLast(AllocationSpace space, HeapObject object,
                                    int object_size) {
+  object_size = ALIGN_TO_ALLOCATION_ALIGNMENT(object_size);
   switch (space) {
     case NEW_SPACE:
       FreeLastInNewSpace(object, object_size);

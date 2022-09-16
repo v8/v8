@@ -153,6 +153,8 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
   virtual int RoundSizeDownToObjectAlignment(int size) const {
     if (id_ == CODE_SPACE) {
       return RoundDown(size, kCodeAlignment);
+    } else if (V8_COMPRESS_POINTERS_8GB_BOOL) {
+      return RoundDown(size, kObjectAlignment8GbHeap);
     } else {
       return RoundDown(size, kTaggedSize);
     }

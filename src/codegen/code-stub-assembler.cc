@@ -1263,6 +1263,7 @@ TNode<HeapObject> CodeStubAssembler::AllocateRaw(TNode<IntPtrT> size_in_bytes,
     BIND(&next);
   }
 
+  adjusted_size = AlignToAllocationAlignment(adjusted_size.value());
   TNode<IntPtrT> new_top =
       IntPtrAdd(UncheckedCast<IntPtrT>(top), adjusted_size.value());
 
@@ -4011,7 +4012,7 @@ TNode<JSArray> CodeStubAssembler::AllocateJSArray(
   int base_size = array_header_size;
   if (allocation_site) {
     DCHECK(V8_ALLOCATION_SITE_TRACKING_BOOL);
-    base_size += AllocationMemento::kSize;
+    base_size += ALIGN_TO_ALLOCATION_ALIGNMENT(AllocationMemento::kSize);
   }
 
   TNode<IntPtrT> size = IntPtrConstant(base_size);
@@ -4034,6 +4035,32 @@ TNode<FixedArrayBase> InnerAllocateElements(CodeStubAssembler* csa,
 }
 
 }  // namespace
+
+TNode<IntPtrT> CodeStubAssembler::AlignToAllocationAlignment(
+    TNode<IntPtrT> value) {
+  if (!V8_COMPRESS_POINTERS_8GB_BOOL) return value;
+
+  Label not_aligned(this), is_aligned(this);
+  TVARIABLE(IntPtrT, result, value);
+
+  Branch(WordIsAligned(value, kObjectAlignment8GbHeap), &is_aligned,
+         &not_aligned);
+
+  BIND(&not_aligned);
+  {
+    if (kObjectAlignment8GbHeap == 2 * kTaggedSize) {
+      result = IntPtrAdd(value, IntPtrConstant(kTaggedSize));
+    } else {
+      result =
+          WordAnd(IntPtrAdd(value, IntPtrConstant(kObjectAlignment8GbHeapMask)),
+                  IntPtrConstant(~kObjectAlignment8GbHeapMask));
+    }
+    Goto(&is_aligned);
+  }
+
+  BIND(&is_aligned);
+  return result.value();
+}
 
 std::pair<TNode<JSArray>, TNode<FixedArrayBase>>
 CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
@@ -4075,17 +4102,18 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
 
   BIND(&nonempty);
   {
-    int base_size = array_header_size;
+    int base_size = ALIGN_TO_ALLOCATION_ALIGNMENT(array_header_size);
     if (allocation_site) {
       DCHECK(V8_ALLOCATION_SITE_TRACKING_BOOL);
-      base_size += AllocationMemento::kSize;
+      base_size += ALIGN_TO_ALLOCATION_ALIGNMENT(AllocationMemento::kSize);
     }
 
     const int elements_offset = base_size;
 
     // Compute space for elements
     base_size += FixedArray::kHeaderSize;
-    TNode<IntPtrT> size = ElementOffsetFromIndex(capacity, kind, base_size);
+    TNode<IntPtrT> size = AlignToAllocationAlignment(
+        ElementOffsetFromIndex(capacity, kind, base_size));
 
     // For very large arrays in which the requested allocation exceeds the
     // maximal size of a regular heap object, we cannot use the allocation
@@ -4161,8 +4189,10 @@ TNode<JSArray> CodeStubAssembler::AllocateUninitializedJSArray(
 
   if (allocation_site) {
     DCHECK(V8_ALLOCATION_SITE_TRACKING_BOOL);
-    InitializeAllocationMemento(array, IntPtrConstant(JSArray::kHeaderSize),
-                                *allocation_site);
+    InitializeAllocationMemento(
+        array,
+        IntPtrConstant(ALIGN_TO_ALLOCATION_ALIGNMENT(JSArray::kHeaderSize)),
+        *allocation_site);
   }
 
   return CAST(array);
@@ -11609,7 +11639,8 @@ void CodeStubAssembler::TrapAllocationMemento(TNode<JSObject> object,
 
   TNode<ExternalReference> new_space_top_address = ExternalConstant(
       ExternalReference::new_space_allocation_top_address(isolate()));
-  const int kMementoMapOffset = JSArray::kHeaderSize;
+  const int kMementoMapOffset =
+      ALIGN_TO_ALLOCATION_ALIGNMENT(JSArray::kHeaderSize);
   const int kMementoLastWordOffset =
       kMementoMapOffset + AllocationMemento::kSize - kTaggedSize;
 
@@ -14184,7 +14215,8 @@ TNode<JSObject> CodeStubAssembler::AllocateJSIteratorResultForEntry(
   StoreFixedArrayElement(elements, 1, value);
   TNode<Map> array_map = CAST(LoadContextElement(
       native_context, Context::JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX));
-  TNode<HeapObject> array = Allocate(JSArray::kHeaderSize);
+  TNode<HeapObject> array =
+      Allocate(ALIGN_TO_ALLOCATION_ALIGNMENT(JSArray::kHeaderSize));
   StoreMapNoWriteBarrier(array, array_map);
   StoreObjectFieldRoot(array, JSArray::kPropertiesOrHashOffset,
                        RootIndex::kEmptyFixedArray);

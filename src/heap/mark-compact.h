@@ -192,6 +192,8 @@ class MarkingState final
   // Concurrent marking uses local live bytes so we may do these accesses
   // non-atomically.
   void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by) {
+    DCHECK_IMPLIES(V8_COMPRESS_POINTERS_8GB_BOOL,
+                   IsAligned(by, kObjectAlignment8GbHeap));
     chunk->live_byte_count_.fetch_add(by, std::memory_order_relaxed);
   }
 
@@ -200,6 +202,8 @@ class MarkingState final
   }
 
   void SetLiveBytes(MemoryChunk* chunk, intptr_t value) {
+    DCHECK_IMPLIES(V8_COMPRESS_POINTERS_8GB_BOOL,
+                   IsAligned(value, kObjectAlignment8GbHeap));
     chunk->live_byte_count_.store(value, std::memory_order_relaxed);
   }
 };
@@ -218,6 +222,8 @@ class AtomicMarkingState final
   }
 
   void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by) {
+    DCHECK_IMPLIES(V8_COMPRESS_POINTERS_8GB_BOOL,
+                   IsAligned(by, kObjectAlignment8GbHeap));
     chunk->live_byte_count_.fetch_add(by);
   }
 };
@@ -234,6 +240,8 @@ class NonAtomicMarkingState final
   }
 
   void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by) {
+    DCHECK_IMPLIES(V8_COMPRESS_POINTERS_8GB_BOOL,
+                   IsAligned(by, kObjectAlignment8GbHeap));
     chunk->live_byte_count_.fetch_add(by, std::memory_order_relaxed);
   }
 
@@ -242,6 +250,8 @@ class NonAtomicMarkingState final
   }
 
   void SetLiveBytes(MemoryChunk* chunk, intptr_t value) {
+    DCHECK_IMPLIES(V8_COMPRESS_POINTERS_8GB_BOOL,
+                   IsAligned(value, kObjectAlignment8GbHeap));
     chunk->live_byte_count_.store(value, std::memory_order_relaxed);
   }
 };

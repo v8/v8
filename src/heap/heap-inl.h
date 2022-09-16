@@ -356,7 +356,8 @@ void Heap::CopyBlock(Address dst, Address src, int byte_size) {
 template <Heap::FindMementoMode mode>
 AllocationMemento Heap::FindAllocationMemento(Map map, HeapObject object) {
   Address object_address = object.address();
-  Address memento_address = object_address + object.SizeFromMap(map);
+  Address memento_address =
+      object_address + ALIGN_TO_ALLOCATION_ALIGNMENT(object.SizeFromMap(map));
   Address last_memento_word_address = memento_address + kTaggedSize;
   // If the memento would be on another page, bail out immediately.
   if (!Page::OnSamePage(object_address, last_memento_word_address)) {
@@ -403,7 +404,9 @@ AllocationMemento Heap::FindAllocationMemento(Map map, HeapObject object) {
       // it, so suffices to compare ptr and top here.
       top = NewSpaceTop();
       DCHECK(memento_address >= new_space()->limit() ||
-             memento_address + AllocationMemento::kSize <= top);
+             memento_address +
+                     ALIGN_TO_ALLOCATION_ALIGNMENT(AllocationMemento::kSize) <=
+                 top);
       if ((memento_address != top) && memento_candidate.IsValid()) {
         return memento_candidate;
       }

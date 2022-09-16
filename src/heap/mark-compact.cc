@@ -367,7 +367,7 @@ void EvacuationVerifier::VerifyEvacuationOnPage(Address start, Address end) {
     if (!object.IsFreeSpaceOrFiller(cage_base())) {
       object.Iterate(cage_base(), this);
     }
-    current += object.Size(cage_base());
+    current += ALIGN_TO_ALLOCATION_ALIGNMENT(object.Size(cage_base()));
   }
 }
 
@@ -3194,7 +3194,7 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
   // Replace bytecode array with an uncompiled data array.
   HeapObject compiled_data = shared_info.GetBytecodeArray(isolate());
   Address compiled_data_start = compiled_data.address();
-  int compiled_data_size = compiled_data.Size();
+  int compiled_data_size = ALIGN_TO_ALLOCATION_ALIGNMENT(compiled_data.Size());
   MemoryChunk* chunk = MemoryChunk::FromAddress(compiled_data_start);
 
   // Clear any recorded slots for the compiled data as being invalid.
@@ -3213,9 +3213,11 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
 
   // Create a filler object for any left over space in the bytecode array.
   if (!heap()->IsLargeObject(compiled_data)) {
+    const int aligned_filler_offset =
+        ALIGN_TO_ALLOCATION_ALIGNMENT(UncompiledDataWithoutPreparseData::kSize);
     heap()->CreateFillerObjectAt(
-        compiled_data.address() + UncompiledDataWithoutPreparseData::kSize,
-        compiled_data_size - UncompiledDataWithoutPreparseData::kSize);
+        compiled_data.address() + aligned_filler_offset,
+        compiled_data_size - aligned_filler_offset);
   }
 
   // Initialize the uncompiled data.
@@ -3456,7 +3458,21 @@ void MarkCompactCollector::RightTrimDescriptorArray(DescriptorArray array,
                                          SlotSet::FREE_EMPTY_BUCKETS);
   RememberedSet<OLD_TO_OLD>::RemoveRange(chunk, start, end,
                                          SlotSet::FREE_EMPTY_BUCKETS);
-  heap()->CreateFillerObjectAt(start, static_cast<int>(end - start));
+  if (V8_COMPRESS_POINTERS_8GB_BOOL) {
+    Address aligned_start = ALIGN_TO_ALLOCATION_ALIGNMENT(start);
+    Address aligned_end = ALIGN_TO_ALLOCATION_ALIGNMENT(end);
+    if (aligned_start < aligned_end) {
+      heap()->CreateFillerObjectAt(
+          aligned_start, static_cast<int>(aligned_end - aligned_start));
+    }
+    if (Heap::ShouldZapGarbage()) {
+      Address zap_end = std::min(aligned_start, end);
+      MemsetTagged(ObjectSlot(start), Object(static_cast<Address>(kZapValue)),
+                   (zap_end - start) >> kTaggedSizeLog2);
+    }
+  } else {
+    heap()->CreateFillerObjectAt(start, static_cast<int>(end - start));
+  }
   array.set_number_of_all_descriptors(new_nof_all_descriptors);
 }
 
@@ -4669,7 +4685,7 @@ void LiveObjectVisitor::RecomputeLiveBytes(MemoryChunk* chunk,
   int new_live_size = 0;
   for (auto object_and_size :
        LiveObjectRange<kAllLiveObjects>(chunk, marking_state->bitmap(chunk))) {
-    new_live_size += object_and_size.second;
+    new_live_size += ALIGN_TO_ALLOCATION_ALIGNMENT(object_and_size.second);
   }
   marking_state->SetLiveBytes(chunk, new_live_size);
 }

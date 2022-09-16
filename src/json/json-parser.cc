@@ -662,7 +662,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
             : reinterpret_cast<Address>(
                   mutable_double_buffer->GetDataStartAddress());
     Address filler_address = mutable_double_address;
-    if (kTaggedSize != kDoubleSize) {
+    if (!V8_COMPRESS_POINTERS_8GB_BOOL && kTaggedSize != kDoubleSize) {
       if (IsAligned(mutable_double_address, kDoubleAlignment)) {
         mutable_double_address += kTaggedSize;
       } else {
@@ -681,7 +681,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
 
       if (details.representation().IsDouble()) {
         if (value.IsSmi()) {
-          if (kTaggedSize != kDoubleSize) {
+          if (!V8_COMPRESS_POINTERS_8GB_BOOL && kTaggedSize != kDoubleSize) {
             // Write alignment filler.
             HeapObject filler = HeapObject::FromAddress(filler_address);
             filler.set_map_after_allocation(
@@ -698,7 +698,8 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
           hn.set_map_after_allocation(*factory()->heap_number_map());
           HeapNumber::cast(hn).set_value_as_bits(bits, kRelaxedStore);
           value = hn;
-          mutable_double_address += kMutableDoubleSize;
+          mutable_double_address +=
+              ALIGN_TO_ALLOCATION_ALIGNMENT(kMutableDoubleSize);
         } else {
           DCHECK(value.IsHeapNumber());
           HeapObject::cast(value).set_map(*factory()->heap_number_map(),
@@ -712,7 +713,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
 #ifdef DEBUG
       Address end =
           reinterpret_cast<Address>(mutable_double_buffer->GetDataEndAddress());
-      if (kTaggedSize != kDoubleSize) {
+      if (!V8_COMPRESS_POINTERS_8GB_BOOL && kTaggedSize != kDoubleSize) {
         DCHECK_EQ(std::min(filler_address, mutable_double_address), end);
         DCHECK_GE(filler_address, end);
         DCHECK_GE(mutable_double_address, end);

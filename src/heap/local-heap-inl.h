@@ -74,6 +74,7 @@ AllocationResult LocalHeap::AllocateRaw(int size_in_bytes, AllocationType type,
 Address LocalHeap::AllocateRawOrFail(int object_size, AllocationType type,
                                      AllocationOrigin origin,
                                      AllocationAlignment alignment) {
+  object_size = ALIGN_TO_ALLOCATION_ALIGNMENT(object_size);
   DCHECK(!v8_flags.enable_third_party_heap);
   AllocationResult result = AllocateRaw(object_size, type, origin, alignment);
   HeapObject object;

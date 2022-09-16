@@ -61,6 +61,7 @@ V8_WARN_UNUSED_RESULT inline AllocationResult NewSpace::AllocateRawSynchronized(
 V8_INLINE bool SemiSpaceNewSpace::EnsureAllocation(
     int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin,
     int* out_max_aligned_size) {
+  size_in_bytes = ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes);
   DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 #if DEBUG
   VerifyTop();
@@ -128,7 +129,7 @@ HeapObject SemiSpaceObjectIterator::Next() {
       current_ = page->area_start();
     }
     HeapObject object = HeapObject::FromAddress(current_);
-    current_ += object.Size();
+    current_ += ALIGN_TO_ALLOCATION_ALIGNMENT(object.Size());
     if (!object.IsFreeSpaceOrFiller()) return object;
   }
 }

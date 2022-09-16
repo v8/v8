@@ -199,8 +199,9 @@ void LiveObjectRange<mode>::iterator::AdvanceToNextValidObject() {
         // Map might be forwarded during GC.
         DCHECK(MarkCompactCollector::IsMapOrForwarded(map));
         size = black_object.SizeFromMap(map);
-        CHECK_LE(addr + size, chunk_->area_end());
-        Address end = addr + size - kTaggedSize;
+        int aligned_size = ALIGN_TO_ALLOCATION_ALIGNMENT(size);
+        CHECK_LE(addr + aligned_size, chunk_->area_end());
+        Address end = addr + aligned_size - kTaggedSize;
         // One word filler objects do not borrow the second mark bit. We have
         // to jump over the advancing and clearing part.
         // Note that we know that we are at a one word filler when
@@ -231,7 +232,8 @@ void LiveObjectRange<mode>::iterator::AdvanceToNextValidObject() {
         map = Map::cast(map_object);
         DCHECK(map.IsMap(cage_base));
         size = object.SizeFromMap(map);
-        CHECK_LE(addr + size, chunk_->area_end());
+        CHECK_LE(addr + ALIGN_TO_ALLOCATION_ALIGNMENT(size),
+                 chunk_->area_end());
       }
 
       // We found a live object.

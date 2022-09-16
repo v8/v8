@@ -114,6 +114,10 @@ class MemoryLowering final : public Reducer {
   void EnsureAllocateOperator();
   Node* GetWasmInstanceNode();
 
+  // Align the value to kObjectAlignment8GbHeap if V8_COMPRESS_POINTERS_8GB is
+  // defined.
+  Node* AlignToAllocationAlignment(Node* address);
+
   Graph* graph() const { return graph_; }
   Isolate* isolate() const { return isolate_; }
   Zone* zone() const { return zone_; }
