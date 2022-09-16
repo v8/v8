@@ -94,14 +94,18 @@ Handle<JSArray> TemplateObjectDescription::GetTemplateObject(
   if (existing_cached_template.ToHandle(&cached_template)) {
     cached_template->set_template_object(
         HeapObjectReference::Weak(*template_object));
+    // The existing cached template is already in the weakmap, so don't add it
+    // again.
   } else {
     cached_template = isolate->factory()->NewCachedTemplateObject(
         function_literal_id, slot_id, previous_cached_templates,
         template_object);
+
+    // Add the new cached template to the weakmap as the new linked list head.
+    template_weakmap = EphemeronHashTable::Put(isolate, template_weakmap,
+                                               script, cached_template, hash);
+    native_context->set_template_weakmap(*template_weakmap);
   }
-  template_weakmap = EphemeronHashTable::Put(isolate, template_weakmap, script,
-                                             cached_template, hash);
-  native_context->set_template_weakmap(*template_weakmap);
 
   return template_object;
 }
