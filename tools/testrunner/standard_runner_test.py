@@ -540,14 +540,14 @@ class NumFuzzerTest(TestRunnerTest):
   def testNumFuzzer(self):
     # TODO(machenbach): Retrieve these flags automatically from the list of
     # existing fuzzers.
-    # TODO(machenbcah): Figure out how to test fuzzers that have an analysis
-    # phase. Currently the analysis phase isn't mocked in any way and the
-    # fuzzers' expectations after running a test with analysis are not
-    # fullfilled.
     for fuzz_flag in (
         '--stress-compaction=1',
-        '--stress-interrupt-budget=1',
         '--stress-delay-tasks=1',
+        '--stress-deopt=1',
+        '--stress-gc=1',
+        '--stress-interrupt-budget=1',
+        '--stress-marking=1',
+        '--stress-scavenge=1',
         '--stress-stack-size=1',
         '--stress-thread-pool-size=1'):
       # The fake timeout observer above will stop after proessing the 10th
@@ -563,6 +563,7 @@ class NumFuzzerTest(TestRunnerTest):
               '--outdir', 'out/build',
               '--variants=default',
               '--fuzzer-random-seed=12345',
+              '--total-timeout-sec=60',
               fuzz_flag,
               '--progress=verbose',
               'sweet/bananas',

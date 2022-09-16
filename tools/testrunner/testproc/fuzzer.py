@@ -193,7 +193,7 @@ class FuzzerProc(base.TestProcProducer):
 
   def _result_for(self, test, subtest, result):
     if not self._disable_analysis:
-      if result is not None:
+      if result is not None and subtest.procid.endswith('Fuzzer-analysis'):
         # Analysis phase, for fuzzing we drop the result.
         if result.has_unexpected_output:
           self._send_result(test, None)
