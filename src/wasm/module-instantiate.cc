@@ -521,12 +521,12 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
 
   // From here on, we expect the build pipeline to run without exiting to JS.
   DisallowJavascriptExecution no_js(isolate_);
-  // Record build time into correct bucket, then build instance.
-  TimedHistogramScope wasm_instantiate_module_time_scope(SELECT_WASM_COUNTER(
-      isolate_->counters(), module_->origin, wasm_instantiate, module_time));
-  v8::metrics::WasmModuleInstantiated wasm_module_instantiated;
+  // Start a timer for instantiation time, if we have a high resolution timer.
   base::ElapsedTimer timer;
-  timer.Start();
+  if (base::TimeTicks::IsHighResolution()) {
+    timer.Start();
+  }
+  v8::metrics::WasmModuleInstantiated wasm_module_instantiated;
   NativeModule* native_module = module_object_->native_module();
 
   //--------------------------------------------------------------------------
@@ -855,11 +855,16 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   TRACE("Successfully built instance for module %p\n",
         module_object_->native_module());
   wasm_module_instantiated.success = true;
-  wasm_module_instantiated.wall_clock_duration_in_us =
-      timer.Elapsed().InMicroseconds();
-  timer.Stop();
-  isolate_->metrics_recorder()->DelayMainThreadEvent(wasm_module_instantiated,
-                                                     context_id_);
+  if (timer.IsStarted()) {
+    base::TimeDelta instantiation_time = timer.Elapsed();
+    wasm_module_instantiated.wall_clock_duration_in_us =
+        instantiation_time.InMicroseconds();
+    SELECT_WASM_COUNTER(isolate_->counters(), module_->origin, wasm_instantiate,
+                        module_time)
+        ->AddTimedSample(instantiation_time);
+    isolate_->metrics_recorder()->DelayMainThreadEvent(wasm_module_instantiated,
+                                                       context_id_);
+  }
   return instance;
 }
 

@@ -1997,8 +1997,11 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
     return native_module;
   }
 
-  TimedHistogramScope wasm_compile_module_time_scope(SELECT_WASM_COUNTER(
-      isolate->counters(), wasm_module->origin, wasm_compile, module_time));
+  base::Optional<TimedHistogramScope> wasm_compile_module_time_scope;
+  if (base::TimeTicks::IsHighResolution()) {
+    wasm_compile_module_time_scope.emplace(SELECT_WASM_COUNTER(
+        isolate->counters(), wasm_module->origin, wasm_compile, module_time));
+  }
 
   // Embedder usage count for declared shared memories.
   if (wasm_module->has_shared_memory) {
@@ -3052,9 +3055,11 @@ bool AsyncStreamingProcessor::Deserialize(
     base::Vector<const uint8_t> module_bytes,
     base::Vector<const uint8_t> wire_bytes) {
   TRACE_EVENT0("v8.wasm", "wasm.Deserialize");
-  TimedHistogramScope time_scope(
-      job_->isolate()->counters()->wasm_deserialization_time(),
-      job_->isolate());
+  base::Optional<TimedHistogramScope> time_scope;
+  if (base::TimeTicks::IsHighResolution()) {
+    time_scope.emplace(job_->isolate()->counters()->wasm_deserialization_time(),
+                       job_->isolate());
+  }
   // DeserializeNativeModule and FinishCompile assume that they are executed in
   // a HandleScope, and that a context is set on the isolate.
   HandleScope scope(job_->isolate_);
@@ -3297,8 +3302,11 @@ void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization(
   TRACE_EVENT2("v8.wasm", "wasm.CompilationAfterDeserialization",
                "num_lazy_functions", lazy_functions.size(),
                "num_eager_functions", eager_functions.size());
-  TimedHistogramScope lazy_compile_time_scope(
-      counters()->wasm_compile_after_deserialize());
+  base::Optional<TimedHistogramScope> lazy_compile_time_scope;
+  if (base::TimeTicks::IsHighResolution()) {
+    lazy_compile_time_scope.emplace(
+        counters()->wasm_compile_after_deserialize());
+  }
 
   auto* module = native_module_->module();
   base::Optional<CodeSpaceWriteScope> lazy_code_space_write_scope;
