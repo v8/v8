@@ -671,7 +671,8 @@ HeapObject RelocInfo::target_object(PtrComprCageBase cage_base) {
     Tagged_t compressed =
         Assembler::target_compressed_address_at(pc_, constant_pool_);
     DCHECK(!HAS_SMI_TAG(compressed));
-    Object obj(DecompressTaggedPointer(cage_base, compressed));
+    Object obj(V8HeapCompressionScheme::DecompressTaggedPointer(cage_base,
+                                                                compressed));
     // Embedding of compressed Code objects must not happen when external code
     // space is enabled, because CodeDataContainers must be used instead.
     DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
@@ -703,7 +704,9 @@ void RelocInfo::set_target_object(Heap* heap, HeapObject target,
     // No need to flush icache since no instructions were changed.
   } else if (IsCompressedEmbeddedObject(rmode_)) {
     Assembler::set_target_compressed_address_at(
-        pc_, constant_pool_, CompressTagged(target.ptr()), icache_flush_mode);
+        pc_, constant_pool_,
+        V8HeapCompressionScheme::CompressTagged(target.ptr()),
+        icache_flush_mode);
   } else {
     DCHECK(IsFullEmbeddedObject(rmode_));
     Assembler::set_target_address_at(pc_, constant_pool_, target.ptr(),

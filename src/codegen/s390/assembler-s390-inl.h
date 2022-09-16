@@ -144,7 +144,7 @@ HeapObject RelocInfo::target_object(PtrComprCageBase cage_base) {
   if (IsDataEmbeddedObject(rmode_)) {
     return HeapObject::cast(Object(ReadUnalignedValue<Address>(pc_)));
   } else if (IsCompressedEmbeddedObject(rmode_)) {
-    return HeapObject::cast(Object(DecompressTaggedAny(
+    return HeapObject::cast(Object(V8HeapCompressionScheme::DecompressTaggedAny(
         cage_base,
         Assembler::target_compressed_address_at(pc_, constant_pool_))));
   } else {
@@ -183,7 +183,9 @@ void RelocInfo::set_target_object(Heap* heap, HeapObject target,
     // No need to flush icache since no instructions were changed.
   } else if (IsCompressedEmbeddedObject(rmode_)) {
     Assembler::set_target_compressed_address_at(
-        pc_, constant_pool_, CompressTagged(target.ptr()), icache_flush_mode);
+        pc_, constant_pool_,
+        V8HeapCompressionScheme::CompressTagged(target.ptr()),
+        icache_flush_mode);
   } else {
     DCHECK(IsFullEmbeddedObject(rmode_));
     Assembler::set_target_address_at(pc_, constant_pool_, target.ptr(),

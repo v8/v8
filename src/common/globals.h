@@ -903,6 +903,8 @@ class CompressedObjectSlot;
 class CompressedMaybeObjectSlot;
 class CompressedMapWordSlot;
 class CompressedHeapObjectSlot;
+class V8HeapCompressionScheme;
+template <typename CompressionScheme>
 class OffHeapCompressedObjectSlot;
 class FullObjectSlot;
 class FullMaybeObjectSlot;
@@ -931,15 +933,16 @@ struct SlotTraits {
   using TObjectSlot = CompressedObjectSlot;
   using TMaybeObjectSlot = CompressedMaybeObjectSlot;
   using THeapObjectSlot = CompressedHeapObjectSlot;
-  using TOffHeapObjectSlot = OffHeapCompressedObjectSlot;
-  using TCodeObjectSlot = OffHeapCompressedObjectSlot;
+  using TOffHeapObjectSlot =
+      OffHeapCompressedObjectSlot<V8HeapCompressionScheme>;
+  using TCodeObjectSlot = OffHeapCompressedObjectSlot<V8HeapCompressionScheme>;
 #else
   using TObjectSlot = FullObjectSlot;
   using TMaybeObjectSlot = FullMaybeObjectSlot;
   using THeapObjectSlot = FullHeapObjectSlot;
   using TOffHeapObjectSlot = OffHeapFullObjectSlot;
   using TCodeObjectSlot = OffHeapFullObjectSlot;
-#endif
+#endif  // V8_COMPRESS_POINTERS
 };
 
 // An ObjectSlot instance describes a kTaggedSize-sized on-heap field ("slot")

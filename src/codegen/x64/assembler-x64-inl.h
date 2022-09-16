@@ -326,7 +326,8 @@ HeapObject RelocInfo::target_object(PtrComprCageBase cage_base) {
   if (IsCompressedEmbeddedObject(rmode_)) {
     Tagged_t compressed = ReadUnalignedValue<Tagged_t>(pc_);
     DCHECK(!HAS_SMI_TAG(compressed));
-    Object obj(DecompressTaggedPointer(cage_base, compressed));
+    Object obj(V8HeapCompressionScheme::DecompressTaggedPointer(cage_base,
+                                                                compressed));
     // Embedding of compressed Code objects must not happen when external code
     // space is enabled, because CodeDataContainers must be used instead.
     DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
@@ -380,7 +381,7 @@ void RelocInfo::set_target_object(Heap* heap, HeapObject target,
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsCompressedEmbeddedObject(rmode_)) {
     DCHECK(COMPRESS_POINTERS_BOOL);
-    Tagged_t tagged = CompressTagged(target.ptr());
+    Tagged_t tagged = V8HeapCompressionScheme::CompressTagged(target.ptr());
     WriteUnalignedValue(pc_, tagged);
   } else {
     DCHECK(IsFullEmbeddedObject(rmode_) || IsDataEmbeddedObject(rmode_));
@@ -424,7 +425,8 @@ void RelocInfo::WipeOut() {
     WriteUnalignedValue(pc_, kNullAddress);
   } else if (IsCompressedEmbeddedObject(rmode_)) {
     Address smi_address = Smi::FromInt(0).ptr();
-    WriteUnalignedValue(pc_, CompressTagged(smi_address));
+    WriteUnalignedValue(pc_,
+                        V8HeapCompressionScheme::CompressTagged(smi_address));
   } else if (IsCodeTarget(rmode_) || IsNearBuiltinEntry(rmode_) ||
              IsRuntimeEntry(rmode_)) {
     // Effectively write zero into the relocation.

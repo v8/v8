@@ -266,6 +266,11 @@ class CodeDataContainer : public HeapObject {
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, CODE_DATA_FIELDS)
 #undef CODE_DATA_FIELDS
 
+#ifdef V8_EXTERNAL_CODE_SPACE
+  using ExternalCodeField =
+      TaggedField<Object, kCodeOffset, ExternalCodeCompressionScheme>;
+#endif
+
   class BodyDescriptor;
 
   // Flags layout.
