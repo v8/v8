@@ -829,7 +829,8 @@ class MinorMarkCompactCollector final : public CollectorBase {
   static const int kMainMarker = 0;
 
   void MarkLiveObjects();
-  void MarkRootSetInParallel(RootMarkingVisitor* root_visitor);
+  void MarkRootSetInParallel(RootMarkingVisitor* root_visitor,
+                             bool was_marked_incrementally);
   V8_INLINE void MarkRootObject(HeapObject obj);
   void DrainMarkingWorklist();
   void TraceFragmentation();

@@ -266,7 +266,21 @@ void IncrementalMarking::MarkRoots() {
 
     heap()->isolate()->global_handles()->IterateYoungStrongAndDependentRoots(
         &visitor);
-    // TODO(v8:13012): Do PageMarkingItem processing.
+
+    std::vector<PageMarkingItem> marking_items;
+    RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(
+        heap_, [&marking_items](MemoryChunk* chunk) {
+          marking_items.emplace_back(chunk);
+        });
+
+    V8::GetCurrentPlatform()
+        ->CreateJob(
+            v8::TaskPriority::kUserBlocking,
+            std::make_unique<YoungGenerationMarkingJob>(
+                heap_->isolate(), minor_collector_,
+                minor_collector_->marking_worklists(), std::move(marking_items),
+                YoungMarkingJobType::kIncremental))
+        ->Join();
   }
 }
 

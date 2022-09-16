@@ -6239,7 +6239,6 @@ MinorMarkCompactCollector::CreateRememberedSetUpdatingItem(
 
 class PageMarkingItem;
 class RootMarkingItem;
-class YoungGenerationMarkingTask;
 
 class YoungGenerationMarkingTask {
  public:
@@ -6269,6 +6268,8 @@ class YoungGenerationMarkingTask {
     }
   }
 
+  void PublishMarkingWorklist() { marking_worklists_local_->Publish(); }
+
   MarkingWorklists::Local* marking_worklists_local() {
     return marking_worklists_local_.get();
   }
@@ -6279,155 +6280,139 @@ class YoungGenerationMarkingTask {
   YoungGenerationMainMarkingVisitor visitor_;
 };
 
-class PageMarkingItem : public ParallelWorkItem {
- public:
-  explicit PageMarkingItem(MemoryChunk* chunk) : chunk_(chunk) {}
-  ~PageMarkingItem() = default;
+void PageMarkingItem::Process(YoungGenerationMarkingTask* task) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "PageMarkingItem::Process");
+  base::MutexGuard guard(chunk_->mutex());
+  MarkUntypedPointers(task);
+  MarkTypedPointers(task);
+}
 
-  void Process(YoungGenerationMarkingTask* task) {
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-                 "PageMarkingItem::Process");
-    base::MutexGuard guard(chunk_->mutex());
-    MarkUntypedPointers(task);
-    MarkTypedPointers(task);
+void PageMarkingItem::MarkUntypedPointers(YoungGenerationMarkingTask* task) {
+  InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToNew(
+      chunk_, InvalidatedSlotsFilter::LivenessCheck::kNo);
+  RememberedSet<OLD_TO_NEW>::Iterate(
+      chunk_,
+      [this, task, &filter](MaybeObjectSlot slot) {
+        if (!filter.IsValid(slot.address())) return REMOVE_SLOT;
+        return CheckAndMarkObject(task, slot);
+      },
+      SlotSet::FREE_EMPTY_BUCKETS);
+}
+
+void PageMarkingItem::MarkTypedPointers(YoungGenerationMarkingTask* task) {
+  RememberedSet<OLD_TO_NEW>::IterateTyped(
+      chunk_, [=](SlotType slot_type, Address slot) {
+        return UpdateTypedSlotHelper::UpdateTypedSlot(
+            heap(), slot_type, slot, [this, task](FullMaybeObjectSlot slot) {
+              return CheckAndMarkObject(task, slot);
+            });
+      });
+}
+
+template <typename TSlot>
+V8_INLINE SlotCallbackResult PageMarkingItem::CheckAndMarkObject(
+    YoungGenerationMarkingTask* task, TSlot slot) {
+  static_assert(
+      std::is_same<TSlot, FullMaybeObjectSlot>::value ||
+          std::is_same<TSlot, MaybeObjectSlot>::value,
+      "Only FullMaybeObjectSlot and MaybeObjectSlot are expected here");
+  MaybeObject object = *slot;
+  if (Heap::InYoungGeneration(object)) {
+    // Marking happens before flipping the young generation, so the object
+    // has to be in a to page.
+    DCHECK(Heap::InToPage(object));
+    HeapObject heap_object;
+    bool success = object.GetHeapObject(&heap_object);
+    USE(success);
+    DCHECK(success);
+    task->MarkObject(heap_object);
+    return KEEP_SLOT;
   }
+  return REMOVE_SLOT;
+}
 
- private:
-  inline Heap* heap() { return chunk_->heap(); }
-
-  void MarkUntypedPointers(YoungGenerationMarkingTask* task) {
-    InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToNew(
-        chunk_, InvalidatedSlotsFilter::LivenessCheck::kNo);
-    RememberedSet<OLD_TO_NEW>::Iterate(
-        chunk_,
-        [this, task, &filter](MaybeObjectSlot slot) {
-          if (!filter.IsValid(slot.address())) return REMOVE_SLOT;
-          return CheckAndMarkObject(task, slot);
-        },
-        SlotSet::FREE_EMPTY_BUCKETS);
+void YoungGenerationMarkingJob::Run(JobDelegate* delegate) {
+  if (delegate->IsJoiningThread()) {
+    TRACE_GC(collector_->heap()->tracer(),
+             GCTracer::Scope::MINOR_MC_MARK_PARALLEL);
+    ProcessItems(delegate);
+  } else {
+    TRACE_GC_EPOCH(collector_->heap()->tracer(),
+                   GCTracer::Scope::MINOR_MC_BACKGROUND_MARKING,
+                   ThreadKind::kBackground);
+    ProcessItems(delegate);
   }
+}
 
-  void MarkTypedPointers(YoungGenerationMarkingTask* task) {
-    RememberedSet<OLD_TO_NEW>::IterateTyped(
-        chunk_, [=](SlotType slot_type, Address slot) {
-          return UpdateTypedSlotHelper::UpdateTypedSlot(
-              heap(), slot_type, slot, [this, task](FullMaybeObjectSlot slot) {
-                return CheckAndMarkObject(task, slot);
-              });
-        });
-  }
-
-  template <typename TSlot>
-  V8_INLINE SlotCallbackResult
-  CheckAndMarkObject(YoungGenerationMarkingTask* task, TSlot slot) {
-    static_assert(
-        std::is_same<TSlot, FullMaybeObjectSlot>::value ||
-            std::is_same<TSlot, MaybeObjectSlot>::value,
-        "Only FullMaybeObjectSlot and MaybeObjectSlot are expected here");
-    MaybeObject object = *slot;
-    if (Heap::InYoungGeneration(object)) {
-      // Marking happens before flipping the young generation, so the object
-      // has to be in a to page.
-      DCHECK(Heap::InToPage(object));
-      HeapObject heap_object;
-      bool success = object.GetHeapObject(&heap_object);
-      USE(success);
-      DCHECK(success);
-      task->MarkObject(heap_object);
-      return KEEP_SLOT;
-    }
-    return REMOVE_SLOT;
-  }
-
-  MemoryChunk* chunk_;
-};
-
-class YoungGenerationMarkingJob : public v8::JobTask {
- public:
-  YoungGenerationMarkingJob(Isolate* isolate,
-                            MinorMarkCompactCollector* collector,
-                            MarkingWorklists* global_worklists,
-                            std::vector<PageMarkingItem> marking_items)
-      : isolate_(isolate),
-        collector_(collector),
-        global_worklists_(global_worklists),
-        marking_items_(std::move(marking_items)),
-        remaining_marking_items_(marking_items_.size()),
-        generator_(marking_items_.size()) {}
-
-  void Run(JobDelegate* delegate) override {
-    if (delegate->IsJoiningThread()) {
-      TRACE_GC(collector_->heap()->tracer(),
-               GCTracer::Scope::MINOR_MC_MARK_PARALLEL);
-      ProcessItems(delegate);
-    } else {
-      TRACE_GC_EPOCH(collector_->heap()->tracer(),
-                     GCTracer::Scope::MINOR_MC_BACKGROUND_MARKING,
-                     ThreadKind::kBackground);
-      ProcessItems(delegate);
-    }
-  }
-
-  size_t GetMaxConcurrency(size_t worker_count) const override {
-    // Pages are not private to markers but we can still use them to estimate
-    // the amount of marking that is required.
-    const int kPagesPerTask = 2;
-    size_t items = remaining_marking_items_.load(std::memory_order_relaxed);
-    size_t num_tasks = std::max(
+size_t YoungGenerationMarkingJob::GetMaxConcurrency(size_t worker_count) const {
+  // Pages are not private to markers but we can still use them to estimate
+  // the amount of marking that is required.
+  const int kPagesPerTask = 2;
+  size_t items = remaining_marking_items_.load(std::memory_order_relaxed);
+  size_t num_tasks;
+  if (!incremental()) {
+    num_tasks = std::max(
         (items + 1) / kPagesPerTask,
         global_worklists_->shared()->Size() +
             global_worklists_->on_hold()
                 ->Size());  // TODO(v8:13012): If this is used with concurrent
                             // marking, we need to remove on_hold() here.
-    if (!v8_flags.parallel_marking) {
-      num_tasks = std::min<size_t>(1, num_tasks);
-    }
-    return std::min<size_t>(num_tasks,
-                            MinorMarkCompactCollector::kMaxParallelTasks);
+  } else {
+    num_tasks = (items + 1) / kPagesPerTask;
   }
 
- private:
-  void ProcessItems(JobDelegate* delegate) {
-    double marking_time = 0.0;
-    {
-      TimedScope scope(&marking_time);
-      YoungGenerationMarkingTask task(isolate_, collector_, global_worklists_);
-      ProcessMarkingItems(&task);
+  if (!v8_flags.parallel_marking) {
+    num_tasks = std::min<size_t>(1, num_tasks);
+  }
+  return std::min<size_t>(num_tasks,
+                          MinorMarkCompactCollector::kMaxParallelTasks);
+}
+
+void YoungGenerationMarkingJob::ProcessItems(JobDelegate* delegate) {
+  double marking_time = 0.0;
+  {
+    TimedScope scope(&marking_time);
+    YoungGenerationMarkingTask task(isolate_, collector_, global_worklists_);
+    ProcessMarkingItems(&task);
+    if (!incremental()) {
       task.EmptyMarkingWorklist();
-    }
-    if (v8_flags.trace_minor_mc_parallel_marking) {
-      PrintIsolate(collector_->isolate(), "marking[%p]: time=%f\n",
-                   static_cast<void*>(this), marking_time);
+    } else {
+      task.PublishMarkingWorklist();
     }
   }
+  if (v8_flags.trace_minor_mc_parallel_marking) {
+    PrintIsolate(collector_->isolate(), "marking[%p]: time=%f\n",
+                 static_cast<void*>(this), marking_time);
+  }
+}
 
-  void ProcessMarkingItems(YoungGenerationMarkingTask* task) {
-    while (remaining_marking_items_.load(std::memory_order_relaxed) > 0) {
-      base::Optional<size_t> index = generator_.GetNext();
-      if (!index) return;
-      for (size_t i = *index; i < marking_items_.size(); ++i) {
-        auto& work_item = marking_items_[i];
-        if (!work_item.TryAcquire()) break;
-        work_item.Process(task);
+void YoungGenerationMarkingJob::ProcessMarkingItems(
+    YoungGenerationMarkingTask* task) {
+  // TODO(v8:13012): YoungGenerationMarkingJob is generally used to compute the
+  // transitive closure. In the context of concurrent MinorMC, it currently only
+  // seeds the worklists from the old-to-new remembered set, but does not empty
+  // them (this is done concurrently). The class should be refactored to make
+  // this clearer.
+  while (remaining_marking_items_.load(std::memory_order_relaxed) > 0) {
+    base::Optional<size_t> index = generator_.GetNext();
+    if (!index) return;
+    for (size_t i = *index; i < marking_items_.size(); ++i) {
+      auto& work_item = marking_items_[i];
+      if (!work_item.TryAcquire()) break;
+      work_item.Process(task);
+      if (!incremental()) {
         task->EmptyMarkingWorklist();
-        if (remaining_marking_items_.fetch_sub(1, std::memory_order_relaxed) <=
-            1) {
-          return;
-        }
+      }
+      if (remaining_marking_items_.fetch_sub(1, std::memory_order_relaxed) <=
+          1) {
+        return;
       }
     }
   }
-
-  Isolate* isolate_;
-  MinorMarkCompactCollector* collector_;
-  MarkingWorklists* global_worklists_;
-  std::vector<PageMarkingItem> marking_items_;
-  std::atomic_size_t remaining_marking_items_{0};
-  IndexGenerator generator_;
-};
+}
 
 void MinorMarkCompactCollector::MarkRootSetInParallel(
-    RootMarkingVisitor* root_visitor) {
+    RootMarkingVisitor* root_visitor, bool was_marked_incrementally) {
   {
     std::vector<PageMarkingItem> marking_items;
 
@@ -6445,11 +6430,14 @@ void MinorMarkCompactCollector::MarkRootSetInParallel(
                                                 SkipRoot::kOldGeneration});
       isolate()->global_handles()->IterateYoungStrongAndDependentRoots(
           root_visitor);
-      // Create items for each page.
-      RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(
-          heap(), [&marking_items](MemoryChunk* chunk) {
-            marking_items.emplace_back(chunk);
-          });
+
+      if (!was_marked_incrementally) {
+        // Create items for each page.
+        RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(
+            heap(), [&marking_items](MemoryChunk* chunk) {
+              marking_items.emplace_back(chunk);
+            });
+      }
     }
 
     // Add tasks and run in parallel.
@@ -6460,10 +6448,11 @@ void MinorMarkCompactCollector::MarkRootSetInParallel(
       local_marking_worklists_->Publish();
       TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_ROOTS);
       V8::GetCurrentPlatform()
-          ->CreateJob(v8::TaskPriority::kUserBlocking,
-                      std::make_unique<YoungGenerationMarkingJob>(
-                          isolate(), this, marking_worklists(),
-                          std::move(marking_items)))
+          ->CreateJob(
+              v8::TaskPriority::kUserBlocking,
+              std::make_unique<YoungGenerationMarkingJob>(
+                  isolate(), this, marking_worklists(),
+                  std::move(marking_items), YoungMarkingJobType::kAtomic))
           ->Join();
 
       DCHECK(local_marking_worklists_->IsEmpty());
@@ -6494,7 +6483,7 @@ void MinorMarkCompactCollector::MarkLiveObjects() {
 
   RootMarkingVisitor root_visitor(this);
 
-  MarkRootSetInParallel(&root_visitor);
+  MarkRootSetInParallel(&root_visitor, was_marked_incrementally);
 
   // Mark rest on the main thread.
   {
