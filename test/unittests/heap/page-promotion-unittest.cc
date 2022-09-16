@@ -4,7 +4,6 @@
 
 #include "src/execution/isolate.h"
 #include "test/unittests/heap/heap-utils.h"
-#include "v8-isolate.h"
 
 namespace v8 {
 namespace internal {

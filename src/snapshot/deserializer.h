@@ -245,7 +245,7 @@ class Deserializer : public SerializerDeserializer {
   // be in an invalid state
   class V8_NODISCARD DisableGCStats {
    public:
-    explicit DisableGCStats() {
+    DisableGCStats() {
       original_gc_stats_ = TracingFlags::gc_stats;
       TracingFlags::gc_stats = 0;
     }

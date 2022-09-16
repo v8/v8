@@ -197,9 +197,8 @@ TEST_P(SourcePositionTest, SourcePositionsEquivalent) {
 INSTANTIATE_TEST_SUITE_P(
     SourcePositionsEquivalentTestCases, SourcePositionTest,
     ::testing::Combine(::testing::Values(kUseReo, kUseFilterExpressionPositions,
-                                         kUseReo | kUseFilterExpressionPositions
-
-                                         ),
+                                         kUseReo |
+                                             kUseFilterExpressionPositions),
                        ::testing::ValuesIn(kTestCaseData)));
 
 }  // namespace interpreter

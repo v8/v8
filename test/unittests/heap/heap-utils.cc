@@ -13,7 +13,6 @@
 #include "src/heap/new-spaces.h"
 #include "src/heap/safepoint.h"
 #include "src/objects/free-space-inl.h"
-#include "v8-internal.h"
 
 namespace v8 {
 namespace internal {

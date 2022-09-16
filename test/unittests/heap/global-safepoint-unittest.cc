@@ -22,7 +22,7 @@ namespace {
 
 class IsolateWithContextWrapper {
  public:
-  explicit IsolateWithContextWrapper()
+  IsolateWithContextWrapper()
       : isolate_wrapper_(kNoCounters),
         isolate_scope_(isolate_wrapper_.isolate()),
         handle_scope_(isolate_wrapper_.isolate()),
