@@ -773,14 +773,14 @@ void CppHeap::TraceEpilogue() {
 }
 
 void CppHeap::RunMinorGC(StackState stack_state) {
-  DCHECK(!sweeper_.IsSweepingInProgress());
-
   if (!generational_gc_supported()) return;
   if (in_no_gc_scope()) return;
   // Minor GC does not support nesting in full GCs.
   if (IsMarking()) return;
   // Minor GCs with the stack are currently not supported.
   if (stack_state == StackState::kMayContainHeapPointers) return;
+
+  DCHECK(!sweeper_.IsSweepingInProgress());
 
   // Notify GC tracer that CppGC started young GC cycle.
   isolate_->heap()->tracer()->NotifyYoungCppGCRunning();
