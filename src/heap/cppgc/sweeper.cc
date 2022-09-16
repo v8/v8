@@ -11,6 +11,7 @@
 #include "include/cppgc/platform.h"
 #include "src/base/optional.h"
 #include "src/base/platform/mutex.h"
+#include "src/base/platform/time.h"
 #include "src/heap/cppgc/free-list.h"
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap-base.h"
@@ -787,7 +788,8 @@ class Sweeper::SweeperImpl final {
     }
   }
 
-  bool SweepForAllocationIfRunning(NormalPageSpace* space, size_t size) {
+  bool SweepForAllocationIfRunning(NormalPageSpace* space, size_t size,
+                                   v8::base::TimeDelta max_duration) {
     if (!is_in_progress_) return false;
 
     // Bail out for recursive sweeping calls. This can happen when finalizers
@@ -809,13 +811,31 @@ class Sweeper::SweeperImpl final {
         stats_collector_, StatsCollector::kSweepOnAllocation);
     MutatorThreadSweepingScope sweeping_in_progress(*this);
 
+    const auto deadline = v8::base::TimeTicks::Now() + max_duration;
+    size_t page_count = 0;
+    const auto ShouldYield = [&page_count, deadline]() {
+      constexpr size_t kPageInterruptInterval = 10;
+      if (page_count++ == kPageInterruptInterval) {
+        if (deadline < v8::base::TimeTicks::Now()) {
+          return true;
+        }
+        page_count = 0;
+      }
+      return false;
+    };
+
     {
       // First, process unfinalized pages as finalizing a page is faster than
       // sweeping.
       SweepFinalizer finalizer(platform_, config_.free_memory_handling);
       while (auto page = space_state.swept_unfinalized_pages.Pop()) {
         finalizer.FinalizePage(&*page);
-        if (size <= finalizer.largest_new_free_list_entry()) return true;
+        if (size <= finalizer.largest_new_free_list_entry()) {
+          return true;
+        }
+        if (ShouldYield()) {
+          return false;
+        }
       }
     }
     {
@@ -825,19 +845,24 @@ class Sweeper::SweeperImpl final {
                                    config_.free_memory_handling);
       while (auto page = space_state.unswept_pages.Pop()) {
         sweeper.SweepPage(**page);
-        if (size <= sweeper.largest_new_free_list_entry()) return true;
+        if (size <= sweeper.largest_new_free_list_entry()) {
+          return true;
+        }
+        if (ShouldYield()) {
+          return false;
+        }
       }
     }
 
     return false;
   }
 
-  void FinishIfRunning() {
-    if (!is_in_progress_) return;
+  bool FinishIfRunning() {
+    if (!is_in_progress_) return false;
 
     // Bail out for recursive sweeping calls. This can happen when finalizers
     // allocate new memory.
-    if (is_sweeping_on_mutator_thread_) return;
+    if (is_sweeping_on_mutator_thread_) return false;
 
     {
       StatsCollector::EnabledScope stats_scope(
@@ -852,6 +877,7 @@ class Sweeper::SweeperImpl final {
       Finish();
     }
     NotifyDone();
+    return true;
   }
 
   void FinishIfOutOfWork() {
@@ -1060,14 +1086,16 @@ Sweeper::~Sweeper() = default;
 void Sweeper::Start(SweepingConfig config) {
   impl_->Start(config, heap_.platform());
 }
-void Sweeper::FinishIfRunning() { impl_->FinishIfRunning(); }
+
+bool Sweeper::FinishIfRunning() { return impl_->FinishIfRunning(); }
 void Sweeper::FinishIfOutOfWork() { impl_->FinishIfOutOfWork(); }
 void Sweeper::WaitForConcurrentSweepingForTesting() {
   impl_->WaitForConcurrentSweepingForTesting();
 }
 void Sweeper::NotifyDoneIfNeeded() { impl_->NotifyDoneIfNeeded(); }
-bool Sweeper::SweepForAllocationIfRunning(NormalPageSpace* space, size_t size) {
-  return impl_->SweepForAllocationIfRunning(space, size);
+bool Sweeper::SweepForAllocationIfRunning(NormalPageSpace* space, size_t size,
+                                          v8::base::TimeDelta max_duration) {
+  return impl_->SweepForAllocationIfRunning(space, size, max_duration);
 }
 bool Sweeper::IsSweepingOnMutatorThread() const {
   return impl_->IsSweepingOnMutatorThread();
