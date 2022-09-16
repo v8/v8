@@ -65,7 +65,8 @@ JSNativeContextSpecialization::JSNativeContextSpecialization(
       dependencies_(dependencies),
       zone_(zone),
       shared_zone_(shared_zone),
-      type_cache_(TypeCache::Get()) {}
+      type_cache_(TypeCache::Get()),
+      created_strings_(zone) {}
 
 Reduction JSNativeContextSpecialization::Reduce(Node* node) {
   switch (node->opcode()) {
@@ -135,7 +136,6 @@ base::Optional<size_t> JSNativeContextSpecialization::GetMaxStringLength(
   HeapObjectMatcher matcher(node);
   if (matcher.HasResolvedValue() && matcher.Ref(broker).IsString()) {
     StringRef input = matcher.Ref(broker).AsString();
-    if (!input.IsContentAccessible()) return base::nullopt;
     return input.length();
   }
 
@@ -196,6 +196,13 @@ Handle<String> JSNativeContextSpecialization::CreateStringConstant(Node* node) {
             ->local_isolate_or_isolate()
             ->factory()
             ->NewNumber<AllocationType::kOld>(number_matcher.ResolvedValue());
+    // Note that we do not store the result of NumberToString in
+    // {created_strings_}, because the latter is used to know if strings are
+    // safe to be used in the background, but we always have as additional
+    // information the node from which the string was created ({node} is that
+    // case), and if this node is a kHeapNumber, then we know that we must have
+    // created the string, and that there it is safe to read. So, we don't need
+    // {created_strings_} in that case.
     return broker()->local_isolate_or_isolate()->factory()->NumberToString(
         num_obj);
   } else {
@@ -212,6 +219,15 @@ namespace {
 bool IsStringConstant(JSHeapBroker* broker, Node* node) {
   HeapObjectMatcher matcher(node);
   return matcher.HasResolvedValue() && matcher.Ref(broker).IsString();
+}
+
+bool IsStringWithNonAccessibleContent(JSHeapBroker* broker, Node* node) {
+  HeapObjectMatcher matcher(node);
+  if (matcher.HasResolvedValue() && matcher.Ref(broker).IsString()) {
+    StringRef input = matcher.Ref(broker).AsString();
+    return !input.IsContentAccessible();
+  }
+  return false;
 }
 }  // namespace
 
@@ -321,16 +337,14 @@ Reduction JSNativeContextSpecialization::ReduceJSAsyncFunctionResolve(
   return Replace(promise);
 }
 
-namespace {
-
 // Concatenates {left} and {right}. The result is fairly similar to creating a
 // new ConsString with {left} and {right} and then flattening it, which we don't
 // do because String::Flatten does not support background threads. Rather than
 // implementing a full String::Flatten for background threads, we prefered to
 // implement this Concatenate function, which, unlike String::Flatten, doesn't
 // need to replace ConsStrings by ThinStrings.
-Handle<String> Concatenate(Handle<String> left, Handle<String> right,
-                           JSHeapBroker* broker) {
+Handle<String> JSNativeContextSpecialization::Concatenate(
+    Handle<String> left, Handle<String> right) {
   if (left->length() == 0) return right;
   if (right->length() == 0) return left;
 
@@ -357,7 +371,8 @@ Handle<String> Concatenate(Handle<String> left, Handle<String> right,
     // generational write-barrier supports background threads.
     if (!LocalHeap::Current() ||
         (!ObjectInYoungGeneration(*left) && !ObjectInYoungGeneration(*right))) {
-      return broker->local_isolate_or_isolate()
+      return broker()
+          ->local_isolate_or_isolate()
           ->factory()
           ->NewConsString(left, right, AllocationType::kOld)
           .ToHandleChecked();
@@ -367,19 +382,24 @@ Handle<String> Concatenate(Handle<String> left, Handle<String> right,
   // If one of the string is not in readonly space, then we need a
   // SharedStringAccessGuardIfNeeded before accessing its content.
   bool require_guard = SharedStringAccessGuardIfNeeded::IsNeeded(
-                           *left, broker->local_isolate_or_isolate()) ||
+                           *left, broker()->local_isolate_or_isolate()) ||
                        SharedStringAccessGuardIfNeeded::IsNeeded(
-                           *right, broker->local_isolate_or_isolate());
+                           *right, broker()->local_isolate_or_isolate());
   SharedStringAccessGuardIfNeeded access_guard(
-      require_guard ? broker->local_isolate_or_isolate() : nullptr);
+      require_guard ? broker()->local_isolate_or_isolate() : nullptr);
 
   if (left->IsOneByteRepresentation() && right->IsOneByteRepresentation()) {
     // {left} and {right} are 1-byte ==> the result will be 1-byte.
-    Handle<SeqOneByteString> flat =
-        broker->local_isolate_or_isolate()
+    // Note that we need a canonical handle, because we insert in
+    // {created_strings_} the handle's address, which is kinda meaningless if
+    // the handle isn't canonical.
+    Handle<SeqOneByteString> flat = broker()->CanonicalPersistentHandle(
+        broker()
+            ->local_isolate_or_isolate()
             ->factory()
             ->NewRawOneByteString(length, AllocationType::kOld)
-            .ToHandleChecked();
+            .ToHandleChecked());
+    created_strings_.insert(flat);
     DisallowGarbageCollection no_gc;
     String::WriteToFlat(*left, flat->GetChars(no_gc, access_guard), 0,
                         left->length(), GetPtrComprCageBase(*left),
@@ -391,11 +411,13 @@ Handle<String> Concatenate(Handle<String> left, Handle<String> right,
   } else {
     // One (or both) of {left} and {right} is 2-byte ==> the result will be
     // 2-byte.
-    Handle<SeqTwoByteString> flat =
-        broker->local_isolate_or_isolate()
+    Handle<SeqTwoByteString> flat = broker()->CanonicalPersistentHandle(
+        broker()
+            ->local_isolate_or_isolate()
             ->factory()
             ->NewRawTwoByteString(length, AllocationType::kOld)
-            .ToHandleChecked();
+            .ToHandleChecked());
+    created_strings_.insert(flat);
     DisallowGarbageCollection no_gc;
     String::WriteToFlat(*left, flat->GetChars(no_gc, access_guard), 0,
                         left->length(), GetPtrComprCageBase(*left),
@@ -407,7 +429,22 @@ Handle<String> Concatenate(Handle<String> left, Handle<String> right,
   }
 }
 
-}  // namespace
+bool JSNativeContextSpecialization::StringCanSafelyBeRead(Node* const node,
+                                                          Handle<String> str) {
+  DCHECK(node->opcode() == IrOpcode::kHeapConstant ||
+         node->opcode() == IrOpcode::kNumberConstant);
+  if (broker()->IsMainThread()) {
+    // All strings are safe to be read on the main thread.
+    return true;
+  }
+  if (node->opcode() == IrOpcode::kNumberConstant) {
+    // If {node} is a number constant, then {str} is the stringification of this
+    // number which we must have created ourselves.
+    return true;
+  }
+  return !IsStringWithNonAccessibleContent(broker(), node) ||
+         created_strings_.find(str) != created_strings_.end();
+}
 
 Reduction JSNativeContextSpecialization::ReduceJSAdd(Node* node) {
   // TODO(turbofan): This has to run together with the inlining and
@@ -427,10 +464,45 @@ Reduction JSNativeContextSpecialization::ReduceJSAdd(Node* node) {
   // addition won't throw due to too long result.
   if (*lhs_len + *rhs_len <= String::kMaxLength &&
       (IsStringConstant(broker(), lhs) || IsStringConstant(broker(), rhs))) {
-    Handle<String> left = CreateStringConstant(lhs);
-    Handle<String> right = CreateStringConstant(rhs);
+    // We need canonical handles for {left} and {right}, in order to be able to
+    // search {created_strings_} if needed.
+    Handle<String> left =
+        broker()->CanonicalPersistentHandle(CreateStringConstant(lhs));
+    Handle<String> right =
+        broker()->CanonicalPersistentHandle(CreateStringConstant(rhs));
 
-    Handle<String> concatenated = Concatenate(left, right, broker());
+    if (!(StringCanSafelyBeRead(lhs, left) &&
+          StringCanSafelyBeRead(rhs, right))) {
+      // One of {lhs} or {rhs} is not safe to be read in the background.
+
+      if (left->length() + right->length() > ConsString::kMinLength &&
+          (!LocalHeap::Current() || (!ObjectInYoungGeneration(*left) &&
+                                     !ObjectInYoungGeneration(*right)))) {
+        // We can create a ConsString with {left} and {right}, without needing
+        // to read their content (and this ConsString will not introduce
+        // old-to-new pointers from the background).
+        Handle<String> concatenated =
+            broker()
+                ->local_isolate_or_isolate()
+                ->factory()
+                ->NewConsString(left, right, AllocationType::kOld)
+                .ToHandleChecked();
+        Node* reduced = graph()->NewNode(common()->HeapConstant(
+            broker()->CanonicalPersistentHandle(concatenated)));
+        ReplaceWithValue(node, reduced);
+        return Replace(reduced);
+      } else {
+        // Concatenating those strings would not produce a ConsString but rather
+        // a flat string (because the result is small). And, since the strings
+        // are not safe to be read in the background, this wouldn't be safe.
+        // Or, one of the string is in the young generation, and since the
+        // generational barrier doesn't support background threads, we cannot
+        // create the ConsString.
+        return NoChange();
+      }
+    }
+
+    Handle<String> concatenated = Concatenate(left, right);
     Node* reduced = graph()->NewNode(common()->HeapConstant(
         broker()->CanonicalPersistentHandle(concatenated)));
 
