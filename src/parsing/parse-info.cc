@@ -31,16 +31,16 @@ UnoptimizedCompileFlags::UnoptimizedCompileFlags(Isolate* isolate,
   set_collect_type_profile(isolate->is_collecting_type_profile());
   set_coverage_enabled(!isolate->is_best_effort_code_coverage());
   set_block_coverage_enabled(isolate->is_block_code_coverage());
-  set_might_always_turbofan(FLAG_always_turbofan ||
-                            FLAG_prepare_always_turbofan);
-  set_allow_natives_syntax(FLAG_allow_natives_syntax);
+  set_might_always_turbofan(v8_flags.always_turbofan ||
+                            v8_flags.prepare_always_turbofan);
+  set_allow_natives_syntax(v8_flags.allow_natives_syntax);
   set_allow_lazy_compile(true);
-  set_collect_source_positions(!FLAG_enable_lazy_source_positions ||
+  set_collect_source_positions(!v8_flags.enable_lazy_source_positions ||
                                isolate->NeedsDetailedOptimizedCodeLineInfo());
   set_post_parallel_compile_tasks_for_eager_toplevel(
-      FLAG_parallel_compile_tasks_for_eager_toplevel);
+      v8_flags.parallel_compile_tasks_for_eager_toplevel);
   set_post_parallel_compile_tasks_for_lazy(
-      FLAG_parallel_compile_tasks_for_lazy);
+      v8_flags.parallel_compile_tasks_for_lazy);
 }
 
 // static
@@ -86,7 +86,7 @@ UnoptimizedCompileFlags UnoptimizedCompileFlags::ForScriptCompile(
       flags.outer_language_mode(), construct_repl_mode(script.is_repl_mode()),
       script.origin_options().IsModule() ? ScriptType::kModule
                                          : ScriptType::kClassic,
-      FLAG_lazy);
+      v8_flags.lazy);
   if (script.is_wrapped()) {
     flags.set_function_syntax_kind(FunctionSyntaxKind::kWrapped);
   }
