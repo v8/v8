@@ -268,8 +268,8 @@ V8_INLINE size_t Sweeper::FreeAndProcessFreedMemory(
     ZapCode(free_start, size);
   }
   page->heap()->CreateFillerObjectAtSweeper(free_start, static_cast<int>(size));
-  freed_bytes =
-      reinterpret_cast<PagedSpace*>(space)->UnaccountedFree(free_start, size);
+  freed_bytes = reinterpret_cast<PagedSpaceBase*>(space)->UnaccountedFree(
+      free_start, size);
   if (should_reduce_memory_) page->DiscardUnusedMemory(free_start, size);
 
   return freed_bytes;
