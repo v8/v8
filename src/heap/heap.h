@@ -820,9 +820,9 @@ class Heap {
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  // TODO(manoskouk): Inline this if STRONG_MUTABLE_MOVABLE_ROOT_LIST setters
-  // become public.
-  void EnsureWasmCanonicalRttsSize(int length);
+  // TODO(manoskouk): Consider inlining/moving this if
+  // STRONG_MUTABLE_MOVABLE_ROOT_LIST setters become public.
+  V8_EXPORT_PRIVATE void EnsureWasmCanonicalRttsSize(int length);
 #endif
 
   // ===========================================================================

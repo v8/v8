@@ -561,6 +561,13 @@ struct V8_EXPORT_PRIVATE WasmModule {
     return supertype(index) != kNoSuperType;
   }
 
+  // Linear search. Returns -1 if types are empty.
+  int MaxCanonicalTypeIndex() const {
+    if (isorecursive_canonical_type_ids.empty()) return -1;
+    return *std::max_element(isorecursive_canonical_type_ids.begin(),
+                             isorecursive_canonical_type_ids.end());
+  }
+
   std::vector<TypeDefinition> types;  // by type index
   // Maps each type index to its global (cross-module) canonical index as per
   // isorecursive type canonicalization.
@@ -612,14 +619,9 @@ inline bool is_asmjs_module(const WasmModule* module) {
 
 size_t EstimateStoredSize(const WasmModule* module);
 
-// Returns the number of possible export wrappers for a given module.
-V8_EXPORT_PRIVATE int MaxNumExportWrappers(const WasmModule* module);
-
-// Returns the wrapper index for a function in {module} with isorecursive
-// canonical signature index {canonical_sig_index}, and origin defined by
-// {is_import}.
-int GetExportWrapperIndex(const WasmModule* module,
-                          uint32_t canonical_sig_index, bool is_import);
+// Returns the wrapper index for a function with isorecursive canonical
+// signature index {canonical_sig_index}, and origin defined by {is_import}.
+int GetExportWrapperIndex(uint32_t canonical_sig_index, bool is_import);
 
 // Return the byte offset of the function identified by the given index.
 // The offset will be relative to the start of the module bytes.

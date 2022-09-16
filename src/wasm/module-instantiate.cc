@@ -718,13 +718,10 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   if (enabled_.has_gc()) {
     if (module_->isorecursive_canonical_type_ids.size() > 0) {
-      uint32_t maximum_canonical_type_index =
-          *std::max_element(module_->isorecursive_canonical_type_ids.begin(),
-                            module_->isorecursive_canonical_type_ids.end());
       // Make sure all canonical indices have been set.
-      DCHECK_NE(maximum_canonical_type_index, kNoSuperType);
+      DCHECK_NE(module_->MaxCanonicalTypeIndex(), kNoSuperType);
       isolate_->heap()->EnsureWasmCanonicalRttsSize(
-          maximum_canonical_type_index + 1);
+          module_->MaxCanonicalTypeIndex() + 1);
     }
     Handle<FixedArray> maps = isolate_->factory()->NewFixedArray(
         static_cast<int>(module_->types.size()));

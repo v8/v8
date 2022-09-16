@@ -81,10 +81,9 @@ Handle<WasmModuleObject> CompileReferenceModule(Zone* zone, Isolate* isolate,
   constexpr base::Vector<const char> kNoSourceUrl;
   Handle<Script> script =
       GetWasmEngine()->GetOrCreateScript(isolate, native_module, kNoSourceUrl);
-  Handle<FixedArray> export_wrappers = isolate->factory()->NewFixedArray(
-      static_cast<int>(module->functions.size()));
-  return WasmModuleObject::New(isolate, std::move(native_module), script,
-                               export_wrappers);
+  isolate->heap()->EnsureWasmCanonicalRttsSize(module->MaxCanonicalTypeIndex() +
+                                               1);
+  return WasmModuleObject::New(isolate, std::move(native_module), script);
 }
 
 void InterpretAndExecuteModule(i::Isolate* isolate,

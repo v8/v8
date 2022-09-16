@@ -185,10 +185,8 @@ uint32_t TestingModuleBuilder::AddFunction(const FunctionSig* sig,
 }
 
 void TestingModuleBuilder::InitializeWrapperCache() {
-  size_t max_num_sigs = MaxNumExportWrappers(test_module_.get());
-  Handle<FixedArray> export_wrappers =
-      isolate_->factory()->NewFixedArray(static_cast<int>(max_num_sigs));
-  instance_object_->module_object().set_export_wrappers(*export_wrappers);
+  isolate_->heap()->EnsureWasmCanonicalRttsSize(
+      test_module_->MaxCanonicalTypeIndex() + 1);
 }
 
 Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {

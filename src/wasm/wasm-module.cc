@@ -64,20 +64,7 @@ bool LazilyGeneratedNames::Has(uint32_t function_index) {
   return function_names_.Get(function_index) != nullptr;
 }
 
-// static
-int MaxNumExportWrappers(const WasmModule* module) {
-  if (module->isorecursive_canonical_type_ids.empty()) return 0;
-  // TODO(manoskouk): This will create oversized wrappers for modules with few
-  // types but large canonical type indices. Move wrappers to isolate to avoid
-  // this.
-  uint32_t max_canonical_index =
-      *std::max_element(module->isorecursive_canonical_type_ids.begin(),
-                        module->isorecursive_canonical_type_ids.end());
-  return (max_canonical_index + 1) * 2;
-}
-
-int GetExportWrapperIndex(const WasmModule* module,
-                          uint32_t canonical_sig_index, bool is_import) {
+int GetExportWrapperIndex(uint32_t canonical_sig_index, bool is_import) {
   return 2 * canonical_sig_index + (is_import ? 1 : 0);
 }
 

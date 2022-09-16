@@ -881,6 +881,7 @@ void Heap::CreateInitialObjects() {
 #ifdef V8_ENABLE_WEBASSEMBLY
   set_active_continuation(roots.undefined_value());
   set_active_suspender(roots.undefined_value());
+  set_js_to_wasm_wrappers(roots.empty_weak_array_list());
   set_wasm_canonical_rtts(roots.empty_weak_array_list());
 #endif  // V8_ENABLE_WEBASSEMBLY
 

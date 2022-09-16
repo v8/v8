@@ -127,7 +127,6 @@ extern class WasmExceptionPackage extends JSObject;
 
 extern class WasmModuleObject extends JSObject {
   managed_native_module: ManagedWasmNativeModule;
-  export_wrappers: FixedArray;
   script: Script;
 }
 
@@ -177,7 +176,6 @@ type WasmExportedFunction extends JSFunction;
 
 extern class AsmWasmData extends Struct {
   managed_native_module: ManagedWasmNativeModule;
-  export_wrappers: FixedArray;
   uses_bitset: HeapNumber;
 }
 

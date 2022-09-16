@@ -133,9 +133,6 @@ class WasmModuleObject
   V8_EXPORT_PRIVATE static Handle<WasmModuleObject> New(
       Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
       Handle<Script> script);
-  V8_EXPORT_PRIVATE static Handle<WasmModuleObject> New(
-      Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
-      Handle<Script> script, Handle<FixedArray> export_wrappers);
 
   // Check whether this module was generated from asm.js source.
   inline bool is_asm_js();
@@ -899,7 +896,7 @@ class AsmWasmData : public TorqueGeneratedAsmWasmData<AsmWasmData, Struct> {
  public:
   static Handle<AsmWasmData> New(
       Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
-      Handle<FixedArray> export_wrappers, Handle<HeapNumber> uses_bitset);
+      Handle<HeapNumber> uses_bitset);
 
   DECL_PRINTER(AsmWasmData)
 

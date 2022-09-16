@@ -56,14 +56,6 @@ enum DispatchTableElements : int {
 Handle<WasmModuleObject> WasmModuleObject::New(
     Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
     Handle<Script> script) {
-  Handle<FixedArray> export_wrappers = isolate->factory()->NewFixedArray(0);
-  return New(isolate, std::move(native_module), script, export_wrappers);
-}
-
-// static
-Handle<WasmModuleObject> WasmModuleObject::New(
-    Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
-    Handle<Script> script, Handle<FixedArray> export_wrappers) {
   Handle<Managed<wasm::NativeModule>> managed_native_module;
   if (script->type() == Script::TYPE_WASM) {
     managed_native_module = handle(
@@ -79,7 +71,6 @@ Handle<WasmModuleObject> WasmModuleObject::New(
   }
   Handle<WasmModuleObject> module_object = Handle<WasmModuleObject>::cast(
       isolate->factory()->NewJSObject(isolate->wasm_module_constructor()));
-  module_object->set_export_wrappers(*export_wrappers);
   module_object->set_managed_native_module(*managed_native_module);
   module_object->set_script(*script);
   return module_object;
@@ -1362,15 +1353,16 @@ WasmInstanceObject::GetOrCreateWasmInternalFunction(
   const WasmFunction& function = module->functions[function_index];
   uint32_t canonical_sig_index =
       module->isorecursive_canonical_type_ids[function.sig_index];
+  isolate->heap()->EnsureWasmCanonicalRttsSize(canonical_sig_index + 1);
   int wrapper_index =
-      GetExportWrapperIndex(module, canonical_sig_index, function.imported);
+      wasm::GetExportWrapperIndex(canonical_sig_index, function.imported);
 
-  Handle<Object> entry =
-      FixedArray::get(module_object->export_wrappers(), wrapper_index, isolate);
+  MaybeObject entry = isolate->heap()->js_to_wasm_wrappers().Get(wrapper_index);
 
   Handle<CodeT> wrapper;
-  if (entry->IsCodeT()) {
-    wrapper = Handle<CodeT>::cast(entry);
+  // {entry} can be cleared, {undefined}, or a ready {CodeT}.
+  if (entry.IsStrongOrWeak() && entry.GetHeapObject().IsCodeT()) {
+    wrapper = handle(CodeT::cast(entry.GetHeapObject()), isolate);
   } else {
     // The wrapper may not exist yet if no function in the exports section has
     // this signature. We compile it and store the wrapper in the module for
@@ -1378,7 +1370,8 @@ WasmInstanceObject::GetOrCreateWasmInternalFunction(
     wrapper = wasm::JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
         isolate, function.sig, canonical_sig_index, instance->module(),
         function.imported);
-    module_object->export_wrappers().set(wrapper_index, *wrapper);
+    isolate->heap()->js_to_wasm_wrappers().Set(
+        wrapper_index, HeapObjectReference::Weak(*wrapper));
   }
   auto external = Handle<WasmExternalFunction>::cast(WasmExportedFunction::New(
       isolate, instance, function_index,
@@ -2205,7 +2198,7 @@ Handle<WasmExceptionTag> WasmExceptionTag::New(Isolate* isolate, int index) {
 
 Handle<AsmWasmData> AsmWasmData::New(
     Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
-    Handle<FixedArray> export_wrappers, Handle<HeapNumber> uses_bitset) {
+    Handle<HeapNumber> uses_bitset) {
   const WasmModule* module = native_module->module();
   const bool kUsesLiftoff = false;
   size_t memory_estimate =
@@ -2218,7 +2211,6 @@ Handle<AsmWasmData> AsmWasmData::New(
   Handle<AsmWasmData> result = Handle<AsmWasmData>::cast(
       isolate->factory()->NewStruct(ASM_WASM_DATA_TYPE, AllocationType::kOld));
   result->set_managed_native_module(*managed_native_module);
-  result->set_export_wrappers(*export_wrappers);
   result->set_uses_bitset(*uses_bitset);
   return result;
 }
