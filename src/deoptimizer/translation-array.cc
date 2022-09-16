@@ -287,20 +287,6 @@ void TranslationArrayBuilder::StoreInt64Register(Register reg) {
   DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);
 }
 
-void TranslationArrayBuilder::StoreSignedBigInt64Register(Register reg) {
-  auto opcode = TranslationOpcode::SIGNED_BIGINT64_REGISTER;
-  AddOpcode(opcode);
-  AddRegister(reg);
-  DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);
-}
-
-void TranslationArrayBuilder::StoreUnsignedBigInt64Register(Register reg) {
-  auto opcode = TranslationOpcode::UNSIGNED_BIGINT64_REGISTER;
-  AddOpcode(opcode);
-  AddRegister(reg);
-  DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);
-}
-
 void TranslationArrayBuilder::StoreUint32Register(Register reg) {
   auto opcode = TranslationOpcode::UINT32_REGISTER;
   AddOpcode(opcode);
@@ -343,20 +329,6 @@ void TranslationArrayBuilder::StoreInt32StackSlot(int index) {
 
 void TranslationArrayBuilder::StoreInt64StackSlot(int index) {
   auto opcode = TranslationOpcode::INT64_STACK_SLOT;
-  AddOpcode(opcode);
-  Add(index);
-  DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);
-}
-
-void TranslationArrayBuilder::StoreSignedBigInt64StackSlot(int index) {
-  auto opcode = TranslationOpcode::SIGNED_BIGINT64_STACK_SLOT;
-  AddOpcode(opcode);
-  Add(index);
-  DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);
-}
-
-void TranslationArrayBuilder::StoreUnsignedBigInt64StackSlot(int index) {
-  auto opcode = TranslationOpcode::UNSIGNED_BIGINT64_STACK_SLOT;
   AddOpcode(opcode);
   Add(index);
   DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);

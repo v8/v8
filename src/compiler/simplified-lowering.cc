@@ -223,11 +223,6 @@ bool IsSomePositiveOrderedNumber(Type type) {
   return type.Is(Type::OrderedNumber()) && (type.IsNone() || type.Min() > 0);
 }
 
-inline bool IsLargeBigInt(Type type) {
-  return type.Is(Type::BigInt()) && !type.Is(Type::SignedBigInt64()) &&
-         !type.Is(Type::UnsignedBigInt64());
-}
-
 class JSONGraphWriterWithVerifierTypes : public JSONGraphWriter {
  public:
   JSONGraphWriterWithVerifierTypes(std::ostream& os, const Graph* graph,
@@ -1312,14 +1307,6 @@ class RepresentationSelector {
       return MachineType::AnyTagged();
     }
     if (rep == MachineRepresentation::kWord64) {
-      if (type.Is(Type::SignedBigInt64())) {
-        return MachineType::SignedBigInt64();
-      }
-
-      if (type.Is(Type::UnsignedBigInt64())) {
-        return MachineType::UnsignedBigInt64();
-      }
-
       if (type.Is(Type::BigInt())) {
         return MachineType::AnyTagged();
       }
@@ -1341,11 +1328,13 @@ class RepresentationSelector {
   void VisitStateValues(Node* node) {
     if (propagate<T>()) {
       for (int i = 0; i < node->InputCount(); i++) {
-        // BigInt64s are rematerialized in deoptimization. The other BigInts
-        // must be rematerialized before deoptimization. By propagating an
-        // AnyTagged use, the RepresentationChanger is going to insert the
-        // necessary conversions.
-        if (IsLargeBigInt(TypeOf(node->InputAt(i)))) {
+        // When lowering 64 bit BigInts to Word64 representation, we have to
+        // make sure they are rematerialized before deoptimization. By
+        // propagating a AnyTagged use, the RepresentationChanger is going to
+        // insert the necessary conversions.
+        // TODO(nicohartmann): Remove, once the deoptimizer can rematerialize
+        // truncated BigInts.
+        if (TypeOf(node->InputAt(i)).Is(Type::BigInt())) {
           EnqueueInput<T>(node, i, UseInfo::AnyTagged());
         } else {
           EnqueueInput<T>(node, i, UseInfo::Any());
@@ -1357,7 +1346,9 @@ class RepresentationSelector {
           zone->New<ZoneVector<MachineType>>(node->InputCount(), zone);
       for (int i = 0; i < node->InputCount(); i++) {
         Node* input = node->InputAt(i);
-        if (IsLargeBigInt(TypeOf(input))) {
+        // TODO(nicohartmann): Remove, once the deoptimizer can rematerialize
+        // truncated BigInts.
+        if (TypeOf(input).Is(Type::BigInt())) {
           ConvertInput(node, i, UseInfo::AnyTagged());
         }
 
@@ -1386,7 +1377,9 @@ class RepresentationSelector {
     // state-values node).
     Node* accumulator = node.stack();
     if (propagate<T>()) {
-      if (IsLargeBigInt(TypeOf(accumulator))) {
+      // TODO(nicohartmann): Remove, once the deoptimizer can rematerialize
+      // truncated BigInts.
+      if (TypeOf(accumulator).Is(Type::BigInt())) {
         EnqueueInput<T>(node, FrameState::kFrameStateStackInput,
                         UseInfo::AnyTagged());
       } else {
@@ -1394,7 +1387,9 @@ class RepresentationSelector {
                         UseInfo::Any());
       }
     } else if (lower<T>()) {
-      if (IsLargeBigInt(TypeOf(accumulator))) {
+      // TODO(nicohartmann): Remove, once the deoptimizer can rematerialize
+      // truncated BigInts.
+      if (TypeOf(accumulator).Is(Type::BigInt())) {
         ConvertInput(node, FrameState::kFrameStateStackInput,
                      UseInfo::AnyTagged());
       }
@@ -1429,7 +1424,9 @@ class RepresentationSelector {
   void VisitObjectState(Node* node) {
     if (propagate<T>()) {
       for (int i = 0; i < node->InputCount(); i++) {
-        if (IsLargeBigInt(TypeOf(node->InputAt(i)))) {
+        // TODO(nicohartmann): Remove, once the deoptimizer can rematerialize
+        // truncated BigInts.
+        if (TypeOf(node->InputAt(i)).Is(Type::BigInt())) {
           EnqueueInput<T>(node, i, UseInfo::AnyTagged());
         } else {
           EnqueueInput<T>(node, i, UseInfo::Any());
@@ -1443,7 +1440,9 @@ class RepresentationSelector {
         Node* input = node->InputAt(i);
         (*types)[i] =
             DeoptMachineTypeOf(GetInfo(input)->representation(), TypeOf(input));
-        if (IsLargeBigInt(TypeOf(input))) {
+        // TODO(nicohartmann): Remove, once the deoptimizer can rematerialize
+        // truncated BigInts.
+        if (TypeOf(node->InputAt(i)).Is(Type::BigInt())) {
           ConvertInput(node, i, UseInfo::AnyTagged());
         }
       }
@@ -1982,7 +1981,7 @@ class RepresentationSelector {
       case wasm::kI32:
         return MachineType::Int32();
       case wasm::kI64:
-        return MachineType::SignedBigInt64();
+        return MachineType::Int64();
       case wasm::kF32:
         return MachineType::Float32();
       case wasm::kF64:
@@ -2984,10 +2983,7 @@ class RepresentationSelector {
                 node, InsertTypeOverrideForVerifier(Type::UnsignedBigInt63(),
                                                     jsgraph_->ZeroConstant()));
           } else if (p.bits() == 64) {
-            DeferReplacement(node, InsertTypeOverrideForVerifier(
-                                       is_asuintn ? Type::UnsignedBigInt64()
-                                                  : Type::SignedBigInt64(),
-                                       node->InputAt(0)));
+            DeferReplacement(node, node->InputAt(0));
           } else {
             if (is_asuintn) {
               const uint64_t mask = (1ULL << p.bits()) - 1ULL;

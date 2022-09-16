@@ -26,10 +26,6 @@ bool IsNonTruncatingMachineTypeFor(const MachineType& mt, const Type& type) {
   if (type.IsNone()) return true;
   // TODO(nicohartmann@): Add more cases here.
   if (type.Is(Type::BigInt())) {
-    if (mt.representation() == MachineRepresentation::kWord64) {
-      return type.Is(Type::SignedBigInt64()) ||
-             type.Is(Type::UnsignedBigInt64());
-    }
     return mt.representation() == MachineRepresentation::kTaggedPointer ||
            mt.representation() == MachineRepresentation::kTagged;
   }
