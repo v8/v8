@@ -1563,6 +1563,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsWord32(node), VisitInt32MulWithOverflow(node);
     case IrOpcode::kInt32MulHigh:
       return VisitInt32MulHigh(node);
+    case IrOpcode::kInt64MulHigh:
+      return VisitInt64MulHigh(node);
     case IrOpcode::kInt32Div:
       return MarkAsWord32(node), VisitInt32Div(node);
     case IrOpcode::kInt32Mod:
@@ -1581,6 +1583,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsWord32(node), VisitUint32Mod(node);
     case IrOpcode::kUint32MulHigh:
       return VisitUint32MulHigh(node);
+    case IrOpcode::kUint64MulHigh:
+      return VisitUint64MulHigh(node);
     case IrOpcode::kInt64Add:
       return MarkAsWord64(node), VisitInt64Add(node);
     case IrOpcode::kInt64AddWithOverflow:
@@ -2566,6 +2570,10 @@ void InstructionSelector::VisitInt64SubWithOverflow(Node* node) {
 }
 
 void InstructionSelector::VisitInt64Mul(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitInt64MulHigh(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitUint64MulHigh(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitInt64Div(Node* node) { UNIMPLEMENTED(); }
 

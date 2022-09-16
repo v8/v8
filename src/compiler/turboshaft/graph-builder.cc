@@ -350,7 +350,9 @@ OpIndex GraphBuilder::Process(
       BINOP_CASE(Int64Mod, Int64Mod)
       BINOP_CASE(Uint64Mod, Uint64Mod)
       BINOP_CASE(Int32MulHigh, Int32MulOverflownBits)
+      BINOP_CASE(Int64MulHigh, Int64MulOverflownBits)
       BINOP_CASE(Uint32MulHigh, Uint32MulOverflownBits)
+      BINOP_CASE(Uint64MulHigh, Uint64MulOverflownBits)
 
       BINOP_CASE(Float32Add, Float32Add)
       BINOP_CASE(Float64Add, Float64Add)

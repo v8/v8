@@ -297,6 +297,21 @@ inline bool SignedSubOverflow64(int64_t lhs, int64_t rhs, int64_t* val) {
 // those.
 V8_BASE_EXPORT int32_t SignedMulHigh32(int32_t lhs, int32_t rhs);
 
+// UnsignedMulHigh32(lhs, rhs) multiplies two unsigned 32-bit values |lhs| and
+// |rhs|, extracts the most significant 32 bits of the result, and returns
+// those.
+V8_BASE_EXPORT uint32_t UnsignedMulHigh32(uint32_t lhs, uint32_t rhs);
+
+// SignedMulHigh64(lhs, rhs) multiplies two signed 64-bit values |lhs| and
+// |rhs|, extracts the most significant 64 bits of the result, and returns
+// those.
+V8_BASE_EXPORT int64_t SignedMulHigh64(int64_t lhs, int64_t rhs);
+
+// UnsignedMulHigh64(lhs, rhs) multiplies two unsigned 64-bit values |lhs| and
+// |rhs|, extracts the most significant 64 bits of the result, and returns
+// those.
+V8_BASE_EXPORT uint64_t UnsignedMulHigh64(uint64_t lhs, uint64_t rhs);
+
 // SignedMulHighAndAdd32(lhs, rhs, acc) multiplies two signed 32-bit values
 // |lhs| and |rhs|, extracts the most significant 32 bits of the result, and
 // adds the accumulate value |acc|.

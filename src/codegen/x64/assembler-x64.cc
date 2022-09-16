@@ -1876,6 +1876,13 @@ void Assembler::mulq(Register src) {
   emit_modrm(0x4, src);
 }
 
+void Assembler::mulq(Operand src) {
+  EnsureSpace ensure_space(this);
+  emit_rex_64(src);
+  emit(0xF7);
+  emit_operand(0x4, src);
+}
+
 void Assembler::negb(Register reg) {
   EnsureSpace ensure_space(this);
   emit_optional_rex_8(reg);

@@ -709,6 +709,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void mull(Operand src);
   // Multiply rax by src, put the result in rdx:rax.
   void mulq(Register src);
+  void mulq(Operand src);
 
 #define DECLARE_SHIFT_INSTRUCTION(instruction, subcode)                     \
   void instruction##l(Register dst, Immediate imm8) {                       \

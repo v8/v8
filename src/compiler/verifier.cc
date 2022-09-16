@@ -1741,12 +1741,14 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kInt64Sub:
     case IrOpcode::kInt64SubWithOverflow:
     case IrOpcode::kInt64Mul:
+    case IrOpcode::kInt64MulHigh:
     case IrOpcode::kInt64Div:
     case IrOpcode::kInt64Mod:
     case IrOpcode::kInt64LessThan:
     case IrOpcode::kInt64LessThanOrEqual:
     case IrOpcode::kUint64Div:
     case IrOpcode::kUint64Mod:
+    case IrOpcode::kUint64MulHigh:
     case IrOpcode::kUint64LessThan:
     case IrOpcode::kUint64LessThanOrEqual:
     case IrOpcode::kFloat32Add:

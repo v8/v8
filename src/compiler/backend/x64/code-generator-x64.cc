@@ -1716,6 +1716,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ mull(i.InputOperand(1));
       }
       break;
+    case kX64ImulHigh64:
+      if (HasRegisterInput(instr, 1)) {
+        __ imulq(i.InputRegister(1));
+      } else {
+        __ imulq(i.InputOperand(1));
+      }
+      break;
+    case kX64UmulHigh64:
+      if (HasRegisterInput(instr, 1)) {
+        __ mulq(i.InputRegister(1));
+      } else {
+        __ mulq(i.InputOperand(1));
+      }
+      break;
     case kX64Idiv32:
       __ cdq();
       __ idivl(i.InputRegister(1));

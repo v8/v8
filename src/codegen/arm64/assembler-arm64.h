@@ -743,8 +743,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // 32 x 32 -> 64-bit multiply.
   void smull(const Register& rd, const Register& rn, const Register& rm);
 
-  // Xd = bits<127:64> of Xn * Xm.
+  // Xd = bits<127:64> of Xn * Xm, signed.
   void smulh(const Register& rd, const Register& rn, const Register& rm);
+
+  // Xd = bits<127:64> of Xn * Xm, unsigned.
+  void umulh(const Register& rd, const Register& rn, const Register& rm);
 
   // Signed 32 x 32 -> 64-bit multiply and accumulate.
   void smaddl(const Register& rd, const Register& rn, const Register& rm,

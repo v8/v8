@@ -95,10 +95,18 @@ class AssemblerInterface : public Superclass {
                         WordRepresentation::Word32())
   DECL_SINGLE_REP_BINOP(Uint64Mod, WordBinop, UnsignedMod,
                         WordRepresentation::Word64())
+  DECL_MULTI_REP_BINOP(IntMulOverflownBits, WordBinop, WordRepresentation,
+                       SignedMulOverflownBits)
   DECL_SINGLE_REP_BINOP(Int32MulOverflownBits, WordBinop,
                         SignedMulOverflownBits, WordRepresentation::Word32())
+  DECL_SINGLE_REP_BINOP(Int64MulOverflownBits, WordBinop,
+                        SignedMulOverflownBits, WordRepresentation::Word64())
+  DECL_MULTI_REP_BINOP(UintMulOverflownBits, WordBinop, WordRepresentation,
+                       UnsignedMulOverflownBits)
   DECL_SINGLE_REP_BINOP(Uint32MulOverflownBits, WordBinop,
                         UnsignedMulOverflownBits, WordRepresentation::Word32())
+  DECL_SINGLE_REP_BINOP(Uint64MulOverflownBits, WordBinop,
+                        UnsignedMulOverflownBits, WordRepresentation::Word64())
 
   DECL_MULTI_REP_BINOP(IntAddCheckOverflow, OverflowCheckedBinop,
                        WordRepresentation, SignedAdd)

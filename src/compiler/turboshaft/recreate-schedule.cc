@@ -249,8 +249,11 @@ Node* ScheduleBuilder::ProcessOperation(const WordBinopOp& op) {
           o = machine.Word64Xor();
           break;
         case Kind::kSignedMulOverflownBits:
+          o = machine.Int64MulHigh();
+          break;
         case Kind::kUnsignedMulOverflownBits:
-          UNREACHABLE();
+          o = machine.Uint64MulHigh();
+          break;
       }
       break;
     default:

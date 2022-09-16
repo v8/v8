@@ -1859,12 +1859,20 @@ void InstructionSelector::VisitInt32MulHigh(Node* node) {
   Emit(kArm64Asr, g.DefineAsRegister(node), smull_operand, g.TempImmediate(32));
 }
 
+void InstructionSelector::VisitInt64MulHigh(Node* node) {
+  return VisitRRR(this, kArm64Smulh, node);
+}
+
 void InstructionSelector::VisitUint32MulHigh(Node* node) {
   Arm64OperandGenerator g(this);
   InstructionOperand const smull_operand = g.TempRegister();
   Emit(kArm64Umull, smull_operand, g.UseRegister(node->InputAt(0)),
        g.UseRegister(node->InputAt(1)));
   Emit(kArm64Lsr, g.DefineAsRegister(node), smull_operand, g.TempImmediate(32));
+}
+
+void InstructionSelector::VisitUint64MulHigh(Node* node) {
+  return VisitRRR(this, kArm64Umulh, node);
 }
 
 void InstructionSelector::VisitTruncateFloat32ToInt32(Node* node) {

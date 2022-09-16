@@ -1133,8 +1133,18 @@ void Assembler::smull(const Register& rd, const Register& rn,
 
 void Assembler::smulh(const Register& rd, const Register& rn,
                       const Register& rm) {
-  DCHECK(AreSameSizeAndType(rd, rn, rm));
+  DCHECK(rd.Is64Bits());
+  DCHECK(rn.Is64Bits());
+  DCHECK(rm.Is64Bits());
   DataProcessing3Source(rd, rn, rm, xzr, SMULH_x);
+}
+
+void Assembler::umulh(const Register& rd, const Register& rn,
+                      const Register& rm) {
+  DCHECK(rd.Is64Bits());
+  DCHECK(rn.Is64Bits());
+  DCHECK(rm.Is64Bits());
+  DataProcessing3Source(rd, rn, rm, xzr, UMULH_x);
 }
 
 void Assembler::sdiv(const Register& rd, const Register& rn,

@@ -604,10 +604,12 @@
   V(Int64Sub)                    \
   V(Int64SubWithOverflow)        \
   V(Int64Mul)                    \
+  V(Int64MulHigh)                \
   V(Int64Div)                    \
   V(Int64Mod)                    \
   V(Uint64Div)                   \
-  V(Uint64Mod)
+  V(Uint64Mod)                   \
+  V(Uint64MulHigh)
 
 #define MACHINE_FLOAT32_UNOP_LIST(V) \
   V(Float32Abs)                      \

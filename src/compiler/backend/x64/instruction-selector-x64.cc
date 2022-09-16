@@ -1474,6 +1474,10 @@ void InstructionSelector::VisitInt32MulHigh(Node* node) {
   VisitMulHigh(this, node, kX64ImulHigh32);
 }
 
+void InstructionSelector::VisitInt64MulHigh(Node* node) {
+  VisitMulHigh(this, node, kX64ImulHigh64);
+}
+
 void InstructionSelector::VisitInt32Div(Node* node) {
   VisitDiv(this, node, kX64Idiv32);
 }
@@ -1508,6 +1512,10 @@ void InstructionSelector::VisitUint64Mod(Node* node) {
 
 void InstructionSelector::VisitUint32MulHigh(Node* node) {
   VisitMulHigh(this, node, kX64UmulHigh32);
+}
+
+void InstructionSelector::VisitUint64MulHigh(Node* node) {
+  VisitMulHigh(this, node, kX64UmulHigh64);
 }
 
 // TryTruncateFloat32ToInt64 and TryTruncateFloat64ToInt64 operations attempt

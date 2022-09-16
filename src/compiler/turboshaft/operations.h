@@ -640,11 +640,7 @@ struct WordBinopOp : FixedArityOperationT<2, WordBinopOp> {
   }
 
   WordBinopOp(OpIndex left, OpIndex right, Kind kind, WordRepresentation rep)
-      : Base(left, right), kind(kind), rep(rep) {
-    DCHECK_IMPLIES(kind == any_of(Kind::kSignedMulOverflownBits,
-                                  Kind::kUnsignedMulOverflownBits),
-                   rep == WordRepresentation::Word32());
-  }
+      : Base(left, right), kind(kind), rep(rep) {}
   auto options() const { return std::tuple{kind, rep}; }
   void PrintOptions(std::ostream& os) const;
 };

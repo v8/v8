@@ -1164,6 +1164,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArm64Mul:
       __ Mul(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       break;
+    case kArm64Smulh:
+      __ Smulh(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
+      break;
+    case kArm64Umulh:
+      __ Umulh(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
+      break;
     case kArm64Mul32:
       __ Mul(i.OutputRegister32(), i.InputRegister32(0), i.InputRegister32(1));
       break;

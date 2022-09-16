@@ -1056,7 +1056,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   inline void Lsl(const Register& rd, const Register& rn, unsigned shift);
   inline void Lsl(const Register& rd, const Register& rn, const Register& rm);
   inline void Umull(const Register& rd, const Register& rn, const Register& rm);
+  inline void Umulh(const Register& rd, const Register& rn, const Register& rm);
   inline void Smull(const Register& rd, const Register& rn, const Register& rm);
+  inline void Smulh(const Register& rd, const Register& rn, const Register& rm);
 
   inline void Sxtb(const Register& rd, const Register& rn);
   inline void Sxth(const Register& rd, const Register& rn);
@@ -1630,7 +1632,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
                      const Register& ra);
   inline void Smsubl(const Register& rd, const Register& rn, const Register& rm,
                      const Register& ra);
-  inline void Smulh(const Register& rd, const Register& rn, const Register& rm);
   inline void Stnp(const CPURegister& rt, const CPURegister& rt2,
                    const MemOperand& dst);
   inline void Umaddl(const Register& rd, const Register& rn, const Register& rm,

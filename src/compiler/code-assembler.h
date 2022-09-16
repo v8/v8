@@ -244,6 +244,8 @@ class CodeAssemblerParameterizedLabel;
   V(IntPtrAdd, WordT, WordT, WordT)                                     \
   V(IntPtrSub, WordT, WordT, WordT)                                     \
   V(IntPtrMul, WordT, WordT, WordT)                                     \
+  V(IntPtrMulHigh, IntPtrT, IntPtrT, IntPtrT)                           \
+  V(UintPtrMulHigh, UintPtrT, UintPtrT, UintPtrT)                       \
   V(IntPtrDiv, IntPtrT, IntPtrT, IntPtrT)                               \
   V(IntPtrAddWithOverflow, PAIR_TYPE(IntPtrT, BoolT), IntPtrT, IntPtrT) \
   V(IntPtrSubWithOverflow, PAIR_TYPE(IntPtrT, BoolT), IntPtrT, IntPtrT) \
@@ -259,6 +261,8 @@ class CodeAssemblerParameterizedLabel;
   V(Int64Sub, Word64T, Word64T, Word64T)                                \
   V(Int64SubWithOverflow, PAIR_TYPE(Int64T, BoolT), Int64T, Int64T)     \
   V(Int64Mul, Word64T, Word64T, Word64T)                                \
+  V(Int64MulHigh, Int64T, Int64T, Int64T)                               \
+  V(Uint64MulHigh, Uint64T, Uint64T, Uint64T)                           \
   V(Int64Div, Int64T, Int64T, Int64T)                                   \
   V(Int64Mod, Int64T, Int64T, Int64T)                                   \
   V(WordOr, WordT, WordT, WordT)                                        \

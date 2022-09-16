@@ -4417,6 +4417,88 @@ TEST(CountTrailingZeros) {
   ft.Call();
 }
 
+TEST(IntPtrMulHigh) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 1;
+  CodeAssemblerTester asm_tester(isolate, kNumParams + 1);  // Include receiver.
+  CodeStubAssembler m(asm_tester.state());
+
+  TNode<IntPtrT> a = m.IntPtrConstant(std::numeric_limits<intptr_t>::min());
+  TNode<IntPtrT> b = m.SmiUntag(m.Parameter<Smi>(1));
+  TNode<IntPtrT> res = m.IntPtrMulHigh(a, b);
+  m.Return(m.SmiTag(res));
+
+  FunctionTester ft(asm_tester.GenerateCode());
+  CHECK_EQ(-147694,
+           ft.CallChecked<Smi>(handle(Smi::FromInt(295387), isolate))->value());
+  CHECK_EQ(-147694, base::bits::SignedMulHigh32(
+                        std::numeric_limits<int32_t>::min(), 295387));
+  CHECK_EQ(-147694, base::bits::SignedMulHigh64(
+                        std::numeric_limits<int64_t>::min(), 295387));
+}
+
+TEST(IntPtrMulHighConstantFoldable) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  CodeAssemblerTester asm_tester(isolate);
+  CodeStubAssembler m(asm_tester.state());
+
+  TNode<IntPtrT> a = m.IntPtrConstant(std::numeric_limits<intptr_t>::min());
+  TNode<IntPtrT> b = m.IntPtrConstant(295387);
+  TNode<IntPtrT> res = m.IntPtrMulHigh(a, b);
+  m.Return(m.SmiTag(res));
+
+  FunctionTester ft(asm_tester.GenerateCode());
+  CHECK_EQ(-147694, ft.CallChecked<Smi>()->value());
+  CHECK_EQ(-147694, base::bits::SignedMulHigh32(
+                        std::numeric_limits<int32_t>::min(), 295387));
+  CHECK_EQ(-147694, base::bits::SignedMulHigh64(
+                        std::numeric_limits<int64_t>::min(), 295387));
+}
+
+TEST(UintPtrMulHigh) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 1;
+  CodeAssemblerTester asm_tester(isolate, kNumParams + 1);  // Include receiver.
+  CodeStubAssembler m(asm_tester.state());
+
+  TNode<IntPtrT> a = m.IntPtrConstant(std::numeric_limits<intptr_t>::min());
+  TNode<IntPtrT> b = m.SmiUntag(m.Parameter<Smi>(1));
+  TNode<IntPtrT> res = m.Signed(m.UintPtrMulHigh(m.Unsigned(a), m.Unsigned(b)));
+  m.Return(m.SmiTag(res));
+
+  FunctionTester ft(asm_tester.GenerateCode());
+  CHECK_EQ(147693,
+           ft.CallChecked<Smi>(handle(Smi::FromInt(295387), isolate))->value());
+  CHECK_EQ(147693, base::bits::UnsignedMulHigh32(
+                       std::numeric_limits<int32_t>::min(), 295387));
+  CHECK_EQ(147693, base::bits::UnsignedMulHigh64(
+                       std::numeric_limits<int64_t>::min(), 295387));
+}
+
+TEST(UintPtrMulHighConstantFoldable) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  CodeAssemblerTester asm_tester(isolate);
+  CodeStubAssembler m(asm_tester.state());
+
+  TNode<IntPtrT> a = m.IntPtrConstant(std::numeric_limits<intptr_t>::min());
+  TNode<IntPtrT> b = m.IntPtrConstant(295387);
+  TNode<IntPtrT> res = m.Signed(m.UintPtrMulHigh(m.Unsigned(a), m.Unsigned(b)));
+  m.Return(m.SmiTag(res));
+
+  FunctionTester ft(asm_tester.GenerateCode());
+  CHECK_EQ(147693, ft.CallChecked<Smi>()->value());
+  CHECK_EQ(
+      147693,
+      base::bits::UnsignedMulHigh32(
+          static_cast<uint32_t>(std::numeric_limits<int32_t>::min()), 295387));
+  CHECK_EQ(
+      147693,
+      base::bits::UnsignedMulHigh64(
+          static_cast<uint64_t>(std::numeric_limits<int64_t>::min()), 295387));
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
