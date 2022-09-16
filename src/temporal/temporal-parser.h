@@ -144,8 +144,10 @@ class V8_EXPORT_PRIVATE TemporalParser {
   DEFINE_PARSE_METHOD(ParsedISO8601Result, TemporalInstantString);
   DEFINE_PARSE_METHOD(ParsedISO8601Result, TemporalZonedDateTimeString);
   DEFINE_PARSE_METHOD(ParsedISO8601Result, TemporalTimeZoneString);
+  DEFINE_PARSE_METHOD(ParsedISO8601Result, TimeZoneIdentifier);
   DEFINE_PARSE_METHOD(ParsedISO8601Result, TemporalRelativeToString);
   DEFINE_PARSE_METHOD(ParsedISO8601Result, TemporalCalendarString);
+  DEFINE_PARSE_METHOD(ParsedISO8601Result, CalendarName);
   DEFINE_PARSE_METHOD(ParsedISO8601Duration, TemporalDurationString);
   DEFINE_PARSE_METHOD(ParsedISO8601Result, TimeZoneNumericUTCOffset);
 };
