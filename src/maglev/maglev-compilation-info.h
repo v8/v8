@@ -53,7 +53,6 @@ class MaglevCompilationInfo final {
   }
   ~MaglevCompilationInfo();
 
-  Isolate* isolate() const { return isolate_; }
   Zone* zone() { return &zone_; }
   compiler::JSHeapBroker* broker() const { return broker_.get(); }
   MaglevCompilationUnit* toplevel_compilation_unit() const {
@@ -111,7 +110,6 @@ class MaglevCompilationInfo final {
   MaglevCompilationInfo(Isolate* isolate, Handle<JSFunction> function);
 
   Zone zone_;
-  Isolate* const isolate_;
   const std::unique_ptr<compiler::JSHeapBroker> broker_;
   // Must be initialized late since it requires an initialized heap broker.
   MaglevCompilationUnit* toplevel_compilation_unit_ = nullptr;

@@ -945,17 +945,19 @@ class MaglevCodeGeneratingNodeProcessor {
 
 class MaglevCodeGeneratorImpl final {
  public:
-  static MaybeHandle<Code> Generate(MaglevCompilationInfo* compilation_info,
+  static MaybeHandle<Code> Generate(Isolate* isolate,
+                                    MaglevCompilationInfo* compilation_info,
                                     Graph* graph) {
-    return MaglevCodeGeneratorImpl(compilation_info, graph).Generate();
+    return MaglevCodeGeneratorImpl(isolate, compilation_info, graph).Generate();
   }
 
  private:
-  MaglevCodeGeneratorImpl(MaglevCompilationInfo* compilation_info, Graph* graph)
+  MaglevCodeGeneratorImpl(Isolate* isolate,
+                          MaglevCompilationInfo* compilation_info, Graph* graph)
       : safepoint_table_builder_(compilation_info->zone(),
                                  graph->tagged_stack_slots(),
                                  graph->untagged_stack_slots()),
-        code_gen_state_(compilation_info, safepoint_table_builder()),
+        code_gen_state_(isolate, compilation_info, safepoint_table_builder()),
         masm_(&code_gen_state_),
         processor_(&masm_),
         graph_(graph) {}
@@ -1153,9 +1155,7 @@ class MaglevCodeGeneratorImpl final {
     return stack_slot_count() + StandardFrameConstants::kFixedSlotCount;
   }
 
-  Isolate* isolate() const {
-    return code_gen_state_.compilation_info()->isolate();
-  }
+  Isolate* isolate() const { return code_gen_state_.isolate(); }
   MaglevAssembler* masm() { return &masm_; }
   MaglevSafepointTableBuilder* safepoint_table_builder() {
     return &safepoint_table_builder_;
@@ -1173,8 +1173,8 @@ class MaglevCodeGeneratorImpl final {
 
 // static
 MaybeHandle<Code> MaglevCodeGenerator::Generate(
-    MaglevCompilationInfo* compilation_info, Graph* graph) {
-  return MaglevCodeGeneratorImpl::Generate(compilation_info, graph);
+    Isolate* isolate, MaglevCompilationInfo* compilation_info, Graph* graph) {
+  return MaglevCodeGeneratorImpl::Generate(isolate, compilation_info, graph);
 }
 
 }  // namespace maglev

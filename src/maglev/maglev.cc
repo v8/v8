@@ -18,7 +18,7 @@ MaybeHandle<CodeT> Maglev::Compile(Isolate* isolate,
       maglev::MaglevCompilationInfo::New(isolate, function);
   maglev::MaglevCompiler::Compile(isolate->main_thread_local_isolate(),
                                   info.get());
-  return maglev::MaglevCompiler::GenerateCode(info.get());
+  return maglev::MaglevCompiler::GenerateCode(isolate, info.get());
 }
 
 }  // namespace internal

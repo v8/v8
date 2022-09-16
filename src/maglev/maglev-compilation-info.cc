@@ -52,7 +52,6 @@ class V8_NODISCARD MaglevCompilationHandleScope final {
 MaglevCompilationInfo::MaglevCompilationInfo(Isolate* isolate,
                                              Handle<JSFunction> function)
     : zone_(isolate->allocator(), kMaglevZoneName),
-      isolate_(isolate),
       broker_(new compiler::JSHeapBroker(
           isolate, zone(), v8_flags.trace_heap_broker, CodeKind::MAGLEV))
 #define V(Name) , Name##_(v8_flags.Name)

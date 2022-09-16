@@ -565,7 +565,7 @@ void MaglevCompiler::Compile(LocalIsolate* local_isolate,
 
 // static
 MaybeHandle<CodeT> MaglevCompiler::GenerateCode(
-    MaglevCompilationInfo* compilation_info) {
+    Isolate* isolate, MaglevCompilationInfo* compilation_info) {
   Graph* const graph = compilation_info->graph();
   if (graph == nullptr) {
     // Compilation failed.
@@ -577,7 +577,8 @@ MaybeHandle<CodeT> MaglevCompiler::GenerateCode(
   }
 
   Handle<Code> code;
-  if (!MaglevCodeGenerator::Generate(compilation_info, graph).ToHandle(&code)) {
+  if (!MaglevCodeGenerator::Generate(isolate, compilation_info, graph)
+           .ToHandle(&code)) {
     compilation_info->toplevel_compilation_unit()
         ->shared_function_info()
         .object()
@@ -596,7 +597,6 @@ MaybeHandle<CodeT> MaglevCompiler::GenerateCode(
     code->Print();
   }
 
-  Isolate* const isolate = compilation_info->isolate();
   isolate->native_context()->AddOptimizedCode(ToCodeT(*code));
   return ToCodeT(code, isolate);
 }
