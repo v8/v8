@@ -34,6 +34,7 @@
   'harmony/shadowrealm-skip*': [SKIP],
   'regress/modules-skip*': [SKIP],
   'wasm/exceptions-utils': [SKIP],
+  'wasm/gc-js-interop-helpers': [SKIP],
   'wasm/wasm-module-builder': [SKIP],
   'compiler/fast-api-helpers': [SKIP],
   'typedarray-helpers': [SKIP],

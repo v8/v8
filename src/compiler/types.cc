@@ -277,12 +277,10 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case JS_TEMPORAL_TIME_ZONE_TYPE:
     case JS_TEMPORAL_ZONED_DATE_TIME_TYPE:
 #if V8_ENABLE_WEBASSEMBLY
-    case WASM_ARRAY_TYPE:
     case WASM_GLOBAL_OBJECT_TYPE:
     case WASM_INSTANCE_OBJECT_TYPE:
     case WASM_MEMORY_OBJECT_TYPE:
     case WASM_MODULE_OBJECT_TYPE:
-    case WASM_STRUCT_TYPE:
     case WASM_SUSPENDER_OBJECT_TYPE:
     case WASM_TABLE_OBJECT_TYPE:
     case WASM_TAG_OBJECT_TYPE:
@@ -293,6 +291,11 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
       DCHECK(!map.is_callable());
       DCHECK(!map.is_undetectable());
       return kOtherObject;
+#if V8_ENABLE_WEBASSEMBLY
+    case WASM_STRUCT_TYPE:
+    case WASM_ARRAY_TYPE:
+      return kWasmObject;
+#endif  // V8_ENABLE_WEBASSEMBLY
     case JS_BOUND_FUNCTION_TYPE:
       DCHECK(!map.is_undetectable());
       return kBoundFunction;

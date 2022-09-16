@@ -152,7 +152,6 @@ Handle<Object> JSReceiver::GetDataProperty(LookupIterator* it,
       case LookupIterator::INTERCEPTOR:
       case LookupIterator::NOT_FOUND:
       case LookupIterator::TRANSITION:
-      case LookupIterator::WASM_OBJECT:
         UNREACHABLE();
       case LookupIterator::ACCESS_CHECK:
         // Support calling this method without an active context, but refuse
@@ -160,6 +159,7 @@ Handle<Object> JSReceiver::GetDataProperty(LookupIterator* it,
         if (!it->isolate()->context().is_null() && it->HasAccess()) continue;
         V8_FALLTHROUGH;
       case LookupIterator::JSPROXY:
+      case LookupIterator::WASM_OBJECT:
         it->NotFound();
         return it->isolate()->factory()->undefined_value();
       case LookupIterator::ACCESSOR:
@@ -2312,6 +2312,13 @@ Maybe<bool> JSReceiver::SetPrototype(Isolate* isolate,
                                      Handle<JSReceiver> object,
                                      Handle<Object> value, bool from_javascript,
                                      ShouldThrow should_throw) {
+#if V8_ENABLE_WEBASSEMBLY
+  if (object->IsWasmObject()) {
+    RETURN_FAILURE(isolate, should_throw,
+                   NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));
+  }
+#endif
+
   if (object->IsJSProxy()) {
     return JSProxy::SetPrototype(isolate, Handle<JSProxy>::cast(object), value,
                                  from_javascript, should_throw);
@@ -5149,6 +5156,13 @@ Maybe<bool> JSObject::SetPrototype(Isolate* isolate, Handle<JSObject> object,
       }
     }
   }
+
+#if V8_ENABLE_WEBASSEMBLY
+  if (value->IsWasmObject()) {
+    RETURN_FAILURE(isolate, should_throw,
+                   NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));
+  }
+#endif
 
   // Set the new prototype of the object.
 
