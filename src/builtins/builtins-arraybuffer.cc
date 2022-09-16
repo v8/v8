@@ -569,7 +569,7 @@ BUILTIN(ArrayBufferPrototypeTransfer) {
 
   // Case 2: We can reuse the same BackingStore.
   auto from_backing_store = array_buffer->GetBackingStore();
-  if (!from_backing_store->is_resizable() &&
+  if (from_backing_store && !from_backing_store->is_resizable() &&
       (new_byte_length == array_buffer->GetByteLength() ||
        from_backing_store->CanReallocate())) {
     // Reallocate covers steps 6-12.
