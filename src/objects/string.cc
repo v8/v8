@@ -1675,7 +1675,7 @@ uint32_t String::ComputeAndSetRawHash(
     string = ThinString::cast(string).actual(cage_base);
     shape = StringShape(string, cage_base);
     if (length() == string.length()) {
-      uint32_t raw_hash = string.raw_hash_field();
+      uint32_t raw_hash = string.RawHash();
       DCHECK(IsHashFieldComputed(raw_hash));
       set_raw_hash_field(raw_hash);
       return raw_hash;
