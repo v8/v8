@@ -7261,10 +7261,11 @@ class LiftoffCompiler {
       ValueKind kIntPtrKind = kPointerKind;
 
       LiftoffRegList pinned;
+      LiftoffRegister func_ref = pinned.set(__ PopToRegister(pinned));
       LiftoffRegister vector = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-      LiftoffAssembler::VarState funcref =
-          __ cache_state()->stack_state.end()[-1];
-      if (funcref.is_reg()) pinned.set(funcref.reg());
+      MaybeEmitNullCheck(decoder, func_ref.gp(), pinned, func_ref_type);
+      LiftoffAssembler::VarState func_ref_var(kRef, func_ref, 0);
+
       __ Fill(vector, liftoff::kFeedbackVectorOffset, kPointerKind);
       LiftoffAssembler::VarState vector_var(kPointerKind, vector, 0);
       LiftoffRegister index = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
@@ -7279,9 +7280,9 @@ class LiftoffCompiler {
       CallRuntimeStub(WasmCode::kCallRefIC,
                       MakeSig::Returns(kPointerKind, kPointerKind)
                           .Params(kPointerKind, kIntPtrKind, kPointerKind),
-                      {vector_var, index_var, funcref}, decoder->position());
+                      {vector_var, index_var, func_ref_var},
+                      decoder->position());
 
-      __ cache_state()->stack_state.pop_back(1);  // Drop funcref.
       target_reg = LiftoffRegister(kReturnRegister0).gp();
       instance_reg = LiftoffRegister(kReturnRegister1).gp();
 

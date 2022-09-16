@@ -1207,6 +1207,10 @@
 
   # Baseline tests don't make sense with optimization stressing.
   'baseline/*': [SKIP],
+
+  # This test uses --wasm-speculative-inlining which is incompatible with
+  # stressing.
+  'regress/wasm/regress-1364036': [SKIP],
 }],  # variant == stress
 
 ##############################################################################
