@@ -775,6 +775,11 @@ MaybeHandle<String> NewStringFromUtf8Variant(Isolate* isolate,
 MaybeHandle<String> Factory::NewStringFromUtf8(
     const base::Vector<const uint8_t>& string,
     unibrow::Utf8Variant utf8_variant, AllocationType allocation) {
+  if (string.size() > kMaxInt) {
+    // The Utf8Decode can't handle longer inputs, and we couldn't create
+    // strings from them anyway.
+    THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError(), String);
+  }
   auto peek_bytes = [&]() -> base::Vector<const uint8_t> { return string; };
   return NewStringFromUtf8Variant(isolate(), peek_bytes, utf8_variant,
                                   allocation);
@@ -793,6 +798,8 @@ MaybeHandle<String> Factory::NewStringFromUtf8(
   DCHECK_EQ(sizeof(uint8_t), array->type()->element_type().value_kind_size());
   DCHECK_LE(start, end);
   DCHECK_LE(end, array->length());
+  // {end - start} can never be more than what the Utf8Decoder can handle.
+  static_assert(WasmArray::MaxLength(sizeof(uint8_t)) <= kMaxInt);
   auto peek_bytes = [&]() -> base::Vector<const uint8_t> {
     const uint8_t* contents =
         reinterpret_cast<const uint8_t*>(array->ElementAddress(0));
@@ -807,6 +814,8 @@ MaybeHandle<String> Factory::NewStringFromUtf8(
     unibrow::Utf8Variant utf8_variant, AllocationType allocation) {
   DCHECK_LE(start, end);
   DCHECK_LE(end, array->length());
+  // {end - start} can never be more than what the Utf8Decoder can handle.
+  static_assert(ByteArray::kMaxLength <= kMaxInt);
   auto peek_bytes = [&]() -> base::Vector<const uint8_t> {
     const uint8_t* contents =
         reinterpret_cast<const uint8_t*>(array->GetDataStartAddress());
@@ -839,6 +848,8 @@ MaybeHandle<String> Factory::NewStringFromUtf16(Handle<WasmArray> array,
   DCHECK_EQ(sizeof(uint16_t), array->type()->element_type().value_kind_size());
   DCHECK_LE(start, end);
   DCHECK_LE(end, array->length());
+  // {end - start} can never be more than what the Utf8Decoder can handle.
+  static_assert(WasmArray::MaxLength(sizeof(uint16_t)) <= kMaxInt);
   auto peek_bytes = [&]() -> base::Vector<const uint16_t> {
     const uint16_t* contents =
         reinterpret_cast<const uint16_t*>(array->ElementAddress(0));

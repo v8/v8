@@ -19,8 +19,8 @@
 #include "src/utils/ostreams.h"
 
 #if V8_ENABLE_WEBASSEMBLY
-// TODO(jkummerow): Drop this when the "SaveAndClearThreadInWasmFlag"
-// short-term mitigation is no longer needed.
+// TODO(chromium:1236668): Drop this when the "SaveAndClearThreadInWasmFlag"
+// approach is no longer needed.
 #include "src/trap-handler/trap-handler.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -418,7 +418,7 @@ RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterruptWithStackCheck_Maglev) {
 namespace {
 
 #if V8_ENABLE_WEBASSEMBLY
-class SaveAndClearThreadInWasmFlag {
+class V8_NODISCARD SaveAndClearThreadInWasmFlag {
  public:
   SaveAndClearThreadInWasmFlag() {
     if (trap_handler::IsTrapHandlerEnabled()) {
@@ -460,10 +460,10 @@ RUNTIME_FUNCTION(Runtime_AllocateInYoungGeneration) {
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  // Short-term mitigation for crbug.com/1236668. When this is called from
-  // WasmGC code, clear the "thread in wasm" flag, which is important in case
-  // any GC needs to happen.
-  // TODO(jkummerow): Find a better fix, likely by replacing the global flag.
+  // When this is called from WasmGC code, clear the "thread in wasm" flag,
+  // which is important in case any GC needs to happen.
+  // TODO(chromium:1236668): Find a better fix, likely by replacing the global
+  // flag.
   SaveAndClearThreadInWasmFlag clear_wasm_flag;
 #endif  // V8_ENABLE_WEBASSEMBLY
 

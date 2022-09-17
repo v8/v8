@@ -1000,7 +1000,7 @@ class WasmArray : public TorqueGeneratedWasmArray<WasmArray, WasmObject> {
   inline uint32_t element_offset(uint32_t index);
   inline Address ElementAddress(uint32_t index);
 
-  static int MaxLength(uint32_t element_size_bytes) {
+  static constexpr int MaxLength(uint32_t element_size_bytes) {
     // The total object size must fit into a Smi, for filler objects. To make
     // the behavior of Wasm programs independent from the Smi configuration,
     // we hard-code the smaller of the two supported ranges.
