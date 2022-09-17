@@ -15763,7 +15763,7 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Constructor(
 }
 
 // #sec-get-temporal.zoneddatetime.prototype.hoursinday
-MaybeHandle<Smi> JSTemporalZonedDateTime::HoursInDay(
+MaybeHandle<Object> JSTemporalZonedDateTime::HoursInDay(
     Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time) {
   TEMPORAL_ENTER_FUNC();
   const char* method_name = "Temporal.ZonedDateTime.prototype.hoursInDay";
@@ -15837,15 +15837,23 @@ MaybeHandle<Smi> JSTemporalZonedDateTime::HoursInDay(
       Smi);
   // 15. Let diffNs be tomorrowInstant.[[Nanoseconds]] −
   // todayInstant.[[Nanoseconds]].
-  // 16. Return 𝔽(diffNs / (3.6 × 10^12)).
-  int64_t diff_ns =
+  Handle<BigInt> diff_ns =
       BigInt::Subtract(isolate,
                        handle(tomorrow_instant->nanoseconds(), isolate),
                        handle(today_instant->nanoseconds(), isolate))
+          .ToHandleChecked();
+  // 16. Return 𝔽(diffNs / (3.6 × 10^12)).
+  //
+  // Note: The result of the division may be non integer for TimeZone which
+  // change fractional hours. Perform this division in two steps:
+  // First convert it to seconds in BigInt, then perform floating point
+  // division (seconds / 3600) to convert to hours.
+  int64_t diff_seconds =
+      BigInt::Divide(isolate, diff_ns, BigInt::FromUint64(isolate, 1000000000))
           .ToHandleChecked()
           ->AsInt64();
-  return handle(Smi::FromInt(static_cast<int32_t>(diff_ns / 3600000000000LL)),
-                isolate);
+  double hours_in_that_day = static_cast<double>(diff_seconds) / 3600.0;
+  return isolate->factory()->NewNumber(hours_in_that_day);
 }
 
 namespace {
