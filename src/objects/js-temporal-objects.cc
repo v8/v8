@@ -4381,8 +4381,8 @@ Maybe<int64_t> GetOffsetNanosecondsFor(Isolate* isolate,
 
   // 6. Set offsetNanoseconds to ℝ(offsetNanoseconds).
   int64_t offset_nanoseconds_int = static_cast<int64_t>(offset_nanoseconds);
-  // 7. If abs(offsetNanoseconds) > 86400 × 10^9, throw a RangeError exception.
-  if (std::abs(offset_nanoseconds_int) > 86400e9) {
+  // 7. If abs(offsetNanoseconds) >= 86400 × 10^9, throw a RangeError exception.
+  if (std::abs(offset_nanoseconds_int) >= 86400e9) {
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<int64_t>());
   }
