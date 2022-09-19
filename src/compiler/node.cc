@@ -293,6 +293,15 @@ int Node::UseCount() const {
   return use_count;
 }
 
+int Node::BranchUseCount() const {
+  int use_count = 0;
+  for (Use* use = first_use_; use; use = use->next) {
+    if (use->from()->opcode() == IrOpcode::kBranch) {
+      ++use_count;
+    }
+  }
+  return use_count;
+}
 
 void Node::ReplaceUses(Node* that) {
   DCHECK(this->first_use_ == nullptr || this->first_use_->prev == nullptr);
