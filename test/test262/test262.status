@@ -746,12 +746,6 @@
   'intl402/DurationFormat/prototype/formatToParts/invalid-arguments-throws': [FAIL],
   'intl402/DurationFormat/prototype/formatToParts/not-a-constructor': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=13301
-  'built-ins/Array/prototype/group/this-arg': [FAIL],
-  'built-ins/Array/prototype/group/this-arg-strict': [FAIL],
-  'built-ins/Array/prototype/groupToMap/this-arg': [FAIL],
-  'built-ins/Array/prototype/groupToMap/this-arg-strict': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=13302
   'staging/ArrayBuffer/resizable/subarray-parameter-conversion-grows': [FAIL],
   'staging/ArrayBuffer/resizable/subarray-parameter-conversion-shrinks': [FAIL],
