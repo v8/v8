@@ -48,17 +48,6 @@ void ExternalPointerTable::Init(Isolate* isolate) {
         isolate, "Failed to allocate mutex for ExternalPointerTable");
   }
 
-#if defined(LEAK_SANITIZER)
-  // Make the shadow table accessible.
-  if (!root_space->SetPagePermissions(
-          buffer_ + kExternalPointerTableReservationSize,
-          kExternalPointerTableReservationSize, PagePermissions::kReadWrite)) {
-    V8::FatalProcessOutOfMemory(isolate,
-                                "Failed to allocate memory for the "
-                                "ExternalPointerTable LSan shadow table");
-  }
-#endif  // LEAK_SANITIZER
-
   // Allocate the initial block. Mutex must be held for that.
   base::MutexGuard guard(mutex_);
   Grow(isolate);
@@ -240,6 +229,13 @@ uint32_t ExternalPointerTable::SweepAndCompact(Isolate* isolate) {
     // attacker if they are still accessible, so use Decommit here which
     // guarantees that the pages become inaccessible and will be zeroed out.
     CHECK(root_space->DecommitPages(new_table_end, bytes_to_decommit));
+
+#if defined(LEAK_SANITIZER)
+    Address new_shadow_table_end = buffer_ +
+                                   kExternalPointerTableReservationSize +
+                                   new_capacity * sizeof(Address);
+    CHECK(root_space->DecommitPages(new_shadow_table_end, bytes_to_decommit));
+#endif  // LEAK_SANITIZER
   }
 
   if (IsCompacting()) {
@@ -306,6 +302,16 @@ ExternalPointerTable::Freelist ExternalPointerTable::Grow(Isolate* isolate) {
     V8::FatalProcessOutOfMemory(
         isolate, "Failed to grow the ExternalPointerTable backing buffer");
   }
+
+#if defined(LEAK_SANITIZER)
+  if (!root_space->SetPagePermissions(
+          buffer_ + kExternalPointerTableReservationSize +
+              old_capacity * sizeof(Address),
+          kBlockSize, PagePermissions::kReadWrite)) {
+    V8::FatalProcessOutOfMemory(
+        isolate, "Failed to grow the ExternalPointerTabl shadow table");
+  }
+#endif  // LEAK_SANITIZER
 
   set_capacity(new_capacity);
 
