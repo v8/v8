@@ -678,9 +678,9 @@ void Deoptimizer::TraceDeoptBegin(int optimization_id,
          MessageFor(deopt_kind_), DeoptimizeReasonToString(info.deopt_reason));
   if (function_.IsJSFunction()) {
     function_.ShortPrint(file);
-  } else {
-    PrintF(file, "%s", CodeKindToString(compiled_code_.kind()));
+    PrintF(file, ", ");
   }
+  compiled_code_.ShortPrint(file);
   PrintF(file,
          ", opt id %d, "
 #ifdef DEBUG
@@ -721,8 +721,9 @@ void Deoptimizer::TraceMarkForDeoptimization(Code code, const char* reason) {
   DeoptimizationData deopt_data = DeoptimizationData::cast(maybe_data);
   CodeTracer::Scope scope(isolate->GetCodeTracer());
   if (FLAG_trace_deopt) {
-    PrintF(scope.file(), "[marking dependent code " V8PRIxPTR_FMT " (",
-           code.ptr());
+    PrintF(scope.file(), "[marking dependent code ");
+    code.ShortPrint(scope.file());
+    PrintF(scope.file(), " (");
     deopt_data.SharedFunctionInfo().ShortPrint(scope.file());
     PrintF(") (opt id %d) for deoptimization, reason: %s]\n",
            deopt_data.OptimizationId().value(), reason);

@@ -176,13 +176,14 @@ class CompilerTracer : public AllStatic {
            function->DebugNameCStr().get(), osr_offset.ToInt(), ToString(mode));
   }
 
-  static void TraceCompilationStats(Isolate* isolate,
-                                    OptimizedCompilationInfo* info,
-                                    double ms_creategraph, double ms_optimize,
-                                    double ms_codegen) {
+  static void TraceFinishTurbofanCompile(Isolate* isolate,
+                                         OptimizedCompilationInfo* info,
+                                         double ms_creategraph,
+                                         double ms_optimize,
+                                         double ms_codegen) {
     if (!v8_flags.trace_opt || !info->IsOptimizing()) return;
     CodeTracer::Scope scope(isolate->GetCodeTracer());
-    PrintTracePrefix(scope, "optimizing", info);
+    PrintTracePrefix(scope, "completed compiling", info);
     if (info->is_osr()) PrintF(scope.file(), " OSR");
     PrintF(scope.file(), " - took %0.3f, %0.3f, %0.3f ms", ms_creategraph,
            ms_optimize, ms_codegen);
@@ -194,7 +195,7 @@ class CompilerTracer : public AllStatic {
                                          double ms_timetaken) {
     if (!v8_flags.trace_baseline) return;
     CodeTracer::Scope scope(isolate->GetCodeTracer());
-    PrintTracePrefix(scope, "compiling", shared, CodeKind::BASELINE);
+    PrintTracePrefix(scope, "completed compiling", shared, CodeKind::BASELINE);
     PrintF(scope.file(), " - took %0.3f ms", ms_timetaken);
     PrintTraceSuffix(scope);
   }
@@ -525,7 +526,7 @@ void TurbofanCompilationJob::RecordCompilationStats(ConcurrencyMode mode,
   double ms_creategraph = time_taken_to_prepare_.InMillisecondsF();
   double ms_optimize = time_taken_to_execute_.InMillisecondsF();
   double ms_codegen = time_taken_to_finalize_.InMillisecondsF();
-  CompilerTracer::TraceCompilationStats(
+  CompilerTracer::TraceFinishTurbofanCompile(
       isolate, compilation_info(), ms_creategraph, ms_optimize, ms_codegen);
   if (v8_flags.trace_opt_stats) {
     static double compilation_time = 0.0;
