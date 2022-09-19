@@ -870,7 +870,11 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
     if (!map_prototype_map.object()->IsJSObjectMap()) {
       // Don't allow proxies on the prototype chain.
       if (!prototype.IsNull()) {
-        DCHECK(prototype.object()->IsJSProxy());
+        DCHECK(prototype.object()->IsJSProxy()
+#if V8_ENABLE_WEBASSEMBLY
+               || prototype.object()->IsWasmObject()
+#endif
+        );  // NOLINT
         return Invalid();
       }
 

@@ -50,8 +50,8 @@ for (const wasm_obj of [struct, array]) {
     Object.assign(tgt, wasm_obj);
     assertEquals({}, tgt);
   });
-  testThrowsRepeated(() => Object.create(wasm_obj), TypeError);
-  testThrowsRepeated(() => ({}).__proto__ = wasm_obj, TypeError);
+  repeated(() => Object.create(wasm_obj));
+  repeated(() => ({}).__proto__ = wasm_obj);
   testThrowsRepeated(
       () => Object.defineProperties(wasm_obj, {prop: {value: 1}}), TypeError);
   testThrowsRepeated(
@@ -63,6 +63,32 @@ for (const wasm_obj of [struct, array]) {
   testThrowsRepeated(() => Object.setPrototypeOf(wasm_obj, Object), TypeError);
   repeated(() => assertEquals([], Object.values(wasm_obj)));
   testThrowsRepeated(() => wasm_obj.toString(), TypeError);
+
+  // Test prototype chain containing a wasm object.
+  {
+    let obj = Object.create(wasm_obj);
+    repeated(() => assertSame(wasm_obj, Object.getPrototypeOf(obj)));
+    repeated(() => assertSame(wasm_obj, Reflect.getPrototypeOf(obj)));
+    testThrowsRepeated(() => obj.__proto__, TypeError);
+    testThrowsRepeated(() => obj.__proto__ = wasm_obj, TypeError);
+    // Property access fails.
+    testThrowsRepeated(() => obj[0], TypeError);
+    testThrowsRepeated(() => obj.prop, TypeError);
+    testThrowsRepeated(() => obj.toString(), TypeError);
+    // Most conversions fail as it will use .toString(), .valueOf(), ...
+    testThrowsRepeated(() => `${obj}`, TypeError);
+    testThrowsRepeated(() => obj + 1, TypeError);
+    repeated(() => assertTrue(!!obj));
+  }
+  repeated(() => {
+    let obj = {};
+    Object.setPrototypeOf(obj, wasm_obj);
+    assertSame(wasm_obj, Object.getPrototypeOf(obj));
+    Object.setPrototypeOf(obj, null);
+    assertSame(null, Object.getPrototypeOf(obj));
+    Reflect.setPrototypeOf(obj, wasm_obj);
+    assertSame(wasm_obj, Reflect.getPrototypeOf(obj));
+  })
 
   // Test Reflect.
   {
@@ -111,6 +137,7 @@ for (const wasm_obj of [struct, array]) {
   testThrowsRepeated(() => Reflect.set(wasm_obj, 'prop', 123), TypeError);
   testThrowsRepeated(
       () => Reflect.setPrototypeOf(wasm_obj, Object.prototype), TypeError);
+  repeated(() => Reflect.setPrototypeOf({}, wasm_obj));
 
   // Test Proxy.
   {

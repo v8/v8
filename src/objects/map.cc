@@ -2296,7 +2296,11 @@ void Map::SetPrototype(Isolate* isolate, Handle<Map> map,
     Handle<JSObject> prototype_jsobj = Handle<JSObject>::cast(prototype);
     JSObject::OptimizeAsPrototype(prototype_jsobj, enable_prototype_setup_mode);
   } else {
-    DCHECK(prototype->IsNull(isolate) || prototype->IsJSProxy());
+    DCHECK(prototype->IsNull(isolate) || prototype->IsJSProxy()
+#if V8_ENABLE_WEBASSEMBLY
+           || prototype->IsWasmObject()
+#endif
+    );
   }
 
   WriteBarrierMode wb_mode =

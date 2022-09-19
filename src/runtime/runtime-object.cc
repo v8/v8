@@ -518,14 +518,6 @@ RUNTIME_FUNCTION(Runtime_ObjectCreate) {
         isolate, NewTypeError(MessageTemplate::kProtoObjectOrNull, prototype));
   }
 
-  // Wasm objects may not be used as prototypes.
-#if V8_ENABLE_WEBASSEMBLY
-  if (prototype->IsWasmObject()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));
-  }
-#endif
-
   // 2. Let obj be ObjectCreate(O).
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, obj, JSObject::ObjectCreate(isolate, prototype));

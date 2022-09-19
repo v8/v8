@@ -1535,9 +1535,10 @@ bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
   if (it->state() != LookupIterator::TRANSITION) {
     for (; it->IsFound(); it->Next()) {
       switch (it->state()) {
+        case LookupIterator::WASM_OBJECT:
+          return false;
         case LookupIterator::NOT_FOUND:
         case LookupIterator::TRANSITION:
-        case LookupIterator::WASM_OBJECT:
           UNREACHABLE();
         case LookupIterator::JSPROXY:
           return true;

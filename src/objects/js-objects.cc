@@ -5157,13 +5157,6 @@ Maybe<bool> JSObject::SetPrototype(Isolate* isolate, Handle<JSObject> object,
     }
   }
 
-#if V8_ENABLE_WEBASSEMBLY
-  if (value->IsWasmObject()) {
-    RETURN_FAILURE(isolate, should_throw,
-                   NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));
-  }
-#endif
-
   // Set the new prototype of the object.
 
   isolate->UpdateNoElementsProtectorOnSetPrototype(real_receiver);
