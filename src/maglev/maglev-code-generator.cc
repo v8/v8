@@ -286,6 +286,7 @@ class ParallelMoveResolver {
     if (has_cycle) {
       if (!scratch_has_cycle_start_) {
         Pop(kScratchRegT);
+        scratch_has_cycle_start_ = true;
       }
       EmitMovesFromSource(kScratchRegT, targets);
       scratch_has_cycle_start_ = false;
@@ -366,6 +367,7 @@ class ParallelMoveResolver {
     }
     if (scratch_has_cycle_start_ && !targets.stack_slots.empty()) {
       Push(kScratchRegT);
+      scratch_has_cycle_start_ = false;
     }
     for (uint32_t target_slot : targets.stack_slots) {
       DCHECK_EQ(moves_from_stack_slot_.find(target_slot),
