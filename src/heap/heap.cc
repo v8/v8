@@ -3601,6 +3601,7 @@ void Heap::CreateFillerForArray(T object, int elements_to_trim,
   if (MayContainRecordedSlots(object)) {
     MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
     DCHECK(!chunk->RegisteredObjectWithInvalidatedSlots<OLD_TO_NEW>(object));
+    DCHECK(!chunk->RegisteredObjectWithInvalidatedSlots<OLD_TO_SHARED>(object));
     DCHECK(!chunk->RegisteredObjectWithInvalidatedSlots<OLD_TO_OLD>(object));
   }
 #endif
@@ -6145,6 +6146,7 @@ void Heap::ClearRecordedSlot(HeapObject object, ObjectSlot slot) {
       // No need to update old-to-old here since that remembered set is gone
       // after a full GC and not re-recorded until sweeping is finished.
       RememberedSet<OLD_TO_NEW>::Remove(page, slot.address());
+      RememberedSet<OLD_TO_SHARED>::Remove(page, slot.address());
     }
   }
 #endif
@@ -6175,6 +6177,7 @@ void Heap::VerifySlotRangeHasNoRecordedSlots(Address start, Address end) {
 #ifndef V8_DISABLE_WRITE_BARRIERS
   Page* page = Page::FromAddress(start);
   RememberedSet<OLD_TO_NEW>::CheckNoneInRange(page, start, end);
+  RememberedSet<OLD_TO_SHARED>::CheckNoneInRange(page, start, end);
 #endif
 }
 #endif
@@ -6189,6 +6192,8 @@ void Heap::ClearRecordedSlotRange(Address start, Address end) {
     if (!page->SweepingDone()) {
       RememberedSet<OLD_TO_NEW>::RemoveRange(page, start, end,
                                              SlotSet::KEEP_EMPTY_BUCKETS);
+      RememberedSet<OLD_TO_SHARED>::RemoveRange(page, start, end,
+                                                SlotSet::KEEP_EMPTY_BUCKETS);
     }
   }
 #endif

@@ -3201,6 +3201,9 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
   RememberedSet<OLD_TO_NEW>::RemoveRange(
       chunk, compiled_data_start, compiled_data_start + compiled_data_size,
       SlotSet::FREE_EMPTY_BUCKETS);
+  RememberedSet<OLD_TO_SHARED>::RemoveRange(
+      chunk, compiled_data_start, compiled_data_start + compiled_data_size,
+      SlotSet::FREE_EMPTY_BUCKETS);
   RememberedSet<OLD_TO_OLD>::RemoveRange(
       chunk, compiled_data_start, compiled_data_start + compiled_data_size,
       SlotSet::FREE_EMPTY_BUCKETS);
@@ -3456,6 +3459,8 @@ void MarkCompactCollector::RightTrimDescriptorArray(DescriptorArray array,
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(array);
   RememberedSet<OLD_TO_NEW>::RemoveRange(chunk, start, end,
                                          SlotSet::FREE_EMPTY_BUCKETS);
+  RememberedSet<OLD_TO_SHARED>::RemoveRange(chunk, start, end,
+                                            SlotSet::FREE_EMPTY_BUCKETS);
   RememberedSet<OLD_TO_OLD>::RemoveRange(chunk, start, end,
                                          SlotSet::FREE_EMPTY_BUCKETS);
   if (V8_COMPRESS_POINTERS_8GB_BOOL) {
