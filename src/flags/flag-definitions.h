@@ -230,7 +230,8 @@ DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
   V(harmony_shadow_realm, "harmony ShadowRealm")                               \
   V(harmony_struct, "harmony structs, shared structs, and shared arrays")      \
   V(harmony_change_array_by_copy, "harmony change-Array-by-copy")              \
-  V(harmony_regexp_unicode_sets, "harmony RegExp Unicode Sets")
+  V(harmony_regexp_unicode_sets, "harmony RegExp Unicode Sets")                \
+  V(harmony_symbol_as_weakmap_key, "harmony symbols as weakmap keys")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_INPROGRESS(V) \

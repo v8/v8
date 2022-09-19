@@ -4506,6 +4506,7 @@ void Genesis::InitializeConsole(Handle<JSObject> extras_binding) {
 
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_import_assertions)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_class_static_blocks)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_symbol_as_weakmap_key)
 
 #ifdef V8_INTL_SUPPORT
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_best_fit_matcher)
