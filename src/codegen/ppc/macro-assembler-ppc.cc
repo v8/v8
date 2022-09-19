@@ -3765,6 +3765,22 @@ SIMD_SHIFT_LIST(EMIT_SIMD_SHIFT)
 #undef EMIT_SIMD_SHIFT
 #undef SIMD_SHIFT_LIST
 
+#define SIMD_UNOP_LIST(V) \
+  V(F64x2Abs, xvabsdp)    \
+  V(F64x2Neg, xvnegdp)    \
+  V(F32x4Abs, xvabssp)    \
+  V(F32x4Neg, xvnegsp)    \
+  V(I64x2Neg, vnegd)      \
+  V(I32x4Neg, vnegw)
+
+#define EMIT_SIMD_UNOP(name, op)                                        \
+  void TurboAssembler::name(Simd128Register dst, Simd128Register src) { \
+    op(dst, src);                                                       \
+  }
+SIMD_UNOP_LIST(EMIT_SIMD_UNOP)
+#undef EMIT_SIMD_UNOP
+#undef SIMD_UNOP_LIST
+
 void TurboAssembler::LoadSimd128(Simd128Register dst, const MemOperand& mem,
                                  Register scratch) {
   GenerateMemoryOperationRR(dst, mem, lxvx);
@@ -4139,6 +4155,51 @@ void TurboAssembler::I8x16GeU(Simd128Register dst, Simd128Register src1,
   vcmpequb(scratch, src1, src2);
   vcmpgtub(dst, src1, src2);
   vor(dst, dst, scratch);
+}
+
+void TurboAssembler::I64x2Abs(Simd128Register dst, Simd128Register src,
+                              Simd128Register scratch) {
+  constexpr int shift_bits = 63;
+  xxspltib(scratch, Operand(shift_bits));
+  vsrad(scratch, src, scratch);
+  vxor(dst, src, scratch);
+  vsubudm(dst, dst, scratch);
+}
+void TurboAssembler::I32x4Abs(Simd128Register dst, Simd128Register src,
+                              Simd128Register scratch) {
+  constexpr int shift_bits = 31;
+  xxspltib(scratch, Operand(shift_bits));
+  vsraw(scratch, src, scratch);
+  vxor(dst, src, scratch);
+  vsubuwm(dst, dst, scratch);
+}
+void TurboAssembler::I16x8Abs(Simd128Register dst, Simd128Register src,
+                              Simd128Register scratch) {
+  constexpr int shift_bits = 15;
+  xxspltib(scratch, Operand(shift_bits));
+  vsrah(scratch, src, scratch);
+  vxor(dst, src, scratch);
+  vsubuhm(dst, dst, scratch);
+}
+void TurboAssembler::I16x8Neg(Simd128Register dst, Simd128Register src,
+                              Simd128Register scratch) {
+  vspltish(scratch, Operand(1));
+  vnor(dst, src, src);
+  vadduhm(dst, scratch, dst);
+}
+void TurboAssembler::I8x16Abs(Simd128Register dst, Simd128Register src,
+                              Simd128Register scratch) {
+  constexpr int shift_bits = 7;
+  xxspltib(scratch, Operand(shift_bits));
+  vsrab(scratch, src, scratch);
+  vxor(dst, src, scratch);
+  vsububm(dst, dst, scratch);
+}
+void TurboAssembler::I8x16Neg(Simd128Register dst, Simd128Register src,
+                              Simd128Register scratch) {
+  xxspltib(scratch, Operand(1));
+  vnor(dst, src, src);
+  vaddubm(dst, scratch, dst);
 }
 
 Register GetRegisterThatIsNotOneOf(Register reg1, Register reg2, Register reg3,
