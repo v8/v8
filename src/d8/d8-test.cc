@@ -669,10 +669,12 @@ class FastCApiObject {
     CHECK_NOT_NULL(self);
     self->fast_call_count_++;
 
-    // Number is in range.
-    CHECK(in_range && "Number range should have been enforced");
-    if (!std::isnan(real_arg)) {
-      CHECK_EQ(static_cast<IntegerT>(real_arg), checked_arg);
+    if (!i::v8_flags.fuzzing) {
+      // Number is in range.
+      CHECK(in_range && "Number range should have been enforced");
+      if (!std::isnan(real_arg)) {
+        CHECK_EQ(static_cast<IntegerT>(real_arg), checked_arg);
+      }
     }
     return true;
   }
@@ -688,6 +690,10 @@ class FastCApiObject {
 
     HandleScope handle_scope(isolate);
 
+    if (i::v8_flags.fuzzing) {
+      args.GetReturnValue().Set(Boolean::New(isolate, false));
+      return;
+    }
     double real_arg = 0;
     if (args.Length() > 1 && args[1]->IsNumber()) {
       real_arg = args[1]->NumberValue(isolate->GetCurrentContext()).FromJust();
@@ -775,6 +781,10 @@ class FastCApiObject {
     FastCApiObject* self = UnwrapObject(receiver);
     CHECK_SELF_OR_FALLBACK(false);
     self->fast_call_count_++;
+
+    if (i::v8_flags.fuzzing) {
+      return true;
+    }
 
     CHECK_NOT_NULL(options.wasm_memory);
     uint8_t* memory = nullptr;
