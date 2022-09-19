@@ -344,7 +344,7 @@ void EncodeDouble(double value, std::vector<uint8_t>* out) {
 void EnvelopeEncoder::EncodeStart(std::vector<uint8_t>* out) {
   assert(byte_size_pos_ == 0);
   out->push_back(kInitialByteForEnvelope);
-  // TODO(caseq): encode tag as an additional byte here.
+  out->push_back(kCBOREnvelopeTag);
   out->push_back(kInitialByteFor32BitLengthByteString);
   byte_size_pos_ = out->size();
   out->resize(out->size() + sizeof(uint32_t));
