@@ -1197,11 +1197,8 @@ void KeyedLoadIC::UpdateLoadElement(Handle<HeapObject> receiver,
     if ((receiver->IsJSObject() &&
          IsMoreGeneralElementsKindTransition(
              target_receiver_maps.at(0)->elements_kind(),
-             Handle<JSObject>::cast(receiver)->GetElementsKind()))
-#ifdef V8_ENABLE_WEBASSEMBLY
-        || receiver->IsWasmObject()
-#endif
-    ) {
+             Handle<JSObject>::cast(receiver)->GetElementsKind())) ||
+        receiver->IsWasmObject()) {
       Handle<Object> handler = LoadElementHandler(receiver_map, load_mode);
       return ConfigureVectorState(Handle<Name>(), receiver_map, handler);
     }

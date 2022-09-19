@@ -2820,9 +2820,7 @@ Maybe<bool> Object::SetDataProperty(LookupIterator* it, Handle<Object> value) {
     }
   }
 
-#if V8_ENABLE_WEBASSEMBLY
   DCHECK(!receiver->IsWasmObject(isolate));
-#endif  // V8_ENABLE_WEBASSEMBLY
   if (V8_UNLIKELY(receiver->IsJSSharedStruct(isolate) ||
                   receiver->IsJSSharedArray(isolate))) {
     // Shared structs can only point to primitives or shared values.

@@ -335,6 +335,11 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   V8_INLINE bool IsPrivateSymbol() const;
   V8_INLINE bool IsPublicSymbol() const;
 
+#if !V8_ENABLE_WEBASSEMBLY
+  // Dummy implementation on builds without WebAssembly.
+  bool IsWasmObject(Isolate* = nullptr) const { return false; }
+#endif
+
   enum class Conversion { kToNumber, kToNumeric };
 
 #define DECL_STRUCT_PREDICATE(NAME, Name, name) \

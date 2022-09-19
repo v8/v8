@@ -330,9 +330,7 @@ void LookupIterator::InternalUpdateProtector(Isolate* isolate,
 void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
   DCHECK(state_ == DATA || state_ == ACCESSOR);
   DCHECK(HolderIsReceiverOrHiddenPrototype());
-#if V8_ENABLE_WEBASSEMBLY
   DCHECK(!receiver_->IsWasmObject(isolate_));
-#endif  // V8_ENABLE_WEBASSEMBLY
 
   Handle<JSReceiver> holder = GetHolder<JSReceiver>();
   // We are not interested in tracking constness of a JSProxy's direct
@@ -460,9 +458,7 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
   DCHECK(HolderIsReceiverOrHiddenPrototype());
 
   Handle<JSReceiver> holder = GetHolder<JSReceiver>();
-#if V8_ENABLE_WEBASSEMBLY
   if (V8_UNLIKELY(holder->IsWasmObject())) UNREACHABLE();
-#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Property details can never change for private properties.
   if (holder->IsJSProxy(isolate_)) {
@@ -870,9 +866,7 @@ bool LookupIterator::HolderIsReceiverOrHiddenPrototype() const {
 Handle<Object> LookupIterator::FetchValue(
     AllocationPolicy allocation_policy) const {
   Object result;
-#if V8_ENABLE_WEBASSEMBLY
   DCHECK(!holder_->IsWasmObject());
-#endif
   if (IsElement(*holder_)) {
     Handle<JSObject> holder = GetHolder<JSObject>();
     ElementsAccessor* accessor = holder->GetElementsAccessor(isolate_);
@@ -1048,11 +1042,9 @@ Handle<Object> LookupIterator::GetDataValue(SeqCstAccessTag tag) const {
 void LookupIterator::WriteDataValue(Handle<Object> value,
                                     bool initializing_store) {
   DCHECK_EQ(DATA, state_);
-#if V8_ENABLE_WEBASSEMBLY
   // WriteDataValueToWasmObject() must be used instead for writing to
   // WasmObjects.
   DCHECK(!holder_->IsWasmObject(isolate_));
-#endif  // V8_ENABLE_WEBASSEMBLY
   DCHECK_IMPLIES(holder_->IsJSSharedStruct(), value->IsShared());
 
   Handle<JSReceiver> holder = GetHolder<JSReceiver>();
@@ -1268,9 +1260,7 @@ LookupIterator::State LookupIterator::LookupInRegularHolder(
   if (interceptor_state_ == InterceptorState::kProcessNonMasking) {
     return NOT_FOUND;
   }
-#if V8_ENABLE_WEBASSEMBLY
   DCHECK(!holder.IsWasmObject(isolate_));
-#endif
   if (is_element && IsElement(holder)) {
     JSObject js_object = JSObject::cast(holder);
     ElementsAccessor* accessor = js_object.GetElementsAccessor(isolate_);

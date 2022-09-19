@@ -253,7 +253,6 @@ Maybe<bool> KeyAccumulator::CollectKeys(Handle<JSReceiver> receiver,
     Maybe<bool> result = Just(false);  // Dummy initialization.
     if (current->IsJSProxy()) {
       result = CollectOwnJSProxyKeys(receiver, Handle<JSProxy>::cast(current));
-#if V8_ENABLE_WEBASSEMBLY
     } else if (current->IsWasmObject()) {
       if (mode_ == KeyCollectionMode::kIncludePrototypes) {
         RETURN_FAILURE(isolate_, kThrowOnError,
@@ -262,7 +261,6 @@ Maybe<bool> KeyAccumulator::CollectKeys(Handle<JSReceiver> receiver,
         DCHECK_EQ(KeyCollectionMode::kOwnOnly, mode_);
         DCHECK_EQ(result, Just(false));  // Stop iterating.
       }
-#endif
     } else {
       DCHECK(current->IsJSObject());
       result = CollectOwnKeys(receiver, Handle<JSObject>::cast(current));

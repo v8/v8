@@ -1168,12 +1168,10 @@ Maybe<bool> JSReceiver::DefineOwnProperty(Isolate* isolate,
         isolate, Handle<JSModuleNamespace>::cast(object), key, desc,
         should_throw);
   }
-#if V8_ENABLE_WEBASSEMBLY
   if (object->IsWasmObject()) {
     RETURN_FAILURE(isolate, kThrowOnError,
                    NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));
   }
-#endif
 
   // OrdinaryDefineOwnProperty, by virtue of calling
   // DefineOwnPropertyIgnoreAttributes, can handle arguments
@@ -2052,12 +2050,10 @@ Maybe<bool> JSReceiver::PreventExtensions(Handle<JSReceiver> object,
     return JSProxy::PreventExtensions(Handle<JSProxy>::cast(object),
                                       should_throw);
   }
-#if V8_ENABLE_WEBASSEMBLY
   if (object->IsWasmObject()) {
     RETURN_FAILURE(object->GetIsolate(), kThrowOnError,
                    NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));
   }
-#endif
   DCHECK(object->IsJSObject());
   return JSObject::PreventExtensions(Handle<JSObject>::cast(object),
                                      should_throw);
@@ -2067,11 +2063,9 @@ Maybe<bool> JSReceiver::IsExtensible(Handle<JSReceiver> object) {
   if (object->IsJSProxy()) {
     return JSProxy::IsExtensible(Handle<JSProxy>::cast(object));
   }
-#if V8_ENABLE_WEBASSEMBLY
   if (object->IsWasmObject()) {
     return Just(false);
   }
-#endif
   return Just(JSObject::IsExtensible(Handle<JSObject>::cast(object)));
 }
 
@@ -2312,12 +2306,10 @@ Maybe<bool> JSReceiver::SetPrototype(Isolate* isolate,
                                      Handle<JSReceiver> object,
                                      Handle<Object> value, bool from_javascript,
                                      ShouldThrow should_throw) {
-#if V8_ENABLE_WEBASSEMBLY
   if (object->IsWasmObject()) {
     RETURN_FAILURE(isolate, should_throw,
                    NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));
   }
-#endif
 
   if (object->IsJSProxy()) {
     return JSProxy::SetPrototype(isolate, Handle<JSProxy>::cast(object), value,

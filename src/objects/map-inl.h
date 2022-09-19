@@ -53,9 +53,7 @@ RELEASE_ACQUIRE_WEAK_ACCESSORS(Map, raw_transitions,
 
 ACCESSORS_CHECKED2(Map, prototype, HeapObject, kPrototypeOffset, true,
                    value.IsNull() || value.IsJSProxy() ||
-#if V8_ENABLE_WEBASSEMBLY
                        value.IsWasmObject() ||
-#endif
                        (value.IsJSObject() && value.map().is_prototype_map()))
 
 DEF_GETTER(Map, prototype_info, Object) {

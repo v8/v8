@@ -100,13 +100,11 @@ MaybeHandle<HeapObject> JSReceiver::GetPrototype(Isolate* isolate,
   // We don't expect access checks to be needed on JSProxy objects.
   DCHECK(!receiver->IsAccessCheckNeeded() || receiver->IsJSObject());
 
-#if V8_ENABLE_WEBASSEMBLY
   if (receiver->IsWasmObject()) {
     THROW_NEW_ERROR(isolate,
                     NewTypeError(MessageTemplate::kWasmObjectsAreOpaque),
                     HeapObject);
   }
-#endif
 
   PrototypeIterator iter(isolate, receiver, kStartAtReceiver,
                          PrototypeIterator::END_AT_NON_HIDDEN);
