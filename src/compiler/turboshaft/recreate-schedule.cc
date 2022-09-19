@@ -453,6 +453,30 @@ Node* ScheduleBuilder::ProcessOperation(const FloatUnaryOp& op) {
       DCHECK_EQ(op.rep, FloatRepresentation::Float64());
       o = machine.Float64Tanh();
       break;
+    case FloatUnaryOp::Kind::kLog2:
+      DCHECK_EQ(op.rep, FloatRepresentation::Float64());
+      o = machine.Float64Log2();
+      break;
+    case FloatUnaryOp::Kind::kLog10:
+      DCHECK_EQ(op.rep, FloatRepresentation::Float64());
+      o = machine.Float64Log10();
+      break;
+    case FloatUnaryOp::Kind::kLog1p:
+      DCHECK_EQ(op.rep, FloatRepresentation::Float64());
+      o = machine.Float64Log1p();
+      break;
+    case FloatUnaryOp::Kind::kAtan:
+      DCHECK_EQ(op.rep, FloatRepresentation::Float64());
+      o = machine.Float64Atan();
+      break;
+    case FloatUnaryOp::Kind::kAtanh:
+      DCHECK_EQ(op.rep, FloatRepresentation::Float64());
+      o = machine.Float64Atanh();
+      break;
+    case FloatUnaryOp::Kind::kCbrt:
+      DCHECK_EQ(op.rep, FloatRepresentation::Float64());
+      o = machine.Float64Cbrt();
+      break;
   }
   return AddNode(o, {GetNode(op.input())});
 }

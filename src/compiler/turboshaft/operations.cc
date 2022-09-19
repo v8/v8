@@ -70,8 +70,16 @@ std::ostream& operator<<(std::ostream& os, FloatUnaryOp::Kind kind) {
       return os << "RoundTiesEven";
     case FloatUnaryOp::Kind::kLog:
       return os << "Log";
+    case FloatUnaryOp::Kind::kLog2:
+      return os << "Log2";
+    case FloatUnaryOp::Kind::kLog10:
+      return os << "Log10";
+    case FloatUnaryOp::Kind::kLog1p:
+      return os << "Log1p";
     case FloatUnaryOp::Kind::kSqrt:
       return os << "Sqrt";
+    case FloatUnaryOp::Kind::kCbrt:
+      return os << "Cbrt";
     case FloatUnaryOp::Kind::kExp:
       return os << "Exp";
     case FloatUnaryOp::Kind::kExpm1:
@@ -96,6 +104,10 @@ std::ostream& operator<<(std::ostream& os, FloatUnaryOp::Kind kind) {
       return os << "Tan";
     case FloatUnaryOp::Kind::kTanh:
       return os << "Tanh";
+    case FloatUnaryOp::Kind::kAtan:
+      return os << "Atan";
+    case FloatUnaryOp::Kind::kAtanh:
+      return os << "Atanh";
   }
 }
 

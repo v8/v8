@@ -744,7 +744,11 @@ struct FloatUnaryOp : FixedArityOperationT<1, FloatUnaryOp> {
     kRoundToZero,    // round towards 0
     kRoundTiesEven,  // break ties by rounding towards the next even number
     kLog,
+    kLog2,
+    kLog10,
+    kLog1p,
     kSqrt,
+    kCbrt,
     kExp,
     kExpm1,
     kSin,
@@ -757,6 +761,8 @@ struct FloatUnaryOp : FixedArityOperationT<1, FloatUnaryOp> {
     kAcosh,
     kTan,
     kTanh,
+    kAtan,
+    kAtanh,
   };
   Kind kind;
   FloatRepresentation rep;

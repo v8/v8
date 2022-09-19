@@ -460,6 +460,12 @@ OpIndex GraphBuilder::Process(
       UNARY_CASE(Float64Acosh, Float64Acosh)
       UNARY_CASE(Float64Tan, Float64Tan)
       UNARY_CASE(Float64Tanh, Float64Tanh)
+      UNARY_CASE(Float64Log2, Float64Log2)
+      UNARY_CASE(Float64Log10, Float64Log10)
+      UNARY_CASE(Float64Log1p, Float64Log1p)
+      UNARY_CASE(Float64Atan, Float64Atan)
+      UNARY_CASE(Float64Atanh, Float64Atanh)
+      UNARY_CASE(Float64Cbrt, Float64Cbrt)
 #undef UNARY_CASE
 
 #define CHANGE_CASE(opcode, kind, from, to)                                 \

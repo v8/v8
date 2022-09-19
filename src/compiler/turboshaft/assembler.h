@@ -334,6 +334,18 @@ class AssemblerInterface : public Superclass {
                         FloatRepresentation::Float64())
   DECL_SINGLE_REP_UNARY(Float64Tanh, FloatUnary, Tanh,
                         FloatRepresentation::Float64())
+  DECL_SINGLE_REP_UNARY(Float64Log2, FloatUnary, Log2,
+                        FloatRepresentation::Float64())
+  DECL_SINGLE_REP_UNARY(Float64Log10, FloatUnary, Log10,
+                        FloatRepresentation::Float64())
+  DECL_SINGLE_REP_UNARY(Float64Log1p, FloatUnary, Log1p,
+                        FloatRepresentation::Float64())
+  DECL_SINGLE_REP_UNARY(Float64Atan, FloatUnary, Atan,
+                        FloatRepresentation::Float64())
+  DECL_SINGLE_REP_UNARY(Float64Atanh, FloatUnary, Atanh,
+                        FloatRepresentation::Float64())
+  DECL_SINGLE_REP_UNARY(Float64Cbrt, FloatUnary, Cbrt,
+                        FloatRepresentation::Float64())
 
   DECL_MULTI_REP_UNARY(WordReverseBytes, WordUnary, WordRepresentation,
                        ReverseBytes)
