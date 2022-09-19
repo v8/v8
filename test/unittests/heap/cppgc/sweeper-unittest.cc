@@ -338,7 +338,10 @@ TEST_F(SweeperTest, LazySweepingNormalPages) {
       Heap::Config::CollectionType::kMajor,
       Heap::Config::StackState::kNoHeapPointers,
       Heap::Config::MarkingType::kAtomic,
-      Heap::Config::SweepingType::kIncrementalAndConcurrent};
+      // Sweeping type must not include concurrent as that could lead to the
+      // concurrent sweeper holding onto pages in rare cases which delays
+      // reclamation of objects.
+      Heap::Config::SweepingType::kIncremental};
   Heap::From(GetHeap())->CollectGarbage(config);
   EXPECT_EQ(0u, g_destructor_callcount);
   MakeGarbageCollected<GCedObject>(GetAllocationHandle());
