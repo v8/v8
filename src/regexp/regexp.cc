@@ -99,7 +99,7 @@ class RegExpImpl final : public AllStatic {
   static void SetIrregexpMaxRegisterCount(FixedArray re, int value);
   static int IrregexpNumberOfCaptures(FixedArray re);
   static ByteArray IrregexpByteCode(FixedArray re, bool is_one_byte);
-  static Code IrregexpNativeCode(FixedArray re, bool is_one_byte);
+  static CodeT IrregexpNativeCode(FixedArray re, bool is_one_byte);
 };
 
 // static
@@ -629,8 +629,8 @@ ByteArray RegExpImpl::IrregexpByteCode(FixedArray re, bool is_one_byte) {
   return ByteArray::cast(re.get(JSRegExp::bytecode_index(is_one_byte)));
 }
 
-Code RegExpImpl::IrregexpNativeCode(FixedArray re, bool is_one_byte) {
-  return Code::cast(re.get(JSRegExp::code_index(is_one_byte)));
+CodeT RegExpImpl::IrregexpNativeCode(FixedArray re, bool is_one_byte) {
+  return CodeT::cast(re.get(JSRegExp::code_index(is_one_byte)));
 }
 
 void RegExpImpl::IrregexpInitialize(Isolate* isolate, Handle<JSRegExp> re,
