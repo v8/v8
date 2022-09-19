@@ -52,7 +52,6 @@ namespace internal {
   V(MarkVisitCrossThreadPersistents)        \
   V(MarkVisitStack)                         \
   V(MarkVisitRememberedSets)                \
-  V(SweepFinishIfOutOfWork)                 \
   V(SweepInvokePreFinalizers)               \
   V(SweepIdleStep)                          \
   V(SweepInTask)                            \
