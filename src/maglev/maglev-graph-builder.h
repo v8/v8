@@ -968,6 +968,7 @@ class MaglevGraphBuilder {
 
   bool TryBuildMonomorphicLoad(ValueNode* receiver,
                                ValueNode* lookup_start_object,
+                               const compiler::NameRef& name,
                                const compiler::MapRef& map,
                                MaybeObjectHandle handler);
   bool TryBuildMonomorphicLoadFromSmiHandler(ValueNode* receiver,
@@ -976,6 +977,7 @@ class MaglevGraphBuilder {
                                              int32_t handler);
   bool TryBuildMonomorphicLoadFromLoadHandler(ValueNode* receiver,
                                               ValueNode* lookup_start_object,
+                                              const compiler::NameRef& name,
                                               const compiler::MapRef& map,
                                               LoadHandler handler);
 

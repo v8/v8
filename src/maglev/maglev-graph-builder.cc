@@ -9,6 +9,7 @@
 #include "src/builtins/builtins-constructor.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/common/globals.h"
+#include "src/compiler/access-info.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/feedback-source.h"
 #include "src/compiler/heap-refs.h"
@@ -994,6 +995,7 @@ void MaglevGraphBuilder::BuildMapCheck(ValueNode* object,
 
 bool MaglevGraphBuilder::TryBuildMonomorphicLoad(ValueNode* receiver,
                                                  ValueNode* lookup_start_object,
+                                                 const compiler::NameRef& name,
                                                  const compiler::MapRef& map,
                                                  MaybeObjectHandle handler) {
   if (handler.is_null()) return false;
@@ -1013,7 +1015,8 @@ bool MaglevGraphBuilder::TryBuildMonomorphicLoad(ValueNode* receiver,
     return false;
   } else {
     return TryBuildMonomorphicLoadFromLoadHandler(
-        receiver, lookup_start_object, map, LoadHandler::cast(ho_handler));
+        receiver, lookup_start_object, name, map,
+        LoadHandler::cast(ho_handler));
   }
 }
 
@@ -1060,7 +1063,8 @@ bool MaglevGraphBuilder::TryBuildMonomorphicLoadFromSmiHandler(
 
 bool MaglevGraphBuilder::TryBuildMonomorphicLoadFromLoadHandler(
     ValueNode* receiver, ValueNode* lookup_start_object,
-    const compiler::MapRef& map, LoadHandler handler) {
+    const compiler::NameRef& name, const compiler::MapRef& map,
+    LoadHandler handler) {
   Object maybe_smi_handler = handler.smi_handler(local_isolate_);
   if (!maybe_smi_handler.IsSmi()) return false;
 
@@ -1101,27 +1105,18 @@ bool MaglevGraphBuilder::TryBuildMonomorphicLoadFromLoadHandler(
     BuildMapCheck(lookup_start_object, map);
   }
 
-  Object validity_cell = handler.validity_cell(local_isolate_);
-  if (validity_cell.IsCell(local_isolate_)) {
-    compiler::MapRef receiver_map = map;
-    if (receiver_map.IsPrimitiveMap()) {
-      // Perform the implicit ToObject for primitives here.
-      // Implemented according to ES6 section 7.3.2 GetV (V, P).
-      // Note: Keep sync'd with AccessInfoFactory::ComputePropertyAccessInfo.
-      base::Optional<compiler::JSFunctionRef> constructor =
-          broker()->target_native_context().GetConstructorFunction(
-              receiver_map);
-      receiver_map = constructor.value().initial_map(broker()->dependencies());
+  // Create compilation dependencies as needed.
+  // TODO(v8:7700): We only use the PropertyAccessInfo in order to create the
+  // proper dependencies. We should consider either using more of the PAI
+  // (instead of relying on handlers), or duplicate dependency creation logic
+  // here (which is a bit involved since it requires e.g. a prototype walk).
+  {
+    compiler::PropertyAccessInfo info = broker()->GetPropertyAccessInfo(
+        map, name, compiler::AccessMode::kLoad, broker()->dependencies());
+    if (!info.IsInvalid()) {
+      DCHECK(!info.HasDictionaryHolder());
+      info.RecordDependencies(broker()->dependencies());
     }
-
-    compiler::MapRef proto_map = receiver_map.prototype().map();
-    while (proto_map.object()->prototype_validity_cell(
-               local_isolate_, kRelaxedLoad) == validity_cell) {
-      broker()->dependencies()->DependOnStableMap(proto_map);
-      proto_map = proto_map.prototype().map();
-    }
-  } else {
-    DCHECK_EQ(Smi::ToInt(validity_cell), Map::kPrototypeChainValid);
   }
 
   switch (kind) {
@@ -1260,8 +1255,12 @@ void MaglevGraphBuilder::VisitGetNamedProperty() {
       MaybeObjectHandle handler =
           FeedbackNexusForSlot(slot).FindHandlerForMap(map.object());
 
-      if (TryBuildMonomorphicLoad(object, object, map, handler)) return;
-    } break;
+      if (TryBuildMonomorphicLoad(object, object, name, map, handler)) {
+        return;
+      }
+
+      break;
+    }
 
     default:
       break;
@@ -1308,9 +1307,13 @@ void MaglevGraphBuilder::VisitGetNamedPropertyFromSuper() {
       MaybeObjectHandle handler =
           FeedbackNexusForSlot(slot).FindHandlerForMap(map.object());
 
-      if (TryBuildMonomorphicLoad(receiver, lookup_start_object, map, handler))
+      if (TryBuildMonomorphicLoad(receiver, lookup_start_object, name, map,
+                                  handler)) {
         return;
-    } break;
+      }
+
+      break;
+    }
 
     default:
       break;
@@ -1559,7 +1562,9 @@ void MaglevGraphBuilder::VisitSetNamedProperty() {
           FeedbackNexusForSlot(slot).FindHandlerForMap(map.object());
 
       if (TryBuildMonomorphicStore(object, map, handler)) return;
-    } break;
+
+      break;
+    }
 
     default:
       break;
@@ -1601,7 +1606,9 @@ void MaglevGraphBuilder::VisitDefineNamedOwnProperty() {
           FeedbackNexusForSlot(slot).FindHandlerForMap(map.object());
 
       if (TryBuildMonomorphicStore(object, map, handler)) return;
-    } break;
+
+      break;
+    }
 
     default:
       break;
