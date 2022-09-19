@@ -120,9 +120,7 @@ class ConcurrentMarkingVisitorUtility {
       if (!object.IsHeapObject()) continue;
       HeapObject heap_object = HeapObject::cast(object);
       visitor->SynchronizePageAccess(heap_object);
-      BasicMemoryChunk* target_page =
-          BasicMemoryChunk::FromHeapObject(heap_object);
-      if (!visitor->is_shared_heap() && target_page->InSharedHeap()) continue;
+      if (!visitor->ShouldMarkObject(heap_object)) continue;
       visitor->MarkObject(host, heap_object);
       visitor->RecordSlot(host, slot, heap_object);
     }
@@ -220,7 +218,9 @@ class YoungGenerationConcurrentMarkingVisitor final
             heap->isolate(), worklists_local),
         marking_state_(heap->isolate(), memory_chunk_data) {}
 
-  bool is_shared_heap() { return false; }
+  bool ShouldMarkObject(HeapObject object) const {
+    return !object.InSharedHeap();
+  }
 
   void SynchronizePageAccess(HeapObject heap_object) {
 #ifdef THREAD_SANITIZER

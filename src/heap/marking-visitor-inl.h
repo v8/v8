@@ -44,7 +44,7 @@ template <typename THeapObjectSlot>
 void MarkingVisitorBase<ConcreteVisitor, MarkingState>::ProcessStrongHeapObject(
     HeapObject host, THeapObjectSlot slot, HeapObject heap_object) {
   SynchronizePageAccess(heap_object);
-  if (!is_shared_heap_ && heap_object.InSharedHeap()) return;
+  if (!ShouldMarkObject(heap_object)) return;
   MarkObject(host, heap_object);
   concrete_visitor()->RecordSlot(host, slot, heap_object);
 }
@@ -56,7 +56,7 @@ template <typename THeapObjectSlot>
 void MarkingVisitorBase<ConcreteVisitor, MarkingState>::ProcessWeakHeapObject(
     HeapObject host, THeapObjectSlot slot, HeapObject heap_object) {
   SynchronizePageAccess(heap_object);
-  if (!is_shared_heap_ && heap_object.InSharedHeap()) return;
+  if (!ShouldMarkObject(heap_object)) return;
   if (concrete_visitor()->marking_state()->IsBlackOrGrey(heap_object)) {
     // Weak references with live values are directly processed here to
     // reduce the processing time of weak cells during the main GC
@@ -116,7 +116,7 @@ void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitEmbeddedPointer(
   DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));
   HeapObject object =
       rinfo->target_object(ObjectVisitorWithCageBases::cage_base());
-  if (!is_shared_heap_ && object.InSharedHeap()) return;
+  if (!ShouldMarkObject(object)) return;
 
   if (!concrete_visitor()->marking_state()->IsBlackOrGrey(object)) {
     if (host.IsWeakObject(object)) {
@@ -136,7 +136,7 @@ void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitCodeTarget(
   DCHECK(RelocInfo::IsCodeTargetMode(rinfo->rmode()));
   Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
 
-  if (!is_shared_heap_ && target.InSharedHeap()) return;
+  if (!ShouldMarkObject(target)) return;
   MarkObject(host, target);
   concrete_visitor()->RecordRelocSlot(host, rinfo, target);
 }
@@ -371,7 +371,7 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitEphemeronHashTable(
     ObjectSlot value_slot =
         table.RawFieldOfElementAt(EphemeronHashTable::EntryToValueIndex(i));
 
-    if ((!is_shared_heap_ && key.InSharedHeap()) ||
+    if (!ShouldMarkObject(key) ||
         concrete_visitor()->marking_state()->IsBlackOrGrey(key)) {
       VisitPointer(table, value_slot);
     } else {
@@ -383,7 +383,7 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitEphemeronHashTable(
         concrete_visitor()->RecordSlot(table, value_slot, value);
         AddWeakReferenceForReferenceSummarizer(table, value);
 
-        if (!is_shared_heap_ && value.InSharedHeap()) continue;
+        if (!ShouldMarkObject(value)) continue;
 
         // Revisit ephemerons with both key and value unreachable at end
         // of concurrent marking cycle.

@@ -154,7 +154,7 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
         code_flush_mode_(code_flush_mode),
         is_embedder_tracing_enabled_(is_embedder_tracing_enabled),
         should_keep_ages_unchanged_(should_keep_ages_unchanged),
-        is_shared_heap_(heap->IsShared())
+        should_mark_shared_heap_(heap->ShouldMarkSharedHeap())
 #ifdef V8_ENABLE_SANDBOX
         ,
         external_pointer_table_(&heap->isolate()->external_pointer_table()),
@@ -221,7 +221,10 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
 #endif
   }
 
-  bool is_shared_heap() { return is_shared_heap_; }
+  bool ShouldMarkObject(HeapObject object) const {
+    if (should_mark_shared_heap_) return true;
+    return !object.InSharedHeap();
+  }
 
   // Marks the object grey and pushes it on the marking work list.
   V8_INLINE void MarkObject(HeapObject host, HeapObject obj);
@@ -290,7 +293,7 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
   const base::EnumSet<CodeFlushMode> code_flush_mode_;
   const bool is_embedder_tracing_enabled_;
   const bool should_keep_ages_unchanged_;
-  const bool is_shared_heap_;
+  const bool should_mark_shared_heap_;
 #ifdef V8_ENABLE_SANDBOX
   ExternalPointerTable* const external_pointer_table_;
   ExternalPointerTable* const shared_external_pointer_table_;
