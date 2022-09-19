@@ -1610,6 +1610,18 @@ void InstructionSelector::VisitStackPointerGreaterThan(
                        temp_count, temps, cont);
 }
 
+bool CanCoverTrap(Node* user, Node* value) {
+  if (user->opcode() != IrOpcode::kTrapUnless &&
+      user->opcode() != IrOpcode::kTrapIf)
+    return true;
+  if (value->opcode() == IrOpcode::kWord32Equal ||
+      value->opcode() == IrOpcode::kInt32LessThanOrEqual ||
+      value->opcode() == IrOpcode::kInt32LessThanOrEqual ||
+      value->opcode() == IrOpcode::kUint32LessThan ||
+      value->opcode() == IrOpcode::kUint32LessThanOrEqual)
+    return false;
+  return true;
+}
 // Shared routine for word comparisons against zero.
 void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
                                                FlagsContinuation* cont) {
@@ -1632,7 +1644,7 @@ void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
     cont->Negate();
   }
 
-  if (CanCover(user, value)) {
+  if (CanCoverTrap(user, value) && CanCover(user, value)) {
     switch (value->opcode()) {
       case IrOpcode::kWord32Equal:
         cont->OverwriteAndNegateIfEqual(kEqual);
