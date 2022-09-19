@@ -141,12 +141,7 @@ namespace internal {
 #define ENABLE_CONTROL_FLOW_INTEGRITY_BOOL false
 #endif
 
-#if (V8_TARGET_ARCH_S390X && COMPRESS_POINTERS_BOOL)
-// TODO(v8:11421): Enable Sparkplug for these architectures.
-#define ENABLE_SPARKPLUG false
-#else
 #define ENABLE_SPARKPLUG true
-#endif
 
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64
 // Set stack limit lower for ARM and ARM64 than for other architectures because:
