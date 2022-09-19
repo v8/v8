@@ -3278,7 +3278,7 @@ void ThrowReferenceErrorIfHole::GenerateCode(MaglevAssembler* masm,
         __ Move(kContextRegister, masm->native_context().object());
         __ Push(node->name().object());
         __ CallRuntime(Runtime::kThrowAccessedUninitializedVariable, 1);
-        masm->DefineLazyDeoptPoint(node->lazy_deopt_info());
+        masm->DefineExceptionHandlerAndLazyDeoptPoint(node);
         __ Abort(AbortReason::kUnexpectedReturnFromThrow);
       },
       this);
@@ -3302,7 +3302,7 @@ void ThrowSuperNotCalledIfHole::GenerateCode(MaglevAssembler* masm,
          ThrowSuperNotCalledIfHole* node) {
         __ Move(kContextRegister, masm->native_context().object());
         __ CallRuntime(Runtime::kThrowSuperNotCalled, 0);
-        masm->DefineLazyDeoptPoint(node->lazy_deopt_info());
+        masm->DefineExceptionHandlerAndLazyDeoptPoint(node);
         __ Abort(AbortReason::kUnexpectedReturnFromThrow);
       },
       this);
@@ -3326,7 +3326,7 @@ void ThrowSuperAlreadyCalledIfNotHole::GenerateCode(
          ThrowSuperAlreadyCalledIfNotHole* node) {
         __ Move(kContextRegister, masm->native_context().object());
         __ CallRuntime(Runtime::kThrowSuperAlreadyCalledError, 0);
-        masm->DefineLazyDeoptPoint(node->lazy_deopt_info());
+        masm->DefineExceptionHandlerAndLazyDeoptPoint(node);
         __ Abort(AbortReason::kUnexpectedReturnFromThrow);
       },
       this);
@@ -3350,7 +3350,7 @@ void ThrowIfNotSuperConstructor::GenerateCode(MaglevAssembler* masm,
         __ Push(ToRegister(node->function()));
         __ Move(kContextRegister, masm->native_context().object());
         __ CallRuntime(Runtime::kThrowNotSuperConstructor, 2);
-        masm->DefineLazyDeoptPoint(node->lazy_deopt_info());
+        masm->DefineExceptionHandlerAndLazyDeoptPoint(node);
         __ Abort(AbortReason::kUnexpectedReturnFromThrow);
       },
       this);

@@ -35,6 +35,7 @@
 #include "src/maglev/maglev-graph-verifier.h"
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-interpreter-frame-state.h"
+#include "src/maglev/maglev-ir-inl.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-regalloc.h"
 #include "src/maglev/maglev-vreg-allocator.h"
@@ -175,56 +176,24 @@ class UseMarkingProcessor {
     }
   }
 
-  void MarkCheckpointNodes(NodeBase* node, const MaglevCompilationUnit& unit,
-                           const CheckpointedInterpreterState* checkpoint_state,
-                           InputLocation* input_locations,
-                           LoopUsedNodes* loop_used_nodes,
-                           const ProcessingState& state, int& index) {
-    if (checkpoint_state->parent) {
-      MarkCheckpointNodes(node, *unit.caller(), checkpoint_state->parent,
-                          input_locations, loop_used_nodes, state, index);
-    }
-
-    const CompactInterpreterFrameState* register_frame =
-        checkpoint_state->register_frame;
-    int use_id = node->id();
-
-    register_frame->ForEachValue(
-        unit, [&](ValueNode* node, interpreter::Register reg) {
-          MarkUse(node, use_id, &input_locations[index++], loop_used_nodes);
-        });
-  }
   void MarkCheckpointNodes(NodeBase* node, const EagerDeoptInfo* deopt_info,
                            LoopUsedNodes* loop_used_nodes,
                            const ProcessingState& state) {
-    int index = 0;
-    MarkCheckpointNodes(node, deopt_info->unit, &deopt_info->state,
-                        deopt_info->input_locations, loop_used_nodes, state,
-                        index);
+    int use_id = node->id();
+    detail::DeepForEachInput(
+        deopt_info,
+        [&](ValueNode* node, interpreter::Register reg, InputLocation* input) {
+          MarkUse(node, use_id, input, loop_used_nodes);
+        });
   }
   void MarkCheckpointNodes(NodeBase* node, const LazyDeoptInfo* deopt_info,
                            LoopUsedNodes* loop_used_nodes,
                            const ProcessingState& state) {
-    int index = 0;
-
-    if (deopt_info->state.parent) {
-      MarkCheckpointNodes(node, *deopt_info->unit.caller(),
-                          deopt_info->state.parent, deopt_info->input_locations,
-                          loop_used_nodes, state, index);
-    }
-
-    // Handle the top-of-frame info manually, since we have to handle the result
-    // location.
-    const CompactInterpreterFrameState* register_frame =
-        deopt_info->state.register_frame;
     int use_id = node->id();
-
-    register_frame->ForEachValue(
-        deopt_info->unit, [&](ValueNode* node, interpreter::Register reg) {
-          // Skip over the result location.
-          if (deopt_info->IsResultRegister(reg)) return;
-          MarkUse(node, use_id, &deopt_info->input_locations[index++],
-                  loop_used_nodes);
+    detail::DeepForEachInput(
+        deopt_info,
+        [&](ValueNode* node, interpreter::Register reg, InputLocation* input) {
+          MarkUse(node, use_id, input, loop_used_nodes);
         });
   }
 

@@ -3625,7 +3625,7 @@ class ThrowReferenceErrorIfHole
       : Base(bitfield), name_(name) {}
 
   static constexpr OpProperties kProperties =
-      OpProperties::LazyDeopt() | OpProperties::DeferredCall();
+      OpProperties::Throw() | OpProperties::DeferredCall();
 
   const compiler::NameRef& name() const { return name_; }
 
@@ -3645,7 +3645,7 @@ class ThrowSuperNotCalledIfHole
   explicit ThrowSuperNotCalledIfHole(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties =
-      OpProperties::LazyDeopt() | OpProperties::DeferredCall();
+      OpProperties::Throw() | OpProperties::DeferredCall();
 
   Input& value() { return Node::input(0); }
 
@@ -3661,7 +3661,7 @@ class ThrowSuperAlreadyCalledIfNotHole
       : Base(bitfield) {}
 
   static constexpr OpProperties kProperties =
-      OpProperties::LazyDeopt() | OpProperties::DeferredCall();
+      OpProperties::Throw() | OpProperties::DeferredCall();
 
   Input& value() { return Node::input(0); }
 
@@ -3676,7 +3676,7 @@ class ThrowIfNotSuperConstructor
   explicit ThrowIfNotSuperConstructor(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties =
-      OpProperties::LazyDeopt() | OpProperties::DeferredCall();
+      OpProperties::Throw() | OpProperties::DeferredCall();
 
   Input& constructor() { return Node::input(0); }
   Input& function() { return Node::input(1); }

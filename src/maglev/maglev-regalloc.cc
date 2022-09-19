@@ -513,26 +513,17 @@ void StraightForwardRegisterAllocator::UpdateUse(
 
 void StraightForwardRegisterAllocator::UpdateUse(
     const LazyDeoptInfo& deopt_info) {
-  const CompactInterpreterFrameState* checkpoint_state =
-      deopt_info.state.register_frame;
-  int index = 0;
-  // TODO(leszeks): This is missing parent recursion, fix it.
-  // See also: UpdateUse(EagerDeoptInfo&).
-  checkpoint_state->ForEachValue(
-      deopt_info.unit, [&](ValueNode* node, interpreter::Register reg) {
-        // Skip over the result location since it is irrelevant for lazy deopts
-        // (unoptimized code will recreate the result).
-        if (deopt_info.IsResultRegister(reg)) return;
+  detail::DeepForEachInput(
+      &deopt_info,
+      [&](ValueNode* node, interpreter::Register reg, InputLocation* input) {
         if (v8_flags.trace_maglev_regalloc) {
           printing_visitor_->os()
               << "- using " << PrintNodeLabel(graph_labeller(), node) << "\n";
         }
-        InputLocation* input = &deopt_info.input_locations[index++];
-        // We might have dropped this node without spilling it. Spill it now.
-        if (!node->has_register() && !node->is_loadable()) {
-          Spill(node);
-        }
-        input->InjectLocation(node->allocation());
+        // Lazy deopts always need spilling, and should always be loaded from
+        // their loadable slot.
+        Spill(node);
+        input->InjectLocation(node->loadable_slot());
         UpdateUse(node, input);
       });
 }
