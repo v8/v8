@@ -997,7 +997,8 @@ void VisitWord64Shift(InstructionSelector* selector, Node* node,
 
   if (g.CanBeImmediate(right)) {
     if (opcode == kX64Shr && m.left().IsChangeUint32ToUint64() &&
-        m.right().HasResolvedValue() && m.right().ResolvedValue() < 32) {
+        m.right().HasResolvedValue() && m.right().ResolvedValue() < 32 &&
+        m.right().ResolvedValue() >= 0) {
       opcode = kX64Shr32;
       left = left->InputAt(0);
     }
