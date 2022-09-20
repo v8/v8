@@ -1051,13 +1051,13 @@ class JSTemporalZonedDateTime
 
 namespace temporal {
 
-struct DateRecordCommon {
+struct DateRecord {
   int32_t year;
   int32_t month;
   int32_t day;
 };
 
-struct TimeRecordCommon {
+struct TimeRecord {
   int32_t hour;
   int32_t minute;
   int32_t second;
@@ -1066,14 +1066,14 @@ struct TimeRecordCommon {
   int32_t nanosecond;
 };
 
-struct DateTimeRecordCommon {
-  DateRecordCommon date;
-  TimeRecordCommon time;
+struct DateTimeRecord {
+  DateRecord date;
+  TimeRecord time;
 };
 
 // #sec-temporal-createtemporaldatetime
 V8_WARN_UNUSED_RESULT MaybeHandle<JSTemporalPlainDateTime>
-CreateTemporalDateTime(Isolate* isolate, const DateTimeRecordCommon& date_time,
+CreateTemporalDateTime(Isolate* isolate, const DateTimeRecord& date_time,
                        Handle<JSReceiver> calendar);
 
 // #sec-temporal-createtemporaltimezone
