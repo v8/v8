@@ -275,12 +275,6 @@ for (const wasm_obj of [struct, array]) {
     assertThrows(() => gen().next(), TypeError);
   });
 
-  // FIXME(mliedtke): Should we repeat the same testing for async generator
-  // functions as for the synchronous ones?
-
   // Ensure no statement re-assigned wasm_obj by accident.
   assertTrue(wasm_obj == struct || wasm_obj == array);
 }
-
-// TODO(mliedtke): What about `export {struct, array}`?
-// d8 doesn't seem to accept exports (as the file isn't a module?)
