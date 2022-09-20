@@ -618,6 +618,7 @@ class ValueLocation {
   }
 
   bool IsAnyRegister() const { return operand_.IsAnyRegister(); }
+  bool IsGeneralRegister() const { return operand_.IsRegister(); }
   bool IsDoubleRegister() const { return operand_.IsDoubleRegister(); }
 
   const compiler::InstructionOperand& operand() const { return operand_; }

@@ -140,6 +140,24 @@ class SaveRegisterStateForCall {
   RegisterSnapshot snapshot_;
 };
 
+#ifdef DEBUG
+RegList GetGeneralRegistersUsedAsInputs(const EagerDeoptInfo* deopt_info) {
+  RegList regs;
+  detail::DeepForEachInput(deopt_info,
+                           [&regs](ValueNode* value, interpreter::Register reg,
+                                   InputLocation* input) {
+                             if (input->IsGeneralRegister()) {
+                               regs.set(input->AssignedGeneralRegister());
+                             }
+                           });
+  return regs;
+}
+#endif  // DEBUG
+
+// Helper macro for checking that a reglist is empty which prints the contents
+// when non-empty.
+#define DCHECK_REGLIST_EMPTY(...) DCHECK_EQ((__VA_ARGS__), RegList{})
+
 // ---
 // Inlined computations.
 // ---
@@ -2068,6 +2086,10 @@ void Int32AddWithOverflow::GenerateCode(MaglevAssembler* masm,
   Register left = ToRegister(left_input());
   Register right = ToRegister(right_input());
   __ addl(left, right);
+  // None of the mutated input registers should be a register input into the
+  // eager deopt info.
+  DCHECK_REGLIST_EMPTY(RegList{left} &
+                       GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
   __ EmitEagerDeoptIf(overflow, DeoptimizeReason::kOverflow, this);
 }
 
@@ -2083,6 +2105,10 @@ void Int32SubtractWithOverflow::GenerateCode(MaglevAssembler* masm,
   Register left = ToRegister(left_input());
   Register right = ToRegister(right_input());
   __ subl(left, right);
+  // None of the mutated input registers should be a register input into the
+  // eager deopt info.
+  DCHECK_REGLIST_EMPTY(RegList{left} &
+                       GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
   __ EmitEagerDeoptIf(overflow, DeoptimizeReason::kOverflow, this);
 }
 
@@ -2104,6 +2130,10 @@ void Int32MultiplyWithOverflow::GenerateCode(MaglevAssembler* masm,
   __ movl(saved_left, result);
   // TODO(leszeks): peephole optimise multiplication by a constant.
   __ imull(result, right);
+  // None of the mutated input registers should be a register input into the
+  // eager deopt info.
+  DCHECK_REGLIST_EMPTY(RegList{saved_left, result} &
+                       GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
   __ EmitEagerDeoptIf(overflow, DeoptimizeReason::kOverflow, this);
 
   // If the result is zero, check if either lhs or rhs is negative.
@@ -2188,6 +2218,10 @@ void Int32DivideWithOverflow::GenerateCode(MaglevAssembler* masm,
 
   // Check that the remainder is zero.
   __ cmpl(rdx, Immediate(0));
+  // None of the mutated input registers should be a register input into the
+  // eager deopt info.
+  DCHECK_REGLIST_EMPTY(RegList{rax, rdx} &
+                       GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
   __ EmitEagerDeoptIf(not_equal, DeoptimizeReason::kNotInt32, this);
   DCHECK_EQ(ToRegister(result()), rax);
 }
@@ -2281,6 +2315,10 @@ void Int32ShiftRightLogical::GenerateCode(MaglevAssembler* masm,
   // TODO(jgruber): Properly track signed/unsigned representations and
   // allocated a heap number if the result is outside smi range.
   __ testl(left, Immediate((1 << 31) | (1 << 30)));
+  // None of the mutated input registers should be a register input into the
+  // eager deopt info.
+  DCHECK_REGLIST_EMPTY(RegList{left} &
+                       GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
   __ EmitEagerDeoptIf(not_equal, DeoptimizeReason::kOverflow, this);
 }
 
@@ -2474,6 +2512,10 @@ void CheckedSmiTag::GenerateCode(MaglevAssembler* masm,
                                  const ProcessingState& state) {
   Register reg = ToRegister(input());
   __ addl(reg, reg);
+  // None of the mutated input registers should be a register input into the
+  // eager deopt info.
+  DCHECK_REGLIST_EMPTY(RegList{reg} &
+                       GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
   __ EmitEagerDeoptIf(overflow, DeoptimizeReason::kOverflow, this);
 }
 
@@ -3532,6 +3574,11 @@ void AttemptOnStackReplacement(MaglevAssembler* masm, Label* return_label,
 
   __ bind(&deopt);
   if (V8_LIKELY(v8_flags.turbofan)) {
+    // None of the mutated input registers should be a register input into the
+    // eager deopt info.
+    DCHECK_REGLIST_EMPTY(
+        RegList{scratch0, scratch1} &
+        GetGeneralRegistersUsedAsInputs(node->eager_deopt_info()));
     __ EmitEagerDeopt(node, DeoptimizeReason::kPrepareForOnStackReplacement);
   } else {
     // Fall through. With TF disabled we cannot OSR and thus it doesn't make
