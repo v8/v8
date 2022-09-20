@@ -399,8 +399,6 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "compressed embedded object";
     case FULL_EMBEDDED_OBJECT:
       return "full embedded object";
-    case DATA_EMBEDDED_OBJECT:
-      return "data embedded object";
     case CODE_TARGET:
       return "code target";
     case RELATIVE_CODE_TARGET:
@@ -486,7 +484,6 @@ void RelocInfo::Verify(Isolate* isolate) {
       Object::VerifyPointer(isolate, target_object(isolate));
       break;
     case FULL_EMBEDDED_OBJECT:
-    case DATA_EMBEDDED_OBJECT:
       Object::VerifyAnyTagged(isolate, target_object(isolate));
       break;
     case CODE_TARGET:

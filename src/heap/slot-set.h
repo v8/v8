@@ -614,11 +614,6 @@ enum class SlotType : uint8_t {
   // accessing. Used when pointer is stored in the instruction stream.
   kEmbeddedObjectCompressed,
 
-  // Full pointer sized slot storing an object start address.
-  // RelocInfo::target_object/RelocInfo::set_target_object methods are used for
-  // accessing. Used when pointer is stored in the instruction stream.
-  kEmbeddedObjectData,
-
   // Full pointer sized slot storing instruction start of Code object.
   // RelocInfo::target_address/RelocInfo::set_target_address methods are used
   // for accessing. Used when pointer is stored in the instruction stream.

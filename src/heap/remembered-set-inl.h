@@ -34,10 +34,6 @@ SlotCallbackResult UpdateTypedSlotHelper::UpdateTypedSlot(Heap* heap,
       RelocInfo rinfo(addr, RelocInfo::FULL_EMBEDDED_OBJECT, 0, Code());
       return UpdateEmbeddedPointer(heap, &rinfo, callback);
     }
-    case SlotType::kEmbeddedObjectData: {
-      RelocInfo rinfo(addr, RelocInfo::DATA_EMBEDDED_OBJECT, 0, Code());
-      return UpdateEmbeddedPointer(heap, &rinfo, callback);
-    }
     case SlotType::kConstPoolEmbeddedObjectCompressed: {
       HeapObject old_target =
           HeapObject::cast(Object(V8HeapCompressionScheme::DecompressTaggedAny(
@@ -77,10 +73,6 @@ HeapObject UpdateTypedSlotHelper::GetTargetObject(Heap* heap,
     }
     case SlotType::kEmbeddedObjectFull: {
       RelocInfo rinfo(addr, RelocInfo::FULL_EMBEDDED_OBJECT, 0, Code());
-      return rinfo.target_object(heap->isolate());
-    }
-    case SlotType::kEmbeddedObjectData: {
-      RelocInfo rinfo(addr, RelocInfo::DATA_EMBEDDED_OBJECT, 0, Code());
       return rinfo.target_object(heap->isolate());
     }
     case SlotType::kConstPoolEmbeddedObjectCompressed: {

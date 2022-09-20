@@ -316,8 +316,7 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
       } else if (!rit.done() &&
                  rit.rinfo()->pc() == reinterpret_cast<Address>(pc) &&
                  (rit.rinfo()->rmode() == RelocInfo::INTERNAL_REFERENCE ||
-                  rit.rinfo()->rmode() == RelocInfo::LITERAL_CONSTANT ||
-                  rit.rinfo()->rmode() == RelocInfo::DATA_EMBEDDED_OBJECT)) {
+                  rit.rinfo()->rmode() == RelocInfo::LITERAL_CONSTANT)) {
         // raw pointer embedded in code stream, e.g., jump table
         byte* ptr =
             base::ReadUnalignedValue<byte*>(reinterpret_cast<Address>(pc));

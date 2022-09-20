@@ -2062,8 +2062,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void dd(uint32_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO) {
     BlockPoolsScope no_pool_scope(this);
     if (!RelocInfo::IsNoInfo(rmode)) {
-      DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
-             RelocInfo::IsLiteralConstant(rmode));
+      DCHECK(RelocInfo::IsLiteralConstant(rmode));
       RecordRelocInfo(rmode);
     }
     dc32(data);
@@ -2071,8 +2070,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void dq(uint64_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO) {
     BlockPoolsScope no_pool_scope(this);
     if (!RelocInfo::IsNoInfo(rmode)) {
-      DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
-             RelocInfo::IsLiteralConstant(rmode));
+      DCHECK(RelocInfo::IsLiteralConstant(rmode));
       RecordRelocInfo(rmode);
     }
     dc64(data);
@@ -2080,8 +2078,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void dp(uintptr_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO) {
     BlockPoolsScope no_pool_scope(this);
     if (!RelocInfo::IsNoInfo(rmode)) {
-      DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
-             RelocInfo::IsLiteralConstant(rmode));
+      DCHECK(RelocInfo::IsLiteralConstant(rmode));
       RecordRelocInfo(rmode);
     }
     dc64(data);

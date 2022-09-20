@@ -3686,11 +3686,9 @@ MarkCompactCollector::ProcessRelocInfo(Code host, RelocInfo* rinfo,
       slot_type = SlotType::kCodeEntry;
     } else if (RelocInfo::IsFullEmbeddedObject(rmode)) {
       slot_type = SlotType::kEmbeddedObjectFull;
-    } else if (RelocInfo::IsCompressedEmbeddedObject(rmode)) {
-      slot_type = SlotType::kEmbeddedObjectCompressed;
     } else {
-      DCHECK(RelocInfo::IsDataEmbeddedObject(rmode));
-      slot_type = SlotType::kEmbeddedObjectData;
+      DCHECK(RelocInfo::IsCompressedEmbeddedObject(rmode));
+      slot_type = SlotType::kEmbeddedObjectCompressed;
     }
   }
 
