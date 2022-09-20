@@ -275,16 +275,6 @@ static void PrintRelocInfo(std::ostringstream& out, Isolate* isolate,
             relocinfo->wasm_stub_call_address()));
     out << "    ;; wasm stub: " << runtime_stub_name;
 #endif  // V8_ENABLE_WEBASSEMBLY
-  } else if (RelocInfo::IsRuntimeEntry(rmode) && isolate != nullptr) {
-    // A runtime entry relocinfo might be a deoptimization bailout.
-    Address addr = relocinfo->target_address();
-    DeoptimizeKind type;
-    if (Deoptimizer::IsDeoptimizationEntry(isolate, addr, &type)) {
-      out << "    ;; " << Deoptimizer::MessageFor(type)
-          << " deoptimization bailout";
-    } else {
-      out << "    ;; " << RelocInfo::RelocModeName(rmode);
-    }
   } else {
     out << "    ;; " << RelocInfo::RelocModeName(rmode);
   }

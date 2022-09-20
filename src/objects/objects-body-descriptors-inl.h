@@ -957,8 +957,7 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
       RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
       RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
       RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) |
-      RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET) |
-      RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
+      RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET);
 
   template <typename ObjectVisitor>
   static inline void IterateBody(Map map, HeapObject obj, ObjectVisitor* v) {

@@ -273,14 +273,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // code is moved into the code space.
   static inline Builtin target_builtin_at(Address pc);
 
-  // Returns the target address for a runtime function for the call encoded
-  // at 'pc'.
-  // Runtime entries can be temporarily encoded as the offset between the
-  // runtime function entrypoint and the code range base (stored in the
-  // code_range_base field), in order to be encodable as we generate the code,
-  // before it is moved into the code space.
-  inline Address runtime_entry_at(Address pc);
-
   // This sets the branch destination. 'location' here can be either the pc of
   // an immediate branch or the address of an entry in the constant pool.
   // This is for calls and branches within generated code.

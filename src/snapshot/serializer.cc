@@ -1039,7 +1039,6 @@ class Serializer::ObjectSerializer::RelocInfoObjectPreSerializer {
 
   void VisitExternalReference(Code host, RelocInfo* rinfo) {}
   void VisitInternalReference(Code host, RelocInfo* rinfo) {}
-  void VisitRuntimeEntry(Code host, RelocInfo* reloc) { UNREACHABLE(); }
   void VisitOffHeapTarget(Code host, RelocInfo* target) {}
 
   int num_serialized_objects() const { return num_serialized_objects_; }
@@ -1124,12 +1123,6 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
         (V8_EXTERNAL_CODE_SPACE_BOOL &&
          InstanceTypeChecker::IsCodeDataContainer(instance_type)));
   }
-}
-
-void Serializer::ObjectSerializer::VisitRuntimeEntry(Code host,
-                                                     RelocInfo* rinfo) {
-  // We no longer serialize code that contains runtime entries.
-  UNREACHABLE();
 }
 
 void Serializer::ObjectSerializer::VisitOffHeapTarget(Code host,
@@ -1270,8 +1263,7 @@ void Serializer::ObjectSerializer::SerializeCode(Map map, int size) {
       RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
       RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
       RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) |
-      RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET) |
-      RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
+      RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET);
 
   DCHECK_EQ(HeapObject::kHeaderSize, bytes_processed_so_far_);
   Handle<Code> on_heap_code = Handle<Code>::cast(object_);

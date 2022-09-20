@@ -989,14 +989,6 @@ void Assembler::call(Label* L) {
   }
 }
 
-void Assembler::call(Address entry, RelocInfo::Mode rmode) {
-  DCHECK(RelocInfo::IsRuntimeEntry(rmode));
-  EnsureSpace ensure_space(this);
-  // 1110 1000 #32-bit disp.
-  emit(0xE8);
-  emit_runtime_entry(entry, rmode);
-}
-
 void Assembler::call(Handle<CodeT> target, RelocInfo::Mode rmode) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
   DCHECK(FromCodeT(*target).IsExecutable());
@@ -1410,14 +1402,6 @@ void Assembler::j(Condition cc, Handle<CodeT> target, RelocInfo::Mode rmode) {
   RecordRelocInfo(rmode);
   int code_target_index = AddCodeTarget(target);
   emitl(code_target_index);
-}
-
-void Assembler::jmp(Address entry, RelocInfo::Mode rmode) {
-  DCHECK(RelocInfo::IsRuntimeEntry(rmode));
-  EnsureSpace ensure_space(this);
-  // 1110 1001 #32-bit disp.
-  emit(0xE9);
-  emit_runtime_entry(entry, rmode);
 }
 
 void Assembler::jmp_rel(int32_t offset) {
@@ -4464,7 +4448,6 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
 const int RelocInfo::kApplyMask =
     RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
     RelocInfo::ModeMask(RelocInfo::NEAR_BUILTIN_ENTRY) |
-    RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY) |
     RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
     RelocInfo::ModeMask(RelocInfo::WASM_CALL);
 

@@ -732,7 +732,6 @@ class DeserializerRelocInfoVisitor {
 
   void VisitCodeTarget(Code host, RelocInfo* rinfo);
   void VisitEmbeddedPointer(Code host, RelocInfo* rinfo);
-  void VisitRuntimeEntry(Code host, RelocInfo* rinfo);
   void VisitExternalReference(Code host, RelocInfo* rinfo);
   void VisitInternalReference(Code host, RelocInfo* rinfo);
   void VisitOffHeapTarget(Code host, RelocInfo* rinfo);
@@ -757,12 +756,6 @@ void DeserializerRelocInfoVisitor::VisitEmbeddedPointer(Code host,
   HeapObject object = *objects_->at(current_object_++);
   // Embedded object reference must be a strong one.
   rinfo->set_target_object(isolate()->heap(), object);
-}
-
-void DeserializerRelocInfoVisitor::VisitRuntimeEntry(Code host,
-                                                     RelocInfo* rinfo) {
-  // We no longer serialize code that contains runtime entries.
-  UNREACHABLE();
 }
 
 void DeserializerRelocInfoVisitor::VisitExternalReference(Code host,

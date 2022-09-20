@@ -35,14 +35,6 @@ void Assembler::emitw(uint16_t x) {
   pc_ += sizeof(uint16_t);
 }
 
-void Assembler::emit_runtime_entry(Address entry, RelocInfo::Mode rmode) {
-  DCHECK(RelocInfo::IsRuntimeEntry(rmode));
-  DCHECK_NE(options().code_range_base, 0);
-  RecordRelocInfo(rmode);
-  uint32_t offset = static_cast<uint32_t>(entry - options().code_range_base);
-  emitl(offset);
-}
-
 void Assembler::emit(Immediate x) {
   if (!RelocInfo::IsNoInfo(x.rmode_)) {
     RecordRelocInfo(x.rmode_);
@@ -277,17 +269,12 @@ Builtin Assembler::target_builtin_at(Address pc) {
   return static_cast<Builtin>(builtin_id);
 }
 
-Address Assembler::runtime_entry_at(Address pc) {
-  return ReadUnalignedValue<int32_t>(pc) + options().code_range_base;
-}
-
 // -----------------------------------------------------------------------------
 // Implementation of RelocInfo
 
 // The modes possibly affected by apply must be in kApplyMask.
 void RelocInfo::apply(intptr_t delta) {
-  if (IsCodeTarget(rmode_) || IsNearBuiltinEntry(rmode_) ||
-      IsRuntimeEntry(rmode_)) {
+  if (IsCodeTarget(rmode_) || IsNearBuiltinEntry(rmode_)) {
     WriteUnalignedValue(
         pc_, ReadUnalignedValue<int32_t>(pc_) - static_cast<int32_t>(delta));
   } else if (IsInternalReference(rmode_)) {
@@ -298,15 +285,14 @@ void RelocInfo::apply(intptr_t delta) {
 
 Address RelocInfo::target_address() {
   DCHECK(IsCodeTarget(rmode_) || IsNearBuiltinEntry(rmode_) ||
-         IsRuntimeEntry(rmode_) || IsWasmCall(rmode_));
+         IsWasmCall(rmode_));
   return Assembler::target_address_at(pc_, constant_pool_);
 }
 
 Address RelocInfo::target_address_address() {
-  DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_) || IsWasmCall(rmode_) ||
-         IsWasmStubCall(rmode_) || IsFullEmbeddedObject(rmode_) ||
-         IsCompressedEmbeddedObject(rmode_) || IsExternalReference(rmode_) ||
-         IsOffHeapTarget(rmode_));
+  DCHECK(IsCodeTarget(rmode_) || IsWasmCall(rmode_) || IsWasmStubCall(rmode_) ||
+         IsFullEmbeddedObject(rmode_) || IsCompressedEmbeddedObject(rmode_) ||
+         IsExternalReference(rmode_) || IsOffHeapTarget(rmode_));
   return pc_;
 }
 
@@ -400,20 +386,6 @@ Builtin RelocInfo::target_builtin_at(Assembler* origin) {
   return Assembler::target_builtin_at(pc_);
 }
 
-Address RelocInfo::target_runtime_entry(Assembler* origin) {
-  DCHECK(IsRuntimeEntry(rmode_));
-  return target_address();
-}
-
-void RelocInfo::set_target_runtime_entry(Address target,
-                                         WriteBarrierMode write_barrier_mode,
-                                         ICacheFlushMode icache_flush_mode) {
-  DCHECK(IsRuntimeEntry(rmode_));
-  if (target_address() != target) {
-    set_target_address(target, write_barrier_mode, icache_flush_mode);
-  }
-}
-
 Address RelocInfo::target_off_heap_target() {
   DCHECK(IsOffHeapTarget(rmode_));
   return ReadUnalignedValue<Address>(pc_);
@@ -427,8 +399,7 @@ void RelocInfo::WipeOut() {
     Address smi_address = Smi::FromInt(0).ptr();
     WriteUnalignedValue(pc_,
                         V8HeapCompressionScheme::CompressTagged(smi_address));
-  } else if (IsCodeTarget(rmode_) || IsNearBuiltinEntry(rmode_) ||
-             IsRuntimeEntry(rmode_)) {
+  } else if (IsCodeTarget(rmode_) || IsNearBuiltinEntry(rmode_)) {
     // Effectively write zero into the relocation.
     Assembler::set_target_address_at(pc_, constant_pool_,
                                      pc_ + sizeof(int32_t));

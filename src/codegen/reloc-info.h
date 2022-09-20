@@ -65,9 +65,6 @@ class RelocInfo {
     WASM_CALL,  // FIRST_SHAREABLE_RELOC_MODE
     WASM_STUB_CALL,
 
-    // TODO(ishell): This reloc info shouldn't be used anymore. Remove it.
-    RUNTIME_ENTRY,
-
     EXTERNAL_REFERENCE,  // The address of an external C++ function.
     INTERNAL_REFERENCE,  // An address inside the same function.
 
@@ -159,9 +156,6 @@ class RelocInfo {
   static constexpr bool IsEmbeddedObjectMode(Mode mode) {
     return base::IsInRange(mode, FIRST_EMBEDDED_OBJECT_RELOC_MODE,
                            LAST_EMBEDDED_OBJECT_RELOC_MODE);
-  }
-  static constexpr bool IsRuntimeEntry(Mode mode) {
-    return mode == RUNTIME_ENTRY;
   }
   static constexpr bool IsWasmCall(Mode mode) { return mode == WASM_CALL; }
   static constexpr bool IsWasmReference(Mode mode) { return mode == WASM_CALL; }
@@ -265,7 +259,7 @@ class RelocInfo {
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   // this relocation applies to;
-  // can only be called if IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)
+  // can only be called if IsCodeTarget(rmode_)
   V8_INLINE Address target_address();
   // Cage base value is used for decompressing compressed embedded references.
   V8_INLINE HeapObject target_object(PtrComprCageBase cage_base);
@@ -279,11 +273,6 @@ class RelocInfo {
   // Decodes builtin ID encoded as a PC-relative offset. This encoding is used
   // during code generation of call/jump with NEAR_BUILTIN_ENTRY.
   V8_INLINE Builtin target_builtin_at(Assembler* origin);
-  V8_INLINE Address target_runtime_entry(Assembler* origin);
-  V8_INLINE void set_target_runtime_entry(
-      Address target,
-      WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,
-      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
   V8_INLINE Address target_off_heap_target();
   V8_INLINE void set_target_external_reference(
       Address, ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
@@ -339,8 +328,6 @@ class RelocInfo {
       visitor->VisitExternalReference(host(), this);
     } else if (IsInternalReference(mode) || IsInternalReferenceEncoded(mode)) {
       visitor->VisitInternalReference(host(), this);
-    } else if (IsRuntimeEntry(mode)) {
-      visitor->VisitRuntimeEntry(host(), this);
     } else if (IsBuiltinEntryMode(mode)) {
       visitor->VisitOffHeapTarget(host(), this);
     }
@@ -384,7 +371,6 @@ class RelocInfo {
            ModeMask(RelocInfo::FULL_EMBEDDED_OBJECT) |
            ModeMask(RelocInfo::DATA_EMBEDDED_OBJECT) |
            ModeMask(RelocInfo::NEAR_BUILTIN_ENTRY) |
-           ModeMask(RelocInfo::RUNTIME_ENTRY) |
            ModeMask(RelocInfo::RELATIVE_CODE_TARGET) | kApplyMask;
   }
 

@@ -53,10 +53,8 @@ bool CpuFeatures::SupportsOptimizer() { return true; }
 void RelocInfo::apply(intptr_t delta) {
   DCHECK_EQ(kApplyMask, (RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
                          RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
-                         RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET) |
-                         RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY)));
-  if (IsRuntimeEntry(rmode_) || IsCodeTarget(rmode_) ||
-      IsOffHeapTarget(rmode_)) {
+                         RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET)));
+  if (IsCodeTarget(rmode_) || IsOffHeapTarget(rmode_)) {
     base::WriteUnalignedValue(pc_,
                               base::ReadUnalignedValue<int32_t>(pc_) - delta);
   } else if (IsInternalReference(rmode_)) {
@@ -67,7 +65,7 @@ void RelocInfo::apply(intptr_t delta) {
 }
 
 Address RelocInfo::target_address() {
-  DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_) || IsWasmCall(rmode_));
+  DCHECK(IsCodeTarget(rmode_) || IsWasmCall(rmode_));
   return Assembler::target_address_at(pc_, constant_pool_);
 }
 
@@ -132,20 +130,6 @@ Address RelocInfo::target_internal_reference_address() {
 
 Builtin RelocInfo::target_builtin_at(Assembler* origin) { UNREACHABLE(); }
 
-Address RelocInfo::target_runtime_entry(Assembler* origin) {
-  DCHECK(IsRuntimeEntry(rmode_));
-  return ReadUnalignedValue<Address>(pc_);
-}
-
-void RelocInfo::set_target_runtime_entry(Address target,
-                                         WriteBarrierMode write_barrier_mode,
-                                         ICacheFlushMode icache_flush_mode) {
-  DCHECK(IsRuntimeEntry(rmode_));
-  if (target_address() != target) {
-    set_target_address(target, write_barrier_mode, icache_flush_mode);
-  }
-}
-
 Address RelocInfo::target_off_heap_target() {
   DCHECK(IsOffHeapTarget(rmode_));
   return Assembler::target_address_at(pc_, constant_pool_);
@@ -155,8 +139,7 @@ void RelocInfo::WipeOut() {
   if (IsFullEmbeddedObject(rmode_) || IsExternalReference(rmode_) ||
       IsInternalReference(rmode_)) {
     WriteUnalignedValue(pc_, kNullAddress);
-  } else if (IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_) ||
-             IsOffHeapTarget(rmode_)) {
+  } else if (IsCodeTarget(rmode_) || IsOffHeapTarget(rmode_)) {
     // Effectively write zero into the relocation.
     Assembler::set_target_address_at(pc_, constant_pool_,
                                      pc_ + sizeof(int32_t));
