@@ -5603,7 +5603,7 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
     shared_allocation_space_ = heap->shared_space_;
     shared_lo_allocation_space_ = heap->shared_lo_space_;
     DCHECK(!v8_flags.use_map_space);
-    shared_map_allocation_space_ = heap->shared_space_;
+    DCHECK_NULL(shared_map_allocation_space_);
 
   } else if (isolate()->shared_isolate()) {
     Heap* shared_heap = isolate()->shared_isolate()->heap();

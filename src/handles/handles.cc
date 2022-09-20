@@ -51,7 +51,7 @@ bool HandleBase::IsDereferenceAllowed() const {
   if (!AllowHandleDereference::IsAllowed()) return false;
 
   // Allocations in the shared heap may be dereferenced by multiple threads.
-  if (isolate->is_shared()) return true;
+  if (heap_object.InSharedWritableHeap()) return true;
 
   LocalHeap* local_heap = isolate->CurrentLocalHeap();
 

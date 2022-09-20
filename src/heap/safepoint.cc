@@ -306,7 +306,6 @@ void GlobalSafepoint::AppendClient(Isolate* client) {
   client->global_safepoint_next_client_isolate_ = clients_head_;
 
   clients_head_ = client;
-  client->shared_isolate_ = shared_isolate_;
 }
 
 void GlobalSafepoint::RemoveClient(Isolate* client) {

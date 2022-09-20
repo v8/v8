@@ -4223,8 +4223,9 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   // during deserialization.
   base::Optional<base::MutexGuard> clients_guard;
 
-  if (shared_isolate_) {
-    clients_guard.emplace(&shared_isolate_->global_safepoint()->clients_mutex_);
+  if (Isolate* isolate =
+          shared_isolate_ ? shared_isolate_ : attach_to_shared_space_isolate) {
+    clients_guard.emplace(&isolate->global_safepoint()->clients_mutex_);
   }
 
   // The main thread LocalHeap needs to be set up when attaching to the shared
