@@ -527,10 +527,6 @@
   'intl402/Temporal/Calendar/prototype/yearMonthFromFields/order-of-operations': [FAIL],
   'built-ins/Temporal/Duration/prototype/total/relativeto-zoneddatetime-with-fractional-days-different-sign': [FAIL],
   'built-ins/Temporal/Duration/prototype/total/relativeto-zoneddatetime-with-fractional-days': [FAIL],
-  'intl402/Temporal/TimeZone/prototype/getNextTransition/subtract-second-and-nanosecond-from-last-transition': [FAIL],
-  'intl402/Temporal/TimeZone/prototype/getPreviousTransition/nanoseconds-subtracted-or-added-at-dst-transition': [FAIL],
-
-  'intl402/Temporal/TimeZone/prototype/getOffsetNanosecondsFor/nanoseconds-subtracted-or-added-at-dst-transition': [FAIL],
 
   'staging/Temporal/Duration/old/limits': [FAIL],
   'staging/Temporal/Duration/old/round': [FAIL],

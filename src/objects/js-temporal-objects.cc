@@ -1279,7 +1279,7 @@ DateTimeRecordCommon GetISOPartsFromEpoch(Isolate* isolate,
   // 1. Assert: ! IsValidEpochNanoseconds(ℤ(epochNanoseconds)) is true.
   DCHECK(IsValidEpochNanoseconds(isolate, epoch_nanoseconds));
   // 2. Let remainderNs be epochNanoseconds modulo 10^6.
-  Handle<BigInt> million = BigInt::FromInt64(isolate, 1000000);
+  Handle<BigInt> million = BigInt::FromUint64(isolate, 1000000);
   Handle<BigInt> remainder_ns =
       BigInt::Remainder(isolate, epoch_nanoseconds, million).ToHandleChecked();
   // Need to do some remainder magic to negative remainder.
@@ -10894,92 +10894,56 @@ MaybeHandle<JSTemporalInstant> JSTemporalTimeZone::GetInstantFor(
 namespace {
 
 #ifdef V8_INTL_SUPPORT
-MaybeHandle<Object> GetIANATimeZoneTransition(Isolate* isolate,
-                                              Handle<BigInt> nanoseconds,
-                                              int32_t time_zone_index,
-                                              Intl::Transition transition) {
+Handle<Object> GetIANATimeZoneTransition(Isolate* isolate,
+                                         Handle<BigInt> nanoseconds,
+                                         int32_t time_zone_index,
+                                         Intl::Transition transition) {
   if (time_zone_index == JSTemporalTimeZone::kUTCTimeZoneIndex) {
     return isolate->factory()->null_value();
   }
-
-  Handle<BigInt> one_million = BigInt::FromUint64(isolate, 1000000);
-  Maybe<int64_t> maybe_transition =
-      Intl::GetTimeZoneOffsetTransitionMilliseconds(
-          isolate, time_zone_index,
-          BigInt::Divide(isolate, nanoseconds, one_million)
-              .ToHandleChecked()
-              ->AsInt64(),
-          transition);
-  // If there are no transition in this timezone, return null.
-  if (maybe_transition.IsNothing()) {
-    return isolate->factory()->null_value();
-  }
-
-  // #sec-temporal-getianatimezonenexttransition and
-  // #sec-temporal-getianatimezoneprevioustransition states:
-  // "The operation returns null if no such transition exists for which t ≤
-  // ℤ(nsMaxInstant)." and "The operation returns null if no such transition
-  // exists for which t ≥ ℤ(nsMinInstant)."
-  //
-  // nsMinInstant = -nsMaxInstant = -8.64 × 10^21 => msMinInstant = -8.64 x
-  // 10^15
-  constexpr int64_t kMsMinInstant = -8.64e15;
-  // nsMaxInstant = 10^8 × nsPerDay = 8.64 × 10^21 => msMaxInstant = 8.64 x
-  // 10^15
-  constexpr int64_t kMsMaxInstant = 8.64e15;
-
-  int64_t ms = maybe_transition.FromJust();
-  if (ms < kMsMinInstant || ms > kMsMaxInstant) {
-    return isolate->factory()->null_value();
-  }
-
-  // Convert the transition from milliseconds to nanoseconds.
-  return BigInt::Multiply(isolate, BigInt::FromInt64(isolate, ms), one_million);
+  return Intl::GetTimeZoneOffsetTransitionNanoseconds(isolate, time_zone_index,
+                                                      nanoseconds, transition);
 }
 // #sec-temporal-getianatimezonenexttransition
-MaybeHandle<Object> GetIANATimeZoneNextTransition(Isolate* isolate,
-                                                  Handle<BigInt> nanoseconds,
-                                                  int32_t time_zone_index) {
+Handle<Object> GetIANATimeZoneNextTransition(Isolate* isolate,
+                                             Handle<BigInt> nanoseconds,
+                                             int32_t time_zone_index) {
   return GetIANATimeZoneTransition(isolate, nanoseconds, time_zone_index,
                                    Intl::Transition::kNext);
 }
 // #sec-temporal-getianatimezoneprevioustransition
-MaybeHandle<Object> GetIANATimeZonePreviousTransition(
-    Isolate* isolate, Handle<BigInt> nanoseconds, int32_t time_zone_index) {
+Handle<Object> GetIANATimeZonePreviousTransition(Isolate* isolate,
+                                                 Handle<BigInt> nanoseconds,
+                                                 int32_t time_zone_index) {
   return GetIANATimeZoneTransition(isolate, nanoseconds, time_zone_index,
                                    Intl::Transition::kPrevious);
 }
 
-MaybeHandle<Object> GetIANATimeZoneOffsetNanoseconds(Isolate* isolate,
-                                                     Handle<BigInt> nanoseconds,
-                                                     int32_t time_zone_index) {
+Handle<Object> GetIANATimeZoneOffsetNanoseconds(Isolate* isolate,
+                                                Handle<BigInt> nanoseconds,
+                                                int32_t time_zone_index) {
   if (time_zone_index == JSTemporalTimeZone::kUTCTimeZoneIndex) {
     return handle(Smi::zero(), isolate);
   }
 
   return isolate->factory()->NewNumberFromInt64(
-      1000000 * Intl::GetTimeZoneOffsetMilliseconds(
-                    isolate, time_zone_index,
-                    BigInt::Divide(isolate, nanoseconds,
-                                   BigInt::FromUint64(isolate, 1000000))
-                        .ToHandleChecked()
-                        ->AsInt64())
-                    .ToChecked());
+      Intl::GetTimeZoneOffsetNanoseconds(isolate, time_zone_index,
+                                         nanoseconds));
 }
 #else   // V8_INTL_SUPPORT
 // #sec-temporal-getianatimezonenexttransition
-MaybeHandle<Object> GetIANATimeZoneNextTransition(Isolate* isolate,
-                                                  Handle<BigInt>, int32_t) {
+Handle<Object> GetIANATimeZoneNextTransition(Isolate* isolate, Handle<BigInt>,
+                                             int32_t) {
   return isolate->factory()->null_value();
 }
 // #sec-temporal-getianatimezoneprevioustransition
-MaybeHandle<Object> GetIANATimeZonePreviousTransition(Isolate* isolate,
-                                                      Handle<BigInt>, int32_t) {
+Handle<Object> GetIANATimeZonePreviousTransition(Isolate* isolate,
+                                                 Handle<BigInt>, int32_t) {
   return isolate->factory()->null_value();
 }
-MaybeHandle<Object> GetIANATimeZoneOffsetNanoseconds(Isolate* isolate,
-                                                     Handle<BigInt>,
-                                                     int32_t time_zone_index) {
+Handle<Object> GetIANATimeZoneOffsetNanoseconds(Isolate* isolate,
+                                                Handle<BigInt>,
+                                                int32_t time_zone_index) {
   DCHECK_EQ(time_zone_index, JSTemporalTimeZone::kUTCTimeZoneIndex);
   return handle(Smi::zero(), isolate);
 }
@@ -11016,7 +10980,7 @@ MaybeHandle<JSTemporalPlainDateTime> JSTemporalTimeZone::GetPlainDateTimeFor(
 
 // template for shared code of Temporal.TimeZone.prototype.getNextTransition and
 // Temporal.TimeZone.prototype.getPreviousTransition
-template <MaybeHandle<Object> (*iana_func)(Isolate*, Handle<BigInt>, int32_t)>
+template <Handle<Object> (*iana_func)(Isolate*, Handle<BigInt>, int32_t)>
 MaybeHandle<Object> GetTransition(Isolate* isolate,
                                   Handle<JSTemporalTimeZone> time_zone,
                                   Handle<Object> starting_point_obj,
@@ -11037,12 +11001,9 @@ MaybeHandle<Object> GetTransition(Isolate* isolate,
   // 5. Let transition be ?
   // GetIANATimeZoneNextTransition(startingPoint.[[Nanoseconds]],
   // timeZone.[[Identifier]]).
-  Handle<Object> transition_obj;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, transition_obj,
+  Handle<Object> transition_obj =
       iana_func(isolate, handle(starting_point->nanoseconds(), isolate),
-                time_zone->time_zone_index()),
-      Object);
+                time_zone->time_zone_index());
   // 6. If transition is null, return null.
   if (transition_obj->IsNull()) {
     return isolate->factory()->null_value();
@@ -11107,24 +11068,16 @@ MaybeHandle<JSArray> GetIANATimeZoneEpochValueAsArrayOfInstant(
   Handle<BigInt> nanoseconds_in_local_time =
       GetEpochFromISOParts(isolate, date_time);
 
-  std::vector<int64_t> possible_offset_in_milliseconds =
-      Intl::GetTimeZonePossibleOffsetMilliseconds(
-          isolate, time_zone_index,
-          BigInt::Divide(isolate, nanoseconds_in_local_time,
-                         BigInt::FromUint64(isolate, 1000000))
-              .ToHandleChecked()
-              ->AsInt64());
+  std::vector<Handle<BigInt>> possible_offset =
+      Intl::GetTimeZonePossibleOffsetNanoseconds(isolate, time_zone_index,
+                                                 nanoseconds_in_local_time);
 
-  int32_t array_length =
-      static_cast<int32_t>(possible_offset_in_milliseconds.size());
+  int32_t array_length = static_cast<int32_t>(possible_offset.size());
   Handle<FixedArray> fixed_array = factory->NewFixedArray(array_length);
 
   for (int32_t i = 0; i < array_length; i++) {
-    int64_t offset_in_nanoseconds =
-        possible_offset_in_milliseconds[i] * 1000000;
     Handle<BigInt> epoch_nanoseconds =
-        BigInt::Subtract(isolate, nanoseconds_in_local_time,
-                         BigInt::FromInt64(isolate, offset_in_nanoseconds))
+        BigInt::Subtract(isolate, nanoseconds_in_local_time, possible_offset[i])
             .ToHandleChecked();
     // a. If ! IsValidEpochNanoseconds(epochNanoseconds) is false, throw a
     // RangeError exception.
