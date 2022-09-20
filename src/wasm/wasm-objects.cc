@@ -1370,9 +1370,11 @@ WasmInstanceObject::GetOrCreateWasmInternalFunction(
     wrapper = wasm::JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
         isolate, function.sig, canonical_sig_index, instance->module(),
         function.imported);
-    isolate->heap()->js_to_wasm_wrappers().Set(
-        wrapper_index, HeapObjectReference::Weak(*wrapper));
   }
+  // Store the wrapper in the isolate, or make its reference weak now that we
+  // have a function referencing it.
+  isolate->heap()->js_to_wasm_wrappers().Set(
+      wrapper_index, HeapObjectReference::Weak(*wrapper));
   auto external = Handle<WasmExternalFunction>::cast(WasmExportedFunction::New(
       isolate, instance, function_index,
       static_cast<int>(function.sig->parameter_count()), wrapper));

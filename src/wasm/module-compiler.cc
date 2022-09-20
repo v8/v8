@@ -616,6 +616,7 @@ class CompilationStateImpl {
 
   std::shared_ptr<JSToWasmWrapperCompilationUnit>
   GetNextJSToWasmWrapperCompilationUnit();
+  void FinalizeJSToWasmWrappers(Isolate* isolate, const WasmModule* module);
 
   void OnFinishedUnits(base::Vector<WasmCode*>);
   void OnFinishedJSToWasmWrapperUnits(int num);
@@ -1509,6 +1510,13 @@ void TierUpNowForTesting(Isolate* isolate, WasmInstanceObject instance,
 
 namespace {
 
+void RecordStats(CodeT codet, Counters* counters) {
+  if (codet.is_off_heap_trampoline()) return;
+  Code code = FromCodeT(codet);
+  counters->wasm_generated_code_size()->Increment(code.raw_body_size());
+  counters->wasm_reloc_size()->Increment(code.relocation_info().length());
+}
+
 enum CompilationExecutionResult : int8_t { kNoMoreUnits, kYield };
 
 CompilationExecutionResult ExecuteJSToWasmWrapperCompilationUnits(
@@ -1932,6 +1940,8 @@ void CompileNativeModule(Isolate* isolate,
     return;
   }
 
+  compilation_state->FinalizeJSToWasmWrappers(isolate, native_module->module());
+
   compilation_state->WaitForCompilationEvent(
       CompilationEvent::kFinishedBaselineCompilation);
 
@@ -1994,6 +2004,7 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
   std::shared_ptr<NativeModule> native_module = engine->MaybeGetNativeModule(
       wasm_module->origin, wire_bytes_copy.as_vector(), isolate);
   if (native_module) {
+    CompileJsToWasmWrappers(isolate, wasm_module);
     return native_module;
   }
 
@@ -2028,6 +2039,7 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
   if (thrower->error()) return {};
 
   if (cache_hit) {
+    CompileJsToWasmWrappers(isolate, wasm_module);
     return native_module;
   }
 
@@ -2301,6 +2313,17 @@ void AsyncCompileJob::FinishCompile(bool is_after_cache_hit) {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                  "wasm.Debug.OnAfterCompile");
     isolate_->debug()->OnAfterCompile(script);
+  }
+
+  // TODO(bbudge) Allow deserialization without wrapper compilation, so we can
+  // just compile wrappers here.
+  if (!is_after_deserialization) {
+    if (is_after_cache_hit) {
+      // TODO(thibaudm): Look into sharing wrappers.
+      CompileJsToWasmWrappers(isolate_, module);
+    } else {
+      compilation_state->FinalizeJSToWasmWrappers(isolate_, module);
+    }
   }
 
   // We can only update the feature counts once the entire compile is done.
@@ -3524,6 +3547,30 @@ CompilationStateImpl::GetNextJSToWasmWrapperCompilationUnit() {
   return js_to_wasm_wrapper_units_[outstanding_units - 1];
 }
 
+void CompilationStateImpl::FinalizeJSToWasmWrappers(Isolate* isolate,
+                                                    const WasmModule* module) {
+  // TODO(6792): Wrappers below are allocated with {Factory::NewCode}. As an
+  // optimization we create a code memory modification scope that avoids
+  // changing the page permissions back-and-forth between RWX and RX, because
+  // many such wrapper are allocated in sequence below.
+  TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
+               "wasm.FinalizeJSToWasmWrappers", "wrappers",
+               js_to_wasm_wrapper_units_.size());
+
+  isolate->heap()->EnsureWasmCanonicalRttsSize(module->MaxCanonicalTypeIndex() +
+                                               1);
+  CodePageCollectionMemoryModificationScope modification_scope(isolate->heap());
+  for (auto& unit : js_to_wasm_wrapper_units_) {
+    DCHECK_EQ(isolate, unit->isolate());
+    Handle<CodeT> code = unit->Finalize();
+    uint32_t index =
+        GetExportWrapperIndex(unit->canonical_sig_index(), unit->is_import());
+    isolate->heap()->js_to_wasm_wrappers().Set(index,
+                                               MaybeObject::FromObject(*code));
+    RecordStats(*code, isolate->counters());
+  }
+}
+
 CompilationUnitQueues::Queue* CompilationStateImpl::GetQueueForCompileTask(
     int task_id) {
   return compilation_unit_queues_.GetQueueForTask(task_id);
@@ -3897,6 +3944,78 @@ class CompileJSToWasmWrapperJob final : public JobTask {
   std::atomic<size_t> outstanding_units_;
 };
 }  // namespace
+
+void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module) {
+  TRACE_EVENT0("v8.wasm", "wasm.CompileJsToWasmWrappers");
+
+  isolate->heap()->EnsureWasmCanonicalRttsSize(module->MaxCanonicalTypeIndex() +
+                                               1);
+
+  JSToWasmWrapperQueue queue;
+  JSToWasmWrapperUnitMap compilation_units;
+  WasmFeatures enabled_features = WasmFeatures::FromIsolate(isolate);
+
+  // Prepare compilation units in the main thread.
+  for (auto exp : module->export_table) {
+    if (exp.kind != kExternalFunction) continue;
+
+    auto& function = module->functions[exp.index];
+    uint32_t canonical_type_index =
+        module->isorecursive_canonical_type_ids[function.sig_index];
+    int wrapper_index =
+        GetExportWrapperIndex(canonical_type_index, function.imported);
+    auto existing_wrapper =
+        isolate->heap()->js_to_wasm_wrappers().Get(wrapper_index);
+    if (existing_wrapper.IsStrongOrWeak() &&
+        !existing_wrapper.GetHeapObject().IsUndefined()) {
+      continue;
+    }
+
+    JSToWasmWrapperKey key(function.imported, canonical_type_index);
+    if (queue.insert(key, nullptr)) {
+      auto unit = std::make_unique<JSToWasmWrapperCompilationUnit>(
+          isolate, function.sig, canonical_type_index, module,
+          function.imported, enabled_features,
+          JSToWasmWrapperCompilationUnit::kAllowGeneric);
+      compilation_units.emplace(key, std::move(unit));
+    }
+  }
+
+  {
+    // This is nested inside the event above, so the name can be less
+    // descriptive. It's mainly to log the number of wrappers.
+    TRACE_EVENT1("v8.wasm", "wasm.JsToWasmWrapperCompilation", "num_wrappers",
+                 compilation_units.size());
+    auto job =
+        std::make_unique<CompileJSToWasmWrapperJob>(&queue, &compilation_units);
+    if (v8_flags.wasm_num_compilation_tasks > 0) {
+      auto job_handle = V8::GetCurrentPlatform()->CreateJob(
+          TaskPriority::kUserVisible, std::move(job));
+
+      // Wait for completion, while contributing to the work.
+      job_handle->Join();
+    } else {
+      job->Run(nullptr);
+    }
+  }
+
+  // Finalize compilation jobs in the main thread.
+  // TODO(6792): Wrappers below are allocated with {Factory::NewCode}. As an
+  // optimization we create a code memory modification scope that avoids
+  // changing the page permissions back-and-forth between RWX and RX, because
+  // many such wrapper are allocated in sequence below.
+  CodePageCollectionMemoryModificationScope modification_scope(isolate->heap());
+  for (auto& pair : compilation_units) {
+    JSToWasmWrapperKey key = pair.first;
+    JSToWasmWrapperCompilationUnit* unit = pair.second.get();
+    DCHECK_EQ(isolate, unit->isolate());
+    Handle<CodeT> code = unit->Finalize();
+    int wrapper_index = GetExportWrapperIndex(key.second, key.first);
+    isolate->heap()->js_to_wasm_wrappers().Set(
+        wrapper_index, HeapObjectReference::Strong(*code));
+    RecordStats(*code, isolate->counters());
+  }
+}
 
 WasmCode* CompileImportWrapper(
     NativeModule* native_module, Counters* counters,

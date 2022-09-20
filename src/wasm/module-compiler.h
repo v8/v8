@@ -62,6 +62,9 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
 void RecompileNativeModule(NativeModule* native_module,
                            TieringState new_tiering_state);
 
+V8_EXPORT_PRIVATE
+void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module);
+
 // Compiles the wrapper for this (kind, sig) pair and sets the corresponding
 // cache entry. Assumes the key already exists in the cache but has not been
 // compiled yet.
