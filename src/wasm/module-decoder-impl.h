@@ -2357,7 +2357,9 @@ class ModuleDecoderTemplate : public Decoder {
       } else {
         type = table_type;
         // Active segments with function indices must reference a function
-        // table. TODO(7748): Add support for anyref tables when we have them.
+        // table. (Using struct / array indices doesn't provide any value
+        // as such an index doesn't refer to a unique object instance unlike
+        // functions.)
         if (V8_UNLIKELY(
                 !IsSubtypeOf(table_type, kWasmFuncRef, this->module_.get()))) {
           errorf(pos,
