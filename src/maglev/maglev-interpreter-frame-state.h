@@ -73,33 +73,37 @@ enum class NodeType {
 };
 
 struct NodeInfo {
-  NodeType type;
-  // TODO(leszeks): Consider adding more info for nodes here, e.g. alternative
-  // representations or previously loaded fields.
+  NodeType type = NodeType::kUnknown;
 
-  static bool IsSmi(const NodeInfo* info) {
-    if (!info) return false;
-    return info->type == NodeType::kSmi;
+  // Optional alternative nodes with the equivalent value but a different
+  // representation.
+  // TODO(leszeks): At least one of these is redundant for every node, consider
+  // a more compressed form or even linked list.
+  ValueNode* tagged_alternative = nullptr;
+  ValueNode* int32_alternative = nullptr;
+  ValueNode* float64_alternative = nullptr;
+
+  bool is_smi() const { return type == NodeType::kSmi; }
+  bool is_any_heap_object() const {
+    return static_cast<int>(type) & static_cast<int>(NodeType::kAnyHeapObject);
   }
-  static bool IsAnyHeapObject(const NodeInfo* info) {
-    if (!info) return false;
-    return static_cast<int>(info->type) &
-           static_cast<int>(NodeType::kAnyHeapObject);
-  }
-  static bool IsString(const NodeInfo* info) {
-    if (!info) return false;
-    return info->type == NodeType::kString;
-  }
-  static bool IsSymbol(const NodeInfo* info) {
-    if (!info) return false;
-    return info->type == NodeType::kSymbol;
-  }
+  bool is_string() const { return type == NodeType::kString; }
+  bool is_symbol() const { return type == NodeType::kSymbol; }
 
   // Mutate this node info by merging in another node info, with the result
   // being a node info that is the subset of information valid in both inputs.
   void MergeWith(const NodeInfo& other) {
     type = static_cast<NodeType>(static_cast<int>(type) &
                                  static_cast<int>(other.type));
+    tagged_alternative = tagged_alternative == other.tagged_alternative
+                             ? tagged_alternative
+                             : nullptr;
+    int32_alternative = int32_alternative == other.int32_alternative
+                            ? int32_alternative
+                            : nullptr;
+    float64_alternative = float64_alternative == other.float64_alternative
+                              ? float64_alternative
+                              : nullptr;
   }
 };
 
@@ -131,22 +135,7 @@ struct KnownNodeAspects {
     return clone;
   }
 
-  NodeInfo* GetInfoFor(ValueNode* node) {
-    auto it = node_infos.find(node);
-    if (it == node_infos.end()) return nullptr;
-    return &it->second;
-  }
-
-  void InsertOrUpdateNodeType(ValueNode* node, NodeInfo* existing_info,
-                              NodeType new_type) {
-    if (existing_info == nullptr) {
-      DCHECK_EQ(node_infos.find(node), node_infos.end());
-      node_infos.emplace(node, NodeInfo{new_type});
-    } else {
-      DCHECK_EQ(&node_infos.find(node)->second, existing_info);
-      existing_info->type = new_type;
-    }
-  }
+  NodeInfo* GetOrCreateInfoFor(ValueNode* node) { return &node_infos[node]; }
 
   void Merge(const KnownNodeAspects& other) {
     DestructivelyIntersect(node_infos, other.node_infos,
@@ -186,6 +175,8 @@ class InterpreterFrameState {
                        const MergePointInterpreterFrameState& state);
 
   void set_accumulator(ValueNode* value) {
+    // Conversions should be stored in known_node_aspects/NodeInfo.
+    DCHECK(!value->properties().is_conversion());
     frame_[interpreter::Register::virtual_accumulator()] = value;
   }
   ValueNode* accumulator() const {
@@ -198,6 +189,8 @@ class InterpreterFrameState {
                        reg == interpreter::Register::function_closure() ||
                        reg == interpreter::Register::virtual_accumulator() ||
                        reg.ToParameterIndex() >= 0);
+    // Conversions should be stored in known_node_aspects/NodeInfo.
+    DCHECK(!value->properties().is_conversion());
     frame_[reg] = value;
   }
   ValueNode* get(interpreter::Register reg) const {

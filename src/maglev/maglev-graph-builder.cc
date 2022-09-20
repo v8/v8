@@ -327,13 +327,9 @@ void MaglevGraphBuilder::BuildGenericBinarySmiOperationNode() {
 template <Operation kOperation>
 void MaglevGraphBuilder::BuildInt32BinaryOperationNode() {
   // TODO(v8:7700): Do constant folding.
-  ValueNode *left, *right;
-  if (IsRegisterEqualToAccumulator(0)) {
-    left = right = LoadRegisterInt32(0);
-  } else {
-    left = LoadRegisterInt32(0);
-    right = GetAccumulatorInt32();
-  }
+  ValueNode* left = LoadRegisterInt32(0);
+  ValueNode* right = GetAccumulatorInt32();
+
   SetAccumulator(AddNewInt32BinaryOperationNode<kOperation>({left, right}));
 }
 
@@ -363,13 +359,9 @@ void MaglevGraphBuilder::BuildFloat64BinarySmiOperationNode() {
 template <Operation kOperation>
 void MaglevGraphBuilder::BuildFloat64BinaryOperationNode() {
   // TODO(v8:7700): Do constant folding.
-  ValueNode *left, *right;
-  if (IsRegisterEqualToAccumulator(0)) {
-    left = right = LoadRegisterFloat64(0);
-  } else {
-    left = LoadRegisterFloat64(0);
-    right = GetAccumulatorFloat64();
-  }
+  ValueNode* left = LoadRegisterFloat64(0);
+  ValueNode* right = GetAccumulatorFloat64();
+
   SetAccumulator(AddNewFloat64BinaryOperationNode<kOperation>({left, right}));
 }
 
@@ -505,13 +497,9 @@ void MaglevGraphBuilder::VisitCompareOperation() {
       return;
     case CompareOperationHint::kSignedSmall:
       if (BinaryOperationHasInt32FastPath<kOperation>()) {
-        ValueNode *left, *right;
-        if (IsRegisterEqualToAccumulator(0)) {
-          left = right = LoadRegisterInt32(0);
-        } else {
-          left = LoadRegisterInt32(0);
-          right = GetAccumulatorInt32();
-        }
+        ValueNode* left = LoadRegisterInt32(0);
+        ValueNode* right = GetAccumulatorInt32();
+
         if (TryBuildCompareOperation<BranchIfInt32Compare>(kOperation, left,
                                                            right)) {
           return;
@@ -523,13 +511,9 @@ void MaglevGraphBuilder::VisitCompareOperation() {
       break;
     case CompareOperationHint::kNumber:
       if (BinaryOperationHasFloat64FastPath<kOperation>()) {
-        ValueNode *left, *right;
-        if (IsRegisterEqualToAccumulator(0)) {
-          left = right = LoadRegisterFloat64(0);
-        } else {
-          left = LoadRegisterFloat64(0);
-          right = GetAccumulatorFloat64();
-        }
+        ValueNode* left = LoadRegisterFloat64(0);
+        ValueNode* right = GetAccumulatorFloat64();
+
         if (TryBuildCompareOperation<BranchIfFloat64Compare>(kOperation, left,
                                                              right)) {
           return;
@@ -550,10 +534,28 @@ void MaglevGraphBuilder::VisitCompareOperation() {
              kOperation == Operation::kStrictEqual);
       ValueNode *left, *right;
       if (IsRegisterEqualToAccumulator(0)) {
-        left = right = LoadRegister<CheckedInternalizedString>(0);
+        interpreter::Register reg = iterator_.GetRegisterOperand(0);
+        ValueNode* value = GetTaggedValue(reg);
+        if (!value->Is<CheckedInternalizedString>()) {
+          value = AddNewNode<CheckedInternalizedString>({value});
+          current_interpreter_frame_.set(reg, value);
+          current_interpreter_frame_.set(
+              interpreter::Register::virtual_accumulator(), value);
+        }
+        left = right = value;
       } else {
-        left = LoadRegister<CheckedInternalizedString>(0);
-        right = GetAccumulator<CheckedInternalizedString>();
+        interpreter::Register reg = iterator_.GetRegisterOperand(0);
+        left = GetTaggedValue(reg);
+        if (!left->Is<CheckedInternalizedString>()) {
+          left = AddNewNode<CheckedInternalizedString>({left});
+          current_interpreter_frame_.set(reg, left);
+        }
+        right = GetAccumulatorTagged();
+        if (!right->Is<CheckedInternalizedString>()) {
+          right = AddNewNode<CheckedInternalizedString>({right});
+          current_interpreter_frame_.set(
+              interpreter::Register::virtual_accumulator(), right);
+        }
       }
       if (TryBuildCompareOperation<BranchIfReferenceCompare>(kOperation, left,
                                                              right)) {
@@ -565,16 +567,10 @@ void MaglevGraphBuilder::VisitCompareOperation() {
     case CompareOperationHint::kSymbol: {
       DCHECK(kOperation == Operation::kEqual ||
              kOperation == Operation::kStrictEqual);
-      ValueNode *left, *right;
-      if (IsRegisterEqualToAccumulator(0)) {
-        left = right = LoadRegisterTagged(0);
-        BuildCheckSymbol(left);
-      } else {
-        left = LoadRegisterTagged(0);
-        right = GetAccumulatorTagged();
-        BuildCheckSymbol(left);
-        BuildCheckSymbol(right);
-      }
+      ValueNode* left = LoadRegisterTagged(0);
+      ValueNode* right = GetAccumulatorTagged();
+      BuildCheckSymbol(left);
+      BuildCheckSymbol(right);
       if (TryBuildCompareOperation<BranchIfReferenceCompare>(kOperation, left,
                                                              right)) {
         return;
@@ -920,27 +916,25 @@ void MaglevGraphBuilder::VisitStaLookupSlot() {
 }
 
 void MaglevGraphBuilder::BuildCheckSmi(ValueNode* object) {
-  NodeInfo* known_info = known_node_aspects().GetInfoFor(object);
-  if (NodeInfo::IsSmi(known_info)) return;
+  NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(object);
+  if (known_info->is_smi()) return;
 
   // TODO(leszeks): Figure out a way to also handle CheckedSmiUntag.
   AddNewNode<CheckSmi>({object});
-  known_node_aspects().InsertOrUpdateNodeType(object, known_info,
-                                              NodeType::kSmi);
+  known_info->type = NodeType::kSmi;
 }
 
 void MaglevGraphBuilder::BuildCheckHeapObject(ValueNode* object) {
-  NodeInfo* known_info = known_node_aspects().GetInfoFor(object);
-  if (NodeInfo::IsAnyHeapObject(known_info)) return;
+  NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(object);
+  if (known_info->is_any_heap_object()) return;
 
   AddNewNode<CheckHeapObject>({object});
-  known_node_aspects().InsertOrUpdateNodeType(object, known_info,
-                                              NodeType::kAnyHeapObject);
+  known_info->type = NodeType::kAnyHeapObject;
 }
 
 namespace {
 CheckType GetCheckType(NodeInfo* known_info) {
-  if (NodeInfo::IsAnyHeapObject(known_info)) {
+  if (known_info->is_any_heap_object()) {
     return CheckType::kOmitHeapObjectCheck;
   }
   return CheckType::kCheckHeapObject;
@@ -948,21 +942,19 @@ CheckType GetCheckType(NodeInfo* known_info) {
 }  // namespace
 
 void MaglevGraphBuilder::BuildCheckString(ValueNode* object) {
-  NodeInfo* known_info = known_node_aspects().GetInfoFor(object);
-  if (NodeInfo::IsString(known_info)) return;
+  NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(object);
+  if (known_info->is_string()) return;
 
   AddNewNode<CheckString>({object}, GetCheckType(known_info));
-  known_node_aspects().InsertOrUpdateNodeType(object, known_info,
-                                              NodeType::kString);
+  known_info->type = NodeType::kString;
 }
 
 void MaglevGraphBuilder::BuildCheckSymbol(ValueNode* object) {
-  NodeInfo* known_info = known_node_aspects().GetInfoFor(object);
-  if (NodeInfo::IsSymbol(known_info)) return;
+  NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(object);
+  if (known_info->is_symbol()) return;
 
   AddNewNode<CheckSymbol>({object}, GetCheckType(known_info));
-  known_node_aspects().InsertOrUpdateNodeType(object, known_info,
-                                              NodeType::kSymbol);
+  known_info->type = NodeType::kSymbol;
 }
 
 void MaglevGraphBuilder::BuildMapCheck(ValueNode* object,
@@ -979,7 +971,7 @@ void MaglevGraphBuilder::BuildMapCheck(ValueNode* object,
     // TODO(leszeks): Insert an unconditional deopt if the known type doesn't
     // match the required type.
   }
-  NodeInfo* known_info = known_node_aspects().GetInfoFor(object);
+  NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(object);
   if (map.is_migration_target()) {
     AddNewNode<CheckMapsWithMigration>({object}, map, GetCheckType(known_info));
   } else {
@@ -989,8 +981,7 @@ void MaglevGraphBuilder::BuildMapCheck(ValueNode* object,
   if (map.is_stable()) {
     compilation_unit_->broker()->dependencies()->DependOnStableMap(map);
   }
-  known_node_aspects().InsertOrUpdateNodeType(
-      object, known_info, NodeType::kHeapObjectWithKnownMap);
+  known_info->type = NodeType::kHeapObjectWithKnownMap;
 }
 
 bool MaglevGraphBuilder::TryBuildMonomorphicLoad(ValueNode* receiver,
@@ -1181,15 +1172,23 @@ bool MaglevGraphBuilder::TryBuildMonomorphicElementLoadFromSmiHandler(
       BuildMapCheck(object, map);
       switch (index->properties().value_representation()) {
         case ValueRepresentation::kTagged: {
-          if (CheckedSmiTag* checked_untag = index->TryCast<CheckedSmiTag>()) {
-            index = checked_untag->input().node();
-          } else if (SmiConstant* constant = index->TryCast<SmiConstant>()) {
+          if (SmiConstant* constant = index->TryCast<SmiConstant>()) {
             index = GetInt32Constant(constant->value().value());
-          } else if (NodeInfo::IsSmi(known_node_aspects().GetInfoFor(index))) {
-            // TODO(leszeks): This could be unchecked.
-            index = AddNewNode<CheckedSmiUntag>({index});
           } else {
-            index = AddNewNode<CheckedObjectToIndex>({index});
+            NodeInfo* node_info =
+                known_node_aspects().GetOrCreateInfoFor(index);
+            if (node_info->is_smi()) {
+              if (!node_info->int32_alternative) {
+                // TODO(leszeks): This could be unchecked.
+                node_info->int32_alternative =
+                    AddNewNode<CheckedSmiUntag>({index});
+              }
+              index = node_info->int32_alternative;
+            } else {
+              // TODO(leszeks): Cache this knowledge/converted value somehow on
+              // the node info.
+              index = AddNewNode<CheckedObjectToIndex>({index});
+            }
           }
           break;
         }

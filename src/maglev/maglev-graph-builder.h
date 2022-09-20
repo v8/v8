@@ -621,76 +621,52 @@ class MaglevGraphBuilder {
     current_interpreter_frame_.set(dst, current_interpreter_frame_.get(src));
   }
 
-  template <typename NodeT>
-  ValueNode* AddNewConversionNode(interpreter::Register reg, ValueNode* node) {
-    // TODO(v8:7700): Use a canonical conversion node. Maybe like in Phi nodes
-    // where we always add a the conversion immediately after the ValueNode.
-    DCHECK(NodeT::kProperties.is_conversion());
-    ValueNode* result = AddNewNode<NodeT>({node});
-    current_interpreter_frame_.set(reg, result);
-    return result;
-  }
-
-  ValueNode* GetTaggedValueHelper(interpreter::Register reg, ValueNode* value) {
-    // TODO(victorgomes): Consider adding the representation in the
-    // InterpreterFrameState, so that we don't need to derefence a node.
+  ValueNode* GetTaggedValue(interpreter::Register reg) {
+    ValueNode* value = current_interpreter_frame_.get(reg);
     switch (value->properties().value_representation()) {
       case ValueRepresentation::kTagged:
         return value;
       case ValueRepresentation::kInt32: {
-        if (value->Is<CheckedSmiUntag>()) {
-          return value->input(0).node();
+        NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
+        if (node_info->tagged_alternative == nullptr) {
+          node_info->tagged_alternative = AddNewNode<CheckedSmiTag>({value});
         }
-        return AddNewConversionNode<CheckedSmiTag>(reg, value);
+        return node_info->tagged_alternative;
       }
       case ValueRepresentation::kFloat64: {
-        if (value->Is<CheckedFloat64Unbox>()) {
-          return value->input(0).node();
+        NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
+        if (node_info->tagged_alternative == nullptr) {
+          node_info->tagged_alternative = AddNewNode<Float64Box>({value});
         }
-        if (value->Is<ChangeInt32ToFloat64>()) {
-          ValueNode* int32_value = value->input(0).node();
-          return GetTaggedValueHelper(reg, int32_value);
-        }
-        return AddNewConversionNode<Float64Box>(reg, value);
+        return node_info->tagged_alternative;
       }
     }
     UNREACHABLE();
-  }
-
-  ValueNode* GetTaggedValue(interpreter::Register reg) {
-    ValueNode* value = current_interpreter_frame_.get(reg);
-    return GetTaggedValueHelper(reg, value);
-  }
-
-  template <typename ConversionNodeT>
-  ValueNode* GetValue(interpreter::Register reg) {
-    ValueNode* value = current_interpreter_frame_.get(reg);
-    return AddNewConversionNode<ConversionNodeT>(reg, value);
   }
 
   ValueNode* GetInt32(interpreter::Register reg) {
     ValueNode* value = current_interpreter_frame_.get(reg);
     switch (value->properties().value_representation()) {
       case ValueRepresentation::kTagged: {
-        if (value->Is<CheckedSmiTag>()) {
-          return value->input(0).node();
-        } else if (SmiConstant* constant = value->TryCast<SmiConstant>()) {
+        if (SmiConstant* constant = value->TryCast<SmiConstant>()) {
           return GetInt32Constant(constant->value().value());
         }
-        return AddNewConversionNode<CheckedSmiUntag>(reg, value);
+        NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
+        if (node_info->int32_alternative == nullptr) {
+          node_info->int32_alternative = AddNewNode<CheckedSmiUntag>({value});
+        }
+        return node_info->int32_alternative;
       }
       case ValueRepresentation::kInt32:
         return value;
-      case ValueRepresentation::kFloat64:
-        if (value->Is<CheckedFloat64Unbox>()) {
-          // TODO(leszeks): Maybe convert the CheckedFloat64Unbox to
-          // ChangeInt32ToFloat64 with this CheckedSmiUntag as the input.
-          return AddNewConversionNode<CheckedSmiUntag>(reg,
-                                                       value->input(0).node());
-        } else if (value->Is<ChangeInt32ToFloat64>()) {
-          return value->input(0).node();
+      case ValueRepresentation::kFloat64: {
+        NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
+        if (node_info->int32_alternative == nullptr) {
+          node_info->int32_alternative =
+              AddNewNode<CheckedTruncateFloat64ToInt32>({value});
         }
-        return AddNewConversionNode<CheckedTruncateFloat64ToInt32>(reg, value);
+        return node_info->int32_alternative;
+      }
     }
     UNREACHABLE();
   }
@@ -699,23 +675,25 @@ class MaglevGraphBuilder {
     ValueNode* value = current_interpreter_frame_.get(reg);
     switch (value->properties().value_representation()) {
       case ValueRepresentation::kTagged: {
-        if (value->Is<Float64Box>()) {
-          return value->input(0).node();
+        NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
+        if (node_info->float64_alternative == nullptr) {
+          node_info->float64_alternative =
+              AddNewNode<CheckedFloat64Unbox>({value});
         }
-        return AddNewConversionNode<CheckedFloat64Unbox>(reg, value);
+        return node_info->float64_alternative;
       }
-      case ValueRepresentation::kInt32:
-        return AddNewConversionNode<ChangeInt32ToFloat64>(reg, value);
+      case ValueRepresentation::kInt32: {
+        NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
+        if (node_info->float64_alternative == nullptr) {
+          node_info->float64_alternative =
+              AddNewNode<ChangeInt32ToFloat64>({value});
+        }
+        return node_info->float64_alternative;
+      }
       case ValueRepresentation::kFloat64:
         return value;
     }
     UNREACHABLE();
-  }
-
-  template <typename ConversionNodeT>
-  ValueNode* GetAccumulator() {
-    return GetValue<ConversionNodeT>(
-        interpreter::Register::virtual_accumulator());
   }
 
   ValueNode* GetAccumulatorTagged() {
@@ -734,12 +712,6 @@ class MaglevGraphBuilder {
     interpreter::Register source = iterator_.GetRegisterOperand(operand_index);
     return current_interpreter_frame_.get(source) ==
            current_interpreter_frame_.accumulator();
-  }
-
-  template <typename ConversionNodeT>
-  ValueNode* LoadRegister(int operand_index) {
-    return GetValue<ConversionNodeT>(
-        iterator_.GetRegisterOperand(operand_index));
   }
 
   ValueNode* LoadRegisterTagged(int operand_index) {

@@ -2763,9 +2763,8 @@ class CheckedInternalizedString
     CHECK_EQ(properties().value_representation(), ValueRepresentation::kTagged);
   }
 
-  static constexpr OpProperties kProperties = OpProperties::EagerDeopt() |
-                                              OpProperties::TaggedValue() |
-                                              OpProperties::ConversionNode();
+  static constexpr OpProperties kProperties =
+      OpProperties::EagerDeopt() | OpProperties::TaggedValue();
 
   static constexpr int kObjectIndex = 0;
   Input& object_input() { return Node::input(kObjectIndex); }
