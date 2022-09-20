@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --omit-default-ctors --no-turbofan --no-always-turbofan
+// Flags: --omit-default-ctors --no-turbofan --no-always-turbofan --no-maglev
 
 // TODO(v8:13091): Enable TurboFan.
+// TODO(v8:13091): Enable Maglev.
 
 (function OmitDefaultBaseCtor() {
   class A {}  // default base ctor -> will be omitted
