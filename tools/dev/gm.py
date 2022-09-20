@@ -46,6 +46,7 @@ ARCHES = [
 ]
 # Arches that get built/run when you don't specify any.
 DEFAULT_ARCHES = ["ia32", "x64", "arm", "arm64"]
+SANDBOX_SUPPORTED_ARCHES = ["x64", "arm64"]
 # Modes that this script understands.
 MODES = {
     "release": "release",
@@ -169,7 +170,6 @@ v8_enable_disassembler = true
 v8_enable_object_print = true
 v8_enable_verify_heap = true
 dcheck_always_on = false
-v8_enable_sandbox = true
 """.replace("{GOMA}", USE_GOMA)
 
 DEBUG_ARGS_TEMPLATE = """\
@@ -182,7 +182,6 @@ v8_enable_backtrace = true
 v8_enable_fast_mksnapshot = true
 v8_enable_slow_dchecks = true
 v8_optimized_debug = false
-v8_enable_sandbox = true
 """.replace("{GOMA}", USE_GOMA)
 
 OPTDEBUG_ARGS_TEMPLATE = """\
@@ -195,7 +194,6 @@ v8_enable_backtrace = true
 v8_enable_fast_mksnapshot = true
 v8_enable_verify_heap = true
 v8_optimized_debug = true
-v8_enable_sandbox = true
 """.replace("{GOMA}", USE_GOMA)
 
 ARGS_TEMPLATES = {
@@ -348,12 +346,18 @@ class Config(object):
       return ["clang_base_path = \"/usr\"", "clang_use_chrome_plugins = false"]
     return []
 
+  def GetSandboxFlag(self):
+    if self.arch in SANDBOX_SUPPORTED_ARCHES:
+      return ["v8_enable_sandbox = true"]
+    return []
+
   def GetGnArgs(self):
     # Use only substring before first '-' as the actual mode
     mode = re.match("([^-]+)", self.mode).group(1)
     template = ARGS_TEMPLATES[mode]
-    arch_specific = (self.GetTargetCpu() + self.GetV8TargetCpu() +
-                     self.GetTargetOS() + self.GetSpecialCompiler())
+    arch_specific = (
+        self.GetTargetCpu() + self.GetV8TargetCpu() + self.GetTargetOS() +
+        self.GetSpecialCompiler() + self.GetSandboxFlag())
     return template % "\n".join(arch_specific)
 
   def Build(self):
