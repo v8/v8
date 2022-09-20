@@ -5,7 +5,6 @@
 #include "src/heap/finalization-registry-cleanup-task.h"
 
 #include "src/execution/frames.h"
-#include "src/execution/interrupts-scope.h"
 #include "src/execution/stack-guard.h"
 #include "src/execution/v8threads.h"
 #include "src/heap/heap-inl.h"

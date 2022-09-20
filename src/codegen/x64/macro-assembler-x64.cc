@@ -7,28 +7,20 @@
 #if V8_TARGET_ARCH_X64
 
 #include "src/base/bits.h"
-#include "src/base/division-by-constant.h"
-#include "src/base/utils/random-number-generator.h"
-#include "src/codegen/callable.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/cpu-features.h"
-#include "src/codegen/external-reference-table.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/register-configuration.h"
 #include "src/codegen/x64/assembler-x64.h"
 #include "src/codegen/x64/register-x64.h"
 #include "src/common/globals.h"
-#include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames-inl.h"
 #include "src/heap/memory-chunk.h"
-#include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
-#include "src/sandbox/external-pointer.h"
-#include "src/snapshot/snapshot.h"
 
 // Satisfy cpplint check, but don't include platform-specific header. It is
 // included recursively via macro-assembler.h.

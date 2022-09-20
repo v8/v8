@@ -10,6 +10,7 @@
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/platform/platform.h"
 #include "src/baseline/baseline-batch-compiler.h"
+#include "src/baseline/baseline.h"
 #include "src/codegen/background-merge-task.h"
 #include "src/common/globals.h"
 #include "src/handles/maybe-handles.h"

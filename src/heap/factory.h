@@ -9,7 +9,6 @@
 // Do not include anything from src/heap here!
 #include "src/base/strings.h"
 #include "src/base/vector.h"
-#include "src/baseline/baseline.h"
 #include "src/builtins/builtins.h"
 #include "src/common/globals.h"
 #include "src/execution/messages.h"

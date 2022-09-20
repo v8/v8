@@ -5,16 +5,12 @@
 #ifndef V8_HEAP_CONCURRENT_ALLOCATOR_INL_H_
 #define V8_HEAP_CONCURRENT_ALLOCATOR_INL_H_
 
-#include "include/v8-internal.h"
 #include "src/common/globals.h"
 #include "src/heap/allocation-result.h"
 #include "src/heap/concurrent-allocator.h"
-#include "src/heap/heap.h"
-#include "src/heap/incremental-marking.h"
 #include "src/heap/local-heap.h"
 #include "src/heap/spaces-inl.h"
 #include "src/heap/spaces.h"
-#include "src/objects/heap-object.h"
 
 namespace v8 {
 namespace internal {

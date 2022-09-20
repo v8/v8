@@ -5,7 +5,7 @@
 #ifndef V8_HEAP_FINALIZATION_REGISTRY_CLEANUP_TASK_H_
 #define V8_HEAP_FINALIZATION_REGISTRY_CLEANUP_TASK_H_
 
-#include "src/objects/js-weak-refs.h"
+#include "src/heap/heap.h"
 #include "src/tasks/cancelable-task.h"
 
 namespace v8 {

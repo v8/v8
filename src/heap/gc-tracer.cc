@@ -7,10 +7,8 @@
 #include <cstdarg>
 
 #include "include/v8-metrics.h"
-#include "src/base/atomic-utils.h"
 #include "src/base/strings.h"
 #include "src/common/globals.h"
-#include "src/execution/thread-id.h"
 #include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/heap/cppgc/metric-recorder.h"
 #include "src/heap/gc-tracer-inl.h"

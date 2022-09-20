@@ -11,7 +11,6 @@
 #include "src/heap/heap.h"
 #include "src/heap/local-heap-inl.h"
 #include "src/heap/local-heap.h"
-#include "src/heap/marking.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/parked-scope.h"
 

@@ -8,7 +8,6 @@
 #include <type_traits>
 #include <unordered_map>
 
-#include "src/base/atomic-utils.h"
 #include "src/base/flags.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"

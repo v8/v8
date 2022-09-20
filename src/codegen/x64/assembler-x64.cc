@@ -18,8 +18,6 @@
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
 #include "src/codegen/assembler-inl.h"
-#include "src/codegen/macro-assembler.h"
-#include "src/deoptimizer/deoptimizer.h"
 #include "src/flags/flags.h"
 #include "src/init/v8.h"
 

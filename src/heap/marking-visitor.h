@@ -6,11 +6,11 @@
 #define V8_HEAP_MARKING_VISITOR_H_
 
 #include "src/common/globals.h"
+#include "src/execution/isolate.h"
 #include "src/heap/marking-worklist.h"
 #include "src/heap/marking.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/objects-visiting.h"
-#include "src/heap/spaces.h"
 #include "src/heap/weak-object-worklists.h"
 
 namespace v8 {

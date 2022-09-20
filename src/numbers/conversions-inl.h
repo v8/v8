@@ -14,12 +14,9 @@
 // ----------------------------------------------------------------------------
 // Extra POSIX/ANSI functions for Win32/MSVC.
 
-#include "src/base/bits.h"
 #include "src/base/numbers/double.h"
-#include "src/base/platform/platform.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/heap-number-inl.h"
-#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
