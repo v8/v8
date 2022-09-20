@@ -178,6 +178,37 @@ listener_delegate = function(exec_state) {
 (f5())()();
 EndTest();
 
+BeginTest("Check that outer functions also get the correct block list calculated");
+// This test is important once we re-use block list info. The block list for `g`
+// needs to be correctly calculated already when we stop on break_position 1.
+
+let break_position;
+function f6() {
+  let a = 1;                             // stack-allocated
+  return function g() {                  // g itself doesn't require a context.
+    if (break_position === 2) debugger;
+    let a = 2; (() => a);                // context-allocated
+    return function h() {
+      if (break_position === 1) debugger;
+    }
+  }
+}
+
+listener_delegate = function (exec_state) {
+  assertEquals(2, exec_state.frame(0).evaluate("a").value());
+}
+break_position = 1;
+(f6())()();
+EndTest();
+
+BeginTest("Check that outer functions also get the correct block list calculated (continued)");
+listener_delegate = function (exec_state) {
+  assertThrows(() => exec_state.frame(0).evaluate("a").value());
+}
+break_position = 2;
+(f6())()();
+EndTest();
+
 assertEquals(begin_test_count, break_count,
   'one or more tests did not enter the debugger');
 assertEquals(begin_test_count, end_test_count,
