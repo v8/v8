@@ -33,8 +33,10 @@
 #include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/slots-inl.h"
+#include "src/objects/transitions-inl.h"
 #include "src/objects/visitors.h"
 #include "src/tracing/trace-event.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {

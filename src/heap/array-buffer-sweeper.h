@@ -7,9 +7,10 @@
 
 #include <memory>
 
-#include "src/base/platform/condition-variable.h"
+#include "src/base/logging.h"
 #include "src/base/platform/mutex.h"
 #include "src/objects/js-array-buffer.h"
+#include "src/tasks/cancelable-task.h"
 
 namespace v8 {
 namespace internal {

@@ -9,6 +9,7 @@
 
 #include "src/base/macros.h"
 #include "src/common/globals.h"
+#include "src/logging/log.h"
 #include "src/utils/allocation.h"
 
 namespace v8 {

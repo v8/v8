@@ -9,6 +9,7 @@
 #ifndef V8_CODEGEN_X64_MACRO_ASSEMBLER_X64_H_
 #define V8_CODEGEN_X64_MACRO_ASSEMBLER_X64_H_
 
+#include "src/base/flags.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/codegen/shared-ia32-x64/macro-assembler-shared-ia32-x64.h"
 #include "src/codegen/x64/assembler-x64.h"

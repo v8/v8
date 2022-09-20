@@ -12,11 +12,12 @@
 #include <algorithm>
 
 #include "src/baseline/baseline-compiler.h"
-#include "src/baseline/baseline.h"
 #include "src/codegen/compiler.h"
 #include "src/execution/isolate.h"
 #include "src/handles/global-handles-inl.h"
+#include "src/heap/factory-inl.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/local-heap-inl.h"
 #include "src/heap/parked-scope.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/js-function-inl.h"

@@ -5,6 +5,8 @@
 #include "src/heap/code-stats.h"
 
 #include "src/codegen/code-comments.h"
+#include "src/codegen/reloc-info.h"
+#include "src/heap/heap-inl.h"
 #include "src/heap/large-spaces.h"
 #include "src/heap/paged-spaces-inl.h"  // For PagedSpaceObjectIterator.
 #include "src/objects/objects-inl.h"

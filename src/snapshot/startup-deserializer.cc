@@ -9,7 +9,6 @@
 #include "src/execution/v8threads.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/paged-spaces-inl.h"
-#include "src/logging/log.h"
 #include "src/objects/oddball.h"
 #include "src/roots/roots-inl.h"
 

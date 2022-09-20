@@ -8,8 +8,11 @@
 #include <set>
 #include <stack>
 
+#include "src/base/atomic-utils.h"
 #include "src/heap/memory-chunk-layout.h"
 #include "src/objects/heap-object.h"
+#include "src/utils/allocation.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {

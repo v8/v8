@@ -8,16 +8,16 @@
 // Clients of this interface shouldn't depend on lots of heap internals.
 // Do not include anything from src/heap here!
 
+#include "src/common/code-memory-access-inl.h"
 #include "src/common/globals.h"
 #include "src/heap/heap-write-barrier.h"
 #include "src/heap/marking-barrier.h"
-#include "src/heap/read-only-heap.h"
 #include "src/objects/code.h"
-#include "src/objects/descriptor-array.h"
+#include "src/objects/compressed-slots-inl.h"
+#include "src/objects/fixed-array.h"
 #include "src/objects/heap-object.h"
-#include "src/objects/js-array-buffer.h"
-#include "src/objects/maybe-object.h"
-#include "src/objects/tagged-impl-inl.h"
+#include "src/objects/maybe-object-inl.h"
+#include "src/objects/slots-inl.h"
 
 namespace v8 {
 namespace internal {

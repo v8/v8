@@ -8,6 +8,7 @@
 #include "src/common/globals.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/objects.h"
+#include "src/objects/smi.h"
 
 namespace v8 {
 namespace internal {

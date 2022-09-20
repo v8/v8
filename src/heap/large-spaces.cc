@@ -11,6 +11,7 @@
 #include "src/heap/combined-heap.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/list.h"
+#include "src/heap/marking.h"
 #include "src/heap/memory-allocator.h"
 #include "src/heap/memory-chunk-inl.h"
 #include "src/heap/remembered-set.h"

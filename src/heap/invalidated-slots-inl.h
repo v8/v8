@@ -7,8 +7,10 @@
 
 #include "src/base/logging.h"
 #include "src/heap/invalidated-slots.h"
+#include "src/heap/spaces.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/objects-inl.h"
+#include "src/utils/allocation.h"
 
 namespace v8 {
 namespace internal {

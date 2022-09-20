@@ -5,7 +5,6 @@
 #include "src/objects/js-function.h"
 
 #include "src/baseline/baseline-batch-compiler.h"
-#include "src/baseline/baseline.h"
 #include "src/codegen/compiler.h"
 #include "src/diagnostics/code-tracer.h"
 #include "src/execution/isolate.h"

@@ -9,6 +9,8 @@
 #include "src/common/globals.h"
 #include "src/heap/memory-chunk.h"
 #include "src/objects/free-space.h"
+#include "src/objects/map.h"
+#include "src/utils/utils.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
 namespace v8 {

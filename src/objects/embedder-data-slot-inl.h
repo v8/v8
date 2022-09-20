@@ -8,7 +8,6 @@
 #include "src/base/memory.h"
 #include "src/common/globals.h"
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/objects/compressed-slots-inl.h"
 #include "src/objects/embedder-data-array.h"
 #include "src/objects/embedder-data-slot.h"
 #include "src/objects/js-objects-inl.h"

@@ -9,6 +9,7 @@
 #include "src/heap/read-only-heap.h"
 #include "src/heap/safepoint.h"
 #include "src/heap/third-party/heap-api.h"
+#include "src/objects/objects.h"
 
 namespace v8 {
 namespace internal {

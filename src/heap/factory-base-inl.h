@@ -11,7 +11,6 @@
 #include "src/objects/map.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/smi.h"
-#include "src/objects/template-objects-inl.h"
 #include "src/roots/roots.h"
 
 namespace v8 {

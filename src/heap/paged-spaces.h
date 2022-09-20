@@ -21,7 +21,6 @@
 #include "src/heap/memory-chunk-layout.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/spaces.h"
-#include "src/objects/map.h"
 
 namespace v8 {
 namespace internal {

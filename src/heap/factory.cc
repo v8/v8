@@ -9,6 +9,7 @@
 #include <string>
 #include <utility>  // For move
 
+#include "src/ast/ast-source-ranges.h"
 #include "src/base/bits.h"
 #include "src/builtins/accessors.h"
 #include "src/builtins/constants-table-builder.h"
@@ -23,26 +24,33 @@
 #include "src/heap/heap-allocator-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
-#include "src/heap/local-heap-inl.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/read-only-heap.h"
 #include "src/ic/handler-configuration-inl.h"
+#include "src/init/bootstrapper.h"
 #include "src/interpreter/interpreter.h"
+#include "src/logging/counters.h"
 #include "src/logging/log.h"
 #include "src/numbers/conversions.h"
+#include "src/numbers/hash-seed-inl.h"
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/allocation-site-scopes.h"
 #include "src/objects/api-callbacks.h"
+#include "src/objects/arguments-inl.h"
 #include "src/objects/bigint.h"
 #include "src/objects/call-site-info-inl.h"
+#include "src/objects/cell-inl.h"
 #include "src/objects/debug-objects-inl.h"
+#include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/feedback-cell-inl.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/foreign-inl.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/js-atomics-synchronization-inl.h"
+#include "src/objects/js-collection-inl.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/js-regexp-inl.h"
@@ -56,15 +64,21 @@
 #include "src/objects/promise-inl.h"
 #include "src/objects/property-descriptor-object-inl.h"
 #include "src/objects/scope-info.h"
-#include "src/objects/string-table.h"
+#include "src/objects/string-set-inl.h"
+#include "src/objects/struct-inl.h"
+#include "src/objects/synthetic-module-inl.h"
+#include "src/objects/template-objects-inl.h"
+#include "src/objects/transitions-inl.h"
 #include "src/roots/roots.h"
-
+#include "src/strings/unicode-inl.h"
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/module-instantiate.h"
-#include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-result.h"
 #include "src/wasm/wasm-value.h"
 #endif
+
+#include "src/heap/local-factory-inl.h"
+#include "src/heap/local-heap-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -608,7 +622,7 @@ Handle<NameDictionary> Factory::NewNameDictionary(int at_least_space_for) {
 }
 
 Handle<PropertyDescriptorObject> Factory::NewPropertyDescriptorObject() {
-  PropertyDescriptorObject object = NewStructInternal<PropertyDescriptorObject>(
+  auto object = NewStructInternal<PropertyDescriptorObject>(
       PROPERTY_DESCRIPTOR_OBJECT_TYPE, AllocationType::kYoung);
   DisallowGarbageCollection no_gc;
   object.set_flags(0);

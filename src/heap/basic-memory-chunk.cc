@@ -8,6 +8,7 @@
 
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/incremental-marking.h"
+#include "src/objects/heap-object.h"
 #include "src/utils/allocation.h"
 
 namespace v8 {

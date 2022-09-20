@@ -5,6 +5,8 @@
 #include "src/wasm/baseline/liftoff-compiler.h"
 
 #include "src/base/enum-set.h"
+#include "src/base/optional.h"
+#include "src/codegen/assembler-inl.h"
 // TODO(clemensb): Remove dependences on compiler stuff.
 #include "src/codegen/external-reference.h"
 #include "src/codegen/interface-descriptors-inl.h"
@@ -13,6 +15,7 @@
 #include "src/compiler/linkage.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/logging/counters.h"
+#include "src/logging/log.h"
 #include "src/objects/smi.h"
 #include "src/tracing/trace-event.h"
 #include "src/utils/ostreams.h"
