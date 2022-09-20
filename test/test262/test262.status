@@ -528,9 +528,7 @@
   'built-ins/Temporal/Duration/prototype/total/relativeto-zoneddatetime-with-fractional-days-different-sign': [FAIL],
   'built-ins/Temporal/Duration/prototype/total/relativeto-zoneddatetime-with-fractional-days': [FAIL],
 
-  'staging/Temporal/Duration/old/limits': [FAIL],
   'staging/Temporal/Duration/old/round': [FAIL],
-  'staging/Temporal/Duration/old/toString': [FAIL],
   'staging/Temporal/Duration/old/total': [FAIL],
   'staging/Temporal/ZonedDateTime/old/construction-and-properties': [FAIL],
   'staging/Temporal/ZonedDateTime/old/dst-math': [FAIL],

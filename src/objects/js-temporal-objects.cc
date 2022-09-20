@@ -1379,7 +1379,7 @@ DateTimeRecordCommon BalanceISODateTime(Isolate* isolate,
 }
 
 // #sec-temporal-roundtowardszero
-int64_t RoundTowardsZero(double x) {
+double RoundTowardsZero(double x) {
   // 1. Return the mathematical value that is the same sign as x and whose
   // magnitude is floor(abs(x)).
   if (x < 0) {
@@ -1399,26 +1399,32 @@ Handle<String> TemporalDurationToString(Isolate* isolate,
   // seconds, milliseconds, microseconds, nanoseconds).
   DurationRecord dur = duration;
   int32_t sign = DurationSign(isolate, dur);
-
+  // Note: for the operation below, to avoid microseconds .. seconds lost
+  // precision while the resulting value may exceed the precision limit, we use
+  // extra double xx_add to hold the additional temp value.
   // 2. Set microseconds to microseconds + RoundTowardsZero(nanoseconds / 1000).
-  dur.time_duration.microseconds +=
+  double microseconds_add =
       RoundTowardsZero(dur.time_duration.nanoseconds / 1000);
   // 3. Set nanoseconds to remainder(nanoseconds, 1000).
   dur.time_duration.nanoseconds =
-      static_cast<int64_t>(dur.time_duration.nanoseconds) % 1000;
+      std::fmod(dur.time_duration.nanoseconds, 1000);
   // 4. Set milliseconds to milliseconds + RoundTowardsZero(microseconds /
   // 1000).
-  dur.time_duration.milliseconds +=
-      RoundTowardsZero(dur.time_duration.microseconds / 1000);
+  double milliseconds_add = RoundTowardsZero(
+      dur.time_duration.microseconds / 1000 + microseconds_add / 1000);
   // 5. Set microseconds to remainder(microseconds, 1000).
   dur.time_duration.microseconds =
-      static_cast<int64_t>(dur.time_duration.microseconds) % 1000;
+      std::fmod(std::fmod(dur.time_duration.microseconds, 1000) +
+                    std::fmod(microseconds_add, 1000),
+                1000);
   // 6. Set seconds to seconds + RoundTowardsZero(milliseconds / 1000).
-  dur.time_duration.seconds +=
-      RoundTowardsZero(dur.time_duration.milliseconds / 1000);
+  double seconds_add = RoundTowardsZero(dur.time_duration.milliseconds / 1000 +
+                                        milliseconds_add / 1000);
   // 7. Set milliseconds to remainder(milliseconds, 1000).
   dur.time_duration.milliseconds =
-      static_cast<int64_t>(dur.time_duration.milliseconds) % 1000;
+      std::fmod(std::fmod(dur.time_duration.milliseconds, 1000) +
+                    std::fmod(milliseconds_add, 1000),
+                1000);
 
   // 8. Let datePart be "".
   IncrementalStringBuilder date_part(isolate);
@@ -1485,7 +1491,8 @@ Handle<String> TemporalDurationToString(Isolate* isolate,
   // 16. If any of seconds, milliseconds, microseconds, and nanoseconds are not
   // 0; or years, months, weeks, days, hours, and minutes are all 0, or
   // precision is not "auto" then
-  if ((dur.time_duration.seconds != 0 || dur.time_duration.milliseconds != 0 ||
+  if ((dur.time_duration.seconds != 0 || seconds_add != 0 ||
+       dur.time_duration.milliseconds != 0 ||
        dur.time_duration.microseconds != 0 ||
        dur.time_duration.nanoseconds != 0) ||
       (dur.years == 0 && dur.months == 0 && dur.weeks == 0 &&
@@ -1527,8 +1534,31 @@ Handle<String> TemporalDurationToString(Isolate* isolate,
       }
     }
     // f. Let secondsPart be abs(seconds) formatted as a decimal number.
-    SNPrintF(buf, "%.0f", std::abs(dur.time_duration.seconds));
-    seconds_part.AppendCString(buf.data());
+    if (std::abs(seconds_add + dur.time_duration.seconds) < kMaxSafeInteger) {
+      // Fast path: The seconds_add + dur.time_duration.seconds is in the range
+      // the double could keep the precision.
+      dur.time_duration.seconds += seconds_add;
+      SNPrintF(buf, "%.0f", std::abs(dur.time_duration.seconds));
+      seconds_part.AppendCString(buf.data());
+    } else {
+      // Slow path: The seconds_add + dur.time_duration.seconds is out of the
+      // range which the double could keep the precision. Format by math via
+      // BigInt.
+      seconds_part.AppendString(
+          BigInt::ToString(
+              isolate,
+              BigInt::Add(
+                  isolate,
+                  BigInt::FromNumber(isolate, isolate->factory()->NewNumber(
+                                                  std::abs(seconds_add)))
+                      .ToHandleChecked(),
+                  BigInt::FromNumber(isolate,
+                                     isolate->factory()->NewNumber(
+                                         std::abs(dur.time_duration.seconds)))
+                      .ToHandleChecked())
+                  .ToHandleChecked())
+              .ToHandleChecked());
+    }
 
     // g. If decimalPart is not "", then
     if (decimal_part.Length() != 0) {
