@@ -1519,7 +1519,8 @@ WasmInstanceObject::GetGlobalBufferAndIndex(Handle<WasmInstanceObject> instance,
         FixedArray::cast(
             instance->imported_mutable_globals_buffers().get(global.index)),
         isolate);
-    Address idx = instance->imported_mutable_globals().get(global.index);
+    Address idx = instance->imported_mutable_globals().get_int(
+        global.index * kSystemPointerSize);
     DCHECK_LE(idx, std::numeric_limits<uint32_t>::max());
     return {buffer, static_cast<uint32_t>(idx)};
   }
