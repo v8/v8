@@ -19,6 +19,7 @@
 #include "src/codegen/reloc-info.h"
 #include "src/common/high-allocation-throughput-scope.h"
 #include "src/compiler/add-type-assertions-reducer.h"
+#include "src/compiler/all-nodes.h"
 #include "src/compiler/backend/code-generator.h"
 #include "src/compiler/backend/frame-elider.h"
 #include "src/compiler/backend/instruction-selector.h"
@@ -1699,19 +1700,21 @@ struct WasmLoopUnrollingPhase {
 
   void Run(PipelineData* data, Zone* temp_zone,
            std::vector<compiler::WasmLoopInfo>* loop_infos) {
+    if (loop_infos->empty()) return;
+    AllNodes all_nodes(temp_zone, data->graph(), data->graph()->end());
     for (WasmLoopInfo& loop_info : *loop_infos) {
-      if (loop_info.can_be_innermost) {
-        ZoneUnorderedSet<Node*>* loop =
-            LoopFinder::FindSmallInnermostLoopFromHeader(
-                loop_info.header, temp_zone,
-                // Only discover the loop until its size is the maximum unrolled
-                // size for its depth.
-                maximum_unrollable_size(loop_info.nesting_depth), true);
-        if (loop == nullptr) continue;
-        UnrollLoop(loop_info.header, loop, loop_info.nesting_depth,
-                   data->graph(), data->common(), temp_zone,
-                   data->source_positions(), data->node_origins());
-      }
+      if (!loop_info.can_be_innermost) continue;
+      if (!all_nodes.IsReachable(loop_info.header)) continue;
+      ZoneUnorderedSet<Node*>* loop =
+          LoopFinder::FindSmallInnermostLoopFromHeader(
+              loop_info.header, temp_zone,
+              // Only discover the loop until its size is the maximum unrolled
+              // size for its depth.
+              maximum_unrollable_size(loop_info.nesting_depth), true);
+      if (loop == nullptr) continue;
+      UnrollLoop(loop_info.header, loop, loop_info.nesting_depth, data->graph(),
+                 data->common(), temp_zone, data->source_positions(),
+                 data->node_origins());
     }
 
     EliminateLoopExits(loop_infos);
