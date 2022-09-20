@@ -2282,10 +2282,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #define SIMD_UNOP_LIST(V) \
   V(F64x2Abs)             \
   V(F64x2Neg)             \
+  V(F64x2Sqrt)            \
+  V(F64x2Ceil)            \
+  V(F64x2Floor)           \
+  V(F64x2Trunc)           \
   V(F32x4Abs)             \
   V(F32x4Neg)             \
   V(I64x2Neg)             \
-  V(I32x4Neg)
+  V(I32x4Neg)             \
+  V(F32x4Sqrt)            \
+  V(F32x4Ceil)            \
+  V(F32x4Floor)           \
+  V(F32x4Trunc)
 
 #define EMIT_SIMD_UNOP(name)                                       \
   case kPPC_##name: {                                              \
@@ -2565,14 +2573,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register src1 = i.InputSimd128Register(1);
       Simd128Register src2 = i.InputSimd128Register(2);
       __ vsel(dst, src2, src1, mask);
-      break;
-    }
-    case kPPC_F64x2Sqrt: {
-      __ xvsqrtdp(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      break;
-    }
-    case kPPC_F32x4Sqrt: {
-      __ xvsqrtsp(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
     case kPPC_V128AnyTrue: {
@@ -2870,30 +2870,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register dst = i.OutputSimd128Register();
       Simd128Register src = i.InputSimd128Register(0);
       __ vandc(dst, src, i.InputSimd128Register(1));
-      break;
-    }
-    case kPPC_F64x2Ceil: {
-      __ xvrdpip(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      break;
-    }
-    case kPPC_F64x2Floor: {
-      __ xvrdpim(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      break;
-    }
-    case kPPC_F64x2Trunc: {
-      __ xvrdpiz(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      break;
-    }
-    case kPPC_F32x4Ceil: {
-      __ xvrspip(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      break;
-    }
-    case kPPC_F32x4Floor: {
-      __ xvrspim(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      break;
-    }
-    case kPPC_F32x4Trunc: {
-      __ xvrspiz(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
     case kPPC_I64x2BitMask: {

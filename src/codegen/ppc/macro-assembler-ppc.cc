@@ -3768,8 +3768,16 @@ SIMD_SHIFT_LIST(EMIT_SIMD_SHIFT)
 #define SIMD_UNOP_LIST(V) \
   V(F64x2Abs, xvabsdp)    \
   V(F64x2Neg, xvnegdp)    \
+  V(F64x2Sqrt, xvsqrtdp)  \
+  V(F64x2Ceil, xvrdpip)   \
+  V(F64x2Floor, xvrdpim)  \
+  V(F64x2Trunc, xvrdpiz)  \
   V(F32x4Abs, xvabssp)    \
   V(F32x4Neg, xvnegsp)    \
+  V(F32x4Sqrt, xvsqrtsp)  \
+  V(F32x4Ceil, xvrspip)   \
+  V(F32x4Floor, xvrspim)  \
+  V(F32x4Trunc, xvrspiz)  \
   V(I64x2Neg, vnegd)      \
   V(I32x4Neg, vnegw)
 

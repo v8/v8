@@ -1163,8 +1163,16 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 #define SIMD_UNOP_LIST(V) \
   V(F64x2Abs)             \
   V(F64x2Neg)             \
+  V(F64x2Sqrt)            \
+  V(F64x2Ceil)            \
+  V(F64x2Floor)           \
+  V(F64x2Trunc)           \
   V(F32x4Abs)             \
   V(F32x4Neg)             \
+  V(F32x4Sqrt)            \
+  V(F32x4Ceil)            \
+  V(F32x4Floor)           \
+  V(F32x4Trunc)           \
   V(I64x2Neg)             \
   V(I32x4Neg)
 
