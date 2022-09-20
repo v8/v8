@@ -94,6 +94,7 @@
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"
 #include "src/objects/source-text-module-inl.h"
+#include "src/objects/string-set-inl.h"
 #include "src/objects/visitors.h"
 #include "src/profiler/heap-profiler.h"
 #include "src/profiler/tracing-cpu-profiler.h"
@@ -6003,6 +6004,45 @@ ExternalPointerHandle Isolate::GetOrCreateWaiterQueueNodeExternalPointer() {
   return handle;
 }
 #endif  // V8_COMPRESS_POINTERS
+
+void Isolate::LocalsBlockListCacheSet(Handle<ScopeInfo> scope_info,
+                                      Handle<ScopeInfo> outer_scope_info,
+                                      Handle<StringSet> locals_blocklist) {
+  Handle<EphemeronHashTable> cache;
+  if (heap()->locals_block_list_cache().IsEphemeronHashTable()) {
+    cache = handle(EphemeronHashTable::cast(heap()->locals_block_list_cache()),
+                   this);
+  } else {
+    CHECK(heap()->locals_block_list_cache().IsUndefined());
+    constexpr int kInitialCapacity = 8;
+    cache = EphemeronHashTable::New(this, kInitialCapacity);
+  }
+  DCHECK(cache->IsEphemeronHashTable());
+
+  Handle<Tuple2> outer_scope_info_and_locals = factory()->NewTuple2(
+      outer_scope_info, locals_blocklist, AllocationType::kYoung);
+
+  cache =
+      EphemeronHashTable::Put(cache, scope_info, outer_scope_info_and_locals);
+  heap()->set_locals_block_list_cache(*cache);
+}
+
+Object Isolate::LocalsBlockListCacheGet(Handle<ScopeInfo> scope_info) {
+  DisallowGarbageCollection no_gc;
+
+  if (!heap()->locals_block_list_cache().IsEphemeronHashTable()) {
+    return ReadOnlyRoots(this).the_hole_value();
+  }
+
+  Object maybe_outer_scope_info_and_locals =
+      EphemeronHashTable::cast(heap()->locals_block_list_cache())
+          .Lookup(scope_info);
+  if (maybe_outer_scope_info_and_locals.IsTheHole()) {
+    return maybe_outer_scope_info_and_locals;
+  }
+
+  return Tuple2::cast(maybe_outer_scope_info_and_locals).value2();
+}
 
 namespace {
 class DefaultWasmAsyncResolvePromiseTask : public v8::Task {

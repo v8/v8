@@ -2036,6 +2036,16 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   wasm::StackMemory*& wasm_stacks() { return wasm_stacks_; }
 #endif
 
+  // Access to the global "locals block list cache". Caches outer-stack
+  // allocated variables per ScopeInfo for debug-evaluate.
+  // We also store a strong reference to the outer ScopeInfo to keep all
+  // blocklists along a scope chain alive.
+  void LocalsBlockListCacheSet(Handle<ScopeInfo> scope_info,
+                               Handle<ScopeInfo> outer_scope_info,
+                               Handle<StringSet> locals_blocklist);
+  // Returns either `TheHole` or `StringSet`.
+  Object LocalsBlockListCacheGet(Handle<ScopeInfo> scope_info);
+
  private:
   explicit Isolate(std::unique_ptr<IsolateAllocator> isolate_allocator,
                    bool is_shared);
