@@ -1095,7 +1095,7 @@ FOREACH_WASM_FEATURE_FLAG(DECL_WASM_FLAG)
 
 DEFINE_IMPLICATION(experimental_wasm_gc, experimental_wasm_typed_funcref)
 
-DEFINE_BOOL(wasm_gc_js_interop, false, "experimental WasmGC-JS interop")
+DEFINE_BOOL(wasm_gc_js_interop, true, "experimental WasmGC-JS interop")
 
 DEFINE_BOOL(wasm_staging, false, "enable staged wasm features")
 
