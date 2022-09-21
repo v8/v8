@@ -6,8 +6,8 @@
 #define V8_HEAP_CPPGC_GARBAGE_COLLECTOR_H_
 
 #include "include/cppgc/common.h"
+#include "src/heap/cppgc/heap-config.h"
 #include "src/heap/cppgc/marker.h"
-#include "src/heap/cppgc/sweeper.h"
 
 namespace cppgc {
 namespace internal {
@@ -20,8 +20,8 @@ class GarbageCollector {
     using CollectionType = Marker::MarkingConfig::CollectionType;
     using StackState = cppgc::Heap::StackState;
     using MarkingType = Marker::MarkingConfig::MarkingType;
-    using SweepingType = Sweeper::SweepingConfig::SweepingType;
-    using FreeMemoryHandling = Sweeper::SweepingConfig::FreeMemoryHandling;
+    using SweepingType = SweepingConfig::SweepingType;
+    using FreeMemoryHandling = SweepingConfig::FreeMemoryHandling;
     using IsForcedGC = Marker::MarkingConfig::IsForcedGC;
 
     static constexpr Config ConservativeAtomicConfig() {

@@ -203,9 +203,8 @@ void Heap::FinalizeGarbageCollection(Config::StackState stack_state) {
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 
   subtle::NoGarbageCollectionScope no_gc(*this);
-  const Sweeper::SweepingConfig sweeping_config{
-      config_.sweeping_type,
-      Sweeper::SweepingConfig::CompactableSpaceHandling::kSweep,
+  const SweepingConfig sweeping_config{
+      config_.sweeping_type, SweepingConfig::CompactableSpaceHandling::kSweep,
       config_.free_memory_handling};
   sweeper_.Start(sweeping_config);
   in_atomic_pause_ = false;

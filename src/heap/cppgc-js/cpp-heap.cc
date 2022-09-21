@@ -753,14 +753,14 @@ void CppHeap::TraceEpilogue() {
 
   {
     cppgc::subtle::NoGarbageCollectionScope no_gc(*this);
-    cppgc::internal::Sweeper::SweepingConfig::CompactableSpaceHandling
+    cppgc::internal::SweepingConfig::CompactableSpaceHandling
         compactable_space_handling = compactor_.CompactSpacesIfEnabled();
-    const cppgc::internal::Sweeper::SweepingConfig sweeping_config{
+    const cppgc::internal::SweepingConfig sweeping_config{
         SelectSweepingType(), compactable_space_handling,
         ShouldReduceMemory(current_gc_flags_)
-            ? cppgc::internal::Sweeper::SweepingConfig::FreeMemoryHandling::
+            ? cppgc::internal::SweepingConfig::FreeMemoryHandling::
                   kDiscardWherePossible
-            : cppgc::internal::Sweeper::SweepingConfig::FreeMemoryHandling::
+            : cppgc::internal::SweepingConfig::FreeMemoryHandling::
                   kDoNotDiscard};
     DCHECK_IMPLIES(!isolate_,
                    SweepingType::kAtomic == sweeping_config.sweeping_type);
@@ -928,8 +928,8 @@ class CollectCustomSpaceStatisticsAtLastGCTask final : public v8::Task {
   void Run() final {
     cppgc::internal::Sweeper& sweeper = heap_.sweeper();
     if (sweeper.PerformSweepOnMutatorThread(
-            heap_.platform()->MonotonicallyIncreasingTime() +
-            kStepSizeMs.InSecondsF())) {
+            kStepSizeMs,
+            cppgc::internal::StatsCollector::kSweepInTaskForStatistics)) {
       // Sweeping is done.
       DCHECK(!sweeper.IsSweepingInProgress());
       ReportCustomSpaceStatistics(heap_.raw_heap(), std::move(custom_spaces_),

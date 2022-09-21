@@ -95,9 +95,9 @@ class CompactorTest : public testing::TestWithPlatform {
     heap()->GetMarkerRefForTesting().reset();
     FinishCompaction();
     // Sweeping also verifies the object start bitmap.
-    const Sweeper::SweepingConfig sweeping_config{
-        Sweeper::SweepingConfig::SweepingType::kAtomic,
-        Sweeper::SweepingConfig::CompactableSpaceHandling::kIgnore};
+    const SweepingConfig sweeping_config{
+        SweepingConfig::SweepingType::kAtomic,
+        SweepingConfig::CompactableSpaceHandling::kIgnore};
     heap()->sweeper().Start(sweeping_config);
   }
 

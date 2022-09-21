@@ -78,9 +78,9 @@ class ConcurrentSweeperTest : public testing::TestWithHeap {
         GarbageCollector::Config::IsForcedGC::kNotForced);
     heap->stats_collector()->NotifyMarkingCompleted(0);
     Sweeper& sweeper = heap->sweeper();
-    const Sweeper::SweepingConfig sweeping_config{
-        Sweeper::SweepingConfig::SweepingType::kIncrementalAndConcurrent,
-        Sweeper::SweepingConfig::CompactableSpaceHandling::kSweep};
+    const SweepingConfig sweeping_config{
+        SweepingConfig::SweepingType::kIncrementalAndConcurrent,
+        SweepingConfig::CompactableSpaceHandling::kSweep};
     sweeper.Start(sweeping_config);
   }
 

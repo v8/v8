@@ -13,8 +13,7 @@ namespace cppgc {
 namespace internal {
 
 class V8_EXPORT_PRIVATE Compactor final {
-  using CompactableSpaceHandling =
-      Sweeper::SweepingConfig::CompactableSpaceHandling;
+  using CompactableSpaceHandling = SweepingConfig::CompactableSpaceHandling;
 
  public:
   explicit Compactor(RawHeap&);

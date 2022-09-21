@@ -7,16 +7,13 @@
 
 #include <memory>
 
-#include "include/cppgc/heap.h"
 #include "src/base/macros.h"
 #include "src/base/platform/time.h"
+#include "src/heap/cppgc/heap-config.h"
 #include "src/heap/cppgc/memory.h"
+#include "src/heap/cppgc/stats-collector.h"
 
-namespace cppgc {
-
-class Platform;
-
-namespace internal {
+namespace cppgc::internal {
 
 class HeapBase;
 class ConcurrentSweeperTest;
@@ -24,17 +21,6 @@ class NormalPageSpace;
 
 class V8_EXPORT_PRIVATE Sweeper final {
  public:
-  struct SweepingConfig {
-    using SweepingType = cppgc::Heap::SweepingType;
-    enum class CompactableSpaceHandling { kSweep, kIgnore };
-    enum class FreeMemoryHandling { kDoNotDiscard, kDiscardWherePossible };
-
-    SweepingType sweeping_type = SweepingType::kIncrementalAndConcurrent;
-    CompactableSpaceHandling compactable_space_handling =
-        CompactableSpaceHandling::kSweep;
-    FreeMemoryHandling free_memory_handling = FreeMemoryHandling::kDoNotDiscard;
-  };
-
   static constexpr bool CanDiscardMemory() {
     return CheckMemoryIsInaccessibleIsNoop();
   }
@@ -63,7 +49,8 @@ class V8_EXPORT_PRIVATE Sweeper final {
   bool IsSweepingInProgress() const;
 
   // Assist with sweeping. Returns true if sweeping is done.
-  bool PerformSweepOnMutatorThread(double deadline_in_seconds);
+  bool PerformSweepOnMutatorThread(v8::base::TimeDelta max_duration,
+                                   StatsCollector::ScopeId);
 
  private:
   void WaitForConcurrentSweepingForTesting();
@@ -76,7 +63,6 @@ class V8_EXPORT_PRIVATE Sweeper final {
   friend class ConcurrentSweeperTest;
 };
 
-}  // namespace internal
-}  // namespace cppgc
+}  // namespace cppgc::internal
 
 #endif  // V8_HEAP_CPPGC_SWEEPER_H_

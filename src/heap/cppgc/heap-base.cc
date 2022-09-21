@@ -259,9 +259,8 @@ void HeapBase::Terminate() {
     ExecutePreFinalizers();
     // TODO(chromium:1029379): Prefinalizers may black-allocate objects (under a
     // compile-time option). Run sweeping with forced finalization here.
-    sweeper().Start(
-        {Sweeper::SweepingConfig::SweepingType::kAtomic,
-         Sweeper::SweepingConfig::CompactableSpaceHandling::kSweep});
+    sweeper().Start({SweepingConfig::SweepingType::kAtomic,
+                     SweepingConfig::CompactableSpaceHandling::kSweep});
     in_atomic_pause_ = false;
 
     sweeper().NotifyDoneIfNeeded();

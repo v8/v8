@@ -3105,6 +3105,7 @@ filegroup(
         "src/heap/cppgc/stats-collector.h",
         "src/heap/cppgc/sweeper.cc",
         "src/heap/cppgc/sweeper.h",
+        "src/heap/cppgc/heap-config.h",
         "src/heap/cppgc/task-handle.h",
         "src/heap/cppgc/trace-event.h",
         "src/heap/cppgc/trace-trait.cc",

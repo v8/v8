@@ -5860,6 +5860,7 @@ v8_source_set("cppgc_base") {
     "src/heap/cppgc/globals.h",
     "src/heap/cppgc/heap-base.cc",
     "src/heap/cppgc/heap-base.h",
+    "src/heap/cppgc/heap-config.h",
     "src/heap/cppgc/heap-consistency.cc",
     "src/heap/cppgc/heap-growing.cc",
     "src/heap/cppgc/heap-growing.h",

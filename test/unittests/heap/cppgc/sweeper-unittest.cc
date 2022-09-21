@@ -52,9 +52,9 @@ class SweeperTest : public testing::TestWithHeap {
         GarbageCollector::Config::MarkingType::kAtomic,
         GarbageCollector::Config::IsForcedGC::kNotForced);
     heap->stats_collector()->NotifyMarkingCompleted(0);
-    const Sweeper::SweepingConfig sweeping_config{
-        Sweeper::SweepingConfig::SweepingType::kAtomic,
-        Sweeper::SweepingConfig::CompactableSpaceHandling::kSweep};
+    const SweepingConfig sweeping_config{
+        SweepingConfig::SweepingType::kAtomic,
+        SweepingConfig::CompactableSpaceHandling::kSweep};
     sweeper.Start(sweeping_config);
     sweeper.FinishIfRunning();
   }
