@@ -153,9 +153,6 @@ void V8::Initialize() {
     v8_flags.log = v8_flags.log || v8_flags.perf_prof ||
                    v8_flags.perf_basic_prof || v8_flags.ll_prof ||
                    v8_flags.prof || v8_flags.prof_cpp || v8_flags.gdbjit;
-#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
-    v8_flags.log = v8_flags.log || v8_flags.enable_etw_stack_walking;
-#endif
   }
 
   FlagList::EnforceFlagImplications();

@@ -946,6 +946,14 @@ class SamplingThread : public base::Thread {
   const int interval_microseconds_;
 };
 
+#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
+class ETWJitLogger : public JitLogger {
+ public:
+  explicit ETWJitLogger(Isolate* isolate)
+      : JitLogger(isolate, i::ETWJITInterface::EventHandler) {}
+};
+#endif
+
 // The Profiler samples pc and sp values for the main thread.
 // Each sample is appended to a circular buffer.
 // An independent thread removes data and writes it to the log.
@@ -2099,15 +2107,6 @@ bool V8FileLogger::SetUp(Isolate* isolate) {
   }
 #endif  // ENABLE_GDB_JIT_INTERFACE
 
-#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
-  if (v8_flags.enable_etw_stack_walking) {
-    etw_jit_logger_ =
-        std::make_unique<JitLogger>(isolate, i::ETWJITInterface::EventHandler);
-    AddLogEventListener(etw_jit_logger_.get());
-    CHECK(isolate->logger()->is_listening_to_code_events());
-  }
-#endif  // defined(V8_OS_WIN)
-
   if (v8_flags.ll_prof) {
     ll_logger_ =
         std::make_unique<LowLevelLogger>(isolate, log_file_name.str().c_str());
@@ -2133,6 +2132,42 @@ void V8FileLogger::LateSetup(Isolate* isolate) {
   wasm::GetWasmEngine()->EnableCodeLogging(isolate);
 #endif
 }
+
+#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
+void V8FileLogger::SetEtwCodeEventHandler(uint32_t options) {
+  DCHECK(v8_flags.enable_etw_stack_walking);
+  isolate_->UpdateLogObjectRelocation();
+#if V8_ENABLE_WEBASSEMBLY
+  wasm::GetWasmEngine()->EnableCodeLogging(isolate_);
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+  if (!etw_jit_logger_) {
+    etw_jit_logger_ = std::make_unique<ETWJitLogger>(isolate_);
+    AddLogEventListener(etw_jit_logger_.get());
+    CHECK(isolate_->logger()->is_listening_to_code_events());
+  }
+
+  if (options & kJitCodeEventEnumExisting) {
+    // TODO(v8:11043) Here we log the existing code to all the listeners
+    // registered to this Isolate logger, while we should only log to the newly
+    // created ETWJitLogger. This should not generally be a problem because it
+    // is quite unlikely to have both file logger and ETW tracing both enabled
+    // by default.
+    HandleScope scope(isolate_);
+    LogBuiltins();
+    LogCodeObjects();
+    LogCompiledFunctions();
+  }
+}
+
+void V8FileLogger::ResetEtwCodeEventHandler() {
+  DCHECK(v8_flags.enable_etw_stack_walking);
+  if (etw_jit_logger_) {
+    RemoveLogEventListener(etw_jit_logger_.get());
+    etw_jit_logger_.reset();
+  }
+}
+#endif
 
 void V8FileLogger::SetCodeEventHandler(uint32_t options,
                                        JitCodeEventHandler event_handler) {

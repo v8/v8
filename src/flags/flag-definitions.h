@@ -2233,10 +2233,16 @@ DEFINE_BOOL(interpreted_frames_native_stack, false,
             "Show interpreted frames on the native stack (useful for external "
             "profilers).")
 
+#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
 DEFINE_BOOL(enable_etw_stack_walking, false,
             "Enable etw stack walking for windows")
+DEFINE_WEAK_IMPLICATION(future, enable_etw_stack_walking)
 // Don't move code objects.
 DEFINE_NEG_IMPLICATION(enable_etw_stack_walking, compact_code_space)
+#else
+DEFINE_BOOL_READONLY(enable_etw_stack_walking, false,
+                     "Enable etw stack walking for windows")
+#endif
 
 //
 // Disassembler only flags
