@@ -119,6 +119,10 @@ Handle<JSFunction> MaglevCompilationJob::function() const {
   return info_->toplevel_compilation_unit()->function().object();
 }
 
+bool MaglevCompilationJob::specialize_to_function_context() const {
+  return info_->specialize_to_function_context();
+}
+
 // The JobTask is posted to V8::GetCurrentPlatform(). It's responsible for
 // processing the incoming queue on a worker thread.
 class MaglevConcurrentDispatcher::JobTask final : public v8::JobTask {

@@ -89,10 +89,6 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
                               ClearExceptionFlag flag,
                               IsCompiledScope* is_compiled_scope);
 
-  static bool CompileMaglev(Isolate* isolate, Handle<JSFunction> function,
-                            ConcurrencyMode mode,
-                            IsCompiledScope* is_compiled_scope);
-
   static void CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
                                ConcurrencyMode mode, CodeKind code_kind);
 

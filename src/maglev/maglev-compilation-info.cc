@@ -58,7 +58,11 @@ MaglevCompilationInfo::MaglevCompilationInfo(Isolate* isolate,
 #define V(Name) , Name##_(v8_flags.Name)
           MAGLEV_COMPILATION_FLAG_LIST(V)
 #undef V
-{
+      ,
+      specialize_to_function_context_(
+          v8_flags.maglev_function_context_specialization &&
+          function->raw_feedback_cell().map() ==
+              ReadOnlyRoots(isolate).one_closure_cell_map()) {
   DCHECK(v8_flags.maglev);
 
   MaglevCompilationHandleScope compilation(isolate, this);

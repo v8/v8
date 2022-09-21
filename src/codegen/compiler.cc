@@ -2678,31 +2678,6 @@ bool Compiler::CompileBaseline(Isolate* isolate, Handle<JSFunction> function,
 }
 
 // static
-bool Compiler::CompileMaglev(Isolate* isolate, Handle<JSFunction> function,
-                             ConcurrencyMode mode,
-                             IsCompiledScope* is_compiled_scope) {
-#ifdef V8_ENABLE_MAGLEV
-  // Bytecode must be available for maglev compilation.
-  DCHECK(is_compiled_scope->is_compiled());
-  // TODO(v8:7700): Support concurrent compilation.
-  DCHECK(IsSynchronous(mode));
-
-  // Maglev code needs a feedback vector.
-  JSFunction::EnsureFeedbackVector(isolate, function, is_compiled_scope);
-
-  MaybeHandle<CodeT> maybe_code = Maglev::Compile(isolate, function);
-  Handle<CodeT> code;
-  if (!maybe_code.ToHandle(&code)) return false;
-
-  DCHECK_EQ(code->kind(), CodeKind::MAGLEV);
-  function->set_code(*code);
-  return true;
-#else
-  return false;
-#endif  // V8_ENABLE_MAGLEV
-}
-
-// static
 MaybeHandle<SharedFunctionInfo> Compiler::CompileToplevel(
     ParseInfo* parse_info, Handle<Script> script, Isolate* isolate,
     IsCompiledScope* is_compiled_scope) {
@@ -4021,9 +3996,9 @@ void Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
     // Note the finalized Code object has already been installed on the
     // function by MaglevCompilationJob::FinalizeJobImpl.
 
-    const bool kIsContextSpecializing = false;
     OptimizedCodeCache::Insert(isolate, *function, BytecodeOffset::None(),
-                               function->code(), kIsContextSpecializing);
+                               function->code(),
+                               job->specialize_to_function_context());
 
     // Reset ticks just after installation since ticks accumulated in lower
     // tiers use a different (lower) budget than ticks collected in Maglev
