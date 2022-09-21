@@ -1479,6 +1479,12 @@ MaybeHandle<Object> ValueDeserializer::ReadObject() {
     isolate_->Throw(*isolate_->factory()->NewError(
         MessageTemplate::kDataCloneDeserializationError));
   }
+#if defined(DEBUG) && defined(VERIFY_HEAP)
+  if (!result.is_null() && v8_flags.enable_slow_asserts &&
+      v8_flags.verify_heap) {
+    object->ObjectVerify(isolate_);
+  }
+#endif
 
   return result;
 }
