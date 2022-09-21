@@ -1592,7 +1592,28 @@ void WebSnapshotSerializer::SerializeObject(Handle<JSObject> object) {
   }
 
   // Elements.
-  SerializeElements(object, object_serializer_);
+  ElementsKind kind = object->GetElementsKind();
+  // We only serialize the actual elements excluding the slack part.
+  DCHECK(!IsDoubleElementsKind(kind));
+  if (!IsDictionaryElementsKind(kind)) {
+    uint32_t elements_length = object->elements().length();
+    if (IsHoleyElementsKindForRead(kind)) {
+      uint32_t max_element_index = 0;
+      FixedArray elements = FixedArray::cast(object->elements());
+      for (int i = elements_length - 1; i >= 0; i--) {
+        if (!elements.is_the_hole(isolate_, i)) {
+          max_element_index = i + 1;
+          break;
+        }
+      }
+      return SerializeElements(object, object_serializer_,
+                               Just(max_element_index));
+    } else {
+      return SerializeElements(object, object_serializer_,
+                               Just(elements_length));
+    }
+  }
+  SerializeElements(object, object_serializer_, Nothing<uint32_t>());
 }
 
 // Format (serialized array):
@@ -1606,11 +1627,17 @@ void WebSnapshotSerializer::SerializeObject(Handle<JSObject> object) {
 //     - Element index
 //     - Serialized value
 void WebSnapshotSerializer::SerializeArray(Handle<JSArray> array) {
-  SerializeElements(array, array_serializer_);
+  uint32_t length;
+  if (!array->length().ToUint32(&length)) {
+    Throw("Invalid array length");
+    return;
+  }
+  SerializeElements(array, array_serializer_, Just(length));
 }
 
 void WebSnapshotSerializer::SerializeElements(Handle<JSObject> object,
-                                              ValueSerializer& serializer) {
+                                              ValueSerializer& serializer,
+                                              Maybe<uint32_t> length) {
   // TODO(v8:11525): Handle sealed & frozen elements correctly. (Also: handle
   // sealed & frozen objects.)
 
@@ -1634,9 +1661,8 @@ void WebSnapshotSerializer::SerializeElements(Handle<JSObject> object,
       serializer.WriteUint32(ElementsType::kDense);
       Handle<FixedArray> elements =
           handle(FixedArray::cast(object->elements()), isolate_);
-      uint32_t length = static_cast<uint32_t>(elements->length());
-      serializer.WriteUint32(length);
-      for (uint32_t i = 0; i < length; ++i) {
+      serializer.WriteUint32(length.ToChecked());
+      for (uint32_t i = 0; i < length.ToChecked(); ++i) {
         WriteValue(handle(elements->get(i), isolate_), serializer);
       }
       break;
@@ -1646,9 +1672,8 @@ void WebSnapshotSerializer::SerializeElements(Handle<JSObject> object,
       serializer.WriteUint32(ElementsType::kDense);
       Handle<FixedDoubleArray> elements =
           handle(FixedDoubleArray::cast(object->elements()), isolate_);
-      uint32_t length = static_cast<uint32_t>(elements->length());
-      serializer.WriteUint32(length);
-      for (uint32_t i = 0; i < length; ++i) {
+      serializer.WriteUint32(length.ToChecked());
+      for (uint32_t i = 0; i < length.ToChecked(); ++i) {
         if (!elements->is_the_hole(i)) {
           double double_value = elements->get_scalar(i);
           Handle<Object> element_value =
