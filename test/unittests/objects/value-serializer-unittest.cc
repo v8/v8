@@ -595,6 +595,24 @@ TEST_F(ValueSerializerTest, DecodeBigInt) {
           0x2A,        // Digit: 42
       },
       [this](Local<Value> value) { ExpectScriptTrue("result === 42n"); });
+  InvalidDecodeTest({
+      0xFF, 0x0F,  // Version 15
+      0x5A,        // BigInt
+      0x01,        // Bitfield: sign = true, bytelength = 0
+  });
+  // From a philosophical standpoint, we could reject this case as invalid as
+  // well, but it would require extra code and probably isn't worth it, so
+  // we quietly normalize this invalid input to {0n}.
+  DecodeTestFutureVersions(
+      {
+          0xFF, 0x0F,             // Version 15
+          0x5A,                   // BigInt
+          0x09,                   // Bitfield: sign = true, bytelength = 4
+          0x00, 0x00, 0x00, 0x00  // Digits.
+      },
+      [this](Local<Value> value) {
+        ExpectScriptTrue("(result | result) === 0n");
+      });
 }
 
 // String constants (in UTF-8) used for string encoding tests.
