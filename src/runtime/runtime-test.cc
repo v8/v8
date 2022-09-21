@@ -23,6 +23,7 @@
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/ic/stub-cache.h"
+#include "src/objects/js-collection-inl.h"
 #ifdef V8_ENABLE_MAGLEV
 #include "src/maglev/maglev-concurrent-dispatcher.h"
 #endif  // V8_ENABLE_MAGLEV
@@ -1762,6 +1763,15 @@ RUNTIME_FUNCTION(Runtime_AtomicsConditionNumWaitersForTesting) {
   DCHECK_EQ(1, args.length());
   Handle<JSAtomicsCondition> cv = args.at<JSAtomicsCondition>(0);
   return cv->NumWaitersForTesting(isolate);
+}
+
+RUNTIME_FUNCTION(Runtime_GetWeakCollectionSize) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  Handle<JSWeakCollection> collection = args.at<JSWeakCollection>(0);
+
+  return Smi::FromInt(
+      EphemeronHashTable::cast(collection->table()).NumberOfElements());
 }
 
 }  // namespace internal

@@ -83,14 +83,22 @@ TEST_F(WeakMapsTest, Weakness) {
     int32_t object_hash = object->GetOrCreateHash(isolate).value();
     JSWeakCollection::Set(weakmap, object, smi, object_hash);
   }
-  CHECK_EQ(2, EphemeronHashTable::cast(weakmap->table()).NumberOfElements());
+  // Put a symbol key into weak map.
+  {
+    HandleScope inner_scope(isolate);
+    Handle<Symbol> symbol = factory->NewSymbol();
+    Handle<Smi> smi(Smi::FromInt(23), isolate);
+    JSWeakCollection::Set(weakmap, symbol, smi, symbol->hash());
+  }
+  CHECK_EQ(3, EphemeronHashTable::cast(weakmap->table()).NumberOfElements());
 
   // Force a full GC.
   PreciseCollectAllGarbage();
   CHECK_EQ(0, NumberOfWeakCalls);
+  // Symbol key should be deleted.
   CHECK_EQ(2, EphemeronHashTable::cast(weakmap->table()).NumberOfElements());
   CHECK_EQ(
-      0, EphemeronHashTable::cast(weakmap->table()).NumberOfDeletedElements());
+      1, EphemeronHashTable::cast(weakmap->table()).NumberOfDeletedElements());
 
   // Make the global reference to the key weak.
   std::pair<Handle<Object>*, int> handle_and_id(&key, 1234);
@@ -103,7 +111,7 @@ TEST_F(WeakMapsTest, Weakness) {
   CHECK_EQ(1, NumberOfWeakCalls);
   CHECK_EQ(0, EphemeronHashTable::cast(weakmap->table()).NumberOfElements());
   CHECK_EQ(
-      2, EphemeronHashTable::cast(weakmap->table()).NumberOfDeletedElements());
+      3, EphemeronHashTable::cast(weakmap->table()).NumberOfDeletedElements());
 }
 
 TEST_F(WeakMapsTest, Shrinking) {

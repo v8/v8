@@ -513,6 +513,7 @@ namespace internal {
   F(GetInitializerFunction, 1, 1)             \
   F(GetOptimizationStatus, 1, 1)              \
   F(GetUndetectable, 0, 1)                    \
+  F(GetWeakCollectionSize, 1, 1)              \
   F(GlobalPrint, 1, 1)                        \
   F(HasDictionaryElements, 1, 1)              \
   F(HasDoubleElements, 1, 1)                  \
