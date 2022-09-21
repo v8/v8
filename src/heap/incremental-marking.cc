@@ -160,15 +160,22 @@ void IncrementalMarking::Start(GarbageCollector garbage_collector,
 
   Counters* counters = heap_->isolate()->counters();
 
-  counters->incremental_marking_reason()->AddSample(
-      static_cast<int>(gc_reason));
+  const bool is_major = garbage_collector == GarbageCollector::MARK_COMPACTOR;
+  if (is_major) {
+    // Reasons are only reported for major GCs
+    counters->incremental_marking_reason()->AddSample(
+        static_cast<int>(gc_reason));
+  }
   NestedTimedHistogramScope incremental_marking_scope(
-      counters->gc_incremental_marking_start());
-  TRACE_EVENT1(
-      "v8", "V8.GCIncrementalMarkingStart", "epoch",
-      heap_->tracer()->CurrentEpoch(GCTracer::Scope::MC_INCREMENTAL_START));
-  TRACE_GC_EPOCH(heap()->tracer(), GCTracer::Scope::MC_INCREMENTAL_START,
-                 ThreadKind::kMain);
+      is_major ? counters->gc_incremental_marking_start()
+               : counters->gc_minor_incremental_marking_start());
+  const auto scope_id = is_major ? GCTracer::Scope::MC_INCREMENTAL_START
+                                 : GCTracer::Scope::MINOR_MC_INCREMENTAL_START;
+  TRACE_EVENT1("v8",
+               is_major ? "V8.GCIncrementalMarkingStart"
+                        : "V8.GCMinorIncrementalMarkingStart",
+               "epoch", heap_->tracer()->CurrentEpoch(scope_id));
+  TRACE_GC_EPOCH(heap()->tracer(), scope_id, ThreadKind::kMain);
   heap_->tracer()->NotifyIncrementalMarkingStart();
 
   start_time_ms_ = heap()->MonotonicallyIncreasingTimeInMs();
@@ -181,7 +188,7 @@ void IncrementalMarking::Start(GarbageCollector garbage_collector,
   schedule_update_time_ms_ = start_time_ms_;
   bytes_marked_concurrently_ = 0;
 
-  if (garbage_collector == GarbageCollector::MARK_COMPACTOR) {
+  if (is_major) {
     current_collector_ = CurrentCollector::kMajorMC;
     StartMarkingMajor();
     heap_->AddAllocationObserversToAllSpaces(&old_generation_observer_,

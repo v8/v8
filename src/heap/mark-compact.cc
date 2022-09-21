@@ -1105,6 +1105,25 @@ void ShrinkPagesToObjectSizes(Heap* heap, OldLargeObjectSpace* space) {
 }  // namespace
 
 void MarkCompactCollector::Finish() {
+  {
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_SWEEP);
+    if (heap()->new_lo_space()) {
+      GCTracer::Scope sweep_scope(heap()->tracer(),
+                                  GCTracer::Scope::MC_SWEEP_FINISH_NEW_LO,
+                                  ThreadKind::kMain);
+      SweepLargeSpace(heap()->new_lo_space());
+    }
+
+    if (v8_flags.minor_mc && heap()->new_space()) {
+      // Keep new space sweeping atomic.
+      GCTracer::Scope sweep_scope(heap()->tracer(),
+                                  GCTracer::Scope::MC_SWEEP_FINISH_NEW,
+                                  ThreadKind::kMain);
+      sweeper()->ParallelSweepSpace(NEW_SPACE,
+                                    Sweeper::SweepingMode::kEagerDuringGC, 0);
+      heap()->paged_new_space()->paged_space()->RefillFreeList(sweeper());
+    }
+  }
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_FINISH);
 
   heap()->isolate()->global_handles()->ClearListOfYoungNodes();
@@ -1125,23 +1144,6 @@ void MarkCompactCollector::Finish() {
   local_weak_objects_->next_ephemerons_local.Publish();
   local_weak_objects_.reset();
   weak_objects_.next_ephemerons.Clear();
-
-  if (heap()->new_lo_space()) {
-    GCTracer::Scope sweep_scope(heap()->tracer(),
-                                GCTracer::Scope::MC_FINISH_SWEEP_NEW_LO,
-                                ThreadKind::kMain);
-    SweepLargeSpace(heap()->new_lo_space());
-  }
-
-  if (v8_flags.minor_mc && heap()->new_space()) {
-    // Keep new space sweeping atomic.
-    GCTracer::Scope sweep_scope(heap()->tracer(),
-                                GCTracer::Scope::MC_FINISH_SWEEP_NEW,
-                                ThreadKind::kMain);
-    sweeper()->ParallelSweepSpace(NEW_SPACE,
-                                  Sweeper::SweepingMode::kEagerDuringGC, 0);
-    heap()->paged_new_space()->paged_space()->RefillFreeList(sweeper());
-  }
 
   sweeper()->StartSweeperTasks();
 
@@ -5652,7 +5654,7 @@ void MarkCompactCollector::Sweep() {
           heap()->tracer(), GCTracer::Scope::MC_SWEEP_NEW, ThreadKind::kMain);
       StartSweepNewSpace();
     }
-    sweeper()->StartSweeping();
+    sweeper()->StartSweeping(garbage_collector_);
   }
 }
 
@@ -5960,25 +5962,28 @@ void MinorMarkCompactCollector::UpdatePointersAfterEvacuation() {
 
   std::vector<std::unique_ptr<UpdatingItem>> updating_items;
 
-  // Create batches of global handles.
-  CollectRememberedSetUpdatingItems(this, &updating_items, heap()->old_space(),
-                                    RememberedSetUpdatingMode::OLD_TO_NEW_ONLY);
-  CollectRememberedSetUpdatingItems(this, &updating_items, heap()->code_space(),
-                                    RememberedSetUpdatingMode::OLD_TO_NEW_ONLY);
-  if (heap()->map_space()) {
-    CollectRememberedSetUpdatingItems(
-        this, &updating_items, heap()->map_space(),
-        RememberedSetUpdatingMode::OLD_TO_NEW_ONLY);
-  }
-  CollectRememberedSetUpdatingItems(this, &updating_items, heap()->lo_space(),
-                                    RememberedSetUpdatingMode::OLD_TO_NEW_ONLY);
-  CollectRememberedSetUpdatingItems(this, &updating_items,
-                                    heap()->code_lo_space(),
-                                    RememberedSetUpdatingMode::OLD_TO_NEW_ONLY);
-
   {
     TRACE_GC(heap()->tracer(),
              GCTracer::Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS_SLOTS);
+    // Create batches of global handles.
+    CollectRememberedSetUpdatingItems(
+        this, &updating_items, heap()->old_space(),
+        RememberedSetUpdatingMode::OLD_TO_NEW_ONLY);
+    CollectRememberedSetUpdatingItems(
+        this, &updating_items, heap()->code_space(),
+        RememberedSetUpdatingMode::OLD_TO_NEW_ONLY);
+    if (heap()->map_space()) {
+      CollectRememberedSetUpdatingItems(
+          this, &updating_items, heap()->map_space(),
+          RememberedSetUpdatingMode::OLD_TO_NEW_ONLY);
+    }
+    CollectRememberedSetUpdatingItems(
+        this, &updating_items, heap()->lo_space(),
+        RememberedSetUpdatingMode::OLD_TO_NEW_ONLY);
+    CollectRememberedSetUpdatingItems(
+        this, &updating_items, heap()->code_lo_space(),
+        RememberedSetUpdatingMode::OLD_TO_NEW_ONLY);
+
     V8::GetCurrentPlatform()
         ->CreateJob(
             v8::TaskPriority::kUserBlocking,
@@ -6048,16 +6053,17 @@ void MinorMarkCompactCollector::StartMarking() {
 }
 
 void MinorMarkCompactCollector::Finish() {
-  TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_FINISH);
-
   {
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_SWEEP);
     // Keep new space sweeping atomic.
     GCTracer::Scope sweep_scope(heap()->tracer(),
-                                GCTracer::Scope::MC_FINISH_SWEEP_NEW,
+                                GCTracer::Scope::MINOR_MC_SWEEP_FINISH_NEW,
                                 ThreadKind::kMain);
     sweeper_->EnsureCompleted(Sweeper::SweepingMode::kEagerDuringGC);
     heap()->paged_new_space()->paged_space()->RefillFreeList(sweeper());
   }
+
+  TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_FINISH);
 
   local_marking_worklists_.reset();
   main_marking_visitor_.reset();
@@ -6090,11 +6096,6 @@ void MinorMarkCompactCollector::CollectGarbage() {
     verifier.Run();
   }
 #endif  // VERIFY_HEAP
-
-  {
-    TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARKING_DEQUE);
-    heap()->incremental_marking()->UpdateMarkingWorklistAfterYoungGenGC();
-  }
 
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_RESET_LIVENESS);
@@ -6448,7 +6449,8 @@ void MinorMarkCompactCollector::MarkRootSetInParallel(
       // 0. Flush to ensure these items are visible globally and picked up
       // by the job.
       local_marking_worklists_->Publish();
-      TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_ROOTS);
+      TRACE_GC(heap()->tracer(),
+               GCTracer::Scope::MINOR_MC_MARK_CLOSURE_PARALLEL);
       V8::GetCurrentPlatform()
           ->CreateJob(
               v8::TaskPriority::kUserBlocking,
@@ -6472,7 +6474,8 @@ void MinorMarkCompactCollector::MarkLiveObjects() {
 
   bool was_marked_incrementally = false;
   {
-    // TODO(v8:13012): TRACE_GC with MINOR_MC_MARK_FINISH_INCREMENTAL.
+    TRACE_GC(heap()->tracer(),
+             GCTracer::Scope::MINOR_MC_MARK_FINISH_INCREMENTAL);
     if (heap_->incremental_marking()->Stop()) {
       MarkingBarrier::PublishAll(heap());
       // TODO(v8:13012): TRACE_GC with MINOR_MC_MARK_FULL_CLOSURE_PARALLEL_JOIN.
@@ -6489,7 +6492,7 @@ void MinorMarkCompactCollector::MarkLiveObjects() {
 
   // Mark rest on the main thread.
   {
-    TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_WEAK);
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_CLOSURE);
     DrainMarkingWorklist();
   }
 
@@ -6756,7 +6759,7 @@ void MinorMarkCompactCollector::Sweep() {
                                 ThreadKind::kMain);
     StartSweepNewSpace();
   }
-  sweeper_->StartSweeping();
+  sweeper_->StartSweeping(garbage_collector_);
 }
 
 }  // namespace internal

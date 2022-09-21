@@ -8,6 +8,7 @@
 #include <map>
 #include <vector>
 
+#include "src/base/optional.h"
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/semaphore.h"
 #include "src/common/globals.h"
@@ -101,15 +102,12 @@ class Sweeper {
   // After calling this function sweeping is considered to be in progress
   // and the main thread can sweep lazily, but the background sweeper tasks
   // are not running yet.
-  void StartSweeping();
+  void StartSweeping(GarbageCollector collector);
   V8_EXPORT_PRIVATE void StartSweeperTasks();
   void EnsureCompleted(
       SweepingMode sweeping_mode = SweepingMode::kLazyOrConcurrent);
   void DrainSweepingWorklistForSpace(AllocationSpace space);
   bool AreSweeperTasksRunning();
-
-  // Support concurrent sweepers from main thread
-  void SupportConcurrentSweeping();
 
   Page* GetSweptPageSafe(PagedSpaceBase* space);
 
@@ -199,6 +197,7 @@ class Sweeper {
   std::atomic<bool> sweeping_in_progress_;
   bool should_reduce_memory_;
   Heap::PretenuringFeedbackMap local_pretenuring_feedback_;
+  base::Optional<GarbageCollector> current_collector_;
 };
 
 }  // namespace internal

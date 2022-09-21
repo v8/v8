@@ -528,6 +528,8 @@
   F(MC_INCREMENTAL_START)                                          \
   F(MC_INCREMENTAL_SWEEPING)
 
+#define MINOR_INCREMENTAL_SCOPES(F) F(MINOR_MC_INCREMENTAL_START)
+
 #define TOP_MC_SCOPES(F) \
   F(MC_CLEAR)            \
   F(MC_EPILOGUE)         \
@@ -537,8 +539,16 @@
   F(MC_PROLOGUE)         \
   F(MC_SWEEP)
 
+#define TOP_MINOR_MC_SCOPES(F) \
+  F(MINOR_MC_CLEAR)            \
+  F(MINOR_MC_EVACUATE)         \
+  F(MINOR_MC_FINISH)           \
+  F(MINOR_MC_MARK)             \
+  F(MINOR_MC_SWEEP)
+
 #define TRACER_SCOPES(F)                             \
   INCREMENTAL_SCOPES(F)                              \
+  MINOR_INCREMENTAL_SCOPES(F)                        \
   F(HEAP_EMBEDDER_TRACING_EPILOGUE)                  \
   F(HEAP_EPILOGUE)                                   \
   F(HEAP_EPILOGUE_REDUCE_NEW_SPACE)                  \
@@ -580,8 +590,6 @@
   F(MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAIN)          \
   F(MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS)        \
   F(MC_EVACUATE_UPDATE_POINTERS_WEAK)                \
-  F(MC_FINISH_SWEEP_NEW_LO)                          \
-  F(MC_FINISH_SWEEP_NEW)                             \
   F(MC_FINISH_SWEEP_ARRAY_BUFFERS)                   \
   F(MC_MARK_CLIENT_HEAPS)                            \
   F(MC_MARK_EMBEDDER_PROLOGUE)                       \
@@ -600,13 +608,13 @@
   F(MC_SWEEP_MAP)                                    \
   F(MC_SWEEP_NEW)                                    \
   F(MC_SWEEP_OLD)                                    \
+  F(MC_SWEEP_FINISH_NEW_LO)                          \
+  F(MC_SWEEP_FINISH_NEW)                             \
   F(MINOR_MARK_COMPACTOR)                            \
   F(MINOR_MC)                                        \
-  F(MINOR_MC_CLEAR)                                  \
+  TOP_MINOR_MC_SCOPES(F)                             \
   F(MINOR_MC_CLEAR_STRING_TABLE)                     \
-  F(MINOR_MC_CLEAR_WEAK_LISTS)                       \
   F(MINOR_MC_COMPLETE_SWEEP_ARRAY_BUFFERS)           \
-  F(MINOR_MC_EVACUATE)                               \
   F(MINOR_MC_EVACUATE_CLEAN_UP)                      \
   F(MINOR_MC_EVACUATE_COPY)                          \
   F(MINOR_MC_EVACUATE_COPY_PARALLEL)                 \
@@ -617,19 +625,17 @@
   F(MINOR_MC_EVACUATE_UPDATE_POINTERS_PARALLEL)      \
   F(MINOR_MC_EVACUATE_UPDATE_POINTERS_SLOTS)         \
   F(MINOR_MC_EVACUATE_UPDATE_POINTERS_WEAK)          \
-  F(MINOR_MC_FINISH)                                 \
   F(MINOR_MC_FINISH_SWEEP_ARRAY_BUFFERS)             \
-  F(MINOR_MC_FINISH_SWEEP_NEW)                       \
-  F(MINOR_MC_MARK)                                   \
   F(MINOR_MC_MARK_GLOBAL_HANDLES)                    \
+  F(MINOR_MC_MARK_FINISH_INCREMENTAL)                \
   F(MINOR_MC_MARK_PARALLEL)                          \
   F(MINOR_MC_MARK_SEED)                              \
   F(MINOR_MC_MARK_ROOTS)                             \
-  F(MINOR_MC_MARK_WEAK)                              \
-  F(MINOR_MC_MARKING_DEQUE)                          \
+  F(MINOR_MC_MARK_CLOSURE_PARALLEL)                  \
+  F(MINOR_MC_MARK_CLOSURE)                           \
   F(MINOR_MC_RESET_LIVENESS)                         \
-  F(MINOR_MC_SWEEP)                                  \
   F(MINOR_MC_SWEEP_NEW)                              \
+  F(MINOR_MC_SWEEP_FINISH_NEW)                       \
   F(SAFEPOINT)                                       \
   F(SCAVENGER)                                       \
   F(SCAVENGER_COMPLETE_SWEEP_ARRAY_BUFFERS)          \
@@ -664,6 +670,7 @@
   F(MINOR_MC_BACKGROUND_EVACUATE_COPY)            \
   F(MINOR_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS) \
   F(MINOR_MC_BACKGROUND_MARKING)                  \
+  F(MINOR_MC_BACKGROUND_SWEEPING)                 \
   F(SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL)
 
 #define TRACER_YOUNG_EPOCH_SCOPES(F)              \
@@ -673,6 +680,7 @@
   F(MINOR_MC_BACKGROUND_EVACUATE_COPY)            \
   F(MINOR_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS) \
   F(MINOR_MC_BACKGROUND_MARKING)                  \
+  F(MINOR_MC_BACKGROUND_SWEEPING)                 \
   F(SCAVENGER)                                    \
   F(SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL)       \
   F(SCAVENGER_COMPLETE_SWEEP_ARRAY_BUFFERS)
