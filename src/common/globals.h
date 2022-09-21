@@ -978,9 +978,9 @@ enum AllocationSpace {
   OLD_SPACE,        // Old generation regular object space.
   CODE_SPACE,       // Old generation code object space, marked executable.
   MAP_SPACE,        // Old generation map object space, non-movable.
+  SHARED_SPACE,     // Space shared between multiple isolates. Optional.
   NEW_SPACE,        // Young generation space for regular objects collected
                     // with Scavenger/MinorMC.
-  SHARED_SPACE,     // Space shared between multiple isolates. Optional.
   LO_SPACE,         // Old generation large object space.
   CODE_LO_SPACE,    // Old generation large code object space.
   NEW_LO_SPACE,     // Young generation large object space.
@@ -991,7 +991,7 @@ enum AllocationSpace {
   FIRST_MUTABLE_SPACE = OLD_SPACE,
   LAST_MUTABLE_SPACE = SHARED_LO_SPACE,
   FIRST_GROWABLE_PAGED_SPACE = OLD_SPACE,
-  LAST_GROWABLE_PAGED_SPACE = MAP_SPACE,
+  LAST_GROWABLE_PAGED_SPACE = SHARED_SPACE,
   FIRST_SWEEPABLE_SPACE = OLD_SPACE,
   LAST_SWEEPABLE_SPACE = NEW_SPACE
 };

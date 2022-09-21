@@ -2009,12 +2009,16 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
 
   // Returns the isolate that owns the shared spaces.
-  Isolate* shared_heap_isolate() {
+  Isolate* shared_heap_isolate() const {
     DCHECK(has_shared_heap());
     Isolate* isolate =
         shared_isolate() ? shared_isolate() : shared_space_isolate();
     DCHECK_NOT_NULL(isolate);
     return isolate;
+  }
+
+  bool is_shared_heap_isolate() const {
+    return is_shared() || is_shared_space_isolate();
   }
 
   GlobalSafepoint* global_safepoint() const { return global_safepoint_.get(); }

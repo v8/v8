@@ -604,12 +604,13 @@
   F(MC_MARK_WEAK_CLOSURE_EPHEMERON_LINEAR)           \
   F(MC_SWEEP_CODE)                                   \
   F(MC_SWEEP_CODE_LO)                                \
+  F(MC_SWEEP_FINISH_NEW_LO)                          \
+  F(MC_SWEEP_FINISH_NEW)                             \
   F(MC_SWEEP_LO)                                     \
   F(MC_SWEEP_MAP)                                    \
   F(MC_SWEEP_NEW)                                    \
   F(MC_SWEEP_OLD)                                    \
-  F(MC_SWEEP_FINISH_NEW_LO)                          \
-  F(MC_SWEEP_FINISH_NEW)                             \
+  F(MC_SWEEP_SHARED)                                 \
   F(MINOR_MARK_COMPACTOR)                            \
   F(MINOR_MC)                                        \
   TOP_MINOR_MC_SCOPES(F)                             \

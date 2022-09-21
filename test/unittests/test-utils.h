@@ -80,6 +80,9 @@ class IsolateWrapper final {
   IsolateWrapper& operator=(const IsolateWrapper&) = delete;
 
   v8::Isolate* isolate() const { return isolate_; }
+  i::Isolate* i_isolate() const {
+    return reinterpret_cast<i::Isolate*>(isolate_);
+  }
 
  private:
   std::unique_ptr<v8::ArrayBuffer::Allocator> array_buffer_allocator_;

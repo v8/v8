@@ -3659,6 +3659,9 @@ void Heap::MakeHeapIterable() {
     space->MakeLinearAllocationAreaIterable();
   }
 
+  if (v8_flags.shared_space && shared_space_allocator_) {
+    shared_space_allocator_->MakeLinearAllocationAreaIterable();
+  }
   if (new_space()) new_space()->MakeLinearAllocationAreaIterable();
 }
 
@@ -3672,11 +3675,14 @@ void Heap::FreeLinearAllocationAreas() {
     space->FreeLinearAllocationArea();
   }
 
+  if (v8_flags.shared_space && shared_space_allocator_) {
+    shared_space_allocator_->FreeLinearAllocationArea();
+  }
   if (new_space()) new_space()->FreeLinearAllocationArea();
 }
 
 void Heap::FreeSharedLinearAllocationAreas() {
-  if (!isolate()->shared_isolate()) return;
+  if (!isolate()->has_shared_heap()) return;
   safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
     local_heap->FreeSharedLinearAllocationArea();
   });
@@ -3684,7 +3690,7 @@ void Heap::FreeSharedLinearAllocationAreas() {
 }
 
 void Heap::FreeMainThreadSharedLinearAllocationAreas() {
-  if (!isolate()->shared_isolate()) return;
+  if (!isolate()->has_shared_heap()) return;
   shared_space_allocator_->FreeLinearAllocationArea();
   if (shared_map_allocator_) shared_map_allocator_->FreeLinearAllocationArea();
   main_thread_local_heap()->FreeSharedLinearAllocationArea();
@@ -4333,12 +4339,16 @@ bool Heap::Contains(HeapObject value) const {
   if (memory_allocator()->IsOutsideAllocatedSpace(value.address())) {
     return false;
   }
-  return HasBeenSetUp() &&
-         ((new_space_ && new_space_->Contains(value)) ||
-          old_space_->Contains(value) || code_space_->Contains(value) ||
-          (map_space_ && map_space_->Contains(value)) ||
-          lo_space_->Contains(value) || code_lo_space_->Contains(value) ||
-          (new_lo_space_ && new_lo_space_->Contains(value)));
+
+  if (!HasBeenSetUp()) return false;
+
+  return (new_space_ && new_space_->Contains(value)) ||
+         old_space_->Contains(value) || code_space_->Contains(value) ||
+         (map_space_ && map_space_->Contains(value)) ||
+         (shared_space_ && shared_space_->Contains(value)) ||
+         lo_space_->Contains(value) || code_lo_space_->Contains(value) ||
+         (new_lo_space_ && new_lo_space_->Contains(value)) ||
+         (shared_lo_space_ && shared_lo_space_->Contains(value));
 }
 
 bool Heap::ContainsCode(HeapObject value) const {
@@ -4743,13 +4753,15 @@ void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options) {
     SerializerDeserializer::IterateStartupObjectCache(isolate_, v);
     v->Synchronize(VisitorSynchronization::kStartupObjectCache);
 
-    // When shared_isolate() is null, isolate_ is either an unshared (instead of
-    // a client) Isolate or the shared Isolate. In both cases isolate_ owns its
-    // shared heap object cache and should iterate it.
+    // Iterate over shared heap object cache when the isolate owns this data
+    // structure. Isolates which own the shared heap object cache are:
+    //   * Shared isolate
+    //   * Shared space/main isolate
+    //   * All isolates which do not use the shared heap feature.
     //
-    // When shared_isolate() is not null, isolate_ is a client Isolate, does not
-    // own its shared heap object cache, and should not iterate it.
-    if (isolate_->shared_isolate() == nullptr) {
+    // However, worker/client isolates do not own the shared heap object cache
+    // and should not iterate it.
+    if (isolate_->is_shared_heap_isolate() || !isolate_->has_shared_heap()) {
       SerializerDeserializer::IterateSharedHeapObjectCache(isolate_, v);
       v->Synchronize(VisitorSynchronization::kSharedHeapObjectCache);
     }

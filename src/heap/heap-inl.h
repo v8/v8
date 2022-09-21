@@ -171,7 +171,8 @@ void Heap::SetPendingOptimizeForTestBytecode(Object hash_table) {
 }
 
 PagedSpace* Heap::paged_space(int idx) {
-  DCHECK(idx == OLD_SPACE || idx == CODE_SPACE || idx == MAP_SPACE);
+  DCHECK(idx == OLD_SPACE || idx == CODE_SPACE || idx == MAP_SPACE ||
+         idx == SHARED_SPACE);
   return static_cast<PagedSpace*>(space_[idx].get());
 }
 

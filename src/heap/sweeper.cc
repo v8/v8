@@ -355,7 +355,7 @@ int Sweeper::RawSweep(
   Space* space = p->owner();
   DCHECK_NOT_NULL(space);
   DCHECK(space->identity() == OLD_SPACE || space->identity() == CODE_SPACE ||
-         space->identity() == MAP_SPACE ||
+         space->identity() == MAP_SPACE || space->identity() == SHARED_SPACE ||
          (space->identity() == NEW_SPACE && v8_flags.minor_mc));
   DCHECK_IMPLIES(space->identity() == NEW_SPACE,
                  sweeping_mode == SweepingMode::kEagerDuringGC);

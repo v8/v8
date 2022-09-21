@@ -879,10 +879,12 @@ class Heap {
   inline PagedNewSpace* paged_new_space() const;
   OldSpace* old_space() const { return old_space_; }
   CodeSpace* code_space() const { return code_space_; }
+  SharedSpace* shared_space() const { return shared_space_; }
   MapSpace* map_space() const { return map_space_; }
   inline PagedSpace* space_for_maps();
   OldLargeObjectSpace* lo_space() const { return lo_space_; }
   CodeLargeObjectSpace* code_lo_space() const { return code_lo_space_; }
+  SharedLargeObjectSpace* shared_lo_space() const { return shared_lo_space_; }
   NewLargeObjectSpace* new_lo_space() const { return new_lo_space_; }
   ReadOnlySpace* read_only_space() const { return read_only_space_; }
 

@@ -585,6 +585,10 @@ bool MarkCompactCollector::StartCompaction(StartCompactionMode mode) {
     CollectEvacuationCandidates(heap()->map_space());
   }
 
+  if (heap()->shared_space()) {
+    CollectEvacuationCandidates(heap()->shared_space());
+  }
+
   if (v8_flags.compact_code_space &&
       (!heap()->IsGCWithStack() || v8_flags.compact_code_space_with_stack)) {
     CollectEvacuationCandidates(heap()->code_space());
@@ -731,6 +735,9 @@ void MarkCompactCollector::EnsureSweepingCompleted(
           "access to Code page headers");
       heap()->code_space()->RefillFreeList(sweeper());
     }
+    if (heap()->shared_space()) {
+      heap()->shared_space()->RefillFreeList(sweeper());
+    }
     if (heap()->map_space()) {
       heap()->map_space()->RefillFreeList(sweeper());
       heap()->map_space()->SortFreeList();
@@ -820,7 +827,7 @@ void MarkCompactCollector::ComputeEvacuationHeuristics(
 
 void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   DCHECK(space->identity() == OLD_SPACE || space->identity() == CODE_SPACE ||
-         space->identity() == MAP_SPACE);
+         space->identity() == MAP_SPACE || space->identity() == SHARED_SPACE);
 
   int number_of_pages = space->CountTotalPages();
   size_t area_size = space->AreaSize();
@@ -1081,6 +1088,7 @@ void MarkCompactCollector::VerifyMarking() {
     heap()->old_space()->VerifyLiveBytes();
     if (heap()->map_space()) heap()->map_space()->VerifyLiveBytes();
     heap()->code_space()->VerifyLiveBytes();
+    if (heap()->shared_space()) heap()->shared_space()->VerifyLiveBytes();
     if (v8_flags.minor_mc && heap()->paged_new_space())
       heap()->paged_new_space()->paged_space()->VerifyLiveBytes();
   }
@@ -1177,7 +1185,11 @@ void MarkCompactCollector::SweepArrayBufferExtensions() {
 class MarkCompactCollector::RootMarkingVisitor final : public RootVisitor {
  public:
   explicit RootMarkingVisitor(MarkCompactCollector* collector)
-      : collector_(collector), is_shared_heap_(collector->is_shared_heap()) {}
+      : collector_(collector),
+        uses_shared_heap_(collector->heap()->isolate()->has_shared_heap() ||
+                          collector->heap()->isolate()->is_shared()),
+        is_shared_heap_isolate_(
+            collector->heap()->isolate()->is_shared_heap_isolate()) {}
 
   void VisitRootPointer(Root root, const char* description,
                         FullObjectSlot p) final {
@@ -1233,14 +1245,23 @@ class MarkCompactCollector::RootMarkingVisitor final : public RootVisitor {
     Object object = *p;
     if (!object.IsHeapObject()) return;
     HeapObject heap_object = HeapObject::cast(object);
-    BasicMemoryChunk* target_page =
-        BasicMemoryChunk::FromHeapObject(heap_object);
-    if (is_shared_heap_ != target_page->InSharedHeap()) return;
+    if (!ShouldMarkObject(heap_object)) return;
     collector_->MarkRootObject(root, heap_object);
   }
 
+  bool ShouldMarkObject(HeapObject object) const {
+    if (V8_LIKELY(!uses_shared_heap_)) return true;
+    if (v8_flags.shared_space) {
+      if (is_shared_heap_isolate_) return true;
+      return !object.InSharedHeap();
+    } else {
+      return is_shared_heap_isolate_ == object.InSharedHeap();
+    }
+  }
+
   MarkCompactCollector* const collector_;
-  const bool is_shared_heap_;
+  const bool uses_shared_heap_;
+  const bool is_shared_heap_isolate_;
 };
 
 // This visitor is used to visit the body of special objects held alive by
@@ -5317,11 +5338,21 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
     CollectRememberedSetUpdatingItems(this, &updating_items,
                                       heap()->code_space(),
                                       RememberedSetUpdatingMode::ALL);
+    if (heap()->shared_space()) {
+      CollectRememberedSetUpdatingItems(this, &updating_items,
+                                        heap()->shared_space(),
+                                        RememberedSetUpdatingMode::ALL);
+    }
     CollectRememberedSetUpdatingItems(this, &updating_items, heap()->lo_space(),
                                       RememberedSetUpdatingMode::ALL);
     CollectRememberedSetUpdatingItems(this, &updating_items,
                                       heap()->code_lo_space(),
                                       RememberedSetUpdatingMode::ALL);
+    if (heap()->shared_lo_space()) {
+      CollectRememberedSetUpdatingItems(this, &updating_items,
+                                        heap()->shared_lo_space(),
+                                        RememberedSetUpdatingMode::ALL);
+    }
     if (heap()->map_space()) {
       CollectRememberedSetUpdatingItems(this, &updating_items,
                                         heap()->map_space(),
@@ -5648,6 +5679,11 @@ void MarkCompactCollector::Sweep() {
       GCTracer::Scope sweep_scope(
           heap()->tracer(), GCTracer::Scope::MC_SWEEP_MAP, ThreadKind::kMain);
       StartSweepSpace(heap()->map_space());
+    }
+    if (heap()->shared_space()) {
+      GCTracer::Scope sweep_scope(
+          heap()->tracer(), GCTracer::Scope::MC_SWEEP_MAP, ThreadKind::kMain);
+      StartSweepSpace(heap()->shared_space());
     }
     if (v8_flags.minor_mc && heap()->new_space()) {
       GCTracer::Scope sweep_scope(

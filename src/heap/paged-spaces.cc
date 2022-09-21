@@ -143,7 +143,8 @@ void PagedSpaceBase::RefillFreeList(Sweeper* sweeper) {
   // Any PagedSpace might invoke RefillFreeList. We filter all but our old
   // generation spaces out.
   DCHECK(identity() == OLD_SPACE || identity() == CODE_SPACE ||
-         identity() == MAP_SPACE || identity() == NEW_SPACE);
+         identity() == MAP_SPACE || identity() == NEW_SPACE ||
+         identity() == SHARED_SPACE);
 
   size_t added = 0;
 
