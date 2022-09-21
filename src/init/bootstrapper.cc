@@ -4547,6 +4547,8 @@ void Genesis::InitializeGlobal_harmony_change_array_by_copy() {
                                isolate());
     SimpleInstallFunction(isolate_, prototype, "toReversed",
                           Builtin::kTypedArrayPrototypeToReversed, 0, true);
+    SimpleInstallFunction(isolate_, prototype, "toSorted",
+                          Builtin::kTypedArrayPrototypeToSorted, 1, false);
     SimpleInstallFunction(isolate_, prototype, "with",
                           Builtin::kTypedArrayPrototypeWith, 2, true);
   }
