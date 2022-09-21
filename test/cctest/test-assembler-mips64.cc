@@ -6233,7 +6233,7 @@ TEST(Call_with_trampoline) {
   int pc_offset_before = __ pc_offset();
   {
     // There should be a trampoline after this Call
-    __ Call(FUNCTION_ADDR(DummyFunction), RelocInfo::RUNTIME_ENTRY);
+    __ Call(FUNCTION_ADDR(DummyFunction), RelocInfo::EXTERNAL_REFERENCE);
   }
   int pc_offset_after = __ pc_offset();
   int safepoint_pc_offset = __ pc_offset_for_safepoint();
