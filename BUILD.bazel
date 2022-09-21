@@ -2881,6 +2881,8 @@ filegroup(
         "src/compiler/turboshaft/representations.cc",
         "src/compiler/turboshaft/representations.h",
         "src/compiler/turboshaft/sidetable.h",
+        "src/compiler/turboshaft/simplify-tf-loops.cc",
+        "src/compiler/turboshaft/simplify-tf-loops.h",
         "src/compiler/turboshaft/utils.h",
         "src/compiler/turboshaft/value-numbering-assembler.h",
         "src/compiler/type-cache.cc",

@@ -88,6 +88,13 @@ struct ScheduleBuilder {
     return AddNode(machine.Is64() ? machine.Word64Shl() : machine.Word32Shl(),
                    {a, b});
   }
+  Node* RelocatableIntPtrConstant(intptr_t value, RelocInfo::Mode mode) {
+    return AddNode(machine.Is64()
+                       ? common.RelocatableInt64Constant(value, mode)
+                       : common.RelocatableInt32Constant(
+                             base::checked_cast<int32_t>(value), mode),
+                   {});
+  }
   void ProcessOperation(const Operation& op);
 #define DECL_PROCESS_OPERATION(Name) Node* ProcessOperation(const Name##Op& op);
   TURBOSHAFT_OPERATION_LIST(DECL_PROCESS_OPERATION)
@@ -363,6 +370,12 @@ Node* ScheduleBuilder::ProcessOperation(const WordUnaryOp& op) {
     case WordUnaryOp::Kind::kCountLeadingZeros:
       o = word64 ? machine.Word64Clz() : machine.Word32Clz();
       break;
+    case WordUnaryOp::Kind::kCountTrailingZeros:
+      o = word64 ? machine.Word64Ctz().op() : machine.Word32Ctz().op();
+      break;
+    case WordUnaryOp::Kind::kPopCount:
+      o = word64 ? machine.Word64Popcnt().op() : machine.Word32Popcnt().op();
+      break;
   }
   return AddNode(o, {GetNode(op.input())});
 }
@@ -628,6 +641,22 @@ Node* ScheduleBuilder::ProcessOperation(const ChangeOp& op) {
         UNIMPLEMENTED();
       }
       break;
+    case Kind::kUnsignedFloatTruncate:
+      if (op.from == FloatRepresentation::Float32() &&
+          op.to == WordRepresentation::Word32()) {
+        o = machine.TruncateFloat32ToUint32(TruncateKind::kArchitectureDefault);
+      } else {
+        UNIMPLEMENTED();
+      }
+      break;
+    case Kind::kUnsignedFloatTruncateOverflowToMin:
+      if (op.from == FloatRepresentation::Float32() &&
+          op.to == WordRepresentation::Word32()) {
+        o = machine.TruncateFloat32ToUint32(TruncateKind::kSetOverflowToMin);
+      } else {
+        UNIMPLEMENTED();
+      }
+      break;
     case Kind::kJSFloatTruncate:
       if (op.from == FloatRepresentation::Float64() &&
           op.to == WordRepresentation::Word32()) {
@@ -642,7 +671,16 @@ Node* ScheduleBuilder::ProcessOperation(const ChangeOp& op) {
         o = machine.ChangeInt32ToFloat64();
       } else if (op.from == WordRepresentation::Word64() &&
                  op.to == FloatRepresentation::Float64()) {
-        o = machine.ChangeInt64ToFloat64();
+        o = machine.RoundInt64ToFloat64();
+      } else if (op.from == WordRepresentation::Word32() &&
+                 op.to == FloatRepresentation::Float32()) {
+        o = machine.RoundInt32ToFloat32();
+      } else if (op.from == WordRepresentation::Word64() &&
+                 op.to == FloatRepresentation::Float32()) {
+        o = machine.RoundInt64ToFloat32();
+      } else if (op.from == WordRepresentation::Word32() &&
+                 op.to == FloatRepresentation::Float64()) {
+        o = machine.ChangeInt32ToFloat64();
       } else {
         UNIMPLEMENTED();
       }
@@ -651,6 +689,15 @@ Node* ScheduleBuilder::ProcessOperation(const ChangeOp& op) {
       if (op.from == WordRepresentation::Word32() &&
           op.to == FloatRepresentation::Float64()) {
         o = machine.ChangeUint32ToFloat64();
+      } else if (op.from == WordRepresentation::Word32() &&
+                 op.to == FloatRepresentation::Float32()) {
+        o = machine.RoundUint32ToFloat32();
+      } else if (op.from == WordRepresentation::Word64() &&
+                 op.to == FloatRepresentation::Float32()) {
+        o = machine.RoundUint64ToFloat32();
+      } else if (op.from == WordRepresentation::Word64() &&
+                 op.to == FloatRepresentation::Float64()) {
+        o = machine.RoundUint64ToFloat64();
       } else {
         UNIMPLEMENTED();
       }
@@ -708,6 +755,12 @@ Node* ScheduleBuilder::ProcessOperation(const ChangeOp& op) {
       } else if (op.from == FloatRepresentation::Float64() &&
                  op.to == WordRepresentation::Word32()) {
         o = machine.ChangeFloat64ToInt32();
+      } else if (op.from == WordRepresentation::Word32() &&
+                 op.to == FloatRepresentation::Float64()) {
+        o = machine.ChangeInt32ToFloat64();
+      } else if (op.from == WordRepresentation::Word64() &&
+                 op.to == FloatRepresentation::Float64()) {
+        o = machine.ChangeInt64ToFloat64();
       } else {
         UNIMPLEMENTED();
       }
@@ -749,6 +802,14 @@ Node* ScheduleBuilder::ProcessOperation(const TaggedBitcastOp& op) {
   }
   return AddNode(o, {GetNode(op.input())});
 }
+Node* ScheduleBuilder::ProcessOperation(const SelectOp& op) {
+  const Operator* o = op.rep == WordRepresentation::Word32()
+                          ? machine.Word32Select().op()
+                          : machine.Word64Select().op();
+  return AddNode(
+      o, {GetNode(op.condition()), GetNode(op.left()), GetNode(op.right())});
+}
+
 Node* ScheduleBuilder::ProcessOperation(const PendingLoopPhiOp& op) {
   UNREACHABLE();
 }
@@ -779,6 +840,11 @@ Node* ScheduleBuilder::ProcessOperation(const ConstantOp& op) {
       return AddNode(common.Float64Constant(op.float64()), {});
     case ConstantOp::Kind::kFloat32:
       return AddNode(common.Float32Constant(op.float32()), {});
+    case ConstantOp::Kind::kRelocatableWasmCall:
+      return RelocatableIntPtrConstant(op.integral(), RelocInfo::WASM_CALL);
+    case ConstantOp::Kind::kRelocatableWasmStubCall:
+      return RelocatableIntPtrConstant(op.integral(),
+                                       RelocInfo::WASM_STUB_CALL);
   }
 }
 Node* ScheduleBuilder::ProcessOperation(const LoadOp& op) {
@@ -788,9 +854,11 @@ Node* ScheduleBuilder::ProcessOperation(const LoadOp& op) {
     offset -= kHeapObjectTag;
   }
   Node* base = GetNode(op.base());
-  return AddNode(IsAlignedAccess(op.kind)
+  return AddNode(op.kind == LoadOp::Kind::kRawAligned
                      ? machine.Load(op.loaded_rep.ToMachineType())
-                     : machine.UnalignedLoad(op.loaded_rep.ToMachineType()),
+                 : op.kind == LoadOp::Kind::kRawUnaligned
+                     ? machine.UnalignedLoad(op.loaded_rep.ToMachineType())
+                     : machine.ProtectedLoad(op.loaded_rep.ToMachineType()),
                  {base, IntPtrConstant(offset)});
 }
 Node* ScheduleBuilder::ProcessOperation(const IndexedLoadOp& op) {
@@ -815,8 +883,10 @@ Node* ScheduleBuilder::ProcessOperation(const IndexedLoadOp& op) {
       loaded_rep = MachineType::CompressedPointer();
     }
   }
-  return AddNode(IsAlignedAccess(op.kind) ? machine.Load(loaded_rep)
-                                          : machine.UnalignedLoad(loaded_rep),
+  return AddNode(op.kind == LoadOp::Kind::kRawAligned ? machine.Load(loaded_rep)
+                 : op.kind == LoadOp::Kind::kRawUnaligned
+                     ? machine.UnalignedLoad(loaded_rep)
+                     : machine.ProtectedLoad(loaded_rep),
                  {base, index});
 }
 Node* ScheduleBuilder::ProcessOperation(const StoreOp& op) {
@@ -831,6 +901,9 @@ Node* ScheduleBuilder::ProcessOperation(const StoreOp& op) {
   if (IsAlignedAccess(op.kind)) {
     o = machine.Store(StoreRepresentation(
         op.stored_rep.ToMachineType().representation(), op.write_barrier));
+  } else if (op.kind == LoadOp::Kind::kProtected) {
+    DCHECK_EQ(op.write_barrier, WriteBarrierKind::kNoWriteBarrier);
+    o = machine.ProtectedStore(op.stored_rep.ToMachineType().representation());
   } else {
     DCHECK_EQ(op.write_barrier, WriteBarrierKind::kNoWriteBarrier);
     o = machine.UnalignedStore(op.stored_rep.ToMachineType().representation());
@@ -856,6 +929,9 @@ Node* ScheduleBuilder::ProcessOperation(const IndexedStoreOp& op) {
   if (IsAlignedAccess(op.kind)) {
     o = machine.Store(StoreRepresentation(
         op.stored_rep.ToMachineType().representation(), op.write_barrier));
+  } else if (op.kind == LoadOp::Kind::kProtected) {
+    DCHECK_EQ(op.write_barrier, WriteBarrierKind::kNoWriteBarrier);
+    o = machine.ProtectedStore(op.stored_rep.ToMachineType().representation());
   } else {
     DCHECK_EQ(op.write_barrier, WriteBarrierKind::kNoWriteBarrier);
     o = machine.UnalignedStore(op.stored_rep.ToMachineType().representation());
@@ -926,6 +1002,12 @@ Node* ScheduleBuilder::ProcessOperation(const DeoptimizeIfOp& op) {
                           : common.DeoptimizeIf(op.parameters->reason(),
                                                 op.parameters->feedback());
   return AddNode(o, {condition, frame_state});
+}
+Node* ScheduleBuilder::ProcessOperation(const TrapIfOp& op) {
+  Node* condition = GetNode(op.condition());
+  const Operator* o =
+      op.negated ? common.TrapUnless(op.trap_id) : common.TrapIf(op.trap_id);
+  return AddNode(o, {condition});
 }
 Node* ScheduleBuilder::ProcessOperation(const DeoptimizeOp& op) {
   Node* frame_state = GetNode(op.frame_state());
@@ -1086,6 +1168,17 @@ Node* ScheduleBuilder::ProcessOperation(const CallOp& op) {
     inputs.push_back(GetNode(i));
   }
   return AddNode(common.Call(op.descriptor), base::VectorOf(inputs));
+}
+Node* ScheduleBuilder::ProcessOperation(const TailCallOp& op) {
+  base::SmallVector<Node*, 16> inputs;
+  inputs.push_back(GetNode(op.callee()));
+  for (OpIndex i : op.arguments()) {
+    inputs.push_back(GetNode(i));
+  }
+  Node* call = MakeNode(common.TailCall(op.descriptor), base::VectorOf(inputs));
+  schedule->AddTailCall(current_block, call);
+  current_block = nullptr;
+  return nullptr;
 }
 Node* ScheduleBuilder::ProcessOperation(const UnreachableOp& op) {
   Node* node = MakeNode(common.Throw(), {});

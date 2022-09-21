@@ -963,10 +963,12 @@ DEFINE_FLOAT(script_delay_fraction, 0.0,
              "busy wait after each Script::Run by the given fraction of the "
              "run's duration")
 
-DEFINE_BOOL(turboshaft, false, "enable TurboFan's Turboshaft phases")
+DEFINE_BOOL(turboshaft, false, "enable TurboFan's Turboshaft phases for JS")
 DEFINE_WEAK_IMPLICATION(future, turboshaft)
 DEFINE_BOOL(turboshaft_trace_reduction, false,
             "trace individual Turboshaft reduction steps")
+DEFINE_BOOL(turboshaft_wasm, false,
+            "enable TurboFan's Turboshaft phases for wasm")
 
 // Favor memory over execution speed.
 DEFINE_BOOL(optimize_for_size, false,

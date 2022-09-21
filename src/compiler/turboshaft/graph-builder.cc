@@ -19,7 +19,6 @@
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-aux-data.h"
 #include "src/compiler/node-origin-table.h"
-#include "src/compiler/node-properties.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
 #include "src/compiler/schedule.h"
@@ -202,6 +201,7 @@ base::Optional<BailoutReason> GraphBuilder::Run() {
       case BasicBlock::kReturn:
       case BasicBlock::kDeoptimize:
       case BasicBlock::kThrow:
+      case BasicBlock::kTailCall:
         break;
       case BasicBlock::kCall: {
         Node* call = block->control_input();
@@ -216,8 +216,6 @@ base::Optional<BailoutReason> GraphBuilder::Run() {
         op_mapping.Set(if_exception_node, catch_exception);
         break;
       }
-      case BasicBlock::kTailCall:
-        UNIMPLEMENTED();
       case BasicBlock::kNone:
         UNREACHABLE();
     }
@@ -323,7 +321,10 @@ OpIndex GraphBuilder::Process(
       return assembler.CompressedHeapConstant(HeapConstantOf(op));
     case IrOpcode::kExternalConstant:
       return assembler.ExternalConstant(OpParameter<ExternalReference>(op));
-
+    case IrOpcode::kRelocatableInt64Constant:
+      return assembler.RelocatableConstant(
+          OpParameter<RelocatablePtrConstantInfo>(op).value(),
+          OpParameter<RelocatablePtrConstantInfo>(op).rmode());
 #define BINOP_CASE(opcode, assembler_op) \
   case IrOpcode::k##opcode:              \
     return assembler.assembler_op(Map(node->InputAt(0)), Map(node->InputAt(1)));
@@ -431,6 +432,10 @@ OpIndex GraphBuilder::Process(
       UNARY_CASE(Word64ReverseBytes, Word64ReverseBytes)
       UNARY_CASE(Word32Clz, Word32CountLeadingZeros)
       UNARY_CASE(Word64Clz, Word64CountLeadingZeros)
+      UNARY_CASE(Word32Ctz, Word32CountTrailingZeros)
+      UNARY_CASE(Word64Ctz, Word64CountTrailingZeros)
+      UNARY_CASE(Word32Popcnt, Word32PopCount)
+      UNARY_CASE(Word64Popcnt, Word64PopCount)
 
       UNARY_CASE(Float32Abs, Float32Abs)
       UNARY_CASE(Float64Abs, Float64Abs)
@@ -481,9 +486,17 @@ OpIndex GraphBuilder::Process(
       CHANGE_CASE(BitcastInt64ToFloat64, Bitcast, Word64, Float64)
       CHANGE_CASE(ChangeUint32ToUint64, ZeroExtend, Word32, Word64)
       CHANGE_CASE(ChangeInt32ToInt64, SignExtend, Word32, Word64)
-      CHANGE_CASE(ChangeInt32ToFloat64, SignedToFloat, Word32, Float64)
-      CHANGE_CASE(ChangeInt64ToFloat64, SignedToFloat, Word64, Float64)
+      CHANGE_CASE(SignExtendWord32ToInt64, SignExtend, Word32, Word64)
+      CHANGE_CASE(ChangeInt32ToFloat64, SignedNarrowing, Word32, Float64)
+      CHANGE_CASE(ChangeInt64ToFloat64, SignedNarrowing, Word64, Float64)
       CHANGE_CASE(ChangeUint32ToFloat64, UnsignedToFloat, Word32, Float64)
+      CHANGE_CASE(RoundInt64ToFloat64, SignedToFloat, Word64, Float64)
+      CHANGE_CASE(RoundUint64ToFloat64, UnsignedToFloat, Word64, Float64)
+      CHANGE_CASE(RoundInt32ToFloat32, SignedToFloat, Word32, Float32)
+      CHANGE_CASE(RoundUint32ToFloat32, UnsignedToFloat, Word32, Float32)
+      CHANGE_CASE(RoundInt64ToFloat32, SignedToFloat, Word64, Float32)
+      CHANGE_CASE(RoundUint64ToFloat32, UnsignedToFloat, Word64, Float32)
+
       CHANGE_CASE(TruncateFloat64ToWord32, JSFloatTruncate, Float64, Word32)
       CHANGE_CASE(TruncateFloat64ToFloat32, FloatConversion, Float64, Float32)
       CHANGE_CASE(ChangeFloat32ToFloat64, FloatConversion, Float32, Float64)
@@ -498,21 +511,36 @@ OpIndex GraphBuilder::Process(
     case IrOpcode::kTruncateInt64ToInt32:
       // 64- to 32-bit truncation is implicit in Turboshaft.
       return Map(node->InputAt(0));
+    case IrOpcode::kTruncateFloat32ToInt32: {
+      ChangeOp::Kind kind =
+          OpParameter<TruncateKind>(node->op()) ==
+                  TruncateKind::kArchitectureDefault
+              ? ChangeOp::Kind::kSignedFloatTruncate
+              : ChangeOp::Kind::kSignedFloatTruncateOverflowToMin;
+      return assembler.Change(Map(node->InputAt(0)), kind,
+                              RegisterRepresentation::Float32(),
+                              RegisterRepresentation::Word32());
+    }
+    case IrOpcode::kTruncateFloat32ToUint32: {
+      ChangeOp::Kind kind =
+          OpParameter<TruncateKind>(node->op()) ==
+                  TruncateKind::kArchitectureDefault
+              ? ChangeOp::Kind::kUnsignedFloatTruncate
+              : ChangeOp::Kind::kUnsignedFloatTruncateOverflowToMin;
+      return assembler.Change(Map(node->InputAt(0)), kind,
+                              RegisterRepresentation::Float32(),
+                              RegisterRepresentation::Word32());
+    }
     case IrOpcode::kTruncateFloat64ToInt64: {
-      ChangeOp::Kind kind;
-      switch (OpParameter<TruncateKind>(op)) {
-        case TruncateKind::kArchitectureDefault:
-          kind = ChangeOp::Kind::kSignedFloatTruncate;
-          break;
-        case TruncateKind::kSetOverflowToMin:
-          kind = ChangeOp::Kind::kSignedFloatTruncateOverflowToMin;
-          break;
-      }
+      ChangeOp::Kind kind =
+          OpParameter<TruncateKind>(node->op()) ==
+                  TruncateKind::kArchitectureDefault
+              ? ChangeOp::Kind::kSignedFloatTruncate
+              : ChangeOp::Kind::kSignedFloatTruncateOverflowToMin;
       return assembler.Change(Map(node->InputAt(0)), kind,
                               RegisterRepresentation::Float64(),
                               RegisterRepresentation::Word64());
     }
-
     case IrOpcode::kFloat64InsertLowWord32:
       return assembler.Float64InsertWord32(
           Map(node->InputAt(0)), Map(node->InputAt(1)),
@@ -531,16 +559,27 @@ OpIndex GraphBuilder::Process(
                                      RegisterRepresentation::PointerSized(),
                                      RegisterRepresentation::Tagged());
 
+    case IrOpcode::kWord32Select:
+      return assembler.Word32Select(
+          Map(node->InputAt(0)), Map(node->InputAt(1)), Map(node->InputAt(2)));
+    case IrOpcode::kWord64Select:
+      return assembler.Word64Select(
+          Map(node->InputAt(0)), Map(node->InputAt(1)), Map(node->InputAt(2)));
+
     case IrOpcode::kLoad:
+    case IrOpcode::kLoadImmutable:
+    case IrOpcode::kProtectedLoad:
     case IrOpcode::kUnalignedLoad: {
       MemoryRepresentation loaded_rep =
           MemoryRepresentation::FromMachineType(LoadRepresentationOf(op));
       RegisterRepresentation result_rep = loaded_rep.ToRegisterRepresentation();
       Node* base = node->InputAt(0);
       Node* index = node->InputAt(1);
-      LoadOp::Kind kind = opcode == IrOpcode::kLoad
-                              ? LoadOp::Kind::kRawAligned
-                              : LoadOp::Kind::kRawUnaligned;
+      // It's ok to merge LoadImmutable into Load after scheduling.
+      LoadOp::Kind kind =
+          opcode == IrOpcode::kUnalignedLoad   ? LoadOp::Kind::kRawUnaligned
+          : opcode == IrOpcode::kProtectedLoad ? LoadOp::Kind::kProtected
+                                               : LoadOp::Kind::kRawAligned;
       if (index->opcode() == IrOpcode::kInt32Constant) {
         int32_t offset = OpParameter<int32_t>(index->op());
         return assembler.Load(Map(base), kind, loaded_rep, result_rep, offset);
@@ -559,14 +598,17 @@ OpIndex GraphBuilder::Process(
     }
 
     case IrOpcode::kStore:
-    case IrOpcode::kUnalignedStore: {
-      bool aligned = opcode == IrOpcode::kStore;
+    case IrOpcode::kUnalignedStore:
+    case IrOpcode::kProtectedStore: {
+      bool aligned = opcode != IrOpcode::kUnalignedStore;
       StoreRepresentation store_rep =
           aligned ? StoreRepresentationOf(op)
                   : StoreRepresentation(UnalignedStoreRepresentationOf(op),
                                         WriteBarrierKind::kNoWriteBarrier);
       StoreOp::Kind kind =
-          aligned ? StoreOp::Kind::kRawAligned : StoreOp::Kind::kRawUnaligned;
+          opcode == IrOpcode::kStore            ? StoreOp::Kind::kRawAligned
+          : opcode == IrOpcode::kUnalignedStore ? StoreOp::Kind::kRawAligned
+                                                : StoreOp::Kind::kProtected;
       Node* base = node->InputAt(0);
       Node* index = node->InputAt(1);
       Node* value = node->InputAt(2);
@@ -654,6 +696,21 @@ OpIndex GraphBuilder::Process(
       return call;
     }
 
+    case IrOpcode::kTailCall: {
+      auto call_descriptor = CallDescriptorOf(op);
+      base::SmallVector<OpIndex, 16> arguments;
+      // The input `0` is the callee, the following value inputs are the
+      // arguments. `CallDescriptor::InputCount()` counts the callee and
+      // arguments.
+      OpIndex callee = Map(node->InputAt(0));
+      for (int i = 1; i < static_cast<int>(call_descriptor->InputCount());
+           ++i) {
+        arguments.emplace_back(Map(node->InputAt(i)));
+      }
+      return assembler.TailCall(callee, base::VectorOf(arguments),
+                                call_descriptor);
+    }
+
     case IrOpcode::kFrameState: {
       FrameState frame_state{node};
       FrameStateData::Builder builder;
@@ -671,6 +728,13 @@ OpIndex GraphBuilder::Process(
       bool negated = op->opcode() == IrOpcode::kDeoptimizeUnless;
       return assembler.DeoptimizeIf(condition, frame_state, negated,
                                     &DeoptimizeParametersOf(op));
+    }
+
+    case IrOpcode::kTrapIf:
+    case IrOpcode::kTrapUnless: {
+      OpIndex condition = Map(node->InputAt(0));
+      bool negated = op->opcode() == IrOpcode::kTrapUnless;
+      return assembler.TrapIf(condition, negated, TrapIdOf(op));
     }
 
     case IrOpcode::kDeoptimize: {

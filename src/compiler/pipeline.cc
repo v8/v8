@@ -85,6 +85,7 @@
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/optimization-phase.h"
 #include "src/compiler/turboshaft/recreate-schedule.h"
+#include "src/compiler/turboshaft/simplify-tf-loops.h"
 #include "src/compiler/turboshaft/value-numbering-assembler.h"
 #include "src/compiler/type-narrowing-reducer.h"
 #include "src/compiler/typed-optimization.h"
@@ -2104,6 +2105,19 @@ struct WasmGCOptimizationPhase {
   }
 };
 
+struct SimplifyLoopsPhase {
+  DECL_PIPELINE_PHASE_CONSTANTS(SimplifyLoops)
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    GraphReducer graph_reducer(
+        temp_zone, data->graph(), &data->info()->tick_counter(), data->broker(),
+        data->jsgraph()->Dead(), data->observe_node_manager());
+    SimplifyTFLoops simplify_loops(&graph_reducer, data->mcgraph());
+    AddReducer(data, &graph_reducer, &simplify_loops);
+    graph_reducer.ReduceGraph();
+  }
+};
+
 struct WasmGCLoweringPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(WasmGCLowering)
 
@@ -3384,15 +3398,22 @@ void Pipeline::GenerateCodeForWasmFunction(
     pipeline.Run<MachineOperatorOptimizationPhase>();
     pipeline.RunPrintAndVerify(MachineOperatorOptimizationPhase::phase_name(),
                                true);
-    pipeline.Run<DecompressionOptimizationPhase>();
-    pipeline.RunPrintAndVerify(DecompressionOptimizationPhase::phase_name(),
-                               true);
+    if (!v8_flags.turboshaft_wasm) {
+      pipeline.Run<DecompressionOptimizationPhase>();
+      pipeline.RunPrintAndVerify(DecompressionOptimizationPhase::phase_name(),
+                                 true);
+    }
   }
 
   if (v8_flags.wasm_opt) {
     pipeline.Run<BranchConditionDuplicationPhase>();
     pipeline.RunPrintAndVerify(BranchConditionDuplicationPhase::phase_name(),
                                true);
+  }
+
+  if (v8_flags.turboshaft_wasm) {
+    pipeline.Run<SimplifyLoopsPhase>();
+    pipeline.RunPrintAndVerify(SimplifyLoopsPhase::phase_name(), true);
   }
 
   if (v8_flags.turbo_splitting && !is_asm_js) {
@@ -3407,6 +3428,30 @@ void Pipeline::GenerateCodeForWasmFunction(
   pipeline.ComputeScheduledGraph();
 
   Linkage linkage(call_descriptor);
+
+  if (v8_flags.turboshaft_wasm) {
+    if (base::Optional<BailoutReason> bailout =
+            pipeline.Run<BuildTurboshaftPhase>()) {
+      pipeline.info()->AbortOptimization(*bailout);
+      data.EndPhaseKind();
+      info->SetWasmCompilationResult({});
+      return;
+    }
+    pipeline.Run<PrintTurboshaftGraphPhase>(BuildTurboshaftPhase::phase_name());
+
+    pipeline.Run<OptimizeTurboshaftPhase>();
+    pipeline.Run<PrintTurboshaftGraphPhase>(
+        OptimizeTurboshaftPhase::phase_name());
+
+    pipeline.Run<DecompressionOptimizationPhase>();
+    pipeline.Run<PrintTurboshaftGraphPhase>(
+        DecompressionOptimizationPhase::phase_name());
+
+    pipeline.Run<TurboshaftRecreateSchedulePhase>(&linkage);
+    TraceSchedule(data.info(), &data, data.schedule(),
+                  TurboshaftRecreateSchedulePhase::phase_name());
+  }
+
   if (!pipeline.SelectInstructions(&linkage)) return;
   pipeline.AssembleCode(&linkage);
 

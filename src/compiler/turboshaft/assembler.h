@@ -11,16 +11,13 @@
 #include <memory>
 #include <type_traits>
 
-#include "src/base/iterator.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/small-vector.h"
 #include "src/base/template-utils.h"
-#include "src/codegen/machine-type.h"
-#include "src/codegen/source-position.h"
+#include "src/codegen/reloc-info.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/operations.h"
-#include "src/zone/zone-containers.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -359,8 +356,28 @@ class AssemblerInterface : public Superclass {
                         WordRepresentation::Word32())
   DECL_SINGLE_REP_UNARY(Word64CountLeadingZeros, WordUnary, CountLeadingZeros,
                         WordRepresentation::Word64())
+  DECL_MULTI_REP_UNARY(WordCountTrailingZeros, WordUnary, WordRepresentation,
+                       CountTrailingZeros)
+  DECL_SINGLE_REP_UNARY(Word32CountTrailingZeros, WordUnary, CountTrailingZeros,
+                        WordRepresentation::Word32())
+  DECL_SINGLE_REP_UNARY(Word64CountTrailingZeros, WordUnary, CountTrailingZeros,
+                        WordRepresentation::Word64())
+  DECL_MULTI_REP_UNARY(WordPopCount, WordUnary, WordRepresentation, PopCount)
+  DECL_SINGLE_REP_UNARY(Word32PopCount, WordUnary, PopCount,
+                        WordRepresentation::Word32())
+  DECL_SINGLE_REP_UNARY(Word64PopCount, WordUnary, PopCount,
+                        WordRepresentation::Word64())
 #undef DECL_SINGLE_REP_UNARY
 #undef DECL_MULTI_REP_UNARY
+
+  OpIndex Word32Select(OpIndex condition, OpIndex left, OpIndex right) {
+    return subclass().Select(condition, left, right,
+                             WordRepresentation::Word32());
+  }
+  OpIndex Word64Select(OpIndex condition, OpIndex left, OpIndex right) {
+    return subclass().Select(condition, left, right,
+                             WordRepresentation::Word64());
+  }
 
   OpIndex Word32Constant(uint32_t value) {
     return subclass().Constant(ConstantOp::Kind::kWord32, uint64_t{value});
@@ -412,6 +429,13 @@ class AssemblerInterface : public Superclass {
   }
   OpIndex ExternalConstant(ExternalReference value) {
     return subclass().Constant(ConstantOp::Kind::kExternal, value);
+  }
+  OpIndex RelocatableConstant(int64_t value, RelocInfo::Mode mode) {
+    DCHECK_EQ(mode, any_of(RelocInfo::WASM_CALL, RelocInfo::WASM_STUB_CALL));
+    return subclass().Constant(mode == RelocInfo::WASM_CALL
+                                   ? ConstantOp::Kind::kRelocatableWasmCall
+                                   : ConstantOp::Kind::kRelocatableWasmStubCall,
+                               static_cast<uint64_t>(value));
   }
 
 #define DECL_CHANGE(name, kind, from, to)                    \

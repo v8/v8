@@ -402,6 +402,11 @@ struct OptimizationPhase<Analyzer, Assembler>::Impl {
     auto arguments = MapToNewGraph<16>(op.arguments());
     return assembler.Call(callee, base::VectorOf(arguments), op.descriptor);
   }
+  OpIndex ReduceTailCall(const TailCallOp& op) {
+    OpIndex callee = MapToNewGraph(op.callee());
+    auto arguments = MapToNewGraph<16>(op.arguments());
+    return assembler.TailCall(callee, base::VectorOf(arguments), op.descriptor);
+  }
   OpIndex ReduceReturn(const ReturnOp& op) {
     // We very rarely have tuples longer than 4.
     auto return_values = MapToNewGraph<4>(op.return_values());
@@ -439,6 +444,11 @@ struct OptimizationPhase<Analyzer, Assembler>::Impl {
   }
   OpIndex ReduceTaggedBitcast(const TaggedBitcastOp& op) {
     return assembler.TaggedBitcast(MapToNewGraph(op.input()), op.from, op.to);
+  }
+  OpIndex ReduceSelect(const SelectOp& op) {
+    return assembler.Select(MapToNewGraph(op.condition()),
+                            MapToNewGraph(op.left()), MapToNewGraph(op.right()),
+                            op.rep);
   }
   OpIndex ReduceConstant(const ConstantOp& op) {
     return assembler.Constant(op.kind, op.storage);
@@ -492,6 +502,10 @@ struct OptimizationPhase<Analyzer, Assembler>::Impl {
     return assembler.DeoptimizeIf(MapToNewGraph(op.condition()),
                                   MapToNewGraph(op.frame_state()), op.negated,
                                   op.parameters);
+  }
+  OpIndex ReduceTrapIf(const TrapIfOp& op) {
+    return assembler.TrapIf(MapToNewGraph(op.condition()), op.negated,
+                            op.trap_id);
   }
   OpIndex ReduceTuple(const TupleOp& op) {
     return assembler.Tuple(base::VectorOf(MapToNewGraph<4>(op.inputs())));

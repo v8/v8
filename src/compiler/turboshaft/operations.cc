@@ -8,9 +8,7 @@
 #include <sstream>
 
 #include "src/base/platform/mutex.h"
-#include "src/base/platform/platform.h"
 #include "src/codegen/machine-type.h"
-#include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/frame-states.h"
@@ -49,6 +47,10 @@ std::ostream& operator<<(std::ostream& os, WordUnaryOp::Kind kind) {
       return os << "ReverseBytes";
     case WordUnaryOp::Kind::kCountLeadingZeros:
       return os << "CountLeadingZeros";
+    case WordUnaryOp::Kind::kCountTrailingZeros:
+      return os << "CountTrailingZeros";
+    case WordUnaryOp::Kind::kPopCount:
+      return os << "PopCount";
   }
 }
 
@@ -143,6 +145,23 @@ bool FloatUnaryOp::IsSupported(Kind kind, FloatRepresentation rep) {
   }
 }
 
+// static
+bool WordUnaryOp::IsSupported(Kind kind, WordRepresentation rep) {
+  switch (kind) {
+    case Kind::kCountLeadingZeros:
+    case Kind::kReverseBytes:
+      return true;
+    case Kind::kCountTrailingZeros:
+      return rep == WordRepresentation::Word32()
+                 ? SupportedOperations::word32_ctz()
+                 : SupportedOperations::word64_ctz();
+    case Kind::kPopCount:
+      return rep == WordRepresentation::Word32()
+                 ? SupportedOperations::word32_popcnt()
+                 : SupportedOperations::word64_popcnt();
+  }
+}
+
 std::ostream& operator<<(std::ostream& os, ShiftOp::Kind kind) {
   switch (kind) {
     case ShiftOp::Kind::kShiftRightArithmeticShiftOutZeros:
@@ -181,12 +200,16 @@ std::ostream& operator<<(std::ostream& os, ChangeOp::Kind kind) {
       return os << "UnsignedNarrowing";
     case ChangeOp::Kind::kFloatConversion:
       return os << "FloatConversion";
-    case ChangeOp::Kind::kSignedFloatTruncate:
-      return os << "SignedFloatTruncate";
     case ChangeOp::Kind::kJSFloatTruncate:
       return os << "JSFloatTruncate";
+    case ChangeOp::Kind::kSignedFloatTruncate:
+      return os << "SignedFloatTruncate";
     case ChangeOp::Kind::kSignedFloatTruncateOverflowToMin:
       return os << "SignedFloatTruncateOverflowToMin";
+    case ChangeOp::Kind::kUnsignedFloatTruncate:
+      return os << "UnsignedFloatTruncate";
+    case ChangeOp::Kind::kUnsignedFloatTruncateOverflowToMin:
+      return os << "UnsignedFloatTruncateOverflowToMin";
     case ChangeOp::Kind::kSignedToFloat:
       return os << "SignedToFloat";
     case ChangeOp::Kind::kUnsignedToFloat:
@@ -268,6 +291,14 @@ void ConstantOp::PrintOptions(std::ostream& os) const {
       break;
     case Kind::kCompressedHeapObject:
       os << "compressed heap object: " << handle();
+      break;
+    case Kind::kRelocatableWasmCall:
+      os << "relocatable wasm call: 0x"
+         << reinterpret_cast<void*>(storage.integral);
+      break;
+    case Kind::kRelocatableWasmStubCall:
+      os << "relocatable wasm stub call: 0x"
+         << reinterpret_cast<void*>(storage.integral);
       break;
   }
   os << "]";
@@ -485,8 +516,8 @@ std::ostream& operator<<(std::ostream& os, OpProperties opProperties) {
     os << "Reading";
   } else if (opProperties == OpProperties::Writing()) {
     os << "Writing";
-  } else if (opProperties == OpProperties::CanDeopt()) {
-    os << "CanDeopt";
+  } else if (opProperties == OpProperties::CanAbort()) {
+    os << "CanAbort";
   } else if (opProperties == OpProperties::AnySideEffects()) {
     os << "AnySideEffects";
   } else if (opProperties == OpProperties::BlockTerminator()) {
