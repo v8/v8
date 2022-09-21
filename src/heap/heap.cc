@@ -3935,7 +3935,7 @@ void Heap::NotifyObjectSizeChange(HeapObject object, int old_size, int new_size,
 void Heap::UpdateInvalidatedObjectSize(HeapObject object, int new_size) {
   if (!MayContainRecordedSlots(object)) return;
 
-  if (incremental_marking()->IsCompacting()) {
+  if (incremental_marking()->IsCompacting() || gc_state() == MARK_COMPACT) {
     MemoryChunk::FromHeapObject(object)
         ->UpdateInvalidatedObjectSize<OLD_TO_OLD>(object, new_size);
   }
