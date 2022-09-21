@@ -233,14 +233,13 @@ class TranslationArrayProcessor {
   }
 
  private:
-  const InputLocation* EmitDeoptFrame(const MaglevCompilationUnit& unit,
-                                      const CheckpointedInterpreterState& state,
-                                      const InputLocation* input_locations) {
+  void EmitDeoptFrame(const MaglevCompilationUnit& unit,
+                      const CheckpointedInterpreterState& state,
+                      const InputLocation* input_locations) {
     if (state.parent) {
       // Deopt input locations are in the order of deopt frame emission, so
       // update the pointer after emitting the parent frame.
-      input_locations =
-          EmitDeoptFrame(*unit.caller(), *state.parent, input_locations);
+      EmitDeoptFrame(*unit.caller(), *state.parent, input_locations);
     }
 
     // Returns are used for updating an accumulator or register after a lazy
@@ -252,9 +251,8 @@ class TranslationArrayProcessor {
         GetDeoptLiteral(*unit.shared_function_info().object()),
         unit.register_count(), return_offset, return_count);
 
-    return EmitDeoptFrameValues(unit, state.register_frame, input_locations,
-                                interpreter::Register::invalid_value(),
-                                return_count);
+    EmitDeoptFrameValues(unit, state.register_frame, input_locations,
+                         interpreter::Register::invalid_value(), return_count);
   }
 
   void EmitEagerDeopt(EagerDeoptInfo* deopt_info) {
@@ -283,8 +281,8 @@ class TranslationArrayProcessor {
     if (deopt_info->state.parent) {
       // Deopt input locations are in the order of deopt frame emission, so
       // update the pointer after emitting the parent frame.
-      input_locations = EmitDeoptFrame(
-          *unit.caller(), *deopt_info->state.parent, input_locations);
+      EmitDeoptFrame(*unit.caller(), *deopt_info->state.parent,
+                     input_locations);
     }
 
     // Return offsets are counted from the end of the translation frame, which
@@ -400,10 +398,10 @@ class TranslationArrayProcessor {
                            result_location.index() + result_size - 1);
   }
 
-  const InputLocation* EmitDeoptFrameValues(
+  void EmitDeoptFrameValues(
       const MaglevCompilationUnit& compilation_unit,
       const CompactInterpreterFrameState* checkpoint_state,
-      const InputLocation* input_locations,
+      const InputLocation*& input_location,
       interpreter::Register result_location, int result_size) {
     // Closure
     if (compilation_unit.inlining_depth() == 0) {
@@ -418,7 +416,6 @@ class TranslationArrayProcessor {
     // TODO(leszeks): The input locations array happens to be in the same order
     // as parameters+context+locals+accumulator are accessed here. We should
     // make this clearer and guard against this invariant failing.
-    const InputLocation* input_location = input_locations;
 
     // Parameters
     {
@@ -430,9 +427,9 @@ class TranslationArrayProcessor {
               translation_array_builder().StoreOptimizedOut();
             } else {
               EmitDeoptFrameSingleValue(value, *input_location);
+              input_location++;
             }
             i++;
-            input_location++;
           });
     }
 
@@ -447,18 +444,15 @@ class TranslationArrayProcessor {
       checkpoint_state->ForEachLocal(
           compilation_unit, [&](ValueNode* value, interpreter::Register reg) {
             DCHECK_LE(i, reg.index());
-            if (InReturnValues(reg, result_location, result_size)) {
-              input_location++;
-              return;
-            }
+            if (InReturnValues(reg, result_location, result_size)) return;
             while (i < reg.index()) {
               translation_array_builder().StoreOptimizedOut();
               i++;
             }
             DCHECK_EQ(i, reg.index());
             EmitDeoptFrameSingleValue(value, *input_location);
-            i++;
             input_location++;
+            i++;
           });
       while (i < compilation_unit.register_count()) {
         translation_array_builder().StoreOptimizedOut();
@@ -473,12 +467,11 @@ class TranslationArrayProcessor {
                           result_location, result_size)) {
         ValueNode* value = checkpoint_state->accumulator(compilation_unit);
         EmitDeoptFrameSingleValue(value, *input_location);
+        input_location++;
       } else {
         translation_array_builder().StoreOptimizedOut();
       }
     }
-
-    return input_location;
   }
 
   int GetDeoptLiteral(Object obj) {

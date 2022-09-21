@@ -429,8 +429,8 @@ void PrintLazyDeopt(std::ostream& os, std::vector<BasicBlock*> targets,
         } else {
           os << PrintNodeLabel(graph_labeller, node) << ":"
              << deopt_info->input_locations[index].operand();
+          index++;
         }
-        index++;
       });
   os << "}\n";
 }
