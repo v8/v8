@@ -290,12 +290,13 @@ struct OptimizationPhase<Analyzer, Assembler>::Impl {
 
   V8_INLINE OpIndex ReduceGoto(const GotoOp& op) {
     Block* destination = MapToNewGraph(op.destination->index());
+    assembler.current_block()->SetOrigin(current_input_block);
+    assembler.Goto(destination);
     if (destination->IsBound()) {
       DCHECK(destination->IsLoop());
       FixLoopPhis(destination);
     }
-    assembler.current_block()->SetOrigin(current_input_block);
-    return assembler.Goto(destination);
+    return OpIndex::Invalid();
   }
   V8_INLINE OpIndex ReduceBranch(const BranchOp& op) {
     Block* if_true = MapToNewGraph(op.if_true->index());
