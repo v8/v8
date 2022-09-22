@@ -68,6 +68,7 @@
 #include "src/objects/js-weak-refs.h"
 #include "src/objects/ordered-hash-table.h"
 #include "src/objects/property-cell.h"
+#include "src/objects/property-descriptor.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/swiss-name-dictionary-inl.h"
 #include "src/objects/templates.h"
@@ -1774,9 +1775,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     native_context()->set_initial_array_prototype(*proto);
 
     InitializeJSArrayMaps(isolate_, native_context(),
-
                           handle(array_function->initial_map(), isolate_));
-
     SimpleInstallFunction(isolate_, array_function, "isArray",
                           Builtin::kArrayIsArray, 1, true);
     SimpleInstallFunction(isolate_, array_function, "from", Builtin::kArrayFrom,
@@ -5792,6 +5791,58 @@ bool Genesis::InstallABunchOfRandomThings() {
     map->SetConstructor(native_context()->object_function());
 
     native_context()->set_data_property_descriptor_map(*map);
+  }
+
+  {
+    // -- TemplateLiteral JSArray Map
+    Handle<JSFunction> array_function(native_context()->array_function(),
+                                      isolate());
+    Handle<Map> template_map(array_function->initial_map(), isolate_);
+    template_map = Map::CopyAsElementsKind(isolate_, template_map,
+                                           PACKED_ELEMENTS, OMIT_TRANSITION);
+    template_map->set_instance_size(template_map->instance_size() +
+                                    kTaggedSize);
+    // Temporarily instantiate full template_literal_object to get the final
+    // map.
+    auto template_object =
+        Handle<JSArray>::cast(factory()->NewJSObjectFromMap(template_map));
+    {
+      DisallowGarbageCollection no_gc;
+      JSArray raw = *template_object;
+      raw.set_elements(ReadOnlyRoots(isolate()).empty_fixed_array());
+      raw.set_length(Smi::FromInt(0));
+    }
+
+    // Install a "raw" data property for {raw_object} on {template_object}.
+    // See ES#sec-gettemplateobject.
+    PropertyDescriptor raw_desc;
+    // Use arbrirary object {template_object} as ".raw" value.
+    raw_desc.set_value(template_object);
+    raw_desc.set_configurable(false);
+    raw_desc.set_enumerable(false);
+    raw_desc.set_writable(false);
+    JSArray::DefineOwnProperty(isolate(), template_object,
+                               factory()->raw_string(), &raw_desc,
+                               Just(kThrowOnError))
+        .ToChecked();
+
+    // Freeze the {template_object} as well.
+    JSObject::SetIntegrityLevel(template_object, FROZEN, kThrowOnError)
+        .ToChecked();
+    {
+      DisallowGarbageCollection no_gc;
+      // Verify TemplateLiteralObject::kRawFieldOffset
+      DescriptorArray desc = template_object->map().instance_descriptors();
+      InternalIndex descriptor_index =
+          desc.Search(*factory()->raw_string(), desc.number_of_descriptors());
+      FieldIndex index =
+          FieldIndex::ForDescriptor(template_object->map(), descriptor_index);
+      CHECK(index.is_inobject());
+      CHECK_EQ(index.offset(), TemplateLiteralObject::kRawFieldOffset);
+    }
+
+    native_context()->set_js_array_template_literal_object_map(
+        template_object->map());
   }
 
   // Create a constructor for RegExp results (a variant of Array that

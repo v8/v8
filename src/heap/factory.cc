@@ -2730,6 +2730,10 @@ Handle<JSObject> Factory::NewJSObjectFromMap(
   InitializeJSObjectFromMap(js_obj, *empty_fixed_array(), *map);
 
   DCHECK(js_obj.HasFastElements() ||
+         (isolate()->bootstrapper()->IsActive() ||
+          *map == isolate()
+                      ->raw_native_context()
+                      .js_array_template_literal_object_map()) ||
          js_obj.HasTypedArrayOrRabGsabTypedArrayElements() ||
          js_obj.HasFastStringWrapperElements() ||
          js_obj.HasFastArgumentsElements() || js_obj.HasDictionaryElements() ||
@@ -2802,7 +2806,9 @@ Handle<JSArray> Factory::NewJSArrayWithElements(Handle<FixedArrayBase> elements,
                                                 AllocationType allocation) {
   Handle<JSArray> array = NewJSArrayWithUnverifiedElements(
       elements, elements_kind, length, allocation);
+#ifdef ENABLE_SLOW_DCHECKS
   JSObject::ValidateElements(*array);
+#endif
   return array;
 }
 
@@ -2816,13 +2822,36 @@ Handle<JSArray> Factory::NewJSArrayWithUnverifiedElements(
     JSFunction array_function = native_context.array_function();
     map = array_function.initial_map();
   }
-  Handle<JSArray> array = Handle<JSArray>::cast(
-      NewJSObjectFromMap(handle(map, isolate()), allocation));
+  return NewJSArrayWithUnverifiedElements(handle(map, isolate()), elements,
+                                          length, allocation);
+}
+
+Handle<JSArray> Factory::NewJSArrayWithUnverifiedElements(
+    Handle<Map> map, Handle<FixedArrayBase> elements, int length,
+    AllocationType allocation) {
+  auto array = Handle<JSArray>::cast(NewJSObjectFromMap(map, allocation));
   DisallowGarbageCollection no_gc;
   JSArray raw = *array;
   raw.set_elements(*elements);
   raw.set_length(Smi::FromInt(length));
   return array;
+}
+
+Handle<JSArray> Factory::NewJSArrayForTemplateLiteralArray(
+    Handle<FixedArray> cooked_strings, Handle<FixedArray> raw_strings) {
+  Handle<JSArray> raw_object =
+      NewJSArrayWithElements(raw_strings, PACKED_ELEMENTS,
+                             raw_strings->length(), AllocationType::kOld);
+  JSObject::SetIntegrityLevel(raw_object, FROZEN, kThrowOnError).ToChecked();
+
+  Handle<NativeContext> native_context = isolate()->native_context();
+  Handle<JSArray> template_object = NewJSArrayWithUnverifiedElements(
+      handle(native_context->js_array_template_literal_object_map(), isolate()),
+      cooked_strings, cooked_strings->length(), AllocationType::kOld);
+  TemplateLiteralObject::SetRaw(template_object, raw_object);
+  DCHECK_EQ(template_object->map(),
+            native_context->js_array_template_literal_object_map());
+  return template_object;
 }
 
 void Factory::NewJSArrayStorage(Handle<JSArray> array, int length, int capacity,

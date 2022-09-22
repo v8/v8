@@ -426,6 +426,10 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
   return Handle<Object>::null();
 }
 
+bool NativeContext::HasTemplateLiteralObject(JSArray array) {
+  return array.map() == js_array_template_literal_object_map();
+}
+
 void NativeContext::AddOptimizedCode(CodeT code) {
   DCHECK(CodeKindCanDeoptimize(code.kind()));
   DCHECK(code.next_code_link().IsUndefined());

@@ -13,6 +13,7 @@
 #include "include/v8-context.h"
 #include "include/v8-extension.h"
 #include "include/v8-local-handle.h"
+#include "include/v8-object.h"
 #include "include/v8-primitive.h"
 #include "include/v8-template.h"
 #include "src/api/api-inl.h"
@@ -100,6 +101,18 @@ class WithIsolateMixin : public TMixin {
 
   v8::Isolate* v8_isolate() const { return isolate_wrapper_.isolate(); }
 
+  Local<Value> RunJS(const char* source, Local<Context> context) {
+    return RunJS(
+        v8::String::NewFromUtf8(this->v8_isolate(), source).ToLocalChecked(),
+        context);
+  }
+
+  Local<Value> RunJS(Local<String> source, Local<Context> context) {
+    Local<Script> script =
+        v8::Script::Compile(context, source).ToLocalChecked();
+    return script->Run(context).ToLocalChecked();
+  }
+
  private:
   v8::IsolateWrapper isolate_wrapper_;
 };
@@ -134,6 +147,12 @@ class WithIsolateScopeMixin : public TMixin {
         v8::String::NewFromUtf8(this->v8_isolate(), source).ToLocalChecked());
   }
 
+  Local<Value> RunJS(Local<Context> context, const char* source) {
+    return RunJS(
+        context,
+        v8::String::NewFromUtf8(this->v8_isolate(), source).ToLocalChecked());
+  }
+
   MaybeLocal<Value> TryRunJS(const char* source) {
     return TryRunJS(
         v8::String::NewFromUtf8(this->v8_isolate(), source).ToLocalChecked());
@@ -141,6 +160,11 @@ class WithIsolateScopeMixin : public TMixin {
 
   static MaybeLocal<Value> TryRunJS(Isolate* isolate, Local<String> source) {
     auto context = isolate->GetCurrentContext();
+    return TryRunJS(context, source);
+  }
+
+  static MaybeLocal<Value> TryRunJS(Local<Context> context,
+                                    Local<String> source) {
     v8::Local<v8::Value> result;
     Local<Script> script =
         v8::Script::Compile(context, source).ToLocalChecked();
@@ -208,6 +232,10 @@ class WithIsolateScopeMixin : public TMixin {
  private:
   Local<Value> RunJS(Local<String> source) {
     return TryRunJS(source).ToLocalChecked();
+  }
+
+  Local<Value> RunJS(Local<Context> context, Local<String> source) {
+    return TryRunJS(context, source).ToLocalChecked();
   }
 
   MaybeLocal<Value> TryRunJS(Local<String> source) {

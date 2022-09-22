@@ -6715,6 +6715,14 @@ void v8::Context::SetPromiseHooks(Local<Function> init_hook,
 #endif  // V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
 }
 
+bool Context::HasTemplateLiteralObject(Local<Value> object) {
+  i::DisallowGarbageCollection no_gc;
+  i::Object i_object = *Utils::OpenHandle(*object);
+  if (!i_object.IsJSArray()) return false;
+  return Utils::OpenHandle(this)->native_context().HasTemplateLiteralObject(
+      i::JSArray::cast(i_object));
+}
+
 MaybeLocal<Context> metrics::Recorder::GetContext(
     Isolate* v8_isolate, metrics::Recorder::ContextId id) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
