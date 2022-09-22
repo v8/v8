@@ -726,6 +726,8 @@ struct WordUnaryOp : FixedArityOperationT<1, WordUnaryOp> {
     kCountLeadingZeros,
     kCountTrailingZeros,
     kPopCount,
+    kSignExtend8,
+    kSignExtend16,
   };
   Kind kind;
   WordRepresentation rep;
@@ -898,12 +900,16 @@ struct ChangeOp : FixedArityOperationT<1, ChangeOp> {
     // like kSignedFloatTruncate, but overflow guaranteed to result in the
     // minimal integer
     kSignedFloatTruncateOverflowToMin,
+    // like kSignedFloatTruncate, but saturates to min/max value if overflow
+    kSignedFloatTruncateSat,
     // conversion to unsigned integer, rounding towards zero,
     // overflow behavior system-specific
     kUnsignedFloatTruncate,
     // like kUnsignedFloatTruncate, but overflow guaranteed to result in the
     // minimal integer
     kUnsignedFloatTruncateOverflowToMin,
+    // like kUnsignedFloatTruncate, but saturates to 0/max value if overflow
+    kUnsignedFloatTruncateSat,
     // JS semantics float64 to word32 truncation
     // https://tc39.es/ecma262/#sec-touint32
     kJSFloatTruncate,

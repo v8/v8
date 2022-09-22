@@ -367,6 +367,18 @@ class AssemblerInterface : public Superclass {
                         WordRepresentation::Word32())
   DECL_SINGLE_REP_UNARY(Word64PopCount, WordUnary, PopCount,
                         WordRepresentation::Word64())
+  DECL_MULTI_REP_UNARY(WordSignExtend8, WordUnary, WordRepresentation,
+                       SignExtend8)
+  DECL_SINGLE_REP_UNARY(Word32SignExtend8, WordUnary, SignExtend8,
+                        WordRepresentation::Word32())
+  DECL_SINGLE_REP_UNARY(Word64SignExtend8, WordUnary, SignExtend8,
+                        WordRepresentation::Word64())
+  DECL_MULTI_REP_UNARY(WordSignExtend16, WordUnary, WordRepresentation,
+                       SignExtend16)
+  DECL_SINGLE_REP_UNARY(Word32SignExtend16, WordUnary, SignExtend16,
+                        WordRepresentation::Word32())
+  DECL_SINGLE_REP_UNARY(Word64SignExtend16, WordUnary, SignExtend16,
+                        WordRepresentation::Word64())
 #undef DECL_SINGLE_REP_UNARY
 #undef DECL_MULTI_REP_UNARY
 

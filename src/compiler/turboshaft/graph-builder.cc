@@ -436,6 +436,10 @@ OpIndex GraphBuilder::Process(
       UNARY_CASE(Word64Ctz, Word64CountTrailingZeros)
       UNARY_CASE(Word32Popcnt, Word32PopCount)
       UNARY_CASE(Word64Popcnt, Word64PopCount)
+      UNARY_CASE(SignExtendWord8ToInt32, Word32SignExtend8)
+      UNARY_CASE(SignExtendWord16ToInt32, Word32SignExtend16)
+      UNARY_CASE(SignExtendWord8ToInt64, Word64SignExtend8)
+      UNARY_CASE(SignExtendWord16ToInt64, Word64SignExtend16)
 
       UNARY_CASE(Float32Abs, Float32Abs)
       UNARY_CASE(Float64Abs, Float64Abs)
@@ -505,6 +509,19 @@ OpIndex GraphBuilder::Process(
       CHANGE_CASE(ChangeFloat64ToUint32, UnsignedNarrowing, Float64, Word32)
       CHANGE_CASE(ChangeFloat64ToInt64, SignedNarrowing, Float64, Word64)
       CHANGE_CASE(ChangeFloat64ToUint64, UnsignedNarrowing, Float64, Word64)
+
+      CHANGE_CASE(TryTruncateFloat64ToUint64, UnsignedFloatTruncateSat, Float64,
+                  Word64)
+      CHANGE_CASE(TryTruncateFloat64ToUint32, UnsignedFloatTruncateSat, Float64,
+                  Word32)
+      CHANGE_CASE(TryTruncateFloat32ToUint64, UnsignedFloatTruncateSat, Float32,
+                  Word64)
+      CHANGE_CASE(TryTruncateFloat64ToInt64, SignedFloatTruncateSat, Float64,
+                  Word64)
+      CHANGE_CASE(TryTruncateFloat64ToInt32, SignedFloatTruncateSat, Float64,
+                  Word32)
+      CHANGE_CASE(TryTruncateFloat32ToInt64, SignedFloatTruncateSat, Float32,
+                  Word64)
       CHANGE_CASE(Float64ExtractLowWord32, ExtractLowHalf, Float64, Word32)
       CHANGE_CASE(Float64ExtractHighWord32, ExtractHighHalf, Float64, Word32)
 #undef CHANGE_CASE
@@ -540,6 +557,11 @@ OpIndex GraphBuilder::Process(
       return assembler.Change(Map(node->InputAt(0)), kind,
                               RegisterRepresentation::Float64(),
                               RegisterRepresentation::Word64());
+    }
+    case IrOpcode::kTruncateFloat64ToUint32: {
+      return assembler.Change(
+          Map(node->InputAt(0)), ChangeOp::Kind::kUnsignedFloatTruncate,
+          RegisterRepresentation::Float64(), RegisterRepresentation::Word32());
     }
     case IrOpcode::kFloat64InsertLowWord32:
       return assembler.Float64InsertWord32(

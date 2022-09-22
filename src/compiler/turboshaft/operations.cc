@@ -51,6 +51,10 @@ std::ostream& operator<<(std::ostream& os, WordUnaryOp::Kind kind) {
       return os << "CountTrailingZeros";
     case WordUnaryOp::Kind::kPopCount:
       return os << "PopCount";
+    case WordUnaryOp::Kind::kSignExtend8:
+      return os << "SignExtend8";
+    case WordUnaryOp::Kind::kSignExtend16:
+      return os << "SignExtend16";
   }
 }
 
@@ -150,6 +154,8 @@ bool WordUnaryOp::IsSupported(Kind kind, WordRepresentation rep) {
   switch (kind) {
     case Kind::kCountLeadingZeros:
     case Kind::kReverseBytes:
+    case Kind::kSignExtend8:
+    case Kind::kSignExtend16:
       return true;
     case Kind::kCountTrailingZeros:
       return rep == WordRepresentation::Word32()
@@ -224,6 +230,10 @@ std::ostream& operator<<(std::ostream& os, ChangeOp::Kind kind) {
       return os << "SignExtend";
     case ChangeOp::Kind::kBitcast:
       return os << "Bitcast";
+    case ChangeOp::Kind::kSignedFloatTruncateSat:
+      return os << "SignedFloatTruncateSat";
+    case ChangeOp::Kind::kUnsignedFloatTruncateSat:
+      return os << "UnsignedFloatTruncateSat";
   }
 }
 

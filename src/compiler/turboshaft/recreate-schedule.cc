@@ -359,8 +359,6 @@ Node* ScheduleBuilder::ProcessOperation(const OverflowCheckedBinopOp& op) {
   return AddNode(o, {GetNode(op.left()), GetNode(op.right())});
 }
 Node* ScheduleBuilder::ProcessOperation(const WordUnaryOp& op) {
-  DCHECK(op.rep == WordRepresentation::Word32() ||
-         op.rep == WordRepresentation::Word64());
   bool word64 = op.rep == WordRepresentation::Word64();
   const Operator* o;
   switch (op.kind) {
@@ -376,12 +374,18 @@ Node* ScheduleBuilder::ProcessOperation(const WordUnaryOp& op) {
     case WordUnaryOp::Kind::kPopCount:
       o = word64 ? machine.Word64Popcnt().op() : machine.Word32Popcnt().op();
       break;
+    case WordUnaryOp::Kind::kSignExtend8:
+      o = word64 ? machine.SignExtendWord8ToInt64()
+                 : machine.SignExtendWord8ToInt32();
+      break;
+    case WordUnaryOp::Kind::kSignExtend16:
+      o = word64 ? machine.SignExtendWord16ToInt64()
+                 : machine.SignExtendWord16ToInt32();
+      break;
   }
   return AddNode(o, {GetNode(op.input())});
 }
 Node* ScheduleBuilder::ProcessOperation(const FloatUnaryOp& op) {
-  DCHECK(op.rep == FloatRepresentation::Float32() ||
-         op.rep == FloatRepresentation::Float64());
   bool float64 = op.rep == FloatRepresentation::Float64();
   const Operator* o;
   switch (op.kind) {
@@ -629,6 +633,9 @@ Node* ScheduleBuilder::ProcessOperation(const ChangeOp& op) {
       } else if (op.from == FloatRepresentation::Float64() &&
                  op.to == WordRepresentation::Word32()) {
         o = machine.RoundFloat64ToInt32();
+      } else if (op.from == FloatRepresentation::Float32() &&
+                 op.to == WordRepresentation::Word32()) {
+        o = machine.TruncateFloat32ToInt32(TruncateKind::kArchitectureDefault);
       } else {
         UNIMPLEMENTED();
       }
@@ -637,6 +644,9 @@ Node* ScheduleBuilder::ProcessOperation(const ChangeOp& op) {
       if (op.from == FloatRepresentation::Float64() &&
           op.to == WordRepresentation::Word64()) {
         o = machine.TruncateFloat64ToInt64(TruncateKind::kSetOverflowToMin);
+      } else if (op.from == FloatRepresentation::Float32() &&
+                 op.to == WordRepresentation::Word32()) {
+        o = machine.TruncateFloat32ToInt32(TruncateKind::kSetOverflowToMin);
       } else {
         UNIMPLEMENTED();
       }
@@ -645,6 +655,9 @@ Node* ScheduleBuilder::ProcessOperation(const ChangeOp& op) {
       if (op.from == FloatRepresentation::Float32() &&
           op.to == WordRepresentation::Word32()) {
         o = machine.TruncateFloat32ToUint32(TruncateKind::kArchitectureDefault);
+      } else if (op.from == FloatRepresentation::Float64() &&
+                 op.to == WordRepresentation::Word32()) {
+        o = machine.TruncateFloat64ToUint32();
       } else {
         UNIMPLEMENTED();
       }
@@ -774,6 +787,34 @@ Node* ScheduleBuilder::ProcessOperation(const ChangeOp& op) {
         o = machine.ChangeFloat64ToUint32();
       } else {
         UNIMPLEMENTED();
+      }
+      break;
+    case Kind::kSignedFloatTruncateSat:
+      if (op.from == FloatRepresentation::Float64() &&
+          op.to == WordRepresentation::Word64()) {
+        o = machine.TryTruncateFloat64ToInt64();
+      } else if (op.from == FloatRepresentation::Float64() &&
+                 op.to == WordRepresentation::Word32()) {
+        o = machine.TryTruncateFloat64ToInt32();
+      } else if (op.from == FloatRepresentation::Float32() &&
+                 op.to == WordRepresentation::Word64()) {
+        o = machine.TryTruncateFloat32ToInt64();
+      } else {
+        UNREACHABLE();
+      }
+      break;
+    case Kind::kUnsignedFloatTruncateSat:
+      if (op.from == FloatRepresentation::Float64() &&
+          op.to == WordRepresentation::Word64()) {
+        o = machine.TryTruncateFloat64ToUint64();
+      } else if (op.from == FloatRepresentation::Float64() &&
+                 op.to == WordRepresentation::Word32()) {
+        o = machine.TryTruncateFloat64ToUint32();
+      } else if (op.from == FloatRepresentation::Float32() &&
+                 op.to == WordRepresentation::Word64()) {
+        o = machine.TryTruncateFloat32ToUint64();
+      } else {
+        UNREACHABLE();
       }
       break;
   }
