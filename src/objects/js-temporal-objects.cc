@@ -6381,18 +6381,17 @@ Maybe<DateRecord> ISOMonthDayFromFields(Isolate* isolate,
                                         const char* method_name) {
   Factory* factory = isolate->factory();
   // 1. Assert: Type(fields) is Object.
-  // 2. Let overflow be ? ToTemporalOverflow(options).
-  ShowOverflow overflow;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, overflow, ToTemporalOverflow(isolate, options, method_name),
-      Nothing<DateRecord>());
-
-  // 3. Set fields to ? PrepareTemporalFields(fields, « "day", "month",
+  // 2. Set fields to ? PrepareTemporalFields(fields, « "day", "month",
   // "monthCode", "year" », «"day"»).
   Handle<FixedArray> field_names = DayMonthMonthCodeYearInFixedArray(isolate);
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, fields,
       PrepareTemporalFields(isolate, fields, field_names, RequiredFields::kDay),
+      Nothing<DateRecord>());
+  // 3. Let overflow be ? ToTemporalOverflow(options).
+  ShowOverflow overflow;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, overflow, ToTemporalOverflow(isolate, options, method_name),
       Nothing<DateRecord>());
   // 4. Let month be ! Get(fields, "month").
   Handle<Object> month_obj =
@@ -9705,18 +9704,18 @@ Maybe<DateRecord> ISODateFromFields(Isolate* isolate, Handle<JSReceiver> fields,
   Factory* factory = isolate->factory();
 
   // 1. Assert: Type(fields) is Object.
-  // 2. Let overflow be ? ToTemporalOverflow(options).
-  ShowOverflow overflow;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, overflow, ToTemporalOverflow(isolate, options, method_name),
-      Nothing<DateRecord>());
-  // 3. Set fields to ? PrepareTemporalFields(fields, « "day", "month",
+  // 2. Set fields to ? PrepareTemporalFields(fields, « "day", "month",
   // "monthCode", "year" », «"year", "day"»).
   Handle<FixedArray> field_names = DayMonthMonthCodeYearInFixedArray(isolate);
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, fields,
       PrepareTemporalFields(isolate, fields, field_names,
                             RequiredFields::kYearAndDay),
+      Nothing<DateRecord>());
+  // 3. Let overflow be ? ToTemporalOverflow(options).
+  ShowOverflow overflow;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, overflow, ToTemporalOverflow(isolate, options, method_name),
       Nothing<DateRecord>());
 
   // 4. Let year be ! Get(fields, "year").
@@ -9976,12 +9975,7 @@ Maybe<DateRecord> ISOYearMonthFromFields(Isolate* isolate,
                                          const char* method_name) {
   Factory* factory = isolate->factory();
   // 1. Assert: Type(fields) is Object.
-  // 2. Let overflow be ? ToTemporalOverflow(options).
-  ShowOverflow overflow;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, overflow, ToTemporalOverflow(isolate, options, method_name),
-      Nothing<DateRecord>());
-  // 3. Set fields to ? PrepareTemporalFields(fields, « "month", "monthCode",
+  // 2. Set fields to ? PrepareTemporalFields(fields, « "month", "monthCode",
   // "year" », «»).
   Handle<FixedArray> field_names = factory->NewFixedArray(3);
   field_names->set(0, ReadOnlyRoots(isolate).month_string());
@@ -9991,6 +9985,11 @@ Maybe<DateRecord> ISOYearMonthFromFields(Isolate* isolate,
       isolate, fields,
       PrepareTemporalFields(isolate, fields, field_names,
                             RequiredFields::kNone),
+      Nothing<DateRecord>());
+  // 3. Let overflow be ? ToTemporalOverflow(options).
+  ShowOverflow overflow;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, overflow, ToTemporalOverflow(isolate, options, method_name),
       Nothing<DateRecord>());
 
   // 4. Let year be ! Get(fields, "year").
