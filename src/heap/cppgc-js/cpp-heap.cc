@@ -286,7 +286,8 @@ class UnifiedHeapConservativeMarkingVisitor final
 class UnifiedHeapMarker final : public cppgc::internal::MarkerBase {
  public:
   UnifiedHeapMarker(Heap* v8_heap, cppgc::internal::HeapBase& cpp_heap,
-                    cppgc::Platform* platform, MarkingConfig config);
+                    cppgc::Platform* platform,
+                    cppgc::internal::MarkingConfig config);
 
   ~UnifiedHeapMarker() final = default;
 
@@ -324,7 +325,7 @@ class UnifiedHeapMarker final : public cppgc::internal::MarkerBase {
 UnifiedHeapMarker::UnifiedHeapMarker(Heap* v8_heap,
                                      cppgc::internal::HeapBase& heap,
                                      cppgc::Platform* platform,
-                                     MarkingConfig config)
+                                     cppgc::internal::MarkingConfig config)
     : cppgc::internal::MarkerBase(heap, platform, config),
       mutator_unified_heap_marking_state_(v8_heap, nullptr),
       marking_visitor_(config.collection_type == CppHeap::CollectionType::kMajor
@@ -625,11 +626,11 @@ void CppHeap::InitializeTracing(CollectionType collection_type,
 
   current_gc_flags_ = gc_flags;
 
-  const UnifiedHeapMarker::MarkingConfig marking_config{
+  const cppgc::internal::MarkingConfig marking_config{
       *collection_type_, StackState::kNoHeapPointers, SelectMarkingType(),
       IsForceGC(current_gc_flags_)
-          ? UnifiedHeapMarker::MarkingConfig::IsForcedGC::kForced
-          : UnifiedHeapMarker::MarkingConfig::IsForcedGC::kNotForced};
+          ? cppgc::internal::MarkingConfig::IsForcedGC::kForced
+          : cppgc::internal::MarkingConfig::IsForcedGC::kNotForced};
   DCHECK_IMPLIES(!isolate_,
                  (MarkingType::kAtomic == marking_config.marking_type) ||
                      force_incremental_marking_for_testing_);
@@ -1004,14 +1005,15 @@ CppHeap::PauseConcurrentMarkingScope::PauseConcurrentMarkingScope(
   }
 }
 
-void CppHeap::CollectGarbage(Config config) {
+void CppHeap::CollectGarbage(cppgc::internal::GCConfig config) {
   if (in_no_gc_scope() || !isolate_) return;
 
   // TODO(mlippautz): Respect full config.
-  const int flags = (config.free_memory_handling ==
-                     Config::FreeMemoryHandling::kDiscardWherePossible)
-                        ? Heap::kReduceMemoryFootprintMask
-                        : Heap::kNoGCFlags;
+  const int flags =
+      (config.free_memory_handling ==
+       cppgc::internal::GCConfig::FreeMemoryHandling::kDiscardWherePossible)
+          ? Heap::kReduceMemoryFootprintMask
+          : Heap::kNoGCFlags;
   isolate_->heap()->CollectAllGarbage(
       flags, GarbageCollectionReason::kCppHeapAllocationFailure);
 }
@@ -1020,7 +1022,9 @@ const cppgc::EmbedderStackState* CppHeap::override_stack_state() const {
   return HeapBase::override_stack_state();
 }
 
-void CppHeap::StartIncrementalGarbageCollection(Config) { UNIMPLEMENTED(); }
+void CppHeap::StartIncrementalGarbageCollection(cppgc::internal::GCConfig) {
+  UNIMPLEMENTED();
+}
 size_t CppHeap::epoch() const { UNIMPLEMENTED(); }
 
 }  // namespace internal

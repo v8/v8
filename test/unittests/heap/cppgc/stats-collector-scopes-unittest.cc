@@ -79,7 +79,7 @@ class V8_NODISCARD CppgcTracingScopesTest : public testing::TestWithHeap {
     GetMarkerRef()->FinishMarking(Config::StackState::kNoHeapPointers);
     GetMarkerRef().reset();
     Heap::From(GetHeap())->stats_collector()->NotifySweepingCompleted(
-        GarbageCollector::Config::SweepingType::kAtomic);
+        GCConfig::SweepingType::kAtomic);
   }
 
   void ResetDelegatingTracingController(const char* expected_name = nullptr) {
@@ -228,13 +228,11 @@ TEST_F(CppgcTracingScopesTest, CheckScopeArgs) {
 
 TEST_F(CppgcTracingScopesTest, InitalScopesAreZero) {
   StatsCollector* stats_collector = Heap::From(GetHeap())->stats_collector();
-  stats_collector->NotifyMarkingStarted(
-      GarbageCollector::Config::CollectionType::kMajor,
-      GarbageCollector::Config::MarkingType::kAtomic,
-      GarbageCollector::Config::IsForcedGC::kNotForced);
+  stats_collector->NotifyMarkingStarted(GCConfig::CollectionType::kMajor,
+                                        GCConfig::MarkingType::kAtomic,
+                                        GCConfig::IsForcedGC::kNotForced);
   stats_collector->NotifyMarkingCompleted(0);
-  stats_collector->NotifySweepingCompleted(
-      GarbageCollector::Config::SweepingType::kAtomic);
+  stats_collector->NotifySweepingCompleted(GCConfig::SweepingType::kAtomic);
   const StatsCollector::Event& event =
       stats_collector->GetPreviousEventForTesting();
   for (int i = 0; i < StatsCollector::kNumHistogramScopeIds; ++i) {
@@ -249,10 +247,9 @@ TEST_F(CppgcTracingScopesTest, TestIndividualScopes) {
   for (int scope_id = 0; scope_id < StatsCollector::kNumHistogramScopeIds;
        ++scope_id) {
     StatsCollector* stats_collector = Heap::From(GetHeap())->stats_collector();
-    stats_collector->NotifyMarkingStarted(
-        GarbageCollector::Config::CollectionType::kMajor,
-        GarbageCollector::Config::MarkingType::kIncremental,
-        GarbageCollector::Config::IsForcedGC::kNotForced);
+    stats_collector->NotifyMarkingStarted(GCConfig::CollectionType::kMajor,
+                                          GCConfig::MarkingType::kIncremental,
+                                          GCConfig::IsForcedGC::kNotForced);
     DelegatingTracingControllerImpl::check_expectations = false;
     {
       StatsCollector::EnabledScope scope(
@@ -265,7 +262,7 @@ TEST_F(CppgcTracingScopesTest, TestIndividualScopes) {
     }
     stats_collector->NotifyMarkingCompleted(0);
     stats_collector->NotifySweepingCompleted(
-        GarbageCollector::Config::SweepingType::kIncremental);
+        GCConfig::SweepingType::kIncremental);
     const StatsCollector::Event& event =
         stats_collector->GetPreviousEventForTesting();
     for (int i = 0; i < StatsCollector::kNumHistogramScopeIds; ++i) {
@@ -284,10 +281,9 @@ TEST_F(CppgcTracingScopesTest, TestIndividualConcurrentScopes) {
   for (int scope_id = 0;
        scope_id < StatsCollector::kNumHistogramConcurrentScopeIds; ++scope_id) {
     StatsCollector* stats_collector = Heap::From(GetHeap())->stats_collector();
-    stats_collector->NotifyMarkingStarted(
-        GarbageCollector::Config::CollectionType::kMajor,
-        GarbageCollector::Config::MarkingType::kAtomic,
-        GarbageCollector::Config::IsForcedGC::kNotForced);
+    stats_collector->NotifyMarkingStarted(GCConfig::CollectionType::kMajor,
+                                          GCConfig::MarkingType::kAtomic,
+                                          GCConfig::IsForcedGC::kNotForced);
     DelegatingTracingControllerImpl::check_expectations = false;
     {
       StatsCollector::EnabledConcurrentScope scope(
@@ -299,8 +295,7 @@ TEST_F(CppgcTracingScopesTest, TestIndividualConcurrentScopes) {
       }
     }
     stats_collector->NotifyMarkingCompleted(0);
-    stats_collector->NotifySweepingCompleted(
-        GarbageCollector::Config::SweepingType::kAtomic);
+    stats_collector->NotifySweepingCompleted(GCConfig::SweepingType::kAtomic);
     const StatsCollector::Event& event =
         stats_collector->GetPreviousEventForTesting();
     for (int i = 0; i < StatsCollector::kNumHistogramScopeIds; ++i) {

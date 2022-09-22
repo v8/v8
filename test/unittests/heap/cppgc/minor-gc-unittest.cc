@@ -107,12 +107,11 @@ class MinorGCTest : public testing::TestWithHeap {
   }
 
   void CollectMinor() {
-    Heap::From(GetHeap())->CollectGarbage(
-        Heap::Config::MinorPreciseAtomicConfig());
+    Heap::From(GetHeap())->CollectGarbage(GCConfig::MinorPreciseAtomicConfig());
   }
 
   void CollectMajor() {
-    Heap::From(GetHeap())->CollectGarbage(Heap::Config::PreciseAtomicConfig());
+    Heap::From(GetHeap())->CollectGarbage(GCConfig::PreciseAtomicConfig());
   }
 
   const auto& RememberedSlots() const {

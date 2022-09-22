@@ -148,9 +148,9 @@ void* ObjectAllocator::OutOfLineAllocateImpl(NormalPageSpace& space,
     void* result = TryAllocateLargeObject(page_backend_, large_space,
                                           stats_collector_, size, gcinfo);
     if (!result) {
-      auto config = GarbageCollector::Config::ConservativeAtomicConfig();
+      auto config = GCConfig::ConservativeAtomicConfig();
       config.free_memory_handling =
-          GarbageCollector::Config::FreeMemoryHandling::kDiscardWherePossible;
+          GCConfig::FreeMemoryHandling::kDiscardWherePossible;
       garbage_collector_.CollectGarbage(config);
       result = TryAllocateLargeObject(page_backend_, large_space,
                                       stats_collector_, size, gcinfo);
@@ -170,9 +170,9 @@ void* ObjectAllocator::OutOfLineAllocateImpl(NormalPageSpace& space,
   }
 
   if (!TryRefillLinearAllocationBuffer(space, request_size)) {
-    auto config = GarbageCollector::Config::ConservativeAtomicConfig();
+    auto config = GCConfig::ConservativeAtomicConfig();
     config.free_memory_handling =
-        GarbageCollector::Config::FreeMemoryHandling::kDiscardWherePossible;
+        GCConfig::FreeMemoryHandling::kDiscardWherePossible;
     garbage_collector_.CollectGarbage(config);
     if (!TryRefillLinearAllocationBuffer(space, request_size)) {
       oom_handler_("Oilpan: Normal allocation.");

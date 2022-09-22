@@ -43,9 +43,8 @@ class V8_EXPORT_PRIVATE CppHeap final
   };
 
   using GarbageCollectionFlags = base::Flags<GarbageCollectionFlagValues>;
-  using StackState = cppgc::internal::GarbageCollector::Config::StackState;
-  using CollectionType =
-      cppgc::internal::GarbageCollector::Config::CollectionType;
+  using StackState = cppgc::internal::StackState;
+  using CollectionType = cppgc::internal::CollectionType;
 
   class MetricRecorderAdapter final : public cppgc::internal::MetricRecorder {
    public:
@@ -139,9 +138,7 @@ class V8_EXPORT_PRIVATE CppHeap final
   void FinishSweepingIfRunning();
   void FinishSweepingIfOutOfWork();
 
-  void InitializeTracing(
-      cppgc::internal::GarbageCollector::Config::CollectionType,
-      GarbageCollectionFlags);
+  void InitializeTracing(CollectionType, GarbageCollectionFlags);
   void StartTracing();
   bool AdvanceTracing(double max_duration);
   bool IsTracingDone();
@@ -168,9 +165,9 @@ class V8_EXPORT_PRIVATE CppHeap final
   std::unique_ptr<CppMarkingState> CreateCppMarkingStateForMutatorThread();
 
   // cppgc::internal::GarbageCollector interface.
-  void CollectGarbage(Config) override;
+  void CollectGarbage(cppgc::internal::GCConfig) override;
   const cppgc::EmbedderStackState* override_stack_state() const override;
-  void StartIncrementalGarbageCollection(Config) override;
+  void StartIncrementalGarbageCollection(cppgc::internal::GCConfig) override;
   size_t epoch() const override;
 
  private:
@@ -194,8 +191,7 @@ class V8_EXPORT_PRIVATE CppHeap final
   Isolate* isolate_ = nullptr;
   bool marking_done_ = false;
   // |collection_type_| is initialized when marking is in progress.
-  base::Optional<cppgc::internal::GarbageCollector::Config::CollectionType>
-      collection_type_;
+  base::Optional<CollectionType> collection_type_;
   GarbageCollectionFlags current_gc_flags_;
 
   // Buffered allocated bytes. Reporting allocated bytes to V8 can trigger a GC
