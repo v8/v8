@@ -2161,6 +2161,16 @@ void LiftoffAssembler::emit_i8x16_ge_u(LiftoffRegister dst, LiftoffRegister lhs,
            kScratchSimd128Reg);
 }
 
+bool LiftoffAssembler::emit_f64x2_nearest_int(LiftoffRegister dst,
+                                              LiftoffRegister src) {
+  return false;
+}
+
+bool LiftoffAssembler::emit_f32x4_nearest_int(LiftoffRegister dst,
+                                              LiftoffRegister src) {
+  return false;
+}
+
 void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
                                      Register offset_reg, uintptr_t offset_imm,
                                      LoadType type,
@@ -2230,12 +2240,6 @@ void LiftoffAssembler::emit_s128_relaxed_laneselect(LiftoffRegister dst,
   bailout(kRelaxedSimd, "emit_s128_relaxed_laneselect");
 }
 
-bool LiftoffAssembler::emit_f64x2_nearest_int(LiftoffRegister dst,
-                                              LiftoffRegister src) {
-  bailout(kSimd, "f64x2.nearest_int");
-  return true;
-}
-
 void LiftoffAssembler::emit_f64x2_pmin(LiftoffRegister dst, LiftoffRegister lhs,
                                        LiftoffRegister rhs) {
   bailout(kSimd, "pmin unimplemented");
@@ -2271,12 +2275,6 @@ void LiftoffAssembler::emit_f64x2_convert_low_i32x4_u(LiftoffRegister dst,
 void LiftoffAssembler::emit_f64x2_promote_low_f32x4(LiftoffRegister dst,
                                                     LiftoffRegister src) {
   bailout(kSimd, "f64x2.promote_low_f32x4");
-}
-
-bool LiftoffAssembler::emit_f32x4_nearest_int(LiftoffRegister dst,
-                                              LiftoffRegister src) {
-  bailout(kSimd, "f32x4.nearest_int");
-  return true;
 }
 
 void LiftoffAssembler::emit_f32x4_relaxed_min(LiftoffRegister dst,
