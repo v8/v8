@@ -2394,21 +2394,18 @@ MaybeHandle<JSReceiver> ToTemporalCalendar(
   ASSIGN_RETURN_ON_EXCEPTION(isolate, identifier,
                              Object::ToString(isolate, temporal_calendar_like),
                              JSReceiver);
-  // 3. If ! IsBuiltinCalendar(identifier) is false, then
+  // 3. Let identifier be ? ParseTemporalCalendarString(identifier).
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, identifier,
+                             ParseTemporalCalendarString(isolate, identifier),
+                             JSReceiver);
+  // 4. If IsBuiltinCalendar(identifier) is false, throw a RangeError
+  // exception.
   if (!IsBuiltinCalendar(isolate, identifier)) {
-    // a. Let identifier be ? ParseTemporalCalendarString(identifier).
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, identifier,
-                               ParseTemporalCalendarString(isolate, identifier),
-                               JSReceiver);
-    // b. If IsBuiltinCalendar(identifier) is false, throw a RangeError
-    // exception.
-    if (!IsBuiltinCalendar(isolate, identifier)) {
-      THROW_NEW_ERROR(
-          isolate, NewRangeError(MessageTemplate::kInvalidCalendar, identifier),
-          JSReceiver);
-    }
+    THROW_NEW_ERROR(
+        isolate, NewRangeError(MessageTemplate::kInvalidCalendar, identifier),
+        JSReceiver);
   }
-  // 4. Return ? CreateTemporalCalendar(identifier).
+  // 5. Return ? CreateTemporalCalendar(identifier).
   return CreateTemporalCalendar(isolate, identifier);
 }
 
@@ -4058,25 +4055,38 @@ MaybeHandle<String> ParseTemporalCalendarString(Isolate* isolate,
                                                 Handle<String> iso_string) {
   TEMPORAL_ENTER_FUNC();
 
-  // 1. Assert: Type(isoString) is String.
-  // 2. If isoString does not satisfy the syntax of a TemporalCalendarString
-  // (see 13.33), then a. Throw a RangeError exception.
-  base::Optional<ParsedISO8601Result> parsed =
-      TemporalParser::ParseTemporalCalendarString(isolate, iso_string);
-  if (!parsed.has_value()) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), String);
+  // 1. Let parseResult be Completion(ParseISODateTime(isoString)).
+  Maybe<DateTimeRecordWithCalendar> parse_result =
+      ParseISODateTime(isolate, iso_string);
+  // 2. If parseResult is a normal completion, then
+  if (parse_result.IsJust()) {
+    // a. Let calendar be parseResult.[[Value]].[[Calendar]].
+    Handle<Object> calendar = parse_result.FromJust().calendar;
+    // b. If calendar is undefined, return "iso8601".
+    if (calendar->IsUndefined()) {
+      return isolate->factory()->iso8601_string();
+      // c. Else, return calendar.
+    } else {
+      CHECK(calendar->IsString());
+      return Handle<String>::cast(calendar);
+    }
+    // 3. Else,
+  } else {
+    DCHECK(isolate->has_pending_exception());
+    isolate->clear_pending_exception();
+    // a. Set parseResult to ParseText(StringToCodePoints(isoString),
+    // CalendarName).
+    base::Optional<ParsedISO8601Result> parsed =
+        TemporalParser::ParseCalendarName(isolate, iso_string);
+    // b. If parseResult is a List of errors, throw a RangeError exception.
+    if (!parsed.has_value()) {
+      THROW_NEW_ERROR(
+          isolate, NewRangeError(MessageTemplate::kInvalidCalendar, iso_string),
+          String);
+    }
+    // c. Else, return isoString.
+    return iso_string;
   }
-  // 3. Let id be the part of isoString produced by the CalendarName production,
-  // or undefined if not present.
-  // 4. If id is empty, then
-  if (parsed->calendar_name_length == 0) {
-    // a. Return "iso8601".
-    return isolate->factory()->iso8601_string();
-  }
-  // 5. Return CodePointsToString(id).
-  return isolate->factory()->NewSubString(
-      iso_string, parsed->calendar_name_start,
-      parsed->calendar_name_start + parsed->calendar_name_length);
 }
 
 // #sec-temporal-calendarequals
