@@ -29,6 +29,7 @@
 #include "src/compiler/state-values-utils.h"
 #include "src/compiler/type-cache.h"
 #include "src/ic/call-optimization.h"
+#include "src/objects/elements-kind.h"
 #include "src/objects/js-function.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/ordered-hash-table.h"
@@ -5675,7 +5676,7 @@ Reduction JSCallReducer::ReduceArrayPrototypePush(Node* node) {
     return NoChange();
   }
 
-  int const num_values = n.ArgumentCount();
+  int const num_push_arguments = n.ArgumentCount();
   Node* receiver = n.receiver();
   Effect effect = n.effect();
   Control control = n.control();
@@ -5691,59 +5692,79 @@ Reduction JSCallReducer::ReduceArrayPrototypePush(Node* node) {
   if (!dependencies()->DependOnNoElementsProtector()) {
     return inference.NoChange();
   }
+
   inference.RelyOnMapsPreferStability(dependencies(), jsgraph(), &effect,
                                       control, p.feedback());
 
-  std::vector<Node*> controls_to_merge;
-  std::vector<Node*> effects_to_merge;
-  std::vector<Node*> values_to_merge;
-  Node* return_value = jsgraph()->UndefinedConstant();
+  // Collect the value inputs to push.
+  base::SmallVector<Node*, 1> push_arguments(num_push_arguments);
+  for (int i = 0; i < num_push_arguments; ++i) {
+    push_arguments[i] = n.Argument(i);
+  }
 
-  Node* receiver_elements_kind =
-      LoadReceiverElementsKind(receiver, &effect, control);
+  // Switch on the possible receiver maps, dispatching to a push implementation
+  // for either Smi, Double or Object elements.
+  Node* receiver_map = effect =
+      graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
+                       receiver, effect, control);
+
+  std::vector<Node*> double_kind_controls;
+  std::vector<Node*> smi_kind_controls;
+  std::vector<Node*> object_kind_controls;
+
   Node* next_control = control;
-  Node* next_effect = effect;
-  for (size_t i = 0; i < kinds.size(); i++) {
-    ElementsKind kind = kinds[i];
+  for (size_t i = 0; i < receiver_maps.size(); i++) {
+    const MapRef& map = receiver_maps[i];
     control = next_control;
-    effect = next_effect;
-    // We do not need branch for the last elements kind.
-    if (i != kinds.size() - 1) {
-      Node* control_node = control;
-      CheckIfElementsKind(receiver_elements_kind, kind, control_node,
-                          &control_node, &next_control);
-      control = control_node;
+    // We do not need branch for the last receiver map.
+    if (i != receiver_maps.size() - 1) {
+      Node* is_map_equal =
+          graph()->NewNode(simplified()->ReferenceEqual(), receiver_map,
+                           jsgraph()->Constant(map));
+      Node* map_branch =
+          graph()->NewNode(common()->Branch(), is_map_equal, next_control);
+      Node* if_equal = graph()->NewNode(common()->IfTrue(), map_branch);
+      control = if_equal;
+      Node* if_not_equal = graph()->NewNode(common()->IfFalse(), map_branch);
+      next_control = if_not_equal;
     }
 
-    // Collect the value inputs to push.
-    std::vector<Node*> values(num_values);
-    for (int j = 0; j < num_values; ++j) {
-      values[j] = n.Argument(j);
+    ElementsKind kind = map.elements_kind();
+    if (IsDoubleElementsKind(kind)) {
+      double_kind_controls.push_back(control);
+    } else if (IsSmiElementsKind(kind)) {
+      smi_kind_controls.push_back(control);
+    } else {
+      object_kind_controls.push_back(control);
     }
+  }
 
-    for (auto& value : values) {
-      if (IsSmiElementsKind(kind)) {
-        value = effect = graph()->NewNode(simplified()->CheckSmi(p.feedback()),
-                                          value, effect, control);
-      } else if (IsDoubleElementsKind(kind)) {
-        value = effect = graph()->NewNode(
-            simplified()->CheckNumber(p.feedback()), value, effect, control);
-        // Make sure we do not store signaling NaNs into double arrays.
-        value = graph()->NewNode(simplified()->NumberSilenceNaN(), value);
-      }
-    }
+  // Implement push for a given elements kind (either Double or Object, Smi is
+  // handled in the same path as Object since the underlying array growth logic
+  // is the same).
+  base::SmallVector<Node*, 2> controls_to_merge;
+  base::SmallVector<Node*, 2> effects_to_merge;
+  base::SmallVector<Node*, 2> return_values_to_merge;
+
+  auto build_array_push = [&](ElementsKind kind,
+                              base::SmallVector<Node*, 1>& push_arguments,
+                              Control control, Effect effect) {
+    // Only support PACKED_ELEMENTS and PACKED_DOUBLE_ELEMENTS, as "markers" of
+    // what the elements array is (a FixedArray or FixedDoubleArray).
+    DCHECK(kind == PACKED_ELEMENTS || kind == PACKED_DOUBLE_ELEMENTS);
 
     // Load the "length" property of the {receiver}.
     Node* length = effect = graph()->NewNode(
         simplified()->LoadField(AccessBuilder::ForJSArrayLength(kind)),
         receiver, effect, control);
-    return_value = length;
+    Node* return_value = length;
 
     // Check if we have any {values} to push.
-    if (num_values > 0) {
+    if (num_push_arguments > 0) {
       // Compute the resulting "length" of the {receiver}.
-      Node* new_length = return_value = graph()->NewNode(
-          simplified()->NumberAdd(), length, jsgraph()->Constant(num_values));
+      Node* new_length = return_value =
+          graph()->NewNode(simplified()->NumberAdd(), length,
+                           jsgraph()->Constant(num_push_arguments));
 
       // Load the elements backing store of the {receiver}.
       Node* elements = effect = graph()->NewNode(
@@ -5761,7 +5782,7 @@ Reduction JSCallReducer::ReduceArrayPrototypePush(Node* node) {
           simplified()->MaybeGrowFastElements(mode, p.feedback()), receiver,
           elements,
           graph()->NewNode(simplified()->NumberAdd(), length,
-                           jsgraph()->Constant(num_values - 1)),
+                           jsgraph()->Constant(num_push_arguments - 1)),
           elements_length, effect, control);
 
       // Update the JSArray::length field. Since this is observable,
@@ -5771,10 +5792,10 @@ Reduction JSCallReducer::ReduceArrayPrototypePush(Node* node) {
           receiver, new_length, effect, control);
 
       // Append the {values} to the {elements}.
-      for (int j = 0; j < num_values; ++j) {
-        Node* value = values[j];
+      for (int i = 0; i < num_push_arguments; ++i) {
+        Node* value = push_arguments[i];
         Node* index = graph()->NewNode(simplified()->NumberAdd(), length,
-                                       jsgraph()->Constant(j));
+                                       jsgraph()->Constant(i));
         effect =
             graph()->NewNode(simplified()->StoreElement(
                                  AccessBuilder::ForFixedArrayElement(kind)),
@@ -5784,21 +5805,108 @@ Reduction JSCallReducer::ReduceArrayPrototypePush(Node* node) {
 
     controls_to_merge.push_back(control);
     effects_to_merge.push_back(effect);
-    values_to_merge.push_back(return_value);
+    return_values_to_merge.push_back(return_value);
+  };
+
+  Node* per_elements_kind_start_effect = effect;
+
+  // Handle doubles.
+  if (double_kind_controls.size() > 0) {
+    effect = per_elements_kind_start_effect;
+    if (double_kind_controls.size() > 1) {
+      int const count = static_cast<int>(double_kind_controls.size());
+      control = graph()->NewNode(common()->Merge(count), count,
+                                 &double_kind_controls.front());
+    } else {
+      control = double_kind_controls.front();
+    }
+
+    base::SmallVector<Node*, 1> number_checked_push_arguments(push_arguments);
+    for (auto& value : number_checked_push_arguments) {
+      value = effect = graph()->NewNode(simplified()->CheckNumber(p.feedback()),
+                                        value, effect, control);
+      // Make sure we do not store signaling NaNs into double arrays.
+      value = graph()->NewNode(simplified()->NumberSilenceNaN(), value);
+    }
+
+    build_array_push(PACKED_DOUBLE_ELEMENTS, number_checked_push_arguments,
+                     control, effect);
   }
 
+  // Handle objects and smis. These are grouped together, because aside from
+  // elements kind, pushing into a *_ELEMENTS and *_SMI_ELEMENTS array is
+  // identical.
+  if (object_kind_controls.size() > 0 || smi_kind_controls.size() > 0) {
+    effect = per_elements_kind_start_effect;
+    if (object_kind_controls.size() > 1) {
+      int const count = static_cast<int>(object_kind_controls.size());
+      control = graph()->NewNode(common()->Merge(count), count,
+                                 &object_kind_controls.front());
+    } else if (object_kind_controls.size() == 1) {
+      control = object_kind_controls.front();
+    } else {
+      control = Control(nullptr);
+    }
+
+    base::SmallVector<Node*, 1> merged_push_arguments(push_arguments);
+    if (smi_kind_controls.size() > 0) {
+      // For Smi element kind, perform a CheckSmi on each value, and then return
+      // to the Object kind push implementation.
+
+      Node* object_kind_control = control;
+      if (smi_kind_controls.size() > 1) {
+        int const count = static_cast<int>(smi_kind_controls.size());
+        control = graph()->NewNode(common()->Merge(count), count,
+                                   &smi_kind_controls.front());
+      } else {
+        control = smi_kind_controls.front();
+      }
+      effect = per_elements_kind_start_effect;
+      for (auto& value : merged_push_arguments) {
+        value = effect = graph()->NewNode(simplified()->CheckSmi(p.feedback()),
+                                          value, effect, control);
+      }
+
+      // Merge the smi-checked path into the object kind path, if the latter
+      // exists.
+      if (object_kind_control != nullptr) {
+        control =
+            graph()->NewNode(common()->Merge(2), object_kind_control, control);
+        effect =
+            graph()->NewNode(common()->EffectPhi(2),
+                             per_elements_kind_start_effect, effect, control);
+        for (int i = 0; i < num_push_arguments; ++i) {
+          merged_push_arguments[i] = graph()->NewNode(
+              common()->Phi(MachineRepresentation::kTagged, 2),
+              push_arguments[i], merged_push_arguments[i], control);
+        }
+      }
+    } else {
+      DCHECK_NOT_NULL(control);
+    }
+
+    build_array_push(PACKED_ELEMENTS, merged_push_arguments, control, effect);
+  }
+
+  // Finally, merge together the push implementation paths.
+  DCHECK_GE(controls_to_merge.size(), 0);
+  Node* return_value;
   if (controls_to_merge.size() > 1) {
     int const count = static_cast<int>(controls_to_merge.size());
 
-    control = graph()->NewNode(common()->Merge(count), count,
-                               &controls_to_merge.front());
+    control =
+        graph()->NewNode(common()->Merge(count), count, &controls_to_merge[0]);
     effects_to_merge.push_back(control);
     effect = graph()->NewNode(common()->EffectPhi(count), count + 1,
-                              &effects_to_merge.front());
-    values_to_merge.push_back(control);
+                              &effects_to_merge[0]);
+    return_values_to_merge.push_back(control);
     return_value =
         graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, count),
-                         count + 1, &values_to_merge.front());
+                         count + 1, &return_values_to_merge[0]);
+  } else {
+    control = controls_to_merge[0];
+    effect = effects_to_merge[0];
+    return_value = return_values_to_merge[0];
   }
 
   ReplaceWithValue(node, return_value, effect, control);
