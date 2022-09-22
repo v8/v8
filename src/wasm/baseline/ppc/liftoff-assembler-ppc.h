@@ -2810,6 +2810,9 @@ void LiftoffAssembler::CallC(const ValueKindSig* sig,
       case kF64:
         StoreF64(args->fp(), MemOperand(sp, arg_bytes), r0);
         break;
+      case kS128:
+        StoreSimd128(args->fp().toSimd(), MemOperand(sp, arg_bytes), r0);
+        break;
       default:
         UNREACHABLE();
     }
@@ -2855,6 +2858,9 @@ void LiftoffAssembler::CallC(const ValueKindSig* sig,
         break;
       case kF64:
         LoadF64(result_reg->fp(), MemOperand(sp));
+        break;
+      case kS128:
+        LoadSimd128(result_reg->fp().toSimd(), MemOperand(sp), r0);
         break;
       default:
         UNREACHABLE();
