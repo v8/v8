@@ -3572,7 +3572,7 @@ void Isolate::Deinit() {
   }
 
   // All client isolates should already be detached.
-  if (is_shared() || is_shared_space_isolate()) {
+  if (is_shared()) {
     global_safepoint()->AssertNoClientsOnTearDown();
   }
 
@@ -3622,6 +3622,11 @@ void Isolate::Deinit() {
     AllowGarbageCollection allow_shared_gc;
     DetachFromSharedIsolate();
     DetachFromSharedSpaceIsolate();
+  }
+
+  // All client isolates should already be detached.
+  if (is_shared_space_isolate()) {
+    global_safepoint()->AssertNoClientsOnTearDown();
   }
 
   // Since there are no other threads left, we can lock this mutex without any
@@ -5952,6 +5957,7 @@ void Isolate::AttachToSharedIsolate() {
 
   if (shared_isolate_) {
     DCHECK(shared_isolate_->is_shared());
+    DCHECK(!v8_flags.shared_space);
     shared_isolate_->global_safepoint()->AppendClient(this);
   }
 
@@ -5964,6 +5970,7 @@ void Isolate::DetachFromSharedIsolate() {
   DCHECK(attached_to_shared_isolate_);
 
   if (shared_isolate_) {
+    DCHECK(!v8_flags.shared_space);
     shared_isolate_->global_safepoint()->RemoveClient(this);
     shared_isolate_ = nullptr;
   }
@@ -5976,7 +5983,8 @@ void Isolate::DetachFromSharedIsolate() {
 void Isolate::AttachToSharedSpaceIsolate(Isolate* shared_space_isolate) {
   DCHECK(!shared_space_isolate_.has_value());
   shared_space_isolate_ = shared_space_isolate;
-  if (shared_space_isolate && shared_space_isolate != this) {
+  if (shared_space_isolate) {
+    DCHECK(v8_flags.shared_space);
     shared_space_isolate->global_safepoint()->AppendClient(this);
   }
 }
@@ -5984,7 +5992,8 @@ void Isolate::AttachToSharedSpaceIsolate(Isolate* shared_space_isolate) {
 void Isolate::DetachFromSharedSpaceIsolate() {
   DCHECK(shared_space_isolate_.has_value());
   Isolate* shared_space_isolate = shared_space_isolate_.value();
-  if (shared_space_isolate && shared_space_isolate != this) {
+  if (shared_space_isolate) {
+    DCHECK(v8_flags.shared_space);
     shared_space_isolate->global_safepoint()->RemoveClient(this);
   }
   shared_space_isolate_.reset();

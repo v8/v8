@@ -2338,12 +2338,18 @@ size_t Heap::PerformGarbageCollection(
   DCHECK(tracer()->IsConsistentWithCollector(collector));
   TRACE_GC_EPOCH(tracer(), CollectorScopeId(collector), ThreadKind::kMain);
 
-  base::Optional<SafepointScope> safepoint_scope;
+  base::Optional<GlobalSafepointScope> global_safepoint_scope;
+  base::Optional<SafepointScope> isolate_safepoint_scope;
 
   {
     AllowGarbageCollection allow_shared_gc;
     IgnoreLocalGCRequests ignore_gc_requests(this);
-    safepoint_scope.emplace(this);
+
+    if (isolate()->is_shared_heap_isolate()) {
+      global_safepoint_scope.emplace(isolate());
+    } else {
+      isolate_safepoint_scope.emplace(this);
+    }
   }
 
   collection_barrier_->StopTimeToCollectionTimer();
@@ -3668,6 +3674,12 @@ void Heap::MakeHeapIterable() {
 void Heap::FreeLinearAllocationAreas() {
   safepoint()->IterateLocalHeaps(
       [](LocalHeap* local_heap) { local_heap->FreeLinearAllocationArea(); });
+
+  if (isolate()->is_shared_space_isolate()) {
+    isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
+      client->heap()->FreeSharedLinearAllocationAreas();
+    });
+  }
 
   PagedSpaceIterator spaces(this);
   for (PagedSpace* space = spaces.Next(); space != nullptr;
