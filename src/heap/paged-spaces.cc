@@ -14,6 +14,8 @@
 #include "src/execution/vm-state-inl.h"
 #include "src/heap/allocation-observer.h"
 #include "src/heap/array-buffer-sweeper.h"
+#include "src/heap/gc-tracer-inl.h"
+#include "src/heap/gc-tracer.h"
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/memory-allocator.h"
@@ -671,7 +673,11 @@ PagedSpaceBase::RawAllocateBackground(LocalHeap* local_heap,
   if (collector->sweeping_in_progress()) {
     // First try to refill the free-list, concurrent sweeper threads
     // may have freed some objects in the meantime.
-    RefillFreeList(collector->sweeper());
+    {
+      TRACE_GC_EPOCH(heap()->tracer(), GCTracer::Scope::MC_BACKGROUND_SWEEPING,
+                     ThreadKind::kBackground);
+      RefillFreeList(collector->sweeper());
+    }
 
     // Retry the free list allocation.
     result = TryAllocationFromFreeListBackground(min_size_in_bytes,
@@ -681,13 +687,17 @@ PagedSpaceBase::RawAllocateBackground(LocalHeap* local_heap,
     if (IsSweepingAllowedOnThread(local_heap)) {
       // Now contribute to sweeping from background thread and then try to
       // reallocate.
-      const int kMaxPagesToSweep = 1;
-      int max_freed = collector->sweeper()->ParallelSweepSpace(
-          identity(), Sweeper::SweepingMode::kLazyOrConcurrent,
-          static_cast<int>(min_size_in_bytes), kMaxPagesToSweep);
-
-      // Keep new space sweeping atomic.
-      RefillFreeList(collector->sweeper());
+      int max_freed;
+      {
+        TRACE_GC_EPOCH(heap()->tracer(),
+                       GCTracer::Scope::MC_BACKGROUND_SWEEPING,
+                       ThreadKind::kBackground);
+        const int kMaxPagesToSweep = 1;
+        max_freed = collector->sweeper()->ParallelSweepSpace(
+            identity(), Sweeper::SweepingMode::kLazyOrConcurrent,
+            static_cast<int>(min_size_in_bytes), kMaxPagesToSweep);
+        RefillFreeList(collector->sweeper());
+      }
 
       if (static_cast<size_t>(max_freed) >= min_size_in_bytes) {
         result = TryAllocationFromFreeListBackground(min_size_in_bytes,
@@ -706,10 +716,12 @@ PagedSpaceBase::RawAllocateBackground(LocalHeap* local_heap,
   if (collector->sweeping_in_progress()) {
     // Complete sweeping for this space.
     if (IsSweepingAllowedOnThread(local_heap)) {
+      TRACE_GC_EPOCH(heap()->tracer(), GCTracer::Scope::MC_BACKGROUND_SWEEPING,
+                     ThreadKind::kBackground);
       collector->DrainSweepingWorklistForSpace(identity());
-    }
 
-    RefillFreeList(collector->sweeper());
+      RefillFreeList(collector->sweeper());
+    }
 
     // Last try to acquire memory from free list.
     return TryAllocationFromFreeListBackground(min_size_in_bytes,
@@ -991,20 +1003,33 @@ bool PagedSpaceBase::RawRefillLabMain(int size_in_bytes,
   }
 
   MarkCompactCollector* collector = heap()->mark_compact_collector();
+  const bool is_main_thread =
+      heap()->IsMainThread() || heap()->IsSharedMainThread();
+  const auto sweeping_scope_id = is_main_thread
+                                     ? GCTracer::Scope::MC_SWEEP
+                                     : GCTracer::Scope::MC_BACKGROUND_SWEEPING;
+  const auto sweeping_scope_kind =
+      is_main_thread ? ThreadKind::kMain : ThreadKind::kBackground;
   // Sweeping is still in progress.
   if (collector->sweeping_in_progress()) {
     // First try to refill the free-list, concurrent sweeper threads
     // may have freed some objects in the meantime.
-    RefillFreeList(collector->sweeper());
+    {
+      TRACE_GC_EPOCH(heap()->tracer(), sweeping_scope_id, sweeping_scope_kind);
+      RefillFreeList(collector->sweeper());
+    }
 
     // Retry the free list allocation.
     if (TryAllocationFromFreeListMain(static_cast<size_t>(size_in_bytes),
                                       origin))
       return true;
 
-    if (ContributeToSweepingMain(size_in_bytes, kMaxPagesToSweep, size_in_bytes,
-                                 origin))
-      return true;
+    {
+      TRACE_GC_EPOCH(heap()->tracer(), sweeping_scope_id, sweeping_scope_kind);
+      if (ContributeToSweepingMain(size_in_bytes, kMaxPagesToSweep,
+                                   size_in_bytes, origin))
+        return true;
+    }
   }
 
   if (is_compaction_space()) {
@@ -1030,8 +1055,9 @@ bool PagedSpaceBase::RawRefillLabMain(int size_in_bytes,
   }
 
   // Try sweeping all pages.
-  if (ContributeToSweepingMain(0, 0, size_in_bytes, origin)) {
-    return true;
+  {
+    TRACE_GC_EPOCH(heap()->tracer(), sweeping_scope_id, sweeping_scope_kind);
+    if (ContributeToSweepingMain(0, 0, size_in_bytes, origin)) return true;
   }
 
   if (heap()->gc_state() != Heap::NOT_IN_GC && !heap()->force_oom()) {

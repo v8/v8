@@ -4490,7 +4490,11 @@ void Heap::VerifyCountersBeforeConcurrentSweeping() {
     // We need to refine the counters on pages that are already swept and have
     // not been moved over to the actual space. Otherwise, the AccountingStats
     // are just an over approximation.
-    space->RefillFreeList(mark_compact_collector()->sweeper());
+    {
+      TRACE_GC_EPOCH(tracer(), GCTracer::Scope::MC_SWEEP, ThreadKind::kMain);
+      space->RefillFreeList(mark_compact_collector()->sweeper());
+    }
+
     space->VerifyCountersBeforeConcurrentSweeping();
   }
 }
