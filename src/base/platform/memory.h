@@ -111,8 +111,6 @@ inline void AlignedFree(void* ptr) {
 // `AllocateAtLeast()` for a safe version.
 inline size_t MallocUsableSize(void* ptr) {
 #if V8_OS_WIN
-  // |_msize| cannot handle a null pointer.
-  if (!ptr) return 0;
   return _msize(ptr);
 #elif V8_OS_DARWIN
   return malloc_size(ptr);
@@ -132,7 +130,7 @@ struct AllocationResult {
 
 // Allocates at least `n * sizeof(T)` uninitialized storage but may allocate
 // more which is indicated by the return value. Mimics C++23
-// `allocate_at_least()`.
+// `allocate_ate_least()`.
 template <typename T>
 V8_NODISCARD AllocationResult<T*> AllocateAtLeast(size_t n) {
   const size_t min_wanted_size = n * sizeof(T);
@@ -142,14 +140,13 @@ V8_NODISCARD AllocationResult<T*> AllocateAtLeast(size_t n) {
 #else  // V8_HAS_MALLOC_USABLE_SIZE
   const size_t usable_size = MallocUsableSize(memory);
 #if V8_USE_UNDEFINED_BEHAVIOR_SANITIZER
-  if (memory == nullptr)
-    return {nullptr, 0};
   // UBSan (specifically, -fsanitize=bounds) assumes that any access outside
   // of the requested size for malloc is UB and will trap in ud2 instructions.
   // This can be worked around by using `Realloc()` on the specific memory
-  // region.
+  // region, assuming that the allocator doesn't actually reallocate the
+  // buffer.
   if (usable_size != min_wanted_size) {
-    memory = static_cast<T*>(Realloc(memory, usable_size));
+    CHECK_EQ(static_cast<T*>(Realloc(memory, usable_size)), memory);
   }
 #endif  // V8_USE_UNDEFINED_BEHAVIOR_SANITIZER
   return {memory, usable_size};

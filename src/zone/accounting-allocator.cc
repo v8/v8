@@ -91,9 +91,7 @@ Segment* AccountingAllocator::AllocateSegment(size_t bytes,
                            kZonePageSize, PageAllocator::kReadWrite);
 
   } else {
-    auto result = AllocAtLeastWithRetry(bytes);
-    memory = result.ptr;
-    bytes = result.count;
+    memory = AllocWithRetry(bytes, zone_backing_malloc_);
   }
   if (memory == nullptr) return nullptr;
 
