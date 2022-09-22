@@ -2510,10 +2510,11 @@ Node* JSNativeContextSpecialization::InlinePropertyGetterCall(
     if (receiver != lookup_start_object) {
       return nullptr;
     }
-    Node* holder = access_info.holder().has_value()
-                       ? jsgraph()->Constant(access_info.holder().value())
-                       : receiver;
-    value = InlineApiCall(receiver, holder, frame_state, nullptr, effect,
+    Node* api_holder =
+        access_info.api_holder().has_value()
+            ? jsgraph()->Constant(access_info.api_holder().value())
+            : receiver;
+    value = InlineApiCall(receiver, api_holder, frame_state, nullptr, effect,
                           control, constant.AsFunctionTemplateInfo());
   }
   // Remember to rewire the IfException edge if this is inside a try-block.
@@ -2544,10 +2545,11 @@ void JSNativeContextSpecialization::InlinePropertySetterCall(
         target, receiver, value, feedback, context, frame_state, *effect,
         *control);
   } else {
-    Node* holder = access_info.holder().has_value()
-                       ? jsgraph()->Constant(access_info.holder().value())
-                       : receiver;
-    InlineApiCall(receiver, holder, frame_state, value, effect, control,
+    Node* api_holder =
+        access_info.api_holder().has_value()
+            ? jsgraph()->Constant(access_info.api_holder().value())
+            : receiver;
+    InlineApiCall(receiver, api_holder, frame_state, value, effect, control,
                   constant.AsFunctionTemplateInfo());
   }
   // Remember to rewire the IfException edge if this is inside a try-block.
@@ -2562,8 +2564,9 @@ void JSNativeContextSpecialization::InlinePropertySetterCall(
 }
 
 Node* JSNativeContextSpecialization::InlineApiCall(
-    Node* receiver, Node* holder, Node* frame_state, Node* value, Node** effect,
-    Node** control, FunctionTemplateInfoRef const& function_template_info) {
+    Node* receiver, Node* api_holder, Node* frame_state, Node* value,
+    Node** effect, Node** control,
+    FunctionTemplateInfoRef const& function_template_info) {
   if (!function_template_info.call_code().has_value()) {
     TRACE_BROKER_MISSING(broker(), "call code for function template info "
                                        << function_template_info);
@@ -2592,9 +2595,8 @@ Node* JSNativeContextSpecialization::InlineApiCall(
 
   // Add CallApiCallbackStub's register argument as well.
   Node* context = jsgraph()->Constant(native_context());
-  Node* inputs[11] = {
-      code,    function_reference, jsgraph()->Constant(argc), data, holder,
-      receiver};
+  Node* inputs[11] = {code, function_reference, jsgraph()->Constant(argc),
+                      data, api_holder,         receiver};
   int index = 6 + argc;
   inputs[index++] = context;
   inputs[index++] = frame_state;
