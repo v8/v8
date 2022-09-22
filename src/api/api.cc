@@ -8128,12 +8128,12 @@ std::unique_ptr<v8::BackingStore> v8::ArrayBuffer::NewBackingStore(
     void* deleter_data) {
   CHECK_LE(byte_length, i::JSArrayBuffer::kMaxByteLength);
 #ifdef V8_ENABLE_SANDBOX
-  Utils::ApiCheck(
-      !data || i::GetProcessWideSandbox()->Contains(data),
-      "v8_ArrayBuffer_NewBackingStore",
-      "When the V8 Sandbox is enabled, ArrayBuffer backing stores must be "
-      "allocated inside the sandbox address space. Please use an appropriate "
-      "ArrayBuffer::Allocator to allocate these buffers.");
+  Utils::ApiCheck(!data || i::GetProcessWideSandbox()->Contains(data),
+                  "v8_ArrayBuffer_NewBackingStore",
+                  "When the V8 Sandbox is enabled, ArrayBuffer backing stores "
+                  "must be allocated inside the sandbox address space. Please "
+                  "use an appropriate ArrayBuffer::Allocator to allocate these "
+                  "buffers, or disable the sandbox.");
 #endif  // V8_ENABLE_SANDBOX
 
   std::unique_ptr<i::BackingStoreBase> backing_store =

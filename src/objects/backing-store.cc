@@ -280,6 +280,14 @@ std::unique_ptr<BackingStore> BackingStore::Allocate(
       counters->array_buffer_new_size_failures()->AddSample(mb_length);
       return {};
     }
+#ifdef V8_ENABLE_SANDBOX
+    // Check to catch use of a non-sandbox-compatible ArrayBufferAllocator.
+    CHECK_WITH_MSG(GetProcessWideSandbox()->Contains(buffer_start),
+                   "When the V8 Sandbox is enabled, ArrayBuffer backing stores "
+                   "must be allocated inside the sandbox address space. Please "
+                   "use an appropriate ArrayBuffer::Allocator to allocate "
+                   "these buffers, or disable the sandbox.");
+#endif
   }
 
   auto result = new BackingStore(buffer_start,                  // start
