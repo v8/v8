@@ -2420,6 +2420,7 @@ void TurboAssembler::ShlPair(Register dst_low, Register dst_high,
   DCHECK_GE(63, shift);
   DCHECK_NE(dst_low, src_low);
   DCHECK_NE(dst_high, src_low);
+  shift &= 0x3F;
   if (shift == 0) {
     Move(dst_high, src_high);
     Move(dst_low, src_low);
@@ -2489,7 +2490,7 @@ void TurboAssembler::ShrPair(Register dst_low, Register dst_high,
   DCHECK_GE(63, shift);
   DCHECK_NE(dst_low, src_high);
   DCHECK_NE(dst_high, src_high);
-
+  shift &= 0x3F;
   if (shift == 32) {
     mv(dst_low, src_high);
     li(dst_high, Operand(0));
