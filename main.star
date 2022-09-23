@@ -21,10 +21,6 @@ luci.builder.defaults.experiments.set(
     {
         # Use python3 in recipes for all builds.
         "luci.recipes.use_python3": 100,
-        # Use python3 in steps for all builds.
-        "v8.steps.use_python3": 100,
-        # Use python3 for tests on swarming.
-        "v8.scripts.use_python3": 100,
     },
 )
 
