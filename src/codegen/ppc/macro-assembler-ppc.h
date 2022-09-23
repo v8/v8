@@ -1174,7 +1174,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   V(F32x4Floor)           \
   V(F32x4Trunc)           \
   V(I64x2Neg)             \
-  V(I32x4Neg)
+  V(I32x4Neg)             \
+  V(I8x16Popcnt)
 
 #define PROTOTYPE_SIMD_UNOP(name) \
   void name(Simd128Register dst, Simd128Register src);

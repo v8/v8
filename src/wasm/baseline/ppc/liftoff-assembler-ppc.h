@@ -1876,27 +1876,28 @@ SIMD_SHIFT_RI_LIST(EMIT_SIMD_SHIFT_RI)
 #undef EMIT_SIMD_SHIFT_RI
 #undef SIMD_SHIFT_RI_LIST
 
-#define SIMD_UNOP_LIST(V)                        \
-  V(f64x2_abs, F64x2Abs, fp, fp, , void)         \
-  V(f64x2_neg, F64x2Neg, fp, fp, , void)         \
-  V(f64x2_sqrt, F64x2Sqrt, fp, fp, , void)       \
-  V(f64x2_ceil, F64x2Ceil, fp, fp, true, bool)   \
-  V(f64x2_floor, F64x2Floor, fp, fp, true, bool) \
-  V(f64x2_trunc, F64x2Trunc, fp, fp, true, bool) \
-  V(f32x4_abs, F32x4Abs, fp, fp, , void)         \
-  V(f32x4_neg, F32x4Neg, fp, fp, , void)         \
-  V(i64x2_neg, I64x2Neg, fp, fp, , void)         \
-  V(i32x4_neg, I32x4Neg, fp, fp, , void)         \
-  V(f32x4_sqrt, F32x4Sqrt, fp, fp, , void)       \
-  V(f32x4_ceil, F32x4Ceil, fp, fp, true, bool)   \
-  V(f32x4_floor, F32x4Floor, fp, fp, true, bool) \
-  V(f32x4_trunc, F32x4Trunc, fp, fp, true, bool)
+#define SIMD_UNOP_LIST(V)                \
+  V(f64x2_abs, F64x2Abs, , void)         \
+  V(f64x2_neg, F64x2Neg, , void)         \
+  V(f64x2_sqrt, F64x2Sqrt, , void)       \
+  V(f64x2_ceil, F64x2Ceil, true, bool)   \
+  V(f64x2_floor, F64x2Floor, true, bool) \
+  V(f64x2_trunc, F64x2Trunc, true, bool) \
+  V(f32x4_abs, F32x4Abs, , void)         \
+  V(f32x4_neg, F32x4Neg, , void)         \
+  V(i64x2_neg, I64x2Neg, , void)         \
+  V(i32x4_neg, I32x4Neg, , void)         \
+  V(f32x4_sqrt, F32x4Sqrt, , void)       \
+  V(f32x4_ceil, F32x4Ceil, true, bool)   \
+  V(f32x4_floor, F32x4Floor, true, bool) \
+  V(f32x4_trunc, F32x4Trunc, true, bool) \
+  V(i8x16_popcnt, I8x16Popcnt, , void)
 
-#define EMIT_SIMD_UNOP(name, op, dtype, stype, return_val, return_type) \
-  return_type LiftoffAssembler::emit_##name(LiftoffRegister dst,        \
-                                            LiftoffRegister src) {      \
-    op(dst.dtype().toSimd(), src.stype().toSimd());                     \
-    return return_val;                                                  \
+#define EMIT_SIMD_UNOP(name, op, return_val, return_type)          \
+  return_type LiftoffAssembler::emit_##name(LiftoffRegister dst,   \
+                                            LiftoffRegister src) { \
+    op(dst.fp().toSimd(), src.fp().toSimd());                      \
+    return return_val;                                             \
   }
 SIMD_UNOP_LIST(EMIT_SIMD_UNOP)
 #undef EMIT_SIMD_UNOP
@@ -2502,11 +2503,6 @@ void LiftoffAssembler::emit_i8x16_shuffle(LiftoffRegister dst,
                                           const uint8_t shuffle[16],
                                           bool is_swizzle) {
   bailout(kSimd, "i8x16_shuffle");
-}
-
-void LiftoffAssembler::emit_i8x16_popcnt(LiftoffRegister dst,
-                                         LiftoffRegister src) {
-  bailout(kSimd, "i8x16.popcnt");
 }
 
 void LiftoffAssembler::emit_v128_anytrue(LiftoffRegister dst,

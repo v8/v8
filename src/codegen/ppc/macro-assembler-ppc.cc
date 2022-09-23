@@ -3779,7 +3779,8 @@ SIMD_SHIFT_LIST(EMIT_SIMD_SHIFT)
   V(F32x4Floor, xvrspim)  \
   V(F32x4Trunc, xvrspiz)  \
   V(I64x2Neg, vnegd)      \
-  V(I32x4Neg, vnegw)
+  V(I32x4Neg, vnegw)      \
+  V(I8x16Popcnt, vpopcntb)
 
 #define EMIT_SIMD_UNOP(name, op)                                        \
   void TurboAssembler::name(Simd128Register dst, Simd128Register src) { \

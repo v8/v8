@@ -2293,7 +2293,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   V(F32x4Sqrt)            \
   V(F32x4Ceil)            \
   V(F32x4Floor)           \
-  V(F32x4Trunc)
+  V(F32x4Trunc)           \
+  V(I8x16Popcnt)
 
 #define EMIT_SIMD_UNOP(name)                                       \
   case kPPC_##name: {                                              \
@@ -3360,10 +3361,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vinsertw(kScratchSimd128Reg, dst, Operand(4));
       __ vxor(dst, dst, dst);
       __ vinsertd(dst, kScratchSimd128Reg, Operand(lane_number));
-      break;
-    }
-    case kPPC_I8x16Popcnt: {
-      __ vpopcntb(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
     case kPPC_StoreCompressTagged: {
