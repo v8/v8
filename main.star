@@ -17,13 +17,6 @@ lucicfg.enable_experiment("crbug.com/1182002")
 V8_TRY_ACCOUNT = "v8-try-builder@chops-service-accounts.iam.gserviceaccount.com"
 V8_CI_ACCOUNT = "v8-ci-builder@chops-service-accounts.iam.gserviceaccount.com"
 
-luci.builder.defaults.experiments.set(
-    {
-        # Use python3 in recipes for all builds.
-        "luci.recipes.use_python3": 100,
-    },
-)
-
 lucicfg.config(
     config_dir = "generated",
     tracked_files = [
