@@ -1965,13 +1965,18 @@ void BackgroundMergeTask::SetUpOnMainThread(Isolate* isolate,
                                             Handle<String> source_text,
                                             const ScriptDetails& script_details,
                                             LanguageMode language_mode) {
+  DCHECK_EQ(state_, kNotStarted);
+
   HandleScope handle_scope(isolate);
 
   CompilationCacheScript::LookupResult lookup_result =
       isolate->compilation_cache()->LookupScript(source_text, script_details,
                                                  language_mode);
   Handle<Script> script;
-  if (!lookup_result.script().ToHandle(&script)) return;
+  if (!lookup_result.script().ToHandle(&script)) {
+    state_ = kDone;
+    return;
+  }
 
   // Any data sent to the background thread will need to be a persistent handle.
   persistent_handles_ = std::make_unique<PersistentHandles>(isolate);
@@ -1982,15 +1987,19 @@ void BackgroundMergeTask::SetUpOnMainThread(Isolate* isolate,
     // from the cache, assuming the top-level SFI is still compiled by then.
     // Thus, there is no need to keep the Script pointer for background merging.
     // Do nothing in this case.
+    state_ = kDone;
   } else {
     DCHECK(lookup_result.toplevel_sfi().is_null());
     // A background merge is required.
+    state_ = kPendingBackgroundWork;
     cached_script_ = persistent_handles_->NewHandle(*script);
   }
 }
 
 void BackgroundMergeTask::BeginMergeInBackground(LocalIsolate* isolate,
                                                  Handle<Script> new_script) {
+  DCHECK_EQ(state_, kPendingBackgroundWork);
+
   LocalHeap* local_heap = isolate->heap();
   local_heap->AttachPersistentHandles(std::move(persistent_handles_));
   LocalHandleScope handle_scope(local_heap);
@@ -2063,10 +2072,14 @@ void BackgroundMergeTask::BeginMergeInBackground(LocalIsolate* isolate,
   if (forwarder.HasAnythingToForward()) {
     forwarder.IterateAndForwardPointers();
   }
+
+  state_ = kPendingForegroundWork;
 }
 
 Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
     Isolate* isolate, Handle<Script> new_script) {
+  DCHECK_EQ(state_, kPendingForegroundWork);
+
   HandleScope handle_scope(isolate);
   ConstantPoolPointerForwarder forwarder(isolate,
                                          isolate->main_thread_local_heap());
@@ -2125,10 +2138,7 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
       SharedFunctionInfo::cast(maybe_toplevel_sfi.GetHeapObjectAssumeWeak()),
       isolate);
 
-  // Abandon the persistent handles from the background thread, so that
-  // future calls to HasPendingForegroundWork return false.
-  used_new_sfis_.clear();
-  new_compiled_data_for_cached_sfis_.clear();
+  state_ = kDone;
 
   return handle_scope.CloseAndEscape(result);
 }
@@ -2309,14 +2319,14 @@ void BackgroundCompileTask::SourceTextAvailable(
 
 bool BackgroundDeserializeTask::ShouldMergeWithExistingScript() const {
   DCHECK(v8_flags.merge_background_deserialized_script_with_compilation_cache);
-  return background_merge_task_.HasCachedScript() &&
+  return background_merge_task_.HasPendingBackgroundWork() &&
          off_thread_data_.HasResult();
 }
 
 bool BackgroundCompileTask::ShouldMergeWithExistingScript() const {
   DCHECK(v8_flags.stress_background_compile);
   DCHECK(!script_.is_null());
-  return background_merge_task_.HasCachedScript() &&
+  return background_merge_task_.HasPendingBackgroundWork() &&
          jobs_to_retry_finalization_on_main_thread_.empty();
 }
 
