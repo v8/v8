@@ -94,6 +94,12 @@ TestToSortedBasicBehaviorHelper({ length: 4,
   assertEquals(0, a.length);
 })();
 
+(function TestBig() {
+  const a = [];
+  a[50001] = 42.42;
+  a.toSorted();
+})();
+
 (function TestTooBig() {
   const a = { length: Math.pow(2, 32) };
   assertThrows(() => Array.prototype.toSorted.call(a), RangeError);
