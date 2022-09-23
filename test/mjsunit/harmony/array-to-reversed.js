@@ -57,6 +57,19 @@ assertEquals("toReversed", Array.prototype.toReversed.name);
   assertEquals(["1st","2nd","3rd","4th"], order);
 })();
 
+(function TestEmpty() {
+  assertEquals([], [].toReversed());
+})();
+
+(function TestBig() {
+  let a = [];
+  for (let i = 0; i < 50000; i++) a.push(i);
+  let r = a.toReversed();
+  for (let i = 0; i < 50000; i++) {
+    assertEquals(r[i], a.at(-(i+1)));
+  }
+})();
+
 (function TestTooBig() {
   let a = { length: Math.pow(2, 32) };
   assertThrows(() => Array.prototype.toReversed.call(a), RangeError);
