@@ -47,7 +47,7 @@ wheel: <
 
 wheel: <
   name: "infra/python/wheels/coverage/${vpython_platform}"
-  version: "version:5.5.chromium.2"
+  version: "version:5.5.chromium.3"
 >
 
 wheel: <

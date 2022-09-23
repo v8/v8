@@ -575,16 +575,6 @@ hooks = [
     'action': ['python3', 'tools/clang/scripts/update.py',
                '--package=objdump'],
   },
-  # Download and initialize "vpython" VirtualEnv environment packages.
-  {
-    'name': 'vpython_common',
-    'pattern': '.',
-    'condition': 'checkout_android',
-    'action': [ 'vpython',
-                '-vpython-spec', '.vpython',
-                '-vpython-tool', 'install',
-    ],
-  },
   {
     'name': 'vpython3_common',
     'pattern': '.',
