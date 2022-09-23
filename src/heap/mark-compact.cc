@@ -227,9 +227,11 @@ class FullMarkingVerifier : public MarkingVerifier {
     VerifyMarking(heap_->new_lo_space());
     VerifyMarking(heap_->old_space());
     VerifyMarking(heap_->code_space());
+    if (heap_->shared_space()) VerifyMarking(heap_->shared_space());
     if (heap_->map_space()) VerifyMarking(heap_->map_space());
     VerifyMarking(heap_->lo_space());
     VerifyMarking(heap_->code_lo_space());
+    if (heap_->shared_lo_space()) VerifyMarking(heap_->shared_lo_space());
   }
 
  protected:
@@ -281,15 +283,19 @@ class FullMarkingVerifier : public MarkingVerifier {
 
  private:
   V8_INLINE void VerifyHeapObjectImpl(HeapObject heap_object) {
-    if (heap_->IsShared() !=
-        BasicMemoryChunk::FromHeapObject(heap_object)->InSharedHeap())
-      return;
+    if (!ShouldVerifyObject(heap_object)) return;
 
     if (heap_->MustBeInSharedOldSpace(heap_object)) {
       CHECK(heap_->SharedHeapContains(heap_object));
     }
 
     CHECK(marking_state_->IsBlack(heap_object));
+  }
+
+  V8_INLINE bool ShouldVerifyObject(HeapObject heap_object) {
+    const bool in_shared_heap = heap_object.InSharedWritableHeap();
+    return heap_->isolate()->is_shared_heap_isolate() ? in_shared_heap
+                                                      : !in_shared_heap;
   }
 
   template <typename TSlot>
@@ -409,18 +415,22 @@ class FullEvacuationVerifier : public EvacuationVerifier {
     VerifyEvacuation(heap_->new_space());
     VerifyEvacuation(heap_->old_space());
     VerifyEvacuation(heap_->code_space());
+    if (heap_->shared_space()) VerifyEvacuation(heap_->shared_space());
     if (heap_->map_space()) VerifyEvacuation(heap_->map_space());
   }
 
  protected:
   V8_INLINE void VerifyHeapObjectImpl(HeapObject heap_object) {
-    if (heap_->IsShared() !=
-        BasicMemoryChunk::FromHeapObject(heap_object)->InSharedHeap())
-      return;
-
+    if (!ShouldVerifyObject(heap_object)) return;
     CHECK_IMPLIES(Heap::InYoungGeneration(heap_object),
                   Heap::InToPage(heap_object));
     CHECK(!MarkCompactCollector::IsOnEvacuationCandidate(heap_object));
+  }
+
+  V8_INLINE bool ShouldVerifyObject(HeapObject heap_object) {
+    const bool in_shared_heap = heap_object.InSharedWritableHeap();
+    return heap_->isolate()->is_shared_heap_isolate() ? in_shared_heap
+                                                      : !in_shared_heap;
   }
 
   template <typename TSlot>
@@ -506,7 +516,9 @@ MarkCompactCollector::MarkCompactCollector(Heap* heap)
 #ifdef DEBUG
       state_(IDLE),
 #endif
-      is_shared_heap_(heap->IsShared()),
+      uses_shared_heap_(isolate()->has_shared_heap() || isolate()->is_shared()),
+      is_shared_heap_isolate_(isolate()->is_shared_heap_isolate()),
+      should_record_old_to_shared_slots_(isolate()->has_shared_heap()),
       sweeper_(new Sweeper(heap, non_atomic_marking_state())) {
 }
 
@@ -1185,11 +1197,7 @@ void MarkCompactCollector::SweepArrayBufferExtensions() {
 class MarkCompactCollector::RootMarkingVisitor final : public RootVisitor {
  public:
   explicit RootMarkingVisitor(MarkCompactCollector* collector)
-      : collector_(collector),
-        uses_shared_heap_(collector->heap()->isolate()->has_shared_heap() ||
-                          collector->heap()->isolate()->is_shared()),
-        is_shared_heap_isolate_(
-            collector->heap()->isolate()->is_shared_heap_isolate()) {}
+      : collector_(collector) {}
 
   void VisitRootPointer(Root root, const char* description,
                         FullObjectSlot p) final {
@@ -1245,23 +1253,11 @@ class MarkCompactCollector::RootMarkingVisitor final : public RootVisitor {
     Object object = *p;
     if (!object.IsHeapObject()) return;
     HeapObject heap_object = HeapObject::cast(object);
-    if (!ShouldMarkObject(heap_object)) return;
+    if (!collector_->ShouldMarkObject(heap_object)) return;
     collector_->MarkRootObject(root, heap_object);
   }
 
-  bool ShouldMarkObject(HeapObject object) const {
-    if (V8_LIKELY(!uses_shared_heap_)) return true;
-    if (v8_flags.shared_space) {
-      if (is_shared_heap_isolate_) return true;
-      return !object.InSharedHeap();
-    } else {
-      return is_shared_heap_isolate_ == object.InSharedHeap();
-    }
-  }
-
   MarkCompactCollector* const collector_;
-  const bool uses_shared_heap_;
-  const bool is_shared_heap_isolate_;
 };
 
 // This visitor is used to visit the body of special objects held alive by
@@ -1323,12 +1319,7 @@ class MarkCompactCollector::CustomRootBodyMarkingVisitor final
   V8_INLINE void MarkObject(HeapObject host, Object object) {
     if (!object.IsHeapObject()) return;
     HeapObject heap_object = HeapObject::cast(object);
-    // We use this visitor both in client and shared GCs. The client GC should
-    // not mark objects in the shared heap. In shared GCs we are marking each
-    // client's top stack frame, so it is actually legal to encounter references
-    // into the client heap here in a shared GC. We need to bail out in these
-    // cases as well.
-    if (collector_->is_shared_heap() != heap_object.InSharedHeap()) return;
+    if (!collector_->ShouldMarkObject(heap_object)) return;
     collector_->MarkObject(host, heap_object);
   }
 
@@ -1689,7 +1680,8 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
           RememberedSet<OLD_TO_OLD>::Insert<AccessMode::NON_ATOMIC>(
               MemoryChunk::FromHeapObject(host), slot);
         }
-      } else if (p->InSharedHeap() && !collector_->is_shared_heap()) {
+      } else if (p->InSharedHeap() &&
+                 collector_->should_record_old_to_shared_slots()) {
         RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::NON_ATOMIC>(
             MemoryChunk::FromHeapObject(host), slot);
       }
@@ -2148,7 +2140,7 @@ void MarkCompactCollector::MarkRoots(RootVisitor* root_visitor,
   // Custom marking for top optimized frame.
   ProcessTopOptimizedFrame(custom_root_body_visitor, isolate());
 
-  if (isolate()->is_shared()) {
+  if (isolate()->is_shared_heap_isolate()) {
     isolate()->global_safepoint()->IterateClientIsolates(
         [this, custom_root_body_visitor](Isolate* client) {
           ProcessTopOptimizedFrame(custom_root_body_visitor, client);
@@ -2295,10 +2287,11 @@ void MarkCompactCollector::MarkRootsFromStack(RootVisitor* root_visitor) {
 }
 
 void MarkCompactCollector::MarkObjectsFromClientHeaps() {
-  if (!isolate()->is_shared()) return;
+  if (!isolate()->is_shared_heap_isolate()) return;
 
   isolate()->global_safepoint()->IterateClientIsolates(
       [collector = this](Isolate* client) {
+        if (client->is_shared_heap_isolate()) return;
         collector->MarkObjectsFromClientHeap(client);
       });
 }
@@ -3255,8 +3248,8 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
 
   // Mark the uncompiled data as black, and ensure all fields have already been
   // marked.
-  DCHECK(marking_state()->IsBlackOrGrey(inferred_name) ||
-         (!is_shared_heap() && inferred_name.InSharedWritableHeap()));
+  DCHECK(!ShouldMarkObject(inferred_name) ||
+         marking_state()->IsBlackOrGrey(inferred_name));
   marking_state()->WhiteToBlack(uncompiled_data);
 
   // Use the raw function data setter to avoid validity checks, since we're
@@ -3554,14 +3547,14 @@ void MarkCompactCollector::ClearWeakCollections() {
         if (value.IsHeapObject()) {
           HeapObject heap_object = HeapObject::cast(value);
           CHECK_IMPLIES(
-              (!is_shared_heap_ && key.InSharedHeap()) ||
+              !ShouldMarkObject(key) ||
                   non_atomic_marking_state()->IsBlackOrGrey(key),
-              (!is_shared_heap_ && heap_object.InSharedHeap()) ||
+              !ShouldMarkObject(heap_object) ||
                   non_atomic_marking_state()->IsBlackOrGrey(heap_object));
         }
       }
 #endif
-      if (!is_shared_heap_ && key.InSharedHeap()) continue;
+      if (!ShouldMarkObject(key)) continue;
       if (!non_atomic_marking_state()->IsBlackOrGrey(key)) {
         table.RemoveEntry(i);
       }
@@ -5325,10 +5318,12 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
 }
 
 void MarkCompactCollector::UpdatePointersInClientHeaps() {
-  if (!isolate()->is_shared()) return;
+  if (!isolate()->is_shared_heap_isolate()) return;
 
-  isolate()->global_safepoint()->IterateClientIsolates(
-      [this](Isolate* client) { UpdatePointersInClientHeap(client); });
+  isolate()->global_safepoint()->IterateClientIsolates([this](Isolate* client) {
+    if (client->is_shared_heap_isolate()) return;
+    UpdatePointersInClientHeap(client);
+  });
 }
 
 void MarkCompactCollector::UpdatePointersInClientHeap(Isolate* client) {

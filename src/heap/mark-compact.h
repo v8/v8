@@ -469,7 +469,10 @@ class MarkCompactCollector final : public CollectorBase {
   void RecordLiveSlotsOnPage(Page* page);
 
   bool is_compacting() const { return compacting_; }
-  bool is_shared_heap() const { return is_shared_heap_; }
+
+  bool should_record_old_to_shared_slots() const {
+    return should_record_old_to_shared_slots_;
+  }
 
   void FinishSweepingIfOutOfWork();
 
@@ -711,6 +714,8 @@ class MarkCompactCollector final : public CollectorBase {
 
   void RightTrimDescriptorArray(DescriptorArray array, int descriptors_to_trim);
 
+  V8_INLINE bool ShouldMarkObject(HeapObject) const;
+
   base::Mutex mutex_;
   base::Semaphore page_parallel_job_semaphore_{0};
 
@@ -727,7 +732,9 @@ class MarkCompactCollector final : public CollectorBase {
   CollectorState state_;
 #endif
 
-  const bool is_shared_heap_;
+  const bool uses_shared_heap_;
+  const bool is_shared_heap_isolate_;
+  const bool should_record_old_to_shared_slots_;
 
   bool evacuation_ = false;
   // True if we are collecting slots to perform evacuation from evacuation
