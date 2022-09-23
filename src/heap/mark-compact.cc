@@ -4002,71 +4002,6 @@ class PointersUpdatingVisitor final : public ObjectVisitorWithCageBases,
   }
 };
 
-#ifdef VERIFY_HEAP
-// Visitor for updating root pointers and to-space pointers.
-// It does not expect to encounter pointers to dead objects.
-class ClientHeapVerifier final : public ObjectVisitorWithCageBases {
- public:
-  explicit ClientHeapVerifier(Heap* heap) : ObjectVisitorWithCageBases(heap) {}
-
-  void VisitPointer(HeapObject host, ObjectSlot p) override {
-    VerifySlot(cage_base(), p);
-  }
-
-  void VisitPointer(HeapObject host, MaybeObjectSlot p) override {
-    VerifySlot(cage_base(), p);
-  }
-
-  void VisitPointers(HeapObject host, ObjectSlot start,
-                     ObjectSlot end) override {
-    for (ObjectSlot p = start; p < end; ++p) {
-      VerifySlot(cage_base(), p);
-    }
-  }
-
-  void VisitPointers(HeapObject host, MaybeObjectSlot start,
-                     MaybeObjectSlot end) final {
-    for (MaybeObjectSlot p = start; p < end; ++p) {
-      VerifySlot(cage_base(), p);
-    }
-  }
-
-  void VisitMapPointer(HeapObject host) override {
-    VerifySlot(cage_base(), host.map_slot());
-  }
-
-  void VisitCodePointer(HeapObject host, CodeObjectSlot slot) override {
-    VerifySlot(code_cage_base(), ObjectSlot(slot.address()));
-  }
-
-  void VisitCodeTarget(Code host, RelocInfo* rinfo) override {}
-
-  void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {}
-
- private:
-  void VerifySlot(PtrComprCageBase cage_base, ObjectSlot slot) {
-    HeapObject heap_object;
-    if (slot.load(cage_base).GetHeapObject(&heap_object)) {
-      VerifyHeapObject(heap_object);
-    }
-  }
-
-  void VerifySlot(PtrComprCageBase cage_base, MaybeObjectSlot slot) {
-    HeapObject heap_object;
-    if (slot.load(cage_base).GetHeapObject(&heap_object)) {
-      VerifyHeapObject(heap_object);
-    }
-  }
-
-  void VerifyHeapObject(HeapObject heap_object) {
-    if (BasicMemoryChunk::FromHeapObject(heap_object)->InReadOnlySpace())
-      return;
-    if (!heap_object.InSharedHeap()) return;
-    CHECK(!heap_object.map_word(kRelaxedLoad).IsForwardingAddress());
-  }
-};
-#endif  // VERIFY_HEAP
-
 static String UpdateReferenceInExternalStringTableEntry(Heap* heap,
                                                         FullObjectSlot p) {
   HeapObject old_string = HeapObject::cast(*p);
@@ -5426,19 +5361,6 @@ void MarkCompactCollector::UpdatePointersInClientHeap(Isolate* client) {
     });
     if (chunk->InYoungGeneration()) chunk->ReleaseTypedSlotSet<OLD_TO_SHARED>();
   }
-
-#ifdef VERIFY_HEAP
-  if (v8_flags.verify_heap) {
-    ClientHeapVerifier verifier_visitor(client->heap());
-
-    HeapObjectIterator iterator(client->heap(),
-                                HeapObjectIterator::kNoFiltering);
-    for (HeapObject obj = iterator.Next(); !obj.is_null();
-         obj = iterator.Next()) {
-      obj.IterateFast(cage_base, &verifier_visitor);
-    }
-  }
-#endif  // VERIFY_HEAP
 }
 
 void MarkCompactCollector::ReportAbortedEvacuationCandidateDueToOOM(

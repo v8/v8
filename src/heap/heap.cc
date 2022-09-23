@@ -2356,6 +2356,13 @@ size_t Heap::PerformGarbageCollection(
 
   HeapVerifier::VerifyHeapIfEnabled(this);
 
+  if (isolate()->is_shared_heap_isolate()) {
+    isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
+      if (client->is_shared_heap_isolate()) return;
+      HeapVerifier::VerifyHeapIfEnabled(client->heap());
+    });
+  }
+
   tracer()->StartInSafepoint();
 
   GarbageCollectionPrologueInSafepoint();
@@ -2432,6 +2439,13 @@ size_t Heap::PerformGarbageCollection(
   tracer()->StopInSafepoint();
 
   HeapVerifier::VerifyHeapIfEnabled(this);
+
+  if (isolate()->is_shared_heap_isolate()) {
+    isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
+      if (client->is_shared_heap_isolate()) return;
+      HeapVerifier::VerifyHeapIfEnabled(client->heap());
+    });
+  }
 
   return freed_global_handles;
 }
