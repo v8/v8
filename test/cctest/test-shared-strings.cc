@@ -942,6 +942,10 @@ UNINITIALIZED_TEST(PromotionMarkCompactOldToShared) {
   if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
   if (v8_flags.stress_concurrent_allocation) return;
   if (!v8_flags.page_promotion) return;
+  if (v8_flags.single_generation) {
+    // String allocated in old space may be "pretenured" to the shared heap.
+    return;
+  }
 
   v8_flags.shared_string_table = true;
   v8_flags.manual_evacuation_candidates_selection = true;

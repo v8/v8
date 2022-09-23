@@ -553,4 +553,9 @@
   'debugger/value-unavailable-scopes': [SKIP],
 }], # lite_mode or variant in (nooptimization, jitless, assert_types)
 
+##############################################################################
+['single_generation', {
+  'heap-profiler/sampling-heap-profiler-flags': [SKIP],
+}], # single_generation
+
 ]
