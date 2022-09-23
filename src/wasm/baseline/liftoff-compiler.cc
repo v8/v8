@@ -1503,9 +1503,11 @@ class LiftoffCompiler {
         __ MergeFullStackWith(c->label_state, *__ cache_state());
         __ emit_jump(c->label.get());
       }
-      // Merge the else state into the end state.
+      // Merge the else state into the end state. Set this state as the current
+      // state first so helper functions know which registers are in use.
       __ bind(c->else_state->label.get());
-      __ MergeFullStackWith(c->label_state, c->else_state->state);
+      __ cache_state()->Steal(c->else_state->state);
+      __ MergeFullStackWith(c->label_state, *__ cache_state());
       __ cache_state()->Steal(c->label_state);
     } else if (c->reachable()) {
       // No merge yet at the end of the if, but we need to create a merge for
@@ -1517,9 +1519,11 @@ class LiftoffCompiler {
                                c->stack_depth + c->num_exceptions);
       __ MergeFullStackWith(c->label_state, *__ cache_state());
       __ emit_jump(c->label.get());
-      // Merge the else state into the end state.
+      // Merge the else state into the end state. Set this state as the current
+      // state first so helper functions know which registers are in use.
       __ bind(c->else_state->label.get());
-      __ MergeFullStackWith(c->label_state, c->else_state->state);
+      __ cache_state()->Steal(c->else_state->state);
+      __ MergeFullStackWith(c->label_state, *__ cache_state());
       __ cache_state()->Steal(c->label_state);
     } else {
       // No merge needed, just continue with the else state.
