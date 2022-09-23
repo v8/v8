@@ -249,9 +249,11 @@ BreakIterator::BreakIterator(Handle<DebugInfo> debug_info)
 
 int BreakIterator::BreakIndexFromPosition(int source_position) {
   for (; !Done(); Next()) {
+    if (GetDebugBreakType() == DEBUG_BREAK_SLOT_AT_SUSPEND) continue;
     if (source_position <= position()) {
       int first_break = break_index();
       for (; !Done(); Next()) {
+        if (GetDebugBreakType() == DEBUG_BREAK_SLOT_AT_SUSPEND) continue;
         if (source_position == position()) return break_index();
       }
       return first_break;
@@ -297,6 +299,10 @@ DebugBreakType BreakIterator::GetDebugBreakType() {
   } else if (bytecode == interpreter::Bytecode::kReturn) {
     return DEBUG_BREAK_SLOT_AT_RETURN;
   } else if (bytecode == interpreter::Bytecode::kSuspendGenerator) {
+    // SuspendGenerator should always only carry an expression position that
+    // is used in stack trace construction, but should never be a breakable
+    // position reported to the debugger front-end.
+    DCHECK(!source_position_iterator_.is_statement());
     return DEBUG_BREAK_SLOT_AT_SUSPEND;
   } else if (interpreter::Bytecodes::IsCallOrConstruct(bytecode)) {
     return DEBUG_BREAK_SLOT_AT_CALL;
@@ -574,20 +580,21 @@ void Debug::Break(JavaScriptFrame* frame, Handle<JSFunction> break_target) {
       if (current_frame_count > target_frame_count) return;
       V8_FALLTHROUGH;
     case StepInto: {
-      // Special case StepInto and StepOver for generators that are about to
-      // suspend, in which case we go into "generator stepping" mode. The
-      // exception here is the initial implicit yield in generators (which
-      // always has a suspend ID of 0), where we return to the caller first,
-      // instead of triggering "generator stepping" mode straight away.
-      if (location.IsSuspend() && (!IsGeneratorFunction(shared->kind()) ||
-                                   location.generator_suspend_id() > 0)) {
+      // StepInto and StepOver should enter "generator stepping" mode, except
+      // for the implicit initial yield in generators, where it should simply
+      // step out of the generator function.
+      if (location.IsSuspend()) {
         DCHECK(!has_suspended_generator());
-        thread_local_.suspended_generator_ =
-            location.GetGeneratorObjectForSuspendedFrame(frame);
         ClearStepping();
+        if (!IsGeneratorFunction(shared->kind()) ||
+            location.generator_suspend_id() > 0) {
+          thread_local_.suspended_generator_ =
+              location.GetGeneratorObjectForSuspendedFrame(frame);
+        } else {
+          PrepareStep(StepOut);
+        }
         return;
       }
-
       FrameSummary summary = FrameSummary::GetTop(frame);
       step_break = step_break || location.IsReturn() ||
                    current_frame_count != last_frame_count ||
@@ -1220,9 +1227,7 @@ void Debug::PrepareStep(StepAction step_action) {
     // Any step at a return is a step-out, and a step-out at a suspend behaves
     // like a return.
     if (location.IsReturn() ||
-        (location.IsSuspend() &&
-         (step_action == StepOut || (IsGeneratorFunction(shared->kind()) &&
-                                     location.generator_suspend_id() == 0)))) {
+        (location.IsSuspend() && step_action == StepOut)) {
       // On StepOut we'll ignore our further calls to current function in
       // PrepareStepIn callback.
       if (last_step_action() == StepOut) {
@@ -1637,23 +1642,18 @@ void Debug::InstallDebugBreakTrampoline() {
 }
 
 namespace {
-template <typename Iterator>
-void GetBreakablePositions(Iterator* it, int start_position, int end_position,
-                           std::vector<BreakLocation>* locations) {
-  while (!it->Done()) {
-    if (it->position() >= start_position && it->position() < end_position) {
-      locations->push_back(it->GetBreakLocation());
-    }
-    it->Next();
-  }
-}
-
 void FindBreakablePositions(Handle<DebugInfo> debug_info, int start_position,
                             int end_position,
                             std::vector<BreakLocation>* locations) {
   DCHECK(debug_info->HasInstrumentedBytecodeArray());
   BreakIterator it(debug_info);
-  GetBreakablePositions(&it, start_position, end_position, locations);
+  while (!it.Done()) {
+    if (it.GetDebugBreakType() != DEBUG_BREAK_SLOT_AT_SUSPEND &&
+        it.position() >= start_position && it.position() < end_position) {
+      locations->push_back(it.GetBreakLocation());
+    }
+    it.Next();
+  }
 }
 
 bool CompileTopLevel(Isolate* isolate, Handle<Script> script) {
