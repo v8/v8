@@ -6258,7 +6258,7 @@ group("gn_all") {
 }
 
 group("v8_python_base") {
-  data = [ ".vpython3" ]
+  data = [ ".vpython" ]
 }
 
 group("v8_clusterfuzz") {
