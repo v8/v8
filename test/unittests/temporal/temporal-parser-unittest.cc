@@ -158,17 +158,6 @@ class TemporalParserTest : public TestWithIsolate {
     }
   }
 
-  void VerifyParseTemporalCalendarStringSuccess(
-      const char* str, const std::string& calendar_name) {
-    Handle<String> input = MakeString(str);
-    base::Optional<ParsedISO8601Result> result =
-        TemporalParser::ParseTemporalCalendarString(i_isolate(), input);
-    CHECK(result.has_value());
-    ParsedISO8601Result actual = *result;
-    CheckCalendar(i_isolate(), input, actual.calendar_name_start,
-                  actual.calendar_name_length, calendar_name);
-  }
-
   void VerifyParseCalendarNameSuccess(const char* str) {
     Handle<String> input = MakeString(str);
     base::Optional<ParsedISO8601Result> result =
@@ -1625,47 +1614,6 @@ TEST_F(TemporalParserTest, TemporalZonedDateTimeStringSuccess) {
 
 TEST_F(TemporalParserTest, TemporalZonedDateTimeStringIllegal) {
   VERIFY_PARSE_FAIL_ON_ZONED_DATE_TIME(TemporalZonedDateTimeString);
-}
-
-TEST_F(TemporalParserTest, TemporalCalendarStringSuccess) {
-  // CalendarName
-  VerifyParseTemporalCalendarStringSuccess("chinese", "chinese");
-  VerifyParseTemporalCalendarStringSuccess("roc", "roc");
-  VerifyParseTemporalCalendarStringSuccess("indian", "indian");
-  VerifyParseTemporalCalendarStringSuccess("persian", "persian");
-  VerifyParseTemporalCalendarStringSuccess("abcd-efghi", "abcd-efghi");
-  VerifyParseTemporalCalendarStringSuccess("abcd-efghi", "abcd-efghi");
-  VerifyParseTemporalCalendarStringSuccess(
-      "a2345678-b2345678-c2345678-d7654321",
-      "a2345678-b2345678-c2345678-d7654321");
-  // TemporalInstantString
-  VerifyParseTemporalCalendarStringSuccess("2021-11-08z[ABCD]", "");
-  // CalendarDateTime
-  VerifyParseTemporalCalendarStringSuccess("2021-11-08[u-ca=chinese]",
-                                           "chinese");
-  VerifyParseTemporalCalendarStringSuccess("2021-11-08[ABCDEFG][u-ca=chinese]",
-                                           "chinese");
-  VerifyParseTemporalCalendarStringSuccess(
-      "2021-11-08[ABCDEFG/hijklmn][u-ca=roc]", "roc");
-  // Time
-  VerifyParseTemporalCalendarStringSuccess("23:45:59", "");
-  // DateSpecYearMonth
-  VerifyParseTemporalCalendarStringSuccess("2021-12", "");
-  // DateSpecMonthDay
-  VerifyParseTemporalCalendarStringSuccess("--12-31", "");
-  VerifyParseTemporalCalendarStringSuccess("12-31", "");
-  VerifyParseTemporalCalendarStringSuccess("--1231", "");
-}
-
-TEST_F(TemporalParserTest, TemporalCalendarStringIllegal) {
-  VERIFY_PARSE_FAIL(TemporalCalendarString, "20210304[u-ca=]");
-  VERIFY_PARSE_FAIL(TemporalCalendarString, "20210304[u-ca=a]");
-  VERIFY_PARSE_FAIL(TemporalCalendarString, "20210304[u-ca=ab]");
-  VERIFY_PARSE_FAIL(TemporalCalendarString, "20210304[u-ca=abcdef-ab]");
-  VERIFY_PARSE_FAIL(TemporalCalendarString, "20210304[u-ca=abcdefghijkl]");
-  // It is a Syntax Error if DateExtendedYear is "-000000"
-  VERIFY_PARSE_FAIL(TemporalCalendarString, "-0000000304[u-ca=abcdef-ab]");
-  VERIFY_PARSE_FAIL(TemporalCalendarString, "\u22120000000304[u-ca=abcdef-ab]");
 }
 
 constexpr int64_t empty = ParsedISO8601Duration::kEmpty;
