@@ -3230,8 +3230,17 @@ void BytecodeGraphBuilder::VisitGetSuperConstructor() {
 }
 
 void BytecodeGraphBuilder::VisitFindNonDefaultConstructor() {
-  // TODO(v8:13091): Implement.
-  CHECK(false);
+  Node* this_function =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
+  Node* new_target =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(1));
+
+  Node* node = NewNode(javascript()->FindNonDefaultConstructor(), this_function,
+                       new_target);
+
+  environment()->BindRegistersToProjections(
+      bytecode_iterator().GetRegisterOperand(2), node,
+      Environment::kAttachFrameState);
 }
 
 void BytecodeGraphBuilder::BuildCompareOp(const Operator* op) {

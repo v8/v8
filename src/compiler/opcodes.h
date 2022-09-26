@@ -183,7 +183,8 @@
   V(JSStoreInArrayLiteral)             \
   V(JSDeleteProperty)                  \
   V(JSHasProperty)                     \
-  V(JSGetSuperConstructor)
+  V(JSGetSuperConstructor)             \
+  V(JSFindNonDefaultConstructor)
 
 #define JS_CONTEXT_OP_LIST(V) \
   V(JSHasContextExtension)    \

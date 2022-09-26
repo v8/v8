@@ -75,6 +75,7 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   Reduction ReduceJSAsyncFunctionReject(Node* node);
   Reduction ReduceJSAsyncFunctionResolve(Node* node);
   Reduction ReduceJSGetSuperConstructor(Node* node);
+  Reduction ReduceJSFindNonDefaultConstructor(Node* node);
   Reduction ReduceJSInstanceOf(Node* node);
   Reduction ReduceJSHasInPrototypeChain(Node* node);
   Reduction ReduceJSOrdinaryHasInstance(Node* node);

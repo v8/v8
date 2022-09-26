@@ -552,6 +552,10 @@ void JSGenericLowering::LowerJSGetSuperConstructor(Node* node) {
                                      AccessBuilder::ForMapPrototype()));
 }
 
+void JSGenericLowering::LowerJSFindNonDefaultConstructor(Node* node) {
+  ReplaceWithBuiltinCall(node, Builtin::kFindNonDefaultConstructor);
+}
+
 void JSGenericLowering::LowerJSHasInPrototypeChain(Node* node) {
   ReplaceWithRuntimeCall(node, Runtime::kHasInPrototypeChain);
 }

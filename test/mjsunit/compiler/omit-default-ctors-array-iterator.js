@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --omit-default-ctors --no-maglev
+// Flags: --omit-default-ctors --allow-natives-syntax --no-maglev --turbofan
+// Flags: --no-always-turbofan
 
 // TODO(v8:13091): Enable Maglev.
 
@@ -17,12 +18,18 @@
   class B extends A {}
   class C extends B {}
 
-  assertEquals(0, iterationCount);
+  %PrepareFunctionForOptimization(C);
+  new C();
+  %OptimizeFunctionOnNextCall(C);
+
+  // C default ctor doing "...args" and B default ctor doing "...args".
+  assertEquals(2, iterationCount);
 
   new C();
 
   // C default ctor doing "...args" and B default ctor doing "...args".
-  assertEquals(2, iterationCount);
+  assertEquals(4, iterationCount);
+  assertTrue(isTurboFanned(C));  // No deopt.
 
   Array.prototype[Symbol.iterator] = oldIterator;
 })();

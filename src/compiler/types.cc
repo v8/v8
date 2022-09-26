@@ -1121,6 +1121,13 @@ Type Type::Tuple(Type first, Type second, Type third, Zone* zone) {
   return FromTypeBase(tuple);
 }
 
+Type Type::Tuple(Type first, Type second, Zone* zone) {
+  TupleType* tuple = TupleType::New(2, zone);
+  tuple->InitElement(0, first);
+  tuple->InitElement(1, second);
+  return FromTypeBase(tuple);
+}
+
 // static
 Type Type::OtherNumberConstant(double value, Zone* zone) {
   return FromTypeBase(OtherNumberConstantType::New(value, zone));

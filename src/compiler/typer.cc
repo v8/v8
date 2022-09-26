@@ -1470,6 +1470,10 @@ Type Typer::Visitor::TypeJSGetSuperConstructor(Node* node) {
   return Type::NonInternal();
 }
 
+Type Typer::Visitor::TypeJSFindNonDefaultConstructor(Node* node) {
+  return Type::Tuple(Type::Boolean(), Type::Object(), zone());
+}
+
 // JS context operators.
 Type Typer::Visitor::TypeJSHasContextExtension(Node* node) {
   return Type::Boolean();

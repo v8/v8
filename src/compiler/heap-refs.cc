@@ -1561,6 +1561,7 @@ ObjectRef CallHandlerInfoRef::data() const {
 HEAP_ACCESSOR_C(ScopeInfo, int, ContextLength)
 HEAP_ACCESSOR_C(ScopeInfo, bool, HasContextExtensionSlot)
 HEAP_ACCESSOR_C(ScopeInfo, bool, HasOuterScopeInfo)
+HEAP_ACCESSOR_C(ScopeInfo, bool, ClassScopeHasPrivateBrand)
 
 ScopeInfoRef ScopeInfoRef::OuterScopeInfo() const {
   return MakeRefAssumeMemoryFence(broker(), object()->OuterScopeInfo());
@@ -1701,7 +1702,7 @@ ZoneVector<const CFunctionInfo*> FunctionTemplateInfoRef::c_signatures() const {
 
 bool StringRef::IsSeqString() const { return object()->IsSeqString(); }
 
-ScopeInfoRef NativeContextRef::scope_info() const {
+ScopeInfoRef ContextRef::scope_info() const {
   // The scope_info is immutable after initialization.
   return MakeRefAssumeMemoryFence(broker(), object()->scope_info());
 }

@@ -13848,10 +13848,16 @@ void CodeStubAssembler::FindNonDefaultConstructor(
     GotoIfNot(IsJSFunction(CAST(constructor.value())), found_something_else);
 
     // If there are class fields, bail out. TODO(v8:13091): Handle them here.
-    TNode<Oddball> has_class_fields =
-        HasProperty(context, constructor.value(), ClassFieldsSymbolConstant(),
-                    kHasProperty);
-    GotoIf(IsTrue(has_class_fields), found_something_else);
+    const TNode<SharedFunctionInfo> shared_function_info =
+        LoadObjectField<SharedFunctionInfo>(
+            CAST(constructor.value()), JSFunction::kSharedFunctionInfoOffset);
+    const TNode<Uint32T> has_class_fields =
+        DecodeWord32<SharedFunctionInfo::RequiresInstanceMembersInitializerBit>(
+            LoadObjectField<Uint32T>(shared_function_info,
+                                     SharedFunctionInfo::kFlagsOffset));
+
+    GotoIf(Word32NotEqual(has_class_fields, Int32Constant(0)),
+           found_something_else);
 
     // If there are private methods, bail out. TODO(v8:13091): Handle them here.
     TNode<Context> function_context =

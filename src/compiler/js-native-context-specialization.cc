@@ -80,6 +80,8 @@ Reduction JSNativeContextSpecialization::Reduce(Node* node) {
       return ReduceJSAsyncFunctionResolve(node);
     case IrOpcode::kJSGetSuperConstructor:
       return ReduceJSGetSuperConstructor(node);
+    case IrOpcode::kJSFindNonDefaultConstructor:
+      return ReduceJSFindNonDefaultConstructor(node);
     case IrOpcode::kJSInstanceOf:
       return ReduceJSInstanceOf(node);
     case IrOpcode::kJSHasInPrototypeChain:
@@ -538,6 +540,108 @@ Reduction JSNativeContextSpecialization::ReduceJSGetSuperConstructor(
   }
 
   return NoChange();
+}
+
+Reduction JSNativeContextSpecialization::ReduceJSFindNonDefaultConstructor(
+    Node* node) {
+  JSFindNonDefaultConstructorNode n(node);
+  Node* this_function = n.this_function();
+  Node* new_target = n.new_target();
+  Node* effect = n.effect();
+  Control control = n.control();
+
+  // TODO(v8:13091): Don't produce incomplete stack traces when debug is active.
+  // We already deopt when a breakpoint is set. But it would be even nicer to
+  // avoid producting incomplete stack traces when when debug is active, even if
+  // there are no breakpoints - then a user inspecting stack traces via Dev
+  // Tools would always see the full stack trace.
+
+  // Check if the input is a known JSFunction.
+  HeapObjectMatcher m(this_function);
+  if (!m.HasResolvedValue() || !m.Ref(broker()).IsJSFunction()) {
+    return NoChange();
+  }
+
+  JSFunctionRef this_function_ref = m.Ref(broker()).AsJSFunction();
+  MapRef function_map = this_function_ref.map();
+  HeapObjectRef current = function_map.prototype();
+
+  Node* return_value;
+  Node* ctor_or_instance;
+
+  // Walk the class inheritance tree until we find a ctor which is not a default
+  // derived ctor.
+  while (true) {
+    if (!current.IsJSFunction()) {
+      return NoChange();
+    }
+    JSFunctionRef current_function = current.AsJSFunction();
+
+    // If there are class fields, bail out. TODO(v8:13091): Handle them here.
+    if (current_function.shared().requires_instance_members_initializer()) {
+      return NoChange();
+    }
+
+    // If there are private methods, bail out. TODO(v8:13091): Handle them here.
+    if (current_function.context().scope_info().ClassScopeHasPrivateBrand()) {
+      return NoChange();
+    }
+
+    FunctionKind kind = current_function.shared().kind();
+
+    if (kind != FunctionKind::kDefaultDerivedConstructor) {
+      // The hierarchy walk will end here; this is the last change to bail out
+      // before creating new nodes.
+      if (!dependencies()->DependOnArrayIteratorProtector()) {
+        return NoChange();
+      }
+
+      if (kind == FunctionKind::kDefaultBaseConstructor) {
+        return_value = jsgraph()->BooleanConstant(true);
+
+        // Generate a builtin call for creating the instance.
+        Node* constructor = jsgraph()->Constant(current_function);
+
+        effect = ctor_or_instance = graph()->NewNode(
+            jsgraph()->javascript()->Create(), constructor, new_target,
+            n.context(), n.frame_state(), effect, control);
+      } else {
+        return_value = jsgraph()->BooleanConstant(false);
+        ctor_or_instance = jsgraph()->Constant(current_function);
+      }
+      break;
+    }
+
+    // Keep walking up the class tree.
+    current = current_function.map().prototype();
+  }
+
+  dependencies()->DependOnStablePrototypeChain(function_map,
+                                               WhereToStart::kStartAtReceiver);
+
+  // Update the uses of {node}.
+  for (Edge edge : node->use_edges()) {
+    Node* const user = edge.from();
+    if (NodeProperties::IsEffectEdge(edge)) {
+      edge.UpdateTo(effect);
+    } else if (NodeProperties::IsControlEdge(edge)) {
+      edge.UpdateTo(control);
+    } else {
+      DCHECK(NodeProperties::IsValueEdge(edge));
+      switch (ProjectionIndexOf(user->op())) {
+        case 0:
+          Replace(user, return_value);
+          break;
+        case 1:
+          Replace(user, ctor_or_instance);
+          break;
+        default:
+          UNREACHABLE();
+      }
+    }
+  }
+  node->Kill();
+  return Replace(return_value);
 }
 
 Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
