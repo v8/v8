@@ -163,14 +163,16 @@ in_category(
         name = "V8 Fuchsia - builder",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"target_platform": "fuchsia"},
-        use_goma = GOMA.DEFAULT,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
         close_tree = False,
     ),
     main_multibranch_builder(
         name = "V8 Fuchsia - debug builder",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"target_platform": "fuchsia"},
-        use_goma = GOMA.DEFAULT,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
         close_tree = False,
     ),
 )

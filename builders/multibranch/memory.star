@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "GCLIENT_VARS", "GOMA", "ci_pair_factory", "in_branch_console", "main_multibranch_builder", "multibranch_builder")
+load("//lib/lib.star", "GCLIENT_VARS", "GOMA", "RECLIENT", "ci_pair_factory", "in_branch_console", "main_multibranch_builder", "multibranch_builder")
 
 in_category = in_branch_console("memory")
 main_multibranch_builder_pair = ci_pair_factory(main_multibranch_builder)
@@ -12,7 +12,8 @@ in_category(
     main_multibranch_builder_pair(
         name = "V8 Linux64 ASAN",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-        use_goma = GOMA.DEFAULT,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
     ),
     main_multibranch_builder_pair(
         name = "V8 Mac64 ASAN",
@@ -33,7 +34,8 @@ in_category(
         name = "V8 Linux - arm64 - sim - MSAN",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         gclient_vars = [GCLIENT_VARS.INSTRUMENTED_LIBRARIES],
-        use_goma = GOMA.DEFAULT,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
     ),
 )
 
@@ -42,7 +44,8 @@ in_category(
     main_multibranch_builder(
         name = "V8 Linux64 TSAN - builder",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-        use_goma = GOMA.DEFAULT,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
     ),
     main_multibranch_builder(
         name = "V8 Linux64 TSAN",
@@ -69,7 +72,8 @@ in_category(
     main_multibranch_builder_pair(
         name = "V8 Linux64 UBSan",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-        use_goma = GOMA.DEFAULT,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
     ),
 )
 
@@ -78,11 +82,13 @@ in_category(
     main_multibranch_builder_pair(
         name = "V8 Linux - arm64 - sim - CFI",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-        use_goma = GOMA.DEFAULT,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
     ),
     main_multibranch_builder_pair(
         name = "V8 Linux64 - cfi",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-        use_goma = GOMA.DEFAULT,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
     ),
 )

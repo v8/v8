@@ -170,7 +170,8 @@ in_category(
         name = "V8 Linux64 - arm64 - sim - heap sandbox - debug",
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-        use_goma = GOMA.DEFAULT,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
         notify_owners = ["saelo@chromium.org"],
         notifies = ["sheriffs on new failure", "blamelist"],
         description = {
