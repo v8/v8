@@ -17,6 +17,7 @@
 #include "src/execution/execution.h"
 #include "src/execution/isolate.h"
 #include "src/execution/messages.h"
+#include "src/flags/flags.h"
 #include "src/handles/handles.h"
 #include "src/heap/factory.h"
 #include "src/objects/fixed-array.h"
@@ -2989,9 +2990,10 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   InstallFunc(isolate, webassembly, "validate", WebAssemblyValidate, 1);
   InstallFunc(isolate, webassembly, "instantiate", WebAssemblyInstantiate, 1);
 
-  // TODO(tebbi): Put this behind its own flag once --wasm-gc-js-interop gets
-  // closer to shipping.
-  if (v8_flags.wasm_gc_js_interop) {
+  // TODO(7748): These built-ins should not be shipped with wasm GC.
+  // Either a new flag will be needed or the built-ins have to be deleted prior
+  // to shipping.
+  if (v8_flags.experimental_wasm_gc) {
     SimpleInstallFunction(
         isolate, webassembly, "experimentalConvertArrayToString",
         Builtin::kExperimentalWasmConvertArrayToString, 0, true);
