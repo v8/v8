@@ -3715,6 +3715,10 @@ void TurboAssembler::StoreF32LE(DoubleRegister dst, const MemOperand& mem,
   V(I16x8Eq, vcmpequh)     \
   V(I16x8GtS, vcmpgtsh)    \
   V(I16x8GtU, vcmpgtuh)    \
+  V(I16x8AddSatS, vaddshs) \
+  V(I16x8SubSatS, vsubshs) \
+  V(I16x8AddSatU, vadduhs) \
+  V(I16x8SubSatU, vsubuhs) \
   V(I8x16Add, vaddubm)     \
   V(I8x16Sub, vsububm)     \
   V(I8x16MinS, vminsb)     \
@@ -3723,7 +3727,11 @@ void TurboAssembler::StoreF32LE(DoubleRegister dst, const MemOperand& mem,
   V(I8x16MaxU, vmaxub)     \
   V(I8x16Eq, vcmpequb)     \
   V(I8x16GtS, vcmpgtsb)    \
-  V(I8x16GtU, vcmpgtub)
+  V(I8x16GtU, vcmpgtub)    \
+  V(I8x16AddSatS, vaddsbs) \
+  V(I8x16SubSatS, vsubsbs) \
+  V(I8x16AddSatU, vaddubs) \
+  V(I8x16SubSatU, vsububs)
 
 #define EMIT_SIMD_BINOP(name, op)                                      \
   void TurboAssembler::name(Simd128Register dst, Simd128Register src1, \

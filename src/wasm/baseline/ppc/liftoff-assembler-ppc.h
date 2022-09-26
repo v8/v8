@@ -1769,56 +1769,64 @@ bool LiftoffAssembler::emit_select(LiftoffRegister dst, Register condition,
   return false;
 }
 
-#define SIMD_BINOP_LIST(V)  \
-  V(f64x2_add, F64x2Add)    \
-  V(f64x2_sub, F64x2Sub)    \
-  V(f64x2_mul, F64x2Mul)    \
-  V(f64x2_div, F64x2Div)    \
-  V(f64x2_eq, F64x2Eq)      \
-  V(f64x2_lt, F64x2Lt)      \
-  V(f64x2_le, F64x2Le)      \
-  V(f32x4_add, F32x4Add)    \
-  V(f32x4_sub, F32x4Sub)    \
-  V(f32x4_mul, F32x4Mul)    \
-  V(f32x4_div, F32x4Div)    \
-  V(f32x4_min, F32x4Min)    \
-  V(f32x4_max, F32x4Max)    \
-  V(f32x4_eq, F32x4Eq)      \
-  V(f32x4_lt, F32x4Lt)      \
-  V(f32x4_le, F32x4Le)      \
-  V(i64x2_add, I64x2Add)    \
-  V(i64x2_sub, I64x2Sub)    \
-  V(i64x2_eq, I64x2Eq)      \
-  V(i64x2_gt_s, I64x2GtS)   \
-  V(i32x4_add, I32x4Add)    \
-  V(i32x4_sub, I32x4Sub)    \
-  V(i32x4_mul, I32x4Mul)    \
-  V(i32x4_min_s, I32x4MinS) \
-  V(i32x4_min_u, I32x4MinU) \
-  V(i32x4_max_s, I32x4MaxS) \
-  V(i32x4_max_u, I32x4MaxU) \
-  V(i32x4_eq, I32x4Eq)      \
-  V(i32x4_gt_s, I32x4GtS)   \
-  V(i32x4_gt_u, I32x4GtU)   \
-  V(i16x8_add, I16x8Add)    \
-  V(i16x8_sub, I16x8Sub)    \
-  V(i16x8_mul, I16x8Mul)    \
-  V(i16x8_min_s, I16x8MinS) \
-  V(i16x8_min_u, I16x8MinU) \
-  V(i16x8_max_s, I16x8MaxS) \
-  V(i16x8_max_u, I16x8MaxU) \
-  V(i16x8_eq, I16x8Eq)      \
-  V(i16x8_gt_s, I16x8GtS)   \
-  V(i16x8_gt_u, I16x8GtU)   \
-  V(i8x16_add, I8x16Add)    \
-  V(i8x16_sub, I8x16Sub)    \
-  V(i8x16_min_s, I8x16MinS) \
-  V(i8x16_min_u, I8x16MinU) \
-  V(i8x16_max_s, I8x16MaxS) \
-  V(i8x16_max_u, I8x16MaxU) \
-  V(i8x16_eq, I8x16Eq)      \
-  V(i8x16_gt_s, I8x16GtS)   \
-  V(i8x16_gt_u, I8x16GtU)
+#define SIMD_BINOP_LIST(V)         \
+  V(f64x2_add, F64x2Add)           \
+  V(f64x2_sub, F64x2Sub)           \
+  V(f64x2_mul, F64x2Mul)           \
+  V(f64x2_div, F64x2Div)           \
+  V(f64x2_eq, F64x2Eq)             \
+  V(f64x2_lt, F64x2Lt)             \
+  V(f64x2_le, F64x2Le)             \
+  V(f32x4_add, F32x4Add)           \
+  V(f32x4_sub, F32x4Sub)           \
+  V(f32x4_mul, F32x4Mul)           \
+  V(f32x4_div, F32x4Div)           \
+  V(f32x4_min, F32x4Min)           \
+  V(f32x4_max, F32x4Max)           \
+  V(f32x4_eq, F32x4Eq)             \
+  V(f32x4_lt, F32x4Lt)             \
+  V(f32x4_le, F32x4Le)             \
+  V(i64x2_add, I64x2Add)           \
+  V(i64x2_sub, I64x2Sub)           \
+  V(i64x2_eq, I64x2Eq)             \
+  V(i64x2_gt_s, I64x2GtS)          \
+  V(i32x4_add, I32x4Add)           \
+  V(i32x4_sub, I32x4Sub)           \
+  V(i32x4_mul, I32x4Mul)           \
+  V(i32x4_min_s, I32x4MinS)        \
+  V(i32x4_min_u, I32x4MinU)        \
+  V(i32x4_max_s, I32x4MaxS)        \
+  V(i32x4_max_u, I32x4MaxU)        \
+  V(i32x4_eq, I32x4Eq)             \
+  V(i32x4_gt_s, I32x4GtS)          \
+  V(i32x4_gt_u, I32x4GtU)          \
+  V(i16x8_add, I16x8Add)           \
+  V(i16x8_sub, I16x8Sub)           \
+  V(i16x8_mul, I16x8Mul)           \
+  V(i16x8_min_s, I16x8MinS)        \
+  V(i16x8_min_u, I16x8MinU)        \
+  V(i16x8_max_s, I16x8MaxS)        \
+  V(i16x8_max_u, I16x8MaxU)        \
+  V(i16x8_eq, I16x8Eq)             \
+  V(i16x8_gt_s, I16x8GtS)          \
+  V(i16x8_gt_u, I16x8GtU)          \
+  V(i16x8_add_sat_s, I16x8AddSatS) \
+  V(i16x8_sub_sat_s, I16x8SubSatS) \
+  V(i16x8_add_sat_u, I16x8AddSatU) \
+  V(i16x8_sub_sat_u, I16x8SubSatU) \
+  V(i8x16_add, I8x16Add)           \
+  V(i8x16_sub, I8x16Sub)           \
+  V(i8x16_min_s, I8x16MinS)        \
+  V(i8x16_min_u, I8x16MinU)        \
+  V(i8x16_max_s, I8x16MaxS)        \
+  V(i8x16_max_u, I8x16MaxU)        \
+  V(i8x16_eq, I8x16Eq)             \
+  V(i8x16_gt_s, I8x16GtS)          \
+  V(i8x16_gt_u, I8x16GtU)          \
+  V(i8x16_add_sat_s, I8x16AddSatS) \
+  V(i8x16_sub_sat_s, I8x16SubSatS) \
+  V(i8x16_add_sat_u, I8x16AddSatU) \
+  V(i8x16_sub_sat_u, I8x16SubSatU)
 
 #define EMIT_SIMD_BINOP(name, op)                                              \
   void LiftoffAssembler::emit_##name(LiftoffRegister dst, LiftoffRegister lhs, \
@@ -2414,30 +2422,6 @@ void LiftoffAssembler::emit_i16x8_bitmask(LiftoffRegister dst,
   bailout(kSimd, "i16x8_bitmask");
 }
 
-void LiftoffAssembler::emit_i16x8_add_sat_s(LiftoffRegister dst,
-                                            LiftoffRegister lhs,
-                                            LiftoffRegister rhs) {
-  bailout(kUnsupportedArchitecture, "emit_i16x8addsaturate_s");
-}
-
-void LiftoffAssembler::emit_i16x8_sub_sat_s(LiftoffRegister dst,
-                                            LiftoffRegister lhs,
-                                            LiftoffRegister rhs) {
-  bailout(kUnsupportedArchitecture, "emit_i16x8subsaturate_s");
-}
-
-void LiftoffAssembler::emit_i16x8_sub_sat_u(LiftoffRegister dst,
-                                            LiftoffRegister lhs,
-                                            LiftoffRegister rhs) {
-  bailout(kUnsupportedArchitecture, "emit_i16x8subsaturate_u");
-}
-
-void LiftoffAssembler::emit_i16x8_add_sat_u(LiftoffRegister dst,
-                                            LiftoffRegister lhs,
-                                            LiftoffRegister rhs) {
-  bailout(kUnsupportedArchitecture, "emit_i16x8addsaturate_u");
-}
-
 void LiftoffAssembler::emit_i16x8_extadd_pairwise_i8x16_s(LiftoffRegister dst,
                                                           LiftoffRegister src) {
   bailout(kSimd, "i16x8.extadd_pairwise_i8x16_s");
@@ -2518,12 +2502,6 @@ void LiftoffAssembler::emit_i8x16_alltrue(LiftoffRegister dst,
 void LiftoffAssembler::emit_i8x16_bitmask(LiftoffRegister dst,
                                           LiftoffRegister src) {
   bailout(kSimd, "i8x16_bitmask");
-}
-
-void LiftoffAssembler::emit_i8x16_add_sat_s(LiftoffRegister dst,
-                                            LiftoffRegister lhs,
-                                            LiftoffRegister rhs) {
-  bailout(kUnsupportedArchitecture, "emit_i8x16addsaturate_s");
 }
 
 void LiftoffAssembler::emit_s128_const(LiftoffRegister dst,
@@ -2672,24 +2650,6 @@ void LiftoffAssembler::emit_i16x8_rounding_average_u(LiftoffRegister dst,
                                                      LiftoffRegister lhs,
                                                      LiftoffRegister rhs) {
   bailout(kUnsupportedArchitecture, "emit_i16x8_rounding_average_u");
-}
-
-void LiftoffAssembler::emit_i8x16_sub_sat_s(LiftoffRegister dst,
-                                            LiftoffRegister lhs,
-                                            LiftoffRegister rhs) {
-  bailout(kUnsupportedArchitecture, "emit_i8x16subsaturate_s");
-}
-
-void LiftoffAssembler::emit_i8x16_sub_sat_u(LiftoffRegister dst,
-                                            LiftoffRegister lhs,
-                                            LiftoffRegister rhs) {
-  bailout(kUnsupportedArchitecture, "emit_i8x16subsaturate_u");
-}
-
-void LiftoffAssembler::emit_i8x16_add_sat_u(LiftoffRegister dst,
-                                            LiftoffRegister lhs,
-                                            LiftoffRegister rhs) {
-  bailout(kUnsupportedArchitecture, "emit_i8x16addsaturate_u");
 }
 
 void LiftoffAssembler::emit_f32x4_qfma(LiftoffRegister dst,

@@ -2235,6 +2235,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   V(I16x8Eq)               \
   V(I16x8GtS)              \
   V(I16x8GtU)              \
+  V(I16x8AddSatS)          \
+  V(I16x8SubSatS)          \
+  V(I16x8AddSatU)          \
+  V(I16x8SubSatU)          \
   V(I8x16Add)              \
   V(I8x16Sub)              \
   V(I8x16MinS)             \
@@ -2243,7 +2247,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   V(I8x16MaxU)             \
   V(I8x16Eq)               \
   V(I8x16GtS)              \
-  V(I8x16GtU)
+  V(I8x16GtU)              \
+  V(I8x16AddSatS)          \
+  V(I8x16SubSatS)          \
+  V(I8x16AddSatU)          \
+  V(I8x16SubSatU)
 
 #define EMIT_SIMD_BINOP(name)                                     \
   case kPPC_##name: {                                             \
@@ -2761,46 +2769,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ mov(ip, Operand(high));
       __ mtvsrdd(kScratchSimd128Reg, ip, r0);
       __ vperm(dst, src0, src1, kScratchSimd128Reg);
-      break;
-    }
-    case kPPC_I16x8AddSatS: {
-      __ vaddshs(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 i.InputSimd128Register(1));
-      break;
-    }
-    case kPPC_I16x8SubSatS: {
-      __ vsubshs(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 i.InputSimd128Register(1));
-      break;
-    }
-    case kPPC_I16x8AddSatU: {
-      __ vadduhs(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 i.InputSimd128Register(1));
-      break;
-    }
-    case kPPC_I16x8SubSatU: {
-      __ vsubuhs(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 i.InputSimd128Register(1));
-      break;
-    }
-    case kPPC_I8x16AddSatS: {
-      __ vaddsbs(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 i.InputSimd128Register(1));
-      break;
-    }
-    case kPPC_I8x16SubSatS: {
-      __ vsubsbs(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 i.InputSimd128Register(1));
-      break;
-    }
-    case kPPC_I8x16AddSatU: {
-      __ vaddubs(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 i.InputSimd128Register(1));
-      break;
-    }
-    case kPPC_I8x16SubSatU: {
-      __ vsububs(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 i.InputSimd128Register(1));
       break;
     }
     case kPPC_I8x16Swizzle: {
