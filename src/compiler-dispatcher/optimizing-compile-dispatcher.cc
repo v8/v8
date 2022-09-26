@@ -50,8 +50,10 @@ class OptimizingCompileDispatcher::CompileTask : public CancelableTask {
                 RuntimeCallCounterId::kOptimizeBackgroundDispatcherJob);
 
       TimerEventScope<TimerEventRecompileConcurrent> timer(isolate_);
-      TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-                   "V8.OptimizeBackground");
+      TurbofanCompilationJob* job = dispatcher_->NextInput(&local_isolate);
+      TRACE_EVENT_WITH_FLOW0(
+          TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.OptimizeBackground", job,
+          TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
 
       if (dispatcher_->recompilation_delay_ != 0) {
         base::OS::Sleep(base::TimeDelta::FromMilliseconds(
@@ -62,8 +64,7 @@ class OptimizingCompileDispatcher::CompileTask : public CancelableTask {
       // code space in order to be able to get a bytecode array from a baseline
       // code. See SharedFunctionInfo::GetActiveBytecodeArray() for details.
       RwxMemoryWriteScope::SetDefaultPermissionsForNewThread();
-      dispatcher_->CompileNext(dispatcher_->NextInput(&local_isolate),
-                               &local_isolate);
+      dispatcher_->CompileNext(job, &local_isolate);
     }
     {
       base::MutexGuard lock_guard(&dispatcher_->ref_count_mutex_);

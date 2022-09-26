@@ -1075,8 +1075,9 @@ bool CompileTurbofan_Concurrent(Isolate* isolate,
 
   TimerEventScope<TimerEventRecompileSynchronous> timer(isolate);
   RCS_SCOPE(isolate, RuntimeCallCounterId::kOptimizeConcurrentPrepare);
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-               "V8.OptimizeConcurrentPrepare");
+  TRACE_EVENT_WITH_FLOW0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+                         "V8.OptimizeConcurrentPrepare", job.get(),
+                         TRACE_EVENT_FLAG_FLOW_OUT);
 
   if (!PrepareJobWithHandleScope(job.get(), isolate, compilation_info,
                                  ConcurrencyMode::kConcurrent)) {
@@ -1210,6 +1211,10 @@ MaybeHandle<CodeT> CompileMaglev(Isolate* isolate, Handle<JSFunction> function,
   auto job = maglev::MaglevCompilationJob::New(isolate, function);
 
   {
+    TRACE_EVENT_WITH_FLOW0(
+        TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+        IsSynchronous(mode) ? "V8.MaglevPrepare" : "V8.MaglevConcurrentPrepare",
+        job.get(), TRACE_EVENT_FLAG_FLOW_OUT);
     CompilerTracer::TraceStartMaglevCompile(isolate, function, mode);
     CompilationJob::Status status = job->PrepareJob(isolate);
     CHECK_EQ(status, CompilationJob::SUCCEEDED);  // TODO(v8:7700): Use status.
@@ -3915,8 +3920,9 @@ void Compiler::FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
 
   TimerEventScope<TimerEventRecompileSynchronous> timer(isolate);
   RCS_SCOPE(isolate, RuntimeCallCounterId::kOptimizeConcurrentFinalize);
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-               "V8.OptimizeConcurrentFinalize");
+  TRACE_EVENT_WITH_FLOW0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+                         "V8.OptimizeConcurrentFinalize", job,
+                         TRACE_EVENT_FLAG_FLOW_IN);
 
   Handle<JSFunction> function = compilation_info->closure();
   Handle<SharedFunctionInfo> shared = compilation_info->shared_info();

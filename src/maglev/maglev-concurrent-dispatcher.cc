@@ -138,6 +138,9 @@ class MaglevConcurrentDispatcher::JobTask final : public v8::JobTask {
       std::unique_ptr<MaglevCompilationJob> job;
       if (!incoming_queue()->Dequeue(&job)) break;
       DCHECK_NOT_NULL(job);
+      TRACE_EVENT_WITH_FLOW0(
+          TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.MaglevBackground",
+          job.get(), TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
       RuntimeCallStats* rcs = nullptr;  // TODO(v8:7700): Implement.
       CompilationJob::Status status = job->ExecuteJob(rcs, &local_isolate);
       CHECK_EQ(status, CompilationJob::SUCCEEDED);
@@ -192,6 +195,9 @@ void MaglevConcurrentDispatcher::FinalizeFinishedJobs() {
   while (!outgoing_queue_.IsEmpty()) {
     std::unique_ptr<MaglevCompilationJob> job;
     outgoing_queue_.Dequeue(&job);
+    TRACE_EVENT_WITH_FLOW0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+                           "V8.MaglevConcurrentFinalize", job.get(),
+                           TRACE_EVENT_FLAG_FLOW_IN);
     Compiler::FinalizeMaglevCompilationJob(job.get(), isolate_);
   }
 }
