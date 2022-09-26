@@ -319,6 +319,14 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
       if (block->state()->is_exception_handler()) {
         // Exceptions start from a blank state of register values.
         ClearRegisterValues();
+      } else if (block->state()->is_resumable_loop() &&
+                 block->state()->predecessor_count() <= 1) {
+        // Loops that are only reachable through JumpLoop start from a blank
+        // state of register values.
+        // This should actually only support predecessor_count == 1, but we
+        // currently don't eliminate resumable loop headers (and subsequent code
+        // until the next resume) that end up being unreachable from JumpLoop.
+        ClearRegisterValues();
       } else {
         InitializeRegisterValues(block->state()->register_state());
       }

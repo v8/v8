@@ -187,8 +187,8 @@ void MaglevGraphBuilder::BuildMergeStates() {
       std::cout << "- Creating loop merge state at @" << offset << std::endl;
     }
     merge_states_[offset] = MergePointInterpreterFrameState::NewForLoop(
-        *compilation_unit_, offset, NumPredecessors(offset), liveness,
-        &loop_info);
+        current_interpreter_frame_, *compilation_unit_, offset,
+        NumPredecessors(offset), liveness, &loop_info);
   }
 
   if (bytecode().handler_table_size() > 0) {

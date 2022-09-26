@@ -207,31 +207,6 @@ class MaglevGraphBuilder {
       // Any other bytecode that doesn't return or throw will merge into the
       // fallthrough.
       MergeDeadIntoFrameState(iterator_.next_offset());
-    } else if (bytecode == interpreter::Bytecode::kSuspendGenerator) {
-      // Extra special case for SuspendGenerator, if the suspend is dead then
-      // the resume has to be dead too. However, the resume already has a merge
-      // state, with exactly one predecessor (the generator switch), so it will
-      // be revived along the standard path. This can cause havoc if e.g. the
-      // suspend/resume are inside a dead loop, because the JumpLoop can become
-      // live again.
-      //
-      // So, manually advance the iterator to the resume, go through the motions
-      // of processing the merge state, but immediately emit an unconditional
-      // deopt (which also kills the resume).
-      iterator_.Advance();
-      DCHECK_EQ(iterator_.current_bytecode(),
-                interpreter::Bytecode::kResumeGenerator);
-      int resume_offset = iterator_.current_offset();
-      DCHECK_EQ(NumPredecessors(resume_offset), 1);
-      ProcessMergePoint(resume_offset);
-      StartNewBlock(resume_offset);
-      // TODO(v8:7700): This approach is not ideal. We can create a deopt-reopt
-      // loop: the interpreted code runs, creates a generator while feedback is
-      // still not yet allocated, then suspends the generator, tiers up to
-      // maglev, and reaches this deopt. We then deopt, but since the generator
-      // is never created again, we re-opt without the suspend part and we loop!
-      EmitUnconditionalDeopt(DeoptimizeReason::kSuspendGeneratorIsDead);
-      return;
     }
 
     // TODO(leszeks): We could now continue iterating the bytecode

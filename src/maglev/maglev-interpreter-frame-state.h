@@ -442,6 +442,7 @@ class MergePointInterpreterFrameState {
   }
 
   static MergePointInterpreterFrameState* NewForLoop(
+      const InterpreterFrameState& start_state,
       const MaglevCompilationUnit& info, int merge_offset,
       int predecessor_count, const compiler::BytecodeLivenessState* liveness,
       const compiler::LoopInfo* loop_info) {
@@ -450,6 +451,11 @@ class MergePointInterpreterFrameState {
             info, predecessor_count, 0,
             info.zone()->NewArray<BasicBlock*>(predecessor_count),
             BasicBlockType::kLoopHeader, liveness);
+    if (loop_info->resumable()) {
+      state->known_node_aspects_ =
+          info.zone()->New<KnownNodeAspects>(info.zone());
+      state->is_resumable_loop_ = true;
+    }
     auto& assignments = loop_info->assignments();
     auto& frame_state = state->frame_state_;
     frame_state.ForEachParameter(
@@ -457,6 +463,10 @@ class MergePointInterpreterFrameState {
           entry = nullptr;
           if (assignments.ContainsParameter(reg.ToParameterIndex())) {
             entry = state->NewLoopPhi(info.zone(), reg, merge_offset);
+          } else if (state->is_resumable_loop()) {
+            // Copy initial values out of the start state.
+            entry = start_state.get(reg);
+            DCHECK(entry->Is<InitialValue>());
           }
         });
     // TODO(v8:7700): Add contexts into assignment analysis.
@@ -566,7 +576,7 @@ class MergePointInterpreterFrameState {
   // deopt).
   void MergeDead(const MaglevCompilationUnit& compilation_unit,
                  int merge_offset) {
-    DCHECK_GT(predecessor_count_, 1);
+    DCHECK_GE(predecessor_count_, 1);
     DCHECK_LT(predecessors_so_far_, predecessor_count_);
     predecessor_count_--;
     DCHECK_LE(predecessors_so_far_, predecessor_count_);
@@ -630,8 +640,11 @@ class MergePointInterpreterFrameState {
   bool is_unreachable_loop() const {
     // If there is only one predecessor, and it's not set, then this is a loop
     // merge with no forward control flow entering it.
-    return is_loop() && predecessor_count_ == 1 && predecessors_so_far_ == 0;
+    return is_loop() && !is_resumable_loop() && predecessor_count_ == 1 &&
+           predecessors_so_far_ == 0;
   }
+
+  bool is_resumable_loop() const { return is_resumable_loop_; }
 
  private:
   friend void InterpreterFrameState::CopyFrom(
@@ -832,6 +845,7 @@ class MergePointInterpreterFrameState {
 
   int predecessor_count_;
   int predecessors_so_far_;
+  bool is_resumable_loop_ = false;
   BasicBlock** predecessors_;
 
   BasicBlockType basic_block_type_;
