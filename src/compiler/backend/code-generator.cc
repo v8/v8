@@ -306,7 +306,14 @@ void CodeGenerator::AssembleCode() {
         tasm()->InitializeRootRegister();
       }
     }
-
+#ifdef V8_TARGET_ARCH_RISCV64
+    // RVV uses VectorUnit to emit vset{i}vl{i}, reducing the static and dynamic
+    // overhead of the vset{i}vl{i} instruction. However there are some jumps
+    // back between blocks. the Rvv instruction may get an incorrect vtype. so
+    // here VectorUnit needs to be cleared to ensure that the vtype is correct
+    // within the block.
+    tasm()->VU.clear();
+#endif
     if (v8_flags.enable_embedded_constant_pool && !block->needs_frame()) {
       ConstantPoolUnavailableScope constant_pool_unavailable(tasm());
       result_ = AssembleBlock(block);

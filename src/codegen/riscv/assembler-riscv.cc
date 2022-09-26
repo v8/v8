@@ -796,6 +796,7 @@ int32_t Assembler::branch_long_offset(Label* L) {
   else
     DCHECK_EQ(offset & 3, 0);
   DCHECK(is_int32(offset));
+  VU.clear();
   return static_cast<int32_t>(offset);
 }
 
@@ -828,6 +829,7 @@ int32_t Assembler::branch_offset_helper(Label* L, OffsetSize bits) {
   DCHECK(is_intn(offset, bits));
   DCHECK_EQ(offset & 1, 0);
   DEBUG_PRINTF("\toffset = %d\n", offset);
+  VU.clear();
   return offset;
 }
 
