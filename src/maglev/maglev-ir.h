@@ -2250,6 +2250,8 @@ class Constant : public FixedInputValueNodeT<0, Constant> {
 
   DECL_NODE_INTERFACE()
 
+  compiler::HeapObjectRef object() { return object_; }
+
   void DoLoadToRegister(MaglevAssembler*, OutputRegister);
   Handle<Object> DoReify(LocalIsolate* isolate);
 

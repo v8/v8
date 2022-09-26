@@ -1040,8 +1040,34 @@ void MaglevGraphBuilder::VisitStaLookupSlot() {
   SetAccumulator(BuildCallRuntime(StaLookupSlotFunction(flags), {name, value}));
 }
 
+namespace {
+NodeType StaticTypeForNode(ValueNode* node) {
+  DCHECK(node->is_tagged());
+  switch (node->opcode()) {
+    case Opcode::kCheckedSmiTag:
+    case Opcode::kSmiConstant:
+      return NodeType::kSmi;
+    case Opcode::kConstant: {
+      compiler::HeapObjectRef ref = node->Cast<Constant>()->object();
+      if (ref.IsString()) {
+        return NodeType::kString;
+      } else if (ref.IsSymbol()) {
+        return NodeType::kSymbol;
+      } else if (ref.IsHeapNumber()) {
+        return NodeType::kHeapNumber;
+      }
+      return NodeType::kHeapObjectWithKnownMap;
+    }
+    default:
+      return NodeType::kUnknown;
+  }
+}
+}  // namespace
+
 void MaglevGraphBuilder::BuildCheckSmi(ValueNode* object) {
   NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(object);
+  if (known_info->is_smi()) return;
+  known_info->type = StaticTypeForNode(object);
   if (known_info->is_smi()) return;
 
   // TODO(leszeks): Figure out a way to also handle CheckedSmiUntag.
@@ -1051,6 +1077,8 @@ void MaglevGraphBuilder::BuildCheckSmi(ValueNode* object) {
 
 void MaglevGraphBuilder::BuildCheckHeapObject(ValueNode* object) {
   NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(object);
+  if (known_info->is_any_heap_object()) return;
+  known_info->type = StaticTypeForNode(object);
   if (known_info->is_any_heap_object()) return;
 
   AddNewNode<CheckHeapObject>({object});
@@ -1069,6 +1097,8 @@ CheckType GetCheckType(NodeInfo* known_info) {
 void MaglevGraphBuilder::BuildCheckString(ValueNode* object) {
   NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(object);
   if (known_info->is_string()) return;
+  known_info->type = StaticTypeForNode(object);
+  if (known_info->is_string()) return;
 
   AddNewNode<CheckString>({object}, GetCheckType(known_info));
   known_info->type = NodeType::kString;
@@ -1076,6 +1106,8 @@ void MaglevGraphBuilder::BuildCheckString(ValueNode* object) {
 
 void MaglevGraphBuilder::BuildCheckSymbol(ValueNode* object) {
   NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(object);
+  if (known_info->is_symbol()) return;
+  known_info->type = StaticTypeForNode(object);
   if (known_info->is_symbol()) return;
 
   AddNewNode<CheckSymbol>({object}, GetCheckType(known_info));
@@ -1093,10 +1125,32 @@ void MaglevGraphBuilder::BuildMapCheck(ValueNode* object,
       // Map is already checked.
       return;
     }
-    // TODO(leszeks): Insert an unconditional deopt if the known type doesn't
-    // match the required type.
+    // TODO(leszeks): Insert an unconditional deopt if the known map doesn't
+    // match the required map.
   }
   NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(object);
+  if (known_info->type == NodeType::kUnknown) {
+    known_info->type = StaticTypeForNode(object);
+    if (known_info->type == NodeType::kHeapObjectWithKnownMap) {
+      // The only case where the type becomes a heap-object with a known map is
+      // when the object is a constant.
+      DCHECK(object->Is<Constant>());
+      // For constants with stable maps that match the desired map, we don't
+      // need to emit a map check, and can use the dependency -- we can't do
+      // this for unstable maps because the constant could migrate during
+      // compilation.
+      // TODO(leszeks): Insert an unconditional deopt if the constant map
+      // doesn't match the required map.
+      compiler::MapRef constant_map = object->Cast<Constant>()->object().map();
+      if (constant_map.equals(map) && map.is_stable()) {
+        DCHECK_EQ(&map_of_maps, &known_node_aspects().stable_maps);
+        map_of_maps.emplace(object, map);
+        broker()->dependencies()->DependOnStableMap(map);
+        return;
+      }
+    }
+  }
+
   if (map.is_migration_target()) {
     AddNewNode<CheckMapsWithMigration>({object}, map, GetCheckType(known_info));
   } else {

@@ -72,6 +72,17 @@ enum class NodeType {
   kHeapObjectWithKnownMap = (1 << 5) | kAnyHeapObject,
 };
 
+inline bool NodeTypeIsSmi(NodeType type) { return type == NodeType::kSmi; }
+inline bool NodeTypeIsAnyHeapObject(NodeType type) {
+  return static_cast<int>(type) & static_cast<int>(NodeType::kAnyHeapObject);
+}
+inline bool NodeTypeIsString(NodeType type) {
+  return type == NodeType::kString;
+}
+inline bool NodeTypeIsSymbol(NodeType type) {
+  return type == NodeType::kSymbol;
+}
+
 struct NodeInfo {
   NodeType type = NodeType::kUnknown;
 
@@ -83,12 +94,10 @@ struct NodeInfo {
   ValueNode* int32_alternative = nullptr;
   ValueNode* float64_alternative = nullptr;
 
-  bool is_smi() const { return type == NodeType::kSmi; }
-  bool is_any_heap_object() const {
-    return static_cast<int>(type) & static_cast<int>(NodeType::kAnyHeapObject);
-  }
-  bool is_string() const { return type == NodeType::kString; }
-  bool is_symbol() const { return type == NodeType::kSymbol; }
+  bool is_smi() const { return NodeTypeIsSmi(type); }
+  bool is_any_heap_object() const { return NodeTypeIsAnyHeapObject(type); }
+  bool is_string() const { return NodeTypeIsString(type); }
+  bool is_symbol() const { return NodeTypeIsSymbol(type); }
 
   // Mutate this node info by merging in another node info, with the result
   // being a node info that is the subset of information valid in both inputs.
