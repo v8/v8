@@ -101,6 +101,10 @@ TestToSplicedBasicBehaviorHelper({ length: 4,
   assertEquals(Array, (new MyArray()).toSpliced().constructor);
 })();
 
+(function TestEmpty() {
+  assertEquals([], [].toSpliced());
+})();
+
 // All tests after this have an invalidated elements-on-prototype protector.
 (function TestNoHoles() {
   const a = [,,,,];
