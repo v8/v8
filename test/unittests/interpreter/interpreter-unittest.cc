@@ -377,7 +377,10 @@ TEST_F(InterpreterTest, InterpreterBinaryOpsBigInt) {
         if (tester.HasFeedbackMetadata()) {
           MaybeObject feedback = callable.vector().Get(slot);
           CHECK(feedback->IsSmi());
-          CHECK_EQ(BinaryOperationFeedback::kBigInt, feedback->ToSmi().value());
+          // TODO(panq): Create a standalone unit test for kBigInt64.
+          CHECK(BinaryOperationFeedback::kBigInt64 ==
+                    feedback->ToSmi().value() ||
+                BinaryOperationFeedback::kBigInt == feedback->ToSmi().value());
         }
       }
     }

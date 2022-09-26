@@ -6868,6 +6868,26 @@ TNode<BoolT> CodeStubAssembler::IsBigInt(TNode<HeapObject> object) {
   return IsBigIntInstanceType(LoadInstanceType(object));
 }
 
+void CodeStubAssembler::GotoIfLargeBigInt(TNode<BigInt> bigint,
+                                          Label* true_label) {
+  // Small BigInts are BigInts in the range [-2^63 + 1, 2^63 - 1] so that they
+  // can fit in 64-bit registers. Excluding -2^63 from the range makes the check
+  // simpler and faster. The other BigInts are seen as "large".
+  // TODO(panq): We might need to reevaluate of the range of small BigInts.
+  DCHECK(Is64());
+  Label false_label(this);
+  TNode<Uint32T> length =
+      DecodeWord32<BigIntBase::LengthBits>(LoadBigIntBitfield(bigint));
+  GotoIf(Word32Equal(length, Uint32Constant(0)), &false_label);
+  GotoIfNot(Word32Equal(length, Uint32Constant(1)), true_label);
+  Branch(WordEqual(UintPtrConstant(0),
+                   WordAnd(LoadBigIntDigit(bigint, 0),
+                           UintPtrConstant(static_cast<uintptr_t>(
+                               1ULL << (sizeof(uintptr_t) * 8 - 1))))),
+         &false_label, true_label);
+  Bind(&false_label);
+}
+
 TNode<BoolT> CodeStubAssembler::IsPrimitiveInstanceType(
     TNode<Int32T> instance_type) {
   return Int32LessThanOrEqual(instance_type,

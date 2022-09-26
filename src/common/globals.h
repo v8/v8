@@ -1620,7 +1620,7 @@ inline uint32_t ObjectHash(Address address) {
 //
 //   kSignedSmall -> kSignedSmallInputs -> kNumber  -> kNumberOrOddball -> kAny
 //                                                     kString          -> kAny
-//                                                     kBigInt          -> kAny
+//                                        kBigInt64 -> kBigInt          -> kAny
 //
 // Technically we wouldn't need the separation between the kNumber and the
 // kNumberOrOddball values here, since for binary operations, we always
@@ -1637,7 +1637,8 @@ class BinaryOperationFeedback {
     kNumber = 0x7,
     kNumberOrOddball = 0xF,
     kString = 0x10,
-    kBigInt = 0x20,
+    kBigInt64 = 0x20,
+    kBigInt = 0x60,
     kAny = 0x7F
   };
 };
