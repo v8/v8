@@ -4216,9 +4216,7 @@ void BytecodeGenerator::BuildDestructuringArrayAssignment(
           }
 
           Expression* default_value = GetDestructuringDefaultValue(&target);
-          if (!target->IsPattern()) {
-            builder()->SetExpressionAsStatementPosition(target);
-          }
+          builder()->SetExpressionPosition(target);
 
           AssignmentLhsData lhs_data = PrepareAssignmentLhs(target);
 
@@ -4292,10 +4290,7 @@ void BytecodeGenerator::BuildDestructuringArrayAssignment(
 
           // A spread is turned into a loop over the remainer of the iterator.
           Expression* target = spread->expression();
-
-          if (!target->IsPattern()) {
-            builder()->SetExpressionAsStatementPosition(spread);
-          }
+          builder()->SetExpressionPosition(spread);
 
           AssignmentLhsData lhs_data = PrepareAssignmentLhs(target);
 
@@ -4418,10 +4413,7 @@ void BytecodeGenerator::BuildDestructuringObjectAssignment(
     Expression* pattern_key = pattern_property->key();
     Expression* target = pattern_property->value();
     Expression* default_value = GetDestructuringDefaultValue(&target);
-
-    if (!target->IsPattern()) {
-      builder()->SetExpressionAsStatementPosition(target);
-    }
+    builder()->SetExpressionPosition(target);
 
     // Calculate this property's key into the assignment RHS value, additionally
     // storing the key for rest_runtime_callargs if needed.
