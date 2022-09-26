@@ -21,8 +21,8 @@ namespace wasm {
 // types.
 // A recursive group is a subsequence of types explicitly marked in the type
 // section of a wasm module. Identical recursive groups have to be canonicalized
-// to a single canonical group and are considered identical. Respective
-// types in two identical groups are considered identical for all purposes.
+// to a single canonical group. Respective types in two identical groups are
+// considered identical for all purposes.
 // Two groups are considered identical if they have the same shape, and all
 // type indices referenced in the same position in both groups reference:
 // - identical types, if those do not belong to the rec. group,
@@ -105,9 +105,15 @@ class TypeCanonicalizer {
 
   int FindCanonicalGroup(CanonicalGroup&) const;
 
+  // Canonicalize all types present in {type} (including supertype) according to
+  // {CanonicalizeValueType}.
   CanonicalType CanonicalizeTypeDef(const WasmModule* module,
                                     TypeDefinition type,
                                     uint32_t recursive_group_start);
+
+  // An indexed type gets mapped to a {ValueType::CanonicalWithRelativeIndex}
+  // if its index points inside the new canonical group; otherwise, the index
+  // gets mapped to its canonical representative.
   ValueType CanonicalizeValueType(const WasmModule* module, ValueType type,
                                   uint32_t recursive_group_start) const;
 

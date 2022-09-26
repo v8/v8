@@ -924,8 +924,7 @@ struct ControlBase : public PcForErrors<validate> {
   F(StartFunctionBody, Control* block) \
   F(FinishFunction)                    \
   F(OnFirstError)                      \
-  F(NextInstruction, WasmOpcode)       \
-  F(Forward, const Value& from, Value* to)
+  F(NextInstruction, WasmOpcode)
 
 #define INTERFACE_CONSTANT_FUNCTIONS(F) /*       force 80 columns           */ \
   F(I32Const, Value* result, int32_t value)                                    \
@@ -979,6 +978,7 @@ struct ControlBase : public PcForErrors<validate> {
     const IndexImmediate<validate>& imm)                                       \
   F(Trap, TrapReason reason)                                                   \
   F(NopForTestingUnsupportedInLiftoff)                                         \
+  F(Forward, const Value& from, Value* to)                                     \
   F(Select, const Value& cond, const Value& fval, const Value& tval,           \
     Value* result)                                                             \
   F(BrOrRet, uint32_t depth, uint32_t drop_values)                             \

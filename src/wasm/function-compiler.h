@@ -44,7 +44,7 @@ struct WasmCompilationResult {
 
   bool succeeded() const { return code_desc.buffer != nullptr; }
   bool failed() const { return !succeeded(); }
-  operator bool() const { return succeeded(); }
+  explicit operator bool() const { return succeeded(); }
 
   CodeDesc code_desc;
   std::unique_ptr<AssemblerBuffer> instr_buffer;

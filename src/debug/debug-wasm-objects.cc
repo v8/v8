@@ -964,13 +964,7 @@ Handle<WasmValueObject> WasmValueObject::New(
       }
       break;
     }
-    case wasm::kRtt: {
-      // TODO(7748): Expose RTTs to DevTools.
-      t = isolate->factory()->InternalizeString(base::StaticCharVector("rtt"));
-      v = isolate->factory()->InternalizeString(
-          base::StaticCharVector("(unimplemented)"));
-      break;
-    }
+    case wasm::kRtt:
     case wasm::kVoid:
     case wasm::kBottom:
       UNREACHABLE();

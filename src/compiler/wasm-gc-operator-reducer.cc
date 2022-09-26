@@ -117,6 +117,9 @@ wasm::TypeInModule WasmGCOperatorReducer::ObjectTypeFromContext(Node* object,
              : type_from_node;
 }
 
+// If the condition of this node's branch is a type check or a null check,
+// add the additional information about the type-checked node to the path
+// state.
 Reduction WasmGCOperatorReducer::ReduceIf(Node* node, bool condition) {
   DCHECK(node->opcode() == IrOpcode::kIfTrue ||
          node->opcode() == IrOpcode::kIfFalse);
@@ -184,7 +187,7 @@ Reduction WasmGCOperatorReducer::ReduceMerge(Node* node) {
     // Change the current type block list to a longest common prefix of this
     // state list and the other list. (The common prefix should correspond to
     // the state of the common dominator.)
-    // TODO(manoskouk): Consider computing intersections for some types.
+    // TODO(manoskouk): Consider computing unions for some types.
     types.ResetToCommonAncestor(GetState(*input_it));
   }
   return UpdateStates(node, types);

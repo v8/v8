@@ -1053,9 +1053,6 @@ class Binary {
   }
 
   emit_init_expr(expr) {
-    // TODO(manoskouk): This is redundant, remove it once we are confident we
-    // check everything.
-    checkExpr(expr);
     this.emit_bytes(expr);
     this.emit_u8(kExprEnd);
   }

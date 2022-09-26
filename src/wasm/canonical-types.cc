@@ -83,8 +83,6 @@ uint32_t TypeCanonicalizer::AddRecursiveGroup(const FunctionSig* sig) {
   return canonical_index;
 }
 
-// An index in a type gets mapped to a relative index if it is inside the new
-// canonical group, or the canonical representative if it is not.
 ValueType TypeCanonicalizer::CanonicalizeValueType(
     const WasmModule* module, ValueType type,
     uint32_t recursive_group_start) const {
@@ -116,8 +114,6 @@ bool TypeCanonicalizer::IsCanonicalSubtype(uint32_t sub_index,
   return false;
 }
 
-// Map all type indices (including supertype) inside {type} to indices
-// relative to {recursive_group_start}.
 TypeCanonicalizer::CanonicalType TypeCanonicalizer::CanonicalizeTypeDef(
     const WasmModule* module, TypeDefinition type,
     uint32_t recursive_group_start) {

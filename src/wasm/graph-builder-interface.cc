@@ -1685,7 +1685,6 @@ class WasmGraphBuildingInterface {
 
     TFNode* if_success = nullptr;
     TFNode* if_exception = nullptr;
-    // TODO(manoskouk): Can we assign a wasm type to the exception value?
     if (!builder_->ThrowsException(node, &if_success, &if_exception)) {
       return node;
     }
@@ -2073,7 +2072,6 @@ class WasmGraphBuildingInterface {
         }
       }
       if (exception_value != nullptr) {
-        // TODO(manoskouk): Can we assign a wasm type to the exception value?
         *exception_value = builder_->LoopExitValue(
             *exception_value, MachineRepresentation::kWord32);
       }

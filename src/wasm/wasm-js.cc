@@ -1565,8 +1565,6 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
       break;
     }
     case i::wasm::kRtt:
-      // TODO(7748): Implement.
-      UNIMPLEMENTED();
     case i::wasm::kI8:
     case i::wasm::kI16:
     case i::wasm::kVoid:
@@ -2725,7 +2723,6 @@ void WebAssemblyGlobalGetValueCommon(
       break;
     }
     case i::wasm::kRtt:
-      UNIMPLEMENTED();  // TODO(7748): Implement.
     case i::wasm::kI8:
     case i::wasm::kI16:
     case i::wasm::kBottom:

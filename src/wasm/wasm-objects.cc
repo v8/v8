@@ -1554,8 +1554,6 @@ wasm::WasmValue WasmStruct::GetFieldValue(uint32_t index) {
       return wasm::WasmValue(ref, field_type);
     }
     case wasm::kRtt:
-      // TODO(7748): Expose RTTs to DevTools.
-      UNIMPLEMENTED();
     case wasm::kVoid:
     case wasm::kBottom:
       UNREACHABLE();
@@ -1583,8 +1581,6 @@ wasm::WasmValue WasmArray::GetElement(uint32_t index) {
       return wasm::WasmValue(ref, element_type);
     }
     case wasm::kRtt:
-      // TODO(7748): Expose RTTs to DevTools.
-      UNIMPLEMENTED();
     case wasm::kVoid:
     case wasm::kBottom:
       UNREACHABLE();

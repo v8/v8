@@ -3668,8 +3668,7 @@ class WasmInterpreterInternals {
             FOREACH_WASMVALUE_CTYPES(CASE_TYPE)
 #undef CASE_TYPE
             case kRef:
-            case kRefNull:
-            case kRtt: {
+            case kRefNull: {
               // TODO(7748): Type checks or DCHECKs for ref types?
               HandleScope handle_scope(isolate_);  // Avoid leaking handles.
               Handle<FixedArray> global_buffer;    // The buffer of the global.
@@ -3681,6 +3680,7 @@ class WasmInterpreterInternals {
               global_buffer->set(global_index, *ref);
               break;
             }
+            case kRtt:
             case kI8:
             case kI16:
             case kVoid:

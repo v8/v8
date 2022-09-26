@@ -1345,7 +1345,7 @@ class ModuleDecoderTemplate : public Decoder {
       int64_t last_func_idx = -1;
       for (uint32_t i = 0; i < func_count; i++) {
         uint32_t func_idx = inner.consume_u32v("function index");
-        if (int64_t(func_idx) <= last_func_idx) {
+        if (int64_t{func_idx} <= last_func_idx) {
           inner.errorf("Invalid function index: %d", func_idx);
           break;
         }
@@ -1365,7 +1365,7 @@ class ModuleDecoderTemplate : public Decoder {
           for (uint32_t k = 0; k < mark_size; k++) {
             trace_mark_id |= inner.consume_u8("trace mark id") << k * 8;
           }
-          if (int64_t(func_off) <= last_func_off) {
+          if (int64_t{func_off} <= last_func_off) {
             inner.errorf("Invalid branch offset: %d", func_off);
             break;
           }
@@ -1504,7 +1504,7 @@ class ModuleDecoderTemplate : public Decoder {
       int64_t last_func_idx = -1;
       for (uint32_t i = 0; i < func_count; i++) {
         uint32_t func_idx = inner.consume_u32v("function index");
-        if (int64_t(func_idx) <= last_func_idx) {
+        if (int64_t{func_idx} <= last_func_idx) {
           inner.errorf("Invalid function index: %d", func_idx);
           break;
         }
@@ -1517,7 +1517,7 @@ class ModuleDecoderTemplate : public Decoder {
         int64_t last_br_off = -1;
         for (uint32_t j = 0; j < num_hints; ++j) {
           uint32_t br_off = inner.consume_u32v("branch instruction offset");
-          if (int64_t(br_off) <= last_br_off) {
+          if (int64_t{br_off} <= last_br_off) {
             inner.errorf("Invalid branch offset: %d", br_off);
             break;
           }
