@@ -930,6 +930,10 @@ Node* ScheduleBuilder::ProcessOperation(const IndexedLoadOp& op) {
                      : machine.ProtectedLoad(loaded_rep),
                  {base, index});
 }
+Node* ScheduleBuilder::ProcessOperation(const ProtectedLoadOp& op) {
+  return AddNode(machine.ProtectedLoad(op.loaded_rep.ToMachineType()),
+                 {GetNode(op.base()), GetNode(op.index())});
+}
 Node* ScheduleBuilder::ProcessOperation(const StoreOp& op) {
   intptr_t offset = op.offset;
   if (op.kind == StoreOp::Kind::kTaggedBase) {
@@ -942,9 +946,6 @@ Node* ScheduleBuilder::ProcessOperation(const StoreOp& op) {
   if (IsAlignedAccess(op.kind)) {
     o = machine.Store(StoreRepresentation(
         op.stored_rep.ToMachineType().representation(), op.write_barrier));
-  } else if (op.kind == LoadOp::Kind::kProtected) {
-    DCHECK_EQ(op.write_barrier, WriteBarrierKind::kNoWriteBarrier);
-    o = machine.ProtectedStore(op.stored_rep.ToMachineType().representation());
   } else {
     DCHECK_EQ(op.write_barrier, WriteBarrierKind::kNoWriteBarrier);
     o = machine.UnalignedStore(op.stored_rep.ToMachineType().representation());
@@ -970,14 +971,16 @@ Node* ScheduleBuilder::ProcessOperation(const IndexedStoreOp& op) {
   if (IsAlignedAccess(op.kind)) {
     o = machine.Store(StoreRepresentation(
         op.stored_rep.ToMachineType().representation(), op.write_barrier));
-  } else if (op.kind == LoadOp::Kind::kProtected) {
-    DCHECK_EQ(op.write_barrier, WriteBarrierKind::kNoWriteBarrier);
-    o = machine.ProtectedStore(op.stored_rep.ToMachineType().representation());
   } else {
     DCHECK_EQ(op.write_barrier, WriteBarrierKind::kNoWriteBarrier);
     o = machine.UnalignedStore(op.stored_rep.ToMachineType().representation());
   }
   return AddNode(o, {base, index, value});
+}
+Node* ScheduleBuilder::ProcessOperation(const ProtectedStoreOp& op) {
+  return AddNode(
+      machine.ProtectedStore(op.stored_rep.ToMachineType().representation()),
+      {GetNode(op.base()), GetNode(op.index()), GetNode(op.value())});
 }
 Node* ScheduleBuilder::ProcessOperation(const RetainOp& op) {
   return AddNode(common.Retain(), {GetNode(op.retained())});

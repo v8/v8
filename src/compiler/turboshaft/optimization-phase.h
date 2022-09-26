@@ -463,6 +463,11 @@ struct OptimizationPhase<Analyzer, Assembler>::Impl {
         MapToNewGraph(op.base()), MapToNewGraph(op.index()), op.kind,
         op.loaded_rep, op.result_rep, op.offset, op.element_size_log2);
   }
+  OpIndex ReduceProtectedLoad(const ProtectedLoadOp& op) {
+    return assembler.ProtectedLoad(MapToNewGraph(op.base()),
+                                   MapToNewGraph(op.index()), op.loaded_rep,
+                                   op.result_rep);
+  }
   OpIndex ReduceStore(const StoreOp& op) {
     return assembler.Store(MapToNewGraph(op.base()), MapToNewGraph(op.value()),
                            op.kind, op.stored_rep, op.write_barrier, op.offset);
@@ -472,6 +477,11 @@ struct OptimizationPhase<Analyzer, Assembler>::Impl {
         MapToNewGraph(op.base()), MapToNewGraph(op.index()),
         MapToNewGraph(op.value()), op.kind, op.stored_rep, op.write_barrier,
         op.offset, op.element_size_log2);
+  }
+  OpIndex ReduceProtectedStore(const ProtectedStoreOp& op) {
+    return assembler.ProtectedStore(MapToNewGraph(op.base()),
+                                    MapToNewGraph(op.index()),
+                                    MapToNewGraph(op.value()), op.stored_rep);
   }
   OpIndex ReduceRetain(const RetainOp& op) {
     return assembler.Retain(MapToNewGraph(op.retained()));

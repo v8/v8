@@ -77,8 +77,10 @@ class Graph;
   V(Constant)                        \
   V(Load)                            \
   V(IndexedLoad)                     \
+  V(ProtectedLoad)                   \
   V(Store)                           \
   V(IndexedStore)                    \
+  V(ProtectedStore)                  \
   V(Retain)                          \
   V(Parameter)                       \
   V(OsrValue)                        \
@@ -263,6 +265,12 @@ struct OpProperties {
   }
   static constexpr OpProperties BlockTerminatorWithAnySideEffect() {
     return {true, true, true, true};
+  }
+  static constexpr OpProperties ReadingAndCanAbort() {
+    return {true, false, true, false};
+  }
+  static constexpr OpProperties WritingAndCanAbort() {
+    return {false, true, true, false};
   }
   bool operator==(const OpProperties& other) const {
     return can_read == other.can_read && can_write == other.can_write &&
@@ -1265,12 +1273,7 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
 // When result_rep is RegisterRepresentation::Compressed(), then the load does
 // not decompress the value.
 struct LoadOp : FixedArityOperationT<1, LoadOp> {
-  enum class Kind : uint8_t {
-    kTaggedBase,
-    kRawAligned,
-    kRawUnaligned,
-    kProtected
-  };
+  enum class Kind : uint8_t { kTaggedBase, kRawAligned, kRawUnaligned };
   Kind kind;
   MemoryRepresentation loaded_rep;
   RegisterRepresentation result_rep;
@@ -1303,7 +1306,6 @@ inline bool IsAlignedAccess(LoadOp::Kind kind) {
     case LoadOp::Kind::kRawAligned:
       return true;
     case LoadOp::Kind::kRawUnaligned:
-    case LoadOp::Kind::kProtected:
       return false;
   }
 }
@@ -1345,6 +1347,28 @@ struct IndexedLoadOp : FixedArityOperationT<2, IndexedLoadOp> {
   auto options() const {
     return std::tuple{kind, loaded_rep, offset, element_size_log2};
   }
+};
+
+// A protected load registers a trap handler which handles out-of-bounds memory
+// accesses.
+struct ProtectedLoadOp : FixedArityOperationT<2, ProtectedLoadOp> {
+  MemoryRepresentation loaded_rep;
+  RegisterRepresentation result_rep;
+
+  static constexpr OpProperties properties = OpProperties::ReadingAndCanAbort();
+
+  OpIndex base() const { return input(0); }
+  OpIndex index() const { return input(1); }
+
+  ProtectedLoadOp(OpIndex base, OpIndex index, MemoryRepresentation loaded_rep,
+                  RegisterRepresentation result_rep)
+      : Base(base, index), loaded_rep(loaded_rep), result_rep(result_rep) {
+    DCHECK(loaded_rep.ToRegisterRepresentation() == result_rep ||
+           (loaded_rep.IsTagged() &&
+            result_rep == RegisterRepresentation::Compressed()));
+  }
+
+  auto options() const { return std::tuple{loaded_rep, result_rep}; }
 };
 
 // Store `value` to: base + offset.
@@ -1408,6 +1432,23 @@ struct IndexedStoreOp : FixedArityOperationT<3, IndexedStoreOp> {
     return std::tuple{kind, stored_rep, write_barrier, offset,
                       element_size_log2};
   }
+};
+
+// A protected store registers a trap handler which handles out-of-bounds memory
+// accesses.
+struct ProtectedStoreOp : FixedArityOperationT<3, ProtectedStoreOp> {
+  MemoryRepresentation stored_rep;
+
+  static constexpr OpProperties properties = OpProperties::WritingAndCanAbort();
+
+  OpIndex base() const { return input(0); }
+  OpIndex index() const { return input(1); }
+  OpIndex value() const { return input(2); }
+
+  ProtectedStoreOp(OpIndex base, OpIndex index, OpIndex value,
+                   MemoryRepresentation stored_rep)
+      : Base(base, index, value), stored_rep(stored_rep) {}
+  auto options() const { return std::tuple{stored_rep}; }
 };
 
 // Retain a HeapObject to prevent it from being garbage collected too early.

@@ -590,7 +590,6 @@ OpIndex GraphBuilder::Process(
 
     case IrOpcode::kLoad:
     case IrOpcode::kLoadImmutable:
-    case IrOpcode::kProtectedLoad:
     case IrOpcode::kUnalignedLoad: {
       MemoryRepresentation loaded_rep =
           MemoryRepresentation::FromMachineType(LoadRepresentationOf(op));
@@ -598,10 +597,9 @@ OpIndex GraphBuilder::Process(
       Node* base = node->InputAt(0);
       Node* index = node->InputAt(1);
       // It's ok to merge LoadImmutable into Load after scheduling.
-      LoadOp::Kind kind =
-          opcode == IrOpcode::kUnalignedLoad   ? LoadOp::Kind::kRawUnaligned
-          : opcode == IrOpcode::kProtectedLoad ? LoadOp::Kind::kProtected
-                                               : LoadOp::Kind::kRawAligned;
+      LoadOp::Kind kind = opcode == IrOpcode::kUnalignedLoad
+                              ? LoadOp::Kind::kRawUnaligned
+                              : LoadOp::Kind::kRawAligned;
       if (index->opcode() == IrOpcode::kInt32Constant) {
         int32_t offset = OpParameter<int32_t>(index->op());
         return assembler.Load(Map(base), kind, loaded_rep, result_rep, offset);
@@ -618,19 +616,25 @@ OpIndex GraphBuilder::Process(
       return assembler.IndexedLoad(Map(base), Map(index), kind, loaded_rep,
                                    result_rep, offset, element_size_log2);
     }
+    case IrOpcode::kProtectedLoad: {
+      MemoryRepresentation loaded_rep =
+          MemoryRepresentation::FromMachineType(LoadRepresentationOf(op));
+      RegisterRepresentation result_rep = loaded_rep.ToRegisterRepresentation();
+      return assembler.ProtectedLoad(
+          Map(node->InputAt(0)), Map(node->InputAt(1)), loaded_rep, result_rep);
+    }
 
     case IrOpcode::kStore:
-    case IrOpcode::kUnalignedStore:
-    case IrOpcode::kProtectedStore: {
+    case IrOpcode::kUnalignedStore: {
       bool aligned = opcode != IrOpcode::kUnalignedStore;
       StoreRepresentation store_rep =
           aligned ? StoreRepresentationOf(op)
                   : StoreRepresentation(UnalignedStoreRepresentationOf(op),
                                         WriteBarrierKind::kNoWriteBarrier);
-      StoreOp::Kind kind =
-          opcode == IrOpcode::kStore            ? StoreOp::Kind::kRawAligned
-          : opcode == IrOpcode::kUnalignedStore ? StoreOp::Kind::kRawAligned
-                                                : StoreOp::Kind::kProtected;
+      StoreOp::Kind kind = opcode == IrOpcode::kStore
+                               ? StoreOp::Kind::kRawAligned
+                               : StoreOp::Kind::kRawUnaligned;
+
       Node* base = node->InputAt(0);
       Node* index = node->InputAt(1);
       Node* value = node->InputAt(2);
@@ -658,6 +662,12 @@ OpIndex GraphBuilder::Process(
           MemoryRepresentation::FromMachineRepresentation(
               store_rep.representation()),
           store_rep.write_barrier_kind(), offset, element_size_log2);
+    }
+    case IrOpcode::kProtectedStore: {
+      return assembler.ProtectedStore(
+          Map(node->InputAt(0)), Map(node->InputAt(1)), Map(node->InputAt(2)),
+          MemoryRepresentation::FromMachineRepresentation(
+              OpParameter<MachineRepresentation>(node->op())));
     }
 
     case IrOpcode::kRetain:
