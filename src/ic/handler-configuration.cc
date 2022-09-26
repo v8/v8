@@ -553,8 +553,8 @@ void StoreHandler::PrintHandler(Object handler, std::ostream& os) {
   } else {
     os << "StoreHandler(";
     StoreHandler store_handler = StoreHandler::cast(handler);
-    if (store_handler.smi_handler().IsCode()) {
-      Code code = Code::cast(store_handler.smi_handler());
+    if (store_handler.smi_handler().IsCodeT()) {
+      CodeT code = CodeT::cast(store_handler.smi_handler());
       os << "builtin = ";
       code.ShortPrint(os);
     } else {
@@ -565,9 +565,10 @@ void StoreHandler::PrintHandler(Object handler, std::ostream& os) {
          << LookupOnLookupStartObjectBits::decode(raw_handler) << ", ";
       PrintSmiStoreHandler(raw_handler, os);
     }
-    DCHECK_GE(store_handler.data_field_count(), 1);
-    os << ", data1 = ";
-    store_handler.data1().ShortPrint(os);
+    if (store_handler.data_field_count() >= 1) {
+      os << ", data1 = ";
+      store_handler.data1().ShortPrint(os);
+    }
     if (store_handler.data_field_count() >= 2) {
       os << ", data2 = ";
       store_handler.data2().ShortPrint(os);
