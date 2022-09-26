@@ -2253,6 +2253,8 @@ class Constant : public FixedInputValueNodeT<0, Constant> {
   void DoLoadToRegister(MaglevAssembler*, OutputRegister);
   Handle<Object> DoReify(LocalIsolate* isolate);
 
+  const compiler::HeapObjectRef& ref() const { return object_; }
+
  private:
   const compiler::HeapObjectRef object_;
 };

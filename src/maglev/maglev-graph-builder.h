@@ -408,6 +408,13 @@ class MaglevGraphBuilder {
     return node;
   }
 
+  enum ContextSlotMutability { kImmutable, kMutable };
+  bool TrySpecializeLoadContextSlotToFunctionContext(
+      ValueNode** context, size_t* depth, int slot_index,
+      ContextSlotMutability slot_mutability);
+  void BuildLoadContextSlot(ValueNode* context, size_t depth, int slot_index,
+                            ContextSlotMutability slot_mutability);
+
   template <Builtin kBuiltin>
   CallBuiltin* BuildCallBuiltin(std::initializer_list<ValueNode*> inputs) {
     using Descriptor = typename CallInterfaceDescriptorFor<kBuiltin>::type;
