@@ -237,7 +237,8 @@ void LookupIterator::UpdateProtector(Isolate* isolate, Handle<Object> receiver,
 #if DEBUG
   bool debug_maybe_protector =
       *name == roots.constructor_string() || *name == roots.next_string() ||
-      *name == roots.resolve_string() || *name == roots.then_string() ||
+      *name == roots.resolve_string() || *name == roots.return_string() ||
+      *name == roots.then_string() ||
       *name == roots.is_concat_spreadable_symbol() ||
       *name == roots.iterator_symbol() || *name == roots.species_symbol();
   DCHECK_EQ(maybe_protector, debug_maybe_protector);

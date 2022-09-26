@@ -7,8 +7,9 @@
 
 #include "src/handles/handles.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
+
+enum InstanceType : uint16_t;
 
 class Protectors : public AllStatic {
  public:
@@ -88,9 +89,23 @@ class Protectors : public AllStatic {
   V8_EXPORT_PRIVATE static void Invalidate##name(Isolate* isolate);
   DECLARED_PROTECTORS_ON_ISOLATE(DECLARE_PROTECTOR_ON_ISOLATE)
 #undef DECLARE_PROTECTOR_ON_ISOLATE
+
+  // Invalidates respective iterator lookup chain protector.
+  static void InvalidateRespectiveIteratorLookupChain(
+      Isolate* isolate, InstanceType instance_type);
+
+  // Invalidates iterator lookup chain protectors that might be altered by
+  // introducing a "return" property.
+  // The fast iteration protocol can't be used because the "return" callback
+  // might need to be called according to the iterator protocol.
+  static void InvalidateRespectiveIteratorLookupChainForReturn(
+      Isolate* isolate, InstanceType instance_type);
+
+ private:
+  // Invalidates all iterator lookup chain protectors.
+  static void InvalidateAllIteratorLookupChains(Isolate* isolate);
 };
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #endif  // V8_EXECUTION_PROTECTORS_H_
