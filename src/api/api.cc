@@ -357,88 +357,19 @@ void V8::SetSnapshotDataBlob(StartupData* snapshot_blob) {
 namespace {
 
 #ifdef V8_ENABLE_SANDBOX
-// ArrayBufferAllocator to use when the sandbox is enabled in which case all
-// ArrayBuffer backing stores need to be allocated inside the sandbox.
-// TODO(chromium:1340224): replace this with a more efficient allocator.
+// ArrayBufferAllocator to use when sandboxed pointers are used in which case
+// all ArrayBuffer backing stores need to be allocated inside the sandbox.
+// Note, the current implementation is extremely inefficient as it uses the
+// BoundedPageAllocator. In the future, we'll need a proper allocator
+// implementation.
 class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
  public:
-  ArrayBufferAllocator() {
-    CHECK(i::GetProcessWideSandbox()->is_initialized());
-    VirtualAddressSpace* vas = i::GetProcessWideSandbox()->address_space();
-    constexpr size_t backing_memory_size = 8ULL * i::GB;
-    i::Address backing_memory_base =
-        vas->AllocatePages(VirtualAddressSpace::kNoHint, backing_memory_size,
-                           kChunkSize, PagePermissions::kNoAccess);
-    if (!backing_memory_base) {
-      i::V8::FatalProcessOutOfMemory(
-          nullptr, "Could not reserve backing memory for ArrayBufferAllocator");
-    }
-    DCHECK(IsAligned(backing_memory_base, kChunkSize));
-
-    region_alloc_ = std::make_unique<base::RegionAllocator>(
-        backing_memory_base, backing_memory_size, kAllocationGranularity);
-    end_of_accessible_region_ = region_alloc_->begin();
-
-    // Install a on-merge callback to discard or decommit unused pages.
-    region_alloc_->set_on_merge_callback([this](i::Address start, size_t size) {
-      mutex_.AssertHeld();
-      VirtualAddressSpace* vas = i::GetProcessWideSandbox()->address_space();
-      i::Address end = start + size;
-      if (end == region_alloc_->end() &&
-          start <= end_of_accessible_region_ - kChunkSize) {
-        // Can shrink the accessible region.
-        i::Address new_end_of_accessible_region = RoundUp(start, kChunkSize);
-        size_t size = end_of_accessible_region_ - new_end_of_accessible_region;
-        CHECK(vas->DecommitPages(new_end_of_accessible_region, size));
-        end_of_accessible_region_ = new_end_of_accessible_region;
-      } else if (size >= 2 * kChunkSize) {
-        // Can discard pages. The pages stay accessible, so the size of the
-        // accessible region doesn't change.
-        i::Address chunk_start = RoundUp(start, kChunkSize);
-        i::Address chunk_end = RoundDown(start + size, kChunkSize);
-        CHECK(vas->DiscardSystemPages(chunk_start, chunk_end - chunk_start));
-      }
-    });
-  }
-
-  ~ArrayBufferAllocator() {
-    // The sandbox may already have been torn down, in which case there's no
-    // need to free any memory.
-    if (i::GetProcessWideSandbox()->is_initialized()) {
-      VirtualAddressSpace* vas = i::GetProcessWideSandbox()->address_space();
-      vas->FreePages(region_alloc_->begin(), region_alloc_->size());
-    }
-  }
+  ArrayBufferAllocator() { CHECK(page_allocator_); }
 
   void* Allocate(size_t length) override {
-    base::MutexGuard guard(&mutex_);
-
-    length = RoundUp(length, kAllocationGranularity);
-    i::Address region = region_alloc_->AllocateRegion(length);
-    if (region == base::RegionAllocator::kAllocationFailure) return nullptr;
-
-    // Check if the memory is inside the accessible region, and if not grow it.
-    i::Address end = region + length;
-    size_t length_to_memset = length;
-    if (end > end_of_accessible_region_) {
-      VirtualAddressSpace* vas = i::GetProcessWideSandbox()->address_space();
-      i::Address new_end_of_accessible_region = RoundUp(end, kChunkSize);
-      size_t size = new_end_of_accessible_region - end_of_accessible_region_;
-      if (!vas->SetPagePermissions(end_of_accessible_region_, size,
-                                   PagePermissions::kReadWrite)) {
-        CHECK(region_alloc_->FreeRegion(region));
-        return nullptr;
-      }
-
-      // The pages that were inaccessible are guaranteed to be zeroed, so only
-      // memset until the previous end of the accessible region.
-      length_to_memset = end_of_accessible_region_ - region;
-      end_of_accessible_region_ = new_end_of_accessible_region;
-    }
-
-    void* mem = reinterpret_cast<void*>(region);
-    memset(mem, 0, length_to_memset);
-    return mem;
+    return page_allocator_->AllocatePages(nullptr, RoundUp(length, page_size_),
+                                          page_size_,
+                                          PageAllocator::kReadWrite);
   }
 
   void* AllocateUninitialized(size_t length) override {
@@ -446,21 +377,12 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
   }
 
   void Free(void* data, size_t length) override {
-    base::MutexGuard guard(&mutex_);
-    region_alloc_->FreeRegion(reinterpret_cast<i::Address>(data));
+    page_allocator_->FreePages(data, RoundUp(length, page_size_));
   }
 
  private:
-  // Use a region allocator with a "page size" of 128 bytes as a reasonable
-  // compromise between the number of regions it has to manage and the amount
-  // of memory wasted due to rounding allocation sizes up to the page size.
-  static constexpr size_t kAllocationGranularity = 128;
-  // The backing memory's accessible region is grown in chunks of this size.
-  static constexpr size_t kChunkSize = 1 * i::MB;
-
-  std::unique_ptr<base::RegionAllocator> region_alloc_;
-  size_t end_of_accessible_region_;
-  base::Mutex mutex_;
+  PageAllocator* page_allocator_ = internal::GetArrayBufferPageAllocator();
+  const size_t page_size_ = page_allocator_->AllocatePageSize();
 };
 
 #else
