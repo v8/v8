@@ -200,7 +200,7 @@ class MinorMCTaskObserver final : public AllocationObserver {
       : AllocationObserver(step_size), heap_(heap) {}
 
   void Step(int bytes_allocated, Address, size_t) override {
-    if (v8_flags.concurrent_minor_mc) {
+    if (v8_flags.concurrent_minor_mc_marking) {
       if (heap_->incremental_marking()->IsMinorMarking()) {
         heap_->concurrent_marking()->RescheduleJobIfNeeded(
             GarbageCollector::MINOR_MARK_COMPACTOR);
@@ -1592,7 +1592,7 @@ size_t Heap::MinorMCTaskTriggerSize() const {
 }
 
 void Heap::StartMinorMCIncrementalMarkingIfNeeded() {
-  if (v8_flags.concurrent_minor_mc && !IsTearingDown() &&
+  if (v8_flags.concurrent_minor_mc_marking && !IsTearingDown() &&
       !incremental_marking()->IsMarking() &&
       incremental_marking()->CanBeStarted() && V8_LIKELY(!v8_flags.gc_global) &&
       (new_space()->Size() >= MinorMCTaskTriggerSize())) {
@@ -5629,12 +5629,12 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
   }
 
   if (new_space()) {
-    if (v8_flags.concurrent_minor_mc) {
+    if (v8_flags.concurrent_minor_mc_marking) {
       // TODO(v8:13012): Atomic MinorMC should not use ScavengeJob. Instead, we
       // should schedule MinorMC tasks at a soft limit, which are used by atomic
       // MinorMC, and to finalize concurrent MinorMC. The condition
-      // v8_flags.concurrent_minor_mc can then be changed to v8_flags.minor_mc
-      // (here and at the RemoveAllocationObserver call site).
+      // v8_flags.concurrent_minor_mc_marking can then be changed to
+      // v8_flags.minor_mc (here and at the RemoveAllocationObserver call site).
       minor_mc_task_observer_.reset(
           new MinorMCTaskObserver(this, MinorMCTaskObserver::kStepSize));
       new_space()->AddAllocationObserver(minor_mc_task_observer_.get());
@@ -5931,7 +5931,7 @@ void Heap::TearDown() {
   }
 
   if (new_space()) {
-    if (v8_flags.concurrent_minor_mc) {
+    if (v8_flags.concurrent_minor_mc_marking) {
       new_space()->RemoveAllocationObserver(minor_mc_task_observer_.get());
     } else {
       new_space()->RemoveAllocationObserver(scavenge_task_observer_.get());

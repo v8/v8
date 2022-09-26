@@ -1987,11 +1987,14 @@ DEFINE_BOOL(trace_minor_mc_parallel_marking, false,
             "trace parallel marking for the young generation")
 DEFINE_BOOL(minor_mc, false, "perform young generation mark compact GCs")
 DEFINE_IMPLICATION(minor_mc, separate_gc_phases)
-DEFINE_BOOL(concurrent_minor_mc, false,
-            "perform young generation mark compact GCs concurrently")
-DEFINE_NEG_NEG_IMPLICATION(concurrent_marking, concurrent_minor_mc)
-DEFINE_IMPLICATION(concurrent_minor_mc, minor_mc)
-DEFINE_IMPLICATION(concurrent_minor_mc, concurrent_marking)
+
+DEFINE_BOOL(concurrent_minor_mc_marking, false,
+            "perform young generation marking concurrently")
+DEFINE_NEG_NEG_IMPLICATION(concurrent_marking, concurrent_minor_mc_marking)
+
+DEFINE_BOOL(concurrent_minor_mc_sweeping, false,
+            "perform young generation sweeping concurrently")
+DEFINE_NEG_NEG_IMPLICATION(concurrent_sweeping, concurrent_minor_mc_sweeping)
 
 //
 // Dev shell flags
