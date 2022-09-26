@@ -744,10 +744,7 @@ class IteratingArrayBuiltinReducerAssembler : public JSCallReducerAssembler {
       TNode<Vars>... vars) {
     if (!IsHoleyElementsKind(kind)) return o;
 
-    std::array<MachineRepresentation, sizeof...(Vars)> reps = {
-        MachineRepresentationOf<Vars>::value...};
-    auto if_not_hole =
-        MakeLabel<sizeof...(Vars)>(reps, GraphAssemblerLabelType::kNonDeferred);
+    auto if_not_hole = MakeLabel(MachineRepresentationOf<Vars>::value...);
     BranchWithHint(HoleCheck(kind, o), continue_label, &if_not_hole,
                    BranchHint::kFalse, vars...);
 
