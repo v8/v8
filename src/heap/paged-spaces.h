@@ -483,7 +483,9 @@ class CompactionSpaceCollection : public Malloced {
         map_space_(heap, MAP_SPACE, Executability::NOT_EXECUTABLE,
                    compaction_space_kind),
         code_space_(heap, CODE_SPACE, Executability::EXECUTABLE,
-                    compaction_space_kind) {}
+                    compaction_space_kind),
+        shared_space_(heap, SHARED_SPACE, Executability::NOT_EXECUTABLE,
+                      compaction_space_kind) {}
 
   CompactionSpace* Get(AllocationSpace space) {
     switch (space) {
@@ -493,6 +495,8 @@ class CompactionSpaceCollection : public Malloced {
         return &map_space_;
       case CODE_SPACE:
         return &code_space_;
+      case SHARED_SPACE:
+        return &shared_space_;
       default:
         UNREACHABLE();
     }
@@ -503,6 +507,7 @@ class CompactionSpaceCollection : public Malloced {
   CompactionSpace old_space_;
   CompactionSpace map_space_;
   CompactionSpace code_space_;
+  CompactionSpace shared_space_;
 };
 
 // -----------------------------------------------------------------------------
