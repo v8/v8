@@ -3,8 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --experimental-wasm-stack-switching
-// Flags: --experimental-wasm-type-reflection --expose-gc
-// Flags: --wasm-stack-switching-stack-size=100
+// Flags: --expose-gc --wasm-stack-switching-stack-size=100
 
 // We pick a small stack size to run the stack overflow test quickly, but big
 // enough to run all the tests.
