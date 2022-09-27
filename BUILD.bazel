@@ -1979,8 +1979,6 @@ filegroup(
         "src/regexp/experimental/experimental-interpreter.h",
         "src/regexp/experimental/experimental.cc",
         "src/regexp/experimental/experimental.h",
-        "src/regexp/property-sequences.cc",
-        "src/regexp/property-sequences.h",
         "src/regexp/regexp-ast.cc",
         "src/regexp/regexp-ast.h",
         "src/regexp/regexp-bytecode-generator-inl.h",
