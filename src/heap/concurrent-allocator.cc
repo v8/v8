@@ -41,7 +41,7 @@ void StressConcurrentAllocatorTask::RunInternal() {
       heap->CreateFillerObjectAtBackground(result.ToAddress(),
                                            kSmallObjectSize);
     } else {
-      local_heap.TryPerformCollection();
+      heap->CollectGarbageFromAnyThread(&local_heap);
     }
 
     result = local_heap.AllocateRaw(kMediumObjectSize, AllocationType::kOld,
@@ -51,7 +51,7 @@ void StressConcurrentAllocatorTask::RunInternal() {
       heap->CreateFillerObjectAtBackground(result.ToAddress(),
                                            kMediumObjectSize);
     } else {
-      local_heap.TryPerformCollection();
+      heap->CollectGarbageFromAnyThread(&local_heap);
     }
 
     result = local_heap.AllocateRaw(kLargeObjectSize, AllocationType::kOld,
@@ -61,7 +61,7 @@ void StressConcurrentAllocatorTask::RunInternal() {
       heap->CreateFillerObjectAtBackground(result.ToAddress(),
                                            kLargeObjectSize);
     } else {
-      local_heap.TryPerformCollection();
+      heap->CollectGarbageFromAnyThread(&local_heap);
     }
     local_heap.Safepoint();
   }

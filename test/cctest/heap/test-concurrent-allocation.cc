@@ -250,7 +250,7 @@ class LargeObjectConcurrentAllocationThread final : public v8::base::Thread {
           kLargeObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
           AllocationAlignment::kTaggedAligned);
       if (result.IsFailure()) {
-        local_heap.TryPerformCollection();
+        heap_->CollectGarbageFromAnyThread(&local_heap);
       } else {
         Address address = result.ToAddress();
         CreateFixedArray(heap_, address, kLargeObjectSize);

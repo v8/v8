@@ -221,7 +221,8 @@ void CcTest::PreciseCollectAllGarbage(i::Isolate* isolate) {
 
 void CcTest::CollectSharedGarbage(i::Isolate* isolate) {
   i::Isolate* iso = isolate ? isolate : i_isolate();
-  iso->heap()->CollectSharedGarbage(i::GarbageCollectionReason::kTesting);
+  iso->heap()->CollectGarbageShared(iso->main_thread_local_heap(),
+                                    i::GarbageCollectionReason::kTesting);
 }
 
 i::Handle<i::String> CcTest::MakeString(const char* str) {

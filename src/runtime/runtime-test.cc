@@ -1752,7 +1752,8 @@ RUNTIME_FUNCTION(Runtime_IsInternalizedString) {
 
 RUNTIME_FUNCTION(Runtime_SharedGC) {
   SealHandleScope scope(isolate);
-  isolate->heap()->CollectSharedGarbage(GarbageCollectionReason::kTesting);
+  isolate->heap()->CollectGarbageShared(isolate->main_thread_local_heap(),
+                                        GarbageCollectionReason::kTesting);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

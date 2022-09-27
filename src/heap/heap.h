@@ -1037,8 +1037,14 @@ class Heap {
       const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags);
 
   // Performs garbage collection operation for the shared heap.
-  V8_EXPORT_PRIVATE void CollectSharedGarbage(
-      GarbageCollectionReason gc_reason);
+  V8_EXPORT_PRIVATE bool CollectGarbageShared(
+      LocalHeap* local_heap, GarbageCollectionReason gc_reason);
+
+  // Requests garbage collection from some other thread.
+  V8_EXPORT_PRIVATE bool CollectGarbageFromAnyThread(
+      LocalHeap* local_heap,
+      GarbageCollectionReason gc_reason =
+          GarbageCollectionReason::kBackgroundAllocationFailure);
 
   // Reports and external memory pressure event, either performs a major GC or
   // completes incremental marking in order to free external resources.

@@ -158,9 +158,6 @@ class V8_EXPORT_PRIVATE LocalHeap {
   }
   ReadOnlySpace* read_only_space() { return heap_->read_only_space(); }
 
-  // Requests GC and blocks until the collection finishes.
-  bool TryPerformCollection();
-
   // Adds a callback that is invoked with the given |data| after each GC.
   // The callback is invoked on the main thread before any background thread
   // resumes. The callback must not allocate or make any other calls that

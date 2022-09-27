@@ -90,7 +90,8 @@ AllocationResult HeapAllocator::AllocateRawWithLightRetrySlowPath(
   // Two GCs before returning failure.
   for (int i = 0; i < 2; i++) {
     if (IsSharedAllocationType(allocation)) {
-      heap_->CollectSharedGarbage(GarbageCollectionReason::kAllocationFailure);
+      heap_->CollectGarbageShared(heap_->main_thread_local_heap(),
+                                  GarbageCollectionReason::kAllocationFailure);
     } else {
       AllocationSpace space_to_gc = AllocationTypeToGCSpace(allocation);
       if (v8_flags.minor_mc && i > 0) {
@@ -117,7 +118,8 @@ AllocationResult HeapAllocator::AllocateRawWithRetryOrFailSlowPath(
   if (!result.IsFailure()) return result;
 
   if (IsSharedAllocationType(allocation)) {
-    heap_->CollectSharedGarbage(GarbageCollectionReason::kLastResort);
+    heap_->CollectGarbageShared(heap_->main_thread_local_heap(),
+                                GarbageCollectionReason::kLastResort);
 
     // We need always_allocate() to be true both on the client- and
     // server-isolate. It is used in both code paths.

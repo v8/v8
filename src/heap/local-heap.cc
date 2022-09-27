@@ -365,29 +365,6 @@ void LocalHeap::UnmarkLinearAllocationArea() {
   code_space_allocator_->UnmarkLinearAllocationArea();
 }
 
-bool LocalHeap::TryPerformCollection() {
-  if (is_main_thread()) {
-    heap_->CollectGarbageForBackground(this);
-    return true;
-  } else {
-    DCHECK(IsRunning());
-    if (!heap_->collection_barrier_->TryRequestGC()) return false;
-
-    LocalHeap* main_thread = heap_->main_thread_local_heap();
-
-    const ThreadState old_state = main_thread->state_.SetCollectionRequested();
-
-    if (old_state.IsRunning()) {
-      const bool performed_gc =
-          heap_->collection_barrier_->AwaitCollectionBackground(this);
-      return performed_gc;
-    } else {
-      DCHECK(old_state.IsParked());
-      return false;
-    }
-  }
-}
-
 Address LocalHeap::PerformCollectionAndAllocateAgain(
     int object_size, AllocationType type, AllocationOrigin origin,
     AllocationAlignment alignment) {
@@ -397,7 +374,7 @@ Address LocalHeap::PerformCollectionAndAllocateAgain(
   static const int kMaxNumberOfRetries = 3;
 
   for (int i = 0; i < kMaxNumberOfRetries; i++) {
-    if (!TryPerformCollection()) {
+    if (!heap_->CollectGarbageFromAnyThread(this)) {
       main_thread_parked_ = true;
     }
 

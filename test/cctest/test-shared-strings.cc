@@ -675,7 +675,8 @@ UNINITIALIZED_TEST(StringShare) {
     CHECK(one_byte_ext->MakeExternal(one_byte_res));
     CHECK(two_byte_ext->MakeExternal(two_byte_res));
     if (v8_flags.always_use_string_forwarding_table) {
-      i_isolate->heap()->CollectSharedGarbage(
+      i_isolate->heap()->CollectGarbageShared(
+          i_isolate->main_thread_local_heap(),
           GarbageCollectionReason::kTesting);
     }
     CHECK(one_byte_ext->IsExternalString());
@@ -1118,7 +1119,9 @@ UNINITIALIZED_TEST(ShareExternalString) {
   OneByteResource* resource = resource_factory.CreateOneByte(raw_one_byte);
   one_byte->MakeExternal(resource);
   if (v8_flags.always_use_string_forwarding_table) {
-    i_isolate1->heap()->CollectSharedGarbage(GarbageCollectionReason::kTesting);
+    i_isolate1->heap()->CollectGarbageShared(
+        i_isolate1->main_thread_local_heap(),
+        GarbageCollectionReason::kTesting);
   }
   CHECK(one_byte->IsExternalString());
   Handle<ExternalOneByteString> one_byte_external =
@@ -1229,7 +1232,8 @@ UNINITIALIZED_TEST(ExternalizedSharedStringsTransitionDuringGC) {
     }
 
     // Trigger garbage collection on the shared isolate.
-    i_isolate->heap()->CollectSharedGarbage(GarbageCollectionReason::kTesting);
+    i_isolate->heap()->CollectGarbageShared(i_isolate->main_thread_local_heap(),
+                                            GarbageCollectionReason::kTesting);
 
     // Check that GC cleared the forwarding table.
     CHECK_EQ(i_isolate->string_forwarding_table()->size(), 0);
@@ -1274,7 +1278,9 @@ UNINITIALIZED_TEST(ExternalizeInternalizedString) {
   Handle<String> one_byte_intern = factory1->InternalizeString(one_byte);
   Handle<String> two_byte_intern = factory1->InternalizeString(two_byte);
   if (v8_flags.always_use_string_forwarding_table) {
-    i_isolate1->heap()->CollectSharedGarbage(GarbageCollectionReason::kTesting);
+    i_isolate1->heap()->CollectGarbageShared(
+        i_isolate1->main_thread_local_heap(),
+        GarbageCollectionReason::kTesting);
   }
   CHECK(one_byte->IsThinString());
   CHECK(two_byte->IsThinString());
@@ -1341,7 +1347,8 @@ UNINITIALIZED_TEST(InternalizeSharedExternalString) {
   CHECK(shared_two_byte->HasExternalForwardingIndex(kAcquireLoad));
 
   // Trigger GC to externalize the shared string.
-  i_isolate1->heap()->CollectSharedGarbage(GarbageCollectionReason::kTesting);
+  i_isolate1->heap()->CollectGarbageShared(i_isolate1->main_thread_local_heap(),
+                                           GarbageCollectionReason::kTesting);
   CHECK(shared_one_byte->IsShared());
   CHECK(shared_one_byte->IsExternalString());
   CHECK(shared_two_byte->IsShared());
@@ -1376,7 +1383,8 @@ UNINITIALIZED_TEST(InternalizeSharedExternalString) {
   // Another GC should create an externalized internalized string of the cached
   // (one byte) string and turn the uncached (two byte) string into a
   // ThinString, disposing the external resource.
-  i_isolate1->heap()->CollectSharedGarbage(GarbageCollectionReason::kTesting);
+  i_isolate1->heap()->CollectGarbageShared(i_isolate1->main_thread_local_heap(),
+                                           GarbageCollectionReason::kTesting);
   CHECK_EQ(shared_one_byte->map().instance_type(),
            InstanceType::EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE);
   if (is_uncached) {
@@ -1628,7 +1636,8 @@ void TestConcurrentExternalization(bool share_resources) {
     sema_execute_complete.ParkedWait(local_isolate);
   }
 
-  i_isolate->heap()->CollectSharedGarbage(GarbageCollectionReason::kTesting);
+  i_isolate->heap()->CollectGarbageShared(i_isolate->main_thread_local_heap(),
+                                          GarbageCollectionReason::kTesting);
 
   for (int i = 0; i < shared_strings->length(); i++) {
     Handle<String> input_string(String::cast(shared_strings->get(i)),
@@ -1724,7 +1733,8 @@ void TestConcurrentExternalizationAndInternalization(
     sema_execute_complete.ParkedWait(local_isolate);
   }
 
-  i_isolate->heap()->CollectSharedGarbage(GarbageCollectionReason::kTesting);
+  i_isolate->heap()->CollectGarbageShared(i_isolate->main_thread_local_heap(),
+                                          GarbageCollectionReason::kTesting);
 
   for (int i = 0; i < shared_strings->length(); i++) {
     Handle<String> input_string(String::cast(shared_strings->get(i)),

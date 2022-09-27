@@ -2450,13 +2450,49 @@ size_t Heap::PerformGarbageCollection(
   return freed_global_handles;
 }
 
-void Heap::CollectSharedGarbage(GarbageCollectionReason gc_reason) {
+bool Heap::CollectGarbageShared(LocalHeap* local_heap,
+                                GarbageCollectionReason gc_reason) {
   CHECK(deserialization_complete());
-  DCHECK(!IsShared());
-  DCHECK_NOT_NULL(isolate()->shared_isolate());
+  DCHECK(isolate()->has_shared_heap());
 
-  isolate()->shared_isolate()->heap()->PerformSharedGarbageCollection(
-      isolate(), gc_reason);
+  if (v8_flags.shared_space) {
+    Isolate* shared_space_isolate = isolate()->shared_space_isolate();
+    return shared_space_isolate->heap()->CollectGarbageFromAnyThread(local_heap,
+                                                                     gc_reason);
+
+  } else {
+    DCHECK(!IsShared());
+    DCHECK_NOT_NULL(isolate()->shared_isolate());
+
+    isolate()->shared_isolate()->heap()->PerformSharedGarbageCollection(
+        isolate(), gc_reason);
+    return true;
+  }
+}
+
+bool Heap::CollectGarbageFromAnyThread(LocalHeap* local_heap,
+                                       GarbageCollectionReason gc_reason) {
+  DCHECK(local_heap->IsRunning());
+
+  if (isolate() == local_heap->heap()->isolate() &&
+      local_heap->is_main_thread()) {
+    CollectAllGarbage(current_gc_flags_, gc_reason, current_gc_callback_flags_);
+    return true;
+  } else {
+    if (!collection_barrier_->TryRequestGC()) return false;
+
+    const LocalHeap::ThreadState old_state =
+        main_thread_local_heap()->state_.SetCollectionRequested();
+
+    if (old_state.IsRunning()) {
+      const bool performed_gc =
+          collection_barrier_->AwaitCollectionBackground(local_heap);
+      return performed_gc;
+    } else {
+      DCHECK(old_state.IsParked());
+      return false;
+    }
+  }
 }
 
 void Heap::PerformSharedGarbageCollection(Isolate* initiator,
