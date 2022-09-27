@@ -3479,7 +3479,7 @@ void BackReferenceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
 
   DCHECK_EQ(start_reg_ + 1, end_reg_);
   if (IsIgnoreCase(flags_)) {
-    bool unicode = IsUnicode(flags_);
+    bool unicode = IsEitherUnicode(flags_);
     assembler->CheckNotBackReferenceIgnoreCase(start_reg_, read_backward(),
                                                unicode, trace->backtrack());
   } else {
@@ -3490,7 +3490,7 @@ void BackReferenceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
   if (read_backward()) trace->set_at_start(Trace::UNKNOWN);
 
   // Check that the back reference does not end inside a surrogate pair.
-  if (IsUnicode(flags_) && !compiler->one_byte()) {
+  if (IsEitherUnicode(flags_) && !compiler->one_byte()) {
     assembler->CheckNotInSurrogatePair(trace->cp_offset(), trace->backtrack());
   }
   on_success()->Emit(compiler, trace);
@@ -3942,7 +3942,7 @@ RegExpNode* RegExpCompiler::PreprocessRegExp(RegExpCompileData* data,
     if (node != nullptr) {
       node = node->FilterOneByte(RegExpCompiler::kMaxRecursion, flags);
     }
-  } else if (IsUnicode(flags) && (IsGlobal(flags) || IsSticky(flags))) {
+  } else if (IsEitherUnicode(flags) && (IsGlobal(flags) || IsSticky(flags))) {
     node = OptionallyStepBackToLeadSurrogate(node);
   }
 

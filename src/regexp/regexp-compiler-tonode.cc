@@ -464,7 +464,7 @@ RegExpNode* RegExpCharacterClass::ToNode(RegExpCompiler* compiler,
     AddUnicodeCaseEquivalents(ranges, zone);
   }
 
-  if (!IsUnicode(compiler->flags()) || compiler->one_byte() ||
+  if (!IsEitherUnicode(compiler->flags()) || compiler->one_byte() ||
       contains_split_surrogate()) {
     return zone->New<TextNode>(this, compiler->read_backward(), on_success);
   }
@@ -770,7 +770,7 @@ void RegExpDisjunction::FixSingleCharacterDisjunctions(
       continue;
     }
     const RegExpFlags flags = compiler->flags();
-    DCHECK_IMPLIES(IsUnicode(flags),
+    DCHECK_IMPLIES(IsEitherUnicode(flags),
                    !unibrow::Utf16::IsLeadSurrogate(atom->data().at(0)));
     bool contains_trail_surrogate =
         unibrow::Utf16::IsTrailSurrogate(atom->data().at(0));
@@ -783,7 +783,7 @@ void RegExpDisjunction::FixSingleCharacterDisjunctions(
       if (!alternative->IsAtom()) break;
       RegExpAtom* const alt_atom = alternative->AsAtom();
       if (alt_atom->length() != 1) break;
-      DCHECK_IMPLIES(IsUnicode(flags),
+      DCHECK_IMPLIES(IsEitherUnicode(flags),
                      !unibrow::Utf16::IsLeadSurrogate(alt_atom->data().at(0)));
       contains_trail_surrogate |=
           unibrow::Utf16::IsTrailSurrogate(alt_atom->data().at(0));
@@ -800,7 +800,7 @@ void RegExpDisjunction::FixSingleCharacterDisjunctions(
         ranges->Add(CharacterRange::Singleton(old_atom->data().at(0)), zone);
       }
       RegExpCharacterClass::CharacterClassFlags character_class_flags;
-      if (IsUnicode(flags) && contains_trail_surrogate) {
+      if (IsEitherUnicode(flags) && contains_trail_surrogate) {
         character_class_flags = RegExpCharacterClass::CONTAINS_SPLIT_SURROGATE;
       }
       alternatives->at(write_posn++) =
