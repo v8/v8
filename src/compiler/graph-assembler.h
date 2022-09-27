@@ -907,6 +907,7 @@ class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {
 #undef SINGLETON_CONST_TEST_DECL
 
   Node* Allocate(AllocationType allocation, Node* size);
+  TNode<Map> LoadMap(TNode<HeapObject> object);
   Node* LoadField(FieldAccess const&, Node* object);
   template <typename T>
   TNode<T> LoadField(FieldAccess const& access, TNode<HeapObject> object) {
