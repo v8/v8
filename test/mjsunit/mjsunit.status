@@ -1067,9 +1067,6 @@
 
   # BUG(v8:13153) Skipped until issue is fixed to reduce noise on alerts.
   'regress/regress-1034322': [SKIP],
-
-  # BUG(v8:13331) Skipped until issue is fixed to reduce noise on alerts.
-  'harmony/regress/regress-crbug-1367133': [SKIP],
 }], # gc_fuzzer or deopt_fuzzer
 
 ##############################################################################
@@ -1078,6 +1075,9 @@
   'compiler/regress-1224277': [SKIP],
   'regress/regress-1220974': [SKIP],
   'regress/regress-992389': [SKIP],
+
+  # BUG(v8:13331) Skipped until issue is fixed to reduce noise on alerts.
+  'harmony/regress/regress-crbug-1367133': [SKIP],
 }], # gc_fuzzer or deopt_fuzzer or interrupt_fuzzer
 
 ##############################################################################
