@@ -1697,6 +1697,8 @@ DEFINE_BOOL(experimental_async_stack_tagging_api, true,
             "enable experimental async stacks tagging API")
 DEFINE_BOOL(experimental_value_unavailable, false,
             "enable experimental <value unavailable> in scopes")
+DEFINE_BOOL(experimental_reuse_locals_blocklists, false,
+            "enable reuse of local blocklists across multiple debug-evaluates")
 
 DEFINE_BOOL(
     live_edit_top_frame, true,

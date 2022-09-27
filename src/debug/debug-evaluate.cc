@@ -246,7 +246,8 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
     if (scope_iterator_.HasContext()) {
       context_chain_element.wrapped_context = scope_iterator_.CurrentContext();
     }
-    if (!scope_iterator_.InInnerScope()) {
+    if (!scope_iterator_.InInnerScope() &&
+        !v8_flags.experimental_reuse_locals_blocklists) {
       context_chain_element.blocklist = scope_iterator_.GetLocals();
     }
     context_chain_.push_back(context_chain_element);
