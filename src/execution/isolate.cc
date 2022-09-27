@@ -6039,11 +6039,16 @@ void Isolate::LocalsBlockListCacheSet(Handle<ScopeInfo> scope_info,
   }
   DCHECK(cache->IsEphemeronHashTable());
 
-  Handle<Tuple2> outer_scope_info_and_locals = factory()->NewTuple2(
-      outer_scope_info, locals_blocklist, AllocationType::kYoung);
+  Handle<Object> value;
+  if (!outer_scope_info.is_null()) {
+    value = factory()->NewTuple2(outer_scope_info, locals_blocklist,
+                                 AllocationType::kYoung);
+  } else {
+    value = locals_blocklist;
+  }
 
-  cache =
-      EphemeronHashTable::Put(cache, scope_info, outer_scope_info_and_locals);
+  CHECK(!value.is_null());
+  cache = EphemeronHashTable::Put(cache, scope_info, value);
   heap()->set_locals_block_list_cache(*cache);
 }
 
@@ -6054,14 +6059,13 @@ Object Isolate::LocalsBlockListCacheGet(Handle<ScopeInfo> scope_info) {
     return ReadOnlyRoots(this).the_hole_value();
   }
 
-  Object maybe_outer_scope_info_and_locals =
+  Object maybe_value =
       EphemeronHashTable::cast(heap()->locals_block_list_cache())
           .Lookup(scope_info);
-  if (maybe_outer_scope_info_and_locals.IsTheHole()) {
-    return maybe_outer_scope_info_and_locals;
-  }
+  if (maybe_value.IsTuple2()) return Tuple2::cast(maybe_value).value2();
 
-  return Tuple2::cast(maybe_outer_scope_info_and_locals).value2();
+  CHECK(maybe_value.IsStringSet() || maybe_value.IsTheHole());
+  return maybe_value;
 }
 
 namespace {
