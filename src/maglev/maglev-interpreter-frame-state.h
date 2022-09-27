@@ -446,7 +446,7 @@ class MergePointInterpreterFrameState {
         });
     merge_state->predecessors_[0] = predecessor;
     merge_state->known_node_aspects_ =
-        info.zone()->New<KnownNodeAspects>(info.zone());
+        state.known_node_aspects().Clone(info.zone());
     return merge_state;
   }
 
