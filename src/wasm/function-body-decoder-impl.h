@@ -1221,7 +1221,7 @@ class WasmDecoder : public Decoder {
 
       ValueType type = value_type_reader::read_value_type<validate>(
           this, pc + *total_length, &length, this->module_, enabled_);
-      if (!VALIDATE(type != kWasmBottom)) return;
+      if (!VALIDATE(ok())) return;
       *total_length += length;
 
       local_types_.insert(local_types_.end(), count, type);
