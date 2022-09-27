@@ -2,9 +2,9 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "GCLIENT_VARS", "GOMA", "greedy_batching_of_1", "in_console", "v8_builder")
+load("//lib/lib.star", "GCLIENT_VARS", "GOMA", "RECLIENT", "greedy_batching_of_1", "in_console", "v8_builder")
 
-def clusterfuzz_builder(properties, close_tree = True, use_goma = GOMA.DEFAULT, **kwargs):
+def clusterfuzz_builder(properties, close_tree = True, use_goma = GOMA.NO, use_remoteexec = RECLIENT.DEFAULT, **kwargs):
     properties["builder_group"] = "client.v8.clusterfuzz"
     properties["default_targets"] = ["v8_clusterfuzz"]
     return v8_builder(
@@ -14,6 +14,7 @@ def clusterfuzz_builder(properties, close_tree = True, use_goma = GOMA.DEFAULT, 
         triggered_by = ["v8-trigger"],
         triggering_policy = greedy_batching_of_1,
         use_goma = use_goma,
+        use_remoteexec = use_remoteexec,
         **kwargs
     )
 
@@ -25,13 +26,11 @@ in_category(
         name = "V8 Clusterfuzz Win64 ASAN - release builder",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         properties = {"clobber": True, "clusterfuzz_archive": {"bitness": "64", "bucket": "v8-asan", "name": "d8-asan"}},
-        use_goma = GOMA.ATS,
     ),
     clusterfuzz_builder(
         name = "V8 Clusterfuzz Win64 ASAN - debug builder",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         properties = {"clobber": True, "clusterfuzz_archive": {"bitness": "64", "bucket": "v8-asan", "name": "d8-asan"}},
-        use_goma = GOMA.ATS,
     ),
 )
 
@@ -55,13 +54,11 @@ in_category(
         name = "V8 Clusterfuzz Linux64 - release builder",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8"}},
-        use_goma = GOMA.DEFAULT,
     ),
     clusterfuzz_builder(
         name = "V8 Clusterfuzz Linux64 - debug builder",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8"}},
-        use_goma = GOMA.DEFAULT,
     ),
     clusterfuzz_builder(
         name = "V8 Clusterfuzz Linux64 ASAN - debug builder",
