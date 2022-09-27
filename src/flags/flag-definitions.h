@@ -1405,9 +1405,9 @@ DEFINE_BOOL(compact, true,
             "Perform compaction on full GCs based on V8's default heuristics")
 DEFINE_BOOL(compact_code_space, true,
             "Perform code space compaction on full collections.")
-DEFINE_BOOL(compact_maps, false,
+DEFINE_BOOL(compact_maps, true,
             "Perform compaction on maps on full collections.")
-DEFINE_BOOL(use_map_space, true, "Use separate space for maps.")
+DEFINE_BOOL(use_map_space, false, "Use separate space for maps.")
 // Without a map space we have to compact maps.
 DEFINE_NEG_VALUE_IMPLICATION(use_map_space, compact_maps, true)
 DEFINE_BOOL(compact_on_every_full_gc, false,
