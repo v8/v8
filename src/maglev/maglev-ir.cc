@@ -1441,6 +1441,12 @@ void CheckJSObjectElementsBounds::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(above_equal, DeoptimizeReason::kOutOfBounds, this);
 }
 
+void DebugBreak::AllocateVreg(MaglevVregAllocationState* vreg_state) {}
+void DebugBreak::GenerateCode(MaglevAssembler* masm,
+                              const ProcessingState& state) {
+  __ int3();
+}
+
 void CheckedInternalizedString::AllocateVreg(
     MaglevVregAllocationState* vreg_state) {
   UseRegister(object_input());

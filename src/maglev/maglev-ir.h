@@ -198,6 +198,7 @@ class CompactInterpreterFrameState;
   V(CheckMapsWithMigration)           \
   V(CheckJSArrayBounds)               \
   V(CheckJSObjectElementsBounds)      \
+  V(DebugBreak)                       \
   V(GeneratorStore)                   \
   V(JumpLoopPrologue)                 \
   V(StoreTaggedFieldNoWriteBarrier)   \
@@ -2753,6 +2754,15 @@ class CheckJSObjectElementsBounds
   static constexpr int kIndexIndex = 1;
   Input& receiver_input() { return input(kReceiverIndex); }
   Input& index_input() { return input(kIndexIndex); }
+
+  DECL_NODE_INTERFACE_WITH_EMPTY_PRINT_PARAMS()
+};
+
+class DebugBreak : public FixedInputNodeT<0, DebugBreak> {
+  using Base = FixedInputNodeT<0, DebugBreak>;
+
+ public:
+  explicit DebugBreak(uint64_t bitfield) : Base(bitfield) {}
 
   DECL_NODE_INTERFACE_WITH_EMPTY_PRINT_PARAMS()
 };

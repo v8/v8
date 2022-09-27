@@ -86,6 +86,7 @@ class MaglevGraphVerifier {
       case Opcode::kCreateObjectLiteral:
       case Opcode::kCreateShallowObjectLiteral:
       case Opcode::kCreateRegExpLiteral:
+      case Opcode::kDebugBreak:
       case Opcode::kDeopt:
       case Opcode::kFloat64Constant:
       case Opcode::kGapMove:
