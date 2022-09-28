@@ -762,14 +762,14 @@ void GCTracer::PrintNVP() const {
           "holes_size_after=%zu "
           "allocated=%zu "
           "promoted=%zu "
-          "semi_space_copied=%zu "
+          "new_space_survived=%zu "
           "nodes_died_in_new=%d "
           "nodes_copied_in_new=%d "
           "nodes_promoted=%d "
           "promotion_ratio=%.1f%% "
           "average_survival_ratio=%.1f%% "
           "promotion_rate=%.1f%% "
-          "semi_space_copy_rate=%.1f%% "
+          "new_space_survive_rate_=%.1f%% "
           "new_space_allocation_throughput=%.1f "
           "unmapper_chunks=%d\n",
           duration, spent_in_mutator, current_.TypeName(true),
@@ -800,11 +800,11 @@ void GCTracer::PrintNVP() const {
           current_.end_object_size, current_.start_holes_size,
           current_.end_holes_size, allocated_since_last_gc,
           heap_->promoted_objects_size(),
-          heap_->semi_space_copied_object_size(),
+          heap_->new_space_surviving_object_size(),
           heap_->nodes_died_in_new_space_, heap_->nodes_copied_in_new_space_,
           heap_->nodes_promoted_, heap_->promotion_ratio_,
           AverageSurvivalRatio(), heap_->promotion_rate_,
-          heap_->semi_space_copied_rate_,
+          heap_->new_space_surviving_rate_,
           NewSpaceAllocationThroughputInBytesPerMillisecond(),
           heap_->memory_allocator()->unmapper()->NumberOfChunks());
       break;
@@ -846,7 +846,22 @@ void GCTracer::PrintNVP() const {
           "background.evacuate.update_pointers=%.2f "
           "background.unmapper=%.2f "
           "unmapper=%.2f "
-          "reset_liveness=%.2f\n",
+          "reset_liveness=%.2f "
+          "total_size_before=%zu "
+          "total_size_after=%zu "
+          "holes_size_before=%zu "
+          "holes_size_after=%zu "
+          "allocated=%zu "
+          "promoted=%zu "
+          "new_space_survived=%zu "
+          "nodes_died_in_new=%d "
+          "nodes_copied_in_new=%d "
+          "nodes_promoted=%d "
+          "promotion_ratio=%.1f%% "
+          "average_survival_ratio=%.1f%% "
+          "promotion_rate=%.1f%% "
+          "new_space_survive_rate_=%.1f%% "
+          "new_space_allocation_throughput=%.1f\n",
           duration, spent_in_mutator, "mmc", current_.reduce_memory,
           current_scope(Scope::MINOR_MC),
           current_scope(Scope::TIME_TO_SAFEPOINT),
@@ -879,7 +894,16 @@ void GCTracer::PrintNVP() const {
           current_scope(Scope::MINOR_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS),
           current_scope(Scope::BACKGROUND_UNMAPPER),
           current_scope(Scope::UNMAPPER),
-          current_scope(Scope::MINOR_MC_RESET_LIVENESS));
+          current_scope(Scope::MINOR_MC_RESET_LIVENESS),
+          current_.start_object_size, current_.end_object_size,
+          current_.start_holes_size, current_.end_holes_size,
+          allocated_since_last_gc, heap_->promoted_objects_size(),
+          heap_->new_space_surviving_object_size(),
+          heap_->nodes_died_in_new_space_, heap_->nodes_copied_in_new_space_,
+          heap_->nodes_promoted_, heap_->promotion_ratio_,
+          AverageSurvivalRatio(), heap_->promotion_rate_,
+          heap_->new_space_surviving_rate_,
+          NewSpaceAllocationThroughputInBytesPerMillisecond());
       break;
     case Event::MARK_COMPACTOR:
     case Event::INCREMENTAL_MARK_COMPACTOR:
@@ -964,14 +988,14 @@ void GCTracer::PrintNVP() const {
           "holes_size_after=%zu "
           "allocated=%zu "
           "promoted=%zu "
-          "semi_space_copied=%zu "
+          "new_space_survived=%zu "
           "nodes_died_in_new=%d "
           "nodes_copied_in_new=%d "
           "nodes_promoted=%d "
           "promotion_ratio=%.1f%% "
           "average_survival_ratio=%.1f%% "
           "promotion_rate=%.1f%% "
-          "semi_space_copy_rate=%.1f%% "
+          "new_space_survive_rate=%.1f%% "
           "new_space_allocation_throughput=%.1f "
           "unmapper_chunks=%d "
           "compaction_speed=%.f\n",
@@ -1048,11 +1072,11 @@ void GCTracer::PrintNVP() const {
           current_.end_object_size, current_.start_holes_size,
           current_.end_holes_size, allocated_since_last_gc,
           heap_->promoted_objects_size(),
-          heap_->semi_space_copied_object_size(),
+          heap_->new_space_surviving_object_size(),
           heap_->nodes_died_in_new_space_, heap_->nodes_copied_in_new_space_,
           heap_->nodes_promoted_, heap_->promotion_ratio_,
           AverageSurvivalRatio(), heap_->promotion_rate_,
-          heap_->semi_space_copied_rate_,
+          heap_->new_space_surviving_rate_,
           NewSpaceAllocationThroughputInBytesPerMillisecond(),
           heap_->memory_allocator()->unmapper()->NumberOfChunks(),
           CompactionSpeedInBytesPerMillisecond());

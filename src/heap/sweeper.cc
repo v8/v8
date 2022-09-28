@@ -594,6 +594,20 @@ bool Sweeper::TryRemoveSweepingPageSafe(AllocationSpace space, Page* page) {
 
 void Sweeper::AddPage(AllocationSpace space, Page* page,
                       Sweeper::AddPageMode mode) {
+  DCHECK_NE(NEW_SPACE, space);
+  AddPageImpl(space, page, mode);
+}
+
+void Sweeper::AddNewSpacePage(Page* page, Sweeper::AddPageMode mode) {
+  DCHECK_EQ(NEW_SPACE, page->owner_identity());
+  size_t live_bytes = marking_state_->live_bytes(page);
+  heap_->IncrementNewSpaceSurvivingObjectSize(live_bytes);
+  heap_->IncrementYoungSurvivorsCounter(live_bytes);
+  AddPageImpl(NEW_SPACE, page, mode);
+}
+
+void Sweeper::AddPageImpl(AllocationSpace space, Page* page,
+                          Sweeper::AddPageMode mode) {
   base::MutexGuard guard(&mutex_);
   DCHECK(IsValidSweepingSpace(space));
   DCHECK(!v8_flags.concurrent_sweeping || !job_handle_ ||

@@ -811,7 +811,7 @@ void ScavengerCollector::ClearOldEphemerons() {
 
 void Scavenger::Finalize() {
   heap()->MergeAllocationSitePretenuringFeedback(local_pretenuring_feedback_);
-  heap()->IncrementSemiSpaceCopiedObjectSize(copied_size_);
+  heap()->IncrementNewSpaceSurvivingObjectSize(copied_size_);
   heap()->IncrementPromotedObjectsSize(promoted_size_);
   collector_->MergeSurvivingNewLargeObjects(surviving_new_large_objects_);
   allocator_.Finalize();

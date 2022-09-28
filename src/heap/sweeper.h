@@ -85,6 +85,7 @@ class Sweeper {
   void TearDown();
 
   void AddPage(AllocationSpace space, Page* page, AddPageMode mode);
+  void AddNewSpacePage(Page* page, AddPageMode mode);
 
   int ParallelSweepSpace(AllocationSpace identity, SweepingMode sweeping_mode,
                          int required_freed_bytes, int max_pages = 0);
@@ -114,6 +115,8 @@ class Sweeper {
   NonAtomicMarkingState* marking_state() const { return marking_state_; }
 
  private:
+  void AddPageImpl(AllocationSpace space, Page* page, AddPageMode mode);
+
   class ConcurrentSweeper;
   class SweeperJob;
 

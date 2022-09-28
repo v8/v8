@@ -1067,8 +1067,8 @@ void Heap::GarbageCollectionPrologue(
 
   // Reset GC statistics.
   promoted_objects_size_ = 0;
-  previous_semi_space_copied_object_size_ = semi_space_copied_object_size_;
-  semi_space_copied_object_size_ = 0;
+  previous_new_space_surviving_object_size_ = new_space_surviving_object_size_;
+  new_space_surviving_object_size_ = 0;
   nodes_died_in_new_space_ = 0;
   nodes_copied_in_new_space_ = 0;
   nodes_promoted_ = 0;
@@ -1083,9 +1083,9 @@ void Heap::GarbageCollectionPrologue(
 #endif  // DEBUG
 
   if (new_space_ && new_space_->IsAtMaximumCapacity()) {
-    maximum_size_scavenges_++;
+    maximum_size_minor_gcs_++;
   } else {
-    maximum_size_scavenges_ = 0;
+    maximum_size_minor_gcs_ = 0;
   }
   memory_allocator()->unmapper()->PrepareForGC();
 }
@@ -1289,7 +1289,7 @@ void Heap::RemoveAllocationSitePretenuringFeedback(AllocationSite site) {
 
 bool Heap::DeoptMaybeTenuredAllocationSites() {
   return new_space_ && new_space_->IsAtMaximumCapacity() &&
-         maximum_size_scavenges_ == 0;
+         maximum_size_minor_gcs_ == 0;
 }
 
 void Heap::ProcessPretenuringFeedback() {
@@ -1304,7 +1304,7 @@ void Heap::ProcessPretenuringFeedback() {
     AllocationSite site;
 
     // Step 1: Digest feedback for recorded allocation sites.
-    bool maximum_size_scavenge = MaximumSizeScavenge();
+    bool maximum_size_minor_gc = MaximumSizeMinorGC();
     for (auto& site_and_count : global_pretenuring_feedback_) {
       allocation_sites++;
       site = site_and_count.first;
@@ -1318,7 +1318,7 @@ void Heap::ProcessPretenuringFeedback() {
         DCHECK(site.IsAllocationSite());
         active_allocation_sites++;
         allocation_mementos_found += found_count;
-        if (DigestPretenuringFeedback(isolate_, site, maximum_size_scavenge)) {
+        if (DigestPretenuringFeedback(isolate_, site, maximum_size_minor_gc)) {
           trigger_deoptimization = true;
         }
         if (site.GetAllocationType() == AllocationType::kOld) {
@@ -2268,19 +2268,19 @@ void Heap::UpdateSurvivalStatistics(int start_new_space_size) {
   promotion_ratio_ = (static_cast<double>(promoted_objects_size_) /
                       static_cast<double>(start_new_space_size) * 100);
 
-  if (previous_semi_space_copied_object_size_ > 0) {
+  if (previous_new_space_surviving_object_size_ > 0) {
     promotion_rate_ =
         (static_cast<double>(promoted_objects_size_) /
-         static_cast<double>(previous_semi_space_copied_object_size_) * 100);
+         static_cast<double>(previous_new_space_surviving_object_size_) * 100);
   } else {
     promotion_rate_ = 0;
   }
 
-  semi_space_copied_rate_ =
-      (static_cast<double>(semi_space_copied_object_size_) /
+  new_space_surviving_rate_ =
+      (static_cast<double>(new_space_surviving_object_size_) /
        static_cast<double>(start_new_space_size) * 100);
 
-  double survival_rate = promotion_ratio_ + semi_space_copied_rate_;
+  double survival_rate = promotion_ratio_ + new_space_surviving_rate_;
   tracer()->AddSurvivalRatio(survival_rate);
 }
 

@@ -1932,11 +1932,12 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
       return true;
     }
 
+    DCHECK(!v8_flags.minor_mc);
+
     if (heap_->new_space()->ShouldBePromoted(object.address()) &&
         TryEvacuateObject(OLD_SPACE, object, size, &target_object)) {
       // Full GCs use AlwaysPromoteYoung::kYes above and MinorMC should never
       // move objects.
-      DCHECK(!v8_flags.minor_mc);
       promoted_size_ += size;
       return true;
     }
@@ -4234,7 +4235,7 @@ void Evacuator::Finalize() {
   heap()->tracer()->AddCompactionEvent(duration_, bytes_compacted_);
   heap()->IncrementPromotedObjectsSize(new_space_visitor_.promoted_size() +
                                        new_to_old_page_visitor_.moved_bytes());
-  heap()->IncrementSemiSpaceCopiedObjectSize(
+  heap()->IncrementNewSpaceSurvivingObjectSize(
       new_space_visitor_.semispace_copied_size() +
       new_to_new_page_visitor_.moved_bytes());
   heap()->IncrementYoungSurvivorsCounter(
@@ -4686,7 +4687,7 @@ void MarkCompactCollector::Evacuate() {
       } else if (v8_flags.minor_mc) {
         // Sweep non-promoted pages to add them back to the free list.
         DCHECK_EQ(NEW_SPACE, p->owner_identity());
-        sweeper()->AddPage(NEW_SPACE, p, Sweeper::REGULAR);
+        sweeper()->AddNewSpacePage(p, Sweeper::REGULAR);
       }
     }
     new_space_evacuation_pages_.clear();
@@ -5563,7 +5564,7 @@ void MarkCompactCollector::StartSweepNewSpace() {
     // New space preallocates all its pages. Don't free empty pages since they
     // will just be reallocated.
     DCHECK_EQ(NEW_SPACE, paged_space->identity());
-    sweeper_->AddPage(NEW_SPACE, p, Sweeper::REGULAR);
+    sweeper_->AddNewSpacePage(p, Sweeper::REGULAR);
     will_be_swept++;
   }
 
@@ -6573,7 +6574,7 @@ void MinorMarkCompactCollector::Evacuate() {
       } else {
         // Page was not promoted. Sweep it instead.
         DCHECK_EQ(NEW_SPACE, p->owner_identity());
-        sweeper()->AddPage(NEW_SPACE, p, Sweeper::REGULAR);
+        sweeper()->AddNewSpacePage(p, Sweeper::REGULAR);
       }
     }
     new_space_evacuation_pages_.clear();
@@ -6705,7 +6706,7 @@ void MinorMarkCompactCollector::StartSweepNewSpace() {
     // New space preallocates all its pages. Don't free empty pages since they
     // will just be reallocated.
     DCHECK_EQ(NEW_SPACE, paged_space->identity());
-    sweeper_->AddPage(NEW_SPACE, p, Sweeper::REGULAR);
+    sweeper_->AddNewSpacePage(p, Sweeper::REGULAR);
     will_be_swept++;
   }
 

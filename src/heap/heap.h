@@ -1407,15 +1407,15 @@ class Heap {
   }
   inline size_t promoted_objects_size() { return promoted_objects_size_; }
 
-  inline void IncrementSemiSpaceCopiedObjectSize(size_t object_size) {
-    semi_space_copied_object_size_ += object_size;
+  inline void IncrementNewSpaceSurvivingObjectSize(size_t object_size) {
+    new_space_surviving_object_size_ += object_size;
   }
-  inline size_t semi_space_copied_object_size() {
-    return semi_space_copied_object_size_;
+  inline size_t new_space_surviving_object_size() {
+    return new_space_surviving_object_size_;
   }
 
   inline size_t SurvivedYoungObjectSize() {
-    return promoted_objects_size_ + semi_space_copied_object_size_;
+    return promoted_objects_size_ + new_space_surviving_object_size_;
   }
 
   inline void IncrementNodesDiedInNewSpace(int count) {
@@ -1427,7 +1427,6 @@ class Heap {
   inline void IncrementNodesPromoted() { nodes_promoted_++; }
 
   inline void IncrementYoungSurvivorsCounter(size_t survived) {
-    survived_last_scavenge_ = survived;
     survived_since_last_expansion_ += survived;
   }
 
@@ -1976,7 +1975,7 @@ class Heap {
 
   void UpdateTotalGCTime(double duration);
 
-  bool MaximumSizeScavenge() { return maximum_size_scavenges_ > 0; }
+  bool MaximumSizeMinorGC() { return maximum_size_minor_gcs_ > 0; }
 
   bool IsIneffectiveMarkCompact(size_t old_generation_size,
                                 double mutator_utilization);
@@ -2187,9 +2186,6 @@ class Heap {
   // scavenge since last new space expansion.
   size_t survived_since_last_expansion_ = 0;
 
-  // ... and since the last scavenge.
-  size_t survived_last_scavenge_ = 0;
-
   // This is not the depth of nested AlwaysAllocateScope's but rather a single
   // count, as scopes can be acquired from multiple tasks (read: threads).
   std::atomic<size_t> always_allocate_scope_count_{0};
@@ -2304,9 +2300,9 @@ class Heap {
   size_t promoted_objects_size_ = 0;
   double promotion_ratio_ = 0.0;
   double promotion_rate_ = 0.0;
-  size_t semi_space_copied_object_size_ = 0;
-  size_t previous_semi_space_copied_object_size_ = 0;
-  double semi_space_copied_rate_ = 0.0;
+  size_t new_space_surviving_object_size_ = 0;
+  size_t previous_new_space_surviving_object_size_ = 0;
+  double new_space_surviving_rate_ = 0.0;
   int nodes_died_in_new_space_ = 0;
   int nodes_copied_in_new_space_ = 0;
   int nodes_promoted_ = 0;
@@ -2315,7 +2311,7 @@ class Heap {
   // tenure state. When we switched to the maximum new space size we deoptimize
   // the code that belongs to the allocation site and derive the lifetime
   // of the allocation site.
-  unsigned int maximum_size_scavenges_ = 0;
+  unsigned int maximum_size_minor_gcs_ = 0;
 
   // Total time spent in GC.
   double total_gc_time_ms_ = 0.0;

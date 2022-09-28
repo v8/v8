@@ -669,7 +669,7 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
   // Return the allocated bytes in the active space.
   size_t Size() const final { return paged_space_.Size(); }
 
-  size_t SizeOfObjects() const final { return Size(); }
+  size_t SizeOfObjects() const final { return paged_space_.SizeOfObjects(); }
 
   // Return the allocatable capacity of the space.
   size_t Capacity() const final { return paged_space_.Capacity(); }
