@@ -298,7 +298,8 @@
   V(CheckedTaggedToFloat64)           \
   V(CheckedTaggedToInt64)             \
   V(CheckedTaggedToTaggedSigned)      \
-  V(CheckedTaggedToTaggedPointer)
+  V(CheckedTaggedToTaggedPointer)     \
+  V(CheckedBigInt64Add)
 
 #define SIMPLIFIED_COMPARE_BINOP_LIST(V) \
   V(NumberEqual)                         \
@@ -394,7 +395,8 @@
 
 #define SIMPLIFIED_BIGINT_UNOP_LIST(V) \
   V(BigIntNegate)                      \
-  V(CheckBigInt)
+  V(CheckBigInt)                       \
+  V(CheckBigInt64)
 
 #define SIMPLIFIED_SPECULATIVE_NUMBER_UNOP_LIST(V) V(SpeculativeToNumber)
 

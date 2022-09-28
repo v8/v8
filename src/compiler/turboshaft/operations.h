@@ -721,9 +721,7 @@ struct OverflowCheckedBinopOp
 
   OverflowCheckedBinopOp(OpIndex left, OpIndex right, Kind kind,
                          WordRepresentation rep)
-      : Base(left, right), kind(kind), rep(rep) {
-    DCHECK_EQ(rep, WordRepresentation::Word32());
-  }
+      : Base(left, right), kind(kind), rep(rep) {}
   auto options() const { return std::tuple{kind, rep}; }
   void PrintOptions(std::ostream& os) const;
 };

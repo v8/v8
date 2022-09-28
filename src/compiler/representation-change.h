@@ -122,6 +122,7 @@ enum class TypeCheckKind : uint8_t {
   kNumberOrOddball,
   kHeapObject,
   kBigInt,
+  kBigInt64,
   kArrayIndex
 };
 
@@ -145,6 +146,8 @@ inline std::ostream& operator<<(std::ostream& os, TypeCheckKind type_check) {
       return os << "HeapObject";
     case TypeCheckKind::kBigInt:
       return os << "BigInt";
+    case TypeCheckKind::kBigInt64:
+      return os << "BigInt64";
     case TypeCheckKind::kArrayIndex:
       return os << "ArrayIndex";
   }
@@ -185,6 +188,10 @@ class UseInfo {
     // type BigInt anyway.
     return UseInfo(MachineRepresentation::kWord64, Truncation::Word64(),
                    TypeCheckKind::kBigInt, feedback);
+  }
+  static UseInfo CheckedBigInt64AsWord64(const FeedbackSource& feedback) {
+    return UseInfo(MachineRepresentation::kWord64, Truncation::Any(),
+                   TypeCheckKind::kBigInt64, feedback);
   }
   static UseInfo Word64() {
     return UseInfo(MachineRepresentation::kWord64, Truncation::Any());

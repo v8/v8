@@ -113,6 +113,7 @@ class Reducer;
 
 #define CHECKED_ASSEMBLER_MACH_BINOP_LIST(V) \
   V(Int32AddWithOverflow)                    \
+  V(Int64AddWithOverflow)                    \
   V(Int32Div)                                \
   V(Int32Mod)                                \
   V(Int32MulWithOverflow)                    \

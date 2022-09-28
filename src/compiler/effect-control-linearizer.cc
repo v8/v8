@@ -84,6 +84,7 @@ class EffectControlLinearizer {
   Node* LowerCheckReceiverOrNullOrUndefined(Node* node, Node* frame_state);
   Node* LowerCheckString(Node* node, Node* frame_state);
   Node* LowerCheckBigInt(Node* node, Node* frame_state);
+  Node* LowerCheckBigInt64(Node* node, Node* frame_state);
   Node* LowerCheckSymbol(Node* node, Node* frame_state);
   void LowerCheckIf(Node* node, Node* frame_state);
   Node* LowerCheckedInt32Add(Node* node, Node* frame_state);
@@ -93,6 +94,7 @@ class EffectControlLinearizer {
   Node* LowerCheckedUint32Div(Node* node, Node* frame_state);
   Node* LowerCheckedUint32Mod(Node* node, Node* frame_state);
   Node* LowerCheckedInt32Mul(Node* node, Node* frame_state);
+  Node* LowerCheckedBigInt64Add(Node* node, Node* frame_state);
   Node* LowerCheckedInt32ToTaggedSigned(Node* node, Node* frame_state);
   Node* LowerCheckedInt64ToInt32(Node* node, Node* frame_state);
   Node* LowerCheckedInt64ToTaggedSigned(Node* node, Node* frame_state);
@@ -1002,6 +1004,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kCheckBigInt:
       result = LowerCheckBigInt(node, frame_state);
       break;
+    case IrOpcode::kCheckBigInt64:
+      result = LowerCheckBigInt64(node, frame_state);
+      break;
     case IrOpcode::kCheckInternalizedString:
       result = LowerCheckInternalizedString(node, frame_state);
       break;
@@ -1028,6 +1033,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kCheckedInt32Mul:
       result = LowerCheckedInt32Mul(node, frame_state);
+      break;
+    case IrOpcode::kCheckedBigInt64Add:
+      result = LowerCheckedBigInt64Add(node, frame_state);
       break;
     case IrOpcode::kCheckedInt32ToTaggedSigned:
       result = LowerCheckedInt32ToTaggedSigned(node, frame_state);
@@ -2910,6 +2918,73 @@ Node* EffectControlLinearizer::LowerCheckBigInt(Node* node, Node* frame_state) {
                      bi_check, frame_state);
 
   return value;
+}
+
+Node* EffectControlLinearizer::LowerCheckBigInt64(Node* node,
+                                                  Node* frame_state) {
+  DCHECK(machine()->Is64());
+
+  auto done = __ MakeLabel();
+  auto if_not_zero = __ MakeLabel();
+
+  Node* value = node->InputAt(0);
+  const CheckParameters& params = CheckParametersOf(node->op());
+
+  // Check for Smi.
+  Node* smi_check = ObjectIsSmi(value);
+  __ DeoptimizeIf(DeoptimizeReason::kSmi, params.feedback(), smi_check,
+                  frame_state);
+
+  // Check for BigInt.
+  Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
+  Node* bi_check = __ TaggedEqual(value_map, __ BigIntMapConstant());
+  __ DeoptimizeIfNot(DeoptimizeReason::kWrongInstanceType, params.feedback(),
+                     bi_check, frame_state);
+
+  // Check for BigInt64.
+  Node* bitfield = __ LoadField(AccessBuilder::ForBigIntBitfield(), value);
+  __ GotoIfNot(__ Word32Equal(bitfield, __ Int32Constant(0)), &if_not_zero);
+  __ Goto(&done);
+
+  __ Bind(&if_not_zero);
+  {
+    // Length must be 1. Compare it with 2 to avoid a right shift.
+    Node* length =
+        __ Word32And(bitfield, __ Int32Constant(BigInt::LengthBits::kMask));
+    __ DeoptimizeIfNot(
+        DeoptimizeReason::kWrongInstanceType, params.feedback(),
+        __ Word32Equal(length, __ Int32Constant(uint32_t{1}
+                                                << BigInt::LengthBits::kShift)),
+        frame_state);
+
+    Node* lsd =
+        __ LoadField(AccessBuilder::ForBigIntLeastSignificantDigit64(), value);
+    // Accepted small BigInts are in the range [-2^63 + 1, 2^63 - 1].
+    // Excluding -2^63 from the range makes the check simpler and faster.
+    Node* bi64_check = __ Uint64LessThanOrEqual(
+        lsd, __ Int64Constant(std::numeric_limits<int64_t>::max()));
+    __ DeoptimizeIfNot(DeoptimizeReason::kWrongInstanceType, params.feedback(),
+                       bi64_check, frame_state);
+    __ Goto(&done);
+  }
+
+  __ Bind(&done);
+  return value;
+}
+
+Node* EffectControlLinearizer::LowerCheckedBigInt64Add(Node* node,
+                                                       Node* frame_state) {
+  DCHECK(machine()->Is64());
+
+  Node* lhs = node->InputAt(0);
+  Node* rhs = node->InputAt(1);
+
+  Node* value = __ Int64AddWithOverflow(lhs, rhs);
+
+  Node* check = __ Projection(1, value);
+  __ DeoptimizeIf(DeoptimizeReason::kOverflow, FeedbackSource(), check,
+                  frame_state);
+  return __ Projection(0, value);
 }
 
 Node* EffectControlLinearizer::LowerChangeInt64ToBigInt(Node* node) {

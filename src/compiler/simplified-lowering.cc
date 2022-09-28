@@ -2965,6 +2965,15 @@ class RepresentationSelector {
         }
         return;
       }
+      case IrOpcode::kCheckBigInt64: {
+        if (InputIs(node, Type::BigInt())) {
+          VisitNoop<T>(node, truncation);
+        } else {
+          VisitUnop<T>(node, UseInfo::AnyTagged(),
+                       MachineRepresentation::kTaggedPointer);
+        }
+        return;
+      }
       case IrOpcode::kSpeculativeBigIntAsIntN:
       case IrOpcode::kSpeculativeBigIntAsUintN: {
         const bool is_asuintn =
@@ -3194,15 +3203,30 @@ class RepresentationSelector {
           if (lower<T>()) {
             ChangeToPureOp(node, lowering->machine()->Int64Add());
           }
-        } else {
-          VisitBinop<T>(node,
-                        UseInfo::CheckedBigIntAsTaggedPointer(FeedbackSource{}),
-                        MachineRepresentation::kTaggedPointer);
-          if (lower<T>()) {
-            ChangeOp(node, lowering->simplified()->BigIntAdd());
-          }
+          return;
         }
-        return;
+        BigIntOperationHint hint = BigIntOperationHintOf(node->op());
+        switch (hint) {
+          case BigIntOperationHint::kBigInt64: {
+            VisitBinop<T>(
+                node, UseInfo::CheckedBigInt64AsWord64(FeedbackSource{}),
+                MachineRepresentation::kWord64, Type::SignedBigInt64());
+            if (lower<T>()) {
+              ChangeOp(node, lowering->simplified()->CheckedBigInt64Add());
+            }
+            return;
+          }
+          case BigIntOperationHint::kBigInt: {
+            VisitBinop<T>(
+                node, UseInfo::CheckedBigIntAsTaggedPointer(FeedbackSource{}),
+                MachineRepresentation::kTaggedPointer);
+            if (lower<T>()) {
+              ChangeOp(node, lowering->simplified()->BigIntAdd());
+            }
+            return;
+          }
+            UNREACHABLE();
+        }
       }
       case IrOpcode::kSpeculativeBigIntSubtract: {
         if (truncation.IsUsedAsWord64()) {

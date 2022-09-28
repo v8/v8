@@ -1527,6 +1527,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kCheckedTaggedToTaggedSigned:
     case IrOpcode::kCheckedTaggedToTaggedPointer:
     case IrOpcode::kCheckedTruncateTaggedToWord32:
+    case IrOpcode::kCheckedBigInt64Add:
     case IrOpcode::kAssertType:
     case IrOpcode::kVerifyType:
       break;
@@ -1644,6 +1645,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kCheckBigInt:
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::BigInt());
+      break;
+    case IrOpcode::kCheckBigInt64:
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckTypeIs(node, Type::SignedBigInt64());
       break;
     case IrOpcode::kFastApiCall:
       CHECK_GE(value_count, 1);

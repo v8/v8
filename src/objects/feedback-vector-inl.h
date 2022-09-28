@@ -320,8 +320,9 @@ BinaryOperationHint BinaryOperationHintFromFeedback(int type_feedback) {
     case BinaryOperationFeedback::kString:
       return BinaryOperationHint::kString;
     case BinaryOperationFeedback::kBigInt:
-    case BinaryOperationFeedback::kBigInt64:
       return BinaryOperationHint::kBigInt;
+    case BinaryOperationFeedback::kBigInt64:
+      return BinaryOperationHint::kBigInt64;
     default:
       return BinaryOperationHint::kAny;
   }

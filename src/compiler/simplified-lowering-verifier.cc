@@ -283,6 +283,13 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       CheckAndSet(node, input_type, InputTruncation(node, 0));
       break;
     }
+    case IrOpcode::kCheckBigInt64: {
+      Type input_type = InputType(node, 0);
+      input_type =
+          Type::Intersect(input_type, Type::SignedBigInt64(), graph_zone());
+      CheckAndSet(node, input_type, InputTruncation(node, 0));
+      break;
+    }
     case IrOpcode::kReturn: {
       const int return_value_count = ValueInputCountOfReturn(node->op());
       for (int i = 0; i < return_value_count; ++i) {
@@ -416,6 +423,7 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       CASE(CheckedUint32Div)
       CASE(CheckedUint32Mod)
       CASE(CheckedInt32Mul)
+      CASE(CheckedBigInt64Add)
       CASE(CheckedInt32ToTaggedSigned)
       CASE(CheckedInt64ToInt32)
       CASE(CheckedInt64ToTaggedSigned)
