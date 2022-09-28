@@ -4165,7 +4165,7 @@ class Evacuator : public Malloced {
   static const int kInitialLocalPretenuringFeedbackCapacity = 256;
 
   // |saved_live_bytes| returns the live bytes of the page that was processed.
-  virtual void RawEvacuatePage(MemoryChunk* chunk,
+  virtual bool RawEvacuatePage(MemoryChunk* chunk,
                                intptr_t* saved_live_bytes) = 0;
 
   inline Heap* heap() { return heap_; }
@@ -4203,10 +4203,11 @@ void Evacuator::EvacuatePage(MemoryChunk* chunk) {
   DCHECK(chunk->SweepingDone());
   intptr_t saved_live_bytes = 0;
   double evacuation_time = 0.0;
+  bool success = false;
   {
     AlwaysAllocateScope always_allocate(heap());
     TimedScope timed_scope(&evacuation_time);
-    RawEvacuatePage(chunk, &saved_live_bytes);
+    success = RawEvacuatePage(chunk, &saved_live_bytes);
   }
   ReportCompactionProgress(evacuation_time, saved_live_bytes);
   if (v8_flags.trace_evacuation) {
@@ -4220,8 +4221,7 @@ void Evacuator::EvacuatePage(MemoryChunk* chunk) {
                      chunk->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION),
                  chunk->IsFlagSet(MemoryChunk::IS_EXECUTABLE),
                  heap()->new_space()->IsPromotionCandidate(chunk),
-                 saved_live_bytes, evacuation_time,
-                 chunk->IsFlagSet(Page::COMPACTION_WAS_ABORTED));
+                 saved_live_bytes, evacuation_time, success);
   }
 }
 
@@ -4278,7 +4278,7 @@ class FullEvacuator : public Evacuator {
   }
 
  protected:
-  void RawEvacuatePage(MemoryChunk* chunk, intptr_t* live_bytes) override;
+  bool RawEvacuatePage(MemoryChunk* chunk, intptr_t* live_bytes) override;
 
   EphemeronRememberedSet ephemeron_remembered_set_;
   RecordMigratedSlotVisitor record_visitor_;
@@ -4287,7 +4287,7 @@ class FullEvacuator : public Evacuator {
   MarkCompactCollector* collector_;
 };
 
-void FullEvacuator::RawEvacuatePage(MemoryChunk* chunk, intptr_t* live_bytes) {
+bool FullEvacuator::RawEvacuatePage(MemoryChunk* chunk, intptr_t* live_bytes) {
   const EvacuationMode evacuation_mode = ComputeEvacuationMode(chunk);
   NonAtomicMarkingState* marking_state = collector_->non_atomic_marking_state();
   *live_bytes = marking_state->live_bytes(chunk);
@@ -4336,11 +4336,14 @@ void FullEvacuator::RawEvacuatePage(MemoryChunk* chunk, intptr_t* live_bytes) {
           // thread for simplicity reasons.
           collector_->ReportAbortedEvacuationCandidateDueToOOM(
               failed_object.address(), static_cast<Page*>(chunk));
+          return false;
         }
       }
       break;
     }
   }
+
+  return true;
 }
 
 class PageEvacuationJob : public v8::JobTask {
@@ -5360,8 +5363,6 @@ void MarkCompactCollector::UpdatePointersInClientHeap(Isolate* client) {
 
 void MarkCompactCollector::ReportAbortedEvacuationCandidateDueToOOM(
     Address failed_start, Page* page) {
-  DCHECK(!page->IsFlagSet(Page::COMPACTION_WAS_ABORTED));
-  page->SetFlag(Page::COMPACTION_WAS_ABORTED);
   base::MutexGuard guard(&mutex_);
   aborted_evacuation_candidates_due_to_oom_.push_back(
       std::make_pair(failed_start, page));
@@ -5427,6 +5428,11 @@ void ReRecordPage(Heap* heap,
 size_t MarkCompactCollector::PostProcessAbortedEvacuationCandidates() {
   CHECK_IMPLIES(v8_flags.crash_on_aborted_evacuation,
                 aborted_evacuation_candidates_due_to_oom_.empty());
+  for (auto start_and_page : aborted_evacuation_candidates_due_to_oom_) {
+    Page* page = start_and_page.second;
+    DCHECK(!page->IsFlagSet(Page::COMPACTION_WAS_ABORTED));
+    page->SetFlag(Page::COMPACTION_WAS_ABORTED);
+  }
   for (auto start_and_page : aborted_evacuation_candidates_due_to_oom_) {
     ReRecordPage(heap(), non_atomic_marking_state(), start_and_page.first,
                  start_and_page.second);
@@ -6597,14 +6603,14 @@ class YoungGenerationEvacuator : public Evacuator {
   }
 
  protected:
-  void RawEvacuatePage(MemoryChunk* chunk, intptr_t* live_bytes) override;
+  bool RawEvacuatePage(MemoryChunk* chunk, intptr_t* live_bytes) override;
 
   YoungGenerationRecordMigratedSlotVisitor record_visitor_;
   EvacuationAllocator local_allocator_;
   MinorMarkCompactCollector* collector_;
 };
 
-void YoungGenerationEvacuator::RawEvacuatePage(MemoryChunk* chunk,
+bool YoungGenerationEvacuator::RawEvacuatePage(MemoryChunk* chunk,
                                                intptr_t* live_bytes) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                "YoungGenerationEvacuator::RawEvacuatePage");
@@ -6628,6 +6634,8 @@ void YoungGenerationEvacuator::RawEvacuatePage(MemoryChunk* chunk,
                                FreeSpaceTreatmentMode::kIgnoreFreeSpace);
     }
   }
+
+  return true;
 }
 
 }  // namespace
