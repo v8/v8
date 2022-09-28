@@ -13,7 +13,8 @@
 #include "src/tracing/trace-event.h"
 #include "src/utils/utils.h"
 
-namespace v8::internal {
+namespace v8 {
+namespace internal {
 
 namespace {
 
@@ -58,56 +59,5 @@ DECLARED_PROTECTORS_ON_ISOLATE(V)
 DECLARED_PROTECTORS_ON_ISOLATE(INVALIDATE_PROTECTOR_ON_ISOLATE_DEFINITION)
 #undef INVALIDATE_PROTECTOR_ON_ISOLATE_DEFINITION
 
-void Protectors::InvalidateRespectiveIteratorLookupChain(
-    Isolate* isolate, InstanceType instance_type) {
-  if (InstanceTypeChecker::IsJSArrayIterator(instance_type) ||
-      InstanceTypeChecker::IsJSArrayIteratorPrototype(instance_type)) {
-    if (!Protectors::IsArrayIteratorLookupChainIntact(isolate)) return;
-    Protectors::InvalidateArrayIteratorLookupChain(isolate);
-
-  } else if (InstanceTypeChecker::IsJSMapIterator(instance_type) ||
-             InstanceTypeChecker::IsJSMapIteratorPrototype(instance_type)) {
-    if (!Protectors::IsMapIteratorLookupChainIntact(isolate)) return;
-    Protectors::InvalidateMapIteratorLookupChain(isolate);
-
-  } else if (InstanceTypeChecker::IsJSSetIterator(instance_type) ||
-             InstanceTypeChecker::IsJSSetIteratorPrototype(instance_type)) {
-    if (!Protectors::IsSetIteratorLookupChainIntact(isolate)) return;
-    Protectors::InvalidateSetIteratorLookupChain(isolate);
-
-  } else if (InstanceTypeChecker::IsJSStringIterator(instance_type) ||
-             InstanceTypeChecker::IsJSStringIteratorPrototype(instance_type)) {
-    if (!Protectors::IsStringIteratorLookupChainIntact(isolate)) return;
-    Protectors::InvalidateStringIteratorLookupChain(isolate);
-  }
-}
-
-void Protectors::InvalidateRespectiveIteratorLookupChainForReturn(
-    Isolate* isolate, InstanceType instance_type) {
-  if (InstanceTypeChecker::IsJSIteratorPrototype(instance_type) ||
-      InstanceTypeChecker::IsJSObjectPrototype(instance_type)) {
-    // Addition of the "return" property to the Object prototype alters
-    // behaviour of all iterators because the "return" callback might need to be
-    // called according to the iterator protocol.
-    Protectors::InvalidateAllIteratorLookupChains(isolate);
-  } else {
-    Protectors::InvalidateRespectiveIteratorLookupChain(isolate, instance_type);
-  }
-}
-
-void Protectors::InvalidateAllIteratorLookupChains(Isolate* isolate) {
-  if (Protectors::IsArrayIteratorLookupChainIntact(isolate)) {
-    Protectors::InvalidateArrayIteratorLookupChain(isolate);
-  }
-  if (Protectors::IsMapIteratorLookupChainIntact(isolate)) {
-    Protectors::InvalidateMapIteratorLookupChain(isolate);
-  }
-  if (Protectors::IsSetIteratorLookupChainIntact(isolate)) {
-    Protectors::InvalidateSetIteratorLookupChain(isolate);
-  }
-  if (Protectors::IsStringIteratorLookupChainIntact(isolate)) {
-    Protectors::InvalidateStringIteratorLookupChain(isolate);
-  }
-}
-
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

@@ -231,13 +231,27 @@ void LookupIterator::InternalUpdateProtector(Isolate* isolate,
       }
     }
   } else if (*name == roots.next_string()) {
-    InstanceType instance_type = receiver->map(isolate).instance_type();
-    Protectors::InvalidateRespectiveIteratorLookupChain(isolate, instance_type);
-
-  } else if (*name == roots.return_string()) {
-    InstanceType instance_type = receiver->map(isolate).instance_type();
-    Protectors::InvalidateRespectiveIteratorLookupChainForReturn(isolate,
-                                                                 instance_type);
+    if (receiver->IsJSArrayIterator() ||
+        receiver->IsJSArrayIteratorPrototype()) {
+      // Setting the next property of %ArrayIteratorPrototype% also needs to
+      // invalidate the array iterator protector.
+      if (!Protectors::IsArrayIteratorLookupChainIntact(isolate)) return;
+      Protectors::InvalidateArrayIteratorLookupChain(isolate);
+    } else if (receiver->IsJSMapIterator() ||
+               receiver->IsJSMapIteratorPrototype()) {
+      if (!Protectors::IsMapIteratorLookupChainIntact(isolate)) return;
+      Protectors::InvalidateMapIteratorLookupChain(isolate);
+    } else if (receiver->IsJSSetIterator() ||
+               receiver->IsJSSetIteratorPrototype()) {
+      if (!Protectors::IsSetIteratorLookupChainIntact(isolate)) return;
+      Protectors::InvalidateSetIteratorLookupChain(isolate);
+    } else if (receiver->IsJSStringIterator() ||
+               receiver->IsJSStringIteratorPrototype()) {
+      // Setting the next property of %StringIteratorPrototype% invalidates the
+      // string iterator protector.
+      if (!Protectors::IsStringIteratorLookupChainIntact(isolate)) return;
+      Protectors::InvalidateStringIteratorLookupChain(isolate);
+    }
   } else if (*name == roots.species_symbol()) {
     // Setting the Symbol.species property of any Array, Promise or TypedArray
     // constructor invalidates the @@species protector

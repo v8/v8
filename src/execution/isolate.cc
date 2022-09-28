@@ -4808,16 +4808,6 @@ void Isolate::UpdateTypedArraySpeciesLookupChainProtectorOnSetPrototype(
   }
 }
 
-void Isolate::UpdateIteratorLookupChainsProtectorOnSetPrototype(
-    Handle<JSObject> object) {
-  // Modification of the iterator object prototypes might alter behaviour of
-  // iterators because the new prototype chain might introduce a "return"
-  // callback which might need to be called according to the iterator protocol.
-  InstanceType instance_type = object->map(this).instance_type();
-  Protectors::InvalidateRespectiveIteratorLookupChainForReturn(this,
-                                                               instance_type);
-}
-
 static base::RandomNumberGenerator* ensure_rng_exists(
     base::RandomNumberGenerator** rng, int seed) {
   if (*rng == nullptr) {

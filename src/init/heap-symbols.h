@@ -369,6 +369,7 @@
   V(_, relativeTo_string, "relativeTo")                              \
   V(_, resizable_string, "resizable")                                \
   V(_, ResizableArrayBuffer_string, "ResizableArrayBuffer")          \
+  V(_, return_string, "return")                                      \
   V(_, revoke_string, "revoke")                                      \
   V(_, roundingIncrement_string, "roundingIncrement")                \
   V(_, RuntimeError_string, "RuntimeError")                          \
@@ -503,7 +504,6 @@
   V(_, constructor_string, "constructor")                      \
   V(_, next_string, "next")                                    \
   V(_, resolve_string, "resolve")                              \
-  V(_, return_string, "return")                                \
   V(_, then_string, "then")
 
 // Note that the descriptioon string should be part of the internalized
