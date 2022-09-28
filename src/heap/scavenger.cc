@@ -625,7 +625,8 @@ Scavenger::Scavenger(ScavengerCollector* collector, Heap* heap, bool is_logging,
       is_compacting_(heap->incremental_marking()->IsCompacting()),
       is_compacting_including_map_space_(is_compacting_ &&
                                          v8_flags.compact_maps),
-      shared_string_table_(shared_old_allocator_.get() != nullptr) {}
+      shared_string_table_(shared_old_allocator_.get() != nullptr),
+      mark_shared_heap_(heap->isolate()->is_shared_space_isolate()) {}
 
 void Scavenger::IterateAndScavengePromotedObject(HeapObject target, Map map,
                                                  int size) {

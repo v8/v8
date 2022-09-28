@@ -110,7 +110,7 @@ bool Scavenger::MigrateObject(Map map, HeapObject source, HeapObject target,
   }
 
   if (is_incremental_marking_ &&
-      promotion_heap_choice != kPromoteIntoSharedHeap) {
+      (promotion_heap_choice != kPromoteIntoSharedHeap || mark_shared_heap_)) {
     heap()->incremental_marking()->TransferColor(source, target);
   }
   heap()->UpdateAllocationSite(map, source, &local_pretenuring_feedback_);

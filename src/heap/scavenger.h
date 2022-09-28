@@ -212,6 +212,7 @@ class Scavenger {
   const bool is_compacting_;
   const bool is_compacting_including_map_space_;
   const bool shared_string_table_;
+  const bool mark_shared_heap_;
 
   friend class IterateAndScavengePromotedObjectsVisitor;
   friend class RootScavengeVisitor;
