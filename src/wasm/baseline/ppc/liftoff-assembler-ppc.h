@@ -46,11 +46,9 @@ namespace liftoff {
 //
 
 constexpr int32_t kInstanceOffset =
-    (v8_flags.enable_embedded_constant_pool.value() ? 3 : 2) *
-    kSystemPointerSize;
+    (V8_EMBEDDED_CONSTANT_POOL_BOOL ? 3 : 2) * kSystemPointerSize;
 constexpr int kFeedbackVectorOffset =
-    (v8_flags.enable_embedded_constant_pool.value() ? 4 : 3) *
-    kSystemPointerSize;
+    (V8_EMBEDDED_CONSTANT_POOL_BOOL ? 4 : 3) * kSystemPointerSize;
 
 inline MemOperand GetHalfStackSlot(int offset, RegPairHalf half) {
   int32_t half_offset =
@@ -143,7 +141,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
     int offset, SafepointTableBuilder* safepoint_table_builder) {
   int frame_size =
       GetTotalFrameSize() -
-      (v8_flags.enable_embedded_constant_pool ? 3 : 2) * kSystemPointerSize;
+      (V8_EMBEDDED_CONSTANT_POOL_BOOL ? 3 : 2) * kSystemPointerSize;
 
   Assembler patching_assembler(
       AssemblerOptions{},

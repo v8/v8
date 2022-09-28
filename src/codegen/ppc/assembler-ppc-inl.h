@@ -87,7 +87,7 @@ Address RelocInfo::target_address() {
 Address RelocInfo::target_address_address() {
   DCHECK(HasTargetAddressAddress());
 
-  if (v8_flags.enable_embedded_constant_pool &&
+  if (V8_EMBEDDED_CONSTANT_POOL_BOOL &&
       Assembler::IsConstantPoolLoadStart(pc_)) {
     // We return the PC for embedded constant pool since this function is used
     // by the serializer and expects the address to reside within the code
@@ -108,7 +108,7 @@ Address RelocInfo::target_address_address() {
 }
 
 Address RelocInfo::constant_pool_entry_address() {
-  if (v8_flags.enable_embedded_constant_pool) {
+  if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
     DCHECK(constant_pool_);
     ConstantPoolEntry::Access access;
     if (Assembler::IsConstantPoolLoadStart(pc_, &access))
@@ -250,7 +250,7 @@ void Assembler::UntrackBranch() {
 
 // Fetch the 32bit value from the FIXED_SEQUENCE lis/ori
 Address Assembler::target_address_at(Address pc, Address constant_pool) {
-  if (v8_flags.enable_embedded_constant_pool && constant_pool) {
+  if (V8_EMBEDDED_CONSTANT_POOL_BOOL && constant_pool) {
     ConstantPoolEntry::Access access;
     if (IsConstantPoolLoadStart(pc, &access))
       return Memory<Address>(target_constant_pool_address_at(
@@ -425,7 +425,7 @@ void Assembler::deserialization_set_target_internal_reference_at(
 void Assembler::set_target_address_at(Address pc, Address constant_pool,
                                       Address target,
                                       ICacheFlushMode icache_flush_mode) {
-  if (v8_flags.enable_embedded_constant_pool && constant_pool) {
+  if (V8_EMBEDDED_CONSTANT_POOL_BOOL && constant_pool) {
     ConstantPoolEntry::Access access;
     if (IsConstantPoolLoadStart(pc, &access)) {
       Memory<Address>(target_constant_pool_address_at(

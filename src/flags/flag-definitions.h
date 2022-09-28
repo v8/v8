@@ -2355,16 +2355,6 @@ DEFINE_IMPLICATION(verify_predictable, predictable)
 DEFINE_INT(dump_allocations_digest_at_alloc, -1,
            "dump allocations digest each n-th allocation")
 
-//
-// Read-only flags
-//
-#undef FLAG
-#define FLAG FLAG_READONLY
-
-// assembler.h
-DEFINE_BOOL(enable_embedded_constant_pool, V8_EMBEDDED_CONSTANT_POOL,
-            "enable use of embedded constant pools (PPC only)")
-
 // Cleanup...
 #undef FLAG_FULL
 #undef FLAG_READONLY

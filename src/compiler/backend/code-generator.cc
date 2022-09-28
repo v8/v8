@@ -314,7 +314,7 @@ void CodeGenerator::AssembleCode() {
     // within the block.
     tasm()->VU.clear();
 #endif
-    if (v8_flags.enable_embedded_constant_pool && !block->needs_frame()) {
+    if (V8_EMBEDDED_CONSTANT_POOL_BOOL && !block->needs_frame()) {
       ConstantPoolUnavailableScope constant_pool_unavailable(tasm());
       result_ = AssembleBlock(block);
     } else {

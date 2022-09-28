@@ -152,7 +152,7 @@ base::AddressRegion DisjointAllocationPool::AllocateInRegion(
 }
 
 Address WasmCode::constant_pool() const {
-  if (v8_flags.enable_embedded_constant_pool) {
+  if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
     if (constant_pool_offset_ < code_comments_offset_) {
       return instruction_start() + constant_pool_offset_;
     }

@@ -607,7 +607,7 @@ void StackFrame::IteratePc(RootVisitor* v, Address* pc_address,
   Address pc = holder.InstructionStart(isolate_, old_pc) + pc_offset;
   // TODO(v8:10026): avoid replacing a signed pointer.
   PointerAuthentication::ReplacePC(pc_address, pc, kSystemPointerSize);
-  if (v8_flags.enable_embedded_constant_pool && constant_pool_address) {
+  if (V8_EMBEDDED_CONSTANT_POOL_BOOL && constant_pool_address) {
     *constant_pool_address = holder.constant_pool();
   }
 }
@@ -842,7 +842,7 @@ void ExitFrame::ComputeCallerState(State* state) const {
   state->pc_address = ResolveReturnAddressLocation(
       reinterpret_cast<Address*>(fp() + ExitFrameConstants::kCallerPCOffset));
   state->callee_pc_address = nullptr;
-  if (v8_flags.enable_embedded_constant_pool) {
+  if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
     state->constant_pool_address = reinterpret_cast<Address*>(
         fp() + ExitFrameConstants::kConstantPoolOffset);
   }

@@ -72,9 +72,9 @@ namespace internal {
 // Determine whether the architecture uses an embedded constant pool
 // (contiguous constant pool embedded in code object).
 #if V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
-#define V8_EMBEDDED_CONSTANT_POOL true
+#define V8_EMBEDDED_CONSTANT_POOL_BOOL true
 #else
-#define V8_EMBEDDED_CONSTANT_POOL false
+#define V8_EMBEDDED_CONSTANT_POOL_BOOL false
 #endif
 
 #ifdef DEBUG

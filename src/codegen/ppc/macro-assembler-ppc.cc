@@ -898,7 +898,7 @@ void MacroAssembler::RecordWrite(Register object, Register slot_address,
 void TurboAssembler::PushCommonFrame(Register marker_reg) {
   int fp_delta = 0;
   mflr(r0);
-  if (v8_flags.enable_embedded_constant_pool) {
+  if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
     if (marker_reg.is_valid()) {
       Push(r0, fp, kConstantPoolRegister, marker_reg);
       fp_delta = 2;
@@ -921,7 +921,7 @@ void TurboAssembler::PushCommonFrame(Register marker_reg) {
 void TurboAssembler::PushStandardFrame(Register function_reg) {
   int fp_delta = 0;
   mflr(r0);
-  if (v8_flags.enable_embedded_constant_pool) {
+  if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
     if (function_reg.is_valid()) {
       Push(r0, fp, kConstantPoolRegister, cp, function_reg);
       fp_delta = 3;
@@ -943,7 +943,7 @@ void TurboAssembler::PushStandardFrame(Register function_reg) {
 }
 
 void TurboAssembler::RestoreFrameStateForTailCall() {
-  if (v8_flags.enable_embedded_constant_pool) {
+  if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
     LoadU64(kConstantPoolRegister,
             MemOperand(fp, StandardFrameConstants::kConstantPoolOffset));
     set_constant_pool_available(false);
@@ -1230,7 +1230,7 @@ void TurboAssembler::StubPrologue(StackFrame::Type type) {
     mov(r11, Operand(StackFrame::TypeToMarker(type)));
     PushCommonFrame(r11);
   }
-  if (v8_flags.enable_embedded_constant_pool) {
+  if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
     LoadConstantPoolPointerRegister();
     set_constant_pool_available(true);
   }
@@ -1238,7 +1238,7 @@ void TurboAssembler::StubPrologue(StackFrame::Type type) {
 
 void TurboAssembler::Prologue() {
   PushStandardFrame(r4);
-  if (v8_flags.enable_embedded_constant_pool) {
+  if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
     // base contains prologue address
     LoadConstantPoolPointerRegister();
     set_constant_pool_available(true);
@@ -1288,8 +1288,7 @@ void TurboAssembler::DropArgumentsAndPushNewReceiver(Register argc,
 
 void TurboAssembler::EnterFrame(StackFrame::Type type,
                                 bool load_constant_pool_pointer_reg) {
-  if (v8_flags.enable_embedded_constant_pool &&
-      load_constant_pool_pointer_reg) {
+  if (V8_EMBEDDED_CONSTANT_POOL_BOOL && load_constant_pool_pointer_reg) {
     // Push type explicitly so we can leverage the constant pool.
     // This path cannot rely on ip containing code entry.
     PushCommonFrame();
@@ -1322,7 +1321,7 @@ int TurboAssembler::LeaveFrame(StackFrame::Type type, int stack_adjustment) {
   int frame_ends;
   LoadU64(r0, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
   LoadU64(ip, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-  if (v8_flags.enable_embedded_constant_pool) {
+  if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
     LoadU64(kConstantPoolRegister,
             MemOperand(fp, StandardFrameConstants::kConstantPoolOffset));
   }
@@ -1373,7 +1372,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
     li(r8, Operand::Zero());
     StoreU64(r8, MemOperand(fp, ExitFrameConstants::kSPOffset));
   }
-  if (v8_flags.enable_embedded_constant_pool) {
+  if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
     StoreU64(kConstantPoolRegister,
              MemOperand(fp, ExitFrameConstants::kConstantPoolOffset));
   }
@@ -2654,7 +2653,7 @@ void TurboAssembler::LoadSmiLiteral(Register dst, Smi smi) {
 
 void TurboAssembler::LoadDoubleLiteral(DoubleRegister result,
                                        base::Double value, Register scratch) {
-  if (v8_flags.enable_embedded_constant_pool && is_constant_pool_available() &&
+  if (V8_EMBEDDED_CONSTANT_POOL_BOOL && is_constant_pool_available() &&
       !(scratch == r0 && ConstantPoolAccessIsInOverflow())) {
     ConstantPoolEntry::Access access = ConstantPoolAddEntry(value);
     if (access == ConstantPoolEntry::OVERFLOWED) {

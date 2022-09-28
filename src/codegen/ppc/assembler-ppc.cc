@@ -167,8 +167,7 @@ bool RelocInfo::IsCodedSpecially() {
 }
 
 bool RelocInfo::IsInConstantPool() {
-  if (v8_flags.enable_embedded_constant_pool &&
-      constant_pool_ != kNullAddress) {
+  if (V8_EMBEDDED_CONSTANT_POOL_BOOL && constant_pool_ != kNullAddress) {
     return Assembler::IsConstantPoolLoadStart(pc_);
   }
   return false;
@@ -1310,8 +1309,7 @@ int Assembler::instructions_required_for_mov(Register dst,
 
 bool Assembler::use_constant_pool_for_mov(Register dst, const Operand& src,
                                           bool canOptimize) const {
-  if (!v8_flags.enable_embedded_constant_pool ||
-      !is_constant_pool_available()) {
+  if (!V8_EMBEDDED_CONSTANT_POOL_BOOL || !is_constant_pool_available()) {
     // If there is no constant pool available, we must use a mov
     // immediate sequence.
     return false;

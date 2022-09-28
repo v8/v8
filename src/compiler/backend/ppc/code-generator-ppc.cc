@@ -3572,13 +3572,13 @@ void CodeGenerator::FinishFrame(Frame* frame) {
   }
   // Save callee-saved registers.
   const RegList saves =
-      v8_flags.enable_embedded_constant_pool
+      V8_EMBEDDED_CONSTANT_POOL_BOOL
           ? call_descriptor->CalleeSavedRegisters() - kConstantPoolRegister
           : call_descriptor->CalleeSavedRegisters();
   if (!saves.is_empty()) {
     // register save area does not include the fp or constant pool pointer.
     const int num_saves =
-        kNumCalleeSaved - 1 - (v8_flags.enable_embedded_constant_pool ? 1 : 0);
+        kNumCalleeSaved - 1 - (V8_EMBEDDED_CONSTANT_POOL_BOOL ? 1 : 0);
     frame->AllocateSavedCalleeRegisterSlots(num_saves);
   }
 }
@@ -3598,7 +3598,7 @@ void CodeGenerator::AssembleConstructFrame() {
 #endif  // V8_ENABLE_WEBASSEMBLY
       } else {
         __ mflr(r0);
-        if (v8_flags.enable_embedded_constant_pool) {
+        if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
           __ Push(r0, fp, kConstantPoolRegister);
           // Adjust FP to point to saved FP.
           __ SubS64(fp, sp,
@@ -3647,7 +3647,7 @@ void CodeGenerator::AssembleConstructFrame() {
 
   const DoubleRegList saves_fp = call_descriptor->CalleeSavedFPRegisters();
   const RegList saves =
-      v8_flags.enable_embedded_constant_pool
+      V8_EMBEDDED_CONSTANT_POOL_BOOL
           ? call_descriptor->CalleeSavedRegisters() - kConstantPoolRegister
           : call_descriptor->CalleeSavedRegisters();
 
@@ -3723,7 +3723,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
 
   // Restore registers.
   const RegList saves =
-      v8_flags.enable_embedded_constant_pool
+      V8_EMBEDDED_CONSTANT_POOL_BOOL
           ? call_descriptor->CalleeSavedRegisters() - kConstantPoolRegister
           : call_descriptor->CalleeSavedRegisters();
   if (!saves.is_empty()) {

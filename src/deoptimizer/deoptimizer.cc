@@ -813,7 +813,7 @@ void Deoptimizer::DoComputeOutputFrames() {
     actual_argument_count_ = static_cast<int>(
         Memory<intptr_t>(fp_address + StandardFrameConstants::kArgCOffset));
 
-    if (FLAG_enable_embedded_constant_pool) {
+    if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
       caller_constant_pool_ = Memory<intptr_t>(
           fp_address + CommonFrameConstants::kConstantPoolOffset);
     }
@@ -1095,7 +1095,7 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
     output_frame->SetRegister(fp_reg.code(), fp_value);
   }
 
-  if (FLAG_enable_embedded_constant_pool) {
+  if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
     // For the bottommost output frame the constant pool pointer can be gotten
     // from the input frame. For subsequent output frames, it can be read from
     // the previous frame.
@@ -1243,7 +1243,7 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
   }
 
   // Update constant pool.
-  if (FLAG_enable_embedded_constant_pool) {
+  if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
     intptr_t constant_pool_value =
         static_cast<intptr_t>(dispatch_builtin.constant_pool());
     output_frame->SetConstantPool(constant_pool_value);
@@ -1408,7 +1408,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
     output_frame->SetRegister(fp_reg.code(), fp_value);
   }
 
-  if (FLAG_enable_embedded_constant_pool) {
+  if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
     // Read the caller's constant pool from the previous frame.
     const intptr_t caller_cp = output_[frame_index - 1]->GetConstantPool();
     frame_writer.PushCallerConstantPool(caller_cp);
@@ -1473,7 +1473,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   }
 
   // Update constant pool.
-  if (FLAG_enable_embedded_constant_pool) {
+  if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
     intptr_t constant_pool_value =
         static_cast<intptr_t>(construct_stub.constant_pool());
     output_frame->SetConstantPool(constant_pool_value);
@@ -1822,7 +1822,7 @@ void Deoptimizer::DoComputeBuiltinContinuation(
 
   DCHECK_EQ(output_frame_size_above_fp, frame_writer.top_offset());
 
-  if (FLAG_enable_embedded_constant_pool) {
+  if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
     // Read the caller's constant pool from the previous frame.
     const intptr_t caller_cp =
         is_bottommost ? caller_constant_pool_

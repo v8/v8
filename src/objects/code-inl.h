@@ -787,7 +787,7 @@ bool CodeDataContainer::has_handler_table() const {
 
 int Code::constant_pool_size() const {
   const int size = code_comments_offset() - constant_pool_offset();
-  if (!v8_flags.enable_embedded_constant_pool) {
+  if (!V8_EMBEDDED_CONSTANT_POOL_BOOL) {
     DCHECK_EQ(size, 0);
     return 0;
   }
@@ -1232,7 +1232,7 @@ bool CodeDataContainer::is_wasm_code() const {
 #endif
 
 int Code::constant_pool_offset() const {
-  if (!v8_flags.enable_embedded_constant_pool) {
+  if (!V8_EMBEDDED_CONSTANT_POOL_BOOL) {
     // Redirection needed since the field doesn't exist in this case.
     return code_comments_offset();
   }
@@ -1240,7 +1240,7 @@ int Code::constant_pool_offset() const {
 }
 
 void Code::set_constant_pool_offset(int value) {
-  if (!v8_flags.enable_embedded_constant_pool) {
+  if (!V8_EMBEDDED_CONSTANT_POOL_BOOL) {
     // Redirection needed since the field doesn't exist in this case.
     return;
   }

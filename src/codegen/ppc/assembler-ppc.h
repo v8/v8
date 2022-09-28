@@ -309,10 +309,9 @@ class Assembler : public AssemblerBase {
   static constexpr int kMovInstructionsNoConstantPool = 2;
   static constexpr int kTaggedLoadInstructions = 1;
 #endif
-  static constexpr int kMovInstructions =
-      v8_flags.enable_embedded_constant_pool.value()
-          ? kMovInstructionsConstantPool
-          : kMovInstructionsNoConstantPool;
+  static constexpr int kMovInstructions = V8_EMBEDDED_CONSTANT_POOL_BOOL
+                                              ? kMovInstructionsConstantPool
+                                              : kMovInstructionsNoConstantPool;
 
   static inline int encode_crbit(const CRegister& cr, enum CRBit crbit) {
     return ((cr.code() * CRWIDTH) + crbit);

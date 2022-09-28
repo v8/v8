@@ -1165,12 +1165,12 @@ void TurboAssembler::PushStandardFrame(Register function_reg) {
 }
 
 void TurboAssembler::RestoreFrameStateForTailCall() {
-  // if (v8_flags.enable_embedded_constant_pool) {
+  // if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
   //   LoadU64(kConstantPoolRegister,
   //         MemOperand(fp, StandardFrameConstants::kConstantPoolOffset));
   //   set_constant_pool_available(false);
   // }
-  DCHECK(!v8_flags.enable_embedded_constant_pool);
+  DCHECK(!V8_EMBEDDED_CONSTANT_POOL_BOOL);
   LoadU64(r14, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
   LoadU64(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
 }
