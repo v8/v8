@@ -728,6 +728,8 @@ class MaglevGraphBuilder {
     // would be emitted between these two nodes.
     if (result->opcode() == Opcode::kCallRuntime) {
       DCHECK_EQ(result->Cast<CallRuntime>()->ReturnCount(), 2);
+    } else if (result->opcode() == Opcode::kCallBuiltin) {
+      DCHECK_EQ(result->Cast<CallBuiltin>()->ReturnCount(), 2);
     } else {
       DCHECK_EQ(result->opcode(), Opcode::kForInPrepare);
     }

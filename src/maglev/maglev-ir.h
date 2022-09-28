@@ -3460,6 +3460,10 @@ class CallBuiltin : public ValueNodeT<CallBuiltin> {
 
   void set_arg(int i, ValueNode* node) { set_input(i, node); }
 
+  int ReturnCount() const {
+    return Builtins::CallInterfaceDescriptorFor(builtin_).GetReturnCount();
+  }
+
   DECL_NODE_INTERFACE()
 
  private:

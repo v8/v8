@@ -2054,8 +2054,14 @@ void MaglevGraphBuilder::VisitGetSuperConstructor() {
 }
 
 void MaglevGraphBuilder::VisitFindNonDefaultConstructor() {
-  // TODO(v8:13091): Implement.
-  CHECK(false);
+  ValueNode* this_function = LoadRegisterTagged(0);
+  ValueNode* new_target = LoadRegisterTagged(1);
+
+  CallBuiltin* call_builtin =
+      BuildCallBuiltin<Builtin::kFindNonDefaultConstructor>(
+          {this_function, new_target});
+  auto result = iterator_.GetRegisterPairOperand(2);
+  StoreRegisterPair(result, call_builtin);
 }
 
 void MaglevGraphBuilder::InlineCallFromRegisters(

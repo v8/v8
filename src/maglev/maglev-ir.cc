@@ -3084,7 +3084,6 @@ void CallBuiltin::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   if (has_context) {
     UseFixed(input(i), kContextRegister);
   }
-  DCHECK_EQ(descriptor.GetReturnCount(), 1);
   DefineAsFixed(vreg_state, this, kReturnRegister0);
 }
 
