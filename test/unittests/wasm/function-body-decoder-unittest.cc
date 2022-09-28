@@ -1151,8 +1151,13 @@ TEST_F(FunctionBodyDecoderTest, UnreachableRefTypes) {
                   {WASM_UNREACHABLE, WASM_GC_OP(kExprArrayNewDefault),
                    array_index, kExprDrop});
 
+  ExpectValidates(
+      sigs.i_v(),
+      {WASM_UNREACHABLE, WASM_GC_OP(kExprRefTestDeprecated), struct_index});
   ExpectValidates(sigs.i_v(),
                   {WASM_UNREACHABLE, WASM_GC_OP(kExprRefTest), struct_index});
+  ExpectValidates(sigs.i_v(),
+                  {WASM_UNREACHABLE, WASM_GC_OP(kExprRefTest), kEqRefCode});
 
   ExpectValidates(sigs.v_v(), {WASM_UNREACHABLE, WASM_GC_OP(kExprRefCast),
                                struct_index, kExprDrop});
@@ -4303,24 +4308,31 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
   HeapType::Representation func_heap_2 =
       static_cast<HeapType::Representation>(builder.AddSignature(sigs.i_v()));
 
-  std::tuple<HeapType::Representation, HeapType::Representation, bool> tests[] =
-      {std::make_tuple(HeapType::kData, array_heap, true),
-       std::make_tuple(HeapType::kData, super_struct_heap, true),
-       std::make_tuple(HeapType::kFunc, func_heap_1, true),
-       std::make_tuple(func_heap_1, func_heap_1, true),
-       std::make_tuple(func_heap_1, func_heap_2, true),
-       std::make_tuple(super_struct_heap, sub_struct_heap, true),
-       std::make_tuple(array_heap, sub_struct_heap, true),
-       std::make_tuple(super_struct_heap, func_heap_1, true),
-       std::make_tuple(HeapType::kEq, super_struct_heap, false),
-       std::make_tuple(HeapType::kExtern, func_heap_1, false),
-       std::make_tuple(HeapType::kAny, array_heap, false),
-       std::make_tuple(HeapType::kI31, array_heap, false)};
+  std::tuple<HeapType::Representation, HeapType::Representation, bool, bool>
+      tests[] = {
+          std::make_tuple(HeapType::kData, array_heap, true, true),
+          std::make_tuple(HeapType::kData, super_struct_heap, true, true),
+          std::make_tuple(HeapType::kFunc, func_heap_1, true, true),
+          std::make_tuple(func_heap_1, func_heap_1, true, true),
+          std::make_tuple(func_heap_1, func_heap_2, true, true),
+          std::make_tuple(super_struct_heap, sub_struct_heap, true, true),
+          std::make_tuple(array_heap, sub_struct_heap, true, true),
+          std::make_tuple(super_struct_heap, func_heap_1, true, false),
+          std::make_tuple(HeapType::kEq, super_struct_heap, false, true),
+          std::make_tuple(HeapType::kExtern, func_heap_1, false, false),
+          std::make_tuple(HeapType::kAny, array_heap, false, true),
+          std::make_tuple(HeapType::kI31, array_heap, false, true),
+          std::make_tuple(HeapType::kNone, array_heap, true, true),
+          std::make_tuple(HeapType::kNone, func_heap_1, true, false),
+      };
 
   for (auto test : tests) {
     HeapType from_heap = HeapType(std::get<0>(test));
     HeapType to_heap = HeapType(std::get<1>(test));
     bool should_pass = std::get<2>(test);
+    bool should_pass_ref_test = std::get<3>(test);
+    SCOPED_TRACE("from_heap = " + from_heap.name() +
+                 ", to_heap = " + to_heap.name());
 
     ValueType test_reps[] = {kWasmI32, ValueType::RefNull(from_heap)};
     FunctionSig test_sig(1, 1, test_reps);
@@ -4330,7 +4342,8 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
     FunctionSig cast_sig(1, 1, cast_reps);
 
     if (should_pass) {
-      ExpectValidates(&test_sig, {WASM_REF_TEST(WASM_LOCAL_GET(0),
+      ExpectValidates(&test_sig,
+                      {WASM_REF_TEST_DEPRECATED(WASM_LOCAL_GET(0),
                                                 WASM_HEAP_TYPE(to_heap))});
       ExpectValidates(&cast_sig, {WASM_REF_CAST(WASM_LOCAL_GET(0),
                                                 WASM_HEAP_TYPE(to_heap))});
@@ -4340,20 +4353,40 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
           "local.get of type " +
           test_reps[1].name();
       ExpectFailure(&test_sig,
-                    {WASM_REF_TEST(WASM_LOCAL_GET(0), WASM_HEAP_TYPE(to_heap))},
+                    {WASM_REF_TEST_DEPRECATED(WASM_LOCAL_GET(0),
+                                              WASM_HEAP_TYPE(to_heap))},
                     kAppendEnd, ("ref.test" + error_message).c_str());
       ExpectFailure(&cast_sig,
                     {WASM_REF_CAST(WASM_LOCAL_GET(0), WASM_HEAP_TYPE(to_heap))},
                     kAppendEnd, ("ref.cast" + error_message).c_str());
     }
+
+    if (should_pass_ref_test) {
+      ExpectValidates(&test_sig, {WASM_REF_TEST(WASM_LOCAL_GET(0),
+                                                WASM_HEAP_TYPE(to_heap))});
+    } else {
+      std::string error_message =
+          "Invalid types for ref.test: local.get of type " +
+          cast_reps[1].name() +
+          " has to be in the same reference type hierarchy as (ref " +
+          to_heap.name() + ")";
+      ExpectFailure(&test_sig,
+                    {WASM_REF_TEST(WASM_LOCAL_GET(0), WASM_HEAP_TYPE(to_heap))},
+                    kAppendEnd, error_message.c_str());
+    }
   }
 
   // Trivial type error.
   ExpectFailure(sigs.v_v(),
-                {WASM_REF_TEST(WASM_I32V(1), array_heap), kExprDrop},
+                {WASM_REF_TEST_DEPRECATED(WASM_I32V(1), array_heap), kExprDrop},
                 kAppendEnd,
                 "ref.test[0] expected subtype of (ref null func) or "
                 "(ref null data), found i32.const of type i32");
+  ExpectFailure(sigs.v_v(),
+                {WASM_REF_TEST(WASM_I32V(1), array_heap), kExprDrop},
+                kAppendEnd,
+                "Invalid types for ref.test: i32.const of type i32 has to be "
+                "in the same reference type hierarchy as (ref 0)");
   ExpectFailure(sigs.v_v(),
                 {WASM_REF_CAST(WASM_I32V(1), array_heap), kExprDrop},
                 kAppendEnd,
@@ -4689,13 +4722,16 @@ class WasmOpcodeLengthTest : public TestWithZone {
       DCHECK_LE(static_cast<uint32_t>(opcode), 0xFF);
       bytes[0] = static_cast<byte>(opcode);
       // Special case: select_with_type insists on a {1} immediate.
-      if (opcode == kExprSelectWithType) bytes[1] = 1;
+      if (opcode == kExprSelectWithType) {
+        bytes[1] = 1;
+        bytes[2] = kAnyRefCode;
+      }
     }
     WasmFeatures detected;
-    WasmDecoder<Decoder::kNoValidation> decoder(
+    WasmDecoder<Decoder::kBooleanValidation> decoder(
         this->zone(), nullptr, WasmFeatures::All(), &detected, nullptr, bytes,
         bytes + sizeof(bytes), 0);
-    WasmDecoder<Decoder::kNoValidation>::OpcodeLength(&decoder, bytes);
+    WasmDecoder<Decoder::kBooleanValidation>::OpcodeLength(&decoder, bytes);
     EXPECT_TRUE(decoder.ok())
         << opcode << " aka " << WasmOpcodes::OpcodeName(opcode) << ": "
         << decoder.error().message();

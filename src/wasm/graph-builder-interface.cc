@@ -1245,6 +1245,11 @@ class WasmGraphBuildingInterface {
     SetAndTypeNode(result, builder_->RefTest(object.node, rtt.node, config));
   }
 
+  void RefTestAbstract(FullDecoder* decoder, const Value& object,
+                       wasm::HeapType type, Value* result) {
+    SetAndTypeNode(result, builder_->RefTestAbstract(object.node, type));
+  }
+
   void RefCast(FullDecoder* decoder, const Value& object, const Value& rtt,
                Value* result) {
     WasmTypeCheckConfig config =
@@ -1292,6 +1297,11 @@ class WasmGraphBuildingInterface {
                     Value* value_on_fallthrough, uint32_t br_depth) {
     BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnCast>(
         decoder, object, rtt, value_on_fallthrough, br_depth, false);
+  }
+
+  void RefIsEq(FullDecoder* decoder, const Value& object, Value* result) {
+    SetAndTypeNode(result,
+                   builder_->RefIsEq(object.node, object.type.is_nullable()));
   }
 
   void RefIsData(FullDecoder* decoder, const Value& object, Value* result) {

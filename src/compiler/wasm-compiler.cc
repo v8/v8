@@ -5431,10 +5431,22 @@ WasmGraphBuilder::Callbacks WasmGraphBuilder::BranchCallbacks(
 
 void WasmGraphBuilder::DataCheck(Node* object, bool object_can_be_null,
                                  Callbacks callbacks) {
+  // TODO(7748): Is the extra null check actually beneficial for performance?
   if (object_can_be_null) {
     callbacks.fail_if(IsNull(object), BranchHint::kFalse);
   }
   callbacks.fail_if(gasm_->IsI31(object), BranchHint::kFalse);
+  Node* map = gasm_->LoadMap(object);
+  callbacks.fail_if_not(gasm_->IsDataRefMap(map), BranchHint::kTrue);
+}
+
+void WasmGraphBuilder::EqCheck(Node* object, bool object_can_be_null,
+                               Callbacks callbacks) {
+  // TODO(7748): Is the extra null check actually beneficial for performance?
+  if (object_can_be_null) {
+    callbacks.fail_if(IsNull(object), BranchHint::kFalse);
+  }
+  callbacks.succeed_if(gasm_->IsI31(object), BranchHint::kFalse);
   Node* map = gasm_->LoadMap(object);
   callbacks.fail_if_not(gasm_->IsDataRefMap(map), BranchHint::kTrue);
 }
@@ -5495,6 +5507,26 @@ Node* WasmGraphBuilder::RefTest(Node* object, Node* rtt,
   return gasm_->WasmTypeCheck(object, rtt, config);
 }
 
+Node* WasmGraphBuilder::RefTestAbstract(Node* object, wasm::HeapType type) {
+  bool is_nullable =
+      compiler::NodeProperties::GetType(object).AsWasm().type.is_nullable();
+  switch (type.representation()) {
+    case wasm::HeapType::kEq:
+      return RefIsEq(object, is_nullable);
+    case wasm::HeapType::kI31:
+      return RefIsI31(object);
+    case wasm::HeapType::kData:
+      return RefIsData(object, is_nullable);
+    case wasm::HeapType::kArray:
+      return RefIsArray(object, is_nullable);
+    case wasm::HeapType::kAny:
+      // Any may never need a cast as it is either implicitly convertible or
+      // never convertible for any given type.
+    default:
+      UNREACHABLE();
+  }
+}
+
 Node* WasmGraphBuilder::RefCast(Node* object, Node* rtt,
                                 WasmTypeCheckConfig config,
                                 wasm::WasmCodePosition position) {
@@ -5514,6 +5546,14 @@ void WasmGraphBuilder::BrOnCast(Node* object, Node* rtt,
   *match_effect = *no_match_effect = effect();
   *match_control = true_node;
   *no_match_control = false_node;
+}
+
+Node* WasmGraphBuilder::RefIsEq(Node* object, bool object_can_be_null) {
+  auto done = gasm_->MakeLabel(MachineRepresentation::kWord32);
+  EqCheck(object, object_can_be_null, TestCallbacks(&done));
+  gasm_->Goto(&done, Int32Constant(1));
+  gasm_->Bind(&done);
+  return done.PhiAt(0);
 }
 
 Node* WasmGraphBuilder::RefIsData(Node* object, bool object_can_be_null) {

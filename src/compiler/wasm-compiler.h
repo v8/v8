@@ -494,11 +494,13 @@ class WasmGraphBuilder {
   Node* RttCanon(uint32_t type_index);
 
   Node* RefTest(Node* object, Node* rtt, WasmTypeCheckConfig config);
+  Node* RefTestAbstract(Node* object, wasm::HeapType type);
   Node* RefCast(Node* object, Node* rtt, WasmTypeCheckConfig config,
                 wasm::WasmCodePosition position);
   void BrOnCast(Node* object, Node* rtt, WasmTypeCheckConfig config,
                 Node** match_control, Node** match_effect,
                 Node** no_match_control, Node** no_match_effect);
+  Node* RefIsEq(Node* object, bool object_can_be_null);
   Node* RefIsData(Node* object, bool object_can_be_null);
   Node* RefAsData(Node* object, bool object_can_be_null,
                   wasm::WasmCodePosition position);
@@ -764,6 +766,7 @@ class WasmGraphBuilder {
                             SmallNodeVector& match_effects);
 
   void DataCheck(Node* object, bool object_can_be_null, Callbacks callbacks);
+  void EqCheck(Node* object, bool object_can_be_null, Callbacks callbacks);
   void ManagedObjectInstanceCheck(Node* object, bool object_can_be_null,
                                   InstanceType instance_type,
                                   Callbacks callbacks);

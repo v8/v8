@@ -5913,6 +5913,20 @@ class LiftoffCompiler {
     }
     Register tmp1 = scratch_null;  // Done with null checks.
 
+    // Add Smi check if the source type may store a Smi (i31ref or JS Smi).
+    ValueType i31ref = ValueType::Ref(HeapType::kI31);
+    // Ref.extern can also contain Smis, however there isn't any type that
+    // could downcast to ref.extern.
+    DCHECK(!rtt_type.is_reference_to(HeapType::kExtern));
+    // Ref.i31 check has its own implementation.
+    DCHECK(!rtt_type.is_reference_to(HeapType::kI31));
+    if (IsSubtypeOf(i31ref, obj_type, module)) {
+      Label* i31_target =
+          IsSubtypeOf(i31ref, rtt_type, module) ? &match : no_match;
+      __ emit_smi_check(obj_reg, i31_target, LiftoffAssembler::kJumpOnSmi,
+                        frozen);
+    }
+
     __ LoadMap(tmp1, obj_reg);
     // {tmp1} now holds the object's map.
 
@@ -5974,6 +5988,25 @@ class LiftoffCompiler {
       __ bind(&done);
     }
     __ PushRegister(kI32, result);
+  }
+
+  void RefTestAbstract(FullDecoder* decoder, const Value& obj, HeapType type,
+                       Value* result_val) {
+    switch (type.representation()) {
+      case HeapType::kEq:
+        return RefIsEq(decoder, obj, result_val);
+      case HeapType::kI31:
+        return RefIsI31(decoder, obj, result_val);
+      case HeapType::kData:
+        return RefIsData(decoder, obj, result_val);
+      case HeapType::kArray:
+        return RefIsArray(decoder, obj, result_val);
+      case HeapType::kAny:
+        // Any may never need a cast as it is either implicitly convertible or
+        // never convertible for any given type.
+      default:
+        UNREACHABLE();
+    }
   }
 
   void RefCast(FullDecoder* decoder, const Value& obj, const Value& rtt,
@@ -6085,13 +6118,14 @@ class LiftoffCompiler {
       LoadNullValue(check.null_reg(), pinned);
     }
   }
-  void LoadInstanceType(TypeCheck& check, const FreezeCacheState& frozen) {
+  void LoadInstanceType(TypeCheck& check, const FreezeCacheState& frozen,
+                        Label* on_smi) {
     if (check.obj_type.is_nullable()) {
       __ emit_cond_jump(kEqual, check.no_match, kRefNull, check.obj_reg,
                         check.null_reg(), frozen);
     }
-    __ emit_smi_check(check.obj_reg, check.no_match,
-                      LiftoffAssembler::kJumpOnSmi, frozen);
+    __ emit_smi_check(check.obj_reg, on_smi, LiftoffAssembler::kJumpOnSmi,
+                      frozen);
     __ LoadMap(check.instance_type(), check.obj_reg);
     __ Load(LiftoffRegister(check.instance_type()), check.instance_type(),
             no_reg, wasm::ObjectAccess::ToTagged(Map::kInstanceTypeOffset),
@@ -6100,7 +6134,7 @@ class LiftoffCompiler {
 
   // Abstract type checkers. They all fall through on match.
   void DataCheck(TypeCheck& check, const FreezeCacheState& frozen) {
-    LoadInstanceType(check, frozen);
+    LoadInstanceType(check, frozen, check.no_match);
     // We're going to test a range of WasmObject instance types with a single
     // unsigned comparison.
     Register tmp = check.instance_type();
@@ -6111,7 +6145,7 @@ class LiftoffCompiler {
   }
 
   void ArrayCheck(TypeCheck& check, const FreezeCacheState& frozen) {
-    LoadInstanceType(check, frozen);
+    LoadInstanceType(check, frozen, check.no_match);
     LiftoffRegister instance_type(check.instance_type());
     __ emit_i32_cond_jumpi(kUnequal, check.no_match, check.instance_type(),
                            WASM_ARRAY_TYPE, frozen);
@@ -6120,6 +6154,19 @@ class LiftoffCompiler {
   void I31Check(TypeCheck& check, const FreezeCacheState& frozen) {
     __ emit_smi_check(check.obj_reg, check.no_match,
                       LiftoffAssembler::kJumpOnNotSmi, frozen);
+  }
+
+  void EqCheck(TypeCheck& check, const FreezeCacheState& frozen) {
+    Label match;
+    LoadInstanceType(check, frozen, &match);
+    // We're going to test a range of WasmObject instance types with a single
+    // unsigned comparison.
+    Register tmp = check.instance_type();
+    __ emit_i32_subi(tmp, tmp, FIRST_WASM_OBJECT_TYPE);
+    __ emit_i32_cond_jumpi(kUnsignedGreaterThan, check.no_match, tmp,
+                           LAST_WASM_OBJECT_TYPE - FIRST_WASM_OBJECT_TYPE,
+                           frozen);
+    __ bind(&match);
   }
 
   using TypeChecker = void (LiftoffCompiler::*)(TypeCheck& check,
@@ -6151,6 +6198,11 @@ class LiftoffCompiler {
   void RefIsData(FullDecoder* /* decoder */, const Value& object,
                  Value* /* result_val */) {
     AbstractTypeCheck<&LiftoffCompiler::DataCheck>(object);
+  }
+
+  void RefIsEq(FullDecoder* /* decoder */, const Value& object,
+               Value* /* result_val */) {
+    AbstractTypeCheck<&LiftoffCompiler::EqCheck>(object);
   }
 
   void RefIsArray(FullDecoder* /* decoder */, const Value& object,

@@ -163,6 +163,10 @@ V8_INLINE V8_EXPORT_PRIVATE TypeInModule Intersection(TypeInModule type1,
 // Returns the matching abstract null type (none, nofunc, noextern).
 ValueType ToNullSentinel(TypeInModule type);
 
+// Returns if two types share the same type hierarchy (any, extern, funcref).
+bool IsSameTypeHierarchy(HeapType type1, HeapType type2,
+                         const WasmModule* module);
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

@@ -707,7 +707,8 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(I31New, 0xfb20, _, "i31.new")                                              \
   V(I31GetS, 0xfb21, _, "i31.get_s")                                           \
   V(I31GetU, 0xfb22, _, "i31.get_u")                                           \
-  V(RefTest, 0xfb44, _, "ref.test")                                            \
+  V(RefTest, 0xfb40, _, "ref.test")                                            \
+  V(RefTestDeprecated, 0xfb44, _, "ref.test")                                  \
   V(RefCast, 0xfb45, _, "ref.cast")                                            \
   V(BrOnCast, 0xfb46, _, "br_on_cast")                                         \
   V(BrOnCastFail, 0xfb47, _, "br_on_cast_fail")                                \

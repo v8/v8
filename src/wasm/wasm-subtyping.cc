@@ -98,8 +98,9 @@ bool ValidFunctionSubtypeDefinition(uint32_t subtype_index,
   return true;
 }
 
-HeapType::Representation NullSentinelImpl(TypeInModule type) {
-  switch (type.type.heap_type().representation()) {
+HeapType::Representation NullSentinelImpl(HeapType type,
+                                          const WasmModule* module) {
+  switch (type.representation()) {
     case HeapType::kI31:
     case HeapType::kNone:
     case HeapType::kEq:
@@ -118,9 +119,8 @@ HeapType::Representation NullSentinelImpl(TypeInModule type) {
     case HeapType::kNoFunc:
       return HeapType::kNoFunc;
     default:
-      return type.module->has_signature(type.type.ref_index())
-                 ? HeapType::kNoFunc
-                 : HeapType::kNone;
+      return module->has_signature(type.ref_index()) ? HeapType::kNoFunc
+                                                     : HeapType::kNone;
   }
 }
 
@@ -543,10 +543,16 @@ TypeInModule Intersection(ValueType type1, ValueType type2,
 }
 
 ValueType ToNullSentinel(TypeInModule type) {
-  HeapType::Representation null_heap = NullSentinelImpl(type);
+  HeapType::Representation null_heap =
+      NullSentinelImpl(type.type.heap_type(), type.module);
   DCHECK(
       IsHeapSubtypeOf(HeapType(null_heap), type.type.heap_type(), type.module));
   return ValueType::RefNull(null_heap);
+}
+
+bool IsSameTypeHierarchy(HeapType type1, HeapType type2,
+                         const WasmModule* module) {
+  return NullSentinelImpl(type1, module) == NullSentinelImpl(type2, module);
 }
 
 }  // namespace wasm

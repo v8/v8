@@ -96,6 +96,10 @@ Reduction WasmGCLowering::ReduceWasmTypeCheck(Node* node) {
                  BranchHint::kFalse, gasm_.Int32Constant(0));
   }
 
+  // TODO(7748): In some cases the Smi check is redundant. If we had information
+  // about the source type, we could skip it in those cases.
+  gasm_.GotoIf(gasm_.IsI31(object), &end_label, gasm_.Int32Constant(0));
+
   Node* map = gasm_.LoadMap(object);
 
   // First, check if types happen to be equal. This has been shown to give large
