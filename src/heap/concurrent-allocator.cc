@@ -142,12 +142,6 @@ bool ConcurrentAllocator::EnsureLab(AllocationOrigin origin) {
                                               kMaxLabSize, origin);
   if (!result) return false;
 
-  if (IsBlackAllocationEnabled()) {
-    Address top = result->first;
-    Address limit = top + result->second;
-    Page::FromAllocationAreaAddress(top)->CreateBlackAreaBackground(top, limit);
-  }
-
   HeapObject object = HeapObject::FromAddress(result->first);
   LocalAllocationBuffer saved_lab = std::move(lab_);
   lab_ = LocalAllocationBuffer::FromResult(
@@ -156,6 +150,13 @@ bool ConcurrentAllocator::EnsureLab(AllocationOrigin origin) {
   if (!lab_.TryMerge(&saved_lab)) {
     saved_lab.CloseAndMakeIterable();
   }
+
+  if (IsBlackAllocationEnabled()) {
+    Address top = lab_.top();
+    Address limit = lab_.limit();
+    Page::FromAllocationAreaAddress(top)->CreateBlackAreaBackground(top, limit);
+  }
+
   return true;
 }
 
