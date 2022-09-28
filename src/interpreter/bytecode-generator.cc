@@ -3484,8 +3484,7 @@ void BytecodeGenerator::BuildCreateArrayLiteral(
     Expression* subexpr = *current;
     if (subexpr->IsSpread()) {
       RegisterAllocationScope scope(this);
-      builder()->SetExpressionAsStatementPosition(
-          subexpr->AsSpread()->expression());
+      builder()->SetExpressionPosition(subexpr->AsSpread()->expression());
       VisitForAccumulatorValue(subexpr->AsSpread()->expression());
       builder()->SetExpressionPosition(subexpr->AsSpread()->expression());
       IteratorRecord iterator = BuildGetIteratorRecord(IteratorType::kNormal);
