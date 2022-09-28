@@ -1748,16 +1748,148 @@ int PerIsolateData::RealmIndexOrThrow(
   return index;
 }
 
-// performance.now() returns a time stamp as double, measured in milliseconds.
+// GetTimestamp() returns a time stamp as double, measured in milliseconds.
 // When v8_flags.verify_predictable mode is enabled it returns result of
 // v8::Platform::MonotonicallyIncreasingTime().
-void Shell::PerformanceNow(const v8::FunctionCallbackInfo<v8::Value>& args) {
+double Shell::GetTimestamp() {
   if (i::v8_flags.verify_predictable) {
-    args.GetReturnValue().Set(g_platform->MonotonicallyIncreasingTime());
+    return g_platform->MonotonicallyIncreasingTime();
   } else {
     base::TimeDelta delta = base::TimeTicks::Now() - kInitialTicks;
-    args.GetReturnValue().Set(delta.InMillisecondsF());
+    return delta.InMillisecondsF();
   }
+}
+int64_t Shell::GetTracingTimestampFromPerformanceTimestamp(
+    double performance_timestamp) {
+  // Don't use this in --verify-predictable mode, predictable timestamps don't
+  // work well with tracing.
+  DCHECK(!i::v8_flags.verify_predictable);
+  base::TimeDelta delta =
+      base::TimeDelta::FromMillisecondsD(performance_timestamp);
+  // See TracingController::CurrentTimestampMicroseconds().
+  return (delta + kInitialTicks).ToInternalValue();
+}
+
+// performance.now() returns GetTimestamp().
+void Shell::PerformanceNow(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  args.GetReturnValue().Set(GetTimestamp());
+}
+
+// performance.mark() records and returns a PerformanceEntry with the current
+// timestamp.
+void Shell::PerformanceMark(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+
+  if (args.Length() < 1 || !args[0]->IsString()) {
+    args.GetIsolate()->ThrowError("Invalid 'name' argument");
+    return;
+  }
+  Local<String> name = args[0].As<String>();
+
+  double timestamp = GetTimestamp();
+
+  Local<Object> performance_entry = Object::New(isolate);
+  performance_entry
+      ->DefineOwnProperty(context,
+                          String::NewFromUtf8Literal(isolate, "entryType"),
+                          String::NewFromUtf8Literal(isolate, "mark"), ReadOnly)
+      .Check();
+  performance_entry
+      ->DefineOwnProperty(context, String::NewFromUtf8Literal(isolate, "name"),
+                          name, ReadOnly)
+      .Check();
+  performance_entry
+      ->DefineOwnProperty(context,
+                          String::NewFromUtf8Literal(isolate, "startTime"),
+                          Number::New(isolate, timestamp), ReadOnly)
+      .Check();
+  performance_entry
+      ->DefineOwnProperty(context,
+                          String::NewFromUtf8Literal(isolate, "duration"),
+                          Integer::New(isolate, 0), ReadOnly)
+      .Check();
+
+  args.GetReturnValue().Set(performance_entry);
+}
+
+// performance.measure() records and returns a PerformanceEntry with a duration
+// since a given mark, or since zero.
+void Shell::PerformanceMeasure(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+
+  if (args.Length() < 1 || !args[0]->IsString()) {
+    args.GetIsolate()->ThrowError("Invalid 'name' argument");
+    return;
+  }
+  v8::Local<String> name = args[0].As<String>();
+
+  double start_timestamp = 0;
+  if (args.Length() >= 2) {
+    Local<Value> start_mark = args[1].As<Value>();
+    if (!start_mark->IsObject()) {
+      args.GetIsolate()->ThrowError(
+          "Invalid 'startMark' argument: Not an Object");
+      return;
+    }
+    Local<Value> start_time_field;
+    if (!start_mark.As<Object>()
+             ->Get(context, String::NewFromUtf8Literal(isolate, "startTime"))
+             .ToLocal(&start_time_field)) {
+      return;
+    }
+    if (!start_time_field->IsNumber()) {
+      args.GetIsolate()->ThrowError(
+          "Invalid 'startMark' argument: No numeric 'startTime' field");
+      return;
+    }
+    start_timestamp = start_time_field.As<Number>()->Value();
+  }
+  if (args.Length() > 2) {
+    args.GetIsolate()->ThrowError("Too many arguments");
+    return;
+  }
+
+  double end_timestamp = GetTimestamp();
+
+  if (options.trace_enabled) {
+    size_t hash = base::hash_combine(name->GetIdentityHash(), start_timestamp,
+                                     end_timestamp);
+
+    String::Utf8Value utf8(isolate, name);
+    TRACE_EVENT_COPY_NESTABLE_ASYNC_BEGIN_WITH_TIMESTAMP1(
+        "v8", *utf8, static_cast<uint64_t>(hash),
+        GetTracingTimestampFromPerformanceTimestamp(start_timestamp),
+        "startTime", start_timestamp);
+    TRACE_EVENT_COPY_NESTABLE_ASYNC_END_WITH_TIMESTAMP0(
+        "v8", *utf8, static_cast<uint64_t>(hash),
+        GetTracingTimestampFromPerformanceTimestamp(end_timestamp));
+  }
+
+  Local<Object> performance_entry = Object::New(isolate);
+  performance_entry
+      ->DefineOwnProperty(
+          context, String::NewFromUtf8Literal(isolate, "entryType"),
+          String::NewFromUtf8Literal(isolate, "measure"), ReadOnly)
+      .Check();
+  performance_entry
+      ->DefineOwnProperty(context, String::NewFromUtf8Literal(isolate, "name"),
+                          name, ReadOnly)
+      .Check();
+  performance_entry
+      ->DefineOwnProperty(context,
+                          String::NewFromUtf8Literal(isolate, "startTime"),
+                          Number::New(isolate, start_timestamp), ReadOnly)
+      .Check();
+  performance_entry
+      ->DefineOwnProperty(
+          context, String::NewFromUtf8Literal(isolate, "duration"),
+          Number::New(isolate, end_timestamp - start_timestamp), ReadOnly)
+      .Check();
+
+  args.GetReturnValue().Set(performance_entry);
 }
 
 // performance.measureMemory() implements JavaScript Memory API proposal.
@@ -3272,6 +3404,10 @@ Local<ObjectTemplate> Shell::CreatePerformanceTemplate(Isolate* isolate) {
   Local<ObjectTemplate> performance_template = ObjectTemplate::New(isolate);
   performance_template->Set(isolate, "now",
                             FunctionTemplate::New(isolate, PerformanceNow));
+  performance_template->Set(isolate, "mark",
+                            FunctionTemplate::New(isolate, PerformanceMark));
+  performance_template->Set(isolate, "measure",
+                            FunctionTemplate::New(isolate, PerformanceMeasure));
   performance_template->Set(
       isolate, "measureMemory",
       FunctionTemplate::New(isolate, PerformanceMeasureMemory));
