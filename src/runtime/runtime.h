@@ -508,7 +508,6 @@ namespace internal {
   F(EnableCodeLoggingForTesting, 0, 1)        \
   F(EnsureFeedbackVectorForFunction, 1, 1)    \
   F(FinalizeOptimization, 0, 1)               \
-  F(ForceFlush, 1, 1)                         \
   F(GetCallable, 0, 1)                        \
   F(GetInitializerFunction, 1, 1)             \
   F(GetOptimizationStatus, 1, 1)              \
@@ -940,7 +939,6 @@ enum class OptimizationStatus {
   kBaseline = 1 << 15,
   kTopmostFrameIsInterpreted = 1 << 16,
   kTopmostFrameIsBaseline = 1 << 17,
-  kIsLazy = 1 << 18,
 };
 
 }  // namespace internal
