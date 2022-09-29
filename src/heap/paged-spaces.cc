@@ -684,26 +684,23 @@ PagedSpaceBase::RawAllocateBackground(LocalHeap* local_heap,
                                                  max_size_in_bytes, origin);
     if (result) return result;
 
-    if (IsSweepingAllowedOnThread(local_heap)) {
-      // Now contribute to sweeping from background thread and then try to
-      // reallocate.
-      int max_freed;
-      {
-        TRACE_GC_EPOCH(heap()->tracer(),
-                       GCTracer::Scope::MC_BACKGROUND_SWEEPING,
-                       ThreadKind::kBackground);
-        const int kMaxPagesToSweep = 1;
-        max_freed = collector->sweeper()->ParallelSweepSpace(
-            identity(), Sweeper::SweepingMode::kLazyOrConcurrent,
-            static_cast<int>(min_size_in_bytes), kMaxPagesToSweep);
-        RefillFreeList(collector->sweeper());
-      }
+    // Now contribute to sweeping from background thread and then try to
+    // reallocate.
+    int max_freed;
+    {
+      TRACE_GC_EPOCH(heap()->tracer(), GCTracer::Scope::MC_BACKGROUND_SWEEPING,
+                     ThreadKind::kBackground);
+      const int kMaxPagesToSweep = 1;
+      max_freed = collector->sweeper()->ParallelSweepSpace(
+          identity(), Sweeper::SweepingMode::kLazyOrConcurrent,
+          static_cast<int>(min_size_in_bytes), kMaxPagesToSweep);
+      RefillFreeList(collector->sweeper());
+    }
 
-      if (static_cast<size_t>(max_freed) >= min_size_in_bytes) {
-        result = TryAllocationFromFreeListBackground(min_size_in_bytes,
-                                                     max_size_in_bytes, origin);
-        if (result) return result;
-      }
+    if (static_cast<size_t>(max_freed) >= min_size_in_bytes) {
+      result = TryAllocationFromFreeListBackground(min_size_in_bytes,
+                                                   max_size_in_bytes, origin);
+      if (result) return result;
     }
   }
 
@@ -715,13 +712,11 @@ PagedSpaceBase::RawAllocateBackground(LocalHeap* local_heap,
 
   if (collector->sweeping_in_progress()) {
     // Complete sweeping for this space.
-    if (IsSweepingAllowedOnThread(local_heap)) {
-      TRACE_GC_EPOCH(heap()->tracer(), GCTracer::Scope::MC_BACKGROUND_SWEEPING,
-                     ThreadKind::kBackground);
-      collector->DrainSweepingWorklistForSpace(identity());
+    TRACE_GC_EPOCH(heap()->tracer(), GCTracer::Scope::MC_BACKGROUND_SWEEPING,
+                   ThreadKind::kBackground);
+    collector->DrainSweepingWorklistForSpace(identity());
 
-      RefillFreeList(collector->sweeper());
-    }
+    RefillFreeList(collector->sweeper());
 
     // Last try to acquire memory from free list.
     return TryAllocationFromFreeListBackground(min_size_in_bytes,
@@ -775,12 +770,6 @@ PagedSpaceBase::TryAllocationFromFreeListBackground(size_t min_size_in_bytes,
   AddRangeToActiveSystemPages(page, start, limit);
 
   return std::make_pair(start, used_size_in_bytes);
-}
-
-bool PagedSpaceBase::IsSweepingAllowedOnThread(LocalHeap* local_heap) const {
-  // Code space sweeping is only allowed on main thread.
-  return (local_heap && local_heap->is_main_thread()) ||
-         identity() != CODE_SPACE;
 }
 
 #ifdef DEBUG

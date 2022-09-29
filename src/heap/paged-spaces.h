@@ -353,10 +353,6 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
 
   bool HasPages() const { return first_page() != nullptr; }
 
-  // Returns whether sweeping of this space is safe on this thread. Code space
-  // sweeping is only allowed on the main thread.
-  bool IsSweepingAllowedOnThread(LocalHeap* local_heap) const;
-
   // Cleans up the space, frees all pages in this space except those belonging
   // to the initial chunk, uncommits addresses in the initial chunk.
   void TearDown();
