@@ -1100,6 +1100,19 @@ void ScopeInfo::ModuleVariable(int i, String* name, int* index,
   }
 }
 
+uint32_t ScopeInfo::Hash() {
+  // Hash ScopeInfo based on its start and end position.
+  // Note: Ideally we'd also have the script ID. But since we only use the
+  // hash in a debug-evaluate cache, we don't worry too much about collisions.
+  if (HasPositionInfo()) {
+    return static_cast<uint32_t>(
+        base::hash_combine(flags(), StartPosition(), EndPosition()));
+  }
+
+  return static_cast<uint32_t>(
+      base::hash_combine(flags(), context_local_count()));
+}
+
 std::ostream& operator<<(std::ostream& os, VariableAllocationInfo var_info) {
   switch (var_info) {
     case VariableAllocationInfo::NONE:
