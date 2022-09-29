@@ -547,6 +547,8 @@ class BaseTestRunner(object):
             sys.byteorder,
         "cfi_vptr":
             self.build_config.cfi_vptr,
+        "component_build":
+            self.build_config.component_build,
         "control_flow_integrity":
             self.build_config.control_flow_integrity,
         "concurrent_marking":
