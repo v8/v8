@@ -84,6 +84,11 @@ void ConcurrentAllocator::FreeLinearAllocationArea() {
   if (lab_.IsValid() && space_->identity() == CODE_SPACE) {
     optional_scope.emplace(MemoryChunk::FromAddress(lab_.top()));
   }
+  if (lab_.top() != lab_.limit() &&
+      owning_heap()->incremental_marking()->black_allocation()) {
+    Page::FromAddress(lab_.top())
+        ->DestroyBlackAreaBackground(lab_.top(), lab_.limit());
+  }
   lab_.CloseAndMakeIterable();
 }
 
@@ -142,14 +147,12 @@ bool ConcurrentAllocator::EnsureLab(AllocationOrigin origin) {
                                               kMaxLabSize, origin);
   if (!result) return false;
 
+  FreeLinearAllocationArea();
+
   HeapObject object = HeapObject::FromAddress(result->first);
-  LocalAllocationBuffer saved_lab = std::move(lab_);
   lab_ = LocalAllocationBuffer::FromResult(
       space_->heap(), AllocationResult::FromObject(object), result->second);
   DCHECK(lab_.IsValid());
-  if (!lab_.TryMerge(&saved_lab)) {
-    saved_lab.CloseAndMakeIterable();
-  }
 
   if (IsBlackAllocationEnabled()) {
     Address top = lab_.top();
