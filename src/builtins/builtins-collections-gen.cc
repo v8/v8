@@ -53,6 +53,9 @@ void BaseCollectionsAssembler::AddConstructorEntries(
       EstimatedInitialSize(initial_entries, use_fast_loop.value());
   Label allocate_table(this, &use_fast_loop), exit(this), fast_loop(this),
       slow_loop(this, Label::kDeferred);
+  TVARIABLE(JSReceiver, var_iterator_object);
+  TVARIABLE(Object, var_exception);
+  Label if_exception(this, Label::kDeferred);
   Goto(&allocate_table);
   BIND(&allocate_table);
   {
@@ -65,6 +68,7 @@ void BaseCollectionsAssembler::AddConstructorEntries(
   }
   BIND(&fast_loop);
   {
+    Label if_exception_during_fast_iteration(this);
     TNode<JSArray> initial_entries_jsarray =
         UncheckedCast<JSArray>(initial_entries);
 #if DEBUG
@@ -74,9 +78,13 @@ void BaseCollectionsAssembler::AddConstructorEntries(
 #endif
 
     Label if_may_have_side_effects(this, Label::kDeferred);
-    AddConstructorEntriesFromFastJSArray(variant, context, native_context,
-                                         collection, initial_entries_jsarray,
-                                         &if_may_have_side_effects);
+    {
+      compiler::ScopedExceptionHandler handler(
+          this, &if_exception_during_fast_iteration, &var_exception);
+      AddConstructorEntriesFromFastJSArray(variant, context, native_context,
+                                           collection, initial_entries_jsarray,
+                                           &if_may_have_side_effects);
+    }
     Goto(&exit);
 
     if (variant == kMap || variant == kWeakMap) {
@@ -98,12 +106,36 @@ void BaseCollectionsAssembler::AddConstructorEntries(
       use_fast_loop = Int32FalseConstant();
       Goto(&allocate_table);
     }
+    BIND(&if_exception_during_fast_iteration);
+    {
+      // In case exception is thrown during collection population, materialize
+      // the iteator and execute iterator closing protocol. It might be
+      // non-trivial in case "return" callback is added somewhere in the
+      // iterator's prototype chain.
+      TNode<NativeContext> native_context = LoadNativeContext(context);
+      var_iterator_object = CreateArrayIterator(
+          native_context, UncheckedCast<JSArray>(initial_entries),
+          IterationKind::kEntries);
+      Goto(&if_exception);
+    }
   }
   BIND(&slow_loop);
   {
-    AddConstructorEntriesFromIterable(variant, context, native_context,
-                                      collection, initial_entries);
+    AddConstructorEntriesFromIterable(
+        variant, context, native_context, collection, initial_entries,
+        &if_exception, &var_iterator_object, &var_exception);
     Goto(&exit);
+  }
+  BIND(&if_exception);
+  {
+    TNode<HeapObject> message = GetPendingMessage();
+    SetPendingMessage(TheHoleConstant());
+    // iterator.next field is not used by IteratorCloseOnException.
+    TorqueStructIteratorRecord iterator = {var_iterator_object.value(), {}};
+    IteratorCloseOnException(context, iterator);
+    CallRuntime(Runtime::kReThrowWithMessage, context, var_exception.value(),
+                message);
+    Unreachable();
   }
   BIND(&exit);
 }
@@ -182,20 +214,22 @@ void BaseCollectionsAssembler::AddConstructorEntriesFromFastJSArray(
 
 void BaseCollectionsAssembler::AddConstructorEntriesFromIterable(
     Variant variant, TNode<Context> context, TNode<Context> native_context,
-    TNode<Object> collection, TNode<Object> iterable) {
-  Label exit(this), loop(this), if_exception(this, Label::kDeferred);
+    TNode<Object> collection, TNode<Object> iterable, Label* if_exception,
+    TVariable<JSReceiver>* var_iterator_object,
+    TVariable<Object>* var_exception) {
+  Label exit(this), loop(this);
   CSA_DCHECK(this, Word32BinaryNot(IsNullOrUndefined(iterable)));
 
   TNode<Object> add_func = GetAddFunction(variant, context, collection);
   IteratorBuiltinsAssembler iterator_assembler(this->state());
   TorqueStructIteratorRecord iterator =
       iterator_assembler.GetIterator(context, iterable);
+  *var_iterator_object = iterator.object;
 
   CSA_DCHECK(this, Word32BinaryNot(IsUndefined(iterator.object)));
 
   TNode<Map> fast_iterator_result_map = CAST(
       LoadContextElement(native_context, Context::ITERATOR_RESULT_MAP_INDEX));
-  TVARIABLE(Object, var_exception);
 
   Goto(&loop);
   BIND(&loop);
@@ -205,17 +239,8 @@ void BaseCollectionsAssembler::AddConstructorEntriesFromIterable(
     TNode<Object> next_value = iterator_assembler.IteratorValue(
         context, next, fast_iterator_result_map);
     AddConstructorEntry(variant, context, collection, add_func, next_value,
-                        nullptr, &if_exception, &var_exception);
+                        nullptr, if_exception, var_exception);
     Goto(&loop);
-  }
-  BIND(&if_exception);
-  {
-    TNode<HeapObject> message = GetPendingMessage();
-    SetPendingMessage(TheHoleConstant());
-    IteratorCloseOnException(context, iterator);
-    CallRuntime(Runtime::kReThrowWithMessage, context, var_exception.value(),
-                message);
-    Unreachable();
   }
   BIND(&exit);
 }
