@@ -508,6 +508,7 @@ let kExprI31New = 0x20;
 let kExprI31GetS = 0x21;
 let kExprI31GetU = 0x22;
 let kExprRefTest = 0x40;
+let kExprRefTestNull = 0x48;
 let kExprRefTestDeprecated = 0x44;
 let kExprRefCast = 0x45;
 let kExprBrOnCast = 0x46;

@@ -5430,10 +5430,15 @@ WasmGraphBuilder::Callbacks WasmGraphBuilder::BranchCallbacks(
 }
 
 void WasmGraphBuilder::DataCheck(Node* object, bool object_can_be_null,
-                                 Callbacks callbacks) {
-  // TODO(7748): Is the extra null check actually beneficial for performance?
+                                 Callbacks callbacks, bool null_succeeds) {
   if (object_can_be_null) {
-    callbacks.fail_if(IsNull(object), BranchHint::kFalse);
+    if (null_succeeds) {
+      callbacks.succeed_if(IsNull(object), BranchHint::kFalse);
+    } else {
+      // TODO(7748): Is the extra null check actually beneficial for
+      // performance?
+      callbacks.fail_if(IsNull(object), BranchHint::kFalse);
+    }
   }
   callbacks.fail_if(gasm_->IsI31(object), BranchHint::kFalse);
   Node* map = gasm_->LoadMap(object);
@@ -5441,10 +5446,14 @@ void WasmGraphBuilder::DataCheck(Node* object, bool object_can_be_null,
 }
 
 void WasmGraphBuilder::EqCheck(Node* object, bool object_can_be_null,
-                               Callbacks callbacks) {
+                               Callbacks callbacks, bool null_succeeds) {
   // TODO(7748): Is the extra null check actually beneficial for performance?
   if (object_can_be_null) {
-    callbacks.fail_if(IsNull(object), BranchHint::kFalse);
+    if (null_succeeds) {
+      callbacks.succeed_if(IsNull(object), BranchHint::kFalse);
+    } else {
+      callbacks.fail_if(IsNull(object), BranchHint::kFalse);
+    }
   }
   callbacks.succeed_if(gasm_->IsI31(object), BranchHint::kFalse);
   Node* map = gasm_->LoadMap(object);
@@ -5454,9 +5463,14 @@ void WasmGraphBuilder::EqCheck(Node* object, bool object_can_be_null,
 void WasmGraphBuilder::ManagedObjectInstanceCheck(Node* object,
                                                   bool object_can_be_null,
                                                   InstanceType instance_type,
-                                                  Callbacks callbacks) {
+                                                  Callbacks callbacks,
+                                                  bool null_succeeds) {
   if (object_can_be_null) {
-    callbacks.fail_if(IsNull(object), BranchHint::kFalse);
+    if (null_succeeds) {
+      callbacks.succeed_if(IsNull(object), BranchHint::kFalse);
+    } else {
+      callbacks.fail_if(IsNull(object), BranchHint::kFalse);
+    }
   }
   callbacks.fail_if(gasm_->IsI31(object), BranchHint::kFalse);
   callbacks.fail_if_not(gasm_->HasInstanceType(object, instance_type),
@@ -5507,18 +5521,19 @@ Node* WasmGraphBuilder::RefTest(Node* object, Node* rtt,
   return gasm_->WasmTypeCheck(object, rtt, config);
 }
 
-Node* WasmGraphBuilder::RefTestAbstract(Node* object, wasm::HeapType type) {
+Node* WasmGraphBuilder::RefTestAbstract(Node* object, wasm::HeapType type,
+                                        bool null_succeeds) {
   bool is_nullable =
       compiler::NodeProperties::GetType(object).AsWasm().type.is_nullable();
   switch (type.representation()) {
     case wasm::HeapType::kEq:
-      return RefIsEq(object, is_nullable);
+      return RefIsEq(object, is_nullable, null_succeeds);
     case wasm::HeapType::kI31:
-      return RefIsI31(object);
+      return RefIsI31(object, null_succeeds);
     case wasm::HeapType::kData:
-      return RefIsData(object, is_nullable);
+      return RefIsData(object, is_nullable, null_succeeds);
     case wasm::HeapType::kArray:
-      return RefIsArray(object, is_nullable);
+      return RefIsArray(object, is_nullable, null_succeeds);
     case wasm::HeapType::kAny:
       // Any may never need a cast as it is either implicitly convertible or
       // never convertible for any given type.
@@ -5548,17 +5563,19 @@ void WasmGraphBuilder::BrOnCast(Node* object, Node* rtt,
   *no_match_control = false_node;
 }
 
-Node* WasmGraphBuilder::RefIsEq(Node* object, bool object_can_be_null) {
+Node* WasmGraphBuilder::RefIsEq(Node* object, bool object_can_be_null,
+                                bool null_succeeds) {
   auto done = gasm_->MakeLabel(MachineRepresentation::kWord32);
-  EqCheck(object, object_can_be_null, TestCallbacks(&done));
+  EqCheck(object, object_can_be_null, TestCallbacks(&done), null_succeeds);
   gasm_->Goto(&done, Int32Constant(1));
   gasm_->Bind(&done);
   return done.PhiAt(0);
 }
 
-Node* WasmGraphBuilder::RefIsData(Node* object, bool object_can_be_null) {
+Node* WasmGraphBuilder::RefIsData(Node* object, bool object_can_be_null,
+                                  bool null_succeeds) {
   auto done = gasm_->MakeLabel(MachineRepresentation::kWord32);
-  DataCheck(object, object_can_be_null, TestCallbacks(&done));
+  DataCheck(object, object_can_be_null, TestCallbacks(&done), null_succeeds);
   gasm_->Goto(&done, Int32Constant(1));
   gasm_->Bind(&done);
   return done.PhiAt(0);
@@ -5566,8 +5583,10 @@ Node* WasmGraphBuilder::RefIsData(Node* object, bool object_can_be_null) {
 
 Node* WasmGraphBuilder::RefAsData(Node* object, bool object_can_be_null,
                                   wasm::WasmCodePosition position) {
+  bool null_succeeds = false;
   auto done = gasm_->MakeLabel();
-  DataCheck(object, object_can_be_null, CastCallbacks(&done, position));
+  DataCheck(object, object_can_be_null, CastCallbacks(&done, position),
+            null_succeeds);
   gasm_->Goto(&done);
   gasm_->Bind(&done);
   return object;
@@ -5578,16 +5597,19 @@ void WasmGraphBuilder::BrOnData(Node* object, Node* /*rtt*/,
                                 Node** match_control, Node** match_effect,
                                 Node** no_match_control,
                                 Node** no_match_effect) {
+  bool null_succeeds = false;
   BrOnCastAbs(match_control, match_effect, no_match_control, no_match_effect,
               [=](Callbacks callbacks) -> void {
-                return DataCheck(object, config.object_can_be_null, callbacks);
+                return DataCheck(object, config.object_can_be_null, callbacks,
+                                 null_succeeds);
               });
 }
 
-Node* WasmGraphBuilder::RefIsArray(Node* object, bool object_can_be_null) {
+Node* WasmGraphBuilder::RefIsArray(Node* object, bool object_can_be_null,
+                                   bool null_succeeds) {
   auto done = gasm_->MakeLabel(MachineRepresentation::kWord32);
   ManagedObjectInstanceCheck(object, object_can_be_null, WASM_ARRAY_TYPE,
-                             TestCallbacks(&done));
+                             TestCallbacks(&done), null_succeeds);
   gasm_->Goto(&done, Int32Constant(1));
   gasm_->Bind(&done);
   return done.PhiAt(0);
@@ -5595,9 +5617,10 @@ Node* WasmGraphBuilder::RefIsArray(Node* object, bool object_can_be_null) {
 
 Node* WasmGraphBuilder::RefAsArray(Node* object, bool object_can_be_null,
                                    wasm::WasmCodePosition position) {
+  bool null_succeeds = false;
   auto done = gasm_->MakeLabel();
   ManagedObjectInstanceCheck(object, object_can_be_null, WASM_ARRAY_TYPE,
-                             CastCallbacks(&done, position));
+                             CastCallbacks(&done, position), null_succeeds);
   gasm_->Goto(&done);
   gasm_->Bind(&done);
   return object;
@@ -5608,15 +5631,26 @@ void WasmGraphBuilder::BrOnArray(Node* object, Node* /*rtt*/,
                                  Node** match_control, Node** match_effect,
                                  Node** no_match_control,
                                  Node** no_match_effect) {
+  bool null_succeeds = false;
   BrOnCastAbs(match_control, match_effect, no_match_control, no_match_effect,
               [=](Callbacks callbacks) -> void {
-                return ManagedObjectInstanceCheck(object,
-                                                  config.object_can_be_null,
-                                                  WASM_ARRAY_TYPE, callbacks);
+                return ManagedObjectInstanceCheck(
+                    object, config.object_can_be_null, WASM_ARRAY_TYPE,
+                    callbacks, null_succeeds);
               });
 }
 
-Node* WasmGraphBuilder::RefIsI31(Node* object) { return gasm_->IsI31(object); }
+Node* WasmGraphBuilder::RefIsI31(Node* object, bool null_succeeds) {
+  if (null_succeeds) {
+    auto done = gasm_->MakeLabel(MachineRepresentation::kWord32);
+    gasm_->GotoIf(gasm_->IsI31(object), &done, BranchHint::kTrue,
+                  Int32Constant(1));
+    gasm_->Goto(&done, gasm_->IsNull(object));
+    gasm_->Bind(&done);
+    return done.PhiAt(0);
+  }
+  return gasm_->IsI31(object);
+}
 
 Node* WasmGraphBuilder::RefAsI31(Node* object,
                                  wasm::WasmCodePosition position) {

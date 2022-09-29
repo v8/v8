@@ -92,8 +92,9 @@ Reduction WasmGCLowering::ReduceWasmTypeCheck(Node* node) {
   auto end_label = gasm_.MakeLabel(MachineRepresentation::kWord32);
 
   if (object_can_be_null) {
+    const int kResult = config.null_succeeds ? 1 : 0;
     gasm_.GotoIf(gasm_.TaggedEqual(object, Null()), &end_label,
-                 BranchHint::kFalse, gasm_.Int32Constant(0));
+                 BranchHint::kFalse, gasm_.Int32Constant(kResult));
   }
 
   // TODO(7748): In some cases the Smi check is redundant. If we had information

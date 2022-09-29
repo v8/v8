@@ -5963,7 +5963,7 @@ class LiftoffCompiler {
   }
 
   void RefTest(FullDecoder* decoder, const Value& obj, const Value& rtt,
-               Value* /* result_val */) {
+               Value* /* result_val */, bool null_succeeds) {
     Label return_false, done;
     LiftoffRegList pinned;
     LiftoffRegister rtt_reg = pinned.set(__ PopToRegister(pinned));
@@ -5977,7 +5977,7 @@ class LiftoffCompiler {
       FREEZE_STATE(frozen);
       SubtypeCheck(decoder->module_, obj_reg.gp(), obj.type, rtt_reg.gp(),
                    rtt.type, scratch_null, result.gp(), &return_false,
-                   kNullFails, frozen);
+                   null_succeeds ? kNullSucceeds : kNullFails, frozen);
 
       __ LoadConstant(result, WasmValue(1));
       // TODO(jkummerow): Emit near jumps on platforms that have them.
@@ -5991,16 +5991,16 @@ class LiftoffCompiler {
   }
 
   void RefTestAbstract(FullDecoder* decoder, const Value& obj, HeapType type,
-                       Value* result_val) {
+                       Value* result_val, bool null_succeeds) {
     switch (type.representation()) {
       case HeapType::kEq:
-        return RefIsEq(decoder, obj, result_val);
+        return RefIsEq(decoder, obj, result_val, null_succeeds);
       case HeapType::kI31:
-        return RefIsI31(decoder, obj, result_val);
+        return RefIsI31(decoder, obj, result_val, null_succeeds);
       case HeapType::kData:
-        return RefIsData(decoder, obj, result_val);
+        return RefIsData(decoder, obj, result_val, null_succeeds);
       case HeapType::kArray:
-        return RefIsArray(decoder, obj, result_val);
+        return RefIsArray(decoder, obj, result_val, null_succeeds);
       case HeapType::kAny:
         // Any may never need a cast as it is either implicitly convertible or
         // never convertible for any given type.
@@ -6095,9 +6095,12 @@ class LiftoffCompiler {
     Register tmp1 = no_reg;
     Register tmp2 = no_reg;
     Label* no_match;
+    bool null_succeeds;
 
-    TypeCheck(ValueType obj_type, Label* no_match)
-        : obj_type(obj_type), no_match(no_match) {}
+    TypeCheck(ValueType obj_type, Label* no_match, bool null_succeeds)
+        : obj_type(obj_type),
+          no_match(no_match),
+          null_succeeds(null_succeeds) {}
 
     Register null_reg() { return tmp1; }       // After {Initialize}.
     Register instance_type() { return tmp1; }  // After {LoadInstanceType}.
@@ -6120,7 +6123,10 @@ class LiftoffCompiler {
   }
   void LoadInstanceType(TypeCheck& check, const FreezeCacheState& frozen,
                         Label* on_smi) {
-    if (check.obj_type.is_nullable()) {
+    // The check for null_succeeds == true has to be handled by the caller!
+    // TODO(mliedtke): Reiterate the null_succeeds case once all generic cast
+    // instructions are implemented.
+    if (!check.null_succeeds && check.obj_type.is_nullable()) {
       __ emit_cond_jump(kEqual, check.no_match, kRefNull, check.obj_reg,
                         check.null_reg(), frozen);
     }
@@ -6173,13 +6179,18 @@ class LiftoffCompiler {
                                                 const FreezeCacheState& frozen);
 
   template <TypeChecker type_checker>
-  void AbstractTypeCheck(const Value& object) {
+  void AbstractTypeCheck(const Value& object, bool null_succeeds) {
     Label match, no_match, done;
-    TypeCheck check(object.type, &no_match);
+    TypeCheck check(object.type, &no_match, null_succeeds);
     Initialize(check, kPop);
     LiftoffRegister result(check.tmp1);
     {
       FREEZE_STATE(frozen);
+
+      if (null_succeeds && check.obj_type.is_nullable()) {
+        __ emit_cond_jump(kEqual, &match, kRefNull, check.obj_reg,
+                          check.null_reg(), frozen);
+      }
 
       (this->*type_checker)(check, frozen);
 
@@ -6196,31 +6207,32 @@ class LiftoffCompiler {
   }
 
   void RefIsData(FullDecoder* /* decoder */, const Value& object,
-                 Value* /* result_val */) {
-    AbstractTypeCheck<&LiftoffCompiler::DataCheck>(object);
+                 Value* /* result_val */, bool null_succeeds = false) {
+    AbstractTypeCheck<&LiftoffCompiler::DataCheck>(object, null_succeeds);
   }
 
   void RefIsEq(FullDecoder* /* decoder */, const Value& object,
-               Value* /* result_val */) {
-    AbstractTypeCheck<&LiftoffCompiler::EqCheck>(object);
+               Value* /* result_val */, bool null_succeeds) {
+    AbstractTypeCheck<&LiftoffCompiler::EqCheck>(object, null_succeeds);
   }
 
   void RefIsArray(FullDecoder* /* decoder */, const Value& object,
-                  Value* /* result_val */) {
-    AbstractTypeCheck<&LiftoffCompiler::ArrayCheck>(object);
+                  Value* /* result_val */, bool null_succeeds = false) {
+    AbstractTypeCheck<&LiftoffCompiler::ArrayCheck>(object, null_succeeds);
   }
 
-  void RefIsI31(FullDecoder* decoder, const Value& object,
-                Value* /* result */) {
-    AbstractTypeCheck<&LiftoffCompiler::I31Check>(object);
+  void RefIsI31(FullDecoder* decoder, const Value& object, Value* /* result */,
+                bool null_succeeds = false) {
+    AbstractTypeCheck<&LiftoffCompiler::I31Check>(object, null_succeeds);
   }
 
   template <TypeChecker type_checker>
   void AbstractTypeCast(const Value& object, FullDecoder* decoder,
                         ValueKind result_kind) {
+    bool null_succeeds = false;  // TODO(mliedtke): Use parameter.
     Label* trap_label =
         AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapIllegalCast);
-    TypeCheck check(object.type, trap_label);
+    TypeCheck check(object.type, trap_label, null_succeeds);
     Initialize(check, kPeek);
     FREEZE_STATE(frozen);
     (this->*type_checker)(check, frozen);
@@ -6242,13 +6254,14 @@ class LiftoffCompiler {
   template <TypeChecker type_checker>
   void BrOnAbstractType(const Value& object, FullDecoder* decoder,
                         uint32_t br_depth) {
+    bool null_succeeds = false;  // TODO(mliedtke): Use parameter.
     // Avoid having sequences of branches do duplicate work.
     if (br_depth != decoder->control_depth() - 1) {
       __ PrepareForBranch(decoder->control_at(br_depth)->br_merge()->arity, {});
     }
 
     Label no_match;
-    TypeCheck check(object.type, &no_match);
+    TypeCheck check(object.type, &no_match, null_succeeds);
     Initialize(check, kPeek);
     FREEZE_STATE(frozen);
 
@@ -6261,13 +6274,14 @@ class LiftoffCompiler {
   template <TypeChecker type_checker>
   void BrOnNonAbstractType(const Value& object, FullDecoder* decoder,
                            uint32_t br_depth) {
+    bool null_succeeds = false;  // TODO(mliedtke): Use parameter.
     // Avoid having sequences of branches do duplicate work.
     if (br_depth != decoder->control_depth() - 1) {
       __ PrepareForBranch(decoder->control_at(br_depth)->br_merge()->arity, {});
     }
 
     Label no_match, end;
-    TypeCheck check(object.type, &no_match);
+    TypeCheck check(object.type, &no_match, null_succeeds);
     Initialize(check, kPeek);
     FREEZE_STATE(frozen);
 

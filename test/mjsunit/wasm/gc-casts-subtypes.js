@@ -218,6 +218,13 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
         kExprCallRef, creatorType,
         kGCPrefix, kExprRefTest, heapType,
       ]).exportFunc();
+      builder.addFunction(`test_null_${test.source}_to_${target}`,
+                          makeSig([wasmRefType(creatorType)], [kWasmI32]))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprCallRef, creatorType,
+        kGCPrefix, kExprRefTestNull, heapType,
+      ]).exportFunc();
     }
   }
 
@@ -227,10 +234,14 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   for (let test of tests) {
     for (let [target, validValues] of Object.entries(test.targets)) {
       for (let value of test.values) {
-        print(`Test ${test.source}(${value}) -> ${target}`);
+        print(`Test ref.test: ${test.source}(${value}) -> ${target}`);
         let create_value = wasm[`create_${test.source}_${value}`];
         let res = wasm[`test_${test.source}_to_${target}`](create_value);
         assertEquals(validValues.includes(value) ? 1 : 0, res);
+        print(`Test ref.test null: ${test.source}(${value}) -> ${target}`);
+        res = wasm[`test_null_${test.source}_to_${target}`](create_value);
+        assertEquals(
+            (validValues.includes(value) || value == "nullref") ? 1 : 0, res);
       }
     }
   }
