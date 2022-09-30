@@ -70,19 +70,29 @@ using protocol::Runtime::RemoteObject;
 
 class InjectedScript::ProtocolPromiseHandler {
  public:
-  static bool add(V8InspectorSessionImpl* session,
+  static void add(V8InspectorSessionImpl* session,
                   v8::Local<v8::Context> context, v8::Local<v8::Value> value,
                   int executionContextId, const String16& objectGroup,
                   WrapMode wrapMode, bool replMode, bool throwOnSideEffect,
                   EvaluateCallback* callback) {
+    InjectedScript::ContextScope scope(session, executionContextId);
+    Response response = scope.initialize();
+    if (!response.IsSuccess()) return;
+
     v8::Local<v8::Promise::Resolver> resolver;
     if (!v8::Promise::Resolver::New(context).ToLocal(&resolver)) {
-      callback->sendFailure(Response::InternalError());
-      return false;
+      std::unique_ptr<EvaluateCallback> ownedCallback =
+          scope.injectedScript()->takeEvaluateCallback(callback);
+      CHECK(ownedCallback);
+      ownedCallback->sendFailure(Response::InternalError());
+      return;
     }
     if (!resolver->Resolve(context, value).FromMaybe(false)) {
-      callback->sendFailure(Response::InternalError());
-      return false;
+      std::unique_ptr<EvaluateCallback> ownedCallback =
+          scope.injectedScript()->takeEvaluateCallback(callback);
+      CHECK(ownedCallback);
+      ownedCallback->sendFailure(Response::InternalError());
+      return;
     }
 
     v8::MaybeLocal<v8::Promise> originalPromise =
@@ -104,10 +114,14 @@ class InjectedScript::ProtocolPromiseHandler {
     v8::Local<v8::Promise> promise = resolver->GetPromise();
     if (promise->Then(context, thenCallbackFunction, catchCallbackFunction)
             .IsEmpty()) {
-      callback->sendFailure(Response::InternalError());
-      return false;
+      // Re-initialize after returning from JS.
+      Response response = scope.initialize();
+      if (!response.IsSuccess()) return;
+      std::unique_ptr<EvaluateCallback> ownedCallback =
+          scope.injectedScript()->takeEvaluateCallback(callback);
+      if (!ownedCallback) return;
+      ownedCallback->sendFailure(Response::InternalError());
     }
-    return true;
   }
 
  private:
@@ -660,14 +674,19 @@ void InjectedScript::addPromiseCallback(
     callback->sendFailure(Response::InternalError());
     return;
   }
+
+  EvaluateCallback* cb = callback.release();
+  m_evaluateCallbacks.insert(cb);
+
   v8::MicrotasksScope microtasksScope(m_context->isolate(),
                                       v8::MicrotasksScope::kRunMicrotasks);
-  if (ProtocolPromiseHandler::add(
-          session, m_context->context(), value.ToLocalChecked(),
-          m_context->contextId(), objectGroup, wrapMode, replMode,
-          throwOnSideEffect, callback.get())) {
-    m_evaluateCallbacks.insert(callback.release());
-  }
+  ProtocolPromiseHandler::add(session, m_context->context(),
+                              value.ToLocalChecked(), m_context->contextId(),
+                              objectGroup, wrapMode, replMode,
+                              throwOnSideEffect, cb);
+  // Do not add any code here! `this` might be invalid.
+  // `ProtocolPromiseHandler::add` calls into JS which could kill this
+  // `InjectedScript`.
 }
 
 void InjectedScript::discardEvaluateCallbacks() {
