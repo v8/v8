@@ -42,6 +42,7 @@ from testrunner.outproc import test262
 # TODO(littledan): move the flag mapping into the status file
 FEATURE_FLAGS = {
     'Intl.NumberFormat-v3': '--harmony-intl-number-format-v3',
+    'Intl.DurationFormat': '--harmony-intl-duration-format',
     'Symbol.prototype.description': '--harmony-symbol-description',
     'FinalizationRegistry': '--harmony-weak-refs-with-cleanup-some',
     'WeakRef': '--harmony-weak-refs-with-cleanup-some',

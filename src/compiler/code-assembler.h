@@ -47,6 +47,7 @@ class JSCollator;
 class JSCollection;
 class JSDateTimeFormat;
 class JSDisplayNames;
+class JSDurationFormat;
 class JSListFormat;
 class JSLocale;
 class JSNumberFormat;
