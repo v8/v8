@@ -151,6 +151,14 @@ def _default_args():
                 "-fno-integrated-as",
             ],
             "//conditions:default": [],
+        }) + select({
+            "@v8//bazel/config:is_debug":[
+                "-fvisibility=default",
+            ],
+            "//conditions:default": [
+                "-fvisibility=hidden",
+                "-fvisibility-inlines-hidden",
+            ],
         }),
         includes = ["include"],
         linkopts = select({
