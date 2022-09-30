@@ -1096,7 +1096,7 @@ config("toolchain") {
   }
   if (v8_current_cpu == "arm64") {
     defines += [ "V8_TARGET_ARCH_ARM64" ]
-    if (current_cpu == "arm64" && v8_control_flow_integrity) {
+    if (current_cpu == "arm64" && v8_control_flow_integrity && is_clang) {
       # Mark assembly code as BTI-compatible.
       asmflags = [ "-mmark-bti-property" ]
     }
