@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "GOMA", "v8_builder")
+load("//lib/lib.star", "GOMA", "RECLIENT", "v8_builder")
 
 def chromium_builder(name):
     v8_builder(
@@ -12,7 +12,8 @@ def chromium_builder(name):
         executable = "recipe:chromium",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.chromium"},
-        use_goma = GOMA.DEFAULT,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
         in_console = "chromium/Future",
     )
 

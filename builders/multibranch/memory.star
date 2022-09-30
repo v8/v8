@@ -23,7 +23,8 @@ in_category(
     main_multibranch_builder_pair(
         name = "V8 Win64 ASAN",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-        use_goma = GOMA.ATS,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
         close_tree = False,
     ),
 )
