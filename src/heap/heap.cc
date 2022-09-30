@@ -2083,7 +2083,7 @@ void Heap::StartIncrementalMarkingIfAllocationLimitIsReached(
     // Do not start incremental marking while invoking GC callbacks.
     // Heap::CollectGarbage already decided which GC is going to be invoked. In
     // case it chose a young-gen GC, starting an incremental full GC during
-    // callbacks would break the seperate GC phases guarantee.
+    // callbacks would break the separate GC phases guarantee.
     return;
   }
   if (incremental_marking()->IsStopped()) {

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/heap/gc-tracer.h"
 #include "src/heap/mark-compact.h"
 #include "test/unittests/heap/heap-utils.h"
 #include "test/unittests/test-utils.h"
@@ -608,8 +609,8 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedRegularYoungPages) {
   ManualGCScope manual_gc_scope(isolate());
   v8_flags.page_promotion = false;
 
-  Persistent<v8::FixedArray> weak1, weak2;
-  Address inner_ptr1, inner_ptr2, outside_ptr1, outside_ptr2;
+  Persistent<v8::FixedArray> weak1, weak2, strong;
+  Address inner_ptr1, inner_ptr2, inner_ptr3, outside_ptr1, outside_ptr2;
   Page *page1, *page2;
 
   {
@@ -617,7 +618,7 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedRegularYoungPages) {
     HandleScope scope(isolate());
 
     // Allocate two objects, large enough that they fall in two different young
-    // generation pages.
+    // generation pages. Keep weak references to these objects.
     const int length =
         (heap()->MaxRegularHeapObjectSize(AllocationType::kYoung) -
          FixedArray::SizeFor(0)) /
@@ -638,15 +639,25 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedRegularYoungPages) {
     EXPECT_TRUE(v8_flags.minor_mc || page2->IsToPage());
     EXPECT_NE(page1, page2);
 
-    // Keep inner pointers to both.
+    // Allocate one more object, small enough that it fits in page2.
+    // Keep a strong reference to this object.
+    auto h3 = factory()->NewFixedArray(16, AllocationType::kYoung);
+    strong.Reset(v8_isolate(), Utils::FixedArrayToLocal(h3));
+    auto obj3 = h3->GetHeapObject();
+    EXPECT_EQ(page2, Page::FromHeapObject(obj3));
+    EXPECT_EQ(obj3.address(), obj2.address() + obj2.Size(cage_base));
+
+    // Keep inner pointers to all objects.
     inner_ptr1 = obj1.address() + 17 * kTaggedSize;
     inner_ptr2 = obj2.address() + 37 * kTaggedSize;
+    inner_ptr3 = obj3.address() + 7 * kTaggedSize;
 
     // Keep pointers to the end of the pages, after the objects.
     outside_ptr1 = page1->area_end() - 3 * kTaggedSize;
     outside_ptr2 = page2->area_end() - 2 * kTaggedSize;
     EXPECT_LE(obj1.address() + obj1.Size(cage_base), outside_ptr1);
     EXPECT_LE(obj2.address() + obj2.Size(cage_base), outside_ptr2);
+    EXPECT_LE(obj3.address() + obj3.Size(cage_base), outside_ptr2);
 
     // Ensure the young generation space is iterable.
     heap()->new_space()->MakeLinearAllocationAreaIterable();
@@ -660,19 +671,43 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedRegularYoungPages) {
         obj2.address(),
         heap()->mark_compact_collector()->FindBasePtrForMarking(inner_ptr2));
     EXPECT_EQ(
+        obj3.address(),
+        heap()->mark_compact_collector()->FindBasePtrForMarking(inner_ptr3));
+    EXPECT_EQ(
         kNullAddress,
         heap()->mark_compact_collector()->FindBasePtrForMarking(outside_ptr1));
     EXPECT_EQ(
         kNullAddress,
         heap()->mark_compact_collector()->FindBasePtrForMarking(outside_ptr2));
+
+    // Start incremental marking and mark the third object.
+    i::IncrementalMarking* marking = heap()->incremental_marking();
+    if (marking->IsStopped()) {
+      SafepointScope scope(heap());
+      heap()->tracer()->StartCycle(
+          GarbageCollector::MARK_COMPACTOR, GarbageCollectionReason::kTesting,
+          "unit test", GCTracer::MarkingType::kIncremental);
+      marking->Start(GarbageCollector::MARK_COMPACTOR,
+                     i::GarbageCollectionReason::kTesting);
+    }
+    MarkingState* marking_state = marking->marking_state();
+    marking_state->WhiteToGrey(obj3);
+    marking_state->GreyToBlack(obj3);
   }
 
-  // Garbage collection should reclaim both objects.
+  // Garbage collection should reclaim the two large objects with the weak
+  // references, but not the small one with the strong reference.
   CollectGarbage(NEW_SPACE);
   EXPECT_TRUE(weak1.IsEmpty());
   EXPECT_TRUE(weak2.IsEmpty());
+  EXPECT_TRUE(!strong.IsEmpty());
+  // The two pages should still be around, in the new space.
+  EXPECT_EQ(page1, heap()->memory_allocator()->LookupChunkContainingAddress(
+                       inner_ptr1));
+  EXPECT_EQ(page2, heap()->memory_allocator()->LookupChunkContainingAddress(
+                       inner_ptr2));
   EXPECT_EQ(AllocationSpace::NEW_SPACE, page1->owner_identity());
-  EXPECT_EQ(AllocationSpace::NEW_SPACE, page1->owner_identity());
+  EXPECT_EQ(AllocationSpace::NEW_SPACE, page2->owner_identity());
   EXPECT_TRUE(v8_flags.minor_mc || page1->IsFromPage());
   EXPECT_TRUE(v8_flags.minor_mc || page2->IsFromPage());
 
@@ -687,6 +722,9 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedRegularYoungPages) {
       heap()->mark_compact_collector()->FindBasePtrForMarking(inner_ptr2));
   EXPECT_EQ(
       kNullAddress,
+      heap()->mark_compact_collector()->FindBasePtrForMarking(inner_ptr3));
+  EXPECT_EQ(
+      kNullAddress,
       heap()->mark_compact_collector()->FindBasePtrForMarking(outside_ptr1));
   EXPECT_EQ(
       kNullAddress,
@@ -695,7 +733,12 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedRegularYoungPages) {
   // Garbage collection once more.
   CollectGarbage(NEW_SPACE);
   EXPECT_EQ(AllocationSpace::NEW_SPACE, page1->owner_identity());
-  EXPECT_EQ(AllocationSpace::NEW_SPACE, page1->owner_identity());
+  EXPECT_EQ(AllocationSpace::NEW_SPACE, page2->owner_identity());
+  // The two pages should still be around, in the new space.
+  EXPECT_EQ(page1, heap()->memory_allocator()->LookupChunkContainingAddress(
+                       inner_ptr1));
+  EXPECT_EQ(page2, heap()->memory_allocator()->LookupChunkContainingAddress(
+                       inner_ptr2));
   EXPECT_TRUE(v8_flags.minor_mc || page1->IsToPage());
   EXPECT_TRUE(v8_flags.minor_mc || page2->IsToPage());
 
@@ -708,6 +751,9 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedRegularYoungPages) {
   EXPECT_EQ(
       kNullAddress,
       heap()->mark_compact_collector()->FindBasePtrForMarking(inner_ptr2));
+  EXPECT_EQ(
+      kNullAddress,
+      heap()->mark_compact_collector()->FindBasePtrForMarking(inner_ptr3));
   EXPECT_EQ(
       kNullAddress,
       heap()->mark_compact_collector()->FindBasePtrForMarking(outside_ptr1));

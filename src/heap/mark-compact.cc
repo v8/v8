@@ -2260,6 +2260,9 @@ Address MarkCompactCollector::FindBasePtrForMarking(Address maybe_inner_ptr) {
   if (chunk->IsLargePage()) return chunk->area_start();
   // Otherwise, we have a pointer inside a normal page.
   const Page* page = static_cast<const Page*>(chunk);
+  // If it is in the young generation "from" semispace, it is not used and we
+  // must ignore it, as its markbits may not be clean.
+  if (page->IsFromPage()) return kNullAddress;
   // Try to find the address of a previous valid object on this page.
   Address base_ptr =
       FindPreviousObjectForConservativeMarking(page, maybe_inner_ptr);

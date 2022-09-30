@@ -538,7 +538,7 @@ void NewSpace::VerifyImpl(Isolate* isolate, const Page* current_page,
   }
 
 #ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
-  page->object_start_bitmap()->Verify();
+  current_page->object_start_bitmap()->Verify();
 #endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
 }
 #endif  // VERIFY_HEAP
