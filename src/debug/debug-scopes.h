@@ -107,6 +107,15 @@ class ScopeIterator {
     return context_;
   }
 
+  bool IsAtClosureScope() const;
+  // Calculates all the block list starting at the current scope and stores
+  // them in the global "LocalsBlocklistCache".
+  //
+  // Can only be called when `IsAtClosureScope` is true. At that point we have
+  // advanced to the right parsed scope as well as found the correct
+  // corresponding context.
+  void CollectAndStoreLocalBlocklists() const;
+
  private:
   Isolate* isolate_;
   std::unique_ptr<ReusableUnoptimizedCompileState> reusable_compile_state_;
