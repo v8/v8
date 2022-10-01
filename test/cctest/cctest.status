@@ -557,7 +557,6 @@
   'test-debug-helper/GetObjectProperties': [SKIP],
   'test-js-context-specialization/*': [SKIP],
   'test-multiple-return/*': [SKIP],
-  'test-run-bytecode-graph-builder/*': [SKIP],
   'test-run-calls-to-external-references/*': [SKIP],
   'test-run-intrinsics/*': [SKIP],
 

@@ -349,6 +349,7 @@ v8_source_set("unittests_sources") {
     "compiler/regalloc/mid-tier-register-allocator-unittest.cc",
     "compiler/regalloc/move-optimizer-unittest.cc",
     "compiler/regalloc/register-allocator-unittest.cc",
+    "compiler/run-bytecode-graph-builder-unittest.cc",
     "compiler/run-deopt-unittest.cc",
     "compiler/run-jsbranches-unittest.cc",
     "compiler/run-jscalls-unittest.cc",
