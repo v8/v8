@@ -1133,6 +1133,18 @@ void InstructionSelector::VisitUint32MulHigh(Node* node) {
        g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
 }
 
+void InstructionSelector::VisitInt64MulHigh(Node* node) {
+  PPCOperandGenerator g(this);
+  Emit(kPPC_MulHighS64, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitUint64MulHigh(Node* node) {
+  PPCOperandGenerator g(this);
+  Emit(kPPC_MulHighU64, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+}
+
 void InstructionSelector::VisitInt32Div(Node* node) {
   VisitRRR(this, kPPC_Div32, node);
 }

@@ -838,6 +838,16 @@ void Assembler::mulli(Register dst, Register src, const Operand& imm) {
   d_form(MULLI, dst, src, imm.immediate(), true);
 }
 
+// Multiply hi doubleword
+void Assembler::mulhd(Register dst, Register src1, Register src2, RCBit r) {
+  xo_form(EXT2 | MULHD, dst, src1, src2, LeaveOE, r);
+}
+
+// Multiply hi doubleword unsigned
+void Assembler::mulhdu(Register dst, Register src1, Register src2, RCBit r) {
+  xo_form(EXT2 | MULHDU, dst, src1, src2, LeaveOE, r);
+}
+
 // Multiply hi word
 void Assembler::mulhw(Register dst, Register src1, Register src2, RCBit r) {
   xo_form(EXT2 | MULHWX, dst, src1, src2, LeaveOE, r);

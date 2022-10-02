@@ -1705,6 +1705,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_BIN_OP(RRRInstr(MulHighU32), RRM32Instr(MulHighU32),
                       RRIInstr(MulHighU32));
       break;
+    case kS390_MulHighU64:
+      ASSEMBLE_BIN_OP(RRRInstr(MulHighU64), nullInstr, nullInstr);
+      break;
+    case kS390_MulHighS64:
+      ASSEMBLE_BIN_OP(RRRInstr(MulHighS64), nullInstr, nullInstr);
+      break;
     case kS390_MulFloat:
       ASSEMBLE_BIN_OP(DDInstr(meebr), DMTInstr(MulFloat32), nullInstr);
       break;

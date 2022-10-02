@@ -2939,6 +2939,29 @@ void TurboAssembler::MulS64(Register dst, const MemOperand& opnd) {
   msg(dst, opnd);
 }
 
+void TurboAssembler::MulHighS64(Register dst, Register src1, Register src2) {
+  mgrk(r0, src1, src2);
+  lgr(dst, r0);
+}
+
+void TurboAssembler::MulHighS64(Register dst, Register src1,
+                                const MemOperand& src2) {
+  // TODO(v8): implement this.
+  UNIMPLEMENTED();
+}
+
+void TurboAssembler::MulHighU64(Register dst, Register src1, Register src2) {
+  lgr(r1, src1);
+  mlgr(r0, src2);
+  lgr(dst, r0);
+}
+
+void TurboAssembler::MulHighU64(Register dst, Register src1,
+                                const MemOperand& src2) {
+  // TODO(v8): implement this.
+  UNIMPLEMENTED();
+}
+
 void TurboAssembler::Sqrt(DoubleRegister result, DoubleRegister input) {
   sqdbr(result, input);
 }

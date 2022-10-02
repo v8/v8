@@ -322,6 +322,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
       }
     }
   }
+  void MulHighS64(Register dst, Register src1, Register src2);
+  void MulHighS64(Register dst, Register src1, const MemOperand& src2);
+  void MulHighU64(Register dst, Register src1, Register src2);
+  void MulHighU64(Register dst, Register src1, const MemOperand& src2);
 
   void MulHighS32(Register dst, Register src1, const MemOperand& src2);
   void MulHighS32(Register dst, Register src1, Register src2);

@@ -894,6 +894,8 @@ class Assembler : public AssemblerBase {
 
   void mulhw(Register dst, Register src1, Register src2, RCBit r = LeaveRC);
   void mulhwu(Register dst, Register src1, Register src2, RCBit r = LeaveRC);
+  void mulhd(Register dst, Register src1, Register src2, RCBit r = LeaveRC);
+  void mulhdu(Register dst, Register src1, Register src2, RCBit r = LeaveRC);
   void mulli(Register dst, Register src, const Operand& imm);
 
   void divw(Register dst, Register src1, Register src2, OEBit o = LeaveOE,

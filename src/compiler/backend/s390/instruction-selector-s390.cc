@@ -1472,6 +1472,8 @@ static inline bool TryMatchDoubleConstructFromInsert(
 
 #define WORD64_BIN_OP_LIST(V)                                                  \
   V(Word64, Int64Add, kS390_Add64, AddOperandMode, null)                       \
+  V(Word64, Int64MulHigh, kS390_MulHighS64, OperandMode::kAllowRRR, null)      \
+  V(Word64, Uint64MulHigh, kS390_MulHighU64, OperandMode::kAllowRRR, null)     \
   V(Word64, Int64Sub, kS390_Sub64, SubOperandMode, ([&]() {                    \
       return TryMatchNegFromSub<Int64BinopMatcher, kS390_Neg64>(this, node);   \
     }))                                                                        \
