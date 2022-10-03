@@ -48,6 +48,10 @@ vars = {
   # GN CIPD package version.
   'gn_version': 'git_revision:cc28efe62ef0c2fb32455f414a29c4a55bb7fbc4',
 
+  # ninja CIPD package version
+  # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
+  'ninja_version': 'version:2@1.8.2.chromium.3',
+
   # luci-go CIPD package version.
   'luci_go': 'git_revision:20c50aa39686d91330c2daceccaa4ef1a0a72ee4',
 
@@ -240,6 +244,15 @@ deps = {
     Var('chromium_url') + '/infra/luci/luci-py/client/libs/logdog' + '@' + '0b2078a90f7a638d576b3a7c407d136f2fb62399',
   'third_party/markupsafe':
     Var('chromium_url') + '/chromium/src/third_party/markupsafe.git' + '@' + '1b882ef6372b58bfd55a3285f37ed801be9137cd',
+  'third_party/ninja': {
+    'packages': [
+      {
+        'package': 'infra/3pp/tools/ninja/${{platform}}',
+        'version': Var('ninja_version'),
+      }
+    ],
+    'dep_type': 'cipd',
+  },
   'third_party/perfetto':
     Var('android_url') + '/platform/external/perfetto.git' + '@' + '0eba417b2c72264fa825dc21067b9adc9b8adf70',
   'third_party/protobuf':
