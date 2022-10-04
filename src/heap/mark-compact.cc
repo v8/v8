@@ -2333,6 +2333,9 @@ void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
   // find all incoming pointers into the shared heap.
   OldGenerationMemoryChunkIterator chunk_iterator(heap);
 
+  // Tracking OLD_TO_SHARED requires the write barrier.
+  DCHECK(!v8_flags.disable_write_barriers);
+
   for (MemoryChunk* chunk = chunk_iterator.next(); chunk;
        chunk = chunk_iterator.next()) {
     InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToShared(
