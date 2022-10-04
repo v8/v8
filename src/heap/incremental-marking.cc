@@ -751,6 +751,7 @@ void IncrementalMarking::AdvanceAndFinalizeIfComplete() {
 }
 
 void IncrementalMarking::AdvanceAndFinalizeIfNecessary() {
+  if (!IsMajorMarking()) return;
   DCHECK(!heap_->always_allocate());
   AdvanceOnAllocation();
 
@@ -767,7 +768,7 @@ void IncrementalMarking::AdvanceForTesting(double max_step_size_in_ms) {
 void IncrementalMarking::AdvanceOnAllocation() {
   DCHECK_EQ(heap_->gc_state(), Heap::NOT_IN_GC);
   DCHECK(v8_flags.incremental_marking);
-  DCHECK(IsMarking());
+  DCHECK(IsMajorMarking());
 
   // Code using an AlwaysAllocateScope assumes that the GC state does not
   // change; that implies that no marking steps must be performed.

@@ -2040,9 +2040,13 @@ void Heap::StartIncrementalMarking(int gc_flags,
                                    GarbageCollector collector) {
   DCHECK(incremental_marking()->IsStopped());
 
-  // Sweeping needs to be completed such that markbits are all cleared before
-  // starting marking again.
-  CompleteSweepingFull();
+  if (IsYoungGenerationCollector(collector)) {
+    CompleteSweepingYoung(collector);
+  } else {
+    // Sweeping needs to be completed such that markbits are all cleared before
+    // starting marking again.
+    CompleteSweepingFull();
+  }
 
   base::Optional<SafepointScope> safepoint_scope;
 
@@ -5931,9 +5935,11 @@ void Heap::TearDown() {
   }
 
   if (new_space()) {
-    if (v8_flags.concurrent_minor_mc_marking) {
+    if (minor_mc_task_observer_) {
+      DCHECK_NULL(scavenge_task_observer_);
       new_space()->RemoveAllocationObserver(minor_mc_task_observer_.get());
     } else {
+      DCHECK_NOT_NULL(scavenge_task_observer_);
       new_space()->RemoveAllocationObserver(scavenge_task_observer_.get());
     }
   }

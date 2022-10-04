@@ -34,7 +34,7 @@ void HeapInternalsBase::SimulateIncrementalMarking(Heap* heap,
     heap->StartIncrementalMarking(i::Heap::kNoGCFlags,
                                   i::GarbageCollectionReason::kTesting);
   }
-  CHECK(marking->IsMarking());
+  CHECK(marking->IsMajorMarking());
   if (!force_completion) return;
 
   while (!marking->IsMajorMarkingComplete()) {
