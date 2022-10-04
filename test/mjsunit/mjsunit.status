@@ -1563,10 +1563,7 @@
   'es6/collections-constructor-*': [SKIP],
   'es6/map-constructor-entry-side-effect*': [SKIP],
 
-  'shared-memory/shared-string-promotion-minor': [SKIP],
-  'shared-memory/shared-string-promotion-major': [SKIP],
-  'shared-memory/shared-string-in-code-object': [SKIP],
-  'shared-memory/shared-string-in-weak-map': [SKIP],
+  'shared-memory/*': [SKIP],
 }], # single_generation
 
 ################################################################################

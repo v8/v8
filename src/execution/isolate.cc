@@ -3279,13 +3279,15 @@ Isolate* Isolate::GetProcessWideSharedIsolate(bool* created_shared_isolate) {
     DCHECK(HasFlagThatRequiresSharedHeap());
     FATAL(
         "Build configuration does not support creating shared heap. The RO "
-        "heap must be shared, and pointer compression must either be off or "
-        "use a shared cage. V8 is compiled with RO heap %s and pointers %s.",
+        "heap must be shared, pointer compression must either be off or "
+        "use a shared cage, and write barriers must not be disabled. V8 is "
+        "compiled with RO heap %s, pointers %s and write barriers %s.",
         V8_SHARED_RO_HEAP_BOOL ? "SHARED" : "NOT SHARED",
         !COMPRESS_POINTERS_BOOL ? "NOT COMPRESSED"
                                 : (COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL
                                        ? "COMPRESSED IN SHARED CAGE"
-                                       : "COMPRESSED IN PER-ISOLATE CAGE"));
+                                       : "COMPRESSED IN PER-ISOLATE CAGE"),
+        V8_DISABLE_WRITE_BARRIERS_BOOL ? "DISABLED" : "ENABLED");
   }
 
   base::MutexGuard guard(process_wide_shared_isolate_mutex_.Pointer());
