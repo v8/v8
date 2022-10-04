@@ -12,6 +12,7 @@
 #include "src/heap/memory-chunk.h"
 #include "src/heap/new-spaces.h"
 #include "src/heap/objects-visiting-inl.h"
+#include "src/heap/pretenuring-handler-inl.h"
 #include "src/heap/scavenger.h"
 #include "src/objects/map.h"
 #include "src/objects/objects-body-descriptors-inl.h"
@@ -114,7 +115,8 @@ bool Scavenger::MigrateObject(Map map, HeapObject source, HeapObject target,
       (promotion_heap_choice != kPromoteIntoSharedHeap || mark_shared_heap_)) {
     heap()->incremental_marking()->TransferColor(source, target);
   }
-  heap()->UpdateAllocationSite(map, source, &local_pretenuring_feedback_);
+  pretenuring_handler_->UpdateAllocationSite(map, source,
+                                             &local_pretenuring_feedback_);
 
   return true;
 }

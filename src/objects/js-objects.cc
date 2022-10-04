@@ -16,6 +16,7 @@
 #include "src/heap/factory-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/memory-chunk.h"
+#include "src/heap/pretenuring-handler-inl.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
@@ -5329,8 +5330,11 @@ bool JSObject::UpdateAllocationSite(Handle<JSObject> object,
     DisallowGarbageCollection no_gc;
 
     Heap* heap = object->GetHeap();
+    PretenturingHandler* pretunring_handler = heap->pretenuring_handler();
     AllocationMemento memento =
-        heap->FindAllocationMemento<Heap::kForRuntime>(object->map(), *object);
+        pretunring_handler
+            ->FindAllocationMemento<PretenturingHandler::kForRuntime>(
+                object->map(), *object);
     if (memento.is_null()) return false;
 
     // Walk through to the Allocation Site

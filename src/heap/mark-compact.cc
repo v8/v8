@@ -47,6 +47,8 @@
 #include "src/heap/object-stats.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/parallel-work-item.h"
+#include "src/heap/pretenuring-handler-inl.h"
+#include "src/heap/pretenuring-handler.h"
 #include "src/heap/read-only-heap.h"
 #include "src/heap/read-only-spaces.h"
 #include "src/heap/remembered-set.h"
@@ -1947,13 +1949,14 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
       Heap* heap, EvacuationAllocator* local_allocator,
       ConcurrentAllocator* shared_old_allocator,
       RecordMigratedSlotVisitor* record_visitor,
-      Heap::PretenuringFeedbackMap* local_pretenuring_feedback,
+      PretenturingHandler::PretenuringFeedbackMap* local_pretenuring_feedback,
       AlwaysPromoteYoung always_promote_young)
       : EvacuateVisitorBase(heap, local_allocator, shared_old_allocator,
                             record_visitor),
         buffer_(LocalAllocationBuffer::InvalidBuffer()),
         promoted_size_(0),
         semispace_copied_size_(0),
+        pretenuring_handler_(heap_->pretenuring_handler()),
         local_pretenuring_feedback_(local_pretenuring_feedback),
         is_incremental_marking_(heap->incremental_marking()->IsMarking()),
         always_promote_young_(always_promote_young) {}
@@ -1963,8 +1966,8 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
     HeapObject target_object;
 
     if (always_promote_young_ == AlwaysPromoteYoung::kYes) {
-      heap_->UpdateAllocationSite(object.map(), object,
-                                  local_pretenuring_feedback_);
+      pretenuring_handler_->UpdateAllocationSite(object.map(), object,
+                                                 local_pretenuring_feedback_);
 
       if (!TryEvacuateObject(OLD_SPACE, object, size, &target_object)) {
         heap_->FatalProcessOutOfMemory(
@@ -1985,8 +1988,8 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
       return true;
     }
 
-    heap_->UpdateAllocationSite(object.map(), object,
-                                local_pretenuring_feedback_);
+    pretenuring_handler_->UpdateAllocationSite(object.map(), object,
+                                               local_pretenuring_feedback_);
 
     HeapObject target;
     AllocationSpace space = AllocateTargetObject(object, size, &target);
@@ -2048,7 +2051,8 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
   LocalAllocationBuffer buffer_;
   intptr_t promoted_size_;
   intptr_t semispace_copied_size_;
-  Heap::PretenuringFeedbackMap* local_pretenuring_feedback_;
+  PretenturingHandler* const pretenuring_handler_;
+  PretenturingHandler::PretenuringFeedbackMap* local_pretenuring_feedback_;
   bool is_incremental_marking_;
   AlwaysPromoteYoung always_promote_young_;
 };
@@ -2058,10 +2062,11 @@ class EvacuateNewSpacePageVisitor final : public HeapObjectVisitor {
  public:
   explicit EvacuateNewSpacePageVisitor(
       Heap* heap, RecordMigratedSlotVisitor* record_visitor,
-      Heap::PretenuringFeedbackMap* local_pretenuring_feedback)
+      PretenturingHandler::PretenuringFeedbackMap* local_pretenuring_feedback)
       : heap_(heap),
         record_visitor_(record_visitor),
         moved_bytes_(0),
+        pretenuring_handler_(heap_->pretenuring_handler()),
         local_pretenuring_feedback_(local_pretenuring_feedback) {}
 
   static void Move(Page* page) {
@@ -2080,12 +2085,12 @@ class EvacuateNewSpacePageVisitor final : public HeapObjectVisitor {
   inline bool Visit(HeapObject object, int size) override {
     if (mode == NEW_TO_NEW) {
       DCHECK(!v8_flags.minor_mc);
-      heap_->UpdateAllocationSite(object.map(), object,
-                                  local_pretenuring_feedback_);
+      pretenuring_handler_->UpdateAllocationSite(object.map(), object,
+                                                 local_pretenuring_feedback_);
     } else if (mode == NEW_TO_OLD) {
       if (v8_flags.minor_mc) {
-        heap_->UpdateAllocationSite(object.map(), object,
-                                    local_pretenuring_feedback_);
+        pretenuring_handler_->UpdateAllocationSite(object.map(), object,
+                                                   local_pretenuring_feedback_);
       }
       DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !IsCodeSpaceObject(object));
       PtrComprCageBase cage_base = GetPtrComprCageBase(object);
@@ -2104,7 +2109,8 @@ class EvacuateNewSpacePageVisitor final : public HeapObjectVisitor {
   Heap* heap_;
   RecordMigratedSlotVisitor* record_visitor_;
   intptr_t moved_bytes_;
-  Heap::PretenuringFeedbackMap* local_pretenuring_feedback_;
+  PretenturingHandler* const pretenuring_handler_;
+  PretenturingHandler::PretenuringFeedbackMap* local_pretenuring_feedback_;
 };
 
 class EvacuateOldSpaceVisitor final : public EvacuateVisitorBase {
@@ -4189,7 +4195,8 @@ class Evacuator : public Malloced {
             EvacuationAllocator* local_allocator,
             AlwaysPromoteYoung always_promote_young)
       : heap_(heap),
-        local_pretenuring_feedback_(kInitialLocalPretenuringFeedbackCapacity),
+        local_pretenuring_feedback_(
+            PretenturingHandler::kInitialFeedbackCapacity),
         shared_old_allocator_(CreateSharedOldAllocator(heap_)),
         new_space_visitor_(heap_, local_allocator, shared_old_allocator_.get(),
                            record_visitor, &local_pretenuring_feedback_,
@@ -4222,8 +4229,6 @@ class Evacuator : public Malloced {
   virtual GCTracer::Scope::ScopeId GetTracingScope() = 0;
 
  protected:
-  static const int kInitialLocalPretenuringFeedbackCapacity = 256;
-
   // |saved_live_bytes| returns the live bytes of the page that was processed.
   virtual bool RawEvacuatePage(MemoryChunk* chunk,
                                intptr_t* saved_live_bytes) = 0;
@@ -4237,7 +4242,7 @@ class Evacuator : public Malloced {
 
   Heap* heap_;
 
-  Heap::PretenuringFeedbackMap local_pretenuring_feedback_;
+  PretenturingHandler::PretenuringFeedbackMap local_pretenuring_feedback_;
 
   // Allocator for the shared heap.
   std::unique_ptr<ConcurrentAllocator> shared_old_allocator_;
@@ -4299,7 +4304,8 @@ void Evacuator::Finalize() {
       new_space_visitor_.semispace_copied_size() +
       new_to_old_page_visitor_.moved_bytes() +
       new_to_new_page_visitor_.moved_bytes());
-  heap()->MergeAllocationSitePretenuringFeedback(local_pretenuring_feedback_);
+  heap()->pretenuring_handler()->MergeAllocationSitePretenuringFeedback(
+      local_pretenuring_feedback_);
 }
 
 class FullEvacuator : public Evacuator {

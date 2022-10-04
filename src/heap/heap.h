@@ -32,6 +32,7 @@
 #include "src/heap/gc-callbacks.h"
 #include "src/heap/heap-allocator.h"
 #include "src/heap/marking-state.h"
+#include "src/heap/pretenuring-handler.h"
 #include "src/init/heap-symbols.h"
 #include "src/objects/allocation-site.h"
 #include "src/objects/fixed-array.h"
@@ -99,8 +100,6 @@ class CppHeap;
 class GCIdleTimeHandler;
 class GCIdleTimeHeapState;
 class GCTracer;
-template <typename T>
-class GlobalHandleVector;
 class IsolateSafepoint;
 class HeapObjectAllocationTracker;
 class HeapObjectsFilter;
@@ -257,7 +256,6 @@ class Heap {
   // and the key of the entry is in new-space. Such keys do not appear in the
   // usual OLD_TO_NEW remembered set.
   EphemeronRememberedSet ephemeron_remembered_set_;
-  enum FindMementoMode { kForRuntime, kForGC };
 
   enum class HeapGrowingMode { kSlow, kConservative, kMinimal, kDefault };
 
@@ -336,9 +334,6 @@ class Heap {
     // Caches the amount of external memory registered at the last MC.
     std::atomic<int64_t> low_since_mark_compact_{0};
   };
-
-  using PretenuringFeedbackMap =
-      std::unordered_map<AllocationSite, size_t, Object::Hasher>;
 
   // Taking this mutex prevents the GC from entering a phase that relocates
   // object references.
@@ -697,11 +692,6 @@ class Heap {
   inline bool IsInGCPostProcessing() { return gc_post_processing_depth_ > 0; }
 
   bool IsGCWithStack() const;
-
-  // If an object has an AllocationMemento trailing it, return it, otherwise
-  // return a null AllocationMemento.
-  template <FindMementoMode mode>
-  inline AllocationMemento FindAllocationMemento(Map map, HeapObject object);
 
   // Performs GC after background allocation failure.
   void CollectGarbageForBackground(LocalHeap* local_heap);
@@ -1186,8 +1176,6 @@ class Heap {
 
   void DeoptMarkedAllocationSites();
 
-  bool DeoptMaybeTenuredAllocationSites();
-
   // ===========================================================================
   // Embedder heap tracer support. =============================================
   // ===========================================================================
@@ -1549,27 +1537,6 @@ class Heap {
       const std::function<void*(size_t)>& allocate, size_t byte_length);
 
   // ===========================================================================
-  // Allocation site tracking. =================================================
-  // ===========================================================================
-
-  // Updates the AllocationSite of a given {object}. The entry (including the
-  // count) is cached on the local pretenuring feedback.
-  inline void UpdateAllocationSite(
-      Map map, HeapObject object, PretenuringFeedbackMap* pretenuring_feedback);
-
-  // Merges local pretenuring feedback into the global one. Note that this
-  // method needs to be called after evacuation, as allocation sites may be
-  // evacuated and this method resolves forward pointers accordingly.
-  void MergeAllocationSitePretenuringFeedback(
-      const PretenuringFeedbackMap& local_pretenuring_feedback);
-
-  // Adds an allocation site to the list of sites to be pretenured during the
-  // next collection. Added allocation sites are pretenured independent of
-  // their feedback.
-  V8_EXPORT_PRIVATE void PretenureAllocationSiteOnNextCollection(
-      AllocationSite site);
-
-  // ===========================================================================
   // Allocation tracking. ======================================================
   // ===========================================================================
 
@@ -1708,6 +1675,8 @@ class Heap {
 
   AtomicMarkingState* atomic_marking_state() { return &atomic_marking_state_; }
 
+  PretenturingHandler* pretenuring_handler() { return &pretenuring_handler_; }
+
  private:
   class AllocationTrackerForDebugging;
 
@@ -1787,8 +1756,6 @@ class Heap {
   static const int kOldSurvivalRateLowThreshold = 10;
 
   static const int kMaxMarkCompactsInIdleRound = 7;
-
-  static const int kInitialFeedbackCapacity = 256;
 
   Heap();
   ~Heap();
@@ -1924,18 +1891,6 @@ class Heap {
 
   void InvokeIncrementalMarkingPrologueCallbacks();
   void InvokeIncrementalMarkingEpilogueCallbacks();
-
-  // ===========================================================================
-  // Pretenuring. ==============================================================
-  // ===========================================================================
-
-  // Pretenuring decisions are made based on feedback collected during new space
-  // evacuation. Note that between feedback collection and calling this method
-  // object in old space must not move.
-  void ProcessPretenuringFeedback();
-
-  // Removes an entry from the global pretenuring storage.
-  void RemoveAllocationSitePretenuringFeedback(AllocationSite site);
 
   // ===========================================================================
   // Actual GC. ================================================================
@@ -2387,16 +2342,6 @@ class Heap {
   // The size of global memory after the last MarkCompact GC.
   size_t global_memory_at_last_gc_ = 0;
 
-  // The feedback storage is used to store allocation sites (keys) and how often
-  // they have been visited (values) by finding a memento behind an object. The
-  // storage is only alive temporary during a GC. The invariant is that all
-  // pointers in this map are already fixed, i.e., they do not point to
-  // forwarding pointers.
-  PretenuringFeedbackMap global_pretenuring_feedback_;
-
-  std::unique_ptr<GlobalHandleVector<AllocationSite>>
-      allocation_sites_to_pretenure_;
-
   char trace_ring_buffer_[kTraceRingBufferSize];
 
   // If it's not full then the data is from 0 to ring_buffer_end_.  If it's
@@ -2467,6 +2412,8 @@ class Heap {
   NonAtomicMarkingState non_atomic_marking_state_;
   AtomicMarkingState atomic_marking_state_;
 
+  PretenturingHandler pretenuring_handler_;
+
   // Classes in "heap" can be friends.
   friend class AlwaysAllocateScope;
   friend class ArrayBufferCollector;
@@ -2500,6 +2447,7 @@ class Heap {
   friend class ObjectStatsCollector;
   friend class Page;
   friend class PagedSpaceBase;
+  friend class PretenturingHandler;
   friend class ReadOnlyRoots;
   friend class Scavenger;
   friend class ScavengerCollector;

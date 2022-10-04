@@ -13,7 +13,7 @@
 #include "src/base/platform/semaphore.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
-#include "src/heap/heap.h"
+#include "src/heap/pretenuring-handler.h"
 #include "src/heap/slot-set.h"
 #include "src/tasks/cancelable-task.h"
 
@@ -91,14 +91,15 @@ class Sweeper {
                          int required_freed_bytes, int max_pages = 0);
   int ParallelSweepPage(
       Page* page, AllocationSpace identity,
-      Heap::PretenuringFeedbackMap* local_pretenuring_feedback,
+      PretenturingHandler::PretenuringFeedbackMap* local_pretenuring_feedback,
       SweepingMode sweeping_mode);
 
   void EnsurePageIsSwept(Page* page);
 
-  int RawSweep(Page* p, FreeSpaceTreatmentMode free_space_treatment_mode,
-               SweepingMode sweeping_mode, const base::MutexGuard& page_guard,
-               Heap::PretenuringFeedbackMap* local_pretenuring_feedback);
+  int RawSweep(
+      Page* p, FreeSpaceTreatmentMode free_space_treatment_mode,
+      SweepingMode sweeping_mode, const base::MutexGuard& page_guard,
+      PretenturingHandler::PretenuringFeedbackMap* local_pretenuring_feedback);
 
   // After calling this function sweeping is considered to be in progress
   // and the main thread can sweep lazily, but the background sweeper tasks
@@ -200,7 +201,8 @@ class Sweeper {
   // path checks this flag to see whether it could support concurrent sweeping.
   std::atomic<bool> sweeping_in_progress_;
   bool should_reduce_memory_;
-  Heap::PretenuringFeedbackMap local_pretenuring_feedback_;
+  PretenturingHandler* const pretenuring_handler_;
+  PretenturingHandler::PretenuringFeedbackMap local_pretenuring_feedback_;
   base::Optional<GarbageCollector> current_collector_;
 };
 

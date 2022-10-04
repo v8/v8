@@ -19,21 +19,20 @@
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/new-spaces.h"
 #include "src/heap/paged-spaces.h"
+#include "src/heap/pretenuring-handler-inl.h"
+#include "src/heap/pretenuring-handler.h"
 #include "src/heap/remembered-set.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
 
-namespace {
-static const int kInitialLocalPretenuringFeedbackCapacity = 256;
-}  // namespace
-
 class Sweeper::ConcurrentSweeper final {
  public:
   explicit ConcurrentSweeper(Sweeper* sweeper)
       : sweeper_(sweeper),
-        local_pretenuring_feedback_(kInitialLocalPretenuringFeedbackCapacity) {}
+        local_pretenuring_feedback_(
+            PretenturingHandler::kInitialFeedbackCapacity) {}
 
   bool ConcurrentSweepSpace(AllocationSpace identity, JobDelegate* delegate) {
     while (!delegate->ShouldYield()) {
@@ -45,13 +44,13 @@ class Sweeper::ConcurrentSweeper final {
     return false;
   }
 
-  Heap::PretenuringFeedbackMap* local_pretenuring_feedback() {
+  PretenturingHandler::PretenuringFeedbackMap* local_pretenuring_feedback() {
     return &local_pretenuring_feedback_;
   }
 
  private:
   Sweeper* const sweeper_;
-  Heap::PretenuringFeedbackMap local_pretenuring_feedback_;
+  PretenturingHandler::PretenuringFeedbackMap local_pretenuring_feedback_;
 };
 
 class Sweeper::SweeperJob final : public JobTask {
@@ -119,7 +118,9 @@ Sweeper::Sweeper(Heap* heap)
       marking_state_(heap_->non_atomic_marking_state()),
       sweeping_in_progress_(false),
       should_reduce_memory_(false),
-      local_pretenuring_feedback_(kInitialLocalPretenuringFeedbackCapacity) {}
+      pretenuring_handler_(heap_->pretenuring_handler()),
+      local_pretenuring_feedback_(
+          PretenturingHandler::kInitialFeedbackCapacity) {}
 
 Sweeper::~Sweeper() {
   DCHECK(concurrent_sweepers_.empty());
@@ -239,9 +240,10 @@ void Sweeper::EnsureCompleted(SweepingMode sweeping_mode) {
     CHECK(sweeping_list_[GetSweepSpaceIndex(space)].empty());
   });
 
-  heap_->MergeAllocationSitePretenuringFeedback(local_pretenuring_feedback_);
+  pretenuring_handler_->MergeAllocationSitePretenuringFeedback(
+      local_pretenuring_feedback_);
   for (ConcurrentSweeper& concurrent_sweeper : concurrent_sweepers_) {
-    heap_->MergeAllocationSitePretenuringFeedback(
+    pretenuring_handler_->MergeAllocationSitePretenuringFeedback(
         *concurrent_sweeper.local_pretenuring_feedback());
   }
   local_pretenuring_feedback_.clear();
@@ -351,7 +353,7 @@ void Sweeper::ClearMarkBitsAndHandleLivenessStatistics(Page* page,
 int Sweeper::RawSweep(
     Page* p, FreeSpaceTreatmentMode free_space_treatment_mode,
     SweepingMode sweeping_mode, const base::MutexGuard& page_guard,
-    Heap::PretenuringFeedbackMap* local_pretenuring_feedback) {
+    PretenturingHandler::PretenuringFeedbackMap* local_pretenuring_feedback) {
   Space* space = p->owner();
   DCHECK_NOT_NULL(space);
   DCHECK(space->identity() == OLD_SPACE || space->identity() == CODE_SPACE ||
@@ -441,7 +443,8 @@ int Sweeper::RawSweep(
     free_start = free_end + size;
 
     if (p->InYoungGeneration()) {
-      heap_->UpdateAllocationSite(map, object, local_pretenuring_feedback);
+      pretenuring_handler_->UpdateAllocationSite(map, object,
+                                                 local_pretenuring_feedback);
     }
 
     if (active_system_pages_after_sweeping) {
@@ -521,7 +524,7 @@ int Sweeper::ParallelSweepSpace(AllocationSpace identity,
 
 int Sweeper::ParallelSweepPage(
     Page* page, AllocationSpace identity,
-    Heap::PretenuringFeedbackMap* local_pretenuring_feedback,
+    PretenturingHandler::PretenuringFeedbackMap* local_pretenuring_feedback,
     SweepingMode sweeping_mode) {
   DCHECK(IsValidSweepingSpace(identity));
 

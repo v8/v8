@@ -20,8 +20,8 @@
 #include "src/execution/isolate-inl.h"
 #include "src/execution/protectors-inl.h"
 #include "src/execution/tiering-manager.h"
-#include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/heap/pretenuring-handler-inl.h"
 #include "src/ic/stub-cache.h"
 #include "src/objects/js-collection-inl.h"
 #ifdef V8_ENABLE_MAGLEV
@@ -1379,12 +1379,15 @@ RUNTIME_FUNCTION(Runtime_PretenureAllocationSite) {
     return ReturnFuzzSafe(ReadOnlyRoots(isolate).false_value(), isolate);
   }
 
+  PretenturingHandler* pretenuring_handler = heap->pretenuring_handler();
   AllocationMemento memento =
-      heap->FindAllocationMemento<Heap::kForRuntime>(object.map(), object);
+      pretenuring_handler
+          ->FindAllocationMemento<PretenturingHandler::kForRuntime>(
+              object.map(), object);
   if (memento.is_null())
     return ReturnFuzzSafe(ReadOnlyRoots(isolate).false_value(), isolate);
   AllocationSite site = memento.GetAllocationSite();
-  heap->PretenureAllocationSiteOnNextCollection(site);
+  pretenuring_handler->PretenureAllocationSiteOnNextCollection(site);
   return ReturnFuzzSafe(ReadOnlyRoots(isolate).true_value(), isolate);
 }
 

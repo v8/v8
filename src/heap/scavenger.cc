@@ -18,6 +18,7 @@
 #include "src/heap/memory-chunk-inl.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/objects-visiting-inl.h"
+#include "src/heap/pretenuring-handler.h"
 #include "src/heap/remembered-set-inl.h"
 #include "src/heap/scavenger-inl.h"
 #include "src/heap/slot-set.h"
@@ -614,7 +615,9 @@ Scavenger::Scavenger(ScavengerCollector* collector, Heap* heap, bool is_logging,
       promotion_list_local_(promotion_list),
       copied_list_local_(*copied_list),
       ephemeron_table_list_local_(*ephemeron_table_list),
-      local_pretenuring_feedback_(kInitialLocalPretenuringFeedbackCapacity),
+      pretenuring_handler_(heap_->pretenuring_handler()),
+      local_pretenuring_feedback_(
+          PretenturingHandler::kInitialFeedbackCapacity),
       copied_size_(0),
       promoted_size_(0),
       allocator_(heap, CompactionSpaceKind::kCompactionSpaceForScavenge),
@@ -811,7 +814,8 @@ void ScavengerCollector::ClearOldEphemerons() {
 }
 
 void Scavenger::Finalize() {
-  heap()->MergeAllocationSitePretenuringFeedback(local_pretenuring_feedback_);
+  pretenuring_handler_->MergeAllocationSitePretenuringFeedback(
+      local_pretenuring_feedback_);
   heap()->IncrementNewSpaceSurvivingObjectSize(copied_size_);
   heap()->IncrementPromotedObjectsSize(promoted_size_);
   collector_->MergeSurvivingNewLargeObjects(surviving_new_large_objects_);
