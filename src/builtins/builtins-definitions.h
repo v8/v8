@@ -1750,16 +1750,6 @@ namespace internal {
   CPP(DisplayNamesPrototypeResolvedOptions)                            \
   /* ecma402 #sec-Intl.DisplayNames.supportedLocalesOf */              \
   CPP(DisplayNamesSupportedLocalesOf)                                  \
-  /* ecma402 #sec-intl-durationformat-constructor */                   \
-  CPP(DurationFormatConstructor)                                       \
-  /* ecma402 #sec-Intl.DurationFormat.prototype.format */              \
-  CPP(DurationFormatPrototypeFormat)                                   \
-  /* ecma402 #sec-Intl.DurationFormat.prototype.formatToParts */       \
-  CPP(DurationFormatPrototypeFormatToParts)                            \
-  /* ecma402 #sec-Intl.DurationFormat.prototype.resolvedOptions */     \
-  CPP(DurationFormatPrototypeResolvedOptions)                          \
-  /* ecma402 #sec-Intl.DurationFormat.supportedLocalesOf */            \
-  CPP(DurationFormatSupportedLocalesOf)                                \
   /* ecma402 #sec-intl.getcanonicallocales */                          \
   CPP(IntlGetCanonicalLocales)                                         \
   /* ecma402 #sec-intl.supportedvaluesof */                            \

@@ -97,7 +97,6 @@
 #include "src/objects/js-collator-inl.h"
 #include "src/objects/js-date-time-format-inl.h"
 #include "src/objects/js-display-names-inl.h"
-#include "src/objects/js-duration-format-inl.h"
 #include "src/objects/js-list-format-inl.h"
 #include "src/objects/js-locale-inl.h"
 #include "src/objects/js-number-format-inl.h"

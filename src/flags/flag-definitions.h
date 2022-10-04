@@ -231,10 +231,9 @@ DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
   V(harmony_regexp_unicode_sets, "harmony RegExp Unicode Sets")
 
 #ifdef V8_INTL_SUPPORT
-#define HARMONY_INPROGRESS(V)                             \
-  HARMONY_INPROGRESS_BASE(V)                              \
-  V(harmony_intl_best_fit_matcher, "Intl BestFitMatcher") \
-  V(harmony_intl_duration_format, "Intl DurationFormat API")
+#define HARMONY_INPROGRESS(V) \
+  HARMONY_INPROGRESS_BASE(V)  \
+  V(harmony_intl_best_fit_matcher, "Intl BestFitMatcher")
 #else
 #define HARMONY_INPROGRESS(V) HARMONY_INPROGRESS_BASE(V)
 #endif

@@ -42,7 +42,6 @@
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-date-time-format.h"
 #include "src/objects/js-display-names.h"
-#include "src/objects/js-duration-format.h"
 #endif  // V8_INTL_SUPPORT
 #include "src/objects/js-generator-inl.h"
 #ifdef V8_INTL_SUPPORT
@@ -2545,8 +2544,6 @@ int JSObject::GetHeaderSize(InstanceType type,
       return JSDateTimeFormat::kHeaderSize;
     case JS_DISPLAY_NAMES_TYPE:
       return JSDisplayNames::kHeaderSize;
-    case JS_DURATION_FORMAT_TYPE:
-      return JSDurationFormat::kHeaderSize;
     case JS_LIST_FORMAT_TYPE:
       return JSListFormat::kHeaderSize;
     case JS_LOCALE_TYPE:

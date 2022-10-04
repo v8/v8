@@ -103,14 +103,46 @@ struct InstantRecord {
   Handle<Object> offset_string;  // String or Undefined
 };
 
-using temporal::DurationRecord;
-using temporal::IsValidDuration;
-using temporal::TimeDurationRecord;
+// #sec-temporal-time-duration-records
+struct TimeDurationRecord {
+  double days;
+  double hours;
+  double minutes;
+  double seconds;
+  double milliseconds;
+  double microseconds;
+  double nanoseconds;
+
+  // #sec-temporal-createtimedurationrecord
+  static Maybe<TimeDurationRecord> Create(Isolate* isolate, double days,
+                                          double hours, double minutes,
+                                          double seconds, double milliseconds,
+                                          double microseconds,
+                                          double nanoseconds);
+};
+
+// #sec-temporal-duration-records
+// Cannot reuse DateDurationRecord here due to duplicate days.
+struct DurationRecord {
+  double years;
+  double months;
+  double weeks;
+  TimeDurationRecord time_duration;
+  // #sec-temporal-createdurationrecord
+  static Maybe<DurationRecord> Create(Isolate* isolate, double years,
+                                      double months, double weeks, double days,
+                                      double hours, double minutes,
+                                      double seconds, double milliseconds,
+                                      double microseconds, double nanoseconds);
+};
 
 struct DurationRecordWithRemainder {
   DurationRecord record;
   double remainder;
 };
+
+// #sec-temporal-isvalidduration
+bool IsValidDuration(Isolate* isolate, const DurationRecord& dur);
 
 // #sec-temporal-date-duration-records
 struct DateDurationRecord {
@@ -966,9 +998,6 @@ Maybe<DateDurationRecord> DateDurationRecord::Create(
   return Just(record);
 }
 
-}  // namespace
-
-namespace temporal {
 // #sec-temporal-createtimedurationrecord
 Maybe<TimeDurationRecord> TimeDurationRecord::Create(
     Isolate* isolate, double days, double hours, double minutes, double seconds,
@@ -1015,9 +1044,7 @@ Maybe<DurationRecord> DurationRecord::Create(
   // ℝ(𝔽(nanoseconds)) }.
   return Just(record);
 }
-}  // namespace temporal
 
-namespace {
 // #sec-temporal-createtemporalduration
 MaybeHandle<JSTemporalDuration> CreateTemporalDuration(
     Isolate* isolate, Handle<JSFunction> target, Handle<HeapObject> new_target,
@@ -5991,10 +6018,6 @@ int32_t DurationSign(Isolate* isolaet, const DurationRecord& dur) {
   return 0;
 }
 
-}  // namespace
-
-namespace temporal {
-
 // #sec-temporal-isvalidduration
 bool IsValidDuration(Isolate* isolate, const DurationRecord& dur) {
   TEMPORAL_ENTER_FUNC();
@@ -6024,10 +6047,6 @@ bool IsValidDuration(Isolate* isolate, const DurationRecord& dur) {
                          time.seconds > 0 || time.milliseconds > 0 ||
                          time.microseconds > 0 || time.nanoseconds > 0)));
 }
-
-}  // namespace temporal
-
-namespace {
 
 // #sec-temporal-isisoleapyear
 bool IsISOLeapYear(Isolate* isolate, int32_t year) {
