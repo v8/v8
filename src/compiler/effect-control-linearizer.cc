@@ -200,6 +200,7 @@ class EffectControlLinearizer {
                                         GraphAssemblerLabel<0>* bailout);
   Node* AdaptFastCallArgument(Node* node, CTypeInfo arg_type,
                               GraphAssemblerLabel<0>* if_error);
+  Node* ClampFastCallArgument(Node* input, CTypeInfo::Type scalar_type);
 
   struct AdaptOverloadedFastCallResult {
     Node* target_address;
@@ -5085,14 +5086,112 @@ Node* EffectControlLinearizer::AdaptFastCallTypedArrayArgument(
   return stack_slot;
 }
 
+Node* EffectControlLinearizer::ClampFastCallArgument(
+    Node* input, CTypeInfo::Type scalar_type) {
+  Node* min = nullptr;
+  Node* max = nullptr;
+  switch (scalar_type) {
+    case CTypeInfo::Type::kInt32:
+      min = __ Float64Constant(std::numeric_limits<int32_t>::min());
+      max = __ Float64Constant(std::numeric_limits<int32_t>::max());
+      break;
+    case CTypeInfo::Type::kUint32:
+      min = __ Float64Constant(0);
+      max = __ Float64Constant(std::numeric_limits<uint32_t>::max());
+      break;
+    case CTypeInfo::Type::kInt64:
+      min = __ Float64Constant(kMinSafeInteger);
+      max = __ Float64Constant(kMaxSafeInteger);
+      break;
+    case CTypeInfo::Type::kUint64:
+      min = __ Float64Constant(0);
+      max = __ Float64Constant(kMaxSafeInteger);
+      break;
+    default:
+      UNREACHABLE();
+  }
+  CHECK_NOT_NULL(min);
+  CHECK_NOT_NULL(max);
+
+  Node* clamped = graph()->NewNode(
+      common()->Select(MachineRepresentation::kFloat64),
+      graph()->NewNode(machine()->Float64LessThan(), min, input),
+      graph()->NewNode(
+          common()->Select(MachineRepresentation::kFloat64),
+          graph()->NewNode(machine()->Float64LessThan(), input, max), input,
+          max),
+      min);
+
+  Node* rounded = graph()->NewNode(
+      machine()->Float64RoundTiesEven().placeholder(), clamped);
+
+  auto if_zero = __ MakeDeferredLabel();
+  auto if_zero_or_nan = __ MakeDeferredLabel();
+  auto check_done = __ MakeLabel();
+  auto check_for_nan = __ MakeLabel();
+  auto done = __ MakeLabel(MachineRepresentation::kWord64);
+
+  Node* check_is_zero = __ Float64Equal(rounded, __ Float64Constant(0));
+  __ Branch(check_is_zero, &check_for_nan, &check_done);
+
+  // Check if {rounded} is NaN.
+  __ Bind(&check_for_nan);
+  Node* diff = __ Float64Equal(rounded, rounded);
+  Node* check_is_nan = __ Word32Equal(diff, __ Int32Constant(0));
+  __ Branch(check_is_nan, &if_zero_or_nan, &check_done);
+
+  __ Bind(&if_zero_or_nan);
+  {
+    switch (scalar_type) {
+      case CTypeInfo::Type::kInt32:
+        __ Goto(&done, __ Int32Constant(0));
+        break;
+      case CTypeInfo::Type::kUint32:
+        __ Goto(&done, __ Uint32Constant(0));
+        break;
+      case CTypeInfo::Type::kInt64:
+        __ Goto(&done, __ Int64Constant(0));
+        break;
+      case CTypeInfo::Type::kUint64:
+        __ Goto(&done, __ Uint64Constant(0));
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
+
+  __ Bind(&check_done);
+  {
+    switch (scalar_type) {
+      case CTypeInfo::Type::kInt32:
+        __ Goto(&done, __ ChangeFloat64ToInt32(rounded));
+        break;
+      case CTypeInfo::Type::kUint32:
+        __ Goto(&done, __ ChangeFloat64ToUint32(rounded));
+        break;
+      case CTypeInfo::Type::kInt64:
+        __ Goto(&done, __ ChangeFloat64ToInt64(rounded));
+        break;
+      case CTypeInfo::Type::kUint64:
+        __ Goto(&done, __ ChangeFloat64ToUint64(rounded));
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
+
+  __ Bind(&done);
+  return done.PhiAt(0);
+}
+
 Node* EffectControlLinearizer::AdaptFastCallArgument(
     Node* node, CTypeInfo arg_type, GraphAssemblerLabel<0>* if_error) {
   int kAlign = alignof(uintptr_t);
   int kSize = sizeof(uintptr_t);
   switch (arg_type.GetSequenceType()) {
     case CTypeInfo::SequenceType::kScalar: {
-      if (uint8_t(arg_type.GetFlags()) &
-          uint8_t(CTypeInfo::Flags::kEnforceRangeBit)) {
+      uint8_t flags = uint8_t(arg_type.GetFlags());
+      if (flags & uint8_t(CTypeInfo::Flags::kEnforceRangeBit)) {
         Node* truncation;
         switch (arg_type.GetType()) {
           case CTypeInfo::Type::kInt32:
@@ -5112,9 +5211,12 @@ Node* EffectControlLinearizer::AdaptFastCallArgument(
             __ GotoIfNot(__ Projection(1, truncation), if_error);
             return __ Projection(0, truncation);
           default: {
+            __ Goto(if_error);
             return node;
           }
         }
+      } else if (flags & uint8_t(CTypeInfo::Flags::kClampBit)) {
+        return ClampFastCallArgument(node, arg_type.GetType());
       } else {
         switch (arg_type.GetType()) {
           case CTypeInfo::Type::kV8Value: {

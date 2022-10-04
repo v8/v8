@@ -40,6 +40,7 @@ class Reducer;
   V(ChangeFloat64ToInt32)                \
   V(ChangeFloat64ToInt64)                \
   V(ChangeFloat64ToUint32)               \
+  V(ChangeFloat64ToUint64)               \
   V(ChangeInt32ToFloat64)                \
   V(ChangeInt32ToInt64)                  \
   V(ChangeInt64ToFloat64)                \
