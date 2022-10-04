@@ -392,11 +392,18 @@ Maybe<RoundingMode> ToTemporalRoundingMode(Isolate* isolate,
                                            Handle<JSReceiver> options,
                                            RoundingMode fallback,
                                            const char* method_name) {
+  // 1. Return ? GetOption(normalizedOptions, "roundingMode", "string", «
+  // "ceil", "floor", "expand", "trunc", "halfCeil", "halfFloor", "halfExpand",
+  // "halfTrunc", "halfEven" », fallback).
+
   return GetStringOption<RoundingMode>(
       isolate, options, "roundingMode", method_name,
-      {"ceil", "floor", "trunc", "halfExpand"},
-      {RoundingMode::kCeil, RoundingMode::kFloor, RoundingMode::kTrunc,
-       RoundingMode::kHalfExpand},
+      {"ceil", "floor", "expand", "trunc", "halfCeil", "halfFloor",
+       "halfExpand", "halfTrunc", "halfEven"},
+      {RoundingMode::kCeil, RoundingMode::kFloor, RoundingMode::kExpand,
+       RoundingMode::kTrunc, RoundingMode::kHalfCeil, RoundingMode::kHalfFloor,
+       RoundingMode::kHalfExpand, RoundingMode::kHalfTrunc,
+       RoundingMode::kHalfEven},
       fallback);
 }
 
@@ -18414,7 +18421,13 @@ RoundingMode NegateTemporalRoundingMode(RoundingMode rounding_mode) {
     // 2. If roundingMode is "floor", return "ceil".
     case RoundingMode::kFloor:
       return RoundingMode::kCeil;
-    // 3. Return roundingMode.
+    // 3. If roundingMode is "halfCeil", return "halfFloor".
+    case RoundingMode::kHalfCeil:
+      return RoundingMode::kHalfFloor;
+    // 4. If roundingMode is "halfFloor", return "halfCeil".
+    case RoundingMode::kHalfFloor:
+      return RoundingMode::kHalfCeil;
+    // 5. Return roundingMode.
     default:
       return rounding_mode;
   }
