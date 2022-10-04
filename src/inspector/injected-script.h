@@ -58,12 +58,22 @@ using protocol::Response;
 
 class EvaluateCallback {
  public:
+  static void sendSuccess(
+      std::weak_ptr<EvaluateCallback> callback, InjectedScript* injectedScript,
+      std::unique_ptr<protocol::Runtime::RemoteObject> result,
+      protocol::Maybe<protocol::Runtime::ExceptionDetails> exceptionDetails);
+  static void sendFailure(std::weak_ptr<EvaluateCallback> callback,
+                          InjectedScript* injectedScript,
+                          const protocol::DispatchResponse& response);
+
+  virtual ~EvaluateCallback() = default;
+
+ private:
   virtual void sendSuccess(
       std::unique_ptr<protocol::Runtime::RemoteObject> result,
       protocol::Maybe<protocol::Runtime::ExceptionDetails>
           exceptionDetails) = 0;
   virtual void sendFailure(const protocol::DispatchResponse& response) = 0;
-  virtual ~EvaluateCallback() = default;
 };
 
 class InjectedScript final {
@@ -221,6 +231,8 @@ class InjectedScript final {
   String16 bindObject(v8::Local<v8::Value>, const String16& groupName);
 
  private:
+  friend class EvaluateCallback;
+
   v8::Local<v8::Object> commandLineAPI();
   void unbindObject(int id);
 

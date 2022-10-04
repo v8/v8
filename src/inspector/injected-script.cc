@@ -68,6 +68,29 @@ using protocol::Runtime::PrivatePropertyDescriptor;
 using protocol::Runtime::PropertyDescriptor;
 using protocol::Runtime::RemoteObject;
 
+// static
+void EvaluateCallback::sendSuccess(
+    std::weak_ptr<EvaluateCallback> callback, InjectedScript* injectedScript,
+    std::unique_ptr<protocol::Runtime::RemoteObject> result,
+    protocol::Maybe<protocol::Runtime::ExceptionDetails> exceptionDetails) {
+  std::shared_ptr<EvaluateCallback> cb = callback.lock();
+  if (!cb) return;
+  injectedScript->deleteEvaluateCallback(cb);
+  CHECK_EQ(cb.use_count(), 1);
+  cb->sendSuccess(std::move(result), std::move(exceptionDetails));
+}
+
+// static
+void EvaluateCallback::sendFailure(std::weak_ptr<EvaluateCallback> callback,
+                                   InjectedScript* injectedScript,
+                                   const protocol::DispatchResponse& response) {
+  std::shared_ptr<EvaluateCallback> cb = callback.lock();
+  if (!cb) return;
+  injectedScript->deleteEvaluateCallback(cb);
+  CHECK_EQ(cb.use_count(), 1);
+  cb->sendFailure(response);
+}
+
 class InjectedScript::ProtocolPromiseHandler {
  public:
   static void add(V8InspectorSessionImpl* session,
@@ -81,17 +104,13 @@ class InjectedScript::ProtocolPromiseHandler {
 
     v8::Local<v8::Promise::Resolver> resolver;
     if (!v8::Promise::Resolver::New(context).ToLocal(&resolver)) {
-      std::shared_ptr<EvaluateCallback> cb = callback.lock();
-      CHECK(cb);
-      scope.injectedScript()->deleteEvaluateCallback(cb);
-      cb->sendFailure(Response::InternalError());
+      EvaluateCallback::sendFailure(callback, scope.injectedScript(),
+                                    Response::InternalError());
       return;
     }
     if (!resolver->Resolve(context, value).FromMaybe(false)) {
-      std::shared_ptr<EvaluateCallback> cb = callback.lock();
-      CHECK(cb);
-      scope.injectedScript()->deleteEvaluateCallback(cb);
-      cb->sendFailure(Response::InternalError());
+      EvaluateCallback::sendFailure(callback, scope.injectedScript(),
+                                    Response::InternalError());
       return;
     }
 
@@ -117,10 +136,8 @@ class InjectedScript::ProtocolPromiseHandler {
       // Re-initialize after returning from JS.
       Response response = scope.initialize();
       if (!response.IsSuccess()) return;
-      std::shared_ptr<EvaluateCallback> cb = callback.lock();
-      if (!cb) return;
-      scope.injectedScript()->deleteEvaluateCallback(cb);
-      cb->sendFailure(Response::InternalError());
+      EvaluateCallback::sendFailure(callback, scope.injectedScript(),
+                                    Response::InternalError());
     }
   }
 
@@ -199,24 +216,22 @@ class InjectedScript::ProtocolPromiseHandler {
     Response response = scope.initialize();
     if (!response.IsSuccess()) return;
 
-    std::shared_ptr<EvaluateCallback> callback = m_callback.lock();
-    if (!callback) return;
-    scope.injectedScript()->deleteEvaluateCallback(callback);
-
     // In REPL mode the result is additionally wrapped in an object.
     // The evaluation result can be found at ".repl_result".
     v8::Local<v8::Value> result = value;
     if (m_replMode) {
       v8::Local<v8::Object> object;
       if (!result->ToObject(scope.context()).ToLocal(&object)) {
-        callback->sendFailure(response);
+        EvaluateCallback::sendFailure(m_callback, scope.injectedScript(),
+                                      response);
         return;
       }
 
       v8::Local<v8::String> name =
           GetDotReplResultString(m_inspector->isolate());
       if (!object->Get(scope.context(), name).ToLocal(&result)) {
-        callback->sendFailure(response);
+        EvaluateCallback::sendFailure(m_callback, scope.injectedScript(),
+                                      response);
         return;
       }
     }
@@ -229,11 +244,13 @@ class InjectedScript::ProtocolPromiseHandler {
     response = scope.injectedScript()->wrapObject(result, m_objectGroup,
                                                   m_wrapMode, &wrappedValue);
     if (!response.IsSuccess()) {
-      callback->sendFailure(response);
+      EvaluateCallback::sendFailure(m_callback, scope.injectedScript(),
+                                    response);
       return;
     }
-    callback->sendSuccess(std::move(wrappedValue),
-                          Maybe<protocol::Runtime::ExceptionDetails>());
+    EvaluateCallback::sendSuccess(m_callback, scope.injectedScript(),
+                                  std::move(wrappedValue),
+                                  Maybe<protocol::Runtime::ExceptionDetails>());
   }
 
   void catchCallback(v8::Local<v8::Value> result) {
@@ -243,14 +260,12 @@ class InjectedScript::ProtocolPromiseHandler {
     InjectedScript::ContextScope scope(session, m_executionContextId);
     Response response = scope.initialize();
     if (!response.IsSuccess()) return;
-    std::shared_ptr<EvaluateCallback> callback = m_callback.lock();
-    if (!callback) return;
-    scope.injectedScript()->deleteEvaluateCallback(callback);
     std::unique_ptr<protocol::Runtime::RemoteObject> wrappedValue;
     response = scope.injectedScript()->wrapObject(result, m_objectGroup,
                                                   m_wrapMode, &wrappedValue);
     if (!response.IsSuccess()) {
-      callback->sendFailure(response);
+      EvaluateCallback::sendFailure(m_callback, scope.injectedScript(),
+                                    response);
       return;
     }
     v8::Isolate* isolate = session->inspector()->isolate();
@@ -273,12 +288,14 @@ class InjectedScript::ProtocolPromiseHandler {
       response = scope.injectedScript()->createExceptionDetails(
           message, exception, m_objectGroup, &exceptionDetails);
       if (!response.IsSuccess()) {
-        callback->sendFailure(response);
+        EvaluateCallback::sendFailure(m_callback, scope.injectedScript(),
+                                      response);
         return;
       }
 
-      callback->sendSuccess(std::move(wrappedValue),
-                            std::move(exceptionDetails));
+      EvaluateCallback::sendSuccess(m_callback, scope.injectedScript(),
+                                    std::move(wrappedValue),
+                                    std::move(exceptionDetails));
       return;
     }
 
@@ -319,7 +336,8 @@ class InjectedScript::ProtocolPromiseHandler {
     response = scope.injectedScript()->addExceptionToDetails(
         result, exceptionDetails.get(), m_objectGroup);
     if (!response.IsSuccess()) {
-      callback->sendFailure(response);
+      EvaluateCallback::sendFailure(m_callback, scope.injectedScript(),
+                                    response);
       return;
     }
     if (stack)
@@ -328,7 +346,9 @@ class InjectedScript::ProtocolPromiseHandler {
     if (stack && !stack->isEmpty())
       exceptionDetails->setScriptId(
           String16::fromInteger(stack->topScriptId()));
-    callback->sendSuccess(std::move(wrappedValue), std::move(exceptionDetails));
+    EvaluateCallback::sendSuccess(m_callback, scope.injectedScript(),
+                                  std::move(wrappedValue),
+                                  std::move(exceptionDetails));
   }
 
   void sendPromiseCollected() {
@@ -338,10 +358,9 @@ class InjectedScript::ProtocolPromiseHandler {
     InjectedScript::ContextScope scope(session, m_executionContextId);
     Response response = scope.initialize();
     if (!response.IsSuccess()) return;
-    std::shared_ptr<EvaluateCallback> callback = m_callback.lock();
-    if (!callback) return;
-    scope.injectedScript()->deleteEvaluateCallback(callback);
-    callback->sendFailure(Response::ServerError("Promise was collected"));
+    EvaluateCallback::sendFailure(
+        m_callback, scope.injectedScript(),
+        Response::ServerError("Promise was collected"));
   }
 
   V8InspectorImpl* m_inspector;
@@ -671,30 +690,38 @@ void InjectedScript::addPromiseCallback(
     V8InspectorSessionImpl* session, v8::MaybeLocal<v8::Value> value,
     const String16& objectGroup, WrapMode wrapMode, bool replMode,
     bool throwOnSideEffect, std::shared_ptr<EvaluateCallback> callback) {
+  m_evaluateCallbacks.insert(callback);
+  // After stashing the shared_ptr in `m_evaluateCallback`, we reset `callback`.
+  // `ProtocolPromiseHandler:add` can take longer than the life time of this
+  // `InjectedScript` and we don't want `callback` to survive that.
+  std::weak_ptr<EvaluateCallback> weak_callback = callback;
+  callback.reset();
+  CHECK_EQ(weak_callback.use_count(), 1);
+
   if (value.IsEmpty()) {
-    callback->sendFailure(Response::InternalError());
+    EvaluateCallback::sendFailure(weak_callback, this,
+                                  Response::InternalError());
     return;
   }
-
-  m_evaluateCallbacks.insert(callback);
 
   v8::MicrotasksScope microtasksScope(m_context->isolate(),
                                       v8::MicrotasksScope::kRunMicrotasks);
   ProtocolPromiseHandler::add(session, m_context->context(),
                               value.ToLocalChecked(), m_context->contextId(),
                               objectGroup, wrapMode, replMode,
-                              throwOnSideEffect, callback);
+                              throwOnSideEffect, weak_callback);
   // Do not add any code here! `this` might be invalid.
   // `ProtocolPromiseHandler::add` calls into JS which could kill this
   // `InjectedScript`.
 }
 
 void InjectedScript::discardEvaluateCallbacks() {
-  for (auto& callback : m_evaluateCallbacks) {
-    callback->sendFailure(
+  while (!m_evaluateCallbacks.empty()) {
+    EvaluateCallback::sendFailure(
+        *m_evaluateCallbacks.begin(), this,
         Response::ServerError("Execution context was destroyed."));
   }
-  m_evaluateCallbacks.clear();
+  CHECK(m_evaluateCallbacks.empty());
 }
 
 void InjectedScript::deleteEvaluateCallback(
