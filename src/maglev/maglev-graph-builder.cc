@@ -3223,6 +3223,12 @@ void MaglevGraphBuilder::VisitSwitchOnGeneratorState() {
   int generator_prologue_block_offset = block_offset_ + 1;
   DCHECK_LT(generator_prologue_block_offset, next_offset());
 
+  interpreter::JumpTableTargetOffsets offsets =
+      iterator_.GetJumpTableTargetOffsets();
+  // If there are no jump offsets, then this generator is not resumable, which
+  // means we can skip checking for it and switching on its state.
+  if (offsets.size() == 0) return;
+
   // We create an initial block that checks if the generator is undefined.
   ValueNode* maybe_generator = LoadRegisterTagged(0);
   BasicBlock* block_is_generator_undefined = CreateBlock<BranchIfRootConstant>(
@@ -3252,9 +3258,6 @@ void MaglevGraphBuilder::VisitSwitchOnGeneratorState() {
                            interpreter::Register::virtual_accumulator());
 
   // Switch on generator state.
-  interpreter::JumpTableTargetOffsets offsets =
-      iterator_.GetJumpTableTargetOffsets();
-  DCHECK_NE(offsets.size(), 0);
   int case_value_base = (*offsets.begin()).case_value;
   BasicBlockRef* targets = zone()->NewArray<BasicBlockRef>(offsets.size());
   for (interpreter::JumpTableTargetOffset offset : offsets) {
