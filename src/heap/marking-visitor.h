@@ -6,9 +6,8 @@
 #define V8_HEAP_MARKING_VISITOR_H_
 
 #include "src/common/globals.h"
+#include "src/heap/marking-state.h"
 #include "src/heap/marking-worklist.h"
-#include "src/heap/marking.h"
-#include "src/heap/memory-chunk.h"
 #include "src/heap/objects-visiting.h"
 #include "src/heap/spaces.h"
 #include "src/heap/weak-object-worklists.h"
@@ -20,107 +19,6 @@ struct EphemeronMarking {
   std::vector<HeapObject> newly_discovered;
   bool newly_discovered_overflowed;
   size_t newly_discovered_limit;
-};
-
-template <typename ConcreteState, AccessMode access_mode>
-class MarkingStateBase {
- public:
-  // Declares that this marking state is not collecting retainers, so the
-  // marking visitor may update the heap state to store information about
-  // progress, and may avoid fully visiting an object if it is safe to do so.
-  static constexpr bool kCollectRetainers = false;
-
-  explicit MarkingStateBase(PtrComprCageBase cage_base)
-#if V8_COMPRESS_POINTERS
-      : cage_base_(cage_base)
-#endif
-  {
-  }
-
-  // The pointer compression cage base value used for decompression of all
-  // tagged values except references to Code objects.
-  V8_INLINE PtrComprCageBase cage_base() const {
-#if V8_COMPRESS_POINTERS
-    return cage_base_;
-#else
-    return PtrComprCageBase{};
-#endif  // V8_COMPRESS_POINTERS
-  }
-
-  V8_INLINE MarkBit MarkBitFrom(const HeapObject obj) const {
-    return MarkBitFrom(BasicMemoryChunk::FromHeapObject(obj), obj.ptr());
-  }
-
-  // {addr} may be tagged or aligned.
-  V8_INLINE MarkBit MarkBitFrom(const BasicMemoryChunk* p, Address addr) const {
-    return static_cast<const ConcreteState*>(this)->bitmap(p)->MarkBitFromIndex(
-        p->AddressToMarkbitIndex(addr));
-  }
-
-  Marking::ObjectColor Color(const HeapObject obj) const {
-    return Marking::Color(MarkBitFrom(obj));
-  }
-
-  V8_INLINE bool IsImpossible(const HeapObject obj) const {
-    return Marking::IsImpossible<access_mode>(MarkBitFrom(obj));
-  }
-
-  V8_INLINE bool IsBlack(const HeapObject obj) const {
-    return Marking::IsBlack<access_mode>(MarkBitFrom(obj));
-  }
-
-  V8_INLINE bool IsWhite(const HeapObject obj) const {
-    return Marking::IsWhite<access_mode>(MarkBitFrom(obj));
-  }
-
-  V8_INLINE bool IsGrey(const HeapObject obj) const {
-    return Marking::IsGrey<access_mode>(MarkBitFrom(obj));
-  }
-
-  V8_INLINE bool IsBlackOrGrey(const HeapObject obj) const {
-    return Marking::IsBlackOrGrey<access_mode>(MarkBitFrom(obj));
-  }
-
-  V8_INLINE bool WhiteToGrey(HeapObject obj) {
-    return Marking::WhiteToGrey<access_mode>(MarkBitFrom(obj));
-  }
-
-  V8_INLINE bool WhiteToBlack(HeapObject obj) {
-    return WhiteToGrey(obj) && GreyToBlack(obj);
-  }
-
-  V8_INLINE bool GreyToBlack(HeapObject obj) {
-    BasicMemoryChunk* chunk = BasicMemoryChunk::FromHeapObject(obj);
-    MarkBit markbit = MarkBitFrom(chunk, obj.address());
-    if (!Marking::GreyToBlack<access_mode>(markbit)) return false;
-    static_cast<ConcreteState*>(this)->IncrementLiveBytes(
-        MemoryChunk::cast(chunk),
-        ALIGN_TO_ALLOCATION_ALIGNMENT(obj.Size(cage_base())));
-    return true;
-  }
-
-  V8_INLINE bool GreyToBlackUnaccounted(HeapObject obj) {
-    return Marking::GreyToBlack<access_mode>(MarkBitFrom(obj));
-  }
-
-  void ClearLiveness(MemoryChunk* chunk) {
-    static_cast<ConcreteState*>(this)->bitmap(chunk)->Clear();
-    static_cast<ConcreteState*>(this)->SetLiveBytes(chunk, 0);
-  }
-
-  void AddStrongReferenceForReferenceSummarizer(HeapObject host,
-                                                HeapObject obj) {
-    // This is not a reference summarizer, so there is nothing to do here.
-  }
-
-  void AddWeakReferenceForReferenceSummarizer(HeapObject host, HeapObject obj) {
-    // This is not a reference summarizer, so there is nothing to do here.
-  }
-
- private:
-#if V8_COMPRESS_POINTERS
-  const PtrComprCageBase cage_base_;
-#endif  // V8_COMPRESS_POINTERS
 };
 
 // The base class for all marking visitors. It implements marking logic with

@@ -10,6 +10,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact.h"
+#include "src/heap/marking-state-inl.h"
 #include "src/heap/memory-allocator.h"
 #include "src/heap/paged-spaces.h"
 #include "src/heap/safepoint.h"
@@ -26,10 +27,7 @@ Page* SemiSpace::InitializePage(MemoryChunk* chunk) {
   page->SetYoungGenerationPageFlags(heap()->incremental_marking()->IsMarking());
   page->list_node().Initialize();
   if (v8_flags.minor_mc) {
-    heap()
-        ->minor_mark_compact_collector()
-        ->non_atomic_marking_state()
-        ->ClearLiveness(page);
+    heap()->non_atomic_marking_state()->ClearLiveness(page);
   }
   page->InitializationMemoryFence();
   return page;
@@ -76,8 +74,7 @@ bool SemiSpace::EnsureCurrentCapacity() {
     }
 
     // Add more pages if we have less than expected_pages.
-    NonAtomicMarkingState* marking_state =
-        heap()->incremental_marking()->non_atomic_marking_state();
+    NonAtomicMarkingState* marking_state = heap()->non_atomic_marking_state();
     while (actual_pages < expected_pages) {
       actual_pages++;
       current_page = heap()->memory_allocator()->AllocatePage(
@@ -183,8 +180,7 @@ bool SemiSpace::GrowTo(size_t new_capacity) {
   DCHECK(IsAligned(delta, AllocatePageSize()));
   const int delta_pages = static_cast<int>(delta / Page::kPageSize);
   DCHECK(last_page());
-  NonAtomicMarkingState* marking_state =
-      heap()->incremental_marking()->non_atomic_marking_state();
+  NonAtomicMarkingState* marking_state = heap()->non_atomic_marking_state();
   for (int pages_added = 0; pages_added < delta_pages; pages_added++) {
     Page* new_page = heap()->memory_allocator()->AllocatePage(
         MemoryAllocator::AllocationMode::kUsePool, this, NOT_EXECUTABLE);
@@ -659,8 +655,7 @@ void SemiSpaceNewSpace::ResetLinearAllocationArea() {
   to_space_.Reset();
   UpdateLinearAllocationArea();
   // Clear all mark-bits in the to-space.
-  NonAtomicMarkingState* marking_state =
-      heap()->incremental_marking()->non_atomic_marking_state();
+  NonAtomicMarkingState* marking_state = heap()->non_atomic_marking_state();
   for (Page* p : to_space_) {
     marking_state->ClearLiveness(p);
     // Concurrent marking may have local live bytes for this page.
@@ -940,10 +935,7 @@ Page* PagedSpaceForNewSpace::InitializePage(MemoryChunk* chunk) {
   page->ResetAllocationStatistics();
   page->SetFlags(Page::TO_PAGE);
   page->SetYoungGenerationPageFlags(heap()->incremental_marking()->IsMarking());
-  heap()
-      ->minor_mark_compact_collector()
-      ->non_atomic_marking_state()
-      ->ClearLiveness(page);
+  heap()->non_atomic_marking_state()->ClearLiveness(page);
   page->AllocateFreeListCategories();
   page->InitializeFreeListCategories();
   page->list_node().Initialize();

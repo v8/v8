@@ -3079,6 +3079,8 @@ v8_header_set("v8_internal_headers") {
     "src/heap/mark-compact.h",
     "src/heap/marking-barrier-inl.h",
     "src/heap/marking-barrier.h",
+    "src/heap/marking-state-inl.h",
+    "src/heap/marking-state.h",
     "src/heap/marking-visitor-inl.h",
     "src/heap/marking-visitor.h",
     "src/heap/marking-worklist-inl.h",

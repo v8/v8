@@ -696,8 +696,7 @@ void CppHeap::EnterFinalPause(cppgc::EmbedderStackState stack_state) {
     auto& heap = *isolate()->heap();
     marker.conservative_visitor().SetGlobalHandlesMarkingVisitor(
         std::make_unique<GlobalHandleMarkingVisitor>(
-            heap, *heap.mark_compact_collector()->marking_state(),
-            *heap.mark_compact_collector()->local_marking_worklists()));
+            heap, *heap.mark_compact_collector()->local_marking_worklists()));
   }
   marker.EnterAtomicPause(stack_state);
   if (isolate_ && *collection_type_ == CollectionType::kMinor) {

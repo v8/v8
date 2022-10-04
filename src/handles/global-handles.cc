@@ -730,14 +730,13 @@ void GlobalHandles::TracedNode::Verify(const Address* const* slot) {
   const TracedNode* node = FromLocation(*slot);
   auto* global_handles = GlobalHandles::From(node);
   DCHECK(node->IsInUse());
-  auto* incremental_marking =
-      global_handles->isolate()->heap()->incremental_marking();
+  Heap* heap = global_handles->isolate()->heap();
+  auto* incremental_marking = heap->incremental_marking();
   if (incremental_marking && incremental_marking->IsMarking()) {
     Object object = node->object();
     if (object.IsHeapObject()) {
       DCHECK_IMPLIES(node->markbit<AccessMode::ATOMIC>(),
-                     !incremental_marking->marking_state()->IsWhite(
-                         HeapObject::cast(object)));
+                     !heap->marking_state()->IsWhite(HeapObject::cast(object)));
     }
   }
   DCHECK_IMPLIES(ObjectInYoungGeneration(node->object()),

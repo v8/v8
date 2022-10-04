@@ -114,9 +114,9 @@ class Sweeper::SweeperJob final : public JobTask {
   GCTracer* const tracer_;
 };
 
-Sweeper::Sweeper(Heap* heap, NonAtomicMarkingState* marking_state)
+Sweeper::Sweeper(Heap* heap)
     : heap_(heap),
-      marking_state_(marking_state),
+      marking_state_(heap_->non_atomic_marking_state()),
       sweeping_in_progress_(false),
       should_reduce_memory_(false),
       local_pretenuring_feedback_(kInitialLocalPretenuringFeedbackCapacity) {}

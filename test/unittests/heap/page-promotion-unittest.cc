@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/execution/isolate.h"
+#include "src/heap/marking-state-inl.h"
 #include "test/unittests/heap/heap-utils.h"
 
 namespace v8 {
@@ -64,8 +65,7 @@ TEST_F(PagePromotionTest, PagePromotion_NewToOld) {
     const int threshold_bytes = static_cast<int>(
         v8_flags.page_promotion_threshold *
         MemoryChunkLayout::AllocatableMemoryInDataPage() / 100);
-    CHECK_GE(heap->incremental_marking()->marking_state()->live_bytes(
-                 to_be_promoted_page),
+    CHECK_GE(heap->marking_state()->live_bytes(to_be_promoted_page),
              threshold_bytes);
 
     // Actual checks: The page is in new space first, but is moved to old space

@@ -15,6 +15,7 @@
 #include "src/heap/allocation-stats.h"
 #include "src/heap/basic-memory-chunk.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/marking-state-inl.h"
 #include "src/heap/memory-allocator.h"
 #include "src/heap/read-only-heap.h"
 #include "src/objects/objects-inl.h"
@@ -335,10 +336,7 @@ ReadOnlyPage::ReadOnlyPage(Heap* heap, BaseSpace* space, size_t chunk_size,
                        std::move(reservation)) {
   allocated_bytes_ = 0;
   SetFlags(Flag::NEVER_EVACUATE | Flag::READ_ONLY_HEAP);
-  heap->incremental_marking()
-      ->non_atomic_marking_state()
-      ->bitmap(this)
-      ->MarkAllBits();
+  heap->non_atomic_marking_state()->bitmap(this)->MarkAllBits();
 }
 
 void ReadOnlyPage::MakeHeaderRelocatable() {
@@ -578,7 +576,7 @@ void ReadOnlySpace::FreeLinearAllocationArea() {
 
   // Clear the bits in the unused black area.
   ReadOnlyPage* page = pages_.back();
-  heap()->incremental_marking()->marking_state()->bitmap(page)->ClearRange(
+  heap()->marking_state()->bitmap(page)->ClearRange(
       page->AddressToMarkbitIndex(top_), page->AddressToMarkbitIndex(limit_));
 
   heap()->CreateFillerObjectAt(top_, static_cast<int>(limit_ - top_));
@@ -690,7 +688,7 @@ AllocationResult ReadOnlySpace::AllocateRaw(int size_in_bytes,
           : AllocateRawUnaligned(size_in_bytes);
   HeapObject heap_obj;
   if (result.To(&heap_obj)) {
-    DCHECK(heap()->incremental_marking()->marking_state()->IsBlack(heap_obj));
+    DCHECK(heap()->marking_state()->IsBlack(heap_obj));
   }
   return result;
 }

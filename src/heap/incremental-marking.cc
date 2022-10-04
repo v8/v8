@@ -58,9 +58,8 @@ IncrementalMarking::IncrementalMarking(Heap* heap, WeakObjects* weak_objects)
       incremental_marking_job_(heap),
       new_generation_observer_(this, kYoungGenerationAllocatedThreshold),
       old_generation_observer_(this, kOldGenerationAllocatedThreshold),
-      marking_state_(heap->isolate()),
-      atomic_marking_state_(heap->isolate()),
-      non_atomic_marking_state_(heap->isolate()) {}
+      marking_state_(heap->marking_state()),
+      atomic_marking_state_(heap->atomic_marking_state()) {}
 
 void IncrementalMarking::MarkBlackAndVisitObjectDueToLayoutChange(
     HeapObject obj) {
@@ -284,9 +283,8 @@ void IncrementalMarking::MarkRoots() {
         ->CreateJob(
             v8::TaskPriority::kUserBlocking,
             std::make_unique<YoungGenerationMarkingJob>(
-                heap_->isolate(), minor_collector_,
-                minor_collector_->marking_worklists(), std::move(marking_items),
-                YoungMarkingJobType::kIncremental))
+                heap_->isolate(), heap_, minor_collector_->marking_worklists(),
+                std::move(marking_items), YoungMarkingJobType::kIncremental))
         ->Join();
   }
 }
@@ -454,14 +452,13 @@ void IncrementalMarking::UpdateMarkingWorklistAfterYoungGenGC() {
 
   Map filler_map = ReadOnlyRoots(heap_).one_pointer_filler_map();
 
-  MarkingState* minor_marking_state =
-      heap()->minor_mark_compact_collector()->marking_state();
+  MarkingState* marking_state = heap()->marking_state();
 
   major_collector_->local_marking_worklists()->Publish();
   MarkingBarrier::PublishAll(heap());
   PtrComprCageBase cage_base(heap_->isolate());
-  major_collector_->marking_worklists()->Update([this, minor_marking_state,
-                                                 cage_base, filler_map](
+  major_collector_->marking_worklists()->Update([this, marking_state, cage_base,
+                                                 filler_map](
                                                     HeapObject obj,
                                                     HeapObject* out) -> bool {
     DCHECK(obj.IsHeapObject());
@@ -479,7 +476,7 @@ void IncrementalMarking::UpdateMarkingWorklistAfterYoungGenGC() {
       }
       HeapObject dest = map_word.ToForwardingAddress();
       USE(this);
-      DCHECK_IMPLIES(marking_state()->IsWhite(obj), obj.IsFreeSpaceOrFiller());
+      DCHECK_IMPLIES(marking_state->IsWhite(obj), obj.IsFreeSpaceOrFiller());
       if (dest.InSharedHeap()) {
         // Object got promoted into the shared heap. Drop it from the client
         // heap marking worklist.
@@ -497,7 +494,7 @@ void IncrementalMarking::UpdateMarkingWorklistAfterYoungGenGC() {
       DCHECK_IMPLIES(
           v8_flags.minor_mc,
           !obj.map_word(cage_base, kRelaxedLoad).IsForwardingAddress());
-      if (minor_marking_state->IsWhite(obj)) {
+      if (marking_state->IsWhite(obj)) {
         return false;
       }
       // Either a large object or an object marked by the minor
@@ -509,13 +506,13 @@ void IncrementalMarking::UpdateMarkingWorklistAfterYoungGenGC() {
       // Only applicable during minor MC garbage collections.
       if (!Heap::IsLargeObject(obj) &&
           Page::FromHeapObject(obj)->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION)) {
-        if (minor_marking_state->IsWhite(obj)) {
+        if (marking_state->IsWhite(obj)) {
           return false;
         }
         *out = obj;
         return true;
       }
-      DCHECK_IMPLIES(marking_state()->IsWhite(obj),
+      DCHECK_IMPLIES(marking_state->IsWhite(obj),
                      obj.IsFreeSpaceOrFiller(cage_base));
       // Skip one word filler objects that appear on the
       // stack when we perform in place array shift.

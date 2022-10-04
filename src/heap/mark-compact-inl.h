@@ -11,6 +11,7 @@
 #include "src/heap/incremental-marking.h"
 #include "src/heap/index-generator.h"
 #include "src/heap/mark-compact.h"
+#include "src/heap/marking-state-inl.h"
 #include "src/heap/marking-worklist-inl.h"
 #include "src/heap/marking-worklist.h"
 #include "src/heap/objects-visiting-inl.h"
@@ -43,7 +44,7 @@ void MarkCompactCollector::MarkRootObject(Root root, HeapObject obj) {
 
 void MinorMarkCompactCollector::MarkRootObject(HeapObject obj) {
   if (Heap::InYoungGeneration(obj) &&
-      non_atomic_marking_state_.WhiteToGrey(obj)) {
+      non_atomic_marking_state()->WhiteToGrey(obj)) {
     local_marking_worklists_->Push(obj);
   }
 }
@@ -321,13 +322,12 @@ enum class YoungMarkingJobType { kAtomic, kIncremental };
 
 class YoungGenerationMarkingJob : public v8::JobTask {
  public:
-  YoungGenerationMarkingJob(Isolate* isolate,
-                            MinorMarkCompactCollector* collector,
+  YoungGenerationMarkingJob(Isolate* isolate, Heap* heap,
                             MarkingWorklists* global_worklists,
                             std::vector<PageMarkingItem> marking_items,
                             YoungMarkingJobType young_marking_job_type)
       : isolate_(isolate),
-        collector_(collector),
+        heap_(heap),
         global_worklists_(global_worklists),
         marking_items_(std::move(marking_items)),
         remaining_marking_items_(marking_items_.size()),
@@ -345,7 +345,7 @@ class YoungGenerationMarkingJob : public v8::JobTask {
   void ProcessMarkingItems(YoungGenerationMarkingTask* task);
 
   Isolate* isolate_;
-  MinorMarkCompactCollector* collector_;
+  Heap* heap_;
   MarkingWorklists* global_worklists_;
   std::vector<PageMarkingItem> marking_items_;
   std::atomic_size_t remaining_marking_items_{0};

@@ -8,6 +8,7 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/heap/evacuation-allocator-inl.h"
 #include "src/heap/incremental-marking-inl.h"
+#include "src/heap/marking-state-inl.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/new-spaces.h"
 #include "src/heap/objects-visiting-inl.h"
@@ -132,8 +133,7 @@ CopyAndForwardResult Scavenger::SemiSpaceCopyObject(
 
   HeapObject target;
   if (allocation.To(&target)) {
-    DCHECK(heap()->incremental_marking()->non_atomic_marking_state()->IsWhite(
-        target));
+    DCHECK(heap()->non_atomic_marking_state()->IsWhite(target));
     const bool self_success =
         MigrateObject(map, object, target, object_size, kPromoteIntoLocalHeap);
     if (!self_success) {
@@ -181,8 +181,7 @@ CopyAndForwardResult Scavenger::PromoteObject(Map map, THeapObjectSlot slot,
 
   HeapObject target;
   if (allocation.To(&target)) {
-    DCHECK(heap()->incremental_marking()->non_atomic_marking_state()->IsWhite(
-        target));
+    DCHECK(heap()->non_atomic_marking_state()->IsWhite(target));
     const bool self_success =
         MigrateObject(map, object, target, object_size, promotion_heap_choice);
     if (!self_success) {

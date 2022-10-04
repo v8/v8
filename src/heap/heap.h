@@ -31,6 +31,7 @@
 #include "src/heap/base/stack.h"
 #include "src/heap/gc-callbacks.h"
 #include "src/heap/heap-allocator.h"
+#include "src/heap/marking-state.h"
 #include "src/init/heap-symbols.h"
 #include "src/objects/allocation-site.h"
 #include "src/objects/fixed-array.h"
@@ -1699,6 +1700,14 @@ class Heap {
     return (current_gc_flags_ & kReduceMemoryFootprintMask) != 0;
   }
 
+  MarkingState* marking_state() { return &marking_state_; }
+
+  NonAtomicMarkingState* non_atomic_marking_state() {
+    return &non_atomic_marking_state_;
+  }
+
+  AtomicMarkingState* atomic_marking_state() { return &atomic_marking_state_; }
+
  private:
   class AllocationTrackerForDebugging;
 
@@ -2453,6 +2462,10 @@ class Heap {
   bool is_finalization_registry_cleanup_task_posted_ = false;
 
   std::unique_ptr<third_party_heap::Heap> tp_heap_;
+
+  MarkingState marking_state_;
+  NonAtomicMarkingState non_atomic_marking_state_;
+  AtomicMarkingState atomic_marking_state_;
 
   // Classes in "heap" can be friends.
   friend class AlwaysAllocateScope;

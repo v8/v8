@@ -12,6 +12,7 @@
 #include "include/v8-object.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/gc-tracer.h"
+#include "src/heap/marking-state-inl.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/remembered-set.h"
 #include "src/heap/safepoint.h"
@@ -396,7 +397,7 @@ TEST_F(HeapTest, Regress978156) {
     marking->Start(GarbageCollector::MARK_COMPACTOR,
                    i::GarbageCollectionReason::kTesting);
   }
-  MarkingState* marking_state = marking->marking_state();
+  MarkingState* marking_state = heap->marking_state();
   // 6. Mark the filler black to access its two markbits. This triggers
   // an out-of-bounds access of the marking bitmap in a bad case.
   marking_state->WhiteToGrey(filler);

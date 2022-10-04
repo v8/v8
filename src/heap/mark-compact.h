@@ -11,6 +11,7 @@
 #include "include/v8-internal.h"
 #include "src/heap/base/worklist.h"
 #include "src/heap/concurrent-marking.h"
+#include "src/heap/marking-state.h"
 #include "src/heap/marking-visitor.h"
 #include "src/heap/marking-worklist.h"
 #include "src/heap/marking.h"
@@ -178,85 +179,6 @@ enum class MemoryReductionMode { kNone, kShouldReduceMemory };
 enum PageEvacuationMode { NEW_TO_NEW, NEW_TO_OLD };
 enum class RememberedSetUpdatingMode { ALL, OLD_TO_NEW_ONLY };
 
-// This is used by marking visitors.
-class MarkingState final
-    : public MarkingStateBase<MarkingState, AccessMode::ATOMIC> {
- public:
-  explicit MarkingState(PtrComprCageBase cage_base)
-      : MarkingStateBase(cage_base) {}
-
-  ConcurrentBitmap<AccessMode::ATOMIC>* bitmap(
-      const BasicMemoryChunk* chunk) const {
-    return chunk->marking_bitmap<AccessMode::ATOMIC>();
-  }
-
-  // Concurrent marking uses local live bytes so we may do these accesses
-  // non-atomically.
-  void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by) {
-    DCHECK_IMPLIES(V8_COMPRESS_POINTERS_8GB_BOOL,
-                   IsAligned(by, kObjectAlignment8GbHeap));
-    chunk->live_byte_count_.fetch_add(by, std::memory_order_relaxed);
-  }
-
-  intptr_t live_bytes(const MemoryChunk* chunk) const {
-    return chunk->live_byte_count_.load(std::memory_order_relaxed);
-  }
-
-  void SetLiveBytes(MemoryChunk* chunk, intptr_t value) {
-    DCHECK_IMPLIES(V8_COMPRESS_POINTERS_8GB_BOOL,
-                   IsAligned(value, kObjectAlignment8GbHeap));
-    chunk->live_byte_count_.store(value, std::memory_order_relaxed);
-  }
-};
-
-// This is used by Scavenger and Evacuator in TransferColor.
-// Live byte increments have to be atomic.
-class AtomicMarkingState final
-    : public MarkingStateBase<AtomicMarkingState, AccessMode::ATOMIC> {
- public:
-  explicit AtomicMarkingState(PtrComprCageBase cage_base)
-      : MarkingStateBase(cage_base) {}
-
-  ConcurrentBitmap<AccessMode::ATOMIC>* bitmap(
-      const BasicMemoryChunk* chunk) const {
-    return chunk->marking_bitmap<AccessMode::ATOMIC>();
-  }
-
-  void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by) {
-    DCHECK_IMPLIES(V8_COMPRESS_POINTERS_8GB_BOOL,
-                   IsAligned(by, kObjectAlignment8GbHeap));
-    chunk->live_byte_count_.fetch_add(by);
-  }
-};
-
-class NonAtomicMarkingState final
-    : public MarkingStateBase<NonAtomicMarkingState, AccessMode::NON_ATOMIC> {
- public:
-  explicit NonAtomicMarkingState(PtrComprCageBase cage_base)
-      : MarkingStateBase(cage_base) {}
-
-  ConcurrentBitmap<AccessMode::NON_ATOMIC>* bitmap(
-      const BasicMemoryChunk* chunk) const {
-    return chunk->marking_bitmap<AccessMode::NON_ATOMIC>();
-  }
-
-  void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by) {
-    DCHECK_IMPLIES(V8_COMPRESS_POINTERS_8GB_BOOL,
-                   IsAligned(by, kObjectAlignment8GbHeap));
-    chunk->live_byte_count_.fetch_add(by, std::memory_order_relaxed);
-  }
-
-  intptr_t live_bytes(const MemoryChunk* chunk) const {
-    return chunk->live_byte_count_.load(std::memory_order_relaxed);
-  }
-
-  void SetLiveBytes(MemoryChunk* chunk, intptr_t value) {
-    DCHECK_IMPLIES(V8_COMPRESS_POINTERS_8GB_BOOL,
-                   IsAligned(value, kObjectAlignment8GbHeap));
-    chunk->live_byte_count_.store(value, std::memory_order_relaxed);
-  }
-};
-
 // This visitor is used for marking on the main thread. It is cheaper than
 // the concurrent marking visitor because it does not snapshot JSObjects.
 template <typename MarkingState>
@@ -339,15 +261,6 @@ class CollectorBase {
   virtual void Prepare() = 0;
   virtual void StartMarking() = 0;
 
-  MarkingState* marking_state() { return &marking_state_; }
-
-  NonAtomicMarkingState* non_atomic_marking_state() {
-    return &non_atomic_marking_state_;
-  }
-
-  inline Heap* heap() const { return heap_; }
-  inline Isolate* isolate();
-
   MarkingWorklists* marking_worklists() { return &marking_worklists_; }
 
   MarkingWorklists::Local* local_marking_worklists() {
@@ -374,6 +287,15 @@ class CollectorBase {
   std::vector<LargePage*> promoted_large_pages_;
 
  protected:
+  inline Heap* heap() const { return heap_; }
+  inline Isolate* isolate();
+
+  MarkingState* marking_state() { return marking_state_; }
+
+  NonAtomicMarkingState* non_atomic_marking_state() {
+    return non_atomic_marking_state_;
+  }
+
   void StartSweepSpace(Sweeper* sweeper, PagedSpaceBase* space);
 
   Heap* heap_;
@@ -382,8 +304,8 @@ class CollectorBase {
 
   std::unique_ptr<MarkingWorklists::Local> local_marking_worklists_;
 
-  MarkingState marking_state_;
-  NonAtomicMarkingState non_atomic_marking_state_;
+  MarkingState* const marking_state_;
+  NonAtomicMarkingState* const non_atomic_marking_state_;
 
   explicit CollectorBase(Heap* heap, GarbageCollector collector);
   virtual ~CollectorBase() = default;
