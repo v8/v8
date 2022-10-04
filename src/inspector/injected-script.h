@@ -114,7 +114,7 @@ class InjectedScript final {
                           v8::MaybeLocal<v8::Value> value,
                           const String16& objectGroup, WrapMode wrapMode,
                           bool replMode, bool throwOnSideEffect,
-                          std::unique_ptr<EvaluateCallback> callback);
+                          std::shared_ptr<EvaluateCallback> callback);
 
   Response findObject(const RemoteObjectId&, v8::Local<v8::Value>*) const;
   String16 objectGroupName(const RemoteObjectId&) const;
@@ -230,8 +230,7 @@ class InjectedScript final {
 
   class ProtocolPromiseHandler;
   void discardEvaluateCallbacks();
-  std::unique_ptr<EvaluateCallback> takeEvaluateCallback(
-      EvaluateCallback* callback);
+  void deleteEvaluateCallback(std::shared_ptr<EvaluateCallback> callback);
   Response addExceptionToDetails(
       v8::Local<v8::Value> exception,
       protocol::Runtime::ExceptionDetails* exceptionDetails,
@@ -245,7 +244,7 @@ class InjectedScript final {
   std::unordered_map<int, v8::Global<v8::Value>> m_idToWrappedObject;
   std::unordered_map<int, String16> m_idToObjectGroupName;
   std::unordered_map<String16, std::vector<int>> m_nameToObjectGroup;
-  std::unordered_set<EvaluateCallback*> m_evaluateCallbacks;
+  std::unordered_set<std::shared_ptr<EvaluateCallback>> m_evaluateCallbacks;
   bool m_customPreviewEnabled = false;
 };
 
