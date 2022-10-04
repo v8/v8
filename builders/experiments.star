@@ -215,7 +215,8 @@ in_category(
                 name = "osx_sdk",
             ),
         ],
-        use_goma = GOMA.DEFAULT,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["v8-infra-cc"],
     ),
     experiment_builder(
@@ -234,7 +235,8 @@ in_category(
         name = "V8 Mac64 - full debug builder",
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
-        use_goma = GOMA.DEFAULT,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["sheriffs on new failure", "blamelist"],
     ),
 )
