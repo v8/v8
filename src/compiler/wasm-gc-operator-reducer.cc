@@ -314,12 +314,14 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCheck(Node* node) {
   if (wasm::IsHeapSubtypeOf(object_type.type.heap_type(),
                             wasm::HeapType(rtt_type.type.ref_index()),
                             object_type.module, rtt_type.module)) {
+    bool null_succeeds =
+        OpParameter<WasmTypeCheckConfig>(node->op()).null_succeeds;
     // Type cast will fail only on null.
     gasm_.InitializeEffectControl(effect, control);
-    Node* condition =
-        SetType(object_type.type.is_nullable() ? gasm_.IsNotNull(object)
-                                               : gasm_.Int32Constant(1),
-                wasm::kWasmI32);
+    Node* condition = SetType(object_type.type.is_nullable() && !null_succeeds
+                                  ? gasm_.IsNotNull(object)
+                                  : gasm_.Int32Constant(1),
+                              wasm::kWasmI32);
     ReplaceWithValue(node, condition);
     node->Kill();
     return Replace(condition);
