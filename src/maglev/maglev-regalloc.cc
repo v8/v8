@@ -629,7 +629,8 @@ void StraightForwardRegisterAllocator::DropRegisterValueAtEnd(RegisterT reg) {
   list.unblock(reg);
   if (!list.free().has(reg)) {
     ValueNode* node = list.GetValue(reg);
-    // If the is not live after the current node, just remove its value.
+    // If the register is not live after the current node, just remove its
+    // value.
     if (node->live_range().end == current_node_->id()) {
       node->RemoveRegister(reg);
     } else {

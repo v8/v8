@@ -1185,7 +1185,7 @@ class ValueNode : public Node {
 
   struct LiveRange {
     NodeIdT start = kInvalidNodeId;
-    NodeIdT end = kInvalidNodeId;
+    NodeIdT end = kInvalidNodeId;  // Inclusive.
   };
 
   bool has_valid_live_range() const { return end_id_ != 0; }
@@ -3292,6 +3292,8 @@ class Phi : public ValueNodeT<Phi> {
 
   using Node::reduce_input_count;
   using Node::set_input;
+
+  bool is_exception_phi() const { return input_count() == 0; }
 
   DECL_NODE_INTERFACE()
   void AllocateVregInPostProcess(MaglevVregAllocationState*);
