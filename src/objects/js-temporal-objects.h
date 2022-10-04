@@ -1146,6 +1146,49 @@ MaybeHandle<JSTemporalInstant> BuiltinTimeZoneGetInstantForCompatible(
     Isolate* isolate, Handle<JSReceiver> time_zone,
     Handle<JSTemporalPlainDateTime> date_time, const char* method_name);
 
+// For Intl.DurationFormat
+
+// #sec-temporal-time-duration-records
+struct TimeDurationRecord {
+  double days;
+  double hours;
+  double minutes;
+  double seconds;
+  double milliseconds;
+  double microseconds;
+  double nanoseconds;
+
+  // #sec-temporal-createtimedurationrecord
+  static Maybe<TimeDurationRecord> Create(Isolate* isolate, double days,
+                                          double hours, double minutes,
+                                          double seconds, double milliseconds,
+                                          double microseconds,
+                                          double nanoseconds);
+};
+
+// #sec-temporal-duration-records
+// Cannot reuse DateDurationRecord here due to duplicate days.
+struct DurationRecord {
+  double years;
+  double months;
+  double weeks;
+  TimeDurationRecord time_duration;
+  // #sec-temporal-createdurationrecord
+  static Maybe<DurationRecord> Create(Isolate* isolate, double years,
+                                      double months, double weeks, double days,
+                                      double hours, double minutes,
+                                      double seconds, double milliseconds,
+                                      double microseconds, double nanoseconds);
+};
+
+// #sec-temporal-topartialduration
+Maybe<DurationRecord> ToPartialDuration(
+    Isolate* isolate, Handle<Object> temporal_duration_like_obj,
+    const DurationRecord& input);
+
+// #sec-temporal-isvalidduration
+bool IsValidDuration(Isolate* isolate, const DurationRecord& dur);
+
 }  // namespace temporal
 }  // namespace internal
 }  // namespace v8

@@ -86,6 +86,7 @@
 //         - JSCollator            // If V8_INTL_SUPPORT enabled.
 //         - JSDateTimeFormat      // If V8_INTL_SUPPORT enabled.
 //         - JSDisplayNames        // If V8_INTL_SUPPORT enabled.
+//         - JSDurationFormat      // If V8_INTL_SUPPORT enabled.
 //         - JSListFormat          // If V8_INTL_SUPPORT enabled.
 //         - JSLocale              // If V8_INTL_SUPPORT enabled.
 //         - JSNumberFormat        // If V8_INTL_SUPPORT enabled.
