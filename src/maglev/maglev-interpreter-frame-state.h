@@ -55,6 +55,11 @@ void DestructivelyIntersect(ZoneMap<ValueNode*, Value>& lhs_map,
       ++rhs_it;
     }
   }
+  // If we haven't reached the end of LHS by now, then we have reached the end
+  // of RHS, and the remaining items are therefore not in RHS. Remove them.
+  if (lhs_it != lhs_map.end()) {
+    lhs_map.erase(lhs_it, lhs_map.end());
+  }
 }
 
 // The intersection (using `&`) of any two NodeTypes must be a valid NodeType
@@ -93,6 +98,11 @@ struct NodeInfo {
   ValueNode* tagged_alternative = nullptr;
   ValueNode* int32_alternative = nullptr;
   ValueNode* float64_alternative = nullptr;
+
+  bool is_empty() {
+    return type == NodeType::kUnknown && tagged_alternative == nullptr &&
+           int32_alternative == nullptr && float64_alternative == nullptr;
+  }
 
   bool is_smi() const { return NodeTypeIsSmi(type); }
   bool is_any_heap_object() const { return NodeTypeIsAnyHeapObject(type); }
@@ -150,7 +160,7 @@ struct KnownNodeAspects {
     DestructivelyIntersect(node_infos, other.node_infos,
                            [](NodeInfo& lhs, const NodeInfo& rhs) {
                              lhs.MergeWith(rhs);
-                             return lhs.type != NodeType::kUnknown;
+                             return !lhs.is_empty();
                            });
     DestructivelyIntersect(stable_maps, other.stable_maps,
                            [](compiler::MapRef lhs, compiler::MapRef rhs) {
