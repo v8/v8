@@ -173,6 +173,7 @@ class LiveObjectVisitor : AllStatic {
 };
 
 enum class AlwaysPromoteYoung { kYes, kNo };
+enum class PromoteUnusablePages { kYes, kNo };
 enum class MemoryReductionMode { kNone, kShouldReduceMemory };
 enum PageEvacuationMode { NEW_TO_NEW, NEW_TO_OLD };
 enum class RememberedSetUpdatingMode { ALL, OLD_TO_NEW_ONLY };

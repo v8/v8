@@ -220,6 +220,12 @@ class MemoryChunk : public BasicMemoryChunk {
   }
 #endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
 
+  void MarkWasUsedForAllocation() { SetFlag(WAS_USED_FOR_ALLOCATION); }
+  void ClearWasUsedForAllocation() { ClearFlag(WAS_USED_FOR_ALLOCATION); }
+  bool WasUsedForAllocation() const {
+    return IsFlagSet(WAS_USED_FOR_ALLOCATION);
+  }
+
  protected:
   // Release all memory allocated by the chunk. Should be called when memory
   // chunk is about to be freed.

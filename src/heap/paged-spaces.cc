@@ -429,9 +429,14 @@ int PagedSpaceBase::CountTotalPages() const {
 
 void PagedSpaceBase::SetLinearAllocationArea(Address top, Address limit) {
   SetTopAndLimit(top, limit);
-  if (top != kNullAddress && top != limit && identity() != NEW_SPACE &&
-      heap()->incremental_marking()->black_allocation()) {
-    Page::FromAllocationAreaAddress(top)->CreateBlackArea(top, limit);
+  if (top != kNullAddress && top != limit) {
+    Page* page = Page::FromAllocationAreaAddress(top);
+    if (identity() == NEW_SPACE) {
+      page->MarkWasUsedForAllocation();
+    } else if (heap()->incremental_marking()->black_allocation()) {
+      DCHECK_NE(NEW_SPACE, identity());
+      page->CreateBlackArea(top, limit);
+    }
   }
 }
 
@@ -790,6 +795,7 @@ void PagedSpaceBase::Verify(Isolate* isolate, ObjectVisitor* visitor) const {
   PtrComprCageBase cage_base(isolate);
   for (const Page* page : *this) {
     CHECK_EQ(page->owner(), this);
+    CHECK_IMPLIES(identity() != NEW_SPACE, !page->WasUsedForAllocation());
 
     for (int i = 0; i < kNumTypes; i++) {
       external_page_bytes[static_cast<ExternalBackingStoreType>(i)] = 0;

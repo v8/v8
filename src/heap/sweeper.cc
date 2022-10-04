@@ -603,6 +603,7 @@ void Sweeper::AddNewSpacePage(Page* page, Sweeper::AddPageMode mode) {
   size_t live_bytes = marking_state_->live_bytes(page);
   heap_->IncrementNewSpaceSurvivingObjectSize(live_bytes);
   heap_->IncrementYoungSurvivorsCounter(live_bytes);
+  page->ClearWasUsedForAllocation();
   AddPageImpl(NEW_SPACE, page, mode);
 }
 

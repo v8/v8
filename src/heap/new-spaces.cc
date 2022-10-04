@@ -546,6 +546,7 @@ void NewSpace::VerifyImpl(Isolate* isolate, const Page* current_page,
 void NewSpace::PromotePageToOldSpace(Page* page) {
   DCHECK(!page->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION));
   DCHECK(page->InYoungGeneration());
+  page->ClearWasUsedForAllocation();
   RemovePage(page);
   Page* new_page = Page::ConvertNewToOld(page);
   DCHECK(!new_page->InYoungGeneration());

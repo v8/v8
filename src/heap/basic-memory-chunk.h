@@ -110,6 +110,10 @@ class BasicMemoryChunk {
 
     // A Page with code objects.
     IS_EXECUTABLE = 1u << 21,
+
+    // A page that used for allocation since it was last swept. Used only for
+    // new space pages.
+    WAS_USED_FOR_ALLOCATION = 1u << 22,
   };
 
   using MainThreadFlags = base::Flags<Flag, uintptr_t>;

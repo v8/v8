@@ -4450,13 +4450,16 @@ size_t CreateAndExecuteEvacuationTasks(
 
 bool ShouldMovePage(Page* p, intptr_t live_bytes, intptr_t wasted_bytes,
                     MemoryReductionMode memory_reduction_mode,
-                    AlwaysPromoteYoung always_promote_young) {
+                    AlwaysPromoteYoung always_promote_young,
+                    PromoteUnusablePages promote_unusable_pages) {
   Heap* heap = p->heap();
   return v8_flags.page_promotion &&
          (memory_reduction_mode == MemoryReductionMode::kNone) &&
          !p->NeverEvacuate() &&
-         (live_bytes + wasted_bytes >
-          Evacuator::NewSpacePageEvacuationThreshold()) &&
+         ((live_bytes + wasted_bytes >
+           Evacuator::NewSpacePageEvacuationThreshold()) ||
+          (promote_unusable_pages == PromoteUnusablePages::kYes &&
+           !p->WasUsedForAllocation())) &&
          (always_promote_young == AlwaysPromoteYoung::kYes ||
           heap->new_space()->IsPromotionCandidate(p)) &&
          heap->CanExpandOldGeneration(live_bytes);
@@ -4497,7 +4500,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
         heap()->ShouldReduceMemory() ? MemoryReductionMode::kShouldReduceMemory
                                      : MemoryReductionMode::kNone;
     if (ShouldMovePage(page, live_bytes_on_page, 0, memory_reduction_mode,
-                       AlwaysPromoteYoung::kYes) ||
+                       AlwaysPromoteYoung::kYes, PromoteUnusablePages::kNo) ||
         force_page_promotion) {
       EvacuateNewSpacePageVisitor<NEW_TO_OLD>::Move(page);
       DCHECK_EQ(heap()->old_space(), page->owner());
@@ -6656,7 +6659,10 @@ void MinorMarkCompactCollector::EvacuatePagesInParallel() {
     DCHECK_LT(0, live_bytes_on_page);
     live_bytes += live_bytes_on_page;
     if (ShouldMovePage(page, live_bytes_on_page, page->wasted_memory(),
-                       MemoryReductionMode::kNone, AlwaysPromoteYoung::kNo)) {
+                       MemoryReductionMode::kNone, AlwaysPromoteYoung::kNo,
+                       heap()->tracer()->IsCurrentGCDueToAllocationFailure()
+                           ? PromoteUnusablePages::kYes
+                           : PromoteUnusablePages::kNo)) {
       EvacuateNewSpacePageVisitor<NEW_TO_OLD>::Move(page);
       evacuation_items.emplace_back(ParallelWorkItem{}, page);
     }
