@@ -1314,30 +1314,30 @@ class WasmGraphBuildingInterface {
                                      null_succeeds));
   }
 
-  void RefIsData(FullDecoder* decoder, const Value& object, Value* result) {
+  void RefIsStruct(FullDecoder* decoder, const Value& object, Value* result) {
     bool null_succeeds = false;
     SetAndTypeNode(result,
-                   builder_->RefIsData(object.node, object.type.is_nullable(),
-                                       null_succeeds));
+                   builder_->RefIsStruct(object.node, object.type.is_nullable(),
+                                         null_succeeds));
   }
 
-  void RefAsData(FullDecoder* decoder, const Value& object, Value* result) {
-    TFNode* cast_object = builder_->RefAsData(
+  void RefAsStruct(FullDecoder* decoder, const Value& object, Value* result) {
+    TFNode* cast_object = builder_->RefAsStruct(
         object.node, object.type.is_nullable(), decoder->position());
     TFNode* rename = builder_->TypeGuard(cast_object, result->type);
     SetAndTypeNode(result, rename);
   }
 
-  void BrOnData(FullDecoder* decoder, const Value& object,
-                Value* value_on_branch, uint32_t br_depth) {
-    BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnData>(
+  void BrOnStruct(FullDecoder* decoder, const Value& object,
+                  Value* value_on_branch, uint32_t br_depth) {
+    BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnStruct>(
         decoder, object, Value{nullptr, kWasmBottom}, value_on_branch, br_depth,
         true);
   }
 
-  void BrOnNonData(FullDecoder* decoder, const Value& object,
-                   Value* value_on_fallthrough, uint32_t br_depth) {
-    BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnData>(
+  void BrOnNonStruct(FullDecoder* decoder, const Value& object,
+                     Value* value_on_fallthrough, uint32_t br_depth) {
+    BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnStruct>(
         decoder, object, Value{nullptr, kWasmBottom}, value_on_fallthrough,
         br_depth, false);
   }

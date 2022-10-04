@@ -501,12 +501,12 @@ class WasmGraphBuilder {
                 Node** match_control, Node** match_effect,
                 Node** no_match_control, Node** no_match_effect);
   Node* RefIsEq(Node* object, bool object_can_be_null, bool null_succeeds);
-  Node* RefIsData(Node* object, bool object_can_be_null, bool null_succeeds);
-  Node* RefAsData(Node* object, bool object_can_be_null,
-                  wasm::WasmCodePosition position);
-  void BrOnData(Node* object, Node* rtt, WasmTypeCheckConfig config,
-                Node** match_control, Node** match_effect,
-                Node** no_match_control, Node** no_match_effect);
+  Node* RefIsStruct(Node* object, bool object_can_be_null, bool null_succeeds);
+  Node* RefAsStruct(Node* object, bool object_can_be_null,
+                    wasm::WasmCodePosition position);
+  void BrOnStruct(Node* object, Node* rtt, WasmTypeCheckConfig config,
+                  Node** match_control, Node** match_effect,
+                  Node** no_match_control, Node** no_match_effect);
   Node* RefIsArray(Node* object, bool object_can_be_null, bool null_succeeds);
   Node* RefAsArray(Node* object, bool object_can_be_null,
                    wasm::WasmCodePosition position);
@@ -765,8 +765,6 @@ class WasmGraphBuilder {
                             SmallNodeVector& match_controls,
                             SmallNodeVector& match_effects);
 
-  void DataCheck(Node* object, bool object_can_be_null, Callbacks callbacks,
-                 bool null_succeeds);
   void EqCheck(Node* object, bool object_can_be_null, Callbacks callbacks,
                bool null_succeeds);
   void ManagedObjectInstanceCheck(Node* object, bool object_can_be_null,
