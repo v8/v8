@@ -178,12 +178,9 @@ class WordRepresentation : public RegisterRepresentation {
     return static_cast<Enum>(RegisterRepresentation::value());
   }
   constexpr operator Enum() const { return value(); }
-  // Hide the superclass implicit conversion with an uninstantiable template.
-  template <Uninstantiable&>
-  explicit constexpr operator RegisterRepresentation::Enum() const;
 
   constexpr uint64_t MaxUnsignedValue() const {
-    switch (*this) {
+    switch (this->value()) {
       case Word32():
         return std::numeric_limits<uint32_t>::max();
       case Word64():
@@ -210,9 +207,6 @@ class FloatRepresentation : public RegisterRepresentation {
     return static_cast<Enum>(RegisterRepresentation::value());
   }
   constexpr operator Enum() const { return value(); }
-  // Hide the superclass implicit conversion with an uninstantiable template.
-  template <Uninstantiable&>
-  explicit constexpr operator RegisterRepresentation::Enum() const;
 
  private:
   explicit constexpr FloatRepresentation(Enum value)

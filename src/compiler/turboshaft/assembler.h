@@ -412,7 +412,7 @@ class AssemblerInterface : public Superclass {
     return Word64Constant(static_cast<uint64_t>(value));
   }
   OpIndex WordConstant(uint64_t value, WordRepresentation rep) {
-    switch (rep) {
+    switch (rep.value()) {
       case WordRepresentation::Word32():
         DCHECK(value <= WordRepresentation::Word32().MaxUnsignedValue());
         return Word32Constant(static_cast<uint32_t>(value));
@@ -427,7 +427,7 @@ class AssemblerInterface : public Superclass {
     return subclass().Constant(ConstantOp::Kind::kFloat64, value);
   }
   OpIndex FloatConstant(double value, FloatRepresentation rep) {
-    switch (rep) {
+    switch (rep.value()) {
       case FloatRepresentation::Float32():
         return Float32Constant(static_cast<float>(value));
       case FloatRepresentation::Float64():

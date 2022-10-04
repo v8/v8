@@ -86,11 +86,6 @@ std::ostream& operator<<(std::ostream& os, all_of<Ts...> all) {
   return all.PrintTo(os, std::index_sequence_for<Ts...>{});
 }
 
-class Uninstantiable {
- private:
-  constexpr Uninstantiable() = default;
-};
-
 }  // namespace v8::internal::compiler::turboshaft
 
 #endif  // V8_COMPILER_TURBOSHAFT_UTILS_H_

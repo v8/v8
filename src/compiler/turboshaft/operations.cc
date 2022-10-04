@@ -119,7 +119,7 @@ std::ostream& operator<<(std::ostream& os, FloatUnaryOp::Kind kind) {
 
 // static
 bool FloatUnaryOp::IsSupported(Kind kind, FloatRepresentation rep) {
-  switch (rep) {
+  switch (rep.value()) {
     case FloatRepresentation::Float32():
       switch (kind) {
         case Kind::kRoundDown:

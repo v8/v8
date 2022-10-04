@@ -175,7 +175,7 @@ void ScheduleBuilder::ProcessOperation(const Operation& op) {
 Node* ScheduleBuilder::ProcessOperation(const WordBinopOp& op) {
   using Kind = WordBinopOp::Kind;
   const Operator* o;
-  switch (op.rep) {
+  switch (op.rep.value()) {
     case WordRepresentation::Word32():
       switch (op.kind) {
         case Kind::kAdd:
@@ -264,7 +264,7 @@ Node* ScheduleBuilder::ProcessOperation(const WordBinopOp& op) {
 Node* ScheduleBuilder::ProcessOperation(const FloatBinopOp& op) {
   using Kind = FloatBinopOp::Kind;
   const Operator* o;
-  switch (op.rep) {
+  switch (op.rep.value()) {
     case FloatRepresentation::Float32():
       switch (op.kind) {
         case Kind::kAdd:
@@ -330,7 +330,7 @@ Node* ScheduleBuilder::ProcessOperation(const FloatBinopOp& op) {
 
 Node* ScheduleBuilder::ProcessOperation(const OverflowCheckedBinopOp& op) {
   const Operator* o;
-  switch (op.rep) {
+  switch (op.rep.value()) {
     case WordRepresentation::Word32():
       switch (op.kind) {
         case OverflowCheckedBinopOp::Kind::kSignedAdd:
