@@ -2357,6 +2357,18 @@ void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
         },
         SlotSet::FREE_EMPTY_BUCKETS);
     chunk->ReleaseInvalidatedSlots<OLD_TO_SHARED>();
+
+    RememberedSet<OLD_TO_SHARED>::IterateTyped(
+        chunk, [collector = this, heap](SlotType slot_type, Address slot) {
+          HeapObject heap_object =
+              UpdateTypedSlotHelper::GetTargetObject(heap, slot_type, slot);
+          if (heap_object.InSharedWritableHeap()) {
+            collector->MarkRootObject(Root::kClientHeap, heap_object);
+            return KEEP_SLOT;
+          } else {
+            return REMOVE_SLOT;
+          }
+        });
   }
 
 #ifdef V8_COMPRESS_POINTERS
