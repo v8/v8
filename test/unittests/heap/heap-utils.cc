@@ -136,6 +136,9 @@ void HeapInternalsBase::SimulateFullSpace(
   CHECK(!v8_flags.stress_concurrent_allocation);
   space->FreeLinearAllocationArea();
   if (v8_flags.minor_mc) {
+    while (space->AddFreshPage()) {
+      // Preallocate all pages for the space.
+    }
     for (Page* page : *space) {
       FillPageInPagedSpace(page, out_handles);
     }
