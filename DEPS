@@ -94,9 +94,9 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '521ac34ebd795939c7e16b37d9d3ddb40e8ed556',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'af6dfb72115ed59c752910fc8f3fc66dbfb91c91',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '7e7c21a9ac34c4fc2b255aa44d639efec9c33b90',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '1ca6866771ba31f28ec3033458a85e79c0904b53',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '9174abb6ac087b46f22248dc713b6c0328b8f774',
   'buildtools/clang_format/script':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/clang/tools/clang-format.git' + '@' + '8b525d2747f2584fc35d8c7e612e66f377858df7',
   'buildtools/linux64': {
@@ -120,9 +120,9 @@ deps = {
     'condition': 'host_os == "mac"',
   },
   'buildtools/third_party/libc++/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '1821ec353176f24aad5f26a17639a370d7744a72',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '2e919977e0030ce61bd19c40cefe31b995f1e2d4',
   'buildtools/third_party/libc++abi/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '20a144a49a2819e20b90d145554299e995d67c06',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'db2a783a7d1ef0f0ef31da4b6e3de0c31fcfd93f',
   'buildtools/third_party/libunwind/trunk':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '08ebcbe7b672a04e341cb3a88d8bf4276f96ac6e',
   'buildtools/win': {
@@ -198,7 +198,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '16eb7278843e4955064c980c5887668d6cba1035',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'ff03621a71c01a6f2b0f3bf2677cf815291a9e85',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -249,7 +249,7 @@ deps = {
       'condition': 'checkout_android',
   },
   'third_party/zlib':
-    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '6fe4ce825fd93c6e7a23eecd385a66e181fb6b81',
+    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'd689fca54d7b43154f7cf77f785d19f2628fa133',
   'tools/clang':
     Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'a5e0d72349d028a4023927d6d166a8478355fac3',
   'tools/luci-go': {
