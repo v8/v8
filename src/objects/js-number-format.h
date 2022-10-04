@@ -96,9 +96,6 @@ class JSNumberFormat
       const Intl::NumberFormatDigitOptions& digit_options,
       int rounding_increment, ShowTrailingZeros show);
 
-  static const icu::UnicodeString NumberingSystemFromSkeleton(
-      const icu::UnicodeString& skeleton);
-
   V8_WARN_UNUSED_RESULT static Maybe<icu::number::LocalizedNumberRangeFormatter>
   GetRangeFormatter(
       Isolate* isolate, String locale,

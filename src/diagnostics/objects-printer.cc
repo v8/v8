@@ -2452,15 +2452,6 @@ void JSDisplayNames::JSDisplayNamesPrint(std::ostream& os) {
   JSObjectPrintBody(os, *this);
 }
 
-void JSDurationFormat::JSDurationFormatPrint(std::ostream& os) {
-  JSObjectPrintHeader(os, *this, "JSDurationFormat");
-  os << "\n - style_flags: " << style_flags();
-  os << "\n - display_flags: " << display_flags();
-  os << "\n - icu locale: " << Brief(icu_locale());
-  os << "\n - icu number formatter: " << Brief(icu_number_formatter());
-  JSObjectPrintBody(os, *this);
-}
-
 void JSListFormat::JSListFormatPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSListFormat");
   os << "\n - locale: " << Brief(locale());
