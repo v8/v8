@@ -184,7 +184,9 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
     return memory_chunk_list_.back();
   }
 
-  heap::List<MemoryChunk>& memory_chunk_list() { return memory_chunk_list_; }
+  virtual heap::List<MemoryChunk>& memory_chunk_list() {
+    return memory_chunk_list_;
+  }
 
   virtual Page* InitializePage(MemoryChunk* chunk) { UNREACHABLE(); }
 

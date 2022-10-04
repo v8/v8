@@ -8,6 +8,7 @@
 #include <atomic>
 #include <memory>
 
+#include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
@@ -792,6 +793,9 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
     paged_space_.ClearUnusedObjectStartBitmaps();
   }
 #endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
+
+  // All operations on `memory_chunk_list_` should go through `paged_space_`.
+  heap::List<MemoryChunk>& memory_chunk_list() final { UNREACHABLE(); }
 
  private:
   bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,

@@ -374,6 +374,8 @@ class CollectorBase {
   std::vector<LargePage*> promoted_large_pages_;
 
  protected:
+  void StartSweepSpace(Sweeper* sweeper, PagedSpaceBase* space);
+
   Heap* heap_;
   GarbageCollector garbage_collector_;
   MarkingWorklists marking_worklists_;
@@ -691,8 +693,6 @@ class MarkCompactCollector final : public CollectorBase {
   // Starts sweeping of spaces by contributing on the main thread and setting
   // up other pages for sweeping. Does not start sweeper tasks.
   void Sweep();
-  void StartSweepSpace(PagedSpace* space);
-  void StartSweepNewSpace();
   void SweepLargeSpace(LargeObjectSpace* space);
 
   void EvacuatePrologue();
@@ -845,7 +845,6 @@ class MinorMarkCompactCollector final : public CollectorBase {
   void ClearNonLiveReferences();
 
   void Sweep();
-  void StartSweepNewSpace();
 
   void EvacuatePrologue();
   void EvacuateEpilogue();
