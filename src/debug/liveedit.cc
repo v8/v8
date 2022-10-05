@@ -740,16 +740,9 @@ void TranslateSourcePositionTable(Isolate* isolate, Handle<BytecodeArray> code,
 }
 
 void UpdatePositions(Isolate* isolate, Handle<SharedFunctionInfo> sfi,
+                     FunctionLiteral* new_function,
                      const std::vector<SourceChangeRange>& diffs) {
-  int old_start_position = sfi->StartPosition();
-  int new_start_position =
-      LiveEdit::TranslatePosition(diffs, old_start_position);
-  int new_end_position = LiveEdit::TranslatePosition(diffs, sfi->EndPosition());
-  int new_function_token_position =
-      LiveEdit::TranslatePosition(diffs, sfi->function_token_position());
-  sfi->SetPosition(new_start_position, new_end_position);
-  sfi->SetFunctionTokenPosition(new_function_token_position,
-                                new_start_position);
+  sfi->UpdateFromFunctionLiteralForLiveEdit(new_function);
   if (sfi->HasBytecodeArray()) {
     TranslateSourcePositionTable(
         isolate, handle(sfi->GetBytecodeArray(isolate), isolate), diffs);
@@ -847,7 +840,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
       isolate->debug()->RemoveBreakInfoAndMaybeFree(debug_info);
     }
     SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, sfi);
-    UpdatePositions(isolate, sfi, diffs);
+    UpdatePositions(isolate, sfi, mapping.second, diffs);
 
     sfi->set_script(*new_script);
     sfi->set_function_literal_id(mapping.second->function_literal_id());
