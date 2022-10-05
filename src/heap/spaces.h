@@ -350,7 +350,11 @@ static_assert(sizeof(Page) <= MemoryChunk::kHeaderSize);
 
 class V8_EXPORT_PRIVATE ObjectIterator : public Malloced {
  public:
-  virtual ~ObjectIterator() = default;
+  // Note: The destructor can not be marked as `= default` as this causes
+  // the compiler on C++20 to define it as `constexpr` resulting in the
+  // compiler producing warnings about undefined inlines for Next()
+  // on classes inheriting from it.
+  virtual ~ObjectIterator() {}
   virtual HeapObject Next() = 0;
 };
 
