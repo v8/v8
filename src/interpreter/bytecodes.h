@@ -228,8 +228,8 @@ namespace interpreter {
   /* GetSuperConstructor operator */                                           \
   V(GetSuperConstructor, ImplicitRegisterUse::kReadAccumulator,                \
     OperandType::kRegOut)                                                      \
-  V(FindNonDefaultConstructor, ImplicitRegisterUse::kNone, OperandType::kReg,  \
-    OperandType::kReg, OperandType::kRegOutPair)                               \
+  V(FindNonDefaultConstructorOrConstruct, ImplicitRegisterUse::kNone,          \
+    OperandType::kReg, OperandType::kReg, OperandType::kRegOutPair)            \
                                                                                \
   /* Call operations */                                                        \
   V(CallAnyReceiver, ImplicitRegisterUse::kWriteAccumulator,                   \

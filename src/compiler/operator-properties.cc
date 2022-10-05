@@ -91,7 +91,7 @@ bool OperatorProperties::NeedsExactContext(const Operator* op) {
     case IrOpcode::kJSSetNamedProperty:
     case IrOpcode::kJSDefineNamedOwnProperty:
     case IrOpcode::kJSSetKeyedProperty:
-    case IrOpcode::kJSFindNonDefaultConstructor:
+    case IrOpcode::kJSFindNonDefaultConstructorOrConstruct:
       return true;
 
     case IrOpcode::kJSAsyncFunctionEnter:
@@ -240,7 +240,7 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
     case IrOpcode::kJSStackCheck:
     case IrOpcode::kJSDebugger:
     case IrOpcode::kJSGetSuperConstructor:
-    case IrOpcode::kJSFindNonDefaultConstructor:
+    case IrOpcode::kJSFindNonDefaultConstructorOrConstruct:
     case IrOpcode::kJSBitwiseNot:
     case IrOpcode::kJSDecrement:
     case IrOpcode::kJSIncrement:

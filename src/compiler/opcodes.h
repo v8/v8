@@ -184,7 +184,7 @@
   V(JSDeleteProperty)                  \
   V(JSHasProperty)                     \
   V(JSGetSuperConstructor)             \
-  V(JSFindNonDefaultConstructor)
+  V(JSFindNonDefaultConstructorOrConstruct)
 
 #define JS_CONTEXT_OP_LIST(V) \
   V(JSHasContextExtension)    \

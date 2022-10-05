@@ -1470,7 +1470,7 @@ Type Typer::Visitor::TypeJSGetSuperConstructor(Node* node) {
   return Type::NonInternal();
 }
 
-Type Typer::Visitor::TypeJSFindNonDefaultConstructor(Node* node) {
+Type Typer::Visitor::TypeJSFindNonDefaultConstructorOrConstruct(Node* node) {
   return Type::Tuple(Type::Boolean(), Type::Object(), zone());
 }
 

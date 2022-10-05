@@ -3229,14 +3229,14 @@ void BytecodeGraphBuilder::VisitGetSuperConstructor() {
                               Environment::kAttachFrameState);
 }
 
-void BytecodeGraphBuilder::VisitFindNonDefaultConstructor() {
+void BytecodeGraphBuilder::VisitFindNonDefaultConstructorOrConstruct() {
   Node* this_function =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
   Node* new_target =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(1));
 
-  Node* node = NewNode(javascript()->FindNonDefaultConstructor(), this_function,
-                       new_target);
+  Node* node = NewNode(javascript()->FindNonDefaultConstructorOrConstruct(),
+                       this_function, new_target);
 
   environment()->BindRegistersToProjections(
       bytecode_iterator().GetRegisterOperand(2), node,

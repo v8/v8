@@ -13820,7 +13820,7 @@ TNode<HeapObject> CodeStubAssembler::GetSuperConstructor(
   return LoadMapPrototype(map);
 }
 
-void CodeStubAssembler::FindNonDefaultConstructor(
+void CodeStubAssembler::FindNonDefaultConstructorOrConstruct(
     TNode<Context> context, TNode<JSFunction> this_function,
     TVariable<Object>& constructor, Label* found_default_base_ctor,
     Label* found_something_else) {

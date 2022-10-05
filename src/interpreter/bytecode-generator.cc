@@ -5641,8 +5641,8 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
   Register this_function = VisitForRegisterValue(super->this_function_var());
   // This register will initially hold the constructor, then afterward it will
   // hold the instance -- the lifetimes of the two don't need to overlap, and
-  // this way FindNonDefaultConstructor can choose to write either the instance
-  // or the constructor into the same register.
+  // this way FindNonDefaultConstructorOrConstruct can choose to write either
+  // the instance or the constructor into the same register.
   Register constructor_then_instance = register_allocator()->NewRegister();
 
   BytecodeLabel super_ctor_call_done;
@@ -5783,7 +5783,8 @@ void BytecodeGenerator::BuildSuperCallOptimization(
     Register constructor_then_instance, BytecodeLabel* super_ctor_call_done) {
   DCHECK(v8_flags.omit_default_ctors);
   RegisterList output = register_allocator()->NewRegisterList(2);
-  builder()->FindNonDefaultConstructor(this_function, new_target, output);
+  builder()->FindNonDefaultConstructorOrConstruct(this_function, new_target,
+                                                  output);
   builder()->MoveRegister(output[1], constructor_then_instance);
   builder()->LoadAccumulatorWithRegister(output[0]).JumpIfTrue(
       ToBooleanMode::kAlreadyBoolean, super_ctor_call_done);

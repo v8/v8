@@ -1509,7 +1509,7 @@ TF_BUILTIN(InstantiateAsmJs, CodeStubAssembler) {
   TailCallJSCode(code, context, function, new_target, arg_count);
 }
 
-TF_BUILTIN(FindNonDefaultConstructor, CodeStubAssembler) {
+TF_BUILTIN(FindNonDefaultConstructorOrConstruct, CodeStubAssembler) {
   auto this_function = Parameter<JSFunction>(Descriptor::kThisFunction);
   auto new_target = Parameter<Object>(Descriptor::kNewTarget);
   auto context = Parameter<Context>(Descriptor::kContext);
@@ -1518,8 +1518,9 @@ TF_BUILTIN(FindNonDefaultConstructor, CodeStubAssembler) {
   Label found_default_base_ctor(this, &constructor),
       found_something_else(this, &constructor);
 
-  FindNonDefaultConstructor(context, this_function, constructor,
-                            &found_default_base_ctor, &found_something_else);
+  FindNonDefaultConstructorOrConstruct(context, this_function, constructor,
+                                       &found_default_base_ctor,
+                                       &found_something_else);
 
   BIND(&found_default_base_ctor);
   {

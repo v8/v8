@@ -526,9 +526,10 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::GetSuperConstructor(Register out) {
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::FindNonDefaultConstructor(
+BytecodeArrayBuilder&
+BytecodeArrayBuilder::FindNonDefaultConstructorOrConstruct(
     Register this_function, Register new_target, RegisterList output) {
-  OutputFindNonDefaultConstructor(this_function, new_target, output);
+  OutputFindNonDefaultConstructorOrConstruct(this_function, new_target, output);
   return *this;
 }
 

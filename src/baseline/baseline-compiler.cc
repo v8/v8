@@ -1158,10 +1158,10 @@ void BaselineCompiler::VisitGetSuperConstructor() {
   StoreRegister(0, prototype);
 }
 
-void BaselineCompiler::VisitFindNonDefaultConstructor() {
+void BaselineCompiler::VisitFindNonDefaultConstructorOrConstruct() {
   SaveAccumulatorScope accumulator_scope(&basm_);
-  CallBuiltin<Builtin::kFindNonDefaultConstructor>(RegisterOperand(0),
-                                                   RegisterOperand(1));
+  CallBuiltin<Builtin::kFindNonDefaultConstructorOrConstruct>(
+      RegisterOperand(0), RegisterOperand(1));
   StoreRegisterPair(2, kReturnRegister0, kReturnRegister1);
 }
 

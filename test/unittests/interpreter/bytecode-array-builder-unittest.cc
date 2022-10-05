@@ -489,7 +489,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   scorecard[Bytecodes::ToByte(Bytecode::kCollectTypeProfile)] = 1;
 
   // This bytecode is too inconvenient to test manually.
-  scorecard[Bytecodes::ToByte(Bytecode::kFindNonDefaultConstructor)] = 1;
+  scorecard[Bytecodes::ToByte(
+      Bytecode::kFindNonDefaultConstructorOrConstruct)] = 1;
 
   // Check return occurs at the end and only once in the BytecodeArray.
   CHECK_EQ(final_bytecode, Bytecode::kReturn);

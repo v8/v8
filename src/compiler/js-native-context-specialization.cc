@@ -80,8 +80,8 @@ Reduction JSNativeContextSpecialization::Reduce(Node* node) {
       return ReduceJSAsyncFunctionResolve(node);
     case IrOpcode::kJSGetSuperConstructor:
       return ReduceJSGetSuperConstructor(node);
-    case IrOpcode::kJSFindNonDefaultConstructor:
-      return ReduceJSFindNonDefaultConstructor(node);
+    case IrOpcode::kJSFindNonDefaultConstructorOrConstruct:
+      return ReduceJSFindNonDefaultConstructorOrConstruct(node);
     case IrOpcode::kJSInstanceOf:
       return ReduceJSInstanceOf(node);
     case IrOpcode::kJSHasInPrototypeChain:
@@ -542,9 +542,10 @@ Reduction JSNativeContextSpecialization::ReduceJSGetSuperConstructor(
   return NoChange();
 }
 
-Reduction JSNativeContextSpecialization::ReduceJSFindNonDefaultConstructor(
+Reduction
+JSNativeContextSpecialization::ReduceJSFindNonDefaultConstructorOrConstruct(
     Node* node) {
-  JSFindNonDefaultConstructorNode n(node);
+  JSFindNonDefaultConstructorOrConstructNode n(node);
   Node* this_function = n.this_function();
   Node* new_target = n.new_target();
   Node* effect = n.effect();

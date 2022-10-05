@@ -1040,7 +1040,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
 
   const Operator* GetSuperConstructor();
 
-  const Operator* FindNonDefaultConstructor();
+  const Operator* FindNonDefaultConstructorOrConstruct();
 
   const Operator* CreateGeneratorObject();
 
@@ -1759,11 +1759,13 @@ class JSForInNextNode final : public JSNodeWrapperBase {
 #undef INPUTS
 };
 
-class JSFindNonDefaultConstructorNode final : public JSNodeWrapperBase {
+class JSFindNonDefaultConstructorOrConstructNode final
+    : public JSNodeWrapperBase {
  public:
-  explicit constexpr JSFindNonDefaultConstructorNode(Node* node)
+  explicit constexpr JSFindNonDefaultConstructorOrConstructNode(Node* node)
       : JSNodeWrapperBase(node) {
-    DCHECK_EQ(IrOpcode::kJSFindNonDefaultConstructor, node->opcode());
+    DCHECK_EQ(IrOpcode::kJSFindNonDefaultConstructorOrConstruct,
+              node->opcode());
   }
 
 #define INPUTS(V)                           \
