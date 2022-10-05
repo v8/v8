@@ -621,6 +621,7 @@ try_ng_pair(
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
+    triggered_timeout = 7200,
     use_goma = GOMA.ATS,
 )
 
