@@ -2969,14 +2969,17 @@ inline i::Object GetObjectFromRaw(void* object) {
 //
 // The following functions are used by our gdb macros.
 //
+V8_DONT_STRIP_SYMBOL
 V8_EXPORT_PRIVATE extern i::Object _v8_internal_Get_Object(void* object) {
   return GetObjectFromRaw(object);
 }
 
+V8_DONT_STRIP_SYMBOL
 V8_EXPORT_PRIVATE extern void _v8_internal_Print_Object(void* object) {
   GetObjectFromRaw(object).Print();
 }
 
+V8_DONT_STRIP_SYMBOL
 V8_EXPORT_PRIVATE extern void _v8_internal_Print_LoadHandler(void* object) {
 #ifdef OBJECT_PRINT
   i::StdoutStream os;
@@ -2985,6 +2988,7 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_LoadHandler(void* object) {
 #endif
 }
 
+V8_DONT_STRIP_SYMBOL
 V8_EXPORT_PRIVATE extern void _v8_internal_Print_StoreHandler(void* object) {
 #ifdef OBJECT_PRINT
   i::StdoutStream os;
@@ -2993,6 +2997,7 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_StoreHandler(void* object) {
 #endif
 }
 
+V8_DONT_STRIP_SYMBOL
 V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {
   i::Address address = reinterpret_cast<i::Address>(object);
   i::Isolate* isolate = i::Isolate::Current();
@@ -3035,11 +3040,13 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {
 #endif  // ENABLE_DISASSEMBLER
 }
 
+V8_DONT_STRIP_SYMBOL
 V8_EXPORT_PRIVATE extern void _v8_internal_Print_StackTrace() {
   i::Isolate* isolate = i::Isolate::Current();
   isolate->PrintStack(stdout);
 }
 
+V8_DONT_STRIP_SYMBOL
 V8_EXPORT_PRIVATE extern void _v8_internal_Print_TransitionTree(void* object) {
   i::Object o(GetObjectFromRaw(object));
   if (!o.IsMap()) {
