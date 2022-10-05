@@ -4714,8 +4714,11 @@ void BytecodeGenerator::VisitYield(Yield* expr) {
   if (suspend_count_ > 0) {
     if (IsAsyncGeneratorFunction(function_kind())) {
       // AsyncGenerator yields (with the exception of the initial yield)
-      // delegate work to the AsyncGeneratorYield stub, which Awaits the operand
-      // and on success, wraps the value in an IteratorResult.
+      // delegate work to the AsyncGeneratorYieldWithAwait stub, which Awaits
+      // the operand and on success, wraps the value in an IteratorResult.
+      //
+      // In the spec the Await is a separate operation, but they are combined
+      // here to reduce bytecode size.
       RegisterAllocationScope register_scope(this);
       RegisterList args = register_allocator()->NewRegisterList(3);
       builder()
@@ -4723,7 +4726,7 @@ void BytecodeGenerator::VisitYield(Yield* expr) {
           .StoreAccumulatorInRegister(args[1])         // value
           .LoadBoolean(catch_prediction() != HandlerTable::ASYNC_AWAIT)
           .StoreAccumulatorInRegister(args[2])  // is_caught
-          .CallRuntime(Runtime::kInlineAsyncGeneratorYield, args);
+          .CallRuntime(Runtime::kInlineAsyncGeneratorYieldWithAwait, args);
     } else {
       // Generator yields (with the exception of the initial yield) wrap the
       // value into IteratorResult.
@@ -4842,7 +4845,7 @@ void BytecodeGenerator::VisitYield(Yield* expr) {
 //       if (IS_ASYNC_GENERATOR) {
 //         // AsyncGeneratorYield abstract operation awaits the operand before
 //         // resolving the promise for the current AsyncGeneratorRequest.
-//         %_AsyncGeneratorYield(output.value)
+//         %_AsyncGeneratorYieldNoAwait(output.value)
 //       }
 //       input = Suspend(output);
 //       resumeMode = %GeneratorGetResumeMode();
@@ -4977,20 +4980,18 @@ void BytecodeGenerator::VisitYieldStar(YieldStar* expr) {
       } else {
         RegisterAllocationScope inner_register_scope(this);
         DCHECK_EQ(iterator_type, IteratorType::kAsync);
-        // If generatorKind is async, perform AsyncGeneratorYield(output.value),
-        // which will await `output.value` before resolving the current
-        // AsyncGeneratorRequest's promise.
+        // If generatorKind is async, perform
+        // AsyncGeneratorYieldNoAwait(output.value), which will resolve the
+        // current AsyncGeneratorRequest's promise with output.value.
         builder()->LoadNamedProperty(
             output, ast_string_constants()->value_string(),
             feedback_index(feedback_spec()->AddLoadICSlot()));
 
-        RegisterList args = register_allocator()->NewRegisterList(3);
+        RegisterList args = register_allocator()->NewRegisterList(2);
         builder()
             ->MoveRegister(generator_object(), args[0])  // generator
             .StoreAccumulatorInRegister(args[1])         // value
-            .LoadBoolean(catch_prediction() != HandlerTable::ASYNC_AWAIT)
-            .StoreAccumulatorInRegister(args[2])  // is_caught
-            .CallRuntime(Runtime::kInlineAsyncGeneratorYield, args);
+            .CallRuntime(Runtime::kInlineAsyncGeneratorYieldNoAwait, args);
       }
 
       BuildSuspendPoint(expr->position());

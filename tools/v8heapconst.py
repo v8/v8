@@ -559,7 +559,7 @@ KNOWN_OBJECTS = {
   ("old_space", 0x05231): "AsyncFunctionAwaitResolveSharedFun",
   ("old_space", 0x05255): "AsyncGeneratorAwaitRejectSharedFun",
   ("old_space", 0x05279): "AsyncGeneratorAwaitResolveSharedFun",
-  ("old_space", 0x0529d): "AsyncGeneratorYieldResolveSharedFun",
+  ("old_space", 0x0529d): "AsyncGeneratorYieldWithAwaitResolveSharedFun",
   ("old_space", 0x052c1): "AsyncGeneratorReturnResolveSharedFun",
   ("old_space", 0x052e5): "AsyncGeneratorReturnClosedRejectSharedFun",
   ("old_space", 0x05309): "AsyncGeneratorReturnClosedResolveSharedFun",

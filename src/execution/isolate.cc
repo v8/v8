@@ -984,8 +984,9 @@ void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
                           Builtin::kAsyncFunctionAwaitResolveClosure) ||
         IsBuiltinFunction(isolate, reaction->fulfill_handler(),
                           Builtin::kAsyncGeneratorAwaitResolveClosure) ||
-        IsBuiltinFunction(isolate, reaction->fulfill_handler(),
-                          Builtin::kAsyncGeneratorYieldResolveClosure)) {
+        IsBuiltinFunction(
+            isolate, reaction->fulfill_handler(),
+            Builtin::kAsyncGeneratorYieldWithAwaitResolveClosure)) {
       // Now peek into the handlers' AwaitContext to get to
       // the JSGeneratorObject for the async function.
       Handle<Context> context(
@@ -1107,8 +1108,9 @@ void CaptureAsyncStackTrace(Isolate* isolate, CallSiteBuilder* builder) {
                           Builtin::kAsyncFunctionAwaitResolveClosure) ||
         IsBuiltinFunction(isolate, promise_reaction_job_task->handler(),
                           Builtin::kAsyncGeneratorAwaitResolveClosure) ||
-        IsBuiltinFunction(isolate, promise_reaction_job_task->handler(),
-                          Builtin::kAsyncGeneratorYieldResolveClosure) ||
+        IsBuiltinFunction(
+            isolate, promise_reaction_job_task->handler(),
+            Builtin::kAsyncGeneratorYieldWithAwaitResolveClosure) ||
         IsBuiltinFunction(isolate, promise_reaction_job_task->handler(),
                           Builtin::kAsyncFunctionAwaitRejectClosure) ||
         IsBuiltinFunction(isolate, promise_reaction_job_task->handler(),

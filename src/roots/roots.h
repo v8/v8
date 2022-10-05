@@ -268,8 +268,8 @@ class Symbol;
     AsyncGeneratorAwaitRejectSharedFun)                                        \
   V(SharedFunctionInfo, async_generator_await_resolve_shared_fun,              \
     AsyncGeneratorAwaitResolveSharedFun)                                       \
-  V(SharedFunctionInfo, async_generator_yield_resolve_shared_fun,              \
-    AsyncGeneratorYieldResolveSharedFun)                                       \
+  V(SharedFunctionInfo, async_generator_yield_with_await_resolve_shared_fun,   \
+    AsyncGeneratorYieldWithAwaitResolveSharedFun)                              \
   V(SharedFunctionInfo, async_generator_return_resolve_shared_fun,             \
     AsyncGeneratorReturnResolveSharedFun)                                      \
   V(SharedFunctionInfo, async_generator_return_closed_reject_shared_fun,       \

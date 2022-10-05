@@ -1421,9 +1421,14 @@ void BaselineCompiler::VisitIntrinsicAsyncGeneratorResolve(
   CallBuiltin<Builtin::kAsyncGeneratorResolve>(args);
 }
 
-void BaselineCompiler::VisitIntrinsicAsyncGeneratorYield(
+void BaselineCompiler::VisitIntrinsicAsyncGeneratorYieldNoAwait(
     interpreter::RegisterList args) {
-  CallBuiltin<Builtin::kAsyncGeneratorYield>(args);
+  CallBuiltin<Builtin::kAsyncGeneratorYieldNoAwait>(args);
+}
+
+void BaselineCompiler::VisitIntrinsicAsyncGeneratorYieldWithAwait(
+    interpreter::RegisterList args) {
+  CallBuiltin<Builtin::kAsyncGeneratorYieldWithAwait>(args);
 }
 
 void BaselineCompiler::VisitConstruct() {

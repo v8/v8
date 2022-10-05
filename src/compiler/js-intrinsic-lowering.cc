@@ -70,8 +70,10 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceAsyncGeneratorReject(node);
     case Runtime::kInlineAsyncGeneratorResolve:
       return ReduceAsyncGeneratorResolve(node);
-    case Runtime::kInlineAsyncGeneratorYield:
-      return ReduceAsyncGeneratorYield(node);
+    case Runtime::kInlineAsyncGeneratorYieldNoAwait:
+      return ReduceAsyncGeneratorYieldNoAwait(node);
+    case Runtime::kInlineAsyncGeneratorYieldWithAwait:
+      return ReduceAsyncGeneratorYieldWithAwait(node);
     case Runtime::kInlineGeneratorGetResumeMode:
       return ReduceGeneratorGetResumeMode(node);
     case Runtime::kInlineIncBlockCounter:
@@ -216,9 +218,18 @@ Reduction JSIntrinsicLowering::ReduceAsyncGeneratorResolve(Node* node) {
       0);
 }
 
-Reduction JSIntrinsicLowering::ReduceAsyncGeneratorYield(Node* node) {
+Reduction JSIntrinsicLowering::ReduceAsyncGeneratorYieldNoAwait(Node* node) {
   return Change(
-      node, Builtins::CallableFor(isolate(), Builtin::kAsyncGeneratorYield), 0);
+      node,
+      Builtins::CallableFor(isolate(), Builtin::kAsyncGeneratorYieldNoAwait),
+      0);
+}
+
+Reduction JSIntrinsicLowering::ReduceAsyncGeneratorYieldWithAwait(Node* node) {
+  return Change(
+      node,
+      Builtins::CallableFor(isolate(), Builtin::kAsyncGeneratorYieldWithAwait),
+      0);
 }
 
 Reduction JSIntrinsicLowering::ReduceGeneratorGetResumeMode(Node* node) {

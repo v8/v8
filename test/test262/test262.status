@@ -225,10 +225,6 @@
   'language/expressions/async-generator/generator-created-after-decl-inst': [FAIL],
   'language/statements/async-generator/generator-created-after-decl-inst': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=13275
-  'language/statements/async-generator/yield-star-promise-not-unwrapped': [FAIL],
-  'language/statements/async-generator/yield-star-return-then-getter-ticks': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=9875
   'language/expressions/coalesce/tco-pos-undefined': [FAIL],
   'language/expressions/coalesce/tco-pos-null': [FAIL],

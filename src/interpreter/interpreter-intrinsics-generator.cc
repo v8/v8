@@ -261,11 +261,18 @@ TNode<Object> IntrinsicsGenerator::AsyncGeneratorResolve(
                                 arg_count);
 }
 
-TNode<Object> IntrinsicsGenerator::AsyncGeneratorYield(
+TNode<Object> IntrinsicsGenerator::AsyncGeneratorYieldNoAwait(
     const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
     int arg_count) {
-  return IntrinsicAsBuiltinCall(args, context, Builtin::kAsyncGeneratorYield,
-                                arg_count);
+  return IntrinsicAsBuiltinCall(
+      args, context, Builtin::kAsyncGeneratorYieldNoAwait, arg_count);
+}
+
+TNode<Object> IntrinsicsGenerator::AsyncGeneratorYieldWithAwait(
+    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
+    int arg_count) {
+  return IntrinsicAsBuiltinCall(
+      args, context, Builtin::kAsyncGeneratorYieldWithAwait, arg_count);
 }
 
 void IntrinsicsGenerator::AbortIfArgCountMismatch(int expected,
