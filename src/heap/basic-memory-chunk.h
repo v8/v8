@@ -110,10 +110,6 @@ class BasicMemoryChunk {
 
     // A Page with code objects.
     IS_EXECUTABLE = 1u << 21,
-
-    // A page that used for allocation since it was last swept. Used only for
-    // new space pages.
-    WAS_USED_FOR_ALLOCATION = 1u << 22,
   };
 
   using MainThreadFlags = base::Flags<Flag, uintptr_t>;
@@ -357,7 +353,7 @@ class BasicMemoryChunk {
   size_t size_;
 
   // Flags that are only mutable from the main thread when no concurrent
-  // component (e.g. marker, sweeper) is running.
+  // component (e.g. marker, sweeper, compilation, allocation) is running.
   MainThreadFlags main_thread_flags_{NO_FLAGS};
 
   // TODO(v8:7464): Find a way to remove this.

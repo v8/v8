@@ -220,11 +220,9 @@ class MemoryChunk : public BasicMemoryChunk {
   }
 #endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
 
-  void MarkWasUsedForAllocation() { SetFlag(WAS_USED_FOR_ALLOCATION); }
-  void ClearWasUsedForAllocation() { ClearFlag(WAS_USED_FOR_ALLOCATION); }
-  bool WasUsedForAllocation() const {
-    return IsFlagSet(WAS_USED_FOR_ALLOCATION);
-  }
+  void MarkWasUsedForAllocation() { was_used_for_allocation_ = true; }
+  void ClearWasUsedForAllocation() { was_used_for_allocation_ = false; }
+  bool WasUsedForAllocation() const { return was_used_for_allocation_; }
 
  protected:
   // Release all memory allocated by the chunk. Should be called when memory
@@ -292,6 +290,10 @@ class MemoryChunk : public BasicMemoryChunk {
 #ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
   ObjectStartBitmap object_start_bitmap_;
 #endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
+
+  // Marks a chunk that was used for allocation since it was last swept. Used
+  // only for new space pages.
+  size_t was_used_for_allocation_ = false;
 
  private:
   friend class ConcurrentMarkingState;
