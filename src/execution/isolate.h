@@ -2005,14 +2005,14 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   // Returns true when this isolate supports allocation in shared spaces.
   bool has_shared_heap() const {
-    return shared_isolate() || shared_space_isolate();
+    return v8_flags.shared_space ? shared_space_isolate() : shared_isolate();
   }
 
   // Returns the isolate that owns the shared spaces.
   Isolate* shared_heap_isolate() const {
     DCHECK(has_shared_heap());
     Isolate* isolate =
-        shared_isolate() ? shared_isolate() : shared_space_isolate();
+        v8_flags.shared_space ? shared_space_isolate() : shared_isolate();
     DCHECK_NOT_NULL(isolate);
     return isolate;
   }

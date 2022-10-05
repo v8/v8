@@ -792,7 +792,7 @@ UNINITIALIZED_TEST(PromotionMarkCompact) {
 
     // In-place-internalizable strings are promoted into the shared heap when
     // sharing.
-    CHECK(!heap->Contains(*one_byte_seq));
+    CHECK_IMPLIES(!v8_flags.shared_space, !heap->Contains(*one_byte_seq));
     CHECK(heap->SharedHeapContains(*one_byte_seq));
   }
 }
@@ -831,7 +831,6 @@ UNINITIALIZED_TEST(PromotionScavenge) {
 
     // In-place-internalizable strings are promoted into the shared heap when
     // sharing.
-    CHECK(!heap->Contains(*one_byte_seq));
     CHECK(heap->SharedHeapContains(*one_byte_seq));
   }
 }
@@ -880,7 +879,6 @@ UNINITIALIZED_TEST(PromotionScavengeOldToShared) {
 
     // In-place-internalizable strings are promoted into the shared heap when
     // sharing.
-    CHECK(!heap->Contains(*one_byte_seq));
     CHECK(heap->SharedHeapContains(*one_byte_seq));
 
     // Since the GC promoted that string into shared heap, it also needs to
@@ -929,7 +927,6 @@ UNINITIALIZED_TEST(PromotionMarkCompactNewToShared) {
 
     // In-place-internalizable strings are promoted into the shared heap when
     // sharing.
-    CHECK(!heap->Contains(*one_byte_seq));
     CHECK(heap->SharedHeapContains(*one_byte_seq));
 
     // Since the GC promoted that string into shared heap, it also needs to
@@ -991,7 +988,6 @@ UNINITIALIZED_TEST(PromotionMarkCompactOldToShared) {
 
     // In-place-internalizable strings are promoted into the shared heap when
     // sharing.
-    CHECK(!heap->Contains(*one_byte_seq));
     CHECK(heap->SharedHeapContains(*one_byte_seq));
 
     // Since the GC promoted that string into shared heap, it also needs to

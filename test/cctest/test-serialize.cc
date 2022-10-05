@@ -5103,7 +5103,10 @@ UNINITIALIZED_TEST(SharedStrings) {
 
   v8_flags.shared_string_table = true;
 
-  TestSerializer::InitializeProcessWideSharedIsolateFromBlob(blobs);
+  if (!v8_flags.shared_space) {
+    TestSerializer::InitializeProcessWideSharedIsolateFromBlob(blobs);
+  }
+
   v8::Isolate* isolate1 = TestSerializer::NewIsolateFromBlob(blobs);
   v8::Isolate* isolate2 = TestSerializer::NewIsolateFromBlob(blobs);
   Isolate* i_isolate1 = reinterpret_cast<Isolate*>(isolate1);
@@ -5117,11 +5120,14 @@ UNINITIALIZED_TEST(SharedStrings) {
     // Because both isolate1 and isolate2 are considered running on the main
     // thread, one must be parked to avoid deadlock in the shared heap
     // verification that may happen on client heap disposal.
-    ParkedScope parked(i_isolate2->main_thread_local_isolate());
-    isolate1->Dispose();
+    ParkedScope parked(i_isolate1->main_thread_local_isolate());
+    isolate2->Dispose();
   }
-  isolate2->Dispose();
-  TestSerializer::DeleteProcessWideSharedIsolate();
+  isolate1->Dispose();
+
+  if (!v8_flags.shared_space) {
+    TestSerializer::DeleteProcessWideSharedIsolate();
+  }
 
   blobs.Dispose();
   FreeCurrentEmbeddedBlob();

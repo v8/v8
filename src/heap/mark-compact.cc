@@ -1792,7 +1792,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
       if (V8_UNLIKELY(v8_flags.minor_mc)) {
         base->record_visitor_->MarkArrayBufferExtensionPromoted(dst);
       }
-    } else if (dest == MAP_SPACE) {
+    } else if (dest == MAP_SPACE || dest == SHARED_SPACE) {
       DCHECK_OBJECT_SIZE(size);
       DCHECK(IsAligned(size, kTaggedSize));
       base->heap_->CopyBlock(dst_addr, src_addr, size);
@@ -1846,8 +1846,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
     Map map = object.map(cage_base());
     AllocationAlignment alignment = HeapObject::RequiredAlignment(map);
     AllocationResult allocation;
-    if (ShouldPromoteIntoSharedHeap(map)) {
-      DCHECK_EQ(target_space, OLD_SPACE);
+    if (target_space == OLD_SPACE && ShouldPromoteIntoSharedHeap(map)) {
       DCHECK_NOT_NULL(shared_old_allocator_);
       allocation = shared_old_allocator_->AllocateRaw(size, alignment,
                                                       AllocationOrigin::kGC);
@@ -4871,9 +4870,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
         marking_state_(marking_state),
         chunk_(chunk),
         updating_mode_(updating_mode),
-        record_old_to_shared_slots_(
-            heap->isolate()->has_shared_heap() &&
-            !heap->isolate()->is_shared_space_isolate()) {}
+        record_old_to_shared_slots_(heap->isolate()->has_shared_heap()) {}
   ~RememberedSetUpdatingItem() override = default;
 
   void Process() override {

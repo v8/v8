@@ -4673,8 +4673,11 @@ void Genesis::InitializeGlobal_harmony_struct() {
         isolate()->factory()->NewDescriptorArray(1, 0,
                                                  AllocationType::kSharedOld);
     Descriptor descriptor = Descriptor::AccessorConstant(
-        isolate()->shared_isolate()->factory()->length_string(),
-        isolate()->shared_isolate()->factory()->shared_array_length_accessor(),
+        isolate()->shared_heap_isolate()->factory()->length_string(),
+        isolate()
+            ->shared_heap_isolate()
+            ->factory()
+            ->shared_array_length_accessor(),
         ALL_ATTRIBUTES_MASK);
     descriptors->Set(InternalIndex(0), &descriptor);
     shared_array_fun->initial_map().InitializeDescriptors(isolate(),

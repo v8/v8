@@ -672,19 +672,22 @@ void Scavenger::AddPageToSweeperIfNecessary(MemoryChunk* page) {
 
 void Scavenger::ScavengePage(MemoryChunk* page) {
   CodePageMemoryModificationScope memory_modification_scope(page);
-  const bool has_shared_isolate = heap_->isolate()->shared_isolate();
+  const bool record_old_to_shared_slots = heap_->isolate()->has_shared_heap();
 
   if (page->slot_set<OLD_TO_NEW, AccessMode::ATOMIC>() != nullptr) {
     InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToNew(
         page, InvalidatedSlotsFilter::LivenessCheck::kNo);
     RememberedSet<OLD_TO_NEW>::IterateAndTrackEmptyBuckets(
         page,
-        [this, page, has_shared_isolate, &filter](MaybeObjectSlot slot) {
+        [this, page, record_old_to_shared_slots,
+         &filter](MaybeObjectSlot slot) {
           if (!filter.IsValid(slot.address())) return REMOVE_SLOT;
           SlotCallbackResult result = CheckAndScavengeObject(heap_, slot);
           // A new space string might have been promoted into the shared heap
           // during GC.
-          if (has_shared_isolate) CheckOldToNewSlotForSharedUntyped(page, slot);
+          if (record_old_to_shared_slots) {
+            CheckOldToNewSlotForSharedUntyped(page, slot);
+          }
           return result;
         },
         &empty_chunks_local_);
@@ -701,11 +704,11 @@ void Scavenger::ScavengePage(MemoryChunk* page) {
         return UpdateTypedSlotHelper::UpdateTypedSlot(
             heap_, slot_type, slot_address,
             [this, page, slot_type, slot_address,
-             has_shared_isolate](FullMaybeObjectSlot slot) {
+             record_old_to_shared_slots](FullMaybeObjectSlot slot) {
               SlotCallbackResult result = CheckAndScavengeObject(heap(), slot);
               // A new space string might have been promoted into the shared
               // heap during GC.
-              if (has_shared_isolate) {
+              if (record_old_to_shared_slots) {
                 CheckOldToNewSlotForSharedTyped(page, slot_type, slot_address);
               }
               return result;
