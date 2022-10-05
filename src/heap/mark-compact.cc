@@ -567,7 +567,6 @@ MarkCompactCollector::MarkCompactCollector(Heap* heap)
 #endif
       uses_shared_heap_(isolate()->has_shared_heap() || isolate()->is_shared()),
       is_shared_heap_isolate_(isolate()->is_shared_heap_isolate()),
-      should_record_old_to_shared_slots_(isolate()->has_shared_heap()),
       sweeper_(new Sweeper(heap)) {
 }
 
@@ -1727,7 +1726,7 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
           RememberedSet<OLD_TO_OLD>::Insert<AccessMode::NON_ATOMIC>(
               MemoryChunk::FromHeapObject(host), slot);
         }
-      } else if (p->InSharedHeap() && !heap_->IsShared()) {
+      } else if (p->InSharedHeap() && !host.InSharedWritableHeap()) {
         RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::NON_ATOMIC>(
             MemoryChunk::FromHeapObject(host), slot);
       }
@@ -4134,6 +4133,15 @@ void MarkCompactCollector::EvacuateEpilogue() {
     DCHECK_NULL((chunk->slot_set<OLD_TO_NEW, AccessMode::ATOMIC>()));
     DCHECK_NULL((chunk->typed_slot_set<OLD_TO_NEW, AccessMode::ATOMIC>()));
 
+    // Old-to-shared slots may survive GC but there should never be any slots in
+    // new or shared spaces.
+    AllocationSpace id = chunk->owner_identity();
+    if (id == SHARED_SPACE || id == SHARED_LO_SPACE || id == NEW_SPACE ||
+        id == NEW_LO_SPACE || isolate()->is_shared()) {
+      DCHECK_NULL((chunk->slot_set<OLD_TO_SHARED, AccessMode::ATOMIC>()));
+      DCHECK_NULL((chunk->typed_slot_set<OLD_TO_SHARED, AccessMode::ATOMIC>()));
+    }
+
     // GCs need to filter invalidated slots.
     DCHECK_NULL(chunk->invalidated_slots<OLD_TO_OLD>());
     DCHECK_NULL(chunk->invalidated_slots<OLD_TO_NEW>());
@@ -5898,6 +5906,10 @@ class YoungGenerationRecordMigratedSlotVisitor final
           RememberedSet<OLD_TO_OLD>::Insert<AccessMode::NON_ATOMIC>(
               MemoryChunk::FromHeapObject(host), slot);
         }
+      } else if (p->InSharedHeap()) {
+        DCHECK(!host.InSharedWritableHeap());
+        RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::NON_ATOMIC>(
+            MemoryChunk::FromHeapObject(host), slot);
       }
     }
   }

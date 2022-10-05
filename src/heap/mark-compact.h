@@ -395,10 +395,6 @@ class MarkCompactCollector final : public CollectorBase {
 
   bool is_compacting() const { return compacting_; }
 
-  bool should_record_old_to_shared_slots() const {
-    return should_record_old_to_shared_slots_;
-  }
-
   void FinishSweepingIfOutOfWork();
 
   enum class SweepingForcedFinalizationMode { kUnifiedHeap, kV8Only };
@@ -657,7 +653,6 @@ class MarkCompactCollector final : public CollectorBase {
 
   const bool uses_shared_heap_;
   const bool is_shared_heap_isolate_;
-  const bool should_record_old_to_shared_slots_;
 
   bool evacuation_ = false;
   // True if we are collecting slots to perform evacuation from evacuation
