@@ -1708,7 +1708,7 @@ struct WasmLoopUnrollingPhase {
       if (!all_nodes.IsReachable(loop_info.header)) continue;
       ZoneUnorderedSet<Node*>* loop =
           LoopFinder::FindSmallInnermostLoopFromHeader(
-              loop_info.header, temp_zone,
+              loop_info.header, all_nodes, temp_zone,
               // Only discover the loop until its size is the maximum unrolled
               // size for its depth.
               maximum_unrollable_size(loop_info.nesting_depth), true);
@@ -1727,11 +1727,12 @@ struct WasmLoopPeelingPhase {
 
   void Run(PipelineData* data, Zone* temp_zone,
            std::vector<compiler::WasmLoopInfo>* loop_infos) {
+    AllNodes all_nodes(temp_zone, data->graph());
     for (WasmLoopInfo& loop_info : *loop_infos) {
       if (loop_info.can_be_innermost) {
         ZoneUnorderedSet<Node*>* loop =
             LoopFinder::FindSmallInnermostLoopFromHeader(
-                loop_info.header, temp_zone,
+                loop_info.header, all_nodes, temp_zone,
                 v8_flags.wasm_loop_peeling_max_size, false);
         if (loop == nullptr) continue;
         PeelWasmLoop(loop_info.header, loop, data->graph(), data->common(),

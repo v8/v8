@@ -5,6 +5,7 @@
 #include "src/compiler/loop-analysis.h"
 
 #include "src/codegen/tick-counter.h"
+#include "src/compiler/all-nodes.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/node-marker.h"
@@ -551,7 +552,8 @@ LoopTree* LoopFinder::BuildLoopTree(Graph* graph, TickCounter* tick_counter,
 #if V8_ENABLE_WEBASSEMBLY
 // static
 ZoneUnorderedSet<Node*>* LoopFinder::FindSmallInnermostLoopFromHeader(
-    Node* loop_header, Zone* zone, size_t max_size, bool calls_are_large) {
+    Node* loop_header, AllNodes& all_nodes, Zone* zone, size_t max_size,
+    bool calls_are_large) {
   auto* visited = zone->New<ZoneUnorderedSet<Node*>>(zone);
   std::vector<Node*> queue;
 
@@ -654,6 +656,8 @@ ZoneUnorderedSet<Node*>* LoopFinder::FindSmallInnermostLoopFromHeader(
   for (Node* node : *visited) {
     // The loop header is allowed to point outside the loop.
     if (node == loop_header) continue;
+
+    if (!all_nodes.IsLive(node)) continue;
 
     for (Edge edge : node->input_edges()) {
       Node* input = edge.to();
