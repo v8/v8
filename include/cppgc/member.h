@@ -28,7 +28,7 @@ namespace internal {
 
 // MemberBase always refers to the object as const object and defers to
 // BasicMember on casting to the right type as needed.
-class MemberBase {
+class V8_TRIVIAL_ABI MemberBase {
  public:
 #if defined(CPPGC_POINTER_COMPRESSION)
   using RawStorage = CompressedPointer;
@@ -74,7 +74,8 @@ class MemberBase {
 // The basic class from which all Member classes are 'generated'.
 template <typename T, typename WeaknessTag, typename WriteBarrierPolicy,
           typename CheckingPolicy>
-class BasicMember final : private MemberBase, private CheckingPolicy {
+class V8_TRIVIAL_ABI BasicMember final : private MemberBase,
+                                         private CheckingPolicy {
  public:
   using PointeeType = T;
 
