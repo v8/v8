@@ -5429,6 +5429,22 @@ WasmGraphBuilder::Callbacks WasmGraphBuilder::BranchCallbacks(
       }};
 }
 
+void WasmGraphBuilder::DataCheck(Node* object, bool object_can_be_null,
+                                 Callbacks callbacks, bool null_succeeds) {
+  if (object_can_be_null) {
+    if (null_succeeds) {
+      callbacks.succeed_if(IsNull(object), BranchHint::kFalse);
+    } else {
+      // TODO(7748): Is the extra null check actually beneficial for
+      // performance?
+      callbacks.fail_if(IsNull(object), BranchHint::kFalse);
+    }
+  }
+  callbacks.fail_if(gasm_->IsI31(object), BranchHint::kFalse);
+  Node* map = gasm_->LoadMap(object);
+  callbacks.fail_if_not(gasm_->IsDataRefMap(map), BranchHint::kTrue);
+}
+
 void WasmGraphBuilder::EqCheck(Node* object, bool object_can_be_null,
                                Callbacks callbacks, bool null_succeeds) {
   // TODO(7748): Is the extra null check actually beneficial for performance?
@@ -5514,8 +5530,8 @@ Node* WasmGraphBuilder::RefTestAbstract(Node* object, wasm::HeapType type,
       return RefIsEq(object, is_nullable, null_succeeds);
     case wasm::HeapType::kI31:
       return RefIsI31(object, null_succeeds);
-    case wasm::HeapType::kStruct:
-      return RefIsStruct(object, is_nullable, null_succeeds);
+    case wasm::HeapType::kData:
+      return RefIsData(object, is_nullable, null_succeeds);
     case wasm::HeapType::kArray:
       return RefIsArray(object, is_nullable, null_succeeds);
     case wasm::HeapType::kAny:
@@ -5556,38 +5572,36 @@ Node* WasmGraphBuilder::RefIsEq(Node* object, bool object_can_be_null,
   return done.PhiAt(0);
 }
 
-Node* WasmGraphBuilder::RefIsStruct(Node* object, bool object_can_be_null,
-                                    bool null_succeeds) {
+Node* WasmGraphBuilder::RefIsData(Node* object, bool object_can_be_null,
+                                  bool null_succeeds) {
   auto done = gasm_->MakeLabel(MachineRepresentation::kWord32);
-  ManagedObjectInstanceCheck(object, object_can_be_null, WASM_STRUCT_TYPE,
-                             TestCallbacks(&done), null_succeeds);
+  DataCheck(object, object_can_be_null, TestCallbacks(&done), null_succeeds);
   gasm_->Goto(&done, Int32Constant(1));
   gasm_->Bind(&done);
   return done.PhiAt(0);
 }
 
-Node* WasmGraphBuilder::RefAsStruct(Node* object, bool object_can_be_null,
-                                    wasm::WasmCodePosition position) {
+Node* WasmGraphBuilder::RefAsData(Node* object, bool object_can_be_null,
+                                  wasm::WasmCodePosition position) {
   bool null_succeeds = false;
   auto done = gasm_->MakeLabel();
-  ManagedObjectInstanceCheck(object, object_can_be_null, WASM_STRUCT_TYPE,
-                             CastCallbacks(&done, position), null_succeeds);
+  DataCheck(object, object_can_be_null, CastCallbacks(&done, position),
+            null_succeeds);
   gasm_->Goto(&done);
   gasm_->Bind(&done);
   return object;
 }
 
-void WasmGraphBuilder::BrOnStruct(Node* object, Node* /*rtt*/,
-                                  WasmTypeCheckConfig config,
-                                  Node** match_control, Node** match_effect,
-                                  Node** no_match_control,
-                                  Node** no_match_effect) {
+void WasmGraphBuilder::BrOnData(Node* object, Node* /*rtt*/,
+                                WasmTypeCheckConfig config,
+                                Node** match_control, Node** match_effect,
+                                Node** no_match_control,
+                                Node** no_match_effect) {
   bool null_succeeds = false;
   BrOnCastAbs(match_control, match_effect, no_match_control, no_match_effect,
               [=](Callbacks callbacks) -> void {
-                return ManagedObjectInstanceCheck(
-                    object, config.object_can_be_null, WASM_STRUCT_TYPE,
-                    callbacks, null_succeeds);
+                return DataCheck(object, config.object_can_be_null, callbacks,
+                                 null_succeeds);
               });
 }
 
@@ -6393,7 +6407,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
             gasm_->Bind(&done);
             return done.PhiAt(0);
           }
-          case wasm::HeapType::kStruct:
+          case wasm::HeapType::kData:
           case wasm::HeapType::kArray:
             // TODO(7748): Update this when JS interop is settled.
             if (type.kind() == wasm::kRefNull) {
@@ -6534,7 +6548,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
           case wasm::HeapType::kI31:
             UNREACHABLE();
           case wasm::HeapType::kFunc:
-          case wasm::HeapType::kStruct:
+          case wasm::HeapType::kData:
           case wasm::HeapType::kArray:
           case wasm::HeapType::kEq:
           default: {

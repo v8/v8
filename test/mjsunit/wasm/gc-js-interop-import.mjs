@@ -16,7 +16,7 @@ builder.addFunction('readStruct', makeSig([kWasmExternRef], [kWasmI32]))
     .addBody([
       kExprLocalGet, 0,                           // --
       kGCPrefix, kExprExternInternalize,          // --
-      kGCPrefix, kExprRefAsStruct,                // --
+      kGCPrefix, kExprRefAsData,                  // --
       kGCPrefix, kExprRefCast, struct_type,       // --
       kGCPrefix, kExprStructGet, struct_type, 0,  // --
     ]);

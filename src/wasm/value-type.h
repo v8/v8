@@ -62,7 +62,7 @@ class HeapType {
     kFunc = kV8MaxWasmTypes,  // shorthand: c
     kEq,                      // shorthand: q
     kI31,                     // shorthand: j
-    kStruct,                  // shorthand: o
+    kData,                    // shorthand: o
     kArray,                   // shorthand: g
     kAny,                     //
     kExtern,                  // shorthand: a.
@@ -90,8 +90,8 @@ class HeapType {
         return HeapType(kAny);
       case ValueTypeCode::kExternRefCode:
         return HeapType(kExtern);
-      case ValueTypeCode::kStructRefCode:
-        return HeapType(kStruct);
+      case ValueTypeCode::kDataRefCode:
+        return HeapType(kData);
       case ValueTypeCode::kArrayRefCode:
         return HeapType(kArray);
       case ValueTypeCode::kStringRefCode:
@@ -156,8 +156,8 @@ class HeapType {
         return std::string("eq");
       case kI31:
         return std::string("i31");
-      case kStruct:
-        return std::string("struct");
+      case kData:
+        return std::string("data");
       case kArray:
         return std::string("array");
       case kExtern:
@@ -195,8 +195,8 @@ class HeapType {
         return mask | kEqRefCode;
       case kI31:
         return mask | kI31RefCode;
-      case kStruct:
-        return mask | kStructRefCode;
+      case kData:
+        return mask | kDataRefCode;
       case kArray:
         return mask | kArrayRefCode;
       case kExtern:
@@ -550,8 +550,8 @@ class ValueType {
             return kAnyRefCode;
           case HeapType::kI31:
             return kI31RefCode;
-          case HeapType::kStruct:
-            return kStructRefCode;
+          case HeapType::kData:
+            return kDataRefCode;
           case HeapType::kArray:
             return kArrayRefCode;
           case HeapType::kString:
@@ -701,7 +701,7 @@ constexpr ValueType kWasmAnyRef = ValueType::RefNull(HeapType::kAny);
 constexpr ValueType kWasmExternRef = ValueType::RefNull(HeapType::kExtern);
 constexpr ValueType kWasmEqRef = ValueType::RefNull(HeapType::kEq);
 constexpr ValueType kWasmI31Ref = ValueType::RefNull(HeapType::kI31);
-constexpr ValueType kWasmStructRef = ValueType::RefNull(HeapType::kStruct);
+constexpr ValueType kWasmDataRef = ValueType::RefNull(HeapType::kData);
 constexpr ValueType kWasmArrayRef = ValueType::RefNull(HeapType::kArray);
 constexpr ValueType kWasmStringRef = ValueType::RefNull(HeapType::kString);
 constexpr ValueType kWasmStringViewWtf8 =

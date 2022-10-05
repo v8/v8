@@ -714,16 +714,16 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(BrOnCast, 0xfb46, _, "br_on_cast")                                         \
   V(BrOnCastFail, 0xfb47, _, "br_on_cast_fail")                                \
   V(RefCastNop, 0xfb4c, _, "ref.cast_nop")                                     \
-  V(RefIsStruct, 0xfb51, _, "ref.is_struct")                                   \
+  V(RefIsData, 0xfb51, _, "ref.is_data")                                       \
   V(RefIsI31, 0xfb52, _, "ref.is_i31")                                         \
   V(RefIsArray, 0xfb53, _, "ref.is_array")                                     \
-  V(RefAsStruct, 0xfb59, _, "ref.as_struct")                                   \
+  V(RefAsData, 0xfb59, _, "ref.as_data")                                       \
   V(RefAsI31, 0xfb5a, _, "ref.as_i31")                                         \
   V(RefAsArray, 0xfb5b, _, "ref.as_array")                                     \
-  V(BrOnStruct, 0xfb61, _, "br_on_struct")                                     \
+  V(BrOnData, 0xfb61, _, "br_on_data")                                         \
   V(BrOnI31, 0xfb62, _, "br_on_i31")                                           \
   V(BrOnArray, 0xfb66, _, "br_on_array")                                       \
-  V(BrOnNonStruct, 0xfb64, _, "br_on_non_struct")                              \
+  V(BrOnNonData, 0xfb64, _, "br_on_non_data")                                  \
   V(BrOnNonI31, 0xfb65, _, "br_on_non_i31")                                    \
   V(BrOnNonArray, 0xfb67, _, "br_on_non_array")                                \
   V(ExternInternalize, 0xfb70, _, "extern.internalize")                        \

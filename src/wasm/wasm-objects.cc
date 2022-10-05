@@ -325,7 +325,7 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
     case wasm::HeapType::kStringViewWtf16:
     case wasm::HeapType::kStringViewIter:
     case wasm::HeapType::kEq:
-    case wasm::HeapType::kStruct:
+    case wasm::HeapType::kData:
     case wasm::HeapType::kArray:
     case wasm::HeapType::kAny:
     case wasm::HeapType::kI31:
@@ -373,7 +373,7 @@ Handle<Object> WasmTableObject::Get(Isolate* isolate,
     case wasm::HeapType::kString:
     case wasm::HeapType::kEq:
     case wasm::HeapType::kI31:
-    case wasm::HeapType::kStruct:
+    case wasm::HeapType::kData:
     case wasm::HeapType::kArray:
     case wasm::HeapType::kAny:
       return entry;
@@ -2291,14 +2291,15 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, const WasmModule* module,
           *error_message = "null is not allowed for (ref any)";
           return {};
         }
-        case HeapType::kStruct: {
+        case HeapType::kData: {
           if (v8_flags.wasm_gc_js_interop
-                  ? value->IsWasmStruct()
+                  ? value->IsWasmStruct() || value->IsWasmArray()
                   : TryUnpackObjectWrapper(isolate, value)) {
             return value;
           }
           *error_message =
-              "structref object must be null (if nullable) or a wasm struct";
+              "dataref object must be null (if nullable) or a wasm "
+              "struct/array";
           return {};
         }
         case HeapType::kArray: {

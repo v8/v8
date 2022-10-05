@@ -238,7 +238,7 @@ HeapType read_heap_type(Decoder* decoder, const byte* pc,
     switch (code) {
       case kEqRefCode:
       case kI31RefCode:
-      case kStructRefCode:
+      case kDataRefCode:
       case kArrayRefCode:
       case kAnyRefCode:
       case kNoneCode:
@@ -313,7 +313,7 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
   switch (code) {
     case kEqRefCode:
     case kI31RefCode:
-    case kStructRefCode:
+    case kDataRefCode:
     case kArrayRefCode:
     case kAnyRefCode:
     case kNoneCode:
@@ -1076,18 +1076,17 @@ struct ControlBase : public PcForErrors<validate> {
     uint32_t depth)                                                            \
   F(BrOnCastFail, const Value& obj, const Value& rtt,                          \
     Value* result_on_fallthrough, uint32_t depth)                              \
-  F(RefIsStruct, const Value& object, Value* result)                           \
+  F(RefIsData, const Value& object, Value* result)                             \
   F(RefIsEq, const Value& object, Value* result)                               \
   F(RefIsI31, const Value& object, Value* result)                              \
   F(RefIsArray, const Value& object, Value* result)                            \
-  F(RefAsStruct, const Value& object, Value* result)                           \
+  F(RefAsData, const Value& object, Value* result)                             \
   F(RefAsI31, const Value& object, Value* result)                              \
   F(RefAsArray, const Value& object, Value* result)                            \
-  F(BrOnStruct, const Value& object, Value* value_on_branch,                   \
-    uint32_t br_depth)                                                         \
+  F(BrOnData, const Value& object, Value* value_on_branch, uint32_t br_depth)  \
   F(BrOnI31, const Value& object, Value* value_on_branch, uint32_t br_depth)   \
   F(BrOnArray, const Value& object, Value* value_on_branch, uint32_t br_depth) \
-  F(BrOnNonStruct, const Value& object, Value* value_on_fallthrough,           \
+  F(BrOnNonData, const Value& object, Value* value_on_fallthrough,             \
     uint32_t br_depth)                                                         \
   F(BrOnNonI31, const Value& object, Value* value_on_fallthrough,              \
     uint32_t br_depth)                                                         \
@@ -2024,10 +2023,10 @@ class WasmDecoder : public Decoder {
             return length + array_imm.length + data_imm.length;
           }
           case kExprBrOnArray:
-          case kExprBrOnStruct:
+          case kExprBrOnData:
           case kExprBrOnI31:
           case kExprBrOnNonArray:
-          case kExprBrOnNonStruct:
+          case kExprBrOnNonData:
           case kExprBrOnNonI31: {
             BranchDepthImmediate<validate> imm(decoder, pc + length);
             if (io) io->BranchDepth(imm);
@@ -2060,10 +2059,10 @@ class WasmDecoder : public Decoder {
           case kExprI31GetS:
           case kExprI31GetU:
           case kExprRefAsArray:
-          case kExprRefAsStruct:
+          case kExprRefAsData:
           case kExprRefAsI31:
           case kExprRefIsArray:
-          case kExprRefIsStruct:
+          case kExprRefIsData:
           case kExprRefIsI31:
           case kExprExternInternalize:
           case kExprExternExternalize:
@@ -4799,12 +4798,9 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Value obj = Peek(1);
         Value value = CreateValue(kWasmI32);
         if (!VALIDATE(IsSubtypeOf(obj.type, kWasmFuncRef, this->module_) ||
-                      IsSubtypeOf(obj.type, kWasmStructRef, this->module_) ||
-                      IsSubtypeOf(obj.type, kWasmArrayRef, this->module_) ||
+                      IsSubtypeOf(obj.type, kWasmDataRef, this->module_) ||
                       obj.type.is_bottom())) {
-          PopTypeError(0, obj,
-                       "subtype of (ref null func), (ref null struct) or (ref "
-                       "null array)");
+          PopTypeError(0, obj, "subtype of (ref null func) or (ref null data)");
           return 0;
         }
         if (current_code_reachable_and_ok_) {
@@ -4848,12 +4844,9 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         opcode_length += imm.length;
         Value obj = Peek(0);
         if (!VALIDATE(IsSubtypeOf(obj.type, kWasmFuncRef, this->module_) ||
-                      IsSubtypeOf(obj.type, kWasmStructRef, this->module_) ||
-                      IsSubtypeOf(obj.type, kWasmArrayRef, this->module_) ||
+                      IsSubtypeOf(obj.type, kWasmDataRef, this->module_) ||
                       obj.type.is_bottom())) {
-          PopTypeError(0, obj,
-                       "subtype of (ref null func), (ref null struct) or (ref "
-                       "null array)");
+          PopTypeError(0, obj, "subtype of (ref null func) or (ref null data)");
           return 0;
         }
         Value value = CreateValue(ValueType::RefMaybeNull(
@@ -4875,12 +4868,9 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Push(rtt);
         Value obj = Peek(1);
         if (!VALIDATE(IsSubtypeOf(obj.type, kWasmFuncRef, this->module_) ||
-                      IsSubtypeOf(obj.type, kWasmStructRef, this->module_) ||
-                      IsSubtypeOf(obj.type, kWasmArrayRef, this->module_) ||
+                      IsSubtypeOf(obj.type, kWasmDataRef, this->module_) ||
                       obj.type.is_bottom())) {
-          PopTypeError(0, obj,
-                       "subtype of (ref null func), (ref null struct) or (ref "
-                       "null array)");
+          PopTypeError(0, obj, "subtype of (ref null func) or (ref null data)");
           return 0;
         }
         // If either value is bottom, we emit the most specific type possible.
@@ -4935,12 +4925,9 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         // anyway.
         Value obj = Peek(0);
         if (!VALIDATE(IsSubtypeOf(obj.type, kWasmFuncRef, this->module_) ||
-                      IsSubtypeOf(obj.type, kWasmStructRef, this->module_) ||
-                      IsSubtypeOf(obj.type, kWasmArrayRef, this->module_) ||
+                      IsSubtypeOf(obj.type, kWasmDataRef, this->module_) ||
                       obj.type.is_bottom())) {
-          PopTypeError(0, obj,
-                       "subtype of (ref null func), (ref null struct) or (ref "
-                       "null array)");
+          PopTypeError(0, obj, "subtype of (ref null func) or (ref null data)");
           return 0;
         }
         Control* c = control_at(branch_depth.depth);
@@ -5005,12 +4992,9 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         CALL_INTERFACE_IF_OK_AND_REACHABLE(RttCanon, imm.index, &rtt);
         Value obj = Peek(0);
         if (!VALIDATE(IsSubtypeOf(obj.type, kWasmFuncRef, this->module_) ||
-                      IsSubtypeOf(obj.type, kWasmStructRef, this->module_) ||
-                      IsSubtypeOf(obj.type, kWasmArrayRef, this->module_) ||
+                      IsSubtypeOf(obj.type, kWasmDataRef, this->module_) ||
                       obj.type.is_bottom())) {
-          PopTypeError(0, obj,
-                       "subtype of (ref null func), (ref null struct) or (ref "
-                       "null array)");
+          PopTypeError(0, obj, "subtype of (ref null func) or (ref null data)");
           return 0;
         }
         Control* c = control_at(branch_depth.depth);
@@ -5090,7 +5074,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     Push(result);                                                              \
     return opcode_length;                                                      \
   }
-        ABSTRACT_TYPE_CHECK(Struct)
+        ABSTRACT_TYPE_CHECK(Data)
         ABSTRACT_TYPE_CHECK(I31)
         ABSTRACT_TYPE_CHECK(Array)
 #undef ABSTRACT_TYPE_CHECK
@@ -5124,12 +5108,12 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     Push(result);                                                              \
     return opcode_length;                                                      \
   }
-        ABSTRACT_TYPE_CAST(Struct)
+        ABSTRACT_TYPE_CAST(Data)
         ABSTRACT_TYPE_CAST(I31)
         ABSTRACT_TYPE_CAST(Array)
 #undef ABSTRACT_TYPE_CAST
 
-      case kExprBrOnStruct:
+      case kExprBrOnData:
       case kExprBrOnArray:
       case kExprBrOnI31: {
         NON_CONST_ONLY
@@ -5155,7 +5139,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Value obj = Peek(0, 0, kWasmAnyRef);
         Drop(obj);
         HeapType::Representation heap_type =
-            opcode == kExprBrOnStruct  ? HeapType::kStruct
+            opcode == kExprBrOnData    ? HeapType::kData
             : opcode == kExprBrOnArray ? HeapType::kArray
                                        : HeapType::kI31;
         Value result_on_branch = CreateValue(ValueType::Ref(heap_type));
@@ -5166,9 +5150,8 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         // {result_on_branch} which was passed-by-value to {Push}.
         Value* value_on_branch = stack_value(1);
         if (V8_LIKELY(current_code_reachable_and_ok_)) {
-          if (opcode == kExprBrOnStruct) {
-            CALL_INTERFACE(BrOnStruct, obj, value_on_branch,
-                           branch_depth.depth);
+          if (opcode == kExprBrOnData) {
+            CALL_INTERFACE(BrOnData, obj, value_on_branch, branch_depth.depth);
           } else if (opcode == kExprBrOnArray) {
             CALL_INTERFACE(BrOnArray, obj, value_on_branch, branch_depth.depth);
           } else {
@@ -5180,7 +5163,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Push(obj);  // Restore stack state on fallthrough.
         return opcode_length + branch_depth.length;
       }
-      case kExprBrOnNonStruct:
+      case kExprBrOnNonData:
       case kExprBrOnNonArray:
       case kExprBrOnNonI31: {
         NON_CONST_ONLY
@@ -5201,14 +5184,14 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
 
         Value obj = Peek(0, 0, kWasmAnyRef);
         HeapType::Representation heap_type =
-            opcode == kExprBrOnNonStruct  ? HeapType::kStruct
+            opcode == kExprBrOnNonData    ? HeapType::kData
             : opcode == kExprBrOnNonArray ? HeapType::kArray
                                           : HeapType::kI31;
         Value value_on_fallthrough = CreateValue(ValueType::Ref(heap_type));
 
         if (V8_LIKELY(current_code_reachable_and_ok_)) {
-          if (opcode == kExprBrOnNonStruct) {
-            CALL_INTERFACE(BrOnNonStruct, obj, &value_on_fallthrough,
+          if (opcode == kExprBrOnNonData) {
+            CALL_INTERFACE(BrOnNonData, obj, &value_on_fallthrough,
                            branch_depth.depth);
           } else if (opcode == kExprBrOnNonArray) {
             CALL_INTERFACE(BrOnNonArray, obj, &value_on_fallthrough,
