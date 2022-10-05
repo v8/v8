@@ -345,13 +345,7 @@ class RegExpParserImpl final {
   bool failed_;
   const uintptr_t stack_limit_;
 
-  friend bool RegExpParser::ParseRegExpFromHeapString(Isolate*, Zone*,
-                                                      Handle<String>,
-                                                      RegExpFlags,
-                                                      RegExpCompileData*);
-  friend bool RegExpParser::VerifyRegExpSyntax<CharT>(
-      Zone*, uintptr_t, const CharT*, int, RegExpFlags, RegExpCompileData*,
-      const DisallowGarbageCollection&);
+  friend class v8::internal::RegExpParser;
 };
 
 template <class CharT>
