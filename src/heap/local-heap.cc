@@ -85,6 +85,7 @@ LocalHeap::~LocalHeap() {
 
   heap_->safepoint()->RemoveLocalHeap(this, [this] {
     FreeLinearAllocationArea();
+    FreeSharedLinearAllocationArea();
 
     if (!is_main_thread()) {
       CodePageHeaderModificationScope rwx_write_scope(
@@ -347,7 +348,9 @@ void LocalHeap::FreeLinearAllocationArea() {
 }
 
 void LocalHeap::FreeSharedLinearAllocationArea() {
-  shared_old_space_allocator_->FreeLinearAllocationArea();
+  if (shared_old_space_allocator_) {
+    shared_old_space_allocator_->FreeLinearAllocationArea();
+  }
 }
 
 void LocalHeap::MakeLinearAllocationAreaIterable() {
