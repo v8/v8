@@ -115,6 +115,7 @@ in_category(
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Ubuntu-20.04", "cpu": "x86-64"},
         use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.NO,
         notifies = ["sheriffs on new failure", "blamelist"],
     ),
     experiment_builder(
@@ -122,6 +123,7 @@ in_category(
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Ubuntu-20.04", "cpu": "x86-64"},
         use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.NO,
         notifies = ["sheriffs on new failure", "blamelist"],
     ),
     experiment_builder(
@@ -130,6 +132,7 @@ in_category(
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"enable_swarming": False, "clobber": True, "coverage": "gcov"},
         use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.NO,
         execution_timeout = 10800,
         notifies = ["sheriffs on new failure", "blamelist"],
     ),

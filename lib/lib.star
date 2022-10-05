@@ -245,11 +245,18 @@ RECLIENT = struct(
         "metrics_project": "chromium-reclient-metrics",
         "compare": True,
     },
+    NO = {"use_remoteexec": False},
+    NONE = {},
 )
 
 def _reclient_properties(use_remoteexec, name):
     if use_remoteexec == None:
         return {}
+
+    if use_remoteexec == RECLIENT.NONE or use_remoteexec == RECLIENT.NO:
+        return {
+            "$build/v8": {"use_remoteexec": False},
+        }
 
     reclient = dict(use_remoteexec)
     rewrapper_env = {}
@@ -385,7 +392,8 @@ def multibranch_builder(**kwargs):
         first_branch_version = args.pop("first_branch_version", None)
         if triggered_by_gitiles:
             args.setdefault("triggered_by", []).append(branch.poller_name)
-            args["use_goma"] = args.get("use_goma", GOMA.DEFAULT)
+            args["use_goma"] = args.get("use_goma", GOMA.NO)
+            args["use_remoteexec"] = args.get("use_remoteexec", RECLIENT.DEFAULT)
         args["priority"] = branch.priority
         if branch.bucket == "ci":
             if close_tree:

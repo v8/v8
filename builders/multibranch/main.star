@@ -147,6 +147,7 @@ in_category(
         dimensions = {"os": "Ubuntu-20.04", "cpu": "x86-64"},
         properties = {"default_targets": ["v8_gcc_light"]},
         use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.NO,
         first_branch_version = "10.5",
     ),
     main_multibranch_builder(
@@ -220,6 +221,7 @@ in_category(
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         properties = {"use_goma": False},
         use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.NO,
         close_tree = False,
     ),
 )
@@ -321,6 +323,7 @@ in_category(
         executable = "recipe:v8/presubmit",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         use_goma = GOMA.NONE,
+        use_remoteexec = RECLIENT.NONE,
     ),
     main_multibranch_builder(
         name = "V8 Fuzzer",
