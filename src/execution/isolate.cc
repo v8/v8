@@ -3629,6 +3629,9 @@ void Isolate::Deinit() {
   // At this point there are no more background threads left in this isolate.
   heap_.safepoint()->AssertMainThreadIsOnlyThread();
 
+  // Tear down data using the shared heap before detaching.
+  heap_.TearDownWithSharedHeap();
+
   {
     // This isolate might have to park for a shared GC initiated by another
     // client isolate before it can actually detach from the shared isolate.

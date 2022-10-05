@@ -863,6 +863,9 @@ class Heap {
   // Sets the TearDown state, so no new GC tasks get posted.
   void StartTearDown();
 
+  // Destroys all data that might require the shared heap.
+  void TearDownWithSharedHeap();
+
   // Destroys all memory allocated by the heap.
   void TearDown();
 

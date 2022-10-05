@@ -5910,6 +5910,17 @@ void Heap::StartTearDown() {
   }
 }
 
+void Heap::TearDownWithSharedHeap() {
+  DCHECK_EQ(gc_state(), TEAR_DOWN);
+
+  // Assert that there are no background threads left and no executable memory
+  // chunks are unprotected.
+  safepoint()->AssertMainThreadIsOnlyThread();
+
+  // Might use the external pointer which might be in the shared heap.
+  external_string_table_.TearDown();
+}
+
 void Heap::TearDown() {
   DCHECK_EQ(gc_state(), TEAR_DOWN);
 
@@ -6003,8 +6014,6 @@ void Heap::TearDown() {
     CppHeap::From(cpp_heap_)->DetachIsolate();
     cpp_heap_ = nullptr;
   }
-
-  external_string_table_.TearDown();
 
   tracer_.reset();
 
