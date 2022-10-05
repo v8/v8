@@ -1298,7 +1298,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
       __ Pop(r0, fp);
     }
     __ mtlr(r0);
-    __ MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(flags, feedback_vector);
+    __ OptimizeCodeOrTailCallOptimizedCodeSlot(flags, feedback_vector);
     __ Trap();
   }
 
@@ -1568,7 +1568,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   __ jmp(&after_stack_check_interrupt);
 
   __ bind(&flags_need_processing);
-  __ MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(flags, feedback_vector);
+  __ OptimizeCodeOrTailCallOptimizedCodeSlot(flags, feedback_vector);
 
   __ bind(&is_baseline);
   {

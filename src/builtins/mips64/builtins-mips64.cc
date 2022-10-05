@@ -1021,7 +1021,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     // Ensure the flags is not allocated again.
     // Drop the frame created by the baseline call.
     __ Pop(ra, fp);
-    __ MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(flags, feedback_vector);
+    __ OptimizeCodeOrTailCallOptimizedCodeSlot(flags, feedback_vector);
     __ Trap();
   }
 
@@ -1270,7 +1270,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   __ jmp(&after_stack_check_interrupt);
 
   __ bind(&flags_need_processing);
-  __ MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(flags, feedback_vector);
+  __ OptimizeCodeOrTailCallOptimizedCodeSlot(flags, feedback_vector);
   __ bind(&is_baseline);
   {
     // Load the feedback vector from the closure.

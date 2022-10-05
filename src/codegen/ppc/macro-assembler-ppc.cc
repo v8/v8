@@ -2152,7 +2152,7 @@ void MacroAssembler::LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
   bne(flags_need_processing, cr0);
 }
 
-void MacroAssembler::MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
+void MacroAssembler::OptimizeCodeOrTailCallOptimizedCodeSlot(
     Register flags, Register feedback_vector) {
   DCHECK(!AreAliased(flags, feedback_vector));
   Label maybe_has_optimized_code, maybe_needs_logging;

@@ -646,130 +646,141 @@ class MaglevCodeGeneratingNodeProcessor {
       : masm_(masm) {}
 
   void PreProcessGraph(Graph* graph) {
+    code_gen_state()->set_untagged_slots(graph->untagged_stack_slots());
+    code_gen_state()->set_tagged_slots(graph->tagged_stack_slots());
+
     if (v8_flags.maglev_break_on_entry) {
       __ int3();
     }
 
-    __ BailoutIfDeoptimized(rbx);
+    if (v8_flags.maglev_ool_prologue) {
+      // Call the out-of-line prologue (with parameters passed on the stack).
+      __ Push(Immediate(code_gen_state()->stack_slots() * kSystemPointerSize));
+      __ Push(Immediate(code_gen_state()->tagged_slots() * kSystemPointerSize));
+      __ CallBuiltin(Builtin::kMaglevOutOfLinePrologue);
+    } else {
+      __ BailoutIfDeoptimized(rbx);
 
-    // Tiering support.
-    // TODO(jgruber): Extract to a builtin (the tiering prologue is ~230 bytes
-    // per Maglev code object on x64).
-    {
-      // Scratch registers. Don't clobber regs related to the calling
-      // convention (e.g. kJavaScriptCallArgCountRegister).
-      Register flags = rcx;
-      Register feedback_vector = r9;
-
-      // Load the feedback vector.
-      __ LoadTaggedPointerField(
-          feedback_vector,
-          FieldOperand(kJSFunctionRegister, JSFunction::kFeedbackCellOffset));
-      __ LoadTaggedPointerField(
-          feedback_vector, FieldOperand(feedback_vector, Cell::kValueOffset));
-      __ AssertFeedbackVector(feedback_vector);
-
-      Label flags_need_processing, next;
-      __ LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
-          flags, feedback_vector, CodeKind::MAGLEV, &flags_need_processing);
-      __ jmp(&next);
-
-      __ bind(&flags_need_processing);
+      // Tiering support.
+      // TODO(jgruber): Extract to a builtin (the tiering prologue is ~230 bytes
+      // per Maglev code object on x64).
       {
-        ASM_CODE_COMMENT_STRING(masm(), "Optimized marker check");
-        __ MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
-            flags, feedback_vector, kJSFunctionRegister, JumpMode::kJump);
-        __ Trap();
+        // Scratch registers. Don't clobber regs related to the calling
+        // convention (e.g. kJavaScriptCallArgCountRegister).
+        Register flags = rcx;
+        Register feedback_vector = r9;
+
+        // Load the feedback vector.
+        __ LoadTaggedPointerField(
+            feedback_vector,
+            FieldOperand(kJSFunctionRegister, JSFunction::kFeedbackCellOffset));
+        __ LoadTaggedPointerField(
+            feedback_vector, FieldOperand(feedback_vector, Cell::kValueOffset));
+        __ AssertFeedbackVector(feedback_vector);
+
+        Label flags_need_processing, next;
+        __ LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
+            flags, feedback_vector, CodeKind::MAGLEV, &flags_need_processing);
+        __ jmp(&next);
+
+        __ bind(&flags_need_processing);
+        {
+          ASM_CODE_COMMENT_STRING(masm(), "Optimized marker check");
+          __ OptimizeCodeOrTailCallOptimizedCodeSlot(
+              flags, feedback_vector, kJSFunctionRegister, JumpMode::kJump);
+          __ Trap();
+        }
+
+        __ bind(&next);
       }
 
-      __ bind(&next);
-    }
+      __ EnterFrame(StackFrame::MAGLEV);
 
-    __ EnterFrame(StackFrame::MAGLEV);
+      // Save arguments in frame.
+      // TODO(leszeks): Consider eliding this frame if we don't make any calls
+      // that could clobber these registers.
+      __ Push(kContextRegister);
+      __ Push(kJSFunctionRegister);              // Callee's JS function.
+      __ Push(kJavaScriptCallArgCountRegister);  // Actual argument count.
 
-    // Save arguments in frame.
-    // TODO(leszeks): Consider eliding this frame if we don't make any calls
-    // that could clobber these registers.
-    __ Push(kContextRegister);
-    __ Push(kJSFunctionRegister);              // Callee's JS function.
-    __ Push(kJavaScriptCallArgCountRegister);  // Actual argument count.
+      {
+        ASM_CODE_COMMENT_STRING(masm(), " Stack/interrupt check");
+        // Stack check. This folds the checks for both the interrupt stack limit
+        // check and the real stack limit into one by just checking for the
+        // interrupt limit. The interrupt limit is either equal to the real
+        // stack limit or tighter. By ensuring we have space until that limit
+        // after building the frame we can quickly precheck both at once.
+        __ Move(kScratchRegister, rsp);
+        // TODO(leszeks): Include a max call argument size here.
+        __ subq(kScratchRegister, Immediate(code_gen_state()->stack_slots() *
+                                            kSystemPointerSize));
+        __ cmpq(kScratchRegister,
+                __ StackLimitAsOperand(StackLimitKind::kInterruptStackLimit));
 
-    code_gen_state()->set_untagged_slots(graph->untagged_stack_slots());
-    code_gen_state()->set_tagged_slots(graph->tagged_stack_slots());
-
-    {
-      ASM_CODE_COMMENT_STRING(masm(), " Stack/interrupt check");
-      // Stack check. This folds the checks for both the interrupt stack limit
-      // check and the real stack limit into one by just checking for the
-      // interrupt limit. The interrupt limit is either equal to the real stack
-      // limit or tighter. By ensuring we have space until that limit after
-      // building the frame we can quickly precheck both at once.
-      __ Move(kScratchRegister, rsp);
-      // TODO(leszeks): Include a max call argument size here.
-      __ subq(kScratchRegister,
-              Immediate(code_gen_state()->stack_slots() * kSystemPointerSize));
-      __ cmpq(kScratchRegister,
-              __ StackLimitAsOperand(StackLimitKind::kInterruptStackLimit));
-
-      __ j(below, &deferred_call_stack_guard_);
-      __ bind(&deferred_call_stack_guard_return_);
-    }
-
-    // Initialize stack slots.
-    if (graph->tagged_stack_slots() > 0) {
-      ASM_CODE_COMMENT_STRING(masm(), "Initializing stack slots");
-      // TODO(leszeks): Consider filling with xmm + movdqa instead.
-      __ Move(rax, Immediate(0));
-
-      // Magic value. Experimentally, an unroll size of 8 doesn't seem any worse
-      // than fully unrolled pushes.
-      const int kLoopUnrollSize = 8;
-      int tagged_slots = graph->tagged_stack_slots();
-      if (tagged_slots < 2 * kLoopUnrollSize) {
-        // If the frame is small enough, just unroll the frame fill completely.
-        for (int i = 0; i < tagged_slots; ++i) {
-          __ pushq(rax);
-        }
-      } else {
-        // Extract the first few slots to round to the unroll size.
-        int first_slots = tagged_slots % kLoopUnrollSize;
-        for (int i = 0; i < first_slots; ++i) {
-          __ pushq(rax);
-        }
-        __ Move(rbx, Immediate(tagged_slots / kLoopUnrollSize));
-        // We enter the loop unconditionally, so make sure we need to loop at
-        // least once.
-        DCHECK_GT(tagged_slots / kLoopUnrollSize, 0);
-        Label loop;
-        __ bind(&loop);
-        for (int i = 0; i < kLoopUnrollSize; ++i) {
-          __ pushq(rax);
-        }
-        __ decl(rbx);
-        __ j(greater, &loop);
+        __ j(below, &deferred_call_stack_guard_);
+        __ bind(&deferred_call_stack_guard_return_);
       }
-    }
-    if (graph->untagged_stack_slots() > 0) {
-      // Extend rsp by the size of the remaining untagged part of the frame, no
-      // need to initialise these.
-      __ subq(rsp,
-              Immediate(graph->untagged_stack_slots() * kSystemPointerSize));
+
+      // Initialize stack slots.
+      if (graph->tagged_stack_slots() > 0) {
+        ASM_CODE_COMMENT_STRING(masm(), "Initializing stack slots");
+        // TODO(leszeks): Consider filling with xmm + movdqa instead.
+        __ Move(rax, Immediate(0));
+
+        // Magic value. Experimentally, an unroll size of 8 doesn't seem any
+        // worse than fully unrolled pushes.
+        const int kLoopUnrollSize = 8;
+        int tagged_slots = graph->tagged_stack_slots();
+        if (tagged_slots < 2 * kLoopUnrollSize) {
+          // If the frame is small enough, just unroll the frame fill
+          // completely.
+          for (int i = 0; i < tagged_slots; ++i) {
+            __ pushq(rax);
+          }
+        } else {
+          // Extract the first few slots to round to the unroll size.
+          int first_slots = tagged_slots % kLoopUnrollSize;
+          for (int i = 0; i < first_slots; ++i) {
+            __ pushq(rax);
+          }
+          __ Move(rbx, Immediate(tagged_slots / kLoopUnrollSize));
+          // We enter the loop unconditionally, so make sure we need to loop at
+          // least once.
+          DCHECK_GT(tagged_slots / kLoopUnrollSize, 0);
+          Label loop;
+          __ bind(&loop);
+          for (int i = 0; i < kLoopUnrollSize; ++i) {
+            __ pushq(rax);
+          }
+          __ decl(rbx);
+          __ j(greater, &loop);
+        }
+      }
+      if (graph->untagged_stack_slots() > 0) {
+        // Extend rsp by the size of the remaining untagged part of the frame,
+        // no need to initialise these.
+        __ subq(rsp,
+                Immediate(graph->untagged_stack_slots() * kSystemPointerSize));
+      }
     }
   }
 
   void PostProcessGraph(Graph*) {
     __ int3();
-    __ bind(&deferred_call_stack_guard_);
-    ASM_CODE_COMMENT_STRING(masm(), "Stack/interrupt call");
-    // Save any registers that can be referenced by RegisterInput.
-    // TODO(leszeks): Only push those that are used by the graph.
-    __ PushAll(RegisterInput::kAllowedRegisters);
-    // Push the frame size
-    __ Push(Immediate(
-        Smi::FromInt(code_gen_state()->stack_slots() * kSystemPointerSize)));
-    __ CallRuntime(Runtime::kStackGuardWithGap, 1);
-    __ PopAll(RegisterInput::kAllowedRegisters);
-    __ jmp(&deferred_call_stack_guard_return_);
+
+    if (!v8_flags.maglev_ool_prologue) {
+      __ bind(&deferred_call_stack_guard_);
+      ASM_CODE_COMMENT_STRING(masm(), "Stack/interrupt call");
+      // Save any registers that can be referenced by RegisterInput.
+      // TODO(leszeks): Only push those that are used by the graph.
+      __ PushAll(RegisterInput::kAllowedRegisters);
+      // Push the frame size
+      __ Push(Immediate(
+          Smi::FromInt(code_gen_state()->stack_slots() * kSystemPointerSize)));
+      __ CallRuntime(Runtime::kStackGuardWithGap, 1);
+      __ PopAll(RegisterInput::kAllowedRegisters);
+      __ jmp(&deferred_call_stack_guard_return_);
+    }
   }
 
   void PreProcessBasicBlock(BasicBlock* block) {

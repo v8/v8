@@ -6315,7 +6315,7 @@ void MacroAssembler::LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
   Branch(flags_need_processing, ne, scratch, Operand(zero_reg));
 }
 
-void MacroAssembler::MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
+void MacroAssembler::OptimizeCodeOrTailCallOptimizedCodeSlot(
     Register flags, Register feedback_vector) {
   ASM_CODE_COMMENT(this);
   Label maybe_has_optimized_code, maybe_needs_logging;

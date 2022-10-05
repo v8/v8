@@ -1243,8 +1243,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
       Register flags, Register feedback_vector, CodeKind current_code_kind,
       Label* flags_need_processing);
-  void MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(Register flags,
-                                                    Register feedback_vector);
+  void OptimizeCodeOrTailCallOptimizedCodeSlot(Register flags,
+                                               Register feedback_vector);
 
   template <typename Field>
   void DecodeField(Register dst, Register src) {

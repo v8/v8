@@ -1305,8 +1305,15 @@ void Builtins::Generate_BaselineOnStackReplacement(MacroAssembler* masm) {
 // architectures.
 #ifndef V8_TARGET_ARCH_X64
 void Builtins::Generate_MaglevOnStackReplacement(MacroAssembler* masm) {
-  using D = OnStackReplacementDescriptor;
+  using D =
+      i::CallInterfaceDescriptorFor<Builtin::kMaglevOnStackReplacement>::type;
   static_assert(D::kParameterCount == 1);
+  masm->Trap();
+}
+void Builtins::Generate_MaglevOutOfLinePrologue(MacroAssembler* masm) {
+  using D =
+      i::CallInterfaceDescriptorFor<Builtin::kMaglevOutOfLinePrologue>::type;
+  static_assert(D::kParameterCount == 0);
   masm->Trap();
 }
 #endif  // V8_TARGET_ARCH_X64

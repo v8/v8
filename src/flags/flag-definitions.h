@@ -480,6 +480,7 @@ DEFINE_BOOL(trace_maglev_regalloc, false, "trace maglev register allocation")
 // TODO(v8:7700): Remove once stable.
 DEFINE_BOOL(maglev_function_context_specialization, true,
             "enable function context specialization in maglev")
+DEFINE_BOOL(maglev_ool_prologue, true, "use the Maglev out of line prologue")
 
 #if ENABLE_SPARKPLUG
 DEFINE_WEAK_IMPLICATION(future, sparkplug)
