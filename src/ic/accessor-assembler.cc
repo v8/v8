@@ -1280,10 +1280,14 @@ void AccessorAssembler::HandleStoreICHandlerCase(
 
     TVARIABLE(IntPtrT, var_name_index);
     Label dictionary_found(this, &var_name_index);
-    NameDictionaryLookup<PropertyDictionary>(
-        properties, CAST(p->name()),
-        p->IsAnyDefineOwn() ? &if_slow : &dictionary_found, &var_name_index,
-        miss);
+    if (p->IsAnyDefineOwn()) {
+      NameDictionaryLookup<PropertyDictionary>(properties, CAST(p->name()),
+                                               &if_slow, nullptr, miss);
+    } else {
+      NameDictionaryLookup<PropertyDictionary>(properties, CAST(p->name()),
+                                               &dictionary_found,
+                                               &var_name_index, miss);
+    }
 
     // When dealing with class fields defined with DefineKeyedOwnIC or
     // DefineNamedOwnIC, use the slow path to check the existing property.

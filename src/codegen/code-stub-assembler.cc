@@ -8644,7 +8644,8 @@ void CodeStubAssembler::NameDictionaryLookup(
                     std::is_same<Dictionary, GlobalDictionary>::value ||
                     std::is_same<Dictionary, NameToIndexHashTable>::value,
                 "Unexpected NameDictionary");
-  DCHECK_EQ(MachineType::PointerRepresentation(), var_name_index->rep());
+  DCHECK_IMPLIES(var_name_index != nullptr,
+                 MachineType::PointerRepresentation() == var_name_index->rep());
   DCHECK_IMPLIES(mode == kFindInsertionIndex, if_found == nullptr);
   Comment("NameDictionaryLookup");
   CSA_DCHECK(this, IsUniqueName(unique_name));
@@ -8659,11 +8660,13 @@ void CodeStubAssembler::NameDictionaryLookup(
   TNode<Oddball> undefined = UndefinedConstant();
 
   // Appease the variable merging algorithm for "Goto(&loop)" below.
-  *var_name_index = IntPtrConstant(0);
+  if (var_name_index) *var_name_index = IntPtrConstant(0);
 
   TVARIABLE(IntPtrT, var_count, count);
   TVARIABLE(IntPtrT, var_entry, initial_entry);
-  Label loop(this, {&var_count, &var_entry, var_name_index});
+  VariableList loop_vars({&var_count, &var_entry}, zone());
+  if (var_name_index) loop_vars.push_back(var_name_index);
+  Label loop(this, loop_vars);
   Goto(&loop);
   BIND(&loop);
   {
@@ -8671,7 +8674,7 @@ void CodeStubAssembler::NameDictionaryLookup(
     TNode<IntPtrT> entry = var_entry.value();
 
     TNode<IntPtrT> index = EntryToIndex<Dictionary>(entry);
-    *var_name_index = index;
+    if (var_name_index) *var_name_index = index;
 
     TNode<HeapObject> current =
         CAST(UnsafeLoadFixedArrayElement(dictionary, index));
