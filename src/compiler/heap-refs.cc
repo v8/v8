@@ -1833,17 +1833,23 @@ base::Optional<Object> JSObjectRef::GetOwnConstantElementFromHeap(
   // This block is carefully constructed to avoid Ref creation and access since
   // this method may be called after the broker has retired.
   // The relaxed `length` read is safe to use in this case since:
-  // - GetOwnConstantElement only detects a constant for JSArray holders if
-  //   the array is frozen/sealed.
-  // - Frozen/sealed arrays can't change length.
-  // - We've already seen a map with frozen/sealed elements_kinds (above);
+  // - TryGetOwnConstantElement (below) only detects a constant for JSArray
+  //   holders if the array is frozen.
+  // - Frozen arrays can't change length.
+  // - We've already seen the corresponding map (when this JSObjectRef was
+  //   created);
   // - The release-load of that map ensures we read the newest value
   //   of `length` below.
   if (holder->IsJSArray()) {
+    Object array_length_obj =
+        JSArray::cast(*holder).length(broker()->isolate(), kRelaxedLoad);
+    if (!array_length_obj.IsSmi()) {
+      // Can't safely read into HeapNumber objects without atomic semantics
+      // (relaxed would be sufficient due to the guarantees above).
+      return {};
+    }
     uint32_t array_length;
-    if (!JSArray::cast(*holder)
-             .length(broker()->isolate(), kRelaxedLoad)
-             .ToArrayLength(&array_length)) {
+    if (!array_length_obj.ToArrayLength(&array_length)) {
       return {};
     }
     // See also ElementsAccessorBase::GetMaxIndex.
