@@ -2109,7 +2109,7 @@ bool ValueDeserializer::ValidateAndSetJSArrayBufferViewFlags(
     if (!v8_flags.harmony_rab_gsab) {
       return false;
     }
-    if (!buffer.is_resizable()) {
+    if (!buffer.is_resizable_by_js()) {
       return false;
     }
     if (is_backed_by_rab && buffer.is_shared()) {

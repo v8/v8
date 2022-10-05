@@ -1717,7 +1717,7 @@ uint8_t WebSnapshotSerializerDeserializer::ArrayBufferKindToFlags(
     Handle<JSArrayBuffer> array_buffer) {
   return DetachedBitField::encode(array_buffer->was_detached()) |
          SharedBitField::encode(array_buffer->is_shared()) |
-         ResizableBitField::encode(array_buffer->is_resizable());
+         ResizableBitField::encode(array_buffer->is_resizable_by_js());
 }
 
 uint32_t WebSnapshotSerializerDeserializer::BigIntSignAndLengthToFlags(
@@ -1739,9 +1739,9 @@ uint32_t WebSnapshotSerializerDeserializer::BigIntFlagsToBitField(
 }
 
 // Format (serialized array buffer):
-// - ArrayBufferFlags, including was_detached, is_shared and is_resizable.
+// - ArrayBufferFlags, including was_detached, is_shared and is_resizable_by_js.
 // - Byte length
-// - if is_resizable
+// - if is_resizable_by_js
 //   - Max byte length
 // - Raw bytes
 void WebSnapshotSerializer::SerializeArrayBuffer(
@@ -1754,7 +1754,7 @@ void WebSnapshotSerializer::SerializeArrayBuffer(
   array_buffer_serializer_.WriteByte(ArrayBufferKindToFlags(array_buffer));
 
   array_buffer_serializer_.WriteUint32(static_cast<uint32_t>(byte_length));
-  if (array_buffer->is_resizable()) {
+  if (array_buffer->is_resizable_by_js()) {
     size_t max_byte_length = array_buffer->max_byte_length();
     if (max_byte_length > std::numeric_limits<uint32_t>::max()) {
       Throw("Too large resizable array buffer");
@@ -3639,7 +3639,7 @@ void WebSnapshotDeserializer::DeserializeDataViews() {
     bool is_length_tracking = LengthTrackingBitField::decode(flags);
 
     if (is_length_tracking) {
-      CHECK(array_buffer->is_resizable());
+      CHECK(array_buffer->is_resizable_by_js());
     } else {
       if (!deserializer_->ReadUint32(&byte_length)) {
         Throw("Malformed data view");
@@ -3661,7 +3661,7 @@ void WebSnapshotDeserializer::DeserializeDataViews() {
                         byte_offset);
       raw_data_view.set_is_length_tracking(is_length_tracking);
       raw_data_view.set_is_backed_by_rab(!raw_array_buffer.is_shared() &&
-                                         raw_array_buffer.is_resizable());
+                                         raw_array_buffer.is_resizable_by_js());
     }
 
     data_views_.set(static_cast<int>(current_data_view_count_), *data_view);
@@ -3725,7 +3725,7 @@ void WebSnapshotDeserializer::DeserializeTypedArrays() {
     bool is_length_tracking = LengthTrackingBitField::decode(flags);
 
     if (is_length_tracking) {
-      CHECK(array_buffer->is_resizable());
+      CHECK(array_buffer->is_resizable_by_js());
     } else {
       if (!deserializer_->ReadUint32(&byte_length)) {
         Throw("Malformed typed array");
@@ -3742,7 +3742,7 @@ void WebSnapshotDeserializer::DeserializeTypedArrays() {
       }
     }
 
-    bool rabGsab = array_buffer->is_resizable() &&
+    bool rabGsab = array_buffer->is_resizable_by_js() &&
                    (!array_buffer->is_shared() || is_length_tracking);
     if (rabGsab) {
       map = handle(
@@ -3763,7 +3763,7 @@ void WebSnapshotDeserializer::DeserializeTypedArrays() {
       raw.SetOffHeapDataPtr(isolate_, array_buffer->backing_store(),
                             byte_offset);
       raw.set_is_length_tracking(is_length_tracking);
-      raw.set_is_backed_by_rab(array_buffer->is_resizable() &&
+      raw.set_is_backed_by_rab(array_buffer->is_resizable_by_js() &&
                                !array_buffer->is_shared());
     }
 

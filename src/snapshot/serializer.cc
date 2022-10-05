@@ -522,7 +522,7 @@ void Serializer::ObjectSerializer::SerializeJSTypedArray() {
         CHECK_LE(byte_length_size, size_t{std::numeric_limits<int32_t>::max()});
         int32_t byte_length = static_cast<int32_t>(byte_length_size);
         Maybe<int32_t> max_byte_length = Nothing<int32_t>();
-        if (buffer.is_resizable()) {
+        if (buffer.is_resizable_by_js()) {
           CHECK_LE(buffer.max_byte_length(),
                    std::numeric_limits<int32_t>::max());
           max_byte_length =
@@ -558,7 +558,7 @@ void Serializer::ObjectSerializer::SerializeJSArrayBuffer() {
     CHECK_LE(buffer.byte_length(), std::numeric_limits<int32_t>::max());
     int32_t byte_length = static_cast<int32_t>(buffer.byte_length());
     Maybe<int32_t> max_byte_length = Nothing<int32_t>();
-    if (buffer.is_resizable()) {
+    if (buffer.is_resizable_by_js()) {
       CHECK_LE(buffer.max_byte_length(), std::numeric_limits<int32_t>::max());
       max_byte_length = Just(static_cast<int32_t>(buffer.max_byte_length()));
     }

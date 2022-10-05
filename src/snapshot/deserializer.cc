@@ -403,8 +403,9 @@ void Deserializer<IsolateT>::PostProcessNewJSReceiver(
       auto bs = backing_store(store_index);
       SharedFlag shared =
           bs && bs->is_shared() ? SharedFlag::kShared : SharedFlag::kNotShared;
-      DCHECK_IMPLIES(bs, buffer.is_resizable() == bs->is_resizable());
-      ResizableFlag resizable = bs && bs->is_resizable()
+      DCHECK_IMPLIES(bs,
+                     buffer.is_resizable_by_js() == bs->is_resizable_by_js());
+      ResizableFlag resizable = bs && bs->is_resizable_by_js()
                                     ? ResizableFlag::kResizable
                                     : ResizableFlag::kNotResizable;
       buffer.Setup(shared, resizable, bs);

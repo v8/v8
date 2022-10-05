@@ -8,7 +8,7 @@ bitfield struct JSArrayBufferFlags extends uint32 {
   was_detached: bool: 1 bit;
   is_asm_js_memory: bool: 1 bit;
   is_shared: bool: 1 bit;
-  is_resizable: bool: 1 bit;
+  is_resizable_by_js: bool: 1 bit;
 }
 
 extern class JSArrayBuffer extends JSObjectWithEmbedderSlots {
@@ -38,7 +38,7 @@ macro IsSharedArrayBuffer(buffer: JSArrayBuffer): bool {
 
 @export
 macro IsResizableArrayBuffer(buffer: JSArrayBuffer): bool {
-  return buffer.bit_field.is_resizable;
+  return buffer.bit_field.is_resizable_by_js;
 }
 
 // We have 4 different DataViews & TypedArrays:

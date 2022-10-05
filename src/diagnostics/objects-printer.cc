@@ -1558,7 +1558,7 @@ void JSArrayBuffer::JSArrayBufferPrint(std::ostream& os) {
   if (is_detachable()) os << "\n - detachable";
   if (was_detached()) os << "\n - detached";
   if (is_shared()) os << "\n - shared";
-  if (is_resizable()) os << "\n - resizable";
+  if (is_resizable_by_js()) os << "\n - resizable_by_js";
   JSObjectPrintBody(os, *this, !was_detached());
 }
 

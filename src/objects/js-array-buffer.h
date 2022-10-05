@@ -73,9 +73,9 @@ class JSArrayBuffer
   // GrowableSharedArrayBuffer.
   DECL_BOOLEAN_ACCESSORS(is_shared)
 
-  // [is_resizable]: true if this is a ResizableArrayBuffer or a
+  // [is_resizable_by_js]: true if this is a ResizableArrayBuffer or a
   // GrowableSharedArrayBuffer.
-  DECL_BOOLEAN_ACCESSORS(is_resizable)
+  DECL_BOOLEAN_ACCESSORS(is_resizable_by_js)
 
   // An ArrayBuffer is empty if its BackingStore is empty or if there is none.
   // An empty ArrayBuffer will have a byte_length of zero but not necessarily a

@@ -51,7 +51,7 @@ std::shared_ptr<BackingStore> JSArrayBuffer::GetBackingStore() const {
 }
 
 size_t JSArrayBuffer::GetByteLength() const {
-  if (V8_UNLIKELY(is_shared() && is_resizable())) {
+  if (V8_UNLIKELY(is_shared() && is_resizable_by_js())) {
     // Invariant: byte_length for GSAB is 0 (it needs to be read from the
     // BackingStore).
     DCHECK_EQ(0, byte_length());
@@ -158,8 +158,8 @@ BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_asmjs_memory,
                     JSArrayBuffer::IsAsmJsMemoryBit)
 BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_shared,
                     JSArrayBuffer::IsSharedBit)
-BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_resizable,
-                    JSArrayBuffer::IsResizableBit)
+BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_resizable_by_js,
+                    JSArrayBuffer::IsResizableByJsBit)
 
 bool JSArrayBuffer::IsEmpty() const {
   auto backing_store = GetBackingStore();

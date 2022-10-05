@@ -3054,13 +3054,14 @@ MaybeHandle<JSArrayBuffer> Factory::NewJSArrayBufferAndBackingStore(
 
 Handle<JSArrayBuffer> Factory::NewJSSharedArrayBuffer(
     std::shared_ptr<BackingStore> backing_store) {
-  DCHECK_IMPLIES(backing_store->is_resizable(), v8_flags.harmony_rab_gsab);
+  DCHECK_IMPLIES(backing_store->is_resizable_by_js(),
+                 v8_flags.harmony_rab_gsab);
   Handle<Map> map(
       isolate()->native_context()->shared_array_buffer_fun().initial_map(),
       isolate());
   auto result = Handle<JSArrayBuffer>::cast(
       NewJSObjectFromMap(map, AllocationType::kYoung));
-  ResizableFlag resizable = backing_store->is_resizable()
+  ResizableFlag resizable = backing_store->is_resizable_by_js()
                                 ? ResizableFlag::kResizable
                                 : ResizableFlag::kNotResizable;
   result->Setup(SharedFlag::kShared, resizable, std::move(backing_store));
@@ -3176,7 +3177,8 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type,
   raw.set_length(length);
   raw.SetOffHeapDataPtr(isolate(), buffer->backing_store(), byte_offset);
   raw.set_is_length_tracking(false);
-  raw.set_is_backed_by_rab(!buffer->is_shared() && buffer->is_resizable());
+  raw.set_is_backed_by_rab(!buffer->is_shared() &&
+                           buffer->is_resizable_by_js());
   return typed_array;
 }
 
@@ -3191,7 +3193,8 @@ Handle<JSDataView> Factory::NewJSDataView(Handle<JSArrayBuffer> buffer,
       isolate(), static_cast<uint8_t*>(buffer->backing_store()) + byte_offset);
   // TODO(v8:11111): Support creating length tracking DataViews via the API.
   obj->set_is_length_tracking(false);
-  obj->set_is_backed_by_rab(!buffer->is_shared() && buffer->is_resizable());
+  obj->set_is_backed_by_rab(!buffer->is_shared() &&
+                            buffer->is_resizable_by_js());
   return obj;
 }
 
