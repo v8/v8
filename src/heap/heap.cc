@@ -1840,12 +1840,18 @@ void Heap::StartIncrementalMarking(int gc_flags,
     CompleteSweepingFull();
   }
 
+  base::Optional<GlobalSafepointScope> global_safepoint_scope;
   base::Optional<SafepointScope> safepoint_scope;
 
   {
     AllowGarbageCollection allow_shared_gc;
     IgnoreLocalGCRequests ignore_gc_requests(this);
-    safepoint_scope.emplace(this);
+
+    if (isolate()->is_shared_heap_isolate()) {
+      global_safepoint_scope.emplace(isolate());
+    } else {
+      safepoint_scope.emplace(this);
+    }
   }
 
 #ifdef DEBUG
