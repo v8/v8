@@ -1742,6 +1742,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kInt64SubWithOverflow:
     case IrOpcode::kInt64Mul:
     case IrOpcode::kInt64MulHigh:
+    case IrOpcode::kInt64MulWithOverflow:
     case IrOpcode::kInt64Div:
     case IrOpcode::kInt64Mod:
     case IrOpcode::kInt64LessThan:

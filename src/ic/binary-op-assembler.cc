@@ -279,7 +279,7 @@ TNode<Object> BinaryOpAssembler::Generate_BinaryOperationWithFeedback(
   Label do_float_operation(this), end(this), call_stub(this),
       check_rhsisoddball(this, Label::kDeferred), call_with_any_feedback(this),
       if_lhsisnotnumber(this, Label::kDeferred),
-      if_both_bigint(this, Label::kDeferred);
+      if_both_bigint(this, Label::kDeferred), if_both_bigint64(this);
   TVARIABLE(Float64T, var_float_lhs);
   TVARIABLE(Float64T, var_float_rhs);
   TVARIABLE(Smi, var_type_feedback);
@@ -411,7 +411,14 @@ TNode<Object> BinaryOpAssembler::Generate_BinaryOperationWithFeedback(
     BIND(&if_left_bigint);
     {
       GotoIf(TaggedIsSmi(rhs), &call_with_any_feedback);
-      Branch(IsBigInt(CAST(rhs)), &if_both_bigint, &call_with_any_feedback);
+      GotoIfNot(IsBigInt(CAST(rhs)), &call_with_any_feedback);
+      if (Is64()) {
+        GotoIfLargeBigInt(CAST(lhs), &if_both_bigint);
+        GotoIfLargeBigInt(CAST(rhs), &if_both_bigint);
+        Goto(&if_both_bigint64);
+      } else {
+        Goto(&if_both_bigint);
+      }
     }
   }
 
@@ -426,6 +433,42 @@ TNode<Object> BinaryOpAssembler::Generate_BinaryOperationWithFeedback(
 
     var_type_feedback = SmiConstant(BinaryOperationFeedback::kNumberOrOddball);
     Goto(&call_stub);
+  }
+
+  if (Is64()) {
+    BIND(&if_both_bigint64);
+    // TODO(panq): Remove the condition when all the operations are supported.
+    if (op == Operation::kSubtract || op == Operation::kMultiply) {
+      var_type_feedback = SmiConstant(BinaryOperationFeedback::kBigInt64);
+      UpdateFeedback(var_type_feedback.value(), maybe_feedback_vector(),
+                     slot_id, update_feedback_mode);
+
+      TVARIABLE(UintPtrT, lhs_raw);
+      TVARIABLE(UintPtrT, rhs_raw);
+      BigIntToRawBytes(CAST(lhs), &lhs_raw, &lhs_raw);
+      BigIntToRawBytes(CAST(rhs), &rhs_raw, &rhs_raw);
+
+      switch (op) {
+        case Operation::kSubtract: {
+          var_result = BigIntFromInt64(TryIntPtrSub(
+              UncheckedCast<IntPtrT>(lhs_raw.value()),
+              UncheckedCast<IntPtrT>(rhs_raw.value()), &if_both_bigint));
+          Goto(&end);
+          break;
+        }
+        case Operation::kMultiply: {
+          var_result = BigIntFromInt64(TryIntPtrMul(
+              UncheckedCast<IntPtrT>(lhs_raw.value()),
+              UncheckedCast<IntPtrT>(rhs_raw.value()), &if_both_bigint));
+          Goto(&end);
+          break;
+        }
+        default:
+          UNREACHABLE();
+      }
+    } else {
+      Goto(&if_both_bigint);
+    }
   }
 
   BIND(&if_both_bigint);

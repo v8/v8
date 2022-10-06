@@ -1686,6 +1686,25 @@ void EmitInt32MulWithOverflow(InstructionSelector* selector, Node* node,
   selector->EmitWithContinuation(opcode, result, result, cont);
 }
 
+void EmitInt64MulWithOverflow(InstructionSelector* selector, Node* node,
+                              FlagsContinuation* cont) {
+  Arm64OperandGenerator g(selector);
+  Int64BinopMatcher m(node);
+  InstructionOperand result = g.DefineAsRegister(node);
+  InstructionOperand left = g.UseRegister(m.left().node());
+  InstructionOperand high = g.TempRegister();
+
+  InstructionOperand right = g.UseRegister(m.right().node());
+  selector->Emit(kArm64Mul, result, left, right);
+  selector->Emit(kArm64Smulh, high, left, right);
+
+  // Test whether {high} is a sign-extension of {result}.
+  InstructionCode opcode =
+      kArm64Cmp | AddressingModeField::encode(kMode_Operand2_R_ASR_I);
+  selector->EmitWithContinuation(opcode, high, result, g.TempImmediate(63),
+                                 cont);
+}
+
 }  // namespace
 
 void InstructionSelector::VisitInt32Mul(Node* node) {
@@ -3028,6 +3047,14 @@ void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
                 cont->OverwriteAndNegateIfEqual(kOverflow);
                 return VisitBinop<Int64BinopMatcher>(this, node, kArm64Sub,
                                                      kArithmeticImm, cont);
+              case IrOpcode::kInt64MulWithOverflow:
+                // ARM64 doesn't set the overflow flag for multiplication, so we
+                // need to test on kNotEqual. Here is the code sequence used:
+                //   mul result, left, right
+                //   smulh high, left, right
+                //   cmp high, result, asr 63
+                cont->OverwriteAndNegateIfEqual(kNotEqual);
+                return EmitInt64MulWithOverflow(this, node, cont);
               default:
                 break;
             }
@@ -3222,6 +3249,20 @@ void InstructionSelector::VisitInt64SubWithOverflow(Node* node) {
   }
   FlagsContinuation cont;
   VisitBinop<Int64BinopMatcher>(this, node, kArm64Sub, kArithmeticImm, &cont);
+}
+
+void InstructionSelector::VisitInt64MulWithOverflow(Node* node) {
+  if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
+    // ARM64 doesn't set the overflow flag for multiplication, so we need to
+    // test on kNotEqual. Here is the code sequence used:
+    //   mul result, left, right
+    //   smulh high, left, right
+    //   cmp high, result, asr 63
+    FlagsContinuation cont = FlagsContinuation::ForSet(kNotEqual, ovf);
+    return EmitInt64MulWithOverflow(this, node, &cont);
+  }
+  FlagsContinuation cont;
+  EmitInt64MulWithOverflow(this, node, &cont);
 }
 
 void InstructionSelector::VisitInt64LessThan(Node* node) {

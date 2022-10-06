@@ -605,6 +605,7 @@
   V(Int64SubWithOverflow)        \
   V(Int64Mul)                    \
   V(Int64MulHigh)                \
+  V(Int64MulWithOverflow)        \
   V(Int64Div)                    \
   V(Int64Mod)                    \
   V(Uint64Div)                   \

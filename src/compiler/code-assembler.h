@@ -250,6 +250,7 @@ class CodeAssemblerParameterizedLabel;
   V(IntPtrDiv, IntPtrT, IntPtrT, IntPtrT)                               \
   V(IntPtrAddWithOverflow, PAIR_TYPE(IntPtrT, BoolT), IntPtrT, IntPtrT) \
   V(IntPtrSubWithOverflow, PAIR_TYPE(IntPtrT, BoolT), IntPtrT, IntPtrT) \
+  V(IntPtrMulWithOverflow, PAIR_TYPE(IntPtrT, BoolT), IntPtrT, IntPtrT) \
   V(Int32Add, Word32T, Word32T, Word32T)                                \
   V(Int32AddWithOverflow, PAIR_TYPE(Int32T, BoolT), Int32T, Int32T)     \
   V(Int32Sub, Word32T, Word32T, Word32T)                                \

@@ -4499,6 +4499,61 @@ TEST(UintPtrMulHighConstantFoldable) {
           static_cast<uint64_t>(std::numeric_limits<int64_t>::min()), 295387));
 }
 
+TEST(IntPtrMulWithOverflow) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 1;
+
+  {
+    CodeAssemblerTester asm_tester(isolate,
+                                   kNumParams + 1);  // Include receiver.
+    CodeStubAssembler m(asm_tester.state());
+
+    TNode<IntPtrT> a = m.IntPtrConstant(std::numeric_limits<intptr_t>::min());
+    TNode<IntPtrT> b = m.SmiUntag(m.Parameter<Smi>(1));
+    TNode<PairT<IntPtrT, BoolT>> pair = m.IntPtrMulWithOverflow(a, b);
+    TNode<BoolT> overflow = m.Projection<1>(pair);
+    m.Return(m.SelectBooleanConstant(overflow));
+
+    FunctionTester ft(asm_tester.GenerateCode());
+    CHECK(ft.Call(handle(Smi::FromInt(-1), isolate))
+              .ToHandleChecked()
+              ->IsTrue(isolate));
+    CHECK(ft.Call(handle(Smi::FromInt(1), isolate))
+              .ToHandleChecked()
+              ->IsFalse(isolate));
+    CHECK(ft.Call(handle(Smi::FromInt(2), isolate))
+              .ToHandleChecked()
+              ->IsTrue(isolate));
+    CHECK(ft.Call(handle(Smi::FromInt(0), isolate))
+              .ToHandleChecked()
+              ->IsFalse(isolate));
+  }
+
+  {
+    CodeAssemblerTester asm_tester(isolate,
+                                   kNumParams + 1);  // Include receiver.
+    CodeStubAssembler m(asm_tester.state());
+
+    TNode<IntPtrT> a = m.IntPtrConstant(std::numeric_limits<intptr_t>::max());
+    TNode<IntPtrT> b = m.SmiUntag(m.Parameter<Smi>(1));
+    TNode<PairT<IntPtrT, BoolT>> pair = m.IntPtrMulWithOverflow(a, b);
+    TNode<BoolT> overflow = m.Projection<1>(pair);
+    m.Return(m.SelectBooleanConstant(overflow));
+
+    FunctionTester ft(asm_tester.GenerateCode());
+    CHECK(ft.Call(handle(Smi::FromInt(-1), isolate))
+              .ToHandleChecked()
+              ->IsFalse(isolate));
+    CHECK(ft.Call(handle(Smi::FromInt(1), isolate))
+              .ToHandleChecked()
+              ->IsFalse(isolate));
+    CHECK(ft.Call(handle(Smi::FromInt(2), isolate))
+              .ToHandleChecked()
+              ->IsTrue(isolate));
+  }
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

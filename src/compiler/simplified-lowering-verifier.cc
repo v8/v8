@@ -489,6 +489,7 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       CASE(Int64Mul)
       CASE(Int64MulHigh)
       CASE(Uint64MulHigh)
+      CASE(Int64MulWithOverflow)
       CASE(Int64Div)
       CASE(Int64Mod)
       CASE(Uint64Div)

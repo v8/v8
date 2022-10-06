@@ -1595,6 +1595,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsWord64(node), VisitInt64SubWithOverflow(node);
     case IrOpcode::kInt64Mul:
       return MarkAsWord64(node), VisitInt64Mul(node);
+    case IrOpcode::kInt64MulWithOverflow:
+      return MarkAsWord64(node), VisitInt64MulWithOverflow(node);
     case IrOpcode::kInt64Div:
       return MarkAsWord64(node), VisitInt64Div(node);
     case IrOpcode::kInt64Mod:
@@ -2575,6 +2577,10 @@ void InstructionSelector::VisitInt64MulHigh(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitUint64MulHigh(Node* node) { UNIMPLEMENTED(); }
 
+void InstructionSelector::VisitInt64MulWithOverflow(Node* node) {
+  UNIMPLEMENTED();
+}
+
 void InstructionSelector::VisitInt64Div(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitInt64LessThan(Node* node) { UNIMPLEMENTED(); }
@@ -2892,6 +2898,7 @@ void InstructionSelector::VisitProjection(Node* node) {
     case IrOpcode::kInt32MulWithOverflow:
     case IrOpcode::kInt64AddWithOverflow:
     case IrOpcode::kInt64SubWithOverflow:
+    case IrOpcode::kInt64MulWithOverflow:
     case IrOpcode::kTryTruncateFloat32ToInt64:
     case IrOpcode::kTryTruncateFloat64ToInt64:
     case IrOpcode::kTryTruncateFloat32ToUint64:

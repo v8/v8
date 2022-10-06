@@ -675,7 +675,8 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(Int32SubWithOverflow, Operator::kNoProperties)                         \
   V(Int32MulWithOverflow, Operator::kAssociative | Operator::kCommutative) \
   V(Int64AddWithOverflow, Operator::kAssociative | Operator::kCommutative) \
-  V(Int64SubWithOverflow, Operator::kNoProperties)
+  V(Int64SubWithOverflow, Operator::kNoProperties)                         \
+  V(Int64MulWithOverflow, Operator::kAssociative | Operator::kCommutative)
 
 #define MACHINE_TYPE_LIST(V) \
   V(Float32)                 \
