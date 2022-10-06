@@ -722,9 +722,8 @@ void SharedFunctionInfo::UpdateFromFunctionLiteralForLiveEdit(
   if (maybe_scope_info.IsScopeInfo()) {
     // Updating the ScopeInfo is safe since they are identical modulo
     // source positions.
-    // TODO(crbug.com/1363561): Add DCHECK with ScopeInfo::Equals that ignores
-    //                          position info.
     ScopeInfo new_scope_info = *lit->scope()->scope_info();
+    DCHECK(new_scope_info.Equals(ScopeInfo::cast(maybe_scope_info), true));
     SetScopeInfo(new_scope_info);
   } else if (!is_compiled()) {
     CHECK(HasUncompiledData());

@@ -253,7 +253,8 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   bool IsReplModeScope() const;
 
 #ifdef DEBUG
-  bool Equals(ScopeInfo other) const;
+  bool Equals(ScopeInfo other,
+              bool ignore_position_and_module_info = false) const;
 #endif
 
   template <typename IsolateT>

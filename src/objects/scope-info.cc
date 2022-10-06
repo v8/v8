@@ -22,9 +22,14 @@ namespace v8 {
 namespace internal {
 
 #ifdef DEBUG
-bool ScopeInfo::Equals(ScopeInfo other) const {
+bool ScopeInfo::Equals(ScopeInfo other,
+                       bool ignore_position_and_module_info) const {
   if (length() != other.length()) return false;
   for (int index = 0; index < length(); ++index) {
+    if (ignore_position_and_module_info && HasPositionInfo() &&
+        index >= PositionInfoIndex() && index <= PositionInfoIndex() + 1) {
+      continue;
+    }
     Object entry = get(index);
     Object other_entry = other.get(index);
     if (entry.IsSmi()) {
@@ -39,12 +44,18 @@ bool ScopeInfo::Equals(ScopeInfo other) const {
           return false;
         }
       } else if (entry.IsScopeInfo()) {
-        if (!ScopeInfo::cast(entry).Equals(ScopeInfo::cast(other_entry))) {
+        if (!ScopeInfo::cast(entry).Equals(ScopeInfo::cast(other_entry),
+                                           ignore_position_and_module_info)) {
           return false;
         }
       } else if (entry.IsSourceTextModuleInfo()) {
-        if (!SourceTextModuleInfo::cast(entry).Equals(
+        if (!ignore_position_and_module_info &&
+            !SourceTextModuleInfo::cast(entry).Equals(
                 SourceTextModuleInfo::cast(other_entry))) {
+          return false;
+        }
+      } else if (entry.IsOddball()) {
+        if (Oddball::cast(entry).kind() != Oddball::cast(other_entry).kind()) {
           return false;
         }
       } else {
