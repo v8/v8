@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "GOMA", "in_console", "v8_builder")
+load("//lib/lib.star", "GOMA", "RECLIENT", "in_console", "v8_builder")
 
 in_category = in_console("integration")
 
@@ -16,7 +16,8 @@ in_category(
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         execution_timeout = 10800,
         properties = {"builder_group": "client.v8.fyi"},
-        use_goma = GOMA.ATS,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["sheriffs"],
     ),
     v8_builder(
@@ -27,7 +28,8 @@ in_category(
         dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
         execution_timeout = 10800,
         properties = {"builder_group": "client.v8.fyi"},
-        use_goma = GOMA.DEFAULT,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["sheriffs"],
     ),
     v8_builder(
@@ -42,7 +44,8 @@ in_category(
         executable = "recipe:chromium_integration",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.fyi"},
-        use_goma = GOMA.DEFAULT,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["sheriffs"],
     ),
     v8_builder(
@@ -56,7 +59,8 @@ in_category(
         executable = "recipe:chromium_integration",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.fyi"},
-        use_goma = GOMA.DEFAULT,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["sheriffs"],
     ),
     v8_builder(
@@ -66,7 +70,8 @@ in_category(
         executable = "recipe:chromium_integration",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.fyi"},
-        use_goma = GOMA.DEFAULT,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["sheriffs"],
     ),
 )
@@ -80,7 +85,8 @@ in_category(
         executable = "recipe:chromium",
         dimensions = {"host_class": "large_disk", "os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.fyi"},
-        use_goma = GOMA.DEFAULT,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["v8-infra-cc"],
     ),
     v8_builder(
@@ -90,7 +96,8 @@ in_category(
         executable = "recipe:chromium",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.fyi"},
-        use_goma = GOMA.DEFAULT,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["sheriffs"],
     ),
     v8_builder(
@@ -100,7 +107,8 @@ in_category(
         executable = "recipe:chromium",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.fyi"},
-        use_goma = GOMA.DEFAULT,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["sheriffs"],
     ),
     v8_builder(
@@ -111,7 +119,8 @@ in_category(
         dimensions = {"host_class": "large_disk", "os": "Ubuntu-18.04", "cpu": "x86-64"},
         execution_timeout = 18000,
         properties = {"builder_group": "client.v8.fyi"},
-        use_goma = GOMA.DEFAULT,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["v8-infra-cc"],
     ),
 )
@@ -126,7 +135,8 @@ in_category(
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         execution_timeout = 10800,
         properties = {"builder_group": "client.v8.fyi"},
-        use_goma = GOMA.ATS,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["v8-infra-cc"],
     ),
     v8_builder(
@@ -137,7 +147,8 @@ in_category(
         dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
         execution_timeout = 10800,
         properties = {"builder_group": "client.v8.fyi"},
-        use_goma = GOMA.DEFAULT,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["v8-infra-cc"],
     ),
     v8_builder(
@@ -148,7 +159,8 @@ in_category(
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         execution_timeout = 10800,
         properties = {"builder_group": "client.v8.fyi"},
-        use_goma = GOMA.DEFAULT,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["v8-infra-cc"],
     ),
     v8_builder(
@@ -159,7 +171,8 @@ in_category(
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         execution_timeout = 10800,
         properties = {"builder_group": "client.v8.fyi"},
-        use_goma = GOMA.DEFAULT,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["v8-infra-cc"],
     ),
     v8_builder(
@@ -170,7 +183,8 @@ in_category(
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         execution_timeout = 10800,
         properties = {"builder_group": "client.v8.fyi"},
-        use_goma = GOMA.DEFAULT,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["v8-infra-cc"],
     ),
 )
@@ -184,7 +198,8 @@ in_category(
         executable = "recipe:v8/node_integration_ng",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"v8_tot": True, "builder_group": "client.v8.fyi"},
-        use_goma = GOMA.DEFAULT,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["sheriffs"],
     ),
 )
