@@ -97,6 +97,13 @@ try_builder(
 )
 
 try_builder(
+    name = "v8_linux64_css_compile_dbg",
+    bucket = "try",
+    cq_properties = CQ.OPTIONAL,
+    dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+)
+
+try_builder(
     name = "v8_linux64_gcc_compile_dbg",
     bucket = "try",
     cq_properties = CQ.OPTIONAL,

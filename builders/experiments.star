@@ -110,6 +110,13 @@ in_category(
         notify_owners = ["jgruber@chromium.org"],
         notifies = ["blamelist"],
     ),
+    experiment_builder(
+        name = "V8 Linux64 css - debug builder",
+        triggered_by = ["v8-trigger"],
+        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+        notify_owners = ["omerkatz@chromium.org"],
+        notifies = ["blamelist"],
+    ),
     experiment_builder_pair(
         name = "V8 Linux64 gcc",
         triggered_by = ["v8-trigger"],
