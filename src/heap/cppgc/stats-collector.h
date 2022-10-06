@@ -33,6 +33,7 @@ namespace internal {
   V(IncrementalSweep)
 
 #define CPPGC_FOR_ALL_SCOPES(V)             \
+  V(Unmark)                                 \
   V(MarkIncrementalStart)                   \
   V(MarkIncrementalFinalize)                \
   V(MarkAtomicPrologue)                     \

@@ -55,6 +55,49 @@
 
 namespace v8 {
 
+namespace internal {
+
+class MinorGCHeapGrowing
+    : public cppgc::internal::StatsCollector::AllocationObserver {
+ public:
+  explicit MinorGCHeapGrowing(cppgc::internal::StatsCollector& stats_collector)
+      : stats_collector_(stats_collector) {
+    stats_collector.RegisterObserver(this);
+  }
+  virtual ~MinorGCHeapGrowing() = default;
+
+  void AllocatedObjectSizeIncreased(size_t) final {}
+  void AllocatedObjectSizeDecreased(size_t) final {}
+  void ResetAllocatedObjectSize(size_t allocated_object_size) final {
+    ConfigureLimit(allocated_object_size);
+  }
+
+  bool LimitReached() const {
+    return stats_collector_.allocated_object_size() >= limit_for_atomic_gc_;
+  }
+
+ private:
+  void ConfigureLimit(size_t allocated_object_size) {
+    // Constant growing factor for growing the heap limit.
+    static constexpr double kGrowingFactor = 1.5;
+    // For smaller heaps, allow allocating at least LAB in each regular space
+    // before triggering GC again.
+    static constexpr size_t kMinLimitIncrease =
+        cppgc::internal::kPageSize *
+        cppgc::internal::RawHeap::kNumberOfRegularSpaces;
+
+    const size_t size = std::max(allocated_object_size, initial_heap_size_);
+    limit_for_atomic_gc_ = std::max(static_cast<size_t>(size * kGrowingFactor),
+                                    size + kMinLimitIncrease);
+  }
+
+  cppgc::internal::StatsCollector& stats_collector_;
+  size_t initial_heap_size_ = 1 * cppgc::internal::kMB;
+  size_t limit_for_atomic_gc_ = 0;  // See ConfigureLimit().
+};
+
+}  // namespace internal
+
 namespace {
 
 START_ALLOW_USE_DEPRECATED()
@@ -488,6 +531,8 @@ CppHeap::CppHeap(
           cppgc::internal::HeapBase::StackSupport::
               kSupportsConservativeStackScan,
           marking_support, sweeping_support, *this),
+      minor_gc_heap_growing_(
+          std::make_unique<MinorGCHeapGrowing>(*stats_collector())),
       wrapper_descriptor_(wrapper_descriptor) {
   CHECK_NE(WrapperDescriptor::kUnknownEmbedderId,
            wrapper_descriptor_.embedder_id_for_garbage_collected);
@@ -620,8 +665,11 @@ void CppHeap::InitializeTracing(CollectionType collection_type,
 
 #if defined(CPPGC_YOUNG_GENERATION)
   if (generational_gc_supported() &&
-      *collection_type_ == CollectionType::kMajor)
+      *collection_type_ == CollectionType::kMajor) {
+    cppgc::internal::StatsCollector::EnabledScope stats_scope(
+        stats_collector(), cppgc::internal::StatsCollector::kUnmark);
     cppgc::internal::SequentialUnmarker unmarker(raw_heap());
+  }
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 
   current_gc_flags_ = gc_flags;
@@ -772,13 +820,15 @@ void CppHeap::TraceEpilogue() {
   sweeper().NotifyDoneIfNeeded();
 }
 
-void CppHeap::RunMinorGC(StackState stack_state) {
+void CppHeap::RunMinorGCIfNeeded(StackState stack_state) {
   if (!generational_gc_supported()) return;
   if (in_no_gc_scope()) return;
   // Minor GC does not support nesting in full GCs.
   if (IsMarking()) return;
   // Minor GCs with the stack are currently not supported.
   if (stack_state == StackState::kMayContainHeapPointers) return;
+  // Run only when the limit is reached.
+  if (!minor_gc_heap_growing_->LimitReached()) return;
 
   DCHECK(!sweeper_.IsSweepingInProgress());
 

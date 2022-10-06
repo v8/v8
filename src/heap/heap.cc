@@ -2231,8 +2231,9 @@ size_t Heap::PerformGarbageCollection(
   if (cpp_heap() && IsYoungGenerationCollector(collector)) {
     const bool with_stack = (gc_reason != GarbageCollectionReason::kTask);
     CppHeap::From(cpp_heap())
-        ->RunMinorGC(with_stack ? CppHeap::StackState::kMayContainHeapPointers
-                                : CppHeap::StackState::kNoHeapPointers);
+        ->RunMinorGCIfNeeded(with_stack
+                                 ? CppHeap::StackState::kMayContainHeapPointers
+                                 : CppHeap::StackState::kNoHeapPointers);
   }
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 

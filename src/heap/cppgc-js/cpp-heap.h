@@ -28,6 +28,7 @@ class Isolate;
 namespace internal {
 
 class CppMarkingState;
+class MinorGCHeapGrowing;
 
 // A C++ heap implementation used with V8 to implement unified heap.
 class V8_EXPORT_PRIVATE CppHeap final
@@ -146,7 +147,7 @@ class V8_EXPORT_PRIVATE CppHeap final
   void EnterFinalPause(cppgc::EmbedderStackState stack_state);
   bool FinishConcurrentMarkingIfNeeded();
 
-  void RunMinorGC(StackState);
+  void RunMinorGCIfNeeded(StackState);
 
   // StatsCollector::AllocationObserver interface.
   void AllocatedObjectSizeIncreased(size_t) final;
@@ -193,6 +194,8 @@ class V8_EXPORT_PRIVATE CppHeap final
   // |collection_type_| is initialized when marking is in progress.
   base::Optional<CollectionType> collection_type_;
   GarbageCollectionFlags current_gc_flags_;
+
+  std::unique_ptr<MinorGCHeapGrowing> minor_gc_heap_growing_;
 
   // Buffered allocated bytes. Reporting allocated bytes to V8 can trigger a GC
   // atomic pause. Allocated bytes are buffer in case this is temporarily
