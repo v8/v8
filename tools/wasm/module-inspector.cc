@@ -9,7 +9,6 @@
 
 #include "include/libplatform/libplatform.h"
 #include "include/v8-initialization.h"
-#include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/module-decoder-impl.h"
 #include "src/wasm/names-provider.h"
 #include "src/wasm/string-builder-multiline.h"
