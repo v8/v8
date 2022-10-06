@@ -737,3 +737,45 @@
   assertTrue(c2.bField);
   assertTrue(isTurboFanned(C2));  // No deopt.
 })();
+
+(function SuperInTryCatchDefaultCtor() {
+  class A {};
+  class B extends A {
+    constructor() {
+      try {
+        super();
+      } catch {
+        assertUnreachable();
+      }
+    }
+  };
+
+  %PrepareFunctionForOptimization(B);
+  new B();
+  %OptimizeFunctionOnNextCall(B);
+
+  const b = new B();
+  assertSame(B.prototype, b.__proto__);
+  assertTrue(isTurboFanned(B));  // No deopt.
+})();
+
+(function SuperInTryCatchNonDefaultCtor() {
+  class A { constructor() {} };
+  class B extends A {
+    constructor() {
+      try {
+        super();
+      } catch {
+        assertUnreachable();
+      }
+    }
+  };
+
+  %PrepareFunctionForOptimization(B);
+  new B();
+  %OptimizeFunctionOnNextCall(B);
+
+  const b = new B();
+  assertSame(B.prototype, b.__proto__);
+  assertTrue(isTurboFanned(B));  // No deopt.
+})();

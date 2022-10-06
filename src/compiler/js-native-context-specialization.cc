@@ -20,6 +20,7 @@
 #include "src/compiler/linkage.h"
 #include "src/compiler/map-inference.h"
 #include "src/compiler/node-matchers.h"
+#include "src/compiler/node-properties.h"
 #include "src/compiler/property-access-builder.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-cache.h"
@@ -550,6 +551,16 @@ JSNativeContextSpecialization::ReduceJSFindNonDefaultConstructorOrConstruct(
   Node* new_target = n.new_target();
   Node* effect = n.effect();
   Control control = n.control();
+
+  // If the JSFindNonDefaultConstructorOrConstruct operation is inside a try
+  // catch, wiring up the graph is complex (reason: if
+  // JSFindNonDefaultConstructorOrConstruct reduces to a constant which is
+  // something else than a default base ctor, it cannot throw an exception, and
+  // the try-catch structure has to be rewired). As this use case is rare, give
+  // up optimizing it here.
+  if (NodeProperties::IsExceptionalCall(node)) {
+    return NoChange();
+  }
 
   // TODO(v8:13091): Don't produce incomplete stack traces when debug is active.
   // We already deopt when a breakpoint is set. But it would be even nicer to
