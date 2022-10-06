@@ -4718,7 +4718,8 @@ class RememberedSetUpdatingItem : public UpdatingItem {
         marking_state_(marking_state),
         chunk_(chunk),
         updating_mode_(updating_mode),
-        record_old_to_shared_slots_(heap->isolate()->has_shared_heap()) {}
+        record_old_to_shared_slots_(heap->isolate()->has_shared_heap() &&
+                                    !chunk->InSharedHeap()) {}
   ~RememberedSetUpdatingItem() override = default;
 
   void Process() override {
