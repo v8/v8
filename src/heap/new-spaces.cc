@@ -923,6 +923,10 @@ PagedSpaceForNewSpace::PagedSpaceForNewSpace(
       max_capacity_(RoundDown(max_capacity, Page::kPageSize)),
       target_capacity_(initial_capacity_) {
   DCHECK_LE(initial_capacity_, max_capacity_);
+
+  if (!PreallocatePages()) {
+    V8::FatalProcessOutOfMemory(heap->isolate(), "New space setup");
+  }
 }
 
 Page* PagedSpaceForNewSpace::InitializePage(MemoryChunk* chunk) {
@@ -952,6 +956,7 @@ void PagedSpaceForNewSpace::Grow() {
                RoundUp(static_cast<size_t>(v8_flags.semi_space_growth_factor) *
                            TotalCapacity(),
                        Page::kPageSize));
+  CHECK(EnsureCurrentCapacity());
 }
 
 void PagedSpaceForNewSpace::Shrink() {
@@ -969,8 +974,8 @@ void PagedSpaceForNewSpace::Shrink() {
       }
     }
   }
-  // Shrinking to the new target capacity may not have been possible.
-  target_capacity_ = std::max(target_capacity_, current_capacity_);
+  // Shrinking to target capacity may not have been possible.
+  target_capacity_ = current_capacity_;
 }
 
 void PagedSpaceForNewSpace::UpdateInlineAllocationLimit(size_t size_in_bytes) {
@@ -995,17 +1000,28 @@ void PagedSpaceForNewSpace::ReleasePage(Page* page) {
   PagedSpaceBase::ReleasePage(page);
 }
 
-Page* PagedSpaceForNewSpace::TryExpandImpl() {
-  // Verify that the free space map is already initialized. Otherwise, new free
-  // list entries will be invalid.
-  DCHECK_NE(kNullAddress,
-            heap()->isolate()->root(RootIndex::kFreeSpaceMap).ptr());
+bool PagedSpaceForNewSpace::AddFreshPage() {
   DCHECK_LE(TotalCapacity(), MaximumCapacity());
-  if (current_capacity_ >= target_capacity_) return nullptr;
-  return PagedSpaceBase::TryExpandImpl();
+  if (current_capacity_ >= target_capacity_) return false;
+  return EnsureCurrentCapacity();
 }
 
-bool PagedSpaceForNewSpace::AddFreshPage() { return TryExpandImpl(); }
+bool PagedSpaceForNewSpace::PreallocatePages() {
+  // Verify that the free space map is already initialized. Otherwise, new free
+  // list entries will be invalid.
+  while (current_capacity_ < target_capacity_) {
+    if (!TryExpandImpl()) return false;
+  }
+  DCHECK_EQ(current_capacity_, target_capacity_);
+  return true;
+}
+
+bool PagedSpaceForNewSpace::EnsureCurrentCapacity() {
+  // Verify that the free space map is already initialized. Otherwise, new free
+  // list entries will be invalid.
+  DCHECK_NE(0, heap()->isolate()->root(RootIndex::kFreeSpaceMap).ptr());
+  return PreallocatePages();
+}
 
 void PagedSpaceForNewSpace::FreeLinearAllocationArea() {
   size_t remaining_allocation_area_size = limit() - top();
@@ -1019,7 +1035,7 @@ void PagedSpaceForNewSpace::Verify(Isolate* isolate,
                                    ObjectVisitor* visitor) const {
   PagedSpaceBase::Verify(isolate, visitor);
 
-  DCHECK_LE(current_capacity_, target_capacity_);
+  DCHECK_EQ(current_capacity_, target_capacity_);
   DCHECK_EQ(current_capacity_, Page::kPageSize * CountTotalPages());
 }
 #endif  // VERIFY_HEAP

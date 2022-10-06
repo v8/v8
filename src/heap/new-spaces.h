@@ -576,7 +576,7 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   // Return the maximum capacity of the space.
   size_t MaximumCapacity() const { return max_capacity_; }
 
-  size_t TotalCapacity() const { return target_capacity_; }
+  size_t TotalCapacity() const { return current_capacity_; }
 
   // Return the address of the first allocatable address in the active
   // semispace. This may be the address where the first object resides.
@@ -605,7 +605,7 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
                         AllocationOrigin origin,
                         int* out_max_aligned_size) final;
 
-  bool EnsureCurrentCapacity() { return true; }
+  bool EnsureCurrentCapacity();
 
   Page* InitializePage(MemoryChunk* chunk) final;
 
@@ -625,16 +625,15 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   void Verify(Isolate* isolate, ObjectVisitor* visitor) const final;
 #endif
 
-  void MakeIterable() { DCHECK(free_list()->IsEmpty()); }
+  void MakeIterable() { free_list()->RepairLists(heap()); }
 
 #ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
   void ClearUnusedObjectStartBitmaps() {}
 #endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
 
- protected:
-  Page* TryExpandImpl() final;
-
  private:
+  bool PreallocatePages();
+
   const size_t initial_capacity_;
   const size_t max_capacity_;
   size_t target_capacity_ = 0;

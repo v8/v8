@@ -294,7 +294,8 @@ class CollectorBase {
     return non_atomic_marking_state_;
   }
 
-  void StartSweepSpace(PagedSpaceBase* space);
+  void StartSweepSpace(PagedSpace* space);
+  void StartSweepNewSpace();
 
   Heap* heap_;
   GarbageCollector garbage_collector_;

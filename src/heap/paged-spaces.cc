@@ -970,6 +970,7 @@ bool CompactionSpace::RefillLabMain(int size_in_bytes,
 }
 
 bool PagedSpaceBase::TryExpand(int size_in_bytes, AllocationOrigin origin) {
+  DCHECK_NE(NEW_SPACE, identity());
   Page* page = TryExpandImpl();
   if (!page) return false;
   if (!is_compaction_space() && identity() != NEW_SPACE) {
@@ -988,7 +989,9 @@ bool PagedSpaceBase::RawRefillLabMain(int size_in_bytes,
   if (TryAllocationFromFreeListMain(size_in_bytes, origin)) return true;
 
   if (identity() == NEW_SPACE) {
-    return TryExpand(size_in_bytes, origin);
+    // New space should not allocate new pages when running out of space and it
+    // is not currently swept.
+    return false;
   }
 
   const bool is_main_thread =

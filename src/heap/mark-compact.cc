@@ -355,7 +355,8 @@ bool CollectorBase::IsMajorMC() {
   return !heap_->IsYoungGenerationCollector(garbage_collector_);
 }
 
-void CollectorBase::StartSweepSpace(PagedSpaceBase* space) {
+void CollectorBase::StartSweepSpace(PagedSpace* space) {
+  DCHECK_NE(NEW_SPACE, space->identity());
   space->ClearAllocatorState();
 
   int will_be_swept = 0;
@@ -384,18 +385,12 @@ void CollectorBase::StartSweepSpace(PagedSpaceBase* space) {
         space->memory_chunk_list().Remove(p);
         space->ReleasePage(p);
         continue;
-      } else if (space->identity() == NEW_SPACE) {
-        sweeper->AddNewSpacePage(p, Sweeper::REGULAR);
-        will_be_swept++;
       }
       unused_page_present = true;
     }
 
-    // Non-empty new-space pages will be evacuated/promoted.
-    if (space->identity() != NEW_SPACE) {
-      sweeper->AddPage(space->identity(), p, Sweeper::REGULAR);
-      will_be_swept++;
-    }
+    sweeper->AddPage(space->identity(), p, Sweeper::REGULAR);
+    will_be_swept++;
   }
 
   if (v8_flags.gc_verbose) {
@@ -404,6 +399,35 @@ void CollectorBase::StartSweepSpace(PagedSpaceBase* space) {
   }
 }
 
+void CollectorBase::StartSweepNewSpace() {
+  PagedSpaceBase* paged_space = heap()->paged_new_space()->paged_space();
+  paged_space->ClearAllocatorState();
+
+  int will_be_swept = 0;
+
+  Sweeper* sweeper = heap()->sweeper();
+
+  for (auto it = paged_space->begin(); it != paged_space->end();) {
+    Page* p = *(it++);
+    DCHECK(p->SweepingDone());
+
+    if (non_atomic_marking_state()->live_bytes(p) > 0) {
+      // Non-empty pages will be evacuated/promoted.
+      continue;
+    }
+
+    // New space preallocates all its pages. Don't free empty pages since they
+    // will just be reallocated.
+    DCHECK_EQ(NEW_SPACE, paged_space->identity());
+    sweeper->AddNewSpacePage(p, Sweeper::REGULAR);
+    will_be_swept++;
+  }
+
+  if (v8_flags.gc_verbose) {
+    PrintIsolate(isolate(), "sweeping: space=%s initialized_for_sweeping=%d",
+                 paged_space->name(), will_be_swept);
+  }
+}
 MarkCompactCollector::MarkCompactCollector(Heap* heap)
     : CollectorBase(heap, GarbageCollector::MARK_COMPACTOR),
 #ifdef DEBUG
@@ -4526,11 +4550,9 @@ void MarkCompactCollector::Evacuate() {
         DCHECK_EQ(OLD_SPACE, p->owner_identity());
         sweeper()->AddPage(OLD_SPACE, p, Sweeper::REGULAR);
       } else if (v8_flags.minor_mc) {
-        DCHECK_EQ(0, non_atomic_marking_state()->live_bytes(p));
-        DCHECK(p->SweepingDone());
-        PagedSpaceBase* paged_space = heap()->paged_new_space()->paged_space();
-        paged_space->memory_chunk_list().Remove(p);
-        paged_space->ReleasePage(p);
+        // Sweep non-promoted pages to add them back to the free list.
+        DCHECK_EQ(NEW_SPACE, p->owner_identity());
+        sweeper()->AddNewSpacePage(p, Sweeper::REGULAR);
       }
     }
     new_space_evacuation_pages_.clear();
@@ -5383,7 +5405,7 @@ void MarkCompactCollector::Sweep() {
     if (v8_flags.minor_mc && heap()->new_space()) {
       GCTracer::Scope sweep_scope(
           heap()->tracer(), GCTracer::Scope::MC_SWEEP_NEW, ThreadKind::kMain);
-      StartSweepSpace(heap()->paged_new_space()->paged_space());
+      StartSweepNewSpace();
     }
     sweeper()->StartSweeping(garbage_collector_);
   }
@@ -6401,7 +6423,7 @@ void MinorMarkCompactCollector::Sweep() {
     GCTracer::Scope sweep_scope(heap()->tracer(),
                                 GCTracer::Scope::MINOR_MC_SWEEP_NEW,
                                 ThreadKind::kMain);
-    StartSweepSpace(heap()->paged_new_space()->paged_space());
+    StartSweepNewSpace();
   }
   sweeper_->StartSweeping(garbage_collector_);
 }
