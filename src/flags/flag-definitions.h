@@ -1950,8 +1950,15 @@ DEFINE_BOOL(
     "Fuzzers use this flag to signal that they are ... fuzzing. This causes "
     "intrinsics to fail silently (e.g. return undefined) on invalid usage.")
 
+#if defined(V8_OS_AIX) && defined(COMPONENT_BUILD)
+// FreezeFlags relies on mprotect() method, which does not work by default on
+// shared mem: https://www.ibm.com/docs/en/aix/7.2?topic=m-mprotect-subroutine
+DEFINE_BOOL(freeze_flags_after_init, false,
+            "Disallow changes to flag values after initializing V8")
+#else
 DEFINE_BOOL(freeze_flags_after_init, true,
             "Disallow changes to flag values after initializing V8")
+#endif  // defined(V8_OS_AIX) && defined(COMPONENT_BUILD)
 
 // mksnapshot.cc
 DEFINE_STRING(embedded_src, nullptr,
