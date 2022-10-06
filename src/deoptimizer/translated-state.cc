@@ -566,8 +566,8 @@ Handle<Object> TranslatedValue::GetValue() {
     // headers.
     // TODO(hpayer): Find a cleaner way to support a group of
     // non-fully-initialized objects.
-    isolate()->heap()->mark_compact_collector()->EnsureSweepingCompleted(
-        MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
+    isolate()->heap()->EnsureSweepingCompleted(
+        Heap::SweepingForcedFinalizationMode::kV8Only);
 
     // 2. Initialize the objects. If we have allocated only byte arrays
     //    for some objects, we now overwrite the byte arrays with the

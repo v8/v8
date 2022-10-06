@@ -25,6 +25,7 @@
 #include "src/heap/code-object-registry.h"
 #include "src/heap/concurrent-allocator.h"
 #include "src/heap/evacuation-allocator-inl.h"
+#include "src/heap/evacuation-verifier-inl.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/global-handle-marking-visitor.h"
@@ -314,165 +315,6 @@ class FullMarkingVerifier : public MarkingVerifier {
   NonAtomicMarkingState* const marking_state_;
 };
 
-class EvacuationVerifier : public ObjectVisitorWithCageBases,
-                           public RootVisitor {
- public:
-  virtual void Run() = 0;
-
-  void VisitPointers(HeapObject host, ObjectSlot start,
-                     ObjectSlot end) override {
-    VerifyPointers(start, end);
-  }
-
-  void VisitPointers(HeapObject host, MaybeObjectSlot start,
-                     MaybeObjectSlot end) override {
-    VerifyPointers(start, end);
-  }
-
-  void VisitCodePointer(HeapObject host, CodeObjectSlot slot) override {
-    CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-    VerifyCodePointer(slot);
-  }
-
-  void VisitRootPointers(Root root, const char* description,
-                         FullObjectSlot start, FullObjectSlot end) override {
-    VerifyRootPointers(start, end);
-  }
-
-  void VisitMapPointer(HeapObject object) override {
-    VerifyMap(object.map(cage_base()));
-  }
-
- protected:
-  explicit EvacuationVerifier(Heap* heap)
-      : ObjectVisitorWithCageBases(heap), heap_(heap) {}
-
-  inline Heap* heap() { return heap_; }
-
-  virtual void VerifyMap(Map map) = 0;
-  virtual void VerifyPointers(ObjectSlot start, ObjectSlot end) = 0;
-  virtual void VerifyPointers(MaybeObjectSlot start, MaybeObjectSlot end) = 0;
-  virtual void VerifyCodePointer(CodeObjectSlot slot) = 0;
-  virtual void VerifyRootPointers(FullObjectSlot start, FullObjectSlot end) = 0;
-
-  void VerifyRoots();
-  void VerifyEvacuationOnPage(Address start, Address end);
-  void VerifyEvacuation(NewSpace* new_space);
-  void VerifyEvacuation(PagedSpaceBase* paged_space);
-
-  Heap* heap_;
-};
-
-void EvacuationVerifier::VerifyRoots() {
-  heap_->IterateRootsIncludingClients(this,
-                                      base::EnumSet<SkipRoot>{SkipRoot::kWeak});
-}
-
-void EvacuationVerifier::VerifyEvacuationOnPage(Address start, Address end) {
-  Address current = start;
-  while (current < end) {
-    HeapObject object = HeapObject::FromAddress(current);
-    if (!object.IsFreeSpaceOrFiller(cage_base())) {
-      object.Iterate(cage_base(), this);
-    }
-    current += ALIGN_TO_ALLOCATION_ALIGNMENT(object.Size(cage_base()));
-  }
-}
-
-void EvacuationVerifier::VerifyEvacuation(NewSpace* space) {
-  if (!space) return;
-  if (v8_flags.minor_mc) {
-    VerifyEvacuation(PagedNewSpace::From(space)->paged_space());
-    return;
-  }
-  PageRange range(space->first_allocatable_address(), space->top());
-  for (auto it = range.begin(); it != range.end();) {
-    Page* page = *(it++);
-    Address current = page->area_start();
-    Address limit = it != range.end() ? page->area_end() : space->top();
-    CHECK(limit == space->top() || !page->Contains(space->top()));
-    VerifyEvacuationOnPage(current, limit);
-  }
-}
-
-void EvacuationVerifier::VerifyEvacuation(PagedSpaceBase* space) {
-  for (Page* p : *space) {
-    if (p->IsEvacuationCandidate()) continue;
-    if (p->Contains(space->top())) {
-      CodePageMemoryModificationScope memory_modification_scope(p);
-      heap_->CreateFillerObjectAt(
-          space->top(), static_cast<int>(space->limit() - space->top()));
-    }
-    VerifyEvacuationOnPage(p->area_start(), p->area_end());
-  }
-}
-
-class FullEvacuationVerifier : public EvacuationVerifier {
- public:
-  explicit FullEvacuationVerifier(Heap* heap) : EvacuationVerifier(heap) {}
-
-  void Run() override {
-    DCHECK(!heap_->mark_compact_collector()->sweeping_in_progress());
-    VerifyRoots();
-    VerifyEvacuation(heap_->new_space());
-    VerifyEvacuation(heap_->old_space());
-    VerifyEvacuation(heap_->code_space());
-    if (heap_->shared_space()) VerifyEvacuation(heap_->shared_space());
-    if (heap_->map_space()) VerifyEvacuation(heap_->map_space());
-  }
-
- protected:
-  V8_INLINE void VerifyHeapObjectImpl(HeapObject heap_object) {
-    if (!ShouldVerifyObject(heap_object)) return;
-    CHECK_IMPLIES(Heap::InYoungGeneration(heap_object),
-                  Heap::InToPage(heap_object));
-    CHECK(!MarkCompactCollector::IsOnEvacuationCandidate(heap_object));
-  }
-
-  V8_INLINE bool ShouldVerifyObject(HeapObject heap_object) {
-    const bool in_shared_heap = heap_object.InSharedWritableHeap();
-    return heap_->isolate()->is_shared_heap_isolate() ? in_shared_heap
-                                                      : !in_shared_heap;
-  }
-
-  template <typename TSlot>
-  void VerifyPointersImpl(TSlot start, TSlot end) {
-    for (TSlot current = start; current < end; ++current) {
-      typename TSlot::TObject object = current.load(cage_base());
-      HeapObject heap_object;
-      if (object.GetHeapObjectIfStrong(&heap_object)) {
-        VerifyHeapObjectImpl(heap_object);
-      }
-    }
-  }
-  void VerifyMap(Map map) override { VerifyHeapObjectImpl(map); }
-  void VerifyPointers(ObjectSlot start, ObjectSlot end) override {
-    VerifyPointersImpl(start, end);
-  }
-  void VerifyPointers(MaybeObjectSlot start, MaybeObjectSlot end) override {
-    VerifyPointersImpl(start, end);
-  }
-  void VerifyCodePointer(CodeObjectSlot slot) override {
-    CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-    Object maybe_code = slot.load(code_cage_base());
-    HeapObject code;
-    // The slot might contain smi during CodeDataContainer creation, so skip it.
-    if (maybe_code.GetHeapObject(&code)) {
-      VerifyHeapObjectImpl(code);
-    }
-  }
-  void VisitCodeTarget(Code host, RelocInfo* rinfo) override {
-    Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
-    VerifyHeapObjectImpl(target);
-  }
-  void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
-    VerifyHeapObjectImpl(rinfo->target_object(cage_base()));
-  }
-  void VerifyRootPointers(FullObjectSlot start, FullObjectSlot end) override {
-    VerifyPointersImpl(start, end);
-  }
-};
-
 }  // namespace
 #endif  // VERIFY_HEAP
 
@@ -513,11 +355,13 @@ bool CollectorBase::IsMajorMC() {
   return !heap_->IsYoungGenerationCollector(garbage_collector_);
 }
 
-void CollectorBase::StartSweepSpace(Sweeper* sweeper, PagedSpaceBase* space) {
+void CollectorBase::StartSweepSpace(PagedSpaceBase* space) {
   space->ClearAllocatorState();
 
   int will_be_swept = 0;
   bool unused_page_present = false;
+
+  Sweeper* sweeper = heap()->sweeper();
 
   // Loop needs to support deletion if live bytes == 0 for a page.
   for (auto it = space->begin(); it != space->end();) {
@@ -567,10 +411,10 @@ MarkCompactCollector::MarkCompactCollector(Heap* heap)
 #endif
       uses_shared_heap_(isolate()->has_shared_heap() || isolate()->is_shared()),
       is_shared_heap_isolate_(isolate()->is_shared_heap_isolate()),
-      sweeper_(new Sweeper(heap)) {
+      sweeper_(heap_->sweeper()) {
 }
 
-MarkCompactCollector::~MarkCompactCollector() { delete sweeper_; }
+MarkCompactCollector::~MarkCompactCollector() = default;
 
 void MarkCompactCollector::SetUp() {
   DCHECK_EQ(0, strcmp(Marking::kWhiteBitPattern, "00"));
@@ -589,7 +433,6 @@ void MarkCompactCollector::TearDown() {
     local_weak_objects()->Publish();
     weak_objects()->Clear();
   }
-  sweeper()->TearDown();
 }
 
 // static
@@ -766,77 +609,6 @@ void MarkCompactCollector::VerifyMarkbitsAreClean() {
 
 #endif  // VERIFY_HEAP
 
-void MarkCompactCollector::FinishSweepingIfOutOfWork() {
-  if (sweeper()->sweeping_in_progress() && v8_flags.concurrent_sweeping &&
-      !sweeper()->AreSweeperTasksRunning()) {
-    // At this point we know that all concurrent sweeping tasks have run
-    // out of work and quit: all pages are swept. The main thread still needs
-    // to complete sweeping though.
-    EnsureSweepingCompleted(SweepingForcedFinalizationMode::kV8Only);
-  }
-  if (heap()->cpp_heap()) {
-    // Ensure that sweeping is also completed for the C++ managed heap, if one
-    // exists and it's out of work.
-    CppHeap::From(heap()->cpp_heap())->FinishSweepingIfOutOfWork();
-  }
-}
-
-void MarkCompactCollector::EnsureSweepingCompleted(
-    SweepingForcedFinalizationMode mode) {
-  if (sweeper()->sweeping_in_progress()) {
-    TRACE_GC_EPOCH(heap()->tracer(), GCTracer::Scope::MC_COMPLETE_SWEEPING,
-                   ThreadKind::kMain);
-
-    sweeper()->EnsureCompleted();
-    heap()->old_space()->RefillFreeList(sweeper());
-    {
-      CodePageHeaderModificationScope rwx_write_scope(
-          "Updating per-page stats stored in page headers requires write "
-          "access to Code page headers");
-      heap()->code_space()->RefillFreeList(sweeper());
-    }
-    if (heap()->shared_space()) {
-      heap()->shared_space()->RefillFreeList(sweeper());
-    }
-    if (heap()->map_space()) {
-      heap()->map_space()->RefillFreeList(sweeper());
-      heap()->map_space()->SortFreeList();
-    }
-
-    heap()->tracer()->NotifySweepingCompleted();
-
-#ifdef VERIFY_HEAP
-    if (v8_flags.verify_heap && !evacuation()) {
-      FullEvacuationVerifier verifier(heap());
-      verifier.Run();
-    }
-#endif
-  }
-
-  if (mode == SweepingForcedFinalizationMode::kUnifiedHeap &&
-      heap()->cpp_heap()) {
-    // Ensure that sweeping is also completed for the C++ managed heap, if one
-    // exists.
-    CppHeap::From(heap()->cpp_heap())->FinishSweepingIfRunning();
-    DCHECK(
-        !CppHeap::From(heap()->cpp_heap())->sweeper().IsSweepingInProgress());
-  }
-
-  DCHECK_IMPLIES(mode == SweepingForcedFinalizationMode::kUnifiedHeap ||
-                     !heap()->cpp_heap(),
-                 !heap()->tracer()->IsSweepingInProgress());
-}
-
-void MarkCompactCollector::EnsurePageIsSwept(Page* page) {
-  sweeper()->EnsurePageIsSwept(page);
-}
-
-void MarkCompactCollector::DrainSweepingWorklistForSpace(
-    AllocationSpace space) {
-  if (!sweeper()->sweeping_in_progress()) return;
-  sweeper()->DrainSweepingWorklistForSpace(space);
-}
-
 void MarkCompactCollector::ComputeEvacuationHeuristics(
     size_t area_size, int* target_fragmentation_percent,
     size_t* max_evacuated_bytes) {
@@ -921,7 +693,7 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   CodePageHeaderModificationScope rwx_write_scope(
       "Modification of Code page header flags requires write access");
 
-  DCHECK(!sweeping_in_progress());
+  DCHECK(!sweeper()->sweeping_in_progress());
   Page* owner_of_linear_allocation_area =
       space->top() == space->limit()
           ? nullptr
@@ -1069,7 +841,7 @@ void MarkCompactCollector::Prepare() {
   state_ = PREPARE_GC;
 #endif
 
-  DCHECK(!sweeping_in_progress());
+  DCHECK(!sweeper()->sweeping_in_progress());
 
   // Unmapper tasks needs to be stopped during the GC, otherwise pages queued
   // for freeing might get unmapped during the GC.
@@ -1189,7 +961,7 @@ void MarkCompactCollector::Finish() {
                                   ThreadKind::kMain);
       sweeper()->ParallelSweepSpace(NEW_SPACE,
                                     Sweeper::SweepingMode::kEagerDuringGC, 0);
-      heap()->paged_new_space()->paged_space()->RefillFreeList(sweeper());
+      heap()->paged_new_space()->paged_space()->RefillFreeList();
     }
   }
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_FINISH);
@@ -4730,7 +4502,7 @@ void MarkCompactCollector::Evacuate() {
 
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE_COPY);
-    EvacuationScope evacuation_scope(this);
+    EvacuationScope evacuation_scope(heap());
     EvacuatePagesInParallel();
   }
 
@@ -5591,27 +5363,27 @@ void MarkCompactCollector::Sweep() {
     {
       GCTracer::Scope sweep_scope(
           heap()->tracer(), GCTracer::Scope::MC_SWEEP_OLD, ThreadKind::kMain);
-      StartSweepSpace(sweeper(), heap()->old_space());
+      StartSweepSpace(heap()->old_space());
     }
     {
       GCTracer::Scope sweep_scope(
           heap()->tracer(), GCTracer::Scope::MC_SWEEP_CODE, ThreadKind::kMain);
-      StartSweepSpace(sweeper(), heap()->code_space());
+      StartSweepSpace(heap()->code_space());
     }
     if (heap()->map_space()) {
       GCTracer::Scope sweep_scope(
           heap()->tracer(), GCTracer::Scope::MC_SWEEP_MAP, ThreadKind::kMain);
-      StartSweepSpace(sweeper(), heap()->map_space());
+      StartSweepSpace(heap()->map_space());
     }
     if (heap()->shared_space()) {
       GCTracer::Scope sweep_scope(
           heap()->tracer(), GCTracer::Scope::MC_SWEEP_MAP, ThreadKind::kMain);
-      StartSweepSpace(sweeper(), heap()->shared_space());
+      StartSweepSpace(heap()->shared_space());
     }
     if (v8_flags.minor_mc && heap()->new_space()) {
       GCTracer::Scope sweep_scope(
           heap()->tracer(), GCTracer::Scope::MC_SWEEP_NEW, ThreadKind::kMain);
-      StartSweepSpace(sweeper(), heap()->paged_new_space()->paged_space());
+      StartSweepSpace(heap()->paged_new_space()->paged_space());
     }
     sweeper()->StartSweeping(garbage_collector_);
   }
@@ -5692,65 +5464,6 @@ class YoungGenerationMarkingVerifier : public MarkingVerifier {
   NonAtomicMarkingState* const marking_state_;
 };
 
-class YoungGenerationEvacuationVerifier : public EvacuationVerifier {
- public:
-  explicit YoungGenerationEvacuationVerifier(Heap* heap)
-      : EvacuationVerifier(heap) {}
-
-  void Run() override {
-    DCHECK(!heap_->mark_compact_collector()->sweeping_in_progress());
-    DCHECK(!heap_->minor_mark_compact_collector()->sweeping_in_progress());
-    VerifyRoots();
-    VerifyEvacuation(heap_->new_space());
-    VerifyEvacuation(heap_->old_space());
-    VerifyEvacuation(heap_->code_space());
-    if (heap_->map_space()) VerifyEvacuation(heap_->map_space());
-  }
-
- protected:
-  V8_INLINE void VerifyHeapObjectImpl(HeapObject heap_object) {
-    CHECK_IMPLIES(Heap::InYoungGeneration(heap_object),
-                  Heap::InToPage(heap_object));
-  }
-
-  template <typename TSlot>
-  void VerifyPointersImpl(TSlot start, TSlot end) {
-    for (TSlot current = start; current < end; ++current) {
-      typename TSlot::TObject object = current.load(cage_base());
-      HeapObject heap_object;
-      if (object.GetHeapObject(&heap_object)) {
-        VerifyHeapObjectImpl(heap_object);
-      }
-    }
-  }
-  void VerifyMap(Map map) override { VerifyHeapObjectImpl(map); }
-  void VerifyPointers(ObjectSlot start, ObjectSlot end) override {
-    VerifyPointersImpl(start, end);
-  }
-  void VerifyPointers(MaybeObjectSlot start, MaybeObjectSlot end) override {
-    VerifyPointersImpl(start, end);
-  }
-  void VerifyCodePointer(CodeObjectSlot slot) override {
-    CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-    Object maybe_code = slot.load(code_cage_base());
-    HeapObject code;
-    // The slot might contain smi during CodeDataContainer creation, so skip it.
-    if (maybe_code.GetHeapObject(&code)) {
-      VerifyHeapObjectImpl(code);
-    }
-  }
-  void VisitCodeTarget(Code host, RelocInfo* rinfo) override {
-    Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
-    VerifyHeapObjectImpl(target);
-  }
-  void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
-    VerifyHeapObjectImpl(rinfo->target_object(cage_base()));
-  }
-  void VerifyRootPointers(FullObjectSlot start, FullObjectSlot end) override {
-    VerifyPointersImpl(start, end);
-  }
-};
-
 #endif  // VERIFY_HEAP
 
 bool IsUnmarkedObjectForYoungGeneration(Heap* heap, FullObjectSlot p) {
@@ -5801,7 +5514,7 @@ constexpr size_t MinorMarkCompactCollector::kMaxParallelTasks;
 MinorMarkCompactCollector::MinorMarkCompactCollector(Heap* heap)
     : CollectorBase(heap, GarbageCollector::MINOR_MARK_COMPACTOR),
       page_parallel_job_semaphore_(0),
-      sweeper_(std::make_unique<Sweeper>(heap_)) {}
+      sweeper_(heap_->sweeper()) {}
 
 std::pair<size_t, size_t> MinorMarkCompactCollector::ProcessMarkingWorklist(
     size_t bytes_to_process) {
@@ -6019,7 +5732,7 @@ void MinorMarkCompactCollector::Finish() {
                                 GCTracer::Scope::MINOR_MC_SWEEP_FINISH_NEW,
                                 ThreadKind::kMain);
     sweeper_->EnsureCompleted(Sweeper::SweepingMode::kEagerDuringGC);
-    heap()->paged_new_space()->paged_space()->RefillFreeList(sweeper());
+    heap()->paged_new_space()->paged_space()->RefillFreeList();
   }
 
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_FINISH);
@@ -6544,6 +6257,7 @@ void MinorMarkCompactCollector::Evacuate() {
 
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_EVACUATE_COPY);
+    EvacuationScope evacuation_scope(heap());
     EvacuatePagesInParallel();
   }
 
@@ -6687,7 +6401,7 @@ void MinorMarkCompactCollector::Sweep() {
     GCTracer::Scope sweep_scope(heap()->tracer(),
                                 GCTracer::Scope::MINOR_MC_SWEEP_NEW,
                                 ThreadKind::kMain);
-    StartSweepSpace(sweeper(), heap()->paged_new_space()->paged_space());
+    StartSweepSpace(heap()->paged_new_space()->paged_space());
   }
   sweeper_->StartSweeping(garbage_collector_);
 }

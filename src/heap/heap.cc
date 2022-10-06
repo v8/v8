@@ -34,6 +34,7 @@
 #include "src/execution/microtask-queue.h"
 #include "src/execution/v8threads.h"
 #include "src/execution/vm-state-inl.h"
+#include "src/flags/flags.h"
 #include "src/handles/global-handles-inl.h"
 #include "src/heap/array-buffer-sweeper.h"
 #include "src/heap/base/stack.h"
@@ -47,6 +48,7 @@
 #include "src/heap/concurrent-marking.h"
 #include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/heap/embedder-tracing.h"
+#include "src/heap/evacuation-verifier-inl.h"
 #include "src/heap/finalization-registry-cleanup-task.h"
 #include "src/heap/gc-idle-time-handler.h"
 #include "src/heap/gc-tracer-inl.h"
@@ -1861,11 +1863,13 @@ void Heap::StartIncrementalMarking(int gc_flags,
 }
 
 void Heap::CompleteSweepingFull() {
-  array_buffer_sweeper()->EnsureFinished();
-  mark_compact_collector()->EnsureSweepingCompleted(
-      MarkCompactCollector::SweepingForcedFinalizationMode::kUnifiedHeap);
+  {
+    TRACE_GC(tracer(), GCTracer::Scope::MC_COMPLETE_SWEEP_ARRAY_BUFFERS);
+    array_buffer_sweeper()->EnsureFinished();
+  }
+  EnsureSweepingCompleted(SweepingForcedFinalizationMode::kUnifiedHeap);
 
-  DCHECK(!mark_compact_collector()->sweeping_in_progress());
+  DCHECK(!sweeping_in_progress());
   DCHECK_IMPLIES(cpp_heap(),
                  !CppHeap::From(cpp_heap())->sweeper().IsSweepingInProgress());
   DCHECK(!tracer()->IsSweepingInProgress());
@@ -2355,10 +2359,16 @@ void Heap::CompleteSweepingYoung(GarbageCollector collector) {
     array_buffer_sweeper()->EnsureFinished();
   }
 
-  // If sweeping is in progress and there are no sweeper tasks running, finish
-  // the sweeping here, to avoid having to pause and resume during the young
-  // generation GC.
-  mark_compact_collector()->FinishSweepingIfOutOfWork();
+  if (v8_flags.minor_mc) {
+    DCHECK(v8_flags.separate_gc_phases);
+    // Do not interleave sweeping.
+    EnsureSweepingCompleted(SweepingForcedFinalizationMode::kV8Only);
+  } else {
+    // If sweeping is in progress and there are no sweeper tasks running, finish
+    // the sweeping here, to avoid having to pause and resume during the young
+    // generation GC.
+    FinishSweepingIfOutOfWork();
+  }
 
 #if defined(CPPGC_YOUNG_GENERATION)
   // Always complete sweeping if young generation is enabled.
@@ -2370,8 +2380,8 @@ void Heap::CompleteSweepingYoung(GarbageCollector collector) {
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 }
 
-void Heap::EnsureSweepingCompleted(HeapObject object) {
-  if (!mark_compact_collector()->sweeping_in_progress()) return;
+void Heap::EnsureSweepingCompletedForObject(HeapObject object) {
+  if (!sweeping_in_progress()) return;
 
   BasicMemoryChunk* basic_chunk = BasicMemoryChunk::FromHeapObject(object);
   if (basic_chunk->InReadOnlySpace()) return;
@@ -2383,7 +2393,7 @@ void Heap::EnsureSweepingCompleted(HeapObject object) {
   DCHECK(!chunk->IsLargePage());
 
   Page* page = Page::cast(chunk);
-  mark_compact_collector()->EnsurePageIsSwept(page);
+  sweeper()->EnsurePageIsSwept(page);
 }
 
 void Heap::RecomputeLimits(GarbageCollector collector) {
@@ -3497,8 +3507,7 @@ void Heap::CreateFillerForArray(T object, int elements_to_trim,
 }
 
 void Heap::MakeHeapIterable() {
-  mark_compact_collector()->EnsureSweepingCompleted(
-      MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
+  EnsureSweepingCompleted(SweepingForcedFinalizationMode::kV8Only);
 
   safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
     local_heap->MakeLinearAllocationAreaIterable();
@@ -4349,7 +4358,7 @@ void Heap::VerifyCountersBeforeConcurrentSweeping() {
     // are just an over approximation.
     {
       TRACE_GC_EPOCH(tracer(), GCTracer::Scope::MC_SWEEP, ThreadKind::kMain);
-      space->RefillFreeList(mark_compact_collector()->sweeper());
+      space->RefillFreeList();
     }
 
     space->VerifyCountersBeforeConcurrentSweeping();
@@ -5271,6 +5280,8 @@ void Heap::SetUp(LocalHeap* main_thread_local_heap) {
   memory_allocator_.reset(
       new MemoryAllocator(isolate_, code_page_allocator, MaxReserved()));
 
+  sweeper_.reset(new Sweeper(this));
+
   mark_compact_collector_.reset(new MarkCompactCollector(this));
 
   scavenger_collector_.reset(new ScavengerCollector(this));
@@ -5779,6 +5790,9 @@ void Heap::TearDown() {
     minor_mark_compact_collector_->TearDown();
     minor_mark_compact_collector_.reset();
   }
+
+  sweeper_->TearDown();
+  sweeper_.reset();
 
   scavenger_collector_.reset();
   array_buffer_sweeper_.reset();
@@ -7190,6 +7204,69 @@ void Heap::set_allocation_timeout(int allocation_timeout) {
   heap_allocator_.SetAllocationTimeout(allocation_timeout);
 }
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
+
+void Heap::FinishSweepingIfOutOfWork() {
+  if (sweeper()->sweeping_in_progress() && v8_flags.concurrent_sweeping &&
+      !sweeper()->AreSweeperTasksRunning()) {
+    // At this point we know that all concurrent sweeping tasks have run
+    // out of work and quit: all pages are swept. The main thread still needs
+    // to complete sweeping though.
+    EnsureSweepingCompleted(SweepingForcedFinalizationMode::kV8Only);
+  }
+  if (cpp_heap()) {
+    // Ensure that sweeping is also completed for the C++ managed heap, if one
+    // exists and it's out of work.
+    CppHeap::From(cpp_heap())->FinishSweepingIfOutOfWork();
+  }
+}
+
+void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
+  if (sweeper()->sweeping_in_progress()) {
+    TRACE_GC_EPOCH(tracer(), GCTracer::Scope::MC_COMPLETE_SWEEPING,
+                   ThreadKind::kMain);
+
+    sweeper()->EnsureCompleted();
+    old_space()->RefillFreeList();
+    {
+      CodePageHeaderModificationScope rwx_write_scope(
+          "Updating per-page stats stored in page headers requires write "
+          "access to Code page headers");
+      code_space()->RefillFreeList();
+    }
+    if (shared_space()) {
+      shared_space()->RefillFreeList();
+    }
+    if (map_space()) {
+      map_space()->RefillFreeList();
+      map_space()->SortFreeList();
+    }
+
+    tracer()->NotifySweepingCompleted();
+
+#ifdef VERIFY_HEAP
+    if (v8_flags.verify_heap && !evacuation()) {
+      FullEvacuationVerifier verifier(this);
+      verifier.Run();
+    }
+#endif
+  }
+
+  if (mode == SweepingForcedFinalizationMode::kUnifiedHeap && cpp_heap()) {
+    // Ensure that sweeping is also completed for the C++ managed heap, if one
+    // exists.
+    CppHeap::From(cpp_heap())->FinishSweepingIfRunning();
+    DCHECK(!CppHeap::From(cpp_heap())->sweeper().IsSweepingInProgress());
+  }
+
+  DCHECK_IMPLIES(
+      mode == SweepingForcedFinalizationMode::kUnifiedHeap || !cpp_heap(),
+      !tracer()->IsSweepingInProgress());
+}
+
+void Heap::DrainSweepingWorklistForSpace(AllocationSpace space) {
+  if (!sweeper()->sweeping_in_progress()) return;
+  sweeper()->DrainSweepingWorklistForSpace(space);
+}
 
 EmbedderStackStateScope::EmbedderStackStateScope(Heap* heap, Origin origin,
                                                  StackState stack_state)

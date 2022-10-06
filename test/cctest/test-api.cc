@@ -16511,9 +16511,9 @@ TEST(TestIdleNotification) {
         (v8::base::TimeTicks::Now().ToInternalValue() /
          static_cast<double>(v8::base::Time::kMicrosecondsPerSecond)) +
         IdlePauseInSeconds);
-    if (CcTest::heap()->mark_compact_collector()->sweeping_in_progress()) {
-      CcTest::heap()->mark_compact_collector()->EnsureSweepingCompleted(
-          i::MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
+    if (CcTest::heap()->sweeping_in_progress()) {
+      CcTest::heap()->EnsureSweepingCompleted(
+          i::Heap::SweepingForcedFinalizationMode::kV8Only);
     }
   }
   intptr_t final_size = CcTest::heap()->SizeOfObjects();

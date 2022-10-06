@@ -331,7 +331,7 @@ void ScavengerCollector::CollectGarbage() {
   EphemeronTableList ephemeron_table_list;
 
   {
-    Sweeper* sweeper = heap_->mark_compact_collector()->sweeper();
+    Sweeper* sweeper = heap_->sweeper();
 
     // Pause the concurrent sweeper.
     Sweeper::PauseScope pause_scope(sweeper);
@@ -665,9 +665,8 @@ void Scavenger::RememberPromotedEphemeron(EphemeronHashTable table, int entry) {
 void Scavenger::AddPageToSweeperIfNecessary(MemoryChunk* page) {
   AllocationSpace space = page->owner_identity();
   if ((space == OLD_SPACE) && !page->SweepingDone()) {
-    heap()->mark_compact_collector()->sweeper()->AddPage(
-        space, reinterpret_cast<Page*>(page),
-        Sweeper::READD_TEMPORARY_REMOVED_PAGE);
+    heap()->sweeper()->AddPage(space, reinterpret_cast<Page*>(page),
+                               Sweeper::READD_TEMPORARY_REMOVED_PAGE);
   }
 }
 

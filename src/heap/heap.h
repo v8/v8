@@ -33,6 +33,7 @@
 #include "src/heap/heap-allocator.h"
 #include "src/heap/marking-state.h"
 #include "src/heap/pretenuring-handler.h"
+#include "src/heap/sweeper.h"
 #include "src/init/heap-symbols.h"
 #include "src/objects/allocation-site.h"
 #include "src/objects/fixed-array.h"
@@ -921,6 +922,8 @@ class Heap {
     return minor_mark_compact_collector_.get();
   }
 
+  Sweeper* sweeper() { return sweeper_.get(); }
+
   ArrayBufferSweeper* array_buffer_sweeper() {
     return array_buffer_sweeper_.get();
   }
@@ -1132,7 +1135,7 @@ class Heap {
   void CompleteSweepingYoung(GarbageCollector collector);
 
   // Ensures that sweeping is finished for that object's page.
-  void EnsureSweepingCompleted(HeapObject object);
+  void EnsureSweepingCompletedForObject(HeapObject object);
 
   IncrementalMarking* incremental_marking() const {
     return incremental_marking_.get();
@@ -1610,6 +1613,28 @@ class Heap {
   // Returns the map of an object. Can be used during garbage collection, i.e.
   // it supports a forwarded map. Fails if the map is not the code map.
   Map GcSafeMapOfCodeSpaceObject(HeapObject object);
+
+  // ===========================================================================
+  // Sweeping. =================================================================
+  // ===========================================================================
+
+  bool sweeping_in_progress() const { return sweeper_->sweeping_in_progress(); }
+
+  void FinishSweepingIfOutOfWork();
+
+  enum class SweepingForcedFinalizationMode { kUnifiedHeap, kV8Only };
+
+  // Ensures that sweeping is finished.
+  //
+  // Note: Can only be called safely from main thread.
+  V8_EXPORT_PRIVATE void EnsureSweepingCompleted(
+      SweepingForcedFinalizationMode mode);
+
+  void DrainSweepingWorklistForSpace(AllocationSpace space);
+
+  void set_evacuation(bool evacuation) { evacuation_ = evacuation; }
+
+  bool evacuation() const { return evacuation_; }
 
   // =============================================================================
 
@@ -2287,6 +2312,7 @@ class Heap {
   double last_gc_time_ = 0.0;
 
   std::unique_ptr<GCTracer> tracer_;
+  std::unique_ptr<Sweeper> sweeper_;
   std::unique_ptr<MarkCompactCollector> mark_compact_collector_;
   std::unique_ptr<MinorMarkCompactCollector> minor_mark_compact_collector_;
   std::unique_ptr<ScavengerCollector> scavenger_collector_;
@@ -2405,6 +2431,8 @@ class Heap {
   std::vector<HeapObjectAllocationTracker*> allocation_trackers_;
 
   bool is_finalization_registry_cleanup_task_posted_ = false;
+
+  bool evacuation_ = false;
 
   std::unique_ptr<third_party_heap::Heap> tp_heap_;
 
@@ -2865,6 +2893,18 @@ class V8_NODISCARD CppClassNamesAsHeapObjectNameScope final {
 
  private:
   std::unique_ptr<cppgc::internal::ClassNameAsHeapObjectNameScope> scope_;
+};
+
+class V8_NODISCARD EvacuationScope {
+ public:
+  explicit EvacuationScope(Heap* heap) : heap_(heap) {
+    heap_->set_evacuation(true);
+  }
+
+  ~EvacuationScope() { heap_->set_evacuation(false); }
+
+ private:
+  Heap* const heap_;
 };
 
 }  // namespace internal

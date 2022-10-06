@@ -280,7 +280,7 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
 
   // Refills the free list from the corresponding free list filled by the
   // sweeper.
-  void RefillFreeList(Sweeper* sweeper);
+  void RefillFreeList();
 
   base::Mutex* mutex() { return &space_mutex_; }
 

@@ -130,7 +130,7 @@ bool IncrementalMarking::IsBelowActivationThresholds() const {
 
 void IncrementalMarking::Start(GarbageCollector garbage_collector,
                                GarbageCollectionReason gc_reason) {
-  DCHECK(!major_collector_->sweeping_in_progress());
+  DCHECK(!heap_->sweeping_in_progress());
   DCHECK(!heap_->IsShared());
 
   if (v8_flags.trace_incremental_marking) {
