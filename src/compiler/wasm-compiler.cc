@@ -6994,10 +6994,10 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     gasm_->GotoIf(IsSmi(value), &resume, value);
     gasm_->GotoIfNot(gasm_->HasInstanceType(value, JS_PROMISE_TYPE), &resume,
                      BranchHint::kTrue, value);
-    auto* call_descriptor = GetBuiltinCallDescriptor(
-        Builtin::kWasmSuspend, zone_, StubCallMode::kCallWasmRuntimeStub);
-    Node* call_target = mcgraph()->RelocatableIntPtrConstant(
-        wasm::WasmCode::kWasmSuspend, RelocInfo::WASM_STUB_CALL);
+    auto* call_descriptor =
+        GetBuiltinCallDescriptor(Builtin::kWasmSuspend, zone_, stub_mode_);
+    Node* call_target = GetTargetForBuiltinCall(wasm::WasmCode::kWasmSuspend,
+                                                Builtin::kWasmSuspend);
     Node* args[] = {value, suspender};
     Node* chained_promise = BuildCallToRuntimeWithContext(
         Runtime::kWasmCreateResumePromise, native_context, args, 2);
