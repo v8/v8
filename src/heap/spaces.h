@@ -303,7 +303,7 @@ class Page : public MemoryChunk {
     return categories_[type];
   }
 
-  size_t ShrinkToHighWaterMark();
+  V8_EXPORT_PRIVATE size_t ShrinkToHighWaterMark();
 
   V8_EXPORT_PRIVATE void CreateBlackArea(Address start, Address end);
   V8_EXPORT_PRIVATE void CreateBlackAreaBackground(Address start, Address end);
