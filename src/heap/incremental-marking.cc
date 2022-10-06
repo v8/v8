@@ -408,6 +408,13 @@ void IncrementalMarking::StartBlackAllocation() {
         "Marking Code objects requires write access to the Code page header");
     heap()->code_space()->MarkLinearAllocationAreaBlack();
   }
+  if (heap()->isolate()->is_shared_heap_isolate()) {
+    DCHECK_EQ(heap()->shared_space()->top(), kNullAddress);
+    heap()->isolate()->global_safepoint()->IterateClientIsolates(
+        [](Isolate* client) {
+          client->heap()->MarkSharedLinearAllocationAreasBlack();
+        });
+  }
   heap()->safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
     local_heap->MarkLinearAllocationAreaBlack();
   });
@@ -425,6 +432,13 @@ void IncrementalMarking::PauseBlackAllocation() {
     CodePageHeaderModificationScope rwx_write_scope(
         "Marking Code objects requires write access to the Code page header");
     heap()->code_space()->UnmarkLinearAllocationArea();
+  }
+  if (heap()->isolate()->is_shared_heap_isolate()) {
+    DCHECK_EQ(heap()->shared_space()->top(), kNullAddress);
+    heap()->isolate()->global_safepoint()->IterateClientIsolates(
+        [](Isolate* client) {
+          client->heap()->UnmarkSharedLinearAllocationAreas();
+        });
   }
   heap()->safepoint()->IterateLocalHeaps(
       [](LocalHeap* local_heap) { local_heap->UnmarkLinearAllocationArea(); });

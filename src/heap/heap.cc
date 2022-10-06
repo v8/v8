@@ -3569,6 +3569,28 @@ void Heap::FreeMainThreadSharedLinearAllocationAreas() {
   main_thread_local_heap()->FreeSharedLinearAllocationArea();
 }
 
+void Heap::MarkSharedLinearAllocationAreasBlack() {
+  DCHECK(v8_flags.shared_space);
+  if (shared_space_allocator_) {
+    shared_space_allocator_->MarkLinearAllocationAreaBlack();
+  }
+  safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
+    local_heap->MarkSharedLinearAllocationAreaBlack();
+  });
+  main_thread_local_heap()->MarkSharedLinearAllocationAreaBlack();
+}
+
+void Heap::UnmarkSharedLinearAllocationAreas() {
+  DCHECK(v8_flags.shared_space);
+  if (shared_space_allocator_) {
+    shared_space_allocator_->UnmarkLinearAllocationArea();
+  }
+  safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
+    local_heap->MarkSharedLinearAllocationAreaBlack();
+  });
+  main_thread_local_heap()->MarkSharedLinearAllocationAreaBlack();
+}
+
 namespace {
 
 double ComputeMutatorUtilizationImpl(double mutator_speed, double gc_speed) {

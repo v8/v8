@@ -115,6 +115,11 @@ class V8_EXPORT_PRIVATE LocalHeap {
   void MarkLinearAllocationAreaBlack();
   void UnmarkLinearAllocationArea();
 
+  // Mark/Unmark linear allocation areas in shared heap black. Used for black
+  // allocation.
+  void MarkSharedLinearAllocationAreaBlack();
+  void UnmarkSharedLinearAllocationArea();
+
   // Give up linear allocation areas. Used for mark-compact GC.
   void FreeLinearAllocationArea();
 

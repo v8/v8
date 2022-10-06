@@ -368,6 +368,18 @@ void LocalHeap::UnmarkLinearAllocationArea() {
   code_space_allocator_->UnmarkLinearAllocationArea();
 }
 
+void LocalHeap::MarkSharedLinearAllocationAreaBlack() {
+  if (shared_old_space_allocator_) {
+    shared_old_space_allocator_->MarkLinearAllocationAreaBlack();
+  }
+}
+
+void LocalHeap::UnmarkSharedLinearAllocationArea() {
+  if (shared_old_space_allocator_) {
+    shared_old_space_allocator_->UnmarkLinearAllocationArea();
+  }
+}
+
 Address LocalHeap::PerformCollectionAndAllocateAgain(
     int object_size, AllocationType type, AllocationOrigin origin,
     AllocationAlignment alignment) {

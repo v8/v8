@@ -1819,6 +1819,10 @@ class Heap {
   // Free all shared LABs of main thread.
   void FreeMainThreadSharedLinearAllocationAreas();
 
+  // Enables/Disables black allocation in shared LABs.
+  void MarkSharedLinearAllocationAreasBlack();
+  void UnmarkSharedLinearAllocationAreas();
+
   // Performs garbage collection in a safepoint.
   // Returns the number of freed global handles.
   size_t PerformGarbageCollection(
