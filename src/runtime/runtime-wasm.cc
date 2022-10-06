@@ -243,19 +243,19 @@ RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
   Handle<WasmInstanceObject> instance(WasmInstanceObject::cast(args[0]),
                                       isolate);
   int func_index = args.smi_value_at(1);
+
+  // Save the native_module on the stack, where the GC will use it to scan
+  // WasmCompileLazy stack frames.
   wasm::NativeModule** native_module_stack_slot =
       reinterpret_cast<wasm::NativeModule**>(args.address_of_arg_at(2));
-  *native_module_stack_slot = nullptr;
+  *native_module_stack_slot = instance->module_object().native_module();
 
   DCHECK(isolate->context().is_null());
   isolate->set_context(instance->native_context());
-  bool success = wasm::CompileLazy(isolate, instance, func_index,
-                                   native_module_stack_slot);
+  bool success = wasm::CompileLazy(isolate, instance, func_index);
   if (!success) {
-    {
-      wasm::ThrowLazyCompilationError(
-          isolate, instance->module_object().native_module(), func_index);
-    }
+    wasm::ThrowLazyCompilationError(
+        isolate, instance->module_object().native_module(), func_index);
     DCHECK(isolate->has_pending_exception());
     return ReadOnlyRoots{isolate}.exception();
   }

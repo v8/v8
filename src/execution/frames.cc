@@ -2719,14 +2719,6 @@ void WasmCompileLazyFrame::Iterate(RootVisitor* v) const {
 
   int func_index = GetFunctionIndex();
   wasm::NativeModule* native_module = GetNativeModule();
-  if (!native_module) {
-    // This GC was triggered by lazy compilation, because otherwise this frame
-    // would not be on the stack. The native module gets set on the stack after
-    // a successful compilation. The native module being nullptr means that
-    // compilation failed, and we don't have to preserve any references because
-    // the stack will get unwound immediately after the GC.
-    return;
-  }
 
   // Scan the spill slots of the parameter registers. Parameters in WebAssembly
   // get reordered such that first all value parameters get put into registers.
@@ -2766,22 +2758,27 @@ void WasmCompileLazyFrame::Iterate(RootVisitor* v) const {
   }
 
   // Next we scan the slots of stack parameters.
-  wasm::WasmCode* wasm_code = native_module->GetCode(func_index);
-  uint32_t first_tagged_stack_slot = wasm_code->first_tagged_parameter_slot();
-  uint32_t num_tagged_stack_slots = wasm_code->num_tagged_parameter_slots();
+  // If there is no code, then lazy compilation failed (which can happen with
+  // lazy validation). In that case, just do not scan parameters, which will
+  // never be used anyway because the stack will get unwound when returning to
+  // the CEntry stub.
+  if (wasm::WasmCode* wasm_code = native_module->GetCode(func_index)) {
+    uint32_t first_tagged_stack_slot = wasm_code->first_tagged_parameter_slot();
+    uint32_t num_tagged_stack_slots = wasm_code->num_tagged_parameter_slots();
 
-  // Visit tagged parameters that have been passed to the function of this
-  // frame. Conceptionally these parameters belong to the parent frame. However,
-  // the exact count is only known by this frame (in the presence of tail calls,
-  // this information cannot be derived from the call site).
-  if (num_tagged_stack_slots > 0) {
-    FullObjectSlot tagged_parameter_base(&Memory<Address>(caller_sp()));
-    tagged_parameter_base += first_tagged_stack_slot;
-    FullObjectSlot tagged_parameter_limit =
-        tagged_parameter_base + num_tagged_stack_slots;
+    // Visit tagged parameters that have been passed to the function of this
+    // frame. Conceptionally these parameters belong to the parent frame.
+    // However, the exact count is only known by this frame (in the presence of
+    // tail calls, this information cannot be derived from the call site).
+    if (num_tagged_stack_slots > 0) {
+      FullObjectSlot tagged_parameter_base(&Memory<Address>(caller_sp()));
+      tagged_parameter_base += first_tagged_stack_slot;
+      FullObjectSlot tagged_parameter_limit =
+          tagged_parameter_base + num_tagged_stack_slots;
 
-    v->VisitRootPointers(Root::kStackRoots, "stack parameter",
-                         tagged_parameter_base, tagged_parameter_limit);
+      v->VisitRootPointers(Root::kStackRoots, "stack parameter",
+                           tagged_parameter_base, tagged_parameter_limit);
+    }
   }
 }
 #endif  // V8_ENABLE_WEBASSEMBLY

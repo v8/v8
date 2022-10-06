@@ -1165,7 +1165,7 @@ class CompileLazyTimingScope {
 }  // namespace
 
 bool CompileLazy(Isolate* isolate, Handle<WasmInstanceObject> instance,
-                 int func_index, NativeModule** out_native_module) {
+                 int func_index) {
   Handle<WasmModuleObject> module_object(instance->module_object(), isolate);
   NativeModule* native_module = module_object->native_module();
   Counters* counters = isolate->counters();
@@ -1249,9 +1249,6 @@ bool CompileLazy(Isolate* isolate, Handle<WasmInstanceObject> instance,
   int feedback_vector_slots = NumFeedbackSlots(module, func_index);
   if (feedback_vector_slots > 0) {
     DCHECK(v8_flags.wasm_speculative_inlining);
-    // We have to save the native_module on the stack, in case the allocation
-    // triggers a GC and we need the module to scan WasmCompileLazy stack frame.
-    *out_native_module = native_module;
     Handle<FixedArray> vector =
         isolate->factory()->NewFixedArrayWithZeroes(feedback_vector_slots);
     instance->feedback_vectors().set(
