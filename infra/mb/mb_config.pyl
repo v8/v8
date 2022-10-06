@@ -116,6 +116,7 @@
       'V8 Linux64 - disable runtime call stats - builder': 'release_x64_disable_runtime_call_stats',
       'V8 Linux64 - debug - single generation - builder': 'debug_x64_single_generation',
       'V8 Linux64 - no pointer compression - builder': 'release_x64_no_pointer_compression',
+      'V8 Linux64 css - debug builder': 'debug_x64_conservative_stack_scanning',
       'V8 Linux64 gcc - builder': 'release_x64_gcc',
       'V8 Linux64 gcc - debug builder': 'debug_x64_gcc',
       'V8 Linux64 gcc light - debug builder': 'debug_x64_gcc',
@@ -229,6 +230,7 @@
       'v8_linux64_dict_tracking_dbg_ng': 'debug_x64_dict_tracking_trybot',
       'v8_linux64_disable_runtime_call_stats_rel_ng': 'release_x64_disable_runtime_call_stats',
       'v8_linux64_external_code_space_dbg_ng': 'debug_x64_external_code_space',
+      'v8_linux64_css_compile_dbg': 'debug_x64_conservative_stack_scanning',
       'v8_linux64_gc_stress_custom_snapshot_dbg_ng': 'debug_x64_trybot_custom',
       'v8_linux64_gc_stress_dbg_ng': 'debug_x64_trybot',
       'v8_linux64_gcc_compile_dbg': 'debug_x64_gcc',
@@ -577,6 +579,8 @@
     'debug_x64_asan_no_lsan_static': [
       'debug', 'static', 'goma', 'v8_enable_slow_dchecks', 'v8_optimized_debug',
       'x64', 'asan'],
+    'debug_x64_conservative_stack_scanning': [
+      'debug_bot', 'x64', 'conservative_stack_scanning'],
     'debug_x64_custom': [
       'debug_bot', 'x64', 'v8_snapshot_custom'],
     'debug_x64_external_code_space': [
@@ -701,6 +705,11 @@
 
     'clang': {
       'gn_args': 'is_clang=true',
+    },
+
+    'conservative_stack_scanning': {
+      'gn_args': 'v8_enable_conservative_stack_scanning=true '
+                 'v8_enable_inner_pointer_resolution_mb=true',
     },
 
     'coverage': {
