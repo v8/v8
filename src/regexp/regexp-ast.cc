@@ -195,6 +195,27 @@ void* RegExpUnparser::VisitCharacterClass(RegExpCharacterClass* that,
   return nullptr;
 }
 
+void* RegExpUnparser::VisitClassSet(RegExpClassSet* that, void* data) {
+  switch (that->operation()) {
+    case RegExpClassSet::OperationType::kUnion:
+      os_ << "++";
+      break;
+    case RegExpClassSet::OperationType::kIntersection:
+      os_ << "&&";
+      break;
+    case RegExpClassSet::OperationType::kSubtraction:
+      os_ << "--";
+      break;
+  }
+  if (that->is_negated()) os_ << "^";
+  os_ << "[";
+  for (int i = 0; i < that->operands()->length(); i++) {
+    if (i > 0) os_ << " ";
+    that->operands()->at(i)->Accept(this, data);
+  }
+  os_ << "]";
+  return nullptr;
+}
 
 void* RegExpUnparser::VisitAssertion(RegExpAssertion* that, void* data) {
   switch (that->assertion_type()) {

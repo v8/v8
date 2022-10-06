@@ -69,6 +69,11 @@ class CanBeHandledVisitor final : private RegExpVisitor {
     return nullptr;
   }
 
+  void* VisitClassSet(RegExpClassSet* node, void*) override {
+    result_ = false;
+    return nullptr;
+  }
+
   void* VisitAssertion(RegExpAssertion* node, void*) override {
     return nullptr;
   }
@@ -417,6 +422,11 @@ class CompileVisitor : private RegExpVisitor {
       assembler_.ConsumeRange(from_uc16, to_uc16);
     });
     return nullptr;
+  }
+
+  void* VisitClassSet(RegExpClassSet* node, void*) override {
+    // TODO(v8:11935): Add support.
+    UNREACHABLE();
   }
 
   void* VisitAtom(RegExpAtom* node, void*) override {

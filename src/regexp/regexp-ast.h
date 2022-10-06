@@ -19,6 +19,7 @@ namespace internal {
   VISIT(Alternative)                      \
   VISIT(Assertion)                        \
   VISIT(CharacterClass)                   \
+  VISIT(ClassSet)                         \
   VISIT(Atom)                             \
   VISIT(Quantifier)                       \
   VISIT(Capture)                          \
@@ -117,29 +118,49 @@ class CharacterRange {
       StandardCharacterSet standard_character_set,
       ZoneList<CharacterRange>* ranges, bool add_unicode_case_equivalents,
       Zone* zone);
+  // Add case equivalents to ranges. Only used for /i, not for /ui or /vi, as
+  // the semantics for unicode mode are slightly different.
+  // See https://tc39.es/ecma262/#sec-runtime-semantics-canonicalize-ch Note 4.
   V8_EXPORT_PRIVATE static void AddCaseEquivalents(
       Isolate* isolate, Zone* zone, ZoneList<CharacterRange>* ranges,
       bool is_one_byte);
+  // Add case equivalent code points to ranges. Only used for /ui and /vi, not
+  // for /i, as the semantics for non-unicode mode are slightly different.
+  // See https://tc39.es/ecma262/#sec-runtime-semantics-canonicalize-ch Note 4.
+  static void AddUnicodeCaseEquivalents(ZoneList<CharacterRange>* ranges,
+                                        Zone* zone);
 
   bool Contains(base::uc32 i) const { return from_ <= i && i <= to_; }
   base::uc32 from() const { return from_; }
   base::uc32 to() const { return to_; }
   bool IsEverything(base::uc32 max) const { return from_ == 0 && to_ >= max; }
   bool IsSingleton() const { return from_ == to_; }
+
   // Whether a range list is in canonical form: Ranges ordered by from value,
   // and ranges non-overlapping and non-adjacent.
-  V8_EXPORT_PRIVATE static bool IsCanonical(ZoneList<CharacterRange>* ranges);
+  V8_EXPORT_PRIVATE static bool IsCanonical(
+      const ZoneList<CharacterRange>* ranges);
   // Convert range list to canonical form. The characters covered by the ranges
   // will still be the same, but no character is in more than one range, and
   // adjacent ranges are merged. The resulting list may be shorter than the
   // original, but cannot be longer.
   static void Canonicalize(ZoneList<CharacterRange>* ranges);
   // Negate the contents of a character range in canonical form.
-  static void Negate(ZoneList<CharacterRange>* src,
+  static void Negate(const ZoneList<CharacterRange>* src,
                      ZoneList<CharacterRange>* dst, Zone* zone);
-
+  // Intersect the contents of two character ranges in canonical form.
+  static void Intersect(const ZoneList<CharacterRange>* lhs,
+                        const ZoneList<CharacterRange>* rhs,
+                        ZoneList<CharacterRange>* dst, Zone* zone);
+  // Subtract the contents of |to_remove| from the contents of |src|.
+  static void Subtract(const ZoneList<CharacterRange>* src,
+                       const ZoneList<CharacterRange>* to_remove,
+                       ZoneList<CharacterRange>* dst, Zone* zone);
   // Remove all ranges outside the one-byte range.
   static void ClampToOneByte(ZoneList<CharacterRange>* ranges);
+  // Checks if two ranges (both need to be canonical) are equal.
+  static bool Equals(const ZoneList<CharacterRange>* lhs,
+                     const ZoneList<CharacterRange>* rhs);
 
  private:
   CharacterRange(base::uc32 from, base::uc32 to) : from_(from), to_(to) {}
@@ -149,6 +170,13 @@ class CharacterRange {
   base::uc32 from_ = 0;
   base::uc32 to_ = 0;
 };
+
+inline bool operator==(const CharacterRange& lhs, const CharacterRange& rhs) {
+  return lhs.from() == rhs.from() && lhs.to() == rhs.to();
+}
+inline bool operator!=(const CharacterRange& lhs, const CharacterRange& rhs) {
+  return !operator==(lhs, rhs);
+}
 
 #define DECL_BOILERPLATE(Name)                                         \
   void* Accept(RegExpVisitor* visitor, void* data) override;           \
@@ -327,6 +355,47 @@ class RegExpCharacterClass final : public RegExpTree {
  private:
   CharacterSet set_;
   CharacterClassFlags character_class_flags_;
+};
+
+class RegExpClassSet final : public RegExpTree {
+ public:
+  enum class OperationType { kUnion, kIntersection, kSubtraction };
+
+  RegExpClassSet(OperationType op, bool is_negated,
+                 ZoneList<RegExpTree*>* operands)
+      : operation_(op), is_negated_(is_negated), operands_(operands) {}
+
+  DECL_BOILERPLATE(ClassSet);
+
+  bool IsTextElement() override { return true; }
+  // At least 1 character is consumed.
+  int min_match() override { return 1; }
+  // Up to two code points might be consumed.
+  int max_match() override { return 2; }
+
+  OperationType operation() const { return operation_; }
+  bool is_negated() const { return is_negated_; }
+  const ZoneList<RegExpTree*>* operands() const { return operands_; }
+
+ private:
+  RegExpCharacterClass* ToCharacterClass(Zone* zone);
+
+  // Recursively evaluates the tree rooted at |root|, computing the valid
+  // CharacterRanges after applying all set operations and storing the result in
+  // |result_ranges|. |temp_ranges| is list used for intermediate results,
+  // passed as parameter to avoid allocating new lists all the time.
+  static void ComputeCharacterRanges(RegExpTree* root,
+                                     ZoneList<CharacterRange>* result_ranges,
+                                     ZoneList<CharacterRange>* temp_ranges,
+                                     Zone* zone);
+
+  const OperationType operation_;
+  const bool is_negated_;
+  ZoneList<RegExpTree*>* operands_ = nullptr;
+#ifdef ENABLE_SLOW_DCHECKS
+  // Cache ranges for each node during computation for (slow) DCHECKs.
+  ZoneList<CharacterRange>* ranges_ = nullptr;
+#endif
 };
 
 class RegExpAtom final : public RegExpTree {

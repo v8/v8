@@ -243,6 +243,7 @@ String16 descriptionForRegExp(v8::Isolate* isolate,
   if (flags & v8::RegExp::Flags::kMultiline) description.append('m');
   if (flags & v8::RegExp::Flags::kDotAll) description.append('s');
   if (flags & v8::RegExp::Flags::kUnicode) description.append('u');
+  if (flags & v8::RegExp::Flags::kUnicodeSets) description.append('v');
   if (flags & v8::RegExp::Flags::kSticky) description.append('y');
   return description.toString();
 }
