@@ -59,6 +59,7 @@ v8_source_set("v8_heap_base_unittests_sources") {
 
   sources = [
     "heap/base/active-system-pages-unittest.cc",
+    "heap/base/basic-slot-set-unittest.cc",
     "heap/base/worklist-unittest.cc",
   ]
 

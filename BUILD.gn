@@ -5710,6 +5710,7 @@ v8_source_set("v8_bigint") {
 v8_header_set("v8_heap_base_headers") {
   sources = [
     "src/heap/base/active-system-pages.h",
+    "src/heap/base/basic-slot-set.h",
     "src/heap/base/stack.h",
     "src/heap/base/worklist.h",
   ]
