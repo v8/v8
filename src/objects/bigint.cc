@@ -1633,10 +1633,11 @@ void MutableBigInt_AbsoluteSubAndCanonicalize(Address result_addr,
   MutableBigInt::Canonicalize(result);
 }
 
-// Returns true if it succeeded to obtain the result of multiplication.
-// Returns false if the computation is interrupted.
-bool MutableBigInt_AbsoluteMulAndCanonicalize(Address result_addr,
-                                              Address x_addr, Address y_addr) {
+// Returns 0 if it succeeded to obtain the result of multiplication.
+// Returns 1 if the computation is interrupted.
+int32_t MutableBigInt_AbsoluteMulAndCanonicalize(Address result_addr,
+                                                 Address x_addr,
+                                                 Address y_addr) {
   BigInt x = BigInt::cast(Object(x_addr));
   BigInt y = BigInt::cast(Object(y_addr));
   MutableBigInt result = MutableBigInt::cast(Object(result_addr));
@@ -1650,15 +1651,16 @@ bool MutableBigInt_AbsoluteMulAndCanonicalize(Address result_addr,
   bigint::Status status = isolate->bigint_processor()->Multiply(
       GetRWDigits(result), GetDigits(x), GetDigits(y));
   if (status == bigint::Status::kInterrupted) {
-    return false;
+    return 1;
   }
 
   MutableBigInt::Canonicalize(result);
-  return true;
+  return 0;
 }
 
-bool MutableBigInt_AbsoluteDivAndCanonicalize(Address result_addr,
-                                              Address x_addr, Address y_addr) {
+int32_t MutableBigInt_AbsoluteDivAndCanonicalize(Address result_addr,
+                                                 Address x_addr,
+                                                 Address y_addr) {
   BigInt x = BigInt::cast(Object(x_addr));
   BigInt y = BigInt::cast(Object(y_addr));
   MutableBigInt result = MutableBigInt::cast(Object(result_addr));
@@ -1674,11 +1676,11 @@ bool MutableBigInt_AbsoluteDivAndCanonicalize(Address result_addr,
   bigint::Status status = isolate->bigint_processor()->Divide(
       GetRWDigits(result), GetDigits(x), GetDigits(y));
   if (status == bigint::Status::kInterrupted) {
-    return false;
+    return 1;
   }
 
   MutableBigInt::Canonicalize(result);
-  return true;
+  return 0;
 }
 
 void MutableBigInt_BitwiseAndPosPosAndCanonicalize(Address result_addr,

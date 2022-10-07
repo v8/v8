@@ -476,26 +476,89 @@ TNode<Object> BinaryOpAssembler::Generate_BinaryOperationWithFeedback(
     var_type_feedback = SmiConstant(BinaryOperationFeedback::kBigInt);
     UpdateFeedback(var_type_feedback.value(), maybe_feedback_vector(), slot_id,
                    update_feedback_mode);
-    if (op == Operation::kSubtract) {
-      Label bigint_too_big(this);
-      var_result =
-          CallBuiltin(Builtin::kBigIntSubtractNoThrow, context(), lhs, rhs);
+    switch (op) {
+      case Operation::kSubtract: {
+        Label bigint_too_big(this);
+        var_result =
+            CallBuiltin(Builtin::kBigIntSubtractNoThrow, context(), lhs, rhs);
 
-      // Check for sentinel that signals BigIntTooBig exception.
-      GotoIf(TaggedIsSmi(var_result.value()), &bigint_too_big);
-      Goto(&end);
+        // Check for sentinel that signals BigIntTooBig exception.
+        GotoIfNot(TaggedIsSmi(var_result.value()), &end);
 
-      BIND(&bigint_too_big);
-      {
         // Update feedback to prevent deopt loop.
         UpdateFeedback(SmiConstant(BinaryOperationFeedback::kAny),
                        maybe_feedback_vector(), slot_id, update_feedback_mode);
         ThrowRangeError(context(), MessageTemplate::kBigIntTooBig);
+        break;
       }
-    } else {
-      var_result = CallRuntime(Runtime::kBigIntBinaryOp, context(), lhs, rhs,
-                               SmiConstant(op));
-      Goto(&end);
+      case Operation::kMultiply: {
+        Label bigint_too_big(this),
+            termination_requested(this, Label::kDeferred);
+        var_result =
+            CallBuiltin(Builtin::kBigIntMultiplyNoThrow, context(), lhs, rhs);
+
+        GotoIfNot(TaggedIsSmi(var_result.value()), &end);
+
+        // Check for sentinel that signals TerminationReqeusted exception.
+        GotoIf(TaggedEqual(var_result.value(), SmiConstant(1)),
+               &termination_requested);
+
+        // Handles BigIntTooBig exception.
+        // Update feedback to prevent deopt loop.
+        UpdateFeedback(SmiConstant(BinaryOperationFeedback::kAny),
+                       maybe_feedback_vector(), slot_id, update_feedback_mode);
+        ThrowRangeError(context(), MessageTemplate::kBigIntTooBig);
+
+        BIND(&termination_requested);
+        TerminateExecution(context());
+        break;
+      }
+      case Operation::kDivide: {
+        Label bigint_div_zero(this),
+            termination_requested(this, Label::kDeferred);
+        var_result =
+            CallBuiltin(Builtin::kBigIntDivideNoThrow, context(), lhs, rhs);
+
+        GotoIfNot(TaggedIsSmi(var_result.value()), &end);
+
+        // Check for sentinel that signals TerminationReqeusted exception.
+        GotoIf(TaggedEqual(var_result.value(), SmiConstant(1)),
+               &termination_requested);
+
+        // Handles BigIntDivZero exception.
+        // Update feedback to prevent deopt loop.
+        UpdateFeedback(SmiConstant(BinaryOperationFeedback::kAny),
+                       maybe_feedback_vector(), slot_id, update_feedback_mode);
+        ThrowRangeError(context(), MessageTemplate::kBigIntDivZero);
+
+        BIND(&termination_requested);
+        TerminateExecution(context());
+        break;
+      }
+      case Operation::kBitwiseAnd: {
+        Label bigint_too_big(this);
+        var_result =
+            CallBuiltin(Builtin::kBigIntBitwiseAndNoThrow, context(), lhs, rhs);
+
+        // Check for sentinel that signals BigIntTooBig exception.
+        GotoIf(TaggedIsSmi(var_result.value()), &bigint_too_big);
+        Goto(&end);
+
+        BIND(&bigint_too_big);
+        {
+          // Update feedback to prevent deopt loop.
+          UpdateFeedback(SmiConstant(BinaryOperationFeedback::kAny),
+                         maybe_feedback_vector(), slot_id,
+                         update_feedback_mode);
+          ThrowRangeError(context(), MessageTemplate::kBigIntTooBig);
+        }
+        break;
+      }
+      default: {
+        var_result = CallRuntime(Runtime::kBigIntBinaryOp, context(), lhs, rhs,
+                                 SmiConstant(op));
+        Goto(&end);
+      }
     }
   }
 
