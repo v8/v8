@@ -11,6 +11,7 @@
 
 #include "include/v8-locker.h"
 #include "src/api/api-inl.h"
+#include "src/base/functional.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/wrappers.h"
@@ -1922,6 +1923,17 @@ EnumerateCompiledFunctions(Heap* heap) {
   std::vector<std::pair<Handle<SharedFunctionInfo>, Handle<AbstractCode>>>
       compiled_funcs;
   Isolate* isolate = heap->isolate();
+  auto hash = [](const std::pair<SharedFunctionInfo, AbstractCode>& p) {
+    return base::hash_combine(p.first.address(), p.second.address());
+  };
+  std::unordered_set<std::pair<SharedFunctionInfo, AbstractCode>,
+                     decltype(hash)>
+      seen(8, hash);
+
+  auto record = [&](SharedFunctionInfo sfi, AbstractCode c) {
+    if (auto [iter, inserted] = seen.emplace(sfi, c); inserted)
+      compiled_funcs.emplace_back(handle(sfi, isolate), handle(c, isolate));
+  };
 
   // Iterate the heap to find JSFunctions and record their optimized code.
   for (HeapObject obj = iterator.Next(); !obj.is_null();
@@ -1929,9 +1941,7 @@ EnumerateCompiledFunctions(Heap* heap) {
     if (obj.IsSharedFunctionInfo()) {
       SharedFunctionInfo sfi = SharedFunctionInfo::cast(obj);
       if (sfi.is_compiled() && !sfi.HasBytecodeArray()) {
-        compiled_funcs.emplace_back(
-            handle(sfi, isolate),
-            handle(AbstractCode::cast(sfi.abstract_code(isolate)), isolate));
+        record(sfi, AbstractCode::cast(sfi.abstract_code(isolate)));
       }
     } else if (obj.IsJSFunction()) {
       // Given that we no longer iterate over all optimized JSFunctions, we need
@@ -1942,9 +1952,8 @@ EnumerateCompiledFunctions(Heap* heap) {
       // only on a type feedback vector. We should make this mroe precise.
       if (function.HasAttachedOptimizedCode() &&
           Script::cast(function.shared().script()).HasValidSource()) {
-        compiled_funcs.emplace_back(
-            handle(function.shared(), isolate),
-            handle(AbstractCode::cast(FromCodeT(function.code())), isolate));
+        record(function.shared(),
+               AbstractCode::cast(FromCodeT(function.code())));
       }
     }
   }
@@ -1958,9 +1967,7 @@ EnumerateCompiledFunctions(Heap* heap) {
     for (SharedFunctionInfo sfi = sfi_iterator.Next(); !sfi.is_null();
          sfi = sfi_iterator.Next()) {
       if (sfi.is_compiled()) {
-        compiled_funcs.emplace_back(
-            handle(sfi, isolate),
-            handle(AbstractCode::cast(sfi.abstract_code(isolate)), isolate));
+        record(sfi, AbstractCode::cast(sfi.abstract_code(isolate)));
       }
     }
   }
