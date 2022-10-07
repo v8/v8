@@ -158,10 +158,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
       Register object, Register name,
       DefineKeyedOwnPropertyInLiteralFlags flags, int feedback_slot);
 
-  // Collect type information for developer tools. The value for which we
-  // record the type is stored in the accumulator.
-  BytecodeArrayBuilder& CollectTypeProfile(int position);
-
   // Set a property named by a property name, trigger the setters and
   // set traps if necessary. The value to be set should be in the
   // accumulator.

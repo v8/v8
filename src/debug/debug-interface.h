@@ -34,13 +34,10 @@ namespace internal {
 struct CoverageBlock;
 struct CoverageFunction;
 struct CoverageScript;
-struct TypeProfileEntry;
-struct TypeProfileScript;
 class Coverage;
 class DisableBreak;
 class PostponeInterruptsScope;
 class Script;
-class TypeProfile;
 }  // namespace internal
 
 namespace debug {
@@ -436,64 +433,6 @@ class V8_EXPORT_PRIVATE Coverage {
   explicit Coverage(std::shared_ptr<i::Coverage> coverage)
       : coverage_(std::move(coverage)) {}
   std::shared_ptr<i::Coverage> coverage_;
-};
-
-/*
- * Provide API layer between inspector and type profile.
- */
-class V8_EXPORT_PRIVATE TypeProfile {
- public:
-  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(TypeProfile);
-
-  class ScriptData;  // Forward declaration.
-
-  class V8_EXPORT_PRIVATE Entry {
-   public:
-    MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(Entry);
-
-    int SourcePosition() const;
-    std::vector<MaybeLocal<String>> Types() const;
-
-   private:
-    explicit Entry(const i::TypeProfileEntry* entry,
-                   std::shared_ptr<i::TypeProfile> type_profile)
-        : entry_(entry), type_profile_(std::move(type_profile)) {}
-
-    const i::TypeProfileEntry* entry_;
-    std::shared_ptr<i::TypeProfile> type_profile_;
-
-    friend class v8::debug::TypeProfile::ScriptData;
-  };
-
-  class V8_EXPORT_PRIVATE ScriptData {
-   public:
-    MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(ScriptData);
-
-    Local<debug::Script> GetScript() const;
-    std::vector<Entry> Entries() const;
-
-   private:
-    explicit ScriptData(size_t index,
-                        std::shared_ptr<i::TypeProfile> type_profile);
-
-    i::TypeProfileScript* script_;
-    std::shared_ptr<i::TypeProfile> type_profile_;
-
-    friend class v8::debug::TypeProfile;
-  };
-
-  static TypeProfile Collect(Isolate* isolate);
-
-  static void SelectMode(Isolate* isolate, TypeProfileMode mode);
-
-  size_t ScriptCount() const;
-  ScriptData GetScriptData(size_t i) const;
-
- private:
-  explicit TypeProfile(std::shared_ptr<i::TypeProfile> type_profile)
-      : type_profile_(std::move(type_profile)) {}
-
-  std::shared_ptr<i::TypeProfile> type_profile_;
 };
 
 class V8_EXPORT_PRIVATE ScopeIterator {

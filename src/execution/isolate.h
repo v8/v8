@@ -529,7 +529,6 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
   V(bool, formatting_stack_trace, false)                                      \
   /* Perform side effect checks on function call and API callbacks. */        \
   V(DebugInfo::ExecutionMode, debug_execution_mode, DebugInfo::kBreakpoints)  \
-  V(debug::TypeProfileMode, type_profile_mode, debug::TypeProfileMode::kNone) \
   V(bool, disable_bytecode_flushing, false)                                   \
   V(int, last_console_context_id, 0)                                          \
   V(v8_inspector::V8Inspector*, inspector, nullptr)                           \
@@ -1429,10 +1428,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   bool is_count_code_coverage() const {
     return is_precise_count_code_coverage() || is_block_count_code_coverage();
-  }
-
-  bool is_collecting_type_profile() const {
-    return type_profile_mode() == debug::TypeProfileMode::kCollect;
   }
 
   // Collect feedback vectors with data for code coverage or type profile.

@@ -70,7 +70,6 @@ int FeedbackMetadata::GetSlotSize(FeedbackSlotKind kind) {
     case FeedbackSlotKind::kCompareOp:
     case FeedbackSlotKind::kBinaryOp:
     case FeedbackSlotKind::kLiteral:
-    case FeedbackSlotKind::kTypeProfile:
     case FeedbackSlotKind::kJumpLoop:
       return 1;
 

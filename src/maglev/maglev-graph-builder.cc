@@ -1895,14 +1895,6 @@ void MaglevGraphBuilder::VisitDefineKeyedOwnPropertyInLiteral() {
                        {object, name, value, flags, feedback_vector, slot}));
 }
 
-void MaglevGraphBuilder::VisitCollectTypeProfile() {
-  ValueNode* position = GetSmiConstant(GetFlag8Operand(0));
-  ValueNode* value = GetAccumulatorTagged();
-  ValueNode* feedback_vector = GetConstant(feedback());
-  SetAccumulator(BuildCallRuntime(Runtime::kCollectTypeProfile,
-                                  {position, value, feedback_vector}));
-}
-
 void MaglevGraphBuilder::VisitAdd() { VisitBinaryOperation<Operation::kAdd>(); }
 void MaglevGraphBuilder::VisitSub() {
   VisitBinaryOperation<Operation::kSubtract>();

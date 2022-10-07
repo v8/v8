@@ -1333,7 +1333,6 @@ void FeedbackNexus::Print(std::ostream& os) {
       break;
     }
     case FeedbackSlotKind::kLiteral:
-    case FeedbackSlotKind::kTypeProfile:
       break;
     case FeedbackSlotKind::kJumpLoop:
       os << "JumpLoop";

@@ -1270,8 +1270,6 @@ filegroup(
         "src/debug/debug-scopes.h",
         "src/debug/debug-stack-trace-iterator.cc",
         "src/debug/debug-stack-trace-iterator.h",
-        "src/debug/debug-type-profile.cc",
-        "src/debug/debug-type-profile.h",
         "src/debug/debug.cc",
         "src/debug/debug.h",
         "src/debug/interface-types.h",

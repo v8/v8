@@ -14,7 +14,6 @@
 #include "src/debug/debug-evaluate.h"
 #include "src/debug/debug-property-iterator.h"
 #include "src/debug/debug-stack-trace-iterator.h"
-#include "src/debug/debug-type-profile.h"
 #include "src/debug/debug.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/heap/heap.h"
@@ -1315,48 +1314,6 @@ Coverage Coverage::CollectBestEffort(Isolate* isolate) {
 
 void Coverage::SelectMode(Isolate* isolate, CoverageMode mode) {
   i::Coverage::SelectMode(reinterpret_cast<i::Isolate*>(isolate), mode);
-}
-
-int TypeProfile::Entry::SourcePosition() const { return entry_->position; }
-
-std::vector<MaybeLocal<String>> TypeProfile::Entry::Types() const {
-  std::vector<MaybeLocal<String>> result;
-  for (const internal::Handle<internal::String>& type : entry_->types) {
-    result.emplace_back(ToApiHandle<String>(type));
-  }
-  return result;
-}
-
-TypeProfile::ScriptData::ScriptData(
-    size_t index, std::shared_ptr<i::TypeProfile> type_profile)
-    : script_(&type_profile->at(index)),
-      type_profile_(std::move(type_profile)) {}
-
-Local<Script> TypeProfile::ScriptData::GetScript() const {
-  return ToApiHandle<Script>(script_->script);
-}
-
-std::vector<TypeProfile::Entry> TypeProfile::ScriptData::Entries() const {
-  std::vector<TypeProfile::Entry> result;
-  for (const internal::TypeProfileEntry& entry : script_->entries) {
-    result.push_back(TypeProfile::Entry(&entry, type_profile_));
-  }
-  return result;
-}
-
-TypeProfile TypeProfile::Collect(Isolate* isolate) {
-  return TypeProfile(
-      i::TypeProfile::Collect(reinterpret_cast<i::Isolate*>(isolate)));
-}
-
-void TypeProfile::SelectMode(Isolate* isolate, TypeProfileMode mode) {
-  i::TypeProfile::SelectMode(reinterpret_cast<i::Isolate*>(isolate), mode);
-}
-
-size_t TypeProfile::ScriptCount() const { return type_profile_->size(); }
-
-TypeProfile::ScriptData TypeProfile::GetScriptData(size_t i) const {
-  return ScriptData(i, type_profile_);
 }
 
 MaybeLocal<v8::Value> EphemeronTable::Get(v8::Isolate* isolate,

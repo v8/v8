@@ -628,7 +628,6 @@ void JSFunction::InitializeFeedbackCell(
       // profile and more precise code coverage.
       v8_flags.log_function_events ||
       !isolate->is_best_effort_code_coverage() ||
-      isolate->is_collecting_type_profile() ||
       function->shared().sparkplug_compiled();
 
   if (needs_feedback_vector) {

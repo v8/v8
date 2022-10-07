@@ -157,8 +157,6 @@ namespace interpreter {
   V(DefineKeyedOwnPropertyInLiteral, ImplicitRegisterUse::kReadAccumulator,    \
     OperandType::kReg, OperandType::kReg, OperandType::kFlag8,                 \
     OperandType::kIdx)                                                         \
-  V(CollectTypeProfile, ImplicitRegisterUse::kReadAccumulator,                 \
-    OperandType::kImm)                                                         \
                                                                                \
   /* Binary Operators */                                                       \
   V(Add, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kReg,        \

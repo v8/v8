@@ -743,18 +743,6 @@ IGNITION_HANDLER(DefineKeyedOwnPropertyInLiteral, InterpreterAssembler) {
   Dispatch();
 }
 
-IGNITION_HANDLER(CollectTypeProfile, InterpreterAssembler) {
-  TNode<Smi> position = BytecodeOperandImmSmi(0);
-  TNode<Object> value = GetAccumulator();
-
-  TNode<HeapObject> feedback_vector = LoadFeedbackVector();
-  TNode<Context> context = GetContext();
-
-  CallRuntime(Runtime::kCollectTypeProfile, context, position, value,
-              feedback_vector);
-  Dispatch();
-}
-
 // LdaModuleVariable <cell_index> <depth>
 //
 // Load the contents of a module variable into the accumulator.  The variable is

@@ -300,7 +300,6 @@ namespace internal {
   F(AddDictionaryProperty, 3, 1)                                       \
   F(AddPrivateBrand, 4, 1)                                             \
   F(AllocateHeapNumber, 0, 1)                                          \
-  F(CollectTypeProfile, 3, 1)                                          \
   F(CompleteInobjectSlackTrackingForMap, 1, 1)                         \
   I(CopyDataProperties, 2, 1)                                          \
   I(CopyDataPropertiesWithExcludedPropertiesOnStack, -1 /* >= 1 */, 1) \

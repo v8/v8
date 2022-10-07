@@ -1672,20 +1672,6 @@ void BytecodeGraphBuilder::VisitDefineKeyedOwnPropertyInLiteral() {
   environment()->RecordAfterState(node, Environment::kAttachFrameState);
 }
 
-void BytecodeGraphBuilder::VisitCollectTypeProfile() {
-  PrepareEagerCheckpoint();
-
-  Node* position =
-      jsgraph()->Constant(bytecode_iterator().GetImmediateOperand(0));
-  Node* value = environment()->LookupAccumulator();
-  Node* vector = jsgraph()->Constant(feedback_vector());
-
-  const Operator* op = javascript()->CallRuntime(Runtime::kCollectTypeProfile);
-
-  Node* node = NewNode(op, position, value, vector);
-  environment()->RecordAfterState(node, Environment::kAttachFrameState);
-}
-
 void BytecodeGraphBuilder::VisitLdaContextSlot() {
   const Operator* op = javascript()->LoadContext(
       bytecode_iterator().GetUnsignedImmediateOperand(2),

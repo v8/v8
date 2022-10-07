@@ -1423,17 +1423,6 @@ void BytecodeGenerator::GenerateBytecodeBody() {
   // Emit tracing call if requested to do so.
   if (v8_flags.trace) builder()->CallRuntime(Runtime::kTraceEnter);
 
-  // Emit type profile call.
-  if (info()->flags().collect_type_profile()) {
-    feedback_spec()->AddTypeProfileSlot();
-    int num_parameters = closure_scope()->num_parameters();
-    for (int i = 0; i < num_parameters; i++) {
-      Register parameter(builder()->Parameter(i));
-      builder()->LoadAccumulatorWithRegister(parameter).CollectTypeProfile(
-          closure_scope()->parameter(i)->initializer_position());
-    }
-  }
-
   // Increment the function-scope block coverage counter.
   BuildIncrementBlockCoverageCounterIfEnabled(literal, SourceRangeKind::kBody);
 
@@ -3685,9 +3674,6 @@ void BytecodeGenerator::BuildReturn(int source_position) {
     // Runtime returns {result} value, preserving accumulator.
     builder()->StoreAccumulatorInRegister(result).CallRuntime(
         Runtime::kTraceExit, result);
-  }
-  if (info()->flags().collect_type_profile()) {
-    builder()->CollectTypeProfile(info()->literal()->return_position());
   }
   builder()->SetStatementPosition(source_position);
   builder()->Return();

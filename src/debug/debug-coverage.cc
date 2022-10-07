@@ -605,9 +605,8 @@ std::unique_ptr<Coverage> Coverage::CollectPrecise(Isolate* isolate) {
   DCHECK(!isolate->is_best_effort_code_coverage());
   std::unique_ptr<Coverage> result =
       Collect(isolate, isolate->code_coverage_mode());
-  if (!isolate->is_collecting_type_profile() &&
-      (isolate->is_precise_binary_code_coverage() ||
-       isolate->is_block_binary_code_coverage())) {
+  if (isolate->is_precise_binary_code_coverage() ||
+      isolate->is_block_binary_code_coverage()) {
     // We do not have to hold onto feedback vectors for invocations we already
     // reported. So we can reset the list.
     isolate->SetFeedbackVectorsForProfilingTools(
@@ -766,10 +765,8 @@ void Coverage::SelectMode(Isolate* isolate, debug::CoverageMode mode) {
       // following coverage recording (without reloads) will be at function
       // granularity.
       isolate->debug()->RemoveAllCoverageInfos();
-      if (!isolate->is_collecting_type_profile()) {
-        isolate->SetFeedbackVectorsForProfilingTools(
-            ReadOnlyRoots(isolate).undefined_value());
-      }
+      isolate->SetFeedbackVectorsForProfilingTools(
+          ReadOnlyRoots(isolate).undefined_value());
       break;
     case debug::CoverageMode::kBlockBinary:
     case debug::CoverageMode::kBlockCount:

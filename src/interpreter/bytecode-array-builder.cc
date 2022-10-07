@@ -881,11 +881,6 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::DefineKeyedOwnPropertyInLiteral(
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::CollectTypeProfile(int position) {
-  OutputCollectTypeProfile(position);
-  return *this;
-}
-
 BytecodeArrayBuilder& BytecodeArrayBuilder::SetNamedProperty(
     Register object, size_t name_index, int feedback_slot,
     LanguageMode language_mode) {

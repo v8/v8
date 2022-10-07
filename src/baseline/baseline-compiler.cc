@@ -967,14 +967,6 @@ void BaselineCompiler::VisitDefineKeyedOwnPropertyInLiteral() {
               IndexAsTagged(3));                // slot
 }
 
-void BaselineCompiler::VisitCollectTypeProfile() {
-  SaveAccumulatorScope accumulator_scope(&basm_);
-  CallRuntime(Runtime::kCollectTypeProfile,
-              IntAsSmi(0),                      // position
-              kInterpreterAccumulatorRegister,  // value
-              FeedbackVector());                // feedback vector
-}
-
 void BaselineCompiler::VisitAdd() {
   CallBuiltin<Builtin::kAdd_Baseline>(
       RegisterOperand(0), kInterpreterAccumulatorRegister, Index(1));

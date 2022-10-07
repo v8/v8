@@ -3282,8 +3282,6 @@ MaybeHandle<SharedFunctionInfo> CompileScriptOnMainThread(
   if (!maybe_script.ToHandle(&script)) {
     script = NewScript(isolate, &parse_info, source, script_details, natives);
   }
-  DCHECK_IMPLIES(parse_info.flags().collect_type_profile(),
-                 script->IsUserJavaScript());
   DCHECK_EQ(parse_info.flags().is_repl_mode(), script->is_repl_mode());
 
   return Compiler::CompileToplevel(&parse_info, script, isolate,
