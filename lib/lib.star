@@ -342,6 +342,10 @@ def v8_builder(defaults = None, **kwargs):
 def v8_basic_builder(defaults, **kwargs):
     cq_properties = kwargs.pop("cq_properties", None)
     if cq_properties:
+        # TODO(https://crbug.com/1372352): Temporarily don't reuse any tryjobs.
+        # Revert this as soon as the bug is fixed.
+        cq_properties = dict(cq_properties)
+        cq_properties["disable_reuse"] = True
         luci.cq_tryjob_verifier(
             kwargs["name"],
             cq_group = "v8-cq",
