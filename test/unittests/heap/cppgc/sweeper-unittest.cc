@@ -271,7 +271,16 @@ TEST_F(SweeperTest, UnmarkObjects) {
 }
 
 TEST_F(SweeperTest, LazySweepingDuringAllocation) {
-  using GCedObject = GCed<256>;
+  // The test allocates objects in such a way that the object with its header is
+  // power of two. This is to make sure that if there is some padding at the end
+  // of the page, it will go to a different freelist bucket. To get that,
+  // subtract vptr and object-header-size from a power-of-two.
+  static constexpr size_t kGCObjectSize =
+      256 - sizeof(void*) - sizeof(HeapObjectHeader);
+  using GCedObject = GCed<kGCObjectSize>;
+  static_assert(v8::base::bits::IsPowerOfTwo(sizeof(GCedObject) +
+                                             sizeof(HeapObjectHeader)));
+
   static const size_t kObjectsPerPage =
       NormalPage::PayloadSize() /
       (sizeof(GCedObject) + sizeof(HeapObjectHeader));
