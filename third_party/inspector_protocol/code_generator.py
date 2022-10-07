@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright 2016 The Chromium Authors. All rights reserved.
+# Copyright 2016 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -460,6 +460,7 @@ class Protocol(object):
             all_refs_event = self.all_references(event)
             self.check_if_dependency_declared(domain, all_refs_event)
             all_refs |= all_refs_event
+
 
     dependencies = self.generate_type_dependencies()
     queue = set(all_refs)
