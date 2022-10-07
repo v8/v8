@@ -102,18 +102,6 @@ class InjectedScript::ProtocolPromiseHandler {
     Response response = scope.initialize();
     if (!response.IsSuccess()) return;
 
-    v8::Local<v8::Promise::Resolver> resolver;
-    if (!v8::Promise::Resolver::New(context).ToLocal(&resolver)) {
-      EvaluateCallback::sendFailure(callback, scope.injectedScript(),
-                                    Response::InternalError());
-      return;
-    }
-    if (!resolver->Resolve(context, value).FromMaybe(false)) {
-      EvaluateCallback::sendFailure(callback, scope.injectedScript(),
-                                    Response::InternalError());
-      return;
-    }
-
     v8::MaybeLocal<v8::Promise> originalPromise =
         value->IsPromise() ? value.As<v8::Promise>()
                            : v8::MaybeLocal<v8::Promise>();
@@ -130,7 +118,28 @@ class InjectedScript::ProtocolPromiseHandler {
         v8::Function::New(context, catchCallback, wrapper, 0,
                           v8::ConstructorBehavior::kThrow)
             .ToLocalChecked();
-    v8::Local<v8::Promise> promise = resolver->GetPromise();
+
+    v8::Local<v8::Promise> promise;
+    v8::Local<v8::Promise::Resolver> resolver;
+    if (value->IsPromise()) {
+      // If value is a promise, we can chain the handlers directly onto `value`.
+      promise = value.As<v8::Promise>();
+    } else {
+      // Otherwise we do `Promise.resolve(value)`.
+      CHECK(!replMode);
+      if (!v8::Promise::Resolver::New(context).ToLocal(&resolver)) {
+        EvaluateCallback::sendFailure(callback, scope.injectedScript(),
+                                      Response::InternalError());
+        return;
+      }
+      if (!resolver->Resolve(context, value).FromMaybe(false)) {
+        EvaluateCallback::sendFailure(callback, scope.injectedScript(),
+                                      Response::InternalError());
+        return;
+      }
+      promise = resolver->GetPromise();
+    }
+
     if (promise->Then(context, thenCallbackFunction, catchCallbackFunction)
             .IsEmpty()) {
       // Re-initialize after returning from JS.
