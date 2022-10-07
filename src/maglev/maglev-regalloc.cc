@@ -820,7 +820,7 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
       printing_visitor_->Process(node, ProcessingState(block_it_));
     }
   } else if (node->Is<Deopt>()) {
-    // No fixed temporaries.
+    // No temporaries.
     DCHECK(node->general_temporaries().is_empty());
     DCHECK(node->double_temporaries().is_empty());
     DCHECK_EQ(node->num_temporaries_needed<Register>(), 0);
@@ -834,7 +834,7 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
       printing_visitor_->Process(node, ProcessingState(block_it_));
     }
   } else if (auto unconditional = node->TryCast<UnconditionalControlNode>()) {
-    // No fixed temporaries.
+    // No temporaries.
     DCHECK(node->general_temporaries().is_empty());
     DCHECK(node->double_temporaries().is_empty());
     DCHECK_EQ(node->num_temporaries_needed<Register>(), 0);

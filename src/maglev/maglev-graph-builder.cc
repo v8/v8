@@ -531,6 +531,17 @@ bool MaglevGraphBuilder::TryBuildCompareOperation(Operation operation,
   BasicBlock* block = FinishBlock<CompareControlNode>(
       {left, right}, operation, &jump_targets_[true_offset],
       &jump_targets_[false_offset]);
+  if (true_offset == iterator_.GetJumpTargetOffset()) {
+    block->control_node()
+        ->Cast<BranchControlNode>()
+        ->set_true_interrupt_correction(
+            iterator_.GetRelativeJumpTargetOffset());
+  } else {
+    block->control_node()
+        ->Cast<BranchControlNode>()
+        ->set_false_interrupt_correction(
+            iterator_.GetRelativeJumpTargetOffset());
+  }
   MergeIntoFrameState(block, iterator_.GetJumpTargetOffset());
   StartFallthroughBlock(next_offset(), block);
   return true;
@@ -2961,70 +2972,93 @@ void MaglevGraphBuilder::MergeIntoInlinedReturnFrameState(
 }
 
 void MaglevGraphBuilder::BuildBranchIfRootConstant(ValueNode* node,
-                                                   int true_target,
-                                                   int false_target,
+                                                   JumpType jump_type,
                                                    RootIndex root_index) {
+  int fallthrough_offset = next_offset();
+  int jump_offset = iterator_.GetJumpTargetOffset();
+  BasicBlockRef* true_target = jump_type == kJumpIfTrue
+                                   ? &jump_targets_[jump_offset]
+                                   : &jump_targets_[fallthrough_offset];
+  BasicBlockRef* false_target = jump_type == kJumpIfFalse
+                                    ? &jump_targets_[jump_offset]
+                                    : &jump_targets_[fallthrough_offset];
   BasicBlock* block = FinishBlock<BranchIfRootConstant>(
-      {node}, &jump_targets_[true_target], &jump_targets_[false_target],
-      root_index);
-  MergeIntoFrameState(block, iterator_.GetJumpTargetOffset());
-  StartFallthroughBlock(next_offset(), block);
+      {node}, true_target, false_target, root_index);
+  if (jump_type == kJumpIfTrue) {
+    block->control_node()
+        ->Cast<BranchControlNode>()
+        ->set_true_interrupt_correction(
+            iterator_.GetRelativeJumpTargetOffset());
+  } else {
+    block->control_node()
+        ->Cast<BranchControlNode>()
+        ->set_false_interrupt_correction(
+            iterator_.GetRelativeJumpTargetOffset());
+  }
+  MergeIntoFrameState(block, jump_offset);
+  StartFallthroughBlock(fallthrough_offset, block);
 }
-void MaglevGraphBuilder::BuildBranchIfTrue(ValueNode* node, int true_target,
-                                           int false_target) {
-  BuildBranchIfRootConstant(node, true_target, false_target,
-                            RootIndex::kTrueValue);
+void MaglevGraphBuilder::BuildBranchIfTrue(ValueNode* node,
+                                           JumpType jump_type) {
+  BuildBranchIfRootConstant(node, jump_type, RootIndex::kTrueValue);
 }
-void MaglevGraphBuilder::BuildBranchIfNull(ValueNode* node, int true_target,
-                                           int false_target) {
-  BuildBranchIfRootConstant(node, true_target, false_target,
-                            RootIndex::kNullValue);
+void MaglevGraphBuilder::BuildBranchIfNull(ValueNode* node,
+                                           JumpType jump_type) {
+  BuildBranchIfRootConstant(node, jump_type, RootIndex::kNullValue);
 }
 void MaglevGraphBuilder::BuildBranchIfUndefined(ValueNode* node,
-                                                int true_target,
-                                                int false_target) {
-  BuildBranchIfRootConstant(node, true_target, false_target,
-                            RootIndex::kUndefinedValue);
+                                                JumpType jump_type) {
+  BuildBranchIfRootConstant(node, jump_type, RootIndex::kUndefinedValue);
 }
 void MaglevGraphBuilder::BuildBranchIfToBooleanTrue(ValueNode* node,
-                                                    int true_target,
-                                                    int false_target) {
-  BasicBlock* block = FinishBlock<BranchIfToBooleanTrue>(
-      {node}, &jump_targets_[true_target], &jump_targets_[false_target]);
-  MergeIntoFrameState(block, iterator_.GetJumpTargetOffset());
-  StartFallthroughBlock(next_offset(), block);
+                                                    JumpType jump_type) {
+  int fallthrough_offset = next_offset();
+  int jump_offset = iterator_.GetJumpTargetOffset();
+  BasicBlockRef* true_target = jump_type == kJumpIfTrue
+                                   ? &jump_targets_[jump_offset]
+                                   : &jump_targets_[fallthrough_offset];
+  BasicBlockRef* false_target = jump_type == kJumpIfFalse
+                                    ? &jump_targets_[jump_offset]
+                                    : &jump_targets_[fallthrough_offset];
+  BasicBlock* block =
+      FinishBlock<BranchIfToBooleanTrue>({node}, true_target, false_target);
+  if (jump_type == kJumpIfTrue) {
+    block->control_node()
+        ->Cast<BranchControlNode>()
+        ->set_true_interrupt_correction(
+            iterator_.GetRelativeJumpTargetOffset());
+  } else {
+    block->control_node()
+        ->Cast<BranchControlNode>()
+        ->set_false_interrupt_correction(
+            iterator_.GetRelativeJumpTargetOffset());
+  }
+  MergeIntoFrameState(block, jump_offset);
+  StartFallthroughBlock(fallthrough_offset, block);
 }
 void MaglevGraphBuilder::VisitJumpIfToBooleanTrue() {
-  BuildBranchIfToBooleanTrue(GetAccumulatorTagged(),
-                             iterator_.GetJumpTargetOffset(), next_offset());
+  BuildBranchIfToBooleanTrue(GetAccumulatorTagged(), kJumpIfTrue);
 }
 void MaglevGraphBuilder::VisitJumpIfToBooleanFalse() {
-  BuildBranchIfToBooleanTrue(GetAccumulatorTagged(), next_offset(),
-                             iterator_.GetJumpTargetOffset());
+  BuildBranchIfToBooleanTrue(GetAccumulatorTagged(), kJumpIfFalse);
 }
 void MaglevGraphBuilder::VisitJumpIfTrue() {
-  BuildBranchIfTrue(GetAccumulatorTagged(), iterator_.GetJumpTargetOffset(),
-                    next_offset());
+  BuildBranchIfTrue(GetAccumulatorTagged(), kJumpIfTrue);
 }
 void MaglevGraphBuilder::VisitJumpIfFalse() {
-  BuildBranchIfTrue(GetAccumulatorTagged(), next_offset(),
-                    iterator_.GetJumpTargetOffset());
+  BuildBranchIfTrue(GetAccumulatorTagged(), kJumpIfFalse);
 }
 void MaglevGraphBuilder::VisitJumpIfNull() {
-  BuildBranchIfNull(GetAccumulatorTagged(), iterator_.GetJumpTargetOffset(),
-                    next_offset());
+  BuildBranchIfNull(GetAccumulatorTagged(), kJumpIfTrue);
 }
 void MaglevGraphBuilder::VisitJumpIfNotNull() {
-  BuildBranchIfNull(GetAccumulatorTagged(), next_offset(),
-                    iterator_.GetJumpTargetOffset());
+  BuildBranchIfNull(GetAccumulatorTagged(), kJumpIfFalse);
 }
 void MaglevGraphBuilder::VisitJumpIfUndefined() {
-  BuildBranchIfUndefined(GetAccumulatorTagged(),
-                         iterator_.GetJumpTargetOffset(), next_offset());
+  BuildBranchIfUndefined(GetAccumulatorTagged(), kJumpIfTrue);
 }
 void MaglevGraphBuilder::VisitJumpIfNotUndefined() {
-  BuildBranchIfUndefined(GetAccumulatorTagged(), next_offset(),
-                         iterator_.GetJumpTargetOffset());
+  BuildBranchIfUndefined(GetAccumulatorTagged(), kJumpIfFalse);
 }
 void MaglevGraphBuilder::VisitJumpIfUndefinedOrNull() {
   BasicBlock* block = FinishBlock<BranchIfUndefinedOrNull>(

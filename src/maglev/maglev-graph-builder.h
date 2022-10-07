@@ -870,11 +870,20 @@ class MaglevGraphBuilder {
   // Update all jumps which were targetting the not-yet-created block at the
   // given `block_offset`, to now point to the given `block`.
   void ResolveJumpsToBlockAtOffset(BasicBlock* block, int block_offset) {
+    int interrupt_budget_correction = 0;
     BasicBlockRef* jump_target_refs_head =
         jump_targets_[block_offset].SetToBlockAndReturnNext(block);
     while (jump_target_refs_head != nullptr) {
+      // Only one jump target should ever set the interrupt budget correction.
+      DCHECK_EQ(interrupt_budget_correction, 0);
+      interrupt_budget_correction =
+          jump_target_refs_head->interrupt_budget_correction();
       jump_target_refs_head =
           jump_target_refs_head->SetToBlockAndReturnNext(block);
+    }
+    if (interrupt_budget_correction != 0) {
+      DCHECK_GT(interrupt_budget_correction, 0);
+      AddNewNode<IncreaseInterruptBudget>({}, interrupt_budget_correction);
     }
     DCHECK_EQ(jump_targets_[block_offset].block_ptr(), block);
   }
@@ -982,14 +991,14 @@ class MaglevGraphBuilder {
   void MergeDeadIntoFrameState(int target);
   void MergeDeadLoopIntoFrameState(int target);
   void MergeIntoInlinedReturnFrameState(BasicBlock* block);
-  void BuildBranchIfRootConstant(ValueNode* node, int true_target,
-                                 int false_target, RootIndex root_index);
-  void BuildBranchIfTrue(ValueNode* node, int true_target, int false_target);
-  void BuildBranchIfNull(ValueNode* node, int true_target, int false_target);
-  void BuildBranchIfUndefined(ValueNode* node, int true_target,
-                              int false_target);
-  void BuildBranchIfToBooleanTrue(ValueNode* node, int true_target,
-                                  int false_target);
+
+  enum JumpType { kJumpIfTrue, kJumpIfFalse };
+  void BuildBranchIfRootConstant(ValueNode* node, JumpType jump_type,
+                                 RootIndex root_index);
+  void BuildBranchIfTrue(ValueNode* node, JumpType jump_type);
+  void BuildBranchIfNull(ValueNode* node, JumpType jump_type);
+  void BuildBranchIfUndefined(ValueNode* node, JumpType jump_type);
+  void BuildBranchIfToBooleanTrue(ValueNode* node, JumpType jump_type);
 
   void BuildToNumberOrToNumeric(Object::Conversion mode);
 

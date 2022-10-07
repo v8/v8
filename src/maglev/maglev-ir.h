@@ -446,11 +446,22 @@ class BasicBlockRef {
     return next_ref_ != nullptr;
   }
 
+  int interrupt_budget_correction() const {
+    DCHECK_EQ(state_, kRefList);
+    return interrupt_budget_correction_;
+  }
+
+  void set_interrupt_budget_correction(int interrupt_budget_correction) {
+    DCHECK_EQ(state_, kRefList);
+    interrupt_budget_correction_ = interrupt_budget_correction;
+  }
+
  private:
   union {
     BasicBlock* block_ptr_;
     BasicBlockRef* next_ref_;
   };
+  int interrupt_budget_correction_ = 0;
 #ifdef DEBUG
   enum { kBlockPointer, kRefList } state_;
 #endif  // DEBUG
@@ -3802,6 +3813,12 @@ class BranchControlNode : public ConditionalControlNode {
 
   BasicBlock* if_true() const { return if_true_.block_ptr(); }
   BasicBlock* if_false() const { return if_false_.block_ptr(); }
+  void set_true_interrupt_correction(int interrupt_budget_correction) {
+    if_true_.set_interrupt_budget_correction(interrupt_budget_correction);
+  }
+  void set_false_interrupt_correction(int interrupt_budget_correction) {
+    if_false_.set_interrupt_budget_correction(interrupt_budget_correction);
+  }
 
  private:
   BasicBlockRef if_true_;
