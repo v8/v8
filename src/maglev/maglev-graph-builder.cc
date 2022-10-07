@@ -2522,10 +2522,12 @@ void MaglevGraphBuilder::VisitConstruct() {
   ValueNode* constructor = LoadRegisterTagged(0);
   interpreter::RegisterList args = iterator_.GetRegisterListOperand(1);
   ValueNode* context = GetContext();
+  FeedbackSlot slot = GetSlotOperand(3);
+  compiler::FeedbackSource feedback_source{feedback(), slot};
 
   size_t input_count = args.register_count() + 1 + Construct::kFixedInputCount;
-  Construct* construct =
-      CreateNewNode<Construct>(input_count, constructor, new_target, context);
+  Construct* construct = CreateNewNode<Construct>(
+      input_count, feedback_source, constructor, new_target, context);
   int arg_index = 0;
   // Add undefined receiver.
   construct->set_arg(arg_index++, GetRootConstant(RootIndex::kUndefinedValue));

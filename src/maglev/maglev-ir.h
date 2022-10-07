@@ -3364,9 +3364,9 @@ class Construct : public ValueNodeT<Construct> {
 
   // This ctor is used when for variable input counts.
   // Inputs must be initialized manually.
-  Construct(uint64_t bitfield, ValueNode* function, ValueNode* new_target,
-            ValueNode* context)
-      : Base(bitfield) {
+  Construct(uint64_t bitfield, const compiler::FeedbackSource& feedback,
+            ValueNode* function, ValueNode* new_target, ValueNode* context)
+      : Base(bitfield), feedback_(feedback) {
     set_input(kFunctionIndex, function);
     set_input(kNewTargetIndex, new_target);
     set_input(kContextIndex, context);
@@ -3385,8 +3385,12 @@ class Construct : public ValueNodeT<Construct> {
   void set_arg(int i, ValueNode* node) {
     set_input(i + kFixedInputCount, node);
   }
+  compiler::FeedbackSource feedback() const { return feedback_; }
 
   DECL_NODE_INTERFACE_WITH_EMPTY_PRINT_PARAMS()
+
+ private:
+  const compiler::FeedbackSource feedback_;
 };
 
 class CallBuiltin : public ValueNodeT<CallBuiltin> {

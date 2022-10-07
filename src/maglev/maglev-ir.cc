@@ -3042,7 +3042,7 @@ void Call::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
 }
 
 void Construct::AllocateVreg(MaglevVregAllocationState* vreg_state) {
-  using D = ConstructStubDescriptor;
+  using D = Construct_WithFeedbackDescriptor;
   UseFixed(function(), D::GetRegisterParameter(D::kTarget));
   UseFixed(new_target(), D::GetRegisterParameter(D::kNewTarget));
   UseFixed(context(), kContextRegister);
@@ -3053,7 +3053,7 @@ void Construct::AllocateVreg(MaglevVregAllocationState* vreg_state) {
 }
 void Construct::GenerateCode(MaglevAssembler* masm,
                              const ProcessingState& state) {
-  using D = ConstructStubDescriptor;
+  using D = Construct_WithFeedbackDescriptor;
   DCHECK_EQ(ToRegister(function()), D::GetRegisterParameter(D::kTarget));
   DCHECK_EQ(ToRegister(new_target()), D::GetRegisterParameter(D::kNewTarget));
   DCHECK_EQ(ToRegister(context()), kContextRegister);
@@ -3061,13 +3061,14 @@ void Construct::GenerateCode(MaglevAssembler* masm,
   for (int i = num_args() - 1; i >= 0; --i) {
     __ PushInput(arg(i));
   }
+  __ Push(feedback().vector);
 
   uint32_t arg_count = num_args();
   __ Move(D::GetRegisterParameter(D::kActualArgumentsCount),
           Immediate(arg_count));
+  __ Move(D::GetRegisterParameter(D::kSlot), Immediate(feedback().index()));
 
-  __ CallBuiltin(Builtin::kConstruct);
-
+  __ CallBuiltin(Builtin::kConstruct_WithFeedback);
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
