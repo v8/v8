@@ -156,6 +156,21 @@ in_category(
         executable = "recipe:v8/bazel",
         first_branch_version = "10.5",
     ),
+    main_multibranch_builder(
+        name = "V8 Linux64 - minor mc - debug",
+        parent_builder = "V8 Linux64 - debug builder",
+        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
+        first_branch_version = "10.8",
+    ),
+    main_multibranch_builder_pair(
+        name = "V8 Linux64 - debug - single generation",
+        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
+        first_branch_version = "10.8",
+    ),
 )
 
 in_category(

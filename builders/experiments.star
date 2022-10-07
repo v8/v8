@@ -47,15 +47,6 @@ in_category(
         notifies = ["blamelist"],
     ),
     experiment_builder_pair(
-        name = "V8 Linux64 - debug - single generation",
-        triggered_by = ["v8-trigger"],
-        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-        use_goma = GOMA.NO,
-        use_remoteexec = RECLIENT.DEFAULT,
-        notify_owners = ["dinfuehr@chromium.org"],
-        notifies = ["sheriffs on new failure", "blamelist"],
-    ),
-    experiment_builder_pair(
         name = "V8 Linux64 - disable runtime call stats",
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
@@ -154,13 +145,6 @@ in_category(
         notify_owners = ["machenbach@chromium.org"],
         # https://crbug.com/1265931
         work_in_progress = True,
-    ),
-    experiment_builder(
-        name = "V8 Linux64 - minor mc - debug",
-        parent_builder = "V8 Linux64 - debug builder",
-        use_goma = GOMA.NO,
-        use_remoteexec = RECLIENT.DEFAULT,
-        notify_owners = ["omerkatz@chromium.org"],
     ),
     experiment_builder_pair(
         name = "V8 Linux64 - predictable",
