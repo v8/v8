@@ -45,16 +45,6 @@ luci.cq_group(
         timeout_weight = 4,
     ),
     verifiers = [
-        # TODO machenbach: maybe remove these experimental chromium builders
-        # It was a trial, never brought anything. Just wastes resources.
-        luci.cq_tryjob_verifier(
-            "chromium:try/cast_shell_android",
-            experiment_percentage = 20,
-        ),
-        luci.cq_tryjob_verifier(
-            "chromium:try/cast_shell_linux",
-            experiment_percentage = 20,
-        ),
         luci.cq_tryjob_verifier(
             "chromium:try/linux-blink-rel",
             location_regexp = [
