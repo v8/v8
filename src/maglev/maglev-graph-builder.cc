@@ -126,11 +126,10 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
 
 void MaglevGraphBuilder::StartPrologue() {
   current_block_ = zone()->New<BasicBlock>(nullptr);
-  block_offset_ = -1;
 }
 
 BasicBlock* MaglevGraphBuilder::EndPrologue() {
-  BasicBlock* first_block = CreateBlock<Jump>({}, &jump_targets_[0]);
+  BasicBlock* first_block = FinishBlock<Jump>({}, &jump_targets_[0]);
   MergeIntoFrameState(first_block, 0);
   return first_block;
 }
@@ -530,9 +529,10 @@ bool MaglevGraphBuilder::TryBuildCompareOperation(Operation operation,
   }
 
   BasicBlock* block = FinishBlock<CompareControlNode>(
-      next_offset(), {left, right}, operation, &jump_targets_[true_offset],
+      {left, right}, operation, &jump_targets_[true_offset],
       &jump_targets_[false_offset]);
   MergeIntoFrameState(block, iterator_.GetJumpTargetOffset());
+  StartFallthroughBlock(next_offset(), block);
   return true;
 }
 
@@ -2075,8 +2075,7 @@ void MaglevGraphBuilder::InlineCallFromRegisters(
 
   // Finish the current block with a jump to the inlined function.
   BasicBlockRef start_ref, end_ref;
-  BasicBlock* block = CreateBlock<JumpToInlined>({}, &start_ref, inner_unit);
-  ResolveJumpsToBlockAtOffset(block, block_offset_);
+  BasicBlock* block = FinishBlock<JumpToInlined>({}, &start_ref, inner_unit);
 
   // Manually create the prologue of the inner function graph, so that we
   // can manually set up the arguments.
@@ -2126,10 +2125,7 @@ void MaglevGraphBuilder::InlineCallFromRegisters(
   inner_graph_builder.ProcessMergePoint(
       inner_graph_builder.inline_exit_offset());
   inner_graph_builder.StartNewBlock(inner_graph_builder.inline_exit_offset());
-  BasicBlock* end_block =
-      inner_graph_builder.CreateBlock<JumpFromInlined>({}, &end_ref);
-  inner_graph_builder.ResolveJumpsToBlockAtOffset(
-      end_block, inner_graph_builder.inline_exit_offset());
+  inner_graph_builder.FinishBlock<JumpFromInlined>({}, &end_ref);
 
   // Pull the returned accumulator value out of the inlined function's final
   // merged return state.
@@ -2142,7 +2138,6 @@ void MaglevGraphBuilder::InlineCallFromRegisters(
   current_block_ = zone()->New<BasicBlock>(MergePointInterpreterFrameState::New(
       *compilation_unit_, current_interpreter_frame_,
       iterator_.current_offset(), 1, block, GetInLiveness()));
-  block_offset_ = iterator_.current_offset();
   // Set the exit JumpFromInlined to jump to this resume block.
   // TODO(leszeks): Passing start_ref to JumpFromInlined creates a two-element
   // linked list of refs. Consider adding a helper to explicitly set the target
@@ -2857,10 +2852,7 @@ void MaglevGraphBuilder::VisitJumpLoop() {
                                BytecodeOffset(iterator_.current_offset()),
                                compilation_unit_);
   BasicBlock* block =
-      target == block_offset_
-          ? FinishBlock<JumpLoop>(next_offset(), {}, &jump_targets_[target])
-          : FinishBlock<JumpLoop>(next_offset(), {},
-                                  jump_targets_[target].block_ptr());
+      FinishBlock<JumpLoop>({}, jump_targets_[target].block_ptr());
 
   merge_states_[target]->MergeLoop(*compilation_unit_,
                                    current_interpreter_frame_, block, target);
@@ -2872,8 +2864,8 @@ void MaglevGraphBuilder::VisitJump() {
   if (relative_jump_bytecode_offset > 0) {
     AddNewNode<IncreaseInterruptBudget>({}, relative_jump_bytecode_offset);
   }
-  BasicBlock* block = FinishBlock<Jump>(
-      next_offset(), {}, &jump_targets_[iterator_.GetJumpTargetOffset()]);
+  BasicBlock* block =
+      FinishBlock<Jump>({}, &jump_targets_[iterator_.GetJumpTargetOffset()]);
   MergeIntoFrameState(block, iterator_.GetJumpTargetOffset());
   DCHECK_LT(next_offset(), bytecode().length());
 }
@@ -2973,9 +2965,10 @@ void MaglevGraphBuilder::BuildBranchIfRootConstant(ValueNode* node,
                                                    int false_target,
                                                    RootIndex root_index) {
   BasicBlock* block = FinishBlock<BranchIfRootConstant>(
-      next_offset(), {node}, &jump_targets_[true_target],
-      &jump_targets_[false_target], root_index);
+      {node}, &jump_targets_[true_target], &jump_targets_[false_target],
+      root_index);
   MergeIntoFrameState(block, iterator_.GetJumpTargetOffset());
+  StartFallthroughBlock(next_offset(), block);
 }
 void MaglevGraphBuilder::BuildBranchIfTrue(ValueNode* node, int true_target,
                                            int false_target) {
@@ -2997,9 +2990,9 @@ void MaglevGraphBuilder::BuildBranchIfToBooleanTrue(ValueNode* node,
                                                     int true_target,
                                                     int false_target) {
   BasicBlock* block = FinishBlock<BranchIfToBooleanTrue>(
-      next_offset(), {node}, &jump_targets_[true_target],
-      &jump_targets_[false_target]);
+      {node}, &jump_targets_[true_target], &jump_targets_[false_target]);
   MergeIntoFrameState(block, iterator_.GetJumpTargetOffset());
+  StartFallthroughBlock(next_offset(), block);
 }
 void MaglevGraphBuilder::VisitJumpIfToBooleanTrue() {
   BuildBranchIfToBooleanTrue(GetAccumulatorTagged(),
@@ -3035,17 +3028,17 @@ void MaglevGraphBuilder::VisitJumpIfNotUndefined() {
 }
 void MaglevGraphBuilder::VisitJumpIfUndefinedOrNull() {
   BasicBlock* block = FinishBlock<BranchIfUndefinedOrNull>(
-      next_offset(), {GetAccumulatorTagged()},
-      &jump_targets_[iterator_.GetJumpTargetOffset()],
+      {GetAccumulatorTagged()}, &jump_targets_[iterator_.GetJumpTargetOffset()],
       &jump_targets_[next_offset()]);
   MergeIntoFrameState(block, iterator_.GetJumpTargetOffset());
+  StartFallthroughBlock(next_offset(), block);
 }
 void MaglevGraphBuilder::VisitJumpIfJSReceiver() {
   BasicBlock* block = FinishBlock<BranchIfJSReceiver>(
-      next_offset(), {GetAccumulatorTagged()},
-      &jump_targets_[iterator_.GetJumpTargetOffset()],
+      {GetAccumulatorTagged()}, &jump_targets_[iterator_.GetJumpTargetOffset()],
       &jump_targets_[next_offset()]);
   MergeIntoFrameState(block, iterator_.GetJumpTargetOffset());
+  StartFallthroughBlock(next_offset(), block);
 }
 
 void MaglevGraphBuilder::VisitSwitchOnSmiNoFeedback() {
@@ -3064,11 +3057,12 @@ void MaglevGraphBuilder::VisitSwitchOnSmiNoFeedback() {
 
   ValueNode* case_value = GetAccumulatorInt32();
   BasicBlock* block =
-      FinishBlock<Switch>(next_offset(), {case_value}, case_value_base, targets,
+      FinishBlock<Switch>({case_value}, case_value_base, targets,
                           offsets.size(), &jump_targets_[next_offset()]);
   for (interpreter::JumpTableTargetOffset offset : offsets) {
     MergeIntoFrameState(block, offset.target_offset);
   }
+  StartFallthroughBlock(next_offset(), block);
 }
 
 void MaglevGraphBuilder::VisitForInEnumerate() {
@@ -3153,7 +3147,7 @@ void MaglevGraphBuilder::VisitReturn() {
   }
 
   if (!is_inline()) {
-    FinishBlock<Return>(next_offset(), {GetAccumulatorTagged()});
+    FinishBlock<Return>({GetAccumulatorTagged()});
     return;
   }
 
@@ -3162,8 +3156,8 @@ void MaglevGraphBuilder::VisitReturn() {
   // execution of the caller.
   // TODO(leszeks): Consider shortcutting this Jump for cases where there is
   // only one return and no need to merge return states.
-  BasicBlock* block = FinishBlock<Jump>(next_offset(), {},
-                                        &jump_targets_[inline_exit_offset()]);
+  BasicBlock* block =
+      FinishBlock<Jump>({}, &jump_targets_[inline_exit_offset()]);
   MergeIntoInlinedReturnFrameState(block);
 }
 
@@ -3219,8 +3213,8 @@ void MaglevGraphBuilder::VisitThrowIfNotSuperConstructor() {
 void MaglevGraphBuilder::VisitSwitchOnGeneratorState() {
   // SwitchOnGeneratorState <generator> <table_start> <table_length>
   // It should be the first bytecode in the bytecode array.
-  DCHECK_EQ(block_offset_, 0);
-  int generator_prologue_block_offset = block_offset_ + 1;
+  DCHECK_EQ(iterator_.current_offset(), 0);
+  int generator_prologue_block_offset = 1;
   DCHECK_LT(generator_prologue_block_offset, next_offset());
 
   interpreter::JumpTableTargetOffsets offsets =
@@ -3231,16 +3225,14 @@ void MaglevGraphBuilder::VisitSwitchOnGeneratorState() {
 
   // We create an initial block that checks if the generator is undefined.
   ValueNode* maybe_generator = LoadRegisterTagged(0);
-  BasicBlock* block_is_generator_undefined = CreateBlock<BranchIfRootConstant>(
+  BasicBlock* block_is_generator_undefined = FinishBlock<BranchIfRootConstant>(
       {maybe_generator}, &jump_targets_[next_offset()],
       &jump_targets_[generator_prologue_block_offset],
       RootIndex::kUndefinedValue);
   MergeIntoFrameState(block_is_generator_undefined, next_offset());
-  ResolveJumpsToBlockAtOffset(block_is_generator_undefined, block_offset_);
 
   // We create the generator prologue block.
   StartNewBlock(generator_prologue_block_offset);
-  DCHECK_EQ(generator_prologue_block_offset, block_offset_);
 
   // Generator prologue.
   ValueNode* generator = maybe_generator;
@@ -3265,12 +3257,11 @@ void MaglevGraphBuilder::VisitSwitchOnGeneratorState() {
     new (ref) BasicBlockRef(&jump_targets_[offset.target_offset]);
   }
   ValueNode* case_value = AddNewNode<CheckedSmiUntag>({state});
-  BasicBlock* generator_prologue_block = CreateBlock<Switch>(
+  BasicBlock* generator_prologue_block = FinishBlock<Switch>(
       {case_value}, case_value_base, targets, offsets.size());
   for (interpreter::JumpTableTargetOffset offset : offsets) {
     MergeIntoFrameState(generator_prologue_block, offset.target_offset);
   }
-  ResolveJumpsToBlockAtOffset(generator_prologue_block, block_offset_);
 }
 
 void MaglevGraphBuilder::VisitSuspendGenerator() {
@@ -3302,7 +3293,7 @@ void MaglevGraphBuilder::VisitSuspendGenerator() {
   if (relative_jump_bytecode_offset > 0) {
     AddNewNode<ReduceInterruptBudget>({}, relative_jump_bytecode_offset);
   }
-  FinishBlock<Return>(next_offset(), {GetAccumulatorTagged()});
+  FinishBlock<Return>({GetAccumulatorTagged()});
 }
 
 void MaglevGraphBuilder::VisitResumeGenerator() {

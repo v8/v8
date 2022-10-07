@@ -17,6 +17,7 @@
 #include "src/compiler/heap-refs.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/deoptimizer/deoptimize-reason.h"
+#include "src/flags/flags.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-decoder.h"
 #include "src/interpreter/bytecode-register.h"
@@ -73,11 +74,14 @@ class MaglevGraphBuilder {
   Graph* graph() const { return graph_; }
 
  private:
-  BasicBlock* CreateEmptyBlock(int offset, BasicBlock* predecessor) {
+  BasicBlock* CreateEmptyBlock(int offset) {
+    if (v8_flags.trace_maglev_graph_building) {
+      std::cout << "== New empty block ==" << std::endl;
+    }
     DCHECK_NULL(current_block_);
     current_block_ = zone()->New<BasicBlock>(nullptr);
-    BasicBlock* result = CreateBlock<Jump>({}, &jump_targets_[offset]);
-    result->set_empty_block_predecessor(predecessor);
+    BasicBlock* result = FinishBlock<Jump>({}, &jump_targets_[offset]);
+    result->set_empty_block();
     return result;
   }
 
@@ -131,7 +135,7 @@ class MaglevGraphBuilder {
       ControlNode* control = predecessor->control_node();
       if (control->Is<ConditionalControlNode>()) {
         // CreateEmptyBlock automatically registers itself with the offset.
-        predecessor = CreateEmptyBlock(offset, predecessor);
+        predecessor = CreateEmptyBlock(offset);
         // Set the old predecessor's (the conditional block) reference to
         // point to the new empty predecessor block.
         old_jump_targets =
@@ -166,9 +170,7 @@ class MaglevGraphBuilder {
   void EmitUnconditionalDeopt(DeoptimizeReason reason) {
     // Create a block rather than calling finish, since we don't yet know the
     // next block's offset before the loop skipping the rest of the bytecodes.
-    BasicBlock* block = CreateBlock<Deopt>({}, reason);
-    ResolveJumpsToBlockAtOffset(block, block_offset_);
-
+    FinishBlock<Deopt>({}, reason);
     MarkBytecodeDead();
   }
 
@@ -220,10 +222,9 @@ class MaglevGraphBuilder {
         // TODO(leszeks): Re-evaluate this DCHECK, we might hit it if the only
         // bytecodes in this basic block were only register juggling.
         // DCHECK(!current_block_->nodes().is_empty());
-        FinishBlock<Jump>(offset, {}, &jump_targets_[offset]);
-
+        BasicBlock* predecessor = FinishBlock<Jump>({}, &jump_targets_[offset]);
         merge_state->Merge(*compilation_unit_, current_interpreter_frame_,
-                           graph()->last_block(), offset);
+                           predecessor, offset);
       }
       if (v8_flags.trace_maglev_graph_building) {
         auto detail = merge_state->is_exception_handler() ? "exception handler"
@@ -448,8 +449,7 @@ class MaglevGraphBuilder {
   void BuildAbort(AbortReason reason) {
     // Create a block rather than calling finish, since we don't yet know the
     // next block's offset before the loop skipping the rest of the bytecodes.
-    BasicBlock* block = CreateBlock<Abort>({}, reason);
-    ResolveJumpsToBlockAtOffset(block, block_offset_);
+    FinishBlock<Abort>({}, reason);
     MarkBytecodeDead();
   }
 
@@ -840,11 +840,11 @@ class MaglevGraphBuilder {
   void StartNewBlock(int offset) {
     DCHECK_NULL(current_block_);
     current_block_ = zone()->New<BasicBlock>(merge_states_[offset]);
-    block_offset_ = offset;
+    ResolveJumpsToBlockAtOffset(current_block_, offset);
   }
 
   template <typename ControlNodeT, typename... Args>
-  BasicBlock* CreateBlock(std::initializer_list<ValueNode*> control_inputs,
+  BasicBlock* FinishBlock(std::initializer_list<ValueNode*> control_inputs,
                           Args&&... args) {
     ControlNode* control_node = CreateNewNode<ControlNodeT>(
         control_inputs, std::forward<Args>(args)...);
@@ -869,7 +869,7 @@ class MaglevGraphBuilder {
 
   // Update all jumps which were targetting the not-yet-created block at the
   // given `block_offset`, to now point to the given `block`.
-  void ResolveJumpsToBlockAtOffset(BasicBlock* block, int block_offset) const {
+  void ResolveJumpsToBlockAtOffset(BasicBlock* block, int block_offset) {
     BasicBlockRef* jump_target_refs_head =
         jump_targets_[block_offset].SetToBlockAndReturnNext(block);
     while (jump_target_refs_head != nullptr) {
@@ -879,30 +879,21 @@ class MaglevGraphBuilder {
     DCHECK_EQ(jump_targets_[block_offset].block_ptr(), block);
   }
 
-  template <typename ControlNodeT, typename... Args>
-  BasicBlock* FinishBlock(int next_block_offset,
-                          std::initializer_list<ValueNode*> control_inputs,
-                          Args&&... args) {
-    BasicBlock* block =
-        CreateBlock<ControlNodeT>(control_inputs, std::forward<Args>(args)...);
-    ResolveJumpsToBlockAtOffset(block, block_offset_);
-
+  void StartFallthroughBlock(int next_block_offset, BasicBlock* predecessor) {
     // Start a new block for the fallthrough path, unless it's a merge point, in
     // which case we merge our state into it. That merge-point could also be a
     // loop header, in which case the merge state might not exist yet (if the
     // only predecessors are this path and the JumpLoop).
     DCHECK_NULL(current_block_);
-    if (std::is_base_of<ConditionalControlNode, ControlNodeT>::value) {
-      if (NumPredecessors(next_block_offset) == 1) {
-        if (v8_flags.trace_maglev_graph_building) {
-          std::cout << "== New block (single fallthrough) ==" << std::endl;
-        }
-        StartNewBlock(next_block_offset);
-      } else {
-        MergeIntoFrameState(block, next_block_offset);
+
+    if (NumPredecessors(next_block_offset) == 1) {
+      if (v8_flags.trace_maglev_graph_building) {
+        std::cout << "== New block (single fallthrough) ==" << std::endl;
       }
+      StartNewBlock(next_block_offset);
+    } else {
+      MergeIntoFrameState(predecessor, next_block_offset);
     }
-    return block;
   }
 
   void InlineCallFromRegisters(int argc_count,
@@ -1092,7 +1083,6 @@ class MaglevGraphBuilder {
 
   // Current block information.
   BasicBlock* current_block_ = nullptr;
-  int block_offset_ = 0;
   base::Optional<CheckpointedInterpreterState> latest_checkpointed_state_;
 
   BasicBlockRef* jump_targets_;
