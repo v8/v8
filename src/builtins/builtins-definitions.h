@@ -620,6 +620,8 @@ namespace internal {
   /* JSON */                                                                   \
   CPP(JsonParse)                                                               \
   CPP(JsonStringify)                                                           \
+  CPP(JsonRawJson)                                                             \
+  CPP(JsonIsRawJson)                                                           \
                                                                                \
   /* Web snapshots */                                                          \
   CPP(WebSnapshotSerialize)                                                    \

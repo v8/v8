@@ -2412,6 +2412,12 @@ void JSTemporalCalendar::JSTemporalCalendarPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSTemporalCalendar");
   JSObjectPrintBody(os, *this);
 }
+
+void JSRawJson::JSRawJsonPrint(std::ostream& os) {
+  JSObjectPrintHeader(os, *this, "JSRawJson");
+  JSObjectPrintBody(os, *this);
+}
+
 #ifdef V8_INTL_SUPPORT
 void JSV8BreakIterator::JSV8BreakIteratorPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSV8BreakIterator");

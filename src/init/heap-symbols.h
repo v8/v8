@@ -372,6 +372,7 @@
   V(_, Proxy_string, "Proxy")                                        \
   V(_, query_colon_string, "(?:)")                                   \
   V(_, RangeError_string, "RangeError")                              \
+  V(_, raw_json_string, "rawJSON")                                   \
   V(_, raw_string, "raw")                                            \
   V(_, ReferenceError_string, "ReferenceError")                      \
   V(_, ReflectGet_string, "Reflect.get")                             \

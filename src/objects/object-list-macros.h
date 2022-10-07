@@ -158,6 +158,7 @@ class ZoneForwardList;
   V(JSPrimitiveWrapper)                         \
   V(JSPromise)                                  \
   V(JSProxy)                                    \
+  V(JSRawJson)                                  \
   V(JSReceiver)                                 \
   V(JSRegExp)                                   \
   V(JSRegExpStringIterator)                     \

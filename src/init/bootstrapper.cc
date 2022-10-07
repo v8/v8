@@ -63,6 +63,7 @@
 #include "src/objects/js-segments.h"
 #endif  // V8_INTL_SUPPORT
 #include "src/codegen/script-details.h"
+#include "src/objects/js-raw-json.h"
 #include "src/objects/js-shared-array.h"
 #include "src/objects/js-struct.h"
 #include "src/objects/js-temporal-objects-inl.h"
@@ -2785,6 +2786,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(isolate_, json_object, "stringify",
                           Builtin::kJsonStringify, 3, true);
     InstallToStringTag(isolate_, json_object, "JSON");
+    native_context()->set_json_object(*json_object);
   }
 
   {  // -- M a t h
@@ -4513,6 +4515,28 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_best_fit_matcher)
 #endif  // V8_INTL_SUPPORT
 
 #undef EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE
+
+void Genesis::InitializeGlobal_harmony_json_parse_with_source() {
+  if (!v8_flags.harmony_json_parse_with_source) return;
+  Handle<Map> map = factory()->NewMap(JS_RAW_JSON_TYPE, JSRawJson::kSize,
+                                      TERMINAL_FAST_ELEMENTS_KIND, 1);
+  Map::EnsureDescriptorSlack(isolate_, map, 1);
+  {
+    Descriptor d = Descriptor::DataField(
+        isolate(), factory()->raw_json_string(), JSRawJson::kRawJsonIndex, NONE,
+        Representation::Tagged());
+    map->AppendDescriptor(isolate(), &d);
+  }
+  map->SetPrototype(isolate(), map, isolate()->factory()->null_value());
+  map->SetConstructor(native_context()->object_function());
+  native_context()->set_js_raw_json_map(*map);
+  SimpleInstallFunction(isolate_,
+                        handle(native_context()->json_object(), isolate_),
+                        "rawJSON", Builtin::kJsonRawJson, 1, true);
+  SimpleInstallFunction(isolate_,
+                        handle(native_context()->json_object(), isolate_),
+                        "isRawJSON", Builtin::kJsonIsRawJson, 1, true);
+}
 
 void Genesis::InitializeGlobal_harmony_change_array_by_copy() {
   if (!v8_flags.harmony_change_array_by_copy) return;
