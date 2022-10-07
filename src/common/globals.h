@@ -152,9 +152,16 @@ namespace internal {
 //    initializing V8 we already have a large stack and so have to set the
 //    limit lower. See issue crbug.com/v8/10575
 #define V8_DEFAULT_STACK_SIZE_KB 864
+#elif V8_TARGET_ARCH_IA32
+// In mid-2022, we're observing an increase in stack overflow crashes on
+// 32-bit Windows; the suspicion is that some third-party software suddenly
+// started to consume a lot more stack memory (before V8 is even initialized).
+// So we speculatively lower the ia32 limit to the ARM limit for the time
+// being. See crbug.com/1346791.
+#define V8_DEFAULT_STACK_SIZE_KB 864
 #else
 // Slightly less than 1MB, since Windows' default stack size for
-// the main execution thread is 1MB for both 32 and 64-bit.
+// the main execution thread is 1MB.
 #define V8_DEFAULT_STACK_SIZE_KB 984
 #endif
 
