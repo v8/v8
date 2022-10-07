@@ -355,6 +355,11 @@ def v8_basic_builder(defaults, **kwargs):
             **cq_branch_properties
         )
     properties = dict(kwargs.pop("properties", {}))
+
+    # TODO(https://crbug.com/1372352): Temporary name property for investigation.
+    # Should be replaced by the description below at some point.
+    properties["__builder_name__"] = kwargs["name"]
+
     properties.update(_goma_properties(
         kwargs.pop("use_goma", GOMA.NONE),
         kwargs.pop("goma_jobs", None),
