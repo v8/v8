@@ -1018,50 +1018,6 @@ static uint32_t ComputeSeededIntegerHash(Isolate* isolate, int32_t key) {
 }
 
 FUNCTION_REFERENCE(compute_integer_hash, ComputeSeededIntegerHash)
-
-enum LookupMode { kFindExisting, kFindInsertionEntry };
-template <typename Dictionary, LookupMode mode>
-static size_t NameDictionaryLookupForwardedString(Isolate* isolate,
-                                                  Address raw_dict,
-                                                  Address raw_key) {
-  // This function cannot allocate, but there is a HandleScope because it needs
-  // to pass Handle<Name> to the dictionary methods.
-  DisallowGarbageCollection no_gc;
-  HandleScope handle_scope(isolate);
-
-  Handle<String> key(String::cast(Object(raw_key)), isolate);
-  // This function should only be used as the slow path for forwarded strings.
-  DCHECK(Name::IsForwardingIndex(key->raw_hash_field()));
-
-  Dictionary dict = Dictionary::cast(Object(raw_dict));
-  ReadOnlyRoots roots(isolate);
-  uint32_t hash = key->hash();
-  InternalIndex entry = mode == kFindExisting
-                            ? dict.FindEntry(isolate, roots, key, hash)
-                            : dict.FindInsertionEntry(isolate, roots, hash);
-  return entry.raw_value();
-}
-
-FUNCTION_REFERENCE(
-    name_dictionary_lookup_forwarded_string,
-    (NameDictionaryLookupForwardedString<NameDictionary, kFindExisting>))
-FUNCTION_REFERENCE(
-    name_dictionary_find_insertion_entry_forwarded_string,
-    (NameDictionaryLookupForwardedString<NameDictionary, kFindInsertionEntry>))
-FUNCTION_REFERENCE(
-    global_dictionary_lookup_forwarded_string,
-    (NameDictionaryLookupForwardedString<GlobalDictionary, kFindExisting>))
-FUNCTION_REFERENCE(global_dictionary_find_insertion_entry_forwarded_string,
-                   (NameDictionaryLookupForwardedString<GlobalDictionary,
-                                                        kFindInsertionEntry>))
-FUNCTION_REFERENCE(
-    name_to_index_hashtable_lookup_forwarded_string,
-    (NameDictionaryLookupForwardedString<NameToIndexHashTable, kFindExisting>))
-FUNCTION_REFERENCE(
-    name_to_index_hashtable_find_insertion_entry_forwarded_string,
-    (NameDictionaryLookupForwardedString<NameToIndexHashTable,
-                                         kFindInsertionEntry>))
-
 FUNCTION_REFERENCE(copy_fast_number_jsarray_elements_to_typed_array,
                    CopyFastNumberJSArrayElementsToTypedArray)
 FUNCTION_REFERENCE(copy_typed_array_elements_to_typed_array,

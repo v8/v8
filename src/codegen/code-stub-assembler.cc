@@ -8659,12 +8659,9 @@ void CodeStubAssembler::NameDictionaryLookup(
   Comment("NameDictionaryLookup");
   CSA_DCHECK(this, IsUniqueName(unique_name));
 
-  Label if_not_computed(this, Label::kDeferred);
-
   TNode<IntPtrT> capacity = SmiUntag(GetCapacity<Dictionary>(dictionary));
   TNode<IntPtrT> mask = IntPtrSub(capacity, IntPtrConstant(1));
-  TNode<UintPtrT> hash =
-      ChangeUint32ToWord(LoadNameHash(unique_name, &if_not_computed));
+  TNode<UintPtrT> hash = ChangeUint32ToWord(LoadNameHash(unique_name));
 
   // See Dictionary::FirstProbe().
   TNode<IntPtrT> count = IntPtrConstant(0);
@@ -8710,52 +8707,6 @@ void CodeStubAssembler::NameDictionaryLookup(
 
     var_entry = entry;
     Goto(&loop);
-  }
-
-  BIND(&if_not_computed);
-  {
-    // Strings will only have the forwarding index with experimental shared
-    // memory features turned on. To minimize affecting the fast path, the
-    // forwarding index branch defers both fetching the actual hash value and
-    // the dictionary lookup to the runtime.
-    ExternalReference func_ref;
-    if constexpr (std::is_same<Dictionary, NameDictionary>::value) {
-      func_ref =
-          mode == kFindExisting
-              ? ExternalReference::name_dictionary_lookup_forwarded_string()
-              : ExternalReference::
-                    name_dictionary_find_insertion_entry_forwarded_string();
-    } else if constexpr (std::is_same<Dictionary, GlobalDictionary>::value) {
-      func_ref =
-          mode == kFindExisting
-              ? ExternalReference::global_dictionary_lookup_forwarded_string()
-              : ExternalReference::
-                    global_dictionary_find_insertion_entry_forwarded_string();
-    } else {
-      func_ref =
-          mode == kFindExisting
-              ? ExternalReference::
-                    name_to_index_hashtable_lookup_forwarded_string()
-              : ExternalReference::
-                    name_to_index_hashtable_find_insertion_entry_forwarded_string();
-    }
-    const TNode<ExternalReference> function = ExternalConstant(func_ref);
-    const TNode<ExternalReference> isolate_ptr =
-        ExternalConstant(ExternalReference::isolate_address(isolate()));
-    TNode<IntPtrT> entry = UncheckedCast<IntPtrT>(CallCFunction(
-        function, MachineType::IntPtr(),
-        std::make_pair(MachineType::Pointer(), isolate_ptr),
-        std::make_pair(MachineType::TaggedPointer(), dictionary),
-        std::make_pair(MachineType::TaggedPointer(), unique_name)));
-    if (var_name_index) *var_name_index = EntryToIndex<Dictionary>(entry);
-    if (mode == kFindExisting) {
-      GotoIf(IntPtrEqual(entry,
-                         IntPtrConstant(InternalIndex::NotFound().raw_value())),
-             if_not_found);
-      Goto(if_found);
-    } else {
-      Goto(if_not_found);
-    }
   }
 }
 
