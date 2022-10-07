@@ -14,6 +14,7 @@
 #include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/heap-visitor.h"
 #include "src/heap/cppgc/heap.h"
+#include "src/heap/cppgc/object-view.h"
 #include "src/heap/cppgc/page-memory.h"
 #include "src/heap/cppgc/stats-collector.h"
 #include "test/unittests/heap/cppgc/tests.h"
@@ -485,6 +486,42 @@ TEST_F(SweeperTest, WeakCrossThreadPersistentCanBeClearedFromOtherThread) {
   // state.
   Heap::From(GetHeap())->sweeper().FinishIfRunning();
   EXPECT_EQ(1u, Holder::destructor_callcount);
+}
+
+TEST_F(SweeperTest, SweepOnAllocationTakeLastFreeListEntry) {
+  // The test allocates the following layout:
+  // |--object-A--|-object-B-|--object-A--|---free-space---|
+  // Objects A are reachable, whereas object B is not. sizeof(B) is smaller than
+  // that of A. The test starts garbage-collection with lazy sweeping, then
+  // tries to allocate object A, expecting the allocation to end up on the same
+  // page at the free-space.
+  using GCedA = GCed<256>;
+  using GCedB = GCed<240>;
+
+  PreciseGC();
+
+  // Allocate the layout.
+  Persistent<GCedA> a1 = MakeGarbageCollected<GCedA>(GetAllocationHandle());
+  MakeGarbageCollected<GCedB>(GetAllocationHandle());
+  Persistent<GCedA> a2 = MakeGarbageCollected<GCedA>(GetAllocationHandle());
+  ConstAddress free_space_start =
+      ObjectView<>(HeapObjectHeader::FromObject(a2.Get())).End();
+
+  // Start the GC without sweeping.
+  testing::TestPlatform::DisableBackgroundTasksScope no_concurrent_sweep_scope(
+      GetPlatformHandle().get());
+  static constexpr GCConfig config = {
+      CollectionType::kMajor, StackState::kNoHeapPointers,
+      GCConfig::MarkingType::kAtomic,
+      GCConfig::SweepingType::kIncrementalAndConcurrent};
+  Heap::From(GetHeap())->CollectGarbage(config);
+
+  // Allocate and sweep.
+  const GCedA* allocated_after_sweeping =
+      MakeGarbageCollected<GCedA>(GetAllocationHandle());
+  EXPECT_EQ(free_space_start,
+            reinterpret_cast<ConstAddress>(
+                &HeapObjectHeader::FromObject(allocated_after_sweeping)));
 }
 
 }  // namespace internal

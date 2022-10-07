@@ -249,6 +249,9 @@ class InlinedFinalizationBuilderBase {
     bool is_empty = false;
     size_t largest_new_free_list_entry = 0;
   };
+
+ protected:
+  ResultType result_;
 };
 
 // Builder that finalizes objects and adds freelist entries right away.
@@ -267,10 +270,13 @@ class InlinedFinalizationBuilder final : public InlinedFinalizationBuilderBase,
 
   void AddFreeListEntry(Address start, size_t size) {
     FreeHandler::Free({start, size});
+    result_.largest_new_free_list_entry =
+        std::max(result_.largest_new_free_list_entry, size);
   }
 
-  ResultType GetResult(bool is_empty, size_t largest_new_free_list_entry) {
-    return {is_empty, largest_new_free_list_entry};
+  ResultType&& GetResult(bool is_empty) {
+    result_.is_empty = is_empty;
+    return std::move(result_);
   }
 };
 
@@ -311,12 +317,13 @@ class DeferredFinalizationBuilder final : public FreeHandler {
     } else {
       FreeHandler::Free({start, size});
     }
+    result_.largest_new_free_list_entry =
+        std::max(result_.largest_new_free_list_entry, size);
     found_finalizer_ = false;
   }
 
-  ResultType&& GetResult(bool is_empty, size_t largest_new_free_list_entry) {
+  ResultType&& GetResult(bool is_empty) {
     result_.is_empty = is_empty;
-    result_.largest_new_free_list_entry = largest_new_free_list_entry;
     return std::move(result_);
   }
 
@@ -334,7 +341,6 @@ typename FinalizationBuilder::ResultType SweepNormalPage(
 
   PlatformAwareObjectStartBitmap& bitmap = page->object_start_bitmap();
 
-  size_t largest_new_free_list_entry = 0;
   size_t live_bytes = 0;
 
   Address start_of_gap = page->PayloadStart();
@@ -375,12 +381,10 @@ typename FinalizationBuilder::ResultType SweepNormalPage(
     // The object is alive.
     const Address header_address = reinterpret_cast<Address>(header);
     if (start_of_gap != header_address) {
-      size_t new_free_list_entry_size =
+      const size_t new_free_list_entry_size =
           static_cast<size_t>(header_address - start_of_gap);
       builder.AddFreeListEntry(start_of_gap, new_free_list_entry_size);
       DCHECK(bitmap.CheckBit<AccessMode::kAtomic>(start_of_gap));
-      largest_new_free_list_entry =
-          std::max(largest_new_free_list_entry, new_free_list_entry_size);
     }
     StickyUnmark(header, sticky_bits);
     begin += size;
@@ -397,7 +401,7 @@ typename FinalizationBuilder::ResultType SweepNormalPage(
   page->SetAllocatedBytesAtLastGC(live_bytes);
 
   const bool is_empty = (start_of_gap == page->PayloadStart());
-  return builder.GetResult(is_empty, largest_new_free_list_entry);
+  return builder.GetResult(is_empty);
 }
 
 // SweepFinalizer is responsible for heap/space/page finalization. Finalization
