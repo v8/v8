@@ -38,6 +38,15 @@ class V8HeapCompressionScheme {
   template <typename TOnHeapAddress>
   V8_INLINE static Address DecompressTaggedAny(TOnHeapAddress on_heap_addr,
                                                Tagged_t raw_value);
+
+  // Given a 64bit raw value, found on the stack, calls the callback function
+  // with all possible pointers that may be "contained" in compressed form in
+  // this value, either as complete compressed pointers or as intermediate
+  // (half-computed) results.
+  template <typename ProcessPointerCallback>
+  V8_INLINE static void ProcessIntermediatePointers(
+      PtrComprCageBase cage_base, Address raw_value,
+      ProcessPointerCallback callback);
 };
 
 #ifdef V8_EXTERNAL_CODE_SPACE

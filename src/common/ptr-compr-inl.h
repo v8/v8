@@ -68,6 +68,23 @@ Address V8HeapCompressionScheme::DecompressTaggedAny(
   return DecompressTaggedPointer(on_heap_addr, raw_value);
 }
 
+// static
+template <typename ProcessPointerCallback>
+void V8HeapCompressionScheme::ProcessIntermediatePointers(
+    PtrComprCageBase cage_base, Address raw_value,
+    ProcessPointerCallback callback) {
+  // If pointer compression is enabled, we may have random compressed pointers
+  // on the stack that may be used for subsequent operations.
+  // Extract, decompress and trace both halfwords.
+  Address decompressed_low = V8HeapCompressionScheme::DecompressTaggedPointer(
+      cage_base, static_cast<Tagged_t>(raw_value));
+  callback(decompressed_low);
+  Address decompressed_high = V8HeapCompressionScheme::DecompressTaggedPointer(
+      cage_base,
+      static_cast<Tagged_t>(raw_value >> (sizeof(Tagged_t) * CHAR_BIT)));
+  callback(decompressed_high);
+}
+
 //
 // Misc functions.
 //
@@ -110,6 +127,14 @@ Address V8HeapCompressionScheme::DecompressTaggedPointer(
 template <typename TOnHeapAddress>
 Address V8HeapCompressionScheme::DecompressTaggedAny(
     TOnHeapAddress on_heap_addr, Tagged_t raw_value) {
+  UNREACHABLE();
+}
+
+// static
+template <typename ProcessPointerCallback>
+void V8HeapCompressionScheme::ProcessIntermediatePointers(
+    PtrComprCageBase cage_base, Address raw_value,
+    ProcessPointerCallback callback) {
   UNREACHABLE();
 }
 

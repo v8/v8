@@ -1210,7 +1210,7 @@ class Heap {
 
   V8_EXPORT_PRIVATE void SetStackStart(void* stack_start);
 
-  ::heap::base::Stack& stack();
+  V8_EXPORT_PRIVATE ::heap::base::Stack& stack();
 
   // ===========================================================================
   // Embedder roots optimizations. =============================================

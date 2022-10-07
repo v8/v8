@@ -588,6 +588,10 @@ v8_source_set("unittests_sources") {
     sources += [ "heap/marking-inner-pointer-resolution-unittest.cc" ]
   }
 
+  if (v8_enable_conservative_stack_scanning) {
+    sources += [ "heap/conservative-stack-visitor-unittest.cc" ]
+  }
+
   if (v8_enable_i18n_support) {
     defines = [ "V8_INTL_SUPPORT" ]
     public_deps = [ "//third_party/icu" ]
