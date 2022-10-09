@@ -699,6 +699,18 @@ void TurboAssembler::Mulh64(Register rd, Register rs, const Operand& rt) {
   }
 }
 
+void TurboAssembler::Mulhu64(Register rd, Register rs, const Operand& rt) {
+  if (rt.is_reg()) {
+    mulhu(rd, rs, rt.rm());
+  } else {
+    // li handles the relocation.
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    Li(scratch, rt.immediate());
+    mulhu(rd, rs, scratch);
+  }
+}
+
 void TurboAssembler::Div32(Register res, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     divw(res, rs, rt.rm());
@@ -5200,6 +5212,37 @@ void TurboAssembler::MulOverflow32(Register dst, Register left,
   sext_w(dst, overflow);
   xor_(overflow, overflow, dst);
 }
+
+void TurboAssembler::MulOverflow64(Register dst, Register left,
+                                   const Operand& right, Register overflow) {
+  ASM_CODE_COMMENT(this);
+  UseScratchRegisterScope temps(this);
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  Register right_reg = no_reg;
+  Register scratch = temps.Acquire();
+  Register scratch2 = temps.Acquire();
+  if (!right.is_reg()) {
+    li(scratch, Operand(right));
+    right_reg = scratch;
+  } else {
+    right_reg = right.rm();
+  }
+
+  DCHECK(left != scratch2 && right_reg != scratch2 && dst != scratch2 &&
+         overflow != scratch2);
+  DCHECK(overflow != left && overflow != right_reg);
+  // use this sequence of "mulh/mul" according to recommendation of ISA Spec 7.1
+  // upper part
+  mulh(scratch2, left, right_reg);
+  // lower part
+  mul(dst, left, right_reg);
+  // expand the sign of the lower part to 64bit
+  srai(overflow, dst, 63);
+  // if the upper part is not eqaul to the expanded sign bit of the lower part,
+  // overflow happens
+  xor_(overflow, overflow, scratch2);
+}
+
 #elif V8_TARGET_ARCH_RISCV32
 void TurboAssembler::AddOverflow(Register dst, Register left,
                                  const Operand& right, Register overflow) {

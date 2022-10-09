@@ -667,8 +667,16 @@ void InstructionSelector::VisitInt32MulHigh(Node* node) {
   VisitRRR(this, kRiscvMulHigh32, node);
 }
 
+void InstructionSelector::VisitInt64MulHigh(Node* node) {
+  VisitRRR(this, kRiscvMulHigh64, node);
+}
+
 void InstructionSelector::VisitUint32MulHigh(Node* node) {
   VisitRRR(this, kRiscvMulHighU32, node);
+}
+
+void InstructionSelector::VisitUint64MulHigh(Node* node) {
+  VisitRRR(this, kRiscvMulHighU64, node);
 }
 
 void InstructionSelector::VisitInt64Mul(Node* node) {
@@ -1818,6 +1826,21 @@ void InstructionSelector::VisitInt64SubWithOverflow(Node* node) {
   }
   FlagsContinuation cont;
   VisitBinop(this, node, kRiscvSubOvf64, &cont);
+}
+
+void InstructionSelector::VisitInt64MulWithOverflow(Node* node) {
+  if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
+    // RISCV64 doesn't set the overflow flag for multiplication, so we need to
+    // test on kNotEqual. Here is the code sequence used:
+    //   mulh rdh, left, right
+    //   mul rdl, left, right
+    //   srai temp, rdl, 63
+    //   xor overflow, rdl, temp
+    FlagsContinuation cont = FlagsContinuation::ForSet(kNotEqual, ovf);
+    return VisitBinop(this, node, kRiscvMulOvf64, &cont);
+  }
+  FlagsContinuation cont;
+  VisitBinop(this, node, kRiscvMulOvf64, &cont);
 }
 
 void InstructionSelector::VisitWord64Equal(Node* const node) {

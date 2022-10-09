@@ -1036,6 +1036,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Mulh64(i.OutputRegister(), i.InputOrZeroRegister(0),
                 i.InputOperand(1));
       break;
+    case kRiscvMulHighU64:
+      __ Mulhu64(i.OutputRegister(), i.InputOrZeroRegister(0),
+                 i.InputOperand(1));
+      break;
+    case kRiscvMulOvf64:
+      __ MulOverflow64(i.OutputRegister(), i.InputOrZeroRegister(0),
+                       i.InputOperand(1), kScratchReg);
+      break;
     case kRiscvDiv32: {
       __ Div32(i.OutputRegister(), i.InputOrZeroRegister(0), i.InputOperand(1));
       // Set ouput to zero if divisor == 0
@@ -3745,7 +3753,13 @@ void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
       default:
         UNSUPPORTED_COND(instr->arch_opcode(), condition);
     }
+#if V8_TARGET_ARCH_RISCV64
+    // kRiscvMulOvf64 is only for RISCV64
+  } else if (instr->arch_opcode() == kRiscvMulOvf32 ||
+             instr->arch_opcode() == kRiscvMulOvf64) {
+#elif V8_TARGET_ARCH_RISCV32
   } else if (instr->arch_opcode() == kRiscvMulOvf32) {
+#endif
     // Overflow occurs if overflow register is not zero
     switch (condition) {
       case kOverflow:
@@ -3755,7 +3769,7 @@ void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
         __ Branch(tlabel, eq, kScratchReg, Operand(zero_reg));
         break;
       default:
-        UNSUPPORTED_COND(kRiscvMulOvf32, condition);
+        UNSUPPORTED_COND(instr->arch_opcode(), condition);
     }
   } else if (instr->arch_opcode() == kRiscvCmp) {
     Condition cc = FlagsConditionToConditionCmp(condition);
@@ -3908,7 +3922,13 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
 #endif
     // Overflow occurs if overflow register is negative
     __ Slt(result, kScratchReg, zero_reg);
+#if V8_TARGET_ARCH_RISCV64
+    // kRiscvMulOvf64 is only for RISCV64
+  } else if (instr->arch_opcode() == kRiscvMulOvf32 ||
+             instr->arch_opcode() == kRiscvMulOvf64) {
+#elif V8_TARGET_ARCH_RISCV32
   } else if (instr->arch_opcode() == kRiscvMulOvf32) {
+#endif
     // Overflow occurs if overflow register is not zero
     __ Sgtu(result, kScratchReg, zero_reg);
   } else if (instr->arch_opcode() == kRiscvCmp) {
