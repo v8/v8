@@ -972,6 +972,14 @@ DEFINE_BOOL(turboshaft_trace_reduction, false,
             "trace individual Turboshaft reduction steps")
 DEFINE_BOOL(turboshaft_wasm, false,
             "enable TurboFan's Turboshaft phases for wasm")
+#ifdef DEBUG
+DEFINE_UINT64(turboshaft_opt_bisect_limit, std::numeric_limits<uint64_t>::max(),
+              "stop applying optional optimizations after a specified number "
+              "of steps, useful for bisecting optimization bugs")
+DEFINE_UINT64(turboshaft_opt_bisect_break, std::numeric_limits<uint64_t>::max(),
+              "abort after a specified number of steps, useful for bisecting "
+              "optimization bugs")
+#endif  // DEBUG
 
 // Favor memory over execution speed.
 DEFINE_BOOL(optimize_for_size, false,

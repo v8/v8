@@ -200,20 +200,12 @@ std::ostream& operator<<(std::ostream& os, ComparisonOp::Kind kind) {
 
 std::ostream& operator<<(std::ostream& os, ChangeOp::Kind kind) {
   switch (kind) {
-    case ChangeOp::Kind::kSignedNarrowing:
-      return os << "SignedNarrowing";
-    case ChangeOp::Kind::kUnsignedNarrowing:
-      return os << "UnsignedNarrowing";
     case ChangeOp::Kind::kFloatConversion:
       return os << "FloatConversion";
     case ChangeOp::Kind::kJSFloatTruncate:
       return os << "JSFloatTruncate";
-    case ChangeOp::Kind::kSignedFloatTruncate:
-      return os << "SignedFloatTruncate";
     case ChangeOp::Kind::kSignedFloatTruncateOverflowToMin:
       return os << "SignedFloatTruncateOverflowToMin";
-    case ChangeOp::Kind::kUnsignedFloatTruncate:
-      return os << "UnsignedFloatTruncate";
     case ChangeOp::Kind::kUnsignedFloatTruncateOverflowToMin:
       return os << "UnsignedFloatTruncateOverflowToMin";
     case ChangeOp::Kind::kSignedToFloat:
@@ -230,10 +222,26 @@ std::ostream& operator<<(std::ostream& os, ChangeOp::Kind kind) {
       return os << "SignExtend";
     case ChangeOp::Kind::kBitcast:
       return os << "Bitcast";
-    case ChangeOp::Kind::kSignedFloatTruncateSat:
-      return os << "SignedFloatTruncateSat";
-    case ChangeOp::Kind::kUnsignedFloatTruncateSat:
-      return os << "UnsignedFloatTruncateSat";
+  }
+}
+
+std::ostream& operator<<(std::ostream& os, TryChangeOp::Kind kind) {
+  switch (kind) {
+    case TryChangeOp::Kind::kSignedFloatTruncateOverflowUndefined:
+      return os << "SignedFloatTruncateOverflowUndefined";
+    case TryChangeOp::Kind::kUnsignedFloatTruncateOverflowUndefined:
+      return os << "UnsignedFloatTruncateOverflowUndefined";
+  }
+}
+
+std::ostream& operator<<(std::ostream& os, ChangeOp::Assumption assumption) {
+  switch (assumption) {
+    case ChangeOp::Assumption::kNoAssumption:
+      return os << "NoAssumption";
+    case ChangeOp::Assumption::kNoOverflow:
+      return os << "NoOverflow";
+    case ChangeOp::Assumption::kReversible:
+      return os << "Reversible";
   }
 }
 

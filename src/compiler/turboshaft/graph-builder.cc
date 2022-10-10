@@ -477,94 +477,78 @@ OpIndex GraphBuilder::Process(
       UNARY_CASE(Float64Atan, Float64Atan)
       UNARY_CASE(Float64Atanh, Float64Atanh)
       UNARY_CASE(Float64Cbrt, Float64Cbrt)
+
+      UNARY_CASE(BitcastWord32ToWord64, BitcastWord32ToWord64)
+      UNARY_CASE(BitcastFloat32ToInt32, BitcastFloat32ToWord32)
+      UNARY_CASE(BitcastInt32ToFloat32, BitcastWord32ToFloat32)
+      UNARY_CASE(BitcastFloat64ToInt64, BitcastFloat64ToWord64)
+      UNARY_CASE(BitcastInt64ToFloat64, BitcastWord64ToFloat64)
+      UNARY_CASE(ChangeUint32ToUint64, ChangeUint32ToUint64)
+      UNARY_CASE(ChangeInt32ToInt64, ChangeInt32ToInt64)
+      UNARY_CASE(SignExtendWord32ToInt64, ChangeInt32ToInt64)
+
+      UNARY_CASE(ChangeFloat32ToFloat64, ChangeFloat32ToFloat64)
+
+      UNARY_CASE(ChangeFloat64ToInt32, ReversibleFloat64ToInt32)
+      UNARY_CASE(ChangeFloat64ToInt64, ReversibleFloat64ToInt64)
+      UNARY_CASE(ChangeFloat64ToUint32, ReversibleFloat64ToUint32)
+      UNARY_CASE(ChangeFloat64ToUint64, ReversibleFloat64ToUint64)
+
+      UNARY_CASE(ChangeInt32ToFloat64, ChangeInt32ToFloat64)
+      UNARY_CASE(ChangeInt64ToFloat64, ReversibleInt64ToFloat64)
+      UNARY_CASE(ChangeUint32ToFloat64, ChangeUint32ToFloat64)
+
+      UNARY_CASE(RoundFloat64ToInt32, TruncateFloat64ToInt32OverflowUndefined)
+      UNARY_CASE(RoundInt32ToFloat32, ChangeInt32ToFloat32)
+      UNARY_CASE(RoundInt64ToFloat32, ChangeInt64ToFloat32)
+      UNARY_CASE(RoundInt64ToFloat64, ChangeInt64ToFloat64)
+      UNARY_CASE(RoundUint32ToFloat32, ChangeUint32ToFloat32)
+      UNARY_CASE(RoundUint64ToFloat32, ChangeUint64ToFloat32)
+      UNARY_CASE(RoundUint64ToFloat64, ChangeUint64ToFloat64)
+      UNARY_CASE(TruncateFloat64ToFloat32, ChangeFloat64ToFloat32)
+      UNARY_CASE(TruncateFloat64ToUint32,
+                 TruncateFloat64ToUint32OverflowUndefined)
+      UNARY_CASE(TruncateFloat64ToWord32, JSTruncateFloat64ToWord32)
+      UNARY_CASE(TryTruncateFloat32ToInt64, TryTruncateFloat32ToInt64)
+      UNARY_CASE(TryTruncateFloat32ToUint64, TryTruncateFloat32ToUint64)
+      UNARY_CASE(TryTruncateFloat64ToInt32, TryTruncateFloat64ToInt32)
+      UNARY_CASE(TryTruncateFloat64ToInt64, TryTruncateFloat64ToInt64)
+      UNARY_CASE(TryTruncateFloat64ToUint32, TryTruncateFloat64ToUint32)
+      UNARY_CASE(TryTruncateFloat64ToUint64, TryTruncateFloat64ToUint64)
+
+      UNARY_CASE(Float64ExtractLowWord32, Float64ExtractLowWord32)
+      UNARY_CASE(Float64ExtractHighWord32, Float64ExtractHighWord32)
 #undef UNARY_CASE
-
-#define CHANGE_CASE(opcode, kind, from, to)                                 \
-  case IrOpcode::k##opcode:                                                 \
-    return assembler.Change(Map(node->InputAt(0)), ChangeOp::Kind::k##kind, \
-                            RegisterRepresentation::from(),                 \
-                            RegisterRepresentation::to());
-
-      CHANGE_CASE(BitcastWord32ToWord64, Bitcast, Word32, Word64)
-      CHANGE_CASE(BitcastFloat32ToInt32, Bitcast, Float32, Word32)
-      CHANGE_CASE(BitcastInt32ToFloat32, Bitcast, Word32, Float32)
-      CHANGE_CASE(BitcastFloat64ToInt64, Bitcast, Float64, Word64)
-      CHANGE_CASE(BitcastInt64ToFloat64, Bitcast, Word64, Float64)
-      CHANGE_CASE(ChangeUint32ToUint64, ZeroExtend, Word32, Word64)
-      CHANGE_CASE(ChangeInt32ToInt64, SignExtend, Word32, Word64)
-      CHANGE_CASE(SignExtendWord32ToInt64, SignExtend, Word32, Word64)
-      CHANGE_CASE(ChangeInt32ToFloat64, SignedNarrowing, Word32, Float64)
-      CHANGE_CASE(ChangeInt64ToFloat64, SignedNarrowing, Word64, Float64)
-      CHANGE_CASE(ChangeUint32ToFloat64, UnsignedToFloat, Word32, Float64)
-      CHANGE_CASE(RoundInt64ToFloat64, SignedToFloat, Word64, Float64)
-      CHANGE_CASE(RoundUint64ToFloat64, UnsignedToFloat, Word64, Float64)
-      CHANGE_CASE(RoundInt32ToFloat32, SignedToFloat, Word32, Float32)
-      CHANGE_CASE(RoundUint32ToFloat32, UnsignedToFloat, Word32, Float32)
-      CHANGE_CASE(RoundInt64ToFloat32, SignedToFloat, Word64, Float32)
-      CHANGE_CASE(RoundUint64ToFloat32, UnsignedToFloat, Word64, Float32)
-
-      CHANGE_CASE(TruncateFloat64ToWord32, JSFloatTruncate, Float64, Word32)
-      CHANGE_CASE(TruncateFloat64ToFloat32, FloatConversion, Float64, Float32)
-      CHANGE_CASE(ChangeFloat32ToFloat64, FloatConversion, Float32, Float64)
-      CHANGE_CASE(RoundFloat64ToInt32, SignedFloatTruncate, Float64, Word32)
-      CHANGE_CASE(ChangeFloat64ToInt32, SignedNarrowing, Float64, Word32)
-      CHANGE_CASE(ChangeFloat64ToUint32, UnsignedNarrowing, Float64, Word32)
-      CHANGE_CASE(ChangeFloat64ToInt64, SignedNarrowing, Float64, Word64)
-      CHANGE_CASE(ChangeFloat64ToUint64, UnsignedNarrowing, Float64, Word64)
-
-      CHANGE_CASE(TryTruncateFloat64ToUint64, UnsignedFloatTruncateSat, Float64,
-                  Word64)
-      CHANGE_CASE(TryTruncateFloat64ToUint32, UnsignedFloatTruncateSat, Float64,
-                  Word32)
-      CHANGE_CASE(TryTruncateFloat32ToUint64, UnsignedFloatTruncateSat, Float32,
-                  Word64)
-      CHANGE_CASE(TryTruncateFloat64ToInt64, SignedFloatTruncateSat, Float64,
-                  Word64)
-      CHANGE_CASE(TryTruncateFloat64ToInt32, SignedFloatTruncateSat, Float64,
-                  Word32)
-      CHANGE_CASE(TryTruncateFloat32ToInt64, SignedFloatTruncateSat, Float32,
-                  Word64)
-      CHANGE_CASE(Float64ExtractLowWord32, ExtractLowHalf, Float64, Word32)
-      CHANGE_CASE(Float64ExtractHighWord32, ExtractHighHalf, Float64, Word32)
-#undef CHANGE_CASE
     case IrOpcode::kTruncateInt64ToInt32:
       // 64- to 32-bit truncation is implicit in Turboshaft.
       return Map(node->InputAt(0));
-    case IrOpcode::kTruncateFloat32ToInt32: {
-      ChangeOp::Kind kind =
-          OpParameter<TruncateKind>(node->op()) ==
-                  TruncateKind::kArchitectureDefault
-              ? ChangeOp::Kind::kSignedFloatTruncate
-              : ChangeOp::Kind::kSignedFloatTruncateOverflowToMin;
-      return assembler.Change(Map(node->InputAt(0)), kind,
-                              RegisterRepresentation::Float32(),
-                              RegisterRepresentation::Word32());
-    }
-    case IrOpcode::kTruncateFloat32ToUint32: {
-      ChangeOp::Kind kind =
-          OpParameter<TruncateKind>(node->op()) ==
-                  TruncateKind::kArchitectureDefault
-              ? ChangeOp::Kind::kUnsignedFloatTruncate
-              : ChangeOp::Kind::kUnsignedFloatTruncateOverflowToMin;
-      return assembler.Change(Map(node->InputAt(0)), kind,
-                              RegisterRepresentation::Float32(),
-                              RegisterRepresentation::Word32());
-    }
-    case IrOpcode::kTruncateFloat64ToInt64: {
-      ChangeOp::Kind kind =
-          OpParameter<TruncateKind>(node->op()) ==
-                  TruncateKind::kArchitectureDefault
-              ? ChangeOp::Kind::kSignedFloatTruncate
-              : ChangeOp::Kind::kSignedFloatTruncateOverflowToMin;
-      return assembler.Change(Map(node->InputAt(0)), kind,
-                              RegisterRepresentation::Float64(),
-                              RegisterRepresentation::Word64());
-    }
-    case IrOpcode::kTruncateFloat64ToUint32: {
-      return assembler.Change(
-          Map(node->InputAt(0)), ChangeOp::Kind::kUnsignedFloatTruncate,
-          RegisterRepresentation::Float64(), RegisterRepresentation::Word32());
-    }
+    case IrOpcode::kTruncateFloat32ToInt32:
+      switch (OpParameter<TruncateKind>(node->op())) {
+        case TruncateKind::kArchitectureDefault:
+          return assembler.TruncateFloat32ToInt32OverflowUndefined(
+              Map(node->InputAt(0)));
+        case TruncateKind::kSetOverflowToMin:
+          return assembler.TruncateFloat32ToInt32OverflowToMin(
+              Map(node->InputAt(0)));
+      }
+    case IrOpcode::kTruncateFloat32ToUint32:
+      switch (OpParameter<TruncateKind>(node->op())) {
+        case TruncateKind::kArchitectureDefault:
+          return assembler.TruncateFloat32ToUint32OverflowUndefined(
+              Map(node->InputAt(0)));
+        case TruncateKind::kSetOverflowToMin:
+          return assembler.TruncateFloat32ToUint32OverflowToMin(
+              Map(node->InputAt(0)));
+      }
+    case IrOpcode::kTruncateFloat64ToInt64:
+      switch (OpParameter<TruncateKind>(node->op())) {
+        case TruncateKind::kArchitectureDefault:
+          return assembler.TruncateFloat64ToInt64OverflowUndefined(
+              Map(node->InputAt(0)));
+        case TruncateKind::kSetOverflowToMin:
+          return assembler.TruncateFloat64ToInt64OverflowToMin(
+              Map(node->InputAt(0)));
+      }
     case IrOpcode::kFloat64InsertLowWord32:
       return assembler.Float64InsertWord32(
           Map(node->InputAt(0)), Map(node->InputAt(1)),

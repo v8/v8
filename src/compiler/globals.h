@@ -97,4 +97,12 @@ const int kMaxFastLiteralProperties = JSObject::kMaxInObjectProperties;
 #define V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
 #endif
 
+// The biggest double value that fits within the int64_t/uint64_t value range.
+// This is different from safe integer range in that there are gaps of integers
+// in-between that cannot be represented as a double.
+constexpr double kMaxDoubleRepresentableInt64 = 9223372036854774784.0;
+constexpr double kMinDoubleRepresentableInt64 =
+    std::numeric_limits<int64_t>::min();
+constexpr double kMaxDoubleRepresentableUint64 = 18446744073709549568.0;
+
 #endif  // V8_COMPILER_GLOBALS_H_

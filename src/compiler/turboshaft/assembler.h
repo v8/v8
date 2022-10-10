@@ -17,6 +17,7 @@
 #include "src/base/template-utils.h"
 #include "src/codegen/reloc-info.h"
 #include "src/compiler/turboshaft/graph.h"
+#include "src/compiler/turboshaft/operation-matching.h"
 #include "src/compiler/turboshaft/operations.h"
 
 namespace v8::internal::compiler::turboshaft {
@@ -414,7 +415,6 @@ class AssemblerInterface : public Superclass {
   OpIndex WordConstant(uint64_t value, WordRepresentation rep) {
     switch (rep.value()) {
       case WordRepresentation::Word32():
-        DCHECK(value <= WordRepresentation::Word32().MaxUnsignedValue());
         return Word32Constant(static_cast<uint32_t>(value));
       case WordRepresentation::Word64():
         return Word64Constant(value);
@@ -458,37 +458,101 @@ class AssemblerInterface : public Superclass {
                                static_cast<uint64_t>(value));
   }
 
-#define DECL_CHANGE(name, kind, from, to)                    \
-  OpIndex name(OpIndex input) {                              \
-    return subclass().Change(input, ChangeOp::Kind::k##kind, \
-                             RegisterRepresentation::from(), \
-                             RegisterRepresentation::to());  \
+#define DECL_CHANGE(name, kind, assumption, from, to)                  \
+  OpIndex name(OpIndex input) {                                        \
+    return subclass().Change(                                          \
+        input, ChangeOp::Kind::kind, ChangeOp::Assumption::assumption, \
+        RegisterRepresentation::from(), RegisterRepresentation::to()); \
+  }
+#define DECL_TRY_CHANGE(name, kind, from, to)                   \
+  OpIndex name(OpIndex input) {                                 \
+    return subclass().TryChange(input, TryChangeOp::Kind::kind, \
+                                FloatRepresentation::from(),    \
+                                WordRepresentation::to());      \
   }
 
-  DECL_CHANGE(BitcastWord32ToWord64, Bitcast, Word32, Word64)
-  DECL_CHANGE(BitcastFloat32ToWord32, Bitcast, Float32, Word32)
-  DECL_CHANGE(BitcastWord32ToFloat32, Bitcast, Word32, Float32)
-  DECL_CHANGE(BitcastFloat64ToWord64, Bitcast, Float64, Word64)
-  DECL_CHANGE(BitcastWord6464ToFloat64, Bitcast, Word64, Float64)
-  DECL_CHANGE(ChangeUint32ToUint64, ZeroExtend, Word32, Word64)
-  DECL_CHANGE(ChangeInt32ToInt64, SignExtend, Word32, Word64)
-  DECL_CHANGE(ChangeInt32ToFloat64, SignedToFloat, Word32, Float64)
-  DECL_CHANGE(ChangeInt64ToFloat64, SignedToFloat, Word64, Float64)
-  DECL_CHANGE(ChangeUint32ToFloat64, UnsignedToFloat, Word32, Float64)
-  DECL_CHANGE(ChangeFloat64ToFloat32, FloatConversion, Float64, Float32)
-  DECL_CHANGE(ChangeFloat32ToFloat64, FloatConversion, Float32, Float64)
-  DECL_CHANGE(JSTruncateFloat64ToWord32, JSFloatTruncate, Float64, Word32)
-  DECL_CHANGE(TruncateFloat64ToInt32OverflowUndefined, SignedFloatTruncate,
+  DECL_CHANGE(BitcastWord32ToWord64, kBitcast, kNoAssumption, Word32, Word64)
+  DECL_CHANGE(BitcastFloat32ToWord32, kBitcast, kNoAssumption, Float32, Word32)
+  DECL_CHANGE(BitcastWord32ToFloat32, kBitcast, kNoAssumption, Word32, Float32)
+  DECL_CHANGE(BitcastFloat64ToWord64, kBitcast, kNoAssumption, Float64, Word64)
+  DECL_CHANGE(BitcastWord64ToFloat64, kBitcast, kNoAssumption, Word64, Float64)
+  DECL_CHANGE(ChangeUint32ToUint64, kZeroExtend, kNoAssumption, Word32, Word64)
+  DECL_CHANGE(ChangeInt32ToInt64, kSignExtend, kNoAssumption, Word32, Word64)
+  DECL_CHANGE(ChangeInt32ToFloat64, kSignedToFloat, kNoAssumption, Word32,
+              Float64)
+  DECL_CHANGE(ChangeInt64ToFloat64, kSignedToFloat, kNoAssumption, Word64,
+              Float64)
+  DECL_CHANGE(ChangeInt32ToFloat32, kSignedToFloat, kNoAssumption, Word32,
+              Float32)
+  DECL_CHANGE(ChangeInt64ToFloat32, kSignedToFloat, kNoAssumption, Word64,
+              Float32)
+  DECL_CHANGE(ChangeUint32ToFloat32, kUnsignedToFloat, kNoAssumption, Word32,
+              Float32)
+  DECL_CHANGE(ChangeUint64ToFloat32, kUnsignedToFloat, kNoAssumption, Word64,
+              Float32)
+  DECL_CHANGE(ReversibleInt64ToFloat64, kSignedToFloat, kReversible, Word64,
+              Float64)
+  DECL_CHANGE(ChangeUint64ToFloat64, kUnsignedToFloat, kNoAssumption, Word64,
+              Float64)
+  DECL_CHANGE(ReversibleUint64ToFloat64, kUnsignedToFloat, kReversible, Word64,
+              Float64)
+  DECL_CHANGE(ChangeUint32ToFloat64, kUnsignedToFloat, kNoAssumption, Word32,
+              Float64)
+  DECL_CHANGE(ChangeFloat64ToFloat32, kFloatConversion, kNoAssumption, Float64,
+              Float32)
+  DECL_CHANGE(ChangeFloat32ToFloat64, kFloatConversion, kNoAssumption, Float32,
+              Float64)
+  DECL_CHANGE(JSTruncateFloat64ToWord32, kJSFloatTruncate, kNoAssumption,
               Float64, Word32)
-  DECL_CHANGE(TruncateFloat64ToInt32OverflowToMin,
-              SignedFloatTruncateOverflowToMin, Float64, Word32)
-  DECL_CHANGE(NarrowFloat64ToInt32, SignedNarrowing, Float64, Word32)
-  DECL_CHANGE(NarrowFloat64ToUint32, UnsignedNarrowing, Float64, Word32)
-  DECL_CHANGE(NarrowFloat64ToInt64, SignedNarrowing, Float64, Word64)
-  DECL_CHANGE(NarrowFloat64ToUint64, UnsignedNarrowing, Float64, Word64)
-  DECL_CHANGE(Float64ExtractLowWord32, ExtractLowHalf, Float64, Word32)
-  DECL_CHANGE(Float64ExtractHighWord32, ExtractHighHalf, Float64, Word32)
+
+#define DECL_SIGNED_FLOAT_TRUNCATE(FloatBits, ResultBits)                     \
+  DECL_CHANGE(TruncateFloat##FloatBits##ToInt##ResultBits##OverflowUndefined, \
+              kSignedFloatTruncateOverflowToMin, kNoOverflow,                 \
+              Float##FloatBits, Word##ResultBits)                             \
+  DECL_CHANGE(TruncateFloat##FloatBits##ToInt##ResultBits##OverflowToMin,     \
+              kSignedFloatTruncateOverflowToMin, kNoAssumption,               \
+              Float##FloatBits, Word##ResultBits)                             \
+  DECL_TRY_CHANGE(TryTruncateFloat##FloatBits##ToInt##ResultBits,             \
+                  kSignedFloatTruncateOverflowUndefined, Float##FloatBits,    \
+                  Word##ResultBits)
+
+  DECL_SIGNED_FLOAT_TRUNCATE(64, 64)
+  DECL_SIGNED_FLOAT_TRUNCATE(64, 32)
+  DECL_SIGNED_FLOAT_TRUNCATE(32, 64)
+  DECL_SIGNED_FLOAT_TRUNCATE(32, 32)
+#undef DECL_SIGNED_FLOAT_TRUNCATE
+
+#define DECL_UNSIGNED_FLOAT_TRUNCATE(FloatBits, ResultBits)                    \
+  DECL_CHANGE(TruncateFloat##FloatBits##ToUint##ResultBits##OverflowUndefined, \
+              kUnsignedFloatTruncateOverflowToMin, kNoOverflow,                \
+              Float##FloatBits, Word##ResultBits)                              \
+  DECL_CHANGE(TruncateFloat##FloatBits##ToUint##ResultBits##OverflowToMin,     \
+              kUnsignedFloatTruncateOverflowToMin, kNoAssumption,              \
+              Float##FloatBits, Word##ResultBits)                              \
+  DECL_TRY_CHANGE(TryTruncateFloat##FloatBits##ToUint##ResultBits,             \
+                  kUnsignedFloatTruncateOverflowUndefined, Float##FloatBits,   \
+                  Word##ResultBits)
+
+  DECL_UNSIGNED_FLOAT_TRUNCATE(64, 64)
+  DECL_UNSIGNED_FLOAT_TRUNCATE(64, 32)
+  DECL_UNSIGNED_FLOAT_TRUNCATE(32, 64)
+  DECL_UNSIGNED_FLOAT_TRUNCATE(32, 32)
+#undef DECL_UNSIGNED_FLOAT_TRUNCATE
+
+  DECL_CHANGE(ReversibleFloat64ToInt32, kSignedFloatTruncateOverflowToMin,
+              kReversible, Float64, Word32)
+  DECL_CHANGE(ReversibleFloat64ToUint32, kUnsignedFloatTruncateOverflowToMin,
+              kReversible, Float64, Word32)
+  DECL_CHANGE(ReversibleFloat64ToInt64, kSignedFloatTruncateOverflowToMin,
+              kReversible, Float64, Word64)
+  DECL_CHANGE(ReversibleFloat64ToUint64, kUnsignedFloatTruncateOverflowToMin,
+              kReversible, Float64, Word64)
+  DECL_CHANGE(Float64ExtractLowWord32, kExtractLowHalf, kNoAssumption, Float64,
+              Word32)
+  DECL_CHANGE(Float64ExtractHighWord32, kExtractHighHalf, kNoAssumption,
+              Float64, Word32)
 #undef DECL_CHANGE
+#undef DECL_TRY_CHANGE
 
   using Base::Tuple;
   OpIndex Tuple(OpIndex a, OpIndex b) {
@@ -514,7 +578,8 @@ class AssemblerBase {
 };
 
 class Assembler
-    : public AssemblerInterface<Assembler, AssemblerBase<Assembler>> {
+    : public AssemblerInterface<Assembler, AssemblerBase<Assembler>>,
+      public OperationMatching<Assembler> {
  public:
   Block* NewBlock(Block::Kind kind) { return graph_.NewBlock(kind); }
 

@@ -14,6 +14,9 @@
 
 namespace v8::internal::compiler::turboshaft {
 
+class WordRepresentation;
+class FloatRepresentation;
+
 class RegisterRepresentation {
  public:
   enum class Enum : uint8_t {
@@ -26,7 +29,12 @@ class RegisterRepresentation {
   };
 
   explicit constexpr RegisterRepresentation(Enum value) : value_(value) {}
-  constexpr Enum value() const { return value_; }
+  RegisterRepresentation() : value_(kInvalid) {}
+
+  constexpr Enum value() const {
+    DCHECK_NE(value_, kInvalid);
+    return value_;
+  }
   constexpr operator Enum() const { return value(); }
 
   static constexpr RegisterRepresentation Word32() {
@@ -62,6 +70,32 @@ class RegisterRepresentation {
     }
   }
 
+  bool IsWord() {
+    switch (*this) {
+      case Enum::kWord32:
+      case Enum::kWord64:
+        return true;
+      case Enum::kFloat32:
+      case Enum::kFloat64:
+      case Enum::kTagged:
+      case Enum::kCompressed:
+        return false;
+    }
+  }
+
+  bool IsFloat() {
+    switch (*this) {
+      case Enum::kFloat32:
+      case Enum::kFloat64:
+        return true;
+      case Enum::kWord32:
+      case Enum::kWord64:
+      case Enum::kTagged:
+      case Enum::kCompressed:
+        return false;
+    }
+  }
+
   uint64_t MaxUnsignedValue() const {
     switch (this->value()) {
       case Word32():
@@ -93,7 +127,7 @@ class RegisterRepresentation {
     }
   }
 
-  uint16_t bit_width() const {
+  constexpr uint16_t bit_width() const {
     switch (*this) {
       case Word32():
         return 32;
@@ -142,6 +176,8 @@ class RegisterRepresentation {
 
  private:
   Enum value_;
+
+  static constexpr Enum kInvalid = static_cast<Enum>(-1);
 };
 
 V8_INLINE bool operator==(RegisterRepresentation a, RegisterRepresentation b) {
@@ -166,12 +202,21 @@ class WordRepresentation : public RegisterRepresentation {
   explicit constexpr WordRepresentation(Enum value)
       : RegisterRepresentation(
             static_cast<RegisterRepresentation::Enum>(value)) {}
+  WordRepresentation() = default;
+  explicit constexpr WordRepresentation(RegisterRepresentation rep)
+      : WordRepresentation(static_cast<Enum>(rep.value())) {
+    DCHECK(rep.IsWord());
+  }
 
   static constexpr WordRepresentation Word32() {
     return WordRepresentation(Enum::kWord32);
   }
   static constexpr WordRepresentation Word64() {
     return WordRepresentation(Enum::kWord64);
+  }
+
+  static constexpr WordRepresentation PointerSized() {
+    return WordRepresentation(RegisterRepresentation::PointerSized());
   }
 
   constexpr Enum value() const {
@@ -185,6 +230,22 @@ class WordRepresentation : public RegisterRepresentation {
         return std::numeric_limits<uint32_t>::max();
       case Word64():
         return std::numeric_limits<uint64_t>::max();
+    }
+  }
+  constexpr int64_t MinSignedValue() const {
+    switch (this->value()) {
+      case Word32():
+        return std::numeric_limits<int32_t>::min();
+      case Word64():
+        return std::numeric_limits<int64_t>::min();
+    }
+  }
+  constexpr int64_t MaxSignedValue() const {
+    switch (this->value()) {
+      case Word32():
+        return std::numeric_limits<int32_t>::max();
+      case Word64():
+        return std::numeric_limits<int64_t>::max();
     }
   }
 };
@@ -203,15 +264,15 @@ class FloatRepresentation : public RegisterRepresentation {
     return FloatRepresentation(Enum::kFloat64);
   }
 
+  explicit constexpr FloatRepresentation(Enum value)
+      : RegisterRepresentation(
+            static_cast<RegisterRepresentation::Enum>(value)) {}
+  FloatRepresentation() = default;
+
   constexpr Enum value() const {
     return static_cast<Enum>(RegisterRepresentation::value());
   }
   constexpr operator Enum() const { return value(); }
-
- private:
-  explicit constexpr FloatRepresentation(Enum value)
-      : RegisterRepresentation(
-            static_cast<RegisterRepresentation::Enum>(value)) {}
 };
 
 class MemoryRepresentation {
@@ -234,7 +295,11 @@ class MemoryRepresentation {
   };
 
   explicit constexpr MemoryRepresentation(Enum value) : value_(value) {}
-  constexpr Enum value() const { return value_; }
+  MemoryRepresentation() : value_(kInvalid) {}
+  constexpr Enum value() const {
+    DCHECK_NE(value_, kInvalid);
+    return value_;
+  }
   constexpr operator Enum() const { return value(); }
 
   static constexpr MemoryRepresentation Int8() {
@@ -517,6 +582,8 @@ class MemoryRepresentation {
 
  private:
   Enum value_;
+
+  static constexpr Enum kInvalid = static_cast<Enum>(-1);
 };
 
 V8_INLINE bool operator==(MemoryRepresentation a, MemoryRepresentation b) {
