@@ -2,7 +2,6 @@
 // this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/base/bit-field.h"
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
@@ -12,6 +11,7 @@
 
 #include <memory>
 
+#include "src/base/bit-field.h"
 #include "src/debug/interface-types.h"
 #include "src/objects/foreign.h"
 #include "src/objects/js-function.h"
