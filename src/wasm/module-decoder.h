@@ -159,7 +159,7 @@ class ModuleDecoder {
   void DecodeFunctionBody(uint32_t index, uint32_t size, uint32_t offset,
                           bool verify_functions = true);
 
-  ModuleResult FinishDecoding(bool verify_functions = true);
+  ModuleResult FinishDecoding();
 
   const std::shared_ptr<WasmModule>& shared_module() const;
 
