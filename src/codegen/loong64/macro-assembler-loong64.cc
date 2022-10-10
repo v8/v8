@@ -476,6 +476,19 @@ void TurboAssembler::Mulh_d(Register rd, Register rj, const Operand& rk) {
   }
 }
 
+void TurboAssembler::Mulh_du(Register rd, Register rj, const Operand& rk) {
+  if (rk.is_reg()) {
+    mulh_du(rd, rj, rk.rm());
+  } else {
+    // li handles the relocation.
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    DCHECK(rj != scratch);
+    li(scratch, rk);
+    mulh_du(rd, rj, scratch);
+  }
+}
+
 void TurboAssembler::Div_w(Register rd, Register rj, const Operand& rk) {
   if (rk.is_reg()) {
     div_w(rd, rj, rk.rm());

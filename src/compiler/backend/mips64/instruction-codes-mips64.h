@@ -24,6 +24,7 @@ namespace compiler {
   V(Mips64MulHigh)                    \
   V(Mips64DMulHigh)                   \
   V(Mips64MulHighU)                   \
+  V(Mips64DMulHighU)                  \
   V(Mips64Dmul)                       \
   V(Mips64Div)                        \
   V(Mips64Ddiv)                       \

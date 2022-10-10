@@ -956,6 +956,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kLoong64Mulh_d:
       __ Mulh_d(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
+    case kLoong64Mulh_du:
+      __ Mulh_du(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+      break;
     case kLoong64Div_w:
       __ Div_w(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       __ maskeqz(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));

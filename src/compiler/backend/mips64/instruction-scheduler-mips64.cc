@@ -44,6 +44,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMips64CvtSUw:
     case kMips64CvtSW:
     case kMips64DMulHigh:
+    case kMips64DMulHighU:
     case kMips64MulHighU:
     case kMips64Dadd:
     case kMips64DaddOvf:

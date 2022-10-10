@@ -513,6 +513,29 @@ void TurboAssembler::Dmulh(Register rd, Register rs, const Operand& rt) {
   }
 }
 
+void TurboAssembler::Dmulhu(Register rd, Register rs, const Operand& rt) {
+  if (rt.is_reg()) {
+    if (kArchVariant == kMips64r6) {
+      dmuhu(rd, rs, rt.rm());
+    } else {
+      dmultu(rs, rt.rm());
+      mfhi(rd);
+    }
+  } else {
+    // li handles the relocation.
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    DCHECK(rs != scratch);
+    li(scratch, rt);
+    if (kArchVariant == kMips64r6) {
+      dmuhu(rd, rs, scratch);
+    } else {
+      dmultu(rs, scratch);
+      mfhi(rd);
+    }
+  }
+}
+
 void TurboAssembler::Mult(Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     mult(rs, rt.rm());

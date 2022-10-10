@@ -1080,8 +1080,16 @@ void InstructionSelector::VisitInt32MulHigh(Node* node) {
   VisitRRR(this, kLoong64Mulh_w, node);
 }
 
+void InstructionSelector::VisitInt64MulHigh(Node* node) {
+  VisitRRR(this, kLoong64Mulh_d, node);
+}
+
 void InstructionSelector::VisitUint32MulHigh(Node* node) {
   VisitRRR(this, kLoong64Mulh_wu, node);
+}
+
+void InstructionSelector::VisitUint64MulHigh(Node* node) {
+  VisitRRR(this, kLoong64Mulh_du, node);
 }
 
 void InstructionSelector::VisitInt64Mul(Node* node) {

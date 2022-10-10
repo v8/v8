@@ -965,6 +965,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kMips64DMulHigh:
       __ Dmulh(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
+    case kMips64DMulHighU:
+      __ Dmulhu(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+      break;
     case kMips64Div:
       __ Div(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       if (kArchVariant == kMips64r6) {
