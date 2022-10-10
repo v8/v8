@@ -1245,11 +1245,13 @@ bool CompileLazy(Isolate* isolate, Handle<WasmInstanceObject> instance,
   }
 
   // Allocate feedback vector if needed.
-  int feedback_vector_slots = NumFeedbackSlots(module, func_index);
-  if (feedback_vector_slots > 0) {
-    DCHECK(v8_flags.wasm_speculative_inlining);
-    Handle<FixedArray> vector =
-        isolate->factory()->NewFixedArrayWithZeroes(feedback_vector_slots);
+  // We could decide to not do that here, and instead rely on lazy vector
+  // allocation upon function entry. But since we're lazy-compiling, we know
+  // for sure that a function entry is imminent, and it is slightly more
+  // efficient to avoid another runtime call.
+  if (v8_flags.wasm_speculative_inlining) {
+    Handle<FixedArray> vector = isolate->factory()->NewFixedArrayWithZeroes(
+        NumFeedbackSlots(module, func_index));
     instance->feedback_vectors().set(
         declared_function_index(module, func_index), *vector);
   }

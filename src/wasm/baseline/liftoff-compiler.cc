@@ -138,12 +138,6 @@ compiler::CallDescriptor* GetLoweredCallDescriptor(
              : call_desc;
 }
 
-constexpr LiftoffRegList GetGpParamRegisters() {
-  LiftoffRegList registers;
-  for (auto reg : kGpParamRegisters) registers.set(reg);
-  return registers;
-}
-
 constexpr LiftoffCondition GetCompareCondition(WasmOpcode opcode) {
   switch (opcode) {
     case kExprI32Eq:
@@ -901,22 +895,35 @@ class LiftoffCompiler {
                       .AsRegister()));
     USE(kInstanceParameterIndex);
     __ cache_state()->SetInstanceCacheRegister(kWasmInstanceRegister);
+
     // Load the feedback vector and cache it in a stack slot.
-    constexpr LiftoffRegList kGpParamRegisters = GetGpParamRegisters();
     if (v8_flags.wasm_speculative_inlining) {
       CODE_COMMENT("load feedback vector");
       int declared_func_index =
           func_index_ - env_->module->num_imported_functions;
       DCHECK_GE(declared_func_index, 0);
-      LiftoffRegList pinned = kGpParamRegisters;
-      LiftoffRegister tmp = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-      __ LoadTaggedPointerFromInstance(
-          tmp.gp(), kWasmInstanceRegister,
-          WASM_INSTANCE_OBJECT_FIELD_OFFSET(FeedbackVectors));
-      __ LoadTaggedPointer(tmp.gp(), tmp.gp(), no_reg,
-                           wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(
-                               declared_func_index));
-      __ Spill(liftoff::kFeedbackVectorOffset, tmp, kPointerKind);
+      static_assert(kGetFeedbackVectorFunctionReg != kWasmInstanceRegister);
+      static_assert(kGetFeedbackVectorResultReg != kWasmInstanceRegister);
+#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+      static_assert(kGetFeedbackVectorFunctionReg != kPtrComprCageBaseRegister);
+      static_assert(kGetFeedbackVectorResultReg != kPtrComprCageBaseRegister);
+#endif
+      // TODO(jkummerow): Enable these when we have C++20.
+      // static_assert(std::find(std::begin(wasm::kGpParamRegisters),
+      //                         std::end(wasm::kGpParamRegisters),
+      //                         func_index) ==
+      //                         std::end(wasm::kGpParamRegisters));
+      // static_assert(std::find(std::begin(wasm::kGpParamRegisters),
+      //                         std::end(wasm::kGpParamRegisters),
+      //                         scratch) == std::end(wasm::kGpParamRegisters));
+
+      __ LoadConstant(LiftoffRegister(kGetFeedbackVectorFunctionReg),
+                      WasmValue(declared_func_index));
+      __ CallRuntimeStub(WasmCode::kWasmGetFeedbackVector);
+      // TODO(jkummerow): Consider moving this into the builtin to save one
+      // instruction in every Liftoff function.
+      __ Spill(liftoff::kFeedbackVectorOffset,
+               LiftoffRegister(kGetFeedbackVectorResultReg), kPointerKind);
     }
     if (for_debugging_) __ ResetOSRTarget();
 

@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/codegen/register.h"
 #if V8_TARGET_ARCH_IA32
 
 #include "src/api/api-arguments.h"
@@ -27,6 +26,7 @@
 #include "src/objects/smi.h"
 
 #if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/baseline/liftoff-assembler-defs.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-objects.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -2763,6 +2763,91 @@ void Builtins::Generate_BaselineOnStackReplacement(MacroAssembler* masm) {
 }
 
 #if V8_ENABLE_WEBASSEMBLY
+
+// Returns the offset beyond the last saved FP register.
+int SaveWasmParams(MacroAssembler* masm) {
+  // Save all parameter registers (see wasm-linkage.h). They might be
+  // overwritten in the subsequent runtime call. We don't have any callee-saved
+  // registers in wasm, so no need to store anything else.
+  static_assert(WasmCompileLazyFrameConstants::kNumberOfSavedGpParamRegs + 1 ==
+                    arraysize(wasm::kGpParamRegisters),
+                "frame size mismatch");
+  for (Register reg : wasm::kGpParamRegisters) {
+    __ Push(reg);
+  }
+  static_assert(WasmCompileLazyFrameConstants::kNumberOfSavedFpParamRegs ==
+                    arraysize(wasm::kFpParamRegisters),
+                "frame size mismatch");
+  __ AllocateStackSpace(kSimd128Size * arraysize(wasm::kFpParamRegisters));
+  int offset = 0;
+  for (DoubleRegister reg : wasm::kFpParamRegisters) {
+    __ movdqu(Operand(esp, offset), reg);
+    offset += kSimd128Size;
+  }
+  return offset;
+}
+
+// Consumes the offset beyond the last saved FP register (as returned by
+// {SaveWasmParams}).
+void RestoreWasmParams(MacroAssembler* masm, int offset) {
+  for (DoubleRegister reg : base::Reversed(wasm::kFpParamRegisters)) {
+    offset -= kSimd128Size;
+    __ movdqu(reg, Operand(esp, offset));
+  }
+  DCHECK_EQ(0, offset);
+  __ add(esp, Immediate(kSimd128Size * arraysize(wasm::kFpParamRegisters)));
+  for (Register reg : base::Reversed(wasm::kGpParamRegisters)) {
+    __ Pop(reg);
+  }
+}
+
+void Builtins::Generate_WasmGetFeedbackVector(MacroAssembler* masm) {
+  constexpr Register func_index = wasm::kGetFeedbackVectorFunctionReg;
+  constexpr Register result = wasm::kGetFeedbackVectorResultReg;
+  // Due to the small number of registers on ia32, {func_index} and {result}
+  // are unfortunately the same, so we must free up a temp register.
+  static_assert(func_index == result, "could simplify this code otherwise");
+  constexpr Register tmp = eax;  // Arbitrarily chosen.
+  static_assert(tmp != func_index);
+  // {tmp} could be tagged. Only push it for a short while; no GC and no
+  // stack walk can happen during this time.
+  __ push(tmp);
+  __ mov(tmp, FieldOperand(kWasmInstanceRegister,
+                           WasmInstanceObject::kFeedbackVectorsOffset));
+  __ mov(tmp, FieldOperand(tmp, func_index, times_tagged_size,
+                           FixedArray::kHeaderSize));
+  Label allocate_vector;
+  __ JumpIfSmi(tmp, &allocate_vector);
+  __ mov(result, tmp);
+  __ pop(tmp);
+  __ ret(0);
+
+  __ bind(&allocate_vector);
+  __ pop(tmp);
+  {
+    // Feedback vector doesn't exist yet. Call the runtime to allocate it.
+    // We're re-using the CompileLazy frame type because it has the same
+    // requirements: don't disturb the function arguments that are still
+    // in registers and/or on the stack.
+    FrameScope scope(masm, StackFrame::WASM_COMPILE_LAZY);
+    int offset = SaveWasmParams(masm);
+
+    // Arguments to the runtime function: instance, func_index.
+    __ Push(kWasmInstanceRegister);
+    __ SmiTag(func_index);
+    __ Push(func_index);
+    // Allocate a stack slot where the runtime function can spill a pointer
+    // to the NativeModule.
+    __ Push(esp);
+    __ Move(kContextRegister, Smi::zero());
+    __ CallRuntime(Runtime::kWasmAllocateFeedbackVector, 3);
+    __ mov(result, kReturnRegister0);
+
+    RestoreWasmParams(masm, offset);
+  }
+  __ ret(0);
+}
+
 void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
   // The function index was put in edi by the jump table trampoline.
   // Convert to Smi for the runtime call.
@@ -2771,25 +2856,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     HardAbortScope hard_abort(masm);  // Avoid calls to Abort.
     FrameScope scope(masm, StackFrame::WASM_COMPILE_LAZY);
 
-    // Save all parameter registers (see wasm-linkage.h). They might be
-    // overwritten in the runtime call below. We don't have any callee-saved
-    // registers in wasm, so no need to store anything else.
-    static_assert(
-        WasmCompileLazyFrameConstants::kNumberOfSavedGpParamRegs + 1 ==
-            arraysize(wasm::kGpParamRegisters),
-        "frame size mismatch");
-    for (Register reg : wasm::kGpParamRegisters) {
-      __ Push(reg);
-    }
-    static_assert(WasmCompileLazyFrameConstants::kNumberOfSavedFpParamRegs ==
-                      arraysize(wasm::kFpParamRegisters),
-                  "frame size mismatch");
-    __ AllocateStackSpace(kSimd128Size * arraysize(wasm::kFpParamRegisters));
-    int offset = 0;
-    for (DoubleRegister reg : wasm::kFpParamRegisters) {
-      __ movdqu(Operand(esp, offset), reg);
-      offset += kSimd128Size;
-    }
+    int offset = SaveWasmParams(masm);
 
     // Push the Wasm instance as an explicit argument to the runtime function.
     __ Push(kWasmInstanceRegister);
@@ -2807,16 +2874,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     __ SmiUntag(kReturnRegister0);
     __ mov(edi, kReturnRegister0);
 
-    // Restore registers.
-    for (DoubleRegister reg : base::Reversed(wasm::kFpParamRegisters)) {
-      offset -= kSimd128Size;
-      __ movdqu(reg, Operand(esp, offset));
-    }
-    DCHECK_EQ(0, offset);
-    __ add(esp, Immediate(kSimd128Size * arraysize(wasm::kFpParamRegisters)));
-    for (Register reg : base::Reversed(wasm::kGpParamRegisters)) {
-      __ Pop(reg);
-    }
+    RestoreWasmParams(masm, offset);
 
     // After the instance register has been restored, we can add the jump table
     // start to the jump table offset already stored in edi.
