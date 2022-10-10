@@ -104,8 +104,9 @@ bool Heap::IsMainThread() const {
 }
 
 bool Heap::IsSharedMainThread() const {
-  Isolate* shared_isolate = isolate()->shared_isolate();
-  return shared_isolate && shared_isolate->thread_id() == ThreadId::Current();
+  if (!isolate()->has_shared_heap()) return false;
+  Isolate* shared_heap_isolate = isolate()->shared_heap_isolate();
+  return shared_heap_isolate->thread_id() == ThreadId::Current();
 }
 
 int64_t Heap::external_memory() { return external_memory_.total(); }

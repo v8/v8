@@ -2170,6 +2170,9 @@ void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
   PtrComprCageBase cage_base(client);
   Heap* heap = client->heap();
 
+  // Ensure new space is iterable.
+  heap->MakeHeapIterable();
+
   if (heap->new_space()) {
     std::unique_ptr<ObjectIterator> iterator =
         heap->new_space()->GetObjectIterator(heap);
