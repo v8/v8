@@ -128,7 +128,7 @@ try_ng_pair(
 )
 
 try_ng_pair(
-    name = "v8_linux64_cppgc_non_default_dbg_ng",
+    name = "v8_linux64_cppgc_non_default_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
