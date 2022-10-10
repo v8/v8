@@ -3626,7 +3626,7 @@ void AccessorAssembler::KeyedLoadICGeneric(const LoadICParameters* p) {
 
     BIND(&if_notunique);
     {
-      if (FLAG_internalize_on_the_fly) {
+      if (v8_flags.internalize_on_the_fly) {
         // Ideally we could return undefined directly here if the name is not
         // found in the string table, i.e. it was never internalized, but that
         // invariant doesn't hold with named property interceptors (at this

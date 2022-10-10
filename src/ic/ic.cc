@@ -309,7 +309,7 @@ void IC::OnFeedbackChanged(const char* reason) {
 // static
 void IC::OnFeedbackChanged(Isolate* isolate, FeedbackVector vector,
                            FeedbackSlot slot, const char* reason) {
-  if (FLAG_trace_opt_verbose) {
+  if (v8_flags.trace_opt_verbose) {
     if (vector.profiler_ticks() != 0) {
       StdoutStream os;
       os << "[resetting ticks for ";
@@ -321,7 +321,7 @@ void IC::OnFeedbackChanged(Isolate* isolate, FeedbackVector vector,
   vector.set_profiler_ticks(0);
 
 #ifdef V8_TRACE_FEEDBACK_UPDATES
-  if (FLAG_trace_feedback_updates) {
+  if (v8_flags.trace_feedback_updates) {
     int slot_count = vector.metadata().slot_count();
     StdoutStream os;
     if (slot.IsInvalid()) {
@@ -410,7 +410,7 @@ void IC::ConfigureVectorState(
 MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name,
                                  bool update_feedback,
                                  Handle<Object> receiver) {
-  bool use_ic = (state() != NO_FEEDBACK) && FLAG_use_ic && update_feedback;
+  bool use_ic = (state() != NO_FEEDBACK) && v8_flags.use_ic && update_feedback;
 
   if (receiver.is_null()) {
     receiver = object;
@@ -543,7 +543,8 @@ MaybeHandle<Object> LoadGlobalIC::Load(Handle<Name> name,
             Object);
       }
 
-      bool use_ic = (state() != NO_FEEDBACK) && FLAG_use_ic && update_feedback;
+      bool use_ic =
+          (state() != NO_FEEDBACK) && v8_flags.use_ic && update_feedback;
       if (use_ic) {
         // 'const' Variables are mutable if REPL mode is enabled. This disables
         // compiler inlining for all 'const' variables declared in REPL mode.
@@ -596,10 +597,10 @@ static bool AddOneReceiverMapIfMissing(
 }
 
 bool IC::UpdateMegaDOMIC(const MaybeObjectHandle& handler, Handle<Name> name) {
-  if (!FLAG_enable_mega_dom_ic) return false;
+  if (!v8_flags.enable_mega_dom_ic) return false;
 
   // TODO(gsathya): Enable fuzzing once this feature is more stable.
-  if (FLAG_fuzzing) return false;
+  if (v8_flags.fuzzing) return false;
 
   // TODO(gsathya): Support KeyedLoadIC, StoreIC and KeyedStoreIC.
   if (!IsLoadIC()) return false;
@@ -660,7 +661,7 @@ bool IC::UpdatePolymorphicIC(Handle<Name> name,
   Handle<Map> map = lookup_start_object_map();
 
   std::vector<MapAndHandler> maps_and_handlers;
-  maps_and_handlers.reserve(FLAG_max_valid_polymorphic_map_count);
+  maps_and_handlers.reserve(v8_flags.max_valid_polymorphic_map_count);
   int deprecated_maps = 0;
   int handler_to_overwrite = -1;
 
@@ -707,7 +708,7 @@ bool IC::UpdatePolymorphicIC(Handle<Name> name,
   int number_of_valid_maps =
       number_of_maps - deprecated_maps - (handler_to_overwrite != -1);
 
-  if (number_of_valid_maps >= FLAG_max_valid_polymorphic_map_count)
+  if (number_of_valid_maps >= v8_flags.max_valid_polymorphic_map_count)
     return false;
   if (number_of_maps == 0 && state() != MONOMORPHIC && state() != POLYMORPHIC) {
     return false;
@@ -1224,7 +1225,7 @@ void KeyedLoadIC::UpdateLoadElement(Handle<HeapObject> receiver,
   // If the maximum number of receiver maps has been exceeded, use the generic
   // version of the IC.
   if (static_cast<int>(target_receiver_maps.size()) >
-      FLAG_max_valid_polymorphic_map_count) {
+      v8_flags.max_valid_polymorphic_map_count) {
     set_slow_stub_reason("max polymorph exceeded");
     return;
   }
@@ -1431,7 +1432,7 @@ bool IntPtrKeyToSize(intptr_t index, Handle<HeapObject> receiver, size_t* out) {
 }
 
 bool CanCache(Handle<Object> receiver, InlineCacheState state) {
-  if (!FLAG_use_ic || state == NO_FEEDBACK) return false;
+  if (!v8_flags.use_ic || state == NO_FEEDBACK) return false;
   if (!receiver->IsJSReceiver() && !receiver->IsString()) return false;
   return !receiver->IsAccessCheckNeeded() && !receiver->IsJSPrimitiveWrapper();
 }
@@ -1644,7 +1645,7 @@ MaybeHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
           Object);
     }
 
-    bool use_ic = (state() != NO_FEEDBACK) && FLAG_use_ic;
+    bool use_ic = (state() != NO_FEEDBACK) && v8_flags.use_ic;
     if (use_ic) {
       if (nexus()->ConfigureLexicalVarMode(
               lookup_result.context_index, lookup_result.slot_index,
@@ -1761,7 +1762,7 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
     return value;
   }
 
-  bool use_ic = (state() != NO_FEEDBACK) && FLAG_use_ic;
+  bool use_ic = (state() != NO_FEEDBACK) && v8_flags.use_ic;
   // If the object is undefined or null it's illegal to try to set any
   // properties on it; throw a TypeError in that case.
   if (object->IsNullOrUndefined(isolate())) {
@@ -2212,7 +2213,7 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
   // If the maximum number of receiver maps has been exceeded, use the
   // megamorphic version of the IC.
   if (static_cast<int>(target_maps_and_handlers.size()) >
-      FLAG_max_valid_polymorphic_map_count) {
+      v8_flags.max_valid_polymorphic_map_count) {
     return;
   }
 
@@ -2461,7 +2462,7 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
   JSObject::MakePrototypesFast(object, kStartAtPrototype, isolate());
 
   // TODO(jkummerow): Refactor the condition logic here and below.
-  bool use_ic = (state() != NO_FEEDBACK) && FLAG_use_ic &&
+  bool use_ic = (state() != NO_FEEDBACK) && v8_flags.use_ic &&
                 !object->IsStringWrapper() && !object->IsAccessCheckNeeded() &&
                 !object->IsJSGlobalProxy();
   if (use_ic && !object->IsSmi()) {
@@ -2580,7 +2581,7 @@ MaybeHandle<Object> StoreInArrayLiteralIC::Store(Handle<JSArray> array,
   DCHECK(!array->map().IsMapInArrayPrototypeChain(isolate()));
   DCHECK(index->IsNumber());
 
-  if (!FLAG_use_ic || state() == NO_FEEDBACK ||
+  if (!v8_flags.use_ic || state() == NO_FEEDBACK ||
       MigrateDeprecated(isolate(), array)) {
     MAYBE_RETURN_NULL(StoreOwnElement(isolate(), array, index, value));
     TraceIC("StoreInArrayLiteralIC", index);
