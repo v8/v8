@@ -172,8 +172,8 @@ void ModuleDecoder::DecodeModuleHeader(base::Vector<const uint8_t> bytes,
 
 void ModuleDecoder::DecodeSection(SectionCode section_code,
                                   base::Vector<const uint8_t> bytes,
-                                  uint32_t offset, bool validate_functions) {
-  impl_->DecodeSection(section_code, bytes, offset, validate_functions);
+                                  uint32_t offset) {
+  impl_->DecodeSection(section_code, bytes, offset);
 }
 
 void ModuleDecoder::DecodeFunctionBody(uint32_t index, uint32_t length,

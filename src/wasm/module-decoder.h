@@ -149,8 +149,7 @@ class ModuleDecoder {
   void DecodeModuleHeader(base::Vector<const uint8_t> bytes, uint32_t offset);
 
   void DecodeSection(SectionCode section_code,
-                     base::Vector<const uint8_t> bytes, uint32_t offset,
-                     bool verify_functions = true);
+                     base::Vector<const uint8_t> bytes, uint32_t offset);
 
   void StartCodeSection(WireBytesRef section_bytes);
 

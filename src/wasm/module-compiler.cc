@@ -2860,8 +2860,7 @@ bool AsyncStreamingProcessor::ProcessSection(SectionCode section_code,
     offset += bytes_consumed;
     bytes = bytes.SubVector(bytes_consumed, bytes.size());
   }
-  constexpr bool verify_functions = false;
-  decoder_.DecodeSection(section_code, bytes, offset, verify_functions);
+  decoder_.DecodeSection(section_code, bytes, offset);
   if (!decoder_.ok()) {
     FinishAsyncCompileJobWithError(decoder_.FinishDecoding().error());
     return false;
