@@ -511,17 +511,20 @@ class CollectFunctionLiterals final
 };
 
 bool ParseScript(Isolate* isolate, Handle<Script> script, ParseInfo* parse_info,
-                 bool compile_as_well, std::vector<FunctionLiteral*>* literals,
+                 MaybeHandle<ScopeInfo> outer_scope_info, bool compile_as_well,
+                 std::vector<FunctionLiteral*>* literals,
                  debug::LiveEditResult* result) {
   v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
   Handle<SharedFunctionInfo> shared;
   bool success = false;
   if (compile_as_well) {
-    success = Compiler::CompileForLiveEdit(parse_info, script, isolate)
+    success = Compiler::CompileForLiveEdit(parse_info, script, outer_scope_info,
+                                           isolate)
                   .ToHandle(&shared);
   } else {
-    success = parsing::ParseProgram(parse_info, script, isolate,
-                                    parsing::ReportStatisticsMode::kYes);
+    success =
+        parsing::ParseProgram(parse_info, script, outer_scope_info, isolate,
+                              parsing::ReportStatisticsMode::kYes);
     if (!success) {
       // Throw the parser error.
       parse_info->pending_error_handler()->PrepareErrors(
@@ -748,6 +751,72 @@ void UpdatePositions(Isolate* isolate, Handle<SharedFunctionInfo> sfi,
         isolate, handle(sfi->GetBytecodeArray(isolate), isolate), diffs);
   }
 }
+
+#ifdef DEBUG
+ScopeInfo FindOuterScopeInfoFromScriptSfi(Isolate* isolate,
+                                          Handle<Script> script) {
+  // We take some SFI from the script and walk outwards until we find the
+  // EVAL_SCOPE. Then we do the same search as `DetermineOuterScopeInfo` and
+  // check that we found the same ScopeInfo.
+  SharedFunctionInfo::ScriptIterator it(isolate, *script);
+  ScopeInfo other_scope_info;
+  for (SharedFunctionInfo sfi = it.Next(); !sfi.is_null(); sfi = it.Next()) {
+    if (!sfi.scope_info().IsEmpty()) {
+      other_scope_info = sfi.scope_info();
+      break;
+    }
+  }
+  if (other_scope_info.is_null()) return other_scope_info;
+
+  while (!other_scope_info.IsEmpty() &&
+         other_scope_info.scope_type() != EVAL_SCOPE &&
+         other_scope_info.HasOuterScopeInfo()) {
+    other_scope_info = other_scope_info.OuterScopeInfo();
+  }
+
+  // This function is only called when we found a ScopeInfo candidate, so
+  // technically the EVAL_SCOPE must have an outer_scope_info. But, the GC can
+  // clean up some ScopeInfos it thinks are no longer needed. Abort the check
+  // in that case.
+  if (!other_scope_info.HasOuterScopeInfo()) return ScopeInfo();
+
+  DCHECK_EQ(other_scope_info.scope_type(), EVAL_SCOPE);
+  other_scope_info = other_scope_info.OuterScopeInfo();
+
+  while (!other_scope_info.IsEmpty() && !other_scope_info.HasContext() &&
+         other_scope_info.HasOuterScopeInfo()) {
+    other_scope_info = other_scope_info.OuterScopeInfo();
+  }
+  return other_scope_info;
+}
+#endif
+
+// For sloppy eval we need to know the ScopeInfo the eval was compiled in and
+// re-use it when we compile the new version of the script.
+MaybeHandle<ScopeInfo> DetermineOuterScopeInfo(Isolate* isolate,
+                                               Handle<Script> script) {
+  if (!script->has_eval_from_shared()) return kNullMaybeHandle;
+  DCHECK_EQ(script->compilation_type(), Script::COMPILATION_TYPE_EVAL);
+  ScopeInfo scope_info = script->eval_from_shared().scope_info();
+  // Sloppy eval compiles use the ScopeInfo of the context. Let's find it.
+  while (!scope_info.IsEmpty()) {
+    if (scope_info.HasContext()) {
+#ifdef DEBUG
+      ScopeInfo other_scope_info =
+          FindOuterScopeInfoFromScriptSfi(isolate, script);
+      DCHECK_IMPLIES(!other_scope_info.is_null(),
+                     scope_info == other_scope_info);
+#endif
+      return handle(scope_info, isolate);
+    } else if (!scope_info.HasOuterScopeInfo()) {
+      break;
+    }
+    scope_info = scope_info.OuterScopeInfo();
+  }
+
+  return kNullMaybeHandle;
+}
+
 }  // anonymous namespace
 
 void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
@@ -771,8 +840,11 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
   flags.set_is_eager(true);
   flags.set_is_reparse(true);
   ParseInfo parse_info(isolate, flags, &compile_state, &reusable_state);
+  MaybeHandle<ScopeInfo> outer_scope_info =
+      DetermineOuterScopeInfo(isolate, script);
   std::vector<FunctionLiteral*> literals;
-  if (!ParseScript(isolate, script, &parse_info, false, &literals, result))
+  if (!ParseScript(isolate, script, &parse_info, outer_scope_info, false,
+                   &literals, result))
     return;
 
   Handle<Script> new_script = isolate->factory()->CloneScript(script);
@@ -784,8 +856,8 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
   ParseInfo new_parse_info(isolate, new_flags, &new_compile_state,
                            &reusable_state);
   std::vector<FunctionLiteral*> new_literals;
-  if (!ParseScript(isolate, new_script, &new_parse_info, true, &new_literals,
-                   result)) {
+  if (!ParseScript(isolate, new_script, &new_parse_info, outer_scope_info, true,
+                   &new_literals, result)) {
     return;
   }
 
