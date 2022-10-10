@@ -2550,17 +2550,51 @@ void Float64Box::AllocateVreg(MaglevVregAllocationState* vreg_state) {
 void Float64Box::GenerateCode(MaglevAssembler* masm,
                               const ProcessingState& state) {
   DoubleRegister value = ToDoubleRegister(input());
-  Register object = ToRegister(result());
+  Register result_reg = ToRegister(result());
+
+  Label done, allocate;
+
+  DoubleRegister converted_back = kScratchDoubleReg;
+  Register truncated_int32 = kScratchRegister;
+  // Convert the input float64 value to int32.
+  __ Cvttsd2si(result_reg, value);
+  // Convert int32 value to Smi, and back again to truncate to Smi range. This
+  // might overflow, but we don't check for this explicitly since it should get
+  // caught by the compare against initial input below.
+  __ SmiTag(result_reg);
+  __ SmiUntag(truncated_int32, result_reg);
+  // Convert that int32 value back to float64.
+  __ Cvtlsi2sd(converted_back, truncated_int32);
+  // Check that the result of the float64->int32->float64 is equal to
+  // the input (i.e. that the conversion didn't truncate.
+  __ Ucomisd(value, converted_back);
+  __ j(not_equal, &allocate, Label::kNear);
+
+  // Check if {input} is -0.
+  __ cmpl(truncated_int32, Immediate(0));
+  __ j(not_equal, &done);
+
+  // In case of 0, we need to check the high bits for the IEEE -0 pattern.
+  Register high_word32_of_input = kScratchRegister;
+  __ Pextrd(high_word32_of_input, value, 1);
+  __ cmpl(high_word32_of_input, Immediate(0));
+  __ j(equal, &done);
+
   // In the case we need to call the runtime, we should spill the input
   // register. Even if it is not live in the next node, otherwise the allocation
   // call might trash it.
+  __ bind(&allocate);
   RegisterSnapshot save_registers = register_snapshot();
+  save_registers.live_registers.clear(result_reg);
+  save_registers.live_tagged_registers.clear(result_reg);
   save_registers.live_double_registers.set(value);
-  AllocateRaw(masm, save_registers, object, HeapNumber::kSize);
+  AllocateRaw(masm, save_registers, result_reg, HeapNumber::kSize);
   __ LoadRoot(kScratchRegister, RootIndex::kHeapNumberMap);
-  __ StoreTaggedField(FieldOperand(object, HeapObject::kMapOffset),
+  __ StoreTaggedField(FieldOperand(result_reg, HeapObject::kMapOffset),
                       kScratchRegister);
-  __ Movsd(FieldOperand(object, HeapNumber::kValueOffset), value);
+  __ Movsd(FieldOperand(result_reg, HeapNumber::kValueOffset), value);
+
+  __ bind(&done);
 }
 
 void CheckedFloat64Unbox::AllocateVreg(MaglevVregAllocationState* vreg_state) {
