@@ -2825,7 +2825,7 @@ bool AsyncStreamingProcessor::ProcessModuleHeader(
                          job_->context_id(), GetWasmEngine()->allocator());
   decoder_.DecodeModuleHeader(bytes, offset);
   if (!decoder_.ok()) {
-    FinishAsyncCompileJobWithError(decoder_.FinishDecoding().error());
+    FinishAsyncCompileJobWithError(decoder_.FinishDecoding(false).error());
     return false;
   }
   prefix_hash_ = GetWireBytesHash(bytes);
@@ -2851,7 +2851,7 @@ bool AsyncStreamingProcessor::ProcessSection(SectionCode section_code,
     size_t bytes_consumed = ModuleDecoder::IdentifyUnknownSection(
         &decoder_, bytes, offset, &section_code);
     if (!decoder_.ok()) {
-      FinishAsyncCompileJobWithError(decoder_.FinishDecoding().error());
+      FinishAsyncCompileJobWithError(decoder_.FinishDecoding(false).error());
       return false;
     }
     if (section_code == SectionCode::kUnknownSectionCode) {
@@ -2865,7 +2865,7 @@ bool AsyncStreamingProcessor::ProcessSection(SectionCode section_code,
   constexpr bool verify_functions = false;
   decoder_.DecodeSection(section_code, bytes, offset, verify_functions);
   if (!decoder_.ok()) {
-    FinishAsyncCompileJobWithError(decoder_.FinishDecoding().error());
+    FinishAsyncCompileJobWithError(decoder_.FinishDecoding(false).error());
     return false;
   }
   return true;
@@ -2884,7 +2884,7 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(
                                     static_cast<uint32_t>(code_section_length));
   if (!decoder_.CheckFunctionsCount(static_cast<uint32_t>(num_functions),
                                     functions_mismatch_error_offset)) {
-    FinishAsyncCompileJobWithError(decoder_.FinishDecoding().error());
+    FinishAsyncCompileJobWithError(decoder_.FinishDecoding(false).error());
     return false;
   }
 
@@ -2989,7 +2989,7 @@ void AsyncStreamingProcessor::OnFinishedStream(
     base::OwnedVector<uint8_t> bytes) {
   TRACE_STREAMING("Finish stream...\n");
   DCHECK_EQ(NativeModuleCache::PrefixHash(bytes.as_vector()), prefix_hash_);
-  ModuleResult result = decoder_.FinishDecoding();
+  ModuleResult result = decoder_.FinishDecoding(false);
   if (result.failed()) {
     FinishAsyncCompileJobWithError(result.error());
     return;

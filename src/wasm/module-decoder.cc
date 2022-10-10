@@ -191,7 +191,9 @@ bool ModuleDecoder::CheckFunctionsCount(uint32_t functions_count,
   return impl_->CheckFunctionsCount(functions_count, error_offset);
 }
 
-ModuleResult ModuleDecoder::FinishDecoding() { return impl_->FinishDecoding(); }
+ModuleResult ModuleDecoder::FinishDecoding(bool validate_functions) {
+  return impl_->FinishDecoding(validate_functions);
+}
 
 size_t ModuleDecoder::IdentifyUnknownSection(ModuleDecoder* decoder,
                                              base::Vector<const uint8_t> bytes,
