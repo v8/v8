@@ -208,6 +208,17 @@ struct OptimizationPhase<Analyzer, Assembler>::Impl {
     }
     if (!assembler.Bind(MapToNewGraph(input_block.index()))) {
       if constexpr (trace_reduction) TraceBlockUnreachable();
+      // If we eliminate a loop backedge, we need to turn the loop into a
+      // single-predecessor merge block.
+      const Operation& last_op =
+          *base::Reversed(input_graph.operations(input_block)).begin();
+      if (auto* final_goto = last_op.TryCast<GotoOp>()) {
+        if (final_goto->destination->IsLoop() &&
+            final_goto->destination->PredecessorCount() == 1) {
+          assembler.graph().TurnLoopIntoMerge(
+              MapToNewGraph(final_goto->destination->index()));
+        }
+      }
       assembler.ExitBlock(input_block);
       return;
     }
@@ -437,8 +448,14 @@ struct OptimizationPhase<Analyzer, Assembler>::Impl {
                                 MapToNewGraph(op.right()), op.kind, op.rep);
   }
   OpIndex ReduceChange(const ChangeOp& op) {
-    return assembler.Change(MapToNewGraph(op.input()), op.kind, op.from, op.to);
+    return assembler.Change(MapToNewGraph(op.input()), op.kind, op.assumption,
+                            op.from, op.to);
   }
+  OpIndex ReduceTryChange(const TryChangeOp& op) {
+    return assembler.TryChange(MapToNewGraph(op.input()), op.kind, op.from,
+                               op.to);
+  }
+
   OpIndex ReduceFloat64InsertWord32(const Float64InsertWord32Op& op) {
     return assembler.Float64InsertWord32(MapToNewGraph(op.float64()),
                                          MapToNewGraph(op.word32()), op.kind);
