@@ -168,7 +168,7 @@ void OptimizingCompileDispatcher::FlushQueues(
 void OptimizingCompileDispatcher::Flush(BlockingBehavior blocking_behavior) {
   HandleScope handle_scope(isolate_);
   FlushQueues(blocking_behavior, true);
-  if (FLAG_trace_concurrent_recompilation) {
+  if (v8_flags.trace_concurrent_recompilation) {
     PrintF("  ** Flushed concurrent recompilation queues. (mode: %s)\n",
            (blocking_behavior == BlockingBehavior::kBlock) ? "blocking"
                                                            : "non blocking");
@@ -200,7 +200,7 @@ void OptimizingCompileDispatcher::InstallOptimizedFunctions() {
     // If another racing task has already finished compiling and installing the
     // requested code kind on the function, throw out the current job.
     if (!info->is_osr() && function->HasAvailableCodeKind(info->code_kind())) {
-      if (FLAG_trace_concurrent_recompilation) {
+      if (v8_flags.trace_concurrent_recompilation) {
         PrintF("  ** Aborting compilation for ");
         function->ShortPrint();
         PrintF(" as it has already been optimized.\n");
