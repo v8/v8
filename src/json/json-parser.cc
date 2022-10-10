@@ -229,22 +229,11 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
     DCHECK(!val_node.is_null());
     Handle<JSObject> context =
         isolate_->factory()->NewJSObject(isolate_->object_function());
-    if (val_node->IsFixedArray()) {
-      Handle<FixedArray> array = Handle<FixedArray>::cast(val_node);
-      // We distinguish the primitive parse node from the JSArray parse node by
-      // whether it contains two Smi values.
-      if (array->length() == 2 && array->get(0).IsSmi()) {
-        int start_position;
-        int end_position;
-        CHECK(array->get(0).ToInt32(&start_position));
-        CHECK(array->get(1).ToInt32(&end_position));
-        Handle<String> val_node_text = isolate_->factory()->NewSubString(
-            source_, start_position, end_position);
-        JSReceiver::CreateDataProperty(isolate_, context,
-                                       isolate_->factory()->source_string(),
-                                       val_node_text, Just(kThrowOnError))
-            .Check();
-      }
+    if (val_node->IsString()) {
+      JSReceiver::CreateDataProperty(isolate_, context,
+                                     isolate_->factory()->source_string(),
+                                     val_node, Just(kThrowOnError))
+          .Check();
     }
     Handle<Object> argv[] = {name, value, context};
     ASSIGN_RETURN_ON_EXCEPTION(
@@ -950,20 +939,13 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue(Handle<Object> reviver) {
 
   Handle<Object> value;
 
-  // TODO(v8:12955): Given that v8_flags.string_slices is enabled by default, we
-  // could create a substring directly as the context's "source" property and
-  // use root strings for true/false/null cases.
-
   // We use val_node to record current json value's parse node. For primitive
-  // values, the val_node is a FixedArray containing the json value's start
-  // position and end postion in the source string, so we can lazily create the
-  // context's "source" property according to the start and end positions when
-  // invoking the reviver. For JSObject values, the val_node is an
-  // ObjectHashTable in which the key is the property name and the value is the
-  // property value's parse node. For JSArray values, the val_node is a
-  // FixedArray containing the parse nodes of the elements. And for JSObject
-  // values, The order in which properties are defined may be different from the
-  // order in which properties are enumerated when calling
+  // values, the val_node is the source string of the json value. For JSObject
+  // values, the val_node is an ObjectHashTable in which the key is the property
+  // name and the value is the property value's parse node. For JSArray values,
+  // the val_node is a FixedArray containing the parse nodes of the elements.
+  // And for JSObject values, The order in which properties are defined may be
+  // different from the order in which properties are enumerated when calling
   // InternalizeJSONProperty for the JSObject value. E.g., the json source
   // string is '{"a": 1, "1": 2}', and the properties enumerate order is ["1",
   // "a"]. Moreover, properties may be defined repeatedly in the json string.
@@ -977,7 +959,6 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue(Handle<Object> reviver) {
   // Record the start position and end position for the primitive values.
   int start_position;
   int end_position;
-  Handle<FixedArray> pos;
 
   // element_val_node_stack is used to track all the elements's parse node. And
   // we use this to construct the JSArray's parse node.
@@ -985,7 +966,6 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue(Handle<Object> reviver) {
   // property_val_node_stack is used to track all the property value's parse
   // node. And we use this to construct the JSObject's parse node.
   SmallVector<Handle<Object>> property_val_node_stack;
-  Handle<FixedArray> result;
   while (true) {
     // Produce a json value.
     //
@@ -1004,10 +984,20 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue(Handle<Object> reviver) {
         case JsonToken::STRING:
           Consume(JsonToken::STRING);
           value = MakeString(ScanJsonString(false));
+          if (should_track_json_source) {
+            end_position = position();
+            val_node = isolate_->factory()->NewSubString(
+                source_, start_position, end_position);
+          }
           break;
 
         case JsonToken::NUMBER:
           value = ParseJsonNumber();
+          if (should_track_json_source) {
+            end_position = position();
+            val_node = isolate_->factory()->NewSubString(
+                source_, start_position, end_position);
+          }
           break;
 
         case JsonToken::LBRACE: {
@@ -1058,16 +1048,25 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue(Handle<Object> reviver) {
         case JsonToken::TRUE_LITERAL:
           ScanLiteral("true");
           value = factory()->true_value();
+          if (should_track_json_source) {
+            val_node = isolate_->factory()->true_string();
+          }
           break;
 
         case JsonToken::FALSE_LITERAL:
           ScanLiteral("false");
           value = factory()->false_value();
+          if (should_track_json_source) {
+            val_node = isolate_->factory()->false_string();
+          }
           break;
 
         case JsonToken::NULL_LITERAL:
           ScanLiteral("null");
           value = factory()->null_value();
+          if (should_track_json_source) {
+            val_node = isolate_->factory()->null_string();
+          }
           break;
 
         case JsonToken::COLON:
@@ -1087,17 +1086,6 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue(Handle<Object> reviver) {
         case JsonToken::WHITESPACE:
           UNREACHABLE();
       }
-      // If it's a primitive value, we use FixedArray to save it's
-      // parse node, containing the parse node's start position and end
-      // position.
-      if (should_track_json_source && !value->IsJSArray() &&
-          !value->IsJSObject()) {
-        end_position = position();
-        pos = factory()->NewFixedArray(2);
-        pos->set(0, Smi::FromInt(start_position));
-        pos->set(1, Smi::FromInt(end_position));
-        val_node = pos;
-      }
       // Done producing a value, consume it.
       break;
     }
@@ -1113,7 +1101,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue(Handle<Object> reviver) {
         case JsonContinuation::kReturn:
           if (should_track_json_source) {
             DCHECK(!val_node.is_null());
-            result = factory()->NewFixedArray(2);
+            Handle<FixedArray> result = factory()->NewFixedArray(2);
             result->set(0, *value);
             result->set(1, *val_node);
             return cont.scope.CloseAndEscape(result);
