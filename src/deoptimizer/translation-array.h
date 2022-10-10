@@ -117,12 +117,12 @@ class TranslationArrayBuilder {
   void AddDoubleRegister(DoubleRegister reg);
 
   int Size() const {
-    return V8_UNLIKELY(FLAG_turbo_compress_translation_arrays)
+    return V8_UNLIKELY(v8_flags.turbo_compress_translation_arrays)
                ? static_cast<int>(contents_for_compression_.size())
                : static_cast<int>(contents_.size());
   }
   int SizeInBytes() const {
-    return V8_UNLIKELY(FLAG_turbo_compress_translation_arrays)
+    return V8_UNLIKELY(v8_flags.turbo_compress_translation_arrays)
                ? Size() * kInt32Size
                : Size();
   }
