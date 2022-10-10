@@ -45,6 +45,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMips64CvtSW:
     case kMips64DMulHigh:
     case kMips64DMulHighU:
+    case kMips64DMulOvf:
     case kMips64MulHighU:
     case kMips64Dadd:
     case kMips64DaddOvf:
@@ -1361,6 +1362,7 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kMips64Mul:
       return MulLatency();
     case kMips64MulOvf:
+    case kMips64DMulOvf:
       return MulOverflowLatency();
     case kMips64MulHigh:
       return MulhLatency();

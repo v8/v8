@@ -2534,6 +2534,9 @@ void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
               case IrOpcode::kInt32MulWithOverflow:
                 cont->OverwriteAndNegateIfEqual(kOverflow);
                 return VisitBinop(this, node, kMips64MulOvf, cont);
+              case IrOpcode::kInt64MulWithOverflow:
+                cont->OverwriteAndNegateIfEqual(kOverflow);
+                return VisitBinop(this, node, kMips64DMulOvf, cont);
               case IrOpcode::kInt64AddWithOverflow:
                 cont->OverwriteAndNegateIfEqual(kOverflow);
                 return VisitBinop(this, node, kMips64DaddOvf, cont);
@@ -2649,6 +2652,15 @@ void InstructionSelector::VisitInt32MulWithOverflow(Node* node) {
   }
   FlagsContinuation cont;
   VisitBinop(this, node, kMips64MulOvf, &cont);
+}
+
+void InstructionSelector::VisitInt64MulWithOverflow(Node* node) {
+  if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
+    FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
+    return VisitBinop(this, node, kMips64DMulOvf, &cont);
+  }
+  FlagsContinuation cont;
+  VisitBinop(this, node, kMips64DMulOvf, &cont);
 }
 
 void InstructionSelector::VisitInt64AddWithOverflow(Node* node) {

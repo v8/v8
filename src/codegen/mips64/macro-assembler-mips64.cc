@@ -5215,6 +5215,36 @@ void TurboAssembler::MulOverflow(Register dst, Register left,
   xor_(overflow, overflow, scratch);
 }
 
+void TurboAssembler::DMulOverflow(Register dst, Register left,
+                                  const Operand& right, Register overflow) {
+  ASM_CODE_COMMENT(this);
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  Register right_reg = no_reg;
+  Register scratch = t8;
+  if (!right.is_reg()) {
+    li(at, Operand(right));
+    right_reg = at;
+  } else {
+    right_reg = right.rm();
+  }
+
+  DCHECK(left != scratch && right_reg != scratch && dst != scratch &&
+         overflow != scratch);
+  DCHECK(overflow != left && overflow != right_reg);
+
+  if (dst == left || dst == right_reg) {
+    Dmul(scratch, left, right_reg);
+    Dmulh(overflow, left, right_reg);
+    mov(dst, scratch);
+  } else {
+    Dmul(dst, left, right_reg);
+    Dmulh(overflow, left, right_reg);
+  }
+
+  dsra32(scratch, dst, 31);
+  xor_(overflow, overflow, scratch);
+}
+
 void MacroAssembler::CallRuntime(const Runtime::Function* f, int num_arguments,
                                  SaveFPRegsMode save_doubles) {
   ASM_CODE_COMMENT(this);

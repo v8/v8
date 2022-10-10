@@ -956,6 +956,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ MulOverflow(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1),
                      kScratchReg);
       break;
+    case kMips64DMulOvf:
+      __ DMulOverflow(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1),
+                      kScratchReg);
+      break;
     case kMips64MulHigh:
       __ Mulh(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
@@ -3828,7 +3832,8 @@ void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
       default:
         UNSUPPORTED_COND(instr->arch_opcode(), condition);
     }
-  } else if (instr->arch_opcode() == kMips64MulOvf) {
+  } else if (instr->arch_opcode() == kMips64MulOvf ||
+             instr->arch_opcode() == kMips64DMulOvf) {
     // Overflow occurs if overflow register is not zero
     switch (condition) {
       case kOverflow:
@@ -3838,7 +3843,7 @@ void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
         __ Branch(tlabel, eq, kScratchReg, Operand(zero_reg));
         break;
       default:
-        UNSUPPORTED_COND(kMipsMulOvf, condition);
+        UNSUPPORTED_COND(instr->arch_opcode(), condition);
     }
   } else if (instr->arch_opcode() == kMips64Cmp) {
     Condition cc = FlagsConditionToConditionCmp(condition);
@@ -3978,7 +3983,8 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
              instr->arch_opcode() == kMips64DsubOvf) {
     // Overflow occurs if overflow register is negative
     __ slt(result, kScratchReg, zero_reg);
-  } else if (instr->arch_opcode() == kMips64MulOvf) {
+  } else if (instr->arch_opcode() == kMips64MulOvf ||
+             instr->arch_opcode() == kMips64MulOvf) {
     // Overflow occurs if overflow register is not zero
     __ Sgtu(result, kScratchReg, zero_reg);
   } else if (instr->arch_opcode() == kMips64Cmp) {
