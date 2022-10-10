@@ -2749,11 +2749,10 @@ void Compiler::CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
 
 // static
 MaybeHandle<SharedFunctionInfo> Compiler::CompileForLiveEdit(
-    ParseInfo* parse_info, Handle<Script> script,
-    MaybeHandle<ScopeInfo> outer_scope_info, Isolate* isolate) {
+    ParseInfo* parse_info, Handle<Script> script, Isolate* isolate) {
   IsCompiledScope is_compiled_scope;
-  return v8::internal::CompileToplevel(parse_info, script, outer_scope_info,
-                                       isolate, &is_compiled_scope);
+  return Compiler::CompileToplevel(parse_info, script, isolate,
+                                   &is_compiled_scope);
 }
 
 // static

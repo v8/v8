@@ -101,7 +101,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<SharedFunctionInfo>
   CompileForLiveEdit(ParseInfo* parse_info, Handle<Script> script,
-                     MaybeHandle<ScopeInfo> outer_scope_info, Isolate* isolate);
+                     Isolate* isolate);
 
   // Collect source positions for a function that has already been compiled to
   // bytecode, but for which source positions were not collected (e.g. because
