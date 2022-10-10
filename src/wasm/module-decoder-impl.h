@@ -471,7 +471,7 @@ class ModuleDecoderTemplate : public Decoder {
 
   void DecodeSection(SectionCode section_code,
                      base::Vector<const uint8_t> bytes, uint32_t offset,
-                     bool verify_functions = true) {
+                     bool validate_functions = true) {
     if (failed()) return;
     Reset(bytes, offset);
     TRACE("Section: %s\n", SectionName(section_code));
@@ -507,7 +507,7 @@ class ModuleDecoderTemplate : public Decoder {
         DecodeStartSection();
         break;
       case kCodeSectionCode:
-        DecodeCodeSection(verify_functions);
+        DecodeCodeSection(validate_functions);
         break;
       case kElementSectionCode:
         DecodeElementSection();
@@ -1118,7 +1118,7 @@ class ModuleDecoderTemplate : public Decoder {
     }
   }
 
-  void DecodeCodeSection(bool verify_functions) {
+  void DecodeCodeSection(bool validate_functions) {
     // Make sure global offset were calculated before they get accessed during
     // function compilation.
     CalculateGlobalOffsets(module_.get());
@@ -1148,7 +1148,7 @@ class ModuleDecoderTemplate : public Decoder {
       uint32_t offset = pc_offset();
       consume_bytes(size, "function body");
       if (failed()) break;
-      DecodeFunctionBody(function_index, size, offset, verify_functions);
+      DecodeFunctionBody(function_index, size, offset, validate_functions);
 
       // Now that the function has been decoded, we can compute module offsets.
       for (; inst_traces_it != this->inst_traces_.end() &&
@@ -1192,15 +1192,15 @@ class ModuleDecoderTemplate : public Decoder {
   }
 
   void DecodeFunctionBody(uint32_t index, uint32_t length, uint32_t offset,
-                          bool verify_functions) {
+                          bool validate_functions) {
     WasmFunction* function = &module_->functions[index];
     function->code = {offset, length};
     tracer_.FunctionBody(function, pc_ - (pc_offset() - offset));
-    if (verify_functions) {
+    if (validate_functions) {
       ModuleWireBytes bytes(module_start_, module_end_);
-      VerifyFunctionBody(module_->signature_zone->allocator(),
-                         index + module_->num_imported_functions, bytes,
-                         module_.get(), function);
+      ValidateFunctionBody(module_->signature_zone->allocator(),
+                           index + module_->num_imported_functions, bytes,
+                           module_.get(), function);
     }
   }
 
@@ -1627,7 +1627,7 @@ class ModuleDecoderTemplate : public Decoder {
     return true;
   }
 
-  ModuleResult FinishDecoding(bool verify_functions = true) {
+  ModuleResult FinishDecoding(bool validate_functions = true) {
     if (ok() && CheckMismatchedCounts()) {
       // We calculate the global offsets here, because there may not be a
       // global section and code section that would have triggered the
@@ -1637,7 +1637,7 @@ class ModuleDecoderTemplate : public Decoder {
     }
 
     ModuleResult result = toResult(std::move(module_));
-    if (verify_functions && result.ok() && intermediate_error_.has_error()) {
+    if (validate_functions && result.ok() && intermediate_error_.has_error()) {
       // Copy error message and location.
       return ModuleResult{std::move(intermediate_error_)};
     }
@@ -1646,13 +1646,13 @@ class ModuleDecoderTemplate : public Decoder {
 
   // Decodes an entire module.
   ModuleResult DecodeModule(Counters* counters, AccountingAllocator* allocator,
-                            bool verify_functions = true) {
+                            bool validate_functions = true) {
     StartDecoding(counters, allocator);
     uint32_t offset = 0;
     base::Vector<const byte> orig_bytes(start(), end() - start());
     DecodeModuleHeader(base::VectorOf(start(), end() - start()), offset);
     if (failed()) {
-      return FinishDecoding(verify_functions);
+      return FinishDecoding(validate_functions);
     }
     // Size of the module header.
     offset += 8;
@@ -1665,7 +1665,7 @@ class ModuleDecoderTemplate : public Decoder {
       offset += section_iter.payload_start() - section_iter.section_start();
       if (section_iter.section_code() != SectionCode::kUnknownSectionCode) {
         DecodeSection(section_iter.section_code(), section_iter.payload(),
-                      offset, verify_functions);
+                      offset, validate_functions);
       }
       // Shift the offset by the remaining section payload
       offset += section_iter.payload_length();
@@ -1679,7 +1679,7 @@ class ModuleDecoderTemplate : public Decoder {
       return decoder.toResult<std::shared_ptr<WasmModule>>(nullptr);
     }
 
-    return FinishDecoding(verify_functions);
+    return FinishDecoding(validate_functions);
   }
 
   // Decodes a single anonymous function starting at {start_}.
@@ -1693,8 +1693,9 @@ class ModuleDecoderTemplate : public Decoder {
     function.sig = consume_sig(zone);
     function.code = {off(pc_), static_cast<uint32_t>(end_ - pc_)};
 
-    if (ok())
-      VerifyFunctionBody(zone->allocator(), 0, wire_bytes, module, &function);
+    if (ok()) {
+      ValidateFunctionBody(zone->allocator(), 0, wire_bytes, module, &function);
+    }
 
     if (intermediate_error_.has_error()) {
       return FunctionResult{std::move(intermediate_error_)};
@@ -1815,9 +1816,9 @@ class ModuleDecoderTemplate : public Decoder {
   }
 
   // Verifies the body (code) of a given function.
-  void VerifyFunctionBody(AccountingAllocator* allocator, uint32_t func_num,
-                          const ModuleWireBytes& wire_bytes,
-                          const WasmModule* module, WasmFunction* function) {
+  void ValidateFunctionBody(AccountingAllocator* allocator, uint32_t func_num,
+                            const ModuleWireBytes& wire_bytes,
+                            const WasmModule* module, WasmFunction* function) {
     if (v8_flags.trace_wasm_decoder) {
       WasmFunctionName func_name(function,
                                  wire_bytes.GetNameOrNull(function, module));
@@ -1829,8 +1830,8 @@ class ModuleDecoderTemplate : public Decoder {
         start_ + GetBufferRelativeOffset(function->code.end_offset())};
 
     WasmFeatures unused_detected_features = WasmFeatures::None();
-    DecodeResult result = VerifyWasmCode(allocator, enabled_features_, module,
-                                         &unused_detected_features, body);
+    DecodeResult result = wasm::ValidateFunctionBody(
+        allocator, enabled_features_, module, &unused_detected_features, body);
 
     // If the decode failed and this is the first error, set error code and
     // location.

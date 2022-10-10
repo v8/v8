@@ -48,10 +48,11 @@ BytecodeIterator::BytecodeIterator(const byte* start, const byte* end,
   }
 }
 
-DecodeResult VerifyWasmCode(AccountingAllocator* allocator,
-                            const WasmFeatures& enabled,
-                            const WasmModule* module, WasmFeatures* detected,
-                            const FunctionBody& body) {
+DecodeResult ValidateFunctionBody(AccountingAllocator* allocator,
+                                  const WasmFeatures& enabled,
+                                  const WasmModule* module,
+                                  WasmFeatures* detected,
+                                  const FunctionBody& body) {
   Zone zone(allocator, ZONE_NAME);
   WasmFullDecoder<Decoder::kFullValidation, EmptyInterface> decoder(
       &zone, module, enabled, detected, body);

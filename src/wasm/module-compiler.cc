@@ -1097,10 +1097,9 @@ DecodeResult ValidateSingleFunction(const WasmModule* module, int func_index,
                                     WasmFeatures enabled_features) {
   const WasmFunction* func = &module->functions[func_index];
   FunctionBody body{func->sig, func->code.offset(), code.begin(), code.end()};
-  DecodeResult result;
-
-  WasmFeatures detected;
-  return VerifyWasmCode(allocator, enabled_features, module, &detected, body);
+  WasmFeatures detected_features;
+  return ValidateFunctionBody(allocator, enabled_features, module,
+                              &detected_features, body);
 }
 
 enum OnlyLazyFunctions : bool {

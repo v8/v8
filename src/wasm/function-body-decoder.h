@@ -42,11 +42,9 @@ struct FunctionBody {
 
 enum class LoadTransformationKind : uint8_t { kSplat, kExtend, kZeroExtend };
 
-V8_EXPORT_PRIVATE DecodeResult VerifyWasmCode(AccountingAllocator* allocator,
-                                              const WasmFeatures& enabled,
-                                              const WasmModule* module,
-                                              WasmFeatures* detected,
-                                              const FunctionBody& body);
+V8_EXPORT_PRIVATE DecodeResult ValidateFunctionBody(
+    AccountingAllocator* allocator, const WasmFeatures& enabled,
+    const WasmModule* module, WasmFeatures* detected, const FunctionBody& body);
 
 enum PrintLocals { kPrintLocals, kOmitLocals };
 V8_EXPORT_PRIVATE
