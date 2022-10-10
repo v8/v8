@@ -1678,9 +1678,8 @@ class ModuleDecoderTemplate : public Decoder {
   }
 
   // Decodes a single anonymous function starting at {start_}.
-  FunctionResult DecodeSingleFunction(Zone* zone,
-                                      const ModuleWireBytes& wire_bytes,
-                                      const WasmModule* module) {
+  FunctionResult DecodeSingleFunctionForTesting(
+      Zone* zone, const ModuleWireBytes& wire_bytes, const WasmModule* module) {
     pc_ = start_;
     expect_u8("type form", kWasmFunctionTypeCode);
     WasmFunction function;

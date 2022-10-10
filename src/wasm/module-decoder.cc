@@ -236,7 +236,7 @@ FunctionResult DecodeWasmFunctionForTesting(
   }
   ModuleDecoderImpl decoder(enabled, function_start, function_end, kWasmOrigin);
   decoder.SetCounters(counters);
-  return decoder.DecodeSingleFunction(zone, wire_bytes, module);
+  return decoder.DecodeSingleFunctionForTesting(zone, wire_bytes, module);
 }
 
 AsmJsOffsetsResult DecodeAsmJsOffsets(
