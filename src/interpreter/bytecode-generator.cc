@@ -6597,6 +6597,7 @@ void BytecodeGenerator::VisitSuperPropertyReference(
 
 void BytecodeGenerator::VisitCommaExpression(BinaryOperation* binop) {
   VisitForEffect(binop->left());
+  builder()->SetExpressionAsStatementPosition(binop->right());
   Visit(binop->right());
 }
 
@@ -6605,8 +6606,11 @@ void BytecodeGenerator::VisitNaryCommaExpression(NaryOperation* expr) {
 
   VisitForEffect(expr->first());
   for (size_t i = 0; i < expr->subsequent_length() - 1; ++i) {
+    builder()->SetExpressionAsStatementPosition(expr->subsequent(i));
     VisitForEffect(expr->subsequent(i));
   }
+  builder()->SetExpressionAsStatementPosition(
+      expr->subsequent(expr->subsequent_length() - 1));
   Visit(expr->subsequent(expr->subsequent_length() - 1));
 }
 
