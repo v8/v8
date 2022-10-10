@@ -1375,6 +1375,9 @@ config("toolchain") {
 
       # TODO(v8:12245): Fix shadowing instances and remove.
       "-Wno-shadow",
+
+      # Disable this check on 10.6 to avoid merging multiple fixes.
+      "-Wno-extra-semi",
     ]
 
     if (v8_current_cpu != "mips" && v8_current_cpu != "mipsel") {
