@@ -1627,7 +1627,7 @@ class ModuleDecoderTemplate : public Decoder {
     return true;
   }
 
-  ModuleResult FinishDecoding(bool validate_functions = true) {
+  ModuleResult FinishDecoding() {
     if (ok() && CheckMismatchedCounts()) {
       // We calculate the global offsets here, because there may not be a
       // global section and code section that would have triggered the
@@ -1636,12 +1636,7 @@ class ModuleDecoderTemplate : public Decoder {
       CalculateGlobalOffsets(module_.get());
     }
 
-    ModuleResult result = toResult(std::move(module_));
-    if (validate_functions && result.ok() && intermediate_error_.has_error()) {
-      // Copy error message and location.
-      return ModuleResult{std::move(intermediate_error_)};
-    }
-    return result;
+    return toResult(std::move(module_));
   }
 
   // Decodes an entire module.
@@ -1652,7 +1647,7 @@ class ModuleDecoderTemplate : public Decoder {
     base::Vector<const byte> orig_bytes(start(), end() - start());
     DecodeModuleHeader(base::VectorOf(start(), end() - start()), offset);
     if (failed()) {
-      return FinishDecoding(validate_functions);
+      return FinishDecoding();
     }
     // Size of the module header.
     offset += 8;
@@ -1679,7 +1674,7 @@ class ModuleDecoderTemplate : public Decoder {
       return decoder.toResult<std::shared_ptr<WasmModule>>(nullptr);
     }
 
-    return FinishDecoding(validate_functions);
+    return FinishDecoding();
   }
 
   // Decodes a single anonymous function starting at {start_}.
@@ -1688,18 +1683,13 @@ class ModuleDecoderTemplate : public Decoder {
                                       const WasmModule* module) {
     pc_ = start_;
     expect_u8("type form", kWasmFunctionTypeCode);
-    if (!ok()) return FunctionResult{std::move(intermediate_error_)};
     WasmFunction function;
     function.sig = consume_sig(zone);
     function.code = {off(pc_), static_cast<uint32_t>(end_ - pc_)};
+    if (!ok()) return FunctionResult{std::move(error_)};
 
-    if (ok()) {
-      ValidateFunctionBody(zone->allocator(), 0, wire_bytes, module, &function);
-    }
-
-    if (intermediate_error_.has_error()) {
-      return FunctionResult{std::move(intermediate_error_)};
-    }
+    ValidateFunctionBody(zone->allocator(), 0, wire_bytes, module, &function);
+    if (!ok()) return FunctionResult{std::move(error_)};
 
     return FunctionResult{std::make_unique<WasmFunction>(function)};
   }
@@ -1748,7 +1738,6 @@ class ModuleDecoderTemplate : public Decoder {
       kBitsPerByte * sizeof(ModuleDecoderTemplate::seen_unordered_sections_) >
           kLastKnownModuleSection,
       "not enough bits");
-  WasmError intermediate_error_;
   ModuleOrigin origin_;
   AccountingAllocator allocator_;
   Zone init_expr_zone_{&allocator_, "constant expr. zone"};
@@ -1835,14 +1824,14 @@ class ModuleDecoderTemplate : public Decoder {
 
     // If the decode failed and this is the first error, set error code and
     // location.
-    if (result.failed() && intermediate_error_.empty()) {
+    if (result.failed() && error_.empty()) {
       // Wrap the error message from the function decoder.
       WasmFunctionName func_name(function,
                                  wire_bytes.GetNameOrNull(function, module));
       std::ostringstream error_msg;
       error_msg << "in function " << func_name << ": "
                 << result.error().message();
-      intermediate_error_ = WasmError{result.error().offset(), error_msg.str()};
+      error_ = WasmError{result.error().offset(), error_msg.str()};
     }
   }
 
