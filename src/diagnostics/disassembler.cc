@@ -365,7 +365,8 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
     }
 
     // Instruction address and instruction offset.
-    if (FLAG_log_colour && reinterpret_cast<Address>(prev_pc) == current_pc) {
+    if (v8_flags.log_colour &&
+        reinterpret_cast<Address>(prev_pc) == current_pc) {
       // If this is the given "current" pc, make it yellow and bold.
       out << "\033[33;1m";
     }
@@ -421,7 +422,8 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
       }
     }
 
-    if (FLAG_log_colour && reinterpret_cast<Address>(prev_pc) == current_pc) {
+    if (v8_flags.log_colour &&
+        reinterpret_cast<Address>(prev_pc) == current_pc) {
       out << "\033[m";
     }
 
@@ -440,7 +442,7 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
 
 int Disassembler::Decode(Isolate* isolate, std::ostream& os, byte* begin,
                          byte* end, CodeReference code, Address current_pc) {
-  DCHECK_WITH_MSG(FLAG_text_is_readable,
+  DCHECK_WITH_MSG(v8_flags.text_is_readable,
                   "Builtins disassembly requires a readable .text section");
   V8NameConverter v8NameConverter(isolate, code);
   if (isolate) {

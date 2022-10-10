@@ -1100,9 +1100,9 @@ void CodeDataContainer::CodeDataContainerVerify(Isolate* isolate) {
       CHECK_EQ(code.kind(), kind());
       CHECK_EQ(code.builtin_id(), builtin_id());
       if (V8_REMOVE_BUILTINS_CODE_OBJECTS) {
-        // When FLAG_interpreted_frames_native_stack is enabled each interpreted
-        // function gets its own copy of the InterpreterEntryTrampoline.
-        // Thus, there could be Code'ful builtins.
+        // When v8_flags.interpreted_frames_native_stack is enabled each
+        // interpreted function gets its own copy of the
+        // InterpreterEntryTrampoline. Thus, there could be Code'ful builtins.
         CHECK_IMPLIES(isolate->embedded_blob_code() && is_off_heap_trampoline(),
                       builtin_id() == Builtin::kInterpreterEntryTrampoline);
       }
@@ -1928,7 +1928,7 @@ void Script::ScriptVerify(Isolate* isolate) {
 
 void NormalizedMapCache::NormalizedMapCacheVerify(Isolate* isolate) {
   WeakFixedArray::cast(*this).WeakFixedArrayVerify(isolate);
-  if (FLAG_enable_slow_asserts) {
+  if (v8_flags.enable_slow_asserts) {
     for (int i = 0; i < length(); i++) {
       MaybeObject e = WeakFixedArray::Get(i);
       HeapObject heap_object;
