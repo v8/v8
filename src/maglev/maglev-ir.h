@@ -15,6 +15,7 @@
 #include "src/common/globals.h"
 #include "src/common/operation.h"
 #include "src/compiler/backend/instruction.h"
+#include "src/compiler/feedback-source.h"
 #include "src/compiler/heap-refs.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/interpreter/bytecode-flags.h"
@@ -1878,7 +1879,8 @@ class TestInstanceOf : public FixedInputValueNodeT<3, TestInstanceOf> {
   using Base = FixedInputValueNodeT<3, TestInstanceOf>;
 
  public:
-  explicit TestInstanceOf(uint64_t bitfield) : Base(bitfield) {}
+  explicit TestInstanceOf(uint64_t bitfield, compiler::FeedbackSource feedback)
+      : Base(bitfield), feedback_(feedback) {}
 
   // The implementation currently calls runtime.
   static constexpr OpProperties kProperties = OpProperties::JSCall();
@@ -1886,8 +1888,12 @@ class TestInstanceOf : public FixedInputValueNodeT<3, TestInstanceOf> {
   Input& context() { return input(0); }
   Input& object() { return input(1); }
   Input& callable() { return input(2); }
+  compiler::FeedbackSource feedback() const { return feedback_; }
 
   DECL_NODE_INTERFACE_WITH_EMPTY_PRINT_PARAMS()
+
+ private:
+  const compiler::FeedbackSource feedback_;
 };
 
 class TestUndetectable : public FixedInputValueNodeT<1, TestUndetectable> {

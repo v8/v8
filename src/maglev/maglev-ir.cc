@@ -2705,7 +2705,7 @@ void TaggedNotEqual::GenerateCode(MaglevAssembler* masm,
 }
 
 void TestInstanceOf::AllocateVreg(MaglevVregAllocationState* vreg_state) {
-  using D = CallInterfaceDescriptorFor<Builtin::kInstanceOf>::type;
+  using D = CallInterfaceDescriptorFor<Builtin::kInstanceOf_WithFeedback>::type;
   UseFixed(context(), kContextRegister);
   UseFixed(object(), D::GetRegisterParameter(D::kLeft));
   UseFixed(callable(), D::GetRegisterParameter(D::kRight));
@@ -2713,13 +2713,15 @@ void TestInstanceOf::AllocateVreg(MaglevVregAllocationState* vreg_state) {
 }
 void TestInstanceOf::GenerateCode(MaglevAssembler* masm,
                                   const ProcessingState& state) {
+  using D = CallInterfaceDescriptorFor<Builtin::kInstanceOf_WithFeedback>::type;
 #ifdef DEBUG
-  using D = CallInterfaceDescriptorFor<Builtin::kInstanceOf>::type;
   DCHECK_EQ(ToRegister(context()), kContextRegister);
   DCHECK_EQ(ToRegister(object()), D::GetRegisterParameter(D::kLeft));
   DCHECK_EQ(ToRegister(callable()), D::GetRegisterParameter(D::kRight));
 #endif
-  __ CallBuiltin(Builtin::kInstanceOf);
+  __ Move(D::GetRegisterParameter(D::kFeedbackVector), feedback().vector);
+  __ Move(D::GetRegisterParameter(D::kSlot), Immediate(feedback().index()));
+  __ CallBuiltin(Builtin::kInstanceOf_WithFeedback);
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 

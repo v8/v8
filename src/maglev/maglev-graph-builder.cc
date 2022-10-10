@@ -2577,10 +2577,9 @@ void MaglevGraphBuilder::VisitTestInstanceOf() {
 
   // TODO(victorgomes): Check feedback slot and a do static lookup for
   // @@hasInstance.
-  USE(feedback_source);
-
   ValueNode* context = GetContext();
-  SetAccumulator(AddNewNode<TestInstanceOf>({context, object, callable}));
+  SetAccumulator(
+      AddNewNode<TestInstanceOf>({context, object, callable}, feedback_source));
 }
 
 void MaglevGraphBuilder::VisitTestIn() {
