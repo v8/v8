@@ -2909,83 +2909,6 @@ void Builtins::Generate_MaglevOutOfLinePrologue(MacroAssembler* masm) {
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-
-// Returns the offset beyond the last saved FP register.
-int SaveWasmParams(MacroAssembler* masm) {
-  // Save all parameter registers (see wasm-linkage.h). They might be
-  // overwritten in the subsequent runtime call. We don't have any callee-saved
-  // registers in wasm, so no need to store anything else.
-  static_assert(WasmCompileLazyFrameConstants::kNumberOfSavedGpParamRegs + 1 ==
-                    arraysize(wasm::kGpParamRegisters),
-                "frame size mismatch");
-  for (Register reg : wasm::kGpParamRegisters) {
-    __ Push(reg);
-  }
-  static_assert(WasmCompileLazyFrameConstants::kNumberOfSavedFpParamRegs ==
-                    arraysize(wasm::kFpParamRegisters),
-                "frame size mismatch");
-  __ AllocateStackSpace(kSimd128Size * arraysize(wasm::kFpParamRegisters));
-  int offset = 0;
-  for (DoubleRegister reg : wasm::kFpParamRegisters) {
-    __ movdqu(Operand(rsp, offset), reg);
-    offset += kSimd128Size;
-  }
-  return offset;
-}
-
-// Consumes the offset beyond the last saved FP register (as returned by
-// {SaveWasmParams}).
-void RestoreWasmParams(MacroAssembler* masm, int offset) {
-  for (DoubleRegister reg : base::Reversed(wasm::kFpParamRegisters)) {
-    offset -= kSimd128Size;
-    __ movdqu(reg, Operand(rsp, offset));
-  }
-  DCHECK_EQ(0, offset);
-  __ addq(rsp, Immediate(kSimd128Size * arraysize(wasm::kFpParamRegisters)));
-  for (Register reg : base::Reversed(wasm::kGpParamRegisters)) {
-    __ Pop(reg);
-  }
-}
-
-void Builtins::Generate_WasmGetFeedbackVector(MacroAssembler* masm) {
-  Register func_index = wasm::kGetFeedbackVectorFunctionReg;
-  Register result = wasm::kGetFeedbackVectorResultReg;
-
-  __ LoadTaggedPointerField(
-      result, FieldOperand(kWasmInstanceRegister,
-                           WasmInstanceObject::kFeedbackVectorsOffset));
-  __ LoadTaggedPointerField(result,
-                            FieldOperand(result, func_index, times_tagged_size,
-                                         FixedArray::kHeaderSize));
-  Label allocate_vector;
-  __ JumpIfSmi(result, &allocate_vector);
-  __ ret(0);
-
-  __ bind(&allocate_vector);
-  {
-    // Feedback vector doesn't exist yet. Call the runtime to allocate it.
-    // We're re-using the CompileLazy frame type because it has the same
-    // requirements: don't disturb the function arguments that are still
-    // in registers and/or on the stack.
-    FrameScope scope(masm, StackFrame::WASM_COMPILE_LAZY);
-    int offset = SaveWasmParams(masm);
-
-    // Arguments to the runtime function: instance, func_index.
-    __ Push(kWasmInstanceRegister);
-    __ SmiTag(func_index);
-    __ Push(func_index);
-    // Allocate a stack slot where the runtime function can spill a pointer
-    // to the NativeModule.
-    __ Push(rsp);
-    __ Move(kContextRegister, Smi::zero());
-    __ CallRuntime(Runtime::kWasmAllocateFeedbackVector, 3);
-    __ movq(result, kReturnRegister0);
-
-    RestoreWasmParams(masm, offset);
-  }
-  __ ret(0);
-}
-
 void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
   // The function index was pushed to the stack by the caller as int32.
   __ Pop(r15);
@@ -2996,7 +2919,25 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     HardAbortScope hard_abort(masm);  // Avoid calls to Abort.
     FrameScope scope(masm, StackFrame::WASM_COMPILE_LAZY);
 
-    int offset = SaveWasmParams(masm);
+    // Save all parameter registers (see wasm-linkage.h). They might be
+    // overwritten in the runtime call below. We don't have any callee-saved
+    // registers in wasm, so no need to store anything else.
+    static_assert(
+        WasmCompileLazyFrameConstants::kNumberOfSavedGpParamRegs + 1 ==
+            arraysize(wasm::kGpParamRegisters),
+        "frame size mismatch");
+    for (Register reg : wasm::kGpParamRegisters) {
+      __ Push(reg);
+    }
+    static_assert(WasmCompileLazyFrameConstants::kNumberOfSavedFpParamRegs ==
+                      arraysize(wasm::kFpParamRegisters),
+                  "frame size mismatch");
+    __ AllocateStackSpace(kSimd128Size * arraysize(wasm::kFpParamRegisters));
+    int offset = 0;
+    for (DoubleRegister reg : wasm::kFpParamRegisters) {
+      __ movdqu(Operand(rsp, offset), reg);
+      offset += kSimd128Size;
+    }
 
     // Push the Wasm instance as an explicit argument to the runtime function.
     __ Push(kWasmInstanceRegister);
@@ -3015,7 +2956,16 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     __ SmiUntagUnsigned(kReturnRegister0);
     __ movq(r15, kReturnRegister0);
 
-    RestoreWasmParams(masm, offset);
+    // Restore registers.
+    for (DoubleRegister reg : base::Reversed(wasm::kFpParamRegisters)) {
+      offset -= kSimd128Size;
+      __ movdqu(reg, Operand(rsp, offset));
+    }
+    DCHECK_EQ(0, offset);
+    __ addq(rsp, Immediate(kSimd128Size * arraysize(wasm::kFpParamRegisters)));
+    for (Register reg : base::Reversed(wasm::kGpParamRegisters)) {
+      __ Pop(reg);
+    }
     // After the instance register has been restored, we can add the jump table
     // start to the jump table offset already stored in r15.
     __ addq(r15, MemOperand(kWasmInstanceRegister,

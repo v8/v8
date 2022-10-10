@@ -619,7 +619,6 @@ namespace internal {
   F(WasmTableFill, 5, 1)              \
   F(WasmJSToWasmObject, 3, 1)         \
   F(WasmCompileLazy, 3, 1)            \
-  F(WasmAllocateFeedbackVector, 3, 1) \
   F(WasmCompileWrapper, 2, 1)         \
   F(WasmTriggerTierUp, 1, 1)          \
   F(WasmDebugBreak, 0, 1)             \

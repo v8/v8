@@ -54,7 +54,6 @@ struct WasmModule;
   FOREACH_WASM_TRAPREASON(VTRAP)         \
   V(WasmCompileLazy)                     \
   V(WasmTriggerTierUp)                   \
-  V(WasmGetFeedbackVector)               \
   V(WasmDebugBreak)                      \
   V(WasmInt32ToHeapNumber)               \
   V(WasmTaggedNonSmiToInt32)             \

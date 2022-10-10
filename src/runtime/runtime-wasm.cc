@@ -263,35 +263,6 @@ RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
   return Smi::FromInt(wasm::JumpTableOffset(instance->module(), func_index));
 }
 
-// Uses the same stack layout as WasmCompileLazy, so that the stack walker
-// can handle them in the same way when it visits parameters to the called
-// function.
-RUNTIME_FUNCTION(Runtime_WasmAllocateFeedbackVector) {
-  ClearThreadInWasmScope wasm_flag(isolate);
-  DCHECK(v8_flags.wasm_speculative_inlining);
-  HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-  Handle<WasmInstanceObject> instance(WasmInstanceObject::cast(args[0]),
-                                      isolate);
-  int declared_func_index = args.smi_value_at(1);
-  wasm::NativeModule** native_module_stack_slot =
-      reinterpret_cast<wasm::NativeModule**>(args.address_of_arg_at(2));
-  wasm::NativeModule* native_module = instance->module_object().native_module();
-  // We have to save the native_module on the stack, in case the allocation
-  // triggers a GC and we need the module to scan WasmCompileLazy stack frame.
-  *native_module_stack_slot = native_module;
-
-  DCHECK(isolate->context().is_null());
-  isolate->set_context(instance->native_context());
-
-  const wasm::WasmModule* module = native_module->module();
-  int func_index = declared_func_index + module->num_imported_functions;
-  Handle<FixedArray> vector = isolate->factory()->NewFixedArrayWithZeroes(
-      NumFeedbackSlots(module, func_index));
-  instance->feedback_vectors().set(declared_func_index, *vector);
-  return *vector;
-}
-
 namespace {
 void ReplaceWrapper(Isolate* isolate, Handle<WasmInstanceObject> instance,
                     int function_index, Handle<CodeT> wrapper_code) {

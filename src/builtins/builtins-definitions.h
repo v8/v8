@@ -983,7 +983,6 @@ namespace internal {
   IF_WASM(ASM, WasmResume, WasmDummy)                                          \
   IF_WASM(ASM, WasmReject, WasmDummy)                                          \
   IF_WASM(ASM, WasmCompileLazy, WasmDummy)                                     \
-  IF_WASM(ASM, WasmGetFeedbackVector, WasmDummy)                               \
   IF_WASM(ASM, WasmDebugBreak, WasmDummy)                                      \
   IF_WASM(ASM, WasmOnStackReplace, WasmDummy)                                  \
   IF_WASM(TFC, WasmFloat32ToNumber, WasmFloat32ToNumber)                       \

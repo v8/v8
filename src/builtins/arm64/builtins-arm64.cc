@@ -26,12 +26,11 @@
 #include "src/runtime/runtime.h"
 
 #if V8_ENABLE_WEBASSEMBLY
-#include "src/wasm/baseline/liftoff-assembler-defs.h"
+#include "src/wasm/wasm-linkage.h"
+#include "src/wasm/wasm-objects.h"
 #include "src/wasm/object-access.h"
 #include "src/wasm/stacks.h"
 #include "src/wasm/wasm-constants.h"
-#include "src/wasm/wasm-linkage.h"
-#include "src/wasm/wasm-objects.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 #if defined(V8_OS_WIN)
@@ -2923,92 +2922,48 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-// Compute register lists for parameters to be saved. We save all parameter
-// registers (see wasm-linkage.h). They might be overwritten in runtime
-// calls. We don't have any callee-saved registers in wasm, so no need to
-// store anything else.
-constexpr RegList kSavedGpRegs = ([]() constexpr {
-  RegList saved_gp_regs;
-  for (Register gp_param_reg : wasm::kGpParamRegisters) {
-    saved_gp_regs.set(gp_param_reg);
-  }
-  // Also push x1, because we must push multiples of 16 bytes (see
-  // {TurboAssembler::PushCPURegList}).
-  saved_gp_regs.set(x1);
-  // All set registers were unique.
-  CHECK_EQ(saved_gp_regs.Count(), arraysize(wasm::kGpParamRegisters) + 1);
-  // We push a multiple of 16 bytes.
-  CHECK_EQ(0, saved_gp_regs.Count() % 2);
-  // The Wasm instance must be part of the saved registers.
-  CHECK(saved_gp_regs.has(kWasmInstanceRegister));
-  // + instance + alignment
-  CHECK_EQ(WasmCompileLazyFrameConstants::kNumberOfSavedGpParamRegs + 2,
-           saved_gp_regs.Count());
-  return saved_gp_regs;
-})();
-
-constexpr DoubleRegList kSavedFpRegs = ([]() constexpr {
-  DoubleRegList saved_fp_regs;
-  for (DoubleRegister fp_param_reg : wasm::kFpParamRegisters) {
-    saved_fp_regs.set(fp_param_reg);
-  }
-
-  CHECK_EQ(saved_fp_regs.Count(), arraysize(wasm::kFpParamRegisters));
-  CHECK_EQ(WasmCompileLazyFrameConstants::kNumberOfSavedFpParamRegs,
-           saved_fp_regs.Count());
-  return saved_fp_regs;
-})();
-
-void Builtins::Generate_WasmGetFeedbackVector(MacroAssembler* masm) {
-  Register func_index = wasm::kGetFeedbackVectorFunctionReg;
-  Register result = wasm::kGetFeedbackVectorResultReg;
-
-  __ LoadTaggedPointerField(
-      result, FieldMemOperand(kWasmInstanceRegister,
-                              WasmInstanceObject::kFeedbackVectorsOffset));
-  UseScratchRegisterScope temps(masm);
-  Register tmp = temps.AcquireX();
-  __ Add(tmp, result, Operand(func_index, LSL, kTaggedSizeLog2));
-  __ LoadTaggedPointerField(result,
-                            FieldMemOperand(tmp, FixedArray::kHeaderSize));
-  Label allocate_vector;
-  __ JumpIfSmi(result, &allocate_vector);
-  __ Ret();
-
-  __ bind(&allocate_vector);
-  {
-    // Feedback vector doesn't exist yet. Call the runtime to allocate it.
-    // We're re-using the CompileLazy frame type because it has the same
-    // requirements: don't disturb the function arguments that are still
-    // in registers and/or on the stack.
-    FrameScope scope(masm, StackFrame::WASM_COMPILE_LAZY);
-
-    // Save registers.
-    __ PushXRegList(kSavedGpRegs);
-    __ PushQRegList(kSavedFpRegs);
-
-    // Arguments to the runtime function: instance, func_index, and an
-    // additional stack slot for the NativeModule. The first pushed register
-    // is for alignment. {x0} and {x1} are picked arbitrarily.
-    __ SmiTag(func_index);
-    __ Push(x0, kWasmInstanceRegister, func_index, x1);
-    __ Mov(cp, Smi::zero());
-    __ CallRuntime(Runtime::kWasmAllocateFeedbackVector, 3);
-    __ Mov(result, kReturnRegister0);
-
-    // Restore registers.
-    __ PopQRegList(kSavedFpRegs);
-    __ PopXRegList(kSavedGpRegs);
-  }
-  __ Ret();
-}
-
 void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
   // The function index was put in w8 by the jump table trampoline.
   // Sign extend and convert to Smi for the runtime call.
   __ sxtw(kWasmCompileLazyFuncIndexRegister,
           kWasmCompileLazyFuncIndexRegister.W());
   __ SmiTag(kWasmCompileLazyFuncIndexRegister);
+
+  // Compute register lists for parameters to be saved. We save all parameter
+  // registers (see wasm-linkage.h). They might be overwritten in the runtime
+  // call below. We don't have any callee-saved registers in wasm, so no need to
+  // store anything else.
+  constexpr RegList kSavedGpRegs = ([]() constexpr {
+    RegList saved_gp_regs;
+    for (Register gp_param_reg : wasm::kGpParamRegisters) {
+      saved_gp_regs.set(gp_param_reg);
+    }
+    // Also push x1, because we must push multiples of 16 bytes (see
+    // {TurboAssembler::PushCPURegList}.
+    saved_gp_regs.set(x1);
+    // All set registers were unique.
+    CHECK_EQ(saved_gp_regs.Count(), arraysize(wasm::kGpParamRegisters) + 1);
+    // We push a multiple of 16 bytes.
+    CHECK_EQ(0, saved_gp_regs.Count() % 2);
+    // The Wasm instance must be part of the saved registers.
+    CHECK(saved_gp_regs.has(kWasmInstanceRegister));
+    // + instance + alignment
+    CHECK_EQ(WasmCompileLazyFrameConstants::kNumberOfSavedGpParamRegs + 2,
+             saved_gp_regs.Count());
+    return saved_gp_regs;
+  })();
+
+  constexpr DoubleRegList kSavedFpRegs = ([]() constexpr {
+    DoubleRegList saved_fp_regs;
+    for (DoubleRegister fp_param_reg : wasm::kFpParamRegisters) {
+      saved_fp_regs.set(fp_param_reg);
+    }
+
+    CHECK_EQ(saved_fp_regs.Count(), arraysize(wasm::kFpParamRegisters));
+    CHECK_EQ(WasmCompileLazyFrameConstants::kNumberOfSavedFpParamRegs,
+             saved_fp_regs.Count());
+    return saved_fp_regs;
+  })();
 
   UseScratchRegisterScope temps(masm);
   temps.Exclude(x17);
@@ -3043,8 +2998,9 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
   // target, to be compliant with CFI.
   constexpr Register temp = x8;
   static_assert(!kSavedGpRegs.has(temp));
-  __ ldr(temp, FieldMemOperand(kWasmInstanceRegister,
-                               WasmInstanceObject::kJumpTableStartOffset));
+  __ ldr(temp, MemOperand(
+                   kWasmInstanceRegister,
+                   WasmInstanceObject::kJumpTableStartOffset - kHeapObjectTag));
   __ add(x17, temp, Operand(x17));
   // Finally, jump to the jump table slot for the function.
   __ Jump(x17);
