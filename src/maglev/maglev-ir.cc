@@ -951,6 +951,7 @@ void CreateArrayLiteral::GenerateCode(MaglevAssembler* masm,
   __ Push(constant_elements().object());
   __ Push(Smi::FromInt(flags()));
   __ CallRuntime(Runtime::kCreateArrayLiteral);
+  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
 void CreateShallowArrayLiteral::AllocateVreg(
@@ -982,6 +983,7 @@ void CreateObjectLiteral::GenerateCode(MaglevAssembler* masm,
   __ Push(boilerplate_descriptor().object());
   __ Push(Smi::FromInt(flags()));
   __ CallRuntime(Runtime::kCreateObjectLiteral);
+  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
 void CreateEmptyObjectLiteral::AllocateVreg(

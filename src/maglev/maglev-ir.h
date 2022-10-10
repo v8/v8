@@ -2323,7 +2323,8 @@ class CreateArrayLiteral : public FixedInputValueNodeT<0, CreateArrayLiteral> {
   int flags() const { return flags_; }
 
   // The implementation currently calls runtime.
-  static constexpr OpProperties kProperties = OpProperties::Call();
+  static constexpr OpProperties kProperties =
+      OpProperties::Call() | OpProperties::Throw() | OpProperties::LazyDeopt();
 
   DECL_NODE_INTERFACE_WITH_EMPTY_PRINT_PARAMS()
 
@@ -2383,7 +2384,8 @@ class CreateObjectLiteral
   int flags() const { return flags_; }
 
   // The implementation currently calls runtime.
-  static constexpr OpProperties kProperties = OpProperties::Call();
+  static constexpr OpProperties kProperties =
+      OpProperties::Call() | OpProperties::Throw() | OpProperties::LazyDeopt();
 
   DECL_NODE_INTERFACE_WITH_EMPTY_PRINT_PARAMS()
 
