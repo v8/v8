@@ -784,8 +784,8 @@ OpIndex GraphBuilder::Process(
     }
 
     default:
-      std::cout << "unsupported node type: " << *node->op() << "\n";
-      node->Print();
+      std::cerr << "unsupported node type: " << *node->op() << "\n";
+      node->Print(std::cerr);
       UNIMPLEMENTED();
   }
 }
