@@ -83,7 +83,6 @@
 #include "src/compiler/turboshaft/graph-builder.h"
 #include "src/compiler/turboshaft/graph-visualizer.h"
 #include "src/compiler/turboshaft/graph.h"
-#include "src/compiler/turboshaft/machine-optimization-assembler.h"
 #include "src/compiler/turboshaft/optimization-phase.h"
 #include "src/compiler/turboshaft/recreate-schedule.h"
 #include "src/compiler/turboshaft/simplify-tf-loops.h"
@@ -2048,12 +2047,9 @@ struct BuildTurboshaftPhase {
     Schedule* schedule = data->schedule();
     data->reset_schedule();
     data->CreateTurboshaftGraph();
-    if (auto bailout = turboshaft::BuildGraph(
-            schedule, data->graph_zone(), temp_zone, &data->turboshaft_graph(),
-            data->source_positions(), data->node_origins())) {
-      return bailout;
-    }
-    return {};
+    return turboshaft::BuildGraph(
+        schedule, data->graph_zone(), temp_zone, &data->turboshaft_graph(),
+        data->source_positions(), data->node_origins());
   }
 };
 
@@ -2061,12 +2057,8 @@ struct OptimizeTurboshaftPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(OptimizeTurboshaft)
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    UnparkedScopeIfNeeded scope(data->broker(),
-                                FLAG_turboshaft_trace_reduction);
-    turboshaft::OptimizationPhase<
-        turboshaft::AnalyzerBase,
-        turboshaft::MachineOptimizationAssembler<
-            turboshaft::ValueNumberingAssembler, false>>::
+    turboshaft::OptimizationPhase<turboshaft::LivenessAnalyzer,
+                                  turboshaft::ValueNumberingAssembler>::
         Run(&data->turboshaft_graph(), temp_zone, data->node_origins(),
             turboshaft::VisitOrder::kDominator);
   }
@@ -2976,13 +2968,13 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
   Run<MemoryOptimizationPhase>();
   RunPrintAndVerify(MemoryOptimizationPhase::phase_name(), true);
 
-  if (!v8_flags.turboshaft) {
-    // Run value numbering and machine operator reducer to optimize load/store
-    // address computation (in particular, reuse the address computation
-    // whenever possible).
-    Run<MachineOperatorOptimizationPhase>();
-    RunPrintAndVerify(MachineOperatorOptimizationPhase::phase_name(), true);
+  // Run value numbering and machine operator reducer to optimize load/store
+  // address computation (in particular, reuse the address computation whenever
+  // possible).
+  Run<MachineOperatorOptimizationPhase>();
+  RunPrintAndVerify(MachineOperatorOptimizationPhase::phase_name(), true);
 
+  if (!v8_flags.turboshaft) {
     Run<DecompressionOptimizationPhase>();
     RunPrintAndVerify(DecompressionOptimizationPhase::phase_name(), true);
   }

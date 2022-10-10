@@ -287,7 +287,8 @@ class Block : public RandomAccessStackDominatorNode<Block> {
     return result;
   }
 
-  int PredecessorCount() const {
+#ifdef DEBUG
+  int PredecessorCount() {
     int count = 0;
     for (Block* pred = last_predecessor_; pred != nullptr;
          pred = pred->neighboring_predecessor_) {
@@ -295,6 +296,7 @@ class Block : public RandomAccessStackDominatorNode<Block> {
     }
     return count;
   }
+#endif
 
   Block* LastPredecessor() const { return last_predecessor_; }
   Block* NeighboringPredecessor() const { return neighboring_predecessor_; }
@@ -479,19 +481,6 @@ class Graph {
   void Finalize(Block* block) {
     DCHECK(!block->end_.valid());
     block->end_ = next_operation_index();
-  }
-
-  void TurnLoopIntoMerge(Block* loop) {
-    DCHECK(loop->IsLoop());
-    DCHECK_EQ(loop->PredecessorCount(), 1);
-    loop->kind_ = Block::Kind::kMerge;
-    for (Operation& op : operations(*loop)) {
-      if (auto* pending_phi = op.TryCast<PendingLoopPhiOp>()) {
-        Replace<PhiOp>(Index(*pending_phi),
-                       base::VectorOf({pending_phi->first()}),
-                       pending_phi->rep);
-      }
-    }
   }
 
   OpIndex next_operation_index() const { return operations_.EndIndex(); }

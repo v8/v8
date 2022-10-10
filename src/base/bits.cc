@@ -106,18 +106,8 @@ int32_t SignedDiv32(int32_t lhs, int32_t rhs) {
   return lhs / rhs;
 }
 
-int64_t SignedDiv64(int64_t lhs, int64_t rhs) {
-  if (rhs == 0) return 0;
-  if (rhs == -1) return lhs == std::numeric_limits<int64_t>::min() ? lhs : -lhs;
-  return lhs / rhs;
-}
 
 int32_t SignedMod32(int32_t lhs, int32_t rhs) {
-  if (rhs == 0 || rhs == -1) return 0;
-  return lhs % rhs;
-}
-
-int64_t SignedMod64(int64_t lhs, int64_t rhs) {
   if (rhs == 0 || rhs == -1) return 0;
   return lhs % rhs;
 }

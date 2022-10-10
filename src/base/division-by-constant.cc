@@ -6,16 +6,15 @@
 
 #include <stdint.h>
 
-#include <type_traits>
-
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 
 namespace v8 {
 namespace base {
 
-template <class T, std::enable_if_t<std::is_unsigned_v<T>, bool>>
+template <class T>
 MagicNumbersForDivision<T> SignedDivisionByConstant(T d) {
+  static_assert(static_cast<T>(0) < static_cast<T>(-1));
   DCHECK(d != static_cast<T>(-1) && d != 0 && d != 1);
   const unsigned bits = static_cast<unsigned>(sizeof(T)) * 8;
   const T min = (static_cast<T>(1) << (bits - 1));
@@ -49,10 +48,11 @@ MagicNumbersForDivision<T> SignedDivisionByConstant(T d) {
   return MagicNumbersForDivision<T>(neg ? (0 - mul) : mul, p - bits, false);
 }
 
+
 template <class T>
 MagicNumbersForDivision<T> UnsignedDivisionByConstant(T d,
                                                       unsigned leading_zeros) {
-  static_assert(std::is_unsigned_v<T>);
+  static_assert(static_cast<T>(0) < static_cast<T>(-1));
   DCHECK_NE(d, 0);
   const unsigned bits = static_cast<unsigned>(sizeof(T)) * 8;
   const T ones = ~static_cast<T>(0) >> leading_zeros;

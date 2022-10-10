@@ -1516,11 +1516,6 @@ bool IsSpecialIndex(String string) {
   }
   return true;
 }
-
-float DoubleToFloat32_NoInline(double x) { return DoubleToFloat32(x); }
-
-int32_t DoubleToInt32_NoInline(double x) { return DoubleToInt32(x); }
-
 }  // namespace internal
 }  // namespace v8
 

@@ -70,7 +70,6 @@ class Graph;
   V(Equal)                           \
   V(Comparison)                      \
   V(Change)                          \
-  V(TryChange)                       \
   V(Float64InsertWord32)             \
   V(TaggedBitcast)                   \
   V(Select)                          \
@@ -884,44 +883,35 @@ struct ComparisonOp : FixedArityOperationT<2, ComparisonOp> {
                           RegisterRepresentation::Word64(),
                           RegisterRepresentation::Float32(),
                           RegisterRepresentation::Float64()));
-    DCHECK_IMPLIES(
-        rep == any_of(RegisterRepresentation::Float32(),
-                      RegisterRepresentation::Float64()),
-        kind == any_of(Kind::kSignedLessThan, Kind::kSignedLessThanOrEqual));
   }
   auto options() const { return std::tuple{kind, rep}; }
-
-  static bool IsSigned(Kind kind) {
-    switch (kind) {
-      case Kind::kSignedLessThan:
-      case Kind::kSignedLessThanOrEqual:
-        return true;
-      case Kind::kUnsignedLessThan:
-      case Kind::kUnsignedLessThanOrEqual:
-        return false;
-    }
-  }
-  static Kind SetSigned(Kind kind, bool is_signed) {
-    switch (kind) {
-      case Kind::kSignedLessThan:
-      case Kind::kUnsignedLessThan:
-        return is_signed ? Kind::kSignedLessThan : Kind::kUnsignedLessThan;
-      case Kind::kSignedLessThanOrEqual:
-      case Kind::kUnsignedLessThanOrEqual:
-        return is_signed ? Kind::kSignedLessThanOrEqual
-                         : Kind::kUnsignedLessThanOrEqual;
-    }
-  }
 };
 std::ostream& operator<<(std::ostream& os, ComparisonOp::Kind kind);
 
 struct ChangeOp : FixedArityOperationT<1, ChangeOp> {
   enum class Kind : uint8_t {
+    // narrowing means undefined behavior if value cannot be represented
+    // precisely
+    kSignedNarrowing,
+    kUnsignedNarrowing,
     // convert between different floating-point types
     kFloatConversion,
-    // overflow guaranteed to result in the minimal integer
+    // conversion to signed integer, rounding towards zero,
+    // overflow behavior system-specific
+    kSignedFloatTruncate,
+    // like kSignedFloatTruncate, but overflow guaranteed to result in the
+    // minimal integer
     kSignedFloatTruncateOverflowToMin,
+    // like kSignedFloatTruncate, but saturates to min/max value if overflow
+    kSignedFloatTruncateSat,
+    // conversion to unsigned integer, rounding towards zero,
+    // overflow behavior system-specific
+    kUnsignedFloatTruncate,
+    // like kUnsignedFloatTruncate, but overflow guaranteed to result in the
+    // minimal integer
     kUnsignedFloatTruncateOverflowToMin,
+    // like kUnsignedFloatTruncate, but saturates to 0/max value if overflow
+    kUnsignedFloatTruncateSat,
     // JS semantics float64 to word32 truncation
     // https://tc39.es/ecma262/#sec-touint32
     kJSFloatTruncate,
@@ -938,110 +928,20 @@ struct ChangeOp : FixedArityOperationT<1, ChangeOp> {
     // preserve bits, change meaning
     kBitcast
   };
-  // Violated assumptions result in undefined behavior.
-  enum class Assumption : uint8_t {
-    kNoAssumption,
-    // Used for conversions from floating-point to integer, assumes that the
-    // value doesn't exceed the integer range.
-    kNoOverflow,
-    // Assume that the original value can be recovered by a corresponding
-    // reverse transformation.
-    kReversible,
-  };
   Kind kind;
-  // Reversible means undefined behavior if value cannot be represented
-  // precisely.
-  Assumption assumption;
   RegisterRepresentation from;
   RegisterRepresentation to;
 
-  static bool IsReversible(Kind kind, Assumption assumption,
-                           RegisterRepresentation from,
-                           RegisterRepresentation to, Kind reverse_kind,
-                           bool signalling_nan_possible) {
-    switch (kind) {
-      case Kind::kFloatConversion:
-        return from == RegisterRepresentation::Float32() &&
-               to == RegisterRepresentation::Float64() &&
-               reverse_kind == Kind::kFloatConversion &&
-               !signalling_nan_possible;
-      case Kind::kSignedFloatTruncateOverflowToMin:
-        return assumption == Assumption::kReversible &&
-               reverse_kind == Kind::kSignedToFloat;
-      case Kind::kUnsignedFloatTruncateOverflowToMin:
-        return assumption == Assumption::kReversible &&
-               reverse_kind == Kind::kUnsignedToFloat;
-      case Kind::kJSFloatTruncate:
-        return false;
-      case Kind::kSignedToFloat:
-        if (from == RegisterRepresentation::Word32() &&
-            to == RegisterRepresentation::Float64()) {
-          return reverse_kind == any_of(Kind::kSignedFloatTruncateOverflowToMin,
-                                        Kind::kJSFloatTruncate);
-        } else {
-          return assumption == Assumption::kReversible &&
-                 reverse_kind ==
-                     any_of(Kind::kSignedFloatTruncateOverflowToMin);
-        }
-      case Kind::kUnsignedToFloat:
-        if (from == RegisterRepresentation::Word32() &&
-            to == RegisterRepresentation::Float64()) {
-          return reverse_kind ==
-                 any_of(Kind::kUnsignedFloatTruncateOverflowToMin,
-                        Kind::kJSFloatTruncate);
-        } else {
-          return assumption == Assumption::kReversible &&
-                 reverse_kind == Kind::kUnsignedFloatTruncateOverflowToMin;
-        }
-      case Kind::kExtractHighHalf:
-      case Kind::kExtractLowHalf:
-      case Kind::kZeroExtend:
-      case Kind::kSignExtend:
-        return false;
-      case Kind::kBitcast:
-        return reverse_kind == Kind::kBitcast;
-    }
-  }
-
-  bool IsReversibleBy(Kind reverse_kind, bool signalling_nan_possible) const {
-    return IsReversible(kind, assumption, from, to, reverse_kind,
-                        signalling_nan_possible);
-  }
-
   static constexpr OpProperties properties = OpProperties::Pure();
 
   OpIndex input() const { return Base::input(0); }
 
-  ChangeOp(OpIndex input, Kind kind, Assumption assumption,
-           RegisterRepresentation from, RegisterRepresentation to)
-      : Base(input), kind(kind), assumption(assumption), from(from), to(to) {}
-  auto options() const { return std::tuple{kind, assumption, from, to}; }
-};
-std::ostream& operator<<(std::ostream& os, ChangeOp::Kind kind);
-std::ostream& operator<<(std::ostream& os, ChangeOp::Assumption assumption);
-
-// Perform a conversion and return a pair of the result and a bit if it was
-// successful.
-struct TryChangeOp : FixedArityOperationT<1, TryChangeOp> {
-  enum class Kind : uint8_t {
-    // The result of the truncation is undefined if the result is out of range.
-    kSignedFloatTruncateOverflowUndefined,
-    kUnsignedFloatTruncateOverflowUndefined,
-  };
-  Kind kind;
-  FloatRepresentation from;
-  WordRepresentation to;
-
-  static constexpr OpProperties properties = OpProperties::Pure();
-
-  OpIndex input() const { return Base::input(0); }
-
-  TryChangeOp(OpIndex input, Kind kind, FloatRepresentation from,
-              WordRepresentation to)
+  ChangeOp(OpIndex input, Kind kind, RegisterRepresentation from,
+           RegisterRepresentation to)
       : Base(input), kind(kind), from(from), to(to) {}
   auto options() const { return std::tuple{kind, from, to}; }
 };
-std::ostream& operator<<(std::ostream& os, TryChangeOp::Kind kind);
+std::ostream& operator<<(std::ostream& os, ChangeOp::Kind kind);
 
 // TODO(tebbi): Unify with other operations.
 struct Float64InsertWord32Op : FixedArityOperationT<2, Float64InsertWord32Op> {
@@ -1070,12 +970,7 @@ struct TaggedBitcastOp : FixedArityOperationT<1, TaggedBitcastOp> {
 
   TaggedBitcastOp(OpIndex input, RegisterRepresentation from,
                   RegisterRepresentation to)
-      : Base(input), from(from), to(to) {
-    DCHECK((from == RegisterRepresentation::PointerSized() &&
-            to == RegisterRepresentation::Tagged()) ||
-           (from == RegisterRepresentation::Tagged() &&
-            to == RegisterRepresentation::PointerSized()));
-  }
+      : Base(input), from(from), to(to) {}
   auto options() const { return std::tuple{from, to}; }
 };
 

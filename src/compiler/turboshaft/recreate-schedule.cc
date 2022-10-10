@@ -618,7 +618,6 @@ Node* ScheduleBuilder::ProcessOperation(const ChangeOp& op) {
   const Operator* o;
   switch (op.kind) {
     using Kind = ChangeOp::Kind;
-    using Assumption = ChangeOp::Assumption;
     case Kind::kFloatConversion:
       if (op.from == FloatRepresentation::Float64() &&
           op.to == FloatRepresentation::Float32()) {
@@ -630,55 +629,50 @@ Node* ScheduleBuilder::ProcessOperation(const ChangeOp& op) {
         UNIMPLEMENTED();
       }
       break;
-    case Kind::kSignedFloatTruncateOverflowToMin:
-    case Kind::kUnsignedFloatTruncateOverflowToMin: {
-      bool is_signed = op.kind == Kind::kSignedFloatTruncateOverflowToMin;
-      if (op.assumption == Assumption::kReversible) {
-        if (op.from == FloatRepresentation::Float64() &&
-            op.to == WordRepresentation::Word64()) {
-          o = is_signed ? machine.ChangeFloat64ToInt64()
-                        : machine.ChangeFloat64ToUint64();
-        } else if (op.from == FloatRepresentation::Float64() &&
-                   op.to == WordRepresentation::Word32()) {
-          o = is_signed ? machine.ChangeFloat64ToInt32()
-                        : machine.ChangeFloat64ToUint32();
-        } else {
-          UNIMPLEMENTED();
-        }
-        break;
-      }
-      TruncateKind truncate_kind;
-      switch (op.assumption) {
-        case ChangeOp::Assumption::kReversible:
-          UNREACHABLE();
-        case ChangeOp::Assumption::kNoAssumption:
-          truncate_kind = TruncateKind::kSetOverflowToMin;
-          break;
-        case ChangeOp::Assumption::kNoOverflow:
-          truncate_kind = TruncateKind::kArchitectureDefault;
-          break;
-      }
+    case Kind::kSignedFloatTruncate:
       if (op.from == FloatRepresentation::Float64() &&
           op.to == WordRepresentation::Word64()) {
-        DCHECK(is_signed);
-        o = machine.TruncateFloat64ToInt64(truncate_kind);
+        o = machine.TruncateFloat64ToInt64(TruncateKind::kArchitectureDefault);
       } else if (op.from == FloatRepresentation::Float64() &&
                  op.to == WordRepresentation::Word32()) {
-        if (is_signed) {
-          DCHECK_EQ(truncate_kind, TruncateKind::kArchitectureDefault);
-          o = machine.RoundFloat64ToInt32();
-        } else {
-          machine.TruncateFloat32ToUint32(truncate_kind);
-        }
+        o = machine.RoundFloat64ToInt32();
       } else if (op.from == FloatRepresentation::Float32() &&
                  op.to == WordRepresentation::Word32()) {
-        o = is_signed ? machine.TruncateFloat32ToInt32(truncate_kind)
-                      : machine.TruncateFloat32ToUint32(truncate_kind);
+        o = machine.TruncateFloat32ToInt32(TruncateKind::kArchitectureDefault);
       } else {
         UNIMPLEMENTED();
       }
       break;
-    }
+    case Kind::kSignedFloatTruncateOverflowToMin:
+      if (op.from == FloatRepresentation::Float64() &&
+          op.to == WordRepresentation::Word64()) {
+        o = machine.TruncateFloat64ToInt64(TruncateKind::kSetOverflowToMin);
+      } else if (op.from == FloatRepresentation::Float32() &&
+                 op.to == WordRepresentation::Word32()) {
+        o = machine.TruncateFloat32ToInt32(TruncateKind::kSetOverflowToMin);
+      } else {
+        UNIMPLEMENTED();
+      }
+      break;
+    case Kind::kUnsignedFloatTruncate:
+      if (op.from == FloatRepresentation::Float32() &&
+          op.to == WordRepresentation::Word32()) {
+        o = machine.TruncateFloat32ToUint32(TruncateKind::kArchitectureDefault);
+      } else if (op.from == FloatRepresentation::Float64() &&
+                 op.to == WordRepresentation::Word32()) {
+        o = machine.TruncateFloat64ToUint32();
+      } else {
+        UNIMPLEMENTED();
+      }
+      break;
+    case Kind::kUnsignedFloatTruncateOverflowToMin:
+      if (op.from == FloatRepresentation::Float32() &&
+          op.to == WordRepresentation::Word32()) {
+        o = machine.TruncateFloat32ToUint32(TruncateKind::kSetOverflowToMin);
+      } else {
+        UNIMPLEMENTED();
+      }
+      break;
     case Kind::kJSFloatTruncate:
       if (op.from == FloatRepresentation::Float64() &&
           op.to == WordRepresentation::Word32()) {
@@ -690,13 +684,10 @@ Node* ScheduleBuilder::ProcessOperation(const ChangeOp& op) {
     case Kind::kSignedToFloat:
       if (op.from == WordRepresentation::Word32() &&
           op.to == FloatRepresentation::Float64()) {
-        DCHECK_EQ(op.assumption, Assumption::kNoAssumption);
         o = machine.ChangeInt32ToFloat64();
       } else if (op.from == WordRepresentation::Word64() &&
                  op.to == FloatRepresentation::Float64()) {
-        o = op.assumption == Assumption::kReversible
-                ? machine.ChangeInt64ToFloat64()
-                : machine.RoundInt64ToFloat64();
+        o = machine.RoundInt64ToFloat64();
       } else if (op.from == WordRepresentation::Word32() &&
                  op.to == FloatRepresentation::Float32()) {
         o = machine.RoundInt32ToFloat32();
@@ -773,14 +764,35 @@ Node* ScheduleBuilder::ProcessOperation(const ChangeOp& op) {
         UNIMPLEMENTED();
       }
       break;
-  }
-  return AddNode(o, {GetNode(op.input())});
-}
-Node* ScheduleBuilder::ProcessOperation(const TryChangeOp& op) {
-  const Operator* o;
-  switch (op.kind) {
-    using Kind = TryChangeOp::Kind;
-    case Kind::kSignedFloatTruncateOverflowUndefined:
+    case Kind::kSignedNarrowing:
+      if (op.from == FloatRepresentation::Float64() &&
+          op.to == WordRepresentation::Word64()) {
+        o = machine.ChangeFloat64ToInt64();
+      } else if (op.from == FloatRepresentation::Float64() &&
+                 op.to == WordRepresentation::Word32()) {
+        o = machine.ChangeFloat64ToInt32();
+      } else if (op.from == WordRepresentation::Word32() &&
+                 op.to == FloatRepresentation::Float64()) {
+        o = machine.ChangeInt32ToFloat64();
+      } else if (op.from == WordRepresentation::Word64() &&
+                 op.to == FloatRepresentation::Float64()) {
+        o = machine.ChangeInt64ToFloat64();
+      } else {
+        UNIMPLEMENTED();
+      }
+      break;
+    case Kind::kUnsignedNarrowing:
+      if (op.from == FloatRepresentation::Float64() &&
+          op.to == WordRepresentation::Word64()) {
+        o = machine.ChangeFloat64ToUint64();
+      } else if (op.from == FloatRepresentation::Float64() &&
+                 op.to == WordRepresentation::Word32()) {
+        o = machine.ChangeFloat64ToUint32();
+      } else {
+        UNIMPLEMENTED();
+      }
+      break;
+    case Kind::kSignedFloatTruncateSat:
       if (op.from == FloatRepresentation::Float64() &&
           op.to == WordRepresentation::Word64()) {
         o = machine.TryTruncateFloat64ToInt64();
@@ -794,7 +806,7 @@ Node* ScheduleBuilder::ProcessOperation(const TryChangeOp& op) {
         UNREACHABLE();
       }
       break;
-    case Kind::kUnsignedFloatTruncateOverflowUndefined:
+    case Kind::kUnsignedFloatTruncateSat:
       if (op.from == FloatRepresentation::Float64() &&
           op.to == WordRepresentation::Word64()) {
         o = machine.TryTruncateFloat64ToUint64();
