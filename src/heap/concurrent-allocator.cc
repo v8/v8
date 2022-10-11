@@ -147,11 +147,13 @@ bool ConcurrentAllocator::EnsureLab(AllocationOrigin origin) {
                                               kMaxLabSize, origin);
   if (!result) return false;
 
+  owning_heap()->StartIncrementalMarkingIfAllocationLimitIsReachedBackground();
+
   FreeLinearAllocationArea();
 
   HeapObject object = HeapObject::FromAddress(result->first);
   lab_ = LocalAllocationBuffer::FromResult(
-      space_->heap(), AllocationResult::FromObject(object), result->second);
+      owning_heap(), AllocationResult::FromObject(object), result->second);
   DCHECK(lab_.IsValid());
 
   if (IsBlackAllocationEnabled()) {
@@ -172,6 +174,9 @@ AllocationResult ConcurrentAllocator::AllocateOutsideLab(
       local_heap_, aligned_size_in_bytes, aligned_size_in_bytes, origin);
 
   if (!result) return AllocationResult::Failure();
+
+  owning_heap()->StartIncrementalMarkingIfAllocationLimitIsReachedBackground();
+
   DCHECK_GE(result->second, aligned_size_in_bytes);
 
   HeapObject object =
