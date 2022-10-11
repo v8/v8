@@ -71,7 +71,7 @@ struct SsaEnv : public ZoneObject {
 
 class WasmGraphBuildingInterface {
  public:
-  static constexpr Decoder::ValidateFlag validate = Decoder::kFullValidation;
+  static constexpr Decoder::ValidateFlag validate = Decoder::kNoValidation;
   using FullDecoder = WasmFullDecoder<validate, WasmGraphBuildingInterface>;
   using CheckForNull = compiler::WasmGraphBuilder::CheckForNull;
 
@@ -2130,7 +2130,7 @@ DecodeResult BuildTFGraph(AccountingAllocator* allocator,
                           compiler::NodeOriginTable* node_origins,
                           int func_index, InlinedStatus inlined_status) {
   Zone zone(allocator, ZONE_NAME);
-  WasmFullDecoder<Decoder::kFullValidation, WasmGraphBuildingInterface> decoder(
+  WasmFullDecoder<Decoder::kNoValidation, WasmGraphBuildingInterface> decoder(
       &zone, module, enabled, detected, body, builder, func_index,
       inlined_status);
   if (node_origins) {

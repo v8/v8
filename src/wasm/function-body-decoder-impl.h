@@ -6030,7 +6030,6 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
   template <StackElementsCountMode strict_count, bool push_branch_values,
             MergeType merge_type>
   bool TypeCheckStackAgainstMerge(uint32_t drop_values, Merge<Value>* merge) {
-    static_assert(validate, "Call this function only within VALIDATE");
     constexpr const char* merge_description =
         merge_type == kBranchMerge     ? "branch"
         : merge_type == kReturnMerge   ? "return"
@@ -6116,7 +6115,6 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
   }
 
   bool TypeCheckOneArmedIf(Control* c) {
-    static_assert(validate, "Call this function only within VALIDATE");
     DCHECK(c->is_onearmed_if());
     if (c->end_merge.arity != c->start_merge.arity) {
       this->DecodeError(c->pc(),
@@ -6136,7 +6134,6 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
   }
 
   bool TypeCheckFallThru() {
-    static_assert(validate, "Call this function only within VALIDATE");
     return TypeCheckStackAgainstMerge<kStrictCounting, true, kFallthroughMerge>(
         0, &control_.back().end_merge);
   }
@@ -6153,7 +6150,6 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
   // (index) and br_on_null (reference), and 0 for all other branches.
   template <bool push_branch_values>
   bool TypeCheckBranch(Control* c, uint32_t drop_values) {
-    static_assert(validate, "Call this function only within VALIDATE");
     return TypeCheckStackAgainstMerge<kNonStrictCounting, push_branch_values,
                                       kBranchMerge>(drop_values, c->br_merge());
   }
