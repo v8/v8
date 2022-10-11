@@ -229,3 +229,7 @@ is_in_range_u64(false, -1, 0);
 is_in_range_u64(false, -1.5, 0);
 is_in_range_u64(false, 2 ** 64, Number.MAX_SAFE_INTEGER);
 is_in_range_u64(false, 2 ** 64 + 3.15, Number.MAX_SAFE_INTEGER);
+
+// ---------- invalid arguments for clamp_compare ---------
+fast_c_api.clamp_compare_i32(true);
+fast_c_api.clamp_compare_i32(true, 753801, -2147483650);

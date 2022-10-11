@@ -808,6 +808,13 @@ class FastCApiObject {
   }
 
   template <typename IntegerT>
+  static bool IsInRange(double arg) {
+    return !std::isnan(arg) &&
+           arg <= static_cast<double>(std::numeric_limits<IntegerT>::max()) &&
+           arg >= static_cast<double>(std::numeric_limits<IntegerT>::min());
+  }
+
+  template <typename IntegerT>
   static void ClampCompareSlowCallback(
       const FunctionCallbackInfo<Value>& args) {
     Isolate* isolate = args.GetIsolate();
@@ -820,19 +827,29 @@ class FastCApiObject {
     if (args.Length() > 1 && args[1]->IsNumber()) {
       real_arg = args[1]->NumberValue(isolate->GetCurrentContext()).FromJust();
     }
-    bool in_range = args[0]->IsBoolean() && args[0]->BooleanValue(isolate);
-    IntegerT checked_arg = std::numeric_limits<IntegerT>::max();
+    double checked_arg_dbl = std::numeric_limits<double>::max();
     if (args.Length() > 2 && args[2]->IsNumber()) {
-      checked_arg =
-          args[2]->NumberValue(isolate->GetCurrentContext()).FromJust();
+      checked_arg_dbl = args[2].As<Number>()->Value();
     }
+    bool in_range = args[0]->IsBoolean() && args[0]->BooleanValue(isolate) &&
+                    IsInRange<IntegerT>(real_arg) &&
+                    IsInRange<IntegerT>(checked_arg_dbl);
+
+    IntegerT checked_arg = std::numeric_limits<IntegerT>::max();
     if (in_range) {
+      if (checked_arg_dbl != std::numeric_limits<double>::max()) {
+        checked_arg = static_cast<IntegerT>(checked_arg_dbl);
+      }
       double result = ClampCompareCompute(in_range, real_arg, checked_arg);
       args.GetReturnValue().Set(Number::New(isolate, result));
     } else {
-      IntegerT clamped =
-          std::clamp(checked_arg, std::numeric_limits<IntegerT>::min(),
-                     std::numeric_limits<IntegerT>::max());
+      IntegerT clamped = std::numeric_limits<IntegerT>::max();
+      if (std::isnan(checked_arg_dbl)) {
+        clamped = 0;
+      } else {
+        clamped = std::clamp(checked_arg, std::numeric_limits<IntegerT>::min(),
+                             std::numeric_limits<IntegerT>::max());
+      }
       args.GetReturnValue().Set(Number::New(isolate, clamped));
     }
   }
