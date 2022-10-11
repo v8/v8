@@ -1890,6 +1890,7 @@ class Heap {
   bool HasLowOldGenerationAllocationRate();
   bool HasLowEmbedderAllocationRate();
 
+  bool ShouldReduceNewSpaceSize() const;
   void ReduceNewSpaceSize();
 
   GCIdleTimeHeapState ComputeHeapState();
@@ -2451,6 +2452,7 @@ class Heap {
   friend class ArrayBufferCollector;
   friend class ArrayBufferSweeper;
   friend class ConcurrentMarking;
+  friend class CollectorBase;
   friend class EvacuateVisitorBase;
   friend class GCCallbacksScope;
   friend class GCTracer;

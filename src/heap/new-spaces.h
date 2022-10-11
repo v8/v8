@@ -565,7 +565,9 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   void Grow();
 
   // Shrink the capacity of the space.
-  void Shrink();
+  void Shrink() { UNREACHABLE(); }
+  bool StartShrinking();
+  void FinishShrinking();
 
   size_t AllocatedSinceLastGC() const {
     // allocated since last gc is compiuted as allocated linear areas minus
@@ -599,7 +601,7 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   // Returns false if this isn't possible or reasonable (i.e., there
   // are no pages, or the current page is already empty), or true
   // if successful.
-  bool AddFreshPage();
+  bool AddFreshPage() { return false; }
 
   bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,
                         AllocationOrigin origin,
@@ -630,6 +632,8 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
 #ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
   void ClearUnusedObjectStartBitmaps() {}
 #endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
+
+  bool ShouldReleasePage() const;
 
  private:
   bool PreallocatePages();
@@ -666,6 +670,8 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
 
   // Shrink the capacity of the space.
   void Shrink() final { paged_space_.Shrink(); }
+  bool StartShrinking() { return paged_space_.StartShrinking(); }
+  void FinishShrinking() { paged_space_.FinishShrinking(); }
 
   // Return the allocated bytes in the active space.
   size_t Size() const final { return paged_space_.Size(); }
@@ -783,7 +789,7 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
     paged_space_.MakeLinearAllocationAreaIterable();
   }
 
-  PagedSpaceBase* paged_space() { return &paged_space_; }
+  PagedSpaceForNewSpace* paged_space() { return &paged_space_; }
 
   void MakeIterable() override { paged_space_.MakeIterable(); }
 
@@ -795,6 +801,9 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
 
   // All operations on `memory_chunk_list_` should go through `paged_space_`.
   heap::List<MemoryChunk>& memory_chunk_list() final { UNREACHABLE(); }
+
+  bool ShouldReleasePage() const { return paged_space_.ShouldReleasePage(); }
+  void ReleasePage(Page* page) { paged_space_.ReleasePage(page); }
 
  private:
   bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,

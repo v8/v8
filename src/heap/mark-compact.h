@@ -306,6 +306,8 @@ class CollectorBase {
   MarkingState* const marking_state_;
   NonAtomicMarkingState* const non_atomic_marking_state_;
 
+  bool is_new_space_shrinking_ = false;
+
   explicit CollectorBase(Heap* heap, GarbageCollector collector);
   virtual ~CollectorBase() = default;
 };

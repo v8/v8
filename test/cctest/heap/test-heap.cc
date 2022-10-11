@@ -40,6 +40,7 @@
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/execution.h"
+#include "src/flags/flags.h"
 #include "src/handles/global-handles-inl.h"
 #include "src/heap/combined-heap.h"
 #include "src/heap/factory.h"
@@ -6893,7 +6894,7 @@ UNINITIALIZED_TEST(RestoreHeapLimit) {
 }
 
 void HeapTester::UncommitUnusedMemory(Heap* heap) {
-  heap->new_space()->Shrink();
+  if (!v8_flags.minor_mc) heap->new_space()->Shrink();
   heap->memory_allocator()->unmapper()->EnsureUnmappingCompleted();
 }
 

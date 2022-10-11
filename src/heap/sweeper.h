@@ -85,7 +85,7 @@ class Sweeper {
   void TearDown();
 
   void AddPage(AllocationSpace space, Page* page, AddPageMode mode);
-  void AddNewSpacePage(Page* page, AddPageMode mode);
+  void AddNewSpacePage(Page* page);
 
   int ParallelSweepSpace(AllocationSpace identity, SweepingMode sweeping_mode,
                          int required_freed_bytes, int max_pages = 0);

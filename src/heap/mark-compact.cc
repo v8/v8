@@ -19,6 +19,7 @@
 #include "src/execution/isolate-utils-inl.h"
 #include "src/execution/isolate-utils.h"
 #include "src/execution/vm-state-inl.h"
+#include "src/flags/flags.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/array-buffer-sweeper.h"
 #include "src/heap/basic-memory-chunk.h"
@@ -382,7 +383,6 @@ void CollectorBase::StartSweepSpace(PagedSpace* space) {
           PrintIsolate(isolate(), "sweeping: released page: %p",
                        static_cast<void*>(p));
         }
-        space->memory_chunk_list().Remove(p);
         space->ReleasePage(p);
         continue;
       }
@@ -400,10 +400,15 @@ void CollectorBase::StartSweepSpace(PagedSpace* space) {
 }
 
 void CollectorBase::StartSweepNewSpace() {
-  PagedSpaceBase* paged_space = heap()->paged_new_space()->paged_space();
+  PagedSpaceForNewSpace* paged_space = heap()->paged_new_space()->paged_space();
   paged_space->ClearAllocatorState();
 
   int will_be_swept = 0;
+
+  if (heap()->ShouldReduceNewSpaceSize()) {
+    paged_space->StartShrinking();
+    is_new_space_shrinking_ = true;
+  }
 
   Sweeper* sweeper = heap()->sweeper();
 
@@ -416,10 +421,11 @@ void CollectorBase::StartSweepNewSpace() {
       continue;
     }
 
-    // New space preallocates all its pages. Don't free empty pages since they
-    // will just be reallocated.
-    DCHECK_EQ(NEW_SPACE, paged_space->identity());
-    sweeper->AddNewSpacePage(p, Sweeper::REGULAR);
+    if (is_new_space_shrinking_ && paged_space->ShouldReleasePage()) {
+      paged_space->ReleasePage(p);
+    } else {
+      sweeper->AddNewSpacePage(p);
+    }
     will_be_swept++;
   }
 
@@ -428,6 +434,7 @@ void CollectorBase::StartSweepNewSpace() {
                  paged_space->name(), will_be_swept);
   }
 }
+
 MarkCompactCollector::MarkCompactCollector(Heap* heap)
     : CollectorBase(heap, GarbageCollector::MARK_COMPACTOR),
 #ifdef DEBUG
@@ -4533,13 +4540,6 @@ void MarkCompactCollector::Evacuate() {
 
   UpdatePointersAfterEvacuation();
 
-  if (heap()->new_space()) {
-    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE_REBALANCE);
-    if (!heap()->new_space()->EnsureCurrentCapacity()) {
-      heap()->FatalProcessOutOfMemory("NewSpace::Rebalance");
-    }
-  }
-
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE_CLEAN_UP);
 
@@ -4553,10 +4553,30 @@ void MarkCompactCollector::Evacuate() {
       } else if (v8_flags.minor_mc) {
         // Sweep non-promoted pages to add them back to the free list.
         DCHECK_EQ(NEW_SPACE, p->owner_identity());
-        sweeper()->AddNewSpacePage(p, Sweeper::REGULAR);
+        DCHECK_EQ(0, non_atomic_marking_state()->live_bytes(p));
+        DCHECK(p->SweepingDone());
+        PagedNewSpace* space = heap()->paged_new_space();
+        if (is_new_space_shrinking_ && space->ShouldReleasePage()) {
+          space->ReleasePage(p);
+        } else {
+          sweeper()->AddNewSpacePage(p);
+        }
       }
     }
     new_space_evacuation_pages_.clear();
+
+    if (is_new_space_shrinking_) {
+      DCHECK(v8_flags.minor_mc);
+      heap()->paged_new_space()->FinishShrinking();
+      is_new_space_shrinking_ = false;
+    }
+
+    if (heap()->new_space()) {
+      TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE_REBALANCE);
+      if (!heap()->new_space()->EnsureCurrentCapacity()) {
+        heap()->FatalProcessOutOfMemory("NewSpace::Rebalance");
+      }
+    }
 
     for (LargePage* p : promoted_large_pages_) {
       DCHECK(p->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION));
@@ -5335,7 +5355,6 @@ void MarkCompactCollector::ReleaseEvacuationCandidates() {
     PagedSpace* space = static_cast<PagedSpace*>(p->owner());
     non_atomic_marking_state()->SetLiveBytes(p, 0);
     CHECK(p->SweepingDone());
-    space->memory_chunk_list().Remove(p);
     space->ReleasePage(p);
   }
   old_space_evacuation_pages_.clear();
@@ -6288,13 +6307,6 @@ void MinorMarkCompactCollector::Evacuate() {
   UpdatePointersAfterEvacuation();
 
   {
-    TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_EVACUATE_REBALANCE);
-    if (!heap()->new_space()->EnsureCurrentCapacity()) {
-      heap()->FatalProcessOutOfMemory("NewSpace::Rebalance");
-    }
-  }
-
-  {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_EVACUATE_CLEAN_UP);
     for (Page* p : new_space_evacuation_pages_) {
       DCHECK(!p->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION));
@@ -6303,10 +6315,22 @@ void MinorMarkCompactCollector::Evacuate() {
       } else {
         // Page was not promoted. Sweep it instead.
         DCHECK_EQ(NEW_SPACE, p->owner_identity());
-        sweeper()->AddNewSpacePage(p, Sweeper::REGULAR);
+        sweeper()->AddNewSpacePage(p);
       }
     }
     new_space_evacuation_pages_.clear();
+  }
+
+  if (is_new_space_shrinking_) {
+    heap()->paged_new_space()->FinishShrinking();
+    is_new_space_shrinking_ = false;
+  }
+
+  {
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_EVACUATE_REBALANCE);
+    if (!heap()->new_space()->EnsureCurrentCapacity()) {
+      heap()->FatalProcessOutOfMemory("NewSpace::Rebalance");
+    }
   }
 
   {

@@ -7,10 +7,12 @@
 #include "src/common/globals.h"
 #include "src/heap/allocation-observer.h"
 #include "src/heap/array-buffer-sweeper.h"
+#include "src/heap/gc-tracer-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/marking-state-inl.h"
+#include "src/heap/marking-state.h"
 #include "src/heap/memory-allocator.h"
 #include "src/heap/paged-spaces.h"
 #include "src/heap/safepoint.h"
@@ -959,23 +961,29 @@ void PagedSpaceForNewSpace::Grow() {
   CHECK(EnsureCurrentCapacity());
 }
 
-void PagedSpaceForNewSpace::Shrink() {
-  target_capacity_ =
+bool PagedSpaceForNewSpace::StartShrinking() {
+  DCHECK_EQ(current_capacity_, target_capacity_);
+  DCHECK(heap()->tracer()->IsInAtomicPause());
+  size_t new_target_capacity =
       RoundUp(std::max(initial_capacity_, 2 * Size()), Page::kPageSize);
-  if (target_capacity_ < current_capacity_) {
-    // Try to shrink by freeing empty pages.
-    for (Page* page = first_page();
-         page != last_page() && (current_capacity_ > target_capacity_);) {
-      Page* current_page = page;
-      page = page->next_page();
-      if (current_page->allocated_bytes() == 0) {
-        memory_chunk_list().Remove(current_page);
-        ReleasePage(current_page);
-      }
+  if (new_target_capacity > target_capacity_) return false;
+  target_capacity_ = new_target_capacity;
+  return true;
+}
+
+void PagedSpaceForNewSpace::FinishShrinking() {
+  DCHECK(heap()->tracer()->IsInAtomicPause());
+  if (current_capacity_ > target_capacity_) {
+#if DEBUG
+    // If `current_capacity_` is higher than `target_capacity_`, i.e. the
+    // space could not be shrunk all the way down to `target_capacity_`, it
+    // must mean that all pages contain live objects.
+    for (Page* page : *this) {
+      DCHECK_NE(0, heap()->non_atomic_marking_state()->live_bytes(page));
     }
+#endif  // DEBUG
+    target_capacity_ = current_capacity_;
   }
-  // Shrinking to target capacity may not have been possible.
-  target_capacity_ = current_capacity_;
 }
 
 void PagedSpaceForNewSpace::UpdateInlineAllocationLimit(size_t size_in_bytes) {
@@ -1000,15 +1008,7 @@ void PagedSpaceForNewSpace::ReleasePage(Page* page) {
   PagedSpaceBase::ReleasePage(page);
 }
 
-bool PagedSpaceForNewSpace::AddFreshPage() {
-  DCHECK_LE(TotalCapacity(), MaximumCapacity());
-  if (current_capacity_ >= target_capacity_) return false;
-  return EnsureCurrentCapacity();
-}
-
 bool PagedSpaceForNewSpace::PreallocatePages() {
-  // Verify that the free space map is already initialized. Otherwise, new free
-  // list entries will be invalid.
   while (current_capacity_ < target_capacity_) {
     if (!TryExpandImpl()) return false;
   }
@@ -1019,7 +1019,8 @@ bool PagedSpaceForNewSpace::PreallocatePages() {
 bool PagedSpaceForNewSpace::EnsureCurrentCapacity() {
   // Verify that the free space map is already initialized. Otherwise, new free
   // list entries will be invalid.
-  DCHECK_NE(0, heap()->isolate()->root(RootIndex::kFreeSpaceMap).ptr());
+  DCHECK_NE(kNullAddress,
+            heap()->isolate()->root(RootIndex::kFreeSpaceMap).ptr());
   return PreallocatePages();
 }
 
@@ -1039,6 +1040,10 @@ void PagedSpaceForNewSpace::Verify(Isolate* isolate,
   DCHECK_EQ(current_capacity_, Page::kPageSize * CountTotalPages());
 }
 #endif  // VERIFY_HEAP
+
+bool PagedSpaceForNewSpace::ShouldReleasePage() const {
+  return current_capacity_ > target_capacity_;
+}
 
 // -----------------------------------------------------------------------------
 // PagedNewSpace implementation

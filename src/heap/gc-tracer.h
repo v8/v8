@@ -275,6 +275,7 @@ class V8_EXPORT_PRIVATE GCTracer {
 
 #ifdef DEBUG
   V8_INLINE bool IsInObservablePause() const;
+  V8_INLINE bool IsInAtomicPause() const;
 
   // Checks if the current event is consistent with a collector.
   V8_INLINE bool IsConsistentWithCollector(GarbageCollector collector) const;

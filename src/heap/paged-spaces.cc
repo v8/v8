@@ -556,6 +556,8 @@ void PagedSpaceBase::ReleasePage(Page* page) {
 
   DCHECK_IMPLIES(identity() == NEW_SPACE, page->IsFlagSet(Page::TO_PAGE));
 
+  memory_chunk_list().Remove(page);
+
   free_list_->EvictFreeListItems(page);
 
   if (Page::FromAllocationAreaAddress(allocation_info_.top()) == page) {

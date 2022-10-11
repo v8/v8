@@ -3723,19 +3723,25 @@ void Heap::ActivateMemoryReducerIfNeeded() {
   }
 }
 
-void Heap::ReduceNewSpaceSize() {
+bool Heap::ShouldReduceNewSpaceSize() const {
   static const size_t kLowAllocationThroughput = 1000;
+
+  if (v8_flags.predictable) return false;
+
   const double allocation_throughput =
-      tracer()->CurrentAllocationThroughputInBytesPerMillisecond();
+      tracer_->CurrentAllocationThroughputInBytesPerMillisecond();
 
-  if (v8_flags.predictable) return;
+  return ShouldReduceMemory() ||
+         ((allocation_throughput != 0) &&
+          (allocation_throughput < kLowAllocationThroughput));
+}
 
-  if (ShouldReduceMemory() ||
-      ((allocation_throughput != 0) &&
-       (allocation_throughput < kLowAllocationThroughput))) {
-    new_space_->Shrink();
-    new_lo_space_->SetCapacity(new_space_->Capacity());
-  }
+void Heap::ReduceNewSpaceSize() {
+  if (!ShouldReduceNewSpaceSize()) return;
+
+  // MinorMC shrinks new space as part of sweeping.
+  if (!v8_flags.minor_mc) new_space_->Shrink();
+  new_lo_space_->SetCapacity(new_space_->Capacity());
 }
 
 size_t Heap::NewSpaceSize() { return new_space() ? new_space()->Size() : 0; }
