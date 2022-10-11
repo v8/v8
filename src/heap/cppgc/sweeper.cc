@@ -896,6 +896,7 @@ class Sweeper::SweeperImpl final {
         !concurrent_sweeper_handle_->IsActive()) {
       StatsCollector::EnabledScope stats_scope(
           stats_collector_, StatsCollector::kSweepFinishIfOutOfWork);
+      MutatorThreadSweepingScope sweeping_in_progress(*this);
       // At this point we know that the concurrent sweeping task has run
       // out-of-work: all pages are swept. The main thread still needs to finish
       // sweeping though.
