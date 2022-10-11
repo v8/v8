@@ -87,6 +87,12 @@ struct FieldAccess {
                                                    // initializing a newly
                                                    // allocated object or part
                                                    // of a map transition.
+  bool is_bounded_size_access = false;  // Whether this field is stored as a
+                                        // bounded size field. In that case,
+                                        // the size is shifted to the left to
+                                        // guarantee that the value is at most
+                                        // kMaxSafeBufferSizeForSandbox after
+                                        // decoding.
 
   FieldAccess()
       : base_is_tagged(kTaggedBase),

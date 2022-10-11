@@ -1454,13 +1454,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Transform a SandboxedPointer from/to its encoded form, which is used when
   // the pointer is stored on the heap and ensures that the pointer will always
   // point into the sandbox.
-  void EncodeSandboxedPointer(const Register& value);
   void DecodeSandboxedPointer(const Register& value);
-
-  // Load and decode a SandboxedPointer from the heap.
   void LoadSandboxedPointerField(const Register& destination,
                                  const MemOperand& field_operand);
-  // Encode and store a SandboxedPointer to the heap.
   void StoreSandboxedPointerField(const Register& value,
                                   const MemOperand& dst_field_operand);
 

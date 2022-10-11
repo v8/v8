@@ -492,6 +492,27 @@ Reduction MemoryLowering::ReduceLoadExternalPointerField(Node* node) {
   return Changed(node);
 }
 
+Reduction MemoryLowering::ReduceLoadBoundedSize(Node* node) {
+#ifdef V8_ENABLE_SANDBOX
+  const Operator* load_op =
+      !machine()->UnalignedLoadSupported(MachineRepresentation::kWord64)
+          ? machine()->UnalignedLoad(MachineType::Uint64())
+          : machine()->Load(MachineType::Uint64());
+  NodeProperties::ChangeOp(node, load_op);
+
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  __ InitializeEffectControl(effect, control);
+
+  Node* raw_value = __ AddNode(graph()->CloneNode(node));
+  Node* shift_amount = __ IntPtrConstant(kBoundedSizeShift);
+  Node* decoded_size = __ Word64Shr(raw_value, shift_amount);
+  return Replace(decoded_size);
+#else
+  UNREACHABLE();
+#endif
+}
+
 Reduction MemoryLowering::ReduceLoadMap(Node* node) {
 #ifdef V8_MAP_PACKING
   NodeProperties::ChangeOp(node, machine()->Load(MachineType::AnyTagged()));
@@ -522,6 +543,10 @@ Reduction MemoryLowering::ReduceLoadField(Node* node) {
 
   if (access.type.Is(Type::ExternalPointer())) {
     return ReduceLoadExternalPointerField(node);
+  }
+
+  if (access.is_bounded_size_access) {
+    return ReduceLoadBoundedSize(node);
   }
 
   NodeProperties::ChangeOp(node, machine()->Load(type));
@@ -574,6 +599,8 @@ Reduction MemoryLowering::ReduceStoreField(Node* node,
   DCHECK(!access.type.Is(Type::ExternalPointer()));
   // SandboxedPointers are not currently stored by optimized code.
   DCHECK(!access.type.Is(Type::SandboxedPointer()));
+  // Bounded size fields are not currently stored by optimized code.
+  DCHECK(!access.is_bounded_size_access);
   MachineType machine_type = access.machine_type;
   Node* object = node->InputAt(0);
   Node* value = node->InputAt(1);

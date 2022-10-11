@@ -1552,6 +1552,33 @@ TNode<RawPtrT> CodeStubAssembler::EmptyBackingStoreBufferConstant() {
 #endif  // V8_ENABLE_SANDBOX
 }
 
+TNode<UintPtrT> CodeStubAssembler::LoadBoundedSizeFromObject(
+    TNode<HeapObject> object, TNode<IntPtrT> field_offset) {
+#ifdef V8_ENABLE_SANDBOX
+  TNode<Uint64T> raw_value = LoadObjectField<Uint64T>(object, field_offset);
+  TNode<Uint64T> shift_amount = Uint64Constant(kBoundedSizeShift);
+  TNode<Uint64T> decoded_value = Word64Shr(raw_value, shift_amount);
+  return ReinterpretCast<UintPtrT>(decoded_value);
+#else
+  return LoadObjectField<UintPtrT>(object, field_offset);
+#endif  // V8_ENABLE_SANDBOX
+}
+
+void CodeStubAssembler::StoreBoundedSizeToObject(TNode<HeapObject> object,
+                                                 TNode<IntPtrT> offset,
+                                                 TNode<UintPtrT> value) {
+#ifdef V8_ENABLE_SANDBOX
+  CSA_DCHECK(this, UintPtrLessThan(
+                       value, IntPtrConstant(kMaxSafeBufferSizeForSandbox)));
+  TNode<Uint64T> raw_value = ReinterpretCast<Uint64T>(value);
+  TNode<Uint64T> shift_amount = Uint64Constant(kBoundedSizeShift);
+  TNode<Uint64T> encoded_value = Word64Shl(raw_value, shift_amount);
+  StoreObjectFieldNoWriteBarrier<Uint64T>(object, offset, encoded_value);
+#else
+  StoreObjectFieldNoWriteBarrier<UintPtrT>(object, offset, value);
+#endif  // V8_ENABLE_SANDBOX
+}
+
 #ifdef V8_ENABLE_SANDBOX
 TNode<RawPtrT> CodeStubAssembler::ExternalPointerTableAddress(
     ExternalPointerTag tag) {
@@ -14299,6 +14326,18 @@ void CodeStubAssembler::ThrowIfArrayBufferViewBufferIsDetached(
   ThrowIfArrayBufferIsDetached(context, buffer, method_name);
 }
 
+TNode<UintPtrT> CodeStubAssembler::LoadJSArrayBufferByteLength(
+    TNode<JSArrayBuffer> array_buffer) {
+  return LoadBoundedSizeFromObject(array_buffer,
+                                   JSArrayBuffer::kRawByteLengthOffset);
+}
+
+TNode<UintPtrT> CodeStubAssembler::LoadJSArrayBufferMaxByteLength(
+    TNode<JSArrayBuffer> array_buffer) {
+  return LoadBoundedSizeFromObject(array_buffer,
+                                   JSArrayBuffer::kRawMaxByteLengthOffset);
+}
+
 TNode<RawPtrT> CodeStubAssembler::LoadJSArrayBufferBackingStorePtr(
     TNode<JSArrayBuffer> array_buffer) {
   return LoadSandboxedPointerFromObject(array_buffer,
@@ -14311,16 +14350,38 @@ TNode<JSArrayBuffer> CodeStubAssembler::LoadJSArrayBufferViewBuffer(
                                         JSArrayBufferView::kBufferOffset);
 }
 
-TNode<UintPtrT> CodeStubAssembler::LoadJSArrayBufferViewRawByteLength(
+TNode<UintPtrT> CodeStubAssembler::LoadJSArrayBufferViewByteLength(
     TNode<JSArrayBufferView> array_buffer_view) {
-  return LoadObjectField<UintPtrT>(array_buffer_view,
-                                   JSArrayBufferView::kByteLengthOffset);
+  return LoadBoundedSizeFromObject(array_buffer_view,
+                                   JSArrayBufferView::kRawByteLengthOffset);
+}
+
+void CodeStubAssembler::StoreJSArrayBufferViewByteLength(
+    TNode<JSArrayBufferView> array_buffer_view, TNode<UintPtrT> value) {
+  StoreBoundedSizeToObject(array_buffer_view,
+                           JSArrayBufferView::kRawByteLengthOffset, value);
 }
 
 TNode<UintPtrT> CodeStubAssembler::LoadJSArrayBufferViewByteOffset(
     TNode<JSArrayBufferView> array_buffer_view) {
-  return LoadObjectField<UintPtrT>(array_buffer_view,
-                                   JSArrayBufferView::kByteOffsetOffset);
+  return LoadBoundedSizeFromObject(array_buffer_view,
+                                   JSArrayBufferView::kRawByteOffsetOffset);
+}
+
+void CodeStubAssembler::StoreJSArrayBufferViewByteOffset(
+    TNode<JSArrayBufferView> array_buffer_view, TNode<UintPtrT> value) {
+  StoreBoundedSizeToObject(array_buffer_view,
+                           JSArrayBufferView::kRawByteOffsetOffset, value);
+}
+
+TNode<UintPtrT> CodeStubAssembler::LoadJSTypedArrayLength(
+    TNode<JSTypedArray> typed_array) {
+  return LoadBoundedSizeFromObject(typed_array, JSTypedArray::kRawLengthOffset);
+}
+
+void CodeStubAssembler::StoreJSTypedArrayLength(TNode<JSTypedArray> typed_array,
+                                                TNode<UintPtrT> value) {
+  StoreBoundedSizeToObject(typed_array, JSTypedArray::kRawLengthOffset, value);
 }
 
 TNode<UintPtrT> CodeStubAssembler::LoadJSTypedArrayLengthAndCheckDetached(
@@ -14418,7 +14479,7 @@ CodeStubAssembler::LoadVariableLengthJSArrayBufferViewByteLength(
       // Check if the backing RAB has shrunk so that the buffer is out of
       // bounds.
       TNode<UintPtrT> array_byte_length =
-          LoadJSArrayBufferViewRawByteLength(array);
+          LoadJSArrayBufferViewByteLength(array);
       GotoIfNot(UintPtrGreaterThanOrEqual(
                     buffer_byte_length,
                     UintPtrAdd(array_byte_offset, array_byte_length)),
@@ -14463,7 +14524,7 @@ void CodeStubAssembler::IsJSArrayBufferViewDetachedOrOutOfBounds(
       // Check if the backing RAB has shrunk so that the buffer is out of
       // bounds.
       TNode<UintPtrT> array_byte_length =
-          LoadJSArrayBufferViewRawByteLength(array_buffer_view);
+          LoadJSArrayBufferViewByteLength(array_buffer_view);
       Branch(UintPtrGreaterThanOrEqual(
                  buffer_byte_length,
                  UintPtrAdd(array_byte_offset, array_byte_length)),

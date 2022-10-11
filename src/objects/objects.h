@@ -744,6 +744,12 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
                                          Address value);
 
   //
+  // BoundedSize field accessors.
+  //
+  inline size_t ReadBoundedSizeField(size_t offset) const;
+  inline void WriteBoundedSizeField(size_t offset, size_t value);
+
+  //
   // ExternalPointer_t field accessors.
   //
   template <ExternalPointerTag tag>

@@ -43,6 +43,7 @@
 #include "src/objects/tagged-impl-inl.h"
 #include "src/objects/tagged-index.h"
 #include "src/objects/templates.h"
+#include "src/sandbox/bounded-size-inl.h"
 #include "src/sandbox/external-pointer-inl.h"
 #include "src/sandbox/sandboxed-pointer-inl.h"
 
@@ -661,6 +662,14 @@ void Object::WriteSandboxedPointerField(size_t offset, Isolate* isolate,
                                         Address value) {
   i::WriteSandboxedPointerField(field_address(offset),
                                 PtrComprCageBase(isolate), value);
+}
+
+size_t Object::ReadBoundedSizeField(size_t offset) const {
+  return i::ReadBoundedSizeField(field_address(offset));
+}
+
+void Object::WriteBoundedSizeField(size_t offset, size_t value) {
+  i::WriteBoundedSizeField(field_address(offset), value);
 }
 
 template <ExternalPointerTag tag>

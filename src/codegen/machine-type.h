@@ -240,7 +240,7 @@ class MachineType {
   }
   constexpr static MachineType SandboxedPointer() {
     return MachineType(MachineRepresentation::kSandboxedPointer,
-                       MachineSemantic::kNone);
+                       MachineSemantic::kInt64);
   }
   constexpr static MachineType Bool() {
     return MachineType(MachineRepresentation::kBit, MachineSemantic::kBool);

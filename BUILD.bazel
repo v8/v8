@@ -2071,6 +2071,8 @@ filegroup(
         "src/sandbox/sandbox.h",
         "src/sandbox/sandboxed-pointer-inl.h",
         "src/sandbox/sandboxed-pointer.h",
+        "src/sandbox/bounded-size-inl.h",
+        "src/sandbox/bounded-size.h",
         "src/base/sanitizer/asan.h",
         "src/base/sanitizer/lsan-page-allocator.cc",
         "src/base/sanitizer/lsan-page-allocator.h",
