@@ -184,7 +184,6 @@ struct OptimizationPhase<Analyzer, Assembler>::Impl {
   template <bool trace_reduction>
   void RunDominatorOrder() {
     base::SmallVector<Block*, 128> dominator_visit_stack;
-    input_graph.GenerateDominatorTree();
 
     dominator_visit_stack.push_back(input_graph.GetPtr(0));
     while (!dominator_visit_stack.empty()) {
