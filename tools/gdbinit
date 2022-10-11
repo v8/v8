@@ -259,3 +259,23 @@ gdb.events.new_objfile.connect(newobj_handler)
 gdb.execute("set environment V8_GDBINIT_SOURCED=1")
 
 end
+
+### CppGC helpers.
+
+# Print compressed pointer.
+define cpcp
+call _cppgc_internal_Decompress_Compressed_Pointer((unsigned)($arg0))
+end
+document cpcp
+Prints compressed pointer (raw value) after decompression.
+Usage: cpcp compressed_pointer
+end
+
+# Print member.
+define cpm
+call _cppgc_internal_Print_Member((cppgc::internal::MemberBase*)(&$arg0))
+end
+document cpm
+Prints member, compressed or not.
+Usage: cpm member
+end

@@ -68,6 +68,8 @@ class V8_TRIVIAL_ABI MemberBase {
   V8_INLINE void ClearFromGC() const { raw_.Clear(); }
 
  private:
+  friend class MemberDebugHelper;
+
   mutable RawStorage raw_;
 };
 
