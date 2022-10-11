@@ -3558,6 +3558,7 @@ void AttemptOnStackReplacement(MaglevAssembler* masm, Label* return_label,
   // See also: InterpreterAssembler::OnStackReplacement.
 
   baseline::BaselineAssembler basm(masm);
+  __ AssertFeedbackVector(scratch0);
 
   // Case 1).
   Label deopt;
@@ -3569,7 +3570,6 @@ void AttemptOnStackReplacement(MaglevAssembler* masm, Label* return_label,
 
   // Case 2).
   {
-    __ AssertFeedbackVector(scratch0);
     __ movb(scratch0, FieldOperand(scratch0, FeedbackVector::kOsrStateOffset));
     __ DecodeField<FeedbackVector::OsrUrgencyBits>(scratch0);
     basm.JumpIfByte(baseline::Condition::kUnsignedLessThanEqual, scratch0,
@@ -3601,18 +3601,19 @@ void AttemptOnStackReplacement(MaglevAssembler* masm, Label* return_label,
               }
             }
           });
+      DCHECK(!snapshot.live_registers.has(maybe_target_code));
       SaveRegisterStateForCall save_register_state(masm, snapshot);
       __ Move(kContextRegister, masm->native_context().object());
       __ Push(Smi::FromInt(osr_offset.ToInt()));
       __ CallRuntime(Runtime::kCompileOptimizedOSRFromMaglev, 1);
       save_register_state.DefineSafepoint();
-      __ Move(scratch0, rax);
+      __ Move(maybe_target_code, kReturnRegister0);
     }
 
     // A `0` return value means there is no OSR code available yet. Fall
     // through for now, OSR code will be picked up once it exists and is
     // cached on the feedback vector.
-    __ testq(scratch0, scratch0);
+    __ Cmp(maybe_target_code, 0);
     __ j(equal, return_label, Label::kNear);
   }
 

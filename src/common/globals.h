@@ -1833,6 +1833,15 @@ static constexpr uint32_t kNoneOrInProgressMask = 0b110;
 TIERING_STATE_LIST(V)
 #undef V
 
+constexpr bool IsRequestMaglev(TieringState state) {
+  return IsRequestMaglev_Concurrent(state) ||
+         IsRequestMaglev_Synchronous(state);
+}
+constexpr bool IsRequestTurbofan(TieringState state) {
+  return IsRequestTurbofan_Concurrent(state) ||
+         IsRequestTurbofan_Synchronous(state);
+}
+
 constexpr const char* ToString(TieringState marker) {
   switch (marker) {
 #define V(Name, Value)        \
