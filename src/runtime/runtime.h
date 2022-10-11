@@ -191,7 +191,6 @@ namespace internal {
   F(AsyncGeneratorHasCatchHandlerForPC, 1, 1) \
   I(AsyncGeneratorReject, 2, 1)               \
   I(AsyncGeneratorResolve, 3, 1)              \
-  I(AsyncGeneratorYieldNoAwait, 2, 1)         \
   I(AsyncGeneratorYieldWithAwait, 3, 1)       \
   I(CreateJSGeneratorObject, 2, 1)            \
   I(GeneratorClose, 1, 1)                     \

@@ -4829,9 +4829,8 @@ void BytecodeGenerator::VisitYield(Yield* expr) {
 //       // From the generator to its user:
 //       // Forward output, receive new input, and determine resume mode.
 //       if (IS_ASYNC_GENERATOR) {
-//         // AsyncGeneratorYield abstract operation awaits the operand before
-//         // resolving the promise for the current AsyncGeneratorRequest.
-//         %_AsyncGeneratorYieldNoAwait(output.value)
+//         // Resolve the promise for the current AsyncGeneratorRequest.
+//         %_AsyncGeneratorResolve(output.value, /* done = */ false)
 //       }
 //       input = Suspend(output);
 //       resumeMode = %GeneratorGetResumeMode();
@@ -4967,17 +4966,20 @@ void BytecodeGenerator::VisitYieldStar(YieldStar* expr) {
         RegisterAllocationScope inner_register_scope(this);
         DCHECK_EQ(iterator_type, IteratorType::kAsync);
         // If generatorKind is async, perform
-        // AsyncGeneratorYieldNoAwait(output.value), which will resolve the
-        // current AsyncGeneratorRequest's promise with output.value.
+        // AsyncGeneratorResolve(output.value, /* done = */ false), which will
+        // resolve the current AsyncGeneratorRequest's promise with
+        // output.value.
         builder()->LoadNamedProperty(
             output, ast_string_constants()->value_string(),
             feedback_index(feedback_spec()->AddLoadICSlot()));
 
-        RegisterList args = register_allocator()->NewRegisterList(2);
+        RegisterList args = register_allocator()->NewRegisterList(3);
         builder()
             ->MoveRegister(generator_object(), args[0])  // generator
             .StoreAccumulatorInRegister(args[1])         // value
-            .CallRuntime(Runtime::kInlineAsyncGeneratorYieldNoAwait, args);
+            .LoadFalse()
+            .StoreAccumulatorInRegister(args[2])  // done
+            .CallRuntime(Runtime::kInlineAsyncGeneratorResolve, args);
       }
 
       BuildSuspendPoint(expr->position());

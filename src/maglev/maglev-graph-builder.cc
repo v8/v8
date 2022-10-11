@@ -2500,13 +2500,6 @@ void MaglevGraphBuilder::VisitIntrinsicAsyncGeneratorResolve(
        GetTaggedValue(args[2])}));
 }
 
-void MaglevGraphBuilder::VisitIntrinsicAsyncGeneratorYieldNoAwait(
-    interpreter::RegisterList args) {
-  DCHECK_EQ(args.register_count(), 2);
-  SetAccumulator(BuildCallBuiltin<Builtin::kAsyncGeneratorYieldNoAwait>(
-      {GetTaggedValue(args[0]), GetTaggedValue(args[1])}));
-}
-
 void MaglevGraphBuilder::VisitIntrinsicAsyncGeneratorYieldWithAwait(
     interpreter::RegisterList args) {
   DCHECK_EQ(args.register_count(), 3);

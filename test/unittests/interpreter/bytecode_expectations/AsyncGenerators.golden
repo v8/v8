@@ -388,9 +388,9 @@ snippet: "
   async function* f() { yield* g() }
   f();
 "
-frame size: 16
+frame size: 17
 parameter count: 1
-bytecode array length: 420
+bytecode array length: 423
 bytecodes: [
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(5),
                 B(Mov), R(closure), R(1),
@@ -458,7 +458,7 @@ bytecodes: [
                 B(LdaSmi), I8(1),
                 B(Star1),
                 B(Mov), R(10), R(2),
-                B(Jump), U8(213),
+                B(Jump), U8(216),
                 B(GetNamedProperty), R(7), U8(14), U8(20),
                 B(JumpIfUndefinedOrNull), U8(10),
                 B(Star12),
@@ -505,17 +505,19 @@ bytecodes: [
                 B(JumpIfJSReceiver), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(5), U8(1),
                 B(GetNamedProperty), R(5), U8(15), U8(28),
-                B(JumpIfToBooleanTrue), U8(33),
+                B(JumpIfToBooleanTrue), U8(36),
                 B(GetNamedProperty), R(5), U8(16), U8(30),
                 B(Star15),
+                B(LdaFalse),
+                B(Star), R(16),
                 B(Mov), R(0), R(14),
-                B(InvokeIntrinsic), U8(Runtime::k_AsyncGeneratorYieldNoAwait), R(14), U8(2),
+                B(InvokeIntrinsic), U8(Runtime::k_AsyncGeneratorResolve), R(14), U8(3),
   /*   49 E> */ B(SuspendGenerator), R(0), R(0), U8(14), U8(4),
                 B(ResumeGenerator), R(0), R(0), U8(14),
                 B(Star8),
                 B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetResumeMode), R(0), U8(1),
                 B(Star6),
-                B(JumpLoop), U8(217), I8(0), U8(32),
+                B(JumpLoop), U8(220), I8(0), U8(32),
                 B(GetNamedProperty), R(5), U8(16), U8(33),
                 B(Star7),
                 B(LdaSmi), I8(1),
@@ -576,7 +578,7 @@ constant pool: [
   Smi [144],
   Smi [210],
   Smi [256],
-  Smi [309],
+  Smi [312],
   Smi [15],
   Smi [7],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["g"],
@@ -590,13 +592,13 @@ constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["done"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["value"],
   SCOPE_INFO_TYPE,
-  Smi [331],
+  Smi [334],
   Smi [6],
   Smi [9],
   Smi [22],
 ]
 handlers: [
-  [18, 378, 378],
-  [21, 349, 349],
+  [18, 381, 381],
+  [21, 352, 352],
 ]
 

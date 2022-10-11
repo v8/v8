@@ -1024,7 +1024,6 @@ namespace internal {
                                                                                \
   TFS(AsyncGeneratorResolve, kGenerator, kValue, kDone)                        \
   TFS(AsyncGeneratorReject, kGenerator, kValue)                                \
-  TFS(AsyncGeneratorYieldNoAwait, kGenerator, kValue)                          \
   TFS(AsyncGeneratorYieldWithAwait, kGenerator, kValue, kIsCaught)             \
   TFS(AsyncGeneratorReturn, kGenerator, kValue, kIsCaught)                     \
   TFS(AsyncGeneratorResumeNext, kGenerator)                                    \

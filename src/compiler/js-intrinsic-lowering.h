@@ -53,7 +53,6 @@ class V8_EXPORT_PRIVATE JSIntrinsicLowering final
   Reduction ReduceAsyncGeneratorAwaitUncaught(Node* node);
   Reduction ReduceAsyncGeneratorReject(Node* node);
   Reduction ReduceAsyncGeneratorResolve(Node* node);
-  Reduction ReduceAsyncGeneratorYieldNoAwait(Node* node);
   Reduction ReduceAsyncGeneratorYieldWithAwait(Node* node);
   Reduction ReduceGeneratorGetResumeMode(Node* node);
   Reduction ReduceIsInstanceType(Node* node, InstanceType instance_type);

@@ -602,16 +602,6 @@ TF_BUILTIN(AsyncGeneratorReject, AsyncGeneratorBuiltinsAssembler) {
                      TrueConstant()));
 }
 
-TF_BUILTIN(AsyncGeneratorYieldNoAwait, AsyncGeneratorBuiltinsAssembler) {
-  const auto generator = Parameter<JSGeneratorObject>(Descriptor::kGenerator);
-  const auto value = Parameter<Object>(Descriptor::kValue);
-  const auto context = Parameter<Context>(Descriptor::kContext);
-
-  CallBuiltin(Builtin::kAsyncGeneratorResolve, context, generator, value,
-              FalseConstant());
-  Return(UndefinedConstant());
-}
-
 TF_BUILTIN(AsyncGeneratorYieldWithAwait, AsyncGeneratorBuiltinsAssembler) {
   const auto generator = Parameter<JSGeneratorObject>(Descriptor::kGenerator);
   const auto value = Parameter<Object>(Descriptor::kValue);
