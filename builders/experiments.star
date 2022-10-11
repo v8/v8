@@ -20,6 +20,7 @@ def experiment_builder(**kwargs):
     return v8_builder(
         bucket = bucket,
         properties = properties,
+        experiments = {"luci.buildbucket.omit_python2": 100},
         **kwargs
     )
 
