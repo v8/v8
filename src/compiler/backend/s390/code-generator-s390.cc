@@ -306,6 +306,7 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
         case kS390_Abs64:
         case kS390_Abs32:
         case kS390_Mul32:
+        case kS390_Mul64WithOverflow:
           return overflow;
         default:
           break;
@@ -1695,6 +1696,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kS390_Mul64:
       ASSEMBLE_BIN_OP(RRInstr(MulS64), RM64Instr(MulS64), RIInstr(MulS64));
       break;
+    case kS390_Mul64WithOverflow: {
+      Register dst = i.OutputRegister(), src1 = i.InputRegister(0),
+               src2 = i.InputRegister(1);
+      DCHECK(!AreAliased(dst, src1, src2));
+      if (CpuFeatures::IsSupported(MISC_INSTR_EXT2)) {
+        __ msgrkc(dst, src1, src2);
+      } else {
+        __ mgrk(r0, src1, src2);  // r0 = high 64-bits, r1 = low 64-bits.
+        __ lgr(dst, r1);
+        __ ShiftRightS64(r1, r1, Operand(63));
+        // Test whether {high} is a sign-extension of {result}.
+        __ CmpU64(r0, r1);
+      }
+      break;
+    }
     case kS390_MulHigh32:
       // zero-ext
       ASSEMBLE_BIN_OP(RRRInstr(MulHighS32), RRM32Instr(MulHighS32),

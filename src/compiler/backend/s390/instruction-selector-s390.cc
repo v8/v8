@@ -1259,6 +1259,23 @@ static inline bool TryMatchInt64SubWithOverflow(InstructionSelector* selector,
   return TryMatchInt64OpWithOverflow<kS390_Sub64>(selector, node,
                                                   SubOperandMode);
 }
+
+void EmitInt64MulWithOverflow(InstructionSelector* selector, Node* node,
+                              FlagsContinuation* cont) {
+  S390OperandGenerator g(selector);
+  Int64BinopMatcher m(node);
+  InstructionOperand inputs[2];
+  size_t input_count = 0;
+  InstructionOperand outputs[1];
+  size_t output_count = 0;
+
+  inputs[input_count++] = g.UseUniqueRegister(m.left().node());
+  inputs[input_count++] = g.UseUniqueRegister(m.right().node());
+  outputs[output_count++] = g.DefineAsRegister(node);
+  selector->EmitWithContinuation(kS390_Mul64WithOverflow, output_count, outputs,
+                                 input_count, inputs, cont);
+}
+
 #endif
 
 static inline bool TryMatchDoubleConstructFromInsert(
@@ -1587,6 +1604,16 @@ void InstructionSelector::VisitFloat64Ieee754Binop(Node* node,
       ->MarkAsCall();
 }
 
+void InstructionSelector::VisitInt64MulWithOverflow(Node* node) {
+  if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
+    FlagsContinuation cont = FlagsContinuation::ForSet(
+        CpuFeatures::IsSupported(MISC_INSTR_EXT2) ? kOverflow : kNotEqual, ovf);
+    return EmitInt64MulWithOverflow(this, node, &cont);
+  }
+  FlagsContinuation cont;
+  EmitInt64MulWithOverflow(this, node, &cont);
+}
+
 static bool CompareLogical(FlagsContinuation* cont) {
   switch (cont->condition()) {
     case kUnsignedLessThan:
@@ -1904,6 +1931,11 @@ void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
                 cont->OverwriteAndNegateIfEqual(kOverflow);
                 return VisitWord64BinOp(this, node, kS390_Sub64, SubOperandMode,
                                         cont);
+              case IrOpcode::kInt64MulWithOverflow:
+                cont->OverwriteAndNegateIfEqual(
+                    CpuFeatures::IsSupported(MISC_INSTR_EXT2) ? kOverflow
+                                                              : kNotEqual);
+                return EmitInt64MulWithOverflow(this, node, cont);
 #endif
               default:
                 break;
