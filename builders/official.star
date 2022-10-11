@@ -96,19 +96,6 @@ in_category(
         use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
     ),
-    # reclient shadow.
-    # TODO(b:238274944): Remove this.
-    v8_builder(
-        name = "V8 Official Linux64 (reclient)",
-        bucket = "ci",
-        triggered_by = ["v8-trigger-official"],
-        triggering_policy = greedy_batching_of_1,
-        executable = "recipe:v8/archive",
-        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-        properties = {"build_config": "Release", "builder_group": "client.v8.official", "target_bits": 64, "upload_archive": False},
-        use_goma = GOMA.NO,
-        use_remoteexec = RECLIENT.DEFAULT,
-    ),
 )
 
 in_category(
@@ -201,19 +188,6 @@ in_category(
         executable = "recipe:v8/archive",
         dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
         properties = {"build_config": "Debug", "builder_group": "client.v8.official", "target_bits": 64, "target_arch": "arm"},
-        use_goma = GOMA.NO,
-        use_remoteexec = RECLIENT.DEFAULT,
-    ),
-    # reclient shadow.
-    # TODO(b:238274944): Remove this when Mac builders are migrated.
-    v8_builder(
-        name = "V8 Official Mac64 (reclient)",
-        bucket = "ci",
-        triggered_by = ["v8-trigger-official"],
-        triggering_policy = greedy_batching_of_1,
-        executable = "recipe:v8/archive",
-        dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
-        properties = {"build_config": "Release", "builder_group": "client.v8.official", "target_bits": 64, "upload_archive": False},
         use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
     ),
