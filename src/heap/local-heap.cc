@@ -387,19 +387,32 @@ Address LocalHeap::PerformCollectionAndAllocateAgain(
   CHECK(!main_thread_parked_);
   allocation_failed_ = true;
   static const int kMaxNumberOfRetries = 3;
+  int failed_allocations = 0;
+  int parked_allocations = 0;
 
   for (int i = 0; i < kMaxNumberOfRetries; i++) {
     if (!heap_->CollectGarbageFromAnyThread(this)) {
       main_thread_parked_ = true;
+      parked_allocations++;
     }
 
     AllocationResult result = AllocateRaw(object_size, type, origin, alignment);
 
-    if (!result.IsFailure()) {
+    if (result.IsFailure()) {
+      failed_allocations++;
+    } else {
       allocation_failed_ = false;
       main_thread_parked_ = false;
       return result.ToObjectChecked().address();
     }
+  }
+
+  if (v8_flags.trace_gc) {
+    heap_->isolate()->PrintWithTimestamp(
+        "Background allocation failure: "
+        "allocations=%d"
+        "allocations.parked=%d",
+        failed_allocations, parked_allocations);
   }
 
   heap_->FatalProcessOutOfMemory("LocalHeap: allocation failed");
