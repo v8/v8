@@ -168,7 +168,8 @@ in_category(
         executable = "recipe:v8/archive",
         dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
         properties = {"build_config": "Release", "builder_group": "client.v8.official", "target_bits": 64},
-        use_goma = GOMA.DEFAULT,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
     ),
     v8_builder(
         name = "V8 Official Mac64 Debug",
@@ -178,7 +179,8 @@ in_category(
         executable = "recipe:v8/archive",
         dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
         properties = {"build_config": "Debug", "builder_group": "client.v8.official", "target_bits": 64},
-        use_goma = GOMA.DEFAULT,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
     ),
     v8_builder(
         name = "V8 Official Mac ARM64",
@@ -188,7 +190,8 @@ in_category(
         executable = "recipe:v8/archive",
         dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
         properties = {"build_config": "Release", "builder_group": "client.v8.official", "target_bits": 64, "target_arch": "arm"},
-        use_goma = GOMA.DEFAULT,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
     ),
     v8_builder(
         name = "V8 Official Mac ARM64 Debug",
@@ -198,7 +201,8 @@ in_category(
         executable = "recipe:v8/archive",
         dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
         properties = {"build_config": "Debug", "builder_group": "client.v8.official", "target_bits": 64, "target_arch": "arm"},
-        use_goma = GOMA.DEFAULT,
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
     ),
     # reclient shadow.
     # TODO(b:238274944): Remove this when Mac builders are migrated.
