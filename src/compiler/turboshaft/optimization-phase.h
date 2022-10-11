@@ -213,10 +213,12 @@ struct OptimizationPhase<Analyzer, Assembler>::Impl {
       const Operation& last_op =
           *base::Reversed(input_graph.operations(input_block)).begin();
       if (auto* final_goto = last_op.TryCast<GotoOp>()) {
-        if (final_goto->destination->IsLoop() &&
-            final_goto->destination->PredecessorCount() == 1) {
-          assembler.graph().TurnLoopIntoMerge(
-              MapToNewGraph(final_goto->destination->index()));
+        if (final_goto->destination->IsLoop()) {
+          Block* new_loop = MapToNewGraph(final_goto->destination->index());
+          DCHECK(new_loop->IsLoop());
+          if (new_loop->IsLoop() && new_loop->PredecessorCount() == 1) {
+            assembler.graph().TurnLoopIntoMerge(new_loop);
+          }
         }
       }
       assembler.ExitBlock(input_block);
