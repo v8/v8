@@ -32,9 +32,6 @@ namespace internal {
   HR(gc_scavenger_scavenge_main, V8.GCScavenger.ScavengeMain, 0, 10000, 101)   \
   HR(gc_scavenger_scavenge_roots, V8.GCScavenger.ScavengeRoots, 0, 10000, 101) \
   HR(gc_marking_sum, V8.GCMarkingSum, 0, 10000, 101)                           \
-  /* Range and bucket matches BlinkGC.MainThreadMarkingThroughput. */          \
-  HR(gc_main_thread_marking_throughput, V8.GCMainThreadMarkingThroughput, 0,   \
-     100000, 50)                                                               \
   /* Asm/Wasm. */                                                              \
   HR(wasm_functions_per_asm_module, V8.WasmFunctionsPerModule.asm, 1, 1000000, \
      51)                                                                       \
