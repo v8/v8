@@ -13,6 +13,7 @@
 #include "src/common/globals.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/feedback-source.h"
+#include "src/compiler/globals.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator.h"
 #include "src/compiler/types.h"
@@ -370,16 +371,6 @@ size_t hash_value(const CheckTaggedInputParameters& params);
 
 bool operator==(CheckTaggedInputParameters const&,
                 CheckTaggedInputParameters const&);
-
-enum class CheckForMinusZeroMode : uint8_t {
-  kCheckForMinusZero,
-  kDontCheckForMinusZero,
-};
-
-size_t hash_value(CheckForMinusZeroMode);
-
-V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
-                                           CheckForMinusZeroMode);
 
 CheckForMinusZeroMode CheckMinusZeroModeOf(const Operator*)
     V8_WARN_UNUSED_RESULT;

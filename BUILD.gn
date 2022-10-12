@@ -2936,6 +2936,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/typed-optimization.h",
     "src/compiler/typer.h",
     "src/compiler/types.h",
+    "src/compiler/use-info.h",
     "src/compiler/value-numbering-reducer.h",
     "src/compiler/verifier.h",
     "src/compiler/write-barrier-kind.h",

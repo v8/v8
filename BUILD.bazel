@@ -2913,6 +2913,7 @@ filegroup(
         "src/compiler/typer.h",
         "src/compiler/types.cc",
         "src/compiler/types.h",
+        "src/compiler/use-info.h",
         "src/compiler/value-numbering-reducer.cc",
         "src/compiler/value-numbering-reducer.h",
         "src/compiler/verifier.cc",

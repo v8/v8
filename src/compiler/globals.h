@@ -50,6 +50,25 @@ inline size_t hash_value(StackCheckKind kind) {
   return static_cast<size_t>(kind);
 }
 
+enum class CheckForMinusZeroMode : uint8_t {
+  kCheckForMinusZero,
+  kDontCheckForMinusZero,
+};
+
+inline size_t hash_value(CheckForMinusZeroMode mode) {
+  return static_cast<size_t>(mode);
+}
+
+inline std::ostream& operator<<(std::ostream& os, CheckForMinusZeroMode mode) {
+  switch (mode) {
+    case CheckForMinusZeroMode::kCheckForMinusZero:
+      return os << "check-for-minus-zero";
+    case CheckForMinusZeroMode::kDontCheckForMinusZero:
+      return os << "dont-check-for-minus-zero";
+  }
+  UNREACHABLE();
+}
+
 // The CallFeedbackRelation provides the meaning of the call feedback for a
 // TurboFan JSCall operator
 // - kReceiver: The call target was Function.prototype.apply and its receiver

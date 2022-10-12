@@ -235,20 +235,6 @@ CheckForMinusZeroMode CheckMinusZeroModeOf(const Operator* op) {
   return OpParameter<CheckForMinusZeroMode>(op);
 }
 
-size_t hash_value(CheckForMinusZeroMode mode) {
-  return static_cast<size_t>(mode);
-}
-
-std::ostream& operator<<(std::ostream& os, CheckForMinusZeroMode mode) {
-  switch (mode) {
-    case CheckForMinusZeroMode::kCheckForMinusZero:
-      return os << "check-for-minus-zero";
-    case CheckForMinusZeroMode::kDontCheckForMinusZero:
-      return os << "dont-check-for-minus-zero";
-  }
-  UNREACHABLE();
-}
-
 std::ostream& operator<<(std::ostream& os, CheckMapsFlags flags) {
   if (flags & CheckMapsFlag::kTryMigrateInstance) {
     return os << "TryMigrateInstance";
