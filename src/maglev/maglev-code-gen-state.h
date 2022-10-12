@@ -46,6 +46,9 @@ class MaglevCodeGenState {
   const std::vector<DeferredCodeInfo*>& deferred_code() const {
     return deferred_code_;
   }
+  std::vector<DeferredCodeInfo*> TakeDeferredCode() {
+    return std::exchange(deferred_code_, std::vector<DeferredCodeInfo*>());
+  }
   void PushEagerDeopt(EagerDeoptInfo* info) { eager_deopts_.push_back(info); }
   void PushLazyDeopt(LazyDeoptInfo* info) { lazy_deopts_.push_back(info); }
   const std::vector<EagerDeoptInfo*>& eager_deopts() const {

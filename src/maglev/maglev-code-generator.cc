@@ -994,11 +994,16 @@ class MaglevCodeGeneratorImpl final {
   }
 
   void EmitDeferredCode() {
-    for (DeferredCodeInfo* deferred_code : code_gen_state_.deferred_code()) {
-      __ RecordComment("-- Deferred block");
-      __ bind(&deferred_code->deferred_code_label);
-      deferred_code->Generate(masm(), &deferred_code->return_label);
-      __ Trap();
+    // Loop over deferred_code() multiple times, clearing the vector on each
+    // outer loop, so that deferred code can itself emit deferred code.
+    while (!code_gen_state_.deferred_code().empty()) {
+      for (DeferredCodeInfo* deferred_code :
+           code_gen_state_.TakeDeferredCode()) {
+        __ RecordComment("-- Deferred block");
+        __ bind(&deferred_code->deferred_code_label);
+        deferred_code->Generate(masm(), &deferred_code->return_label);
+        __ Trap();
+      }
     }
   }
 
