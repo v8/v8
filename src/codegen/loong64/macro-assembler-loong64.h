@@ -160,6 +160,15 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadRootRegisterOffset(Register destination, intptr_t offset) final;
   void LoadRootRelative(Register destination, int32_t offset) final;
 
+  // Operand pointing to an external reference.
+  // May emit code to set up the scratch register. The operand is
+  // only guaranteed to be correct as long as the scratch register
+  // isn't changed.
+  // If the operand is used more than once, use a scratch register
+  // that is guaranteed not to be clobbered.
+  MemOperand ExternalReferenceAsOperand(ExternalReference reference,
+                                        Register scratch);
+
   inline void Move(Register output, MemOperand operand) {
     Ld_d(output, operand);
   }
