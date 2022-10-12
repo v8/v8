@@ -1991,10 +1991,6 @@ DEFINE_BOOL(concurrent_minor_mc_marking, false,
             "perform young generation marking concurrently")
 DEFINE_NEG_NEG_IMPLICATION(concurrent_marking, concurrent_minor_mc_marking)
 
-DEFINE_BOOL(concurrent_minor_mc_sweeping, false,
-            "perform young generation sweeping concurrently")
-DEFINE_NEG_NEG_IMPLICATION(concurrent_sweeping, concurrent_minor_mc_sweeping)
-
 //
 // Dev shell flags
 //

@@ -7279,8 +7279,6 @@ void Heap::set_allocation_timeout(int allocation_timeout) {
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
 void Heap::FinishSweepingIfOutOfWork() {
-  DCHECK_IMPLIES(v8_flags.concurrent_minor_mc_sweeping,
-                 v8_flags.concurrent_sweeping);
   if (sweeper()->sweeping_in_progress() && v8_flags.concurrent_sweeping &&
       !sweeper()->AreSweeperTasksRunning()) {
     // At this point we know that all concurrent sweeping tasks have run

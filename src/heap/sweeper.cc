@@ -186,32 +186,16 @@ void Sweeper::StartSweeping(GarbageCollector collector) {
 }
 
 int Sweeper::NumberOfConcurrentSweepers() const {
-  DCHECK_IMPLIES(current_collector_ == GarbageCollector::MARK_COMPACTOR,
-                 v8_flags.concurrent_sweeping);
-  DCHECK_IMPLIES(current_collector_ == GarbageCollector::MINOR_MARK_COMPACTOR,
-                 v8_flags.concurrent_minor_mc_sweeping);
+  DCHECK(v8_flags.concurrent_sweeping);
   return std::min(Sweeper::kMaxSweeperTasks,
                   V8::GetCurrentPlatform()->NumberOfWorkerThreads() + 1);
 }
 
-namespace {
-bool IsConcurrentSweepingEnabled(GarbageCollector collector) {
-  switch (collector) {
-    case GarbageCollector::MARK_COMPACTOR:
-      return v8_flags.concurrent_sweeping;
-    case GarbageCollector::MINOR_MARK_COMPACTOR:
-      return v8_flags.concurrent_minor_mc_sweeping;
-    default:
-      UNREACHABLE();
-  }
-}
-}  // namespace
-
 void Sweeper::StartSweeperTasks() {
   DCHECK(current_collector_.has_value());
   DCHECK(!job_handle_ || !job_handle_->IsValid());
-  if (IsConcurrentSweepingEnabled(current_collector_.value()) &&
-      sweeping_in_progress_ && !heap_->delay_sweeper_tasks_for_testing_) {
+  if (v8_flags.concurrent_sweeping && sweeping_in_progress_ &&
+      !heap_->delay_sweeper_tasks_for_testing_) {
     if (concurrent_sweepers_.empty()) {
       for (int i = 0; i < NumberOfConcurrentSweepers(); ++i) {
         concurrent_sweepers_.emplace_back(this);
@@ -623,9 +607,8 @@ void Sweeper::AddPageImpl(AllocationSpace space, Page* page,
                           Sweeper::AddPageMode mode) {
   base::MutexGuard guard(&mutex_);
   DCHECK(IsValidSweepingSpace(space));
-  DCHECK((!v8_flags.concurrent_sweeping &&
-          !v8_flags.concurrent_minor_mc_sweeping) ||
-         !job_handle_ || !job_handle_->IsValid());
+  DCHECK_IMPLIES(v8_flags.concurrent_sweeping,
+                 !job_handle_ || !job_handle_->IsValid());
   if (mode == Sweeper::REGULAR) {
     PrepareToBeSweptPage(space, page);
   } else {

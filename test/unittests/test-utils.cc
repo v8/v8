@@ -98,7 +98,6 @@ ManualGCScope::ManualGCScope(i::Isolate* isolate) {
   i::v8_flags.concurrent_marking = false;
   i::v8_flags.concurrent_sweeping = false;
   i::v8_flags.concurrent_minor_mc_marking = false;
-  i::v8_flags.concurrent_minor_mc_sweeping = false;
   i::v8_flags.stress_incremental_marking = false;
   i::v8_flags.stress_concurrent_allocation = false;
   // Parallel marking has a dependency on concurrent marking.
