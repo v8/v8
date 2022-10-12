@@ -190,8 +190,9 @@ void GCTracer::ResetForTesting() {
   current_.end_time = MonotonicallyIncreasingTimeInMs();
   previous_ = current_;
   start_of_observable_pause_ = 0.0;
-  notified_sweeping_completed_ = false;
+  notified_full_sweeping_completed_ = false;
   notified_full_cppgc_completed_ = false;
+  notified_young_sweeping_completed_ = false;
   notified_young_cppgc_completed_ = false;
   notified_young_cppgc_running_ = false;
   young_gc_while_full_gc_ = false;
@@ -482,18 +483,19 @@ void GCTracer::StopCycle(GarbageCollector collector) {
 
 void GCTracer::StopFullCycleIfNeeded() {
   if (current_.state != Event::State::SWEEPING) return;
-  if (!notified_sweeping_completed_) return;
+  if (!notified_full_sweeping_completed_) return;
   if (heap_->cpp_heap() && !notified_full_cppgc_completed_) return;
   StopCycle(GarbageCollector::MARK_COMPACTOR);
-  notified_sweeping_completed_ = false;
+  notified_full_sweeping_completed_ = false;
   notified_full_cppgc_completed_ = false;
 }
 
 void GCTracer::StopYoungCycleIfNeeded() {
-  // We rely here on the fact that young GCs in V8 are atomic and by the time
-  // this is called, the Scavenger or Minor MC has already finished.
   DCHECK(Event::IsYoungGenerationEvent(current_.type));
   if (current_.state != Event::State::SWEEPING) return;
+  if (current_.type == Event::MINOR_MARK_COMPACTOR &&
+      !notified_young_sweeping_completed_)
+    return;
   // Check if young cppgc was scheduled but hasn't completed yet.
   if (heap_->cpp_heap() && notified_young_cppgc_running_ &&
       !notified_young_cppgc_completed_)
@@ -501,11 +503,22 @@ void GCTracer::StopYoungCycleIfNeeded() {
   StopCycle(current_.type == Event::SCAVENGER
                 ? GarbageCollector::SCAVENGER
                 : GarbageCollector::MINOR_MARK_COMPACTOR);
+  notified_young_sweeping_completed_ = false;
   notified_young_cppgc_running_ = false;
   notified_young_cppgc_completed_ = false;
 }
 
 void GCTracer::NotifySweepingCompleted() {
+  if (Event::IsYoungGenerationEvent(current_.type)) {
+    DCHECK(current_.type == Event::Type::MINOR_MARK_COMPACTOR ||
+           current_.type == Event::Type::INCREMENTAL_MINOR_MARK_COMPACTOR);
+    NotifyYoungSweepingCompleted();
+  } else {
+    NotifyFullSweepingCompleted();
+  }
+}
+
+void GCTracer::NotifyFullSweepingCompleted() {
   if (v8_flags.verify_heap) {
     // If heap verification is enabled, sweeping finalization can also be
     // triggered from inside a full GC cycle's atomic pause.
@@ -530,9 +543,26 @@ void GCTracer::NotifySweepingCompleted() {
     heap_->code_space()->PrintAllocationsOrigins();
     heap_->map_space()->PrintAllocationsOrigins();
   }
-  DCHECK(!notified_sweeping_completed_);
-  notified_sweeping_completed_ = true;
+  DCHECK(!notified_full_sweeping_completed_);
+  notified_full_sweeping_completed_ = true;
   StopFullCycleIfNeeded();
+}
+
+void GCTracer::NotifyYoungSweepingCompleted() {
+  if (v8_flags.verify_heap) {
+    // If heap verification is enabled, sweeping finalization can also be
+    // triggered from inside a full GC cycle's atomic pause.
+    DCHECK((current_.type == Event::MINOR_MARK_COMPACTOR ||
+            current_.type == Event::INCREMENTAL_MINOR_MARK_COMPACTOR) &&
+           (current_.state == Event::State::SWEEPING ||
+            current_.state == Event::State::ATOMIC));
+  } else {
+    DCHECK(IsSweepingInProgress());
+  }
+
+  DCHECK(!notified_young_sweeping_completed_);
+  notified_young_sweeping_completed_ = true;
+  StopYoungCycleIfNeeded();
 }
 
 void GCTracer::NotifyFullCppGCCompleted() {

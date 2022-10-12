@@ -993,18 +993,8 @@ void MarkCompactCollector::Finish() {
       SweepLargeSpace(heap()->new_lo_space());
     }
 
-    if (v8_flags.minor_mc && heap()->new_space()) {
-      // Keep new space sweeping atomic.
-      GCTracer::Scope sweep_scope(heap()->tracer(),
-                                  GCTracer::Scope::MC_SWEEP_FINISH_NEW,
-                                  ThreadKind::kMain);
-      sweeper()->ParallelSweepSpace(NEW_SPACE,
-                                    Sweeper::SweepingMode::kEagerDuringGC, 0);
-      heap()->paged_new_space()->paged_space()->RefillFreeList();
-    }
-
 #ifdef DEBUG
-    heap()->VerifyCountersBeforeConcurrentSweeping();
+    heap()->VerifyCountersBeforeConcurrentSweeping(garbage_collector_);
 #endif
   }
 
@@ -5739,20 +5729,17 @@ void MinorMarkCompactCollector::Finish() {
       SweepLargeSpace(heap()->new_lo_space());
     }
 
-    {
-      // Keep new space sweeping atomic.
-      GCTracer::Scope sweep_scope(heap()->tracer(),
-                                  GCTracer::Scope::MINOR_MC_SWEEP_FINISH_NEW,
-                                  ThreadKind::kMain);
-      sweeper_->EnsureCompleted(Sweeper::SweepingMode::kEagerDuringGC);
-      heap()->paged_new_space()->paged_space()->RefillFreeList();
-    }
+#ifdef DEBUG
+    heap()->VerifyCountersBeforeConcurrentSweeping(garbage_collector_);
+#endif
   }
 
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_FINISH);
 
   local_marking_worklists_.reset();
   main_marking_visitor_.reset();
+
+  sweeper()->StartSweeperTasks();
 }
 
 void MinorMarkCompactCollector::CollectGarbage() {
@@ -5777,7 +5764,9 @@ void MinorMarkCompactCollector::CollectGarbage() {
   Finish();
 
 #ifdef VERIFY_HEAP
-  if (v8_flags.verify_heap) {
+  // If concurrent sweeping is active, evacuation will be verified once sweeping
+  // is done using the FullEvacuationVerifier.
+  if (v8_flags.verify_heap && !sweeper()->sweeping_in_progress()) {
     YoungGenerationEvacuationVerifier verifier(heap());
     verifier.Run();
   }

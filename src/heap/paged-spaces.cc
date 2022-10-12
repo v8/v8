@@ -910,17 +910,11 @@ bool PagedSpaceBase::RawRefillLabMain(int size_in_bytes,
 
   if (TryAllocationFromFreeListMain(size_in_bytes, origin)) return true;
 
-  if (identity() == NEW_SPACE) {
-    // New space should not allocate new pages when running out of space and it
-    // is not currently swept.
-    return false;
-  }
-
   const bool is_main_thread =
       heap()->IsMainThread() || heap()->IsSharedMainThread();
-  const auto sweeping_scope_id = is_main_thread
-                                     ? GCTracer::Scope::MC_SWEEP
-                                     : GCTracer::Scope::MC_BACKGROUND_SWEEPING;
+  const auto sweeping_scope_id =
+      is_main_thread ? heap()->sweeper()->GetTracingScope()
+                     : heap()->sweeper()->GetBackgroundTracingScope();
   const auto sweeping_scope_kind =
       is_main_thread ? ThreadKind::kMain : ThreadKind::kBackground;
   // Sweeping is still in progress.
@@ -959,7 +953,8 @@ bool PagedSpaceBase::RawRefillLabMain(int size_in_bytes,
     }
   }
 
-  if (heap()->ShouldExpandOldGenerationOnSlowAllocation(
+  if (identity() != NEW_SPACE &&
+      heap()->ShouldExpandOldGenerationOnSlowAllocation(
           heap()->main_thread_local_heap()) &&
       heap()->CanExpandOldGeneration(AreaSize())) {
     if (TryExpand(size_in_bytes, origin)) {
@@ -973,7 +968,8 @@ bool PagedSpaceBase::RawRefillLabMain(int size_in_bytes,
     if (ContributeToSweepingMain(0, 0, size_in_bytes, origin)) return true;
   }
 
-  if (heap()->gc_state() != Heap::NOT_IN_GC && !heap()->force_oom()) {
+  if (identity() != NEW_SPACE && heap()->gc_state() != Heap::NOT_IN_GC &&
+      !heap()->force_oom()) {
     // Avoid OOM crash in the GC in order to invoke NearHeapLimitCallback after
     // GC and give it a chance to increase the heap limit.
     return TryExpand(size_in_bytes, origin);
@@ -984,10 +980,6 @@ bool PagedSpaceBase::RawRefillLabMain(int size_in_bytes,
 bool PagedSpaceBase::ContributeToSweepingMain(int required_freed_bytes,
                                               int max_pages, int size_in_bytes,
                                               AllocationOrigin origin) {
-  // TODO(v8:12612): New space is not currently swept so new space allocation
-  // shoudl not contribute to sweeping, Revisit this once sweeping for young gen
-  // is implemented.
-  DCHECK_NE(NEW_SPACE, identity());
   // Cleanup invalidated old-to-new refs for compaction space in the
   // final atomic pause.
   Sweeper::SweepingMode sweeping_mode =

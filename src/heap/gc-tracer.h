@@ -264,8 +264,8 @@ class V8_EXPORT_PRIVATE GCTracer {
   void StopInSafepoint();
 
   void NotifySweepingCompleted();
-  void NotifyFullCppGCCompleted();
 
+  void NotifyFullCppGCCompleted();
   void NotifyYoungCppGCRunning();
   void NotifyYoungCppGCCompleted();
 
@@ -426,6 +426,9 @@ class V8_EXPORT_PRIVATE GCTracer {
     double total_duration_ms;
   };
 
+  void NotifyFullSweepingCompleted();
+  void NotifyYoungSweepingCompleted();
+
   void StopCycle(GarbageCollector collector);
 
   // Statistics for incremental and background scopes are kept out of the
@@ -555,8 +558,10 @@ class V8_EXPORT_PRIVATE GCTracer {
 
   // A full GC cycle stops only when both v8 and cppgc (if available) GCs have
   // finished sweeping.
-  bool notified_sweeping_completed_ = false;
+  bool notified_full_sweeping_completed_ = false;
   bool notified_full_cppgc_completed_ = false;
+
+  bool notified_young_sweeping_completed_ = false;
   // Similar to full GCs, a young GC cycle stops only when both v8 and cppgc GCs
   // have finished sweeping.
   bool notified_young_cppgc_completed_ = false;

@@ -13,6 +13,7 @@
 #include "src/base/platform/semaphore.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
+#include "src/heap/gc-tracer.h"
 #include "src/heap/pretenuring-handler.h"
 #include "src/heap/slot-set.h"
 #include "src/tasks/cancelable-task.h"
@@ -112,6 +113,10 @@ class Sweeper {
   bool AreSweeperTasksRunning();
 
   Page* GetSweptPageSafe(PagedSpaceBase* space);
+
+  GCTracer::Scope::ScopeId GetBackgroundTracingScope();
+
+  GCTracer::Scope::ScopeId GetTracingScope();
 
  private:
   NonAtomicMarkingState* marking_state() const { return marking_state_; }

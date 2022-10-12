@@ -217,6 +217,8 @@ void FillCurrentPage(v8::internal::NewSpace* space,
     PauseAllocationObserversScope pause_observers(space->heap());
     if (space->top() == kNullAddress) return;
     Page* page = Page::FromAllocationAreaAddress(space->top());
+    space->heap()->EnsureSweepingCompleted(
+        Heap::SweepingForcedFinalizationMode::kV8Only);
     space->FreeLinearAllocationArea();
     FillPageInPagedSpace(page, out_handles);
   } else {

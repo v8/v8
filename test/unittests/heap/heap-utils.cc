@@ -133,6 +133,8 @@ void HeapInternalsBase::SimulateFullSpace(
   // v8_flags.stress_concurrent_allocation = false;
   // Background thread allocating concurrently interferes with this function.
   CHECK(!v8_flags.stress_concurrent_allocation);
+  space->heap()->EnsureSweepingCompleted(
+      Heap::SweepingForcedFinalizationMode::kV8Only);
   space->FreeLinearAllocationArea();
   if (v8_flags.minor_mc) {
     for (Page* page : *space) {
@@ -237,6 +239,8 @@ void FillCurrenPagedSpacePage(v8::internal::NewSpace* space,
                               std::vector<Handle<FixedArray>>* out_handles) {
   if (space->top() == kNullAddress) return;
   Page* page = Page::FromAllocationAreaAddress(space->top());
+  space->heap()->EnsureSweepingCompleted(
+      Heap::SweepingForcedFinalizationMode::kV8Only);
   space->FreeLinearAllocationArea();
   FillPageInPagedSpace(page, out_handles);
 }

@@ -71,18 +71,11 @@ class Sweeper::SweeperJob final : public JobTask {
     RwxMemoryWriteScope::SetDefaultPermissionsForNewThread();
     DCHECK(sweeper_->current_collector_.has_value());
     if (delegate->IsJoiningThread()) {
-      TRACE_GC(tracer_, sweeper_->current_collector_ ==
-                                GarbageCollector::MINOR_MARK_COMPACTOR
-                            ? GCTracer::Scope::MINOR_MC_SWEEP
-                            : GCTracer::Scope::MC_SWEEP);
+      TRACE_GC(tracer_, sweeper_->GetTracingScope());
       RunImpl(delegate);
     } else {
-      TRACE_GC_EPOCH(
-          tracer_,
-          sweeper_->current_collector_ == GarbageCollector::MINOR_MARK_COMPACTOR
-              ? GCTracer::Scope::MINOR_MC_BACKGROUND_SWEEPING
-              : GCTracer::Scope::MC_BACKGROUND_SWEEPING,
-          ThreadKind::kBackground);
+      TRACE_GC_EPOCH(tracer_, sweeper_->GetBackgroundTracingScope(),
+                     ThreadKind::kBackground);
       RunImpl(delegate);
     }
   }
@@ -193,16 +186,32 @@ void Sweeper::StartSweeping(GarbageCollector collector) {
 }
 
 int Sweeper::NumberOfConcurrentSweepers() const {
-  DCHECK(v8_flags.concurrent_sweeping);
+  DCHECK_IMPLIES(current_collector_ == GarbageCollector::MARK_COMPACTOR,
+                 v8_flags.concurrent_sweeping);
+  DCHECK_IMPLIES(current_collector_ == GarbageCollector::MINOR_MARK_COMPACTOR,
+                 v8_flags.concurrent_minor_mc_sweeping);
   return std::min(Sweeper::kMaxSweeperTasks,
                   V8::GetCurrentPlatform()->NumberOfWorkerThreads() + 1);
 }
 
+namespace {
+bool IsConcurrentSweepingEnabled(GarbageCollector collector) {
+  switch (collector) {
+    case GarbageCollector::MARK_COMPACTOR:
+      return v8_flags.concurrent_sweeping;
+    case GarbageCollector::MINOR_MARK_COMPACTOR:
+      return v8_flags.concurrent_minor_mc_sweeping;
+    default:
+      UNREACHABLE();
+  }
+}
+}  // namespace
+
 void Sweeper::StartSweeperTasks() {
   DCHECK(current_collector_.has_value());
   DCHECK(!job_handle_ || !job_handle_->IsValid());
-  if (v8_flags.concurrent_sweeping && sweeping_in_progress_ &&
-      !heap_->delay_sweeper_tasks_for_testing_) {
+  if (IsConcurrentSweepingEnabled(current_collector_.value()) &&
+      sweeping_in_progress_ && !heap_->delay_sweeper_tasks_for_testing_) {
     if (concurrent_sweepers_.empty()) {
       for (int i = 0; i < NumberOfConcurrentSweepers(); ++i) {
         concurrent_sweepers_.emplace_back(this);
@@ -361,8 +370,6 @@ int Sweeper::RawSweep(
   DCHECK(space->identity() == OLD_SPACE || space->identity() == CODE_SPACE ||
          space->identity() == MAP_SPACE || space->identity() == SHARED_SPACE ||
          (space->identity() == NEW_SPACE && v8_flags.minor_mc));
-  DCHECK_IMPLIES(space->identity() == NEW_SPACE,
-                 sweeping_mode == SweepingMode::kEagerDuringGC);
   DCHECK(!p->IsEvacuationCandidate() && !p->SweepingDone());
 
   // Phase 1: Prepare the page for sweeping.
@@ -616,8 +623,9 @@ void Sweeper::AddPageImpl(AllocationSpace space, Page* page,
                           Sweeper::AddPageMode mode) {
   base::MutexGuard guard(&mutex_);
   DCHECK(IsValidSweepingSpace(space));
-  DCHECK(!v8_flags.concurrent_sweeping || !job_handle_ ||
-         !job_handle_->IsValid());
+  DCHECK((!v8_flags.concurrent_sweeping &&
+          !v8_flags.concurrent_minor_mc_sweeping) ||
+         !job_handle_ || !job_handle_->IsValid());
   if (mode == Sweeper::REGULAR) {
     PrepareToBeSweptPage(space, page);
   } else {
@@ -661,6 +669,18 @@ Page* Sweeper::GetSweepingPageSafe(AllocationSpace space) {
     sweeping_list_[space_index].pop_back();
   }
   return page;
+}
+
+GCTracer::Scope::ScopeId Sweeper::GetBackgroundTracingScope() {
+  return current_collector_ == GarbageCollector::MINOR_MARK_COMPACTOR
+             ? GCTracer::Scope::MINOR_MC_BACKGROUND_SWEEPING
+             : GCTracer::Scope::MC_BACKGROUND_SWEEPING;
+}
+
+GCTracer::Scope::ScopeId Sweeper::GetTracingScope() {
+  return current_collector_ == GarbageCollector::MINOR_MARK_COMPACTOR
+             ? GCTracer::Scope::MINOR_MC_SWEEP
+             : GCTracer::Scope::MC_SWEEP;
 }
 
 }  // namespace internal

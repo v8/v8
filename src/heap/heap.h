@@ -1604,7 +1604,7 @@ class Heap {
 
 #ifdef DEBUG
   void VerifyCountersAfterSweeping();
-  void VerifyCountersBeforeConcurrentSweeping();
+  void VerifyCountersBeforeConcurrentSweeping(GarbageCollector collector);
   void VerifyCommittedPhysicalMemory();
 
   void Print();

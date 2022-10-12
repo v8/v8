@@ -4381,7 +4381,13 @@ void Heap::VerifyCountersAfterSweeping() {
   }
 }
 
-void Heap::VerifyCountersBeforeConcurrentSweeping() {
+void Heap::VerifyCountersBeforeConcurrentSweeping(GarbageCollector collector) {
+  if (v8_flags.minor_mc && new_space()) {
+    PagedSpaceBase* space = paged_new_space()->paged_space();
+    space->RefillFreeList();
+    space->VerifyCountersBeforeConcurrentSweeping();
+  }
+  if (collector != GarbageCollector::MARK_COMPACTOR) return;
   PagedSpaceIterator spaces(this);
   for (PagedSpace* space = spaces.Next(); space != nullptr;
        space = spaces.Next()) {
@@ -7280,6 +7286,8 @@ void Heap::set_allocation_timeout(int allocation_timeout) {
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
 void Heap::FinishSweepingIfOutOfWork() {
+  DCHECK_IMPLIES(v8_flags.concurrent_minor_mc_sweeping,
+                 v8_flags.concurrent_sweeping);
   if (sweeper()->sweeping_in_progress() && v8_flags.concurrent_sweeping &&
       !sweeper()->AreSweeperTasksRunning()) {
     // At this point we know that all concurrent sweeping tasks have run
@@ -7313,6 +7321,10 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
     if (map_space()) {
       map_space()->RefillFreeList();
       map_space()->SortFreeList();
+    }
+
+    if (v8_flags.minor_mc && new_space()) {
+      paged_new_space()->paged_space()->RefillFreeList();
     }
 
     tracer()->NotifySweepingCompleted();
