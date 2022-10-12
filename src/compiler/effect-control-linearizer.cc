@@ -103,6 +103,7 @@ class EffectControlLinearizer {
   Node* LowerCheckedUint32ToTaggedSigned(Node* node, Node* frame_state);
   Node* LowerCheckedUint64Bounds(Node* node, Node* frame_state);
   Node* LowerCheckedUint64ToInt32(Node* node, Node* frame_state);
+  Node* LowerCheckedUint64ToInt64(Node* node, Node* frame_state);
   Node* LowerCheckedUint64ToTaggedSigned(Node* node, Node* frame_state);
   Node* LowerCheckedFloat64ToInt32(Node* node, Node* frame_state);
   Node* LowerCheckedFloat64ToInt64(Node* node, Node* frame_state);
@@ -1001,6 +1002,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kCheckString:
       result = LowerCheckString(node, frame_state);
+      break;
+    case IrOpcode::kCheckedUint64ToInt64:
+      result = LowerCheckedUint64ToInt64(node, frame_state);
       break;
     case IrOpcode::kCheckBigInt:
       result = LowerCheckBigInt(node, frame_state);
@@ -2561,6 +2565,18 @@ Node* EffectControlLinearizer::LowerCheckedUint64ToInt32(Node* node,
   __ DeoptimizeIfNot(DeoptimizeReason::kLostPrecision, params.feedback(), check,
                      frame_state);
   return __ TruncateInt64ToInt32(value);
+}
+
+Node* EffectControlLinearizer::LowerCheckedUint64ToInt64(Node* node,
+                                                         Node* frame_state) {
+  Node* value = node->InputAt(0);
+  const CheckParameters& params = CheckParametersOf(node->op());
+
+  Node* check = __ Uint64LessThanOrEqual(
+      value, __ Uint64Constant(std::numeric_limits<int64_t>::max()));
+  __ DeoptimizeIfNot(DeoptimizeReason::kLostPrecision, params.feedback(), check,
+                     frame_state);
+  return value;
 }
 
 Node* EffectControlLinearizer::LowerCheckedUint64ToTaggedSigned(

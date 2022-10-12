@@ -496,12 +496,15 @@ Node* RepresentationChanger::GetTaggedPointerRepresentationFor(
     // for TaggedSigned output representation.
     op = simplified()->CheckedTaggedToTaggedPointer(use_info.feedback());
   } else if (IsAnyTagged(output_rep)) {
-    if (output_type.Is(Type::BigInt())) {
-      return node;
-    }
     if (use_info.type_check() == TypeCheckKind::kBigInt) {
+      if (output_type.Is(Type::BigInt())) {
+        return node;
+      }
       op = simplified()->CheckBigInt(use_info.feedback());
     } else if (use_info.type_check() == TypeCheckKind::kBigInt64) {
+      if (output_type.Is(Type::SignedBigInt64())) {
+        return node;
+      }
       op = simplified()->CheckBigInt64(use_info.feedback());
     } else {
       return TypeError(node, output_rep, output_type,
@@ -1254,9 +1257,17 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
     }
   } else if (output_rep == MachineRepresentation::kWord64) {
     DCHECK(TypeCheckIsBigInt(use_info.type_check()));
-    if (output_type.Is(Type::BigInt())) {
+    if (output_type.Is(Type::UnsignedBigInt64()) &&
+        use_info.type_check() == TypeCheckKind::kBigInt64) {
+      op = simplified()->CheckedUint64ToInt64(use_info.feedback());
+    } else if ((output_type.Is(Type::BigInt()) &&
+                use_info.type_check() == TypeCheckKind::kBigInt) ||
+               (output_type.Is(Type::SignedBigInt64()) &&
+                use_info.type_check() == TypeCheckKind::kBigInt64)) {
       return node;
     } else {
+      DCHECK(output_type != Type::BigInt() ||
+             use_info.type_check() != TypeCheckKind::kBigInt64);
       Node* unreachable = InsertUnconditionalDeopt(
           use_node, DeoptimizeReason::kNotABigInt, use_info.feedback());
       return jsgraph()->graph()->NewNode(
