@@ -43,6 +43,11 @@ class ScopeIterator {
   enum class ReparseStrategy {
     kScript,
     kFunctionLiteral,
+    // Checks whether the paused function (and its scope chain) already has
+    // its blocklist calculated and re-parses the whole script if not.
+    // Otherwise only the function literal is re-parsed.
+    // Only vaild with enabled "experimental_reuse_locals_blocklists" flag.
+    kScriptIfNeeded,
   };
 
   ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
@@ -107,15 +112,6 @@ class ScopeIterator {
     return context_;
   }
 
-  bool IsAtClosureScope() const;
-  // Calculates all the block list starting at the current scope and stores
-  // them in the global "LocalsBlocklistCache".
-  //
-  // Can only be called when `IsAtClosureScope` is true. At that point we have
-  // advanced to the right parsed scope as well as found the correct
-  // corresponding context.
-  void CollectAndStoreLocalBlocklists() const;
-
  private:
   Isolate* isolate_;
   std::unique_ptr<ReusableUnoptimizedCompileState> reusable_compile_state_;
@@ -134,6 +130,7 @@ class ScopeIterator {
   Scope* start_scope_ = nullptr;
   Scope* current_scope_ = nullptr;
   bool seen_script_scope_ = false;
+  bool calculate_blocklists_ = false;
 
   inline JavaScriptFrame* GetFrame() const {
     return frame_inspector_->javascript_frame();
@@ -144,6 +141,14 @@ class ScopeIterator {
   void AdvanceScope();
   void AdvanceContext();
   void CollectLocalsFromCurrentScope();
+
+  // Calculates all the block list starting at the current scope and stores
+  // them in the global "LocalsBlocklistCache".
+  //
+  // Is a no-op unless `calculate_blocklists_` is true and
+  // current_scope_ == closure_scope_. Otherwise `context_` does not match
+  // with current_scope_/closure_scope_.
+  void MaybeCollectAndStoreLocalBlocklists() const;
 
   int GetSourcePosition() const;
 

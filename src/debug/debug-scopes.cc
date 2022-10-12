@@ -220,6 +220,14 @@ void ScopeIterator::TryParseAndRetrieveScopes(ReparseStrategy strategy) {
     ignore_nested_scopes = location.IsReturn();
   }
 
+  if (strategy == ReparseStrategy::kScriptIfNeeded) {
+    CHECK(v8_flags.experimental_reuse_locals_blocklists);
+    Object maybe_block_list = isolate_->LocalsBlockListCacheGet(scope_info);
+    calculate_blocklists_ = maybe_block_list.IsTheHole();
+    strategy = calculate_blocklists_ ? ReparseStrategy::kScript
+                                     : ReparseStrategy::kFunctionLiteral;
+  }
+
   // Reparse the code and analyze the scopes.
   // Depending on the choosen strategy, the whole script or just
   // the closure is re-parsed for function scopes.
@@ -291,6 +299,7 @@ void ScopeIterator::TryParseAndRetrieveScopes(ReparseStrategy strategy) {
       }
     }
 
+    MaybeCollectAndStoreLocalBlocklists();
     UnwrapEvaluationContext();
   } else {
     // A failed reparse indicates that the preparser has diverged from the
@@ -481,9 +490,10 @@ void ScopeIterator::Next() {
     }
   }
 
-  if (leaving_closure) function_ = Handle<JSFunction>();
-
+  MaybeCollectAndStoreLocalBlocklists();
   UnwrapEvaluationContext();
+
+  if (leaving_closure) function_ = Handle<JSFunction>();
 }
 
 // Return the type of the current scope.
@@ -1123,10 +1133,6 @@ bool ScopeIterator::SetScriptVariableValue(Handle<String> variable_name,
   return false;
 }
 
-bool ScopeIterator::IsAtClosureScope() const {
-  return current_scope_ == closure_scope_;
-}
-
 namespace {
 
 // Given the scope and context of a paused function, this class calculates
@@ -1284,8 +1290,14 @@ void LocalBlocklistsCollector::CollectAndStore() {
 
 }  // namespace
 
-void ScopeIterator::CollectAndStoreLocalBlocklists() const {
-  CHECK(IsAtClosureScope());
+void ScopeIterator::MaybeCollectAndStoreLocalBlocklists() const {
+  if (!calculate_blocklists_ || current_scope_ != closure_scope_) return;
+
+  CHECK(v8_flags.experimental_reuse_locals_blocklists);
+  DCHECK(isolate_
+             ->LocalsBlockListCacheGet(
+                 handle(function_->shared().scope_info(), isolate_))
+             .IsTheHole());
   LocalBlocklistsCollector collector(isolate_, script_, context_,
                                      closure_scope_);
   collector.CollectAndStore();
