@@ -1145,6 +1145,28 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 #undef PROTOTYPE_SIMD_BINOP
 #undef SIMD_BINOP_LIST
 
+#define SIMD_BINOP_WITH_SCRATCH_LIST(V) \
+  V(F64x2Ne)                            \
+  V(F32x4Ne)                            \
+  V(I64x2Ne)                            \
+  V(I64x2GeS)                           \
+  V(I32x4Ne)                            \
+  V(I32x4GeS)                           \
+  V(I32x4GeU)                           \
+  V(I16x8Ne)                            \
+  V(I16x8GeS)                           \
+  V(I16x8GeU)                           \
+  V(I8x16Ne)                            \
+  V(I8x16GeS)                           \
+  V(I8x16GeU)
+
+#define PROTOTYPE_SIMD_BINOP_WITH_SCRATCH(name)                              \
+  void name(Simd128Register dst, Simd128Register src1, Simd128Register src2, \
+            Simd128Register scratch);
+  SIMD_BINOP_WITH_SCRATCH_LIST(PROTOTYPE_SIMD_BINOP_WITH_SCRATCH)
+#undef PROTOTYPE_SIMD_BINOP_WITH_SCRATCH
+#undef SIMD_BINOP_WITH_SCRATCH_LIST
+
 #define SIMD_SHIFT_LIST(V) \
   V(I64x2Shl)              \
   V(I64x2ShrS)             \
@@ -1250,32 +1272,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                 Simd128Register scratch1, Simd128Register scratch2);
   void F64x2Max(Simd128Register dst, Simd128Register src1, Simd128Register src2,
                 Simd128Register scratch1, Simd128Register scratch2);
-  void F64x2Ne(Simd128Register dst, Simd128Register src1, Simd128Register src2,
-               Simd128Register scratch);
-  void F32x4Ne(Simd128Register dst, Simd128Register src1, Simd128Register src2,
-               Simd128Register scratch);
-  void I64x2Ne(Simd128Register dst, Simd128Register src1, Simd128Register src2,
-               Simd128Register scratch);
-  void I64x2GeS(Simd128Register dst, Simd128Register src1, Simd128Register src2,
-                Simd128Register scratch);
-  void I32x4Ne(Simd128Register dst, Simd128Register src1, Simd128Register src2,
-               Simd128Register scratch);
-  void I32x4GeS(Simd128Register dst, Simd128Register src1, Simd128Register src2,
-                Simd128Register scratch);
-  void I32x4GeU(Simd128Register dst, Simd128Register src1, Simd128Register src2,
-                Simd128Register scratch);
-  void I16x8Ne(Simd128Register dst, Simd128Register src1, Simd128Register src2,
-               Simd128Register scratch);
-  void I16x8GeS(Simd128Register dst, Simd128Register src1, Simd128Register src2,
-                Simd128Register scratch);
-  void I16x8GeU(Simd128Register dst, Simd128Register src1, Simd128Register src2,
-                Simd128Register scratch);
-  void I8x16Ne(Simd128Register dst, Simd128Register src1, Simd128Register src2,
-               Simd128Register scratch);
-  void I8x16GeS(Simd128Register dst, Simd128Register src1, Simd128Register src2,
-                Simd128Register scratch);
-  void I8x16GeU(Simd128Register dst, Simd128Register src1, Simd128Register src2,
-                Simd128Register scratch);
   void I64x2Abs(Simd128Register dst, Simd128Register src,
                 Simd128Register scratch);
   void I32x4Abs(Simd128Register dst, Simd128Register src,

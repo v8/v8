@@ -1835,6 +1835,31 @@ SIMD_BINOP_LIST(EMIT_SIMD_BINOP)
 #undef EMIT_SIMD_BINOP
 #undef SIMD_BINOP_LIST
 
+#define SIMD_BINOP_WITH_SCRATCH_LIST(V) \
+  V(f64x2_ne, F64x2Ne)                  \
+  V(f32x4_ne, F32x4Ne)                  \
+  V(i64x2_ne, I64x2Ne)                  \
+  V(i64x2_ge_s, I64x2GeS)               \
+  V(i32x4_ne, I32x4Ne)                  \
+  V(i32x4_ge_s, I32x4GeS)               \
+  V(i32x4_ge_u, I32x4GeU)               \
+  V(i16x8_ne, I16x8Ne)                  \
+  V(i16x8_ge_s, I16x8GeS)               \
+  V(i16x8_ge_u, I16x8GeU)               \
+  V(i8x16_ne, I8x16Ne)                  \
+  V(i8x16_ge_s, I8x16GeS)               \
+  V(i8x16_ge_u, I8x16GeU)
+
+#define EMIT_SIMD_BINOP_WITH_SCRATCH(name, op)                                 \
+  void LiftoffAssembler::emit_##name(LiftoffRegister dst, LiftoffRegister lhs, \
+                                     LiftoffRegister rhs) {                    \
+    op(dst.fp().toSimd(), lhs.fp().toSimd(), rhs.fp().toSimd(),                \
+       kScratchSimd128Reg);                                                    \
+  }
+SIMD_BINOP_WITH_SCRATCH_LIST(EMIT_SIMD_BINOP_WITH_SCRATCH)
+#undef EMIT_SIMD_BINOP_WITH_SCRATCH
+#undef SIMD_BINOP_WITH_SCRATCH_LIST
+
 #define SIMD_SHIFT_RR_LIST(V) \
   V(i64x2_shl, I64x2Shl)      \
   V(i64x2_shr_s, I64x2ShrS)   \
@@ -2047,22 +2072,27 @@ void LiftoffAssembler::emit_i64x2_abs(LiftoffRegister dst,
                                       LiftoffRegister src) {
   I64x2Abs(dst.fp().toSimd(), src.fp().toSimd(), kScratchSimd128Reg);
 }
+
 void LiftoffAssembler::emit_i32x4_abs(LiftoffRegister dst,
                                       LiftoffRegister src) {
   I32x4Abs(dst.fp().toSimd(), src.fp().toSimd(), kScratchSimd128Reg);
 }
+
 void LiftoffAssembler::emit_i16x8_abs(LiftoffRegister dst,
                                       LiftoffRegister src) {
   I16x8Abs(dst.fp().toSimd(), src.fp().toSimd(), kScratchSimd128Reg);
 }
+
 void LiftoffAssembler::emit_i16x8_neg(LiftoffRegister dst,
                                       LiftoffRegister src) {
   I16x8Neg(dst.fp().toSimd(), src.fp().toSimd(), kScratchSimd128Reg);
 }
+
 void LiftoffAssembler::emit_i8x16_abs(LiftoffRegister dst,
                                       LiftoffRegister src) {
   I8x16Abs(dst.fp().toSimd(), src.fp().toSimd(), kScratchSimd128Reg);
 }
+
 void LiftoffAssembler::emit_i8x16_neg(LiftoffRegister dst,
                                       LiftoffRegister src) {
   I8x16Neg(dst.fp().toSimd(), src.fp().toSimd(), kScratchSimd128Reg);
@@ -2088,84 +2118,6 @@ void LiftoffAssembler::emit_f64x2_max(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   F64x2Max(dst.fp().toSimd(), lhs.fp().toSimd(), rhs.fp().toSimd(),
            kScratchSimd128Reg, kScratchSimd128Reg2);
-}
-
-void LiftoffAssembler::emit_f64x2_ne(LiftoffRegister dst, LiftoffRegister lhs,
-                                     LiftoffRegister rhs) {
-  F64x2Ne(dst.fp().toSimd(), lhs.fp().toSimd(), rhs.fp().toSimd(),
-          kScratchSimd128Reg);
-}
-
-void LiftoffAssembler::emit_f32x4_ne(LiftoffRegister dst, LiftoffRegister lhs,
-                                     LiftoffRegister rhs) {
-  F32x4Ne(dst.fp().toSimd(), lhs.fp().toSimd(), rhs.fp().toSimd(),
-          kScratchSimd128Reg);
-}
-
-void LiftoffAssembler::emit_i64x2_ne(LiftoffRegister dst, LiftoffRegister lhs,
-                                     LiftoffRegister rhs) {
-  I64x2Ne(dst.fp().toSimd(), lhs.fp().toSimd(), rhs.fp().toSimd(),
-          kScratchSimd128Reg);
-}
-
-void LiftoffAssembler::emit_i64x2_ge_s(LiftoffRegister dst, LiftoffRegister lhs,
-                                       LiftoffRegister rhs) {
-  I64x2GeS(dst.fp().toSimd(), lhs.fp().toSimd(), rhs.fp().toSimd(),
-           kScratchSimd128Reg);
-}
-
-void LiftoffAssembler::emit_i32x4_ne(LiftoffRegister dst, LiftoffRegister lhs,
-                                     LiftoffRegister rhs) {
-  I32x4Ne(dst.fp().toSimd(), lhs.fp().toSimd(), rhs.fp().toSimd(),
-          kScratchSimd128Reg);
-}
-
-void LiftoffAssembler::emit_i32x4_ge_s(LiftoffRegister dst, LiftoffRegister lhs,
-                                       LiftoffRegister rhs) {
-  I32x4GeS(dst.fp().toSimd(), lhs.fp().toSimd(), rhs.fp().toSimd(),
-           kScratchSimd128Reg);
-}
-
-void LiftoffAssembler::emit_i32x4_ge_u(LiftoffRegister dst, LiftoffRegister lhs,
-                                       LiftoffRegister rhs) {
-  I32x4GeU(dst.fp().toSimd(), lhs.fp().toSimd(), rhs.fp().toSimd(),
-           kScratchSimd128Reg);
-}
-
-void LiftoffAssembler::emit_i16x8_ne(LiftoffRegister dst, LiftoffRegister lhs,
-                                     LiftoffRegister rhs) {
-  I16x8Ne(dst.fp().toSimd(), lhs.fp().toSimd(), rhs.fp().toSimd(),
-          kScratchSimd128Reg);
-}
-
-void LiftoffAssembler::emit_i16x8_ge_s(LiftoffRegister dst, LiftoffRegister lhs,
-                                       LiftoffRegister rhs) {
-  I16x8GeS(dst.fp().toSimd(), lhs.fp().toSimd(), rhs.fp().toSimd(),
-           kScratchSimd128Reg);
-}
-
-void LiftoffAssembler::emit_i16x8_ge_u(LiftoffRegister dst, LiftoffRegister lhs,
-                                       LiftoffRegister rhs) {
-  I16x8GeU(dst.fp().toSimd(), lhs.fp().toSimd(), rhs.fp().toSimd(),
-           kScratchSimd128Reg);
-}
-
-void LiftoffAssembler::emit_i8x16_ne(LiftoffRegister dst, LiftoffRegister lhs,
-                                     LiftoffRegister rhs) {
-  I8x16Ne(dst.fp().toSimd(), lhs.fp().toSimd(), rhs.fp().toSimd(),
-          kScratchSimd128Reg);
-}
-
-void LiftoffAssembler::emit_i8x16_ge_s(LiftoffRegister dst, LiftoffRegister lhs,
-                                       LiftoffRegister rhs) {
-  I8x16GeS(dst.fp().toSimd(), lhs.fp().toSimd(), rhs.fp().toSimd(),
-           kScratchSimd128Reg);
-}
-
-void LiftoffAssembler::emit_i8x16_ge_u(LiftoffRegister dst, LiftoffRegister lhs,
-                                       LiftoffRegister rhs) {
-  I8x16GeU(dst.fp().toSimd(), lhs.fp().toSimd(), rhs.fp().toSimd(),
-           kScratchSimd128Reg);
 }
 
 bool LiftoffAssembler::emit_f64x2_nearest_int(LiftoffRegister dst,
