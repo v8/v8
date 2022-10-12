@@ -929,11 +929,17 @@ class MaglevGraphBuilder {
 
   void BuildLoadField(compiler::PropertyAccessInfo access_info,
                       ValueNode* lookup_start_object);
+  bool TryBuildStoreField(compiler::PropertyAccessInfo access_info,
+                          ValueNode* receiver);
   bool TryBuildPropertyGetterCall(compiler::PropertyAccessInfo access_info,
                                   ValueNode* receiver);
+  bool TryBuildPropertySetterCall(compiler::PropertyAccessInfo access_info,
+                                  ValueNode* receiver, ValueNode* value);
 
   bool TryBuildPropertyLoad(ValueNode* receiver, ValueNode* lookup_start_object,
                             compiler::PropertyAccessInfo const& access_info);
+  bool TryBuildPropertyStore(ValueNode* receiver,
+                             compiler::PropertyAccessInfo const& access_info);
   bool TryBuildPropertyAccess(ValueNode* receiver,
                               ValueNode* lookup_start_object,
                               compiler::PropertyAccessInfo const& access_info,
@@ -950,12 +956,6 @@ class MaglevGraphBuilder {
                                                     ValueNode* index,
                                                     const compiler::MapRef& map,
                                                     int32_t handler);
-
-  bool TryBuildMonomorphicStore(ValueNode* object, const compiler::MapRef& map,
-                                MaybeObjectHandle handler);
-  bool TryBuildMonomorphicStoreFromSmiHandler(ValueNode* object,
-                                              const compiler::MapRef& map,
-                                              int32_t handler);
 
   template <Operation kOperation>
   void BuildGenericUnaryOperationNode();

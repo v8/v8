@@ -1252,6 +1252,24 @@ bool MaglevGraphBuilder::TryBuildPropertyGetterCall(
   }
 }
 
+bool MaglevGraphBuilder::TryBuildPropertySetterCall(
+    compiler::PropertyAccessInfo access_info, ValueNode* receiver,
+    ValueNode* value) {
+  compiler::ObjectRef constant = access_info.constant().value();
+  if (constant.IsJSFunction()) {
+    Call* call = CreateNewNode<Call>(Call::kFixedInputCount + 2,
+                                     ConvertReceiverMode::kNotNullOrUndefined,
+                                     GetConstant(constant), GetContext());
+    call->set_arg(0, receiver);
+    call->set_arg(1, value);
+    SetAccumulator(AddNode(call));
+    return true;
+  } else {
+    // TODO(victorgomes): API calls.
+    return false;
+  }
+}
+
 void MaglevGraphBuilder::BuildLoadField(
     compiler::PropertyAccessInfo access_info, ValueNode* lookup_start_object) {
   if (TryFoldLoadConstantDataField(access_info)) return;
@@ -1281,6 +1299,51 @@ void MaglevGraphBuilder::BuildLoadField(
   }
 }
 
+bool MaglevGraphBuilder::TryBuildStoreField(
+    compiler::PropertyAccessInfo access_info, ValueNode* receiver) {
+  FieldIndex field_index = access_info.field_index();
+  Representation field_representation = access_info.field_representation();
+
+  // TODO(victorgomes): Support double stores.
+  if (field_representation.IsDouble()) return false;
+
+  // TODO(victorgomes): Support transition maps.
+  if (access_info.HasTransitionMap()) return false;
+
+  ValueNode* store_target;
+  if (field_index.is_inobject()) {
+    store_target = receiver;
+  } else {
+    // The field is in the property array, first load it from there.
+    store_target = AddNewNode<LoadTaggedField>(
+        {receiver}, JSReceiver::kPropertiesOrHashOffset);
+  }
+
+  if (field_representation.IsSmi()) {
+    ValueNode* value = GetAccumulatorTagged();
+    BuildCheckSmi(value);
+    AddNewNode<StoreTaggedFieldNoWriteBarrier>({store_target, value},
+                                               field_index.offset());
+  } else if (field_representation.IsDouble()) {
+    // TODO(victorgomes): Implement store double.
+    UNREACHABLE();
+  } else {
+    ValueNode* value = GetAccumulatorTagged();
+    if (field_representation.IsHeapObject()) {
+      // Emit a map check for the field type, if needed, otherwise just a
+      // HeapObject check.
+      if (access_info.field_map().has_value()) {
+        BuildMapCheck(value, access_info.field_map().value());
+      } else {
+        BuildCheckHeapObject(value);
+      }
+    }
+    AddNewNode<StoreTaggedFieldWithWriteBarrier>({store_target, value},
+                                                 field_index.offset());
+  }
+  return true;
+}
+
 bool MaglevGraphBuilder::TryBuildPropertyLoad(
     ValueNode* receiver, ValueNode* lookup_start_object,
     compiler::PropertyAccessInfo const& access_info) {
@@ -1292,7 +1355,7 @@ bool MaglevGraphBuilder::TryBuildPropertyLoad(
 
   switch (access_info.kind()) {
     case compiler::PropertyAccessInfo::kInvalid:
-      return false;
+      UNREACHABLE();
     case compiler::PropertyAccessInfo::kNotFound:
       SetAccumulator(GetRootConstant(RootIndex::kUndefinedValue));
       return true;
@@ -1317,6 +1380,23 @@ bool MaglevGraphBuilder::TryBuildPropertyLoad(
   }
 }
 
+bool MaglevGraphBuilder::TryBuildPropertyStore(
+    ValueNode* receiver, compiler::PropertyAccessInfo const& access_info) {
+  if (access_info.holder().has_value()) {
+    broker()->dependencies()->DependOnStablePrototypeChains(
+        access_info.lookup_start_object_maps(), kStartAtPrototype,
+        access_info.holder().value());
+  }
+
+  if (access_info.IsFastAccessorConstant()) {
+    return TryBuildPropertySetterCall(access_info, receiver,
+                                      GetAccumulatorTagged());
+  } else {
+    DCHECK(access_info.IsDataField() || access_info.IsFastDataConstant());
+    return TryBuildStoreField(access_info, receiver);
+  }
+}
+
 bool MaglevGraphBuilder::TryBuildPropertyAccess(
     ValueNode* receiver, ValueNode* lookup_start_object,
     compiler::PropertyAccessInfo const& access_info,
@@ -1324,8 +1404,13 @@ bool MaglevGraphBuilder::TryBuildPropertyAccess(
   switch (access_mode) {
     case compiler::AccessMode::kLoad:
       return TryBuildPropertyLoad(receiver, lookup_start_object, access_info);
-    default:
-      // TODO(victorgomes): BuildPropertyStore and BuildPropertyTest.
+    case compiler::AccessMode::kStore:
+    case compiler::AccessMode::kStoreInLiteral:
+    case compiler::AccessMode::kDefine:
+      DCHECK_EQ(receiver, lookup_start_object);
+      return TryBuildPropertyStore(receiver, access_info);
+    case compiler::AccessMode::kHas:
+      // TODO(victorgomes): BuildPropertyTest.
       return false;
   }
 }
@@ -1480,15 +1565,13 @@ void MaglevGraphBuilder::VisitGetNamedProperty() {
           DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
       return;
 
-    case compiler::ProcessedFeedback::kNamedAccess: {
+    case compiler::ProcessedFeedback::kNamedAccess:
       if (TryBuildNamedAccess(object, object,
                               processed_feedback.AsNamedAccess(),
                               compiler::AccessMode::kLoad)) {
         return;
       }
       break;
-    }
-
     default:
       break;
   }
@@ -1523,14 +1606,13 @@ void MaglevGraphBuilder::VisitGetNamedPropertyFromSuper() {
           DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
       return;
 
-    case compiler::ProcessedFeedback::kNamedAccess: {
+    case compiler::ProcessedFeedback::kNamedAccess:
       if (TryBuildNamedAccess(receiver, lookup_start_object,
                               processed_feedback.AsNamedAccess(),
                               compiler::AccessMode::kLoad)) {
         return;
       }
       break;
-    }
 
     default:
       break;
@@ -1669,86 +1751,6 @@ void MaglevGraphBuilder::VisitStaModuleVariable() {
                                                Cell::kValueOffset);
 }
 
-bool MaglevGraphBuilder::TryBuildMonomorphicStoreFromSmiHandler(
-    ValueNode* object, const compiler::MapRef& map, int32_t handler) {
-  StoreHandler::Kind kind = StoreHandler::KindBits::decode(handler);
-  if (kind != StoreHandler::Kind::kField) return false;
-
-  Representation::Kind representation =
-      StoreHandler::RepresentationBits::decode(handler);
-  if (representation == Representation::kDouble) return false;
-
-  InternalIndex descriptor_idx(StoreHandler::DescriptorBits::decode(handler));
-  PropertyDetails property_details =
-      map.instance_descriptors().GetPropertyDetails(descriptor_idx);
-
-  // TODO(leszeks): Allow a fast path which checks for equality with the current
-  // value.
-  if (property_details.constness() == PropertyConstness::kConst) return false;
-
-  BuildMapCheck(object, map);
-
-  ValueNode* store_target;
-  if (StoreHandler::IsInobjectBits::decode(handler)) {
-    store_target = object;
-  } else {
-    // The field is in the property array, first Store it from there.
-    store_target = AddNewNode<LoadTaggedField>(
-        {object}, JSReceiver::kPropertiesOrHashOffset);
-  }
-
-  int field_index = StoreHandler::FieldIndexBits::decode(handler);
-  int offset = field_index * kTaggedSize;
-
-  ValueNode* value = GetAccumulatorTagged();
-  if (representation == Representation::kSmi) {
-    BuildCheckSmi(value);
-    AddNewNode<StoreTaggedFieldNoWriteBarrier>({store_target, value}, offset);
-    return true;
-  }
-
-  if (representation == Representation::kHeapObject) {
-    FieldType descriptors_field_type =
-        map.instance_descriptors().object()->GetFieldType(descriptor_idx);
-    if (descriptors_field_type.IsNone()) {
-      // Store is not safe if the field type was cleared. Since we check this
-      // late, we'll emit a useless map check and maybe property store load, but
-      // that's fine, this case should be rare.
-      return false;
-    }
-
-    // Emit a map check for the field type, if needed, otherwise just a
-    // HeapObject check.
-    if (descriptors_field_type.IsClass()) {
-      // Check that the value matches the expected field type.
-      base::Optional<compiler::MapRef> maybe_field_map =
-          TryMakeRef(broker(), descriptors_field_type.AsClass());
-      if (!maybe_field_map.has_value()) return false;
-
-      BuildMapCheck(value, *maybe_field_map);
-    } else {
-      BuildCheckHeapObject(value);
-    }
-  }
-  AddNewNode<StoreTaggedFieldWithWriteBarrier>({store_target, value}, offset);
-  return true;
-}
-
-bool MaglevGraphBuilder::TryBuildMonomorphicStore(ValueNode* object,
-                                                  const compiler::MapRef& map,
-                                                  MaybeObjectHandle handler) {
-  if (handler.is_null()) return false;
-
-  if (handler->IsSmi()) {
-    return TryBuildMonomorphicStoreFromSmiHandler(object, map,
-                                                  handler->ToSmi().value());
-  }
-  // TODO(leszeks): If we add non-Smi paths here, make sure to differentiate
-  // between Define and Set.
-
-  return false;
-}
-
 void MaglevGraphBuilder::BuildLoadGlobal(
     compiler::NameRef name, compiler::FeedbackSource& feedback_source,
     TypeofMode typeof_mode) {
@@ -1790,22 +1792,13 @@ void MaglevGraphBuilder::VisitSetNamedProperty() {
           DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
       return;
 
-    case compiler::ProcessedFeedback::kNamedAccess: {
-      const compiler::NamedAccessFeedback& named_feedback =
-          processed_feedback.AsNamedAccess();
-      if (named_feedback.maps().size() != 1) break;
-      compiler::MapRef map = named_feedback.maps()[0];
-
-      // Monomorphic store, check the handler.
-      // TODO(leszeks): Make GetFeedbackForPropertyAccess read the handler.
-      MaybeObjectHandle handler =
-          FeedbackNexusForSlot(slot).FindHandlerForMap(map.object());
-
-      if (TryBuildMonomorphicStore(object, map, handler)) return;
-
+    case compiler::ProcessedFeedback::kNamedAccess:
+      if (TryBuildNamedAccess(object, object,
+                              processed_feedback.AsNamedAccess(),
+                              compiler::AccessMode::kStore)) {
+        return;
+      }
       break;
-    }
-
     default:
       break;
   }
@@ -1834,21 +1827,13 @@ void MaglevGraphBuilder::VisitDefineNamedOwnProperty() {
           DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
       return;
 
-    case compiler::ProcessedFeedback::kNamedAccess: {
-      const compiler::NamedAccessFeedback& named_feedback =
-          processed_feedback.AsNamedAccess();
-      if (named_feedback.maps().size() != 1) break;
-      compiler::MapRef map = named_feedback.maps()[0];
-
-      // Monomorphic store, check the handler.
-      // TODO(leszeks): Make GetFeedbackForPropertyAccess read the handler.
-      MaybeObjectHandle handler =
-          FeedbackNexusForSlot(slot).FindHandlerForMap(map.object());
-
-      if (TryBuildMonomorphicStore(object, map, handler)) return;
-
+    case compiler::ProcessedFeedback::kNamedAccess:
+      if (TryBuildNamedAccess(object, object,
+                              processed_feedback.AsNamedAccess(),
+                              compiler::AccessMode::kDefine)) {
+        return;
+      }
       break;
-    }
 
     default:
       break;
