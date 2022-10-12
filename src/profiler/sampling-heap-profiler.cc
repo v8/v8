@@ -96,8 +96,8 @@ void SamplingHeapProfiler::OnWeakCallback(
     const WeakCallbackInfo<Sample>& data) {
   Sample* sample = data.GetParameter();
   Heap* heap = reinterpret_cast<Isolate*>(data.GetIsolate())->heap();
-  bool is_minor_gc =
-      heap->current_or_last_garbage_collector() == GarbageCollector::SCAVENGER;
+  bool is_minor_gc = Heap::IsYoungGenerationCollector(
+      heap->current_or_last_garbage_collector());
   bool should_keep_sample =
       is_minor_gc
           ? (sample->profiler->flags_ &
