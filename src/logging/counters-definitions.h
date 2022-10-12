@@ -35,7 +35,6 @@ namespace internal {
   /* Range and bucket matches BlinkGC.MainThreadMarkingThroughput. */          \
   HR(gc_main_thread_marking_throughput, V8.GCMainThreadMarkingThroughput, 0,   \
      100000, 50)                                                               \
-  HR(young_generation_handling, V8.GCYoungGenerationHandling, 0, 2, 3)         \
   /* Asm/Wasm. */                                                              \
   HR(wasm_functions_per_asm_module, V8.WasmFunctionsPerModule.asm, 1, 1000000, \
      51)                                                                       \

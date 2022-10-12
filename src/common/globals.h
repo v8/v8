@@ -1016,6 +1016,46 @@ enum class AllocationType : uint8_t {
   kSharedMap,  // Map object in MAP_SPACE in the shared heap
 };
 
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused. If you add new items here, update
+// src/tools/metrics/histograms/enums.xml in chromium.
+enum class GarbageCollectionReason : int {
+  kUnknown = 0,
+  kAllocationFailure = 1,
+  kAllocationLimit = 2,
+  kContextDisposal = 3,
+  kCountersExtension = 4,
+  kDebugger = 5,
+  kDeserializer = 6,
+  kExternalMemoryPressure = 7,
+  kFinalizeMarkingViaStackGuard = 8,
+  kFinalizeMarkingViaTask = 9,
+  kFullHashtable = 10,
+  kHeapProfiler = 11,
+  kTask = 12,
+  kLastResort = 13,
+  kLowMemoryNotification = 14,
+  kMakeHeapIterable = 15,
+  kMemoryPressure = 16,
+  kMemoryReducer = 17,
+  kRuntime = 18,
+  kSamplingProfiler = 19,
+  kSnapshotCreator = 20,
+  kTesting = 21,
+  kExternalFinalize = 22,
+  kGlobalAllocationLimit = 23,
+  kMeasureMemory = 24,
+  kBackgroundAllocationFailure = 25,
+  kFinalizeMinorMC = 26,
+  kCppHeapAllocationFailure = 27,
+
+  kLastReason = kCppHeapAllocationFailure,
+};
+
+static_assert(kGarbageCollectionReasonMaxValue ==
+                  static_cast<int>(GarbageCollectionReason::kLastReason),
+              "The value of kGarbageCollectionReasonMaxValue is inconsistent.");
+
 inline size_t hash_value(AllocationType kind) {
   return static_cast<uint8_t>(kind);
 }

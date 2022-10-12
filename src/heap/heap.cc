@@ -2590,9 +2590,6 @@ void Heap::Scavenge() {
         "[IncrementalMarking] Scavenge during marking.\n");
   }
 
-  tracer()->NotifyYoungGenerationHandling(
-      YoungGenerationHandling::kRegularScavenge);
-
   TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE);
   base::MutexGuard guard(relocation_mutex());
   // Young generation garbage collection is orthogonal from full GC marking. It
@@ -4391,11 +4388,7 @@ void Heap::VerifyCountersBeforeConcurrentSweeping() {
     // We need to refine the counters on pages that are already swept and have
     // not been moved over to the actual space. Otherwise, the AccountingStats
     // are just an over approximation.
-    {
-      TRACE_GC_EPOCH(tracer(), GCTracer::Scope::MC_SWEEP, ThreadKind::kMain);
-      space->RefillFreeList();
-    }
-
+    space->RefillFreeList();
     space->VerifyCountersBeforeConcurrentSweeping();
   }
 }

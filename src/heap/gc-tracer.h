@@ -11,7 +11,6 @@
 #include "src/base/optional.h"
 #include "src/base/ring-buffer.h"
 #include "src/common/globals.h"
-#include "src/heap/heap.h"
 #include "src/init/heap-symbols.h"
 #include "src/logging/counters.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
@@ -120,8 +119,8 @@ class V8_EXPORT_PRIVATE GCTracer {
       MARK_COMPACTOR = 1,
       INCREMENTAL_MARK_COMPACTOR = 2,
       MINOR_MARK_COMPACTOR = 3,
-      START = 4,
-      INCREMENTAL_MINOR_MARK_COMPACTOR = 5,
+      INCREMENTAL_MINOR_MARK_COMPACTOR = 4,
+      START = 5,
     };
 
     // Returns true if the event corresponds to a young generation GC.
@@ -269,9 +268,6 @@ class V8_EXPORT_PRIVATE GCTracer {
 
   void NotifyYoungCppGCRunning();
   void NotifyYoungCppGCCompleted();
-
-  void NotifyYoungGenerationHandling(
-      YoungGenerationHandling young_generation_handling);
 
 #ifdef DEBUG
   V8_INLINE bool IsInObservablePause() const;

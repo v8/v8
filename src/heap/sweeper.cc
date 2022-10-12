@@ -10,6 +10,7 @@
 #include "src/base/logging.h"
 #include "src/common/globals.h"
 #include "src/execution/vm-state-inl.h"
+#include "src/flags/flags.h"
 #include "src/heap/base/active-system-pages.h"
 #include "src/heap/code-object-registry.h"
 #include "src/heap/free-list-inl.h"
@@ -198,6 +199,7 @@ int Sweeper::NumberOfConcurrentSweepers() const {
 }
 
 void Sweeper::StartSweeperTasks() {
+  DCHECK(current_collector_.has_value());
   DCHECK(!job_handle_ || !job_handle_->IsValid());
   if (v8_flags.concurrent_sweeping && sweeping_in_progress_ &&
       !heap_->delay_sweeper_tasks_for_testing_) {
@@ -577,7 +579,7 @@ void Sweeper::EnsurePageIsSwept(Page* page) {
       }
     }
   } else {
-    DCHECK(page->InNewSpace());
+    DCHECK(page->InNewSpace() && !v8_flags.minor_mc);
   }
 
   CHECK(page->SweepingDone());

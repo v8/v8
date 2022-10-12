@@ -296,6 +296,7 @@ class CollectorBase {
 
   void StartSweepSpace(PagedSpace* space);
   void StartSweepNewSpace();
+  void SweepLargeSpace(LargeObjectSpace* space);
 
   Heap* heap_;
   GarbageCollector garbage_collector_;
@@ -586,7 +587,6 @@ class MarkCompactCollector final : public CollectorBase {
   // Starts sweeping of spaces by contributing on the main thread and setting
   // up other pages for sweeping. Does not start sweeper tasks.
   void Sweep();
-  void SweepLargeSpace(LargeObjectSpace* space);
 
   void EvacuatePrologue();
   void EvacuateEpilogue();

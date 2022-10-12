@@ -551,6 +551,7 @@ void PagedSpaceBase::FreeLinearAllocationArea() {
 }
 
 void PagedSpaceBase::ReleasePage(Page* page) {
+  DCHECK(page->SweepingDone());
   DCHECK_EQ(0, heap()->non_atomic_marking_state()->live_bytes(page));
   DCHECK_EQ(page->owner(), this);
 
@@ -870,11 +871,6 @@ void PagedSpaceBase::UpdateInlineAllocationLimit(size_t min_size) {
 
 // -----------------------------------------------------------------------------
 // OldSpace implementation
-
-void PagedSpaceBase::PrepareForMarkCompact() {
-  // Clear the free list before a full GC---it will be rebuilt afterward.
-  free_list_->Reset();
-}
 
 bool PagedSpaceBase::RefillLabMain(int size_in_bytes, AllocationOrigin origin) {
   VMState<GC> state(heap()->isolate());

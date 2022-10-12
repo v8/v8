@@ -223,14 +223,6 @@ void GCTracer::ResetForTesting() {
   }
 }
 
-void GCTracer::NotifyYoungGenerationHandling(
-    YoungGenerationHandling young_generation_handling) {
-  DCHECK_GE(1, start_counter_);
-  DCHECK_EQ(Event::SCAVENGER, current_.type);
-  heap_->isolate()->counters()->young_generation_handling()->AddSample(
-      static_cast<int>(young_generation_handling));
-}
-
 void GCTracer::StartObservablePause() {
   DCHECK_EQ(0, start_counter_);
   start_counter_++;
@@ -269,6 +261,8 @@ void GCTracer::StartCycle(GarbageCollector collector,
   DCHECK_IMPLIES(young_gc_while_full_gc_,
                  Heap::IsYoungGenerationCollector(collector) &&
                      !Event::IsYoungGenerationEvent(current_.type));
+  DCHECK_IMPLIES(collector != GarbageCollector::SCAVENGER,
+                 !young_gc_while_full_gc_);
 
   Event::Type type;
   switch (collector) {
@@ -468,6 +462,7 @@ void GCTracer::StopCycle(GarbageCollector collector) {
     // If a young generation GC interrupted an unfinished full GC cycle, restore
     // the event corresponding to the full GC cycle.
     if (young_gc_while_full_gc_) {
+      DCHECK_EQ(current_.type, Event::Type::SCAVENGER);
       std::swap(current_, previous_);
       young_gc_while_full_gc_ = false;
     }
@@ -517,7 +512,7 @@ void GCTracer::NotifySweepingCompleted() {
     DCHECK((current_.type == Event::MARK_COMPACTOR ||
             current_.type == Event::INCREMENTAL_MARK_COMPACTOR) &&
            (current_.state == Event::State::SWEEPING ||
-            (v8_flags.verify_heap && current_.state == Event::State::ATOMIC)));
+            current_.state == Event::State::ATOMIC));
   } else {
     DCHECK(IsSweepingInProgress());
   }
@@ -837,7 +832,7 @@ void GCTracer::PrintNVP() const {
           "evacuate.update_pointers.weak=%.2f "
           "sweep=%.2f "
           "sweep.new=%.2f "
-          "sweep.finish_new_space=%.2f "
+          "sweep.new_lo=%.2f "
           "finish=%.2f "
           "finish.sweep_array_buffers=%.2f "
           "background.mark=%.2f "
@@ -846,7 +841,6 @@ void GCTracer::PrintNVP() const {
           "background.evacuate.update_pointers=%.2f "
           "background.unmapper=%.2f "
           "unmapper=%.2f "
-          "reset_liveness=%.2f "
           "total_size_before=%zu "
           "total_size_after=%zu "
           "holes_size_before=%zu "
@@ -885,7 +879,7 @@ void GCTracer::PrintNVP() const {
           current_scope(Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS_SLOTS),
           current_scope(Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS_WEAK),
           current_scope(Scope::MC_SWEEP), current_scope(Scope::MC_SWEEP_NEW),
-          current_scope(Scope::MINOR_MC_SWEEP_FINISH_NEW),
+          current_scope(Scope::MC_SWEEP_NEW_LO),
           current_scope(Scope::MINOR_MC_FINISH),
           current_scope(Scope::MINOR_MC_FINISH_SWEEP_ARRAY_BUFFERS),
           current_scope(Scope::MINOR_MC_BACKGROUND_MARKING),
@@ -893,11 +887,10 @@ void GCTracer::PrintNVP() const {
           current_scope(Scope::MINOR_MC_BACKGROUND_EVACUATE_COPY),
           current_scope(Scope::MINOR_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS),
           current_scope(Scope::BACKGROUND_UNMAPPER),
-          current_scope(Scope::UNMAPPER),
-          current_scope(Scope::MINOR_MC_RESET_LIVENESS),
-          current_.start_object_size, current_.end_object_size,
-          current_.start_holes_size, current_.end_holes_size,
-          allocated_since_last_gc, heap_->promoted_objects_size(),
+          current_scope(Scope::UNMAPPER), current_.start_object_size,
+          current_.end_object_size, current_.start_holes_size,
+          current_.end_holes_size, allocated_since_last_gc,
+          heap_->promoted_objects_size(),
           heap_->new_space_surviving_object_size(),
           heap_->nodes_died_in_new_space_, heap_->nodes_copied_in_new_space_,
           heap_->nodes_promoted_, heap_->promotion_ratio_,
@@ -960,8 +953,8 @@ void GCTracer::PrintNVP() const {
           "sweep.code=%.1f "
           "sweep.map=%.1f "
           "sweep.new=%.1f "
+          "sweep.new_lo=%.1f "
           "sweep.old=%.1f "
-          "sweep.finish_new_space=%.2f "
           "incremental=%.1f "
           "incremental.finalize=%.1f "
           "incremental.finalize.external.prologue=%.1f "
@@ -1046,8 +1039,8 @@ void GCTracer::PrintNVP() const {
           current_scope(Scope::MC_SWEEP_CODE),
           current_scope(Scope::MC_SWEEP_MAP),
           current_scope(Scope::MC_SWEEP_NEW),
+          current_scope(Scope::MC_SWEEP_NEW_LO),
           current_scope(Scope::MC_SWEEP_OLD),
-          current_scope(Scope::MC_SWEEP_FINISH_NEW),
           current_scope(Scope::MC_INCREMENTAL),
           current_scope(Scope::MC_INCREMENTAL_FINALIZE),
           current_scope(Scope::MC_INCREMENTAL_EXTERNAL_PROLOGUE),

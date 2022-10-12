@@ -110,9 +110,6 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   // Does the space need executable memory?
   Executability executable() const { return executable_; }
 
-  // Prepares for a mark-compact GC.
-  void PrepareForMarkCompact();
-
   // Current capacity without growing (Size() + Available()).
   size_t Capacity() const { return accounting_stats_.Capacity(); }
 

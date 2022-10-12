@@ -435,6 +435,30 @@ void CollectorBase::StartSweepNewSpace() {
   }
 }
 
+void CollectorBase::SweepLargeSpace(LargeObjectSpace* space) {
+  auto* marking_state = heap()->non_atomic_marking_state();
+  PtrComprCageBase cage_base(heap()->isolate());
+  size_t surviving_object_size = 0;
+  for (auto it = space->begin(); it != space->end();) {
+    LargePage* current = *(it++);
+    HeapObject object = current->GetObject();
+    DCHECK(!marking_state->IsGrey(object));
+    if (!marking_state->IsBlack(object)) {
+      // Object is dead and page can be released.
+      space->RemovePage(current);
+      heap()->memory_allocator()->Free(MemoryAllocator::FreeMode::kConcurrently,
+                                       current);
+
+      continue;
+    }
+    Marking::MarkWhite(non_atomic_marking_state()->MarkBitFrom(object));
+    current->ProgressBar().ResetIfEnabled();
+    non_atomic_marking_state()->SetLiveBytes(current, 0);
+    surviving_object_size += static_cast<size_t>(object.Size(cage_base));
+  }
+  space->set_objects_size(surviving_object_size);
+}
+
 MarkCompactCollector::MarkCompactCollector(Heap* heap)
     : CollectorBase(heap, GarbageCollector::MARK_COMPACTOR),
 #ifdef DEBUG
@@ -901,22 +925,8 @@ void MarkCompactCollector::Prepare() {
 
   heap_->FreeLinearAllocationAreas();
 
-  PagedSpaceIterator spaces(heap());
-  for (PagedSpace* space = spaces.Next(); space != nullptr;
-       space = spaces.Next()) {
-    space->PrepareForMarkCompact();
-  }
-
-  // All objects are guaranteed to be initialized in atomic pause
-  if (heap()->new_lo_space()) {
-    heap()->new_lo_space()->ResetPendingObject();
-  }
-
   NewSpace* new_space = heap()->new_space();
   if (new_space) {
-    if (v8_flags.minor_mc) {
-      PagedNewSpace::From(new_space)->paged_space()->PrepareForMarkCompact();
-    }
     DCHECK_EQ(new_space->top(), new_space->original_top_acquire());
   }
 }
@@ -979,9 +989,7 @@ void MarkCompactCollector::Finish() {
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_SWEEP);
     if (heap()->new_lo_space()) {
-      GCTracer::Scope sweep_scope(heap()->tracer(),
-                                  GCTracer::Scope::MC_SWEEP_FINISH_NEW_LO,
-                                  ThreadKind::kMain);
+      TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_SWEEP_NEW_LO);
       SweepLargeSpace(heap()->new_lo_space());
     }
 
@@ -994,16 +1002,17 @@ void MarkCompactCollector::Finish() {
                                     Sweeper::SweepingMode::kEagerDuringGC, 0);
       heap()->paged_new_space()->paged_space()->RefillFreeList();
     }
+
+#ifdef DEBUG
+    heap()->VerifyCountersBeforeConcurrentSweeping();
+#endif
   }
+
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_FINISH);
 
   heap()->isolate()->global_handles()->ClearListOfYoungNodes();
 
   SweepArrayBufferExtensions();
-
-#ifdef DEBUG
-  heap()->VerifyCountersBeforeConcurrentSweeping();
-#endif
 
   marking_visitor_.reset();
   local_marking_worklists_.reset();
@@ -5361,75 +5370,50 @@ void MarkCompactCollector::ReleaseEvacuationCandidates() {
   compacting_ = false;
 }
 
-void MarkCompactCollector::SweepLargeSpace(LargeObjectSpace* space) {
-  auto* marking_state = heap()->non_atomic_marking_state();
-  PtrComprCageBase cage_base(heap()->isolate());
-  size_t surviving_object_size = 0;
-  for (auto it = space->begin(); it != space->end();) {
-    LargePage* current = *(it++);
-    HeapObject object = current->GetObject();
-    DCHECK(!marking_state->IsGrey(object));
-    if (!marking_state->IsBlack(object)) {
-      // Object is dead and page can be released.
-      space->RemovePage(current);
-      heap()->memory_allocator()->Free(MemoryAllocator::FreeMode::kConcurrently,
-                                       current);
-
-      continue;
-    }
-    Marking::MarkWhite(non_atomic_marking_state()->MarkBitFrom(object));
-    current->ProgressBar().ResetIfEnabled();
-    non_atomic_marking_state()->SetLiveBytes(current, 0);
-    surviving_object_size += static_cast<size_t>(object.Size(cage_base));
-  }
-  space->set_objects_size(surviving_object_size);
-}
-
 void MarkCompactCollector::Sweep() {
+  DCHECK(!sweeper()->sweeping_in_progress());
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_SWEEP);
 #ifdef DEBUG
   state_ = SWEEP_SPACES;
 #endif
 
   {
-    {
-      GCTracer::Scope sweep_scope(
-          heap()->tracer(), GCTracer::Scope::MC_SWEEP_LO, ThreadKind::kMain);
-      SweepLargeSpace(heap()->lo_space());
-    }
-    {
-      GCTracer::Scope sweep_scope(heap()->tracer(),
-                                  GCTracer::Scope::MC_SWEEP_CODE_LO,
-                                  ThreadKind::kMain);
-      SweepLargeSpace(heap()->code_lo_space());
-    }
-    {
-      GCTracer::Scope sweep_scope(
-          heap()->tracer(), GCTracer::Scope::MC_SWEEP_OLD, ThreadKind::kMain);
-      StartSweepSpace(heap()->old_space());
-    }
-    {
-      GCTracer::Scope sweep_scope(
-          heap()->tracer(), GCTracer::Scope::MC_SWEEP_CODE, ThreadKind::kMain);
-      StartSweepSpace(heap()->code_space());
-    }
-    if (heap()->map_space()) {
-      GCTracer::Scope sweep_scope(
-          heap()->tracer(), GCTracer::Scope::MC_SWEEP_MAP, ThreadKind::kMain);
-      StartSweepSpace(heap()->map_space());
-    }
-    if (heap()->shared_space()) {
-      GCTracer::Scope sweep_scope(
-          heap()->tracer(), GCTracer::Scope::MC_SWEEP_MAP, ThreadKind::kMain);
-      StartSweepSpace(heap()->shared_space());
-    }
-    if (v8_flags.minor_mc && heap()->new_space()) {
-      GCTracer::Scope sweep_scope(
-          heap()->tracer(), GCTracer::Scope::MC_SWEEP_NEW, ThreadKind::kMain);
-      StartSweepNewSpace();
-    }
-    sweeper()->StartSweeping(garbage_collector_);
+    GCTracer::Scope sweep_scope(heap()->tracer(), GCTracer::Scope::MC_SWEEP_LO,
+                                ThreadKind::kMain);
+    SweepLargeSpace(heap()->lo_space());
   }
+  {
+    GCTracer::Scope sweep_scope(
+        heap()->tracer(), GCTracer::Scope::MC_SWEEP_CODE_LO, ThreadKind::kMain);
+    SweepLargeSpace(heap()->code_lo_space());
+  }
+  {
+    GCTracer::Scope sweep_scope(heap()->tracer(), GCTracer::Scope::MC_SWEEP_OLD,
+                                ThreadKind::kMain);
+    StartSweepSpace(heap()->old_space());
+  }
+  {
+    GCTracer::Scope sweep_scope(
+        heap()->tracer(), GCTracer::Scope::MC_SWEEP_CODE, ThreadKind::kMain);
+    StartSweepSpace(heap()->code_space());
+  }
+  if (heap()->map_space()) {
+    GCTracer::Scope sweep_scope(heap()->tracer(), GCTracer::Scope::MC_SWEEP_MAP,
+                                ThreadKind::kMain);
+    StartSweepSpace(heap()->map_space());
+  }
+  if (heap()->shared_space()) {
+    GCTracer::Scope sweep_scope(heap()->tracer(), GCTracer::Scope::MC_SWEEP_MAP,
+                                ThreadKind::kMain);
+    StartSweepSpace(heap()->shared_space());
+  }
+  if (v8_flags.minor_mc && heap()->new_space()) {
+    GCTracer::Scope sweep_scope(heap()->tracer(), GCTracer::Scope::MC_SWEEP_NEW,
+                                ThreadKind::kMain);
+    StartSweepNewSpace();
+  }
+
+  sweeper()->StartSweeping(garbage_collector_);
 }
 
 namespace {
@@ -5770,12 +5754,20 @@ void MinorMarkCompactCollector::StartMarking() {
 void MinorMarkCompactCollector::Finish() {
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_SWEEP);
-    // Keep new space sweeping atomic.
-    GCTracer::Scope sweep_scope(heap()->tracer(),
-                                GCTracer::Scope::MINOR_MC_SWEEP_FINISH_NEW,
-                                ThreadKind::kMain);
-    sweeper_->EnsureCompleted(Sweeper::SweepingMode::kEagerDuringGC);
-    heap()->paged_new_space()->paged_space()->RefillFreeList();
+    {
+      DCHECK_NOT_NULL(heap()->new_lo_space());
+      TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_SWEEP_NEW_LO);
+      SweepLargeSpace(heap()->new_lo_space());
+    }
+
+    {
+      // Keep new space sweeping atomic.
+      GCTracer::Scope sweep_scope(heap()->tracer(),
+                                  GCTracer::Scope::MINOR_MC_SWEEP_FINISH_NEW,
+                                  ThreadKind::kMain);
+      sweeper_->EnsureCompleted(Sweeper::SweepingMode::kEagerDuringGC);
+      heap()->paged_new_space()->paged_space()->RefillFreeList();
+    }
   }
 
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_FINISH);
@@ -5811,20 +5803,6 @@ void MinorMarkCompactCollector::CollectGarbage() {
     verifier.Run();
   }
 #endif  // VERIFY_HEAP
-
-  {
-    TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_RESET_LIVENESS);
-    // Since we promote all surviving large objects immediately, all remaining
-    // large objects must be dead.
-    NonAtomicMarkingState* const marking_state = non_atomic_marking_state();
-    heap()->new_lo_space()->FreeDeadObjects([marking_state](HeapObject obj) {
-      // New large object space is not swept and markbits for non-promoted
-      // objects are still in tact.
-      USE(marking_state);
-      DCHECK(marking_state->IsWhite(obj));
-      return true;
-    });
-  }
 
   CleanupPromotedPages();
 
@@ -6444,6 +6422,7 @@ void MinorMarkCompactCollector::EvacuatePagesInParallel() {
 }
 
 void MinorMarkCompactCollector::Sweep() {
+  DCHECK(!sweeper()->sweeping_in_progress());
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_SWEEP);
   {
     GCTracer::Scope sweep_scope(heap()->tracer(),

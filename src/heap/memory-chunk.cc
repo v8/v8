@@ -236,6 +236,7 @@ void MemoryChunk::SetYoungGenerationPageFlags(bool is_marking) {
 // MemoryChunk implementation
 
 void MemoryChunk::ReleaseAllocatedMemoryNeededForWritableChunk() {
+  DCHECK(SweepingDone());
   if (mutex_ != nullptr) {
     delete mutex_;
     mutex_ = nullptr;
