@@ -24,9 +24,8 @@ class MaglevAssembler;
 
 class DeferredCodeInfo {
  public:
-  virtual void Generate(MaglevAssembler* masm, Label* return_label) = 0;
+  virtual void Generate(MaglevAssembler* masm) = 0;
   Label deferred_code_label;
-  Label return_label;
 };
 
 class MaglevCodeGenState {

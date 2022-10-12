@@ -1001,7 +1001,7 @@ class MaglevCodeGeneratorImpl final {
            code_gen_state_.TakeDeferredCode()) {
         __ RecordComment("-- Deferred block");
         __ bind(&deferred_code->deferred_code_label);
-        deferred_code->Generate(masm(), &deferred_code->return_label);
+        deferred_code->Generate(masm());
         __ Trap();
       }
     }

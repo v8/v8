@@ -184,7 +184,7 @@ void AllocateRaw(MaglevAssembler* masm, RegisterSnapshot& register_snapshot,
           ? ExternalReference::new_space_allocation_limit_address(isolate)
           : ExternalReference::old_space_allocation_limit_address(isolate);
 
-  ZoneLabelRef done(masm->compilation_info()->zone());
+  ZoneLabelRef done(masm);
   Register new_top = kScratchRegister;
   // Check if there is enough space.
   __ Move(object, __ ExternalReferenceAsOperand(top));
@@ -193,9 +193,9 @@ void AllocateRaw(MaglevAssembler* masm, RegisterSnapshot& register_snapshot,
   // Otherwise call runtime.
   __ JumpToDeferredIf(
       greater_equal,
-      [](MaglevAssembler* masm, Label* return_label,
-         RegisterSnapshot register_snapshot, Register object, Builtin builtin,
-         int size_in_bytes, ZoneLabelRef done) {
+      [](MaglevAssembler* masm, RegisterSnapshot register_snapshot,
+         Register object, Builtin builtin, int size_in_bytes,
+         ZoneLabelRef done) {
         // Remove {object} from snapshot, since it is the returned allocated
         // HeapObject.
         register_snapshot.live_registers.clear(object);
@@ -228,8 +228,8 @@ void ToBoolean(MaglevAssembler* masm, Register value, ZoneLabelRef is_true,
   __ CheckSmi(value);
   __ JumpToDeferredIf(
       zero,
-      [](MaglevAssembler* masm, Label* return_label, Register value,
-         ZoneLabelRef is_true, ZoneLabelRef is_false) {
+      [](MaglevAssembler* masm, Register value, ZoneLabelRef is_true,
+         ZoneLabelRef is_false) {
         // Check if {value} is not zero.
         __ SmiCompare(value, Smi::FromInt(0));
         __ j(equal, *is_false);
@@ -255,8 +255,8 @@ void ToBoolean(MaglevAssembler* masm, Register value, ZoneLabelRef is_true,
   __ CompareRoot(map, RootIndex::kHeapNumberMap);
   __ JumpToDeferredIf(
       equal,
-      [](MaglevAssembler* masm, Label* return_label, Register value,
-         ZoneLabelRef is_true, ZoneLabelRef is_false) {
+      [](MaglevAssembler* masm, Register value, ZoneLabelRef is_true,
+         ZoneLabelRef is_false) {
         // Sets scratch register to 0.0.
         __ Xorpd(kScratchDoubleReg, kScratchDoubleReg);
         // Sets ZF if equal to 0.0, -0.0 or NaN.
@@ -271,8 +271,8 @@ void ToBoolean(MaglevAssembler* masm, Register value, ZoneLabelRef is_true,
   __ CompareRoot(map, RootIndex::kBigIntMap);
   __ JumpToDeferredIf(
       equal,
-      [](MaglevAssembler* masm, Label* return_label, Register value,
-         ZoneLabelRef is_true, ZoneLabelRef is_false) {
+      [](MaglevAssembler* masm, Register value, ZoneLabelRef is_true,
+         ZoneLabelRef is_false) {
         __ testl(FieldOperand(value, BigInt::kBitfieldOffset),
                  Immediate(BigInt::LengthBits::kMask));
         __ j(zero, *is_false);
@@ -596,8 +596,9 @@ void GeneratorStore::GenerateCode(MaglevAssembler* masm,
         __ FromAnyToRegister(parameters_and_registers(i),
                              WriteBarrierDescriptor::SlotAddressRegister());
 
+    ZoneLabelRef done(masm);
     DeferredCodeInfo* deferred_write_barrier = __ PushDeferredCode(
-        [](MaglevAssembler* masm, Label* return_label, Register value,
+        [](MaglevAssembler* masm, ZoneLabelRef done, Register value,
            Register array, GeneratorStore* node, int32_t offset) {
           ASM_CODE_COMMENT_STRING(masm, "Write barrier slow path");
           // Use WriteBarrierDescriptor::SlotAddressRegister() as the scratch
@@ -605,7 +606,7 @@ void GeneratorStore::GenerateCode(MaglevAssembler* masm,
           __ CheckPageFlag(
               value, WriteBarrierDescriptor::SlotAddressRegister(),
               MemoryChunk::kPointersToHereAreInterestingOrInSharedHeapMask,
-              zero, return_label);
+              zero, *done);
 
           Register slot_reg = WriteBarrierDescriptor::SlotAddressRegister();
 
@@ -620,13 +621,13 @@ void GeneratorStore::GenerateCode(MaglevAssembler* masm,
 
           __ CallRecordWriteStub(array, slot_reg, save_fp_mode);
 
-          __ jmp(return_label);
+          __ jmp(*done);
         },
-        value, array, this, FixedArray::OffsetOfElementAt(i));
+        done, value, array, this, FixedArray::OffsetOfElementAt(i));
 
     __ StoreTaggedField(FieldOperand(array, FixedArray::OffsetOfElementAt(i)),
                         value);
-    __ JumpIfSmi(value, &deferred_write_barrier->return_label, Label::kNear);
+    __ JumpIfSmi(value, *done, Label::kNear);
     // TODO(leszeks): This will stay either false or true throughout this loop.
     // Consider hoisting the check out of the loop and duplicating the loop into
     // with and without write barrier.
@@ -634,7 +635,7 @@ void GeneratorStore::GenerateCode(MaglevAssembler* masm,
                      MemoryChunk::kPointersFromHereAreInterestingMask, not_zero,
                      &deferred_write_barrier->deferred_code_label);
 
-    __ bind(&deferred_write_barrier->return_label);
+    __ bind(*done);
   }
 
   // Use WriteBarrierDescriptor::SlotAddressRegister() as the scratch
@@ -642,19 +643,20 @@ void GeneratorStore::GenerateCode(MaglevAssembler* masm,
   Register context = __ FromAnyToRegister(
       context_input(), WriteBarrierDescriptor::SlotAddressRegister());
 
+  ZoneLabelRef done(masm);
   DeferredCodeInfo* deferred_context_write_barrier = __ PushDeferredCode(
-      [](MaglevAssembler* masm, Label* return_label, Register context,
+      [](MaglevAssembler* masm, ZoneLabelRef done, Register context,
          Register generator, GeneratorStore* node) {
         ASM_CODE_COMMENT_STRING(masm, "Write barrier slow path");
         // Use WriteBarrierDescriptor::SlotAddressRegister() as the scratch
         // register, see comment above.
-        // TODO(leszeks): The context is almost always going to be in old-space,
-        // consider moving this check to the fast path, maybe even as the first
-        // bailout.
+        // TODO(leszeks): The context is almost always going to be in
+        // old-space, consider moving this check to the fast path, maybe even
+        // as the first bailout.
         __ CheckPageFlag(
             context, WriteBarrierDescriptor::SlotAddressRegister(),
             MemoryChunk::kPointersToHereAreInterestingOrInSharedHeapMask, zero,
-            return_label);
+            *done);
 
         __ Move(WriteBarrierDescriptor::ObjectRegister(), generator);
         generator = WriteBarrierDescriptor::ObjectRegister();
@@ -672,16 +674,16 @@ void GeneratorStore::GenerateCode(MaglevAssembler* masm,
 
         __ CallRecordWriteStub(generator, slot_reg, save_fp_mode);
 
-        __ jmp(return_label);
+        __ jmp(*done);
       },
-      context, generator, this);
+      done, context, generator, this);
   __ StoreTaggedField(
       FieldOperand(generator, JSGeneratorObject::kContextOffset), context);
   __ AssertNotSmi(context);
   __ CheckPageFlag(generator, kScratchRegister,
                    MemoryChunk::kPointersFromHereAreInterestingMask, not_zero,
                    &deferred_context_write_barrier->deferred_code_label);
-  __ bind(&deferred_context_write_barrier->return_label);
+  __ bind(*done);
 
   __ StoreTaggedSignedField(
       FieldOperand(generator, JSGeneratorObject::kContinuationOffset),
@@ -1339,9 +1341,10 @@ void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
   }
   __ Cmp(FieldOperand(object, HeapObject::kMapOffset), map().object());
 
+  ZoneLabelRef migration_done(masm);
   __ JumpToDeferredIf(
       not_equal,
-      [](MaglevAssembler* masm, Label* return_label, Register object,
+      [](MaglevAssembler* masm, ZoneLabelRef migration_done, Register object,
          CheckMapsWithMigration* node, EagerDeoptInfo* deopt_info) {
         __ RegisterEagerDeopt(deopt_info, DeoptimizeReason::kWrongMap);
 
@@ -1387,10 +1390,11 @@ void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
         // Manually load the map pointer without uncompressing it.
         __ Cmp(FieldOperand(object, HeapObject::kMapOffset),
                node->map().object());
-        __ j(equal, return_label);
+        __ j(equal, *migration_done);
         __ jmp(&deopt_info->deopt_entry_label);
       },
-      object, this, eager_deopt_info());
+      migration_done, object, this, eager_deopt_info());
+  __ bind(*migration_done);
 }
 void CheckMapsWithMigration::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
@@ -1474,9 +1478,10 @@ void CheckedInternalizedString::GenerateCode(MaglevAssembler* masm,
   __ testw(FieldOperand(map_tmp, Map::kInstanceTypeOffset),
            Immediate(kIsNotStringMask | kIsNotInternalizedMask));
   static_assert((kStringTag | kInternalizedTag) == 0);
+  ZoneLabelRef done(masm);
   __ JumpToDeferredIf(
       not_zero,
-      [](MaglevAssembler* masm, Label* return_label, Register object,
+      [](MaglevAssembler* masm, ZoneLabelRef done, Register object,
          CheckedInternalizedString* node, EagerDeoptInfo* deopt_info,
          Register map_tmp) {
         __ RecordComment("Deferred Test IsThinString");
@@ -1498,9 +1503,10 @@ void CheckedInternalizedString::GenerateCode(MaglevAssembler* masm,
           static_assert((kStringTag | kInternalizedTag) == 0);
           __ Check(zero, AbortReason::kUnexpectedValue);
         }
-        __ jmp(return_label);
+        __ jmp(*done);
       },
-      object, this, eager_deopt_info(), map_tmp);
+      done, object, this, eager_deopt_info(), map_tmp);
+  __ bind(*done);
 }
 
 void CheckedObjectToIndex::AllocateVreg(MaglevVregAllocationState* vreg_state) {
@@ -1513,12 +1519,12 @@ void CheckedObjectToIndex::GenerateCode(MaglevAssembler* masm,
   Register object = ToRegister(object_input());
   Register result_reg = ToRegister(result());
 
-  ZoneLabelRef done(masm->compilation_info()->zone());
+  ZoneLabelRef done(masm);
   Condition is_smi = __ CheckSmi(object);
   __ JumpToDeferredIf(
       NegateCondition(is_smi),
-      [](MaglevAssembler* masm, Label* return_label, Register object,
-         Register result_reg, ZoneLabelRef done, CheckedObjectToIndex* node) {
+      [](MaglevAssembler* masm, Register object, Register result_reg,
+         ZoneLabelRef done, CheckedObjectToIndex* node) {
         Label is_string;
         __ LoadMap(kScratchRegister, object);
         __ CmpInstanceTypeRange(kScratchRegister, kScratchRegister,
@@ -1706,14 +1712,15 @@ void StoreTaggedFieldWithWriteBarrier::GenerateCode(
   __ AssertNotSmi(object);
   __ StoreTaggedField(FieldOperand(object, offset()), value);
 
+  ZoneLabelRef done(masm);
   DeferredCodeInfo* deferred_write_barrier = __ PushDeferredCode(
-      [](MaglevAssembler* masm, Label* return_label, Register value,
+      [](MaglevAssembler* masm, ZoneLabelRef done, Register value,
          Register object, StoreTaggedFieldWithWriteBarrier* node) {
         ASM_CODE_COMMENT_STRING(masm, "Write barrier slow path");
         __ CheckPageFlag(
             value, kScratchRegister,
             MemoryChunk::kPointersToHereAreInterestingOrInSharedHeapMask, zero,
-            return_label);
+            *done);
 
         Register slot_reg = WriteBarrierDescriptor::SlotAddressRegister();
         RegList saved;
@@ -1732,15 +1739,15 @@ void StoreTaggedFieldWithWriteBarrier::GenerateCode(
         __ CallRecordWriteStub(object, slot_reg, save_fp_mode);
 
         __ PopAll(saved);
-        __ jmp(return_label);
+        __ jmp(*done);
       },
-      value, object, this);
+      done, value, object, this);
 
-  __ JumpIfSmi(value, &deferred_write_barrier->return_label);
+  __ JumpIfSmi(value, *done);
   __ CheckPageFlag(object, kScratchRegister,
                    MemoryChunk::kPointersFromHereAreInterestingMask, not_zero,
                    &deferred_write_barrier->deferred_code_label);
-  __ bind(&deferred_write_barrier->return_label);
+  __ bind(*done);
 }
 void StoreTaggedFieldWithWriteBarrier::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
@@ -2189,9 +2196,10 @@ void Int32DivideWithOverflow::GenerateCode(MaglevAssembler* masm,
 
   // Check if {right} is positive (and not zero).
   __ cmpl(right, Immediate(0));
+  ZoneLabelRef done(masm);
   __ JumpToDeferredIf(
       less_equal,
-      [](MaglevAssembler* masm, Label* return_label, Register right,
+      [](MaglevAssembler* masm, ZoneLabelRef done, Register right,
          Int32DivideWithOverflow* node) {
         // {right} is negative or zero.
 
@@ -2212,14 +2220,15 @@ void Int32DivideWithOverflow::GenerateCode(MaglevAssembler* masm,
         // Check if {left} is kMinInt and {right} is -1, in which case we'd have
         // to return -kMinInt, which is not representable as Int32.
         __ cmpl(rax, Immediate(kMinInt));
-        __ j(not_equal, return_label);
+        __ j(not_equal, *done);
         __ cmpl(right, Immediate(-1));
-        __ j(not_equal, return_label);
+        __ j(not_equal, *done);
         // TODO(leszeks): Better DeoptimizeReason = kOverflow, but
         // eager_deopt_info is already configured as kNotInt32.
         __ EmitEagerDeopt(node, DeoptimizeReason::kNotInt32);
       },
-      right, this);
+      done, right, this);
+  __ bind(*done);
 
   // Perform the actual integer division.
   __ idivl(right);
@@ -3322,9 +3331,10 @@ void ReduceInterruptBudget::GenerateCode(MaglevAssembler* masm,
       scratch, FieldOperand(scratch, JSFunction::kFeedbackCellOffset));
   __ subl(FieldOperand(scratch, FeedbackCell::kInterruptBudgetOffset),
           Immediate(amount()));
+  ZoneLabelRef done(masm);
   __ JumpToDeferredIf(
       less,
-      [](MaglevAssembler* masm, Label* return_label,
+      [](MaglevAssembler* masm, ZoneLabelRef done,
          ReduceInterruptBudget* node) {
         {
           SaveRegisterStateForCall save_register_state(
@@ -3336,9 +3346,10 @@ void ReduceInterruptBudget::GenerateCode(MaglevAssembler* masm,
           save_register_state.DefineSafepointWithLazyDeopt(
               node->lazy_deopt_info());
         }
-        __ jmp(return_label);
+        __ jmp(*done);
       },
-      this);
+      done, this);
+  __ bind(*done);
 }
 void ReduceInterruptBudget::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
@@ -3359,8 +3370,7 @@ void ThrowReferenceErrorIfHole::GenerateCode(MaglevAssembler* masm,
   }
   __ JumpToDeferredIf(
       equal,
-      [](MaglevAssembler* masm, Label* return_label,
-         ThrowReferenceErrorIfHole* node) {
+      [](MaglevAssembler* masm, ThrowReferenceErrorIfHole* node) {
         __ Move(kContextRegister, masm->native_context().object());
         __ Push(node->name().object());
         __ CallRuntime(Runtime::kThrowAccessedUninitializedVariable, 1);
@@ -3384,8 +3394,7 @@ void ThrowSuperNotCalledIfHole::GenerateCode(MaglevAssembler* masm,
   }
   __ JumpToDeferredIf(
       equal,
-      [](MaglevAssembler* masm, Label* return_label,
-         ThrowSuperNotCalledIfHole* node) {
+      [](MaglevAssembler* masm, ThrowSuperNotCalledIfHole* node) {
         __ Move(kContextRegister, masm->native_context().object());
         __ CallRuntime(Runtime::kThrowSuperNotCalled, 0);
         masm->DefineExceptionHandlerAndLazyDeoptPoint(node);
@@ -3408,8 +3417,7 @@ void ThrowSuperAlreadyCalledIfNotHole::GenerateCode(
   }
   __ JumpToDeferredIf(
       not_equal,
-      [](MaglevAssembler* masm, Label* return_label,
-         ThrowSuperAlreadyCalledIfNotHole* node) {
+      [](MaglevAssembler* masm, ThrowSuperAlreadyCalledIfNotHole* node) {
         __ Move(kContextRegister, masm->native_context().object());
         __ CallRuntime(Runtime::kThrowSuperAlreadyCalledError, 0);
         masm->DefineExceptionHandlerAndLazyDeoptPoint(node);
@@ -3430,8 +3438,7 @@ void ThrowIfNotSuperConstructor::GenerateCode(MaglevAssembler* masm,
            Immediate(Map::Bits1::IsConstructorBit::kMask));
   __ JumpToDeferredIf(
       equal,
-      [](MaglevAssembler* masm, Label* return_label,
-         ThrowIfNotSuperConstructor* node) {
+      [](MaglevAssembler* masm, ThrowIfNotSuperConstructor* node) {
         __ Push(ToRegister(node->constructor()));
         __ Push(ToRegister(node->function()));
         __ Move(kContextRegister, masm->native_context().object());
@@ -3544,7 +3551,8 @@ void JumpFromInlined::GenerateCode(MaglevAssembler* masm,
 
 namespace {
 
-void AttemptOnStackReplacement(MaglevAssembler* masm, Label* return_label,
+void AttemptOnStackReplacement(MaglevAssembler* masm,
+                               ZoneLabelRef no_code_for_osr,
                                JumpLoopPrologue* node, Register scratch0,
                                Register scratch1, int32_t loop_depth,
                                FeedbackSlot feedback_slot,
@@ -3573,7 +3581,7 @@ void AttemptOnStackReplacement(MaglevAssembler* masm, Label* return_label,
     __ movb(scratch0, FieldOperand(scratch0, FeedbackVector::kOsrStateOffset));
     __ DecodeField<FeedbackVector::OsrUrgencyBits>(scratch0);
     basm.JumpIfByte(baseline::Condition::kUnsignedLessThanEqual, scratch0,
-                    loop_depth, return_label, Label::kNear);
+                    loop_depth, *no_code_for_osr, Label::kNear);
 
     // The osr_urgency exceeds the current loop_depth, signaling an OSR
     // request. Call into runtime to compile.
@@ -3614,7 +3622,7 @@ void AttemptOnStackReplacement(MaglevAssembler* masm, Label* return_label,
     // through for now, OSR code will be picked up once it exists and is
     // cached on the feedback vector.
     __ Cmp(maybe_target_code, 0);
-    __ j(equal, return_label, Label::kNear);
+    __ j(equal, *no_code_for_osr, Label::kNear);
   }
 
   __ bind(&deopt);
@@ -3653,8 +3661,11 @@ void JumpLoopPrologue::GenerateCode(MaglevAssembler* masm,
   static_assert(FeedbackVector::MaybeHasOptimizedOsrCodeBit::encode(true) >
                 FeedbackVector::kMaxOsrUrgency);
   __ cmpl(osr_state, Immediate(loop_depth_));
-  __ JumpToDeferredIf(above, AttemptOnStackReplacement, this, scratch0,
-                      scratch1, loop_depth_, feedback_slot_, osr_offset_);
+  ZoneLabelRef no_code_for_osr(masm);
+  __ JumpToDeferredIf(above, AttemptOnStackReplacement, no_code_for_osr, this,
+                      scratch0, scratch1, loop_depth_, feedback_slot_,
+                      osr_offset_);
+  __ bind(*no_code_for_osr);
 }
 
 void JumpLoop::AllocateVreg(MaglevVregAllocationState* vreg_state) {}
