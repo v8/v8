@@ -137,6 +137,7 @@ class MaglevGraphVerifier {
       case Opcode::kGetTemplateObject:
       case Opcode::kLogicalNot:
       case Opcode::kSetPendingMessage:
+      case Opcode::kStringLength:
       case Opcode::kToBooleanLogicalNot:
       case Opcode::kTestUndetectable:
       case Opcode::kTestTypeOf:
@@ -149,6 +150,7 @@ class MaglevGraphVerifier {
         break;
       case Opcode::kSwitch:
       case Opcode::kCheckedSmiTag:
+      case Opcode::kUnsafeSmiTag:
       case Opcode::kChangeInt32ToFloat64:
         DCHECK_EQ(node->input_count(), 1);
         CheckValueInputIs(node, 0, ValueRepresentation::kInt32);

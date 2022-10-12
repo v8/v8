@@ -1290,20 +1290,30 @@ bool MaglevGraphBuilder::TryBuildPropertyLoad(
         access_info.holder().value());
   }
 
-  if (access_info.IsNotFound()) {
-    SetAccumulator(GetRootConstant(RootIndex::kUndefinedValue));
-    return true;
-  } else if (access_info.IsFastAccessorConstant() ||
-             access_info.IsDictionaryProtoAccessorConstant()) {
-    return TryBuildPropertyGetterCall(access_info, receiver);
-  } else if (access_info.IsDataField() || access_info.IsFastDataConstant()) {
-    BuildLoadField(access_info, lookup_start_object);
-    return true;
-  } else if (access_info.IsDictionaryProtoDataConstant()) {
-    return TryFoldLoadDictPrototypeConstant(access_info);
-  } else {
-    // TODO(victorgomes): Add other property access implementation.
-    return false;
+  switch (access_info.kind()) {
+    case compiler::PropertyAccessInfo::kInvalid:
+      return false;
+    case compiler::PropertyAccessInfo::kNotFound:
+      SetAccumulator(GetRootConstant(RootIndex::kUndefinedValue));
+      return true;
+    case compiler::PropertyAccessInfo::kDataField:
+    case compiler::PropertyAccessInfo::kFastDataConstant:
+      BuildLoadField(access_info, lookup_start_object);
+      return true;
+    case compiler::PropertyAccessInfo::kDictionaryProtoDataConstant:
+      return TryFoldLoadDictPrototypeConstant(access_info);
+    case compiler::PropertyAccessInfo::kFastAccessorConstant:
+    case compiler::PropertyAccessInfo::kDictionaryProtoAccessorConstant:
+      return TryBuildPropertyGetterCall(access_info, receiver);
+    case compiler::PropertyAccessInfo::kModuleExport: {
+      ValueNode* cell = GetConstant(access_info.constant().value().AsCell());
+      SetAccumulator(AddNewNode<LoadTaggedField>({cell}, Cell::kValueOffset));
+      return true;
+    }
+    case compiler::PropertyAccessInfo::kStringLength:
+      DCHECK_EQ(receiver, lookup_start_object);
+      SetAccumulator(AddNewNode<StringLength>({receiver}));
+      return true;
   }
 }
 

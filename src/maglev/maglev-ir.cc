@@ -1830,6 +1830,25 @@ void SetNamedGeneric::PrintParams(std::ostream& os,
   os << "(" << name_ << ")";
 }
 
+void StringLength::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  UseRegister(object_input());
+  DefineAsRegister(vreg_state, this);
+}
+void StringLength::GenerateCode(MaglevAssembler* masm,
+                                const ProcessingState& state) {
+  Register object = ToRegister(object_input());
+  if (v8_flags.debug_code) {
+    // Use return register as temporary.
+    Register tmp = ToRegister(result());
+    // Check if {object} is a string.
+    __ AssertNotSmi(object);
+    __ LoadMap(tmp, object);
+    __ CmpInstanceTypeRange(tmp, tmp, FIRST_STRING_TYPE, LAST_STRING_TYPE);
+    __ Check(below_equal, AbortReason::kUnexpectedValue);
+  }
+  __ movl(ToRegister(result()), FieldOperand(object, String::kLengthOffset));
+}
+
 void DefineNamedOwnGeneric::AllocateVreg(
     MaglevVregAllocationState* vreg_state) {
   using D = CallInterfaceDescriptorFor<Builtin::kDefineNamedOwnIC>::type;
@@ -2534,6 +2553,19 @@ void CheckedSmiTag::GenerateCode(MaglevAssembler* masm,
   DCHECK_REGLIST_EMPTY(RegList{reg} &
                        GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
   __ EmitEagerDeoptIf(overflow, DeoptimizeReason::kOverflow, this);
+}
+
+void UnsafeSmiTag::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  UseRegister(input());
+  DefineSameAsFirst(vreg_state, this);
+}
+void UnsafeSmiTag::GenerateCode(MaglevAssembler* masm,
+                                const ProcessingState& state) {
+  Register reg = ToRegister(input());
+  __ addl(reg, reg);
+  if (v8_flags.debug_code) {
+    __ Check(no_overflow, AbortReason::kInputDoesNotFitSmi);
+  }
 }
 
 void Int32Constant::AllocateVreg(MaglevVregAllocationState* vreg_state) {

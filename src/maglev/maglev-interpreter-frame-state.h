@@ -690,16 +690,24 @@ class MergePointInterpreterFrameState {
               ValueRepresentation::kInt32);
     DCHECK(!value->properties().is_conversion());
 #define IS_INT32_OP_NODE(Name) || value->Is<Name>()
-    DCHECK(value->Is<Int32Constant>()
+    DCHECK(value->Is<Int32Constant>() ||
+           value->Is<StringLength>()
                INT32_OPERATIONS_NODE_LIST(IS_INT32_OP_NODE));
 #undef IS_INT32_OP_NODE
     NodeInfo* node_info = known_node_aspects.GetOrCreateInfoFor(value);
     if (!node_info->tagged_alternative) {
       // Create a tagged version.
-      ValueNode* tagged =
-          Node::New<CheckedSmiTag, std::initializer_list<ValueNode*>>(
-              compilation_unit.zone(), compilation_unit,
-              value->eager_deopt_info()->state, {value});
+      ValueNode* tagged;
+      if (value->Is<StringLength>()) {
+        static_assert(String::kMaxLength <= kSmiMaxValue,
+                      "String length must fit into a Smi");
+        tagged = Node::New<UnsafeSmiTag>(compilation_unit.zone(), {value});
+      } else {
+        tagged = Node::New<CheckedSmiTag, std::initializer_list<ValueNode*>>(
+            compilation_unit.zone(), compilation_unit,
+            value->eager_deopt_info()->state, {value});
+      }
+
       Node::List::AddAfter(value, tagged);
       compilation_unit.RegisterNodeInGraphLabeller(tagged);
       node_info->tagged_alternative = tagged;

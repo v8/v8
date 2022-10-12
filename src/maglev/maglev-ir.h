@@ -160,6 +160,7 @@ class CompactInterpreterFrameState;
   V(Phi)                           \
   V(RegisterInput)                 \
   V(CheckedSmiTag)                 \
+  V(UnsafeSmiTag)                  \
   V(CheckedSmiUntag)               \
   V(CheckedInternalizedString)     \
   V(CheckedObjectToIndex)          \
@@ -169,6 +170,7 @@ class CompactInterpreterFrameState;
   V(CheckedFloat64Unbox)           \
   V(LogicalNot)                    \
   V(SetPendingMessage)             \
+  V(StringLength)                  \
   V(ToBooleanLogicalNot)           \
   V(TaggedEqual)                   \
   V(TaggedNotEqual)                \
@@ -1702,6 +1704,20 @@ class CheckedSmiTag : public FixedInputValueNodeT<1, CheckedSmiTag> {
   DECL_NODE_INTERFACE_WITH_EMPTY_PRINT_PARAMS()
 };
 
+// Input must guarantee to fit in a Smi.
+class UnsafeSmiTag : public FixedInputValueNodeT<1, UnsafeSmiTag> {
+  using Base = FixedInputValueNodeT<1, UnsafeSmiTag>;
+
+ public:
+  explicit UnsafeSmiTag(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::ConversionNode();
+
+  Input& input() { return Node::input(0); }
+
+  DECL_NODE_INTERFACE_WITH_EMPTY_PRINT_PARAMS()
+};
+
 class CheckedSmiUntag : public FixedInputValueNodeT<1, CheckedSmiUntag> {
   using Base = FixedInputValueNodeT<1, CheckedSmiUntag>;
 
@@ -3112,6 +3128,21 @@ class SetNamedGeneric : public FixedInputValueNodeT<3, SetNamedGeneric> {
  private:
   const compiler::NameRef name_;
   const compiler::FeedbackSource feedback_;
+};
+
+class StringLength : public FixedInputValueNodeT<1, StringLength> {
+  using Base = FixedInputValueNodeT<1, StringLength>;
+
+ public:
+  explicit StringLength(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::Reading() | OpProperties::Int32();
+
+  static constexpr int kObjectIndex = 0;
+  Input& object_input() { return input(kObjectIndex); }
+
+  DECL_NODE_INTERFACE_WITH_EMPTY_PRINT_PARAMS()
 };
 
 class DefineNamedOwnGeneric
