@@ -9,6 +9,7 @@
 #include "src/handles/persistent-handles.h"
 #include "src/heap/concurrent-allocator-inl.h"
 #include "src/heap/heap.h"
+#include "src/heap/linear-allocation-area.h"
 #include "src/heap/local-heap-inl.h"
 #include "src/heap/local-heap.h"
 #include "src/heap/marking.h"
@@ -77,11 +78,15 @@ void StressConcurrentAllocatorTask::Schedule(Isolate* isolate) {
                                                       kDelayInSeconds);
 }
 
+ConcurrentAllocator::ConcurrentAllocator(LocalHeap* local_heap,
+                                         PagedSpace* space)
+    : local_heap_(local_heap), space_(space), owning_heap_(space_->heap()) {}
+
 void ConcurrentAllocator::FreeLinearAllocationArea() {
   // The code page of the linear allocation area needs to be unprotected
   // because we are going to write a filler into that memory area below.
   base::Optional<CodePageMemoryModificationScope> optional_scope;
-  if (lab_.IsValid() && space_->identity() == CODE_SPACE) {
+  if (IsLabValid() && space_->identity() == CODE_SPACE) {
     optional_scope.emplace(MemoryChunk::FromAddress(lab_.top()));
   }
   if (lab_.top() != lab_.limit() &&
@@ -89,17 +94,19 @@ void ConcurrentAllocator::FreeLinearAllocationArea() {
     Page::FromAddress(lab_.top())
         ->DestroyBlackAreaBackground(lab_.top(), lab_.limit());
   }
-  lab_.CloseAndMakeIterable();
+
+  MakeLabIterable();
+  ResetLab();
 }
 
 void ConcurrentAllocator::MakeLinearAllocationAreaIterable() {
   // The code page of the linear allocation area needs to be unprotected
   // because we are going to write a filler into that memory area below.
   base::Optional<CodePageMemoryModificationScope> optional_scope;
-  if (lab_.IsValid() && space_->identity() == CODE_SPACE) {
+  if (IsLabValid() && space_->identity() == CODE_SPACE) {
     optional_scope.emplace(MemoryChunk::FromAddress(lab_.top()));
   }
-  lab_.MakeIterable();
+  MakeLabIterable();
 }
 
 void ConcurrentAllocator::MarkLinearAllocationAreaBlack() {
@@ -137,7 +144,7 @@ AllocationResult ConcurrentAllocator::AllocateInLabSlow(
     return AllocationResult::Failure();
   }
   AllocationResult allocation =
-      lab_.AllocateRawAligned(size_in_bytes, alignment);
+      AllocateInLabFastAligned(size_in_bytes, alignment);
   DCHECK(!allocation.IsFailure());
   return allocation;
 }
@@ -151,10 +158,10 @@ bool ConcurrentAllocator::EnsureLab(AllocationOrigin origin) {
 
   FreeLinearAllocationArea();
 
-  HeapObject object = HeapObject::FromAddress(result->first);
-  lab_ = LocalAllocationBuffer::FromResult(
-      owning_heap(), AllocationResult::FromObject(object), result->second);
-  DCHECK(lab_.IsValid());
+  Address lab_start = result->first;
+  Address lab_end = lab_start + result->second;
+  lab_ = LinearAllocationArea(lab_start, lab_end);
+  DCHECK(IsLabValid());
 
   if (IsBlackAllocationEnabled()) {
     Address top = lab_.top();
@@ -179,12 +186,12 @@ AllocationResult ConcurrentAllocator::AllocateOutsideLab(
 
   DCHECK_GE(result->second, aligned_size_in_bytes);
 
-  HeapObject object =
-      (requested_filler_size)
-          ? owning_heap()->AlignWithFiller(
-                HeapObject::FromAddress(result->first), size_in_bytes,
-                static_cast<int>(result->second), alignment)
-          : HeapObject::FromAddress(result->first);
+  HeapObject object = HeapObject::FromAddress(result->first);
+  if (requested_filler_size > 0) {
+    object = owning_heap()->AlignWithFiller(
+        object, size_in_bytes, static_cast<int>(result->second), alignment);
+  }
+
   if (IsBlackAllocationEnabled()) {
     owning_heap()->incremental_marking()->MarkBlackBackground(object,
                                                               size_in_bytes);
@@ -196,7 +203,12 @@ bool ConcurrentAllocator::IsBlackAllocationEnabled() const {
   return owning_heap()->incremental_marking()->black_allocation();
 }
 
-Heap* ConcurrentAllocator::owning_heap() const { return space_->heap(); }
+void ConcurrentAllocator::MakeLabIterable() {
+  if (IsLabValid()) {
+    owning_heap()->CreateFillerObjectAtBackground(
+        lab_.top(), static_cast<int>(lab_.limit() - lab_.top()));
+  }
+}
 
 }  // namespace internal
 }  // namespace v8
