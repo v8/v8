@@ -16,6 +16,7 @@
 #include "src/compiler/bytecode-liveness-map.h"
 #include "src/compiler/heap-refs.h"
 #include "src/compiler/js-heap-broker.h"
+#include "src/compiler/processed-feedback.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/flags/flags.h"
 #include "src/interpreter/bytecode-array-iterator.h"
@@ -922,20 +923,25 @@ class MaglevGraphBuilder {
   void BuildCheckSymbol(ValueNode* object);
   void BuildMapCheck(ValueNode* object, const compiler::MapRef& map);
 
-  bool TryBuildMonomorphicLoad(ValueNode* receiver,
-                               ValueNode* lookup_start_object,
-                               const compiler::NameRef& name,
-                               const compiler::MapRef& map,
-                               MaybeObjectHandle handler);
-  bool TryBuildMonomorphicLoadFromSmiHandler(ValueNode* receiver,
-                                             ValueNode* lookup_start_object,
-                                             const compiler::MapRef& map,
-                                             int32_t handler);
-  bool TryBuildMonomorphicLoadFromLoadHandler(ValueNode* receiver,
-                                              ValueNode* lookup_start_object,
-                                              const compiler::NameRef& name,
-                                              const compiler::MapRef& map,
-                                              LoadHandler handler);
+  bool TryFoldLoadDictPrototypeConstant(
+      compiler::PropertyAccessInfo access_info);
+  bool TryFoldLoadConstantDataField(compiler::PropertyAccessInfo access_info);
+
+  void BuildLoadField(compiler::PropertyAccessInfo access_info,
+                      ValueNode* lookup_start_object);
+  bool TryBuildPropertyGetterCall(compiler::PropertyAccessInfo access_info,
+                                  ValueNode* receiver);
+
+  bool TryBuildPropertyLoad(ValueNode* receiver, ValueNode* lookup_start_object,
+                            compiler::PropertyAccessInfo const& access_info);
+  bool TryBuildPropertyAccess(ValueNode* receiver,
+                              ValueNode* lookup_start_object,
+                              compiler::PropertyAccessInfo const& access_info,
+                              compiler::AccessMode access_mode);
+
+  bool TryBuildNamedAccess(ValueNode* receiver, ValueNode* lookup_start_object,
+                           compiler::NamedAccessFeedback const& feedback,
+                           compiler::AccessMode access_mode);
 
   bool TryBuildMonomorphicElementLoad(ValueNode* object, ValueNode* index,
                                       const compiler::MapRef& map,

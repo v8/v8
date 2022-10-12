@@ -1174,159 +1174,196 @@ void MaglevGraphBuilder::BuildMapCheck(ValueNode* object,
   known_info->type = NodeType::kHeapObjectWithKnownMap;
 }
 
-bool MaglevGraphBuilder::TryBuildMonomorphicLoad(ValueNode* receiver,
-                                                 ValueNode* lookup_start_object,
-                                                 const compiler::NameRef& name,
-                                                 const compiler::MapRef& map,
-                                                 MaybeObjectHandle handler) {
-  if (handler.is_null()) return false;
+bool MaglevGraphBuilder::TryFoldLoadDictPrototypeConstant(
+    compiler::PropertyAccessInfo access_info) {
+  DCHECK(V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
+  DCHECK(access_info.IsDictionaryProtoDataConstant());
+  DCHECK(access_info.holder().has_value());
 
-  if (handler->IsSmi()) {
-    return TryBuildMonomorphicLoadFromSmiHandler(receiver, lookup_start_object,
-                                                 map, handler->ToSmi().value());
+  base::Optional<compiler::ObjectRef> constant =
+      access_info.holder()->GetOwnDictionaryProperty(
+          access_info.dictionary_index(), broker()->dependencies());
+  if (!constant.has_value()) return false;
+
+  for (compiler::MapRef map : access_info.lookup_start_object_maps()) {
+    Handle<Map> map_handle = map.object();
+    // Non-JSReceivers that passed AccessInfoFactory::ComputePropertyAccessInfo
+    // must have different lookup start map.
+    if (!map_handle->IsJSReceiverMap()) {
+      // Perform the implicit ToObject for primitives here.
+      // Implemented according to ES6 section 7.3.2 GetV (V, P).
+      JSFunction constructor =
+          Map::GetConstructorFunction(
+              *map_handle, *broker()->target_native_context().object())
+              .value();
+      // {constructor.initial_map()} is loaded/stored with acquire-release
+      // semantics for constructors.
+      map = MakeRefAssumeMemoryFence(broker(), constructor.initial_map());
+      DCHECK(map.object()->IsJSObjectMap());
+    }
+    broker()->dependencies()->DependOnConstantInDictionaryPrototypeChain(
+        map, access_info.name(), constant.value(), PropertyKind::kData);
   }
-  HeapObject ho_handler;
-  if (!handler->GetHeapObject(&ho_handler)) return false;
 
-  if (ho_handler.IsCodeT()) {
-    // TODO(leszeks): Call the code object directly.
-    return false;
-  } else if (ho_handler.IsAccessorPair()) {
-    // TODO(leszeks): Call the getter directly.
-    return false;
+  SetAccumulator(GetConstant(constant.value()));
+  return true;
+}
+
+bool MaglevGraphBuilder::TryFoldLoadConstantDataField(
+    compiler::PropertyAccessInfo access_info) {
+  if (access_info.holder().has_value()) {
+    base::Optional<compiler::ObjectRef> constant =
+        access_info.holder()->GetOwnFastDataProperty(
+            access_info.field_representation(), access_info.field_index(),
+            broker()->dependencies());
+    if (constant.has_value()) {
+      SetAccumulator(GetConstant(constant.value()));
+      return true;
+    }
+  }
+  // TODO(victorgomes): Check if lookup_start_object is a constant object and
+  // unfold the load.
+  return false;
+}
+
+bool MaglevGraphBuilder::TryBuildPropertyGetterCall(
+    compiler::PropertyAccessInfo access_info, ValueNode* receiver) {
+  compiler::ObjectRef constant = access_info.constant().value();
+
+  if (access_info.IsDictionaryProtoAccessorConstant()) {
+    // For fast mode holders we recorded dependencies in BuildPropertyLoad.
+    for (const compiler::MapRef map : access_info.lookup_start_object_maps()) {
+      broker()->dependencies()->DependOnConstantInDictionaryPrototypeChain(
+          map, access_info.name(), constant, PropertyKind::kAccessor);
+    }
+  }
+
+  // Introduce the call to the getter function.
+  if (constant.IsJSFunction()) {
+    Call* call = CreateNewNode<Call>(Call::kFixedInputCount + 1,
+                                     ConvertReceiverMode::kNotNullOrUndefined,
+                                     GetConstant(constant), GetContext());
+    call->set_arg(0, receiver);
+    SetAccumulator(AddNode(call));
+    return true;
   } else {
-    return TryBuildMonomorphicLoadFromLoadHandler(
-        receiver, lookup_start_object, name, map,
-        LoadHandler::cast(ho_handler));
+    // TODO(victorgomes): API calls.
+    return false;
   }
 }
 
-bool MaglevGraphBuilder::TryBuildMonomorphicLoadFromSmiHandler(
-    ValueNode* receiver, ValueNode* lookup_start_object,
-    const compiler::MapRef& map, int32_t handler) {
-  // Smi handler, emit a map check and LoadField.
-  LoadHandler::Kind kind = LoadHandler::KindBits::decode(handler);
-  if (kind != LoadHandler::Kind::kField) return false;
-  if (LoadHandler::IsWasmStructBits::decode(handler)) return false;
+void MaglevGraphBuilder::BuildLoadField(
+    compiler::PropertyAccessInfo access_info, ValueNode* lookup_start_object) {
+  if (TryFoldLoadConstantDataField(access_info)) return;
 
-  BuildMapCheck(lookup_start_object, map);
-
+  // Resolve property holder.
   ValueNode* load_source;
-  if (LoadHandler::IsInobjectBits::decode(handler)) {
-    load_source = lookup_start_object;
+  if (access_info.holder().has_value()) {
+    load_source = GetConstant(access_info.holder().value());
   } else {
+    load_source = lookup_start_object;
+  }
+
+  FieldIndex field_index = access_info.field_index();
+  if (!field_index.is_inobject()) {
     // The field is in the property array, first load it from there.
     load_source = AddNewNode<LoadTaggedField>(
-        {lookup_start_object}, JSReceiver::kPropertiesOrHashOffset);
+        {load_source}, JSReceiver::kPropertiesOrHashOffset);
   }
-  int field_index = LoadHandler::FieldIndexBits::decode(handler);
-  if (LoadHandler::IsDoubleBits::decode(handler)) {
-    FieldIndex field = FieldIndex::ForSmiLoadHandler(*map.object(), handler);
-    DescriptorArray descriptors = *map.instance_descriptors().object();
-    InternalIndex index =
-        descriptors.Search(field.property_index(), *map.object());
-    DCHECK(index.is_found());
-    DCHECK(Representation::Double().CanBeInPlaceChangedTo(
-        descriptors.GetDetails(index).representation()));
-    const compiler::CompilationDependency* dep =
-        broker()->dependencies()->FieldRepresentationDependencyOffTheRecord(
-            map, index, Representation::Double());
-    broker()->dependencies()->RecordDependency(dep);
 
+  // Do the load.
+  if (field_index.is_double()) {
     SetAccumulator(
-        AddNewNode<LoadDoubleField>({load_source}, field_index * kTaggedSize));
+        AddNewNode<LoadDoubleField>({load_source}, field_index.offset()));
   } else {
     SetAccumulator(
-        AddNewNode<LoadTaggedField>({load_source}, field_index * kTaggedSize));
+        AddNewNode<LoadTaggedField>({load_source}, field_index.offset()));
   }
-  return true;
 }
 
-bool MaglevGraphBuilder::TryBuildMonomorphicLoadFromLoadHandler(
+bool MaglevGraphBuilder::TryBuildPropertyLoad(
     ValueNode* receiver, ValueNode* lookup_start_object,
-    const compiler::NameRef& name, const compiler::MapRef& map,
-    LoadHandler handler) {
-  Object maybe_smi_handler = handler.smi_handler(local_isolate_);
-  if (!maybe_smi_handler.IsSmi()) return false;
-
-  const int smi_handler = Smi::ToInt(maybe_smi_handler);
-  LoadHandler::Kind kind = LoadHandler::KindBits::decode(smi_handler);
-  if (kind != LoadHandler::Kind::kConstantFromPrototype &&
-      kind != LoadHandler::Kind::kAccessorFromPrototype) {
-    return false;
+    compiler::PropertyAccessInfo const& access_info) {
+  if (access_info.holder().has_value() && !access_info.HasDictionaryHolder()) {
+    broker()->dependencies()->DependOnStablePrototypeChains(
+        access_info.lookup_start_object_maps(), kStartAtPrototype,
+        access_info.holder().value());
   }
 
-  if (LoadHandler::LookupOnLookupStartObjectBits::decode(smi_handler)) {
-    return false;
-  }
-
-  // This fiddly early return is necessary because we can't return `false` any
-  // more once we've started emitting code.
-  if (!map.IsStringMap() &&
-      LoadHandler::DoAccessCheckOnLookupStartObjectBits::decode(smi_handler)) {
-    return false;
-  }
-
-  MaybeObject maybe_data1 = handler.data1(local_isolate_);
-  if (maybe_data1.IsCleared()) {
-    EmitUnconditionalDeopt(
-        DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
+  if (access_info.IsNotFound()) {
+    SetAccumulator(GetRootConstant(RootIndex::kUndefinedValue));
     return true;
-  }
-  const Object data1 = maybe_data1.GetHeapObjectOrSmi();
-
-  if (map.IsStringMap()) {
-    // Check for string maps before checking if we need to do an access check.
-    // Primitive strings always get the prototype from the native context
-    // they're operated on, so they don't need the access check.
-    BuildCheckString(lookup_start_object);
+  } else if (access_info.IsFastAccessorConstant() ||
+             access_info.IsDictionaryProtoAccessorConstant()) {
+    return TryBuildPropertyGetterCall(access_info, receiver);
+  } else if (access_info.IsDataField() || access_info.IsFastDataConstant()) {
+    BuildLoadField(access_info, lookup_start_object);
+    return true;
+  } else if (access_info.IsDictionaryProtoDataConstant()) {
+    return TryFoldLoadDictPrototypeConstant(access_info);
   } else {
-    DCHECK(!LoadHandler::DoAccessCheckOnLookupStartObjectBits::decode(
-        smi_handler));
-    BuildMapCheck(lookup_start_object, map);
+    // TODO(victorgomes): Add other property access implementation.
+    return false;
   }
+}
 
-  // Create compilation dependencies as needed.
-  // TODO(v8:7700): We only use the PropertyAccessInfo in order to create the
-  // proper dependencies. We should consider either using more of the PAI
-  // (instead of relying on handlers), or duplicate dependency creation logic
-  // here (which is a bit involved since it requires e.g. a prototype walk).
-  {
-    compiler::PropertyAccessInfo info = broker()->GetPropertyAccessInfo(
-        map, name, compiler::AccessMode::kLoad, broker()->dependencies());
-    if (!info.IsInvalid()) {
-      DCHECK(!info.HasDictionaryHolder());
-      info.RecordDependencies(broker()->dependencies());
-    }
-  }
-
-  switch (kind) {
-    case LoadHandler::Kind::kConstantFromPrototype: {
-      if (data1.IsSmi()) {
-        // Functionally, the else branch does the same - but we avoid the
-        // broker overhead by dispatching here.
-        SetAccumulator(GetSmiConstant(Smi::ToInt(data1)));
-      } else {
-        SetAccumulator(GetConstant(MakeRefAssumeMemoryFence(
-            broker(), broker()->CanonicalPersistentHandle(data1))));
-      }
-      break;
-    }
-    case LoadHandler::Kind::kAccessorFromPrototype: {
-      compiler::ObjectRef getter_ref = MakeRefAssumeMemoryFence(
-          broker(), broker()->CanonicalPersistentHandle(data1));
-
-      Call* call = CreateNewNode<Call>(Call::kFixedInputCount + 1,
-                                       ConvertReceiverMode::kNotNullOrUndefined,
-                                       GetConstant(getter_ref), GetContext());
-      call->set_arg(0, receiver);
-      SetAccumulator(AddNode(call));
-      break;
-    }
+bool MaglevGraphBuilder::TryBuildPropertyAccess(
+    ValueNode* receiver, ValueNode* lookup_start_object,
+    compiler::PropertyAccessInfo const& access_info,
+    compiler::AccessMode access_mode) {
+  switch (access_mode) {
+    case compiler::AccessMode::kLoad:
+      return TryBuildPropertyLoad(receiver, lookup_start_object, access_info);
     default:
-      UNREACHABLE();
+      // TODO(victorgomes): BuildPropertyStore and BuildPropertyTest.
+      return false;
   }
-  return true;
+}
+
+bool MaglevGraphBuilder::TryBuildNamedAccess(
+    ValueNode* receiver, ValueNode* lookup_start_object,
+    compiler::NamedAccessFeedback const& feedback,
+    compiler::AccessMode access_mode) {
+  ZoneVector<compiler::PropertyAccessInfo> access_infos(zone());
+  {
+    ZoneVector<compiler::PropertyAccessInfo> access_infos_for_feedback(zone());
+    for (const compiler::MapRef& map : feedback.maps()) {
+      if (map.is_deprecated()) continue;
+      compiler::PropertyAccessInfo access_info =
+          broker()->GetPropertyAccessInfo(map, feedback.name(), access_mode,
+                                          broker()->dependencies());
+      access_infos_for_feedback.push_back(access_info);
+    }
+
+    compiler::AccessInfoFactory access_info_factory(
+        broker(), broker()->dependencies(), zone());
+    if (!access_info_factory.FinalizePropertyAccessInfos(
+            access_infos_for_feedback, access_mode, &access_infos)) {
+      return false;
+    }
+  }
+
+  // Check for monomorphic case.
+  if (access_infos.size() == 1) {
+    compiler::PropertyAccessInfo access_info = access_infos.front();
+    const compiler::MapRef& map =
+        access_info.lookup_start_object_maps().front();
+    if (map.IsStringMap()) {
+      // Check for string maps before checking if we need to do an access
+      // check. Primitive strings always get the prototype from the native
+      // context they're operated on, so they don't need the access check.
+      BuildCheckString(lookup_start_object);
+    } else {
+      BuildMapCheck(lookup_start_object, map);
+    }
+
+    // Generate the actual property access.
+    return TryBuildPropertyAccess(receiver, lookup_start_object, access_info,
+                                  access_mode);
+  } else {
+    // TODO(victorgomes): polymorphic case.
+    return false;
+  }
 }
 
 bool MaglevGraphBuilder::TryBuildMonomorphicElementLoad(
@@ -1434,20 +1471,11 @@ void MaglevGraphBuilder::VisitGetNamedProperty() {
       return;
 
     case compiler::ProcessedFeedback::kNamedAccess: {
-      const compiler::NamedAccessFeedback& named_feedback =
-          processed_feedback.AsNamedAccess();
-      if (named_feedback.maps().size() != 1) break;
-      compiler::MapRef map = named_feedback.maps()[0];
-
-      // Monomorphic load, check the handler.
-      // TODO(leszeks): Make GetFeedbackForPropertyAccess read the handler.
-      MaybeObjectHandle handler =
-          FeedbackNexusForSlot(slot).FindHandlerForMap(map.object());
-
-      if (TryBuildMonomorphicLoad(object, object, name, map, handler)) {
+      if (TryBuildNamedAccess(object, object,
+                              processed_feedback.AsNamedAccess(),
+                              compiler::AccessMode::kLoad)) {
         return;
       }
-
       break;
     }
 
@@ -1486,21 +1514,11 @@ void MaglevGraphBuilder::VisitGetNamedPropertyFromSuper() {
       return;
 
     case compiler::ProcessedFeedback::kNamedAccess: {
-      const compiler::NamedAccessFeedback& named_feedback =
-          processed_feedback.AsNamedAccess();
-      if (named_feedback.maps().size() != 1) break;
-      compiler::MapRef map = named_feedback.maps()[0];
-
-      // Monomorphic load, check the handler.
-      // TODO(leszeks): Make GetFeedbackForPropertyAccess read the handler.
-      MaybeObjectHandle handler =
-          FeedbackNexusForSlot(slot).FindHandlerForMap(map.object());
-
-      if (TryBuildMonomorphicLoad(receiver, lookup_start_object, name, map,
-                                  handler)) {
+      if (TryBuildNamedAccess(receiver, lookup_start_object,
+                              processed_feedback.AsNamedAccess(),
+                              compiler::AccessMode::kLoad)) {
         return;
       }
-
       break;
     }
 
