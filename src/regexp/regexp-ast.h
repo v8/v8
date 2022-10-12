@@ -18,8 +18,8 @@ namespace internal {
   VISIT(Disjunction)                      \
   VISIT(Alternative)                      \
   VISIT(Assertion)                        \
-  VISIT(CharacterClass)                   \
-  VISIT(ClassSet)                         \
+  VISIT(ClassRanges)                      \
+  VISIT(ClassSetExpression)               \
   VISIT(Atom)                             \
   VISIT(Quantifier)                       \
   VISIT(Capture)                          \
@@ -299,7 +299,7 @@ class CharacterSet final {
   base::Optional<StandardCharacterSet> standard_set_type_;
 };
 
-class RegExpCharacterClass final : public RegExpTree {
+class RegExpClassRanges final : public RegExpTree {
  public:
   // NEGATED: The character class is negated and should match everything but
   //     the specified ranges.
@@ -309,22 +309,21 @@ class RegExpCharacterClass final : public RegExpTree {
     NEGATED = 1 << 0,
     CONTAINS_SPLIT_SURROGATE = 1 << 1,
   };
-  using CharacterClassFlags = base::Flags<Flag>;
+  using ClassRangesFlags = base::Flags<Flag>;
 
-  RegExpCharacterClass(
-      Zone* zone, ZoneList<CharacterRange>* ranges,
-      CharacterClassFlags character_class_flags = CharacterClassFlags())
-      : set_(ranges), character_class_flags_(character_class_flags) {
+  RegExpClassRanges(Zone* zone, ZoneList<CharacterRange>* ranges,
+                    ClassRangesFlags class_ranges_flags = ClassRangesFlags())
+      : set_(ranges), class_ranges_flags_(class_ranges_flags) {
     // Convert the empty set of ranges to the negated Everything() range.
     if (ranges->is_empty()) {
       ranges->Add(CharacterRange::Everything(), zone);
-      character_class_flags_ ^= NEGATED;
+      class_ranges_flags_ ^= NEGATED;
     }
   }
-  explicit RegExpCharacterClass(StandardCharacterSet standard_set_type)
-      : set_(standard_set_type), character_class_flags_() {}
+  explicit RegExpClassRanges(StandardCharacterSet standard_set_type)
+      : set_(standard_set_type), class_ranges_flags_() {}
 
-  DECL_BOILERPLATE(CharacterClass);
+  DECL_BOILERPLATE(ClassRanges);
 
   bool IsTextElement() override { return true; }
   int min_match() override { return 1; }
@@ -347,25 +346,25 @@ class RegExpCharacterClass final : public RegExpTree {
   CharacterSet character_set() const { return set_; }
   ZoneList<CharacterRange>* ranges(Zone* zone) { return set_.ranges(zone); }
 
-  bool is_negated() const { return (character_class_flags_ & NEGATED) != 0; }
+  bool is_negated() const { return (class_ranges_flags_ & NEGATED) != 0; }
   bool contains_split_surrogate() const {
-    return (character_class_flags_ & CONTAINS_SPLIT_SURROGATE) != 0;
+    return (class_ranges_flags_ & CONTAINS_SPLIT_SURROGATE) != 0;
   }
 
  private:
   CharacterSet set_;
-  CharacterClassFlags character_class_flags_;
+  ClassRangesFlags class_ranges_flags_;
 };
 
-class RegExpClassSet final : public RegExpTree {
+class RegExpClassSetExpression final : public RegExpTree {
  public:
   enum class OperationType { kUnion, kIntersection, kSubtraction };
 
-  RegExpClassSet(OperationType op, bool is_negated,
-                 ZoneList<RegExpTree*>* operands)
+  RegExpClassSetExpression(OperationType op, bool is_negated,
+                           ZoneList<RegExpTree*>* operands)
       : operation_(op), is_negated_(is_negated), operands_(operands) {}
 
-  DECL_BOILERPLATE(ClassSet);
+  DECL_BOILERPLATE(ClassSetExpression);
 
   bool IsTextElement() override { return true; }
   // At least 1 character is consumed.
@@ -378,7 +377,7 @@ class RegExpClassSet final : public RegExpTree {
   const ZoneList<RegExpTree*>* operands() const { return operands_; }
 
  private:
-  RegExpCharacterClass* ToCharacterClass(Zone* zone);
+  RegExpClassRanges* ToCharacterClass(Zone* zone);
 
   // Recursively evaluates the tree rooted at |root|, computing the valid
   // CharacterRanges after applying all set operations and storing the result in
@@ -418,10 +417,10 @@ class RegExpAtom final : public RegExpTree {
 
 class TextElement final {
  public:
-  enum TextType { ATOM, CHAR_CLASS };
+  enum TextType { ATOM, CLASS_RANGES };
 
   static TextElement Atom(RegExpAtom* atom);
-  static TextElement CharClass(RegExpCharacterClass* char_class);
+  static TextElement ClassRanges(RegExpClassRanges* class_ranges);
 
   int cp_offset() const { return cp_offset_; }
   void set_cp_offset(int cp_offset) { cp_offset_ = cp_offset; }
@@ -436,9 +435,9 @@ class TextElement final {
     return reinterpret_cast<RegExpAtom*>(tree());
   }
 
-  RegExpCharacterClass* char_class() const {
-    DCHECK(text_type() == CHAR_CLASS);
-    return reinterpret_cast<RegExpCharacterClass*>(tree());
+  RegExpClassRanges* class_ranges() const {
+    DCHECK(text_type() == CLASS_RANGES);
+    return reinterpret_cast<RegExpClassRanges*>(tree());
   }
 
  private:

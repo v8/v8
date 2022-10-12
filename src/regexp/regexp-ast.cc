@@ -182,9 +182,7 @@ void RegExpUnparser::VisitCharacterRange(CharacterRange that) {
   }
 }
 
-
-void* RegExpUnparser::VisitCharacterClass(RegExpCharacterClass* that,
-                                          void* data) {
+void* RegExpUnparser::VisitClassRanges(RegExpClassRanges* that, void* data) {
   if (that->is_negated()) os_ << "^";
   os_ << "[";
   for (int i = 0; i < that->ranges(zone_)->length(); i++) {
@@ -195,15 +193,16 @@ void* RegExpUnparser::VisitCharacterClass(RegExpCharacterClass* that,
   return nullptr;
 }
 
-void* RegExpUnparser::VisitClassSet(RegExpClassSet* that, void* data) {
+void* RegExpUnparser::VisitClassSetExpression(RegExpClassSetExpression* that,
+                                              void* data) {
   switch (that->operation()) {
-    case RegExpClassSet::OperationType::kUnion:
+    case RegExpClassSetExpression::OperationType::kUnion:
       os_ << "++";
       break;
-    case RegExpClassSet::OperationType::kIntersection:
+    case RegExpClassSetExpression::OperationType::kIntersection:
       os_ << "&&";
       break;
-    case RegExpClassSet::OperationType::kSubtraction:
+    case RegExpClassSetExpression::OperationType::kSubtraction:
       os_ << "--";
       break;
   }

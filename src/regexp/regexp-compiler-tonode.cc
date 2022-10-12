@@ -93,7 +93,7 @@ bool CompareRanges(ZoneList<CharacterRange>* ranges, const int* special_class,
 
 }  // namespace
 
-bool RegExpCharacterClass::is_standard(Zone* zone) {
+bool RegExpClassRanges::is_standard(Zone* zone) {
   // TODO(lrn): Remove need for this function, by not throwing away information
   // along the way.
   if (is_negated()) {
@@ -465,8 +465,8 @@ void CharacterRange::AddUnicodeCaseEquivalents(ZoneList<CharacterRange>* ranges,
 #endif  // V8_INTL_SUPPORT
 }
 
-RegExpNode* RegExpCharacterClass::ToNode(RegExpCompiler* compiler,
-                                         RegExpNode* on_success) {
+RegExpNode* RegExpClassRanges::ToNode(RegExpCompiler* compiler,
+                                      RegExpNode* on_success) {
   set_.Canonicalize();
   Zone* const zone = compiler->zone();
   ZoneList<CharacterRange>* ranges = this->ranges(zone);
@@ -500,7 +500,7 @@ RegExpNode* RegExpCharacterClass::ToNode(RegExpCompiler* compiler,
 
   if (ranges->length() == 0) {
     // The empty character class is used as a 'fail' node.
-    RegExpCharacterClass* fail = zone->New<RegExpCharacterClass>(zone, ranges);
+    RegExpClassRanges* fail = zone->New<RegExpClassRanges>(zone, ranges);
     return zone->New<TextNode>(fail, compiler->read_backward(), on_success);
   }
 
@@ -527,8 +527,8 @@ RegExpNode* RegExpCharacterClass::ToNode(RegExpCompiler* compiler,
   return result;
 }
 
-RegExpNode* RegExpClassSet::ToNode(RegExpCompiler* compiler,
-                                   RegExpNode* on_success) {
+RegExpNode* RegExpClassSetExpression::ToNode(RegExpCompiler* compiler,
+                                             RegExpNode* on_success) {
   return ToCharacterClass(compiler->zone())->ToNode(compiler, on_success);
 }
 
@@ -826,12 +826,12 @@ void RegExpDisjunction::FixSingleCharacterDisjunctions(
         DCHECK_EQ(old_atom->length(), 1);
         ranges->Add(CharacterRange::Singleton(old_atom->data().at(0)), zone);
       }
-      RegExpCharacterClass::CharacterClassFlags character_class_flags;
+      RegExpClassRanges::ClassRangesFlags class_ranges_flags;
       if (IsEitherUnicode(flags) && contains_trail_surrogate) {
-        character_class_flags = RegExpCharacterClass::CONTAINS_SPLIT_SURROGATE;
+        class_ranges_flags = RegExpClassRanges::CONTAINS_SPLIT_SURROGATE;
       }
       alternatives->at(write_posn++) =
-          zone->New<RegExpCharacterClass>(zone, ranges, character_class_flags);
+          zone->New<RegExpClassRanges>(zone, ranges, class_ranges_flags);
     } else {
       // Just copy any trivial alternatives.
       for (int j = first_in_run; j < i; j++) {
@@ -949,8 +949,8 @@ RegExpNode* RegExpAssertion::ToNode(RegExpCompiler* compiler,
           zone->New<ZoneList<CharacterRange>>(3, zone);
       CharacterRange::AddClassEscape(StandardCharacterSet::kLineTerminator,
                                      newline_ranges, false, zone);
-      RegExpCharacterClass* newline_atom = zone->New<RegExpCharacterClass>(
-          StandardCharacterSet::kLineTerminator);
+      RegExpClassRanges* newline_atom =
+          zone->New<RegExpClassRanges>(StandardCharacterSet::kLineTerminator);
       TextNode* newline_matcher =
           zone->New<TextNode>(newline_atom, false,
                               ActionNode::PositiveSubmatchSuccess(
@@ -1137,7 +1137,7 @@ class AssertionSequenceRewriter final {
     // negated '*' (everything) range serves the purpose.
     ZoneList<CharacterRange>* ranges =
         zone_->New<ZoneList<CharacterRange>>(0, zone_);
-    RegExpCharacterClass* cc = zone_->New<RegExpCharacterClass>(zone_, ranges);
+    RegExpClassRanges* cc = zone_->New<RegExpClassRanges>(zone_, ranges);
     terms_->Set(from, cc);
 
     // Zero out the rest.
@@ -1490,29 +1490,29 @@ void CharacterSet::Canonicalize() {
   CharacterRange::Canonicalize(ranges_);
 }
 
-RegExpCharacterClass* RegExpClassSet::ToCharacterClass(Zone* zone) {
+RegExpClassRanges* RegExpClassSetExpression::ToCharacterClass(Zone* zone) {
   ZoneList<CharacterRange>* result_ranges =
       zone->template New<ZoneList<CharacterRange>>(2, zone);
   ZoneList<CharacterRange>* temp_ranges =
       zone->template New<ZoneList<CharacterRange>>(2, zone);
   ComputeCharacterRanges(this, result_ranges, temp_ranges, zone);
-  return zone->template New<RegExpCharacterClass>(zone, result_ranges);
+  return zone->template New<RegExpClassRanges>(zone, result_ranges);
 }
 
 // static
-void RegExpClassSet::ComputeCharacterRanges(
+void RegExpClassSetExpression::ComputeCharacterRanges(
     RegExpTree* root, ZoneList<CharacterRange>* result_ranges,
     ZoneList<CharacterRange>* temp_ranges, Zone* zone) {
   DCHECK_EQ(temp_ranges->length(), 0);
-  DCHECK(root->IsCharacterClass() || root->IsClassSet());
-  if (root->IsCharacterClass()) {
-    DCHECK(!root->AsCharacterClass()->is_negated());
-    ZoneList<CharacterRange>* ranges = root->AsCharacterClass()->ranges(zone);
+  DCHECK(root->IsClassRanges() || root->IsClassSetExpression());
+  if (root->IsClassRanges()) {
+    DCHECK(!root->AsClassRanges()->is_negated());
+    ZoneList<CharacterRange>* ranges = root->AsClassRanges()->ranges(zone);
     CharacterRange::Canonicalize(ranges);
     result_ranges->AddAll(*ranges, zone);
     return;
   }
-  RegExpClassSet* node = root->AsClassSet();
+  RegExpClassSetExpression* node = root->AsClassSetExpression();
   switch (node->operation()) {
     case OperationType::kUnion: {
       ZoneList<CharacterRange>* op_ranges =
@@ -1564,17 +1564,16 @@ void RegExpClassSet::ComputeCharacterRanges(
       // TODO(pthier): It is unclear whether this variant is faster or slower
       // than subtracting multiple ranges in practice.
       ZoneList<CharacterRange>* lhs_range =
-          // node->operands()->at(0)->AsCharacterClass()->ranges(zone);
-          node->operands()->at(0)->IsCharacterClass()
-              ? node->operands()->at(0)->AsCharacterClass()->ranges(zone)
-              : node->operands()->at(0)->AsClassSet()->ranges_;
+          node->operands()->at(0)->IsClassRanges()
+              ? node->operands()->at(0)->AsClassRanges()->ranges(zone)
+              : node->operands()->at(0)->AsClassSetExpression()->ranges_;
       ZoneList<CharacterRange>* rhs_union =
           zone->template New<ZoneList<CharacterRange>>(2, zone);
       for (int i = 1; i < node->operands()->length(); i++) {
         ZoneList<CharacterRange>* op_range =
-            node->operands()->at(i)->IsCharacterClass()
-                ? node->operands()->at(i)->AsCharacterClass()->ranges(zone)
-                : node->operands()->at(i)->AsClassSet()->ranges_;
+            node->operands()->at(i)->IsClassRanges()
+                ? node->operands()->at(i)->AsClassRanges()->ranges(zone)
+                : node->operands()->at(i)->AsClassSetExpression()->ranges_;
         rhs_union->AddAll(*op_range, zone);
       }
       CharacterRange::Canonicalize(rhs_union);
