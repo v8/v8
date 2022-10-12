@@ -555,6 +555,29 @@ void CppHeap::Terminate() {
   HeapBase::Terminate();
 }
 
+namespace {
+
+class SweepingOnMutatorThreadForGlobalHandlesObserver final
+    : public cppgc::internal::Sweeper::SweepingOnMutatorThreadObserver {
+ public:
+  SweepingOnMutatorThreadForGlobalHandlesObserver(CppHeap& cpp_heap,
+                                                  GlobalHandles& global_handles)
+      : cppgc::internal::Sweeper::SweepingOnMutatorThreadObserver(
+            cpp_heap.sweeper()),
+        global_handles_(global_handles) {}
+
+  void Start() override {
+    global_handles_.NotifyStartSweepingOnMutatorThread();
+  }
+
+  void End() override { global_handles_.NotifyEndSweepingOnMutatorThread(); }
+
+ private:
+  GlobalHandles& global_handles_;
+};
+
+}  // namespace
+
 void CppHeap::AttachIsolate(Isolate* isolate) {
   CHECK(!in_detached_testing_mode_);
   CHECK_NULL(isolate_);
@@ -568,6 +591,9 @@ void CppHeap::AttachIsolate(Isolate* isolate) {
   SetMetricRecorder(std::make_unique<MetricRecorderAdapter>(*this));
   oom_handler().SetCustomHandler(&FatalOutOfMemoryHandlerImpl);
   ReduceGCCapabilititesFromFlags();
+  sweeping_on_mutator_thread_observer_ =
+      std::make_unique<SweepingOnMutatorThreadForGlobalHandlesObserver>(
+          *this, *isolate_->global_handles());
   no_gc_scope_--;
 }
 
@@ -583,6 +609,8 @@ void CppHeap::DetachIsolate() {
         i::GarbageCollectionReason::kExternalFinalize);
   }
   sweeper_.FinishIfRunning();
+
+  sweeping_on_mutator_thread_observer_.reset();
 
   auto* heap_profiler = isolate_->heap_profiler();
   if (heap_profiler) {

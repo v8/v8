@@ -197,6 +197,9 @@ class V8_EXPORT_PRIVATE CppHeap final
 
   std::unique_ptr<MinorGCHeapGrowing> minor_gc_heap_growing_;
 
+  std::unique_ptr<cppgc::internal::Sweeper::SweepingOnMutatorThreadObserver>
+      sweeping_on_mutator_thread_observer_;
+
   // Buffered allocated bytes. Reporting allocated bytes to V8 can trigger a GC
   // atomic pause. Allocated bytes are buffer in case this is temporarily
   // prohibited.
@@ -206,7 +209,6 @@ class V8_EXPORT_PRIVATE CppHeap final
 
   bool in_detached_testing_mode_ = false;
   bool force_incremental_marking_for_testing_ = false;
-
   bool is_in_v8_marking_step_ = false;
 
   friend class MetricRecorderAdapter;

@@ -5716,8 +5716,8 @@ void Heap::AttachCppHeap(v8::CppHeap* cpp_heap) {
 
 void Heap::DetachCppHeap() {
   CppHeap::From(cpp_heap_)->DetachIsolate();
-  cpp_heap_ = nullptr;
   local_embedder_heap_tracer()->SetCppHeap(nullptr);
+  cpp_heap_ = nullptr;
 }
 
 const cppgc::EmbedderStackState* Heap::overriden_stack_state() const {

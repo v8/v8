@@ -292,6 +292,7 @@ void GlobalHandles::NodeSpace<NodeType>::Release(NodeType* node) {
 
 template <class NodeType>
 void GlobalHandles::NodeSpace<NodeType>::Free(NodeType* node) {
+  CHECK(node->IsInUse());
   node->Release(first_free_);
   first_free_ = node;
   BlockType* block = BlockType::From(node);
@@ -930,17 +931,26 @@ void GlobalHandles::Destroy(Address* location) {
 
 // static
 void GlobalHandles::DestroyTracedReference(Address* location) {
-  if (location != nullptr) {
-    TracedNode* node = TracedNode::FromLocation(location);
-    auto* global_handles = GlobalHandles::From(node);
-    // When marking is off the handle may be freed immediately. Note that this
-    // includes also the case when invoking the first pass callbacks during the
-    // atomic pause which requires releasing a node fully.
-    if (!global_handles->is_marking_) {
-      NodeSpace<TracedNode>::Release(node);
-      return;
-    }
+  if (!location) return;
 
+  TracedNode* node = TracedNode::FromLocation(location);
+  auto* global_handles = GlobalHandles::From(node);
+  DCHECK_IMPLIES(global_handles->is_marking_,
+                 !global_handles->is_sweeping_on_mutator_thread_);
+  DCHECK_IMPLIES(global_handles->is_sweeping_on_mutator_thread_,
+                 !global_handles->is_marking_);
+
+  // If sweeping on the mutator thread is running then the handle destruction
+  // may be a result of a Reset() call from a destructor. The node will be
+  // reclaimed on the next cycle.
+  //
+  // This allows v8::TracedReference::Reset() calls from destructors on
+  // objects that may be used from stack and heap.
+  if (global_handles->is_sweeping_on_mutator_thread_) {
+    return;
+  }
+
+  if (global_handles->is_marking_) {
     // Incremental marking is on. This also covers the scavenge case which
     // prohibits eagerly reclaiming nodes when marking is on during a scavenge.
     //
@@ -949,7 +959,13 @@ void GlobalHandles::DestroyTracedReference(Address* location) {
     // marked. Eagerly clear out the object here to avoid needlessly marking it
     // from this point on. The node will be reclaimed on the next cycle.
     node->clear_object();
+    return;
   }
+
+  // In case marking and sweeping are off, the handle may be freed immediately.
+  // Note that this includes also the case when invoking the first pass
+  // callbacks during the atomic pause which requires releasing a node fully.
+  NodeSpace<TracedNode>::Release(node);
 }
 
 using GenericCallback = v8::WeakCallbackInfo<void>::Callback;

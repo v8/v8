@@ -998,6 +998,23 @@ class Sweeper::SweeperImpl final {
     return sweep_complete;
   }
 
+  void AddMutatorThreadSweepingObserver(
+      Sweeper::SweepingOnMutatorThreadObserver* observer) {
+    DCHECK_EQ(mutator_thread_sweeping_observers_.end(),
+              std::find(mutator_thread_sweeping_observers_.begin(),
+                        mutator_thread_sweeping_observers_.end(), observer));
+    mutator_thread_sweeping_observers_.push_back(observer);
+  }
+
+  void RemoveMutatorThreadSweepingObserver(
+      Sweeper::SweepingOnMutatorThreadObserver* observer) {
+    const auto it =
+        std::find(mutator_thread_sweeping_observers_.begin(),
+                  mutator_thread_sweeping_observers_.end(), observer);
+    DCHECK_NE(mutator_thread_sweeping_observers_.end(), it);
+    mutator_thread_sweeping_observers_.erase(it);
+  }
+
  private:
   class MutatorThreadSweepingScope final {
    public:
@@ -1005,9 +1022,15 @@ class Sweeper::SweeperImpl final {
         : sweeper_(sweeper) {
       DCHECK(!sweeper_.is_sweeping_on_mutator_thread_);
       sweeper_.is_sweeping_on_mutator_thread_ = true;
+      for (auto* observer : sweeper_.mutator_thread_sweeping_observers_) {
+        observer->Start();
+      }
     }
     ~MutatorThreadSweepingScope() {
       sweeper_.is_sweeping_on_mutator_thread_ = false;
+      for (auto* observer : sweeper_.mutator_thread_sweeping_observers_) {
+        observer->End();
+      }
     }
 
     MutatorThreadSweepingScope(const MutatorThreadSweepingScope&) = delete;
@@ -1096,6 +1119,8 @@ class Sweeper::SweeperImpl final {
   SweepingConfig config_;
   IncrementalSweepTask::Handle incremental_sweeper_handle_;
   std::unique_ptr<cppgc::JobHandle> concurrent_sweeper_handle_;
+  std::vector<Sweeper::SweepingOnMutatorThreadObserver*>
+      mutator_thread_sweeping_observers_;
   // Indicates whether the sweeping phase is in progress.
   bool is_in_progress_ = false;
   bool notify_done_pending_ = false;
@@ -1137,6 +1162,16 @@ bool Sweeper::PerformSweepOnMutatorThread(v8::base::TimeDelta max_duration,
                                           StatsCollector::ScopeId scope_id) {
   return impl_->PerformSweepOnMutatorThread(max_duration, scope_id,
                                             MutatorThreadSweepingMode::kAll);
+}
+
+Sweeper::SweepingOnMutatorThreadObserver::SweepingOnMutatorThreadObserver(
+    Sweeper& sweeper)
+    : sweeper_(sweeper) {
+  sweeper_.impl_->AddMutatorThreadSweepingObserver(this);
+}
+
+Sweeper::SweepingOnMutatorThreadObserver::~SweepingOnMutatorThreadObserver() {
+  sweeper_.impl_->RemoveMutatorThreadSweepingObserver(this);
 }
 
 }  // namespace cppgc::internal

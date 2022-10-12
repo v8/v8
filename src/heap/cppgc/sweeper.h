@@ -21,6 +21,18 @@ class NormalPageSpace;
 
 class V8_EXPORT_PRIVATE Sweeper final {
  public:
+  class V8_EXPORT_PRIVATE SweepingOnMutatorThreadObserver {
+   public:
+    explicit SweepingOnMutatorThreadObserver(Sweeper&);
+    virtual ~SweepingOnMutatorThreadObserver();
+
+    virtual void Start() = 0;
+    virtual void End() = 0;
+
+   private:
+    Sweeper& sweeper_;
+  };
+
   static constexpr bool CanDiscardMemory() {
     return CheckMemoryIsInaccessibleIsNoop();
   }
