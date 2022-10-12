@@ -2114,6 +2114,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
  private:
   Address addr_at(int pos) {
+    DCHECK_GE(pos, 0);
+    DCHECK_LT(pos, pc_offset());
     return reinterpret_cast<Address>(buffer_start_ + pos);
   }
   uint32_t long_at(int pos) {
