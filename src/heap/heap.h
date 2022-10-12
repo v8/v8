@@ -2451,8 +2451,9 @@ class Heap {
   friend class AlwaysAllocateScope;
   friend class ArrayBufferCollector;
   friend class ArrayBufferSweeper;
-  friend class ConcurrentMarking;
   friend class CollectorBase;
+  friend class ConcurrentAllocator;
+  friend class ConcurrentMarking;
   friend class EvacuateVisitorBase;
   friend class GCCallbacksScope;
   friend class GCTracer;

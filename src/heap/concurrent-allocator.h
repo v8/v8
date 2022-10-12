@@ -5,6 +5,7 @@
 #ifndef V8_HEAP_CONCURRENT_ALLOCATOR_H_
 #define V8_HEAP_CONCURRENT_ALLOCATOR_H_
 
+#include "src/base/optional.h"
 #include "src/common/globals.h"
 #include "src/heap/heap.h"
 #include "src/heap/linear-allocation-area.h"
@@ -66,7 +67,11 @@ class ConcurrentAllocator {
   V8_EXPORT_PRIVATE AllocationResult
   AllocateInLabSlow(int size_in_bytes, AllocationAlignment alignment,
                     AllocationOrigin origin);
-  bool EnsureLab(AllocationOrigin origin);
+  bool AllocateLab(AllocationOrigin origin);
+
+  base::Optional<std::pair<Address, size_t>> AllocateFromSpaceFreeList(
+      size_t min_size_in_bytes, size_t max_size_in_bytes,
+      AllocationOrigin origin);
 
   V8_EXPORT_PRIVATE AllocationResult
   AllocateOutsideLab(int size_in_bytes, AllocationAlignment alignment,
