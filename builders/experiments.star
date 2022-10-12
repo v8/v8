@@ -237,38 +237,3 @@ in_category(
         notifies = ["sheriffs on new failure", "blamelist"],
     ),
 )
-
-in_category(
-    "Reclient",
-    experiment_builder(
-        name = "V8 Linux64 - builder (goma cache silo)",
-        triggered_by = ["v8-trigger"],
-        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-        use_goma = GOMA.CACHE_SILO,
-        notify_owners = ["richardwa@google.com"],
-    ),
-    experiment_builder(
-        name = "V8 Linux64 - node.js integration ng (goma cache silo)",
-        triggered_by = ["v8-trigger"],
-        executable = "recipe:v8/node_integration_ng",
-        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-        properties = {"v8_tot": True},
-        use_goma = GOMA.CACHE_SILO,
-        notify_owners = ["richardwa@google.com"],
-    ),
-    experiment_builder(
-        name = "V8 Win32 - builder (goma cache silo)",
-        triggered_by = ["v8-trigger"],
-        dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-        use_goma = GOMA.CACHE_SILO,
-        notify_owners = ["richardwa@google.com"],
-    ),
-    experiment_builder(
-        name = "V8 Mac64 - builder (reclient)",
-        triggered_by = ["v8-trigger"],
-        dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
-        use_goma = GOMA.NO,
-        use_remoteexec = RECLIENT.CACHE_SILO,
-        notify_owners = ["richardwa@google.com"],
-    ),
-)

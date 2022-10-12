@@ -248,6 +248,8 @@ in_category(
         triggered_by_gitiles = True,
         dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
         properties = {"binary_size_tracking": {"category": "mac64", "binary": "d8"}},
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.DEFAULT,
     ),
     main_multibranch_builder(
         name = "V8 Mac64",
