@@ -70,7 +70,7 @@ class RegisterRepresentation {
     }
   }
 
-  bool IsWord() {
+  constexpr bool IsWord() {
     switch (*this) {
       case Enum::kWord32:
       case Enum::kWord64:
