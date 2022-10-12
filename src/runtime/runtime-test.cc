@@ -847,6 +847,9 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   if (function->ActiveTierIsIgnition()) {
     status |= static_cast<int>(OptimizationStatus::kInterpreted);
   }
+  if (!function->is_compiled()) {
+    status |= static_cast<int>(OptimizationStatus::kIsLazy);
+  }
 
   // Additionally, detect activations of this frame on the stack, and report the
   // status of the topmost frame.
@@ -904,6 +907,20 @@ RUNTIME_FUNCTION(Runtime_FinalizeOptimization) {
   if (isolate->concurrent_recompilation_enabled()) {
     FinalizeOptimization(isolate);
   }
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_ForceFlush) {
+  HandleScope scope(isolate);
+  if (args.length() != 1) return CrashUnlessFuzzing(isolate);
+
+  Handle<Object> function_object = args.at(0);
+  if (!function_object->IsJSFunction()) return CrashUnlessFuzzing(isolate);
+  Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
+
+  SharedFunctionInfo::DiscardCompiled(
+      isolate, handle(function->shared(isolate), isolate));
+  function->ResetIfCodeFlushed();
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

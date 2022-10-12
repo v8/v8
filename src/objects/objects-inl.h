@@ -43,6 +43,7 @@
 #include "src/objects/tagged-impl-inl.h"
 #include "src/objects/tagged-index.h"
 #include "src/objects/templates.h"
+#include "src/roots/roots.h"
 #include "src/sandbox/bounded-size-inl.h"
 #include "src/sandbox/external-pointer-inl.h"
 #include "src/sandbox/sandboxed-pointer-inl.h"
@@ -306,6 +307,10 @@ bool Object::IsNumeric() const {
 
 bool Object::IsNumeric(PtrComprCageBase cage_base) const {
   return IsNumber(cage_base) || IsBigInt(cage_base);
+}
+
+DEF_GETTER(HeapObject, IsTemplateLiteralObject, bool) {
+  return IsJSArray(cage_base);
 }
 
 DEF_GETTER(HeapObject, IsArrayList, bool) {
@@ -1152,6 +1157,9 @@ Object Object::GetSimpleHash(Object object) {
   } else if (InstanceTypeChecker::IsScopeInfo(instance_type)) {
     uint32_t hash = ScopeInfo::cast(object).Hash();
     return Smi::FromInt(hash & Smi::kMaxValue);
+  } else if (InstanceTypeChecker::IsScript(instance_type)) {
+    int id = Script::cast(object).id();
+    return Smi::FromInt(ComputeUnseededHash(id) & Smi::kMaxValue);
   }
   DCHECK(object.IsJSReceiver());
   return object;

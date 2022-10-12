@@ -2838,19 +2838,26 @@ Handle<JSArray> Factory::NewJSArrayWithUnverifiedElements(
 }
 
 Handle<JSArray> Factory::NewJSArrayForTemplateLiteralArray(
-    Handle<FixedArray> cooked_strings, Handle<FixedArray> raw_strings) {
+    Handle<FixedArray> cooked_strings, Handle<FixedArray> raw_strings,
+    int function_literal_id, int slot_id) {
   Handle<JSArray> raw_object =
       NewJSArrayWithElements(raw_strings, PACKED_ELEMENTS,
                              raw_strings->length(), AllocationType::kOld);
   JSObject::SetIntegrityLevel(raw_object, FROZEN, kThrowOnError).ToChecked();
 
   Handle<NativeContext> native_context = isolate()->native_context();
-  Handle<JSArray> template_object = NewJSArrayWithUnverifiedElements(
-      handle(native_context->js_array_template_literal_object_map(), isolate()),
-      cooked_strings, cooked_strings->length(), AllocationType::kOld);
-  TemplateLiteralObject::SetRaw(template_object, raw_object);
-  DCHECK_EQ(template_object->map(),
+  Handle<TemplateLiteralObject> template_object =
+      Handle<TemplateLiteralObject>::cast(NewJSArrayWithUnverifiedElements(
+          handle(native_context->js_array_template_literal_object_map(),
+                 isolate()),
+          cooked_strings, cooked_strings->length(), AllocationType::kOld));
+  DisallowGarbageCollection no_gc;
+  TemplateLiteralObject raw_template_object = *template_object;
+  DCHECK_EQ(raw_template_object.map(),
             native_context->js_array_template_literal_object_map());
+  raw_template_object.set_raw(*raw_object);
+  raw_template_object.set_function_literal_id(function_literal_id);
+  raw_template_object.set_slot_id(slot_id);
   return template_object;
 }
 

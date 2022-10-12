@@ -607,7 +607,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       AllocationType allocation = AllocationType::kYoung);
 
   Handle<JSArray> NewJSArrayForTemplateLiteralArray(
-      Handle<FixedArray> cooked_strings, Handle<FixedArray> raw_strings);
+      Handle<FixedArray> cooked_strings, Handle<FixedArray> raw_strings,
+      int function_literal_id, int slot_id);
 
   void NewJSArrayStorage(
       Handle<JSArray> array, int length, int capacity,
