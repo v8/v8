@@ -1837,7 +1837,11 @@ SIMD_BINOP_LIST(EMIT_SIMD_BINOP)
 
 #define SIMD_BINOP_WITH_SCRATCH_LIST(V) \
   V(f64x2_ne, F64x2Ne)                  \
+  V(f64x2_pmin, F64x2Pmin)              \
+  V(f64x2_pmax, F64x2Pmax)              \
   V(f32x4_ne, F32x4Ne)                  \
+  V(f32x4_pmin, F32x4Pmin)              \
+  V(f32x4_pmax, F32x4Pmax)              \
   V(i64x2_ne, I64x2Ne)                  \
   V(i64x2_ge_s, I64x2GeS)               \
   V(i32x4_ne, I32x4Ne)                  \
@@ -2199,16 +2203,6 @@ void LiftoffAssembler::emit_s128_relaxed_laneselect(LiftoffRegister dst,
   bailout(kRelaxedSimd, "emit_s128_relaxed_laneselect");
 }
 
-void LiftoffAssembler::emit_f64x2_pmin(LiftoffRegister dst, LiftoffRegister lhs,
-                                       LiftoffRegister rhs) {
-  bailout(kSimd, "pmin unimplemented");
-}
-
-void LiftoffAssembler::emit_f64x2_pmax(LiftoffRegister dst, LiftoffRegister lhs,
-                                       LiftoffRegister rhs) {
-  bailout(kSimd, "pmax unimplemented");
-}
-
 void LiftoffAssembler::emit_f64x2_relaxed_min(LiftoffRegister dst,
                                               LiftoffRegister lhs,
                                               LiftoffRegister rhs) {
@@ -2246,16 +2240,6 @@ void LiftoffAssembler::emit_f32x4_relaxed_max(LiftoffRegister dst,
                                               LiftoffRegister lhs,
                                               LiftoffRegister rhs) {
   bailout(kUnsupportedArchitecture, "emit_f32x4_relaxed_max");
-}
-
-void LiftoffAssembler::emit_f32x4_pmin(LiftoffRegister dst, LiftoffRegister lhs,
-                                       LiftoffRegister rhs) {
-  bailout(kSimd, "pmin unimplemented");
-}
-
-void LiftoffAssembler::emit_f32x4_pmax(LiftoffRegister dst, LiftoffRegister lhs,
-                                       LiftoffRegister rhs) {
-  bailout(kSimd, "pmax unimplemented");
 }
 
 void LiftoffAssembler::emit_i64x2_alltrue(LiftoffRegister dst,

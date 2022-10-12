@@ -4218,6 +4218,30 @@ void TurboAssembler::I8x16Neg(Simd128Register dst, Simd128Register src,
   vaddubm(dst, scratch, dst);
 }
 
+void TurboAssembler::F64x2Pmin(Simd128Register dst, Simd128Register src1,
+                               Simd128Register src2, Simd128Register scratch) {
+  xvcmpgtdp(kScratchSimd128Reg, src1, src2);
+  vsel(dst, src1, src2, kScratchSimd128Reg);
+}
+
+void TurboAssembler::F64x2Pmax(Simd128Register dst, Simd128Register src1,
+                               Simd128Register src2, Simd128Register scratch) {
+  xvcmpgtdp(kScratchSimd128Reg, src2, src1);
+  vsel(dst, src1, src2, kScratchSimd128Reg);
+}
+
+void TurboAssembler::F32x4Pmin(Simd128Register dst, Simd128Register src1,
+                               Simd128Register src2, Simd128Register scratch) {
+  xvcmpgtsp(kScratchSimd128Reg, src1, src2);
+  vsel(dst, src1, src2, kScratchSimd128Reg);
+}
+
+void TurboAssembler::F32x4Pmax(Simd128Register dst, Simd128Register src1,
+                               Simd128Register src2, Simd128Register scratch) {
+  xvcmpgtsp(kScratchSimd128Reg, src2, src1);
+  vsel(dst, src1, src2, kScratchSimd128Reg);
+}
+
 Register GetRegisterThatIsNotOneOf(Register reg1, Register reg2, Register reg3,
                                    Register reg4, Register reg5,
                                    Register reg6) {

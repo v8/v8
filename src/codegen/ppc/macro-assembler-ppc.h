@@ -1147,7 +1147,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
 #define SIMD_BINOP_WITH_SCRATCH_LIST(V) \
   V(F64x2Ne)                            \
+  V(F64x2Pmin)                          \
+  V(F64x2Pmax)                          \
   V(F32x4Ne)                            \
+  V(F32x4Pmin)                          \
+  V(F32x4Pmax)                          \
   V(I64x2Ne)                            \
   V(I64x2GeS)                           \
   V(I32x4Ne)                            \

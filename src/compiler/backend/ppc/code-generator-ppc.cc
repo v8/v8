@@ -2273,7 +2273,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 
 #define SIMD_BINOP_WITH_SCRATCH_LIST(V) \
   V(F64x2Ne)                            \
+  V(F64x2Pmin)                          \
+  V(F64x2Pmax)                          \
   V(F32x4Ne)                            \
+  V(F32x4Pmin)                          \
+  V(F32x4Pmax)                          \
   V(I64x2Ne)                            \
   V(I64x2GeS)                           \
   V(I32x4Ne)                            \
@@ -2868,38 +2872,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vxor(kScratchSimd128Reg, kScratchSimd128Reg, kScratchSimd128Reg);
       __ vmsumshm(i.OutputSimd128Register(), i.InputSimd128Register(0),
                   i.InputSimd128Register(1), kScratchSimd128Reg);
-      break;
-    }
-    case kPPC_F32x4Pmin: {
-      Simd128Register dst = i.OutputSimd128Register(),
-                      src0 = i.InputSimd128Register(0),
-                      src1 = i.InputSimd128Register(1);
-      __ xvcmpgtsp(kScratchSimd128Reg, src0, src1);
-      __ vsel(dst, src0, src1, kScratchSimd128Reg);
-      break;
-    }
-    case kPPC_F32x4Pmax: {
-      Simd128Register dst = i.OutputSimd128Register(),
-                      src0 = i.InputSimd128Register(0),
-                      src1 = i.InputSimd128Register(1);
-      __ xvcmpgtsp(kScratchSimd128Reg, src1, src0);
-      __ vsel(dst, src0, src1, kScratchSimd128Reg);
-      break;
-    }
-    case kPPC_F64x2Pmin: {
-      Simd128Register dst = i.OutputSimd128Register(),
-                      src0 = i.InputSimd128Register(0),
-                      src1 = i.InputSimd128Register(1);
-      __ xvcmpgtdp(kScratchSimd128Reg, src0, src1);
-      __ vsel(dst, src0, src1, kScratchSimd128Reg);
-      break;
-    }
-    case kPPC_F64x2Pmax: {
-      Simd128Register dst = i.OutputSimd128Register(),
-                      src0 = i.InputSimd128Register(0),
-                      src1 = i.InputSimd128Register(1);
-      __ xvcmpgtdp(kScratchSimd128Reg, src1, src0);
-      __ vsel(dst, src0, src1, kScratchSimd128Reg);
       break;
     }
 #define ASSEMBLE_LOAD_TRANSFORM(scratch, load_instr) \
