@@ -495,10 +495,6 @@ MaybeHandle<Object> JsonParser<Char>::ParseJson(Handle<Object> reviver) {
   if (isolate_->has_pending_exception()) {
     return MaybeHandle<Object>();
   }
-  if (reviver_is_callable) {
-    return JsonParseInternalizer::Internalize(isolate(), result, reviver,
-                                              source_);
-  }
   return result;
 }
 

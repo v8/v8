@@ -157,7 +157,15 @@ class JsonParser final {
       Isolate* isolate, Handle<String> source, Handle<Object> reviver) {
     HighAllocationThroughputScope high_throughput_scope(
         V8::GetCurrentPlatform());
-    return JsonParser(isolate, source).ParseJson(reviver);
+    Handle<Object> result;
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
+                               JsonParser(isolate, source).ParseJson(reviver),
+                               Object);
+    if (reviver->IsCallable()) {
+      return JsonParseInternalizer::Internalize(isolate, result, reviver,
+                                                source);
+    }
+    return result;
   }
 
   static constexpr base::uc32 kEndOfString = static_cast<base::uc32>(-1);
