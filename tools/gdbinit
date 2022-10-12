@@ -279,3 +279,44 @@ document cpm
 Prints member, compressed or not.
 Usage: cpm member
 end
+
+# Pretty printer for cppgc::Member.
+python
+
+import re
+
+
+class CppGCMemberPrinter(object):
+  """Print cppgc Member types."""
+
+  def __init__(self, val, category, pointee_type):
+    self.val = val
+    self.category = category
+    self.pointee_type = pointee_type
+
+  def to_string(self):
+    pointer = gdb.parse_and_eval(
+        "_cppgc_internal_Print_Member((cppgc::internal::MemberBase*){})".format(
+            self.val.address))
+    return "{}Member<{}> pointing to {}".format(
+        '' if self.category is None else self.category, self.pointee_type,
+        pointer)
+
+  def display_hint(self):
+    return "{}Member<{}>".format('' if self.category is None else self.category,
+                                 self.pointee_type)
+
+
+def cppgc_pretty_printers(val):
+  typename = val.type.name or val.type.tag or str(val.type)
+  regex = re.compile("^(cppgc|blink)::(Weak|Untraced)?Member<(.*)>$")
+  match = regex.match(typename)
+  if match is None:
+    return None
+  return CppGCMemberPrinter(
+      val, category=match.group(2), pointee_type=match.group(3))
+
+
+gdb.pretty_printers.append(cppgc_pretty_printers)
+
+end
