@@ -810,7 +810,7 @@ bool CodeDataContainer::has_constant_pool() const {
 #endif
 
 ByteArray Code::unchecked_relocation_info() const {
-  PtrComprCageBase cage_base = main_cage_base();
+  PtrComprCageBase cage_base = main_cage_base(kRelaxedLoad);
   return ByteArray::unchecked_cast(
       TaggedField<HeapObject, kRelocationInfoOffset>::load(cage_base, *this));
 }
