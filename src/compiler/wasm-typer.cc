@@ -126,6 +126,9 @@ Reduction WasmTyper::Reduce(Node* node) {
           object = initial_object;
           control = previous_control;
           effect = previous_effect;
+          // We untype the node, because its new input might have a type not
+          // compatible with its current type.
+          NodeProperties::RemoveType(node);
         }
       }
 

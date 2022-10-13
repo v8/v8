@@ -528,3 +528,35 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let instance = builder.instantiate({});
   assertEquals(1, instance.exports.main());
 })();
+
+(function AssertNullAfterCastIncompatibleTypes() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let struct_super = builder.addStruct([makeField(kWasmI32, true)]);
+  let struct_b = builder.addStruct([makeField(kWasmI32, true)], struct_super);
+  let struct_a = builder.addStruct(
+    [makeField(kWasmI32, true), makeField(kWasmI32, true)], struct_super);
+  let callee_sig = makeSig([wasmRefNullType(struct_super)], [kWasmI32]);
+
+  builder.addFunction("mkStruct", makeSig([], [kWasmExternRef]))
+    .addBody([kGCPrefix, kExprStructNewDefault, struct_a,
+              kGCPrefix, kExprExternExternalize])
+    .exportFunc();
+
+  let callee = builder.addFunction("callee", callee_sig)
+    .addBody([
+       kExprLocalGet, 0, kGCPrefix, kExprRefCast, struct_b,
+       kExprRefAsNonNull,
+       kGCPrefix, kExprStructGet, struct_b, 0]);
+
+  builder.addFunction("main", makeSig([kWasmExternRef], [kWasmI32]))
+    .addBody([kExprLocalGet, 0, kGCPrefix, kExprExternInternalize,
+              kGCPrefix, kExprRefAsData,
+              kGCPrefix, kExprRefCast, struct_a,
+              kExprCallFunction, callee.index])
+    .exportFunc();
+
+  let instance = builder.instantiate({});
+  assertTraps(kTrapIllegalCast,
+              () => instance.exports.main(instance.exports.mkStruct()));
+})();
