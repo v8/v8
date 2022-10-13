@@ -36,16 +36,6 @@
 #define FLAG_READONLY(ftype, ctype, nam, def, cmt) \
   static constexpr FlagValue<ctype> nam{def};
 
-// Define a {FLAG_foo} alias per flag, pointing to {v8_flags.foo}.
-// This allows to still use the old and deprecated syntax for accessing flag
-// values. This will be removed after v10.7.
-// TODO(clemensb): Remove this after v10.7.
-#elif defined(FLAG_MODE_DEFINE_GLOBAL_ALIASES)
-#define FLAG_FULL(ftype, ctype, nam, def, cmt) \
-  inline auto& FLAG_##nam = v8_flags.nam;
-#define FLAG_READONLY(ftype, ctype, nam, def, cmt) \
-  inline auto constexpr& FLAG_##nam = v8_flags.nam;
-
 // We need to define all of our default values so that the Flag structure can
 // access them by pointer.  These are just used internally inside of one .cc,
 // for MODE_META, so there is no impact on the flags interface.
@@ -2116,9 +2106,9 @@ DEFINE_BOOL(print_break_location, false, "print source location on debug break")
 //
 // Logging and profiling flags
 //
-// Logging flag dependencies are are also set separately in
+// Logging flag dependencies are also set separately in
 // V8::InitializeOncePerProcessImpl. Please add your flag to the log_all_flags
-// list in v8.cc to properly set FLAG_log and automatically enable it with
+// list in v8.cc to properly set v8_flags.log and automatically enable it with
 // --log-all.
 #undef FLAG
 #define FLAG FLAG_FULL
@@ -2392,7 +2382,6 @@ DEFINE_INT(dump_allocations_digest_at_alloc, -1,
 #undef DEFINE_ALIAS_FLOAT
 
 #undef FLAG_MODE_DECLARE
-#undef FLAG_MODE_DEFINE_GLOBAL_ALIASES
 #undef FLAG_MODE_DEFINE_DEFAULTS
 #undef FLAG_MODE_META
 #undef FLAG_MODE_DEFINE_IMPLICATIONS

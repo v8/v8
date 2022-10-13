@@ -5584,7 +5584,7 @@ void Genesis::InitializeGlobal_experimental_web_snapshots() {
 
 #ifdef V8_INTL_SUPPORT
 void Genesis::InitializeGlobal_harmony_intl_duration_format() {
-  if (!FLAG_harmony_intl_duration_format) return;
+  if (!v8_flags.harmony_intl_duration_format) return;
   Handle<JSObject> intl = Handle<JSObject>::cast(
       JSReceiver::GetProperty(
           isolate(),

@@ -2076,7 +2076,7 @@ struct OptimizeTurboshaftPhase {
 
   void Run(PipelineData* data, Zone* temp_zone) {
     UnparkedScopeIfNeeded scope(data->broker(),
-                                FLAG_turboshaft_trace_reduction);
+                                v8_flags.turboshaft_trace_reduction);
     turboshaft::OptimizationPhase<
         turboshaft::AnalyzerBase,
         turboshaft::MachineOptimizationAssembler<
