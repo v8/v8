@@ -1400,6 +1400,11 @@ void RecordAsyncStackTaggingCreateTaskCall(v8::Isolate* v8_isolate) {
   isolate->CountUsage(v8::Isolate::kAsyncStackTaggingCreateTaskCall);
 }
 
+void NotifyDebuggerPausedEventSent(v8::Isolate* v8_isolate) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  isolate->debug()->NotifyDebuggerPausedEventSent();
+}
+
 std::unique_ptr<PropertyIterator> PropertyIterator::Create(
     Local<Context> context, Local<Object> object, bool skip_indices) {
   internal::Isolate* isolate =

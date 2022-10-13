@@ -2620,6 +2620,7 @@ DebugScope::DebugScope(Debug* debug)
       prev_(reinterpret_cast<DebugScope*>(
           base::Relaxed_Load(&debug->thread_local_.current_debug_scope_))),
       no_interrupts_(debug_->isolate_) {
+  timer_.Start();
   // Link recursive debugger entry.
   base::Relaxed_Store(&debug_->thread_local_.current_debug_scope_,
                       reinterpret_cast<base::AtomicWord>(this));
@@ -2637,6 +2638,10 @@ DebugScope::DebugScope(Debug* debug)
 }
 
 void DebugScope::set_terminate_on_resume() { terminate_on_resume_ = true; }
+
+base::TimeDelta DebugScope::ElapsedTimeSinceCreation() {
+  return timer_.Elapsed();
+}
 
 DebugScope::~DebugScope() {
   // Terminate on resume must have been handled by retrieving it, if this is
@@ -2955,6 +2960,14 @@ void Debug::PrepareRestartFrame(JavaScriptFrame* frame,
   // necessary bits out of PrepareSTep into a separate method or fold them
   // into Debug::PrepareRestartFrame.
   PrepareStep(StepInto);
+}
+
+void Debug::NotifyDebuggerPausedEventSent() {
+  DebugScope* scope = reinterpret_cast<DebugScope*>(
+      base::Relaxed_Load(&thread_local_.current_debug_scope_));
+  CHECK(scope);
+  isolate_->counters()->debug_pause_to_paused_event()->AddTimedSample(
+      scope->ElapsedTimeSinceCreation());
 }
 
 }  // namespace internal

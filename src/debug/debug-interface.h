@@ -675,6 +675,8 @@ bool isExperimentalRemoveInternalScopesPropertyEnabled();
 
 void RecordAsyncStackTaggingCreateTaskCall(v8::Isolate* isolate);
 
+void NotifyDebuggerPausedEventSent(v8::Isolate* isolate);
+
 }  // namespace debug
 }  // namespace v8
 
