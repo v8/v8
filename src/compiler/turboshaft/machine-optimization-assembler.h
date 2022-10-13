@@ -609,16 +609,16 @@ class MachineOptimizationAssembler
           return this->WordConstant(k1 - k2, rep);
         case Kind::kSignedMulOverflownBits:
           return this->WordConstant(
-              is_64 ? base::bits::SignedMulHigh32(static_cast<int32_t>(k1),
-                                                  static_cast<int32_t>(k2))
-                    : base::bits::SignedMulHigh64(static_cast<int64_t>(k1),
-                                                  static_cast<int64_t>(k2)),
+              is_64 ? base::bits::SignedMulHigh64(static_cast<int64_t>(k1),
+                                                  static_cast<int64_t>(k2))
+                    : base::bits::SignedMulHigh32(static_cast<int32_t>(k1),
+                                                  static_cast<int32_t>(k2)),
               rep);
         case Kind::kUnsignedMulOverflownBits:
           return this->WordConstant(
-              is_64 ? base::bits::UnsignedMulHigh32(static_cast<uint32_t>(k1),
-                                                    static_cast<uint32_t>(k2))
-                    : base::bits::UnsignedMulHigh64(k1, k2),
+              is_64 ? base::bits::UnsignedMulHigh64(k1, k2)
+                    : base::bits::UnsignedMulHigh32(static_cast<uint32_t>(k1),
+                                                    static_cast<uint32_t>(k2)),
               rep);
         case Kind::kSignedDiv:
           return this->WordConstant(
