@@ -4991,17 +4991,15 @@ TEST_F(TypeReaderTest, HeapTypeDecodingTest) {
   }
 }
 
-using TypesOfLocals = ZoneVector<ValueType>;
-
 class LocalDeclDecoderTest : public TestWithZone {
  public:
   v8::internal::AccountingAllocator allocator;
   WasmFeatures enabled_features_;
 
-  size_t ExpectRun(TypesOfLocals map, size_t pos, ValueType expected,
+  size_t ExpectRun(ValueType* local_types, size_t pos, ValueType expected,
                    size_t count) {
     for (size_t i = 0; i < count; i++) {
-      EXPECT_EQ(expected, map[pos++]);
+      EXPECT_EQ(expected, local_types[pos++]);
     }
     return pos;
   }
@@ -5010,27 +5008,27 @@ class LocalDeclDecoderTest : public TestWithZone {
                         const byte* end) {
     WasmModule module;
     return i::wasm::DecodeLocalDecls(enabled_features_, decls, &module, start,
-                                     end);
+                                     end, zone());
   }
 };
 
 TEST_F(LocalDeclDecoderTest, EmptyLocals) {
-  BodyLocalDecls decls(zone());
+  BodyLocalDecls decls;
   bool result = DecodeLocalDecls(&decls, nullptr, nullptr);
   EXPECT_FALSE(result);
 }
 
 TEST_F(LocalDeclDecoderTest, NoLocals) {
   static const byte data[] = {0};
-  BodyLocalDecls decls(zone());
+  BodyLocalDecls decls;
   bool result = DecodeLocalDecls(&decls, data, data + sizeof(data));
   EXPECT_TRUE(result);
-  EXPECT_TRUE(decls.type_list.empty());
+  EXPECT_EQ(0u, decls.num_locals);
 }
 
 TEST_F(LocalDeclDecoderTest, WrongLocalDeclsCount1) {
   static const byte data[] = {1};
-  BodyLocalDecls decls(zone());
+  BodyLocalDecls decls;
   bool result = DecodeLocalDecls(&decls, data, data + sizeof(data));
   EXPECT_FALSE(result);
 }
@@ -5038,7 +5036,7 @@ TEST_F(LocalDeclDecoderTest, WrongLocalDeclsCount1) {
 TEST_F(LocalDeclDecoderTest, WrongLocalDeclsCount2) {
   static const byte data[] = {2, 1,
                               static_cast<byte>(kWasmI32.value_type_code())};
-  BodyLocalDecls decls(zone());
+  BodyLocalDecls decls;
   bool result = DecodeLocalDecls(&decls, data, data + sizeof(data));
   EXPECT_FALSE(result);
 }
@@ -5047,13 +5045,12 @@ TEST_F(LocalDeclDecoderTest, OneLocal) {
   for (size_t i = 0; i < arraysize(kValueTypes); i++) {
     ValueType type = kValueTypes[i];
     const byte data[] = {1, 1, static_cast<byte>(type.value_type_code())};
-    BodyLocalDecls decls(zone());
+    BodyLocalDecls decls;
     bool result = DecodeLocalDecls(&decls, data, data + sizeof(data));
     EXPECT_TRUE(result);
-    EXPECT_EQ(1u, decls.type_list.size());
+    EXPECT_EQ(1u, decls.num_locals);
 
-    TypesOfLocals map = decls.type_list;
-    EXPECT_EQ(type, map[0]);
+    EXPECT_EQ(type, decls.local_types[0]);
   }
 }
 
@@ -5061,15 +5058,12 @@ TEST_F(LocalDeclDecoderTest, FiveLocals) {
   for (size_t i = 0; i < arraysize(kValueTypes); i++) {
     ValueType type = kValueTypes[i];
     const byte data[] = {1, 5, static_cast<byte>(type.value_type_code())};
-    BodyLocalDecls decls(zone());
+    BodyLocalDecls decls;
     bool result = DecodeLocalDecls(&decls, data, data + sizeof(data));
     EXPECT_TRUE(result);
     EXPECT_EQ(sizeof(data), decls.encoded_size);
-    EXPECT_EQ(5u, decls.type_list.size());
-
-    TypesOfLocals map = decls.type_list;
-    EXPECT_EQ(5u, map.size());
-    ExpectRun(map, 0, type, 5);
+    EXPECT_EQ(5u, decls.num_locals);
+    ExpectRun(decls.local_types, 0, type, 5);
   }
 }
 
@@ -5080,20 +5074,17 @@ TEST_F(LocalDeclDecoderTest, MixedLocals) {
         for (byte d = 0; d < 3; d++) {
           const byte data[] = {4, a,        kI32Code, b,       kI64Code,
                                c, kF32Code, d,        kF64Code};
-          BodyLocalDecls decls(zone());
+          BodyLocalDecls decls;
           bool result = DecodeLocalDecls(&decls, data, data + sizeof(data));
           EXPECT_TRUE(result);
           EXPECT_EQ(sizeof(data), decls.encoded_size);
-          EXPECT_EQ(static_cast<uint32_t>(a + b + c + d),
-                    decls.type_list.size());
-
-          TypesOfLocals map = decls.type_list;
+          EXPECT_EQ(static_cast<uint32_t>(a + b + c + d), decls.num_locals);
 
           size_t pos = 0;
-          pos = ExpectRun(map, pos, kWasmI32, a);
-          pos = ExpectRun(map, pos, kWasmI64, b);
-          pos = ExpectRun(map, pos, kWasmF32, c);
-          pos = ExpectRun(map, pos, kWasmF64, d);
+          pos = ExpectRun(decls.local_types, pos, kWasmI32, a);
+          pos = ExpectRun(decls.local_types, pos, kWasmI64, b);
+          pos = ExpectRun(decls.local_types, pos, kWasmF32, c);
+          pos = ExpectRun(decls.local_types, pos, kWasmF64, d);
         }
       }
     }
@@ -5110,16 +5101,15 @@ TEST_F(LocalDeclDecoderTest, UseEncoder) {
   local_decls.AddLocals(212, kWasmI64);
   local_decls.Prepend(zone(), &data, &end);
 
-  BodyLocalDecls decls(zone());
+  BodyLocalDecls decls;
   bool result = DecodeLocalDecls(&decls, data, end);
   EXPECT_TRUE(result);
-  EXPECT_EQ(5u + 1337u + 212u, decls.type_list.size());
+  EXPECT_EQ(5u + 1337u + 212u, decls.num_locals);
 
-  TypesOfLocals map = decls.type_list;
   size_t pos = 0;
-  pos = ExpectRun(map, pos, kWasmF32, 5);
-  pos = ExpectRun(map, pos, kWasmI32, 1337);
-  pos = ExpectRun(map, pos, kWasmI64, 212);
+  pos = ExpectRun(decls.local_types, pos, kWasmF32, 5);
+  pos = ExpectRun(decls.local_types, pos, kWasmI32, 1337);
+  pos = ExpectRun(decls.local_types, pos, kWasmI64, 212);
 }
 
 TEST_F(LocalDeclDecoderTest, InvalidTypeIndex) {
@@ -5130,7 +5120,7 @@ TEST_F(LocalDeclDecoderTest, InvalidTypeIndex) {
   LocalDeclEncoder local_decls(zone());
 
   local_decls.AddLocals(1, ValueType::RefNull(0));
-  BodyLocalDecls decls(zone());
+  BodyLocalDecls decls;
   bool result = DecodeLocalDecls(&decls, data, end);
   EXPECT_FALSE(result);
 }
@@ -5195,8 +5185,8 @@ TEST_F(BytecodeIteratorTest, ForeachOffset) {
 
 TEST_F(BytecodeIteratorTest, WithLocalDecls) {
   byte code[] = {1, 1, kI32Code, WASM_I32V_1(9), WASM_I32V_1(11)};
-  BodyLocalDecls decls(zone());
-  BytecodeIterator iter(code, code + sizeof(code), &decls);
+  BodyLocalDecls decls;
+  BytecodeIterator iter(code, code + sizeof(code), &decls, zone());
 
   EXPECT_EQ(3u, decls.encoded_size);
   EXPECT_EQ(3u, iter.pc_offset());

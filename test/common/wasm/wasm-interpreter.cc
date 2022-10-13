@@ -749,7 +749,7 @@ class SideTable : public ZoneObject {
             max_exception_arity, static_cast<int>(tag.sig->parameter_count()));
       }
     }
-    for (BytecodeIterator i(code->start, code->end, &code->locals);
+    for (BytecodeIterator i(code->start, code->end, &code->locals, zone);
          i.has_next(); i.next()) {
       WasmOpcode opcode = i.current();
       int32_t exceptional_stack_height = 0;
@@ -1119,8 +1119,8 @@ class CodeMap {
 
   void AddFunction(const WasmFunction* function, const byte* code_start,
                    const byte* code_end) {
-    InterpreterCode code = {function, BodyLocalDecls(zone_), code_start,
-                            code_end, nullptr};
+    InterpreterCode code = {function, BodyLocalDecls{}, code_start, code_end,
+                            nullptr};
 
     DCHECK_EQ(interpreter_code_.size(), function->func_index);
     interpreter_code_.push_back(code);
@@ -1334,7 +1334,7 @@ class WasmInterpreterInternals {
     // Limit of parameters.
     sp_t plimit() { return sp + code->function->sig->parameter_count(); }
     // Limit of locals.
-    sp_t llimit() { return plimit() + code->locals.type_list.size(); }
+    sp_t llimit() { return plimit() + code->locals.num_locals; }
 
     Handle<FixedArray> caught_exception_stack;
   };
@@ -1407,7 +1407,7 @@ class WasmInterpreterInternals {
   // Check if there is room for a function's activation.
   void EnsureStackSpaceForCall(InterpreterCode* code) {
     EnsureStackSpace(code->side_table->max_stack_height_ +
-                     code->locals.type_list.size());
+                     code->locals.num_locals);
     DCHECK_GE(StackHeight(), code->function->sig->parameter_count());
   }
 
@@ -1430,7 +1430,8 @@ class WasmInterpreterInternals {
   }
 
   pc_t InitLocals(InterpreterCode* code) {
-    for (ValueType p : code->locals.type_list) {
+    for (ValueType p :
+         base::VectorOf(code->locals.local_types, code->locals.num_locals)) {
       WasmValue val;
       switch (p.kind()) {
 #define CASE_TYPE(valuetype, ctype) \
@@ -3313,8 +3314,7 @@ class WasmInterpreterInternals {
     DCHECK(!frames_.empty());
     // There must be enough space on the stack to hold the arguments, locals,
     // and the value stack.
-    DCHECK_LE(code->function->sig->parameter_count() +
-                  code->locals.type_list.size() +
+    DCHECK_LE(code->function->sig->parameter_count() + code->locals.num_locals +
                   code->side_table->max_stack_height_,
               stack_limit_ - stack_.get() - frames_.back().sp);
     // Seal the surrounding {HandleScope} to ensure that all cases within the
@@ -4242,7 +4242,7 @@ ControlTransferMap WasmInterpreter::ComputeControlTransfersForTesting(
                         false,   // imported
                         false,   // exported
                         false};  // declared
-  InterpreterCode code{&function, BodyLocalDecls(zone), start, end, nullptr};
+  InterpreterCode code{&function, BodyLocalDecls{}, start, end, nullptr};
 
   // Now compute and return the control transfers.
   SideTable side_table(zone, module, &code);

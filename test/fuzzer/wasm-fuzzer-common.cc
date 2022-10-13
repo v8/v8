@@ -681,15 +681,15 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
        << " /* sig */)\n";
 
     // Add locals.
-    BodyLocalDecls decls(&tmp_zone);
+    BodyLocalDecls decls;
     DecodeLocalDecls(enabled_features, &decls, module, func_code.begin(),
-                     func_code.end());
-    if (!decls.type_list.empty()) {
+                     func_code.end(), &tmp_zone);
+    if (decls.num_locals) {
       os << "  ";
-      for (size_t pos = 0, count = 1, locals = decls.type_list.size();
-           pos < locals; pos += count, count = 1) {
-        ValueType type = decls.type_list[pos];
-        while (pos + count < locals && decls.type_list[pos + count] == type) {
+      for (size_t pos = 0, count = 1, locals = decls.num_locals; pos < locals;
+           pos += count, count = 1) {
+        ValueType type = decls.local_types[pos];
+        while (pos + count < locals && decls.local_types[pos + count] == type) {
           ++count;
         }
         os << ".addLocals(" << ValueTypeToConstantName(type) << ", " << count

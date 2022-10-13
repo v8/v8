@@ -234,7 +234,6 @@ class ExtendedFunctionDis : public FunctionBodyDisassembler {
 
     // Decode and print locals.
     uint32_t locals_length;
-    InitializeLocalsFromSig();
     DecodeLocals(pc_, &locals_length);
     if (failed()) {
       // TODO(jkummerow): Better error handling.
