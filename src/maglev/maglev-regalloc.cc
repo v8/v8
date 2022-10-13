@@ -394,7 +394,8 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
         // (the first one by default) that is marked with the
         // virtual_accumulator and force kReturnRegister0. This corresponds to
         // the exception message object.
-        Phi* phi = block->phis()->first();
+        Phi::List::Iterator phi_it = block->phis()->begin();
+        Phi* phi = *phi_it;
         DCHECK_EQ(phi->input_count(), 0);
         if (phi->owner() == interpreter::Register::virtual_accumulator() &&
             !phi->is_dead()) {
@@ -405,6 +406,31 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
                                     << phi->result().operand() << std::endl;
           }
         }
+        // The receiver is the next phi after the accumulator (or the first phi
+        // if there is no accumulator).
+        if (phi->owner() == interpreter::Register::virtual_accumulator()) {
+          ++phi_it;
+          phi = *phi_it;
+        }
+        DCHECK(phi->owner().is_receiver());
+        // The receiver is a special case for a fairly silly reason:
+        // OptimizedFrame::Summarize requires the receiver (and the function)
+        // to be in a stack slot, since it's value must be available even
+        // though we're not deoptimizing (and thus register states are not
+        // available).
+        //
+        // TODO(leszeks):
+        // For inlined functions / nested graph generation, this a) doesn't
+        // work (there's no receiver stack slot); and b) isn't necessary
+        // (Summarize only looks at noninlined functions).
+        phi->Spill(compiler::AllocatedOperand(
+            compiler::AllocatedOperand::STACK_SLOT,
+            MachineRepresentation::kTagged,
+            (StandardFrameConstants::kExpressionsOffset -
+             UnoptimizedFrameConstants::kRegisterFileFromFp) /
+                    kSystemPointerSize +
+                interpreter::Register::receiver().index()));
+        phi->result().SetAllocated(phi->spill_slot());
       }
       // Secondly try to assign the phi to a free register.
       for (Phi* phi : *block->phis()) {
