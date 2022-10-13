@@ -3373,9 +3373,10 @@ class Call : public ValueNodeT<Call> {
 
   // This ctor is used when for variable input counts.
   // Inputs must be initialized manually.
-  Call(uint64_t bitfield, ConvertReceiverMode mode, ValueNode* function,
+  Call(uint64_t bitfield, ConvertReceiverMode mode,
+       const compiler::FeedbackSource& feedback, ValueNode* function,
        ValueNode* context)
-      : Base(bitfield), receiver_mode_(mode) {
+      : Base(bitfield), receiver_mode_(mode), feedback_(feedback) {
     set_input(kFunctionIndex, function);
     set_input(kContextIndex, context);
   }
@@ -3391,11 +3392,13 @@ class Call : public ValueNodeT<Call> {
   void set_arg(int i, ValueNode* node) {
     set_input(i + kFixedInputCount, node);
   }
+  compiler::FeedbackSource feedback() const { return feedback_; }
 
   DECL_NODE_INTERFACE_WITH_EMPTY_PRINT_PARAMS()
 
  private:
   ConvertReceiverMode receiver_mode_;
+  const compiler::FeedbackSource feedback_;
 };
 
 class Construct : public ValueNodeT<Construct> {
@@ -3581,8 +3584,9 @@ class CallWithSpread : public ValueNodeT<CallWithSpread> {
 
   // This ctor is used when for variable input counts.
   // Inputs must be initialized manually.
-  CallWithSpread(uint64_t bitfield, ValueNode* function, ValueNode* context)
-      : Base(bitfield) {
+  CallWithSpread(uint64_t bitfield, compiler::FeedbackSource feedback,
+                 ValueNode* function, ValueNode* context)
+      : Base(bitfield), feedback_(feedback) {
     set_input(kFunctionIndex, function);
     set_input(kContextIndex, context);
   }
@@ -3602,8 +3606,12 @@ class CallWithSpread : public ValueNodeT<CallWithSpread> {
     // Spread is the last argument/input.
     return input(input_count() - 1);
   }
+  compiler::FeedbackSource feedback() const { return feedback_; }
 
   DECL_NODE_INTERFACE_WITH_EMPTY_PRINT_PARAMS()
+
+ private:
+  const compiler::FeedbackSource feedback_;
 };
 
 class ConstructWithSpread : public ValueNodeT<ConstructWithSpread> {
@@ -3618,9 +3626,10 @@ class ConstructWithSpread : public ValueNodeT<ConstructWithSpread> {
 
   // This ctor is used when for variable input counts.
   // Inputs must be initialized manually.
-  ConstructWithSpread(uint64_t bitfield, ValueNode* function,
-                      ValueNode* new_target, ValueNode* context)
-      : Base(bitfield) {
+  ConstructWithSpread(uint64_t bitfield, compiler::FeedbackSource feedback,
+                      ValueNode* function, ValueNode* new_target,
+                      ValueNode* context)
+      : Base(bitfield), feedback_(feedback) {
     set_input(kFunctionIndex, function);
     set_input(kNewTargetIndex, new_target);
     set_input(kContextIndex, context);
@@ -3643,8 +3652,12 @@ class ConstructWithSpread : public ValueNodeT<ConstructWithSpread> {
     // Spread is the last argument/input.
     return input(input_count() - 1);
   }
+  compiler::FeedbackSource feedback() const { return feedback_; }
 
   DECL_NODE_INTERFACE_WITH_EMPTY_PRINT_PARAMS()
+
+ private:
+  const compiler::FeedbackSource feedback_;
 };
 
 class IncreaseInterruptBudget

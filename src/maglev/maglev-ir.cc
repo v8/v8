@@ -9,7 +9,6 @@
 #include "src/baseline/baseline-assembler-inl.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/codegen/interface-descriptors-inl.h"
-#include "src/codegen/interface-descriptors.h"
 #include "src/codegen/maglev-safepoint-table.h"
 #include "src/codegen/register.h"
 #include "src/codegen/reglist.h"
@@ -761,8 +760,8 @@ void ForInNext::GenerateCode(MaglevAssembler* masm,
   DCHECK_EQ(ToRegister(cache_index()), D::GetRegisterParameter(D::kCacheIndex));
   __ Move(D::GetRegisterParameter(D::kSlot), Immediate(feedback().index()));
   // Feedback vector is pushed into the stack.
-  DCHECK_EQ(D::GetRegisterParameterCount(), D::kFeedbackVector);
-  DCHECK_EQ(D::GetStackParameterCount(), 1);
+  static_assert(D::GetStackParameterIndex(D::kFeedbackVector) == 0);
+  static_assert(D::GetStackParameterCount() == 1);
   __ Push(feedback().vector);
   __ CallBuiltin(Builtin::kForInNext);
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
@@ -1820,7 +1819,7 @@ void SetNamedGeneric::GenerateCode(MaglevAssembler* masm,
   DCHECK_EQ(ToRegister(value_input()), D::GetRegisterParameter(D::kValue));
   __ Move(D::GetRegisterParameter(D::kName), name().object());
   __ Move(D::GetRegisterParameter(D::kSlot),
-          Smi::FromInt(feedback().slot.ToInt()));
+          TaggedIndex::FromIntptr(feedback().index()));
   __ Move(D::GetRegisterParameter(D::kVector), feedback().vector);
   __ CallBuiltin(Builtin::kStoreIC);
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
@@ -1865,7 +1864,7 @@ void DefineNamedOwnGeneric::GenerateCode(MaglevAssembler* masm,
   DCHECK_EQ(ToRegister(value_input()), D::GetRegisterParameter(D::kValue));
   __ Move(D::GetRegisterParameter(D::kName), name().object());
   __ Move(D::GetRegisterParameter(D::kSlot),
-          Smi::FromInt(feedback().slot.ToInt()));
+          TaggedIndex::FromIntptr(feedback().index()));
   __ Move(D::GetRegisterParameter(D::kVector), feedback().vector);
   __ CallBuiltin(Builtin::kDefineNamedOwnIC);
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
@@ -1891,7 +1890,7 @@ void SetKeyedGeneric::GenerateCode(MaglevAssembler* masm,
   DCHECK_EQ(ToRegister(key_input()), D::GetRegisterParameter(D::kName));
   DCHECK_EQ(ToRegister(value_input()), D::GetRegisterParameter(D::kValue));
   __ Move(D::GetRegisterParameter(D::kSlot),
-          Smi::FromInt(feedback().slot.ToInt()));
+          TaggedIndex::FromIntptr(feedback().index()));
   __ Move(D::GetRegisterParameter(D::kVector), feedback().vector);
   __ CallBuiltin(Builtin::kKeyedStoreIC);
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
@@ -1914,7 +1913,7 @@ void DefineKeyedOwnGeneric::GenerateCode(MaglevAssembler* masm,
   DCHECK_EQ(ToRegister(key_input()), D::GetRegisterParameter(D::kName));
   DCHECK_EQ(ToRegister(value_input()), D::GetRegisterParameter(D::kValue));
   __ Move(D::GetRegisterParameter(D::kSlot),
-          Smi::FromInt(feedback().slot.ToInt()));
+          TaggedIndex::FromIntptr(feedback().index()));
   __ Move(D::GetRegisterParameter(D::kVector), feedback().vector);
   __ CallBuiltin(Builtin::kDefineKeyedOwnIC);
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
@@ -1937,7 +1936,7 @@ void StoreInArrayLiteralGeneric::GenerateCode(MaglevAssembler* masm,
   DCHECK_EQ(ToRegister(value_input()), D::GetRegisterParameter(D::kValue));
   DCHECK_EQ(ToRegister(name_input()), D::GetRegisterParameter(D::kName));
   __ Move(D::GetRegisterParameter(D::kSlot),
-          Smi::FromInt(feedback().slot.ToInt()));
+          TaggedIndex::FromIntptr(feedback().index()));
   __ Move(D::GetRegisterParameter(D::kVector), feedback().vector);
   __ CallBuiltin(Builtin::kStoreInArrayLiteralIC);
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
@@ -3044,20 +3043,35 @@ void Phi::PrintParams(std::ostream& os,
 }
 
 void Call::AllocateVreg(MaglevVregAllocationState* vreg_state) {
-  UseFixed(function(), CallTrampolineDescriptor::GetRegisterParameter(
-                           CallTrampolineDescriptor::kFunction));
-  UseFixed(context(), kContextRegister);
-  for (int i = 0; i < num_args(); i++) {
+  // TODO(leszeks): Consider splitting Call into with- and without-feedback
+  // opcodes, rather than checking for feedback validity.
+  if (feedback_.IsValid()) {
+    using D = CallTrampoline_WithFeedbackDescriptor;
+    UseFixed(function(), D::GetRegisterParameter(D::kFunction));
+    UseFixed(arg(0), D::GetRegisterParameter(D::kReceiver));
+  } else {
+    using D = CallTrampolineDescriptor;
+    UseFixed(function(), D::GetRegisterParameter(D::kFunction));
+    UseAny(arg(0));
+  }
+  for (int i = 1; i < num_args(); i++) {
     UseAny(arg(i));
   }
+  UseFixed(context(), kContextRegister);
   DefineAsFixed(vreg_state, this, kReturnRegister0);
 }
 void Call::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   // TODO(leszeks): Port the nice Sparkplug CallBuiltin helper.
-
-  DCHECK_EQ(ToRegister(function()),
-            CallTrampolineDescriptor::GetRegisterParameter(
-                CallTrampolineDescriptor::kFunction));
+#ifdef DEBUG
+  if (feedback_.IsValid()) {
+    using D = CallTrampoline_WithFeedbackDescriptor;
+    DCHECK_EQ(ToRegister(function()), D::GetRegisterParameter(D::kFunction));
+    DCHECK_EQ(ToRegister(arg(0)), D::GetRegisterParameter(D::kReceiver));
+  } else {
+    using D = CallTrampolineDescriptor;
+    DCHECK_EQ(ToRegister(function()), D::GetRegisterParameter(D::kFunction));
+  }
+#endif
   DCHECK_EQ(ToRegister(context()), kContextRegister);
 
   for (int i = num_args() - 1; i >= 0; --i) {
@@ -3065,22 +3079,41 @@ void Call::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   }
 
   uint32_t arg_count = num_args();
-  __ Move(CallTrampolineDescriptor::GetRegisterParameter(
-              CallTrampolineDescriptor::kActualArgumentsCount),
-          Immediate(arg_count));
+  if (feedback_.IsValid()) {
+    using D = CallTrampoline_WithFeedbackDescriptor;
+    __ Move(D::GetRegisterParameter(D::kActualArgumentsCount),
+            Immediate(arg_count));
+    __ Move(D::GetRegisterParameter(D::kFeedbackVector), feedback().vector);
+    __ Move(D::GetRegisterParameter(D::kSlot), Immediate(feedback().index()));
 
-  // TODO(leszeks): This doesn't collect feedback yet, either pass in the
-  // feedback vector by Handle.
-  switch (receiver_mode_) {
-    case ConvertReceiverMode::kNullOrUndefined:
-      __ CallBuiltin(Builtin::kCall_ReceiverIsNullOrUndefined);
-      break;
-    case ConvertReceiverMode::kNotNullOrUndefined:
-      __ CallBuiltin(Builtin::kCall_ReceiverIsNotNullOrUndefined);
-      break;
-    case ConvertReceiverMode::kAny:
-      __ CallBuiltin(Builtin::kCall_ReceiverIsAny);
-      break;
+    switch (receiver_mode_) {
+      case ConvertReceiverMode::kNullOrUndefined:
+        __ CallBuiltin(Builtin::kCall_ReceiverIsNullOrUndefined_WithFeedback);
+        break;
+      case ConvertReceiverMode::kNotNullOrUndefined:
+        __ CallBuiltin(
+            Builtin::kCall_ReceiverIsNotNullOrUndefined_WithFeedback);
+        break;
+      case ConvertReceiverMode::kAny:
+        __ CallBuiltin(Builtin::kCall_ReceiverIsAny_WithFeedback);
+        break;
+    }
+  } else {
+    using D = CallTrampolineDescriptor;
+    __ Move(D::GetRegisterParameter(D::kActualArgumentsCount),
+            Immediate(arg_count));
+
+    switch (receiver_mode_) {
+      case ConvertReceiverMode::kNullOrUndefined:
+        __ CallBuiltin(Builtin::kCall_ReceiverIsNullOrUndefined);
+        break;
+      case ConvertReceiverMode::kNotNullOrUndefined:
+        __ CallBuiltin(Builtin::kCall_ReceiverIsNotNullOrUndefined);
+        break;
+      case ConvertReceiverMode::kAny:
+        __ CallBuiltin(Builtin::kCall_ReceiverIsAny);
+        break;
+    }
   }
 
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
@@ -3106,6 +3139,8 @@ void Construct::GenerateCode(MaglevAssembler* masm,
   for (int i = num_args() - 1; i >= 0; --i) {
     __ PushInput(arg(i));
   }
+  static_assert(D::GetStackParameterIndex(D::kFeedbackVector) == 0);
+  static_assert(D::GetStackParameterCount() == 1);
   __ Push(feedback().vector);
 
   uint32_t arg_count = num_args();
@@ -3246,7 +3281,8 @@ void CallRuntime::PrintParams(std::ostream& os,
 }
 
 void CallWithSpread::AllocateVreg(MaglevVregAllocationState* vreg_state) {
-  using D = CallInterfaceDescriptorFor<Builtin::kCallWithSpread>::type;
+  using D =
+      CallInterfaceDescriptorFor<Builtin::kCallWithSpread_WithFeedback>::type;
   UseFixed(function(), D::GetRegisterParameter(D::kTarget));
   UseFixed(context(), kContextRegister);
   for (int i = 0; i < num_args() - 1; i++) {
@@ -3257,22 +3293,31 @@ void CallWithSpread::AllocateVreg(MaglevVregAllocationState* vreg_state) {
 }
 void CallWithSpread::GenerateCode(MaglevAssembler* masm,
                                   const ProcessingState& state) {
-  using D = CallInterfaceDescriptorFor<Builtin::kCallWithSpread>::type;
+  using D =
+      CallInterfaceDescriptorFor<Builtin::kCallWithSpread_WithFeedback>::type;
   DCHECK_EQ(ToRegister(function()), D::GetRegisterParameter(D::kTarget));
+  DCHECK_EQ(ToRegister(spread()), D::GetRegisterParameter(D::kSpread));
   DCHECK_EQ(ToRegister(context()), kContextRegister);
   // Push other arguments (other than the spread) to the stack.
   int argc_no_spread = num_args() - 1;
   for (int i = argc_no_spread - 1; i >= 0; --i) {
     __ PushInput(arg(i));
   }
+  static_assert(D::GetStackParameterIndex(D::kReceiver) == 0);
+  static_assert(D::GetStackParameterCount() == 1);
+  __ PushInput(arg(0));
+
   __ Move(D::GetRegisterParameter(D::kArgumentsCount),
           Immediate(argc_no_spread));
-  __ CallBuiltin(Builtin::kCallWithSpread);
+  __ Move(D::GetRegisterParameter(D::kFeedbackVector), feedback().vector);
+  __ Move(D::GetRegisterParameter(D::kSlot), Immediate(feedback().index()));
+  __ CallBuiltin(Builtin::kCallWithSpread_WithFeedback);
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
 void ConstructWithSpread::AllocateVreg(MaglevVregAllocationState* vreg_state) {
-  using D = CallInterfaceDescriptorFor<Builtin::kConstructWithSpread>::type;
+  using D = CallInterfaceDescriptorFor<
+      Builtin::kConstructWithSpread_WithFeedback>::type;
   UseFixed(function(), D::GetRegisterParameter(D::kTarget));
   UseFixed(new_target(), D::GetRegisterParameter(D::kNewTarget));
   UseFixed(context(), kContextRegister);
@@ -3284,7 +3329,8 @@ void ConstructWithSpread::AllocateVreg(MaglevVregAllocationState* vreg_state) {
 }
 void ConstructWithSpread::GenerateCode(MaglevAssembler* masm,
                                        const ProcessingState& state) {
-  using D = CallInterfaceDescriptorFor<Builtin::kConstructWithSpread>::type;
+  using D = CallInterfaceDescriptorFor<
+      Builtin::kConstructWithSpread_WithFeedback>::type;
   DCHECK_EQ(ToRegister(function()), D::GetRegisterParameter(D::kTarget));
   DCHECK_EQ(ToRegister(new_target()), D::GetRegisterParameter(D::kNewTarget));
   DCHECK_EQ(ToRegister(context()), kContextRegister);
@@ -3293,9 +3339,14 @@ void ConstructWithSpread::GenerateCode(MaglevAssembler* masm,
   for (int i = argc_no_spread - 1; i >= 0; --i) {
     __ PushInput(arg(i));
   }
+  static_assert(D::GetStackParameterIndex(D::kFeedbackVector) == 0);
+  static_assert(D::GetStackParameterCount() == 1);
+  __ Push(feedback().vector);
+
   __ Move(D::GetRegisterParameter(D::kActualArgumentsCount),
           Immediate(argc_no_spread));
-  __ CallBuiltin(Builtin::kConstructWithSpread);
+  __ Move(D::GetRegisterParameter(D::kSlot), Immediate(feedback().index()));
+  __ CallBuiltin(Builtin::kConstructWithSpread_WithFeedback);
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 

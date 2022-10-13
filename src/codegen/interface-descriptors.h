@@ -482,6 +482,7 @@ class StaticCallInterfaceDescriptor : public CallInterfaceDescriptor {
   static constexpr inline int GetStackParameterCount();
   static constexpr inline Register* GetRegisterData();
   static constexpr inline Register GetRegisterParameter(int i);
+  static constexpr inline int GetStackParameterIndex(int i);
 
   // Interface descriptors don't really support double registers.
   // This reinterprets the i-th register as a double with the same code.
