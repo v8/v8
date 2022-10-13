@@ -222,6 +222,8 @@ class MaglevGraphBuilder {
       // Any other bytecode that doesn't return or throw will merge into the
       // fallthrough.
       MergeDeadIntoFrameState(iterator_.next_offset());
+    } else if (interpreter::Bytecodes::Returns(bytecode) && is_inline()) {
+      MergeDeadIntoFrameState(inline_exit_offset());
     }
 
     // TODO(leszeks): We could now continue iterating the bytecode
