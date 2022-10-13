@@ -5052,33 +5052,9 @@ int CollectRememberedSetUpdatingItems(
     // No need to update pointers on evacuation candidates. Evacuated pages will
     // be released after this phase.
     if (chunk->IsEvacuationCandidate()) continue;
-    const bool contains_old_to_old_slots =
-        chunk->slot_set<OLD_TO_OLD>() != nullptr ||
-        chunk->typed_slot_set<OLD_TO_OLD>() != nullptr;
-    const bool contains_old_to_code_slots =
-        V8_EXTERNAL_CODE_SPACE_BOOL &&
-        chunk->slot_set<OLD_TO_CODE>() != nullptr;
-    const bool contains_old_to_new_slots =
-        chunk->slot_set<OLD_TO_NEW>() != nullptr ||
-        chunk->typed_slot_set<OLD_TO_NEW>() != nullptr;
-    const bool contains_old_to_shared_slots =
-        chunk->slot_set<OLD_TO_SHARED>() != nullptr ||
-        chunk->typed_slot_set<OLD_TO_SHARED>() != nullptr;
-    const bool contains_old_to_old_invalidated_slots =
-        chunk->invalidated_slots<OLD_TO_OLD>() != nullptr;
-    const bool contains_old_to_new_invalidated_slots =
-        chunk->invalidated_slots<OLD_TO_NEW>() != nullptr;
-    const bool contains_old_to_shared_invalidated_slots =
-        chunk->invalidated_slots<OLD_TO_SHARED>() != nullptr;
-    if (!contains_old_to_new_slots && !contains_old_to_old_slots &&
-        !contains_old_to_old_invalidated_slots &&
-        !contains_old_to_new_invalidated_slots && !contains_old_to_code_slots &&
-        !contains_old_to_shared_slots &&
-        !contains_old_to_shared_invalidated_slots)
-      continue;
-    if (mode == RememberedSetUpdatingMode::ALL || contains_old_to_new_slots ||
-        contains_old_to_old_invalidated_slots ||
-        contains_old_to_new_invalidated_slots) {
+    if (mode == RememberedSetUpdatingMode::ALL
+            ? chunk->HasRecordedSlots()
+            : chunk->HasRecordedOldToNewSlots()) {
       items->emplace_back(
           collector->CreateRememberedSetUpdatingItem(chunk, mode));
       pages++;
