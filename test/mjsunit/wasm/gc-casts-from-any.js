@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-gc --no-wasm-gc-structref-as-dataref
+// Flags: --experimental-wasm-gc
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
@@ -43,7 +43,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
     ["Array", array],
     ["I31", kI31RefCode],
     ["AnyArray", kArrayRefCode],
-    ["Struct", kStructRefCode],
+    ["Data", kDataRefCode],
     ["Eq", kEqRefCode],
     // 'ref.test any' is semantically the same as '!ref.is_null' here.
     ["Any", kAnyRefCode],
@@ -108,14 +108,14 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals([0, 0], wasm.refTestAnyArray(1));
   assertEquals([0, 0], wasm.refTestAnyArray({'JavaScript': 'Object'}));
 
-  assertEquals([0, 1], wasm.refTestStruct(null));
-  assertEquals([0, 0], wasm.refTestStruct(undefined));
-  assertEquals([1, 1], wasm.refTestStruct(wasm.createStructSuper()));
-  assertEquals([1, 1], wasm.refTestStruct(wasm.createStructSub()));
-  assertEquals([0, 0], wasm.refTestStruct(wasm.createArray()));
-  assertEquals([0, 0], wasm.refTestStruct(wasm.createFuncRef()));
-  assertEquals([0, 0], wasm.refTestStruct(1));
-  assertEquals([0, 0], wasm.refTestStruct({'JavaScript': 'Object'}));
+  assertEquals([0, 1], wasm.refTestData(null));
+  assertEquals([0, 0], wasm.refTestData(undefined));
+  assertEquals([1, 1], wasm.refTestData(wasm.createStructSuper()));
+  assertEquals([1, 1], wasm.refTestData(wasm.createStructSub()));
+  assertEquals([1, 1], wasm.refTestData(wasm.createArray()));
+  assertEquals([0, 0], wasm.refTestData(wasm.createFuncRef()));
+  assertEquals([0, 0], wasm.refTestData(1));
+  assertEquals([0, 0], wasm.refTestData({'JavaScript': 'Object'}));
 
   assertEquals([0, 1], wasm.refTestEq(null));
   assertEquals([0, 0], wasm.refTestEq(undefined));

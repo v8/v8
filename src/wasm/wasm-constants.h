@@ -48,7 +48,7 @@ enum ValueTypeCode : uint8_t {
   kRefNullCode = 0x6c,
   kRefCode = 0x6b,
   kI31RefCode = 0x6a,
-  kStructRefCode = 0x67,
+  kDataRefCode = 0x67,
   kArrayRefCode = 0x66,
   kNoneCode = 0x65,
   kStringRefCode = 0x64,

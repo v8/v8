@@ -1174,8 +1174,8 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
                string->StringEquals(v8_str(isolate, "eqref"))) {
       type = i::wasm::kWasmEqRef;
     } else if (enabled_features.has_gc() &&
-               string->StringEquals(v8_str(isolate, "structref"))) {
-      type = i::wasm::kWasmStructRef;
+               string->StringEquals(v8_str(isolate, "dataref"))) {
+      type = i::wasm::kWasmDataRef;
     } else if (enabled_features.has_gc() &&
                string->StringEquals(v8_str(isolate, "arrayref"))) {
       type = i::wasm::kWasmArrayRef;
@@ -1390,8 +1390,8 @@ bool GetValueType(Isolate* isolate, MaybeLocal<Value> maybe,
              string->StringEquals(v8_str(isolate, "anyref"))) {
     *type = i::wasm::kWasmAnyRef;
   } else if (enabled_features.has_gc() &&
-             string->StringEquals(v8_str(isolate, "structref"))) {
-    *type = i::wasm::kWasmStructRef;
+             string->StringEquals(v8_str(isolate, "dataref"))) {
+    *type = i::wasm::kWasmDataRef;
   } else if (enabled_features.has_gc() &&
              string->StringEquals(v8_str(isolate, "arrayref"))) {
     *type = i::wasm::kWasmArrayRef;
@@ -1747,7 +1747,7 @@ void EncodeExceptionValues(v8::Isolate* isolate,
           case i::wasm::HeapType::kAny:
           case i::wasm::HeapType::kEq:
           case i::wasm::HeapType::kI31:
-          case i::wasm::HeapType::kStruct:
+          case i::wasm::HeapType::kData:
           case i::wasm::HeapType::kArray:
           case i::wasm::HeapType::kString:
           case i::wasm::HeapType::kStringViewWtf8:
@@ -2263,7 +2263,7 @@ void WasmObjectToJSReturnValue(v8::ReturnValue<v8::Value>& return_value,
       return;
     case i::wasm::HeapType::kBottom:
       UNREACHABLE();
-    case i::wasm::HeapType::kStruct:
+    case i::wasm::HeapType::kData:
     case i::wasm::HeapType::kArray:
     case i::wasm::HeapType::kEq:
     case i::wasm::HeapType::kAny: {
@@ -2572,7 +2572,7 @@ void WebAssemblyExceptionGetArg(
           case i::wasm::HeapType::kAny:
           case i::wasm::HeapType::kEq:
           case i::wasm::HeapType::kI31:
-          case i::wasm::HeapType::kStruct:
+          case i::wasm::HeapType::kData:
           case i::wasm::HeapType::kArray:
           case i::wasm::HeapType::kString:
           case i::wasm::HeapType::kStringViewWtf8:
@@ -2636,7 +2636,7 @@ void WebAssemblyExceptionGetArg(
         case i::wasm::HeapType::kEq:
         case i::wasm::HeapType::kI31:
         case i::wasm::HeapType::kArray:
-        case i::wasm::HeapType::kStruct:
+        case i::wasm::HeapType::kData:
         case i::wasm::HeapType::kString:
         case i::wasm::HeapType::kStringViewWtf8:
         case i::wasm::HeapType::kStringViewWtf16:

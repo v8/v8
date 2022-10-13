@@ -5997,8 +5997,8 @@ class LiftoffCompiler {
         return RefIsEq(decoder, obj, result_val, null_succeeds);
       case HeapType::kI31:
         return RefIsI31(decoder, obj, result_val, null_succeeds);
-      case HeapType::kStruct:
-        return RefIsStruct(decoder, obj, result_val, null_succeeds);
+      case HeapType::kData:
+        return RefIsData(decoder, obj, result_val, null_succeeds);
       case HeapType::kArray:
         return RefIsArray(decoder, obj, result_val, null_succeeds);
       case HeapType::kAny:
@@ -6139,19 +6139,15 @@ class LiftoffCompiler {
   }
 
   // Abstract type checkers. They all fall through on match.
-  void StructCheck(TypeCheck& check, const FreezeCacheState& frozen) {
+  void DataCheck(TypeCheck& check, const FreezeCacheState& frozen) {
     LoadInstanceType(check, frozen, check.no_match);
-    LiftoffRegister instance_type(check.instance_type());
-    if (!v8_flags.wasm_gc_structref_as_dataref) {
-      __ emit_i32_cond_jumpi(kUnequal, check.no_match, check.instance_type(),
-                             WASM_STRUCT_TYPE, frozen);
-    } else {
-      Register tmp = check.instance_type();
-      __ emit_i32_subi(tmp, tmp, FIRST_WASM_OBJECT_TYPE);
-      __ emit_i32_cond_jumpi(kUnsignedGreaterThan, check.no_match, tmp,
-                             LAST_WASM_OBJECT_TYPE - FIRST_WASM_OBJECT_TYPE,
-                             frozen);
-    }
+    // We're going to test a range of WasmObject instance types with a single
+    // unsigned comparison.
+    Register tmp = check.instance_type();
+    __ emit_i32_subi(tmp, tmp, FIRST_WASM_OBJECT_TYPE);
+    __ emit_i32_cond_jumpi(kUnsignedGreaterThan, check.no_match, tmp,
+                           LAST_WASM_OBJECT_TYPE - FIRST_WASM_OBJECT_TYPE,
+                           frozen);
   }
 
   void ArrayCheck(TypeCheck& check, const FreezeCacheState& frozen) {
@@ -6210,9 +6206,9 @@ class LiftoffCompiler {
     __ PushRegister(kI32, result);
   }
 
-  void RefIsStruct(FullDecoder* /* decoder */, const Value& object,
-                   Value* /* result_val */, bool null_succeeds = false) {
-    AbstractTypeCheck<&LiftoffCompiler::StructCheck>(object, null_succeeds);
+  void RefIsData(FullDecoder* /* decoder */, const Value& object,
+                 Value* /* result_val */, bool null_succeeds = false) {
+    AbstractTypeCheck<&LiftoffCompiler::DataCheck>(object, null_succeeds);
   }
 
   void RefIsEq(FullDecoder* /* decoder */, const Value& object,
@@ -6242,9 +6238,9 @@ class LiftoffCompiler {
     (this->*type_checker)(check, frozen);
   }
 
-  void RefAsStruct(FullDecoder* decoder, const Value& object,
-                   Value* /* result */) {
-    AbstractTypeCast<&LiftoffCompiler::StructCheck>(object, decoder, kRef);
+  void RefAsData(FullDecoder* decoder, const Value& object,
+                 Value* /* result */) {
+    AbstractTypeCast<&LiftoffCompiler::DataCheck>(object, decoder, kRef);
   }
 
   void RefAsI31(FullDecoder* decoder, const Value& object, Value* result) {
@@ -6298,9 +6294,9 @@ class LiftoffCompiler {
     __ bind(&end);
   }
 
-  void BrOnStruct(FullDecoder* decoder, const Value& object,
-                  Value* /* value_on_branch */, uint32_t br_depth) {
-    BrOnAbstractType<&LiftoffCompiler::StructCheck>(object, decoder, br_depth);
+  void BrOnData(FullDecoder* decoder, const Value& object,
+                Value* /* value_on_branch */, uint32_t br_depth) {
+    BrOnAbstractType<&LiftoffCompiler::DataCheck>(object, decoder, br_depth);
   }
 
   void BrOnI31(FullDecoder* decoder, const Value& object,
@@ -6313,10 +6309,9 @@ class LiftoffCompiler {
     BrOnAbstractType<&LiftoffCompiler::ArrayCheck>(object, decoder, br_depth);
   }
 
-  void BrOnNonStruct(FullDecoder* decoder, const Value& object,
-                     Value* /* value_on_branch */, uint32_t br_depth) {
-    BrOnNonAbstractType<&LiftoffCompiler::StructCheck>(object, decoder,
-                                                       br_depth);
+  void BrOnNonData(FullDecoder* decoder, const Value& object,
+                   Value* /* value_on_branch */, uint32_t br_depth) {
+    BrOnNonAbstractType<&LiftoffCompiler::DataCheck>(object, decoder, br_depth);
   }
 
   void BrOnNonI31(FullDecoder* decoder, const Value& object,

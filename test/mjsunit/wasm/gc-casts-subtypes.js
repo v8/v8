@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-gc --experimental-wasm-type-reflection --no-wasm-gc-structref-as-dataref
+// Flags: --experimental-wasm-gc --experimental-wasm-type-reflection
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
@@ -110,7 +110,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   let types = {
     any: kWasmAnyRef,
     eq: kWasmEqRef,
-    struct: kWasmStructRef,
+    data: kWasmDataRef,
     anyArray: kWasmArrayRef,
     array: wasmRefNullType(array),
     structSuper: wasmRefNullType(structSuper),
@@ -137,7 +137,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
       values: ['nullref', 'i31ref', 'structSuper', 'structSub', 'array'],
       targets: {
         eq: ['i31ref', 'structSuper', 'structSub', 'array'],
-        struct: ['structSuper', 'structSub'],
+        data: ['structSuper', 'structSub', 'array'],
         anyArray: ['array'],
         array: ['array'],
         structSuper: ['structSuper', 'structSub'],
@@ -149,7 +149,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
       values: ['nullref', 'i31ref', 'structSuper', 'structSub', 'array'],
       targets: {
         eq: ['i31ref', 'structSuper', 'structSub', 'array'],
-        struct: ['structSuper', 'structSub'],
+        data: ['structSuper', 'structSub', 'array'],
         anyArray: ['array'],
         array: ['array'],
         structSuper: ['structSuper', 'structSub'],
@@ -157,11 +157,11 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
       }
     },
     {
-      source: 'struct',
-      values: ['nullref', 'structSuper', 'structSub'],
+      source: 'data',
+      values: ['nullref', 'structSuper', 'structSub', 'array'],
       targets: {
-        eq: ['structSuper', 'structSub'],
-        struct: ['structSuper', 'structSub'],
+        eq: ['structSuper', 'structSub', 'array'],
+        data: ['structSuper', 'structSub', 'array'],
         anyArray: ['array'],
         array: ['array'],
         structSuper: ['structSuper', 'structSub'],
@@ -173,7 +173,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
       values: ['nullref', 'array'],
       targets: {
         eq: ['array'],
-        struct: [],
+        data: ['array'],
         anyArray: ['array'],
         array: ['array'],
         structSuper: [],
@@ -185,7 +185,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
       values: ['nullref', 'structSuper', 'structSub'],
       targets: {
         eq: ['structSuper', 'structSub'],
-        struct: ['structSuper', 'structSub'],
+        data: ['structSuper', 'structSub'],
         anyArray: [],
         array: [],
         structSuper: ['structSuper', 'structSub'],

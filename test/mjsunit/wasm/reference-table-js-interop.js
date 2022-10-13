@@ -2,15 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-gc --experimental-wasm-stringref
-// Flags: --wasm-gc-js-interop --no-wasm-gc-structref-as-dataref
+// Flags: --experimental-wasm-gc --experimental-wasm-stringref --wasm-gc-js-interop
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 let tableTypes = {
   "anyref": kWasmAnyRef,
   "eqref": kWasmEqRef,
-  "structref": kWasmStructRef,
+  "dataref": kWasmDataRef,
   "arrayref": kWasmArrayRef,
 };
 
@@ -75,7 +74,7 @@ for (let [typeName, type] of Object.entries(tableTypes)) {
   builder.addFunction("tableGetStructVal", getValSig)
     .addBody([
       kExprLocalGet, 0, kExprTableGet, 0,
-      kGCPrefix, kExprRefAsStruct,
+      kGCPrefix, kExprRefAsData,
       kGCPrefix, kExprRefCast, struct,
       kGCPrefix, kExprStructGet, struct, 0,
     ])
@@ -83,7 +82,7 @@ for (let [typeName, type] of Object.entries(tableTypes)) {
   builder.addFunction("tableGetArrayVal", getValSig)
     .addBody([
       kExprLocalGet, 0, kExprTableGet, 0,
-      kGCPrefix, kExprRefAsArray,
+      kGCPrefix, kExprRefAsData,
       kGCPrefix, kExprRefCast, array,
       kExprI32Const, 0,
       kGCPrefix, kExprArrayGet, array,
@@ -107,10 +106,21 @@ for (let [typeName, type] of Object.entries(tableTypes)) {
     ])
     .exportFunc();
 
+  let blockSig = builder.addType(makeSig([kWasmAnyRef], [kWasmEqRef]));
+  let castExternToEqRef = [
+    kGCPrefix, kExprExternInternalize,
+    kExprBlock, blockSig,
+      kGCPrefix, kExprBrOnI31, 0,
+      kGCPrefix, kExprBrOnData, 0,
+      // non-data, non-i31
+      kExprUnreachable, // conversion failure
+    kExprEnd,
+  ];
+
   builder.addFunction("createNull", creatorSig)
     .addBody([kExprRefNull, kNullRefCode])
     .exportFunc();
-  let i31Sig = typeName != "structref" && typeName != "arrayref"
+  let i31Sig = typeName != "dataref" && typeName != "arrayref"
                ? creatorSig : creatorAnySig;
   builder.addFunction("createI31", i31Sig)
     .addBody([kExprI32Const, 12, kGCPrefix, kExprI31New])
@@ -119,8 +129,7 @@ for (let [typeName, type] of Object.entries(tableTypes)) {
   builder.addFunction("createStruct", structSig)
     .addBody([kExprI32Const, 12, kGCPrefix, kExprStructNew, struct])
     .exportFunc();
-  let arraySig = typeName != "structref" ? creatorSig : creatorAnySig;
-  builder.addFunction("createArray", arraySig)
+  builder.addFunction("createArray", creatorSig)
     .addBody([
       kExprI32Const, 12,
       kGCPrefix, kExprArrayNewFixed, array, 1
@@ -150,7 +159,7 @@ for (let [typeName, type] of Object.entries(tableTypes)) {
   assertEquals(null, wasm.tableGet(1));
   assertEquals(null, table.get(1));
   // Set i31.
-  if (typeName != "structref" && typeName != "arrayref") {
+  if (typeName != "dataref" && typeName != "arrayref") {
     table.set(2, wasm.exported(wasm.createI31));
     assertSame(table.get(2), wasm.tableGet(2));
     wasm.tableSet(3, wasm.createI31);
@@ -168,15 +177,13 @@ for (let [typeName, type] of Object.entries(tableTypes)) {
     assertNotSame(table.get(4), table.get(5));
   }
   // Set array.
-  if (typeName != "structref") {
-    table.set(6, wasm.exported(wasm.createArray));
-    assertSame(table.get(6), wasm.tableGet(6));
-    assertEquals(12, wasm.tableGetArrayVal(6));
-    wasm.tableSet(7, wasm.createArray);
-    assertSame(table.get(7), wasm.tableGet(7));
-    assertEquals(12, wasm.tableGetArrayVal(7));
-    assertNotSame(table.get(6), table.get(7));
-  }
+  table.set(6, wasm.exported(wasm.createArray));
+  assertSame(table.get(6), wasm.tableGet(6));
+  assertEquals(12, wasm.tableGetArrayVal(6));
+  wasm.tableSet(7, wasm.createArray);
+  assertSame(table.get(7), wasm.tableGet(7));
+  assertEquals(12, wasm.tableGetArrayVal(7));
+  assertNotSame(table.get(6), table.get(7));
 
   // Set stringref.
   if (typeName == "anyref") {
@@ -210,7 +217,7 @@ for (let [typeName, type] of Object.entries(tableTypes)) {
   let invalidValues = {
     "anyref": [],
     "eqref": [],
-    "structref": ["I31", "Array"],
+    "dataref": ["I31"],
     "arrayref": ["I31", "Struct"],
   };
   for (let invalidType of invalidValues[typeName]) {
