@@ -875,23 +875,19 @@ class ModuleDecoderTemplate : public Decoder {
     DCHECK_EQ(module_->functions.size(), module_->num_imported_functions);
     uint32_t total_function_count =
         module_->num_imported_functions + functions_count;
-    module_->functions.reserve(total_function_count);
+    module_->functions.resize(total_function_count);
     module_->num_declared_functions = functions_count;
-    for (uint32_t i = 0; i < functions_count; ++i) {
-      uint32_t func_index = static_cast<uint32_t>(module_->functions.size());
-      module_->functions.push_back({nullptr,     // sig
-                                    func_index,  // func_index
-                                    0,           // sig_index
-                                    {0, 0},      // code
-                                    false,       // imported
-                                    false,       // exported
-                                    false});     // declared
-      WasmFunction* function = &module_->functions.back();
-      tracer_.FunctionName(module_->num_imported_functions + i);
+    DCHECK_NULL(module_->validated_functions);
+    module_->validated_functions =
+        std::make_unique<std::atomic<uint8_t>[]>((functions_count + 7) / 8);
+    for (uint32_t func_index = module_->num_imported_functions;
+         func_index < total_function_count; ++func_index) {
+      WasmFunction* function = &module_->functions[func_index];
+      function->func_index = func_index;
+      tracer_.FunctionName(func_index);
       function->sig_index = consume_sig_index(module_.get(), &function->sig);
       if (!ok()) return;
     }
-    DCHECK_EQ(module_->functions.size(), total_function_count);
   }
 
   void DecodeTableSection() {
@@ -1191,15 +1187,14 @@ class ModuleDecoderTemplate : public Decoder {
     return true;
   }
 
-  void DecodeFunctionBody(uint32_t index, uint32_t length, uint32_t offset,
+  void DecodeFunctionBody(uint32_t func_index, uint32_t length, uint32_t offset,
                           bool validate_functions) {
-    WasmFunction* function = &module_->functions[index];
+    WasmFunction* function = &module_->functions[func_index];
     function->code = {offset, length};
     tracer_.FunctionBody(function, pc_ - (pc_offset() - offset));
     if (validate_functions) {
       ModuleWireBytes bytes(module_start_, module_end_);
-      ValidateFunctionBody(module_->signature_zone->allocator(),
-                           index + module_->num_imported_functions, bytes,
+      ValidateFunctionBody(module_->signature_zone->allocator(), bytes,
                            module_.get(), function);
     }
   }
@@ -1685,9 +1680,13 @@ class ModuleDecoderTemplate : public Decoder {
     WasmFunction function;
     function.sig = consume_sig(zone);
     function.code = {off(pc_), static_cast<uint32_t>(end_ - pc_)};
+    if (!module->validated_functions) {
+      DCHECK_EQ(0, function.func_index);
+      module->validated_functions = std::make_unique<std::atomic<uint8_t>[]>(1);
+    }
     if (!ok()) return FunctionResult{std::move(error_)};
 
-    ValidateFunctionBody(zone->allocator(), 0, wire_bytes, module, &function);
+    ValidateFunctionBody(zone->allocator(), wire_bytes, module, &function);
     if (!ok()) return FunctionResult{std::move(error_)};
 
     return FunctionResult{std::make_unique<WasmFunction>(function)};
@@ -1804,26 +1803,32 @@ class ModuleDecoderTemplate : public Decoder {
   }
 
   // Verifies the body (code) of a given function.
-  void ValidateFunctionBody(AccountingAllocator* allocator, uint32_t func_num,
+  void ValidateFunctionBody(AccountingAllocator* allocator,
                             const ModuleWireBytes& wire_bytes,
                             const WasmModule* module, WasmFunction* function) {
+    DCHECK(!module->function_was_validated(function->func_index));
     if (v8_flags.trace_wasm_decoder) {
       WasmFunctionName func_name(function,
                                  wire_bytes.GetNameOrNull(function, module));
-      StdoutStream{} << "Verifying wasm function " << func_name << std::endl;
+      StdoutStream{} << "Validating wasm function " << func_name << std::endl;
     }
-    FunctionBody body = {
+    FunctionBody body{
         function->sig, function->code.offset(),
         start_ + GetBufferRelativeOffset(function->code.offset()),
         start_ + GetBufferRelativeOffset(function->code.end_offset())};
 
-    WasmFeatures unused_detected_features = WasmFeatures::None();
+    WasmFeatures unused_detected_features;
     DecodeResult result = wasm::ValidateFunctionBody(
         allocator, enabled_features_, module, &unused_detected_features, body);
 
-    // If the decode failed and this is the first error, set error code and
+    if (V8_LIKELY(result.ok())) {
+      module->set_function_validated(function->func_index);
+      return;
+    }
+
+    // If validation failed and this is the first error, set error code and
     // location.
-    if (result.failed() && error_.empty()) {
+    if (ok()) {
       // Wrap the error message from the function decoder.
       WasmFunctionName func_name(function,
                                  wire_bytes.GetNameOrNull(function, module));
@@ -1832,6 +1837,7 @@ class ModuleDecoderTemplate : public Decoder {
                 << result.error().message();
       error_ = WasmError{result.error().offset(), error_msg.str()};
     }
+    DCHECK(!ok());
   }
 
   uint32_t consume_sig_index(WasmModule* module, const FunctionSig** sig) {

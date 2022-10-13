@@ -130,6 +130,11 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
       V8_FALLTHROUGH;
 
     case ExecutionTier::kTurbofan:
+      if (V8_UNLIKELY(!env->module->function_was_validated(func_index_))) {
+        // TODO(13371): Validate function here, and disable validation in
+        // TurboFan compilation.
+        // env->module->set_function_validated(func_index_);
+      }
       result = compiler::ExecuteTurbofanWasmCompilation(
           env, wire_bytes_storage, func_body, func_index_, counters,
           buffer_cache, detected);

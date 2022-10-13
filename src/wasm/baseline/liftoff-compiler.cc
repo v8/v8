@@ -7787,6 +7787,8 @@ WasmCompilationResult ExecuteLiftoffCompilation(
   }
 
   DCHECK(result.succeeded());
+  env->module->set_function_validated(compiler_options.func_index);
+
   return result;
 }
 

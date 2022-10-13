@@ -152,6 +152,9 @@ uint32_t TestingModuleBuilder::AddFunction(const FunctionSig* sig,
     // TODO(titzer): Reserving space here to avoid the underlying WasmFunction
     // structs from moving.
     test_module_->functions.reserve(kMaxFunctions);
+    DCHECK_NULL(test_module_->validated_functions);
+    test_module_->validated_functions =
+        std::make_unique<std::atomic<uint8_t>[]>((kMaxFunctions + 7) / 8);
   }
   uint32_t index = static_cast<uint32_t>(test_module_->functions.size());
   test_module_->functions.push_back({sig,      // sig
