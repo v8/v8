@@ -1082,6 +1082,9 @@
 
   # BUG(v8:13331) Skipped until issue is fixed to reduce noise on alerts.
   'harmony/regress/regress-crbug-1367133': [SKIP],
+
+  # BUG(v8:13379) maglev-inlining flag isn't stable enough for fuzzing.
+  'maglev/eager-deopt-in-inline': [SKIP],
 }], # gc_fuzzer or deopt_fuzzer or interrupt_fuzzer
 
 ##############################################################################
