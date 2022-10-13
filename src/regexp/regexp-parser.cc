@@ -615,6 +615,7 @@ RegExpTree* RegExpParserImpl<CharT>::ReportError(RegExpError error) {
   // Zip to the end to make sure no more input is read.
   current_ = kEndMarker;
   next_pos_ = input_length();
+  has_more_ = false;
   return nullptr;
 }
 
