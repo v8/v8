@@ -10067,6 +10067,21 @@ int64_t CpuProfile::GetEndTime() const {
   return profile->end_time().since_origin().InMicroseconds();
 }
 
+static i::CpuProfile* ToInternal(const CpuProfile* profile) {
+  return const_cast<i::CpuProfile*>(
+      reinterpret_cast<const i::CpuProfile*>(profile));
+}
+
+void CpuProfile::Serialize(OutputStream* stream,
+                           CpuProfile::SerializationFormat format) const {
+  Utils::ApiCheck(format == kJSON, "v8::CpuProfile::Serialize",
+                  "Unknown serialization format");
+  Utils::ApiCheck(stream->GetChunkSize() > 0, "v8::CpuProfile::Serialize",
+                  "Invalid stream chunk size");
+  i::CpuProfileJSONSerializer serializer(ToInternal(this));
+  serializer.Serialize(stream);
+}
+
 int CpuProfile::GetSamplesCount() const {
   return reinterpret_cast<const i::CpuProfile*>(this)->samples_count();
 }
