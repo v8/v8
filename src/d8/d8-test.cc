@@ -758,6 +758,9 @@ class FastCApiObject {
   template <typename IntegerT>
   static double ClampCompareCompute(bool in_range, double real_arg,
                                     IntegerT checked_arg) {
+    if (i::v8_flags.fuzzing) {
+      return static_cast<double>(checked_arg);
+    }
     if (!in_range) {
       IntegerT lower_bound = std::numeric_limits<IntegerT>::min();
       IntegerT upper_bound = std::numeric_limits<IntegerT>::max();
