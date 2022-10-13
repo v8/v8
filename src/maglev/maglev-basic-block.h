@@ -63,7 +63,9 @@ class BasicBlock {
   }
 
   void set_empty_block() {
-    DCHECK(nodes_.is_empty());
+    DCHECK_IMPLIES(!nodes_.is_empty(),
+                   nodes_.LengthForTest() == 1 &&
+                       nodes_.first()->Is<IncreaseInterruptBudget>());
     DCHECK(control_node()->Is<Jump>());
     DCHECK_NULL(state_);
     is_empty_block_ = true;

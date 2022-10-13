@@ -75,14 +75,24 @@ class MaglevGraphBuilder {
   Graph* graph() const { return graph_; }
 
  private:
-  BasicBlock* CreateEmptyBlock(int offset) {
+  BasicBlock* CreateEmptyBlock(int offset, int interrupt_budget_correction) {
     if (v8_flags.trace_maglev_graph_building) {
       std::cout << "== New empty block ==" << std::endl;
     }
     DCHECK_NULL(current_block_);
     current_block_ = zone()->New<BasicBlock>(nullptr);
+    // Add an interrupt budget correction if necessary. Technically this
+    // makes the empty block no longer empty, but we're not changing
+    // interpreter frame state, so that's ok.
+    if (interrupt_budget_correction != 0) {
+      DCHECK_GT(interrupt_budget_correction, 0);
+      AddNewNode<IncreaseInterruptBudget>({}, interrupt_budget_correction);
+    }
     BasicBlock* result = FinishBlock<Jump>({}, &jump_targets_[offset]);
     result->set_empty_block();
+#ifdef DEBUG
+    new_nodes_.clear();
+#endif
     return result;
   }
 
@@ -136,7 +146,8 @@ class MaglevGraphBuilder {
       ControlNode* control = predecessor->control_node();
       if (control->Is<ConditionalControlNode>()) {
         // CreateEmptyBlock automatically registers itself with the offset.
-        predecessor = CreateEmptyBlock(offset);
+        predecessor = CreateEmptyBlock(
+            offset, old_jump_targets->interrupt_budget_correction());
         // Set the old predecessor's (the conditional block) reference to
         // point to the new empty predecessor block.
         old_jump_targets =
