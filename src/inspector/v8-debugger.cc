@@ -818,7 +818,7 @@ v8::Local<v8::Array> V8Debugger::queryObjects(v8::Local<v8::Context> context,
   MatchPrototypePredicate predicate(m_inspector, context, prototype);
   v8::debug::QueryObjects(context, &predicate, &v8_objects);
 
-  v8::MicrotasksScope microtasksScope(isolate,
+  v8::MicrotasksScope microtasksScope(context,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
   v8::Local<v8::Array> resultArray = v8::Array::New(
       m_inspector->isolate(), static_cast<int>(v8_objects.size()));

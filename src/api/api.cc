@@ -9721,6 +9721,11 @@ MicrotasksScope::MicrotasksScope(Isolate* v8_isolate,
                                  MicrotasksScope::Type type)
     : MicrotasksScope(v8_isolate, nullptr, type) {}
 
+MicrotasksScope::MicrotasksScope(Local<Context> v8_context,
+                                 MicrotasksScope::Type type)
+    : MicrotasksScope(v8_context->GetIsolate(), v8_context->GetMicrotaskQueue(),
+                      type) {}
+
 MicrotasksScope::MicrotasksScope(Isolate* v8_isolate,
                                  MicrotaskQueue* microtask_queue,
                                  MicrotasksScope::Type type)

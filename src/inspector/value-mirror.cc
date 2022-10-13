@@ -819,7 +819,7 @@ bool isArrayLike(v8::Local<v8::Context> context, v8::Local<v8::Value> value,
   if (!value->IsObject()) return false;
   v8::Isolate* isolate = context->GetIsolate();
   v8::TryCatch tryCatch(isolate);
-  v8::MicrotasksScope microtasksScope(isolate,
+  v8::MicrotasksScope microtasksScope(context,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
   v8::Local<v8::Object> object = value.As<v8::Object>();
   v8::Local<v8::Value> spliceValue;
@@ -1362,7 +1362,7 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
   v8::TryCatch tryCatch(isolate);
   v8::Local<v8::Set> set = v8::Set::New(isolate);
 
-  v8::MicrotasksScope microtasksScope(isolate,
+  v8::MicrotasksScope microtasksScope(context,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
   V8InternalValueType internalType = v8InternalValueTypeFrom(context, object);
   if (internalType == V8InternalValueType::kScope) {
@@ -1510,7 +1510,7 @@ void ValueMirror::getInternalProperties(
     v8::Local<v8::Context> context, v8::Local<v8::Object> object,
     std::vector<InternalPropertyMirror>* mirrors) {
   v8::Isolate* isolate = context->GetIsolate();
-  v8::MicrotasksScope microtasksScope(isolate,
+  v8::MicrotasksScope microtasksScope(context,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
   v8::TryCatch tryCatch(isolate);
   if (object->IsFunction()) {
@@ -1565,7 +1565,7 @@ std::vector<PrivatePropertyMirror> ValueMirror::getPrivateProperties(
     bool accessorPropertiesOnly) {
   std::vector<PrivatePropertyMirror> mirrors;
   v8::Isolate* isolate = context->GetIsolate();
-  v8::MicrotasksScope microtasksScope(isolate,
+  v8::MicrotasksScope microtasksScope(context,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
   v8::TryCatch tryCatch(isolate);
   v8::Local<v8::Array> privateProperties;

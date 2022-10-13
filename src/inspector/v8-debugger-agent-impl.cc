@@ -793,7 +793,7 @@ Response V8DebuggerAgentImpl::getPossibleBreakpoints(
       return Response::ServerError("Cannot retrive script context");
     }
     v8::Context::Scope contextScope(inspected->context());
-    v8::MicrotasksScope microtasks(m_isolate,
+    v8::MicrotasksScope microtasks(inspected->context(),
                                    v8::MicrotasksScope::kDoNotRunMicrotasks);
     v8::TryCatch tryCatch(m_isolate);
     it->second->getPossibleBreakpoints(

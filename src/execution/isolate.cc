@@ -6085,9 +6085,9 @@ class DefaultWasmAsyncResolvePromiseTask : public v8::Task {
 
   void Run() override {
     v8::HandleScope scope(isolate_);
-    MicrotasksScope microtasks_scope(isolate_,
-                                     MicrotasksScope::kDoNotRunMicrotasks);
     v8::Local<v8::Context> context = context_.Get(isolate_);
+    MicrotasksScope microtasks_scope(context,
+                                     MicrotasksScope::kDoNotRunMicrotasks);
     v8::Local<v8::Promise::Resolver> resolver = resolver_.Get(isolate_);
     v8::Local<v8::Value> result = result_.Get(isolate_);
 

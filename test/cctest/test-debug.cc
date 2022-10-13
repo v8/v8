@@ -5339,7 +5339,7 @@ bool microtask_one_ran = false;
 static void MicrotaskOne(const v8::FunctionCallbackInfo<v8::Value>& info) {
   CHECK(v8::MicrotasksScope::IsRunningMicrotasks(info.GetIsolate()));
   v8::HandleScope scope(info.GetIsolate());
-  v8::MicrotasksScope microtasks(info.GetIsolate(),
+  v8::MicrotasksScope microtasks(info.GetIsolate()->GetCurrentContext(),
                                  v8::MicrotasksScope::kDoNotRunMicrotasks);
   ExpectInt32("1 + 1", 2);
   microtask_one_ran = true;
