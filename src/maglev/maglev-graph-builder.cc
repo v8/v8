@@ -1441,6 +1441,10 @@ bool MaglevGraphBuilder::TryBuildNamedAccess(
   // Check for monomorphic case.
   if (access_infos.size() == 1) {
     compiler::PropertyAccessInfo access_info = access_infos.front();
+    if (access_info.lookup_start_object_maps().size() != 1) {
+      // TODO(victorgomes): polymorphic case.
+      return false;
+    }
     const compiler::MapRef& map =
         access_info.lookup_start_object_maps().front();
     if (map.IsStringMap()) {
@@ -1494,6 +1498,10 @@ bool MaglevGraphBuilder::TryBuildElementAccess(
 
     const compiler::MapRef& map =
         access_info.lookup_start_object_maps().front();
+    if (access_info.lookup_start_object_maps().size() != 1) {
+      // TODO(victorgomes): polymorphic case.
+      return false;
+    }
     BuildMapCheck(object, map);
 
     switch (index->properties().value_representation()) {
