@@ -1938,6 +1938,24 @@ SIMD_UNOP_LIST(EMIT_SIMD_UNOP)
 #undef EMIT_SIMD_UNOP
 #undef SIMD_UNOP_LIST
 
+#define SIMD_UNOP_WITH_SCRATCH_LIST(V) \
+  V(i64x2_abs, I64x2Abs, , void)       \
+  V(i32x4_abs, I32x4Abs, , void)       \
+  V(i16x8_abs, I16x8Abs, , void)       \
+  V(i16x8_neg, I16x8Neg, , void)       \
+  V(i8x16_abs, I8x16Abs, , void)       \
+  V(i8x16_neg, I8x16Neg, , void)
+
+#define EMIT_SIMD_UNOP_WITH_SCRATCH(name, op, return_val, return_type) \
+  return_type LiftoffAssembler::emit_##name(LiftoffRegister dst,       \
+                                            LiftoffRegister src) {     \
+    op(dst.fp().toSimd(), src.fp().toSimd(), kScratchSimd128Reg);      \
+    return return_val;                                                 \
+  }
+SIMD_UNOP_WITH_SCRATCH_LIST(EMIT_SIMD_UNOP_WITH_SCRATCH)
+#undef EMIT_SIMD_UNOP_WITH_SCRATCH
+#undef SIMD_UNOP_WITH_SCRATCH_LIST
+
 void LiftoffAssembler::emit_f64x2_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   F64x2Splat(dst.fp().toSimd(), src.fp(), r0);
@@ -2070,36 +2088,6 @@ void LiftoffAssembler::emit_i8x16_replace_lane(LiftoffRegister dst,
                                                uint8_t imm_lane_idx) {
   I8x16ReplaceLane(dst.fp().toSimd(), src1.fp().toSimd(), src2.gp(),
                    imm_lane_idx, kScratchSimd128Reg);
-}
-
-void LiftoffAssembler::emit_i64x2_abs(LiftoffRegister dst,
-                                      LiftoffRegister src) {
-  I64x2Abs(dst.fp().toSimd(), src.fp().toSimd(), kScratchSimd128Reg);
-}
-
-void LiftoffAssembler::emit_i32x4_abs(LiftoffRegister dst,
-                                      LiftoffRegister src) {
-  I32x4Abs(dst.fp().toSimd(), src.fp().toSimd(), kScratchSimd128Reg);
-}
-
-void LiftoffAssembler::emit_i16x8_abs(LiftoffRegister dst,
-                                      LiftoffRegister src) {
-  I16x8Abs(dst.fp().toSimd(), src.fp().toSimd(), kScratchSimd128Reg);
-}
-
-void LiftoffAssembler::emit_i16x8_neg(LiftoffRegister dst,
-                                      LiftoffRegister src) {
-  I16x8Neg(dst.fp().toSimd(), src.fp().toSimd(), kScratchSimd128Reg);
-}
-
-void LiftoffAssembler::emit_i8x16_abs(LiftoffRegister dst,
-                                      LiftoffRegister src) {
-  I8x16Abs(dst.fp().toSimd(), src.fp().toSimd(), kScratchSimd128Reg);
-}
-
-void LiftoffAssembler::emit_i8x16_neg(LiftoffRegister dst,
-                                      LiftoffRegister src) {
-  I8x16Neg(dst.fp().toSimd(), src.fp().toSimd(), kScratchSimd128Reg);
 }
 
 void LiftoffAssembler::emit_i64x2_mul(LiftoffRegister dst, LiftoffRegister lhs,

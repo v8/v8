@@ -1217,6 +1217,20 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 #undef PROTOTYPE_SIMD_UNOP
 #undef SIMD_UNOP_LIST
 
+#define SIMD_UNOP_WITH_SCRATCH_LIST(V) \
+  V(I64x2Abs)                          \
+  V(I32x4Abs)                          \
+  V(I16x8Abs)                          \
+  V(I16x8Neg)                          \
+  V(I8x16Abs)                          \
+  V(I8x16Neg)
+
+#define PROTOTYPE_SIMD_UNOP_WITH_SCRATCH(name) \
+  void name(Simd128Register dst, Simd128Register src, Simd128Register scratch);
+  SIMD_UNOP_WITH_SCRATCH_LIST(PROTOTYPE_SIMD_UNOP_WITH_SCRATCH)
+#undef PROTOTYPE_SIMD_UNOP_WITH_SCRATCH
+#undef SIMD_UNOP_WITH_SCRATCH_LIST
+
   void LoadSimd128(Simd128Register dst, const MemOperand& mem,
                    Register scratch);
   void StoreSimd128(Simd128Register src, const MemOperand& mem,
@@ -1276,18 +1290,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                 Simd128Register scratch1, Simd128Register scratch2);
   void F64x2Max(Simd128Register dst, Simd128Register src1, Simd128Register src2,
                 Simd128Register scratch1, Simd128Register scratch2);
-  void I64x2Abs(Simd128Register dst, Simd128Register src,
-                Simd128Register scratch);
-  void I32x4Abs(Simd128Register dst, Simd128Register src,
-                Simd128Register scratch);
-  void I16x8Abs(Simd128Register dst, Simd128Register src,
-                Simd128Register scratch);
-  void I16x8Neg(Simd128Register dst, Simd128Register src,
-                Simd128Register scratch);
-  void I8x16Abs(Simd128Register dst, Simd128Register src,
-                Simd128Register scratch);
-  void I8x16Neg(Simd128Register dst, Simd128Register src,
-                Simd128Register scratch);
 
  private:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;

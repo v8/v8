@@ -2350,6 +2350,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #undef EMIT_SIMD_UNOP
 #undef SIMD_UNOP_LIST
 
+#define SIMD_UNOP_WITH_SCRATCH_LIST(V) \
+  V(I64x2Abs)                          \
+  V(I32x4Abs)                          \
+  V(I16x8Abs)                          \
+  V(I16x8Neg)                          \
+  V(I8x16Abs)                          \
+  V(I8x16Neg)
+
+#define EMIT_SIMD_UNOP_WITH_SCRATCH(name)                         \
+  case kPPC_##name: {                                             \
+    __ name(i.OutputSimd128Register(), i.InputSimd128Register(0), \
+            kScratchSimd128Reg);                                  \
+    break;                                                        \
+  }
+      SIMD_UNOP_WITH_SCRATCH_LIST(EMIT_SIMD_UNOP_WITH_SCRATCH)
+#undef EMIT_SIMD_UNOP_WITH_SCRATCH
+#undef SIMD_UNOP_WITH_SCRATCH_LIST
+
     case kPPC_F64x2Splat: {
       __ F64x2Splat(i.OutputSimd128Register(), i.InputDoubleRegister(0),
                     kScratchReg);
@@ -2474,36 +2492,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ F64x2Max(i.OutputSimd128Register(), i.InputSimd128Register(0),
                   i.InputSimd128Register(1), kScratchSimd128Reg,
                   kScratchSimd128Reg2);
-      break;
-    }
-    case kPPC_I64x2Abs: {
-      __ I64x2Abs(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                  kScratchSimd128Reg);
-      break;
-    }
-    case kPPC_I32x4Abs: {
-      __ I32x4Abs(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                  kScratchSimd128Reg);
-      break;
-    }
-    case kPPC_I16x8Abs: {
-      __ I16x8Abs(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                  kScratchSimd128Reg);
-      break;
-    }
-    case kPPC_I16x8Neg: {
-      __ I16x8Neg(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                  kScratchSimd128Reg);
-      break;
-    }
-    case kPPC_I8x16Abs: {
-      __ I8x16Abs(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                  kScratchSimd128Reg);
-      break;
-    }
-    case kPPC_I8x16Neg: {
-      __ I8x16Neg(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                  kScratchSimd128Reg);
       break;
     }
     case kPPC_S128And: {
