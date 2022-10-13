@@ -330,8 +330,8 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
       } else {
         InitializeRegisterValues(block->state()->register_state());
       }
-    } else if (block->is_empty_block()) {
-      InitializeRegisterValues(block->empty_block_register_state());
+    } else if (block->is_edge_split_block()) {
+      InitializeRegisterValues(block->edge_split_block_register_state());
     }
 
     if (v8_flags.trace_maglev_regalloc) {
@@ -759,7 +759,7 @@ void StraightForwardRegisterAllocator::DropRegisterValue(DoubleRegister reg) {
 
 void StraightForwardRegisterAllocator::InitializeBranchTargetPhis(
     int predecessor_id, BasicBlock* target) {
-  DCHECK(!target->is_empty_block());
+  DCHECK(!target->is_edge_split_block());
 
   if (!target->has_phi()) return;
 
@@ -788,7 +788,7 @@ void StraightForwardRegisterAllocator::InitializeConditionalBranchTarget(
     // Not a fall-through branch, copy the state over.
     return InitializeBranchTargetRegisterValues(control_node, target);
   }
-  if (target->is_empty_block()) {
+  if (target->is_edge_split_block()) {
     return InitializeEmptyBlockRegisterValues(control_node, target);
   }
 
@@ -1646,7 +1646,7 @@ void StraightForwardRegisterAllocator::InitializeBranchTargetRegisterValues(
 
 void StraightForwardRegisterAllocator::InitializeEmptyBlockRegisterValues(
     ControlNode* source, BasicBlock* target) {
-  DCHECK(target->is_empty_block());
+  DCHECK(target->is_edge_split_block());
   MergePointRegisterState* register_state =
       compilation_info_->zone()->New<MergePointRegisterState>();
 
@@ -1662,13 +1662,13 @@ void StraightForwardRegisterAllocator::InitializeEmptyBlockRegisterValues(
   };
   ForEachMergePointRegisterState(*register_state, init);
 
-  target->set_empty_block_register_state(register_state);
+  target->set_edge_split_block_register_state(register_state);
 }
 
 void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
                                                            BasicBlock* target,
                                                            int predecessor_id) {
-  if (target->is_empty_block()) {
+  if (target->is_edge_split_block()) {
     return InitializeEmptyBlockRegisterValues(control, target);
   }
 
