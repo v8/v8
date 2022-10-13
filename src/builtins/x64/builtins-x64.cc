@@ -3076,7 +3076,7 @@ void RestoreAfterBuiltinCall(MacroAssembler* masm, Register function_data,
 void SwitchStackState(MacroAssembler* masm, Register jmpbuf,
                       wasm::JumpBuffer::StackState old_state,
                       wasm::JumpBuffer::StackState new_state) {
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     __ cmpl(MemOperand(jmpbuf, wasm::kJmpBufStateOffset), Immediate(old_state));
     Label ok;
     __ j(equal, &ok, Label::kNear);

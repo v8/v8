@@ -1991,7 +1991,7 @@ struct LateOptimizationPhase {
       AddReducer(data, &graph_reducer, &dead_code_elimination);
       AddReducer(data, &graph_reducer, &machine_reducer);
       AddReducer(data, &graph_reducer, &common_reducer);
-      if (!FLAG_turboshaft) {
+      if (!v8_flags.turboshaft) {
         AddReducer(data, &graph_reducer, &select_lowering);
       }
       AddReducer(data, &graph_reducer, &value_numbering);
@@ -2076,7 +2076,7 @@ struct OptimizeTurboshaftPhase {
 
   void Run(PipelineData* data, Zone* temp_zone) {
     UnparkedScopeIfNeeded scope(data->broker(),
-                                FLAG_turboshaft_trace_reduction);
+                                v8_flags.turboshaft_trace_reduction);
     turboshaft::OptimizationPhase<
         turboshaft::AnalyzerBase,
         turboshaft::MachineOptimizationAssembler<
