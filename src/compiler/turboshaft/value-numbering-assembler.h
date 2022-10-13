@@ -93,7 +93,7 @@ class ValueNumberingAssembler : public Assembler {
   OpIndex Name(Args... args) {                           \
     OpIndex next_index = graph().next_operation_index(); \
     USE(next_index);                                     \
-    OpIndex result = Base::Name(args...);                \
+    OpIndex result = Base::Reduce##Name(args...);        \
     DCHECK_EQ(next_index, result);                       \
     return AddOrFind<Name##Op>(result);                  \
   }

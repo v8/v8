@@ -15,6 +15,7 @@
 
 #include "src/base/logging.h"
 #include "src/base/macros.h"
+#include "src/base/optional.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/template-utils.h"
 #include "src/base/vector.h"
@@ -60,6 +61,9 @@ class Graph;
 //   a variable arity operation where the constructor doesn't take the inputs as
 //   a single base::Vector<OpIndex> argument, it's also necessary to overwrite
 //   the static `New` function, see `CallOp` for an example.
+// - `OperatorProperties` as either a static constexpr member `properties` or a
+//   non-static method `Properties()` if the properties depend on the particular
+//   operation and not just the opcode.
 
 #define TURBOSHAFT_OPERATION_LIST(V) \
   V(WordBinop)                       \
@@ -78,11 +82,7 @@ class Graph;
   V(PendingLoopPhi)                  \
   V(Constant)                        \
   V(Load)                            \
-  V(IndexedLoad)                     \
-  V(ProtectedLoad)                   \
   V(Store)                           \
-  V(IndexedStore)                    \
-  V(ProtectedStore)                  \
   V(Retain)                          \
   V(Parameter)                       \
   V(OsrValue)                        \
@@ -334,9 +334,10 @@ struct alignas(OpIndex) Operation {
     if (!Is<Op>()) return nullptr;
     return static_cast<Op*>(this);
   }
-  const OpProperties& properties() const;
+  OpProperties Properties() const;
 
   std::string ToString() const;
+  void PrintInputs(std::ostream& os, const std::string& op_index_prefix) const;
   void PrintOptions(std::ostream& os) const;
 
  protected:
@@ -365,6 +366,14 @@ inline void Print(const Operation& op) { std::cout << op << "\n"; }
 
 OperationStorageSlot* AllocateOpStorage(Graph* graph, size_t slot_count);
 
+// Determine if an operation declares `properties`, which means that its
+// properties are static and don't depend on inputs or options.
+template <class Op, class = void>
+struct HasStaticProperties : std::bool_constant<false> {};
+template <class Op>
+struct HasStaticProperties<Op, std::void_t<decltype(Op::properties)>>
+    : std::bool_constant<true> {};
+
 // This template knows the complete type of the operation and is plugged into
 // the inheritance hierarchy. It removes boilerplate from the concrete
 // `Operation` subclasses, defining everything that can be expressed
@@ -377,7 +386,14 @@ struct OperationT : Operation {
 
   static const Opcode opcode;
 
-  static constexpr OpProperties properties() { return Derived::properties; }
+  static constexpr OpProperties Properties() { return Derived::properties; }
+
+  static constexpr base::Optional<OpProperties> PropertiesIfStatic() {
+    if constexpr (HasStaticProperties<Derived>::value) {
+      return Derived::Properties();
+    }
+    return base::nullopt;
+  }
 
   Derived& derived_this() { return *static_cast<Derived*>(this); }
   const Derived& derived_this() const {
@@ -450,6 +466,17 @@ struct OperationT : Operation {
   size_t hash_value() const {
     return fast_hash_combine(opcode, derived_this().inputs(),
                              derived_this().options());
+  }
+
+  void PrintInputs(std::ostream& os, const std::string& op_index_prefix) const {
+    os << "(";
+    bool first = true;
+    for (OpIndex input : inputs()) {
+      if (!first) os << ", ";
+      first = false;
+      os << op_index_prefix << input.id();
+    }
+    os << ")";
   }
 
   void PrintOptions(std::ostream& os) const {
@@ -1376,74 +1403,46 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
   }
 };
 
-// Load loaded_rep from: base + offset.
-// For Kind::tagged_base: subtract kHeapObjectTag,
-//                        `base` has to be the object start.
-// For (u)int8/16, the value will be sign- or zero-extended to Word32.
-// When result_rep is RegisterRepresentation::Compressed(), then the load does
-// not decompress the value.
-struct LoadOp : FixedArityOperationT<1, LoadOp> {
-  enum class Kind : uint8_t { kTaggedBase, kRawAligned, kRawUnaligned };
-  Kind kind;
-  MemoryRepresentation loaded_rep;
-  RegisterRepresentation result_rep;
-  int32_t offset;
-
-  static constexpr OpProperties properties = OpProperties::Reading();
-
-  OpIndex base() const { return input(0); }
-
-  LoadOp(OpIndex base, Kind kind, MemoryRepresentation loaded_rep,
-         RegisterRepresentation result_rep, int32_t offset)
-      : Base(base),
-        kind(kind),
-        loaded_rep(loaded_rep),
-        result_rep(result_rep),
-        offset(offset) {
-    DCHECK(loaded_rep.ToRegisterRepresentation() == result_rep ||
-           (loaded_rep.IsTagged() &&
-            result_rep == RegisterRepresentation::Compressed()));
-  }
-  void PrintOptions(std::ostream& os) const;
-  auto options() const {
-    return std::tuple{kind, loaded_rep, result_rep, offset};
-  }
-};
-
-inline bool IsAlignedAccess(LoadOp::Kind kind) {
-  switch (kind) {
-    case LoadOp::Kind::kTaggedBase:
-    case LoadOp::Kind::kRawAligned:
-      return true;
-    case LoadOp::Kind::kRawUnaligned:
-      return false;
-  }
-}
-
 // Load `loaded_rep` from: base + offset + index * 2^element_size_log2.
 // For Kind::tagged_base: subtract kHeapObjectTag,
 //                        `base` has to be the object start.
 // For (u)int8/16, the value will be sign- or zero-extended to Word32.
 // When result_rep is RegisterRepresentation::Compressed(), then the load does
 // not decompress the value.
-struct IndexedLoadOp : FixedArityOperationT<2, IndexedLoadOp> {
-  using Kind = LoadOp::Kind;
+struct LoadOp : OperationT<LoadOp> {
+  struct Kind {
+    // The `base` input is a tagged pointer to a HeapObject.
+    bool tagged_base : 1;
+    // The effective address might be unaligned.
+    bool maybe_unaligned : 1;
+    // There is a Wasm trap handler for out-of-bounds accesses.
+    bool with_trap_handler : 1;
+
+    static constexpr Kind TaggedBase() { return Kind{true, false, false}; }
+    static constexpr Kind RawAligned() { return Kind{false, false, false}; }
+    static constexpr Kind RawUnaligned() { return Kind{false, true, false}; }
+    static constexpr Kind Protected() { return Kind{false, false, true}; }
+  };
   Kind kind;
   MemoryRepresentation loaded_rep;
   RegisterRepresentation result_rep;
   uint8_t element_size_log2;  // multiply index with 2^element_size_log2
   int32_t offset;             // add offset to scaled index
 
-  static constexpr OpProperties properties = OpProperties::Reading();
+  OpProperties Properties() const {
+    return kind.with_trap_handler ? OpProperties::ReadingAndCanAbort()
+                                  : OpProperties::Reading();
+  }
 
   OpIndex base() const { return input(0); }
-  OpIndex index() const { return input(1); }
+  OpIndex index() const {
+    return input_count == 2 ? input(1) : OpIndex::Invalid();
+  }
 
-  IndexedLoadOp(OpIndex base, OpIndex index, Kind kind,
-                MemoryRepresentation loaded_rep,
-                RegisterRepresentation result_rep, int32_t offset,
-                uint8_t element_size_log2)
-      : Base(base, index),
+  LoadOp(OpIndex base, OpIndex index, Kind kind,
+         MemoryRepresentation loaded_rep, RegisterRepresentation result_rep,
+         int32_t offset, uint8_t element_size_log2)
+      : Base(1 + index.valid()),
         kind(kind),
         loaded_rep(loaded_rep),
         result_rep(result_rep),
@@ -1452,113 +1451,74 @@ struct IndexedLoadOp : FixedArityOperationT<2, IndexedLoadOp> {
     DCHECK(loaded_rep.ToRegisterRepresentation() == result_rep ||
            (loaded_rep.IsTagged() &&
             result_rep == RegisterRepresentation::Compressed()));
+    DCHECK_IMPLIES(element_size_log2 > 0, index.valid());
+    input(0) = base;
+    if (index.valid()) input(1) = index;
   }
+  static LoadOp& New(Graph* graph, OpIndex base, OpIndex index, Kind kind,
+                     MemoryRepresentation loaded_rep,
+                     RegisterRepresentation result_rep, int32_t offset,
+                     uint8_t element_size_log2) {
+    return Base::New(graph, 1 + index.valid(), base, index, kind, loaded_rep,
+                     result_rep, offset, element_size_log2);
+  }
+  void PrintInputs(std::ostream& os, const std::string& op_index_prefix) const;
   void PrintOptions(std::ostream& os) const;
   auto options() const {
-    return std::tuple{kind, loaded_rep, offset, element_size_log2};
-  }
-};
-
-// A protected load registers a trap handler which handles out-of-bounds memory
-// accesses.
-struct ProtectedLoadOp : FixedArityOperationT<2, ProtectedLoadOp> {
-  MemoryRepresentation loaded_rep;
-  RegisterRepresentation result_rep;
-
-  static constexpr OpProperties properties = OpProperties::ReadingAndCanAbort();
-
-  OpIndex base() const { return input(0); }
-  OpIndex index() const { return input(1); }
-
-  ProtectedLoadOp(OpIndex base, OpIndex index, MemoryRepresentation loaded_rep,
-                  RegisterRepresentation result_rep)
-      : Base(base, index), loaded_rep(loaded_rep), result_rep(result_rep) {
-    DCHECK(loaded_rep.ToRegisterRepresentation() == result_rep ||
-           (loaded_rep.IsTagged() &&
-            result_rep == RegisterRepresentation::Compressed()));
-  }
-
-  auto options() const { return std::tuple{loaded_rep, result_rep}; }
-};
-
-// Store `value` to: base + offset.
-// For Kind::tagged_base: subtract kHeapObjectTag,
-//                        `base` has to be the object start.
-struct StoreOp : FixedArityOperationT<2, StoreOp> {
-  using Kind = LoadOp::Kind;
-  Kind kind;
-  MemoryRepresentation stored_rep;
-  WriteBarrierKind write_barrier;
-  int32_t offset;
-
-  static constexpr OpProperties properties = OpProperties::Writing();
-
-  OpIndex base() const { return input(0); }
-  OpIndex value() const { return input(1); }
-
-  StoreOp(OpIndex base, OpIndex value, Kind kind,
-          MemoryRepresentation stored_rep, WriteBarrierKind write_barrier,
-          int32_t offset)
-      : Base(base, value),
-        kind(kind),
-        stored_rep(stored_rep),
-        write_barrier(write_barrier),
-        offset(offset) {}
-  void PrintOptions(std::ostream& os) const;
-  auto options() const {
-    return std::tuple{kind, stored_rep, write_barrier, offset};
+    return std::tuple{kind, loaded_rep, result_rep, offset, element_size_log2};
   }
 };
 
 // Store `value` to: base + offset + index * 2^element_size_log2.
 // For Kind::tagged_base: subtract kHeapObjectTag,
 //                        `base` has to be the object start.
-struct IndexedStoreOp : FixedArityOperationT<3, IndexedStoreOp> {
-  using Kind = StoreOp::Kind;
+struct StoreOp : OperationT<StoreOp> {
+  using Kind = LoadOp::Kind;
   Kind kind;
   MemoryRepresentation stored_rep;
   WriteBarrierKind write_barrier;
   uint8_t element_size_log2;  // multiply index with 2^element_size_log2
   int32_t offset;             // add offset to scaled index
 
-  static constexpr OpProperties properties = OpProperties::Writing();
+  OpProperties Properties() const {
+    return kind.with_trap_handler ? OpProperties::WritingAndCanAbort()
+                                  : OpProperties::Writing();
+  }
 
   OpIndex base() const { return input(0); }
-  OpIndex index() const { return input(1); }
-  OpIndex value() const { return input(2); }
+  OpIndex value() const { return input(1); }
+  OpIndex index() const {
+    return input_count == 3 ? input(2) : OpIndex::Invalid();
+  }
 
-  IndexedStoreOp(OpIndex base, OpIndex index, OpIndex value, Kind kind,
-                 MemoryRepresentation stored_rep,
-                 WriteBarrierKind write_barrier, int32_t offset,
-                 uint8_t element_size_log2)
-      : Base(base, index, value),
+  StoreOp(OpIndex base, OpIndex index, OpIndex value, Kind kind,
+          MemoryRepresentation stored_rep, WriteBarrierKind write_barrier,
+          int32_t offset, uint8_t element_size_log2)
+      : Base(2 + index.valid()),
         kind(kind),
         stored_rep(stored_rep),
         write_barrier(write_barrier),
         element_size_log2(element_size_log2),
-        offset(offset) {}
+        offset(offset) {
+    DCHECK_IMPLIES(element_size_log2 > 0, index.valid());
+    input(0) = base;
+    input(1) = value;
+    if (index.valid()) input(2) = index;
+  }
+  static StoreOp& New(Graph* graph, OpIndex base, OpIndex index, OpIndex value,
+                      Kind kind, MemoryRepresentation stored_rep,
+                      WriteBarrierKind write_barrier, int32_t offset,
+                      uint8_t element_size_log2) {
+    return Base::New(graph, 2 + index.valid(), base, index, value, kind,
+                     stored_rep, write_barrier, offset, element_size_log2);
+  }
+
+  void PrintInputs(std::ostream& os, const std::string& op_index_prefix) const;
   void PrintOptions(std::ostream& os) const;
   auto options() const {
     return std::tuple{kind, stored_rep, write_barrier, offset,
                       element_size_log2};
   }
-};
-
-// A protected store registers a trap handler which handles out-of-bounds memory
-// accesses.
-struct ProtectedStoreOp : FixedArityOperationT<3, ProtectedStoreOp> {
-  MemoryRepresentation stored_rep;
-
-  static constexpr OpProperties properties = OpProperties::WritingAndCanAbort();
-
-  OpIndex base() const { return input(0); }
-  OpIndex index() const { return input(1); }
-  OpIndex value() const { return input(2); }
-
-  ProtectedStoreOp(OpIndex base, OpIndex index, OpIndex value,
-                   MemoryRepresentation stored_rep)
-      : Base(base, index, value), stored_rep(stored_rep) {}
-  auto options() const { return std::tuple{stored_rep}; }
 };
 
 // Retain a HeapObject to prevent it from being garbage collected too early.
@@ -1891,9 +1851,10 @@ struct ProjectionOp : FixedArityOperationT<1, ProjectionOp> {
   auto options() const { return std::tuple{index}; }
 };
 
-#define OPERATION_PROPERTIES_CASE(Name) Name##Op::properties,
-static constexpr OpProperties kOperationPropertiesTable[kNumberOfOpcodes] = {
-    TURBOSHAFT_OPERATION_LIST(OPERATION_PROPERTIES_CASE)};
+#define OPERATION_PROPERTIES_CASE(Name) Name##Op::PropertiesIfStatic(),
+static constexpr base::Optional<OpProperties>
+    kOperationPropertiesTable[kNumberOfOpcodes] = {
+        TURBOSHAFT_OPERATION_LIST(OPERATION_PROPERTIES_CASE)};
 #undef OPERATION_PROPERTIES_CASE
 
 template <class Op>
@@ -1934,8 +1895,18 @@ inline base::Vector<const OpIndex> Operation::inputs() const {
   return {ptr, input_count};
 }
 
-inline const OpProperties& Operation::properties() const {
-  return kOperationPropertiesTable[OpcodeIndex(opcode)];
+inline OpProperties Operation::Properties() const {
+  if (auto prop = kOperationPropertiesTable[OpcodeIndex(opcode)]) {
+    return *prop;
+  }
+  switch (opcode) {
+    case Opcode::kLoad:
+      return Cast<LoadOp>().Properties();
+    case Opcode::kStore:
+      return Cast<StoreOp>().Properties();
+    default:
+      UNREACHABLE();
+  }
 }
 
 // static

@@ -29,14 +29,8 @@ const char* OpcodeName(Opcode opcode) {
 
 std::ostream& operator<<(std::ostream& os, OperationPrintStyle styled_op) {
   const Operation& op = styled_op.op;
-  os << OpcodeName(op.opcode) << "(";
-  bool first = true;
-  for (OpIndex input : op.inputs()) {
-    if (!first) os << ", ";
-    first = false;
-    os << styled_op.op_index_prefix << input.id();
-  }
-  os << ")";
+  os << OpcodeName(op.opcode);
+  op.PrintInputs(os, styled_op.op_index_prefix);
   op.PrintOptions(os);
   return os;
 }
@@ -274,6 +268,18 @@ std::ostream& operator<<(std::ostream& os, FrameConstantOp::Kind kind) {
   }
 }
 
+void Operation::PrintInputs(std::ostream& os,
+                            const std::string& op_index_prefix) const {
+  switch (opcode) {
+#define SWITCH_CASE(Name)                              \
+  case Opcode::k##Name:                                \
+    Cast<Name##Op>().PrintInputs(os, op_index_prefix); \
+    break;
+    TURBOSHAFT_OPERATION_LIST(SWITCH_CASE)
+#undef SWITCH_CASE
+  }
+}
+
 void Operation::PrintOptions(std::ostream& os) const {
   switch (opcode) {
 #define SWITCH_CASE(Name)              \
@@ -331,25 +337,30 @@ void ConstantOp::PrintOptions(std::ostream& os) const {
   os << "]";
 }
 
-void LoadOp::PrintOptions(std::ostream& os) const {
-  os << "[";
-  os << (kind == Kind::kTaggedBase ? "tagged base" : "raw");
-  if (!IsAlignedAccess(kind)) os << ", unaligned";
-  os << ", " << loaded_rep;
-  if (offset != 0) os << ", offset: " << offset;
-  os << "]";
-}
-
 void ParameterOp::PrintOptions(std::ostream& os) const {
   os << "[" << parameter_index;
   if (debug_name) os << ", " << debug_name;
   os << "]";
 }
 
-void IndexedLoadOp::PrintOptions(std::ostream& os) const {
+void LoadOp::PrintInputs(std::ostream& os,
+                         const std::string& op_index_prefix) const {
+  os << " *(" << op_index_prefix << base().id();
+  if (offset < 0) {
+    os << " - " << -offset;
+  } else if (offset > 0) {
+    os << " + " << offset;
+  }
+  if (index().valid()) {
+    os << " + " << op_index_prefix << index().id();
+    if (element_size_log2 > 0) os << "*" << (1 << element_size_log2);
+  }
+  os << ") ";
+}
+void LoadOp::PrintOptions(std::ostream& os) const {
   os << "[";
-  os << (kind == Kind::kTaggedBase ? "tagged base" : "raw");
-  if (!IsAlignedAccess(kind)) os << ", unaligned";
+  os << (kind.tagged_base ? "tagged base" : "raw");
+  if (kind.maybe_unaligned) os << ", unaligned";
   os << ", " << loaded_rep;
   if (element_size_log2 != 0)
     os << ", element size: 2^" << int{element_size_log2};
@@ -357,20 +368,24 @@ void IndexedLoadOp::PrintOptions(std::ostream& os) const {
   os << "]";
 }
 
+void StoreOp::PrintInputs(std::ostream& os,
+                          const std::string& op_index_prefix) const {
+  os << " *(" << op_index_prefix << base().id();
+  if (offset < 0) {
+    os << " - " << -offset;
+  } else if (offset > 0) {
+    os << " + " << offset;
+  }
+  if (index().valid()) {
+    os << " + " << op_index_prefix << index().id();
+    if (element_size_log2 > 0) os << "*" << (1 << element_size_log2);
+  }
+  os << ") = " << op_index_prefix << value().id() << " ";
+}
 void StoreOp::PrintOptions(std::ostream& os) const {
   os << "[";
-  os << (kind == Kind::kTaggedBase ? "tagged base" : "raw");
-  if (!IsAlignedAccess(kind)) os << ", unaligned";
-  os << ", " << stored_rep;
-  os << ", " << write_barrier;
-  if (offset != 0) os << ", offset: " << offset;
-  os << "]";
-}
-
-void IndexedStoreOp::PrintOptions(std::ostream& os) const {
-  os << "[";
-  os << (kind == Kind::kTaggedBase ? "tagged base" : "raw");
-  if (!IsAlignedAccess(kind)) os << ", unaligned";
+  os << (kind.tagged_base ? "tagged base" : "raw");
+  if (kind.maybe_unaligned) os << ", unaligned";
   os << ", " << stored_rep;
   os << ", " << write_barrier;
   if (element_size_log2 != 0)

@@ -3020,6 +3020,7 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
     Run<PrintTurboshaftGraphPhase>(BuildTurboshaftPhase::phase_name());
 
     Run<LateOptimizationPhase>();
+    Run<PrintTurboshaftGraphPhase>(LateOptimizationPhase::phase_name());
 
     Run<OptimizeTurboshaftPhase>();
     Run<PrintTurboshaftGraphPhase>(OptimizeTurboshaftPhase::phase_name());

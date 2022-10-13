@@ -56,11 +56,11 @@ class MachineOptimizationAssembler
       : AssemblerInterface<MachineOptimizationAssembler, Base>(graph,
                                                                phase_zone) {}
 
-  OpIndex Change(OpIndex input, ChangeOp::Kind kind,
-                 ChangeOp::Assumption assumption, RegisterRepresentation from,
-                 RegisterRepresentation to) {
+  OpIndex ReduceChange(OpIndex input, ChangeOp::Kind kind,
+                       ChangeOp::Assumption assumption,
+                       RegisterRepresentation from, RegisterRepresentation to) {
     if (ShouldSkipOptimizationStep()) {
-      return Base::Change(input, kind, assumption, from, to);
+      return Base::ReduceChange(input, kind, assumption, from, to);
     }
     using Kind = ChangeOp::Kind;
     if (from == WordRepresentation::Word32()) {
@@ -164,13 +164,13 @@ class MachineOptimizationAssembler
         return change_op->input();
       }
     }
-    return Base::Change(input, kind, assumption, from, to);
+    return Base::ReduceChange(input, kind, assumption, from, to);
   }
 
-  OpIndex Float64InsertWord32(OpIndex float64, OpIndex word32,
-                              Float64InsertWord32Op::Kind kind) {
+  OpIndex ReduceFloat64InsertWord32(OpIndex float64, OpIndex word32,
+                                    Float64InsertWord32Op::Kind kind) {
     if (ShouldSkipOptimizationStep()) {
-      return Base::Float64InsertWord32(float64, word32, kind);
+      return Base::ReduceFloat64InsertWord32(float64, word32, kind);
     }
     double f;
     uint32_t w;
@@ -186,13 +186,13 @@ class MachineOptimizationAssembler
               (float_as_word & uint64_t{0xFFFFFFFF}) | (uint64_t{w} << 32)));
       }
     }
-    return Base::Float64InsertWord32(float64, word32, kind);
+    return Base::ReduceFloat64InsertWord32(float64, word32, kind);
   }
 
-  OpIndex TaggedBitcast(OpIndex input, RegisterRepresentation from,
-                        RegisterRepresentation to) {
+  OpIndex ReduceTaggedBitcast(OpIndex input, RegisterRepresentation from,
+                              RegisterRepresentation to) {
     if (ShouldSkipOptimizationStep()) {
-      return Base::TaggedBitcast(input, from, to);
+      return Base::ReduceTaggedBitcast(input, from, to);
     }
     // A Tagged -> Untagged -> Tagged sequence can be short-cut.
     // An Untagged -> Tagged -> Untagged sequence however cannot be removed,
@@ -204,13 +204,13 @@ class MachineOptimizationAssembler
         return input_bitcast->input();
       }
     }
-    return Base::TaggedBitcast(input, from, to);
+    return Base::ReduceTaggedBitcast(input, from, to);
   }
 
-  OpIndex FloatUnary(OpIndex input, FloatUnaryOp::Kind kind,
-                     FloatRepresentation rep) {
+  OpIndex ReduceFloatUnary(OpIndex input, FloatUnaryOp::Kind kind,
+                           FloatRepresentation rep) {
     if (ShouldSkipOptimizationStep()) {
-      return Base::FloatUnary(input, kind, rep);
+      return Base::ReduceFloatUnary(input, kind, rep);
     }
     if (float k; rep == FloatRepresentation::Float32() &&
                  this->MatchFloat32Constant(input, &k)) {
@@ -341,13 +341,13 @@ class MachineOptimizationAssembler
           return this->Float64Constant(base::ieee754::atanh(k));
       }
     }
-    return Base::FloatUnary(input, kind, rep);
+    return Base::ReduceFloatUnary(input, kind, rep);
   }
 
-  OpIndex WordUnary(OpIndex input, WordUnaryOp::Kind kind,
-                    WordRepresentation rep) {
+  OpIndex ReduceWordUnary(OpIndex input, WordUnaryOp::Kind kind,
+                          WordRepresentation rep) {
     if (ShouldSkipOptimizationStep()) {
-      return Base::WordUnary(input, kind, rep);
+      return Base::ReduceWordUnary(input, kind, rep);
     }
     if (rep == WordRepresentation::Word32()) {
       input = TryRemoveWord32ToWord64Conversion(input);
@@ -387,13 +387,13 @@ class MachineOptimizationAssembler
           return this->Word64Constant(int64_t{static_cast<int16_t>(k)});
       }
     }
-    return Base::WordUnary(input, kind, rep);
+    return Base::ReduceWordUnary(input, kind, rep);
   }
 
-  OpIndex FloatBinop(OpIndex lhs, OpIndex rhs, FloatBinopOp::Kind kind,
-                     FloatRepresentation rep) {
+  OpIndex ReduceFloatBinop(OpIndex lhs, OpIndex rhs, FloatBinopOp::Kind kind,
+                           FloatRepresentation rep) {
     if (ShouldSkipOptimizationStep()) {
-      return Base::FloatBinop(lhs, rhs, kind, rep);
+      return Base::ReduceFloatBinop(lhs, rhs, kind, rep);
     }
 
     using Kind = FloatBinopOp::Kind;
@@ -401,7 +401,7 @@ class MachineOptimizationAssembler
     // Place constant on the right for commutative operators.
     if (FloatBinopOp::IsCommutative(kind) && Is<ConstantOp>(lhs) &&
         !Is<ConstantOp>(rhs)) {
-      return FloatBinop(rhs, lhs, kind, rep);
+      return ReduceFloatBinop(rhs, lhs, kind, rep);
     }
 
     // constant folding
@@ -566,13 +566,13 @@ class MachineOptimizationAssembler
       return this->FloatNegate(rhs, rep);
     }
 
-    return Base::FloatBinop(lhs, rhs, kind, rep);
+    return Base::ReduceFloatBinop(lhs, rhs, kind, rep);
   }
 
-  OpIndex WordBinop(OpIndex left, OpIndex right, WordBinopOp::Kind kind,
-                    WordRepresentation rep) {
+  OpIndex ReduceWordBinop(OpIndex left, OpIndex right, WordBinopOp::Kind kind,
+                          WordRepresentation rep) {
     if (ShouldSkipOptimizationStep()) {
-      return Base::WordBinop(left, right, kind, rep);
+      return Base::ReduceWordBinop(left, right, kind, rep);
     }
 
     using Kind = WordBinopOp::Kind;
@@ -589,7 +589,7 @@ class MachineOptimizationAssembler
     // Place constant on the right for commutative operators.
     if (WordBinopOp::IsCommutative(kind) && Is<ConstantOp>(left) &&
         !Is<ConstantOp>(right)) {
-      return WordBinop(right, left, kind, rep);
+      return ReduceWordBinop(right, left, kind, rep);
     }
     // constant folding
     if (uint64_t k1, k2; this->MatchWordConstant(left, rep, &k1) &&
@@ -660,13 +660,14 @@ class MachineOptimizationAssembler
                          this->MatchWordBinop(left, &a, &k1, kind, rep) &&
                          Is<ConstantOp>(k1)) {
         OpIndex k2 = right;
-        return WordBinop(a, WordBinop(k1, k2, kind, rep), kind, rep);
+        return ReduceWordBinop(a, ReduceWordBinop(k1, k2, kind, rep), kind,
+                               rep);
       }
       switch (kind) {
         case Kind::kSub:
           // left - k  => left + -k
-          return WordBinop(left, this->WordConstant(-right_value, rep),
-                           Kind::kAdd, rep);
+          return ReduceWordBinop(left, this->WordConstant(-right_value, rep),
+                                 Kind::kAdd, rep);
         case Kind::kAdd:
           // left + 0  =>  left
           if (right_value == 0) {
@@ -880,7 +881,7 @@ class MachineOptimizationAssembler
       return *ror;
     }
 
-    return Base::WordBinop(left, right, kind, rep);
+    return Base::ReduceWordBinop(left, right, kind, rep);
   }
 
   base::Optional<OpIndex> TryReduceToRor(OpIndex left, OpIndex right,
@@ -951,23 +952,23 @@ class MachineOptimizationAssembler
     }
   }
 
-  OpIndex Projection(OpIndex tuple, uint16_t index) {
+  OpIndex ReduceProjection(OpIndex tuple, uint16_t index) {
     if (auto* tuple_op = TryCast<TupleOp>(tuple)) {
       return tuple_op->input(index);
     }
-    return Base::Projection(tuple, index);
+    return Base::ReduceProjection(tuple, index);
   }
 
-  OpIndex OverflowCheckedBinop(OpIndex left, OpIndex right,
-                               OverflowCheckedBinopOp::Kind kind,
-                               WordRepresentation rep) {
+  OpIndex ReduceOverflowCheckedBinop(OpIndex left, OpIndex right,
+                                     OverflowCheckedBinopOp::Kind kind,
+                                     WordRepresentation rep) {
     if (ShouldSkipOptimizationStep()) {
-      return Base::OverflowCheckedBinop(left, right, kind, rep);
+      return Base::ReduceOverflowCheckedBinop(left, right, kind, rep);
     }
     using Kind = OverflowCheckedBinopOp::Kind;
     if (OverflowCheckedBinopOp::IsCommutative(kind) && Is<ConstantOp>(left) &&
         !Is<ConstantOp>(right)) {
-      return OverflowCheckedBinop(right, left, kind, rep);
+      return ReduceOverflowCheckedBinop(right, left, kind, rep);
     }
     if (rep == WordRepresentation::Word32()) {
       left = TryRemoveWord32ToWord64Conversion(left);
@@ -1044,11 +1045,12 @@ class MachineOptimizationAssembler
       }
     }
 
-    return Base::OverflowCheckedBinop(left, right, kind, rep);
+    return Base::ReduceOverflowCheckedBinop(left, right, kind, rep);
   }
 
-  OpIndex Equal(OpIndex left, OpIndex right, RegisterRepresentation rep) {
-    if (ShouldSkipOptimizationStep()) return Base::Equal(left, right, rep);
+  OpIndex ReduceEqual(OpIndex left, OpIndex right, RegisterRepresentation rep) {
+    if (ShouldSkipOptimizationStep())
+      return Base::ReduceEqual(left, right, rep);
     if (left == right && !rep.IsFloat()) {
       return this->Word32Constant(1);
     }
@@ -1057,7 +1059,7 @@ class MachineOptimizationAssembler
       right = TryRemoveWord32ToWord64Conversion(right);
     }
     if (Is<ConstantOp>(left) && !Is<ConstantOp>(right)) {
-      return Equal(right, left, rep);
+      return ReduceEqual(right, left, rep);
     }
     if (Is<ConstantOp>(right)) {
       if (Is<ConstantOp>(left)) {
@@ -1095,7 +1097,7 @@ class MachineOptimizationAssembler
         // x - y == 0  =>  x == y
         if (OpIndex x, y;
             this->MatchWordSub(left, &x, &y, rep_w) && this->MatchZero(right)) {
-          return Equal(x, y, rep);
+          return ReduceEqual(x, y, rep);
         }
         {
           //     ((x >> shift_amount) & mask) == k
@@ -1109,7 +1111,7 @@ class MachineOptimizationAssembler
               this->MatchWordConstant(right, rep_w, &k) &&
               mask <= rep.MaxUnsignedValue() >> shift_amount &&
               k <= rep.MaxUnsignedValue() >> shift_amount) {
-            return Equal(
+            return ReduceEqual(
                 this->WordBitwiseAnd(
                     x, this->Word64Constant(mask << shift_amount), rep_w),
                 this->Word64Constant(k << shift_amount), rep_w);
@@ -1134,13 +1136,13 @@ class MachineOptimizationAssembler
         }
       }
     }
-    return Base::Equal(left, right, rep);
+    return Base::ReduceEqual(left, right, rep);
   }
 
-  OpIndex Comparison(OpIndex left, OpIndex right, ComparisonOp::Kind kind,
-                     RegisterRepresentation rep) {
+  OpIndex ReduceComparison(OpIndex left, OpIndex right, ComparisonOp::Kind kind,
+                           RegisterRepresentation rep) {
     if (ShouldSkipOptimizationStep()) {
-      return Base::Comparison(left, right, kind, rep);
+      return Base::ReduceComparison(left, right, kind, rep);
     }
     if (rep == WordRepresentation::Word32()) {
       left = TryRemoveWord32ToWord64Conversion(left);
@@ -1328,13 +1330,13 @@ class MachineOptimizationAssembler
         }
       }
     }
-    return Base::Comparison(left, right, kind, rep);
+    return Base::ReduceComparison(left, right, kind, rep);
   }
 
-  OpIndex Shift(OpIndex left, OpIndex right, ShiftOp::Kind kind,
-                WordRepresentation rep) {
+  OpIndex ReduceShift(OpIndex left, OpIndex right, ShiftOp::Kind kind,
+                      WordRepresentation rep) {
     if (ShouldSkipOptimizationStep()) {
-      return Base::Shift(left, right, kind, rep);
+      return Base::ReduceShift(left, right, kind, rep);
     }
     using Kind = ShiftOp::Kind;
     uint64_t c_unsigned;
@@ -1347,7 +1349,8 @@ class MachineOptimizationAssembler
             if (base::bits::CountTrailingZeros(c_signed) < amount) {
               // This assumes that we never hoist operations to before their
               // original place in the control flow.
-              return this->Unreachable();
+              this->Unreachable();
+              return OpIndex::Invalid();
             }
             [[fallthrough]];
           case Kind::kShiftRightArithmetic:
@@ -1448,26 +1451,29 @@ class MachineOptimizationAssembler
         }
       }
     }
-    return Base::Shift(left, right, kind, rep);
+    return Base::ReduceShift(left, right, kind, rep);
   }
 
-  OpIndex Branch(OpIndex condition, Block* if_true, Block* if_false) {
+  OpIndex ReduceBranch(OpIndex condition, Block* if_true, Block* if_false) {
     if (ShouldSkipOptimizationStep()) {
-      return Base::Branch(condition, if_true, if_false);
+      return Base::ReduceBranch(condition, if_true, if_false);
     }
     if (base::Optional<bool> decision = DecideBranchCondition(condition)) {
-      return this->Goto(*decision ? if_true : if_false);
+      this->Goto(*decision ? if_true : if_false);
+      return OpIndex::Invalid();
     }
     bool negated = false;
     condition = ReduceBranchCondition(condition, &negated);
     if (negated) std::swap(if_true, if_false);
-    return Base::Branch(condition, if_true, if_false);
+    return Base::ReduceBranch(condition, if_true, if_false);
   }
 
-  OpIndex DeoptimizeIf(OpIndex condition, OpIndex frame_state, bool negated,
-                       const DeoptimizeParameters* parameters) {
+  OpIndex ReduceDeoptimizeIf(OpIndex condition, OpIndex frame_state,
+                             bool negated,
+                             const DeoptimizeParameters* parameters) {
     if (ShouldSkipOptimizationStep()) {
-      return Base::DeoptimizeIf(condition, frame_state, negated, parameters);
+      return Base::ReduceDeoptimizeIf(condition, frame_state, negated,
+                                      parameters);
     }
     if (base::Optional<bool> decision = DecideBranchCondition(condition)) {
       if (*decision != negated) {
@@ -1477,24 +1483,14 @@ class MachineOptimizationAssembler
       return OpIndex::Invalid();
     }
     condition = ReduceBranchCondition(condition, &negated);
-    return Base::DeoptimizeIf(condition, frame_state, negated, parameters);
+    return Base::ReduceDeoptimizeIf(condition, frame_state, negated,
+                                    parameters);
   }
 
-  OpIndex Store(OpIndex base, OpIndex value, StoreOp::Kind kind,
-                MemoryRepresentation stored_rep, WriteBarrierKind write_barrier,
-                int32_t offset) {
-    if (ShouldSkipOptimizationStep()) {
-      return Base::Store(base, value, kind, stored_rep, write_barrier, offset);
-    }
-    return IndexedStore(base, OpIndex::Invalid(), value, kind, stored_rep,
-                        write_barrier, offset, 0);
-  }
-
-  OpIndex IndexedStore(OpIndex base, OpIndex index, OpIndex value,
-                       IndexedStoreOp::Kind kind,
-                       MemoryRepresentation stored_rep,
-                       WriteBarrierKind write_barrier, int32_t offset,
-                       uint8_t element_scale) {
+  OpIndex ReduceStore(OpIndex base, OpIndex index, OpIndex value,
+                      StoreOp::Kind kind, MemoryRepresentation stored_rep,
+                      WriteBarrierKind write_barrier, int32_t offset,
+                      uint8_t element_scale) {
     if (!ShouldSkipOptimizationStep()) {
       if (stored_rep.SizeInBytes() <= 4) {
         value = TryRemoveWord32ToWord64Conversion(value);
@@ -1523,30 +1519,18 @@ class MachineOptimizationAssembler
           break;
       }
     }
-    if (index.valid()) {
-      return Base::IndexedStore(base, index, value, kind, stored_rep,
-                                write_barrier, offset, element_scale);
-    } else {
-      return Base::Store(base, value, kind, stored_rep, write_barrier, offset);
-    }
+    return Base::ReduceStore(base, index, value, kind, stored_rep,
+                             write_barrier, offset, element_scale);
   }
 
-  OpIndex Load(OpIndex base, LoadOp::Kind kind, MemoryRepresentation loaded_rep,
-               RegisterRepresentation result_rep, int32_t offset) {
-    if (ShouldSkipOptimizationStep())
-      return Base::Load(base, kind, loaded_rep, result_rep, offset);
-    return IndexedLoad(base, OpIndex::Invalid(), kind, loaded_rep, result_rep,
-                       offset, 0);
-  }
-
-  OpIndex IndexedLoad(OpIndex base, OpIndex index, IndexedLoadOp::Kind kind,
-                      MemoryRepresentation loaded_rep,
-                      RegisterRepresentation result_rep, int32_t offset,
-                      uint8_t element_scale) {
+  OpIndex ReduceLoad(OpIndex base, OpIndex index, LoadOp::Kind kind,
+                     MemoryRepresentation loaded_rep,
+                     RegisterRepresentation result_rep, int32_t offset,
+                     uint8_t element_scale) {
     while (true) {
       if (ShouldSkipOptimizationStep()) break;
       index = ReduceMemoryIndex(index, &offset, &element_scale);
-      if (kind != IndexedLoadOp::Kind::kTaggedBase && !index.valid()) {
+      if (!kind.tagged_base && !index.valid()) {
         if (OpIndex left, right;
             this->MatchWordAdd(base, &left, &right,
                                WordRepresentation::PointerSized()) &&
@@ -1557,12 +1541,8 @@ class MachineOptimizationAssembler
       }
       break;
     }
-    if (index.valid()) {
-      return Base::IndexedLoad(base, index, kind, loaded_rep, result_rep,
-                               offset, element_scale);
-    } else {
-      return Base::Load(base, kind, loaded_rep, result_rep, offset);
-    }
+    return Base::ReduceLoad(base, index, kind, loaded_rep, result_rep, offset,
+                            element_scale);
   }
 
  private:
@@ -1664,7 +1644,7 @@ class MachineOptimizationAssembler
   bool IsInt8(OpIndex value) {
     if (auto* op = TryCast<LoadOp>(value)) {
       return op->loaded_rep == MemoryRepresentation::Int8();
-    } else if (auto* op = TryCast<IndexedLoadOp>(value)) {
+    } else if (auto* op = TryCast<LoadOp>(value)) {
       return op->loaded_rep == MemoryRepresentation::Int8();
     }
     return false;
@@ -1674,7 +1654,7 @@ class MachineOptimizationAssembler
     if (auto* op = TryCast<LoadOp>(value)) {
       return op->loaded_rep == any_of(MemoryRepresentation::Int16(),
                                       MemoryRepresentation::Int8());
-    } else if (auto* op = TryCast<IndexedLoadOp>(value)) {
+    } else if (auto* op = TryCast<LoadOp>(value)) {
       return op->loaded_rep == any_of(MemoryRepresentation::Int16(),
                                       MemoryRepresentation::Int8());
     }

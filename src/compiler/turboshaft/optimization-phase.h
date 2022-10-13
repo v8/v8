@@ -35,7 +35,7 @@ struct AnalyzerBase {
   bool OpIsUsed(OpIndex i) const {
     const Operation& op = graph.Get(i);
     return op.saturated_use_count > 0 ||
-           op.properties().is_required_when_unused;
+           op.Properties().is_required_when_unused;
   }
 
   explicit AnalyzerBase(const Graph& graph, Zone* phase_zone)
@@ -74,7 +74,7 @@ struct LivenessAnalyzer : AnalyzerBase {
       --it;
       OpIndex index = *it;
       const Operation& op = graph.Get(index);
-      if (op.properties().is_required_when_unused) {
+      if (op.Properties().is_required_when_unused) {
         op_used[index.id()] = true;
       } else if (!OpIsUsed(index)) {
         continue;
@@ -303,7 +303,7 @@ struct OptimizationPhase<Analyzer, Assembler>::Impl {
   V8_INLINE OpIndex ReduceGoto(const GotoOp& op) {
     Block* destination = MapToNewGraph(op.destination->index());
     assembler.current_block()->SetOrigin(current_input_block);
-    assembler.Goto(destination);
+    assembler.ReduceGoto(destination);
     if (destination->IsBound()) {
       DCHECK(destination->IsLoop());
       FixLoopPhis(destination);
@@ -313,20 +313,21 @@ struct OptimizationPhase<Analyzer, Assembler>::Impl {
   V8_INLINE OpIndex ReduceBranch(const BranchOp& op) {
     Block* if_true = MapToNewGraph(op.if_true->index());
     Block* if_false = MapToNewGraph(op.if_false->index());
-    return assembler.Branch(MapToNewGraph(op.condition()), if_true, if_false);
+    return assembler.ReduceBranch(MapToNewGraph(op.condition()), if_true,
+                                  if_false);
   }
   OpIndex ReduceCatchException(const CatchExceptionOp& op) {
     Block* if_success = MapToNewGraph(op.if_success->index());
     Block* if_exception = MapToNewGraph(op.if_exception->index());
-    return assembler.CatchException(MapToNewGraph(op.call()), if_success,
-                                    if_exception);
+    return assembler.ReduceCatchException(MapToNewGraph(op.call()), if_success,
+                                          if_exception);
   }
   OpIndex ReduceSwitch(const SwitchOp& op) {
     base::SmallVector<SwitchOp::Case, 16> cases;
     for (SwitchOp::Case c : op.cases) {
       cases.emplace_back(c.value, MapToNewGraph(c.destination->index()));
     }
-    return assembler.Switch(
+    return assembler.ReduceSwitch(
         MapToNewGraph(op.input()),
         assembler.graph_zone()->CloneVector(base::VectorOf(cases)),
         MapToNewGraph(op.default_case->index()));
@@ -403,155 +404,146 @@ struct OptimizationPhase<Analyzer, Assembler>::Impl {
     }
 
     std::reverse(new_inputs.begin(), new_inputs.end());
-    return assembler.Phi(base::VectorOf(new_inputs), op.rep);
+    return assembler.ReducePhi(base::VectorOf(new_inputs), op.rep);
   }
   OpIndex ReducePendingLoopPhi(const PendingLoopPhiOp& op) { UNREACHABLE(); }
   V8_INLINE OpIndex ReduceFrameState(const FrameStateOp& op) {
     auto inputs = MapToNewGraph<32>(op.inputs());
-    return assembler.FrameState(base::VectorOf(inputs), op.inlined, op.data);
+    return assembler.ReduceFrameState(base::VectorOf(inputs), op.inlined,
+                                      op.data);
   }
   OpIndex ReduceCall(const CallOp& op) {
     OpIndex callee = MapToNewGraph(op.callee());
     auto arguments = MapToNewGraph<16>(op.arguments());
-    return assembler.Call(callee, base::VectorOf(arguments), op.descriptor);
+    return assembler.ReduceCall(callee, base::VectorOf(arguments),
+                                op.descriptor);
   }
   OpIndex ReduceTailCall(const TailCallOp& op) {
     OpIndex callee = MapToNewGraph(op.callee());
     auto arguments = MapToNewGraph<16>(op.arguments());
-    return assembler.TailCall(callee, base::VectorOf(arguments), op.descriptor);
+    return assembler.ReduceTailCall(callee, base::VectorOf(arguments),
+                                    op.descriptor);
   }
   OpIndex ReduceReturn(const ReturnOp& op) {
     // We very rarely have tuples longer than 4.
     auto return_values = MapToNewGraph<4>(op.return_values());
-    return assembler.Return(MapToNewGraph(op.pop_count()),
-                            base::VectorOf(return_values));
+    return assembler.ReduceReturn(MapToNewGraph(op.pop_count()),
+                                  base::VectorOf(return_values));
   }
   OpIndex ReduceOverflowCheckedBinop(const OverflowCheckedBinopOp& op) {
-    return assembler.OverflowCheckedBinop(
+    return assembler.ReduceOverflowCheckedBinop(
         MapToNewGraph(op.left()), MapToNewGraph(op.right()), op.kind, op.rep);
   }
   OpIndex ReduceWordUnary(const WordUnaryOp& op) {
-    return assembler.WordUnary(MapToNewGraph(op.input()), op.kind, op.rep);
+    return assembler.ReduceWordUnary(MapToNewGraph(op.input()), op.kind,
+                                     op.rep);
   }
   OpIndex ReduceFloatUnary(const FloatUnaryOp& op) {
-    return assembler.FloatUnary(MapToNewGraph(op.input()), op.kind, op.rep);
+    return assembler.ReduceFloatUnary(MapToNewGraph(op.input()), op.kind,
+                                      op.rep);
   }
   OpIndex ReduceShift(const ShiftOp& op) {
-    return assembler.Shift(MapToNewGraph(op.left()), MapToNewGraph(op.right()),
-                           op.kind, op.rep);
+    return assembler.ReduceShift(MapToNewGraph(op.left()),
+                                 MapToNewGraph(op.right()), op.kind, op.rep);
   }
   OpIndex ReduceEqual(const EqualOp& op) {
-    return assembler.Equal(MapToNewGraph(op.left()), MapToNewGraph(op.right()),
-                           op.rep);
+    return assembler.ReduceEqual(MapToNewGraph(op.left()),
+                                 MapToNewGraph(op.right()), op.rep);
   }
   OpIndex ReduceComparison(const ComparisonOp& op) {
-    return assembler.Comparison(MapToNewGraph(op.left()),
-                                MapToNewGraph(op.right()), op.kind, op.rep);
+    return assembler.ReduceComparison(
+        MapToNewGraph(op.left()), MapToNewGraph(op.right()), op.kind, op.rep);
   }
   OpIndex ReduceChange(const ChangeOp& op) {
-    return assembler.Change(MapToNewGraph(op.input()), op.kind, op.assumption,
-                            op.from, op.to);
+    return assembler.ReduceChange(MapToNewGraph(op.input()), op.kind,
+                                  op.assumption, op.from, op.to);
   }
   OpIndex ReduceTryChange(const TryChangeOp& op) {
-    return assembler.TryChange(MapToNewGraph(op.input()), op.kind, op.from,
-                               op.to);
+    return assembler.ReduceTryChange(MapToNewGraph(op.input()), op.kind,
+                                     op.from, op.to);
   }
 
   OpIndex ReduceFloat64InsertWord32(const Float64InsertWord32Op& op) {
-    return assembler.Float64InsertWord32(MapToNewGraph(op.float64()),
-                                         MapToNewGraph(op.word32()), op.kind);
+    return assembler.ReduceFloat64InsertWord32(
+        MapToNewGraph(op.float64()), MapToNewGraph(op.word32()), op.kind);
   }
   OpIndex ReduceTaggedBitcast(const TaggedBitcastOp& op) {
-    return assembler.TaggedBitcast(MapToNewGraph(op.input()), op.from, op.to);
+    return assembler.ReduceTaggedBitcast(MapToNewGraph(op.input()), op.from,
+                                         op.to);
   }
   OpIndex ReduceSelect(const SelectOp& op) {
-    return assembler.Select(MapToNewGraph(op.cond()), MapToNewGraph(op.vtrue()),
-                            MapToNewGraph(op.vfalse()), op.rep, op.hint,
-                            op.implem);
+    return assembler.ReduceSelect(
+        MapToNewGraph(op.cond()), MapToNewGraph(op.vtrue()),
+        MapToNewGraph(op.vfalse()), op.rep, op.hint, op.implem);
   }
   OpIndex ReduceConstant(const ConstantOp& op) {
-    return assembler.Constant(op.kind, op.storage);
+    return assembler.ReduceConstant(op.kind, op.storage);
   }
   OpIndex ReduceLoad(const LoadOp& op) {
-    return assembler.Load(MapToNewGraph(op.base()), op.kind, op.loaded_rep,
-                          op.result_rep, op.offset);
-  }
-  OpIndex ReduceIndexedLoad(const IndexedLoadOp& op) {
-    return assembler.IndexedLoad(
-        MapToNewGraph(op.base()), MapToNewGraph(op.index()), op.kind,
-        op.loaded_rep, op.result_rep, op.offset, op.element_size_log2);
-  }
-  OpIndex ReduceProtectedLoad(const ProtectedLoadOp& op) {
-    return assembler.ProtectedLoad(MapToNewGraph(op.base()),
-                                   MapToNewGraph(op.index()), op.loaded_rep,
-                                   op.result_rep);
+    return assembler.ReduceLoad(
+        MapToNewGraph(op.base()),
+        op.index().valid() ? MapToNewGraph(op.index()) : OpIndex::Invalid(),
+        op.kind, op.loaded_rep, op.result_rep, op.offset, op.element_size_log2);
   }
   OpIndex ReduceStore(const StoreOp& op) {
-    return assembler.Store(MapToNewGraph(op.base()), MapToNewGraph(op.value()),
-                           op.kind, op.stored_rep, op.write_barrier, op.offset);
-  }
-  OpIndex ReduceIndexedStore(const IndexedStoreOp& op) {
-    return assembler.IndexedStore(
-        MapToNewGraph(op.base()), MapToNewGraph(op.index()),
+    return assembler.ReduceStore(
+        MapToNewGraph(op.base()),
+        op.index().valid() ? MapToNewGraph(op.index()) : OpIndex::Invalid(),
         MapToNewGraph(op.value()), op.kind, op.stored_rep, op.write_barrier,
         op.offset, op.element_size_log2);
   }
-  OpIndex ReduceProtectedStore(const ProtectedStoreOp& op) {
-    return assembler.ProtectedStore(MapToNewGraph(op.base()),
-                                    MapToNewGraph(op.index()),
-                                    MapToNewGraph(op.value()), op.stored_rep);
-  }
   OpIndex ReduceRetain(const RetainOp& op) {
-    return assembler.Retain(MapToNewGraph(op.retained()));
+    return assembler.ReduceRetain(MapToNewGraph(op.retained()));
   }
   OpIndex ReduceParameter(const ParameterOp& op) {
-    return assembler.Parameter(op.parameter_index, op.debug_name);
+    return assembler.ReduceParameter(op.parameter_index, op.debug_name);
   }
   OpIndex ReduceOsrValue(const OsrValueOp& op) {
-    return assembler.OsrValue(op.index);
+    return assembler.ReduceOsrValue(op.index);
   }
   OpIndex ReduceStackPointerGreaterThan(const StackPointerGreaterThanOp& op) {
-    return assembler.StackPointerGreaterThan(MapToNewGraph(op.stack_limit()),
-                                             op.kind);
+    return assembler.ReduceStackPointerGreaterThan(
+        MapToNewGraph(op.stack_limit()), op.kind);
   }
   OpIndex ReduceStackSlot(const StackSlotOp& op) {
-    return assembler.StackSlot(op.size, op.alignment);
+    return assembler.ReduceStackSlot(op.size, op.alignment);
   }
   OpIndex ReduceFrameConstant(const FrameConstantOp& op) {
-    return assembler.FrameConstant(op.kind);
+    return assembler.ReduceFrameConstant(op.kind);
   }
   OpIndex ReduceCheckLazyDeopt(const CheckLazyDeoptOp& op) {
-    return assembler.CheckLazyDeopt(MapToNewGraph(op.call()),
-                                    MapToNewGraph(op.frame_state()));
+    return assembler.ReduceCheckLazyDeopt(MapToNewGraph(op.call()),
+                                          MapToNewGraph(op.frame_state()));
   }
   OpIndex ReduceDeoptimize(const DeoptimizeOp& op) {
-    return assembler.Deoptimize(MapToNewGraph(op.frame_state()), op.parameters);
+    return assembler.ReduceDeoptimize(MapToNewGraph(op.frame_state()),
+                                      op.parameters);
   }
   OpIndex ReduceDeoptimizeIf(const DeoptimizeIfOp& op) {
-    return assembler.DeoptimizeIf(MapToNewGraph(op.condition()),
-                                  MapToNewGraph(op.frame_state()), op.negated,
-                                  op.parameters);
+    return assembler.ReduceDeoptimizeIf(MapToNewGraph(op.condition()),
+                                        MapToNewGraph(op.frame_state()),
+                                        op.negated, op.parameters);
   }
   OpIndex ReduceTrapIf(const TrapIfOp& op) {
-    return assembler.TrapIf(MapToNewGraph(op.condition()), op.negated,
-                            op.trap_id);
+    return assembler.ReduceTrapIf(MapToNewGraph(op.condition()), op.negated,
+                                  op.trap_id);
   }
   OpIndex ReduceTuple(const TupleOp& op) {
-    return assembler.Tuple(base::VectorOf(MapToNewGraph<4>(op.inputs())));
+    return assembler.ReduceTuple(base::VectorOf(MapToNewGraph<4>(op.inputs())));
   }
   OpIndex ReduceProjection(const ProjectionOp& op) {
-    return assembler.Projection(MapToNewGraph(op.input()), op.index);
+    return assembler.ReduceProjection(MapToNewGraph(op.input()), op.index);
   }
   OpIndex ReduceWordBinop(const WordBinopOp& op) {
-    return assembler.WordBinop(MapToNewGraph(op.left()),
-                               MapToNewGraph(op.right()), op.kind, op.rep);
+    return assembler.ReduceWordBinop(
+        MapToNewGraph(op.left()), MapToNewGraph(op.right()), op.kind, op.rep);
   }
   OpIndex ReduceFloatBinop(const FloatBinopOp& op) {
-    return assembler.FloatBinop(MapToNewGraph(op.left()),
-                                MapToNewGraph(op.right()), op.kind, op.rep);
+    return assembler.ReduceFloatBinop(
+        MapToNewGraph(op.left()), MapToNewGraph(op.right()), op.kind, op.rep);
   }
   OpIndex ReduceUnreachable(const UnreachableOp& op) {
-    return assembler.Unreachable();
+    return assembler.ReduceUnreachable();
   }
 
   OpIndex MapToNewGraph(OpIndex old_index) {

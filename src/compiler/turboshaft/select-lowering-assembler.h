@@ -37,13 +37,13 @@ class SelectLoweringAssembler
   SelectLoweringAssembler(Graph* graph, Zone* phase_zone)
       : AssemblerInterface<SelectLoweringAssembler, Base>(graph, phase_zone) {}
 
-  OpIndex Select(OpIndex cond, OpIndex vtrue, OpIndex vfalse,
-                 RegisterRepresentation rep, BranchHint hint,
-                 SelectOp::Implementation implem) {
+  OpIndex ReduceSelect(OpIndex cond, OpIndex vtrue, OpIndex vfalse,
+                       RegisterRepresentation rep, BranchHint hint,
+                       SelectOp::Implementation implem) {
     if (implem == SelectOp::Implementation::kCMove) {
       // We do not lower Select operations that should be implemented with
       // CMove.
-      return Base::Select(cond, vtrue, vfalse, rep, hint, implem);
+      return Base::ReduceSelect(cond, vtrue, vfalse, rep, hint, implem);
     }
     Block* true_block = this->NewBlock(Block::Kind::kBranchTarget);
     Block* false_block = this->NewBlock(Block::Kind::kBranchTarget);
