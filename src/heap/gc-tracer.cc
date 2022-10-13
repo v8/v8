@@ -76,7 +76,7 @@ const char* GCTracer::Event::TypeName(bool short_name) const {
       return (short_name) ? "s" : "Scavenge";
     case MARK_COMPACTOR:
     case INCREMENTAL_MARK_COMPACTOR:
-      return (short_name) ? "ms" : "Mark-sweep";
+      return (short_name) ? "mc" : "Mark-Compact";
     case MINOR_MARK_COMPACTOR:
     case INCREMENTAL_MINOR_MARK_COMPACTOR:
       return (short_name) ? "mmc" : "Minor Mark-Compact";
