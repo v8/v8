@@ -1117,7 +1117,9 @@ void RegExpParserImpl<CharT>::ScanForCaptures(
           if (c == '\\') {
             Advance();
           } else if (c == '[') {
-            class_nest_level++;
+            // With /v, '[' inside a class is treated as a nested class.
+            // Without /v, '[' is a normal character.
+            if (unicode_sets()) class_nest_level++;
           } else if (c == ']') {
             if (class_nest_level == 0) break;
             class_nest_level--;
