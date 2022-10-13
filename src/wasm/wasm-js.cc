@@ -85,10 +85,9 @@ class WasmStreaming::WasmStreamingImpl {
       std::function<void(CompiledWasmModule)> callback) {
     streaming_decoder_->SetMoreFunctionsCanBeSerializedCallback(
         [callback = std::move(callback),
-         streaming_decoder = streaming_decoder_](
+         url = streaming_decoder_->shared_url()](
             const std::shared_ptr<i::wasm::NativeModule>& native_module) {
-          base::Vector<const char> url = streaming_decoder->url();
-          callback(CompiledWasmModule{native_module, url.begin(), url.size()});
+          callback(CompiledWasmModule{native_module, url->data(), url->size()});
         });
   }
 

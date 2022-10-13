@@ -2245,7 +2245,8 @@ void AsyncCompileJob::PrepareRuntimeObjects() {
   // Create heap objects for script and module bytes to be stored in the
   // module object. Asm.js is not compiled asynchronously.
   DCHECK(module_object_.is_null());
-  auto source_url = stream_ ? stream_->url() : base::Vector<const char>();
+  auto source_url =
+      stream_ ? base::VectorOf(stream_->url()) : base::Vector<const char>();
   auto script =
       GetWasmEngine()->GetOrCreateScript(isolate_, native_module_, source_url);
   Handle<WasmModuleObject> module_object =
@@ -3083,8 +3084,9 @@ bool AsyncStreamingProcessor::Deserialize(
   HandleScope scope(job_->isolate_);
   SaveAndSwitchContext saved_context(job_->isolate_, *job_->native_context_);
 
-  MaybeHandle<WasmModuleObject> result = DeserializeNativeModule(
-      job_->isolate_, module_bytes, wire_bytes, job_->stream_->url());
+  MaybeHandle<WasmModuleObject> result =
+      DeserializeNativeModule(job_->isolate_, module_bytes, wire_bytes,
+                              base::VectorOf(job_->stream_->url()));
 
   if (result.is_null()) return false;
 
