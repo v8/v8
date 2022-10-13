@@ -20,6 +20,7 @@
 #include "src/base/vector.h"
 #include "src/codegen/external-reference.h"
 #include "src/common/globals.h"
+#include "src/compiler/common-operator.h"
 #include "src/compiler/globals.h"
 #include "src/compiler/turboshaft/fast-hash.h"
 #include "src/compiler/turboshaft/representations.h"
@@ -1080,23 +1081,33 @@ struct TaggedBitcastOp : FixedArityOperationT<1, TaggedBitcastOp> {
 };
 
 struct SelectOp : FixedArityOperationT<3, SelectOp> {
-  // TODO(12783): Support all register reps.
-  WordRepresentation rep;
+  enum class Implementation : uint8_t { kBranch, kCMove };
+
   static constexpr OpProperties properties = OpProperties::Pure();
+  RegisterRepresentation rep;
+  BranchHint hint;
+  Implementation implem;
 
-  OpIndex condition() const { return Base::input(0); }
-  OpIndex left() const { return Base::input(1); }
-  OpIndex right() const { return Base::input(2); }
-
-  SelectOp(OpIndex condition, OpIndex left, OpIndex right,
-           WordRepresentation rep)
-      : Base(condition, left, right), rep(rep) {
-    DCHECK(rep == WordRepresentation::Word32()
-               ? SupportedOperations::word32_select()
-               : SupportedOperations::word64_select());
+  SelectOp(OpIndex cond, OpIndex vtrue, OpIndex vfalse,
+           RegisterRepresentation rep, BranchHint hint, Implementation implem)
+      : Base(cond, vtrue, vfalse), rep(rep), hint(hint), implem(implem) {
+#ifdef DEBUG
+    if (implem == Implementation::kCMove) {
+      DCHECK((rep == RegisterRepresentation::Word32() &&
+              SupportedOperations::word32_select()) ||
+             (rep == RegisterRepresentation::Word64() &&
+              SupportedOperations::word64_select()));
+    }
+#endif
   }
-  auto options() const { return std::tuple{rep}; }
+
+  OpIndex cond() const { return input(0); }
+  OpIndex vtrue() const { return input(1); }
+  OpIndex vfalse() const { return input(2); }
+
+  auto options() const { return std::tuple{rep, hint, implem}; }
 };
+std::ostream& operator<<(std::ostream& os, SelectOp::Implementation kind);
 
 struct PhiOp : OperationT<PhiOp> {
   RegisterRepresentation rep;

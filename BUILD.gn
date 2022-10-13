@@ -2927,6 +2927,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/optimization-phase.h",
     "src/compiler/turboshaft/recreate-schedule.h",
     "src/compiler/turboshaft/representations.h",
+    "src/compiler/turboshaft/select-lowering-assembler.h",
     "src/compiler/turboshaft/sidetable.h",
     "src/compiler/turboshaft/simplify-tf-loops.h",
     "src/compiler/turboshaft/utils.h",

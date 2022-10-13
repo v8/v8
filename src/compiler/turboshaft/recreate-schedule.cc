@@ -835,13 +835,21 @@ Node* ScheduleBuilder::ProcessOperation(const TaggedBitcastOp& op) {
   return AddNode(o, {GetNode(op.input())});
 }
 Node* ScheduleBuilder::ProcessOperation(const SelectOp& op) {
-  const Operator* o = op.rep == WordRepresentation::Word32()
+  // If there is a Select, then it should only be one that is supported by the
+  // machine, and it should be meant to be implementation with cmove.
+  DCHECK_EQ(op.implem, SelectOp::Implementation::kCMove);
+  DCHECK((op.rep == RegisterRepresentation::Word32() &&
+          SupportedOperations::word32_select()) ||
+         (op.rep == RegisterRepresentation::Word64() &&
+          SupportedOperations::word64_select()));
+
+  const Operator* o = op.rep == RegisterRepresentation::Word32()
                           ? machine.Word32Select().op()
                           : machine.Word64Select().op();
-  return AddNode(
-      o, {GetNode(op.condition()), GetNode(op.left()), GetNode(op.right())});
-}
 
+  return AddNode(
+      o, {GetNode(op.cond()), GetNode(op.vtrue()), GetNode(op.vfalse())});
+}
 Node* ScheduleBuilder::ProcessOperation(const PendingLoopPhiOp& op) {
   UNREACHABLE();
 }

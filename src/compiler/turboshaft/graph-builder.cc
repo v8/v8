@@ -567,12 +567,26 @@ OpIndex GraphBuilder::Process(
                                      RegisterRepresentation::PointerSized(),
                                      RegisterRepresentation::Tagged());
 
+    case IrOpcode::kSelect: {
+      OpIndex cond = Map(node->InputAt(0));
+      OpIndex vtrue = Map(node->InputAt(1));
+      OpIndex vfalse = Map(node->InputAt(2));
+      const SelectParameters& params = SelectParametersOf(op);
+      return assembler.Select(cond, vtrue, vfalse,
+                              RegisterRepresentation::FromMachineRepresentation(
+                                  params.representation()),
+                              params.hint(), SelectOp::Implementation::kBranch);
+    }
     case IrOpcode::kWord32Select:
-      return assembler.Word32Select(
-          Map(node->InputAt(0)), Map(node->InputAt(1)), Map(node->InputAt(2)));
+      return assembler.Select(
+          Map(node->InputAt(0)), Map(node->InputAt(1)), Map(node->InputAt(2)),
+          RegisterRepresentation::Word32(), BranchHint::kNone,
+          SelectOp::Implementation::kCMove);
     case IrOpcode::kWord64Select:
-      return assembler.Word64Select(
-          Map(node->InputAt(0)), Map(node->InputAt(1)), Map(node->InputAt(2)));
+      return assembler.Select(
+          Map(node->InputAt(0)), Map(node->InputAt(1)), Map(node->InputAt(2)),
+          RegisterRepresentation::Word64(), BranchHint::kNone,
+          SelectOp::Implementation::kCMove);
 
     case IrOpcode::kLoad:
     case IrOpcode::kLoadImmutable:

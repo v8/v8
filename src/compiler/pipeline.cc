@@ -86,6 +86,7 @@
 #include "src/compiler/turboshaft/machine-optimization-assembler.h"
 #include "src/compiler/turboshaft/optimization-phase.h"
 #include "src/compiler/turboshaft/recreate-schedule.h"
+#include "src/compiler/turboshaft/select-lowering-assembler.h"
 #include "src/compiler/turboshaft/simplify-tf-loops.h"
 #include "src/compiler/turboshaft/value-numbering-assembler.h"
 #include "src/compiler/type-narrowing-reducer.h"
@@ -1959,30 +1960,43 @@ struct LateOptimizationPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(LateOptimization)
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    GraphReducer graph_reducer(
-        temp_zone, data->graph(), &data->info()->tick_counter(), data->broker(),
-        data->jsgraph()->Dead(), data->observe_node_manager());
-    LateEscapeAnalysis escape_analysis(&graph_reducer, data->graph(),
-                                       data->common(), temp_zone);
-    BranchElimination branch_condition_elimination(&graph_reducer,
-                                                   data->jsgraph(), temp_zone);
-    DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
-                                              data->common(), temp_zone);
-    ValueNumberingReducer value_numbering(temp_zone, data->graph()->zone());
-    MachineOperatorReducer machine_reducer(&graph_reducer, data->jsgraph());
-    CommonOperatorReducer common_reducer(
-        &graph_reducer, data->graph(), data->broker(), data->common(),
-        data->machine(), temp_zone, BranchSemantics::kMachine);
-    JSGraphAssembler graph_assembler(data->jsgraph(), temp_zone);
-    SelectLowering select_lowering(&graph_assembler, data->graph());
-    AddReducer(data, &graph_reducer, &escape_analysis);
-    AddReducer(data, &graph_reducer, &branch_condition_elimination);
-    AddReducer(data, &graph_reducer, &dead_code_elimination);
-    AddReducer(data, &graph_reducer, &machine_reducer);
-    AddReducer(data, &graph_reducer, &common_reducer);
-    AddReducer(data, &graph_reducer, &select_lowering);
-    AddReducer(data, &graph_reducer, &value_numbering);
-    graph_reducer.ReduceGraph();
+    if (data->HasTurboshaftGraph()) {
+      // TODO(dmercadier,tebbi): add missing assemblers (LateEscapeAnalysis,
+      // BranchElimination, MachineOperatorReducer, CommonOperatorReducer).
+      turboshaft::OptimizationPhase<turboshaft::LivenessAnalyzer,
+                                    turboshaft::SelectLoweringAssembler<
+                                        turboshaft::ValueNumberingAssembler>>::
+          Run(&data->turboshaft_graph(), temp_zone, data->node_origins(),
+              turboshaft::VisitOrder::kDominator);
+    } else {
+      GraphReducer graph_reducer(temp_zone, data->graph(),
+                                 &data->info()->tick_counter(), data->broker(),
+                                 data->jsgraph()->Dead(),
+                                 data->observe_node_manager());
+      LateEscapeAnalysis escape_analysis(&graph_reducer, data->graph(),
+                                         data->common(), temp_zone);
+      BranchElimination branch_condition_elimination(
+          &graph_reducer, data->jsgraph(), temp_zone);
+      DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
+                                                data->common(), temp_zone);
+      ValueNumberingReducer value_numbering(temp_zone, data->graph()->zone());
+      MachineOperatorReducer machine_reducer(&graph_reducer, data->jsgraph());
+      CommonOperatorReducer common_reducer(
+          &graph_reducer, data->graph(), data->broker(), data->common(),
+          data->machine(), temp_zone, BranchSemantics::kMachine);
+      JSGraphAssembler graph_assembler(data->jsgraph(), temp_zone);
+      SelectLowering select_lowering(&graph_assembler, data->graph());
+      AddReducer(data, &graph_reducer, &escape_analysis);
+      AddReducer(data, &graph_reducer, &branch_condition_elimination);
+      AddReducer(data, &graph_reducer, &dead_code_elimination);
+      AddReducer(data, &graph_reducer, &machine_reducer);
+      AddReducer(data, &graph_reducer, &common_reducer);
+      if (!FLAG_turboshaft) {
+        AddReducer(data, &graph_reducer, &select_lowering);
+      }
+      AddReducer(data, &graph_reducer, &value_numbering);
+      graph_reducer.ReduceGraph();
+    }
   }
 };
 
@@ -3004,6 +3018,8 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
       return false;
     }
     Run<PrintTurboshaftGraphPhase>(BuildTurboshaftPhase::phase_name());
+
+    Run<LateOptimizationPhase>();
 
     Run<OptimizeTurboshaftPhase>();
     Run<PrintTurboshaftGraphPhase>(OptimizeTurboshaftPhase::phase_name());

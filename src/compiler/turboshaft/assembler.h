@@ -391,15 +391,6 @@ class AssemblerInterface : public Superclass {
 #undef DECL_SINGLE_REP_UNARY
 #undef DECL_MULTI_REP_UNARY
 
-  OpIndex Word32Select(OpIndex condition, OpIndex left, OpIndex right) {
-    return subclass().Select(condition, left, right,
-                             WordRepresentation::Word32());
-  }
-  OpIndex Word64Select(OpIndex condition, OpIndex left, OpIndex right) {
-    return subclass().Select(condition, left, right,
-                             WordRepresentation::Word64());
-  }
-
   OpIndex Word32Constant(uint32_t value) {
     return subclass().Constant(ConstantOp::Kind::kWord32, uint64_t{value});
   }

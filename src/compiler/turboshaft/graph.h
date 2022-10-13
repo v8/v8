@@ -253,13 +253,14 @@ class RandomAccessStackDominatorNode
   friend class Block;
 #endif
 
-  int len_ = 0;
-  Derived* nxt_ = nullptr;
-  Derived* jmp_ = nullptr;
   // Myers' original datastructure requires to often check jmp_->len_, which is
   // not so great on modern computers (memory access, caches & co). To speed up
   // things a bit, we store here jmp_len_.
   int jmp_len_ = 0;
+
+  int len_ = 0;
+  Derived* nxt_ = nullptr;
+  Derived* jmp_ = nullptr;
 };
 
 // A basic block
@@ -479,15 +480,17 @@ class Graph {
   V8_INLINE bool Add(Block* block) {
     DCHECK_EQ(block->graph_generation_, generation_);
     if (!bound_blocks_.empty() && !block->HasPredecessors()) return false;
-    bool deferred = true;
-    for (Block* pred = block->last_predecessor_; pred != nullptr;
-         pred = pred->neighboring_predecessor_) {
-      if (!pred->IsDeferred()) {
-        deferred = false;
-        break;
+    if (!block->IsDeferred()) {
+      bool deferred = true;
+      for (Block* pred = block->last_predecessor_; pred != nullptr;
+           pred = pred->neighboring_predecessor_) {
+        if (!pred->IsDeferred()) {
+          deferred = false;
+          break;
+        }
       }
+      block->SetDeferred(deferred);
     }
-    block->SetDeferred(deferred);
     DCHECK(!block->begin_.valid());
     block->begin_ = next_operation_index();
     DCHECK_EQ(block->index_, BlockIndex::Invalid());

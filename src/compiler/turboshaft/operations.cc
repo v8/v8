@@ -254,6 +254,15 @@ std::ostream& operator<<(std::ostream& os, Float64InsertWord32Op::Kind kind) {
   }
 }
 
+std::ostream& operator<<(std::ostream& os, SelectOp::Implementation kind) {
+  switch (kind) {
+    case SelectOp::Implementation::kBranch:
+      return os << "Branch";
+    case SelectOp::Implementation::kCMove:
+      return os << "CMove";
+  }
+}
+
 std::ostream& operator<<(std::ostream& os, FrameConstantOp::Kind kind) {
   switch (kind) {
     case FrameConstantOp::Kind::kStackCheckOffset:

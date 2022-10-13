@@ -465,9 +465,9 @@ struct OptimizationPhase<Analyzer, Assembler>::Impl {
     return assembler.TaggedBitcast(MapToNewGraph(op.input()), op.from, op.to);
   }
   OpIndex ReduceSelect(const SelectOp& op) {
-    return assembler.Select(MapToNewGraph(op.condition()),
-                            MapToNewGraph(op.left()), MapToNewGraph(op.right()),
-                            op.rep);
+    return assembler.Select(MapToNewGraph(op.cond()), MapToNewGraph(op.vtrue()),
+                            MapToNewGraph(op.vfalse()), op.rep, op.hint,
+                            op.implem);
   }
   OpIndex ReduceConstant(const ConstantOp& op) {
     return assembler.Constant(op.kind, op.storage);
