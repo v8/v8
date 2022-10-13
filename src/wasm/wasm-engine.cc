@@ -550,7 +550,7 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
   }
 
   // If experimental PGO via files is enabled, load profile information now.
-  if (V8_UNLIKELY(v8_flags.experimental_wasm_pgo_from_file)) {
+  if (V8_UNLIKELY(FLAG_experimental_wasm_pgo_from_file)) {
     LoadProfileFromFile(module.get(), bytes.module_bytes());
   }
 

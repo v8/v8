@@ -587,7 +587,7 @@ ExternalReference ExternalReference::address_of_log_or_trace_osr() {
 
 ExternalReference
 ExternalReference::address_of_FLAG_harmony_symbol_as_weakmap_key() {
-  return ExternalReference(&v8_flags.harmony_symbol_as_weakmap_key);
+  return ExternalReference(&FLAG_harmony_symbol_as_weakmap_key);
 }
 
 ExternalReference ExternalReference::address_of_builtin_subclassing_flag() {
