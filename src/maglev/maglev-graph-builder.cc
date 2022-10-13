@@ -1461,90 +1461,92 @@ bool MaglevGraphBuilder::TryBuildNamedAccess(
   }
 }
 
-bool MaglevGraphBuilder::TryBuildMonomorphicElementLoad(
-    ValueNode* object, ValueNode* index, const compiler::MapRef& map,
-    MaybeObjectHandle handler) {
-  if (handler.is_null()) return false;
-
-  if (handler->IsSmi()) {
-    return TryBuildMonomorphicElementLoadFromSmiHandler(
-        object, index, map, handler->ToSmi().value());
+bool MaglevGraphBuilder::TryBuildElementAccess(
+    ValueNode* object, ValueNode* index,
+    compiler::ElementAccessFeedback const& feedback) {
+  // TODO(victorgomes): Implement other access modes.
+  if (feedback.keyed_mode().access_mode() != compiler::AccessMode::kLoad) {
+    return false;
   }
-  return false;
-}
 
-bool MaglevGraphBuilder::TryBuildMonomorphicElementLoadFromSmiHandler(
-    ValueNode* object, ValueNode* index, const compiler::MapRef& map,
-    int32_t handler) {
-  LoadHandler::Kind kind = LoadHandler::KindBits::decode(handler);
+  // TODO(victorgomes): Add fast path for loading from HeapConstant.
+  // TODO(victorgomes): Add fast path for loading from String.
 
-  switch (kind) {
-    case LoadHandler::Kind::kElement: {
-      if (LoadHandler::AllowOutOfBoundsBits::decode(handler)) {
-        return false;
-      }
-      ElementsKind elements_kind =
-          LoadHandler::ElementsKindBits::decode(handler);
-      if (!IsFastElementsKind(elements_kind)) return false;
+  compiler::AccessInfoFactory access_info_factory(
+      broker(), broker()->dependencies(), zone());
+  ZoneVector<compiler::ElementAccessInfo> access_infos(zone());
+  if (!access_info_factory.ComputeElementAccessInfos(feedback, &access_infos) ||
+      access_infos.empty()) {
+    return false;
+  }
 
-      // TODO(leszeks): Handle holey elements.
-      if (IsHoleyElementsKind(elements_kind)) return false;
-      DCHECK(!LoadHandler::ConvertHoleBits::decode(handler));
+  // Check for monomorphic case.
+  if (access_infos.size() == 1) {
+    compiler::ElementAccessInfo access_info = access_infos.front();
 
-      BuildMapCheck(object, map);
-      switch (index->properties().value_representation()) {
-        case ValueRepresentation::kTagged: {
-          if (SmiConstant* constant = index->TryCast<SmiConstant>()) {
-            index = GetInt32Constant(constant->value().value());
-          } else {
-            NodeInfo* node_info =
-                known_node_aspects().GetOrCreateInfoFor(index);
-            if (node_info->is_smi()) {
-              if (!node_info->int32_alternative) {
-                // TODO(leszeks): This could be unchecked.
-                node_info->int32_alternative =
-                    AddNewNode<CheckedSmiUntag>({index});
-              }
-              index = node_info->int32_alternative;
-            } else {
-              // TODO(leszeks): Cache this knowledge/converted value somehow on
-              // the node info.
-              index = AddNewNode<CheckedObjectToIndex>({index});
+    // TODO(victorgomes): Support elment kind transitions.
+    if (access_info.transition_sources().size() != 0) return false;
+
+    // TODO(victorgomes): Support more elements kind.
+    ElementsKind elements_kind = access_info.elements_kind();
+    if (!IsFastElementsKind(elements_kind)) return false;
+    if (IsHoleyElementsKind(elements_kind)) return false;
+
+    const compiler::MapRef& map =
+        access_info.lookup_start_object_maps().front();
+    BuildMapCheck(object, map);
+
+    switch (index->properties().value_representation()) {
+      case ValueRepresentation::kTagged: {
+        if (SmiConstant* constant = index->TryCast<SmiConstant>()) {
+          index = GetInt32Constant(constant->value().value());
+        } else {
+          NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(index);
+          if (node_info->is_smi()) {
+            if (!node_info->int32_alternative) {
+              // TODO(leszeks): This could be unchecked.
+              node_info->int32_alternative =
+                  AddNewNode<CheckedSmiUntag>({index});
             }
+            index = node_info->int32_alternative;
+          } else {
+            // TODO(leszeks): Cache this knowledge/converted value somehow on
+            // the node info.
+            index = AddNewNode<CheckedObjectToIndex>({index});
           }
-          break;
         }
-        case ValueRepresentation::kInt32: {
-          // Already good.
-          break;
-        }
-        case ValueRepresentation::kFloat64: {
-          // TODO(leszeks): Pass in the index register (probably the
-          // accumulator), so that we can save this truncation on there as a
-          // conversion node.
-          index = AddNewNode<CheckedTruncateFloat64ToInt32>({index});
-          break;
-        }
+        break;
       }
-
-      if (LoadHandler::IsJsArrayBits::decode(handler)) {
-        DCHECK(map.IsJSArrayMap());
-        AddNewNode<CheckJSArrayBounds>({object, index});
-      } else {
-        DCHECK(!map.IsJSArrayMap());
-        DCHECK(map.IsJSObjectMap());
-        AddNewNode<CheckJSObjectElementsBounds>({object, index});
+      case ValueRepresentation::kInt32: {
+        // Already good.
+        break;
       }
-      if (elements_kind == ElementsKind::PACKED_DOUBLE_ELEMENTS) {
-        SetAccumulator(AddNewNode<LoadDoubleElement>({object, index}));
-      } else {
-        DCHECK(!IsDoubleElementsKind(elements_kind));
-        SetAccumulator(AddNewNode<LoadTaggedElement>({object, index}));
+      case ValueRepresentation::kFloat64: {
+        // TODO(leszeks): Pass in the index register (probably the
+        // accumulator), so that we can save this truncation on there as a
+        // conversion node.
+        index = AddNewNode<CheckedTruncateFloat64ToInt32>({index});
+        break;
       }
-      return true;
     }
-    default:
-      return false;
+
+    if (map.IsJSArrayMap()) {
+      AddNewNode<CheckJSArrayBounds>({object, index});
+    } else {
+      DCHECK(map.IsJSObjectMap());
+      AddNewNode<CheckJSObjectElementsBounds>({object, index});
+    }
+    if (elements_kind == ElementsKind::PACKED_DOUBLE_ELEMENTS) {
+      SetAccumulator(AddNewNode<LoadDoubleElement>({object, index}));
+    } else {
+      DCHECK(!IsDoubleElementsKind(elements_kind));
+      SetAccumulator(AddNewNode<LoadTaggedElement>({object, index}));
+    }
+    return true;
+
+  } else {
+    // TODO(victorgomes): polymorphic case.
+    return false;
   }
 }
 
@@ -1643,23 +1645,13 @@ void MaglevGraphBuilder::VisitGetKeyedProperty() {
       return;
 
     case compiler::ProcessedFeedback::kElementAccess: {
-      const compiler::ElementAccessFeedback& element_feedback =
-          processed_feedback.AsElementAccess();
-      if (element_feedback.transition_groups().size() != 1) break;
-      if (element_feedback.transition_groups()[0].size() != 1) break;
-      compiler::MapRef map = MakeRefAssumeMemoryFence(
-          broker(), element_feedback.transition_groups()[0].front());
-
-      // Monomorphic load, check the handler.
-      // TODO(leszeks): Make GetFeedbackForPropertyAccess read the handler.
-      MaybeObjectHandle handler =
-          FeedbackNexusForSlot(slot).FindHandlerForMap(map.object());
-
-      // Get the accumulator without conversion. TryBuildMonomorphicElementLoad
+      // Get the accumulator without conversion. TryBuildElementAccess
       // will try to pick the best representation.
-      ValueNode* key = current_interpreter_frame_.accumulator();
-
-      if (TryBuildMonomorphicElementLoad(object, key, map, handler)) return;
+      ValueNode* index = current_interpreter_frame_.accumulator();
+      if (TryBuildElementAccess(object, index,
+                                processed_feedback.AsElementAccess())) {
+        return;
+      }
       break;
     }
 

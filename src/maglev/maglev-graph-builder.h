@@ -948,14 +948,8 @@ class MaglevGraphBuilder {
   bool TryBuildNamedAccess(ValueNode* receiver, ValueNode* lookup_start_object,
                            compiler::NamedAccessFeedback const& feedback,
                            compiler::AccessMode access_mode);
-
-  bool TryBuildMonomorphicElementLoad(ValueNode* object, ValueNode* index,
-                                      const compiler::MapRef& map,
-                                      MaybeObjectHandle handler);
-  bool TryBuildMonomorphicElementLoadFromSmiHandler(ValueNode* object,
-                                                    ValueNode* index,
-                                                    const compiler::MapRef& map,
-                                                    int32_t handler);
+  bool TryBuildElementAccess(ValueNode* object, ValueNode* index,
+                             compiler::ElementAccessFeedback const& feedback);
 
   template <Operation kOperation>
   void BuildGenericUnaryOperationNode();
