@@ -2,12 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --no-analyze-environment-liveness --no-experimental-reuse-locals-blocklists
+// Flags: --no-analyze-environment-liveness --experimental-reuse-locals-blocklists
 
 // Test that debug-evaluate only resolves variables that are used by
 // the function inside which we debug-evaluate. This is to avoid
 // incorrect variable resolution when a context-allocated variable is
 // shadowed by a stack-allocated variable.
+//
+// This test is an exact copy of `debug-evaluate-shadowed-context` modulo an
+// experimental flag. While the feature is in developement, we want to test both
+// configurations without having to introduce a separate bot.
 
 Debug = debug.Debug
 
@@ -207,6 +211,35 @@ listener_delegate = function (exec_state) {
 }
 break_position = 2;
 (f6())()();
+EndTest();
+
+BeginTest("Check that 'inner' block lists, calculated on a previous pause, don't block the lookup");
+
+function f7(o) {
+  let a = 1;  // stack-allocated.
+  with (o) {  // create a with-scope whos block-list has 'a' in it.
+    if (break_position === 2) debugger;
+    (function g() {
+      if (break_position === 1) debugger; // Trigger block-list calculation for the with-scope.
+    })();
+  }
+}
+
+listener_delegate = function (exec_state) {
+  assertThrows(() => exec_state.frame(0).evaluate("a").value());
+}
+break_position = 1;
+f7({});
+EndTest();
+
+BeginTest("Check that 'inner' block lists, calculated on a previous pause, don't block the lookup (continued)");
+// The second time we pause the with-scope already has a block-list, but 'a' should be accessible as a
+// materialized stack-local.
+listener_delegate = function (exec_state) {
+  assertEquals(1, exec_state.frame(0).evaluate("a").value());
+}
+break_position = 2;
+f7({});
 EndTest();
 
 assertEquals(begin_test_count, break_count,
