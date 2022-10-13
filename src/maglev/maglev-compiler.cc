@@ -235,11 +235,11 @@ class TranslationArrayProcessor {
  private:
   void EmitDeoptFrame(const MaglevCompilationUnit& unit,
                       const CheckpointedInterpreterState& state,
-                      const InputLocation* input_locations) {
+                      const InputLocation*& current_input_location) {
     if (state.parent) {
       // Deopt input locations are in the order of deopt frame emission, so
       // update the pointer after emitting the parent frame.
-      EmitDeoptFrame(*unit.caller(), *state.parent, input_locations);
+      EmitDeoptFrame(*unit.caller(), *state.parent, current_input_location);
     }
 
     // Returns are used for updating an accumulator or register after a lazy
@@ -251,7 +251,7 @@ class TranslationArrayProcessor {
         GetDeoptLiteral(*unit.shared_function_info().object()),
         unit.register_count(), return_offset, return_count);
 
-    EmitDeoptFrameValues(unit, state.register_frame, input_locations,
+    EmitDeoptFrameValues(unit, state.register_frame, current_input_location,
                          interpreter::Register::invalid_value(), return_count);
   }
 
@@ -263,8 +263,8 @@ class TranslationArrayProcessor {
         translation_array_builder().BeginTranslation(frame_count, jsframe_count,
                                                      update_feedback_count);
 
-    EmitDeoptFrame(deopt_info->unit, deopt_info->state,
-                   deopt_info->input_locations);
+    const InputLocation* current_input_location = deopt_info->input_locations;
+    EmitDeoptFrame(deopt_info->unit, deopt_info->state, current_input_location);
   }
 
   void EmitLazyDeopt(LazyDeoptInfo* deopt_info) {
@@ -276,13 +276,13 @@ class TranslationArrayProcessor {
                                                      update_feedback_count);
 
     const MaglevCompilationUnit& unit = deopt_info->unit;
-    const InputLocation* input_locations = deopt_info->input_locations;
+    const InputLocation* current_input_location = deopt_info->input_locations;
 
     if (deopt_info->state.parent) {
       // Deopt input locations are in the order of deopt frame emission, so
       // update the pointer after emitting the parent frame.
       EmitDeoptFrame(*unit.caller(), *deopt_info->state.parent,
-                     input_locations);
+                     current_input_location);
     }
 
     // Return offsets are counted from the end of the translation frame, which
@@ -313,7 +313,7 @@ class TranslationArrayProcessor {
         unit.register_count(), return_offset, deopt_info->result_size);
 
     EmitDeoptFrameValues(unit, deopt_info->state.register_frame,
-                         input_locations, deopt_info->result_location,
+                         current_input_location, deopt_info->result_location,
                          deopt_info->result_size);
   }
 

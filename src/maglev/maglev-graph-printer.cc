@@ -365,57 +365,107 @@ void MaglevPrintingVisitor::PreProcessBasicBlock(BasicBlock* block) {
 
 namespace {
 
-template <typename NodeT>
-void PrintEagerDeopt(std::ostream& os, std::vector<BasicBlock*> targets,
-                     NodeT* node, MaglevGraphLabeller* graph_labeller,
-                     int max_node_id) {
+void RecursivePrintEagerDeopt(std::ostream& os,
+                              std::vector<BasicBlock*> targets,
+                              const CheckpointedInterpreterState& state,
+                              const MaglevCompilationUnit& unit,
+                              MaglevGraphLabeller* graph_labeller,
+                              int max_node_id,
+                              InputLocation*& current_input_location) {
+  if (state.parent) {
+    RecursivePrintEagerDeopt(os, targets, *state.parent, *unit.caller(),
+                             graph_labeller, max_node_id,
+                             current_input_location);
+  }
+
   PrintVerticalArrows(os, targets);
   PrintPadding(os, graph_labeller, max_node_id, 0);
+  if (!state.parent) {
+    os << "  ↱ eager @" << state.bytecode_position << " : {";
+  } else {
+    os << "  │       @" << state.bytecode_position.ToInt() << " : {";
+  }
 
-  EagerDeoptInfo* deopt_info = node->eager_deopt_info();
-  os << "  ↱ eager @" << deopt_info->state.bytecode_position << " : {";
   bool first = true;
-  int index = 0;
-  deopt_info->state.register_frame->ForEachValue(
-      deopt_info->unit, [&](ValueNode* node, interpreter::Register reg) {
+  state.register_frame->ForEachValue(
+      unit, [&](ValueNode* node, interpreter::Register reg) {
         if (first) {
           first = false;
         } else {
           os << ", ";
         }
         os << reg.ToString() << ":" << PrintNodeLabel(graph_labeller, node)
-           << ":" << deopt_info->input_locations[index].operand();
-        index++;
+           << ":" << current_input_location->operand();
+        current_input_location++;
       });
   os << "}\n";
 }
+
+void PrintEagerDeopt(std::ostream& os, std::vector<BasicBlock*> targets,
+                     NodeBase* node, MaglevGraphLabeller* graph_labeller,
+                     int max_node_id) {
+  EagerDeoptInfo* deopt_info = node->eager_deopt_info();
+  InputLocation* current_input_location = deopt_info->input_locations;
+  RecursivePrintEagerDeopt(os, targets, deopt_info->state, deopt_info->unit,
+                           graph_labeller, max_node_id, current_input_location);
+}
+
 void MaybePrintEagerDeopt(std::ostream& os, std::vector<BasicBlock*> targets,
                           NodeBase* node, MaglevGraphLabeller* graph_labeller,
                           int max_node_id) {
-  switch (node->opcode()) {
-#define CASE(Name)                                                           \
-  case Opcode::k##Name:                                                      \
-    if constexpr (Name::kProperties.can_eager_deopt()) {                     \
-      PrintEagerDeopt<Name>(os, targets, node->Cast<Name>(), graph_labeller, \
-                            max_node_id);                                    \
-    }                                                                        \
-    break;
-    NODE_BASE_LIST(CASE)
-#undef CASE
+  if (node->properties().can_eager_deopt()) {
+    PrintEagerDeopt(os, targets, node, graph_labeller, max_node_id);
   }
+}
+
+void RecursivePrintLazyDeopt(std::ostream& os, std::vector<BasicBlock*> targets,
+                             const CheckpointedInterpreterState& state,
+                             const MaglevCompilationUnit& unit,
+                             MaglevGraphLabeller* graph_labeller,
+                             int max_node_id,
+                             InputLocation*& current_input_location) {
+  if (state.parent) {
+    RecursivePrintLazyDeopt(os, targets, *state.parent, *unit.caller(),
+                            graph_labeller, max_node_id,
+                            current_input_location);
+  }
+
+  PrintVerticalArrows(os, targets);
+  PrintPadding(os, graph_labeller, max_node_id, 0);
+  os << "  │      @" << state.bytecode_position.ToInt() << " : {";
+
+  bool first = true;
+  state.register_frame->ForEachValue(
+      unit, [&](ValueNode* node, interpreter::Register reg) {
+        if (first) {
+          first = false;
+        } else {
+          os << ", ";
+        }
+        os << reg.ToString() << ":" << PrintNodeLabel(graph_labeller, node)
+           << ":" << current_input_location->operand();
+        current_input_location++;
+      });
+  os << "}\n";
 }
 
 template <typename NodeT>
 void PrintLazyDeopt(std::ostream& os, std::vector<BasicBlock*> targets,
                     NodeT* node, MaglevGraphLabeller* graph_labeller,
                     int max_node_id) {
+  LazyDeoptInfo* deopt_info = node->lazy_deopt_info();
+  InputLocation* current_input_location = deopt_info->input_locations;
+  if (deopt_info->state.parent) {
+    RecursivePrintLazyDeopt(os, targets, *deopt_info->state.parent,
+                            *deopt_info->unit.caller(), graph_labeller,
+                            max_node_id, current_input_location);
+  }
+
   PrintVerticalArrows(os, targets);
   PrintPadding(os, graph_labeller, max_node_id, 0);
 
-  LazyDeoptInfo* deopt_info = node->lazy_deopt_info();
   os << "  ↳ lazy @" << deopt_info->state.bytecode_position << " : {";
   bool first = true;
-  int index = 0;
   deopt_info->state.register_frame->ForEachValue(
       deopt_info->unit, [&](ValueNode* node, interpreter::Register reg) {
         if (first) {
@@ -428,8 +478,8 @@ void PrintLazyDeopt(std::ostream& os, std::vector<BasicBlock*> targets,
           os << "<result>";
         } else {
           os << PrintNodeLabel(graph_labeller, node) << ":"
-             << deopt_info->input_locations[index].operand();
-          index++;
+             << current_input_location->operand();
+          current_input_location++;
         }
       });
   os << "}\n";
