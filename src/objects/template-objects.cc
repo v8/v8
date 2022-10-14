@@ -19,8 +19,6 @@ namespace {
 bool CachedTemplateMatches(Isolate* isolate, NativeContext native_context,
                            JSArray entry, int function_literal_id, int slot_id,
                            DisallowGarbageCollection& no_gc) {
-  DCHECK_EQ(JSFunction::cast(entry.map(isolate).GetConstructor()),
-            native_context.array_function());
   if (native_context.is_js_array_template_literal_object_map(
           entry.map(isolate))) {
     TemplateLiteralObject template_object = TemplateLiteralObject::cast(entry);
