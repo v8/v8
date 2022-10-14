@@ -826,6 +826,18 @@ void HeapObject::set_map_safe_transition(Map value, ReleaseStoreTag tag) {
                                   VerificationMode::kSafeMapTransition);
 }
 
+void HeapObject::set_map_safe_transition_no_write_barrier(Map value,
+                                                          RelaxedStoreTag tag) {
+  set_map<EmitWriteBarrier::kNo>(value, kRelaxedStore,
+                                 VerificationMode::kSafeMapTransition);
+}
+
+void HeapObject::set_map_safe_transition_no_write_barrier(Map value,
+                                                          ReleaseStoreTag tag) {
+  set_map<EmitWriteBarrier::kNo>(value, kReleaseStore,
+                                 VerificationMode::kSafeMapTransition);
+}
+
 // Unsafe accessor omitting write barrier.
 void HeapObject::set_map_no_write_barrier(Map value, RelaxedStoreTag tag) {
   set_map<EmitWriteBarrier::kNo>(value, kRelaxedStore,
