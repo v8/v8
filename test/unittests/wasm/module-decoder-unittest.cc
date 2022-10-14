@@ -193,7 +193,7 @@ struct ValueTypePair {
     {kAnyRefCode, kWasmAnyRef},                    // --
     {kEqRefCode, kWasmEqRef},                      // --
     {kI31RefCode, kWasmI31Ref},                    // --
-    {kDataRefCode, kWasmDataRef},                  // --
+    {kStructRefCode, kWasmStructRef},              // --
     {kArrayRefCode, kWasmArrayRef},                // --
     {kNoneCode, kWasmNullRef},                     // --
     {kStringRefCode, kWasmStringRef},              // --
