@@ -257,10 +257,15 @@ class Decoder {
     consume_bytes(size, nullptr);
   }
 
+  uint32_t available_bytes() const {
+    DCHECK_LE(pc_, end_);
+    DCHECK_GE(kMaxUInt32, end_ - pc_);
+    return static_cast<uint32_t>(end_ - pc_);
+  }
+
   // Check that at least {size} bytes exist between {pc_} and {end_}.
   bool checkAvailable(uint32_t size) {
-    DCHECK_LE(pc_, end_);
-    if (V8_UNLIKELY(size > static_cast<uint32_t>(end_ - pc_))) {
+    if (V8_UNLIKELY(size > available_bytes())) {
       errorf(pc_, "expected %u bytes, fell off end", size);
       return false;
     }

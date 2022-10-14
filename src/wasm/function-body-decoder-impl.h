@@ -1315,6 +1315,14 @@ class WasmDecoder : public Decoder {
     *total_length += length;
     TRACE("local decls count: %u\n", entries);
 
+    // Do an early validity check, to avoid allocating too much memory below.
+    // Every entry needs at least two bytes (count plus type); if that many are
+    // not available any more, flag that as an error.
+    if (available_bytes() / 2 < entries) {
+      return DecodeError(
+          pc, "local decls count bigger than remaining function size");
+    }
+
     struct DecodedLocalEntry {
       uint32_t count;
       ValueType type;
