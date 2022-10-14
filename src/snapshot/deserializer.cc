@@ -354,10 +354,12 @@ void PostProcessExternalString(ExternalString string, Isolate* isolate) {
 
 }  // namespace
 
-template <typename IsolateT>
-void Deserializer<IsolateT>::PostProcessNewJSReceiver(
-    Map map, Handle<JSReceiver> obj, InstanceType instance_type,
-    SnapshotSpace space) {
+// Should be called only on the main thread (not thread safe).
+template <>
+void Deserializer<Isolate>::PostProcessNewJSReceiver(Map map,
+                                                     Handle<JSReceiver> obj,
+                                                     InstanceType instance_type,
+                                                     SnapshotSpace space) {
   DCHECK_EQ(map.instance_type(), instance_type);
 
   if (InstanceTypeChecker::IsJSDataView(instance_type)) {
@@ -411,6 +413,13 @@ void Deserializer<IsolateT>::PostProcessNewJSReceiver(
       buffer.Setup(shared, resizable, bs);
     }
   }
+}
+
+template <>
+void Deserializer<LocalIsolate>::PostProcessNewJSReceiver(
+    Map map, Handle<JSReceiver> obj, InstanceType instance_type,
+    SnapshotSpace space) {
+  UNREACHABLE();
 }
 
 template <typename IsolateT>
