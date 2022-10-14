@@ -1473,6 +1473,12 @@ bool MaglevGraphBuilder::TryBuildElementAccess(
     return false;
   }
 
+  // TODO(leszeks): Add non-deopting bounds check (has to support undefined
+  // values).
+  if (feedback.keyed_mode().load_mode() != STANDARD_LOAD) {
+    return false;
+  }
+
   // TODO(victorgomes): Add fast path for loading from HeapConstant.
   // TODO(victorgomes): Add fast path for loading from String.
 
