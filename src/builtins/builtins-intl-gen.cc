@@ -52,7 +52,11 @@ class IntlBuiltinsAssembler : public CodeStubAssembler {
     TNode<Uint16T> raw =
         Load<Uint16T>(seq_string, IntPtrConstant(effective_offset));
     DCHECK_EQ(strlen(pattern), 2);
+#if V8_TARGET_BIG_ENDIAN
+    int raw_pattern = (pattern[0] << 8) + pattern[1];
+#else
     int raw_pattern = pattern[0] + (pattern[1] << 8);
+#endif
     GotoIf(Word32Equal(Word32Or(raw, Int32Constant(0x2020)),
                        Int32Constant(raw_pattern)),
            target);
