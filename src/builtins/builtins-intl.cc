@@ -901,18 +901,6 @@ BUILTIN(RelativeTimeFormatPrototypeResolvedOptions) {
   return *JSRelativeTimeFormat::ResolvedOptions(isolate, format_holder);
 }
 
-BUILTIN(StringPrototypeToLocaleLowerCase) {
-  HandleScope scope(isolate);
-
-  isolate->CountUsage(v8::Isolate::UseCounterFeature::kStringToLocaleLowerCase);
-
-  TO_THIS_STRING(string, "String.prototype.toLocaleLowerCase");
-
-  RETURN_RESULT_OR_FAILURE(
-      isolate, Intl::StringLocaleConvertCase(isolate, string, false,
-                                             args.atOrUndefined(isolate, 1)));
-}
-
 BUILTIN(StringPrototypeToLocaleUpperCase) {
   HandleScope scope(isolate);
 

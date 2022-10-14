@@ -202,6 +202,7 @@ namespace internal {
   F(FormatList, 2, 1)                 \
   F(FormatListToParts, 2, 1)          \
   F(StringToLowerCaseIntl, 1, 1)      \
+  F(StringToLocaleLowerCase, 2, 1)    \
   F(StringToUpperCaseIntl, 1, 1)  // End of macro.
 #else
 #define FOR_EACH_INTRINSIC_INTL(F, I)
