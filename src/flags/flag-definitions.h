@@ -1240,7 +1240,7 @@ DEFINE_BOOL(separate_gc_phases, false,
 DEFINE_BOOL(global_gc_scheduling, true,
             "enable GC scheduling based on global memory")
 DEFINE_BOOL(gc_global, false, "always perform global GCs")
-DEFINE_BOOL(shared_space, true,
+DEFINE_BOOL(shared_space, false,
             "Implement shared heap as shared space on a main isolate.")
 // Don't use a map space with --shared-space in order to avoid shared map space.
 DEFINE_NEG_IMPLICATION(shared_space, use_map_space)
