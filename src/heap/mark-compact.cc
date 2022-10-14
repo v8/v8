@@ -3134,8 +3134,17 @@ void MarkCompactCollector::ProcessOldCodeCandidates() {
   SharedFunctionInfo flushing_candidate;
   while (local_weak_objects()->code_flushing_candidates_local.Pop(
       &flushing_candidate)) {
-    bool is_bytecode_live = non_atomic_marking_state()->IsBlackOrGrey(
-        flushing_candidate.GetBytecodeArray(isolate()));
+    // During flushing a BytecodeArray is transformed into an UncompiledData in
+    // place. Seeing an UncompiledData here implies that another
+    // SharedFunctionInfo had a reference to the same ByteCodeArray and flushed
+    // it before processing this candidate. This can happen when using
+    // CloneSharedFunctionInfo().
+    bool bytecode_already_decompiled =
+        flushing_candidate.function_data(isolate(), kAcquireLoad)
+            .IsUncompiledData(isolate());
+    bool is_bytecode_live = !bytecode_already_decompiled &&
+                            non_atomic_marking_state()->IsBlackOrGrey(
+                                flushing_candidate.GetBytecodeArray(isolate()));
     if (v8_flags.flush_baseline_code && flushing_candidate.HasBaselineCode()) {
       CodeT baseline_codet =
           CodeT::cast(flushing_candidate.function_data(kAcquireLoad));
@@ -3168,9 +3177,17 @@ void MarkCompactCollector::ProcessOldCodeCandidates() {
       DCHECK(v8_flags.flush_baseline_code ||
              !flushing_candidate.HasBaselineCode());
 
-      // If the BytecodeArray is dead, flush it, which will replace the field
-      // with an uncompiled data object.
-      FlushBytecodeFromSFI(flushing_candidate);
+      if (bytecode_already_decompiled) {
+        flushing_candidate.DiscardCompiledMetadata(
+            isolate(),
+            [](HeapObject object, ObjectSlot slot, HeapObject target) {
+              RecordSlot(object, slot, target);
+            });
+      } else {
+        // If the BytecodeArray is dead, flush it, which will replace the field
+        // with an uncompiled data object.
+        FlushBytecodeFromSFI(flushing_candidate);
+      }
     }
 
     // Now record the slot, which has either been updated to an uncompiled data,

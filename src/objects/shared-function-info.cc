@@ -347,7 +347,7 @@ void SharedFunctionInfo::DiscardCompiledMetadata(
     std::function<void(HeapObject object, ObjectSlot slot, HeapObject target)>
         gc_notify_updated_slot) {
   DisallowGarbageCollection no_gc;
-  if (is_compiled()) {
+  if (HasFeedbackMetadata()) {
     if (v8_flags.trace_flush_bytecode) {
       CodeTracer::Scope scope(GetIsolate()->GetCodeTracer());
       PrintF(scope.file(), "[discarding compiled metadata for ");
