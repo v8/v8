@@ -625,8 +625,6 @@ Scavenger::Scavenger(ScavengerCollector* collector, Heap* heap, bool is_logging,
       is_logging_(is_logging),
       is_incremental_marking_(heap->incremental_marking()->IsMarking()),
       is_compacting_(heap->incremental_marking()->IsCompacting()),
-      is_compacting_including_map_space_(is_compacting_ &&
-                                         v8_flags.compact_maps),
       shared_string_table_(shared_old_allocator_.get() != nullptr),
       mark_shared_heap_(heap->isolate()->is_shared_space_isolate()) {}
 
@@ -643,12 +641,8 @@ void Scavenger::IterateAndScavengePromotedObject(HeapObject target, Map map,
 
   IterateAndScavengePromotedObjectsVisitor visitor(this, record_slots);
 
-  if (is_compacting_including_map_space_) {
-    // When we compact map space, we also want to visit the map word.
-    target.IterateFast(map, size, &visitor);
-  } else {
-    target.IterateBodyFast(map, size, &visitor);
-  }
+  // Iterate all outgoing pointers including map word.
+  target.IterateFast(map, size, &visitor);
 
   if (map.IsJSArrayBufferMap()) {
     DCHECK(!BasicMemoryChunk::FromHeapObject(target)->IsLargePage());

@@ -539,7 +539,7 @@ bool MarkCompactCollector::StartCompaction(StartCompactionMode mode) {
 
   CollectEvacuationCandidates(heap()->old_space());
 
-  if (heap()->map_space() && v8_flags.compact_maps) {
+  if (heap()->map_space()) {
     CollectEvacuationCandidates(heap()->map_space());
   }
 

@@ -199,8 +199,7 @@ CopyAndForwardResult Scavenger::PromoteObject(Map map, THeapObjectSlot slot,
 
     // During incremental marking we want to push every object in order to
     // record slots for map words. Necessary for map space compaction.
-    if (object_fields == ObjectFields::kMaybePointers ||
-        is_compacting_including_map_space_) {
+    if (object_fields == ObjectFields::kMaybePointers || is_compacting_) {
       promotion_list_local_.PushRegularObject(target, object_size);
     }
     promoted_size_ += object_size;
