@@ -100,7 +100,7 @@ class ValueNumberingAssembler : public Assembler {
   TURBOSHAFT_OPERATION_LIST(EMIT_OP)
 #undef EMIT_OP
 
-  bool Bind(Block* block) {
+  V8_WARN_UNUSED_RESULT bool Bind(Block* block) {
     if (!Base::Bind(block)) return false;
     ResetToBlock(block);
     dominator_path_.push_back(block);

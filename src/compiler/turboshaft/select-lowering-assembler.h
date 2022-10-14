@@ -57,14 +57,36 @@ class SelectLoweringAssembler
 
     this->Branch(cond, true_block, false_block);
 
-    this->Bind(true_block);
-    this->Goto(merge_block);
+    // Note that it's possible that other assembler of the stack optimizes the
+    // Branch that we just introduced into a Goto (if its condition is already
+    // known). Thus, we check the return values of Bind, and only insert the
+    // Gotos if Bind was successful: if not, then it means that the block
+    // ({true_block} or {false_block}) isn't reachable because the Branch was
+    // optimized to a Goto.
 
-    this->Bind(false_block);
-    this->Goto(merge_block);
+    bool has_true_block = false;
+    bool has_false_block = false;
 
-    this->Bind(merge_block);
-    return this->Phi(base::VectorOf({vtrue, vfalse}), rep);
+    if (this->Bind(true_block)) {
+      has_true_block = true;
+      this->Goto(merge_block);
+    }
+
+    if (this->Bind(false_block)) {
+      has_false_block = true;
+      this->Goto(merge_block);
+    }
+
+    this->BindReachable(merge_block);
+
+    if (has_true_block && has_false_block) {
+      return this->Phi(base::VectorOf({vtrue, vfalse}), rep);
+    } else if (has_true_block) {
+      return vtrue;
+    } else {
+      DCHECK(has_false_block);
+      return vfalse;
+    }
   }
 };
 

@@ -733,11 +733,17 @@ class Assembler
   void EnterBlock(const Block& block) { USE(block); }
   void ExitBlock(const Block& block) { USE(block); }
 
-  V8_INLINE bool Bind(Block* block) {
+  V8_INLINE V8_WARN_UNUSED_RESULT bool Bind(Block* block) {
     if (!graph().Add(block)) return false;
     DCHECK_NULL(current_block_);
     current_block_ = block;
     return true;
+  }
+
+  V8_INLINE void BindReachable(Block* block) {
+    bool bound = Bind(block);
+    DCHECK(bound);
+    USE(bound);
   }
 
   void SetCurrentOrigin(OpIndex operation_origin) {

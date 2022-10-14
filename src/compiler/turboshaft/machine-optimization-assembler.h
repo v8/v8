@@ -525,12 +525,16 @@ class MachineOptimizationAssembler
 
       if (kind == Kind::kPower) {
         if (this->MatchFloat(rhs, 0.0) || this->MatchFloat(rhs, -0.0)) {
+          // lhs ** 0  ==>  1
           return this->FloatConstant(1.0, rep);
         }
         if (this->MatchFloat(rhs, 2.0)) {
+          // lhs ** 2  ==>  lhs * lhs
           return this->FloatMul(lhs, lhs, rep);
         }
         if (this->MatchFloat(rhs, 0.5)) {
+          // lhs ** 0.5  ==>  sqrt(lhs)
+          // (unless if lhs is -infinity)
           Block* if_neg_infinity = this->NewBlock(Block::Kind::kBranchTarget);
           if_neg_infinity->SetDeferred(true);
           Block* otherwise = this->NewBlock(Block::Kind::kBranchTarget);
@@ -539,16 +543,30 @@ class MachineOptimizationAssembler
                            lhs, this->FloatConstant(-V8_INFINITY, rep), rep),
                        if_neg_infinity, otherwise);
 
-          this->Bind(if_neg_infinity);
-          OpIndex infty = this->FloatConstant(V8_INFINITY, rep);
-          this->Goto(merge);
+          // TODO(dmercadier,tebbi): once the VariableAssembler has landed, and
+          // use only one AutoVariable both both {infty} and {sqrt} to avoid the
+          // "if (infty.valid() && sqrt.valid()) { return Phi ... } else ...".
+          OpIndex infty = OpIndex::Invalid();
+          OpIndex sqrt = OpIndex::Invalid();
+          if (this->Bind(if_neg_infinity)) {
+            infty = this->FloatConstant(V8_INFINITY, rep);
+            this->Goto(merge);
+          }
 
-          this->Bind(otherwise);
-          OpIndex sqrt = this->FloatSqrt(lhs, rep);
-          this->Goto(merge);
+          if (this->Bind(otherwise)) {
+            sqrt = this->FloatSqrt(lhs, rep);
+            this->Goto(merge);
+          }
 
-          this->Bind(merge);
-          return this->Phi(base::VectorOf({infty, sqrt}), rep);
+          this->BindReachable(merge);
+          if (infty.valid() && sqrt.valid()) {
+            return this->Phi(base::VectorOf({infty, sqrt}), rep);
+          } else if (infty.valid()) {
+            return infty;
+          } else {
+            DCHECK(sqrt.valid());
+            return sqrt;
+          }
         }
       }
     }
