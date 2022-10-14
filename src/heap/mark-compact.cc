@@ -5961,7 +5961,7 @@ void PageMarkingItem::MarkUntypedPointers(YoungGenerationMarkingTask* task) {
 
 void PageMarkingItem::MarkTypedPointers(YoungGenerationMarkingTask* task) {
   RememberedSet<OLD_TO_NEW>::IterateTyped(
-      chunk_, [=](SlotType slot_type, Address slot) {
+      chunk_, [this, task](SlotType slot_type, Address slot) {
         return UpdateTypedSlotHelper::UpdateTypedSlot(
             heap(), slot_type, slot, [this, task](FullMaybeObjectSlot slot) {
               return CheckAndMarkObject(task, slot);

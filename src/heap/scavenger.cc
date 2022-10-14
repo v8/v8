@@ -694,7 +694,8 @@ void Scavenger::ScavengePage(MemoryChunk* page) {
   }
 
   RememberedSet<OLD_TO_NEW>::IterateTyped(
-      page, [=](SlotType slot_type, Address slot_address) {
+      page, [this, page, record_old_to_shared_slots](SlotType slot_type,
+                                                     Address slot_address) {
         return UpdateTypedSlotHelper::UpdateTypedSlot(
             heap_, slot_type, slot_address,
             [this, page, slot_type, slot_address,
