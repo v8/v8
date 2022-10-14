@@ -25,6 +25,7 @@
 #include "src/wasm/assembler-buffer-cache.h"
 #include "src/wasm/code-space-access.h"
 #include "src/wasm/module-decoder.h"
+#include "src/wasm/pgo.h"
 #include "src/wasm/streaming-decoder.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"
@@ -565,11 +566,16 @@ class CompilationStateImpl {
   void ApplyCompilationHintToInitialProgress(const WasmCompilationHint& hint,
                                              size_t hint_idx);
 
+  // Use PGO information to choose a better initial compilation progress
+  // (tiering decisions).
+  void ApplyPgoInfoToInitialProgress(ProfileInformation* pgo_info);
+
   // Initialize compilation progress. Set compilation tiers to expect for
   // baseline and top tier compilation. Must be set before
   // {CommitCompilationUnits} is invoked which triggers background compilation.
   void InitializeCompilationProgress(int num_import_wrappers,
-                                     int num_export_wrappers);
+                                     int num_export_wrappers,
+                                     ProfileInformation* pgo_info);
 
   // Initialize the compilation progress after deserialization. This is needed
   // for recompilation (e.g. for tier down) to work later.
@@ -1790,7 +1796,8 @@ void InitializeLazyCompilation(NativeModule* native_module) {
 }
 
 std::unique_ptr<CompilationUnitBuilder> InitializeCompilation(
-    Isolate* isolate, NativeModule* native_module) {
+    Isolate* isolate, NativeModule* native_module,
+    ProfileInformation* pgo_info) {
   InitializeLazyCompilation(native_module);
   CompilationStateImpl* compilation_state =
       Impl(native_module->compilation_state());
@@ -1798,8 +1805,8 @@ std::unique_ptr<CompilationUnitBuilder> InitializeCompilation(
   int num_import_wrappers = AddImportWrapperUnits(native_module, builder.get());
   int num_export_wrappers =
       AddExportWrapperUnits(isolate, native_module, builder.get());
-  compilation_state->InitializeCompilationProgress(num_import_wrappers,
-                                                   num_export_wrappers);
+  compilation_state->InitializeCompilationProgress(
+      num_import_wrappers, num_export_wrappers, pgo_info);
   return builder;
 }
 
@@ -1893,7 +1900,8 @@ class CompilationTimeCallback : public CompilationEventCallback {
 void CompileNativeModule(Isolate* isolate,
                          v8::metrics::Recorder::ContextId context_id,
                          ErrorThrower* thrower, const WasmModule* wasm_module,
-                         std::shared_ptr<NativeModule> native_module) {
+                         std::shared_ptr<NativeModule> native_module,
+                         ProfileInformation* pgo_info) {
   CHECK(!v8_flags.jitless);
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
   const bool lazy_module = IsLazyModule(wasm_module);
@@ -1922,7 +1930,7 @@ void CompileNativeModule(Isolate* isolate,
 
   // Initialize the compilation units and kick off background compile tasks.
   std::unique_ptr<CompilationUnitBuilder> builder =
-      InitializeCompilation(isolate, native_module.get());
+      InitializeCompilation(isolate, native_module.get(), pgo_info);
   compilation_state->InitializeCompilationUnits(std::move(builder));
 
   compilation_state->WaitForCompilationEvent(
@@ -1988,7 +1996,8 @@ class BackgroundCompileJob final : public JobTask {
 std::shared_ptr<NativeModule> CompileToNativeModule(
     Isolate* isolate, const WasmFeatures& enabled, ErrorThrower* thrower,
     std::shared_ptr<const WasmModule> module, const ModuleWireBytes& wire_bytes,
-    int compilation_id, v8::metrics::Recorder::ContextId context_id) {
+    int compilation_id, v8::metrics::Recorder::ContextId context_id,
+    ProfileInformation* pgo_info) {
   const WasmModule* wasm_module = module.get();
   WasmEngine* engine = GetWasmEngine();
   base::OwnedVector<uint8_t> wire_bytes_copy =
@@ -2029,7 +2038,8 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
   // Sync compilation is user blocking, so we increase the priority.
   native_module->compilation_state()->SetHighPriority();
 
-  CompileNativeModule(isolate, context_id, thrower, wasm_module, native_module);
+  CompileNativeModule(isolate, context_id, thrower, wasm_module, native_module,
+                      pgo_info);
   bool cache_hit = !engine->UpdateNativeModuleCache(thrower->error(),
                                                     &native_module, isolate);
   if (thrower->error()) return {};
@@ -2695,8 +2705,10 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
     }
 
     if (start_compilation_) {
-      std::unique_ptr<CompilationUnitBuilder> builder =
-          InitializeCompilation(job->isolate(), job->native_module_.get());
+      // TODO(13209): Use PGO for async compilation, if available.
+      constexpr ProfileInformation* kNoProfileInformation = nullptr;
+      std::unique_ptr<CompilationUnitBuilder> builder = InitializeCompilation(
+          job->isolate(), job->native_module_.get(), kNoProfileInformation);
       compilation_state->InitializeCompilationUnits(std::move(builder));
       // We are in single-threaded mode, so there are no worker tasks that will
       // do the compilation. We call {WaitForCompilationEvent} here so that the
@@ -2915,8 +2927,10 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(
   // Set outstanding_finishers_ to 2, because both the AsyncCompileJob and the
   // AsyncStreamingProcessor have to finish.
   job_->outstanding_finishers_ = 2;
-  compilation_unit_builder_ =
-      InitializeCompilation(job_->isolate(), job_->native_module_.get());
+  // TODO(13209): Use PGO for streaming compilation, if available.
+  constexpr ProfileInformation* kNoProfileInformation = nullptr;
+  compilation_unit_builder_ = InitializeCompilation(
+      job_->isolate(), job_->native_module_.get(), kNoProfileInformation);
   return true;
 }
 
@@ -3181,8 +3195,49 @@ void CompilationStateImpl::ApplyCompilationHintToInitialProgress(
                                  (old_baseline_tier != ExecutionTier::kNone);
 }
 
+void CompilationStateImpl::ApplyPgoInfoToInitialProgress(
+    ProfileInformation* pgo_info) {
+  // Functions that were executed in the profiling run are eagerly compiled to
+  // Liftoff.
+  const WasmModule* module = native_module_->module();
+  for (int func_index : pgo_info->executed_functions()) {
+    uint8_t& progress =
+        compilation_progress_[declared_function_index(module, func_index)];
+    ExecutionTier old_baseline_tier =
+        RequiredBaselineTierField::decode(progress);
+    // If the function is already marked for eager compilation, we are good.
+    if (old_baseline_tier != ExecutionTier::kNone) continue;
+
+    // Set the baseline tier to Liftoff, so we eagerly compile to Liftoff.
+    // TODO(13288): Compile Liftoff code in the background, if lazy compilation
+    // is enabled.
+    progress =
+        RequiredBaselineTierField::update(progress, ExecutionTier::kLiftoff);
+    ++outstanding_baseline_units_;
+  }
+
+  // Functions that were tiered up during PGO generation are eagerly compiled to
+  // TurboFan (in the background, not blocking instantiation).
+  for (int func_index : pgo_info->tiered_up_functions()) {
+    uint8_t& progress =
+        compilation_progress_[declared_function_index(module, func_index)];
+    ExecutionTier old_baseline_tier =
+        RequiredBaselineTierField::decode(progress);
+    ExecutionTier old_top_tier = RequiredTopTierField::decode(progress);
+    // If the function is already marked for eager or background compilation to
+    // TurboFan, we are good.
+    if (old_baseline_tier == ExecutionTier::kTurbofan) continue;
+    if (old_top_tier == ExecutionTier::kTurbofan) continue;
+
+    // Set top tier to TurboFan, so we eagerly trigger compilation in the
+    // background.
+    progress = RequiredTopTierField::update(progress, ExecutionTier::kTurbofan);
+  }
+}
+
 void CompilationStateImpl::InitializeCompilationProgress(
-    int num_import_wrappers, int num_export_wrappers) {
+    int num_import_wrappers, int num_export_wrappers,
+    ProfileInformation* pgo_info) {
   DCHECK(!failed());
   auto* module = native_module_->module();
 
@@ -3212,6 +3267,9 @@ void CompilationStateImpl::InitializeCompilationProgress(
       ApplyCompilationHintToInitialProgress(hint, hint_idx);
     }
   }
+
+  // Apply PGO information, if available.
+  if (pgo_info) ApplyPgoInfoToInitialProgress(pgo_info);
 
   // Account for outstanding wrapper compilation.
   outstanding_baseline_units_ += num_import_wrappers;

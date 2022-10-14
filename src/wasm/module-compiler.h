@@ -49,6 +49,7 @@ class CompilationResultResolver;
 class ErrorThrower;
 class ModuleCompiler;
 class NativeModule;
+class ProfileInformation;
 class StreamingDecoder;
 class WasmCode;
 struct WasmModule;
@@ -57,7 +58,8 @@ V8_EXPORT_PRIVATE
 std::shared_ptr<NativeModule> CompileToNativeModule(
     Isolate* isolate, const WasmFeatures& enabled, ErrorThrower* thrower,
     std::shared_ptr<const WasmModule> module, const ModuleWireBytes& wire_bytes,
-    int compilation_id, v8::metrics::Recorder::ContextId context_id);
+    int compilation_id, v8::metrics::Recorder::ContextId context_id,
+    ProfileInformation* pgo_info);
 
 void RecompileNativeModule(NativeModule* native_module,
                            TieringState new_tiering_state);

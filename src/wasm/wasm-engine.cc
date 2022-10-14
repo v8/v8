@@ -511,9 +511,10 @@ MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
 
   // Transfer ownership of the WasmModule to the {Managed<WasmModule>} generated
   // in {CompileToNativeModule}.
+  constexpr ProfileInformation* kNoProfileInformation = nullptr;
   std::shared_ptr<NativeModule> native_module = CompileToNativeModule(
       isolate, WasmFeatures::ForAsmjs(), thrower, std::move(result).value(),
-      bytes, compilation_id, context_id);
+      bytes, compilation_id, context_id, kNoProfileInformation);
   if (!native_module) return {};
 
   return AsmWasmData::New(isolate, std::move(native_module), uses_bitset);
@@ -550,15 +551,16 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
   }
 
   // If experimental PGO via files is enabled, load profile information now.
+  std::unique_ptr<ProfileInformation> pgo_info;
   if (V8_UNLIKELY(v8_flags.experimental_wasm_pgo_from_file)) {
-    LoadProfileFromFile(module.get(), bytes.module_bytes());
+    pgo_info = LoadProfileFromFile(module.get(), bytes.module_bytes());
   }
 
   // Transfer ownership of the WasmModule to the {Managed<WasmModule>} generated
   // in {CompileToNativeModule}.
   std::shared_ptr<NativeModule> native_module =
       CompileToNativeModule(isolate, enabled, thrower, std::move(module), bytes,
-                            compilation_id, context_id);
+                            compilation_id, context_id, pgo_info.get());
   if (!native_module) return {};
 
 #ifdef DEBUG
