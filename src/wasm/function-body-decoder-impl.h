@@ -1147,6 +1147,70 @@ struct ControlBase : public PcForErrors<validate> {
 // the current instruction trace pointer in the default case
 const std::pair<uint32_t, uint32_t> invalid_instruction_trace = {0, 0};
 
+// A fast vector implementation, without implicit bounds checks (see
+// https://crbug.com/1358853).
+template <typename T>
+class FastZoneVector {
+ public:
+  T* begin() const { return begin_; }
+  T* end() const { return end_; }
+
+  uint32_t size() const { return static_cast<uint32_t>(end_ - begin_); }
+
+  bool empty() const { return begin_ == end_; }
+
+  T& operator[](uint32_t index) {
+    DCHECK_GE(size(), index);
+    return begin_[index];
+  }
+
+  void shrink_to(uint32_t new_size) {
+    DCHECK_GE(size(), new_size);
+    end_ = begin_ + new_size;
+  }
+
+  void pop(uint32_t num = 1) {
+    DCHECK_GE(size(), num);
+    end_ -= num;
+  }
+
+  void push(T value) {
+    DCHECK_GT(capacity_end_, end_);
+    *end_ = std::move(value);
+    ++end_;
+  }
+
+  V8_INLINE void EnsureMoreCapacity(int slots_needed, Zone* zone) {
+    if (V8_LIKELY(capacity_end_ - end_ >= slots_needed)) return;
+    Grow(slots_needed, zone);
+  }
+
+ private:
+  V8_NOINLINE void Grow(int slots_needed, Zone* zone) {
+    size_t new_capacity = std::max(
+        size_t{8}, base::bits::RoundUpToPowerOfTwo(size() + slots_needed));
+    CHECK_GE(kMaxUInt32, new_capacity);
+    DCHECK_LT(capacity_end_ - begin_, new_capacity);
+    T* new_begin = zone->template NewArray<T>(new_capacity);
+    if (begin_) {
+      for (T *ptr = begin_, *new_ptr = new_begin; ptr != end_;
+           ++ptr, ++new_ptr) {
+        new (new_ptr) T{std::move(*ptr)};
+        ptr->~T();
+      }
+      zone->DeleteArray(begin_, capacity_end_ - begin_);
+    }
+    end_ = new_begin + (end_ - begin_);
+    begin_ = new_begin;
+    capacity_end_ = new_begin + new_capacity;
+  }
+
+  // The array is zone-allocated inside {EnsureMoreCapacity}.
+  T* begin_ = nullptr;
+  T* end_ = nullptr;
+  T* capacity_end_ = nullptr;
+};
+
 // Generic Wasm bytecode decoder with utilities for decoding immediates,
 // lengths, etc.
 template <Decoder::ValidateFlag validate, DecodingMode decoding_mode>
@@ -2450,7 +2514,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
   Interface& interface() { return interface_; }
 
   bool Decode() {
-    DCHECK_EQ(stack_end_, stack_);
+    DCHECK(stack_.empty());
     DCHECK(control_.empty());
     DCHECK_LE(this->pc_, this->end_);
     DCHECK_EQ(this->num_locals(), 0);
@@ -2527,16 +2591,12 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     return &control_.back() - depth;
   }
 
-  uint32_t stack_size() const {
-    DCHECK_GE(stack_end_, stack_);
-    DCHECK_GE(kMaxUInt32, stack_end_ - stack_);
-    return static_cast<uint32_t>(stack_end_ - stack_);
-  }
+  uint32_t stack_size() const { return stack_.size(); }
 
   Value* stack_value(uint32_t depth) const {
     DCHECK_LT(0, depth);
-    DCHECK_GE(stack_size(), depth);
-    return stack_end_ - depth;
+    DCHECK_GE(stack_.size(), depth);
+    return stack_.end() - depth;
   }
 
   int32_t current_catch() const { return current_catch_; }
@@ -2639,7 +2699,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         // and binary operations, local.get, constants, ...). Thus check that
         // there is enough space for those operations centrally, and avoid any
         // bounds checks in those operations.
-        EnsureStackSpace(1);
+        stack_.EnsureMoreCapacity(1, this->compilation_zone_);
         uint8_t first_byte = *this->pc_;
         WasmOpcode opcode = static_cast<WasmOpcode>(first_byte);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(NextInstruction, opcode);
@@ -2677,7 +2737,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         // and binary operations, local.get, constants, ...). Thus check that
         // there is enough space for those operations centrally, and avoid any
         // bounds checks in those operations.
-        EnsureStackSpace(1);
+        stack_.EnsureMoreCapacity(1, this->compilation_zone_);
         uint8_t first_byte = *this->pc_;
         WasmOpcode opcode = static_cast<WasmOpcode>(first_byte);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(NextInstruction, opcode);
@@ -2697,10 +2757,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
   Interface interface_;
 
   // The value stack, stored as individual pointers for maximum performance.
-  Value* stack_ = nullptr;
-  Value* stack_end_ = nullptr;
-  Value* stack_capacity_end_ = nullptr;
-  ASSERT_TRIVIALLY_COPYABLE(Value);
+  FastZoneVector<Value> stack_;
 
   // Indicates whether the local with the given index is currently initialized.
   // Entries for defaultable locals are meaningless; we have a bit for each
@@ -2814,7 +2871,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         if (!c.reachable()) Append("%c", c.unreachable() ? '*' : '#');
       }
       Append(" | ");
-      for (size_t i = 0; i < decoder_->stack_size(); ++i) {
+      for (uint32_t i = 0; i < decoder_->stack_.size(); ++i) {
         Value& val = decoder_->stack_[i];
         Append(" %c", val.type.short_name());
       }
@@ -2946,14 +3003,15 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     c->kind = kControlTryCatch;
     // TODO(jkummerow): Consider moving the stack manipulation after the
     // INTERFACE call for consistency.
-    DCHECK_LE(stack_ + c->stack_depth, stack_end_);
-    stack_end_ = stack_ + c->stack_depth;
+    stack_.shrink_to(c->stack_depth);
     c->reachability = control_at(1)->innerReachability();
     RollbackLocalsInitialization(c);
     const WasmTagSig* sig = imm.tag->sig;
-    EnsureStackSpace(static_cast<int>(sig->parameter_count()));
+    stack_.EnsureMoreCapacity(static_cast<int>(sig->parameter_count()),
+                              this->compilation_zone_);
     for (ValueType type : sig->parameters()) Push(CreateValue(type));
-    base::Vector<Value> values(stack_ + c->stack_depth, sig->parameter_count());
+    base::Vector<Value> values(stack_.begin() + c->stack_depth,
+                               sig->parameter_count());
     current_catch_ = c->previous_catch;  // Pop try scope.
     CALL_INTERFACE_IF_OK_AND_PARENT_REACHABLE(CatchException, imm, c, values);
     current_code_reachable_and_ok_ = this->ok() && c->reachable();
@@ -3004,7 +3062,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     RollbackLocalsInitialization(c);
     current_catch_ = c->previous_catch;  // Pop try scope.
     CALL_INTERFACE_IF_OK_AND_PARENT_REACHABLE(CatchAll, c);
-    stack_end_ = stack_ + c->stack_depth;
+    stack_.shrink_to(c->stack_depth);
     current_code_reachable_and_ok_ = this->ok() && c->reachable();
     return 1;
   }
@@ -3847,8 +3905,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
   void EndControl() {
     DCHECK(!control_.empty());
     Control* current = &control_.back();
-    DCHECK_LE(stack_ + current->stack_depth, stack_end_);
-    stack_end_ = stack_ + current->stack_depth;
+    stack_.shrink_to(current->stack_depth);
     current->reachability = kUnreachable;
     current_code_reachable_and_ok_ = false;
   }
@@ -3891,29 +3948,34 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
   // to the difference, and return that number.
   V8_INLINE int EnsureStackArguments(int count) {
     uint32_t limit = control_.back().stack_depth;
-    if (V8_LIKELY(stack_size() >= count + limit)) return 0;
+    if (V8_LIKELY(stack_.size() >= count + limit)) return 0;
     return EnsureStackArguments_Slow(count, limit);
   }
 
   V8_NOINLINE int EnsureStackArguments_Slow(int count, uint32_t limit) {
     if (!VALIDATE(control_.back().unreachable())) {
-      NotEnoughArgumentsError(count, stack_size() - limit);
+      NotEnoughArgumentsError(count, stack_.size() - limit);
     }
     // Silently create unreachable values out of thin air underneath the
     // existing stack values. To do so, we have to move existing stack values
     // upwards in the stack, then instantiate the new Values as
     // {UnreachableValue}.
-    int current_values = stack_size() - limit;
+    int current_values = stack_.size() - limit;
     int additional_values = count - current_values;
     DCHECK_GT(additional_values, 0);
-    EnsureStackSpace(additional_values);
-    stack_end_ += additional_values;
-    Value* stack_base = stack_value(current_values + additional_values);
-    for (int i = current_values - 1; i >= 0; i--) {
-      stack_base[additional_values + i] = stack_base[i];
-    }
-    for (int i = 0; i < additional_values; i++) {
-      stack_base[i] = UnreachableValue(this->pc_);
+    stack_.EnsureMoreCapacity(additional_values, this->compilation_zone_);
+    Value unreachable_value = UnreachableValue(this->pc_);
+    for (int i = 0; i < additional_values; ++i) stack_.push(unreachable_value);
+    if (current_values > 0) {
+      // Move the current values up to the end of the stack, and create
+      // unreachable values below.
+      Value* stack_base = stack_value(current_values + additional_values);
+      for (int i = current_values - 1; i >= 0; i--) {
+        stack_base[additional_values + i] = stack_base[i];
+      }
+      for (int i = 0; i < additional_values; i++) {
+        stack_base[i] = UnreachableValue(this->pc_);
+      }
     }
     return additional_values;
   }
@@ -3975,7 +4037,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     Reachability reachability = control_.back().innerReachability();
     // In unreachable code, we may run out of stack.
     uint32_t stack_depth =
-        stack_size() >= drop_values ? stack_size() - drop_values : 0;
+        stack_.size() >= drop_values ? stack_.size() - drop_values : 0;
     stack_depth = std::max(stack_depth, control_.back().stack_depth);
     uint32_t init_stack_depth = this->locals_initialization_stack_depth();
     control_.emplace_back(kind, stack_depth, init_stack_depth, this->pc_,
@@ -3988,7 +4050,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     // This cannot be the outermost control block.
     DCHECK_LT(1, control_.size());
     Control* c = &control_.back();
-    DCHECK_LE(stack_ + c->stack_depth, stack_end_);
+    DCHECK_LE(c->stack_depth, stack_.size());
 
     CALL_INTERFACE_IF_OK_AND_PARENT_REACHABLE(PopControl, c);
 
@@ -5854,54 +5916,31 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     }
   }
 
-  V8_INLINE void EnsureStackSpace(int slots_needed) {
-    if (V8_LIKELY(stack_capacity_end_ - stack_end_ >= slots_needed)) return;
-    GrowStackSpace(slots_needed);
-  }
-
-  V8_NOINLINE void GrowStackSpace(int slots_needed) {
-    size_t new_stack_capacity =
-        std::max(size_t{8},
-                 base::bits::RoundUpToPowerOfTwo(stack_size() + slots_needed));
-    Value* new_stack =
-        this->zone()->template NewArray<Value>(new_stack_capacity);
-    if (stack_) {
-      std::copy(stack_, stack_end_, new_stack);
-      this->zone()->DeleteArray(stack_, stack_capacity_end_ - stack_);
-    }
-    stack_end_ = new_stack + (stack_end_ - stack_);
-    stack_ = new_stack;
-    stack_capacity_end_ = new_stack + new_stack_capacity;
-  }
-
   V8_INLINE Value CreateValue(ValueType type) { return Value{this->pc_, type}; }
   V8_INLINE void Push(Value value) {
     DCHECK_NE(kWasmVoid, value.type);
-    // {EnsureStackSpace} should have been called before, either in the central
-    // decoding loop, or individually if more than one element is pushed.
-    DCHECK_GT(stack_capacity_end_, stack_end_);
-    *stack_end_ = value;
-    ++stack_end_;
+    // {stack_.EnsureMoreCapacity} should have been called before, either in the
+    // central decoding loop, or individually if more than one element is
+    // pushed.
+    stack_.push(value);
   }
 
   void PushMergeValues(Control* c, Merge<Value>* merge) {
     if (decoding_mode == kConstantExpression) return;
     DCHECK_EQ(c, &control_.back());
     DCHECK(merge == &c->start_merge || merge == &c->end_merge);
-    DCHECK_LE(stack_ + c->stack_depth, stack_end_);
-    stack_end_ = stack_ + c->stack_depth;
+    stack_.shrink_to(c->stack_depth);
     if (merge->arity == 1) {
-      // {EnsureStackSpace} should have been called before in the central
-      // decoding loop.
-      DCHECK_GT(stack_capacity_end_, stack_end_);
-      *stack_end_++ = merge->vals.first;
+      // {stack_.EnsureMoreCapacity} should have been called before in the
+      // central decoding loop.
+      stack_.push(merge->vals.first);
     } else {
-      EnsureStackSpace(merge->arity);
+      stack_.EnsureMoreCapacity(merge->arity, this->compilation_zone_);
       for (uint32_t i = 0; i < merge->arity; i++) {
-        *stack_end_++ = merge->vals.array[i];
+        stack_.push(merge->vals.array[i]);
       }
     }
-    DCHECK_EQ(c->stack_depth + merge->arity, stack_size());
+    DCHECK_EQ(c->stack_depth + merge->arity, stack_.size());
   }
 
   V8_INLINE ReturnVector CreateReturnValues(const FunctionSig* sig) {
@@ -5912,7 +5951,8 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     return values;
   }
   V8_INLINE void PushReturns(ReturnVector values) {
-    EnsureStackSpace(static_cast<int>(values.size()));
+    stack_.EnsureMoreCapacity(static_cast<int>(values.size()),
+                              this->compilation_zone_);
     for (Value& value : values) Push(value);
   }
 
@@ -5954,16 +5994,16 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
   V8_INLINE Value Peek(int depth) {
     DCHECK(!control_.empty());
     uint32_t limit = control_.back().stack_depth;
-    if (V8_UNLIKELY(stack_size() <= limit + depth)) {
+    if (V8_UNLIKELY(stack_.size() <= limit + depth)) {
       // Peeking past the current control start in reachable code.
       if (!VALIDATE(decoding_mode == kFunctionBody &&
                     control_.back().unreachable())) {
-        NotEnoughArgumentsError(depth + 1, stack_size() - limit);
+        NotEnoughArgumentsError(depth + 1, stack_.size() - limit);
       }
       return UnreachableValue(this->pc_);
     }
-    DCHECK_LE(stack_, stack_end_ - depth - 1);
-    return *(stack_end_ - depth - 1);
+    DCHECK_LT(depth, stack_.size());
+    return *(stack_.end() - depth - 1);
   }
 
   Value PeekPackedArray(uint32_t stack_depth, uint32_t operand_index,
@@ -6008,12 +6048,11 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
   V8_INLINE void Drop(int count = 1) {
     DCHECK(!control_.empty());
     uint32_t limit = control_.back().stack_depth;
-    if (V8_UNLIKELY(stack_size() < limit + count)) {
+    if (V8_UNLIKELY(stack_.size() < limit + count)) {
       // Pop what we can.
-      count = std::min(count, static_cast<int>(stack_size() - limit));
+      count = std::min(count, static_cast<int>(stack_.size() - limit));
     }
-    DCHECK_LE(stack_, stack_end_ - count);
-    stack_end_ -= count;
+    stack_.pop(count);
   }
   // Drop the top stack element if present. Takes a Value input for more
   // descriptive call sites.
@@ -6053,7 +6092,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         : merge_type == kInitExprMerge ? "constant expression"
                                        : "fallthru";
     uint32_t arity = merge->arity;
-    uint32_t actual = stack_size() - control_.back().stack_depth;
+    uint32_t actual = stack_.size() - control_.back().stack_depth;
     // Here we have to check for !unreachable(), because we need to typecheck as
     // if the current code is reachable even if it is spec-only reachable.
     if (V8_LIKELY(decoding_mode == kConstantExpression ||
@@ -6066,7 +6105,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         return false;
       }
       // Typecheck the topmost {merge->arity} values on the stack.
-      Value* stack_values = stack_end_ - (arity + drop_values);
+      Value* stack_values = stack_.end() - (arity + drop_values);
       for (uint32_t i = 0; i < arity; ++i) {
         Value& val = stack_values[i];
         Value& old = (*merge)[i];
@@ -6094,9 +6133,10 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
       uint32_t inserted_value_count =
           static_cast<uint32_t>(EnsureStackArguments(drop_values + arity));
       if (inserted_value_count > 0) {
-        // EnsureStackSpace may have inserted unreachable values into the bottom
-        // of the stack. If so, mark them with the correct type. If drop values
-        // were also inserted, disregard them, as they will be dropped anyway.
+        // stack_.EnsureMoreCapacity() may have inserted unreachable values into
+        // the bottom of the stack. If so, mark them with the correct type. If
+        // drop values were also inserted, disregard them, as they will be
+        // dropped anyway.
         Value* stack_base = stack_value(drop_values + arity);
         for (uint32_t i = 0; i < std::min(arity, inserted_value_count); i++) {
           if (stack_base[i].type == kWasmBottom) {
@@ -6115,7 +6155,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
       return false;
     }
     DCHECK_IMPLIES(current_code_reachable_and_ok_,
-                   stack_size() >= this->sig_->return_count());
+                   stack_.size() >= this->sig_->return_count());
     CALL_INTERFACE_IF_OK_AND_REACHABLE(DoReturn, 0);
     EndControl();
     return true;
