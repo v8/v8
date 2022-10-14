@@ -530,7 +530,7 @@ var prettyPrinted;
   };
 
   function executeCode(code) {
-    if (typeof code === 'function')  return code();
+    if (typeof code === 'function') return code();
     if (typeof code === 'string') return eval(code);
     failWithMessage(
         'Given code is neither function nor string, but ' + (typeof code) +
