@@ -58,6 +58,15 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
       kGCPrefix, kExprExternInternalize,
       kGCPrefix, kExprRefTestNull, typeCode,
     ]).exportFunc();
+
+    builder.addFunction(`refCast${typeName}`,
+                        makeSig([kWasmExternRef], [kWasmExternRef]))
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprExternInternalize,
+      kGCPrefix, kExprRefCast, typeCode,
+      kGCPrefix, kExprExternExternalize,
+    ]).exportFunc();
   });
 
   var instance = builder.instantiate();
@@ -134,4 +143,84 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals([1, 1], wasm.refTestAny(wasm.createFuncRef()));
   assertEquals([1, 1], wasm.refTestAny(1)); // ref.i31
   assertEquals([1, 1], wasm.refTestAny({'JavaScript': 'Object'}));
+
+  // ref.cast
+  let structSuperObj = wasm.createStructSuper();
+  let structSubObj = wasm.createStructSub();
+  let arrayObj = wasm.createArray();
+  let jsObj = {'JavaScript': 'Object'};
+  let funcObj = wasm.createFuncRef();
+
+  assertTraps(kTrapIllegalCast, () => wasm.refCastStructSuper(null));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastStructSuper(undefined));
+  assertSame(structSuperObj, wasm.refCastStructSuper(structSuperObj));
+  assertSame(structSubObj, wasm.refCastStructSuper(structSubObj));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastStructSuper(arrayObj));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastStructSuper(funcObj));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastStructSuper(1));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastStructSuper(jsObj));
+
+  assertTraps(kTrapIllegalCast, () => wasm.refCastStructSub(null));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastStructSub(undefined));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastStructSub(structSuperObj));
+  assertSame(structSubObj, wasm.refCastStructSub(structSubObj));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastStructSub(arrayObj));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastStructSub(funcObj));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastStructSub(1));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastStructSub(jsObj));
+
+  assertTraps(kTrapIllegalCast, () => wasm.refCastArray(null));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastArray(undefined));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastArray(structSuperObj));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastArray(structSubObj));
+  assertSame(arrayObj, wasm.refCastArray(arrayObj));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastArray(funcObj));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastArray(1));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastArray(jsObj));
+
+
+  assertTraps(kTrapIllegalCast, () => wasm.refCastI31(null));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastI31(undefined));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastI31(structSuperObj));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastI31(structSubObj));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastI31(arrayObj));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastI31(funcObj));
+  assertEquals(1, wasm.refCastI31(1));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastI31(jsObj));
+
+  assertTraps(kTrapIllegalCast, () => wasm.refCastAnyArray(null));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastAnyArray(undefined));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastAnyArray(structSuperObj));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastAnyArray(structSubObj));
+  assertSame(arrayObj, wasm.refCastAnyArray(arrayObj));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastAnyArray(funcObj));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastAnyArray(1));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastAnyArray(jsObj));
+
+  assertTraps(kTrapIllegalCast, () => wasm.refCastStruct(null));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastStruct(undefined));
+  assertSame(structSuperObj, wasm.refCastStruct(structSuperObj));
+  assertSame(structSubObj, wasm.refCastStruct(structSubObj));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastStruct(arrayObj));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastStruct(funcObj));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastStruct(1));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastStruct(jsObj));
+
+  assertTraps(kTrapIllegalCast, () => wasm.refCastEq(null));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastEq(undefined));
+  assertSame(structSuperObj, wasm.refCastEq(structSuperObj));
+  assertSame(structSubObj, wasm.refCastEq(structSubObj));
+  assertSame(arrayObj, wasm.refCastEq(arrayObj));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastEq(funcObj));
+  assertEquals(1, wasm.refCastEq(1));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastEq(jsObj));
+
+  assertTraps(kTrapIllegalCast, () => wasm.refCastAny(null));
+  assertSame(undefined, wasm.refCastAny(undefined));
+  assertSame(structSuperObj, wasm.refCastAny(structSuperObj));
+  assertSame(structSubObj, wasm.refCastAny(structSubObj));
+  assertSame(arrayObj, wasm.refCastAny(arrayObj));
+  assertSame(funcObj, wasm.refCastAny(funcObj));
+  assertEquals(1, wasm.refCastAny(1));
+  assertSame(jsObj, wasm.refCastAny(jsObj));
 })();

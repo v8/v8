@@ -5548,6 +5548,27 @@ Node* WasmGraphBuilder::RefCast(Node* object, Node* rtt,
   return gasm_->WasmTypeCast(object, rtt, config);
 }
 
+Node* WasmGraphBuilder::RefCastAbstract(Node* object, wasm::HeapType type,
+                                        wasm::WasmCodePosition position) {
+  bool is_nullable =
+      compiler::NodeProperties::GetType(object).AsWasm().type.is_nullable();
+  switch (type.representation()) {
+    case wasm::HeapType::kEq:
+      return RefAsEq(object, is_nullable, position);
+    case wasm::HeapType::kI31:
+      return RefAsI31(object, position);
+    case wasm::HeapType::kStruct:
+      return RefAsStruct(object, is_nullable, position);
+    case wasm::HeapType::kArray:
+      return RefAsArray(object, is_nullable, position);
+    case wasm::HeapType::kAny:
+      // Any may never need a cast as it is either implicitly convertible or
+      // never convertible for any given type.
+    default:
+      UNREACHABLE();
+  }
+}
+
 void WasmGraphBuilder::BrOnCast(Node* object, Node* rtt,
                                 WasmTypeCheckConfig config,
                                 Node** match_control, Node** match_effect,
@@ -5570,6 +5591,17 @@ Node* WasmGraphBuilder::RefIsEq(Node* object, bool object_can_be_null,
   gasm_->Goto(&done, Int32Constant(1));
   gasm_->Bind(&done);
   return done.PhiAt(0);
+}
+
+Node* WasmGraphBuilder::RefAsEq(Node* object, bool object_can_be_null,
+                                wasm::WasmCodePosition position) {
+  bool null_succeeds = false;
+  auto done = gasm_->MakeLabel();
+  EqCheck(object, object_can_be_null, CastCallbacks(&done, position),
+          null_succeeds);
+  gasm_->Goto(&done);
+  gasm_->Bind(&done);
+  return object;
 }
 
 Node* WasmGraphBuilder::RefIsStruct(Node* object, bool object_can_be_null,

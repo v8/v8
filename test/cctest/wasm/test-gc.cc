@@ -592,15 +592,26 @@ WASM_COMPILED_EXEC_TEST(BrOnCast) {
        WASM_GC_OP(kExprStructGet), type_index, 0, WASM_LOCAL_GET(0),
        kExprI32Add, kExprEnd});
 
+  const byte kTestNullDeprecated = tester.DefineFunction(
+      tester.sigs.i_v(), {kWasmI32, kWasmStructRef},
+      {WASM_BLOCK_R(ValueType::RefNull(type_index),
+                    WASM_LOCAL_SET(0, WASM_I32V(111)),
+                    WASM_LOCAL_GET(1),  // Put a nullref onto the value stack.
+                    // Not taken for nullref.
+                    WASM_BR_ON_CAST(0, type_index),
+                    WASM_GC_OP(kExprRefCastDeprecated), type_index,
+
+                    WASM_LOCAL_SET(0, WASM_I32V(222))),  // Final result.
+       WASM_DROP, WASM_LOCAL_GET(0), kExprEnd});
+
   const byte kTestNull = tester.DefineFunction(
       tester.sigs.i_v(), {kWasmI32, kWasmStructRef},
-      {WASM_BLOCK_R(
-           ValueType::RefNull(type_index), WASM_LOCAL_SET(0, WASM_I32V(111)),
-           WASM_LOCAL_GET(1),  // Put a nullref onto the value stack.
-           // Not taken for nullref.
-           WASM_BR_ON_CAST(0, type_index), WASM_GC_OP(kExprRefCast), type_index,
-
-           WASM_LOCAL_SET(0, WASM_I32V(222))),  // Final result.
+      {WASM_BLOCK_R(ValueType::RefNull(type_index),
+                    WASM_LOCAL_SET(0, WASM_I32V(111)),
+                    WASM_LOCAL_GET(1),  // Put a nullref onto the value stack.
+                    // Not taken for nullref.
+                    WASM_BR_ON_CAST(0, type_index), WASM_GC_OP(kExprRefCast),
+                    type_index),  // Traps
        WASM_DROP, WASM_LOCAL_GET(0), kExprEnd});
 
   const byte kTypedAfterBranch = tester.DefineFunction(
@@ -620,7 +631,8 @@ WASM_COMPILED_EXEC_TEST(BrOnCast) {
 
   tester.CompileModule();
   tester.CheckResult(kTestStructStatic, 222);
-  tester.CheckResult(kTestNull, 222);
+  tester.CheckResult(kTestNullDeprecated, 222);
+  tester.CheckHasThrown(kTestNull);
   tester.CheckResult(kTypedAfterBranch, 42);
 }
 
@@ -1213,6 +1225,11 @@ WASM_COMPILED_EXEC_TEST(RefTrivialCastsStatic) {
       {WASM_REF_TEST_DEPRECATED(WASM_STRUCT_NEW_DEFAULT(type_index), sig_index),
        kExprEnd});
 
+  const byte kRefCastNullDeprecated =
+      tester.DefineFunction(tester.sigs.i_v(), {},
+                            {WASM_REF_IS_NULL(WASM_REF_CAST_DEPRECATED(
+                                 WASM_REF_NULL(type_index), subtype_index)),
+                             kExprEnd});
   const byte kRefCastNull =
       tester.DefineFunction(tester.sigs.i_v(), {},
                             {WASM_REF_IS_NULL(WASM_REF_CAST(
@@ -1223,24 +1240,32 @@ WASM_COMPILED_EXEC_TEST(RefTrivialCastsStatic) {
       {WASM_REF_IS_NULL(
            WASM_REF_CAST(WASM_STRUCT_NEW_DEFAULT(subtype_index), type_index)),
        kExprEnd});
+  const byte kRefCastUpcastNullDeprecated =
+      tester.DefineFunction(tester.sigs.i_v(), {},
+                            {WASM_REF_IS_NULL(WASM_REF_CAST_DEPRECATED(
+                                 WASM_REF_NULL(subtype_index), type_index)),
+                             kExprEnd});
   const byte kRefCastUpcastNull =
       tester.DefineFunction(tester.sigs.i_v(), {},
                             {WASM_REF_IS_NULL(WASM_REF_CAST(
                                  WASM_REF_NULL(subtype_index), type_index)),
                              kExprEnd});
+  // Note: Casting of types from different type hierarchies is only valid for
+  // the deprecated cast instruction.
   const byte kRefCastUnrelatedNullable = tester.DefineFunction(
       tester.sigs.i_v(), {refNull(subtype_index)},
       {WASM_LOCAL_SET(0, WASM_STRUCT_NEW_DEFAULT(subtype_index)),
-       WASM_REF_IS_NULL(WASM_REF_CAST(WASM_LOCAL_GET(0), sig_index)),
+       WASM_REF_IS_NULL(WASM_REF_CAST_DEPRECATED(WASM_LOCAL_GET(0), sig_index)),
        kExprEnd});
-  const byte kRefCastUnrelatedNull = tester.DefineFunction(
-      tester.sigs.i_v(), {},
-      {WASM_REF_IS_NULL(WASM_REF_CAST(WASM_REF_NULL(subtype_index), sig_index)),
-       kExprEnd});
+  const byte kRefCastUnrelatedNull =
+      tester.DefineFunction(tester.sigs.i_v(), {},
+                            {WASM_REF_IS_NULL(WASM_REF_CAST_DEPRECATED(
+                                 WASM_REF_NULL(subtype_index), sig_index)),
+                             kExprEnd});
   const byte kRefCastUnrelatedNonNullable = tester.DefineFunction(
       tester.sigs.i_v(), {},
-      {WASM_REF_IS_NULL(
-           WASM_REF_CAST(WASM_STRUCT_NEW_DEFAULT(type_index), sig_index)),
+      {WASM_REF_IS_NULL(WASM_REF_CAST_DEPRECATED(
+           WASM_STRUCT_NEW_DEFAULT(type_index), sig_index)),
        kExprEnd});
 
   const byte kBrOnCastNull = tester.DefineFunction(
@@ -1340,9 +1365,11 @@ WASM_COMPILED_EXEC_TEST(RefTrivialCastsStatic) {
   tester.CheckResult(kRefTestUnrelatedNullDeprecated, 0);
   tester.CheckResult(kRefTestUnrelatedNonNullableDeprecated, 0);
 
-  tester.CheckResult(kRefCastNull, 1);
+  tester.CheckResult(kRefCastNullDeprecated, 1);
+  tester.CheckHasThrown(kRefCastNull);
   tester.CheckResult(kRefCastUpcast, 0);
-  tester.CheckResult(kRefCastUpcastNull, 1);
+  tester.CheckResult(kRefCastUpcastNullDeprecated, 1);
+  tester.CheckHasThrown(kRefCastUpcastNull);
   tester.CheckHasThrown(kRefCastUnrelatedNullable);
   tester.CheckResult(kRefCastUnrelatedNull, 1);
   tester.CheckHasThrown(kRefCastUnrelatedNonNullable);
@@ -1621,8 +1648,8 @@ WASM_COMPILED_EXEC_TEST(CastNullRef) {
   tester.CheckHasThrown(to_array);
   tester.CheckHasThrown(to_struct);
   tester.CheckHasThrown(to_i31);
-  // Static ref.cast succeeds.
-  tester.CheckResult(to_struct_idx, 1);
+  // ref.cast traps on null.
+  tester.CheckHasThrown(to_struct_idx);
 }
 
 WASM_COMPILED_EXEC_TEST(CallReftypeParameters) {

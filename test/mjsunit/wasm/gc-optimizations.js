@@ -468,8 +468,9 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .addBody([
       // Cast from struct_a to struct_b via common base type struct_super.
       kExprLocalGet, 0,
-      kGCPrefix, kExprRefCast, struct_super,
-      kGCPrefix, kExprRefCast, struct_b, // annotated as 'ref null none'
+      // TODO(7748): Replace cast op with "ref.cast null".
+      kGCPrefix, kExprRefCastDeprecated, struct_super,
+      kGCPrefix, kExprRefCastDeprecated, struct_b, // annotated as 'ref null none'
       kExprRefIsNull,
     ]);
 
@@ -514,7 +515,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
       // local.get 0 is known to be null until end of block.
       kExprLocalGet, 0,
       // This cast is a no-op and shold be optimized away.
-      kGCPrefix, kExprRefCast, struct_b,
+      // TODO(7748): Replace with "ref.cast null".
+      kGCPrefix, kExprRefCastDeprecated, struct_b,
       kExprEnd,
       kExprRefIsNull,
     ]);

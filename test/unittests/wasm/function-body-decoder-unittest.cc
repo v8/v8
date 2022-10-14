@@ -1160,8 +1160,9 @@ TEST_F(FunctionBodyDecoderTest, UnreachableRefTypes) {
   ExpectValidates(sigs.i_v(),
                   {WASM_UNREACHABLE, WASM_GC_OP(kExprRefTest), kEqRefCode});
 
-  ExpectValidates(sigs.v_v(), {WASM_UNREACHABLE, WASM_GC_OP(kExprRefCast),
-                               struct_index, kExprDrop});
+  ExpectValidates(sigs.v_v(),
+                  {WASM_UNREACHABLE, WASM_GC_OP(kExprRefCastDeprecated),
+                   struct_index, kExprDrop});
   ExpectValidates(sigs.v_v(), {WASM_UNREACHABLE, WASM_GC_OP(kExprRefCast),
                                struct_index, kExprDrop});
 
@@ -1170,6 +1171,9 @@ TEST_F(FunctionBodyDecoderTest, UnreachableRefTypes) {
   ExpectValidates(&sig_v_s, {WASM_UNREACHABLE, WASM_LOCAL_GET(0), kExprBrOnNull,
                              0, kExprCallFunction, struct_consumer});
 
+  ExpectValidates(
+      FunctionSig::Build(zone(), {struct_type}, {}),
+      {WASM_UNREACHABLE, WASM_GC_OP(kExprRefCastDeprecated), struct_index});
   ExpectValidates(FunctionSig::Build(zone(), {struct_type}, {}),
                   {WASM_UNREACHABLE, WASM_GC_OP(kExprRefCast), struct_index});
 
@@ -4331,7 +4335,7 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
     HeapType from_heap = HeapType(std::get<0>(test));
     HeapType to_heap = HeapType(std::get<1>(test));
     bool should_pass = std::get<2>(test);
-    bool should_pass_ref_test = std::get<3>(test);
+    bool should_pass_new_ops = std::get<3>(test);
     SCOPED_TRACE("from_heap = " + from_heap.name() +
                  ", to_heap = " + to_heap.name());
 
@@ -4346,7 +4350,8 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
       ExpectValidates(&test_sig,
                       {WASM_REF_TEST_DEPRECATED(WASM_LOCAL_GET(0),
                                                 WASM_HEAP_TYPE(to_heap))});
-      ExpectValidates(&cast_sig, {WASM_REF_CAST(WASM_LOCAL_GET(0),
+      ExpectValidates(&cast_sig,
+                      {WASM_REF_CAST_DEPRECATED(WASM_LOCAL_GET(0),
                                                 WASM_HEAP_TYPE(to_heap))});
     } else {
       std::string error_message =
@@ -4358,22 +4363,29 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
                                               WASM_HEAP_TYPE(to_heap))},
                     kAppendEnd, ("ref.test" + error_message).c_str());
       ExpectFailure(&cast_sig,
-                    {WASM_REF_CAST(WASM_LOCAL_GET(0), WASM_HEAP_TYPE(to_heap))},
+                    {WASM_REF_CAST_DEPRECATED(WASM_LOCAL_GET(0),
+                                              WASM_HEAP_TYPE(to_heap))},
                     kAppendEnd, ("ref.cast" + error_message).c_str());
     }
 
-    if (should_pass_ref_test) {
+    if (should_pass_new_ops) {
       ExpectValidates(&test_sig, {WASM_REF_TEST(WASM_LOCAL_GET(0),
+                                                WASM_HEAP_TYPE(to_heap))});
+      ExpectValidates(&cast_sig, {WASM_REF_CAST(WASM_LOCAL_GET(0),
                                                 WASM_HEAP_TYPE(to_heap))});
     } else {
       std::string error_message =
-          "Invalid types for ref.test: local.get of type " +
-          cast_reps[1].name() +
+          "local.get of type " + cast_reps[1].name() +
           " has to be in the same reference type hierarchy as (ref " +
           to_heap.name() + ")";
       ExpectFailure(&test_sig,
                     {WASM_REF_TEST(WASM_LOCAL_GET(0), WASM_HEAP_TYPE(to_heap))},
-                    kAppendEnd, error_message.c_str());
+                    kAppendEnd,
+                    ("Invalid types for ref.test: " + error_message).c_str());
+      ExpectFailure(&cast_sig,
+                    {WASM_REF_CAST(WASM_LOCAL_GET(0), WASM_HEAP_TYPE(to_heap))},
+                    kAppendEnd,
+                    ("Invalid types for ref.cast: " + error_message).c_str());
     }
   }
 
@@ -4389,10 +4401,15 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
                 "Invalid types for ref.test: i32.const of type i32 has to be "
                 "in the same reference type hierarchy as (ref 0)");
   ExpectFailure(sigs.v_v(),
-                {WASM_REF_CAST(WASM_I32V(1), array_heap), kExprDrop},
+                {WASM_REF_CAST_DEPRECATED(WASM_I32V(1), array_heap), kExprDrop},
                 kAppendEnd,
                 "ref.cast[0] expected subtype of (ref null func), (ref null "
                 "struct) or (ref null array), found i32.const of type i32");
+  ExpectFailure(sigs.v_v(),
+                {WASM_REF_CAST(WASM_I32V(1), array_heap), kExprDrop},
+                kAppendEnd,
+                "Invalid types for ref.cast: i32.const of type i32 has to be "
+                "in the same reference type hierarchy as (ref 0)");
 }
 
 TEST_F(FunctionBodyDecoderTest, BrOnCastOrCastFail) {
@@ -4407,6 +4424,10 @@ TEST_F(FunctionBodyDecoderTest, BrOnCastOrCastFail) {
   ValueType supertype = ValueType::RefNull(super_struct);
   ValueType subtype = ValueType::RefNull(sub_struct);
 
+  ExpectValidates(
+      FunctionSig::Build(this->zone(), {kWasmI32, subtype}, {supertype}),
+      {WASM_I32V(42), WASM_LOCAL_GET(0), WASM_BR_ON_CAST(0, sub_struct),
+       WASM_GC_OP(kExprRefCast), sub_struct});
   ExpectValidates(
       FunctionSig::Build(this->zone(), {kWasmI32, subtype}, {supertype}),
       {WASM_I32V(42), WASM_LOCAL_GET(0), WASM_BR_ON_CAST(0, sub_struct),

@@ -154,9 +154,17 @@ Reduction WasmGCLowering::ReduceWasmTypeCast(Node* node) {
   auto end_label = gasm_.MakeLabel();
 
   if (object_can_be_null) {
-    gasm_.GotoIf(gasm_.TaggedEqual(object, Null()), &end_label,
-                 BranchHint::kFalse);
+    Node* is_null = gasm_.TaggedEqual(object, Null());
+    if (config.null_succeeds) {
+      gasm_.GotoIf(is_null, &end_label, BranchHint::kFalse);
+    } else {
+      gasm_.TrapIf(is_null, TrapId::kTrapIllegalCast);
+    }
   }
+
+  // TODO(7748): Only perform SMI check if source type may contain i31, any or
+  // extern.
+  gasm_.TrapIf(gasm_.IsI31(object), TrapId::kTrapIllegalCast);
 
   Node* map = gasm_.LoadMap(object);
 

@@ -497,10 +497,14 @@ class WasmGraphBuilder {
   Node* RefTestAbstract(Node* object, wasm::HeapType type, bool null_succeeds);
   Node* RefCast(Node* object, Node* rtt, WasmTypeCheckConfig config,
                 wasm::WasmCodePosition position);
+  Node* RefCastAbstract(Node* object, wasm::HeapType type,
+                        wasm::WasmCodePosition position);
   void BrOnCast(Node* object, Node* rtt, WasmTypeCheckConfig config,
                 Node** match_control, Node** match_effect,
                 Node** no_match_control, Node** no_match_effect);
   Node* RefIsEq(Node* object, bool object_can_be_null, bool null_succeeds);
+  Node* RefAsEq(Node* object, bool object_can_be_null,
+                wasm::WasmCodePosition position);
   Node* RefIsStruct(Node* object, bool object_can_be_null, bool null_succeeds);
   Node* RefAsStruct(Node* object, bool object_can_be_null,
                     wasm::WasmCodePosition position);

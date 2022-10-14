@@ -2679,7 +2679,8 @@ class LiftoffCompiler {
     __ AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
   }
 
-  void AssertNull(FullDecoder* decoder, const Value& arg, Value* result) {
+  void AssertNullImpl(FullDecoder* decoder, const Value& arg, Value* result,
+                      LiftoffCondition cond) {
     LiftoffRegList pinned;
     LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
     Label* trap_label =
@@ -2688,10 +2689,18 @@ class LiftoffCompiler {
     LoadNullValue(null.gp(), pinned);
     {
       FREEZE_STATE(trapping);
-      __ emit_cond_jump(kUnequal, trap_label, kRefNull, obj.gp(), null.gp(),
+      __ emit_cond_jump(cond, trap_label, kRefNull, obj.gp(), null.gp(),
                         trapping);
     }
     __ PushRegister(kRefNull, obj);
+  }
+
+  void AssertNull(FullDecoder* decoder, const Value& arg, Value* result) {
+    AssertNullImpl(decoder, arg, result, kUnequal);
+  }
+
+  void AssertNotNull(FullDecoder* decoder, const Value& arg, Value* result) {
+    AssertNullImpl(decoder, arg, result, kEqual);
   }
 
   void NopForTestingUnsupportedInLiftoff(FullDecoder* decoder) {
@@ -6010,7 +6019,7 @@ class LiftoffCompiler {
   }
 
   void RefCast(FullDecoder* decoder, const Value& obj, const Value& rtt,
-               Value* result) {
+               Value* result, bool null_succeeds) {
     if (v8_flags.experimental_wasm_assume_ref_cast_succeeds) {
       // Just drop the rtt.
       __ DropValues(1);
@@ -6028,11 +6037,31 @@ class LiftoffCompiler {
 
     {
       FREEZE_STATE(frozen);
+      NullSucceeds on_null = null_succeeds ? kNullSucceeds : kNullFails;
       SubtypeCheck(decoder->module_, obj_reg.gp(), obj.type, rtt_reg.gp(),
-                   rtt.type, scratch_null, scratch2, trap_label, kNullSucceeds,
+                   rtt.type, scratch_null, scratch2, trap_label, on_null,
                    frozen);
     }
     __ PushRegister(obj.type.kind(), obj_reg);
+  }
+
+  void RefCastAbstract(FullDecoder* decoder, const Value& obj, HeapType type,
+                       Value* result_val) {
+    switch (type.representation()) {
+      case HeapType::kEq:
+        return RefAsEq(decoder, obj, result_val);
+      case HeapType::kI31:
+        return RefAsI31(decoder, obj, result_val);
+      case HeapType::kStruct:
+        return RefAsStruct(decoder, obj, result_val);
+      case HeapType::kArray:
+        return RefAsArray(decoder, obj, result_val);
+      case HeapType::kAny:
+        // Any may never need a cast as it is either implicitly convertible or
+        // never convertible for any given type.
+      default:
+        UNREACHABLE();
+    }
   }
 
   void BrOnCast(FullDecoder* decoder, const Value& obj, const Value& rtt,
@@ -6240,6 +6269,10 @@ class LiftoffCompiler {
     Initialize(check, kPeek);
     FREEZE_STATE(frozen);
     (this->*type_checker)(check, frozen);
+  }
+
+  void RefAsEq(FullDecoder* decoder, const Value& object, Value* result) {
+    AbstractTypeCast<&LiftoffCompiler::EqCheck>(object, decoder, kRef);
   }
 
   void RefAsStruct(FullDecoder* decoder, const Value& object,

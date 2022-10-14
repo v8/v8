@@ -525,6 +525,8 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
   ref, WASM_GC_OP(kExprRefTestDeprecated), static_cast<byte>(typeidx)
 #define WASM_REF_TEST(ref, typeidx) \
   ref, WASM_GC_OP(kExprRefTest), static_cast<byte>(typeidx)
+#define WASM_REF_CAST_DEPRECATED(ref, typeidx) \
+  ref, WASM_GC_OP(kExprRefCastDeprecated), static_cast<byte>(typeidx)
 #define WASM_REF_CAST(ref, typeidx) \
   ref, WASM_GC_OP(kExprRefCast), static_cast<byte>(typeidx)
 // Takes a reference value from the value stack to allow sequences of

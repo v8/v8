@@ -477,6 +477,12 @@ class WasmGraphBuildingInterface {
     Forward(decoder, obj, result);
   }
 
+  void AssertNotNull(FullDecoder* decoder, const Value& obj, Value* result) {
+    builder_->TrapIfTrue(wasm::TrapReason::kTrapIllegalCast,
+                         builder_->IsNull(obj.node), decoder->position());
+    Forward(decoder, obj, result);
+  }
+
   void NopForTestingUnsupportedInLiftoff(FullDecoder* decoder) {}
 
   void Select(FullDecoder* decoder, const Value& cond, const Value& fval,
@@ -1254,9 +1260,7 @@ class WasmGraphBuildingInterface {
   }
 
   void RefCast(FullDecoder* decoder, const Value& object, const Value& rtt,
-               Value* result) {
-    // TODO(mliedtke): Should be a parameter for generic ref.cast instructions.
-    const bool null_succeeds = false;
+               Value* result, bool null_succeeds) {
     WasmTypeCheckConfig config = ComputeWasmTypeCheckConfig(
         object.type, rtt.type, decoder->module_, null_succeeds);
     TFNode* cast_node = v8_flags.experimental_wasm_assume_ref_cast_succeeds
@@ -1264,6 +1268,15 @@ class WasmGraphBuildingInterface {
                             : builder_->RefCast(object.node, rtt.node, config,
                                                 decoder->position());
     SetAndTypeNode(result, cast_node);
+  }
+
+  void RefCastAbstract(FullDecoder* decoder, const Value& object,
+                       wasm::HeapType type, Value* result) {
+    TFNode* node = object.node;
+    if (!v8_flags.experimental_wasm_assume_ref_cast_succeeds) {
+      node = builder_->RefCastAbstract(object.node, type, decoder->position());
+    }
+    SetAndTypeNode(result, builder_->TypeGuard(node, result->type));
   }
 
   template <void (compiler::WasmGraphBuilder::*branch_function)(

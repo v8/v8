@@ -1070,8 +1070,11 @@ struct ControlBase : public PcForErrors<validate> {
     bool null_succeeds)                                                        \
   F(RefTestAbstract, const Value& obj, HeapType type, Value* result,           \
     bool null_succeeds)                                                        \
-  F(RefCast, const Value& obj, const Value& rtt, Value* result)                \
+  F(RefCast, const Value& obj, const Value& rtt, Value* result,                \
+    bool null_succeeds)                                                        \
+  F(RefCastAbstract, const Value& obj, HeapType type, Value* result)           \
   F(AssertNull, const Value& obj, Value* result)                               \
+  F(AssertNotNull, const Value& obj, Value* result)                            \
   F(BrOnCast, const Value& obj, const Value& rtt, Value* result_on_branch,     \
     uint32_t depth)                                                            \
   F(BrOnCastFail, const Value& obj, const Value& rtt,                          \
@@ -2119,6 +2122,7 @@ class WasmDecoder : public Decoder {
             if (io) io->BranchDepth(imm);
             return length + imm.length;
           }
+          case kExprRefCast:
           case kExprRefTest:
           case kExprRefTestNull: {
             HeapTypeImmediate<validate> imm(WasmFeatures::All(), decoder,
@@ -2127,7 +2131,7 @@ class WasmDecoder : public Decoder {
             return length + imm.length;
           }
           case kExprRefTestDeprecated:
-          case kExprRefCast:
+          case kExprRefCastDeprecated:
           case kExprRefCastNop: {
             IndexImmediate<validate> imm(decoder, pc + length, "type index");
             if (io) io->TypeIndex(imm);
@@ -2358,6 +2362,7 @@ class WasmDecoder : public Decoder {
           case kExprRefTestNull:
           case kExprRefTestDeprecated:
           case kExprRefCast:
+          case kExprRefCastDeprecated:
           case kExprRefCastNop:
           case kExprBrOnCast:
           case kExprBrOnCastFail:
@@ -4794,6 +4799,84 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Push(value);
         return opcode_length;
       }
+      case kExprRefCast: {
+        NON_CONST_ONLY
+        HeapTypeImmediate<validate> imm(
+            this->enabled_, this, this->pc_ + opcode_length, this->module_);
+        if (!VALIDATE(this->ok())) return 0;
+        opcode_length += imm.length;
+
+        std::optional<Value> rtt;
+        HeapType target_type = imm.type;
+        if (imm.type.is_index()) {
+          rtt = CreateValue(ValueType::Rtt(imm.type.ref_index()));
+          CALL_INTERFACE_IF_OK_AND_REACHABLE(RttCanon, imm.type.ref_index(),
+                                             &rtt.value());
+          Push(rtt.value());
+        }
+
+        Value obj = Peek(rtt.has_value() ? 1 : 0);
+        if (!VALIDATE((obj.type.is_object_reference() &&
+                       IsSameTypeHierarchy(obj.type.heap_type(), target_type,
+                                           this->module_)) ||
+                      obj.type.is_bottom())) {
+          this->DecodeError(
+              obj.pc(),
+              "Invalid types for ref.cast: %s of type %s has to "
+              "be in the same reference type hierarchy as (ref %s)",
+              SafeOpcodeNameAt(obj.pc()), obj.type.name().c_str(),
+              target_type.name().c_str());
+          return 0;
+        }
+
+        // TODO(mliedtke): Add support for ref.cast null.
+        bool null_succeeds = false;
+        Value value = CreateValue(ValueType::RefMaybeNull(
+            imm.type, (obj.type.is_bottom() || !null_succeeds)
+                          ? kNonNullable
+                          : obj.type.nullability()));
+        if (current_code_reachable_and_ok_) {
+          // This logic ensures that code generation can assume that functions
+          // can only be cast to function types, and data objects to data types.
+          if (V8_UNLIKELY(TypeCheckAlwaysSucceeds(obj, target_type))) {
+            // Drop the rtt from the stack, then forward the object value to the
+            // result.
+            if (rtt.has_value()) {
+              CALL_INTERFACE(Drop);
+            }
+            if (obj.type.is_nullable() && !null_succeeds) {
+              CALL_INTERFACE(AssertNotNull, obj, &value);
+            } else {
+              CALL_INTERFACE(Forward, obj, &value);
+            }
+          } else if (V8_UNLIKELY(TypeCheckAlwaysFails(obj, target_type,
+                                                      null_succeeds))) {
+            if (rtt.has_value()) {
+              CALL_INTERFACE(Drop);
+            }
+            // Unrelated types. The only way this will not trap is if the object
+            // is null.
+            if (obj.type.is_nullable() && null_succeeds) {
+              // Drop rtt from the stack, then assert that obj is null.
+              CALL_INTERFACE(AssertNull, obj, &value);
+            } else {
+              CALL_INTERFACE(Trap, TrapReason::kTrapIllegalCast);
+              // We know that the following code is not reachable, but according
+              // to the spec it technically is. Set it to spec-only reachable.
+              SetSucceedingCodeDynamicallyUnreachable();
+            }
+          } else {
+            if (rtt.has_value()) {
+              CALL_INTERFACE(RefCast, obj, rtt.value(), &value, null_succeeds);
+            } else {
+              CALL_INTERFACE(RefCastAbstract, obj, target_type, &value);
+            }
+          }
+        }
+        Drop(1 + rtt.has_value());
+        Push(value);
+        return opcode_length;
+      }
       case kExprRefTestNull:
       case kExprRefTest: {
         NON_CONST_ONLY
@@ -4944,7 +5027,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Push(value);
         return opcode_length;
       }
-      case kExprRefCast: {
+      case kExprRefCastDeprecated: {
         NON_CONST_ONLY
         IndexImmediate<validate> imm(this, this->pc_ + opcode_length,
                                      "type index");
@@ -4990,7 +5073,8 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
               SetSucceedingCodeDynamicallyUnreachable();
             }
           } else {
-            CALL_INTERFACE(RefCast, obj, rtt, &value);
+            bool null_succeeds = true;
+            CALL_INTERFACE(RefCast, obj, rtt, &value, null_succeeds);
           }
         }
         Drop(2);
