@@ -616,13 +616,8 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_MODULE_OBJECT_TYPE:
       return WriteWasmModule(Handle<WasmModuleObject>::cast(receiver));
-    case WASM_MEMORY_OBJECT_TYPE: {
-      auto enabled_features = wasm::WasmFeatures::FromIsolate(isolate_);
-      if (enabled_features.has_threads()) {
-        return WriteWasmMemory(Handle<WasmMemoryObject>::cast(receiver));
-      }
-      break;
-    }
+    case WASM_MEMORY_OBJECT_TYPE:
+      return WriteWasmMemory(Handle<WasmMemoryObject>::cast(receiver));
 #endif  // V8_ENABLE_WEBASSEMBLY
     default:
       break;
@@ -2227,11 +2222,6 @@ MaybeHandle<JSObject> ValueDeserializer::ReadWasmModuleTransfer() {
 
 MaybeHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {
   uint32_t id = next_id_++;
-
-  auto enabled_features = wasm::WasmFeatures::FromIsolate(isolate_);
-  if (!enabled_features.has_threads()) {
-    return MaybeHandle<WasmMemoryObject>();
-  }
 
   int32_t maximum_pages;
   if (!ReadZigZag<int32_t>().To(&maximum_pages)) {

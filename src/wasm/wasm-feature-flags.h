@@ -108,17 +108,6 @@
   /* Shipped in v9.1 * */                                                      \
   V(simd, "SIMD opcodes", true)                                                \
                                                                                \
-  /* Threads proposal. */                                                      \
-  /* https://github.com/webassembly/threads */                                 \
-  /* NOTE: This is enabled via chromium flag on desktop systems since v7.4, */ \
-  /* and on android from 9.1. Threads are only available when */               \
-  /* SharedArrayBuffers are enabled as well, and are gated by COOP/COEP */     \
-  /* headers, more fine grained control is in the chromium codebase */         \
-  /* ITS: https://groups.google.com/a/chromium.org/d/msg/blink-dev/ */         \
-  /* tD6np-OG2PU/rcNGROOMFQAJ */                                               \
-  /* V8 side owner: gdeepti */                                                 \
-  V(threads, "thread opcodes", true)                                           \
-                                                                               \
   /* Exception handling proposal. */                                           \
   /* https://github.com/WebAssembly/exception-handling */                      \
   /* V8 side owner: thibaudm */                                                \

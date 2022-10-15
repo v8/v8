@@ -1737,9 +1737,8 @@ bool InstanceBuilder::AllocateMemory() {
   int maximum_pages = module_->has_maximum_pages
                           ? static_cast<int>(module_->maximum_pages)
                           : WasmMemoryObject::kNoMaximum;
-  auto shared = (module_->has_shared_memory && enabled_.has_threads())
-                    ? SharedFlag::kShared
-                    : SharedFlag::kNotShared;
+  auto shared =
+      module_->has_shared_memory ? SharedFlag::kShared : SharedFlag::kNotShared;
 
   auto mem_type = module_->is_memory64 ? WasmMemoryFlag::kWasmMemory64
                                        : WasmMemoryFlag::kWasmMemory32;

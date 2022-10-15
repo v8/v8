@@ -1937,12 +1937,6 @@ class ModuleDecoderTemplate : public Decoder {
         break;
       case kSharedNoMaximum:
       case kSharedWithMaximum:
-        if (!enabled_features_.has_threads()) {
-          errorf(pc() - 1,
-                 "invalid memory limits flags 0x%x (enable via "
-                 "--experimental-wasm-threads)",
-                 flags);
-        }
         *has_shared_memory = true;
         // V8 does not support shared memory without a maximum.
         if (flags == kSharedNoMaximum) {

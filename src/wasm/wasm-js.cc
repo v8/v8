@@ -1293,27 +1293,22 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   auto shared = i::SharedFlag::kNotShared;
-  auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
-  if (enabled_features.has_threads()) {
-    // Shared property of descriptor
-    Local<String> shared_key = v8_str(isolate, "shared");
-    v8::MaybeLocal<v8::Value> maybe_value =
-        descriptor->Get(context, shared_key);
-    v8::Local<v8::Value> value;
-    if (maybe_value.ToLocal(&value)) {
-      shared = value->BooleanValue(isolate) ? i::SharedFlag::kShared
-                                            : i::SharedFlag::kNotShared;
-    } else {
-      DCHECK(i_isolate->has_scheduled_exception());
-      return;
-    }
+  // Shared property of descriptor
+  Local<String> shared_key = v8_str(isolate, "shared");
+  v8::MaybeLocal<v8::Value> maybe_value = descriptor->Get(context, shared_key);
+  v8::Local<v8::Value> value;
+  if (maybe_value.ToLocal(&value)) {
+    shared = value->BooleanValue(isolate) ? i::SharedFlag::kShared
+                                          : i::SharedFlag::kNotShared;
+  } else {
+    DCHECK(i_isolate->has_scheduled_exception());
+    return;
+  }
 
-    // Throw TypeError if shared is true, and the descriptor has no "maximum"
-    if (shared == i::SharedFlag::kShared && maximum == -1) {
-      thrower.TypeError(
-          "If shared is true, maximum property should be defined.");
-      return;
-    }
+  // Throw TypeError if shared is true, and the descriptor has no "maximum"
+  if (shared == i::SharedFlag::kShared && maximum == -1) {
+    thrower.TypeError("If shared is true, maximum property should be defined.");
+    return;
   }
 
   i::Handle<i::JSObject> memory_obj;
