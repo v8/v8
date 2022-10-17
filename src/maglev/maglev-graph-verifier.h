@@ -239,6 +239,7 @@ class MaglevGraphVerifier {
       case Opcode::kInt32GreaterThan:
       case Opcode::kInt32GreaterThanOrEqual:
       case Opcode::kBranchIfInt32Compare:
+      case Opcode::kCheckInt32Condition:
         DCHECK_EQ(node->input_count(), 2);
         CheckValueInputIs(node, 0, ValueRepresentation::kInt32);
         CheckValueInputIs(node, 1, ValueRepresentation::kInt32);
@@ -280,6 +281,7 @@ class MaglevGraphVerifier {
       case Opcode::kCheckJSObjectElementsBounds:
       case Opcode::kLoadTaggedElement:
       case Opcode::kLoadDoubleElement:
+      case Opcode::kStringAt:
         DCHECK_EQ(node->input_count(), 2);
         CheckValueInputIs(node, 0, ValueRepresentation::kTagged);
         CheckValueInputIs(node, 1, ValueRepresentation::kInt32);

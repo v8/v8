@@ -954,6 +954,8 @@ class MaglevGraphBuilder {
   void BuildCheckSymbol(ValueNode* object);
   void BuildMapCheck(ValueNode* object, const compiler::MapRef& map);
 
+  ValueNode* GetInt32ElementIndex(ValueNode* index_object);
+
   bool TryFoldLoadDictPrototypeConstant(
       compiler::PropertyAccessInfo access_info);
   bool TryFoldLoadConstantDataField(compiler::PropertyAccessInfo access_info);
@@ -976,6 +978,10 @@ class MaglevGraphBuilder {
                               ValueNode* lookup_start_object,
                               compiler::PropertyAccessInfo const& access_info,
                               compiler::AccessMode access_mode);
+
+  bool TryBuildElementAccessOnString(
+      ValueNode* object, ValueNode* index,
+      compiler::KeyedAccessMode const& keyed_mode);
 
   bool TryBuildNamedAccess(ValueNode* receiver, ValueNode* lookup_start_object,
                            compiler::NamedAccessFeedback const& feedback,

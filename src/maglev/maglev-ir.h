@@ -171,6 +171,7 @@ class CompactInterpreterFrameState;
   V(CheckedFloat64Unbox)           \
   V(LogicalNot)                    \
   V(SetPendingMessage)             \
+  V(StringAt)                      \
   V(StringLength)                  \
   V(ToBooleanLogicalNot)           \
   V(TaggedEqual)                   \
@@ -194,6 +195,7 @@ class CompactInterpreterFrameState;
 #define NODE_LIST(V)                  \
   V(AssertInt32)                      \
   V(CheckMaps)                        \
+  V(CheckInt32Condition)              \
   V(CheckSmi)                         \
   V(CheckNumber)                      \
   V(CheckHeapObject)                  \
@@ -2782,6 +2784,28 @@ class CheckJSArrayBounds : public FixedInputNodeT<2, CheckJSArrayBounds> {
   DECL_NODE_INTERFACE_WITH_EMPTY_PRINT_PARAMS()
 };
 
+class CheckInt32Condition : public FixedInputNodeT<2, CheckInt32Condition> {
+  using Base = FixedInputNodeT<2, CheckInt32Condition>;
+
+ public:
+  explicit CheckInt32Condition(uint64_t bitfield, AssertCondition condition,
+                               DeoptimizeReason reason)
+      : Base(bitfield), condition_(condition), reason_(reason) {}
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
+
+  static constexpr int kLeftIndex = 0;
+  static constexpr int kRightIndex = 1;
+  Input& left_input() { return input(kLeftIndex); }
+  Input& right_input() { return input(kRightIndex); }
+
+  DECL_NODE_INTERFACE()
+
+ private:
+  AssertCondition condition_;
+  DeoptimizeReason reason_;
+};
+
 class CheckJSObjectElementsBounds
     : public FixedInputNodeT<2, CheckJSObjectElementsBounds> {
   using Base = FixedInputNodeT<2, CheckJSObjectElementsBounds>;
@@ -3134,6 +3158,23 @@ class SetNamedGeneric : public FixedInputValueNodeT<3, SetNamedGeneric> {
  private:
   const compiler::NameRef name_;
   const compiler::FeedbackSource feedback_;
+};
+
+class StringAt : public FixedInputValueNodeT<2, StringAt> {
+  using Base = FixedInputValueNodeT<2, StringAt>;
+
+ public:
+  explicit StringAt(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::Reading() | OpProperties::DeferredCall();
+
+  static constexpr int kStringIndex = 0;
+  static constexpr int kIndexIndex = 1;
+  Input& string_input() { return input(kStringIndex); }
+  Input& index_input() { return input(kIndexIndex); }
+
+  DECL_NODE_INTERFACE_WITH_EMPTY_PRINT_PARAMS()
 };
 
 class StringLength : public FixedInputValueNodeT<1, StringLength> {
