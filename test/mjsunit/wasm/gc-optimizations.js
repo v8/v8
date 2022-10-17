@@ -562,3 +562,33 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertTraps(kTrapIllegalCast,
               () => instance.exports.main(instance.exports.mkStruct()));
 })();
+
+(function StructGetMultipleNullChecks() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let struct = builder.addStruct([makeField(kWasmI32, true),
+                                  makeField(kWasmI32, true)]);
+
+  builder.addFunction("main",
+                      makeSig([kWasmI32, wasmRefNullType(struct)], [kWasmI32]))
+    .addBody([
+      kExprLocalGet, 0,
+      kExprIf, kWasmI32,
+        kExprLocalGet, 1,
+        kGCPrefix, kExprStructGet, struct, 0,
+        kExprLocalGet, 1,
+        // The null check should be removed for this struct.
+        kGCPrefix, kExprStructGet, struct, 1,
+        kExprI32Add,
+      kExprElse,
+        kExprLocalGet, 1,
+        kGCPrefix, kExprStructGet, struct, 0,
+      kExprEnd,
+      kExprLocalGet, 1,
+      // The null check here could be removed if we compute type intersections.
+      kGCPrefix, kExprStructGet, struct, 1,
+      kExprI32Mul])
+    .exportFunc();
+
+  builder.instantiate({});
+})();
