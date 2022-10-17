@@ -632,7 +632,18 @@ class GlobalHandles::TracedNode final
 
   void MarkAsFree() { set_state(FREE); }
   void MarkAsUsed() { set_state(NORMAL); }
-  bool IsInUse() const { return state() != FREE; }
+
+  template <AccessMode access_mode = AccessMode::NON_ATOMIC>
+  bool IsInUse() const {
+    if constexpr (access_mode == AccessMode::NON_ATOMIC) {
+      return NodeState::decode(flags_) != FREE;
+    }
+    const auto flags =
+        reinterpret_cast<const std::atomic<uint8_t>&>(flags_).load(
+            std::memory_order_relaxed);
+    return NodeState::decode(flags);
+  }
+
   bool IsRetainer() const { return state() == NORMAL; }
 
   bool is_in_young_list() const { return IsInYoungList::decode(flags_); }
@@ -918,7 +929,9 @@ Object GlobalHandles::MarkTracedConservatively(
   const auto index = delta / sizeof(TracedNode);
   TracedNode& node =
       reinterpret_cast<TracedNode*>(traced_node_block_base)[index];
-  if (!node.IsInUse()) return Smi::zero();
+  // `MarkTracedConservatively()` runs concurrently with marking code. Reading
+  // state concurrently to setting the markbit is safe.
+  if (!node.IsInUse<AccessMode::ATOMIC>()) return Smi::zero();
   node.set_markbit<AccessMode::ATOMIC>();
   return node.object();
 }
