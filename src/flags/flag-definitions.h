@@ -635,7 +635,7 @@ DEFINE_BOOL(stress_lazy_source_positions, false,
             "collect lazy source positions immediately after lazy compile")
 DEFINE_STRING(print_bytecode_filter, "*",
               "filter for selecting which functions to print bytecode")
-DEFINE_BOOL(omit_default_ctors, true, "omit calling default ctors in bytecode")
+DEFINE_BOOL(omit_default_ctors, false, "omit calling default ctors in bytecode")
 #ifdef V8_TRACE_UNOPTIMIZED
 DEFINE_BOOL(trace_unoptimized, false,
             "trace the bytecodes executed by all unoptimized execution")
