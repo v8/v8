@@ -2560,7 +2560,6 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
                                              body.sig, body.start, body.end,
                                              body.offset),
         interface_(std::forward<InterfaceArgs>(interface_args)...),
-        initialized_locals_(zone),
         locals_initializers_stack_(zone) {}
 
   ~WasmFullDecoder() {
@@ -2675,11 +2674,13 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
   }
 
   bool is_local_initialized(uint32_t local_index) {
+    DCHECK_GT(this->num_locals_, local_index);
     if (!has_nondefaultable_locals_) return true;
     return initialized_locals_[local_index];
   }
 
   void set_local_initialized(uint32_t local_index) {
+    DCHECK_GT(this->num_locals_, local_index);
     if (!has_nondefaultable_locals_) return;
     // This implicitly covers defaultable locals too (which are always
     // initialized).
@@ -2705,17 +2706,15 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
   void InitializeInitializedLocalsTracking(int non_defaultable_locals) {
     has_nondefaultable_locals_ = non_defaultable_locals > 0;
     if (!has_nondefaultable_locals_) return;
-    initialized_locals_.assign(this->num_locals_, false);
-    // Parameters count as initialized...
+    initialized_locals_ =
+        this->compilation_zone_->template NewArray<bool>(this->num_locals_);
+    // Parameters are always initialized.
     const size_t num_params = this->sig_->parameter_count();
-    for (size_t i = 0; i < num_params; i++) {
-      initialized_locals_[i] = true;
-    }
-    // ...and so do defaultable locals.
+    std::fill_n(initialized_locals_, num_params, true);
+    // Locals are initialized if they are defaultable.
     for (size_t i = num_params; i < this->num_locals_; i++) {
-      if (this->local_types_[i].is_defaultable()) initialized_locals_[i] = true;
+      initialized_locals_[i] = this->local_types_[i].is_defaultable();
     }
-    if (non_defaultable_locals == 0) return;
     locals_initializers_stack_.reserve(non_defaultable_locals);
   }
 
@@ -2818,10 +2817,10 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
   FastZoneVector<Value> stack_;
 
   // Indicates whether the local with the given index is currently initialized.
-  // Entries for defaultable locals are meaningless; we have a bit for each
+  // Entries for defaultable locals are meaningless; we have a byte for each
   // local because we expect that the effort required to densify this bit
   // vector would more than offset the memory savings.
-  ZoneVector<bool> initialized_locals_;
+  bool* initialized_locals_;
   // Keeps track of initializing assignments to non-defaultable locals that
   // happened, so they can be discarded at the end of the current block.
   // Contains no duplicates, so the size of this stack is bounded (and pre-
