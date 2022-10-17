@@ -136,17 +136,7 @@ class BasicMarkingState : public MarkingStateBase {
   inline void AccountMarkedBytes(size_t);
   size_t marked_bytes() const { return marked_bytes_; }
 
-  void Publish() {
-    MarkingStateBase::Publish();
-    previously_not_fully_constructed_worklist_.Publish();
-    weak_callback_worklist_.Publish();
-    parallel_weak_callback_worklist_.Publish();
-    write_barrier_worklist_.Publish();
-    concurrent_marking_bailout_worklist_.Publish();
-    discovered_ephemeron_pairs_worklist_.Publish();
-    ephemeron_pairs_for_processing_worklist_.Publish();
-    if (IsCompactionEnabled()) movable_slots_worklist_->Publish();
-  }
+  V8_EXPORT_PRIVATE void Publish();
 
   MarkingWorklists::PreviouslyNotFullyConstructedWorklist::Local&
   previously_not_fully_constructed_worklist() {
@@ -199,10 +189,6 @@ class BasicMarkingState : public MarkingStateBase {
 
  protected:
   inline void RegisterWeakContainer(HeapObjectHeader&);
-
-  inline bool IsCompactionEnabled() const {
-    return movable_slots_worklist_.get();
-  }
 
   MarkingWorklists::PreviouslyNotFullyConstructedWorklist::Local
       previously_not_fully_constructed_worklist_;

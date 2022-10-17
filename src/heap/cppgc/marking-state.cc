@@ -31,5 +31,18 @@ void MutatorMarkingState::FlushDiscoveredEphemeronPairs() {
   }
 }
 
+void BasicMarkingState::Publish() {
+  MarkingStateBase::Publish();
+  previously_not_fully_constructed_worklist_.Publish();
+  weak_callback_worklist_.Publish();
+  parallel_weak_callback_worklist_.Publish();
+  write_barrier_worklist_.Publish();
+  concurrent_marking_bailout_worklist_.Publish();
+  discovered_ephemeron_pairs_worklist_.Publish();
+  ephemeron_pairs_for_processing_worklist_.Publish();
+  retrace_marked_objects_worklist_.Publish();
+  if (movable_slots_worklist_) movable_slots_worklist_->Publish();
+}
+
 }  // namespace internal
 }  // namespace cppgc
