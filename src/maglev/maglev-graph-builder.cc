@@ -1227,7 +1227,8 @@ bool MaglevGraphBuilder::TryFoldLoadConstantDataField(
 }
 
 bool MaglevGraphBuilder::TryBuildPropertyGetterCall(
-    compiler::PropertyAccessInfo access_info, ValueNode* receiver) {
+    compiler::PropertyAccessInfo access_info, ValueNode* receiver,
+    ValueNode* lookup_start_object) {
   compiler::ObjectRef constant = access_info.constant().value();
 
   if (access_info.IsDictionaryProtoAccessorConstant()) {
@@ -1240,9 +1241,13 @@ bool MaglevGraphBuilder::TryBuildPropertyGetterCall(
 
   // Introduce the call to the getter function.
   if (constant.IsJSFunction()) {
-    Call* call = CreateNewNode<Call>(
-        Call::kFixedInputCount + 1, ConvertReceiverMode::kNotNullOrUndefined,
-        compiler::FeedbackSource(), GetConstant(constant), GetContext());
+    ConvertReceiverMode receiver_mode =
+        receiver == lookup_start_object
+            ? ConvertReceiverMode::kNotNullOrUndefined
+            : ConvertReceiverMode::kAny;
+    Call* call = CreateNewNode<Call>(Call::kFixedInputCount + 1, receiver_mode,
+                                     compiler::FeedbackSource(),
+                                     GetConstant(constant), GetContext());
     call->set_arg(0, receiver);
     SetAccumulator(AddNode(call));
     return true;
@@ -1367,7 +1372,8 @@ bool MaglevGraphBuilder::TryBuildPropertyLoad(
       return TryFoldLoadDictPrototypeConstant(access_info);
     case compiler::PropertyAccessInfo::kFastAccessorConstant:
     case compiler::PropertyAccessInfo::kDictionaryProtoAccessorConstant:
-      return TryBuildPropertyGetterCall(access_info, receiver);
+      return TryBuildPropertyGetterCall(access_info, receiver,
+                                        lookup_start_object);
     case compiler::PropertyAccessInfo::kModuleExport: {
       ValueNode* cell = GetConstant(access_info.constant().value().AsCell());
       SetAccumulator(AddNewNode<LoadTaggedField>({cell}, Cell::kValueOffset));

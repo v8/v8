@@ -946,7 +946,8 @@ class MaglevGraphBuilder {
   bool TryBuildStoreField(compiler::PropertyAccessInfo access_info,
                           ValueNode* receiver);
   bool TryBuildPropertyGetterCall(compiler::PropertyAccessInfo access_info,
-                                  ValueNode* receiver);
+                                  ValueNode* receiver,
+                                  ValueNode* lookup_start_object);
   bool TryBuildPropertySetterCall(compiler::PropertyAccessInfo access_info,
                                   ValueNode* receiver, ValueNode* value);
 
