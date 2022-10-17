@@ -1620,7 +1620,7 @@ bool LookupPropertyValueName(UProperty property,
   bool success = ec == U_ZERO_ERROR && !set.isEmpty();
 
   if (success) {
-    if (needs_case_folding) set.closeOver(USET_CASE_INSENSITIVE);
+    if (needs_case_folding) CharacterRange::UnicodeSimpleCloseOver(set);
     set.removeAllStrings();
     if (negate) set.complement();
     for (int i = 0; i < set.getRangeCount(); i++) {
