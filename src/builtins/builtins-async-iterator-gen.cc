@@ -50,7 +50,7 @@ class AsyncFromSyncBuiltinsAssembler : public AsyncBuiltinsAssembler {
       const char* operation_name,
       Label::Type reject_label_type = Label::kDeferred,
       base::Optional<TNode<Object>> initial_exception_value = base::nullopt) {
-    auto get_method = [=](const TNode<JSReceiver> sync_iterator) {
+    auto get_method = [&](const TNode<JSReceiver> sync_iterator) {
       return GetProperty(context, sync_iterator, name);
     };
     return Generate_AsyncFromSyncIteratorMethod(
@@ -281,7 +281,7 @@ TF_BUILTIN(AsyncFromSyncIteratorPrototypeNext, AsyncFromSyncBuiltinsAssembler) {
   const TNode<Object> value = args.GetOptionalArgumentValue(kValueOrReasonArg);
   const auto context = Parameter<Context>(Descriptor::kContext);
 
-  auto get_method = [=](const TNode<JSReceiver> unused) {
+  auto get_method = [&](const TNode<JSReceiver> unused) {
     return LoadObjectField(CAST(iterator),
                            JSAsyncFromSyncIterator::kNextOffset);
   };
@@ -302,8 +302,7 @@ TF_BUILTIN(AsyncFromSyncIteratorPrototypeReturn,
   const TNode<Object> value = args.GetOptionalArgumentValue(kValueOrReasonArg);
   const auto context = Parameter<Context>(Descriptor::kContext);
 
-  auto if_return_undefined = [=, &args](
-                                 const TNode<NativeContext> native_context,
+  auto if_return_undefined = [&](const TNode<NativeContext> native_context,
                                  const TNode<JSPromise> promise,
                                  Label* if_exception) {
     // If return is undefined, then
@@ -335,7 +334,7 @@ TF_BUILTIN(AsyncFromSyncIteratorPrototypeThrow,
   const TNode<Object> reason = args.GetOptionalArgumentValue(kValueOrReasonArg);
   const auto context = Parameter<Context>(Descriptor::kContext);
 
-  auto if_throw_undefined = [=](const TNode<NativeContext> native_context,
+  auto if_throw_undefined = [&](const TNode<NativeContext> native_context,
                                 const TNode<JSPromise> promise,
                                 Label* if_exception) { Goto(if_exception); };
 

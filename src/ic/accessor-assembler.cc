@@ -269,8 +269,8 @@ void AccessorAssembler::HandleLoadAccessor(
   TNode<MaybeObject> maybe_context = Select<MaybeObject>(
       IsSetWord32<LoadHandler::DoAccessCheckOnLookupStartObjectBits>(
           handler_word),
-      [=] { return LoadHandlerDataField(handler, 3); },
-      [=] { return LoadHandlerDataField(handler, 2); });
+      [&] { return LoadHandlerDataField(handler, 3); },
+      [&] { return LoadHandlerDataField(handler, 2); });
 
   CSA_DCHECK(this, IsWeakOrCleared(maybe_context));
   CSA_CHECK(this, IsNotCleared(maybe_context));
@@ -1098,7 +1098,7 @@ void AccessorAssembler::HandleLoadICProtoHandler(
       // Code sub-handlers are not expected in LoadICs, so no |on_code_handler|.
       nullptr,
       // on_found_on_lookup_start_object
-      [=](TNode<PropertyDictionary> properties, TNode<IntPtrT> name_index) {
+      [&](TNode<PropertyDictionary> properties, TNode<IntPtrT> name_index) {
         if (access_mode == LoadAccessMode::kHas) {
           exit_point->Return(TrueConstant());
         } else {
@@ -1819,7 +1819,7 @@ void AccessorAssembler::HandleStoreICProtoHandler(
   OnCodeHandler on_code_handler;
   if (support_elements == kSupportElements) {
     // Code sub-handlers are expected only in KeyedStoreICs.
-    on_code_handler = [=](TNode<CodeT> code_handler) {
+    on_code_handler = [&](TNode<CodeT> code_handler) {
       // This is either element store or transitioning element store.
       Label if_element_store(this), if_transitioning_element_store(this);
       Branch(IsStoreHandler0Map(LoadMap(handler)), &if_element_store,
@@ -1850,7 +1850,7 @@ void AccessorAssembler::HandleStoreICProtoHandler(
   TNode<Object> smi_handler = HandleProtoHandler<StoreHandler>(
       p, handler, on_code_handler,
       // on_found_on_lookup_start_object
-      [=](TNode<PropertyDictionary> properties, TNode<IntPtrT> name_index) {
+      [&](TNode<PropertyDictionary> properties, TNode<IntPtrT> name_index) {
         TNode<Uint32T> details = LoadDetailsByKeyIndex(properties, name_index);
         // Check that the property is a writable data property (no accessor).
         const int kTypeAndReadOnlyMask =
@@ -1955,13 +1955,13 @@ void AccessorAssembler::HandleStoreICProtoHandler(
       TNode<MaybeObject> maybe_context = Select<MaybeObject>(
           IsSetWord32<StoreHandler::DoAccessCheckOnLookupStartObjectBits>(
               handler_word),
-          [=] { return LoadHandlerDataField(handler, 3); },
-          [=] { return LoadHandlerDataField(handler, 2); });
+          [&] { return LoadHandlerDataField(handler, 3); },
+          [&] { return LoadHandlerDataField(handler, 2); });
 
       CSA_DCHECK(this, IsWeakOrCleared(maybe_context));
       TNode<Object> context = Select<Object>(
-          IsCleared(maybe_context), [=] { return SmiConstant(0); },
-          [=] { return GetHeapObjectAssumeWeak(maybe_context); });
+          IsCleared(maybe_context), [&] { return SmiConstant(0); },
+          [&] { return GetHeapObjectAssumeWeak(maybe_context); });
 
       TNode<RawPtrT> callback =
           LoadCallHandlerInfoJsCallbackPtr(call_handler_info);
@@ -3405,8 +3405,8 @@ void AccessorAssembler::LoadGlobalIC_TryHandlerCase(
   TNode<Object> global =
       LoadContextElement(native_context, Context::EXTENSION_INDEX);
 
-  LazyLoadICParameters p([=] { return context; }, receiver, lazy_name,
-                         [=] { return slot; }, vector, global);
+  LazyLoadICParameters p([&] { return context; }, receiver, lazy_name,
+                         [&] { return slot; }, vector, global);
 
   HandleLoadICHandlerCase(&p, handler, miss, exit_point, ICMode::kGlobalIC,
                           on_nonexistent);
@@ -4210,11 +4210,11 @@ void AccessorAssembler::GenerateLoadIC_Megamorphic() {
   BIND(&if_handler);
   LazyLoadICParameters p(
       // lazy_context
-      [=] { return context; }, receiver,
+      [&] { return context; }, receiver,
       // lazy_name
-      [=] { return name; },
+      [&] { return name; },
       // lazy_slot
-      [=] { return slot; }, vector);
+      [&] { return slot; }, vector);
   HandleLoadICHandlerCase(&p, var_handler.value(), &miss, &direct_exit);
 
   BIND(&miss);
@@ -4356,11 +4356,11 @@ void AccessorAssembler::GenerateLoadGlobalIC(TypeofMode typeof_mode) {
   LoadGlobalIC(
       vector,
       // lazy_slot
-      [=] { return slot; },
+      [&] { return slot; },
       // lazy_context
-      [=] { return context; },
+      [&] { return context; },
       // lazy_name
-      [=] { return name; }, typeof_mode, &direct_exit);
+      [&] { return name; }, typeof_mode, &direct_exit);
 }
 
 void AccessorAssembler::GenerateLoadGlobalICTrampoline(TypeofMode typeof_mode) {
@@ -4838,7 +4838,7 @@ void AccessorAssembler::GenerateCloneObjectIC_Slow() {
 
   ForEachEnumerableOwnProperty(
       context, source_map, CAST(source), kPropertyAdditionOrder,
-      [=](TNode<Name> key, TNode<Object> value) {
+      [&](TNode<Name> key, TNode<Object> value) {
         CreateDataProperty(context, result, key, value);
       },
       &call_runtime);
@@ -4950,7 +4950,7 @@ void AccessorAssembler::GenerateCloneObjectIC() {
     // HeapNumbers). This doesn't need write barriers.
     BuildFastLoop<IntPtrT>(
         source_start, source_size,
-        [=](TNode<IntPtrT> field_index) {
+        [&](TNode<IntPtrT> field_index) {
           TNode<IntPtrT> field_offset = TimesTaggedSize(field_index);
           TNode<TaggedT> field =
               LoadObjectField<TaggedT>(CAST(source), field_offset);

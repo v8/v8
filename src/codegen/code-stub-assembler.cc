@@ -122,7 +122,7 @@ void CodeStubAssembler::Check(const BranchGenerator& branch,
 void CodeStubAssembler::Check(const NodeGenerator<BoolT>& condition_body,
                               const char* message, const char* file, int line,
                               std::initializer_list<ExtraNode> extra_nodes) {
-  BranchGenerator branch = [=](Label* ok, Label* not_ok) {
+  BranchGenerator branch = [&](Label* ok, Label* not_ok) {
     TNode<BoolT> condition = condition_body();
     Branch(condition, ok, not_ok);
   };
@@ -133,7 +133,7 @@ void CodeStubAssembler::Check(const NodeGenerator<BoolT>& condition_body,
 void CodeStubAssembler::Check(TNode<Word32T> condition_node,
                               const char* message, const char* file, int line,
                               std::initializer_list<ExtraNode> extra_nodes) {
-  BranchGenerator branch = [=](Label* ok, Label* not_ok) {
+  BranchGenerator branch = [&](Label* ok, Label* not_ok) {
     Branch(condition_node, ok, not_ok);
   };
 
@@ -330,8 +330,8 @@ TNode<BoolT> CodeStubAssembler::WordIsPowerOfTwo(TNode<IntPtrT> value) {
   return IntPtrEqual(
       Select<IntPtrT>(
           IntPtrEqual(value, IntPtrConstant(0)),
-          [=] { return IntPtrConstant(1); },
-          [=] { return WordAnd(value, IntPtrSub(value, IntPtrConstant(1))); }),
+          [&] { return IntPtrConstant(1); },
+          [&] { return WordAnd(value, IntPtrSub(value, IntPtrConstant(1))); }),
       IntPtrConstant(0));
 }
 
@@ -1735,8 +1735,8 @@ TNode<BoolT> CodeStubAssembler::TaggedDoesntHaveInstanceType(
   /* return Phi <TaggedIsSmi(val), DoesntHaveInstanceType(val, type)> */
   TNode<BoolT> tagged_is_smi = TaggedIsSmi(any_tagged);
   return Select<BoolT>(
-      tagged_is_smi, [=]() { return tagged_is_smi; },
-      [=]() { return DoesntHaveInstanceType(any_tagged, type); });
+      tagged_is_smi, [&]() { return tagged_is_smi; },
+      [&]() { return DoesntHaveInstanceType(any_tagged, type); });
 }
 
 TNode<BoolT> CodeStubAssembler::IsSpecialReceiverMap(TNode<Map> map) {
@@ -1771,22 +1771,22 @@ TNode<HeapObject> CodeStubAssembler::LoadFastProperties(
   CSA_SLOW_DCHECK(this, Word32BinaryNot(IsDictionaryMap(LoadMap(object))));
   TNode<Object> properties = LoadJSReceiverPropertiesOrHash(object);
   return Select<HeapObject>(
-      TaggedIsSmi(properties), [=] { return EmptyFixedArrayConstant(); },
-      [=] { return CAST(properties); });
+      TaggedIsSmi(properties), [&] { return EmptyFixedArrayConstant(); },
+      [&] { return CAST(properties); });
 }
 
 TNode<HeapObject> CodeStubAssembler::LoadSlowProperties(
     TNode<JSReceiver> object) {
   CSA_SLOW_DCHECK(this, IsDictionaryMap(LoadMap(object)));
   TNode<Object> properties = LoadJSReceiverPropertiesOrHash(object);
-  NodeGenerator<HeapObject> make_empty = [=]() -> TNode<HeapObject> {
+  NodeGenerator<HeapObject> make_empty = [&]() -> TNode<HeapObject> {
     if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       return EmptySwissPropertyDictionaryConstant();
     } else {
       return EmptyPropertyDictionaryConstant();
     }
   };
-  NodeGenerator<HeapObject> cast_properties = [=] {
+  NodeGenerator<HeapObject> cast_properties = [&] {
     TNode<HeapObject> dict = CAST(properties);
     if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       CSA_DCHECK(this, Word32Or(IsSwissNameDictionary(dict),
@@ -1947,8 +1947,8 @@ TNode<Object> CodeStubAssembler::LoadMapBackPointer(TNode<Map> map) {
   TNode<HeapObject> object = CAST(LoadObjectField(
       map, Map::kConstructorOrBackPointerOrNativeContextOffset));
   return Select<Object>(
-      IsMap(object), [=] { return object; },
-      [=] { return UndefinedConstant(); });
+      IsMap(object), [&] { return object; },
+      [&] { return UndefinedConstant(); });
 }
 
 TNode<Uint32T> CodeStubAssembler::EnsureOnlyHasSimpleProperties(
@@ -3169,13 +3169,13 @@ void CodeStubAssembler::StoreFixedArrayOrPropertyArrayElement(
           offset,
           Select<IntPtrT>(
               IsPropertyArray(object),
-              [=] {
+              [&] {
                 TNode<IntPtrT> length_and_hash = LoadAndUntagObjectField(
                     object, PropertyArray::kLengthAndHashOffset);
                 return Signed(
                     DecodeWord<PropertyArray::LengthField>(length_and_hash));
               },
-              [=] {
+              [&] {
                 return LoadAndUntagObjectField(object,
                                                FixedArrayBase::kLengthOffset);
               }),
@@ -3606,8 +3606,8 @@ TNode<String> CodeStubAssembler::AllocateSeqOneByteString(
 
 TNode<BoolT> CodeStubAssembler::IsZeroOrContext(TNode<Object> object) {
   return Select<BoolT>(
-      TaggedEqual(object, SmiConstant(0)), [=] { return Int32TrueConstant(); },
-      [=] { return IsContext(CAST(object)); });
+      TaggedEqual(object, SmiConstant(0)), [&] { return Int32TrueConstant(); },
+      [&] { return IsContext(CAST(object)); });
 }
 
 TNode<String> CodeStubAssembler::AllocateSeqTwoByteString(
@@ -4014,7 +4014,7 @@ void CodeStubAssembler::StoreFieldsNoWriteBarrier(TNode<IntPtrT> start_address,
   CSA_DCHECK(this, WordIsAligned(end_address, kTaggedSize));
   BuildFastLoop<IntPtrT>(
       start_address, end_address,
-      [=](TNode<IntPtrT> current) {
+      [&](TNode<IntPtrT> current) {
         UnsafeStoreNoWriteBarrier(MachineRepresentation::kTagged, current,
                                   value);
       },
@@ -6000,10 +6000,10 @@ TNode<Int32T> CodeStubAssembler::ChangeTaggedNonSmiToInt32(
     TNode<Context> context, TNode<HeapObject> input) {
   return Select<Int32T>(
       IsHeapNumber(input),
-      [=] {
+      [&] {
         return Signed(TruncateFloat64ToWord32(LoadHeapNumberValue(input)));
       },
-      [=] {
+      [&] {
         return TruncateNumberToWord32(
             CAST(CallBuiltin(Builtin::kNonNumberToNumber, context, input)));
       });
@@ -6021,8 +6021,8 @@ TNode<Float64T> CodeStubAssembler::ChangeTaggedToFloat64(TNode<Context> context,
   BIND(&not_smi);
   var_result = Select<Float64T>(
       IsHeapNumber(CAST(input)),
-      [=] { return LoadHeapNumberValue(CAST(input)); },
-      [=] {
+      [&] { return LoadHeapNumberValue(CAST(input)); },
+      [&] {
         return ChangeNumberToFloat64(
             CAST(CallBuiltin(Builtin::kNonNumberToNumber, context, input)));
       });
@@ -6382,8 +6382,8 @@ TNode<BoolT> CodeStubAssembler::IsPrototypeTypedArrayPrototype(
       LoadContextElement(native_context, Context::TYPED_ARRAY_PROTOTYPE_INDEX);
   TNode<HeapObject> proto = LoadMapPrototype(map);
   TNode<HeapObject> proto_of_proto = Select<HeapObject>(
-      IsJSObject(proto), [=] { return LoadMapPrototype(LoadMap(proto)); },
-      [=] { return NullConstant(); });
+      IsJSObject(proto), [&] { return LoadMapPrototype(LoadMap(proto)); },
+      [&] { return NullConstant(); });
   return TaggedEqual(proto_of_proto, typed_array_prototype);
 }
 
@@ -6421,8 +6421,8 @@ TNode<BoolT> CodeStubAssembler::IsStrictArgumentsMap(TNode<Context> context,
 
 TNode<BoolT> CodeStubAssembler::TaggedIsCallable(TNode<Object> object) {
   return Select<BoolT>(
-      TaggedIsSmi(object), [=] { return Int32FalseConstant(); },
-      [=] {
+      TaggedIsSmi(object), [&] { return Int32FalseConstant(); },
+      [&] {
         return IsCallableMap(LoadMap(UncheckedCast<HeapObject>(object)));
       });
 }
@@ -6680,8 +6680,8 @@ TNode<BoolT> CodeStubAssembler::IsJSSharedArray(TNode<HeapObject> object) {
 
 TNode<BoolT> CodeStubAssembler::IsJSSharedArray(TNode<Object> object) {
   return Select<BoolT>(
-      TaggedIsSmi(object), [=] { return Int32FalseConstant(); },
-      [=] {
+      TaggedIsSmi(object), [&] { return Int32FalseConstant(); },
+      [&] {
         TNode<HeapObject> heap_object = CAST(object);
         return IsJSSharedArray(heap_object);
       });
@@ -6702,8 +6702,8 @@ TNode<BoolT> CodeStubAssembler::IsJSSharedStruct(TNode<HeapObject> object) {
 
 TNode<BoolT> CodeStubAssembler::IsJSSharedStruct(TNode<Object> object) {
   return Select<BoolT>(
-      TaggedIsSmi(object), [=] { return Int32FalseConstant(); },
-      [=] {
+      TaggedIsSmi(object), [&] { return Int32FalseConstant(); },
+      [&] {
         TNode<HeapObject> heap_object = CAST(object);
         return IsJSSharedStruct(heap_object);
       });
@@ -6854,8 +6854,8 @@ TNode<BoolT> CodeStubAssembler::IsUniqueName(TNode<HeapObject> object) {
   TNode<Uint16T> instance_type = LoadInstanceType(object);
   return Select<BoolT>(
       IsInternalizedStringInstanceType(instance_type),
-      [=] { return Int32TrueConstant(); },
-      [=] { return IsSymbolInstanceType(instance_type); });
+      [&] { return Int32TrueConstant(); },
+      [&] { return IsSymbolInstanceType(instance_type); });
 }
 
 // Semantics: guaranteed not to be an integer index (i.e. contains non-digit
@@ -6869,12 +6869,12 @@ TNode<BoolT> CodeStubAssembler::IsUniqueNameNoIndex(TNode<HeapObject> object) {
   TNode<Uint16T> instance_type = LoadInstanceType(object);
   return Select<BoolT>(
       IsInternalizedStringInstanceType(instance_type),
-      [=] {
+      [&] {
         return IsNotEqualInWord32<Name::HashFieldTypeBits>(
             LoadNameRawHashField(CAST(object)),
             Name::HashFieldType::kIntegerIndex);
       },
-      [=] { return IsSymbolInstanceType(instance_type); });
+      [&] { return IsSymbolInstanceType(instance_type); });
 }
 
 // Semantics: {object} is a Symbol, or a String that doesn't have a cached
@@ -6888,11 +6888,11 @@ TNode<BoolT> CodeStubAssembler::IsUniqueNameNoCachedIndex(
   TNode<Uint16T> instance_type = LoadInstanceType(object);
   return Select<BoolT>(
       IsInternalizedStringInstanceType(instance_type),
-      [=] {
+      [&] {
         return IsSetWord32(LoadNameRawHash(CAST(object)),
                            Name::kDoesNotContainCachedArrayIndexMask);
       },
-      [=] { return IsSymbolInstanceType(instance_type); });
+      [&] { return IsSymbolInstanceType(instance_type); });
 }
 
 TNode<BoolT> CodeStubAssembler::IsBigIntInstanceType(
@@ -7024,8 +7024,8 @@ TNode<BoolT> CodeStubAssembler::IsJSRegExp(TNode<HeapObject> object) {
 
 TNode<BoolT> CodeStubAssembler::IsNumeric(TNode<Object> object) {
   return Select<BoolT>(
-      TaggedIsSmi(object), [=] { return Int32TrueConstant(); },
-      [=] {
+      TaggedIsSmi(object), [&] { return Int32TrueConstant(); },
+      [&] {
         return UncheckedCast<BoolT>(
             Word32Or(IsHeapNumber(CAST(object)), IsBigInt(CAST(object))));
       });
@@ -7056,8 +7056,8 @@ TNode<BoolT> CodeStubAssembler::IsNumberNormalized(TNode<Number> number) {
 
 TNode<BoolT> CodeStubAssembler::IsNumberPositive(TNode<Number> number) {
   return Select<BoolT>(
-      TaggedIsSmi(number), [=] { return TaggedIsPositiveSmi(number); },
-      [=] { return IsHeapNumberPositive(CAST(number)); });
+      TaggedIsSmi(number), [&] { return TaggedIsPositiveSmi(number); },
+      [&] { return IsHeapNumberPositive(CAST(number)); });
 }
 
 // TODO(cbruni): Use TNode<HeapNumber> instead of custom name.
@@ -7071,24 +7071,24 @@ TNode<BoolT> CodeStubAssembler::IsNumberNonNegativeSafeInteger(
     TNode<Number> number) {
   return Select<BoolT>(
       // TODO(cbruni): Introduce TaggedIsNonNegateSmi to avoid confusion.
-      TaggedIsSmi(number), [=] { return TaggedIsPositiveSmi(number); },
-      [=] {
+      TaggedIsSmi(number), [&] { return TaggedIsPositiveSmi(number); },
+      [&] {
         TNode<HeapNumber> heap_number = CAST(number);
         return Select<BoolT>(
             IsInteger(heap_number),
-            [=] { return IsHeapNumberPositive(heap_number); },
-            [=] { return Int32FalseConstant(); });
+            [&] { return IsHeapNumberPositive(heap_number); },
+            [&] { return Int32FalseConstant(); });
       });
 }
 
 TNode<BoolT> CodeStubAssembler::IsSafeInteger(TNode<Object> number) {
   return Select<BoolT>(
-      TaggedIsSmi(number), [=] { return Int32TrueConstant(); },
-      [=] {
+      TaggedIsSmi(number), [&] { return Int32TrueConstant(); },
+      [&] {
         return Select<BoolT>(
             IsHeapNumber(CAST(number)),
-            [=] { return IsSafeInteger(UncheckedCast<HeapNumber>(number)); },
-            [=] { return Int32FalseConstant(); });
+            [&] { return IsSafeInteger(UncheckedCast<HeapNumber>(number)); },
+            [&] { return Int32FalseConstant(); });
       });
 }
 
@@ -7102,22 +7102,22 @@ TNode<BoolT> CodeStubAssembler::IsSafeInteger(TNode<HeapNumber> number) {
       // Check if {number}s value matches the integer (ruling out the
       // infinities).
       Float64Equal(Float64Sub(number_value, integer), Float64Constant(0.0)),
-      [=] {
+      [&] {
         // Check if the {integer} value is in safe integer range.
         return Float64LessThanOrEqual(Float64Abs(integer),
                                       Float64Constant(kMaxSafeInteger));
       },
-      [=] { return Int32FalseConstant(); });
+      [&] { return Int32FalseConstant(); });
 }
 
 TNode<BoolT> CodeStubAssembler::IsInteger(TNode<Object> number) {
   return Select<BoolT>(
-      TaggedIsSmi(number), [=] { return Int32TrueConstant(); },
-      [=] {
+      TaggedIsSmi(number), [&] { return Int32TrueConstant(); },
+      [&] {
         return Select<BoolT>(
             IsHeapNumber(CAST(number)),
-            [=] { return IsInteger(UncheckedCast<HeapNumber>(number)); },
-            [=] { return Int32FalseConstant(); });
+            [&] { return IsInteger(UncheckedCast<HeapNumber>(number)); },
+            [&] { return Int32FalseConstant(); });
       });
 }
 
@@ -7133,18 +7133,18 @@ TNode<BoolT> CodeStubAssembler::IsHeapNumberUint32(TNode<HeapNumber> number) {
   // Check that the HeapNumber is a valid uint32
   return Select<BoolT>(
       IsHeapNumberPositive(number),
-      [=] {
+      [&] {
         TNode<Float64T> value = LoadHeapNumberValue(number);
         TNode<Uint32T> int_value = TruncateFloat64ToWord32(value);
         return Float64Equal(value, ChangeUint32ToFloat64(int_value));
       },
-      [=] { return Int32FalseConstant(); });
+      [&] { return Int32FalseConstant(); });
 }
 
 TNode<BoolT> CodeStubAssembler::IsNumberArrayIndex(TNode<Number> number) {
   return Select<BoolT>(
-      TaggedIsSmi(number), [=] { return TaggedIsPositiveSmi(number); },
-      [=] { return IsHeapNumberUint32(CAST(number)); });
+      TaggedIsSmi(number), [&] { return TaggedIsPositiveSmi(number); },
+      [&] { return IsHeapNumberUint32(CAST(number)); });
 }
 
 TNode<IntPtrT> CodeStubAssembler::LoadBasicMemoryChunkFlags(
@@ -7707,8 +7707,8 @@ TNode<Number> CodeStubAssembler::ToNumber_Inline(TNode<Context> context,
   BIND(&not_smi);
   {
     var_result = Select<Number>(
-        IsHeapNumber(CAST(input)), [=] { return CAST(input); },
-        [=] {
+        IsHeapNumber(CAST(input)), [&] { return CAST(input); },
+        [&] {
           return CAST(CallBuiltin(Builtin::kNonNumberToNumber, context, input));
         });
     Goto(&end);
@@ -8037,8 +8037,8 @@ TNode<Number> CodeStubAssembler::ToLength_Inline(TNode<Context> context,
                                                  TNode<Object> input) {
   TNode<Smi> smi_zero = SmiConstant(0);
   return Select<Number>(
-      TaggedIsSmi(input), [=] { return SmiMax(CAST(input), smi_zero); },
-      [=] { return CAST(CallBuiltin(Builtin::kToLength, context, input)); });
+      TaggedIsSmi(input), [&] { return SmiMax(CAST(input), smi_zero); },
+      [&] { return CAST(CallBuiltin(Builtin::kToLength, context, input)); });
 }
 
 TNode<Object> CodeStubAssembler::OrdinaryToPrimitive(
@@ -9081,7 +9081,7 @@ void CodeStubAssembler::LookupLinear(TNode<Name> unique_name,
 
   BuildFastLoop<IntPtrT>(
       last_exclusive, first_inclusive,
-      [=](TNode<IntPtrT> name_index) {
+      [&](TNode<IntPtrT> name_index) {
         TNode<MaybeObject> element =
             LoadArrayElement(array, Array::kHeaderSize, name_index);
         TNode<Name> candidate_name = CAST(element);
@@ -9104,8 +9104,8 @@ TNode<Uint32T> CodeStubAssembler::NumberOfEntries<TransitionArray>(
   TNode<IntPtrT> length = LoadAndUntagWeakFixedArrayLength(transitions);
   return Select<Uint32T>(
       UintPtrLessThan(length, IntPtrConstant(TransitionArray::kFirstIndex)),
-      [=] { return Unsigned(Int32Constant(0)); },
-      [=] {
+      [&] { return Unsigned(Int32Constant(0)); },
+      [&] {
         return Unsigned(LoadAndUntagToWord32ArrayElement(
             transitions, WeakFixedArray::kHeaderSize,
             IntPtrConstant(TransitionArray::kTransitionLengthIndex)));
@@ -11565,11 +11565,11 @@ void CodeStubAssembler::EmitElementStore(
 
   TNode<Smi> smi_length = Select<Smi>(
       IsJSArray(object),
-      [=]() {
+      [&]() {
         // This is casting Number -> Smi which may not actually be safe.
         return CAST(LoadJSArrayLength(CAST(object)));
       },
-      [=]() { return LoadFixedArrayBaseLength(elements); });
+      [&]() { return LoadFixedArrayBaseLength(elements); });
 
   TNode<UintPtrT> length = Unsigned(SmiUntag(smi_length));
   if (IsGrowStoreMode(store_mode) &&
@@ -11721,11 +11721,11 @@ void CodeStubAssembler::TransitionElementsKind(TNode<JSObject> object,
         SmiUntag(LoadFixedArrayBaseLength(elements));
     TNode<IntPtrT> array_length = Select<IntPtrT>(
         IsJSArray(object),
-        [=]() {
+        [&]() {
           CSA_DCHECK(this, IsFastElementsKind(LoadElementsKind(object)));
           return SmiUntag(LoadFastJSArrayLength(CAST(object)));
         },
-        [=]() { return elements_length; });
+        [&]() { return elements_length; });
 
     CSA_DCHECK(this, WordNotEqual(elements_length, IntPtrConstant(0)));
 
@@ -12034,7 +12034,7 @@ void CodeStubAssembler::InitializeFieldsWithRoot(TNode<HeapObject> object,
   }
   BuildFastLoop<IntPtrT>(
       end_offset, start_offset,
-      [=](TNode<IntPtrT> current) {
+      [&](TNode<IntPtrT> current) {
         StoreNoWriteBarrier(MachineRepresentation::kTagged, object, current,
                             root_value);
       },
@@ -15243,11 +15243,11 @@ TNode<Map> CodeStubAssembler::CheckEnumCache(TNode<JSReceiver> receiver,
 
       length = Select<Smi>(
           IsSwissNameDictionary(properties),
-          [=] {
+          [&] {
             return GetNumberOfElements(
                 UncheckedCast<SwissNameDictionary>(properties));
           },
-          [=] {
+          [&] {
             return GetNumberOfElements(
                 UncheckedCast<GlobalDictionary>(properties));
           });
@@ -15389,7 +15389,7 @@ TNode<JSArray> CodeStubAssembler::ArrayCreate(TNode<Context> context,
 
   Label done(this), next(this), runtime(this, Label::kDeferred);
   TNode<Smi> limit = SmiConstant(JSArray::kInitialMaxFastElementArray);
-  CSA_DCHECK_BRANCH(this, [=](Label* ok, Label* not_ok) {
+  CSA_DCHECK_BRANCH(this, [&](Label* ok, Label* not_ok) {
     BranchIfNumberRelationalComparison(Operation::kGreaterThanOrEqual, length,
                                        SmiConstant(0), ok, not_ok);
   });
@@ -15937,7 +15937,7 @@ CodeStubAssembler::AllocateSwissNameDictionaryWithCapacity(
   TNode<Int32T> empty32 = Int32Constant(kEmpty32);
   BuildFastLoop<IntPtrT>(
       ctrl_table_start_ptr, ctrl_table_end_ptr,
-      [=](TNode<IntPtrT> current) {
+      [&](TNode<IntPtrT> current) {
         UnsafeStoreNoWriteBarrier(MachineRepresentation::kWord32, current,
                                   empty32);
       },
@@ -16032,7 +16032,7 @@ TNode<SwissNameDictionary> CodeStubAssembler::CopySwissNameDictionary(
 
     BuildFastLoop<IntPtrT>(
         start_offset, IntPtrAdd(start_offset, data_table_size),
-        [=](TNode<IntPtrT> offset) {
+        [&](TNode<IntPtrT> offset) {
           TNode<Object> table_field = LoadObjectField(original, offset);
           StoreObjectField(table, offset, table_field);
         },

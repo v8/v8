@@ -966,7 +966,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<A> SelectConstant(TNode<BoolT> condition, TNode<A> true_value,
                           TNode<A> false_value) {
     return Select<A>(
-        condition, [=] { return true_value; }, [=] { return false_value; });
+        condition, [&] { return true_value; }, [&] { return false_value; });
   }
 
   TNode<Int32T> SelectInt32Constant(TNode<BoolT> condition, int true_value,
@@ -3661,7 +3661,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       Operation op, TNode<Object> left, TNode<Object> right,
       TNode<Context> context, TVariable<Smi>* var_type_feedback = nullptr) {
     return RelationalComparison(
-        op, left, right, [=]() { return context; }, var_type_feedback);
+        op, left, right, [&]() { return context; }, var_type_feedback);
   }
 
   TNode<Oddball> RelationalComparison(
@@ -3721,7 +3721,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                        TNode<Context> context,
                        TVariable<Smi>* var_type_feedback = nullptr) {
     return Equal(
-        lhs, rhs, [=]() { return context; }, var_type_feedback);
+        lhs, rhs, [&]() { return context; }, var_type_feedback);
   }
   TNode<Oddball> Equal(TNode<Object> lhs, TNode<Object> rhs,
                        const LazyNode<Context>& context,

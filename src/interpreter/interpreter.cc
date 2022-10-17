@@ -348,7 +348,7 @@ void Interpreter::Initialize() {
   interpreter_entry_trampoline_instruction_start_ = code->InstructionStart();
 
   // Initialize the dispatch table.
-  ForEachBytecode([=](Bytecode bytecode, OperandScale operand_scale) {
+  ForEachBytecode([&](Bytecode bytecode, OperandScale operand_scale) {
     Builtin builtin = BuiltinIndexFromBytecode(bytecode, operand_scale);
     CodeT handler = builtins->code(builtin);
     if (Bytecodes::BytecodeHasHandler(bytecode, operand_scale)) {

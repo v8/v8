@@ -525,12 +525,12 @@ void MicrotaskQueueBuiltinsAssembler::RunPromiseHook(
     // Get to the underlying JSPromise instance.
     TNode<HeapObject> promise = Select<HeapObject>(
         IsPromiseCapability(promise_or_capability),
-        [=] {
+        [&] {
           return CAST(LoadObjectField(promise_or_capability,
                                       PromiseCapability::kPromiseOffset));
         },
 
-        [=] { return promise_or_capability; });
+        [&] { return promise_or_capability; });
     GotoIf(IsUndefined(promise), &done_hook);
     CallRuntime(id, context, promise);
     Goto(&done_hook);

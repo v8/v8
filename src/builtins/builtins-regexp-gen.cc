@@ -160,8 +160,8 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::AllocateRegExpResult(
   // If non-smi last_index then store an SmiZero instead.
   {
     TNode<Smi> last_index_smi = Select<Smi>(
-        TaggedIsSmi(last_index), [=] { return CAST(last_index); },
-        [=] { return SmiZero(); });
+        TaggedIsSmi(last_index), [&] { return CAST(last_index); },
+        [&] { return SmiZero(); });
     StoreObjectField(result, JSRegExpResult::kRegexpLastIndexOffset,
                      last_index_smi);
   }
@@ -1161,13 +1161,13 @@ TNode<Object> RegExpBuiltinsAssembler::RegExpInitialize(
     const TNode<Object> maybe_pattern, const TNode<Object> maybe_flags) {
   // Normalize pattern.
   const TNode<Object> pattern = Select<Object>(
-      IsUndefined(maybe_pattern), [=] { return EmptyStringConstant(); },
-      [=] { return ToString_Inline(context, maybe_pattern); });
+      IsUndefined(maybe_pattern), [&] { return EmptyStringConstant(); },
+      [&] { return ToString_Inline(context, maybe_pattern); });
 
   // Normalize flags.
   const TNode<Object> flags = Select<Object>(
-      IsUndefined(maybe_flags), [=] { return EmptyStringConstant(); },
-      [=] { return ToString_Inline(context, maybe_flags); });
+      IsUndefined(maybe_flags), [&] { return EmptyStringConstant(); },
+      [&] { return ToString_Inline(context, maybe_flags); });
 
   // Initialize.
 

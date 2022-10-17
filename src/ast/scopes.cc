@@ -2555,7 +2555,7 @@ void DeclarationScope::AllocateLocals() {
   }
 
   NullifyRareVariableIf(RareVariable::kThisFunction,
-                        [=](Variable* var) { return !MustAllocate(var); });
+                        [&](Variable* var) { return !MustAllocate(var); });
 }
 
 void ModuleScope::AllocateModuleVariables() {
