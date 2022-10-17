@@ -98,6 +98,7 @@
 #include "src/diagnostics/code-tracer.h"
 #include "src/diagnostics/disassembler.h"
 #include "src/execution/isolate-inl.h"
+#include "src/flags/flags.h"
 #include "src/heap/local-heap.h"
 #include "src/logging/code-events.h"
 #include "src/logging/counters.h"
