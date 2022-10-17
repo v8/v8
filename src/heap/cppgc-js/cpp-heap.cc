@@ -15,6 +15,7 @@
 #include "include/v8-platform.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
+#include "src/base/optional.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
 #include "src/execution/isolate-inl.h"
@@ -557,6 +558,20 @@ void CppHeap::Terminate() {
 
 namespace {
 
+class SweepingOnMutatorThreadForGlobalHandlesScope final {
+ public:
+  explicit SweepingOnMutatorThreadForGlobalHandlesScope(
+      GlobalHandles& global_handles)
+      : global_handles_(global_handles) {
+    global_handles_.NotifyStartSweepingOnMutatorThread();
+  }
+  ~SweepingOnMutatorThreadForGlobalHandlesScope() {
+    global_handles_.NotifyEndSweepingOnMutatorThread();
+  }
+
+  GlobalHandles& global_handles_;
+};
+
 class SweepingOnMutatorThreadForGlobalHandlesObserver final
     : public cppgc::internal::Sweeper::SweepingOnMutatorThreadObserver {
  public:
@@ -830,7 +845,15 @@ void CppHeap::TraceEpilogue() {
   {
     cppgc::subtle::NoGarbageCollectionScope no_gc(*this);
     cppgc::internal::SweepingConfig::CompactableSpaceHandling
-        compactable_space_handling = compactor_.CompactSpacesIfEnabled();
+        compactable_space_handling;
+    {
+      base::Optional<SweepingOnMutatorThreadForGlobalHandlesScope>
+          global_handles_scope;
+      if (isolate_) {
+        global_handles_scope.emplace(*isolate_->global_handles());
+      }
+      compactable_space_handling = compactor_.CompactSpacesIfEnabled();
+    }
     const cppgc::internal::SweepingConfig sweeping_config{
         SelectSweepingType(), compactable_space_handling,
         ShouldReduceMemory(current_gc_flags_)
