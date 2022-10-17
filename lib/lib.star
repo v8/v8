@@ -156,6 +156,7 @@ defaults_try = {
     "service_account": "v8-try-builder@chops-service-accounts.iam.gserviceaccount.com",
     "execution_timeout": 1800,
     "properties": {"builder_group": "tryserver.v8"},
+    "resultdb_bq_table_prefix": "try",
 }
 
 defaults_triggered = {
@@ -381,6 +382,16 @@ def v8_basic_builder(defaults, **kwargs):
             kwargs["name"],
             kwargs["bucket"],
             description,
+        )
+
+    defaults = defaults_dict[kwargs["bucket"]]
+    resultdb_bq_table_prefix = defaults.get("resultdb_bq_table_prefix", None)
+    if resultdb_bq_table_prefix:
+        kwargs["resultdb_settings"] = resultdb.settings(
+            enable = True,
+            bq_exports = [
+                resultdb.export_test_results(bq_table = "v8-infra.resultdb." + resultdb_bq_table_prefix + "_test_results"),
+            ],
         )
     luci.builder(**kwargs)
 
