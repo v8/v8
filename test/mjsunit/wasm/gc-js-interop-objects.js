@@ -41,9 +41,7 @@ for (const wasm_obj of [struct, array]) {
   repeated(() => assertEquals(true, Object.isFrozen(wasm_obj)));
   repeated(() => assertEquals(false, Object.isExtensible(wasm_obj)));
   repeated(() => assertEquals('object', typeof wasm_obj));
-  repeated(
-      () => assertEquals(
-          '[object Object]', Object.prototype.toString.call(wasm_obj)));
+  testThrowsRepeated(() => Object.prototype.toString.call(wasm_obj), TypeError);
 
   repeated(() => {
     let tgt = {};
