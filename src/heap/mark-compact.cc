@@ -1673,7 +1673,8 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
         local_allocator_(local_allocator),
         shared_old_allocator_(shared_old_allocator),
         record_visitor_(record_visitor),
-        shared_string_table_(shared_old_allocator != nullptr) {
+        shared_string_table_(v8_flags.shared_string_table &&
+                             heap->isolate()->has_shared_heap()) {
     migration_function_ = RawMigrateObject<MigrationMode::kFast>;
   }
 
@@ -1694,9 +1695,14 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
     AllocationAlignment alignment = HeapObject::RequiredAlignment(map);
     AllocationResult allocation;
     if (target_space == OLD_SPACE && ShouldPromoteIntoSharedHeap(map)) {
-      DCHECK_NOT_NULL(shared_old_allocator_);
-      allocation = shared_old_allocator_->AllocateRaw(size, alignment,
-                                                      AllocationOrigin::kGC);
+      if (heap_->isolate()->is_shared_heap_isolate()) {
+        DCHECK_NULL(shared_old_allocator_);
+        allocation = local_allocator_->Allocate(
+            SHARED_SPACE, size, AllocationOrigin::kGC, alignment);
+      } else {
+        allocation = shared_old_allocator_->AllocateRaw(size, alignment,
+                                                        AllocationOrigin::kGC);
+      }
     } else {
       allocation = local_allocator_->Allocate(target_space, size,
                                               AllocationOrigin::kGC, alignment);
@@ -1738,7 +1744,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
   RecordMigratedSlotVisitor* record_visitor_;
   std::vector<MigrationObserver*> observers_;
   MigrateFunction migration_function_;
-  bool shared_string_table_ = false;
+  const bool shared_string_table_;
 #if DEBUG
   Address abort_evacuation_at_address_{kNullAddress};
 #endif  // DEBUG
@@ -3975,7 +3981,8 @@ void MarkCompactCollector::EvacuateEpilogue() {
 
 namespace {
 ConcurrentAllocator* CreateSharedOldAllocator(Heap* heap) {
-  if (v8_flags.shared_string_table && heap->isolate()->has_shared_heap()) {
+  if (v8_flags.shared_string_table && heap->isolate()->has_shared_heap() &&
+      !heap->isolate()->is_shared_heap_isolate()) {
     return new ConcurrentAllocator(nullptr, heap->shared_allocation_space());
   }
 
