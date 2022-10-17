@@ -156,6 +156,18 @@ luci.realm(
     ],
 )
 
+def grantInvocationCreator(realms, users):
+    for realm in realms:
+        luci.realm(name = realm, bindings = [
+            # Allow try builders to create invocations in their own builds.
+            luci.binding(
+                roles = "role/resultdb.invocationCreator",
+                users = users,
+            ),
+        ])
+
+grantInvocationCreator(["try", "try.triggered"], [V8_TRY_ACCOUNT])
+
 luci.logdog(gs_bucket = "chromium-luci-logdog")
 
 luci.bucket(name = "ci", acls = waterfall_acls)
