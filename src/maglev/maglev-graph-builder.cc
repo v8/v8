@@ -1481,7 +1481,9 @@ ValueNode* MaglevGraphBuilder::GetInt32ElementIndex(ValueNode* object) {
         NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(object);
         if (node_info->is_smi()) {
           if (!node_info->int32_alternative) {
-            node_info->int32_alternative = AddNewNode<UnsafeSmiTag>({object});
+            // TODO(leszeks): This could be unchecked.
+            node_info->int32_alternative =
+                AddNewNode<CheckedSmiUntag>({object});
           }
           return node_info->int32_alternative;
         } else {
