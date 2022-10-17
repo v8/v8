@@ -1528,6 +1528,10 @@ Type Typer::Visitor::TypeJSObjectIsArray(Node* node) { return Type::Boolean(); }
 
 Type Typer::Visitor::TypeDateNow(Node* node) { return Type::Number(); }
 
+Type Typer::Visitor::TypeDoubleArrayMin(Node* node) { return Type::Number(); }
+
+Type Typer::Visitor::TypeDoubleArrayMax(Node* node) { return Type::Number(); }
+
 Type Typer::Visitor::TypeUnsigned32Divide(Node* node) {
   Type lhs = Operand(node, 0);
   return Type::Range(0, lhs.Max(), zone());

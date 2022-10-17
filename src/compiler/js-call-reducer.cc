@@ -83,6 +83,7 @@ class JSCallReducerAssembler : public JSGraphAssembler {
   TNode<Boolean> ReduceStringPrototypeStartsWith(
       const StringRef& search_element_string);
   TNode<String> ReduceStringPrototypeSlice();
+  TNode<Object> ReduceJSCallMathMinMaxWithArrayLike(Builtin builtin);
 
   TNode<Object> TargetInput() const { return JSCallNode{node_ptr()}.target(); }
 
@@ -293,6 +294,8 @@ class JSCallReducerAssembler : public JSGraphAssembler {
   TNode<Number> NumberInc(TNode<Number> value) {
     return NumberAdd(value, OneConstant());
   }
+
+  TNode<Number> LoadMapElementsKind(TNode<Map> map);
 
   void MaybeInsertMapChecks(MapInference* inference,
                             bool has_stability_dependency) {
@@ -1157,6 +1160,15 @@ TNode<JSArray> JSCallReducerAssembler::AllocateEmptyJSArray(
   return TNode<JSArray>::UncheckedCast(result);
 }
 
+TNode<Number> JSCallReducerAssembler::LoadMapElementsKind(TNode<Map> map) {
+  TNode<Number> bit_field2 =
+      LoadField<Number>(AccessBuilder::ForMapBitField2(), map);
+  return NumberShiftRightLogical(
+      NumberBitwiseAnd(bit_field2,
+                       NumberConstant(Map::Bits2::ElementsKindBits::kMask)),
+      NumberConstant(Map::Bits2::ElementsKindBits::kShift));
+}
+
 TNode<Object> JSCallReducerAssembler::ReduceMathUnary(const Operator* op) {
   TNode<Object> input = Argument(0);
   TNode<Number> input_as_number = SpeculativeToNumber(input);
@@ -1325,6 +1337,57 @@ TNode<String> JSCallReducerAssembler::ReduceStringPrototypeSlice() {
       .Else(_ { return EmptyStringConstant(); })
       .ExpectTrue()
       .Value();
+}
+
+TNode<Object> JSCallReducerAssembler::ReduceJSCallMathMinMaxWithArrayLike(
+    Builtin builtin) {
+  JSCallWithArrayLikeNode n(node_ptr());
+  TNode<Object> arguments_list = n.Argument(0);
+
+  auto call_builtin = MakeLabel();
+  auto done = MakeLabel(MachineRepresentation::kTagged);
+
+  // Check if {arguments_list} is a JSArray.
+  GotoIf(ObjectIsSmi(arguments_list), &call_builtin);
+  TNode<Map> arguments_list_map =
+      LoadField<Map>(AccessBuilder::ForMap(),
+                     TNode<HeapObject>::UncheckedCast(arguments_list));
+  TNode<Number> arguments_list_instance_type = LoadField<Number>(
+      AccessBuilder::ForMapInstanceType(), arguments_list_map);
+  auto check_instance_type =
+      NumberEqual(arguments_list_instance_type, NumberConstant(JS_ARRAY_TYPE));
+  GotoIfNot(check_instance_type, &call_builtin);
+
+  // Check if {arguments_list} has PACKED_DOUBLE_ELEMENTS.
+  TNode<Number> arguments_list_elements_kind =
+      LoadMapElementsKind(arguments_list_map);
+  auto check_element_kind = NumberEqual(arguments_list_elements_kind,
+                                        NumberConstant(PACKED_DOUBLE_ELEMENTS));
+  GotoIfNot(check_element_kind, &call_builtin);
+
+  // If {arguments_list} is a JSArray with PACKED_DOUBLE_ELEMENTS, calculate the
+  // result with inlined loop.
+  TNode<JSArray> array_arguments_list =
+      TNode<JSArray>::UncheckedCast(arguments_list);
+  Goto(&done, builtin == Builtin::kMathMax
+                  ? DoubleArrayMax(array_arguments_list)
+                  : DoubleArrayMin(array_arguments_list));
+
+  // Otherwise, call BuiltinMathMin/Max as usual.
+  Bind(&call_builtin);
+  TNode<Object> call = CopyNode();
+  CallParameters const& p = n.Parameters();
+
+  // Set SpeculationMode to kDisallowSpeculation to avoid infinite
+  // recursion.
+  NodeProperties::ChangeOp(
+      call, javascript()->CallWithArrayLike(
+                p.frequency(), p.feedback(),
+                SpeculationMode::kDisallowSpeculation, p.feedback_relation()));
+  Goto(&done, call);
+
+  Bind(&done);
+  return done.PhiAt<Object>(0);
 }
 
 TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeAt(
@@ -5192,6 +5255,13 @@ Reduction JSCallReducer::ReduceJSCallWithArrayLike(Node* node) {
   if (TargetIsClassConstructor(node, broker())) {
     return NoChange();
   }
+
+  base::Optional<Reduction> maybe_result =
+      TryReduceJSCallMathMinMaxWithArrayLike(node);
+  if (maybe_result.has_value()) {
+    return maybe_result.value();
+  }
+
   return ReduceCallOrConstructWithArrayLikeOrSpread(
       node, n.ArgumentCount(), n.LastArgumentIndex(), p.frequency(),
       p.feedback(), p.speculation_mode(), p.feedback_relation(), n.target(),
@@ -8408,6 +8478,108 @@ Reduction JSCallReducer::ReduceBigIntAsN(Node* node, Builtin builtin) {
   }
 
   return NoChange();
+}
+
+base::Optional<Reduction> JSCallReducer::TryReduceJSCallMathMinMaxWithArrayLike(
+    Node* node) {
+  if (!v8_flags.turbo_optimize_math_minmax) return base::nullopt;
+
+  JSCallWithArrayLikeNode n(node);
+  CallParameters const& p = n.Parameters();
+  Node* target = n.target();
+  Effect effect = n.effect();
+  Control control = n.control();
+
+  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
+    return base::nullopt;
+  }
+
+  if (n.ArgumentCount() != 1) {
+    return base::nullopt;
+  }
+
+  // These ops are handled by ReduceCallOrConstructWithArrayLikeOrSpread.
+  Node* arguments_list = n.Argument(0);
+  if (arguments_list->opcode() == IrOpcode::kJSCreateLiteralArray ||
+      arguments_list->opcode() == IrOpcode::kJSCreateEmptyLiteralArray ||
+      arguments_list->opcode() == IrOpcode::kJSCreateArguments) {
+    return base::nullopt;
+  }
+
+  HeapObjectMatcher m(target);
+  if (m.HasResolvedValue()) {
+    ObjectRef target_ref = m.Ref(broker());
+    if (target_ref.IsJSFunction()) {
+      JSFunctionRef function = target_ref.AsJSFunction();
+
+      // Don't inline cross native context.
+      if (!function.native_context().equals(native_context())) {
+        return base::nullopt;
+      }
+
+      SharedFunctionInfoRef shared = function.shared();
+      Builtin builtin =
+          shared.HasBuiltinId() ? shared.builtin_id() : Builtin::kNoBuiltinId;
+      if (builtin == Builtin::kMathMax || builtin == Builtin::kMathMin) {
+        return ReduceJSCallMathMinMaxWithArrayLike(node, builtin);
+      } else {
+        return base::nullopt;
+      }
+    }
+  }
+
+  // Try specialize the JSCallWithArrayLike node with feedback target.
+  if (ShouldUseCallICFeedback(target) &&
+      p.feedback_relation() == CallFeedbackRelation::kTarget &&
+      p.feedback().IsValid()) {
+    ProcessedFeedback const& feedback =
+        broker()->GetFeedbackForCall(p.feedback());
+    if (feedback.IsInsufficient()) {
+      return base::nullopt;
+    }
+    base::Optional<HeapObjectRef> feedback_target = feedback.AsCall().target();
+    if (feedback_target.has_value() && feedback_target->map().is_callable()) {
+      Node* target_function = jsgraph()->Constant(*feedback_target);
+      ObjectRef target_ref = feedback_target.value();
+      if (!target_ref.IsJSFunction()) {
+        return base::nullopt;
+      }
+      JSFunctionRef function = target_ref.AsJSFunction();
+      SharedFunctionInfoRef shared = function.shared();
+      Builtin builtin =
+          shared.HasBuiltinId() ? shared.builtin_id() : Builtin::kNoBuiltinId;
+      if (builtin == Builtin::kMathMax || builtin == Builtin::kMathMin) {
+        // Check that the {target} is still the {target_function}.
+        Node* check = graph()->NewNode(simplified()->ReferenceEqual(), target,
+                                       target_function);
+        effect = graph()->NewNode(
+            simplified()->CheckIf(DeoptimizeReason::kWrongCallTarget), check,
+            effect, control);
+
+        // Specialize the JSCallWithArrayLike node to the {target_function}.
+        NodeProperties::ReplaceValueInput(node, target_function,
+                                          n.TargetIndex());
+        NodeProperties::ReplaceEffectInput(node, effect);
+        // Try to further reduce the Call MathMin/Max with double array.
+        return Changed(node).FollowedBy(
+            ReduceJSCallMathMinMaxWithArrayLike(node, builtin));
+      }
+    }
+  }
+
+  return base::nullopt;
+}
+
+Reduction JSCallReducer::ReduceJSCallMathMinMaxWithArrayLike(Node* node,
+                                                             Builtin builtin) {
+  JSCallWithArrayLikeNode n(node);
+  DCHECK_NE(n.Parameters().speculation_mode(),
+            SpeculationMode::kDisallowSpeculation);
+  DCHECK_EQ(n.ArgumentCount(), 1);
+
+  JSCallReducerAssembler a(this, node);
+  Node* subgraph = a.ReduceJSCallMathMinMaxWithArrayLike(builtin);
+  return ReplaceWithSubgraph(&a, subgraph);
 }
 
 CompilationDependencies* JSCallReducer::dependencies() const {

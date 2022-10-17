@@ -330,6 +330,18 @@ TNode<Boolean> JSGraphAssembler::NumberLessThanOrEqual(TNode<Number> lhs,
       graph()->NewNode(simplified()->NumberLessThanOrEqual(), lhs, rhs));
 }
 
+TNode<Number> JSGraphAssembler::NumberShiftRightLogical(TNode<Number> lhs,
+                                                        TNode<Number> rhs) {
+  return AddNode<Number>(
+      graph()->NewNode(simplified()->NumberShiftRightLogical(), lhs, rhs));
+}
+
+TNode<Number> JSGraphAssembler::NumberBitwiseAnd(TNode<Number> lhs,
+                                                 TNode<Number> rhs) {
+  return AddNode<Number>(
+      graph()->NewNode(simplified()->NumberBitwiseAnd(), lhs, rhs));
+}
+
 TNode<String> JSGraphAssembler::StringSubstring(TNode<String> string,
                                                 TNode<Number> from,
                                                 TNode<Number> to) {
@@ -340,6 +352,10 @@ TNode<String> JSGraphAssembler::StringSubstring(TNode<String> string,
 TNode<Boolean> JSGraphAssembler::ObjectIsCallable(TNode<Object> value) {
   return AddNode<Boolean>(
       graph()->NewNode(simplified()->ObjectIsCallable(), value));
+}
+
+TNode<Boolean> JSGraphAssembler::ObjectIsSmi(TNode<Object> value) {
+  return AddNode<Boolean>(graph()->NewNode(simplified()->ObjectIsSmi(), value));
 }
 
 TNode<Boolean> JSGraphAssembler::ObjectIsUndetectable(TNode<Object> value) {
@@ -377,6 +393,16 @@ TNode<FixedArrayBase> JSGraphAssembler::MaybeGrowFastElements(
   return AddNode<FixedArrayBase>(graph()->NewNode(
       simplified()->MaybeGrowFastElements(mode, feedback), array, elements,
       index_needed, old_length, effect(), control()));
+}
+
+TNode<Object> JSGraphAssembler::DoubleArrayMax(TNode<JSArray> array) {
+  return AddNode<Object>(graph()->NewNode(simplified()->DoubleArrayMax(), array,
+                                          effect(), control()));
+}
+
+TNode<Object> JSGraphAssembler::DoubleArrayMin(TNode<JSArray> array) {
+  return AddNode<Object>(graph()->NewNode(simplified()->DoubleArrayMax(), array,
+                                          effect(), control()));
 }
 
 Node* JSGraphAssembler::StringCharCodeAt(TNode<String> string,

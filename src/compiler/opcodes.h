@@ -430,6 +430,8 @@
   V(ConvertReceiver)                    \
   V(ConvertTaggedHoleToUndefined)       \
   V(DateNow)                            \
+  V(DoubleArrayMax)                     \
+  V(DoubleArrayMin)                     \
   V(EnsureWritableFastElements)         \
   V(FastApiCall)                        \
   V(FindOrderedHashMapEntry)            \

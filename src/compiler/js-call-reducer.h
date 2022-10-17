@@ -229,6 +229,9 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceNumberConstructor(Node* node);
   Reduction ReduceBigIntAsN(Node* node, Builtin builtin);
 
+  base::Optional<Reduction> TryReduceJSCallMathMinMaxWithArrayLike(Node* node);
+  Reduction ReduceJSCallMathMinMaxWithArrayLike(Node* node, Builtin builtin);
+
   // The pendant to ReplaceWithValue when using GraphAssembler-based reductions.
   Reduction ReplaceWithSubgraph(JSCallReducerAssembler* gasm, Node* subgraph);
 

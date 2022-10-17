@@ -4117,6 +4117,14 @@ class RepresentationSelector {
       case IrOpcode::kDateNow:
         VisitInputs<T>(node);
         return SetOutput<T>(node, MachineRepresentation::kTagged);
+      case IrOpcode::kDoubleArrayMax: {
+        return VisitUnop<T>(node, UseInfo::AnyTagged(),
+                            MachineRepresentation::kTagged);
+      }
+      case IrOpcode::kDoubleArrayMin: {
+        return VisitUnop<T>(node, UseInfo::AnyTagged(),
+                            MachineRepresentation::kTagged);
+      }
       case IrOpcode::kFrameState:
         return VisitFrameState<T>(FrameState{node});
       case IrOpcode::kStateValues:
