@@ -2559,12 +2559,12 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
       : WasmDecoder<validate, decoding_mode>(zone, module, enabled, detected,
                                              body.sig, body.start, body.end,
                                              body.offset),
-        interface_(std::forward<InterfaceArgs>(interface_args)...),
-        locals_initializers_stack_(zone) {}
+        interface_(std::forward<InterfaceArgs>(interface_args)...) {}
 
   ~WasmFullDecoder() {
     control_.Reset(this->compilation_zone_);
     stack_.Reset(this->compilation_zone_);
+    locals_initializers_stack_.Reset(this->compilation_zone_);
   }
 
   Interface& interface() { return interface_; }
@@ -2686,7 +2686,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     // initialized).
     if (is_local_initialized(local_index)) return;
     initialized_locals_[local_index] = true;
-    locals_initializers_stack_.push_back(local_index);
+    locals_initializers_stack_.push(local_index);
   }
 
   uint32_t locals_initialization_stack_depth() const {
@@ -2698,7 +2698,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     uint32_t previous_stack_height = c->init_stack_depth;
     while (locals_initializers_stack_.size() > previous_stack_height) {
       uint32_t local_index = locals_initializers_stack_.back();
-      locals_initializers_stack_.pop_back();
+      locals_initializers_stack_.pop();
       initialized_locals_[local_index] = false;
     }
   }
@@ -2715,7 +2715,9 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     for (size_t i = num_params; i < this->num_locals_; i++) {
       initialized_locals_[i] = this->local_types_[i].is_defaultable();
     }
-    locals_initializers_stack_.reserve(non_defaultable_locals);
+    DCHECK(locals_initializers_stack_.empty());
+    locals_initializers_stack_.EnsureMoreCapacity(non_defaultable_locals,
+                                                  this->compilation_zone_);
   }
 
   void DecodeFunctionBody() {
@@ -2825,7 +2827,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
   // happened, so they can be discarded at the end of the current block.
   // Contains no duplicates, so the size of this stack is bounded (and pre-
   // allocated) to the number of non-defaultable locals in the function.
-  ZoneVector<uint32_t> locals_initializers_stack_;
+  FastZoneVector<uint32_t> locals_initializers_stack_;
 
   // Control stack (blocks, loops, ifs, ...).
   FastZoneVector<Control> control_;
