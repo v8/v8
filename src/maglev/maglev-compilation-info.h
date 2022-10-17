@@ -30,9 +30,9 @@ class JSHeapBroker;
 
 namespace maglev {
 
-class Graph;
 class MaglevCompilationUnit;
 class MaglevGraphLabeller;
+class MaglevCodeGenerator;
 
 // A list of v8_flag values copied into the MaglevCompilationInfo for
 // guaranteed {immutable,threadsafe} access.
@@ -66,8 +66,8 @@ class MaglevCompilationInfo final {
     return graph_labeller_.get();
   }
 
-  void set_graph(Graph* graph) { graph_ = graph; }
-  Graph* graph() const { return graph_; }
+  void set_code_generator(std::unique_ptr<MaglevCodeGenerator> code_generator);
+  MaglevCodeGenerator* code_generator() const { return code_generator_.get(); }
 
   void set_translation_array_builder(
       std::unique_ptr<TranslationArrayBuilder> translation_array_builder,
@@ -118,7 +118,7 @@ class MaglevCompilationInfo final {
   std::unique_ptr<MaglevGraphLabeller> graph_labeller_;
 
   // Produced off-thread during ExecuteJobImpl.
-  Graph* graph_ = nullptr;
+  std::unique_ptr<MaglevCodeGenerator> code_generator_;
 
   std::unique_ptr<TranslationArrayBuilder> translation_array_builder_;
   std::unique_ptr<IdentityMap<int, base::DefaultAllocationPolicy>>

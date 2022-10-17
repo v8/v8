@@ -559,27 +559,24 @@ void MaglevCompiler::Compile(LocalIsolate* local_isolate,
       local_isolate, compilation_info);
   build_translation_array.ProcessGraph(graph_builder.graph());
 
-  // Stash the compiled graph on the compilation info.
-  compilation_info->set_graph(graph_builder.graph());
+  std::unique_ptr<MaglevCodeGenerator> code_generator =
+      std::make_unique<MaglevCodeGenerator>(
+          local_isolate->GetMainThreadIsolateUnsafe(), compilation_info, graph);
+  code_generator->Assemble();
+
+  // Stash the compiled code_generator on the compilation info.
+  compilation_info->set_code_generator(std::move(code_generator));
 }
 
 // static
 MaybeHandle<CodeT> MaglevCompiler::GenerateCode(
     Isolate* isolate, MaglevCompilationInfo* compilation_info) {
-  Graph* const graph = compilation_info->graph();
-  if (graph == nullptr) {
-    // Compilation failed.
-    compilation_info->toplevel_compilation_unit()
-        ->shared_function_info()
-        .object()
-        ->set_maglev_compilation_failed(true);
-    return {};
-  }
+  MaglevCodeGenerator* const code_generator =
+      compilation_info->code_generator();
+  DCHECK_NOT_NULL(code_generator);
 
   Handle<Code> code;
-  MaglevCodeGenerator code_generator(isolate, compilation_info, graph);
-  code_generator.Assemble();
-  if (!code_generator.Generate().ToHandle(&code)) {
+  if (!code_generator->Generate().ToHandle(&code)) {
     compilation_info->toplevel_compilation_unit()
         ->shared_function_info()
         .object()

@@ -9,13 +9,12 @@
 #include "src/execution/isolate.h"
 #include "src/flags/flags.h"
 #include "src/handles/persistent-handles.h"
+#include "src/maglev/maglev-code-generator.h"
 #include "src/maglev/maglev-compilation-unit.h"
-#include "src/maglev/maglev-compiler.h"
 #include "src/maglev/maglev-concurrent-dispatcher.h"
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/objects/js-function-inl.h"
 #include "src/utils/identity-map.h"
-#include "src/utils/locked-queue-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -96,6 +95,11 @@ MaglevCompilationInfo::~MaglevCompilationInfo() = default;
 void MaglevCompilationInfo::set_graph_labeller(
     MaglevGraphLabeller* graph_labeller) {
   graph_labeller_.reset(graph_labeller);
+}
+
+void MaglevCompilationInfo::set_code_generator(
+    std::unique_ptr<MaglevCodeGenerator> code_generator) {
+  code_generator_ = std::move(code_generator);
 }
 
 void MaglevCompilationInfo::set_translation_array_builder(
