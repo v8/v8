@@ -14,8 +14,8 @@ namespace maglev {
 
 class MaglevAssembler : public MacroAssembler {
  public:
-  explicit MaglevAssembler(MaglevCodeGenState* code_gen_state)
-      : MacroAssembler(code_gen_state->isolate(), CodeObjectRequired::kNo),
+  explicit MaglevAssembler(Isolate* isolate, MaglevCodeGenState* code_gen_state)
+      : MacroAssembler(isolate, CodeObjectRequired::kNo),
         code_gen_state_(code_gen_state) {}
 
   inline MemOperand GetStackSlot(const compiler::AllocatedOperand& operand) {

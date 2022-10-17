@@ -577,8 +577,9 @@ MaybeHandle<CodeT> MaglevCompiler::GenerateCode(
   }
 
   Handle<Code> code;
-  if (!MaglevCodeGenerator::Generate(isolate, compilation_info, graph)
-           .ToHandle(&code)) {
+  MaglevCodeGenerator code_generator(isolate, compilation_info, graph);
+  code_generator.Assemble();
+  if (!code_generator.Generate().ToHandle(&code)) {
     compilation_info->toplevel_compilation_unit()
         ->shared_function_info()
         .object()
