@@ -353,7 +353,8 @@ Node* ScheduleBuilder::ProcessOperation(const OverflowCheckedBinopOp& op) {
           o = machine.Int64SubWithOverflow();
           break;
         case OverflowCheckedBinopOp::Kind::kSignedMul:
-          UNREACHABLE();
+          o = machine.Int64MulWithOverflow();
+          break;
       }
       break;
     default:

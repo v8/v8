@@ -1331,6 +1331,7 @@
   # which in turn can lead to different deopt behavior.
   'compiler/number-abs': [SKIP],
   'compiler/number-toboolean': [SKIP],
+  'compiler/bigint64-div-no-deopt-loop': [SKIP],
   # Type assertions block the propagation of word64 truncation useinfo,
   # leading to differences in representation selection.
   'compiler/bigint-multiply-truncate': [SKIP],

@@ -845,6 +845,20 @@ TNode<IntPtrT> CodeStubAssembler::TryIntPtrMul(TNode<IntPtrT> a,
   return Projection<0>(pair);
 }
 
+TNode<IntPtrT> CodeStubAssembler::TryIntPtrDiv(TNode<IntPtrT> a,
+                                               TNode<IntPtrT> b,
+                                               Label* if_div_zero) {
+  GotoIf(IntPtrEqual(b, IntPtrConstant(0)), if_div_zero);
+  return IntPtrDiv(a, b);
+}
+
+TNode<IntPtrT> CodeStubAssembler::TryIntPtrMod(TNode<IntPtrT> a,
+                                               TNode<IntPtrT> b,
+                                               Label* if_div_zero) {
+  GotoIf(IntPtrEqual(b, IntPtrConstant(0)), if_div_zero);
+  return IntPtrMod(a, b);
+}
+
 TNode<Int32T> CodeStubAssembler::TryInt32Mul(TNode<Int32T> a, TNode<Int32T> b,
                                              Label* if_overflow) {
   TNode<PairT<Int32T, BoolT>> pair = Int32MulWithOverflow(a, b);

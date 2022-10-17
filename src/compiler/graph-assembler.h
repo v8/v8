@@ -118,7 +118,9 @@ class Reducer;
   V(Int32Div)                                \
   V(Int32Mod)                                \
   V(Int32MulWithOverflow)                    \
+  V(Int64MulWithOverflow)                    \
   V(Int32SubWithOverflow)                    \
+  V(Int64SubWithOverflow)                    \
   V(Int64Div)                                \
   V(Int64Mod)                                \
   V(Uint32Div)                               \

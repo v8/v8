@@ -918,6 +918,9 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckedInt32Mul(CheckForMinusZeroMode);
   const Operator* CheckedInt32Sub();
   const Operator* CheckedBigInt64Add();
+  const Operator* CheckedBigInt64Sub();
+  const Operator* CheckedBigInt64Mul();
+  const Operator* CheckedBigInt64Div();
   const Operator* CheckedInt32ToTaggedSigned(const FeedbackSource& feedback);
   const Operator* CheckedInt64ToInt32(const FeedbackSource& feedback);
   const Operator* CheckedInt64ToTaggedSigned(const FeedbackSource& feedback);

@@ -1529,6 +1529,9 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kCheckedTaggedToTaggedPointer:
     case IrOpcode::kCheckedTruncateTaggedToWord32:
     case IrOpcode::kCheckedBigInt64Add:
+    case IrOpcode::kCheckedBigInt64Sub:
+    case IrOpcode::kCheckedBigInt64Mul:
+    case IrOpcode::kCheckedBigInt64Div:
     case IrOpcode::kAssertType:
     case IrOpcode::kVerifyType:
       break;

@@ -300,7 +300,10 @@
   V(CheckedTaggedToInt64)             \
   V(CheckedTaggedToTaggedSigned)      \
   V(CheckedTaggedToTaggedPointer)     \
-  V(CheckedBigInt64Add)
+  V(CheckedBigInt64Add)               \
+  V(CheckedBigInt64Sub)               \
+  V(CheckedBigInt64Mul)               \
+  V(CheckedBigInt64Div)
 
 #define SIMPLIFIED_COMPARE_BINOP_LIST(V) \
   V(NumberEqual)                         \

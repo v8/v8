@@ -95,6 +95,9 @@ class EffectControlLinearizer {
   Node* LowerCheckedUint32Mod(Node* node, Node* frame_state);
   Node* LowerCheckedInt32Mul(Node* node, Node* frame_state);
   Node* LowerCheckedBigInt64Add(Node* node, Node* frame_state);
+  Node* LowerCheckedBigInt64Sub(Node* node, Node* frame_state);
+  Node* LowerCheckedBigInt64Mul(Node* node, Node* frame_state);
+  Node* LowerCheckedBigInt64Div(Node* node, Node* frame_state);
   Node* LowerCheckedInt32ToTaggedSigned(Node* node, Node* frame_state);
   Node* LowerCheckedInt64ToInt32(Node* node, Node* frame_state);
   Node* LowerCheckedInt64ToTaggedSigned(Node* node, Node* frame_state);
@@ -1041,6 +1044,15 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kCheckedBigInt64Add:
       result = LowerCheckedBigInt64Add(node, frame_state);
+      break;
+    case IrOpcode::kCheckedBigInt64Sub:
+      result = LowerCheckedBigInt64Sub(node, frame_state);
+      break;
+    case IrOpcode::kCheckedBigInt64Mul:
+      result = LowerCheckedBigInt64Mul(node, frame_state);
+      break;
+    case IrOpcode::kCheckedBigInt64Div:
+      result = LowerCheckedBigInt64Div(node, frame_state);
       break;
     case IrOpcode::kCheckedInt32ToTaggedSigned:
       result = LowerCheckedInt32ToTaggedSigned(node, frame_state);
@@ -3002,6 +3014,62 @@ Node* EffectControlLinearizer::LowerCheckedBigInt64Add(Node* node,
   __ DeoptimizeIf(DeoptimizeReason::kOverflow, FeedbackSource(), check,
                   frame_state);
   return __ Projection(0, value);
+}
+
+Node* EffectControlLinearizer::LowerCheckedBigInt64Sub(Node* node,
+                                                       Node* frame_state) {
+  DCHECK(machine()->Is64());
+
+  Node* lhs = node->InputAt(0);
+  Node* rhs = node->InputAt(1);
+
+  Node* value = __ Int64SubWithOverflow(lhs, rhs);
+
+  Node* check = __ Projection(1, value);
+  __ DeoptimizeIf(DeoptimizeReason::kOverflow, FeedbackSource(), check,
+                  frame_state);
+  return __ Projection(0, value);
+}
+
+Node* EffectControlLinearizer::LowerCheckedBigInt64Mul(Node* node,
+                                                       Node* frame_state) {
+  DCHECK(machine()->Is64());
+
+  Node* lhs = node->InputAt(0);
+  Node* rhs = node->InputAt(1);
+
+  Node* value = __ Int64MulWithOverflow(lhs, rhs);
+
+  Node* check = __ Projection(1, value);
+  __ DeoptimizeIf(DeoptimizeReason::kOverflow, FeedbackSource(), check,
+                  frame_state);
+  return __ Projection(0, value);
+}
+
+Node* EffectControlLinearizer::LowerCheckedBigInt64Div(Node* node,
+                                                       Node* frame_state) {
+  DCHECK(machine()->Is64());
+
+  auto division = __ MakeLabel();
+
+  Node* lhs = node->InputAt(0);
+  Node* rhs = node->InputAt(1);
+
+  Node* check_rhs_zero = __ Word64Equal(rhs, __ Int64Constant(0));
+  __ DeoptimizeIf(DeoptimizeReason::kDivisionByZero, FeedbackSource(),
+                  check_rhs_zero, frame_state);
+
+  __ GotoIfNot(__ Word64Equal(
+                   lhs, __ Int64Constant(std::numeric_limits<int64_t>::min())),
+               &division);
+  Node* check_overflow = __ Word64Equal(rhs, __ Int64Constant(-1));
+  __ DeoptimizeIf(DeoptimizeReason::kOverflow, FeedbackSource(), check_overflow,
+                  frame_state);
+  __ Goto(&division);
+
+  __ Bind(&division);
+  Node* value = __ Int64Div(lhs, rhs);
+  return value;
 }
 
 Node* EffectControlLinearizer::LowerChangeInt64ToBigInt(Node* node) {
