@@ -402,6 +402,7 @@ class ValueType {
   }
 
   /******************************** Type checks *******************************/
+  // Includes s128.
   constexpr bool is_numeric() const { return wasm::is_numeric(kind()); }
 
   constexpr bool is_reference() const { return wasm::is_reference(kind()); }

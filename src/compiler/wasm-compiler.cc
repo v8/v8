@@ -5268,9 +5268,9 @@ Node* WasmGraphBuilder::ArrayNew(uint32_t array_index,
       ObjectAccess(MachineType::Uint32(), kNoWriteBarrier), a,
       wasm::ObjectAccess::ToTagged(WasmArray::kLengthOffset), length);
 
-  // Initialize the array elements. Use memset for large arrays initialized with
-  // zeroes (through an external function), and a loop for all other ones. The
-  // size limit was determined by running array-copy-benchmark.js.
+  // Initialize the array. Use an external function for large arrays with
+  // null/number initializer. Use a loop for small arrays and reference arrays
+  // with a non-null initial value.
   auto done = gasm_->MakeLabel();
   // TODO(manoskouk): If the loop is ever removed here, we have to update
   // ArrayNew() in graph-builder-interface.cc to not mark the current
@@ -5278,22 +5278,66 @@ Node* WasmGraphBuilder::ArrayNew(uint32_t array_index,
   auto loop = gasm_->MakeLoopLabel(MachineRepresentation::kWord32);
   Node* start_offset = gasm_->IntPtrConstant(
       wasm::ObjectAccess::ToTagged(WasmArray::kHeaderSize));
-  Node* element_size = gasm_->IntPtrConstant(element_type.value_kind_size());
-  Node* end_offset =
-      gasm_->IntAdd(start_offset, gasm_->IntMul(element_size, length));
 
-  if (initial_value == nullptr && element_type.is_numeric()) {
-    constexpr uint32_t kArrayNewMinimumSizeForMemSet = 10;
+  if ((initial_value == nullptr && (element_type.kind() == wasm::kRefNull ||
+                                    element_type.kind() == wasm::kS128)) ||
+      (element_type.is_numeric() && element_type != wasm::kWasmS128)) {
+    constexpr uint32_t kArrayNewMinimumSizeForMemSet = 16;
     gasm_->GotoIf(gasm_->Uint32LessThan(
                       length, Int32Constant(kArrayNewMinimumSizeForMemSet)),
                   &loop, BranchHint::kNone, start_offset);
     Node* function = gasm_->ExternalConstant(
-        ExternalReference::wasm_array_fill_with_zeroes());
+        ExternalReference::wasm_array_fill_with_number_or_null());
+
+    Node* initial_value_i64 = nullptr;
+    if (initial_value == nullptr && element_type.is_numeric()) {
+      initial_value_i64 = Int64Constant(0);
+    } else {
+      switch (element_type.kind()) {
+        case wasm::kI32:
+        case wasm::kI8:
+        case wasm::kI16:
+          initial_value_i64 = graph()->NewNode(
+              mcgraph()->machine()->ChangeInt32ToInt64(), initial_value);
+          break;
+        case wasm::kI64:
+          initial_value_i64 = initial_value;
+          break;
+        case wasm::kF32:
+          initial_value_i64 = graph()->NewNode(
+              mcgraph()->machine()->ChangeInt32ToInt64(),
+              graph()->NewNode(mcgraph()->machine()->BitcastFloat32ToInt32(),
+                               initial_value));
+          break;
+        case wasm::kF64:
+          initial_value_i64 = graph()->NewNode(
+              mcgraph()->machine()->BitcastFloat64ToInt64(), initial_value);
+          break;
+        case wasm::kRefNull:
+          initial_value_i64 =
+              initial_value == nullptr ? gasm_->Null() : initial_value;
+          if (kSystemPointerSize == 4) {
+            initial_value_i64 = graph()->NewNode(
+                mcgraph()->machine()->ChangeInt32ToInt64(), initial_value_i64);
+          }
+          break;
+        case wasm::kS128:
+        case wasm::kRtt:
+        case wasm::kRef:
+        case wasm::kVoid:
+        case wasm::kBottom:
+          UNREACHABLE();
+      }
+    }
+
+    Node* stack_slot = StoreArgsInStackSlot(
+        {{MachineRepresentation::kWord64, initial_value_i64}});
+
     MachineType arg_types[]{MachineType::TaggedPointer(), MachineType::Uint32(),
-                            MachineType::Uint32()};
-    MachineSignature sig(0, 3, arg_types);
+                            MachineType::Uint32(), MachineType::Pointer()};
+    MachineSignature sig(0, 4, arg_types);
     BuildCCall(&sig, function, a, length,
-               Int32Constant(element_type.value_kind_size()));
+               Int32Constant(element_type.raw_bit_field()), stack_slot);
     gasm_->Goto(&done);
   } else {
     gasm_->Goto(&loop, start_offset);
@@ -5304,6 +5348,9 @@ Node* WasmGraphBuilder::ArrayNew(uint32_t array_index,
     initial_value = DefaultValue(element_type);
     object_access.write_barrier_kind = kNoWriteBarrier;
   }
+  Node* element_size = gasm_->IntPtrConstant(element_type.value_kind_size());
+  Node* end_offset =
+      gasm_->IntAdd(start_offset, gasm_->IntMul(element_size, length));
   {
     Node* offset = loop.PhiAt(0);
     Node* check = gasm_->UintLessThan(offset, end_offset);
