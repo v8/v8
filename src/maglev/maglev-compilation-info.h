@@ -88,6 +88,7 @@ class MaglevCompilationInfo final {
   bool Name() const { return Name##_; }
   MAGLEV_COMPILATION_FLAG_LIST(V)
 #undef V
+  bool collect_source_positions() const { return collect_source_positions_; }
 
   bool specialize_to_function_context() const {
     return specialize_to_function_context_;
@@ -126,6 +127,7 @@ class MaglevCompilationInfo final {
 #define V(Name) const bool Name##_;
   MAGLEV_COMPILATION_FLAG_LIST(V)
 #undef V
+  bool collect_source_positions_;
 
   // If enabled, the generated code can rely on the function context to be a
   // constant (known at compile-time). This opens new optimization

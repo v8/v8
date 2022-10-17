@@ -64,6 +64,12 @@ MaglevCompilationInfo::MaglevCompilationInfo(Isolate* isolate,
               ReadOnlyRoots(isolate).one_closure_cell_map()) {
   DCHECK(v8_flags.maglev);
 
+  collect_source_positions_ = isolate->NeedsDetailedOptimizedCodeLineInfo();
+  if (collect_source_positions_) {
+    SharedFunctionInfo::EnsureSourcePositionsAvailable(
+        isolate, handle(function->shared(), isolate));
+  }
+
   MaglevCompilationHandleScope compilation(isolate, this);
 
   compiler::CompilationDependencies* deps =

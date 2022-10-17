@@ -12,6 +12,7 @@
 #include "src/base/threaded-list.h"
 #include "src/codegen/label.h"
 #include "src/codegen/reglist.h"
+#include "src/codegen/source-position.h"
 #include "src/common/globals.h"
 #include "src/common/operation.h"
 #include "src/compiler/backend/instruction.h"
@@ -680,13 +681,15 @@ class CheckpointedInterpreterState {
 class DeoptInfo {
  protected:
   DeoptInfo(Zone* zone, const MaglevCompilationUnit& compilation_unit,
-            CheckpointedInterpreterState checkpoint);
+            CheckpointedInterpreterState checkpoint,
+            SourcePosition source_position);
 
  public:
   const MaglevCompilationUnit& unit;
   CheckpointedInterpreterState state;
   InputLocation* input_locations = nullptr;
   Label deopt_entry_label;
+  SourcePosition source_position;
   int translation_index = -1;
 };
 
@@ -699,16 +702,18 @@ struct RegisterSnapshot {
 class EagerDeoptInfo : public DeoptInfo {
  public:
   EagerDeoptInfo(Zone* zone, const MaglevCompilationUnit& compilation_unit,
-                 CheckpointedInterpreterState checkpoint)
-      : DeoptInfo(zone, compilation_unit, checkpoint) {}
+                 CheckpointedInterpreterState checkpoint,
+                 SourcePosition source_position)
+      : DeoptInfo(zone, compilation_unit, checkpoint, source_position) {}
   DeoptimizeReason reason = DeoptimizeReason::kUnknown;
 };
 
 class LazyDeoptInfo : public DeoptInfo {
  public:
   LazyDeoptInfo(Zone* zone, const MaglevCompilationUnit& compilation_unit,
-                CheckpointedInterpreterState checkpoint)
-      : DeoptInfo(zone, compilation_unit, checkpoint) {}
+                CheckpointedInterpreterState checkpoint,
+                SourcePosition source_position)
+      : DeoptInfo(zone, compilation_unit, checkpoint, source_position) {}
 
   bool IsResultRegister(interpreter::Register reg) const;
 
@@ -814,15 +819,16 @@ class NodeBase : public ZoneObject {
 
   template <class Derived, typename... Args>
   static Derived* New(Zone* zone, const MaglevCompilationUnit& compilation_unit,
-                      CheckpointedInterpreterState checkpoint, Args&&... args) {
+                      CheckpointedInterpreterState checkpoint,
+                      SourcePosition source_position, Args&&... args) {
     Derived* node = New<Derived>(zone, std::forward<Args>(args)...);
     if constexpr (Derived::kProperties.can_eager_deopt()) {
       new (node->eager_deopt_info())
-          EagerDeoptInfo(zone, compilation_unit, checkpoint);
+          EagerDeoptInfo(zone, compilation_unit, checkpoint, source_position);
     } else {
       static_assert(Derived::kProperties.can_lazy_deopt());
       new (node->lazy_deopt_info())
-          LazyDeoptInfo(zone, compilation_unit, checkpoint);
+          LazyDeoptInfo(zone, compilation_unit, checkpoint, source_position);
     }
     return node;
   }

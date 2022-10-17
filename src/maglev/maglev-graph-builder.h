@@ -12,6 +12,7 @@
 
 #include "src/base/logging.h"
 #include "src/base/optional.h"
+#include "src/codegen/source-position-table.h"
 #include "src/compiler/bytecode-analysis.h"
 #include "src/compiler/bytecode-liveness-map.h"
 #include "src/compiler/heap-refs.h"
@@ -229,8 +230,24 @@ class MaglevGraphBuilder {
     // TODO(leszeks): We could now continue iterating the bytecode
   }
 
+  void UpdateSourceAndBytecodePosition(int offset) {
+    if (source_position_iterator_.done()) return;
+    if (source_position_iterator_.code_offset() == offset) {
+      // TODO(leszeks): Add inlining support.
+      const int kInliningId = 0;
+      current_source_position_ = SourcePosition(
+          source_position_iterator_.source_position().ScriptOffset(),
+          kInliningId);
+      source_position_iterator_.Advance();
+    } else {
+      DCHECK_GT(source_position_iterator_.code_offset(), offset);
+    }
+  }
+
   void VisitSingleBytecode() {
     int offset = iterator_.current_offset();
+    UpdateSourceAndBytecodePosition(offset);
+
     MergePointInterpreterFrameState* merge_state = merge_states_[offset];
     if (V8_UNLIKELY(merge_state != nullptr)) {
       if (current_block_ != nullptr) {
@@ -368,13 +385,13 @@ class MaglevGraphBuilder {
   template <typename NodeT, typename... Args>
   NodeT* CreateNewNodeHelper(Args&&... args) {
     if constexpr (NodeT::kProperties.can_eager_deopt()) {
-      return NodeBase::New<NodeT>(zone(), *compilation_unit_,
-                                  GetLatestCheckpointedState(),
-                                  std::forward<Args>(args)...);
+      return NodeBase::New<NodeT>(
+          zone(), *compilation_unit_, GetLatestCheckpointedState(),
+          current_source_position_, std::forward<Args>(args)...);
     } else if constexpr (NodeT::kProperties.can_lazy_deopt()) {
-      return NodeBase::New<NodeT>(zone(), *compilation_unit_,
-                                  GetCheckpointedStateForLazyDeopt(),
-                                  std::forward<Args>(args)...);
+      return NodeBase::New<NodeT>(
+          zone(), *compilation_unit_, GetCheckpointedStateForLazyDeopt(),
+          current_source_position_, std::forward<Args>(args)...);
     } else {
       return NodeBase::New<NodeT>(zone(), std::forward<Args>(args)...);
     }
@@ -1103,11 +1120,13 @@ class MaglevGraphBuilder {
   MaglevGraphBuilder* const parent_;
   Graph* const graph_;
   interpreter::BytecodeArrayIterator iterator_;
+  SourcePositionTableIterator source_position_iterator_;
   uint32_t* predecessors_;
 
   // Current block information.
   BasicBlock* current_block_ = nullptr;
   base::Optional<CheckpointedInterpreterState> latest_checkpointed_state_;
+  SourcePosition current_source_position_;
 
   BasicBlockRef* jump_targets_;
   MergePointInterpreterFrameState** merge_states_;
