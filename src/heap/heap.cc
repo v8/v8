@@ -6164,7 +6164,8 @@ void Heap::ClearRecordedSlotRange(Address start, Address end) {
   Page* page = Page::FromAddress(start);
   DCHECK(!page->IsLargePage());
   if (!page->InYoungGeneration()) {
-    DCHECK_EQ(page->owner_identity(), OLD_SPACE);
+    DCHECK(page->owner_identity() == OLD_SPACE ||
+           page->owner_identity() == SHARED_SPACE);
 
     if (!page->SweepingDone()) {
       RememberedSet<OLD_TO_NEW>::RemoveRange(page, start, end,
