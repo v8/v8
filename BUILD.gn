@@ -1474,6 +1474,11 @@ config("toolchain") {
       # Disable gcc warnings for using enum constant in boolean context.
       # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=97266
       "-Wno-int-in-bool-context",
+
+      # Disable gcc deprecation warnings, which are firing on implicit capture
+      # of `this` in capture-by-value lambdas and preventing a build roll which
+      # enables C++20 (see https://crbug.com/1374227).
+      "-Wno-deprecated",
     ]
   }
 
