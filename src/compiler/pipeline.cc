@@ -20,6 +20,7 @@
 #include "src/common/high-allocation-throughput-scope.h"
 #include "src/compiler/add-type-assertions-reducer.h"
 #include "src/compiler/all-nodes.h"
+#include "src/compiler/backend/bitcast-elider.h"
 #include "src/compiler/backend/code-generator.h"
 #include "src/compiler/backend/frame-elider.h"
 #include "src/compiler/backend/instruction-selector.h"
@@ -2383,6 +2384,14 @@ struct InstructionSelectionPhase {
   }
 };
 
+struct BitcastElisionPhase {
+  DECL_PIPELINE_PHASE_CONSTANTS(BitcastElision)
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    BitcastElider bitcast_optimizer(temp_zone, data->graph());
+    bitcast_optimizer.Reduce();
+  }
+};
 
 struct MeetRegisterConstraintsPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(MeetRegisterConstraints)
@@ -3727,6 +3736,10 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
     Zone temp_zone(data->allocator(), kMachineGraphVerifierZoneName);
     MachineGraphVerifier::Run(data->graph(), data->schedule(), linkage, is_stub,
                               data->debug_name(), &temp_zone);
+  }
+
+  if (Builtins::IsBuiltinId(data->info()->builtin())) {
+    Run<BitcastElisionPhase>();
   }
 
   data->InitializeInstructionSequence(call_descriptor);

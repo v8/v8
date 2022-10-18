@@ -2664,6 +2664,8 @@ filegroup(
         "src/compiler/all-nodes.h",
         "src/compiler/allocation-builder.h",
         "src/compiler/allocation-builder-inl.h",
+        "src/compiler/backend/bitcast-elider.cc",
+        "src/compiler/backend/bitcast-elider.h",
         "src/compiler/backend/code-generator.cc",
         "src/compiler/backend/code-generator.h",
         "src/compiler/backend/code-generator-impl.h",
