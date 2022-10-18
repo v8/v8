@@ -1131,8 +1131,8 @@ class MachineOptimizationAssembler
               k <= rep.MaxUnsignedValue() >> shift_amount) {
             return ReduceEqual(
                 this->WordBitwiseAnd(
-                    x, this->Word64Constant(mask << shift_amount), rep_w),
-                this->Word64Constant(k << shift_amount), rep_w);
+                    x, this->WordConstant(mask << shift_amount, rep_w), rep_w),
+                this->WordConstant(k << shift_amount, rep_w), rep_w);
           }
         }
         {
