@@ -850,8 +850,9 @@ class FastCApiObject {
       if (std::isnan(checked_arg_dbl)) {
         clamped = 0;
       } else {
-        clamped = std::clamp(checked_arg, std::numeric_limits<IntegerT>::min(),
-                             std::numeric_limits<IntegerT>::max());
+        clamped = std::clamp(
+            real_arg, static_cast<double>(std::numeric_limits<IntegerT>::min()),
+            static_cast<double>(std::numeric_limits<IntegerT>::max()));
       }
       args.GetReturnValue().Set(Number::New(isolate, clamped));
     }
