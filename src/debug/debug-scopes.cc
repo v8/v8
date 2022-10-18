@@ -1291,7 +1291,10 @@ void LocalBlocklistsCollector::CollectAndStore() {
 }  // namespace
 
 void ScopeIterator::MaybeCollectAndStoreLocalBlocklists() const {
-  if (!calculate_blocklists_ || current_scope_ != closure_scope_) return;
+  if (!calculate_blocklists_ || current_scope_ != closure_scope_ ||
+      Type() == ScopeTypeScript) {
+    return;
+  }
 
   CHECK(v8_flags.experimental_reuse_locals_blocklists);
   DCHECK(isolate_
