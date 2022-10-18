@@ -493,36 +493,6 @@ class CodeSpace final : public PagedSpace {
 };
 
 // -----------------------------------------------------------------------------
-// Old space for all map objects
-
-class MapSpace final : public PagedSpace {
- public:
-  // Creates a map space object.
-  explicit MapSpace(Heap* heap)
-      : PagedSpace(heap, MAP_SPACE, NOT_EXECUTABLE, FreeList::CreateFreeList(),
-                   paged_allocation_info_) {}
-
-  int RoundSizeDownToObjectAlignment(int size) const override {
-    if (V8_COMPRESS_POINTERS_8GB_BOOL) {
-      return RoundDown(size, kObjectAlignment8GbHeap);
-    } else if (base::bits::IsPowerOfTwo(Map::kSize)) {
-      return RoundDown(size, Map::kSize);
-    } else {
-      return (size / Map::kSize) * Map::kSize;
-    }
-  }
-
-  void SortFreeList();
-
-#ifdef VERIFY_HEAP
-  void VerifyObject(HeapObject obj) const override;
-#endif
-
- private:
-  LinearAllocationArea paged_allocation_info_;
-};
-
-// -----------------------------------------------------------------------------
 // Shared space regular object space.
 
 class SharedSpace final : public PagedSpace {
@@ -560,7 +530,6 @@ class OldGenerationMemoryChunkIterator {
  private:
   enum State {
     kOldSpaceState,
-    kMapState,
     kCodeState,
     kLargeObjectState,
     kCodeLargeObjectState,
@@ -570,8 +539,6 @@ class OldGenerationMemoryChunkIterator {
   State state_;
   PageIterator old_iterator_;
   PageIterator code_iterator_;
-  PageIterator map_iterator_;
-  const PageIterator map_iterator_end_;
   LargePageIterator lo_iterator_;
   LargePageIterator code_lo_iterator_;
 };

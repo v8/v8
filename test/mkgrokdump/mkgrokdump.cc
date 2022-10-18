@@ -149,12 +149,11 @@ static int DumpHeapConstants(FILE* out, const char* argv0) {
                      object);
       }
 
-      i::PagedSpace* space_for_maps = heap->space_for_maps();
-      i::PagedSpaceObjectIterator iterator(heap, space_for_maps);
+      i::PagedSpaceObjectIterator iterator(heap, heap->old_space());
       for (i::HeapObject object = iterator.Next(); !object.is_null();
            object = iterator.Next()) {
         if (!object.IsMap()) continue;
-        DumpKnownMap(out, heap, space_for_maps->name(), object);
+        DumpKnownMap(out, heap, heap->old_space()->name(), object);
       }
       i::PrintF(out, "}\n");
     }

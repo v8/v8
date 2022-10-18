@@ -115,16 +115,6 @@ int64_t Heap::update_external_memory(int64_t delta) {
   return external_memory_.Update(delta);
 }
 
-PagedSpace* Heap::space_for_maps() {
-  return V8_LIKELY(map_space_) ? static_cast<PagedSpace*>(map_space_)
-                               : static_cast<PagedSpace*>(old_space_);
-}
-
-ConcurrentAllocator* Heap::concurrent_allocator_for_maps() {
-  return V8_LIKELY(shared_map_allocator_) ? shared_map_allocator_.get()
-                                          : shared_space_allocator_.get();
-}
-
 RootsTable& Heap::roots_table() { return isolate()->roots_table(); }
 
 #define ROOT_ACCESSOR(Type, name, CamelName)                           \

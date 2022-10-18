@@ -882,7 +882,6 @@ class JSObject;
 class LocalIsolate;
 class MacroAssembler;
 class Map;
-class MapSpace;
 class MarkCompactCollector;
 template <typename T>
 class MaybeHandle;

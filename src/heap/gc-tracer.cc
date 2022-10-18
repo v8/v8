@@ -541,7 +541,6 @@ void GCTracer::NotifyFullSweepingCompleted() {
     heap_->new_space()->PrintAllocationsOrigins();
     heap_->old_space()->PrintAllocationsOrigins();
     heap_->code_space()->PrintAllocationsOrigins();
-    heap_->map_space()->PrintAllocationsOrigins();
   }
   DCHECK(!notified_full_sweeping_completed_);
   notified_full_sweeping_completed_ = true;

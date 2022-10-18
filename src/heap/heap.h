@@ -835,8 +835,6 @@ class Heap {
   OldSpace* old_space() const { return old_space_; }
   CodeSpace* code_space() const { return code_space_; }
   SharedSpace* shared_space() const { return shared_space_; }
-  MapSpace* map_space() const { return map_space_; }
-  inline PagedSpace* space_for_maps();
   OldLargeObjectSpace* lo_space() const { return lo_space_; }
   CodeLargeObjectSpace* code_lo_space() const { return code_lo_space_; }
   SharedLargeObjectSpace* shared_lo_space() const { return shared_lo_space_; }
@@ -863,8 +861,6 @@ class Heap {
   const MemoryAllocator* memory_allocator() const {
     return memory_allocator_.get();
   }
-
-  inline ConcurrentAllocator* concurrent_allocator_for_maps();
 
   inline Isolate* isolate() const;
 
@@ -2161,7 +2157,6 @@ class Heap {
   NewSpace* new_space_ = nullptr;
   OldSpace* old_space_ = nullptr;
   CodeSpace* code_space_ = nullptr;
-  MapSpace* map_space_ = nullptr;
   SharedSpace* shared_space_ = nullptr;
   OldLargeObjectSpace* lo_space_ = nullptr;
   CodeLargeObjectSpace* code_lo_space_ = nullptr;
@@ -2173,11 +2168,9 @@ class Heap {
   // in another isolate.
   PagedSpace* shared_allocation_space_ = nullptr;
   OldLargeObjectSpace* shared_lo_allocation_space_ = nullptr;
-  PagedSpace* shared_map_allocation_space_ = nullptr;
 
   // Allocators for the shared spaces.
   std::unique_ptr<ConcurrentAllocator> shared_space_allocator_;
-  std::unique_ptr<ConcurrentAllocator> shared_map_allocator_;
 
   // Map from the space id to the space.
   std::unique_ptr<Space> space_[LAST_SPACE + 1];

@@ -402,7 +402,6 @@ void IncrementalMarking::StartBlackAllocation() {
   DCHECK(IsMarking());
   black_allocation_ = true;
   heap()->old_space()->MarkLinearAllocationAreaBlack();
-  if (heap()->map_space()) heap()->map_space()->MarkLinearAllocationAreaBlack();
   {
     CodePageHeaderModificationScope rwx_write_scope(
         "Marking Code objects requires write access to the Code page header");
@@ -427,7 +426,6 @@ void IncrementalMarking::StartBlackAllocation() {
 void IncrementalMarking::PauseBlackAllocation() {
   DCHECK(IsMarking());
   heap()->old_space()->UnmarkLinearAllocationArea();
-  if (heap()->map_space()) heap()->map_space()->UnmarkLinearAllocationArea();
   {
     CodePageHeaderModificationScope rwx_write_scope(
         "Marking Code objects requires write access to the Code page header");

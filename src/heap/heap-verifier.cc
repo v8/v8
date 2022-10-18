@@ -58,7 +58,6 @@ class HeapVerification final {
   ReadOnlySpace* read_only_space() const { return heap_->read_only_space(); }
   NewSpace* new_space() const { return heap_->new_space(); }
   OldSpace* old_space() const { return heap_->old_space(); }
-  MapSpace* map_space() const { return heap_->map_space(); }
   CodeSpace* code_space() const { return heap_->code_space(); }
   LargeObjectSpace* lo_space() const { return heap_->lo_space(); }
   CodeLargeObjectSpace* code_lo_space() const { return heap_->code_lo_space(); }
@@ -107,9 +106,6 @@ void HeapVerification::Verify() {
   if (new_space()) new_space()->Verify(isolate());
 
   old_space()->Verify(isolate(), &visitor);
-  if (map_space()) {
-    map_space()->Verify(isolate(), &visitor);
-  }
 
   VerifyPointersVisitor no_dirty_regions_visitor(heap());
   code_space()->Verify(isolate(), &no_dirty_regions_visitor);

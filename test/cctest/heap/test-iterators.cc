@@ -103,7 +103,6 @@ TEST(PagedSpaceIterator) {
   PagedSpaceIterator iterator(heap);
   CHECK_EQ(iterator.Next(), reinterpret_cast<PagedSpace*>(heap->old_space()));
   CHECK_EQ(iterator.Next(), reinterpret_cast<PagedSpace*>(heap->code_space()));
-  CHECK_EQ(iterator.Next(), reinterpret_cast<PagedSpace*>(heap->map_space()));
   for (int i = 0; i < 20; i++) {
     CHECK_NULL(iterator.Next());
   }
