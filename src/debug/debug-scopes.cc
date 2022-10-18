@@ -87,6 +87,8 @@ void ScopeIterator::Restart() {
   current_scope_ = start_scope_;
   DCHECK_NOT_NULL(current_scope_);
   UnwrapEvaluationContext();
+  seen_script_scope_ = false;
+  calculate_blocklists_ = false;
 }
 
 namespace {
