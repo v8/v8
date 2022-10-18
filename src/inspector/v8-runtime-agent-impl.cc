@@ -491,6 +491,11 @@ Response V8RuntimeAgentImpl::releaseObjectGroup(const String16& objectGroup) {
 }
 
 Response V8RuntimeAgentImpl::runIfWaitingForDebugger() {
+  if (m_runIfWaitingForDebuggerCalled) return Response::Success();
+  m_runIfWaitingForDebuggerCalled = true;
+  // The client implementation is resposible for checking if the session is
+  // actually waiting for debugger. m_runIfWaitingForDebuggerCalled only makes
+  // sure that the client implementation is invoked once per agent instance.
   m_inspector->client()->runIfWaitingForDebugger(m_session->contextGroupId());
   return Response::Success();
 }
