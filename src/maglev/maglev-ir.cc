@@ -1911,6 +1911,7 @@ void StringAt::GenerateCode(MaglevAssembler* masm,
           __ Push(string_object);
           __ SmiTag(index);
           __ Push(index);
+          __ Move(kContextRegister, masm->native_context().object());
           // This call does not throw nor can deopt.
           __ CallRuntime(Runtime::kStringCharCodeAt);
           __ SmiUntag(kReturnRegister0);
