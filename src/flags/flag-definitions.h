@@ -1698,9 +1698,6 @@ DEFINE_BOOL(experimental_value_unavailable, false,
 DEFINE_BOOL(experimental_reuse_locals_blocklists, false,
             "enable reuse of local blocklists across multiple debug-evaluates")
 
-DEFINE_BOOL(
-    live_edit_top_frame, true,
-    "enable support for live-editing the top-most function on the stack")
 DEFINE_BOOL(experimental_remove_internal_scopes_property, true,
             "don't report the artificial [[Scopes]] property for functions")
 
