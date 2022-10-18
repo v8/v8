@@ -481,7 +481,6 @@ DEFINE_WEAK_IMPLICATION(future, flush_baseline_code)
 DEFINE_WEAK_IMPLICATION(future, short_builtin_calls)
 #endif
 DEFINE_WEAK_NEG_IMPLICATION(future, write_protect_code_memory)
-DEFINE_WEAK_NEG_IMPLICATION(future, use_map_space)
 DEFINE_WEAK_IMPLICATION(
     future, merge_background_deserialized_script_with_compilation_cache)
 
@@ -1234,8 +1233,6 @@ DEFINE_BOOL(global_gc_scheduling, true,
 DEFINE_BOOL(gc_global, false, "always perform global GCs")
 DEFINE_BOOL(shared_space, false,
             "Implement shared heap as shared space on a main isolate.")
-// Don't use a map space with --shared-space in order to avoid shared map space.
-DEFINE_NEG_IMPLICATION(shared_space, use_map_space)
 
 // TODO(12950): The next two flags only have an effect if
 // V8_ENABLE_ALLOCATION_TIMEOUT is set, so we should only define them in that
@@ -1411,7 +1408,6 @@ DEFINE_BOOL(compact, true,
             "Perform compaction on full GCs based on V8's default heuristics")
 DEFINE_BOOL(compact_code_space, true,
             "Perform code space compaction on full collections.")
-DEFINE_BOOL(use_map_space, false, "Use separate space for maps.")
 DEFINE_BOOL(compact_on_every_full_gc, false,
             "Perform compaction on every full GC")
 DEFINE_BOOL(compact_with_stack, true,

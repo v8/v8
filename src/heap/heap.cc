@@ -5459,11 +5459,6 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
   space_[CODE_SPACE] = std::make_unique<CodeSpace>(this);
   code_space_ = static_cast<CodeSpace*>(space_[CODE_SPACE].get());
 
-  if (v8_flags.use_map_space) {
-    space_[MAP_SPACE] = std::make_unique<MapSpace>(this);
-    map_space_ = static_cast<MapSpace*>(space_[MAP_SPACE].get());
-  }
-
   if (isolate()->is_shared_space_isolate()) {
     space_[SHARED_SPACE] = std::make_unique<SharedSpace>(this);
     shared_space_ = static_cast<SharedSpace*>(space_[SHARED_SPACE].get());
@@ -5565,7 +5560,6 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
 
     shared_allocation_space_ = heap->shared_space_;
     shared_lo_allocation_space_ = heap->shared_lo_space_;
-    DCHECK(!v8_flags.use_map_space);
     DCHECK_NULL(shared_map_allocation_space_);
 
   } else if (isolate()->shared_isolate()) {
