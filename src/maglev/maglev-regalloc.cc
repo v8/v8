@@ -12,6 +12,7 @@
 #include "src/codegen/register.h"
 #include "src/codegen/reglist.h"
 #include "src/compiler/backend/instruction.h"
+#include "src/maglev/maglev-code-gen-state.h"
 #include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-compilation-unit.h"
 #include "src/maglev/maglev-graph-labeller.h"
@@ -1285,6 +1286,17 @@ void StraightForwardRegisterAllocator::SaveRegisterSnapshot(NodeBase* node) {
   });
   snapshot.live_registers = general_registers_.used();
   snapshot.live_double_registers = double_registers_.used();
+  // If a value node, then the result register is removed from the snapshot.
+  if (ValueNode* value_node = node->TryCast<ValueNode>()) {
+    if (value_node->use_double_register()) {
+      snapshot.live_double_registers.clear(
+          ToDoubleRegister(value_node->result()));
+    } else {
+      Register reg = ToRegister(value_node->result());
+      snapshot.live_registers.clear(reg);
+      snapshot.live_tagged_registers.clear(reg);
+    }
+  }
   node->set_register_snapshot(snapshot);
 }
 
