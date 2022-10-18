@@ -105,6 +105,7 @@ class ScopeChainRetriever {
       : scope_(scope),
         break_scope_start_(function->shared().StartPosition()),
         break_scope_end_(function->shared().EndPosition()),
+        break_scope_type_(function->shared().scope_info().scope_type()),
         position_(position) {
     DCHECK_NOT_NULL(scope);
     RetrieveScopes();
@@ -117,6 +118,7 @@ class ScopeChainRetriever {
   DeclarationScope* scope_;
   const int break_scope_start_;
   const int break_scope_end_;
+  const ScopeType break_scope_type_;
   const int position_;
 
   DeclarationScope* closure_scope_ = nullptr;
@@ -137,11 +139,11 @@ class ScopeChainRetriever {
 
   bool RetrieveClosureScope(Scope* scope) {
     // The closure scope is the scope that matches exactly the function we
-    // paused in. There is one quirk though, member initializder functions have
-    // the same source position as their class scope, so when looking for the
-    // declaration scope of the member initializer, we need to skip the
-    // corresponding class scope and keep looking.
-    if (!scope->is_class_scope() &&
+    // paused in.
+    // Note that comparing the position alone is not enough and we also need to
+    // match the scope type. E.g. class member initializer have the exact same
+    // scope positions as their class scope.
+    if (break_scope_type_ == scope->scope_type() &&
         break_scope_start_ == scope->start_position() &&
         break_scope_end_ == scope->end_position()) {
       closure_scope_ = scope->AsDeclarationScope();
@@ -1221,12 +1223,12 @@ Handle<ScopeInfo> LocalBlocklistsCollector::FindScopeInfoForScope(
   SharedFunctionInfo::ScriptIterator iterator(isolate_, *script_);
   for (SharedFunctionInfo info = iterator.Next(); !info.is_null();
        info = iterator.Next()) {
-    if (scope->start_position() == info.StartPosition() &&
-        scope->end_position() == info.EndPosition()) {
-      if (info.is_compiled() && !info.scope_info().is_null()) {
-        return handle(info.scope_info(), isolate_);
-      }
-      return Handle<ScopeInfo>();
+    ScopeInfo scope_info = info.scope_info();
+    if (info.is_compiled() && !scope_info.is_null() &&
+        scope->start_position() == info.StartPosition() &&
+        scope->end_position() == info.EndPosition() &&
+        scope->scope_type() == scope_info.scope_type()) {
+      return handle(scope_info, isolate_);
     }
   }
   return Handle<ScopeInfo>();
