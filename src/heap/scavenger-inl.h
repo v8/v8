@@ -466,6 +466,32 @@ SlotCallbackResult Scavenger::CheckAndScavengeObject(Heap* heap, TSlot slot) {
   return REMOVE_SLOT;
 }
 
+class ScavengeVisitor final : public NewSpaceVisitor<ScavengeVisitor> {
+ public:
+  explicit ScavengeVisitor(Scavenger* scavenger);
+
+  V8_INLINE void VisitPointers(HeapObject host, ObjectSlot start,
+                               ObjectSlot end) final;
+
+  V8_INLINE void VisitPointers(HeapObject host, MaybeObjectSlot start,
+                               MaybeObjectSlot end) final;
+  V8_INLINE void VisitCodePointer(HeapObject host, CodeObjectSlot slot) final;
+
+  V8_INLINE void VisitCodeTarget(Code host, RelocInfo* rinfo) final;
+  V8_INLINE void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) final;
+  V8_INLINE int VisitEphemeronHashTable(Map map, EphemeronHashTable object);
+  V8_INLINE int VisitJSArrayBuffer(Map map, JSArrayBuffer object);
+
+ private:
+  template <typename TSlot>
+  V8_INLINE void VisitHeapObjectImpl(TSlot slot, HeapObject heap_object);
+
+  template <typename TSlot>
+  V8_INLINE void VisitPointersImpl(HeapObject host, TSlot start, TSlot end);
+
+  Scavenger* const scavenger_;
+};
+
 void ScavengeVisitor::VisitPointers(HeapObject host, ObjectSlot start,
                                     ObjectSlot end) {
   return VisitPointersImpl(host, start, end);

@@ -7,7 +7,7 @@
 
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/marking-visitor.h"
-#include "src/heap/marking-worklist.h"
+#include "src/heap/marking-worklist-inl.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/objects-visiting.h"
 #include "src/heap/progress-bar.h"
