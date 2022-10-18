@@ -1387,10 +1387,6 @@ MaybeLocal<Message> GetMessageFromPromise(Local<Promise> p) {
       i::Handle<i::JSMessageObject>::cast(maybeMessage));
 }
 
-bool isExperimentalAsyncStackTaggingApiEnabled() {
-  return i::v8_flags.experimental_async_stack_tagging_api;
-}
-
 bool isExperimentalRemoveInternalScopesPropertyEnabled() {
   return i::v8_flags.experimental_remove_internal_scopes_property;
 }

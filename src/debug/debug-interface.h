@@ -670,7 +670,6 @@ AccessorPair* AccessorPair::Cast(v8::Value* value) {
 
 MaybeLocal<Message> GetMessageFromPromise(Local<Promise> promise);
 
-bool isExperimentalAsyncStackTaggingApiEnabled();
 bool isExperimentalRemoveInternalScopesPropertyEnabled();
 
 void RecordAsyncStackTaggingCreateTaskCall(v8::Isolate* isolate);
