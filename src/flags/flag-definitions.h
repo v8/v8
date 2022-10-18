@@ -596,7 +596,7 @@ DEFINE_INT(interrupt_budget_factor_for_feedback_allocation, 8,
 // Tiering: Maglev.
 // The Maglev interrupt budget is chosen to be roughly 1/10th of Turbofan's
 // overall budget (including the multiple required ticks).
-DEFINE_INT(interrupt_budget_for_maglev, 40 * KB,
+DEFINE_INT(interrupt_budget_for_maglev, 7 * KB,
            "interrupt budget which should be used for the profiler counter")
 
 // Tiering: Turbofan.
