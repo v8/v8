@@ -789,7 +789,7 @@ void InterpreterAssembler::CallJSWithSpreadAndDispatch(
     TNode<UintPtrT> slot_id, TNode<HeapObject> maybe_feedback_vector) {
   DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
   DCHECK_EQ(Bytecodes::GetReceiverMode(bytecode_), ConvertReceiverMode::kAny);
-  LazyNode<Object> receiver = [&] { return LoadRegisterAtOperandIndex(1); };
+  LazyNode<Object> receiver = [=] { return LoadRegisterAtOperandIndex(1); };
   CollectCallFeedback(function, receiver, context, maybe_feedback_vector,
                       slot_id);
   Comment("call using CallWithSpread builtin");

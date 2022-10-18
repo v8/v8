@@ -443,7 +443,7 @@ TF_BUILTIN(ArrayPrototypePush, CodeStubAssembler) {
   BIND(&default_label);
   {
     args.ForEach(
-        [&](TNode<Object> arg) {
+        [=](TNode<Object> arg) {
           TNode<Number> length = LoadJSArrayLength(array_receiver);
           SetPropertyStrict(context, array_receiver, length, arg);
         },

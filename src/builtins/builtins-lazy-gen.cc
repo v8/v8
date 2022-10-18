@@ -140,8 +140,8 @@ void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function) {
   BIND(&baseline);
   // Ensure we have a feedback vector.
   code = Select<CodeT>(
-      IsFeedbackVector(feedback_cell_value), [&]() { return sfi_code; },
-      [&]() {
+      IsFeedbackVector(feedback_cell_value), [=]() { return sfi_code; },
+      [=]() {
         return CAST(CallRuntime(Runtime::kInstallBaselineCode,
                                 Parameter<Context>(Descriptor::kContext),
                                 function));

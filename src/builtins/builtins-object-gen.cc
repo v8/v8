@@ -447,7 +447,7 @@ TF_BUILTIN(ObjectAssign, ObjectBuiltinsAssembler) {
   //    second argument.
   // 4. For each element nextSource of sources, in ascending index order,
   args.ForEach(
-      [&](TNode<Object> next_source) {
+      [=](TNode<Object> next_source) {
         CallBuiltin(Builtin::kSetDataProperties, context, to, next_source);
       },
       IntPtrConstant(1));
@@ -901,12 +901,12 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
     TNode<Object> receiver_is_array =
         CallRuntime(Runtime::kArrayIsArray, context, receiver);
     TNode<String> builtin_tag = Select<String>(
-        IsTrue(receiver_is_array), [&] { return ArrayStringConstant(); },
-        [&] {
+        IsTrue(receiver_is_array), [=] { return ArrayStringConstant(); },
+        [=] {
           return Select<String>(
               IsCallableMap(receiver_map),
-              [&] { return FunctionStringConstant(); },
-              [&] { return ObjectStringConstant(); });
+              [=] { return FunctionStringConstant(); },
+              [=] { return ObjectStringConstant(); });
         });
 
     // Lookup the @@toStringTag property on the {receiver}.

@@ -58,18 +58,19 @@ namespace {
 
 bool PagesHasExactPage(std::vector<MemoryRange>* pages, Address search_page) {
   void* addr = reinterpret_cast<void*>(search_page);
-  auto it = std::find_if(pages->begin(), pages->end(),
-                         [&](const MemoryRange& r) { return r.start == addr; });
+  auto it =
+      std::find_if(pages->begin(), pages->end(),
+                   [addr](const MemoryRange& r) { return r.start == addr; });
   return it != pages->end();
 }
 
 bool PagesHasExactPage(std::vector<MemoryRange>* pages, Address search_page,
                        size_t size) {
   void* addr = reinterpret_cast<void*>(search_page);
-  auto it =
-      std::find_if(pages->begin(), pages->end(), [&](const MemoryRange& r) {
-        return r.start == addr && r.length_in_bytes == size;
-      });
+  auto it = std::find_if(pages->begin(), pages->end(),
+                         [addr, size](const MemoryRange& r) {
+                           return r.start == addr && r.length_in_bytes == size;
+                         });
   return it != pages->end();
 }
 
@@ -77,7 +78,7 @@ bool PagesContainsRange(std::vector<MemoryRange>* pages, Address search_address,
                         size_t size) {
   byte* addr = reinterpret_cast<byte*>(search_address);
   auto it =
-      std::find_if(pages->begin(), pages->end(), [&](const MemoryRange& r) {
+      std::find_if(pages->begin(), pages->end(), [=](const MemoryRange& r) {
         const byte* page_start = reinterpret_cast<const byte*>(r.start);
         const byte* page_end = page_start + r.length_in_bytes;
         return addr >= page_start && (addr + size) <= page_end;

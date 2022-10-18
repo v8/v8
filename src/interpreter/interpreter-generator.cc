@@ -176,18 +176,18 @@ class InterpreterLoadGlobalAssembler : public InterpreterAssembler {
     TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
 
     AccessorAssembler accessor_asm(state());
-    ExitPoint exit_point(this, [&](TNode<Object> result) {
+    ExitPoint exit_point(this, [=](TNode<Object> result) {
       SetAccumulator(result);
       Dispatch();
     });
 
-    LazyNode<TaggedIndex> lazy_slot = [&] {
+    LazyNode<TaggedIndex> lazy_slot = [=] {
       return BytecodeOperandIdxTaggedIndex(slot_operand_index);
     };
 
-    LazyNode<Context> lazy_context = [&] { return GetContext(); };
+    LazyNode<Context> lazy_context = [=] { return GetContext(); };
 
-    LazyNode<Name> lazy_name = [&] {
+    LazyNode<Name> lazy_name = [=] {
       TNode<Name> name =
           CAST(LoadConstantPoolEntryAtOperandIndex(name_operand_index));
       return name;
@@ -523,13 +523,13 @@ IGNITION_HANDLER(GetNamedProperty, InterpreterAssembler) {
   TNode<Object> recv = LoadRegisterAtOperandIndex(0);
 
   // Load the name and context lazily.
-  LazyNode<TaggedIndex> lazy_slot = [&] {
+  LazyNode<TaggedIndex> lazy_slot = [=] {
     return BytecodeOperandIdxTaggedIndex(2);
   };
-  LazyNode<Name> lazy_name = [&] {
+  LazyNode<Name> lazy_name = [=] {
     return CAST(LoadConstantPoolEntryAtOperandIndex(1));
   };
-  LazyNode<Context> lazy_context = [&] { return GetContext(); };
+  LazyNode<Context> lazy_context = [=] { return GetContext(); };
 
   Label done(this);
   TVARIABLE(Object, var_result);
@@ -869,8 +869,8 @@ class InterpreterBinaryOpAssembler : public InterpreterAssembler {
 
     BinaryOpAssembler binop_asm(state());
     TNode<Object> result =
-        (binop_asm.*generator)([&] { return context; }, lhs, rhs, slot_index,
-                               [&] { return maybe_feedback_vector; },
+        (binop_asm.*generator)([=] { return context; }, lhs, rhs, slot_index,
+                               [=] { return maybe_feedback_vector; },
                                UpdateFeedbackMode::kOptionalFeedback, false);
     SetAccumulator(result);
     Dispatch();
@@ -885,8 +885,8 @@ class InterpreterBinaryOpAssembler : public InterpreterAssembler {
 
     BinaryOpAssembler binop_asm(state());
     TNode<Object> result =
-        (binop_asm.*generator)([&] { return context; }, lhs, rhs, slot_index,
-                               [&] { return maybe_feedback_vector; },
+        (binop_asm.*generator)([=] { return context; }, lhs, rhs, slot_index,
+                               [=] { return maybe_feedback_vector; },
                                UpdateFeedbackMode::kOptionalFeedback, true);
     SetAccumulator(result);
     Dispatch();
@@ -994,8 +994,8 @@ class InterpreterBitwiseBinaryOpAssembler : public InterpreterAssembler {
 
     BinaryOpAssembler binop_asm(state());
     TNode<Object> result = binop_asm.Generate_BitwiseBinaryOpWithFeedback(
-        bitwise_op, left, right, [&] { return context; }, slot_index,
-        [&] { return maybe_feedback_vector; },
+        bitwise_op, left, right, [=] { return context; }, slot_index,
+        [=] { return maybe_feedback_vector; },
         UpdateFeedbackMode::kOptionalFeedback, false);
 
     SetAccumulator(result);
@@ -1011,8 +1011,8 @@ class InterpreterBitwiseBinaryOpAssembler : public InterpreterAssembler {
 
     BinaryOpAssembler binop_asm(state());
     TNode<Object> result = binop_asm.Generate_BitwiseBinaryOpWithFeedback(
-        bitwise_op, left, right, [&] { return context; }, slot_index,
-        [&] { return maybe_feedback_vector; },
+        bitwise_op, left, right, [=] { return context; }, slot_index,
+        [=] { return maybe_feedback_vector; },
         UpdateFeedbackMode::kOptionalFeedback, true);
 
     SetAccumulator(result);
@@ -1347,7 +1347,7 @@ class InterpreterJSCallAssembler : public InterpreterAssembler {
   // Generates code to perform a JS call that collects type feedback.
   void JSCall(ConvertReceiverMode receiver_mode) {
     TNode<Object> function = LoadRegisterAtOperandIndex(0);
-    LazyNode<Object> receiver = [&] {
+    LazyNode<Object> receiver = [=] {
       return receiver_mode == ConvertReceiverMode::kNullOrUndefined
                  ? UndefinedConstant()
                  : LoadRegisterAtOperandIndex(1);
@@ -1377,7 +1377,7 @@ class InterpreterJSCallAssembler : public InterpreterAssembler {
         kFirstArgumentOperandIndex + kReceiverAndArgOperandCount;
 
     TNode<Object> function = LoadRegisterAtOperandIndex(0);
-    LazyNode<Object> receiver = [&] {
+    LazyNode<Object> receiver = [=] {
       return receiver_mode == ConvertReceiverMode::kNullOrUndefined
                  ? UndefinedConstant()
                  : LoadRegisterAtOperandIndex(1);

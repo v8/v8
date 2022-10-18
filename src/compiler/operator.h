@@ -181,7 +181,7 @@ class Operator1 : public Operator {
   bool Equals(const Operator* other) const final {
     if (opcode() != other->opcode()) return false;
     const Operator1<T, Pred, Hash>* that =
-        static_cast<const Operator1<T, Pred, Hash>*>(other);
+        reinterpret_cast<const Operator1<T, Pred, Hash>*>(other);
     return this->pred_(this->parameter(), that->parameter());
   }
   size_t HashCode() const final {

@@ -970,7 +970,7 @@ void Debug::RecordWasmScriptWithBreakpoints(Handle<Script> script) {
 // Clear out all the debug break code.
 void Debug::ClearAllBreakPoints() {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
-  ClearAllDebugInfos([&](Handle<DebugInfo> info) {
+  ClearAllDebugInfos([=](Handle<DebugInfo> info) {
     ClearBreakPoints(info);
     info->ClearBreakInfo(isolate_);
   });
@@ -2013,12 +2013,12 @@ void Debug::InstallCoverageInfo(Handle<SharedFunctionInfo> shared,
 
 void Debug::RemoveAllCoverageInfos() {
   ClearAllDebugInfos(
-      [&](Handle<DebugInfo> info) { info->ClearCoverageInfo(isolate_); });
+      [=](Handle<DebugInfo> info) { info->ClearCoverageInfo(isolate_); });
 }
 
 void Debug::ClearAllDebuggerHints() {
   ClearAllDebugInfos(
-      [&](Handle<DebugInfo> info) { info->set_debugger_hints(0); });
+      [=](Handle<DebugInfo> info) { info->set_debugger_hints(0); });
 }
 
 void Debug::FindDebugInfo(Handle<DebugInfo> debug_info,

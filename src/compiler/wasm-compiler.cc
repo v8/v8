@@ -5367,15 +5367,15 @@ Node* WasmGraphBuilder::RttCanon(uint32_t type_index) {
 WasmGraphBuilder::Callbacks WasmGraphBuilder::TestCallbacks(
     GraphAssemblerLabel<1>* label) {
   return {// succeed_if
-          [this, label](Node* condition, BranchHint hint) -> void {
+          [=](Node* condition, BranchHint hint) -> void {
             gasm_->GotoIf(condition, label, hint, Int32Constant(1));
           },
           // fail_if
-          [this, label](Node* condition, BranchHint hint) -> void {
+          [=](Node* condition, BranchHint hint) -> void {
             gasm_->GotoIf(condition, label, hint, Int32Constant(0));
           },
           // fail_if_not
-          [this, label](Node* condition, BranchHint hint) -> void {
+          [=](Node* condition, BranchHint hint) -> void {
             gasm_->GotoIfNot(condition, label, hint, Int32Constant(0));
           }};
 }
@@ -5383,15 +5383,15 @@ WasmGraphBuilder::Callbacks WasmGraphBuilder::TestCallbacks(
 WasmGraphBuilder::Callbacks WasmGraphBuilder::CastCallbacks(
     GraphAssemblerLabel<0>* label, wasm::WasmCodePosition position) {
   return {// succeed_if
-          [this, label](Node* condition, BranchHint hint) -> void {
+          [=](Node* condition, BranchHint hint) -> void {
             gasm_->GotoIf(condition, label, hint);
           },
           // fail_if
-          [this, position](Node* condition, BranchHint hint) -> void {
+          [=](Node* condition, BranchHint hint) -> void {
             TrapIfTrue(wasm::kTrapIllegalCast, condition, position);
           },
           // fail_if_not
-          [this, position](Node* condition, BranchHint hint) -> void {
+          [=](Node* condition, BranchHint hint) -> void {
             TrapIfFalse(wasm::kTrapIllegalCast, condition, position);
           }};
 }
@@ -5641,7 +5641,7 @@ void WasmGraphBuilder::BrOnStruct(Node* object, Node* /*rtt*/,
                                   Node** no_match_effect) {
   bool null_succeeds = false;
   BrOnCastAbs(match_control, match_effect, no_match_control, no_match_effect,
-              [&](Callbacks callbacks) -> void {
+              [=](Callbacks callbacks) -> void {
                 if (!v8_flags.wasm_gc_structref_as_dataref) {
                   return ManagedObjectInstanceCheck(
                       object, config.object_can_be_null, WASM_STRUCT_TYPE,
@@ -5681,7 +5681,7 @@ void WasmGraphBuilder::BrOnArray(Node* object, Node* /*rtt*/,
                                  Node** no_match_effect) {
   bool null_succeeds = false;
   BrOnCastAbs(match_control, match_effect, no_match_control, no_match_effect,
-              [&](Callbacks callbacks) -> void {
+              [=](Callbacks callbacks) -> void {
                 return ManagedObjectInstanceCheck(
                     object, config.object_can_be_null, WASM_ARRAY_TYPE,
                     callbacks, null_succeeds);

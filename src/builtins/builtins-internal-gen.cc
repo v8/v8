@@ -884,7 +884,7 @@ class SetOrCopyDataPropertiesAssembler : public CodeStubAssembler {
         TNode<BoolT> target_is_simple_receiver = IsSimpleObjectMap(target_map);
         ForEachEnumerableOwnProperty(
             context, source_map, CAST(source), kEnumerationOrder,
-            [&](TNode<Name> key, TNode<Object> value) {
+            [=](TNode<Name> key, TNode<Object> value) {
               KeyedStoreGenericGenerator::SetProperty(
                   state(), context, target, target_is_simple_receiver, key,
                   value, LanguageMode::kStrict);
@@ -893,7 +893,7 @@ class SetOrCopyDataPropertiesAssembler : public CodeStubAssembler {
       } else {
         ForEachEnumerableOwnProperty(
             context, source_map, CAST(source), kEnumerationOrder,
-            [&](TNode<Name> key, TNode<Object> value) {
+            [=](TNode<Name> key, TNode<Object> value) {
               Label skip(this);
               if (excluded_property_count.has_value()) {
                 BuildFastLoop<IntPtrT>(
@@ -1329,7 +1329,7 @@ TF_BUILTIN(GetProperty, CodeStubAssembler) {
       if_slow(this, Label::kDeferred);
 
   CodeStubAssembler::LookupPropertyInHolder lookup_property_in_holder =
-      [&](TNode<HeapObject> receiver, TNode<HeapObject> holder,
+      [=](TNode<HeapObject> receiver, TNode<HeapObject> holder,
           TNode<Map> holder_map, TNode<Int32T> holder_instance_type,
           TNode<Name> unique_name, Label* next_holder, Label* if_bailout) {
         TVARIABLE(Object, var_value);
@@ -1342,7 +1342,7 @@ TF_BUILTIN(GetProperty, CodeStubAssembler) {
       };
 
   CodeStubAssembler::LookupElementInHolder lookup_element_in_holder =
-      [&](TNode<HeapObject> receiver, TNode<HeapObject> holder,
+      [=](TNode<HeapObject> receiver, TNode<HeapObject> holder,
           TNode<Map> holder_map, TNode<Int32T> holder_instance_type,
           TNode<IntPtrT> index, Label* next_holder, Label* if_bailout) {
         // Not supported yet.
@@ -1384,7 +1384,7 @@ TF_BUILTIN(GetPropertyWithReceiver, CodeStubAssembler) {
       if_slow(this, Label::kDeferred);
 
   CodeStubAssembler::LookupPropertyInHolder lookup_property_in_holder =
-      [&](TNode<HeapObject> receiver, TNode<HeapObject> holder,
+      [=](TNode<HeapObject> receiver, TNode<HeapObject> holder,
           TNode<Map> holder_map, TNode<Int32T> holder_instance_type,
           TNode<Name> unique_name, Label* next_holder, Label* if_bailout) {
         TVARIABLE(Object, var_value);
@@ -1397,7 +1397,7 @@ TF_BUILTIN(GetPropertyWithReceiver, CodeStubAssembler) {
       };
 
   CodeStubAssembler::LookupElementInHolder lookup_element_in_holder =
-      [&](TNode<HeapObject> receiver, TNode<HeapObject> holder,
+      [=](TNode<HeapObject> receiver, TNode<HeapObject> holder,
           TNode<Map> holder_map, TNode<Int32T> holder_instance_type,
           TNode<IntPtrT> index, Label* next_holder, Label* if_bailout) {
         // Not supported yet.

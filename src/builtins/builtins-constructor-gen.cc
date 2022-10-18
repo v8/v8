@@ -44,8 +44,8 @@ TF_BUILTIN(Construct_Baseline, CallOrConstructBuiltinsAssembler) {
   auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
 
   BuildConstruct(
-      target, new_target, argc, [&] { return LoadContextFromBaseline(); },
-      [&] { return LoadFeedbackVectorFromBaseline(); }, slot,
+      target, new_target, argc, [=] { return LoadContextFromBaseline(); },
+      [=] { return LoadFeedbackVectorFromBaseline(); }, slot,
       UpdateFeedbackMode::kGuaranteedFeedback);
 }
 
@@ -58,8 +58,8 @@ TF_BUILTIN(Construct_WithFeedback, CallOrConstructBuiltinsAssembler) {
   auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
 
   BuildConstruct(
-      target, new_target, argc, [&] { return context; },
-      [&] { return feedback_vector; }, slot,
+      target, new_target, argc, [=] { return context; },
+      [=] { return feedback_vector; }, slot,
       UpdateFeedbackMode::kOptionalFeedback);
 }
 
@@ -133,8 +133,8 @@ TF_BUILTIN(ConstructWithSpread_Baseline, CallOrConstructBuiltinsAssembler) {
   auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
   return BuildConstructWithSpread(
       target, new_target, spread, args_count,
-      [&] { return LoadContextFromBaseline(); },
-      [&] { return LoadFeedbackVectorFromBaseline(); }, slot,
+      [=] { return LoadContextFromBaseline(); },
+      [=] { return LoadFeedbackVectorFromBaseline(); }, slot,
       UpdateFeedbackMode::kGuaranteedFeedback);
 }
 
@@ -149,8 +149,8 @@ TF_BUILTIN(ConstructWithSpread_WithFeedback, CallOrConstructBuiltinsAssembler) {
   auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
 
   return BuildConstructWithSpread(
-      target, new_target, spread, args_count, [&] { return context; },
-      [&] { return feedback_vector; }, slot,
+      target, new_target, spread, args_count, [=] { return context; },
+      [=] { return feedback_vector; }, slot,
       UpdateFeedbackMode::kGuaranteedFeedback);
 }
 
@@ -379,7 +379,7 @@ TNode<Context> ConstructorBuiltinsAssembler::FastNewFunctionContext(
   CodeStubAssembler::VariableList vars(0, zone());
   BuildFastLoop<IntPtrT>(
       vars, start_offset, size,
-      [&](TNode<IntPtrT> offset) {
+      [=](TNode<IntPtrT> offset) {
         StoreObjectFieldNoWriteBarrier(function_context, offset, undefined);
       },
       kTaggedSize, IndexAdvanceMode::kPost);
@@ -659,7 +659,7 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
       Comment("Copy in-object properties slow");
       BuildFastLoop<IntPtrT>(
           offset.value(), instance_size,
-          [&](TNode<IntPtrT> offset) {
+          [=](TNode<IntPtrT> offset) {
             // TODO(ishell): value decompression is not necessary here.
             TNode<Object> field = LoadObjectField(boilerplate, offset);
             StoreObjectFieldNoWriteBarrier(copy, offset, field);
@@ -696,7 +696,7 @@ void ConstructorBuiltinsAssembler::CopyMutableHeapNumbersInObject(
   Comment("Copy mutable HeapNumber values");
   BuildFastLoop<IntPtrT>(
       start_offset, end_offset,
-      [&](TNode<IntPtrT> offset) {
+      [=](TNode<IntPtrT> offset) {
         TNode<Object> field = LoadObjectField(copy, offset);
         Label copy_heap_number(this, Label::kDeferred), continue_loop(this);
         // We only have to clone complex field values.

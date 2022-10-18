@@ -299,8 +299,8 @@ TNode<JSObject> BaseCollectionsAssembler::AllocateJSCollection(
 
   return Select<JSObject>(
       is_target_unmodified,
-      [&] { return AllocateJSCollectionFast(constructor); },
-      [&] {
+      [=] { return AllocateJSCollectionFast(constructor); },
+      [=] {
         return AllocateJSCollectionSlow(context, constructor, new_target);
       });
 }
@@ -420,8 +420,8 @@ TNode<IntPtrT> BaseCollectionsAssembler::EstimatedInitialSize(
     TNode<Object> initial_entries, TNode<BoolT> is_fast_jsarray) {
   return Select<IntPtrT>(
       is_fast_jsarray,
-      [&] { return SmiUntag(LoadFastJSArrayLength(CAST(initial_entries))); },
-      [&] { return IntPtrConstant(0); });
+      [=] { return SmiUntag(LoadFastJSArrayLength(CAST(initial_entries))); },
+      [=] { return IntPtrConstant(0); });
 }
 
 // https://tc39.es/proposal-symbols-as-weakmap-keys/#sec-canbeheldweakly-abstract-operation
@@ -480,9 +480,8 @@ TNode<BoolT> BaseCollectionsAssembler::HasInitialCollectionPrototype(
 TNode<Object> BaseCollectionsAssembler::LoadAndNormalizeFixedArrayElement(
     TNode<FixedArray> elements, TNode<IntPtrT> index) {
   TNode<Object> element = UnsafeLoadFixedArrayElement(elements, index);
-  return Select<Object>(
-      IsTheHole(element), [&] { return UndefinedConstant(); },
-      [&] { return element; });
+  return Select<Object>(IsTheHole(element), [=] { return UndefinedConstant(); },
+                        [=] { return element; });
 }
 
 TNode<Object> BaseCollectionsAssembler::LoadAndNormalizeFixedDoubleArrayElement(
