@@ -35,6 +35,14 @@ namespace trap_handler {
 #define V8_TRAP_HANDLER_SUPPORTED false
 #endif
 
+#if V8_OS_ANDROID && V8_TRAP_HANDLER_SUPPORTED
+// It would require some careful security review before the trap handler
+// can be enabled on Android.  Android may do unexpected things with signal
+// handling and crash reporting that could open up security holes in V8's
+// trap handling.
+#error "The V8 trap handler should not be enabled on Android"
+#endif
+
 // Setup for shared library export.
 #if defined(BUILDING_V8_SHARED) && defined(V8_OS_WIN)
 #define TH_EXPORT_PRIVATE __declspec(dllexport)
