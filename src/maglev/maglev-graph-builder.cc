@@ -1116,6 +1116,11 @@ void MaglevGraphBuilder::BuildCheckString(ValueNode* object) {
   known_info->type = NodeType::kString;
 }
 
+void MaglevGraphBuilder::BuildCheckNumber(ValueNode* object) {
+  // TODO(victorgomes): Add Number to known_node_aspects and update it here.
+  AddNewNode<CheckNumber>({object}, Object::Conversion::kToNumber);
+}
+
 void MaglevGraphBuilder::BuildCheckSymbol(ValueNode* object) {
   NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(object);
   if (known_info->is_symbol()) return;
@@ -1459,6 +1464,9 @@ bool MaglevGraphBuilder::TryBuildNamedAccess(
       // check. Primitive strings always get the prototype from the native
       // context they're operated on, so they don't need the access check.
       BuildCheckString(lookup_start_object);
+    } else if (map.IsHeapNumberMap()) {
+      AddNewNode<CheckNumber>({lookup_start_object},
+                              Object::Conversion::kToNumber);
     } else {
       BuildMapCheck(lookup_start_object, map);
     }

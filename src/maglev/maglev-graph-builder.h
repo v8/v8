@@ -949,6 +949,7 @@ class MaglevGraphBuilder {
       const compiler::GlobalAccessFeedback& global_access_feedback);
 
   void BuildCheckSmi(ValueNode* object);
+  void BuildCheckNumber(ValueNode* object);
   void BuildCheckHeapObject(ValueNode* object);
   void BuildCheckString(ValueNode* object);
   void BuildCheckSymbol(ValueNode* object);
