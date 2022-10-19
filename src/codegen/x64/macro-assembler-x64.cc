@@ -1897,10 +1897,23 @@ void MacroAssembler::Cmp(Register dst, Handle<Object> source) {
 void MacroAssembler::Cmp(Operand dst, Handle<Object> source) {
   if (source->IsSmi()) {
     Cmp(dst, Smi::cast(*source));
+  } else if (root_array_available_ && options().isolate_independent_code) {
+    // TODO(jgruber,v8:8887): Also consider a root-relative load when generating
+    // non-isolate-independent code. In many cases it might be cheaper than
+    // embedding the relocatable value.
+    // TODO(v8:9706): Fix-it! This load will always uncompress the value
+    // even when we are loading a compressed embedded object.
+    IndirectLoadConstant(kScratchRegister, Handle<HeapObject>::cast(source));
+    cmp_tagged(dst, kScratchRegister);
+  } else if (COMPRESS_POINTERS_BOOL) {
+    EmbeddedObjectIndex index =
+        AddEmbeddedObject(Handle<HeapObject>::cast(source));
+    DCHECK(is_uint32(index));
+    cmpl(dst, Immediate(static_cast<int>(index),
+                        RelocInfo::COMPRESSED_EMBEDDED_OBJECT));
   } else {
     Move(kScratchRegister, Handle<HeapObject>::cast(source),
-         COMPRESS_POINTERS_BOOL ? RelocInfo::COMPRESSED_EMBEDDED_OBJECT
-                                : RelocInfo::FULL_EMBEDDED_OBJECT);
+         RelocInfo::FULL_EMBEDDED_OBJECT);
     cmp_tagged(dst, kScratchRegister);
   }
 }
