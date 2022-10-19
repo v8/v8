@@ -422,24 +422,6 @@ class MergePointInterpreterFrameState {
     kLoopHeader,
     kExceptionHandlerStart,
   };
-  void CheckIsLoopPhiIfNeeded(const MaglevCompilationUnit& compilation_unit,
-                              int merge_offset, interpreter::Register reg,
-                              ValueNode* value) {
-#ifdef DEBUG
-    const auto& analysis = compilation_unit.bytecode_analysis();
-    if (!analysis.IsLoopHeader(merge_offset)) return;
-    auto& assignments = analysis.GetLoopInfoFor(merge_offset).assignments();
-    if (reg.is_parameter()) {
-      if (reg.is_current_context()) return;
-      if (!assignments.ContainsParameter(reg.ToParameterIndex())) return;
-    } else {
-      DCHECK(
-          analysis.GetInLivenessFor(merge_offset)->RegisterIsLive(reg.index()));
-      if (!assignments.ContainsLocal(reg.index())) return;
-    }
-    DCHECK(value->Is<Phi>());
-#endif
-  }
 
   static MergePointInterpreterFrameState* New(
       const MaglevCompilationUnit& info, const InterpreterFrameState& state,
@@ -521,8 +503,6 @@ class MergePointInterpreterFrameState {
     }
     frame_state_.ForEachValue(compilation_unit, [&](ValueNode*& value,
                                                     interpreter::Register reg) {
-      CheckIsLoopPhiIfNeeded(compilation_unit, merge_offset, reg, value);
-
       if (v8_flags.trace_maglev_graph_building) {
         std::cout << "  " << reg.ToString() << ": "
                   << PrintNodeLabel(compilation_unit.graph_labeller(), value)
@@ -569,8 +549,6 @@ class MergePointInterpreterFrameState {
     }
     frame_state_.ForEachValue(compilation_unit, [&](ValueNode* value,
                                                     interpreter::Register reg) {
-      CheckIsLoopPhiIfNeeded(compilation_unit, merge_offset, reg, value);
-
       if (v8_flags.trace_maglev_graph_building) {
         std::cout << "  " << reg.ToString() << ": "
                   << PrintNodeLabel(compilation_unit.graph_labeller(), value)
@@ -602,7 +580,6 @@ class MergePointInterpreterFrameState {
 
     frame_state_.ForEachValue(
         compilation_unit, [&](ValueNode* value, interpreter::Register reg) {
-          CheckIsLoopPhiIfNeeded(compilation_unit, merge_offset, reg, value);
           ReducePhiPredecessorCount(reg, value, merge_offset);
         });
   }

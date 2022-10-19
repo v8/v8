@@ -1095,7 +1095,7 @@ class MaglevGraphBuilder {
     return compilation_unit_->bytecode();
   }
   const compiler::BytecodeAnalysis& bytecode_analysis() const {
-    return compilation_unit_->bytecode_analysis();
+    return bytecode_analysis_;
   }
   LocalIsolate* local_isolate() const { return local_isolate_; }
   Zone* zone() const { return compilation_unit_->zone(); }
@@ -1126,6 +1126,7 @@ class MaglevGraphBuilder {
   MaglevCompilationUnit* const compilation_unit_;
   MaglevGraphBuilder* const parent_;
   Graph* const graph_;
+  compiler::BytecodeAnalysis bytecode_analysis_;
   interpreter::BytecodeArrayIterator iterator_;
   SourcePositionTableIterator source_position_iterator_;
   uint32_t* predecessors_;

@@ -92,6 +92,8 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
       compilation_unit_(compilation_unit),
       parent_(parent),
       graph_(graph),
+      bytecode_analysis_(bytecode().object(), zone(), BytecodeOffset::None(),
+                         true),
       iterator_(bytecode().object()),
       source_position_iterator_(bytecode().SourcePositionTable()),
       // Add an extra jump_target slot for the inline exit if needed.
