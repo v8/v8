@@ -143,6 +143,8 @@ enum ArrayStorageAllocationMode {
 
 enum class ClearRecordedSlots { kYes, kNo };
 
+enum class UpdateInvalidatedObjectSize { kYes, kNo };
+
 enum class InvalidateRecordedSlots { kYes, kNo };
 
 enum class ClearFreedMemoryMode { kClearFreedMemory, kDontClearFreedMemory };
@@ -1117,8 +1119,11 @@ class Heap {
   // The runtime uses this function to inform the GC of object size changes. The
   // GC will fill this area with a filler object and might clear recorded slots
   // in that area.
-  void NotifyObjectSizeChange(HeapObject, int old_size, int new_size,
-                              ClearRecordedSlots clear_recorded_slots);
+  void NotifyObjectSizeChange(
+      HeapObject, int old_size, int new_size,
+      ClearRecordedSlots clear_recorded_slots,
+      UpdateInvalidatedObjectSize update_invalidated_object_size =
+          UpdateInvalidatedObjectSize::kYes);
 
   // ===========================================================================
   // Deoptimization support API. ===============================================

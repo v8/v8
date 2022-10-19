@@ -3794,24 +3794,46 @@ void Heap::NotifyObjectLayoutChange(
 #endif
 }
 
-void Heap::NotifyObjectSizeChange(HeapObject object, int old_size, int new_size,
-                                  ClearRecordedSlots clear_recorded_slots) {
+void Heap::NotifyObjectSizeChange(
+    HeapObject object, int old_size, int new_size,
+    ClearRecordedSlots clear_recorded_slots,
+    enum UpdateInvalidatedObjectSize update_invalidated_object_size) {
   old_size = ALIGN_TO_ALLOCATION_ALIGNMENT(old_size);
   new_size = ALIGN_TO_ALLOCATION_ALIGNMENT(new_size);
   DCHECK_LE(new_size, old_size);
   if (new_size == old_size) return;
 
-  UpdateInvalidatedObjectSize(object, new_size);
+  const bool is_main_thread = LocalHeap::Current() == nullptr;
 
-  const bool is_background = LocalHeap::Current() != nullptr;
-  DCHECK_IMPLIES(is_background,
+  DCHECK_IMPLIES(!is_main_thread,
                  clear_recorded_slots == ClearRecordedSlots::kNo);
+  DCHECK_IMPLIES(!is_main_thread, update_invalidated_object_size ==
+                                      UpdateInvalidatedObjectSize::kNo);
 
-  const VerifyNoSlotsRecorded verify_no_slots_recorded =
-      is_background ? VerifyNoSlotsRecorded::kNo : VerifyNoSlotsRecorded::kYes;
+  if (update_invalidated_object_size == UpdateInvalidatedObjectSize::kYes) {
+    UpdateInvalidatedObjectSize(object, new_size);
+  } else {
+    DCHECK_EQ(update_invalidated_object_size, UpdateInvalidatedObjectSize::kNo);
 
-  const ClearFreedMemoryMode clear_memory_mode =
-      ClearFreedMemoryMode::kDontClearFreedMemory;
+#if DEBUG
+    if (is_main_thread) {
+      // When running on the main thread we can actually DCHECK that this object
+      // wasn't recorded in the invalidated_slots map yet.
+      MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
+      DCHECK(!chunk->RegisteredObjectWithInvalidatedSlots<OLD_TO_NEW>(object));
+      DCHECK(
+          !chunk->RegisteredObjectWithInvalidatedSlots<OLD_TO_SHARED>(object));
+      DCHECK_IMPLIES(
+          incremental_marking()->IsCompacting(),
+          !chunk->RegisteredObjectWithInvalidatedSlots<OLD_TO_OLD>(object));
+    }
+#endif
+  }
+
+  const auto verify_no_slots_recorded =
+      is_main_thread ? VerifyNoSlotsRecorded::kYes : VerifyNoSlotsRecorded::kNo;
+
+  const auto clear_memory_mode = ClearFreedMemoryMode::kDontClearFreedMemory;
 
   const Address filler = object.address() + new_size;
   const int filler_size = old_size - new_size;
@@ -3821,6 +3843,11 @@ void Heap::NotifyObjectSizeChange(HeapObject object, int old_size, int new_size,
 
 void Heap::UpdateInvalidatedObjectSize(HeapObject object, int new_size) {
   if (!MayContainRecordedSlots(object)) return;
+
+  // Updating invalidated_slots is unsychronized and thus needs to happen on the
+  // main thread.
+  DCHECK_NULL(LocalHeap::Current());
+  DCHECK_EQ(isolate()->thread_id(), ThreadId::Current());
 
   if (incremental_marking()->IsCompacting() || gc_state() == MARK_COMPACT) {
     MemoryChunk::FromHeapObject(object)

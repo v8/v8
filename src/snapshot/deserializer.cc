@@ -462,7 +462,11 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
         String result = *isolate()->string_table()->LookupKey(isolate(), &key);
 
         if (result != raw_obj) {
-          String::cast(raw_obj).MakeThin(isolate(), result);
+          // Updating invalidated object size from a background thread would
+          // race. We are allowed to skip this here since this string hasn't
+          // transitioned so far.
+          String::cast(raw_obj).MakeThin(isolate(), result,
+                                         UpdateInvalidatedObjectSize::kNo);
           // Mutate the given object handle so that the backreference entry is
           // also updated.
           obj.PatchValue(result);
