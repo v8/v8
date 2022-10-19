@@ -957,6 +957,22 @@ class MaglevCodeGeneratingNodeProcessor {
   Label deferred_call_stack_guard_return_;
 };
 
+class SafepointingNodeProcessor {
+ public:
+  explicit SafepointingNodeProcessor(LocalIsolate* local_isolate)
+      : local_isolate_(local_isolate) {}
+
+  void PreProcessGraph(Graph* graph) {}
+  void PostProcessGraph(Graph* graph) {}
+  void PreProcessBasicBlock(BasicBlock* block) {}
+  void Process(NodeBase* node, const ProcessingState& state) {
+    local_isolate_->heap()->Safepoint();
+  }
+
+ private:
+  LocalIsolate* local_isolate_;
+};
+
 class MaglevTranslationArrayBuilder {
  public:
   MaglevTranslationArrayBuilder(
@@ -1237,7 +1253,10 @@ MaybeHandle<Code> MaglevCodeGenerator::Generate(Isolate* isolate) {
 }
 
 void MaglevCodeGenerator::EmitCode() {
-  GraphProcessor<MaglevCodeGeneratingNodeProcessor> processor(masm());
+  GraphProcessor<NodeMultiProcessor<SafepointingNodeProcessor,
+                                    MaglevCodeGeneratingNodeProcessor>>
+      processor(SafepointingNodeProcessor{local_isolate_},
+                MaglevCodeGeneratingNodeProcessor{masm()});
   processor.ProcessGraph(graph_);
   EmitDeferredCode();
   EmitDeopts();
@@ -1267,6 +1286,7 @@ void MaglevCodeGenerator::EmitDeopts() {
 
   __ RecordComment("-- Non-lazy deopts");
   for (EagerDeoptInfo* deopt_info : code_gen_state_.eager_deopts()) {
+    local_isolate_->heap()->Safepoint();
     translation_builder.BuildEagerDeopt(deopt_info);
 
     if (masm_.compilation_info()->collect_source_positions()) {
@@ -1283,6 +1303,7 @@ void MaglevCodeGenerator::EmitDeopts() {
   __ RecordComment("-- Lazy deopts");
   int last_updated_safepoint = 0;
   for (LazyDeoptInfo* deopt_info : code_gen_state_.lazy_deopts()) {
+    local_isolate_->heap()->Safepoint();
     translation_builder.BuildLazyDeopt(deopt_info);
 
     if (masm_.compilation_info()->collect_source_positions()) {

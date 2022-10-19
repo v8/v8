@@ -205,7 +205,7 @@ class UseMarkingProcessor {
 // static
 void MaglevCompiler::Compile(LocalIsolate* local_isolate,
                              MaglevCompilationInfo* compilation_info) {
-  compiler::UnparkedScopeIfNeeded unparked_scope(compilation_info->broker());
+  Graph* graph = Graph::New(compilation_info->zone());
 
   // Build graph.
   if (v8_flags.print_maglev_code || v8_flags.code_comments ||
@@ -214,61 +214,69 @@ void MaglevCompiler::Compile(LocalIsolate* local_isolate,
     compilation_info->set_graph_labeller(new MaglevGraphLabeller());
   }
 
-  if (v8_flags.print_maglev_code || v8_flags.print_maglev_graph ||
-      v8_flags.trace_maglev_graph_building || v8_flags.trace_maglev_regalloc) {
-    MaglevCompilationUnit* top_level_unit =
-        compilation_info->toplevel_compilation_unit();
-    std::cout << "Compiling " << Brief(*top_level_unit->function().object())
-              << " with Maglev\n";
-    BytecodeArray::Disassemble(top_level_unit->bytecode().object(), std::cout);
-    top_level_unit->feedback().object()->Print(std::cout);
-  }
+  {
+    UnparkedScope unparked_scope(local_isolate->heap());
 
-  Graph* graph = Graph::New(compilation_info->zone());
+    if (v8_flags.print_maglev_code || v8_flags.print_maglev_graph ||
+        v8_flags.trace_maglev_graph_building ||
+        v8_flags.trace_maglev_regalloc) {
+      MaglevCompilationUnit* top_level_unit =
+          compilation_info->toplevel_compilation_unit();
+      std::cout << "Compiling " << Brief(*top_level_unit->function().object())
+                << " with Maglev\n";
+      BytecodeArray::Disassemble(top_level_unit->bytecode().object(),
+                                 std::cout);
+      top_level_unit->feedback().object()->Print(std::cout);
+    }
 
-  MaglevGraphBuilder graph_builder(
-      local_isolate, compilation_info->toplevel_compilation_unit(), graph);
+    MaglevGraphBuilder graph_builder(
+        local_isolate, compilation_info->toplevel_compilation_unit(), graph);
 
-  graph_builder.Build();
+    graph_builder.Build();
 
-  if (v8_flags.print_maglev_graph) {
-    std::cout << "\nAfter graph buiding" << std::endl;
-    PrintGraph(std::cout, compilation_info, graph_builder.graph());
+    if (v8_flags.print_maglev_graph) {
+      std::cout << "\nAfter graph buiding" << std::endl;
+      PrintGraph(std::cout, compilation_info, graph);
+    }
   }
 
 #ifdef DEBUG
   {
     GraphProcessor<MaglevGraphVerifier> verifier(compilation_info);
-    verifier.ProcessGraph(graph_builder.graph());
+    verifier.ProcessGraph(graph);
   }
 #endif
 
   {
     GraphMultiProcessor<UseMarkingProcessor, MaglevVregAllocator> processor(
         UseMarkingProcessor{compilation_info});
-    processor.ProcessGraph(graph_builder.graph());
+    processor.ProcessGraph(graph);
   }
 
   if (v8_flags.print_maglev_graph) {
+    UnparkedScope unparked_scope(local_isolate->heap());
     std::cout << "After node processor" << std::endl;
-    PrintGraph(std::cout, compilation_info, graph_builder.graph());
+    PrintGraph(std::cout, compilation_info, graph);
   }
 
-  StraightForwardRegisterAllocator allocator(compilation_info,
-                                             graph_builder.graph());
+  StraightForwardRegisterAllocator allocator(compilation_info, graph);
 
   if (v8_flags.print_maglev_graph) {
+    UnparkedScope unparked_scope(local_isolate->heap());
     std::cout << "After register allocation" << std::endl;
-    PrintGraph(std::cout, compilation_info, graph_builder.graph());
+    PrintGraph(std::cout, compilation_info, graph);
   }
 
-  std::unique_ptr<MaglevCodeGenerator> code_generator =
-      std::make_unique<MaglevCodeGenerator>(local_isolate, compilation_info,
-                                            graph);
-  code_generator->Assemble();
+  {
+    UnparkedScope unparked_scope(local_isolate->heap());
+    std::unique_ptr<MaglevCodeGenerator> code_generator =
+        std::make_unique<MaglevCodeGenerator>(local_isolate, compilation_info,
+                                              graph);
+    code_generator->Assemble();
 
-  // Stash the compiled code_generator on the compilation info.
-  compilation_info->set_code_generator(std::move(code_generator));
+    // Stash the compiled code_generator on the compilation info.
+    compilation_info->set_code_generator(std::move(code_generator));
+  }
 }
 
 // static

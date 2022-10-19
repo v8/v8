@@ -69,6 +69,7 @@ class MaglevGraphBuilder {
 
   void BuildBody() {
     for (iterator_.Reset(); !iterator_.done(); iterator_.Advance()) {
+      local_isolate_->heap()->Safepoint();
       VisitSingleBytecode();
     }
   }
