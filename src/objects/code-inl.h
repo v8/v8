@@ -1002,12 +1002,22 @@ inline constexpr bool CodeKindHasTaggedOutgoingParams(CodeKind kind) {
 }
 
 inline bool Code::has_tagged_outgoing_params() const {
+#if V8_ENABLE_WEBASSEMBLY
+  return CodeKindHasTaggedOutgoingParams(kind()) &&
+         builtin_id() != Builtin::kWasmCompileLazy;
+#else
   return CodeKindHasTaggedOutgoingParams(kind());
+#endif
 }
 
 #ifdef V8_EXTERNAL_CODE_SPACE
 inline bool CodeDataContainer::has_tagged_outgoing_params() const {
+#if V8_ENABLE_WEBASSEMBLY
+  return CodeKindHasTaggedOutgoingParams(kind()) &&
+         builtin_id() != Builtin::kWasmCompileLazy;
+#else
   return CodeKindHasTaggedOutgoingParams(kind());
+#endif
 }
 #endif
 

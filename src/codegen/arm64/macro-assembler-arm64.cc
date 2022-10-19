@@ -2860,8 +2860,8 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
         fourth_reg = cp;
 #if V8_ENABLE_WEBASSEMBLY
       } else if (type == StackFrame::WASM ||
-                type == StackFrame::WASM_COMPILE_LAZY ||
-                type == StackFrame::WASM_EXIT) {
+                 type == StackFrame::WASM_LIFTOFF_SETUP ||
+                 type == StackFrame::WASM_EXIT) {
         fourth_reg = kWasmInstanceRegister;
 #endif  // V8_ENABLE_WEBASSEMBLY
       } else {

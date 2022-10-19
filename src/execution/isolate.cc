@@ -2127,11 +2127,10 @@ Object Isolate::UnwindAndFindHandler() {
                             visited_frames);
       }
 
-      case StackFrame::WASM_COMPILE_LAZY: {
-        // Can only fail directly on invocation. This happens if an invalid
-        // function was validated lazily.
-        DCHECK(v8_flags.wasm_lazy_validation);
-        break;
+      case StackFrame::WASM_LIFTOFF_SETUP: {
+        // The WasmLiftoffFrameSetup builtin doesn't throw, and doesn't call
+        // out to user code that could throw.
+        UNREACHABLE();
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
 

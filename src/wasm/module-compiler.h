@@ -80,7 +80,7 @@ WasmCode* CompileImportWrapper(
 // Triggered by the WasmCompileLazy builtin. The return value indicates whether
 // compilation was successful. Lazy compilation can fail only if validation is
 // also lazy.
-bool CompileLazy(Isolate*, Handle<WasmInstanceObject>, int func_index);
+bool CompileLazy(Isolate*, WasmInstanceObject, int func_index);
 
 // Throws the compilation error after failed lazy compilation.
 void ThrowLazyCompilationError(Isolate* isolate,

@@ -138,12 +138,6 @@ compiler::CallDescriptor* GetLoweredCallDescriptor(
              : call_desc;
 }
 
-constexpr LiftoffRegList GetGpParamRegisters() {
-  LiftoffRegList registers;
-  for (auto reg : kGpParamRegisters) registers.set(reg);
-  return registers;
-}
-
 constexpr LiftoffCondition GetCompareCondition(WasmOpcode opcode) {
   switch (opcode) {
     case kExprI32Eq:
@@ -881,7 +875,15 @@ class LiftoffCompiler {
 
     __ CodeEntry();
 
-    __ EnterFrame(StackFrame::WASM);
+    if (v8_flags.wasm_speculative_inlining) {
+      CODE_COMMENT("frame setup");
+      int declared_func_index =
+          func_index_ - env_->module->num_imported_functions;
+      DCHECK_GE(declared_func_index, 0);
+      __ CallFrameSetupStub(declared_func_index);
+    } else {
+      __ EnterFrame(StackFrame::WASM);
+    }
     __ set_has_frame(true);
     pc_offset_stack_frame_construction_ = __ PrepareStackFrame();
     // {PrepareStackFrame} is the first platform-specific assembler method.
@@ -901,23 +903,7 @@ class LiftoffCompiler {
                       .AsRegister()));
     USE(kInstanceParameterIndex);
     __ cache_state()->SetInstanceCacheRegister(kWasmInstanceRegister);
-    // Load the feedback vector and cache it in a stack slot.
-    constexpr LiftoffRegList kGpParamRegisters = GetGpParamRegisters();
-    if (v8_flags.wasm_speculative_inlining) {
-      CODE_COMMENT("load feedback vector");
-      int declared_func_index =
-          func_index_ - env_->module->num_imported_functions;
-      DCHECK_GE(declared_func_index, 0);
-      LiftoffRegList pinned = kGpParamRegisters;
-      LiftoffRegister tmp = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-      __ LoadTaggedPointerFromInstance(
-          tmp.gp(), kWasmInstanceRegister,
-          WASM_INSTANCE_OBJECT_FIELD_OFFSET(FeedbackVectors));
-      __ LoadTaggedPointer(tmp.gp(), tmp.gp(), no_reg,
-                           wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(
-                               declared_func_index));
-      __ Spill(liftoff::kFeedbackVectorOffset, tmp, kPointerKind);
-    }
+
     if (for_debugging_) __ ResetOSRTarget();
 
     if (num_params) {

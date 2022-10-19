@@ -1167,10 +1167,11 @@ class CompileLazyTimingScope {
 
 }  // namespace
 
-bool CompileLazy(Isolate* isolate, Handle<WasmInstanceObject> instance,
+bool CompileLazy(Isolate* isolate, WasmInstanceObject instance,
                  int func_index) {
-  Handle<WasmModuleObject> module_object(instance->module_object(), isolate);
-  NativeModule* native_module = module_object->native_module();
+  DisallowGarbageCollection no_gc;
+  WasmModuleObject module_object = instance.module_object();
+  NativeModule* native_module = module_object.native_module();
   Counters* counters = isolate->counters();
 
   // Put the timer scope around everything, including the {CodeSpaceWriteScope}
@@ -1229,12 +1230,11 @@ bool CompileLazy(Isolate* isolate, Handle<WasmInstanceObject> instance,
   DCHECK_EQ(func_index, code->index());
 
   if (WasmCode::ShouldBeLogged(isolate)) {
-    DisallowGarbageCollection no_gc;
-    Object url_obj = module_object->script().name();
+    Object url_obj = module_object.script().name();
     DCHECK(url_obj.IsString() || url_obj.IsUndefined());
     std::unique_ptr<char[]> url =
         url_obj.IsString() ? String::cast(url_obj).ToCString() : nullptr;
-    code->LogCode(isolate, url.get(), module_object->script().id());
+    code->LogCode(isolate, url.get(), module_object.script().id());
   }
 
   counters->wasm_lazily_compiled_functions()->Increment();
@@ -1247,17 +1247,6 @@ bool CompileLazy(Isolate* isolate, Handle<WasmInstanceObject> instance,
     WasmCompilationUnit tiering_unit{func_index, tiers.top_tier, kNoDebugging};
     compilation_state->CommitTopTierCompilationUnit(tiering_unit);
   }
-
-  // Allocate feedback vector if needed.
-  int feedback_vector_slots = NumFeedbackSlots(module, func_index);
-  if (feedback_vector_slots > 0) {
-    DCHECK(v8_flags.wasm_speculative_inlining);
-    Handle<FixedArray> vector =
-        isolate->factory()->NewFixedArrayWithZeroes(feedback_vector_slots);
-    instance->feedback_vectors().set(
-        declared_function_index(module, func_index), *vector);
-  }
-
   return true;
 }
 

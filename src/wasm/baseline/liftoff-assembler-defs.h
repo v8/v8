@@ -21,6 +21,9 @@ constexpr RegList kLiftoffAssemblerGpCacheRegs = {eax, ecx, edx, esi, edi};
 constexpr DoubleRegList kLiftoffAssemblerFpCacheRegs = {xmm0, xmm1, xmm2, xmm3,
                                                         xmm4, xmm5, xmm6};
 
+// For the "WasmLiftoffFrameSetup" builtin.
+constexpr Register kLiftoffFrameSetupFunctionReg = edi;
+
 #elif V8_TARGET_ARCH_X64
 
 // r10: kScratchRegister (MacroAssembler)
@@ -32,6 +35,9 @@ constexpr RegList kLiftoffAssemblerGpCacheRegs = {rax, rcx, rdx, rbx, rsi,
 
 constexpr DoubleRegList kLiftoffAssemblerFpCacheRegs = {xmm0, xmm1, xmm2, xmm3,
                                                         xmm4, xmm5, xmm6, xmm7};
+
+// For the "WasmLiftoffFrameSetup" builtin.
+constexpr Register kLiftoffFrameSetupFunctionReg = r12;
 
 #elif V8_TARGET_ARCH_MIPS
 
@@ -71,6 +77,9 @@ constexpr RegList kLiftoffAssemblerGpCacheRegs = {r0, r1, r2, r3, r4,
 constexpr DoubleRegList kLiftoffAssemblerFpCacheRegs = {
     d0, d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11, d12};
 
+// For the "WasmLiftoffFrameSetup" builtin.
+constexpr Register kLiftoffFrameSetupFunctionReg = r4;
+
 #elif V8_TARGET_ARCH_ARM64
 
 // x16: ip0, x17: ip1, x18: platform register, x26: root, x28: base, x29: fp,
@@ -83,6 +92,9 @@ constexpr RegList kLiftoffAssemblerGpCacheRegs = {
 constexpr DoubleRegList kLiftoffAssemblerFpCacheRegs = {
     d0,  d1,  d2,  d3,  d4,  d5,  d6,  d7,  d8,  d9,  d10, d11, d12, d13, d14,
     d16, d17, d18, d19, d20, d21, d22, d23, d24, d25, d26, d27, d28, d29};
+
+// For the "WasmLiftoffFrameSetup" builtin.
+constexpr Register kLiftoffFrameSetupFunctionReg = x8;
 
 #elif V8_TARGET_ARCH_S390X
 
@@ -121,6 +133,13 @@ constexpr DoubleRegList kLiftoffAssemblerFpCacheRegs =
     DoubleRegList::FromBits(0xff);
 
 #endif
+
+static_assert(kLiftoffFrameSetupFunctionReg != kWasmInstanceRegister);
+static_assert(kLiftoffFrameSetupFunctionReg != kRootRegister);
+#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+static_assert(kLiftoffFrameSetupFunctionReg != kPtrComprCageBaseRegister);
+#endif
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
