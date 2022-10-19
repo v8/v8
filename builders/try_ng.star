@@ -18,6 +18,7 @@ def try_ng_pair(
         cq_properties = CQ.NONE,
         cq_branch_properties = CQ.NONE,
         experiments = None,
+        enable_rdb = True,
         **kwargs):
     triggered_timeout = kwargs.pop("triggered_timeout", None)
     kwargs.setdefault("properties", {})["triggers"] = [
@@ -52,6 +53,7 @@ def try_ng_pair(
         compiler_description["triggers"] = name + "_ng_triggered"
         tester_description["triggered by"] = name + "_ng"
 
+    kwargs["enable_rdb"] = enable_rdb
     v8_builder(
         defaults_try,
         name = name + "_ng",

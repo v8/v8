@@ -385,12 +385,15 @@ def v8_basic_builder(defaults, **kwargs):
         )
 
     defaults = defaults_dict[kwargs["bucket"]]
-    resultdb_bq_table_prefix = defaults.get("resultdb_bq_table_prefix", None)
-    if resultdb_bq_table_prefix:
+    enable_rdb = kwargs.pop("enable_rdb", False)
+    if enable_rdb:
+        resultdb_bq_table_prefix = defaults.get("resultdb_bq_table_prefix")
         kwargs["resultdb_settings"] = resultdb.settings(
             enable = True,
             bq_exports = [
-                resultdb.export_test_results(bq_table = "v8-infra.resultdb." + resultdb_bq_table_prefix + "_test_results"),
+                resultdb.export_test_results(
+                    bq_table = "v8-resultdb.resultdb." + resultdb_bq_table_prefix + "_test_results",
+                ),
             ],
         )
     luci.builder(**kwargs)
