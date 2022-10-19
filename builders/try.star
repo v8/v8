@@ -103,6 +103,7 @@ try_builder(
     bucket = "try",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+    use_goma = GOMA.DEFAULT,
 )
 
 try_builder(
