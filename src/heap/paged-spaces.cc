@@ -338,7 +338,8 @@ void PagedSpaceBase::RemovePage(Page* page) {
   // Pages are only removed from new space when they are promoted to old space
   // during a GC. This happens after sweeping as started and the allocation
   // counters have been reset.
-  DCHECK_IMPLIES(identity() == NEW_SPACE, Size() == 0);
+  DCHECK_IMPLIES(identity() == NEW_SPACE,
+                 heap()->gc_state() != Heap::NOT_IN_GC);
   if (identity() != NEW_SPACE) {
     DecreaseAllocatedBytes(page->allocated_bytes(), page);
   }

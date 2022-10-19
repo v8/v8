@@ -3924,6 +3924,47 @@ void MarkCompactCollector::EvacuatePrologue() {
   DCHECK(evacuation_candidates_.empty());
 }
 
+#if DEBUG
+namespace {
+
+void VerifyRememberedSetsAfterEvacuation(Heap* heap) {
+  // Old-to-old slot sets must be empty after evacuation.
+  bool new_space_is_empty =
+      !heap->new_space() || heap->new_space()->Size() == 0;
+  MemoryChunkIterator chunk_iterator(heap);
+
+  while (chunk_iterator.HasNext()) {
+    MemoryChunk* chunk = chunk_iterator.Next();
+
+    // Old-to-old slot sets must be empty after evacuation.
+    DCHECK_NULL((chunk->slot_set<OLD_TO_OLD, AccessMode::ATOMIC>()));
+    DCHECK_NULL((chunk->typed_slot_set<OLD_TO_OLD, AccessMode::ATOMIC>()));
+
+    if (new_space_is_empty) {
+      // Old-to-new slot sets must be empty after evacuation.
+      DCHECK_NULL((chunk->slot_set<OLD_TO_NEW, AccessMode::ATOMIC>()));
+      DCHECK_NULL((chunk->typed_slot_set<OLD_TO_NEW, AccessMode::ATOMIC>()));
+    }
+
+    // Old-to-shared slots may survive GC but there should never be any slots in
+    // new or shared spaces.
+    AllocationSpace id = chunk->owner_identity();
+    if (id == SHARED_SPACE || id == SHARED_LO_SPACE || id == NEW_SPACE ||
+        id == NEW_LO_SPACE || heap->isolate()->is_shared()) {
+      DCHECK_NULL((chunk->slot_set<OLD_TO_SHARED, AccessMode::ATOMIC>()));
+      DCHECK_NULL((chunk->typed_slot_set<OLD_TO_SHARED, AccessMode::ATOMIC>()));
+    }
+
+    // GCs need to filter invalidated slots.
+    DCHECK_NULL(chunk->invalidated_slots<OLD_TO_OLD>());
+    DCHECK_NULL(chunk->invalidated_slots<OLD_TO_NEW>());
+    DCHECK_NULL(chunk->invalidated_slots<OLD_TO_SHARED>());
+  }
+}
+
+}  // namespace
+#endif  // DEBUG
+
 void MarkCompactCollector::EvacuateEpilogue() {
   aborted_evacuation_candidates_due_to_oom_.clear();
   aborted_evacuation_candidates_due_to_flags_.clear();
@@ -3938,34 +3979,8 @@ void MarkCompactCollector::EvacuateEpilogue() {
   ReleaseEvacuationCandidates();
 
 #ifdef DEBUG
-  MemoryChunkIterator chunk_iterator(heap());
-
-  while (chunk_iterator.HasNext()) {
-    MemoryChunk* chunk = chunk_iterator.Next();
-
-    // Old-to-old slot sets must be empty after evacuation.
-    DCHECK_NULL((chunk->slot_set<OLD_TO_OLD, AccessMode::ATOMIC>()));
-    DCHECK_NULL((chunk->typed_slot_set<OLD_TO_OLD, AccessMode::ATOMIC>()));
-
-    // Old-to-new slot sets must be empty after evacuation.
-    DCHECK_NULL((chunk->slot_set<OLD_TO_NEW, AccessMode::ATOMIC>()));
-    DCHECK_NULL((chunk->typed_slot_set<OLD_TO_NEW, AccessMode::ATOMIC>()));
-
-    // Old-to-shared slots may survive GC but there should never be any slots in
-    // new or shared spaces.
-    AllocationSpace id = chunk->owner_identity();
-    if (id == SHARED_SPACE || id == SHARED_LO_SPACE || id == NEW_SPACE ||
-        id == NEW_LO_SPACE || isolate()->is_shared()) {
-      DCHECK_NULL((chunk->slot_set<OLD_TO_SHARED, AccessMode::ATOMIC>()));
-      DCHECK_NULL((chunk->typed_slot_set<OLD_TO_SHARED, AccessMode::ATOMIC>()));
-    }
-
-    // GCs need to filter invalidated slots.
-    DCHECK_NULL(chunk->invalidated_slots<OLD_TO_OLD>());
-    DCHECK_NULL(chunk->invalidated_slots<OLD_TO_NEW>());
-    DCHECK_NULL(chunk->invalidated_slots<OLD_TO_SHARED>());
-  }
-#endif
+  VerifyRememberedSetsAfterEvacuation(heap());
+#endif  // DEBUG
 }
 
 namespace {
@@ -5626,37 +5641,59 @@ class YoungGenerationRecordMigratedSlotVisitor final
   }
 };
 
+namespace {
+
+template <typename IterateableSpace>
+void DropOldToNewRememberedSets(IterateableSpace* space) {
+  for (MemoryChunk* chunk : *space) {
+    DCHECK(!chunk->IsEvacuationCandidate());
+    chunk->ReleaseSlotSet<OLD_TO_NEW>();
+    chunk->ReleaseTypedSlotSet<OLD_TO_NEW>();
+    chunk->ReleaseInvalidatedSlots<OLD_TO_NEW>();
+  }
+}
+
+}  // namespace
+
 void MinorMarkCompactCollector::UpdatePointersAfterEvacuation() {
   TRACE_GC(heap()->tracer(),
            GCTracer::Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS);
 
-  std::vector<std::unique_ptr<UpdatingItem>> updating_items;
-
   {
     TRACE_GC(heap()->tracer(),
              GCTracer::Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS_SLOTS);
-    // Create batches of global handles.
-    CollectRememberedSetUpdatingItems(
-        this, &updating_items, heap()->old_space(),
-        RememberedSetUpdatingMode::OLD_TO_NEW_ONLY);
-    CollectRememberedSetUpdatingItems(
-        this, &updating_items, heap()->code_space(),
-        RememberedSetUpdatingMode::OLD_TO_NEW_ONLY);
-    CollectRememberedSetUpdatingItems(
-        this, &updating_items, heap()->lo_space(),
-        RememberedSetUpdatingMode::OLD_TO_NEW_ONLY);
-    CollectRememberedSetUpdatingItems(
-        this, &updating_items, heap()->code_lo_space(),
-        RememberedSetUpdatingMode::OLD_TO_NEW_ONLY);
+    if (heap()->paged_new_space()->Size() == 0) {
+      DropOldToNewRememberedSets(heap()->old_space());
+      DropOldToNewRememberedSets(heap()->code_space());
+      DropOldToNewRememberedSets(heap()->lo_space());
+      DropOldToNewRememberedSets(heap()->code_lo_space());
+    } else {
+      std::vector<std::unique_ptr<UpdatingItem>> updating_items;
 
-    V8::GetCurrentPlatform()
-        ->CreateJob(
-            v8::TaskPriority::kUserBlocking,
-            std::make_unique<PointersUpdatingJob>(
-                isolate(), std::move(updating_items),
-                GCTracer::Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS_PARALLEL,
-                GCTracer::Scope::MINOR_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS))
-        ->Join();
+      // Create batches of global handles.
+      CollectRememberedSetUpdatingItems(
+          this, &updating_items, heap()->old_space(),
+          RememberedSetUpdatingMode::OLD_TO_NEW_ONLY);
+      CollectRememberedSetUpdatingItems(
+          this, &updating_items, heap()->code_space(),
+          RememberedSetUpdatingMode::OLD_TO_NEW_ONLY);
+      CollectRememberedSetUpdatingItems(
+          this, &updating_items, heap()->lo_space(),
+          RememberedSetUpdatingMode::OLD_TO_NEW_ONLY);
+      CollectRememberedSetUpdatingItems(
+          this, &updating_items, heap()->code_lo_space(),
+          RememberedSetUpdatingMode::OLD_TO_NEW_ONLY);
+
+      V8::GetCurrentPlatform()
+          ->CreateJob(
+              v8::TaskPriority::kUserBlocking,
+              std::make_unique<PointersUpdatingJob>(
+                  isolate(), std::move(updating_items),
+                  GCTracer::Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS_PARALLEL,
+                  GCTracer::Scope::
+                      MINOR_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS))
+          ->Join();
+    }
   }
 
   {
@@ -5887,6 +5924,10 @@ void MinorMarkCompactCollector::EvacuatePrologue() {
 
 void MinorMarkCompactCollector::EvacuateEpilogue() {
   heap()->new_space()->EvacuateEpilogue();
+
+#ifdef DEBUG
+  VerifyRememberedSetsAfterEvacuation(heap());
+#endif  // DEBUG
 }
 
 std::unique_ptr<UpdatingItem>
@@ -6257,10 +6298,6 @@ void MinorMarkCompactCollector::Evacuate() {
       DCHECK(!p->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION));
       if (p->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION)) {
         promoted_pages_.push_back(p);
-      } else {
-        // Page was not promoted. Sweep it instead.
-        DCHECK_EQ(NEW_SPACE, p->owner_identity());
-        sweeper()->AddNewSpacePage(p);
       }
     }
     new_space_evacuation_pages_.clear();
@@ -6357,6 +6394,9 @@ void MinorMarkCompactCollector::EvacuatePagesInParallel() {
                            : PromoteUnusablePages::kNo)) {
       EvacuateNewSpacePageVisitor<NEW_TO_OLD>::Move(page);
       evacuation_items.emplace_back(ParallelWorkItem{}, page);
+    } else {
+      // Page is not promoted. Sweep it instead.
+      sweeper()->AddNewSpacePage(page);
     }
   }
 
