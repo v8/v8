@@ -783,13 +783,15 @@ SnapshotSpace GetSnapshotSpace(HeapObject object) {
       // detail and isn't relevant to the snapshot.
       case NEW_LO_SPACE:
       case LO_SPACE:
+      // Shared objects are currently encoded as 'old' snapshot objects. This
+      // basically duplicates shared heap objects for each isolate again.
+      case SHARED_SPACE:
+      case SHARED_LO_SPACE:
         return SnapshotSpace::kOld;
       case CODE_SPACE:
         return SnapshotSpace::kCode;
       case MAP_SPACE:
         return SnapshotSpace::kMap;
-      case SHARED_SPACE:
-      case SHARED_LO_SPACE:
       case CODE_LO_SPACE:
       case RO_SPACE:
         UNREACHABLE();
