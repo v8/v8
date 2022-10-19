@@ -438,9 +438,11 @@ void LocalHeap::InvokeGCEpilogueCallbacksInSafepoint(GCType gc_type,
 
 void LocalHeap::NotifyObjectSizeChange(
     HeapObject object, int old_size, int new_size,
-    ClearRecordedSlots clear_recorded_slots) {
+    ClearRecordedSlots clear_recorded_slots,
+    UpdateInvalidatedObjectSize update_invalidated_object_size) {
   heap()->NotifyObjectSizeChange(object, old_size, new_size,
-                                 clear_recorded_slots);
+                                 clear_recorded_slots,
+                                 update_invalidated_object_size);
 }
 
 }  // namespace internal

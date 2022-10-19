@@ -198,7 +198,9 @@ void InitExternalPointerFieldsDuringExternalization(String string, Map new_map,
 }  // namespace
 
 template <typename IsolateT>
-void String::MakeThin(IsolateT* isolate, String internalized) {
+void String::MakeThin(
+    IsolateT* isolate, String internalized,
+    UpdateInvalidatedObjectSize update_invalidated_object_size) {
   DisallowGarbageCollection no_gc;
   DCHECK_NE(*this, internalized);
   DCHECK(internalized.IsInternalizedString());
@@ -258,7 +260,8 @@ void String::MakeThin(IsolateT* isolate, String internalized) {
       isolate->heap()->NotifyObjectSizeChange(thin, old_size, ThinString::kSize,
                                               may_contain_recorded_slots
                                                   ? ClearRecordedSlots::kYes
-                                                  : ClearRecordedSlots::kNo);
+                                                  : ClearRecordedSlots::kNo,
+                                              update_invalidated_object_size);
     } else {
       // We don't need special handling for the combination IsLargeObject &&
       // may_contain_recorded_slots, because indirect strings never get that
@@ -269,9 +272,11 @@ void String::MakeThin(IsolateT* isolate, String internalized) {
 }
 
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void String::MakeThin(
-    Isolate* isolate, String internalized);
+    Isolate* isolate, String internalized,
+    UpdateInvalidatedObjectSize update_invalidated_object_size);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void String::MakeThin(
-    LocalIsolate* isolate, String internalized);
+    LocalIsolate* isolate, String internalized,
+    UpdateInvalidatedObjectSize update_invalidated_object_size);
 
 template <typename T>
 bool String::MarkForExternalizationDuringGC(Isolate* isolate, T* resource) {
