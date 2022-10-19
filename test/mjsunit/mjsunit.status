@@ -1085,6 +1085,12 @@
 
   # BUG(v8:13379) maglev-inlining flag isn't stable enough for fuzzing.
   'maglev/eager-deopt-in-inline': [SKIP],
+
+  # BUG(v8:13397) skipped until bug is fixed.
+  'tools/processor': [SKIP],
+
+  # BUG(v8:13396) skipped until bug is fixed.
+  'whitespaces*': [SKIP],
 }], # gc_fuzzer or deopt_fuzzer or interrupt_fuzzer
 
 ##############################################################################
