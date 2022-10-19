@@ -1842,6 +1842,16 @@ void Heap::StartIncrementalMarking(int gc_flags,
   VerifyCountersAfterSweeping();
 #endif
 
+  if (isolate()->is_shared_heap_isolate()) {
+    isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
+      if (client->is_shared_heap_isolate()) return;
+
+      if (v8_flags.concurrent_marking) {
+        client->heap()->concurrent_marking()->Pause();
+      }
+    });
+  }
+
   // Now that sweeping is completed, we can start the next full GC cycle.
   tracer()->StartCycle(collector, gc_reason, nullptr,
                        GCTracer::MarkingType::kIncremental);
@@ -1850,6 +1860,17 @@ void Heap::StartIncrementalMarking(int gc_flags,
   current_gc_callback_flags_ = gc_callback_flags;
 
   incremental_marking()->Start(collector, gc_reason);
+
+  if (isolate()->is_shared_heap_isolate()) {
+    isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
+      if (client->is_shared_heap_isolate()) return;
+
+      if (v8_flags.concurrent_marking &&
+          client->heap()->incremental_marking()->IsMarking()) {
+        client->heap()->concurrent_marking()->Resume();
+      }
+    });
+  }
 }
 
 void Heap::CompleteSweepingFull() {
@@ -2148,6 +2169,11 @@ size_t Heap::PerformGarbageCollection(
   if (isolate()->is_shared_heap_isolate()) {
     isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
       if (client->is_shared_heap_isolate()) return;
+
+      if (v8_flags.concurrent_marking) {
+        client->heap()->concurrent_marking()->Pause();
+      }
+
       HeapVerifier::VerifyHeapIfEnabled(client->heap());
     });
   }
@@ -2233,6 +2259,12 @@ size_t Heap::PerformGarbageCollection(
   if (isolate()->is_shared_heap_isolate()) {
     isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
       if (client->is_shared_heap_isolate()) return;
+
+      if (v8_flags.concurrent_marking &&
+          client->heap()->incremental_marking()->IsMarking()) {
+        client->heap()->concurrent_marking()->Resume();
+      }
+
       HeapVerifier::VerifyHeapIfEnabled(client->heap());
     });
   }
