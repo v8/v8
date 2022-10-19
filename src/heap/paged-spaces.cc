@@ -912,11 +912,10 @@ bool PagedSpaceBase::RawRefillLabMain(int size_in_bytes,
 
   const bool is_main_thread =
       heap()->IsMainThread() || heap()->IsSharedMainThread();
-  const auto sweeping_scope_id =
-      is_main_thread ? heap()->sweeper()->GetTracingScope()
-                     : heap()->sweeper()->GetBackgroundTracingScope();
   const auto sweeping_scope_kind =
       is_main_thread ? ThreadKind::kMain : ThreadKind::kBackground;
+  const auto sweeping_scope_id =
+      heap()->sweeper()->GetTracingScope(identity(), is_main_thread);
   // Sweeping is still in progress.
   if (heap()->sweeping_in_progress()) {
     // First try to refill the free-list, concurrent sweeper threads

@@ -208,7 +208,7 @@ void ShrinkNewSpace(NewSpace* new_space) {
   paged_new_space->FinishShrinking();
   tracer->StopAtomicPause();
   tracer->StopObservablePause();
-  tracer->NotifySweepingCompleted();
+  tracer->NotifyFullSweepingCompleted();
 }
 }  // namespace
 

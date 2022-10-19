@@ -10,6 +10,7 @@
 
 #include "src/base/logging.h"
 #include "src/base/optional.h"
+#include "src/base/platform/platform.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/common/globals.h"
@@ -974,7 +975,8 @@ void ShrinkPagesToObjectSizes(Heap* heap, OldLargeObjectSpace* space) {
 
 void MarkCompactCollector::Finish() {
   {
-    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_SWEEP);
+    TRACE_GC_EPOCH(heap()->tracer(), GCTracer::Scope::MC_SWEEP,
+                   ThreadKind::kMain);
     if (heap()->new_lo_space()) {
       TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_SWEEP_NEW_LO);
       SweepLargeSpace(heap()->new_lo_space());
@@ -5345,7 +5347,8 @@ void MarkCompactCollector::ReleaseEvacuationCandidates() {
 
 void MarkCompactCollector::Sweep() {
   DCHECK(!sweeper()->sweeping_in_progress());
-  TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_SWEEP);
+  TRACE_GC_EPOCH(heap()->tracer(), GCTracer::Scope::MC_SWEEP,
+                 ThreadKind::kMain);
 #ifdef DEBUG
   state_ = SWEEP_SPACES;
 #endif
@@ -5371,8 +5374,8 @@ void MarkCompactCollector::Sweep() {
     StartSweepSpace(heap()->code_space());
   }
   if (heap()->shared_space()) {
-    GCTracer::Scope sweep_scope(heap()->tracer(), GCTracer::Scope::MC_SWEEP_MAP,
-                                ThreadKind::kMain);
+    GCTracer::Scope sweep_scope(
+        heap()->tracer(), GCTracer::Scope::MC_SWEEP_SHARED, ThreadKind::kMain);
     StartSweepSpace(heap()->shared_space());
   }
   if (v8_flags.minor_mc && heap()->new_space()) {
@@ -5693,6 +5696,8 @@ class MinorMarkCompactCollector::RootMarkingVisitor : public RootVisitor {
 };
 
 void MinorMarkCompactCollector::Prepare() {
+  DCHECK(sweeper()->IsSweepingDoneForSpace(NEW_SPACE));
+
   // Probably requires more.
   if (!heap()->incremental_marking()->IsMarking()) {
     StartMarking();
@@ -6384,7 +6389,7 @@ void MinorMarkCompactCollector::EvacuatePagesInParallel() {
 }
 
 void MinorMarkCompactCollector::Sweep() {
-  DCHECK(!sweeper()->sweeping_in_progress());
+  DCHECK(!sweeper()->AreSweeperTasksRunning());
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_SWEEP);
   {
     GCTracer::Scope sweep_scope(heap()->tracer(),

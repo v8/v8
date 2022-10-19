@@ -107,16 +107,18 @@ class Sweeper {
   // are not running yet.
   void StartSweeping(GarbageCollector collector);
   V8_EXPORT_PRIVATE void StartSweeperTasks();
-  void EnsureCompleted(
-      SweepingMode sweeping_mode = SweepingMode::kLazyOrConcurrent);
+  void EnsureCompleted();
+  void PauseAndEnsureNewSpaceCompleted();
   void DrainSweepingWorklistForSpace(AllocationSpace space);
   bool AreSweeperTasksRunning();
 
   Page* GetSweptPageSafe(PagedSpaceBase* space);
 
-  GCTracer::Scope::ScopeId GetBackgroundTracingScope();
+  bool IsSweepingDoneForSpace(AllocationSpace space);
 
-  GCTracer::Scope::ScopeId GetTracingScope();
+  GCTracer::Scope::ScopeId GetTracingScope(AllocationSpace space,
+                                           bool is_joining_thread);
+  GCTracer::Scope::ScopeId GetTracingScopeForCompleteYoungSweep();
 
  private:
   NonAtomicMarkingState* marking_state() const { return marking_state_; }
@@ -206,9 +208,10 @@ class Sweeper {
   // path checks this flag to see whether it could support concurrent sweeping.
   std::atomic<bool> sweeping_in_progress_;
   bool should_reduce_memory_;
+  bool should_sweep_non_new_spaces_ = false;
   PretenturingHandler* const pretenuring_handler_;
   PretenturingHandler::PretenuringFeedbackMap local_pretenuring_feedback_;
-  base::Optional<GarbageCollector> current_collector_;
+  base::Optional<GarbageCollector> current_new_space_collector_;
 };
 
 }  // namespace internal

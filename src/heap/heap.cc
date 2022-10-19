@@ -2351,15 +2351,13 @@ void Heap::CompleteSweepingYoung(GarbageCollector collector) {
     array_buffer_sweeper()->EnsureFinished();
   }
 
-  if (v8_flags.minor_mc) {
-    DCHECK(v8_flags.separate_gc_phases);
-    // Do not interleave sweeping.
-    EnsureSweepingCompleted(SweepingForcedFinalizationMode::kV8Only);
-  } else {
-    // If sweeping is in progress and there are no sweeper tasks running, finish
-    // the sweeping here, to avoid having to pause and resume during the young
-    // generation GC.
-    FinishSweepingIfOutOfWork();
+  // If sweeping is in progress and there are no sweeper tasks running, finish
+  // the sweeping here, to avoid having to pause and resume during the young
+  // generation GC.
+  FinishSweepingIfOutOfWork();
+
+  if (v8_flags.minor_mc && sweeping_in_progress()) {
+    PauseSweepingAndEnsureYoungSweepingCompleted();
   }
 
 #if defined(CPPGC_YOUNG_GENERATION)
@@ -7313,7 +7311,7 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
       paged_new_space()->paged_space()->RefillFreeList();
     }
 
-    tracer()->NotifySweepingCompleted();
+    tracer()->NotifyFullSweepingCompleted();
 
 #ifdef VERIFY_HEAP
     if (v8_flags.verify_heap && !evacuation()) {
@@ -7333,6 +7331,25 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
   DCHECK_IMPLIES(
       mode == SweepingForcedFinalizationMode::kUnifiedHeap || !cpp_heap(),
       !tracer()->IsSweepingInProgress());
+}
+
+void Heap::PauseSweepingAndEnsureYoungSweepingCompleted() {
+  if (sweeper()->sweeping_in_progress()) {
+    TRACE_GC_EPOCH(tracer(), sweeper()->GetTracingScopeForCompleteYoungSweep(),
+                   ThreadKind::kMain);
+
+    sweeper()->PauseAndEnsureNewSpaceCompleted();
+    paged_new_space()->paged_space()->RefillFreeList();
+
+    tracer()->NotifyYoungSweepingCompleted();
+
+#ifdef VERIFY_HEAP
+    if (v8_flags.verify_heap && !evacuation()) {
+      YoungGenerationEvacuationVerifier verifier(this);
+      verifier.Run();
+    }
+#endif
+  }
 }
 
 void Heap::DrainSweepingWorklistForSpace(AllocationSpace space) {

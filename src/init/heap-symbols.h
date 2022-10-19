@@ -631,6 +631,7 @@
   TOP_MINOR_MC_SCOPES(F)                             \
   F(MINOR_MC_CLEAR_STRING_TABLE)                     \
   F(MINOR_MC_COMPLETE_SWEEP_ARRAY_BUFFERS)           \
+  F(MINOR_MC_COMPLETE_SWEEPING)                      \
   F(MINOR_MC_EVACUATE_CLEAN_UP)                      \
   F(MINOR_MC_EVACUATE_COPY)                          \
   F(MINOR_MC_EVACUATE_COPY_PARALLEL)                 \
