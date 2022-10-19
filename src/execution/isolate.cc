@@ -506,9 +506,9 @@ Isolate* Isolate::process_wide_shared_isolate_{nullptr};
 
 Isolate* Isolate::process_wide_shared_space_isolate_{nullptr};
 
-base::Thread::LocalStorageKey Isolate::isolate_key_;
-base::Thread::LocalStorageKey Isolate::per_isolate_thread_data_key_;
-std::atomic<bool> Isolate::isolate_key_created_{false};
+thread_local Isolate::PerIsolateThreadData* g_current_per_isolate_thread_data_
+    V8_CONSTINIT = nullptr;
+thread_local Isolate* g_current_isolate_ V8_CONSTINIT = nullptr;
 
 namespace {
 // A global counter for all generated Isolates, might overflow.
@@ -563,23 +563,7 @@ Isolate::PerIsolateThreadData* Isolate::FindPerThreadDataForThread(
   return per_thread;
 }
 
-void Isolate::InitializeOncePerProcess() {
-  isolate_key_ = base::Thread::CreateThreadLocalKey();
-  bool expected = false;
-  CHECK(isolate_key_created_.compare_exchange_strong(
-      expected, true, std::memory_order_relaxed));
-  per_isolate_thread_data_key_ = base::Thread::CreateThreadLocalKey();
-
-  Heap::InitializeOncePerProcess();
-}
-
-void Isolate::DisposeOncePerProcess() {
-  base::Thread::DeleteThreadLocalKey(isolate_key_);
-  bool expected = true;
-  CHECK(isolate_key_created_.compare_exchange_strong(
-      expected, false, std::memory_order_relaxed));
-  base::Thread::DeleteThreadLocalKey(per_isolate_thread_data_key_);
-}
+void Isolate::InitializeOncePerProcess() { Heap::InitializeOncePerProcess(); }
 
 Address Isolate::get_address_from_id(IsolateAddressId id) {
   return isolate_addresses_[id];
@@ -3376,9 +3360,7 @@ void Isolate::Delete(Isolate* isolate) {
   // direct pointer. We don't use Enter/Exit here to avoid
   // initializing the thread data.
   PerIsolateThreadData* saved_data = isolate->CurrentPerIsolateThreadData();
-  DCHECK_EQ(true, isolate_key_created_.load(std::memory_order_relaxed));
-  Isolate* saved_isolate = reinterpret_cast<Isolate*>(
-      base::Thread::GetThreadLocal(isolate->isolate_key_));
+  Isolate* saved_isolate = isolate->TryGetCurrent();
   SetIsolateThreadLocals(isolate, nullptr);
   isolate->set_thread_id(ThreadId::Current());
 
@@ -3737,8 +3719,8 @@ void Isolate::Deinit() {
 
 void Isolate::SetIsolateThreadLocals(Isolate* isolate,
                                      PerIsolateThreadData* data) {
-  base::Thread::SetThreadLocal(isolate_key_, isolate);
-  base::Thread::SetThreadLocal(per_isolate_thread_data_key_, data);
+  g_current_isolate_ = isolate;
+  g_current_per_isolate_thread_data_ = data;
 }
 
 Isolate::~Isolate() {
