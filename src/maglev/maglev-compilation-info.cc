@@ -102,14 +102,6 @@ void MaglevCompilationInfo::set_code_generator(
   code_generator_ = std::move(code_generator);
 }
 
-void MaglevCompilationInfo::set_translation_array_builder(
-    std::unique_ptr<TranslationArrayBuilder> translation_array_builder,
-    std::unique_ptr<IdentityMap<int, base::DefaultAllocationPolicy>>
-        deopt_literals) {
-  translation_array_builder_ = std::move(translation_array_builder);
-  deopt_literals_ = std::move(deopt_literals);
-}
-
 void MaglevCompilationInfo::ReopenHandlesInNewHandleScope(Isolate* isolate) {}
 
 void MaglevCompilationInfo::set_persistent_handles(

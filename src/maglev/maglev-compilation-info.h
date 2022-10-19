@@ -69,19 +69,6 @@ class MaglevCompilationInfo final {
   void set_code_generator(std::unique_ptr<MaglevCodeGenerator> code_generator);
   MaglevCodeGenerator* code_generator() const { return code_generator_.get(); }
 
-  void set_translation_array_builder(
-      std::unique_ptr<TranslationArrayBuilder> translation_array_builder,
-      std::unique_ptr<IdentityMap<int, base::DefaultAllocationPolicy>>
-          deopt_literals);
-  TranslationArrayBuilder& translation_array_builder() const {
-    DCHECK(translation_array_builder_);
-    return *translation_array_builder_;
-  }
-  IdentityMap<int, base::DefaultAllocationPolicy>& deopt_literals() const {
-    DCHECK(deopt_literals_);
-    return *deopt_literals_;
-  }
-
   // Flag accessors (for thread-safe access to global flags).
   // TODO(v8:7700): Consider caching these.
 #define V(Name) \
@@ -119,10 +106,6 @@ class MaglevCompilationInfo final {
 
   // Produced off-thread during ExecuteJobImpl.
   std::unique_ptr<MaglevCodeGenerator> code_generator_;
-
-  std::unique_ptr<TranslationArrayBuilder> translation_array_builder_;
-  std::unique_ptr<IdentityMap<int, base::DefaultAllocationPolicy>>
-      deopt_literals_;
 
 #define V(Name) const bool Name##_;
   MAGLEV_COMPILATION_FLAG_LIST(V)

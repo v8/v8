@@ -950,9 +950,6 @@ class MaglevCodeGeneratingNodeProcessor {
   MaglevGraphLabeller* graph_labeller() const {
     return code_gen_state()->graph_labeller();
   }
-  MaglevSafepointTableBuilder* safepoint_table_builder() const {
-    return code_gen_state()->safepoint_table_builder();
-  }
 
  private:
   MaglevAssembler* const masm_;
@@ -960,24 +957,284 @@ class MaglevCodeGeneratingNodeProcessor {
   Label deferred_call_stack_guard_return_;
 };
 
+class MaglevTranslationArrayBuilder {
+ public:
+  MaglevTranslationArrayBuilder(
+      LocalIsolate* local_isolate, MaglevAssembler* masm,
+      TranslationArrayBuilder* translation_array_builder,
+      IdentityMap<int, base::DefaultAllocationPolicy>* deopt_literals)
+      : local_isolate_(local_isolate),
+        masm_(masm),
+        translation_array_builder_(translation_array_builder),
+        deopt_literals_(deopt_literals) {}
+
+  void BuildEagerDeopt(EagerDeoptInfo* deopt_info) {
+    int frame_count = 1 + deopt_info->unit.inlining_depth();
+    int jsframe_count = frame_count;
+    int update_feedback_count = 0;
+    deopt_info->translation_index =
+        translation_array_builder_->BeginTranslation(frame_count, jsframe_count,
+                                                     update_feedback_count);
+
+    const InputLocation* current_input_location = deopt_info->input_locations;
+    BuildDeoptFrame(deopt_info->unit, deopt_info->state,
+                    current_input_location);
+  }
+
+  void BuildLazyDeopt(LazyDeoptInfo* deopt_info) {
+    int frame_count = 1 + deopt_info->unit.inlining_depth();
+    int jsframe_count = frame_count;
+    int update_feedback_count = 0;
+    deopt_info->translation_index =
+        translation_array_builder_->BeginTranslation(frame_count, jsframe_count,
+                                                     update_feedback_count);
+
+    const MaglevCompilationUnit& unit = deopt_info->unit;
+    const InputLocation* current_input_location = deopt_info->input_locations;
+
+    if (deopt_info->state.parent) {
+      // Deopt input locations are in the order of deopt frame emission, so
+      // update the pointer after emitting the parent frame.
+      BuildDeoptFrame(*unit.caller(), *deopt_info->state.parent,
+                      current_input_location);
+    }
+
+    // Return offsets are counted from the end of the translation frame, which
+    // is the array [parameters..., locals..., accumulator]. Since it's the end,
+    // we don't need to worry about earlier frames.
+    int return_offset;
+    if (deopt_info->result_location ==
+        interpreter::Register::virtual_accumulator()) {
+      return_offset = 0;
+    } else if (deopt_info->result_location.is_parameter()) {
+      // This is slightly tricky to reason about because of zero indexing and
+      // fence post errors. As an example, consider a frame with 2 locals and
+      // 2 parameters, where we want argument index 1 -- looking at the array
+      // in reverse order we have:
+      //   [acc, r1, r0, a1, a0]
+      //                  ^
+      // and this calculation gives, correctly:
+      //   2 + 2 - 1 = 3
+      return_offset = unit.register_count() + unit.parameter_count() -
+                      deopt_info->result_location.ToParameterIndex();
+    } else {
+      return_offset =
+          unit.register_count() - deopt_info->result_location.index();
+    }
+    translation_array_builder_->BeginInterpretedFrame(
+        deopt_info->state.bytecode_position,
+        GetDeoptLiteral(*unit.shared_function_info().object()),
+        unit.register_count(), return_offset, deopt_info->result_size);
+
+    BuildDeoptFrameValues(unit, deopt_info->state.register_frame,
+                          current_input_location, deopt_info->result_location,
+                          deopt_info->result_size);
+  }
+
+ private:
+  constexpr int DeoptStackSlotIndexFromFPOffset(int offset) {
+    return 1 - offset / kSystemPointerSize;
+  }
+
+  int DeoptStackSlotFromStackSlot(const compiler::AllocatedOperand& operand) {
+    return DeoptStackSlotIndexFromFPOffset(
+        masm_->GetFramePointerOffsetForStackSlot(operand));
+  }
+
+  bool InReturnValues(interpreter::Register reg,
+                      interpreter::Register result_location, int result_size) {
+    if (result_size == 0 || !result_location.is_valid()) {
+      return false;
+    }
+    return base::IsInRange(reg.index(), result_location.index(),
+                           result_location.index() + result_size - 1);
+  }
+
+  void BuildDeoptFrame(const MaglevCompilationUnit& unit,
+                       const CheckpointedInterpreterState& state,
+                       const InputLocation*& current_input_location) {
+    if (state.parent) {
+      // Deopt input locations are in the order of deopt frame emission, so
+      // update the pointer after emitting the parent frame.
+      BuildDeoptFrame(*unit.caller(), *state.parent, current_input_location);
+    }
+
+    // Returns are used for updating an accumulator or register after a lazy
+    // deopt.
+    const int return_offset = 0;
+    const int return_count = 0;
+    translation_array_builder_->BeginInterpretedFrame(
+        state.bytecode_position,
+        GetDeoptLiteral(*unit.shared_function_info().object()),
+        unit.register_count(), return_offset, return_count);
+
+    BuildDeoptFrameValues(unit, state.register_frame, current_input_location,
+                          interpreter::Register::invalid_value(), return_count);
+  }
+
+  void BuildDeoptStoreRegister(const compiler::AllocatedOperand& operand,
+                               ValueRepresentation repr) {
+    switch (repr) {
+      case ValueRepresentation::kTagged:
+        translation_array_builder_->StoreRegister(operand.GetRegister());
+        break;
+      case ValueRepresentation::kInt32:
+        translation_array_builder_->StoreInt32Register(operand.GetRegister());
+        break;
+      case ValueRepresentation::kFloat64:
+        translation_array_builder_->StoreDoubleRegister(
+            operand.GetDoubleRegister());
+        break;
+    }
+  }
+
+  void BuildDeoptStoreStackSlot(const compiler::AllocatedOperand& operand,
+                                ValueRepresentation repr) {
+    int stack_slot = DeoptStackSlotFromStackSlot(operand);
+    switch (repr) {
+      case ValueRepresentation::kTagged:
+        translation_array_builder_->StoreStackSlot(stack_slot);
+        break;
+      case ValueRepresentation::kInt32:
+        translation_array_builder_->StoreInt32StackSlot(stack_slot);
+        break;
+      case ValueRepresentation::kFloat64:
+        translation_array_builder_->StoreDoubleStackSlot(stack_slot);
+        break;
+    }
+  }
+
+  void BuildDeoptFrameSingleValue(ValueNode* value,
+                                  const InputLocation& input_location) {
+    if (input_location.operand().IsConstant()) {
+      translation_array_builder_->StoreLiteral(
+          GetDeoptLiteral(*value->Reify(local_isolate_)));
+    } else {
+      const compiler::AllocatedOperand& operand =
+          compiler::AllocatedOperand::cast(input_location.operand());
+      ValueRepresentation repr = value->properties().value_representation();
+      if (operand.IsAnyRegister()) {
+        BuildDeoptStoreRegister(operand, repr);
+      } else {
+        BuildDeoptStoreStackSlot(operand, repr);
+      }
+    }
+  }
+
+  void BuildDeoptFrameValues(
+      const MaglevCompilationUnit& compilation_unit,
+      const CompactInterpreterFrameState* checkpoint_state,
+      const InputLocation*& input_location,
+      interpreter::Register result_location, int result_size) {
+    // Closure
+    if (compilation_unit.inlining_depth() == 0) {
+      int closure_index = DeoptStackSlotIndexFromFPOffset(
+          StandardFrameConstants::kFunctionOffset);
+      translation_array_builder_->StoreStackSlot(closure_index);
+    } else {
+      translation_array_builder_->StoreLiteral(
+          GetDeoptLiteral(*compilation_unit.function().object()));
+    }
+
+    // TODO(leszeks): The input locations array happens to be in the same order
+    // as parameters+context+locals+accumulator are accessed here. We should
+    // make this clearer and guard against this invariant failing.
+
+    // Parameters
+    {
+      int i = 0;
+      checkpoint_state->ForEachParameter(
+          compilation_unit, [&](ValueNode* value, interpreter::Register reg) {
+            DCHECK_EQ(reg.ToParameterIndex(), i);
+            if (InReturnValues(reg, result_location, result_size)) {
+              translation_array_builder_->StoreOptimizedOut();
+            } else {
+              BuildDeoptFrameSingleValue(value, *input_location);
+              input_location++;
+            }
+            i++;
+          });
+    }
+
+    // Context
+    ValueNode* value = checkpoint_state->context(compilation_unit);
+    BuildDeoptFrameSingleValue(value, *input_location);
+    input_location++;
+
+    // Locals
+    {
+      int i = 0;
+      checkpoint_state->ForEachLocal(
+          compilation_unit, [&](ValueNode* value, interpreter::Register reg) {
+            DCHECK_LE(i, reg.index());
+            if (InReturnValues(reg, result_location, result_size)) return;
+            while (i < reg.index()) {
+              translation_array_builder_->StoreOptimizedOut();
+              i++;
+            }
+            DCHECK_EQ(i, reg.index());
+            BuildDeoptFrameSingleValue(value, *input_location);
+            input_location++;
+            i++;
+          });
+      while (i < compilation_unit.register_count()) {
+        translation_array_builder_->StoreOptimizedOut();
+        i++;
+      }
+    }
+
+    // Accumulator
+    {
+      if (checkpoint_state->liveness()->AccumulatorIsLive() &&
+          !InReturnValues(interpreter::Register::virtual_accumulator(),
+                          result_location, result_size)) {
+        ValueNode* value = checkpoint_state->accumulator(compilation_unit);
+        BuildDeoptFrameSingleValue(value, *input_location);
+        input_location++;
+      } else {
+        translation_array_builder_->StoreOptimizedOut();
+      }
+    }
+  }
+
+  int GetDeoptLiteral(Object obj) {
+    IdentityMapFindResult<int> res = deopt_literals_->FindOrInsert(obj);
+    if (!res.already_exists) {
+      DCHECK_EQ(0, *res.entry);
+      *res.entry = deopt_literals_->size() - 1;
+    }
+    return *res.entry;
+  }
+
+  LocalIsolate* local_isolate_;
+  MaglevAssembler* masm_;
+  TranslationArrayBuilder* translation_array_builder_;
+  IdentityMap<int, base::DefaultAllocationPolicy>* deopt_literals_;
+};
+
 }  // namespace
 
 MaglevCodeGenerator::MaglevCodeGenerator(
-    Isolate* isolate, MaglevCompilationInfo* compilation_info, Graph* graph)
-    : isolate_(isolate),
+    LocalIsolate* isolate, MaglevCompilationInfo* compilation_info,
+    Graph* graph)
+    : local_isolate_(isolate),
       safepoint_table_builder_(compilation_info->zone(),
                                graph->tagged_stack_slots(),
                                graph->untagged_stack_slots()),
-      code_gen_state_(compilation_info, safepoint_table_builder()),
-      masm_(isolate, &code_gen_state_),
-      graph_(graph) {}
+      translation_array_builder_(compilation_info->zone()),
+      code_gen_state_(compilation_info, &safepoint_table_builder_),
+      masm_(isolate->GetMainThreadIsolateUnsafe(), &code_gen_state_),
+      graph_(graph),
+      deopt_literals_(isolate->heap()->heap()) {}
 
 void MaglevCodeGenerator::Assemble() {
   EmitCode();
   EmitMetadata();
 }
 
-MaybeHandle<Code> MaglevCodeGenerator::Generate() { return BuildCodeObject(); }
+MaybeHandle<Code> MaglevCodeGenerator::Generate(Isolate* isolate) {
+  return BuildCodeObject(isolate);
+}
 
 void MaglevCodeGenerator::EmitCode() {
   GraphProcessor<MaglevCodeGeneratingNodeProcessor> processor(masm());
@@ -1001,12 +1258,17 @@ void MaglevCodeGenerator::EmitDeferredCode() {
 }
 
 void MaglevCodeGenerator::EmitDeopts() {
+  MaglevTranslationArrayBuilder translation_builder(
+      local_isolate_, &masm_, &translation_array_builder_, &deopt_literals_);
+
   deopt_exit_start_offset_ = __ pc_offset();
 
   int deopt_index = 0;
 
   __ RecordComment("-- Non-lazy deopts");
   for (EagerDeoptInfo* deopt_info : code_gen_state_.eager_deopts()) {
+    translation_builder.BuildEagerDeopt(deopt_info);
+
     if (masm_.compilation_info()->collect_source_positions()) {
       __ RecordDeoptReason(deopt_info->reason, 0, deopt_info->source_position,
                            deopt_index);
@@ -1021,6 +1283,8 @@ void MaglevCodeGenerator::EmitDeopts() {
   __ RecordComment("-- Lazy deopts");
   int last_updated_safepoint = 0;
   for (LazyDeoptInfo* deopt_info : code_gen_state_.lazy_deopts()) {
+    translation_builder.BuildLazyDeopt(deopt_info);
+
     if (masm_.compilation_info()->collect_source_positions()) {
       __ RecordDeoptReason(DeoptimizeReason::kUnknown, 0,
                            deopt_info->source_position, deopt_index);
@@ -1050,7 +1314,7 @@ void MaglevCodeGenerator::EmitMetadata() {
   // Final alignment before starting on the metadata section.
   masm()->Align(Code::kMetadataAlignment);
 
-  safepoint_table_builder()->Emit(masm());
+  safepoint_table_builder_.Emit(masm());
 
   // Exception handler table.
   handler_table_offset_ = HandlerTable::EmitReturnTableStart(masm());
@@ -1061,31 +1325,30 @@ void MaglevCodeGenerator::EmitMetadata() {
   }
 }
 
-MaybeHandle<Code> MaglevCodeGenerator::BuildCodeObject() {
+MaybeHandle<Code> MaglevCodeGenerator::BuildCodeObject(Isolate* isolate) {
   CodeDesc desc;
-  masm()->GetCode(isolate(), &desc, safepoint_table_builder(),
+  masm()->GetCode(isolate, &desc, &safepoint_table_builder_,
                   handler_table_offset_);
-  return Factory::CodeBuilder{isolate(), desc, CodeKind::MAGLEV}
+  return Factory::CodeBuilder{isolate, desc, CodeKind::MAGLEV}
       .set_stack_slots(stack_slot_count_with_fixed_frame())
-      .set_deoptimization_data(GenerateDeoptimizationData())
+      .set_deoptimization_data(GenerateDeoptimizationData(isolate))
       .TryBuild();
 }
 
-Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData() {
+Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(
+    Isolate* isolate) {
   int eager_deopt_count =
       static_cast<int>(code_gen_state_.eager_deopts().size());
   int lazy_deopt_count = static_cast<int>(code_gen_state_.lazy_deopts().size());
   int deopt_count = lazy_deopt_count + eager_deopt_count;
   if (deopt_count == 0) {
-    return DeoptimizationData::Empty(isolate());
+    return DeoptimizationData::Empty(isolate);
   }
   Handle<DeoptimizationData> data =
-      DeoptimizationData::New(isolate(), deopt_count, AllocationType::kOld);
+      DeoptimizationData::New(isolate, deopt_count, AllocationType::kOld);
 
   Handle<TranslationArray> translation_array =
-      code_gen_state_.compilation_info()
-          ->translation_array_builder()
-          .ToTranslationArray(isolate()->factory());
+      translation_array_builder_.ToTranslationArray(isolate->factory());
   {
     DisallowGarbageCollection no_gc;
     auto raw_data = *data;
@@ -1107,29 +1370,27 @@ Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData() {
                                         .object());
   }
 
-  IdentityMap<int, base::DefaultAllocationPolicy>& deopt_literals =
-      code_gen_state_.compilation_info()->deopt_literals();
   Handle<DeoptimizationLiteralArray> literals =
-      isolate()->factory()->NewDeoptimizationLiteralArray(
-          deopt_literals.size() + 1);
+      isolate->factory()->NewDeoptimizationLiteralArray(deopt_literals_.size() +
+                                                        1);
   // TODO(leszeks): Fix with the real inlining positions.
   Handle<PodArray<InliningPosition>> inlining_positions =
-      PodArray<InliningPosition>::New(isolate(), 0);
+      PodArray<InliningPosition>::New(isolate, 0);
   DisallowGarbageCollection no_gc;
 
   auto raw_literals = *literals;
   auto raw_data = *data;
   IdentityMap<int, base::DefaultAllocationPolicy>::IteratableScope iterate(
-      &deopt_literals);
+      &deopt_literals_);
   for (auto it = iterate.begin(); it != iterate.end(); ++it) {
     raw_literals.set(*it.entry(), it.key());
   }
   // Add the bytecode to the deopt literals to make sure it's held strongly.
   // TODO(leszeks): Do this for inlined functions too.
-  raw_literals.set(deopt_literals.size(), *code_gen_state_.compilation_info()
-                                               ->toplevel_compilation_unit()
-                                               ->bytecode()
-                                               .object());
+  raw_literals.set(deopt_literals_.size(), *code_gen_state_.compilation_info()
+                                                ->toplevel_compilation_unit()
+                                                ->bytecode()
+                                                .object());
   raw_data.SetLiteralArray(raw_literals);
 
   // TODO(leszeks): Fix with the real inlining positions.

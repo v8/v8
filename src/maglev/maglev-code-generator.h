@@ -7,8 +7,10 @@
 
 #include "src/codegen/maglev-safepoint-table.h"
 #include "src/common/globals.h"
+#include "src/deoptimizer/translation-array.h"
 #include "src/maglev/maglev-assembler.h"
 #include "src/maglev/maglev-code-gen-state.h"
+#include "src/utils/identity-map.h"
 
 namespace v8 {
 namespace internal {
@@ -19,12 +21,12 @@ class MaglevCompilationInfo;
 
 class MaglevCodeGenerator final {
  public:
-  MaglevCodeGenerator(Isolate* isolate, MaglevCompilationInfo* compilation_info,
-                      Graph* graph);
+  MaglevCodeGenerator(LocalIsolate* isolate,
+                      MaglevCompilationInfo* compilation_info, Graph* graph);
 
   void Assemble();
 
-  MaybeHandle<Code> Generate();
+  MaybeHandle<Code> Generate(Isolate* isolate);
 
  private:
   void EmitCode();
@@ -33,27 +35,24 @@ class MaglevCodeGenerator final {
   void EmitExceptionHandlerTrampolines();
   void EmitMetadata();
 
-  MaybeHandle<Code> BuildCodeObject();
-
-  Handle<DeoptimizationData> GenerateDeoptimizationData();
+  MaybeHandle<Code> BuildCodeObject(Isolate* isolate);
+  Handle<DeoptimizationData> GenerateDeoptimizationData(Isolate* isolate);
 
   int stack_slot_count() const { return code_gen_state_.stack_slots(); }
   int stack_slot_count_with_fixed_frame() const {
     return stack_slot_count() + StandardFrameConstants::kFixedSlotCount;
   }
 
-  Isolate* isolate() const { return isolate_; }
   MaglevAssembler* masm() { return &masm_; }
-  MaglevSafepointTableBuilder* safepoint_table_builder() {
-    return &safepoint_table_builder_;
-  }
 
-  Isolate* isolate_;
+  LocalIsolate* local_isolate_;
   MaglevSafepointTableBuilder safepoint_table_builder_;
+  TranslationArrayBuilder translation_array_builder_;
   MaglevCodeGenState code_gen_state_;
   MaglevAssembler masm_;
   Graph* const graph_;
 
+  IdentityMap<int, base::DefaultAllocationPolicy> deopt_literals_;
   int deopt_exit_start_offset_ = -1;
   int handler_table_offset_ = 0;
 };
