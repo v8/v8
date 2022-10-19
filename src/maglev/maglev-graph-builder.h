@@ -946,6 +946,10 @@ class MaglevGraphBuilder {
   void BuildCallFromRegisters(int argc_count,
                               ConvertReceiverMode receiver_mode);
 
+  bool TryBuildScriptContextConstantAccess(
+      const compiler::GlobalAccessFeedback& global_access_feedback);
+  bool TryBuildScriptContextAccess(
+      const compiler::GlobalAccessFeedback& global_access_feedback);
   bool TryBuildPropertyCellAccess(
       const compiler::GlobalAccessFeedback& global_access_feedback);
 

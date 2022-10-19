@@ -891,6 +891,31 @@ void MaglevGraphBuilder::VisitTestTypeOf() {
   SetAccumulator(AddNewNode<TestTypeOf>({value}, literal));
 }
 
+bool MaglevGraphBuilder::TryBuildScriptContextConstantAccess(
+    const compiler::GlobalAccessFeedback& global_access_feedback) {
+  if (!global_access_feedback.immutable()) return false;
+
+  base::Optional<compiler::ObjectRef> maybe_slot_value =
+      global_access_feedback.script_context().get(
+          global_access_feedback.slot_index());
+  if (!maybe_slot_value) return false;
+
+  SetAccumulator(GetConstant(maybe_slot_value.value()));
+  return true;
+}
+
+bool MaglevGraphBuilder::TryBuildScriptContextAccess(
+    const compiler::GlobalAccessFeedback& global_access_feedback) {
+  if (!global_access_feedback.IsScriptContextSlot()) return false;
+  if (TryBuildScriptContextConstantAccess(global_access_feedback)) return true;
+
+  auto script_context = GetConstant(global_access_feedback.script_context());
+  SetAccumulator(AddNewNode<LoadTaggedField>(
+      {script_context},
+      Context::OffsetOfElementAt(global_access_feedback.slot_index())));
+  return true;
+}
+
 bool MaglevGraphBuilder::TryBuildPropertyCellAccess(
     const compiler::GlobalAccessFeedback& global_access_feedback) {
   // TODO(leszeks): A bunch of this is copied from
@@ -1815,9 +1840,8 @@ void MaglevGraphBuilder::BuildLoadGlobal(
   const compiler::GlobalAccessFeedback& global_access_feedback =
       access_feedback.AsGlobalAccess();
 
+  if (TryBuildScriptContextAccess(global_access_feedback)) return;
   if (TryBuildPropertyCellAccess(global_access_feedback)) return;
-
-  // TODO(leszeks): Handle the IsScriptContextSlot case.
 
   ValueNode* context = GetContext();
   SetAccumulator(
