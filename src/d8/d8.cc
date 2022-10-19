@@ -3954,7 +3954,7 @@ V8_NOINLINE void FuzzerMonitor::ObservableDifference() {
 V8_NOINLINE void FuzzerMonitor::UndefinedBehavior() {
   // Caught by UBSAN.
   int32_t val = -1;
-  USE(val << 8);
+  USE(val << val);
 }
 
 V8_NOINLINE void FuzzerMonitor::UseAfterFree() {
