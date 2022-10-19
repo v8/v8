@@ -144,6 +144,7 @@ defaults_ci = {
     "service_account": "v8-ci-builder@chops-service-accounts.iam.gserviceaccount.com",
     "execution_timeout": 7200,
     "build_numbers": True,
+    "resultdb_bq_table_prefix": "ci",
 }
 
 defaults_ci_br = dict(defaults_ci)

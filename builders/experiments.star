@@ -158,6 +158,7 @@ in_category(
         use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["sheriffs on new failure", "blamelist"],
+        enable_rdb = True,
     ),
 )
 
