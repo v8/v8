@@ -90,7 +90,7 @@ class ValueNumberingAssembler : public Assembler {
 
 #define EMIT_OP(Name)                                    \
   template <class... Args>                               \
-  OpIndex Name(Args... args) {                           \
+  OpIndex Reduce##Name(Args... args) {                   \
     OpIndex next_index = graph().next_operation_index(); \
     USE(next_index);                                     \
     OpIndex result = Base::Reduce##Name(args...);        \
@@ -138,13 +138,13 @@ class ValueNumberingAssembler : public Assembler {
 
   template <class Op>
   OpIndex AddOrFind(OpIndex op_idx) {
-    if constexpr (!Op::properties.can_be_eliminated ||
-                  std::is_same<Op, PendingLoopPhiOp>::value) {
+    const Op& op = graph().Get(op_idx).Cast<Op>();
+    if (std::is_same<Op, PendingLoopPhiOp>::value ||
+        !op.Properties().can_be_eliminated) {
       return op_idx;
     }
     RehashIfNeeded();
 
-    const Op& op = graph().Get(op_idx).Cast<Op>();
     constexpr bool same_block_only = std::is_same<Op, PhiOp>::value;
     size_t hash = ComputeHash<same_block_only>(op);
     size_t start_index = hash & mask_;

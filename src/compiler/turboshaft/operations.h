@@ -1422,6 +1422,12 @@ struct LoadOp : OperationT<LoadOp> {
     static constexpr Kind RawAligned() { return Kind{false, false, false}; }
     static constexpr Kind RawUnaligned() { return Kind{false, true, false}; }
     static constexpr Kind Protected() { return Kind{false, false, true}; }
+
+    bool operator==(const Kind& other) const {
+      return tagged_base == other.tagged_base &&
+             maybe_unaligned == other.maybe_unaligned &&
+             with_trap_handler == other.with_trap_handler;
+    }
   };
   Kind kind;
   MemoryRepresentation loaded_rep;
@@ -1468,6 +1474,12 @@ struct LoadOp : OperationT<LoadOp> {
     return std::tuple{kind, loaded_rep, result_rep, offset, element_size_log2};
   }
 };
+
+V8_INLINE size_t hash_value(LoadOp::Kind kind) {
+  return base::hash_value(static_cast<int>(kind.tagged_base) |
+                          (kind.maybe_unaligned << 1) |
+                          (kind.with_trap_handler << 2));
+}
 
 // Store `value` to: base + offset + index * 2^element_size_log2.
 // For Kind::tagged_base: subtract kHeapObjectTag,

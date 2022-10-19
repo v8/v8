@@ -228,6 +228,9 @@ class AssemblerInterface : public Superclass {
                                 FloatRepresentation::Float32())
   DECL_SINGLE_REP_BINOP_NO_KIND(Float64Equal, Equal,
                                 FloatRepresentation::Float64())
+  OpIndex Equal(OpIndex left, OpIndex right, RegisterRepresentation rep) {
+    return subclass().ReduceEqual(left, right, rep);
+  }
 
   DECL_MULTI_REP_BINOP(IntLessThan, Comparison, RegisterRepresentation,
                        SignedLessThan)
@@ -266,6 +269,10 @@ class AssemblerInterface : public Superclass {
                         SignedLessThanOrEqual, FloatRepresentation::Float32())
   DECL_SINGLE_REP_BINOP(Float64LessThanOrEqual, Comparison,
                         SignedLessThanOrEqual, FloatRepresentation::Float64())
+  OpIndex Comparison(OpIndex left, OpIndex right, ComparisonOp::Kind kind,
+                     RegisterRepresentation rep) {
+    return subclass().ReduceComparison(left, right, kind, rep);
+  }
 
 #undef DECL_SINGLE_REP_BINOP
 #undef DECL_MULTI_REP_BINOP
