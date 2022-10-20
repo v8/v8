@@ -33,9 +33,6 @@ WasmFeatures WasmFeatures::FromIsolate(Isolate* isolate) {
 WasmFeatures WasmFeatures::FromContext(Isolate* isolate,
                                        Handle<Context> context) {
   WasmFeatures features = WasmFeatures::FromFlags();
-  if (isolate->IsWasmSimdEnabled(context)) {
-    features.Add(kFeature_simd);
-  }
   if (isolate->AreWasmExceptionsEnabled(context)) {
     features.Add(kFeature_eh);
   }

@@ -2955,18 +2955,6 @@ bool Isolate::IsSharedArrayBufferConstructorEnabled(Handle<Context> context) {
   return false;
 }
 
-bool Isolate::IsWasmSimdEnabled(Handle<Context> context) {
-#if V8_ENABLE_WEBASSEMBLY
-  if (wasm_simd_enabled_callback()) {
-    v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
-    return wasm_simd_enabled_callback()(api_context);
-  }
-  return v8_flags.experimental_wasm_simd;
-#else
-  return false;
-#endif  // V8_ENABLE_WEBASSEMBLY
-}
-
 bool Isolate::AreWasmExceptionsEnabled(Handle<Context> context) {
 #if V8_ENABLE_WEBASSEMBLY
   if (wasm_exceptions_enabled_callback()) {

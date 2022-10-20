@@ -2614,7 +2614,6 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   constexpr bool require_valid = true;
   EXPERIMENTAL_FLAG_SCOPE(typed_funcref);
   EXPERIMENTAL_FLAG_SCOPE(gc);
-  EXPERIMENTAL_FLAG_SCOPE(simd);
   EXPERIMENTAL_FLAG_SCOPE(eh);
   WasmCompileFuzzer().FuzzWasmModule({data, size}, require_valid);
   return 0;

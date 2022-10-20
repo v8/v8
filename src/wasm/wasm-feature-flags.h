@@ -101,13 +101,6 @@
 // Shipped features (enabled by default). Remove the feature flag once they hit
 // stable and are expected to stay enabled.
 #define FOREACH_WASM_SHIPPED_FEATURE_FLAG(V) /*          (force 80 columns) */ \
-  /* Fixed-width SIMD operations. */                                           \
-  /* https://github.com/webassembly/simd */                                    \
-  /* V8 side owner: gdeepti, zhin */                                           \
-  /* Staged in v8.7 * */                                                       \
-  /* Shipped in v9.1 * */                                                      \
-  V(simd, "SIMD opcodes", true)                                                \
-                                                                               \
   /* Exception handling proposal. */                                           \
   /* https://github.com/WebAssembly/exception-handling */                      \
   /* V8 side owner: thibaudm */                                                \

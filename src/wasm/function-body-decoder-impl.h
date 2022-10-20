@@ -369,12 +369,6 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
                  : ValueType::RefMaybeNull(heap_type, nullability);
     }
     case kS128Code: {
-      if (!VALIDATE(enabled.has_simd())) {
-        DecodeError<validate>(
-            decoder, pc,
-            "invalid value type 's128', enable with --experimental-wasm-simd");
-        return kWasmBottom;
-      }
       if (!VALIDATE(CheckHardwareSupportsSimd())) {
         DecodeError<validate>(decoder, pc, "Wasm SIMD unsupported");
         return kWasmBottom;
@@ -3795,7 +3789,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
   }
 
   DECODE(Simd) {
-    CHECK_PROTOTYPE_OPCODE(simd);
+    this->detected_->Add(kFeature_simd);
     if (!CheckHardwareSupportsSimd()) {
       if (v8_flags.correctness_fuzzer_suppressions) {
         FATAL("Aborting on missing Wasm SIMD support");
