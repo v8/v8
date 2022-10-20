@@ -667,7 +667,8 @@ class MaglevCodeGeneratingNodeProcessor {
       // per Maglev code object on x64).
       {
         // Scratch registers. Don't clobber regs related to the calling
-        // convention (e.g. kJavaScriptCallArgCountRegister).
+        // convention (e.g. kJavaScriptCallArgCountRegister). Keep up-to-date
+        // with deferred flags code.
         Register flags = rcx;
         Register feedback_vector = r9;
 
@@ -679,20 +680,9 @@ class MaglevCodeGeneratingNodeProcessor {
             feedback_vector, FieldOperand(feedback_vector, Cell::kValueOffset));
         __ AssertFeedbackVector(feedback_vector);
 
-        Label flags_need_processing, next;
         __ LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
-            flags, feedback_vector, CodeKind::MAGLEV, &flags_need_processing);
-        __ jmp(&next);
-
-        __ bind(&flags_need_processing);
-        {
-          ASM_CODE_COMMENT_STRING(masm(), "Optimized marker check");
-          __ OptimizeCodeOrTailCallOptimizedCodeSlot(
-              flags, feedback_vector, kJSFunctionRegister, JumpMode::kJump);
-          __ Trap();
-        }
-
-        __ bind(&next);
+            flags, feedback_vector, CodeKind::MAGLEV,
+            &deferred_flags_need_processing_);
       }
 
       __ EnterFrame(StackFrame::MAGLEV);
@@ -771,16 +761,30 @@ class MaglevCodeGeneratingNodeProcessor {
 
     if (!v8_flags.maglev_ool_prologue) {
       __ bind(&deferred_call_stack_guard_);
-      ASM_CODE_COMMENT_STRING(masm(), "Stack/interrupt call");
-      // Save any registers that can be referenced by RegisterInput.
-      // TODO(leszeks): Only push those that are used by the graph.
-      __ PushAll(RegisterInput::kAllowedRegisters);
-      // Push the frame size
-      __ Push(Immediate(
-          Smi::FromInt(code_gen_state()->stack_slots() * kSystemPointerSize)));
-      __ CallRuntime(Runtime::kStackGuardWithGap, 1);
-      __ PopAll(RegisterInput::kAllowedRegisters);
-      __ jmp(&deferred_call_stack_guard_return_);
+      {
+        ASM_CODE_COMMENT_STRING(masm(), "Stack/interrupt call");
+        // Save any registers that can be referenced by RegisterInput.
+        // TODO(leszeks): Only push those that are used by the graph.
+        __ PushAll(RegisterInput::kAllowedRegisters);
+        // Push the frame size
+        __ Push(Immediate(Smi::FromInt(code_gen_state()->stack_slots() *
+                                       kSystemPointerSize)));
+        __ CallRuntime(Runtime::kStackGuardWithGap, 1);
+        __ PopAll(RegisterInput::kAllowedRegisters);
+        __ jmp(&deferred_call_stack_guard_return_);
+      }
+
+      __ bind(&deferred_flags_need_processing_);
+      {
+        ASM_CODE_COMMENT_STRING(masm(), "Optimized marker check");
+        // See PreProcessGraph.
+        Register flags = rcx;
+        Register feedback_vector = r9;
+        // TODO(leszeks): This could definitely be a builtin that we tail-call.
+        __ OptimizeCodeOrTailCallOptimizedCodeSlot(
+            flags, feedback_vector, kJSFunctionRegister, JumpMode::kJump);
+        __ Trap();
+      }
     }
   }
 
@@ -955,6 +959,7 @@ class MaglevCodeGeneratingNodeProcessor {
   MaglevAssembler* const masm_;
   Label deferred_call_stack_guard_;
   Label deferred_call_stack_guard_return_;
+  Label deferred_flags_need_processing_;
 };
 
 class SafepointingNodeProcessor {
