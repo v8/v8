@@ -1240,6 +1240,20 @@ void CheckMaps::PrintParams(std::ostream& os,
                             MaglevGraphLabeller* graph_labeller) const {
   os << "(" << *map().object() << ")";
 }
+void CheckValue::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  UseRegister(target_input());
+}
+void CheckValue::GenerateCode(MaglevAssembler* masm,
+                              const ProcessingState& state) {
+  Register target = ToRegister(target_input());
+
+  __ Cmp(target, value().object());
+  __ EmitEagerDeoptIf(not_equal, DeoptimizeReason::kWrongValue, this);
+}
+void CheckValue::PrintParams(std::ostream& os,
+                             MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << *value().object() << ")";
+}
 void CheckSmi::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseRegister(receiver_input());
 }

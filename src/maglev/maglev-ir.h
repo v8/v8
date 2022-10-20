@@ -194,16 +194,17 @@ class CompactInterpreterFrameState;
 
 #define NODE_LIST(V)                  \
   V(AssertInt32)                      \
-  V(CheckMaps)                        \
-  V(CheckInt32Condition)              \
-  V(CheckSmi)                         \
-  V(CheckNumber)                      \
   V(CheckHeapObject)                  \
-  V(CheckSymbol)                      \
-  V(CheckString)                      \
-  V(CheckMapsWithMigration)           \
+  V(CheckInt32Condition)              \
   V(CheckJSArrayBounds)               \
   V(CheckJSObjectElementsBounds)      \
+  V(CheckMaps)                        \
+  V(CheckMapsWithMigration)           \
+  V(CheckNumber)                      \
+  V(CheckSmi)                         \
+  V(CheckString)                      \
+  V(CheckSymbol)                      \
+  V(CheckValue)                       \
   V(DebugBreak)                       \
   V(GeneratorStore)                   \
   V(JumpLoopPrologue)                 \
@@ -2760,6 +2761,29 @@ class CheckMaps : public FixedInputNodeT<1, CheckMaps> {
   const compiler::MapRef map_;
   const CheckType check_type_;
 };
+
+class CheckValue : public FixedInputNodeT<1, CheckValue> {
+  using Base = FixedInputNodeT<1, CheckValue>;
+
+ public:
+  explicit CheckValue(uint64_t bitfield, const compiler::HeapObjectRef& value)
+      : Base(bitfield), value_(value) {}
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
+
+  compiler::HeapObjectRef value() const { return value_; }
+
+  static constexpr int kTargetIndex = 0;
+  Input& target_input() { return input(kTargetIndex); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  const compiler::HeapObjectRef value_;
+};
+
 class CheckSmi : public FixedInputNodeT<1, CheckSmi> {
   using Base = FixedInputNodeT<1, CheckSmi>;
 

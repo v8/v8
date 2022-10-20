@@ -2253,6 +2253,25 @@ void MaglevGraphBuilder::BuildCallFromRegisterList(
 
   FeedbackSlot slot = GetSlotOperand(3);
   compiler::FeedbackSource feedback_source(feedback(), slot);
+  const compiler::ProcessedFeedback& processed_feedback =
+      broker()->GetFeedbackForCall(feedback_source);
+  if (processed_feedback.kind() == compiler::ProcessedFeedback::kCall) {
+    const compiler::CallFeedback& call_feedback = processed_feedback.AsCall();
+    CallFeedbackContent content = call_feedback.call_feedback_content();
+    if (content == CallFeedbackContent::kTarget) {
+      base::Optional<compiler::HeapObjectRef> maybe_target =
+          call_feedback.target();
+      if (maybe_target.has_value()) {
+        compiler::HeapObjectRef target = maybe_target.value();
+        if (target.IsJSFunction()) {
+          // Reset the feedback source
+          feedback_source = compiler::FeedbackSource();
+          // TODO(verwaest): Specialize if function is a constant.
+          AddNewNode<CheckValue>({function}, target);
+        }
+      }
+    }
+  }
 
   size_t input_count = args.register_count() + Call::kFixedInputCount;
   if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
@@ -2297,8 +2316,6 @@ void MaglevGraphBuilder::BuildCallFromRegisters(
       return;
 
     case compiler::ProcessedFeedback::kCall: {
-      if (!v8_flags.maglev_inlining) break;
-
       const compiler::CallFeedback& call_feedback = processed_feedback.AsCall();
       CallFeedbackContent content = call_feedback.call_feedback_content();
       if (content != CallFeedbackContent::kTarget) break;
@@ -2310,12 +2327,20 @@ void MaglevGraphBuilder::BuildCallFromRegisters(
       compiler::HeapObjectRef target = maybe_target.value();
       if (!target.IsJSFunction()) break;
 
-      compiler::JSFunctionRef function = target.AsJSFunction();
-      base::Optional<compiler::FeedbackVectorRef> maybe_feedback_vector =
-          function.feedback_vector(broker()->dependencies());
-      if (!maybe_feedback_vector.has_value()) break;
+      if (v8_flags.maglev_inlining) {
+        compiler::JSFunctionRef function = target.AsJSFunction();
+        base::Optional<compiler::FeedbackVectorRef> maybe_feedback_vector =
+            function.feedback_vector(broker()->dependencies());
+        if (maybe_feedback_vector.has_value()) {
+          return InlineCallFromRegisters(argc_count, receiver_mode, function);
+        }
+      }
 
-      return InlineCallFromRegisters(argc_count, receiver_mode, function);
+      // Reset the feedback source
+      feedback_source = compiler::FeedbackSource();
+      // TODO(verwaest): Specialize if function is a constant.
+      AddNewNode<CheckValue>({function}, target);
+      break;
     }
 
     default:

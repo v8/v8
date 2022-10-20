@@ -117,6 +117,7 @@ class MaglevGraphVerifier {
       // TODO(victorgomes): Can we check that the input is actually a receiver?
       case Opcode::kCheckHeapObject:
       case Opcode::kCheckMaps:
+      case Opcode::kCheckValue:
       case Opcode::kCheckMapsWithMigration:
       case Opcode::kCheckSmi:
       case Opcode::kCheckNumber:
