@@ -2094,9 +2094,24 @@ void TurboAssembler::Jump(const ExternalReference& reference) {
 
 void TurboAssembler::Jump(Operand op) { jmp(op); }
 
+void TurboAssembler::Jump(Operand op, Condition cc) {
+  Label skip;
+  j(NegateCondition(cc), &skip, Label::kNear);
+  Jump(op);
+  bind(&skip);
+}
+
 void TurboAssembler::Jump(Address destination, RelocInfo::Mode rmode) {
   Move(kScratchRegister, destination, rmode);
   jmp(kScratchRegister);
+}
+
+void TurboAssembler::Jump(Address destination, RelocInfo::Mode rmode,
+                          Condition cc) {
+  Label skip;
+  j(NegateCondition(cc), &skip, Label::kNear);
+  Jump(destination, rmode);
+  bind(&skip);
 }
 
 void TurboAssembler::Jump(Handle<CodeT> code_object, RelocInfo::Mode rmode) {
@@ -2117,10 +2132,7 @@ void TurboAssembler::Jump(Handle<CodeT> code_object, RelocInfo::Mode rmode,
                  Builtins::IsIsolateIndependentBuiltin(*code_object));
   Builtin builtin = Builtin::kNoBuiltinId;
   if (isolate()->builtins()->IsBuiltinHandle(code_object, &builtin)) {
-    Label skip;
-    j(NegateCondition(cc), &skip, Label::kNear);
-    TailCallBuiltin(builtin);
-    bind(&skip);
+    TailCallBuiltin(builtin, cc);
     return;
   }
   DCHECK(RelocInfo::IsCodeTarget(rmode));
@@ -2225,6 +2237,27 @@ void TurboAssembler::TailCallBuiltin(Builtin builtin) {
     case BuiltinCallJumpMode::kForMksnapshot: {
       Handle<CodeT> code = isolate()->builtins()->code_handle(builtin);
       jmp(code, RelocInfo::CODE_TARGET);
+      break;
+    }
+  }
+}
+
+void TurboAssembler::TailCallBuiltin(Builtin builtin, Condition cc) {
+  ASM_CODE_COMMENT_STRING(this,
+                          CommentForOffHeapTrampoline("tail call", builtin));
+  switch (options().builtin_call_jump_mode) {
+    case BuiltinCallJumpMode::kAbsolute:
+      Jump(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET, cc);
+      break;
+    case BuiltinCallJumpMode::kPCRelative:
+      near_j(cc, static_cast<intptr_t>(builtin), RelocInfo::NEAR_BUILTIN_ENTRY);
+      break;
+    case BuiltinCallJumpMode::kIndirect:
+      Jump(EntryFromBuiltinAsOperand(builtin), cc);
+      break;
+    case BuiltinCallJumpMode::kForMksnapshot: {
+      Handle<CodeT> code = isolate()->builtins()->code_handle(builtin);
+      j(cc, code, RelocInfo::CODE_TARGET);
       break;
     }
   }
