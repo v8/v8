@@ -920,12 +920,12 @@ Node* ScheduleBuilder::ProcessOperation(const LoadOp& op) {
   const Operator* o;
   if (op.kind.maybe_unaligned) {
     DCHECK(!op.kind.with_trap_handler);
-    o = machine.UnalignedLoad(op.loaded_rep.ToMachineType());
+    o = machine.UnalignedLoad(loaded_rep);
   } else if (op.kind.with_trap_handler) {
     DCHECK(!op.kind.maybe_unaligned);
-    o = machine.ProtectedLoad(op.loaded_rep.ToMachineType());
+    o = machine.ProtectedLoad(loaded_rep);
   } else {
-    o = machine.Load(op.loaded_rep.ToMachineType());
+    o = machine.Load(loaded_rep);
   }
   return AddNode(o, {base, index});
 }
