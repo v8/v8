@@ -287,11 +287,6 @@ Node* WasmGraphBuilder::RefFunc(uint32_t function_index) {
                                 gasm_->Uint32Constant(function_index));
 }
 
-Node* WasmGraphBuilder::RefAsNonNull(Node* arg,
-                                     wasm::WasmCodePosition position) {
-  return AssertNotNull(arg, position);
-}
-
 Node* WasmGraphBuilder::NoContextConstant() {
   return mcgraph()->IntPtrConstant(0);
 }
@@ -1124,7 +1119,6 @@ void WasmGraphBuilder::TrapIfFalse(wasm::TrapReason reason, Node* cond,
 
 Node* WasmGraphBuilder::AssertNotNull(Node* object,
                                       wasm::WasmCodePosition position) {
-  if (v8_flags.experimental_wasm_skip_null_checks) return object;
   Node* result = gasm_->AssertNotNull(object);
   SetSourcePosition(result, position);
   return result;

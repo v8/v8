@@ -157,7 +157,7 @@ Reduction WasmGCLowering::ReduceWasmTypeCast(Node* node) {
     Node* is_null = gasm_.TaggedEqual(object, Null());
     if (config.null_succeeds) {
       gasm_.GotoIf(is_null, &end_label, BranchHint::kFalse);
-    } else {
+    } else if (!v8_flags.experimental_wasm_skip_null_checks) {
       gasm_.TrapIf(is_null, TrapId::kTrapIllegalCast);
     }
   }
@@ -210,7 +210,10 @@ Reduction WasmGCLowering::ReduceAssertNotNull(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
   Node* object = NodeProperties::GetValueInput(node, 0);
   gasm_.InitializeEffectControl(effect, control);
-  gasm_.TrapIf(gasm_.TaggedEqual(object, Null()), TrapId::kTrapNullDereference);
+  if (!v8_flags.experimental_wasm_skip_null_checks) {
+    gasm_.TrapIf(gasm_.TaggedEqual(object, Null()),
+                 TrapId::kTrapNullDereference);
+  }
 
   ReplaceWithValue(node, object, gasm_.effect(), gasm_.control());
   node->Kill();

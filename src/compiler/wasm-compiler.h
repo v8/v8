@@ -255,7 +255,7 @@ class WasmGraphBuilder {
   Node* EffectPhi(unsigned count, Node** effects_and_control);
   Node* RefNull();
   Node* RefFunc(uint32_t function_index);
-  Node* RefAsNonNull(Node* arg, wasm::WasmCodePosition position);
+  Node* AssertNotNull(Node* object, wasm::WasmCodePosition position);
   Node* TraceInstruction(uint32_t mark_id);
   Node* Int32Constant(int32_t value);
   Node* Int64Constant(int64_t value);
@@ -742,8 +742,6 @@ class WasmGraphBuilder {
 
   void MemTypeToUintPtrOrOOBTrap(std::initializer_list<Node**> nodes,
                                  wasm::WasmCodePosition position);
-
-  Node* AssertNotNull(Node* object, wasm::WasmCodePosition position);
 
   void GetGlobalBaseAndOffset(const wasm::WasmGlobal&, Node** base_node,
                               Node** offset_node);

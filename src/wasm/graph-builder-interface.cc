@@ -421,10 +421,7 @@ class WasmGraphBuildingInterface {
   }
 
   void RefAsNonNull(FullDecoder* decoder, const Value& arg, Value* result) {
-    TFNode* cast_node =
-        v8_flags.experimental_wasm_skip_null_checks
-            ? builder_->TypeGuard(arg.node, result->type)
-            : builder_->RefAsNonNull(arg.node, decoder->position());
+    TFNode* cast_node = builder_->AssertNotNull(arg.node, decoder->position());
     SetAndTypeNode(result, cast_node);
   }
 
@@ -1557,9 +1554,9 @@ class WasmGraphBuildingInterface {
     // Since we implement stringview_wtf16 as string, that's the type we'll
     // use for the Node. (The decoder's Value type must be stringview_wtf16
     // because static type validation relies on it.)
-    result->node =
-        builder_->SetType(builder_->RefAsNonNull(str.node, decoder->position()),
-                          ValueType::Ref(HeapType::kString));
+    result->node = builder_->SetType(
+        builder_->AssertNotNull(str.node, decoder->position()),
+        ValueType::Ref(HeapType::kString));
   }
 
   void StringViewWtf16GetCodeUnit(FullDecoder* decoder, const Value& view,
@@ -2121,9 +2118,8 @@ class WasmGraphBuildingInterface {
 
   CheckForNull NullCheckFor(ValueType type) {
     DCHECK(type.is_object_reference());
-    return (!v8_flags.experimental_wasm_skip_null_checks && type.is_nullable())
-               ? CheckForNull::kWithNullCheck
-               : CheckForNull::kWithoutNullCheck;
+    return type.is_nullable() ? CheckForNull::kWithNullCheck
+                              : CheckForNull::kWithoutNullCheck;
   }
 
   void SetAndTypeNode(Value* value, TFNode* node) {

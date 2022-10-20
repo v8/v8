@@ -7474,8 +7474,9 @@ class LiftoffCompiler {
 
   void MaybeEmitNullCheck(FullDecoder* decoder, Register object,
                           LiftoffRegList pinned, ValueType type) {
-    if (v8_flags.experimental_wasm_skip_null_checks || !type.is_nullable())
+    if (v8_flags.experimental_wasm_skip_null_checks || !type.is_nullable()) {
       return;
+    }
     Label* trap_label =
         AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapNullDereference);
     LiftoffRegister null = __ GetUnusedRegister(kGpReg, pinned);
