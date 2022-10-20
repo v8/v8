@@ -1958,7 +1958,7 @@ void StringAt::GenerateCode(MaglevAssembler* masm,
 
   __ bind(&sliced_string);
   {
-    Register offset = rcx;
+    Register offset = scratch1;
     __ movl(offset, FieldOperand(string_object, SlicedString::kOffsetOffset));
     __ SmiUntag(offset);
     __ DecompressAnyTagged(
