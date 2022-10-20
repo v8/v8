@@ -2000,10 +2000,17 @@ void StringAt::GenerateCode(MaglevAssembler* masm,
   __ JumpToDeferredIf(
       greater,
       [](MaglevAssembler* masm, ZoneLabelRef done, Register character,
-         StringAt* node) {
+         Register scratch1, StringAt* node) {
         Register result_string = ToRegister(node->result());
         RegisterSnapshot save_registers = node->register_snapshot();
-        __ Push(character);  // Spill character before inlined allocation.
+        // If {character} alias with {result_string}, use the second scratch
+        // register.
+        if (character == result_string) {
+          DCHECK_NE(scratch1, character);
+          __ Move(scratch1, character);
+          character = scratch1;
+        }
+        save_registers.live_registers.set(character);
         AllocateRaw(masm, save_registers, result_string,
                     SeqTwoByteString::SizeFor(1));
         __ LoadRoot(kScratchRegister, RootIndex::kStringMap);
@@ -2014,12 +2021,11 @@ void StringAt::GenerateCode(MaglevAssembler* masm,
             Immediate(Name::kEmptyHashField));
         __ StoreTaggedField(FieldOperand(result_string, String::kLengthOffset),
                             Immediate(1));
-        __ Pop(kScratchRegister);  // Restore character.
         __ movw(FieldOperand(result_string, SeqTwoByteString::kHeaderSize),
-                kScratchRegister);
+                character);
         __ jmp(*done);
       },
-      done, character, this);
+      done, character, scratch1, this);
 
   // Load one byte string from a predefined/cached table.
   __ bind(&cached_one_byte_string);
