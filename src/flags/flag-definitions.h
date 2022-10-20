@@ -753,6 +753,11 @@ DEFINE_IMPLICATION(stress_concurrent_inlining, concurrent_recompilation)
 DEFINE_NEG_IMPLICATION(stress_concurrent_inlining, lazy_feedback_allocation)
 DEFINE_WEAK_VALUE_IMPLICATION(stress_concurrent_inlining, interrupt_budget,
                               15 * KB)
+DEFINE_BOOL(maglev_overwrite_budget, true,
+            "whether maglev resets the interrupt budget")
+DEFINE_NEG_IMPLICATION(stress_concurrent_inlining, maglev_overwrite_budget)
+DEFINE_WEAK_VALUE_IMPLICATION(maglev_overwrite_budget, interrupt_budget,
+                              110 * KB)
 DEFINE_BOOL(stress_concurrent_inlining_attach_code, false,
             "create additional concurrent optimization jobs")
 DEFINE_IMPLICATION(stress_concurrent_inlining_attach_code,
