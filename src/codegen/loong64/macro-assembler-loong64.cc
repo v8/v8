@@ -3551,7 +3551,8 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
     Push(kScratchReg);
   }
 #if V8_ENABLE_WEBASSEMBLY
-  if (type == StackFrame::WASM) Push(kWasmInstanceRegister);
+  if (type == StackFrame::WASM || type == StackFrame::WASM_LIFTOFF_SETUP)
+    Push(kWasmInstanceRegister);
 #endif  // V8_ENABLE_WEBASSEMBLY
 }
 

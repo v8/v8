@@ -55,6 +55,9 @@ constexpr RegList kLiftoffAssemblerGpCacheRegs = {a0, a1, a2, a3, a4, a5, a6,
 constexpr DoubleRegList kLiftoffAssemblerFpCacheRegs = {
     f0, f2, f4, f6, f8, f10, f12, f14, f16, f18, f20, f22, f24, f26};
 
+// For the "WasmLiftoffFrameSetup" builtin.
+constexpr Register kLiftoffFrameSetupFunctionReg = t0;
+
 #elif V8_TARGET_ARCH_LOONG64
 
 // t6-t8 and s3-s4: scratch registers, s6: root
@@ -66,6 +69,9 @@ constexpr RegList kLiftoffAssemblerGpCacheRegs = {a0, a1, a2, a3, a4, a5, a6,
 constexpr DoubleRegList kLiftoffAssemblerFpCacheRegs = {
     f0,  f1,  f2,  f3,  f4,  f5,  f6,  f7,  f8,  f9,  f10, f11, f12, f13, f14,
     f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28};
+
+// For the "WasmLiftoffFrameSetup" builtin.
+constexpr Register kLiftoffFrameSetupFunctionReg = t0;
 
 #elif V8_TARGET_ARCH_ARM
 
