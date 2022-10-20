@@ -809,25 +809,26 @@ class ModuleDecoderTemplate : public Decoder {
             break;
           }
           table->type = type;
-          uint8_t flags = validate_table_flags("element count");
+          consume_table_flags("element count", &table->has_maximum_size);
           consume_resizable_limits(
               "element count", "elements", std::numeric_limits<uint32_t>::max(),
-              &table->initial_size, &table->has_maximum_size,
+              &table->initial_size, table->has_maximum_size,
               std::numeric_limits<uint32_t>::max(), &table->maximum_size,
-              flags);
+              k32BitLimits);
           break;
         }
         case kExternalMemory: {
           // ===== Imported memory =============================================
           if (!AddMemory(module_.get())) break;
-          uint8_t flags = validate_memory_flags(&module_->has_shared_memory,
-                                                &module_->is_memory64);
+          consume_memory_flags(&module_->has_shared_memory,
+                               &module_->is_memory64,
+                               &module_->has_maximum_pages);
           uint32_t max_pages = module_->is_memory64 ? kSpecMaxMemory64Pages
                                                     : kSpecMaxMemory32Pages;
-          consume_resizable_limits("memory", "pages", max_pages,
-                                   &module_->initial_pages,
-                                   &module_->has_maximum_pages, max_pages,
-                                   &module_->maximum_pages, flags);
+          consume_resizable_limits(
+              "memory", "pages", max_pages, &module_->initial_pages,
+              module_->has_maximum_pages, max_pages, &module_->maximum_pages,
+              module_->is_memory64 ? k64BitLimits : k32BitLimits);
           break;
         }
         case kExternalGlobal: {
@@ -920,11 +921,12 @@ class ModuleDecoderTemplate : public Decoder {
       }
       table->type = table_type;
 
-      uint8_t flags = validate_table_flags("table elements");
-      consume_resizable_limits(
-          "table elements", "elements", std::numeric_limits<uint32_t>::max(),
-          &table->initial_size, &table->has_maximum_size,
-          std::numeric_limits<uint32_t>::max(), &table->maximum_size, flags);
+      consume_table_flags("table elements", &table->has_maximum_size);
+      consume_resizable_limits("table elements", "elements",
+                               std::numeric_limits<uint32_t>::max(),
+                               &table->initial_size, table->has_maximum_size,
+                               std::numeric_limits<uint32_t>::max(),
+                               &table->maximum_size, k32BitLimits);
 
       if (has_initializer) {
         table->initial_value = consume_init_expr(module_.get(), table_type);
@@ -938,14 +940,14 @@ class ModuleDecoderTemplate : public Decoder {
     for (uint32_t i = 0; ok() && i < memory_count; i++) {
       tracer_.MemoryOffset(pc_offset());
       if (!AddMemory(module_.get())) break;
-      uint8_t flags = validate_memory_flags(&module_->has_shared_memory,
-                                            &module_->is_memory64);
+      consume_memory_flags(&module_->has_shared_memory, &module_->is_memory64,
+                           &module_->has_maximum_pages);
       uint32_t max_pages =
           module_->is_memory64 ? kSpecMaxMemory64Pages : kSpecMaxMemory32Pages;
-      consume_resizable_limits("memory", "pages", max_pages,
-                               &module_->initial_pages,
-                               &module_->has_maximum_pages, max_pages,
-                               &module_->maximum_pages, flags);
+      consume_resizable_limits(
+          "memory", "pages", max_pages, &module_->initial_pages,
+          module_->has_maximum_pages, max_pages, &module_->maximum_pages,
+          module_->is_memory64 ? k64BitLimits : k32BitLimits);
     }
   }
 
@@ -1915,19 +1917,20 @@ class ModuleDecoderTemplate : public Decoder {
     return index;
   }
 
-  uint8_t validate_table_flags(const char* name) {
+  void consume_table_flags(const char* name, bool* has_maximum_out) {
     tracer_.Bytes(pc_, 1);
     uint8_t flags = consume_u8("table limits flags");
     tracer_.Description(flags == kNoMaximum ? " no maximum" : " with maximum");
     tracer_.NextLine();
-    static_assert(kNoMaximum < kWithMaximum);
+    static_assert(kNoMaximum == 0 && kWithMaximum == 1);
+    *has_maximum_out = flags == kWithMaximum;
     if (V8_UNLIKELY(flags > kWithMaximum)) {
       errorf(pc() - 1, "invalid %s limits flags", name);
     }
-    return flags;
   }
 
-  uint8_t validate_memory_flags(bool* is_shared_out, bool* is_memory64_out) {
+  void consume_memory_flags(bool* is_shared_out, bool* is_memory64_out,
+                            bool* has_maximum_out) {
     tracer_.Bytes(pc_, 1);
     uint8_t flags = consume_u8("memory limits flags");
     // Flags 0..7 are valid (3 bits).
@@ -1935,10 +1938,11 @@ class ModuleDecoderTemplate : public Decoder {
       errorf(pc() - 1, "invalid memory limits flags 0x%x", flags);
     }
     // Decode the three bits.
-    bool is_memory64 = flags & 0x4;
-    bool is_shared = flags & 0x2;
     bool has_maximum = flags & 0x1;
+    bool is_shared = flags & 0x2;
+    bool is_memory64 = flags & 0x4;
     // Store into output parameters.
+    *has_maximum_out = has_maximum;
     *is_shared_out = is_shared;
     *is_memory64_out = is_memory64;
 
@@ -1959,21 +1963,19 @@ class ModuleDecoderTemplate : public Decoder {
     if (is_memory64) tracer_.Description(" mem64");
     tracer_.Description(has_maximum ? " with maximum" : " no maximum");
     tracer_.NextLine();
-
-    return flags;
   }
 
+  enum ResizableLimitsType : bool { k32BitLimits, k64BitLimits };
   void consume_resizable_limits(const char* name, const char* units,
                                 uint32_t max_initial, uint32_t* initial,
-                                bool* has_max, uint32_t max_maximum,
-                                uint32_t* maximum, uint8_t flags) {
+                                bool has_maximum, uint32_t max_maximum,
+                                uint32_t* maximum, ResizableLimitsType type) {
     const byte* pos = pc();
-    // For memory64 we need to read the numbers as LEB-encoded 64-bit unsigned
-    // integer. All V8 limits are still within uint32_t range though.
-    const bool is_memory64 =
-        flags == kMemory64NoMaximum || flags == kMemory64WithMaximum;
-    uint64_t initial_64 = is_memory64 ? consume_u64v("initial size", tracer_)
-                                      : consume_u32v("initial size", tracer_);
+    // Note that even if we read the values as 64-bit value, all V8 limits are
+    // still within uint32_t range.
+    uint64_t initial_64 = type == k64BitLimits
+                              ? consume_u64v("initial size", tracer_)
+                              : consume_u32v("initial size", tracer_);
     if (initial_64 > max_initial) {
       errorf(pos,
              "initial %s size (%" PRIu64
@@ -1983,11 +1985,11 @@ class ModuleDecoderTemplate : public Decoder {
     *initial = static_cast<uint32_t>(initial_64);
     tracer_.Description(*initial);
     tracer_.NextLine();
-    if (flags & 1) {
-      *has_max = true;
+    if (has_maximum) {
       pos = pc();
-      uint64_t maximum_64 = is_memory64 ? consume_u64v("maximum size", tracer_)
-                                        : consume_u32v("maximum size", tracer_);
+      uint64_t maximum_64 = type == k64BitLimits
+                                ? consume_u64v("maximum size", tracer_)
+                                : consume_u32v("maximum size", tracer_);
       if (maximum_64 > max_maximum) {
         errorf(pos,
                "maximum %s size (%" PRIu64
@@ -2003,7 +2005,6 @@ class ModuleDecoderTemplate : public Decoder {
       tracer_.Description(*maximum);
       tracer_.NextLine();
     } else {
-      *has_max = false;
       *maximum = max_initial;
     }
   }
