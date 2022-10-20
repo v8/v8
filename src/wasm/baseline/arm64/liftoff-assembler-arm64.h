@@ -213,10 +213,10 @@ inline void EmitAnyTrue(LiftoffAssembler* assm, LiftoffRegister dst,
                         LiftoffRegister src) {
   // AnyTrue does not depend on the number of lanes, so we can use V4S for all.
   UseScratchRegisterScope scope(assm);
-  VRegister temp = scope.AcquireV(kFormatS);
-  assm->Umaxv(temp, src.fp().V4S());
-  assm->Umov(dst.gp().W(), temp, 0);
-  assm->Cmp(dst.gp().W(), 0);
+  VRegister temp = scope.AcquireV(kFormat4S);
+  assm->Umaxp(temp, src.fp().V4S(), src.fp().V4S());
+  assm->Fmov(dst.gp().X(), temp.D());
+  assm->Cmp(dst.gp().X(), 0);
   assm->Cset(dst.gp().W(), ne);
 }
 
