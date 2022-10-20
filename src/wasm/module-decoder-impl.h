@@ -1927,42 +1927,39 @@ class ModuleDecoderTemplate : public Decoder {
     return flags;
   }
 
-  uint8_t validate_memory_flags(bool* has_shared_memory, bool* is_memory64) {
+  uint8_t validate_memory_flags(bool* is_shared_out, bool* is_memory64_out) {
     tracer_.Bytes(pc_, 1);
     uint8_t flags = consume_u8("memory limits flags");
-    *has_shared_memory = false;
-    switch (flags) {
-      case kNoMaximum:
-      case kWithMaximum:
-        break;
-      case kSharedNoMaximum:
-      case kSharedWithMaximum:
-        *has_shared_memory = true;
-        // V8 does not support shared memory without a maximum.
-        if (flags == kSharedNoMaximum) {
-          errorf(pc() - 1,
-                 "memory limits flags must have maximum defined if shared is "
-                 "true");
-        }
-        break;
-      case kMemory64NoMaximum:
-      case kMemory64WithMaximum:
-        if (!enabled_features_.has_memory64()) {
-          errorf(pc() - 1,
-                 "invalid memory limits flags 0x%x (enable via "
-                 "--experimental-wasm-memory64)",
-                 flags);
-        }
-        *is_memory64 = true;
-        break;
-      default:
-        errorf(pc() - 1, "invalid memory limits flags 0x%x", flags);
-        break;
+    // Flags 0..7 are valid (3 bits).
+    if (flags & ~0x7) {
+      errorf(pc() - 1, "invalid memory limits flags 0x%x", flags);
     }
-    if (*has_shared_memory) tracer_.Description(" shared");
-    if (*is_memory64) tracer_.Description(" mem64");
-    tracer_.Description((flags & 1) ? " with maximum" : " no maximum");
+    // Decode the three bits.
+    bool is_memory64 = flags & 0x4;
+    bool is_shared = flags & 0x2;
+    bool has_maximum = flags & 0x1;
+    // Store into output parameters.
+    *is_shared_out = is_shared;
+    *is_memory64_out = is_memory64;
+
+    // V8 does not support shared memory without a maximum.
+    if (is_shared && !has_maximum) {
+      errorf(pc() - 1, "shared memory must have a maximum defined");
+    }
+
+    if (is_memory64 && !enabled_features_.has_memory64()) {
+      errorf(pc() - 1,
+             "invalid memory limits flags 0x%x (enable via "
+             "--experimental-wasm-memory64)",
+             flags);
+    }
+
+    // Tracing.
+    if (is_shared) tracer_.Description(" shared");
+    if (is_memory64) tracer_.Description(" mem64");
+    tracer_.Description(has_maximum ? " with maximum" : " no maximum");
     tracer_.NextLine();
+
     return flags;
   }
 

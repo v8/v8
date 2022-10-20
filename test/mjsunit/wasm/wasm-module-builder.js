@@ -90,6 +90,8 @@ let kLimitsSharedNoMaximum = 0x02;
 let kLimitsSharedWithMaximum = 0x03;
 let kLimitsMemory64NoMaximum = 0x04;
 let kLimitsMemory64WithMaximum = 0x05;
+let kLimitsMemory64SharedNoMaximum = 0x06;
+let kLimitsMemory64SharedWithMaximum = 0x07;
 
 // Segment flags
 let kActiveNoIndex = 0;
@@ -1299,12 +1301,12 @@ class WasmModuleBuilder {
     return this;
   }
 
-  addMemory64(min, max, exported) {
+  addMemory64(min, max, exported, shared) {
     this.memory = {
       min: min,
       max: max,
       exported: exported,
-      shared: false,
+      shared: shared || false,
       is_memory64: true
     };
     return this;
@@ -1457,14 +1459,15 @@ class WasmModuleBuilder {
     return this.num_imported_globals++;
   }
 
-  addImportedMemory(module, name, initial = 0, maximum, shared) {
+  addImportedMemory(module, name, initial = 0, maximum, shared, is_memory64) {
     let o = {
       module: module,
       name: name,
       kind: kExternalMemory,
       initial: initial,
       maximum: maximum,
-      shared: shared
+      shared: !!shared,
+      is_memory64: !!is_memory64
     };
     this.imports.push(o);
     return this;
@@ -1671,7 +1674,7 @@ class WasmModuleBuilder {
       });
     }
 
-    // Add imports section
+    // Add imports section.
     if (wasm.imports.length > 0) {
       if (debug) print('emitting imports @ ' + binary.length);
       binary.emit_section(kImportSectionCode, section => {
@@ -1686,15 +1689,16 @@ class WasmModuleBuilder {
             section.emit_type(imp.type);
             section.emit_u8(imp.mutable);
           } else if (imp.kind == kExternalMemory) {
-            var has_max = (typeof imp.maximum) != 'undefined';
-            var is_shared = (typeof imp.shared) != 'undefined';
-            if (is_shared) {
-              section.emit_u8(has_max ? 3 : 2);  // flags
-            } else {
-              section.emit_u8(has_max ? 1 : 0);  // flags
-            }
-            section.emit_u32v(imp.initial);               // initial
-            if (has_max) section.emit_u32v(imp.maximum);  // maximum
+            const has_max = imp.maximum !== undefined;
+            const is_shared = !!imp.shared;
+            const is_memory64 = !!imp.is_memory64;
+            let limits_byte =
+                (is_memory64 ? 4 : 0) | (is_shared ? 2 : 0) | (has_max ? 1 : 0);
+            section.emit_u8(limits_byte);
+            let emit = val =>
+                is_memory64 ? section.emit_u64v(val) : section.emit_u32v(val);
+            emit(imp.initial);
+            if (has_max) emit(imp.maximum);
           } else if (imp.kind == kExternalTable) {
             section.emit_type(imp.type);
             var has_max = (typeof imp.maximum) != 'undefined';
@@ -1752,23 +1756,15 @@ class WasmModuleBuilder {
       binary.emit_section(kMemorySectionCode, section => {
         section.emit_u8(1);  // one memory entry
         const has_max = wasm.memory.max !== undefined;
-        if (wasm.memory.is_memory64) {
-          if (wasm.memory.shared) {
-            throw new Error('sharing memory64 is not supported (yet)');
-          }
-          section.emit_u8(
-              has_max ? kLimitsMemory64WithMaximum : kLimitsMemory64NoMaximum);
-          section.emit_u64v(wasm.memory.min);
-          if (has_max) section.emit_u64v(wasm.memory.max);
-        } else {
-          section.emit_u8(
-              wasm.memory.shared ?
-                  (has_max ? kLimitsSharedWithMaximum :
-                             kLimitsSharedNoMaximum) :
-                  (has_max ? kLimitsWithMaximum : kLimitsNoMaximum));
-          section.emit_u32v(wasm.memory.min);
-          if (has_max) section.emit_u32v(wasm.memory.max);
-        }
+        const is_shared = !!wasm.memory.shared;
+        const is_memory64 = !!wasm.memory.is_memory64;
+        let limits_byte =
+            (is_memory64 ? 4 : 0) | (is_shared ? 2 : 0) | (has_max ? 1 : 0);
+        section.emit_u8(limits_byte);
+        let emit = val =>
+            is_memory64 ? section.emit_u64v(val) : section.emit_u32v(val);
+        emit(wasm.memory.min);
+        if (has_max) emit(wasm.memory.max);
       });
     }
 
