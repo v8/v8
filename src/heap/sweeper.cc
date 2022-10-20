@@ -384,7 +384,7 @@ int Sweeper::RawSweep(
   Space* space = p->owner();
   DCHECK_NOT_NULL(space);
   DCHECK(space->identity() == OLD_SPACE || space->identity() == CODE_SPACE ||
-         space->identity() == MAP_SPACE || space->identity() == SHARED_SPACE ||
+         space->identity() == SHARED_SPACE ||
          (space->identity() == NEW_SPACE && v8_flags.minor_mc));
   DCHECK(!p->IsEvacuationCandidate() && !p->SweepingDone());
 
@@ -517,11 +517,11 @@ int Sweeper::RawSweep(
 
 size_t Sweeper::ConcurrentSweepingPageCount() {
   base::MutexGuard guard(&mutex_);
-  return sweeping_list_[GetSweepSpaceIndex(OLD_SPACE)].size() +
-         sweeping_list_[GetSweepSpaceIndex(MAP_SPACE)].size() +
-         (v8_flags.minor_mc
-              ? sweeping_list_[GetSweepSpaceIndex(NEW_SPACE)].size()
-              : 0);
+  size_t count = 0;
+  for (int i = 0; i < kNumberOfSweepingSpaces; i++) {
+    count += sweeping_list_[i].size();
+  }
+  return count;
 }
 
 int Sweeper::ParallelSweepSpace(AllocationSpace identity,

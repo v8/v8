@@ -175,8 +175,7 @@ static int DumpHeapConstants(FILE* out, const char* argv0) {
       for (i::PagedSpace* s = spit.Next(); s != nullptr; s = spit.Next()) {
         i::PagedSpaceObjectIterator it(heap, s);
         // Code objects are generally platform-dependent.
-        if (s->identity() == i::CODE_SPACE || s->identity() == i::MAP_SPACE)
-          continue;
+        if (s->identity() == i::CODE_SPACE) continue;
         const char* sname = s->name();
         for (i::HeapObject o = it.Next(); !o.is_null(); o = it.Next()) {
           DumpKnownObject(out, heap, sname, o);

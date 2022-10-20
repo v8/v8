@@ -725,7 +725,6 @@ void Heap::DumpJSONHeapStatistics(std::stringstream& stream) {
       SpaceStatistics(NEW_SPACE)     << "," <<
       SpaceStatistics(OLD_SPACE)     << "," <<
       SpaceStatistics(CODE_SPACE)    << "," <<
-      SpaceStatistics(MAP_SPACE)     << "," <<
       SpaceStatistics(LO_SPACE)      << "," <<
       SpaceStatistics(CODE_LO_SPACE) << "," <<
       SpaceStatistics(NEW_LO_SPACE)));
@@ -4333,8 +4332,6 @@ bool Heap::InSpace(HeapObject value, AllocationSpace space) const {
       return old_space_->Contains(value);
     case CODE_SPACE:
       return code_space_->Contains(value);
-    case MAP_SPACE:
-      UNREACHABLE();
     case SHARED_SPACE:
       return shared_space_->Contains(value);
     case LO_SPACE:
@@ -4370,8 +4367,6 @@ bool Heap::InSpaceSlow(Address addr, AllocationSpace space) const {
       return old_space_->ContainsSlow(addr);
     case CODE_SPACE:
       return code_space_->ContainsSlow(addr);
-    case MAP_SPACE:
-      UNREACHABLE();
     case SHARED_SPACE:
       return shared_space_->ContainsSlow(addr);
     case LO_SPACE:
@@ -4393,7 +4388,6 @@ bool Heap::IsValidAllocationSpace(AllocationSpace space) {
     case NEW_SPACE:
     case OLD_SPACE:
     case CODE_SPACE:
-    case MAP_SPACE:
     case SHARED_SPACE:
     case LO_SPACE:
     case NEW_LO_SPACE:
@@ -6861,8 +6855,6 @@ bool Heap::AllowedToBeMigrated(Map map, HeapObject obj, AllocationSpace dst) {
       return dst == OLD_SPACE;
     case CODE_SPACE:
       return dst == CODE_SPACE && type == CODE_TYPE;
-    case MAP_SPACE:
-      return dst == MAP_SPACE && type == MAP_TYPE;
     case SHARED_SPACE:
       return dst == SHARED_SPACE;
     case LO_SPACE:

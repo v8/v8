@@ -160,8 +160,7 @@ void Heap::SetPendingOptimizeForTestBytecode(Object hash_table) {
 }
 
 PagedSpace* Heap::paged_space(int idx) {
-  DCHECK(idx == OLD_SPACE || idx == CODE_SPACE || idx == MAP_SPACE ||
-         idx == SHARED_SPACE);
+  DCHECK(idx == OLD_SPACE || idx == CODE_SPACE || idx == SHARED_SPACE);
   return static_cast<PagedSpace*>(space_[idx].get());
 }
 
@@ -367,8 +366,7 @@ bool Heap::IsPendingAllocationInternal(HeapObject object) {
     }
 
     case OLD_SPACE:
-    case CODE_SPACE:
-    case MAP_SPACE: {
+    case CODE_SPACE: {
       PagedSpace* paged_space = static_cast<PagedSpace*>(base_space);
       base::SharedMutexGuard<base::kShared> guard(
           paged_space->linear_area_lock());

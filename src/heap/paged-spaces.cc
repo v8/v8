@@ -146,8 +146,7 @@ void PagedSpaceBase::RefillFreeList() {
   // Any PagedSpace might invoke RefillFreeList. We filter all but our old
   // generation spaces out.
   DCHECK(identity() == OLD_SPACE || identity() == CODE_SPACE ||
-         identity() == MAP_SPACE || identity() == NEW_SPACE ||
-         identity() == SHARED_SPACE);
+         identity() == NEW_SPACE || identity() == SHARED_SPACE);
 
   Sweeper* sweeper = heap()->sweeper();
   size_t added = 0;
@@ -666,7 +665,7 @@ PagedSpaceBase::TryAllocationFromFreeListBackground(size_t min_size_in_bytes,
   base::MutexGuard lock(&space_mutex_);
   DCHECK_LE(min_size_in_bytes, max_size_in_bytes);
   DCHECK(identity() == OLD_SPACE || identity() == CODE_SPACE ||
-         identity() == MAP_SPACE || identity() == SHARED_SPACE);
+         identity() == SHARED_SPACE);
 
   size_t new_node_size = 0;
   FreeSpace new_node =

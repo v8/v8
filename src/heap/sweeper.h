@@ -139,7 +139,6 @@ class Sweeper {
     }
     callback(OLD_SPACE);
     callback(CODE_SPACE);
-    callback(MAP_SPACE);
     callback(SHARED_SPACE);
   }
 

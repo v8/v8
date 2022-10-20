@@ -984,7 +984,6 @@ enum AllocationSpace {
   RO_SPACE,         // Immortal, immovable and immutable objects,
   OLD_SPACE,        // Old generation regular object space.
   CODE_SPACE,       // Old generation code object space, marked executable.
-  MAP_SPACE,        // Old generation map object space, non-movable.
   SHARED_SPACE,     // Space shared between multiple isolates. Optional.
   NEW_SPACE,        // Young generation space for regular objects collected
                     // with Scavenger/MinorMC.
@@ -1009,10 +1008,10 @@ enum class AllocationType : uint8_t {
   kYoung,      // Regular object allocated in NEW_SPACE or NEW_LO_SPACE
   kOld,        // Regular object allocated in OLD_SPACE or LO_SPACE
   kCode,       // Code object allocated in CODE_SPACE or CODE_LO_SPACE
-  kMap,        // Map object allocated in MAP_SPACE
+  kMap,        // Map object allocated in OLD_SPACE
   kReadOnly,   // Object allocated in RO_SPACE
   kSharedOld,  // Regular object allocated in OLD_SPACE in the shared heap
-  kSharedMap,  // Map object in MAP_SPACE in the shared heap
+  kSharedMap,  // Map object in OLD_SPACE in the shared heap
 };
 
 // These values are persisted to logs. Entries should not be renumbered and

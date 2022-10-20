@@ -138,7 +138,7 @@ HEAP_TEST(MarkCompactCollector) {
   do {
     allocation = AllocateMapForTest(isolate);
   } while (!allocation.IsFailure());
-  CcTest::CollectGarbage(MAP_SPACE);
+  CcTest::CollectGarbage(OLD_SPACE);
   AllocateMapForTest(isolate).ToObjectChecked();
 
   { HandleScope scope(isolate);
