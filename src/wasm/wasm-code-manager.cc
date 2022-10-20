@@ -785,7 +785,6 @@ base::Vector<byte> WasmCodeAllocator::AllocateForCodeInRegion(
     }
   }
   DCHECK(IsAligned(code_space.begin(), kCodeAlignment));
-  allocated_code_space_.Merge(code_space);
   generated_code_size_.fetch_add(code_space.size(), std::memory_order_relaxed);
 
   TRACE_HEAP("Code alloc for %p: 0x%" PRIxPTR ",+%zu\n", this,

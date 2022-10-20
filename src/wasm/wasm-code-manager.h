@@ -597,8 +597,6 @@ class WasmCodeAllocator {
   // Code space that was reserved and is available for allocations (subset of
   // {owned_code_space_}).
   DisjointAllocationPool free_code_space_;
-  // Code space that was allocated for code (subset of {owned_code_space_}).
-  DisjointAllocationPool allocated_code_space_;
   // Code space that was allocated before but is dead now. Full pages within
   // this region are discarded. It's still a subset of {owned_code_space_}.
   DisjointAllocationPool freed_code_space_;
