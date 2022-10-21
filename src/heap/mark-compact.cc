@@ -3927,10 +3927,14 @@ void MarkCompactCollector::EvacuatePrologue() {
 #if DEBUG
 namespace {
 
-void VerifyRememberedSetsAfterEvacuation(Heap* heap) {
+void VerifyRememberedSetsAfterEvacuation(Heap* heap,
+                                         GarbageCollector collector) {
   // Old-to-old slot sets must be empty after evacuation.
   bool new_space_is_empty =
       !heap->new_space() || heap->new_space()->Size() == 0;
+  DCHECK_IMPLIES(collector == GarbageCollector::MARK_COMPACTOR,
+                 new_space_is_empty);
+
   MemoryChunkIterator chunk_iterator(heap);
 
   while (chunk_iterator.HasNext()) {
@@ -3958,7 +3962,9 @@ void VerifyRememberedSetsAfterEvacuation(Heap* heap) {
     // GCs need to filter invalidated slots.
     DCHECK_NULL(chunk->invalidated_slots<OLD_TO_OLD>());
     DCHECK_NULL(chunk->invalidated_slots<OLD_TO_NEW>());
-    DCHECK_NULL(chunk->invalidated_slots<OLD_TO_SHARED>());
+    if (collector == GarbageCollector::MARK_COMPACTOR) {
+      DCHECK_NULL(chunk->invalidated_slots<OLD_TO_SHARED>());
+    }
   }
 }
 
@@ -3979,7 +3985,7 @@ void MarkCompactCollector::EvacuateEpilogue() {
   ReleaseEvacuationCandidates();
 
 #ifdef DEBUG
-  VerifyRememberedSetsAfterEvacuation(heap());
+  VerifyRememberedSetsAfterEvacuation(heap(), GarbageCollector::MARK_COMPACTOR);
 #endif  // DEBUG
 }
 
@@ -5926,7 +5932,8 @@ void MinorMarkCompactCollector::EvacuateEpilogue() {
   heap()->new_space()->EvacuateEpilogue();
 
 #ifdef DEBUG
-  VerifyRememberedSetsAfterEvacuation(heap());
+  VerifyRememberedSetsAfterEvacuation(heap(),
+                                      GarbageCollector::MINOR_MARK_COMPACTOR);
 #endif  // DEBUG
 }
 
