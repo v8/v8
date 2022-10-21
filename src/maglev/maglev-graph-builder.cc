@@ -2266,8 +2266,12 @@ void MaglevGraphBuilder::BuildCallFromRegisterList(
         if (target.IsJSFunction()) {
           // Reset the feedback source
           feedback_source = compiler::FeedbackSource();
-          // TODO(verwaest): Specialize if function is a constant.
-          AddNewNode<CheckValue>({function}, target);
+          if (!function->Is<Constant>()) {
+            AddNewNode<CheckValue>({function}, target);
+          } else if (!function->Cast<Constant>()->object().equals(target)) {
+            EmitUnconditionalDeopt(DeoptimizeReason::kUnknown);
+            return;
+          }
         }
       }
     }
@@ -2338,8 +2342,12 @@ void MaglevGraphBuilder::BuildCallFromRegisters(
 
       // Reset the feedback source
       feedback_source = compiler::FeedbackSource();
-      // TODO(verwaest): Specialize if function is a constant.
-      AddNewNode<CheckValue>({function}, target);
+      if (!function->Is<Constant>()) {
+        AddNewNode<CheckValue>({function}, target);
+      } else if (!function->Cast<Constant>()->object().equals(target)) {
+        EmitUnconditionalDeopt(DeoptimizeReason::kUnknown);
+        return;
+      }
       break;
     }
 
