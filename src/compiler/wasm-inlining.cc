@@ -377,11 +377,21 @@ void WasmInliner::InlineCall(Node* call, Node* callee_start, Node* callee_end,
         // The first input of a return node is always the 0 constant.
         return_inputs.push_back(graph()->NewNode(common()->Int32Constant(0)));
         if (return_arity == 1) {
+          // Tail calls are untyped; we have to type the node here.
+          NodeProperties::SetType(
+              input, Type::Wasm({inlinee_sig->GetReturn(0), module()},
+                                graph()->zone()));
           return_inputs.push_back(input);
         } else if (return_arity > 1) {
           for (int i = 0; i < return_arity; i++) {
-            return_inputs.push_back(
-                graph()->NewNode(common()->Projection(i), input, input));
+            Node* ith_projection =
+                graph()->NewNode(common()->Projection(i), input, input);
+            // Similarly here we have to type the call's projections.
+            NodeProperties::SetType(
+                ith_projection,
+                Type::Wasm({inlinee_sig->GetReturn(i), module()},
+                           graph()->zone()));
+            return_inputs.push_back(ith_projection);
           }
         }
 
