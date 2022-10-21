@@ -111,6 +111,20 @@ int LiftoffAssembler::PrepareStackFrame() {
   return offset;
 }
 
+void LiftoffAssembler::CallFrameSetupStub(int declared_function_index) {
+  // TODO(jkummerow): Enable this check when we have C++20.
+  // static_assert(std::find(std::begin(wasm::kGpParamRegisters),
+  //                         std::end(wasm::kGpParamRegisters),
+  //                         kLiftoffFrameSetupFunctionReg) ==
+  //                         std::end(wasm::kGpParamRegisters));
+  Register scratch = ip;
+  mov(scratch, Operand(StackFrame::TypeToMarker(StackFrame::WASM)));
+  PushCommonFrame(scratch);
+  LoadConstant(LiftoffRegister(kLiftoffFrameSetupFunctionReg),
+               WasmValue(declared_function_index));
+  CallRuntimeStub(WasmCode::kWasmLiftoffFrameSetup);
+}
+
 void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
                                        int stack_param_delta) {
   Register scratch = ip;
@@ -142,6 +156,10 @@ void LiftoffAssembler::PatchPrepareStackFrame(
   int frame_size =
       GetTotalFrameSize() -
       (V8_EMBEDDED_CONSTANT_POOL_BOOL ? 3 : 2) * kSystemPointerSize;
+  // The frame setup builtin also pushes the feedback vector.
+  if (v8_flags.wasm_speculative_inlining) {
+    frame_size -= kSystemPointerSize;
+  }
 
   Assembler patching_assembler(
       AssemblerOptions{},
