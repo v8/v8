@@ -434,6 +434,9 @@ Type Typer::Visitor::BitwiseNot(Type type, Typer* t) {
   if (type.Is(Type::Number())) {
     return NumberBitwiseXor(type, t->cache_->kSingletonMinusOne, t);
   }
+  if (type.Is(Type::BigInt())) {
+    return Type::BigInt();
+  }
   return Type::Numeric();
 }
 
@@ -441,6 +444,9 @@ Type Typer::Visitor::Decrement(Type type, Typer* t) {
   type = ToNumeric(type, t);
   if (type.Is(Type::Number())) {
     return NumberSubtract(type, t->cache_->kSingletonOne, t);
+  }
+  if (type.Is(Type::BigInt())) {
+    return Type::BigInt();
   }
   return Type::Numeric();
 }
@@ -450,6 +456,9 @@ Type Typer::Visitor::Increment(Type type, Typer* t) {
   if (type.Is(Type::Number())) {
     return NumberAdd(type, t->cache_->kSingletonOne, t);
   }
+  if (type.Is(Type::BigInt())) {
+    return Type::BigInt();
+  }
   return Type::Numeric();
 }
 
@@ -457,6 +466,9 @@ Type Typer::Visitor::Negate(Type type, Typer* t) {
   type = ToNumeric(type, t);
   if (type.Is(Type::Number())) {
     return NumberMultiply(type, t->cache_->kSingletonMinusOne, t);
+  }
+  if (type.Is(Type::BigInt())) {
+    return Type::BigInt();
   }
   return Type::Numeric();
 }
