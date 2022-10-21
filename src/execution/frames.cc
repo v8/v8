@@ -2693,9 +2693,9 @@ void StackSwitchFrame::GetStateForJumpBuffer(wasm::JumpBuffer* jmpbuf,
   DCHECK_NE(*state->pc_address, kNullAddress);
 }
 
-int WasmLiftoffSetupFrame::GetFunctionIndex() const {
+int WasmLiftoffSetupFrame::GetDeclaredFunctionIndex() const {
   Object func_index(Memory<Address>(
-      sp() + WasmLiftoffSetupFrameConstants::kFunctionIndexOffset));
+      sp() + WasmLiftoffSetupFrameConstants::kDeclaredFunctionIndexOffset));
   return Smi::ToInt(func_index);
 }
 
@@ -2717,8 +2717,9 @@ void WasmLiftoffSetupFrame::Iterate(RootVisitor* v) const {
   v->VisitRootPointer(Root::kStackRoots, "wasm instance parameter",
                       wasm_instance_slot());
 
-  int func_index = GetFunctionIndex();
   wasm::NativeModule* native_module = GetNativeModule();
+  int func_index = GetDeclaredFunctionIndex() +
+                   native_module->module()->num_imported_functions;
 
   // Scan the spill slots of the parameter registers. Parameters in WebAssembly
   // get reordered such that first all value parameters get put into registers.

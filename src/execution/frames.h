@@ -1163,7 +1163,7 @@ class WasmLiftoffSetupFrame : public TypedFrame {
 
   FullObjectSlot wasm_instance_slot() const;
 
-  int GetFunctionIndex() const;
+  int GetDeclaredFunctionIndex() const;
 
   wasm::NativeModule* GetNativeModule() const;
 
