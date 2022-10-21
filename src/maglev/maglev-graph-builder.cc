@@ -1279,6 +1279,7 @@ bool MaglevGraphBuilder::TryBuildPropertyGetterCall(
             ? ConvertReceiverMode::kNotNullOrUndefined
             : ConvertReceiverMode::kAny;
     Call* call = CreateNewNode<Call>(Call::kFixedInputCount + 1, receiver_mode,
+                                     Call::TargetType::kJSFunction,
                                      compiler::FeedbackSource(),
                                      GetConstant(constant), GetContext());
     call->set_arg(0, receiver);
@@ -1297,7 +1298,8 @@ bool MaglevGraphBuilder::TryBuildPropertySetterCall(
   if (constant.IsJSFunction()) {
     Call* call = CreateNewNode<Call>(
         Call::kFixedInputCount + 2, ConvertReceiverMode::kNotNullOrUndefined,
-        compiler::FeedbackSource(), GetConstant(constant), GetContext());
+        Call::TargetType::kJSFunction, compiler::FeedbackSource(),
+        GetConstant(constant), GetContext());
     call->set_arg(0, receiver);
     call->set_arg(1, value);
     SetAccumulator(AddNode(call));
@@ -2251,6 +2253,8 @@ void MaglevGraphBuilder::BuildCallFromRegisterList(
   interpreter::RegisterList args = iterator_.GetRegisterListOperand(1);
   ValueNode* context = GetContext();
 
+  Call::TargetType target_type = Call::TargetType::kAny;
+
   FeedbackSlot slot = GetSlotOperand(3);
   compiler::FeedbackSource feedback_source(feedback(), slot);
   const compiler::ProcessedFeedback& processed_feedback =
@@ -2266,6 +2270,7 @@ void MaglevGraphBuilder::BuildCallFromRegisterList(
         if (target.IsJSFunction()) {
           // Reset the feedback source
           feedback_source = compiler::FeedbackSource();
+          target_type = Call::TargetType::kJSFunction;
           if (!function->Is<Constant>()) {
             AddNewNode<CheckValue>({function}, target);
           } else if (!function->Cast<Constant>()->object().equals(target)) {
@@ -2282,8 +2287,8 @@ void MaglevGraphBuilder::BuildCallFromRegisterList(
     input_count++;
   }
 
-  Call* call = CreateNewNode<Call>(input_count, receiver_mode, feedback_source,
-                                   function, context);
+  Call* call = CreateNewNode<Call>(input_count, receiver_mode, target_type,
+                                   feedback_source, function, context);
   int arg_index = 0;
   if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
     call->set_arg(arg_index++, GetRootConstant(RootIndex::kUndefinedValue));
@@ -2308,6 +2313,7 @@ void MaglevGraphBuilder::BuildCallFromRegisters(
   DCHECK_LE(argc_count, 2);
   ValueNode* function = LoadRegisterTagged(0);
   ValueNode* context = GetContext();
+  Call::TargetType target_type = Call::TargetType::kAny;
   FeedbackSlot slot = GetSlotOperand(kSlotOperandIndex);
   compiler::FeedbackSource feedback_source(feedback(), slot);
 
@@ -2342,6 +2348,7 @@ void MaglevGraphBuilder::BuildCallFromRegisters(
 
       // Reset the feedback source
       feedback_source = compiler::FeedbackSource();
+      target_type = Call::TargetType::kJSFunction;
       if (!function->Is<Constant>()) {
         AddNewNode<CheckValue>({function}, target);
       } else if (!function->Cast<Constant>()->object().equals(target)) {
@@ -2361,8 +2368,8 @@ void MaglevGraphBuilder::BuildCallFromRegisters(
 
   int arg_index = 0;
   int reg_count = argc_count_with_recv;
-  Call* call = CreateNewNode<Call>(input_count, receiver_mode, feedback_source,
-                                   function, context);
+  Call* call = CreateNewNode<Call>(input_count, receiver_mode, target_type,
+                                   feedback_source, function, context);
   if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
     reg_count = argc_count;
     call->set_arg(arg_index++, GetRootConstant(RootIndex::kUndefinedValue));
@@ -2449,6 +2456,7 @@ void MaglevGraphBuilder::VisitCallJSRuntime() {
 
   Call* call =
       CreateNewNode<Call>(input_count, ConvertReceiverMode::kNullOrUndefined,
+                          Call::TargetType::kJSFunction,
                           compiler::FeedbackSource(), callee, GetContext());
   int arg_index = 0;
   call->set_arg(arg_index++, GetRootConstant(RootIndex::kUndefinedValue));

@@ -3285,6 +3285,7 @@ void Call::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
 
   uint32_t arg_count = num_args();
   if (feedback_.IsValid()) {
+    DCHECK_EQ(TargetType::kAny, target_type_);
     using D = CallTrampoline_WithFeedbackDescriptor;
     __ Move(D::GetRegisterParameter(D::kActualArgumentsCount),
             Immediate(arg_count));
@@ -3303,7 +3304,7 @@ void Call::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
         __ CallBuiltin(Builtin::kCall_ReceiverIsAny_WithFeedback);
         break;
     }
-  } else {
+  } else if (target_type_ == TargetType::kAny) {
     using D = CallTrampolineDescriptor;
     __ Move(D::GetRegisterParameter(D::kActualArgumentsCount),
             Immediate(arg_count));
@@ -3317,6 +3318,23 @@ void Call::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
         break;
       case ConvertReceiverMode::kAny:
         __ CallBuiltin(Builtin::kCall_ReceiverIsAny);
+        break;
+    }
+  } else {
+    DCHECK_EQ(TargetType::kJSFunction, target_type_);
+    using D = CallTrampolineDescriptor;
+    __ Move(D::GetRegisterParameter(D::kActualArgumentsCount),
+            Immediate(arg_count));
+
+    switch (receiver_mode_) {
+      case ConvertReceiverMode::kNullOrUndefined:
+        __ CallBuiltin(Builtin::kCallFunction_ReceiverIsNullOrUndefined);
+        break;
+      case ConvertReceiverMode::kNotNullOrUndefined:
+        __ CallBuiltin(Builtin::kCallFunction_ReceiverIsNotNullOrUndefined);
+        break;
+      case ConvertReceiverMode::kAny:
+        __ CallBuiltin(Builtin::kCallFunction_ReceiverIsAny);
         break;
     }
   }

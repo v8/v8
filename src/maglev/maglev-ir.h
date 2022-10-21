@@ -3603,6 +3603,8 @@ class Call : public ValueNodeT<Call> {
   using Base = ValueNodeT<Call>;
 
  public:
+  enum class TargetType { kJSFunction, kAny };
+
   // We assume function and context as fixed inputs.
   static constexpr int kFunctionIndex = 0;
   static constexpr int kContextIndex = 1;
@@ -3614,10 +3616,13 @@ class Call : public ValueNodeT<Call> {
 
   // This ctor is used when for variable input counts.
   // Inputs must be initialized manually.
-  Call(uint64_t bitfield, ConvertReceiverMode mode,
+  Call(uint64_t bitfield, ConvertReceiverMode mode, TargetType target_type,
        const compiler::FeedbackSource& feedback, ValueNode* function,
        ValueNode* context)
-      : Base(bitfield), receiver_mode_(mode), feedback_(feedback) {
+      : Base(bitfield),
+        receiver_mode_(mode),
+        target_type_(target_type),
+        feedback_(feedback) {
     set_input(kFunctionIndex, function);
     set_input(kContextIndex, context);
   }
@@ -3641,6 +3646,7 @@ class Call : public ValueNodeT<Call> {
 
  private:
   ConvertReceiverMode receiver_mode_;
+  TargetType target_type_;
   const compiler::FeedbackSource feedback_;
 };
 
