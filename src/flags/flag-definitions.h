@@ -601,7 +601,7 @@ DEFINE_INT(interrupt_budget_factor_for_feedback_allocation, 8,
 // Tiering: Maglev.
 // The Maglev interrupt budget is chosen to be roughly 1/10th of Turbofan's
 // overall budget (including the multiple required ticks).
-DEFINE_INT(interrupt_budget_for_maglev, 7 * KB,
+DEFINE_INT(interrupt_budget_for_maglev, 30 * KB,
            "interrupt budget which should be used for the profiler counter")
 
 // Tiering: Turbofan.
@@ -763,7 +763,7 @@ DEFINE_BOOL(maglev_overwrite_budget, false,
 DEFINE_WEAK_IMPLICATION(maglev, maglev_overwrite_budget)
 DEFINE_NEG_IMPLICATION(stress_concurrent_inlining, maglev_overwrite_budget)
 DEFINE_WEAK_VALUE_IMPLICATION(maglev_overwrite_budget, interrupt_budget,
-                              110 * KB)
+                              80 * KB)
 DEFINE_BOOL(stress_concurrent_inlining_attach_code, false,
             "create additional concurrent optimization jobs")
 DEFINE_IMPLICATION(stress_concurrent_inlining_attach_code,
