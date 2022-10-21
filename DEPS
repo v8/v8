@@ -46,19 +46,19 @@ vars = {
   'reclient_version': 're_client_version:0.69.0.458df98-gomaip',
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:57c352b2b03461c24b19c678c61d7aeacc6981f4',
+  'gn_version': 'git_revision:27b90626701a112217a9244022c729231ebcc3a0',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
   'ninja_version': 'version:2@1.8.2.chromium.3',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:2673c9d7d4a38bce69415221fe721f807e909d85',
+  'luci_go': 'git_revision:50ab33853a8b220162f851dcb74a1519e106b3df',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:10.20221019.3.1',
+  'fuchsia_version': 'version:10.20221020.1.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -98,9 +98,9 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '521ac34ebd795939c7e16b37d9d3ddb40e8ed556',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '8d71aabf07c0ac19c62e856c74eb03700a88a665',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '35a14780e1f603cef56a4a7750bdde49118a215a',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'f45ca778b4e4c91af82921cc277662557a92310d',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'be63ea5c90ac9873b41abe4956cbdcd2b2d1ca2d',
   'buildtools/clang_format/script':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/clang/tools/clang-format.git' + '@' + '8b525d2747f2584fc35d8c7e612e66f377858df7',
   'buildtools/linux64': {
@@ -124,9 +124,9 @@ deps = {
     'condition': 'host_os == "mac"',
   },
   'buildtools/third_party/libc++/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '9c5e35a92b9ff87dcad8d32bf77ff391f432d3d6',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '9f512cf5eeefe814556dc888d0cfe35efd25c6bd',
   'buildtools/third_party/libc++abi/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '685c4ad257da543bdf9e3a391c28b3e4ac1f8aac',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '519e9ef6cc1c284bb1ee13540f123cdc4c269224',
   'buildtools/third_party/libunwind/trunk':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '1f633d41a035b91bbff4cb02f7f549a856dee6fa',
   'buildtools/win': {
@@ -202,7 +202,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '62b4c4e2e2b7aa26bb81f7f63097e378bf61568f',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '981585a127388385853b3dea72b40b739c68f309',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -210,7 +210,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'bd0cea6acd9ed0476b6634b08da740093715a654',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '3b9552584dd763bc79a3cdae897a0cd624b2dcf5',
   'third_party/fuchsia-sdk/sdk': {
     'packages': [
         {
@@ -229,7 +229,7 @@ deps = {
   'third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'da07448619763d1cde255b361324242646f5b268',
   'third_party/instrumented_libraries':
-    Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + '5104b7ec0aa140bfaa2336722b7bd326ceab54f3',
+    Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + '459048b1dd9b41a816afeb456b8459b927ff47d1',
   'third_party/ittapi': {
     # Force checkout ittapi libraries to pass v8 header includes check on
     # bots that has check_v8_header_includes enabled.
@@ -262,7 +262,7 @@ deps = {
       'condition': 'checkout_android',
   },
   'third_party/zlib':
-    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '3cec05733f5d3d7049d2a4600053902a25d08cd2',
+    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'cff720848d7ddad191354f153f7acbb43af09b74',
   'tools/clang':
     Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '2619cde247bf037c2afa19b0913cccddac12ccbd',
   'tools/luci-go': {
