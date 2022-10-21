@@ -1382,6 +1382,8 @@ filegroup(
         "src/handles/global-handles-inl.h",
         "src/handles/global-handles.cc",
         "src/handles/global-handles.h",
+        "src/handles/traced-handles.cc",
+        "src/handles/traced-handles.h",
         "src/handles/handles-inl.h",
         "src/handles/handles.cc",
         "src/handles/handles.h",

@@ -31,6 +31,7 @@
 #include "src/execution/shared-mutex-guard-if-off-thread.h"
 #include "src/execution/stack-guard.h"
 #include "src/handles/handles.h"
+#include "src/handles/traced-handles.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap.h"
 #include "src/heap/read-only-heap.h"
@@ -1289,6 +1290,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   GlobalHandles* global_handles() const { return global_handles_; }
 
+  TracedHandles* traced_handles() { return &traced_handles_; }
+
   EternalHandles* eternal_handles() const { return eternal_handles_; }
 
   ThreadManager* thread_manager() const { return thread_manager_; }
@@ -2214,6 +2217,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   AccountingAllocator* allocator_ = nullptr;
   InnerPointerToCodeCache* inner_pointer_to_code_cache_ = nullptr;
   GlobalHandles* global_handles_ = nullptr;
+  TracedHandles traced_handles_;
   EternalHandles* eternal_handles_ = nullptr;
   ThreadManager* thread_manager_ = nullptr;
   bigint::Processor* bigint_processor_ = nullptr;

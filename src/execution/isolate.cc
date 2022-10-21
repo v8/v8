@@ -3409,6 +3409,7 @@ Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator,
       isolate_allocator_(std::move(isolate_allocator)),
       id_(isolate_counter.fetch_add(1, std::memory_order_relaxed)),
       allocator_(new TracingAccountingAllocator(this)),
+      traced_handles_(this),
       builtins_(this),
 #if defined(DEBUG) || defined(VERIFY_HEAP)
       num_active_deserializers_(0),

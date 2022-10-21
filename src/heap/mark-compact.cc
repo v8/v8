@@ -2740,7 +2740,7 @@ void MarkCompactCollector::MarkLiveObjects() {
     // finished as it will reset page flags that share the same bitmap as
     // the evacuation candidate bit.
     MarkingBarrier::DeactivateAll(heap());
-    GlobalHandles::DisableMarkingBarrier(heap()->isolate());
+    heap()->isolate()->traced_handles()->SetIsMarking(false);
   }
 
   epoch_++;
@@ -2936,6 +2936,7 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     // CPU profiler.
     heap()->isolate()->global_handles()->IterateWeakRootsForPhantomHandles(
         &IsUnmarkedHeapObject);
+    heap()->isolate()->traced_handles()->ResetDeadNodes(&IsUnmarkedHeapObject);
   }
 
   {
@@ -6163,7 +6164,7 @@ void MinorMarkCompactCollector::MarkRootSetInParallel(
     // Seed the root set (roots + old->new set).
     {
       TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_SEED);
-      isolate()->global_handles()->ComputeWeaknessForYoungObjects(
+      isolate()->traced_handles()->ComputeWeaknessForYoungObjects(
           &JSObject::IsUnmodifiedApiObject);
       // MinorMC treats all weak roots except for global handles as strong.
       // That is why we don't set skip_weak = true here and instead visit
@@ -6174,6 +6175,7 @@ void MinorMarkCompactCollector::MarkRootSetInParallel(
                                                 SkipRoot::kOldGeneration});
       isolate()->global_handles()->IterateYoungStrongAndDependentRoots(
           root_visitor);
+      isolate()->traced_handles()->IterateYoungRoots(root_visitor);
 
       if (!was_marked_incrementally) {
         // Create items for each page.
@@ -6240,6 +6242,8 @@ void MinorMarkCompactCollector::MarkLiveObjects() {
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_GLOBAL_HANDLES);
     isolate()->global_handles()->ProcessWeakYoungObjects(
+        &root_visitor, &IsUnmarkedObjectForYoungGeneration);
+    isolate()->traced_handles()->ProcessYoungObjects(
         &root_visitor, &IsUnmarkedObjectForYoungGeneration);
     DrainMarkingWorklist();
   }

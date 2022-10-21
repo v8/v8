@@ -272,6 +272,7 @@ void IncrementalMarking::MarkRoots() {
 
     heap()->isolate()->global_handles()->IterateYoungStrongAndDependentRoots(
         &visitor);
+    heap()->isolate()->traced_handles()->IterateYoungRoots(&visitor);
 
     std::vector<PageMarkingItem> marking_items;
     RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(
@@ -333,7 +334,7 @@ void IncrementalMarking::StartMarkingMajor() {
 
   MarkingBarrier::ActivateAll(heap(), is_compacting_,
                               MarkingBarrierType::kMajor);
-  GlobalHandles::EnableMarkingBarrier(heap()->isolate());
+  heap()->isolate()->traced_handles()->SetIsMarking(true);
 
   heap_->isolate()->compilation_cache()->MarkCompactPrologue();
 

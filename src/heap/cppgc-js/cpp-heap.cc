@@ -20,8 +20,8 @@
 #include "src/base/platform/time.h"
 #include "src/execution/isolate-inl.h"
 #include "src/flags/flags.h"
-#include "src/handles/global-handles.h"
 #include "src/handles/handles.h"
+#include "src/handles/traced-handles.h"
 #include "src/heap/base/stack.h"
 #include "src/heap/cppgc-js/cpp-marking-state.h"
 #include "src/heap/cppgc-js/cpp-snapshot.h"
@@ -152,7 +152,7 @@ void TraceV8ToCppGCReferences(
   DCHECK(isolate);
   V8ToCppGCReferencesVisitor forwarding_visitor(marking_state, isolate,
                                                 wrapper_descriptor);
-  isolate->global_handles()->IterateTracedNodes(&forwarding_visitor);
+  isolate->traced_handles()->Iterate(&forwarding_visitor);
 }
 
 }  // namespace
@@ -561,34 +561,32 @@ namespace {
 class SweepingOnMutatorThreadForGlobalHandlesScope final {
  public:
   explicit SweepingOnMutatorThreadForGlobalHandlesScope(
-      GlobalHandles& global_handles)
-      : global_handles_(global_handles) {
-    global_handles_.NotifyStartSweepingOnMutatorThread();
+      TracedHandles& traced_handles)
+      : traced_handles_(traced_handles) {
+    traced_handles_.SetIsSweepingOnMutatorThread(true);
   }
   ~SweepingOnMutatorThreadForGlobalHandlesScope() {
-    global_handles_.NotifyEndSweepingOnMutatorThread();
+    traced_handles_.SetIsSweepingOnMutatorThread(false);
   }
 
-  GlobalHandles& global_handles_;
+  TracedHandles& traced_handles_;
 };
 
 class SweepingOnMutatorThreadForGlobalHandlesObserver final
     : public cppgc::internal::Sweeper::SweepingOnMutatorThreadObserver {
  public:
   SweepingOnMutatorThreadForGlobalHandlesObserver(CppHeap& cpp_heap,
-                                                  GlobalHandles& global_handles)
+                                                  TracedHandles& traced_handles)
       : cppgc::internal::Sweeper::SweepingOnMutatorThreadObserver(
             cpp_heap.sweeper()),
-        global_handles_(global_handles) {}
+        traced_handles_(traced_handles) {}
 
-  void Start() override {
-    global_handles_.NotifyStartSweepingOnMutatorThread();
-  }
+  void Start() override { traced_handles_.SetIsSweepingOnMutatorThread(true); }
 
-  void End() override { global_handles_.NotifyEndSweepingOnMutatorThread(); }
+  void End() override { traced_handles_.SetIsSweepingOnMutatorThread(false); }
 
  private:
-  GlobalHandles& global_handles_;
+  TracedHandles& traced_handles_;
 };
 
 }  // namespace
@@ -608,7 +606,7 @@ void CppHeap::AttachIsolate(Isolate* isolate) {
   ReduceGCCapabilititesFromFlags();
   sweeping_on_mutator_thread_observer_ =
       std::make_unique<SweepingOnMutatorThreadForGlobalHandlesObserver>(
-          *this, *isolate_->global_handles());
+          *this, *isolate_->traced_handles());
   no_gc_scope_--;
 }
 
@@ -850,7 +848,7 @@ void CppHeap::TraceEpilogue() {
       base::Optional<SweepingOnMutatorThreadForGlobalHandlesScope>
           global_handles_scope;
       if (isolate_) {
-        global_handles_scope.emplace(*isolate_->global_handles());
+        global_handles_scope.emplace(*isolate_->traced_handles());
       }
       compactable_space_handling = compactor_.CompactSpacesIfEnabled();
     }

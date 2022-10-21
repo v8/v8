@@ -63,6 +63,7 @@
 #include "src/handles/global-handles.h"
 #include "src/handles/persistent-handles.h"
 #include "src/handles/shared-object-conveyor-handles.h"
+#include "src/handles/traced-handles.h"
 #include "src/heap/embedder-tracing.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-write-barrier.h"
@@ -792,8 +793,7 @@ i::Address* GlobalizeTracedReference(i::Isolate* i_isolate, i::Address* obj,
   Utils::ApiCheck((slot != nullptr), "v8::GlobalizeTracedReference",
                   "the address slot must be not null");
 #endif
-  i::Handle<i::Object> result =
-      i_isolate->global_handles()->CreateTraced(*obj, slot, store_mode);
+  auto result = i_isolate->traced_handles()->Create(*obj, slot, store_mode);
 #ifdef VERIFY_HEAP
   if (i::v8_flags.verify_heap) {
     i::Object(*obj).ObjectVerify(i_isolate);
@@ -803,16 +803,16 @@ i::Address* GlobalizeTracedReference(i::Isolate* i_isolate, i::Address* obj,
 }
 
 void MoveTracedReference(internal::Address** from, internal::Address** to) {
-  GlobalHandles::MoveTracedReference(from, to);
+  TracedHandles::Move(from, to);
 }
 
 void CopyTracedReference(const internal::Address* const* from,
                          internal::Address** to) {
-  GlobalHandles::CopyTracedReference(from, to);
+  TracedHandles::Copy(from, to);
 }
 
 void DisposeTracedReference(internal::Address* location) {
-  GlobalHandles::DestroyTracedReference(location);
+  TracedHandles::Destroy(location);
 }
 
 }  // namespace internal
@@ -10529,7 +10529,7 @@ void EmbedderHeapTracer::IterateTracedGlobalHandles(
     TracedGlobalHandleVisitor* visitor) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate_);
   i::DisallowGarbageCollection no_gc;
-  i_isolate->global_handles()->IterateTracedNodes(visitor);
+  i_isolate->traced_handles()->Iterate(visitor);
 }
 
 bool EmbedderHeapTracer::IsRootForNonTracingGC(

@@ -36,6 +36,7 @@
 #include "src/execution/vm-state-inl.h"
 #include "src/flags/flags.h"
 #include "src/handles/global-handles-inl.h"
+#include "src/handles/traced-handles.h"
 #include "src/heap/array-buffer-sweeper.h"
 #include "src/heap/base/stack.h"
 #include "src/heap/basic-memory-chunk.h"
@@ -1119,11 +1120,13 @@ size_t Heap::SizeOfObjects() {
 }
 
 size_t Heap::TotalGlobalHandlesSize() {
-  return isolate_->global_handles()->TotalSize();
+  return isolate_->global_handles()->TotalSize() +
+         isolate_->traced_handles()->total_size_bytes();
 }
 
 size_t Heap::UsedGlobalHandlesSize() {
-  return isolate_->global_handles()->UsedSize();
+  return isolate_->global_handles()->UsedSize() +
+         isolate_->traced_handles()->used_size_bytes();
 }
 
 void Heap::AddAllocationObserversToAllSpaces(
@@ -4629,6 +4632,7 @@ void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options) {
         if (options.contains(SkipRoot::kOldGeneration)) {
           // Skip handles that are either weak or old.
           isolate_->global_handles()->IterateYoungStrongAndDependentRoots(v);
+          isolate_->traced_handles()->IterateYoungRoots(v);
         } else {
           // Skip handles that are weak.
           isolate_->global_handles()->IterateStrongRoots(v);
@@ -4638,9 +4642,11 @@ void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options) {
         if (options.contains(SkipRoot::kOldGeneration)) {
           // Skip handles that are old.
           isolate_->global_handles()->IterateAllYoungRoots(v);
+          isolate_->traced_handles()->IterateYoung(v);
         } else {
           // Do not skip any handles.
           isolate_->global_handles()->IterateAllRoots(v);
+          isolate_->traced_handles()->Iterate(v);
         }
       }
     }
@@ -4788,6 +4794,7 @@ void Heap::IterateRootsFromStackIncludingClient(RootVisitor* v) {
 
 void Heap::IterateWeakGlobalHandles(RootVisitor* v) {
   isolate_->global_handles()->IterateWeakRoots(v);
+  isolate_->traced_handles()->Iterate(v);
 }
 
 void Heap::IterateBuiltins(RootVisitor* v) {
@@ -5768,7 +5775,7 @@ void Heap::SetStackStart(void* stack_start) {
 }
 
 void Heap::RegisterExternallyReferencedObject(Address* location) {
-  GlobalHandles::MarkTraced(location);
+  TracedHandles::Mark(location);
   Object object(*location);
   if (!object.IsHeapObject()) {
     // The embedder is not aware of whether numbers are materialized as heap

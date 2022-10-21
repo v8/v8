@@ -364,7 +364,7 @@ void ScavengerCollector::CollectGarbage() {
       TRACE_GC(
           heap_->tracer(),
           GCTracer::Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_IDENTIFY);
-      isolate_->global_handles()->ComputeWeaknessForYoungObjects(
+      isolate_->traced_handles()->ComputeWeaknessForYoungObjects(
           &JSObject::IsUnmodifiedApiObject);
     }
     {
@@ -382,6 +382,7 @@ void ScavengerCollector::CollectGarbage() {
       heap_->IterateRoots(&root_scavenge_visitor, options);
       isolate_->global_handles()->IterateYoungStrongAndDependentRoots(
           &root_scavenge_visitor);
+      isolate_->traced_handles()->IterateYoungRoots(&root_scavenge_visitor);
       scavengers[kMainThreadId]->Publish();
     }
     {
@@ -410,6 +411,8 @@ void ScavengerCollector::CollectGarbage() {
                GCTracer::Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_PROCESS);
       GlobalHandlesWeakRootsUpdatingVisitor visitor;
       isolate_->global_handles()->ProcessWeakYoungObjects(
+          &visitor, &IsUnscavengedHeapObjectSlot);
+      isolate_->traced_handles()->ProcessYoungObjects(
           &visitor, &IsUnscavengedHeapObjectSlot);
     }
 

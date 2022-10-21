@@ -2450,6 +2450,7 @@ void V8HeapExplorer::CollectGlobalObjectsTags() {
   Isolate* isolate = Isolate::FromHeap(heap_);
   GlobalObjectsEnumerator enumerator(isolate);
   isolate->global_handles()->IterateAllRoots(&enumerator);
+  isolate->traced_handles()->Iterate(&enumerator);
   for (int i = 0, l = enumerator.count(); i < l; ++i) {
     Handle<JSGlobalObject> obj = enumerator.at(i);
     const char* tag = global_object_name_resolver_->GetName(
