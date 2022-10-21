@@ -917,7 +917,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   // Check if the non-shared memory could grow in-place.
   if (result_inplace.has_value()) {
     // Detach old and create a new one with the grown backing store.
-    old_buffer->Detach(true);
+    JSArrayBuffer::Detach(old_buffer, true).Check();
     Handle<JSArrayBuffer> new_buffer =
         isolate->factory()->NewJSArrayBuffer(std::move(backing_store));
     memory_object->update_instances(isolate, new_buffer);
@@ -957,7 +957,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   }
 
   // Detach old and create a new one with the new backing store.
-  old_buffer->Detach(true);
+  JSArrayBuffer::Detach(old_buffer, true).Check();
   Handle<JSArrayBuffer> new_buffer =
       isolate->factory()->NewJSArrayBuffer(std::move(new_backing_store));
   memory_object->update_instances(isolate, new_buffer);

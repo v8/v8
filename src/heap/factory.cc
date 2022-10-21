@@ -3036,7 +3036,7 @@ Handle<JSArrayBuffer> Factory::NewJSArrayBuffer(
   auto result =
       Handle<JSArrayBuffer>::cast(NewJSObjectFromMap(map, allocation));
   result->Setup(SharedFlag::kNotShared, ResizableFlag::kNotResizable,
-                std::move(backing_store));
+                std::move(backing_store), isolate());
   return result;
 }
 
@@ -3055,7 +3055,7 @@ MaybeHandle<JSArrayBuffer> Factory::NewJSArrayBufferAndBackingStore(
   auto array_buffer =
       Handle<JSArrayBuffer>::cast(NewJSObjectFromMap(map, allocation));
   array_buffer->Setup(SharedFlag::kNotShared, ResizableFlag::kNotResizable,
-                      std::move(backing_store));
+                      std::move(backing_store), isolate());
   return array_buffer;
 }
 
@@ -3071,7 +3071,8 @@ Handle<JSArrayBuffer> Factory::NewJSSharedArrayBuffer(
   ResizableFlag resizable = backing_store->is_resizable_by_js()
                                 ? ResizableFlag::kResizable
                                 : ResizableFlag::kNotResizable;
-  result->Setup(SharedFlag::kShared, resizable, std::move(backing_store));
+  result->Setup(SharedFlag::kShared, resizable, std::move(backing_store),
+                isolate());
   return result;
 }
 

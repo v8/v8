@@ -180,7 +180,7 @@ THREADED_TEST(ArrayBuffer_DetachingApi) {
   CHECK_EQ(1023, dv->ByteLength());
 
   Externalize(buffer);
-  buffer->Detach();
+  buffer->Detach(v8::Local<v8::Value>()).Check();
   CHECK_EQ(0, buffer->ByteLength());
   CheckIsDetached(u8a);
   CheckIsDetached(u8c);
@@ -216,7 +216,7 @@ THREADED_TEST(ArrayBuffer_DetachingScript) {
   v8::Local<v8::DataView> dv = CompileRun("dv").As<v8::DataView>();
 
   Externalize(ab);
-  ab->Detach();
+  ab->Detach(v8::Local<v8::Value>()).Check();
   CHECK_EQ(0, ab->ByteLength());
   CHECK_EQ(0, v8_run_int32value(v8_compile("ab.byteLength")));
 

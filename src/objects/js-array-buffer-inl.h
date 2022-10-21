@@ -147,6 +147,8 @@ void JSArrayBuffer::clear_padding() {
   }
 }
 
+ACCESSORS(JSArrayBuffer, detach_key, Object, kDetachKeyOffset)
+
 void JSArrayBuffer::set_bit_field(uint32_t bits) {
   RELAXED_WRITE_UINT32_FIELD(*this, kBitFieldOffset, bits);
 }

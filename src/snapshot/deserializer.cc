@@ -410,7 +410,7 @@ void Deserializer<Isolate>::PostProcessNewJSReceiver(Map map,
       ResizableFlag resizable = bs && bs->is_resizable_by_js()
                                     ? ResizableFlag::kResizable
                                     : ResizableFlag::kNotResizable;
-      buffer.Setup(shared, resizable, bs);
+      buffer.Setup(shared, resizable, bs, main_thread_isolate());
     }
   }
 }

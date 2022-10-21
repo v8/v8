@@ -1553,6 +1553,7 @@ void JSArrayBuffer::JSArrayBufferPrint(std::ostream& os) {
   os << "\n - backing_store: " << backing_store();
   os << "\n - byte_length: " << byte_length();
   os << "\n - max_byte_length: " << max_byte_length();
+  os << "\n - detach key: " << detach_key();
   if (is_external()) os << "\n - external";
   if (is_detachable()) os << "\n - detachable";
   if (was_detached()) os << "\n - detached";

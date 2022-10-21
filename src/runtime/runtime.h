@@ -592,7 +592,8 @@ namespace internal {
   I(DeoptimizeNow, 0, 1)
 
 #define FOR_EACH_INTRINSIC_TYPEDARRAY(F, I)    \
-  F(ArrayBufferDetach, 1, 1)                   \
+  F(ArrayBufferDetach, -1, 1)                  \
+  F(ArrayBufferSetDetachKey, 2, 1)             \
   F(GrowableSharedArrayBufferByteLength, 1, 1) \
   F(TypedArrayCopyElements, 3, 1)              \
   F(TypedArrayGetBuffer, 1, 1)                 \

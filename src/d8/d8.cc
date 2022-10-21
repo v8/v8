@@ -5436,7 +5436,9 @@ class Serializer : public ValueSerializer::Delegate {
 
       auto backing_store = array_buffer->GetBackingStore();
       data_->backing_stores_.push_back(std::move(backing_store));
-      array_buffer->Detach();
+      if (array_buffer->Detach(v8::Local<v8::Value>()).IsNothing()) {
+        return Nothing<bool>();
+      }
     }
 
     return Just(true);

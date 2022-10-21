@@ -8083,14 +8083,32 @@ std::shared_ptr<i::BackingStore> ToInternal(
 }
 }  // namespace
 
-void v8::ArrayBuffer::Detach() {
+Maybe<bool> v8::ArrayBuffer::Detach(v8::Local<v8::Value> key) {
   i::Handle<i::JSArrayBuffer> obj = Utils::OpenHandle(this);
   i::Isolate* i_isolate = obj->GetIsolate();
   Utils::ApiCheck(obj->is_detachable(), "v8::ArrayBuffer::Detach",
                   "Only detachable ArrayBuffers can be detached");
-  API_RCS_SCOPE(i_isolate, ArrayBuffer, Detach);
-  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  obj->Detach();
+  ENTER_V8_NO_SCRIPT(
+      i_isolate, reinterpret_cast<v8::Isolate*>(i_isolate)->GetCurrentContext(),
+      ArrayBuffer, Detach, Nothing<bool>(), i::HandleScope);
+  if (!key.IsEmpty()) {
+    i::Handle<i::Object> i_key = Utils::OpenHandle(*key);
+    constexpr bool kForceForWasmMemory = false;
+    has_pending_exception =
+        i::JSArrayBuffer::Detach(obj, kForceForWasmMemory, i_key).IsNothing();
+  } else {
+    has_pending_exception = i::JSArrayBuffer::Detach(obj).IsNothing();
+  }
+  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+  return Just(true);
+}
+
+void v8::ArrayBuffer::Detach() { Detach(Local<Value>()).Check(); }
+
+void v8::ArrayBuffer::SetDetachKey(v8::Local<v8::Value> key) {
+  i::Handle<i::JSArrayBuffer> obj = Utils::OpenHandle(this);
+  i::Handle<i::Object> i_key = Utils::OpenHandle(*key);
+  obj->set_detach_key(*i_key);
 }
 
 size_t v8::ArrayBuffer::ByteLength() const {
