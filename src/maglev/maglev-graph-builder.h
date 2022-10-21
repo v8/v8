@@ -958,7 +958,8 @@ class MaglevGraphBuilder {
   void BuildCheckHeapObject(ValueNode* object);
   void BuildCheckString(ValueNode* object);
   void BuildCheckSymbol(ValueNode* object);
-  void BuildMapCheck(ValueNode* object, const compiler::MapRef& map);
+  void BuildCheckMaps(ValueNode* object,
+                      ZoneVector<compiler::MapRef> const& maps);
 
   ValueNode* GetInt32ElementIndex(ValueNode* index_object);
 

@@ -294,6 +294,10 @@ class V8_EXPORT_PRIVATE ObjectRef {
   JSHeapBroker* broker_;
 };
 
+inline bool operator==(ObjectRef const& obj1, ObjectRef const& obj2) {
+  return obj1.equals(obj2);
+}
+
 template <class T>
 using ZoneRefUnorderedSet =
     ZoneUnorderedSet<T, ObjectRef::Hash, ObjectRef::Equal>;

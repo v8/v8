@@ -1158,51 +1158,166 @@ void MaglevGraphBuilder::BuildCheckSymbol(ValueNode* object) {
   known_info->type = NodeType::kSymbol;
 }
 
-void MaglevGraphBuilder::BuildMapCheck(ValueNode* object,
-                                       const compiler::MapRef& map) {
-  ZoneMap<ValueNode*, compiler::MapRef>& map_of_maps =
-      map.is_stable() ? known_node_aspects().stable_maps
-                      : known_node_aspects().unstable_maps;
-  auto it = map_of_maps.find(object);
-  if (it != map_of_maps.end()) {
-    if (it->second.equals(map)) {
-      // Map is already checked.
-      return;
-    }
-    // TODO(leszeks): Insert an unconditional deopt if the known map doesn't
-    // match the required map.
+namespace {
+
+class KnownMapsMerger {
+ public:
+  explicit KnownMapsMerger(compiler::JSHeapBroker* broker, ValueNode* object,
+                           KnownNodeAspects& known_node_aspects,
+                           ZoneVector<compiler::MapRef> const& maps)
+      : broker_(broker),
+        maps_(maps),
+        known_maps_are_subset_of_maps_(true),
+        emit_check_with_migration_(false) {
+    // A non-value value here means the universal set, i.e., we don't know
+    // anything about the possible maps of the object.
+    base::Optional<ZoneHandleSet<Map>> known_stable_map_set =
+        GetKnownMapSet(object, known_node_aspects.stable_maps);
+    base::Optional<ZoneHandleSet<Map>> known_unstable_map_set =
+        GetKnownMapSet(object, known_node_aspects.unstable_maps);
+
+    IntersectKnownMaps(known_stable_map_set, true);
+    IntersectKnownMaps(known_unstable_map_set, false);
+
+    // Update known maps.
+    known_node_aspects.stable_maps[object] = stable_map_set_;
+    known_node_aspects.unstable_maps[object] = unstable_map_set_;
   }
+
+  bool known_maps_are_subset_of_maps() const {
+    return known_maps_are_subset_of_maps_;
+  }
+  bool emit_check_with_migration() const { return emit_check_with_migration_; }
+
+  ZoneHandleSet<Map> intersect_set() const {
+    ZoneHandleSet<Map> map_set;
+    map_set.Union(stable_map_set_, zone());
+    map_set.Union(unstable_map_set_, zone());
+    return map_set;
+  }
+
+ private:
+  compiler::JSHeapBroker* broker_;
+  ZoneVector<compiler::MapRef> const& maps_;
+  bool known_maps_are_subset_of_maps_;
+  bool emit_check_with_migration_;
+  ZoneHandleSet<Map> stable_map_set_;
+  ZoneHandleSet<Map> unstable_map_set_;
+
+  Zone* zone() const { return broker_->zone(); }
+
+  base::Optional<ZoneHandleSet<Map>> GetKnownMapSet(
+      ValueNode* object,
+      const ZoneMap<ValueNode*, ZoneHandleSet<Map>>& map_of_map_set) {
+    auto it = map_of_map_set.find(object);
+    if (it == map_of_map_set.end()) {
+      return {};
+    }
+    return it->second;
+  }
+
+  base::Optional<compiler::MapRef> GetMapRefFromMaps(Handle<Map> handle) {
+    auto it =
+        std::find_if(maps_.begin(), maps_.end(), [&](compiler::MapRef map_ref) {
+          return map_ref.object().is_identical_to(handle);
+        });
+    if (it == maps_.end()) return {};
+    return *it;
+  }
+
+  void InsertMap(compiler::MapRef map, bool add_dependency) {
+    if (map.is_migration_target()) {
+      emit_check_with_migration_ = true;
+    }
+    if (map.is_stable()) {
+      // TODO(victorgomes): Add a DCHECK_SLOW that checks if the map already
+      // exists in the CompilationDependencySet for the else branch.
+      if (add_dependency) {
+        broker_->dependencies()->DependOnStableMap(map);
+      }
+      stable_map_set_.insert(map.object(), zone());
+    } else {
+      unstable_map_set_.insert(map.object(), zone());
+    }
+  }
+
+  void IntersectKnownMaps(base::Optional<ZoneHandleSet<Map>>& known_maps,
+                          bool is_set_with_stable_maps) {
+    if (known_maps.has_value()) {
+      // TODO(v8:7700): Make intersection non-quadratic.
+      for (Handle<Map> handle : *known_maps) {
+        auto map = GetMapRefFromMaps(handle);
+        if (map.has_value()) {
+          InsertMap(*map, false);
+        } else {
+          known_maps_are_subset_of_maps_ = false;
+        }
+      }
+    } else {
+      // Intersect with the universal set.
+      known_maps_are_subset_of_maps_ = false;
+      for (compiler::MapRef map : maps_) {
+        if (map.is_stable() == is_set_with_stable_maps) {
+          InsertMap(map, true);
+        }
+      }
+    }
+  }
+};
+
+}  // namespace
+
+void MaglevGraphBuilder::BuildCheckMaps(
+    ValueNode* object, ZoneVector<compiler::MapRef> const& maps) {
+  // Check for constants.
   NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(object);
   if (known_info->type == NodeType::kUnknown) {
     known_info->type = StaticTypeForNode(object);
     if (known_info->type == NodeType::kHeapObjectWithKnownMap) {
-      // The only case where the type becomes a heap-object with a known map is
-      // when the object is a constant.
+      // The only case where the type becomes a heap-object with a known map
+      // is when the object is a constant.
       DCHECK(object->Is<Constant>());
-      // For constants with stable maps that match the desired map, we don't
-      // need to emit a map check, and can use the dependency -- we can't do
-      // this for unstable maps because the constant could migrate during
-      // compilation.
+      // For constants with stable maps that match one of the desired maps, we
+      // don't need to emit a map check, and can use the dependency -- we
+      // can't do this for unstable maps because the constant could migrate
+      // during compilation.
+      compiler::MapRef constant_map = object->Cast<Constant>()->object().map();
+      if (std::find(maps.begin(), maps.end(), constant_map) != maps.end()) {
+        if (constant_map.is_stable()) {
+          ZoneHandleSet<Map> stable_maps(constant_map.object());
+          known_node_aspects().stable_maps.emplace(object, stable_maps);
+          broker()->dependencies()->DependOnStableMap(constant_map);
+          return;
+        }
+      }
       // TODO(leszeks): Insert an unconditional deopt if the constant map
       // doesn't match the required map.
-      compiler::MapRef constant_map = object->Cast<Constant>()->object().map();
-      if (constant_map.equals(map) && map.is_stable()) {
-        DCHECK_EQ(&map_of_maps, &known_node_aspects().stable_maps);
-        map_of_maps.emplace(object, map);
-        broker()->dependencies()->DependOnStableMap(map);
-        return;
-      }
     }
   }
 
-  if (map.is_migration_target()) {
-    AddNewNode<CheckMapsWithMigration>({object}, map, GetCheckType(known_info));
-  } else {
-    AddNewNode<CheckMaps>({object}, map, GetCheckType(known_info));
+  // Calculates if known maps are a subset of maps, their map intersection and
+  // whether we should emit check with migration.
+  KnownMapsMerger merger(broker(), object, known_node_aspects(), maps);
+
+  // If the known maps are the subset of the maps to check, we are done.
+  if (merger.known_maps_are_subset_of_maps()) {
+    DCHECK_EQ(known_info->type, NodeType::kHeapObjectWithKnownMap);
+    return;
   }
-  map_of_maps.emplace(object, map);
-  if (map.is_stable()) {
-    broker()->dependencies()->DependOnStableMap(map);
+
+  // TODO(v8:7700): Insert an unconditional deopt here if intersect map sets are
+  // empty.
+
+  // TODO(v8:7700): Check if the {maps} - {known_maps} size is smaller than
+  // {maps} \intersect {known_maps}, we can emit CheckNotMaps instead.
+
+  // Emit checks.
+  if (merger.emit_check_with_migration()) {
+    AddNewNode<CheckMapsWithMigration>({object}, merger.intersect_set(),
+                                       GetCheckType(known_info));
+  } else {
+    AddNewNode<CheckMaps>({object}, merger.intersect_set(),
+                          GetCheckType(known_info));
   }
   known_info->type = NodeType::kHeapObjectWithKnownMap;
 }
@@ -1373,7 +1488,9 @@ bool MaglevGraphBuilder::TryBuildStoreField(
       // Emit a map check for the field type, if needed, otherwise just a
       // HeapObject check.
       if (access_info.field_map().has_value()) {
-        BuildMapCheck(value, access_info.field_map().value());
+        ZoneVector<compiler::MapRef> maps({access_info.field_map().value()},
+                                          zone());
+        BuildCheckMaps(value, maps);
       } else {
         BuildCheckHeapObject(value);
       }
@@ -1456,6 +1573,23 @@ bool MaglevGraphBuilder::TryBuildPropertyAccess(
   }
 }
 
+namespace {
+bool HasOnlyStringMaps(ZoneVector<compiler::MapRef> const& maps) {
+  for (compiler::MapRef map : maps) {
+    if (!map.IsStringMap()) return false;
+  }
+  return true;
+}
+
+bool HasOnlyNumberMaps(ZoneVector<compiler::MapRef> const& maps) {
+  for (compiler::MapRef map : maps) {
+    if (map.instance_type() != HEAP_NUMBER_TYPE) return false;
+  }
+  return true;
+}
+
+}  // namespace
+
 bool MaglevGraphBuilder::TryBuildNamedAccess(
     ValueNode* receiver, ValueNode* lookup_start_object,
     compiler::NamedAccessFeedback const& feedback,
@@ -1482,22 +1616,17 @@ bool MaglevGraphBuilder::TryBuildNamedAccess(
   // Check for monomorphic case.
   if (access_infos.size() == 1) {
     compiler::PropertyAccessInfo access_info = access_infos.front();
-    if (access_info.lookup_start_object_maps().size() != 1) {
-      // TODO(victorgomes): polymorphic case.
-      return false;
-    }
-    const compiler::MapRef& map =
-        access_info.lookup_start_object_maps().front();
-    if (map.IsStringMap()) {
+    const ZoneVector<compiler::MapRef>& maps =
+        access_info.lookup_start_object_maps();
+    if (HasOnlyStringMaps(maps)) {
       // Check for string maps before checking if we need to do an access
       // check. Primitive strings always get the prototype from the native
       // context they're operated on, so they don't need the access check.
       BuildCheckString(lookup_start_object);
-    } else if (map.IsHeapNumberMap()) {
-      AddNewNode<CheckNumber>({lookup_start_object},
-                              Object::Conversion::kToNumber);
+    } else if (HasOnlyNumberMaps(maps)) {
+      BuildCheckNumber(lookup_start_object);
     } else {
-      BuildMapCheck(lookup_start_object, map);
+      BuildCheckMaps(lookup_start_object, maps);
     }
 
     // Generate the actual property access.
@@ -1611,7 +1740,7 @@ bool MaglevGraphBuilder::TryBuildElementAccess(
       // TODO(victorgomes): polymorphic case.
       return false;
     }
-    BuildMapCheck(object, map);
+    BuildCheckMaps(object, access_info.lookup_start_object_maps());
 
     ValueNode* index = GetInt32ElementIndex(index_object);
     if (map.IsJSArrayMap()) {

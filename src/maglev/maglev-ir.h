@@ -25,6 +25,7 @@
 #include "src/objects/smi.h"
 #include "src/roots/roots.h"
 #include "src/utils/utils.h"
+#include "src/zone/zone-handle-set.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -2740,15 +2741,13 @@ class CheckMaps : public FixedInputNodeT<1, CheckMaps> {
   using Base = FixedInputNodeT<1, CheckMaps>;
 
  public:
-  explicit CheckMaps(uint64_t bitfield, const compiler::MapRef& map,
+  explicit CheckMaps(uint64_t bitfield, const ZoneHandleSet<Map>& maps,
                      CheckType check_type)
-      : Base(bitfield), map_(map), check_type_(check_type) {
-    DCHECK(!map.is_migration_target());
-  }
+      : Base(bitfield), maps_(maps), check_type_(check_type) {}
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
 
-  compiler::MapRef map() const { return map_; }
+  const ZoneHandleSet<Map>& maps() const { return maps_; }
 
   static constexpr int kReceiverIndex = 0;
   Input& receiver_input() { return input(kReceiverIndex); }
@@ -2758,7 +2757,7 @@ class CheckMaps : public FixedInputNodeT<1, CheckMaps> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
  private:
-  const compiler::MapRef map_;
+  const ZoneHandleSet<Map> maps_;
   const CheckType check_type_;
 };
 
@@ -2883,16 +2882,14 @@ class CheckMapsWithMigration
 
  public:
   explicit CheckMapsWithMigration(uint64_t bitfield,
-                                  const compiler::MapRef& map,
+                                  const ZoneHandleSet<Map>& maps,
                                   CheckType check_type)
-      : Base(bitfield), map_(map), check_type_(check_type) {
-    DCHECK(map.is_migration_target());
-  }
+      : Base(bitfield), maps_(maps), check_type_(check_type) {}
 
   static constexpr OpProperties kProperties =
       OpProperties::EagerDeopt() | OpProperties::DeferredCall();
 
-  compiler::MapRef map() const { return map_; }
+  const ZoneHandleSet<Map>& maps() const { return maps_; }
 
   static constexpr int kReceiverIndex = 0;
   Input& receiver_input() { return input(kReceiverIndex); }
@@ -2902,7 +2899,7 @@ class CheckMapsWithMigration
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
  private:
-  const compiler::MapRef map_;
+  const ZoneHandleSet<Map> maps_;
   const CheckType check_type_;
 };
 

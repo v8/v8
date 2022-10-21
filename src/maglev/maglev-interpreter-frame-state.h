@@ -15,6 +15,7 @@
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-regalloc-data.h"
 #include "src/maglev/maglev-register-frame-array.h"
+#include "src/zone/zone-handle-set.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -156,20 +157,30 @@ struct KnownNodeAspects {
 
   NodeInfo* GetOrCreateInfoFor(ValueNode* node) { return &node_infos[node]; }
 
-  void Merge(const KnownNodeAspects& other) {
+  void Merge(const KnownNodeAspects& other, Zone* zone) {
     DestructivelyIntersect(node_infos, other.node_infos,
                            [](NodeInfo& lhs, const NodeInfo& rhs) {
                              lhs.MergeWith(rhs);
                              return !lhs.is_empty();
                            });
-    DestructivelyIntersect(stable_maps, other.stable_maps,
-                           [](compiler::MapRef lhs, compiler::MapRef rhs) {
-                             return lhs.equals(rhs);
-                           });
-    DestructivelyIntersect(unstable_maps, other.unstable_maps,
-                           [](compiler::MapRef lhs, compiler::MapRef rhs) {
-                             return lhs.equals(rhs);
-                           });
+    DestructivelyIntersect(
+        stable_maps, other.stable_maps,
+        [zone](ZoneHandleSet<Map> lhs, ZoneHandleSet<Map> rhs) {
+          for (Handle<Map> map : rhs) {
+            lhs.insert(map, zone);
+          }
+          // We should always add the value even if the set is empty.
+          return true;
+        });
+    DestructivelyIntersect(
+        unstable_maps, other.unstable_maps,
+        [zone](ZoneHandleSet<Map> lhs, ZoneHandleSet<Map> rhs) {
+          for (Handle<Map> map : rhs) {
+            lhs.insert(map, zone);
+          }
+          // We should always add the value even if the set is empty.
+          return true;
+        });
   }
 
   // TODO(leszeks): Store these more efficiently than with std::map -- in
@@ -178,10 +189,12 @@ struct KnownNodeAspects {
 
   // Permanently valid if checked in a dominator.
   ZoneMap<ValueNode*, NodeInfo> node_infos;
-  // Valid across side-effecting calls, as long as we install a dependency.
-  ZoneMap<ValueNode*, compiler::MapRef> stable_maps;
+  // TODO(v8:7700): Investigate a better data structure to use than
+  // ZoneHandleSet. Valid across side-effecting calls, as long as we install a
+  // dependency.
+  ZoneMap<ValueNode*, ZoneHandleSet<Map>> stable_maps;
   // Flushed after side-effecting calls.
-  ZoneMap<ValueNode*, compiler::MapRef> unstable_maps;
+  ZoneMap<ValueNode*, ZoneHandleSet<Map>> unstable_maps;
 };
 
 class InterpreterFrameState {
@@ -527,7 +540,8 @@ class MergePointInterpreterFrameState {
           unmerged.known_node_aspects().CloneWithoutUnstableMaps(
               compilation_unit.zone());
     } else {
-      known_node_aspects_->Merge(unmerged.known_node_aspects());
+      known_node_aspects_->Merge(unmerged.known_node_aspects(),
+                                 compilation_unit.zone());
     }
 
     predecessors_so_far_++;
