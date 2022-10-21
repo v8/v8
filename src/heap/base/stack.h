@@ -46,8 +46,14 @@ class V8_EXPORT_PRIVATE Stack final {
   // Returns the start of the stack.
   const void* stack_start() const { return stack_start_; }
 
+  // Sets, clears and gets the stack marker.
+  void set_marker(const void* stack_marker);
+  void clear_marker();
+  const void* get_marker() const;
+
  private:
   const void* stack_start_;
+  const void* stack_marker_ = nullptr;
 };
 
 }  // namespace heap::base

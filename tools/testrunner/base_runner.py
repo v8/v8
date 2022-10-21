@@ -549,6 +549,8 @@ class BaseTestRunner(object):
             self.build_config.cfi_vptr,
         "component_build":
             self.build_config.component_build,
+        "conservative_stack_scanning":
+            self.build_config.conservative_stack_scanning,
         "control_flow_integrity":
             self.build_config.control_flow_integrity,
         "concurrent_marking":

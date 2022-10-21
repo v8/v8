@@ -2271,6 +2271,8 @@ action("v8_dump_build_config") {
     "v8_current_cpu=\"$v8_current_cpu\"",
     "v8_enable_atomic_object_field_writes=" +
         "$v8_enable_atomic_object_field_writes",
+    "v8_enable_conservative_stack_scanning=" +
+        "$v8_enable_conservative_stack_scanning",
     "v8_enable_concurrent_marking=$v8_enable_concurrent_marking",
     "v8_enable_single_generation=$v8_enable_single_generation",
     "v8_enable_i18n_support=$v8_enable_i18n_support",

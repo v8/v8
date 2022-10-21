@@ -1641,6 +1641,10 @@ bool Heap::CollectGarbage(AllocationSpace space,
         this, IsYoungGenerationCollector(collector) ? "MinorGC" : "MajorGC",
         GarbageCollectionReasonToString(gc_reason));
 
+    auto stack_marker = v8::base::Stack::GetCurrentStackPosition();
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+    stack().set_marker(stack_marker);
+#endif
     if (collector == GarbageCollector::MARK_COMPACTOR && cpp_heap()) {
       // CppHeap needs a stack marker at the top of all entry points to allow
       // deterministic passes over the stack. E.g., a verifier that should only
@@ -1649,7 +1653,7 @@ bool Heap::CollectGarbage(AllocationSpace space,
       // TODO(chromium:1056170): Consider adding a component that keeps track
       // of relevant GC stack regions where interesting pointers can be found.
       static_cast<v8::internal::CppHeap*>(cpp_heap())
-          ->SetStackEndOfCurrentGC(v8::base::Stack::GetCurrentStackPosition());
+          ->SetStackEndOfCurrentGC(stack_marker);
     }
 
     GarbageCollectionPrologue(gc_reason, gc_callback_flags);
@@ -1734,6 +1738,10 @@ bool Heap::CollectGarbage(AllocationSpace space,
     } else {
       tracer()->StopFullCycleIfNeeded();
     }
+
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+    stack().clear_marker();
+#endif
   }
 
   // Part 3: Invoke all callbacks which should happen after the actual garbage
@@ -2331,6 +2339,10 @@ void Heap::PerformSharedGarbageCollection(Isolate* initiator,
   DCHECK(incremental_marking_->IsStopped());
   DCHECK_NOT_NULL(isolate()->global_safepoint());
 
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+  stack().set_marker(v8::base::Stack::GetCurrentStackPosition());
+#endif
+
   isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
     client->heap()->FreeSharedLinearAllocationAreas();
 
@@ -2361,6 +2373,10 @@ void Heap::PerformSharedGarbageCollection(Isolate* initiator,
   tracer()->StopObservablePause();
   tracer()->UpdateStatistics(collector);
   tracer()->StopFullCycleIfNeeded();
+
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+  stack().clear_marker();
+#endif
 }
 
 void Heap::CompleteSweepingYoung(GarbageCollector collector) {
@@ -5514,7 +5530,6 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
   tracer_.reset(new GCTracer(this));
   array_buffer_sweeper_.reset(new ArrayBufferSweeper(this));
   gc_idle_time_handler_.reset(new GCIdleTimeHandler());
-  stack_ = std::make_unique<::heap::base::Stack>(base::Stack::GetStackStart());
   memory_measurement_.reset(new MemoryMeasurement(isolate()));
   if (!IsShared()) memory_reducer_.reset(new MemoryReducer(this));
   if (V8_UNLIKELY(TracingFlags::is_gc_stats_enabled())) {
@@ -5745,10 +5760,12 @@ const cppgc::EmbedderStackState* Heap::overriden_stack_state() const {
 }
 
 void Heap::SetStackStart(void* stack_start) {
-  stack_->SetStackStart(stack_start);
+  stack().SetStackStart(stack_start);
 }
 
-::heap::base::Stack& Heap::stack() { return *stack_.get(); }
+::heap::base::Stack& Heap::stack() {
+  return isolate_->thread_local_top()->stack_;
+}
 
 void Heap::RegisterExternallyReferencedObject(Address* location) {
   GlobalHandles::MarkTraced(location);
@@ -5893,7 +5910,6 @@ void Heap::TearDown() {
   concurrent_marking_.reset();
 
   gc_idle_time_handler_.reset();
-  stack_.reset();
   memory_measurement_.reset();
   allocation_tracker_for_debugging_.reset();
 

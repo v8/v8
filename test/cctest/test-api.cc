@@ -13012,9 +13012,6 @@ void ApiTestFuzzer::Run() {
   {
     // ... get the V8 lock
     v8::Locker locker(CcTest::isolate());
-    // ... set the isolate stack to this thread
-    CcTest::i_isolate()->heap()->SetStackStart(
-        v8::base::Stack::GetStackStart());
     // ... and start running the test.
     CallTest();
   }
@@ -13082,9 +13079,6 @@ void ApiTestFuzzer::ContextSwitch() {
     v8::Unlocker unlocker(CcTest::isolate());
     // Wait till someone starts us again.
     gate_.Wait();
-    // Set the isolate stack to this thread.
-    CcTest::i_isolate()->heap()->SetStackStart(
-        v8::base::Stack::GetStackStart());
     // And we're off.
   }
 }

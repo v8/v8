@@ -1575,6 +1575,14 @@
 }], # single_generation
 
 ################################################################################
+['conservative_stack_scanning', {
+  # TODO(v8:13257): Conservative stack scanning is not currently compatible
+  # with stack switching.
+  'wasm/stack-switching': [SKIP],
+  'wasm/stack-switching-export': [SKIP],
+}], # conservative_stack_scanning
+
+################################################################################
 ['third_party_heap', {
   # Requires local heaps
   'const-field-tracking': [SKIP],

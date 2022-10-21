@@ -414,6 +414,11 @@ DEFINE_BOOL_READONLY(conservative_stack_scanning,
                      V8_ENABLE_CONSERVATIVE_STACK_SCANNING_BOOL,
                      "use conservative stack scanning")
 
+#if V8_ENABLE_WEBASSEMBLY
+DEFINE_NEG_IMPLICATION(conservative_stack_scanning,
+                       experimental_wasm_stack_switching)
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 #ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
 #define V8_ENABLE_INNER_POINTER_RESOLUTION_OSB_BOOL true
 #else
