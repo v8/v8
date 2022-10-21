@@ -974,6 +974,8 @@ void getInternalPropertiesForPreview(
     allowlist.emplace_back("[[PromiseResult]]");
   } else if (object->IsGeneratorObject()) {
     allowlist.emplace_back("[[GeneratorState]]");
+  } else if (object->IsWeakRef()) {
+    allowlist.emplace_back("[[WeakRefTarget]]");
   }
   for (auto& mirror : mirrors) {
     if (std::find(allowlist.begin(), allowlist.end(), mirror.name) ==

@@ -3732,6 +3732,7 @@ bool Value::IsWasmModuleObject() const { return false; }
 #endif  // V8_ENABLE_WEBASSEMBLY
 VALUE_IS_SPECIFIC_TYPE(WeakMap, JSWeakMap)
 VALUE_IS_SPECIFIC_TYPE(WeakSet, JSWeakSet)
+VALUE_IS_SPECIFIC_TYPE(WeakRef, JSWeakRef)
 
 #undef VALUE_IS_SPECIFIC_TYPE
 
