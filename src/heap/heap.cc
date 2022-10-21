@@ -6211,8 +6211,11 @@ void Heap::ClearRecordedSlotRange(Address start, Address end) {
 
 PagedSpace* PagedSpaceIterator::Next() {
   DCHECK_GE(counter_, FIRST_GROWABLE_PAGED_SPACE);
-  if (counter_ > LAST_GROWABLE_PAGED_SPACE) return nullptr;
-  return heap_->paged_space(counter_++);
+  while (counter_ <= LAST_GROWABLE_PAGED_SPACE) {
+    PagedSpace* space = heap_->paged_space(counter_++);
+    if (space) return space;
+  }
+  return nullptr;
 }
 
 SpaceIterator::SpaceIterator(Heap* heap)
