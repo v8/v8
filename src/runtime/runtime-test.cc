@@ -247,14 +247,8 @@ RUNTIME_FUNCTION(Runtime_IsAtomicsWaitAllowed) {
 
 namespace {
 
-template <CodeKind code_kind>
-bool CanOptimizeFunction(Handle<JSFunction> function, Isolate* isolate,
-                         IsCompiledScope* is_compiled_scope);
-
-template <>
-bool CanOptimizeFunction<CodeKind::TURBOFAN>(
-    Handle<JSFunction> function, Isolate* isolate,
-    IsCompiledScope* is_compiled_scope) {
+bool CanOptimizeFunction(CodeKind target_kind, Handle<JSFunction> function,
+                         Isolate* isolate, IsCompiledScope* is_compiled_scope) {
   // The following conditions were lifted (in part) from the DCHECK inside
   // JSFunction::MarkForOptimization().
 
@@ -285,9 +279,9 @@ bool CanOptimizeFunction<CodeKind::TURBOFAN>(
     PendingOptimizationTable::MarkedForOptimization(isolate, function);
   }
 
-  CodeKind kind = CodeKindForTopTier();
-  if (function->HasAvailableOptimizedCode() ||
-      function->HasAvailableCodeKind(kind)) {
+  if (function->HasAvailableCodeKind(target_kind) ||
+      function->HasAvailableHigherTierCodeThan(target_kind) ||
+      IsInProgress(function->tiering_state())) {
     DCHECK(function->HasAttachedOptimizedCode() ||
            function->ChecksTieringState());
     if (v8_flags.testing_d8_test_runner) {
@@ -299,23 +293,8 @@ bool CanOptimizeFunction<CodeKind::TURBOFAN>(
   return true;
 }
 
-#ifdef V8_ENABLE_MAGLEV
-template <>
-bool CanOptimizeFunction<CodeKind::MAGLEV>(Handle<JSFunction> function,
-                                           Isolate* isolate,
-                                           IsCompiledScope* is_compiled_scope) {
-  if (!v8_flags.maglev) return false;
-
-  CHECK(!IsAsmWasmFunction(isolate, *function));
-
-  // TODO(v8:7700): Disabled optimization due to deopts?
-  // TODO(v8:7700): Already cached?
-
-  return function->GetActiveTier() < CodeKind::MAGLEV;
-}
-#endif  // V8_ENABLE_MAGLEV
-
-Object OptimizeFunctionOnNextCall(RuntimeArguments& args, Isolate* isolate) {
+Object OptimizeFunctionOnNextCall(RuntimeArguments& args, Isolate* isolate,
+                                  CodeKind target_kind) {
   if (args.length() != 1 && args.length() != 2) {
     return CrashUnlessFuzzing(isolate);
   }
@@ -324,11 +303,10 @@ Object OptimizeFunctionOnNextCall(RuntimeArguments& args, Isolate* isolate) {
   if (!function_object->IsJSFunction()) return CrashUnlessFuzzing(isolate);
   Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
 
-  static constexpr CodeKind kCodeKind = CodeKind::TURBOFAN;
-
   IsCompiledScope is_compiled_scope(
       function->shared().is_compiled_scope(isolate));
-  if (!CanOptimizeFunction<kCodeKind>(function, isolate, &is_compiled_scope)) {
+  if (!CanOptimizeFunction(target_kind, function, isolate,
+                           &is_compiled_scope)) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
@@ -354,9 +332,9 @@ Object OptimizeFunctionOnNextCall(RuntimeArguments& args, Isolate* isolate) {
     function->set_code(codet);
   }
 
-  TraceManualRecompile(*function, kCodeKind, concurrency_mode);
+  TraceManualRecompile(*function, target_kind, concurrency_mode);
   JSFunction::EnsureFeedbackVector(isolate, function, &is_compiled_scope);
-  function->MarkForOptimization(isolate, CodeKind::TURBOFAN, concurrency_mode);
+  function->MarkForOptimization(isolate, target_kind, concurrency_mode);
 
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -506,27 +484,7 @@ RUNTIME_FUNCTION(Runtime_CurrentFrameIsTurbofan) {
 #ifdef V8_ENABLE_MAGLEV
 RUNTIME_FUNCTION(Runtime_OptimizeMaglevOnNextCall) {
   HandleScope scope(isolate);
-  DCHECK_EQ(args.length(), 1);
-  Handle<JSFunction> function = args.at<JSFunction>(0);
-
-  static constexpr CodeKind kCodeKind = CodeKind::MAGLEV;
-
-  IsCompiledScope is_compiled_scope(
-      function->shared().is_compiled_scope(isolate));
-  if (!CanOptimizeFunction<kCodeKind>(function, isolate, &is_compiled_scope)) {
-    return ReadOnlyRoots(isolate).undefined_value();
-  }
-  DCHECK(is_compiled_scope.is_compiled());
-  DCHECK(function->is_compiled());
-
-  // TODO(v8:7700): Support concurrent compiles.
-  const ConcurrencyMode concurrency_mode = ConcurrencyMode::kSynchronous;
-
-  TraceManualRecompile(*function, kCodeKind, concurrency_mode);
-  JSFunction::EnsureFeedbackVector(isolate, function, &is_compiled_scope);
-  function->MarkForOptimization(isolate, kCodeKind, concurrency_mode);
-
-  return ReadOnlyRoots(isolate).undefined_value();
+  return OptimizeFunctionOnNextCall(args, isolate, CodeKind::MAGLEV);
 }
 #else
 RUNTIME_FUNCTION(Runtime_OptimizeMaglevOnNextCall) {
@@ -538,7 +496,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeMaglevOnNextCall) {
 // TODO(jgruber): Rename to OptimizeTurbofanOnNextCall.
 RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
   HandleScope scope(isolate);
-  return OptimizeFunctionOnNextCall(args, isolate);
+  return OptimizeFunctionOnNextCall(args, isolate, CodeKind::TURBOFAN);
 }
 
 RUNTIME_FUNCTION(Runtime_EnsureFeedbackVectorForFunction) {
