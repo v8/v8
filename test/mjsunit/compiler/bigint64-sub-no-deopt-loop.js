@@ -16,12 +16,15 @@
   assertOptimized(f);
   assertEquals(-(2n ** 63n), f(-(2n ** 62n), 2n ** 62n));
   assertOptimized(f);
+  // Re-prepare the function before the first deopt to ensure type feedback is
+  // not cleared by an umtimely gc.
+  %PrepareFunctionForOptimization(f);
+  assertOptimized(f);
   // CheckedBigInt64Sub will trigger deopt due to overflow.
   assertEquals(-(2n ** 63n) - 1n, f(-(2n ** 62n + 1n), 2n ** 62n));
   if (%Is64Bit()) {
     assertUnoptimized(f);
 
-    %PrepareFunctionForOptimization(f);
     assertEquals(-1n, f(0n, 1n));
     assertEquals(-7n, f(2n, 9n));
     %OptimizeFunctionOnNextCall(f);

@@ -14,12 +14,15 @@
   %OptimizeFunctionOnNextCall(f);
   assertEquals(2n, f(14n, 5n));
   assertOptimized(f);
+  // Re-prepare the function before the first deopt to ensure type feedback is
+  // not cleared by an umtimely gc.
+  %PrepareFunctionForOptimization(f);
+  assertOptimized(f);
   // CheckedBigInt64Div will trigger deopt due to divide-by-zero.
   assertThrows(() => f(42n, 0n), RangeError);
   if (%Is64Bit()) {
     assertUnoptimized(f);
 
-    %PrepareFunctionForOptimization(f);
     assertEquals(0n, f(0n, 1n));
     assertEquals(-3n, f(-32n, 9n));
     %OptimizeFunctionOnNextCall(f);
@@ -46,12 +49,15 @@
   assertOptimized(f);
   assertEquals(-(2n ** 63n), f(-(2n ** 63n) + 1n, 1n));
   assertOptimized(f);
+  // Re-prepare the function before the first deopt to ensure type feedback is
+  // not cleared by an umtimely gc.
+  %PrepareFunctionForOptimization(f);
+  assertOptimized(f);
   // CheckedBigInt64Div will trigger deopt due to overflow.
   assertEquals(2n ** 63n, f(-(2n ** 63n) + 1n, -1n));
   if (%Is64Bit()) {
     assertUnoptimized(f);
 
-    %PrepareFunctionForOptimization(f);
     assertEquals(0n, f(1n, 1n));
     assertEquals(-3n, f(-32n, 9n));
     %OptimizeFunctionOnNextCall(f);
