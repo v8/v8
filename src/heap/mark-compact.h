@@ -448,7 +448,7 @@ class MarkCompactCollector final : public CollectorBase {
   V8_INLINE void MarkExternallyReferencedObject(HeapObject obj);
 
   std::unique_ptr<UpdatingItem> CreateRememberedSetUpdatingItem(
-      MemoryChunk* chunk, RememberedSetUpdatingMode updating_mode);
+      MemoryChunk* chunk);
 
 #ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_MB
   // Finds an object header based on a `maybe_inner_ptr`. It returns
@@ -699,7 +699,7 @@ class MinorMarkCompactCollector final : public CollectorBase {
   void CleanupPromotedPages();
 
   std::unique_ptr<UpdatingItem> CreateRememberedSetUpdatingItem(
-      MemoryChunk* chunk, RememberedSetUpdatingMode updating_mode);
+      MemoryChunk* chunk);
 
   void Finish() final;
 

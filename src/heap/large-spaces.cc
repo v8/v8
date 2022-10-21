@@ -274,6 +274,7 @@ void LargeObjectSpace::AddPage(LargePage* page, size_t object_size) {
     IncrementExternalBackingStoreBytes(t, page->ExternalBackingStoreBytes(t));
   }
 }
+
 void LargeObjectSpace::RemovePage(LargePage* page) {
   size_ -= static_cast<int>(page->size());
   AccountUncommitted(page->size());

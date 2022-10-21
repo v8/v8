@@ -984,7 +984,7 @@ void MarkCompactCollector::Finish() {
 
 #ifdef DEBUG
     heap()->VerifyCountersBeforeConcurrentSweeping(garbage_collector_);
-#endif
+#endif  // DEBUG
   }
 
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_FINISH);
@@ -4765,16 +4765,15 @@ class ToSpaceUpdatingItem : public UpdatingItem {
   MarkingState* marking_state_;
 };
 
-template <typename MarkingState, GarbageCollector collector>
+namespace {
+
+template <GarbageCollector collector>
 class RememberedSetUpdatingItem : public UpdatingItem {
  public:
-  explicit RememberedSetUpdatingItem(Heap* heap, MarkingState* marking_state,
-                                     MemoryChunk* chunk,
-                                     RememberedSetUpdatingMode updating_mode)
+  explicit RememberedSetUpdatingItem(Heap* heap, MemoryChunk* chunk)
       : heap_(heap),
-        marking_state_(marking_state),
+        marking_state_(heap_->non_atomic_marking_state()),
         chunk_(chunk),
-        updating_mode_(updating_mode),
         record_old_to_shared_slots_(heap->isolate()->has_shared_heap() &&
                                     !chunk->InSharedHeap()) {}
   ~RememberedSetUpdatingItem() override = default;
@@ -4782,7 +4781,6 @@ class RememberedSetUpdatingItem : public UpdatingItem {
   void Process() override {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                  "RememberedSetUpdatingItem::Process");
-    base::MutexGuard guard(chunk_->mutex());
     CodePageMemoryModificationScope memory_modification_scope(chunk_);
     UpdateUntypedPointers();
     UpdateTypedPointers();
@@ -4832,14 +4830,39 @@ class RememberedSetUpdatingItem : public UpdatingItem {
         std::is_same<TSlot, FullMaybeObjectSlot>::value ||
             std::is_same<TSlot, MaybeObjectSlot>::value,
         "Only FullMaybeObjectSlot and MaybeObjectSlot are expected here");
-    using THeapObjectSlot = typename TSlot::THeapObjectSlot;
     HeapObject heap_object;
     if (!(*slot).GetHeapObject(&heap_object)) {
       return REMOVE_SLOT;
     }
+    if (!Heap::InYoungGeneration(heap_object)) return REMOVE_SLOT;
+    if (collector == GarbageCollector::MINOR_MARK_COMPACTOR) {
+      return CheckAndUpdateOldToNewSlotMinor(heap_object);
+    } else {
+      return CheckAndUpdateOldToNewSlotMajor(slot, heap_object);
+    }
+  }
+
+  inline SlotCallbackResult CheckAndUpdateOldToNewSlotMinor(
+      HeapObject heap_object) {
+    DCHECK_EQ(GarbageCollector::MINOR_MARK_COMPACTOR, collector);
+    DCHECK(!heap_object.map_word(kRelaxedLoad).IsForwardingAddress());
+    DCHECK(!Heap::InFromPage(heap_object));
+    if (marking_state_->IsBlack(heap_object)) return KEEP_SLOT;
+    return REMOVE_SLOT;
+  }
+
+  template <typename TSlot>
+  inline SlotCallbackResult CheckAndUpdateOldToNewSlotMajor(
+      TSlot slot, HeapObject heap_object) {
+    DCHECK_EQ(GarbageCollector::MARK_COMPACTOR, collector);
+    using THeapObjectSlot = typename TSlot::THeapObjectSlot;
     if (Heap::InFromPage(heap_object)) {
-      DCHECK_IMPLIES(v8_flags.minor_mc,
-                     Page::FromHeapObject(heap_object)->IsLargePage());
+      if (v8_flags.minor_mc) {
+        DCHECK(!heap_object.map_word(kRelaxedLoad).IsForwardingAddress());
+        DCHECK(Page::FromHeapObject(heap_object)->IsLargePage());
+        DCHECK(!marking_state_->IsBlack(heap_object));
+        return REMOVE_SLOT;
+      }
       MapWord map_word = heap_object.map_word(kRelaxedLoad);
       if (map_word.IsForwardingAddress()) {
         HeapObjectReference::Update(THeapObjectSlot(slot),
@@ -4855,7 +4878,9 @@ class RememberedSetUpdatingItem : public UpdatingItem {
       if (Heap::InToPage(heap_object)) {
         return KEEP_SLOT;
       }
-    } else if (Heap::InToPage(heap_object)) {
+      return REMOVE_SLOT;
+    } else {
+      DCHECK(Heap::InToPage(heap_object));
       // Slots can point to "to" space if the page has been moved, or if the
       // slot has been recorded multiple times in the remembered set, or
       // if the slot was already updated during old->old updating.
@@ -4883,23 +4908,26 @@ class RememberedSetUpdatingItem : public UpdatingItem {
         }
       }
       return KEEP_SLOT;
-    } else {
-      DCHECK(!Heap::InYoungGeneration(heap_object));
     }
-    return REMOVE_SLOT;
   }
 
   void UpdateUntypedPointers() {
-    const PtrComprCageBase cage_base = heap_->isolate();
-    if (chunk_->slot_set<OLD_TO_NEW, AccessMode::NON_ATOMIC>() != nullptr) {
+    UpdateUntypedOldToNewPointers();
+    if (collector == GarbageCollector::MINOR_MARK_COMPACTOR) return;
+    UpdateUntypedOldToOldPointers();
+    UpdateUntypedOldToCodePointers();
+    UpdateUntypedOldToSharedPointers();
+  }
+
+  void UpdateUntypedOldToNewPointers() {
+    if (chunk_->slot_set<OLD_TO_NEW, AccessMode::NON_ATOMIC>()) {
+      const PtrComprCageBase cage_base = heap_->isolate();
       // Marking bits are cleared already when the page is already swept. This
       // is fine since in that case the sweeper has already removed dead invalid
       // objects as well.
       InvalidatedSlotsFilter::LivenessCheck liveness_check =
-          updating_mode_ == RememberedSetUpdatingMode::ALL &&
-                  !chunk_->SweepingDone()
-              ? InvalidatedSlotsFilter::LivenessCheck::kYes
-              : InvalidatedSlotsFilter::LivenessCheck::kNo;
+          !chunk_->SweepingDone() ? InvalidatedSlotsFilter::LivenessCheck::kYes
+                                  : InvalidatedSlotsFilter::LivenessCheck::kNo;
       InvalidatedSlotsFilter filter =
           InvalidatedSlotsFilter::OldToNew(chunk_, liveness_check);
       int slots = RememberedSet<OLD_TO_NEW>::Iterate(
@@ -4923,14 +4951,14 @@ class RememberedSetUpdatingItem : public UpdatingItem {
       }
     }
 
-    if (chunk_->invalidated_slots<OLD_TO_NEW>() != nullptr) {
-      // The invalidated slots are not needed after old-to-new slots were
-      // processed.
-      chunk_->ReleaseInvalidatedSlots<OLD_TO_NEW>();
-    }
+    // The invalidated slots are not needed after old-to-new slots were
+    // processed.
+    chunk_->ReleaseInvalidatedSlots<OLD_TO_NEW>();
+  }
 
-    if ((updating_mode_ == RememberedSetUpdatingMode::ALL) &&
-        (chunk_->slot_set<OLD_TO_OLD, AccessMode::NON_ATOMIC>() != nullptr)) {
+  void UpdateUntypedOldToOldPointers() {
+    if (chunk_->slot_set<OLD_TO_OLD, AccessMode::NON_ATOMIC>()) {
+      const PtrComprCageBase cage_base = heap_->isolate();
       InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToOld(
           chunk_, InvalidatedSlotsFilter::LivenessCheck::kNo);
       RememberedSet<OLD_TO_OLD>::Iterate(
@@ -4951,125 +4979,135 @@ class RememberedSetUpdatingItem : public UpdatingItem {
           SlotSet::KEEP_EMPTY_BUCKETS);
       chunk_->ReleaseSlotSet<OLD_TO_OLD>();
     }
-    if ((updating_mode_ == RememberedSetUpdatingMode::ALL) &&
-        chunk_->invalidated_slots<OLD_TO_OLD>() != nullptr) {
-      // The invalidated slots are not needed after old-to-old slots were
-      // processed.
-      chunk_->ReleaseInvalidatedSlots<OLD_TO_OLD>();
-    }
-    if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-      if ((updating_mode_ == RememberedSetUpdatingMode::ALL) &&
-          (chunk_->slot_set<OLD_TO_CODE, AccessMode::NON_ATOMIC>() !=
-           nullptr)) {
-        PtrComprCageBase cage_base = heap_->isolate();
+
+    // The invalidated slots are not needed after old-to-old slots were
+    // processed.
+    chunk_->ReleaseInvalidatedSlots<OLD_TO_OLD>();
+  }
+
+  void UpdateUntypedOldToCodePointers() {
+    if (!V8_EXTERNAL_CODE_SPACE_BOOL) return;
+
+    if (chunk_->slot_set<OLD_TO_CODE, AccessMode::NON_ATOMIC>()) {
+      const PtrComprCageBase cage_base = heap_->isolate();
 #ifdef V8_EXTERNAL_CODE_SPACE
-        PtrComprCageBase code_cage_base(heap_->isolate()->code_cage_base());
+      const PtrComprCageBase code_cage_base(heap_->isolate()->code_cage_base());
 #else
-        PtrComprCageBase code_cage_base = cage_base;
+      const PtrComprCageBase code_cage_base = cage_base;
 #endif
-        RememberedSet<OLD_TO_CODE>::Iterate(
-            chunk_,
-            [=](MaybeObjectSlot slot) {
-              HeapObject host = HeapObject::FromAddress(
-                  slot.address() - CodeDataContainer::kCodeOffset);
-              DCHECK(host.IsCodeDataContainer(cage_base));
-              UpdateStrongCodeSlot<AccessMode::NON_ATOMIC>(
-                  host, cage_base, code_cage_base,
-                  CodeObjectSlot(slot.address()));
-              // Always keep slot since all slots are dropped at once after
-              // iteration.
-              return KEEP_SLOT;
-            },
-            SlotSet::FREE_EMPTY_BUCKETS);
-        chunk_->ReleaseSlotSet<OLD_TO_CODE>();
-      }
-      // The invalidated slots are not needed after old-to-code slots were
-      // processed, but since there are no invalidated OLD_TO_CODE slots,
-      // there's nothing to clear.
+      RememberedSet<OLD_TO_CODE>::Iterate(
+          chunk_,
+          [=](MaybeObjectSlot slot) {
+            HeapObject host = HeapObject::FromAddress(
+                slot.address() - CodeDataContainer::kCodeOffset);
+            DCHECK(host.IsCodeDataContainer(cage_base));
+            UpdateStrongCodeSlot<AccessMode::NON_ATOMIC>(
+                host, cage_base, code_cage_base,
+                CodeObjectSlot(slot.address()));
+            // Always keep slot since all slots are dropped at once after
+            // iteration.
+            return KEEP_SLOT;
+          },
+          SlotSet::FREE_EMPTY_BUCKETS);
+      chunk_->ReleaseSlotSet<OLD_TO_CODE>();
     }
-    if (updating_mode_ == RememberedSetUpdatingMode::ALL) {
-      if (chunk_->slot_set<OLD_TO_SHARED, AccessMode::NON_ATOMIC>()) {
-        // Client GCs need to remove invalidated OLD_TO_SHARED slots.
-        DCHECK(!heap_->IsShared());
-        InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToShared(
-            chunk_, InvalidatedSlotsFilter::LivenessCheck::kNo);
-        RememberedSet<OLD_TO_SHARED>::Iterate(
-            chunk_,
-            [&filter](MaybeObjectSlot slot) {
-              return filter.IsValid(slot.address()) ? KEEP_SLOT : REMOVE_SLOT;
-            },
-            SlotSet::FREE_EMPTY_BUCKETS);
-      }
-      chunk_->ReleaseInvalidatedSlots<OLD_TO_SHARED>();
+
+    // The invalidated slots are not needed after old-to-code slots were
+    // processed, but since there are no invalidated OLD_TO_CODE slots,
+    // there's nothing to clear.
+    DCHECK_NULL(chunk_->invalidated_slots<OLD_TO_CODE>());
+  }
+
+  void UpdateUntypedOldToSharedPointers() {
+    if (chunk_->slot_set<OLD_TO_SHARED, AccessMode::NON_ATOMIC>()) {
+      // Client GCs need to remove invalidated OLD_TO_SHARED slots.
+      DCHECK(!heap_->IsShared());
+      InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToShared(
+          chunk_, InvalidatedSlotsFilter::LivenessCheck::kNo);
+      RememberedSet<OLD_TO_SHARED>::Iterate(
+          chunk_,
+          [&filter](MaybeObjectSlot slot) {
+            return filter.IsValid(slot.address()) ? KEEP_SLOT : REMOVE_SLOT;
+          },
+          SlotSet::FREE_EMPTY_BUCKETS);
     }
+
+    // The invalidated slots are not needed after old-to-shared slots were
+    // processed.
+    chunk_->ReleaseInvalidatedSlots<OLD_TO_SHARED>();
   }
 
   void UpdateTypedPointers() {
-    if (chunk_->typed_slot_set<OLD_TO_NEW, AccessMode::NON_ATOMIC>() !=
-        nullptr) {
-      const auto check_and_update_old_to_new_slot_fn =
-          [this](FullMaybeObjectSlot slot) {
-            return CheckAndUpdateOldToNewSlot(slot);
-          };
-      RememberedSet<OLD_TO_NEW>::IterateTyped(
-          chunk_, [this, &check_and_update_old_to_new_slot_fn](
-                      SlotType slot_type, Address slot) {
-            SlotCallbackResult result = UpdateTypedSlotHelper::UpdateTypedSlot(
-                heap_, slot_type, slot, check_and_update_old_to_new_slot_fn);
-            // A new space string might have been promoted into the shared heap
-            // during GC.
-            if (record_old_to_shared_slots_) {
-              CheckSlotForOldToSharedTyped(chunk_, slot_type, slot);
-            }
-            return result;
-          });
-    }
-    if ((updating_mode_ == RememberedSetUpdatingMode::ALL) &&
-        (chunk_->typed_slot_set<OLD_TO_OLD, AccessMode::NON_ATOMIC>() !=
-         nullptr)) {
-      RememberedSet<OLD_TO_OLD>::IterateTyped(
-          chunk_, [this](SlotType slot_type, Address slot) {
-            // Using UpdateStrongSlot is OK here, because there are no weak
-            // typed slots.
-            PtrComprCageBase cage_base = heap_->isolate();
-            SlotCallbackResult result = UpdateTypedSlotHelper::UpdateTypedSlot(
-                heap_, slot_type, slot, [cage_base](FullMaybeObjectSlot slot) {
-                  UpdateStrongSlot<AccessMode::NON_ATOMIC>(cage_base, slot);
-                  // Always keep slot since all slots are dropped at once after
-                  // iteration.
-                  return KEEP_SLOT;
-                });
-            // A string might have been promoted into the shared heap during GC.
-            if (record_old_to_shared_slots_) {
-              CheckSlotForOldToSharedTyped(chunk_, slot_type, slot);
-            }
-            return result;
-          });
-      chunk_->ReleaseTypedSlotSet<OLD_TO_OLD>();
-    }
+    UpdateTypedOldToNewPointers();
+    if (collector == GarbageCollector::MINOR_MARK_COMPACTOR) return;
+    UpdateTypedOldToOldPointers();
+  }
+
+  void UpdateTypedOldToNewPointers() {
+    if (chunk_->typed_slot_set<OLD_TO_NEW, AccessMode::NON_ATOMIC>() == nullptr)
+      return;
+    const auto check_and_update_old_to_new_slot_fn =
+        [this](FullMaybeObjectSlot slot) {
+          return CheckAndUpdateOldToNewSlot(slot);
+        };
+    RememberedSet<OLD_TO_NEW>::IterateTyped(
+        chunk_, [this, &check_and_update_old_to_new_slot_fn](SlotType slot_type,
+                                                             Address slot) {
+          SlotCallbackResult result = UpdateTypedSlotHelper::UpdateTypedSlot(
+              heap_, slot_type, slot, check_and_update_old_to_new_slot_fn);
+          // A new space string might have been promoted into the shared heap
+          // during GC.
+          if (record_old_to_shared_slots_) {
+            CheckSlotForOldToSharedTyped(chunk_, slot_type, slot);
+          }
+          return result;
+        });
+  }
+
+  void UpdateTypedOldToOldPointers() {
+    if (chunk_->typed_slot_set<OLD_TO_OLD, AccessMode::NON_ATOMIC>() == nullptr)
+      return;
+    RememberedSet<OLD_TO_OLD>::IterateTyped(
+        chunk_, [this](SlotType slot_type, Address slot) {
+          // Using UpdateStrongSlot is OK here, because there are no weak
+          // typed slots.
+          PtrComprCageBase cage_base = heap_->isolate();
+          SlotCallbackResult result = UpdateTypedSlotHelper::UpdateTypedSlot(
+              heap_, slot_type, slot, [cage_base](FullMaybeObjectSlot slot) {
+                UpdateStrongSlot<AccessMode::NON_ATOMIC>(cage_base, slot);
+                // Always keep slot since all slots are dropped at once after
+                // iteration.
+                return KEEP_SLOT;
+              });
+          // A string might have been promoted into the shared heap during GC.
+          if (record_old_to_shared_slots_) {
+            CheckSlotForOldToSharedTyped(chunk_, slot_type, slot);
+          }
+          return result;
+        });
+    chunk_->ReleaseTypedSlotSet<OLD_TO_OLD>();
   }
 
   Heap* heap_;
-  MarkingState* marking_state_;
+  NonAtomicMarkingState* marking_state_;
   MemoryChunk* chunk_;
-  RememberedSetUpdatingMode updating_mode_;
   const bool record_old_to_shared_slots_;
 };
 
+}  // namespace
+
 std::unique_ptr<UpdatingItem>
-MarkCompactCollector::CreateRememberedSetUpdatingItem(
-    MemoryChunk* chunk, RememberedSetUpdatingMode updating_mode) {
-  return std::make_unique<RememberedSetUpdatingItem<
-      NonAtomicMarkingState, GarbageCollector::MARK_COMPACTOR>>(
-      heap(), non_atomic_marking_state(), chunk, updating_mode);
+MarkCompactCollector::CreateRememberedSetUpdatingItem(MemoryChunk* chunk) {
+  return std::make_unique<
+      RememberedSetUpdatingItem<GarbageCollector::MARK_COMPACTOR>>(heap(),
+                                                                   chunk);
 }
 
 namespace {
 template <typename IterateableSpace, typename Collector>
-int CollectRememberedSetUpdatingItems(
+void CollectRememberedSetUpdatingItems(
     Collector* collector, std::vector<std::unique_ptr<UpdatingItem>>* items,
     IterateableSpace* space, RememberedSetUpdatingMode mode) {
-  int pages = 0;
   for (MemoryChunk* chunk : *space) {
     // No need to update pointers on evacuation candidates. Evacuated pages will
     // be released after this phase.
@@ -5077,12 +5115,9 @@ int CollectRememberedSetUpdatingItems(
     if (mode == RememberedSetUpdatingMode::ALL
             ? chunk->HasRecordedSlots()
             : chunk->HasRecordedOldToNewSlots()) {
-      items->emplace_back(
-          collector->CreateRememberedSetUpdatingItem(chunk, mode));
-      pages++;
+      items->emplace_back(collector->CreateRememberedSetUpdatingItem(chunk));
     }
   }
-  return pages;
 }
 }  // namespace
 
@@ -5707,8 +5742,12 @@ void MinorMarkCompactCollector::UpdatePointersAfterEvacuation() {
              GCTracer::Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS_WEAK);
 
     // Update pointers from external string table.
-    heap()->UpdateYoungReferencesInExternalStringTable(
-        &UpdateReferenceInExternalStringTableEntry);
+    heap()->UpdateYoungReferencesInExternalStringTable([](Heap* heap,
+                                                          FullObjectSlot p) {
+      DCHECK(
+          !HeapObject::cast(*p).map_word(kRelaxedLoad).IsForwardingAddress());
+      return String::cast(*p);
+    });
   }
 }
 
@@ -5938,11 +5977,10 @@ void MinorMarkCompactCollector::EvacuateEpilogue() {
 }
 
 std::unique_ptr<UpdatingItem>
-MinorMarkCompactCollector::CreateRememberedSetUpdatingItem(
-    MemoryChunk* chunk, RememberedSetUpdatingMode updating_mode) {
-  return std::make_unique<RememberedSetUpdatingItem<
-      NonAtomicMarkingState, GarbageCollector::MINOR_MARK_COMPACTOR>>(
-      heap(), non_atomic_marking_state(), chunk, updating_mode);
+MinorMarkCompactCollector::CreateRememberedSetUpdatingItem(MemoryChunk* chunk) {
+  return std::make_unique<
+      RememberedSetUpdatingItem<GarbageCollector::MINOR_MARK_COMPACTOR>>(heap(),
+                                                                         chunk);
 }
 
 class PageMarkingItem;
