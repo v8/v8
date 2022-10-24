@@ -4454,11 +4454,6 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
         if (validate) {
           for (uint32_t i = 0; i < imm.struct_type->field_count(); i++) {
-            if (!VALIDATE(imm.struct_type->mutability(i))) {
-              this->DecodeError("%s: struct_type %d has immutable field %d",
-                                WasmOpcodes::OpcodeName(opcode), imm.index, i);
-              return 0;
-            }
             ValueType ftype = imm.struct_type->field(i);
             if (!VALIDATE(ftype.is_defaultable())) {
               this->DecodeError(
@@ -4565,11 +4560,6 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
       case kExprArrayNewDefault: {
         ArrayIndexImmediate<validate> imm(this, this->pc_ + opcode_length);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
-        if (!VALIDATE(imm.array_type->mutability())) {
-          this->DecodeError("%s: array type %d is immutable",
-                            WasmOpcodes::OpcodeName(opcode), imm.index);
-          return 0;
-        }
         if (!VALIDATE(imm.array_type->element_type().is_defaultable())) {
           this->DecodeError(
               "%s: array type %d has non-defaultable element type %s",

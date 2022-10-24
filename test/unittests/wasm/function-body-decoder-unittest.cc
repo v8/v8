@@ -3653,9 +3653,8 @@ TEST_F(FunctionBodyDecoderTest, StructOrArrayNewDefault) {
                 kAppendEnd,
                 "struct.new_default: struct type 1 has field 0 of "
                 "non-defaultable type (ref 0)");
-  ExpectFailure(
-      sigs.v_v(), {WASM_STRUCT_NEW_DEFAULT(struct_immutable_index), WASM_DROP},
-      kAppendEnd, "struct.new_default: struct_type 2 has immutable field 0");
+  ExpectValidates(sigs.v_v(),
+                  {WASM_STRUCT_NEW_DEFAULT(struct_immutable_index), WASM_DROP});
   ExpectValidates(
       sigs.v_v(),
       {WASM_ARRAY_NEW_DEFAULT(array_index, WASM_I32V(3)), WASM_DROP});
@@ -3665,10 +3664,9 @@ TEST_F(FunctionBodyDecoderTest, StructOrArrayNewDefault) {
       kAppendEnd,
       "array.new_default: array type 4 has non-defaultable element type (ref "
       "3)");
-  ExpectFailure(
+  ExpectValidates(
       sigs.v_v(),
-      {WASM_ARRAY_NEW_DEFAULT(array_immutable_index, WASM_I32V(3)), WASM_DROP},
-      kAppendEnd, "array.new_default: array type 5 is immutable");
+      {WASM_ARRAY_NEW_DEFAULT(array_immutable_index, WASM_I32V(3)), WASM_DROP});
 }
 
 TEST_F(FunctionBodyDecoderTest, DefaultableLocal) {
