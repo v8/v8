@@ -60,9 +60,9 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(CallIndirect, 0x11, _, "call_indirect")                                  \
   V(ReturnCall, 0x12, _, "return_call")                                      \
   V(ReturnCallIndirect, 0x13, _, "return_call_indirect")                     \
-  V(CallRef, 0x14, _, "call_ref")              /* typed_funcref prototype */ \
+  V(CallRefDeprecated, 0x14, _, "call_ref")    /* typed_funcref prototype */ \
   V(ReturnCallRef, 0x15, _, "return_call_ref") /* typed_funcref prototype */ \
-  V(CallRefDeprecated, 0x17, _, "call_ref")    /* temporary, for compat.*/   \
+  V(CallRef, 0x17, _, "call_ref")              /* temporary, for compat.*/   \
   V(Drop, 0x1a, _, "drop")                                                   \
   V(Select, 0x1b, _, "select")                                               \
   V(SelectWithType, 0x1c, _, "select")                                       \
