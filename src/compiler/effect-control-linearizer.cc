@@ -2304,19 +2304,13 @@ Node* EffectControlLinearizer::LowerCheckedInt32Mod(Node* node,
   //   if rhs <= 0 then
   //     rhs = -rhs
   //     deopt if rhs == 0
-  //   let msk = rhs - 1 in
   //   if lhs < 0 then
   //     let lhs_abs = -lsh in
-  //     let res = if rhs & msk == 0 then
-  //                 lhs_abs & msk
-  //               else
-  //                 lhs_abs % rhs in
-  //     if lhs < 0 then
-  //       deopt if res == 0
-  //       -res
-  //     else
-  //       res
+  //     let res = lhs_abs % rhs in
+  //     deopt if res == 0
+  //     -res
   //   else
+  //     let msk = rhs - 1 in
   //     if rhs & msk == 0 then
   //       lhs & msk
   //     else
