@@ -21,6 +21,7 @@
 #include "src/interpreter/bytecodes.h"
 #include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-compilation-unit.h"
+#include "src/maglev/maglev-graph-printer.h"
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/objects/elements-kind.h"
@@ -1552,7 +1553,7 @@ bool MaglevGraphBuilder::TryBuildStoreField(
 }
 
 bool MaglevGraphBuilder::TryBuildPropertyLoad(
-    ValueNode* receiver, ValueNode* lookup_start_object,
+    ValueNode* receiver, ValueNode* lookup_start_object, compiler::NameRef name,
     compiler::PropertyAccessInfo const& access_info) {
   if (access_info.holder().has_value() && !access_info.HasDictionaryHolder()) {
     broker()->dependencies()->DependOnStablePrototypeChains(
@@ -1569,6 +1570,9 @@ bool MaglevGraphBuilder::TryBuildPropertyLoad(
     case compiler::PropertyAccessInfo::kDataField:
     case compiler::PropertyAccessInfo::kFastDataConstant:
       BuildLoadField(access_info, lookup_start_object);
+      RecordKnownProperty(lookup_start_object, name,
+                          current_interpreter_frame_.accumulator(),
+                          access_info.IsFastDataConstant());
       return true;
     case compiler::PropertyAccessInfo::kDictionaryProtoDataConstant:
       return TryFoldLoadDictPrototypeConstant(access_info);
@@ -1584,12 +1588,15 @@ bool MaglevGraphBuilder::TryBuildPropertyLoad(
     case compiler::PropertyAccessInfo::kStringLength:
       DCHECK_EQ(receiver, lookup_start_object);
       SetAccumulator(AddNewNode<StringLength>({receiver}));
+      RecordKnownProperty(lookup_start_object, name,
+                          current_interpreter_frame_.accumulator(), true);
       return true;
   }
 }
 
 bool MaglevGraphBuilder::TryBuildPropertyStore(
-    ValueNode* receiver, compiler::PropertyAccessInfo const& access_info) {
+    ValueNode* receiver, compiler::NameRef name,
+    compiler::PropertyAccessInfo const& access_info) {
   if (access_info.holder().has_value()) {
     broker()->dependencies()->DependOnStablePrototypeChains(
         access_info.lookup_start_object_maps(), kStartAtPrototype,
@@ -1601,22 +1608,29 @@ bool MaglevGraphBuilder::TryBuildPropertyStore(
                                       GetAccumulatorTagged());
   } else {
     DCHECK(access_info.IsDataField() || access_info.IsFastDataConstant());
-    return TryBuildStoreField(access_info, receiver);
+    if (TryBuildStoreField(access_info, receiver)) {
+      RecordKnownProperty(receiver, name,
+                          current_interpreter_frame_.accumulator(),
+                          access_info.IsFastDataConstant());
+      return true;
+    }
+    return false;
   }
 }
 
 bool MaglevGraphBuilder::TryBuildPropertyAccess(
-    ValueNode* receiver, ValueNode* lookup_start_object,
+    ValueNode* receiver, ValueNode* lookup_start_object, compiler::NameRef name,
     compiler::PropertyAccessInfo const& access_info,
     compiler::AccessMode access_mode) {
   switch (access_mode) {
     case compiler::AccessMode::kLoad:
-      return TryBuildPropertyLoad(receiver, lookup_start_object, access_info);
+      return TryBuildPropertyLoad(receiver, lookup_start_object, name,
+                                  access_info);
     case compiler::AccessMode::kStore:
     case compiler::AccessMode::kStoreInLiteral:
     case compiler::AccessMode::kDefine:
       DCHECK_EQ(receiver, lookup_start_object);
-      return TryBuildPropertyStore(receiver, access_info);
+      return TryBuildPropertyStore(receiver, name, access_info);
     case compiler::AccessMode::kHas:
       // TODO(victorgomes): BuildPropertyTest.
       return false;
@@ -1689,8 +1703,8 @@ bool MaglevGraphBuilder::TryBuildNamedAccess(
     }
 
     // Generate the actual property access.
-    return TryBuildPropertyAccess(receiver, lookup_start_object, access_info,
-                                  access_mode);
+    return TryBuildPropertyAccess(receiver, lookup_start_object,
+                                  feedback.name(), access_info, access_mode);
   } else {
     // TODO(victorgomes): polymorphic case.
     return false;
@@ -1822,6 +1836,42 @@ bool MaglevGraphBuilder::TryBuildElementAccess(
   }
 }
 
+void MaglevGraphBuilder::RecordKnownProperty(ValueNode* lookup_start_object,
+                                             compiler::NameRef name,
+                                             ValueNode* value, bool is_const) {
+  auto& loaded_properties =
+      is_const ? known_node_aspects().loaded_constant_properties
+               : known_node_aspects().loaded_properties;
+  loaded_properties.emplace(std::make_pair(lookup_start_object, name), value);
+}
+
+bool MaglevGraphBuilder::TryReuseKnownPropertyLoad(
+    ValueNode* lookup_start_object, compiler::NameRef name) {
+  if (auto it = known_node_aspects().loaded_properties.find(
+          {lookup_start_object, name});
+      it != known_node_aspects().loaded_properties.end()) {
+    current_interpreter_frame_.set_accumulator(it->second);
+    if (v8_flags.trace_maglev_graph_building) {
+      std::cout << "  * Reusing non-constant loaded property "
+                << PrintNodeLabel(graph_labeller(), it->second) << ": "
+                << PrintNode(graph_labeller(), it->second) << std::endl;
+    }
+    return true;
+  }
+  if (auto it = known_node_aspects().loaded_constant_properties.find(
+          {lookup_start_object, name});
+      it != known_node_aspects().loaded_constant_properties.end()) {
+    current_interpreter_frame_.set_accumulator(it->second);
+    if (v8_flags.trace_maglev_graph_building) {
+      std::cout << "  * Reusing constant loaded property "
+                << PrintNodeLabel(graph_labeller(), it->second) << ": "
+                << PrintNode(graph_labeller(), it->second) << std::endl;
+    }
+    return true;
+  }
+  return false;
+}
+
 void MaglevGraphBuilder::VisitGetNamedProperty() {
   // GetNamedProperty <object> <name_index> <slot>
   ValueNode* object = LoadRegisterTagged(0);
@@ -1840,6 +1890,7 @@ void MaglevGraphBuilder::VisitGetNamedProperty() {
       return;
 
     case compiler::ProcessedFeedback::kNamedAccess:
+      if (TryReuseKnownPropertyLoad(object, name)) return;
       if (TryBuildNamedAccess(object, object,
                               processed_feedback.AsNamedAccess(),
                               compiler::AccessMode::kLoad)) {
@@ -1881,6 +1932,7 @@ void MaglevGraphBuilder::VisitGetNamedPropertyFromSuper() {
       return;
 
     case compiler::ProcessedFeedback::kNamedAccess:
+      if (TryReuseKnownPropertyLoad(lookup_start_object, name)) return;
       if (TryBuildNamedAccess(receiver, lookup_start_object,
                               processed_feedback.AsNamedAccess(),
                               compiler::AccessMode::kLoad)) {

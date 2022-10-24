@@ -261,16 +261,6 @@ class V8_EXPORT_PRIVATE ObjectRef {
       return base::hash_combine(ref.object().address());
     }
   };
-  struct Equal {
-    bool operator()(const ObjectRef& lhs, const ObjectRef& rhs) const {
-      return lhs.equals(rhs);
-    }
-  };
-  struct Less {
-    bool operator()(const ObjectRef& lhs, const ObjectRef& rhs) const {
-      return lhs.data_ < rhs.data_;
-    }
-  };
 
  protected:
   JSHeapBroker* broker() const;
@@ -290,20 +280,24 @@ class V8_EXPORT_PRIVATE ObjectRef {
   friend class TinyRef;
 
   friend std::ostream& operator<<(std::ostream& os, const ObjectRef& ref);
+  friend bool operator<(const ObjectRef& lhs, const ObjectRef& rhs);
 
   JSHeapBroker* broker_;
 };
 
-inline bool operator==(ObjectRef const& obj1, ObjectRef const& obj2) {
-  return obj1.equals(obj2);
+inline bool operator==(const ObjectRef& lhs, const ObjectRef& rhs) {
+  return lhs.equals(rhs);
+}
+
+inline bool operator<(const ObjectRef& lhs, const ObjectRef& rhs) {
+  return lhs.data_ < rhs.data_;
 }
 
 template <class T>
-using ZoneRefUnorderedSet =
-    ZoneUnorderedSet<T, ObjectRef::Hash, ObjectRef::Equal>;
+using ZoneRefUnorderedSet = ZoneUnorderedSet<T, ObjectRef::Hash>;
 
 template <class K, class V>
-using ZoneRefMap = ZoneMap<K, V, ObjectRef::Less>;
+using ZoneRefMap = ZoneMap<K, V>;
 
 // Temporary class that carries information from a Map. We'd like to remove
 // this class and use MapRef instead, but we can't as long as we support the

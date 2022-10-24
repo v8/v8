@@ -852,6 +852,11 @@ class MaglevGraphBuilder {
     // we can no longer assume that objects with unstable maps still have the
     // same map.
     known_node_aspects().unstable_maps.clear();
+    // Similarly, side-effects can change object contents, so we have to clear
+    // our known loaded properties -- however, constant properties are known
+    // to not change (and we added a dependency on this), so we don't have to
+    // clear those.
+    known_node_aspects().loaded_properties.clear();
   }
 
   int next_offset() const {
@@ -982,11 +987,13 @@ class MaglevGraphBuilder {
                                   ValueNode* receiver, ValueNode* value);
 
   bool TryBuildPropertyLoad(ValueNode* receiver, ValueNode* lookup_start_object,
+                            compiler::NameRef name,
                             compiler::PropertyAccessInfo const& access_info);
-  bool TryBuildPropertyStore(ValueNode* receiver,
+  bool TryBuildPropertyStore(ValueNode* receiver, compiler::NameRef name,
                              compiler::PropertyAccessInfo const& access_info);
   bool TryBuildPropertyAccess(ValueNode* receiver,
                               ValueNode* lookup_start_object,
+                              compiler::NameRef name,
                               compiler::PropertyAccessInfo const& access_info,
                               compiler::AccessMode access_mode);
 
@@ -999,6 +1006,15 @@ class MaglevGraphBuilder {
                            compiler::AccessMode access_mode);
   bool TryBuildElementAccess(ValueNode* object, ValueNode* index,
                              compiler::ElementAccessFeedback const& feedback);
+
+  // Load elimination -- when loading or storing a simple property without
+  // side effects, record its value, and allow that value to be re-used on
+  // subsequent loads.
+  void RecordKnownProperty(ValueNode* lookup_start_object,
+                           compiler::NameRef name, ValueNode* value,
+                           bool is_const);
+  bool TryReuseKnownPropertyLoad(ValueNode* lookup_start_object,
+                                 compiler::NameRef name);
 
   template <Operation kOperation>
   void BuildGenericUnaryOperationNode();

@@ -29,14 +29,14 @@ class MergePointInterpreterFrameState;
 // left map is mutated to become the result of the intersection. Values that
 // are in both maps are passed to the merging function to be merged with each
 // other -- again, the LHS here is expected to be mutated.
-template <typename Value, typename MergeFunc>
-void DestructivelyIntersect(ZoneMap<ValueNode*, Value>& lhs_map,
-                            const ZoneMap<ValueNode*, Value>& rhs_map,
+template <typename Key, typename Value, typename MergeFunc>
+void DestructivelyIntersect(ZoneMap<Key, Value>& lhs_map,
+                            const ZoneMap<Key, Value>& rhs_map,
                             MergeFunc&& func) {
   // Walk the two maps in lock step. This relies on the fact that ZoneMaps are
   // sorted.
-  typename ZoneMap<ValueNode*, Value>::iterator lhs_it = lhs_map.begin();
-  typename ZoneMap<ValueNode*, Value>::const_iterator rhs_it = rhs_map.begin();
+  typename ZoneMap<Key, Value>::iterator lhs_it = lhs_map.begin();
+  typename ZoneMap<Key, Value>::const_iterator rhs_it = rhs_map.begin();
   while (lhs_it != lhs_map.end() && rhs_it != rhs_map.end()) {
     if (lhs_it->first < rhs_it->first) {
       // Remove from LHS elements that are not in RHS.
@@ -129,7 +129,11 @@ struct NodeInfo {
 
 struct KnownNodeAspects {
   explicit KnownNodeAspects(Zone* zone)
-      : node_infos(zone), stable_maps(zone), unstable_maps(zone) {}
+      : node_infos(zone),
+        stable_maps(zone),
+        unstable_maps(zone),
+        loaded_constant_properties(zone),
+        loaded_properties(zone) {}
 
   KnownNodeAspects(const KnownNodeAspects& other) = delete;
   KnownNodeAspects& operator=(const KnownNodeAspects& other) = delete;
@@ -141,6 +145,8 @@ struct KnownNodeAspects {
     clone->node_infos = node_infos;
     clone->stable_maps = stable_maps;
     clone->unstable_maps = unstable_maps;
+    clone->loaded_constant_properties = loaded_constant_properties;
+    clone->loaded_properties = loaded_properties;
     return clone;
   }
 
@@ -152,6 +158,7 @@ struct KnownNodeAspects {
     KnownNodeAspects* clone = zone->New<KnownNodeAspects>(zone);
     clone->node_infos = node_infos;
     clone->stable_maps = stable_maps;
+    clone->loaded_constant_properties = loaded_constant_properties;
     return clone;
   }
 
@@ -181,6 +188,12 @@ struct KnownNodeAspects {
           // We should always add the value even if the set is empty.
           return true;
         });
+    DestructivelyIntersect(
+        loaded_constant_properties, other.loaded_constant_properties,
+        [](ValueNode* lhs, ValueNode* rhs) { return lhs == rhs; });
+    DestructivelyIntersect(
+        loaded_properties, other.loaded_properties,
+        [](ValueNode* lhs, ValueNode* rhs) { return lhs == rhs; });
   }
 
   // TODO(leszeks): Store these more efficiently than with std::map -- in
@@ -190,11 +203,18 @@ struct KnownNodeAspects {
   // Permanently valid if checked in a dominator.
   ZoneMap<ValueNode*, NodeInfo> node_infos;
   // TODO(v8:7700): Investigate a better data structure to use than
-  // ZoneHandleSet. Valid across side-effecting calls, as long as we install a
-  // dependency.
+  // ZoneHandleSet.
+  // Valid across side-effecting calls, as long as we install a dependency.
   ZoneMap<ValueNode*, ZoneHandleSet<Map>> stable_maps;
   // Flushed after side-effecting calls.
   ZoneMap<ValueNode*, ZoneHandleSet<Map>> unstable_maps;
+
+  // Valid across side-effecting calls, as long as we install a dependency.
+  ZoneMap<std::pair<ValueNode*, compiler::NameRef>, ValueNode*>
+      loaded_constant_properties;
+  // Flushed after side-effecting calls.
+  ZoneMap<std::pair<ValueNode*, compiler::NameRef>, ValueNode*>
+      loaded_properties;
 };
 
 class InterpreterFrameState {
