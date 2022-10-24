@@ -54,7 +54,6 @@ bitfield struct TurbofanTypeLowBits extends uint32 {
 
 bitfield struct TurbofanTypeHighBits extends uint32 {
   sandboxed_pointer: bool: 1 bit;
-  machine: bool: 1 bit;
 }
 
 @export

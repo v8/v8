@@ -23,12 +23,10 @@ struct Diamond {
   Node* merge;
 
   Diamond(Graph* g, CommonOperatorBuilder* b, Node* cond,
-          BranchHint hint = BranchHint::kNone,
-          BranchSemantics semantics = BranchSemantics::kUnspecified) {
+          BranchHint hint = BranchHint::kNone) {
     graph = g;
     common = b;
-    branch =
-        graph->NewNode(common->Branch(hint, semantics), cond, graph->start());
+    branch = graph->NewNode(common->Branch(hint), cond, graph->start());
     if_true = graph->NewNode(common->IfTrue(), branch);
     if_false = graph->NewNode(common->IfFalse(), branch);
     merge = graph->NewNode(common->Merge(2), if_true, if_false);

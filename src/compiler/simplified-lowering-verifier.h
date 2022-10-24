@@ -5,8 +5,6 @@
 #ifndef V8_COMPILER_SIMPLIFIED_LOWERING_VERIFIER_H_
 #define V8_COMPILER_SIMPLIFIED_LOWERING_VERIFIER_H_
 
-#include "src/base/container-utils.h"
-#include "src/compiler/opcodes.h"
 #include "src/compiler/representation-change.h"
 
 namespace v8 {
@@ -23,11 +21,7 @@ class SimplifiedLoweringVerifier final {
   };
 
   SimplifiedLoweringVerifier(Zone* zone, Graph* graph)
-      : hints_(zone),
-        machine_uses_of_constants_(zone),
-        data_(zone),
-        graph_(graph),
-        zone_(zone) {}
+      : hints_(zone), data_(zone), graph_(graph) {}
 
   void VisitNode(Node* node, OperationTyper& op_typer);
 
@@ -36,33 +30,10 @@ class SimplifiedLoweringVerifier final {
     hints_.push_back(node);
   }
   const ZoneVector<Node*>& inserted_hints() const { return hints_; }
-  void RecordMachineUsesOfConstant(Node* constant, Node::Uses uses) {
-    DCHECK(IrOpcode::IsMachineConstantOpcode(constant->opcode()));
-    auto it = machine_uses_of_constants_.find(constant);
-    if (it == machine_uses_of_constants_.end()) {
-      it =
-          machine_uses_of_constants_.emplace(constant, ZoneVector<Node*>(zone_))
-              .first;
-    }
-    base::vector_append(it->second, uses);
-  }
-  const ZoneUnorderedMap<Node*, ZoneVector<Node*>>& machine_uses_of_constants()
-      const {
-    return machine_uses_of_constants_;
-  }
 
   base::Optional<Type> GetType(Node* node) const {
     if (NodeProperties::IsTyped(node)) {
-      Type type = NodeProperties::GetType(node);
-      // We do not use the static type for constants, even if we have one,
-      // because those are cached in the graph and shared between machine
-      // and non-machine subgraphs. The former might have assigned
-      // Type::Machine() to them.
-      if (IrOpcode::IsMachineConstantOpcode(node->opcode())) {
-        DCHECK(type.Is(Type::Machine()));
-      } else {
-        return type;
-      }
+      return NodeProperties::GetType(node);
     }
     // For nodes that have not been typed before SL, we use the type that has
     // been inferred by the verifier.
@@ -89,7 +60,16 @@ class SimplifiedLoweringVerifier final {
   Type InputType(Node* node, int input_index) const {
     // TODO(nicohartmann): Check that inputs are typed, once all operators are
     // supported.
-    auto type_opt = GetType(node->InputAt(input_index));
+    Node* input = node->InputAt(input_index);
+    if (NodeProperties::IsTyped(input)) {
+      return NodeProperties::GetType(input);
+    }
+    // For nodes that have not been typed before SL, we use the type that has
+    // been inferred by the verifier.
+    base::Optional<Type> type_opt;
+    if (input->id() < data_.size()) {
+      type_opt = data_[input->id()].type;
+    }
     return type_opt.has_value() ? *type_opt : Type::None();
   }
 
@@ -111,7 +91,6 @@ class SimplifiedLoweringVerifier final {
 
   void CheckType(Node* node, const Type& type);
   void CheckAndSet(Node* node, const Type& type, const Truncation& trunc);
-  void ReportInvalidTypeCombination(Node* node, const std::vector<Type>& types);
 
   // Generalize to a less strict truncation in the context of a given type. For
   // example, a Truncation::kWord32[kIdentifyZeros] does not have any effect on
@@ -125,10 +104,8 @@ class SimplifiedLoweringVerifier final {
   Zone* graph_zone() const { return graph_->zone(); }
 
   ZoneVector<Node*> hints_;
-  ZoneUnorderedMap<Node*, ZoneVector<Node*>> machine_uses_of_constants_;
   ZoneVector<PerNodeData> data_;
   Graph* graph_;
-  Zone* zone_;
 };
 
 }  // namespace compiler

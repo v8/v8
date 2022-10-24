@@ -25,7 +25,6 @@
 #include "src/logging/log.h"
 #include "src/numbers/hash-seed-inl.h"
 #include "src/numbers/math-random.h"
-#include "src/objects/elements-kind.h"
 #include "src/objects/elements.h"
 #include "src/objects/object-type.h"
 #include "src/objects/objects-inl.h"
@@ -949,20 +948,6 @@ ExternalReference ExternalReference::search_string_raw_two_one() {
 
 ExternalReference ExternalReference::search_string_raw_two_two() {
   return search_string_raw<const base::uc16, const base::uc16>();
-}
-
-ExternalReference
-ExternalReference::typed_array_and_rab_gsab_typed_array_elements_kind_shifts() {
-  uint8_t* ptr =
-      const_cast<uint8_t*>(TypedArrayAndRabGsabTypedArrayElementsKindShifts());
-  return ExternalReference(reinterpret_cast<Address>(ptr));
-}
-
-ExternalReference
-ExternalReference::typed_array_and_rab_gsab_typed_array_elements_kind_sizes() {
-  uint8_t* ptr =
-      const_cast<uint8_t*>(TypedArrayAndRabGsabTypedArrayElementsKindSizes());
-  return ExternalReference(reinterpret_cast<Address>(ptr));
 }
 
 namespace {

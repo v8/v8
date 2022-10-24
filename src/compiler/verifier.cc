@@ -312,16 +312,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       }
       CHECK_EQ(1, count_true);
       CHECK_EQ(1, count_false);
-      switch (BranchParametersOf(node->op()).semantics()) {
-        case BranchSemantics::kJS:
-        case BranchSemantics::kUnspecified:
-          // The condition must be a Boolean.
-          CheckValueInputIs(node, 0, Type::Boolean());
-          break;
-        case BranchSemantics::kMachine:
-          CheckValueInputIs(node, 0, Type::Machine());
-          break;
-      }
+      // The condition must be a Boolean.
+      CheckValueInputIs(node, 0, Type::Boolean());
       CheckNotTyped(node);
       break;
     }
@@ -613,12 +605,6 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       break;
     case IrOpcode::kTailCall:
       // TODO(bmeurer): what are the constraints on these?
-      break;
-    case IrOpcode::kEnterMachineGraph:
-      CheckTypeIs(node, Type::Machine());
-      break;
-    case IrOpcode::kExitMachineGraph:
-      CheckValueInputIs(node, 0, Type::Machine());
       break;
 
     // JavaScript operators

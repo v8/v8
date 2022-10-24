@@ -49,7 +49,6 @@ namespace compiler {
 //
 //   Constant(x) < T  iff instance_type(map(x)) < T
 //
-//    None <= Machine <= Any
 //
 // RANGE TYPES
 //
@@ -141,8 +140,7 @@ namespace compiler {
 // We split the macro list into two parts because the Torque equivalent in
 // turbofan-types.tq uses two 32bit bitfield structs.
 #define PROPER_ATOMIC_BITSET_TYPE_HIGH_LIST(V) \
-  V(SandboxedPointer,         uint64_t{1} << 32) \
-  V(Machine,                  uint64_t{1} << 33)
+  V(SandboxedPointer,         uint64_t{1} << 32)
 
 #define PROPER_BITSET_TYPE_LIST(V) \
   V(None,                     uint64_t{0}) \
