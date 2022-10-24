@@ -548,7 +548,7 @@ uint32_t FunctionBodyDisassembler::PrintImmediatesAndGetLength(
     StringBuilder& out) {
   using Printer = ImmediatesPrinter<ValidationTag>;
   Printer imm_printer(out, this);
-  return WasmDecoder::OpcodeLength<Printer>(this, this->pc_, &imm_printer);
+  return WasmDecoder::OpcodeLength<Printer>(this, this->pc_, imm_printer);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

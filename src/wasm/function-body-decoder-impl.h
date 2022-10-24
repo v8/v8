@@ -1780,47 +1780,10 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
-  class EmptyImmediateObserver {
-   public:
-    void BlockType(BlockTypeImmediate& imm) {}
-    void HeapType(HeapTypeImmediate& imm) {}
-    void BranchDepth(BranchDepthImmediate& imm) {}
-    void BranchTable(BranchTableImmediate& imm) {}
-    void CallIndirect(CallIndirectImmediate& imm) {}
-    void SelectType(SelectTypeImmediate& imm) {}
-    void MemoryAccess(MemoryAccessImmediate& imm) {}
-    void SimdLane(SimdLaneImmediate& imm) {}
-    void Field(FieldImmediate& imm) {}
-    void Length(IndexImmediate& imm) {}
-
-    void TagIndex(TagIndexImmediate& imm) {}
-    void FunctionIndex(IndexImmediate& imm) {}
-    void TypeIndex(IndexImmediate& imm) {}
-    void LocalIndex(IndexImmediate& imm) {}
-    void GlobalIndex(IndexImmediate& imm) {}
-    void TableIndex(IndexImmediate& imm) {}
-    void MemoryIndex(MemoryIndexImmediate& imm) {}
-    void DataSegmentIndex(IndexImmediate& imm) {}
-    void ElemSegmentIndex(IndexImmediate& imm) {}
-
-    void I32Const(ImmI32Immediate& imm) {}
-    void I64Const(ImmI64Immediate& imm) {}
-    void F32Const(ImmF32Immediate& imm) {}
-    void F64Const(ImmF64Immediate& imm) {}
-    void S128Const(Simd128Immediate& imm) {}
-    void StringConst(StringConstImmediate& imm) {}
-
-    void MemoryInit(MemoryInitImmediate& imm) {}
-    void MemoryCopy(MemoryCopyImmediate& imm) {}
-    void TableInit(TableInitImmediate& imm) {}
-    void TableCopy(TableCopyImmediate& imm) {}
-    void ArrayCopy(IndexImmediate& dst, IndexImmediate& src) {}
-  };
-
   // Returns the length of the opcode under {pc}.
-  template <class ImmediateObserver = EmptyImmediateObserver>
+  template <typename... ImmediateObservers>
   static uint32_t OpcodeLength(WasmDecoder* decoder, const byte* pc,
-                               ImmediateObserver* io = nullptr) {
+                               ImmediateObservers&... ios) {
     WasmOpcode opcode = static_cast<WasmOpcode>(*pc);
     // We don't have information about the module here, so we just assume that
     // memory64 is enabled when parsing memory access immediates. This is
@@ -1842,7 +1805,7 @@ class WasmDecoder : public Decoder {
       case kExprBlock: {
         BlockTypeImmediate imm(WasmFeatures::All(), decoder, pc + 1, nullptr,
                                validate);
-        if (io) io->BlockType(imm);
+        (ios.BlockType(imm), ...);
         return 1 + imm.length;
       }
       case kExprRethrow:
@@ -1852,19 +1815,19 @@ class WasmDecoder : public Decoder {
       case kExprBrOnNonNull:
       case kExprDelegate: {
         BranchDepthImmediate imm(decoder, pc + 1, validate);
-        if (io) io->BranchDepth(imm);
+        (ios.BranchDepth(imm), ...);
         return 1 + imm.length;
       }
       case kExprBrTable: {
         BranchTableImmediate imm(decoder, pc + 1, validate);
-        if (io) io->BranchTable(imm);
+        (ios.BranchTable(imm), ...);
         BranchTableIterator<ValidationTag> iterator(decoder, imm);
         return 1 + iterator.length();
       }
       case kExprThrow:
       case kExprCatch: {
         TagIndexImmediate imm(decoder, pc + 1, validate);
-        if (io) io->TagIndex(imm);
+        (ios.TagIndex(imm), ...);
         return 1 + imm.length;
       }
 
@@ -1872,20 +1835,20 @@ class WasmDecoder : public Decoder {
       case kExprCallFunction:
       case kExprReturnCall: {
         CallFunctionImmediate imm(decoder, pc + 1, validate);
-        if (io) io->FunctionIndex(imm);
+        (ios.FunctionIndex(imm), ...);
         return 1 + imm.length;
       }
       case kExprCallIndirect:
       case kExprReturnCallIndirect: {
         CallIndirectImmediate imm(decoder, pc + 1, validate);
-        if (io) io->CallIndirect(imm);
+        (ios.CallIndirect(imm), ...);
         return 1 + imm.length;
       }
       case kExprCallRefDeprecated:  // TODO(7748): Drop after grace period.
       case kExprCallRef:
       case kExprReturnCallRef: {
         SigIndexImmediate imm(decoder, pc + 1, validate);
-        if (io) io->TypeIndex(imm);
+        (ios.TypeIndex(imm), ...);
         return 1 + imm.length;
       }
       case kExprDrop:
@@ -1895,7 +1858,7 @@ class WasmDecoder : public Decoder {
       case kExprSelectWithType: {
         SelectTypeImmediate imm(WasmFeatures::All(), decoder, pc + 1, nullptr,
                                 validate);
-        if (io) io->SelectType(imm);
+        (ios.SelectType(imm), ...);
         return 1 + imm.length;
       }
 
@@ -1903,47 +1866,47 @@ class WasmDecoder : public Decoder {
       case kExprLocalSet:
       case kExprLocalTee: {
         IndexImmediate imm(decoder, pc + 1, "local index", validate);
-        if (io) io->LocalIndex(imm);
+        (ios.LocalIndex(imm), ...);
         return 1 + imm.length;
       }
       case kExprGlobalGet:
       case kExprGlobalSet: {
         GlobalIndexImmediate imm(decoder, pc + 1, validate);
-        if (io) io->GlobalIndex(imm);
+        (ios.GlobalIndex(imm), ...);
         return 1 + imm.length;
       }
       case kExprTableGet:
       case kExprTableSet: {
         IndexImmediate imm(decoder, pc + 1, "table index", validate);
-        if (io) io->TableIndex(imm);
+        (ios.TableIndex(imm), ...);
         return 1 + imm.length;
       }
       case kExprI32Const: {
         ImmI32Immediate imm(decoder, pc + 1, validate);
-        if (io) io->I32Const(imm);
+        (ios.I32Const(imm), ...);
         return 1 + imm.length;
       }
       case kExprI64Const: {
         ImmI64Immediate imm(decoder, pc + 1, validate);
-        if (io) io->I64Const(imm);
+        (ios.I64Const(imm), ...);
         return 1 + imm.length;
       }
       case kExprF32Const:
-        if (io) {
+        if (sizeof...(ios) > 0) {
           ImmF32Immediate imm(decoder, pc + 1, validate);
-          io->F32Const(imm);
+          (ios.F32Const(imm), ...);
         }
         return 5;
       case kExprF64Const:
-        if (io) {
+        if (sizeof...(ios) > 0) {
           ImmF64Immediate imm(decoder, pc + 1, validate);
-          io->F64Const(imm);
+          (ios.F64Const(imm), ...);
         }
         return 9;
       case kExprRefNull: {
         HeapTypeImmediate imm(WasmFeatures::All(), decoder, pc + 1, nullptr,
                               validate);
-        if (io) io->HeapType(imm);
+        (ios.HeapType(imm), ...);
         return 1 + imm.length;
       }
       case kExprRefIsNull:
@@ -1951,7 +1914,7 @@ class WasmDecoder : public Decoder {
         return 1;
       case kExprRefFunc: {
         IndexImmediate imm(decoder, pc + 1, "function index", validate);
-        if (io) io->FunctionIndex(imm);
+        (ios.FunctionIndex(imm), ...);
         return 1 + imm.length;
       }
 
@@ -1965,14 +1928,14 @@ class WasmDecoder : public Decoder {
       FOREACH_STORE_MEM_OPCODE(DECLARE_OPCODE_CASE) {
         MemoryAccessImmediate imm(decoder, pc + 1, UINT32_MAX,
                                   kConservativelyAssumeMemory64, validate);
-        if (io) io->MemoryAccess(imm);
+        (ios.MemoryAccess(imm), ...);
         return 1 + imm.length;
       }
       // clang-format on
       case kExprMemoryGrow:
       case kExprMemorySize: {
         MemoryIndexImmediate imm(decoder, pc + 1, validate);
-        if (io) io->MemoryIndex(imm);
+        (ios.MemoryIndex(imm), ...);
         return 1 + imm.length;
       }
 
@@ -1992,46 +1955,46 @@ class WasmDecoder : public Decoder {
             return length;
           case kExprMemoryInit: {
             MemoryInitImmediate imm(decoder, pc + length, validate);
-            if (io) io->MemoryInit(imm);
+            (ios.MemoryInit(imm), ...);
             return length + imm.length;
           }
           case kExprDataDrop: {
             IndexImmediate imm(decoder, pc + length, "data segment index",
                                validate);
-            if (io) io->DataSegmentIndex(imm);
+            (ios.DataSegmentIndex(imm), ...);
             return length + imm.length;
           }
           case kExprMemoryCopy: {
             MemoryCopyImmediate imm(decoder, pc + length, validate);
-            if (io) io->MemoryCopy(imm);
+            (ios.MemoryCopy(imm), ...);
             return length + imm.length;
           }
           case kExprMemoryFill: {
             MemoryIndexImmediate imm(decoder, pc + length, validate);
-            if (io) io->MemoryIndex(imm);
+            (ios.MemoryIndex(imm), ...);
             return length + imm.length;
           }
           case kExprTableInit: {
             TableInitImmediate imm(decoder, pc + length, validate);
-            if (io) io->TableInit(imm);
+            (ios.TableInit(imm), ...);
             return length + imm.length;
           }
           case kExprElemDrop: {
             IndexImmediate imm(decoder, pc + length, "element segment index",
                                validate);
-            if (io) io->ElemSegmentIndex(imm);
+            (ios.ElemSegmentIndex(imm), ...);
             return length + imm.length;
           }
           case kExprTableCopy: {
             TableCopyImmediate imm(decoder, pc + length, validate);
-            if (io) io->TableCopy(imm);
+            (ios.TableCopy(imm), ...);
             return length + imm.length;
           }
           case kExprTableGrow:
           case kExprTableSize:
           case kExprTableFill: {
             IndexImmediate imm(decoder, pc + length, "table index", validate);
-            if (io) io->TableIndex(imm);
+            (ios.TableIndex(imm), ...);
             return length + imm.length;
           }
           default:
@@ -2049,26 +2012,26 @@ class WasmDecoder : public Decoder {
           FOREACH_SIMD_0_OPERAND_OPCODE(DECLARE_OPCODE_CASE)
             return length;
           FOREACH_SIMD_1_OPERAND_OPCODE(DECLARE_OPCODE_CASE)
-            if (io) {
+        if (sizeof...(ios) > 0) {
               SimdLaneImmediate lane_imm(decoder, pc + length, validate);
-              io->SimdLane(lane_imm);
+             (ios.SimdLane(lane_imm), ...);
             }
             return length + 1;
           FOREACH_SIMD_MEM_OPCODE(DECLARE_OPCODE_CASE) {
             MemoryAccessImmediate imm(decoder, pc + length, UINT32_MAX,
                                       kConservativelyAssumeMemory64, validate);
-            if (io) io->MemoryAccess(imm);
+            (ios.MemoryAccess(imm), ...);
             return length + imm.length;
           }
           FOREACH_SIMD_MEM_1_OPERAND_OPCODE(DECLARE_OPCODE_CASE) {
             MemoryAccessImmediate imm(
                 decoder, pc + length, UINT32_MAX,
                 kConservativelyAssumeMemory64, validate);
-            if (io) {
+        if (sizeof...(ios) > 0) {
               SimdLaneImmediate lane_imm(decoder,
                                          pc + length + imm.length, validate);
-              io->MemoryAccess(imm);
-              io->SimdLane(lane_imm);
+             (ios.MemoryAccess(imm), ...);
+             (ios.SimdLane(lane_imm), ...);
             }
             // 1 more byte for lane index immediate.
             return length + imm.length + 1;
@@ -2077,9 +2040,9 @@ class WasmDecoder : public Decoder {
           // Shuffles require a byte per lane, or 16 immediate bytes.
           case kExprS128Const:
           case kExprI8x16Shuffle:
-            if (io) {
+            if (sizeof...(ios) > 0) {
               Simd128Immediate imm(decoder, pc + length, validate);
-              io->S128Const(imm);
+              (ios.S128Const(imm), ...);
             }
             return length + kSimd128Size;
           default:
@@ -2097,7 +2060,7 @@ class WasmDecoder : public Decoder {
           FOREACH_ATOMIC_OPCODE(DECLARE_OPCODE_CASE) {
             MemoryAccessImmediate imm(decoder, pc + length, UINT32_MAX,
                                       kConservativelyAssumeMemory64, validate);
-            if (io) io->MemoryAccess(imm);
+            (ios.MemoryAccess(imm), ...);
             return length + imm.length;
           }
           FOREACH_ATOMIC_0_OPERAND_OPCODE(DECLARE_OPCODE_CASE) {
@@ -2119,7 +2082,7 @@ class WasmDecoder : public Decoder {
           case kExprStructNew:
           case kExprStructNewDefault: {
             StructIndexImmediate imm(decoder, pc + length, validate);
-            if (io) io->TypeIndex(imm);
+            (ios.TypeIndex(imm), ...);
             return length + imm.length;
           }
           case kExprStructGet:
@@ -2127,7 +2090,7 @@ class WasmDecoder : public Decoder {
           case kExprStructGetU:
           case kExprStructSet: {
             FieldImmediate imm(decoder, pc + length, validate);
-            if (io) io->Field(imm);
+            (ios.Field(imm), ...);
             return length + imm.length;
           }
           case kExprArrayNew:
@@ -2138,22 +2101,22 @@ class WasmDecoder : public Decoder {
           case kExprArraySet:
           case kExprArrayLenDeprecated: {
             ArrayIndexImmediate imm(decoder, pc + length, validate);
-            if (io) io->TypeIndex(imm);
+            (ios.TypeIndex(imm), ...);
             return length + imm.length;
           }
           case kExprArrayNewFixed: {
             ArrayIndexImmediate array_imm(decoder, pc + length, validate);
             IndexImmediate length_imm(decoder, pc + length + array_imm.length,
                                       "array length", validate);
-            if (io) io->TypeIndex(array_imm);
-            if (io) io->Length(length_imm);
+            (ios.TypeIndex(array_imm), ...);
+            (ios.Length(length_imm), ...);
             return length + array_imm.length + length_imm.length;
           }
           case kExprArrayCopy: {
             ArrayIndexImmediate dst_imm(decoder, pc + length, validate);
             ArrayIndexImmediate src_imm(decoder, pc + length + dst_imm.length,
                                         validate);
-            if (io) io->ArrayCopy(dst_imm, src_imm);
+            (ios.ArrayCopy(dst_imm, src_imm), ...);
             return length + dst_imm.length + src_imm.length;
           }
           case kExprArrayNewData:
@@ -2161,8 +2124,8 @@ class WasmDecoder : public Decoder {
             ArrayIndexImmediate array_imm(decoder, pc + length, validate);
             IndexImmediate data_imm(decoder, pc + length + array_imm.length,
                                     "segment index", validate);
-            if (io) io->TypeIndex(array_imm);
-            if (io) io->DataSegmentIndex(data_imm);
+            (ios.TypeIndex(array_imm), ...);
+            (ios.DataSegmentIndex(data_imm), ...);
             return length + array_imm.length + data_imm.length;
           }
           case kExprBrOnArray:
@@ -2172,7 +2135,7 @@ class WasmDecoder : public Decoder {
           case kExprBrOnNonStruct:
           case kExprBrOnNonI31: {
             BranchDepthImmediate imm(decoder, pc + length, validate);
-            if (io) io->BranchDepth(imm);
+            (ios.BranchDepth(imm), ...);
             return length + imm.length;
           }
           case kExprRefCast:
@@ -2180,14 +2143,14 @@ class WasmDecoder : public Decoder {
           case kExprRefTestNull: {
             HeapTypeImmediate imm(WasmFeatures::All(), decoder, pc + length,
                                   nullptr, validate);
-            if (io) io->HeapType(imm);
+            (ios.HeapType(imm), ...);
             return length + imm.length;
           }
           case kExprRefTestDeprecated:
           case kExprRefCastDeprecated:
           case kExprRefCastNop: {
             IndexImmediate imm(decoder, pc + length, "type index", validate);
-            if (io) io->TypeIndex(imm);
+            (ios.TypeIndex(imm), ...);
             return length + imm.length;
           }
           case kExprBrOnCast:
@@ -2195,8 +2158,8 @@ class WasmDecoder : public Decoder {
             BranchDepthImmediate branch(decoder, pc + length, validate);
             IndexImmediate index(decoder, pc + length + branch.length,
                                  "type index", validate);
-            if (io) io->BranchDepth(branch);
-            if (io) io->TypeIndex(index);
+            (ios.BranchDepth(branch), ...);
+            (ios.TypeIndex(index), ...);
             return length + branch.length + index.length;
           }
           case kExprI31New:
@@ -2225,12 +2188,12 @@ class WasmDecoder : public Decoder {
           case kExprStringEncodeWtf16:
           case kExprStringViewWtf16Encode: {
             MemoryIndexImmediate imm(decoder, pc + length, validate);
-            if (io) io->MemoryIndex(imm);
+            (ios.MemoryIndex(imm), ...);
             return length + imm.length;
           }
           case kExprStringConst: {
             StringConstImmediate imm(decoder, pc + length, validate);
-            if (io) io->StringConst(imm);
+            (ios.StringConst(imm), ...);
             return length + imm.length;
           }
           case kExprStringMeasureUtf8:
