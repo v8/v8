@@ -77,6 +77,7 @@ def try_ng_pair(
         experiments = experiments,
         description = tester_description,
     )
+
     if "experiment_percentage" in cq_properties:
         kwargs["properties"]["triggers"] = None
         v8_builder(
@@ -89,6 +90,38 @@ def try_ng_pair(
             experiments = experiments,
             **kwargs
         )
+
+    # Generate orchestrator trybot.
+    v8_builder(
+        defaults_triggered,
+        name = name,
+        bucket = "try",
+        execution_timeout = triggered_timeout,
+        executable = "recipe:v8/orchestrator",
+        cq_properties = CQ.OPTIONAL,
+        cq_branch_properties = CQ.OPTIONAL,
+        in_list = "tryserver",
+        experiments = experiments,
+        description = tester_description,
+    )
+
+    # Generate compilator trybot.
+    # The compilator name gets an infix like: v8_linux_rel ->
+    # v8_linux_compile_ng_rel.
+    prefix, suffix = name.rsplit("_", 1)
+    kwargs["properties"]["triggers"] = None
+    v8_builder(
+        defaults_try,
+        name = prefix + "_compile_ng_" + suffix,
+        bucket = "try",
+        executable = "recipe:v8/compilator",
+        cq_properties = CQ.OPTIONAL,
+        cq_branch_properties = CQ.OPTIONAL,
+        in_list = "tryserver",
+        experiments = experiments,
+        description = compiler_description,
+        **kwargs
+    )
 
 try_ng_pair(
     name = "v8_android_arm64_n5x_rel",
@@ -207,7 +240,7 @@ try_ng_pair(
 )
 
 try_ng_pair(
-    name = "v8_linux64_fuzzilli",
+    name = "v8_linux64_fuzzilli_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
@@ -579,7 +612,7 @@ try_ng_pair(
 )
 
 try_ng_pair(
-    name = "v8_numfuzz",
+    name = "v8_numfuzz_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
@@ -593,7 +626,7 @@ try_ng_pair(
 )
 
 try_ng_pair(
-    name = "v8_numfuzz_tsan",
+    name = "v8_numfuzz_tsan_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,

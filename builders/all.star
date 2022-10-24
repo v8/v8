@@ -11,7 +11,6 @@ exec("/experiments.star")
 exec("/integration.star")
 exec("/official.star")
 
-exec("/orchestrator.star")
 exec("/try_ng.star")
 exec("/try.star")
 
