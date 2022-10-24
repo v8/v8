@@ -43,7 +43,6 @@ from testrunner.outproc import test262
 FEATURE_FLAGS = {
     'Intl.NumberFormat-v3': '--harmony-intl-number-format-v3',
     'Intl.DurationFormat': '--harmony-intl-duration-format',
-    'Symbol.prototype.description': '--harmony-symbol-description',
     'FinalizationRegistry': '--harmony-weak-refs-with-cleanup-some',
     'WeakRef': '--harmony-weak-refs-with-cleanup-some',
     'host-gc-required': '--expose-gc-as=v8GC',
@@ -55,6 +54,8 @@ FEATURE_FLAGS = {
     'ShadowRealm': '--harmony-shadow-realm',
     'regexp-v-flag': '--harmony-regexp-unicode-sets',
     'array-grouping': '--harmony-array-grouping',
+    'change-array-by-copy': '--harmony-change-array-by-copy',
+    'symbols-as-weakmap-keys': '--harmony-symbol-as-weakmap-key',
 }
 
 SKIPPED_FEATURES = set([])
