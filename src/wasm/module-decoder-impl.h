@@ -640,7 +640,7 @@ class ModuleDecoderTemplate : public Decoder {
 
   TypeDefinition consume_subtype_definition() {
     DCHECK(enabled_features_.has_gc());
-    uint8_t kind = read_u8<Decoder::kFullValidation>(pc(), "type kind");
+    uint8_t kind = read_u8<Decoder::FullValidationTag>(pc(), "type kind");
     if (kind == kWasmSubtypeCode) {
       consume_bytes(1, " subtype, ", tracer_);
       constexpr uint32_t kMaximumSupertypes = 1;
@@ -672,7 +672,8 @@ class ModuleDecoderTemplate : public Decoder {
       for (uint32_t i = 0; i < types_count; ++i) {
         TRACE("DecodeSignature[%d] module+%d\n", i,
               static_cast<int>(pc_ - start_));
-        uint8_t opcode = read_u8<kFullValidation>(pc(), "signature definition");
+        uint8_t opcode =
+            read_u8<FullValidationTag>(pc(), "signature definition");
         tracer_.Bytes(pc_, 1);
         tracer_.TypeOffset(pc_offset());
         tracer_.Description(" kind: ");
@@ -706,7 +707,7 @@ class ModuleDecoderTemplate : public Decoder {
 
     for (uint32_t i = 0; ok() && i < types_count; ++i) {
       TRACE("DecodeType[%d] module+%d\n", i, static_cast<int>(pc_ - start_));
-      uint8_t kind = read_u8<Decoder::kFullValidation>(pc(), "type kind");
+      uint8_t kind = read_u8<Decoder::FullValidationTag>(pc(), "type kind");
       if (kind == kWasmRecursiveTypeGroupCode) {
         consume_bytes(1, "rec. group definition", tracer_);
         tracer_.NextLine();
@@ -902,7 +903,7 @@ class ModuleDecoderTemplate : public Decoder {
 
       bool has_initializer = false;
       if (enabled_features_.has_typed_funcref() &&
-          read_u8<Decoder::kFullValidation>(
+          read_u8<Decoder::FullValidationTag>(
               pc(), "table-with-initializer byte") == 0x40) {
         consume_bytes(1, "table-with-initializer byte");
         has_initializer = true;
@@ -2046,7 +2047,7 @@ class ModuleDecoderTemplate : public Decoder {
     switch (static_cast<WasmOpcode>(*pc())) {
       case kExprI32Const: {
         int32_t value =
-            read_i32v<kFullValidation>(pc() + 1, &length, "i32.const");
+            read_i32v<FullValidationTag>(pc() + 1, &length, "i32.const");
         if (V8_UNLIKELY(failed())) return {};
         if (V8_LIKELY(lookahead(1 + length, kExprEnd))) {
           TYPE_CHECK(kWasmI32)
@@ -2058,7 +2059,7 @@ class ModuleDecoderTemplate : public Decoder {
       }
       case kExprRefFunc: {
         uint32_t index =
-            read_u32v<kFullValidation>(pc() + 1, &length, "ref.func");
+            read_u32v<FullValidationTag>(pc() + 1, &length, "ref.func");
         if (V8_UNLIKELY(failed())) return {};
         if (V8_LIKELY(lookahead(1 + length, kExprEnd))) {
           if (V8_UNLIKELY(index >= module_->functions.size())) {
@@ -2078,7 +2079,7 @@ class ModuleDecoderTemplate : public Decoder {
         break;
       }
       case kExprRefNull: {
-        HeapType type = value_type_reader::read_heap_type<kFullValidation>(
+        HeapType type = value_type_reader::read_heap_type<FullValidationTag>(
             this, pc() + 1, &length, module_.get(), enabled_features_);
         if (V8_UNLIKELY(failed())) return {};
         if (V8_LIKELY(lookahead(1 + length, kExprEnd))) {
@@ -2098,7 +2099,7 @@ class ModuleDecoderTemplate : public Decoder {
     auto sig = FixedSizeSignature<ValueType>::Returns(expected);
     FunctionBody body(&sig, buffer_offset_, pc_, end_);
     WasmFeatures detected;
-    WasmFullDecoder<Decoder::kFullValidation, ConstantExpressionInterface,
+    WasmFullDecoder<Decoder::FullValidationTag, ConstantExpressionInterface,
                     kConstantExpression>
         decoder(&init_expr_zone_, module, enabled_features_, &detected, body,
                 module);
@@ -2137,7 +2138,7 @@ class ModuleDecoderTemplate : public Decoder {
 
   ValueType consume_value_type() {
     uint32_t type_length;
-    ValueType result = value_type_reader::read_value_type<kFullValidation>(
+    ValueType result = value_type_reader::read_value_type<FullValidationTag>(
         this, pc_, &type_length, module_.get(),
         origin_ == kWasmOrigin ? enabled_features_ : WasmFeatures::None());
     tracer_.Bytes(pc_, type_length);
@@ -2148,7 +2149,7 @@ class ModuleDecoderTemplate : public Decoder {
 
   HeapType consume_super_type() {
     uint32_t type_length;
-    HeapType result = value_type_reader::read_heap_type<kFullValidation>(
+    HeapType result = value_type_reader::read_heap_type<FullValidationTag>(
         this, pc_, &type_length, module_.get(), enabled_features_);
     tracer_.Bytes(pc_, type_length);
     tracer_.Description(result);
@@ -2157,7 +2158,7 @@ class ModuleDecoderTemplate : public Decoder {
   }
 
   ValueType consume_storage_type() {
-    uint8_t opcode = read_u8<kFullValidation>(this->pc());
+    uint8_t opcode = read_u8<FullValidationTag>(this->pc());
     switch (opcode) {
       case kI8Code:
         consume_bytes(1, " i8", tracer_);

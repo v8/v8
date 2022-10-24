@@ -255,7 +255,7 @@ WasmOpcode FunctionBodyDisassembler::GetOpcode() {
   WasmOpcode opcode = static_cast<WasmOpcode>(*pc_);
   if (!WasmOpcodes::IsPrefixOpcode(opcode)) return opcode;
   uint32_t opcode_length;
-  return read_prefixed_opcode<validate>(pc_, &opcode_length);
+  return read_prefixed_opcode<ValidationTag>(pc_, &opcode_length);
 }
 
 void FunctionBodyDisassembler::PrintHexNumber(StringBuilder& out,
@@ -278,7 +278,7 @@ void FunctionBodyDisassembler::PrintHexNumber(StringBuilder& out,
 ////////////////////////////////////////////////////////////////////////////////
 // ImmediatesPrinter.
 
-template <Decoder::ValidateFlag validate>
+template <typename ValidationTag>
 class ImmediatesPrinter {
  public:
   ImmediatesPrinter(StringBuilder& out, FunctionBodyDisassembler* owner)
@@ -309,7 +309,7 @@ class ImmediatesPrinter {
     owner_->out_->PatchLabel(label_info, out_.start() + label_start_position);
   }
 
-  void BlockType(BlockTypeImmediate<validate>& imm) {
+  void BlockType(BlockTypeImmediate& imm) {
     if (imm.type == kWasmBottom) {
       const FunctionSig* sig = owner_->module_->signature(imm.sig_index);
       PrintSignatureOneLine(out_, sig, 0 /* ignored */, names(), false);
@@ -322,95 +322,91 @@ class ImmediatesPrinter {
     }
   }
 
-  void HeapType(HeapTypeImmediate<validate>& imm) {
+  void HeapType(HeapTypeImmediate& imm) {
     out_ << " ";
     names()->PrintHeapType(out_, imm.type);
     if (imm.type.is_index()) use_type(imm.type.ref_index());
   }
 
-  void BranchDepth(BranchDepthImmediate<validate>& imm) {
-    PrintDepthAsLabel(imm.depth);
-  }
+  void BranchDepth(BranchDepthImmediate& imm) { PrintDepthAsLabel(imm.depth); }
 
-  void BranchTable(BranchTableImmediate<validate>& imm) {
+  void BranchTable(BranchTableImmediate& imm) {
     const byte* pc = imm.table;
     for (uint32_t i = 0; i <= imm.table_count; i++) {
       uint32_t length;
-      uint32_t target = owner_->read_u32v<validate>(pc, &length);
+      uint32_t target = owner_->read_u32v<ValidationTag>(pc, &length);
       PrintDepthAsLabel(target);
       pc += length;
     }
   }
 
-  void CallIndirect(CallIndirectImmediate<validate>& imm) {
+  void CallIndirect(CallIndirectImmediate& imm) {
     const FunctionSig* sig = owner_->module_->signature(imm.sig_imm.index);
     PrintSignatureOneLine(out_, sig, 0 /* ignored */, names(), false);
     if (imm.table_imm.index != 0) TableIndex(imm.table_imm);
   }
 
-  void SelectType(SelectTypeImmediate<validate>& imm) {
+  void SelectType(SelectTypeImmediate& imm) {
     out_ << " ";
     names()->PrintValueType(out_, imm.type);
   }
 
-  void MemoryAccess(MemoryAccessImmediate<validate>& imm) {
+  void MemoryAccess(MemoryAccessImmediate& imm) {
     if (imm.offset != 0) out_ << " offset=" << imm.offset;
     if (imm.alignment != GetDefaultAlignment(owner_->current_opcode_)) {
       out_ << " align=" << (1u << imm.alignment);
     }
   }
 
-  void SimdLane(SimdLaneImmediate<validate>& imm) {
-    out_ << " " << uint32_t{imm.lane};
-  }
+  void SimdLane(SimdLaneImmediate& imm) { out_ << " " << uint32_t{imm.lane}; }
 
-  void Field(FieldImmediate<validate>& imm) {
+  void Field(FieldImmediate& imm) {
     TypeIndex(imm.struct_imm);
     out_ << " ";
     names()->PrintFieldName(out_, imm.struct_imm.index, imm.field_imm.index);
   }
 
-  void Length(IndexImmediate<validate>& imm) {
+  void Length(IndexImmediate& imm) {
     out_ << " " << imm.index;  // --
   }
 
-  void TagIndex(TagIndexImmediate<validate>& imm) {
+  void TagIndex(TagIndexImmediate& imm) {
     out_ << " ";
     names()->PrintTagName(out_, imm.index);
   }
 
-  void FunctionIndex(IndexImmediate<validate>& imm) {
+  void FunctionIndex(IndexImmediate& imm) {
     out_ << " ";
     names()->PrintFunctionName(out_, imm.index, NamesProvider::kDevTools);
   }
 
-  void TypeIndex(IndexImmediate<validate>& imm) {
+  void TypeIndex(IndexImmediate& imm) {
     out_ << " ";
     names()->PrintTypeName(out_, imm.index);
     use_type(imm.index);
   }
 
-  void LocalIndex(IndexImmediate<validate>& imm) {
+  void LocalIndex(IndexImmediate& imm) {
     out_ << " ";
     names()->PrintLocalName(out_, func_index(), imm.index);
   }
 
-  void GlobalIndex(IndexImmediate<validate>& imm) {
+  void GlobalIndex(IndexImmediate& imm) {
     out_ << " ";
     names()->PrintGlobalName(out_, imm.index);
   }
 
-  void TableIndex(IndexImmediate<validate>& imm) {
+  void TableIndex(IndexImmediate& imm) {
     out_ << " ";
     names()->PrintTableName(out_, imm.index);
   }
 
-  void MemoryIndex(MemoryIndexImmediate<validate>& imm) {
+  void MemoryIndex(MemoryIndexImmediate& imm) {
     if (imm.index == 0) return;
     out_ << " " << imm.index;
   }
 
-  void DataSegmentIndex(IndexImmediate<validate>& imm) {
+  void DataSegmentIndex(IndexImmediate& imm) {
     if (kSkipDataSegmentNames) {
       out_ << " " << imm.index;
     } else {
@@ -419,16 +415,16 @@ class ImmediatesPrinter {
     }
   }
 
-  void ElemSegmentIndex(IndexImmediate<validate>& imm) {
+  void ElemSegmentIndex(IndexImmediate& imm) {
     out_ << " ";
     names()->PrintElementSegmentName(out_, imm.index);
   }
 
-  void I32Const(ImmI32Immediate<validate>& imm) {
+  void I32Const(ImmI32Immediate& imm) {
     out_ << " " << imm.value;  // --
   }
 
-  void I64Const(ImmI64Immediate<validate>& imm) {
+  void I64Const(ImmI64Immediate& imm) {
     if (imm.value >= 0) {
       out_ << " " << static_cast<uint64_t>(imm.value);
     } else {
@@ -436,7 +432,7 @@ class ImmediatesPrinter {
     }
   }
 
-  void F32Const(ImmF32Immediate<validate>& imm) {
+  void F32Const(ImmF32Immediate& imm) {
     float f = imm.value;
     if (f == 0) {
       out_ << (1 / f < 0 ? " -0.0" : " 0.0");
@@ -457,7 +453,7 @@ class ImmediatesPrinter {
     }
   }
 
-  void F64Const(ImmF64Immediate<validate>& imm) {
+  void F64Const(ImmF64Immediate& imm) {
     double d = imm.value;
     if (d == 0) {
       out_ << (1 / d < 0 ? " -0.0" : " 0.0");
@@ -480,7 +476,7 @@ class ImmediatesPrinter {
     }
   }
 
-  void S128Const(Simd128Immediate<validate>& imm) {
+  void S128Const(Simd128Immediate& imm) {
     if (owner_->current_opcode_ == kExprI8x16Shuffle) {
       for (int i = 0; i < 16; i++) {
         out_ << " " << uint32_t{imm.value[i]};
@@ -499,28 +495,28 @@ class ImmediatesPrinter {
     }
   }
 
-  void StringConst(StringConstImmediate<validate>& imm) {
+  void StringConst(StringConstImmediate& imm) {
     // TODO(jkummerow): Print (a prefix of) the string?
     out_ << " " << imm.index;
   }
 
-  void MemoryInit(MemoryInitImmediate<validate>& imm) {
+  void MemoryInit(MemoryInitImmediate& imm) {
     DataSegmentIndex(imm.data_segment);
     if (imm.memory.index != 0) out_ << " " << uint32_t{imm.memory.index};
   }
 
-  void MemoryCopy(MemoryCopyImmediate<validate>& imm) {
+  void MemoryCopy(MemoryCopyImmediate& imm) {
     if (imm.memory_dst.index == 0 && imm.memory_src.index == 0) return;
     out_ << " " << uint32_t{imm.memory_dst.index};
     out_ << " " << uint32_t{imm.memory_src.index};
   }
 
-  void TableInit(TableInitImmediate<validate>& imm) {
+  void TableInit(TableInitImmediate& imm) {
     if (imm.table.index != 0) TableIndex(imm.table);
     ElemSegmentIndex(imm.element_segment);
   }
 
-  void TableCopy(TableCopyImmediate<validate>& imm) {
+  void TableCopy(TableCopyImmediate& imm) {
     if (imm.table_dst.index == 0 && imm.table_src.index == 0) return;
     out_ << " ";
     names()->PrintTableName(out_, imm.table_dst.index);
@@ -528,7 +524,7 @@ class ImmediatesPrinter {
     names()->PrintTableName(out_, imm.table_src.index);
   }
 
-  void ArrayCopy(IndexImmediate<validate>& dst, IndexImmediate<validate>& src) {
+  void ArrayCopy(IndexImmediate& dst, IndexImmediate& src) {
     out_ << " ";
     names()->PrintTypeName(out_, dst.index);
     out_ << " ";
@@ -550,7 +546,7 @@ class ImmediatesPrinter {
 
 uint32_t FunctionBodyDisassembler::PrintImmediatesAndGetLength(
     StringBuilder& out) {
-  using Printer = ImmediatesPrinter<validate>;
+  using Printer = ImmediatesPrinter<ValidationTag>;
   Printer imm_printer(out, this);
   return WasmDecoder::OpcodeLength<Printer>(this, this->pc_, &imm_printer);
 }

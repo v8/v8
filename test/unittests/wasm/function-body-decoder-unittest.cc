@@ -4623,15 +4623,15 @@ class BranchTableIteratorTest : public TestWithZone {
   BranchTableIteratorTest() : TestWithZone() {}
   void CheckBrTableSize(const byte* start, const byte* end) {
     Decoder decoder(start, end);
-    BranchTableImmediate<Decoder::kFullValidation> operand(&decoder, start + 1);
-    BranchTableIterator<Decoder::kFullValidation> iterator(&decoder, operand);
+    BranchTableImmediate operand(&decoder, start + 1, Decoder::kFullValidation);
+    BranchTableIterator<Decoder::FullValidationTag> iterator(&decoder, operand);
     EXPECT_EQ(end - start - 1u, iterator.length());
     EXPECT_OK(decoder);
   }
   void CheckBrTableError(const byte* start, const byte* end) {
     Decoder decoder(start, end);
-    BranchTableImmediate<Decoder::kFullValidation> operand(&decoder, start + 1);
-    BranchTableIterator<Decoder::kFullValidation> iterator(&decoder, operand);
+    BranchTableImmediate operand(&decoder, start + 1, Decoder::kFullValidation);
+    BranchTableIterator<Decoder::FullValidationTag> iterator(&decoder, operand);
     iterator.length();
     EXPECT_FALSE(decoder.ok());
   }
@@ -4725,10 +4725,10 @@ class WasmOpcodeLengthTest : public TestWithZone {
   void ExpectFailure(Bytes... bytes) {
     const byte code[] = {static_cast<byte>(bytes)..., 0, 0, 0, 0, 0, 0, 0, 0};
     WasmFeatures no_features = WasmFeatures::None();
-    WasmDecoder<Decoder::kFullValidation> decoder(
+    WasmDecoder<Decoder::FullValidationTag> decoder(
         this->zone(), nullptr, no_features, &no_features, nullptr, code,
         code + sizeof(code), 0);
-    WasmDecoder<Decoder::kFullValidation>::OpcodeLength(&decoder, code);
+    WasmDecoder<Decoder::FullValidationTag>::OpcodeLength(&decoder, code);
     EXPECT_TRUE(decoder.failed());
   }
 
@@ -4750,10 +4750,10 @@ class WasmOpcodeLengthTest : public TestWithZone {
       }
     }
     WasmFeatures detected;
-    WasmDecoder<Decoder::kBooleanValidation> decoder(
+    WasmDecoder<Decoder::BooleanValidationTag> decoder(
         this->zone(), nullptr, WasmFeatures::All(), &detected, nullptr, bytes,
         bytes + sizeof(bytes), 0);
-    WasmDecoder<Decoder::kBooleanValidation>::OpcodeLength(&decoder, bytes);
+    WasmDecoder<Decoder::BooleanValidationTag>::OpcodeLength(&decoder, bytes);
     EXPECT_TRUE(decoder.ok())
         << opcode << " aka " << WasmOpcodes::OpcodeName(opcode) << ": "
         << decoder.error().message();
@@ -4945,7 +4945,7 @@ class TypeReaderTest : public TestWithZone {
                             const WasmModule* module) {
     Decoder decoder(start, end);
     uint32_t length;
-    return value_type_reader::read_value_type<Decoder::kFullValidation>(
+    return value_type_reader::read_value_type<Decoder::FullValidationTag>(
         &decoder, start, &length, module, enabled_features_);
   }
 
@@ -4953,7 +4953,7 @@ class TypeReaderTest : public TestWithZone {
                           const WasmModule* module) {
     Decoder decoder(start, end);
     uint32_t length;
-    return value_type_reader::read_heap_type<Decoder::kFullValidation>(
+    return value_type_reader::read_heap_type<Decoder::FullValidationTag>(
         &decoder, start, &length, module, enabled_features_);
   }
 

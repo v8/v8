@@ -242,16 +242,17 @@ class ExtendedFunctionDis : public FunctionBodyDisassembler {
     }
     uint32_t total_length = 0;
     uint32_t length;
-    uint32_t entries = read_u32v<validate>(pc_, &length);
+    uint32_t entries = read_u32v<ValidationTag>(pc_, &length);
     PrintHexBytes(out, length, pc_, 4);
     out << " // " << entries << " entries in locals list";
     out.NextLine(kWeDontCareAboutByteCodeOffsetsHere);
     total_length += length;
     while (entries-- > 0) {
       uint32_t count_length;
-      uint32_t count = read_u32v<validate>(pc_ + total_length, &count_length);
+      uint32_t count =
+          read_u32v<ValidationTag>(pc_ + total_length, &count_length);
       uint32_t type_length;
-      ValueType type = value_type_reader::read_value_type<validate>(
+      ValueType type = value_type_reader::read_value_type<ValidationTag>(
           this, pc_ + total_length + count_length, &type_length, nullptr,
           WasmFeatures::All());
       PrintHexBytes(out, count_length + type_length, pc_ + total_length, 4);
@@ -340,10 +341,10 @@ class ExtendedFunctionDis : public FunctionBodyDisassembler {
     while (pc_ < end_) {
       WasmOpcode opcode = GetOpcode();
       if (opcode == kExprI32Const) {
-        ImmI32Immediate<Decoder::kNoValidation> imm(this, pc_ + 1);
+        ImmI32Immediate imm(this, pc_ + 1, Decoder::kNoValidation);
         stats.RecordImmediate(opcode, imm.value);
       } else if (opcode == kExprLocalGet || opcode == kExprGlobalGet) {
-        IndexImmediate<Decoder::kNoValidation> imm(this, pc_ + 1, "");
+        IndexImmediate imm(this, pc_ + 1, "", Decoder::kNoValidation);
         stats.RecordImmediate(opcode, static_cast<int>(imm.index));
       }
       uint32_t length = WasmDecoder::OpcodeLength(this, pc_);
