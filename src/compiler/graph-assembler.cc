@@ -457,7 +457,7 @@ TNode<Object> JSGraphAssembler::DoubleArrayMax(TNode<JSArray> array) {
 }
 
 TNode<Object> JSGraphAssembler::DoubleArrayMin(TNode<JSArray> array) {
-  return AddNode<Object>(graph()->NewNode(simplified()->DoubleArrayMax(), array,
+  return AddNode<Object>(graph()->NewNode(simplified()->DoubleArrayMin(), array,
                                           effect(), control()));
 }
 
