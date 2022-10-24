@@ -411,7 +411,7 @@
       {'name': 'v8testing', 'shards': 3},
     ],
   },
-  'v8_linux64_fuzzilli_ng_triggered': {
+  'v8_linux64_fuzzilli_rel_ng_triggered': {
     'swarming_dimensions' : {
       'os': 'Ubuntu-18.04',
     },
@@ -2349,7 +2349,7 @@
       },
     ],
   },
-  'v8_numfuzz_ng_triggered': {
+  'v8_numfuzz_rel_ng_triggered': {
     'swarming_dimensions': {
       'os': 'Ubuntu-18.04',
     },
@@ -2366,7 +2366,7 @@
       },
     ],
   },
-  'v8_numfuzz_tsan_ng_triggered': {
+  'v8_numfuzz_tsan_rel_ng_triggered': {
     'swarming_dimensions': {
       'os': 'Ubuntu-18.04',
     },
