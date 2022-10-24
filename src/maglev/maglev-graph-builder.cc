@@ -2476,6 +2476,19 @@ void MaglevGraphBuilder::BuildCallFromRegisterList(
   SetAccumulator(AddNode(call));
 }
 
+bool MaglevGraphBuilder::TryInlineBuiltin(int argc_count, Builtin builtin) {
+  switch (builtin) {
+    case Builtin::kStringFromCharCode:
+      if (argc_count != 1) return false;
+      SetAccumulator(
+          AddNewNode<InlinedBuiltinStringFromCharCode>({LoadRegisterInt32(0)}));
+      return true;
+    default:
+      // TODO(v8:7700): Inline more builtins.
+      return false;
+  }
+}
+
 void MaglevGraphBuilder::BuildCallFromRegisters(
     int argc_count, ConvertReceiverMode receiver_mode) {
   // Indices and counts of operands on the bytecode.
@@ -2531,6 +2544,12 @@ void MaglevGraphBuilder::BuildCallFromRegisters(
         EmitUnconditionalDeopt(DeoptimizeReason::kUnknown);
         return;
       }
+
+      compiler::SharedFunctionInfoRef shared = target.AsJSFunction().shared();
+      if (shared.HasBuiltinId()) {
+        if (TryInlineBuiltin(argc_count, shared.builtin_id())) return;
+      }
+
       break;
     }
 

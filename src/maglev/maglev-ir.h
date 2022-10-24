@@ -120,6 +120,8 @@ class CompactInterpreterFrameState;
   V(RootConstant)                   \
   V(SmiConstant)
 
+#define INLINE_BUILTIN_NODE_LIST(V) V(InlinedBuiltinStringFromCharCode)
+
 #define VALUE_NODE_LIST(V)         \
   V(Call)                          \
   V(CallBuiltin)                   \
@@ -187,7 +189,8 @@ class CompactInterpreterFrameState;
   CONSTANT_VALUE_NODE_LIST(V)      \
   INT32_OPERATIONS_NODE_LIST(V)    \
   FLOAT64_OPERATIONS_NODE_LIST(V)  \
-  GENERIC_OPERATIONS_NODE_LIST(V)
+  GENERIC_OPERATIONS_NODE_LIST(V)  \
+  INLINE_BUILTIN_NODE_LIST(V)
 
 #define GAP_MOVE_NODE_LIST(V) \
   V(ConstantGapMove)          \
@@ -3049,6 +3052,23 @@ class GetTemplateObject : public FixedInputValueNodeT<1, GetTemplateObject> {
  private:
   compiler::SharedFunctionInfoRef shared_function_info_;
   const compiler::FeedbackSource feedback_;
+};
+
+class InlinedBuiltinStringFromCharCode
+    : public FixedInputValueNodeT<1, InlinedBuiltinStringFromCharCode> {
+  using Base = FixedInputValueNodeT<1, InlinedBuiltinStringFromCharCode>;
+
+ public:
+  explicit InlinedBuiltinStringFromCharCode(uint64_t bitfield)
+      : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::DeferredCall();
+
+  Input& code_input() { return input(0); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
 class LoadTaggedField : public FixedInputValueNodeT<1, LoadTaggedField> {

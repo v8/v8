@@ -1683,6 +1683,59 @@ void CheckedObjectToIndex::GenerateCode(MaglevAssembler* masm,
   __ bind(*done);
 }
 
+void InlinedBuiltinStringFromCharCode::AllocateVreg(
+    MaglevVregAllocationState* vreg_state) {
+  UseRegister(code_input());
+  DefineAsRegister(vreg_state, this);
+  set_temporaries_needed(1);
+}
+void InlinedBuiltinStringFromCharCode::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
+  Register code_point = ToRegister(code_input());
+  Register tmp = general_temporaries().PopFirst();
+
+  ZoneLabelRef done(masm);
+  __ andl(code_point, Immediate(0xFFFF));
+  __ cmpl(code_point, Immediate(String::kMaxOneByteCharCode));
+
+  // Create two byte string in deferred code.
+  __ JumpToDeferredIf(
+      greater,
+      [](MaglevAssembler* masm, ZoneLabelRef done, Register code_point,
+         Register tmp, InlinedBuiltinStringFromCharCode* node) {
+        Register result_string = ToRegister(node->result());
+        RegisterSnapshot save_registers = node->register_snapshot();
+        // If {code_point} alias with {result_string}, use the tmp register.
+        if (code_point == result_string) {
+          DCHECK_NE(tmp, code_point);
+          __ Move(tmp, code_point);
+          code_point = tmp;
+        }
+        save_registers.live_registers.set(code_point);
+        AllocateRaw(masm, save_registers, result_string,
+                    SeqTwoByteString::SizeFor(1));
+        __ LoadRoot(kScratchRegister, RootIndex::kStringMap);
+        __ StoreTaggedField(FieldOperand(result_string, HeapObject::kMapOffset),
+                            kScratchRegister);
+        __ StoreTaggedField(
+            FieldOperand(result_string, Name::kRawHashFieldOffset),
+            Immediate(Name::kEmptyHashField));
+        __ StoreTaggedField(FieldOperand(result_string, String::kLengthOffset),
+                            Immediate(1));
+        __ movw(FieldOperand(result_string, SeqTwoByteString::kHeaderSize),
+                code_point);
+        __ jmp(*done);
+      },
+      done, code_point, tmp, this);
+
+  Register table = tmp;
+  __ LoadRoot(table, RootIndex::kSingleCharacterStringTable);
+  __ DecompressAnyTagged(ToRegister(result()),
+                         FieldOperand(table, code_point, times_tagged_size,
+                                      FixedArray::kHeaderSize));
+  __ bind(*done);
+}
+
 void LoadTaggedField::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseRegister(object_input());
   DefineAsRegister(vreg_state, this);

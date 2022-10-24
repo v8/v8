@@ -938,6 +938,8 @@ class MaglevGraphBuilder {
     }
   }
 
+  bool TryInlineBuiltin(int argc_count, Builtin builtin);
+
   void InlineCallFromRegisters(int argc_count,
                                ConvertReceiverMode receiver_mode,
                                compiler::JSFunctionRef function);
