@@ -267,8 +267,6 @@ MaybeHandle<Object> WasmTableObject::JSToWasmElement(
     const char** error_message) {
   // Any `entry` has to be in its JS representation.
   DCHECK(!entry->IsWasmInternalFunction());
-  DCHECK_IMPLIES(!v8_flags.wasm_gc_js_interop,
-                 !entry->IsWasmArray() && !entry->IsWasmStruct());
   const WasmModule* module =
       !table->instance().IsUndefined()
           ? WasmInstanceObject::cast(table->instance()).module()
@@ -2214,24 +2212,6 @@ Handle<AsmWasmData> AsmWasmData::New(
   return result;
 }
 
-namespace {
-// If {in_out_value} is a wrapped wasm struct/array, it gets unwrapped in-place
-// and this returns {true}. Otherwise, the value remains unchanged and this
-// returns {false}.
-bool TryUnpackObjectWrapper(Isolate* isolate, Handle<Object>& in_out_value) {
-  if (in_out_value->IsUndefined(isolate) || in_out_value->IsNull(isolate) ||
-      !in_out_value->IsJSObject()) {
-    return false;
-  }
-  Handle<Name> key = isolate->factory()->wasm_wrapped_object_symbol();
-  LookupIterator it(isolate, in_out_value, key,
-                    LookupIterator::OWN_SKIP_INTERCEPTOR);
-  if (it.state() != LookupIterator::DATA) return false;
-  in_out_value = it.GetDataValue();
-  return true;
-}
-}  // namespace
-
 namespace wasm {
 MaybeHandle<Object> JSToWasmObject(Isolate* isolate, const WasmModule* module,
                                    Handle<Object> value, ValueType expected,
@@ -2257,8 +2237,6 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, const WasmModule* module,
       }
       V8_FALLTHROUGH;
     case kRef: {
-      // TODO(7748): Follow any changes in proposed JS API. In particular,
-      //             finalize the v8_flags.wasm_gc_js_interop situation.
       // TODO(7748): Allow all in-range numbers for i31. Make sure to convert
       //             Smis to i31refs if needed.
       // TODO(7748): Streamline interaction of undefined and (ref any).
@@ -2284,19 +2262,13 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, const WasmModule* module,
           return {};
         }
         case HeapType::kAny: {
-          if (!v8_flags.wasm_gc_js_interop) {
-            TryUnpackObjectWrapper(isolate, value);
-          }
           if (!value->IsNull(isolate)) return value;
           *error_message = "null is not allowed for (ref any)";
           return {};
         }
         case HeapType::kStruct: {
-          if (v8_flags.wasm_gc_js_interop
-                  ? value->IsWasmStruct() ||
-                        (value->IsWasmArray() &&
-                         v8_flags.wasm_gc_structref_as_dataref)
-                  : TryUnpackObjectWrapper(isolate, value)) {
+          if (value->IsWasmStruct() ||
+              (value->IsWasmArray() && v8_flags.wasm_gc_structref_as_dataref)) {
             return value;
           }
           *error_message =
@@ -2304,9 +2276,7 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, const WasmModule* module,
           return {};
         }
         case HeapType::kArray: {
-          if ((v8_flags.wasm_gc_js_interop ||
-               TryUnpackObjectWrapper(isolate, value)) &&
-              value->IsWasmArray()) {
+          if (value->IsWasmArray()) {
             return value;
           }
           *error_message =
@@ -2314,10 +2284,7 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, const WasmModule* module,
           return {};
         }
         case HeapType::kEq: {
-          if (value->IsSmi() ||
-              (v8_flags.wasm_gc_js_interop
-                   ? value->IsWasmStruct() || value->IsWasmArray()
-                   : TryUnpackObjectWrapper(isolate, value))) {
+          if (value->IsSmi() || value->IsWasmStruct() || value->IsWasmArray()) {
             return value;
           }
           *error_message =
@@ -2404,9 +2371,7 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, const WasmModule* module,
             // A struct or array type with index is expected.
             DCHECK(module->has_struct(expected.ref_index()) ||
                    module->has_array(expected.ref_index()));
-            if (v8_flags.wasm_gc_js_interop
-                    ? !value->IsWasmStruct() && !value->IsWasmArray()
-                    : !TryUnpackObjectWrapper(isolate, value)) {
+            if (!value->IsWasmStruct() && !value->IsWasmArray()) {
               *error_message = "object incompatible with wasm type";
               return {};
             }

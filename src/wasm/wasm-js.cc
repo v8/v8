@@ -2262,15 +2262,6 @@ void WasmObjectToJSReturnValue(v8::ReturnValue<v8::Value>& return_value,
     case i::wasm::HeapType::kArray:
     case i::wasm::HeapType::kEq:
     case i::wasm::HeapType::kAny: {
-      if (!i::v8_flags.wasm_gc_js_interop && value->IsWasmObject()) {
-        // Transform wasm object into JS-compliant representation.
-        i::Handle<i::JSObject> wrapper =
-            isolate->factory()->NewJSObject(isolate->object_function());
-        i::JSObject::AddProperty(
-            isolate, wrapper, isolate->factory()->wasm_wrapped_object_symbol(),
-            value, i::NONE);
-        value = wrapper;
-      }
       return_value.Set(Utils::ToLocal(value));
       return;
     }
@@ -2282,17 +2273,6 @@ void WasmObjectToJSReturnValue(v8::ReturnValue<v8::Value>& return_value,
               i::Handle<i::WasmInternalFunction>::cast(value)->external(),
               isolate);
         }
-        return_value.Set(Utils::ToLocal(value));
-        return;
-      }
-      if (!i::v8_flags.wasm_gc_js_interop && value->IsWasmObject()) {
-        // Transform wasm object into JS-compliant representation.
-        i::Handle<i::JSObject> wrapper =
-            isolate->factory()->NewJSObject(isolate->object_function());
-        i::JSObject::AddProperty(
-            isolate, wrapper, isolate->factory()->wasm_wrapped_object_symbol(),
-            value, i::NONE);
-        value = wrapper;
       }
       return_value.Set(Utils::ToLocal(value));
       return;

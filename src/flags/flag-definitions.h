@@ -1117,7 +1117,6 @@ DEFINE_IMPLICATION(experimental_wasm_gc, experimental_wasm_typed_funcref)
 DEFINE_IMPLICATION(experimental_wasm_stack_switching,
                    experimental_wasm_type_reflection)
 
-DEFINE_BOOL(wasm_gc_js_interop, true, "experimental WasmGC-JS interop")
 DEFINE_BOOL(wasm_gc_structref_as_dataref, true,
             "compatibility mode: Treat structref as dataref")
 

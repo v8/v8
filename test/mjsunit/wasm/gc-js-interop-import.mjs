@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-gc --wasm-gc-js-interop --allow-natives-syntax
+// Flags: --experimental-wasm-gc --allow-natives-syntax
 
 import {struct, array} from 'gc-js-interop-export.mjs';
 

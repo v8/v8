@@ -6483,45 +6483,17 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                       WasmInternalFunction::kExternalOffset));
             }
           }
-          case wasm::HeapType::kEq: {
-            // TODO(7748): Update this when JS interop is settled.
-            auto done = gasm_->MakeLabel(MachineRepresentation::kTaggedPointer);
-            // Do not wrap i31s.
-            gasm_->GotoIf(IsSmi(node), &done, node);
-            if (type.kind() == wasm::kRefNull) {
-              // Do not wrap {null}.
-              gasm_->GotoIf(IsNull(node), &done, node);
-            }
-            gasm_->Goto(&done, BuildAllocateObjectWrapper(node, context));
-            gasm_->Bind(&done);
-            return done.PhiAt(0);
-          }
+          case wasm::HeapType::kEq:
           case wasm::HeapType::kStruct:
           case wasm::HeapType::kArray:
-            // TODO(7748): Update this when JS interop is settled.
-            if (type.kind() == wasm::kRefNull) {
-              auto done =
-                  gasm_->MakeLabel(MachineRepresentation::kTaggedPointer);
-              // Do not wrap {null}.
-              gasm_->GotoIf(IsNull(node), &done, node);
-              gasm_->Goto(&done, BuildAllocateObjectWrapper(node, context));
-              gasm_->Bind(&done);
-              return done.PhiAt(0);
-            } else {
-              return BuildAllocateObjectWrapper(node, context);
-            }
           case wasm::HeapType::kString:
-            // Either {node} is already a tagged JS string, or if type.kind() is
-            // wasm::kRefNull, it's the null object.  Either way it's good to go
-            // already to JS.
-            return node;
           case wasm::HeapType::kExtern:
+          case wasm::HeapType::kAny:
             return node;
           case wasm::HeapType::kNone:
           case wasm::HeapType::kNoFunc:
           case wasm::HeapType::kNoExtern:
           case wasm::HeapType::kI31:
-          case wasm::HeapType::kAny:
             UNREACHABLE();
           default:
             DCHECK(type.has_index());
@@ -6546,15 +6518,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         // If this is reached, then IsJSCompatibleSignature() is too permissive.
         UNREACHABLE();
     }
-  }
-
-  // TODO(7748): Temporary solution to allow round-tripping of Wasm objects
-  // through JavaScript, where they show up as opaque boxes. This will disappear
-  // once we have a proper WasmGC <-> JS interaction story.
-  Node* BuildAllocateObjectWrapper(Node* input, Node* context) {
-    if (v8_flags.wasm_gc_js_interop) return input;
-    return gasm_->CallBuiltin(Builtin::kWasmAllocateObjectWrapper,
-                              Operator::kEliminatable, input, context);
   }
 
   enum UnwrapExternalFunctions : bool {
