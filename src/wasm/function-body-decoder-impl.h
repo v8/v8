@@ -1881,13 +1881,13 @@ class WasmDecoder : public Decoder {
         if (io) io->CallIndirect(imm);
         return 1 + imm.length;
       }
+      case kExprCallRefDeprecated:  // TODO(7748): Drop after grace period.
       case kExprCallRef:
       case kExprReturnCallRef: {
         SigIndexImmediate imm(decoder, pc + 1, validate);
         if (io) io->TypeIndex(imm);
         return 1 + imm.length;
       }
-      case kExprCallRefDeprecated:  // TODO(7748): Drop after grace period.
       case kExprDrop:
       case kExprSelect:
       case kExprCatchAll:
@@ -3737,27 +3737,17 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   // TODO(7748): After a certain grace period, drop this in favor of "CallRef".
   DECODE(CallRefDeprecated) {
     CHECK_PROTOTYPE_OPCODE(typed_funcref);
-    Value func_ref = Peek(0);
-    ValueType func_type = func_ref.type;
-    if (func_type == kWasmBottom) {
-      // We are in unreachable code, maintain the polymorphic stack.
-      return 1;
-    }
-    if (!VALIDATE(func_type.is_object_reference() && func_type.has_index() &&
-                  this->module_->has_signature(func_type.ref_index()))) {
-      PopTypeError(0, func_ref, "function reference");
-      return 0;
-    }
-    const FunctionSig* sig = this->module_->signature(func_type.ref_index());
-    ArgVector args = PeekArgs(sig, 1);
-    ReturnVector returns = CreateReturnValues(sig);
-    CALL_INTERFACE_IF_OK_AND_REACHABLE(CallRef, func_ref, sig,
-                                       func_type.ref_index(), args.begin(),
-                                       returns.begin());
+    SigIndexImmediate<validate> imm(this, this->pc_ + 1);
+    if (!this->Validate(this->pc_ + 1, imm)) return 0;
+    Value func_ref = Peek(0, 0, ValueType::RefNull(imm.index));
+    ArgVector args = PeekArgs(imm.sig, 1);
+    ReturnVector returns = CreateReturnValues(imm.sig);
+    CALL_INTERFACE_IF_OK_AND_REACHABLE(CallRef, func_ref, imm.sig, imm.index,
+                                       args.begin(), returns.begin());
     Drop(func_ref);
-    DropArgs(sig);
+    DropArgs(imm.sig);
     PushReturns(returns);
-    return 1;
+    return 1 + imm.length;
   }
 
   DECODE(CallRef) {
