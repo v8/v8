@@ -1955,20 +1955,21 @@ void StringAt::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseRegister(string_input());
   UseRegister(index_input());
   DefineAsRegister(vreg_state, this);
-  set_temporaries_needed(2);
+  set_temporaries_needed(3);
 }
 void StringAt::GenerateCode(MaglevAssembler* masm,
                             const ProcessingState& state) {
-  Register string_object = ToRegister(string_input());
-  Register index = ToRegister(index_input());
+  Register original_string = ToRegister(string_input());
+  Register original_index = ToRegister(index_input());
 
   Register scratch0 = general_temporaries().PopFirst();
   Register scratch1 = general_temporaries().PopFirst();
+  Register scratch2 = general_temporaries().PopFirst();
 
   if (v8_flags.debug_code) {
     // Check if {string_object} is a string.
-    __ AssertNotSmi(string_object);
-    __ LoadMap(scratch0, string_object);
+    __ AssertNotSmi(original_string);
+    __ LoadMap(scratch0, original_string);
     __ CmpInstanceTypeRange(scratch0, scratch0, FIRST_STRING_TYPE,
                             LAST_STRING_TYPE);
     __ Check(below_equal, AbortReason::kUnexpectedValue);
@@ -1983,6 +1984,11 @@ void StringAt::GenerateCode(MaglevAssembler* masm,
 
   Register character = scratch0;
   Register instance_type = scratch1;
+  Register string_object = scratch2;
+  Register index = scratch0;
+
+  __ Move(string_object, original_string);
+  __ Move(index, original_index);
 
   DeferredCodeInfo* deferred_runtime_call = __ PushDeferredCode(
       [](MaglevAssembler* masm, ZoneLabelRef create_string,
@@ -2019,7 +2025,7 @@ void StringAt::GenerateCode(MaglevAssembler* masm,
 
   {
     // TODO(victorgomes): Add fast path for external strings.
-    Register representation = scratch0;
+    Register representation = kScratchRegister;
     __ movl(representation, instance_type);
     __ andl(representation, Immediate(kStringRepresentationMask));
     __ cmpl(representation, Immediate(kSeqStringTag));
