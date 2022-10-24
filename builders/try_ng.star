@@ -12,6 +12,14 @@ load(
     "v8_builder",
 )
 
+# Orchestrator migration states.
+ORCHESTRATOR = struct(
+    OPTIONAL = 0,
+    EXP_20_PERCENT = 1,
+    EXP_100_PERCENT = 2,
+    MIGRATED = 3,
+)
+
 #TODO(almuthanna): get rid of kwargs and specify default values
 def try_ng_pair(
         name,
@@ -19,6 +27,7 @@ def try_ng_pair(
         cq_branch_properties = CQ.NONE,
         experiments = None,
         enable_rdb = True,
+        orchestrator = ORCHESTRATOR.OPTIONAL,
         **kwargs):
     triggered_timeout = kwargs.pop("triggered_timeout", None)
     kwargs.setdefault("properties", {})["triggers"] = [
@@ -44,6 +53,29 @@ def try_ng_pair(
         if "experiment_percentage" in prop:
             prop.pop("experiment_percentage")
             prop["includable_only"] = "true"
+
+    # Map CQ properties to orchestrator dependent on migration state.
+    if orchestrator == ORCHESTRATOR.OPTIONAL:
+        cq_orchestrator = CQ.OPTIONAL
+        cq_branch_orchestrator = CQ.OPTIONAL
+    elif orchestrator == ORCHESTRATOR.EXP_20_PERCENT:
+        cq_orchestrator = CQ.EXP_20_PERCENT
+        cq_branch_orchestrator = CQ.EXP_20_PERCENT
+    elif orchestrator == ORCHESTRATOR.EXP_100_PERCENT:
+        cq_orchestrator = CQ.EXP_100_PERCENT
+        cq_branch_orchestrator = CQ.EXP_100_PERCENT
+    else:
+        # Migration complete, run orchestrator as previously the triggered
+        # tester (including experiment percentages). Both previous parent
+        # and child trybots are now optional (also pseudo experiment trybots).
+        cq_orchestrator = cq_properties
+        cq_branch_orchestrator = cq_branch_properties
+        cq_tg = CQ.OPTIONAL
+        cq_exp = CQ.OPTIONAL
+        cq_branch_tg = CQ.OPTIONAL
+        cq_td = CQ.OPTIONAL
+        cq_branch_td = CQ.OPTIONAL
+        cq_branch_exp = CQ.OPTIONAL
 
     description = kwargs.pop("description", None)
     compiler_description, tester_description = None, None
@@ -98,8 +130,8 @@ def try_ng_pair(
         bucket = "try",
         execution_timeout = triggered_timeout,
         executable = "recipe:v8/orchestrator",
-        cq_properties = CQ.OPTIONAL,
-        cq_branch_properties = CQ.OPTIONAL,
+        cq_properties = cq_orchestrator,
+        cq_branch_properties = cq_branch_orchestrator,
         in_list = "tryserver",
         experiments = experiments,
         description = tester_description,
@@ -317,6 +349,7 @@ try_ng_pair(
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
+    orchestrator = ORCHESTRATOR.EXP_20_PERCENT,
 )
 
 try_ng_pair(
@@ -551,6 +584,7 @@ try_ng_pair(
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Mac-10.15"},
     use_goma = GOMA.DEFAULT,
+    orchestrator = ORCHESTRATOR.EXP_20_PERCENT,
 )
 
 try_ng_pair(
@@ -664,6 +698,7 @@ try_ng_pair(
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
     triggered_timeout = 7200,
     use_goma = GOMA.ATS,
+    orchestrator = ORCHESTRATOR.EXP_20_PERCENT,
 )
 
 try_ng_pair(

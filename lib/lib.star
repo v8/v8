@@ -109,6 +109,7 @@ CQ = struct(
     BLOCK = {"cancel_stale": False},
     BLOCK_NO_REUSE = {"disable_reuse": "true", "cancel_stale": False},
     EXP_5_PERCENT = {"experiment_percentage": 5, "cancel_stale": False},
+    EXP_20_PERCENT = {"experiment_percentage": 20, "cancel_stale": False},
     EXP_50_PERCENT = {"experiment_percentage": 50, "cancel_stale": False},
     EXP_100_PERCENT = {"experiment_percentage": 100, "cancel_stale": False},
     NONE = None,
