@@ -450,6 +450,12 @@ bool Heap::CanExpandOldGeneration(size_t size) {
   return memory_allocator()->Size() + size <= MaxReserved();
 }
 
+namespace {
+bool IsIsolateDeserializationActive(LocalHeap* local_heap) {
+  return local_heap && !local_heap->heap()->deserialization_complete();
+}
+}  // anonymous namespace
+
 bool Heap::CanExpandOldGenerationBackground(LocalHeap* local_heap,
                                             size_t size) {
   if (force_oom_) return false;
@@ -457,6 +463,7 @@ bool Heap::CanExpandOldGenerationBackground(LocalHeap* local_heap,
   // When the heap is tearing down, then GC requests from background threads
   // are not served and the threads are allowed to expand the heap to avoid OOM.
   return gc_state() == TEAR_DOWN || IsMainThreadParked(local_heap) ||
+         IsIsolateDeserializationActive(local_heap) ||
          memory_allocator()->Size() + size <= MaxReserved();
 }
 
@@ -5134,6 +5141,10 @@ bool Heap::ShouldExpandOldGenerationOnSlowAllocation(LocalHeap* local_heap) {
   // If main thread is parked, it can't perform the GC. Fix the deadlock by
   // allowing the allocation.
   if (IsMainThreadParked(local_heap)) return true;
+
+  // If allocating isolate is deserialized at the moment then always allow
+  // allocation.
+  if (IsIsolateDeserializationActive(local_heap)) return true;
 
   // Make it more likely that retry of allocation on background thread succeeds
   if (IsRetryOfFailedAllocation(local_heap)) return true;
