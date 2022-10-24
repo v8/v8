@@ -15,14 +15,17 @@
 #include "src/wasm/object-access.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-subtyping.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-WasmGCLowering::WasmGCLowering(Editor* editor, MachineGraph* mcgraph)
+WasmGCLowering::WasmGCLowering(Editor* editor, MachineGraph* mcgraph,
+                               const wasm::WasmModule* module)
     : AdvancedReducer(editor),
       gasm_(mcgraph, mcgraph->zone()),
+      module_(module),
       dead_(mcgraph->Dead()),
       instance_node_(nullptr) {
   // Find and store the instance node.
@@ -84,22 +87,24 @@ Reduction WasmGCLowering::ReduceWasmTypeCheck(Node* node) {
   Node* effect_input = NodeProperties::GetEffectInput(node);
   Node* control_input = NodeProperties::GetControlInput(node);
   auto config = OpParameter<WasmTypeCheckConfig>(node->op());
-  int rtt_depth = config.rtt_depth;
-  bool object_can_be_null = config.object_can_be_null;
+  int rtt_depth = wasm::GetSubtypingDepth(module_, config.to.ref_index());
+  bool object_can_be_null = config.from.is_nullable();
+  bool object_can_be_i31 =
+      wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), config.from, module_);
 
   gasm_.InitializeEffectControl(effect_input, control_input);
 
   auto end_label = gasm_.MakeLabel(MachineRepresentation::kWord32);
 
   if (object_can_be_null) {
-    const int kResult = config.null_succeeds ? 1 : 0;
+    const int kResult = config.to.is_nullable() ? 1 : 0;
     gasm_.GotoIf(gasm_.TaggedEqual(object, Null()), &end_label,
                  BranchHint::kFalse, gasm_.Int32Constant(kResult));
   }
 
-  // TODO(7748): In some cases the Smi check is redundant. If we had information
-  // about the source type, we could skip it in those cases.
-  gasm_.GotoIf(gasm_.IsI31(object), &end_label, gasm_.Int32Constant(0));
+  if (object_can_be_i31) {
+    gasm_.GotoIf(gasm_.IsI31(object), &end_label, gasm_.Int32Constant(0));
+  }
 
   Node* map = gasm_.LoadMap(object);
 
@@ -146,8 +151,10 @@ Reduction WasmGCLowering::ReduceWasmTypeCast(Node* node) {
   Node* effect_input = NodeProperties::GetEffectInput(node);
   Node* control_input = NodeProperties::GetControlInput(node);
   auto config = OpParameter<WasmTypeCheckConfig>(node->op());
-  int rtt_depth = config.rtt_depth;
-  bool object_can_be_null = config.object_can_be_null;
+  int rtt_depth = wasm::GetSubtypingDepth(module_, config.to.ref_index());
+  bool object_can_be_null = config.from.is_nullable();
+  bool object_can_be_i31 =
+      wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), config.from, module_);
 
   gasm_.InitializeEffectControl(effect_input, control_input);
 
@@ -155,16 +162,16 @@ Reduction WasmGCLowering::ReduceWasmTypeCast(Node* node) {
 
   if (object_can_be_null) {
     Node* is_null = gasm_.TaggedEqual(object, Null());
-    if (config.null_succeeds) {
+    if (config.to.is_nullable()) {
       gasm_.GotoIf(is_null, &end_label, BranchHint::kFalse);
     } else if (!v8_flags.experimental_wasm_skip_null_checks) {
       gasm_.TrapIf(is_null, TrapId::kTrapIllegalCast);
     }
   }
 
-  // TODO(7748): Only perform SMI check if source type may contain i31, any or
-  // extern.
-  gasm_.TrapIf(gasm_.IsI31(object), TrapId::kTrapIllegalCast);
+  if (object_can_be_i31) {
+    gasm_.TrapIf(gasm_.IsI31(object), TrapId::kTrapIllegalCast);
+  }
 
   Node* map = gasm_.LoadMap(object);
 

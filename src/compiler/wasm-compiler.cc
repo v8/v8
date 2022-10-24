@@ -5685,10 +5685,10 @@ void WasmGraphBuilder::BrOnStruct(Node* object, Node* /*rtt*/,
               [=](Callbacks callbacks) -> void {
                 if (!v8_flags.wasm_gc_structref_as_dataref) {
                   return ManagedObjectInstanceCheck(
-                      object, config.object_can_be_null, WASM_STRUCT_TYPE,
+                      object, config.from.is_nullable(), WASM_STRUCT_TYPE,
                       callbacks, null_succeeds);
                 } else {
-                  return DataCheck(object, config.object_can_be_null, callbacks,
+                  return DataCheck(object, config.from.is_nullable(), callbacks,
                                    null_succeeds);
                 }
               });
@@ -5724,7 +5724,7 @@ void WasmGraphBuilder::BrOnArray(Node* object, Node* /*rtt*/,
   BrOnCastAbs(match_control, match_effect, no_match_control, no_match_effect,
               [=](Callbacks callbacks) -> void {
                 return ManagedObjectInstanceCheck(
-                    object, config.object_can_be_null, WASM_ARRAY_TYPE,
+                    object, config.from.is_nullable(), WASM_ARRAY_TYPE,
                     callbacks, null_succeeds);
               });
 }

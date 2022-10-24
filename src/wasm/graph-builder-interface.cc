@@ -1227,26 +1227,12 @@ class WasmGraphBuildingInterface {
 
   using WasmTypeCheckConfig = v8::internal::compiler::WasmTypeCheckConfig;
 
-  WasmTypeCheckConfig ComputeWasmTypeCheckConfig(ValueType object_type,
-                                                 ValueType rtt_type,
-                                                 const WasmModule* module,
-                                                 bool null_succeeds) {
-    WasmTypeCheckConfig result;
-    result.object_can_be_null = object_type.is_nullable();
-    DCHECK(object_type.is_object_reference());  // Checked by validation.
-    result.null_succeeds = null_succeeds;
-    // In the bottom case, the result is irrelevant.
-    result.rtt_depth = rtt_type.is_bottom()
-                           ? 0 /* unused */
-                           : static_cast<uint8_t>(GetSubtypingDepth(
-                                 module, rtt_type.ref_index()));
-    return result;
-  }
-
   void RefTest(FullDecoder* decoder, const Value& object, const Value& rtt,
                Value* result, bool null_succeeds) {
-    WasmTypeCheckConfig config = ComputeWasmTypeCheckConfig(
-        object.type, rtt.type, decoder->module_, null_succeeds);
+    WasmTypeCheckConfig config = {
+        object.type,
+        ValueType::RefMaybeNull(rtt.type.ref_index(),
+                                null_succeeds ? kNullable : kNonNullable)};
     SetAndTypeNode(result, builder_->RefTest(object.node, rtt.node, config));
   }
 
@@ -1258,8 +1244,10 @@ class WasmGraphBuildingInterface {
 
   void RefCast(FullDecoder* decoder, const Value& object, const Value& rtt,
                Value* result, bool null_succeeds) {
-    WasmTypeCheckConfig config = ComputeWasmTypeCheckConfig(
-        object.type, rtt.type, decoder->module_, null_succeeds);
+    WasmTypeCheckConfig config = {
+        object.type,
+        ValueType::RefMaybeNull(rtt.type.ref_index(),
+                                null_succeeds ? kNullable : kNonNullable)};
     TFNode* cast_node = v8_flags.experimental_wasm_assume_ref_cast_succeeds
                             ? builder_->TypeGuard(object.node, result->type)
                             : builder_->RefCast(object.node, rtt.node, config,
@@ -1282,11 +1270,11 @@ class WasmGraphBuildingInterface {
   void BrOnCastAbs(FullDecoder* decoder, const Value& object, const Value& rtt,
                    Value* forwarding_value, uint32_t br_depth,
                    bool branch_on_match) {
-    // TODO(mliedtke): Should be a parameter for generic br_on_cast
-    // instructions.
-    const bool null_succeeds = false;
-    WasmTypeCheckConfig config = ComputeWasmTypeCheckConfig(
-        object.type, rtt.type, decoder->module_, null_succeeds);
+    // TODO(mliedtke): Add generic br_on_cast instructions where null succeeds.
+    WasmTypeCheckConfig config = {object.type,
+                                  !rtt.type.is_bottom()
+                                      ? ValueType::Ref(rtt.type.ref_index())
+                                      : kWasmBottom};
     SsaEnv* branch_env = Split(decoder->zone(), ssa_env_);
     SsaEnv* no_branch_env = Steal(decoder->zone(), ssa_env_);
     no_branch_env->SetNotMerged();

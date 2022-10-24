@@ -2146,11 +2146,12 @@ struct SimplifyLoopsPhase {
 struct WasmGCLoweringPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(WasmGCLowering)
 
-  void Run(PipelineData* data, Zone* temp_zone) {
+  void Run(PipelineData* data, Zone* temp_zone,
+           const wasm::WasmModule* module) {
     GraphReducer graph_reducer(
         temp_zone, data->graph(), &data->info()->tick_counter(), data->broker(),
         data->jsgraph()->Dead(), data->observe_node_manager());
-    WasmGCLowering lowering(&graph_reducer, data->mcgraph());
+    WasmGCLowering lowering(&graph_reducer, data->mcgraph(), module);
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common(), temp_zone);
     AddReducer(data, &graph_reducer, &lowering);
@@ -3412,7 +3413,7 @@ void Pipeline::GenerateCodeForWasmFunction(
   if (v8_flags.experimental_wasm_gc ||
       v8_flags.experimental_wasm_typed_funcref ||
       v8_flags.experimental_wasm_stringref) {
-    pipeline.Run<WasmGCLoweringPhase>();
+    pipeline.Run<WasmGCLoweringPhase>(module);
     pipeline.RunPrintAndVerify(WasmGCLoweringPhase::phase_name(), true);
   }
 
