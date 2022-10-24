@@ -1011,6 +1011,11 @@ class MaglevGraphBuilder {
       std::initializer_list<ValueNode*> inputs);
 
   template <Operation kOperation>
+  ValueNode* TryFoldInt32BinaryOperation(ValueNode* left, ValueNode* right);
+  template <Operation kOperation>
+  ValueNode* TryFoldInt32BinaryOperation(ValueNode* left, int right);
+
+  template <Operation kOperation>
   void BuildInt32BinaryOperationNode();
   template <Operation kOperation>
   void BuildInt32BinarySmiOperationNode();

@@ -77,7 +77,7 @@ class CompactInterpreterFrameState;
   V(Int32SubtractWithOverflow)         \
   V(Int32MultiplyWithOverflow)         \
   V(Int32DivideWithOverflow)           \
-  /*V(Int32ModulusWithOverflow)*/      \
+  V(Int32ModulusWithOverflow)          \
   /*V(Int32ExponentiateWithOverflow)*/ \
   V(Int32BitwiseAnd)                   \
   V(Int32BitwiseOr)                    \
@@ -1536,7 +1536,7 @@ DEF_INT32_BINARY_WITH_OVERFLOW_NODE(Add)
 DEF_INT32_BINARY_WITH_OVERFLOW_NODE(Subtract)
 DEF_INT32_BINARY_WITH_OVERFLOW_NODE(Multiply)
 DEF_INT32_BINARY_WITH_OVERFLOW_NODE(Divide)
-// DEF_INT32_BINARY_WITH_OVERFLOW_NODE(Modulus)
+DEF_INT32_BINARY_WITH_OVERFLOW_NODE(Modulus)
 // DEF_INT32_BINARY_WITH_OVERFLOW_NODE(Exponentiate)
 #undef DEF_INT32_BINARY_WITH_OVERFLOW_NODE
 

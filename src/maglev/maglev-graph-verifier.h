@@ -226,7 +226,7 @@ class MaglevGraphVerifier {
       case Opcode::kInt32MultiplyWithOverflow:
       case Opcode::kInt32DivideWithOverflow:
       // case Opcode::kInt32ExponentiateWithOverflow:
-      // case Opcode::kInt32ModulusWithOverflow:
+      case Opcode::kInt32ModulusWithOverflow:
       case Opcode::kInt32BitwiseAnd:
       case Opcode::kInt32BitwiseOr:
       case Opcode::kInt32BitwiseXor:

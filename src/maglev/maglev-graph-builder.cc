@@ -237,6 +237,7 @@ bool BinaryOperationHasInt32FastPath() {
     case Operation::kSubtract:
     case Operation::kMultiply:
     case Operation::kDivide:
+    case Operation::kModulus:
     case Operation::kBitwiseAnd:
     case Operation::kBitwiseOr:
     case Operation::kBitwiseXor:
@@ -279,6 +280,7 @@ bool BinaryOperationHasFloat64FastPath() {
   V(Subtract, Int32SubtractWithOverflow, 0) \
   V(Multiply, Int32MultiplyWithOverflow, 1) \
   V(Divide, Int32DivideWithOverflow, 1)     \
+  V(Modulus, Int32ModulusWithOverflow, {})  \
   V(BitwiseAnd, Int32BitwiseAnd, ~0)        \
   V(BitwiseOr, Int32BitwiseOr, 0)           \
   V(BitwiseXor, Int32BitwiseXor, 0)         \
@@ -376,10 +378,50 @@ void MaglevGraphBuilder::BuildGenericBinarySmiOperationNode() {
 }
 
 template <Operation kOperation>
+ValueNode* MaglevGraphBuilder::TryFoldInt32BinaryOperation(ValueNode* left,
+                                                           ValueNode* right) {
+  switch (kOperation) {
+    case Operation::kModulus:
+      // x % x = 0
+      if (right == left) return GetInt32Constant(0);
+      break;
+    default:
+      // TODO(victorgomes): Implement more folds.
+      break;
+  }
+  return nullptr;
+}
+
+template <Operation kOperation>
+ValueNode* MaglevGraphBuilder::TryFoldInt32BinaryOperation(ValueNode* left,
+                                                           int right) {
+  switch (kOperation) {
+    case Operation::kModulus:
+      // x % 1 = 0
+      // x % -1 = 0
+      if (right == 1 || right == -1) return GetInt32Constant(0);
+      // TODO(victorgomes): We can emit faster mod operation if {right} is power
+      // of 2, unfortunately we need to know if {left} is negative or not.
+      // Maybe emit a Int32ModulusRightIsPowerOf2?
+      break;
+    default:
+      // TODO(victorgomes): Implement more folds.
+      break;
+  }
+  return nullptr;
+}
+
+template <Operation kOperation>
 void MaglevGraphBuilder::BuildInt32BinaryOperationNode() {
   // TODO(v8:7700): Do constant folding.
   ValueNode* left = LoadRegisterInt32(0);
   ValueNode* right = GetAccumulatorInt32();
+
+  if (ValueNode* result =
+          TryFoldInt32BinaryOperation<kOperation>(left, right)) {
+    SetAccumulator(result);
+    return;
+  }
 
   SetAccumulator(AddNewInt32BinaryOperationNode<kOperation>({left, right}));
 }
@@ -392,6 +434,11 @@ void MaglevGraphBuilder::BuildInt32BinarySmiOperationNode() {
   if (base::Optional<int>(constant) == Int32Identity<kOperation>()) {
     // If the constant is the unit of the operation, it already has the right
     // value, so we can just return.
+    return;
+  }
+  if (ValueNode* result =
+          TryFoldInt32BinaryOperation<kOperation>(left, constant)) {
+    SetAccumulator(result);
     return;
   }
   ValueNode* right = GetInt32Constant(constant);

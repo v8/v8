@@ -2460,6 +2460,94 @@ void Int32MultiplyWithOverflow::GenerateCode(MaglevAssembler* masm,
   __ bind(&end);
 }
 
+void Int32ModulusWithOverflow::AllocateVreg(
+    MaglevVregAllocationState* vreg_state) {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsFixed(vreg_state, this, rdx);
+  // rax,rdx are clobbered by div.
+  RequireSpecificTemporary(rax);
+  RequireSpecificTemporary(rdx);
+}
+
+void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
+                                            const ProcessingState& state) {
+  // Using same algorithm as in EffectControlLinearizer:
+  //   if rhs <= 0 then
+  //     rhs = -rhs
+  //     deopt if rhs == 0
+  //   if lhs < 0 then
+  //     let lhs_abs = -lsh in
+  //     let res = lhs_abs % rhs in
+  //     deopt if res == 0
+  //     -res
+  //   else
+  //     let msk = rhs - 1 in
+  //     if rhs & msk == 0 then
+  //       lhs & msk
+  //     else
+  //       lhs % rhs
+
+  DCHECK(general_temporaries().has(rax));
+  DCHECK(general_temporaries().has(rdx));
+  Register left = ToRegister(left_input());
+  Register right = ToRegister(right_input());
+
+  ZoneLabelRef done(masm);
+  ZoneLabelRef rhs_checked(masm);
+
+  __ cmpl(right, Immediate(0));
+  __ JumpToDeferredIf(
+      less_equal,
+      [](MaglevAssembler* masm, ZoneLabelRef rhs_checked, Register right,
+         Int32ModulusWithOverflow* node) {
+        __ negl(right);
+        __ testl(right, right);
+        __ EmitEagerDeoptIf(equal, DeoptimizeReason::kDivisionByZero, node);
+        __ jmp(*rhs_checked);
+      },
+      rhs_checked, right, this);
+  __ bind(*rhs_checked);
+
+  __ cmpl(left, Immediate(0));
+  __ JumpToDeferredIf(
+      less,
+      [](MaglevAssembler* masm, ZoneLabelRef done, Register left,
+         Register right, Int32ModulusWithOverflow* node) {
+        __ negl(left);
+        __ movl(rax, left);
+        __ xorl(rdx, rdx);
+        __ divl(right);
+        __ testl(rdx, rdx);
+        // TODO(victorgomes): This ideally should be kMinusZero, but Maglev only
+        // allows one deopt reason per IR.
+        __ EmitEagerDeoptIf(equal, DeoptimizeReason::kDivisionByZero, node);
+        __ negl(rdx);
+        __ jmp(*done);
+      },
+      done, left, right, this);
+
+  Label right_not_power_of_2;
+  Register mask = rax;
+  __ leal(mask, Operand(right, -1));
+  __ testl(right, mask);
+  __ j(not_zero, &right_not_power_of_2, Label::kNear);
+
+  // {right} is power of 2.
+  __ andl(mask, left);
+  __ movl(ToRegister(result()), mask);
+  __ jmp(*done, Label::kNear);
+
+  __ bind(&right_not_power_of_2);
+  __ movl(rax, left);
+  __ xorl(rdx, rdx);
+  __ divl(right);
+  // Result is implicitly written to rdx.
+  DCHECK_EQ(ToRegister(result()), rdx);
+
+  __ bind(*done);
+}
+
 void Int32DivideWithOverflow::AllocateVreg(
     MaglevVregAllocationState* vreg_state) {
   UseRegister(left_input());
