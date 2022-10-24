@@ -584,8 +584,6 @@ AllocationType SpaceToAllocation(SnapshotSpace space) {
   switch (space) {
     case SnapshotSpace::kCode:
       return AllocationType::kCode;
-    case SnapshotSpace::kMap:
-      return AllocationType::kMap;
     case SnapshotSpace::kOld:
       return AllocationType::kOld;
     case SnapshotSpace::kReadOnlyHeap:
@@ -872,11 +870,12 @@ constexpr byte VerifyBytecodeCount(byte bytecode) {
 #define CASE_R32(byte_code) CASE_R16(byte_code) : case CASE_R16(byte_code + 16)
 
 // This generates a case range for all the spaces.
-#define CASE_RANGE_ALL_SPACES(bytecode)                           \
-  SpaceEncoder<bytecode>::Encode(SnapshotSpace::kOld)             \
-      : case SpaceEncoder<bytecode>::Encode(SnapshotSpace::kCode) \
-      : case SpaceEncoder<bytecode>::Encode(SnapshotSpace::kMap)  \
-      : case SpaceEncoder<bytecode>::Encode(SnapshotSpace::kReadOnlyHeap)
+// clang-format off
+#define CASE_RANGE_ALL_SPACES(bytecode)                               \
+  SpaceEncoder<bytecode>::Encode(SnapshotSpace::kOld):                \
+    case SpaceEncoder<bytecode>::Encode(SnapshotSpace::kCode):        \
+    case SpaceEncoder<bytecode>::Encode(SnapshotSpace::kReadOnlyHeap)
+// clang-format on
 
 template <typename IsolateT>
 void Deserializer<IsolateT>::ReadData(Handle<HeapObject> object,

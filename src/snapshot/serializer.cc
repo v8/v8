@@ -760,8 +760,6 @@ SnapshotSpace GetSnapshotSpace(HeapObject object) {
       return SnapshotSpace::kCode;
     } else if (ReadOnlyHeap::Contains(object)) {
       return SnapshotSpace::kReadOnlyHeap;
-    } else if (object.IsMap()) {
-      return SnapshotSpace::kMap;
     } else {
       return SnapshotSpace::kOld;
     }
