@@ -1460,6 +1460,10 @@ config("toolchain") {
       "/wd4715",  # 'function' : not all control paths return a value'
                   # MSVC does not analyze switch (enum) for completeness.
     ]
+
+    # TODO(https://crbug.com/1377771): Keep MSVC on C++17 until source code is
+    # made compatible with C++20.
+    cflags_cc = [ "/std:c++17" ]
   }
 
   if (!is_clang && !is_win) {
