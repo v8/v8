@@ -47,8 +47,8 @@ class WasmLiftoffSetupFrameConstants : public TypedFrameConstants {
 // registers (see liftoff-assembler-defs.h).
 class WasmDebugBreakFrameConstants : public TypedFrameConstants {
  public:
-  static constexpr RegList kPushedGpRegs = {r3, r4, r5,  r6,  r7,
-                                            r8, r9, r10, r11, cp};
+  static constexpr RegList kPushedGpRegs = {r3, r4,  r5,  r6,  r7, r8,
+                                            r9, r10, r11, r15, cp};
 
   static constexpr DoubleRegList kPushedFpRegs = {d0, d1, d2, d3,  d4,  d5, d6,
                                                   d7, d8, d9, d10, d11, d12};
