@@ -847,7 +847,7 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(CheckSmi, 1, 1)                      \
   V(CheckString, 1, 1)                   \
   V(CheckBigInt, 1, 1)                   \
-  V(CheckBigInt64, 1, 1)                 \
+  V(CheckedBigIntToBigInt64, 1, 1)       \
   V(CheckedInt32ToTaggedSigned, 1, 1)    \
   V(CheckedInt64ToInt32, 1, 1)           \
   V(CheckedInt64ToTaggedSigned, 1, 1)    \

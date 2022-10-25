@@ -1654,8 +1654,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::BigInt());
       break;
-    case IrOpcode::kCheckBigInt64:
-      CheckValueInputIs(node, 0, Type::Any());
+    case IrOpcode::kCheckedBigIntToBigInt64:
+      CheckValueInputIs(node, 0, Type::BigInt());
       CheckTypeIs(node, Type::SignedBigInt64());
       break;
     case IrOpcode::kFastApiCall:

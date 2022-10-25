@@ -505,7 +505,15 @@ Node* RepresentationChanger::GetTaggedPointerRepresentationFor(
       if (output_type.Is(Type::SignedBigInt64())) {
         return node;
       }
-      op = simplified()->CheckBigInt64(use_info.feedback());
+      if (!output_type.Is(Type::BigInt())) {
+        node = InsertConversion(
+            node, simplified()->CheckBigInt(use_info.feedback()), use_node);
+      }
+      op = simplified()->CheckedBigIntToBigInt64(use_info.feedback());
+    } else if (output_rep == MachineRepresentation::kTaggedPointer ||
+               !output_type.Maybe(Type::SignedSmall())) {
+      DCHECK_NE(output_rep, MachineRepresentation::kTaggedSigned);
+      return node;
     } else {
       return TypeError(node, output_rep, output_type,
                        MachineRepresentation::kTaggedPointer);

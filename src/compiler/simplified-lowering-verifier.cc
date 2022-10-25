@@ -283,8 +283,9 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       CheckAndSet(node, input_type, InputTruncation(node, 0));
       break;
     }
-    case IrOpcode::kCheckBigInt64: {
+    case IrOpcode::kCheckedBigIntToBigInt64: {
       Type input_type = InputType(node, 0);
+      CHECK(input_type.Is(Type::BigInt()));
       input_type =
           Type::Intersect(input_type, Type::SignedBigInt64(), graph_zone());
       CheckAndSet(node, input_type, InputTruncation(node, 0));

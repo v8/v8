@@ -84,7 +84,7 @@ class EffectControlLinearizer {
   Node* LowerCheckReceiverOrNullOrUndefined(Node* node, Node* frame_state);
   Node* LowerCheckString(Node* node, Node* frame_state);
   Node* LowerCheckBigInt(Node* node, Node* frame_state);
-  Node* LowerCheckBigInt64(Node* node, Node* frame_state);
+  Node* LowerCheckedBigIntToBigInt64(Node* node, Node* frame_state);
   Node* LowerCheckSymbol(Node* node, Node* frame_state);
   void LowerCheckIf(Node* node, Node* frame_state);
   Node* LowerCheckedInt32Add(Node* node, Node* frame_state);
@@ -1013,8 +1013,8 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kCheckBigInt:
       result = LowerCheckBigInt(node, frame_state);
       break;
-    case IrOpcode::kCheckBigInt64:
-      result = LowerCheckBigInt64(node, frame_state);
+    case IrOpcode::kCheckedBigIntToBigInt64:
+      result = LowerCheckedBigIntToBigInt64(node, frame_state);
       break;
     case IrOpcode::kCheckInternalizedString:
       result = LowerCheckInternalizedString(node, frame_state);
@@ -2948,28 +2948,17 @@ Node* EffectControlLinearizer::LowerCheckBigInt(Node* node, Node* frame_state) {
   return value;
 }
 
-Node* EffectControlLinearizer::LowerCheckBigInt64(Node* node,
-                                                  Node* frame_state) {
+Node* EffectControlLinearizer::LowerCheckedBigIntToBigInt64(Node* node,
+                                                            Node* frame_state) {
   DCHECK(machine()->Is64());
 
   auto done = __ MakeLabel();
   auto if_not_zero = __ MakeLabel();
+  auto if_may_be_out_of_range = __ MakeDeferredLabel();
 
   Node* value = node->InputAt(0);
   const CheckParameters& params = CheckParametersOf(node->op());
 
-  // Check for Smi.
-  Node* smi_check = ObjectIsSmi(value);
-  __ DeoptimizeIf(DeoptimizeReason::kSmi, params.feedback(), smi_check,
-                  frame_state);
-
-  // Check for BigInt.
-  Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
-  Node* bi_check = __ TaggedEqual(value_map, __ BigIntMapConstant());
-  __ DeoptimizeIfNot(DeoptimizeReason::kWrongInstanceType, params.feedback(),
-                     bi_check, frame_state);
-
-  // Check for BigInt64.
   Node* bitfield = __ LoadField(AccessBuilder::ForBigIntBitfield(), value);
   __ GotoIfNot(__ Word32Equal(bitfield, __ Int32Constant(0)), &if_not_zero);
   __ Goto(&done);
@@ -2980,19 +2969,32 @@ Node* EffectControlLinearizer::LowerCheckBigInt64(Node* node,
     Node* length =
         __ Word32And(bitfield, __ Int32Constant(BigInt::LengthBits::kMask));
     __ DeoptimizeIfNot(
-        DeoptimizeReason::kWrongInstanceType, params.feedback(),
+        DeoptimizeReason::kNotABigInt64, params.feedback(),
         __ Word32Equal(length, __ Int32Constant(uint32_t{1}
                                                 << BigInt::LengthBits::kShift)),
         frame_state);
 
     Node* lsd =
         __ LoadField(AccessBuilder::ForBigIntLeastSignificantDigit64(), value);
-    // Accepted small BigInts are in the range [-2^63 + 1, 2^63 - 1].
-    // Excluding -2^63 from the range makes the check simpler and faster.
-    Node* bi64_check = __ Uint64LessThanOrEqual(
+
+    Node* magnitude_check = __ Uint64LessThanOrEqual(
         lsd, __ Int64Constant(std::numeric_limits<int64_t>::max()));
-    __ DeoptimizeIfNot(DeoptimizeReason::kWrongInstanceType, params.feedback(),
-                       bi64_check, frame_state);
+    __ Branch(magnitude_check, &done, &if_may_be_out_of_range);
+
+    __ Bind(&if_may_be_out_of_range);
+    Node* sign =
+        __ Word32And(bitfield, __ Int32Constant(BigInt::SignBits::kMask));
+
+    Node* sign_check =
+        __ Word32Equal(sign, __ Int32Constant(BigInt::SignBits::kMask));
+    __ DeoptimizeIfNot(DeoptimizeReason::kNotABigInt64, params.feedback(),
+                       sign_check, frame_state);
+
+    Node* min_check = __ Word64Equal(
+        lsd, __ Int64Constant(std::numeric_limits<int64_t>::min()));
+    __ DeoptimizeIfNot(DeoptimizeReason::kNotABigInt64, params.feedback(),
+                       min_check, frame_state);
+
     __ Goto(&done);
   }
 

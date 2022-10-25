@@ -2963,24 +2963,6 @@ class RepresentationSelector {
         }
         return;
       }
-      case IrOpcode::kCheckBigInt: {
-        if (InputIs(node, Type::BigInt())) {
-          VisitNoop<T>(node, truncation);
-        } else {
-          VisitUnop<T>(node, UseInfo::AnyTagged(),
-                       MachineRepresentation::kTaggedPointer);
-        }
-        return;
-      }
-      case IrOpcode::kCheckBigInt64: {
-        if (InputIs(node, Type::BigInt())) {
-          VisitNoop<T>(node, truncation);
-        } else {
-          VisitUnop<T>(node, UseInfo::AnyTagged(),
-                       MachineRepresentation::kTaggedPointer);
-        }
-        return;
-      }
       case IrOpcode::kSpeculativeBigIntAsIntN:
       case IrOpcode::kSpeculativeBigIntAsUintN: {
         const bool is_asuintn =

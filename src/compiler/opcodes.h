@@ -400,7 +400,7 @@
 #define SIMPLIFIED_BIGINT_UNOP_LIST(V) \
   V(BigIntNegate)                      \
   V(CheckBigInt)                       \
-  V(CheckBigInt64)
+  V(CheckedBigIntToBigInt64)
 
 #define SIMPLIFIED_SPECULATIVE_NUMBER_UNOP_LIST(V) V(SpeculativeToNumber)
 
