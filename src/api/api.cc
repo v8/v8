@@ -6615,8 +6615,29 @@ v8::Isolate* Context::GetIsolate() {
 v8::MicrotaskQueue* Context::GetMicrotaskQueue() {
   i::Handle<i::Context> env = Utils::OpenHandle(this);
   Utils::ApiCheck(env->IsNativeContext(), "v8::Context::GetMicrotaskQueue",
-                  "Must be calld on a native context");
+                  "Must be called on a native context");
   return i::Handle<i::NativeContext>::cast(env)->microtask_queue();
+}
+
+void Context::SetMicrotaskQueue(v8::MicrotaskQueue* queue) {
+  i::Handle<i::Context> context = Utils::OpenHandle(this);
+  i::Isolate* i_isolate = context->GetIsolate();
+  Utils::ApiCheck(context->IsNativeContext(), "v8::Context::SetMicrotaskQueue",
+                  "Must be called on a native context");
+  i::Handle<i::NativeContext> native_context =
+      i::Handle<i::NativeContext>::cast(context);
+  i::HandleScopeImplementer* impl = i_isolate->handle_scope_implementer();
+  Utils::ApiCheck(!native_context->microtask_queue()->IsRunningMicrotasks(),
+                  "v8::Context::SetMicrotaskQueue",
+                  "Must not be running microtasks");
+  Utils::ApiCheck(
+      native_context->microtask_queue()->GetMicrotasksScopeDepth() == 0,
+      "v8::Context::SetMicrotaskQueue", "Must not have microtask scope pushed");
+  Utils::ApiCheck(impl->EnteredContextCount() == 0,
+                  "v8::Context::SetMicrotaskQueue()",
+                  "Cannot set Microtask Queue with an entered context");
+  native_context->set_microtask_queue(
+      i_isolate, static_cast<const i::MicrotaskQueue*>(queue));
 }
 
 v8::Local<v8::Object> Context::Global() {
