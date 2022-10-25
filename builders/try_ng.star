@@ -349,7 +349,7 @@ try_ng_pair(
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
-    orchestrator = ORCHESTRATOR.EXP_100_PERCENT,
+    orchestrator = ORCHESTRATOR.MIGRATED,
 )
 
 try_ng_pair(
@@ -584,7 +584,7 @@ try_ng_pair(
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Mac-10.15"},
     use_goma = GOMA.DEFAULT,
-    orchestrator = ORCHESTRATOR.EXP_100_PERCENT,
+    orchestrator = ORCHESTRATOR.MIGRATED,
 )
 
 try_ng_pair(
@@ -698,7 +698,7 @@ try_ng_pair(
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
     triggered_timeout = 7200,
     use_goma = GOMA.ATS,
-    orchestrator = ORCHESTRATOR.EXP_100_PERCENT,
+    orchestrator = ORCHESTRATOR.MIGRATED,
 )
 
 try_ng_pair(
