@@ -1046,9 +1046,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=12681
   'built-ins/Array/prototype/push/set-length-zero-array-length-is-non-writable': [FAIL],
 
-  # https://github.com/tc39/test262/pull/3700
-  'built-ins/Array/prototype/toSpliced/mutate-while-iterating': [PASS, FAIL],
-
   ######################## NEEDS INVESTIGATION ###########################
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7833
