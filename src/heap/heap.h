@@ -105,6 +105,7 @@ class HeapObjectAllocationTracker;
 class HeapObjectsFilter;
 class HeapStats;
 class Isolate;
+class IsolateSafepointScope;
 class JSFinalizationRegistry;
 class LinearAllocationArea;
 class LocalEmbedderHeapTracer;
@@ -123,7 +124,6 @@ class PagedNewSpace;
 class ReadOnlyHeap;
 class RootVisitor;
 class RwxMemoryWriteScope;
-class SafepointScope;
 class ScavengeJob;
 class Scavenger;
 class ScavengerCollector;
@@ -2751,7 +2751,7 @@ class V8_EXPORT_PRIVATE HeapObjectIterator {
   HeapObject NextObject();
 
   Heap* heap_;
-  std::unique_ptr<SafepointScope> safepoint_scope_;
+  std::unique_ptr<IsolateSafepointScope> safepoint_scope_;
   HeapObjectsFiltering filtering_;
   HeapObjectsFilter* filter_;
   // Space iterator for iterating all the spaces.

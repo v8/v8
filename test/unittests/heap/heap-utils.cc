@@ -24,7 +24,7 @@ void HeapInternalsBase::SimulateIncrementalMarking(Heap* heap,
   i::IncrementalMarking* marking = heap->incremental_marking();
 
   if (heap->sweeping_in_progress()) {
-    SafepointScope scope(heap);
+    IsolateSafepointScope scope(heap);
     heap->EnsureSweepingCompleted(
         Heap::SweepingForcedFinalizationMode::kV8Only);
   }

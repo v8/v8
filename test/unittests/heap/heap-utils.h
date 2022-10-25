@@ -65,7 +65,7 @@ class WithHeapInternals : public TMixin, HeapInternalsBase {
   }
 
   void GrowNewSpace() {
-    SafepointScope scope(heap());
+    IsolateSafepointScope scope(heap());
     if (!heap()->new_space()->IsAtMaximumCapacity()) {
       heap()->new_space()->Grow();
     }
@@ -89,7 +89,7 @@ class WithHeapInternals : public TMixin, HeapInternalsBase {
   void GcAndSweep(i::AllocationSpace space) {
     heap()->CollectGarbage(space, GarbageCollectionReason::kTesting);
     if (heap()->sweeping_in_progress()) {
-      SafepointScope scope(heap());
+      IsolateSafepointScope scope(heap());
       heap()->EnsureSweepingCompleted(
           Heap::SweepingForcedFinalizationMode::kV8Only);
     }

@@ -466,7 +466,7 @@ TEST_F(EmbedderTracingTest, FinalizeTracingWhenMarking) {
 
   i::IncrementalMarking* marking = heap->incremental_marking();
   {
-    SafepointScope scope(heap);
+    IsolateSafepointScope scope(heap);
     heap->tracer()->StartCycle(
         GarbageCollector::MARK_COMPACTOR, GarbageCollectionReason::kTesting,
         "collector cctest", GCTracer::MarkingType::kIncremental);

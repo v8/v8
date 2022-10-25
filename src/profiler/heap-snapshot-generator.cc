@@ -2463,7 +2463,7 @@ void V8HeapExplorer::CollectGlobalObjectsTags() {
 }
 
 void V8HeapExplorer::MakeGlobalObjectTagMap(
-    const SafepointScope& safepoint_scope) {
+    const IsolateSafepointScope& safepoint_scope) {
   for (const auto& pair : global_object_tag_pairs_) {
     global_object_tag_map_.emplace(*pair.first, pair.second);
   }
@@ -2723,7 +2723,7 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
   heap_->CollectAllAvailableGarbage(GarbageCollectionReason::kHeapProfiler);
 
   NullContextForSnapshotScope null_context_scope(isolate);
-  SafepointScope scope(heap_);
+  IsolateSafepointScope scope(heap_);
   v8_heap_explorer_.MakeGlobalObjectTagMap(scope);
   handle_scope.reset();
 

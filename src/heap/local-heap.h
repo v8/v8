@@ -335,11 +335,11 @@ class V8_EXPORT_PRIVATE LocalHeap {
   friend class CollectionBarrier;
   friend class ConcurrentAllocator;
   friend class GlobalSafepoint;
-  friend class IsolateSafepoint;
   friend class Heap;
   friend class Isolate;
+  friend class IsolateSafepoint;
+  friend class IsolateSafepointScope;
   friend class ParkedScope;
-  friend class SafepointScope;
   friend class UnparkedScope;
 };
 

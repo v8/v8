@@ -1841,18 +1841,16 @@ void Heap::StartIncrementalMarking(int gc_flags,
     CompleteSweepingFull();
   }
 
-  base::Optional<GlobalSafepointScope> global_safepoint_scope;
   base::Optional<SafepointScope> safepoint_scope;
 
   {
     AllowGarbageCollection allow_shared_gc;
     IgnoreLocalGCRequests ignore_gc_requests(this);
 
-    if (isolate()->is_shared_heap_isolate()) {
-      global_safepoint_scope.emplace(isolate());
-    } else {
-      safepoint_scope.emplace(this);
-    }
+    SafepointKind safepoint_kind = isolate()->is_shared_heap_isolate()
+                                       ? SafepointKind::kGlobal
+                                       : SafepointKind::kIsolate;
+    safepoint_scope.emplace(isolate(), safepoint_kind);
   }
 
 #ifdef DEBUG
@@ -2165,18 +2163,17 @@ size_t Heap::PerformGarbageCollection(
   DCHECK(tracer()->IsConsistentWithCollector(collector));
   TRACE_GC_EPOCH(tracer(), CollectorScopeId(collector), ThreadKind::kMain);
 
-  base::Optional<GlobalSafepointScope> global_safepoint_scope;
-  base::Optional<SafepointScope> isolate_safepoint_scope;
+  base::Optional<SafepointScope> safepoint_scope;
 
   {
     AllowGarbageCollection allow_shared_gc;
     IgnoreLocalGCRequests ignore_gc_requests(this);
 
-    if (isolate()->is_shared_heap_isolate()) {
-      global_safepoint_scope.emplace(isolate());
-    } else {
-      isolate_safepoint_scope.emplace(this);
-    }
+    SafepointKind safepoint_kind =
+        v8_flags.shared_space && isolate()->is_shared_heap_isolate()
+            ? SafepointKind::kGlobal
+            : SafepointKind::kIsolate;
+    safepoint_scope.emplace(isolate(), safepoint_kind);
   }
 
   collection_barrier_->StopTimeToCollectionTimer();
@@ -3433,7 +3430,7 @@ FixedArrayBase Heap::LeftTrimFixedArray(FixedArrayBase object,
   if (v8_flags.enable_slow_asserts) {
     // Make sure the stack or other roots (e.g., Handles) don't contain pointers
     // to the original FixedArray (which is now the filler object).
-    base::Optional<SafepointScope> safepoint_scope;
+    base::Optional<IsolateSafepointScope> safepoint_scope;
 
     {
       AllowGarbageCollection allow_gc;
@@ -4201,7 +4198,7 @@ std::unique_ptr<v8::MeasureMemoryDelegate> Heap::MeasureMemoryDelegate(
 void Heap::CollectCodeStatistics() {
   TRACE_EVENT0("v8", "Heap::CollectCodeStatistics");
   IgnoreLocalGCRequests ignore_gc_requests(this);
-  SafepointScope safepoint_scope(this);
+  IsolateSafepointScope safepoint_scope(this);
   MakeHeapIterable();
   CodeStatistics::ResetCodeAndMetadataStatistics(isolate());
   // We do not look for code in new space, or map space.  If code
@@ -6401,7 +6398,7 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
 HeapObjectIterator::HeapObjectIterator(
     Heap* heap, HeapObjectIterator::HeapObjectsFiltering filtering)
     : heap_(heap),
-      safepoint_scope_(std::make_unique<SafepointScope>(heap)),
+      safepoint_scope_(std::make_unique<IsolateSafepointScope>(heap)),
       filtering_(filtering),
       filter_(nullptr),
       space_iterator_(nullptr),

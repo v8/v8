@@ -263,7 +263,7 @@ void SimulateIncrementalMarking(i::Heap* heap, bool force_completion) {
   i::IncrementalMarking* marking = heap->incremental_marking();
 
   if (heap->sweeping_in_progress()) {
-    SafepointScope scope(heap);
+    IsolateSafepointScope scope(heap);
     heap->EnsureSweepingCompleted(
         Heap::SweepingForcedFinalizationMode::kV8Only);
   }
@@ -282,7 +282,7 @@ void SimulateIncrementalMarking(i::Heap* heap, bool force_completion) {
   CHECK(marking->IsMarking());
   if (!force_completion) return;
 
-  SafepointScope scope(heap);
+  IsolateSafepointScope scope(heap);
   MarkingBarrier::PublishAll(heap);
   marking->MarkRootsForTesting();
 
@@ -315,7 +315,7 @@ void AbandonCurrentlyFreeMemory(PagedSpace* space) {
 void GcAndSweep(Heap* heap, AllocationSpace space) {
   heap->CollectGarbage(space, GarbageCollectionReason::kTesting);
   if (heap->sweeping_in_progress()) {
-    SafepointScope scope(heap);
+    IsolateSafepointScope scope(heap);
     heap->EnsureSweepingCompleted(
         Heap::SweepingForcedFinalizationMode::kV8Only);
   }
@@ -343,14 +343,14 @@ bool InCorrectGeneration(HeapObject object) {
 }
 
 void GrowNewSpace(Heap* heap) {
-  SafepointScope scope(heap);
+  IsolateSafepointScope scope(heap);
   if (!heap->new_space()->IsAtMaximumCapacity()) {
     heap->new_space()->Grow();
   }
 }
 
 void GrowNewSpaceToMaximumCapacity(Heap* heap) {
-  SafepointScope scope(heap);
+  IsolateSafepointScope scope(heap);
   while (!heap->new_space()->IsAtMaximumCapacity()) {
     heap->new_space()->Grow();
   }

@@ -127,7 +127,7 @@ static int DumpHeapConstants(FILE* out, const char* argv0) {
   {
     Isolate::Scope scope(isolate);
     i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
-    i::SafepointScope safepoint_scope(heap);
+    i::IsolateSafepointScope safepoint_scope(heap);
     i::ReadOnlyHeap* read_only_heap =
         reinterpret_cast<i::Isolate*>(isolate)->read_only_heap();
     i::PrintF(out, "%s", kHeader);

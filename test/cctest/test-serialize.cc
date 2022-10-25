@@ -210,7 +210,7 @@ static StartupBlobs Serialize(v8::Isolate* isolate) {
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
   CcTest::CollectAllAvailableGarbage(i_isolate);
 
-  SafepointScope safepoint(i_isolate->heap());
+  IsolateSafepointScope safepoint(i_isolate->heap());
   HandleScope scope(i_isolate);
 
   DisallowGarbageCollection no_gc;
@@ -403,7 +403,7 @@ static void SerializeContext(base::Vector<const byte>* startup_blob_out,
 
     env.Reset();
 
-    SafepointScope safepoint(heap);
+    IsolateSafepointScope safepoint(heap);
 
     DisallowGarbageCollection no_gc;
     SnapshotByteSink read_only_sink;
@@ -572,7 +572,7 @@ static void SerializeCustomContext(
 
     env.Reset();
 
-    SafepointScope safepoint(isolate->heap());
+    IsolateSafepointScope safepoint(isolate->heap());
 
     DisallowGarbageCollection no_gc;
     SnapshotByteSink read_only_sink;
