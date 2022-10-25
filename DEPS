@@ -46,7 +46,7 @@ vars = {
   'reclient_version': 're_client_version:0.69.0.458df98-gomaip',
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:27b90626701a112217a9244022c729231ebcc3a0',
+  'gn_version': 'git_revision:7a6231e3e43845d9aa298bb040f11dd1953e966f',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -58,7 +58,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:10.20221023.3.1',
+  'fuchsia_version': 'version:10.20221024.1.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -98,7 +98,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '521ac34ebd795939c7e16b37d9d3ddb40e8ed556',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'cb6dbd19d3cc6b973c70eb6b535ffcaf02124cfc',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '35368b635aab6793651b488b02273cfe6775e4d0',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '32851f282fb7c8de1002b94615969db93679e6a7',
   'buildtools/clang_format/script':
@@ -210,7 +210,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '61ef3d86478498c78b15ecb4bf908538921206ee',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '1f511020737b695f4cbb3260fdaef78a29acdd35',
   'third_party/fuchsia-sdk/sdk': {
     'packages': [
         {
