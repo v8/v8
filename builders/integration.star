@@ -62,6 +62,7 @@ in_category(
         use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["sheriffs"],
+        experiments = {"luci.buildbucket.omit_python2": 100},
     ),
     v8_builder(
         name = "V8 Blink Linux Future",
@@ -110,6 +111,7 @@ in_category(
         use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["sheriffs"],
+        experiments = {"luci.buildbucket.omit_python2": 100},
     ),
     v8_builder(
         name = "Linux ASAN Builder",
@@ -186,6 +188,7 @@ in_category(
         use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["v8-infra-cc"],
+        experiments = {"luci.buildbucket.omit_python2": 100},
     ),
 )
 
@@ -201,5 +204,6 @@ in_category(
         use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["sheriffs"],
+        experiments = {"luci.buildbucket.omit_python2": 100},
     ),
 )
