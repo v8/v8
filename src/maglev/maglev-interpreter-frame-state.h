@@ -165,7 +165,7 @@ struct KnownNodeAspects {
                            });
     DestructivelyIntersect(
         stable_maps, other.stable_maps,
-        [zone](ZoneHandleSet<Map> lhs, ZoneHandleSet<Map> rhs) {
+        [zone](ZoneHandleSet<Map>& lhs, const ZoneHandleSet<Map>& rhs) {
           for (Handle<Map> map : rhs) {
             lhs.insert(map, zone);
           }
@@ -174,7 +174,7 @@ struct KnownNodeAspects {
         });
     DestructivelyIntersect(
         unstable_maps, other.unstable_maps,
-        [zone](ZoneHandleSet<Map> lhs, ZoneHandleSet<Map> rhs) {
+        [zone](ZoneHandleSet<Map>& lhs, const ZoneHandleSet<Map>& rhs) {
           for (Handle<Map> map : rhs) {
             lhs.insert(map, zone);
           }
