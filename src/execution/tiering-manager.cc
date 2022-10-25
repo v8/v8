@@ -167,6 +167,13 @@ int InterruptBudgetFor(base::Optional<CodeKind> code_kind,
 // static
 int TieringManager::InterruptBudgetFor(Isolate* isolate, JSFunction function) {
   if (function.has_feedback_vector()) {
+    if (function.shared().GetBytecodeArray(isolate).length() >
+        v8_flags.max_optimized_bytecode_size) {
+      // Decrease times of interrupt budget underflow, the reason of not setting
+      // to INT_MAX is the interrupt budget may overflow when doing add
+      // operation for forward jump.
+      return INT_MAX / 2;
+    }
     return ::i::InterruptBudgetFor(function.GetActiveTier(),
                                    function.tiering_state());
   }
@@ -347,6 +354,9 @@ OptimizationDecision TieringManager::ShouldOptimize(
   }
 
   BytecodeArray bytecode = function.shared().GetBytecodeArray(isolate_);
+  if (bytecode.length() > v8_flags.max_optimized_bytecode_size) {
+    return OptimizationDecision::DoNotOptimize();
+  }
   const int ticks = function.feedback_vector().profiler_ticks();
   const int ticks_for_optimization =
       v8_flags.ticks_before_optimization +
