@@ -358,6 +358,12 @@ void LocalHeap::MakeLinearAllocationAreaIterable() {
   code_space_allocator_->MakeLinearAllocationAreaIterable();
 }
 
+void LocalHeap::MakeSharedLinearAllocationAreaIterable() {
+  if (shared_old_space_allocator_) {
+    shared_old_space_allocator_->MakeLinearAllocationAreaIterable();
+  }
+}
+
 void LocalHeap::MarkLinearAllocationAreaBlack() {
   old_space_allocator_->MarkLinearAllocationAreaBlack();
   code_space_allocator_->MarkLinearAllocationAreaBlack();

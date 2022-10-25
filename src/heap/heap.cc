@@ -3554,6 +3554,12 @@ void Heap::MakeHeapIterable() {
     local_heap->MakeLinearAllocationAreaIterable();
   });
 
+  if (isolate()->is_shared_space_isolate()) {
+    isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
+      client->heap()->MakeSharedLinearAllocationAreasIterable();
+    });
+  }
+
   PagedSpaceIterator spaces(this);
   for (PagedSpace* space = spaces.Next(); space != nullptr;
        space = spaces.Next()) {
@@ -3600,6 +3606,20 @@ void Heap::FreeMainThreadSharedLinearAllocationAreas() {
   if (!isolate()->has_shared_heap()) return;
   shared_space_allocator_->FreeLinearAllocationArea();
   main_thread_local_heap()->FreeSharedLinearAllocationArea();
+}
+
+void Heap::MakeSharedLinearAllocationAreasIterable() {
+  if (!isolate()->has_shared_heap()) return;
+
+  safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
+    local_heap->MakeSharedLinearAllocationAreaIterable();
+  });
+
+  if (v8_flags.shared_space && shared_space_allocator_) {
+    shared_space_allocator_->MakeLinearAllocationAreaIterable();
+  }
+
+  main_thread_local_heap()->MakeSharedLinearAllocationAreaIterable();
 }
 
 void Heap::MarkSharedLinearAllocationAreasBlack() {
@@ -4425,6 +4445,7 @@ bool Heap::IsValidAllocationSpace(AllocationSpace space) {
 
 #ifdef DEBUG
 void Heap::VerifyCountersAfterSweeping() {
+  MakeHeapIterable();
   PagedSpaceIterator spaces(this);
   for (PagedSpace* space = spaces.Next(); space != nullptr;
        space = spaces.Next()) {
@@ -6398,7 +6419,10 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
 HeapObjectIterator::HeapObjectIterator(
     Heap* heap, HeapObjectIterator::HeapObjectsFiltering filtering)
     : heap_(heap),
-      safepoint_scope_(std::make_unique<IsolateSafepointScope>(heap)),
+      safepoint_scope_(std::make_unique<SafepointScope>(
+          heap->isolate(), heap->isolate()->is_shared_heap_isolate()
+                               ? SafepointKind::kGlobal
+                               : SafepointKind::kIsolate)),
       filtering_(filtering),
       filter_(nullptr),
       space_iterator_(nullptr),

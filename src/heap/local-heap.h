@@ -130,6 +130,9 @@ class V8_EXPORT_PRIVATE LocalHeap {
   // iterable heap.
   void MakeLinearAllocationAreaIterable();
 
+  // Makes the shared LAB iterable.
+  void MakeSharedLinearAllocationAreaIterable();
+
   // Fetches a pointer to the local heap from the thread local storage.
   // It is intended to be used in handle and write barrier code where it is
   // difficult to get a pointer to the current instance of local heap otherwise.
