@@ -54,6 +54,11 @@ def try_ng_pair(
             prop.pop("experiment_percentage")
             prop["includable_only"] = "true"
 
+    # Turn on 20% experiment for all blocking CQ builders that are not
+    # migrated to orchestrator yet.
+    if orchestrator == ORCHESTRATOR.OPTIONAL and cq_properties == CQ.BLOCK:
+        orchestrator = ORCHESTRATOR.EXP_20_PERCENT
+
     # Map CQ properties to orchestrator dependent on migration state.
     if orchestrator == ORCHESTRATOR.OPTIONAL:
         cq_orchestrator = CQ.OPTIONAL
