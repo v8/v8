@@ -1405,20 +1405,23 @@ bool MaglevGraphBuilder::TryFoldLoadDictPrototypeConstant(
 }
 
 bool MaglevGraphBuilder::TryFoldLoadConstantDataField(
-    compiler::PropertyAccessInfo access_info) {
+    compiler::PropertyAccessInfo access_info, ValueNode* lookup_start_object) {
+  base::Optional<compiler::JSObjectRef> source;
   if (access_info.holder().has_value()) {
-    base::Optional<compiler::ObjectRef> constant =
-        access_info.holder()->GetOwnFastDataProperty(
-            access_info.field_representation(), access_info.field_index(),
-            broker()->dependencies());
-    if (constant.has_value()) {
-      SetAccumulator(GetConstant(constant.value()));
-      return true;
-    }
+    source = access_info.holder();
+  } else if (Constant* n = lookup_start_object->TryCast<Constant>()) {
+    if (n->ref().IsJSObject()) return false;
+    source = n->ref().AsJSObject();
+  } else {
+    return false;
   }
-  // TODO(victorgomes): Check if lookup_start_object is a constant object and
-  // unfold the load.
-  return false;
+  base::Optional<compiler::ObjectRef> constant =
+      source.value().GetOwnFastDataProperty(access_info.field_representation(),
+                                            access_info.field_index(),
+                                            broker()->dependencies());
+  if (!constant.has_value()) return false;
+  SetAccumulator(GetConstant(constant.value()));
+  return true;
 }
 
 bool MaglevGraphBuilder::TryBuildPropertyGetterCall(
@@ -1474,7 +1477,7 @@ bool MaglevGraphBuilder::TryBuildPropertySetterCall(
 
 void MaglevGraphBuilder::BuildLoadField(
     compiler::PropertyAccessInfo access_info, ValueNode* lookup_start_object) {
-  if (TryFoldLoadConstantDataField(access_info)) return;
+  if (TryFoldLoadConstantDataField(access_info, lookup_start_object)) return;
 
   // Resolve property holder.
   ValueNode* load_source;
@@ -1644,12 +1647,21 @@ bool MaglevGraphBuilder::TryBuildNamedAccess(
   ZoneVector<compiler::PropertyAccessInfo> access_infos(zone());
   {
     ZoneVector<compiler::PropertyAccessInfo> access_infos_for_feedback(zone());
-    for (const compiler::MapRef& map : feedback.maps()) {
-      if (map.is_deprecated()) continue;
+    if (Constant* n = receiver->TryCast<Constant>()) {
+      compiler::MapRef constant_map = n->object().map();
       compiler::PropertyAccessInfo access_info =
-          broker()->GetPropertyAccessInfo(map, feedback.name(), access_mode,
+          broker()->GetPropertyAccessInfo(constant_map, feedback.name(),
+                                          access_mode,
                                           broker()->dependencies());
       access_infos_for_feedback.push_back(access_info);
+    } else {
+      for (const compiler::MapRef& map : feedback.maps()) {
+        if (map.is_deprecated()) continue;
+        compiler::PropertyAccessInfo access_info =
+            broker()->GetPropertyAccessInfo(map, feedback.name(), access_mode,
+                                            broker()->dependencies());
+        access_infos_for_feedback.push_back(access_info);
+      }
     }
 
     compiler::AccessInfoFactory access_info_factory(

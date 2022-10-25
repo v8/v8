@@ -968,7 +968,8 @@ class MaglevGraphBuilder {
 
   bool TryFoldLoadDictPrototypeConstant(
       compiler::PropertyAccessInfo access_info);
-  bool TryFoldLoadConstantDataField(compiler::PropertyAccessInfo access_info);
+  bool TryFoldLoadConstantDataField(compiler::PropertyAccessInfo access_info,
+                                    ValueNode* lookup_start_object);
 
   void BuildLoadField(compiler::PropertyAccessInfo access_info,
                       ValueNode* lookup_start_object);
