@@ -5,7 +5,7 @@ V8 is Google's open source JavaScript engine.
 
 V8 implements ECMAScript as specified in ECMA-262.
 
-V8 is written in C++ and is used in Google Chrome, the web browser from Google.
+V8 is written in C++ and is used in Google Chrome, the *free* web browser from Google.
 
 V8 can run standalone, or can be embedded into any C++ application.
 
