@@ -578,6 +578,9 @@ JSNativeContextSpecialization::ReduceJSFindNonDefaultConstructorOrConstruct(
   JSFunctionRef this_function_ref = m.Ref(broker()).AsJSFunction();
   MapRef function_map = this_function_ref.map();
   HeapObjectRef current = function_map.prototype();
+  // The uppermost JSFunction on the class hierarchy (above it, there can be
+  // other JSObjects, e.g., Proxies).
+  base::Optional<JSObjectRef> last_function;
 
   Node* return_value;
   Node* ctor_or_instance;
@@ -608,6 +611,7 @@ JSNativeContextSpecialization::ReduceJSFindNonDefaultConstructorOrConstruct(
       if (!dependencies()->DependOnArrayIteratorProtector()) {
         return NoChange();
       }
+      last_function = current_function;
 
       if (kind == FunctionKind::kDefaultBaseConstructor) {
         return_value = jsgraph()->BooleanConstant(true);
@@ -652,8 +656,8 @@ JSNativeContextSpecialization::ReduceJSFindNonDefaultConstructorOrConstruct(
     current = current_function.map().prototype();
   }
 
-  dependencies()->DependOnStablePrototypeChain(function_map,
-                                               WhereToStart::kStartAtReceiver);
+  dependencies()->DependOnStablePrototypeChain(
+      function_map, WhereToStart::kStartAtReceiver, last_function);
 
   // Update the uses of {node}.
   for (Edge edge : node->use_edges()) {
