@@ -160,9 +160,6 @@ RepresentationChanger::RepresentationChanger(
 Node* RepresentationChanger::GetRepresentationFor(
     Node* node, MachineRepresentation output_rep, Type output_type,
     Node* use_node, UseInfo use_info) {
-  // We are currently not inserting conversions in machine graphs.
-  // We might add that, though.
-  DCHECK_IMPLIES(!output_type.IsNone(), !output_type.Is(Type::Machine()));
   if (output_rep == MachineRepresentation::kNone && !output_type.IsNone()) {
     // The output representation should be set if the type is inhabited (i.e.,
     // if the value is possible).
@@ -490,16 +487,22 @@ Node* RepresentationChanger::GetTaggedPointerRepresentationFor(
       return TypeError(node, output_rep, output_type,
                        MachineRepresentation::kTaggedPointer);
     }
+  } else if (CanBeTaggedSigned(output_rep) &&
+             use_info.type_check() == TypeCheckKind::kHeapObject) {
+    if (!output_type.Maybe(Type::SignedSmall())) {
+      return node;
+    }
+    // TODO(turbofan): Consider adding a Bailout operator that just deopts
+    // for TaggedSigned output representation.
+    op = simplified()->CheckedTaggedToTaggedPointer(use_info.feedback());
   } else if (IsAnyTagged(output_rep)) {
     if (use_info.type_check() == TypeCheckKind::kBigInt) {
       if (output_type.Is(Type::BigInt())) {
-        DCHECK_NE(output_rep, MachineRepresentation::kTaggedSigned);
         return node;
       }
       op = simplified()->CheckBigInt(use_info.feedback());
     } else if (use_info.type_check() == TypeCheckKind::kBigInt64) {
       if (output_type.Is(Type::SignedBigInt64())) {
-        DCHECK_NE(output_rep, MachineRepresentation::kTaggedSigned);
         return node;
       }
       if (!output_type.Is(Type::BigInt())) {
@@ -512,7 +515,8 @@ Node* RepresentationChanger::GetTaggedPointerRepresentationFor(
       DCHECK_NE(output_rep, MachineRepresentation::kTaggedSigned);
       return node;
     } else {
-      op = simplified()->CheckedTaggedToTaggedPointer(use_info.feedback());
+      return TypeError(node, output_rep, output_type,
+                       MachineRepresentation::kTaggedPointer);
     }
   } else {
     return TypeError(node, output_rep, output_type,
@@ -1043,11 +1047,9 @@ Node* RepresentationChanger::GetBitRepresentationFor(
     case IrOpcode::kHeapConstant: {
       HeapObjectMatcher m(node);
       if (m.Is(factory()->false_value())) {
-        return InsertTypeOverrideForVerifier(Type::Boolean(),
-                                             jsgraph()->Int32Constant(0));
+        return jsgraph()->Int32Constant(0);
       } else if (m.Is(factory()->true_value())) {
-        return InsertTypeOverrideForVerifier(Type::Boolean(),
-                                             jsgraph()->Int32Constant(1));
+        return jsgraph()->Int32Constant(1);
       }
       break;
     }

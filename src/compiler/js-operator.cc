@@ -916,21 +916,23 @@ const Operator* JSOperatorBuilder::CallRuntime(Runtime::FunctionId id) {
   return CallRuntime(f, f->nargs);
 }
 
-const Operator* JSOperatorBuilder::CallRuntime(
-    Runtime::FunctionId id, size_t arity, Operator::Properties properties) {
+
+const Operator* JSOperatorBuilder::CallRuntime(Runtime::FunctionId id,
+                                               size_t arity) {
   const Runtime::Function* f = Runtime::FunctionForId(id);
-  return CallRuntime(f, arity, properties);
+  return CallRuntime(f, arity);
 }
 
-const Operator* JSOperatorBuilder::CallRuntime(
-    const Runtime::Function* f, size_t arity, Operator::Properties properties) {
+
+const Operator* JSOperatorBuilder::CallRuntime(const Runtime::Function* f,
+                                               size_t arity) {
   CallRuntimeParameters parameters(f->function_id, arity);
   DCHECK(f->nargs == -1 || f->nargs == static_cast<int>(parameters.arity()));
-  return zone()->New<Operator1<CallRuntimeParameters>>(  // --
-      IrOpcode::kJSCallRuntime, properties,              // opcode
-      "JSCallRuntime",                                   // name
-      parameters.arity(), 1, 1, f->result_size, 1, 2,    // inputs/outputs
-      parameters);                                       // parameter
+  return zone()->New<Operator1<CallRuntimeParameters>>(   // --
+      IrOpcode::kJSCallRuntime, Operator::kNoProperties,  // opcode
+      "JSCallRuntime",                                    // name
+      parameters.arity(), 1, 1, f->result_size, 1, 2,     // inputs/outputs
+      parameters);                                        // parameter
 }
 
 #if V8_ENABLE_WEBASSEMBLY

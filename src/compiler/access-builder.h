@@ -134,9 +134,6 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to JSArrayBuffer::bit_field() field.
   static FieldAccess ForJSArrayBufferBitField();
 
-  // Provides access to JSArrayBuffer::byteLength() field.
-  static FieldAccess ForJSArrayBufferByteLength();
-
   // Provides access to JSArrayBufferView::buffer() field.
   static FieldAccess ForJSArrayBufferViewBuffer();
 
@@ -145,9 +142,6 @@ class V8_EXPORT_PRIVATE AccessBuilder final
 
   // Provides access to JSArrayBufferView::byteOffset() field.
   static FieldAccess ForJSArrayBufferViewByteOffset();
-
-  // Provides access to JSArrayBufferView::bitfield() field
-  static FieldAccess ForJSArrayBufferViewBitField();
 
   // Provides access to JSTypedArray::length() field.
   static FieldAccess ForJSTypedArrayLength();

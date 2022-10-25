@@ -1986,8 +1986,7 @@ struct LateOptimizationPhase {
       CommonOperatorReducer common_reducer(
           &graph_reducer, data->graph(), data->broker(), data->common(),
           data->machine(), temp_zone, BranchSemantics::kMachine);
-      JSGraphAssembler graph_assembler(data->jsgraph(), temp_zone,
-                                       BranchSemantics::kMachine);
+      JSGraphAssembler graph_assembler(data->jsgraph(), temp_zone);
       SelectLowering select_lowering(&graph_assembler, data->graph());
       AddReducer(data, &graph_reducer, &escape_analysis);
       AddReducer(data, &graph_reducer, &branch_condition_elimination);

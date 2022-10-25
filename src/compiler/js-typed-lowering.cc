@@ -9,7 +9,6 @@
 #include "src/codegen/code-factory.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/compiler/access-builder.h"
-#include "src/compiler/common-operator.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/graph-assembler.h"
 #include "src/compiler/js-graph.h"
@@ -842,7 +841,7 @@ Reduction JSTypedLowering::ReduceJSEqual(Node* node) {
     //    then ObjectIsUndetectable(left)
     // else ReferenceEqual(left, right)
 #define __ gasm.
-    JSGraphAssembler gasm(jsgraph(), jsgraph()->zone(), BranchSemantics::kJS);
+    JSGraphAssembler gasm(jsgraph(), jsgraph()->zone());
     gasm.InitializeEffectControl(r.effect(), r.control());
 
     auto lhs = TNode<Object>::UncheckedCast(r.left());
