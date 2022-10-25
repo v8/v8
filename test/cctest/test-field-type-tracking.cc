@@ -2812,9 +2812,7 @@ MaybeHandle<Object> Call(Isolate* isolate, Handle<JSFunction> function,
 
 void TestStoreToConstantField(const char* store_func_source,
                               Handle<Object> value1, Handle<Object> value2,
-                              Representation expected_rep,
-                              PropertyConstness expected_constness,
-                              int store_repetitions) {
+                              Representation expected_rep) {
   Isolate* isolate = CcTest::i_isolate();
   CompileRun(store_func_source);
 
@@ -2825,9 +2823,7 @@ void TestStoreToConstantField(const char* store_func_source,
   // Store value1 to obj1 and check that it got property with expected
   // representation and constness.
   Handle<JSObject> obj1 = isolate->factory()->NewJSObjectFromMap(initial_map);
-  for (int i = 0; i < store_repetitions; i++) {
-    Call(isolate, store_func, obj1, value1).Check();
-  }
+  Call(isolate, store_func, obj1, value1).Check();
 
   Handle<Map> map(obj1->map(), isolate);
   CHECK(!map->is_dictionary_map());
@@ -2870,28 +2866,22 @@ void TestStoreToConstantField(const char* store_func_source,
             .GetDetails(first)
             .representation()
             .Equals(expected_rep));
-  CHECK_EQ(expected_constness,
+  CHECK_EQ(PropertyConstness::kMutable,
            map->instance_descriptors(isolate).GetDetails(first).constness());
 }
 
-void TestStoreToConstantField_PlusMinusZero(const char* store_func_source,
-                                            int store_repetitions) {
+void TestStoreToConstantField_PlusMinusZero(const char* store_func_source) {
   Isolate* isolate = CcTest::i_isolate();
   CompileRun(store_func_source);
 
   Handle<Object> minus_zero = isolate->factory()->NewNumber(-0.0);
   Handle<Object> plus_zero = isolate->factory()->NewNumber(0.0);
 
-  // +0 and -0 are treated as not equal upon stores.
-  const PropertyConstness kExpectedFieldConstness = PropertyConstness::kMutable;
-
   TestStoreToConstantField(store_func_source, minus_zero, plus_zero,
-                           Representation::Double(), kExpectedFieldConstness,
-                           store_repetitions);
+                           Representation::Double());
 }
 
-void TestStoreToConstantField_NaN(const char* store_func_source,
-                                  int store_repetitions) {
+void TestStoreToConstantField_NaN(const char* store_func_source) {
   Isolate* isolate = CcTest::i_isolate();
   CompileRun(store_func_source);
 
@@ -2907,10 +2897,8 @@ void TestStoreToConstantField_NaN(const char* store_func_source,
   Handle<Object> nan1 = isolate->factory()->NewNumber(nan_double1);
   Handle<Object> nan2 = isolate->factory()->NewNumber(nan_double2);
 
-  // NaNs with different bit patters are treated as equal upon stores.
   TestStoreToConstantField(store_func_source, nan1, nan2,
-                           Representation::Double(), PropertyConstness::kConst,
-                           store_repetitions);
+                           Representation::Double());
 }
 
 }  // namespace
@@ -2925,11 +2913,9 @@ TEST(StoreToConstantField_PlusMinusZero) {
       "  %SetNamedProperty(o, 'v', v);"
       "}";
 
-  TestStoreToConstantField_PlusMinusZero(store_func_source, 1);
-  TestStoreToConstantField_PlusMinusZero(store_func_source, 3);
+  TestStoreToConstantField_PlusMinusZero(store_func_source);
 
-  TestStoreToConstantField_NaN(store_func_source, 1);
-  TestStoreToConstantField_NaN(store_func_source, 2);
+  TestStoreToConstantField_NaN(store_func_source);
 }
 
 TEST(StoreToConstantField_ObjectDefineProperty) {
@@ -2945,11 +2931,9 @@ TEST(StoreToConstantField_ObjectDefineProperty) {
       "                         enumerable: true});"
       "}";
 
-  TestStoreToConstantField_PlusMinusZero(store_func_source, 1);
-  TestStoreToConstantField_PlusMinusZero(store_func_source, 3);
+  TestStoreToConstantField_PlusMinusZero(store_func_source);
 
-  TestStoreToConstantField_NaN(store_func_source, 1);
-  TestStoreToConstantField_NaN(store_func_source, 2);
+  TestStoreToConstantField_NaN(store_func_source);
 }
 
 TEST(StoreToConstantField_ReflectSet) {
@@ -2961,11 +2945,9 @@ TEST(StoreToConstantField_ReflectSet) {
       "  Reflect.set(o, 'v', v);"
       "}";
 
-  TestStoreToConstantField_PlusMinusZero(store_func_source, 1);
-  TestStoreToConstantField_PlusMinusZero(store_func_source, 3);
+  TestStoreToConstantField_PlusMinusZero(store_func_source);
 
-  TestStoreToConstantField_NaN(store_func_source, 1);
-  TestStoreToConstantField_NaN(store_func_source, 2);
+  TestStoreToConstantField_NaN(store_func_source);
 }
 
 TEST(StoreToConstantField_StoreIC) {
@@ -2977,11 +2959,9 @@ TEST(StoreToConstantField_StoreIC) {
       "  o.v = v;"
       "}";
 
-  TestStoreToConstantField_PlusMinusZero(store_func_source, 1);
-  TestStoreToConstantField_PlusMinusZero(store_func_source, 3);
+  TestStoreToConstantField_PlusMinusZero(store_func_source);
 
-  TestStoreToConstantField_NaN(store_func_source, 1);
-  TestStoreToConstantField_NaN(store_func_source, 2);
+  TestStoreToConstantField_NaN(store_func_source);
 }
 
 TEST(NormalizeToMigrationTarget) {

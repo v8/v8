@@ -42,14 +42,6 @@ function MakeFunctionWithUniqueSFI(...args) {
 
   // Allocate feedback vector, but we don't want to optimize the function.
   %PrepareFunctionForOptimization(update_z);
-  for (var i = 0; i < 4; i++) {
-    // Overwriting with same value maintains const-ness.
-    update_z(1);
-  }
-
-
-  assertTrue(%HasOwnConstDataProperty(proto, "z"));
-
   update_z(2);
 
   assertFalse(%HasOwnConstDataProperty(proto, "z"));

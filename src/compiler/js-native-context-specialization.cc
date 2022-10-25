@@ -2881,6 +2881,20 @@ JSNativeContextSpecialization::BuildPropertyStore(
     DCHECK(access_mode == AccessMode::kStore ||
            access_mode == AccessMode::kStoreInLiteral ||
            access_mode == AccessMode::kDefine);
+
+    const bool store_to_existing_constant_field =
+        access_info.IsFastDataConstant() && access_mode == AccessMode::kStore &&
+        !access_info.HasTransitionMap();
+    if (store_to_existing_constant_field) {
+      Node* deoptimize = graph()->NewNode(
+          common()->Deoptimize(DeoptimizeReason::kConstantFieldWrite, {}),
+          frame_state, effect, control);
+      NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
+      Revisit(graph()->end());
+      return ValueEffectControl(jsgraph()->Dead(), jsgraph()->Dead(),
+                                jsgraph()->Dead());
+    }
+
     FieldIndex const field_index = access_info.field_index();
     Type const field_type = access_info.field_type();
     MachineRepresentation const field_representation =
@@ -2893,9 +2907,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
               AccessBuilder::ForJSObjectPropertiesOrHashKnownPointer()),
           storage, effect, control);
     }
-    bool store_to_existing_constant_field = access_info.IsFastDataConstant() &&
-                                            access_mode == AccessMode::kStore &&
-                                            !access_info.HasTransitionMap();
+
     FieldAccess field_access = {
         kTaggedBase,
         field_index.offset(),
@@ -2948,40 +2960,11 @@ JSNativeContextSpecialization::BuildPropertyStore(
           field_access.name = MaybeHandle<Name>();
           field_access.machine_type = MachineType::Float64();
         }
-        if (store_to_existing_constant_field) {
-          DCHECK(!access_info.HasTransitionMap());
-          // If the field is constant check that the value we are going
-          // to store matches current value.
-          Node* current_value = effect = graph()->NewNode(
-              simplified()->LoadField(field_access), storage, effect, control);
-
-          Node* check =
-              graph()->NewNode(simplified()->SameValue(), current_value, value);
-          effect = graph()->NewNode(
-              simplified()->CheckIf(DeoptimizeReason::kWrongValue), check,
-              effect, control);
-          return ValueEffectControl(value, effect, control);
-        }
         break;
       }
       case MachineRepresentation::kTaggedSigned:
       case MachineRepresentation::kTaggedPointer:
       case MachineRepresentation::kTagged:
-        if (store_to_existing_constant_field) {
-          DCHECK(!access_info.HasTransitionMap());
-          // If the field is constant check that the value we are going
-          // to store matches current value.
-          Node* current_value = effect = graph()->NewNode(
-              simplified()->LoadField(field_access), storage, effect, control);
-
-          Node* check = graph()->NewNode(simplified()->SameValueNumbersOnly(),
-                                         current_value, value);
-          effect = graph()->NewNode(
-              simplified()->CheckIf(DeoptimizeReason::kWrongValue), check,
-              effect, control);
-          return ValueEffectControl(value, effect, control);
-        }
-
         if (field_representation == MachineRepresentation::kTaggedSigned) {
           value = effect = graph()->NewNode(
               simplified()->CheckSmi(FeedbackSource()), value, effect, control);
