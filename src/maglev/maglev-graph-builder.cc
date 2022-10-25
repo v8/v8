@@ -2613,17 +2613,13 @@ void MaglevGraphBuilder::BuildCallFromRegisters(
 
       compiler::SharedFunctionInfoRef shared = target.AsJSFunction().shared();
       if (shared.HasBuiltinId()) {
-        base::Optional<int> receiver_index;
-        int first_arg_index;
-        if (receiver_mode != ConvertReceiverMode::kNullOrUndefined) {
-          receiver_index = 1;
-          first_arg_index = 2;
-        } else {
-          receiver_index = {};
-          first_arg_index = 1;
-        }
-        if (TryInlineBuiltin(receiver_index, first_arg_index, argc_count,
-                             shared.builtin_id())) {
+        base::Optional<int> receiver_index =
+            (kReceiverOperandCount == 0 ? base::Optional<int>()
+                                        : kFirstArgumentOperandIndex);
+        int first_arg_not_receiver_index =
+            kReceiverOperandCount + kFirstArgumentOperandIndex;
+        if (TryInlineBuiltin(receiver_index, first_arg_not_receiver_index,
+                             argc_count, shared.builtin_id())) {
           return;
         }
       }
