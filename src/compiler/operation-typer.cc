@@ -1132,6 +1132,11 @@ SPECULATIVE_NUMBER_BINOP(NumberShiftRight)
 SPECULATIVE_NUMBER_BINOP(NumberShiftRightLogical)
 #undef SPECULATIVE_NUMBER_BINOP
 
+#define MACHINE_BINOP(Name) \
+  Type OperationTyper::Name(Type, Type) { return Type::Machine(); }
+TYPER_SUPPORTED_MACHINE_BINOP_LIST(MACHINE_BINOP)
+#undef MACHINE_BINOP
+
 Type OperationTyper::BigIntAdd(Type lhs, Type rhs) {
   DCHECK(lhs.Is(Type::BigInt()));
   DCHECK(rhs.Is(Type::BigInt()));

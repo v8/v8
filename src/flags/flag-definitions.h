@@ -833,7 +833,7 @@ DEFINE_BOOL(verify_csa, DEBUG_BOOL,
 // non-ENABLE_VERIFY_CSA configuration.
 DEFINE_BOOL_READONLY(verify_csa, false,
                      "verify TurboFan machine graph of code stubs")
-#endif
+#endif  // ENABLE_VERIFY_CSA
 DEFINE_BOOL(trace_verify_csa, false, "trace code stubs verification")
 DEFINE_STRING(csa_trap_on_node, nullptr,
               "trigger break point when a node with given id is created in "
@@ -934,6 +934,9 @@ DEFINE_BOOL_READONLY(turbo_rewrite_far_jumps, false,
                      "rewrite far to near jumps (ia32,x64)")
 #endif
 
+DEFINE_BOOL(
+    turbo_rab_gsab, true,
+    "optimize ResizableArrayBuffer / GrowableSharedArrayBuffer in TurboFan")
 DEFINE_BOOL(
     stress_gc_during_compilation, false,
     "simulate GC/compiler thread race related to https://crbug.com/v8/8520")

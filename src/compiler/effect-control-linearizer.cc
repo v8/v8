@@ -5113,14 +5113,14 @@ Node* EffectControlLinearizer::AdaptFastCallTypedArrayArgument(
   Node* buffer_is_not_detached = __ Word32Equal(
       __ Word32And(buffer_bit_field,
                    __ Int32Constant(JSArrayBuffer::WasDetachedBit::kMask)),
-      __ ZeroConstant());
+      __ Int32Constant(0));
   __ GotoIfNot(buffer_is_not_detached, bailout);
 
   // Go to the slow path if the {buffer} is shared.
   Node* buffer_is_not_shared = __ Word32Equal(
       __ Word32And(buffer_bit_field,
                    __ Int32Constant(JSArrayBuffer::IsSharedBit::kMask)),
-      __ ZeroConstant());
+      __ Int32Constant(0));
   __ GotoIfNot(buffer_is_not_shared, bailout);
 
   // Unpack the store and length, and store them to a struct
@@ -6941,7 +6941,8 @@ void LinearizeEffectControl(JSGraph* graph, Schedule* schedule, Zone* temp_zone,
                             SourcePositionTable* source_positions,
                             NodeOriginTable* node_origins,
                             JSHeapBroker* broker) {
-  JSGraphAssembler graph_assembler_(graph, temp_zone);
+  JSGraphAssembler graph_assembler_(graph, temp_zone,
+                                    BranchSemantics::kMachine);
   EffectControlLinearizer linearizer(graph, schedule, &graph_assembler_,
                                      temp_zone, source_positions, node_origins,
                                      MaintainSchedule::kDiscard, broker);
