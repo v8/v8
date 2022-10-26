@@ -398,13 +398,6 @@ def v8_basic_builder(defaults, **kwargs):
                 ),
             ],
         )
-
-    # TODO(https://crbug.com/1292003): Make this the default globally.
-    if kwargs["bucket"] not in ["try", "try.triggered"]:
-        experiments = dict(kwargs.pop("experiments", {}) or {})
-        experiments["luci.buildbucket.omit_python2"] = 100
-        kwargs["experiments"] = experiments
-
     luci.builder(**kwargs)
 
 def multibranch_builder(**kwargs):
@@ -423,6 +416,11 @@ def multibranch_builder(**kwargs):
             args["use_goma"] = args.get("use_goma", GOMA.NO)
             args["use_remoteexec"] = args.get("use_remoteexec", RECLIENT.DEFAULT)
         args["priority"] = branch.priority
+
+        # TODO(https://crbug.com/1292003): Make this the default globally.
+        experiments = dict(args.pop("experiments", {}))
+        experiments["luci.buildbucket.omit_python2"] = 100
+        args["experiments"] = experiments
 
         if branch.bucket == "ci":
             if close_tree:
