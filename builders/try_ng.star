@@ -54,9 +54,12 @@ def try_ng_pair(
             prop.pop("experiment_percentage")
             prop["includable_only"] = "true"
 
-    # Migrate all blocking CQ builders.
-    if orchestrator == ORCHESTRATOR.OPTIONAL and cq_properties == CQ.BLOCK:
-        orchestrator = ORCHESTRATOR.MIGRATED
+    # Migrate all blocking CQ builders and run experiment with optional bots.
+    if orchestrator == ORCHESTRATOR.OPTIONAL:
+        if cq_properties == CQ.BLOCK:
+            orchestrator = ORCHESTRATOR.MIGRATED
+        elif cq_properties == CQ.OPTIONAL:
+            orchestrator = ORCHESTRATOR.EXP_20_PERCENT
 
     # Map CQ properties to orchestrator dependent on migration state.
     if orchestrator == ORCHESTRATOR.OPTIONAL:
