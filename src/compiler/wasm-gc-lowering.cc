@@ -95,8 +95,12 @@ Reduction WasmGCLowering::ReduceWasmTypeCheck(Node* node) {
   gasm_.InitializeEffectControl(effect_input, control_input);
 
   auto end_label = gasm_.MakeLabel(MachineRepresentation::kWord32);
+  bool is_cast_from_any = config.from.is_reference_to(wasm::HeapType::kAny);
 
-  if (object_can_be_null) {
+  // Skip the null check if casting from any and if null results in check
+  // failure. In that case the instance type check will identify null as not
+  // being a wasm object and return 0 (failure).
+  if (object_can_be_null && (!is_cast_from_any || config.to.is_nullable())) {
     const int kResult = config.to.is_nullable() ? 1 : 0;
     gasm_.GotoIf(gasm_.TaggedEqual(object, Null()), &end_label,
                  BranchHint::kFalse, gasm_.Int32Constant(kResult));
@@ -114,7 +118,7 @@ Reduction WasmGCLowering::ReduceWasmTypeCheck(Node* node) {
                gasm_.Int32Constant(1));
 
   // Check if map instance type identifies a wasm object.
-  if (config.from.is_reference_to(wasm::HeapType::kAny)) {
+  if (is_cast_from_any) {
     Node* is_wasm_obj = gasm_.IsDataRefMap(map);
     gasm_.GotoIfNot(is_wasm_obj, &end_label, BranchHint::kTrue,
                     gasm_.Int32Constant(0));
@@ -166,8 +170,12 @@ Reduction WasmGCLowering::ReduceWasmTypeCast(Node* node) {
   gasm_.InitializeEffectControl(effect_input, control_input);
 
   auto end_label = gasm_.MakeLabel();
+  bool is_cast_from_any = config.from.is_reference_to(wasm::HeapType::kAny);
 
-  if (object_can_be_null) {
+  // Skip the null check if casting from any and if null results in check
+  // failure. In that case the instance type check will identify null as not
+  // being a wasm object and trap.
+  if (object_can_be_null && (!is_cast_from_any || config.to.is_nullable())) {
     Node* is_null = gasm_.TaggedEqual(object, Null());
     if (config.to.is_nullable()) {
       gasm_.GotoIf(is_null, &end_label, BranchHint::kFalse);
@@ -187,7 +195,7 @@ Reduction WasmGCLowering::ReduceWasmTypeCast(Node* node) {
   gasm_.GotoIf(gasm_.TaggedEqual(map, rtt), &end_label, BranchHint::kTrue);
 
   // Check if map instance type identifies a wasm object.
-  if (config.from.is_reference_to(wasm::HeapType::kAny)) {
+  if (is_cast_from_any) {
     Node* is_wasm_obj = gasm_.IsDataRefMap(map);
     gasm_.TrapUnless(is_wasm_obj, TrapId::kTrapIllegalCast);
   }

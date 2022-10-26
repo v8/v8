@@ -5848,8 +5848,12 @@ class LiftoffCompiler {
                     NullSucceeds null_succeeds,
                     const FreezeCacheState& frozen) {
     Label match;
+    bool is_cast_from_any = obj_type.is_reference_to(HeapType::kAny);
 
-    if (obj_type.is_nullable()) {
+    // Skip the null check if casting from any and not {null_succeeds}.
+    // In that case the instance type check will identify null as not being a
+    // wasm object and fail.
+    if (obj_type.is_nullable() && (!is_cast_from_any || null_succeeds)) {
       __ emit_cond_jump(kEqual, null_succeeds ? &match : no_match,
                         obj_type.kind(), obj_reg, scratch_null, frozen);
     }
@@ -5876,7 +5880,7 @@ class LiftoffCompiler {
     // rtt.
     __ emit_cond_jump(kEqual, &match, rtt_type.kind(), tmp1, rtt_reg, frozen);
 
-    if (obj_type.is_reference_to(HeapType::kAny)) {
+    if (is_cast_from_any) {
       // Check for map being a map for a wasm object (struct, array, func).
       __ Load(LiftoffRegister(scratch2), tmp1, no_reg,
               wasm::ObjectAccess::ToTagged(Map::kInstanceTypeOffset),
