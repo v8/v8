@@ -1705,12 +1705,11 @@ void InlinedBuiltinStringFromCharCode::AllocateTwoByteString(
 void InlinedBuiltinStringFromCharCode::GenerateCode(
     MaglevAssembler* masm, const ProcessingState& state) {
   Register result_string = ToRegister(result());
-  Register scratch = general_temporaries().PopFirst();
 
   if (Int32Constant* constant = code_input().node()->TryCast<Int32Constant>()) {
     int32_t char_code = constant->value();
-    if (char_code < String::kMaxOneByteCharCode) {
-      Register table = scratch;
+    if (0 <= char_code && char_code < String::kMaxOneByteCharCode) {
+      Register table = kScratchRegister;
       __ LoadRoot(table, RootIndex::kSingleCharacterStringTable);
       __ DecompressAnyTagged(ToRegister(result()),
                              FieldOperand(table, FixedArray::kHeaderSize +
@@ -1721,14 +1720,15 @@ void InlinedBuiltinStringFromCharCode::GenerateCode(
               Immediate(char_code & 0xFFFF));
     }
   } else {
-    Register char_code = ToRegister(code_input());
+    Register original_char_code = ToRegister(code_input());
+    Register scratch = general_temporaries().PopFirst();
 
     ZoneLabelRef done(masm);
-    __ cmpl(char_code, Immediate(String::kMaxOneByteCharCode));
+    __ cmpl(original_char_code, Immediate(String::kMaxOneByteCharCode));
 
     // Create two byte string in deferred code.
     __ JumpToDeferredIf(
-        greater,
+        above,
         [](MaglevAssembler* masm, ZoneLabelRef done, Register char_code,
            Register scratch, InlinedBuiltinStringFromCharCode* node) {
           Register result_string = ToRegister(node->result());
@@ -1742,19 +1742,26 @@ void InlinedBuiltinStringFromCharCode::GenerateCode(
           }
           save_registers.live_registers.set(char_code);
           node->AllocateTwoByteString(masm, result_string, save_registers);
-          __ Move(scratch, char_code);
-          __ andl(scratch, Immediate(0xFFFF));
+          if (char_code != scratch) {
+            // {char_code} has the original char code register, we should not
+            // modify it. And since {scratch} could alias the result register,
+            // we move {char_code} to kScratchRegister.
+            __ Move(kScratchRegister, char_code);
+            char_code = kScratchRegister;
+          }
+          __ andl(char_code, Immediate(0xFFFF));
           __ movw(FieldOperand(result_string, SeqTwoByteString::kHeaderSize),
-                  scratch);
+                  char_code);
           __ jmp(*done);
         },
-        done, char_code, scratch, this);
+        done, original_char_code, scratch, this);
 
-    Register table = scratch;
+    Register table = kScratchRegister;
     __ LoadRoot(table, RootIndex::kSingleCharacterStringTable);
-    __ DecompressAnyTagged(ToRegister(result()),
-                           FieldOperand(table, char_code, times_tagged_size,
-                                        FixedArray::kHeaderSize));
+    __ DecompressAnyTagged(
+        ToRegister(result()),
+        FieldOperand(table, original_char_code, times_tagged_size,
+                     FixedArray::kHeaderSize));
     __ bind(*done);
   }
 }
