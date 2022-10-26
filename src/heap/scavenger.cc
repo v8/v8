@@ -498,6 +498,7 @@ void ScavengerCollector::CollectGarbage() {
   }
 
   isolate_->global_handles()->UpdateListOfYoungNodes();
+  isolate_->traced_handles()->ClearListOfYoungNodes();
 
   // Update how much has survived scavenge.
   heap_->IncrementYoungSurvivorsCounter(heap_->SurvivedYoungObjectSize());
