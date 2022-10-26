@@ -1487,8 +1487,28 @@ void MaglevGraphBuilder::BuildLoadField(
     SetAccumulator(
         AddNewNode<LoadDoubleField>({load_source}, field_index.offset()));
   } else {
-    SetAccumulator(
-        AddNewNode<LoadTaggedField>({load_source}, field_index.offset()));
+    ValueNode* value =
+        AddNewNode<LoadTaggedField>({load_source}, field_index.offset());
+    SetAccumulator(value);
+    // Insert stable field information if present.
+    if (access_info.field_representation().IsSmi()) {
+      NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(value);
+      known_info->type = NodeType::kSmi;
+    } else if (access_info.field_representation().IsHeapObject()) {
+      NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(value);
+      if (access_info.field_map().has_value() &&
+          access_info.field_map().value().is_stable()) {
+        known_info->type = NodeType::kHeapObjectWithKnownMap;
+        auto map = access_info.field_map().value();
+        ZoneHandleSet<Map> stable_maps(map.object());
+        ZoneHandleSet<Map> unstable_maps;
+        known_node_aspects().stable_maps.emplace(value, stable_maps);
+        known_node_aspects().unstable_maps.emplace(value, unstable_maps);
+        broker()->dependencies()->DependOnStableMap(map);
+      } else {
+        known_info->type = NodeType::kAnyHeapObject;
+      }
+    }
   }
 }
 
