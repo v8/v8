@@ -1333,7 +1333,9 @@ void MaglevGraphBuilder::BuildCheckMaps(
       if (std::find(maps.begin(), maps.end(), constant_map) != maps.end()) {
         if (constant_map.is_stable()) {
           ZoneHandleSet<Map> stable_maps(constant_map.object());
+          ZoneHandleSet<Map> unstable_maps;
           known_node_aspects().stable_maps.emplace(object, stable_maps);
+          known_node_aspects().unstable_maps.emplace(object, unstable_maps);
           broker()->dependencies()->DependOnStableMap(constant_map);
           return;
         }

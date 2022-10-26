@@ -852,11 +852,15 @@ class MaglevGraphBuilder {
     // we can no longer assume that objects with unstable maps still have the
     // same map. Unstable maps can also transition to stable ones, so the
     // set of stable maps becomes invalid for a not that had a unstable map.
-    for (auto it = known_node_aspects().unstable_maps.begin();
-         it != known_node_aspects().unstable_maps.end(); it++) {
-      known_node_aspects().stable_maps.erase(it->first);
+    auto it = known_node_aspects().unstable_maps.begin();
+    while (it != known_node_aspects().unstable_maps.end()) {
+      if (it->second.size() == 0) {
+        it++;
+      } else {
+        known_node_aspects().stable_maps.erase(it->first);
+        it = known_node_aspects().unstable_maps.erase(it);
+      }
     }
-    known_node_aspects().unstable_maps.clear();
     // Similarly, side-effects can change object contents, so we have to clear
     // our known loaded properties -- however, constant properties are known
     // to not change (and we added a dependency on this), so we don't have to
