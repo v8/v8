@@ -22,6 +22,8 @@ namespace {
 
 class TracedNodeBlock;
 
+// TODO(v8:13372): Avoid constant and instead make use of
+// `v8::base::AllocateAtLeast()` to maximize utilization of the memory.
 constexpr size_t kBlockSize = 256;
 
 constexpr uint16_t kInvalidFreeListNodeIndex = -1;
@@ -207,6 +209,8 @@ class DoublyLinkedList final {
   T* Front() { return front_; }
 
   void PushFront(T* object) {
+    DCHECK(!Contains(object));
+
     ListNodeFor(object)->next = front_;
     if (front_) {
       ListNodeFor(front_)->prev = object;
@@ -334,6 +338,7 @@ class TracedNodeBlock final {
   Iterator end() { return Iterator(this, kBlockSize); }
 
   bool IsFull() const { return used_ == kBlockSize; }
+  bool IsEmpty() const { return used_ == 0; }
 
  private:
   TracedNode nodes_[kBlockSize];
@@ -431,7 +436,8 @@ class TracedHandlesImpl final {
 
   size_t used_node_count() const { return used_; }
   size_t total_size_bytes() const {
-    return sizeof(TracedNode) * kBlockSize * blocks_.Size();
+    return sizeof(TracedNode) * kBlockSize *
+           (blocks_.Size() + empty_blocks_.size());
   }
   size_t used_size_bytes() const { return sizeof(TracedNode) * used_; }
 
@@ -448,6 +454,7 @@ class TracedHandlesImpl final {
   TracedNodeBlock::OverallList blocks_;
   TracedNodeBlock::UsableList usable_blocks_;
   std::vector<TracedNode*> young_nodes_;
+  std::vector<TracedNodeBlock*> empty_blocks_;
   Isolate* isolate_;
   bool is_marking_ = false;
   bool is_sweeping_on_mutator_thread_ = false;
@@ -457,7 +464,15 @@ class TracedHandlesImpl final {
 TracedNode* TracedHandlesImpl::AllocateNode() {
   auto* block = usable_blocks_.Front();
   if (!block) {
-    block = new TracedNodeBlock(*this, blocks_, usable_blocks_);
+    if (empty_blocks_.empty()) {
+      block = new TracedNodeBlock(*this, blocks_, usable_blocks_);
+    } else {
+      block = empty_blocks_.back();
+      empty_blocks_.pop_back();
+      DCHECK(block->IsEmpty());
+      usable_blocks_.PushFront(block);
+      blocks_.PushFront(block);
+    }
     DCHECK_EQ(block, usable_blocks_.Front());
   }
   auto* node = block->AllocateNode();
@@ -472,12 +487,16 @@ TracedNode* TracedHandlesImpl::AllocateNode() {
 
 void TracedHandlesImpl::FreeNode(TracedNode* node) {
   auto& block = node->GetNodeBlock();
-  // TODO(v8:13372): Keep vector of empty blocks that could be freed after
-  // fixing up young nodes.
   if (block.IsFull() && !usable_blocks_.Contains(&block)) {
     usable_blocks_.PushFront(&block);
   }
   block.FreeNode(node);
+  if (block.IsEmpty()) {
+    DCHECK(usable_blocks_.Contains(&block));
+    usable_blocks_.Remove(&block);
+    blocks_.Remove(&block);
+    empty_blocks_.push_back(&block);
+  }
   used_--;
 }
 
@@ -487,6 +506,9 @@ TracedHandlesImpl::~TracedHandlesImpl() {
   while (!blocks_.Empty()) {
     auto* block = blocks_.Front();
     blocks_.PopFront();
+    delete block;
+  }
+  for (auto* block : empty_blocks_) {
     delete block;
   }
 }
@@ -606,6 +628,23 @@ const TracedHandles::NodeBounds TracedHandlesImpl::GetNodeBounds() const {
   return block_bounds;
 }
 
+namespace {
+
+void DeleteEmptyBlocks(std::vector<TracedNodeBlock*>& empty_blocks) {
+  // Keep one node block around for fast allocation/deallocation patterns.
+  if (empty_blocks.size() <= 1) return;
+
+  for (size_t i = 1; i < empty_blocks.size(); i++) {
+    auto* block = empty_blocks[i];
+    DCHECK(block->IsEmpty());
+    delete block;
+  }
+  empty_blocks.resize(1);
+  empty_blocks.shrink_to_fit();
+}
+
+}  // namespace
+
 void TracedHandlesImpl::UpdateListOfYoungNodes() {
   size_t last = 0;
   for (auto* node : young_nodes_) {
@@ -623,6 +662,7 @@ void TracedHandlesImpl::UpdateListOfYoungNodes() {
   DCHECK_LE(last, young_nodes_.size());
   young_nodes_.resize(last);
   young_nodes_.shrink_to_fit();
+  DeleteEmptyBlocks(empty_blocks_);
 }
 
 void TracedHandlesImpl::ClearListOfYoungNodes() {
@@ -633,6 +673,7 @@ void TracedHandlesImpl::ClearListOfYoungNodes() {
   }
   young_nodes_.clear();
   young_nodes_.shrink_to_fit();
+  DeleteEmptyBlocks(empty_blocks_);
 }
 
 void TracedHandlesImpl::ResetDeadNodes(
