@@ -5979,16 +5979,16 @@ class LiftoffCompiler {
   }
 
   void RefCastAbstract(FullDecoder* decoder, const Value& obj, HeapType type,
-                       Value* result_val) {
+                       Value* result_val, bool null_succeeds) {
     switch (type.representation()) {
       case HeapType::kEq:
-        return RefAsEq(decoder, obj, result_val);
+        return RefAsEq(decoder, obj, result_val, null_succeeds);
       case HeapType::kI31:
-        return RefAsI31(decoder, obj, result_val);
+        return RefAsI31(decoder, obj, result_val, null_succeeds);
       case HeapType::kStruct:
-        return RefAsStruct(decoder, obj, result_val);
+        return RefAsStruct(decoder, obj, result_val, null_succeeds);
       case HeapType::kArray:
-        return RefAsArray(decoder, obj, result_val);
+        return RefAsArray(decoder, obj, result_val, null_succeeds);
       case HeapType::kAny:
         // Any may never need a cast as it is either implicitly convertible or
         // never convertible for any given type.
@@ -6194,31 +6194,44 @@ class LiftoffCompiler {
 
   template <TypeChecker type_checker>
   void AbstractTypeCast(const Value& object, FullDecoder* decoder,
-                        ValueKind result_kind) {
-    bool null_succeeds = false;  // TODO(mliedtke): Use parameter.
+                        ValueKind result_kind, bool null_succeeds = false) {
+    Label match;
     Label* trap_label =
         AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapIllegalCast);
     TypeCheck check(object.type, trap_label, null_succeeds);
     Initialize(check, kPeek);
     FREEZE_STATE(frozen);
+
+    if (null_succeeds && check.obj_type.is_nullable()) {
+      __ emit_cond_jump(kEqual, &match, kRefNull, check.obj_reg,
+                        check.null_reg(), frozen);
+    }
     (this->*type_checker)(check, frozen);
+    __ bind(&match);
   }
 
-  void RefAsEq(FullDecoder* decoder, const Value& object, Value* result) {
-    AbstractTypeCast<&LiftoffCompiler::EqCheck>(object, decoder, kRef);
+  void RefAsEq(FullDecoder* decoder, const Value& object, Value* result,
+               bool null_succeeds = false) {
+    AbstractTypeCast<&LiftoffCompiler::EqCheck>(object, decoder, kRef,
+                                                null_succeeds);
   }
 
   void RefAsStruct(FullDecoder* decoder, const Value& object,
-                   Value* /* result */) {
-    AbstractTypeCast<&LiftoffCompiler::StructCheck>(object, decoder, kRef);
+                   Value* /* result */, bool null_succeeds = false) {
+    AbstractTypeCast<&LiftoffCompiler::StructCheck>(object, decoder, kRef,
+                                                    null_succeeds);
   }
 
-  void RefAsI31(FullDecoder* decoder, const Value& object, Value* result) {
-    AbstractTypeCast<&LiftoffCompiler::I31Check>(object, decoder, kRef);
+  void RefAsI31(FullDecoder* decoder, const Value& object, Value* result,
+                bool null_succeeds = false) {
+    AbstractTypeCast<&LiftoffCompiler::I31Check>(object, decoder, kRef,
+                                                 null_succeeds);
   }
 
-  void RefAsArray(FullDecoder* decoder, const Value& object, Value* result) {
-    AbstractTypeCast<&LiftoffCompiler::ArrayCheck>(object, decoder, kRef);
+  void RefAsArray(FullDecoder* decoder, const Value& object, Value* result,
+                  bool null_succeeds = false) {
+    AbstractTypeCast<&LiftoffCompiler::ArrayCheck>(object, decoder, kRef,
+                                                   null_succeeds);
   }
 
   template <TypeChecker type_checker>

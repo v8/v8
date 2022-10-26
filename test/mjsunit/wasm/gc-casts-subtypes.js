@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-gc --experimental-wasm-type-reflection --no-wasm-gc-structref-as-dataref
+// Flags: --experimental-wasm-gc --experimental-wasm-type-reflection
+// Flags: --no-wasm-gc-structref-as-dataref
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
@@ -316,6 +317,15 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
         kGCPrefix, kExprRefCast, heapType,
         kExprRefIsNull, // We can't expose the cast object to JS in most cases.
       ]).exportFunc();
+
+      builder.addFunction(`cast_null_${test.source}_to_${target}`,
+                          makeSig([wasmRefType(creatorType)], [kWasmI32]))
+      .addBody([
+        kExprLocalGet, 0,
+        kExprCallRef, creatorType,
+        kGCPrefix, kExprRefCastNull, heapType,
+        kExprRefIsNull, // We can't expose the cast object to JS in most cases.
+      ]).exportFunc();
     }
   }
 
@@ -340,6 +350,13 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
           assertEquals(0, cast(create_value));
         } else {
           assertTraps(kTrapIllegalCast, () => cast(create_value));
+        }
+        let castNull = wasm[`cast_null_${test.source}_to_${target}`];
+        if (validValues.includes(value) || value == "nullref") {
+          let expected = value == "nullref" ? 1 : 0;
+          assertEquals(expected, castNull(create_value));
+        } else {
+          assertTraps(kTrapIllegalCast, () => castNull(create_value));
         }
       }
     }

@@ -498,27 +498,28 @@ class WasmGraphBuilder {
   Node* RefCast(Node* object, Node* rtt, WasmTypeCheckConfig config,
                 wasm::WasmCodePosition position);
   Node* RefCastAbstract(Node* object, wasm::HeapType type,
-                        wasm::WasmCodePosition position);
+                        wasm::WasmCodePosition position, bool null_succeeds);
   void BrOnCast(Node* object, Node* rtt, WasmTypeCheckConfig config,
                 Node** match_control, Node** match_effect,
                 Node** no_match_control, Node** no_match_effect);
   Node* RefIsEq(Node* object, bool object_can_be_null, bool null_succeeds);
   Node* RefAsEq(Node* object, bool object_can_be_null,
-                wasm::WasmCodePosition position);
+                wasm::WasmCodePosition position, bool null_succeeds);
   Node* RefIsStruct(Node* object, bool object_can_be_null, bool null_succeeds);
   Node* RefAsStruct(Node* object, bool object_can_be_null,
-                    wasm::WasmCodePosition position);
+                    wasm::WasmCodePosition position, bool null_succeeds);
   void BrOnStruct(Node* object, Node* rtt, WasmTypeCheckConfig config,
                   Node** match_control, Node** match_effect,
                   Node** no_match_control, Node** no_match_effect);
   Node* RefIsArray(Node* object, bool object_can_be_null, bool null_succeeds);
   Node* RefAsArray(Node* object, bool object_can_be_null,
-                   wasm::WasmCodePosition position);
+                   wasm::WasmCodePosition position, bool null_succeeds);
   void BrOnArray(Node* object, Node* rtt, WasmTypeCheckConfig config,
                  Node** match_control, Node** match_effect,
                  Node** no_match_control, Node** no_match_effect);
   Node* RefIsI31(Node* object, bool null_succeeds);
-  Node* RefAsI31(Node* object, wasm::WasmCodePosition position);
+  Node* RefAsI31(Node* object, wasm::WasmCodePosition position,
+                 bool null_succeeds);
   void BrOnI31(Node* object, Node* rtt, WasmTypeCheckConfig config,
                Node** match_control, Node** match_effect,
                Node** no_match_control, Node** no_match_effect);

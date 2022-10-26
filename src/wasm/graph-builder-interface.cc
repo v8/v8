@@ -1243,10 +1243,11 @@ class WasmGraphBuildingInterface {
   }
 
   void RefCastAbstract(FullDecoder* decoder, const Value& object,
-                       wasm::HeapType type, Value* result) {
+                       wasm::HeapType type, Value* result, bool null_succeeds) {
     TFNode* node = object.node;
     if (!v8_flags.experimental_wasm_assume_ref_cast_succeeds) {
-      node = builder_->RefCastAbstract(object.node, type, decoder->position());
+      node = builder_->RefCastAbstract(object.node, type, decoder->position(),
+                                       null_succeeds);
     }
     SetAndTypeNode(result, builder_->TypeGuard(node, result->type));
   }
@@ -1307,8 +1308,10 @@ class WasmGraphBuildingInterface {
   }
 
   void RefAsStruct(FullDecoder* decoder, const Value& object, Value* result) {
-    TFNode* cast_object = builder_->RefAsStruct(
-        object.node, object.type.is_nullable(), decoder->position());
+    bool null_succeeds = false;
+    TFNode* cast_object =
+        builder_->RefAsStruct(object.node, object.type.is_nullable(),
+                              decoder->position(), null_succeeds);
     TFNode* rename = builder_->TypeGuard(cast_object, result->type);
     SetAndTypeNode(result, rename);
   }
@@ -1335,8 +1338,10 @@ class WasmGraphBuildingInterface {
   }
 
   void RefAsArray(FullDecoder* decoder, const Value& object, Value* result) {
-    TFNode* cast_object = builder_->RefAsArray(
-        object.node, object.type.is_nullable(), decoder->position());
+    bool null_succeeds = false;
+    TFNode* cast_object =
+        builder_->RefAsArray(object.node, object.type.is_nullable(),
+                             decoder->position(), null_succeeds);
     TFNode* rename = builder_->TypeGuard(cast_object, result->type);
     SetAndTypeNode(result, rename);
   }
@@ -1361,7 +1366,9 @@ class WasmGraphBuildingInterface {
   }
 
   void RefAsI31(FullDecoder* decoder, const Value& object, Value* result) {
-    TFNode* cast_object = builder_->RefAsI31(object.node, decoder->position());
+    bool null_succeeds = false;
+    TFNode* cast_object =
+        builder_->RefAsI31(object.node, decoder->position(), null_succeeds);
     TFNode* rename = builder_->TypeGuard(cast_object, result->type);
     SetAndTypeNode(result, rename);
   }

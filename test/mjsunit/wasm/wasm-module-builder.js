@@ -513,6 +513,7 @@ let kExprRefTest = 0x40;
 let kExprRefTestNull = 0x48;
 let kExprRefTestDeprecated = 0x44;
 let kExprRefCast = 0x41;
+let kExprRefCastNull = 0x49;
 let kExprRefCastDeprecated = 0x45;
 let kExprBrOnCast = 0x46;
 let kExprBrOnCastFail = 0x47;

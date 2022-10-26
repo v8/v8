@@ -1078,7 +1078,8 @@ struct ControlBase : public PcForErrors<ValidationTag::full_validation> {
     bool null_succeeds)                                                        \
   F(RefCast, const Value& obj, const Value& rtt, Value* result,                \
     bool null_succeeds)                                                        \
-  F(RefCastAbstract, const Value& obj, HeapType type, Value* result)           \
+  F(RefCastAbstract, const Value& obj, HeapType type, Value* result,           \
+    bool null_succeeds)                                                        \
   F(AssertNull, const Value& obj, Value* result)                               \
   F(AssertNotNull, const Value& obj, Value* result)                            \
   F(BrOnCast, const Value& obj, const Value& rtt, Value* result_on_branch,     \
@@ -2139,6 +2140,7 @@ class WasmDecoder : public Decoder {
             return length + imm.length;
           }
           case kExprRefCast:
+          case kExprRefCastNull:
           case kExprRefTest:
           case kExprRefTestNull: {
             HeapTypeImmediate imm(WasmFeatures::All(), decoder, pc + length,
@@ -2378,6 +2380,7 @@ class WasmDecoder : public Decoder {
           case kExprRefTestNull:
           case kExprRefTestDeprecated:
           case kExprRefCast:
+          case kExprRefCastNull:
           case kExprRefCastDeprecated:
           case kExprRefCastNop:
           case kExprBrOnCast:
@@ -4804,7 +4807,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         Push(value);
         return opcode_length;
       }
-      case kExprRefCast: {
+      case kExprRefCast:
+      case kExprRefCastNull: {
         NON_CONST_ONLY
         HeapTypeImmediate imm(this->enabled_, this, this->pc_ + opcode_length,
                               this->module_, validate);
@@ -4834,8 +4838,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           return 0;
         }
 
-        // TODO(mliedtke): Add support for ref.cast null.
-        bool null_succeeds = false;
+        bool null_succeeds = opcode == kExprRefCastNull;
         Value value = CreateValue(ValueType::RefMaybeNull(
             imm.type, (obj.type.is_bottom() || !null_succeeds)
                           ? kNonNullable
@@ -4874,7 +4877,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
             if (rtt.has_value()) {
               CALL_INTERFACE(RefCast, obj, rtt.value(), &value, null_succeeds);
             } else {
-              CALL_INTERFACE(RefCastAbstract, obj, target_type, &value);
+              CALL_INTERFACE(RefCastAbstract, obj, target_type, &value,
+                             null_succeeds);
             }
           }
         }

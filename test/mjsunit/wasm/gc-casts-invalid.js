@@ -26,6 +26,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
     kExprRefTest,
     kExprRefTestNull,
     kExprRefCast,
+    kExprRefCastNull,
   ];
 
   for (let [source_type, target_type_imm] of types) {
