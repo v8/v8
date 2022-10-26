@@ -113,6 +113,13 @@ Reduction WasmGCLowering::ReduceWasmTypeCheck(Node* node) {
   gasm_.GotoIf(gasm_.TaggedEqual(map, rtt), &end_label, BranchHint::kTrue,
                gasm_.Int32Constant(1));
 
+  // Check if map instance type identifies a wasm object.
+  if (config.from.is_reference_to(wasm::HeapType::kAny)) {
+    Node* is_wasm_obj = gasm_.IsDataRefMap(map);
+    gasm_.GotoIfNot(is_wasm_obj, &end_label, BranchHint::kTrue,
+                    gasm_.Int32Constant(0));
+  }
+
   Node* type_info = gasm_.LoadWasmTypeInfo(map);
   DCHECK_GE(rtt_depth, 0);
   // If the depth of the rtt is known to be less that the minimum supertype
@@ -178,6 +185,12 @@ Reduction WasmGCLowering::ReduceWasmTypeCast(Node* node) {
   // First, check if types happen to be equal. This has been shown to give large
   // speedups.
   gasm_.GotoIf(gasm_.TaggedEqual(map, rtt), &end_label, BranchHint::kTrue);
+
+  // Check if map instance type identifies a wasm object.
+  if (config.from.is_reference_to(wasm::HeapType::kAny)) {
+    Node* is_wasm_obj = gasm_.IsDataRefMap(map);
+    gasm_.TrapUnless(is_wasm_obj, TrapId::kTrapIllegalCast);
+  }
 
   Node* type_info = gasm_.LoadWasmTypeInfo(map);
   DCHECK_GE(rtt_depth, 0);

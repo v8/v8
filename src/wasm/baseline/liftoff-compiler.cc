@@ -5876,6 +5876,17 @@ class LiftoffCompiler {
     // rtt.
     __ emit_cond_jump(kEqual, &match, rtt_type.kind(), tmp1, rtt_reg, frozen);
 
+    if (obj_type.is_reference_to(HeapType::kAny)) {
+      // Check for map being a map for a wasm object (struct, array, func).
+      __ Load(LiftoffRegister(scratch2), tmp1, no_reg,
+              wasm::ObjectAccess::ToTagged(Map::kInstanceTypeOffset),
+              LoadType::kI32Load16U);
+      __ emit_i32_subi(scratch2, scratch2, FIRST_WASM_OBJECT_TYPE);
+      __ emit_i32_cond_jumpi(kUnsignedGreaterThan, no_match, scratch2,
+                             LAST_WASM_OBJECT_TYPE - FIRST_WASM_OBJECT_TYPE,
+                             frozen);
+    }
+
     // Constant-time subtyping check: load exactly one candidate RTT from the
     // supertypes list.
     // Step 1: load the WasmTypeInfo into {tmp1}.
