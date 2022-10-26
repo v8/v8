@@ -32,6 +32,7 @@
 #include <memory>
 
 #include "include/v8-function.h"
+#include "include/v8-json.h"
 #include "include/v8-profiler.h"
 #include "src/api/api-inl.h"
 #include "src/base/hashmap.h"
@@ -1073,27 +1074,32 @@ TEST(HeapSnapshotJSONSerialization) {
   v8::Local<v8::String> json_string =
       v8::String::NewExternalOneByte(env->GetIsolate(), json_res)
           .ToLocalChecked();
-  env->Global()
-      ->Set(env.local(), v8_str("json_snapshot"), json_string)
-      .FromJust();
-  v8::Local<v8::Value> snapshot_parse_result = CompileRun(
-      "var parsed = JSON.parse(json_snapshot); true;");
-  CHECK(!snapshot_parse_result.IsEmpty());
+  v8::Local<v8::Context> context = v8::Context::New(env->GetIsolate());
+  v8::Local<v8::Value> snapshot_parse_result =
+      v8::JSON::Parse(context, json_string).ToLocalChecked();
+  CHECK(snapshot_parse_result->IsObject());
 
   // Verify that snapshot object has required fields.
   v8::Local<v8::Object> parsed_snapshot =
-      env->Global()
-          ->Get(env.local(), v8_str("parsed"))
-          .ToLocalChecked()
-          ->ToObject(env.local())
-          .ToLocalChecked();
-  CHECK(parsed_snapshot->Has(env.local(), v8_str("snapshot")).FromJust());
-  CHECK(parsed_snapshot->Has(env.local(), v8_str("nodes")).FromJust());
-  CHECK(parsed_snapshot->Has(env.local(), v8_str("edges")).FromJust());
-  CHECK(parsed_snapshot->Has(env.local(), v8_str("locations")).FromJust());
-  CHECK(parsed_snapshot->Has(env.local(), v8_str("strings")).FromJust());
+      snapshot_parse_result.As<v8::Object>();
+  CHECK(parsed_snapshot->Get(env.local(), v8_str("snapshot"))
+            .ToLocalChecked()
+            ->IsObject());
+  CHECK(parsed_snapshot->Get(env.local(), v8_str("nodes"))
+            .ToLocalChecked()
+            ->IsArray());
+  CHECK(parsed_snapshot->Get(env.local(), v8_str("edges"))
+            .ToLocalChecked()
+            ->IsArray());
+  CHECK(parsed_snapshot->Get(env.local(), v8_str("locations"))
+            .ToLocalChecked()
+            ->IsArray());
+  CHECK(parsed_snapshot->Get(env.local(), v8_str("strings"))
+            .ToLocalChecked()
+            ->IsArray());
 
   // Get node and edge "member" offsets.
+  env->Global()->Set(env.local(), v8_str("parsed"), parsed_snapshot).FromJust();
   v8::Local<v8::Value> meta_analysis_result = CompileRun(
       "var meta = parsed.snapshot.meta;\n"
       "var edge_count_offset = meta.node_fields.indexOf('edge_count');\n"
