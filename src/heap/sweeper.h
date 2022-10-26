@@ -130,7 +130,7 @@ class Sweeper {
 
   static const int kNumberOfSweepingSpaces =
       LAST_SWEEPABLE_SPACE - FIRST_SWEEPABLE_SPACE + 1;
-  static constexpr int kMaxSweeperTasks = kNumberOfSweepingSpaces;
+  static constexpr int kMaxSweeperTasks = 3;
 
   template <typename Callback>
   void ForAllSweepingSpaces(Callback callback) const {
