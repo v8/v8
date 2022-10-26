@@ -85,30 +85,41 @@ class Sweeper::SweeperJob final : public JobTask {
 
  private:
   void RunImpl(JobDelegate* delegate, bool is_joining_thread) {
-    static constexpr int non_new_space_sweeping_spaces =
-        kNumberOfSweepingSpaces - 1;
-    static_assert(NEW_SPACE ==
-                  FIRST_SWEEPABLE_SPACE + non_new_space_sweeping_spaces);
+    static_assert(NEW_SPACE == FIRST_SWEEPABLE_SPACE);
     const int offset = delegate->GetTaskId();
     DCHECK_LT(offset, concurrent_sweepers_->size());
-    ConcurrentSweeper& sweeper = (*concurrent_sweepers_)[offset];
+    ConcurrentSweeper& concurrent_sweeper = (*concurrent_sweepers_)[offset];
+    if (offset > 0) {
+      if (!SweepNonNewSpaces(concurrent_sweeper, delegate, is_joining_thread,
+                             offset, kNumberOfSweepingSpaces))
+        return;
+    }
     {
       TRACE_GC_EPOCH(
           tracer_, sweeper_->GetTracingScope(NEW_SPACE, is_joining_thread),
           is_joining_thread ? ThreadKind::kMain : ThreadKind::kBackground);
-      if (!sweeper.ConcurrentSweepSpace(NEW_SPACE, delegate)) return;
+      if (!concurrent_sweeper.ConcurrentSweepSpace(NEW_SPACE, delegate)) return;
     }
-    if (!sweeper_->should_sweep_non_new_spaces_) return;
+    if (!SweepNonNewSpaces(concurrent_sweeper, delegate, is_joining_thread, 1,
+                           offset == 0 ? kNumberOfSweepingSpaces : offset))
+      return;
+  }
+
+  bool SweepNonNewSpaces(ConcurrentSweeper& concurrent_sweeper,
+                         JobDelegate* delegate, bool is_joining_thread,
+                         int first_space_index, int last_space_index) {
+    if (!sweeper_->should_sweep_non_new_spaces_) return true;
     TRACE_GC_EPOCH(
         tracer_, sweeper_->GetTracingScope(OLD_SPACE, is_joining_thread),
         is_joining_thread ? ThreadKind::kMain : ThreadKind::kBackground);
-    for (int i = 0; i < non_new_space_sweeping_spaces; i++) {
-      const AllocationSpace space_id = static_cast<AllocationSpace>(
-          FIRST_SWEEPABLE_SPACE +
-          ((i + offset) % non_new_space_sweeping_spaces));
+    for (int i = first_space_index; i < last_space_index; i++) {
+      const AllocationSpace space_id =
+          static_cast<AllocationSpace>(FIRST_SWEEPABLE_SPACE + i);
       DCHECK_NE(NEW_SPACE, space_id);
-      if (!sweeper.ConcurrentSweepSpace(space_id, delegate)) return;
+      if (!concurrent_sweeper.ConcurrentSweepSpace(space_id, delegate))
+        return false;
     }
+    return true;
   }
 
   Sweeper* const sweeper_;

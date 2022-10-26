@@ -6413,8 +6413,7 @@ HeapObjectIterator::HeapObjectIterator(
     default:
       break;
   }
-  // By not calling |space_iterator_->HasNext()|, we assume that the old
-  // space is first returned and that it has been set up.
+  CHECK(space_iterator_->HasNext());
   object_iterator_ = space_iterator_->Next()->GetObjectIterator(heap_);
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) heap_->tp_heap_->ResetIterator();
 }
