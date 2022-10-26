@@ -1394,6 +1394,7 @@ bool MaglevGraphBuilder::TryFoldLoadDictPrototypeConstant(
 
 bool MaglevGraphBuilder::TryFoldLoadConstantDataField(
     compiler::PropertyAccessInfo access_info, ValueNode* lookup_start_object) {
+  if (!access_info.IsFastDataConstant()) return false;
   base::Optional<compiler::JSObjectRef> source;
   if (access_info.holder().has_value()) {
     source = access_info.holder();
