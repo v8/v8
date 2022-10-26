@@ -989,9 +989,7 @@ void MarkCompactCollector::Finish() {
 
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_FINISH);
 
-  auto* isolate = heap()->isolate();
-  isolate->global_handles()->ClearListOfYoungNodes();
-  isolate->traced_handles()->ClearListOfYoungNodes();
+  heap()->isolate()->global_handles()->ClearListOfYoungNodes();
 
   SweepArrayBufferExtensions();
 
@@ -1024,7 +1022,7 @@ void MarkCompactCollector::Finish() {
 
   if (have_code_to_deoptimize_) {
     // Some code objects were marked for deoptimization during the GC.
-    Deoptimizer::DeoptimizeMarkedCode(isolate);
+    Deoptimizer::DeoptimizeMarkedCode(isolate());
     have_code_to_deoptimize_ = false;
   }
 }
@@ -5860,9 +5858,7 @@ void MinorMarkCompactCollector::CollectGarbage() {
 
   SweepArrayBufferExtensions();
 
-  auto* isolate = heap()->isolate();
-  isolate->global_handles()->UpdateListOfYoungNodes();
-  isolate->traced_handles()->UpdateListOfYoungNodes();
+  heap()->isolate()->global_handles()->UpdateListOfYoungNodes();
 }
 
 void MinorMarkCompactCollector::MakeIterable(
