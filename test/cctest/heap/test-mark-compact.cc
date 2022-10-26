@@ -248,7 +248,7 @@ HEAP_TEST(ObjectStartBitmap) {
 
   {
     // We need a safepoint for calling FindBasePtr.
-    SafepointScope scope(heap);
+    IsolateSafepointScope scope(heap);
 
     for (int k = 0; k < obj1.Size(); ++k) {
       Address obj1_inner_ptr = obj1.address() + k;
@@ -285,7 +285,7 @@ HEAP_TEST(ObjectStartBitmap) {
 
   {
     // We need a safepoint for calling FindBasePtr.
-    SafepointScope scope(heap);
+    IsolateSafepointScope scope(heap);
 
     // After FindBasePtr, the bits should be properly set again.
     for (int k = 0; k < obj1.Size(); ++k) {
