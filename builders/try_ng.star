@@ -56,10 +56,7 @@ def try_ng_pair(
 
     # Migrate all blocking CQ builders and run experiment with optional bots.
     if orchestrator == ORCHESTRATOR.OPTIONAL:
-        if cq_properties == CQ.BLOCK:
-            orchestrator = ORCHESTRATOR.MIGRATED
-        elif cq_properties == CQ.OPTIONAL:
-            orchestrator = ORCHESTRATOR.EXP_20_PERCENT
+        orchestrator = ORCHESTRATOR.MIGRATED
 
     # Map CQ properties to orchestrator dependent on migration state.
     if orchestrator == ORCHESTRATOR.OPTIONAL:
