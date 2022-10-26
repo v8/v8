@@ -181,6 +181,9 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceTypedArrayConstructor(Node* node,
                                         const SharedFunctionInfoRef& shared);
   Reduction ReduceTypedArrayPrototypeToStringTag(Node* node);
+  Reduction ReduceArrayBufferViewByteLengthAccessor(Node* node,
+                                                    InstanceType instance_type);
+  Reduction ReduceTypedArrayPrototypeLength(Node* node);
 
   Reduction ReduceForInsufficientFeedback(Node* node, DeoptimizeReason reason);
 
@@ -216,7 +219,8 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceArrayBufferIsView(Node* node);
   Reduction ReduceArrayBufferViewAccessor(Node* node,
                                           InstanceType instance_type,
-                                          FieldAccess const& access);
+                                          FieldAccess const& access,
+                                          Builtin builtin);
 
   enum class DataViewAccess { kGet, kSet };
   Reduction ReduceDataViewAccess(Node* node, DataViewAccess access,
@@ -234,6 +238,8 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
 
   // The pendant to ReplaceWithValue when using GraphAssembler-based reductions.
   Reduction ReplaceWithSubgraph(JSCallReducerAssembler* gasm, Node* subgraph);
+  std::pair<Node*, Node*> ReleaseEffectAndControlFromAssembler(
+      JSCallReducerAssembler* gasm);
 
   // Helper to verify promise receiver maps are as expected.
   // On bailout from a reduction, be sure to return inference.NoChange().
