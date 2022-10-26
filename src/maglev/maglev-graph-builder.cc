@@ -1411,7 +1411,7 @@ bool MaglevGraphBuilder::TryFoldLoadConstantDataField(
   if (access_info.holder().has_value()) {
     source = access_info.holder();
   } else if (Constant* n = lookup_start_object->TryCast<Constant>()) {
-    if (n->ref().IsJSObject()) return false;
+    if (!n->ref().IsJSObject()) return false;
     source = n->ref().AsJSObject();
   } else {
     return false;
