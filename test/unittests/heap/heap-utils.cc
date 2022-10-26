@@ -8,6 +8,7 @@
 
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
+#include "src/heap/gc-tracer-inl.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/new-spaces.h"
@@ -50,11 +51,19 @@ int FixedArrayLenFromSize(int size) {
 
 void FillPageInPagedSpace(Page* page,
                           std::vector<Handle<FixedArray>>* out_handles) {
+  Heap* heap = page->heap();
   DCHECK(page->SweepingDone());
   PagedSpaceBase* paged_space = static_cast<PagedSpaceBase*>(page->owner());
   // Make sure the LAB is empty to guarantee that all free space is accounted
   // for in the freelist.
   DCHECK_EQ(paged_space->limit(), paged_space->top());
+
+  PauseAllocationObserversScope no_observers_scope(heap);
+
+  CollectionEpoch full_epoch =
+      heap->tracer()->CurrentEpoch(GCTracer::Scope::ScopeId::MARK_COMPACTOR);
+  CollectionEpoch young_epoch = heap->tracer()->CurrentEpoch(
+      GCTracer::Scope::ScopeId::MINOR_MARK_COMPACTOR);
 
   for (Page* p : *paged_space) {
     if (p != page) paged_space->UnlinkFreeListCategories(p);
@@ -72,56 +81,67 @@ void FillPageInPagedSpace(Page* page,
       [&available_sizes](FreeListCategory* category) {
         category->IterateNodesForTesting([&available_sizes](FreeSpace node) {
           int node_size = node.Size();
-          DCHECK_LT(0, FixedArrayLenFromSize(node_size));
-          available_sizes.push_back(node_size);
+          if (node_size >= kMaxRegularHeapObjectSize) {
+            available_sizes.push_back(node_size);
+          }
         });
       });
 
-  Isolate* isolate = page->heap()->isolate();
+  Isolate* isolate = heap->isolate();
 
   // Allocate as many max size arrays as possible, while making sure not to
   // leave behind a block too small to fit a FixedArray.
   const int max_array_length = FixedArrayLenFromSize(kMaxRegularHeapObjectSize);
   for (size_t i = 0; i < available_sizes.size(); ++i) {
     int available_size = available_sizes[i];
-    while (available_size >
-           kMaxRegularHeapObjectSize + FixedArray::kHeaderSize) {
+    while (available_size > kMaxRegularHeapObjectSize) {
       Handle<FixedArray> fixed_array = isolate->factory()->NewFixedArray(
           max_array_length, AllocationType::kYoung);
       if (out_handles) out_handles->push_back(fixed_array);
       available_size -= kMaxRegularHeapObjectSize;
     }
-    if (available_size > kMaxRegularHeapObjectSize) {
-      // Allocate less than kMaxRegularHeapObjectSize to ensure remaining space
-      // can be used to allcoate another FixedArray.
-      int array_size = kMaxRegularHeapObjectSize - FixedArray::kHeaderSize;
-      Handle<FixedArray> fixed_array = isolate->factory()->NewFixedArray(
-          FixedArrayLenFromSize(array_size), AllocationType::kYoung);
-      if (out_handles) out_handles->push_back(fixed_array);
-      available_size -= array_size;
-    }
-    DCHECK_LE(available_size, kMaxRegularHeapObjectSize);
-    DCHECK_LT(0, FixedArrayLenFromSize(available_size));
-    available_sizes[i] = available_size;
   }
 
-  // Allocate FixedArrays in remaining free list blocks, from largest to
-  // smallest.
-  std::sort(available_sizes.begin(), available_sizes.end(),
-            [](size_t a, size_t b) { return a > b; });
-  for (size_t i = 0; i < available_sizes.size(); ++i) {
-    int available_size = available_sizes[i];
-    DCHECK_LE(available_size, kMaxRegularHeapObjectSize);
-    int array_length = FixedArrayLenFromSize(available_size);
-    DCHECK_LT(0, array_length);
-    Handle<FixedArray> fixed_array =
-        isolate->factory()->NewFixedArray(array_length, AllocationType::kYoung);
-    if (out_handles) out_handles->push_back(fixed_array);
+  paged_space->FreeLinearAllocationArea();
+
+  // Allocate FixedArrays in remaining free list blocks, from largest
+  // category to smallest.
+  std::vector<std::vector<int>> remaining_sizes;
+  page->ForAllFreeListCategories(
+      [&remaining_sizes](FreeListCategory* category) {
+        remaining_sizes.push_back({});
+        std::vector<int>& sizes_in_category =
+            remaining_sizes[remaining_sizes.size() - 1];
+        category->IterateNodesForTesting([&sizes_in_category](FreeSpace node) {
+          int node_size = node.Size();
+          DCHECK_LT(0, FixedArrayLenFromSize(node_size));
+          sizes_in_category.push_back(node_size);
+        });
+      });
+  for (auto it = remaining_sizes.rbegin(); it != remaining_sizes.rend(); ++it) {
+    std::vector<int> sizes_in_category = *it;
+    for (int size : sizes_in_category) {
+      DCHECK_LE(size, kMaxRegularHeapObjectSize);
+      int array_length = FixedArrayLenFromSize(size);
+      DCHECK_LT(0, array_length);
+      Handle<FixedArray> fixed_array = isolate->factory()->NewFixedArray(
+          array_length, AllocationType::kYoung);
+      if (out_handles) out_handles->push_back(fixed_array);
+    }
   }
+
+  DCHECK_EQ(0, page->AvailableInFreeList());
+  DCHECK_EQ(0, page->AvailableInFreeListFromAllocatedBytes());
 
   for (Page* p : *paged_space) {
     if (p != page) paged_space->RelinkFreeListCategories(p);
   }
+
+  // Allocations in this method should not require a GC.
+  CHECK_EQ(full_epoch, heap->tracer()->CurrentEpoch(
+                           GCTracer::Scope::ScopeId::MARK_COMPACTOR));
+  CHECK_EQ(young_epoch, heap->tracer()->CurrentEpoch(
+                            GCTracer::Scope::ScopeId::MINOR_MARK_COMPACTOR));
 }
 
 }  // namespace
