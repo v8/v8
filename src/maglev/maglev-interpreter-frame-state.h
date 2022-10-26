@@ -65,29 +65,31 @@ void DestructivelyIntersect(ZoneMap<Key, Value>& lhs_map,
 
 // The intersection (using `&`) of any two NodeTypes must be a valid NodeType
 // (possibly "kUnknown").
+// All heap object types include the heap object bit, so that they can be
+// checked for AnyHeapObject with a single bit check.
 // TODO(leszeks): Figure out how to represent Number/Numeric with this encoding.
+#define NODE_TYPE_LIST(V)                              \
+  V(Unknown, 0)                                        \
+  V(Smi, (1 << 0))                                     \
+  V(AnyHeapObject, (1 << 1))                           \
+  V(String, (1 << 2) | kAnyHeapObject)                 \
+  V(Symbol, (1 << 3) | kAnyHeapObject)                 \
+  V(HeapNumber, (1 << 4) | kAnyHeapObject)             \
+  V(HeapObjectWithKnownMap, (1 << 5) | kAnyHeapObject) \
+  V(InternalizedString, (1 << 6) | kString)
+
 enum class NodeType {
-  kUnknown = 0,
-  kSmi = (1 << 0),
-  kAnyHeapObject = (1 << 1),
-  // All heap object types include the heap object bit, so that they can be
-  // checked for AnyHeapObject with a single bit check.
-  kString = (1 << 2) | kAnyHeapObject,
-  kSymbol = (1 << 3) | kAnyHeapObject,
-  kHeapNumber = (1 << 4) | kAnyHeapObject,
-  kHeapObjectWithKnownMap = (1 << 5) | kAnyHeapObject,
+#define DEFINE_NODE_TYPE(Name, Value) k##Name = Value,
+  NODE_TYPE_LIST(DEFINE_NODE_TYPE)
+#undef DEFINE_NODE_TYPE
 };
 
-inline bool NodeTypeIsSmi(NodeType type) { return type == NodeType::kSmi; }
-inline bool NodeTypeIsAnyHeapObject(NodeType type) {
-  return static_cast<int>(type) & static_cast<int>(NodeType::kAnyHeapObject);
-}
-inline bool NodeTypeIsString(NodeType type) {
-  return type == NodeType::kString;
-}
-inline bool NodeTypeIsSymbol(NodeType type) {
-  return type == NodeType::kSymbol;
-}
+#define DEFINE_NODE_TYPE_CHECK(Type, _)                                  \
+  inline bool NodeTypeIs##Type(NodeType type) {                          \
+    return static_cast<int>(type) & static_cast<int>(NodeType::k##Type); \
+  }
+NODE_TYPE_LIST(DEFINE_NODE_TYPE_CHECK)
+#undef DEFINE_NODE_TYPE_CHECK
 
 struct NodeInfo {
   NodeType type = NodeType::kUnknown;
@@ -108,6 +110,9 @@ struct NodeInfo {
   bool is_smi() const { return NodeTypeIsSmi(type); }
   bool is_any_heap_object() const { return NodeTypeIsAnyHeapObject(type); }
   bool is_string() const { return NodeTypeIsString(type); }
+  bool is_internalized_string() const {
+    return NodeTypeIsInternalizedString(type);
+  }
   bool is_symbol() const { return NodeTypeIsSymbol(type); }
 
   // Mutate this node info by merging in another node info, with the result

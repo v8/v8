@@ -645,28 +645,13 @@ void MaglevGraphBuilder::VisitCompareOperation() {
              kOperation == Operation::kStrictEqual);
       ValueNode *left, *right;
       if (IsRegisterEqualToAccumulator(0)) {
-        interpreter::Register reg = iterator_.GetRegisterOperand(0);
-        ValueNode* value = GetTaggedValue(reg);
-        if (!value->Is<CheckedInternalizedString>()) {
-          value = AddNewNode<CheckedInternalizedString>({value});
-          current_interpreter_frame_.set(reg, value);
-          current_interpreter_frame_.set(
-              interpreter::Register::virtual_accumulator(), value);
-        }
-        left = right = value;
+        left = right = GetInternalizedString(iterator_.GetRegisterOperand(0));
+        current_interpreter_frame_.set(
+            interpreter::Register::virtual_accumulator(), left);
       } else {
-        interpreter::Register reg = iterator_.GetRegisterOperand(0);
-        left = GetTaggedValue(reg);
-        if (!left->Is<CheckedInternalizedString>()) {
-          left = AddNewNode<CheckedInternalizedString>({left});
-          current_interpreter_frame_.set(reg, left);
-        }
-        right = GetAccumulatorTagged();
-        if (!right->Is<CheckedInternalizedString>()) {
-          right = AddNewNode<CheckedInternalizedString>({right});
-          current_interpreter_frame_.set(
-              interpreter::Register::virtual_accumulator(), right);
-        }
+        left = GetInternalizedString(iterator_.GetRegisterOperand(0));
+        right =
+            GetInternalizedString(interpreter::Register::virtual_accumulator());
       }
       if (TryBuildCompareOperation<BranchIfReferenceCompare>(kOperation, left,
                                                              right)) {

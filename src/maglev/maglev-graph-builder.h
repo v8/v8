@@ -659,6 +659,30 @@ class MaglevGraphBuilder {
     UNREACHABLE();
   }
 
+  void SetKnownType(ValueNode* node, NodeType type) {
+    NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(node);
+    known_info->type = type;
+  }
+
+  ValueNode* GetInternalizedString(interpreter::Register reg) {
+    ValueNode* node = GetTaggedValue(reg);
+    if (known_node_aspects()
+            .GetOrCreateInfoFor(node)
+            ->is_internalized_string()) {
+      return node;
+    }
+    if (Constant* constant = node->TryCast<Constant>()) {
+      if (constant->object().IsInternalizedString()) {
+        SetKnownType(constant, NodeType::kInternalizedString);
+        return constant;
+      }
+    }
+    node = AddNewNode<CheckedInternalizedString>({node});
+    SetKnownType(node, NodeType::kInternalizedString);
+    current_interpreter_frame_.set(reg, node);
+    return node;
+  }
+
   ValueNode* GetInt32(interpreter::Register reg) {
     ValueNode* value = current_interpreter_frame_.get(reg);
     switch (value->properties().value_representation()) {
