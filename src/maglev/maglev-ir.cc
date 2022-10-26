@@ -1246,12 +1246,10 @@ void CheckMaps::GenerateCode(MaglevAssembler* masm,
   size_t map_count = maps().size();
   for (size_t i = 0; i < map_count - 1; ++i) {
     Handle<Map> map = maps().at(i);
-    DCHECK(!map->is_migration_target());
     __ Cmp(FieldOperand(object, HeapObject::kMapOffset), map);
     __ j(equal, &done, Label::kNear);
   }
   Handle<Map> last_map = maps().at(map_count - 1);
-  DCHECK(!last_map->is_migration_target());
   __ Cmp(FieldOperand(object, HeapObject::kMapOffset), last_map);
   __ EmitEagerDeoptIf(not_equal, DeoptimizeReason::kWrongMap, this);
   __ bind(&done);
