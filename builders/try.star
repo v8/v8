@@ -261,7 +261,7 @@ try_builder(
 )
 
 try_builder(
-    name = "v8_win64_msvc_compile_rel",
+    name = "v8_win64_msvc_light_compile_rel",
     bucket = "try",
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.OPTIONAL,
