@@ -196,18 +196,18 @@ class TestCase(testcase.D8TestCase):
     return tokens[:2] == ["built-ins", "Atomics"]
 
   def _get_files_params(self):
-    return (
-        list(self.suite.harness) +
-        ([os.path.join(self.suite.root, "harness-agent.js")]
-         if self.__needs_harness_agent() else []) +
-        ([os.path.join(self.suite.root, "harness-ishtmldda.js")]
-         if "IsHTMLDDA" in self.test_record.get("features", []) else []) +
-        ([os.path.join(self.suite.root, "harness-adapt-donotevaluate.js")]
-         if self.fail_phase_only and not self._fail_phase_reverse else []) +
-        self._get_includes() +
-        (["--module"] if "module" in self.test_record else []) +
-        [self._get_source_path()]
-    )
+    harness_args = []
+    if "raw" not in self.test_record.get("flags", []):
+      harness_args = list(self.suite.harness)
+    return (harness_args + ([os.path.join(self.suite.root, "harness-agent.js")]
+                            if self.__needs_harness_agent() else []) +
+            ([os.path.join(self.suite.root, "harness-ishtmldda.js")]
+             if "IsHTMLDDA" in self.test_record.get("features", []) else []) +
+            ([os.path.join(self.suite.root, "harness-adapt-donotevaluate.js")]
+             if self.fail_phase_only and not self._fail_phase_reverse else []) +
+            self._get_includes() +
+            (["--module"] if "module" in self.test_record else []) +
+            [self._get_source_path()])
 
   def _get_suite_flags(self):
     return (
