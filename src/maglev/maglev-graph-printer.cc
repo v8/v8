@@ -405,8 +405,8 @@ void PrintEagerDeopt(std::ostream& os, std::vector<BasicBlock*> targets,
                      NodeBase* node, MaglevGraphLabeller* graph_labeller,
                      int max_node_id) {
   EagerDeoptInfo* deopt_info = node->eager_deopt_info();
-  InputLocation* current_input_location = deopt_info->input_locations;
-  RecursivePrintEagerDeopt(os, targets, deopt_info->state, deopt_info->unit,
+  InputLocation* current_input_location = deopt_info->input_locations();
+  RecursivePrintEagerDeopt(os, targets, deopt_info->state(), deopt_info->unit(),
                            graph_labeller, max_node_id, current_input_location);
 }
 
@@ -454,20 +454,20 @@ void PrintLazyDeopt(std::ostream& os, std::vector<BasicBlock*> targets,
                     NodeT* node, MaglevGraphLabeller* graph_labeller,
                     int max_node_id) {
   LazyDeoptInfo* deopt_info = node->lazy_deopt_info();
-  InputLocation* current_input_location = deopt_info->input_locations;
-  if (deopt_info->state.parent) {
-    RecursivePrintLazyDeopt(os, targets, *deopt_info->state.parent,
-                            *deopt_info->unit.caller(), graph_labeller,
+  InputLocation* current_input_location = deopt_info->input_locations();
+  if (deopt_info->state().parent) {
+    RecursivePrintLazyDeopt(os, targets, *deopt_info->state().parent,
+                            *deopt_info->unit().caller(), graph_labeller,
                             max_node_id, current_input_location);
   }
 
   PrintVerticalArrows(os, targets);
   PrintPadding(os, graph_labeller, max_node_id, 0);
 
-  os << "  ↳ lazy @" << deopt_info->state.bytecode_position << " : {";
+  os << "  ↳ lazy @" << deopt_info->state().bytecode_position << " : {";
   bool first = true;
-  deopt_info->state.register_frame->ForEachValue(
-      deopt_info->unit, [&](ValueNode* node, interpreter::Register reg) {
+  deopt_info->state().register_frame->ForEachValue(
+      deopt_info->unit(), [&](ValueNode* node, interpreter::Register reg) {
         if (first) {
           first = false;
         } else {
@@ -513,8 +513,8 @@ void PrintExceptionHandlerPoint(std::ostream& os,
 
   os << "  ↳ throw @" << handler_offset << " : {";
   bool first = true;
-  deopt_info->state.register_frame->ForEachValue(
-      deopt_info->unit, [&](ValueNode* node, interpreter::Register reg) {
+  deopt_info->state().register_frame->ForEachValue(
+      deopt_info->unit(), [&](ValueNode* node, interpreter::Register reg) {
         if (!reg.is_parameter() && !liveness->RegisterIsLive(reg.index())) {
           // Skip, since not live at the handler offset.
           return;

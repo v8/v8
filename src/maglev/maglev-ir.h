@@ -682,12 +682,22 @@ class DeoptInfo {
             SourcePosition source_position);
 
  public:
-  const MaglevCompilationUnit& unit;
-  CheckpointedInterpreterState state;
-  InputLocation* input_locations = nullptr;
-  Label deopt_entry_label;
-  SourcePosition source_position;
-  int translation_index = -1;
+  const MaglevCompilationUnit& unit() const { return unit_; }
+  CheckpointedInterpreterState state() const { return state_; }
+  InputLocation* input_locations() const { return input_locations_; }
+  Label* deopt_entry_label() { return &deopt_entry_label_; }
+  SourcePosition source_position() const { return source_position_; }
+
+  int translation_index() const { return translation_index_; }
+  void set_translation_index(int index) { translation_index_ = index; }
+
+ private:
+  const MaglevCompilationUnit& unit_;
+  const CheckpointedInterpreterState state_;
+  InputLocation* const input_locations_;
+  Label deopt_entry_label_;
+  const SourcePosition source_position_;
+  int translation_index_ = -1;
 };
 
 struct RegisterSnapshot {
@@ -702,7 +712,12 @@ class EagerDeoptInfo : public DeoptInfo {
                  CheckpointedInterpreterState checkpoint,
                  SourcePosition source_position)
       : DeoptInfo(zone, compilation_unit, checkpoint, source_position) {}
-  DeoptimizeReason reason = DeoptimizeReason::kUnknown;
+
+  DeoptimizeReason reason() const { return reason_; }
+  void set_reason(DeoptimizeReason reason) { reason_ = reason; }
+
+ private:
+  DeoptimizeReason reason_ = DeoptimizeReason::kUnknown;
 };
 
 class LazyDeoptInfo : public DeoptInfo {
@@ -712,12 +727,26 @@ class LazyDeoptInfo : public DeoptInfo {
                 SourcePosition source_position)
       : DeoptInfo(zone, compilation_unit, checkpoint, source_position) {}
 
-  bool IsResultRegister(interpreter::Register reg) const;
+  interpreter::Register result_location() const { return result_location_; }
+  int result_size() const { return result_size_; }
 
-  int deopting_call_return_pc = -1;
-  interpreter::Register result_location =
+  bool IsResultRegister(interpreter::Register reg) const;
+  void SetResultLocation(interpreter::Register result_location,
+                         int result_size) {
+    DCHECK(result_location.is_valid());
+    DCHECK(!result_location_.is_valid());
+    result_location_ = result_location;
+    result_size_ = result_size;
+  }
+
+  int deopting_call_return_pc() const { return deopting_call_return_pc_; }
+  void set_deopting_call_return_pc(int pc) { deopting_call_return_pc_ = pc; }
+
+ private:
+  int deopting_call_return_pc_ = -1;
+  interpreter::Register result_location_ =
       interpreter::Register::invalid_value();
-  int result_size = 1;
+  int result_size_ = 1;
 };
 
 class ExceptionHandlerInfo {

@@ -129,7 +129,8 @@ class SaveRegisterStateForCall {
 
   MaglevSafepointTableBuilder::Safepoint DefineSafepointWithLazyDeopt(
       LazyDeoptInfo* lazy_deopt_info) {
-    lazy_deopt_info->deopting_call_return_pc = masm->pc_offset_for_safepoint();
+    lazy_deopt_info->set_deopting_call_return_pc(
+        masm->pc_offset_for_safepoint());
     masm->code_gen_state()->PushLazyDeopt(lazy_deopt_info);
     return DefineSafepoint();
   }
@@ -389,25 +390,25 @@ size_t GetInputLocationsArraySize(const MaglevCompilationUnit& compilation_unit,
 DeoptInfo::DeoptInfo(Zone* zone, const MaglevCompilationUnit& compilation_unit,
                      CheckpointedInterpreterState state,
                      SourcePosition source_position)
-    : unit(compilation_unit),
-      state(state),
-      input_locations(zone->NewArray<InputLocation>(
+    : unit_(compilation_unit),
+      state_(state),
+      input_locations_(zone->NewArray<InputLocation>(
           GetInputLocationsArraySize(compilation_unit, state))),
-      source_position(source_position) {
+      source_position_(source_position) {
   // Initialise InputLocations so that they correctly don't have a next use id.
   for (size_t i = 0; i < GetInputLocationsArraySize(compilation_unit, state);
        ++i) {
-    new (&input_locations[i]) InputLocation();
+    new (&input_locations_[i]) InputLocation();
   }
 }
 
 bool LazyDeoptInfo::IsResultRegister(interpreter::Register reg) const {
-  if (V8_LIKELY(result_size == 1)) {
-    return reg == result_location;
+  if (V8_LIKELY(result_size_ == 1)) {
+    return reg == result_location_;
   }
-  DCHECK_EQ(result_size, 2);
-  return reg == result_location ||
-         reg == interpreter::Register(result_location.index() + 1);
+  DCHECK_EQ(result_size_, 2);
+  return reg == result_location_ ||
+         reg == interpreter::Register(result_location_.index() + 1);
 }
 
 // ---
@@ -1231,7 +1232,7 @@ void CheckMaps::GenerateCode(MaglevAssembler* masm,
   // deopt when we intersect the map sets.
   if (maps().is_empty()) {
     __ RegisterEagerDeopt(eager_deopt_info(), DeoptimizeReason::kWrongMap);
-    __ jmp(&eager_deopt_info()->deopt_entry_label);
+    __ jmp(eager_deopt_info()->deopt_entry_label());
     return;
   }
 
@@ -1377,7 +1378,7 @@ void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
   // TODO(victorgomes): This can happen, because we do not emit an unconditional
   // deopt when we intersect the map sets.
   if (maps().is_empty()) {
-    __ jmp(&eager_deopt_info()->deopt_entry_label);
+    __ jmp(eager_deopt_info()->deopt_entry_label());
     return;
   }
 
@@ -1387,7 +1388,7 @@ void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
     __ AssertNotSmi(object);
   } else {
     Condition is_smi = __ CheckSmi(object);
-    __ j(is_smi, &eager_deopt_info()->deopt_entry_label);
+    __ j(is_smi, eager_deopt_info()->deopt_entry_label());
   }
 
   ZoneLabelRef done(masm);
@@ -1453,13 +1454,13 @@ void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
           // If this is the last map to check, we should deopt if we fail.
           // This is safe to do, since {eager_deopt_info} is ZoneAllocated.
           (last_map ? ZoneLabelRef::UnsafeFromLabelPointer(
-                          &eager_deopt_info()->deopt_entry_label)
+                          eager_deopt_info()->deopt_entry_label())
                     : continue_label),
           done, object, i, this);
     } else if (last_map) {
       // If it is the last map and it is not a migration target, we should deopt
       // if the check fails.
-      __ j(not_equal, &eager_deopt_info()->deopt_entry_label);
+      __ j(not_equal, eager_deopt_info()->deopt_entry_label());
     }
 
     if (!last_map) {
@@ -1586,10 +1587,10 @@ void CheckedInternalizedString::GenerateCode(MaglevAssembler* masm,
         static_assert(kThinStringTagBit > 0);
         // Deopt if this isn't a string.
         __ testw(map_tmp, Immediate(kIsNotStringMask));
-        __ j(not_zero, &deopt_info->deopt_entry_label);
+        __ j(not_zero, deopt_info->deopt_entry_label());
         // Deopt if this isn't a thin string.
         __ testb(map_tmp, Immediate(kThinStringTagBit));
-        __ j(zero, &deopt_info->deopt_entry_label);
+        __ j(zero, deopt_info->deopt_entry_label());
         __ LoadTaggedPointerField(
             object, FieldOperand(object, ThinString::kActualOffset));
         if (v8_flags.debug_code) {

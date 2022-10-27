@@ -484,8 +484,9 @@ class ExceptionHandlerTrampolineBuilder {
     ParallelMoveResolver<Register> direct_moves(masm_);
     MoveVector materialising_moves;
     bool save_accumulator = false;
-    RecordMoves(deopt_info->unit, catch_block, deopt_info->state.register_frame,
-                &direct_moves, &materialising_moves, &save_accumulator);
+    RecordMoves(deopt_info->unit(), catch_block,
+                deopt_info->state().register_frame, &direct_moves,
+                &materialising_moves, &save_accumulator);
 
     __ bind(&handler_info->trampoline_entry);
     __ RecordComment("-- Exception handler trampoline START");
@@ -990,33 +991,33 @@ class MaglevTranslationArrayBuilder {
         deopt_literals_(deopt_literals) {}
 
   void BuildEagerDeopt(EagerDeoptInfo* deopt_info) {
-    int frame_count = 1 + deopt_info->unit.inlining_depth();
+    int frame_count = 1 + deopt_info->unit().inlining_depth();
     int jsframe_count = frame_count;
     int update_feedback_count = 0;
-    deopt_info->translation_index =
+    deopt_info->set_translation_index(
         translation_array_builder_->BeginTranslation(frame_count, jsframe_count,
-                                                     update_feedback_count);
+                                                     update_feedback_count));
 
-    const InputLocation* current_input_location = deopt_info->input_locations;
-    BuildDeoptFrame(deopt_info->unit, deopt_info->state,
+    const InputLocation* current_input_location = deopt_info->input_locations();
+    BuildDeoptFrame(deopt_info->unit(), deopt_info->state(),
                     current_input_location);
   }
 
   void BuildLazyDeopt(LazyDeoptInfo* deopt_info) {
-    int frame_count = 1 + deopt_info->unit.inlining_depth();
+    int frame_count = 1 + deopt_info->unit().inlining_depth();
     int jsframe_count = frame_count;
     int update_feedback_count = 0;
-    deopt_info->translation_index =
+    deopt_info->set_translation_index(
         translation_array_builder_->BeginTranslation(frame_count, jsframe_count,
-                                                     update_feedback_count);
+                                                     update_feedback_count));
 
-    const MaglevCompilationUnit& unit = deopt_info->unit;
-    const InputLocation* current_input_location = deopt_info->input_locations;
+    const MaglevCompilationUnit& unit = deopt_info->unit();
+    const InputLocation* current_input_location = deopt_info->input_locations();
 
-    if (deopt_info->state.parent) {
+    if (deopt_info->state().parent) {
       // Deopt input locations are in the order of deopt frame emission, so
       // update the pointer after emitting the parent frame.
-      BuildDeoptFrame(*unit.caller(), *deopt_info->state.parent,
+      BuildDeoptFrame(*unit.caller(), *deopt_info->state().parent,
                       current_input_location);
     }
 
@@ -1024,10 +1025,10 @@ class MaglevTranslationArrayBuilder {
     // is the array [parameters..., locals..., accumulator]. Since it's the end,
     // we don't need to worry about earlier frames.
     int return_offset;
-    if (deopt_info->result_location ==
+    if (deopt_info->result_location() ==
         interpreter::Register::virtual_accumulator()) {
       return_offset = 0;
-    } else if (deopt_info->result_location.is_parameter()) {
+    } else if (deopt_info->result_location().is_parameter()) {
       // This is slightly tricky to reason about because of zero indexing and
       // fence post errors. As an example, consider a frame with 2 locals and
       // 2 parameters, where we want argument index 1 -- looking at the array
@@ -1037,19 +1038,19 @@ class MaglevTranslationArrayBuilder {
       // and this calculation gives, correctly:
       //   2 + 2 - 1 = 3
       return_offset = unit.register_count() + unit.parameter_count() -
-                      deopt_info->result_location.ToParameterIndex();
+                      deopt_info->result_location().ToParameterIndex();
     } else {
       return_offset =
-          unit.register_count() - deopt_info->result_location.index();
+          unit.register_count() - deopt_info->result_location().index();
     }
     translation_array_builder_->BeginInterpretedFrame(
-        deopt_info->state.bytecode_position,
+        deopt_info->state().bytecode_position,
         GetDeoptLiteral(*unit.shared_function_info().object()),
-        unit.register_count(), return_offset, deopt_info->result_size);
+        unit.register_count(), return_offset, deopt_info->result_size());
 
-    BuildDeoptFrameValues(unit, deopt_info->state.register_frame,
-                          current_input_location, deopt_info->result_location,
-                          deopt_info->result_size);
+    BuildDeoptFrameValues(unit, deopt_info->state().register_frame,
+                          current_input_location, deopt_info->result_location(),
+                          deopt_info->result_size());
   }
 
  private:
@@ -1295,12 +1296,12 @@ void MaglevCodeGenerator::EmitDeopts() {
     translation_builder.BuildEagerDeopt(deopt_info);
 
     if (masm_.compilation_info()->collect_source_positions()) {
-      __ RecordDeoptReason(deopt_info->reason, 0, deopt_info->source_position,
-                           deopt_index);
+      __ RecordDeoptReason(deopt_info->reason(), 0,
+                           deopt_info->source_position(), deopt_index);
     }
-    __ bind(&deopt_info->deopt_entry_label);
+    __ bind(deopt_info->deopt_entry_label());
     __ CallForDeoptimization(Builtin::kDeoptimizationEntry_Eager, deopt_index,
-                             &deopt_info->deopt_entry_label,
+                             deopt_info->deopt_entry_label(),
                              DeoptimizeKind::kEager, nullptr, nullptr);
     deopt_index++;
   }
@@ -1313,16 +1314,16 @@ void MaglevCodeGenerator::EmitDeopts() {
 
     if (masm_.compilation_info()->collect_source_positions()) {
       __ RecordDeoptReason(DeoptimizeReason::kUnknown, 0,
-                           deopt_info->source_position, deopt_index);
+                           deopt_info->source_position(), deopt_index);
     }
-    __ bind(&deopt_info->deopt_entry_label);
+    __ bind(deopt_info->deopt_entry_label());
     __ CallForDeoptimization(Builtin::kDeoptimizationEntry_Lazy, deopt_index,
-                             &deopt_info->deopt_entry_label,
+                             deopt_info->deopt_entry_label(),
                              DeoptimizeKind::kLazy, nullptr, nullptr);
 
     last_updated_safepoint = safepoint_table_builder_.UpdateDeoptimizationInfo(
-        deopt_info->deopting_call_return_pc,
-        deopt_info->deopt_entry_label.pos(), last_updated_safepoint,
+        deopt_info->deopting_call_return_pc(),
+        deopt_info->deopt_entry_label()->pos(), last_updated_safepoint,
         deopt_index);
     deopt_index++;
   }
@@ -1430,22 +1431,22 @@ Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(
   // Populate deoptimization entries.
   int i = 0;
   for (EagerDeoptInfo* deopt_info : code_gen_state_.eager_deopts()) {
-    DCHECK_NE(deopt_info->translation_index, -1);
-    raw_data.SetBytecodeOffset(i, deopt_info->state.bytecode_position);
+    DCHECK_NE(deopt_info->translation_index(), -1);
+    raw_data.SetBytecodeOffset(i, deopt_info->state().bytecode_position);
     raw_data.SetTranslationIndex(i,
-                                 Smi::FromInt(deopt_info->translation_index));
-    raw_data.SetPc(i, Smi::FromInt(deopt_info->deopt_entry_label.pos()));
+                                 Smi::FromInt(deopt_info->translation_index()));
+    raw_data.SetPc(i, Smi::FromInt(deopt_info->deopt_entry_label()->pos()));
 #ifdef DEBUG
     raw_data.SetNodeId(i, Smi::FromInt(i));
 #endif  // DEBUG
     i++;
   }
   for (LazyDeoptInfo* deopt_info : code_gen_state_.lazy_deopts()) {
-    DCHECK_NE(deopt_info->translation_index, -1);
-    raw_data.SetBytecodeOffset(i, deopt_info->state.bytecode_position);
+    DCHECK_NE(deopt_info->translation_index(), -1);
+    raw_data.SetBytecodeOffset(i, deopt_info->state().bytecode_position);
     raw_data.SetTranslationIndex(i,
-                                 Smi::FromInt(deopt_info->translation_index));
-    raw_data.SetPc(i, Smi::FromInt(deopt_info->deopt_entry_label.pos()));
+                                 Smi::FromInt(deopt_info->translation_index()));
+    raw_data.SetPc(i, Smi::FromInt(deopt_info->deopt_entry_label()->pos()));
 #ifdef DEBUG
     raw_data.SetNodeId(i, Smi::FromInt(i));
 #endif  // DEBUG

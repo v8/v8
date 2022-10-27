@@ -859,10 +859,7 @@ class MaglevGraphBuilder {
     DCHECK_EQ(NodeT::kProperties.can_lazy_deopt(),
               value->properties().can_lazy_deopt());
     if constexpr (NodeT::kProperties.can_lazy_deopt()) {
-      DCHECK(result_location.is_valid());
-      DCHECK(!value->lazy_deopt_info()->result_location.is_valid());
-      value->lazy_deopt_info()->result_location = result_location;
-      value->lazy_deopt_info()->result_size = result_size;
+      value->lazy_deopt_info()->SetResultLocation(result_location, result_size);
     }
   }
 
