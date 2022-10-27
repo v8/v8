@@ -45,15 +45,6 @@ try_builder(
 )
 
 try_builder(
-    name = "v8_fuchsia_compile_rel",
-    bucket = "try",
-    cq_properties = CQ.BLOCK,
-    dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-    properties = {"target_platform": "fuchsia"},
-    use_goma = GOMA.DEFAULT,
-)
-
-try_builder(
     name = "v8_full_presubmit",
     bucket = "try",
     cq_properties = CQ.BLOCK,
@@ -108,15 +99,6 @@ try_builder(
 
 try_builder(
     name = "v8_linux64_gcc_compile_dbg",
-    bucket = "try",
-    cq_properties = CQ.OPTIONAL,
-    dimensions = {"os": "Ubuntu-20.04", "cpu": "x86-64"},
-    execution_timeout = 5400,
-    use_goma = GOMA.NO,
-)
-
-try_builder(
-    name = "v8_linux64_gcc_compile_rel",
     bucket = "try",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-20.04", "cpu": "x86-64"},
@@ -240,15 +222,6 @@ try_builder(
     use_goma = GOMA.DEFAULT,
 )
 
-#TODO(almuthanna): add this to Branch CQ after current milestone + 3 (i.e. M100).
-try_builder(
-    name = "v8_mac64_asan_compile_rel",
-    bucket = "try",
-    cq_properties = CQ.EXP_100_PERCENT,
-    dimensions = {"os": "Mac-10.15"},
-    use_goma = GOMA.DEFAULT,
-)
-
 try_builder(
     name = "v8_linux_torque_compare",
     bucket = "try",
@@ -264,42 +237,6 @@ try_builder(
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     gclient_vars = [GCLIENT_VARS.ITTAPI],
-    use_goma = GOMA.DEFAULT,
-)
-
-try_builder(
-    name = "v8_mac_arm64_compile_rel",
-    bucket = "try",
-    cq_properties = CQ.OPTIONAL,
-    dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
-    execution_timeout = 7200,
-    use_goma = GOMA.DEFAULT,
-)
-
-try_builder(
-    name = "v8_mac_arm64_compile_dbg",
-    bucket = "try",
-    cq_properties = CQ.OPTIONAL,
-    dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
-    execution_timeout = 7200,
-    use_goma = GOMA.DEFAULT,
-)
-
-try_builder(
-    name = "v8_mac_arm64_sim_compile_rel",
-    bucket = "try",
-    cq_properties = CQ.OPTIONAL,
-    dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
-    execution_timeout = 7200,
-    use_goma = GOMA.DEFAULT,
-)
-
-try_builder(
-    name = "v8_mac_arm64_sim_compile_dbg",
-    bucket = "try",
-    cq_properties = CQ.OPTIONAL,
-    dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
-    execution_timeout = 7200,
     use_goma = GOMA.DEFAULT,
 )
 
@@ -332,15 +269,6 @@ try_builder(
     execution_timeout = 3600,
     properties = {"default_targets": ["d8"], "use_goma": False},
     use_goma = GOMA.NO,
-)
-
-try_builder(
-    name = "v8_win_compile_dbg",
-    bucket = "try",
-    cq_properties = CQ.BLOCK,
-    cq_branch_properties = CQ.BLOCK,
-    dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-    use_goma = GOMA.ATS,
 )
 
 try_builder(
