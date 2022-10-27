@@ -119,7 +119,7 @@ PromiseAnyRejectElementClosure(
           kPromiseAnyRejectElementRemainingSlot);
 
   // 9. Set errors[index] to x.
-  const newCapacity = IntPtrMax(SmiUntag(remainingElementsCount), index + 1);
+  const newCapacity = index + 1;
   if (newCapacity > errors.length_intptr) deferred {
       errors = ExtractFixedArray(errors, 0, errors.length_intptr, newCapacity);
       *ContextSlot(
