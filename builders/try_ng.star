@@ -131,9 +131,9 @@ def try_ng_pair(
 
     # Generate orchestrator trybot.
     # The corresponding compilator name gets an infix like:
-    # v8_linux_rel -> v8_linux_compile_ng_rel.
+    # v8_linux_rel -> v8_linux_compile_rel.
     prefix, suffix = name.rsplit("_", 1)
-    compilator_name = prefix + "_compile_ng_" + suffix
+    compilator_name = prefix + "_compile_" + suffix
     v8_builder(
         defaults_triggered,
         name = name,
