@@ -3722,7 +3722,11 @@ void TurboAssembler::StoreF32LE(DoubleRegister dst, const MemOperand& mem,
   V(I8x16AddSatS, vaddsbs) \
   V(I8x16SubSatS, vsubsbs) \
   V(I8x16AddSatU, vaddubs) \
-  V(I8x16SubSatU, vsububs)
+  V(I8x16SubSatU, vsububs) \
+  V(S128And, vand)         \
+  V(S128Or, vor)           \
+  V(S128Xor, vxor)         \
+  V(S128AndNot, vandc)
 
 #define EMIT_SIMD_BINOP(name, op)                                      \
   void TurboAssembler::name(Simd128Register dst, Simd128Register src1, \
@@ -4336,6 +4340,10 @@ void TurboAssembler::I16x8UConvertI8x16High(Simd128Register dst,
   mtvsrd(scratch2, scratch1);
   vsplth(scratch2, scratch2, Operand(3));
   vand(dst, scratch2, dst);
+}
+
+void TurboAssembler::S128Not(Simd128Register dst, Simd128Register src) {
+  vnor(dst, src, src);
 }
 
 Register GetRegisterThatIsNotOneOf(Register reg1, Register reg2, Register reg3,

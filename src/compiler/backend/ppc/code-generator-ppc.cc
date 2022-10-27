@@ -2263,7 +2263,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   V(I8x16AddSatU)          \
   V(I8x16SubSatU)          \
   V(I8x16SConvertI16x8)    \
-  V(I8x16UConvertI16x8)
+  V(I8x16UConvertI16x8)    \
+  V(S128And)               \
+  V(S128Or)                \
+  V(S128Xor)               \
+  V(S128AndNot)
 
 #define EMIT_SIMD_BINOP(name)                                     \
   case kPPC_##name: {                                             \
@@ -2349,7 +2353,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   V(I32x4SConvertI16x8High) \
   V(I16x8SConvertI8x16Low)  \
   V(I16x8SConvertI8x16High) \
-  V(I8x16Popcnt)
+  V(I8x16Popcnt)            \
+  V(S128Not)
 
 #define EMIT_SIMD_UNOP(name)                                       \
   case kPPC_##name: {                                              \
@@ -2504,24 +2509,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                   kScratchSimd128Reg2);
       break;
     }
-    case kPPC_S128And: {
-      Simd128Register dst = i.OutputSimd128Register();
-      Simd128Register src = i.InputSimd128Register(1);
-      __ vand(dst, i.InputSimd128Register(0), src);
-      break;
-    }
-    case kPPC_S128Or: {
-      Simd128Register dst = i.OutputSimd128Register();
-      Simd128Register src = i.InputSimd128Register(1);
-      __ vor(dst, i.InputSimd128Register(0), src);
-      break;
-    }
-    case kPPC_S128Xor: {
-      Simd128Register dst = i.OutputSimd128Register();
-      Simd128Register src = i.InputSimd128Register(1);
-      __ vxor(dst, i.InputSimd128Register(0), src);
-      break;
-    }
     case kPPC_S128Const: {
       uint64_t low = make_uint64(i.InputUint32(1), i.InputUint32(0));
       uint64_t high = make_uint64(i.InputUint32(3), i.InputUint32(2));
@@ -2538,12 +2525,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kPPC_S128AllOnes: {
       Simd128Register dst = i.OutputSimd128Register();
       __ vcmpequb(dst, dst, dst);
-      break;
-    }
-    case kPPC_S128Not: {
-      Simd128Register dst = i.OutputSimd128Register();
-      Simd128Register src = i.InputSimd128Register(0);
-      __ vnor(dst, src, src);
       break;
     }
     case kPPC_S128Select: {
@@ -2728,12 +2709,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kPPC_I8x16RoundingAverageU: {
       __ vavgub(i.OutputSimd128Register(), i.InputSimd128Register(0),
                 i.InputSimd128Register(1));
-      break;
-    }
-    case kPPC_S128AndNot: {
-      Simd128Register dst = i.OutputSimd128Register();
-      Simd128Register src = i.InputSimd128Register(0);
-      __ vandc(dst, src, i.InputSimd128Register(1));
       break;
     }
     case kPPC_I64x2BitMask: {
