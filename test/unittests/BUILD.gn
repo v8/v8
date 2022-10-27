@@ -366,6 +366,7 @@ v8_source_set("unittests_sources") {
     "compiler/simplified-operator-unittest.cc",
     "compiler/sloppy-equality-unittest.cc",
     "compiler/state-values-utils-unittest.cc",
+    "compiler/turboshaft/snapshot-table-unittest.cc",
     "compiler/typed-optimization-unittest.cc",
     "compiler/typer-unittest.cc",
     "compiler/types-unittest.cc",

@@ -2907,6 +2907,7 @@ filegroup(
         "src/compiler/turboshaft/sidetable.h",
         "src/compiler/turboshaft/simplify-tf-loops.cc",
         "src/compiler/turboshaft/simplify-tf-loops.h",
+        "src/compiler/turboshaft/snapshot-table.h",
         "src/compiler/turboshaft/utils.cc",
         "src/compiler/turboshaft/utils.h",
         "src/compiler/turboshaft/value-numbering-reducer.h",
