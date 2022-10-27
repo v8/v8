@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COMPILER_TURBOSHAFT_SELECT_LOWERING_ASSEMBLER_H_
-#define V8_COMPILER_TURBOSHAFT_SELECT_LOWERING_ASSEMBLER_H_
+#ifndef V8_COMPILER_TURBOSHAFT_SELECT_LOWERING_REDUCER_H_
+#define V8_COMPILER_TURBOSHAFT_SELECT_LOWERING_REDUCER_H_
 
 #include "src/base/vector.h"
 #include "src/compiler/common-operator.h"
@@ -22,7 +22,7 @@ namespace v8::internal::compiler::turboshaft {
 //
 //       res = cond ? val_true : val_false
 //
-// SelectLoweringAssembler lowers such operations into:
+// SelectLoweringReducer lowers such operations into:
 //
 //     if (cond) {
 //         res = val_true
@@ -30,12 +30,12 @@ namespace v8::internal::compiler::turboshaft {
 //         res = val_false
 //     }
 
-template <class Base>
-class SelectLoweringAssembler
-    : public AssemblerInterface<SelectLoweringAssembler<Base>, Base> {
+template <class Next>
+class SelectLoweringReducer : public Next {
  public:
-  SelectLoweringAssembler(Graph* graph, Zone* phase_zone)
-      : AssemblerInterface<SelectLoweringAssembler, Base>(graph, phase_zone) {}
+  using Next::Asm;
+  SelectLoweringReducer(Graph* graph, Zone* phase_zone)
+      : Next(graph, phase_zone) {}
 
   OpIndex ReduceSelect(OpIndex cond, OpIndex vtrue, OpIndex vfalse,
                        RegisterRepresentation rep, BranchHint hint,
@@ -43,11 +43,11 @@ class SelectLoweringAssembler
     if (implem == SelectOp::Implementation::kCMove) {
       // We do not lower Select operations that should be implemented with
       // CMove.
-      return Base::ReduceSelect(cond, vtrue, vfalse, rep, hint, implem);
+      return Next::ReduceSelect(cond, vtrue, vfalse, rep, hint, implem);
     }
-    Block* true_block = this->NewBlock(Block::Kind::kBranchTarget);
-    Block* false_block = this->NewBlock(Block::Kind::kBranchTarget);
-    Block* merge_block = this->NewBlock(Block::Kind::kMerge);
+    Block* true_block = Asm().NewBlock(Block::Kind::kBranchTarget);
+    Block* false_block = Asm().NewBlock(Block::Kind::kBranchTarget);
+    Block* merge_block = Asm().NewBlock(Block::Kind::kMerge);
 
     if (hint == BranchHint::kTrue) {
       false_block->SetDeferred(true);
@@ -55,9 +55,9 @@ class SelectLoweringAssembler
       true_block->SetDeferred(true);
     }
 
-    this->Branch(cond, true_block, false_block);
+    Asm().Branch(cond, true_block, false_block);
 
-    // Note that it's possible that other assembler of the stack optimizes the
+    // Note that it's possible that other reducers of the stack optimizes the
     // Branch that we just introduced into a Goto (if its condition is already
     // known). Thus, we check the return values of Bind, and only insert the
     // Gotos if Bind was successful: if not, then it means that the block
@@ -67,20 +67,20 @@ class SelectLoweringAssembler
     bool has_true_block = false;
     bool has_false_block = false;
 
-    if (this->Bind(true_block)) {
+    if (Asm().Bind(true_block)) {
       has_true_block = true;
-      this->Goto(merge_block);
+      Asm().Goto(merge_block);
     }
 
-    if (this->Bind(false_block)) {
+    if (Asm().Bind(false_block)) {
       has_false_block = true;
-      this->Goto(merge_block);
+      Asm().Goto(merge_block);
     }
 
-    this->BindReachable(merge_block);
+    Asm().BindReachable(merge_block);
 
     if (has_true_block && has_false_block) {
-      return this->Phi(base::VectorOf({vtrue, vfalse}), rep);
+      return Asm().Phi(base::VectorOf({vtrue, vfalse}), rep);
     } else if (has_true_block) {
       return vtrue;
     } else {
@@ -92,4 +92,4 @@ class SelectLoweringAssembler
 
 }  // namespace v8::internal::compiler::turboshaft
 
-#endif  // V8_COMPILER_TURBOSHAFT_SELECT_LOWERING_ASSEMBLER_H_
+#endif  // V8_COMPILER_TURBOSHAFT_SELECT_LOWERING_REDUCER_H_

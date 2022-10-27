@@ -36,7 +36,7 @@ struct GraphBuilder {
   Zone* graph_zone;
   Zone* phase_zone;
   Schedule& schedule;
-  Assembler assembler;
+  Assembler<> assembler;
   SourcePositionTable* source_positions;
   NodeOriginTable* origins;
 
@@ -818,7 +818,7 @@ base::Optional<BailoutReason> BuildGraph(Schedule* schedule, Zone* graph_zone,
                                          SourcePositionTable* source_positions,
                                          NodeOriginTable* origins) {
   GraphBuilder builder{graph_zone,       phase_zone,
-                       *schedule,        Assembler(graph, phase_zone),
+                       *schedule,        Assembler<>(graph, phase_zone),
                        source_positions, origins};
   return builder.Run();
 }

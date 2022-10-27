@@ -102,7 +102,7 @@ struct LivenessAnalyzer : AnalyzerBase {
 
 enum class VisitOrder { kAsEmitted, kDominator };
 
-template <class Analyzer, class Assembler>
+template <template <class> class... Reducers>
 class OptimizationPhase {
  private:
   struct Impl;
@@ -125,15 +125,16 @@ class OptimizationPhase {
   }
 };
 
-template <class Analyzer, class Assembler>
-struct OptimizationPhase<Analyzer, Assembler>::Impl {
+template <template <class> class... Reducers>
+struct OptimizationPhase<Reducers...>::Impl {
   Graph& input_graph;
   Zone* phase_zone;
   compiler::NodeOriginTable* origins;
   VisitOrder visit_order;
 
-  Analyzer analyzer{input_graph, phase_zone};
-  Assembler assembler{&input_graph.GetOrCreateCompanion(), phase_zone};
+  LivenessAnalyzer analyzer{input_graph, phase_zone};
+  Assembler<Reducers...> assembler{&input_graph.GetOrCreateCompanion(),
+                                   phase_zone};
   const Block* current_input_block = nullptr;
   // Mappings from the old graph to the new graph.
   std::vector<Block*> block_mapping{input_graph.block_count(), nullptr};
@@ -200,7 +201,6 @@ struct OptimizationPhase<Analyzer, Assembler>::Impl {
 
   template <bool trace_reduction>
   void VisitBlock(const Block& input_block) {
-    assembler.EnterBlock(input_block);
     current_input_block = &input_block;
     if constexpr (trace_reduction) {
       std::cout << PrintAsBlockHeader{input_block} << "\n";
@@ -220,7 +220,6 @@ struct OptimizationPhase<Analyzer, Assembler>::Impl {
           }
         }
       }
-      assembler.ExitBlock(input_block);
       return;
     }
     assembler.current_block()->SetDeferred(input_block.IsDeferred());
@@ -258,7 +257,6 @@ struct OptimizationPhase<Analyzer, Assembler>::Impl {
       }
       op_mapping[index.id()] = new_index;
     }
-    assembler.ExitBlock(input_block);
     if constexpr (trace_reduction) TraceBlockFinished();
   }
 

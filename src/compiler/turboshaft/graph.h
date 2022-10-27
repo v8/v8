@@ -21,8 +21,8 @@
 
 namespace v8::internal::compiler::turboshaft {
 
+template <template <class> class... Reducers>
 class Assembler;
-class VarAssembler;
 
 // `OperationBuffer` is a growable, Zone-allocated buffer to store Turboshaft
 // operations. It is part of a `Graph`.

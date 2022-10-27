@@ -84,12 +84,12 @@
 #include "src/compiler/turboshaft/graph-builder.h"
 #include "src/compiler/turboshaft/graph-visualizer.h"
 #include "src/compiler/turboshaft/graph.h"
-#include "src/compiler/turboshaft/machine-optimization-assembler.h"
+#include "src/compiler/turboshaft/machine-optimization-reducer.h"
 #include "src/compiler/turboshaft/optimization-phase.h"
 #include "src/compiler/turboshaft/recreate-schedule.h"
-#include "src/compiler/turboshaft/select-lowering-assembler.h"
+#include "src/compiler/turboshaft/select-lowering-reducer.h"
 #include "src/compiler/turboshaft/simplify-tf-loops.h"
-#include "src/compiler/turboshaft/value-numbering-assembler.h"
+#include "src/compiler/turboshaft/value-numbering-reducer.h"
 #include "src/compiler/type-narrowing-reducer.h"
 #include "src/compiler/typed-optimization.h"
 #include "src/compiler/typer.h"
@@ -1963,11 +1963,10 @@ struct LateOptimizationPhase {
 
   void Run(PipelineData* data, Zone* temp_zone) {
     if (data->HasTurboshaftGraph()) {
-      // TODO(dmercadier,tebbi): add missing assemblers (LateEscapeAnalysis,
-      // BranchElimination, MachineOperatorReducer, CommonOperatorReducer).
-      turboshaft::OptimizationPhase<turboshaft::LivenessAnalyzer,
-                                    turboshaft::SelectLoweringAssembler<
-                                        turboshaft::ValueNumberingAssembler>>::
+      // TODO(dmercadier,tebbi): add missing reducers (LateEscapeAnalysis,
+      // BranchElimination, MachineOperatorReducer and CommonOperatorReducer).
+      turboshaft::OptimizationPhase<turboshaft::SelectLoweringReducer,
+                                    turboshaft::ValueNumberingReducer>::
           Run(&data->turboshaft_graph(), temp_zone, data->node_origins(),
               turboshaft::VisitOrder::kDominator);
     } else {
@@ -1996,8 +1995,8 @@ struct LateOptimizationPhase {
       AddReducer(data, &graph_reducer, &common_reducer);
       if (!v8_flags.turboshaft) {
         AddReducer(data, &graph_reducer, &select_lowering);
+        AddReducer(data, &graph_reducer, &value_numbering);
       }
-      AddReducer(data, &graph_reducer, &value_numbering);
       graph_reducer.ReduceGraph();
     }
   }
@@ -2081,9 +2080,8 @@ struct OptimizeTurboshaftPhase {
     UnparkedScopeIfNeeded scope(data->broker(),
                                 v8_flags.turboshaft_trace_reduction);
     turboshaft::OptimizationPhase<
-        turboshaft::AnalyzerBase,
-        turboshaft::MachineOptimizationAssembler<
-            turboshaft::ValueNumberingAssembler, false>>::
+        turboshaft::MachineOptimizationReducerSignallingNanImpossible,
+        turboshaft::ValueNumberingReducer>::
         Run(&data->turboshaft_graph(), temp_zone, data->node_origins(),
             turboshaft::VisitOrder::kDominator);
   }

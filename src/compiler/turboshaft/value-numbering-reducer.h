@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COMPILER_TURBOSHAFT_VALUE_NUMBERING_ASSEMBLER_H_
-#define V8_COMPILER_TURBOSHAFT_VALUE_NUMBERING_ASSEMBLER_H_
+#ifndef V8_COMPILER_TURBOSHAFT_VALUE_NUMBERING_REDUCER_H_
+#define V8_COMPILER_TURBOSHAFT_VALUE_NUMBERING_REDUCER_H_
 
 #include "src/base/logging.h"
 #include "src/base/vector.h"
@@ -51,10 +51,10 @@ namespace turboshaft {
 //
 // For the approach describe above (the pseudocode and the paragraph before it)
 // to be correct, a node should only be replaced by a node defined in blocks
-// that dominate the current block. Thus, this assembler should only be used
-// with OptimizationPhases that iterate the graph in VisitOrder::kDominator
-// order. Then, when going down the dominator tree, we add nodes to the hashmap,
-// and when going back up the dominator tree, we remove nodes from the hashmap.
+// that dominate the current block. Thus, this reducer relies on the fact that
+// OptimizationPhases that iterate the graph dominator order. Then, when going
+// down the dominator tree, we add nodes to the hashmap, and when going back up
+// the dominator tree, we remove nodes from the hashmap.
 //
 // In order to efficiently remove all the nodes of a given block from the
 // hashmap, we maintain a linked-list of hashmap entries per block (this way, we
@@ -68,16 +68,12 @@ namespace turboshaft {
 // in the linked list, setting all of their `hash` field to 0 (we prevent hashes
 // from being equal to 0, in order to detect empty entries: their hash is 0).
 
-class ValueNumberingAssembler : public Assembler {
-  // ValueNumberingAssembler inherits directly from Assembler because it
-  // overwrites the last operation in case of a cache hit, which assumes that
-  // the base assembler emits everything exactly as given without applying any
-  // optimizations.
-  using Base = Assembler;
-
+template <class Next>
+class ValueNumberingReducer : public Next {
  public:
-  ValueNumberingAssembler(Graph* graph, Zone* phase_zone)
-      : Assembler(graph, phase_zone),
+  using Next::Asm;
+  ValueNumberingReducer(Graph* graph, Zone* phase_zone)
+      : Next(graph, phase_zone),
         dominator_path_(phase_zone),
         depths_heads_(phase_zone) {
     table_ = phase_zone->NewVector<Entry>(
@@ -88,24 +84,23 @@ class ValueNumberingAssembler : public Assembler {
     mask_ = table_.size() - 1;
   }
 
-#define EMIT_OP(Name)                                    \
-  template <class... Args>                               \
-  OpIndex Reduce##Name(Args... args) {                   \
-    OpIndex next_index = graph().next_operation_index(); \
-    USE(next_index);                                     \
-    OpIndex result = Base::Reduce##Name(args...);        \
-    DCHECK_EQ(next_index, result);                       \
-    return AddOrFind<Name##Op>(result);                  \
+#define EMIT_OP(Name)                                          \
+  template <class... Args>                                     \
+  OpIndex Reduce##Name(Args... args) {                         \
+    OpIndex next_index = Asm().graph().next_operation_index(); \
+    USE(next_index);                                           \
+    OpIndex result = Next::Reduce##Name(args...);              \
+    DCHECK_EQ(next_index, result);                             \
+    return AddOrFind<Name##Op>(result);                        \
   }
   TURBOSHAFT_OPERATION_LIST(EMIT_OP)
 #undef EMIT_OP
 
-  V8_WARN_UNUSED_RESULT bool Bind(Block* block) {
-    if (!Base::Bind(block)) return false;
+  void Bind(Block* block, const Block* origin = nullptr) {
+    Next::Bind(block, origin);
     ResetToBlock(block);
     dominator_path_.push_back(block);
     depths_heads_.push_back(nullptr);
-    return true;
   }
 
   // Resets {table_} up to the first dominator of {block} that it contains.
@@ -138,7 +133,7 @@ class ValueNumberingAssembler : public Assembler {
 
   template <class Op>
   OpIndex AddOrFind(OpIndex op_idx) {
-    const Op& op = graph().Get(op_idx).Cast<Op>();
+    const Op& op = Asm().graph().Get(op_idx).template Cast<Op>();
     if (std::is_same<Op, PendingLoopPhiOp>::value ||
         !op.Properties().can_be_eliminated) {
       return op_idx;
@@ -152,18 +147,19 @@ class ValueNumberingAssembler : public Assembler {
       Entry& entry = table_[i];
       if (entry.hash == 0) {
         // We didn't find {op} in {table_}. Inserting it and returning.
-        table_[i] =
-            Entry{op_idx, current_block()->index(), hash, depths_heads_.back()};
+        table_[i] = Entry{op_idx, Asm().current_block()->index(), hash,
+                          depths_heads_.back()};
         depths_heads_.back() = &table_[i];
         ++entry_count_;
         return op_idx;
       }
       if (entry.hash == hash) {
-        const Operation& entry_op = graph().Get(entry.value);
+        const Operation& entry_op = Asm().graph().Get(entry.value);
         if (entry_op.Is<Op>() &&
-            (!same_block_only || entry.block == current_block()->index()) &&
+            (!same_block_only ||
+             entry.block == Asm().current_block()->index()) &&
             entry_op.Cast<Op>() == op) {
-          graph().RemoveLast();
+          Asm().graph().RemoveLast();
           return entry.value;
         }
       }
@@ -189,7 +185,8 @@ class ValueNumberingAssembler : public Assembler {
   void RehashIfNeeded() {
     if (V8_LIKELY(table_.size() - (table_.size() / 4) > entry_count_)) return;
     base::Vector<Entry> new_table = table_ =
-        phase_zone()->NewVector<Entry>(table_.size() * 2, Entry());
+        Asm().phase_zone()->template NewVector<Entry>(table_.size() * 2,
+                                                      Entry());
     size_t mask = mask_ = table_.size() - 1;
 
     for (size_t depth_idx = 0; depth_idx < depths_heads_.size(); depth_idx++) {
@@ -247,7 +244,7 @@ class ValueNumberingAssembler : public Assembler {
   size_t ComputeHash(const Op& op) {
     size_t hash = op.hash_value();
     if (same_block_only) {
-      hash = fast_hash_combine(current_block()->index(), hash);
+      hash = fast_hash_combine(Asm().current_block()->index(), hash);
     }
     if (V8_UNLIKELY(hash == 0)) return 1;
     return hash;
@@ -273,4 +270,4 @@ class ValueNumberingAssembler : public Assembler {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_COMPILER_TURBOSHAFT_VALUE_NUMBERING_ASSEMBLER_H_
+#endif  // V8_COMPILER_TURBOSHAFT_VALUE_NUMBERING_REDUCER_H_
