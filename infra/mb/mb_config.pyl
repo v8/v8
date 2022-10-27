@@ -273,6 +273,7 @@
       'v8_win_rel_ng': 'release_x86_trybot',
       'v8_win64_asan_rel_ng': 'release_x64_asan_no_lsan',
       'v8_win64_msvc_compile_rel': 'release_x64_msvc',
+      'v8_win64_msvc_light_compile_rel': 'release_x64_msvc',
       'v8_win64_dbg_ng': 'debug_x64_minimal_symbols',
       'v8_win64_msvc_rel_ng': 'release_x64_msvc',
       'v8_win64_rel_ng': 'release_x64_trybot',
