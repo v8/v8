@@ -283,7 +283,7 @@
       'v8_mac_arm64_compile_dbg': 'debug_arm64',
       'v8_mac_arm64_compile_rel': 'release_arm64',
       'v8_mac_arm64_sim_compile_dbg': 'debug_simulate_arm64',
-      'v8_mac_arm64_sim_compile_rel': 'release_simulate_arm64',
+      'v8_mac_arm64_sim_compile_rel': 'release_simulate_arm64_trybot',
       'v8_mac_arm64_sim_rel_ng': 'release_simulate_arm64_trybot',
       'v8_mac_arm64_sim_dbg_ng': 'debug_simulate_arm64',
       'v8_mac_arm64_sim_nodcheck_rel_ng': 'release_simulate_arm64',
