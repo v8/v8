@@ -130,6 +130,10 @@ def try_ng_pair(
         )
 
     # Generate orchestrator trybot.
+    # The corresponding compilator name gets an infix like:
+    # v8_linux_rel -> v8_linux_compile_ng_rel.
+    prefix, suffix = name.rsplit("_", 1)
+    compilator_name = prefix + "_compile_ng_" + suffix
     v8_builder(
         defaults_triggered,
         name = name,
@@ -141,16 +145,14 @@ def try_ng_pair(
         in_list = "tryserver",
         experiments = experiments,
         description = tester_description,
+        properties = {"compilator_name": compilator_name},
     )
 
     # Generate compilator trybot.
-    # The compilator name gets an infix like: v8_linux_rel ->
-    # v8_linux_compile_ng_rel.
-    prefix, suffix = name.rsplit("_", 1)
     kwargs["properties"]["triggers"] = None
     v8_builder(
         defaults_try,
-        name = prefix + "_compile_ng_" + suffix,
+        name = compilator_name,
         bucket = "try",
         executable = "recipe:v8/compilator",
         cq_properties = cq_compile_only_properties,
