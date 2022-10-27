@@ -864,10 +864,8 @@ class WasmGenerator {
       bool can_be_defaultable = std::all_of(
           struct_gen->fields().begin(), struct_gen->fields().end(),
           [](ValueType type) -> bool { return type.is_defaultable(); });
-      bool is_mutable = std::all_of(
-          struct_gen->mutabilities().begin(), struct_gen->mutabilities().end(),
-          [](bool mutability) -> bool { return mutability; });
-      if (new_default && can_be_defaultable && is_mutable) {
+
+      if (new_default && can_be_defaultable) {
         builder_->EmitWithPrefix(kExprStructNewDefault);
         builder_->EmitU32V(index);
       } else {
