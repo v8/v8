@@ -3714,7 +3714,7 @@ class LiftoffCompiler {
     RegClass dst_rc = reg_class_for(kS128);
     LiftoffRegister dst = __ GetUnusedRegister(dst_rc, {});
     (asm_.*emit_fn)(dst, src1, src2, src3);
-    __ PushRegister(kS128, src1);
+    __ PushRegister(kS128, dst);
     return;
   }
 
