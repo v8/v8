@@ -382,6 +382,9 @@ HeapType::Representation CommonAncestor(uint32_t type_index1,
 
 // Returns the least common ancestor of a generic HeapType {heap1}, and
 // another HeapType {heap2}.
+// TODO(7748): This function sometimes assumes that incompatible types cannot be
+// compared, in some cases explicitly and in others implicitly. Make it
+// consistent.
 HeapType::Representation CommonAncestorWithGeneric(HeapType heap1,
                                                    HeapType heap2,
                                                    const WasmModule* module2) {
@@ -445,7 +448,8 @@ HeapType::Representation CommonAncestorWithGeneric(HeapType heap1,
         case HeapType::kNone:
           return HeapType::kArray;
         case HeapType::kStruct:
-          return HeapType::kEq;
+          return v8_flags.wasm_gc_structref_as_dataref ? HeapType::kStruct
+                                                       : HeapType::kEq;
         case HeapType::kI31:
         case HeapType::kEq:
           return HeapType::kEq;
