@@ -1000,6 +1000,8 @@ class MaglevGraphBuilder {
   bool TryBuildPropertyCellAccess(
       const compiler::GlobalAccessFeedback& global_access_feedback);
 
+  ValueNode* BuildSmiUntag(ValueNode* node);
+
   void BuildCheckSmi(ValueNode* object);
   void BuildCheckNumber(ValueNode* object);
   void BuildCheckHeapObject(ValueNode* object);

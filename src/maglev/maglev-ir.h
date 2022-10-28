@@ -168,6 +168,7 @@ class CompactInterpreterFrameState;
   V(CheckedSmiTag)                 \
   V(UnsafeSmiTag)                  \
   V(CheckedSmiUntag)               \
+  V(UnsafeSmiUntag)                \
   V(CheckedInternalizedString)     \
   V(CheckedObjectToIndex)          \
   V(ChangeInt32ToFloat64)          \
@@ -1785,6 +1786,22 @@ class CheckedSmiUntag : public FixedInputValueNodeT<1, CheckedSmiUntag> {
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt() |
                                               OpProperties::Int32() |
                                               OpProperties::ConversionNode();
+
+  Input& input() { return Node::input(0); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class UnsafeSmiUntag : public FixedInputValueNodeT<1, UnsafeSmiUntag> {
+  using Base = FixedInputValueNodeT<1, UnsafeSmiUntag>;
+
+ public:
+  explicit UnsafeSmiUntag(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::Int32() | OpProperties::ConversionNode();
 
   Input& input() { return Node::input(0); }
 

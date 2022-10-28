@@ -1176,9 +1176,16 @@ bool MaglevGraphBuilder::EnsureType(ValueNode* node, NodeType type,
   return false;
 }
 
+ValueNode* MaglevGraphBuilder::BuildSmiUntag(ValueNode* node) {
+  if (EnsureType(node, NodeType::kSmi)) {
+    return AddNewNode<UnsafeSmiUntag>({node});
+  } else {
+    return AddNewNode<CheckedSmiUntag>({node});
+  }
+}
+
 void MaglevGraphBuilder::BuildCheckSmi(ValueNode* object) {
   if (EnsureType(object, NodeType::kSmi)) return;
-  // TODO(leszeks): Figure out a way to also handle CheckedSmiUntag.
   AddNewNode<CheckSmi>({object});
 }
 
@@ -1745,20 +1752,17 @@ ValueNode* MaglevGraphBuilder::GetInt32ElementIndex(ValueNode* object) {
     case ValueRepresentation::kTagged:
       if (SmiConstant* constant = object->TryCast<SmiConstant>()) {
         return GetInt32Constant(constant->value().value());
-      } else {
+      } else if (CheckType(object, NodeType::kSmi)) {
         NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(object);
-        if (node_info->is_smi()) {
-          if (!node_info->int32_alternative) {
-            // TODO(leszeks): This could be unchecked.
-            node_info->int32_alternative =
-                AddNewNode<CheckedSmiUntag>({object});
-          }
-          return node_info->int32_alternative;
-        } else {
-          // TODO(leszeks): Cache this knowledge/converted value somehow on
-          // the node info.
-          return AddNewNode<CheckedObjectToIndex>({object});
+        if (!node_info->int32_alternative) {
+          // TODO(leszeks): This could be unchecked.
+          node_info->int32_alternative = AddNewNode<UnsafeSmiUntag>({object});
         }
+        return node_info->int32_alternative;
+      } else {
+        // TODO(leszeks): Cache this knowledge/converted value somehow on
+        // the node info.
+        return AddNewNode<CheckedObjectToIndex>({object});
       }
     case ValueRepresentation::kInt32:
       // Already good.
@@ -3781,7 +3785,7 @@ void MaglevGraphBuilder::VisitSwitchOnGeneratorState() {
     BasicBlockRef* ref = &targets[offset.case_value - case_value_base];
     new (ref) BasicBlockRef(&jump_targets_[offset.target_offset]);
   }
-  ValueNode* case_value = AddNewNode<CheckedSmiUntag>({state});
+  ValueNode* case_value = AddNewNode<UnsafeSmiUntag>({state});
   BasicBlock* generator_prologue_block = FinishBlock<Switch>(
       {case_value}, case_value_base, targets, offsets.size());
   for (interpreter::JumpTableTargetOffset offset : offsets) {
@@ -3833,7 +3837,7 @@ void MaglevGraphBuilder::VisitResumeGenerator() {
     // register file length.
     ValueNode* array_length_smi =
         AddNewNode<LoadTaggedField>({array}, FixedArrayBase::kLengthOffset);
-    ValueNode* array_length = AddNewNode<CheckedSmiUntag>({array_length_smi});
+    ValueNode* array_length = AddNewNode<UnsafeSmiUntag>({array_length_smi});
     ValueNode* register_size = GetInt32Constant(
         parameter_count_without_receiver() + registers.register_count());
     AddNewNode<AssertInt32>(

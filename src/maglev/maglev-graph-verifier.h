@@ -107,6 +107,7 @@ class MaglevGraphVerifier {
         DCHECK_EQ(node->input_count(), 0);
         break;
       case Opcode::kCheckedSmiUntag:
+      case Opcode::kUnsafeSmiUntag:
       case Opcode::kGenericBitwiseNot:
       case Opcode::kGenericDecrement:
       case Opcode::kGenericIncrement:

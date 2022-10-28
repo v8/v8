@@ -2990,6 +2990,18 @@ void CheckedSmiUntag::GenerateCode(MaglevAssembler* masm,
   __ SmiToInt32(value);
 }
 
+void UnsafeSmiUntag::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  UseRegister(input());
+  DefineSameAsFirst(vreg_state, this);
+}
+
+void UnsafeSmiUntag::GenerateCode(MaglevAssembler* masm,
+                                  const ProcessingState& state) {
+  Register value = ToRegister(input());
+  __ AssertSmi(value);
+  __ SmiToInt32(value);
+}
+
 void CheckedSmiTag::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseRegister(input());
   DefineSameAsFirst(vreg_state, this);
