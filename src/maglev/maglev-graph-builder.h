@@ -695,7 +695,7 @@ class MaglevGraphBuilder {
         }
         NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
         if (node_info->int32_alternative == nullptr) {
-          node_info->int32_alternative = AddNewNode<CheckedSmiUntag>({value});
+          node_info->int32_alternative = BuildSmiUntag(value);
         }
         return node_info->int32_alternative;
       }
