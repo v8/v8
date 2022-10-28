@@ -145,7 +145,7 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
                          MemoryChunk::IS_EXECUTABLE));
       // Shared heap pages do not have evacuation candidates outside an atomic
       // shared GC pause.
-      DCHECK(!target.InSharedWritableHeap());
+      DCHECK_IMPLIES(!v8_flags.shared_space, !target.InSharedWritableHeap());
 
       // We cannot call MarkCompactCollector::RecordSlot because that checks
       // that the host page is not in young generation, which does not hold
