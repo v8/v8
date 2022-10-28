@@ -70,13 +70,17 @@ void DestructivelyIntersect(ZoneMap<Key, Value>& lhs_map,
 // TODO(leszeks): Figure out how to represent Number/Numeric with this encoding.
 #define NODE_TYPE_LIST(V)                              \
   V(Unknown, 0)                                        \
-  V(Smi, (1 << 0))                                     \
-  V(AnyHeapObject, (1 << 1))                           \
-  V(String, (1 << 2) | kAnyHeapObject)                 \
-  V(Symbol, (1 << 3) | kAnyHeapObject)                 \
-  V(HeapNumber, (1 << 4) | kAnyHeapObject)             \
-  V(HeapObjectWithKnownMap, (1 << 5) | kAnyHeapObject) \
-  V(InternalizedString, (1 << 6) | kString)
+  V(Number, (1 << 0))                                  \
+  V(Smi, (1 << 1) | kNumber)                           \
+  V(AnyHeapObject, (1 << 2))                           \
+  V(Name, (1 << 3) | kAnyHeapObject)                   \
+  V(String, (1 << 4) | kName)                          \
+  V(InternalizedString, (1 << 5) | kString)            \
+  V(Symbol, (1 << 6) | kName)                          \
+  V(JSReceiver, (1 << 7) | kAnyHeapObject)             \
+  V(HeapObjectWithKnownMap, (1 << 8) | kAnyHeapObject) \
+  V(HeapNumber, kHeapObjectWithKnownMap | kNumber)     \
+  V(JSReceiverWithKnownMap, kJSReceiver | kHeapObjectWithKnownMap)
 
 enum class NodeType {
 #define DEFINE_NODE_TYPE(Name, Value) k##Name = Value,
@@ -84,9 +88,18 @@ enum class NodeType {
 #undef DEFINE_NODE_TYPE
 };
 
-#define DEFINE_NODE_TYPE_CHECK(Type, _)                                  \
-  inline bool NodeTypeIs##Type(NodeType type) {                          \
-    return static_cast<int>(type) & static_cast<int>(NodeType::k##Type); \
+inline NodeType CombineType(NodeType left, NodeType right) {
+  return static_cast<NodeType>(static_cast<int>(left) |
+                               static_cast<int>(right));
+}
+inline bool NodeTypeIs(NodeType type, NodeType to_check) {
+  int right = static_cast<int>(to_check);
+  return (static_cast<int>(type) & right) == right;
+}
+
+#define DEFINE_NODE_TYPE_CHECK(Type, _)         \
+  inline bool NodeTypeIs##Type(NodeType type) { \
+    return NodeTypeIs(type, NodeType::k##Type); \
   }
 NODE_TYPE_LIST(DEFINE_NODE_TYPE_CHECK)
 #undef DEFINE_NODE_TYPE_CHECK
@@ -165,6 +178,13 @@ struct KnownNodeAspects {
     clone->stable_maps = stable_maps;
     clone->loaded_constant_properties = loaded_constant_properties;
     return clone;
+  }
+
+  ZoneMap<ValueNode*, NodeInfo>::iterator FindInfo(ValueNode* node) {
+    return node_infos.find(node);
+  }
+  bool IsValid(ZoneMap<ValueNode*, NodeInfo>::iterator& it) {
+    return it != node_infos.end();
   }
 
   NodeInfo* GetOrCreateInfoFor(ValueNode* node) { return &node_infos[node]; }

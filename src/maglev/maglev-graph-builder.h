@@ -77,6 +77,9 @@ class MaglevGraphBuilder {
   Graph* graph() const { return graph_; }
 
  private:
+  bool CheckType(ValueNode* node, NodeType type);
+  NodeInfo* CreateInfoIfNot(ValueNode* node, NodeType type);
+  bool EnsureType(ValueNode* node, NodeType type, NodeType* old = nullptr);
   BasicBlock* CreateEdgeSplitBlock(int offset,
                                    int interrupt_budget_correction) {
     if (v8_flags.trace_maglev_graph_building) {

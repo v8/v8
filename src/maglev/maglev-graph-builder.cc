@@ -1127,68 +1127,89 @@ NodeType StaticTypeForNode(ValueNode* node) {
         return NodeType::kSymbol;
       } else if (ref.IsHeapNumber()) {
         return NodeType::kHeapNumber;
+      } else if (ref.IsJSReceiver()) {
+        return NodeType::kJSReceiverWithKnownMap;
       }
       return NodeType::kHeapObjectWithKnownMap;
     }
+    case Opcode::kToNumberOrNumeric:
+      if (node->Cast<ToNumberOrNumeric>()->mode() ==
+          Object::Conversion::kToNumber) {
+        return NodeType::kNumber;
+      }
+      // TODO(verwaest): Check what we need here.
+      return NodeType::kUnknown;
+    case Opcode::kToString:
+      return NodeType::kString;
+    case Opcode::kToObject:
+      return NodeType::kJSReceiver;
+    case Opcode::kToName:
+      return NodeType::kName;
     default:
       return NodeType::kUnknown;
   }
 }
 }  // namespace
 
-void MaglevGraphBuilder::BuildCheckSmi(ValueNode* object) {
-  NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(object);
-  if (known_info->is_smi()) return;
-  known_info->type = StaticTypeForNode(object);
-  if (known_info->is_smi()) return;
+NodeInfo* MaglevGraphBuilder::CreateInfoIfNot(ValueNode* node, NodeType type) {
+  NodeType static_type = StaticTypeForNode(node);
+  if (NodeTypeIs(static_type, type)) return nullptr;
+  NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(node);
+  if (NodeTypeIs(known_info->type, type)) return nullptr;
+  known_info->type = CombineType(known_info->type, static_type);
+  return known_info;
+}
 
+bool MaglevGraphBuilder::CheckType(ValueNode* node, NodeType type) {
+  if (NodeTypeIs(StaticTypeForNode(node), type)) return true;
+  auto it = known_node_aspects().FindInfo(node);
+  if (!known_node_aspects().IsValid(it)) return false;
+  return NodeTypeIs(it->second.type, type);
+}
+
+bool MaglevGraphBuilder::EnsureType(ValueNode* node, NodeType type,
+                                    NodeType* old) {
+  NodeInfo* known_info = CreateInfoIfNot(node, type);
+  if (known_info == nullptr) return true;
+  if (old != nullptr) *old = known_info->type;
+  known_info->type = CombineType(known_info->type, type);
+  return false;
+}
+
+void MaglevGraphBuilder::BuildCheckSmi(ValueNode* object) {
+  if (EnsureType(object, NodeType::kSmi)) return;
   // TODO(leszeks): Figure out a way to also handle CheckedSmiUntag.
   AddNewNode<CheckSmi>({object});
-  known_info->type = NodeType::kSmi;
 }
 
 void MaglevGraphBuilder::BuildCheckHeapObject(ValueNode* object) {
-  NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(object);
-  if (known_info->is_any_heap_object()) return;
-  known_info->type = StaticTypeForNode(object);
-  if (known_info->is_any_heap_object()) return;
-
+  if (EnsureType(object, NodeType::kAnyHeapObject)) return;
   AddNewNode<CheckHeapObject>({object});
-  known_info->type = NodeType::kAnyHeapObject;
 }
 
 namespace {
-CheckType GetCheckType(NodeInfo* known_info) {
-  if (known_info->is_any_heap_object()) {
-    return CheckType::kOmitHeapObjectCheck;
-  }
-  return CheckType::kCheckHeapObject;
+CheckType GetCheckType(NodeType type) {
+  return NodeTypeIs(type, NodeType::kAnyHeapObject)
+             ? CheckType::kOmitHeapObjectCheck
+             : CheckType::kCheckHeapObject;
 }
 }  // namespace
 
 void MaglevGraphBuilder::BuildCheckString(ValueNode* object) {
-  NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(object);
-  if (known_info->is_string()) return;
-  known_info->type = StaticTypeForNode(object);
-  if (known_info->is_string()) return;
-
-  AddNewNode<CheckString>({object}, GetCheckType(known_info));
-  known_info->type = NodeType::kString;
+  NodeType known_type;
+  if (EnsureType(object, NodeType::kString, &known_type)) return;
+  AddNewNode<CheckString>({object}, GetCheckType(known_type));
 }
 
 void MaglevGraphBuilder::BuildCheckNumber(ValueNode* object) {
-  // TODO(victorgomes): Add Number to known_node_aspects and update it here.
+  if (EnsureType(object, NodeType::kNumber)) return;
   AddNewNode<CheckNumber>({object}, Object::Conversion::kToNumber);
 }
 
 void MaglevGraphBuilder::BuildCheckSymbol(ValueNode* object) {
-  NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(object);
-  if (known_info->is_symbol()) return;
-  known_info->type = StaticTypeForNode(object);
-  if (known_info->is_symbol()) return;
-
-  AddNewNode<CheckSymbol>({object}, GetCheckType(known_info));
-  known_info->type = NodeType::kSymbol;
+  NodeType known_type;
+  if (EnsureType(object, NodeType::kSymbol, &known_type)) return;
+  AddNewNode<CheckSymbol>({object}, GetCheckType(known_type));
 }
 
 namespace {
@@ -1229,6 +1250,8 @@ class KnownMapsMerger {
     return map_set;
   }
 
+  NodeType node_type() const { return node_type_; }
+
  private:
   compiler::JSHeapBroker* broker_;
   ZoneVector<compiler::MapRef> const& maps_;
@@ -1236,6 +1259,7 @@ class KnownMapsMerger {
   bool emit_check_with_migration_;
   ZoneHandleSet<Map> stable_map_set_;
   ZoneHandleSet<Map> unstable_map_set_;
+  NodeType node_type_ = NodeType::kJSReceiverWithKnownMap;
 
   Zone* zone() const { return broker_->zone(); }
 
@@ -1262,6 +1286,7 @@ class KnownMapsMerger {
     if (map.is_migration_target()) {
       emit_check_with_migration_ = true;
     }
+    if (!map.IsJSReceiverMap()) node_type_ = NodeType::kHeapObjectWithKnownMap;
     if (map.is_stable()) {
       // TODO(victorgomes): Add a DCHECK_SLOW that checks if the map already
       // exists in the CompilationDependencySet for the else branch.
@@ -1302,33 +1327,28 @@ class KnownMapsMerger {
 
 void MaglevGraphBuilder::BuildCheckMaps(
     ValueNode* object, ZoneVector<compiler::MapRef> const& maps) {
-  // Check for constants.
-  NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(object);
-  if (known_info->type == NodeType::kUnknown) {
-    known_info->type = StaticTypeForNode(object);
-    if (known_info->type == NodeType::kHeapObjectWithKnownMap) {
-      // The only case where the type becomes a heap-object with a known map
-      // is when the object is a constant.
-      DCHECK(object->Is<Constant>());
-      // For constants with stable maps that match one of the desired maps, we
-      // don't need to emit a map check, and can use the dependency -- we
-      // can't do this for unstable maps because the constant could migrate
-      // during compilation.
-      compiler::MapRef constant_map = object->Cast<Constant>()->object().map();
-      if (std::find(maps.begin(), maps.end(), constant_map) != maps.end()) {
-        if (constant_map.is_stable()) {
-          ZoneHandleSet<Map> stable_maps(constant_map.object());
-          ZoneHandleSet<Map> unstable_maps;
-          known_node_aspects().stable_maps.emplace(object, stable_maps);
-          known_node_aspects().unstable_maps.emplace(object, unstable_maps);
-          broker()->dependencies()->DependOnStableMap(constant_map);
-          return;
-        }
+  // TODO(verwaest): Support other objects with possible known stable maps as
+  // well.
+  if (object->Is<Constant>()) {
+    // For constants with stable maps that match one of the desired maps, we
+    // don't need to emit a map check, and can use the dependency -- we
+    // can't do this for unstable maps because the constant could migrate
+    // during compilation.
+    compiler::MapRef constant_map = object->Cast<Constant>()->object().map();
+    if (std::find(maps.begin(), maps.end(), constant_map) != maps.end()) {
+      if (constant_map.is_stable()) {
+        broker()->dependencies()->DependOnStableMap(constant_map);
+        return;
       }
+      // TODO(verwaest): Reduce maps to the constant map.
+    } else {
       // TODO(leszeks): Insert an unconditional deopt if the constant map
       // doesn't match the required map.
     }
   }
+
+  NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(object);
+  known_info->type = CombineType(known_info->type, StaticTypeForNode(object));
 
   // Calculates if known maps are a subset of maps, their map intersection and
   // whether we should emit check with migration.
@@ -1336,7 +1356,7 @@ void MaglevGraphBuilder::BuildCheckMaps(
 
   // If the known maps are the subset of the maps to check, we are done.
   if (merger.known_maps_are_subset_of_maps()) {
-    DCHECK_EQ(known_info->type, NodeType::kHeapObjectWithKnownMap);
+    DCHECK(NodeTypeIs(known_info->type, NodeType::kHeapObjectWithKnownMap));
     return;
   }
 
@@ -1349,12 +1369,12 @@ void MaglevGraphBuilder::BuildCheckMaps(
   // Emit checks.
   if (merger.emit_check_with_migration()) {
     AddNewNode<CheckMapsWithMigration>({object}, merger.intersect_set(),
-                                       GetCheckType(known_info));
+                                       GetCheckType(known_info->type));
   } else {
     AddNewNode<CheckMaps>({object}, merger.intersect_set(),
-                          GetCheckType(known_info));
+                          GetCheckType(known_info->type));
   }
-  known_info->type = NodeType::kHeapObjectWithKnownMap;
+  known_info->type = merger.node_type();
 }
 
 bool MaglevGraphBuilder::TryFoldLoadDictPrototypeConstant(
@@ -1499,7 +1519,8 @@ void MaglevGraphBuilder::BuildLoadField(
       NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(value);
       if (access_info.field_map().has_value() &&
           access_info.field_map().value().is_stable()) {
-        known_info->type = NodeType::kHeapObjectWithKnownMap;
+        DCHECK(access_info.field_map().value().IsJSReceiverMap());
+        known_info->type = NodeType::kJSReceiverWithKnownMap;
         auto map = access_info.field_map().value();
         ZoneHandleSet<Map> stable_maps(map.object());
         ZoneHandleSet<Map> unstable_maps;
@@ -3012,7 +3033,11 @@ void MaglevGraphBuilder::VisitToName() {
   // ToObject <dst>
   ValueNode* value = GetAccumulatorTagged();
   interpreter::Register destination = iterator_.GetRegisterOperand(0);
-  StoreRegister(destination, AddNewNode<ToName>({GetContext(), value}));
+  if (CheckType(value, NodeType::kName)) {
+    StoreRegister(destination, value);
+  } else {
+    StoreRegister(destination, AddNewNode<ToName>({GetContext(), value}));
+  }
 }
 
 void MaglevGraphBuilder::BuildToNumberOrToNumeric(Object::Conversion mode) {
@@ -3028,9 +3053,14 @@ void MaglevGraphBuilder::BuildToNumberOrToNumeric(Object::Conversion mode) {
     case BinaryOperationHint::kNumber:
     case BinaryOperationHint::kBigInt:
     case BinaryOperationHint::kBigInt64:
+      if (mode == Object::Conversion::kToNumber &&
+          EnsureType(value, NodeType::kNumber)) {
+        return;
+      }
       AddNewNode<CheckNumber>({value}, mode);
       break;
     default:
+      if (CheckType(value, NodeType::kNumber)) return;
       SetAccumulator(
           AddNewNode<ToNumberOrNumeric>({GetContext(), value}, mode));
       break;
@@ -3048,13 +3078,18 @@ void MaglevGraphBuilder::VisitToObject() {
   // ToObject <dst>
   ValueNode* value = GetAccumulatorTagged();
   interpreter::Register destination = iterator_.GetRegisterOperand(0);
-  StoreRegister(destination, AddNewNode<ToObject>({GetContext(), value}));
+  if (CheckType(value, NodeType::kJSReceiver)) {
+    StoreRegister(destination, value);
+  } else {
+    StoreRegister(destination, AddNewNode<ToObject>({GetContext(), value}));
+  }
 }
 
 void MaglevGraphBuilder::VisitToString() {
   // ToString
   ValueNode* value = GetAccumulatorTagged();
-  // TODO(victorgomes): Add fast path for constant nodes.
+  if (CheckType(value, NodeType::kString)) return;
+  // TODO(victorgomes): Add fast path for constant primitives.
   SetAccumulator(AddNewNode<ToString>({GetContext(), value}));
 }
 
