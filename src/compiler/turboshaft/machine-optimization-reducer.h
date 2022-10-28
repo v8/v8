@@ -1270,6 +1270,10 @@ class MachineOptimizationReducer : public Next {
                         k == rep.MaxUnsignedValue()) {
           return Asm().Word32Constant(1);
         }
+        // x <= 0  =>  x == 0
+        if (uint64_t k; Asm().MatchWordConstant(right, rep_w, &k) && k == 0) {
+          return Asm().Equal(left, Asm().WordConstant(0, rep_w), rep_w);
+        }
       }
       if (kind == Kind::kUnsignedLessThan) {
         // x < 0  =>  false
