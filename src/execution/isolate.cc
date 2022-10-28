@@ -4035,6 +4035,11 @@ void Isolate::AddCrashKeysForIsolateAndHeapPointers() {
   add_crash_key_callback_(v8::CrashKeyId::kReadonlySpaceFirstPageAddress,
                           ToHexString(ro_space_firstpage_address));
 
+  const uintptr_t old_space_firstpage_address =
+      heap()->old_space()->FirstPageAddress();
+  add_crash_key_callback_(v8::CrashKeyId::kOldSpaceFirstPageAddress,
+                          ToHexString(old_space_firstpage_address));
+
   if (heap()->code_range_base()) {
     const uintptr_t code_range_base_address = heap()->code_range_base();
     add_crash_key_callback_(v8::CrashKeyId::kCodeRangeBaseAddress,
