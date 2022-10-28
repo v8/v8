@@ -125,6 +125,7 @@ class MaglevGraphVerifier {
       case Opcode::kCheckSymbol:
       case Opcode::kCheckedInternalizedString:
       case Opcode::kCheckedObjectToIndex:
+      case Opcode::kConvertReceiver:
       // TODO(victorgomes): Can we check that the input is Boolean?
       case Opcode::kBranchIfToBooleanTrue:
       case Opcode::kBranchIfRootConstant:
@@ -267,6 +268,7 @@ class MaglevGraphVerifier {
         CheckValueInputIs(node, 1, ValueRepresentation::kFloat64);
         break;
       case Opcode::kCall:
+      case Opcode::kCallKnownJSFunction:
       case Opcode::kCallRuntime:
       case Opcode::kCallWithSpread:
       case Opcode::kConstruct:
