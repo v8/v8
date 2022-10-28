@@ -1284,12 +1284,6 @@ MaybeHandle<CodeT> GetOrCompileOptimized(
   // turbo_filter.
   if (!ShouldOptimize(code_kind, shared)) return {};
 
-  // If code was pending optimization for testing, remove the entry from the
-  // table that was preventing the bytecode from being flushed.
-  if (V8_UNLIKELY(v8_flags.testing_d8_test_runner)) {
-    PendingOptimizationTable::FunctionWasOptimized(isolate, function);
-  }
-
   Handle<CodeT> cached_code;
   if (OptimizedCodeCache::Get(isolate, function, osr_offset, code_kind)
           .ToHandle(&cached_code)) {

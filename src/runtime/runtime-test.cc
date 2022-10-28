@@ -276,7 +276,8 @@ bool CanOptimizeFunction(CodeKind target_kind, Handle<JSFunction> function,
   }
 
   if (v8_flags.testing_d8_test_runner) {
-    PendingOptimizationTable::MarkedForOptimization(isolate, function);
+    ManualOptimizationTable::CheckMarkedForManualOptimization(isolate,
+                                                              *function);
   }
 
   if (function->HasAvailableCodeKind(target_kind) ||
@@ -284,9 +285,6 @@ bool CanOptimizeFunction(CodeKind target_kind, Handle<JSFunction> function,
       IsInProgress(function->tiering_state())) {
     DCHECK(function->HasAttachedOptimizedCode() ||
            function->ChecksTieringState());
-    if (v8_flags.testing_d8_test_runner) {
-      PendingOptimizationTable::FunctionWasOptimized(isolate, function);
-    }
     return false;
   }
 
@@ -339,30 +337,24 @@ Object OptimizeFunctionOnNextCall(RuntimeArguments& args, Isolate* isolate,
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-bool EnsureFeedbackVector(Isolate* isolate, Handle<JSFunction> function) {
+bool EnsureCompiledAndFeedbackVector(Isolate* isolate,
+                                     Handle<JSFunction> function,
+                                     IsCompiledScope* is_compiled_scope) {
   // Check function allows lazy compilation.
   if (!function->shared().allows_lazy_compilation()) return false;
 
-  if (function->has_feedback_vector()) return true;
-
   // If function isn't compiled, compile it now.
-  IsCompiledScope is_compiled_scope(
-      function->shared().is_compiled_scope(function->GetIsolate()));
-  // If the JSFunction isn't compiled but it has a initialized feedback cell
-  // then no need to compile. CompileLazy builtin would handle these cases by
-  // installing the code from SFI. Calling compile here may cause another
-  // optimization if v8_flags.always_turbofan is set.
-  bool needs_compilation =
-      !function->is_compiled() && !function->has_closure_feedback_cell_array();
-  if (needs_compilation &&
+  *is_compiled_scope =
+      function->shared().is_compiled_scope(function->GetIsolate());
+  if (!is_compiled_scope->is_compiled() &&
       !Compiler::Compile(isolate, function, Compiler::CLEAR_EXCEPTION,
-                         &is_compiled_scope)) {
+                         is_compiled_scope)) {
     return false;
   }
 
   // Ensure function has a feedback vector to hold type feedback for
   // optimization.
-  JSFunction::EnsureFeedbackVector(isolate, function, &is_compiled_scope);
+  JSFunction::EnsureFeedbackVector(isolate, function, is_compiled_scope);
   return true;
 }
 
@@ -503,7 +495,12 @@ RUNTIME_FUNCTION(Runtime_EnsureFeedbackVectorForFunction) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   Handle<JSFunction> function = args.at<JSFunction>(0);
-  EnsureFeedbackVector(isolate, function);
+  if (function->has_feedback_vector()) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+
+  IsCompiledScope is_compiled_scope;
+  EnsureCompiledAndFeedbackVector(isolate, function, &is_compiled_scope);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -514,23 +511,13 @@ RUNTIME_FUNCTION(Runtime_PrepareFunctionForOptimization) {
   }
   Handle<JSFunction> function = args.at<JSFunction>(0);
 
-  bool allow_heuristic_optimization = false;
-  if (args.length() == 2) {
-    Handle<Object> sync_object = args.at(1);
-    if (!sync_object->IsString()) return CrashUnlessFuzzing(isolate);
-    Handle<String> sync = Handle<String>::cast(sync_object);
-    if (sync->IsOneByteEqualTo(
-            base::StaticCharVector("allow heuristic optimization"))) {
-      allow_heuristic_optimization = true;
-    }
-  }
-
-  if (!EnsureFeedbackVector(isolate, function)) {
+  IsCompiledScope is_compiled_scope;
+  if (!EnsureCompiledAndFeedbackVector(isolate, function, &is_compiled_scope)) {
     return CrashUnlessFuzzing(isolate);
   }
 
-  // If optimization is disabled for the function, return without making it
-  // pending optimize for test.
+  // If optimization is disabled for the function, return without marking it for
+  // manual optimization
   if (function->shared().optimization_disabled() &&
       function->shared().disabled_optimization_reason() ==
           BailoutReason::kNeverOptimize) {
@@ -542,8 +529,8 @@ RUNTIME_FUNCTION(Runtime_PrepareFunctionForOptimization) {
   // Hold onto the bytecode array between marking and optimization to ensure
   // it's not flushed.
   if (v8_flags.testing_d8_test_runner) {
-    PendingOptimizationTable::PreparedForOptimization(
-        isolate, function, allow_heuristic_optimization);
+    ManualOptimizationTable::MarkFunctionForManualOptimization(
+        isolate, function, &is_compiled_scope);
   }
 
   return ReadOnlyRoots(isolate).undefined_value();
@@ -631,17 +618,14 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   }
 
   if (v8_flags.testing_d8_test_runner) {
-    PendingOptimizationTable::MarkedForOptimization(isolate, function);
+    ManualOptimizationTable::CheckMarkedForManualOptimization(isolate,
+                                                              *function);
   }
 
   if (function->HasAvailableOptimizedCode()) {
     DCHECK(function->HasAttachedOptimizedCode() ||
            function->ChecksTieringState());
-    // If function is already optimized, remove the bytecode array from the
-    // pending optimize for test table and return.
-    if (v8_flags.testing_d8_test_runner) {
-      PendingOptimizationTable::FunctionWasOptimized(isolate, function);
-    }
+    // If function is already optimized, return.
     return ReadOnlyRoots(isolate).undefined_value();
   }
 

@@ -924,7 +924,7 @@ class Heap {
   V8_INLINE void SetRootScriptList(Object value);
   V8_INLINE void SetRootNoScriptSharedFunctionInfos(Object value);
   V8_INLINE void SetMessageListeners(TemplateList value);
-  V8_INLINE void SetPendingOptimizeForTestBytecode(Object bytecode);
+  V8_INLINE void SetFunctionsMarkedForManualOptimization(Object bytecode);
 
   StrongRootsEntry* RegisterStrongRoots(const char* label, FullObjectSlot start,
                                         FullObjectSlot end);

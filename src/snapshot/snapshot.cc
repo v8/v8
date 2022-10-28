@@ -301,7 +301,8 @@ void Snapshot::ClearReconstructableDataForSerialization(
   // PendingOptimizeTable also contains BytecodeArray, we need to clear the
   // recompilable code same as above.
   ReadOnlyRoots roots(isolate);
-  isolate->heap()->SetPendingOptimizeForTestBytecode(roots.undefined_value());
+  isolate->heap()->SetFunctionsMarkedForManualOptimization(
+      roots.undefined_value());
 }
 
 // static
