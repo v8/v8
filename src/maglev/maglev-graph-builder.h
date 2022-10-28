@@ -982,6 +982,12 @@ class MaglevGraphBuilder {
                                ConvertReceiverMode receiver_mode,
                                compiler::JSFunctionRef function);
 
+  ValueNode* GetConvertReceiver(compiler::JSFunctionRef function,
+                                ConvertReceiverMode mode, int operand_index);
+  bool TryBuildCallKnownJSFunction(compiler::JSFunctionRef function,
+                                   int argc_count,
+                                   ConvertReceiverMode receiver_mode);
+
   void BuildCallFromRegisterList(ConvertReceiverMode receiver_mode);
   void BuildCallFromRegisters(int argc_count,
                               ConvertReceiverMode receiver_mode);

@@ -2618,6 +2618,53 @@ bool MaglevGraphBuilder::TryInlineBuiltin(base::Optional<int> receiver_index,
   }
 }
 
+ValueNode* MaglevGraphBuilder::GetConvertReceiver(
+    compiler::JSFunctionRef function, ConvertReceiverMode mode,
+    int operand_index) {
+  compiler::SharedFunctionInfoRef shared = function.shared();
+  if (shared.native() || shared.language_mode() == LanguageMode::kStrict) {
+    if (mode == ConvertReceiverMode::kNullOrUndefined) {
+      return GetRootConstant(RootIndex::kUndefinedValue);
+    } else {
+      return LoadRegisterTagged(operand_index);
+    }
+  }
+  if (mode == ConvertReceiverMode::kNullOrUndefined) {
+    return GetConstant(function.native_context().global_proxy_object());
+  }
+  ValueNode* receiver = LoadRegisterTagged(operand_index);
+  if (CheckType(receiver, NodeType::kJSReceiver)) return receiver;
+  if (Constant* constant = receiver->TryCast<Constant>()) {
+    const Handle<HeapObject> object = constant->object().object();
+    if (object->IsUndefined() || object->IsNull()) {
+      return GetConstant(function.native_context().global_proxy_object());
+    } else if (object->IsJSReceiver()) {
+      return constant;
+    }
+  }
+  return AddNewNode<ConvertReceiver>({receiver}, function, mode);
+}
+
+bool MaglevGraphBuilder::TryBuildCallKnownJSFunction(
+    compiler::JSFunctionRef function, int argc_count,
+    ConvertReceiverMode receiver_mode) {
+  // Don't inline CallFunction stub across native contexts.
+  if (function.native_context() != broker()->target_native_context()) {
+    return false;
+  }
+  ValueNode* receiver = GetConvertReceiver(function, receiver_mode, 1);
+  size_t input_count = argc_count + CallKnownJSFunction::kFixedInputCount;
+  CallKnownJSFunction* call =
+      CreateNewNode<CallKnownJSFunction>(input_count, function, receiver);
+  const int first_arg_operand_index =
+      (receiver_mode == ConvertReceiverMode::kNullOrUndefined) ? 0 : 1;
+  for (int i = 0; i < argc_count; i++) {
+    call->set_arg(i, LoadRegisterTagged(first_arg_operand_index + i + 1));
+  }
+  SetAccumulator(AddNode(call));
+  return true;
+}
+
 void MaglevGraphBuilder::BuildCallFromRegisters(
     int argc_count, ConvertReceiverMode receiver_mode) {
   // Indices and counts of operands on the bytecode.
@@ -2687,6 +2734,10 @@ void MaglevGraphBuilder::BuildCallFromRegisters(
         }
       }
 
+      if (TryBuildCallKnownJSFunction(target.AsJSFunction(), argc_count,
+                                      receiver_mode)) {
+        return;
+      }
       break;
     }
 

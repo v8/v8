@@ -127,8 +127,10 @@ class CompactInterpreterFrameState;
   V(CallBuiltin)                   \
   V(CallRuntime)                   \
   V(CallWithSpread)                \
+  V(CallKnownJSFunction)           \
   V(Construct)                     \
   V(ConstructWithSpread)           \
+  V(ConvertReceiver)               \
   V(CreateEmptyArrayLiteral)       \
   V(CreateArrayLiteral)            \
   V(CreateShallowArrayLiteral)     \
@@ -3999,6 +4001,48 @@ class CallWithSpread : public ValueNodeT<CallWithSpread> {
   const compiler::FeedbackSource feedback_;
 };
 
+class CallKnownJSFunction : public ValueNodeT<CallKnownJSFunction> {
+  using Base = ValueNodeT<CallKnownJSFunction>;
+
+ public:
+  // We assume function and context as fixed inputs.
+  static constexpr int kReceiverIndex = 0;
+  static constexpr int kFixedInputCount = 1;
+
+  // We need enough inputs to have these fixed inputs plus the maximum arguments
+  // to a function call.
+  static_assert(kMaxInputs >= kFixedInputCount + Code::kMaxArguments);
+
+  // This ctor is used when for variable input counts.
+  // Inputs must be initialized manually.
+  CallKnownJSFunction(uint64_t bitfield, const compiler::JSFunctionRef function,
+                      ValueNode* receiver)
+      : Base(bitfield), function_(function) {
+    set_input(kReceiverIndex, receiver);
+  }
+
+  static constexpr OpProperties kProperties = OpProperties::JSCall();
+
+  Input& receiver() { return input(kReceiverIndex); }
+  const Input& receiver() const { return input(kReceiverIndex); }
+  int num_args() const { return input_count() - kFixedInputCount; }
+  Input& arg(int i) { return input(i + kFixedInputCount); }
+  void set_arg(int i, ValueNode* node) {
+    set_input(i + kFixedInputCount, node);
+  }
+
+  compiler::SharedFunctionInfoRef shared_function_info() const {
+    return function_.shared();
+  }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  const compiler::JSFunctionRef function_;
+};
+
 class ConstructWithSpread : public ValueNodeT<ConstructWithSpread> {
   using Base = ValueNodeT<ConstructWithSpread>;
 
@@ -4045,6 +4089,29 @@ class ConstructWithSpread : public ValueNodeT<ConstructWithSpread> {
 
  private:
   const compiler::FeedbackSource feedback_;
+};
+
+class ConvertReceiver : public FixedInputValueNodeT<1, ConvertReceiver> {
+  using Base = FixedInputValueNodeT<1, ConvertReceiver>;
+
+ public:
+  explicit ConvertReceiver(uint64_t bitfield,
+                           const compiler::JSFunctionRef target,
+                           ConvertReceiverMode mode)
+      : Base(bitfield), target_(target), mode_(mode) {}
+
+  Input& receiver_input() { return input(0); }
+
+  // The implementation currently calls runtime.
+  static constexpr OpProperties kProperties = OpProperties::JSCall();
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  const compiler::JSFunctionRef target_;
+  ConvertReceiverMode mode_;
 };
 
 class IncreaseInterruptBudget
