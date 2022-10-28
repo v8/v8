@@ -1572,10 +1572,18 @@ class MachineOptimizationReducer : public Next {
   }
 
  private:
+  // Try to match a constant and add it to `offset`. Return `true` if
+  // successful.
   bool TryAdjustOffset(int32_t* offset, const Operation& maybe_constant,
                        uint8_t element_scale) {
     if (!maybe_constant.Is<ConstantOp>()) return false;
     const ConstantOp& constant = maybe_constant.Cast<ConstantOp>();
+    if (constant.Representation() != WordRepresentation::PointerSized()) {
+      // This can only happen in unreachable code. Ideally, we identify this
+      // situation and use `Asm().Unreachable()`. However, this is difficult to
+      // do from within this helper, so we just don't perform the reduction.
+      return false;
+    }
     int64_t diff = constant.signed_integral();
     int32_t new_offset;
     if (diff <= (std::numeric_limits<int32_t>::max() >> element_scale) &&
