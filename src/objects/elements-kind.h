@@ -220,9 +220,9 @@ inline constexpr int ElementsKindToShiftSize(ElementsKind elements_kind) {
       return kTaggedSizeLog2;
     case WASM_ARRAY_ELEMENTS:
     case NO_ELEMENTS:
-      UNREACHABLE();
+      CONSTEXPR_UNREACHABLE();
   }
-  UNREACHABLE();
+  CONSTEXPR_UNREACHABLE();
 }
 inline constexpr int ElementsKindToByteSize(ElementsKind elements_kind) {
   return 1 << ElementsKindToShiftSize(elements_kind);
