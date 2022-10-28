@@ -452,10 +452,10 @@ TEST(Liftoff_debug_side_table_catch_all) {
       {
           // function entry.
           {1, {Register(0, kWasmI32)}},
+          // throw.
+          {2, {Stack(0, kWasmI32), Constant(1, kWasmI32, 0)}},
           // breakpoint.
-          {3,
-           {Stack(0, kWasmI32), Register(1, exception_type),
-            Constant(2, kWasmI32, 1)}},
+          {3, {Register(1, exception_type), Constant(2, kWasmI32, 1)}},
           {1, {}},
       },
       debug_side_table.get());

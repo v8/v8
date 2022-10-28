@@ -4716,6 +4716,8 @@ class LiftoffCompiler {
                      LiftoffAssembler::VarState{kPointerKind, values_array, 0}},
                     decoder->position());
 
+    RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
+
     int pc_offset = __ pc_offset();
     MaybeOSR();
     EmitLandingPad(decoder, pc_offset);
