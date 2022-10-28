@@ -13,7 +13,6 @@
 #include "src/codegen/register.h"
 #include "src/codegen/reglist.h"
 #include "src/codegen/x64/assembler-x64.h"
-#include "src/codegen/x64/register-x64.h"
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/deoptimizer/deoptimize-reason.h"
@@ -3601,47 +3600,6 @@ void Call::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
-void CallKnownJSFunction::AllocateVreg(MaglevVregAllocationState* vreg_state) {
-  UseAny(receiver());
-  for (int i = 0; i < num_args(); i++) {
-    UseAny(arg(i));
-  }
-  DefineAsFixed(vreg_state, this, kReturnRegister0);
-}
-void CallKnownJSFunction::GenerateCode(MaglevAssembler* masm,
-                                       const ProcessingState& state) {
-  int expected_parameter_count =
-      shared_function_info().internal_formal_parameter_count_with_receiver();
-  int actual_parameter_count = num_args() + 1;
-  if (actual_parameter_count < expected_parameter_count) {
-    int number_of_undefineds =
-        expected_parameter_count - actual_parameter_count;
-    __ LoadRoot(kScratchRegister, RootIndex::kUndefinedValue);
-    for (int i = 0; i < number_of_undefineds; i++) {
-      __ Push(kScratchRegister);
-    }
-  }
-  for (int i = num_args() - 1; i >= 0; --i) {
-    __ PushInput(arg(i));
-  }
-  __ PushInput(receiver());
-  __ Move(kContextRegister, function_.context().object());
-  __ Move(kJavaScriptCallTargetRegister, function_.object());
-  __ LoadRoot(kJavaScriptCallNewTargetRegister, RootIndex::kUndefinedValue);
-  __ Move(kJavaScriptCallArgCountRegister, Immediate(actual_parameter_count));
-  if (shared_function_info().HasBuiltinId()) {
-    __ CallBuiltin(shared_function_info().builtin_id());
-  } else {
-    __ Move(kJavaScriptCallCodeStartRegister, function_.code().object());
-    __ CallCodeTObject(kJavaScriptCallCodeStartRegister);
-  }
-  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
-}
-void CallKnownJSFunction::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << function_.object() << ")";
-}
-
 void Construct::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   using D = Construct_WithFeedbackDescriptor;
   UseFixed(function(), D::GetRegisterParameter(D::kTarget));
@@ -3871,45 +3829,6 @@ void ConstructWithSpread::GenerateCode(MaglevAssembler* masm,
   __ Move(D::GetRegisterParameter(D::kSlot), Immediate(feedback().index()));
   __ CallBuiltin(Builtin::kConstructWithSpread_WithFeedback);
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
-}
-
-void ConvertReceiver::AllocateVreg(MaglevVregAllocationState* vreg_state) {
-  using D = CallInterfaceDescriptorFor<Builtin::kToObject>::type;
-  UseFixed(receiver_input(), D::GetRegisterParameter(D::kInput));
-  set_temporaries_needed(1);
-  DefineAsFixed(vreg_state, this, kReturnRegister0);
-}
-void ConvertReceiver::GenerateCode(MaglevAssembler* masm,
-                                   const ProcessingState& state) {
-  Label convert_to_object, done;
-  Register receiver = ToRegister(receiver_input());
-  Register scratch = general_temporaries().first();
-  __ JumpIfSmi(receiver, &convert_to_object, Label::kNear);
-  static_assert(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
-  __ CmpObjectType(receiver, FIRST_JS_RECEIVER_TYPE, scratch);
-  __ j(above_equal, &done);
-
-  if (mode_ != ConvertReceiverMode::kNotNullOrUndefined) {
-    Label convert_global_proxy;
-    __ JumpIfRoot(receiver, RootIndex::kUndefinedValue, &convert_global_proxy,
-                  Label::kNear);
-    __ JumpIfNotRoot(receiver, RootIndex::kNullValue, &convert_to_object,
-                     Label::kNear);
-    __ bind(&convert_global_proxy);
-    {
-      // Patch receiver to global proxy.
-      __ Move(ToRegister(result()),
-              target_.native_context().global_proxy_object().object());
-    }
-    __ jmp(&done);
-  }
-
-  __ bind(&convert_to_object);
-  // ToObject needs to be ran with the target context installed.
-  __ Move(kContextRegister, target_.context().object());
-  __ CallBuiltin(Builtin::kToObject);
-  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
-  __ bind(&done);
 }
 
 void IncreaseInterruptBudget::AllocateVreg(

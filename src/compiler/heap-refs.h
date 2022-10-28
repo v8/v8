@@ -289,10 +289,6 @@ inline bool operator==(const ObjectRef& lhs, const ObjectRef& rhs) {
   return lhs.equals(rhs);
 }
 
-inline bool operator!=(const ObjectRef& lhs, const ObjectRef& rhs) {
-  return !lhs.equals(rhs);
-}
-
 inline bool operator<(const ObjectRef& lhs, const ObjectRef& rhs) {
   return lhs.data_ < rhs.data_;
 }
@@ -888,7 +884,6 @@ class ScopeInfoRef : public HeapObjectRef {
 };
 
 #define BROKER_SFI_FIELDS(V)                               \
-  V(int, internal_formal_parameter_count_with_receiver)    \
   V(int, internal_formal_parameter_count_without_receiver) \
   V(bool, IsDontAdaptArguments)                            \
   V(bool, has_simple_parameters)                           \
