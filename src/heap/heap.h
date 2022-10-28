@@ -212,6 +212,12 @@ using EphemeronRememberedSet =
     std::unordered_map<EphemeronHashTable, std::unordered_set<int>,
                        Object::Hasher>;
 
+// An alias for std::unordered_map<HeapObject, T> which also sets proper
+// Hash and KeyEqual functions.
+template <typename T>
+using UnorderedHeapObjectMap =
+    std::unordered_map<HeapObject, T, Object::Hasher, Object::KeyEqualSafe>;
+
 class Heap {
  public:
   // Stores ephemeron entries where the EphemeronHashTable is in old-space,
@@ -2381,12 +2387,11 @@ class Heap {
   bool force_gc_on_next_allocation_ = false;
   bool delay_sweeper_tasks_for_testing_ = false;
 
-  std::unordered_map<HeapObject, HeapObject, Object::Hasher> retainer_;
-  std::unordered_map<HeapObject, Root, Object::Hasher> retaining_root_;
+  UnorderedHeapObjectMap<HeapObject> retainer_;
+  UnorderedHeapObjectMap<Root> retaining_root_;
   // If an object is retained by an ephemeron, then the retaining key of the
   // ephemeron is stored in this map.
-  std::unordered_map<HeapObject, HeapObject, Object::Hasher>
-      ephemeron_retainer_;
+  UnorderedHeapObjectMap<HeapObject> ephemeron_retainer_;
   // For each index in the retaining_path_targets_ array this map
   // stores the option of the corresponding target.
   std::unordered_map<int, RetainingPathOption> retaining_path_target_option_;

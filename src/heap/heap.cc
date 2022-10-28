@@ -955,12 +955,11 @@ void Heap::PrintRetainingPath(HeapObject target, RetainingPathOption option) {
   PrintF("-------------------------------------------------\n");
 }
 
-void UpdateRetainersMapAfterScavenge(
-    std::unordered_map<HeapObject, HeapObject, Object::Hasher>* map) {
+void UpdateRetainersMapAfterScavenge(UnorderedHeapObjectMap<HeapObject>* map) {
   // This is only used for Scavenger.
   DCHECK(!v8_flags.minor_mc);
 
-  std::unordered_map<HeapObject, HeapObject, Object::Hasher> updated_map;
+  UnorderedHeapObjectMap<HeapObject> updated_map;
 
   for (auto pair : *map) {
     HeapObject object = pair.first;
@@ -993,7 +992,7 @@ void Heap::UpdateRetainersAfterScavenge() {
   UpdateRetainersMapAfterScavenge(&retainer_);
   UpdateRetainersMapAfterScavenge(&ephemeron_retainer_);
 
-  std::unordered_map<HeapObject, Root, Object::Hasher> updated_retaining_root;
+  UnorderedHeapObjectMap<Root> updated_retaining_root;
 
   for (auto pair : retaining_root_) {
     HeapObject object = pair.first;
