@@ -213,6 +213,7 @@ class CompactInterpreterFrameState;
   V(DebugBreak)                       \
   V(GeneratorStore)                   \
   V(JumpLoopPrologue)                 \
+  V(StoreMap)                         \
   V(StoreTaggedFieldNoWriteBarrier)   \
   V(StoreTaggedFieldWithWriteBarrier) \
   V(IncreaseInterruptBudget)          \
@@ -3226,6 +3227,27 @@ class StoreTaggedFieldNoWriteBarrier
 
  private:
   const int offset_;
+};
+
+class StoreMap : public FixedInputNodeT<1, StoreMap> {
+  using Base = FixedInputNodeT<1, StoreMap>;
+
+ public:
+  explicit StoreMap(uint64_t bitfield, compiler::MapRef& map)
+      : Base(bitfield), map_(map) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::Writing() | OpProperties::DeferredCall();
+
+  static constexpr int kObjectIndex = 0;
+  Input& object_input() { return input(kObjectIndex); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  const compiler::MapRef map_;
 };
 
 class StoreTaggedFieldWithWriteBarrier

@@ -1549,8 +1549,14 @@ bool MaglevGraphBuilder::TryBuildStoreField(
   // TODO(victorgomes): Support double stores.
   if (field_representation.IsDouble()) return false;
 
-  // TODO(victorgomes): Support transition maps.
-  if (access_info.HasTransitionMap()) return false;
+  if (access_info.HasTransitionMap()) {
+    compiler::MapRef transition = access_info.transition_map().value();
+    compiler::MapRef original_map = transition.GetBackPointer().AsMap();
+    // TODO(verwaest): Support growing backing stores.
+    if (original_map.UnusedPropertyFields() == 0) return false;
+  } else if (access_info.IsFastDataConstant()) {
+    return false;
+  }
 
   ValueNode* store_target;
   if (field_index.is_inobject()) {
@@ -1561,30 +1567,55 @@ bool MaglevGraphBuilder::TryBuildStoreField(
         {receiver}, JSReceiver::kPropertiesOrHashOffset);
   }
 
+  ValueNode* value = GetAccumulatorTagged();
   if (field_representation.IsSmi()) {
-    ValueNode* value = GetAccumulatorTagged();
     BuildCheckSmi(value);
+  } else if (field_representation.IsHeapObject()) {
+    // Emit a map check for the field type, if needed, otherwise just a
+    // HeapObject check.
+    if (access_info.field_map().has_value()) {
+      ZoneVector<compiler::MapRef> maps({access_info.field_map().value()},
+                                        zone());
+      BuildCheckMaps(value, maps);
+    } else {
+      BuildCheckHeapObject(value);
+    }
+  } else {
+    DCHECK(field_representation.IsTagged());
+  }
+
+  if (field_representation.IsSmi()) {
     AddNewNode<StoreTaggedFieldNoWriteBarrier>({store_target, value},
                                                field_index.offset());
   } else if (field_representation.IsDouble()) {
-    // TODO(victorgomes): Implement store double.
     UNREACHABLE();
   } else {
-    ValueNode* value = GetAccumulatorTagged();
-    if (field_representation.IsHeapObject()) {
-      // Emit a map check for the field type, if needed, otherwise just a
-      // HeapObject check.
-      if (access_info.field_map().has_value()) {
-        ZoneVector<compiler::MapRef> maps({access_info.field_map().value()},
-                                          zone());
-        BuildCheckMaps(value, maps);
-      } else {
-        BuildCheckHeapObject(value);
-      }
-    }
+    DCHECK(field_representation.IsHeapObject() ||
+           field_representation.IsTagged());
     AddNewNode<StoreTaggedFieldWithWriteBarrier>({store_target, value},
                                                  field_index.offset());
   }
+
+  if (access_info.HasTransitionMap()) {
+    compiler::MapRef transition = access_info.transition_map().value();
+    AddNewNode<StoreMap>({receiver}, transition);
+    NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(receiver);
+    DCHECK(transition.IsJSReceiverMap());
+    node_info->type = NodeType::kJSReceiverWithKnownMap;
+    if (transition.is_stable()) {
+      ZoneHandleSet<Map> stable_maps(transition.object());
+      ZoneHandleSet<Map> unstable_maps;
+      known_node_aspects().stable_maps.emplace(receiver, stable_maps);
+      known_node_aspects().unstable_maps.emplace(receiver, unstable_maps);
+      broker()->dependencies()->DependOnStableMap(transition);
+    } else {
+      ZoneHandleSet<Map> stable_maps;
+      ZoneHandleSet<Map> unstable_maps(transition.object());
+      known_node_aspects().stable_maps.emplace(receiver, stable_maps);
+      known_node_aspects().unstable_maps.emplace(receiver, unstable_maps);
+    }
+  }
+
   return true;
 }
 

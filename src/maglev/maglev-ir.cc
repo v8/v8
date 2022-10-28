@@ -1876,6 +1876,64 @@ void StoreTaggedFieldNoWriteBarrier::PrintParams(
   os << "(" << std::hex << offset() << std::dec << ")";
 }
 
+void StoreMap::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  UseFixed(object_input(), WriteBarrierDescriptor::ObjectRegister());
+}
+void StoreMap::GenerateCode(MaglevAssembler* masm,
+                            const ProcessingState& state) {
+  // TODO(leszeks): Consider making this an arbitrary register and push/popping
+  // in the deferred path.
+  Register object = WriteBarrierDescriptor::ObjectRegister();
+  DCHECK_EQ(object, ToRegister(object_input()));
+
+  __ AssertNotSmi(object);
+  Register value = kScratchRegister;
+  __ Move(value, map_.object());
+  __ StoreTaggedField(FieldOperand(object, HeapObject::kMapOffset),
+                      kScratchRegister);
+
+  ZoneLabelRef done(masm);
+  DeferredCodeInfo* deferred_write_barrier = __ PushDeferredCode(
+      [](MaglevAssembler* masm, ZoneLabelRef done, Register value,
+         Register object, StoreMap* node) {
+        ASM_CODE_COMMENT_STRING(masm, "Write barrier slow path");
+        __ CheckPageFlag(
+            value, kScratchRegister,
+            MemoryChunk::kPointersToHereAreInterestingOrInSharedHeapMask, zero,
+            *done);
+
+        Register slot_reg = WriteBarrierDescriptor::SlotAddressRegister();
+        RegList saved;
+        if (node->register_snapshot().live_registers.has(slot_reg)) {
+          saved.set(slot_reg);
+        }
+
+        __ PushAll(saved);
+        __ leaq(slot_reg, FieldOperand(object, HeapObject::kMapOffset));
+
+        SaveFPRegsMode const save_fp_mode =
+            !node->register_snapshot().live_double_registers.is_empty()
+                ? SaveFPRegsMode::kSave
+                : SaveFPRegsMode::kIgnore;
+
+        __ CallRecordWriteStub(object, slot_reg, save_fp_mode);
+
+        __ PopAll(saved);
+        __ jmp(*done);
+      },
+      done, value, object, this);
+
+  __ JumpIfSmi(value, *done);
+  __ CheckPageFlag(object, kScratchRegister,
+                   MemoryChunk::kPointersFromHereAreInterestingMask, not_zero,
+                   &deferred_write_barrier->deferred_code_label);
+  __ bind(*done);
+}
+void StoreMap::PrintParams(std::ostream& os,
+                           MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << *map_.object() << ")";
+}
+
 void StoreTaggedFieldWithWriteBarrier::AllocateVreg(
     MaglevVregAllocationState* vreg_state) {
   UseFixed(object_input(), WriteBarrierDescriptor::ObjectRegister());

@@ -139,6 +139,7 @@ class MaglevGraphVerifier {
       case Opcode::kGetTemplateObject:
       case Opcode::kLogicalNot:
       case Opcode::kSetPendingMessage:
+      case Opcode::kStoreMap:
       case Opcode::kStringLength:
       case Opcode::kToBooleanLogicalNot:
       case Opcode::kTestUndetectable:
