@@ -662,43 +662,89 @@ class Input : public InputLocation {
   ValueNode* node_;
 };
 
-class CheckpointedInterpreterState {
+class InterpretedDeoptFrame;
+class DeoptFrame {
  public:
-  CheckpointedInterpreterState() = default;
-  CheckpointedInterpreterState(BytecodeOffset bytecode_position,
-                               const CompactInterpreterFrameState* state,
-                               const CheckpointedInterpreterState* parent)
-      : bytecode_position(bytecode_position),
-        register_frame(state),
-        parent(parent) {}
+  enum class FrameType {
+    kInterpretedFrame,
+    // kBuiltinContinuationFrame,
+  };
 
-  BytecodeOffset bytecode_position = BytecodeOffset::None();
-  const CompactInterpreterFrameState* register_frame = nullptr;
-  const CheckpointedInterpreterState* parent = nullptr;
+  FrameType type() const { return type_; }
+  const DeoptFrame* parent() const { return parent_; }
+
+  inline const InterpretedDeoptFrame& as_interpreted() const;
+
+ protected:
+  struct InterpretedFrameData {
+    const MaglevCompilationUnit& unit;
+    const CompactInterpreterFrameState* frame_state;
+    BytecodeOffset bytecode_position;
+    SourcePosition source_position;
+  };
+
+  DeoptFrame(InterpretedFrameData data, const DeoptFrame* parent)
+      : interpreted_frame_data_(data),
+        type_(FrameType::kInterpretedFrame),
+        parent_(parent) {}
+
+  union {
+    const InterpretedFrameData interpreted_frame_data_;
+  };
+  FrameType type_;
+  const DeoptFrame* parent_;
 };
+
+class InterpretedDeoptFrame : public DeoptFrame {
+ public:
+  InterpretedDeoptFrame(const MaglevCompilationUnit& unit,
+                        const CompactInterpreterFrameState* frame_state,
+                        BytecodeOffset bytecode_position,
+                        SourcePosition source_position,
+                        const DeoptFrame* parent)
+      : DeoptFrame(InterpretedFrameData{unit, frame_state, bytecode_position,
+                                        source_position},
+                   parent) {}
+
+  const MaglevCompilationUnit& unit() const {
+    return interpreted_frame_data_.unit;
+  }
+  const CompactInterpreterFrameState* frame_state() const {
+    return interpreted_frame_data_.frame_state;
+  }
+  BytecodeOffset bytecode_position() const {
+    return interpreted_frame_data_.bytecode_position;
+  }
+  SourcePosition source_position() const {
+    return interpreted_frame_data_.source_position;
+  }
+};
+
+// Make sure storing/passing deopt frames by value doesn't truncate them.
+static_assert(sizeof(InterpretedDeoptFrame) == sizeof(DeoptFrame));
+
+inline const InterpretedDeoptFrame& DeoptFrame::as_interpreted() const {
+  DCHECK_EQ(type(), FrameType::kInterpretedFrame);
+  return static_cast<const InterpretedDeoptFrame&>(*this);
+}
 
 class DeoptInfo {
  protected:
-  DeoptInfo(Zone* zone, const MaglevCompilationUnit& compilation_unit,
-            CheckpointedInterpreterState checkpoint,
-            SourcePosition source_position);
+  DeoptInfo(Zone* zone, DeoptFrame top_frame);
 
  public:
-  const MaglevCompilationUnit& unit() const { return unit_; }
-  CheckpointedInterpreterState state() const { return state_; }
+  const DeoptFrame& top_frame() const { return top_frame_; }
+
   InputLocation* input_locations() const { return input_locations_; }
   Label* deopt_entry_label() { return &deopt_entry_label_; }
-  SourcePosition source_position() const { return source_position_; }
 
   int translation_index() const { return translation_index_; }
   void set_translation_index(int index) { translation_index_ = index; }
 
  private:
-  const MaglevCompilationUnit& unit_;
-  const CheckpointedInterpreterState state_;
+  const DeoptFrame top_frame_;
   InputLocation* const input_locations_;
   Label deopt_entry_label_;
-  const SourcePosition source_position_;
   int translation_index_ = -1;
 };
 
@@ -710,10 +756,8 @@ struct RegisterSnapshot {
 
 class EagerDeoptInfo : public DeoptInfo {
  public:
-  EagerDeoptInfo(Zone* zone, const MaglevCompilationUnit& compilation_unit,
-                 CheckpointedInterpreterState checkpoint,
-                 SourcePosition source_position)
-      : DeoptInfo(zone, compilation_unit, checkpoint, source_position) {}
+  EagerDeoptInfo(Zone* zone, DeoptFrame&& top_frame)
+      : DeoptInfo(zone, std::move(top_frame)) {}
 
   DeoptimizeReason reason() const { return reason_; }
   void set_reason(DeoptimizeReason reason) { reason_ = reason; }
@@ -724,10 +768,8 @@ class EagerDeoptInfo : public DeoptInfo {
 
 class LazyDeoptInfo : public DeoptInfo {
  public:
-  LazyDeoptInfo(Zone* zone, const MaglevCompilationUnit& compilation_unit,
-                CheckpointedInterpreterState checkpoint,
-                SourcePosition source_position)
-      : DeoptInfo(zone, compilation_unit, checkpoint, source_position) {}
+  LazyDeoptInfo(Zone* zone, DeoptFrame&& top_frame)
+      : DeoptInfo(zone, std::move(top_frame)) {}
 
   interpreter::Register result_location() const { return result_location_; }
   int result_size() const { return result_size_; }
@@ -846,17 +888,14 @@ class NodeBase : public ZoneObject {
   }
 
   template <class Derived, typename... Args>
-  static Derived* New(Zone* zone, const MaglevCompilationUnit& compilation_unit,
-                      CheckpointedInterpreterState checkpoint,
-                      SourcePosition source_position, Args&&... args) {
+  static Derived* New(Zone* zone, DeoptFrame&& deopt_frame, Args&&... args) {
     Derived* node = New<Derived>(zone, std::forward<Args>(args)...);
     if constexpr (Derived::kProperties.can_eager_deopt()) {
       new (node->eager_deopt_info())
-          EagerDeoptInfo(zone, compilation_unit, checkpoint, source_position);
+          EagerDeoptInfo(zone, std::move(deopt_frame));
     } else {
       static_assert(Derived::kProperties.can_lazy_deopt());
-      new (node->lazy_deopt_info())
-          LazyDeoptInfo(zone, compilation_unit, checkpoint, source_position);
+      new (node->lazy_deopt_info()) LazyDeoptInfo(zone, std::move(deopt_frame));
     }
     return node;
   }

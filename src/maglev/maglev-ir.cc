@@ -373,31 +373,24 @@ void NodeBase::Print() const {
 }
 
 namespace {
-size_t GetInputLocationsArraySize(const MaglevCompilationUnit& compilation_unit,
-                                  const CheckpointedInterpreterState& state) {
-  size_t size = state.register_frame->size(compilation_unit);
-  const CheckpointedInterpreterState* parent = state.parent;
-  const MaglevCompilationUnit* parent_unit = compilation_unit.caller();
-  while (parent != nullptr) {
-    size += parent->register_frame->size(*parent_unit);
-    parent = parent->parent;
-    parent_unit = parent_unit->caller();
-  }
+size_t GetInputLocationsArraySize(const DeoptFrame& top_frame) {
+  size_t size = 0;
+  const DeoptFrame* frame = &top_frame;
+  do {
+    const InterpretedDeoptFrame& interpreted_frame = frame->as_interpreted();
+    size += interpreted_frame.frame_state()->size(interpreted_frame.unit());
+    frame = interpreted_frame.parent();
+  } while (frame != nullptr);
   return size;
 }
 }  // namespace
 
-DeoptInfo::DeoptInfo(Zone* zone, const MaglevCompilationUnit& compilation_unit,
-                     CheckpointedInterpreterState state,
-                     SourcePosition source_position)
-    : unit_(compilation_unit),
-      state_(state),
+DeoptInfo::DeoptInfo(Zone* zone, DeoptFrame top_frame)
+    : top_frame_(top_frame),
       input_locations_(zone->NewArray<InputLocation>(
-          GetInputLocationsArraySize(compilation_unit, state))),
-      source_position_(source_position) {
+          GetInputLocationsArraySize(top_frame))) {
   // Initialise InputLocations so that they correctly don't have a next use id.
-  for (size_t i = 0; i < GetInputLocationsArraySize(compilation_unit, state);
-       ++i) {
+  for (size_t i = 0; i < GetInputLocationsArraySize(top_frame); ++i) {
     new (&input_locations_[i]) InputLocation();
   }
 }

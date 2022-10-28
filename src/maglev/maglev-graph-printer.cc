@@ -367,28 +367,28 @@ namespace {
 
 void RecursivePrintEagerDeopt(std::ostream& os,
                               std::vector<BasicBlock*> targets,
-                              const CheckpointedInterpreterState& state,
-                              const MaglevCompilationUnit& unit,
+                              const DeoptFrame& frame,
                               MaglevGraphLabeller* graph_labeller,
                               int max_node_id,
                               InputLocation*& current_input_location) {
-  if (state.parent) {
-    RecursivePrintEagerDeopt(os, targets, *state.parent, *unit.caller(),
-                             graph_labeller, max_node_id,
-                             current_input_location);
+  if (frame.parent()) {
+    RecursivePrintEagerDeopt(os, targets, *frame.parent(), graph_labeller,
+                             max_node_id, current_input_location);
   }
 
   PrintVerticalArrows(os, targets);
   PrintPadding(os, graph_labeller, max_node_id, 0);
-  if (!state.parent) {
-    os << "  ↱ eager @" << state.bytecode_position << " : {";
+  if (!frame.parent()) {
+    os << "  ↱ eager @" << frame.as_interpreted().bytecode_position() << " : {";
   } else {
-    os << "  │       @" << state.bytecode_position.ToInt() << " : {";
+    os << "  │       @" << frame.as_interpreted().bytecode_position().ToInt()
+       << " : {";
   }
 
   bool first = true;
-  state.register_frame->ForEachValue(
-      unit, [&](ValueNode* node, interpreter::Register reg) {
+  frame.as_interpreted().frame_state()->ForEachValue(
+      frame.as_interpreted().unit(),
+      [&](ValueNode* node, interpreter::Register reg) {
         if (first) {
           first = false;
         } else {
@@ -406,8 +406,8 @@ void PrintEagerDeopt(std::ostream& os, std::vector<BasicBlock*> targets,
                      int max_node_id) {
   EagerDeoptInfo* deopt_info = node->eager_deopt_info();
   InputLocation* current_input_location = deopt_info->input_locations();
-  RecursivePrintEagerDeopt(os, targets, deopt_info->state(), deopt_info->unit(),
-                           graph_labeller, max_node_id, current_input_location);
+  RecursivePrintEagerDeopt(os, targets, deopt_info->top_frame(), graph_labeller,
+                           max_node_id, current_input_location);
 }
 
 void MaybePrintEagerDeopt(std::ostream& os, std::vector<BasicBlock*> targets,
@@ -419,24 +419,24 @@ void MaybePrintEagerDeopt(std::ostream& os, std::vector<BasicBlock*> targets,
 }
 
 void RecursivePrintLazyDeopt(std::ostream& os, std::vector<BasicBlock*> targets,
-                             const CheckpointedInterpreterState& state,
-                             const MaglevCompilationUnit& unit,
+                             const DeoptFrame& frame,
                              MaglevGraphLabeller* graph_labeller,
                              int max_node_id,
                              InputLocation*& current_input_location) {
-  if (state.parent) {
-    RecursivePrintLazyDeopt(os, targets, *state.parent, *unit.caller(),
-                            graph_labeller, max_node_id,
-                            current_input_location);
+  if (frame.parent()) {
+    RecursivePrintLazyDeopt(os, targets, *frame.parent(), graph_labeller,
+                            max_node_id, current_input_location);
   }
 
   PrintVerticalArrows(os, targets);
   PrintPadding(os, graph_labeller, max_node_id, 0);
-  os << "  │      @" << state.bytecode_position.ToInt() << " : {";
+  os << "  │      @" << frame.as_interpreted().bytecode_position().ToInt()
+     << " : {";
 
   bool first = true;
-  state.register_frame->ForEachValue(
-      unit, [&](ValueNode* node, interpreter::Register reg) {
+  frame.as_interpreted().frame_state()->ForEachValue(
+      frame.as_interpreted().unit(),
+      [&](ValueNode* node, interpreter::Register reg) {
         if (first) {
           first = false;
         } else {
@@ -455,19 +455,21 @@ void PrintLazyDeopt(std::ostream& os, std::vector<BasicBlock*> targets,
                     int max_node_id) {
   LazyDeoptInfo* deopt_info = node->lazy_deopt_info();
   InputLocation* current_input_location = deopt_info->input_locations();
-  if (deopt_info->state().parent) {
-    RecursivePrintLazyDeopt(os, targets, *deopt_info->state().parent,
-                            *deopt_info->unit().caller(), graph_labeller,
+  const DeoptFrame& top_frame = deopt_info->top_frame();
+  if (top_frame.parent()) {
+    RecursivePrintLazyDeopt(os, targets, *top_frame.parent(), graph_labeller,
                             max_node_id, current_input_location);
   }
 
   PrintVerticalArrows(os, targets);
   PrintPadding(os, graph_labeller, max_node_id, 0);
 
-  os << "  ↳ lazy @" << deopt_info->state().bytecode_position << " : {";
+  os << "  ↳ lazy @" << top_frame.as_interpreted().bytecode_position()
+     << " : {";
   bool first = true;
-  deopt_info->state().register_frame->ForEachValue(
-      deopt_info->unit(), [&](ValueNode* node, interpreter::Register reg) {
+  top_frame.as_interpreted().frame_state()->ForEachValue(
+      top_frame.as_interpreted().unit(),
+      [&](ValueNode* node, interpreter::Register reg) {
         if (first) {
           first = false;
         } else {
@@ -507,14 +509,16 @@ void PrintExceptionHandlerPoint(std::ostream& os,
   // The exception handler liveness should be a subset of lazy_deopt_info one.
   auto* liveness = block->state()->frame_state().liveness();
   LazyDeoptInfo* deopt_info = node->lazy_deopt_info();
+  const DeoptFrame& top_frame = deopt_info->top_frame();
 
   PrintVerticalArrows(os, targets);
   PrintPadding(os, graph_labeller, max_node_id, 0);
 
   os << "  ↳ throw @" << handler_offset << " : {";
   bool first = true;
-  deopt_info->state().register_frame->ForEachValue(
-      deopt_info->unit(), [&](ValueNode* node, interpreter::Register reg) {
+  top_frame.as_interpreted().frame_state()->ForEachValue(
+      top_frame.as_interpreted().unit(),
+      [&](ValueNode* node, interpreter::Register reg) {
         if (!reg.is_parameter() && !liveness->RegisterIsLive(reg.index())) {
           // Skip, since not live at the handler offset.
           return;

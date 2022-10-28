@@ -111,7 +111,7 @@ class MaglevGraphBuilder {
 
     // Merges aren't simple fallthroughs, so we should reset the checkpoint
     // validity.
-    latest_checkpointed_state_.reset();
+    latest_checkpointed_frame_.reset();
 
     // Register exception phis.
     if (has_graph_labeller()) {
@@ -133,7 +133,7 @@ class MaglevGraphBuilder {
 
     // Merges aren't simple fallthroughs, so we should reset the checkpoint
     // validity.
-    latest_checkpointed_state_.reset();
+    latest_checkpointed_frame_.reset();
 
     if (merge_state.predecessor_count() == 1) return;
 
@@ -389,13 +389,11 @@ class MaglevGraphBuilder {
   template <typename NodeT, typename... Args>
   NodeT* CreateNewNodeHelper(Args&&... args) {
     if constexpr (NodeT::kProperties.can_eager_deopt()) {
-      return NodeBase::New<NodeT>(
-          zone(), *compilation_unit_, GetLatestCheckpointedState(),
-          current_source_position_, std::forward<Args>(args)...);
+      return NodeBase::New<NodeT>(zone(), GetLatestCheckpointedFrame(),
+                                  std::forward<Args>(args)...);
     } else if constexpr (NodeT::kProperties.can_lazy_deopt()) {
-      return NodeBase::New<NodeT>(
-          zone(), *compilation_unit_, GetCheckpointedStateForLazyDeopt(),
-          current_source_position_, std::forward<Args>(args)...);
+      return NodeBase::New<NodeT>(zone(), GetDeoptFrameForLazyDeopt(),
+                                  std::forward<Args>(args)...);
     } else {
       return NodeBase::New<NodeT>(zone(), std::forward<Args>(args)...);
     }
@@ -830,28 +828,29 @@ class MaglevGraphBuilder {
     current_interpreter_frame_.set(target1, second_value);
   }
 
-  CheckpointedInterpreterState GetLatestCheckpointedState() {
-    if (!latest_checkpointed_state_) {
-      latest_checkpointed_state_.emplace(
-          BytecodeOffset(iterator_.current_offset()),
+  InterpretedDeoptFrame GetLatestCheckpointedFrame() {
+    if (!latest_checkpointed_frame_) {
+      latest_checkpointed_frame_.emplace(
+          *compilation_unit_,
           zone()->New<CompactInterpreterFrameState>(
               *compilation_unit_, GetInLiveness(), current_interpreter_frame_),
-          parent_ == nullptr
-              ? nullptr
-              // TODO(leszeks): Don't always allocate for the parent state,
-              // maybe cache it on the graph builder?
-              : zone()->New<CheckpointedInterpreterState>(
-                    parent_->GetLatestCheckpointedState()));
+          BytecodeOffset(iterator_.current_offset()), current_source_position_,
+          // TODO(leszeks): Don't always allocate for the parent state,
+          // maybe cache it on the graph builder?
+          parent_
+              ? zone()->New<DeoptFrame>(parent_->GetLatestCheckpointedFrame())
+              : nullptr);
     }
-    return *latest_checkpointed_state_;
+    return *latest_checkpointed_frame_;
   }
 
-  CheckpointedInterpreterState GetCheckpointedStateForLazyDeopt() {
-    return CheckpointedInterpreterState(
-        BytecodeOffset(iterator_.current_offset()),
+  InterpretedDeoptFrame GetDeoptFrameForLazyDeopt() {
+    return InterpretedDeoptFrame(
+        *compilation_unit_,
         zone()->New<CompactInterpreterFrameState>(
             *compilation_unit_, GetOutLiveness(), current_interpreter_frame_),
-        // TODO(leszeks): Support lazy deopts in inlined functions.
+        BytecodeOffset(iterator_.current_offset()), current_source_position_,
+        // TODO(leszeks): Support inlining for lazy deopts.
         nullptr);
   }
 
@@ -868,7 +867,7 @@ class MaglevGraphBuilder {
 
   void MarkPossibleSideEffect() {
     // If there was a potential side effect, invalidate the previous checkpoint.
-    latest_checkpointed_state_.reset();
+    latest_checkpointed_frame_.reset();
 
     // A side effect could change existing objects' maps. For stable maps we
     // know this hasn't happened (because we added a dependency on the maps
@@ -1199,7 +1198,7 @@ class MaglevGraphBuilder {
 
   // Current block information.
   BasicBlock* current_block_ = nullptr;
-  base::Optional<CheckpointedInterpreterState> latest_checkpointed_state_;
+  base::Optional<InterpretedDeoptFrame> latest_checkpointed_frame_;
   SourcePosition current_source_position_;
 
   BasicBlockRef* jump_targets_;
