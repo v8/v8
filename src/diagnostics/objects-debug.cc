@@ -1099,7 +1099,7 @@ void CodeDataContainer::CodeDataContainerVerify(Isolate* isolate) {
       // when external code space is not enabled.
       CHECK_EQ(code.kind(), kind());
       CHECK_EQ(code.builtin_id(), builtin_id());
-      if (V8_REMOVE_BUILTINS_CODE_OBJECTS) {
+      if (V8_EXTERNAL_CODE_SPACE_BOOL) {
         // When v8_flags.interpreted_frames_native_stack is enabled each
         // interpreted function gets its own copy of the
         // InterpreterEntryTrampoline. Thus, there could be Code'ful builtins.

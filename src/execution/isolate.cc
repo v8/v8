@@ -428,7 +428,7 @@ size_t Isolate::HashIsolateForEmbeddedBlob() {
        ++builtin) {
     CodeT codet = builtins()->code(builtin);
 
-    if (V8_REMOVE_BUILTINS_CODE_OBJECTS) {
+    if (V8_EXTERNAL_CODE_SPACE_BOOL) {
 #ifdef V8_EXTERNAL_CODE_SPACE
       DCHECK(Internals::HasHeapObjectTag(codet.ptr()));
       uint8_t* const code_ptr = reinterpret_cast<uint8_t*>(codet.address());
@@ -4041,7 +4041,7 @@ void Isolate::AddCrashKeysForIsolateAndHeapPointers() {
                             ToHexString(code_range_base_address));
   }
 
-  if (!V8_REMOVE_BUILTINS_CODE_OBJECTS || heap()->code_space()->first_page()) {
+  if (!V8_EXTERNAL_CODE_SPACE_BOOL || heap()->code_space()->first_page()) {
     const uintptr_t code_space_firstpage_address =
         heap()->code_space()->FirstPageAddress();
     add_crash_key_callback_(v8::CrashKeyId::kCodeSpaceFirstPageAddress,

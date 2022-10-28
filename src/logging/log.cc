@@ -1372,7 +1372,7 @@ void V8FileLogger::LogCodeDisassemble(Handle<AbstractCode> code) {
 #ifdef ENABLE_DISASSEMBLER
       Code::cast(*code).Disassemble(nullptr, stream, isolate_);
 #endif
-    } else if (V8_REMOVE_BUILTINS_CODE_OBJECTS &&
+    } else if (V8_EXTERNAL_CODE_SPACE_BOOL &&
                code->IsCodeDataContainer(cage_base)) {
 #ifdef ENABLE_DISASSEMBLER
       CodeT::cast(*code).Disassemble(nullptr, stream, isolate_);
@@ -2330,7 +2330,7 @@ void ExistingCodeLogger::LogCodeObjects() {
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
     InstanceType instance_type = obj.map(cage_base).instance_type();
-    if (V8_REMOVE_BUILTINS_CODE_OBJECTS) {
+    if (V8_EXTERNAL_CODE_SPACE_BOOL) {
       // In this case AbstactCode is Code|CodeDataContainer|BytecodeArray but
       // we want to log code objects only once, thus we ignore Code objects
       // which will be logged via corresponding CodeDataContainer.

@@ -1027,9 +1027,8 @@ inline Handle<AbstractCode> ToAbstractCode(Handle<CodeT> code,
                                            Isolate* isolate);
 inline CodeDataContainer CodeDataContainerFromCodeT(CodeT code);
 
-// AbsractCode is an helper wrapper around {Code | BytecodeArray} or
-// {Code | CodeDataContainer | BytecodeArray} depending on whether the
-// V8_REMOVE_BUILTINS_CODE_OBJECTS is disabled or not.
+// AbsractCode is a helper wrapper around {Code|CodeDataContainer|BytecodeArray}
+// when V8_EXTERNAL_CODE_SPACE is enabled or {Code|BytecodeArray} otherwise.
 // Note that when V8_EXTERNAL_CODE_SPACE is enabled then the same abstract code
 // can be represented either by Code object or by respective CodeDataContainer
 // object.

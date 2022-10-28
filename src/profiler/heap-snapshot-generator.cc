@@ -1481,7 +1481,7 @@ void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
   CodeT code = shared.GetCode();
   // Don't try to get the Code object from Code-less embedded builtin.
   HeapObject maybe_code_obj =
-      V8_REMOVE_BUILTINS_CODE_OBJECTS && code.is_off_heap_trampoline()
+      V8_EXTERNAL_CODE_SPACE_BOOL && code.is_off_heap_trampoline()
           ? HeapObject::cast(code)
           : FromCodeT(code);
   if (name[0] != '\0') {
@@ -1558,7 +1558,7 @@ void V8HeapExplorer::TagBuiltinCodeObject(CodeT code, const char* name) {
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {
     TagObject(code, names_->GetFormatted("(%s builtin handle)", name));
   }
-  if (!V8_REMOVE_BUILTINS_CODE_OBJECTS || !code.is_off_heap_trampoline()) {
+  if (!V8_EXTERNAL_CODE_SPACE_BOOL || !code.is_off_heap_trampoline()) {
     TagObject(FromCodeT(code), names_->GetFormatted("(%s builtin)", name));
   }
 }

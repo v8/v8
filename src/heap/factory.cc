@@ -2490,7 +2490,7 @@ Handle<CodeT> Factory::NewOffHeapTrampolineFor(Handle<CodeT> code,
   CHECK(Builtins::IsIsolateIndependentBuiltin(*code));
 
 #ifdef V8_EXTERNAL_CODE_SPACE
-  if (V8_REMOVE_BUILTINS_CODE_OBJECTS) {
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
     const int no_flags = 0;
     Handle<CodeDataContainer> code_data_container =
         NewCodeDataContainer(no_flags, AllocationType::kOld);

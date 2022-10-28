@@ -503,7 +503,7 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
     code_data_container.init_code_entry_point(main_thread_isolate(),
                                               kNullAddress);
 #ifdef V8_EXTERNAL_CODE_SPACE
-    if (V8_REMOVE_BUILTINS_CODE_OBJECTS &&
+    if (V8_EXTERNAL_CODE_SPACE_BOOL &&
         code_data_container.is_off_heap_trampoline()) {
       Address entry = OffHeapInstructionStart(code_data_container,
                                               code_data_container.builtin_id());
