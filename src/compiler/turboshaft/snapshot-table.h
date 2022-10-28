@@ -28,7 +28,9 @@
 //   NewKey()           O(1)
 namespace v8::internal::compiler::turboshaft {
 
-template <class Value, class KeyData = std::monostate>
+struct NoKeyData {};
+
+template <class Value, class KeyData = NoKeyData>
 class SnapshotTable {
  private:
   struct TableEntry;
