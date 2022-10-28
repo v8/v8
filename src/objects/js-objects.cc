@@ -1527,14 +1527,13 @@ Maybe<bool> JSReceiver::ValidateAndApplyPropertyDescriptor(
     return Just(true);
   }
   // 3. If every field in Desc is absent, return true. (This also has a shortcut
-  // not in the spec: if every field value matches the current value, return.
-  // This shortcut doesn't apply to the `value` field itself, because of
-  // constness).
+  // not in the spec: if every field value matches the current value, return.)
   if ((!desc->has_enumerable() ||
        desc->enumerable() == current->enumerable()) &&
       (!desc->has_configurable() ||
        desc->configurable() == current->configurable()) &&
-      !desc->has_value() &&
+      (!desc->has_value() ||
+       (current->has_value() && current->value()->SameValue(*desc->value()))) &&
       (!desc->has_writable() ||
        (current->has_writable() && current->writable() == desc->writable())) &&
       (!desc->has_get() ||

@@ -375,11 +375,11 @@ void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
     // Check that current value matches new value otherwise we should make
     // the property mutable.
     if (holder->HasFastProperties(isolate_)) {
-      if (!IsConstFieldUninitialized(*value)) {
+      if (!IsConstFieldValueEqualTo(*value)) {
         new_constness = PropertyConstness::kMutable;
       }
     } else if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL) {
-      if (!IsConstDictValueUninitialized(*value)) {
+      if (!IsConstDictValueEqualTo(*value)) {
         property_details_ =
             property_details_.CopyWithConstness(PropertyConstness::kMutable);
 
@@ -902,7 +902,7 @@ Handle<Object> LookupIterator::FetchValue(
   return handle(result, isolate_);
 }
 
-bool LookupIterator::IsConstFieldUninitialized(Object value) const {
+bool LookupIterator::IsConstFieldValueEqualTo(Object value) const {
   DCHECK(!IsElement(*holder_));
   DCHECK(holder_->HasFastProperties(isolate_));
   DCHECK_EQ(PropertyLocation::kField, property_details_.location());
@@ -921,21 +921,29 @@ bool LookupIterator::IsConstFieldUninitialized(Object value) const {
     uint64_t bits;
     Object current_value = holder->RawFastPropertyAt(isolate_, field_index);
     DCHECK(current_value.IsHeapNumber(isolate_));
+    bits = HeapNumber::cast(current_value).value_as_bits(kRelaxedLoad);
     // Use bit representation of double to check for hole double, since
     // manipulating the signaling NaN used for the hole in C++, e.g. with
     // base::bit_cast or value(), will change its value on ia32 (the x87
     // stack is used to return values and stores to the stack silently clear the
     // signalling bit).
-    bits = HeapNumber::cast(current_value).value_as_bits(kRelaxedLoad);
-    // Uninitialized double field.
-    return bits == kHoleNanInt64;
+    if (bits == kHoleNanInt64) {
+      // Uninitialized double field.
+      return true;
+    }
+    return Object::SameNumberValue(base::bit_cast<double>(bits),
+                                   value.Number());
   } else {
     Object current_value = holder->RawFastPropertyAt(isolate_, field_index);
-    return current_value.IsUninitialized(isolate());
+    if (current_value.IsUninitialized(isolate()) || current_value == value) {
+      return true;
+    }
+    return current_value.IsNumber(isolate_) && value.IsNumber(isolate_) &&
+           Object::SameNumberValue(current_value.Number(), value.Number());
   }
 }
 
-bool LookupIterator::IsConstDictValueUninitialized(Object value) const {
+bool LookupIterator::IsConstDictValueEqualTo(Object value) const {
   DCHECK(!IsElement(*holder_));
   DCHECK(!holder_->HasFastProperties(isolate_));
   DCHECK(!holder_->IsJSGlobalObject());
@@ -960,7 +968,11 @@ bool LookupIterator::IsConstDictValueUninitialized(Object value) const {
     current_value = dict.ValueAt(dictionary_entry());
   }
 
-  return current_value.IsUninitialized(isolate());
+  if (current_value.IsUninitialized(isolate()) || current_value == value) {
+    return true;
+  }
+  return current_value.IsNumber(isolate_) && value.IsNumber(isolate_) &&
+         Object::SameNumberValue(current_value.Number(), value.Number());
 }
 
 int LookupIterator::GetFieldDescriptorIndex() const {
@@ -1047,7 +1059,7 @@ void LookupIterator::WriteDataValue(Handle<Object> value,
       // equal to |value|.
       DCHECK_IMPLIES(!initializing_store && property_details_.constness() ==
                                                 PropertyConstness::kConst,
-                     IsConstFieldUninitialized(*value));
+                     IsConstFieldValueEqualTo(*value));
       JSObject::cast(*holder).WriteToField(descriptor_number(),
                                            property_details_, *value);
     } else {
@@ -1071,7 +1083,7 @@ void LookupIterator::WriteDataValue(Handle<Object> value,
     DCHECK_IMPLIES(
         V8_DICT_PROPERTY_CONST_TRACKING_BOOL && !initializing_store &&
             property_details_.constness() == PropertyConstness::kConst,
-        holder->IsJSProxy(isolate_) || IsConstDictValueUninitialized(*value));
+        holder->IsJSProxy(isolate_) || IsConstDictValueEqualTo(*value));
 
     if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       SwissNameDictionary dictionary =
