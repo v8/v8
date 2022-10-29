@@ -241,11 +241,13 @@ Response ensureContext(V8InspectorImpl* inspector, int contextGroupId,
 
 V8RuntimeAgentImpl::V8RuntimeAgentImpl(
     V8InspectorSessionImpl* session, protocol::FrontendChannel* FrontendChannel,
-    protocol::DictionaryValue* state)
+    protocol::DictionaryValue* state,
+    std::shared_ptr<V8DebuggerBarrier> debuggerBarrier)
     : m_session(session),
       m_state(state),
       m_frontend(FrontendChannel),
       m_inspector(session->inspector()),
+      m_debuggerBarrier(debuggerBarrier),
       m_enabled(false) {}
 
 V8RuntimeAgentImpl::~V8RuntimeAgentImpl() = default;
@@ -491,11 +493,13 @@ Response V8RuntimeAgentImpl::releaseObjectGroup(const String16& objectGroup) {
 }
 
 Response V8RuntimeAgentImpl::runIfWaitingForDebugger() {
-  if (m_runIfWaitingForDebuggerCalled) return Response::Success();
-  m_runIfWaitingForDebuggerCalled = true;
-  // The client implementation is resposible for checking if the session is
-  // actually waiting for debugger. m_runIfWaitingForDebuggerCalled only makes
-  // sure that the client implementation is invoked once per agent instance.
+  if (m_debuggerBarrier) {
+    m_debuggerBarrier.reset();
+    return Response::Success();
+  }
+  // TODO(chromium:1352175): the below is provisional until client-side changes
+  // land. The call should come through the barrier only once client properly
+  // communicates whether the session is waiting for debugger.
   m_inspector->client()->runIfWaitingForDebugger(m_session->contextGroupId());
   return Response::Success();
 }

@@ -104,6 +104,9 @@ class UtilsExtension : public InspectorIsolateData::SetupGlobalTask {
     utils->Set(isolate, "interruptForMessages",
                v8::FunctionTemplate::New(
                    isolate, &UtilsExtension::InterruptForMessages));
+    utils->Set(
+        isolate, "waitForDebugger",
+        v8::FunctionTemplate::New(isolate, &UtilsExtension::WaitForDebugger));
     global->Set(isolate, "utils", utils);
   }
 
@@ -402,6 +405,19 @@ class UtilsExtension : public InspectorIsolateData::SetupGlobalTask {
   static void InterruptForMessages(
       const v8::FunctionCallbackInfo<v8::Value>& args) {
     backend_runner_->InterruptForMessages();
+  }
+
+  static void WaitForDebugger(const v8::FunctionCallbackInfo<v8::Value>& args) {
+    if (args.Length() != 2 || !args[0]->IsInt32() || !args[1]->IsFunction()) {
+      FATAL("Internal error: waitForDebugger(context_group_id, callback).");
+    }
+    int context_group_id = args[0].As<v8::Int32>()->Value();
+    RunSimpleAsyncTask(
+        backend_runner_,
+        [context_group_id](InspectorIsolateData* data) {
+          data->WaitForDebugger(context_group_id);
+        },
+        args[1].As<v8::Function>());
   }
 
   static std::map<int, std::unique_ptr<FrontendChannelImpl>> channels_;

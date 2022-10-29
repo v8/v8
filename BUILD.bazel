@@ -3249,6 +3249,8 @@ filegroup(
         "src/inspector/v8-debugger.h",
         "src/inspector/v8-debugger-agent-impl.cc",
         "src/inspector/v8-debugger-agent-impl.h",
+        "src/inspector/v8-debugger-barrier.cc",
+        "src/inspector/v8-debugger-barrier.h",
         "src/inspector/v8-debugger-id.cc",
         "src/inspector/v8-debugger-id.h",
         "src/inspector/v8-debugger-script.cc",
