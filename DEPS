@@ -45,7 +45,7 @@ vars = {
   'reclient_version': 're_client_version:0.81.1.0853992-gomaip',
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:11dc0b1f438bd26380774e9d50fd4c63f346d41a',
+  'gn_version': 'git_revision:a4d67be044b42963de801001e7146f9657c7fad4',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -57,7 +57,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:10.20221027.2.1',
+  'fuchsia_version': 'version:10.20221028.1.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -97,9 +97,9 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '521ac34ebd795939c7e16b37d9d3ddb40e8ed556',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '9ce69a9c9d6f9c9803bdabea15eb01997ea75197',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'dad0f9ca0fdf13c054261d874033027174c2a329',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'c50c0de42448407ffc9bb00b720ff7e1edbda6c3',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '74edfb8c0867696ced74467743312302485b1e93',
   'buildtools/clang_format/script':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/clang/tools/clang-format.git' + '@' + '8b525d2747f2584fc35d8c7e612e66f377858df7',
   'buildtools/linux64': {
@@ -123,9 +123,9 @@ deps = {
     'condition': 'host_os == "mac"',
   },
   'buildtools/third_party/libc++/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '47b31179d10646029c260702650a25d24f555acc',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '37a5b4fbc296902bcc9878222c78f8f1239eb27f',
   'buildtools/third_party/libc++abi/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'c7b6fcf28a2e46ef282dfce88fbfb211a08a0715',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '8dd405113a4f3694e910b79785dd7fb7535a888a',
   'buildtools/third_party/libunwind/trunk':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'aabcd8753678f1536e15eb6385a948470debdae4',
   'buildtools/win': {
@@ -201,7 +201,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'd2c6581dd8049940ae8eaaa1f2d4f62db5d3fa96',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '3ffa6b222803f54188a7b249383b2f092a24d19a',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -228,7 +228,7 @@ deps = {
   'third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'da07448619763d1cde255b361324242646f5b268',
   'third_party/instrumented_libraries':
-    Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + '03ce9f0320d71f6460e7d615bedcca09d3eb03c2',
+    Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + '7410f8090dfbbbcca4633826aadd6925e893f464',
   'third_party/ittapi': {
     # Force checkout ittapi libraries to pass v8 header includes check on
     # bots that has check_v8_header_includes enabled.
@@ -236,13 +236,13 @@ deps = {
     'condition': "checkout_ittapi or check_v8_header_includes",
   },
   'third_party/jinja2':
-    Var('chromium_url') + '/chromium/src/third_party/jinja2.git' + '@' + 'ee69aa00ee8536f61db6a451f3858745cf587de6',
+    Var('chromium_url') + '/chromium/src/third_party/jinja2.git' + '@' + '4633bf431193690c3491244f5a0acbe9ac776233',
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/logdog/logdog':
     Var('chromium_url') + '/infra/luci/luci-py/client/libs/logdog' + '@' + '0b2078a90f7a638d576b3a7c407d136f2fb62399',
   'third_party/markupsafe':
-    Var('chromium_url') + '/chromium/src/third_party/markupsafe.git' + '@' + '1b882ef6372b58bfd55a3285f37ed801be9137cd',
+    Var('chromium_url') + '/chromium/src/third_party/markupsafe.git' + '@' + '13f4e8c9e206567eeb13bf585406ddc574005748',
   'third_party/ninja': {
     'packages': [
       {
