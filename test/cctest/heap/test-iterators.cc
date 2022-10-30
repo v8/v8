@@ -18,31 +18,30 @@ namespace v8 {
 namespace internal {
 namespace heap {
 
-TEST(HeapObjectIteratorNullPastEnd) {
-  HeapObjectIterator iterator(CcTest::heap());
-  while (!iterator.Next().is_null()) {
+namespace {
+template <typename T>
+void TestIterator(T it) {
+  while (!it.Next().is_null()) {
   }
   for (int i = 0; i < 20; i++) {
-    CHECK(iterator.Next().is_null());
+    CHECK(it.Next().is_null());
   }
+}
+}  // namespace
+
+TEST(HeapObjectIteratorNullPastEnd) {
+  TestIterator<HeapObjectIterator>(
+      static_cast<v8::internal::HeapObjectIterator>(CcTest::heap()));
 }
 
 TEST(ReadOnlyHeapObjectIteratorNullPastEnd) {
-  ReadOnlyHeapObjectIterator iterator(CcTest::read_only_heap());
-  while (!iterator.Next().is_null()) {
-  }
-  for (int i = 0; i < 20; i++) {
-    CHECK(iterator.Next().is_null());
-  }
+  TestIterator<ReadOnlyHeapObjectIterator>(
+      static_cast<v8::internal::ReadOnlyHeapObjectIterator>(
+          CcTest::read_only_heap()));
 }
 
 TEST(CombinedHeapObjectIteratorNullPastEnd) {
-  CombinedHeapObjectIterator iterator(CcTest::heap());
-  while (!iterator.Next().is_null()) {
-  }
-  for (int i = 0; i < 20; i++) {
-    CHECK(iterator.Next().is_null());
-  }
+  TestIterator<CombinedHeapObjectIterator>(CcTest::heap());
 }
 
 namespace {
