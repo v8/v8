@@ -988,8 +988,6 @@ namespace internal {
   IF_WASM(ASM, WasmOnStackReplace, WasmDummy)                                  \
   IF_WASM(TFC, WasmFloat32ToNumber, WasmFloat32ToNumber)                       \
   IF_WASM(TFC, WasmFloat64ToNumber, WasmFloat64ToNumber)                       \
-  IF_WASM(TFC, WasmI32AtomicWait32, WasmI32AtomicWait32)                       \
-  IF_WASM(TFC, WasmI64AtomicWait32, WasmI64AtomicWait32)                       \
   IF_WASM(TFC, JSToWasmLazyDeoptContinuation, SingleParameterOnStack)          \
                                                                                \
   /* WeakMap */                                                                \

@@ -3958,34 +3958,6 @@ void WasmGraphBuilder::AddInt64LoweringReplacement(
   lowering_special_case_->replacements.insert({original, replacement});
 }
 
-CallDescriptor* WasmGraphBuilder::GetI32AtomicWaitCallDescriptor() {
-  if (i32_atomic_wait_descriptor_) return i32_atomic_wait_descriptor_;
-
-  i32_atomic_wait_descriptor_ = GetBuiltinCallDescriptor(
-      Builtin::kWasmI32AtomicWait64, zone_, StubCallMode::kCallWasmRuntimeStub);
-
-  AddInt64LoweringReplacement(
-      i32_atomic_wait_descriptor_,
-      GetBuiltinCallDescriptor(Builtin::kWasmI32AtomicWait32, zone_,
-                               StubCallMode::kCallWasmRuntimeStub));
-
-  return i32_atomic_wait_descriptor_;
-}
-
-CallDescriptor* WasmGraphBuilder::GetI64AtomicWaitCallDescriptor() {
-  if (i64_atomic_wait_descriptor_) return i64_atomic_wait_descriptor_;
-
-  i64_atomic_wait_descriptor_ = GetBuiltinCallDescriptor(
-      Builtin::kWasmI64AtomicWait64, zone_, StubCallMode::kCallWasmRuntimeStub);
-
-  AddInt64LoweringReplacement(
-      i64_atomic_wait_descriptor_,
-      GetBuiltinCallDescriptor(Builtin::kWasmI64AtomicWait32, zone_,
-                               StubCallMode::kCallWasmRuntimeStub));
-
-  return i64_atomic_wait_descriptor_;
-}
-
 void WasmGraphBuilder::LowerInt64(Signature<MachineRepresentation>* sig) {
   if (mcgraph()->machine()->Is64()) return;
   Int64Lowering r(mcgraph()->graph(), mcgraph()->machine(), mcgraph()->common(),
@@ -3997,6 +3969,45 @@ void WasmGraphBuilder::LowerInt64(Signature<MachineRepresentation>* sig) {
 
 void WasmGraphBuilder::LowerInt64(CallOrigin origin) {
   LowerInt64(CreateMachineSignature(mcgraph()->zone(), sig_, origin));
+}
+
+CallDescriptor* WasmGraphBuilder::GetI64ToBigIntCallDescriptor(
+    StubCallMode stub_mode) {
+  CallDescriptor** i64_to_bigint_descriptor =
+      stub_mode == StubCallMode::kCallCodeObject
+          ? &i64_to_bigint_stub_descriptor_
+          : &i64_to_bigint_builtin_descriptor_;
+  if (*i64_to_bigint_descriptor) return *i64_to_bigint_descriptor;
+
+  *i64_to_bigint_descriptor =
+      GetBuiltinCallDescriptor(Builtin::kI64ToBigInt, zone_, stub_mode);
+
+  AddInt64LoweringReplacement(
+      *i64_to_bigint_descriptor,
+      GetBuiltinCallDescriptor(Builtin::kI32PairToBigInt, zone_, stub_mode));
+  return *i64_to_bigint_descriptor;
+}
+
+Node* WasmGraphBuilder::BuildChangeInt64ToBigInt(Node* input,
+                                                 StubCallMode stub_mode) {
+  Node* target;
+  if (mcgraph()->machine()->Is64()) {
+    target = (stub_mode == StubCallMode::kCallWasmRuntimeStub)
+                 ? mcgraph()->RelocatableIntPtrConstant(
+                       wasm::WasmCode::kI64ToBigInt, RelocInfo::WASM_STUB_CALL)
+                 : gasm_->GetBuiltinPointerTarget(Builtin::kI64ToBigInt);
+  } else {
+    DCHECK(mcgraph()->machine()->Is32());
+    // On 32-bit platforms we already set the target to the
+    // I32PairToBigInt builtin here, so that we don't have to replace the
+    // target in the int64-lowering.
+    target =
+        (stub_mode == StubCallMode::kCallWasmRuntimeStub)
+            ? mcgraph()->RelocatableIntPtrConstant(
+                  wasm::WasmCode::kI32PairToBigInt, RelocInfo::WASM_STUB_CALL)
+            : gasm_->GetBuiltinPointerTarget(Builtin::kI32PairToBigInt);
+  }
+  return gasm_->Call(GetI64ToBigIntCallDescriptor(stub_mode), target, input);
 }
 
 void WasmGraphBuilder::SetSourcePosition(Node* node,
@@ -4965,29 +4976,31 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
                                     inputs[1]);
 
     case wasm::kExprI32AtomicWait: {
-      auto* call_descriptor = GetI32AtomicWaitCallDescriptor();
+      constexpr StubCallMode kStubMode = StubCallMode::kCallWasmRuntimeStub;
+      auto* call_descriptor = GetBuiltinCallDescriptor(
+          Builtin::kWasmI32AtomicWait, zone_, kStubMode);
 
-      intptr_t target = mcgraph()->machine()->Is64()
-                            ? wasm::WasmCode::kWasmI32AtomicWait64
-                            : wasm::WasmCode::kWasmI32AtomicWait32;
+      intptr_t target = wasm::WasmCode::kWasmI32AtomicWait;
       Node* call_target = mcgraph()->RelocatableIntPtrConstant(
           target, RelocInfo::WASM_STUB_CALL);
 
       return gasm_->Call(call_descriptor, call_target, effective_offset,
-                         inputs[1], inputs[2]);
+                         inputs[1],
+                         BuildChangeInt64ToBigInt(inputs[2], kStubMode));
     }
 
     case wasm::kExprI64AtomicWait: {
-      auto* call_descriptor = GetI64AtomicWaitCallDescriptor();
+      constexpr StubCallMode kStubMode = StubCallMode::kCallWasmRuntimeStub;
+      auto* call_descriptor = GetBuiltinCallDescriptor(
+          Builtin::kWasmI64AtomicWait, zone_, kStubMode);
 
-      intptr_t target = mcgraph()->machine()->Is64()
-                            ? wasm::WasmCode::kWasmI64AtomicWait64
-                            : wasm::WasmCode::kWasmI64AtomicWait32;
+      intptr_t target = wasm::WasmCode::kWasmI64AtomicWait;
       Node* call_target = mcgraph()->RelocatableIntPtrConstant(
           target, RelocInfo::WASM_STUB_CALL);
 
       return gasm_->Call(call_descriptor, call_target, effective_offset,
-                         inputs[1], inputs[2]);
+                         BuildChangeInt64ToBigInt(inputs[1], kStubMode),
+                         BuildChangeInt64ToBigInt(inputs[2], kStubMode));
     }
 
     default:
@@ -6287,18 +6300,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         stub_mode_(stub_mode),
         enabled_features_(features) {}
 
-  CallDescriptor* GetI64ToBigIntCallDescriptor() {
-    if (i64_to_bigint_descriptor_) return i64_to_bigint_descriptor_;
-
-    i64_to_bigint_descriptor_ =
-        GetBuiltinCallDescriptor(Builtin::kI64ToBigInt, zone_, stub_mode_);
-
-    AddInt64LoweringReplacement(
-        i64_to_bigint_descriptor_,
-        GetBuiltinCallDescriptor(Builtin::kI32PairToBigInt, zone_, stub_mode_));
-    return i64_to_bigint_descriptor_;
-  }
-
   CallDescriptor* GetBigIntToI64CallDescriptor(bool needs_frame_state) {
     if (bigint_to_i64_descriptor_) return bigint_to_i64_descriptor_;
 
@@ -6464,7 +6465,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       case wasm::kI32:
         return BuildChangeInt32ToNumber(node);
       case wasm::kI64:
-        return BuildChangeInt64ToBigInt(node);
+        return BuildChangeInt64ToBigInt(node, stub_mode_);
       case wasm::kF32:
         return BuildChangeFloat32ToNumber(node);
       case wasm::kF64:
@@ -6533,22 +6534,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     kUnwrapWasmExternalFunctions = true,
     kLeaveFunctionsAlone = false
   };
-
-  Node* BuildChangeInt64ToBigInt(Node* input) {
-    Node* target;
-    if (mcgraph()->machine()->Is64()) {
-      target = GetTargetForBuiltinCall(wasm::WasmCode::kI64ToBigInt,
-                                       Builtin::kI64ToBigInt);
-    } else {
-      DCHECK(mcgraph()->machine()->Is32());
-      // On 32-bit platforms we already set the target to the
-      // I32PairToBigInt builtin here, so that we don't have to replace the
-      // target in the int64-lowering.
-      target = GetTargetForBuiltinCall(wasm::WasmCode::kI32PairToBigInt,
-                                       Builtin::kI32PairToBigInt);
-    }
-    return gasm_->Call(GetI64ToBigIntCallDescriptor(), target, input);
-  }
 
   Node* BuildChangeBigIntToInt64(Node* input, Node* context,
                                  Node* frame_state) {
@@ -7703,7 +7688,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   SetOncePointer<const Operator> tagged_to_float64_operator_;
   wasm::WasmFeatures enabled_features_;
   CallDescriptor* bigint_to_i64_descriptor_ = nullptr;
-  CallDescriptor* i64_to_bigint_descriptor_ = nullptr;
 };
 
 }  // namespace

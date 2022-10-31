@@ -63,10 +63,8 @@ struct WasmModule;
   V(WasmTaggedToFloat64)                 \
   V(WasmAllocateJSArray)                 \
   V(WasmAtomicNotify)                    \
-  V(WasmI32AtomicWait32)                 \
-  V(WasmI32AtomicWait64)                 \
-  V(WasmI64AtomicWait32)                 \
-  V(WasmI64AtomicWait64)                 \
+  V(WasmI32AtomicWait)                   \
+  V(WasmI64AtomicWait)                   \
   V(WasmGetOwnProperty)                  \
   V(WasmRefFunc)                         \
   V(WasmMemoryGrow)                      \

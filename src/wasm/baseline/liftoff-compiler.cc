@@ -4898,12 +4898,41 @@ class LiftoffCompiler {
 
   void AtomicWait(FullDecoder* decoder, ValueKind kind,
                   const MemoryAccessImmediate& imm) {
-    LiftoffRegister full_index = __ PeekToRegister(2, {});
+    {
+      // Convert the top value of the stack (the timeout) from I64 to a BigInt,
+      // which we can then pass to the atomic.wait builtin.
+      LiftoffAssembler::VarState i64_timeout =
+          __ cache_state()->stack_state.back();
+      CallRuntimeStub(
+          kNeedI64RegPair ? WasmCode::kI32PairToBigInt : WasmCode::kI64ToBigInt,
+          MakeSig::Returns(kPointerKind).Params(kI64), {i64_timeout},
+          decoder->position());
+      __ DropValues(1);
+      __ PushRegister(kPointerKind, LiftoffRegister(kReturnRegister0));
+    }
+
+    LiftoffRegList pinned;
+    Register expected_reg = no_reg;
+    if (kind == kI32) {
+      expected_reg = __ PeekToRegister(1, pinned).gp();
+    } else {
+      LiftoffAssembler::VarState i64_expected =
+          __ cache_state()->stack_state.end()[-2];
+      CallRuntimeStub(
+          kNeedI64RegPair ? WasmCode::kI32PairToBigInt : WasmCode::kI64ToBigInt,
+          MakeSig::Returns(kPointerKind).Params(kI64), {i64_expected},
+          decoder->position());
+      expected_reg = kReturnRegister0;
+    }
+    LiftoffRegister expected(expected_reg);
+    pinned.set(expected_reg);
+
+    LiftoffRegister full_index = __ PeekToRegister(2, pinned);
     Register index_reg =
         BoundsCheckMem(decoder, value_kind_size(kind), imm.offset, full_index,
-                       {}, kDoForceCheck);
+                       pinned, kDoForceCheck);
     if (index_reg == no_reg) return;
-    LiftoffRegList pinned{index_reg};
+    pinned.set(index_reg);
     AlignmentCheckMem(decoder, value_kind_size(kind), imm.offset, index_reg,
                       pinned);
 
@@ -4920,22 +4949,20 @@ class LiftoffCompiler {
 
     LiftoffAssembler::VarState timeout =
         __ cache_state()->stack_state.end()[-1];
-    LiftoffAssembler::VarState expected_value =
-        __ cache_state()->stack_state.end()[-2];
+    LiftoffAssembler::VarState expected_value(kPointerKind, expected, 0);
     LiftoffAssembler::VarState index = __ cache_state()->stack_state.end()[-3];
 
     // We have to set the correct register for the index.
     index.MakeRegister(LiftoffRegister(index_plus_offset));
 
-    static constexpr WasmCode::RuntimeStubId kTargets[2][2]{
-        // 64 bit systems (kNeedI64RegPair == false):
-        {WasmCode::kWasmI64AtomicWait64, WasmCode::kWasmI32AtomicWait64},
-        // 32 bit systems (kNeedI64RegPair == true):
-        {WasmCode::kWasmI64AtomicWait32, WasmCode::kWasmI32AtomicWait32}};
-    auto target = kTargets[kNeedI64RegPair][kind == kI32];
+    auto target = kind == kI32 ? WasmCode::kWasmI32AtomicWait
+                               : WasmCode::kWasmI64AtomicWait;
 
-    CallRuntimeStub(target, MakeSig::Params(kPointerKind, kind, kI64),
-                    {index, expected_value, timeout}, decoder->position());
+    CallRuntimeStub(
+        target,
+        MakeSig::Params(kPointerKind, kind == kI32 ? kI32 : kPointerKind,
+                        kPointerKind),
+        {index, expected_value, timeout}, decoder->position());
     // Pop parameters from the value stack.
     __ DropValues(3);
 

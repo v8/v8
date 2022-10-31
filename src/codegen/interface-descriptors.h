@@ -130,8 +130,6 @@ namespace internal {
   V(Void)                                            \
   V(WasmFloat32ToNumber)                             \
   V(WasmFloat64ToNumber)                             \
-  V(WasmI32AtomicWait32)                             \
-  V(WasmI64AtomicWait32)                             \
   V(WasmSuspend)                                     \
   V(WriteBarrier)                                    \
   IF_TSAN(V, TSANLoad)                               \
@@ -1981,38 +1979,6 @@ class V8_EXPORT_PRIVATE BigIntToI32PairDescriptor final
                                     MachineType::Uint32(),     // result 2
                                     MachineType::AnyTagged())  // kArgument
   DECLARE_DESCRIPTOR(BigIntToI32PairDescriptor)
-};
-
-class WasmI32AtomicWait32Descriptor final
-    : public StaticCallInterfaceDescriptor<WasmI32AtomicWait32Descriptor> {
- public:
-  DEFINE_PARAMETERS_NO_CONTEXT(kAddress, kExpectedValue, kTimeoutLow,
-                               kTimeoutHigh)
-  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::Uint32(),  // result 1
-                                    MachineType::Uint32(),  // kAddress
-                                    MachineType::Int32(),   // kExpectedValue
-                                    MachineType::Uint32(),  // kTimeoutLow
-                                    MachineType::Uint32())  // kTimeoutHigh
-  DECLARE_DESCRIPTOR(WasmI32AtomicWait32Descriptor)
-};
-
-class WasmI64AtomicWait32Descriptor final
-    : public StaticCallInterfaceDescriptor<WasmI64AtomicWait32Descriptor> {
- public:
-  DEFINE_PARAMETERS_NO_CONTEXT(kAddress, kExpectedValueLow, kExpectedValueHigh,
-                               kTimeoutLow, kTimeoutHigh)
-
-  static constexpr bool kNoStackScan = true;
-
-  DEFINE_RESULT_AND_PARAMETER_TYPES(
-      MachineType::Uint32(),  // result 1
-      MachineType::Uint32(),  // kAddress
-      MachineType::Uint32(),  // kExpectedValueLow
-      MachineType::Uint32(),  // kExpectedValueHigh
-      MachineType::Uint32(),  // kTimeoutLow
-      MachineType::Uint32())  // kTimeoutHigh
-
-  DECLARE_DESCRIPTOR(WasmI64AtomicWait32Descriptor)
 };
 
 class CloneObjectWithVectorDescriptor final

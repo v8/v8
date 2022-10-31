@@ -834,9 +834,9 @@ class WasmGraphBuilder {
   void AddInt64LoweringReplacement(CallDescriptor* original,
                                    CallDescriptor* replacement);
 
-  CallDescriptor* GetI32AtomicWaitCallDescriptor();
+  Node* BuildChangeInt64ToBigInt(Node* input, StubCallMode stub_mode);
 
-  CallDescriptor* GetI64AtomicWaitCallDescriptor();
+  CallDescriptor* GetI64ToBigIntCallDescriptor(StubCallMode stub_mode);
 
   Node* StoreArgsInStackSlot(
       std::initializer_list<std::pair<MachineRepresentation, Node*>> args);
@@ -866,8 +866,8 @@ class WasmGraphBuilder {
   SetOncePointer<Node> instance_node_;
 
   std::unique_ptr<Int64LoweringSpecialCase> lowering_special_case_;
-  CallDescriptor* i32_atomic_wait_descriptor_ = nullptr;
-  CallDescriptor* i64_atomic_wait_descriptor_ = nullptr;
+  CallDescriptor* i64_to_bigint_builtin_descriptor_ = nullptr;
+  CallDescriptor* i64_to_bigint_stub_descriptor_ = nullptr;
 };
 
 enum WasmCallKind { kWasmFunction, kWasmImportWrapper, kWasmCapiFunction };
