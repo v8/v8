@@ -4396,6 +4396,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   }
 
   int DecodeGCOpcode(WasmOpcode opcode, uint32_t opcode_length) {
+    // This assumption might help the big switch below.
+    V8_ASSUME(opcode >> 8 == kGCPrefix);
     switch (opcode) {
       case kExprStructNew: {
         StructIndexImmediate imm(this, this->pc_ + opcode_length, validate);
@@ -5515,6 +5517,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   }
 
   int DecodeStringRefOpcode(WasmOpcode opcode, uint32_t opcode_length) {
+    // This assumption might help the big switch below.
+    V8_ASSUME(opcode >> 8 == kGCPrefix);
     switch (opcode) {
       case kExprStringNewUtf8:
         return DecodeStringNewWtf8(unibrow::Utf8Variant::kUtf8, opcode_length);
@@ -5820,6 +5824,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 #undef NON_CONST_ONLY
 
   uint32_t DecodeAtomicOpcode(WasmOpcode opcode, uint32_t opcode_length) {
+    // This assumption avoids a dynamic check in signature lookup, and might
+    // also help the big switch below.
+    V8_ASSUME(opcode >> 8 == kAtomicPrefix);
     const FunctionSig* sig = WasmOpcodes::Signature(opcode);
     if (!VALIDATE(sig != nullptr)) {
       this->DecodeError("invalid atomic opcode");
@@ -5882,6 +5889,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   }
 
   unsigned DecodeNumericOpcode(WasmOpcode opcode, uint32_t opcode_length) {
+    // This assumption avoids a dynamic check in signature lookup, and might
+    // also help the big switch below.
+    V8_ASSUME(opcode >> 8 == kNumericPrefix);
     const FunctionSig* sig = WasmOpcodes::Signature(opcode);
     switch (opcode) {
       case kExprI32SConvertSatF32:
