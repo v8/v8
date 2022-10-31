@@ -888,9 +888,17 @@ class FastCApiObject {
       if (std::isnan(checked_arg_dbl)) {
         clamped = 0;
       } else {
-        clamped = std::clamp(
-            real_arg, static_cast<double>(std::numeric_limits<IntegerT>::min()),
-            static_cast<double>(std::numeric_limits<IntegerT>::max()));
+        IntegerT lower_bound = std::numeric_limits<IntegerT>::min();
+        IntegerT upper_bound = std::numeric_limits<IntegerT>::max();
+        if (lower_bound < internal::kMinSafeInteger) {
+          lower_bound = static_cast<IntegerT>(internal::kMinSafeInteger);
+        }
+        if (upper_bound > internal::kMaxSafeInteger) {
+          upper_bound = static_cast<IntegerT>(internal::kMaxSafeInteger);
+        }
+
+        clamped = std::clamp(real_arg, static_cast<double>(lower_bound),
+                             static_cast<double>(upper_bound));
       }
       args.GetReturnValue().Set(Number::New(isolate, clamped));
     }
