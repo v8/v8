@@ -298,27 +298,18 @@ void LiftoffAssembler::AlignFrameSize() {
   // The frame_size includes the frame marker. The frame marker has already been
   // pushed on the stack though, so we don't need to allocate memory for it
   // anymore.
-  int initial_frame_size = GetTotalFrameSize() - 2 * kSystemPointerSize;
-  int frame_size = initial_frame_size;
+  int frame_size = GetTotalFrameSize() - 2 * kSystemPointerSize;
 
   static_assert(kStackSlotSize == kXRegSize,
                 "kStackSlotSize must equal kXRegSize");
+
   // The stack pointer is required to be quadword aligned.
   // Misalignment will cause a stack alignment fault.
-  frame_size = RoundUp(frame_size, kQuadWordSizeInBytes);
-  if (!IsImmAddSub(frame_size)) {
-    // Round the stack to a page to try to fit a add/sub immediate.
-    frame_size = RoundUp(frame_size, 0x1000);
-    if (!IsImmAddSub(frame_size)) {
-      // Stack greater than 4M! Because this is a quite improbable case, we
-      // just fallback to TurboFan.
-      bailout(kOtherReason, "Stack too big");
-      return;
-    }
-  }
-  if (frame_size > initial_frame_size) {
-    // Record the padding, as it is needed for GC offsets later.
-    max_used_spill_offset_ += (frame_size - initial_frame_size);
+  int misalignment = frame_size % kQuadWordSizeInBytes;
+  if (misalignment) {
+    int padding = kQuadWordSizeInBytes - misalignment;
+    frame_size += padding;
+    max_used_spill_offset_ += padding;
   }
 }
 
@@ -337,7 +328,6 @@ void LiftoffAssembler::PatchPrepareStackFrame(
   // The stack pointer is required to be quadword aligned.
   // Misalignment will cause a stack alignment fault.
   DCHECK_EQ(frame_size, RoundUp(frame_size, kQuadWordSizeInBytes));
-  DCHECK(IsImmAddSub(frame_size));
 
   PatchingAssembler patching_assembler(AssemblerOptions{},
                                        buffer_start_ + offset, 1);
@@ -345,6 +335,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
   if (V8_LIKELY(frame_size < 4 * KB)) {
     // This is the standard case for small frames: just subtract from SP and be
     // done with it.
+    DCHECK(IsImmAddSub(frame_size));
     patching_assembler.PatchSubSp(frame_size);
     return;
   }
