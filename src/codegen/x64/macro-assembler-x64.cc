@@ -2930,7 +2930,7 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
   }
 
   Label done;
-  InvokePrologue(expected_parameter_count, actual_parameter_count, &done, type);
+  InvokePrologue(expected_parameter_count, actual_parameter_count, type);
   // We call indirectly through the code field in the function to
   // allow recompilation to take effect without changing any of the
   // call sites.
@@ -2995,7 +2995,7 @@ void MacroAssembler::StackOverflowCheck(
 
 void MacroAssembler::InvokePrologue(Register expected_parameter_count,
                                     Register actual_parameter_count,
-                                    Label* done, InvokeType type) {
+                                    InvokeType type) {
     ASM_CODE_COMMENT(this);
     if (expected_parameter_count == actual_parameter_count) {
       Move(rax, actual_parameter_count);
