@@ -4046,11 +4046,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     return args;
   }
 
-  ValueType GetReturnType(const FunctionSig* sig) {
-    DCHECK_GE(1, sig->return_count());
-    return sig->return_count() == 0 ? kWasmVoid : sig->GetReturn();
-  }
-
   // TODO(jkummerow): Consider refactoring control stack management so
   // that {drop_values} is never needed. That would require decoupling
   // creation of the Control object from setting of its stack depth.
@@ -5825,18 +5820,17 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 #undef NON_CONST_ONLY
 
   uint32_t DecodeAtomicOpcode(WasmOpcode opcode, uint32_t opcode_length) {
-    ValueType ret_type;
     const FunctionSig* sig = WasmOpcodes::Signature(opcode);
     if (!VALIDATE(sig != nullptr)) {
       this->DecodeError("invalid atomic opcode");
       return 0;
     }
+
     MachineType memtype;
     switch (opcode) {
 #define CASE_ATOMIC_STORE_OP(Name, Type)          \
   case kExpr##Name: {                             \
     memtype = MachineType::Type();                \
-    ret_type = kWasmVoid;                         \
     break; /* to generic mem access code below */ \
   }
       ATOMIC_STORE_OP_LIST(CASE_ATOMIC_STORE_OP)
@@ -5844,7 +5838,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 #define CASE_ATOMIC_OP(Name, Type)                \
   case kExpr##Name: {                             \
     memtype = MachineType::Type();                \
-    ret_type = GetReturnType(sig);                \
     break; /* to generic mem access code below */ \
   }
       ATOMIC_OP_LIST(CASE_ATOMIC_OP)
@@ -5873,12 +5866,13 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     // then).
     CHECK(!this->module_->is_memory64);
     ArgVector args = PeekArgs(sig);
-    if (ret_type == kWasmVoid) {
+    if (sig->return_count() == 0) {
       CALL_INTERFACE_IF_OK_AND_REACHABLE(AtomicOp, opcode, base::VectorOf(args),
                                          imm, nullptr);
       DropArgs(sig);
     } else {
-      Value result = CreateValue(GetReturnType(sig));
+      DCHECK_EQ(1, sig->return_count());
+      Value result = CreateValue(sig->GetReturn());
       CALL_INTERFACE_IF_OK_AND_REACHABLE(AtomicOp, opcode, base::VectorOf(args),
                                          imm, &result);
       DropArgs(sig);
