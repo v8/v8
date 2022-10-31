@@ -550,6 +550,7 @@ class MergePointInterpreterFrameState {
   // Merges an unmerged framestate with a possibly merged framestate into |this|
   // framestate.
   void Merge(MaglevCompilationUnit& compilation_unit,
+             ZoneMap<int, SmiConstant*>& smi_constants,
              InterpreterFrameState& unmerged, BasicBlock* predecessor,
              int merge_offset) {
     DCHECK_GT(predecessor_count_, 1);
@@ -568,8 +569,9 @@ class MergePointInterpreterFrameState {
                   << PrintNodeLabel(compilation_unit.graph_labeller(),
                                     unmerged.get(reg));
       }
-      value = MergeValue(compilation_unit, reg, unmerged.known_node_aspects(),
-                         value, unmerged.get(reg), merge_offset);
+      value = MergeValue(compilation_unit, smi_constants, reg,
+                         unmerged.known_node_aspects(), value,
+                         unmerged.get(reg), merge_offset);
       if (v8_flags.trace_maglev_graph_building) {
         std::cout << " => "
                   << PrintNodeLabel(compilation_unit.graph_labeller(), value)
@@ -596,6 +598,7 @@ class MergePointInterpreterFrameState {
   // Merges an unmerged framestate with a possibly merged framestate into |this|
   // framestate.
   void MergeLoop(MaglevCompilationUnit& compilation_unit,
+                 ZoneMap<int, SmiConstant*>& smi_constants,
                  InterpreterFrameState& loop_end_state,
                  BasicBlock* loop_end_block, int merge_offset) {
     // This should be the last predecessor we try to merge.
@@ -615,8 +618,9 @@ class MergePointInterpreterFrameState {
                   << PrintNodeLabel(compilation_unit.graph_labeller(),
                                     loop_end_state.get(reg));
       }
-      MergeLoopValue(compilation_unit, reg, loop_end_state.known_node_aspects(),
-                     value, loop_end_state.get(reg), merge_offset);
+      MergeLoopValue(compilation_unit, smi_constants, reg,
+                     loop_end_state.known_node_aspects(), value,
+                     loop_end_state.get(reg), merge_offset);
       if (v8_flags.trace_maglev_graph_building) {
         std::cout << " => "
                   << PrintNodeLabel(compilation_unit.graph_labeller(), value)
@@ -719,7 +723,25 @@ class MergePointInterpreterFrameState {
         basic_block_type_(type),
         frame_state_(info, liveness) {}
 
+  // TODO(victorgomes): Consider refactor this function to share code with
+  // MaglevGraphBuilder::GetSmiConstant.
+  SmiConstant* GetSmiConstant(MaglevCompilationUnit& compilation_unit,
+                              ZoneMap<int, SmiConstant*>& smi_constants,
+                              int constant) {
+    DCHECK(Smi::IsValid(constant));
+    auto it = smi_constants.find(constant);
+    if (it == smi_constants.end()) {
+      SmiConstant* node = Node::New<SmiConstant>(compilation_unit.zone(), 0,
+                                                 Smi::FromInt(constant));
+      compilation_unit.RegisterNodeInGraphLabeller(node);
+      smi_constants.emplace(constant, node);
+      return node;
+    }
+    return it->second;
+  }
+
   ValueNode* FromInt32ToTagged(MaglevCompilationUnit& compilation_unit,
+                               ZoneMap<int, SmiConstant*>& smi_constants,
                                KnownNodeAspects& known_node_aspects,
                                ValueNode* value) {
     DCHECK_EQ(value->properties().value_representation(),
@@ -734,7 +756,10 @@ class MergePointInterpreterFrameState {
     if (!node_info->tagged_alternative) {
       // Create a tagged version.
       ValueNode* tagged;
-      if (value->Is<StringLength>()) {
+      if (value->Is<Int32Constant>()) {
+        int32_t constant = value->Cast<Int32Constant>()->value();
+        return GetSmiConstant(compilation_unit, smi_constants, constant);
+      } else if (value->Is<StringLength>()) {
         static_assert(String::kMaxLength <= kSmiMaxValue,
                       "String length must fit into a Smi");
         tagged = Node::New<UnsafeSmiTag>(compilation_unit.zone(), {value});
@@ -775,19 +800,22 @@ class MergePointInterpreterFrameState {
   // TODO(victorgomes): Consider refactor this function to share code with
   // MaglevGraphBuilder::GetTagged.
   ValueNode* EnsureTagged(MaglevCompilationUnit& compilation_unit,
+                          ZoneMap<int, SmiConstant*>& smi_constants,
                           KnownNodeAspects& known_node_aspects,
                           ValueNode* value) {
     switch (value->properties().value_representation()) {
       case ValueRepresentation::kTagged:
         return value;
       case ValueRepresentation::kInt32:
-        return FromInt32ToTagged(compilation_unit, known_node_aspects, value);
+        return FromInt32ToTagged(compilation_unit, smi_constants,
+                                 known_node_aspects, value);
       case ValueRepresentation::kFloat64:
         return FromFloat64ToTagged(compilation_unit, known_node_aspects, value);
     }
   }
 
   ValueNode* MergeValue(MaglevCompilationUnit& compilation_unit,
+                        ZoneMap<int, SmiConstant*>& smi_constants,
                         interpreter::Register owner,
                         KnownNodeAspects& unmerged_aspects, ValueNode* merged,
                         ValueNode* unmerged, int merge_offset) {
@@ -804,7 +832,8 @@ class MergePointInterpreterFrameState {
       // It's possible that merged == unmerged at this point since loop-phis are
       // not dropped if they are only assigned to themselves in the loop.
       DCHECK_EQ(result->owner(), owner);
-      unmerged = EnsureTagged(compilation_unit, unmerged_aspects, unmerged);
+      unmerged = EnsureTagged(compilation_unit, smi_constants, unmerged_aspects,
+                              unmerged);
       result->set_input(predecessors_so_far_, unmerged);
       return result;
     }
@@ -813,8 +842,10 @@ class MergePointInterpreterFrameState {
 
     // We guarantee that the values are tagged.
     // TODO(victorgomes): Support Phi nodes of untagged values.
-    merged = EnsureTagged(compilation_unit, *known_node_aspects_, merged);
-    unmerged = EnsureTagged(compilation_unit, unmerged_aspects, unmerged);
+    merged = EnsureTagged(compilation_unit, smi_constants, *known_node_aspects_,
+                          merged);
+    unmerged = EnsureTagged(compilation_unit, smi_constants, unmerged_aspects,
+                            unmerged);
 
     // Tagged versions could point to the same value, avoid Phi nodes in this
     // case.
@@ -863,6 +894,7 @@ class MergePointInterpreterFrameState {
   }
 
   void MergeLoopValue(MaglevCompilationUnit& compilation_unit,
+                      ZoneMap<int, SmiConstant*>& smi_constants,
                       interpreter::Register owner,
                       KnownNodeAspects& unmerged_aspects, ValueNode* merged,
                       ValueNode* unmerged, int merge_offset) {
@@ -878,7 +910,8 @@ class MergePointInterpreterFrameState {
       return;
     }
     DCHECK_EQ(result->owner(), owner);
-    unmerged = EnsureTagged(compilation_unit, unmerged_aspects, unmerged);
+    unmerged = EnsureTagged(compilation_unit, smi_constants, unmerged_aspects,
+                            unmerged);
     result->set_input(predecessor_count_ - 1, unmerged);
   }
 

@@ -259,8 +259,8 @@ class MaglevGraphBuilder {
         // bytecodes in this basic block were only register juggling.
         // DCHECK(!current_block_->nodes().is_empty());
         BasicBlock* predecessor = FinishBlock<Jump>({}, &jump_targets_[offset]);
-        merge_state->Merge(*compilation_unit_, current_interpreter_frame_,
-                           predecessor, offset);
+        merge_state->Merge(*compilation_unit_, graph_->smi(),
+                           current_interpreter_frame_, predecessor, offset);
       }
       if (v8_flags.trace_maglev_graph_building) {
         auto detail = merge_state->is_exception_handler() ? "exception handler"
@@ -572,6 +572,8 @@ class MaglevGraphBuilder {
   }
 
   Int32Constant* GetInt32Constant(int constant) {
+    // The constant must fit in a Smi, since it could be later tagged in a Phi.
+    DCHECK(Smi::IsValid(constant));
     auto it = graph_->int32().find(constant);
     if (it == graph_->int32().end()) {
       Int32Constant* node = CreateNewNode<Int32Constant>(0, constant);

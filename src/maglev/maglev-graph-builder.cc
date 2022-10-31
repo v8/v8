@@ -3391,7 +3391,7 @@ void MaglevGraphBuilder::VisitJumpLoop() {
   BasicBlock* block =
       FinishBlock<JumpLoop>({}, jump_targets_[target].block_ptr());
 
-  merge_states_[target]->MergeLoop(*compilation_unit_,
+  merge_states_[target]->MergeLoop(*compilation_unit_, graph_->smi(),
                                    current_interpreter_frame_, block, target);
   block->set_predecessor_id(merge_states_[target]->predecessor_count() - 1);
 }
@@ -3441,8 +3441,9 @@ void MaglevGraphBuilder::MergeIntoFrameState(BasicBlock* predecessor,
         NumPredecessors(target), predecessor, liveness);
   } else {
     // If there already is a frame state, merge.
-    merge_states_[target]->Merge(*compilation_unit_, current_interpreter_frame_,
-                                 predecessor, target);
+    merge_states_[target]->Merge(*compilation_unit_, graph_->smi(),
+                                 current_interpreter_frame_, predecessor,
+                                 target);
   }
 }
 
@@ -3492,8 +3493,9 @@ void MaglevGraphBuilder::MergeIntoInlinedReturnFrameState(
     // Again, all returns should have the same liveness, so double check this.
     DCHECK(GetInLiveness()->Equals(
         *merge_states_[target]->frame_state().liveness()));
-    merge_states_[target]->Merge(*compilation_unit_, current_interpreter_frame_,
-                                 predecessor, target);
+    merge_states_[target]->Merge(*compilation_unit_, graph_->smi(),
+                                 current_interpreter_frame_, predecessor,
+                                 target);
   }
 }
 
