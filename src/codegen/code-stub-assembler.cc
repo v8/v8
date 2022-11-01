@@ -3104,9 +3104,14 @@ void CodeStubAssembler::UnsafeStoreObjectFieldNoWriteBarrier(
                                           object, offset, value);
 }
 
-void CodeStubAssembler::StoreJSSharedStructInObjectField(
-    TNode<HeapObject> object, TNode<IntPtrT> offset, TNode<Object> value) {
-  CSA_DCHECK(this, IsJSSharedStruct(object));
+void CodeStubAssembler::StoreSharedObjectField(TNode<HeapObject> object,
+                                               TNode<IntPtrT> offset,
+                                               TNode<Object> value) {
+  CSA_DCHECK(
+      this,
+      WordNotEqual(WordAnd(LoadBasicMemoryChunkFlags(object),
+                           IntPtrConstant(BasicMemoryChunk::IN_SHARED_HEAP)),
+                   IntPtrConstant(0)));
   // JSSharedStructs are allocated in the shared old space, which is currently
   // collected by stopping the world, so the incremental write barrier is not
   // needed. They can only store Smis and other HeapObjects in the shared old

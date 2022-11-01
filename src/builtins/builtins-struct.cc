@@ -85,7 +85,12 @@ BUILTIN(SharedStructTypeConstructor) {
 
   instance_map->InitializeDescriptors(isolate, *descriptors);
   // Structs have fixed layout ahead of time, so there's no slack.
-  instance_map->SetInObjectUnusedPropertyFields(0);
+  int out_of_object_properties = num_properties - in_object_properties;
+  if (out_of_object_properties == 0) {
+    instance_map->SetInObjectUnusedPropertyFields(0);
+  } else {
+    instance_map->SetOutOfObjectUnusedPropertyFields(0);
+  }
   instance_map->set_is_extensible(false);
   JSFunction::SetInitialMap(isolate, constructor, instance_map,
                             factory->null_value());

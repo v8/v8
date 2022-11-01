@@ -1860,9 +1860,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
       int additional_offset = 0);
 
-  void StoreJSSharedStructInObjectField(TNode<HeapObject> object,
-                                        TNode<IntPtrT> offset,
-                                        TNode<Object> value);
+  void StoreSharedObjectField(TNode<HeapObject> object, TNode<IntPtrT> offset,
+                              TNode<Object> value);
 
   void StoreJSSharedStructPropertyArrayElement(TNode<PropertyArray> array,
                                                TNode<IntPtrT> index,

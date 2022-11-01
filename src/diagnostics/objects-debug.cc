@@ -561,6 +561,7 @@ void Map::MapVerify(Isolate* isolate) {
       if (maybe_cell.IsCell()) CHECK(maybe_cell.InSharedHeap());
       CHECK(!is_extensible());
       CHECK(!is_prototype_map());
+      CHECK(OnlyHasSimpleProperties());
       CHECK(instance_descriptors(isolate).InSharedHeap());
       if (IsJSSharedArrayMap()) {
         CHECK(has_shared_array_elements());
@@ -1268,7 +1269,6 @@ void JSSharedStruct::JSSharedStructVerify(Isolate* isolate) {
     CHECK(details.representation().IsTagged());
     FieldIndex field_index = FieldIndex::ForDescriptor(struct_map, i);
     CHECK(RawFastPropertyAt(field_index).IsShared());
-    CHECK(field_index.is_inobject());
   }
 }
 
