@@ -2978,7 +2978,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   }
 
   DECODE(Rethrow) {
-    CHECK_PROTOTYPE_OPCODE(eh);
+    this->detected_->Add(kFeature_eh);
     BranchDepthImmediate imm(this, this->pc_ + 1, validate);
     if (!this->Validate(this->pc_ + 1, imm, control_.size())) return 0;
     Control* c = control_at(imm.depth);
@@ -2992,7 +2992,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   }
 
   DECODE(Throw) {
-    CHECK_PROTOTYPE_OPCODE(eh);
+    this->detected_->Add(kFeature_eh);
     TagIndexImmediate imm(this, this->pc_ + 1, validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
     ArgVector args = PeekArgs(imm.tag->ToFunctionSig());
@@ -3003,7 +3003,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   }
 
   DECODE(Try) {
-    CHECK_PROTOTYPE_OPCODE(eh);
+    this->detected_->Add(kFeature_eh);
     BlockTypeImmediate imm(this->enabled_, this, this->pc_ + 1, this->module_,
                            validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
@@ -3019,7 +3019,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   }
 
   DECODE(Catch) {
-    CHECK_PROTOTYPE_OPCODE(eh);
+    this->detected_->Add(kFeature_eh);
     TagIndexImmediate imm(this, this->pc_ + 1, validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
     DCHECK(!control_.empty());
@@ -3052,7 +3052,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   }
 
   DECODE(Delegate) {
-    CHECK_PROTOTYPE_OPCODE(eh);
+    this->detected_->Add(kFeature_eh);
     BranchDepthImmediate imm(this, this->pc_ + 1, validate);
     // -1 because the current try block is not included in the count.
     if (!this->Validate(this->pc_ + 1, imm, control_depth() - 1)) return 0;
@@ -3078,7 +3078,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   }
 
   DECODE(CatchAll) {
-    CHECK_PROTOTYPE_OPCODE(eh);
+    this->detected_->Add(kFeature_eh);
     DCHECK(!control_.empty());
     Control* c = &control_.back();
     if (!VALIDATE(c->is_try())) {

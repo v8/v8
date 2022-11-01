@@ -435,7 +435,6 @@ TEST(Liftoff_breakpoint_simple) {
 }
 
 TEST(Liftoff_debug_side_table_catch_all) {
-  EXPERIMENTAL_FLAG_SCOPE(eh);
   LiftoffCompileEnvironment env;
   TestSignatures sigs;
   int ex = env.builder()->AddException(sigs.v_v());
@@ -462,7 +461,6 @@ TEST(Liftoff_debug_side_table_catch_all) {
 }
 
 TEST(Regress1199526) {
-  EXPERIMENTAL_FLAG_SCOPE(eh);
   LiftoffCompileEnvironment env;
   ValueType exception_type = ValueType::Ref(HeapType::kAny);
   auto debug_side_table = env.GenerateDebugSideTable(

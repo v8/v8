@@ -768,8 +768,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   bool IsSharedArrayBufferConstructorEnabled(Handle<Context> context);
 
-  bool AreWasmExceptionsEnabled(Handle<Context> context);
-
   THREAD_LOCAL_TOP_ADDRESS(Context, pending_handler_context)
   THREAD_LOCAL_TOP_ADDRESS(Address, pending_handler_entrypoint)
   THREAD_LOCAL_TOP_ADDRESS(Address, pending_handler_constant_pool)

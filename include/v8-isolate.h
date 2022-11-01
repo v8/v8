@@ -1529,6 +1529,7 @@ class V8_EXPORT Isolate {
   V8_DEPRECATED("Wasm SIMD is always enabled")
   void SetWasmSimdEnabledCallback(WasmSimdEnabledCallback callback);
 
+  V8_DEPRECATED("Wasm exceptions are always enabled")
   void SetWasmExceptionsEnabledCallback(WasmExceptionsEnabledCallback callback);
 
   void SetSharedArrayBufferConstructorEnabledCallback(

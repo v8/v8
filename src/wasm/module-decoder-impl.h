@@ -561,13 +561,7 @@ class ModuleDecoderTemplate : public Decoder {
         DecodeDataCountSection();
         break;
       case kTagSectionCode:
-        if (enabled_features_.has_eh()) {
-          DecodeTagSection();
-        } else {
-          errorf(pc(),
-                 "unexpected section <%s> (enable with --experimental-wasm-eh)",
-                 SectionName(section_code));
-        }
+        DecodeTagSection();
         break;
       case kStringRefSectionCode:
         if (enabled_features_.has_stringref()) {
@@ -847,10 +841,6 @@ class ModuleDecoderTemplate : public Decoder {
         }
         case kExternalTag: {
           // ===== Imported tag ================================================
-          if (!enabled_features_.has_eh()) {
-            errorf(pos, "unknown import kind 0x%02x", import->kind);
-            break;
-          }
           import->index = static_cast<uint32_t>(module_->tags.size());
           module_->num_imported_tags++;
           const WasmTagSig* tag_sig = nullptr;
@@ -1034,10 +1024,6 @@ class ModuleDecoderTemplate : public Decoder {
           break;
         }
         case kExternalTag: {
-          if (!enabled_features_.has_eh()) {
-            errorf(pos, "invalid export kind 0x%02x", exp->kind);
-            break;
-          }
           WasmTag* tag = nullptr;
           exp->index = consume_tag_index(module_.get(), &tag);
           break;

@@ -3069,29 +3069,27 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   }
 
   // Setup Exception
-  if (enabled_features.has_eh()) {
-    Handle<JSFunction> tag_constructor =
-        InstallConstructorFunc(isolate, webassembly, "Tag", WebAssemblyTag);
-    Handle<JSObject> tag_proto =
-        SetupConstructor(isolate, tag_constructor, i::WASM_TAG_OBJECT_TYPE,
-                         WasmTagObject::kHeaderSize, "WebAssembly.Tag");
-    context->set_wasm_tag_constructor(*tag_constructor);
+  Handle<JSFunction> tag_constructor =
+      InstallConstructorFunc(isolate, webassembly, "Tag", WebAssemblyTag);
+  Handle<JSObject> tag_proto =
+      SetupConstructor(isolate, tag_constructor, i::WASM_TAG_OBJECT_TYPE,
+                       WasmTagObject::kHeaderSize, "WebAssembly.Tag");
+  context->set_wasm_tag_constructor(*tag_constructor);
 
-    if (enabled_features.has_type_reflection()) {
-      InstallFunc(isolate, tag_proto, "type", WebAssemblyTagType, 0);
-    }
-    // Set up runtime exception constructor.
-    Handle<JSFunction> exception_constructor = InstallConstructorFunc(
-        isolate, webassembly, "Exception", WebAssemblyException);
-    SetDummyInstanceTemplate(isolate, exception_constructor);
-    Handle<JSObject> exception_proto = SetupConstructor(
-        isolate, exception_constructor, i::WASM_EXCEPTION_PACKAGE_TYPE,
-        WasmExceptionPackage::kHeaderSize, "WebAssembly.Exception");
-    InstallFunc(isolate, exception_proto, "getArg", WebAssemblyExceptionGetArg,
-                2);
-    InstallFunc(isolate, exception_proto, "is", WebAssemblyExceptionIs, 1);
-    context->set_wasm_exception_constructor(*exception_constructor);
+  if (enabled_features.has_type_reflection()) {
+    InstallFunc(isolate, tag_proto, "type", WebAssemblyTagType, 0);
   }
+  // Set up runtime exception constructor.
+  Handle<JSFunction> exception_constructor = InstallConstructorFunc(
+      isolate, webassembly, "Exception", WebAssemblyException);
+  SetDummyInstanceTemplate(isolate, exception_constructor);
+  Handle<JSObject> exception_proto = SetupConstructor(
+      isolate, exception_constructor, i::WASM_EXCEPTION_PACKAGE_TYPE,
+      WasmExceptionPackage::kHeaderSize, "WebAssembly.Exception");
+  InstallFunc(isolate, exception_proto, "getArg", WebAssemblyExceptionGetArg,
+              2);
+  InstallFunc(isolate, exception_proto, "is", WebAssemblyExceptionIs, 1);
+  context->set_wasm_exception_constructor(*exception_constructor);
 
   // Setup Suspender.
   if (enabled_features.has_stack_switching()) {
@@ -3151,55 +3149,7 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
 // static
 void WasmJs::InstallConditionalFeatures(Isolate* isolate,
                                         Handle<Context> context) {
-  // Exception handling may have been enabled by an origin trial. If so, make
-  // sure that the {WebAssembly.Tag} constructor is set up.
-  auto enabled_features = i::wasm::WasmFeatures::FromContext(isolate, context);
-  if (enabled_features.has_eh()) {
-    Handle<JSGlobalObject> global = handle(context->global_object(), isolate);
-    MaybeHandle<Object> maybe_webassembly =
-        JSObject::GetProperty(isolate, global, "WebAssembly");
-    Handle<Object> webassembly_obj;
-    if (!maybe_webassembly.ToHandle(&webassembly_obj) ||
-        !webassembly_obj->IsJSObject()) {
-      // There is no {WebAssembly} object, or it's not what we expect.
-      // Just return without adding the {Tag} constructor.
-      return;
-    }
-    Handle<JSObject> webassembly = Handle<JSObject>::cast(webassembly_obj);
-    // Setup Tag.
-    Handle<String> tag_name = v8_str(isolate, "Tag");
-    // The {WebAssembly} object may already have been modified. The following
-    // code is designed to:
-    //  - check for existing {Tag} properties on the object itself, and avoid
-    //    overwriting them or adding duplicate properties
-    //  - disregard any setters or read-only properties on the prototype chain
-    //  - only make objects accessible to user code after all internal setup
-    //    has been completed.
-    if (JSObject::HasOwnProperty(isolate, webassembly, tag_name)
-            .FromMaybe(true)) {
-      // Existing property, or exception.
-      return;
-    }
-
-    bool has_prototype = true;
-    Handle<JSFunction> tag_constructor =
-        CreateFunc(isolate, tag_name, WebAssemblyTag, has_prototype,
-                   SideEffectType::kHasNoSideEffect);
-    tag_constructor->shared().set_length(1);
-    context->set_wasm_tag_constructor(*tag_constructor);
-    Handle<JSObject> tag_proto =
-        SetupConstructor(isolate, tag_constructor, i::WASM_TAG_OBJECT_TYPE,
-                         WasmTagObject::kHeaderSize, "WebAssembly.Tag");
-    if (enabled_features.has_type_reflection()) {
-      InstallFunc(isolate, tag_proto, "type", WebAssemblyTagType, 0);
-    }
-    LookupIterator it(isolate, webassembly, tag_name, LookupIterator::OWN);
-    Maybe<bool> result = JSObject::DefineOwnPropertyIgnoreAttributes(
-        &it, tag_constructor, DONT_ENUM, Just(kDontThrow));
-    // This could still fail if the object was non-extensible, but now we
-    // return anyway so there's no need to even check.
-    USE(result);
-  }
+  // This space left blank for future origin trials.
 }
 #undef ASSIGN
 #undef EXTRACT_THIS

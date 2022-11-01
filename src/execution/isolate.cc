@@ -2955,18 +2955,6 @@ bool Isolate::IsSharedArrayBufferConstructorEnabled(Handle<Context> context) {
   return false;
 }
 
-bool Isolate::AreWasmExceptionsEnabled(Handle<Context> context) {
-#if V8_ENABLE_WEBASSEMBLY
-  if (wasm_exceptions_enabled_callback()) {
-    v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
-    return wasm_exceptions_enabled_callback()(api_context);
-  }
-  return v8_flags.experimental_wasm_eh;
-#else
-  return false;
-#endif  // V8_ENABLE_WEBASSEMBLY
-}
-
 Handle<Context> Isolate::GetIncumbentContext() {
   JavaScriptFrameIterator it(this);
 
