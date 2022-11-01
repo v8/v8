@@ -1216,6 +1216,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   V(F32x4Floor)             \
   V(F32x4Trunc)             \
   V(I64x2Neg)               \
+  V(F64x2ConvertLowI32x4S)  \
   V(I64x2SConvertI32x4Low)  \
   V(I64x2SConvertI32x4High) \
   V(I32x4Neg)               \
@@ -1305,6 +1306,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                 Simd128Register scratch1, Simd128Register scratch2);
   void F64x2Max(Simd128Register dst, Simd128Register src1, Simd128Register src2,
                 Simd128Register scratch1, Simd128Register scratch2);
+  void F64x2ConvertLowI32x4U(Simd128Register dst, Simd128Register src,
+                             Register scratch1, Simd128Register scratch2);
   void I64x2UConvertI32x4Low(Simd128Register dst, Simd128Register src,
                              Register scratch1, Simd128Register scratch2);
   void I64x2UConvertI32x4High(Simd128Register dst, Simd128Register src,

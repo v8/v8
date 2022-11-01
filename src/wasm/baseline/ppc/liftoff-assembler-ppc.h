@@ -1951,6 +1951,7 @@ SIMD_SHIFT_RI_LIST(EMIT_SIMD_SHIFT_RI)
   V(f32x4_floor, F32x4Floor, true, bool)                       \
   V(f32x4_trunc, F32x4Trunc, true, bool)                       \
   V(i64x2_neg, I64x2Neg, , void)                               \
+  V(f64x2_convert_low_i32x4_s, F64x2ConvertLowI32x4S, , void)  \
   V(i64x2_sconvert_i32x4_low, I64x2SConvertI32x4Low, , void)   \
   V(i64x2_sconvert_i32x4_high, I64x2SConvertI32x4High, , void) \
   V(i32x4_neg, I32x4Neg, , void)                               \
@@ -2236,14 +2237,10 @@ void LiftoffAssembler::emit_f64x2_relaxed_max(LiftoffRegister dst,
   bailout(kRelaxedSimd, "emit_f64x2_relaxed_max");
 }
 
-void LiftoffAssembler::emit_f64x2_convert_low_i32x4_s(LiftoffRegister dst,
-                                                      LiftoffRegister src) {
-  bailout(kSimd, "f64x2.convert_low_i32x4_s");
-}
-
 void LiftoffAssembler::emit_f64x2_convert_low_i32x4_u(LiftoffRegister dst,
                                                       LiftoffRegister src) {
-  bailout(kSimd, "f64x2.convert_low_i32x4_u");
+  F64x2ConvertLowI32x4U(dst.fp().toSimd(), src.fp().toSimd(), r0,
+                        kScratchSimd128Reg);
 }
 
 void LiftoffAssembler::emit_f64x2_promote_low_f32x4(LiftoffRegister dst,

@@ -4268,6 +4268,26 @@ void TurboAssembler::I8x16UConvertI16x8(Simd128Register dst,
   vpkshus(dst, src2, src1);
 }
 
+void TurboAssembler::F64x2ConvertLowI32x4S(Simd128Register dst,
+                                           Simd128Register src) {
+  vupklsw(dst, src);
+  xvcvsxddp(dst, dst);
+}
+
+void TurboAssembler::F64x2ConvertLowI32x4U(Simd128Register dst,
+                                           Simd128Register src,
+                                           Register scratch1,
+                                           Simd128Register scratch2) {
+  constexpr int lane_width_in_bytes = 8;
+  vupklsw(dst, src);
+  // Zero extend.
+  mov(scratch1, Operand(0xFFFFFFFF));
+  mtvsrd(scratch2, scratch1);
+  vinsertd(scratch2, scratch2, Operand(1 * lane_width_in_bytes));
+  vand(dst, scratch2, dst);
+  xvcvuxddp(dst, dst);
+}
+
 void TurboAssembler::I64x2UConvertI32x4Low(Simd128Register dst,
                                            Simd128Register src,
                                            Register scratch1,
