@@ -300,6 +300,18 @@ using TestWithContext =                    //
                 WithDefaultPlatformMixin<  //
                     ::testing::Test>>>>;
 
+// Use v8::internal::TestJSSharedMemoryWithNativeContext if you are testing
+// internals, aka. directly work with Handles.
+//
+// Using this will FATAL when !V8_CAN_CREATE_SHARED_HEAP_BOOL
+using TestJSSharedMemoryWithContext =                     //
+    WithContextMixin<                                     //
+        WithIsolateScopeMixin<                            //
+            WithIsolateMixin<                             //
+                WithDefaultPlatformMixin<                 //
+                    WithJSSharedMemoryFeatureFlagsMixin<  //
+                        ::testing::Test>>>>>;
+
 class PrintExtension : public v8::Extension {
  public:
   PrintExtension() : v8::Extension("v8/print", "native function print();") {}

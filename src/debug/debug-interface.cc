@@ -1404,7 +1404,7 @@ void NotifyDebuggerPausedEventSent(v8::Isolate* v8_isolate) {
 std::unique_ptr<PropertyIterator> PropertyIterator::Create(
     Local<Context> context, Local<Object> object, bool skip_indices) {
   internal::Isolate* isolate =
-      reinterpret_cast<i::Isolate*>(object->GetIsolate());
+      reinterpret_cast<i::Isolate*>(context->GetIsolate());
   if (isolate->is_execution_terminating()) {
     return nullptr;
   }
