@@ -238,7 +238,7 @@ class MaglevGraphBuilder {
     if (source_position_iterator_.done()) return;
     if (source_position_iterator_.code_offset() == offset) {
       // TODO(leszeks): Add inlining support.
-      const int kInliningId = 0;
+      const int kInliningId = SourcePosition::kNotInlined;
       current_source_position_ = SourcePosition(
           source_position_iterator_.source_position().ScriptOffset(),
           kInliningId);
