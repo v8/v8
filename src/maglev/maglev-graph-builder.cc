@@ -1728,7 +1728,7 @@ bool MaglevGraphBuilder::TryBuildNamedAccess(
   ZoneVector<compiler::PropertyAccessInfo> access_infos(zone());
   {
     ZoneVector<compiler::PropertyAccessInfo> access_infos_for_feedback(zone());
-    if (Constant* n = receiver->TryCast<Constant>()) {
+    if (Constant* n = lookup_start_object->TryCast<Constant>()) {
       compiler::MapRef constant_map = n->object().map();
       compiler::PropertyAccessInfo access_info =
           broker()->GetPropertyAccessInfo(constant_map, feedback.name(),
