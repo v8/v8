@@ -32,52 +32,10 @@ def try_ng_pair(
         orchestrator = ORCHESTRATOR.OPTIONAL,
         **kwargs):
     triggered_timeout = kwargs.pop("triggered_timeout", None)
-    kwargs.setdefault("properties", {})["triggers"] = [
-        "%s_ng_triggered" % name,
-    ]
 
     # All unspecified branch trybots are per default optional.
     if (cq_properties != CQ.NONE and cq_branch_properties == CQ.NONE):
         cq_branch_properties = CQ.OPTIONAL
-
-    # Copy properties as they are modified below.
-    cq_tg = dict(cq_properties)
-    cq_td = dict(cq_properties)
-    cq_branch_tg = dict(cq_branch_properties)
-    cq_branch_td = dict(cq_branch_properties)
-
-    # Triggered builders don't support experiments. Therefore we create
-    # a separate experimental builder below. The trigger pair will remain
-    # as opt-in trybots.
-    for prop in (cq_tg, cq_td, cq_branch_tg, cq_branch_td):
-        if "experiment_percentage" in prop:
-            prop.pop("experiment_percentage")
-            prop["includable_only"] = "true"
-
-    # Migrate all blocking CQ builders and run experiment with optional bots.
-    if orchestrator == ORCHESTRATOR.OPTIONAL:
-        orchestrator = ORCHESTRATOR.MIGRATED
-
-    # Map CQ properties to orchestrator dependent on migration state.
-    if orchestrator == ORCHESTRATOR.OPTIONAL:
-        cq_orchestrator = CQ.OPTIONAL
-        cq_branch_orchestrator = CQ.OPTIONAL
-    elif orchestrator == ORCHESTRATOR.EXP_20_PERCENT:
-        cq_orchestrator = CQ.EXP_20_PERCENT
-        cq_branch_orchestrator = CQ.EXP_20_PERCENT
-    elif orchestrator == ORCHESTRATOR.EXP_100_PERCENT:
-        cq_orchestrator = CQ.EXP_100_PERCENT
-        cq_branch_orchestrator = CQ.EXP_100_PERCENT
-    else:
-        # Migration complete, run orchestrator as previously the triggered
-        # tester (including experiment percentages). Both previous parent
-        # and child trybots are now optional (also pseudo experiment trybots).
-        cq_orchestrator = cq_properties
-        cq_branch_orchestrator = cq_branch_properties
-        cq_tg = CQ.OPTIONAL
-        cq_branch_tg = CQ.OPTIONAL
-        cq_td = CQ.OPTIONAL
-        cq_branch_td = CQ.OPTIONAL
 
     description = kwargs.pop("description", None)
     compiler_description, tester_description = None, None
@@ -88,29 +46,6 @@ def try_ng_pair(
         tester_description["triggered by"] = name + "_ng"
 
     kwargs["enable_rdb"] = enable_rdb
-    v8_builder(
-        defaults_try,
-        name = name + "_ng",
-        bucket = "try",
-        cq_properties = cq_tg,
-        cq_branch_properties = cq_branch_tg,
-        in_list = "tryserver",
-        experiments = experiments,
-        description = compiler_description,
-        **kwargs
-    )
-
-    v8_builder(
-        defaults_triggered,
-        name = name + "_ng_triggered",
-        bucket = "try.triggered",
-        execution_timeout = triggered_timeout,
-        cq_properties = cq_td,
-        cq_branch_properties = cq_branch_td,
-        in_list = "tryserver",
-        experiments = experiments,
-        description = tester_description,
-    )
 
     # Generate orchestrator trybot.
     # The corresponding compilator name gets an infix like:
@@ -123,8 +58,8 @@ def try_ng_pair(
         bucket = "try",
         execution_timeout = triggered_timeout,
         executable = "recipe:v8/orchestrator",
-        cq_properties = cq_orchestrator,
-        cq_branch_properties = cq_branch_orchestrator,
+        cq_properties = cq_properties,
+        cq_branch_properties = cq_branch_properties,
         in_list = "tryserver",
         experiments = experiments,
         description = tester_description,
@@ -132,7 +67,6 @@ def try_ng_pair(
     )
 
     # Generate compilator trybot.
-    kwargs["properties"]["triggers"] = None
     v8_builder(
         defaults_try,
         name = compilator_name,
