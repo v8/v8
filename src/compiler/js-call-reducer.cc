@@ -1117,7 +1117,8 @@ TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeAt(
   TNode<Number> index_num = CheckSmi(index);
   TNode<FixedArrayBase> elements = LoadElements(receiver);
 
-  TNode<Map> receiver_map = LoadMap(receiver);
+  TNode<Map> receiver_map =
+      TNode<Map>::UncheckedCast(LoadField(AccessBuilder::ForMap(), receiver));
 
   auto out = MakeLabel(MachineRepresentation::kTagged);
 
