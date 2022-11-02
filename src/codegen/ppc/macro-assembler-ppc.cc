@@ -3799,6 +3799,70 @@ SIMD_UNOP_LIST(EMIT_SIMD_UNOP)
 #undef EMIT_SIMD_UNOP
 #undef SIMD_UNOP_LIST
 
+#define EXT_MUL(dst_even, dst_odd, mul_even, mul_odd) \
+  mul_even(dst_even, src1, src2);                     \
+  mul_odd(dst_odd, src1, src2);
+#define SIMD_EXT_MUL_LIST(V)                         \
+  V(I32x4ExtMulLowI16x8S, vmulesh, vmulosh, vmrglw)  \
+  V(I32x4ExtMulHighI16x8S, vmulesh, vmulosh, vmrghw) \
+  V(I32x4ExtMulLowI16x8U, vmuleuh, vmulouh, vmrglw)  \
+  V(I32x4ExtMulHighI16x8U, vmuleuh, vmulouh, vmrghw) \
+  V(I16x8ExtMulLowI8x16S, vmulesb, vmulosb, vmrglh)  \
+  V(I16x8ExtMulHighI8x16S, vmulesb, vmulosb, vmrghh) \
+  V(I16x8ExtMulLowI8x16U, vmuleub, vmuloub, vmrglh)  \
+  V(I16x8ExtMulHighI8x16U, vmuleub, vmuloub, vmrghh)
+
+#define EMIT_SIMD_EXT_MUL(name, mul_even, mul_odd, merge)                    \
+  void TurboAssembler::name(Simd128Register dst, Simd128Register src1,       \
+                            Simd128Register src2, Simd128Register scratch) { \
+    EXT_MUL(scratch, dst, mul_even, mul_odd)                                 \
+    merge(dst, scratch, dst);                                                \
+  }
+SIMD_EXT_MUL_LIST(EMIT_SIMD_EXT_MUL)
+#undef EMIT_SIMD_EXT_MUL
+#undef SIMD_EXT_MUL_LIST
+
+void TurboAssembler::I64x2ExtMulLowI32x4S(Simd128Register dst,
+                                          Simd128Register src1,
+                                          Simd128Register src2,
+                                          Simd128Register scratch) {
+  constexpr int lane_width_in_bytes = 8;
+  EXT_MUL(scratch, dst, vmulesw, vmulosw)
+  vextractd(scratch, scratch, Operand(1 * lane_width_in_bytes));
+  vinsertd(dst, scratch, Operand(0));
+}
+
+void TurboAssembler::I64x2ExtMulHighI32x4S(Simd128Register dst,
+                                           Simd128Register src1,
+                                           Simd128Register src2,
+                                           Simd128Register scratch) {
+  constexpr int lane_width_in_bytes = 8;
+  EXT_MUL(scratch, dst, vmulesw, vmulosw)
+  vinsertd(scratch, dst, Operand(1 * lane_width_in_bytes));
+  vor(dst, scratch, scratch);
+}
+
+void TurboAssembler::I64x2ExtMulLowI32x4U(Simd128Register dst,
+                                          Simd128Register src1,
+                                          Simd128Register src2,
+                                          Simd128Register scratch) {
+  constexpr int lane_width_in_bytes = 8;
+  EXT_MUL(scratch, dst, vmuleuw, vmulouw)
+  vextractd(scratch, scratch, Operand(1 * lane_width_in_bytes));
+  vinsertd(dst, scratch, Operand(0));
+}
+
+void TurboAssembler::I64x2ExtMulHighI32x4U(Simd128Register dst,
+                                           Simd128Register src1,
+                                           Simd128Register src2,
+                                           Simd128Register scratch) {
+  constexpr int lane_width_in_bytes = 8;
+  EXT_MUL(scratch, dst, vmuleuw, vmulouw)
+  vinsertd(scratch, dst, Operand(1 * lane_width_in_bytes));
+  vor(dst, scratch, scratch);
+}
+#undef EXT_MUL
+
 void TurboAssembler::LoadSimd128(Simd128Register dst, const MemOperand& mem,
                                  Register scratch) {
   GenerateMemoryOperationRR(dst, mem, lxvx);

@@ -1162,12 +1162,24 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   V(F32x4Pmax)                          \
   V(I64x2Ne)                            \
   V(I64x2GeS)                           \
+  V(I64x2ExtMulLowI32x4S)               \
+  V(I64x2ExtMulHighI32x4S)              \
+  V(I64x2ExtMulLowI32x4U)               \
+  V(I64x2ExtMulHighI32x4U)              \
   V(I32x4Ne)                            \
   V(I32x4GeS)                           \
   V(I32x4GeU)                           \
+  V(I32x4ExtMulLowI16x8S)               \
+  V(I32x4ExtMulHighI16x8S)              \
+  V(I32x4ExtMulLowI16x8U)               \
+  V(I32x4ExtMulHighI16x8U)              \
   V(I16x8Ne)                            \
   V(I16x8GeS)                           \
   V(I16x8GeU)                           \
+  V(I16x8ExtMulLowI8x16S)               \
+  V(I16x8ExtMulHighI8x16S)              \
+  V(I16x8ExtMulLowI8x16U)               \
+  V(I16x8ExtMulHighI8x16U)              \
   V(I8x16Ne)                            \
   V(I8x16GeS)                           \
   V(I8x16GeU)

@@ -2288,12 +2288,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   V(F32x4Pmax)                          \
   V(I64x2Ne)                            \
   V(I64x2GeS)                           \
+  V(I64x2ExtMulLowI32x4S)               \
+  V(I64x2ExtMulHighI32x4S)              \
+  V(I64x2ExtMulLowI32x4U)               \
+  V(I64x2ExtMulHighI32x4U)              \
   V(I32x4Ne)                            \
   V(I32x4GeS)                           \
   V(I32x4GeU)                           \
+  V(I32x4ExtMulLowI16x8S)               \
+  V(I32x4ExtMulHighI16x8S)              \
+  V(I32x4ExtMulLowI16x8U)               \
+  V(I32x4ExtMulHighI16x8U)              \
   V(I16x8Ne)                            \
   V(I16x8GeS)                           \
   V(I16x8GeU)                           \
+  V(I16x8ExtMulLowI8x16S)               \
+  V(I16x8ExtMulHighI8x16S)              \
+  V(I16x8ExtMulLowI8x16U)               \
+  V(I16x8ExtMulHighI8x16U)              \
   V(I8x16Ne)                            \
   V(I8x16GeS)                           \
   V(I8x16GeU)
@@ -3035,83 +3047,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                     i.InputSimd128Register(1), kScratchSimd128Reg);
       break;
     }
-#define EXT_MUL(mul_even, mul_odd)                  \
-  Simd128Register dst = i.OutputSimd128Register(),  \
-                  src0 = i.InputSimd128Register(0), \
-                  src1 = i.InputSimd128Register(1); \
-  __ mul_even(kScratchSimd128Reg, src0, src1);      \
-  __ mul_odd(dst, src0, src1);
-    case kPPC_I64x2ExtMulLowI32x4S: {
-      constexpr int lane_width_in_bytes = 8;
-      EXT_MUL(vmulesw, vmulosw)
-      __ vextractd(kScratchSimd128Reg, kScratchSimd128Reg,
-                   Operand(1 * lane_width_in_bytes));
-      __ vinsertd(dst, kScratchSimd128Reg, Operand(0));
-      break;
-    }
-    case kPPC_I64x2ExtMulHighI32x4S: {
-      constexpr int lane_width_in_bytes = 8;
-      EXT_MUL(vmulesw, vmulosw)
-      __ vinsertd(kScratchSimd128Reg, dst, Operand(1 * lane_width_in_bytes));
-      __ vor(dst, kScratchSimd128Reg, kScratchSimd128Reg);
-      break;
-    }
-    case kPPC_I64x2ExtMulLowI32x4U: {
-      constexpr int lane_width_in_bytes = 8;
-      EXT_MUL(vmuleuw, vmulouw)
-      __ vextractd(kScratchSimd128Reg, kScratchSimd128Reg,
-                   Operand(1 * lane_width_in_bytes));
-      __ vinsertd(dst, kScratchSimd128Reg, Operand(0));
-      break;
-    }
-    case kPPC_I64x2ExtMulHighI32x4U: {
-      constexpr int lane_width_in_bytes = 8;
-      EXT_MUL(vmuleuw, vmulouw)
-      __ vinsertd(kScratchSimd128Reg, dst, Operand(1 * lane_width_in_bytes));
-      __ vor(dst, kScratchSimd128Reg, kScratchSimd128Reg);
-      break;
-    }
-    case kPPC_I32x4ExtMulLowI16x8S: {
-      EXT_MUL(vmulesh, vmulosh)
-      __ vmrglw(dst, kScratchSimd128Reg, dst);
-      break;
-    }
-    case kPPC_I32x4ExtMulHighI16x8S: {
-      EXT_MUL(vmulesh, vmulosh)
-      __ vmrghw(dst, kScratchSimd128Reg, dst);
-      break;
-    }
-    case kPPC_I32x4ExtMulLowI16x8U: {
-      EXT_MUL(vmuleuh, vmulouh)
-      __ vmrglw(dst, kScratchSimd128Reg, dst);
-      break;
-    }
-    case kPPC_I32x4ExtMulHighI16x8U: {
-      EXT_MUL(vmuleuh, vmulouh)
-      __ vmrghw(dst, kScratchSimd128Reg, dst);
-      break;
-    }
-    case kPPC_I16x8ExtMulLowI8x16S: {
-      EXT_MUL(vmulesb, vmulosb)
-      __ vmrglh(dst, kScratchSimd128Reg, dst);
-      break;
-    }
-    case kPPC_I16x8ExtMulHighI8x16S: {
-      EXT_MUL(vmulesb, vmulosb)
-      __ vmrghh(dst, kScratchSimd128Reg, dst);
-      break;
-    }
-    case kPPC_I16x8ExtMulLowI8x16U: {
-      EXT_MUL(vmuleub, vmuloub)
-      __ vmrglh(dst, kScratchSimd128Reg, dst);
-      break;
-    }
-    case kPPC_I16x8ExtMulHighI8x16U: {
-      EXT_MUL(vmuleub, vmuloub)
-      __ vmrghh(dst, kScratchSimd128Reg, dst);
-      break;
-    }
-#undef EXT_MUL
     case kPPC_F64x2PromoteLowF32x4: {
       constexpr int lane_number = 8;
       Simd128Register src = i.InputSimd128Register(0);
