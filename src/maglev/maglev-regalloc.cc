@@ -531,8 +531,7 @@ void StraightForwardRegisterAllocator::UpdateUse(
 void StraightForwardRegisterAllocator::UpdateUse(
     const EagerDeoptInfo& deopt_info) {
   detail::DeepForEachInput(
-      &deopt_info,
-      [&](ValueNode* node, interpreter::Register reg, InputLocation* input) {
+      &deopt_info, [&](ValueNode* node, InputLocation* input) {
         if (v8_flags.trace_maglev_regalloc) {
           printing_visitor_->os()
               << "- using " << PrintNodeLabel(graph_labeller(), node) << "\n";
@@ -549,8 +548,7 @@ void StraightForwardRegisterAllocator::UpdateUse(
 void StraightForwardRegisterAllocator::UpdateUse(
     const LazyDeoptInfo& deopt_info) {
   detail::DeepForEachInput(
-      &deopt_info,
-      [&](ValueNode* node, interpreter::Register reg, InputLocation* input) {
+      &deopt_info, [&](ValueNode* node, InputLocation* input) {
         if (v8_flags.trace_maglev_regalloc) {
           printing_visitor_->os()
               << "- using " << PrintNodeLabel(graph_labeller(), node) << "\n";

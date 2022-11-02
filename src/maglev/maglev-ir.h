@@ -179,6 +179,7 @@ class CompactInterpreterFrameState;
   V(SetPendingMessage)             \
   V(StringAt)                      \
   V(StringLength)                  \
+  V(ToBoolean)                     \
   V(ToBooleanLogicalNot)           \
   V(TaggedEqual)                   \
   V(TaggedNotEqual)                \
@@ -665,17 +666,19 @@ class Input : public InputLocation {
 };
 
 class InterpretedDeoptFrame;
+class BuiltinContinuationDeoptFrame;
 class DeoptFrame {
  public:
   enum class FrameType {
     kInterpretedFrame,
-    // kBuiltinContinuationFrame,
+    kBuiltinContinuationFrame,
   };
 
   FrameType type() const { return type_; }
   const DeoptFrame* parent() const { return parent_; }
 
   inline const InterpretedDeoptFrame& as_interpreted() const;
+  inline const BuiltinContinuationDeoptFrame& as_builtin_continuation() const;
 
  protected:
   struct InterpretedFrameData {
@@ -684,14 +687,24 @@ class DeoptFrame {
     BytecodeOffset bytecode_position;
     SourcePosition source_position;
   };
+  struct BuiltinContinuationFrameData {
+    Builtin builtin_id;
+    base::Vector<ValueNode*> parameters;
+    ValueNode* context;
+  };
 
   DeoptFrame(InterpretedFrameData data, const DeoptFrame* parent)
       : interpreted_frame_data_(data),
         type_(FrameType::kInterpretedFrame),
         parent_(parent) {}
+  DeoptFrame(BuiltinContinuationFrameData data, const DeoptFrame* parent)
+      : builtin_continuation_frame_data_(data),
+        type_(FrameType::kBuiltinContinuationFrame),
+        parent_(parent) {}
 
   union {
     const InterpretedFrameData interpreted_frame_data_;
+    const BuiltinContinuationFrameData builtin_continuation_frame_data_;
   };
   FrameType type_;
   const DeoptFrame* parent_;
@@ -728,6 +741,35 @@ static_assert(sizeof(InterpretedDeoptFrame) == sizeof(DeoptFrame));
 inline const InterpretedDeoptFrame& DeoptFrame::as_interpreted() const {
   DCHECK_EQ(type(), FrameType::kInterpretedFrame);
   return static_cast<const InterpretedDeoptFrame&>(*this);
+}
+
+class BuiltinContinuationDeoptFrame : public DeoptFrame {
+ public:
+  BuiltinContinuationDeoptFrame(Builtin builtin_id,
+                                base::Vector<ValueNode*> parameters,
+                                ValueNode* context, const DeoptFrame* parent)
+      : DeoptFrame(
+            BuiltinContinuationFrameData{builtin_id, parameters, context},
+            parent) {}
+
+  const Builtin& builtin_id() const {
+    return builtin_continuation_frame_data_.builtin_id;
+  }
+  base::Vector<ValueNode*> parameters() const {
+    return builtin_continuation_frame_data_.parameters;
+  }
+  ValueNode* context() const {
+    return builtin_continuation_frame_data_.context;
+  }
+};
+
+// Make sure storing/passing deopt frames by value doesn't truncate them.
+static_assert(sizeof(BuiltinContinuationDeoptFrame) == sizeof(DeoptFrame));
+
+inline const BuiltinContinuationDeoptFrame&
+DeoptFrame::as_builtin_continuation() const {
+  DCHECK_EQ(type(), FrameType::kBuiltinContinuationFrame);
+  return static_cast<const BuiltinContinuationDeoptFrame&>(*this);
 }
 
 class DeoptInfo {
@@ -1991,6 +2033,19 @@ class SetPendingMessage : public FixedInputValueNodeT<1, SetPendingMessage> {
 
  public:
   explicit SetPendingMessage(uint64_t bitfield) : Base(bitfield) {}
+
+  Input& value() { return Node::input(0); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class ToBoolean : public FixedInputValueNodeT<1, ToBoolean> {
+  using Base = FixedInputValueNodeT<1, ToBoolean>;
+
+ public:
+  explicit ToBoolean(uint64_t bitfield) : Base(bitfield) {}
 
   Input& value() { return Node::input(0); }
 

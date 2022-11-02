@@ -145,8 +145,7 @@ class SaveRegisterStateForCall {
 RegList GetGeneralRegistersUsedAsInputs(const EagerDeoptInfo* deopt_info) {
   RegList regs;
   detail::DeepForEachInput(deopt_info,
-                           [&regs](ValueNode* value, interpreter::Register reg,
-                                   InputLocation* input) {
+                           [&regs](ValueNode* value, InputLocation* input) {
                              if (input->IsGeneralRegister()) {
                                regs.set(input->AssignedGeneralRegister());
                              }
@@ -221,8 +220,8 @@ void AllocateRaw(MaglevAssembler* masm, RegisterSnapshot& register_snapshot,
   __ bind(*done);
 }
 
-void ToBoolean(MaglevAssembler* masm, Register value, ZoneLabelRef is_true,
-               ZoneLabelRef is_false, bool fallthrough_when_true) {
+void EmitToBoolean(MaglevAssembler* masm, Register value, ZoneLabelRef is_true,
+                   ZoneLabelRef is_false, bool fallthrough_when_true) {
   Register map = kScratchRegister;
 
   // Check if {{value}} is Smi.
@@ -378,9 +377,16 @@ size_t GetInputLocationsArraySize(const DeoptFrame& top_frame) {
   size_t size = 0;
   const DeoptFrame* frame = &top_frame;
   do {
-    const InterpretedDeoptFrame& interpreted_frame = frame->as_interpreted();
-    size += interpreted_frame.frame_state()->size(interpreted_frame.unit());
-    frame = interpreted_frame.parent();
+    switch (frame->type()) {
+      case DeoptFrame::FrameType::kInterpretedFrame:
+        size += frame->as_interpreted().frame_state()->size(
+            frame->as_interpreted().unit());
+        break;
+      case DeoptFrame::FrameType::kBuiltinContinuationFrame:
+        size += frame->as_builtin_continuation().parameters().size() + 1;
+        break;
+    }
+    frame = frame->parent();
   } while (frame != nullptr);
   return size;
 }
@@ -3205,6 +3211,28 @@ void SetPendingMessage::GenerateCode(MaglevAssembler* masm,
   }
 }
 
+void ToBoolean::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  UseRegister(value());
+  DefineAsRegister(vreg_state, this);
+}
+void ToBoolean::GenerateCode(MaglevAssembler* masm,
+                             const ProcessingState& state) {
+  Register object = ToRegister(value());
+  Register return_value = ToRegister(result());
+  Label done;
+  Zone* zone = masm->compilation_info()->zone();
+  ZoneLabelRef object_is_true(zone), object_is_false(zone);
+  // TODO(leszeks): We're likely to be calling this on an existing boolean --
+  // maybe that's a case we should fast-path here and re-use that boolean value?
+  EmitToBoolean(masm, object, object_is_true, object_is_false, true);
+  __ bind(*object_is_true);
+  __ LoadRoot(return_value, RootIndex::kTrueValue);
+  __ jmp(&done, Label::kNear);
+  __ bind(*object_is_false);
+  __ LoadRoot(return_value, RootIndex::kFalseValue);
+  __ bind(&done);
+}
+
 void ToBooleanLogicalNot::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseRegister(value());
   DefineAsRegister(vreg_state, this);
@@ -3216,7 +3244,7 @@ void ToBooleanLogicalNot::GenerateCode(MaglevAssembler* masm,
   Label done;
   Zone* zone = masm->compilation_info()->zone();
   ZoneLabelRef object_is_true(zone), object_is_false(zone);
-  ToBoolean(masm, object, object_is_true, object_is_false, true);
+  EmitToBoolean(masm, object, object_is_true, object_is_false, true);
   __ bind(*object_is_true);
   __ LoadRoot(return_value, RootIndex::kFalseValue);
   __ jmp(&done, Label::kNear);
@@ -4259,9 +4287,7 @@ void AttemptOnStackReplacement(MaglevAssembler* masm,
       // configurable.
       RegisterSnapshot snapshot = node->register_snapshot();
       detail::DeepForEachInput(
-          node->eager_deopt_info(),
-          [&](ValueNode* node, interpreter::Register reg,
-              InputLocation* input) {
+          node->eager_deopt_info(), [&](ValueNode* node, InputLocation* input) {
             if (!input->IsAnyRegister()) return;
             if (input->IsDoubleRegister()) {
               snapshot.live_double_registers.set(
@@ -4445,8 +4471,8 @@ void BranchIfToBooleanTrue::GenerateCode(MaglevAssembler* masm,
   ZoneLabelRef false_label =
       ZoneLabelRef::UnsafeFromLabelPointer(if_false()->label());
   bool fallthrough_when_true = (if_true() == state.next_block());
-  ToBoolean(masm, ToRegister(condition_input()), true_label, false_label,
-            fallthrough_when_true);
+  EmitToBoolean(masm, ToRegister(condition_input()), true_label, false_label,
+                fallthrough_when_true);
 }
 
 }  // namespace maglev

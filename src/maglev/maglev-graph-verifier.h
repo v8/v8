@@ -28,21 +28,6 @@ std::ostream& operator<<(std::ostream& os, const ValueRepresentation& repr) {
   return os;
 }
 
-namespace {
-ValueRepresentation ToValueRepresentation(MachineType type) {
-  switch (type.representation()) {
-    case MachineRepresentation::kTagged:
-    case MachineRepresentation::kTaggedSigned:
-    case MachineRepresentation::kTaggedPointer:
-      return ValueRepresentation::kTagged;
-    case MachineRepresentation::kFloat64:
-      return ValueRepresentation::kFloat64;
-    default:
-      return ValueRepresentation::kInt32;
-  }
-}
-}  // namespace
-
 class Graph;
 
 // TODO(victorgomes): Currently it only verifies the inputs for all ValueNodes
@@ -58,6 +43,19 @@ class MaglevGraphVerifier {
   void PreProcessGraph(Graph* graph) {}
   void PostProcessGraph(Graph* graph) {}
   void PreProcessBasicBlock(BasicBlock* block) {}
+
+  static ValueRepresentation ToValueRepresentation(MachineType type) {
+    switch (type.representation()) {
+      case MachineRepresentation::kTagged:
+      case MachineRepresentation::kTaggedSigned:
+      case MachineRepresentation::kTaggedPointer:
+        return ValueRepresentation::kTagged;
+      case MachineRepresentation::kFloat64:
+        return ValueRepresentation::kFloat64;
+      default:
+        return ValueRepresentation::kInt32;
+    }
+  }
 
   void CheckValueInputIs(NodeBase* node, int i, ValueRepresentation expected) {
     ValueNode* input = node->input(i).node();
@@ -142,6 +140,7 @@ class MaglevGraphVerifier {
       case Opcode::kSetPendingMessage:
       case Opcode::kStoreMap:
       case Opcode::kStringLength:
+      case Opcode::kToBoolean:
       case Opcode::kToBooleanLogicalNot:
       case Opcode::kTestUndetectable:
       case Opcode::kTestTypeOf:

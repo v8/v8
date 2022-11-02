@@ -479,13 +479,18 @@ class ExceptionHandlerTrampolineBuilder {
     // values are tagged and b) the stack walk treats unknown stack slots as
     // tagged.
 
+    const InterpretedDeoptFrame& lazy_frame =
+        deopt_info->top_frame().type() ==
+                DeoptFrame::FrameType::kBuiltinContinuationFrame
+            ? deopt_info->top_frame().parent()->as_interpreted()
+            : deopt_info->top_frame().as_interpreted();
+
     // TODO(v8:7700): Handle inlining.
 
     ParallelMoveResolver<Register> direct_moves(masm_);
     MoveVector materialising_moves;
     bool save_accumulator = false;
-    RecordMoves(deopt_info->top_frame().as_interpreted().unit(), catch_block,
-                deopt_info->top_frame().as_interpreted().frame_state(),
+    RecordMoves(lazy_frame.unit(), catch_block, lazy_frame.frame_state(),
                 &direct_moves, &materialising_moves, &save_accumulator);
 
     __ bind(&handler_info->trampoline_entry);
@@ -981,7 +986,29 @@ class SafepointingNodeProcessor {
 
 namespace {
 int GetFrameCount(const DeoptFrame& deopt_frame) {
-  return 1 + deopt_frame.as_interpreted().unit().inlining_depth();
+  switch (deopt_frame.type()) {
+    case DeoptFrame::FrameType::kInterpretedFrame:
+      return 1 + deopt_frame.as_interpreted().unit().inlining_depth();
+    case DeoptFrame::FrameType::kBuiltinContinuationFrame:
+      return 1 + GetFrameCount(*deopt_frame.parent());
+  }
+}
+BytecodeOffset GetBytecodeOffset(const DeoptFrame& deopt_frame) {
+  switch (deopt_frame.type()) {
+    case DeoptFrame::FrameType::kInterpretedFrame:
+      return deopt_frame.as_interpreted().bytecode_position();
+    case DeoptFrame::FrameType::kBuiltinContinuationFrame:
+      return Builtins::GetContinuationBytecodeOffset(
+          deopt_frame.as_builtin_continuation().builtin_id());
+  }
+}
+SourcePosition GetSourcePosition(const DeoptFrame& deopt_frame) {
+  switch (deopt_frame.type()) {
+    case DeoptFrame::FrameType::kInterpretedFrame:
+      return deopt_frame.as_interpreted().source_position();
+    case DeoptFrame::FrameType::kBuiltinContinuationFrame:
+      return SourcePosition::Unknown();
+  }
 }
 }  // namespace
 
@@ -1067,6 +1094,34 @@ class MaglevTranslationArrayBuilder {
             deopt_info->result_size());
         break;
       }
+      case DeoptFrame::FrameType::kBuiltinContinuationFrame: {
+        const BuiltinContinuationDeoptFrame& builtin_continuation_frame =
+            top_frame.as_builtin_continuation();
+
+        translation_array_builder_->BeginBuiltinContinuationFrame(
+            Builtins::GetContinuationBytecodeOffset(
+                builtin_continuation_frame.builtin_id()),
+            GetDeoptLiteral(*builtin_continuation_frame.parent()
+                                 ->as_interpreted()
+                                 .unit()
+                                 .shared_function_info()
+                                 .object()),
+            builtin_continuation_frame.parameters().length());
+
+        // Closure
+        translation_array_builder_->StoreOptimizedOut();
+
+        // Parameters
+        for (ValueNode* value : builtin_continuation_frame.parameters()) {
+          BuildDeoptFrameSingleValue(value, *current_input_location);
+          current_input_location++;
+        }
+
+        // Context
+        ValueNode* value = builtin_continuation_frame.context();
+        BuildDeoptFrameSingleValue(value, *current_input_location);
+        current_input_location++;
+      }
     }
   }
 
@@ -1115,6 +1170,36 @@ class MaglevTranslationArrayBuilder {
             interpreted_frame.unit(), interpreted_frame.frame_state(),
             current_input_location, interpreter::Register::invalid_value(),
             return_count);
+        break;
+      }
+      case DeoptFrame::FrameType::kBuiltinContinuationFrame: {
+        const BuiltinContinuationDeoptFrame& builtin_continuation_frame =
+            frame.as_builtin_continuation();
+
+        translation_array_builder_->BeginBuiltinContinuationFrame(
+            Builtins::GetContinuationBytecodeOffset(
+                builtin_continuation_frame.builtin_id()),
+            GetDeoptLiteral(*builtin_continuation_frame.parent()
+                                 ->as_interpreted()
+                                 .unit()
+                                 .shared_function_info()
+                                 .object()),
+            builtin_continuation_frame.parameters().length());
+
+        // Closure
+        translation_array_builder_->StoreOptimizedOut();
+
+        // Parameters
+        for (ValueNode* value : builtin_continuation_frame.parameters()) {
+          BuildDeoptFrameSingleValue(value, *current_input_location);
+          current_input_location++;
+        }
+
+        // Context
+        ValueNode* value = builtin_continuation_frame.context();
+        BuildDeoptFrameSingleValue(value, *current_input_location);
+        current_input_location++;
+
         break;
       }
     }
@@ -1322,10 +1407,9 @@ void MaglevCodeGenerator::EmitDeopts() {
     translation_builder.BuildEagerDeopt(deopt_info);
 
     if (masm_.compilation_info()->collect_source_positions()) {
-      __ RecordDeoptReason(
-          deopt_info->reason(), 0,
-          deopt_info->top_frame().as_interpreted().source_position(),
-          deopt_index);
+      __ RecordDeoptReason(deopt_info->reason(), 0,
+                           GetSourcePosition(deopt_info->top_frame()),
+                           deopt_index);
     }
     __ bind(deopt_info->deopt_entry_label());
     __ CallForDeoptimization(Builtin::kDeoptimizationEntry_Eager, deopt_index,
@@ -1341,10 +1425,9 @@ void MaglevCodeGenerator::EmitDeopts() {
     translation_builder.BuildLazyDeopt(deopt_info);
 
     if (masm_.compilation_info()->collect_source_positions()) {
-      __ RecordDeoptReason(
-          DeoptimizeReason::kUnknown, 0,
-          deopt_info->top_frame().as_interpreted().source_position(),
-          deopt_index);
+      __ RecordDeoptReason(DeoptimizeReason::kUnknown, 0,
+                           GetSourcePosition(deopt_info->top_frame()),
+                           deopt_index);
     }
     __ bind(deopt_info->deopt_entry_label());
     __ CallForDeoptimization(Builtin::kDeoptimizationEntry_Lazy, deopt_index,
@@ -1462,8 +1545,7 @@ Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(
   int i = 0;
   for (EagerDeoptInfo* deopt_info : code_gen_state_.eager_deopts()) {
     DCHECK_NE(deopt_info->translation_index(), -1);
-    raw_data.SetBytecodeOffset(
-        i, deopt_info->top_frame().as_interpreted().bytecode_position());
+    raw_data.SetBytecodeOffset(i, GetBytecodeOffset(deopt_info->top_frame()));
     raw_data.SetTranslationIndex(i,
                                  Smi::FromInt(deopt_info->translation_index()));
     raw_data.SetPc(i, Smi::FromInt(deopt_info->deopt_entry_label()->pos()));
@@ -1474,8 +1556,7 @@ Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(
   }
   for (LazyDeoptInfo* deopt_info : code_gen_state_.lazy_deopts()) {
     DCHECK_NE(deopt_info->translation_index(), -1);
-    raw_data.SetBytecodeOffset(
-        i, deopt_info->top_frame().as_interpreted().bytecode_position());
+    raw_data.SetBytecodeOffset(i, GetBytecodeOffset(deopt_info->top_frame()));
     raw_data.SetTranslationIndex(i,
                                  Smi::FromInt(deopt_info->translation_index()));
     raw_data.SetPc(i, Smi::FromInt(deopt_info->deopt_entry_label()->pos()));

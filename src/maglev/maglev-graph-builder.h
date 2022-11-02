@@ -1058,6 +1058,30 @@ class MaglevGraphBuilder {
   bool TryReuseKnownPropertyLoad(ValueNode* lookup_start_object,
                                  compiler::NameRef name);
 
+  enum InferHasInPrototypeChainResult {
+    kMayBeInPrototypeChain,
+    kIsInPrototypeChain,
+    kIsNotInPrototypeChain
+  };
+  InferHasInPrototypeChainResult InferHasInPrototypeChain(
+      ValueNode* receiver, compiler::HeapObjectRef prototype);
+  bool TryBuildFastHasInPrototypeChain(ValueNode* object,
+                                       compiler::ObjectRef prototype);
+  void BuildHasInPrototypeChain(ValueNode* object,
+                                compiler::ObjectRef prototype);
+  bool TryBuildFastOrdinaryHasInstance(ValueNode* object,
+                                       compiler::JSObjectRef callable,
+                                       ValueNode* callable_node);
+  void BuildOrdinaryHasInstance(ValueNode* object,
+                                compiler::JSObjectRef callable,
+                                ValueNode* callable_node);
+  bool TryBuildFastInstanceOf(ValueNode* object,
+                              compiler::JSObjectRef callable_ref,
+                              ValueNode* callable_node);
+  bool TryBuildFastInstanceOfWithFeedback(
+      ValueNode* object, ValueNode* callable,
+      compiler::FeedbackSource feedback_source);
+
   template <Operation kOperation>
   void BuildGenericUnaryOperationNode();
   template <Operation kOperation>

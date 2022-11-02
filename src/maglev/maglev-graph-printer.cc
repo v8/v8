@@ -365,6 +365,57 @@ void MaglevPrintingVisitor::PreProcessBasicBlock(BasicBlock* block) {
 
 namespace {
 
+void PrintSingleDeoptFrame(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller,
+    const DeoptFrame& frame, InputLocation*& current_input_location,
+    LazyDeoptInfo* lazy_deopt_info_if_top_frame = nullptr) {
+  switch (frame.type()) {
+    case DeoptFrame::FrameType::kInterpretedFrame: {
+      os << "@" << frame.as_interpreted().bytecode_position() << " : {";
+      bool first = true;
+      frame.as_interpreted().frame_state()->ForEachValue(
+          frame.as_interpreted().unit(),
+          [&](ValueNode* node, interpreter::Register reg) {
+            if (first) {
+              first = false;
+            } else {
+              os << ", ";
+            }
+            os << reg.ToString() << ":";
+            if (lazy_deopt_info_if_top_frame &&
+                lazy_deopt_info_if_top_frame->IsResultRegister(reg)) {
+              os << "<result>";
+            } else {
+              os << PrintNodeLabel(graph_labeller, node) << ":"
+                 << current_input_location->operand();
+              current_input_location++;
+            }
+          });
+      os << "}";
+      break;
+    }
+    case DeoptFrame::FrameType::kBuiltinContinuationFrame: {
+      os << "@" << Builtins::name(frame.as_builtin_continuation().builtin_id())
+         << " : {";
+      int arg_index = 0;
+      for (ValueNode* node : frame.as_builtin_continuation().parameters()) {
+        os << "a" << arg_index << ":" << PrintNodeLabel(graph_labeller, node)
+           << ":" << current_input_location->operand();
+        arg_index++;
+        current_input_location++;
+        os << ", ";
+      }
+      os << "<context>:"
+         << PrintNodeLabel(graph_labeller,
+                           frame.as_builtin_continuation().context())
+         << ":" << current_input_location->operand();
+      current_input_location++;
+      os << "}";
+      break;
+    }
+  }
+}
+
 void RecursivePrintEagerDeopt(std::ostream& os,
                               std::vector<BasicBlock*> targets,
                               const DeoptFrame& frame,
@@ -379,26 +430,12 @@ void RecursivePrintEagerDeopt(std::ostream& os,
   PrintVerticalArrows(os, targets);
   PrintPadding(os, graph_labeller, max_node_id, 0);
   if (!frame.parent()) {
-    os << "  ↱ eager @" << frame.as_interpreted().bytecode_position() << " : {";
+    os << "  ↱ eager ";
   } else {
-    os << "  │       @" << frame.as_interpreted().bytecode_position().ToInt()
-       << " : {";
+    os << "  │       ";
   }
-
-  bool first = true;
-  frame.as_interpreted().frame_state()->ForEachValue(
-      frame.as_interpreted().unit(),
-      [&](ValueNode* node, interpreter::Register reg) {
-        if (first) {
-          first = false;
-        } else {
-          os << ", ";
-        }
-        os << reg.ToString() << ":" << PrintNodeLabel(graph_labeller, node)
-           << ":" << current_input_location->operand();
-        current_input_location++;
-      });
-  os << "}\n";
+  PrintSingleDeoptFrame(os, graph_labeller, frame, current_input_location);
+  os << "\n";
 }
 
 void PrintEagerDeopt(std::ostream& os, std::vector<BasicBlock*> targets,
@@ -430,23 +467,9 @@ void RecursivePrintLazyDeopt(std::ostream& os, std::vector<BasicBlock*> targets,
 
   PrintVerticalArrows(os, targets);
   PrintPadding(os, graph_labeller, max_node_id, 0);
-  os << "  │      @" << frame.as_interpreted().bytecode_position().ToInt()
-     << " : {";
-
-  bool first = true;
-  frame.as_interpreted().frame_state()->ForEachValue(
-      frame.as_interpreted().unit(),
-      [&](ValueNode* node, interpreter::Register reg) {
-        if (first) {
-          first = false;
-        } else {
-          os << ", ";
-        }
-        os << reg.ToString() << ":" << PrintNodeLabel(graph_labeller, node)
-           << ":" << current_input_location->operand();
-        current_input_location++;
-      });
-  os << "}\n";
+  os << "  │      ";
+  PrintSingleDeoptFrame(os, graph_labeller, frame, current_input_location);
+  os << "\n";
 }
 
 template <typename NodeT>
@@ -464,27 +487,10 @@ void PrintLazyDeopt(std::ostream& os, std::vector<BasicBlock*> targets,
   PrintVerticalArrows(os, targets);
   PrintPadding(os, graph_labeller, max_node_id, 0);
 
-  os << "  ↳ lazy @" << top_frame.as_interpreted().bytecode_position()
-     << " : {";
-  bool first = true;
-  top_frame.as_interpreted().frame_state()->ForEachValue(
-      top_frame.as_interpreted().unit(),
-      [&](ValueNode* node, interpreter::Register reg) {
-        if (first) {
-          first = false;
-        } else {
-          os << ", ";
-        }
-        os << reg.ToString() << ":";
-        if (deopt_info->IsResultRegister(reg)) {
-          os << "<result>";
-        } else {
-          os << PrintNodeLabel(graph_labeller, node) << ":"
-             << current_input_location->operand();
-          current_input_location++;
-        }
-      });
-  os << "}\n";
+  os << "  ↳ lazy ";
+  PrintSingleDeoptFrame(os, graph_labeller, top_frame, current_input_location,
+                        deopt_info);
+  os << "\n";
 }
 
 template <typename NodeT>
@@ -509,15 +515,20 @@ void PrintExceptionHandlerPoint(std::ostream& os,
   // The exception handler liveness should be a subset of lazy_deopt_info one.
   auto* liveness = block->state()->frame_state().liveness();
   LazyDeoptInfo* deopt_info = node->lazy_deopt_info();
-  const DeoptFrame& top_frame = deopt_info->top_frame();
+
+  const InterpretedDeoptFrame& lazy_frame =
+      deopt_info->top_frame().type() ==
+              DeoptFrame::FrameType::kBuiltinContinuationFrame
+          ? deopt_info->top_frame().parent()->as_interpreted()
+          : deopt_info->top_frame().as_interpreted();
 
   PrintVerticalArrows(os, targets);
   PrintPadding(os, graph_labeller, max_node_id, 0);
 
   os << "  ↳ throw @" << handler_offset << " : {";
   bool first = true;
-  top_frame.as_interpreted().frame_state()->ForEachValue(
-      top_frame.as_interpreted().unit(),
+  lazy_frame.as_interpreted().frame_state()->ForEachValue(
+      lazy_frame.as_interpreted().unit(),
       [&](ValueNode* node, interpreter::Register reg) {
         if (!reg.is_parameter() && !liveness->RegisterIsLive(reg.index())) {
           // Skip, since not live at the handler offset.

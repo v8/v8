@@ -26,9 +26,15 @@ void DeepForEachInputImpl(const DeoptFrame& frame,
       frame.as_interpreted().frame_state()->ForEachValue(
           frame.as_interpreted().unit(),
           [&](ValueNode* node, interpreter::Register reg) {
-            f(node, reg, &input_locations[index++]);
+            f(node, &input_locations[index++]);
           });
       break;
+    case DeoptFrame::FrameType::kBuiltinContinuationFrame:
+      for (ValueNode* node : frame.as_builtin_continuation().parameters()) {
+        f(node, &input_locations[index++]);
+      }
+      f(frame.as_builtin_continuation().context(), &input_locations[index++]);
+      UNREACHABLE();
   }
 }
 
@@ -42,10 +48,10 @@ void DeepForEachInput(const EagerDeoptInfo* deopt_info, Function&& f) {
 template <typename Function>
 void DeepForEachInput(const LazyDeoptInfo* deopt_info, Function&& f) {
   int index = 0;
+  InputLocation* input_locations = deopt_info->input_locations();
   const DeoptFrame& top_frame = deopt_info->top_frame();
   if (top_frame.parent()) {
-    DeepForEachInputImpl(*top_frame.parent(), deopt_info->input_locations(),
-                         index, f);
+    DeepForEachInputImpl(*top_frame.parent(), input_locations, index, f);
   }
   // Handle the top-of-frame info separately, since we have to skip the result
   // location.
@@ -57,9 +63,15 @@ void DeepForEachInput(const LazyDeoptInfo* deopt_info, Function&& f) {
             // Skip over the result location since it is irrelevant for lazy
             // deopts (unoptimized code will recreate the result).
             if (deopt_info->IsResultRegister(reg)) return;
-            f(node, reg, &deopt_info->input_locations()[index++]);
+            f(node, &input_locations[index++]);
           });
       break;
+    case DeoptFrame::FrameType::kBuiltinContinuationFrame:
+      for (ValueNode* node : top_frame.as_builtin_continuation().parameters()) {
+        f(node, &input_locations[index++]);
+      };
+      f(top_frame.as_builtin_continuation().context(),
+        &input_locations[index++]);
   }
 }
 

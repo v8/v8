@@ -180,21 +180,19 @@ class UseMarkingProcessor {
                            LoopUsedNodes* loop_used_nodes,
                            const ProcessingState& state) {
     int use_id = node->id();
-    detail::DeepForEachInput(
-        deopt_info,
-        [&](ValueNode* node, interpreter::Register reg, InputLocation* input) {
-          MarkUse(node, use_id, input, loop_used_nodes);
-        });
+    detail::DeepForEachInput(deopt_info,
+                             [&](ValueNode* node, InputLocation* input) {
+                               MarkUse(node, use_id, input, loop_used_nodes);
+                             });
   }
   void MarkCheckpointNodes(NodeBase* node, const LazyDeoptInfo* deopt_info,
                            LoopUsedNodes* loop_used_nodes,
                            const ProcessingState& state) {
     int use_id = node->id();
-    detail::DeepForEachInput(
-        deopt_info,
-        [&](ValueNode* node, interpreter::Register reg, InputLocation* input) {
-          MarkUse(node, use_id, input, loop_used_nodes);
-        });
+    detail::DeepForEachInput(deopt_info,
+                             [&](ValueNode* node, InputLocation* input) {
+                               MarkUse(node, use_id, input, loop_used_nodes);
+                             });
   }
 
   MaglevCompilationInfo* compilation_info_;

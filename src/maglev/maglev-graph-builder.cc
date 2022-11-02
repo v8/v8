@@ -3093,6 +3093,274 @@ void MaglevGraphBuilder::VisitTestGreaterThanOrEqual() {
   VisitCompareOperation<Operation::kGreaterThanOrEqual>();
 }
 
+MaglevGraphBuilder::InferHasInPrototypeChainResult
+MaglevGraphBuilder::InferHasInPrototypeChain(
+    ValueNode* receiver, compiler::HeapObjectRef prototype) {
+  auto stable_it = known_node_aspects().stable_maps.find(receiver);
+  auto unstable_it = known_node_aspects().unstable_maps.find(receiver);
+  auto stable_end = known_node_aspects().stable_maps.end();
+  auto unstable_end = known_node_aspects().unstable_maps.end();
+  // If either of the map sets is not found, then we don't know anything about
+  // the map of the receiver, so bail.
+  if (stable_it == stable_end || unstable_it == unstable_end) {
+    return kMayBeInPrototypeChain;
+  }
+
+  ZoneVector<compiler::MapRef> receiver_map_refs(zone());
+
+  // Try to determine either that all of the {receiver_maps} have the given
+  // {prototype} in their chain, or that none do. If we can't tell, return
+  // kMayBeInPrototypeChain.
+  bool all = true;
+  bool none = true;
+  for (const ZoneHandleSet<Map>& map_set :
+       {stable_it->second, unstable_it->second}) {
+    for (Handle<Map> map_handle : map_set) {
+      compiler::MapRef map = MakeRefAssumeMemoryFence(broker(), map_handle);
+      receiver_map_refs.push_back(map);
+      while (true) {
+        if (IsSpecialReceiverInstanceType(map.instance_type())) {
+          return kMayBeInPrototypeChain;
+        }
+        if (!map.IsJSObjectMap()) {
+          all = false;
+          break;
+        }
+        compiler::HeapObjectRef map_prototype = map.prototype();
+        if (map_prototype.equals(prototype)) {
+          none = false;
+          break;
+        }
+        map = map_prototype.map();
+        // TODO(v8:11457) Support dictionary mode protoypes here.
+        if (!map.is_stable() || map.is_dictionary_map()) {
+          return kMayBeInPrototypeChain;
+        }
+        if (map.oddball_type() == compiler::OddballType::kNull) {
+          all = false;
+          break;
+        }
+      }
+    }
+  }
+  DCHECK_IMPLIES(all, !none);
+  if (!all && !none) return kMayBeInPrototypeChain;
+
+  {
+    base::Optional<compiler::JSObjectRef> last_prototype;
+    if (all) {
+      // We don't need to protect the full chain if we found the prototype, we
+      // can stop at {prototype}.  In fact we could stop at the one before
+      // {prototype} but since we're dealing with multiple receiver maps this
+      // might be a different object each time, so it's much simpler to include
+      // {prototype}. That does, however, mean that we must check {prototype}'s
+      // map stability.
+      if (!prototype.map().is_stable()) return kMayBeInPrototypeChain;
+      last_prototype = prototype.AsJSObject();
+    }
+    broker()->dependencies()->DependOnStablePrototypeChains(
+        receiver_map_refs, kStartAtPrototype, last_prototype);
+  }
+
+  DCHECK_EQ(all, !none);
+  return all ? kIsInPrototypeChain : kIsNotInPrototypeChain;
+}
+
+bool MaglevGraphBuilder::TryBuildFastHasInPrototypeChain(
+    ValueNode* object, compiler::ObjectRef prototype) {
+  if (!prototype.IsHeapObject()) return false;
+  auto in_prototype_chain =
+      InferHasInPrototypeChain(object, prototype.AsHeapObject());
+  if (in_prototype_chain == kMayBeInPrototypeChain) return false;
+
+  SetAccumulator(GetBooleanConstant(in_prototype_chain == kIsInPrototypeChain));
+  return true;
+}
+
+void MaglevGraphBuilder::BuildHasInPrototypeChain(
+    ValueNode* object, compiler::ObjectRef prototype) {
+  if (TryBuildFastHasInPrototypeChain(object, prototype)) return;
+
+  SetAccumulator(BuildCallRuntime(Runtime::kHasInPrototypeChain,
+                                  {object, GetConstant(prototype)}));
+}
+
+bool MaglevGraphBuilder::TryBuildFastOrdinaryHasInstance(
+    ValueNode* object, compiler::JSObjectRef callable,
+    ValueNode* callable_node_if_not_constant) {
+  const bool is_constant = callable_node_if_not_constant == nullptr;
+  if (!is_constant) return false;
+
+  if (callable.IsJSBoundFunction()) {
+    // OrdinaryHasInstance on bound functions turns into a recursive
+    // invocation of the instanceof operator again.
+    compiler::JSBoundFunctionRef function = callable.AsJSBoundFunction();
+    compiler::JSReceiverRef bound_target_function =
+        function.bound_target_function();
+
+    if (!bound_target_function.IsJSObject() ||
+        !TryBuildFastInstanceOf(object, bound_target_function.AsJSObject(),
+                                nullptr)) {
+      // If we can't build a fast instance-of, build a slow one with the
+      // partial optimisation of using the bound target function constant.
+      SetAccumulator(BuildCallBuiltin<Builtin::kInstanceOf>(
+          {object, GetConstant(bound_target_function)}));
+    }
+    return true;
+  }
+
+  if (callable.IsJSFunction()) {
+    // Optimize if we currently know the "prototype" property.
+    compiler::JSFunctionRef function = callable.AsJSFunction();
+
+    // TODO(v8:7700): Remove the has_prototype_slot condition once the broker
+    // is always enabled.
+    if (!function.map().has_prototype_slot() ||
+        !function.has_instance_prototype(broker()->dependencies()) ||
+        function.PrototypeRequiresRuntimeLookup(broker()->dependencies())) {
+      return false;
+    }
+
+    compiler::ObjectRef prototype =
+        broker()->dependencies()->DependOnPrototypeProperty(function);
+    BuildHasInPrototypeChain(object, prototype);
+    return true;
+  }
+
+  return false;
+}
+
+void MaglevGraphBuilder::BuildOrdinaryHasInstance(
+    ValueNode* object, compiler::JSObjectRef callable,
+    ValueNode* callable_node_if_not_constant) {
+  if (TryBuildFastOrdinaryHasInstance(object, callable,
+                                      callable_node_if_not_constant))
+    return;
+
+  SetAccumulator(BuildCallBuiltin<Builtin::kOrdinaryHasInstance>(
+      {object, callable_node_if_not_constant ? callable_node_if_not_constant
+                                             : GetConstant(callable)}));
+}
+
+bool MaglevGraphBuilder::TryBuildFastInstanceOf(
+    ValueNode* object, compiler::JSObjectRef callable,
+    ValueNode* callable_node_if_not_constant) {
+  compiler::MapRef receiver_map = callable.map();
+  compiler::NameRef name =
+      MakeRef(broker(), local_isolate()->factory()->has_instance_symbol());
+  compiler::PropertyAccessInfo access_info = broker()->GetPropertyAccessInfo(
+      receiver_map, name, compiler::AccessMode::kLoad,
+      broker()->dependencies());
+
+  // TODO(v8:11457) Support dictionary mode holders here.
+  if (access_info.IsInvalid() || access_info.HasDictionaryHolder()) {
+    return false;
+  }
+  access_info.RecordDependencies(broker()->dependencies());
+
+  if (access_info.IsNotFound()) {
+    // If there's no @@hasInstance handler, the OrdinaryHasInstance operation
+    // takes over, but that requires the constructor to be callable.
+    if (!receiver_map.is_callable()) {
+      return false;
+    }
+
+    broker()->dependencies()->DependOnStablePrototypeChains(
+        access_info.lookup_start_object_maps(), kStartAtPrototype);
+
+    // Monomorphic property access.
+    if (callable_node_if_not_constant) {
+      BuildCheckMaps(callable_node_if_not_constant,
+                     access_info.lookup_start_object_maps());
+    }
+
+    BuildOrdinaryHasInstance(object, callable, callable_node_if_not_constant);
+    return true;
+  }
+
+  if (access_info.IsFastDataConstant()) {
+    base::Optional<compiler::JSObjectRef> holder = access_info.holder();
+    bool found_on_proto = holder.has_value();
+    compiler::JSObjectRef holder_ref =
+        found_on_proto ? holder.value() : callable;
+    base::Optional<compiler::ObjectRef> has_instance_field =
+        holder_ref.GetOwnFastDataProperty(access_info.field_representation(),
+                                          access_info.field_index(),
+                                          broker()->dependencies());
+    if (!has_instance_field.has_value() ||
+        !has_instance_field->IsHeapObject() ||
+        !has_instance_field->AsHeapObject().map().is_callable()) {
+      return false;
+    }
+
+    if (found_on_proto) {
+      broker()->dependencies()->DependOnStablePrototypeChains(
+          access_info.lookup_start_object_maps(), kStartAtPrototype,
+          holder.value());
+    }
+
+    ValueNode* callable_node;
+    if (callable_node_if_not_constant) {
+      // Check that {callable_node_if_not_constant} is actually {callable}.
+      AddNewNode<CheckValue>({callable_node_if_not_constant}, callable);
+      callable_node = callable_node_if_not_constant;
+    } else {
+      callable_node = GetConstant(callable);
+    }
+
+    // Call @@hasInstance
+    Call* call = AddNewNode<Call>(
+        Call::kFixedInputCount + 2, ConvertReceiverMode::kNotNullOrUndefined,
+        Call::TargetType::kJSFunction, compiler::FeedbackSource(),
+        GetConstant(*has_instance_field), GetContext());
+    call->set_arg(0, callable_node);
+    call->set_arg(1, object);
+
+    // Make sure that a lazy deopt after the @@hasInstance call also performs
+    // ToBoolean before returning to the interpreter.
+    // TODO(leszeks): Wrap this in a helper.
+    new (call->lazy_deopt_info()) LazyDeoptInfo(
+        zone(),
+        BuiltinContinuationDeoptFrame(
+            Builtin::kToBooleanLazyDeoptContinuation, {}, GetContext(),
+            zone()->New<InterpretedDeoptFrame>(
+                call->lazy_deopt_info()->top_frame().as_interpreted())));
+
+    SetAccumulator(AddNewNode<ToBoolean>({call}));
+    return true;
+  }
+
+  return false;
+}
+
+bool MaglevGraphBuilder::TryBuildFastInstanceOfWithFeedback(
+    ValueNode* object, ValueNode* callable,
+    compiler::FeedbackSource feedback_source) {
+  compiler::ProcessedFeedback const& feedback =
+      broker()->GetFeedbackForInstanceOf(feedback_source);
+
+  // TurboFan emits generic code when there's no feedback, rather than
+  // deopting.
+  if (feedback.IsInsufficient()) return false;
+
+  // Check if the right hand side is a known receiver, or
+  // we have feedback from the InstanceOfIC.
+  if (callable->Is<Constant>() &&
+      callable->Cast<Constant>()->object().IsJSObject()) {
+    compiler::JSObjectRef callable_ref =
+        callable->Cast<Constant>()->object().AsJSObject();
+    return TryBuildFastInstanceOf(object, callable_ref, nullptr);
+  }
+  if (feedback_source.IsValid()) {
+    base::Optional<compiler::JSObjectRef> callable_from_feedback =
+        feedback.AsInstanceOf().value();
+    if (callable_from_feedback) {
+      return TryBuildFastInstanceOf(object, *callable_from_feedback, callable);
+    }
+  }
+  return false;
+}
+
 void MaglevGraphBuilder::VisitTestInstanceOf() {
   // TestInstanceOf <src> <feedback_slot>
   ValueNode* object = LoadRegisterTagged(0);
@@ -3100,8 +3368,10 @@ void MaglevGraphBuilder::VisitTestInstanceOf() {
   FeedbackSlot slot = GetSlotOperand(1);
   compiler::FeedbackSource feedback_source{feedback(), slot};
 
-  // TODO(victorgomes): Check feedback slot and a do static lookup for
-  // @@hasInstance.
+  if (TryBuildFastInstanceOfWithFeedback(object, callable, feedback_source)) {
+    return;
+  }
+
   ValueNode* context = GetContext();
   SetAccumulator(
       AddNewNode<TestInstanceOf>({context, object, callable}, feedback_source));
