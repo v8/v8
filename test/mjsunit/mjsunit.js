@@ -734,6 +734,7 @@ var prettyPrinted;
   assertUnoptimized = function assertUnoptimized(
       fun, name_opt, skip_if_maybe_deopted = true) {
     var opt_status = OptimizationStatus(fun);
+    name_opt = name_opt ?? fun.name;
     // Tests that use assertUnoptimized() do not make sense if --always-turbofan
     // option is provided. Such tests must add --no-always-turbofan to flags comment.
     assertFalse((opt_status & V8OptimizationStatus.kAlwaysOptimize) !== 0,
@@ -753,6 +754,7 @@ var prettyPrinted;
   assertOptimized = function assertOptimized(
       fun, name_opt, skip_if_maybe_deopted = true) {
     var opt_status = OptimizationStatus(fun);
+    name_opt = name_opt ?? fun.name;
     // Tests that use assertOptimized() do not make sense for Lite mode where
     // optimization is always disabled, explicitly exit the test with a warning.
     if (opt_status & V8OptimizationStatus.kLiteMode) {
