@@ -491,8 +491,6 @@ def fix_args(defaults, **kwargs):
         args["caches"] = multibot_caches
     if args.get("properties", {}).get("triggers", None):
         bucket_name = args["bucket"]
-        if bucket_name == "try":
-            bucket_name = "try.triggered"
         args["triggers"] = [bucket_name + "/" + t for t in args["properties"]["triggers"]]
     return args
 

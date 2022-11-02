@@ -12,31 +12,17 @@ load(
     "v8_builder",
 )
 
-# Orchestrator migration states.
-ORCHESTRATOR = struct(
-    OPTIONAL = 0,
-    EXP_20_PERCENT = 1,
-    EXP_100_PERCENT = 2,
-    MIGRATED = 3,
-)
-
 #TODO(almuthanna): get rid of kwargs and specify default values
-def try_ng_pair(
+def trybot_pair(
         name,
-        cq_properties = CQ.NONE,
-        cq_branch_properties = CQ.NONE,
+        cq_properties = CQ.OPTIONAL,
+        cq_branch_properties = CQ.OPTIONAL,
         cq_compile_only_properties = CQ.OPTIONAL,
         cq_branch_compile_only_properties = CQ.OPTIONAL,
         experiments = None,
         enable_rdb = True,
-        orchestrator = ORCHESTRATOR.OPTIONAL,
+        total_timeout = None,
         **kwargs):
-    triggered_timeout = kwargs.pop("triggered_timeout", None)
-
-    # All unspecified branch trybots are per default optional.
-    if (cq_properties != CQ.NONE and cq_branch_properties == CQ.NONE):
-        cq_branch_properties = CQ.OPTIONAL
-
     description = kwargs.pop("description", None)
     compiler_description, tester_description = None, None
     if description:
@@ -44,8 +30,6 @@ def try_ng_pair(
         tester_description = dict(description)
         compiler_description["triggers"] = name + "_ng_triggered"
         tester_description["triggered by"] = name + "_ng"
-
-    kwargs["enable_rdb"] = enable_rdb
 
     # Generate orchestrator trybot.
     # The corresponding compilator name gets an infix like:
@@ -56,7 +40,7 @@ def try_ng_pair(
         defaults_triggered,
         name = name,
         bucket = "try",
-        execution_timeout = triggered_timeout,
+        execution_timeout = total_timeout,
         executable = "recipe:v8/orchestrator",
         cq_properties = cq_properties,
         cq_branch_properties = cq_branch_properties,
@@ -75,12 +59,13 @@ def try_ng_pair(
         cq_properties = cq_compile_only_properties,
         cq_branch_properties = cq_branch_compile_only_properties,
         in_list = "tryserver",
+        enable_rdb = True,
         experiments = experiments,
         description = compiler_description,
         **kwargs
     )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_android_arm64_n5x_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
@@ -88,7 +73,7 @@ try_ng_pair(
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_fuchsia_rel",
     cq_properties = CQ.EXP_100_PERCENT,
     cq_branch_properties = CQ.EXP_100_PERCENT,
@@ -98,14 +83,14 @@ try_ng_pair(
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_linux64_arm64_no_pointer_compression_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_linux64_asan_rel",
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
@@ -113,21 +98,21 @@ try_ng_pair(
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_linux64_cfi_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_linux64_cppgc_non_default_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_linux64_no_sandbox_dbg",
     cq_properties = CQ.OPTIONAL,
     cq_branch_properties = CQ.OPTIONAL,
@@ -135,7 +120,7 @@ try_ng_pair(
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_linux64_dbg",
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
@@ -143,7 +128,7 @@ try_ng_pair(
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_linux64_minor_mc_dbg",
     cq_properties = CQ.on_files(
         ".+/[+]/test/cctest/heap/.+",
@@ -154,35 +139,35 @@ try_ng_pair(
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_linux64_dict_tracking_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_linux64_disable_runtime_call_stats_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_linux64_external_code_space_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_linux64_gc_stress_custom_snapshot_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_linux64_gc_stress_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
@@ -190,28 +175,28 @@ try_ng_pair(
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_linux64_heap_sandbox_dbg",
     cq_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_linux64_fuzzilli_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_linux64_fyi_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_linux64_gcc_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-20.04", "cpu": "x86-64"},
@@ -219,7 +204,7 @@ try_ng_pair(
     use_goma = GOMA.NO,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_linux64_msan_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
@@ -228,7 +213,7 @@ try_ng_pair(
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_linux64_nodcheck_rel",
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
@@ -236,14 +221,14 @@ try_ng_pair(
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_linux64_perfetto_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_linux64_no_pointer_compression_rel",
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
@@ -251,7 +236,7 @@ try_ng_pair(
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_linux64_no_sandbox_rel",
     cq_properties = CQ.OPTIONAL,
     cq_branch_properties = CQ.OPTIONAL,
@@ -259,7 +244,7 @@ try_ng_pair(
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_linux64_single_generation_dbg",
     cq_properties = CQ.on_files(
         ".+/[+]/test/cctest/heap/.+",
@@ -269,16 +254,15 @@ try_ng_pair(
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_linux64_rel",
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
-    orchestrator = ORCHESTRATOR.MIGRATED,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_linux64_predictable_rel",
     cq_properties = CQ.OPTIONAL,
     cq_branch_properties = CQ.OPTIONAL,
@@ -286,28 +270,28 @@ try_ng_pair(
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_linux_riscv32_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_linux64_riscv64_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_linux64_loong64_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_linux64_tsan_rel",
     cq_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
@@ -315,7 +299,7 @@ try_ng_pair(
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_linux64_tsan_no_cm_rel",
     cq_properties = CQ.on_files(
         ".+/[+]/src/compiler/js-heap-broker.(h|cc)",
@@ -326,21 +310,21 @@ try_ng_pair(
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_linux64_tsan_isolates_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_linux64_ubsan_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_linux64_verify_csa_rel",
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
@@ -348,7 +332,7 @@ try_ng_pair(
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_linux_arm64_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
@@ -356,7 +340,7 @@ try_ng_pair(
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_linux_arm64_gc_stress_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
@@ -364,7 +348,7 @@ try_ng_pair(
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_linux_arm64_sim_heap_sandbox_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
@@ -376,7 +360,7 @@ try_ng_pair(
     },
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_linux_arm64_rel",
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
@@ -384,14 +368,14 @@ try_ng_pair(
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_linux_arm64_cfi_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_linux_arm_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
@@ -399,14 +383,14 @@ try_ng_pair(
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_linux_arm_lite_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_linux_arm_rel",
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
@@ -415,14 +399,14 @@ try_ng_pair(
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_linux_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_linux_gc_stress_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
@@ -430,7 +414,7 @@ try_ng_pair(
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_linux_nodcheck_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
@@ -438,7 +422,7 @@ try_ng_pair(
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_linux_noi18n_rel",
     cq_properties = CQ.on_files(".+/[+]/.*intl.*", ".+/[+]/.*test262.*"),
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
@@ -446,7 +430,7 @@ try_ng_pair(
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_linux_rel",
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
@@ -456,7 +440,7 @@ try_ng_pair(
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_linux_optional_rel",
     cq_properties = CQ.on_files(
         ".+/[+]/src/codegen/shared-ia32-x64/macro-assembler-shared-ia32-x64.(h|cc)",
@@ -469,7 +453,7 @@ try_ng_pair(
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_linux_verify_csa_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
@@ -477,17 +461,17 @@ try_ng_pair(
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_mac64_dbg",
-    triggered_timeout = 7200,
+    total_timeout = 7200,
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Mac-10.15"},
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_mac64_asan_rel",
-    triggered_timeout = 7200,
+    total_timeout = 7200,
     cq_properties = CQ.OPTIONAL,
     # TODO(almuthanna): add this to Branch CQ after current milestone + 3
     # (i.e. M100).
@@ -497,28 +481,27 @@ try_ng_pair(
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_mac64_gc_stress_dbg",
-    triggered_timeout = 7200,
+    total_timeout = 7200,
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Mac-10.15"},
     execution_timeout = 3600,
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_mac64_rel",
-    triggered_timeout = 7200,
+    total_timeout = 7200,
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Mac-10.15"},
     use_goma = GOMA.DEFAULT,
-    orchestrator = ORCHESTRATOR.MIGRATED,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_mac_arm64_rel",
-    triggered_timeout = 7200,
+    total_timeout = 7200,
     cq_properties = CQ.BLOCK,
     # TODO(https://crbug.com/v8/13008): Promote to blocking after M110.
     cq_branch_properties = CQ.OPTIONAL,
@@ -526,76 +509,76 @@ try_ng_pair(
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_mac_arm64_dbg",
-    triggered_timeout = 7200,
+    total_timeout = 7200,
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Mac-10.15"},
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_mac_arm64_full_dbg",
-    triggered_timeout = 7200,
+    total_timeout = 7200,
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Mac-10.15"},
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_mac_arm64_no_pointer_compression_dbg",
-    triggered_timeout = 7200,
+    total_timeout = 7200,
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Mac-10.15"},
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_mac_arm64_sim_rel",
-    triggered_timeout = 7200,
+    total_timeout = 7200,
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Mac-10.15"},
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_mac_arm64_sim_dbg",
-    triggered_timeout = 7200,
+    total_timeout = 7200,
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Mac-10.15"},
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_mac_arm64_sim_nodcheck_rel",
-    triggered_timeout = 7200,
+    total_timeout = 7200,
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Mac-10.15"},
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_numfuzz_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_numfuzz_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_numfuzz_tsan_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_odroid_arm_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
@@ -603,7 +586,7 @@ try_ng_pair(
     use_goma = GOMA.DEFAULT,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_win64_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
@@ -611,7 +594,7 @@ try_ng_pair(
     use_goma = GOMA.ATS,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_win64_msvc_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
@@ -620,17 +603,16 @@ try_ng_pair(
     use_goma = GOMA.NO,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_win64_rel",
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-    triggered_timeout = 7200,
+    total_timeout = 7200,
     use_goma = GOMA.ATS,
-    orchestrator = ORCHESTRATOR.MIGRATED,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_win_dbg",
     cq_properties = CQ.OPTIONAL,
     cq_compile_only_properties = CQ.BLOCK,
@@ -640,14 +622,14 @@ try_ng_pair(
     use_goma = GOMA.ATS,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_win_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
     use_goma = GOMA.ATS,
 )
 
-try_ng_pair(
+trybot_pair(
     name = "v8_win64_asan_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
