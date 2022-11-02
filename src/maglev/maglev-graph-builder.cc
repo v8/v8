@@ -2385,11 +2385,11 @@ void MaglevGraphBuilder::VisitBitwiseNot() {
 void MaglevGraphBuilder::VisitToBooleanLogicalNot() {
   ValueNode* value = GetAccumulatorTagged();
   switch (value->opcode()) {
-#define CASE(Name)                                                            \
-  case Opcode::k##Name: {                                                     \
-    SetAccumulator(                                                           \
-        GetBooleanConstant(value->Cast<Name>()->ToBoolean(local_isolate()))); \
-    break;                                                                    \
+#define CASE(Name)                                                             \
+  case Opcode::k##Name: {                                                      \
+    SetAccumulator(                                                            \
+        GetBooleanConstant(!value->Cast<Name>()->ToBoolean(local_isolate()))); \
+    break;                                                                     \
   }
     CONSTANT_VALUE_NODE_LIST(CASE)
 #undef CASE
@@ -2403,11 +2403,11 @@ void MaglevGraphBuilder::VisitLogicalNot() {
   // Invariant: accumulator must already be a boolean value.
   ValueNode* value = GetAccumulatorTagged();
   switch (value->opcode()) {
-#define CASE(Name)                                                            \
-  case Opcode::k##Name: {                                                     \
-    SetAccumulator(                                                           \
-        GetBooleanConstant(value->Cast<Name>()->ToBoolean(local_isolate()))); \
-    break;                                                                    \
+#define CASE(Name)                                                             \
+  case Opcode::k##Name: {                                                      \
+    SetAccumulator(                                                            \
+        GetBooleanConstant(!value->Cast<Name>()->ToBoolean(local_isolate()))); \
+    break;                                                                     \
   }
     CONSTANT_VALUE_NODE_LIST(CASE)
 #undef CASE
