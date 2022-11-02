@@ -2676,7 +2676,7 @@ void MaglevGraphBuilder::BuildCallFromRegisters(
       kFirstArgumentOperandIndex + kReceiverAndArgOperandCount;
 
   DCHECK_LE(argc_count, 2);
-  ValueNode* function = LoadRegisterTagged(0);
+  ValueNode* target_node = LoadRegisterTagged(0);
   ValueNode* context = GetContext();
   Call::TargetType target_type = Call::TargetType::kAny;
   FeedbackSlot slot = GetSlotOperand(kSlotOperandIndex);
@@ -2701,9 +2701,9 @@ void MaglevGraphBuilder::BuildCallFromRegisters(
 
       compiler::HeapObjectRef target = maybe_target.value();
       if (!target.IsJSFunction()) break;
+      compiler::JSFunctionRef function = target.AsJSFunction();
 
       if (v8_flags.maglev_inlining) {
-        compiler::JSFunctionRef function = target.AsJSFunction();
         base::Optional<compiler::FeedbackVectorRef> maybe_feedback_vector =
             function.feedback_vector(broker()->dependencies());
         if (maybe_feedback_vector.has_value()) {
@@ -2714,28 +2714,35 @@ void MaglevGraphBuilder::BuildCallFromRegisters(
       // Reset the feedback source
       feedback_source = compiler::FeedbackSource();
       target_type = Call::TargetType::kJSFunction;
-      if (!function->Is<Constant>()) {
-        AddNewNode<CheckValue>({function}, target);
-      } else if (!function->Cast<Constant>()->object().equals(target)) {
+      if (!target_node->Is<Constant>()) {
+        AddNewNode<CheckValue>({target_node}, target);
+      } else if (!target_node->Cast<Constant>()->object().equals(target)) {
         EmitUnconditionalDeopt(DeoptimizeReason::kUnknown);
         return;
       }
 
-      compiler::SharedFunctionInfoRef shared = target.AsJSFunction().shared();
-      if (shared.HasBuiltinId()) {
+      if (function.object()->IsJSClassConstructor()) {
+        // If we have a class constructor, we should raise an exception.
+        SetAccumulator(BuildCallRuntime(
+            Runtime::kThrowConstructorNonCallableError, {target_node}));
+        return;
+      }
+
+      DCHECK(function.object()->IsCallable());
+
+      if (function.shared().HasBuiltinId()) {
         base::Optional<int> receiver_index =
             (kReceiverOperandCount == 0 ? base::Optional<int>()
                                         : kFirstArgumentOperandIndex);
         int first_arg_not_receiver_index =
             kReceiverOperandCount + kFirstArgumentOperandIndex;
         if (TryInlineBuiltin(receiver_index, first_arg_not_receiver_index,
-                             argc_count, shared.builtin_id())) {
+                             argc_count, function.shared().builtin_id())) {
           return;
         }
       }
 
-      if (TryBuildCallKnownJSFunction(target.AsJSFunction(), argc_count,
-                                      receiver_mode)) {
+      if (TryBuildCallKnownJSFunction(function, argc_count, receiver_mode)) {
         return;
       }
       break;
@@ -2752,7 +2759,7 @@ void MaglevGraphBuilder::BuildCallFromRegisters(
   int arg_index = 0;
   int reg_count = argc_count_with_recv;
   Call* call = CreateNewNode<Call>(input_count, receiver_mode, target_type,
-                                   feedback_source, function, context);
+                                   feedback_source, target_node, context);
   if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
     reg_count = argc_count;
     call->set_arg(arg_index++, GetRootConstant(RootIndex::kUndefinedValue));
