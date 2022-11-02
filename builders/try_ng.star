@@ -43,10 +43,8 @@ def try_ng_pair(
     # Copy properties as they are modified below.
     cq_tg = dict(cq_properties)
     cq_td = dict(cq_properties)
-    cq_exp = dict(cq_properties)
     cq_branch_tg = dict(cq_branch_properties)
     cq_branch_td = dict(cq_branch_properties)
-    cq_branch_exp = dict(cq_branch_properties)
 
     # Triggered builders don't support experiments. Therefore we create
     # a separate experimental builder below. The trigger pair will remain
@@ -77,11 +75,9 @@ def try_ng_pair(
         cq_orchestrator = cq_properties
         cq_branch_orchestrator = cq_branch_properties
         cq_tg = CQ.OPTIONAL
-        cq_exp = CQ.OPTIONAL
         cq_branch_tg = CQ.OPTIONAL
         cq_td = CQ.OPTIONAL
         cq_branch_td = CQ.OPTIONAL
-        cq_branch_exp = CQ.OPTIONAL
 
     description = kwargs.pop("description", None)
     compiler_description, tester_description = None, None
@@ -115,19 +111,6 @@ def try_ng_pair(
         experiments = experiments,
         description = tester_description,
     )
-
-    if "experiment_percentage" in cq_properties:
-        kwargs["properties"]["triggers"] = None
-        v8_builder(
-            defaults_try,
-            name = name + "_exp",
-            bucket = "try",
-            cq_properties = cq_exp,
-            cq_branch_properties = cq_branch_exp,
-            in_list = "tryserver",
-            experiments = experiments,
-            **kwargs
-        )
 
     # Generate orchestrator trybot.
     # The corresponding compilator name gets an infix like:
