@@ -1626,7 +1626,7 @@ Type Typer::Visitor::TypeJSGetSuperConstructor(Node* node) {
 }
 
 Type Typer::Visitor::TypeJSFindNonDefaultConstructorOrConstruct(Node* node) {
-  return Type::Tuple(Type::Boolean(), Type::Receiver(), zone());
+  return Type::Tuple(Type::Boolean(), Type::ReceiverOrNull(), zone());
 }
 
 // JS context operators.

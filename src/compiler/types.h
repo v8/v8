@@ -210,6 +210,7 @@ namespace compiler {
   V(Object,                       kDetectableObject | kOtherUndetectable) \
   V(Receiver,                     kObject | kProxy | kWasmObject) \
   V(ReceiverOrUndefined,          kReceiver | kUndefined) \
+  V(ReceiverOrNull,               kReceiver | kNull) \
   V(ReceiverOrNullOrUndefined,    kReceiver | kNull | kUndefined) \
   V(SymbolOrReceiver,             kSymbol | kReceiver) \
   V(StringOrReceiver,             kString | kReceiver) \
