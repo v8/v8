@@ -58,6 +58,21 @@ class Decoder {
     static constexpr bool full_validation = true;
   } kFullValidation = {};
 
+  struct NoName {
+    constexpr NoName(const char*) {}
+    operator const char*() const { UNREACHABLE(); }
+  };
+  // Pass a {NoName} if we know statically that we do not use it anyway (we are
+  // not tracing (in release mode) and not running full validation).
+#ifdef DEBUG
+  template <typename ValidationTag>
+  using Name = const char*;
+#else
+  template <typename ValidationTag>
+  using Name =
+      std::conditional_t<ValidationTag::full_validation, const char*, NoName>;
+#endif
+
   enum TraceFlag : bool { kTrace = true, kNoTrace = false };
 
   Decoder(const byte* start, const byte* end, uint32_t buffer_offset = 0)
@@ -75,72 +90,65 @@ class Decoder {
 
   virtual ~Decoder() = default;
 
-  // Ensures there are at least {length} bytes left to read, starting at {pc}.
-  bool validate_size(const byte* pc, uint32_t length, const char* msg) {
-    DCHECK_LE(start_, pc);
-    if (V8_UNLIKELY(pc > end_ || length > static_cast<uint32_t>(end_ - pc))) {
-      error(pc, msg);
-      return false;
-    }
-    return true;
-  }
-
   // Reads an 8-bit unsigned integer.
   template <typename ValidationTag>
-  uint8_t read_u8(const byte* pc, const char* msg = "expected 1 byte") {
+  uint8_t read_u8(const byte* pc, Name<ValidationTag> msg = "expected 1 byte") {
     return read_little_endian<uint8_t, ValidationTag>(pc, msg);
   }
 
   // Reads a 16-bit unsigned integer (little endian).
   template <typename ValidationTag>
-  uint16_t read_u16(const byte* pc, const char* msg = "expected 2 bytes") {
+  uint16_t read_u16(const byte* pc,
+                    Name<ValidationTag> msg = "expected 2 bytes") {
     return read_little_endian<uint16_t, ValidationTag>(pc, msg);
   }
 
   // Reads a 32-bit unsigned integer (little endian).
   template <typename ValidationTag>
-  uint32_t read_u32(const byte* pc, const char* msg = "expected 4 bytes") {
+  uint32_t read_u32(const byte* pc,
+                    Name<ValidationTag> msg = "expected 4 bytes") {
     return read_little_endian<uint32_t, ValidationTag>(pc, msg);
   }
 
   // Reads a 64-bit unsigned integer (little endian).
   template <typename ValidationTag>
-  uint64_t read_u64(const byte* pc, const char* msg = "expected 8 bytes") {
+  uint64_t read_u64(const byte* pc,
+                    Name<ValidationTag> msg = "expected 8 bytes") {
     return read_little_endian<uint64_t, ValidationTag>(pc, msg);
   }
 
   // Reads a variable-length unsigned integer (little endian).
   template <typename ValidationTag>
   uint32_t read_u32v(const byte* pc, uint32_t* length,
-                     const char* name = "LEB32") {
+                     Name<ValidationTag> name = "LEB32") {
     return read_leb<uint32_t, ValidationTag, kNoTrace>(pc, length, name);
   }
 
   // Reads a variable-length signed integer (little endian).
   template <typename ValidationTag>
   int32_t read_i32v(const byte* pc, uint32_t* length,
-                    const char* name = "signed LEB32") {
+                    Name<ValidationTag> name = "signed LEB32") {
     return read_leb<int32_t, ValidationTag, kNoTrace>(pc, length, name);
   }
 
   // Reads a variable-length unsigned integer (little endian).
   template <typename ValidationTag>
   uint64_t read_u64v(const byte* pc, uint32_t* length,
-                     const char* name = "LEB64") {
+                     Name<ValidationTag> name = "LEB64") {
     return read_leb<uint64_t, ValidationTag, kNoTrace>(pc, length, name);
   }
 
   // Reads a variable-length signed integer (little endian).
   template <typename ValidationTag>
   int64_t read_i64v(const byte* pc, uint32_t* length,
-                    const char* name = "signed LEB64") {
+                    Name<ValidationTag> name = "signed LEB64") {
     return read_leb<int64_t, ValidationTag, kNoTrace>(pc, length, name);
   }
 
   // Reads a variable-length 33-bit signed integer (little endian).
   template <typename ValidationTag>
   int64_t read_i33v(const byte* pc, uint32_t* length,
-                    const char* name = "signed LEB33") {
+                    Name<ValidationTag> name = "signed LEB33") {
     return read_leb<int64_t, ValidationTag, kNoTrace, 33>(pc, length, name);
   }
 
@@ -155,8 +163,9 @@ class Decoder {
   // `length` is set to the number of bytes that make up this opcode,
   // *including* the prefix byte. For most opcodes, it will be 2.
   template <typename ValidationTag>
-  WasmOpcode read_prefixed_opcode(const byte* pc, uint32_t* length,
-                                  const char* name = "prefixed opcode") {
+  WasmOpcode read_prefixed_opcode(
+      const byte* pc, uint32_t* length,
+      Name<ValidationTag> name = "prefixed opcode") {
     uint32_t index;
 
     // Prefixed opcodes all use LEB128 encoding.
@@ -416,11 +425,19 @@ class Decoder {
   }
 
   template <typename IntType, typename ValidationTag>
-  IntType read_little_endian(const byte* pc, const char* msg) {
+  IntType read_little_endian(const byte* pc, Name<ValidationTag> msg) {
+    DCHECK_LE(start_, pc);
+
     if (!ValidationTag::validate) {
-      DCHECK(validate_size(pc, sizeof(IntType), msg));
-    } else if (!validate_size(pc, sizeof(IntType), msg)) {
-      return IntType{0};
+      DCHECK_LE(pc, end_);
+      DCHECK_LE(sizeof(IntType), end_ - pc);
+    } else if (V8_UNLIKELY(ptrdiff_t{sizeof(IntType)} > end_ - pc)) {
+      if (ValidationTag::full_validation) {
+        error(pc, msg);
+      } else {
+        MarkError();
+      }
+      return 0;
     }
     return base::ReadLittleEndianValue<IntType>(reinterpret_cast<Address>(pc));
   }
@@ -443,10 +460,11 @@ class Decoder {
   template <typename IntType, typename ValidationTag, TraceFlag trace,
             size_t size_in_bits = 8 * sizeof(IntType)>
   V8_INLINE IntType read_leb(const byte* pc, uint32_t* length,
-                             const char* name = "varint") {
+                             Name<ValidationTag> name = "varint") {
     static_assert(size_in_bits <= 8 * sizeof(IntType),
                   "leb does not fit in type");
-    TRACE_IF(trace, "  +%u  %-20s: ", pc_offset(), name);
+    TRACE_IF(trace, "  +%u  %-20s: ", pc_offset(),
+             implicit_cast<const char*>(name));
     // Fast path for single-byte integers.
     if ((!ValidationTag::validate || V8_LIKELY(pc < end_)) && !(*pc & 0x80)) {
       TRACE_IF(trace, "%02x ", *pc);
@@ -469,7 +487,7 @@ class Decoder {
   template <typename IntType, typename ValidationTag, TraceFlag trace,
             size_t size_in_bits = 8 * sizeof(IntType)>
   V8_NOINLINE IntType read_leb_slowpath(const byte* pc, uint32_t* length,
-                                        const char* name) {
+                                        Name<ValidationTag> name) {
     // Create an unrolled LEB decoding function per integer type.
     return read_leb_tail<IntType, ValidationTag, trace, size_in_bits, 0>(
         pc, length, name, 0);
@@ -478,7 +496,7 @@ class Decoder {
   template <typename IntType, typename ValidationTag, TraceFlag trace,
             size_t size_in_bits, int byte_index>
   V8_INLINE IntType read_leb_tail(const byte* pc, uint32_t* length,
-                                  const char* name, IntType result) {
+                                  Name<ValidationTag> name, IntType result) {
     constexpr bool is_signed = std::is_signed<IntType>::value;
     constexpr int kMaxLength = (size_in_bits + 6) / 7;
     static_assert(byte_index < kMaxLength, "invalid template instantiation");
@@ -505,7 +523,7 @@ class Decoder {
     *length = byte_index + (at_end ? 0 : 1);
     if (ValidationTag::validate && V8_UNLIKELY(at_end || (b & 0x80))) {
       TRACE_IF(trace, at_end ? "<end> " : "<length overflow> ");
-      if (ValidationTag::full_validation) {
+      if constexpr (ValidationTag::full_validation) {
         errorf(pc, "expected %s", name);
       } else {
         MarkError();
@@ -513,7 +531,7 @@ class Decoder {
       result = 0;
       *length = 0;
     }
-    if (is_last_byte) {
+    if constexpr (is_last_byte) {
       // A signed-LEB128 must sign-extend the final byte, excluding its
       // most-significant bit; e.g. for a 32-bit LEB128:
       //   kExtraBits = 4  (== 32 - (5-1) * 7)
