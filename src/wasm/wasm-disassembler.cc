@@ -560,11 +560,14 @@ class OffsetsProvider {
 
   void CollectOffsets(const WasmModule* module, const byte* start,
                       const byte* end, AccountingAllocator* allocator) {
+    num_imported_tables_ = module->num_imported_tables;
+    num_imported_globals_ = module->num_imported_globals;
+    num_imported_tags_ = module->num_imported_tags;
     type_offsets_.reserve(module->types.size());
     import_offsets_.reserve(module->import_table.size());
-    table_offsets_.reserve(module->tables.size());
-    tag_offsets_.reserve(module->tags.size());
-    global_offsets_.reserve(module->globals.size());
+    table_offsets_.reserve(module->tables.size() - num_imported_tables_);
+    tag_offsets_.reserve(module->tags.size() - num_imported_tags_);
+    global_offsets_.reserve(module->globals.size() - num_imported_globals_);
     element_offsets_.reserve(module->elem_segments.size());
     data_offsets_.reserve(module->data_segments.size());
 
@@ -620,12 +623,21 @@ class OffsetsProvider {
   }
   GETTER(type)
   GETTER(import)
-  GETTER(table)
-  GETTER(tag)
-  GETTER(global)
   GETTER(element)
   GETTER(data)
 #undef GETTER
+
+#define IMPORT_ADJUSTED_GETTER(name)                                  \
+  uint32_t name##_offset(uint32_t index) {                            \
+    if (!enabled_) return 0;                                          \
+    DCHECK(index >= num_imported_##name##s_ &&                        \
+           index - num_imported_##name##s_ < name##_offsets_.size()); \
+    return name##_offsets_[index - num_imported_##name##s_];          \
+  }
+  IMPORT_ADJUSTED_GETTER(table)
+  IMPORT_ADJUSTED_GETTER(tag)
+  IMPORT_ADJUSTED_GETTER(global)
+#undef IMPORT_ADJUSTED_GETTER
 
   uint32_t memory_offset() { return memory_offset_; }
 
@@ -633,6 +645,9 @@ class OffsetsProvider {
 
  private:
   bool enabled_{false};
+  uint32_t num_imported_tables_{0};
+  uint32_t num_imported_globals_{0};
+  uint32_t num_imported_tags_{0};
   std::vector<uint32_t> type_offsets_;
   std::vector<uint32_t> import_offsets_;
   std::vector<uint32_t> table_offsets_;
@@ -737,7 +752,6 @@ void ModuleDisassembler::PrintModule(Indentation indentation) {
   // We don't store import/export information on {WasmTag} currently.
   size_t num_tags = module_->tags.size();
   std::vector<bool> exported_tags(num_tags, false);
-  std::vector<bool> imported_tags(num_tags, false);
   for (const WasmExport& ex : module_->export_table) {
     if (ex.kind == kExternalTag) exported_tags[ex.index] = true;
   }
@@ -812,16 +826,16 @@ void ModuleDisassembler::PrintModule(Indentation indentation) {
           PrintExportName(kExternalTag, import.index);
         }
         PrintTagSignature(module_->tags[import.index].sig);
-        imported_tags[import.index] = true;
         break;
     }
     out_ << ")";
   }
 
   // IV. Tables
-  for (uint32_t i = 0; i < module_->tables.size(); i++) {
+  for (uint32_t i = module_->num_imported_tables; i < module_->tables.size();
+       i++) {
     const WasmTable& table = module_->tables[i];
-    if (table.imported) continue;
+    DCHECK(!table.imported);
     out_.NextLine(offsets_->table_offset(i));
     out_ << indentation << "(table ";
     names_->PrintTableName(out_, i, kIndicesAsComments);
@@ -845,8 +859,7 @@ void ModuleDisassembler::PrintModule(Indentation indentation) {
   }
 
   // VI.Tags
-  for (uint32_t i = 0; i < module_->tags.size(); i++) {
-    if (imported_tags[i]) continue;
+  for (uint32_t i = module_->num_imported_tags; i < module_->tags.size(); i++) {
     const WasmTag& tag = module_->tags[i];
     out_.NextLine(offsets_->tag_offset(i));
     out_ << indentation << "(tag ";
@@ -860,9 +873,10 @@ void ModuleDisassembler::PrintModule(Indentation indentation) {
   // TODO(jkummerow/12868): Implement.
 
   // VIII. Globals
-  for (uint32_t i = 0; i < module_->globals.size(); i++) {
+  for (uint32_t i = module_->num_imported_globals; i < module_->globals.size();
+       i++) {
     const WasmGlobal& global = module_->globals[i];
-    if (global.imported) continue;
+    DCHECK(!global.imported);
     out_.NextLine(offsets_->global_offset(i));
     out_ << indentation << "(global ";
     names_->PrintGlobalName(out_, i, kIndicesAsComments);

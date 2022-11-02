@@ -494,9 +494,11 @@ struct V8_EXPORT_PRIVATE WasmModule {
   // mutable.
   uint32_t untagged_globals_buffer_size = 0;
   uint32_t tagged_globals_buffer_size = 0;
+  uint32_t num_imported_globals = 0;
   uint32_t num_imported_mutable_globals = 0;
   uint32_t num_imported_functions = 0;
   uint32_t num_imported_tables = 0;
+  uint32_t num_imported_tags = 0;
   uint32_t num_declared_functions = 0;  // excluding imported
   uint32_t num_exported_functions = 0;
   uint32_t num_declared_data_segments = 0;  // From the DataCount section.

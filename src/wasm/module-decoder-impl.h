@@ -835,6 +835,7 @@ class ModuleDecoderTemplate : public Decoder {
         case kExternalGlobal: {
           // ===== Imported global =============================================
           import->index = static_cast<uint32_t>(module_->globals.size());
+          module_->num_imported_globals++;
           module_->globals.push_back({kWasmVoid, false, {}, {0}, true, false});
           WasmGlobal* global = &module_->globals.back();
           global->type = consume_value_type();
@@ -852,6 +853,7 @@ class ModuleDecoderTemplate : public Decoder {
             break;
           }
           import->index = static_cast<uint32_t>(module_->tags.size());
+          module_->num_imported_tags++;
           const WasmTagSig* tag_sig = nullptr;
           consume_exception_attribute();  // Attribute ignored for now.
           consume_tag_sig_index(module_.get(), &tag_sig);
