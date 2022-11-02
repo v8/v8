@@ -2254,11 +2254,7 @@ size_t Heap::PerformGarbageCollection(
   // stack scanning, do it only when Scavenger runs from task, which is
   // non-nestable.
   if (cpp_heap() && IsYoungGenerationCollector(collector)) {
-    const bool with_stack = (gc_reason != GarbageCollectionReason::kTask);
-    CppHeap::From(cpp_heap())
-        ->RunMinorGCIfNeeded(with_stack
-                                 ? CppHeap::StackState::kMayContainHeapPointers
-                                 : CppHeap::StackState::kNoHeapPointers);
+    CppHeap::From(cpp_heap())->RunMinorGCIfNeeded();
   }
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 

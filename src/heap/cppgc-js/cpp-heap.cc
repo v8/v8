@@ -781,7 +781,8 @@ void CppHeap::EnterFinalPause(cppgc::EmbedderStackState stack_state) {
   in_atomic_pause_ = true;
   auto& marker = marker_.get()->To<UnifiedHeapMarker>();
   // Scan global handles conservatively in case we are attached to an Isolate.
-  if (isolate_) {
+  // TODO(1029379): Support global handle marking visitors with minor GC.
+  if (isolate_ && !generational_gc_supported()) {
     auto& heap = *isolate()->heap();
     marker.conservative_visitor().SetGlobalHandlesMarkingVisitor(
         std::make_unique<GlobalHandleMarkingVisitor>(
@@ -869,13 +870,11 @@ void CppHeap::TraceEpilogue() {
   sweeper().NotifyDoneIfNeeded();
 }
 
-void CppHeap::RunMinorGCIfNeeded(StackState stack_state) {
+void CppHeap::RunMinorGCIfNeeded() {
   if (!generational_gc_supported()) return;
   if (in_no_gc_scope()) return;
   // Minor GC does not support nesting in full GCs.
   if (IsMarking()) return;
-  // Minor GCs with the stack are currently not supported.
-  if (stack_state == StackState::kMayContainHeapPointers) return;
   // Run only when the limit is reached.
   if (!minor_gc_heap_growing_->LimitReached()) return;
 
