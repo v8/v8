@@ -619,6 +619,12 @@ class ValueLocation {
     operand_ = location;
   }
 
+  // We use USED_AT_START to indicate that the input will be clobbered.
+  bool Cloberred() {
+    DCHECK(operand_.IsUnallocated());
+    return compiler::UnallocatedOperand::cast(operand_).IsUsedAtStart();
+  }
+
   template <typename... Args>
   void SetConstant(Args&&... args) {
     DCHECK(operand_.IsUnallocated());

@@ -60,6 +60,18 @@ class RegisterFrameState {
   void AddToFree(RegisterT reg) { free_.set(reg); }
   void AddToFree(RegTList list) { free_ |= list; }
 
+  void Clobber(RegisterT reg) {
+    DCHECK(!free_.has(reg));
+    clobbered_.set(reg);
+  }
+  void FreeClobbered() {
+    for (RegisterT reg : clobbered_) {
+      if (free_.has(reg)) continue;  // Already freed.
+      FreeRegistersUsedBy(GetValue(reg));
+    }
+    clobbered_ = kEmptyRegList;
+  }
+
   void FreeRegistersUsedBy(ValueNode* node) {
     RegTList list = node->ClearRegisters<RegisterT>();
     DCHECK_EQ(free_ & list, kEmptyRegList);
@@ -98,6 +110,7 @@ class RegisterFrameState {
   ValueNode* values_[RegisterT::kNumRegisters];
   RegTList free_ = kAllocatableRegisters;
   RegTList blocked_ = kEmptyRegList;
+  RegTList clobbered_ = kEmptyRegList;
 };
 
 class StraightForwardRegisterAllocator {
@@ -134,6 +147,9 @@ class StraightForwardRegisterAllocator {
   void UpdateUse(ValueNode* node, InputLocation* input_location);
   void UpdateUse(const EagerDeoptInfo& deopt_info);
   void UpdateUse(const LazyDeoptInfo& deopt_info);
+
+  void AddToClobbered(ValueNode* node,
+                      const compiler::AllocatedOperand& location);
 
   void AllocateControlNode(ControlNode* node, BasicBlock* block);
   void AllocateNode(Node* node);

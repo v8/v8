@@ -635,6 +635,9 @@ void StraightForwardRegisterAllocator::AllocateNode(Node* node) {
     printing_visitor_->os() << "\n";
   }
 
+  general_registers_.FreeClobbered();
+  double_registers_.FreeClobbered();
+
   // All the temporaries should be free by the end. The exception is the node
   // result, which could be written into a register that was previously
   // considered a temporary.
@@ -1069,6 +1072,17 @@ void StraightForwardRegisterAllocator::AssignFixedInput(Input& input) {
   }
 }
 
+void StraightForwardRegisterAllocator::AddToClobbered(
+    ValueNode* node, const compiler::AllocatedOperand& location) {
+  // Ensure node is available on the stack.
+  Spill(node);
+  if (node->use_double_register()) {
+    double_registers_.Clobber(location.GetDoubleRegister());
+  } else {
+    general_registers_.Clobber(location.GetRegister());
+  }
+}
+
 void StraightForwardRegisterAllocator::AssignArbitraryRegisterInput(
     Input& input) {
   // Already assigned in AssignFixedInput
@@ -1099,9 +1113,15 @@ void StraightForwardRegisterAllocator::AssignArbitraryRegisterInput(
         node->use_double_register()
             ? double_registers_.ChooseInputRegister(node)
             : general_registers_.ChooseInputRegister(node);
+    if (input.Cloberred()) {
+      AddToClobbered(node, location);
+    }
     input.SetAllocated(location);
   } else {
     compiler::AllocatedOperand allocation = AllocateRegister(node);
+    if (input.Cloberred()) {
+      AddToClobbered(node, allocation);
+    }
     input.SetAllocated(allocation);
     DCHECK_NE(location, allocation);
     AddMoveBeforeCurrentNode(node, location, allocation);
