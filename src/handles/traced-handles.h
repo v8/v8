@@ -45,7 +45,7 @@ class V8_EXPORT_PRIVATE TracedHandles final {
                         GlobalHandleStoreMode store_mode);
 
   using NodeBounds = std::vector<std::pair<const void*, const void*>>;
-  NodeBounds GetNodeBounds() const;
+  const NodeBounds GetNodeBounds() const;
 
   void SetIsMarking(bool);
   void SetIsSweepingOnMutatorThread(bool);

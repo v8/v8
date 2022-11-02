@@ -27,7 +27,7 @@ class GlobalHandleMarkingVisitor final : public ::heap::base::StackVisitor {
   Heap& heap_;
   MarkingState& marking_state_;
   MarkingWorklists::Local& local_marking_worklist_;
-  TracedHandles::NodeBounds traced_node_bounds_;
+  const TracedHandles::NodeBounds traced_node_bounds_;
 };
 
 #endif  // V8_HEAP_GLOBAL_HANDLE_MARKING_VISITOR_H_

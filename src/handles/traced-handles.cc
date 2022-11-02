@@ -414,7 +414,7 @@ class TracedHandlesImpl final {
   void SetIsMarking(bool);
   void SetIsSweepingOnMutatorThread(bool);
 
-  TracedHandles::NodeBounds GetNodeBounds() const;
+  const TracedHandles::NodeBounds GetNodeBounds() const;
 
   void UpdateListOfYoungNodes();
   void ClearListOfYoungNodes();
@@ -592,8 +592,9 @@ void TracedHandlesImpl::SetIsSweepingOnMutatorThread(bool value) {
   is_sweeping_on_mutator_thread_ = value;
 }
 
-TracedHandles::NodeBounds TracedHandlesImpl::GetNodeBounds() const {
+const TracedHandles::NodeBounds TracedHandlesImpl::GetNodeBounds() const {
   TracedHandles::NodeBounds block_bounds;
+  block_bounds.reserve(blocks_.Size());
   for (const auto* block : blocks_) {
     block_bounds.push_back(
         {block->nodes_begin_address(), block->nodes_end_address()});
@@ -765,7 +766,7 @@ void TracedHandles::SetIsSweepingOnMutatorThread(bool value) {
   impl_->SetIsSweepingOnMutatorThread(value);
 }
 
-TracedHandles::NodeBounds TracedHandles::GetNodeBounds() const {
+const TracedHandles::NodeBounds TracedHandles::GetNodeBounds() const {
   return impl_->GetNodeBounds();
 }
 
