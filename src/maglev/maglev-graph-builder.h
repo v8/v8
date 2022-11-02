@@ -422,6 +422,8 @@ class MaglevGraphBuilder {
   bool TrySpecializeLoadContextSlotToFunctionContext(
       ValueNode** context, size_t* depth, int slot_index,
       ContextSlotMutability slot_mutability);
+  ValueNode* LoadAndCacheContextSlot(ValueNode* context, int offset,
+                                     ContextSlotMutability slot_mutability);
   void BuildLoadContextSlot(ValueNode* context, size_t depth, int slot_index,
                             ContextSlotMutability slot_mutability);
 
@@ -891,6 +893,7 @@ class MaglevGraphBuilder {
     // to not change (and we added a dependency on this), so we don't have to
     // clear those.
     known_node_aspects().loaded_properties.clear();
+    known_node_aspects().loaded_context_slots.clear();
   }
 
   int next_offset() const {

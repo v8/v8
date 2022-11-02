@@ -29,10 +29,11 @@ class MergePointInterpreterFrameState;
 // left map is mutated to become the result of the intersection. Values that
 // are in both maps are passed to the merging function to be merged with each
 // other -- again, the LHS here is expected to be mutated.
-template <typename Key, typename Value, typename MergeFunc>
+template <typename Key, typename Value,
+          typename MergeFunc = std::equal_to<Value>>
 void DestructivelyIntersect(ZoneMap<Key, Value>& lhs_map,
                             const ZoneMap<Key, Value>& rhs_map,
-                            MergeFunc&& func) {
+                            MergeFunc&& func = MergeFunc()) {
   // Walk the two maps in lock step. This relies on the fact that ZoneMaps are
   // sorted.
   typename ZoneMap<Key, Value>::iterator lhs_it = lhs_map.begin();
@@ -151,32 +152,30 @@ struct KnownNodeAspects {
         stable_maps(zone),
         unstable_maps(zone),
         loaded_constant_properties(zone),
-        loaded_properties(zone) {}
+        loaded_properties(zone),
+        loaded_context_constants(zone),
+        loaded_context_slots(zone) {}
 
-  KnownNodeAspects(const KnownNodeAspects& other) = delete;
+  // Copy constructor is defaulted but private so that we explicitly call the
+  // Clone method.
   KnownNodeAspects& operator=(const KnownNodeAspects& other) = delete;
   KnownNodeAspects(KnownNodeAspects&& other) = delete;
   KnownNodeAspects& operator=(KnownNodeAspects&& other) = delete;
 
   KnownNodeAspects* Clone(Zone* zone) const {
-    KnownNodeAspects* clone = zone->New<KnownNodeAspects>(zone);
-    clone->node_infos = node_infos;
-    clone->stable_maps = stable_maps;
-    clone->unstable_maps = unstable_maps;
-    clone->loaded_constant_properties = loaded_constant_properties;
-    clone->loaded_properties = loaded_properties;
-    return clone;
+    return zone->New<KnownNodeAspects>(*this);
   }
 
   // Loop headers can safely clone the node types, since those won't be
   // invalidated in the loop body, and similarly stable maps will have
   // dependencies installed. Unstable maps however might be invalidated by
   // calls, and we don't know about these until it's too late.
-  KnownNodeAspects* CloneWithoutUnstableMaps(Zone* zone) const {
+  KnownNodeAspects* CloneForLoopHeader(Zone* zone) const {
     KnownNodeAspects* clone = zone->New<KnownNodeAspects>(zone);
     clone->node_infos = node_infos;
     clone->stable_maps = stable_maps;
     clone->loaded_constant_properties = loaded_constant_properties;
+    clone->loaded_context_constants = loaded_context_constants;
     return clone;
   }
 
@@ -213,12 +212,12 @@ struct KnownNodeAspects {
           // We should always add the value even if the set is empty.
           return true;
         });
-    DestructivelyIntersect(
-        loaded_constant_properties, other.loaded_constant_properties,
-        [](ValueNode* lhs, ValueNode* rhs) { return lhs == rhs; });
-    DestructivelyIntersect(
-        loaded_properties, other.loaded_properties,
-        [](ValueNode* lhs, ValueNode* rhs) { return lhs == rhs; });
+    DestructivelyIntersect(loaded_constant_properties,
+                           other.loaded_constant_properties);
+    DestructivelyIntersect(loaded_properties, other.loaded_properties);
+    DestructivelyIntersect(loaded_context_constants,
+                           other.loaded_context_constants);
+    DestructivelyIntersect(loaded_context_slots, other.loaded_context_slots);
   }
 
   // TODO(leszeks): Store these more efficiently than with std::map -- in
@@ -240,6 +239,16 @@ struct KnownNodeAspects {
   // Flushed after side-effecting calls.
   ZoneMap<std::pair<ValueNode*, compiler::NameRef>, ValueNode*>
       loaded_properties;
+
+  // Unconditionally valid across side-effecting calls.
+  ZoneMap<std::tuple<ValueNode*, int>, ValueNode*> loaded_context_constants;
+  // Flushed after side-effecting calls.
+  ZoneMap<std::tuple<ValueNode*, int>, ValueNode*> loaded_context_slots;
+
+ private:
+  friend KnownNodeAspects* Zone::New<KnownNodeAspects, const KnownNodeAspects&>(
+      const KnownNodeAspects&);
+  KnownNodeAspects(const KnownNodeAspects& other) V8_NOEXCEPT = default;
 };
 
 class InterpreterFrameState {
@@ -583,9 +592,8 @@ class MergePointInterpreterFrameState {
     if (known_node_aspects_ == nullptr) {
       DCHECK(is_unmerged_loop());
       DCHECK_EQ(predecessors_so_far_, 0);
-      known_node_aspects_ =
-          unmerged.known_node_aspects().CloneWithoutUnstableMaps(
-              compilation_unit.zone());
+      known_node_aspects_ = unmerged.known_node_aspects().CloneForLoopHeader(
+          compilation_unit.zone());
     } else {
       known_node_aspects_->Merge(unmerged.known_node_aspects(),
                                  compilation_unit.zone());
