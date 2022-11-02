@@ -3119,7 +3119,8 @@ void MaglevGraphBuilder::VisitToName() {
   ValueNode* value = GetAccumulatorTagged();
   interpreter::Register destination = iterator_.GetRegisterOperand(0);
   if (CheckType(value, NodeType::kName)) {
-    StoreRegister(destination, value);
+    MoveNodeBetweenRegisters(interpreter::Register::virtual_accumulator(),
+                             destination);
   } else {
     StoreRegister(destination, AddNewNode<ToName>({GetContext(), value}));
   }
@@ -3164,7 +3165,8 @@ void MaglevGraphBuilder::VisitToObject() {
   ValueNode* value = GetAccumulatorTagged();
   interpreter::Register destination = iterator_.GetRegisterOperand(0);
   if (CheckType(value, NodeType::kJSReceiver)) {
-    StoreRegister(destination, value);
+    MoveNodeBetweenRegisters(interpreter::Register::virtual_accumulator(),
+                             destination);
   } else {
     StoreRegister(destination, AddNewNode<ToObject>({GetContext(), value}));
   }
