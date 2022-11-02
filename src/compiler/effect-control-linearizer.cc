@@ -5556,6 +5556,8 @@ Node* EffectControlLinearizer::LowerLoadFieldByIndex(Node* node) {
 
   auto if_double = __ MakeDeferredLabel();
   auto done = __ MakeLabel(MachineRepresentation::kTagged);
+  auto loaded_field = __ MakeLabel(MachineRepresentation::kTagged);
+  auto done_double = __ MakeLabel(MachineRepresentation::kFloat64);
 
   // Check if field is a mutable double field.
   __ GotoIfNot(__ IntPtrEqual(__ WordAnd(index, one), zero), &if_double);
@@ -5572,8 +5574,8 @@ Node* EffectControlLinearizer::LowerLoadFieldByIndex(Node* node) {
       Node* offset =
           __ IntAdd(__ WordShl(index, __ IntPtrConstant(kTaggedSizeLog2 - 1)),
                     __ IntPtrConstant(JSObject::kHeaderSize - kHeapObjectTag));
-      Node* result = __ Load(MachineType::AnyTagged(), object, offset);
-      __ Goto(&done, result);
+      Node* field = __ Load(MachineType::AnyTagged(), object, offset);
+      __ Goto(&loaded_field, field);
     }
 
     // The field is located in the properties backing store of {object}.
@@ -5587,8 +5589,8 @@ Node* EffectControlLinearizer::LowerLoadFieldByIndex(Node* node) {
                                __ IntPtrConstant(kTaggedSizeLog2 - 1)),
                     __ IntPtrConstant((FixedArray::kHeaderSize - kTaggedSize) -
                                       kHeapObjectTag));
-      Node* result = __ Load(MachineType::AnyTagged(), properties, offset);
-      __ Goto(&done, result);
+      Node* field = __ Load(MachineType::AnyTagged(), properties, offset);
+      __ Goto(&loaded_field, field);
     }
   }
 
@@ -5596,9 +5598,6 @@ Node* EffectControlLinearizer::LowerLoadFieldByIndex(Node* node) {
   // architectures, or a mutable HeapNumber.
   __ Bind(&if_double);
   {
-    auto loaded_field = __ MakeLabel(MachineRepresentation::kTagged);
-    auto done_double = __ MakeLabel(MachineRepresentation::kFloat64);
-
     index = __ WordSar(index, one);
 
     // Check if field is in-object or out-of-object.
@@ -5626,27 +5625,27 @@ Node* EffectControlLinearizer::LowerLoadFieldByIndex(Node* node) {
       Node* field = __ Load(MachineType::AnyTagged(), properties, offset);
       __ Goto(&loaded_field, field);
     }
+  }
 
-    __ Bind(&loaded_field);
-    {
-      Node* field = loaded_field.PhiAt(0);
-      // We may have transitioned in-place away from double, so check that
-      // this is a HeapNumber -- otherwise the load is fine and we don't need
-      // to copy anything anyway.
-      __ GotoIf(ObjectIsSmi(field), &done, field);
-      Node* field_map = __ LoadField(AccessBuilder::ForMap(), field);
-      __ GotoIfNot(__ TaggedEqual(field_map, __ HeapNumberMapConstant()), &done,
-                   field);
+  __ Bind(&loaded_field);
+  {
+    Node* field = loaded_field.PhiAt(0);
+    // We may have transitioned in-place away from double, so check that
+    // this is a HeapNumber -- otherwise the load is fine and we don't need
+    // to copy anything anyway.
+    __ GotoIf(ObjectIsSmi(field), &done, field);
+    Node* field_map = __ LoadField(AccessBuilder::ForMap(), field);
+    __ GotoIfNot(__ TaggedEqual(field_map, __ HeapNumberMapConstant()), &done,
+                 field);
 
-      Node* value = __ LoadField(AccessBuilder::ForHeapNumberValue(), field);
-      __ Goto(&done_double, value);
-    }
+    Node* value = __ LoadField(AccessBuilder::ForHeapNumberValue(), field);
+    __ Goto(&done_double, value);
+  }
 
-    __ Bind(&done_double);
-    {
-      Node* result = AllocateHeapNumberWithValue(done_double.PhiAt(0));
-      __ Goto(&done, result);
-    }
+  __ Bind(&done_double);
+  {
+    Node* result = AllocateHeapNumberWithValue(done_double.PhiAt(0));
+    __ Goto(&done, result);
   }
 
   __ Bind(&done);
