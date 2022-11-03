@@ -289,11 +289,11 @@ class ParallelMoveResolver {
         Pop(kScratchRegT);
         scratch_has_cycle_start_ = true;
       }
-      EmitMovesFromSource(kScratchRegT, targets);
+      EmitMovesFromSource(kScratchRegT, std::move(targets));
       scratch_has_cycle_start_ = false;
       __ RecordComment("--   * End of cycle");
     } else {
-      EmitMovesFromSource(source, targets);
+      EmitMovesFromSource(source, std::move(targets));
       __ RecordComment("--   * Chain emitted with no cycles");
     }
   }
@@ -324,7 +324,7 @@ class ParallelMoveResolver {
 
     bool has_cycle = RecursivelyEmitMoveChainTargets(chain_start, targets);
 
-    EmitMovesFromSource(source, targets);
+    EmitMovesFromSource(source, std::move(targets));
     return has_cycle;
   }
 
@@ -344,8 +344,7 @@ class ParallelMoveResolver {
     return has_cycle;
   }
 
-  void EmitMovesFromSource(RegisterT source_reg,
-                           const GapMoveTargets& targets) {
+  void EmitMovesFromSource(RegisterT source_reg, GapMoveTargets&& targets) {
     DCHECK(moves_from_register_[source_reg.code()].is_empty());
     for (RegisterT target_reg : targets.registers) {
       DCHECK(moves_from_register_[target_reg.code()].is_empty());
@@ -358,24 +357,32 @@ class ParallelMoveResolver {
     }
   }
 
-  void EmitMovesFromSource(uint32_t source_slot,
-                           const GapMoveTargets& targets) {
+  void EmitMovesFromSource(uint32_t source_slot, GapMoveTargets&& targets) {
     DCHECK_EQ(moves_from_stack_slot_.find(source_slot),
               moves_from_stack_slot_.end());
-    for (RegisterT target_reg : targets.registers) {
-      DCHECK(moves_from_register_[target_reg.code()].is_empty());
-      EmitStackMove(target_reg, source_slot);
+
+    // Cache the slot value on a register.
+    RegisterT register_with_slot_value = RegisterT::no_reg();
+    if (!targets.registers.is_empty()) {
+      // If one of the targets is a register, we can move our value into it and
+      // optimize the moves from this stack slot to always be via that register.
+      register_with_slot_value = targets.registers.PopFirst();
+    } else {
+      DCHECK(!targets.stack_slots.empty());
+      // Otherwise, cache the slot value on the scratch register, clobbering it
+      // if necessary.
+      if (scratch_has_cycle_start_) {
+        Push(kScratchRegT);
+        scratch_has_cycle_start_ = false;
+      }
+      register_with_slot_value = kScratchRegT;
     }
-    if (scratch_has_cycle_start_ && !targets.stack_slots.empty()) {
-      Push(kScratchRegT);
-      scratch_has_cycle_start_ = false;
-    }
-    for (uint32_t target_slot : targets.stack_slots) {
-      DCHECK_EQ(moves_from_stack_slot_.find(target_slot),
-                moves_from_stack_slot_.end());
-      EmitStackMove(kScratchRegT, source_slot);
-      EmitStackMove(target_slot, kScratchRegT);
-    }
+
+    // Now emit moves from that cached register instead of from the stack slot.
+    DCHECK(register_with_slot_value.is_valid());
+    DCHECK(moves_from_register_[register_with_slot_value.code()].is_empty());
+    EmitStackMove(register_with_slot_value, source_slot);
+    EmitMovesFromSource(register_with_slot_value, std::move(targets));
   }
 
   // The slot index used for representing slots in the move graph is the offset
