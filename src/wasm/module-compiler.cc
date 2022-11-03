@@ -2931,7 +2931,7 @@ void AsyncStreamingProcessor::ProcessFunctionBody(
   // In case of {prefix_cache_hit} we still need the function body to be
   // decoded. Otherwise a later cache miss cannot be handled.
   decoder_.DecodeFunctionBody(func_index, static_cast<uint32_t>(bytes.length()),
-                              offset, false);
+                              offset);
 
   if (prefix_cache_hit_) {
     // Don't compile yet if we might have a cache hit.

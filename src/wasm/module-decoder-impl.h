@@ -470,8 +470,7 @@ class ModuleDecoderTemplate : public Decoder {
   }
 
   void DecodeSection(SectionCode section_code,
-                     base::Vector<const uint8_t> bytes, uint32_t offset,
-                     bool validate_functions = true) {
+                     base::Vector<const uint8_t> bytes, uint32_t offset) {
     if (failed()) return;
     Reset(bytes, offset);
     TRACE("Section: %s\n", SectionName(section_code));
@@ -507,7 +506,7 @@ class ModuleDecoderTemplate : public Decoder {
         DecodeStartSection();
         break;
       case kCodeSectionCode:
-        DecodeCodeSection(validate_functions);
+        DecodeCodeSection();
         break;
       case kElementSectionCode:
         DecodeElementSection();
@@ -1119,7 +1118,7 @@ class ModuleDecoderTemplate : public Decoder {
     }
   }
 
-  void DecodeCodeSection(bool validate_functions) {
+  void DecodeCodeSection() {
     // Make sure global offset were calculated before they get accessed during
     // function compilation.
     CalculateGlobalOffsets(module_.get());
@@ -1149,7 +1148,7 @@ class ModuleDecoderTemplate : public Decoder {
       uint32_t offset = pc_offset();
       consume_bytes(size, "function body");
       if (failed()) break;
-      DecodeFunctionBody(function_index, size, offset, validate_functions);
+      DecodeFunctionBody(function_index, size, offset);
 
       // Now that the function has been decoded, we can compute module offsets.
       for (; inst_traces_it != this->inst_traces_.end() &&
@@ -1192,16 +1191,11 @@ class ModuleDecoderTemplate : public Decoder {
     return true;
   }
 
-  void DecodeFunctionBody(uint32_t func_index, uint32_t length, uint32_t offset,
-                          bool validate_functions) {
+  void DecodeFunctionBody(uint32_t func_index, uint32_t length,
+                          uint32_t offset) {
     WasmFunction* function = &module_->functions[func_index];
     function->code = {offset, length};
     tracer_.FunctionBody(function, pc_ - (pc_offset() - offset));
-    if (validate_functions) {
-      ModuleWireBytes bytes(module_start_, module_end_);
-      ValidateFunctionBody(module_->signature_zone->allocator(), bytes,
-                           module_.get(), function);
-    }
   }
 
   bool CheckDataSegmentsCount(uint32_t data_segments_count) {
@@ -1660,12 +1654,20 @@ class ModuleDecoderTemplate : public Decoder {
       offset += section_iter.payload_start() - section_iter.section_start();
       if (section_iter.section_code() != SectionCode::kUnknownSectionCode) {
         DecodeSection(section_iter.section_code(), section_iter.payload(),
-                      offset, validate_functions);
+                      offset);
       }
       // Shift the offset by the remaining section payload
       offset += section_iter.payload_length();
       if (!section_iter.more() || !ok()) break;
       section_iter.advance(true);
+    }
+
+    if (ok() && validate_functions) {
+      Reset(orig_bytes);
+      ModuleWireBytes wire_bytes{orig_bytes};
+      for (const WasmFunction& function : module_->declared_functions()) {
+        ValidateFunctionBody(allocator, wire_bytes, module_.get(), &function);
+      }
     }
 
     if (v8_flags.dump_wasm_module) DumpModule(orig_bytes);
@@ -1807,10 +1809,11 @@ class ModuleDecoderTemplate : public Decoder {
     module->tagged_globals_buffer_size = tagged_offset;
   }
 
-  // Verifies the body (code) of a given function.
+  // Validates the body (code) of a given function.
   void ValidateFunctionBody(AccountingAllocator* allocator,
                             const ModuleWireBytes& wire_bytes,
-                            const WasmModule* module, WasmFunction* function) {
+                            const WasmModule* module,
+                            const WasmFunction* function) {
     DCHECK(!module->function_was_validated(function->func_index));
     if (v8_flags.trace_wasm_decoder) {
       WasmFunctionName func_name(function,
