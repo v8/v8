@@ -1402,6 +1402,73 @@ TEST(Regress1163547) {
   CheckDebuggerUnloaded();
 }
 
+TEST(BreakPointOnLazyAccessorInNewContexts) {
+  // Check that breakpoints on a lazy accessor still get hit after creating new
+  // contexts.
+  // Regression test for parts of http://crbug.com/1368554.
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+
+  DebugEventCounter delegate;
+  v8::debug::SetDebugDelegate(isolate, &delegate);
+
+  auto accessor_tmpl = v8::FunctionTemplate::New(isolate, NoOpFunctionCallback);
+  accessor_tmpl->SetClassName(v8_str("get f"));
+  auto object_tmpl = v8::ObjectTemplate::New(isolate);
+  object_tmpl->SetAccessorProperty(v8_str("f"), accessor_tmpl);
+
+  {
+    v8::Local<v8::Context> context1 = v8::Context::New(isolate);
+    context1->Global()
+        ->Set(context1, v8_str("o"),
+              object_tmpl->NewInstance(context1).ToLocalChecked())
+        .ToChecked();
+    v8::Context::Scope context_scope(context1);
+
+    // 1. Set the breakpoint
+    v8::Local<v8::Function> function =
+        CompileRun(context1, "Object.getOwnPropertyDescriptor(o, 'f').get")
+            .ToLocalChecked()
+            .As<v8::Function>();
+    SetBreakPoint(function, 0);
+
+    // 2. Run and check that we hit the breakpoint
+    break_point_hit_count = 0;
+    CompileRun(context1, "o.f");
+    CHECK_EQ(1, break_point_hit_count);
+  }
+
+  {
+    // Create a second context and check that we also hit the breakpoint
+    // without setting it again.
+    v8::Local<v8::Context> context2 = v8::Context::New(isolate);
+    context2->Global()
+        ->Set(context2, v8_str("o"),
+              object_tmpl->NewInstance(context2).ToLocalChecked())
+        .ToChecked();
+    v8::Context::Scope context_scope(context2);
+
+    CompileRun(context2, "o.f");
+    CHECK_EQ(2, break_point_hit_count);
+  }
+
+  {
+    // Create a third context, but this time we use a global template instead
+    // and let the bootstrapper initialize "o" instead.
+    auto global_tmpl = v8::ObjectTemplate::New(isolate);
+    global_tmpl->Set(v8_str("o"), object_tmpl);
+    v8::Local<v8::Context> context3 =
+        v8::Context::New(isolate, nullptr, global_tmpl);
+    v8::Context::Scope context_scope(context3);
+
+    CompileRun(context3, "o.f");
+    CHECK_EQ(3, break_point_hit_count);
+  }
+
+  v8::debug::SetDebugDelegate(isolate, nullptr);
+  CheckDebuggerUnloaded();
+}
+
 TEST(BreakPointInlineApiFunction) {
   i::v8_flags.allow_natives_syntax = true;
   LocalContext env;
