@@ -171,9 +171,27 @@ void PrintTargets(std::ostream& os, MaglevGraphLabeller* graph_labeller,
   }
 }
 
+class MaybeUnparkForPrint {
+ public:
+  MaybeUnparkForPrint() {
+    LocalHeap* local_heap = LocalHeap::Current();
+    if (!local_heap) {
+      local_heap = Isolate::Current()->main_thread_local_heap();
+    }
+    DCHECK_NOT_NULL(local_heap);
+    if (local_heap->IsParked()) {
+      scope_.emplace(local_heap);
+    }
+  }
+
+ private:
+  base::Optional<UnparkedScope> scope_;
+};
+
 template <typename NodeT>
 void PrintImpl(std::ostream& os, MaglevGraphLabeller* graph_labeller,
                const NodeT* node, bool skip_targets) {
+  MaybeUnparkForPrint unpark;
   os << node->opcode();
   node->PrintParams(os, graph_labeller);
   PrintInputs(os, graph_labeller, node);
