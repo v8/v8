@@ -100,52 +100,6 @@ void UseFixed(Input& input, Register reg) {
                        reg.code(), GetVirtualRegister(input.node()));
 }
 
-// ---
-// Code gen helpers.
-// ---
-
-class SaveRegisterStateForCall {
- public:
-  SaveRegisterStateForCall(MaglevAssembler* masm, RegisterSnapshot snapshot)
-      : masm(masm), snapshot_(snapshot) {
-    __ PushAll(snapshot_.live_registers);
-    __ PushAll(snapshot_.live_double_registers, kDoubleSize);
-  }
-
-  ~SaveRegisterStateForCall() {
-    __ PopAll(snapshot_.live_double_registers, kDoubleSize);
-    __ PopAll(snapshot_.live_registers);
-  }
-
-  MaglevSafepointTableBuilder::Safepoint DefineSafepoint() {
-    // TODO(leszeks): Avoid emitting safepoints when there are no registers to
-    // save.
-    auto safepoint = masm->safepoint_table_builder()->DefineSafepoint(masm);
-    int pushed_reg_index = 0;
-    for (Register reg : snapshot_.live_registers) {
-      if (snapshot_.live_tagged_registers.has(reg)) {
-        safepoint.DefineTaggedRegister(pushed_reg_index);
-      }
-      pushed_reg_index++;
-    }
-    int num_pushed_double_reg = snapshot_.live_double_registers.Count();
-    safepoint.SetNumPushedRegisters(pushed_reg_index + num_pushed_double_reg);
-    return safepoint;
-  }
-
-  MaglevSafepointTableBuilder::Safepoint DefineSafepointWithLazyDeopt(
-      LazyDeoptInfo* lazy_deopt_info) {
-    lazy_deopt_info->set_deopting_call_return_pc(
-        masm->pc_offset_for_safepoint());
-    masm->code_gen_state()->PushLazyDeopt(lazy_deopt_info);
-    return DefineSafepoint();
-  }
-
- private:
-  MaglevAssembler* masm;
-  RegisterSnapshot snapshot_;
-};
-
 #ifdef DEBUG
 RegList GetGeneralRegistersUsedAsInputs(const EagerDeoptInfo* deopt_info) {
   RegList regs;
@@ -162,134 +116,6 @@ RegList GetGeneralRegistersUsedAsInputs(const EagerDeoptInfo* deopt_info) {
 // Helper macro for checking that a reglist is empty which prints the contents
 // when non-empty.
 #define DCHECK_REGLIST_EMPTY(...) DCHECK_EQ((__VA_ARGS__), RegList{})
-
-// ---
-// Inlined computations.
-// ---
-
-void AllocateRaw(MaglevAssembler* masm, RegisterSnapshot& register_snapshot,
-                 Register object, int size_in_bytes,
-                 AllocationType alloc_type = AllocationType::kYoung,
-                 AllocationAlignment alignment = kTaggedAligned) {
-  // TODO(victorgomes): Call the runtime for large object allocation.
-  // TODO(victorgomes): Support double alignment.
-  DCHECK_EQ(alignment, kTaggedAligned);
-  size_in_bytes = ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes);
-  if (v8_flags.single_generation) {
-    alloc_type = AllocationType::kOld;
-  }
-  bool in_new_space = alloc_type == AllocationType::kYoung;
-  Isolate* isolate = masm->isolate();
-  ExternalReference top =
-      in_new_space
-          ? ExternalReference::new_space_allocation_top_address(isolate)
-          : ExternalReference::old_space_allocation_top_address(isolate);
-  ExternalReference limit =
-      in_new_space
-          ? ExternalReference::new_space_allocation_limit_address(isolate)
-          : ExternalReference::old_space_allocation_limit_address(isolate);
-
-  ZoneLabelRef done(masm);
-  Register new_top = kScratchRegister;
-  // Check if there is enough space.
-  __ Move(object, __ ExternalReferenceAsOperand(top));
-  __ leaq(new_top, Operand(object, size_in_bytes));
-  __ cmpq(new_top, __ ExternalReferenceAsOperand(limit));
-  // Otherwise call runtime.
-  __ JumpToDeferredIf(
-      greater_equal,
-      [](MaglevAssembler* masm, RegisterSnapshot register_snapshot,
-         Register object, Builtin builtin, int size_in_bytes,
-         ZoneLabelRef done) {
-        // Remove {object} from snapshot, since it is the returned allocated
-        // HeapObject.
-        register_snapshot.live_registers.clear(object);
-        register_snapshot.live_tagged_registers.clear(object);
-        {
-          SaveRegisterStateForCall save_register_state(masm, register_snapshot);
-          using D = AllocateDescriptor;
-          __ Move(D::GetRegisterParameter(D::kRequestedSize), size_in_bytes);
-          __ CallBuiltin(builtin);
-          save_register_state.DefineSafepoint();
-          __ Move(object, kReturnRegister0);
-        }
-        __ jmp(*done);
-      },
-      register_snapshot, object,
-      in_new_space ? Builtin::kAllocateRegularInYoungGeneration
-                   : Builtin::kAllocateRegularInOldGeneration,
-      size_in_bytes, done);
-  // Store new top and tag object.
-  __ movq(__ ExternalReferenceAsOperand(top), new_top);
-  __ addq(object, Immediate(kHeapObjectTag));
-  __ bind(*done);
-}
-
-void EmitToBoolean(MaglevAssembler* masm, Register value, ZoneLabelRef is_true,
-                   ZoneLabelRef is_false, bool fallthrough_when_true) {
-  Register map = kScratchRegister;
-
-  // Check if {{value}} is Smi.
-  __ CheckSmi(value);
-  __ JumpToDeferredIf(
-      zero,
-      [](MaglevAssembler* masm, Register value, ZoneLabelRef is_true,
-         ZoneLabelRef is_false) {
-        // Check if {value} is not zero.
-        __ SmiCompare(value, Smi::FromInt(0));
-        __ j(equal, *is_false);
-        __ jmp(*is_true);
-      },
-      value, is_true, is_false);
-
-  // Check if {{value}} is false.
-  __ CompareRoot(value, RootIndex::kFalseValue);
-  __ j(equal, *is_false);
-
-  // Check if {{value}} is empty string.
-  __ CompareRoot(value, RootIndex::kempty_string);
-  __ j(equal, *is_false);
-
-  // Check if {{value}} is undetectable.
-  __ LoadMap(map, value);
-  __ testl(FieldOperand(map, Map::kBitFieldOffset),
-           Immediate(Map::Bits1::IsUndetectableBit::kMask));
-  __ j(not_zero, *is_false);
-
-  // Check if {{value}} is a HeapNumber.
-  __ CompareRoot(map, RootIndex::kHeapNumberMap);
-  __ JumpToDeferredIf(
-      equal,
-      [](MaglevAssembler* masm, Register value, ZoneLabelRef is_true,
-         ZoneLabelRef is_false) {
-        // Sets scratch register to 0.0.
-        __ Xorpd(kScratchDoubleReg, kScratchDoubleReg);
-        // Sets ZF if equal to 0.0, -0.0 or NaN.
-        __ Ucomisd(kScratchDoubleReg,
-                   FieldOperand(value, HeapNumber::kValueOffset));
-        __ j(zero, *is_false);
-        __ jmp(*is_true);
-      },
-      value, is_true, is_false);
-
-  // Check if {{value}} is a BigInt.
-  __ CompareRoot(map, RootIndex::kBigIntMap);
-  __ JumpToDeferredIf(
-      equal,
-      [](MaglevAssembler* masm, Register value, ZoneLabelRef is_true,
-         ZoneLabelRef is_false) {
-        __ testl(FieldOperand(value, BigInt::kBitfieldOffset),
-                 Immediate(BigInt::LengthBits::kMask));
-        __ j(zero, *is_false);
-        __ jmp(*is_true);
-      },
-      value, is_true, is_false);
-
-  // Otherwise true.
-  if (!fallthrough_when_true) {
-    __ jmp(*is_true);
-  }
-}
 
 // ---
 // Print
@@ -1003,7 +829,7 @@ void CreateEmptyObjectLiteral::GenerateCode(MaglevAssembler* masm,
                                             const ProcessingState& state) {
   Register object = ToRegister(result());
   RegisterSnapshot save_registers = register_snapshot();
-  AllocateRaw(masm, save_registers, object, map().instance_size());
+  __ Allocate(save_registers, object, map().instance_size());
   __ Move(kScratchRegister, map().object());
   __ StoreTaggedField(FieldOperand(object, HeapObject::kMapOffset),
                       kScratchRegister);
@@ -1696,8 +1522,7 @@ void InlinedBuiltinStringFromCharCode::AllocateVreg(
 void InlinedBuiltinStringFromCharCode::AllocateTwoByteString(
     MaglevAssembler* masm, Register result_string,
     RegisterSnapshot save_registers) {
-  AllocateRaw(masm, save_registers, result_string,
-              SeqTwoByteString::SizeFor(1));
+  __ Allocate(save_registers, result_string, SeqTwoByteString::SizeFor(1));
   __ LoadRoot(kScratchRegister, RootIndex::kStringMap);
   __ StoreTaggedField(FieldOperand(result_string, HeapObject::kMapOffset),
                       kScratchRegister);
@@ -2240,7 +2065,7 @@ void StringAt::GenerateCode(MaglevAssembler* masm,
           character = scratch1;
         }
         save_registers.live_registers.set(character);
-        AllocateRaw(masm, save_registers, result_string,
+        __ Allocate(save_registers, result_string,
                     SeqTwoByteString::SizeFor(1));
         __ LoadRoot(kScratchRegister, RootIndex::kStringMap);
         __ StoreTaggedField(FieldOperand(result_string, HeapObject::kMapOffset),
@@ -3116,7 +2941,7 @@ void Float64Box::GenerateCode(MaglevAssembler* masm,
   // call might trash it.
   RegisterSnapshot save_registers = register_snapshot();
   save_registers.live_double_registers.set(value);
-  AllocateRaw(masm, save_registers, object, HeapNumber::kSize);
+  __ Allocate(save_registers, object, HeapNumber::kSize);
   __ LoadRoot(kScratchRegister, RootIndex::kHeapNumberMap);
   __ StoreTaggedField(FieldOperand(object, HeapObject::kMapOffset),
                       kScratchRegister);
@@ -3223,7 +3048,7 @@ void ToBoolean::GenerateCode(MaglevAssembler* masm,
   ZoneLabelRef object_is_true(zone), object_is_false(zone);
   // TODO(leszeks): We're likely to be calling this on an existing boolean --
   // maybe that's a case we should fast-path here and re-use that boolean value?
-  EmitToBoolean(masm, object, object_is_true, object_is_false, true);
+  __ ToBoolean(object, object_is_true, object_is_false, true);
   __ bind(*object_is_true);
   __ LoadRoot(return_value, RootIndex::kTrueValue);
   __ jmp(&done, Label::kNear);
@@ -3243,7 +3068,7 @@ void ToBooleanLogicalNot::GenerateCode(MaglevAssembler* masm,
   Label done;
   Zone* zone = masm->compilation_info()->zone();
   ZoneLabelRef object_is_true(zone), object_is_false(zone);
-  EmitToBoolean(masm, object, object_is_true, object_is_false, true);
+  __ ToBoolean(object, object_is_true, object_is_false, true);
   __ bind(*object_is_true);
   __ LoadRoot(return_value, RootIndex::kFalseValue);
   __ jmp(&done, Label::kNear);
@@ -4470,8 +4295,8 @@ void BranchIfToBooleanTrue::GenerateCode(MaglevAssembler* masm,
   ZoneLabelRef false_label =
       ZoneLabelRef::UnsafeFromLabelPointer(if_false()->label());
   bool fallthrough_when_true = (if_true() == state.next_block());
-  EmitToBoolean(masm, ToRegister(condition_input()), true_label, false_label,
-                fallthrough_when_true);
+  __ ToBoolean(ToRegister(condition_input()), true_label, false_label,
+               fallthrough_when_true);
 }
 
 }  // namespace maglev

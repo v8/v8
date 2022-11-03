@@ -18,6 +18,9 @@ namespace v8 {
 namespace internal {
 namespace maglev {
 
+ZoneLabelRef::ZoneLabelRef(MaglevAssembler* masm)
+    : ZoneLabelRef(masm->compilation_info()->zone()) {}
+
 void MaglevAssembler::Branch(Condition condition, BasicBlock* if_true,
                              BasicBlock* if_false, BasicBlock* next_block) {
   // We don't have any branch probability information, so try to jump

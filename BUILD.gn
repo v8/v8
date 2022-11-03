@@ -4755,6 +4755,7 @@ v8_source_set("v8_base_without_compiler") {
 
   if (v8_enable_maglev) {
     sources += [
+      "src/maglev/maglev-assembler.cc",
       "src/maglev/maglev-code-generator.cc",
       "src/maglev/maglev-compilation-info.cc",
       "src/maglev/maglev-compilation-unit.cc",
