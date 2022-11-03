@@ -369,6 +369,7 @@ void GrowNewSpace(Heap* heap) {
   if (!heap->new_space()->IsAtMaximumCapacity()) {
     heap->new_space()->Grow();
   }
+  CHECK(heap->new_space()->EnsureCurrentCapacity());
 }
 
 void GrowNewSpaceToMaximumCapacity(Heap* heap) {
@@ -376,6 +377,7 @@ void GrowNewSpaceToMaximumCapacity(Heap* heap) {
   while (!heap->new_space()->IsAtMaximumCapacity()) {
     heap->new_space()->Grow();
   }
+  CHECK(heap->new_space()->EnsureCurrentCapacity());
 }
 
 }  // namespace heap

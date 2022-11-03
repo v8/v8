@@ -73,6 +73,7 @@ class WithHeapInternals : public TMixin, HeapInternalsBase {
     if (!heap()->new_space()->IsAtMaximumCapacity()) {
       heap()->new_space()->Grow();
     }
+    CHECK(heap()->new_space()->EnsureCurrentCapacity());
   }
 
   void SealCurrentObjects() {

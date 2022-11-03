@@ -376,6 +376,7 @@ TEST_F(HeapTest, RememberedSet_InsertOnPromotingObjectToOld) {
     IsolateSafepointScope scope(heap);
     // New empty pages should remain in new space.
     new_space->Grow();
+    CHECK(new_space->EnsureCurrentCapacity());
   } else {
     CollectGarbage(i::NEW_SPACE);
   }

@@ -12,6 +12,7 @@
 #include "src/base/optional.h"
 #include "src/base/platform/platform.h"
 #include "src/base/utils/random-number-generator.h"
+#include "src/base/v8-fallthrough.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/common/globals.h"
 #include "src/deoptimizer/deoptimizer.h"
@@ -407,9 +408,10 @@ void CollectorBase::StartSweepNewSpace() {
 
   int will_be_swept = 0;
 
-  if (heap()->ShouldReduceNewSpaceSize()) {
+  DCHECK_EQ(Heap::ResizeNewSpaceMode::kNone, resize_new_space_);
+  resize_new_space_ = heap()->ShouldResizeNewSpace();
+  if (resize_new_space_ == Heap::ResizeNewSpaceMode::kShrink) {
     paged_space->StartShrinking();
-    is_new_space_shrinking_ = true;
   }
 
   Sweeper* sweeper = heap()->sweeper();
@@ -423,7 +425,8 @@ void CollectorBase::StartSweepNewSpace() {
       continue;
     }
 
-    if (is_new_space_shrinking_ && paged_space->ShouldReleasePage()) {
+    if ((resize_new_space_ == ResizeNewSpaceMode::kShrink) &&
+        paged_space->ShouldReleasePage()) {
       paged_space->ReleasePage(p);
     } else {
       sweeper->AddNewSpacePage(p);
@@ -987,6 +990,27 @@ void MarkCompactCollector::Finish() {
 #ifdef DEBUG
     heap()->VerifyCountersBeforeConcurrentSweeping(garbage_collector_);
 #endif  // DEBUG
+  }
+
+  if (heap()->new_space()) {
+    if (v8_flags.minor_mc) {
+      switch (resize_new_space_) {
+        case ResizeNewSpaceMode::kShrink:
+          heap()->ReduceNewSpaceSize();
+          break;
+        case ResizeNewSpaceMode::kGrow:
+          heap()->ExpandNewSpaceSize();
+          break;
+        case ResizeNewSpaceMode::kNone:
+          break;
+      }
+      resize_new_space_ = ResizeNewSpaceMode::kNone;
+    }
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE);
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE_REBALANCE);
+    if (!heap()->new_space()->EnsureCurrentCapacity()) {
+      heap()->FatalProcessOutOfMemory("NewSpace::EnsureCurrentCapacity");
+    }
   }
 
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_FINISH);
@@ -4598,7 +4622,8 @@ void MarkCompactCollector::Evacuate() {
         DCHECK_EQ(0, non_atomic_marking_state()->live_bytes(p));
         DCHECK(p->SweepingDone());
         PagedNewSpace* space = heap()->paged_new_space();
-        if (is_new_space_shrinking_ && space->ShouldReleasePage()) {
+        if ((resize_new_space_ == ResizeNewSpaceMode::kShrink) &&
+            space->ShouldReleasePage()) {
           space->ReleasePage(p);
         } else {
           sweeper()->AddNewSpacePage(p);
@@ -4606,19 +4631,6 @@ void MarkCompactCollector::Evacuate() {
       }
     }
     new_space_evacuation_pages_.clear();
-
-    if (is_new_space_shrinking_) {
-      DCHECK(v8_flags.minor_mc);
-      heap()->paged_new_space()->FinishShrinking();
-      is_new_space_shrinking_ = false;
-    }
-
-    if (heap()->new_space()) {
-      TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE_REBALANCE);
-      if (!heap()->new_space()->EnsureCurrentCapacity()) {
-        heap()->FatalProcessOutOfMemory("NewSpace::Rebalance");
-      }
-    }
 
     for (LargePage* p : promoted_large_pages_) {
       DCHECK(p->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION));
@@ -5822,6 +5834,26 @@ void MinorMarkCompactCollector::Finish() {
 #endif
   }
 
+  switch (resize_new_space_) {
+    case ResizeNewSpaceMode::kShrink:
+      heap()->ReduceNewSpaceSize();
+      break;
+    case ResizeNewSpaceMode::kGrow:
+      heap()->ExpandNewSpaceSize();
+      break;
+    case ResizeNewSpaceMode::kNone:
+      break;
+  }
+  resize_new_space_ = ResizeNewSpaceMode::kNone;
+
+  {
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE);
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE_REBALANCE);
+    if (!heap()->new_space()->EnsureCurrentCapacity()) {
+      heap()->FatalProcessOutOfMemory("NewSpace::EnsureCurrentCapacity");
+    }
+  }
+
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_FINISH);
 
   local_marking_worklists_.reset();
@@ -6358,18 +6390,6 @@ void MinorMarkCompactCollector::Evacuate() {
       }
     }
     new_space_evacuation_pages_.clear();
-  }
-
-  if (is_new_space_shrinking_) {
-    heap()->paged_new_space()->FinishShrinking();
-    is_new_space_shrinking_ = false;
-  }
-
-  {
-    TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_EVACUATE_REBALANCE);
-    if (!heap()->new_space()->EnsureCurrentCapacity()) {
-      heap()->FatalProcessOutOfMemory("NewSpace::Rebalance");
-    }
   }
 
   {

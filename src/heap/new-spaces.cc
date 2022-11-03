@@ -958,7 +958,6 @@ void PagedSpaceForNewSpace::Grow() {
                RoundUp(static_cast<size_t>(v8_flags.semi_space_growth_factor) *
                            TotalCapacity(),
                        Page::kPageSize));
-  CHECK(EnsureCurrentCapacity());
 }
 
 bool PagedSpaceForNewSpace::StartShrinking() {

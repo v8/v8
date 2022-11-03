@@ -709,9 +709,6 @@ class Heap {
       Handle<NativeContext> context, Handle<JSPromise> promise,
       v8::MeasureMemoryMode mode);
 
-  // Check new space expansion criteria and expand semispaces if it was hit.
-  void CheckNewSpaceExpansionCriteria();
-
   void VisitExternalResources(v8::ExternalResourceVisitor* visitor);
 
   void IncrementDeferredCount(v8::Isolate::UseCounterFeature feature);
@@ -1866,7 +1863,9 @@ class Heap {
   bool HasLowOldGenerationAllocationRate();
   bool HasLowEmbedderAllocationRate();
 
-  bool ShouldReduceNewSpaceSize() const;
+  enum class ResizeNewSpaceMode { kShrink, kGrow, kNone };
+  ResizeNewSpaceMode ShouldResizeNewSpace();
+  void ExpandNewSpaceSize();
   void ReduceNewSpaceSize();
 
   GCIdleTimeHeapState ComputeHeapState();

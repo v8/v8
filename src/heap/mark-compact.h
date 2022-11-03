@@ -285,6 +285,8 @@ class CollectorBase {
   std::vector<LargePage*> promoted_large_pages_;
 
  protected:
+  using ResizeNewSpaceMode = Heap::ResizeNewSpaceMode;
+
   inline Heap* heap() const { return heap_; }
   inline Isolate* isolate();
 
@@ -307,7 +309,7 @@ class CollectorBase {
   MarkingState* const marking_state_;
   NonAtomicMarkingState* const non_atomic_marking_state_;
 
-  bool is_new_space_shrinking_ = false;
+  ResizeNewSpaceMode resize_new_space_ = ResizeNewSpaceMode::kNone;
 
   explicit CollectorBase(Heap* heap, GarbageCollector collector);
   virtual ~CollectorBase() = default;

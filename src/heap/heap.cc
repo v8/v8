@@ -1107,7 +1107,6 @@ void Heap::GarbageCollectionPrologueInSafepoint() {
 
   if (new_space_) {
     UpdateNewSpaceAllocationCounter();
-    CheckNewSpaceExpansionCriteria();
     new_space_->ResetParkedAllocationBuffers();
   }
 }
@@ -1276,10 +1275,20 @@ void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
     if (Heap::ShouldZapGarbage() || v8_flags.clear_free_memory) {
       new_space()->ZapUnusedMemory();
     }
-    TRACE_GC(tracer(), GCTracer::Scope::HEAP_EPILOGUE_REDUCE_NEW_SPACE);
-    ReduceNewSpaceSize();
 
     if (!v8_flags.minor_mc) {
+      {
+        TRACE_GC(tracer(), GCTracer::Scope::HEAP_EPILOGUE_ADJUST_NEW_SPACE);
+        ResizeNewSpaceMode resize_new_space = ShouldResizeNewSpace();
+        if (resize_new_space == ResizeNewSpaceMode::kGrow) {
+          ExpandNewSpaceSize();
+        }
+
+        if (resize_new_space == ResizeNewSpaceMode::kShrink) {
+          ReduceNewSpaceSize();
+        }
+      }
+
       SemiSpaceNewSpace::From(new_space())->MakeAllPagesInFromSpaceIterable();
     }
 
@@ -2604,17 +2613,6 @@ void Heap::MarkCompactPrologue() {
   FlushNumberStringCache();
 }
 
-void Heap::CheckNewSpaceExpansionCriteria() {
-  if (new_space_->TotalCapacity() < new_space_->MaximumCapacity() &&
-      survived_since_last_expansion_ > new_space_->TotalCapacity()) {
-    // Grow the size of new space if there is room to grow, and enough data
-    // has survived scavenge since the last expansion.
-    new_space_->Grow();
-    survived_since_last_expansion_ = 0;
-  }
-  new_lo_space()->SetCapacity(new_space()->Capacity());
-}
-
 void Heap::Scavenge() {
   DCHECK_NOT_NULL(new_space());
   DCHECK_IMPLIES(v8_flags.separate_gc_phases,
@@ -3777,25 +3775,43 @@ void Heap::ActivateMemoryReducerIfNeeded() {
   }
 }
 
-bool Heap::ShouldReduceNewSpaceSize() const {
+Heap::ResizeNewSpaceMode Heap::ShouldResizeNewSpace() {
+  if (ShouldReduceMemory()) {
+    return (v8_flags.predictable) ? ResizeNewSpaceMode::kNone
+                                  : ResizeNewSpaceMode::kShrink;
+  }
+
   static const size_t kLowAllocationThroughput = 1000;
-
-  if (v8_flags.predictable) return false;
-
   const double allocation_throughput =
       tracer_->CurrentAllocationThroughputInBytesPerMillisecond();
+  const bool should_shrink = !v8_flags.predictable &&
+                             (allocation_throughput != 0) &&
+                             (allocation_throughput < kLowAllocationThroughput);
 
-  return ShouldReduceMemory() ||
-         ((allocation_throughput != 0) &&
-          (allocation_throughput < kLowAllocationThroughput));
+  const bool should_grow =
+      (new_space_->TotalCapacity() < new_space_->MaximumCapacity()) &&
+      (survived_since_last_expansion_ > new_space_->TotalCapacity());
+
+  if (should_grow == should_shrink) return ResizeNewSpaceMode::kNone;
+  return should_grow ? ResizeNewSpaceMode::kGrow : ResizeNewSpaceMode::kShrink;
+}
+
+void Heap::ExpandNewSpaceSize() {
+  // Grow the size of new space if there is room to grow, and enough data
+  // has survived scavenge since the last expansion.
+  new_space_->Grow();
+  survived_since_last_expansion_ = 0;
+  new_lo_space()->SetCapacity(new_space()->TotalCapacity());
 }
 
 void Heap::ReduceNewSpaceSize() {
-  if (!ShouldReduceNewSpaceSize()) return;
-
   // MinorMC shrinks new space as part of sweeping.
-  if (!v8_flags.minor_mc) new_space_->Shrink();
-  new_lo_space_->SetCapacity(new_space_->Capacity());
+  if (!v8_flags.minor_mc) {
+    new_space()->Shrink();
+  } else {
+    paged_new_space()->FinishShrinking();
+  }
+  new_lo_space_->SetCapacity(new_space()->TotalCapacity());
 }
 
 size_t Heap::NewSpaceSize() { return new_space() ? new_space()->Size() : 0; }
