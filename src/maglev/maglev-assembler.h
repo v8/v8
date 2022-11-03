@@ -71,6 +71,13 @@ class MaglevAssembler : public MacroAssembler {
   inline void PushInput(const Input& input);
   inline Register FromAnyToRegister(const Input& input, Register scratch);
 
+  // Warning: Input registers {string} and {index} will be scratched.
+  // {result} is allowed to alias with one the other 3 input registers.
+  // {result} is an int32.
+  void StringCharCodeAt(RegisterSnapshot& register_snapshot, Register result,
+                        Register string, Register index, Register scratch,
+                        Label* result_fits_one_byte);
+
   void ToBoolean(Register value, ZoneLabelRef is_true, ZoneLabelRef is_false,
                  bool fallthrough_when_true);
 

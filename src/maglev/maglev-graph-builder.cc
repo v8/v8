@@ -1841,7 +1841,7 @@ bool MaglevGraphBuilder::TryBuildElementAccessOnString(
 
   DCHECK_EQ(keyed_mode.load_mode(), STANDARD_LOAD);
 
-  // Ensure that {object} is actualy a String.
+  // Ensure that {object} is actually a String.
   BuildCheckString(object);
 
   ValueNode* length = AddNewNode<StringLength>({object});
@@ -2638,9 +2638,37 @@ bool MaglevGraphBuilder::TryInlineBuiltin(base::Optional<int> receiver_index,
   switch (builtin) {
     case Builtin::kStringFromCharCode:
       if (argc_count != 1) return false;
-      SetAccumulator(AddNewNode<InlinedBuiltinStringFromCharCode>(
+      SetAccumulator(AddNewNode<BuiltinStringFromCharCode>(
           {LoadRegisterInt32(first_arg_index)}));
       return true;
+    case Builtin::kStringPrototypeCharCodeAt: {
+      // TODO(victorgomes): Not sure how this can happen!
+      // Maybe emit an eager deopt?
+      if (!receiver_index.has_value()) return false;
+
+      ValueNode* receiver = LoadRegisterTagged(*receiver_index);
+      ValueNode* index;
+      if (argc_count == 0) {
+        // Index is the undefined object.
+        // ToIntegerOrInfinity(undefined) = 0.
+        index = GetInt32Constant(0);
+      } else {
+        index = GetInt32ElementIndex(first_arg_index);
+      }
+      // Any other argument is ignored.
+
+      // Ensure that {receiver} is actually a String.
+      BuildCheckString(receiver);
+
+      // And index is below length.
+      ValueNode* length = AddNewNode<StringLength>({receiver});
+      AddNewNode<CheckInt32Condition>({index, length}, AssertCondition::kLess,
+                                      DeoptimizeReason::kOutOfBounds);
+
+      SetAccumulator(
+          AddNewNode<BuiltinStringPrototypeCharCodeAt>({receiver, index}));
+      return true;
+    }
     default:
       // TODO(v8:7700): Inline more builtins.
       return false;

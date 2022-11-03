@@ -120,7 +120,9 @@ class CompactInterpreterFrameState;
   V(RootConstant)                   \
   V(SmiConstant)
 
-#define INLINE_BUILTIN_NODE_LIST(V) V(InlinedBuiltinStringFromCharCode)
+#define INLINE_BUILTIN_NODE_LIST(V) \
+  V(BuiltinStringFromCharCode)      \
+  V(BuiltinStringPrototypeCharCodeAt)
 
 #define VALUE_NODE_LIST(V)         \
   V(Call)                          \
@@ -3203,13 +3205,12 @@ class GetTemplateObject : public FixedInputValueNodeT<1, GetTemplateObject> {
   const compiler::FeedbackSource feedback_;
 };
 
-class InlinedBuiltinStringFromCharCode
-    : public FixedInputValueNodeT<1, InlinedBuiltinStringFromCharCode> {
-  using Base = FixedInputValueNodeT<1, InlinedBuiltinStringFromCharCode>;
+class BuiltinStringFromCharCode
+    : public FixedInputValueNodeT<1, BuiltinStringFromCharCode> {
+  using Base = FixedInputValueNodeT<1, BuiltinStringFromCharCode>;
 
  public:
-  explicit InlinedBuiltinStringFromCharCode(uint64_t bitfield)
-      : Base(bitfield) {}
+  explicit BuiltinStringFromCharCode(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties = OpProperties::DeferredCall();
 
@@ -3222,6 +3223,28 @@ class InlinedBuiltinStringFromCharCode
  private:
   void AllocateTwoByteString(MaglevAssembler* masm, Register result_string,
                              RegisterSnapshot save_registers);
+};
+
+class BuiltinStringPrototypeCharCodeAt
+    : public FixedInputValueNodeT<2, BuiltinStringPrototypeCharCodeAt> {
+  using Base = FixedInputValueNodeT<2, BuiltinStringPrototypeCharCodeAt>;
+
+ public:
+  explicit BuiltinStringPrototypeCharCodeAt(uint64_t bitfield)
+      : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::Reading() |
+                                              OpProperties::DeferredCall() |
+                                              OpProperties::Int32();
+
+  static constexpr int kStringIndex = 0;
+  static constexpr int kIndexIndex = 1;
+  Input& string_input() { return input(kStringIndex); }
+  Input& index_input() { return input(kIndexIndex); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
 class LoadTaggedField : public FixedInputValueNodeT<1, LoadTaggedField> {

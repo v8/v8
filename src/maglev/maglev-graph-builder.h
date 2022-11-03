@@ -1014,6 +1014,11 @@ class MaglevGraphBuilder {
   void BuildCheckMaps(ValueNode* object,
                       ZoneVector<compiler::MapRef> const& maps);
 
+  ValueNode* GetInt32ElementIndex(int operand_index) {
+    interpreter::Register reg = iterator_.GetRegisterOperand(operand_index);
+    ValueNode* index_object = current_interpreter_frame_.get(reg);
+    return GetInt32ElementIndex(index_object);
+  }
   ValueNode* GetInt32ElementIndex(ValueNode* index_object);
 
   bool TryFoldLoadDictPrototypeConstant(

@@ -155,7 +155,7 @@ class MaglevGraphVerifier {
       case Opcode::kCheckedSmiTag:
       case Opcode::kUnsafeSmiTag:
       case Opcode::kChangeInt32ToFloat64:
-      case Opcode::kInlinedBuiltinStringFromCharCode:
+      case Opcode::kBuiltinStringFromCharCode:
         DCHECK_EQ(node->input_count(), 1);
         CheckValueInputIs(node, 0, ValueRepresentation::kInt32);
         break;
@@ -287,6 +287,7 @@ class MaglevGraphVerifier {
       case Opcode::kLoadTaggedElement:
       case Opcode::kLoadDoubleElement:
       case Opcode::kStringAt:
+      case Opcode::kBuiltinStringPrototypeCharCodeAt:
         DCHECK_EQ(node->input_count(), 2);
         CheckValueInputIs(node, 0, ValueRepresentation::kTagged);
         CheckValueInputIs(node, 1, ValueRepresentation::kInt32);

@@ -1513,13 +1513,13 @@ void CheckedObjectToIndex::GenerateCode(MaglevAssembler* masm,
   __ bind(*done);
 }
 
-void InlinedBuiltinStringFromCharCode::AllocateVreg(
+void BuiltinStringFromCharCode::AllocateVreg(
     MaglevVregAllocationState* vreg_state) {
   UseRegister(code_input());
   DefineAsRegister(vreg_state, this);
   set_temporaries_needed(1);
 }
-void InlinedBuiltinStringFromCharCode::AllocateTwoByteString(
+void BuiltinStringFromCharCode::AllocateTwoByteString(
     MaglevAssembler* masm, Register result_string,
     RegisterSnapshot save_registers) {
   __ Allocate(save_registers, result_string, SeqTwoByteString::SizeFor(1));
@@ -1531,8 +1531,8 @@ void InlinedBuiltinStringFromCharCode::AllocateTwoByteString(
   __ StoreTaggedField(FieldOperand(result_string, String::kLengthOffset),
                       Immediate(1));
 }
-void InlinedBuiltinStringFromCharCode::GenerateCode(
-    MaglevAssembler* masm, const ProcessingState& state) {
+void BuiltinStringFromCharCode::GenerateCode(MaglevAssembler* masm,
+                                             const ProcessingState& state) {
   Register result_string = ToRegister(result());
 
   if (Int32Constant* constant = code_input().node()->TryCast<Int32Constant>()) {
@@ -1559,7 +1559,7 @@ void InlinedBuiltinStringFromCharCode::GenerateCode(
     __ JumpToDeferredIf(
         above,
         [](MaglevAssembler* masm, ZoneLabelRef done, Register char_code,
-           Register scratch, InlinedBuiltinStringFromCharCode* node) {
+           Register scratch, BuiltinStringFromCharCode* node) {
           Register result_string = ToRegister(node->result());
           RegisterSnapshot save_registers = node->register_snapshot();
           // If {char_code} alias with result register, use the scratch
@@ -1593,6 +1593,26 @@ void InlinedBuiltinStringFromCharCode::GenerateCode(
                      FixedArray::kHeaderSize));
     __ bind(*done);
   }
+}
+
+void BuiltinStringPrototypeCharCodeAt::AllocateVreg(
+    MaglevVregAllocationState* vreg_state) {
+  UseAndClobberRegister(string_input());
+  UseAndClobberRegister(index_input());
+  DefineAsRegister(vreg_state, this);
+  set_temporaries_needed(1);
+}
+
+void BuiltinStringPrototypeCharCodeAt::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
+  Register string = ToRegister(string_input());
+  Register index = ToRegister(index_input());
+  Register scratch = general_temporaries().PopFirst();
+  ZoneLabelRef done(masm);
+  RegisterSnapshot save_registers = register_snapshot();
+  __ StringCharCodeAt(save_registers, ToRegister(result()), string, index,
+                      scratch, *done);
+  __ bind(*done);
 }
 
 void LoadTaggedField::AllocateVreg(MaglevVregAllocationState* vreg_state) {
@@ -1925,144 +1945,38 @@ void StringAt::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseAndClobberRegister(string_input());
   UseAndClobberRegister(index_input());
   DefineAsRegister(vreg_state, this);
-  set_temporaries_needed(2);
+  set_temporaries_needed(1);
 }
 void StringAt::GenerateCode(MaglevAssembler* masm,
                             const ProcessingState& state) {
-  Register string_object = ToRegister(string_input());
+  Register string = ToRegister(string_input());
   Register index = ToRegister(index_input());
-
-  Register scratch0 = general_temporaries().PopFirst();
-  Register scratch1 = general_temporaries().PopFirst();
-
-  if (v8_flags.debug_code) {
-    // Check if {string_object} is a string.
-    __ AssertNotSmi(string_object);
-    __ LoadMap(scratch0, string_object);
-    __ CmpInstanceTypeRange(scratch0, scratch0, FIRST_STRING_TYPE,
-                            LAST_STRING_TYPE);
-    __ Check(below_equal, AbortReason::kUnexpectedValue);
-  }
+  Register scratch = general_temporaries().PopFirst();
 
   ZoneLabelRef done(masm);
-  ZoneLabelRef create_string(masm);
   Label cached_one_byte_string;
-  Label seq_string;
-  Label cons_string;
-  Label sliced_string;
 
-  Register character = scratch0;
-  Register instance_type = scratch1;
+  Register character = string;
+  RegisterSnapshot save_registers = register_snapshot();
+  __ StringCharCodeAt(save_registers, character, string, index, scratch,
+                      &cached_one_byte_string);
 
-  DeferredCodeInfo* deferred_runtime_call = __ PushDeferredCode(
-      [](MaglevAssembler* masm, ZoneLabelRef create_string,
-         Register string_object, Register index, Register character,
-         StringAt* node) {
-        RegisterSnapshot save_registers = node->register_snapshot();
-        DCHECK(!save_registers.live_registers.has(character));
-        {
-          SaveRegisterStateForCall save_register_state(masm, save_registers);
-          __ Push(string_object);
-          __ SmiTag(index);
-          __ Push(index);
-          __ Move(kContextRegister, masm->native_context().object());
-          // This call does not throw nor can deopt.
-          __ CallRuntime(Runtime::kStringCharCodeAt);
-          __ SmiUntag(kReturnRegister0);
-          // TODO(victorgomes): Add hint to register allocator that
-          // {character/scratch0} should be kReturnRegister0.
-          __ Move(character, kReturnRegister0);
-        }
-        __ jmp(*create_string);
-      },
-      create_string, string_object, index, character, this);
+  // TODO(victorgomes): Create a macro helper to allocate/create string.
 
-  // We might need to try more than one time for ConsString, SlicedString and
-  // ThinString.
-  Label loop;
-  __ bind(&loop);
-
-  // Get instance type.
-  __ LoadMap(instance_type, string_object);
-  __ mov_tagged(instance_type,
-                FieldOperand(instance_type, Map::kInstanceTypeOffset));
-
-  {
-    // TODO(victorgomes): Add fast path for external strings.
-    Register representation = kScratchRegister;
-    __ movl(representation, instance_type);
-    __ andl(representation, Immediate(kStringRepresentationMask));
-    __ cmpl(representation, Immediate(kSeqStringTag));
-    __ j(equal, &seq_string, Label::kNear);
-    __ cmpl(representation, Immediate(kConsStringTag));
-    __ j(equal, &cons_string, Label::kNear);
-    __ cmpl(representation, Immediate(kSlicedStringTag));
-    __ j(equal, &sliced_string, Label::kNear);
-    __ cmpl(representation, Immediate(kThinStringTag));
-    __ j(not_equal, &deferred_runtime_call->deferred_code_label);
-    // Fallthrough to thin string.
-  }
-
-  // Is a thin string.
-  {
-    __ DecompressAnyTagged(
-        string_object, FieldOperand(string_object, ThinString::kActualOffset));
-    __ jmp(&loop, Label::kNear);
-  }
-
-  __ bind(&sliced_string);
-  {
-    Register offset = scratch1;
-    __ movl(offset, FieldOperand(string_object, SlicedString::kOffsetOffset));
-    __ SmiUntag(offset);
-    __ DecompressAnyTagged(
-        string_object,
-        FieldOperand(string_object, SlicedString::kParentOffset));
-    __ addl(index, offset);
-    __ jmp(&loop, Label::kNear);
-  }
-
-  __ bind(&cons_string);
-  {
-    __ CompareRoot(FieldOperand(string_object, ConsString::kSecondOffset),
-                   RootIndex::kempty_string);
-    __ j(not_equal, &deferred_runtime_call->deferred_code_label);
-    __ DecompressAnyTagged(
-        string_object, FieldOperand(string_object, ConsString::kFirstOffset));
-    __ jmp(&loop, Label::kNear);  // Try again with first string.
-  }
-
-  __ bind(&seq_string);
-  {
-    Label two_byte_string;
-    __ andl(instance_type, Immediate(kStringEncodingMask));
-    __ cmpl(instance_type, Immediate(kTwoByteStringTag));
-    __ j(equal, &two_byte_string, Label::kNear);
-    __ movzxbl(character, FieldOperand(string_object, index, times_1,
-                                       SeqOneByteString::kHeaderSize));
-    __ jmp(&cached_one_byte_string, Label::kNear);
-    __ bind(&two_byte_string);
-    __ movzxwl(character, FieldOperand(string_object, index, times_2,
-                                       SeqTwoByteString::kHeaderSize));
-    // Fallthrough to create string.
-  }
-
-  __ bind(*create_string);
   __ cmpl(character, Immediate(String::kMaxOneByteCharCode));
-
   // Create two byte string in deferred code.
   __ JumpToDeferredIf(
       greater,
       [](MaglevAssembler* masm, ZoneLabelRef done, Register character,
-         Register scratch1, StringAt* node) {
+         Register scratch, StringAt* node) {
         Register result_string = ToRegister(node->result());
         RegisterSnapshot save_registers = node->register_snapshot();
         // If {character} alias with {result_string}, use the second scratch
         // register.
         if (character == result_string) {
-          DCHECK_NE(scratch1, character);
-          __ Move(scratch1, character);
-          character = scratch1;
+          DCHECK_NE(scratch, character);
+          __ Move(scratch, character);
+          character = scratch;
         }
         save_registers.live_registers.set(character);
         __ Allocate(save_registers, result_string,
@@ -2079,12 +1993,12 @@ void StringAt::GenerateCode(MaglevAssembler* masm,
                 character);
         __ jmp(*done);
       },
-      done, character, scratch1, this);
+      done, character, scratch, this);
 
   // Load one byte string from a predefined/cached table.
   __ bind(&cached_one_byte_string);
   {
-    Register table = scratch1;
+    Register table = scratch;
     __ LoadRoot(table, RootIndex::kSingleCharacterStringTable);
     __ DecompressAnyTagged(ToRegister(result()),
                            FieldOperand(table, character, times_tagged_size,

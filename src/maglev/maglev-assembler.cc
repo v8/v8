@@ -69,6 +69,126 @@ void MaglevAssembler::Allocate(RegisterSnapshot& register_snapshot,
   bind(*done);
 }
 
+void MaglevAssembler::StringCharCodeAt(RegisterSnapshot& register_snapshot,
+                                       Register result, Register string,
+                                       Register index, Register scratch,
+                                       Label* result_fits_one_byte) {
+  ZoneLabelRef done(this);
+  Label seq_string;
+  Label cons_string;
+  Label sliced_string;
+
+  DeferredCodeInfo* deferred_runtime_call = PushDeferredCode(
+      [](MaglevAssembler* masm, RegisterSnapshot register_snapshot,
+         ZoneLabelRef done, Register result, Register string, Register index) {
+        DCHECK(!register_snapshot.live_registers.has(result));
+        {
+          SaveRegisterStateForCall save_register_state(masm, register_snapshot);
+          __ Push(string);
+          __ SmiTag(index);
+          __ Push(index);
+          __ Move(kContextRegister, masm->native_context().object());
+          // This call does not throw nor can deopt.
+          __ CallRuntime(Runtime::kStringCharCodeAt);
+          __ SmiUntag(kReturnRegister0);
+          __ Move(result, kReturnRegister0);
+        }
+        __ jmp(*done);
+      },
+      register_snapshot, done, result, string, index);
+
+  if (v8_flags.debug_code) {
+    // Check if {string} is a string.
+    AssertNotSmi(string);
+    LoadMap(scratch, string);
+    CmpInstanceTypeRange(scratch, scratch, FIRST_STRING_TYPE, LAST_STRING_TYPE);
+    Check(below_equal, AbortReason::kUnexpectedValue);
+  }
+
+  Register instance_type = scratch;
+
+  // We might need to try more than one time for ConsString, SlicedString and
+  // ThinString.
+  Label loop;
+  bind(&loop);
+
+  // Get instance type.
+  LoadMap(instance_type, string);
+  mov_tagged(instance_type,
+             FieldOperand(instance_type, Map::kInstanceTypeOffset));
+
+  {
+    // TODO(victorgomes): Add fast path for external strings.
+    Register representation = kScratchRegister;
+    movl(representation, instance_type);
+    andl(representation, Immediate(kStringRepresentationMask));
+    cmpl(representation, Immediate(kSeqStringTag));
+    j(equal, &seq_string, Label::kNear);
+    cmpl(representation, Immediate(kConsStringTag));
+    j(equal, &cons_string, Label::kNear);
+    cmpl(representation, Immediate(kSlicedStringTag));
+    j(equal, &sliced_string, Label::kNear);
+    cmpl(representation, Immediate(kThinStringTag));
+    j(not_equal, &deferred_runtime_call->deferred_code_label);
+    // Fallthrough to thin string.
+  }
+
+  // Is a thin string.
+  {
+    DecompressAnyTagged(string,
+                        FieldOperand(string, ThinString::kActualOffset));
+    jmp(&loop, Label::kNear);
+  }
+
+  bind(&sliced_string);
+  {
+    Register offset = scratch;
+    movl(offset, FieldOperand(string, SlicedString::kOffsetOffset));
+    SmiUntag(offset);
+    DecompressAnyTagged(string,
+                        FieldOperand(string, SlicedString::kParentOffset));
+    addl(index, offset);
+    jmp(&loop, Label::kNear);
+  }
+
+  bind(&cons_string);
+  {
+    CompareRoot(FieldOperand(string, ConsString::kSecondOffset),
+                RootIndex::kempty_string);
+    j(not_equal, &deferred_runtime_call->deferred_code_label);
+    DecompressAnyTagged(string, FieldOperand(string, ConsString::kFirstOffset));
+    jmp(&loop, Label::kNear);  // Try again with first string.
+  }
+
+  bind(&seq_string);
+  {
+    Label two_byte_string;
+    andl(instance_type, Immediate(kStringEncodingMask));
+    cmpl(instance_type, Immediate(kTwoByteStringTag));
+    j(equal, &two_byte_string, Label::kNear);
+    movzxbl(result, FieldOperand(string, index, times_1,
+                                 SeqOneByteString::kHeaderSize));
+    jmp(result_fits_one_byte);
+    bind(&two_byte_string);
+    movzxwl(result, FieldOperand(string, index, times_2,
+                                 SeqTwoByteString::kHeaderSize));
+    // Fallthrough.
+  }
+
+  if (v8_flags.debug_code) {
+    // We make sure that the user of this macro is not relying in string and
+    // index to not be clobbered.
+    if (result != string) {
+      movl(string, Immediate(0xdeadbeef));
+    }
+    if (result != index) {
+      movl(index, Immediate(0xdeadbeef));
+    }
+  }
+
+  bind(*done);
+}
+
 void MaglevAssembler::ToBoolean(Register value, ZoneLabelRef is_true,
                                 ZoneLabelRef is_false,
                                 bool fallthrough_when_true) {

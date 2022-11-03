@@ -756,8 +756,8 @@ class MergePointInterpreterFrameState {
               ValueRepresentation::kInt32);
     DCHECK(!value->properties().is_conversion());
 #define IS_INT32_OP_NODE(Name) || value->Is<Name>()
-    DCHECK(value->Is<Int32Constant>() ||
-           value->Is<StringLength>()
+    DCHECK(value->Is<Int32Constant>() || value->Is<StringLength>() ||
+           value->Is<BuiltinStringPrototypeCharCodeAt>()
                INT32_OPERATIONS_NODE_LIST(IS_INT32_OP_NODE));
 #undef IS_INT32_OP_NODE
     NodeInfo* node_info = known_node_aspects.GetOrCreateInfoFor(value);
@@ -767,7 +767,8 @@ class MergePointInterpreterFrameState {
       if (value->Is<Int32Constant>()) {
         int32_t constant = value->Cast<Int32Constant>()->value();
         return GetSmiConstant(compilation_unit, smi_constants, constant);
-      } else if (value->Is<StringLength>()) {
+      } else if (value->Is<StringLength>() ||
+                 value->Is<BuiltinStringPrototypeCharCodeAt>()) {
         static_assert(String::kMaxLength <= kSmiMaxValue,
                       "String length must fit into a Smi");
         tagged = Node::New<UnsafeSmiTag>(compilation_unit.zone(), {value});
