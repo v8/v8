@@ -1584,6 +1584,17 @@ void Debug::PrepareFunctionForDebugExecution(
       kRelaxedStore);
 }
 
+namespace {
+
+bool IsJSFunctionAndNeedsTrampoline(Object maybe_function) {
+  if (!maybe_function.IsJSFunction()) return false;
+
+  SharedFunctionInfo shared = JSFunction::cast(maybe_function).shared();
+  return shared.HasDebugInfo() && shared.GetDebugInfo().CanBreakAtEntry();
+}
+
+}  // namespace
+
 void Debug::InstallDebugBreakTrampoline() {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   // Check the list of debug infos whether the debug break trampoline needs to
@@ -1609,24 +1620,68 @@ void Debug::InstallDebugBreakTrampoline() {
 
   Handle<CodeT> trampoline = BUILTIN_CODE(isolate_, DebugBreakTrampoline);
   std::vector<Handle<JSFunction>> needs_compile;
+  using AccessorPairWithContext =
+      std::pair<Handle<AccessorPair>, Handle<NativeContext>>;
+  std::vector<AccessorPairWithContext> needs_instantiate;
   {
+    // Deduplicate {needs_instantiate} by recording all collected AccessorPairs.
+    std::set<AccessorPair> recorded;
     HeapObjectIterator iterator(isolate_->heap());
+    DisallowGarbageCollection no_gc;
     for (HeapObject obj = iterator.Next(); !obj.is_null();
          obj = iterator.Next()) {
       if (needs_to_clear_ic && obj.IsFeedbackVector()) {
         FeedbackVector::cast(obj).ClearSlots(isolate_);
         continue;
-      } else if (obj.IsJSFunction()) {
+      } else if (IsJSFunctionAndNeedsTrampoline(obj)) {
         JSFunction fun = JSFunction::cast(obj);
-        SharedFunctionInfo shared = fun.shared();
-        if (!shared.HasDebugInfo()) continue;
-        if (!shared.GetDebugInfo().CanBreakAtEntry()) continue;
         if (!fun.is_compiled()) {
           needs_compile.push_back(handle(fun, isolate_));
         } else {
           fun.set_code(*trampoline);
         }
+      } else if (obj.IsJSObject()) {
+        JSObject object = JSObject::cast(obj);
+        DescriptorArray descriptors =
+            object.map().instance_descriptors(kRelaxedLoad);
+
+        for (InternalIndex i : object.map().IterateOwnDescriptors()) {
+          if (descriptors.GetDetails(i).kind() == PropertyKind::kAccessor) {
+            Object value = descriptors.GetStrongValue(i);
+            if (!value.IsAccessorPair()) continue;
+
+            AccessorPair accessor_pair = AccessorPair::cast(value);
+            if (!accessor_pair.getter().IsFunctionTemplateInfo() &&
+                !accessor_pair.setter().IsFunctionTemplateInfo()) {
+              continue;
+            }
+            if (recorded.find(accessor_pair) != recorded.end()) continue;
+
+            needs_instantiate.emplace_back(
+                handle(accessor_pair, isolate_),
+                object.GetCreationContext().ToHandleChecked());
+            recorded.insert(accessor_pair);
+          }
+        }
       }
+    }
+  }
+
+  // Forcibly instantiate all lazy accessor pairs to make sure that they
+  // properly hit the debug break trampoline.
+  for (AccessorPairWithContext tuple : needs_instantiate) {
+    Handle<AccessorPair> accessor_pair = tuple.first;
+    Handle<NativeContext> native_context = tuple.second;
+    Handle<Object> getter = AccessorPair::GetComponent(
+        isolate_, native_context, accessor_pair, ACCESSOR_GETTER);
+    if (IsJSFunctionAndNeedsTrampoline(*getter)) {
+      Handle<JSFunction>::cast(getter)->set_code(*trampoline);
+    }
+
+    Handle<Object> setter = AccessorPair::GetComponent(
+        isolate_, native_context, accessor_pair, ACCESSOR_SETTER);
+    if (IsJSFunctionAndNeedsTrampoline(*setter)) {
+      Handle<JSFunction>::cast(setter)->set_code(*trampoline);
     }
   }
 

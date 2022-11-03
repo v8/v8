@@ -545,8 +545,9 @@ V8_EXPORT_PRIVATE v8::MaybeLocal<v8::Value> EvaluateGlobalForTesting(
 
 int GetDebuggingId(v8::Local<v8::Function> function);
 
-bool SetFunctionBreakpoint(v8::Local<v8::Function> function,
-                           v8::Local<v8::String> condition, BreakpointId* id);
+V8_EXPORT_PRIVATE bool SetFunctionBreakpoint(v8::Local<v8::Function> function,
+                                             v8::Local<v8::String> condition,
+                                             BreakpointId* id);
 
 v8::Platform* GetCurrentPlatform();
 
