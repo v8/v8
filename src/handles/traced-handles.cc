@@ -99,9 +99,6 @@ class TracedNode final {
   Handle<Object> handle() { return Handle<Object>(&object_); }
   FullObjectSlot location() { return FullObjectSlot(&object_); }
 
-  TracedNodeBlock& GetNodeBlock();
-  const TracedNodeBlock& GetNodeBlock() const;
-
   Handle<Object> Publish(Object object, bool needs_young_bit_update,
                          bool needs_black_allocation);
   void Release();
@@ -207,6 +204,7 @@ class DoublyLinkedList final {
   T* Front() { return front_; }
 
   void PushFront(T* object) {
+    DCHECK(!Contains(object));
     ListNodeFor(object)->next = front_;
     if (front_) {
       ListNodeFor(front_)->prev = object;
@@ -217,7 +215,6 @@ class DoublyLinkedList final {
 
   void PopFront() {
     DCHECK(!Empty());
-
     if (ListNodeFor(front_)->next) {
       ListNodeFor(ListNodeFor(front_)->next)->prev = nullptr;
     }
@@ -226,17 +223,20 @@ class DoublyLinkedList final {
   }
 
   void Remove(T* object) {
+    DCHECK(Contains(object));
+    auto& next_object = ListNodeFor(object)->next;
+    auto& prev_object = ListNodeFor(object)->prev;
     if (front_ == object) {
-      front_ = ListNodeFor(object)->next;
+      front_ = next_object;
     }
-    if (ListNodeFor(object)->next) {
-      ListNodeFor(ListNodeFor(object)->next)->prev = ListNodeFor(object)->prev;
-      ListNodeFor(object)->next = nullptr;
+    if (next_object) {
+      ListNodeFor(next_object)->prev = prev_object;
     }
-    if (ListNodeFor(object)->prev) {
-      ListNodeFor(ListNodeFor(object)->prev)->next = ListNodeFor(object)->next;
-      ListNodeFor(object)->prev = nullptr;
+    if (prev_object) {
+      ListNodeFor(prev_object)->next = next_object;
     }
+    next_object = nullptr;
+    prev_object = nullptr;
     size_--;
   }
 
@@ -283,7 +283,7 @@ class TracedNodeBlock final {
       : public base::iterator<std::forward_iterator_tag, TracedNode> {
    public:
     explicit NodeIteratorImpl(TracedNodeBlock* block) : block_(block) {}
-    NodeIteratorImpl(TracedNodeBlock* block, size_t current_index)
+    NodeIteratorImpl(TracedNodeBlock* block, uint16_t current_index)
         : block_(block), current_index_(current_index) {}
     NodeIteratorImpl(const NodeIteratorImpl& other) V8_NOEXCEPT
         : block_(other.block_),
@@ -310,7 +310,7 @@ class TracedNodeBlock final {
 
    private:
     TracedNodeBlock* block_;
-    size_t current_index_ = 0;
+    uint16_t current_index_ = 0;
   };
 
  public:
@@ -318,17 +318,23 @@ class TracedNodeBlock final {
   using UsableList = DoublyLinkedList<TracedNodeBlock, UsableListNode>;
   using Iterator = NodeIteratorImpl;
 
-  explicit TracedNodeBlock(TracedHandlesImpl&, OverallList&, UsableList&);
+  static TracedNodeBlock& From(TracedNode& node);
+  static const TracedNodeBlock& From(const TracedNode& node);
+
+  TracedNodeBlock(TracedHandlesImpl&, OverallList&, UsableList&);
 
   TracedNode* AllocateNode();
   void FreeNode(TracedNode*);
 
-  const void* nodes_begin_address() const { return nodes_; }
-  const void* nodes_end_address() const { return &nodes_[kBlockSize]; }
+  TracedNode* at(uint16_t index) { return &nodes_[index]; }
+  const TracedNode* at(uint16_t index) const {
+    return const_cast<TracedNodeBlock*>(this)->at(index);
+  }
+
+  const void* nodes_begin_address() const { return at(0); }
+  const void* nodes_end_address() const { return at(kBlockSize); }
 
   TracedHandlesImpl& traced_handles() const { return traced_handles_; }
-
-  TracedNode* at(size_t index) { return &nodes_[index]; }
 
   Iterator begin() { return Iterator(this); }
   Iterator end() { return Iterator(this, kBlockSize); }
@@ -356,6 +362,17 @@ TracedNodeBlock::TracedNodeBlock(TracedHandlesImpl& traced_handles,
   usable_list.PushFront(this);
 }
 
+// static
+TracedNodeBlock& TracedNodeBlock::From(TracedNode& node) {
+  TracedNode* first_node = &node - node.index();
+  return *reinterpret_cast<TracedNodeBlock*>(first_node);
+}
+
+// static
+const TracedNodeBlock& TracedNodeBlock::From(const TracedNode& node) {
+  return From(const_cast<TracedNode&>(node));
+}
+
 TracedNode* TracedNodeBlock::AllocateNode() {
   if (used_ == kBlockSize) {
     DCHECK_EQ(first_free_node_, kInvalidFreeListNodeIndex);
@@ -377,16 +394,6 @@ void TracedNodeBlock::FreeNode(TracedNode* node) {
   node->set_next_free(first_free_node_);
   first_free_node_ = node->index();
   used_--;
-}
-
-TracedNodeBlock& TracedNode::GetNodeBlock() {
-  TracedNode* first_node = this - index_;
-  return *reinterpret_cast<TracedNodeBlock*>(first_node);
-}
-
-const TracedNodeBlock& TracedNode::GetNodeBlock() const {
-  const TracedNode* first_node = this - index_;
-  return *reinterpret_cast<const TracedNodeBlock*>(first_node);
 }
 
 bool NeedsTrackingInYoungNodes(Object value, TracedNode* node) {
@@ -471,7 +478,7 @@ TracedNode* TracedHandlesImpl::AllocateNode() {
 }
 
 void TracedHandlesImpl::FreeNode(TracedNode* node) {
-  auto& block = node->GetNodeBlock();
+  auto& block = TracedNodeBlock::From(*node);
   // TODO(v8:13372): Keep vector of empty blocks that could be freed after
   // fixing up young nodes.
   if (block.IsFull() && !usable_blocks_.Contains(&block)) {
@@ -563,7 +570,7 @@ void TracedHandlesImpl::Move(TracedNode& from_node, Address** from,
   DCHECK_IMPLIES(*to, kGlobalHandleZapValue != to_node->raw_object());
   DCHECK_NE(kGlobalHandleZapValue, from_node.raw_object());
   if (*to) {
-    auto& to_node_block = to_node->GetNodeBlock();
+    auto& to_node_block = TracedNodeBlock::From(*to_node);
     Destroy(to_node_block, *to_node);
   }
 
@@ -827,7 +834,7 @@ void TracedHandles::Destroy(Address* location) {
   if (!location) return;
 
   auto* node = TracedNode::FromLocation(location);
-  auto& node_block = node->GetNodeBlock();
+  auto& node_block = TracedNodeBlock::From(*node);
   auto& traced_handles = node_block.traced_handles();
   traced_handles.Destroy(node_block, *node);
 }
@@ -838,7 +845,7 @@ void TracedHandles::Copy(const Address* const* from, Address** to) {
   DCHECK_NULL(*to);
 
   const TracedNode* from_node = TracedNode::FromLocation(*from);
-  const auto& node_block = from_node->GetNodeBlock();
+  const auto& node_block = TracedNodeBlock::From(*from_node);
   auto& traced_handles = node_block.traced_handles();
   traced_handles.Copy(*from_node, to);
 }
@@ -853,7 +860,7 @@ void TracedHandles::Move(Address** from, Address** to) {
   }
 
   TracedNode* from_node = TracedNode::FromLocation(*from);
-  auto& node_block = from_node->GetNodeBlock();
+  auto& node_block = TracedNodeBlock::From(*from_node);
   auto& traced_handles = node_block.traced_handles();
   traced_handles.Move(*from_node, from, to);
 }
