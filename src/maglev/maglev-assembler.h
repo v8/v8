@@ -66,6 +66,12 @@ class MaglevAssembler : public MacroAssembler {
                 AllocationType alloc_type = AllocationType::kYoung,
                 AllocationAlignment alignment = kTaggedAligned);
 
+  void AllocateTwoByteString(RegisterSnapshot register_snapshot,
+                             Register result, int length);
+
+  void LoadSingleCharacterString(Register result, int char_code);
+  void LoadSingleCharacterString(Register result, Register char_code);
+
   inline void Branch(Condition condition, BasicBlock* if_true,
                      BasicBlock* if_false, BasicBlock* next_block);
   inline void PushInput(const Input& input);
@@ -77,6 +83,10 @@ class MaglevAssembler : public MacroAssembler {
   void StringCharCodeAt(RegisterSnapshot& register_snapshot, Register result,
                         Register string, Register index, Register scratch,
                         Label* result_fits_one_byte);
+  // Warning: Input {char_code} will be scratched.
+  void StringFromCharCode(RegisterSnapshot register_snapshot,
+                          Label* char_code_fits_one_byte, Register result,
+                          Register char_code);
 
   void ToBoolean(Register value, ZoneLabelRef is_true, ZoneLabelRef is_false,
                  bool fallthrough_when_true);

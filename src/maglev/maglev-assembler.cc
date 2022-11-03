@@ -69,6 +69,62 @@ void MaglevAssembler::Allocate(RegisterSnapshot& register_snapshot,
   bind(*done);
 }
 
+void MaglevAssembler::AllocateTwoByteString(RegisterSnapshot register_snapshot,
+                                            Register result, int length) {
+  Allocate(register_snapshot, result, SeqTwoByteString::SizeFor(length));
+  LoadRoot(kScratchRegister, RootIndex::kStringMap);
+  StoreTaggedField(FieldOperand(result, HeapObject::kMapOffset),
+                   kScratchRegister);
+  StoreTaggedField(FieldOperand(result, Name::kRawHashFieldOffset),
+                   Immediate(Name::kEmptyHashField));
+  StoreTaggedField(FieldOperand(result, String::kLengthOffset),
+                   Immediate(length));
+}
+
+void MaglevAssembler::LoadSingleCharacterString(Register result,
+                                                int char_code) {
+  DCHECK_GE(char_code, 0);
+  DCHECK_LT(char_code, String::kMaxOneByteCharCode);
+  Register table = result;
+  LoadRoot(table, RootIndex::kSingleCharacterStringTable);
+  DecompressAnyTagged(result, FieldOperand(table, FixedArray::kHeaderSize +
+                                                      char_code * kTaggedSize));
+}
+
+void MaglevAssembler::LoadSingleCharacterString(Register result,
+                                                Register char_code) {
+  DCHECK_NE(result, char_code);
+  Register table = result;
+  LoadRoot(table, RootIndex::kSingleCharacterStringTable);
+  DecompressAnyTagged(result, FieldOperand(table, char_code, times_tagged_size,
+                                           FixedArray::kHeaderSize));
+}
+
+void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
+                                         Label* char_code_fits_one_byte,
+                                         Register result, Register char_code) {
+  DCHECK_NE(result, char_code);
+  ZoneLabelRef done(this);
+  cmpl(char_code, Immediate(String::kMaxOneByteCharCode));
+  JumpToDeferredIf(
+      above,
+      [](MaglevAssembler* masm, RegisterSnapshot register_snapshot,
+         ZoneLabelRef done, Register result, Register char_code) {
+        // Be sure to save {char_code}.
+        register_snapshot.live_registers.set(char_code);
+        __ AllocateTwoByteString(register_snapshot, result, 1);
+        __ andl(char_code, Immediate(0xFFFF));
+        __ movw(FieldOperand(result, SeqTwoByteString::kHeaderSize), char_code);
+        __ jmp(*done);
+      },
+      register_snapshot, done, result, char_code);
+  if (char_code_fits_one_byte != nullptr) {
+    bind(char_code_fits_one_byte);
+  }
+  LoadSingleCharacterString(result, char_code);
+  bind(*done);
+}
+
 void MaglevAssembler::StringCharCodeAt(RegisterSnapshot& register_snapshot,
                                        Register result, Register string,
                                        Register index, Register scratch,

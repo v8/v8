@@ -1515,83 +1515,38 @@ void CheckedObjectToIndex::GenerateCode(MaglevAssembler* masm,
 
 void BuiltinStringFromCharCode::AllocateVreg(
     MaglevVregAllocationState* vreg_state) {
-  UseRegister(code_input());
+  if (code_input().node()->Is<Int32Constant>()) {
+    UseAny(code_input());
+  } else {
+    UseAndClobberRegister(code_input());
+    set_temporaries_needed(1);
+  }
   DefineAsRegister(vreg_state, this);
-  set_temporaries_needed(1);
-}
-void BuiltinStringFromCharCode::AllocateTwoByteString(
-    MaglevAssembler* masm, Register result_string,
-    RegisterSnapshot save_registers) {
-  __ Allocate(save_registers, result_string, SeqTwoByteString::SizeFor(1));
-  __ LoadRoot(kScratchRegister, RootIndex::kStringMap);
-  __ StoreTaggedField(FieldOperand(result_string, HeapObject::kMapOffset),
-                      kScratchRegister);
-  __ StoreTaggedField(FieldOperand(result_string, Name::kRawHashFieldOffset),
-                      Immediate(Name::kEmptyHashField));
-  __ StoreTaggedField(FieldOperand(result_string, String::kLengthOffset),
-                      Immediate(1));
 }
 void BuiltinStringFromCharCode::GenerateCode(MaglevAssembler* masm,
                                              const ProcessingState& state) {
   Register result_string = ToRegister(result());
-
   if (Int32Constant* constant = code_input().node()->TryCast<Int32Constant>()) {
     int32_t char_code = constant->value();
     if (0 <= char_code && char_code < String::kMaxOneByteCharCode) {
-      Register table = kScratchRegister;
-      __ LoadRoot(table, RootIndex::kSingleCharacterStringTable);
-      __ DecompressAnyTagged(ToRegister(result()),
-                             FieldOperand(table, FixedArray::kHeaderSize +
-                                                     char_code * kTaggedSize));
+      __ LoadSingleCharacterString(result_string, char_code);
     } else {
-      AllocateTwoByteString(masm, result_string, register_snapshot());
+      __ AllocateTwoByteString(register_snapshot(), result_string, 1);
       __ movw(FieldOperand(result_string, SeqTwoByteString::kHeaderSize),
               Immediate(char_code & 0xFFFF));
     }
   } else {
-    Register original_char_code = ToRegister(code_input());
+    Register char_code = ToRegister(code_input());
+    // We only need a scratch here if {char_code} alias with {result}.
+    // TODO(victorgomes): Add a constraint in the register allocator for this
+    // use case?
     Register scratch = general_temporaries().PopFirst();
-
-    ZoneLabelRef done(masm);
-    __ cmpl(original_char_code, Immediate(String::kMaxOneByteCharCode));
-
-    // Create two byte string in deferred code.
-    __ JumpToDeferredIf(
-        above,
-        [](MaglevAssembler* masm, ZoneLabelRef done, Register char_code,
-           Register scratch, BuiltinStringFromCharCode* node) {
-          Register result_string = ToRegister(node->result());
-          RegisterSnapshot save_registers = node->register_snapshot();
-          // If {char_code} alias with result register, use the scratch
-          // register.
-          if (char_code == result_string) {
-            DCHECK_NE(scratch, char_code);
-            __ Move(scratch, char_code);
-            char_code = scratch;
-          }
-          save_registers.live_registers.set(char_code);
-          node->AllocateTwoByteString(masm, result_string, save_registers);
-          if (char_code != scratch) {
-            // {char_code} has the original char code register, we should not
-            // modify it. And since {scratch} could alias the result register,
-            // we move {char_code} to kScratchRegister.
-            __ Move(kScratchRegister, char_code);
-            char_code = kScratchRegister;
-          }
-          __ andl(char_code, Immediate(0xFFFF));
-          __ movw(FieldOperand(result_string, SeqTwoByteString::kHeaderSize),
-                  char_code);
-          __ jmp(*done);
-        },
-        done, original_char_code, scratch, this);
-
-    Register table = kScratchRegister;
-    __ LoadRoot(table, RootIndex::kSingleCharacterStringTable);
-    __ DecompressAnyTagged(
-        ToRegister(result()),
-        FieldOperand(table, original_char_code, times_tagged_size,
-                     FixedArray::kHeaderSize));
-    __ bind(*done);
+    if (char_code == result_string) {
+      __ Move(scratch, char_code);
+      char_code = scratch;
+    }
+    __ StringFromCharCode(register_snapshot(), nullptr, result_string,
+                          char_code);
   }
 }
 
@@ -1949,62 +1904,25 @@ void StringAt::AllocateVreg(MaglevVregAllocationState* vreg_state) {
 }
 void StringAt::GenerateCode(MaglevAssembler* masm,
                             const ProcessingState& state) {
+  Register result_string = ToRegister(result());
   Register string = ToRegister(string_input());
   Register index = ToRegister(index_input());
   Register scratch = general_temporaries().PopFirst();
+  Register char_code = string;
 
   ZoneLabelRef done(masm);
   Label cached_one_byte_string;
 
-  Register character = string;
   RegisterSnapshot save_registers = register_snapshot();
-  __ StringCharCodeAt(save_registers, character, string, index, scratch,
+  __ StringCharCodeAt(save_registers, char_code, string, index, scratch,
                       &cached_one_byte_string);
 
-  // TODO(victorgomes): Create a macro helper to allocate/create string.
-
-  __ cmpl(character, Immediate(String::kMaxOneByteCharCode));
-  // Create two byte string in deferred code.
-  __ JumpToDeferredIf(
-      greater,
-      [](MaglevAssembler* masm, ZoneLabelRef done, Register character,
-         Register scratch, StringAt* node) {
-        Register result_string = ToRegister(node->result());
-        RegisterSnapshot save_registers = node->register_snapshot();
-        // If {character} alias with {result_string}, use the second scratch
-        // register.
-        if (character == result_string) {
-          DCHECK_NE(scratch, character);
-          __ Move(scratch, character);
-          character = scratch;
-        }
-        save_registers.live_registers.set(character);
-        __ Allocate(save_registers, result_string,
-                    SeqTwoByteString::SizeFor(1));
-        __ LoadRoot(kScratchRegister, RootIndex::kStringMap);
-        __ StoreTaggedField(FieldOperand(result_string, HeapObject::kMapOffset),
-                            kScratchRegister);
-        __ StoreTaggedField(
-            FieldOperand(result_string, Name::kRawHashFieldOffset),
-            Immediate(Name::kEmptyHashField));
-        __ StoreTaggedField(FieldOperand(result_string, String::kLengthOffset),
-                            Immediate(1));
-        __ movw(FieldOperand(result_string, SeqTwoByteString::kHeaderSize),
-                character);
-        __ jmp(*done);
-      },
-      done, character, scratch, this);
-
-  // Load one byte string from a predefined/cached table.
-  __ bind(&cached_one_byte_string);
-  {
-    Register table = scratch;
-    __ LoadRoot(table, RootIndex::kSingleCharacterStringTable);
-    __ DecompressAnyTagged(ToRegister(result()),
-                           FieldOperand(table, character, times_tagged_size,
-                                        FixedArray::kHeaderSize));
+  if (char_code == result_string) {
+    __ Move(scratch, char_code);
+    char_code = scratch;
   }
-  __ bind(*done);
+  __ StringFromCharCode(save_registers, &cached_one_byte_string, result_string,
+                        char_code);
 }
 
 void DefineNamedOwnGeneric::AllocateVreg(
