@@ -980,19 +980,101 @@ class MaglevGraphBuilder {
     }
   }
 
-  bool TryInlineBuiltin(base::Optional<int> receiver_index, int first_arg_index,
-                        int argc_count, Builtin builtin);
-
   void InlineCallFromRegisters(int argc_count,
                                ConvertReceiverMode receiver_mode,
                                compiler::JSFunctionRef function);
 
-  ValueNode* GetConvertReceiver(compiler::JSFunctionRef function,
-                                ConvertReceiverMode mode, int operand_index);
-  bool TryBuildCallKnownJSFunction(compiler::JSFunctionRef function,
-                                   int argc_count,
-                                   ConvertReceiverMode receiver_mode);
+  class CallArguments {
+   public:
+    enum Mode {
+      kFromRegisters,
+      kFromRegisterList,
+    };
 
+    CallArguments(ConvertReceiverMode receiver_mode, int argc,
+                  interpreter::Register r0 = interpreter::Register(),
+                  interpreter::Register r1 = interpreter::Register(),
+                  interpreter::Register r2 = interpreter::Register())
+        : receiver_mode_(receiver_mode),
+          call_mode_(kFromRegisters),
+          argc_(argc) {
+      DCHECK_LT(argc, 3);
+      regs_[0] = r0;
+      regs_[1] = r1;
+      regs_[2] = r2;
+    }
+
+    CallArguments(ConvertReceiverMode receiver_mode,
+                  interpreter::RegisterList reglist)
+        : receiver_mode_(receiver_mode),
+          call_mode_(kFromRegisterList),
+          reglist_(reglist) {}
+
+    base::Optional<interpreter::Register> receiver() const {
+      if (receiver_mode_ == ConvertReceiverMode::kNullOrUndefined) {
+        return {};
+      }
+      if (call_mode_ == kFromRegisters) {
+        return regs_[0];
+      }
+      return reglist_[0];
+    }
+
+    int count() const {
+      if (call_mode_ == kFromRegisters) {
+        return argc_;
+      }
+      if (receiver_mode_ == ConvertReceiverMode::kNullOrUndefined) {
+        return reglist_.register_count();
+      }
+      return reglist_.register_count() - 1;
+    }
+
+    int count_with_receiver() const { return count() + 1; }
+
+    const interpreter::Register operator[](size_t i) const {
+      if (receiver_mode_ != ConvertReceiverMode::kNullOrUndefined) {
+        i++;
+      }
+      if (call_mode_ == kFromRegisters) {
+        DCHECK_LT(i, argc_ + 1);
+        return regs_[i];
+      }
+      return reglist_[i];
+    }
+
+    ConvertReceiverMode receiver_mode() const { return receiver_mode_; }
+
+   private:
+    const ConvertReceiverMode receiver_mode_;
+    const Mode call_mode_;
+    union {
+      struct {
+        interpreter::Register regs_[3];
+        int argc_;
+      };
+      interpreter::RegisterList reglist_;
+    };
+  };
+
+  ValueNode* GetTaggedReceiver(const CallArguments& args) {
+    auto maybe_receiver = args.receiver();
+    if (maybe_receiver.has_value()) {
+      return GetTaggedValue(*maybe_receiver);
+    }
+    DCHECK_EQ(args.receiver_mode(), ConvertReceiverMode::kNullOrUndefined);
+    return GetRootConstant(RootIndex::kUndefinedValue);
+  }
+  ValueNode* GetConvertReceiver(compiler::JSFunctionRef function,
+                                const CallArguments& args);
+
+  bool TryInlineBuiltin(Builtin builtin, const CallArguments& args);
+
+  bool TryBuildCallKnownJSFunction(compiler::JSFunctionRef function,
+                                   const CallArguments& args);
+
+  void BuildCall(ValueNode* target_node, const CallArguments& args,
+                 compiler::FeedbackSource& feedback_source);
   void BuildCallFromRegisterList(ConvertReceiverMode receiver_mode);
   void BuildCallFromRegisters(int argc_count,
                               ConvertReceiverMode receiver_mode);
@@ -1014,8 +1096,7 @@ class MaglevGraphBuilder {
   void BuildCheckMaps(ValueNode* object,
                       ZoneVector<compiler::MapRef> const& maps);
 
-  ValueNode* GetInt32ElementIndex(int operand_index) {
-    interpreter::Register reg = iterator_.GetRegisterOperand(operand_index);
+  ValueNode* GetInt32ElementIndex(interpreter::Register reg) {
     ValueNode* index_object = current_interpreter_frame_.get(reg);
     return GetInt32ElementIndex(index_object);
   }

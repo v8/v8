@@ -2577,83 +2577,24 @@ void MaglevGraphBuilder::InlineCallFromRegisters(
       ->SetToBlockAndReturnNext(current_block_);
 }
 
-// TODO(v8:7700): Read feedback and implement inlining
-void MaglevGraphBuilder::BuildCallFromRegisterList(
-    ConvertReceiverMode receiver_mode) {
-  ValueNode* function = LoadRegisterTagged(0);
-
-  interpreter::RegisterList args = iterator_.GetRegisterListOperand(1);
-  ValueNode* context = GetContext();
-
-  Call::TargetType target_type = Call::TargetType::kAny;
-
-  FeedbackSlot slot = GetSlotOperand(3);
-  compiler::FeedbackSource feedback_source(feedback(), slot);
-  const compiler::ProcessedFeedback& processed_feedback =
-      broker()->GetFeedbackForCall(feedback_source);
-  if (processed_feedback.kind() == compiler::ProcessedFeedback::kCall) {
-    const compiler::CallFeedback& call_feedback = processed_feedback.AsCall();
-    CallFeedbackContent content = call_feedback.call_feedback_content();
-    if (content == CallFeedbackContent::kTarget) {
-      base::Optional<compiler::HeapObjectRef> maybe_target =
-          call_feedback.target();
-      if (maybe_target.has_value()) {
-        compiler::HeapObjectRef target = maybe_target.value();
-        if (target.IsJSFunction()) {
-          // Reset the feedback source
-          feedback_source = compiler::FeedbackSource();
-          target_type = Call::TargetType::kJSFunction;
-          if (!function->Is<Constant>()) {
-            AddNewNode<CheckValue>({function}, target);
-          } else if (!function->Cast<Constant>()->object().equals(target)) {
-            EmitUnconditionalDeopt(DeoptimizeReason::kUnknown);
-            return;
-          }
-        }
-      }
-    }
-  }
-
-  size_t input_count = args.register_count() + Call::kFixedInputCount;
-  if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
-    input_count++;
-  }
-
-  Call* call = CreateNewNode<Call>(input_count, receiver_mode, target_type,
-                                   feedback_source, function, context);
-  int arg_index = 0;
-  if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
-    call->set_arg(arg_index++, GetRootConstant(RootIndex::kUndefinedValue));
-  }
-  for (int i = 0; i < args.register_count(); ++i) {
-    call->set_arg(arg_index++, GetTaggedValue(args[i]));
-  }
-
-  SetAccumulator(AddNode(call));
-}
-
-bool MaglevGraphBuilder::TryInlineBuiltin(base::Optional<int> receiver_index,
-                                          int first_arg_index, int argc_count,
-                                          Builtin builtin) {
+bool MaglevGraphBuilder::TryInlineBuiltin(Builtin builtin,
+                                          const CallArguments& args) {
   switch (builtin) {
     case Builtin::kStringFromCharCode:
-      if (argc_count != 1) return false;
-      SetAccumulator(AddNewNode<BuiltinStringFromCharCode>(
-          {LoadRegisterInt32(first_arg_index)}));
+      if (args.count() != 1) return false;
+      SetAccumulator(
+          AddNewNode<BuiltinStringFromCharCode>({GetInt32(args[0])}));
       return true;
-    case Builtin::kStringPrototypeCharCodeAt: {
-      // TODO(victorgomes): Not sure how this can happen!
-      // Maybe emit an eager deopt?
-      if (!receiver_index.has_value()) return false;
 
-      ValueNode* receiver = LoadRegisterTagged(*receiver_index);
+    case Builtin::kStringPrototypeCharCodeAt: {
+      ValueNode* receiver = GetTaggedReceiver(args);
       ValueNode* index;
-      if (argc_count == 0) {
+      if (args.count() == 0) {
         // Index is the undefined object.
         // ToIntegerOrInfinity(undefined) = 0.
         index = GetInt32Constant(0);
       } else {
-        index = GetInt32ElementIndex(first_arg_index);
+        index = GetInt32ElementIndex(args[0]);
       }
       // Any other argument is ignored.
 
@@ -2669,6 +2610,7 @@ bool MaglevGraphBuilder::TryInlineBuiltin(base::Optional<int> receiver_index,
           AddNewNode<BuiltinStringPrototypeCharCodeAt>({receiver, index}));
       return true;
     }
+
     default:
       // TODO(v8:7700): Inline more builtins.
       return false;
@@ -2676,20 +2618,19 @@ bool MaglevGraphBuilder::TryInlineBuiltin(base::Optional<int> receiver_index,
 }
 
 ValueNode* MaglevGraphBuilder::GetConvertReceiver(
-    compiler::JSFunctionRef function, ConvertReceiverMode mode,
-    int operand_index) {
+    compiler::JSFunctionRef function, const CallArguments& args) {
   compiler::SharedFunctionInfoRef shared = function.shared();
   if (shared.native() || shared.language_mode() == LanguageMode::kStrict) {
-    if (mode == ConvertReceiverMode::kNullOrUndefined) {
+    if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
       return GetRootConstant(RootIndex::kUndefinedValue);
     } else {
-      return LoadRegisterTagged(operand_index);
+      return GetTaggedValue(*args.receiver());
     }
   }
-  if (mode == ConvertReceiverMode::kNullOrUndefined) {
+  if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
     return GetConstant(function.native_context().global_proxy_object());
   }
-  ValueNode* receiver = LoadRegisterTagged(operand_index);
+  ValueNode* receiver = GetTaggedValue(*args.receiver());
   if (CheckType(receiver, NodeType::kJSReceiver)) return receiver;
   if (Constant* constant = receiver->TryCast<Constant>()) {
     const Handle<HeapObject> object = constant->object().object();
@@ -2699,45 +2640,32 @@ ValueNode* MaglevGraphBuilder::GetConvertReceiver(
       return constant;
     }
   }
-  return AddNewNode<ConvertReceiver>({receiver}, function, mode);
+  return AddNewNode<ConvertReceiver>({receiver}, function,
+                                     args.receiver_mode());
 }
 
 bool MaglevGraphBuilder::TryBuildCallKnownJSFunction(
-    compiler::JSFunctionRef function, int argc_count,
-    ConvertReceiverMode receiver_mode) {
+    compiler::JSFunctionRef function, const CallArguments& args) {
   // Don't inline CallFunction stub across native contexts.
   if (function.native_context() != broker()->target_native_context()) {
     return false;
   }
-  ValueNode* receiver = GetConvertReceiver(function, receiver_mode, 1);
-  size_t input_count = argc_count + CallKnownJSFunction::kFixedInputCount;
+  ValueNode* receiver = GetConvertReceiver(function, args);
+  size_t input_count = args.count() + CallKnownJSFunction::kFixedInputCount;
   CallKnownJSFunction* call =
       CreateNewNode<CallKnownJSFunction>(input_count, function, receiver);
-  const int first_arg_operand_index =
-      (receiver_mode == ConvertReceiverMode::kNullOrUndefined) ? 0 : 1;
-  for (int i = 0; i < argc_count; i++) {
-    call->set_arg(i, LoadRegisterTagged(first_arg_operand_index + i + 1));
+  for (int i = 0; i < args.count(); i++) {
+    call->set_arg(i, GetTaggedValue(args[i]));
   }
   SetAccumulator(AddNode(call));
   return true;
 }
 
-void MaglevGraphBuilder::BuildCallFromRegisters(
-    int argc_count, ConvertReceiverMode receiver_mode) {
-  // Indices and counts of operands on the bytecode.
-  const int kFirstArgumentOperandIndex = 1;
-  const int kReceiverOperandCount =
-      (receiver_mode == ConvertReceiverMode::kNullOrUndefined) ? 0 : 1;
-  const int kReceiverAndArgOperandCount = kReceiverOperandCount + argc_count;
-  const int kSlotOperandIndex =
-      kFirstArgumentOperandIndex + kReceiverAndArgOperandCount;
-
-  DCHECK_LE(argc_count, 2);
-  ValueNode* target_node = LoadRegisterTagged(0);
+void MaglevGraphBuilder::BuildCall(ValueNode* target_node,
+                                   const CallArguments& args,
+                                   compiler::FeedbackSource& feedback_source) {
   ValueNode* context = GetContext();
   Call::TargetType target_type = Call::TargetType::kAny;
-  FeedbackSlot slot = GetSlotOperand(kSlotOperandIndex);
-  compiler::FeedbackSource feedback_source(feedback(), slot);
 
   const compiler::ProcessedFeedback& processed_feedback =
       broker()->GetFeedbackForCall(feedback_source);
@@ -2760,14 +2688,6 @@ void MaglevGraphBuilder::BuildCallFromRegisters(
       if (!target.IsJSFunction()) break;
       compiler::JSFunctionRef function = target.AsJSFunction();
 
-      if (v8_flags.maglev_inlining) {
-        base::Optional<compiler::FeedbackVectorRef> maybe_feedback_vector =
-            function.feedback_vector(broker()->dependencies());
-        if (maybe_feedback_vector.has_value()) {
-          return InlineCallFromRegisters(argc_count, receiver_mode, function);
-        }
-      }
-
       // Reset the feedback source
       feedback_source = compiler::FeedbackSource();
       target_type = Call::TargetType::kJSFunction;
@@ -2788,18 +2708,12 @@ void MaglevGraphBuilder::BuildCallFromRegisters(
       DCHECK(function.object()->IsCallable());
 
       if (function.shared().HasBuiltinId()) {
-        base::Optional<int> receiver_index =
-            (kReceiverOperandCount == 0 ? base::Optional<int>()
-                                        : kFirstArgumentOperandIndex);
-        int first_arg_not_receiver_index =
-            kReceiverOperandCount + kFirstArgumentOperandIndex;
-        if (TryInlineBuiltin(receiver_index, first_arg_not_receiver_index,
-                             argc_count, function.shared().builtin_id())) {
+        if (TryInlineBuiltin(function.shared().builtin_id(), args)) {
           return;
         }
       }
 
-      if (TryBuildCallKnownJSFunction(function, argc_count, receiver_mode)) {
+      if (TryBuildCallKnownJSFunction(function, args)) {
         return;
       }
       break;
@@ -2808,24 +2722,67 @@ void MaglevGraphBuilder::BuildCallFromRegisters(
     default:
       break;
   }
+
   // On fallthrough, create a generic call.
-
-  int argc_count_with_recv = argc_count + 1;
-  size_t input_count = argc_count_with_recv + Call::kFixedInputCount;
-
+  size_t input_count = args.count_with_receiver() + Call::kFixedInputCount;
+  Call* call =
+      CreateNewNode<Call>(input_count, args.receiver_mode(), target_type,
+                          feedback_source, target_node, context);
   int arg_index = 0;
-  int reg_count = argc_count_with_recv;
-  Call* call = CreateNewNode<Call>(input_count, receiver_mode, target_type,
-                                   feedback_source, target_node, context);
-  if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
-    reg_count = argc_count;
-    call->set_arg(arg_index++, GetRootConstant(RootIndex::kUndefinedValue));
+  call->set_arg(arg_index++, GetTaggedReceiver(args));
+  for (int i = 0; i < args.count(); ++i) {
+    call->set_arg(arg_index++, GetTaggedValue(args[i]));
   }
-  for (int i = 0; i < reg_count; i++) {
-    call->set_arg(arg_index++, LoadRegisterTagged(i + 1));
-  }
-
   SetAccumulator(AddNode(call));
+}
+
+void MaglevGraphBuilder::BuildCallFromRegisterList(
+    ConvertReceiverMode receiver_mode) {
+  ValueNode* target = LoadRegisterTagged(0);
+  interpreter::RegisterList reg_list = iterator_.GetRegisterListOperand(1);
+  FeedbackSlot slot = GetSlotOperand(3);
+  compiler::FeedbackSource feedback_source(feedback(), slot);
+  CallArguments args(receiver_mode, reg_list);
+  BuildCall(target, args, feedback_source);
+}
+
+void MaglevGraphBuilder::BuildCallFromRegisters(
+    int arg_count, ConvertReceiverMode receiver_mode) {
+  ValueNode* target = LoadRegisterTagged(0);
+  int receiver_count =
+      (receiver_mode == ConvertReceiverMode::kNullOrUndefined) ? 0 : 1;
+  int slot_operand_index = arg_count + receiver_count + 1;
+  FeedbackSlot slot = GetSlotOperand(slot_operand_index);
+  compiler::FeedbackSource feedback_source(feedback(), slot);
+  switch (arg_count + receiver_count) {
+    case 0: {
+      CallArguments args(receiver_mode, arg_count);
+      BuildCall(target, args, feedback_source);
+      break;
+    }
+    case 1: {
+      CallArguments args(receiver_mode, arg_count,
+                         iterator_.GetRegisterOperand(1));
+      BuildCall(target, args, feedback_source);
+      break;
+    }
+    case 2: {
+      CallArguments args(receiver_mode, arg_count,
+                         iterator_.GetRegisterOperand(1),
+                         iterator_.GetRegisterOperand(2));
+      BuildCall(target, args, feedback_source);
+      break;
+    }
+    case 3: {
+      CallArguments args(
+          receiver_mode, arg_count, iterator_.GetRegisterOperand(1),
+          iterator_.GetRegisterOperand(2), iterator_.GetRegisterOperand(3));
+      BuildCall(target, args, feedback_source);
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
 }
 
 void MaglevGraphBuilder::VisitCallAnyReceiver() {
