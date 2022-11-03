@@ -4899,6 +4899,40 @@ class LiftoffCompiler {
   void AtomicWait(FullDecoder* decoder, ValueKind kind,
                   const MemoryAccessImmediate& imm) {
     {
+      LiftoffRegList pinned;
+      LiftoffRegister full_index = __ PeekToRegister(2, pinned);
+      Register index_reg =
+          BoundsCheckMem(decoder, value_kind_size(kind), imm.offset, full_index,
+                         pinned, kDoForceCheck);
+      if (index_reg == no_reg) return;
+      pinned.set(index_reg);
+      AlignmentCheckMem(decoder, value_kind_size(kind), imm.offset, index_reg,
+                        pinned);
+
+      uintptr_t offset = imm.offset;
+      Register index_plus_offset =
+          __ cache_state()->is_used(LiftoffRegister(index_reg))
+              ? pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp()
+              : index_reg;
+      // TODO(clemensb): Skip this if memory is 64 bit.
+      __ emit_ptrsize_zeroextend_i32(index_plus_offset, index_reg);
+      if (offset) {
+        __ emit_ptrsize_addi(index_plus_offset, index_plus_offset, offset);
+      }
+
+      LiftoffAssembler::VarState index =
+          __ cache_state()->stack_state.end()[-3];
+
+      // We replace the index on the value stack with the `index_plus_offset`
+      // calculated above. Thereby the BigInt allocation below does not
+      // overwrite the calculated value by accident.
+      if (full_index != LiftoffRegister(index_plus_offset)) {
+        __ cache_state()->dec_used(full_index);
+        __ cache_state()->inc_used(LiftoffRegister(index_plus_offset));
+      }
+      index.MakeRegister(LiftoffRegister(index_plus_offset));
+    }
+    {
       // Convert the top value of the stack (the timeout) from I64 to a BigInt,
       // which we can then pass to the atomic.wait builtin.
       LiftoffAssembler::VarState i64_timeout =
@@ -4908,13 +4942,14 @@ class LiftoffCompiler {
           MakeSig::Returns(kPointerKind).Params(kI64), {i64_timeout},
           decoder->position());
       __ DropValues(1);
+      // We put the result on the value stack so that it gets preserved across
+      // a potential GC that may get triggered by the BigInt allocation below.
       __ PushRegister(kPointerKind, LiftoffRegister(kReturnRegister0));
     }
 
-    LiftoffRegList pinned;
     Register expected_reg = no_reg;
     if (kind == kI32) {
-      expected_reg = __ PeekToRegister(1, pinned).gp();
+      expected_reg = __ PeekToRegister(1, {}).gp();
     } else {
       LiftoffAssembler::VarState i64_expected =
           __ cache_state()->stack_state.end()[-2];
@@ -4925,35 +4960,11 @@ class LiftoffCompiler {
       expected_reg = kReturnRegister0;
     }
     LiftoffRegister expected(expected_reg);
-    pinned.set(expected_reg);
-
-    LiftoffRegister full_index = __ PeekToRegister(2, pinned);
-    Register index_reg =
-        BoundsCheckMem(decoder, value_kind_size(kind), imm.offset, full_index,
-                       pinned, kDoForceCheck);
-    if (index_reg == no_reg) return;
-    pinned.set(index_reg);
-    AlignmentCheckMem(decoder, value_kind_size(kind), imm.offset, index_reg,
-                      pinned);
-
-    uintptr_t offset = imm.offset;
-    Register index_plus_offset =
-        __ cache_state()->is_used(LiftoffRegister(index_reg))
-            ? pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp()
-            : index_reg;
-    // TODO(clemensb): Skip this if memory is 64 bit.
-    __ emit_ptrsize_zeroextend_i32(index_plus_offset, index_reg);
-    if (offset) {
-      __ emit_ptrsize_addi(index_plus_offset, index_plus_offset, offset);
-    }
 
     LiftoffAssembler::VarState timeout =
         __ cache_state()->stack_state.end()[-1];
     LiftoffAssembler::VarState expected_value(kPointerKind, expected, 0);
     LiftoffAssembler::VarState index = __ cache_state()->stack_state.end()[-3];
-
-    // We have to set the correct register for the index.
-    index.MakeRegister(LiftoffRegister(index_plus_offset));
 
     auto target = kind == kI32 ? WasmCode::kWasmI32AtomicWait
                                : WasmCode::kWasmI64AtomicWait;
