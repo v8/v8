@@ -248,6 +248,7 @@ RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
   isolate->set_context(instance.native_context());
   bool success = wasm::CompileLazy(isolate, instance, func_index);
   if (!success) {
+    DCHECK(v8_flags.wasm_lazy_validation);
     AllowHeapAllocation throwing_unwinds_the_stack;
     wasm::ThrowLazyCompilationError(
         isolate, instance.module_object().native_module(), func_index);

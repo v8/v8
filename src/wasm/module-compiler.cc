@@ -2649,6 +2649,25 @@ class AsyncCompileJob::DecodeFail : public CompileStep {
   }
 };
 
+bool ValidateAllFunctions(const WasmModule* module,
+                          base::Vector<const uint8_t> wire_bytes,
+                          WasmFeatures enabled_features) {
+  AccountingAllocator* allocator = GetWasmEngine()->allocator();
+  auto declared_functions =
+      base::VectorOf(module->functions) + module->num_imported_functions;
+  for (const WasmFunction& function : declared_functions) {
+    if (module->function_was_validated(function.func_index)) continue;
+    base::Vector<const uint8_t> function_bytes = wire_bytes.SubVector(
+        function.code.offset(), function.code.end_offset());
+    DecodeResult result =
+        ValidateSingleFunction(module, function.func_index, function_bytes,
+                               allocator, enabled_features);
+    if (result.failed()) return false;
+    module->set_function_validated(function.func_index);
+  }
+  return true;
+}
+
 //==========================================================================
 // Step 2 (sync): Create heap-allocated data and start compile.
 //==========================================================================
@@ -2672,6 +2691,19 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
                                             code_size_estimate_)) {
       job->FinishCompile(true);
       return;
+    } else {
+      // If we are not streaming and did not get a cache hit, we might have hit
+      // the path where the streaming decoder got a prefix cache hit, but the
+      // module then turned out to be invalid, and we are running it through
+      // non-streaming decoding again. In this case, function bodies have not
+      // been validated yet. Thus do this now.
+      if (!v8_flags.wasm_lazy_validation &&
+          !ValidateAllFunctions(module_.get(),
+                                job->native_module_->wire_bytes(),
+                                job->native_module_->enabled_features())) {
+        job->AsyncCompileFailed();
+        return;
+      }
     }
 
     // Make sure all compilation tasks stopped running. Decoding (async step)
@@ -2697,9 +2729,9 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
       std::unique_ptr<CompilationUnitBuilder> builder = InitializeCompilation(
           job->isolate(), job->native_module_.get(), kNoProfileInformation);
       compilation_state->InitializeCompilationUnits(std::move(builder));
-      // We are in single-threaded mode, so there are no worker tasks that will
-      // do the compilation. We call {WaitForCompilationEvent} here so that the
-      // main thread paticipates and finishes the compilation.
+      // In single-threaded mode there are no worker tasks that will do the
+      // compilation. We call {WaitForCompilationEvent} here so that the main
+      // thread participates and finishes the compilation.
       if (v8_flags.wasm_num_compilation_tasks == 0) {
         compilation_state->WaitForCompilationEvent(
             CompilationEvent::kFinishedBaselineCompilation);
