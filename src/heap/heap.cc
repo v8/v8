@@ -115,6 +115,11 @@
 #include "src/tracing/trace-event.h"
 #include "src/utils/utils-inl.h"
 #include "src/utils/utils.h"
+
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#include "src/heap/conservative-stack-visitor.h"
+#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
@@ -1688,8 +1693,8 @@ bool Heap::CollectGarbage(AllocationSpace space,
       if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
         tp_heap_->CollectGarbage();
       } else {
-        freed_global_handles += PerformGarbageCollection(
-            collector, gc_reason, collector_reason, gc_callback_flags);
+        freed_global_handles +=
+            PerformGarbageCollection(collector, gc_reason, collector_reason);
       }
       // Clear flags describing the current GC now that the current GC is
       // complete. Do this before GarbageCollectionEpilogue() since that could
@@ -2117,9 +2122,9 @@ GCTracer::Scope::ScopeId CollectorScopeId(GarbageCollector collector) {
 }
 }  // namespace
 
-size_t Heap::PerformGarbageCollection(
-    GarbageCollector collector, GarbageCollectionReason gc_reason,
-    const char* collector_reason, const v8::GCCallbackFlags gc_callback_flags) {
+size_t Heap::PerformGarbageCollection(GarbageCollector collector,
+                                      GarbageCollectionReason gc_reason,
+                                      const char* collector_reason) {
   DisallowJavascriptExecution no_js(isolate());
 
   if (IsYoungGenerationCollector(collector)) {
@@ -2290,7 +2295,6 @@ bool Heap::CollectGarbageShared(LocalHeap* local_heap,
     Isolate* shared_space_isolate = isolate()->shared_space_isolate();
     return shared_space_isolate->heap()->CollectGarbageFromAnyThread(local_heap,
                                                                      gc_reason);
-
   } else {
     DCHECK(!IsShared());
     DCHECK_NOT_NULL(isolate()->shared_isolate());
@@ -3435,7 +3439,9 @@ FixedArrayBase Heap::LeftTrimFixedArray(FixedArrayBase object,
 
     LeftTrimmerVerifierRootVisitor root_visitor(object);
     ReadOnlyRoots(this).Iterate(&root_visitor);
-    IterateRoots(&root_visitor, {});
+
+    IterateRoots(&root_visitor,
+                 base::EnumSet<SkipRoot>{SkipRoot::kConservativeStack});
   }
 #endif  // ENABLE_SLOW_DCHECKS
 
@@ -4673,7 +4679,11 @@ void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options) {
     v->Synchronize(VisitorSynchronization::kGlobalHandles);
 
     if (!options.contains(SkipRoot::kStack)) {
-      IterateStackRoots(v);
+      ScanStackMode mode =
+          options.contains(SkipRoot::kConservativeStack) ? ScanStackMode::kNone
+          : options.contains(SkipRoot::kTopOfStack) ? ScanStackMode::kFromMarker
+                                                    : ScanStackMode::kComplete;
+      IterateStackRoots(v, mode);
       v->Synchronize(VisitorSynchronization::kStackRoots);
     }
 
@@ -4794,6 +4804,9 @@ void Heap::IterateRootsIncludingClients(RootVisitor* v,
 
   if (isolate()->is_shared_heap_isolate()) {
     ClientRootVisitor client_root_visitor(v);
+    // TODO(v8:13257): We cannot run CSS on client isolates now, as the
+    // stack markers will not be correct.
+    options.Add(SkipRoot::kConservativeStack);
     isolate()->global_safepoint()->IterateClientIsolates(
         [v = &client_root_visitor, options](Isolate* client) {
           client->heap()->IterateRoots(v, options);
@@ -4801,13 +4814,17 @@ void Heap::IterateRootsIncludingClients(RootVisitor* v,
   }
 }
 
-void Heap::IterateRootsFromStackIncludingClient(RootVisitor* v) {
-  IterateStackRoots(v);
+void Heap::IterateRootsFromStackIncludingClient(RootVisitor* v,
+                                                ScanStackMode mode) {
+  IterateStackRoots(v, mode);
+
   if (isolate()->is_shared_heap_isolate()) {
     ClientRootVisitor client_root_visitor(v);
     isolate()->global_safepoint()->IterateClientIsolates(
         [v = &client_root_visitor](Isolate* client) {
-          client->heap()->IterateStackRoots(v);
+          // TODO(v8:13257): We cannot run CSS on client isolates now, as the
+          // stack markers will not be correct.
+          client->heap()->IterateStackRoots(v, ScanStackMode::kNone);
         });
   }
 }
@@ -4835,7 +4852,28 @@ void Heap::IterateBuiltins(RootVisitor* v) {
   static_assert(Builtins::AllBuiltinsAreIsolateIndependent());
 }
 
-void Heap::IterateStackRoots(RootVisitor* v) { isolate_->Iterate(v); }
+void Heap::IterateStackRoots(RootVisitor* v, ScanStackMode mode) {
+  isolate_->Iterate(v);
+
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+  switch (std::min(mode, scan_stack_mode_for_testing_)) {
+    case ScanStackMode::kNone: {
+      break;
+    }
+    case ScanStackMode::kComplete: {
+      ConservativeStackVisitor stack_visitor(isolate(), v);
+      stack().IteratePointers(&stack_visitor);
+      break;
+    }
+    case ScanStackMode::kFromMarker: {
+      ConservativeStackVisitor stack_visitor(isolate(), v);
+      stack().IteratePointersUnsafe(
+          &stack_visitor, reinterpret_cast<intptr_t>(stack().get_marker()));
+      break;
+    }
+  }
+#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+}
 
 namespace {
 size_t GlobalMemorySizeFromV8Size(size_t v8_size) {

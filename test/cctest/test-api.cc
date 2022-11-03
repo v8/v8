@@ -752,6 +752,8 @@ TEST(MakingExternalUnalignedOneByteString) {
 
   // Trigger GCs and force evacuation.
   CcTest::CollectAllGarbage();
+  i::ScanStackModeScopeForTesting no_stack_scanning(
+      CcTest::heap(), i::Heap::ScanStackMode::kNone);
   CcTest::heap()->CollectAllGarbage(i::Heap::kReduceMemoryFootprintMask,
                                     i::GarbageCollectionReason::kTesting);
 }
@@ -21026,6 +21028,8 @@ class RegExpInterruptTest {
 
   static void CollectAllGarbage(v8::Isolate* isolate, void* data) {
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+    i::ScanStackModeScopeForTesting no_stack_scanning(
+        CcTest::heap(), i::Heap::ScanStackMode::kNone);
     i_isolate->heap()->PreciseCollectAllGarbage(
         i::Heap::kNoGCFlags, i::GarbageCollectionReason::kRuntime);
   }
@@ -25585,6 +25589,10 @@ TEST(MemoryPressure) {
   v8::Isolate* isolate = CcTest::isolate();
   WeakCallCounter counter(1234);
 
+  // Conservative stack scanning might break results.
+  i::ScanStackModeScopeForTesting no_stack_scanning(
+      CcTest::heap(), i::Heap::ScanStackMode::kNone);
+
   // Check that critical memory pressure notification sets GC interrupt.
   auto garbage = CreateGarbageWithWeakCallCounter(isolate, &counter);
   CHECK(!v8::Locker::IsLocked(isolate));
@@ -27446,9 +27454,11 @@ static void CallIsolate2(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Local<v8::Context> context =
       v8::Local<v8::Context>::New(isolate_2, context_2);
   v8::Context::Scope context_scope(context);
-  reinterpret_cast<i::Isolate*>(isolate_2)->heap()->CollectAllGarbage(
-      i::Heap::kForcedGC, i::GarbageCollectionReason::kTesting,
-      v8::kNoGCCallbackFlags);
+  i::Heap* heap_2 = reinterpret_cast<i::Isolate*>(isolate_2)->heap();
+  i::ScanStackModeScopeForTesting no_stack_scanning(
+      heap_2, i::Heap::ScanStackMode::kNone);
+  heap_2->CollectAllGarbage(i::Heap::kForcedGC,
+                            i::GarbageCollectionReason::kTesting);
   CompileRun("f2() //# sourceURL=isolate2b");
 }
 

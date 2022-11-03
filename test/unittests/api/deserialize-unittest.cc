@@ -358,6 +358,9 @@ class MergeDeserializedCodeTest : public DeserializeTest {
         }
       }
     }
+
+    i::ScanStackModeScopeForTesting no_stack_scanning(
+        i_isolate->heap(), i::Heap::ScanStackMode::kNone);
     i_isolate->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
                                          i::GarbageCollectionReason::kTesting);
 
@@ -506,6 +509,8 @@ class MergeDeserializedCodeTest : public DeserializeTest {
     // At this point, the original_objects array might still have pointers to
     // some old discarded content, such as UncompiledData from flushed
     // functions. GC again to clear it all out.
+    i::ScanStackModeScopeForTesting no_stack_scanning(
+        i_isolate->heap(), i::Heap::ScanStackMode::kNone);
     i_isolate->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
                                          i::GarbageCollectionReason::kTesting);
 

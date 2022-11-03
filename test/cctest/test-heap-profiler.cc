@@ -1258,8 +1258,10 @@ static TestStatsStream GetHeapStatsUpdate(
 
 
 TEST(HeapSnapshotObjectsStats) {
-  // Concurrent allocation might break results
+  // Concurrent allocation and conservative stack scanning might break results.
   i::v8_flags.stress_concurrent_allocation = false;
+  i::ScanStackModeScopeForTesting no_stack_scanning(
+      CcTest::heap(), i::Heap::ScanStackMode::kNone);
 
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());

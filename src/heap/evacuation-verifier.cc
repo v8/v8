@@ -41,8 +41,9 @@ void EvacuationVerifier::VisitMapPointer(HeapObject object) {
   VerifyMap(object.map(cage_base()));
 }
 void EvacuationVerifier::VerifyRoots() {
-  heap_->IterateRootsIncludingClients(this,
-                                      base::EnumSet<SkipRoot>{SkipRoot::kWeak});
+  heap_->IterateRootsIncludingClients(
+      this,
+      base::EnumSet<SkipRoot>{SkipRoot::kWeak, SkipRoot::kConservativeStack});
 }
 
 void EvacuationVerifier::VerifyEvacuationOnPage(Address start, Address end) {

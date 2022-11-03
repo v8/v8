@@ -152,8 +152,10 @@ class MarkingVerifier : public ObjectVisitorWithCageBases, public RootVisitor {
 };
 
 void MarkingVerifier::VerifyRoots() {
-  heap_->IterateRootsIncludingClients(this,
-                                      base::EnumSet<SkipRoot>{SkipRoot::kWeak});
+  // When verifying marking, we never want to scan conservatively the top of the
+  // stack.
+  heap_->IterateRootsIncludingClients(
+      this, base::EnumSet<SkipRoot>{SkipRoot::kWeak, SkipRoot::kTopOfStack});
 }
 
 void MarkingVerifier::VerifyMarkingOnPage(const Page* page, Address start,
@@ -2133,7 +2135,8 @@ Address MarkCompactCollector::FindBasePtrForMarking(Address maybe_inner_ptr) {
 #endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_MB
 
 void MarkCompactCollector::MarkRootsFromStack(RootVisitor* root_visitor) {
-  heap()->IterateRootsFromStackIncludingClient(root_visitor);
+  heap()->IterateRootsFromStackIncludingClient(root_visitor,
+                                               Heap::ScanStackMode::kComplete);
 }
 
 void MarkCompactCollector::MarkObjectsFromClientHeaps() {
@@ -5186,7 +5189,8 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
     PointersUpdatingVisitor updating_visitor(heap());
     heap_->IterateRootsIncludingClients(
         &updating_visitor,
-        base::EnumSet<SkipRoot>{SkipRoot::kExternalStringTable});
+        base::EnumSet<SkipRoot>{SkipRoot::kExternalStringTable,
+                                SkipRoot::kConservativeStack});
   }
 
   {
