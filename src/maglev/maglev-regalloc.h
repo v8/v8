@@ -20,6 +20,26 @@ class MaglevCompilationInfo;
 class MaglevPrintingVisitor;
 class MergePointRegisterState;
 
+// Represents the state of the register frame during register allocation,
+// including current register values, and the state of each register.
+//
+// Register state encodes two orthogonal concepts:
+//
+//   1. Used/free registers: Which registers currently hold a valid value,
+//   2. Blocked/unblocked registers: Which registers can be modified during the
+//      current allocation.
+//
+// The combination of these encodes values in different states:
+//
+//  Free + unblocked: Completely unused registers which can be used for
+//                    anything.
+//  Used + unblocked: Live values that can be spilled if there is register
+//                    pressure.
+//  Used + blocked:   Values that are in a register and are used as an input in
+//                    the current allocation.
+//  Free + blocked:   Unused registers that are reserved as temporaries, or
+//                    inputs that will get clobbered during the execution of the
+//                    node being allocated.
 template <typename RegisterT>
 class RegisterFrameState {
  public:
@@ -60,18 +80,6 @@ class RegisterFrameState {
   void AddToFree(RegisterT reg) { free_.set(reg); }
   void AddToFree(RegTList list) { free_ |= list; }
 
-  void Clobber(RegisterT reg) {
-    DCHECK(!free_.has(reg));
-    clobbered_.set(reg);
-  }
-  void FreeClobbered() {
-    for (RegisterT reg : clobbered_) {
-      if (free_.has(reg)) continue;  // Already freed.
-      FreeRegistersUsedBy(GetValue(reg));
-    }
-    clobbered_ = kEmptyRegList;
-  }
-
   void FreeRegistersUsedBy(ValueNode* node) {
     RegTList list = node->ClearRegisters<RegisterT>();
     DCHECK_EQ(free_ & list, kEmptyRegList);
@@ -97,6 +105,19 @@ class RegisterFrameState {
     DCHECK_NOT_NULL(node);
     return node;
   }
+#ifdef DEBUG
+  // Like GetValue, but allow reading freed registers as long as they were also
+  // blocked. This allows us to DCHECK expected register state against node
+  // state, even if that node is dead or clobbered by the end of the current
+  // allocation.
+  ValueNode* GetValueMaybeFreeButBlocked(RegisterT reg) const {
+    DCHECK(!free_.has(reg) || blocked_.has(reg));
+    ValueNode* node = values_[reg.code()];
+    DCHECK_NOT_NULL(node);
+    return node;
+  }
+#endif
+
   RegTList blocked() const { return blocked_; }
   void block(RegisterT reg) { blocked_.set(reg); }
   void unblock(RegisterT reg) { blocked_.clear(reg); }
@@ -110,7 +131,6 @@ class RegisterFrameState {
   ValueNode* values_[RegisterT::kNumRegisters];
   RegTList free_ = kAllocatableRegisters;
   RegTList blocked_ = kEmptyRegList;
-  RegTList clobbered_ = kEmptyRegList;
 };
 
 class StraightForwardRegisterAllocator {
@@ -148,8 +168,8 @@ class StraightForwardRegisterAllocator {
   void UpdateUse(const EagerDeoptInfo& deopt_info);
   void UpdateUse(const LazyDeoptInfo& deopt_info);
 
-  void AddToClobbered(ValueNode* node,
-                      const compiler::AllocatedOperand& location);
+  void MarkAsClobbered(ValueNode* node,
+                       const compiler::AllocatedOperand& location);
 
   void AllocateControlNode(ControlNode* node, BasicBlock* block);
   void AllocateNode(Node* node);

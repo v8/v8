@@ -597,10 +597,6 @@ void StraightForwardRegisterAllocator::AllocateNode(Node* node) {
     AllocateNodeResult(node->Cast<ValueNode>());
   }
 
-  // Free clobbered registers.
-  general_registers_.FreeClobbered();
-  double_registers_.FreeClobbered();
-
   if (v8_flags.trace_maglev_regalloc) {
     printing_visitor_->os() << "Updating uses...\n";
   }
@@ -742,8 +738,6 @@ void StraightForwardRegisterAllocator::DropRegisterValue(
     RegisterFrameState<RegisterT>& registers, RegisterT reg) {
   // The register should not already be free.
   DCHECK(!registers.free().has(reg));
-  // We are only allowed to allocated blocked registers at the end.
-  DCHECK(!registers.is_blocked(reg));
 
   ValueNode* node = registers.GetValue(reg);
 
@@ -1073,14 +1067,18 @@ void StraightForwardRegisterAllocator::AssignFixedInput(Input& input) {
   }
 }
 
-void StraightForwardRegisterAllocator::AddToClobbered(
+void StraightForwardRegisterAllocator::MarkAsClobbered(
     ValueNode* node, const compiler::AllocatedOperand& location) {
-  // Ensure node is available on the stack.
-  Spill(node);
   if (node->use_double_register()) {
-    double_registers_.Clobber(location.GetDoubleRegister());
+    DoubleRegister reg = location.GetDoubleRegister();
+    DCHECK(double_registers_.is_blocked(reg));
+    DropRegisterValue(reg);
+    double_registers_.AddToFree(reg);
   } else {
-    general_registers_.Clobber(location.GetRegister());
+    Register reg = location.GetRegister();
+    DCHECK(general_registers_.is_blocked(reg));
+    DropRegisterValue(reg);
+    general_registers_.AddToFree(reg);
   }
 }
 
@@ -1115,13 +1113,13 @@ void StraightForwardRegisterAllocator::AssignArbitraryRegisterInput(
             ? double_registers_.ChooseInputRegister(node)
             : general_registers_.ChooseInputRegister(node);
     if (input.Cloberred()) {
-      AddToClobbered(node, location);
+      MarkAsClobbered(node, location);
     }
     input.SetAllocated(location);
   } else {
     compiler::AllocatedOperand allocation = AllocateRegister(node);
     if (input.Cloberred()) {
-      AddToClobbered(node, allocation);
+      MarkAsClobbered(node, allocation);
     }
     input.SetAllocated(allocation);
     DCHECK_NE(location, allocation);
@@ -1168,14 +1166,14 @@ void StraightForwardRegisterAllocator::VerifyInputs(NodeBase* node) {
     if (input.operand().IsRegister()) {
       Register reg =
           compiler::AllocatedOperand::cast(input.operand()).GetRegister();
-      if (general_registers_.GetValue(reg) != input.node()) {
+      if (general_registers_.GetValueMaybeFreeButBlocked(reg) != input.node()) {
         FATAL("Input node n%d is not in expected register %s",
               graph_labeller()->NodeId(input.node()), RegisterName(reg));
       }
     } else if (input.operand().IsDoubleRegister()) {
       DoubleRegister reg =
           compiler::AllocatedOperand::cast(input.operand()).GetDoubleRegister();
-      if (double_registers_.GetValue(reg) != input.node()) {
+      if (double_registers_.GetValueMaybeFreeButBlocked(reg) != input.node()) {
         FATAL("Input node n%d is not in expected register %s",
               graph_labeller()->NodeId(input.node()), RegisterName(reg));
       }
@@ -1385,6 +1383,7 @@ RegisterT StraightForwardRegisterAllocator::FreeUnblockedRegister() {
   RegisterFrameState<RegisterT>& registers = GetRegisterFrameState<RegisterT>();
   RegisterT best = PickRegisterToFree<RegisterT>(registers.blocked());
   DCHECK(best.is_valid());
+  DCHECK(!registers.is_blocked(best));
   DropRegisterValue(registers, best);
   registers.AddToFree(best);
   return best;
@@ -1462,6 +1461,7 @@ compiler::AllocatedOperand StraightForwardRegisterAllocator::ForceAllocate(
                                       node->GetMachineRepresentation(),
                                       reg.code());
   } else {
+    DCHECK(!registers.is_blocked(reg));
     DropRegisterValue(registers, reg);
   }
 #ifdef DEBUG
