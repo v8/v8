@@ -597,6 +597,10 @@ void StraightForwardRegisterAllocator::AllocateNode(Node* node) {
     AllocateNodeResult(node->Cast<ValueNode>());
   }
 
+  // Free clobbered registers.
+  general_registers_.FreeClobbered();
+  double_registers_.FreeClobbered();
+
   if (v8_flags.trace_maglev_regalloc) {
     printing_visitor_->os() << "Updating uses...\n";
   }
@@ -634,9 +638,6 @@ void StraightForwardRegisterAllocator::AllocateNode(Node* node) {
     PrintLiveRegs();
     printing_visitor_->os() << "\n";
   }
-
-  general_registers_.FreeClobbered();
-  double_registers_.FreeClobbered();
 
   // All the temporaries should be free by the end. The exception is the node
   // result, which could be written into a register that was previously
