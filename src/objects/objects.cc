@@ -4449,10 +4449,12 @@ void DescriptorArray::Replace(InternalIndex index, Descriptor* descriptor) {
 // static
 void DescriptorArray::InitializeOrChangeEnumCache(
     Handle<DescriptorArray> descriptors, Isolate* isolate,
-    Handle<FixedArray> keys, Handle<FixedArray> indices) {
+    Handle<FixedArray> keys, Handle<FixedArray> indices,
+    AllocationType allocation_if_initialize) {
   EnumCache enum_cache = descriptors->enum_cache();
   if (enum_cache == ReadOnlyRoots(isolate).empty_enum_cache()) {
-    enum_cache = *isolate->factory()->NewEnumCache(keys, indices);
+    enum_cache = *isolate->factory()->NewEnumCache(keys, indices,
+                                                   allocation_if_initialize);
     descriptors->set_enum_cache(enum_cache);
   } else {
     enum_cache.set_keys(*keys);

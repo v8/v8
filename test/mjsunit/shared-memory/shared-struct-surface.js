@@ -78,3 +78,15 @@ let S = new SharedStructType(['field']);
   assertEquals(1, entries.length);
   assertArrayEquals(['field', 42], entries[0]);
 })();
+
+(function TestForIn() {
+  let fieldNames = [];
+  for (let i = 0; i < 512; i++) {
+    fieldNames.push('field' + i);
+  }
+  let S2 = new SharedStructType(fieldNames);
+  let s = new S2();
+  let propNames = [];
+  for (let prop in s) propNames.push(prop);
+  assertArrayEquals(propNames, fieldNames);
+})();

@@ -183,8 +183,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<PrototypeInfo> NewPrototypeInfo();
 
   // Create a new EnumCache struct.
-  Handle<EnumCache> NewEnumCache(Handle<FixedArray> keys,
-                                 Handle<FixedArray> indices);
+  Handle<EnumCache> NewEnumCache(
+      Handle<FixedArray> keys, Handle<FixedArray> indices,
+      AllocationType allocation = AllocationType::kOld);
 
   // Create a new Tuple2 struct.
   Handle<Tuple2> NewTuple2(Handle<Object> value1, Handle<Object> value2,

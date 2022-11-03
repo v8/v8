@@ -415,9 +415,13 @@ Handle<PrototypeInfo> Factory::NewPrototypeInfo() {
 }
 
 Handle<EnumCache> Factory::NewEnumCache(Handle<FixedArray> keys,
-                                        Handle<FixedArray> indices) {
-  auto result =
-      NewStructInternal<EnumCache>(ENUM_CACHE_TYPE, AllocationType::kOld);
+                                        Handle<FixedArray> indices,
+                                        AllocationType allocation) {
+  DCHECK(allocation == AllocationType::kOld ||
+         allocation == AllocationType::kSharedOld);
+  DCHECK_EQ(allocation == AllocationType::kSharedOld,
+            keys->InSharedHeap() && indices->InSharedHeap());
+  auto result = NewStructInternal<EnumCache>(ENUM_CACHE_TYPE, allocation);
   DisallowGarbageCollection no_gc;
   result.set_keys(*keys);
   result.set_indices(*indices);

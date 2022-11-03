@@ -99,6 +99,16 @@ BUILTIN(SharedStructTypeConstructor) {
   // to it.
   instance_map->set_constructor_or_back_pointer(*factory->null_value());
 
+  // Pre-create the enum cache in the shared space, as otherwise for-in
+  // enumeration will incorrectly create an enum cache in the per-thread heap.
+  if (num_properties == 0) {
+    instance_map->SetEnumLength(0);
+  } else {
+    FastKeyAccumulator::InitializeFastPropertyEnumCache(
+        isolate, instance_map, num_properties, AllocationType::kSharedOld);
+    DCHECK_EQ(num_properties, instance_map->EnumLength());
+  }
+
   return *constructor;
 }
 
