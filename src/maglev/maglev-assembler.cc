@@ -94,6 +94,10 @@ void MaglevAssembler::LoadSingleCharacterString(Register result,
 void MaglevAssembler::LoadSingleCharacterString(Register result,
                                                 Register char_code) {
   DCHECK_NE(result, char_code);
+  if (v8_flags.debug_code) {
+    cmpl(char_code, Immediate(String::kMaxOneByteCharCode));
+    Assert(below_equal, AbortReason::kUnexpectedValue);
+  }
   Register table = result;
   LoadRoot(table, RootIndex::kSingleCharacterStringTable);
   DecompressAnyTagged(result, FieldOperand(table, char_code, times_tagged_size,
