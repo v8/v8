@@ -21,21 +21,20 @@ def trybot_pair(
         cq_branch_compile_only_properties = CQ.OPTIONAL,
         experiments = None,
         enable_rdb = True,
+        description = None,
         total_timeout = None,
         **kwargs):
-    description = kwargs.pop("description", None)
-    compiler_description, tester_description = None, None
-    if description:
-        compiler_description = dict(description)
-        tester_description = dict(description)
-        compiler_description["triggers"] = name + "_ng_triggered"
-        tester_description["triggered by"] = name + "_ng"
-
-    # Generate orchestrator trybot.
-    # The corresponding compilator name gets an infix like:
-    # v8_linux_rel -> v8_linux_compile_rel.
+    # Compilator names are constructed based on orchestrator names with an
+    # infix like: v8_linux_rel -> v8_linux_compile_rel.
     prefix, suffix = name.rsplit("_", 1)
     compilator_name = prefix + "_compile_" + suffix
+
+    orchestrator_description = None
+    if description:
+        orchestrator_description = dict(description)
+        orchestrator_description["compiles_with"] = compilator_name
+
+    # Generate orchestrator trybot.
     v8_builder(
         defaults_triggered,
         name = name,
@@ -46,7 +45,7 @@ def trybot_pair(
         cq_branch_properties = cq_branch_properties,
         in_list = "tryserver",
         experiments = experiments,
-        description = tester_description,
+        description = orchestrator_description,
         properties = {"compilator_name": compilator_name},
     )
 
@@ -61,7 +60,7 @@ def trybot_pair(
         in_list = "tryserver",
         enable_rdb = True,
         experiments = experiments,
-        description = compiler_description,
+        description = description,
         **kwargs
     )
 
