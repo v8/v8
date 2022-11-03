@@ -92,7 +92,7 @@ class MultiLineStringBuilder : public StringBuilder {
       // Write the unfinished line into its new location.
       start_here();
       char* new_location = allocate(unfinished_length);
-      memcpy(new_location, unfinished_start, unfinished_length);
+      memmove(new_location, unfinished_start, unfinished_length);
       if (label_source >= unfinished_start &&
           label_source < unfinished_start + unfinished_length) {
         label_source = new_location + (label_source - unfinished_start);
