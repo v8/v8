@@ -470,9 +470,14 @@ Node* JSGraphAssembler::StringCharCodeAt(TNode<String> string,
 class ArrayBufferViewAccessBuilder {
  public:
   explicit ArrayBufferViewAccessBuilder(JSGraphAssembler* assembler,
+                                        InstanceType instance_type,
                                         std::set<ElementsKind> candidates)
-      : assembler_(assembler), candidates_(std::move(candidates)) {
+      : assembler_(assembler),
+        instance_type_(instance_type),
+        candidates_(std::move(candidates)) {
     DCHECK_NOT_NULL(assembler_);
+    DCHECK(instance_type_ == JS_DATA_VIEW_TYPE ||
+           instance_type_ == JS_TYPED_ARRAY_TYPE);
   }
 
   bool maybe_rab_gsab() const {
@@ -483,6 +488,7 @@ class ArrayBufferViewAccessBuilder {
   }
 
   base::Optional<int> TryComputeStaticElementShift() {
+    if (instance_type_ == JS_DATA_VIEW_TYPE) return 0;
     if (candidates_.empty()) return base::nullopt;
     int shift = ElementsKindToShiftSize(*candidates_.begin());
     if (!base::all_of(candidates_, [shift](auto e) {
@@ -494,6 +500,7 @@ class ArrayBufferViewAccessBuilder {
   }
 
   base::Optional<int> TryComputeStaticElementSize() {
+    if (instance_type_ == JS_DATA_VIEW_TYPE) return 1;
     if (candidates_.empty()) return base::nullopt;
     int size = ElementsKindToByteSize(*candidates_.begin());
     if (!base::all_of(candidates_, [size](auto e) {
@@ -540,6 +547,7 @@ class ArrayBufferViewAccessBuilder {
     if (auto size_opt = TryComputeStaticElementSize()) {
       element_size = a.Uint32Constant(*size_opt);
     } else {
+      DCHECK_EQ(instance_type_, JS_TYPED_ARRAY_TYPE);
       TNode<Map> typed_array_map = a.LoadField<Map>(
           AccessBuilder::ForMap(WriteBarrierKind::kNoWriteBarrier), view);
       TNode<Uint32T> elements_kind = a.LoadElementsKind(typed_array_map);
@@ -682,6 +690,7 @@ class ArrayBufferViewAccessBuilder {
         return TNode<UintPtrT>::UncheckedCast(
             a.WordAnd(byte_size, a.UintPtrConstant(all_bits << (*shift_opt))));
       }
+      DCHECK_EQ(instance_type_, JS_TYPED_ARRAY_TYPE);
       TNode<Map> typed_array_map = a.LoadField<Map>(
           AccessBuilder::ForMap(WriteBarrierKind::kNoWriteBarrier), view);
       TNode<Uint32T> elements_kind = a.LoadElementsKind(typed_array_map);
@@ -751,13 +760,14 @@ class ArrayBufferViewAccessBuilder {
   }
 
   JSGraphAssembler* assembler_;
+  InstanceType instance_type_;
   std::set<ElementsKind> candidates_;
 };
 
 TNode<Number> JSGraphAssembler::ArrayBufferViewByteLength(
-    TNode<JSArrayBufferView> array_buffer_view,
+    TNode<JSArrayBufferView> array_buffer_view, InstanceType instance_type,
     std::set<ElementsKind> elements_kinds_candidates, TNode<Context> context) {
-  ArrayBufferViewAccessBuilder builder(this,
+  ArrayBufferViewAccessBuilder builder(this, instance_type,
                                        std::move(elements_kinds_candidates));
   return ExitMachineGraph<Number>(
       builder.BuildByteLength(array_buffer_view, context),
@@ -768,7 +778,8 @@ TNode<Number> JSGraphAssembler::ArrayBufferViewByteLength(
 TNode<Number> JSGraphAssembler::TypedArrayLength(
     TNode<JSTypedArray> typed_array,
     std::set<ElementsKind> elements_kinds_candidates, TNode<Context> context) {
-  ArrayBufferViewAccessBuilder builder(this, elements_kinds_candidates);
+  ArrayBufferViewAccessBuilder builder(this, JS_TYPED_ARRAY_TYPE,
+                                       elements_kinds_candidates);
   return ExitMachineGraph<Number>(builder.BuildLength(typed_array, context),
                                   MachineType::PointerRepresentation(),
                                   TypeCache::Get()->kJSTypedArrayLengthType);

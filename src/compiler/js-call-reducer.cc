@@ -7287,7 +7287,7 @@ Reduction JSCallReducer::ReduceArrayBufferViewByteLengthAccessor(
   TNode<JSTypedArray> typed_array =
       TNode<JSTypedArray>::UncheckedCast(receiver);
   TNode<Number> length = a.ArrayBufferViewByteLength(
-      typed_array, std::move(elements_kinds), a.ContextInput());
+      typed_array, instance_type, std::move(elements_kinds), a.ContextInput());
 
   return ReplaceWithSubgraph(&a, length);
 }
@@ -7976,8 +7976,8 @@ Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,
     } else {
       JSCallReducerAssembler a(this, node);
       byte_length = a.ArrayBufferViewByteLength(
-          TNode<JSArrayBufferView>::UncheckedCast(receiver), {},
-          a.ContextInput());
+          TNode<JSArrayBufferView>::UncheckedCast(receiver), JS_DATA_VIEW_TYPE,
+          {}, a.ContextInput());
       std::tie(effect, control) = ReleaseEffectAndControlFromAssembler(&a);
     }
 

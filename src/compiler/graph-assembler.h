@@ -1034,7 +1034,7 @@ class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {
   // efficient code. Pass an empty {elements_kinds_candidates} to generate code
   // that is generic enough to handle all ElementsKinds.
   TNode<Number> ArrayBufferViewByteLength(
-      TNode<JSArrayBufferView> array_buffer_view,
+      TNode<JSArrayBufferView> array_buffer_view, InstanceType instance_type,
       std::set<ElementsKind> elements_kinds_candidates, TNode<Context> context);
   // Computes the length for a given {typed_array}. If the set of possible
   // ElementsKinds is known statically pass as {elements_kinds_candidates} to
