@@ -22,6 +22,8 @@ namespace {
 
 class TracedNodeBlock;
 
+// TODO(v8:13372): Avoid constant and instead make use of
+// `v8::base::AllocateAtLeast()` to maximize utilization of the memory.
 constexpr size_t kBlockSize = 256;
 
 constexpr uint16_t kInvalidFreeListNodeIndex = -1;
@@ -340,6 +342,7 @@ class TracedNodeBlock final {
   Iterator end() { return Iterator(this, kBlockSize); }
 
   bool IsFull() const { return used_ == kBlockSize; }
+  bool IsEmpty() const { return used_ == 0; }
 
  private:
   TracedNode nodes_[kBlockSize];
@@ -426,6 +429,8 @@ class TracedHandlesImpl final {
   void UpdateListOfYoungNodes();
   void ClearListOfYoungNodes();
 
+  void DeleteEmptyBlocks();
+
   void ResetDeadNodes(WeakSlotCallbackWithHeap should_reset_handle);
 
   void ComputeWeaknessForYoungObjects(WeakSlotCallback is_unmodified);
@@ -438,7 +443,9 @@ class TracedHandlesImpl final {
 
   size_t used_node_count() const { return used_; }
   size_t total_size_bytes() const {
-    return sizeof(TracedNode) * kBlockSize * blocks_.Size();
+    return sizeof(TracedNode) * kBlockSize *
+           (blocks_.Size() + empty_blocks_.size() +
+            empty_block_candidates_.size());
   }
   size_t used_size_bytes() const { return sizeof(TracedNode) * used_; }
 
@@ -454,7 +461,14 @@ class TracedHandlesImpl final {
 
   TracedNodeBlock::OverallList blocks_;
   TracedNodeBlock::UsableList usable_blocks_;
+  // List of young nodes. May refer to nodes in `blocks_`, `usable_blocks_`, and
+  // `empty_block_candidates_`.
   std::vector<TracedNode*> young_nodes_;
+  // Empty blocks that are still referred to from `young_nodes_`.
+  std::vector<TracedNodeBlock*> empty_block_candidates_;
+  // Fully empty blocks that are neither referenced from any stale references in
+  // destructors nor from young nodes.
+  std::vector<TracedNodeBlock*> empty_blocks_;
   Isolate* isolate_;
   bool is_marking_ = false;
   bool is_sweeping_on_mutator_thread_ = false;
@@ -464,7 +478,20 @@ class TracedHandlesImpl final {
 TracedNode* TracedHandlesImpl::AllocateNode() {
   auto* block = usable_blocks_.Front();
   if (!block) {
-    block = new TracedNodeBlock(*this, blocks_, usable_blocks_);
+    if (empty_blocks_.empty() && empty_block_candidates_.empty()) {
+      block = new TracedNodeBlock(*this, blocks_, usable_blocks_);
+    } else {
+      // Pick a block from candidates first as such blocks may anyways still be
+      // referred to from young nodes and thus are not eligible for freeing.
+      auto& block_source = empty_block_candidates_.empty()
+                               ? empty_blocks_
+                               : empty_block_candidates_;
+      block = block_source.back();
+      block_source.pop_back();
+      DCHECK(block->IsEmpty());
+      usable_blocks_.PushFront(block);
+      blocks_.PushFront(block);
+    }
     DCHECK_EQ(block, usable_blocks_.Front());
   }
   auto* node = block->AllocateNode();
@@ -479,12 +506,15 @@ TracedNode* TracedHandlesImpl::AllocateNode() {
 
 void TracedHandlesImpl::FreeNode(TracedNode* node) {
   auto& block = TracedNodeBlock::From(*node);
-  // TODO(v8:13372): Keep vector of empty blocks that could be freed after
-  // fixing up young nodes.
   if (block.IsFull() && !usable_blocks_.Contains(&block)) {
     usable_blocks_.PushFront(&block);
   }
   block.FreeNode(node);
+  if (block.IsEmpty()) {
+    usable_blocks_.Remove(&block);
+    blocks_.Remove(&block);
+    empty_block_candidates_.push_back(&block);
+  }
   used_--;
 }
 
@@ -494,6 +524,12 @@ TracedHandlesImpl::~TracedHandlesImpl() {
   while (!blocks_.Empty()) {
     auto* block = blocks_.Front();
     blocks_.PopFront();
+    delete block;
+  }
+  for (auto* block : empty_block_candidates_) {
+    delete block;
+  }
+  for (auto* block : empty_blocks_) {
     delete block;
   }
 }
@@ -630,6 +666,10 @@ void TracedHandlesImpl::UpdateListOfYoungNodes() {
   DCHECK_LE(last, young_nodes_.size());
   young_nodes_.resize(last);
   young_nodes_.shrink_to_fit();
+  empty_blocks_.insert(empty_blocks_.end(), empty_block_candidates_.begin(),
+                       empty_block_candidates_.end());
+  empty_block_candidates_.clear();
+  empty_block_candidates_.shrink_to_fit();
 }
 
 void TracedHandlesImpl::ClearListOfYoungNodes() {
@@ -640,11 +680,30 @@ void TracedHandlesImpl::ClearListOfYoungNodes() {
   }
   young_nodes_.clear();
   young_nodes_.shrink_to_fit();
+  empty_blocks_.insert(empty_blocks_.end(), empty_block_candidates_.begin(),
+                       empty_block_candidates_.end());
+  empty_block_candidates_.clear();
+  empty_block_candidates_.shrink_to_fit();
+}
+
+void TracedHandlesImpl::DeleteEmptyBlocks() {
+  // Keep one node block around for fast allocation/deallocation patterns.
+  if (empty_blocks_.size() <= 1) return;
+
+  for (size_t i = 1; i < empty_blocks_.size(); i++) {
+    auto* block = empty_blocks_[i];
+    DCHECK(block->IsEmpty());
+    delete block;
+  }
+  empty_blocks_.resize(1);
+  empty_blocks_.shrink_to_fit();
 }
 
 void TracedHandlesImpl::ResetDeadNodes(
     WeakSlotCallbackWithHeap should_reset_handle) {
-  for (auto* block : blocks_) {
+  // Manual iteration as the block may be deleted in `FreeNode()`.
+  for (auto it = blocks_.begin(); it != blocks_.end();) {
+    auto* block = *(it++);
     for (auto* node : *block) {
       if (!node->is_in_use()) continue;
 
@@ -782,6 +841,8 @@ void TracedHandles::UpdateListOfYoungNodes() {
 }
 
 void TracedHandles::ClearListOfYoungNodes() { impl_->ClearListOfYoungNodes(); }
+
+void TracedHandles::DeleteEmptyBlocks() { impl_->DeleteEmptyBlocks(); }
 
 void TracedHandles::ResetDeadNodes(
     WeakSlotCallbackWithHeap should_reset_handle) {

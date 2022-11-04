@@ -1075,7 +1075,12 @@ CppHeap::MetricRecorderAdapter* CppHeap::GetMetricRecorder() const {
       stats_collector_->GetMetricRecorder());
 }
 
-void CppHeap::FinishSweepingIfRunning() { sweeper_.FinishIfRunning(); }
+void CppHeap::FinishSweepingIfRunning() {
+  sweeper_.FinishIfRunning();
+  if (isolate_) {
+    isolate_->traced_handles()->DeleteEmptyBlocks();
+  }
+}
 
 void CppHeap::FinishSweepingIfOutOfWork() { sweeper_.FinishIfOutOfWork(); }
 

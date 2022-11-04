@@ -56,6 +56,9 @@ class V8_EXPORT_PRIVATE TracedHandles final {
   // empty.
   void ClearListOfYoungNodes();
 
+  // Deletes empty blocks. Sweeping must not be running.
+  void DeleteEmptyBlocks();
+
   void ResetDeadNodes(WeakSlotCallbackWithHeap should_reset_handle);
 
   // Computes whether young weak objects should be considered roots for young
