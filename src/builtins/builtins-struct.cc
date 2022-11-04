@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <unordered_set>
+
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/objects/js-struct-inl.h"
 #include "src/objects/property-details.h"
@@ -14,6 +16,25 @@ constexpr int kMaxJSStructFields = 999;
 // specific demand for that. Ideally we'd have the same limit, but JS structs
 // rely on DescriptorArrays and are hence limited to 1020 fields at most.
 static_assert(kMaxJSStructFields <= kMaxNumberOfDescriptors);
+
+namespace {
+
+struct NameHandleHasher {
+  size_t operator()(Handle<Name> name) const { return name->hash(); }
+};
+
+struct UniqueNameHandleEqual {
+  bool operator()(Handle<Name> x, Handle<Name> y) const {
+    DCHECK(x->IsUniqueName());
+    DCHECK(y->IsUniqueName());
+    return *x == *y;
+  }
+};
+
+using UniqueNameHandleSet =
+    std::unordered_set<Handle<Name>, NameHandleHasher, UniqueNameHandleEqual>;
+
+}  // namespace
 
 BUILTIN(SharedStructTypeConstructor) {
   DCHECK(v8_flags.shared_string_table);
@@ -43,6 +64,7 @@ BUILTIN(SharedStructTypeConstructor) {
       num_properties, 0, AllocationType::kSharedOld);
 
   // Build up the descriptor array.
+  UniqueNameHandleSet all_field_names;
   for (int i = 0; i < num_properties; ++i) {
     Handle<Object> raw_field_name;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
@@ -52,6 +74,14 @@ BUILTIN(SharedStructTypeConstructor) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, field_name,
                                        Object::ToName(isolate, raw_field_name));
     field_name = factory->InternalizeName(field_name);
+
+    // Check that there are no duplicates.
+    const bool is_duplicate = !all_field_names.insert(field_name).second;
+    if (is_duplicate) {
+      THROW_NEW_ERROR_RETURN_FAILURE(
+          isolate, NewTypeError(MessageTemplate::kDuplicateTemplateProperty,
+                                field_name));
+    }
 
     // Shared structs' fields need to be aligned, so make it all tagged.
     PropertyDetails details(

@@ -90,3 +90,7 @@ let S = new SharedStructType(['field']);
   for (let prop in s) propNames.push(prop);
   assertArrayEquals(propNames, fieldNames);
 })();
+
+(function TestDuplicateFieldNames() {
+  assertThrows(() => new SharedStructType(['same', 'same']));
+})();
