@@ -1045,6 +1045,16 @@ class MaglevGraphBuilder {
 
     ConvertReceiverMode receiver_mode() const { return receiver_mode_; }
 
+    CallArguments PopLeft() const {
+      if (count() == 0) {
+        return CallArguments(ConvertReceiverMode::kNullOrUndefined, 0);
+      }
+      if (call_mode_ == kFromRegisters) {
+        return CallArguments(receiver_mode_, argc_ - 1, regs_[1], regs_[2]);
+      }
+      return CallArguments(receiver_mode_, reglist_.PopLeft());
+    }
+
    private:
     const ConvertReceiverMode receiver_mode_;
     const Mode call_mode_;
@@ -1068,11 +1078,26 @@ class MaglevGraphBuilder {
   ValueNode* GetConvertReceiver(compiler::JSFunctionRef function,
                                 const CallArguments& args);
 
-  bool TryInlineBuiltin(Builtin builtin, const CallArguments& args);
+#define MAGLEV_REDUCED_BUILTIN(V) \
+  V(FunctionPrototypeCall)        \
+  V(StringFromCharCode)           \
+  V(StringPrototypeCharCodeAt)
+
+#define DEFINE_BUILTIN_REDUCER(Name)                           \
+  bool TryReduce##Name(compiler::JSFunctionRef builtin_target, \
+                       const CallArguments& args);
+  MAGLEV_REDUCED_BUILTIN(DEFINE_BUILTIN_REDUCER)
+#undef DEFINE_BUILTIN_REDUCER
+
+  bool TryReduceBuiltin(compiler::JSFunctionRef builtin_target,
+                        const CallArguments& args);
 
   bool TryBuildCallKnownJSFunction(compiler::JSFunctionRef function,
                                    const CallArguments& args);
 
+  void BuildGenericCall(ValueNode* target, ValueNode* context,
+                        Call::TargetType target_type, const CallArguments& args,
+                        compiler::FeedbackSource& feedback_source);
   void BuildCall(ValueNode* target_node, const CallArguments& args,
                  compiler::FeedbackSource& feedback_source);
   void BuildCallFromRegisterList(ConvertReceiverMode receiver_mode);

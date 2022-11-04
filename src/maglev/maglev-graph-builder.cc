@@ -2577,40 +2577,56 @@ void MaglevGraphBuilder::InlineCallFromRegisters(
       ->SetToBlockAndReturnNext(current_block_);
 }
 
-bool MaglevGraphBuilder::TryInlineBuiltin(Builtin builtin,
+bool MaglevGraphBuilder::TryReduceStringFromCharCode(
+    compiler::JSFunctionRef target, const CallArguments& args) {
+  if (args.count() != 1) return false;
+  SetAccumulator(AddNewNode<BuiltinStringFromCharCode>({GetInt32(args[0])}));
+  return true;
+}
+
+bool MaglevGraphBuilder::TryReduceStringPrototypeCharCodeAt(
+    compiler::JSFunctionRef target, const CallArguments& args) {
+  ValueNode* receiver = GetTaggedReceiver(args);
+  ValueNode* index;
+  if (args.count() == 0) {
+    // Index is the undefined object. ToIntegerOrInfinity(undefined) = 0.
+    index = GetInt32Constant(0);
+  } else {
+    index = GetInt32ElementIndex(args[0]);
+  }
+  // Any other argument is ignored.
+  // Ensure that {receiver} is actually a String.
+  BuildCheckString(receiver);
+  // And index is below length.
+  ValueNode* length = AddNewNode<StringLength>({receiver});
+  AddNewNode<CheckInt32Condition>({index, length}, AssertCondition::kLess,
+                                  DeoptimizeReason::kOutOfBounds);
+  SetAccumulator(
+      AddNewNode<BuiltinStringPrototypeCharCodeAt>({receiver, index}));
+  return true;
+}
+
+bool MaglevGraphBuilder::TryReduceFunctionPrototypeCall(
+    compiler::JSFunctionRef target, const CallArguments& args) {
+  // Use Function.prototype.call context, to ensure any exception is thrown in
+  // the correct context.
+  ValueNode* context = GetConstant(target.context());
+  ValueNode* receiver = GetTaggedReceiver(args);
+  compiler::FeedbackSource feedback_source;
+  BuildGenericCall(receiver, context, Call::TargetType::kAny, args.PopLeft(),
+                   feedback_source);
+  return true;
+}
+
+bool MaglevGraphBuilder::TryReduceBuiltin(compiler::JSFunctionRef target,
                                           const CallArguments& args) {
-  switch (builtin) {
-    case Builtin::kStringFromCharCode:
-      if (args.count() != 1) return false;
-      SetAccumulator(
-          AddNewNode<BuiltinStringFromCharCode>({GetInt32(args[0])}));
-      return true;
-
-    case Builtin::kStringPrototypeCharCodeAt: {
-      ValueNode* receiver = GetTaggedReceiver(args);
-      ValueNode* index;
-      if (args.count() == 0) {
-        // Index is the undefined object.
-        // ToIntegerOrInfinity(undefined) = 0.
-        index = GetInt32Constant(0);
-      } else {
-        index = GetInt32ElementIndex(args[0]);
-      }
-      // Any other argument is ignored.
-
-      // Ensure that {receiver} is actually a String.
-      BuildCheckString(receiver);
-
-      // And index is below length.
-      ValueNode* length = AddNewNode<StringLength>({receiver});
-      AddNewNode<CheckInt32Condition>({index, length}, AssertCondition::kLess,
-                                      DeoptimizeReason::kOutOfBounds);
-
-      SetAccumulator(
-          AddNewNode<BuiltinStringPrototypeCharCodeAt>({receiver, index}));
-      return true;
-    }
-
+  if (!target.shared().HasBuiltinId()) return false;
+  switch (target.shared().builtin_id()) {
+#define CASE(Name)       \
+  case Builtin::k##Name: \
+    return TryReduce##Name(target, args);
+    MAGLEV_REDUCED_BUILTIN(CASE)
+#undef CASE
     default:
       // TODO(v8:7700): Inline more builtins.
       return false;
@@ -2661,12 +2677,25 @@ bool MaglevGraphBuilder::TryBuildCallKnownJSFunction(
   return true;
 }
 
+void MaglevGraphBuilder::BuildGenericCall(
+    ValueNode* target, ValueNode* context, Call::TargetType target_type,
+    const CallArguments& args, compiler::FeedbackSource& feedback_source) {
+  size_t input_count = args.count_with_receiver() + Call::kFixedInputCount;
+  Call* call =
+      CreateNewNode<Call>(input_count, args.receiver_mode(), target_type,
+                          feedback_source, target, context);
+  int arg_index = 0;
+  call->set_arg(arg_index++, GetTaggedReceiver(args));
+  for (int i = 0; i < args.count(); ++i) {
+    call->set_arg(arg_index++, GetTaggedValue(args[i]));
+  }
+  SetAccumulator(AddNode(call));
+}
+
 void MaglevGraphBuilder::BuildCall(ValueNode* target_node,
                                    const CallArguments& args,
                                    compiler::FeedbackSource& feedback_source) {
-  ValueNode* context = GetContext();
   Call::TargetType target_type = Call::TargetType::kAny;
-
   const compiler::ProcessedFeedback& processed_feedback =
       broker()->GetFeedbackForCall(feedback_source);
   switch (processed_feedback.kind()) {
@@ -2706,13 +2735,9 @@ void MaglevGraphBuilder::BuildCall(ValueNode* target_node,
       }
 
       DCHECK(function.object()->IsCallable());
-
-      if (function.shared().HasBuiltinId()) {
-        if (TryInlineBuiltin(function.shared().builtin_id(), args)) {
-          return;
-        }
+      if (TryReduceBuiltin(function, args)) {
+        return;
       }
-
       if (TryBuildCallKnownJSFunction(function, args)) {
         return;
       }
@@ -2724,16 +2749,8 @@ void MaglevGraphBuilder::BuildCall(ValueNode* target_node,
   }
 
   // On fallthrough, create a generic call.
-  size_t input_count = args.count_with_receiver() + Call::kFixedInputCount;
-  Call* call =
-      CreateNewNode<Call>(input_count, args.receiver_mode(), target_type,
-                          feedback_source, target_node, context);
-  int arg_index = 0;
-  call->set_arg(arg_index++, GetTaggedReceiver(args));
-  for (int i = 0; i < args.count(); ++i) {
-    call->set_arg(arg_index++, GetTaggedValue(args[i]));
-  }
-  SetAccumulator(AddNode(call));
+  ValueNode* context = GetContext();
+  BuildGenericCall(target_node, context, target_type, args, feedback_source);
 }
 
 void MaglevGraphBuilder::BuildCallFromRegisterList(
