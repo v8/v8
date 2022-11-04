@@ -226,6 +226,7 @@
   V(_, dot_for_string, ".for")                                       \
   V(_, dot_generator_object_string, ".generator_object")             \
   V(_, dot_home_object_string, ".home_object")                       \
+  V(_, dot_new_target_string, ".new.target")                         \
   V(_, dot_result_string, ".result")                                 \
   V(_, dot_repl_result_string, ".repl_result")                       \
   V(_, dot_static_home_object_string, ".static_home_object")         \

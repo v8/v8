@@ -851,7 +851,13 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
   }
 
   for (Variable* var : *current_scope_->locals()) {
-    if (ScopeInfo::VariableIsSynthetic(*var->name())) continue;
+    if (ScopeInfo::VariableIsSynthetic(*var->name())) {
+      // We want to materialize "new.target" for debug-evaluate.
+      if (mode != Mode::STACK ||
+          !var->name()->Equals(*isolate_->factory()->dot_new_target_string())) {
+        continue;
+      }
+    }
 
     int index = var->index();
     Handle<Object> value;
@@ -872,6 +878,8 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
               generator_->parameters_and_registers();
           DCHECK_LT(index, parameters_and_registers.length());
           value = handle(parameters_and_registers.get(index), isolate_);
+        } else if (var->IsReceiver()) {
+          value = frame_inspector_->GetReceiver();
         } else {
           value = frame_inspector_->GetParameter(index);
         }
