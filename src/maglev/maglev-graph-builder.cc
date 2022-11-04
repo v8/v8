@@ -2717,6 +2717,9 @@ void MaglevGraphBuilder::BuildCall(ValueNode* target_node,
       if (!target.IsJSFunction()) break;
       compiler::JSFunctionRef function = target.AsJSFunction();
 
+      // Do not reduce calls to functions with break points.
+      if (function.shared().HasBreakInfo()) break;
+
       // Reset the feedback source
       feedback_source = compiler::FeedbackSource();
       target_type = Call::TargetType::kJSFunction;
