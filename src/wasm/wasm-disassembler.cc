@@ -436,6 +436,8 @@ class ImmediatesPrinter {
     float f = imm.value;
     if (f == 0) {
       out_ << (1 / f < 0 ? " -0.0" : " 0.0");
+    } else if (std::isinf(f)) {
+      out_ << (f > 0 ? " inf" : " -inf");
     } else if (std::isnan(f)) {
       uint32_t bits = base::bit_cast<uint32_t>(f);
       uint32_t payload = bits & 0x7F'FFFFu;
