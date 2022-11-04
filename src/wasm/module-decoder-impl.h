@@ -1635,7 +1635,7 @@ class ModuleDecoderTemplate : public Decoder {
 
   // Decodes an entire module.
   ModuleResult DecodeModule(Counters* counters, AccountingAllocator* allocator,
-                            bool validate_functions = true) {
+                            bool validate_functions) {
     StartDecoding(counters, allocator);
     uint32_t offset = 0;
     base::Vector<const byte> orig_bytes(start(), end() - start());
