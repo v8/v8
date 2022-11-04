@@ -92,13 +92,14 @@ void MaglevAssembler::LoadSingleCharacterString(Register result,
 }
 
 void MaglevAssembler::LoadSingleCharacterString(Register result,
-                                                Register char_code) {
-  DCHECK_NE(result, char_code);
+                                                Register char_code,
+                                                Register scratch) {
   if (v8_flags.debug_code) {
     cmpl(char_code, Immediate(String::kMaxOneByteCharCode));
     Assert(below_equal, AbortReason::kUnexpectedValue);
   }
-  Register table = result;
+  DCHECK_NE(char_code, scratch);
+  Register table = scratch;
   LoadRoot(table, RootIndex::kSingleCharacterStringTable);
   DecompressAnyTagged(result, FieldOperand(table, char_code, times_tagged_size,
                                            FixedArray::kHeaderSize));
@@ -106,26 +107,37 @@ void MaglevAssembler::LoadSingleCharacterString(Register result,
 
 void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
                                          Label* char_code_fits_one_byte,
-                                         Register result, Register char_code) {
-  DCHECK_NE(result, char_code);
+                                         Register result, Register char_code,
+                                         Register scratch) {
+  DCHECK_NE(char_code, scratch);
   ZoneLabelRef done(this);
   cmpl(char_code, Immediate(String::kMaxOneByteCharCode));
   JumpToDeferredIf(
       above,
       [](MaglevAssembler* masm, RegisterSnapshot register_snapshot,
-         ZoneLabelRef done, Register result, Register char_code) {
-        // Be sure to save {char_code}.
+         ZoneLabelRef done, Register result, Register char_code,
+         Register scratch) {
+        // Be sure to save {char_code}. If it aliases with {result}, use
+        // the scratch register.
+        if (char_code == result) {
+          // This is guaranteed to be true since we've already checked
+          // char_code != scratch.
+          DCHECK_NE(scratch, result);
+          __ Move(scratch, char_code);
+          char_code = scratch;
+        }
+        DCHECK(!register_snapshot.live_tagged_registers.has(char_code));
         register_snapshot.live_registers.set(char_code);
         __ AllocateTwoByteString(register_snapshot, result, 1);
         __ andl(char_code, Immediate(0xFFFF));
         __ movw(FieldOperand(result, SeqTwoByteString::kHeaderSize), char_code);
         __ jmp(*done);
       },
-      register_snapshot, done, result, char_code);
+      register_snapshot, done, result, char_code, scratch);
   if (char_code_fits_one_byte != nullptr) {
     bind(char_code_fits_one_byte);
   }
-  LoadSingleCharacterString(result, char_code);
+  LoadSingleCharacterString(result, char_code, scratch);
   bind(*done);
 }
 
@@ -142,6 +154,8 @@ void MaglevAssembler::StringCharCodeAt(RegisterSnapshot& register_snapshot,
       [](MaglevAssembler* masm, RegisterSnapshot register_snapshot,
          ZoneLabelRef done, Register result, Register string, Register index) {
         DCHECK(!register_snapshot.live_registers.has(result));
+        DCHECK(!register_snapshot.live_registers.has(string));
+        DCHECK(!register_snapshot.live_registers.has(index));
         {
           SaveRegisterStateForCall save_register_state(masm, register_snapshot);
           __ Push(string);
@@ -157,20 +171,24 @@ void MaglevAssembler::StringCharCodeAt(RegisterSnapshot& register_snapshot,
       },
       register_snapshot, done, result, string, index);
 
-  if (v8_flags.debug_code) {
-    // Check if {string} is a string.
-    AssertNotSmi(string);
-    LoadMap(scratch, string);
-    CmpInstanceTypeRange(scratch, scratch, FIRST_STRING_TYPE, LAST_STRING_TYPE);
-    Check(below_equal, AbortReason::kUnexpectedValue);
-  }
-
   Register instance_type = scratch;
 
   // We might need to try more than one time for ConsString, SlicedString and
   // ThinString.
   Label loop;
   bind(&loop);
+
+  if (v8_flags.debug_code) {
+    // Check if {string} is a string.
+    AssertNotSmi(string);
+    LoadMap(scratch, string);
+    CmpInstanceTypeRange(scratch, scratch, FIRST_STRING_TYPE, LAST_STRING_TYPE);
+    Check(below_equal, AbortReason::kUnexpectedValue);
+
+    movl(scratch, FieldOperand(string, String::kLengthOffset));
+    cmpl(index, scratch);
+    Check(below, AbortReason::kUnexpectedValue);
+  }
 
   // Get instance type.
   LoadMap(instance_type, string);
@@ -235,6 +253,8 @@ void MaglevAssembler::StringCharCodeAt(RegisterSnapshot& register_snapshot,
     // Fallthrough.
   }
 
+  bind(*done);
+
   if (v8_flags.debug_code) {
     // We make sure that the user of this macro is not relying in string and
     // index to not be clobbered.
@@ -245,8 +265,6 @@ void MaglevAssembler::StringCharCodeAt(RegisterSnapshot& register_snapshot,
       movl(index, Immediate(0xdeadbeef));
     }
   }
-
-  bind(*done);
 }
 
 void MaglevAssembler::ToBoolean(Register value, ZoneLabelRef is_true,

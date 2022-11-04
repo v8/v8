@@ -70,7 +70,8 @@ class MaglevAssembler : public MacroAssembler {
                              Register result, int length);
 
   void LoadSingleCharacterString(Register result, int char_code);
-  void LoadSingleCharacterString(Register result, Register char_code);
+  void LoadSingleCharacterString(Register result, Register char_code,
+                                 Register scratch);
 
   inline void Branch(Condition condition, BasicBlock* if_true,
                      BasicBlock* if_false, BasicBlock* next_block);
@@ -86,7 +87,7 @@ class MaglevAssembler : public MacroAssembler {
   // Warning: Input {char_code} will be scratched.
   void StringFromCharCode(RegisterSnapshot register_snapshot,
                           Label* char_code_fits_one_byte, Register result,
-                          Register char_code);
+                          Register char_code, Register scratch);
 
   void ToBoolean(Register value, ZoneLabelRef is_true, ZoneLabelRef is_false,
                  bool fallthrough_when_true);

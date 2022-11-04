@@ -1559,12 +1559,8 @@ void BuiltinStringFromCharCode::GenerateCode(MaglevAssembler* masm,
     // TODO(victorgomes): Add a constraint in the register allocator for this
     // use case?
     Register scratch = general_temporaries().PopFirst();
-    if (char_code == result_string) {
-      __ Move(scratch, char_code);
-      char_code = scratch;
-    }
     __ StringFromCharCode(register_snapshot(), nullptr, result_string,
-                          char_code);
+                          char_code, scratch);
   }
 }
 
@@ -1934,13 +1930,8 @@ void StringAt::GenerateCode(MaglevAssembler* masm,
   RegisterSnapshot save_registers = register_snapshot();
   __ StringCharCodeAt(save_registers, char_code, string, index, scratch,
                       &cached_one_byte_string);
-
-  if (char_code == result_string) {
-    __ Move(scratch, char_code);
-    char_code = scratch;
-  }
   __ StringFromCharCode(save_registers, &cached_one_byte_string, result_string,
-                        char_code);
+                        char_code, scratch);
 }
 
 void DefineNamedOwnGeneric::AllocateVreg(
