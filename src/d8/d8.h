@@ -541,7 +541,7 @@ class Shell : public i::AllStatic {
   static void MapCounters(v8::Isolate* isolate, const char* name);
 
   static double GetTimestamp();
-  static int64_t GetTracingTimestampFromPerformanceTimestamp(
+  static uint64_t GetTracingTimestampFromPerformanceTimestamp(
       double performance_timestamp);
 
   static void PerformanceNow(const v8::FunctionCallbackInfo<v8::Value>& args);

@@ -1759,7 +1759,7 @@ double Shell::GetTimestamp() {
     return delta.InMillisecondsF();
   }
 }
-int64_t Shell::GetTracingTimestampFromPerformanceTimestamp(
+uint64_t Shell::GetTracingTimestampFromPerformanceTimestamp(
     double performance_timestamp) {
   // Don't use this in --verify-predictable mode, predictable timestamps don't
   // work well with tracing.
@@ -1767,7 +1767,9 @@ int64_t Shell::GetTracingTimestampFromPerformanceTimestamp(
   base::TimeDelta delta =
       base::TimeDelta::FromMillisecondsD(performance_timestamp);
   // See TracingController::CurrentTimestampMicroseconds().
-  return (delta + kInitialTicks).ToInternalValue();
+  int64_t internal_value = (delta + kInitialTicks).ToInternalValue();
+  DCHECK(internal_value >= 0);
+  return internal_value;
 }
 
 // performance.now() returns GetTimestamp().
