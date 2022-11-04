@@ -359,6 +359,11 @@ class RepresentationSelector {
         linkage_(linkage),
         observe_node_manager_(observe_node_manager),
         verifier_(verifier) {
+    Factory* factory = broker_->isolate()->factory();
+    singleton_true_ =
+        Type::Constant(broker, factory->true_value(), graph_zone());
+    singleton_false_ =
+        Type::Constant(broker, factory->false_value(), graph_zone());
   }
 
   bool verification_enabled() const { return verifier_ != nullptr; }
@@ -1254,14 +1259,14 @@ class RepresentationSelector {
       if (lower<T>()) {
         DeferReplacement(
             node, InsertTypeOverrideForVerifier(
-                      Type::Boolean(), lowering->jsgraph()->Int32Constant(1)));
+                      true_type(), lowering->jsgraph()->Int32Constant(1)));
       }
     } else {
       VisitUnop<T>(node, UseInfo::AnyTagged(), MachineRepresentation::kBit);
       if (lower<T>() && !input_type.Maybe(type)) {
         DeferReplacement(
             node, InsertTypeOverrideForVerifier(
-                      Type::Boolean(), lowering->jsgraph()->Int32Constant(0)));
+                      false_type(), lowering->jsgraph()->Int32Constant(0)));
       }
     }
   }
@@ -3874,16 +3879,16 @@ class RepresentationSelector {
         if (input_type.Is(type_cache_->kSafeInteger)) {
           VisitUnop<T>(node, UseInfo::None(), MachineRepresentation::kBit);
           if (lower<T>()) {
-            DeferReplacement(node, InsertTypeOverrideForVerifier(
-                                       Type::Boolean(),
-                                       lowering->jsgraph()->Int32Constant(1)));
+            DeferReplacement(
+                node, InsertTypeOverrideForVerifier(
+                          true_type(), lowering->jsgraph()->Int32Constant(1)));
           }
         } else if (!input_type.Maybe(Type::Number())) {
           VisitUnop<T>(node, UseInfo::Any(), MachineRepresentation::kBit);
           if (lower<T>()) {
-            DeferReplacement(node, InsertTypeOverrideForVerifier(
-                                       Type::Boolean(),
-                                       lowering->jsgraph()->Int32Constant(0)));
+            DeferReplacement(
+                node, InsertTypeOverrideForVerifier(
+                          false_type(), lowering->jsgraph()->Int32Constant(0)));
           }
         } else if (input_type.Is(Type::Number())) {
           VisitUnop<T>(node, UseInfo::TruncatingFloat64(),
@@ -3906,16 +3911,16 @@ class RepresentationSelector {
         if (input_type.Is(type_cache_->kSafeInteger)) {
           VisitUnop<T>(node, UseInfo::None(), MachineRepresentation::kBit);
           if (lower<T>()) {
-            DeferReplacement(node, InsertTypeOverrideForVerifier(
-                                       Type::Boolean(),
-                                       lowering->jsgraph()->Int32Constant(1)));
+            DeferReplacement(
+                node, InsertTypeOverrideForVerifier(
+                          true_type(), lowering->jsgraph()->Int32Constant(1)));
           }
         } else if (!input_type.Maybe(Type::Number())) {
           VisitUnop<T>(node, UseInfo::Any(), MachineRepresentation::kBit);
           if (lower<T>()) {
-            DeferReplacement(node, InsertTypeOverrideForVerifier(
-                                       Type::Boolean(),
-                                       lowering->jsgraph()->Int32Constant(0)));
+            DeferReplacement(
+                node, InsertTypeOverrideForVerifier(
+                          false_type(), lowering->jsgraph()->Int32Constant(0)));
           }
         } else if (input_type.Is(Type::Number())) {
           VisitUnop<T>(node, UseInfo::TruncatingFloat64(),
@@ -3936,16 +3941,16 @@ class RepresentationSelector {
         if (input_type.Is(type_cache_->kSafeInteger)) {
           VisitUnop<T>(node, UseInfo::None(), MachineRepresentation::kBit);
           if (lower<T>()) {
-            DeferReplacement(node, InsertTypeOverrideForVerifier(
-                                       Type::Boolean(),
-                                       lowering->jsgraph()->Int32Constant(1)));
+            DeferReplacement(
+                node, InsertTypeOverrideForVerifier(
+                          true_type(), lowering->jsgraph()->Int32Constant(1)));
           }
         } else if (!input_type.Maybe(Type::Number())) {
           VisitUnop<T>(node, UseInfo::Any(), MachineRepresentation::kBit);
           if (lower<T>()) {
-            DeferReplacement(node, InsertTypeOverrideForVerifier(
-                                       Type::Boolean(),
-                                       lowering->jsgraph()->Int32Constant(0)));
+            DeferReplacement(
+                node, InsertTypeOverrideForVerifier(
+                          false_type(), lowering->jsgraph()->Int32Constant(0)));
           }
         } else if (input_type.Is(Type::Number())) {
           VisitUnop<T>(node, UseInfo::TruncatingFloat64(),
@@ -3968,16 +3973,16 @@ class RepresentationSelector {
         if (input_type.Is(Type::MinusZero())) {
           VisitUnop<T>(node, UseInfo::None(), MachineRepresentation::kBit);
           if (lower<T>()) {
-            DeferReplacement(node, InsertTypeOverrideForVerifier(
-                                       Type::Boolean(),
-                                       lowering->jsgraph()->Int32Constant(1)));
+            DeferReplacement(
+                node, InsertTypeOverrideForVerifier(
+                          true_type(), lowering->jsgraph()->Int32Constant(1)));
           }
         } else if (!input_type.Maybe(Type::MinusZero())) {
           VisitUnop<T>(node, UseInfo::Any(), MachineRepresentation::kBit);
           if (lower<T>()) {
-            DeferReplacement(node, InsertTypeOverrideForVerifier(
-                                       Type::Boolean(),
-                                       lowering->jsgraph()->Int32Constant(0)));
+            DeferReplacement(
+                node, InsertTypeOverrideForVerifier(
+                          false_type(), lowering->jsgraph()->Int32Constant(0)));
           }
         } else if (input_type.Is(Type::Number())) {
           VisitUnop<T>(node, UseInfo::TruncatingFloat64(),
@@ -3995,16 +4000,16 @@ class RepresentationSelector {
         if (input_type.Is(Type::NaN())) {
           VisitUnop<T>(node, UseInfo::None(), MachineRepresentation::kBit);
           if (lower<T>()) {
-            DeferReplacement(node, InsertTypeOverrideForVerifier(
-                                       Type::Boolean(),
-                                       lowering->jsgraph()->Int32Constant(1)));
+            DeferReplacement(
+                node, InsertTypeOverrideForVerifier(
+                          true_type(), lowering->jsgraph()->Int32Constant(1)));
           }
         } else if (!input_type.Maybe(Type::NaN())) {
           VisitUnop<T>(node, UseInfo::Any(), MachineRepresentation::kBit);
           if (lower<T>()) {
-            DeferReplacement(node, InsertTypeOverrideForVerifier(
-                                       Type::Boolean(),
-                                       lowering->jsgraph()->Int32Constant(0)));
+            DeferReplacement(
+                node, InsertTypeOverrideForVerifier(
+                          false_type(), lowering->jsgraph()->Int32Constant(0)));
           }
         } else if (input_type.Is(Type::Number())) {
           VisitUnop<T>(node, UseInfo::TruncatingFloat64(),
@@ -4441,6 +4446,9 @@ class RepresentationSelector {
                                            replacement);
   }
 
+  Type true_type() const { return singleton_true_; }
+  Type false_type() const { return singleton_false_; }
+
   JSGraph* jsgraph_;
   JSHeapBroker* broker_;
   Zone* zone_;                      // Temporary zone.
@@ -4470,6 +4478,8 @@ class RepresentationSelector {
   NodeOriginTable* node_origins_;
   TypeCache const* type_cache_;
   OperationTyper op_typer_;  // helper for the feedback typer
+  Type singleton_true_;
+  Type singleton_false_;
   TickCounter* const tick_counter_;
   Linkage* const linkage_;
   ObserveNodeManager* const observe_node_manager_;

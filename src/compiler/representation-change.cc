@@ -1043,11 +1043,14 @@ Node* RepresentationChanger::GetBitRepresentationFor(
     case IrOpcode::kHeapConstant: {
       HeapObjectMatcher m(node);
       if (m.Is(factory()->false_value())) {
-        return InsertTypeOverrideForVerifier(Type::Boolean(),
-                                             jsgraph()->Int32Constant(0));
+        return InsertTypeOverrideForVerifier(
+            Type::Constant(broker_, factory()->false_value(),
+                           jsgraph()->zone()),
+            jsgraph()->Int32Constant(0));
       } else if (m.Is(factory()->true_value())) {
-        return InsertTypeOverrideForVerifier(Type::Boolean(),
-                                             jsgraph()->Int32Constant(1));
+        return InsertTypeOverrideForVerifier(
+            Type::Constant(broker_, factory()->true_value(), jsgraph()->zone()),
+            jsgraph()->Int32Constant(1));
       }
       break;
     }
