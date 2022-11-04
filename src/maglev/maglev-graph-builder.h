@@ -1045,14 +1045,13 @@ class MaglevGraphBuilder {
 
     ConvertReceiverMode receiver_mode() const { return receiver_mode_; }
 
-    CallArguments PopLeft() const {
-      if (count() == 0) {
-        return CallArguments(ConvertReceiverMode::kNullOrUndefined, 0);
-      }
+    CallArguments PopReceiver(ConvertReceiverMode new_receiver_mode) const {
+      DCHECK_NE(receiver_mode_, ConvertReceiverMode::kNullOrUndefined);
+      DCHECK_GT(count(), 0);
       if (call_mode_ == kFromRegisters) {
-        return CallArguments(receiver_mode_, argc_ - 1, regs_[1], regs_[2]);
+        return CallArguments(new_receiver_mode, argc_ - 1, regs_[1], regs_[2]);
       }
-      return CallArguments(receiver_mode_, reglist_.PopLeft());
+      return CallArguments(new_receiver_mode, reglist_.PopLeft());
     }
 
    private:

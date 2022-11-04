@@ -2613,7 +2613,8 @@ bool MaglevGraphBuilder::TryReduceFunctionPrototypeCall(
   ValueNode* context = GetConstant(target.context());
   ValueNode* receiver = GetTaggedReceiver(args);
   compiler::FeedbackSource feedback_source;
-  BuildGenericCall(receiver, context, Call::TargetType::kAny, args.PopLeft(),
+  BuildGenericCall(receiver, context, Call::TargetType::kAny,
+                   args.PopReceiver(ConvertReceiverMode::kAny),
                    feedback_source);
   return true;
 }

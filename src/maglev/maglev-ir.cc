@@ -3344,6 +3344,19 @@ void Call::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
 
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
+void Call::PrintParams(std::ostream& os,
+                       MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << receiver_mode_ << ", ";
+  switch (target_type_) {
+    case TargetType::kJSFunction:
+      os << "JSFunction";
+      break;
+    case TargetType::kAny:
+      os << "Any";
+      break;
+  }
+  os << ")";
+}
 
 void CallKnownJSFunction::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseAny(receiver());

@@ -3852,7 +3852,7 @@ class Call : public ValueNodeT<Call> {
 
   void AllocateVreg(MaglevVregAllocationState*);
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
  private:
   ConvertReceiverMode receiver_mode_;
