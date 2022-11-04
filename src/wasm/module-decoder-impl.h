@@ -1682,19 +1682,24 @@ class ModuleDecoderTemplate : public Decoder {
   // Decodes a single anonymous function starting at {start_}.
   FunctionResult DecodeSingleFunctionForTesting(
       Zone* zone, const ModuleWireBytes& wire_bytes, const WasmModule* module) {
+    DCHECK(ok());
     pc_ = start_;
     expect_u8("type form", kWasmFunctionTypeCode);
     WasmFunction function;
     function.sig = consume_sig(zone);
     function.code = {off(pc_), static_cast<uint32_t>(end_ - pc_)};
-    if (!module->validated_functions) {
-      DCHECK_EQ(0, function.func_index);
-      module->validated_functions = std::make_unique<std::atomic<uint8_t>[]>(1);
-    }
+
     if (!ok()) return FunctionResult{std::move(error_)};
 
-    ValidateFunctionBody(zone->allocator(), wire_bytes, module, &function);
-    if (!ok()) return FunctionResult{std::move(error_)};
+    AccountingAllocator* allocator = zone->allocator();
+
+    FunctionBody body{function.sig, off(pc_), pc_, end_};
+
+    WasmFeatures unused_detected_features;
+    DecodeResult result = wasm::ValidateFunctionBody(
+        allocator, enabled_features_, module, &unused_detected_features, body);
+
+    if (result.failed()) return FunctionResult{std::move(result).error()};
 
     return FunctionResult{std::make_unique<WasmFunction>(function)};
   }
