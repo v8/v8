@@ -905,7 +905,7 @@ void ModuleDisassembler::PrintModule(Indentation indentation) {
     const WasmElemSegment& elem = module_->elem_segments[i];
     out_.NextLine(offsets_->element_offset(i));
     out_ << indentation << "(elem ";
-    names_->PrintElementSegmentName(out_, i);
+    names_->PrintElementSegmentName(out_, i, kIndicesAsComments);
     if (elem.status == WasmElemSegment::kStatusDeclarative) {
       out_ << " declare";
     } else if (elem.status == WasmElemSegment::kStatusActive) {
@@ -965,7 +965,7 @@ void ModuleDisassembler::PrintModule(Indentation indentation) {
     out_ << indentation << "(data";
     if (!kSkipDataSegmentNames) {
       out_ << " ";
-      names_->PrintDataSegmentName(out_, i);
+      names_->PrintDataSegmentName(out_, i, kIndicesAsComments);
     }
     if (data.active) {
       ValueType type = module_->is_memory64 ? kWasmI64 : kWasmI32;
