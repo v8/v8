@@ -1077,12 +1077,17 @@ TNode<Object> JSCallReducerAssembler::ReduceJSCallMathMinMaxWithArrayLike(
       NumberEqual(arguments_list_instance_type, NumberConstant(JS_ARRAY_TYPE));
   GotoIfNot(check_instance_type, &call_builtin);
 
-  // Check if {arguments_list} has PACKED_DOUBLE_ELEMENTS.
+  // Check if {arguments_list} has PACKED_DOUBLE_ELEMENTS or
+  // HOLEY_DOUBLE_ELEMENTS.
   TNode<Number> arguments_list_elements_kind =
       LoadMapElementsKind(arguments_list_map);
-  auto check_element_kind = NumberEqual(arguments_list_elements_kind,
-                                        NumberConstant(PACKED_DOUBLE_ELEMENTS));
-  GotoIfNot(check_element_kind, &call_builtin);
+
+  static_assert(PACKED_DOUBLE_ELEMENTS == 4);
+  static_assert(HOLEY_DOUBLE_ELEMENTS == 5);
+  auto check_elements_kind = NumberEqual(
+      NumberBitwiseOr(arguments_list_elements_kind, NumberConstant(1)),
+      NumberConstant(HOLEY_DOUBLE_ELEMENTS));
+  GotoIfNot(check_elements_kind, &call_builtin);
 
   // If {arguments_list} is a JSArray with PACKED_DOUBLE_ELEMENTS, calculate the
   // result with inlined loop.
@@ -8345,10 +8350,15 @@ base::Optional<Reduction> JSCallReducer::TryReduceJSCallMathMinMaxWithArrayLike(
     return base::nullopt;
   }
 
+  if (!dependencies()->DependOnNoElementsProtector()) {
+    return base::nullopt;
+  }
+
   // These ops are handled by ReduceCallOrConstructWithArrayLikeOrSpread.
+  // IrOpcode::kJSCreateEmptyLiteralArray is not included, since arguments_list
+  // for Math.min/min is not likely to keep empty.
   Node* arguments_list = n.Argument(0);
   if (arguments_list->opcode() == IrOpcode::kJSCreateLiteralArray ||
-      arguments_list->opcode() == IrOpcode::kJSCreateEmptyLiteralArray ||
       arguments_list->opcode() == IrOpcode::kJSCreateArguments) {
     return base::nullopt;
   }

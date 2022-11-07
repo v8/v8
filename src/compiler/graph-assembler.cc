@@ -398,6 +398,12 @@ TNode<Number> JSGraphAssembler::NumberBitwiseAnd(TNode<Number> lhs,
       graph()->NewNode(simplified()->NumberBitwiseAnd(), lhs, rhs));
 }
 
+TNode<Number> JSGraphAssembler::NumberBitwiseOr(TNode<Number> lhs,
+                                                TNode<Number> rhs) {
+  return AddNode<Number>(
+      graph()->NewNode(simplified()->NumberBitwiseOr(), lhs, rhs));
+}
+
 TNode<String> JSGraphAssembler::StringSubstring(TNode<String> string,
                                                 TNode<Number> from,
                                                 TNode<Number> to) {

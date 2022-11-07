@@ -1008,6 +1008,7 @@ class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {
   TNode<Number> NumberSubtract(TNode<Number> lhs, TNode<Number> rhs);
   TNode<Number> NumberShiftRightLogical(TNode<Number> lhs, TNode<Number> rhs);
   TNode<Number> NumberBitwiseAnd(TNode<Number> lhs, TNode<Number> rhs);
+  TNode<Number> NumberBitwiseOr(TNode<Number> lhs, TNode<Number> rhs);
   TNode<Number> NumberDivide(TNode<Number> lhs, TNode<Number> rhs);
   TNode<Number> NumberFloor(TNode<Number> value);
   TNode<String> StringSubstring(TNode<String> string, TNode<Number> from,
