@@ -1180,6 +1180,11 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
   instance->set_hook_on_function_call_address(
       isolate->debug()->hook_on_function_call_address());
   instance->set_managed_object_maps(*isolate->factory()->empty_fixed_array());
+  // TODO(manoskouk): Initialize this array with zeroes, and check for zero in
+  // wasm-compiler.
+  Handle<FixedArray> functions = isolate->factory()->NewFixedArray(
+      static_cast<int>(module->functions.size()));
+  instance->set_wasm_internal_functions(*functions);
   instance->set_feedback_vectors(*isolate->factory()->empty_fixed_array());
   instance->set_tiering_budget_array(
       module_object->native_module()->tiering_budget_array());
@@ -1323,15 +1328,10 @@ base::Optional<MessageTemplate> WasmInstanceObject::InitTableEntries(
 
 MaybeHandle<WasmInternalFunction> WasmInstanceObject::GetWasmInternalFunction(
     Isolate* isolate, Handle<WasmInstanceObject> instance, int index) {
-  MaybeHandle<WasmInternalFunction> result;
-  if (instance->has_wasm_internal_functions()) {
-    Object val = instance->wasm_internal_functions().get(index);
-    if (!val.IsUndefined(isolate)) {
-      result = Handle<WasmInternalFunction>(WasmInternalFunction::cast(val),
-                                            isolate);
-    }
-  }
-  return result;
+  Object val = instance->wasm_internal_functions().get(index);
+  return val.IsWasmInternalFunction()
+             ? handle(WasmInternalFunction::cast(val), isolate)
+             : MaybeHandle<WasmInternalFunction>();
 }
 
 Handle<WasmInternalFunction>
@@ -1340,10 +1340,8 @@ WasmInstanceObject::GetOrCreateWasmInternalFunction(
   MaybeHandle<WasmInternalFunction> maybe_result =
       WasmInstanceObject::GetWasmInternalFunction(isolate, instance,
                                                   function_index);
-
-  Handle<WasmInternalFunction> result;
-  if (maybe_result.ToHandle(&result)) {
-    return result;
+  if (!maybe_result.is_null()) {
+    return maybe_result.ToHandleChecked();
   }
 
   Handle<WasmModuleObject> module_object(instance->module_object(), isolate);
@@ -1376,28 +1374,17 @@ WasmInstanceObject::GetOrCreateWasmInternalFunction(
   auto external = Handle<WasmExternalFunction>::cast(WasmExportedFunction::New(
       isolate, instance, function_index,
       static_cast<int>(function.sig->parameter_count()), wrapper));
-  result =
+  Handle<WasmInternalFunction> result =
       WasmInternalFunction::FromExternal(external, isolate).ToHandleChecked();
 
-  WasmInstanceObject::SetWasmInternalFunction(isolate, instance, function_index,
-                                              result);
+  WasmInstanceObject::SetWasmInternalFunction(instance, function_index, result);
   return result;
 }
 
 void WasmInstanceObject::SetWasmInternalFunction(
-    Isolate* isolate, Handle<WasmInstanceObject> instance, int index,
+    Handle<WasmInstanceObject> instance, int index,
     Handle<WasmInternalFunction> val) {
-  Handle<FixedArray> functions;
-  if (!instance->has_wasm_internal_functions()) {
-    // Lazily allocate the wasm external functions array.
-    functions = isolate->factory()->NewFixedArray(
-        static_cast<int>(instance->module()->functions.size()));
-    instance->set_wasm_internal_functions(*functions);
-  } else {
-    functions =
-        Handle<FixedArray>(instance->wasm_internal_functions(), isolate);
-  }
-  functions->set(index, *val);
+  instance->wasm_internal_functions().set(index, *val);
 }
 
 // static

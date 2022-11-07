@@ -282,9 +282,19 @@ Node* WasmGraphBuilder::RefNull() {
 }
 
 Node* WasmGraphBuilder::RefFunc(uint32_t function_index) {
-  return gasm_->CallRuntimeStub(wasm::WasmCode::kWasmRefFunc,
-                                Operator::kNoThrow,
-                                gasm_->Uint32Constant(function_index));
+  Node* functions =
+      LOAD_INSTANCE_FIELD(WasmInternalFunctions, MachineType::TaggedPointer());
+  Node* maybe_function =
+      gasm_->LoadFixedArrayElementPtr(functions, function_index);
+  auto done = gasm_->MakeLabel(MachineRepresentation::kTaggedPointer);
+  gasm_->GotoIfNot(gasm_->TaggedEqual(maybe_function, UndefinedValue()), &done,
+                   maybe_function);
+  Node* function_from_builtin =
+      gasm_->CallRuntimeStub(wasm::WasmCode::kWasmRefFunc, Operator::kNoThrow,
+                             gasm_->Uint32Constant(function_index));
+  gasm_->Goto(&done, function_from_builtin);
+  gasm_->Bind(&done);
+  return done.PhiAt(0);
 }
 
 Node* WasmGraphBuilder::NoContextConstant() {

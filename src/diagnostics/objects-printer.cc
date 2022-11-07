@@ -2066,7 +2066,7 @@ void WasmInstanceObject::WasmInstanceObjectPrint(std::ostream& os) {
   PRINT_WASM_INSTANCE_FIELD(imported_function_refs, Brief);
   PRINT_OPTIONAL_WASM_INSTANCE_FIELD(indirect_function_table_refs, Brief);
   PRINT_OPTIONAL_WASM_INSTANCE_FIELD(tags_table, Brief);
-  PRINT_OPTIONAL_WASM_INSTANCE_FIELD(wasm_internal_functions, Brief);
+  PRINT_WASM_INSTANCE_FIELD(wasm_internal_functions, Brief);
   PRINT_WASM_INSTANCE_FIELD(managed_object_maps, Brief);
   PRINT_WASM_INSTANCE_FIELD(feedback_vectors, Brief);
   PRINT_WASM_INSTANCE_FIELD(memory_start, to_void_ptr);

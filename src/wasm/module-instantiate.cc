@@ -1118,7 +1118,7 @@ bool InstanceBuilder::ProcessImportedFunction(
   // well as functions constructed via other means (e.g. WebAssembly.Function).
   if (WasmExternalFunction::IsWasmExternalFunction(*value)) {
     WasmInstanceObject::SetWasmInternalFunction(
-        isolate_, instance, func_index,
+        instance, func_index,
         WasmInternalFunction::FromExternal(
             Handle<WasmExternalFunction>::cast(value), isolate_)
             .ToHandleChecked());
@@ -1770,7 +1770,7 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
       Handle<Object> value = sanitized_imports_[index].value;
       if (WasmExternalFunction::IsWasmExternalFunction(*value)) {
         WasmInstanceObject::SetWasmInternalFunction(
-            isolate_, instance, import.index,
+            instance, import.index,
             WasmInternalFunction::FromExternal(
                 Handle<WasmExternalFunction>::cast(value), isolate_)
                 .ToHandleChecked());
