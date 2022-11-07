@@ -234,6 +234,7 @@ DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
 #define HARMONY_STAGED_BASE(V)                                    \
   V(harmony_rab_gsab,                                             \
     "harmony ResizableArrayBuffer / GrowableSharedArrayBuffer")   \
+  V(harmony_array_grouping, "harmony array grouping")             \
   V(harmony_change_array_by_copy, "harmony change-Array-by-copy") \
   V(harmony_symbol_as_weakmap_key, "harmony symbols as weakmap keys")
 
@@ -249,8 +250,7 @@ DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
   V(harmony_atomics, "harmony atomics")                               \
   V(harmony_class_static_blocks, "harmony static initializer blocks") \
   V(harmony_array_find_last, "harmony array find last helpers")       \
-  V(harmony_import_assertions, "harmony import assertions")           \
-  V(harmony_array_grouping, "harmony array grouping")
+  V(harmony_import_assertions, "harmony import assertions")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_SHIPPING(V) \
