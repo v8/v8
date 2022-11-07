@@ -7867,7 +7867,9 @@ Reduction JSCallReducer::ReduceArrayBufferViewAccessor(
                    return IsRabGsabTypedArrayElementsKind(map.elements_kind());
                  }));
 
-  CHECK(inference.RelyOnMapsViaStability(dependencies()));
+  if (!inference.RelyOnMapsViaStability(dependencies())) {
+    return inference.NoChange();
+  }
 
   const bool depended_on_detaching_protector =
       dependencies()->DependOnArrayBufferDetachingProtector();
