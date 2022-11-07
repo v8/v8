@@ -1965,10 +1965,11 @@ struct LateOptimizationPhase {
     if (data->HasTurboshaftGraph()) {
       // TODO(dmercadier,tebbi): add missing reducers (LateEscapeAnalysis,
       // BranchElimination, MachineOperatorReducer and CommonOperatorReducer).
-      turboshaft::OptimizationPhase<turboshaft::SelectLoweringReducer,
-                                    turboshaft::ValueNumberingReducer>::
-          Run(&data->turboshaft_graph(), temp_zone, data->node_origins(),
-              turboshaft::VisitOrder::kDominator);
+      turboshaft::OptimizationPhase<
+          turboshaft::SelectLoweringReducer,
+          turboshaft::ValueNumberingReducer>::Run(&data->turboshaft_graph(),
+                                                  temp_zone,
+                                                  data->node_origins());
     } else {
       GraphReducer graph_reducer(temp_zone, data->graph(),
                                  &data->info()->tick_counter(), data->broker(),
@@ -2081,9 +2082,9 @@ struct OptimizeTurboshaftPhase {
                                 v8_flags.turboshaft_trace_reduction);
     turboshaft::OptimizationPhase<
         turboshaft::MachineOptimizationReducerSignallingNanImpossible,
-        turboshaft::ValueNumberingReducer>::
-        Run(&data->turboshaft_graph(), temp_zone, data->node_origins(),
-            turboshaft::VisitOrder::kDominator);
+        turboshaft::ValueNumberingReducer>::Run(&data->turboshaft_graph(),
+                                                temp_zone,
+                                                data->node_origins());
   }
 };
 

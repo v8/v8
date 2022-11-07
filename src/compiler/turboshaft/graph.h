@@ -413,10 +413,6 @@ class Graph {
     DCHECK_LT(i.id(), bound_blocks_.size());
     return *bound_blocks_[i.id()];
   }
-  Block* GetPtr(uint32_t index) {
-    DCHECK_LT(index, bound_blocks_.size());
-    return bound_blocks_[index];
-  }
 
   OpIndex Index(const Operation& op) const { return operations_.Index(op); }
 

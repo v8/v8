@@ -72,26 +72,24 @@ template <class Next>
 class ValueNumberingReducer : public Next {
  public:
   using Next::Asm;
-  ValueNumberingReducer(Graph* graph, Zone* phase_zone)
-      : Next(graph, phase_zone),
-        dominator_path_(phase_zone),
-        depths_heads_(phase_zone) {
-    table_ = phase_zone->NewVector<Entry>(
+  ValueNumberingReducer()
+      : dominator_path_(Asm().phase_zone()), depths_heads_(Asm().phase_zone()) {
+    table_ = Asm().phase_zone()->template NewVector<Entry>(
         base::bits::RoundUpToPowerOfTwo(
-            std::max<size_t>(128, graph->op_id_capacity() / 2)),
+            std::max<size_t>(128, Asm().input_graph().op_id_capacity() / 2)),
         Entry());
     entry_count_ = 0;
     mask_ = table_.size() - 1;
   }
 
-#define EMIT_OP(Name)                                          \
-  template <class... Args>                                     \
-  OpIndex Reduce##Name(Args... args) {                         \
-    OpIndex next_index = Asm().graph().next_operation_index(); \
-    USE(next_index);                                           \
-    OpIndex result = Next::Reduce##Name(args...);              \
-    DCHECK_EQ(next_index, result);                             \
-    return AddOrFind<Name##Op>(result);                        \
+#define EMIT_OP(Name)                                                 \
+  template <class... Args>                                            \
+  OpIndex Reduce##Name(Args... args) {                                \
+    OpIndex next_index = Asm().output_graph().next_operation_index(); \
+    USE(next_index);                                                  \
+    OpIndex result = Next::Reduce##Name(args...);                     \
+    DCHECK_EQ(next_index, result);                                    \
+    return AddOrFind<Name##Op>(result);                               \
   }
   TURBOSHAFT_OPERATION_LIST(EMIT_OP)
 #undef EMIT_OP
@@ -133,7 +131,7 @@ class ValueNumberingReducer : public Next {
 
   template <class Op>
   OpIndex AddOrFind(OpIndex op_idx) {
-    const Op& op = Asm().graph().Get(op_idx).template Cast<Op>();
+    const Op& op = Asm().output_graph().Get(op_idx).template Cast<Op>();
     if (std::is_same<Op, PendingLoopPhiOp>::value ||
         !op.Properties().can_be_eliminated) {
       return op_idx;
@@ -154,12 +152,12 @@ class ValueNumberingReducer : public Next {
         return op_idx;
       }
       if (entry.hash == hash) {
-        const Operation& entry_op = Asm().graph().Get(entry.value);
+        const Operation& entry_op = Asm().output_graph().Get(entry.value);
         if (entry_op.Is<Op>() &&
             (!same_block_only ||
              entry.block == Asm().current_block()->index()) &&
             entry_op.Cast<Op>() == op) {
-          Asm().graph().RemoveLast();
+          Asm().output_graph().RemoveLast();
           return entry.value;
         }
       }

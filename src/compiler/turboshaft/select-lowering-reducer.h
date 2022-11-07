@@ -34,8 +34,6 @@ template <class Next>
 class SelectLoweringReducer : public Next {
  public:
   using Next::Asm;
-  SelectLoweringReducer(Graph* graph, Zone* phase_zone)
-      : Next(graph, phase_zone) {}
 
   OpIndex ReduceSelect(OpIndex cond, OpIndex vtrue, OpIndex vfalse,
                        RegisterRepresentation rep, BranchHint hint,

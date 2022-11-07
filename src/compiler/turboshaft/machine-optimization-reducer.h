@@ -24,6 +24,7 @@
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/turboshaft/representations.h"
 #include "src/numbers/conversions.h"
 
 namespace v8::internal::compiler::turboshaft {
@@ -46,9 +47,6 @@ template <bool signalling_nan_possible, class Next>
 class MachineOptimizationReducer : public Next {
  public:
   using Next::Asm;
-
-  MachineOptimizationReducer(Graph* graph, Zone* phase_zone)
-      : Next(graph, phase_zone) {}
 
   OpIndex ReduceChange(OpIndex input, ChangeOp::Kind kind,
                        ChangeOp::Assumption assumption,

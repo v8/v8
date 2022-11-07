@@ -48,7 +48,7 @@ struct GraphBuilder {
  private:
   OpIndex Map(Node* old_node) {
     OpIndex result = op_mapping.Get(old_node);
-    DCHECK(assembler.graph().IsValid(result));
+    DCHECK(assembler.output_graph().IsValid(result));
     return result;
   }
   Block* Map(BasicBlock* block) {
@@ -59,11 +59,11 @@ struct GraphBuilder {
 
   void FixLoopPhis(Block* loop, Block* backedge) {
     DCHECK(loop->IsLoop());
-    for (Operation& op : assembler.graph().operations(*loop)) {
+    for (Operation& op : assembler.output_graph().operations(*loop)) {
       if (!op.Is<PendingLoopPhiOp>()) continue;
       auto& pending_phi = op.Cast<PendingLoopPhiOp>();
-      assembler.graph().Replace<PhiOp>(
-          assembler.graph().Index(pending_phi),
+      assembler.output_graph().Replace<PhiOp>(
+          assembler.output_graph().Index(pending_phi),
           base::VectorOf(
               {pending_phi.first(), Map(pending_phi.old_backedge_node)}),
           pending_phi.rep);
@@ -223,17 +223,18 @@ base::Optional<BailoutReason> GraphBuilder::Run() {
   }
 
   if (source_positions->IsEnabled()) {
-    for (OpIndex index : assembler.graph().AllOperationIndices()) {
-      compiler::NodeId origin =
-          assembler.graph().operation_origins()[index].DecodeTurbofanNodeId();
-      assembler.graph().source_positions()[index] =
+    for (OpIndex index : assembler.output_graph().AllOperationIndices()) {
+      compiler::NodeId origin = assembler.output_graph()
+                                    .operation_origins()[index]
+                                    .DecodeTurbofanNodeId();
+      assembler.output_graph().source_positions()[index] =
           source_positions->GetSourcePosition(origin);
     }
   }
 
   if (origins) {
-    for (OpIndex index : assembler.graph().AllOperationIndices()) {
-      OpIndex origin = assembler.graph().operation_origins()[index];
+    for (OpIndex index : assembler.output_graph().AllOperationIndices()) {
+      OpIndex origin = assembler.output_graph().operation_origins()[index];
       origins->SetNodeOrigin(index.id(), origin.DecodeTurbofanNodeId());
     }
   }
@@ -270,7 +271,8 @@ OpIndex GraphBuilder::Process(
       // Use the `CatchExceptionOp` that has already been produced when
       // processing the call.
       OpIndex catch_exception = Map(node);
-      DCHECK(assembler.graph().Get(catch_exception).Is<CatchExceptionOp>());
+      DCHECK(
+          assembler.output_graph().Get(catch_exception).Is<CatchExceptionOp>());
       return catch_exception;
     }
 
@@ -817,9 +819,10 @@ base::Optional<BailoutReason> BuildGraph(Schedule* schedule, Zone* graph_zone,
                                          Zone* phase_zone, Graph* graph,
                                          SourcePositionTable* source_positions,
                                          NodeOriginTable* origins) {
-  GraphBuilder builder{graph_zone,       phase_zone,
-                       *schedule,        Assembler<>(graph, phase_zone),
-                       source_positions, origins};
+  GraphBuilder builder{
+      graph_zone,       phase_zone,
+      *schedule,        Assembler<>(*graph, *graph, phase_zone),
+      source_positions, origins};
   return builder.Run();
 }
 

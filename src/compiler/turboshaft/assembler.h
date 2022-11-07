@@ -24,26 +24,18 @@
 
 namespace v8::internal::compiler::turboshaft {
 
-// Forward declarations
-struct OptimizationPhaseState;
-
 template <class Assembler, template <class> class... Reducers>
 class ReducerStack {};
 
 template <class Assembler, template <class> class FirstReducer,
           template <class> class... Reducers>
 class ReducerStack<Assembler, FirstReducer, Reducers...>
-    : public FirstReducer<ReducerStack<Assembler, Reducers...>> {
-  using FirstReducer<ReducerStack<Assembler, Reducers...>>::FirstReducer;
-};
+    : public FirstReducer<ReducerStack<Assembler, Reducers...>> {};
 
 template <class Assembler>
 class ReducerStack<Assembler> {
  public:
   Assembler& Asm() { return *static_cast<Assembler*>(this); }
-
-  template <typename... Args>
-  explicit ReducerStack(Args&&...) {}
 };
 
 // This empty base-class is used to provide default-implementations of plain
@@ -58,8 +50,6 @@ class ReducerBaseForwarder : public Next {
   }
   TURBOSHAFT_OPERATION_LIST(EMIT_OP)
 #undef EMIT_OP
-
-  using Next::Next;
 };
 
 // ReducerBase provides default implementations of Branch-related Operations
@@ -71,8 +61,6 @@ class ReducerBase : public ReducerBaseForwarder<Next> {
  public:
   using Next::Asm;
   using Base = ReducerBaseForwarder<Next>;
-
-  using Base::Base;
 
   void Bind(Block*, const Block*) {}
 
@@ -809,35 +797,38 @@ class AssemblerOpInterface {
 
 template <template <class> class... Reducers>
 class Assembler
-    : public ReducerStack<Assembler<Reducers...>, Reducers..., ReducerBase>,
+    : public GraphVisitor<Assembler<Reducers...>>,
+      public ReducerStack<Assembler<Reducers...>, Reducers..., ReducerBase>,
       public OperationMatching<Assembler<Reducers...>>,
       public AssemblerOpInterface<Assembler<Reducers...>> {
   using Stack = ReducerStack<Assembler<Reducers...>, Reducers...,
                              v8::internal::compiler::turboshaft::ReducerBase>;
 
  public:
-  explicit Assembler(Graph* graph, Zone* phase_zone,
+  explicit Assembler(Graph& input_graph, Graph& output_graph, Zone* phase_zone,
                      compiler::NodeOriginTable* origins = nullptr)
-      : Stack(graph, phase_zone), graph_(*graph), phase_zone_(phase_zone) {
-    graph_.Reset();
+      : GraphVisitor<Assembler>(input_graph, output_graph, phase_zone,
+                                origins) {
     SupportedOperations::Initialize();
   }
 
-  Block* NewBlock(Block::Kind kind) { return graph_.NewBlock(kind); }
+  Block* NewBlock(Block::Kind kind) {
+    return this->output_graph().NewBlock(kind);
+  }
 
   using OperationMatching<Assembler<Reducers...>>::Get;
 
   V8_INLINE V8_WARN_UNUSED_RESULT bool Bind(Block* block,
                                             const Block* origin = nullptr) {
-    if (!graph().Add(block)) return false;
+    if (!this->output_graph().Add(block)) return false;
     DCHECK_NULL(current_block_);
     current_block_ = block;
     Stack::Bind(block, origin);
     return true;
   }
 
-  V8_INLINE void BindReachable(Block* block) {
-    bool bound = Bind(block);
+  V8_INLINE void BindReachable(Block* block, const Block* origin = nullptr) {
+    bool bound = Bind(block, origin);
     DCHECK(bound);
     USE(bound);
   }
@@ -847,32 +838,31 @@ class Assembler
   }
 
   Block* current_block() const { return current_block_; }
-  Zone* graph_zone() const { return graph().graph_zone(); }
-  Graph& graph() const { return graph_; }
-  Zone* phase_zone() { return phase_zone_; }
+  OpIndex current_operation_origin() const { return current_operation_origin_; }
 
   template <class Op, class... Args>
   OpIndex Emit(Args... args) {
     static_assert((std::is_base_of<Operation, Op>::value));
     static_assert(!(std::is_same<Op, Operation>::value));
     DCHECK_NOT_NULL(current_block_);
-    OpIndex result = graph().next_operation_index();
-    Op& op = graph().template Add<Op>(args...);
-    graph().operation_origins()[result] = current_operation_origin_;
+    OpIndex result = this->output_graph().next_operation_index();
+    Op& op = this->output_graph().template Add<Op>(args...);
+    this->output_graph().operation_origins()[result] =
+        current_operation_origin_;
     if (op.Properties().is_block_terminator) FinalizeBlock();
     return result;
   }
 
  private:
   void FinalizeBlock() {
-    graph().Finalize(current_block_);
+    this->output_graph().Finalize(current_block_);
     current_block_ = nullptr;
   }
 
   Block* current_block_ = nullptr;
-  Graph& graph_;
+  // TODO(dmercadier,tebbi): remove {current_operation_origin_} and pass instead
+  // additional parameters to ReduceXXX methods.
   OpIndex current_operation_origin_ = OpIndex::Invalid();
-  Zone* const phase_zone_;
 };
 
 }  // namespace v8::internal::compiler::turboshaft
