@@ -166,7 +166,7 @@ defaults_triggered = {
     "swarming_tags": ["vpython:native-python-wrapper"],
     "dimensions": {"host_class": "multibot", "pool": "luci.v8.try"},
     "service_account": "v8-try-builder@chops-service-accounts.iam.gserviceaccount.com",
-    "execution_timeout": 3600,
+    "execution_timeout": 4500,
     "properties": {"builder_group": "tryserver.v8"},
     "caches": [
         swarming.cache(

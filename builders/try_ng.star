@@ -170,7 +170,6 @@ trybot_pair(
     name = "v8_linux64_gc_stress_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-    execution_timeout = 3600,
     use_goma = GOMA.DEFAULT,
 )
 
@@ -200,6 +199,7 @@ trybot_pair(
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-20.04", "cpu": "x86-64"},
     execution_timeout = 5400,
+    total_timeout = 6300,
     use_goma = GOMA.NO,
 )
 
@@ -207,7 +207,6 @@ trybot_pair(
     name = "v8_linux64_msan_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-    execution_timeout = 3600,
     properties = {"gclient_vars": {"checkout_instrumented_libraries": "True"}},
     use_goma = GOMA.DEFAULT,
 )
@@ -294,7 +293,6 @@ trybot_pair(
     name = "v8_linux64_tsan_rel",
     cq_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-    execution_timeout = 3600,
     use_goma = GOMA.DEFAULT,
 )
 
@@ -305,7 +303,6 @@ trybot_pair(
         ".+/[+]/src/compiler/heap-refs.(h|cc)",
     ),
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-    execution_timeout = 3600,
     use_goma = GOMA.DEFAULT,
 )
 
@@ -335,7 +332,6 @@ trybot_pair(
     name = "v8_linux_arm64_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-    execution_timeout = 3600,
     use_goma = GOMA.DEFAULT,
 )
 
@@ -343,7 +339,6 @@ trybot_pair(
     name = "v8_linux_arm64_gc_stress_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-    execution_timeout = 3600,
     use_goma = GOMA.DEFAULT,
 )
 
@@ -378,7 +373,6 @@ trybot_pair(
     name = "v8_linux_arm_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-    execution_timeout = 3600,
     use_goma = GOMA.DEFAULT,
 )
 
@@ -394,7 +388,6 @@ trybot_pair(
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-    execution_timeout = 2400,
     use_goma = GOMA.DEFAULT,
 )
 
@@ -409,7 +402,6 @@ trybot_pair(
     name = "v8_linux_gc_stress_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-    execution_timeout = 3600,
     use_goma = GOMA.DEFAULT,
 )
 
@@ -417,7 +409,6 @@ trybot_pair(
     name = "v8_linux_nodcheck_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-    execution_timeout = 2400,
     use_goma = GOMA.DEFAULT,
 )
 
@@ -425,7 +416,6 @@ trybot_pair(
     name = "v8_linux_noi18n_rel",
     cq_properties = CQ.on_files(".+/[+]/.*intl.*", ".+/[+]/.*test262.*"),
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-    execution_timeout = 3600,
     use_goma = GOMA.DEFAULT,
 )
 
@@ -434,7 +424,6 @@ trybot_pair(
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-    execution_timeout = 2400,
     gclient_vars = [GCLIENT_VARS.GCMOLE],
     use_goma = GOMA.DEFAULT,
 )
@@ -456,7 +445,6 @@ trybot_pair(
     name = "v8_linux_verify_csa_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-    execution_timeout = 2400,
     use_goma = GOMA.DEFAULT,
 )
 
@@ -476,7 +464,6 @@ trybot_pair(
     # (i.e. M100).
     cq_compile_only_properties = CQ.EXP_100_PERCENT,
     dimensions = {"os": "Mac-10.15"},
-    execution_timeout = 3600,
     use_goma = GOMA.DEFAULT,
 )
 
@@ -485,7 +472,6 @@ trybot_pair(
     total_timeout = 7200,
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Mac-10.15"},
-    execution_timeout = 3600,
     use_goma = GOMA.DEFAULT,
 )
 
@@ -589,7 +575,6 @@ trybot_pair(
     name = "v8_win64_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-    execution_timeout = 3600,
     use_goma = GOMA.ATS,
 )
 
@@ -617,7 +602,6 @@ trybot_pair(
     cq_compile_only_properties = CQ.BLOCK,
     cq_branch_compile_only_properties = CQ.BLOCK,
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-    execution_timeout = 3600,
     use_goma = GOMA.ATS,
 )
 
@@ -632,6 +616,5 @@ trybot_pair(
     name = "v8_win64_asan_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-    execution_timeout = 3600,
     use_goma = GOMA.ATS,
 )
