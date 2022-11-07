@@ -46,10 +46,11 @@ BytecodeIterator::BytecodeIterator(const byte* start, const byte* end,
     : Decoder(start, end) {
   DCHECK_NOT_NULL(decls);
   DCHECK_NOT_NULL(zone);
-  if (DecodeLocalDecls(WasmFeatures::All(), decls, nullptr, start, end, zone)) {
-    pc_ += decls->encoded_size;
-    if (pc_ > end_) pc_ = end_;
-  }
+  constexpr const WasmModule* kNoModule = nullptr;
+  CHECK(DecodeLocalDecls(WasmFeatures::All(), decls, kNoModule, start, end,
+                         zone));
+  pc_ += decls->encoded_size;
+  if (pc_ > end_) pc_ = end_;
 }
 
 DecodeResult ValidateFunctionBody(AccountingAllocator* allocator,

@@ -4200,7 +4200,7 @@ void WasmInterpreter::SetFunctionCodeForTesting(const WasmFunction* function,
 }
 
 ControlTransferMap WasmInterpreter::ComputeControlTransfersForTesting(
-    Zone* zone, const WasmModule* module, const byte* start, const byte* end) {
+    Zone* zone, const byte* start, const byte* end) {
   // Create some dummy structures, to avoid special-casing the implementation
   // just for testing.
   FunctionSig sig(0, 0, nullptr);
@@ -4214,7 +4214,8 @@ ControlTransferMap WasmInterpreter::ComputeControlTransfersForTesting(
   InterpreterCode code{&function, BodyLocalDecls{}, start, end, nullptr};
 
   // Now compute and return the control transfers.
-  SideTable side_table(zone, module, &code);
+  constexpr const WasmModule* kNoModule = nullptr;
+  SideTable side_table(zone, kNoModule, &code);
   return side_table.map_;
 }
 
