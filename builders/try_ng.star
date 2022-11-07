@@ -22,6 +22,7 @@ def trybot_pair(
         experiments = None,
         enable_rdb = True,
         description = None,
+        build_timeout = None,
         total_timeout = None,
         **kwargs):
     # Compilator names are constructed based on orchestrator names with an
@@ -54,6 +55,7 @@ def trybot_pair(
         defaults_try,
         name = compilator_name,
         bucket = "try",
+        execution_timeout = build_timeout,
         executable = "recipe:v8/compilator",
         cq_properties = cq_compile_only_properties,
         cq_branch_properties = cq_branch_compile_only_properties,
@@ -198,7 +200,7 @@ trybot_pair(
     name = "v8_linux64_gcc_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-20.04", "cpu": "x86-64"},
-    execution_timeout = 5400,
+    build_timeout = 5400,
     total_timeout = 6300,
     use_goma = GOMA.NO,
 )
@@ -582,7 +584,7 @@ trybot_pair(
     name = "v8_win64_msvc_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-    execution_timeout = 3600,
+    build_timeout = 3600,
     properties = {"use_goma": False},
     use_goma = GOMA.NO,
 )
