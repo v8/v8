@@ -302,7 +302,7 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
                           const WasmFeatures& enabled) {
   *length = 1;
   byte val = decoder->read_u8<ValidationTag>(pc, "value type opcode");
-  if (decoder->failed()) {
+  if (!VALIDATE(decoder->ok())) {
     *length = 0;
     return kWasmBottom;
   }
@@ -2551,7 +2551,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     locals_offset_ = this->pc_offset();
     uint32_t locals_length;
     this->DecodeLocals(this->pc(), &locals_length);
-    if (this->failed()) return TraceFailed();
+    if (!VALIDATE(this->ok())) return TraceFailed();
     this->consume_bytes(locals_length);
     int non_defaultable = 0;
     uint32_t params_count =
@@ -2564,7 +2564,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     // Cannot use CALL_INTERFACE_* macros because control is empty.
     interface().StartFunction(this);
     DecodeFunctionBody();
-    if (this->failed()) return TraceFailed();
+    if (!VALIDATE(this->ok())) return TraceFailed();
 
     if (!VALIDATE(control_.empty())) {
       if (control_.size() > 1) {
@@ -2577,13 +2577,14 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     }
     // Cannot use CALL_INTERFACE_* macros because control is empty.
     interface().FinishFunction(this);
-    if (this->failed()) return TraceFailed();
+    if (!VALIDATE(this->ok())) return TraceFailed();
 
     TRACE("wasm-decode ok\n\n");
     return true;
   }
 
   bool TraceFailed() {
+    if constexpr (!ValidationTag::validate) UNREACHABLE();
     if (this->error_.offset()) {
       TRACE("wasm-error module+%-6d func+%d: %s\n\n", this->error_.offset(),
             this->GetBufferRelativeOffset(this->error_.offset()),
@@ -3047,7 +3048,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                                sig->parameter_count());
     current_catch_ = c->previous_catch;  // Pop try scope.
     CALL_INTERFACE_IF_OK_AND_PARENT_REACHABLE(CatchException, imm, c, values);
-    current_code_reachable_and_ok_ = this->ok() && c->reachable();
+    current_code_reachable_and_ok_ = VALIDATE(this->ok()) && c->reachable();
     return 1 + imm.length;
   }
 
@@ -3096,7 +3097,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     current_catch_ = c->previous_catch;  // Pop try scope.
     CALL_INTERFACE_IF_OK_AND_PARENT_REACHABLE(CatchAll, c);
     stack_.shrink_to(c->stack_depth);
-    current_code_reachable_and_ok_ = this->ok() && c->reachable();
+    current_code_reachable_and_ok_ = VALIDATE(this->ok()) && c->reachable();
     return 1;
   }
 
@@ -3238,7 +3239,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     RollbackLocalsInitialization(c);
     PushMergeValues(c, &c->start_merge);
     c->reachability = control_at(1)->innerReachability();
-    current_code_reachable_and_ok_ = this->ok() && c->reachable();
+    current_code_reachable_and_ok_ = VALIDATE(this->ok()) && c->reachable();
     return 1;
   }
 
@@ -3257,7 +3258,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         c->reachability = control_at(1)->innerReachability();
         CALL_INTERFACE_IF_OK_AND_PARENT_REACHABLE(CatchAll, c);
         current_code_reachable_and_ok_ =
-            this->ok() && control_.back().reachable();
+            VALIDATE(this->ok()) && control_.back().reachable();
         CALL_INTERFACE_IF_OK_AND_REACHABLE(Rethrow, c);
         EndControl();
         PopControl();
@@ -3312,7 +3313,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     this->detected_->Add(kFeature_reftypes);
     SelectTypeImmediate imm(this->enabled_, this, this->pc_ + 1, this->module_,
                             validate);
-    if (this->failed()) return 0;
+    if (!VALIDATE(this->ok())) return 0;
     Value cond = Peek(0, 2, kWasmI32);
     Value fval = Peek(1, 1, imm.type);
     Value tval = Peek(2, 0, imm.type);
@@ -3354,7 +3355,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     BranchTableImmediate imm(this, this->pc_ + 1, validate);
     BranchTableIterator<ValidationTag> iterator(this, imm);
     Value key = Peek(0, 0, kWasmI32);
-    if (this->failed()) return 0;
+    if (!VALIDATE(this->ok())) return 0;
     if (!this->Validate(this->pc_ + 1, imm, control_.size())) return 0;
 
     // Cache the branch targets during the iteration, so that we can set
@@ -4060,7 +4061,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     control_.EnsureMoreCapacity(1, this->compilation_zone_);
     control_.emplace_back(kind, stack_depth, init_stack_depth, this->pc_,
                           reachability);
-    current_code_reachable_and_ok_ = this->ok() && reachability == kReachable;
+    current_code_reachable_and_ok_ =
+        VALIDATE(this->ok()) && reachability == kReachable;
     return &control_.back();
   }
 
@@ -4088,7 +4090,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     // If the parent block was reachable before, but the popped control does not
     // return to here, this block becomes "spec only reachable".
     if (!parent_reached) SetSucceedingCodeDynamicallyUnreachable();
-    current_code_reachable_and_ok_ = this->ok() && control_.back().reachable();
+    current_code_reachable_and_ok_ =
+        VALIDATE(this->ok()) && control_.back().reachable();
   }
 
   int DecodeLoadMem(LoadType type, int prefix_len = 1) {
@@ -5235,7 +5238,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   case kExprRefIs##h_type: {                                                   \
     NON_CONST_ONLY                                                             \
     Value arg = Peek(0, 0, kWasmAnyRef);                                       \
-    if (this->failed()) return 0;                                              \
+    if (!VALIDATE(this->ok())) return 0;                                       \
     Value result = CreateValue(kWasmI32);                                      \
     if (V8_LIKELY(current_code_reachable_and_ok_)) {                           \
       if (IsHeapSubtypeOf(arg.type.heap_type(), HeapType(HeapType::k##h_type), \
@@ -6242,7 +6245,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         }
       }
     }
-    return this->ok();
+    return VALIDATE(this->ok());
   }
 
   template <StackElementsCountMode strict_count, MergeType merge_type>
