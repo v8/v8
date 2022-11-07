@@ -1113,12 +1113,13 @@ enum OnlyLazyFunctions : bool {
 
 void ValidateSequentially(
     const WasmModule* module, NativeModule* native_module, Counters* counters,
-    AccountingAllocator* allocator, ErrorThrower* thrower, bool lazy_module,
+    AccountingAllocator* allocator, ErrorThrower* thrower,
     OnlyLazyFunctions only_lazy_functions = kAllFunctions) {
   DCHECK(!thrower->error());
   uint32_t start = module->num_imported_functions;
   uint32_t end = start + module->num_declared_functions;
   auto enabled_features = native_module->enabled_features();
+  bool lazy_module = v8_flags.wasm_lazy_compilation;
   for (uint32_t func_index = start; func_index < end; func_index++) {
     // Skip non-lazy functions if requested.
     if (only_lazy_functions) {
@@ -1899,8 +1900,7 @@ void CompileNativeModule(Isolate* isolate,
     // asm.js modules as these are valid by construction (additionally a CHECK
     // will catch this during lazy compilation).
     ValidateSequentially(wasm_module, native_module.get(), isolate->counters(),
-                         isolate->allocator(), thrower, lazy_module,
-                         kOnlyLazyFunctions);
+                         isolate->allocator(), thrower, kOnlyLazyFunctions);
     // On error: Return and leave the module in an unexecutable state.
     if (thrower->error()) return;
   }
@@ -1926,7 +1926,7 @@ void CompileNativeModule(Isolate* isolate,
   if (compilation_state->failed()) {
     DCHECK_IMPLIES(lazy_module, !v8_flags.wasm_lazy_validation);
     ValidateSequentially(wasm_module, native_module.get(), isolate->counters(),
-                         isolate->allocator(), thrower, lazy_module);
+                         isolate->allocator(), thrower);
     CHECK(thrower->error());
     return;
   }
@@ -1941,7 +1941,7 @@ void CompileNativeModule(Isolate* isolate,
   if (compilation_state->failed()) {
     DCHECK_IMPLIES(lazy_module, !v8_flags.wasm_lazy_validation);
     ValidateSequentially(wasm_module, native_module.get(), isolate->counters(),
-                         isolate->allocator(), thrower, lazy_module);
+                         isolate->allocator(), thrower);
     CHECK(thrower->error());
   }
 }
@@ -2089,7 +2089,6 @@ AsyncCompileJob::AsyncCompileJob(
       api_method_name_(api_method_name),
       enabled_features_(enabled),
       dynamic_tiering_(DynamicTiering{v8_flags.wasm_dynamic_tiering.value()}),
-      wasm_lazy_compilation_(v8_flags.wasm_lazy_compilation),
       start_time_(base::TimeTicks::Now()),
       bytes_copy_(std::move(bytes_copy)),
       wire_bytes_(bytes_copy_.get(), bytes_copy_.get() + length),
@@ -2279,7 +2278,7 @@ void AsyncCompileJob::FinishCompile(bool is_after_cache_hit) {
           true,                                     // streamed
           is_after_cache_hit,                       // cached
           is_after_deserialization,                 // deserialized
-          wasm_lazy_compilation_,                   // lazy
+          v8_flags.wasm_lazy_compilation,           // lazy
           !compilation_state->failed(),             // success
           native_module_->turbofan_code_size(),     // code_size_in_bytes
           native_module_->liftoff_bailout_count(),  // liftoff_bailout_count
@@ -2348,10 +2347,8 @@ void AsyncCompileJob::DecodeFailed(const WasmError& error) {
 void AsyncCompileJob::AsyncCompileFailed() {
   ErrorThrower thrower(isolate_, api_method_name_);
   DCHECK_EQ(native_module_->module()->origin, kWasmOrigin);
-  const bool lazy_module = wasm_lazy_compilation_;
   ValidateSequentially(native_module_->module(), native_module_.get(),
-                       isolate_->counters(), isolate_->allocator(), &thrower,
-                       lazy_module);
+                       isolate_->counters(), isolate_->allocator(), &thrower);
   DCHECK(thrower.error());
   // {job} keeps the {this} pointer alive.
   std::shared_ptr<AsyncCompileJob> job =
@@ -2581,7 +2578,7 @@ class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
       if (!v8_flags.wasm_lazy_validation && result.ok()) {
         const WasmModule* module = result.value().get();
         DCHECK_EQ(module->origin, kWasmOrigin);
-        const bool lazy_module = job->wasm_lazy_compilation_;
+        const bool lazy_module = v8_flags.wasm_lazy_compilation;
         if (MayCompriseLazyFunctions(module, enabled_features, lazy_module)) {
           auto allocator = GetWasmEngine()->allocator();
           int start = module->num_imported_functions;
@@ -2981,7 +2978,7 @@ void AsyncStreamingProcessor::ProcessFunctionBody(
   const WasmModule* module = decoder_.module();
   auto enabled_features = job_->enabled_features_;
   DCHECK_EQ(module->origin, kWasmOrigin);
-  const bool lazy_module = job_->wasm_lazy_compilation_;
+  const bool lazy_module = v8_flags.wasm_lazy_compilation;
   CompileStrategy strategy =
       GetCompileStrategy(module, enabled_features, func_index, lazy_module);
   bool validate_lazily_compiled_function =
