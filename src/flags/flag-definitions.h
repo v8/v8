@@ -446,6 +446,9 @@ DEFINE_BOOL(future, FUTURE_BOOL,
             "Implies all staged features that we want to ship in the "
             "not-too-far future")
 
+DEFINE_BOOL(lower_tier_as_toptier, false,
+            "remove tier-up logic from the top tier")
+
 #ifdef V8_ENABLE_MAGLEV
 #define V8_ENABLE_MAGLEV_BOOL true
 DEFINE_BOOL(maglev, false, "enable the maglev optimizing compiler")
@@ -514,6 +517,8 @@ DEFINE_STRING(
 // Flags for jitless
 DEFINE_BOOL(jitless, V8_LITE_BOOL,
             "Disable runtime allocation of executable memory.")
+
+DEFINE_WEAK_IMPLICATION(jitless, lower_tier_as_toptier)
 
 // Jitless V8 has a few implications:
 DEFINE_NEG_IMPLICATION(jitless, turbofan)
