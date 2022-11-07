@@ -450,7 +450,10 @@ class ImmediatesPrinter {
       }
     } else {
       std::ostringstream o;
-      o << std::setprecision(std::numeric_limits<float>::digits10 + 1) << f;
+      // TODO(dlehmann): Change to `std::format` (C++20) or to `std::to_chars`
+      // (C++17) once available, so that `0.1` isn't printed as `0.100000001`
+      // any more.
+      o << std::setprecision(std::numeric_limits<float>::max_digits10) << f;
       out_ << " " << o.str();
     }
   }

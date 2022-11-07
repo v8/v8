@@ -222,8 +222,6 @@
     f32.const -0.0
     f32.eq
     drop
-    ;; TODO(dlehmann): Check after fixing bug below again if this shall be `1`
-    ;; or `1.0`.
     f32.const 1
     f32.const -1
     f32.ne
@@ -241,14 +239,10 @@
     f32.const +nan:0xfffff
     f32.le
     drop
-    f32.const 0.1
-    ;; TODO(dlehmann): This fails the test because the disassembler produces
-    ;; `12345678`, even though this literal is representable exactly as an f32.
-    ;; I also double-checked the binary encoding, which is the IEEE754 encoding
-    ;; of the correct value (and thus wat2wasm is not the culprit).
-    ;; f32.const 1234567.5
-    ;; Include this constant again, once the `ImmediatePrinter` is fixed.
-    f32.const 0.0
+    ;; TODO(dlehmann): Change to `0.1`, once `ImmediatesPrinter` is improved to
+    ;; print floats as shortest round-trippable decimal representation.
+    f32.const 0.100000001
+    f32.const 1234567.5
     f32.ge
     drop
     ;; Arithmetic.
