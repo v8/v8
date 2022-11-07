@@ -1619,6 +1619,17 @@ class ModuleDecoderTemplate : public Decoder {
     return toResult(std::move(module_));
   }
 
+  void ValidateAllFunctions() {
+    DCHECK(ok());
+
+    // Spawn a {ValidateFunctionsTask} and join it. The earliest error found
+    // will be set on this decoder.
+    std::unique_ptr<JobHandle> job_handle = V8::GetCurrentPlatform()->CreateJob(
+        TaskPriority::kUserVisible,
+        std::make_unique<ValidateFunctionsTask>(this));
+    job_handle->Join();
+  }
+
   // Decodes an entire module.
   ModuleResult DecodeModule(Counters* counters, AccountingAllocator* allocator,
                             bool validate_functions) {
@@ -1650,10 +1661,7 @@ class ModuleDecoderTemplate : public Decoder {
 
     if (ok() && validate_functions) {
       Reset(orig_bytes);
-      ModuleWireBytes wire_bytes{orig_bytes};
-      for (const WasmFunction& function : module_->declared_functions()) {
-        ValidateFunctionBody(allocator, wire_bytes, module_.get(), &function);
-      }
+      ValidateAllFunctions();
     }
 
     if (v8_flags.dump_wasm_module) DumpModule(orig_bytes);
@@ -1682,7 +1690,7 @@ class ModuleDecoderTemplate : public Decoder {
     FunctionBody body{function.sig, off(pc_), pc_, end_};
 
     WasmFeatures unused_detected_features;
-    DecodeResult result = wasm::ValidateFunctionBody(
+    DecodeResult result = ValidateFunctionBody(
         allocator, enabled_features_, module, &unused_detected_features, body);
 
     if (result.failed()) return FunctionResult{std::move(result).error()};
@@ -1798,45 +1806,6 @@ class ModuleDecoderTemplate : public Decoder {
     }
     module->untagged_globals_buffer_size = untagged_offset;
     module->tagged_globals_buffer_size = tagged_offset;
-  }
-
-  // Validates the body (code) of a given function.
-  void ValidateFunctionBody(AccountingAllocator* allocator,
-                            const ModuleWireBytes& wire_bytes,
-                            const WasmModule* module,
-                            const WasmFunction* function) {
-    DCHECK(!module->function_was_validated(function->func_index));
-    if (v8_flags.trace_wasm_decoder) {
-      WasmFunctionName func_name(function,
-                                 wire_bytes.GetNameOrNull(function, module));
-      StdoutStream{} << "Validating wasm function " << func_name << std::endl;
-    }
-    FunctionBody body{
-        function->sig, function->code.offset(),
-        start_ + GetBufferRelativeOffset(function->code.offset()),
-        start_ + GetBufferRelativeOffset(function->code.end_offset())};
-
-    WasmFeatures unused_detected_features;
-    DecodeResult result = wasm::ValidateFunctionBody(
-        allocator, enabled_features_, module, &unused_detected_features, body);
-
-    if (V8_LIKELY(result.ok())) {
-      module->set_function_validated(function->func_index);
-      return;
-    }
-
-    // If validation failed and this is the first error, set error code and
-    // location.
-    if (ok()) {
-      // Wrap the error message from the function decoder.
-      WasmFunctionName func_name(function,
-                                 wire_bytes.GetNameOrNull(function, module));
-      std::ostringstream error_msg;
-      error_msg << "in function " << func_name << ": "
-                << result.error().message();
-      error_ = WasmError{result.error().offset(), error_msg.str()};
-    }
-    DCHECK(!ok());
   }
 
   uint32_t consume_sig_index(WasmModule* module, const FunctionSig** sig) {
@@ -2423,6 +2392,86 @@ class ModuleDecoderTemplate : public Decoder {
     func->declared = true;
     return index;
   }
+
+  // A task that validates multiple functions in parallel, storing the earliest
+  // validation error in {this} decoder.
+  class ValidateFunctionsTask : public JobTask {
+   public:
+    ValidateFunctionsTask(ModuleDecoderTemplate* decoder)
+        : decoder_(decoder),
+          next_function_(decoder->module_->num_imported_functions),
+          after_last_function_(next_function_ +
+                               decoder->module_->num_declared_functions) {}
+
+    void Run(JobDelegate* delegate) override {
+      AccountingAllocator* allocator = decoder_->module_->allocator();
+      do {
+        // Get the index of the next function to validate.
+        // {fetch_add} might overrun {after_last_function_} by a bit. Since the
+        // number of functions is limited to a value much smaller than the
+        // integer range, this is highly unlikely.
+        static_assert(kV8MaxWasmFunctions < kMaxInt / 2);
+        int func_index = next_function_.fetch_add(1, std::memory_order_relaxed);
+        if (V8_UNLIKELY(func_index >= after_last_function_)) return;
+        DCHECK_LE(0, func_index);
+
+        if (!ValidateFunction(allocator, func_index)) {
+          // No need to validate any more functions.
+          next_function_.store(after_last_function_, std::memory_order_relaxed);
+          return;
+        }
+      } while (!delegate->ShouldYield());
+    }
+
+    size_t GetMaxConcurrency(size_t /* worker_count */) const override {
+      int next_func = next_function_.load(std::memory_order_relaxed);
+      return std::max(0, after_last_function_ - next_func);
+    }
+
+   private:
+    // Validate a single function; use {SetError} on errors.
+    bool ValidateFunction(AccountingAllocator* allocator, int func_index) {
+      DCHECK(!decoder_->module_->function_was_validated(func_index));
+      WasmFeatures unused_detected_features;
+      const WasmFunction& function = decoder_->module_->functions[func_index];
+      FunctionBody body{function.sig, function.code.offset(),
+                        decoder_->start_ + function.code.offset(),
+                        decoder_->start_ + function.code.end_offset()};
+      DecodeResult validation_result = ValidateFunctionBody(
+          allocator, decoder_->enabled_features_, decoder_->module_.get(),
+          &unused_detected_features, body);
+      if (V8_UNLIKELY(validation_result.failed())) {
+        SetError(func_index, std::move(validation_result).error());
+        return false;
+      }
+      decoder_->module_->set_function_validated(func_index);
+      return true;
+    }
+
+    // Set the error from the argument if it's earlier than the error we already
+    // have (or if we have none yet). Thread-safe.
+    void SetError(int func_index, WasmError error) {
+      base::MutexGuard mutex_guard{&set_error_mutex_};
+      if (decoder_->error_.empty() ||
+          decoder_->error_.offset() > error.offset()) {
+        // Wrap the error message from the function decoder.
+        const WasmFunction& function = decoder_->module_->functions[func_index];
+        WasmFunctionName func_name{
+            &function,
+            ModuleWireBytes{decoder_->start_, decoder_->end_}.GetNameOrNull(
+                &function, decoder_->module_.get())};
+        std::ostringstream error_msg;
+        error_msg << "in function " << func_name << ": " << error.message();
+        decoder_->error_ = WasmError{error.offset(), error_msg.str()};
+      }
+      DCHECK(!decoder_->ok());
+    }
+
+    ModuleDecoderTemplate* decoder_;
+    base::Mutex set_error_mutex_;
+    std::atomic<int> next_function_;
+    const int after_last_function_;
+  };
 };
 
 }  // namespace wasm
