@@ -486,6 +486,8 @@ class ShellOptions {
       "throw-on-failed-access-check", false};
   DisallowReassignment<bool> noop_on_failed_access_check = {
       "noop-on-failed-access-check", false};
+  DisallowReassignment<size_t> max_serializer_memory = {"max-serializer-memory",
+                                                        1 * i::MB};
 };
 
 class Shell : public i::AllStatic {
