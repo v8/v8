@@ -5018,8 +5018,8 @@ class LocalDeclDecoderTest : public TestWithZone {
   bool DecodeLocalDecls(BodyLocalDecls* decls, const byte* start,
                         const byte* end) {
     WasmModule module;
-    return i::wasm::DecodeLocalDecls(enabled_features_, decls, &module, start,
-                                     end, zone());
+    return ValidateAndDecodeLocalDeclsForTesting(enabled_features_, decls,
+                                                 &module, start, end, zone());
   }
 };
 

@@ -1269,7 +1269,7 @@ class WasmDecoder : public Decoder {
   static_assert(!ValidationTag::full_validation || ValidationTag::validate);
 
  public:
-  WasmDecoder(Zone* zone, const WasmModule* module, const WasmFeatures& enabled,
+  WasmDecoder(Zone* zone, const WasmModule* module, WasmFeatures enabled,
               WasmFeatures* detected, const FunctionSig* sig, const byte* start,
               const byte* end, uint32_t buffer_offset = 0)
       : Decoder(start, end, buffer_offset),

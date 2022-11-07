@@ -68,11 +68,16 @@ struct BodyLocalDecls {
   ValueType* local_types = nullptr;
 };
 
-V8_EXPORT_PRIVATE bool DecodeLocalDecls(const WasmFeatures& enabled,
+// Decode locals; validation is not performed.
+V8_EXPORT_PRIVATE void DecodeLocalDecls(WasmFeatures enabled,
                                         BodyLocalDecls* decls,
-                                        const WasmModule* module,
                                         const byte* start, const byte* end,
                                         Zone* zone);
+
+// Decode locals, including validation.
+V8_EXPORT_PRIVATE bool ValidateAndDecodeLocalDeclsForTesting(
+    WasmFeatures enabled, BodyLocalDecls* decls, const WasmModule* module,
+    const byte* start, const byte* end, Zone* zone);
 
 V8_EXPORT_PRIVATE BitVector* AnalyzeLoopAssignmentForTesting(
     Zone* zone, uint32_t num_locals, const byte* start, const byte* end);

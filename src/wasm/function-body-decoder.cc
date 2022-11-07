@@ -16,16 +16,18 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-bool DecodeLocalDecls(const WasmFeatures& enabled, BodyLocalDecls* decls,
+template <typename ValidationTag>
+bool DecodeLocalDecls(WasmFeatures enabled, BodyLocalDecls* decls,
                       const WasmModule* module, const byte* start,
                       const byte* end, Zone* zone) {
+  if constexpr (ValidationTag::validate) DCHECK_NOT_NULL(module);
   WasmFeatures no_features = WasmFeatures::None();
   constexpr FixedSizeSignature<ValueType, 0, 0> kNoSig;
-  WasmDecoder<Decoder::FullValidationTag> decoder(
-      zone, module, enabled, &no_features, &kNoSig, start, end, 0);
+  WasmDecoder<ValidationTag> decoder(zone, module, enabled, &no_features,
+                                     &kNoSig, start, end);
   uint32_t length;
   decoder.DecodeLocals(decoder.pc(), &length);
-  if (decoder.failed()) {
+  if (ValidationTag::validate && decoder.failed()) {
     decls->encoded_size = 0;
     return false;
   }
@@ -38,6 +40,22 @@ bool DecodeLocalDecls(const WasmFeatures& enabled, BodyLocalDecls* decls,
   return true;
 }
 
+void DecodeLocalDecls(WasmFeatures enabled, BodyLocalDecls* decls,
+                      const byte* start, const byte* end, Zone* zone) {
+  constexpr WasmModule* kNoModule = nullptr;
+  DecodeLocalDecls<Decoder::NoValidationTag>(enabled, decls, kNoModule, start,
+                                             end, zone);
+}
+
+bool ValidateAndDecodeLocalDeclsForTesting(WasmFeatures enabled,
+                                           BodyLocalDecls* decls,
+                                           const WasmModule* module,
+                                           const byte* start, const byte* end,
+                                           Zone* zone) {
+  return DecodeLocalDecls<Decoder::BooleanValidationTag>(enabled, decls, module,
+                                                         start, end, zone);
+}
+
 BytecodeIterator::BytecodeIterator(const byte* start, const byte* end)
     : Decoder(start, end) {}
 
@@ -46,9 +64,7 @@ BytecodeIterator::BytecodeIterator(const byte* start, const byte* end,
     : Decoder(start, end) {
   DCHECK_NOT_NULL(decls);
   DCHECK_NOT_NULL(zone);
-  constexpr const WasmModule* kNoModule = nullptr;
-  CHECK(DecodeLocalDecls(WasmFeatures::All(), decls, kNoModule, start, end,
-                         zone));
+  DecodeLocalDecls(WasmFeatures::All(), decls, start, end, zone);
   pc_ += decls->encoded_size;
   if (pc_ > end_) pc_ = end_;
 }
