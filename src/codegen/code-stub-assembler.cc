@@ -4,6 +4,8 @@
 
 #include "src/codegen/code-stub-assembler.h"
 
+#include <stdio.h>
+
 #include <functional>
 
 #include "include/v8-internal.h"
@@ -15311,26 +15313,46 @@ TorqueStructArguments CodeStubAssembler::GetFrameArguments(
 }
 
 void CodeStubAssembler::Print(const char* s) {
+  PrintToStream(s, fileno(stdout));
+}
+
+void CodeStubAssembler::PrintErr(const char* s) {
+  PrintToStream(s, fileno(stderr));
+}
+
+void CodeStubAssembler::PrintToStream(const char* s, int stream) {
   std::string formatted(s);
   formatted += "\n";
   CallRuntime(Runtime::kGlobalPrint, NoContextConstant(),
-              StringConstant(formatted.c_str()));
+              StringConstant(formatted.c_str()), SmiConstant(stream));
 }
 
 void CodeStubAssembler::Print(const char* prefix,
                               TNode<MaybeObject> tagged_value) {
+  PrintToStream(prefix, tagged_value, fileno(stdout));
+}
+
+void CodeStubAssembler::PrintErr(const char* prefix,
+                                 TNode<MaybeObject> tagged_value) {
+  PrintToStream(prefix, tagged_value, fileno(stderr));
+}
+
+void CodeStubAssembler::PrintToStream(const char* prefix,
+                                      TNode<MaybeObject> tagged_value,
+                                      int stream) {
   if (prefix != nullptr) {
     std::string formatted(prefix);
     formatted += ": ";
     Handle<String> string = isolate()->factory()->NewStringFromAsciiChecked(
         formatted.c_str(), AllocationType::kOld);
     CallRuntime(Runtime::kGlobalPrint, NoContextConstant(),
-                HeapConstant(string));
+                HeapConstant(string), SmiConstant(stream));
   }
   // CallRuntime only accepts Objects, so do an UncheckedCast to object.
   // DebugPrint explicitly checks whether the tagged value is a MaybeObject.
   TNode<Object> arg = UncheckedCast<Object>(tagged_value);
-  CallRuntime(Runtime::kDebugPrint, NoContextConstant(), arg);
+  CallRuntime(Runtime::kDebugPrint, NoContextConstant(), arg,
+              SmiConstant(stream));
 }
 
 IntegerLiteral CodeStubAssembler::ConstexprIntegerLiteralAdd(

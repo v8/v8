@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <stdio.h>
+
 #include <fstream>
 #include <memory>
 
@@ -1059,8 +1061,7 @@ RUNTIME_FUNCTION(Runtime_TakeHeapSnapshot) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-static void DebugPrintImpl(MaybeObject maybe_object) {
-  StdoutStream os;
+static void DebugPrintImpl(MaybeObject maybe_object, std::ostream& os) {
   if (maybe_object->IsCleared()) {
     os << "[weak cleared]";
   } else {
@@ -1085,10 +1086,21 @@ static void DebugPrintImpl(MaybeObject maybe_object) {
 
 RUNTIME_FUNCTION(Runtime_DebugPrint) {
   SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
+
+  // This is exposed to tests / fuzzers; handle variable arguments gracefully.
+  std::unique_ptr<std::ostream> output_stream(new StdoutStream());
+  if (args.length() >= 2) {
+    // Args: object, stream.
+    if (args[1].IsSmi()) {
+      int output_int = Smi::cast(args[1]).value();
+      if (output_int == fileno(stderr)) {
+        output_stream.reset(new StderrStream());
+      }
+    }
+  }
 
   MaybeObject maybe_object(*args.address_of_arg_at(0));
-  DebugPrintImpl(maybe_object);
+  DebugPrintImpl(maybe_object, *output_stream.get());
   return args[0];
 }
 
@@ -1103,7 +1115,7 @@ RUNTIME_FUNCTION(Runtime_DebugPrintPtr) {
     size_t pointer;
     if (object.ToIntegerIndex(&pointer)) {
       MaybeObject from_pointer(static_cast<Address>(pointer));
-      DebugPrintImpl(from_pointer);
+      DebugPrintImpl(from_pointer, os);
     }
   }
   // We don't allow the converted pointer to leak out to JavaScript.
@@ -1160,13 +1172,28 @@ RUNTIME_FUNCTION(Runtime_DebugTrackRetainingPath) {
 // very slowly for very deeply nested ConsStrings.  For debugging use only.
 RUNTIME_FUNCTION(Runtime_GlobalPrint) {
   SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
+
+  // This is exposed to tests / fuzzers; handle variable arguments gracefully.
+  FILE* output_stream = stdout;
+  if (args.length() >= 2) {
+    // Args: object, stream.
+    if (args[1].IsSmi()) {
+      int output_int = Smi::cast(args[1]).value();
+      if (output_int == fileno(stderr)) {
+        output_stream = stderr;
+      }
+    }
+  }
+
+  if (!args[0].IsString()) {
+    return args[0];
+  }
 
   auto string = String::cast(args[0]);
   StringCharacterStream stream(string);
   while (stream.HasMore()) {
     uint16_t character = stream.GetNext();
-    PrintF("%c", character);
+    PrintF(output_stream, "%c", character);
   }
   return string;
 }

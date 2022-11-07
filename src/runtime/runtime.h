@@ -497,7 +497,7 @@ namespace internal {
   F(ConstructSlicedString, 2, 1)              \
   F(ConstructThinString, 1, 1)                \
   F(CurrentFrameIsTurbofan, 0, 1)             \
-  F(DebugPrint, 1, 1)                         \
+  F(DebugPrint, -1, 1)                        \
   F(DebugPrintPtr, 1, 1)                      \
   F(DebugTrace, 0, 1)                         \
   F(DebugTrackRetainingPath, -1, 1)           \
@@ -514,7 +514,7 @@ namespace internal {
   F(GetOptimizationStatus, 1, 1)              \
   F(GetUndetectable, 0, 1)                    \
   F(GetWeakCollectionSize, 1, 1)              \
-  F(GlobalPrint, 1, 1)                        \
+  F(GlobalPrint, -1, 1)                       \
   F(HasDictionaryElements, 1, 1)              \
   F(HasDoubleElements, 1, 1)                  \
   F(HasElementsInALargeObjectSpace, 1, 1)     \
