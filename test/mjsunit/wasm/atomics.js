@@ -468,3 +468,16 @@ function CmpExchgLoop(opcode, alignment) {
   CmpExchgLoop(kExprI64AtomicCompareExchange16U, 1);
   CmpExchgLoop(kExprI64AtomicCompareExchange8U, 0);
 })();
+
+(function TestIllegalAtomicOp() {
+  // Regression test for https://crbug.com/1381330.
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addFunction('main', kSig_v_v).addBody([
+    kAtomicPrefix, 0x90, 0x0f
+  ]);
+  assertEquals(false, WebAssembly.validate(builder.toBuffer()));
+  assertThrows(
+      () => builder.toModule(), WebAssembly.CompileError,
+      /invalid atomic opcode/);
+})();

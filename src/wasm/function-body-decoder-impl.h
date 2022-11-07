@@ -5827,11 +5827,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 #undef NON_CONST_ONLY
 
   uint32_t DecodeAtomicOpcode(WasmOpcode opcode, uint32_t opcode_length) {
-    // This assumption avoids a dynamic check in signature lookup, and might
-    // also help the big switch below.
-    V8_ASSUME(opcode >> 8 == kAtomicPrefix);
-    const FunctionSig* sig = WasmOpcodes::Signature(opcode);
-    if (!VALIDATE(sig != nullptr)) {
+    // Fast check for out-of-range opcodes (only allow 0xfeXX).
+    if (!VALIDATE((opcode >> 8) == kAtomicPrefix)) {
       this->DecodeError("invalid atomic opcode");
       return 0;
     }
@@ -5867,6 +5864,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         this->DecodeError("invalid atomic opcode");
         return 0;
     }
+
+    const FunctionSig* sig = WasmOpcodes::Signature(opcode);
+    V8_ASSUME(sig != nullptr);
 
     MemoryAccessImmediate imm = MakeMemoryAccessImmediate(
         opcode_length, ElementSizeLog2Of(memtype.representation()));
