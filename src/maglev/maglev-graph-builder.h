@@ -13,6 +13,7 @@
 #include "src/base/logging.h"
 #include "src/base/optional.h"
 #include "src/codegen/source-position-table.h"
+#include "src/common/globals.h"
 #include "src/compiler/bytecode-analysis.h"
 #include "src/compiler/bytecode-liveness-map.h"
 #include "src/compiler/heap-refs.h"
@@ -991,16 +992,22 @@ class MaglevGraphBuilder {
       kFromRegisterList,
     };
 
-    CallArguments(ConvertReceiverMode receiver_mode, int argc,
+    CallArguments(ConvertReceiverMode receiver_mode, int reg_count,
                   interpreter::Register r0 = interpreter::Register(),
                   interpreter::Register r1 = interpreter::Register(),
                   interpreter::Register r2 = interpreter::Register())
         : receiver_mode_(receiver_mode),
           call_mode_(kFromRegisters),
-          argc_(argc) {
-      DCHECK_LT(argc, 3);
+          reg_count_(reg_count) {
+      DCHECK_GE(reg_count, 0);
+      DCHECK_LT(reg_count, 4);
+      DCHECK_IMPLIES(receiver_mode_ != ConvertReceiverMode::kNullOrUndefined,
+                     reg_count > 0);
+      DCHECK_IMPLIES(reg_count > 0, r0.is_valid());
       regs_[0] = r0;
+      DCHECK_IMPLIES(reg_count > 1, r1.is_valid());
       regs_[1] = r1;
+      DCHECK_IMPLIES(reg_count > 2, r2.is_valid());
       regs_[2] = r2;
     }
 
@@ -1015,19 +1022,19 @@ class MaglevGraphBuilder {
         return {};
       }
       if (call_mode_ == kFromRegisters) {
+        DCHECK_GT(reg_count_, 0);
         return regs_[0];
       }
       return reglist_[0];
     }
 
     int count() const {
-      if (call_mode_ == kFromRegisters) {
-        return argc_;
-      }
+      int register_count =
+          call_mode_ == kFromRegisters ? reg_count_ : reglist_.register_count();
       if (receiver_mode_ == ConvertReceiverMode::kNullOrUndefined) {
-        return reglist_.register_count();
+        return register_count;
       }
-      return reglist_.register_count() - 1;
+      return register_count - 1;
     }
 
     int count_with_receiver() const { return count() + 1; }
@@ -1037,7 +1044,8 @@ class MaglevGraphBuilder {
         i++;
       }
       if (call_mode_ == kFromRegisters) {
-        DCHECK_LT(i, argc_ + 1);
+        DCHECK_LT(i, reg_count_);
+        DCHECK_GE(i, 0);
         return regs_[i];
       }
       return reglist_[i];
@@ -1047,9 +1055,15 @@ class MaglevGraphBuilder {
 
     CallArguments PopReceiver(ConvertReceiverMode new_receiver_mode) const {
       DCHECK_NE(receiver_mode_, ConvertReceiverMode::kNullOrUndefined);
-      DCHECK_GT(count(), 0);
+      DCHECK_NE(new_receiver_mode, ConvertReceiverMode::kNullOrUndefined);
+      // If there is no non-receiver argument to become the new receiver,
+      // consider the new receiver to be known undefined.
+      if (count() == 0) {
+        new_receiver_mode = ConvertReceiverMode::kNullOrUndefined;
+      }
       if (call_mode_ == kFromRegisters) {
-        return CallArguments(new_receiver_mode, argc_ - 1, regs_[1], regs_[2]);
+        return CallArguments(new_receiver_mode, reg_count_ - 1, regs_[1],
+                             regs_[2]);
       }
       return CallArguments(new_receiver_mode, reglist_.PopLeft());
     }
@@ -1060,7 +1074,7 @@ class MaglevGraphBuilder {
     union {
       struct {
         interpreter::Register regs_[3];
-        int argc_;
+        int reg_count_;
       };
       interpreter::RegisterList reglist_;
     };

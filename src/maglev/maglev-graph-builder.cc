@@ -2770,25 +2770,26 @@ void MaglevGraphBuilder::BuildCallFromRegisterList(
 void MaglevGraphBuilder::BuildCallFromRegisters(
     int arg_count, ConvertReceiverMode receiver_mode) {
   ValueNode* target = LoadRegisterTagged(0);
-  int receiver_count =
+  const int receiver_count =
       (receiver_mode == ConvertReceiverMode::kNullOrUndefined) ? 0 : 1;
+  const int reg_count = arg_count + receiver_count;
   int slot_operand_index = arg_count + receiver_count + 1;
   FeedbackSlot slot = GetSlotOperand(slot_operand_index);
   compiler::FeedbackSource feedback_source(feedback(), slot);
-  switch (arg_count + receiver_count) {
+  switch (reg_count) {
     case 0: {
-      CallArguments args(receiver_mode, arg_count);
+      CallArguments args(receiver_mode, reg_count);
       BuildCall(target, args, feedback_source);
       break;
     }
     case 1: {
-      CallArguments args(receiver_mode, arg_count,
+      CallArguments args(receiver_mode, reg_count,
                          iterator_.GetRegisterOperand(1));
       BuildCall(target, args, feedback_source);
       break;
     }
     case 2: {
-      CallArguments args(receiver_mode, arg_count,
+      CallArguments args(receiver_mode, reg_count,
                          iterator_.GetRegisterOperand(1),
                          iterator_.GetRegisterOperand(2));
       BuildCall(target, args, feedback_source);
@@ -2796,7 +2797,7 @@ void MaglevGraphBuilder::BuildCallFromRegisters(
     }
     case 3: {
       CallArguments args(
-          receiver_mode, arg_count, iterator_.GetRegisterOperand(1),
+          receiver_mode, reg_count, iterator_.GetRegisterOperand(1),
           iterator_.GetRegisterOperand(2), iterator_.GetRegisterOperand(3));
       BuildCall(target, args, feedback_source);
       break;
