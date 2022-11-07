@@ -35,7 +35,8 @@ void CheckDisassemblerOutput(base::Vector<const byte> module_bytes,
   MultiLineStringBuilder output_sb;
 
   ModuleDisassembler md(output_sb, module, &names, wire_bytes, &allocator);
-  md.PrintModule({0, 2});
+  constexpr size_t max_mb = 100;  // Even 1 would be enough.
+  md.PrintModule({0, 2}, max_mb);
 
   std::ostringstream output;
   output_sb.WriteTo(output);

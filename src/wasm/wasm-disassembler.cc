@@ -26,7 +26,7 @@ void Disassemble(const WasmModule* module, ModuleWireBytes wire_bytes,
   AccountingAllocator allocator;
   ModuleDisassembler md(out, module, names, wire_bytes, &allocator,
                         function_body_offsets);
-  md.PrintModule({0, 2});
+  md.PrintModule({0, 2}, v8_flags.wasm_disassembly_max_mb);
   out.ToDisassemblyCollector(collector);
 }
 
@@ -752,7 +752,7 @@ void ModuleDisassembler::PrintTypeDefinition(uint32_t type_index,
   }
 }
 
-void ModuleDisassembler::PrintModule(Indentation indentation) {
+void ModuleDisassembler::PrintModule(Indentation indentation, size_t max_mb) {
   // 0. General infrastructure.
   // We don't store import/export information on {WasmTag} currently.
   size_t num_tags = module_->tags.size();
@@ -956,6 +956,10 @@ void ModuleDisassembler::PrintModule(Indentation indentation) {
       function_body_offsets_->push_back(first_instruction_offset);
       function_body_offsets_->push_back(d.pc_offset());
     }
+    if (out_.ApproximateSizeMB() > max_mb) {
+      out_ << "<truncated...>";
+      return;
+    }
   }
 
   // XII. Data
@@ -975,6 +979,11 @@ void ModuleDisassembler::PrintModule(Indentation indentation) {
     PrintString(data.source);
     out_ << "\")";
     out_.NextLine(0);
+
+    if (out_.ApproximateSizeMB() > max_mb) {
+      out_ << "<truncated...>";
+      return;
+    }
   }
 
   indentation.decrease();

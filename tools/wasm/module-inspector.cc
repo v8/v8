@@ -867,7 +867,9 @@ class FormatConverter {
     DCHECK_EQ(status_, kModuleReady);
     MultiLineStringBuilder sb;
     ModuleDisassembler md(sb, module(), names(), wire_bytes_, &allocator_);
-    md.PrintModule({0, 2});
+    // 100 GB is an approximation of "unlimited".
+    size_t max_mb = 100'000;
+    md.PrintModule({0, 2}, max_mb);
     sb.WriteTo(out_);
   }
 

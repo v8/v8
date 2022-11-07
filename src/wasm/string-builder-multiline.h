@@ -137,6 +137,8 @@ class MultiLineStringBuilder : public StringBuilder {
     out.write(last_start, len);
   }
 
+  size_t ApproximateSizeMB() { return approximate_size_mb(); }
+
  private:
   struct Line {
     Line(const char* d, size_t length, uint32_t bytecode_offset)

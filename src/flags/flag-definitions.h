@@ -1197,6 +1197,8 @@ DEFINE_INT(wasm_max_initial_code_space_reservation, 0,
 
 DEFINE_SIZE_T(wasm_max_module_size, wasm::kV8MaxWasmModuleSize,
               "maximum allowed size of wasm modules")
+DEFINE_SIZE_T(wasm_disassembly_max_mb, 1000,
+              "maximum size of produced disassembly (in MB, approximate)")
 
 DEFINE_BOOL(trace_wasm, false, "trace wasm function calls")
 

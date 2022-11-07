@@ -141,7 +141,7 @@ class ModuleDisassembler {
   V8_EXPORT_PRIVATE void PrintTypeDefinition(uint32_t type_index,
                                              Indentation indendation,
                                              IndexAsComment index_as_comment);
-  V8_EXPORT_PRIVATE void PrintModule(Indentation indentation);
+  V8_EXPORT_PRIVATE void PrintModule(Indentation indentation, size_t max_mb);
 
  private:
   void PrintImportName(const WasmImport& import);
