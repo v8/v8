@@ -89,7 +89,6 @@ class WasmGraphBuildingInterface {
   struct TryInfo : public ZoneObject {
     SsaEnv* catch_env;
     TFNode* exception = nullptr;
-    bool first_catch = true;
 
     bool might_throw() const { return exception != nullptr; }
 
@@ -912,7 +911,8 @@ class WasmGraphBuildingInterface {
     }
     CheckForException(decoder,
                       builder_->Throw(imm.index, imm.tag, base::VectorOf(args),
-                                      decoder->position()));
+                                      decoder->position()),
+                      kDontReloadContext);
     builder_->TerminateThrow(effect(), control());
   }
 
@@ -920,7 +920,8 @@ class WasmGraphBuildingInterface {
     DCHECK(block->is_try_catchall() || block->is_try_catch());
     TFNode* exception = block->try_info->exception;
     DCHECK_NOT_NULL(exception);
-    CheckForException(decoder, builder_->Rethrow(exception));
+    CheckForException(decoder, builder_->Rethrow(exception),
+                      kDontReloadContext);
     builder_->TerminateThrow(effect(), control());
   }
 
@@ -937,10 +938,6 @@ class WasmGraphBuildingInterface {
 
     TFNode* exception = block->try_info->exception;
     SetEnv(block->try_info->catch_env);
-    if (block->try_info->first_catch) {
-      LoadContextIntoSsa(ssa_env_, decoder);
-      block->try_info->first_catch = false;
-    }
 
     TFNode* if_catch = nullptr;
     TFNode* if_no_catch = nullptr;
@@ -1018,9 +1015,6 @@ class WasmGraphBuildingInterface {
     }
 
     SetEnv(block->try_info->catch_env);
-    if (block->try_info->first_catch) {
-      LoadContextIntoSsa(ssa_env_, decoder);
-    }
   }
 
   void AtomicOp(FullDecoder* decoder, WasmOpcode opcode,
@@ -1692,7 +1686,10 @@ class WasmGraphBuildingInterface {
     builder_->set_instance_cache(&env->instance_cache);
   }
 
-  TFNode* CheckForException(FullDecoder* decoder, TFNode* node) {
+  enum ReloadContextAfterException { kDontReloadContext, kReloadContext };
+
+  TFNode* CheckForException(FullDecoder* decoder, TFNode* node,
+                            ReloadContextAfterException reload_mode) {
     DCHECK_NOT_NULL(node);
 
     // We need to emit IfSuccess/IfException nodes if this node throws and has
@@ -1717,6 +1714,12 @@ class WasmGraphBuildingInterface {
     exception_env->control = if_exception;
     exception_env->effect = if_exception;
     SetEnv(exception_env);
+
+    // If the exceptional operation could have modified memory size, we need to
+    // reload the memory context into the exceptional control path.
+    if (reload_mode == kReloadContext) {
+      LoadContextIntoSsa(ssa_env_, decoder);
+    }
 
     if (emit_loop_exits()) {
       ValueVector values;
@@ -1960,28 +1963,29 @@ class WasmGraphBuildingInterface {
       arg_nodes[i + 1] = args[i].node;
     }
     switch (call_info.call_mode()) {
-      case CallInfo::kCallIndirect:
-        CheckForException(
-            decoder, builder_->CallIndirect(
-                         call_info.table_index(), call_info.sig_index(),
-                         base::VectorOf(arg_nodes),
-                         base::VectorOf(return_nodes), decoder->position()));
+      case CallInfo::kCallIndirect: {
+        TFNode* call = builder_->CallIndirect(
+            call_info.table_index(), call_info.sig_index(),
+            base::VectorOf(arg_nodes), base::VectorOf(return_nodes),
+            decoder->position());
+        CheckForException(decoder, call, kReloadContext);
         break;
+      }
       case CallInfo::kCallDirect: {
         TFNode* call = builder_->CallDirect(
             call_info.callee_index(), base::VectorOf(arg_nodes),
             base::VectorOf(return_nodes), decoder->position());
         builder_->StoreCallCount(call, call_info.call_count());
-        CheckForException(decoder, call);
+        CheckForException(decoder, call, kReloadContext);
         break;
       }
-      case CallInfo::kCallRef:
-        CheckForException(
-            decoder,
-            builder_->CallRef(sig, base::VectorOf(arg_nodes),
-                              base::VectorOf(return_nodes),
-                              call_info.null_check(), decoder->position()));
+      case CallInfo::kCallRef: {
+        TFNode* call = builder_->CallRef(
+            sig, base::VectorOf(arg_nodes), base::VectorOf(return_nodes),
+            call_info.null_check(), decoder->position());
+        CheckForException(decoder, call, kReloadContext);
         break;
+      }
     }
     for (size_t i = 0; i < return_count; ++i) {
       SetAndTypeNode(&returns[i], return_nodes[i]);
