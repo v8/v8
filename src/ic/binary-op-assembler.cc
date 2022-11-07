@@ -534,7 +534,7 @@ TNode<Object> BinaryOpAssembler::Generate_BinaryOperationWithFeedback(
 
         GotoIfNot(TaggedIsSmi(var_result.value()), &end);
 
-        // Check for sentinel that signals TerminationReqeusted exception.
+        // Check for sentinel that signals TerminationRequested exception.
         GotoIf(TaggedEqual(var_result.value(), SmiConstant(1)),
                &termination_requested);
 
@@ -556,7 +556,7 @@ TNode<Object> BinaryOpAssembler::Generate_BinaryOperationWithFeedback(
 
         GotoIfNot(TaggedIsSmi(var_result.value()), &end);
 
-        // Check for sentinel that signals TerminationReqeusted exception.
+        // Check for sentinel that signals TerminationRequested exception.
         GotoIf(TaggedEqual(var_result.value(), SmiConstant(1)),
                &termination_requested);
 
@@ -570,7 +570,28 @@ TNode<Object> BinaryOpAssembler::Generate_BinaryOperationWithFeedback(
         TerminateExecution(context());
         break;
       }
-      case Operation::kModulus:
+      case Operation::kModulus: {
+        Label bigint_div_zero(this),
+            termination_requested(this, Label::kDeferred);
+        var_result =
+            CallBuiltin(Builtin::kBigIntModulusNoThrow, context(), lhs, rhs);
+
+        GotoIfNot(TaggedIsSmi(var_result.value()), &end);
+
+        // Check for sentinel that signals TerminationRequested exception.
+        GotoIf(TaggedEqual(var_result.value(), SmiConstant(1)),
+               &termination_requested);
+
+        // Handles BigIntDivZero exception.
+        // Update feedback to prevent deopt loop.
+        UpdateFeedback(SmiConstant(BinaryOperationFeedback::kAny),
+                       maybe_feedback_vector(), slot_id, update_feedback_mode);
+        ThrowRangeError(context(), MessageTemplate::kBigIntDivZero);
+
+        BIND(&termination_requested);
+        TerminateExecution(context());
+        break;
+      }
       case Operation::kExponentiate: {
         // TODO(panq): replace the runtime with builtin once it is implemented.
         var_result = CallRuntime(Runtime::kBigIntBinaryOp, context(), lhs, rhs,

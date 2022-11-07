@@ -94,10 +94,11 @@ class EffectControlLinearizer {
   Node* LowerCheckedUint32Div(Node* node, Node* frame_state);
   Node* LowerCheckedUint32Mod(Node* node, Node* frame_state);
   Node* LowerCheckedInt32Mul(Node* node, Node* frame_state);
-  Node* LowerCheckedBigInt64Add(Node* node, Node* frame_state);
-  Node* LowerCheckedBigInt64Sub(Node* node, Node* frame_state);
-  Node* LowerCheckedBigInt64Mul(Node* node, Node* frame_state);
-  Node* LowerCheckedBigInt64Div(Node* node, Node* frame_state);
+  Node* LowerCheckedInt64Add(Node* node, Node* frame_state);
+  Node* LowerCheckedInt64Sub(Node* node, Node* frame_state);
+  Node* LowerCheckedInt64Mul(Node* node, Node* frame_state);
+  Node* LowerCheckedInt64Div(Node* node, Node* frame_state);
+  Node* LowerCheckedInt64Mod(Node* node, Node* frame_state);
   Node* LowerCheckedInt32ToTaggedSigned(Node* node, Node* frame_state);
   Node* LowerCheckedInt64ToInt32(Node* node, Node* frame_state);
   Node* LowerCheckedInt64ToTaggedSigned(Node* node, Node* frame_state);
@@ -182,6 +183,7 @@ class EffectControlLinearizer {
   Node* LowerBigIntSubtract(Node* node, Node* frame_state);
   Node* LowerBigIntMultiply(Node* node, Node* frame_state);
   Node* LowerBigIntDivide(Node* node, Node* frame_state);
+  Node* LowerBigIntModulus(Node* node, Node* frame_state);
   Node* LowerBigIntBitwiseAnd(Node* node, Node* frame_state);
   Node* LowerBigIntNegate(Node* node);
   Node* LowerCheckFloat64Hole(Node* node, Node* frame_state);
@@ -1043,17 +1045,20 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kCheckedInt32Mul:
       result = LowerCheckedInt32Mul(node, frame_state);
       break;
-    case IrOpcode::kCheckedBigInt64Add:
-      result = LowerCheckedBigInt64Add(node, frame_state);
+    case IrOpcode::kCheckedInt64Add:
+      result = LowerCheckedInt64Add(node, frame_state);
       break;
-    case IrOpcode::kCheckedBigInt64Sub:
-      result = LowerCheckedBigInt64Sub(node, frame_state);
+    case IrOpcode::kCheckedInt64Sub:
+      result = LowerCheckedInt64Sub(node, frame_state);
       break;
-    case IrOpcode::kCheckedBigInt64Mul:
-      result = LowerCheckedBigInt64Mul(node, frame_state);
+    case IrOpcode::kCheckedInt64Mul:
+      result = LowerCheckedInt64Mul(node, frame_state);
       break;
-    case IrOpcode::kCheckedBigInt64Div:
-      result = LowerCheckedBigInt64Div(node, frame_state);
+    case IrOpcode::kCheckedInt64Div:
+      result = LowerCheckedInt64Div(node, frame_state);
+      break;
+    case IrOpcode::kCheckedInt64Mod:
+      result = LowerCheckedInt64Mod(node, frame_state);
       break;
     case IrOpcode::kCheckedInt32ToTaggedSigned:
       result = LowerCheckedInt32ToTaggedSigned(node, frame_state);
@@ -1271,6 +1276,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kBigIntDivide:
       result = LowerBigIntDivide(node, frame_state);
+      break;
+    case IrOpcode::kBigIntModulus:
+      result = LowerBigIntModulus(node, frame_state);
       break;
     case IrOpcode::kBigIntBitwiseAnd:
       result = LowerBigIntBitwiseAnd(node, frame_state);
@@ -3002,8 +3010,8 @@ Node* EffectControlLinearizer::LowerCheckedBigIntToBigInt64(Node* node,
   return value;
 }
 
-Node* EffectControlLinearizer::LowerCheckedBigInt64Add(Node* node,
-                                                       Node* frame_state) {
+Node* EffectControlLinearizer::LowerCheckedInt64Add(Node* node,
+                                                    Node* frame_state) {
   DCHECK(machine()->Is64());
 
   Node* lhs = node->InputAt(0);
@@ -3017,8 +3025,8 @@ Node* EffectControlLinearizer::LowerCheckedBigInt64Add(Node* node,
   return __ Projection(0, value);
 }
 
-Node* EffectControlLinearizer::LowerCheckedBigInt64Sub(Node* node,
-                                                       Node* frame_state) {
+Node* EffectControlLinearizer::LowerCheckedInt64Sub(Node* node,
+                                                    Node* frame_state) {
   DCHECK(machine()->Is64());
 
   Node* lhs = node->InputAt(0);
@@ -3032,8 +3040,8 @@ Node* EffectControlLinearizer::LowerCheckedBigInt64Sub(Node* node,
   return __ Projection(0, value);
 }
 
-Node* EffectControlLinearizer::LowerCheckedBigInt64Mul(Node* node,
-                                                       Node* frame_state) {
+Node* EffectControlLinearizer::LowerCheckedInt64Mul(Node* node,
+                                                    Node* frame_state) {
   DCHECK(machine()->Is64());
 
   Node* lhs = node->InputAt(0);
@@ -3047,8 +3055,8 @@ Node* EffectControlLinearizer::LowerCheckedBigInt64Mul(Node* node,
   return __ Projection(0, value);
 }
 
-Node* EffectControlLinearizer::LowerCheckedBigInt64Div(Node* node,
-                                                       Node* frame_state) {
+Node* EffectControlLinearizer::LowerCheckedInt64Div(Node* node,
+                                                    Node* frame_state) {
   DCHECK(machine()->Is64());
 
   auto division = __ MakeLabel();
@@ -3070,6 +3078,34 @@ Node* EffectControlLinearizer::LowerCheckedBigInt64Div(Node* node,
 
   __ Bind(&division);
   Node* value = __ Int64Div(lhs, rhs);
+  return value;
+}
+
+Node* EffectControlLinearizer::LowerCheckedInt64Mod(Node* node,
+                                                    Node* frame_state) {
+  DCHECK(machine()->Is64());
+
+  auto modulo_op = __ MakeLabel();
+
+  Node* lhs = node->InputAt(0);
+  Node* rhs = node->InputAt(1);
+
+  Node* check_rhs_zero = __ Word64Equal(rhs, __ Int64Constant(0));
+  __ DeoptimizeIf(DeoptimizeReason::kDivisionByZero, FeedbackSource(),
+                  check_rhs_zero, frame_state);
+
+  // While the mod-result cannot overflow, the underlying instruction is
+  // `idiv` and will trap when the accompanying div-result overflows.
+  __ GotoIfNot(__ Word64Equal(
+                   lhs, __ Int64Constant(std::numeric_limits<int64_t>::min())),
+               &modulo_op);
+  Node* check_overflow = __ Word64Equal(rhs, __ Int64Constant(-1));
+  __ DeoptimizeIf(DeoptimizeReason::kOverflow, FeedbackSource(), check_overflow,
+                  frame_state);
+  __ Goto(&modulo_op);
+
+  __ Bind(&modulo_op);
+  Node* value = __ Int64Mod(lhs, rhs);
   return value;
 }
 
@@ -4565,6 +4601,50 @@ Node* EffectControlLinearizer::LowerBigIntDivide(Node* node,
 
   Callable const callable =
       Builtins::CallableFor(isolate(), Builtin::kBigIntDivideNoThrow);
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      graph()->zone(), callable.descriptor(),
+      callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,
+      Operator::kFoldable | Operator::kNoThrow);
+  Node* value = __ Call(call_descriptor, __ HeapConstant(callable.code()), lhs,
+                        rhs, __ NoContextConstant());
+
+  auto if_termreq = __ MakeDeferredLabel();
+  auto done = __ MakeLabel();
+
+  // Check for exception sentinel
+  // - Smi 0 is returned to signal BigIntDivZero
+  // - Smi 1 is returned to signal TerminationRequested
+  __ GotoIf(__ TaggedEqual(value, __ SmiConstant(1)), &if_termreq);
+
+  __ DeoptimizeIf(DeoptimizeReason::kDivisionByZero, FeedbackSource{},
+                  ObjectIsSmi(value), frame_state);
+
+  __ Goto(&done);
+
+  __ Bind(&if_termreq);
+  {
+    Runtime::FunctionId id = Runtime::kTerminateExecution;
+    auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
+        graph()->zone(), id, 0, Operator::kNoDeopt,
+        CallDescriptor::kNeedsFrameState);
+    __ Call(call_descriptor, __ CEntryStubConstant(1),
+            __ ExternalConstant(ExternalReference::Create(id)),
+            __ Int32Constant(0), __ NoContextConstant(), frame_state);
+    __ Goto(&done);
+  }
+
+  __ Bind(&done);
+
+  return value;
+}
+
+Node* EffectControlLinearizer::LowerBigIntModulus(Node* node,
+                                                  Node* frame_state) {
+  Node* lhs = node->InputAt(0);
+  Node* rhs = node->InputAt(1);
+
+  Callable const callable =
+      Builtins::CallableFor(isolate(), Builtin::kBigIntModulusNoThrow);
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       graph()->zone(), callable.descriptor(),
       callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,

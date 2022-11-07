@@ -6,27 +6,27 @@
 
 (function OptimizeAndTestDivZero() {
   function f(x, y) {
-    return x / y;
+    return x % y;
   }
   %PrepareFunctionForOptimization(f);
   assertEquals(0n, f(0n, 1n));
-  assertEquals(-3n, f(-32n, 9n));
+  assertEquals(-5n, f(-32n, 9n));
   %OptimizeFunctionOnNextCall(f);
-  assertEquals(2n, f(14n, 5n));
+  assertEquals(4n, f(14n, 5n));
   assertOptimized(f);
   // Re-prepare the function before the first deopt to ensure type feedback is
   // not cleared by an untimely gc.
   %PrepareFunctionForOptimization(f);
   assertOptimized(f);
-  // CheckedInt64Div will trigger deopt due to divide-by-zero.
+  // CheckedInt64Mod will trigger deopt due to divide-by-zero.
   assertThrows(() => f(42n, 0n), RangeError);
   if (%Is64Bit()) {
     assertUnoptimized(f);
 
     assertEquals(0n, f(0n, 1n));
-    assertEquals(-3n, f(-32n, 9n));
+    assertEquals(-5n, f(-32n, 9n));
     %OptimizeFunctionOnNextCall(f);
-    assertEquals(2n, f(14n, 5n));
+    assertEquals(4n, f(14n, 5n));
     assertOptimized(f);
     // Ensure there is no deopt loop.
     assertThrows(() => f(42n, 0n), RangeError);
@@ -36,32 +36,30 @@
 
 (function OptimizeAndTestOverflow() {
   function f(x, y) {
-    return x / y;
+    return x % y;
   }
   %PrepareFunctionForOptimization(f);
   assertEquals(0n, f(0n, 1n));
-  assertEquals(-3n, f(-32n, 9n));
+  assertEquals(-5n, f(-32n, 9n));
   %OptimizeFunctionOnNextCall(f);
-  assertEquals(2n, f(14n, 5n));
-  assertOptimized(f);
-  assertEquals(-(2n ** 63n), f(-(2n ** 63n), 1n));
+  assertEquals(4n, f(14n, 5n));
   assertOptimized(f);
   // Re-prepare the function before the first deopt to ensure type feedback is
   // not cleared by an umtimely gc.
   %PrepareFunctionForOptimization(f);
   assertOptimized(f);
-  // CheckedInt64Div will trigger deopt due to overflow.
-  assertEquals(2n ** 63n, f(-(2n ** 63n), -1n));
+  // CheckedInt64Mod will trigger deopt due to overflow.
+  assertEquals(0n, f(-(2n ** 63n), -1n));
   if (%Is64Bit()) {
     assertUnoptimized(f);
 
-  assertEquals(0n, f(0n, 1n));
-  assertEquals(-3n, f(-32n, 9n));
-  %OptimizeFunctionOnNextCall(f);
-  assertEquals(2n, f(14n, 5n));
+    assertEquals(0n, f(0n, 1n));
+    assertEquals(-5n, f(-32n, 9n));
+    %OptimizeFunctionOnNextCall(f);
+    assertEquals(4n, f(14n, 5n));
     assertOptimized(f);
     // Ensure there is no deopt loop.
-    assertEquals(2n ** 63n, f(-(2n ** 63n), -1n));
+    assertEquals(0n, f(-(2n ** 63n), -1n));
     assertOptimized(f);
   }
 })();

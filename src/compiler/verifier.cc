@@ -994,6 +994,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kSpeculativeBigIntSubtract:
     case IrOpcode::kSpeculativeBigIntMultiply:
     case IrOpcode::kSpeculativeBigIntDivide:
+    case IrOpcode::kSpeculativeBigIntModulus:
     case IrOpcode::kSpeculativeBigIntBitwiseAnd:
       CheckTypeIs(node, Type::BigInt());
       break;
@@ -1009,6 +1010,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kBigIntSubtract:
     case IrOpcode::kBigIntMultiply:
     case IrOpcode::kBigIntDivide:
+    case IrOpcode::kBigIntModulus:
     case IrOpcode::kBigIntBitwiseAnd:
       CheckValueInputIs(node, 0, Type::BigInt());
       CheckValueInputIs(node, 1, Type::BigInt());
@@ -1550,10 +1552,11 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kCheckedTaggedToTaggedSigned:
     case IrOpcode::kCheckedTaggedToTaggedPointer:
     case IrOpcode::kCheckedTruncateTaggedToWord32:
-    case IrOpcode::kCheckedBigInt64Add:
-    case IrOpcode::kCheckedBigInt64Sub:
-    case IrOpcode::kCheckedBigInt64Mul:
-    case IrOpcode::kCheckedBigInt64Div:
+    case IrOpcode::kCheckedInt64Add:
+    case IrOpcode::kCheckedInt64Sub:
+    case IrOpcode::kCheckedInt64Mul:
+    case IrOpcode::kCheckedInt64Div:
+    case IrOpcode::kCheckedInt64Mod:
     case IrOpcode::kAssertType:
     case IrOpcode::kVerifyType:
       break;

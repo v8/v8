@@ -288,6 +288,11 @@
   V(CheckedUint32Div)                 \
   V(CheckedUint32Mod)                 \
   V(CheckedInt32Mul)                  \
+  V(CheckedInt64Add)                  \
+  V(CheckedInt64Sub)                  \
+  V(CheckedInt64Mul)                  \
+  V(CheckedInt64Div)                  \
+  V(CheckedInt64Mod)                  \
   V(CheckedInt32ToTaggedSigned)       \
   V(CheckedInt64ToInt32)              \
   V(CheckedInt64ToTaggedSigned)       \
@@ -307,11 +312,7 @@
   V(CheckedTaggedToFloat64)           \
   V(CheckedTaggedToInt64)             \
   V(CheckedTaggedToTaggedSigned)      \
-  V(CheckedTaggedToTaggedPointer)     \
-  V(CheckedBigInt64Add)               \
-  V(CheckedBigInt64Sub)               \
-  V(CheckedBigInt64Mul)               \
-  V(CheckedBigInt64Div)
+  V(CheckedTaggedToTaggedPointer)
 
 #define SIMPLIFIED_COMPARE_BINOP_LIST(V) \
   V(NumberEqual)                         \
@@ -351,6 +352,7 @@
   V(BigIntSubtract)                     \
   V(BigIntMultiply)                     \
   V(BigIntDivide)                       \
+  V(BigIntModulus)                      \
   V(BigIntBitwiseAnd)
 
 #define SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(V) \
@@ -521,6 +523,7 @@
   V(SpeculativeBigIntSubtract)                      \
   V(SpeculativeBigIntMultiply)                      \
   V(SpeculativeBigIntDivide)                        \
+  V(SpeculativeBigIntModulus)                       \
   V(SpeculativeBigIntBitwiseAnd)
 
 #define SIMPLIFIED_SPECULATIVE_BIGINT_UNOP_LIST(V) \

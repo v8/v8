@@ -1362,11 +1362,51 @@ const Operator* RepresentationChanger::Int64OperatorFor(
     case IrOpcode::kSpeculativeNumberAdd:  // Fall through.
     case IrOpcode::kSpeculativeSafeIntegerAdd:
     case IrOpcode::kNumberAdd:
+    case IrOpcode::kSpeculativeBigIntAdd:
       return machine()->Int64Add();
     case IrOpcode::kSpeculativeNumberSubtract:  // Fall through.
     case IrOpcode::kSpeculativeSafeIntegerSubtract:
     case IrOpcode::kNumberSubtract:
+    case IrOpcode::kSpeculativeBigIntSubtract:
       return machine()->Int64Sub();
+    case IrOpcode::kSpeculativeBigIntMultiply:
+      return machine()->Int64Mul();
+    default:
+      UNREACHABLE();
+  }
+}
+
+const Operator* RepresentationChanger::Int64OverflowOperatorFor(
+    IrOpcode::Value opcode) {
+  switch (opcode) {
+    case IrOpcode::kSpeculativeBigIntAdd:
+      return simplified()->CheckedInt64Add();
+    case IrOpcode::kSpeculativeBigIntSubtract:
+      return simplified()->CheckedInt64Sub();
+    case IrOpcode::kSpeculativeBigIntMultiply:
+      return simplified()->CheckedInt64Mul();
+    case IrOpcode::kSpeculativeBigIntDivide:
+      return simplified()->CheckedInt64Div();
+    case IrOpcode::kSpeculativeBigIntModulus:
+      return simplified()->CheckedInt64Mod();
+    default:
+      UNREACHABLE();
+  }
+}
+
+const Operator* RepresentationChanger::BigIntOperatorFor(
+    IrOpcode::Value opcode) {
+  switch (opcode) {
+    case IrOpcode::kSpeculativeBigIntAdd:
+      return simplified()->BigIntAdd();
+    case IrOpcode::kSpeculativeBigIntSubtract:
+      return simplified()->BigIntSubtract();
+    case IrOpcode::kSpeculativeBigIntMultiply:
+      return simplified()->BigIntMultiply();
+    case IrOpcode::kSpeculativeBigIntDivide:
+      return simplified()->BigIntDivide();
+    case IrOpcode::kSpeculativeBigIntModulus:
+      return simplified()->BigIntModulus();
     default:
       UNREACHABLE();
   }

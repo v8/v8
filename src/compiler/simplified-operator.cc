@@ -547,7 +547,8 @@ BigIntOperationHint BigIntOperationHintOf(const Operator* op) {
   DCHECK(op->opcode() == IrOpcode::kSpeculativeBigIntAdd ||
          op->opcode() == IrOpcode::kSpeculativeBigIntSubtract ||
          op->opcode() == IrOpcode::kSpeculativeBigIntMultiply ||
-         op->opcode() == IrOpcode::kSpeculativeBigIntDivide);
+         op->opcode() == IrOpcode::kSpeculativeBigIntDivide ||
+         op->opcode() == IrOpcode::kSpeculativeBigIntModulus);
   return OpParameter<BigIntOperationHint>(op);
 }
 
@@ -807,6 +808,7 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(BigIntSubtract, Operator::kNoProperties, 2, 1)        \
   V(BigIntMultiply, Operator::kNoProperties, 2, 1)        \
   V(BigIntDivide, Operator::kNoProperties, 2, 1)          \
+  V(BigIntModulus, Operator::kNoProperties, 2, 1)         \
   V(BigIntBitwiseAnd, Operator::kNoProperties, 2, 1)      \
   V(StringCharCodeAt, Operator::kNoProperties, 2, 1)      \
   V(StringCodePointAt, Operator::kNoProperties, 2, 1)     \
@@ -837,10 +839,11 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(CheckedInt32Sub, 2, 1)                \
   V(CheckedUint32Div, 2, 1)               \
   V(CheckedUint32Mod, 2, 1)               \
-  V(CheckedBigInt64Add, 2, 1)             \
-  V(CheckedBigInt64Sub, 2, 1)             \
-  V(CheckedBigInt64Mul, 2, 1)             \
-  V(CheckedBigInt64Div, 2, 1)
+  V(CheckedInt64Add, 2, 1)                \
+  V(CheckedInt64Sub, 2, 1)                \
+  V(CheckedInt64Mul, 2, 1)                \
+  V(CheckedInt64Div, 2, 1)                \
+  V(CheckedInt64Mod, 2, 1)
 
 #define CHECKED_WITH_FEEDBACK_OP_LIST(V) \
   V(CheckNumber, 1, 1)                   \
@@ -1644,6 +1647,14 @@ const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntDivide(
       IrOpcode::kSpeculativeBigIntDivide,
       Operator::kFoldable | Operator::kNoThrow, "SpeculativeBigIntDivide", 2, 1,
       1, 1, 1, 0, hint);
+}
+
+const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntModulus(
+    BigIntOperationHint hint) {
+  return zone()->New<Operator1<BigIntOperationHint>>(
+      IrOpcode::kSpeculativeBigIntModulus,
+      Operator::kFoldable | Operator::kNoThrow, "SpeculativeBigIntModulus", 2,
+      1, 1, 1, 1, 0, hint);
 }
 
 const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntBitwiseAnd(
