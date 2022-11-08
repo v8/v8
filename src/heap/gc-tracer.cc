@@ -503,12 +503,17 @@ void GCTracer::StopYoungCycleIfNeeded() {
   if (heap_->cpp_heap() && notified_young_cppgc_running_ &&
       !notified_young_cppgc_completed_)
     return;
+  bool was_young_gc_while_full_gc_ = young_gc_while_full_gc_;
   StopCycle(current_.type == Event::SCAVENGER
                 ? GarbageCollector::SCAVENGER
                 : GarbageCollector::MINOR_MARK_COMPACTOR);
   notified_young_sweeping_completed_ = false;
   notified_young_cppgc_running_ = false;
   notified_young_cppgc_completed_ = false;
+  if (was_young_gc_while_full_gc_) {
+    // Check if the full gc cycle is ready to be stopped.
+    StopFullCycleIfNeeded();
+  }
 }
 
 void GCTracer::NotifyFullSweepingCompleted() {
@@ -539,7 +544,10 @@ void GCTracer::NotifyFullSweepingCompleted() {
     heap_->old_space()->PrintAllocationsOrigins();
     heap_->code_space()->PrintAllocationsOrigins();
   }
-  DCHECK(!notified_full_sweeping_completed_);
+  // Notifying twice that V8 sweeping is finished for the same cycle is possible
+  // only if Oilpan sweeping is still in progress.
+  DCHECK_IMPLIES(notified_full_sweeping_completed_,
+                 notified_full_cppgc_completed_);
   notified_full_sweeping_completed_ = true;
   StopFullCycleIfNeeded();
 }
@@ -572,6 +580,12 @@ void GCTracer::NotifyFullCppGCCompleted() {
   DCHECK(metric_recorder->FullGCMetricsReportPending());
   DCHECK(!notified_full_cppgc_completed_);
   notified_full_cppgc_completed_ = true;
+  // Cppgc sweeping may finalize during MinorMC sweeping. In that case, delay
+  // stopping the cycle until the nested MinorMC cycle is stopped.
+  if (Event::IsYoungGenerationEvent(current_.type)) {
+    DCHECK(young_gc_while_full_gc_);
+    return;
+  }
   StopFullCycleIfNeeded();
 }
 
