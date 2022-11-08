@@ -3699,6 +3699,13 @@ void Isolate::SetIsolateThreadLocals(Isolate* isolate,
                                      PerIsolateThreadData* data) {
   g_current_isolate_ = isolate;
   g_current_per_isolate_thread_data_ = data;
+
+  if (isolate && isolate->main_thread_local_isolate()) {
+    WriteBarrier::SetForThread(
+        isolate->main_thread_local_heap()->marking_barrier());
+  } else {
+    WriteBarrier::SetForThread(nullptr);
+  }
 }
 
 Isolate::~Isolate() {
@@ -4504,6 +4511,9 @@ void Isolate::Enter() {
                  ThreadId::Current());
       // Same thread re-enters the isolate, no need to re-init anything.
       entry_stack_->entry_count++;
+      // Set thread local for marking barrier again. The marking barrier may now
+      // be set up while previously it wasn't.
+      SetIsolateThreadLocals(this, current_data);
       return;
     }
   }

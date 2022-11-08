@@ -61,7 +61,8 @@ LocalHeap::LocalHeap(Heap* heap, ThreadKind kind,
 
   heap_->safepoint()->AddLocalHeap(this, [this] {
     if (!is_main_thread()) {
-      WriteBarrier::SetForThread(marking_barrier_.get());
+      saved_marking_barrier_ =
+          WriteBarrier::SetForThread(marking_barrier_.get());
       if (heap_->incremental_marking()->IsMarking()) {
         marking_barrier_->Activate(
             heap_->incremental_marking()->IsCompacting(),
@@ -92,7 +93,10 @@ LocalHeap::~LocalHeap() {
           "Publishing of marking barrier results for Code space pages requires "
           "write access to Code page headers");
       marking_barrier_->Publish();
-      WriteBarrier::ClearForThread(marking_barrier_.get());
+      MarkingBarrier* overwritten =
+          WriteBarrier::SetForThread(saved_marking_barrier_);
+      DCHECK_EQ(overwritten, marking_barrier_.get());
+      USE(overwritten);
     }
   });
 

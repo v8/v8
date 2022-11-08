@@ -38,7 +38,7 @@ MarkingBarrier::~MarkingBarrier() { DCHECK(typed_slots_map_.empty()); }
 
 void MarkingBarrier::Write(HeapObject host, HeapObjectSlot slot,
                            HeapObject value) {
-  DCHECK(IsCurrentMarkingBarrier());
+  DCHECK(IsCurrentMarkingBarrier(host));
   if (MarkValue(host, value)) {
     if (is_compacting_ && slot.address()) {
       DCHECK(is_major());
@@ -59,7 +59,7 @@ void MarkingBarrier::WriteWithoutHost(HeapObject value) {
 }
 
 void MarkingBarrier::Write(Code host, RelocInfo* reloc_info, HeapObject value) {
-  DCHECK(IsCurrentMarkingBarrier());
+  DCHECK(IsCurrentMarkingBarrier(host));
   if (MarkValue(host, value)) {
     if (is_compacting_) {
       DCHECK(is_major());
@@ -76,7 +76,7 @@ void MarkingBarrier::Write(Code host, RelocInfo* reloc_info, HeapObject value) {
 
 void MarkingBarrier::Write(JSArrayBuffer host,
                            ArrayBufferExtension* extension) {
-  DCHECK(IsCurrentMarkingBarrier());
+  DCHECK(IsCurrentMarkingBarrier(host));
   if (!V8_CONCURRENT_MARKING_BOOL && !marking_state_.IsBlack(host)) {
     // The extension will be marked when the marker visits the host object.
     return;
@@ -92,7 +92,7 @@ void MarkingBarrier::Write(JSArrayBuffer host,
 
 void MarkingBarrier::Write(DescriptorArray descriptor_array,
                            int number_of_own_descriptors) {
-  DCHECK(IsCurrentMarkingBarrier());
+  DCHECK(IsCurrentMarkingBarrier(descriptor_array));
   DCHECK(IsReadOnlyHeapObject(descriptor_array.map()));
 
   if (is_minor() && !heap_->InYoungGeneration(descriptor_array)) return;
@@ -131,7 +131,7 @@ void MarkingBarrier::Write(DescriptorArray descriptor_array,
 
 void MarkingBarrier::RecordRelocSlot(Code host, RelocInfo* rinfo,
                                      HeapObject target) {
-  DCHECK(IsCurrentMarkingBarrier());
+  DCHECK(IsCurrentMarkingBarrier(host));
   if (!MarkCompactCollector::ShouldRecordRelocSlot(host, rinfo, target)) return;
 
   MarkCompactCollector::RecordRelocSlotInfo info =
@@ -295,8 +295,9 @@ void MarkingBarrier::Activate(bool is_compacting,
   }
 }
 
-bool MarkingBarrier::IsCurrentMarkingBarrier() {
-  return WriteBarrier::CurrentMarkingBarrier(heap_) == this;
+bool MarkingBarrier::IsCurrentMarkingBarrier(
+    HeapObject verification_candidate) {
+  return WriteBarrier::CurrentMarkingBarrier(verification_candidate) == this;
 }
 
 }  // namespace internal
