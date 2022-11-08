@@ -954,22 +954,20 @@ class V8_EXPORT Isolate {
    * Attaches a managed C++ heap as an extension to the JavaScript heap. The
    * embedder maintains ownership of the CppHeap. At most one C++ heap can be
    * attached to V8.
+   *
    * AttachCppHeap cannot be used simultaneously with SetEmbedderHeapTracer.
    *
-   * This is an experimental feature and may still change significantly.
+   * Multi-threaded use requires the use of v8::Locker/v8::Unlocker, see
+   * CppHeap.
    */
   void AttachCppHeap(CppHeap*);
 
   /**
    * Detaches a managed C++ heap if one was attached using `AttachCppHeap()`.
-   *
-   * This is an experimental feature and may still change significantly.
    */
   void DetachCppHeap();
 
   /**
-   * This is an experimental feature and may still change significantly.
-
    * \returns the C++ heap managed by V8. Only available if such a heap has been
    *   attached using `AttachCppHeap()`.
    */

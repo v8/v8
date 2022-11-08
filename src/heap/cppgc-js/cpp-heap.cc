@@ -638,6 +638,10 @@ void CppHeap::DetachIsolate() {
   no_gc_scope_++;
 }
 
+::heap::base::Stack* CppHeap::stack() {
+  return isolate_ ? &isolate_->heap()->stack() : HeapBase::stack();
+}
+
 namespace {
 
 bool IsMemoryReducingGC(CppHeap::GarbageCollectionFlags flags) {
