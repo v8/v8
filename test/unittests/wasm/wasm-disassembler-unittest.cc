@@ -90,6 +90,15 @@ TEST_F(WasmDisassemblerTest, Names) {
   CheckDisassemblerOutput(base::ArrayVector(module_bytes), expected);
 }
 
+TEST_F(WasmDisassemblerTest, Simd) {
+  constexpr byte module_bytes[] = {
+#include "wasm-disassembler-unittest-simd.wasm.inc"
+  };
+  std::string expected;
+#include "wasm-disassembler-unittest-simd.wat.inc"
+  CheckDisassemblerOutput(base::ArrayVector(module_bytes), expected);
+}
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

@@ -571,6 +571,8 @@ v8_source_set("unittests_sources") {
       "wasm/wasm-disassembler-unittest-mvp.wat.inc",
       "wasm/wasm-disassembler-unittest-names.wasm.inc",
       "wasm/wasm-disassembler-unittest-names.wat.inc",
+      "wasm/wasm-disassembler-unittest-simd.wasm.inc",
+      "wasm/wasm-disassembler-unittest-simd.wat.inc",
       "wasm/wasm-disassembler-unittest.cc",
       "wasm/wasm-macro-gen-unittest.cc",
       "wasm/wasm-module-builder-unittest.cc",

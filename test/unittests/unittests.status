@@ -332,4 +332,9 @@
   'RegExpTestWithContext.UnicodePropertyEscapeCodeSize': [SKIP],
 }],  # no_i18n == True
 
+##############################################################################
+['no_simd_hardware == True', {
+  'WasmDisassemblerTest.Simd': [SKIP],
+}],  # no_simd_hardware == True
+
 ]
