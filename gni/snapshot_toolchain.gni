@@ -71,14 +71,7 @@ if (v8_snapshot_toolchain == "") {
         "//build/toolchain/${host_os}:clang_arm64_v8_$v8_current_cpu"
   } else if (host_cpu == "x64") {
     # This is a cross-compile from an x64 host to either a non-Intel target
-    # cpu or a different target OS. Clang will always be used by default on the
-    # host, unless this is a ChromeOS build, in which case the same toolchain
-    # (Clang or GCC) will be used for target and host by default.
-    if (is_chromeos && !is_clang) {
-      _clang = ""
-    } else {
-      _clang = "clang_"
-    }
+    # cpu or a different target OS.
 
     if (v8_current_cpu == "x64" || v8_current_cpu == "x86") {
       _cpus = v8_current_cpu
@@ -100,7 +93,7 @@ if (v8_snapshot_toolchain == "") {
     }
 
     if (_cpus != "") {
-      v8_snapshot_toolchain = "//build/toolchain/${host_os}:${_clang}${_cpus}"
+      v8_snapshot_toolchain = "//build/toolchain/${host_os}:clang_${_cpus}"
     } else if (is_win && v8_current_cpu == "arm64") {
       # cross compile Windows arm64 with host toolchain.
       v8_snapshot_toolchain = host_toolchain
