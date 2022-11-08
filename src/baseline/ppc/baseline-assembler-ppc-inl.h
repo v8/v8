@@ -596,6 +596,7 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
 
 void BaselineAssembler::LdaContextSlot(Register context, uint32_t index,
                                        uint32_t depth) {
+  ASM_CODE_COMMENT(masm_);
   for (; depth > 0; --depth) {
     LoadTaggedPointerField(context, context, Context::kPreviousOffset);
   }
@@ -605,8 +606,15 @@ void BaselineAssembler::LdaContextSlot(Register context, uint32_t index,
 
 void BaselineAssembler::StaContextSlot(Register context, Register value,
                                        uint32_t index, uint32_t depth) {
-  for (; depth > 0; --depth) {
-    LoadTaggedPointerField(context, context, Context::kPreviousOffset);
+  ASM_CODE_COMMENT(masm_);
+  if (depth > 0) {
+    for (; depth > 0; --depth) {
+      LoadTaggedPointerField(context, context, Context::kPreviousOffset);
+    }
+    if (COMPRESS_POINTERS_BOOL) {
+      // Decompress tagged pointer.
+      __ AddS64(context, context, kPtrComprCageBaseRegister);
+    }
   }
   StoreTaggedFieldWithWriteBarrier(context, Context::OffsetOfElementAt(index),
                                    value);
@@ -614,6 +622,7 @@ void BaselineAssembler::StaContextSlot(Register context, Register value,
 
 void BaselineAssembler::LdaModuleVariable(Register context, int cell_index,
                                           uint32_t depth) {
+  ASM_CODE_COMMENT(masm_);
   for (; depth > 0; --depth) {
     LoadTaggedPointerField(context, context, Context::kPreviousOffset);
   }
@@ -636,6 +645,7 @@ void BaselineAssembler::LdaModuleVariable(Register context, int cell_index,
 
 void BaselineAssembler::StaModuleVariable(Register context, Register value,
                                           int cell_index, uint32_t depth) {
+  ASM_CODE_COMMENT(masm_);
   for (; depth > 0; --depth) {
     LoadTaggedPointerField(context, context, Context::kPreviousOffset);
   }
@@ -650,6 +660,7 @@ void BaselineAssembler::StaModuleVariable(Register context, Register value,
 }
 
 void BaselineAssembler::AddSmi(Register lhs, Smi rhs) {
+  ASM_CODE_COMMENT(masm_);
   if (rhs.value() == 0) return;
   __ LoadSmiLiteral(r0, rhs);
   if (SmiValuesAre31Bits()) {
