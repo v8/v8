@@ -3822,6 +3822,30 @@ SIMD_EXT_MUL_LIST(EMIT_SIMD_EXT_MUL)
 #undef EMIT_SIMD_EXT_MUL
 #undef SIMD_EXT_MUL_LIST
 
+#define SIMD_ALL_TRUE_LIST(V) \
+  V(I64x2AllTrue, vcmpgtud)   \
+  V(I32x4AllTrue, vcmpgtuw)   \
+  V(I16x8AllTrue, vcmpgtuh)   \
+  V(I8x16AllTrue, vcmpgtub)
+
+#define EMIT_SIMD_ALL_TRUE(name, op)                              \
+  void TurboAssembler::name(Register dst, Simd128Register src,    \
+                            Register scratch1, Register scratch2, \
+                            Simd128Register scratch3) {           \
+    constexpr uint8_t fxm = 0x2; /* field mask. */                \
+    constexpr int bit_number = 24;                                \
+    li(scratch1, Operand(0));                                     \
+    li(scratch2, Operand(1));                                     \
+    /* Check if all lanes > 0, if not then return false.*/        \
+    vxor(scratch3, scratch3, scratch3);                           \
+    mtcrf(scratch1, fxm); /* Clear cr6.*/                         \
+    op(scratch3, src, scratch3, SetRC);                           \
+    isel(dst, scratch2, scratch1, bit_number);                    \
+  }
+SIMD_ALL_TRUE_LIST(EMIT_SIMD_ALL_TRUE)
+#undef EMIT_SIMD_ALL_TRUE
+#undef SIMD_ALL_TRUE_LIST
+
 void TurboAssembler::I64x2ExtMulLowI32x4S(Simd128Register dst,
                                           Simd128Register src1,
                                           Simd128Register src2,
@@ -4424,6 +4448,20 @@ void TurboAssembler::I16x8UConvertI8x16High(Simd128Register dst,
   mtvsrd(scratch2, scratch1);
   vsplth(scratch2, scratch2, Operand(3));
   vand(dst, scratch2, dst);
+}
+
+void TurboAssembler::V128AnyTrue(Register dst, Simd128Register src,
+                                 Register scratch1, Register scratch2,
+                                 Simd128Register scratch3) {
+  constexpr uint8_t fxm = 0x2;  // field mask.
+  constexpr int bit_number = 24;
+  li(scratch1, Operand(0));
+  li(scratch2, Operand(1));
+  // Check if both lanes are 0, if so then return false.
+  vxor(scratch3, scratch3, scratch3);
+  mtcrf(scratch1, fxm);  // Clear cr6.
+  vcmpequd(scratch3, src, scratch3, SetRC);
+  isel(dst, scratch1, scratch2, bit_number);
 }
 
 void TurboAssembler::S128Not(Simd128Register dst, Simd128Register src) {

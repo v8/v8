@@ -1259,6 +1259,19 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 #undef PROTOTYPE_SIMD_UNOP_WITH_SCRATCH
 #undef SIMD_UNOP_WITH_SCRATCH_LIST
 
+#define SIMD_ALL_TRUE_LIST(V) \
+  V(I64x2AllTrue)             \
+  V(I32x4AllTrue)             \
+  V(I16x8AllTrue)             \
+  V(I8x16AllTrue)
+
+#define PROTOTYPE_SIMD_ALL_TRUE(name)                             \
+  void name(Register dst, Simd128Register src, Register scratch1, \
+            Register scratch2, Simd128Register scratch3);
+  SIMD_ALL_TRUE_LIST(PROTOTYPE_SIMD_ALL_TRUE)
+#undef PROTOTYPE_SIMD_ALL_TRUE
+#undef SIMD_ALL_TRUE_LIST
+
   void LoadSimd128(Simd128Register dst, const MemOperand& mem,
                    Register scratch);
   void StoreSimd128(Simd128Register src, const MemOperand& mem,
@@ -1332,6 +1345,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                              Register scratch1, Simd128Register scratch2);
   void I16x8UConvertI8x16High(Simd128Register dst, Simd128Register src,
                               Register scratch1, Simd128Register scratch2);
+  void V128AnyTrue(Register dst, Simd128Register src, Register scratch1,
+                   Register scratch2, Simd128Register scratch3);
 
  private:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
