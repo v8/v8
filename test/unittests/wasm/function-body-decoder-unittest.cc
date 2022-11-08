@@ -4403,7 +4403,6 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
 TEST_F(FunctionBodyDecoderTest, BrOnCastOrCastFail) {
   WASM_FEATURE_SCOPE(typed_funcref);
   WASM_FEATURE_SCOPE(gc);
-  FLAG_SCOPE(experimental_wasm_gc);
 
   byte super_struct = builder.AddStruct({F(kWasmI16, true)});
   byte sub_struct =
@@ -4463,7 +4462,6 @@ TEST_F(FunctionBodyDecoderTest, BrOnCastOrCastFail) {
 TEST_F(FunctionBodyDecoderTest, BrOnAbstractType) {
   WASM_FEATURE_SCOPE(typed_funcref);
   WASM_FEATURE_SCOPE(gc);
-  FLAG_SCOPE(experimental_wasm_gc);
 
   ValueType kNonNullableFunc = ValueType::Ref(HeapType::kFunc);
 
@@ -4506,6 +4504,38 @@ TEST_F(FunctionBodyDecoderTest, BrOnAbstractType) {
       {WASM_LOCAL_GET(0), WASM_BR_ON_I31(0), WASM_GC_OP(kExprRefAsI31)},
       kAppendEnd,
       "br_on_i31[0] expected type anyref, found local.get of type i32");
+}
+
+TEST_F(FunctionBodyDecoderTest, BrWithBottom) {
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(gc);
+
+  // Merging an unsatisfiable non-nullable (ref none) into a target that
+  // expects a non-null struct is OK.
+  ExpectValidates(
+      FunctionSig::Build(this->zone(), {ValueType::Ref(HeapType::kStruct)},
+                         {ValueType::Ref(HeapType::kStruct)}),
+      {WASM_BR_ON_NON_NULL(0, WASM_REF_NULL(ValueTypeCode::kNoneCode)),
+       WASM_LOCAL_GET(0)});
+  // Merging the same value into a target that expects a value outside
+  // the "anyref" hierarchy is invalid...
+  ExpectFailure(
+      FunctionSig::Build(this->zone(), {kWasmFuncRef}, {kWasmFuncRef}),
+      {WASM_BR_ON_NON_NULL(0, WASM_REF_NULL(ValueTypeCode::kNoneCode)),
+       WASM_LOCAL_GET(0)},
+      kAppendEnd, "type error in branch[0] (expected funcref, got (ref none))");
+  // ...because it would have to be a (ref nofunc) in that case.
+  ExpectValidates(
+      FunctionSig::Build(this->zone(), {kWasmFuncRef}, {kWasmFuncRef}),
+      {WASM_BR_ON_NON_NULL(0, WASM_REF_NULL(ValueTypeCode::kNoFuncCode)),
+       WASM_LOCAL_GET(0)});
+  // (ref nofunc) in turn doesn't match anyref.
+  ExpectFailure(
+      FunctionSig::Build(this->zone(), {kWasmAnyRef}, {kWasmAnyRef}),
+      {WASM_BR_ON_NON_NULL(0, WASM_REF_NULL(ValueTypeCode::kNoFuncCode)),
+       WASM_LOCAL_GET(0)},
+      kAppendEnd,
+      "type error in branch[0] (expected anyref, got (ref nofunc))");
 }
 
 TEST_F(FunctionBodyDecoderTest, LocalTeeTyping) {
