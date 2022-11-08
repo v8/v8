@@ -1887,18 +1887,18 @@ class CompilationTimeCallback : public CompilationEventCallback {
 
 void CompileNativeModule(Isolate* isolate,
                          v8::metrics::Recorder::ContextId context_id,
-                         ErrorThrower* thrower, const WasmModule* wasm_module,
+                         ErrorThrower* thrower,
                          std::shared_ptr<NativeModule> native_module,
                          ProfileInformation* pgo_info) {
   CHECK(!v8_flags.jitless);
-  ModuleWireBytes wire_bytes(native_module->wire_bytes());
-  if (!v8_flags.wasm_lazy_validation && wasm_module->origin == kWasmOrigin &&
-      MayCompriseLazyFunctions(wasm_module,
-                               native_module->enabled_features())) {
+  const WasmModule* module = native_module->module();
+  ModuleWireBytes wire_bytes{native_module->wire_bytes()};
+  if (!v8_flags.wasm_lazy_validation && module->origin == kWasmOrigin &&
+      MayCompriseLazyFunctions(module, native_module->enabled_features())) {
     // Validate wasm modules for lazy compilation if requested. Never validate
     // asm.js modules as these are valid by construction (additionally a CHECK
     // will catch this during lazy compilation).
-    ValidateSequentially(wasm_module, native_module.get(), isolate->counters(),
+    ValidateSequentially(module, native_module.get(), isolate->counters(),
                          isolate->allocator(), thrower, kOnlyLazyFunctions);
     // On error: Return and leave the module in an unexecutable state.
     if (thrower->error()) return;
@@ -1922,24 +1922,18 @@ void CompileNativeModule(Isolate* isolate,
   compilation_state->WaitForCompilationEvent(
       CompilationEvent::kFinishedExportWrappers);
 
-  if (compilation_state->failed()) {
-    DCHECK_IMPLIES(IsLazyModule(wasm_module), !v8_flags.wasm_lazy_validation);
-    ValidateSequentially(wasm_module, native_module.get(), isolate->counters(),
-                         isolate->allocator(), thrower);
-    CHECK(thrower->error());
-    return;
+  if (!compilation_state->failed()) {
+    compilation_state->FinalizeJSToWasmWrappers(isolate, module);
+
+    compilation_state->WaitForCompilationEvent(
+        CompilationEvent::kFinishedBaselineCompilation);
+
+    compilation_state->PublishDetectedFeatures(isolate);
   }
 
-  compilation_state->FinalizeJSToWasmWrappers(isolate, wasm_module);
-
-  compilation_state->WaitForCompilationEvent(
-      CompilationEvent::kFinishedBaselineCompilation);
-
-  compilation_state->PublishDetectedFeatures(isolate);
-
   if (compilation_state->failed()) {
-    DCHECK_IMPLIES(IsLazyModule(wasm_module), !v8_flags.wasm_lazy_validation);
-    ValidateSequentially(wasm_module, native_module.get(), isolate->counters(),
+    DCHECK_IMPLIES(IsLazyModule(module), !v8_flags.wasm_lazy_validation);
+    ValidateSequentially(module, native_module.get(), isolate->counters(),
                          isolate->allocator(), thrower);
     CHECK(thrower->error());
   }
@@ -1981,10 +1975,10 @@ class BackgroundCompileJob final : public JobTask {
 
 std::shared_ptr<NativeModule> CompileToNativeModule(
     Isolate* isolate, const WasmFeatures& enabled, ErrorThrower* thrower,
-    std::shared_ptr<const WasmModule> module, ModuleWireBytes wire_bytes,
+    std::shared_ptr<const WasmModule> shared_module, ModuleWireBytes wire_bytes,
     int compilation_id, v8::metrics::Recorder::ContextId context_id,
     ProfileInformation* pgo_info) {
-  const WasmModule* wasm_module = module.get();
+  const WasmModule* module = shared_module.get();
   WasmEngine* engine = GetWasmEngine();
   base::OwnedVector<uint8_t> wire_bytes_copy =
       base::OwnedVector<uint8_t>::Of(wire_bytes.module_bytes());
@@ -1993,20 +1987,20 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
   // bytes of the temporary key and the new key have the same base pointer and
   // we can skip the full bytes comparison.
   std::shared_ptr<NativeModule> native_module = engine->MaybeGetNativeModule(
-      wasm_module->origin, wire_bytes_copy.as_vector(), isolate);
+      module->origin, wire_bytes_copy.as_vector(), isolate);
   if (native_module) {
-    CompileJsToWasmWrappers(isolate, wasm_module);
+    CompileJsToWasmWrappers(isolate, module);
     return native_module;
   }
 
   base::Optional<TimedHistogramScope> wasm_compile_module_time_scope;
   if (base::TimeTicks::IsHighResolution()) {
     wasm_compile_module_time_scope.emplace(SELECT_WASM_COUNTER(
-        isolate->counters(), wasm_module->origin, wasm_compile, module_time));
+        isolate->counters(), module->origin, wasm_compile, module_time));
   }
 
   // Embedder usage count for declared shared memories.
-  if (wasm_module->has_shared_memory) {
+  if (module->has_shared_memory) {
     isolate->CountUsage(v8::Isolate::UseCounterFeature::kWasmSharedMemory);
   }
 
@@ -2015,23 +2009,22 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
       module->origin == kWasmOrigin && v8_flags.liftoff;
   size_t code_size_estimate =
       wasm::WasmCodeManager::EstimateNativeModuleCodeSize(
-          module.get(), include_liftoff,
+          module, include_liftoff,
           DynamicTiering{v8_flags.wasm_dynamic_tiering.value()});
-  native_module =
-      engine->NewNativeModule(isolate, enabled, module, code_size_estimate);
+  native_module = engine->NewNativeModule(
+      isolate, enabled, std::move(shared_module), code_size_estimate);
   native_module->SetWireBytes(std::move(wire_bytes_copy));
   native_module->compilation_state()->set_compilation_id(compilation_id);
   // Sync compilation is user blocking, so we increase the priority.
   native_module->compilation_state()->SetHighPriority();
 
-  CompileNativeModule(isolate, context_id, thrower, wasm_module, native_module,
-                      pgo_info);
+  CompileNativeModule(isolate, context_id, thrower, native_module, pgo_info);
   bool cache_hit = !engine->UpdateNativeModuleCache(thrower->error(),
                                                     &native_module, isolate);
   if (thrower->error()) return {};
 
   if (cache_hit) {
-    CompileJsToWasmWrappers(isolate, wasm_module);
+    CompileJsToWasmWrappers(isolate, module);
     return native_module;
   }
 
