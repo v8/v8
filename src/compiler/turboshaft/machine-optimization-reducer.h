@@ -1373,30 +1373,40 @@ class MachineOptimizationReducer : public Next {
             }
             [[fallthrough]];
           case Kind::kShiftRightArithmetic:
-            return Asm().WordConstant(c_signed >> amount, rep);
+            switch (rep.value()) {
+              case WordRepresentation::Word32():
+                return Asm().Word32Constant(static_cast<int32_t>(c_signed) >>
+                                            amount);
+              case WordRepresentation::Word64():
+                return Asm().Word64Constant(c_signed >> amount);
+            }
           case Kind::kShiftRightLogical:
-            return Asm().WordConstant(c_unsigned >> amount, rep);
+            switch (rep.value()) {
+              case WordRepresentation::Word32():
+                return Asm().Word32Constant(static_cast<uint32_t>(c_unsigned) >>
+                                            amount);
+              case WordRepresentation::Word64():
+                return Asm().Word64Constant(c_unsigned >> amount);
+            }
           case Kind::kShiftLeft:
             return Asm().WordConstant(c_unsigned << amount, rep);
           case Kind::kRotateRight:
-            if (rep == WordRepresentation::Word32()) {
-              return Asm().WordConstant(
-                  base::bits::RotateRight32(static_cast<uint32_t>(c_unsigned),
-                                            amount),
-                  rep);
-            } else {
-              return Asm().WordConstant(
-                  base::bits::RotateRight64(c_unsigned, amount), rep);
+            switch (rep.value()) {
+              case WordRepresentation::Word32():
+                return Asm().Word32Constant(base::bits::RotateRight32(
+                    static_cast<uint32_t>(c_unsigned), amount));
+              case WordRepresentation::Word64():
+                return Asm().Word64Constant(
+                    base::bits::RotateRight64(c_unsigned, amount));
             }
           case Kind::kRotateLeft:
-            if (rep == WordRepresentation::Word32()) {
-              return Asm().WordConstant(
-                  base::bits::RotateLeft32(static_cast<uint32_t>(c_unsigned),
-                                           amount),
-                  rep);
-            } else {
-              return Asm().WordConstant(
-                  base::bits::RotateLeft64(c_unsigned, amount), rep);
+            switch (rep.value()) {
+              case WordRepresentation::Word32():
+                return Asm().Word32Constant(base::bits::RotateLeft32(
+                    static_cast<uint32_t>(c_unsigned), amount));
+              case WordRepresentation::Word64():
+                return Asm().Word64Constant(
+                    base::bits::RotateLeft64(c_unsigned, amount));
             }
         }
       }
