@@ -47,7 +47,7 @@ template void NameMap::FinishInitialization();
 template void IndirectNameMap::FinishInitialization();
 
 WireBytesRef LazilyGeneratedNames::LookupFunctionName(
-    const ModuleWireBytes& wire_bytes, uint32_t function_index) {
+    ModuleWireBytes wire_bytes, uint32_t function_index) {
   base::MutexGuard lock(&mutex_);
   if (!has_functions_) {
     has_functions_ = true;

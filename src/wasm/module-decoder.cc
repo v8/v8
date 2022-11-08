@@ -223,7 +223,7 @@ ConstantExpression DecodeWasmInitExprForTesting(const WasmFeatures& enabled,
 }
 
 FunctionResult DecodeWasmFunctionForTesting(
-    const WasmFeatures& enabled, Zone* zone, const ModuleWireBytes& wire_bytes,
+    const WasmFeatures& enabled, Zone* zone, ModuleWireBytes wire_bytes,
     const WasmModule* module, const byte* function_start,
     const byte* function_end, Counters* counters) {
   size_t size = function_end - function_start;

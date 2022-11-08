@@ -1210,7 +1210,7 @@ V8_INLINE bool has_nondeterminism<double>(double val) {
 class WasmInterpreterInternals {
  public:
   WasmInterpreterInternals(Zone* zone, const WasmModule* module,
-                           const ModuleWireBytes& wire_bytes,
+                           ModuleWireBytes wire_bytes,
                            Handle<WasmInstanceObject> instance_object)
       : module_bytes_(wire_bytes.start(), wire_bytes.end(), zone),
         codemap_(module, module_bytes_.data(), zone),
@@ -4149,7 +4149,7 @@ Handle<WasmInstanceObject> MakeWeak(
 // Implementation of the public interface of the interpreter.
 //============================================================================
 WasmInterpreter::WasmInterpreter(Isolate* isolate, const WasmModule* module,
-                                 const ModuleWireBytes& wire_bytes,
+                                 ModuleWireBytes wire_bytes,
                                  Handle<WasmInstanceObject> instance_object)
     : zone_(isolate->allocator(), ZONE_NAME),
       internals_(new WasmInterpreterInternals(

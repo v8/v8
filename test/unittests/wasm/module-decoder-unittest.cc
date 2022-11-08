@@ -2375,7 +2375,7 @@ TEST_F(WasmSignatureDecodeTest, Fail_invalid_param_type2) {
 
 class WasmFunctionVerifyTest : public TestWithIsolateAndZone {
  public:
-  FunctionResult DecodeWasmFunction(const ModuleWireBytes& wire_bytes,
+  FunctionResult DecodeWasmFunction(ModuleWireBytes wire_bytes,
                                     const WasmModule* module,
                                     const byte* function_start,
                                     const byte* function_end) {

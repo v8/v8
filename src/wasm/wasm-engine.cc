@@ -462,7 +462,7 @@ WasmEngine::~WasmEngine() {
 }
 
 bool WasmEngine::SyncValidate(Isolate* isolate, const WasmFeatures& enabled,
-                              const ModuleWireBytes& bytes,
+                              ModuleWireBytes bytes,
                               std::string* error_message) {
   TRACE_EVENT0("v8.wasm", "wasm.SyncValidate");
   // TODO(titzer): remove dependency on the isolate.
@@ -482,7 +482,7 @@ bool WasmEngine::SyncValidate(Isolate* isolate, const WasmFeatures& enabled,
 }
 
 MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
-    Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes,
+    Isolate* isolate, ErrorThrower* thrower, ModuleWireBytes bytes,
     base::Vector<const byte> asm_js_offset_table_bytes,
     Handle<HeapNumber> uses_bitset, LanguageMode language_mode) {
   int compilation_id = next_compilation_id_.fetch_add(1);
@@ -532,7 +532,7 @@ Handle<WasmModuleObject> WasmEngine::FinalizeTranslatedAsmJs(
 
 MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
     Isolate* isolate, const WasmFeatures& enabled, ErrorThrower* thrower,
-    const ModuleWireBytes& bytes) {
+    ModuleWireBytes bytes) {
   int compilation_id = next_compilation_id_.fetch_add(1);
   TRACE_EVENT1("v8.wasm", "wasm.SyncCompile", "id", compilation_id);
   v8::metrics::Recorder::ContextId context_id =
@@ -638,9 +638,8 @@ void WasmEngine::AsyncInstantiate(
 
 void WasmEngine::AsyncCompile(
     Isolate* isolate, const WasmFeatures& enabled,
-    std::shared_ptr<CompilationResultResolver> resolver,
-    const ModuleWireBytes& bytes, bool is_shared,
-    const char* api_method_name_for_errors) {
+    std::shared_ptr<CompilationResultResolver> resolver, ModuleWireBytes bytes,
+    bool is_shared, const char* api_method_name_for_errors) {
   int compilation_id = next_compilation_id_.fetch_add(1);
   TRACE_EVENT1("v8.wasm", "wasm.AsyncCompile", "id", compilation_id);
   if (!v8_flags.wasm_async_compilation) {

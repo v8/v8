@@ -1981,7 +1981,7 @@ class BackgroundCompileJob final : public JobTask {
 
 std::shared_ptr<NativeModule> CompileToNativeModule(
     Isolate* isolate, const WasmFeatures& enabled, ErrorThrower* thrower,
-    std::shared_ptr<const WasmModule> module, const ModuleWireBytes& wire_bytes,
+    std::shared_ptr<const WasmModule> module, ModuleWireBytes wire_bytes,
     int compilation_id, v8::metrics::Recorder::ContextId context_id,
     ProfileInformation* pgo_info) {
   const WasmModule* wasm_module = module.get();
