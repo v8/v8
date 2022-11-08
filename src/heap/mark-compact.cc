@@ -3174,7 +3174,7 @@ void MarkCompactCollector::ProcessOldCodeCandidates() {
       CodeT baseline_codet =
           CodeT::cast(flushing_candidate.function_data(kAcquireLoad));
       // Safe to do a relaxed load here since the CodeT was acquire-loaded.
-      Code baseline_code = FromCodeT(baseline_codet, kRelaxedLoad);
+      Code baseline_code = FromCodeT(baseline_codet, isolate(), kRelaxedLoad);
       if (non_atomic_marking_state()->IsBlackOrGrey(baseline_code)) {
         // Currently baseline code holds bytecode array strongly and it is
         // always ensured that bytecode is live if baseline code is live. Hence

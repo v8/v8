@@ -1952,6 +1952,7 @@ EnumerateCompiledFunctions(Heap* heap) {
       // only on a type feedback vector. We should make this mroe precise.
       if (function.HasAttachedOptimizedCode() &&
           Script::cast(function.shared().script()).HasValidSource()) {
+        // TODO(v8:13261): use ToAbstractCode() here.
         record(function.shared(),
                AbstractCode::cast(FromCodeT(function.code())));
       }
@@ -2369,6 +2370,7 @@ void ExistingCodeLogger::LogCompiledFunctions() {
     Handle<SharedFunctionInfo> shared = pair.first;
     SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate_, shared);
     if (shared->HasInterpreterData()) {
+      // TODO(v8:13261): use ToAbstractCode() here.
       LogExistingFunction(
           shared,
           Handle<AbstractCode>(
@@ -2376,6 +2378,7 @@ void ExistingCodeLogger::LogCompiledFunctions() {
               isolate_));
     }
     if (shared->HasBaselineCode()) {
+      // TODO(v8:13261): use ToAbstractCode() here.
       LogExistingFunction(shared, Handle<AbstractCode>(
                                       AbstractCode::cast(FromCodeT(
                                           shared->baseline_code(kAcquireLoad))),

@@ -842,16 +842,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // TODO(v8:11880): remove once Code::bytecode_or_interpreter_data field
   // is cached in or moved to CodeT.
-  TNode<Code> FromCodeT(TNode<CodeT> code) {
+  TNode<Code> FromCodeTNonBuiltin(TNode<CodeT> code) {
 #ifdef V8_EXTERNAL_CODE_SPACE
-#if V8_TARGET_BIG_ENDIAN
-#error "This code requires updating for big-endian architectures"
-#endif
-    // Given the fields layout we can read the Code reference as a full word.
-    static_assert(CodeDataContainer::kCodeCageBaseUpper32BitsOffset ==
-                  CodeDataContainer::kCodeOffset + kTaggedSize);
-    TNode<Object> o = BitcastWordToTagged(Load<RawPtrT>(
-        code, IntPtrConstant(CodeDataContainer::kCodeOffset - kHeapObjectTag)));
+    // Compute the Code object pointer from the code entry point.
+    TNode<RawPtrT> code_entry = Load<RawPtrT>(
+        code, IntPtrConstant(CodeDataContainer::kCodeEntryPointOffset -
+                             kHeapObjectTag));
+    TNode<Object> o = BitcastWordToTagged(IntPtrSub(
+        code_entry, IntPtrConstant(Code::kHeaderSize - kHeapObjectTag)));
     return CAST(o);
 #else
     return code;

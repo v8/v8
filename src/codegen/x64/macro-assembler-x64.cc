@@ -2343,12 +2343,10 @@ void TurboAssembler::LoadCodeDataContainerCodeNonBuiltin(
     Register destination, Register code_data_container_object) {
   ASM_CODE_COMMENT(this);
   CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-  // Given the fields layout we can read the Code reference as a full word.
-  static_assert(!V8_EXTERNAL_CODE_SPACE_BOOL ||
-                (CodeDataContainer::kCodeCageBaseUpper32BitsOffset ==
-                 CodeDataContainer::kCodeOffset + kTaggedSize));
+  // Compute the Code object pointer from the code entry point.
   movq(destination, FieldOperand(code_data_container_object,
-                                 CodeDataContainer::kCodeOffset));
+                                 CodeDataContainer::kCodeEntryPointOffset));
+  subq(destination, Immediate(Code::kHeaderSize - kHeapObjectTag));
 }
 
 void TurboAssembler::CallCodeDataContainerObject(

@@ -3041,7 +3041,8 @@ TNode<BytecodeArray> CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(
                           Int32Constant(static_cast<int>(CodeKind::BASELINE))));
 #endif  // DEBUG
     TNode<HeapObject> baseline_data = LoadObjectField<HeapObject>(
-        FromCodeT(code), Code::kDeoptimizationDataOrInterpreterDataOffset);
+        FromCodeTNonBuiltin(code),
+        Code::kDeoptimizationDataOrInterpreterDataOffset);
     var_result = baseline_data;
   }
   Goto(&check_for_interpreter_data);

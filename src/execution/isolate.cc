@@ -437,8 +437,6 @@ size_t Isolate::HashIsolateForEmbeddedBlob() {
       // hash code cage base and code entry point. Other data fields must
       // remain the same.
       static_assert(CodeDataContainer::kCodePointerFieldsStrongEndOffset ==
-                    CodeDataContainer::kCodeCageBaseUpper32BitsOffset);
-      static_assert(CodeDataContainer::kCodeCageBaseUpper32BitsOffsetEnd + 1 ==
                     CodeDataContainer::kCodeEntryPointOffset);
 
       static_assert(CodeDataContainer::kCodeEntryPointOffsetEnd + 1 ==

@@ -413,16 +413,31 @@ inline MaybeHandle<CodeT> ToCodeT(MaybeHandle<Code> maybe_code,
 inline Code FromCodeT(CodeT code) {
 #ifdef V8_EXTERNAL_CODE_SPACE
   DCHECK(!code.is_off_heap_trampoline());
-  return code.code();
+  // Compute the Code object pointer from the code entry point.
+  Address ptr = code.code_entry_point() - Code::kHeaderSize + kHeapObjectTag;
+  return Code::cast(Object(ptr));
 #else
   return code;
 #endif
 }
 
-inline Code FromCodeT(CodeT code, RelaxedLoadTag) {
+inline Code FromCodeT(CodeT code, PtrComprCageBase code_cage_base,
+                      RelaxedLoadTag tag) {
 #ifdef V8_EXTERNAL_CODE_SPACE
   DCHECK(!code.is_off_heap_trampoline());
-  return code.code(kRelaxedLoad);
+  // Since the code entry point field is not aligned we can't load it atomically
+  // and use for Code object pointer calculation. So, we load and decompress
+  // the code field.
+  return code.code(code_cage_base, tag);
+#else
+  return code;
+#endif
+}
+
+inline Code FromCodeT(CodeT code, Isolate* isolate, RelaxedLoadTag tag) {
+#ifdef V8_EXTERNAL_CODE_SPACE
+  PtrComprCageBase code_cage_base(isolate->code_cage_base());
+  return FromCodeT(code, code_cage_base, tag);
 #else
   return code;
 #endif
@@ -1426,18 +1441,6 @@ static_assert(FIELD_SIZE(CodeDataContainer::kKindSpecificFlagsOffset) ==
 RELAXED_INT32_ACCESSORS(CodeDataContainer, kind_specific_flags,
                         kKindSpecificFlagsOffset)
 
-#if defined(V8_TARGET_LITTLE_ENDIAN)
-static_assert(!V8_EXTERNAL_CODE_SPACE_BOOL ||
-                  (CodeDataContainer::kCodeCageBaseUpper32BitsOffset ==
-                   CodeDataContainer::kCodeOffset + kTaggedSize),
-              "CodeDataContainer::code field layout requires updating "
-              "for little endian architectures");
-#elif defined(V8_TARGET_BIG_ENDIAN)
-static_assert(!V8_EXTERNAL_CODE_SPACE_BOOL,
-              "CodeDataContainer::code field layout requires updating "
-              "for big endian architectures");
-#endif
-
 Object CodeDataContainer::raw_code() const {
   PtrComprCageBase cage_base = code_cage_base();
   return CodeDataContainer::raw_code(cage_base);
@@ -1462,7 +1465,7 @@ void CodeDataContainer::set_raw_code(Object value, WriteBarrierMode mode) {
 }
 
 Object CodeDataContainer::raw_code(RelaxedLoadTag tag) const {
-  PtrComprCageBase cage_base = code_cage_base(tag);
+  PtrComprCageBase cage_base = code_cage_base();
   return CodeDataContainer::raw_code(cage_base, tag);
 }
 
@@ -1480,43 +1483,10 @@ ACCESSORS(CodeDataContainer, next_code_link, Object, kNextCodeLinkOffset)
 
 PtrComprCageBase CodeDataContainer::code_cage_base() const {
 #ifdef V8_EXTERNAL_CODE_SPACE
-  // TODO(v8:10391): consider protecting this value with the sandbox.
-  Address code_cage_base_hi =
-      ReadField<Tagged_t>(kCodeCageBaseUpper32BitsOffset);
-  return PtrComprCageBase(code_cage_base_hi << 32);
+  Isolate* isolate = GetIsolateFromWritableObject(*this);
+  return PtrComprCageBase(isolate->code_cage_base());
 #else
   return GetPtrComprCageBase(*this);
-#endif
-}
-
-void CodeDataContainer::set_code_cage_base(Address code_cage_base) {
-#ifdef V8_EXTERNAL_CODE_SPACE
-  Tagged_t code_cage_base_hi = static_cast<Tagged_t>(code_cage_base >> 32);
-  WriteField<Tagged_t>(kCodeCageBaseUpper32BitsOffset, code_cage_base_hi);
-#else
-  UNREACHABLE();
-#endif
-}
-
-PtrComprCageBase CodeDataContainer::code_cage_base(RelaxedLoadTag) const {
-#ifdef V8_EXTERNAL_CODE_SPACE
-  // TODO(v8:10391): consider protecting this value with the sandbox.
-  Address code_cage_base_hi =
-      Relaxed_ReadField<Tagged_t>(kCodeCageBaseUpper32BitsOffset);
-  return PtrComprCageBase(code_cage_base_hi << 32);
-#else
-  return GetPtrComprCageBase(*this);
-#endif
-}
-
-void CodeDataContainer::set_code_cage_base(Address code_cage_base,
-                                           RelaxedStoreTag) {
-#ifdef V8_EXTERNAL_CODE_SPACE
-  Tagged_t code_cage_base_hi = static_cast<Tagged_t>(code_cage_base >> 32);
-  Relaxed_WriteField<Tagged_t>(kCodeCageBaseUpper32BitsOffset,
-                               code_cage_base_hi);
-#else
-  UNREACHABLE();
 #endif
 }
 
@@ -1533,7 +1503,7 @@ Code CodeDataContainer::code(PtrComprCageBase cage_base) const {
 }
 
 Code CodeDataContainer::code(RelaxedLoadTag tag) const {
-  PtrComprCageBase cage_base = code_cage_base(tag);
+  PtrComprCageBase cage_base = code_cage_base();
   return CodeDataContainer::code(cage_base, tag);
 }
 

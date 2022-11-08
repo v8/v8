@@ -499,7 +499,6 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
   } else if (V8_EXTERNAL_CODE_SPACE_BOOL &&
              InstanceTypeChecker::IsCodeDataContainer(instance_type)) {
     auto code_data_container = CodeDataContainer::cast(raw_obj);
-    code_data_container.set_code_cage_base(isolate()->code_cage_base());
     code_data_container.init_code_entry_point(main_thread_isolate(),
                                               kNullAddress);
 #ifdef V8_EXTERNAL_CODE_SPACE
