@@ -310,16 +310,7 @@ class ImmediatesPrinter {
   }
 
   void BlockType(BlockTypeImmediate& imm) {
-    if (imm.type == kWasmBottom) {
-      const FunctionSig* sig = owner_->module_->signature(imm.sig_index);
-      PrintSignatureOneLine(out_, sig, 0 /* ignored */, names(), false);
-    } else if (imm.type == kWasmVoid) {
-      // Just be silent.
-    } else {
-      out_ << " (result ";
-      names()->PrintValueType(out_, imm.type);
-      out_ << ")";
-    }
+    PrintSignatureOneLine(out_, &imm.sig, 0 /* ignored */, names(), false);
   }
 
   void HeapType(HeapTypeImmediate& imm) {

@@ -561,9 +561,19 @@ struct SelectTypeImmediate {
 
 struct BlockTypeImmediate {
   uint32_t length = 1;
-  ValueType type = kWasmVoid;
-  uint32_t sig_index = 0;
-  const FunctionSig* sig = nullptr;
+  // After decoding, either {sig_index} is set XOR {sig} points to
+  // {single_return_sig_storage}.
+  uint32_t sig_index;
+  FunctionSig sig{0, 0, single_return_sig_storage};
+  // Internal field, potentially pointed to by {sig}. Do not access directly.
+  ValueType single_return_sig_storage[1];
+
+  // Do not copy or move, as {sig} might point to {single_return_sig_storage} so
+  // this cannot trivially be copied. If needed, define those operators later.
+  BlockTypeImmediate(const BlockTypeImmediate&) = delete;
+  BlockTypeImmediate(BlockTypeImmediate&&) = delete;
+  BlockTypeImmediate& operator=(const BlockTypeImmediate&) = delete;
+  BlockTypeImmediate& operator=(BlockTypeImmediate&&) = delete;
 
   template <typename ValidationTag>
   BlockTypeImmediate(const WasmFeatures& enabled, Decoder* decoder,
@@ -579,34 +589,26 @@ struct BlockTypeImmediate {
                                    block_type);
         return;
       }
-      if (static_cast<ValueTypeCode>(block_type & 0x7F) == kVoidCode) return;
-      type = value_type_reader::read_value_type<ValidationTag>(
-          decoder, pc, &length, enabled);
+      if (static_cast<ValueTypeCode>(block_type & 0x7F) != kVoidCode) {
+        sig = FunctionSig{1, 0, single_return_sig_storage};
+        single_return_sig_storage[0] =
+            value_type_reader::read_value_type<ValidationTag>(decoder, pc,
+                                                              &length, enabled);
+      }
     } else {
-      type = kWasmBottom;
+      sig = FunctionSig{0, 0, nullptr};
       sig_index = static_cast<uint32_t>(block_type);
     }
   }
 
   uint32_t in_arity() const {
-    if (type != kWasmBottom) return 0;
-    return static_cast<uint32_t>(sig->parameter_count());
+    return static_cast<uint32_t>(sig.parameter_count());
   }
   uint32_t out_arity() const {
-    if (type == kWasmVoid) return 0;
-    if (type != kWasmBottom) return 1;
-    return static_cast<uint32_t>(sig->return_count());
+    return static_cast<uint32_t>(sig.return_count());
   }
-  ValueType in_type(uint32_t index) {
-    DCHECK_EQ(kWasmBottom, type);
-    return sig->GetParam(index);
-  }
-  ValueType out_type(uint32_t index) {
-    if (type == kWasmBottom) return sig->GetReturn(index);
-    DCHECK_NE(kWasmVoid, type);
-    DCHECK_EQ(0, index);
-    return type;
-  }
+  ValueType in_type(uint32_t index) { return sig.GetParam(index); }
+  ValueType out_type(uint32_t index) { return sig.GetReturn(index); }
 };
 
 struct BranchDepthImmediate {
@@ -1653,14 +1655,21 @@ class WasmDecoder : public Decoder {
   }
 
   bool Validate(const byte* pc, BlockTypeImmediate& imm) {
-    if (!ValidateValueType(pc, imm.type)) return false;
-    if (imm.type == kWasmBottom) {
+    if (imm.sig.all().begin() == nullptr) {
+      // Then use {sig_index} to initialize the signature.
       if (!VALIDATE(module_->has_signature(imm.sig_index))) {
         DecodeError(pc, "block type index %u is not a signature definition",
                     imm.sig_index);
         return false;
       }
-      imm.sig = module_->signature(imm.sig_index);
+      imm.sig = *module_->signature(imm.sig_index);
+    } else {
+      // Then it's an MVP immediate with 0 parameters and 0-1 returns.
+      DCHECK_EQ(0, imm.sig.parameter_count());
+      DCHECK_GE(1, imm.sig.return_count());
+      if (imm.sig.return_count()) {
+        if (!ValidateValueType(pc, imm.sig.GetReturn(0))) return false;
+      }
     }
     return true;
   }
@@ -3000,11 +3009,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   DECODE(Block) {
     BlockTypeImmediate imm(this->enabled_, this, this->pc_ + 1, validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
-    ArgVector args = PeekArgs(imm.sig);
+    ArgVector args = PeekArgs(&imm.sig);
     Control* block = PushControl(kControlBlock, args.length());
     SetBlockType(block, imm, args.begin());
     CALL_INTERFACE_IF_OK_AND_REACHABLE(Block, block);
-    DropArgs(imm.sig);
+    DropArgs(&imm.sig);
     PushMergeValues(block, &block->start_merge);
     return 1 + imm.length;
   }
@@ -3038,13 +3047,13 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     this->detected_->Add(kFeature_eh);
     BlockTypeImmediate imm(this->enabled_, this, this->pc_ + 1, validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
-    ArgVector args = PeekArgs(imm.sig);
+    ArgVector args = PeekArgs(&imm.sig);
     Control* try_block = PushControl(kControlTry, args.length());
     SetBlockType(try_block, imm, args.begin());
     try_block->previous_catch = current_catch_;
     current_catch_ = static_cast<int>(control_depth() - 1);
     CALL_INTERFACE_IF_OK_AND_REACHABLE(Try, try_block);
-    DropArgs(imm.sig);
+    DropArgs(&imm.sig);
     PushMergeValues(try_block, &try_block->start_merge);
     return 1 + imm.length;
   }
@@ -3225,11 +3234,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   DECODE(Loop) {
     BlockTypeImmediate imm(this->enabled_, this, this->pc_ + 1, validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
-    ArgVector args = PeekArgs(imm.sig);
+    ArgVector args = PeekArgs(&imm.sig);
     Control* block = PushControl(kControlLoop, args.length());
     SetBlockType(&control_.back(), imm, args.begin());
     CALL_INTERFACE_IF_OK_AND_REACHABLE(Loop, block);
-    DropArgs(imm.sig);
+    DropArgs(&imm.sig);
     PushMergeValues(block, &block->start_merge);
     return 1 + imm.length;
   }
@@ -3238,13 +3247,13 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     BlockTypeImmediate imm(this->enabled_, this, this->pc_ + 1, validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
     Value cond = Peek(0, 0, kWasmI32);
-    ArgVector args = PeekArgs(imm.sig, 1);
+    ArgVector args = PeekArgs(&imm.sig, 1);
     if (!VALIDATE(this->ok())) return 0;
     Control* if_block = PushControl(kControlIf, 1 + args.length());
     SetBlockType(if_block, imm, args.begin());
     CALL_INTERFACE_IF_OK_AND_REACHABLE(If, cond, if_block);
     Drop(cond);
-    DropArgs(imm.sig);  // Drop {args}.
+    DropArgs(&imm.sig);
     PushMergeValues(if_block, &if_block->start_merge);
     return 1 + imm.length;
   }
@@ -4033,7 +4042,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
   // Peeks arguments as required by signature.
   V8_INLINE ArgVector PeekArgs(const FunctionSig* sig, int depth = 0) {
-    int count = sig ? static_cast<int>(sig->parameter_count()) : 0;
+    int count = static_cast<int>(sig->parameter_count());
     if (count == 0) return {};
     EnsureStackArguments(depth + count);
     ArgVector args(stack_value(depth + count), count);
@@ -4045,7 +4054,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   // Drops a number of stack elements equal to the {sig}'s parameter count (0 if
   // {sig} is null), or all of them if less are present.
   V8_INLINE void DropArgs(const FunctionSig* sig) {
-    int count = sig ? static_cast<int>(sig->parameter_count()) : 0;
+    int count = static_cast<int>(sig->parameter_count());
     Drop(count);
   }
 
