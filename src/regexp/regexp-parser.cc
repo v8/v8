@@ -2627,7 +2627,10 @@ void RegExpBuilder::AddEscapedUnicodeCharacter(base::uc32 character) {
   FlushPendingSurrogate();
 }
 
-void RegExpBuilder::AddEmpty() { pending_empty_ = true; }
+void RegExpBuilder::AddEmpty() {
+  FlushPendingSurrogate();
+  pending_empty_ = true;
+}
 
 void RegExpBuilder::AddClassRanges(RegExpClassRanges* cc) {
   if (NeedsDesugaringForUnicode(cc)) {
