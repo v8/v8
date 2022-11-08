@@ -1677,6 +1677,26 @@ void LoadDoubleElement::GenerateCode(MaglevAssembler* masm,
                                     FixedDoubleArray::kHeaderSize));
 }
 
+void StoreDoubleField::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  UseRegister(object_input());
+  UseRegister(value_input());
+  set_temporaries_needed(1);
+}
+void StoreDoubleField::GenerateCode(MaglevAssembler* masm,
+                                    const ProcessingState& state) {
+  Register tmp = general_temporaries().PopFirst();
+  Register object = ToRegister(object_input());
+  DoubleRegister value = ToDoubleRegister(value_input());
+
+  __ AssertNotSmi(object);
+  __ DecompressAnyTagged(tmp, FieldOperand(object, offset()));
+  __ AssertNotSmi(tmp);
+  __ Movsd(FieldOperand(tmp, HeapNumber::kValueOffset), value);
+}
+void StoreDoubleField::PrintParams(std::ostream& os,
+                                   MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << std::hex << offset() << std::dec << ")";
+}
 void StoreTaggedFieldNoWriteBarrier::AllocateVreg(
     MaglevVregAllocationState* vreg_state) {
   UseRegister(object_input());

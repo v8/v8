@@ -1571,9 +1571,6 @@ bool MaglevGraphBuilder::TryBuildStoreField(
   FieldIndex field_index = access_info.field_index();
   Representation field_representation = access_info.field_representation();
 
-  // TODO(victorgomes): Support double stores.
-  if (field_representation.IsDouble()) return false;
-
   if (access_info.HasTransitionMap()) {
     compiler::MapRef transition = access_info.transition_map().value();
     compiler::MapRef original_map = transition.GetBackPointer().AsMap();
@@ -1592,31 +1589,41 @@ bool MaglevGraphBuilder::TryBuildStoreField(
         {receiver}, JSReceiver::kPropertiesOrHashOffset);
   }
 
-  ValueNode* value = GetAccumulatorTagged();
-  if (field_representation.IsSmi()) {
-    BuildCheckSmi(value);
-  } else if (field_representation.IsHeapObject()) {
-    // Emit a map check for the field type, if needed, otherwise just a
-    // HeapObject check.
-    if (access_info.field_map().has_value()) {
-      ZoneVector<compiler::MapRef> maps({access_info.field_map().value()},
-                                        zone());
-      BuildCheckMaps(value, maps);
-    } else {
-      BuildCheckHeapObject(value);
+  ValueNode* value;
+  if (field_representation.IsDouble()) {
+    value = GetAccumulatorFloat64();
+    if (access_info.HasTransitionMap()) {
+      // Allocate the mutable double box owned by the field.
+      value = AddNewNode<Float64Box>({value});
     }
   } else {
-    DCHECK(field_representation.IsTagged());
+    value = GetAccumulatorTagged();
+    if (field_representation.IsSmi()) {
+      BuildCheckSmi(value);
+    } else if (field_representation.IsHeapObject()) {
+      // Emit a map check for the field type, if needed, otherwise just a
+      // HeapObject check.
+      if (access_info.field_map().has_value()) {
+        ZoneVector<compiler::MapRef> maps({access_info.field_map().value()},
+                                          zone());
+        BuildCheckMaps(value, maps);
+      } else {
+        BuildCheckHeapObject(value);
+      }
+    }
   }
 
   if (field_representation.IsSmi()) {
     AddNewNode<StoreTaggedFieldNoWriteBarrier>({store_target, value},
                                                field_index.offset());
-  } else if (field_representation.IsDouble()) {
-    UNREACHABLE();
+  } else if (value->use_double_register()) {
+    DCHECK(field_representation.IsDouble());
+    DCHECK(!access_info.HasTransitionMap());
+    AddNewNode<StoreDoubleField>({store_target, value}, field_index.offset());
   } else {
     DCHECK(field_representation.IsHeapObject() ||
-           field_representation.IsTagged());
+           field_representation.IsTagged() ||
+           (field_representation.IsDouble() && access_info.HasTransitionMap()));
     AddNewNode<StoreTaggedFieldWithWriteBarrier>({store_target, value},
                                                  field_index.offset());
   }

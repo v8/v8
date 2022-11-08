@@ -219,6 +219,7 @@ class CompactInterpreterFrameState;
   V(GeneratorStore)                   \
   V(JumpLoopPrologue)                 \
   V(StoreMap)                         \
+  V(StoreDoubleField)                 \
   V(StoreTaggedFieldNoWriteBarrier)   \
   V(StoreTaggedFieldWithWriteBarrier) \
   V(IncreaseInterruptBudget)          \
@@ -3323,6 +3324,30 @@ class LoadDoubleElement : public FixedInputValueNodeT<2, LoadDoubleElement> {
   void AllocateVreg(MaglevVregAllocationState*);
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class StoreDoubleField : public FixedInputNodeT<2, StoreDoubleField> {
+  using Base = FixedInputNodeT<2, StoreDoubleField>;
+
+ public:
+  explicit StoreDoubleField(uint64_t bitfield, int offset)
+      : Base(bitfield), offset_(offset) {}
+
+  static constexpr OpProperties kProperties = OpProperties::Writing();
+
+  int offset() const { return offset_; }
+
+  static constexpr int kObjectIndex = 0;
+  static constexpr int kValueIndex = 1;
+  Input& object_input() { return input(kObjectIndex); }
+  Input& value_input() { return input(kValueIndex); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  const int offset_;
 };
 
 class StoreTaggedFieldNoWriteBarrier

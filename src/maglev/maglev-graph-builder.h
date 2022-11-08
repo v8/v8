@@ -719,8 +719,7 @@ class MaglevGraphBuilder {
     UNREACHABLE();
   }
 
-  ValueNode* GetFloat64(interpreter::Register reg) {
-    ValueNode* value = current_interpreter_frame_.get(reg);
+  ValueNode* GetFloat64(ValueNode* value) {
     switch (value->properties().value_representation()) {
       case ValueRepresentation::kTagged: {
         NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
@@ -742,6 +741,10 @@ class MaglevGraphBuilder {
         return value;
     }
     UNREACHABLE();
+  }
+
+  ValueNode* GetFloat64(interpreter::Register reg) {
+    return GetFloat64(current_interpreter_frame_.get(reg));
   }
 
   ValueNode* GetAccumulatorTagged() {

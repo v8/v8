@@ -268,6 +268,11 @@ class MaglevGraphVerifier {
         CheckValueInputIs(node, 0, ValueRepresentation::kFloat64);
         CheckValueInputIs(node, 1, ValueRepresentation::kFloat64);
         break;
+      case Opcode::kStoreDoubleField:
+        DCHECK_EQ(node->input_count(), 2);
+        CheckValueInputIs(node, 0, ValueRepresentation::kTagged);
+        CheckValueInputIs(node, 1, ValueRepresentation::kFloat64);
+        break;
       case Opcode::kCall:
       case Opcode::kCallKnownJSFunction:
       case Opcode::kCallRuntime:
