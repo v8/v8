@@ -253,7 +253,7 @@ class ExtendedFunctionDis : public FunctionBodyDisassembler {
           read_u32v<ValidationTag>(pc_ + total_length, &count_length);
       uint32_t type_length;
       ValueType type = value_type_reader::read_value_type<ValidationTag>(
-          this, pc_ + total_length + count_length, &type_length, nullptr,
+          this, pc_ + total_length + count_length, &type_length,
           WasmFeatures::All());
       PrintHexBytes(out, count_length + type_length, pc_ + total_length, 4);
       out << " // " << count << (count != 1 ? " locals" : " local")

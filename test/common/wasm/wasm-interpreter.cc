@@ -794,7 +794,7 @@ class SideTable : public ZoneObject {
         case kExprBlock:
         case kExprLoop: {
           bool is_loop = opcode == kExprLoop;
-          BlockTypeImmediate imm(WasmFeatures::All(), &i, i.pc() + 1, module,
+          BlockTypeImmediate imm(WasmFeatures::All(), &i, i.pc() + 1,
                                  kNoValidate);
           if (imm.type == kWasmBottom) {
             imm.sig = module->signature(imm.sig_index);
@@ -816,7 +816,7 @@ class SideTable : public ZoneObject {
           break;
         }
         case kExprIf: {
-          BlockTypeImmediate imm(WasmFeatures::All(), &i, i.pc() + 1, module,
+          BlockTypeImmediate imm(WasmFeatures::All(), &i, i.pc() + 1,
                                  kNoValidate);
           if (imm.type == kWasmBottom) {
             imm.sig = module->signature(imm.sig_index);
@@ -877,7 +877,7 @@ class SideTable : public ZoneObject {
           break;
         }
         case kExprTry: {
-          BlockTypeImmediate imm(WasmFeatures::All(), &i, i.pc() + 1, module,
+          BlockTypeImmediate imm(WasmFeatures::All(), &i, i.pc() + 1,
                                  kNoValidate);
           if (imm.type == kWasmBottom) {
             imm.sig = module->signature(imm.sig_index);
@@ -3355,13 +3355,13 @@ class WasmInterpreterInternals {
         case kExprLoop:
         case kExprTry: {
           BlockTypeImmediate imm(WasmFeatures::All(), &decoder,
-                                 code->at(pc + 1), module(), kNoValidate);
+                                 code->at(pc + 1), kNoValidate);
           len = 1 + imm.length;
           break;
         }
         case kExprIf: {
           BlockTypeImmediate imm(WasmFeatures::All(), &decoder,
-                                 code->at(pc + 1), module(), kNoValidate);
+                                 code->at(pc + 1), kNoValidate);
           WasmValue cond = Pop();
           bool is_true = cond.to<uint32_t>() != 0;
           if (is_true) {
@@ -3406,7 +3406,7 @@ class WasmInterpreterInternals {
         }
         case kExprSelectWithType: {
           SelectTypeImmediate imm(WasmFeatures::All(), &decoder,
-                                  code->at(pc + 1), module(), kNoValidate);
+                                  code->at(pc + 1), kNoValidate);
           len = 1 + imm.length;
           V8_FALLTHROUGH;
         }
@@ -3493,7 +3493,7 @@ class WasmInterpreterInternals {
         }
         case kExprRefNull: {
           HeapTypeImmediate imm(WasmFeatures::All(), &decoder, code->at(pc + 1),
-                                module(), kNoValidate);
+                                kNoValidate);
           len = 1 + imm.length;
           Push(WasmValue(isolate_->factory()->null_value(),
                          ValueType::RefNull(imm.type)));

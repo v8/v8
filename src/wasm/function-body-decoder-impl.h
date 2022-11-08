@@ -219,8 +219,7 @@ namespace value_type_reader {
 // type capacity.
 template <typename ValidationTag>
 HeapType read_heap_type(Decoder* decoder, const byte* pc,
-                        uint32_t* const length, const WasmModule* module,
-                        const WasmFeatures& enabled) {
+                        uint32_t* const length, const WasmFeatures& enabled) {
   int64_t heap_index =
       decoder->read_i33v<ValidationTag>(pc, length, "heap type");
   if (heap_index < 0) {
@@ -282,11 +281,6 @@ HeapType read_heap_type(Decoder* decoder, const byte* pc,
           type_index, kV8MaxWasmTypes);
       return HeapType(HeapType::kBottom);
     }
-    // We use capacity over size so this works mid-DecodeTypeSection.
-    if (!VALIDATE(module == nullptr || type_index < module->types.capacity())) {
-      DecodeError<ValidationTag>(decoder, pc, "Type index %u is out of bounds",
-                                 type_index);
-    }
     return HeapType(type_index);
   }
 }
@@ -298,8 +292,7 @@ HeapType read_heap_type(Decoder* decoder, const byte* pc,
 // true.
 template <typename ValidationTag>
 ValueType read_value_type(Decoder* decoder, const byte* pc,
-                          uint32_t* const length, const WasmModule* module,
-                          const WasmFeatures& enabled) {
+                          uint32_t* const length, const WasmFeatures& enabled) {
   *length = 1;
   byte val = decoder->read_u8<ValidationTag>(pc, "value type opcode");
   if (!VALIDATE(decoder->ok())) {
@@ -359,8 +352,8 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
             nullability == kNullable ? " null" : "");
         return kWasmBottom;
       }
-      HeapType heap_type = read_heap_type<ValidationTag>(
-          decoder, pc + 1, length, module, enabled);
+      HeapType heap_type =
+          read_heap_type<ValidationTag>(decoder, pc + 1, length, enabled);
       *length += 1;
       return heap_type.is_bottom()
                  ? kWasmBottom
@@ -391,6 +384,30 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
   }
   return kWasmBottom;
 }
+
+template <typename ValidationTag>
+bool ValidateHeapType(Decoder* decoder, const byte* pc,
+                      const WasmModule* module, HeapType type) {
+  if (!type.is_index()) return true;
+  // A {nullptr} module is accepted if we are not validating anyway (e.g. for
+  // opcode length computation).
+  if (!ValidationTag::validate && module == nullptr) return true;
+  // We use capacity over size so this works mid-DecodeTypeSection.
+  if (!VALIDATE(type.ref_index() < module->types.capacity())) {
+    DecodeError<ValidationTag>(decoder, pc, "Type index %u is out of bounds",
+                               type.ref_index());
+    return false;
+  }
+  return true;
+}
+
+template <typename ValidationTag>
+bool ValidateValueType(Decoder* decoder, const byte* pc,
+                       const WasmModule* module, ValueType type) {
+  if (V8_LIKELY(!type.is_object_reference())) return true;
+  return ValidateHeapType<ValidationTag>(decoder, pc, module, type.heap_type());
+}
+
 }  // namespace value_type_reader
 
 enum DecodingMode { kFunctionBody, kConstantExpression };
@@ -526,8 +543,7 @@ struct SelectTypeImmediate {
 
   template <typename ValidationTag>
   SelectTypeImmediate(const WasmFeatures& enabled, Decoder* decoder,
-                      const byte* pc, const WasmModule* module,
-                      ValidationTag = {}) {
+                      const byte* pc, ValidationTag = {}) {
     uint8_t num_types = decoder->read_u32v<ValidationTag>(
         pc, &length, "number of select types");
     if (!VALIDATE(num_types == 1)) {
@@ -538,7 +554,7 @@ struct SelectTypeImmediate {
     }
     uint32_t type_length;
     type = value_type_reader::read_value_type<ValidationTag>(
-        decoder, pc + length, &type_length, module, enabled);
+        decoder, pc + length, &type_length, enabled);
     length += type_length;
   }
 };
@@ -551,8 +567,7 @@ struct BlockTypeImmediate {
 
   template <typename ValidationTag>
   BlockTypeImmediate(const WasmFeatures& enabled, Decoder* decoder,
-                     const byte* pc, const WasmModule* module,
-                     ValidationTag = {}) {
+                     const byte* pc, ValidationTag = {}) {
     int64_t block_type =
         decoder->read_i33v<ValidationTag>(pc, &length, "block type");
     if (block_type < 0) {
@@ -566,7 +581,7 @@ struct BlockTypeImmediate {
       }
       if (static_cast<ValueTypeCode>(block_type & 0x7F) == kVoidCode) return;
       type = value_type_reader::read_value_type<ValidationTag>(
-          decoder, pc, &length, module, enabled);
+          decoder, pc, &length, enabled);
     } else {
       type = kWasmBottom;
       sig_index = static_cast<uint32_t>(block_type);
@@ -790,10 +805,9 @@ struct HeapTypeImmediate {
 
   template <typename ValidationTag>
   HeapTypeImmediate(const WasmFeatures& enabled, Decoder* decoder,
-                    const byte* pc, const WasmModule* module,
-                    ValidationTag = {})
+                    const byte* pc, ValidationTag = {})
       : type(value_type_reader::read_heap_type<ValidationTag>(
-            decoder, pc, &length, module, enabled)) {}
+            decoder, pc, &length, enabled)) {}
 };
 
 struct StringConstImmediate {
@@ -1357,7 +1371,8 @@ class WasmDecoder : public Decoder {
       *total_length += length;
 
       ValueType type = value_type_reader::read_value_type<ValidationTag>(
-          this, pc + *total_length, &length, this->module_, enabled_);
+          this, pc + *total_length, &length, enabled_);
+      ValidateValueType(pc + *total_length, type);
       if (!VALIDATE(ok())) return;
       *total_length += length;
 
@@ -1638,13 +1653,15 @@ class WasmDecoder : public Decoder {
   }
 
   bool Validate(const byte* pc, BlockTypeImmediate& imm) {
-    if (imm.type != kWasmBottom) return true;
-    if (!VALIDATE(module_->has_signature(imm.sig_index))) {
-      DecodeError(pc, "block type index %u is not a signature definition",
-                  imm.sig_index);
-      return false;
+    if (!ValidateValueType(pc, imm.type)) return false;
+    if (imm.type == kWasmBottom) {
+      if (!VALIDATE(module_->has_signature(imm.sig_index))) {
+        DecodeError(pc, "block type index %u is not a signature definition",
+                    imm.sig_index);
+        return false;
+      }
+      imm.sig = module_->signature(imm.sig_index);
     }
-    imm.sig = module_->signature(imm.sig_index);
     return true;
   }
 
@@ -1781,6 +1798,24 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
+  bool Validate(const byte* pc, SelectTypeImmediate& imm) {
+    return ValidateValueType(pc, imm.type);
+  }
+
+  bool Validate(const byte* pc, HeapTypeImmediate& imm) {
+    return ValidateHeapType(pc, imm.type);
+  }
+
+  bool ValidateValueType(const byte* pc, ValueType type) {
+    return value_type_reader::ValidateValueType<ValidationTag>(this, pc,
+                                                               module_, type);
+  }
+
+  bool ValidateHeapType(const byte* pc, HeapType type) {
+    return value_type_reader::ValidateHeapType<ValidationTag>(this, pc, module_,
+                                                              type);
+  }
+
   // Returns the length of the opcode under {pc}.
   template <typename... ImmediateObservers>
   static uint32_t OpcodeLength(WasmDecoder* decoder, const byte* pc,
@@ -1804,8 +1839,7 @@ class WasmDecoder : public Decoder {
       case kExprIf:
       case kExprLoop:
       case kExprBlock: {
-        BlockTypeImmediate imm(WasmFeatures::All(), decoder, pc + 1, nullptr,
-                               validate);
+        BlockTypeImmediate imm(WasmFeatures::All(), decoder, pc + 1, validate);
         (ios.BlockType(imm), ...);
         return 1 + imm.length;
       }
@@ -1857,8 +1891,7 @@ class WasmDecoder : public Decoder {
       case kExprCatchAll:
         return 1;
       case kExprSelectWithType: {
-        SelectTypeImmediate imm(WasmFeatures::All(), decoder, pc + 1, nullptr,
-                                validate);
+        SelectTypeImmediate imm(WasmFeatures::All(), decoder, pc + 1, validate);
         (ios.SelectType(imm), ...);
         return 1 + imm.length;
       }
@@ -1905,8 +1938,7 @@ class WasmDecoder : public Decoder {
         }
         return 9;
       case kExprRefNull: {
-        HeapTypeImmediate imm(WasmFeatures::All(), decoder, pc + 1, nullptr,
-                              validate);
+        HeapTypeImmediate imm(WasmFeatures::All(), decoder, pc + 1, validate);
         (ios.HeapType(imm), ...);
         return 1 + imm.length;
       }
@@ -2144,7 +2176,7 @@ class WasmDecoder : public Decoder {
           case kExprRefTest:
           case kExprRefTestNull: {
             HeapTypeImmediate imm(WasmFeatures::All(), decoder, pc + length,
-                                  nullptr, validate);
+                                  validate);
             (ios.HeapType(imm), ...);
             return length + imm.length;
           }
@@ -2966,8 +2998,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 #undef BUILD_SIMPLE_OPCODE
 
   DECODE(Block) {
-    BlockTypeImmediate imm(this->enabled_, this, this->pc_ + 1, this->module_,
-                           validate);
+    BlockTypeImmediate imm(this->enabled_, this, this->pc_ + 1, validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
     ArgVector args = PeekArgs(imm.sig);
     Control* block = PushControl(kControlBlock, args.length());
@@ -3005,8 +3036,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
   DECODE(Try) {
     this->detected_->Add(kFeature_eh);
-    BlockTypeImmediate imm(this->enabled_, this, this->pc_ + 1, this->module_,
-                           validate);
+    BlockTypeImmediate imm(this->enabled_, this, this->pc_ + 1, validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
     ArgVector args = PeekArgs(imm.sig);
     Control* try_block = PushControl(kControlTry, args.length());
@@ -3193,8 +3223,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   }
 
   DECODE(Loop) {
-    BlockTypeImmediate imm(this->enabled_, this, this->pc_ + 1, this->module_,
-                           validate);
+    BlockTypeImmediate imm(this->enabled_, this, this->pc_ + 1, validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
     ArgVector args = PeekArgs(imm.sig);
     Control* block = PushControl(kControlLoop, args.length());
@@ -3206,8 +3235,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   }
 
   DECODE(If) {
-    BlockTypeImmediate imm(this->enabled_, this, this->pc_ + 1, this->module_,
-                           validate);
+    BlockTypeImmediate imm(this->enabled_, this, this->pc_ + 1, validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
     Value cond = Peek(0, 0, kWasmI32);
     ArgVector args = PeekArgs(imm.sig, 1);
@@ -3311,8 +3339,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
   DECODE(SelectWithType) {
     this->detected_->Add(kFeature_reftypes);
-    SelectTypeImmediate imm(this->enabled_, this, this->pc_ + 1, this->module_,
-                            validate);
+    SelectTypeImmediate imm(this->enabled_, this, this->pc_ + 1, validate);
+    this->Validate(this->pc_ + 1, imm);
     if (!VALIDATE(this->ok())) return 0;
     Value cond = Peek(0, 2, kWasmI32);
     Value fval = Peek(1, 1, imm.type);
@@ -3445,8 +3473,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
   DECODE(RefNull) {
     this->detected_->Add(kFeature_reftypes);
-    HeapTypeImmediate imm(this->enabled_, this, this->pc_ + 1, this->module_,
-                          validate);
+    HeapTypeImmediate imm(this->enabled_, this, this->pc_ + 1, validate);
+    this->Validate(this->pc_ + 1, imm);
     if (!VALIDATE(this->ok())) return 0;
     ValueType type = ValueType::RefNull(imm.type);
     Value value = CreateValue(type);
@@ -4811,7 +4839,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       case kExprRefCastNull: {
         NON_CONST_ONLY
         HeapTypeImmediate imm(this->enabled_, this, this->pc_ + opcode_length,
-                              this->module_, validate);
+                              validate);
+        this->Validate(this->pc_ + opcode_length, imm);
         if (!VALIDATE(this->ok())) return 0;
         opcode_length += imm.length;
 
@@ -4890,7 +4919,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       case kExprRefTest: {
         NON_CONST_ONLY
         HeapTypeImmediate imm(this->enabled_, this, this->pc_ + opcode_length,
-                              this->module_, validate);
+                              validate);
+        this->Validate(this->pc_ + opcode_length, imm);
         if (!VALIDATE(this->ok())) return 0;
         opcode_length += imm.length;
 

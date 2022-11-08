@@ -234,8 +234,7 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
         uint32_t temp_length;
         ValueType type =
             value_type_reader::read_value_type<Decoder::NoValidationTag>(
-                &decoder, i.pc() + 1, &temp_length, module,
-                WasmFeatures::All());
+                &decoder, i.pc() + 1, &temp_length, WasmFeatures::All());
         if (temp_length == 1) {
           os << type.name() << ",";
         } else {
@@ -268,7 +267,7 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
       case kExprIf:
       case kExprBlock:
       case kExprTry: {
-        BlockTypeImmediate imm(WasmFeatures::All(), &i, i.pc() + 1, module,
+        BlockTypeImmediate imm(WasmFeatures::All(), &i, i.pc() + 1,
                                Decoder::kNoValidation);
         os << " @" << i.pc_offset();
         CHECK(decoder.Validate(i.pc() + 1, imm));

@@ -2045,7 +2045,9 @@ class ModuleDecoderTemplate : public Decoder {
       }
       case kExprRefNull: {
         HeapType type = value_type_reader::read_heap_type<FullValidationTag>(
-            this, pc() + 1, &length, module_.get(), enabled_features_);
+            this, pc() + 1, &length, enabled_features_);
+        value_type_reader::ValidateHeapType<FullValidationTag>(
+            this, pc_, module_.get(), type);
         if (V8_UNLIKELY(failed())) return {};
         if (V8_LIKELY(lookahead(1 + length, kExprEnd))) {
           TYPE_CHECK(ValueType::RefNull(type))
@@ -2104,8 +2106,10 @@ class ModuleDecoderTemplate : public Decoder {
   ValueType consume_value_type() {
     uint32_t type_length;
     ValueType result = value_type_reader::read_value_type<FullValidationTag>(
-        this, pc_, &type_length, module_.get(),
+        this, pc_, &type_length,
         origin_ == kWasmOrigin ? enabled_features_ : WasmFeatures::None());
+    value_type_reader::ValidateValueType<FullValidationTag>(
+        this, pc_, module_.get(), result);
     tracer_.Bytes(pc_, type_length);
     tracer_.Description(result);
     consume_bytes(type_length, "value type");
@@ -2115,7 +2119,9 @@ class ModuleDecoderTemplate : public Decoder {
   HeapType consume_super_type() {
     uint32_t type_length;
     HeapType result = value_type_reader::read_heap_type<FullValidationTag>(
-        this, pc_, &type_length, module_.get(), enabled_features_);
+        this, pc_, &type_length, enabled_features_);
+    value_type_reader::ValidateValueType<FullValidationTag>(
+        this, pc_, module_.get(), result);
     tracer_.Bytes(pc_, type_length);
     tracer_.Description(result);
     consume_bytes(type_length, "heap type");

@@ -4931,20 +4931,11 @@ TEST_F(WasmOpcodeLengthTest, PrefixedOpcodesLEB) {
 
 class TypeReaderTest : public TestWithZone {
  public:
-  ValueType DecodeValueType(const byte* start, const byte* end,
-                            const WasmModule* module) {
-    Decoder decoder(start, end);
-    uint32_t length;
-    return value_type_reader::read_value_type<Decoder::FullValidationTag>(
-        &decoder, start, &length, module, enabled_features_);
-  }
-
-  HeapType DecodeHeapType(const byte* start, const byte* end,
-                          const WasmModule* module) {
+  HeapType DecodeHeapType(const byte* start, const byte* end) {
     Decoder decoder(start, end);
     uint32_t length;
     return value_type_reader::read_heap_type<Decoder::FullValidationTag>(
-        &decoder, start, &length, module, enabled_features_);
+        &decoder, start, &length, enabled_features_);
   }
 
   // This variable is modified by WASM_FEATURE_SCOPE.
@@ -4961,34 +4952,34 @@ TEST_F(TypeReaderTest, HeapTypeDecodingTest) {
   // 1- to 5-byte representation of kFuncRefCode.
   {
     const byte data[] = {kFuncRefCode};
-    HeapType result = DecodeHeapType(data, data + sizeof(data), nullptr);
+    HeapType result = DecodeHeapType(data, data + sizeof(data));
     EXPECT_TRUE(result == heap_func);
   }
   {
     const byte data[] = {kFuncRefCode | 0x80, 0x7F};
-    HeapType result = DecodeHeapType(data, data + sizeof(data), nullptr);
+    HeapType result = DecodeHeapType(data, data + sizeof(data));
     EXPECT_EQ(result, heap_func);
   }
   {
     const byte data[] = {kFuncRefCode | 0x80, 0xFF, 0x7F};
-    HeapType result = DecodeHeapType(data, data + sizeof(data), nullptr);
+    HeapType result = DecodeHeapType(data, data + sizeof(data));
     EXPECT_EQ(result, heap_func);
   }
   {
     const byte data[] = {kFuncRefCode | 0x80, 0xFF, 0xFF, 0x7F};
-    HeapType result = DecodeHeapType(data, data + sizeof(data), nullptr);
+    HeapType result = DecodeHeapType(data, data + sizeof(data));
     EXPECT_EQ(result, heap_func);
   }
   {
     const byte data[] = {kFuncRefCode | 0x80, 0xFF, 0xFF, 0xFF, 0x7F};
-    HeapType result = DecodeHeapType(data, data + sizeof(data), nullptr);
+    HeapType result = DecodeHeapType(data, data + sizeof(data));
     EXPECT_EQ(result, heap_func);
   }
 
   {
     // Some negative number.
     const byte data[] = {0xB4, 0x7F};
-    HeapType result = DecodeHeapType(data, data + sizeof(data), nullptr);
+    HeapType result = DecodeHeapType(data, data + sizeof(data));
     EXPECT_EQ(result, heap_bottom);
   }
 
@@ -4997,7 +4988,7 @@ TEST_F(TypeReaderTest, HeapTypeDecodingTest) {
     // range. This should therefore NOT be decoded as HeapType::kFunc and
     // instead fail.
     const byte data[] = {kFuncRefCode | 0x80, 0x6F};
-    HeapType result = DecodeHeapType(data, data + sizeof(data), nullptr);
+    HeapType result = DecodeHeapType(data, data + sizeof(data));
     EXPECT_EQ(result, heap_bottom);
   }
 }
