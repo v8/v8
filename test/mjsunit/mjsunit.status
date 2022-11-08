@@ -364,6 +364,9 @@
 
   # Flaky tests due to GC interferring with optimization.
   'compiler/regress-crbug-1323114': [SKIP],
+
+  # https://crbug.com/v8/13461
+  'maglev/inner-function': [SKIP],
 }],  # 'gc_stress'
 
 ##############################################################################
