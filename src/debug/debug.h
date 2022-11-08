@@ -222,7 +222,7 @@ class V8_EXPORT_PRIVATE Debug {
   // Debug event triggers.
   void OnDebugBreak(Handle<FixedArray> break_points_hit, StepAction stepAction,
                     debug::BreakReasons break_reasons = {});
-  void OnInstrumentationBreak();
+  debug::DebugDelegate::PauseAfterInstrumentation OnInstrumentationBreak();
 
   base::Optional<Object> OnThrow(Handle<Object> exception)
       V8_WARN_UNUSED_RESULT;

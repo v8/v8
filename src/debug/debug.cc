@@ -480,16 +480,19 @@ void Debug::Unload() {
   debug_delegate_ = nullptr;
 }
 
-void Debug::OnInstrumentationBreak() {
+debug::DebugDelegate::PauseAfterInstrumentation
+Debug::OnInstrumentationBreak() {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
-  if (!debug_delegate_) return;
+  if (!debug_delegate_) {
+    return debug::DebugDelegate::kNoPauseAfterInstrumentationRequested;
+  }
   DCHECK(in_debug_scope());
   HandleScope scope(isolate_);
   DisableBreak no_recursive_break(this);
 
   Handle<Context> native_context(isolate_->native_context());
-  debug_delegate_->BreakOnInstrumentation(v8::Utils::ToLocal(native_context),
-                                          kInstrumentationId);
+  return debug_delegate_->BreakOnInstrumentation(
+      v8::Utils::ToLocal(native_context), kInstrumentationId);
 }
 
 void Debug::Break(JavaScriptFrame* frame, Handle<JSFunction> break_target) {
@@ -512,21 +515,28 @@ void Debug::Break(JavaScriptFrame* frame, Handle<JSFunction> break_target) {
   BreakLocation location = BreakLocation::FromFrame(debug_info, frame);
   const bool hitInstrumentationBreak =
       IsBreakOnInstrumentation(debug_info, location);
+  bool shouldPauseAfterInstrumentation = false;
   if (hitInstrumentationBreak) {
-    OnInstrumentationBreak();
+    debug::DebugDelegate::PauseAfterInstrumentation pauseDuringInstrumentation =
+        OnInstrumentationBreak();
+    shouldPauseAfterInstrumentation =
+        pauseDuringInstrumentation ==
+        debug::DebugDelegate::kPauseAfterInstrumentationRequested;
   }
 
   // Find actual break points, if any, and trigger debug break event.
   bool has_break_points;
+  bool scheduled_break =
+      scheduled_break_on_function_call() || shouldPauseAfterInstrumentation;
   MaybeHandle<FixedArray> break_points_hit =
       CheckBreakPoints(debug_info, &location, &has_break_points);
   if (!break_points_hit.is_null() || break_on_next_function_call() ||
-      scheduled_break_on_function_call()) {
+      scheduled_break) {
     StepAction lastStepAction = last_step_action();
     DCHECK_IMPLIES(scheduled_break_on_function_call(),
                    lastStepAction == StepNone);
     debug::BreakReasons break_reasons;
-    if (scheduled_break_on_function_call()) {
+    if (scheduled_break) {
       break_reasons.Add(debug::BreakReason::kScheduled);
     }
     // Clear all current stepping setup.

@@ -287,9 +287,15 @@ class DebugDelegate {
       v8::Local<v8::Context> paused_context,
       const std::vector<debug::BreakpointId>& inspector_break_points_hit,
       base::EnumSet<BreakReason> break_reasons = {}) {}
-  virtual void BreakOnInstrumentation(
+  enum PauseAfterInstrumentation {
+    kPauseAfterInstrumentationRequested,
+    kNoPauseAfterInstrumentationRequested
+  };
+  virtual PauseAfterInstrumentation BreakOnInstrumentation(
       v8::Local<v8::Context> paused_context,
-      const debug::BreakpointId instrumentationId) {}
+      const debug::BreakpointId instrumentationId) {
+    return kNoPauseAfterInstrumentationRequested;
+  }
   virtual void ExceptionThrown(v8::Local<v8::Context> paused_context,
                                v8::Local<v8::Value> exception,
                                v8::Local<v8::Value> promise, bool is_uncaught,

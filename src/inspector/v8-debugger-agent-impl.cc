@@ -1328,9 +1328,16 @@ void V8DebuggerAgentImpl::cancelPauseOnNextStatement() {
 
 Response V8DebuggerAgentImpl::pause() {
   if (!enabled()) return Response::ServerError(kDebuggerNotEnabled);
-  if (isPaused()) return Response::Success();
 
-  if (m_debugger->canBreakProgram()) {
+  if (m_debugger->isInInstrumentationPause()) {
+    // If we are inside an instrumentation pause, remember the pause request
+    // so that we can enter the requested pause once we are done
+    // with the instrumentation.
+    m_debugger->requestPauseAfterInstrumentation();
+  } else if (isPaused()) {
+    // Ignore the pause request if we are already paused.
+    return Response::Success();
+  } else if (m_debugger->canBreakProgram()) {
     m_debugger->interruptAndBreak(m_session->contextGroupId());
   } else {
     pushBreakDetails(protocol::Debugger::Paused::ReasonEnum::Other, nullptr);
