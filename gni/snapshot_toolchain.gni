@@ -44,10 +44,6 @@ declare_args() {
 #
 # There are test cases for this code posted as an attachment to
 # https://crbug.com/625353.
-#
-# TODO(GYP): Currently only regular (non-cross) compiles, and cross-compiles
-# from x64 hosts to Intel, ARM, or MIPS targets, are implemented. Add support
-# for the other supported configurations.
 
 if (v8_snapshot_toolchain == "") {
   if (current_os == host_os && current_cpu == host_cpu) {
