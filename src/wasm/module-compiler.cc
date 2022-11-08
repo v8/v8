@@ -1799,15 +1799,15 @@ std::unique_ptr<CompilationUnitBuilder> InitializeCompilation(
 }
 
 bool MayCompriseLazyFunctions(const WasmModule* module,
-                              const WasmFeatures& enabled_features,
-                              bool lazy_module) {
-  if (lazy_module || enabled_features.has_compilation_hints()) return true;
+                              const WasmFeatures& enabled_features) {
+  if (IsLazyModule(module)) return true;
+  if (enabled_features.has_compilation_hints()) return true;
 #ifdef ENABLE_SLOW_DCHECKS
   int start = module->num_imported_functions;
   int end = start + module->num_declared_functions;
   for (int func_index = start; func_index < end; func_index++) {
     SLOW_DCHECK(GetCompileStrategy(module, enabled_features, func_index,
-                                   lazy_module) != CompileStrategy::kLazy);
+                                   false) != CompileStrategy::kLazy);
   }
 #endif
   return false;
@@ -1892,10 +1892,9 @@ void CompileNativeModule(Isolate* isolate,
                          ProfileInformation* pgo_info) {
   CHECK(!v8_flags.jitless);
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
-  const bool lazy_module = IsLazyModule(wasm_module);
   if (!v8_flags.wasm_lazy_validation && wasm_module->origin == kWasmOrigin &&
-      MayCompriseLazyFunctions(wasm_module, native_module->enabled_features(),
-                               lazy_module)) {
+      MayCompriseLazyFunctions(wasm_module,
+                               native_module->enabled_features())) {
     // Validate wasm modules for lazy compilation if requested. Never validate
     // asm.js modules as these are valid by construction (additionally a CHECK
     // will catch this during lazy compilation).
@@ -1924,14 +1923,14 @@ void CompileNativeModule(Isolate* isolate,
       CompilationEvent::kFinishedExportWrappers);
 
   if (compilation_state->failed()) {
-    DCHECK_IMPLIES(lazy_module, !v8_flags.wasm_lazy_validation);
+    DCHECK_IMPLIES(IsLazyModule(wasm_module), !v8_flags.wasm_lazy_validation);
     ValidateSequentially(wasm_module, native_module.get(), isolate->counters(),
                          isolate->allocator(), thrower);
     CHECK(thrower->error());
     return;
   }
 
-  compilation_state->FinalizeJSToWasmWrappers(isolate, native_module->module());
+  compilation_state->FinalizeJSToWasmWrappers(isolate, wasm_module);
 
   compilation_state->WaitForCompilationEvent(
       CompilationEvent::kFinishedBaselineCompilation);
@@ -1939,7 +1938,7 @@ void CompileNativeModule(Isolate* isolate,
   compilation_state->PublishDetectedFeatures(isolate);
 
   if (compilation_state->failed()) {
-    DCHECK_IMPLIES(lazy_module, !v8_flags.wasm_lazy_validation);
+    DCHECK_IMPLIES(IsLazyModule(wasm_module), !v8_flags.wasm_lazy_validation);
     ValidateSequentially(wasm_module, native_module.get(), isolate->counters(),
                          isolate->allocator(), thrower);
     CHECK(thrower->error());
@@ -2550,6 +2549,38 @@ void AsyncCompileJob::NextStep(Args&&... args) {
   step_.reset(new Step(std::forward<Args>(args)...));
 }
 
+WasmError ValidateLazilyCompiledFunctions(const WasmModule* module,
+                                          ModuleWireBytes wire_bytes,
+                                          WasmFeatures enabled_features) {
+  if (v8_flags.wasm_lazy_validation) return {};
+  if (!MayCompriseLazyFunctions(module, enabled_features)) return {};
+
+  auto allocator = GetWasmEngine()->allocator();
+
+  // TODO(clemensb): Parallelize this.
+  const bool is_lazy_module = IsLazyModule(module);
+  for (const WasmFunction& function : module->declared_functions()) {
+    if (module->function_was_validated(function.func_index)) continue;
+    base::Vector<const uint8_t> code = wire_bytes.GetFunctionBytes(&function);
+
+    CompileStrategy strategy = GetCompileStrategy(
+        module, enabled_features, function.func_index, is_lazy_module);
+    if (strategy != CompileStrategy::kLazy &&
+        strategy != CompileStrategy::kLazyBaselineEagerTopTier) {
+      continue;
+    }
+    DecodeResult function_result = ValidateSingleFunction(
+        module, function.func_index, code, allocator, enabled_features);
+    if (function_result.failed()) {
+      WasmError error = std::move(function_result).error();
+      return GetWasmErrorWithName(wire_bytes, &function, module,
+                                  std::move(error));
+    }
+    module->set_function_validated(function.func_index);
+  }
+  return {};
+}
+
 //==========================================================================
 // Step 1: (async) Decode the module.
 //==========================================================================
@@ -2575,37 +2606,12 @@ class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
           DecodingMethod::kAsync, GetWasmEngine()->allocator());
 
       // Validate lazy functions here if requested.
-      if (!v8_flags.wasm_lazy_validation && result.ok()) {
+      if (result.ok()) {
         const WasmModule* module = result.value().get();
-        DCHECK_EQ(module->origin, kWasmOrigin);
-        const bool lazy_module = v8_flags.wasm_lazy_compilation;
-        if (MayCompriseLazyFunctions(module, enabled_features, lazy_module)) {
-          auto allocator = GetWasmEngine()->allocator();
-          int start = module->num_imported_functions;
-          int end = start + module->num_declared_functions;
-
-          for (int func_index = start; func_index < end; func_index++) {
-            const WasmFunction* func = &module->functions[func_index];
-            base::Vector<const uint8_t> code =
-                job->wire_bytes_.GetFunctionBytes(func);
-
-            CompileStrategy strategy = GetCompileStrategy(
-                module, enabled_features, func_index, lazy_module);
-            bool validate_lazily_compiled_function =
-                strategy == CompileStrategy::kLazy ||
-                strategy == CompileStrategy::kLazyBaselineEagerTopTier;
-            if (validate_lazily_compiled_function) {
-              DecodeResult function_result = ValidateSingleFunction(
-                  module, func_index, code, allocator, enabled_features);
-              if (function_result.failed()) {
-                WasmError error = function_result.error();
-                WasmError error_with_name = GetWasmErrorWithName(
-                    job->wire_bytes_, func, module, std::move(error));
-                result = ModuleResult(std::move(error_with_name));
-                break;
-              }
-            }
-          }
+        WasmError validation_error = ValidateLazilyCompiledFunctions(
+            module, job->wire_bytes_, job->enabled_features_);
+        if (validation_error.has_error()) {
+          result = ModuleResult{std::move(validation_error)};
         }
       }
     }
@@ -2646,25 +2652,6 @@ class AsyncCompileJob::DecodeFail : public CompileStep {
   }
 };
 
-bool ValidateAllFunctions(const WasmModule* module,
-                          base::Vector<const uint8_t> wire_bytes,
-                          WasmFeatures enabled_features) {
-  AccountingAllocator* allocator = GetWasmEngine()->allocator();
-  auto declared_functions =
-      base::VectorOf(module->functions) + module->num_imported_functions;
-  for (const WasmFunction& function : declared_functions) {
-    if (module->function_was_validated(function.func_index)) continue;
-    base::Vector<const uint8_t> function_bytes = wire_bytes.SubVector(
-        function.code.offset(), function.code.end_offset());
-    DecodeResult result =
-        ValidateSingleFunction(module, function.func_index, function_bytes,
-                               allocator, enabled_features);
-    if (result.failed()) return false;
-    module->set_function_validated(function.func_index);
-  }
-  return true;
-}
-
 //==========================================================================
 // Step 2 (sync): Create heap-allocated data and start compile.
 //==========================================================================
@@ -2693,11 +2680,17 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
       // the path where the streaming decoder got a prefix cache hit, but the
       // module then turned out to be invalid, and we are running it through
       // non-streaming decoding again. In this case, function bodies have not
-      // been validated yet. Thus do this now.
-      if (!v8_flags.wasm_lazy_validation &&
-          !ValidateAllFunctions(module_.get(),
-                                job->native_module_->wire_bytes(),
-                                job->native_module_->enabled_features())) {
+      // been validated yet (would have happened in the {DecodeModule} phase
+      // if we would not come via the non-streaming path). Thus do this now.
+      // Note that we only need to validate lazily compiled functions, others
+      // will be validated during eager compilation.
+      DCHECK(start_compilation_);
+      if (ValidateLazilyCompiledFunctions(
+              module_.get(), ModuleWireBytes{job->native_module_->wire_bytes()},
+              job->native_module_->enabled_features())
+              .has_error()) {
+        // TODO(clemensb): Use the error message instead of re-validation in
+        // {AsyncCompileFailed}.
         job->AsyncCompileFailed();
         return;
       }
