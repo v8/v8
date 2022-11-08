@@ -123,7 +123,7 @@ trybot_pair(
 
 trybot_pair(
     name = "v8_linux64_dbg",
-    cq_properties = CQ.BLOCK,
+    cq_properties = CQ.BLOCK_CANCEL,
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,

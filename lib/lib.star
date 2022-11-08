@@ -106,6 +106,7 @@ def cq_on_files(*regexp_list):
     return {"location_regexp": list(regexp_list), "cancel_stale": False}
 
 CQ = struct(
+    BLOCK_CANCEL = {},
     BLOCK = {"cancel_stale": False},
     BLOCK_NO_REUSE = {"disable_reuse": "true", "cancel_stale": False},
     EXP_5_PERCENT = {"experiment_percentage": 5, "cancel_stale": False},
@@ -344,14 +345,14 @@ def v8_builder(defaults = None, **kwargs):
 
 def v8_basic_builder(defaults, **kwargs):
     cq_properties = kwargs.pop("cq_properties", None)
-    if cq_properties:
+    if cq_properties != None:
         luci.cq_tryjob_verifier(
             kwargs["name"],
             cq_group = "v8-cq",
             **cq_properties
         )
     cq_branch_properties = kwargs.pop("cq_branch_properties", None)
-    if cq_branch_properties:
+    if cq_branch_properties != None:
         luci.cq_tryjob_verifier(
             kwargs["name"],
             cq_group = "v8-branch-cq",
