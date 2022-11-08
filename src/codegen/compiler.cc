@@ -1966,13 +1966,8 @@ void BackgroundMergeTask::SetUpOnMainThread(Isolate* isolate,
   CompilationCacheScript::LookupResult lookup_result =
       isolate->compilation_cache()->LookupScript(source_text, script_details,
                                                  language_mode);
-  SetUpOnMainThread(isolate, &lookup_result);
-}
-
-void BackgroundMergeTask::SetUpOnMainThread(
-    Isolate* isolate, CompilationCacheScript::LookupResult* lookup_result) {
   Handle<Script> script;
-  if (!lookup_result->script().ToHandle(&script)) {
+  if (!lookup_result.script().ToHandle(&script)) {
     state_ = kDone;
     return;
   }
@@ -1980,7 +1975,7 @@ void BackgroundMergeTask::SetUpOnMainThread(
   // Any data sent to the background thread will need to be a persistent handle.
   persistent_handles_ = std::make_unique<PersistentHandles>(isolate);
 
-  if (lookup_result->is_compiled_scope().is_compiled()) {
+  if (lookup_result.is_compiled_scope().is_compiled()) {
     // There already exists a compiled top-level SFI, so the main thread will
     // discard the background serialization results and use the top-level SFI
     // from the cache, assuming the top-level SFI is still compiled by then.
@@ -1988,7 +1983,7 @@ void BackgroundMergeTask::SetUpOnMainThread(
     // Do nothing in this case.
     state_ = kDone;
   } else {
-    DCHECK(lookup_result->toplevel_sfi().is_null());
+    DCHECK(lookup_result.toplevel_sfi().is_null());
     // A background merge is required.
     state_ = kPendingBackgroundWork;
     cached_script_ = persistent_handles_->NewHandle(*script);
@@ -3536,24 +3531,8 @@ MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
       } else {
         maybe_result = CodeSerializer::Deserialize(
             isolate, cached_data, source, script_details.origin_options);
-
-        // Check whether the newly deserialized data should be merged into an
-        // existing Script from the Isolate compilation cache. If so, perform
-        // the merge in a single-threaded manner since this deserialization was
-        // single-threaded.
-        Handle<SharedFunctionInfo> result;
-        Handle<Script> cached_script;
-        if (maybe_result.ToHandle(&result) &&
-            maybe_script.ToHandle(&cached_script)) {
-          BackgroundMergeTask merge;
-          merge.SetUpOnMainThread(isolate, &lookup_result);
-          CHECK(merge.HasPendingBackgroundWork());
-          Handle<Script> new_script =
-              handle(Script::cast(result->script()), isolate);
-          merge.BeginMergeInBackground(isolate->AsLocalIsolate(), new_script);
-          CHECK(merge.HasPendingForegroundWork());
-          merge.CompleteMergeInForeground(isolate, new_script);
-        }
+        // TODO(v8:12808): Merge the newly deserialized code into a preexisting
+        // Script if one was found in the compilation cache.
       }
 
       bool consuming_code_cache_succeeded = false;
