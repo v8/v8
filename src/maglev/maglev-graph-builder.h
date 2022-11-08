@@ -1139,6 +1139,9 @@ class MaglevGraphBuilder {
   void BuildCheckSymbol(ValueNode* object);
   void BuildCheckMaps(ValueNode* object,
                       ZoneVector<compiler::MapRef> const& maps);
+  // Emits an unconditional deopt and returns false if the node is a constant
+  // that doesn't match the ref.
+  bool BuildCheckValue(ValueNode* node, const compiler::HeapObjectRef& ref);
 
   ValueNode* GetInt32ElementIndex(interpreter::Register reg) {
     ValueNode* index_object = current_interpreter_frame_.get(reg);

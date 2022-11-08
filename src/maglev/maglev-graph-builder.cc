@@ -2074,6 +2074,19 @@ void MaglevGraphBuilder::VisitGetKeyedProperty() {
       break;
     }
 
+    case compiler::ProcessedFeedback::kNamedAccess: {
+      ValueNode* key = GetAccumulatorTagged();
+      compiler::NameRef name = processed_feedback.AsNamedAccess().name();
+      if (!BuildCheckValue(key, name)) return;
+      if (TryReuseKnownPropertyLoad(object, name)) return;
+      if (TryBuildNamedAccess(object, object,
+                              processed_feedback.AsNamedAccess(),
+                              compiler::AccessMode::kLoad)) {
+        return;
+      }
+      break;
+    }
+
     default:
       break;
   }
@@ -2700,6 +2713,17 @@ void MaglevGraphBuilder::BuildGenericCall(
   SetAccumulator(AddNode(call));
 }
 
+bool MaglevGraphBuilder::BuildCheckValue(ValueNode* node,
+                                         const compiler::HeapObjectRef& ref) {
+  if (node->Is<Constant>()) {
+    if (node->Cast<Constant>()->object().equals(ref)) return true;
+    EmitUnconditionalDeopt(DeoptimizeReason::kUnknown);
+    return false;
+  }
+  AddNewNode<CheckValue>({node}, ref);
+  return true;
+}
+
 void MaglevGraphBuilder::BuildCall(ValueNode* target_node,
                                    const CallArguments& args,
                                    compiler::FeedbackSource& feedback_source) {
@@ -2731,12 +2755,7 @@ void MaglevGraphBuilder::BuildCall(ValueNode* target_node,
       // Reset the feedback source
       feedback_source = compiler::FeedbackSource();
       target_type = Call::TargetType::kJSFunction;
-      if (!target_node->Is<Constant>()) {
-        AddNewNode<CheckValue>({target_node}, target);
-      } else if (!target_node->Cast<Constant>()->object().equals(target)) {
-        EmitUnconditionalDeopt(DeoptimizeReason::kUnknown);
-        return;
-      }
+      if (!BuildCheckValue(target_node, target)) return;
 
       if (function.object()->IsJSClassConstructor()) {
         // If we have a class constructor, we should raise an exception.
