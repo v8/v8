@@ -3792,6 +3792,8 @@ Heap::ResizeNewSpaceMode Heap::ShouldResizeNewSpace() {
       (new_space_->TotalCapacity() < new_space_->MaximumCapacity()) &&
       (survived_since_last_expansion_ > new_space_->TotalCapacity());
 
+  if (should_grow) survived_since_last_expansion_ = 0;
+
   if (should_grow == should_shrink) return ResizeNewSpaceMode::kNone;
   return should_grow ? ResizeNewSpaceMode::kGrow : ResizeNewSpaceMode::kShrink;
 }
@@ -3800,7 +3802,6 @@ void Heap::ExpandNewSpaceSize() {
   // Grow the size of new space if there is room to grow, and enough data
   // has survived scavenge since the last expansion.
   new_space_->Grow();
-  survived_since_last_expansion_ = 0;
   new_lo_space()->SetCapacity(new_space()->TotalCapacity());
 }
 
