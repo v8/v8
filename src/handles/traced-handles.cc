@@ -5,10 +5,13 @@
 #include "src/handles/traced-handles.h"
 
 #include <iterator>
+#include <limits>
 
 #include "include/v8-internal.h"
 #include "include/v8-traced-handle.h"
 #include "src/base/logging.h"
+#include "src/base/platform/memory.h"
+#include "src/base/sanitizer/asan.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "src/heap/heap-write-barrier-inl.h"
@@ -22,14 +25,14 @@ namespace {
 
 class TracedNodeBlock;
 
-// TODO(v8:13372): Avoid constant and instead make use of
-// `v8::base::AllocateAtLeast()` to maximize utilization of the memory.
-constexpr size_t kBlockSize = 256;
-
-constexpr uint16_t kInvalidFreeListNodeIndex = -1;
-
 class TracedNode final {
  public:
+#ifdef V8_HOST_ARCH_64_BIT
+  using IndexType = uint16_t;
+#else   // !V8_HOST_ARCH_64_BIT
+  using IndexType = uint8_t;
+#endif  // !V8_HOST_ARCH_64_BIT
+
   static TracedNode* FromLocation(Address* location) {
     return reinterpret_cast<TracedNode*>(location);
   }
@@ -38,10 +41,9 @@ class TracedNode final {
     return reinterpret_cast<const TracedNode*>(location);
   }
 
-  TracedNode() = default;
-  void Initialize(uint8_t, uint16_t);
+  TracedNode(IndexType, IndexType);
 
-  uint8_t index() const { return index_; }
+  IndexType index() const { return index_; }
 
   bool is_root() const { return IsRoot::decode(flags_); }
   void set_root(bool v) { flags_ = IsRoot::update(flags_, v); }
@@ -63,8 +65,8 @@ class TracedNode final {
     flags_ = IsInYoungList::update(flags_, v);
   }
 
-  uint16_t next_free() const { return next_free_index_; }
-  void set_next_free(uint16_t next_free_index) {
+  IndexType next_free() const { return next_free_index_; }
+  void set_next_free(IndexType next_free_index) {
     next_free_index_ = next_free_index;
   }
   void set_class_id(uint16_t class_id) { class_id_ = class_id; }
@@ -114,25 +116,26 @@ class TracedNode final {
   using Markbit = IsRoot::Next<bool, 1>;
 
   Address object_ = kNullAddress;
-  uint8_t index_ = 0;
-  uint8_t flags_ = 0;
   union {
-    // When a node is not in use, this index is used to build the free list.
-    uint16_t next_free_index_;
     // When a node is in use, the user can specify a class id.
     uint16_t class_id_;
+    // When a node is not in use, this index is used to build the free list.
+    IndexType next_free_index_;
   };
+  IndexType index_;
+  uint8_t flags_ = 0;
 };
 
-void TracedNode::Initialize(uint8_t index, uint16_t next_free_index) {
+TracedNode::TracedNode(IndexType index, IndexType next_free_index)
+    : next_free_index_(next_free_index), index_(index) {
   static_assert(offsetof(TracedNode, class_id_) ==
                 Internals::kTracedNodeClassIdOffset);
+  // TracedNode size should stay within 2 words.
+  static_assert(sizeof(TracedNode) <= (2 * kSystemPointerSize));
   DCHECK(!is_in_use());
   DCHECK(!is_in_young_list());
   DCHECK(!is_root());
   DCHECK(!markbit());
-  index_ = index;
-  next_free_index_ = next_free_index;
 }
 
 // Publishes all internal state to be consumed by other threads.
@@ -285,7 +288,8 @@ class TracedNodeBlock final {
       : public base::iterator<std::forward_iterator_tag, TracedNode> {
    public:
     explicit NodeIteratorImpl(TracedNodeBlock* block) : block_(block) {}
-    NodeIteratorImpl(TracedNodeBlock* block, uint16_t current_index)
+    NodeIteratorImpl(TracedNodeBlock* block,
+                     TracedNode::IndexType current_index)
         : block_(block), current_index_(current_index) {}
     NodeIteratorImpl(const NodeIteratorImpl& other) V8_NOEXCEPT
         : block_(other.block_),
@@ -299,9 +303,7 @@ class TracedNodeBlock final {
       return !(*this == rhs);
     }
     inline NodeIteratorImpl& operator++() {
-      if (current_index_ < kBlockSize) {
-        current_index_++;
-      }
+      current_index_++;
       return *this;
     }
     inline NodeIteratorImpl operator++(int) {
@@ -312,7 +314,7 @@ class TracedNodeBlock final {
 
    private:
     TracedNodeBlock* block_;
-    uint16_t current_index_ = 0;
+    TracedNode::IndexType current_index_ = 0;
   };
 
  public:
@@ -320,47 +322,100 @@ class TracedNodeBlock final {
   using UsableList = DoublyLinkedList<TracedNodeBlock, UsableListNode>;
   using Iterator = NodeIteratorImpl;
 
+#if defined(V8_USE_ADDRESS_SANITIZER)
+  static constexpr size_t kMinCapacity = 1;
+  static constexpr size_t kMaxCapacity = 1;
+#else  // !defined(V8_USE_ADDRESS_SANITIZER)
+#ifdef V8_HOST_ARCH_64_BIT
+  static constexpr size_t kMinCapacity = 256;
+#else   // !V8_HOST_ARCH_64_BIT
+  static constexpr size_t kMinCapacity = 128;
+#endif  // !V8_HOST_ARCH_64_BIT
+  static constexpr size_t kMaxCapacity =
+      std::numeric_limits<TracedNode::IndexType>::max() - 1;
+#endif  // !defined(V8_USE_ADDRESS_SANITIZER)
+
+  static constexpr TracedNode::IndexType kInvalidFreeListNodeIndex = -1;
+
+  static_assert(kMinCapacity <= kMaxCapacity);
+  static_assert(kInvalidFreeListNodeIndex > kMaxCapacity);
+
+  static TracedNodeBlock* Create(TracedHandlesImpl&, OverallList&, UsableList&);
+  static void Delete(TracedNodeBlock*);
+
   static TracedNodeBlock& From(TracedNode& node);
   static const TracedNodeBlock& From(const TracedNode& node);
-
-  TracedNodeBlock(TracedHandlesImpl&, OverallList&, UsableList&);
 
   TracedNode* AllocateNode();
   void FreeNode(TracedNode*);
 
-  TracedNode* at(uint16_t index) { return &nodes_[index]; }
-  const TracedNode* at(uint16_t index) const {
+  TracedNode* at(TracedNode::IndexType index) {
+    return &(reinterpret_cast<TracedNode*>(this + 1)[index]);
+  }
+  const TracedNode* at(TracedNode::IndexType index) const {
     return const_cast<TracedNodeBlock*>(this)->at(index);
   }
 
   const void* nodes_begin_address() const { return at(0); }
-  const void* nodes_end_address() const { return at(kBlockSize); }
+  const void* nodes_end_address() const { return at(capacity_); }
 
   TracedHandlesImpl& traced_handles() const { return traced_handles_; }
 
   Iterator begin() { return Iterator(this); }
-  Iterator end() { return Iterator(this, kBlockSize); }
+  Iterator end() { return Iterator(this, capacity_); }
 
-  bool IsFull() const { return used_ == kBlockSize; }
+  bool IsFull() const { return used_ == capacity_; }
   bool IsEmpty() const { return used_ == 0; }
 
+  size_t size_bytes() const {
+    return sizeof(*this) + capacity_ * sizeof(TracedNode);
+  }
+
  private:
-  TracedNode nodes_[kBlockSize];
+  TracedNodeBlock(TracedHandlesImpl&, OverallList&, UsableList&,
+                  TracedNode::IndexType);
+
   OverallList::ListNode overall_list_node_;
   UsableList::ListNode usable_list_node_;
   TracedHandlesImpl& traced_handles_;
-  uint16_t used_ = 0;
-  uint16_t first_free_node_ = 0;
+  TracedNode::IndexType used_ = 0;
+  const TracedNode::IndexType capacity_ = 0;
+  TracedNode::IndexType first_free_node_ = 0;
 };
+
+// static
+TracedNodeBlock* TracedNodeBlock::Create(TracedHandlesImpl& traced_handles,
+                                         OverallList& overall_list,
+                                         UsableList& usable_list) {
+  static_assert(alignof(TracedNodeBlock) >= alignof(TracedNode));
+  static_assert(sizeof(TracedNodeBlock) % alignof(TracedNode) == 0,
+                "TracedNodeBlock size is used to auto-align node FAM storage.");
+  const size_t min_wanted_size =
+      sizeof(TracedNodeBlock) +
+      sizeof(TracedNode) * TracedNodeBlock::kMinCapacity;
+  const auto raw_result = v8::base::AllocateAtLeast<char>(min_wanted_size);
+  const size_t capacity = std::min(
+      (raw_result.count - sizeof(TracedNodeBlock)) / sizeof(TracedNode),
+      kMaxCapacity);
+  CHECK_LT(capacity, std::numeric_limits<TracedNode::IndexType>::max());
+  const auto result = std::make_pair(raw_result.ptr, capacity);
+  return new (result.first)
+      TracedNodeBlock(traced_handles, overall_list, usable_list,
+                      static_cast<TracedNode::IndexType>(result.second));
+}
+
+// static
+void TracedNodeBlock::Delete(TracedNodeBlock* block) { free(block); }
 
 TracedNodeBlock::TracedNodeBlock(TracedHandlesImpl& traced_handles,
                                  OverallList& overall_list,
-                                 UsableList& usable_list)
-    : traced_handles_(traced_handles) {
-  for (size_t i = 0; i < (kBlockSize - 1); i++) {
-    nodes_[i].Initialize(i, i + 1);
+                                 UsableList& usable_list,
+                                 TracedNode::IndexType capacity)
+    : traced_handles_(traced_handles), capacity_(capacity) {
+  for (TracedNode::IndexType i = 0; i < (capacity_ - 1); i++) {
+    new (at(i)) TracedNode(i, i + 1);
   }
-  nodes_[kBlockSize - 1].Initialize(kBlockSize - 1, kInvalidFreeListNodeIndex);
+  new (at(capacity_ - 1)) TracedNode(capacity_ - 1, kInvalidFreeListNodeIndex);
   overall_list.PushFront(this);
   usable_list.PushFront(this);
 }
@@ -368,7 +423,8 @@ TracedNodeBlock::TracedNodeBlock(TracedHandlesImpl& traced_handles,
 // static
 TracedNodeBlock& TracedNodeBlock::From(TracedNode& node) {
   TracedNode* first_node = &node - node.index();
-  return *reinterpret_cast<TracedNodeBlock*>(first_node);
+  return *reinterpret_cast<TracedNodeBlock*>(
+      reinterpret_cast<uintptr_t>(first_node) - sizeof(TracedNodeBlock));
 }
 
 // static
@@ -377,13 +433,13 @@ const TracedNodeBlock& TracedNodeBlock::From(const TracedNode& node) {
 }
 
 TracedNode* TracedNodeBlock::AllocateNode() {
-  if (used_ == kBlockSize) {
+  if (used_ == capacity_) {
     DCHECK_EQ(first_free_node_, kInvalidFreeListNodeIndex);
     return nullptr;
   }
 
   DCHECK_NE(first_free_node_, kInvalidFreeListNodeIndex);
-  auto* node = &nodes_[first_free_node_];
+  auto* node = at(first_free_node_);
   first_free_node_ = node->next_free();
   used_++;
   DCHECK(!node->is_in_use());
@@ -441,13 +497,9 @@ class TracedHandlesImpl final {
   void IterateYoung(RootVisitor* visitor);
   void IterateYoungRoots(RootVisitor* visitor);
 
-  size_t used_node_count() const { return used_; }
-  size_t total_size_bytes() const {
-    return sizeof(TracedNode) * kBlockSize *
-           (blocks_.Size() + empty_blocks_.size() +
-            empty_block_candidates_.size());
-  }
-  size_t used_size_bytes() const { return sizeof(TracedNode) * used_; }
+  size_t used_node_count() const { return used_nodes_; }
+  size_t used_size_bytes() const { return sizeof(TracedNode) * used_nodes_; }
+  size_t total_size_bytes() const { return block_size_bytes_; }
 
   START_ALLOW_USE_DEPRECATED()
 
@@ -472,14 +524,16 @@ class TracedHandlesImpl final {
   Isolate* isolate_;
   bool is_marking_ = false;
   bool is_sweeping_on_mutator_thread_ = false;
-  size_t used_ = 0;
+  size_t used_nodes_ = 0;
+  size_t block_size_bytes_ = 0;
 };
 
 TracedNode* TracedHandlesImpl::AllocateNode() {
   auto* block = usable_blocks_.Front();
   if (!block) {
     if (empty_blocks_.empty() && empty_block_candidates_.empty()) {
-      block = new TracedNodeBlock(*this, blocks_, usable_blocks_);
+      block = TracedNodeBlock::Create(*this, blocks_, usable_blocks_);
+      block_size_bytes_ += block->size_bytes();
     } else {
       // Pick a block from candidates first as such blocks may anyways still be
       // referred to from young nodes and thus are not eligible for freeing.
@@ -496,7 +550,7 @@ TracedNode* TracedHandlesImpl::AllocateNode() {
   }
   auto* node = block->AllocateNode();
   if (node) {
-    used_++;
+    used_nodes_++;
     return node;
   }
 
@@ -515,23 +569,29 @@ void TracedHandlesImpl::FreeNode(TracedNode* node) {
     blocks_.Remove(&block);
     empty_block_candidates_.push_back(&block);
   }
-  used_--;
+  used_nodes_--;
 }
 
 TracedHandlesImpl::TracedHandlesImpl(Isolate* isolate) : isolate_(isolate) {}
 
 TracedHandlesImpl::~TracedHandlesImpl() {
+  size_t block_size_bytes = 0;
   while (!blocks_.Empty()) {
     auto* block = blocks_.Front();
     blocks_.PopFront();
-    delete block;
+    block_size_bytes += block->size_bytes();
+    TracedNodeBlock::Delete(block);
   }
   for (auto* block : empty_block_candidates_) {
-    delete block;
+    block_size_bytes += block->size_bytes();
+    TracedNodeBlock::Delete(block);
   }
   for (auto* block : empty_blocks_) {
-    delete block;
+    block_size_bytes += block->size_bytes();
+    TracedNodeBlock::Delete(block);
   }
+  USE(block_size_bytes);
+  DCHECK_EQ(block_size_bytes, block_size_bytes_);
 }
 
 Handle<Object> TracedHandlesImpl::Create(Address value, Address* slot,
@@ -693,7 +753,9 @@ void TracedHandlesImpl::DeleteEmptyBlocks() {
   for (size_t i = 1; i < empty_blocks_.size(); i++) {
     auto* block = empty_blocks_[i];
     DCHECK(block->IsEmpty());
-    delete block;
+    DCHECK_GE(block_size_bytes_, block->size_bytes());
+    block_size_bytes_ -= block->size_bytes();
+    TracedNodeBlock::Delete(block);
   }
   empty_blocks_.resize(1);
   empty_blocks_.shrink_to_fit();
