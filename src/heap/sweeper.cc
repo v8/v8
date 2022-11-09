@@ -259,11 +259,13 @@ void Sweeper::EnsureCompleted() {
 
   pretenuring_handler_->MergeAllocationSitePretenuringFeedback(
       local_pretenuring_feedback_);
+  local_pretenuring_feedback_.clear();
   for (ConcurrentSweeper& concurrent_sweeper : concurrent_sweepers_) {
     pretenuring_handler_->MergeAllocationSitePretenuringFeedback(
         *concurrent_sweeper.local_pretenuring_feedback());
+    // No need to clear the concurrent feedback map since the concurrent sweeper
+    // goes away.
   }
-  local_pretenuring_feedback_.clear();
   concurrent_sweepers_.clear();
 
   current_new_space_collector_.reset();
@@ -282,11 +284,12 @@ void Sweeper::PauseAndEnsureNewSpaceCompleted() {
 
   pretenuring_handler_->MergeAllocationSitePretenuringFeedback(
       local_pretenuring_feedback_);
+  local_pretenuring_feedback_.clear();
   for (ConcurrentSweeper& concurrent_sweeper : concurrent_sweepers_) {
     pretenuring_handler_->MergeAllocationSitePretenuringFeedback(
         *concurrent_sweeper.local_pretenuring_feedback());
+    concurrent_sweeper.local_pretenuring_feedback()->clear();
   }
-  local_pretenuring_feedback_.clear();
 
   current_new_space_collector_.reset();
 }
