@@ -1717,7 +1717,8 @@ class WasmGraphBuildingInterface {
 
     // If the exceptional operation could have modified memory size, we need to
     // reload the memory context into the exceptional control path.
-    if (reload_mode == kReloadContext) {
+    if (reload_mode == kReloadContext &&
+        decoder->module_->initial_pages != decoder->module_->maximum_pages) {
       LoadContextIntoSsa(ssa_env_, decoder);
     }
 
