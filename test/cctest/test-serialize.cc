@@ -2867,6 +2867,66 @@ TEST(Regress503552) {
   delete cache_data;
 }
 
+static void CodeSerializerMergeDeserializedScript(bool retain_toplevel_sfi) {
+  v8_flags.stress_background_compile = false;
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+
+  HandleScope outer_scope(isolate);
+  Handle<String> source = isolate->factory()->NewStringFromAsciiChecked(
+      "(function () {return 123;})");
+  AlignedCachedData* cached_data = nullptr;
+  Handle<Script> script;
+  {
+    HandleScope first_compilation_scope(isolate);
+    Handle<SharedFunctionInfo> shared = CompileScriptAndProduceCache(
+        isolate, source, ScriptDetails(), &cached_data,
+        v8::ScriptCompiler::kNoCompileOptions);
+    Handle<BytecodeArray> bytecode =
+        handle(shared->GetBytecodeArray(isolate), isolate);
+    for (int i = 0; i <= v8_flags.bytecode_old_age; ++i) {
+      bytecode->MakeOlder();
+    }
+    Handle<Script> local_script =
+        handle(Script::cast(shared->script()), isolate);
+    script = first_compilation_scope.CloseAndEscape(local_script);
+  }
+
+  Handle<HeapObject> retained_toplevel_sfi;
+  if (retain_toplevel_sfi) {
+    retained_toplevel_sfi =
+        handle(script->shared_function_infos().Get(0).GetHeapObjectAssumeWeak(),
+               isolate);
+  }
+
+  // GC twice in case incremental marking had already marked the bytecode array.
+  // After this, the Isolate compilation cache contains a weak reference to the
+  // Script but not the top-level SharedFunctionInfo.
+  CcTest::CollectAllGarbage();
+  CcTest::CollectAllGarbage();
+
+  Handle<SharedFunctionInfo> copy =
+      CompileScript(isolate, source, ScriptDetails(), cached_data,
+                    v8::ScriptCompiler::kConsumeCodeCache);
+  delete cached_data;
+
+  // The existing Script was reused.
+  CHECK_EQ(*script, copy->script());
+
+  // The existing top-level SharedFunctionInfo was also reused.
+  if (retain_toplevel_sfi) {
+    CHECK_EQ(*retained_toplevel_sfi, *copy);
+  }
+}
+
+TEST(CodeSerializerMergeDeserializedScript) {
+  CodeSerializerMergeDeserializedScript(/*retain_toplevel_sfi=*/false);
+}
+
+TEST(CodeSerializerMergeDeserializedScriptRetainingToplevelSfi) {
+  CodeSerializerMergeDeserializedScript(/*retain_toplevel_sfi=*/true);
+}
+
 UNINITIALIZED_TEST(SnapshotCreatorBlobNotCreated) {
   DisableAlwaysOpt();
   DisableEmbeddedBlobRefcounting();

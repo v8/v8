@@ -1972,9 +1972,6 @@ void BackgroundMergeTask::SetUpOnMainThread(Isolate* isolate,
     return;
   }
 
-  // Any data sent to the background thread will need to be a persistent handle.
-  persistent_handles_ = std::make_unique<PersistentHandles>(isolate);
-
   if (lookup_result.is_compiled_scope().is_compiled()) {
     // There already exists a compiled top-level SFI, so the main thread will
     // discard the background serialization results and use the top-level SFI
@@ -1985,9 +1982,16 @@ void BackgroundMergeTask::SetUpOnMainThread(Isolate* isolate,
   } else {
     DCHECK(lookup_result.toplevel_sfi().is_null());
     // A background merge is required.
-    state_ = kPendingBackgroundWork;
-    cached_script_ = persistent_handles_->NewHandle(*script);
+    SetUpOnMainThread(isolate, script);
   }
+}
+
+void BackgroundMergeTask::SetUpOnMainThread(Isolate* isolate,
+                                            Handle<Script> cached_script) {
+  // Any data sent to the background thread will need to be a persistent handle.
+  persistent_handles_ = std::make_unique<PersistentHandles>(isolate);
+  state_ = kPendingBackgroundWork;
+  cached_script_ = persistent_handles_->NewHandle(*cached_script);
 }
 
 void BackgroundMergeTask::BeginMergeInBackground(LocalIsolate* isolate,
@@ -3530,9 +3534,8 @@ MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
         // would be non-trivial.
       } else {
         maybe_result = CodeSerializer::Deserialize(
-            isolate, cached_data, source, script_details.origin_options);
-        // TODO(v8:12808): Merge the newly deserialized code into a preexisting
-        // Script if one was found in the compilation cache.
+            isolate, cached_data, source, script_details.origin_options,
+            maybe_script);
       }
 
       bool consuming_code_cache_succeeded = false;
