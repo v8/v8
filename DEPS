@@ -26,6 +26,7 @@ vars = {
   # most commonly useful for developers. Bots and developers that need to use
   # other images (e.g., qemu.arm64) can override this with additional images.
   'checkout_fuchsia_boot_images': "qemu.x64",
+  'checkout_fuchsia_product_bundles': '"{checkout_fuchsia_boot_images}" != ""',
 
   'checkout_instrumented_libraries': False,
   'checkout_ittapi': False,
@@ -573,11 +574,11 @@ hooks = [
   {
     'name': 'Download Fuchsia system images',
     'pattern': '.',
-    'condition': 'checkout_fuchsia',
+    'condition': 'checkout_fuchsia and checkout_fuchsia_product_bundles',
     'action': [
       'python3',
-      'build/fuchsia/update_images.py',
-      '--boot-images={checkout_fuchsia_boot_images}',
+      'build/fuchsia/update_product_bundles.py',
+      '{checkout_fuchsia_boot_images}',
     ],
   },
   {
