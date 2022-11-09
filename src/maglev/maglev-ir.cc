@@ -100,6 +100,22 @@ void UseFixed(Input& input, Register reg) {
                        reg.code(), GetVirtualRegister(input.node()));
 }
 
+void AddDeoptRegistersToSnapshot(RegisterSnapshot* snapshot,
+                                 const EagerDeoptInfo* deopt_info) {
+  detail::DeepForEachInput(deopt_info, [&](ValueNode* node,
+                                           InputLocation* input) {
+    if (!input->IsAnyRegister()) return;
+    if (input->IsDoubleRegister()) {
+      snapshot->live_double_registers.set(input->AssignedDoubleRegister());
+    } else {
+      snapshot->live_registers.set(input->AssignedGeneralRegister());
+      if (node->is_tagged()) {
+        snapshot->live_tagged_registers.set(input->AssignedGeneralRegister());
+      }
+    }
+  });
+}
+
 #ifdef DEBUG
 RegList GetGeneralRegistersUsedAsInputs(const EagerDeoptInfo* deopt_info) {
   RegList regs;
@@ -1269,8 +1285,15 @@ void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
             // returns Smi zero, then it failed the migration.
             Register return_val = Register::no_reg();
             {
-              SaveRegisterStateForCall save_register_state(
-                  masm, node->register_snapshot());
+              RegisterSnapshot register_snapshot = node->register_snapshot();
+              // We can eager deopt after the snapshot, so make sure the nodes
+              // used by the deopt are included in it.
+              // TODO(leszeks): This is a bit of a footgun -- we likely want the
+              // snapshot to always include eager deopt input registers.
+              AddDeoptRegistersToSnapshot(&register_snapshot,
+                                          node->eager_deopt_info());
+              SaveRegisterStateForCall save_register_state(masm,
+                                                           register_snapshot);
 
               __ Push(object);
               __ Move(kContextRegister, masm->native_context().object());
@@ -3984,20 +4007,7 @@ void AttemptOnStackReplacement(MaglevAssembler* masm,
       // TODO(v8:7700): Consider making the snapshot location
       // configurable.
       RegisterSnapshot snapshot = node->register_snapshot();
-      detail::DeepForEachInput(
-          node->eager_deopt_info(), [&](ValueNode* node, InputLocation* input) {
-            if (!input->IsAnyRegister()) return;
-            if (input->IsDoubleRegister()) {
-              snapshot.live_double_registers.set(
-                  input->AssignedDoubleRegister());
-            } else {
-              snapshot.live_registers.set(input->AssignedGeneralRegister());
-              if (node->is_tagged()) {
-                snapshot.live_tagged_registers.set(
-                    input->AssignedGeneralRegister());
-              }
-            }
-          });
+      AddDeoptRegistersToSnapshot(&snapshot, node->eager_deopt_info());
       DCHECK(!snapshot.live_registers.has(maybe_target_code));
       SaveRegisterStateForCall save_register_state(masm, snapshot);
       __ Move(kContextRegister, masm->native_context().object());
