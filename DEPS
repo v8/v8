@@ -57,7 +57,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:10.20221107.2.1',
+  'fuchsia_version': 'version:10.20221108.1.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -97,9 +97,9 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '521ac34ebd795939c7e16b37d9d3ddb40e8ed556',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'dff033c8c1d0befdf8be30535bb3bd41ff918599',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '5c42ab12bd079196b26316ec4bec2761082623b5',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '737c5727e5b5272effd6cf0e87b8c1ce9007c97d',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '85968248e1bcb0b88e537d3a7f9628d08605c466',
   'buildtools/clang_format/script':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/clang/tools/clang-format.git' + '@' + '8b525d2747f2584fc35d8c7e612e66f377858df7',
   'buildtools/linux64': {
@@ -123,11 +123,11 @@ deps = {
     'condition': 'host_os == "mac"',
   },
   'buildtools/third_party/libc++/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '023270786d2400b294239d047fd1fb6c8688d86b',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '6e93fd3d6ecc4895498b9107371477778d6f9ef1',
   'buildtools/third_party/libc++abi/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'a89eb5a1d496e5821f60588355f1db1fbad84a58',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '1a32724f721e1c3b6c590a07fe4a954344f15e48',
   'buildtools/third_party/libunwind/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'aabcd8753678f1536e15eb6385a948470debdae4',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'd08f7f8a9a284b06cd446a1b3e36034ca42a5d88',
   'buildtools/win': {
     'packages': [
       {
@@ -201,7 +201,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'b26b29878cfff8ef09385f0d5b6a164e37a12bde',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '36d603a00b05d13f5f6c8ae38f425c8156c208eb',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -209,7 +209,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'e6f3d66bae371ddf8ccd91d26ec788dd75d3f5a7',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'ae1a70891738fb14f64fbb884e00b87ac663aa15',
   'third_party/fuchsia-sdk/sdk': {
     'packages': [
         {
@@ -228,7 +228,7 @@ deps = {
   'third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'da07448619763d1cde255b361324242646f5b268',
   'third_party/instrumented_libraries':
-    Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + 'a8992bf8abb391dde73031d60a80147ebf6b4ee8',
+    Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + '7bb87a375ffc3effd17a50f690099dcfb9ee280b',
   'third_party/ittapi': {
     # Force checkout ittapi libraries to pass v8 header includes check on
     # bots that has check_v8_header_includes enabled.
