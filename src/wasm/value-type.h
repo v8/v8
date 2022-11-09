@@ -429,6 +429,14 @@ class ValueType {
 
   constexpr bool is_bottom() const { return kind() == kBottom; }
 
+  // These can occur as the result of type propagation, but never in
+  // reachable control flow.
+  constexpr bool is_uninhabited() const {
+    return is_non_nullable() && (is_reference_to(HeapType::kNone) ||
+                                 is_reference_to(HeapType::kNoExtern) ||
+                                 is_reference_to(HeapType::kNoFunc));
+  }
+
   constexpr bool is_packed() const { return wasm::is_packed(kind()); }
 
   constexpr ValueType Unpacked() const {
@@ -437,12 +445,6 @@ class ValueType {
 
   // If {this} is (ref null $t), returns (ref $t). Otherwise, returns {this}.
   constexpr ValueType AsNonNull() const {
-    if (is_reference_to(HeapType::kNone) ||
-        is_reference_to(HeapType::kNoExtern) ||
-        is_reference_to(HeapType::kNoFunc)) {
-      // Non-null none type is not a valid type.
-      return ValueType::Primitive(kBottom);
-    }
     return is_nullable() ? Ref(heap_type()) : *this;
   }
 
