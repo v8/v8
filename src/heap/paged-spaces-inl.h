@@ -114,8 +114,7 @@ bool PagedSpaceBase::TryFreeLast(Address object_address, int object_size) {
 
 V8_INLINE bool PagedSpaceBase::EnsureAllocation(int size_in_bytes,
                                                 AllocationAlignment alignment,
-                                                AllocationOrigin origin,
-                                                int* out_max_aligned_size) {
+                                                AllocationOrigin origin) {
   if ((identity() != NEW_SPACE) && !is_compaction_space()) {
     // Start incremental marking before the actual allocation, this allows the
     // allocation function to mark the object black when incremental marking is
@@ -128,13 +127,10 @@ V8_INLINE bool PagedSpaceBase::EnsureAllocation(int size_in_bytes,
   // We don't know exactly how much filler we need to align until space is
   // allocated, so assume the worst case.
   size_in_bytes += Heap::GetMaximumFillToAlign(alignment);
-  if (out_max_aligned_size) {
-    *out_max_aligned_size = size_in_bytes;
-  }
   if (allocation_info_.top() + size_in_bytes <= allocation_info_.limit()) {
     return true;
   }
-  return RefillLabMain(size_in_bytes, origin);
+  return RefillLabMain(size_in_bytes, origin, alignment);
 }
 
 }  // namespace internal

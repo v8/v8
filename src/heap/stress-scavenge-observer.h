@@ -14,7 +14,7 @@ class StressScavengeObserver : public AllocationObserver {
  public:
   explicit StressScavengeObserver(Heap* heap);
 
-  void Step(int bytes_allocated, Address soon_object, size_t size) override;
+  void Step(Address soon_object, size_t size) override;
 
   bool HasRequestedGC() const;
   void RequestedGCDone();

@@ -15,9 +15,7 @@ namespace {
 class UnusedObserver : public AllocationObserver {
  public:
   explicit UnusedObserver(size_t step_size) : AllocationObserver(step_size) {}
-  void Step(int bytes_allocated, Address soon_object, size_t size) override {
-    CHECK(false);
-  }
+  void Step(Address soon_object, size_t size) override { CHECK(false); }
 };
 }  // namespace
 
@@ -50,18 +48,16 @@ class VerifyStepObserver : public AllocationObserver {
   explicit VerifyStepObserver(size_t step_size)
       : AllocationObserver(step_size) {}
 
-  void Step(int bytes_allocated, Address soon_object, size_t size) override {
+  void Step(Address soon_object, size_t size) override {
     CHECK(!do_not_invoke_);
 
     invocations_++;
-    CHECK_EQ(expected_bytes_allocated_, bytes_allocated);
     CHECK_EQ(expected_size_, size);
   }
 
   void ExpectNoInvocation() { do_not_invoke_ = true; }
-  void Expect(int expected_bytes_allocated, size_t expected_size) {
+  void Expect(size_t expected_size) {
     do_not_invoke_ = false;
-    expected_bytes_allocated_ = expected_bytes_allocated;
     expected_size_ = expected_size;
   }
 
@@ -70,7 +66,6 @@ class VerifyStepObserver : public AllocationObserver {
  private:
   bool do_not_invoke_ = false;
   int invocations_ = 0;
-  int expected_bytes_allocated_ = 0;
   size_t expected_size_ = 0;
 };
 }  // namespace
@@ -86,7 +81,7 @@ TEST(AllocationObserverTest, Step) {
   counter.AddAllocationObserver(&observer100);
   counter.AddAllocationObserver(&observer200);
 
-  observer100.Expect(90, 8);
+  observer100.Expect(8);
   observer200.ExpectNoInvocation();
 
   counter.AdvanceAllocationObservers(90);
@@ -96,8 +91,8 @@ TEST(AllocationObserverTest, Step) {
   CHECK_EQ(counter.NextBytes(),
            10 /* aligned_object_size */ + 100 /* smallest step size*/);
 
-  observer100.Expect(90, 16);
-  observer200.Expect(180, 16);
+  observer100.Expect(16);
+  observer200.Expect(16);
 
   counter.AdvanceAllocationObservers(90);
   counter.InvokeAllocationObservers(kSomeObjectAddress, 16, 20);
@@ -114,7 +109,7 @@ class RecursiveAddObserver : public AllocationObserver {
                                 AllocationObserver* observer)
       : AllocationObserver(step_size), counter_(counter), observer_(observer) {}
 
-  void Step(int bytes_allocated, Address soon_object, size_t size) override {
+  void Step(Address soon_object, size_t size) override {
     counter_->AddAllocationObserver(observer_);
   }
 
@@ -148,7 +143,7 @@ class RecursiveRemoveObserver : public AllocationObserver {
                                    AllocationObserver* observer)
       : AllocationObserver(step_size), counter_(counter), observer_(observer) {}
 
-  void Step(int bytes_allocated, Address soon_object, size_t size) override {
+  void Step(Address soon_object, size_t size) override {
     counter_->RemoveAllocationObserver(observer_);
   }
 

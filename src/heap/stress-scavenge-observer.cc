@@ -26,8 +26,7 @@ StressScavengeObserver::StressScavengeObserver(Heap* heap)
   }
 }
 
-void StressScavengeObserver::Step(int bytes_allocated, Address soon_object,
-                                  size_t size) {
+void StressScavengeObserver::Step(Address soon_object, size_t size) {
   if (has_requested_gc_ || heap_->new_space()->Capacity() == 0) {
     return;
   }
