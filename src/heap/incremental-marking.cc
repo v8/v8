@@ -396,8 +396,6 @@ void IncrementalMarking::StartMarkingMinor() {
     heap()->isolate()->PrintWithTimestamp(
         "[IncrementalMarking] (MinorMC) Running\n");
   }
-
-  DCHECK(!is_compacting_);
 }
 
 void IncrementalMarking::StartBlackAllocation() {

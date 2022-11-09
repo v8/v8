@@ -430,14 +430,14 @@ Address LocalHeap::PerformCollectionAndAllocateAgain(
 
 void LocalHeap::AddGCEpilogueCallback(GCEpilogueCallback* callback, void* data,
                                       GCType gc_type) {
-  DCHECK(IsRunning());
+  DCHECK(!IsParked());
   gc_epilogue_callbacks_.Add(callback, LocalIsolate::FromHeap(this), gc_type,
                              data);
 }
 
 void LocalHeap::RemoveGCEpilogueCallback(GCEpilogueCallback* callback,
                                          void* data) {
-  DCHECK(IsRunning());
+  DCHECK(!IsParked());
   gc_epilogue_callbacks_.Remove(callback, data);
 }
 
