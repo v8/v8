@@ -897,6 +897,10 @@ void MaglevGraphBuilder::VisitTestReferenceEqual() {
     SetAccumulator(GetRootConstant(RootIndex::kTrueValue));
     return;
   }
+  if (TryBuildCompareOperation<BranchIfReferenceCompare>(
+          Operation::kStrictEqual, lhs, rhs)) {
+    return;
+  }
   SetAccumulator(AddNewNode<TaggedEqual>({lhs, rhs}));
 }
 
@@ -4001,6 +4005,7 @@ void MaglevGraphBuilder::VisitForInContinue() {
   // ForInContinue <index> <cache_length>
   ValueNode* index = LoadRegisterTagged(0);
   ValueNode* cache_length = LoadRegisterTagged(1);
+  // TODO(verwaest): Fold with the next instruction.
   SetAccumulator(AddNewNode<TaggedNotEqual>({index, cache_length}));
 }
 
