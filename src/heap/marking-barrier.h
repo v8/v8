@@ -49,8 +49,6 @@ class MarkingBarrier {
     return marking_barrier_type_ == MarkingBarrierType::kMinor;
   }
 
-  Heap* heap() const { return heap_; }
-
  private:
   inline bool ShouldMarkObject(HeapObject value) const;
   inline bool WhiteToGreyAndPush(HeapObject value);
@@ -63,7 +61,7 @@ class MarkingBarrier {
   void DeactivateSpace(PagedSpace*);
   void DeactivateSpace(NewSpace*);
 
-  bool IsCurrentMarkingBarrier(HeapObject verification_candidate);
+  bool IsCurrentMarkingBarrier();
 
   template <typename TSlot>
   inline void MarkRange(HeapObject value, TSlot start, TSlot end);

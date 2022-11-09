@@ -5865,8 +5865,8 @@ int Shell::Main(int argc, char* argv[]) {
           {
             D8Console console2(isolate2);
             Initialize(isolate2, &console2);
-            Isolate::Scope isolate_scope(isolate2);
             PerIsolateData data2(isolate2);
+            Isolate::Scope isolate_scope(isolate2);
 
             result = RunMain(isolate2, false);
           }
