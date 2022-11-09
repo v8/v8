@@ -12,6 +12,11 @@ load(
     "v8_builder",
 )
 
+def with_cancel(cq_properties):
+    result = dict(cq_properties)
+    result["cancel_stale"] = True
+    return result
+
 #TODO(almuthanna): get rid of kwargs and specify default values
 def trybot_pair(
         name,
@@ -42,8 +47,8 @@ def trybot_pair(
         bucket = "try",
         execution_timeout = total_timeout,
         executable = "recipe:v8/orchestrator",
-        cq_properties = cq_properties,
-        cq_branch_properties = cq_branch_properties,
+        cq_properties = with_cancel(cq_properties),
+        cq_branch_properties = with_cancel(cq_branch_properties),
         in_list = "tryserver",
         experiments = experiments,
         description = orchestrator_description,
@@ -57,8 +62,8 @@ def trybot_pair(
         bucket = "try",
         execution_timeout = build_timeout,
         executable = "recipe:v8/compilator",
-        cq_properties = cq_compile_only_properties,
-        cq_branch_properties = cq_branch_compile_only_properties,
+        cq_properties = with_cancel(cq_compile_only_properties),
+        cq_branch_properties = with_cancel(cq_branch_compile_only_properties),
         in_list = "tryserver",
         enable_rdb = True,
         experiments = experiments,
@@ -123,7 +128,7 @@ trybot_pair(
 
 trybot_pair(
     name = "v8_linux64_dbg",
-    cq_properties = CQ.BLOCK_CANCEL,
+    cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,

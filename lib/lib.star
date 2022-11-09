@@ -106,7 +106,6 @@ def cq_on_files(*regexp_list):
     return {"location_regexp": list(regexp_list), "cancel_stale": False}
 
 CQ = struct(
-    BLOCK_CANCEL = {},
     BLOCK = {"cancel_stale": False},
     BLOCK_NO_REUSE = {"disable_reuse": "true", "cancel_stale": False},
     EXP_5_PERCENT = {"experiment_percentage": 5, "cancel_stale": False},
