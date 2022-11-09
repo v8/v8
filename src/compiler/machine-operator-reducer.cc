@@ -1023,6 +1023,22 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       }
       break;
     }
+    case IrOpcode::kLoad:
+    case IrOpcode::kProtectedLoad: {
+      Node* input0 = node->InputAt(0);
+      Node* input1 = node->InputAt(1);
+      if (input0->opcode() == IrOpcode::kInt64Add) {
+        Int64BinopMatcher m(input0);
+        if (m.right().HasResolvedValue()) {
+          int64_t value = m.right().ResolvedValue();
+          node->ReplaceInput(0, m.left().node());
+          Node* new_node = Int64Add(input1, Int64Constant(value));
+          node->ReplaceInput(1, new_node);
+          return Changed(node);
+        }
+      }
+      break;
+    }
     default:
       break;
   }
