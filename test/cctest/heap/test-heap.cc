@@ -34,6 +34,7 @@
 #include "src/base/strings.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/compilation-cache.h"
+#include "src/codegen/compiler.h"
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/codegen/script-details.h"
 #include "src/common/globals.h"
@@ -1136,7 +1137,7 @@ TEST(TestBytecodeFlushing) {
   }
 }
 
-TEST(TestMultiReferencedBytecodeFlushing) {
+static void TestMultiReferencedBytecodeFlushing(bool sparkplug_compile) {
 #ifndef V8_LITE_MODE
   v8_flags.turbofan = false;
   v8_flags.always_turbofan = false;
@@ -1144,6 +1145,9 @@ TEST(TestMultiReferencedBytecodeFlushing) {
 #endif  // V8_LITE_MODE
 #if ENABLE_SPARKPLUG
   v8_flags.always_sparkplug = false;
+  v8_flags.flush_baseline_code = true;
+#else
+  if (sparkplug_compile) return;
 #endif  // ENABLE_SPARKPLUG
   i::v8_flags.flush_bytecode = true;
   i::v8_flags.allow_natives_syntax = true;
@@ -1184,6 +1188,13 @@ TEST(TestMultiReferencedBytecodeFlushing) {
     Handle<SharedFunctionInfo> copy =
         i_isolate->factory()->CloneSharedFunctionInfo(shared);
 
+    if (sparkplug_compile) {
+      v8::HandleScope baseline_compilation_scope(isolate);
+      IsCompiledScope is_compiled_scope = copy->is_compiled_scope(i_isolate);
+      Compiler::CompileSharedWithBaseline(
+          i_isolate, copy, Compiler::CLEAR_EXCEPTION, &is_compiled_scope);
+    }
+
     // Simulate several GCs that use full marking.
     const int kAgingThreshold = 7;
     for (int i = 0; i < kAgingThreshold; i++) {
@@ -1200,6 +1211,14 @@ TEST(TestMultiReferencedBytecodeFlushing) {
     CHECK(!shared->HasFeedbackMetadata());
     CHECK(!copy->HasFeedbackMetadata());
   }
+}
+
+TEST(TestMultiReferencedBytecodeFlushing) {
+  TestMultiReferencedBytecodeFlushing(/*sparkplug_compile=*/false);
+}
+
+TEST(TestMultiReferencedBytecodeFlushingWithSparkplug) {
+  TestMultiReferencedBytecodeFlushing(/*sparkplug_compile=*/true);
 }
 
 HEAP_TEST(Regress10560) {

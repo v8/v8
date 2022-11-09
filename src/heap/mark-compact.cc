@@ -3159,22 +3159,31 @@ void MarkCompactCollector::ProcessOldCodeCandidates() {
   SharedFunctionInfo flushing_candidate;
   while (local_weak_objects()->code_flushing_candidates_local.Pop(
       &flushing_candidate)) {
+    CodeT baseline_codet;
+    Code baseline_code;
+    HeapObject baseline_bytecode_or_interpreter_data;
+    if (v8_flags.flush_baseline_code && flushing_candidate.HasBaselineCode()) {
+      baseline_codet =
+          CodeT::cast(flushing_candidate.function_data(kAcquireLoad));
+      // Safe to do a relaxed load here since the CodeT was acquire-loaded.
+      baseline_code = FromCodeT(baseline_codet, isolate(), kRelaxedLoad);
+      baseline_bytecode_or_interpreter_data =
+          baseline_code.bytecode_or_interpreter_data(isolate());
+    }
     // During flushing a BytecodeArray is transformed into an UncompiledData in
     // place. Seeing an UncompiledData here implies that another
-    // SharedFunctionInfo had a reference to the same ByteCodeArray and flushed
+    // SharedFunctionInfo had a reference to the same BytecodeArray and flushed
     // it before processing this candidate. This can happen when using
     // CloneSharedFunctionInfo().
     bool bytecode_already_decompiled =
         flushing_candidate.function_data(isolate(), kAcquireLoad)
-            .IsUncompiledData(isolate());
+            .IsUncompiledData(isolate()) ||
+        (!baseline_code.is_null() &&
+         baseline_bytecode_or_interpreter_data.IsUncompiledData(isolate()));
     bool is_bytecode_live = !bytecode_already_decompiled &&
                             non_atomic_marking_state()->IsBlackOrGrey(
                                 flushing_candidate.GetBytecodeArray(isolate()));
-    if (v8_flags.flush_baseline_code && flushing_candidate.HasBaselineCode()) {
-      CodeT baseline_codet =
-          CodeT::cast(flushing_candidate.function_data(kAcquireLoad));
-      // Safe to do a relaxed load here since the CodeT was acquire-loaded.
-      Code baseline_code = FromCodeT(baseline_codet, isolate(), kRelaxedLoad);
+    if (!baseline_code.is_null()) {
       if (non_atomic_marking_state()->IsBlackOrGrey(baseline_code)) {
         // Currently baseline code holds bytecode array strongly and it is
         // always ensured that bytecode is live if baseline code is live. Hence
@@ -3188,11 +3197,13 @@ void MarkCompactCollector::ProcessOldCodeCandidates() {
         // itself, if the Code is live then the CodeT has to be live and will
         // have been marked via the owning JSFunction.
         DCHECK(non_atomic_marking_state()->IsBlackOrGrey(baseline_codet));
-      } else if (is_bytecode_live) {
-        // If baseline code is flushed but we have a valid bytecode array reset
-        // the function_data field to the BytecodeArray/InterpreterData.
+      } else if (is_bytecode_live || bytecode_already_decompiled) {
+        // Reset the function_data field to the BytecodeArray, InterpreterData,
+        // or UncompiledData found on the baseline code. We can skip this step
+        // if the BytecodeArray is not live and not already decompiled, because
+        // FlushBytecodeFromSFI below will set the function_data field.
         flushing_candidate.set_function_data(
-            baseline_code.bytecode_or_interpreter_data(), kReleaseStore);
+            baseline_bytecode_or_interpreter_data, kReleaseStore);
       }
     }
 
