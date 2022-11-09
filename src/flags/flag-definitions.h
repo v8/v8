@@ -1001,10 +1001,9 @@ DEFINE_VALUE_IMPLICATION(optimize_for_size, max_semi_space_size, size_t{1})
 DEFINE_BOOL(wasm_generic_wrapper, true,
             "allow use of the generic js-to-wasm wrapper instead of "
             "per-signature wrappers")
-DEFINE_BOOL(enable_wasm_arm64_generic_wrapper, false,
+DEFINE_BOOL(enable_wasm_arm64_generic_wrapper, true,
             "allow use of the generic js-to-wasm wrapper instead of "
             "per-signature wrappers on arm64")
-DEFINE_WEAK_IMPLICATION(future, enable_wasm_arm64_generic_wrapper)
 DEFINE_BOOL(expose_wasm, true, "expose wasm interface to JavaScript")
 DEFINE_INT(wasm_num_compilation_tasks, 128,
            "maximum number of parallel compilation tasks for wasm")
