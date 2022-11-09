@@ -13,6 +13,7 @@
 #include "src/compiler/wasm-compiler-definitions.h"
 #include "src/compiler/wasm-graph-assembler.h"
 #include "src/wasm/object-access.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-subtyping.h"
@@ -67,6 +68,7 @@ Reduction WasmGCLowering::Reduce(Node* node) {
 }
 
 Node* WasmGCLowering::RootNode(RootIndex index) {
+  // TODO(13449): Use root register instead of isolate.
   Node* isolate_root = gasm_.LoadImmutable(
       MachineType::Pointer(), instance_node_,
       WasmInstanceObject::kIsolateRootOffset - kHeapObjectTag);
@@ -75,6 +77,13 @@ Node* WasmGCLowering::RootNode(RootIndex index) {
 }
 
 Node* WasmGCLowering::Null() { return RootNode(RootIndex::kNullValue); }
+
+Node* WasmGCLowering::IsNull(Node* object) {
+  Tagged_t static_null = wasm::GetWasmEngine()->compressed_null_value_or_zero();
+  Node* null_value =
+      static_null != 0 ? gasm_.UintPtrConstant(static_null) : Null();
+  return gasm_.TaggedEqual(object, null_value);
+}
 
 // TODO(manoskouk): Use the Callbacks infrastructure from wasm-compiler.h to
 // unify all check/cast implementations.
@@ -102,8 +111,8 @@ Reduction WasmGCLowering::ReduceWasmTypeCheck(Node* node) {
   // being a wasm object and return 0 (failure).
   if (object_can_be_null && (!is_cast_from_any || config.to.is_nullable())) {
     const int kResult = config.to.is_nullable() ? 1 : 0;
-    gasm_.GotoIf(gasm_.TaggedEqual(object, Null()), &end_label,
-                 BranchHint::kFalse, gasm_.Int32Constant(kResult));
+    gasm_.GotoIf(IsNull(object), &end_label, BranchHint::kFalse,
+                 gasm_.Int32Constant(kResult));
   }
 
   if (object_can_be_i31) {
@@ -176,7 +185,7 @@ Reduction WasmGCLowering::ReduceWasmTypeCast(Node* node) {
   // failure. In that case the instance type check will identify null as not
   // being a wasm object and trap.
   if (object_can_be_null && (!is_cast_from_any || config.to.is_nullable())) {
-    Node* is_null = gasm_.TaggedEqual(object, Null());
+    Node* is_null = IsNull(object);
     if (config.to.is_nullable()) {
       gasm_.GotoIf(is_null, &end_label, BranchHint::kFalse);
     } else if (!v8_flags.experimental_wasm_skip_null_checks) {
@@ -239,8 +248,7 @@ Reduction WasmGCLowering::ReduceAssertNotNull(Node* node) {
   Node* object = NodeProperties::GetValueInput(node, 0);
   gasm_.InitializeEffectControl(effect, control);
   if (!v8_flags.experimental_wasm_skip_null_checks) {
-    gasm_.TrapIf(gasm_.TaggedEqual(object, Null()),
-                 TrapId::kTrapNullDereference);
+    gasm_.TrapIf(IsNull(object), TrapId::kTrapNullDereference);
   }
 
   ReplaceWithValue(node, object, gasm_.effect(), gasm_.control());
@@ -256,14 +264,13 @@ Reduction WasmGCLowering::ReduceNull(Node* node) {
 Reduction WasmGCLowering::ReduceIsNull(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kIsNull);
   Node* object = NodeProperties::GetValueInput(node, 0);
-  return Replace(gasm_.TaggedEqual(object, Null()));
+  return Replace(IsNull(object));
 }
 
 Reduction WasmGCLowering::ReduceIsNotNull(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kIsNotNull);
   Node* object = NodeProperties::GetValueInput(node, 0);
-  return Replace(gasm_.Word32Equal(gasm_.TaggedEqual(object, Null()),
-                                   gasm_.Int32Constant(0)));
+  return Replace(gasm_.Word32Equal(IsNull(object), gasm_.Int32Constant(0)));
 }
 
 Reduction WasmGCLowering::ReduceRttCanon(Node* node) {
