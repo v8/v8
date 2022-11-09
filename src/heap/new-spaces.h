@@ -540,7 +540,8 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
   VirtualMemory reservation_;
 
   bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,
-                        AllocationOrigin origin) final;
+                        AllocationOrigin origin,
+                        int* out_max_aligned_size) final;
 
   friend class SemiSpaceObjectIterator;
 };
@@ -603,7 +604,8 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   bool AddFreshPage() { return false; }
 
   bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,
-                        AllocationOrigin origin) final;
+                        AllocationOrigin origin,
+                        int* out_max_aligned_size) final;
 
   bool EnsureCurrentCapacity();
 
@@ -805,8 +807,10 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
 
  private:
   bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,
-                        AllocationOrigin origin) final {
-    return paged_space_.EnsureAllocation(size_in_bytes, alignment, origin);
+                        AllocationOrigin origin,
+                        int* out_max_aligned_size) final {
+    return paged_space_.EnsureAllocation(size_in_bytes, alignment, origin,
+                                         out_max_aligned_size);
   }
 
   void PromotePageInNewSpace(Page* page) final { UNREACHABLE(); }

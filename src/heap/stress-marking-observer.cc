@@ -12,7 +12,8 @@ namespace internal {
 StressMarkingObserver::StressMarkingObserver(Heap* heap)
     : AllocationObserver(64), heap_(heap) {}
 
-void StressMarkingObserver::Step(Address soon_object, size_t size) {
+void StressMarkingObserver::Step(int bytes_allocated, Address soon_object,
+                                 size_t size) {
   heap_->StartIncrementalMarkingIfAllocationLimitIsReached(Heap::kNoGCFlags,
                                                            kNoGCCallbackFlags);
 }

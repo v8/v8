@@ -14,7 +14,7 @@ class StressMarkingObserver : public AllocationObserver {
  public:
   explicit StressMarkingObserver(Heap* heap);
 
-  void Step(Address soon_object, size_t size) override;
+  void Step(int bytes_allocated, Address soon_object, size_t size) override;
 
  private:
   Heap* heap_;

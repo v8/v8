@@ -174,7 +174,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
         : AllocationObserver(step_size),
           incremental_marking_(incremental_marking) {}
 
-    void Step(Address, size_t) override;
+    void Step(int bytes_allocated, Address, size_t) override;
 
    private:
     IncrementalMarking* incremental_marking_;

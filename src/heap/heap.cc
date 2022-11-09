@@ -195,7 +195,9 @@ class ScavengeTaskObserver final : public AllocationObserver {
   ScavengeTaskObserver(Heap* heap, intptr_t step_size)
       : AllocationObserver(step_size), heap_(heap) {}
 
-  void Step(Address, size_t) override { heap_->ScheduleScavengeTaskIfNeeded(); }
+  void Step(int bytes_allocated, Address, size_t) override {
+    heap_->ScheduleScavengeTaskIfNeeded();
+  }
 
  private:
   Heap* heap_;
@@ -208,7 +210,7 @@ class MinorMCTaskObserver final : public AllocationObserver {
   MinorMCTaskObserver(Heap* heap, intptr_t step_size)
       : AllocationObserver(step_size), heap_(heap) {}
 
-  void Step(Address, size_t) override {
+  void Step(int bytes_allocated, Address, size_t) override {
     if (v8_flags.concurrent_minor_mc_marking) {
       if (heap_->incremental_marking()->IsMinorMarking()) {
         heap_->concurrent_marking()->RescheduleJobIfNeeded(
@@ -5543,7 +5545,7 @@ class StressConcurrentAllocationObserver : public AllocationObserver {
   explicit StressConcurrentAllocationObserver(Heap* heap)
       : AllocationObserver(1024), heap_(heap) {}
 
-  void Step(Address, size_t) override {
+  void Step(int bytes_allocated, Address, size_t) override {
     DCHECK(heap_->deserialization_complete());
     if (v8_flags.stress_concurrent_allocation) {
       // Only schedule task if --stress-concurrent-allocation is enabled. This

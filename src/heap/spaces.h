@@ -553,8 +553,10 @@ class SpaceWithLinearArea : public Space {
   V8_EXPORT_PRIVATE void PauseAllocationObservers() override;
 
   V8_EXPORT_PRIVATE void AdvanceAllocationObservers();
-  V8_EXPORT_PRIVATE void InvokeAllocationObservers(
-      Address soon_object, size_t size_in_bytes, size_t aligned_size_in_bytes);
+  V8_EXPORT_PRIVATE void InvokeAllocationObservers(Address soon_object,
+                                                   size_t size_in_bytes,
+                                                   size_t aligned_size_in_bytes,
+                                                   size_t allocation_size);
 
   void MarkLabStartInitialized();
   virtual void FreeLinearAllocationArea() = 0;
@@ -634,7 +636,8 @@ class SpaceWithLinearArea : public Space {
   // that there is enough space.
   virtual bool EnsureAllocation(int size_in_bytes,
                                 AllocationAlignment alignment,
-                                AllocationOrigin origin) = 0;
+                                AllocationOrigin origin,
+                                int* out_max_aligned_size) = 0;
 
 #if DEBUG
   V8_EXPORT_PRIVATE virtual void VerifyTop() const;
