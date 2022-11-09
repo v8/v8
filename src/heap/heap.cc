@@ -4882,8 +4882,7 @@ void Heap::IterateStackRoots(RootVisitor* v, ScanStackMode mode) {
     }
     case ScanStackMode::kFromMarker: {
       ConservativeStackVisitor stack_visitor(isolate(), v);
-      stack().IteratePointersUnsafe(
-          &stack_visitor, reinterpret_cast<intptr_t>(stack().get_marker()));
+      stack().IteratePointersUnsafe(&stack_visitor, stack().get_marker());
       break;
     }
   }
