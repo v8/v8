@@ -1826,12 +1826,19 @@ class LiftoffCompiler {
         LiftoffRegList pinned;
         LiftoffRegister ref = pinned.set(__ PopToRegister());
         LiftoffRegister null = __ GetUnusedRegister(kGpReg, pinned);
-        LoadNullValue(null.gp(), pinned);
+        LoadNullValueForCompare(null.gp(), pinned);
         // Prefer to overwrite one of the input registers with the result
         // of the comparison.
         LiftoffRegister dst = __ GetUnusedRegister(kGpReg, {ref, null}, {});
+#if defined(V8_COMPRESS_POINTERS)
+        // As the value in the {null} register is only the tagged pointer part,
+        // we may only compare 32 bits, not the full pointer size.
+        __ emit_i32_set_cond(opcode == kExprRefIsNull ? kEqual : kUnequal,
+                             dst.gp(), ref.gp(), null.gp());
+#else
         __ emit_ptrsize_set_cond(opcode == kExprRefIsNull ? kEqual : kUnequal,
                                  dst.gp(), ref, null);
+#endif
         __ PushRegister(kI32, dst);
         return;
       }
@@ -2636,7 +2643,7 @@ class LiftoffCompiler {
     Label* trap_label =
         AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapIllegalCast);
     LiftoffRegister null = __ GetUnusedRegister(kGpReg, pinned);
-    LoadNullValue(null.gp(), pinned);
+    LoadNullValueForCompare(null.gp(), pinned);
     {
       FREEZE_STATE(trapping);
       __ emit_cond_jump(cond, trap_label, kRefNull, obj.gp(), null.gp(),
@@ -3560,7 +3567,7 @@ class LiftoffCompiler {
     Register tmp = NeedsTierupCheck(decoder, depth)
                        ? pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp()
                        : no_reg;
-    LoadNullValue(null, pinned);
+    LoadNullValueForCompare(null, pinned);
     {
       FREEZE_STATE(frozen);
       __ emit_cond_jump(kUnequal, &cont_false, ref_object.type.kind(), ref.gp(),
@@ -3590,7 +3597,7 @@ class LiftoffCompiler {
     Register tmp = NeedsTierupCheck(decoder, depth)
                        ? pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp()
                        : no_reg;
-    LoadNullValue(null, pinned);
+    LoadNullValueForCompare(null, pinned);
     {
       FREEZE_STATE(frozen);
       __ emit_cond_jump(kEqual, &cont_false, ref_object.type.kind(), ref.gp(),
@@ -5968,7 +5975,7 @@ class LiftoffCompiler {
     Register scratch_null =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     LiftoffRegister result = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    if (obj.type.is_nullable()) LoadNullValue(scratch_null, pinned);
+    if (obj.type.is_nullable()) LoadNullValueForCompare(scratch_null, pinned);
 
     {
       FREEZE_STATE(frozen);
@@ -6021,7 +6028,7 @@ class LiftoffCompiler {
     Register scratch_null =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     Register scratch2 = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-    if (obj.type.is_nullable()) LoadNullValue(scratch_null, pinned);
+    if (obj.type.is_nullable()) LoadNullValueForCompare(scratch_null, pinned);
 
     {
       FREEZE_STATE(frozen);
@@ -6722,7 +6729,7 @@ class LiftoffCompiler {
       LiftoffRegister null = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
       bool check_for_null = a.type.is_nullable() || b.type.is_nullable();
       if (check_for_null) {
-        LoadNullValue(null.gp(), pinned);
+        LoadNullValueForCompare(null.gp(), pinned);
       }
 
       FREEZE_STATE(frozen);
@@ -7468,9 +7475,27 @@ class LiftoffCompiler {
   }
 
   void LoadNullValue(Register null, LiftoffRegList pinned) {
+    // TODO(13449): Use root register instead of isolate to retrieve null.
     LOAD_INSTANCE_FIELD(null, IsolateRoot, kSystemPointerSize, pinned);
     __ LoadFullPointer(null, null,
                        IsolateData::root_slot_offset(RootIndex::kNullValue));
+  }
+
+  // Stores the null value representation in the passed register.
+  // If pointer compression is active, only the compressed tagged pointer
+  // will be stored. Any operations with this register therefore must
+  // not compare this against 64 bits using quadword instructions.
+  void LoadNullValueForCompare(Register null, LiftoffRegList pinned) {
+    Tagged_t static_null =
+        wasm::GetWasmEngine()->compressed_null_value_or_zero();
+    if (static_null != 0) {
+      // static_null is only set for builds with pointer compression.
+      DCHECK_LE(static_null, std::numeric_limits<uint32_t>::max());
+      __ LoadConstant(LiftoffRegister(null),
+                      WasmValue(static_cast<uint32_t>(static_null)));
+    } else {
+      LoadNullValue(null, pinned);
+    }
   }
 
   void LoadExceptionSymbol(Register dst, LiftoffRegList pinned,
@@ -7488,7 +7513,7 @@ class LiftoffCompiler {
     Label* trap_label =
         AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapNullDereference);
     LiftoffRegister null = __ GetUnusedRegister(kGpReg, pinned);
-    LoadNullValue(null.gp(), pinned);
+    LoadNullValueForCompare(null.gp(), pinned);
     FREEZE_STATE(trapping);
     __ emit_cond_jump(LiftoffCondition::kEqual, trap_label, kRefNull, object,
                       null.gp(), trapping);
