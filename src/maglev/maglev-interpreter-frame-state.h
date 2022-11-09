@@ -68,19 +68,19 @@ void DestructivelyIntersect(ZoneMap<Key, Value>& lhs_map,
 // (possibly "kUnknown").
 // All heap object types include the heap object bit, so that they can be
 // checked for AnyHeapObject with a single bit check.
-// TODO(leszeks): Figure out how to represent Number/Numeric with this encoding.
-#define NODE_TYPE_LIST(V)                              \
-  V(Unknown, 0)                                        \
-  V(Number, (1 << 0))                                  \
-  V(Smi, (1 << 1) | kNumber)                           \
-  V(AnyHeapObject, (1 << 2))                           \
-  V(Name, (1 << 3) | kAnyHeapObject)                   \
-  V(String, (1 << 4) | kName)                          \
-  V(InternalizedString, (1 << 5) | kString)            \
-  V(Symbol, (1 << 6) | kName)                          \
-  V(JSReceiver, (1 << 7) | kAnyHeapObject)             \
-  V(HeapObjectWithKnownMap, (1 << 8) | kAnyHeapObject) \
-  V(HeapNumber, kHeapObjectWithKnownMap | kNumber)     \
+#define NODE_TYPE_LIST(V)                                         \
+  V(Unknown, 0)                                                   \
+  V(Number, (1 << 0))                                             \
+  V(ObjectWithKnownMap, (1 << 1))                                 \
+  V(Smi, (1 << 2) | kObjectWithKnownMap | kNumber)                \
+  V(AnyHeapObject, (1 << 3))                                      \
+  V(Name, (1 << 4) | kAnyHeapObject)                              \
+  V(String, (1 << 5) | kName)                                     \
+  V(InternalizedString, (1 << 6) | kString)                       \
+  V(Symbol, (1 << 7) | kName)                                     \
+  V(JSReceiver, (1 << 8) | kAnyHeapObject)                        \
+  V(HeapObjectWithKnownMap, kObjectWithKnownMap | kAnyHeapObject) \
+  V(HeapNumber, kHeapObjectWithKnownMap | kNumber)                \
   V(JSReceiverWithKnownMap, kJSReceiver | kHeapObjectWithKnownMap)
 
 enum class NodeType {
@@ -91,6 +91,10 @@ enum class NodeType {
 
 inline NodeType CombineType(NodeType left, NodeType right) {
   return static_cast<NodeType>(static_cast<int>(left) |
+                               static_cast<int>(right));
+}
+inline NodeType IntersectType(NodeType left, NodeType right) {
+  return static_cast<NodeType>(static_cast<int>(left) &
                                static_cast<int>(right));
 }
 inline bool NodeTypeIs(NodeType type, NodeType to_check) {
@@ -132,8 +136,7 @@ struct NodeInfo {
   // Mutate this node info by merging in another node info, with the result
   // being a node info that is the subset of information valid in both inputs.
   void MergeWith(const NodeInfo& other) {
-    type = static_cast<NodeType>(static_cast<int>(type) &
-                                 static_cast<int>(other.type));
+    type = IntersectType(type, other.type);
     tagged_alternative = tagged_alternative == other.tagged_alternative
                              ? tagged_alternative
                              : nullptr;

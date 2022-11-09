@@ -1086,6 +1086,11 @@ void AssertInt32::PrintParams(std::ostream& os,
   os << "(" << condition_ << ")";
 }
 
+bool AnyMapIsHeapNumber(const ZoneHandleSet<Map>& maps) {
+  return std::any_of(maps.begin(), maps.end(),
+                     [](Handle<Map> map) { return map->IsHeapNumberMap(); });
+}
+
 void CheckMaps::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseRegister(receiver_input());
 }
@@ -1101,14 +1106,21 @@ void CheckMaps::GenerateCode(MaglevAssembler* masm,
     return;
   }
 
+  bool maps_include_heap_number = AnyMapIsHeapNumber(maps());
+
+  Label done;
   if (check_type_ == CheckType::kOmitHeapObjectCheck) {
     __ AssertNotSmi(object);
   } else {
     Condition is_smi = __ CheckSmi(object);
-    __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kWrongMap, this);
+    if (maps_include_heap_number) {
+      // Smis count as matching the HeapNumber map, so we're done.
+      __ jmp(&done);
+    } else {
+      __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kWrongMap, this);
+    }
   }
 
-  Label done;
   size_t map_count = maps().size();
   for (size_t i = 0; i < map_count - 1; ++i) {
     Handle<Map> map = maps().at(i);
@@ -1249,14 +1261,21 @@ void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
 
   Register object = ToRegister(receiver_input());
 
+  bool maps_include_heap_number = AnyMapIsHeapNumber(maps());
+
+  ZoneLabelRef done(masm);
   if (check_type_ == CheckType::kOmitHeapObjectCheck) {
     __ AssertNotSmi(object);
   } else {
     Condition is_smi = __ CheckSmi(object);
-    __ j(is_smi, eager_deopt_info()->deopt_entry_label());
+    if (maps_include_heap_number) {
+      // Smis count as matching the HeapNumber map, so we're done.
+      __ jmp(*done);
+    } else {
+      __ j(is_smi, eager_deopt_info()->deopt_entry_label());
+    }
   }
 
-  ZoneLabelRef done(masm);
   size_t map_count = maps().size();
   for (size_t i = 0; i < map_count; ++i) {
     ZoneLabelRef continue_label(masm);

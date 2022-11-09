@@ -1322,7 +1322,11 @@ class KnownMapsMerger {
     if (map.is_migration_target()) {
       emit_check_with_migration_ = true;
     }
-    if (!map.IsJSReceiverMap()) node_type_ = NodeType::kHeapObjectWithKnownMap;
+    if (!map.IsHeapObject()) {
+      node_type_ = IntersectType(node_type_, NodeType::kObjectWithKnownMap);
+    } else if (!map.IsJSReceiverMap()) {
+      node_type_ = IntersectType(node_type_, NodeType::kHeapObjectWithKnownMap);
+    }
     if (map.is_stable()) {
       // TODO(victorgomes): Add a DCHECK_SLOW that checks if the map already
       // exists in the CompilationDependencySet for the else branch.
@@ -1392,7 +1396,7 @@ void MaglevGraphBuilder::BuildCheckMaps(
 
   // If the known maps are the subset of the maps to check, we are done.
   if (merger.known_maps_are_subset_of_maps()) {
-    DCHECK(NodeTypeIs(known_info->type, NodeType::kHeapObjectWithKnownMap));
+    DCHECK(NodeTypeIs(known_info->type, merger.node_type()));
     return;
   }
 
