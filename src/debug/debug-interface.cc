@@ -340,10 +340,12 @@ MaybeLocal<Context> GetCreationContext(Local<Object> value) {
 void ChangeBreakOnException(Isolate* isolate, ExceptionBreakState type) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   DCHECK_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  i_isolate->debug()->ChangeBreakOnException(i::BreakException,
-                                             type == BreakOnAnyException);
-  i_isolate->debug()->ChangeBreakOnException(i::BreakUncaughtException,
-                                             type != NoBreakOnException);
+  i_isolate->debug()->ChangeBreakOnException(
+      i::BreakCaughtException,
+      type == BreakOnCaughtException || type == BreakOnAnyException);
+  i_isolate->debug()->ChangeBreakOnException(
+      i::BreakUncaughtException,
+      type == BreakOnUncaughtException || type == BreakOnAnyException);
 }
 
 void SetBreakPointsActive(Isolate* v8_isolate, bool is_active) {

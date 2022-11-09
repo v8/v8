@@ -95,7 +95,7 @@ Debug::Debug(Isolate* isolate)
       is_suppressed_(false),
       break_disabled_(false),
       break_points_active_(true),
-      break_on_exception_(false),
+      break_on_caught_exception_(false),
       break_on_uncaught_exception_(false),
       side_effect_check_failed_(false),
       debug_info_list_(nullptr),
@@ -1015,7 +1015,7 @@ void Debug::ChangeBreakOnException(ExceptionBreakType type, bool enable) {
   if (type == BreakUncaughtException) {
     break_on_uncaught_exception_ = enable;
   } else {
-    break_on_exception_ = enable;
+    break_on_caught_exception_ = enable;
   }
 }
 
@@ -1023,7 +1023,7 @@ bool Debug::IsBreakOnException(ExceptionBreakType type) {
   if (type == BreakUncaughtException) {
     return break_on_uncaught_exception_;
   } else {
-    return break_on_exception_;
+    return break_on_caught_exception_;
   }
 }
 
@@ -2259,7 +2259,7 @@ void Debug::OnException(Handle<Object> exception, Handle<Object> promise,
   if (!debug_delegate_) return;
 
   // Return if we are not interested in exception events.
-  if (!break_on_exception_ && !break_on_uncaught_exception_) return;
+  if (!break_on_caught_exception_ && !break_on_uncaught_exception_) return;
 
   Isolate::CatchType catch_type = isolate_->PredictExceptionCatcher();
 
@@ -2284,11 +2284,14 @@ void Debug::OnException(Handle<Object> exception, Handle<Object> promise,
     }
   }
 
-  // Return if the exception is caught and we only care about uncaught
-  // exceptions.
-  if (!uncaught && !break_on_exception_) {
-    DCHECK(break_on_uncaught_exception_);
-    return;
+  if (!uncaught) {
+    if (!break_on_caught_exception_) {
+      return;
+    }
+  } else {
+    if (!break_on_uncaught_exception_) {
+      return;
+    }
   }
 
   {

@@ -42,7 +42,10 @@ enum StepAction : int8_t {
 };
 
 // Type of exception break. NOTE: These values are in macros.py as well.
-enum ExceptionBreakType { BreakException = 0, BreakUncaughtException = 1 };
+enum ExceptionBreakType {
+  BreakCaughtException = 0,
+  BreakUncaughtException = 1,
+};
 
 // Type of debug break. NOTE: The order matters for the predicates
 // below inside BreakLocation, so be careful when adding / removing.
@@ -532,8 +535,8 @@ class V8_EXPORT_PRIVATE Debug {
   bool break_disabled_;
   // Do not break on break points.
   bool break_points_active_;
-  // Trigger debug break events for all exceptions.
-  bool break_on_exception_;
+  // Trigger debug break events for caught exceptions.
+  bool break_on_caught_exception_;
   // Trigger debug break events for uncaught exceptions.
   bool break_on_uncaught_exception_;
   // Termination exception because side effect check has failed.

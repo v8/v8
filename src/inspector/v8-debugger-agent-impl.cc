@@ -1403,6 +1403,8 @@ Response V8DebuggerAgentImpl::setPauseOnExceptions(
     pauseState = v8::debug::NoBreakOnException;
   } else if (stringPauseState == "all") {
     pauseState = v8::debug::BreakOnAnyException;
+  } else if (stringPauseState == "caught") {
+    pauseState = v8::debug::BreakOnCaughtException;
   } else if (stringPauseState == "uncaught") {
     pauseState = v8::debug::BreakOnUncaughtException;
   } else {

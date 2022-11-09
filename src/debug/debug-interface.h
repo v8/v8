@@ -99,8 +99,9 @@ MaybeLocal<Context> GetCreationContext(Local<Object> value);
 
 enum ExceptionBreakState {
   NoBreakOnException = 0,
-  BreakOnUncaughtException = 1,
-  BreakOnAnyException = 2
+  BreakOnCaughtException = 1,
+  BreakOnUncaughtException = 2,
+  BreakOnAnyException = 3,
 };
 
 /**
