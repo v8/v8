@@ -2181,15 +2181,7 @@ void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
       case kRefNull:
       case kRtt:
         DCHECK(liftoff_cond == kEqual || liftoff_cond == kUnequal);
-#if defined(V8_COMPRESS_POINTERS)
-        // It's enough to do a 32-bit comparison. This is also necessary for
-        // null checks which only compare against a 32 bit value, not a full
-        // pointer.
-        cmpl(lhs, rhs);
-#else
-        cmpq(lhs, rhs);
-#endif
-        break;
+        V8_FALLTHROUGH;
       case kI64:
         cmpq(lhs, rhs);
         break;

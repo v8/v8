@@ -1591,12 +1591,7 @@ void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
     case kRtt:
       DCHECK(rhs.is_valid());
       DCHECK(liftoff_cond == kEqual || liftoff_cond == kUnequal);
-#if defined(V8_COMPRESS_POINTERS)
-      Cmp(lhs.W(), rhs.W());
-#else
-      Cmp(lhs.X(), rhs.X());
-#endif
-      break;
+      V8_FALLTHROUGH;
     case kI64:
       if (rhs.is_valid()) {
         Cmp(lhs.X(), rhs.X());
