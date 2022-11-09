@@ -8,6 +8,7 @@
 #include "src/baseline/baseline-assembler.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/codegen/ppc/assembler-ppc-inl.h"
+#include "src/codegen/ppc/register-ppc.h"
 #include "src/objects/literal-objects-inl.h"
 
 namespace v8 {
