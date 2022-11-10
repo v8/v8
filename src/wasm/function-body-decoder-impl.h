@@ -5868,7 +5868,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   uint32_t DecodeAtomicOpcode(WasmOpcode opcode, uint32_t opcode_length) {
     // Fast check for out-of-range opcodes (only allow 0xfeXX).
     if (!VALIDATE((opcode >> 8) == kAtomicPrefix)) {
-      this->DecodeError("invalid atomic opcode");
+      this->DecodeError("invalid atomic opcode: 0x%x", opcode);
       return 0;
     }
 
@@ -5900,7 +5900,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         return 1 + opcode_length;
       }
       default:
-        this->DecodeError("invalid atomic opcode");
+        this->DecodeError("invalid atomic opcode: 0x%x", opcode);
         return 0;
     }
 
@@ -5931,9 +5931,14 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   }
 
   unsigned DecodeNumericOpcode(WasmOpcode opcode, uint32_t opcode_length) {
-    // This assumption avoids a dynamic check in signature lookup, and might
-    // also help the big switch below.
-    V8_ASSUME(opcode >> 8 == kNumericPrefix);
+    // Fast check for out-of-range opcodes (only allow 0xfcXX).
+    // This avoids a dynamic check in signature lookup, and might also help the
+    // big switch below.
+    if (!VALIDATE((opcode >> 8) == kNumericPrefix)) {
+      this->DecodeError("invalid numeric opcode: 0x%x", opcode);
+      return 0;
+    }
+
     const FunctionSig* sig = WasmOpcodes::Signature(opcode);
     switch (opcode) {
       case kExprI32SConvertSatF32:
@@ -6050,7 +6055,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         return opcode_length + imm.length;
       }
       default:
-        this->DecodeError("invalid numeric opcode");
+        this->DecodeError("invalid numeric opcode: 0x%x", opcode);
         return 0;
     }
   }
