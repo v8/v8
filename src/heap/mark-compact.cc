@@ -5572,7 +5572,7 @@ void MinorMarkCompactCollector::TearDown() {
 }
 
 void MinorMarkCompactCollector::FinishConcurrentMarking() {
-  if (v8_flags.concurrent_marking) {
+  if (v8_flags.concurrent_minor_mc_marking) {
     DCHECK_EQ(heap()->concurrent_marking()->garbage_collector(),
               GarbageCollector::MINOR_MARK_COMPACTOR);
     heap()->concurrent_marking()->Cancel();
@@ -6304,7 +6304,7 @@ void MinorMarkCompactCollector::DrainMarkingWorklist() {
     DCHECK(!object.IsFreeSpaceOrFiller(cage_base));
     DCHECK(object.IsHeapObject());
     DCHECK(heap()->Contains(object));
-    DCHECK(non_atomic_marking_state()->IsBlack(object));
+    DCHECK(!non_atomic_marking_state()->IsWhite(object));
     main_marking_visitor_->Visit(object);
   }
   DCHECK(local_marking_worklists_->IsEmpty());
