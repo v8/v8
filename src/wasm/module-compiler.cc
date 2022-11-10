@@ -2656,7 +2656,8 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
       // will be validated during eager compilation.
       DCHECK(start_compilation_);
       if (!v8_flags.wasm_lazy_validation &&
-          ValidateFunctions(*job->native_module_, kAllFunctions).has_error()) {
+          ValidateFunctions(*job->native_module_, kOnlyLazyFunctions)
+              .has_error()) {
         // TODO(clemensb): Use the error message instead of re-validation in
         // {AsyncCompileFailed}.
         job->AsyncCompileFailed();
