@@ -122,6 +122,7 @@ class MaglevGraphVerifier {
       case Opcode::kCheckNumber:
       case Opcode::kCheckString:
       case Opcode::kCheckSymbol:
+      case Opcode::kCheckInstanceType:
       case Opcode::kCheckedInternalizedString:
       case Opcode::kCheckedObjectToIndex:
       case Opcode::kConvertReceiver:
@@ -288,6 +289,7 @@ class MaglevGraphVerifier {
         }
         break;
       case Opcode::kCheckJSArrayBounds:
+      case Opcode::kCheckJSDataViewBounds:
       case Opcode::kCheckJSObjectElementsBounds:
       case Opcode::kLoadTaggedElement:
       case Opcode::kLoadDoubleElement:
@@ -296,6 +298,19 @@ class MaglevGraphVerifier {
         DCHECK_EQ(node->input_count(), 2);
         CheckValueInputIs(node, 0, ValueRepresentation::kTagged);
         CheckValueInputIs(node, 1, ValueRepresentation::kInt32);
+        break;
+      case Opcode::kLoadDoubleDataViewElement:
+        DCHECK_EQ(node->input_count(), 3);
+        CheckValueInputIs(node, 0, ValueRepresentation::kTagged);
+        CheckValueInputIs(node, 1, ValueRepresentation::kInt32);
+        CheckValueInputIs(node, 2, ValueRepresentation::kTagged);
+        break;
+      case Opcode::kStoreDoubleDataViewElement:
+        DCHECK_EQ(node->input_count(), 4);
+        CheckValueInputIs(node, 0, ValueRepresentation::kTagged);
+        CheckValueInputIs(node, 1, ValueRepresentation::kInt32);
+        CheckValueInputIs(node, 2, ValueRepresentation::kFloat64);
+        CheckValueInputIs(node, 3, ValueRepresentation::kTagged);
         break;
       case Opcode::kCallBuiltin: {
         CallBuiltin* call_builtin = node->Cast<CallBuiltin>();

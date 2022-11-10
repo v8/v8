@@ -2605,6 +2605,64 @@ void MaglevGraphBuilder::InlineCallFromRegisters(
       ->SetToBlockAndReturnNext(current_block_);
 }
 
+bool MaglevGraphBuilder::TryReduceDataViewPrototypeGetFloat64(
+    compiler::JSFunctionRef target, const CallArguments& args) {
+  if (!broker()->dependencies()->DependOnArrayBufferDetachingProtector()) {
+    // TODO(victorgomes): Add checks whether the array has been detached.
+    return false;
+  }
+
+  // TODO(victorgomes): Add data view to known types.
+  ValueNode* receiver = GetTaggedReceiver(args);
+  AddNewNode<CheckInstanceType>({receiver}, CheckType::kCheckHeapObject,
+                                JS_DATA_VIEW_TYPE);
+
+  auto offset_register = args.maybe_at(0);
+  ValueNode* offset = offset_register ? GetInt32ElementIndex(*offset_register)
+                                      : GetInt32Constant(0);
+  AddNewNode<CheckJSDataViewBounds>({receiver, offset},
+                                    ExternalArrayType::kExternalFloat64Array);
+
+  auto is_little_endian_offset = args.maybe_at(1);
+  ValueNode* is_little_endian = is_little_endian_offset
+                                    ? GetTaggedValue(*is_little_endian_offset)
+                                    : GetBooleanConstant(false);
+  SetAccumulator(AddNewNode<LoadDoubleDataViewElement>(
+      {receiver, offset, is_little_endian}));
+  return true;
+}
+
+bool MaglevGraphBuilder::TryReduceDataViewPrototypeSetFloat64(
+    compiler::JSFunctionRef target, const CallArguments& args) {
+  if (!broker()->dependencies()->DependOnArrayBufferDetachingProtector()) {
+    // TODO(victorgomes): Add checks whether the array has been detached.
+    return false;
+  }
+
+  // TODO(victorgomes): Add data view to known types.
+  ValueNode* receiver = GetTaggedReceiver(args);
+  AddNewNode<CheckInstanceType>({receiver}, CheckType::kCheckHeapObject,
+                                JS_DATA_VIEW_TYPE);
+
+  auto offset_register = args.maybe_at(0);
+  ValueNode* offset = offset_register ? GetInt32ElementIndex(*offset_register)
+                                      : GetInt32Constant(0);
+  AddNewNode<CheckJSDataViewBounds>({receiver, offset},
+                                    ExternalArrayType::kExternalFloat64Array);
+
+  auto value_register = args.maybe_at(1);
+  ValueNode* value =
+      value_register ? GetFloat64(*value_register) : GetFloat64Constant(0);
+
+  auto is_little_endian_register = args.maybe_at(2);
+  ValueNode* is_little_endian = is_little_endian_register
+                                    ? GetTaggedValue(*is_little_endian_register)
+                                    : GetBooleanConstant(false);
+  AddNewNode<StoreDoubleDataViewElement>(
+      {receiver, offset, value, is_little_endian});
+  return true;
+}
+
 bool MaglevGraphBuilder::TryReduceStringFromCharCode(
     compiler::JSFunctionRef target, const CallArguments& args) {
   if (args.count() != 1) return false;

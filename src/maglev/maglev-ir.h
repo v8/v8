@@ -154,6 +154,7 @@ class CompactInterpreterFrameState;
   V(LoadTaggedField)               \
   V(LoadDoubleField)               \
   V(LoadTaggedElement)             \
+  V(LoadDoubleDataViewElement)     \
   V(LoadDoubleElement)             \
   V(LoadGlobal)                    \
   V(LoadNamedGeneric)              \
@@ -208,6 +209,7 @@ class CompactInterpreterFrameState;
   V(CheckInt32Condition)              \
   V(CheckJSArrayBounds)               \
   V(CheckJSObjectElementsBounds)      \
+  V(CheckJSDataViewBounds)            \
   V(CheckMaps)                        \
   V(CheckMapsWithMigration)           \
   V(CheckNumber)                      \
@@ -215,11 +217,13 @@ class CompactInterpreterFrameState;
   V(CheckString)                      \
   V(CheckSymbol)                      \
   V(CheckValue)                       \
+  V(CheckInstanceType)                \
   V(DebugBreak)                       \
   V(GeneratorStore)                   \
   V(JumpLoopPrologue)                 \
   V(StoreMap)                         \
   V(StoreDoubleField)                 \
+  V(StoreDoubleDataViewElement)       \
   V(StoreTaggedFieldNoWriteBarrier)   \
   V(StoreTaggedFieldWithWriteBarrier) \
   V(IncreaseInterruptBudget)          \
@@ -3011,6 +3015,32 @@ class CheckSymbol : public FixedInputNodeT<1, CheckSymbol> {
   const CheckType check_type_;
 };
 
+class CheckInstanceType : public FixedInputNodeT<1, CheckInstanceType> {
+  using Base = FixedInputNodeT<1, CheckInstanceType>;
+
+ public:
+  explicit CheckInstanceType(uint64_t bitfield, CheckType check_type,
+                             InstanceType instance_type)
+      : Base(bitfield),
+        check_type_(check_type),
+        instance_type_(instance_type) {}
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
+
+  static constexpr int kReceiverIndex = 0;
+  Input& receiver_input() { return input(kReceiverIndex); }
+
+  InstanceType instance_type() const { return instance_type_; }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  const CheckType check_type_;
+  const InstanceType instance_type_;
+};
+
 class CheckString : public FixedInputNodeT<1, CheckString> {
   using Base = FixedInputNodeT<1, CheckString>;
 
@@ -3063,6 +3093,25 @@ class CheckJSArrayBounds : public FixedInputNodeT<2, CheckJSArrayBounds> {
 
  public:
   explicit CheckJSArrayBounds(uint64_t bitfield) : Base(bitfield) {}
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
+
+  static constexpr int kReceiverIndex = 0;
+  static constexpr int kIndexIndex = 1;
+  Input& receiver_input() { return input(kReceiverIndex); }
+  Input& index_input() { return input(kIndexIndex); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class CheckJSDataViewBounds : public FixedInputNodeT<2, CheckJSDataViewBounds> {
+  using Base = FixedInputNodeT<2, CheckJSDataViewBounds>;
+
+ public:
+  explicit CheckJSDataViewBounds(uint64_t bitfield,
+                                 ExternalArrayType element_type)
+      : Base(bitfield), element_type_(element_type) {}
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
 
@@ -3074,6 +3123,9 @@ class CheckJSArrayBounds : public FixedInputNodeT<2, CheckJSArrayBounds> {
   void AllocateVreg(MaglevVregAllocationState*);
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  ExternalArrayType element_type_;
 };
 
 class CheckInt32Condition : public FixedInputNodeT<2, CheckInt32Condition> {
@@ -3320,6 +3372,59 @@ class LoadDoubleElement : public FixedInputValueNodeT<2, LoadDoubleElement> {
   static constexpr int kIndexIndex = 1;
   Input& object_input() { return input(kObjectIndex); }
   Input& index_input() { return input(kIndexIndex); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class LoadDoubleDataViewElement
+    : public FixedInputValueNodeT<3, LoadDoubleDataViewElement> {
+  using Base = FixedInputValueNodeT<3, LoadDoubleDataViewElement>;
+
+ public:
+  explicit LoadDoubleDataViewElement(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::Reading() | OpProperties::Float64();
+
+  static constexpr int kObjectIndex = 0;
+  static constexpr int kIndexIndex = 1;
+  static constexpr int kIsLittleEndianIndex = 2;
+  Input& object_input() { return input(kObjectIndex); }
+  Input& index_input() { return input(kIndexIndex); }
+  Input& is_little_endian_input() { return input(kIsLittleEndianIndex); }
+
+  bool is_little_endian_constant() {
+    return IsConstantNode(is_little_endian_input().node()->opcode());
+  }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class StoreDoubleDataViewElement
+    : public FixedInputNodeT<4, StoreDoubleDataViewElement> {
+  using Base = FixedInputNodeT<4, StoreDoubleDataViewElement>;
+
+ public:
+  explicit StoreDoubleDataViewElement(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::Writing();
+
+  static constexpr int kObjectIndex = 0;
+  static constexpr int kIndexIndex = 1;
+  static constexpr int kValueIndex = 2;
+  static constexpr int kIsLittleEndianIndex = 3;
+  Input& object_input() { return input(kObjectIndex); }
+  Input& index_input() { return input(kIndexIndex); }
+  Input& value_input() { return input(kValueIndex); }
+  Input& is_little_endian_input() { return input(kIsLittleEndianIndex); }
+
+  bool is_little_endian_constant() {
+    return IsConstantNode(is_little_endian_input().node()->opcode());
+  }
 
   void AllocateVreg(MaglevVregAllocationState*);
   void GenerateCode(MaglevAssembler*, const ProcessingState&);

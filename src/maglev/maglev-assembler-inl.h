@@ -93,6 +93,15 @@ inline void MaglevAssembler::DefineExceptionHandlerAndLazyDeoptPoint(
   DefineLazyDeoptPoint(node->lazy_deopt_info());
 }
 
+inline void MaglevAssembler::LoadBoundedSizeFromObject(Register result,
+                                                       Register object,
+                                                       int offset) {
+  movq(result, FieldOperand(object, offset));
+#ifdef V8_ENABLE_SANDBOX
+  shrq(result, Immediate(kBoundedSizeShift));
+#endif  // V8_ENABLE_SANDBOX
+}
+
 // ---
 // Deferred code handling.
 // ---

@@ -1045,7 +1045,7 @@ class MaglevGraphBuilder {
 
     int count_with_receiver() const { return count() + 1; }
 
-    const interpreter::Register operator[](size_t i) const {
+    interpreter::Register at(size_t i) const {
       if (receiver_mode_ != ConvertReceiverMode::kNullOrUndefined) {
         i++;
       }
@@ -1055,6 +1055,13 @@ class MaglevGraphBuilder {
         return regs_[i];
       }
       return reglist_[i];
+    }
+
+    interpreter::Register operator[](size_t i) const { return at(i); }
+
+    base::Optional<interpreter::Register> maybe_at(int i) const {
+      if (i < count()) return at(i);
+      return {};
     }
 
     ConvertReceiverMode receiver_mode() const { return receiver_mode_; }
@@ -1098,6 +1105,8 @@ class MaglevGraphBuilder {
                                 const CallArguments& args);
 
 #define MAGLEV_REDUCED_BUILTIN(V) \
+  V(DataViewPrototypeGetFloat64)  \
+  V(DataViewPrototypeSetFloat64)  \
   V(FunctionPrototypeCall)        \
   V(StringFromCharCode)           \
   V(StringPrototypeCharCodeAt)
