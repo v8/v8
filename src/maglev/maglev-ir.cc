@@ -2947,8 +2947,7 @@ void ToBoolean::GenerateCode(MaglevAssembler* masm,
   Register object = ToRegister(value());
   Register return_value = ToRegister(result());
   Label done;
-  Zone* zone = masm->compilation_info()->zone();
-  ZoneLabelRef object_is_true(zone), object_is_false(zone);
+  ZoneLabelRef object_is_true(masm), object_is_false(masm);
   // TODO(leszeks): We're likely to be calling this on an existing boolean --
   // maybe that's a case we should fast-path here and re-use that boolean value?
   __ ToBoolean(object, object_is_true, object_is_false, true);
@@ -2969,8 +2968,7 @@ void ToBooleanLogicalNot::GenerateCode(MaglevAssembler* masm,
   Register object = ToRegister(value());
   Register return_value = ToRegister(result());
   Label done;
-  Zone* zone = masm->compilation_info()->zone();
-  ZoneLabelRef object_is_true(zone), object_is_false(zone);
+  ZoneLabelRef object_is_true(masm), object_is_false(masm);
   __ ToBoolean(object, object_is_true, object_is_false, true);
   __ bind(*object_is_true);
   __ LoadRoot(return_value, RootIndex::kFalseValue);
