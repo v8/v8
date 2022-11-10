@@ -107,3 +107,9 @@
     i++;
   }
 })();
+
+(function TestProxyLengthGetter() {
+  let a = new SharedArray(2);
+  let proxy = new Proxy(a, {});
+  assertEquals(2, proxy.length);
+})();
