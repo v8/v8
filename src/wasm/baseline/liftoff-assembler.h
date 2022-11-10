@@ -116,9 +116,8 @@ class LiftoffAssembler : public TurboAssembler {
 
   static constexpr ValueKind kPointerKind =
       kSystemPointerSize == kInt32Size ? kI32 : kI64;
-  static constexpr ValueKind kTaggedKind =
-      kTaggedSize == kInt32Size ? kI32 : kI64;
-  static constexpr ValueKind kSmiKind = kTaggedKind;
+  // A tagged value known to be a Smi can be treated like a ptr-sized int.
+  static constexpr ValueKind kSmiKind = kTaggedSize == kInt32Size ? kI32 : kI64;
 
   using ValueKindSig = Signature<ValueKind>;
 

@@ -26,7 +26,6 @@ using VarState = LiftoffAssembler::VarState;
 using ValueKindSig = LiftoffAssembler::ValueKindSig;
 
 constexpr ValueKind LiftoffAssembler::kPointerKind;
-constexpr ValueKind LiftoffAssembler::kTaggedKind;
 constexpr ValueKind LiftoffAssembler::kSmiKind;
 
 namespace {

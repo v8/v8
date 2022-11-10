@@ -99,7 +99,6 @@ constexpr LoadType::LoadTypeValue kPointerLoadType =
 
 constexpr ValueKind kPointerKind = LiftoffAssembler::kPointerKind;
 constexpr ValueKind kSmiKind = LiftoffAssembler::kSmiKind;
-constexpr ValueKind kTaggedKind = LiftoffAssembler::kTaggedKind;
 
 // Used to construct fixed-size signatures: MakeSig::Returns(...).Params(...);
 using MakeSig = FixedSizeSignature<ValueKind>;
@@ -5437,15 +5436,17 @@ class LiftoffCompiler {
     LiftoffRegister table_index_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     LoadSmi(table_index_reg, imm.index);
-    LiftoffAssembler::VarState table_index(kPointerKind, table_index_reg, 0);
+    LiftoffAssembler::VarState table_index(kSmiKind, table_index_reg, 0);
 
     LiftoffAssembler::VarState delta = __ cache_state()->stack_state.end()[-1];
     LiftoffAssembler::VarState value = __ cache_state()->stack_state.end()[-2];
 
-    CallRuntimeStub(
-        WasmCode::kWasmTableGrow,
-        MakeSig::Returns(kSmiKind).Params(kSmiKind, kI32, kTaggedKind),
-        {table_index, delta, value}, decoder->position());
+    DCHECK_EQ(kI32, delta.kind());
+    DCHECK(is_object_reference(value.kind()));
+
+    CallRuntimeStub(WasmCode::kWasmTableGrow,
+                    MakeSig::Returns(kSmiKind).Params(kSmiKind, kI32, kRef),
+                    {table_index, delta, value}, decoder->position());
 
     // Pop parameters from the value stack.
     __ cache_state()->stack_state.pop_back(2);
@@ -5487,14 +5488,18 @@ class LiftoffCompiler {
     LiftoffRegister table_index_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     LoadSmi(table_index_reg, imm.index);
-    LiftoffAssembler::VarState table_index(kPointerKind, table_index_reg, 0);
+    LiftoffAssembler::VarState table_index(kSmiKind, table_index_reg, 0);
 
     LiftoffAssembler::VarState count = __ cache_state()->stack_state.end()[-1];
     LiftoffAssembler::VarState value = __ cache_state()->stack_state.end()[-2];
     LiftoffAssembler::VarState start = __ cache_state()->stack_state.end()[-3];
 
+    DCHECK_EQ(kI32, count.kind());
+    DCHECK(is_object_reference(value.kind()));
+    DCHECK_EQ(kI32, start.kind());
+
     CallRuntimeStub(WasmCode::kWasmTableFill,
-                    MakeSig::Params(kSmiKind, kI32, kI32, kTaggedKind),
+                    MakeSig::Params(kSmiKind, kI32, kI32, kRef),
                     {table_index, start, count, value}, decoder->position());
 
     // Pop parameters from the value stack.
