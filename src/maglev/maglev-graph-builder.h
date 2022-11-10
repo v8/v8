@@ -30,6 +30,7 @@
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph-printer.h"
 #include "src/maglev/maglev-graph.h"
+#include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/utils/memcopy.h"
 
@@ -706,6 +707,53 @@ class MaglevGraphBuilder {
     return node;
   }
 
+  ValueNode* GetTruncatedWord32FromNumber(ValueNode* value) {
+    switch (value->properties().value_representation()) {
+      case ValueRepresentation::kTagged: {
+        if (SmiConstant* constant = value->TryCast<SmiConstant>()) {
+          return GetInt32Constant(constant->value().value());
+        }
+        NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
+        if (node_info->int32_alternative == nullptr) {
+          NodeType old_type;
+          EnsureType(value, NodeType::kNumber, &old_type);
+          if (NodeTypeIsSmi(old_type)) {
+            node_info->int32_alternative = AddNewNode<UnsafeSmiUntag>({value});
+          } else {
+            // TODO(leszeks): Cache this value somehow.
+            return AddNewNode<CheckedNumberToWord32>({value});
+          }
+        }
+        return node_info->int32_alternative;
+      }
+      case ValueRepresentation::kFloat64:
+        // TODO(leszeks): Cache this value somehow.
+        return AddNewNode<TruncateFloat64ToWord32>({value});
+      case ValueRepresentation::kInt32:
+      case ValueRepresentation::kUint32:
+        // Already good.
+        return value;
+    }
+    UNREACHABLE();
+  }
+
+  ValueNode* GetWord32(ValueNode* value) {
+    switch (value->properties().value_representation()) {
+      case ValueRepresentation::kTagged:
+      case ValueRepresentation::kFloat64:
+        return GetInt32(value);
+      case ValueRepresentation::kInt32:
+      case ValueRepresentation::kUint32:
+        // Both Int32 and Uint32 are valid Word32 values.
+        return value;
+    }
+    UNREACHABLE();
+  }
+
+  ValueNode* GetWord32(interpreter::Register reg) {
+    return GetWord32(current_interpreter_frame_.get(reg));
+  }
+
   ValueNode* GetInt32(ValueNode* value) {
     switch (value->properties().value_representation()) {
       case ValueRepresentation::kTagged: {
@@ -788,6 +836,10 @@ class MaglevGraphBuilder {
     return GetInt32(interpreter::Register::virtual_accumulator());
   }
 
+  ValueNode* GetAccumulatorWord32() {
+    return GetWord32(interpreter::Register::virtual_accumulator());
+  }
+
   ValueNode* GetAccumulatorFloat64() {
     return GetFloat64(interpreter::Register::virtual_accumulator());
   }
@@ -804,6 +856,10 @@ class MaglevGraphBuilder {
 
   ValueNode* LoadRegisterInt32(int operand_index) {
     return GetInt32(iterator_.GetRegisterOperand(operand_index));
+  }
+
+  ValueNode* LoadRegisterWord32(int operand_index) {
+    return GetWord32(iterator_.GetRegisterOperand(operand_index));
   }
 
   ValueNode* LoadRegisterFloat64(int operand_index) {
@@ -1298,6 +1354,10 @@ class MaglevGraphBuilder {
   void BuildInt32BinaryOperationNode();
   template <Operation kOperation>
   void BuildInt32BinarySmiOperationNode();
+  template <Operation kOperation>
+  void BuildTruncatingInt32BinaryOperationNodeForNumber();
+  template <Operation kOperation>
+  void BuildTruncatingInt32BinarySmiOperationNodeForNumber();
   template <Operation kOperation>
   void BuildFloat64BinaryOperationNode();
   template <Operation kOperation>

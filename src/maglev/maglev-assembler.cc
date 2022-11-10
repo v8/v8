@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/codegen/interface-descriptors-inl.h"
+#include "src/common/globals.h"
 #include "src/maglev/maglev-assembler-inl.h"
 #include "src/objects/heap-number.h"
 
@@ -346,6 +347,30 @@ void MaglevAssembler::ToBoolean(Register value, ZoneLabelRef is_true,
   if (!fallthrough_when_true) {
     jmp(*is_true);
   }
+}
+
+void MaglevAssembler::TruncateDoubleToInt32(Register dst, DoubleRegister src) {
+  ZoneLabelRef done(this);
+
+  Cvttsd2siq(dst, src);
+  // Check whether the Cvt overflowed.
+  cmpq(dst, Immediate(1));
+  JumpToDeferredIf(
+      overflow,
+      [](MaglevAssembler* masm, DoubleRegister src, Register dst,
+         ZoneLabelRef done) {
+        // Push the double register onto the stack as an input argument.
+        __ AllocateStackSpace(kDoubleSize);
+        __ Movsd(MemOperand(rsp, 0), src);
+        __ CallBuiltin(Builtin::kDoubleToI);
+        // DoubleToI sets the result on the stack, pop the result off the stack.
+        // Avoid using `pop` to not mix implicit and explicit rsp updates.
+        __ movl(dst, MemOperand(rsp, 0));
+        __ addq(rsp, Immediate(kDoubleSize));
+        __ jmp(*done);
+      },
+      src, dst, done);
+  bind(*done);
 }
 
 }  // namespace maglev
