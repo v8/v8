@@ -9,6 +9,12 @@
 (function TestNoPrototype() {
   // For now the experimental shared arrays don't have a prototype.
   assertNull(Object.getPrototypeOf(new SharedArray(10)));
+
+  assertNull(SharedArray.prototype);
+
+  assertThrows(() => {
+    SharedArray.prototype = {};
+  });
 })();
 
 (function TestPrimitives() {

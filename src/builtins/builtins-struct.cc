@@ -105,7 +105,7 @@ BUILTIN(SharedStructTypeConstructor) {
 
   Handle<JSFunction> constructor =
       Factory::JSFunctionBuilder{isolate, info, isolate->native_context()}
-          .set_map(isolate->strict_function_map())
+          .set_map(isolate->strict_function_with_readonly_prototype_map())
           .Build();
 
   int instance_size;

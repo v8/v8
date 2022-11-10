@@ -13,6 +13,9 @@ let S = new SharedStructType(['field']);
   // proposal explainer which says accessing the prototype throws.
   assertNull(S.prototype);
   assertNull(Object.getPrototypeOf(new S()));
+  assertThrows(() => {
+    S.prototype = {};
+  });
 })();
 
 (function TestPrimitives() {
