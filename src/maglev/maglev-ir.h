@@ -170,13 +170,16 @@ class CompactInterpreterFrameState;
   V(DefineKeyedOwnGeneric)         \
   V(Phi)                           \
   V(RegisterInput)                 \
-  V(CheckedSmiTag)                 \
+  V(CheckedSmiTagInt32)            \
+  V(CheckedSmiTagUint32)           \
   V(UnsafeSmiTag)                  \
   V(CheckedSmiUntag)               \
   V(UnsafeSmiUntag)                \
   V(CheckedInternalizedString)     \
   V(CheckedObjectToIndex)          \
+  V(CheckedUint32ToInt32)          \
   V(ChangeInt32ToFloat64)          \
+  V(ChangeUint32ToFloat64)         \
   V(CheckedTruncateFloat64ToInt32) \
   V(Float64Box)                    \
   V(HoleyFloat64Box)               \
@@ -369,7 +372,7 @@ class UnconditionalControlNode;
 class TerminalControlNode;
 class ValueNode;
 
-enum class ValueRepresentation : uint8_t { kTagged, kInt32, kFloat64 };
+enum class ValueRepresentation : uint8_t { kTagged, kInt32, kUint32, kFloat64 };
 
 #define DEF_FORWARD_DECLARATION(type, ...) class type;
 NODE_BASE_LIST(DEF_FORWARD_DECLARATION)
@@ -549,6 +552,10 @@ class OpProperties {
   static constexpr OpProperties Int32() {
     return OpProperties(
         kValueRepresentationBits::encode(ValueRepresentation::kInt32));
+  }
+  static constexpr OpProperties Uint32() {
+    return OpProperties(
+        kValueRepresentationBits::encode(ValueRepresentation::kUint32));
   }
   static constexpr OpProperties Float64() {
     return OpProperties(
@@ -1362,6 +1369,7 @@ class ValueNode : public Node {
       case ValueRepresentation::kTagged:
         return MachineRepresentation::kTagged;
       case ValueRepresentation::kInt32:
+      case ValueRepresentation::kUint32:
         return MachineRepresentation::kWord32;
       case ValueRepresentation::kFloat64:
         return MachineRepresentation::kFloat64;
@@ -1689,8 +1697,6 @@ class Int32BinaryNode : public FixedInputValueNodeT<2, Derived> {
 
  protected:
   explicit Int32BinaryNode(uint64_t bitfield) : Base(bitfield) {}
-
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
 #define DEF_OPERATION_NODE(Name, Super, OpName)                    \
@@ -1711,11 +1717,31 @@ DEF_INT32_BINARY_NODE(BitwiseOr)
 DEF_INT32_BINARY_NODE(BitwiseXor)
 DEF_INT32_BINARY_NODE(ShiftLeft)
 DEF_INT32_BINARY_NODE(ShiftRight)
-DEF_INT32_BINARY_NODE(ShiftRightLogical)
 #undef DEF_INT32_BINARY_NODE
 // DEF_INT32_UNARY_WITH_OVERFLOW_NODE(Negate)
 // DEF_INT32_UNARY_WITH_OVERFLOW_NODE(Increment)
 // DEF_INT32_UNARY_WITH_OVERFLOW_NODE(Decrement)
+
+class Int32ShiftRightLogical
+    : public FixedInputValueNodeT<2, Int32ShiftRightLogical> {
+  using Base = FixedInputValueNodeT<2, Int32ShiftRightLogical>;
+
+ public:
+  explicit Int32ShiftRightLogical(uint64_t bitfield) : Base(bitfield) {}
+
+  // Unlike the other Int32 nodes, logical right shift returns a Uint32.
+  static constexpr OpProperties kProperties =
+      OpProperties::EagerDeopt() | OpProperties::Uint32();
+
+  static constexpr int kLeftIndex = 0;
+  static constexpr int kRightIndex = 1;
+  Input& left_input() { return Node::input(kLeftIndex); }
+  Input& right_input() { return Node::input(kRightIndex); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
 
 template <class Derived, Operation kOperation>
 class Int32CompareNode : public FixedInputValueNodeT<2, Derived> {
@@ -1844,11 +1870,28 @@ DEF_FLOAT64_COMPARE_NODE(GreaterThanOrEqual)
 
 #undef DEF_OPERATION_NODE
 
-class CheckedSmiTag : public FixedInputValueNodeT<1, CheckedSmiTag> {
-  using Base = FixedInputValueNodeT<1, CheckedSmiTag>;
+class CheckedSmiTagInt32 : public FixedInputValueNodeT<1, CheckedSmiTagInt32> {
+  using Base = FixedInputValueNodeT<1, CheckedSmiTagInt32>;
 
  public:
-  explicit CheckedSmiTag(uint64_t bitfield) : Base(bitfield) {}
+  explicit CheckedSmiTagInt32(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::EagerDeopt() | OpProperties::ConversionNode();
+
+  Input& input() { return Node::input(0); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class CheckedSmiTagUint32
+    : public FixedInputValueNodeT<1, CheckedSmiTagUint32> {
+  using Base = FixedInputValueNodeT<1, CheckedSmiTagUint32>;
+
+ public:
+  explicit CheckedSmiTagUint32(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties =
       OpProperties::EagerDeopt() | OpProperties::ConversionNode();
@@ -1994,12 +2037,47 @@ class HoleyFloat64Box : public FixedInputValueNodeT<1, HoleyFloat64Box> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
+class CheckedUint32ToInt32
+    : public FixedInputValueNodeT<1, CheckedUint32ToInt32> {
+  using Base = FixedInputValueNodeT<1, CheckedUint32ToInt32>;
+
+ public:
+  explicit CheckedUint32ToInt32(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::Int32() |
+                                              OpProperties::ConversionNode() |
+                                              OpProperties::EagerDeopt();
+
+  Input& input() { return Node::input(0); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
 class ChangeInt32ToFloat64
     : public FixedInputValueNodeT<1, ChangeInt32ToFloat64> {
   using Base = FixedInputValueNodeT<1, ChangeInt32ToFloat64>;
 
  public:
   explicit ChangeInt32ToFloat64(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::Float64() | OpProperties::ConversionNode();
+
+  Input& input() { return Node::input(0); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class ChangeUint32ToFloat64
+    : public FixedInputValueNodeT<1, ChangeUint32ToFloat64> {
+  using Base = FixedInputValueNodeT<1, ChangeUint32ToFloat64>;
+
+ public:
+  explicit ChangeUint32ToFloat64(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties =
       OpProperties::Float64() | OpProperties::ConversionNode();

@@ -776,10 +776,34 @@ class MergePointInterpreterFrameState {
                       "String length must fit into a Smi");
         tagged = Node::New<UnsafeSmiTag>(compilation_unit.zone(), {value});
       } else {
-        tagged = Node::New<CheckedSmiTag, std::initializer_list<ValueNode*>>(
-            compilation_unit.zone(),
-            DeoptFrame(value->eager_deopt_info()->top_frame()), {value});
+        tagged =
+            Node::New<CheckedSmiTagInt32, std::initializer_list<ValueNode*>>(
+                compilation_unit.zone(),
+                DeoptFrame(value->eager_deopt_info()->top_frame()), {value});
       }
+
+      Node::List::AddAfter(value, tagged);
+      compilation_unit.RegisterNodeInGraphLabeller(tagged);
+      node_info->tagged_alternative = tagged;
+    }
+    return node_info->tagged_alternative;
+  }
+
+  ValueNode* FromUint32ToTagged(MaglevCompilationUnit& compilation_unit,
+                                ZoneMap<int, SmiConstant*>& smi_constants,
+                                KnownNodeAspects& known_node_aspects,
+                                ValueNode* value) {
+    DCHECK_EQ(value->properties().value_representation(),
+              ValueRepresentation::kUint32);
+    DCHECK(!value->properties().is_conversion());
+    DCHECK(value->Is<Int32ShiftRightLogical>());
+    NodeInfo* node_info = known_node_aspects.GetOrCreateInfoFor(value);
+    if (!node_info->tagged_alternative) {
+      // Create a tagged version.
+      ValueNode* tagged =
+          Node::New<CheckedSmiTagUint32, std::initializer_list<ValueNode*>>(
+              compilation_unit.zone(),
+              DeoptFrame(value->eager_deopt_info()->top_frame()), {value});
 
       Node::List::AddAfter(value, tagged);
       compilation_unit.RegisterNodeInGraphLabeller(tagged);
@@ -821,6 +845,9 @@ class MergePointInterpreterFrameState {
       case ValueRepresentation::kInt32:
         return FromInt32ToTagged(compilation_unit, smi_constants,
                                  known_node_aspects, value);
+      case ValueRepresentation::kUint32:
+        return FromUint32ToTagged(compilation_unit, smi_constants,
+                                  known_node_aspects, value);
       case ValueRepresentation::kFloat64:
         return FromFloat64ToTagged(compilation_unit, known_node_aspects, value);
     }

@@ -1145,7 +1145,8 @@ namespace {
 NodeType StaticTypeForNode(ValueNode* node) {
   DCHECK(node->is_tagged());
   switch (node->opcode()) {
-    case Opcode::kCheckedSmiTag:
+    case Opcode::kCheckedSmiTagInt32:
+    case Opcode::kCheckedSmiTagUint32:
     case Opcode::kSmiConstant:
       return NodeType::kSmi;
     case Opcode::kConstant: {
@@ -1170,6 +1171,8 @@ NodeType StaticTypeForNode(ValueNode* node) {
       return NodeType::kUnknown;
     case Opcode::kToString:
       return NodeType::kString;
+    case Opcode::kCheckedInternalizedString:
+      return NodeType::kInternalizedString;
     case Opcode::kToObject:
       return NodeType::kJSReceiver;
     case Opcode::kToName:
@@ -1854,11 +1857,9 @@ ValueNode* MaglevGraphBuilder::GetInt32ElementIndex(ValueNode* object) {
     case ValueRepresentation::kInt32:
       // Already good.
       return object;
+    case ValueRepresentation::kUint32:
     case ValueRepresentation::kFloat64:
-      // TODO(leszeks): Pass in the index register (probably the
-      // accumulator), so that we can save this truncation on there as a
-      // conversion node.
-      return AddNewNode<CheckedTruncateFloat64ToInt32>({object});
+      return GetInt32(object);
   }
 }
 

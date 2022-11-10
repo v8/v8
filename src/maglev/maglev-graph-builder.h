@@ -647,14 +647,27 @@ class MaglevGraphBuilder {
   }
 
   ValueNode* GetTaggedValue(interpreter::Register reg) {
-    ValueNode* value = current_interpreter_frame_.get(reg);
+    return GetTaggedValue(current_interpreter_frame_.get(reg));
+  }
+  ValueNode* GetTaggedValue(ValueNode* value) {
     switch (value->properties().value_representation()) {
       case ValueRepresentation::kTagged:
         return value;
       case ValueRepresentation::kInt32: {
         NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
         if (node_info->tagged_alternative == nullptr) {
-          node_info->tagged_alternative = AddNewNode<CheckedSmiTag>({value});
+          // TODO(leszeks): Allow heap number boxing here.
+          node_info->tagged_alternative =
+              AddNewNode<CheckedSmiTagInt32>({value});
+        }
+        return node_info->tagged_alternative;
+      }
+      case ValueRepresentation::kUint32: {
+        NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
+        if (node_info->tagged_alternative == nullptr) {
+          // TODO(leszeks): Allow heap number boxing here.
+          node_info->tagged_alternative =
+              AddNewNode<CheckedSmiTagUint32>({value});
         }
         return node_info->tagged_alternative;
       }
@@ -693,8 +706,7 @@ class MaglevGraphBuilder {
     return node;
   }
 
-  ValueNode* GetInt32(interpreter::Register reg) {
-    ValueNode* value = current_interpreter_frame_.get(reg);
+  ValueNode* GetInt32(ValueNode* value) {
     switch (value->properties().value_representation()) {
       case ValueRepresentation::kTagged: {
         if (SmiConstant* constant = value->TryCast<SmiConstant>()) {
@@ -708,6 +720,14 @@ class MaglevGraphBuilder {
       }
       case ValueRepresentation::kInt32:
         return value;
+      case ValueRepresentation::kUint32: {
+        NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
+        if (node_info->int32_alternative == nullptr) {
+          node_info->int32_alternative =
+              AddNewNode<CheckedUint32ToInt32>({value});
+        }
+        return node_info->int32_alternative;
+      }
       case ValueRepresentation::kFloat64: {
         NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
         if (node_info->int32_alternative == nullptr) {
@@ -718,6 +738,10 @@ class MaglevGraphBuilder {
       }
     }
     UNREACHABLE();
+  }
+
+  ValueNode* GetInt32(interpreter::Register reg) {
+    return GetInt32(current_interpreter_frame_.get(reg));
   }
 
   ValueNode* GetFloat64(ValueNode* value) {
@@ -735,6 +759,14 @@ class MaglevGraphBuilder {
         if (node_info->float64_alternative == nullptr) {
           node_info->float64_alternative =
               AddNewNode<ChangeInt32ToFloat64>({value});
+        }
+        return node_info->float64_alternative;
+      }
+      case ValueRepresentation::kUint32: {
+        NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
+        if (node_info->float64_alternative == nullptr) {
+          node_info->float64_alternative =
+              AddNewNode<ChangeUint32ToFloat64>({value});
         }
         return node_info->float64_alternative;
       }

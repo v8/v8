@@ -2421,13 +2421,15 @@ void GapMove::AllocateVreg(MaglevVregAllocationState* vreg_state) {
 }
 void GapMove::GenerateCode(MaglevAssembler* masm,
                            const ProcessingState& state) {
+  DCHECK_EQ(source().representation(), target().representation());
+  MachineRepresentation repr = source().representation();
   if (source().IsRegister()) {
     Register source_reg = ToRegister(source());
     if (target().IsAnyRegister()) {
       DCHECK(target().IsRegister());
-      __ movq(ToRegister(target()), source_reg);
+      __ MoveRepr(repr, ToRegister(target()), source_reg);
     } else {
-      __ movq(masm->ToMemOperand(target()), source_reg);
+      __ MoveRepr(repr, masm->ToMemOperand(target()), source_reg);
     }
   } else if (source().IsDoubleRegister()) {
     DoubleRegister source_reg = ToDoubleRegister(source());
@@ -2441,13 +2443,13 @@ void GapMove::GenerateCode(MaglevAssembler* masm,
     DCHECK(source().IsAnyStackSlot());
     MemOperand source_op = masm->ToMemOperand(source());
     if (target().IsRegister()) {
-      __ movq(ToRegister(target()), source_op);
+      __ MoveRepr(repr, ToRegister(target()), source_op);
     } else if (target().IsDoubleRegister()) {
       __ Movsd(ToDoubleRegister(target()), source_op);
     } else {
       DCHECK(target().IsAnyStackSlot());
-      __ movq(kScratchRegister, source_op);
-      __ movq(masm->ToMemOperand(target()), kScratchRegister);
+      __ MoveRepr(repr, kScratchRegister, source_op);
+      __ MoveRepr(repr, masm->ToMemOperand(target()), kScratchRegister);
     }
   }
 }
@@ -2886,17 +2888,6 @@ void Int32ShiftRightLogical::GenerateCode(MaglevAssembler* masm,
   Register left = ToRegister(left_input());
   DCHECK_EQ(rcx, ToRegister(right_input()));
   __ shrl_cl(left);
-  // The result of >>> is unsigned, but Maglev doesn't yet track
-  // signed/unsigned representations. Instead, deopt if the resulting smi would
-  // be negative.
-  // TODO(jgruber): Properly track signed/unsigned representations and
-  // allocated a heap number if the result is outside smi range.
-  __ testl(left, Immediate((1 << 31) | (1 << 30)));
-  // None of the mutated input registers should be a register input into the
-  // eager deopt info.
-  DCHECK_REGLIST_EMPTY(RegList{left} &
-                       GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
-  __ EmitEagerDeoptIf(not_equal, DeoptimizeReason::kOverflow, this);
 }
 
 namespace {
@@ -3092,13 +3083,12 @@ void UnsafeSmiUntag::GenerateCode(MaglevAssembler* masm,
   __ SmiToInt32(value);
 }
 
-void CheckedSmiTag::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void CheckedSmiTagInt32::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseRegister(input());
   DefineSameAsFirst(vreg_state, this);
 }
-
-void CheckedSmiTag::GenerateCode(MaglevAssembler* masm,
-                                 const ProcessingState& state) {
+void CheckedSmiTagInt32::GenerateCode(MaglevAssembler* masm,
+                                      const ProcessingState& state) {
   Register reg = ToRegister(input());
   __ addl(reg, reg);
   // None of the mutated input registers should be a register input into the
@@ -3108,6 +3098,20 @@ void CheckedSmiTag::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(overflow, DeoptimizeReason::kOverflow, this);
 }
 
+void CheckedSmiTagUint32::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  UseRegister(input());
+  DefineSameAsFirst(vreg_state, this);
+}
+void CheckedSmiTagUint32::GenerateCode(MaglevAssembler* masm,
+                                       const ProcessingState& state) {
+  Register reg = ToRegister(input());
+  // Perform an unsigned comparison against Smi::kMaxValue.
+  __ cmpl(reg, Immediate(Smi::kMaxValue));
+  __ EmitEagerDeoptIf(above, DeoptimizeReason::kOverflow, this);
+  __ addl(reg, reg);
+  __ Assert(no_overflow, AbortReason::kInputDoesNotFitSmi);
+}
+
 void UnsafeSmiTag::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseRegister(input());
   DefineSameAsFirst(vreg_state, this);
@@ -3115,6 +3119,13 @@ void UnsafeSmiTag::AllocateVreg(MaglevVregAllocationState* vreg_state) {
 void UnsafeSmiTag::GenerateCode(MaglevAssembler* masm,
                                 const ProcessingState& state) {
   Register reg = ToRegister(input());
+  if (v8_flags.debug_code) {
+    if (input().node()->properties().value_representation() ==
+        ValueRepresentation::kUint32) {
+      __ cmpl(reg, Immediate(Smi::kMaxValue));
+      __ Check(below_equal, AbortReason::kInputDoesNotFitSmi);
+    }
+  }
   __ addl(reg, reg);
   if (v8_flags.debug_code) {
     __ Check(no_overflow, AbortReason::kInputDoesNotFitSmi);
@@ -3562,6 +3573,19 @@ void ToString::GenerateCode(MaglevAssembler* masm,
   __ bind(&done);
 }
 
+void CheckedUint32ToInt32::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  UseRegister(input());
+  DefineSameAsFirst(vreg_state, this);
+}
+void CheckedUint32ToInt32::GenerateCode(MaglevAssembler* masm,
+                                        const ProcessingState& state) {
+  Register input_reg = ToRegister(input());
+  // Check if the top bit is set -- if it is, then this is not a valid int32,
+  // otherwise it is.
+  __ testl(input_reg, Immediate(1 << 31));
+  __ EmitEagerDeoptIf(not_zero, DeoptimizeReason::kNotInt32, this);
+}
+
 void ChangeInt32ToFloat64::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseRegister(input());
   DefineAsRegister(vreg_state, this);
@@ -3569,6 +3593,19 @@ void ChangeInt32ToFloat64::AllocateVreg(MaglevVregAllocationState* vreg_state) {
 void ChangeInt32ToFloat64::GenerateCode(MaglevAssembler* masm,
                                         const ProcessingState& state) {
   __ Cvtlsi2sd(ToDoubleRegister(result()), ToRegister(input()));
+}
+
+void ChangeUint32ToFloat64::AllocateVreg(
+    MaglevVregAllocationState* vreg_state) {
+  UseRegister(input());
+  DefineAsRegister(vreg_state, this);
+}
+void ChangeUint32ToFloat64::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  // TODO(leszeks): Cvtlui2sd does a manual movl to clear the top bits of the
+  // input register. We could eliminate this movl by ensuring that word32
+  // registers are always written with 32-bit ops and not 64-bit ones.
+  __ Cvtlui2sd(ToDoubleRegister(result()), ToRegister(input()));
 }
 
 void CheckedTruncateFloat64ToInt32::AllocateVreg(

@@ -21,6 +21,9 @@ std::ostream& operator<<(std::ostream& os, const ValueRepresentation& repr) {
     case ValueRepresentation::kInt32:
       os << "Int32";
       break;
+    case ValueRepresentation::kUint32:
+      os << "Uint32";
+      break;
     case ValueRepresentation::kFloat64:
       os << "Float64";
       break;
@@ -154,12 +157,18 @@ class MaglevGraphVerifier {
         CheckValueInputIs(node, 0, ValueRepresentation::kTagged);
         break;
       case Opcode::kSwitch:
-      case Opcode::kCheckedSmiTag:
+      case Opcode::kCheckedSmiTagInt32:
       case Opcode::kUnsafeSmiTag:
       case Opcode::kChangeInt32ToFloat64:
       case Opcode::kBuiltinStringFromCharCode:
         DCHECK_EQ(node->input_count(), 1);
         CheckValueInputIs(node, 0, ValueRepresentation::kInt32);
+        break;
+      case Opcode::kCheckedSmiTagUint32:
+      case Opcode::kCheckedUint32ToInt32:
+      case Opcode::kChangeUint32ToFloat64:
+        DCHECK_EQ(node->input_count(), 1);
+        CheckValueInputIs(node, 0, ValueRepresentation::kUint32);
         break;
       case Opcode::kFloat64Box:
       case Opcode::kHoleyFloat64Box:

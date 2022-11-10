@@ -546,6 +546,7 @@ class ExceptionHandlerTrampolineBuilder {
               compiler::AllocatedOperand::cast(target.operand()));
           break;
         case ValueRepresentation::kInt32:
+        case ValueRepresentation::kUint32:
           if (source->allocation().IsConstant()) {
             // TODO(jgruber): Why is it okay for Int32 constants to remain
             // untagged while non-constants are unconditionally smi-tagged or
@@ -611,18 +612,41 @@ class ExceptionHandlerTrampolineBuilder {
     using D = NewHeapNumberDescriptor;
     switch (value->properties().value_representation()) {
       case ValueRepresentation::kInt32: {
-        // We consider Int32Constants together with tagged values.
+        // We consider constants together with tagged values.
         DCHECK(!value->allocation().IsConstant());
         Label done;
-        __ movq(dst, ToMemOperand(value));
+        __ movl(dst, ToMemOperand(value));
         __ addl(dst, dst);
-        __ j(no_overflow, &done);
+        __ j(no_overflow, &done, Label::kNear);
         // If we overflow, instead of bailing out (deopting), we change
         // representation to a HeapNumber.
         __ Cvtlsi2sd(D::GetDoubleRegisterParameter(D::kValue),
                      ToMemOperand(value));
         __ CallBuiltin(Builtin::kNewHeapNumber);
         __ Move(dst, kReturnRegister0);
+        __ bind(&done);
+        break;
+      }
+      case ValueRepresentation::kUint32: {
+        // We consider constants together with tagged values.
+        DCHECK(!value->allocation().IsConstant());
+        Label done, tag_smi;
+        __ movl(dst, ToMemOperand(value));
+        // Unsigned comparison against Smi::kMaxValue.
+        __ cmpl(dst, Immediate(Smi::kMaxValue));
+        // If we don't fit in a Smi, instead of bailing out (deopting), we
+        // change representation to a HeapNumber.
+        __ j(below_equal, &tag_smi, Label::kNear);
+        // The value was loaded with movl, so is zero extended in 64-bit.
+        // Therefore, we can do an unsigned 32-bit converstion to double with a
+        // 64-bit signed conversion (Cvt_q_si2sd instead of Cvt_l_si2sd).
+        __ Cvtqsi2sd(D::GetDoubleRegisterParameter(D::kValue),
+                     ToMemOperand(value));
+        __ CallBuiltin(Builtin::kNewHeapNumber);
+        __ Move(dst, kReturnRegister0);
+        __ jmp(&done, Label::kNear);
+        __ bind(&tag_smi);
+        __ SmiTag(dst);
         __ bind(&done);
         break;
       }
@@ -1221,6 +1245,9 @@ class MaglevTranslationArrayBuilder {
       case ValueRepresentation::kInt32:
         translation_array_builder_->StoreInt32Register(operand.GetRegister());
         break;
+      case ValueRepresentation::kUint32:
+        translation_array_builder_->StoreUint32Register(operand.GetRegister());
+        break;
       case ValueRepresentation::kFloat64:
         translation_array_builder_->StoreDoubleRegister(
             operand.GetDoubleRegister());
@@ -1237,6 +1264,9 @@ class MaglevTranslationArrayBuilder {
         break;
       case ValueRepresentation::kInt32:
         translation_array_builder_->StoreInt32StackSlot(stack_slot);
+        break;
+      case ValueRepresentation::kUint32:
+        translation_array_builder_->StoreUint32StackSlot(stack_slot);
         break;
       case ValueRepresentation::kFloat64:
         translation_array_builder_->StoreDoubleStackSlot(stack_slot);

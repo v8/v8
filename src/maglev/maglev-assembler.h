@@ -5,6 +5,7 @@
 #ifndef V8_MAGLEV_MAGLEV_ASSEMBLER_H_
 #define V8_MAGLEV_MAGLEV_ASSEMBLER_H_
 
+#include "src/codegen/machine-type.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/maglev/maglev-code-gen-state.h"
 
@@ -59,6 +60,20 @@ class MaglevAssembler : public MacroAssembler {
       index += code_gen_state()->tagged_slots();
     }
     return GetFramePointerOffsetForStackSlot(index);
+  }
+
+  template <typename Dest, typename Source>
+  void MoveRepr(MachineRepresentation repr, Dest dst, Source src) {
+    switch (repr) {
+      case MachineRepresentation::kWord32:
+        return movl(dst, src);
+      case MachineRepresentation::kTagged:
+      case MachineRepresentation::kTaggedPointer:
+      case MachineRepresentation::kTaggedSigned:
+        return movq(dst, src);
+      default:
+        UNREACHABLE();
+    }
   }
 
   void Allocate(RegisterSnapshot& register_snapshot, Register result,
