@@ -284,7 +284,7 @@
       'v8_mac64_compile_rel': 'release_x64_trybot',
       'v8_mac64_dbg': 'debug_x64',
       'v8_mac64_compile_dbg': 'debug_x64',
-      'v8_mac64_compile_full_compile_dbg': 'full_debug_x64',
+      'v8_mac64_noopt_compile_dbg': 'full_debug_x64',
       'v8_mac64_asan_compile_rel': 'release_x64_asan_no_lsan',
       'v8_linux_arm_compile_rel': 'release_simulate_arm_trybot',
       'v8_linux_arm_lite_compile_dbg': 'debug_simulate_arm_lite',

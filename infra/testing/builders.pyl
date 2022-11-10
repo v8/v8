@@ -882,6 +882,15 @@
       {'name': 'd8testing', 'test_args': ['--gc-stress'], 'shards': 6},
     ],
   },
+  'v8_mac64_noopt_dbg': {
+    'swarming_dimensions' : {
+      'cpu': 'x86-64',
+      'os': 'Mac-10.15',
+    },
+    'tests': [
+      {'name': 'v8testing', 'shards': 6},
+    ],
+  },
   'v8_mac64_rel': {
     'swarming_dimensions' : {
       'cpu': 'x86-64',
