@@ -479,5 +479,5 @@ function CmpExchgLoop(opcode, alignment) {
   assertEquals(false, WebAssembly.validate(builder.toBuffer()));
   assertThrows(
       () => builder.toModule(), WebAssembly.CompileError,
-      /invalid atomic opcode/);
+      /invalid atomic opcode: 0xfe790/);
 })();
