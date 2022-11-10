@@ -1604,7 +1604,8 @@ class WasmGraphBuildingInterface {
     }
   }
 
-  std::vector<compiler::WasmLoopInfo> loop_infos() { return loop_infos_; }
+  std::vector<compiler::WasmLoopInfo>& loop_infos() { return loop_infos_; }
+  DanglingExceptions& dangling_exceptions() { return dangling_exceptions_; }
 
  private:
   SsaEnv* ssa_env_ = nullptr;
@@ -1613,6 +1614,9 @@ class WasmGraphBuildingInterface {
   const BranchHintMap* branch_hints_ = nullptr;
   // Tracks loop data for loop unrolling.
   std::vector<compiler::WasmLoopInfo> loop_infos_;
+  // When inlining, tracks exception handlers that are left dangling and must be
+  // handled by the callee.
+  DanglingExceptions dangling_exceptions_;
   InlinedStatus inlined_status_;
   // The entries in {type_feedback_} are indexed by the position of feedback-
   // consuming instructions (currently only calls).
@@ -1744,10 +1748,12 @@ class WasmGraphBuildingInterface {
       }
     } else {
       DCHECK_EQ(inlined_status_, kInlinedHandledCall);
-      // Leave the IfException/LoopExit node dangling. We will connect it during
-      // inlining to the handler of the inlined call.
+      // We leave the IfException/LoopExit node dangling, and record the
+      // exception/effect/control here. We will connect them to the handler of
+      // the inlined call during inlining.
       // Note: We have to generate the handler now since we have no way of
       // generating a LoopExit if needed in the inlining code.
+      dangling_exceptions_.Add(if_exception, effect(), control());
     }
 
     SetEnv(success_env);
@@ -2127,6 +2133,7 @@ DecodeResult BuildTFGraph(AccountingAllocator* allocator,
                           compiler::WasmGraphBuilder* builder,
                           WasmFeatures* detected, const FunctionBody& body,
                           std::vector<compiler::WasmLoopInfo>* loop_infos,
+                          DanglingExceptions* dangling_exceptions,
                           compiler::NodeOriginTable* node_origins,
                           int func_index, InlinedStatus inlined_status) {
   Zone zone(allocator, ZONE_NAME);
@@ -2140,7 +2147,10 @@ DecodeResult BuildTFGraph(AccountingAllocator* allocator,
   if (node_origins) {
     builder->RemoveBytecodePositionDecorator();
   }
-  *loop_infos = decoder.interface().loop_infos();
+  *loop_infos = std::move(decoder.interface().loop_infos());
+  if (dangling_exceptions != nullptr) {
+    *dangling_exceptions = std::move(decoder.interface().dangling_exceptions());
+  }
 
   return decoder.toResult(nullptr);
 }
