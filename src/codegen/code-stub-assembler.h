@@ -2468,17 +2468,17 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                         TNode<Object> value);
   void TaggedToWord32OrBigInt(TNode<Context> context, TNode<Object> value,
                               Label* if_number, TVariable<Word32T>* var_word32,
-                              Label* if_bigint,
+                              Label* if_bigint, Label* if_bigint64,
                               TVariable<BigInt>* var_maybe_bigint);
   void TaggedToWord32OrBigIntWithFeedback(TNode<Context> context,
                                           TNode<Object> value, Label* if_number,
                                           TVariable<Word32T>* var_word32,
-                                          Label* if_bigint,
+                                          Label* if_bigint, Label* if_bigint64,
                                           TVariable<BigInt>* var_maybe_bigint,
                                           TVariable<Smi>* var_feedback);
   void TaggedPointerToWord32OrBigIntWithFeedback(
       TNode<Context> context, TNode<HeapObject> pointer, Label* if_number,
-      TVariable<Word32T>* var_word32, Label* if_bigint,
+      TVariable<Word32T>* var_word32, Label* if_bigint, Label* if_bigint64,
       TVariable<BigInt>* var_maybe_bigint, TVariable<Smi>* var_feedback);
 
   TNode<Int32T> TruncateNumberToWord32(TNode<Number> value);
@@ -2508,11 +2508,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<Int32T> ChangeBoolToInt32(TNode<BoolT> b);
 
-  void TaggedToNumeric(TNode<Context> context, TNode<Object> value,
-                       TVariable<Numeric>* var_numeric);
-  void TaggedToNumericWithFeedback(TNode<Context> context, TNode<Object> value,
-                                   TVariable<Numeric>* var_numeric,
-                                   TVariable<Smi>* var_feedback);
+  void TaggedToBigIntWithFeedback(TNode<Context> context, TNode<Object> value,
+                                  Label* if_not_bigint, Label* if_bigint,
+                                  Label* if_bigint64,
+                                  TVariable<BigInt>* var_bigint,
+                                  TVariable<Smi>* var_feedback);
 
   // Ensures that {var_shared_value} is shareable across Isolates, and throws if
   // not.
@@ -4311,9 +4311,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<Context> context, TNode<HeapObject> input, Object::Conversion mode,
       BigIntHandling bigint_handling = BigIntHandling::kThrow);
 
-  void TaggedToNumeric(TNode<Context> context, TNode<Object> value,
-                       TVariable<Numeric>* var_numeric,
-                       TVariable<Smi>* var_feedback);
+  void TaggedToBigInt(TNode<Context> context, TNode<Object> value,
+                      Label* if_not_bigint, Label* if_bigint,
+                      Label* if_bigint64, TVariable<BigInt>* var_bigint,
+                      TVariable<Smi>* var_feedback);
 
   enum IsKnownTaggedPointer { kNo, kYes };
   template <Object::Conversion conversion>
@@ -4322,6 +4323,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                   TVariable<Word32T>* var_word32,
                                   IsKnownTaggedPointer is_known_tagged_pointer,
                                   Label* if_bigint = nullptr,
+                                  Label* if_bigint64 = nullptr,
                                   TVariable<BigInt>* var_maybe_bigint = nullptr,
                                   TVariable<Smi>* var_feedback = nullptr);
 

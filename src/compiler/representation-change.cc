@@ -1371,6 +1371,12 @@ const Operator* RepresentationChanger::Int64OperatorFor(
       return machine()->Int64Sub();
     case IrOpcode::kSpeculativeBigIntMultiply:
       return machine()->Int64Mul();
+    case IrOpcode::kSpeculativeBigIntBitwiseAnd:
+      return machine()->Word64And();
+    case IrOpcode::kSpeculativeBigIntBitwiseOr:
+      return machine()->Word64Or();
+    case IrOpcode::kSpeculativeBigIntBitwiseXor:
+      return machine()->Word64Xor();
     default:
       UNREACHABLE();
   }
@@ -1407,6 +1413,12 @@ const Operator* RepresentationChanger::BigIntOperatorFor(
       return simplified()->BigIntDivide();
     case IrOpcode::kSpeculativeBigIntModulus:
       return simplified()->BigIntModulus();
+    case IrOpcode::kSpeculativeBigIntBitwiseAnd:
+      return simplified()->BigIntBitwiseAnd();
+    case IrOpcode::kSpeculativeBigIntBitwiseOr:
+      return simplified()->BigIntBitwiseOr();
+    case IrOpcode::kSpeculativeBigIntBitwiseXor:
+      return simplified()->BigIntBitwiseXor();
     default:
       UNREACHABLE();
   }

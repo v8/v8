@@ -5595,11 +5595,11 @@ TNode<Word32T> CodeStubAssembler::TruncateTaggedToWord32(TNode<Context> context,
 // or find that it is a BigInt and jump to {if_bigint}.
 void CodeStubAssembler::TaggedToWord32OrBigInt(
     TNode<Context> context, TNode<Object> value, Label* if_number,
-    TVariable<Word32T>* var_word32, Label* if_bigint,
+    TVariable<Word32T>* var_word32, Label* if_bigint, Label* if_bigint64,
     TVariable<BigInt>* var_maybe_bigint) {
   TaggedToWord32OrBigIntImpl<Object::Conversion::kToNumeric>(
       context, value, if_number, var_word32, IsKnownTaggedPointer::kNo,
-      if_bigint, var_maybe_bigint);
+      if_bigint, if_bigint64, var_maybe_bigint);
 }
 
 // Truncate {value} to word32 and jump to {if_number} if it is a Number,
@@ -5607,11 +5607,11 @@ void CodeStubAssembler::TaggedToWord32OrBigInt(
 // store the type feedback in {var_feedback}.
 void CodeStubAssembler::TaggedToWord32OrBigIntWithFeedback(
     TNode<Context> context, TNode<Object> value, Label* if_number,
-    TVariable<Word32T>* var_word32, Label* if_bigint,
+    TVariable<Word32T>* var_word32, Label* if_bigint, Label* if_bigint64,
     TVariable<BigInt>* var_maybe_bigint, TVariable<Smi>* var_feedback) {
   TaggedToWord32OrBigIntImpl<Object::Conversion::kToNumeric>(
       context, value, if_number, var_word32, IsKnownTaggedPointer::kNo,
-      if_bigint, var_maybe_bigint, var_feedback);
+      if_bigint, if_bigint64, var_maybe_bigint, var_feedback);
 }
 
 // Truncate {pointer} to word32 and jump to {if_number} if it is a Number,
@@ -5619,11 +5619,11 @@ void CodeStubAssembler::TaggedToWord32OrBigIntWithFeedback(
 // store the type feedback in {var_feedback}.
 void CodeStubAssembler::TaggedPointerToWord32OrBigIntWithFeedback(
     TNode<Context> context, TNode<HeapObject> pointer, Label* if_number,
-    TVariable<Word32T>* var_word32, Label* if_bigint,
+    TVariable<Word32T>* var_word32, Label* if_bigint, Label* if_bigint64,
     TVariable<BigInt>* var_maybe_bigint, TVariable<Smi>* var_feedback) {
   TaggedToWord32OrBigIntImpl<Object::Conversion::kToNumeric>(
       context, pointer, if_number, var_word32, IsKnownTaggedPointer::kYes,
-      if_bigint, var_maybe_bigint, var_feedback);
+      if_bigint, if_bigint64, var_maybe_bigint, var_feedback);
 }
 
 template <Object::Conversion conversion>
@@ -5631,7 +5631,8 @@ void CodeStubAssembler::TaggedToWord32OrBigIntImpl(
     TNode<Context> context, TNode<Object> value, Label* if_number,
     TVariable<Word32T>* var_word32,
     IsKnownTaggedPointer is_known_tagged_pointer, Label* if_bigint,
-    TVariable<BigInt>* var_maybe_bigint, TVariable<Smi>* var_feedback) {
+    Label* if_bigint64, TVariable<BigInt>* var_maybe_bigint,
+    TVariable<Smi>* var_feedback) {
   // We might need to loop after conversion.
   TVARIABLE(Object, var_value, value);
   OverwriteFeedback(var_feedback, BinaryOperationFeedback::kNone);
@@ -5652,14 +5653,18 @@ void CodeStubAssembler::TaggedToWord32OrBigIntImpl(
   {
     value = var_value.value();
     Label not_smi(this), is_heap_number(this), is_oddball(this),
-        is_bigint(this), check_if_smi(this);
+        maybe_bigint64(this), is_bigint(this), check_if_smi(this);
 
     TNode<HeapObject> value_heap_object = CAST(value);
     TNode<Map> map = LoadMap(value_heap_object);
     GotoIf(IsHeapNumberMap(map), &is_heap_number);
     TNode<Uint16T> instance_type = LoadMapInstanceType(map);
     if (conversion == Object::Conversion::kToNumeric) {
-      GotoIf(IsBigIntInstanceType(instance_type), &is_bigint);
+      if (Is64() && if_bigint64) {
+        GotoIf(IsBigIntInstanceType(instance_type), &maybe_bigint64);
+      } else {
+        GotoIf(IsBigIntInstanceType(instance_type), &is_bigint);
+      }
     }
 
     // Not HeapNumber (or BigInt if conversion == kToNumeric).
@@ -5693,8 +5698,20 @@ void CodeStubAssembler::TaggedToWord32OrBigIntImpl(
     Goto(if_number);
 
     if (conversion == Object::Conversion::kToNumeric) {
+      if (Is64() && if_bigint64) {
+        BIND(&maybe_bigint64);
+        GotoIfLargeBigInt(CAST(value), &is_bigint);
+        if (var_maybe_bigint) {
+          *var_maybe_bigint = CAST(value);
+        }
+        CombineFeedback(var_feedback, BinaryOperationFeedback::kBigInt64);
+        Goto(if_bigint64);
+      }
+
       BIND(&is_bigint);
-      *var_maybe_bigint = CAST(value);
+      if (var_maybe_bigint) {
+        *var_maybe_bigint = CAST(value);
+      }
       CombineFeedback(var_feedback, BinaryOperationFeedback::kBigInt);
       Goto(if_bigint);
     }
@@ -7849,61 +7866,68 @@ TNode<BigInt> CodeStubAssembler::ToBigInt(TNode<Context> context,
   return var_result.value();
 }
 
-void CodeStubAssembler::TaggedToNumeric(TNode<Context> context,
-                                        TNode<Object> value,
-                                        TVariable<Numeric>* var_numeric) {
-  TaggedToNumeric(context, value, var_numeric, nullptr);
-}
-
-void CodeStubAssembler::TaggedToNumericWithFeedback(
-    TNode<Context> context, TNode<Object> value,
-    TVariable<Numeric>* var_numeric, TVariable<Smi>* var_feedback) {
+void CodeStubAssembler::TaggedToBigIntWithFeedback(
+    TNode<Context> context, TNode<Object> value, Label* if_not_bigint,
+    Label* if_bigint, Label* if_bigint64, TVariable<BigInt>* var_bigint,
+    TVariable<Smi>* var_feedback) {
   DCHECK_NOT_NULL(var_feedback);
-  TaggedToNumeric(context, value, var_numeric, var_feedback);
+  TaggedToBigInt(context, value, if_not_bigint, if_bigint, if_bigint64,
+                 var_bigint, var_feedback);
 }
 
-void CodeStubAssembler::TaggedToNumeric(TNode<Context> context,
-                                        TNode<Object> value,
-                                        TVariable<Numeric>* var_numeric,
-                                        TVariable<Smi>* var_feedback) {
-  Label done(this), if_smi(this), if_heapnumber(this), if_bigint(this),
-      if_oddball(this);
-  GotoIf(TaggedIsSmi(value), &if_smi);
+void CodeStubAssembler::TaggedToBigInt(TNode<Context> context,
+                                       TNode<Object> value,
+                                       Label* if_not_bigint, Label* if_bigint,
+                                       Label* if_bigint64,
+                                       TVariable<BigInt>* var_bigint,
+                                       TVariable<Smi>* var_feedback) {
+  Label done(this), is_smi(this), is_heapnumber(this), maybe_bigint64(this),
+      is_bigint(this), is_oddball(this);
+  GotoIf(TaggedIsSmi(value), &is_smi);
   TNode<HeapObject> heap_object_value = CAST(value);
   TNode<Map> map = LoadMap(heap_object_value);
-  GotoIf(IsHeapNumberMap(map), &if_heapnumber);
+  GotoIf(IsHeapNumberMap(map), &is_heapnumber);
   TNode<Uint16T> instance_type = LoadMapInstanceType(map);
-  GotoIf(IsBigIntInstanceType(instance_type), &if_bigint);
+  if (Is64() && if_bigint64) {
+    GotoIf(IsBigIntInstanceType(instance_type), &maybe_bigint64);
+  } else {
+    GotoIf(IsBigIntInstanceType(instance_type), &is_bigint);
+  }
 
   // {heap_object_value} is not a Numeric yet.
-  GotoIf(Word32Equal(instance_type, Int32Constant(ODDBALL_TYPE)), &if_oddball);
-  *var_numeric = CAST(
+  GotoIf(Word32Equal(instance_type, Int32Constant(ODDBALL_TYPE)), &is_oddball);
+  TNode<Numeric> numeric_value = CAST(
       CallBuiltin(Builtin::kNonNumberToNumeric, context, heap_object_value));
   OverwriteFeedback(var_feedback, BinaryOperationFeedback::kAny);
-  Goto(&done);
+  GotoIf(TaggedIsSmi(numeric_value), if_not_bigint);
+  GotoIfNot(IsBigInt(CAST(numeric_value)), if_not_bigint);
+  *var_bigint = CAST(numeric_value);
+  Goto(if_bigint);
 
-  BIND(&if_smi);
-  *var_numeric = CAST(value);
+  BIND(&is_smi);
   OverwriteFeedback(var_feedback, BinaryOperationFeedback::kSignedSmall);
-  Goto(&done);
+  Goto(if_not_bigint);
 
-  BIND(&if_heapnumber);
-  *var_numeric = CAST(value);
+  BIND(&is_heapnumber);
   OverwriteFeedback(var_feedback, BinaryOperationFeedback::kNumber);
-  Goto(&done);
+  Goto(if_not_bigint);
 
-  BIND(&if_bigint);
-  *var_numeric = CAST(value);
+  if (Is64() && if_bigint64) {
+    BIND(&maybe_bigint64);
+    GotoIfLargeBigInt(CAST(value), &is_bigint);
+    *var_bigint = CAST(value);
+    OverwriteFeedback(var_feedback, BinaryOperationFeedback::kBigInt64);
+    Goto(if_bigint64);
+  }
+
+  BIND(&is_bigint);
+  *var_bigint = CAST(value);
   OverwriteFeedback(var_feedback, BinaryOperationFeedback::kBigInt);
-  Goto(&done);
+  Goto(if_bigint);
 
-  BIND(&if_oddball);
+  BIND(&is_oddball);
   OverwriteFeedback(var_feedback, BinaryOperationFeedback::kNumberOrOddball);
-  *var_numeric =
-      CAST(LoadObjectField(heap_object_value, Oddball::kToNumberOffset));
-  Goto(&done);
-
-  Bind(&done);
+  Goto(if_not_bigint);
 }
 
 // ES#sec-touint32

@@ -990,12 +990,9 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kSpeculativeNumberLessThanOrEqual:
       CheckTypeIs(node, Type::Boolean());
       break;
-    case IrOpcode::kSpeculativeBigIntAdd:
-    case IrOpcode::kSpeculativeBigIntSubtract:
-    case IrOpcode::kSpeculativeBigIntMultiply:
-    case IrOpcode::kSpeculativeBigIntDivide:
-    case IrOpcode::kSpeculativeBigIntModulus:
-    case IrOpcode::kSpeculativeBigIntBitwiseAnd:
+#define SPECULATIVE_BIGINT_BINOP(Name) case IrOpcode::k##Name:
+      SIMPLIFIED_SPECULATIVE_BIGINT_BINOP_LIST(SPECULATIVE_BIGINT_BINOP)
+#undef SPECULATIVE_BIGINT_BINOP
       CheckTypeIs(node, Type::BigInt());
       break;
     case IrOpcode::kSpeculativeBigIntNegate:
@@ -1006,12 +1003,9 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::BigInt());
       break;
-    case IrOpcode::kBigIntAdd:
-    case IrOpcode::kBigIntSubtract:
-    case IrOpcode::kBigIntMultiply:
-    case IrOpcode::kBigIntDivide:
-    case IrOpcode::kBigIntModulus:
-    case IrOpcode::kBigIntBitwiseAnd:
+#define BIGINT_BINOP(Name) case IrOpcode::k##Name:
+      SIMPLIFIED_BIGINT_BINOP_LIST(BIGINT_BINOP)
+#undef BIGINT_BINOP
       CheckValueInputIs(node, 0, Type::BigInt());
       CheckValueInputIs(node, 1, Type::BigInt());
       CheckTypeIs(node, Type::BigInt());

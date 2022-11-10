@@ -1739,5 +1739,71 @@ void MutableBigInt_BitwiseAndPosNegAndCanonicalize(Address result_addr,
   MutableBigInt::Canonicalize(result);
 }
 
+void MutableBigInt_BitwiseOrPosPosAndCanonicalize(Address result_addr,
+                                                  Address x_addr,
+                                                  Address y_addr) {
+  BigInt x = BigInt::cast(Object(x_addr));
+  BigInt y = BigInt::cast(Object(y_addr));
+  MutableBigInt result = MutableBigInt::cast(Object(result_addr));
+
+  bigint::BitwiseOr_PosPos(GetRWDigits(result), GetDigits(x), GetDigits(y));
+  MutableBigInt::Canonicalize(result);
+}
+
+void MutableBigInt_BitwiseOrNegNegAndCanonicalize(Address result_addr,
+                                                  Address x_addr,
+                                                  Address y_addr) {
+  BigInt x = BigInt::cast(Object(x_addr));
+  BigInt y = BigInt::cast(Object(y_addr));
+  MutableBigInt result = MutableBigInt::cast(Object(result_addr));
+
+  bigint::BitwiseOr_NegNeg(GetRWDigits(result), GetDigits(x), GetDigits(y));
+  MutableBigInt::Canonicalize(result);
+}
+
+void MutableBigInt_BitwiseOrPosNegAndCanonicalize(Address result_addr,
+                                                  Address x_addr,
+                                                  Address y_addr) {
+  BigInt x = BigInt::cast(Object(x_addr));
+  BigInt y = BigInt::cast(Object(y_addr));
+  MutableBigInt result = MutableBigInt::cast(Object(result_addr));
+
+  bigint::BitwiseOr_PosNeg(GetRWDigits(result), GetDigits(x), GetDigits(y));
+  MutableBigInt::Canonicalize(result);
+}
+
+void MutableBigInt_BitwiseXorPosPosAndCanonicalize(Address result_addr,
+                                                   Address x_addr,
+                                                   Address y_addr) {
+  BigInt x = BigInt::cast(Object(x_addr));
+  BigInt y = BigInt::cast(Object(y_addr));
+  MutableBigInt result = MutableBigInt::cast(Object(result_addr));
+
+  bigint::BitwiseXor_PosPos(GetRWDigits(result), GetDigits(x), GetDigits(y));
+  MutableBigInt::Canonicalize(result);
+}
+
+void MutableBigInt_BitwiseXorNegNegAndCanonicalize(Address result_addr,
+                                                   Address x_addr,
+                                                   Address y_addr) {
+  BigInt x = BigInt::cast(Object(x_addr));
+  BigInt y = BigInt::cast(Object(y_addr));
+  MutableBigInt result = MutableBigInt::cast(Object(result_addr));
+
+  bigint::BitwiseXor_NegNeg(GetRWDigits(result), GetDigits(x), GetDigits(y));
+  MutableBigInt::Canonicalize(result);
+}
+
+void MutableBigInt_BitwiseXorPosNegAndCanonicalize(Address result_addr,
+                                                   Address x_addr,
+                                                   Address y_addr) {
+  BigInt x = BigInt::cast(Object(x_addr));
+  BigInt y = BigInt::cast(Object(y_addr));
+  MutableBigInt result = MutableBigInt::cast(Object(result_addr));
+
+  bigint::BitwiseXor_PosNeg(GetRWDigits(result), GetDigits(x), GetDigits(y));
+  MutableBigInt::Canonicalize(result);
+}
+
 }  // namespace internal
 }  // namespace v8

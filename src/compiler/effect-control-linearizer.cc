@@ -185,6 +185,8 @@ class EffectControlLinearizer {
   Node* LowerBigIntDivide(Node* node, Node* frame_state);
   Node* LowerBigIntModulus(Node* node, Node* frame_state);
   Node* LowerBigIntBitwiseAnd(Node* node, Node* frame_state);
+  Node* LowerBigIntBitwiseOr(Node* node, Node* frame_state);
+  Node* LowerBigIntBitwiseXor(Node* node, Node* frame_state);
   Node* LowerBigIntNegate(Node* node);
   Node* LowerCheckFloat64Hole(Node* node, Node* frame_state);
   Node* LowerCheckNotTaggedHole(Node* node, Node* frame_state);
@@ -1282,6 +1284,12 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kBigIntBitwiseAnd:
       result = LowerBigIntBitwiseAnd(node, frame_state);
+      break;
+    case IrOpcode::kBigIntBitwiseOr:
+      result = LowerBigIntBitwiseOr(node, frame_state);
+      break;
+    case IrOpcode::kBigIntBitwiseXor:
+      result = LowerBigIntBitwiseXor(node, frame_state);
       break;
     case IrOpcode::kBigIntNegate:
       result = LowerBigIntNegate(node);
@@ -4689,6 +4697,44 @@ Node* EffectControlLinearizer::LowerBigIntBitwiseAnd(Node* node,
 
   Callable const callable =
       Builtins::CallableFor(isolate(), Builtin::kBigIntBitwiseAndNoThrow);
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      graph()->zone(), callable.descriptor(),
+      callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,
+      Operator::kFoldable | Operator::kNoThrow);
+  Node* value = __ Call(call_descriptor, __ HeapConstant(callable.code()), lhs,
+                        rhs, __ NoContextConstant());
+
+  // Check for exception sentinel: Smi is returned to signal BigIntTooBig.
+  __ DeoptimizeIf(DeoptimizeReason::kBigIntTooBig, FeedbackSource{},
+                  ObjectIsSmi(value), frame_state);
+
+  return value;
+}
+
+Node* EffectControlLinearizer::LowerBigIntBitwiseOr(Node* node,
+                                                    Node* frame_state) {
+  Node* lhs = node->InputAt(0);
+  Node* rhs = node->InputAt(1);
+
+  Callable const callable =
+      Builtins::CallableFor(isolate(), Builtin::kBigIntBitwiseOrNoThrow);
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      graph()->zone(), callable.descriptor(),
+      callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,
+      Operator::kFoldable | Operator::kNoThrow);
+  Node* value = __ Call(call_descriptor, __ HeapConstant(callable.code()), lhs,
+                        rhs, __ NoContextConstant());
+
+  return value;
+}
+
+Node* EffectControlLinearizer::LowerBigIntBitwiseXor(Node* node,
+                                                     Node* frame_state) {
+  Node* lhs = node->InputAt(0);
+  Node* rhs = node->InputAt(1);
+
+  Callable const callable =
+      Builtins::CallableFor(isolate(), Builtin::kBigIntBitwiseXorNoThrow);
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       graph()->zone(), callable.descriptor(),
       callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,
