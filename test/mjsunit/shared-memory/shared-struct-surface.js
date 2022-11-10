@@ -94,3 +94,8 @@ let S = new SharedStructType(['field']);
 (function TestDuplicateFieldNames() {
   assertThrows(() => new SharedStructType(['same', 'same']));
 })();
+
+(function TestNoFields() {
+  const EmptyStruct = new SharedStructType([]);
+  let s = new EmptyStruct();
+})();
