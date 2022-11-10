@@ -4436,6 +4436,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   }
 
   int DecodeGCOpcode(WasmOpcode opcode, uint32_t opcode_length) {
+    // Bigger GC opcodes are handled via {DecodeStringRefOpcode}, so we can
+    // assume here that opcodes are within [0xfb00, 0xfbff].
     // This assumption might help the big switch below.
     V8_ASSUME(opcode >> 8 == kGCPrefix);
     switch (opcode) {
@@ -5559,8 +5561,13 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   }
 
   int DecodeStringRefOpcode(WasmOpcode opcode, uint32_t opcode_length) {
-    // This assumption might help the big switch below.
-    V8_ASSUME(opcode >> 8 == kGCPrefix);
+    // Fast check for out-of-range opcodes (only allow 0xfbXX).
+    // This might help the big switch below.
+    if (!VALIDATE((opcode >> 8) == kGCPrefix)) {
+      this->DecodeError("invalid stringref opcode: %x", opcode);
+      return 0;
+    }
+
     switch (opcode) {
       case kExprStringNewUtf8:
         return DecodeStringNewWtf8(unibrow::Utf8Variant::kUtf8, opcode_length);
