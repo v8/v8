@@ -376,6 +376,9 @@ declare_args() {
   # Compile V8 using zlib as dependency.
   # Sets -DV8_USE_ZLIB
   v8_use_zlib = true
+
+  # Make ValueDeserializer crash if the data to deserialize is invalid.
+  v8_value_deserializer_hard_fail = false
 }
 
 # Derived defaults.
@@ -1054,6 +1057,9 @@ config("features") {
   }
   if (v8_use_zlib) {
     defines += [ "V8_USE_ZLIB" ]
+  }
+  if (v8_value_deserializer_hard_fail) {
+    defines += [ "V8_VALUE_DESERIALIZER_HARD_FAIL" ]
   }
 }
 
