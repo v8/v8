@@ -4946,12 +4946,12 @@ class LiftoffCompiler {
           __ cache_state()->stack_state.back();
       CallRuntimeStub(
           kNeedI64RegPair ? WasmCode::kI32PairToBigInt : WasmCode::kI64ToBigInt,
-          MakeSig::Returns(kPointerKind).Params(kI64), {i64_timeout},
+          MakeSig::Returns(kRef).Params(kI64), {i64_timeout},
           decoder->position());
       __ DropValues(1);
       // We put the result on the value stack so that it gets preserved across
       // a potential GC that may get triggered by the BigInt allocation below.
-      __ PushRegister(kPointerKind, LiftoffRegister(kReturnRegister0));
+      __ PushRegister(kRef, LiftoffRegister(kReturnRegister0));
     }
 
     Register expected_reg = no_reg;
@@ -4962,7 +4962,7 @@ class LiftoffCompiler {
           __ cache_state()->stack_state.end()[-2];
       CallRuntimeStub(
           kNeedI64RegPair ? WasmCode::kI32PairToBigInt : WasmCode::kI64ToBigInt,
-          MakeSig::Returns(kPointerKind).Params(kI64), {i64_expected},
+          MakeSig::Returns(kRef).Params(kI64), {i64_expected},
           decoder->position());
       expected_reg = kReturnRegister0;
     }
@@ -4970,16 +4970,14 @@ class LiftoffCompiler {
 
     LiftoffAssembler::VarState timeout =
         __ cache_state()->stack_state.end()[-1];
-    LiftoffAssembler::VarState expected_value(kPointerKind, expected, 0);
+    LiftoffAssembler::VarState expected_value(kRef, expected, 0);
     LiftoffAssembler::VarState index = __ cache_state()->stack_state.end()[-3];
 
     auto target = kind == kI32 ? WasmCode::kWasmI32AtomicWait
                                : WasmCode::kWasmI64AtomicWait;
 
     CallRuntimeStub(
-        target,
-        MakeSig::Params(kPointerKind, kind == kI32 ? kI32 : kPointerKind,
-                        kPointerKind),
+        target, MakeSig::Params(kPointerKind, kind == kI32 ? kI32 : kRef, kRef),
         {index, expected_value, timeout}, decoder->position());
     // Pop parameters from the value stack.
     __ DropValues(3);
