@@ -25,7 +25,7 @@ namespace wasm {
 using VarState = LiftoffAssembler::VarState;
 using ValueKindSig = LiftoffAssembler::ValueKindSig;
 
-constexpr ValueKind LiftoffAssembler::kPointerKind;
+constexpr ValueKind LiftoffAssembler::kIntPtrKind;
 constexpr ValueKind LiftoffAssembler::kSmiKind;
 
 namespace {
@@ -859,7 +859,7 @@ void LiftoffAssembler::MergeStackWith(CacheState& target, uint32_t arity,
       // If the source has the content but in the wrong register, execute a
       // register move as part of the stack transfer.
       transfers.MoveRegister(LiftoffRegister{*dst_reg},
-                             LiftoffRegister{src_reg}, kPointerKind);
+                             LiftoffRegister{src_reg}, kIntPtrKind);
     } else {
       // Otherwise (the source state has no cached content), we reload later.
       *reload = true;
@@ -951,7 +951,7 @@ void LiftoffAssembler::ClearRegister(
     if (reg != *use) continue;
     if (replacement == no_reg) {
       replacement = GetUnusedRegister(kGpReg, pinned).gp();
-      Move(replacement, reg, kPointerKind);
+      Move(replacement, reg, kIntPtrKind);
     }
     // We cannot leave this loop early. There may be multiple uses of {reg}.
     *use = replacement;
@@ -1063,7 +1063,7 @@ void LiftoffAssembler::PrepareCall(const ValueKindSig* sig,
   if (target_instance && *target_instance != instance_reg) {
     stack_transfers.MoveRegister(LiftoffRegister(instance_reg),
                                  LiftoffRegister(*target_instance),
-                                 kPointerKind);
+                                 kIntPtrKind);
   }
 
   int param_slots = static_cast<int>(call_descriptor->ParameterSlotCount());
@@ -1082,10 +1082,10 @@ void LiftoffAssembler::PrepareCall(const ValueKindSig* sig,
     if (!free_regs.is_empty()) {
       LiftoffRegister new_target = free_regs.GetFirstRegSet();
       stack_transfers.MoveRegister(new_target, LiftoffRegister(*target),
-                                   kPointerKind);
+                                   kIntPtrKind);
       *target = new_target.gp();
     } else {
-      stack_slots.Add(VarState(kPointerKind, LiftoffRegister(*target), 0),
+      stack_slots.Add(VarState(kIntPtrKind, LiftoffRegister(*target), 0),
                       param_slots);
       param_slots++;
       *target = no_reg;

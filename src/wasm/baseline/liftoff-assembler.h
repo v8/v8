@@ -114,7 +114,7 @@ class LiftoffAssembler : public TurboAssembler {
   // Each slot in our stack frame currently has exactly 8 bytes.
   static constexpr int kStackSlotSize = 8;
 
-  static constexpr ValueKind kPointerKind =
+  static constexpr ValueKind kIntPtrKind =
       kSystemPointerSize == kInt32Size ? kI32 : kI64;
   // A tagged value known to be a Smi can be treated like a ptr-sized int.
   static constexpr ValueKind kSmiKind = kTaggedSize == kInt32Size ? kI32 : kI64;
