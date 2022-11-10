@@ -16,6 +16,7 @@
 #include "src/codegen/x64/register-x64.h"
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/ic/handler-configuration.h"
 #include "src/interpreter/bytecode-flags.h"
@@ -3126,7 +3127,7 @@ void CheckUint32IsSmi::GenerateCode(MaglevAssembler* masm,
 }
 
 void CheckedSmiTagInt32::AllocateVreg(MaglevVregAllocationState* vreg_state) {
-  UseRegister(input());
+  UseAndClobberRegister(input());
   DefineSameAsFirst(vreg_state, this);
 }
 void CheckedSmiTagInt32::GenerateCode(MaglevAssembler* masm,
