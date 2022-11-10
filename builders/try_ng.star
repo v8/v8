@@ -483,6 +483,14 @@ trybot_pair(
 )
 
 trybot_pair(
+    name = "v8_mac64_noopt_dbg",
+    total_timeout = 7200,
+    cq_properties = CQ.OPTIONAL,
+    dimensions = {"os": "Mac-10.15"},
+    use_goma = GOMA.DEFAULT,
+)
+
+trybot_pair(
     name = "v8_mac64_rel",
     total_timeout = 7200,
     cq_properties = CQ.BLOCK,

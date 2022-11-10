@@ -215,14 +215,6 @@ try_builder(
 )
 
 try_builder(
-    name = "v8_mac64_compile_full_dbg",
-    bucket = "try",
-    cq_properties = CQ.OPTIONAL,
-    dimensions = {"os": "Mac-10.15"},
-    use_goma = GOMA.DEFAULT,
-)
-
-try_builder(
     name = "v8_linux_torque_compare",
     bucket = "try",
     cq_properties = CQ.OPTIONAL,
