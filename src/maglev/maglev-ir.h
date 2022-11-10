@@ -133,6 +133,7 @@ class CompactInterpreterFrameState;
   V(Construct)                     \
   V(ConstructWithSpread)           \
   V(ConvertReceiver)               \
+  V(ConvertHoleToUndefined)        \
   V(CreateEmptyArrayLiteral)       \
   V(CreateArrayLiteral)            \
   V(CreateShallowArrayLiteral)     \
@@ -178,6 +179,7 @@ class CompactInterpreterFrameState;
   V(ChangeInt32ToFloat64)          \
   V(CheckedTruncateFloat64ToInt32) \
   V(Float64Box)                    \
+  V(HoleyFloat64Box)               \
   V(CheckedFloat64Unbox)           \
   V(LogicalNot)                    \
   V(SetPendingMessage)             \
@@ -1969,6 +1971,21 @@ class Float64Box : public FixedInputValueNodeT<1, Float64Box> {
 
   static constexpr OpProperties kProperties =
       OpProperties::DeferredCall() | OpProperties::ConversionNode();
+
+  Input& input() { return Node::input(0); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class HoleyFloat64Box : public FixedInputValueNodeT<1, HoleyFloat64Box> {
+  using Base = FixedInputValueNodeT<1, HoleyFloat64Box>;
+
+ public:
+  explicit HoleyFloat64Box(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::DeferredCall();
 
   Input& input() { return Node::input(0); }
 
@@ -4401,6 +4418,20 @@ class ConvertReceiver : public FixedInputValueNodeT<1, ConvertReceiver> {
  private:
   const compiler::JSFunctionRef target_;
   ConvertReceiverMode mode_;
+};
+
+class ConvertHoleToUndefined
+    : public FixedInputValueNodeT<1, ConvertHoleToUndefined> {
+  using Base = FixedInputValueNodeT<1, ConvertHoleToUndefined>;
+
+ public:
+  explicit ConvertHoleToUndefined(uint64_t bitfield) : Base(bitfield) {}
+
+  Input& object_input() { return input(0); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
 class IncreaseInterruptBudget

@@ -66,6 +66,9 @@ class MaglevAssembler : public MacroAssembler {
                 AllocationType alloc_type = AllocationType::kYoung,
                 AllocationAlignment alignment = kTaggedAligned);
 
+  void AllocateHeapNumber(RegisterSnapshot register_snapshot, Register result,
+                          DoubleRegister value);
+
   void AllocateTwoByteString(RegisterSnapshot register_snapshot,
                              Register result, int length);
 

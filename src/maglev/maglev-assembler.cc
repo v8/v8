@@ -69,6 +69,20 @@ void MaglevAssembler::Allocate(RegisterSnapshot& register_snapshot,
   bind(*done);
 }
 
+void MaglevAssembler::AllocateHeapNumber(RegisterSnapshot register_snapshot,
+                                         Register result,
+                                         DoubleRegister value) {
+  // In the case we need to call the runtime, we should spill the value
+  // register. Even if it is not live in the next node, otherwise the
+  // allocation call might trash it.
+  register_snapshot.live_double_registers.set(value);
+  Allocate(register_snapshot, result, HeapNumber::kSize);
+  LoadRoot(kScratchRegister, RootIndex::kHeapNumberMap);
+  StoreTaggedField(FieldOperand(result, HeapObject::kMapOffset),
+                   kScratchRegister);
+  Movsd(FieldOperand(result, HeapNumber::kValueOffset), value);
+}
+
 void MaglevAssembler::AllocateTwoByteString(RegisterSnapshot register_snapshot,
                                             Register result, int length) {
   Allocate(register_snapshot, result, SeqTwoByteString::SizeFor(length));

@@ -1417,6 +1417,23 @@ void MaglevGraphBuilder::BuildCheckMaps(
   known_info->type = merger.node_type();
 }
 
+bool MaglevGraphBuilder::CanTreatHoleAsUndefined(
+    ZoneVector<compiler::MapRef> const& receiver_maps) {
+  // Check if all {receiver_maps} have one of the initial Array.prototype
+  // or Object.prototype objects as their prototype (in any of the current
+  // native contexts, as the global Array protector works isolate-wide).
+  for (compiler::MapRef receiver_map : receiver_maps) {
+    compiler::ObjectRef receiver_prototype = receiver_map.prototype();
+    if (!receiver_prototype.IsJSObject() ||
+        !broker()->IsArrayOrObjectPrototype(receiver_prototype.AsJSObject())) {
+      return false;
+    }
+  }
+
+  // Check if the array prototype chain is intact.
+  return broker()->dependencies()->DependOnNoElementsProtector();
+}
+
 bool MaglevGraphBuilder::TryFoldLoadDictPrototypeConstant(
     compiler::PropertyAccessInfo access_info) {
   DCHECK(V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
@@ -1908,7 +1925,10 @@ bool MaglevGraphBuilder::TryBuildElementAccess(
     // TODO(victorgomes): Support more elements kind.
     ElementsKind elements_kind = access_info.elements_kind();
     if (!IsFastElementsKind(elements_kind)) return false;
-    if (IsHoleyElementsKind(elements_kind)) return false;
+    if (IsHoleyElementsKind(elements_kind) &&
+        !CanTreatHoleAsUndefined(access_info.lookup_start_object_maps())) {
+      return false;
+    }
 
     const compiler::MapRef& map =
         access_info.lookup_start_object_maps().front();
@@ -1925,11 +1945,20 @@ bool MaglevGraphBuilder::TryBuildElementAccess(
       DCHECK(map.IsJSObjectMap());
       AddNewNode<CheckJSObjectElementsBounds>({object, index});
     }
-    if (elements_kind == ElementsKind::PACKED_DOUBLE_ELEMENTS) {
+    if (IsDoubleElementsKind(elements_kind)) {
       SetAccumulator(AddNewNode<LoadDoubleElement>({object, index}));
+      if (IsHoleyElementsKind(elements_kind)) {
+        // TODO: Add a representation for "Float64OrHole" and emit this boxing
+        // lazily.
+        SetAccumulator(AddNewNode<HoleyFloat64Box>(
+            {current_interpreter_frame_.accumulator()}));
+      }
     } else {
-      DCHECK(!IsDoubleElementsKind(elements_kind));
       SetAccumulator(AddNewNode<LoadTaggedElement>({object, index}));
+      if (IsHoleyElementsKind(elements_kind)) {
+        SetAccumulator(AddNewNode<ConvertHoleToUndefined>(
+            {current_interpreter_frame_.accumulator()}));
+      }
     }
     return true;
 

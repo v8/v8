@@ -3145,16 +3145,30 @@ void Float64Box::GenerateCode(MaglevAssembler* masm,
                               const ProcessingState& state) {
   DoubleRegister value = ToDoubleRegister(input());
   Register object = ToRegister(result());
-  // In the case we need to call the runtime, we should spill the input
-  // register. Even if it is not live in the next node, otherwise the allocation
-  // call might trash it.
-  RegisterSnapshot save_registers = register_snapshot();
-  save_registers.live_double_registers.set(value);
-  __ Allocate(save_registers, object, HeapNumber::kSize);
-  __ LoadRoot(kScratchRegister, RootIndex::kHeapNumberMap);
-  __ StoreTaggedField(FieldOperand(object, HeapObject::kMapOffset),
-                      kScratchRegister);
-  __ Movsd(FieldOperand(object, HeapNumber::kValueOffset), value);
+  __ AllocateHeapNumber(register_snapshot(), object, value);
+}
+
+void HoleyFloat64Box::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  UseRegister(input());
+  DefineAsRegister(vreg_state, this);
+}
+void HoleyFloat64Box::GenerateCode(MaglevAssembler* masm,
+                                   const ProcessingState& state) {
+  ZoneLabelRef done(masm);
+  DoubleRegister value = ToDoubleRegister(input());
+  Register object = ToRegister(result());
+  __ movq(object, value);
+  __ Move(kScratchRegister, kHoleNanInt64);
+  __ cmpq(object, kScratchRegister);
+  __ JumpToDeferredIf(
+      equal,
+      [](MaglevAssembler* masm, Register object, ZoneLabelRef done) {
+        __ LoadRoot(object, RootIndex::kUndefinedValue);
+        __ jmp(*done);
+      },
+      object, done);
+  __ AllocateHeapNumber(register_snapshot(), object, value);
+  __ bind(*done);
 }
 
 void CheckedFloat64Unbox::AllocateVreg(MaglevVregAllocationState* vreg_state) {
@@ -4035,6 +4049,21 @@ void ConvertReceiver::GenerateCode(MaglevAssembler* masm,
   __ Move(kContextRegister, target_.context().object());
   __ CallBuiltin(Builtin::kToObject);
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
+  __ bind(&done);
+}
+
+void ConvertHoleToUndefined::AllocateVreg(
+    MaglevVregAllocationState* vreg_state) {
+  UseRegister(object_input());
+  DefineSameAsFirst(vreg_state, this);
+}
+void ConvertHoleToUndefined::GenerateCode(MaglevAssembler* masm,
+                                          const ProcessingState& state) {
+  Label done;
+  DCHECK_EQ(ToRegister(object_input()), ToRegister(result()));
+  __ JumpIfNotRoot(ToRegister(object_input()), RootIndex::kTheHoleValue, &done,
+                   Label::kNear);
+  __ LoadRoot(ToRegister(result()), RootIndex::kUndefinedValue);
   __ bind(&done);
 }
 

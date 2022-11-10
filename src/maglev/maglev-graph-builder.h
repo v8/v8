@@ -14,6 +14,7 @@
 #include "src/base/optional.h"
 #include "src/codegen/source-position-table.h"
 #include "src/common/globals.h"
+#include "src/compiler/backend/code-generator.h"
 #include "src/compiler/bytecode-analysis.h"
 #include "src/compiler/bytecode-liveness-map.h"
 #include "src/compiler/heap-refs.h"
@@ -1169,6 +1170,9 @@ class MaglevGraphBuilder {
     return GetInt32ElementIndex(index_object);
   }
   ValueNode* GetInt32ElementIndex(ValueNode* index_object);
+
+  bool CanTreatHoleAsUndefined(
+      ZoneVector<compiler::MapRef> const& receiver_maps);
 
   bool TryFoldLoadDictPrototypeConstant(
       compiler::PropertyAccessInfo access_info);

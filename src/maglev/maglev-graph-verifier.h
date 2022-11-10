@@ -126,6 +126,7 @@ class MaglevGraphVerifier {
       case Opcode::kCheckedInternalizedString:
       case Opcode::kCheckedObjectToIndex:
       case Opcode::kConvertReceiver:
+      case Opcode::kConvertHoleToUndefined:
       // TODO(victorgomes): Can we check that the input is Boolean?
       case Opcode::kBranchIfToBooleanTrue:
       case Opcode::kBranchIfRootConstant:
@@ -161,6 +162,7 @@ class MaglevGraphVerifier {
         CheckValueInputIs(node, 0, ValueRepresentation::kInt32);
         break;
       case Opcode::kFloat64Box:
+      case Opcode::kHoleyFloat64Box:
       case Opcode::kCheckedTruncateFloat64ToInt32:
         DCHECK_EQ(node->input_count(), 1);
         CheckValueInputIs(node, 0, ValueRepresentation::kFloat64);
