@@ -299,11 +299,19 @@ class MaglevGraphVerifier {
         CheckValueInputIs(node, 0, ValueRepresentation::kTagged);
         CheckValueInputIs(node, 1, ValueRepresentation::kInt32);
         break;
+      case Opcode::kLoadSignedIntDataViewElement:
       case Opcode::kLoadDoubleDataViewElement:
         DCHECK_EQ(node->input_count(), 3);
         CheckValueInputIs(node, 0, ValueRepresentation::kTagged);
         CheckValueInputIs(node, 1, ValueRepresentation::kInt32);
         CheckValueInputIs(node, 2, ValueRepresentation::kTagged);
+        break;
+      case Opcode::kStoreSignedIntDataViewElement:
+        DCHECK_EQ(node->input_count(), 4);
+        CheckValueInputIs(node, 0, ValueRepresentation::kTagged);
+        CheckValueInputIs(node, 1, ValueRepresentation::kInt32);
+        CheckValueInputIs(node, 2, ValueRepresentation::kInt32);
+        CheckValueInputIs(node, 3, ValueRepresentation::kTagged);
         break;
       case Opcode::kStoreDoubleDataViewElement:
         DCHECK_EQ(node->input_count(), 4);

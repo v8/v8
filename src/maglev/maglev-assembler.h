@@ -80,6 +80,12 @@ class MaglevAssembler : public MacroAssembler {
 
   inline void LoadBoundedSizeFromObject(Register result, Register object,
                                         int offset);
+  inline void LoadExternalPointerField(Register result, Operand operand);
+
+  inline void LoadSignedField(Register result, Operand operand,
+                              int element_size);
+  inline void StoreField(Operand operand, Register value, int element_size);
+  inline void ReverseByteOrder(Register value, int element_size);
 
   // Warning: Input registers {string} and {index} will be scratched.
   // {result} is allowed to alias with one the other 3 input registers.

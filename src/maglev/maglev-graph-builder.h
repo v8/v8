@@ -1104,7 +1104,19 @@ class MaglevGraphBuilder {
   ValueNode* GetConvertReceiver(compiler::JSFunctionRef function,
                                 const CallArguments& args);
 
+  template <typename LoadNode>
+  bool TryBuildLoadDataView(const CallArguments& args, ExternalArrayType type);
+  template <typename StoreNode, typename Function>
+  bool TryBuildStoreDataView(const CallArguments& args, ExternalArrayType type,
+                             Function&& getValue);
+
 #define MAGLEV_REDUCED_BUILTIN(V) \
+  V(DataViewPrototypeGetInt8)     \
+  V(DataViewPrototypeSetInt8)     \
+  V(DataViewPrototypeGetInt16)    \
+  V(DataViewPrototypeSetInt16)    \
+  V(DataViewPrototypeGetInt32)    \
+  V(DataViewPrototypeSetInt32)    \
   V(DataViewPrototypeGetFloat64)  \
   V(DataViewPrototypeSetFloat64)  \
   V(FunctionPrototypeCall)        \
