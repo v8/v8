@@ -97,7 +97,15 @@ class TracedNode final {
 
   void clear_markbit() { flags_ = Markbit::update(flags_, false); }
 
-  void set_raw_object(Address value) { object_ = value; }
+  template <AccessMode access_mode = AccessMode::NON_ATOMIC>
+  void set_raw_object(Address value) {
+    if constexpr (access_mode == AccessMode::NON_ATOMIC) {
+      object_ = value;
+    } else {
+      reinterpret_cast<std::atomic<Address>*>(&object_)->store(
+          value, std::memory_order_relaxed);
+    }
+  }
   Address raw_object() const { return object_; }
   Object object() const { return Object(object_); }
   Handle<Object> handle() { return Handle<Object>(&object_); }
@@ -626,14 +634,15 @@ void TracedHandlesImpl::Destroy(TracedNodeBlock& node_block, TracedNode& node) {
   }
 
   if (is_marking_) {
-    // Incremental marking is on. This also covers the scavenge case which
-    // prohibits eagerly reclaiming nodes when marking is on during a scavenge.
+    // Incremental/concurrent marking is running. This also covers the scavenge
+    // case which prohibits eagerly reclaiming nodes when marking is on during a
+    // scavenge.
     //
     // On-heap traced nodes are released in the atomic pause in
     // `IterateWeakRootsForPhantomHandles()` when they are discovered as not
     // marked. Eagerly clear out the object here to avoid needlessly marking it
     // from this point on. The node will be reclaimed on the next cycle.
-    node.set_raw_object(kNullAddress);
+    node.set_raw_object<AccessMode::ATOMIC>(kNullAddress);
     return;
   }
 
