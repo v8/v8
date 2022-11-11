@@ -310,6 +310,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
   void SetUpMainThread();
   void SetUp();
+  void SetUpSharedMarking();
 
   Heap* heap_;
   bool is_main_thread_;

@@ -7223,8 +7223,8 @@ void Heap::WriteBarrierForRangeImpl(MemoryChunk* source_page, HeapObject object,
       }
     }
 
-    if ((kModeMask & kDoMarking) &&
-        marking_barrier->MarkValue(object, value_heap_object)) {
+    if (kModeMask & kDoMarking) {
+      marking_barrier->MarkValue(object, value_heap_object);
       if (kModeMask & kDoEvacuationSlotRecording) {
         collector->RecordSlot(source_page, HeapObjectSlot(slot),
                               value_heap_object);

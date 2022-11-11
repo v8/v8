@@ -69,6 +69,8 @@ LocalHeap::LocalHeap(Heap* heap, ThreadKind kind,
                 ? MarkingBarrierType::kMinor
                 : MarkingBarrierType::kMajor);
       }
+
+      SetUpSharedMarking();
     }
   });
 
@@ -91,7 +93,8 @@ LocalHeap::~LocalHeap() {
       CodePageHeaderModificationScope rwx_write_scope(
           "Publishing of marking barrier results for Code space pages requires "
           "write access to Code page headers");
-      marking_barrier_->Publish();
+      marking_barrier_->PublishIfNeeded();
+      marking_barrier_->PublishSharedIfNeeded();
       WriteBarrier::ClearForThread(marking_barrier_.get());
     }
   });
@@ -104,11 +107,16 @@ LocalHeap::~LocalHeap() {
   DCHECK(gc_epilogue_callbacks_.IsEmpty());
 }
 
-void LocalHeap::SetUpMainThreadForTesting() { SetUpMainThread(); }
+void LocalHeap::SetUpMainThreadForTesting() {
+  Unpark();
+  SetUpMainThread();
+}
 
 void LocalHeap::SetUpMainThread() {
   DCHECK(is_main_thread());
+  DCHECK(IsRunning());
   SetUp();
+  SetUpSharedMarking();
 }
 
 void LocalHeap::SetUp() {
@@ -128,6 +136,30 @@ void LocalHeap::SetUp() {
 
   DCHECK_NULL(marking_barrier_);
   marking_barrier_ = std::make_unique<MarkingBarrier>(this);
+}
+
+void LocalHeap::SetUpSharedMarking() {
+#if DEBUG
+  // Ensure the thread is either in the running state or holds the safepoint
+  // lock. This guarantees that the state of incremental marking can't change
+  // concurrently (this requires a safepoint).
+  if (is_main_thread()) {
+    DCHECK(IsRunning());
+  } else {
+    heap()->safepoint()->AssertActive();
+  }
+#endif  // DEBUG
+
+  Isolate* isolate = heap_->isolate();
+
+  if (isolate->has_shared_heap() && !isolate->is_shared_heap_isolate()) {
+    if (isolate->shared_heap_isolate()
+            ->heap()
+            ->incremental_marking()
+            ->IsMarking()) {
+      marking_barrier_->ActivateShared();
+    }
+  }
 }
 
 void LocalHeap::EnsurePersistentHandles() {

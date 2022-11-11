@@ -487,7 +487,7 @@ void MarkCompactCollector::TearDown() {
   AbortCompaction();
   if (heap()->incremental_marking()->IsMajorMarking()) {
     local_marking_worklists()->Publish();
-    heap()->main_thread_local_heap()->marking_barrier()->Publish();
+    heap()->main_thread_local_heap()->marking_barrier()->PublishIfNeeded();
     // Marking barriers of LocalHeaps will be published in their destructors.
     marking_worklists()->Clear();
     local_weak_objects()->Publish();
@@ -5565,7 +5565,7 @@ void MinorMarkCompactCollector::SetUp() {}
 void MinorMarkCompactCollector::TearDown() {
   if (heap()->incremental_marking()->IsMinorMarking()) {
     local_marking_worklists()->Publish();
-    heap()->main_thread_local_heap()->marking_barrier()->Publish();
+    heap()->main_thread_local_heap()->marking_barrier()->PublishIfNeeded();
     // Marking barriers of LocalHeaps will be published in their destructors.
     marking_worklists()->Clear();
   }
