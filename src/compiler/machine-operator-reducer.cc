@@ -2128,7 +2128,7 @@ Reduction MachineOperatorReducer::ReduceWordNXor(Node* node) {
   if (m.IsFoldable()) {  // K ^ K => K  (K stands for arbitrary constants)
     return a.ReplaceIntN(m.left().ResolvedValue() ^ m.right().ResolvedValue());
   }
-  if (m.LeftEqualsRight()) return ReplaceInt32(0);  // x ^ x => 0
+  if (m.LeftEqualsRight()) return Replace(a.IntNConstant(0));  // x ^ x => 0
   if (A::IsWordNXor(m.left()) && m.right().Is(-1)) {
     typename A::IntNBinopMatcher mleft(m.left().node());
     if (mleft.right().Is(-1)) {  // (x ^ -1) ^ -1 => x
