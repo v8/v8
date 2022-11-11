@@ -6,6 +6,7 @@
 #define V8_COMPILER_TURBOSHAFT_OPERATION_MATCHING_H_
 
 #include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/turboshaft/representations.h"
 
 namespace v8 ::internal::compiler::turboshaft {
 
@@ -106,8 +107,26 @@ class OperationMatching {
       default:
         return false;
     }
-    if (unsigned_constant) *unsigned_constant = op->integral();
-    if (signed_constant) *signed_constant = op->signed_integral();
+    if (unsigned_constant) {
+      switch (rep.value()) {
+        case WordRepresentation::Word32():
+          *unsigned_constant = static_cast<uint32_t>(op->integral());
+          break;
+        case WordRepresentation::Word64():
+          *unsigned_constant = op->integral();
+          break;
+      }
+    }
+    if (signed_constant) {
+      switch (rep.value()) {
+        case WordRepresentation::Word32():
+          *signed_constant = static_cast<int32_t>(op->signed_integral());
+          break;
+        case WordRepresentation::Word64():
+          *signed_constant = op->signed_integral();
+          break;
+      }
+    }
     return true;
   }
 
