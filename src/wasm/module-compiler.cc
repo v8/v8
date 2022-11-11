@@ -2033,6 +2033,9 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
   if (thrower->error()) return {};
 
   if (cache_hit) {
+    // Update {module} from {native_module}; {module} might be a dangling
+    // pointer now.
+    module = native_module->module();
     CompileJsToWasmWrappers(isolate, module);
     return native_module;
   }
