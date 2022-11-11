@@ -1316,8 +1316,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
           {
             TNode<Object> prev_value =
                 LoadValueByKeyIndex(properties, var_name_index.value());
-            BranchIfSameValue(prev_value, p->value(), &done, miss,
-                              SameValueMode::kNumbersOnly);
+            Branch(TaggedEqual(prev_value, p->value()), &done, miss);
           }
 
           BIND(&done);
@@ -1618,8 +1617,8 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
           Label store_value(this);
           GotoIfNot(IsPropertyDetailsConst(details), &store_value);
           TNode<Float64T> current_value = LoadHeapNumberValue(heap_number);
-          BranchIfSameNumberValue(current_value, double_value, &store_value,
-                                  slow);
+          GotoIfNotSameNumberBitPattern(current_value, double_value, slow);
+          Goto(&done);
           BIND(&store_value);
           StoreHeapNumberValue(heap_number, double_value);
         }
@@ -1634,8 +1633,7 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
           Label if_mutable(this);
           GotoIfNot(IsPropertyDetailsConst(details), &if_mutable);
           TNode<Object> current_value = LoadObjectField(object, field_offset);
-          BranchIfSameValue(current_value, value, &done, slow,
-                            SameValueMode::kNumbersOnly);
+          Branch(TaggedEqual(current_value, value), &done, slow);
           BIND(&if_mutable);
         }
         StoreObjectField(object, field_offset, value);
@@ -1691,7 +1689,8 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
           Label if_mutable(this);
           GotoIfNot(IsPropertyDetailsConst(details), &if_mutable);
           TNode<Float64T> current_value = LoadHeapNumberValue(heap_number);
-          BranchIfSameNumberValue(current_value, double_value, &done, slow);
+          GotoIfNotSameNumberBitPattern(current_value, double_value, slow);
+          Goto(&done);
 
           BIND(&if_mutable);
           StoreHeapNumberValue(heap_number, double_value);
@@ -1703,8 +1702,7 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
           GotoIfNot(IsPropertyDetailsConst(details), &if_mutable);
           TNode<Object> current_value =
               LoadPropertyArrayElement(properties, backing_store_index);
-          BranchIfSameValue(current_value, value, &done, slow,
-                            SameValueMode::kNumbersOnly);
+          Branch(TaggedEqual(current_value, value), &done, slow);
 
           BIND(&if_mutable);
           StorePropertyArrayElement(properties, backing_store_index, value);
@@ -2149,6 +2147,18 @@ void AccessorAssembler::CheckDescriptorConsidersNumbersMutable(
             bailout);
 }
 
+void AccessorAssembler::GotoIfNotSameNumberBitPattern(TNode<Float64T> left,
+                                                      TNode<Float64T> right,
+                                                      Label* miss) {
+  // TODO(verwaest): Use a single compare on 64bit archs.
+  const TNode<Uint32T> lhs_hi = Float64ExtractHighWord32(left);
+  const TNode<Uint32T> rhs_hi = Float64ExtractHighWord32(right);
+  GotoIfNot(Word32Equal(lhs_hi, rhs_hi), miss);
+  const TNode<Uint32T> lhs_lo = Float64ExtractLowWord32(left);
+  const TNode<Uint32T> rhs_lo = Float64ExtractLowWord32(right);
+  GotoIfNot(Word32Equal(lhs_lo, rhs_lo), miss);
+}
+
 void AccessorAssembler::HandleStoreFieldAndReturn(
     TNode<Word32T> handler_word, TNode<JSObject> holder, TNode<Object> value,
     base::Optional<TNode<Float64T>> double_value, Representation representation,
@@ -2192,11 +2202,9 @@ void AccessorAssembler::HandleStoreFieldAndReturn(
             &do_store);
   {
     if (store_value_as_double) {
-      Label done(this);
       TNode<Float64T> current_value =
           LoadObjectField<Float64T>(property_storage, offset);
-      BranchIfSameNumberValue(current_value, *double_value, &done, miss);
-      BIND(&done);
+      GotoIfNotSameNumberBitPattern(current_value, *double_value, miss);
       Return(value);
     } else {
       TNode<Object> current_value = LoadObjectField(property_storage, offset);
