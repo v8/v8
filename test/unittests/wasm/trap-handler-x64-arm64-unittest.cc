@@ -33,17 +33,25 @@
 #include "test/common/assembler-tester.h"
 #include "test/unittests/test-utils.h"
 
+#if V8_TRAP_HANDLER_SUPPORTED
+
+#if V8_HOST_ARCH_ARM64 && !V8_OS_DARWIN
+#error Unsupported platform
+#endif
+
 namespace v8 {
 namespace internal {
 namespace wasm {
 
 namespace {
+#if V8_HOST_ARCH_X64
 constexpr Register scratch = r10;
+#endif
 bool g_test_handler_executed = false;
 #if V8_OS_LINUX || V8_OS_DARWIN || V8_OS_FREEBSD
 struct sigaction g_old_segv_action;
-struct sigaction g_old_fpe_action;
-struct sigaction g_old_bus_action;  // We get SIGBUS on Mac sometimes.
+struct sigaction g_old_other_action;  // FPE or TRAP, depending on x64 or arm64.
+struct sigaction g_old_bus_action;    // We get SIGBUS on Mac sometimes.
 #elif V8_OS_WIN
 void* g_registered_handler = nullptr;
 #endif
@@ -107,8 +115,15 @@ class TrapHandlerTest : public TestWithIsolate,
     EXPECT_EQ(0, sigaction(SIGSEGV, &action, &g_old_segv_action));
     // SIGBUS happens for wasm oob memory accesses on macOS.
     EXPECT_EQ(0, sigaction(SIGBUS, &action, &g_old_bus_action));
+#if V8_HOST_ARCH_X64
     // SIGFPE to simulate crashes which are not handled by the trap handler.
-    EXPECT_EQ(0, sigaction(SIGFPE, &action, &g_old_fpe_action));
+    EXPECT_EQ(0, sigaction(SIGFPE, &action, &g_old_other_action));
+#elif V8_HOST_ARCH_ARM64
+    // SIGTRAP to simulate crashes which are not handled by the trap handler.
+    EXPECT_EQ(0, sigaction(SIGTRAP, &action, &g_old_other_action));
+#else
+#error Unsupported platform
+#endif
 #elif V8_OS_WIN
     g_registered_handler =
         AddVectoredExceptionHandler(/*first=*/0, TestHandler);
@@ -129,8 +144,14 @@ class TrapHandlerTest : public TestWithIsolate,
       // The test handler cleans up the signal handler setup in the test. If the
       // test handler was not called, we have to do the cleanup ourselves.
       EXPECT_EQ(0, sigaction(SIGSEGV, &g_old_segv_action, nullptr));
-      EXPECT_EQ(0, sigaction(SIGFPE, &g_old_fpe_action, nullptr));
       EXPECT_EQ(0, sigaction(SIGBUS, &g_old_bus_action, nullptr));
+#if V8_HOST_ARCH_X64
+      EXPECT_EQ(0, sigaction(SIGFPE, &g_old_other_action, nullptr));
+#elif V8_HOST_ARCH_ARM64
+      EXPECT_EQ(0, sigaction(SIGTRAP, &g_old_other_action, nullptr));
+#else
+#error Unsupported platform
+#endif
 #elif V8_OS_WIN
       RemoveVectoredExceptionHandler(g_registered_handler);
       g_registered_handler = nullptr;
@@ -147,7 +168,9 @@ class TrapHandlerTest : public TestWithIsolate,
     MacroAssembler masm(nullptr, AssemblerOptions{}, CodeObjectRequired::kNo,
                         recovery_buffer_->CreateView());
     int recovery_offset = __ pc_offset();
+#if V8_HOST_ARCH_X64
     __ Pop(scratch);
+#endif
     __ Ret();
     CodeDesc desc;
     masm.GetCode(nullptr, &desc);
@@ -167,16 +190,24 @@ class TrapHandlerTest : public TestWithIsolate,
     // Reset the signal handler, to avoid that this signal handler is called
     // repeatedly.
     sigaction(SIGSEGV, &g_old_segv_action, nullptr);
-    sigaction(SIGFPE, &g_old_fpe_action, nullptr);
+#if V8_HOST_ARCH_X64
+    sigaction(SIGFPE, &g_old_other_action, nullptr);
+#elif V8_HOST_ARCH_ARM64
+    sigaction(SIGTRAP, &g_old_other_action, nullptr);
+#else
+#error Unsupported platform
+#endif
     sigaction(SIGBUS, &g_old_bus_action, nullptr);
 
     g_test_handler_executed = true;
     // Set the $rip to the recovery code.
     ucontext_t* uc = reinterpret_cast<ucontext_t*>(context);
-#if V8_OS_LINUX
-    uc->uc_mcontext.gregs[REG_RIP] = g_recovery_address;
-#elif V8_OS_DARWIN
+#if V8_OS_DARWIN && V8_HOST_ARCH_ARM64
+    uc->uc_mcontext->__ss.__pc = g_recovery_address;
+#elif V8_OS_DARWIN && V8_HOST_ARCH_X64
     uc->uc_mcontext->__ss.__rip = g_recovery_address;
+#elif V8_OS_LINUX && V8_HOST_ARCH_X64
+    uc->uc_mcontext.gregs[REG_RIP] = g_recovery_address;
 #elif V8_OS_FREEBSD
     uc->uc_mcontext.mc_rip = g_recovery_address;
 #else
@@ -208,17 +239,39 @@ class TrapHandlerTest : public TestWithIsolate,
 
  public:
   void GenerateSetThreadInWasmFlagCode(MacroAssembler* masm) {
+#if V8_HOST_ARCH_X64
     masm->Move(scratch,
                i_isolate()->thread_local_top()->thread_in_wasm_flag_address_,
                RelocInfo::NO_INFO);
     masm->movl(MemOperand(scratch, 0), Immediate(1));
+#elif V8_HOST_ARCH_ARM64
+    UseScratchRegisterScope temps(masm);
+    Register addr = temps.AcquireX();
+    masm->Mov(addr,
+              i_isolate()->thread_local_top()->thread_in_wasm_flag_address_);
+    Register one = temps.AcquireX();
+    masm->Mov(one, 1);
+    masm->Str(one, MemOperand(addr));
+#else
+#error Unsupported platform
+#endif
   }
 
   void GenerateResetThreadInWasmFlagCode(MacroAssembler* masm) {
+#if V8_HOST_ARCH_X64
     masm->Move(scratch,
                i_isolate()->thread_local_top()->thread_in_wasm_flag_address_,
                RelocInfo::NO_INFO);
     masm->movl(MemOperand(scratch, 0), Immediate(0));
+#elif V8_HOST_ARCH_ARM64
+    UseScratchRegisterScope temps(masm);
+    Register addr = temps.AcquireX();
+    masm->Mov(addr,
+              i_isolate()->thread_local_top()->thread_in_wasm_flag_address_);
+    masm->Str(xzr, MemOperand(addr));
+#else
+#error Unsupported platform
+#endif
   }
 
   bool GetThreadInWasmFlag() {
@@ -275,6 +328,7 @@ TEST_P(TrapHandlerTest, TestTrapHandlerRecovery) {
   // wasm code (we fake the wasm code and the access violation).
   MacroAssembler masm(nullptr, AssemblerOptions{}, CodeObjectRequired::kNo,
                       buffer_->CreateView());
+#if V8_HOST_ARCH_X64
   __ Push(scratch);
   GenerateSetThreadInWasmFlagCode(&masm);
   __ Move(scratch, crash_address_, RelocInfo::NO_INFO);
@@ -283,6 +337,18 @@ TEST_P(TrapHandlerTest, TestTrapHandlerRecovery) {
   uint32_t recovery_offset = __ pc_offset();
   GenerateResetThreadInWasmFlagCode(&masm);
   __ Pop(scratch);
+#elif V8_HOST_ARCH_ARM64
+  GenerateSetThreadInWasmFlagCode(&masm);
+  UseScratchRegisterScope temps(&masm);
+  Register scratch = temps.AcquireX();
+  __ Mov(scratch, crash_address_);
+  uint32_t crash_offset = __ pc_offset();
+  __ Ldr(scratch, MemOperand(scratch));
+  uint32_t recovery_offset = __ pc_offset();
+  GenerateResetThreadInWasmFlagCode(&masm);
+#else
+#error Unsupported platform
+#endif
   __ Ret();
   CodeDesc desc;
   masm.GetCode(nullptr, &desc);
@@ -300,6 +366,7 @@ TEST_P(TrapHandlerTest, TestReleaseHandlerData) {
   // recover from the specific memory access violation anymore.
   MacroAssembler masm(nullptr, AssemblerOptions{}, CodeObjectRequired::kNo,
                       buffer_->CreateView());
+#if V8_HOST_ARCH_X64
   __ Push(scratch);
   GenerateSetThreadInWasmFlagCode(&masm);
   __ Move(scratch, crash_address_, RelocInfo::NO_INFO);
@@ -308,6 +375,18 @@ TEST_P(TrapHandlerTest, TestReleaseHandlerData) {
   uint32_t recovery_offset = __ pc_offset();
   GenerateResetThreadInWasmFlagCode(&masm);
   __ Pop(scratch);
+#elif V8_HOST_ARCH_ARM64
+  GenerateSetThreadInWasmFlagCode(&masm);
+  UseScratchRegisterScope temps(&masm);
+  Register scratch = temps.AcquireX();
+  __ Mov(scratch, crash_address_);
+  uint32_t crash_offset = __ pc_offset();
+  __ Ldr(scratch, MemOperand(scratch));
+  uint32_t recovery_offset = __ pc_offset();
+  GenerateResetThreadInWasmFlagCode(&masm);
+#else
+#error Unsupported platform
+#endif
   __ Ret();
   CodeDesc desc;
   masm.GetCode(nullptr, &desc);
@@ -332,12 +411,23 @@ TEST_P(TrapHandlerTest, TestNoThreadInWasmFlag) {
   // get active.
   MacroAssembler masm(nullptr, AssemblerOptions{}, CodeObjectRequired::kNo,
                       buffer_->CreateView());
+#if V8_HOST_ARCH_X64
   __ Push(scratch);
   __ Move(scratch, crash_address_, RelocInfo::NO_INFO);
   uint32_t crash_offset = __ pc_offset();
   __ testl(MemOperand(scratch, 0), Immediate(1));
   uint32_t recovery_offset = __ pc_offset();
   __ Pop(scratch);
+#elif V8_HOST_ARCH_ARM64
+  UseScratchRegisterScope temps(&masm);
+  Register scratch = temps.AcquireX();
+  __ Mov(scratch, crash_address_);
+  uint32_t crash_offset = __ pc_offset();
+  __ Ldr(scratch, MemOperand(scratch));
+  uint32_t recovery_offset = __ pc_offset();
+#else
+#error Unsupported platform
+#endif
   __ Ret();
   CodeDesc desc;
   masm.GetCode(nullptr, &desc);
@@ -355,6 +445,7 @@ TEST_P(TrapHandlerTest, TestCrashInWasmNoProtectedInstruction) {
   // protected, then the trap handler does not handle it.
   MacroAssembler masm(nullptr, AssemblerOptions{}, CodeObjectRequired::kNo,
                       buffer_->CreateView());
+#if V8_HOST_ARCH_X64
   __ Push(scratch);
   GenerateSetThreadInWasmFlagCode(&masm);
   uint32_t no_crash_offset = __ pc_offset();
@@ -364,6 +455,19 @@ TEST_P(TrapHandlerTest, TestCrashInWasmNoProtectedInstruction) {
   uint32_t recovery_offset = __ pc_offset();
   GenerateResetThreadInWasmFlagCode(&masm);
   __ Pop(scratch);
+#elif V8_HOST_ARCH_ARM64
+  GenerateSetThreadInWasmFlagCode(&masm);
+  UseScratchRegisterScope temps(&masm);
+  Register scratch = temps.AcquireX();
+  uint32_t no_crash_offset = __ pc_offset();
+  __ Mov(scratch, crash_address_);
+  __ Ldr(scratch, MemOperand(scratch));
+  // Offset where the crash is not happening.
+  uint32_t recovery_offset = __ pc_offset();
+  GenerateResetThreadInWasmFlagCode(&masm);
+#else
+#error Unsupported platform
+#endif
   __ Ret();
   CodeDesc desc;
   masm.GetCode(nullptr, &desc);
@@ -381,6 +485,7 @@ TEST_P(TrapHandlerTest, TestCrashInWasmWrongCrashType) {
   // wasm trap handler does not handle it.
   MacroAssembler masm(nullptr, AssemblerOptions{}, CodeObjectRequired::kNo,
                       buffer_->CreateView());
+#if V8_HOST_ARCH_X64
   __ Push(scratch);
   GenerateSetThreadInWasmFlagCode(&masm);
   __ xorq(scratch, scratch);
@@ -390,6 +495,17 @@ TEST_P(TrapHandlerTest, TestCrashInWasmWrongCrashType) {
   uint32_t recovery_offset = __ pc_offset();
   GenerateResetThreadInWasmFlagCode(&masm);
   __ Pop(scratch);
+#elif V8_HOST_ARCH_ARM64
+  GenerateSetThreadInWasmFlagCode(&masm);
+  UseScratchRegisterScope temps(&masm);
+  uint32_t crash_offset = __ pc_offset();
+  __ Trap();
+  // Offset where the crash is not happening.
+  uint32_t recovery_offset = __ pc_offset();
+  GenerateResetThreadInWasmFlagCode(&masm);
+#else
+#error Unsupported platform
+#endif
   __ Ret();
   CodeDesc desc;
   masm.GetCode(nullptr, &desc);
@@ -443,12 +559,23 @@ TEST_P(TrapHandlerTest, TestCrashInOtherThread) {
   // set.
   MacroAssembler masm(nullptr, AssemblerOptions{}, CodeObjectRequired::kNo,
                       buffer_->CreateView());
+#if V8_HOST_ARCH_X64
   __ Push(scratch);
   __ Move(scratch, crash_address_, RelocInfo::NO_INFO);
   uint32_t crash_offset = __ pc_offset();
   __ testl(MemOperand(scratch, 0), Immediate(1));
   uint32_t recovery_offset = __ pc_offset();
   __ Pop(scratch);
+#elif V8_HOST_ARCH_ARM64
+  UseScratchRegisterScope temps(&masm);
+  Register scratch = temps.AcquireX();
+  __ Mov(scratch, crash_address_);
+  uint32_t crash_offset = __ pc_offset();
+  __ Ldr(scratch, MemOperand(scratch));
+  uint32_t recovery_offset = __ pc_offset();
+#else
+#error Unsupported platform
+#endif
   __ Ret();
   CodeDesc desc;
   masm.GetCode(nullptr, &desc);
@@ -480,3 +607,5 @@ INSTANTIATE_TEST_SUITE_P(Traps, TrapHandlerTest,
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
+
+#endif

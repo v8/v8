@@ -621,6 +621,9 @@ v8_source_set("unittests_sources") {
       "codegen/pointer-auth-arm64-unittest.cc",
       "compiler/arm64/instruction-selector-arm64-unittest.cc",
     ]
+    if (v8_enable_webassembly && current_cpu == "arm64") {
+      sources += [ "wasm/trap-handler-x64-arm64-unittest.cc" ]
+    }
   } else if (v8_current_cpu == "x86") {
     sources += [
       "assembler/disasm-ia32-unittest.cc",
@@ -654,7 +657,7 @@ v8_source_set("unittests_sources") {
       "compiler/x64/instruction-selector-x64-unittest.cc",
     ]
     if (v8_enable_webassembly) {
-      sources += [ "wasm/trap-handler-x64-unittest.cc" ]
+      sources += [ "wasm/trap-handler-x64-arm64-unittest.cc" ]
     }
   } else if (v8_current_cpu == "ppc" || v8_current_cpu == "ppc64") {
     sources += [
