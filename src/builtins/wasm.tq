@@ -59,6 +59,8 @@ extern runtime WasmStringViewWtf8Encode(
     Context, WasmInstanceObject, Smi, ByteArray, Number, Number, Number): JSAny;
 extern runtime WasmStringViewWtf8Slice(
     Context, ByteArray, Number, Number): String;
+extern runtime WasmJSToWasmObject(
+    Context, WasmInstanceObject, JSAny, Smi): JSAny;
 }
 
 namespace unsafe {
@@ -67,10 +69,8 @@ extern macro Allocate(intptr, constexpr AllocationFlag): HeapObject;
 }
 
 namespace wasm {
-const kAnyTableType: constexpr int31
+const kAnyType: constexpr int31
     generates 'wasm::kWasmAnyRef.raw_bit_field()';
-const kAnyNonNullTableType: constexpr int31
-    generates 'wasm::kWasmAnyNonNullableRef.raw_bit_field()';
 const kMaxPolymorphism:
     constexpr int31 generates 'wasm::kMaxPolymorphism';
 
@@ -1151,28 +1151,11 @@ builtin WasmStringViewIterSlice(
       string::SubString(string, Convert<uintptr>(start), Convert<uintptr>(end));
 }
 
-transitioning builtin WasmExternInternalize(implicit context: Context)(
-    externObject: JSAny): JSAny {
-  const innerObject =
-      WasmGetOwnProperty(externObject, WasmWrappedObjectSymbolConstant());
-  if (innerObject == Undefined) {
-    return externObject;
-  }
-  return innerObject;
-}
+builtin WasmExternInternalize(externObject: JSAny): JSAny {
+  const instance = LoadInstanceFromFrame();
+  const context = LoadContextFromInstance(instance);
 
-transitioning builtin WasmExternExternalize(implicit context: Context)(
-    anyObject: JSAny): JSAny {
-  typeswitch (anyObject) {
-    case (wasmArray: WasmArray): {
-      return WasmAllocateObjectWrapper(wasmArray);
-    }
-    case (wasmStruct: WasmStruct): {
-      return WasmAllocateObjectWrapper(wasmStruct);
-    }
-    case (JSAny): {
-      return anyObject;
-    }
-  }
+  tail runtime::WasmJSToWasmObject(
+      context, instance, externObject, SmiConstant(kAnyType));
 }
 }
