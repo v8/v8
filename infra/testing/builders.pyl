@@ -352,6 +352,18 @@
       {'name': 'v8testing', 'shards': 3},
     ],
   },
+  'v8_linux64_coverage': {
+    'swarming_dimensions' : {
+      'os': 'Ubuntu-18.04',
+    },
+    'tests': [
+      # TODO(https://crbug.com/1265931): Speed things up for now. Later replace
+      # mjsunit and unittests with full v8testing.
+      # {'name': 'v8testing'},
+      {'name': 'mjsunit', 'variant': 'default'},
+      {'name': 'unittests', 'variant': 'default'},
+    ],
+  },
   'v8_linux64_cppgc_non_default_dbg': {
     'swarming_dimensions' : {
       'cpu': 'x86-64-avx2',
@@ -1302,6 +1314,18 @@
       {'name': 'optimize_for_size'},
       {'name': 'test262', 'variant': 'default'},
       {'name': 'v8testing', 'shards': 2},
+    ],
+  },
+  'V8 Linux64 - coverage': {
+    'swarming_dimensions' : {
+      'os': 'Ubuntu-18.04',
+    },
+    'tests': [
+      # TODO(https://crbug.com/1265931): Speed things up for now. Later replace
+      # mjsunit and unittests with full v8testing.
+      # {'name': 'v8testing'},
+      {'name': 'mjsunit', 'variant': 'default'},
+      {'name': 'unittests', 'variant': 'default'},
     ],
   },
   'V8 Linux64 - custom snapshot - debug': {

@@ -111,6 +111,7 @@
       'V8 Linux64 - arm64 - sim - heap sandbox - debug - builder': 'debug_x64_heap_sandbox_arm64_sim',
       'V8 Linux64 - arm64 - sim - no pointer compression - builder':
           'release_simulate_arm64_no_pointer_compression',
+      'V8 Linux64 - coverage': 'release_x64_coverage',
       'V8 Linux64 - cppgc-non-default - debug - builder': 'debug_x64_non_default_cppgc',
       'V8 Linux64 - debug - perfetto - builder': 'debug_x64_perfetto',
       'V8 Linux64 - disable runtime call stats - builder': 'release_x64_disable_runtime_call_stats',
@@ -225,6 +226,7 @@
           'release_simulate_arm64_no_pointer_compression',
       'v8_linux64_cppgc_non_default_compile_dbg': 'debug_x64_non_default_cppgc',
       'v8_linux64_compile_dbg': 'debug_x64_trybot',
+      'v8_linux64_coverage': 'release_x64_coverage',
       'v8_linux64_no_sandbox_compile_dbg': 'debug_x64_no_sandbox',
       'v8_linux64_dict_tracking_compile_dbg': 'debug_x64_dict_tracking_trybot',
       'v8_linux64_disable_runtime_call_stats_compile_rel': 'release_x64_disable_runtime_call_stats',
@@ -499,6 +501,8 @@
       'release_bot', 'x64', 'cfi'],
     'release_x64_cfi_clusterfuzz': [
       'release_bot', 'x64', 'cfi_clusterfuzz'],
+    'release_x64_coverage': [
+      'release_bot', 'x64', 'clang_coverage'],
     'release_x64_fuzzilli': [
       'release_bot', 'x64', 'dcheck_always_on', 'v8_enable_slow_dchecks',
       'v8_verify_heap', 'v8_verify_csa', 'fuzzilli'],
@@ -697,6 +701,10 @@
 
     'clang': {
       'gn_args': 'is_clang=true',
+    },
+
+    'clang_coverage': {
+      'gn_args': 'use_clang_coverage=true',
     },
 
     'conservative_stack_scanning': {

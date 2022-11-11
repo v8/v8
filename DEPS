@@ -30,8 +30,15 @@ vars = {
 
   'checkout_instrumented_libraries': False,
   'checkout_ittapi': False,
+
+  # Fetch the prebuilt binaries for llvm-cov and llvm-profdata. Needed to
+  # process the raw profiles produced by instrumented targets (built with
+  # the gn arg 'use_clang_coverage').
+  'checkout_clang_coverage_tools': False,
+
   # Fetch clang-tidy into the same bin/ directory as our clang binary.
   'checkout_clang_tidy': False,
+
   'chromium_url': 'https://chromium.googlesource.com',
   'android_url': 'https://android.googlesource.com',
   'download_gcmole': False,
@@ -556,6 +563,14 @@ hooks = [
     # clang not supported on aix
     'condition': 'host_os != "aix"',
     'action': ['python3', 'tools/clang/scripts/update.py'],
+  },
+  {
+    # This is supposed to support the same set of platforms as 'clang' above.
+    'name': 'clang_coverage',
+    'pattern': '.',
+    'condition': 'checkout_clang_coverage_tools',
+    'action': ['python3', 'tools/clang/scripts/update.py',
+               '--package=coverage_tools'],
   },
   {
     'name': 'clang_tidy',
