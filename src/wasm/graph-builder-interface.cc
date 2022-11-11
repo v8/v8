@@ -1427,54 +1427,60 @@ class WasmGraphBuildingInterface {
                          Value* result) {
     switch (variant) {
       case unibrow::Utf8Variant::kUtf8:
-        result->node = builder_->StringMeasureUtf8(
-            str.node, NullCheckFor(str.type), decoder->position());
+        SetAndTypeNode(
+            result, builder_->StringMeasureUtf8(
+                        str.node, NullCheckFor(str.type), decoder->position()));
         break;
       case unibrow::Utf8Variant::kLossyUtf8:
       case unibrow::Utf8Variant::kWtf8:
-        result->node = builder_->StringMeasureWtf8(
-            str.node, NullCheckFor(str.type), decoder->position());
+        SetAndTypeNode(
+            result, builder_->StringMeasureWtf8(
+                        str.node, NullCheckFor(str.type), decoder->position()));
         break;
     }
   }
 
   void StringMeasureWtf16(FullDecoder* decoder, const Value& str,
                           Value* result) {
-    result->node = builder_->StringMeasureWtf16(
-        str.node, NullCheckFor(str.type), decoder->position());
+    SetAndTypeNode(
+        result, builder_->StringMeasureWtf16(str.node, NullCheckFor(str.type),
+                                             decoder->position()));
   }
 
   void StringEncodeWtf8(FullDecoder* decoder,
                         const MemoryIndexImmediate& memory,
                         const unibrow::Utf8Variant variant, const Value& str,
                         const Value& offset, Value* result) {
-    result->node = builder_->StringEncodeWtf8(memory.index, variant, str.node,
-                                              NullCheckFor(str.type),
-                                              offset.node, decoder->position());
+    SetAndTypeNode(
+        result, builder_->StringEncodeWtf8(memory.index, variant, str.node,
+                                           NullCheckFor(str.type), offset.node,
+                                           decoder->position()));
   }
 
   void StringEncodeWtf8Array(FullDecoder* decoder,
                              const unibrow::Utf8Variant variant,
                              const Value& str, const Value& array,
                              const Value& start, Value* result) {
-    result->node = builder_->StringEncodeWtf8Array(
-        variant, str.node, NullCheckFor(str.type), array.node,
-        NullCheckFor(array.type), start.node, decoder->position());
+    SetAndTypeNode(
+        result, builder_->StringEncodeWtf8Array(
+                    variant, str.node, NullCheckFor(str.type), array.node,
+                    NullCheckFor(array.type), start.node, decoder->position()));
   }
 
   void StringEncodeWtf16(FullDecoder* decoder, const MemoryIndexImmediate& imm,
                          const Value& str, const Value& offset, Value* result) {
-    result->node =
-        builder_->StringEncodeWtf16(imm.index, str.node, NullCheckFor(str.type),
-                                    offset.node, decoder->position());
+    SetAndTypeNode(result, builder_->StringEncodeWtf16(
+                               imm.index, str.node, NullCheckFor(str.type),
+                               offset.node, decoder->position()));
   }
 
   void StringEncodeWtf16Array(FullDecoder* decoder, const Value& str,
                               const Value& array, const Value& start,
                               Value* result) {
-    result->node = builder_->StringEncodeWtf16Array(
-        str.node, NullCheckFor(str.type), array.node, NullCheckFor(array.type),
-        start.node, decoder->position());
+    SetAndTypeNode(
+        result, builder_->StringEncodeWtf16Array(
+                    str.node, NullCheckFor(str.type), array.node,
+                    NullCheckFor(array.type), start.node, decoder->position()));
   }
 
   void StringConcat(FullDecoder* decoder, const Value& head, const Value& tail,
@@ -1486,15 +1492,16 @@ class WasmGraphBuildingInterface {
 
   void StringEq(FullDecoder* decoder, const Value& a, const Value& b,
                 Value* result) {
-    result->node =
-        builder_->StringEqual(a.node, NullCheckFor(a.type), b.node,
-                              NullCheckFor(b.type), decoder->position());
+    SetAndTypeNode(result, builder_->StringEqual(a.node, NullCheckFor(a.type),
+                                                 b.node, NullCheckFor(b.type),
+                                                 decoder->position()));
   }
 
   void StringIsUSVSequence(FullDecoder* decoder, const Value& str,
                            Value* result) {
-    result->node = builder_->StringIsUSVSequence(
-        str.node, NullCheckFor(str.type), decoder->position());
+    SetAndTypeNode(
+        result, builder_->StringIsUSVSequence(str.node, NullCheckFor(str.type),
+                                              decoder->position()));
   }
 
   void StringAsWtf8(FullDecoder* decoder, const Value& str, Value* result) {
@@ -1506,9 +1513,9 @@ class WasmGraphBuildingInterface {
   void StringViewWtf8Advance(FullDecoder* decoder, const Value& view,
                              const Value& pos, const Value& bytes,
                              Value* result) {
-    result->node = builder_->StringViewWtf8Advance(
-        view.node, NullCheckFor(view.type), pos.node, bytes.node,
-        decoder->position());
+    SetAndTypeNode(result, builder_->StringViewWtf8Advance(
+                               view.node, NullCheckFor(view.type), pos.node,
+                               bytes.node, decoder->position()));
   }
 
   void StringViewWtf8Encode(FullDecoder* decoder,
@@ -1521,6 +1528,8 @@ class WasmGraphBuildingInterface {
                                    NullCheckFor(view.type), addr.node, pos.node,
                                    bytes.node, &next_pos->node,
                                    &bytes_written->node, decoder->position());
+    builder_->SetType(next_pos->node, next_pos->type);
+    builder_->SetType(bytes_written->node, bytes_written->type);
   }
 
   void StringViewWtf8Slice(FullDecoder* decoder, const Value& view,
@@ -1542,17 +1551,19 @@ class WasmGraphBuildingInterface {
 
   void StringViewWtf16GetCodeUnit(FullDecoder* decoder, const Value& view,
                                   const Value& pos, Value* result) {
-    result->node = builder_->StringViewWtf16GetCodeUnit(
-        view.node, NullCheckFor(view.type), pos.node, decoder->position());
+    SetAndTypeNode(result, builder_->StringViewWtf16GetCodeUnit(
+                               view.node, NullCheckFor(view.type), pos.node,
+                               decoder->position()));
   }
 
   void StringViewWtf16Encode(FullDecoder* decoder,
                              const MemoryIndexImmediate& imm, const Value& view,
                              const Value& offset, const Value& pos,
                              const Value& codeunits, Value* result) {
-    result->node = builder_->StringViewWtf16Encode(
-        imm.index, view.node, NullCheckFor(view.type), offset.node, pos.node,
-        codeunits.node, decoder->position());
+    SetAndTypeNode(
+        result, builder_->StringViewWtf16Encode(
+                    imm.index, view.node, NullCheckFor(view.type), offset.node,
+                    pos.node, codeunits.node, decoder->position()));
   }
 
   void StringViewWtf16Slice(FullDecoder* decoder, const Value& view,
@@ -1571,22 +1582,23 @@ class WasmGraphBuildingInterface {
 
   void StringViewIterNext(FullDecoder* decoder, const Value& view,
                           Value* result) {
-    result->node = builder_->StringViewIterNext(
-        view.node, NullCheckFor(view.type), decoder->position());
+    SetAndTypeNode(
+        result, builder_->StringViewIterNext(view.node, NullCheckFor(view.type),
+                                             decoder->position()));
   }
 
   void StringViewIterAdvance(FullDecoder* decoder, const Value& view,
                              const Value& codepoints, Value* result) {
-    result->node =
-        builder_->StringViewIterAdvance(view.node, NullCheckFor(view.type),
-                                        codepoints.node, decoder->position());
+    SetAndTypeNode(result, builder_->StringViewIterAdvance(
+                               view.node, NullCheckFor(view.type),
+                               codepoints.node, decoder->position()));
   }
 
   void StringViewIterRewind(FullDecoder* decoder, const Value& view,
                             const Value& codepoints, Value* result) {
-    result->node =
-        builder_->StringViewIterRewind(view.node, NullCheckFor(view.type),
-                                       codepoints.node, decoder->position());
+    SetAndTypeNode(result, builder_->StringViewIterRewind(
+                               view.node, NullCheckFor(view.type),
+                               codepoints.node, decoder->position()));
   }
 
   void StringViewIterSlice(FullDecoder* decoder, const Value& view,
