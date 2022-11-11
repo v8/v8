@@ -777,7 +777,8 @@ base::Vector<byte> WasmCodeAllocator::AllocateForCodeInRegion(
     }
     committed_code_space_.fetch_add(commit_end - commit_start);
     // Committed code cannot grow bigger than maximum code space size.
-    DCHECK_LE(committed_code_space_.load(), v8_flags.wasm_max_code_space * MB);
+    DCHECK_LE(committed_code_space_.load(),
+              v8_flags.wasm_max_committed_code_mb * MB);
     if (protect_code_memory_) {
       DCHECK_LT(0, writers_count_);
       InsertIntoWritableRegions({commit_start, commit_end - commit_start},
@@ -1892,7 +1893,7 @@ NativeModule::~NativeModule() {
 }
 
 WasmCodeManager::WasmCodeManager()
-    : max_committed_code_space_(v8_flags.wasm_max_code_space * MB),
+    : max_committed_code_space_(v8_flags.wasm_max_committed_code_mb * MB),
       critical_committed_code_space_(max_committed_code_space_ / 2) {}
 
 WasmCodeManager::~WasmCodeManager() {

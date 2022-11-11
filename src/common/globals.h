@@ -380,9 +380,9 @@ constexpr int kMaxDoubleStringLength = 24;
 
 // Total wasm code space per engine (i.e. per process) is limited to make
 // certain attacks that rely on heap spraying harder.
+// Do not access directly, but via the {--wasm-max-committed-code-mb} flag.
 // Just below 4GB, such that {kMaxWasmCodeMemory} fits in a 32-bit size_t.
-constexpr size_t kMaxWasmCodeMB = 4095;
-constexpr size_t kMaxWasmCodeMemory = kMaxWasmCodeMB * MB;
+constexpr uint32_t kMaxCommittedWasmCodeMB = 4095;
 
 #if V8_HOST_ARCH_64_BIT
 constexpr int kSystemPointerSizeLog2 = 3;

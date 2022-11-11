@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --wasm-max-code-space=1
+// Flags: --wasm-max-committed-code-mb=1
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
