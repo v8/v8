@@ -37,6 +37,8 @@ namespace v8 {
 namespace internal {
 namespace maglev {
 
+class CallArguments;
+
 class MaglevGraphBuilder {
  public:
   explicit MaglevGraphBuilder(LocalIsolate* local_isolate,
@@ -646,9 +648,6 @@ class MaglevGraphBuilder {
     current_interpreter_frame_.set(dst, current_interpreter_frame_.get(src));
   }
 
-  ValueNode* GetTaggedValue(interpreter::Register reg) {
-    return GetTaggedValue(current_interpreter_frame_.get(reg));
-  }
   ValueNode* GetTaggedValue(ValueNode* value) {
     switch (value->properties().value_representation()) {
       case ValueRepresentation::kTagged:
@@ -680,6 +679,11 @@ class MaglevGraphBuilder {
       }
     }
     UNREACHABLE();
+  }
+
+  ValueNode* GetTaggedValue(interpreter::Register reg) {
+    ValueNode* value = current_interpreter_frame_.get(reg);
+    return GetTaggedValue(value);
   }
 
   void SetKnownType(ValueNode* node, NodeType type) {
@@ -741,7 +745,8 @@ class MaglevGraphBuilder {
   }
 
   ValueNode* GetInt32(interpreter::Register reg) {
-    return GetInt32(current_interpreter_frame_.get(reg));
+    ValueNode* value = current_interpreter_frame_.get(reg);
+    return GetInt32(value);
   }
 
   ValueNode* GetFloat64(ValueNode* value) {
@@ -798,6 +803,11 @@ class MaglevGraphBuilder {
            current_interpreter_frame_.accumulator();
   }
 
+  ValueNode* LoadRegisterRaw(int operand_index) {
+    return current_interpreter_frame_.get(
+        iterator_.GetRegisterOperand(operand_index));
+  }
+
   ValueNode* LoadRegisterTagged(int operand_index) {
     return GetTaggedValue(iterator_.GetRegisterOperand(operand_index));
   }
@@ -820,6 +830,14 @@ class MaglevGraphBuilder {
     // Accumulator stores are equivalent to stores to the virtual accumulator
     // register.
     StoreRegister(interpreter::Register::virtual_accumulator(), node);
+  }
+
+  template <typename NodeT>
+  NodeT* SetAccumulatorIfNeeded(NodeT* node, bool set_accumulator) {
+    if (set_accumulator) {
+      SetAccumulator(node);
+    }
+    return node;
   }
 
   ValueNode* GetSecondValue(ValueNode* result) {
@@ -1024,133 +1042,40 @@ class MaglevGraphBuilder {
                                ConvertReceiverMode receiver_mode,
                                compiler::JSFunctionRef function);
 
-  class CallArguments {
-   public:
-    enum Mode {
-      kFromRegisters,
-      kFromRegisterList,
-    };
-
-    CallArguments(ConvertReceiverMode receiver_mode, int reg_count,
-                  interpreter::Register r0 = interpreter::Register(),
-                  interpreter::Register r1 = interpreter::Register(),
-                  interpreter::Register r2 = interpreter::Register())
-        : receiver_mode_(receiver_mode),
-          call_mode_(kFromRegisters),
-          reg_count_(reg_count) {
-      DCHECK_GE(reg_count, 0);
-      DCHECK_LT(reg_count, 4);
-      DCHECK_IMPLIES(receiver_mode_ != ConvertReceiverMode::kNullOrUndefined,
-                     reg_count > 0);
-      DCHECK_IMPLIES(reg_count > 0, r0.is_valid());
-      regs_[0] = r0;
-      DCHECK_IMPLIES(reg_count > 1, r1.is_valid());
-      regs_[1] = r1;
-      DCHECK_IMPLIES(reg_count > 2, r2.is_valid());
-      regs_[2] = r2;
+  ValueNode* GetTaggedOrUndefined(ValueNode* maybe_value) {
+    if (maybe_value == nullptr) {
+      return GetRootConstant(RootIndex::kUndefinedValue);
     }
-
-    CallArguments(ConvertReceiverMode receiver_mode,
-                  interpreter::RegisterList reglist)
-        : receiver_mode_(receiver_mode),
-          call_mode_(kFromRegisterList),
-          reglist_(reglist) {}
-
-    base::Optional<interpreter::Register> receiver() const {
-      if (receiver_mode_ == ConvertReceiverMode::kNullOrUndefined) {
-        return {};
-      }
-      if (call_mode_ == kFromRegisters) {
-        DCHECK_GT(reg_count_, 0);
-        return regs_[0];
-      }
-      return reglist_[0];
-    }
-
-    int count() const {
-      int register_count =
-          call_mode_ == kFromRegisters ? reg_count_ : reglist_.register_count();
-      if (receiver_mode_ == ConvertReceiverMode::kNullOrUndefined) {
-        return register_count;
-      }
-      return register_count - 1;
-    }
-
-    int count_with_receiver() const { return count() + 1; }
-
-    const interpreter::Register operator[](size_t i) const {
-      if (receiver_mode_ != ConvertReceiverMode::kNullOrUndefined) {
-        i++;
-      }
-      if (call_mode_ == kFromRegisters) {
-        DCHECK_LT(i, reg_count_);
-        DCHECK_GE(i, 0);
-        return regs_[i];
-      }
-      return reglist_[i];
-    }
-
-    ConvertReceiverMode receiver_mode() const { return receiver_mode_; }
-
-    CallArguments PopReceiver(ConvertReceiverMode new_receiver_mode) const {
-      DCHECK_NE(receiver_mode_, ConvertReceiverMode::kNullOrUndefined);
-      DCHECK_NE(new_receiver_mode, ConvertReceiverMode::kNullOrUndefined);
-      // If there is no non-receiver argument to become the new receiver,
-      // consider the new receiver to be known undefined.
-      if (count() == 0) {
-        new_receiver_mode = ConvertReceiverMode::kNullOrUndefined;
-      }
-      if (call_mode_ == kFromRegisters) {
-        return CallArguments(new_receiver_mode, reg_count_ - 1, regs_[1],
-                             regs_[2]);
-      }
-      return CallArguments(new_receiver_mode, reglist_.PopLeft());
-    }
-
-   private:
-    const ConvertReceiverMode receiver_mode_;
-    const Mode call_mode_;
-    union {
-      struct {
-        interpreter::Register regs_[3];
-        int reg_count_;
-      };
-      interpreter::RegisterList reglist_;
-    };
-  };
-
-  ValueNode* GetTaggedReceiver(const CallArguments& args) {
-    auto maybe_receiver = args.receiver();
-    if (maybe_receiver.has_value()) {
-      return GetTaggedValue(*maybe_receiver);
-    }
-    DCHECK_EQ(args.receiver_mode(), ConvertReceiverMode::kNullOrUndefined);
-    return GetRootConstant(RootIndex::kUndefinedValue);
+    return GetTaggedValue(maybe_value);
   }
+
   ValueNode* GetConvertReceiver(compiler::JSFunctionRef function,
-                                const CallArguments& args);
+                                CallArguments& args);
 
 #define MAGLEV_REDUCED_BUILTIN(V) \
   V(FunctionPrototypeCall)        \
   V(StringFromCharCode)           \
   V(StringPrototypeCharCodeAt)
 
-#define DEFINE_BUILTIN_REDUCER(Name)                           \
-  bool TryReduce##Name(compiler::JSFunctionRef builtin_target, \
-                       const CallArguments& args);
+#define DEFINE_BUILTIN_REDUCER(Name)                                 \
+  ValueNode* TryReduce##Name(compiler::JSFunctionRef builtin_target, \
+                             CallArguments& args, bool set_accumulator);
   MAGLEV_REDUCED_BUILTIN(DEFINE_BUILTIN_REDUCER)
 #undef DEFINE_BUILTIN_REDUCER
 
-  bool TryReduceBuiltin(compiler::JSFunctionRef builtin_target,
-                        const CallArguments& args);
-
-  bool TryBuildCallKnownJSFunction(compiler::JSFunctionRef function,
-                                   const CallArguments& args);
-
-  void BuildGenericCall(ValueNode* target, ValueNode* context,
-                        Call::TargetType target_type, const CallArguments& args,
-                        compiler::FeedbackSource& feedback_source);
-  void BuildCall(ValueNode* target_node, const CallArguments& args,
+  ValueNode* TryReduceBuiltin(compiler::JSFunctionRef builtin_target,
+                              CallArguments& args, bool set_accumulator);
+  ValueNode* TryBuildCallKnownJSFunction(compiler::JSFunctionRef function,
+                                         CallArguments& args,
+                                         bool set_accumulator);
+  Call* BuildGenericCall(ValueNode* target, ValueNode* context,
+                         Call::TargetType target_type,
+                         const CallArguments& args,
+                         const compiler::FeedbackSource& feedback_source =
+                             compiler::FeedbackSource());
+  ValueNode* ReduceCall(compiler::ObjectRef target, CallArguments& args,
+                        bool set_accumulator = true);
+  void BuildCall(ValueNode* target_node, CallArguments& args,
                  compiler::FeedbackSource& feedback_source);
   void BuildCallFromRegisterList(ConvertReceiverMode receiver_mode);
   void BuildCallFromRegisters(int argc_count,
