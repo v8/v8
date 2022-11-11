@@ -86,72 +86,6 @@ class FunctionContextSpecialization final : public AllStatic {
 
 }  // namespace
 
-class CallArguments {
- public:
-  CallArguments(ConvertReceiverMode receiver_mode,
-                interpreter::RegisterList reglist,
-                const InterpreterFrameState& frame)
-      : receiver_mode_(receiver_mode), args_(reglist.register_count()) {
-    for (int i = 0; i < reglist.register_count(); i++) {
-      args_[i] = frame.get(reglist[i]);
-    }
-    DCHECK_IMPLIES(args_.size() == 0,
-                   receiver_mode == ConvertReceiverMode::kNullOrUndefined);
-  }
-
-  CallArguments(ConvertReceiverMode receiver_mode,
-                std::initializer_list<ValueNode*> args)
-      : receiver_mode_(receiver_mode), args_(args) {}
-
-  ValueNode* receiver() const {
-    if (receiver_mode_ == ConvertReceiverMode::kNullOrUndefined) {
-      return nullptr;
-    }
-    return args_[0];
-  }
-
-  size_t count() const {
-    if (receiver_mode_ == ConvertReceiverMode::kNullOrUndefined) {
-      return args_.size();
-    }
-    return args_.size() - 1;
-  }
-
-  size_t count_with_receiver() const { return count() + 1; }
-
-  ValueNode* operator[](size_t i) const {
-    if (receiver_mode_ != ConvertReceiverMode::kNullOrUndefined) {
-      i++;
-    }
-    if (i >= args_.size()) return nullptr;
-    return args_[i];
-  }
-
-  ConvertReceiverMode receiver_mode() const { return receiver_mode_; }
-
-  void PopReceiver(ConvertReceiverMode new_receiver_mode) {
-    DCHECK_NE(receiver_mode_, ConvertReceiverMode::kNullOrUndefined);
-    DCHECK_NE(new_receiver_mode, ConvertReceiverMode::kNullOrUndefined);
-
-    if (count() == 0) {
-      // If there is no non-receiver argument to become the new receiver,
-      // consider the new receiver to be known undefined.
-      receiver_mode_ = ConvertReceiverMode::kNullOrUndefined;
-    } else {
-      // TODO(victorgomes): Do this better!
-      for (size_t i = 0; i < args_.size() - 1; i++) {
-        args_[i] = args_[i + 1];
-      }
-      args_.pop_back();
-      receiver_mode_ = new_receiver_mode;
-    }
-  }
-
- private:
-  ConvertReceiverMode receiver_mode_;
-  base::SmallVector<ValueNode*, 8> args_;
-};
-
 MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
                                        MaglevCompilationUnit* compilation_unit,
                                        Graph* graph, MaglevGraphBuilder* parent)
@@ -1578,8 +1512,12 @@ bool MaglevGraphBuilder::TryBuildPropertyGetterCall(
         receiver == lookup_start_object
             ? ConvertReceiverMode::kNotNullOrUndefined
             : ConvertReceiverMode::kAny;
-    CallArguments args(receiver_mode, {receiver});
-    ReduceCall(constant.AsJSFunction(), args);
+    Call* call = CreateNewNode<Call>(Call::kFixedInputCount + 1, receiver_mode,
+                                     Call::TargetType::kJSFunction,
+                                     compiler::FeedbackSource(),
+                                     GetConstant(constant), GetContext());
+    call->set_arg(0, receiver);
+    SetAccumulator(AddNode(call));
     return true;
   } else {
     // TODO(victorgomes): API calls.
@@ -1592,9 +1530,13 @@ bool MaglevGraphBuilder::TryBuildPropertySetterCall(
     ValueNode* value) {
   compiler::ObjectRef constant = access_info.constant().value();
   if (constant.IsJSFunction()) {
-    CallArguments args(ConvertReceiverMode::kNotNullOrUndefined,
-                       {receiver, value});
-    ReduceCall(constant.AsJSFunction(), args);
+    Call* call = CreateNewNode<Call>(
+        Call::kFixedInputCount + 2, ConvertReceiverMode::kNotNullOrUndefined,
+        Call::TargetType::kJSFunction, compiler::FeedbackSource(),
+        GetConstant(constant), GetContext());
+    call->set_arg(0, receiver);
+    call->set_arg(1, value);
+    SetAccumulator(AddNode(call));
     return true;
   } else {
     // TODO(victorgomes): API calls.
@@ -2693,17 +2635,16 @@ void MaglevGraphBuilder::InlineCallFromRegisters(
       ->SetToBlockAndReturnNext(current_block_);
 }
 
-ValueNode* MaglevGraphBuilder::TryReduceStringFromCharCode(
-    compiler::JSFunctionRef target, CallArguments& args, bool set_accumulator) {
-  if (args.count() != 1) return nullptr;
-  return SetAccumulatorIfNeeded(
-      AddNewNode<BuiltinStringFromCharCode>({GetInt32(args[0])}),
-      set_accumulator);
+bool MaglevGraphBuilder::TryReduceStringFromCharCode(
+    compiler::JSFunctionRef target, const CallArguments& args) {
+  if (args.count() != 1) return false;
+  SetAccumulator(AddNewNode<BuiltinStringFromCharCode>({GetInt32(args[0])}));
+  return true;
 }
 
-ValueNode* MaglevGraphBuilder::TryReduceStringPrototypeCharCodeAt(
-    compiler::JSFunctionRef target, CallArguments& args, bool set_accumulator) {
-  ValueNode* receiver = GetTaggedOrUndefined(args.receiver());
+bool MaglevGraphBuilder::TryReduceStringPrototypeCharCodeAt(
+    compiler::JSFunctionRef target, const CallArguments& args) {
+  ValueNode* receiver = GetTaggedReceiver(args);
   ValueNode* index;
   if (args.count() == 0) {
     // Index is the undefined object. ToIntegerOrInfinity(undefined) = 0.
@@ -2718,53 +2659,53 @@ ValueNode* MaglevGraphBuilder::TryReduceStringPrototypeCharCodeAt(
   ValueNode* length = AddNewNode<StringLength>({receiver});
   AddNewNode<CheckInt32Condition>({index, length}, AssertCondition::kLess,
                                   DeoptimizeReason::kOutOfBounds);
-  return SetAccumulatorIfNeeded(
-      AddNewNode<BuiltinStringPrototypeCharCodeAt>({receiver, index}),
-      set_accumulator);
+  SetAccumulator(
+      AddNewNode<BuiltinStringPrototypeCharCodeAt>({receiver, index}));
+  return true;
 }
 
-ValueNode* MaglevGraphBuilder::TryReduceFunctionPrototypeCall(
-    compiler::JSFunctionRef target, CallArguments& args, bool set_accumulator) {
+bool MaglevGraphBuilder::TryReduceFunctionPrototypeCall(
+    compiler::JSFunctionRef target, const CallArguments& args) {
   // Use Function.prototype.call context, to ensure any exception is thrown in
   // the correct context.
   ValueNode* context = GetConstant(target.context());
-  ValueNode* receiver = GetTaggedOrUndefined(args.receiver());
-  args.PopReceiver(ConvertReceiverMode::kAny);
-  return SetAccumulatorIfNeeded(
-      BuildGenericCall(receiver, context, Call::TargetType::kAny, args),
-      set_accumulator);
+  ValueNode* receiver = GetTaggedReceiver(args);
+  compiler::FeedbackSource feedback_source;
+  BuildGenericCall(receiver, context, Call::TargetType::kAny,
+                   args.PopReceiver(ConvertReceiverMode::kAny),
+                   feedback_source);
+  return true;
 }
 
-ValueNode* MaglevGraphBuilder::TryReduceBuiltin(compiler::JSFunctionRef target,
-                                                CallArguments& args,
-                                                bool set_accumulator) {
-  if (!target.shared().HasBuiltinId()) return nullptr;
+bool MaglevGraphBuilder::TryReduceBuiltin(compiler::JSFunctionRef target,
+                                          const CallArguments& args) {
+  if (!target.shared().HasBuiltinId()) return false;
   switch (target.shared().builtin_id()) {
 #define CASE(Name)       \
   case Builtin::k##Name: \
-    return TryReduce##Name(target, args, set_accumulator);
+    return TryReduce##Name(target, args);
     MAGLEV_REDUCED_BUILTIN(CASE)
 #undef CASE
     default:
       // TODO(v8:7700): Inline more builtins.
-      return nullptr;
+      return false;
   }
 }
 
 ValueNode* MaglevGraphBuilder::GetConvertReceiver(
-    compiler::JSFunctionRef function, CallArguments& args) {
+    compiler::JSFunctionRef function, const CallArguments& args) {
   compiler::SharedFunctionInfoRef shared = function.shared();
   if (shared.native() || shared.language_mode() == LanguageMode::kStrict) {
     if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
       return GetRootConstant(RootIndex::kUndefinedValue);
     } else {
-      return GetTaggedValue(args.receiver());
+      return GetTaggedValue(*args.receiver());
     }
   }
   if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
     return GetConstant(function.native_context().global_proxy_object());
   }
-  ValueNode* receiver = GetTaggedValue(args.receiver());
+  ValueNode* receiver = GetTaggedValue(*args.receiver());
   if (CheckType(receiver, NodeType::kJSReceiver)) return receiver;
   if (Constant* constant = receiver->TryCast<Constant>()) {
     const Handle<HeapObject> object = constant->object().object();
@@ -2778,37 +2719,36 @@ ValueNode* MaglevGraphBuilder::GetConvertReceiver(
                                      args.receiver_mode());
 }
 
-ValueNode* MaglevGraphBuilder::TryBuildCallKnownJSFunction(
-    compiler::JSFunctionRef function, CallArguments& args,
-    bool set_accumulator) {
+bool MaglevGraphBuilder::TryBuildCallKnownJSFunction(
+    compiler::JSFunctionRef function, const CallArguments& args) {
   // Don't inline CallFunction stub across native contexts.
   if (function.native_context() != broker()->target_native_context()) {
-    return nullptr;
+    return false;
   }
   ValueNode* receiver = GetConvertReceiver(function, args);
   size_t input_count = args.count() + CallKnownJSFunction::kFixedInputCount;
   CallKnownJSFunction* call =
       CreateNewNode<CallKnownJSFunction>(input_count, function, receiver);
-  for (int i = 0; i < static_cast<int>(args.count()); i++) {
+  for (int i = 0; i < args.count(); i++) {
     call->set_arg(i, GetTaggedValue(args[i]));
   }
-  return SetAccumulatorIfNeeded(AddNode(call), set_accumulator);
+  SetAccumulator(AddNode(call));
+  return true;
 }
 
-Call* MaglevGraphBuilder::BuildGenericCall(
+void MaglevGraphBuilder::BuildGenericCall(
     ValueNode* target, ValueNode* context, Call::TargetType target_type,
-    const CallArguments& args,
-    const compiler::FeedbackSource& feedback_source) {
+    const CallArguments& args, compiler::FeedbackSource& feedback_source) {
   size_t input_count = args.count_with_receiver() + Call::kFixedInputCount;
   Call* call =
       CreateNewNode<Call>(input_count, args.receiver_mode(), target_type,
                           feedback_source, target, context);
   int arg_index = 0;
-  call->set_arg(arg_index++, GetTaggedOrUndefined(args.receiver()));
-  for (size_t i = 0; i < args.count(); ++i) {
+  call->set_arg(arg_index++, GetTaggedReceiver(args));
+  for (int i = 0; i < args.count(); ++i) {
     call->set_arg(arg_index++, GetTaggedValue(args[i]));
   }
-  return AddNode(call);
+  SetAccumulator(AddNode(call));
 }
 
 bool MaglevGraphBuilder::BuildCheckValue(ValueNode* node,
@@ -2822,38 +2762,8 @@ bool MaglevGraphBuilder::BuildCheckValue(ValueNode* node,
   return true;
 }
 
-ValueNode* MaglevGraphBuilder::ReduceCall(compiler::ObjectRef object,
-                                          CallArguments& args,
-                                          bool set_accumulator) {
-  if (!object.IsJSFunction()) {
-    return BuildGenericCall(GetConstant(object), GetContext(),
-                            Call::TargetType::kAny, args);
-  }
-  compiler::JSFunctionRef target = object.AsJSFunction();
-  // Do not reduce calls to functions with break points.
-  if (!target.shared().HasBreakInfo()) {
-    if (target.object()->IsJSClassConstructor()) {
-      // If we have a class constructor, we should raise an exception.
-      return SetAccumulatorIfNeeded(
-          BuildCallRuntime(Runtime::kThrowConstructorNonCallableError,
-                           {GetConstant(target)}),
-          set_accumulator);
-    }
-
-    DCHECK(target.object()->IsCallable());
-    if (ValueNode* result = TryReduceBuiltin(target, args, set_accumulator)) {
-      return result;
-    }
-    if (ValueNode* result =
-            TryBuildCallKnownJSFunction(target, args, set_accumulator)) {
-      return result;
-    }
-  }
-  return BuildGenericCall(GetConstant(target), GetContext(),
-                          Call::TargetType::kJSFunction, args);
-}
-
-void MaglevGraphBuilder::BuildCall(ValueNode* target_node, CallArguments& args,
+void MaglevGraphBuilder::BuildCall(ValueNode* target_node,
+                                   const CallArguments& args,
                                    compiler::FeedbackSource& feedback_source) {
   Call::TargetType target_type = Call::TargetType::kAny;
   const compiler::ProcessedFeedback& processed_feedback =
@@ -2877,10 +2787,29 @@ void MaglevGraphBuilder::BuildCall(ValueNode* target_node, CallArguments& args,
       if (!target.IsJSFunction()) break;
       compiler::JSFunctionRef function = target.AsJSFunction();
 
+      // Do not reduce calls to functions with break points.
+      if (function.shared().HasBreakInfo()) break;
+
+      // Reset the feedback source
+      feedback_source = compiler::FeedbackSource();
+      target_type = Call::TargetType::kJSFunction;
       if (!BuildCheckValue(target_node, target)) return;
 
-      ReduceCall(function, args, true);
-      return;
+      if (function.object()->IsJSClassConstructor()) {
+        // If we have a class constructor, we should raise an exception.
+        SetAccumulator(BuildCallRuntime(
+            Runtime::kThrowConstructorNonCallableError, {target_node}));
+        return;
+      }
+
+      DCHECK(function.object()->IsCallable());
+      if (TryReduceBuiltin(function, args)) {
+        return;
+      }
+      if (TryBuildCallKnownJSFunction(function, args)) {
+        return;
+      }
+      break;
     }
 
     default:
@@ -2889,8 +2818,7 @@ void MaglevGraphBuilder::BuildCall(ValueNode* target_node, CallArguments& args,
 
   // On fallthrough, create a generic call.
   ValueNode* context = GetContext();
-  SetAccumulator(BuildGenericCall(target_node, context, target_type, args,
-                                  feedback_source));
+  BuildGenericCall(target_node, context, target_type, args, feedback_source);
 }
 
 void MaglevGraphBuilder::BuildCallFromRegisterList(
@@ -2899,7 +2827,7 @@ void MaglevGraphBuilder::BuildCallFromRegisterList(
   interpreter::RegisterList reg_list = iterator_.GetRegisterListOperand(1);
   FeedbackSlot slot = GetSlotOperand(3);
   compiler::FeedbackSource feedback_source(feedback(), slot);
-  CallArguments args(receiver_mode, reg_list, current_interpreter_frame_);
+  CallArguments args(receiver_mode, reg_list);
   BuildCall(target, args, feedback_source);
 }
 
@@ -2909,29 +2837,32 @@ void MaglevGraphBuilder::BuildCallFromRegisters(
   const int receiver_count =
       (receiver_mode == ConvertReceiverMode::kNullOrUndefined) ? 0 : 1;
   const int reg_count = arg_count + receiver_count;
-  FeedbackSlot slot = GetSlotOperand(reg_count + 1);
+  int slot_operand_index = arg_count + receiver_count + 1;
+  FeedbackSlot slot = GetSlotOperand(slot_operand_index);
   compiler::FeedbackSource feedback_source(feedback(), slot);
   switch (reg_count) {
     case 0: {
-      DCHECK_EQ(receiver_mode, ConvertReceiverMode::kNullOrUndefined);
-      CallArguments args(receiver_mode, {});
+      CallArguments args(receiver_mode, reg_count);
       BuildCall(target, args, feedback_source);
       break;
     }
     case 1: {
-      CallArguments args(receiver_mode, {LoadRegisterRaw(1)});
+      CallArguments args(receiver_mode, reg_count,
+                         iterator_.GetRegisterOperand(1));
       BuildCall(target, args, feedback_source);
       break;
     }
     case 2: {
-      CallArguments args(receiver_mode,
-                         {LoadRegisterRaw(1), LoadRegisterRaw(2)});
+      CallArguments args(receiver_mode, reg_count,
+                         iterator_.GetRegisterOperand(1),
+                         iterator_.GetRegisterOperand(2));
       BuildCall(target, args, feedback_source);
       break;
     }
     case 3: {
-      CallArguments args(receiver_mode, {LoadRegisterRaw(1), LoadRegisterRaw(2),
-                                         LoadRegisterRaw(3)});
+      CallArguments args(
+          receiver_mode, reg_count, iterator_.GetRegisterOperand(1),
+          iterator_.GetRegisterOperand(2), iterator_.GetRegisterOperand(3));
       BuildCall(target, args, feedback_source);
       break;
     }
@@ -3008,11 +2939,21 @@ void MaglevGraphBuilder::VisitCallJSRuntime() {
   ValueNode* callee = LoadAndCacheContextSlot(
       context, NativeContext::OffsetOfElementAt(slot), kMutable);
   // Call the function.
-  interpreter::RegisterList reglist = iterator_.GetRegisterListOperand(1);
-  CallArguments args(ConvertReceiverMode::kNullOrUndefined, reglist,
-                     current_interpreter_frame_);
-  SetAccumulator(BuildGenericCall(callee, GetContext(),
-                                  Call::TargetType::kJSFunction, args));
+  interpreter::RegisterList args = iterator_.GetRegisterListOperand(1);
+  int kTheReceiver = 1;
+  size_t input_count =
+      args.register_count() + Call::kFixedInputCount + kTheReceiver;
+
+  Call* call =
+      CreateNewNode<Call>(input_count, ConvertReceiverMode::kNullOrUndefined,
+                          Call::TargetType::kJSFunction,
+                          compiler::FeedbackSource(), callee, GetContext());
+  int arg_index = 0;
+  call->set_arg(arg_index++, GetRootConstant(RootIndex::kUndefinedValue));
+  for (int i = 0; i < args.register_count(); ++i) {
+    call->set_arg(arg_index++, GetTaggedValue(args[i]));
+  }
+  SetAccumulator(AddNode(call));
 }
 
 void MaglevGraphBuilder::VisitCallRuntimeForPair() {
@@ -3468,25 +3409,23 @@ bool MaglevGraphBuilder::TryBuildFastInstanceOf(
     }
 
     // Call @@hasInstance
-    CallArguments args(ConvertReceiverMode::kNotNullOrUndefined,
-                       {callable_node, object});
-    ValueNode* call =
-        ReduceCall(has_instance_field->AsJSFunction(), args, false);
+    Call* call = AddNewNode<Call>(
+        Call::kFixedInputCount + 2, ConvertReceiverMode::kNotNullOrUndefined,
+        Call::TargetType::kJSFunction, compiler::FeedbackSource(),
+        GetConstant(*has_instance_field), GetContext());
+    call->set_arg(0, callable_node);
+    call->set_arg(1, object);
 
     // Make sure that a lazy deopt after the @@hasInstance call also performs
     // ToBoolean before returning to the interpreter.
     // TODO(leszeks): Wrap this in a helper.
-    if (call->properties().can_lazy_deopt()) {
-      new (call->lazy_deopt_info()) LazyDeoptInfo(
-          zone(),
-          BuiltinContinuationDeoptFrame(
-              Builtin::kToBooleanLazyDeoptContinuation, {}, GetContext(),
-              zone()->New<InterpretedDeoptFrame>(
-                  call->lazy_deopt_info()->top_frame().as_interpreted())));
-    }
+    new (call->lazy_deopt_info()) LazyDeoptInfo(
+        zone(),
+        BuiltinContinuationDeoptFrame(
+            Builtin::kToBooleanLazyDeoptContinuation, {}, GetContext(),
+            zone()->New<InterpretedDeoptFrame>(
+                call->lazy_deopt_info()->top_frame().as_interpreted())));
 
-    // TODO(v8:7700): Do we need to call ToBoolean here? If we have reduce the
-    // call further, we might already have a boolean constant as result.
     SetAccumulator(AddNewNode<ToBoolean>({call}));
     return true;
   }
