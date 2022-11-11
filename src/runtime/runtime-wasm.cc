@@ -121,10 +121,9 @@ Object ThrowWasmError(Isolate* isolate, MessageTemplate message,
 // type; if the check succeeds, returns the object in its wasm representation;
 // otherwise throws a type error.
 RUNTIME_FUNCTION(Runtime_WasmJSToWasmObject) {
-  // TODO(manoskouk): Use {SaveAndClearThreadInWasmFlag} in runtime-internal.cc
-  // and runtime-strings.cc.
-  bool thread_in_wasm = trap_handler::IsThreadInWasm();
-  if (thread_in_wasm) trap_handler::ClearThreadInWasm();
+  // This code is called from wrappers, so the "thread is wasm" flag is not set.
+  DCHECK_IMPLIES(trap_handler::IsTrapHandlerEnabled(),
+                 !trap_handler::IsThreadInWasm());
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
   // 'raw_instance' can be either a WasmInstanceObject or undefined.
@@ -146,13 +145,9 @@ RUNTIME_FUNCTION(Runtime_WasmJSToWasmObject) {
   bool success = internal::wasm::JSToWasmObject(isolate, module, value, type,
                                                 &error_message)
                      .ToHandle(&result);
-  Object ret = success ? *result
-                       : isolate->Throw(*isolate->factory()->NewTypeError(
-                             MessageTemplate::kWasmTrapJSTypeError));
-  if (thread_in_wasm && !isolate->has_pending_exception()) {
-    trap_handler::SetThreadInWasm();
-  }
-  return ret;
+  if (success) return *result;
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kWasmTrapJSTypeError));
 }
 
 RUNTIME_FUNCTION(Runtime_WasmMemoryGrow) {

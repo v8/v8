@@ -2199,37 +2199,6 @@ Handle<AsmWasmData> AsmWasmData::New(
   return result;
 }
 
-namespace {
-constexpr int32_t kInt31MaxValue = 0x3fffffff;
-constexpr int32_t kInt31MinValue = -kInt31MaxValue - 1;
-
-// Tries to canonicalize a HeapNumber to an i31ref Smi. Returns the original
-// HeapNumber if it fails.
-Handle<Object> CanonicalizeHeapNumber(Handle<Object> number, Isolate* isolate) {
-  double double_value = Handle<HeapNumber>::cast(number)->value();
-  if (double_value >= kInt31MinValue && double_value <= kInt31MaxValue &&
-      !IsMinusZero(double_value) &&
-      double_value == FastI2D(FastD2I(double_value))) {
-    return handle(Smi::FromInt(FastD2I(double_value)), isolate);
-  }
-  return number;
-}
-
-// Tries to canonicalize a Smi into an i31 Smi. Returns a HeapNumber if it
-// fails.
-Handle<Object> CanonicalizeSmi(Handle<Object> smi, Isolate* isolate) {
-  if constexpr (SmiValuesAre31Bits()) return smi;
-
-  int32_t value = Handle<Smi>::cast(smi)->value();
-
-  if (value <= kInt31MaxValue && value >= kInt31MinValue) {
-    return smi;
-  } else {
-    return isolate->factory()->NewHeapNumber(value);
-  }
-}
-}  // namespace
-
 namespace wasm {
 MaybeHandle<Object> JSToWasmObject(Isolate* isolate, const WasmModule* module,
                                    Handle<Object> value, ValueType expected,
@@ -2255,6 +2224,8 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, const WasmModule* module,
       }
       V8_FALLTHROUGH;
     case kRef: {
+      // TODO(7748): Allow all in-range numbers for i31. Make sure to convert
+      //             Smis to i31refs if needed.
       // TODO(7748): Streamline interaction of undefined and (ref any).
       HeapType::Representation repr = expected.heap_representation();
       switch (repr) {
@@ -2278,10 +2249,6 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, const WasmModule* module,
           return {};
         }
         case HeapType::kAny: {
-          if (value->IsSmi()) return CanonicalizeSmi(value, isolate);
-          if (value->IsHeapNumber()) {
-            return CanonicalizeHeapNumber(value, isolate);
-          }
           if (!value->IsNull(isolate)) return value;
           *error_message = "null is not allowed for (ref any)";
           return {};
@@ -2304,31 +2271,18 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, const WasmModule* module,
           return {};
         }
         case HeapType::kEq: {
-          if (value->IsSmi()) {
-            Handle<Object> truncated = CanonicalizeSmi(value, isolate);
-            if (truncated->IsSmi()) return truncated;
-          } else if (value->IsHeapNumber()) {
-            Handle<Object> truncated = CanonicalizeHeapNumber(value, isolate);
-            if (truncated->IsSmi()) return truncated;
-          } else if (value->IsWasmStruct() || value->IsWasmArray()) {
+          if (value->IsSmi() || value->IsWasmStruct() || value->IsWasmArray()) {
             return value;
           }
           *error_message =
-              "eqref object must be null (if nullable), or a wasm "
-              "struct/array, or a Number that fits in i31ref range";
+              "eqref object must be null (if nullable) or a wasm "
+              "i31/struct/array";
           return {};
         }
         case HeapType::kI31: {
-          if (value->IsSmi()) {
-            Handle<Object> truncated = CanonicalizeSmi(value, isolate);
-            if (truncated->IsSmi()) return truncated;
-          } else if (value->IsHeapNumber()) {
-            Handle<Object> truncated = CanonicalizeHeapNumber(value, isolate);
-            if (truncated->IsSmi()) return truncated;
-          }
+          if (value->IsSmi()) return value;
           *error_message =
-              "i31ref object must be null (if nullable) or a Number that fits "
-              "in i31ref range";
+              "i31ref object must be null (if nullable) or a wasm i31";
           return {};
         }
         case HeapType::kString:

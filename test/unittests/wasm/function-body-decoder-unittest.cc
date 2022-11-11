@@ -1718,7 +1718,7 @@ TEST_F(FunctionBodyDecoderTest, ReturnCallWithSubtype) {
   WASM_FEATURE_SCOPE(return_call);
 
   auto sig = MakeSig::Returns(kWasmAnyRef);
-  auto callee_sig = MakeSig::Returns(kWasmAnyRef.AsNonNull());
+  auto callee_sig = MakeSig::Returns(kWasmAnyNonNullableRef);
   builder.AddFunction(&callee_sig);
 
   ExpectValidates(&sig, {WASM_RETURN_CALL_FUNCTION0(0)});

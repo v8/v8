@@ -1839,16 +1839,9 @@ class LiftoffCompiler {
         __ PushRegister(kI32, dst);
         return;
       }
-      case kExprExternInternalize: {
-        LiftoffRegList pinned;
-        LiftoffRegister input = pinned.set(__ PopToRegister());
-        LiftoffAssembler::VarState input_state(kRefNull, input, 0);
-        CallRuntimeStub(WasmCode::kWasmExternInternalize,
-                        MakeSig::Returns(kRef).Params(kRef), {input_state},
-                        decoder->position());
-        __ PushRegister(kRef, LiftoffRegister(kReturnRegister0));
+      case kExprExternInternalize:
+        // TODO(7748): Canonicalize heap numbers.
         return;
-      }
       case kExprExternExternalize:
         // This is a no-op.
         return;
@@ -5829,19 +5822,18 @@ class LiftoffCompiler {
     __ PushRegister(kRef, result);
   }
 
+  // 1 bit Smi tag, 31 bits Smi shift, 1 bit i31ref high-bit truncation.
+  constexpr static int kI31To32BitSmiShift = 33;
+
   void I31New(FullDecoder* decoder, const Value& input, Value* result) {
     LiftoffRegister src = __ PopToRegister();
     LiftoffRegister dst = __ GetUnusedRegister(kGpReg, {src}, {});
-    if constexpr (SmiValuesAre31Bits()) {
+    if (SmiValuesAre31Bits()) {
       static_assert(kSmiTag == 0);
       __ emit_i32_shli(dst.gp(), src.gp(), kSmiTagSize);
     } else {
       DCHECK(SmiValuesAre32Bits());
-      // Set the topmost bit to sign-extend the second bit. This way,
-      // interpretation in JS (if this value escapes there) will be the same as
-      // i31.get_s.
-      __ emit_i64_shli(dst, src, kSmiTagSize + kSmiShiftSize + 1);
-      __ emit_i64_sari(dst, dst, 1);
+      __ emit_i64_shli(dst, src, kI31To32BitSmiShift);
     }
     __ PushRegister(kRef, dst);
   }
@@ -5851,12 +5843,11 @@ class LiftoffCompiler {
     LiftoffRegister src = pinned.set(__ PopToRegister());
     MaybeEmitNullCheck(decoder, src.gp(), pinned, input.type);
     LiftoffRegister dst = __ GetUnusedRegister(kGpReg, {src}, {});
-    if constexpr (SmiValuesAre31Bits()) {
+    if (SmiValuesAre31Bits()) {
       __ emit_i32_sari(dst.gp(), src.gp(), kSmiTagSize);
     } else {
       DCHECK(SmiValuesAre32Bits());
-      // Topmost bit is already sign-extended.
-      __ emit_i64_sari(dst, src, kSmiTagSize + kSmiShiftSize);
+      __ emit_i64_sari(dst, src, kI31To32BitSmiShift);
     }
     __ PushRegister(kI32, dst);
   }
@@ -5866,13 +5857,11 @@ class LiftoffCompiler {
     LiftoffRegister src = pinned.set(__ PopToRegister());
     MaybeEmitNullCheck(decoder, src.gp(), pinned, input.type);
     LiftoffRegister dst = __ GetUnusedRegister(kGpReg, {src}, {});
-    if constexpr (SmiValuesAre31Bits()) {
+    if (SmiValuesAre31Bits()) {
       __ emit_i32_shri(dst.gp(), src.gp(), kSmiTagSize);
     } else {
       DCHECK(SmiValuesAre32Bits());
-      // Remove topmost bit.
-      __ emit_i64_shli(dst, src, 1);
-      __ emit_i64_shri(dst, dst, kSmiTagSize + kSmiShiftSize + 1);
+      __ emit_i64_shri(dst, src, kI31To32BitSmiShift);
     }
     __ PushRegister(kI32, dst);
   }
