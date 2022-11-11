@@ -1949,8 +1949,8 @@ bool MaglevGraphBuilder::TryBuildElementAccess(
     if (IsDoubleElementsKind(elements_kind)) {
       SetAccumulator(AddNewNode<LoadDoubleElement>({object, index}));
       if (IsHoleyElementsKind(elements_kind)) {
-        // TODO: Add a representation for "Float64OrHole" and emit this boxing
-        // lazily.
+        // TODO(v8:7700): Add a representation for "Float64OrHole" and emit this
+        // boxing lazily.
         SetAccumulator(AddNewNode<HoleyFloat64Box>(
             {current_interpreter_frame_.accumulator()}));
       }
