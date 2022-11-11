@@ -1253,8 +1253,8 @@ class LiftoffCompiler {
   }
 
   // Load the property in {kReturnRegister0}.
-  LiftoffRegister GetExceptionProperty(LiftoffAssembler::VarState& exception,
-                                       RootIndex root_index) {
+  LiftoffRegister GetExceptionProperty(
+      const LiftoffAssembler::VarState& exception, RootIndex root_index) {
     DCHECK(root_index == RootIndex::kwasm_exception_tag_symbol ||
            root_index == RootIndex::kwasm_exception_values_symbol);
 
@@ -1266,12 +1266,11 @@ class LiftoffCompiler {
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     LOAD_TAGGED_PTR_INSTANCE_FIELD(context_reg.gp(), NativeContext, pinned);
 
-    LiftoffAssembler::VarState tag_symbol(kIntPtrKind, tag_symbol_reg, 0);
-    LiftoffAssembler::VarState context(kIntPtrKind, context_reg, 0);
+    LiftoffAssembler::VarState tag_symbol{kRef, tag_symbol_reg, 0};
+    LiftoffAssembler::VarState context{kRef, context_reg, 0};
 
     CallRuntimeStub(WasmCode::kWasmGetOwnProperty,
-                    MakeSig::Returns(kIntPtrKind)
-                        .Params(kIntPtrKind, kIntPtrKind, kIntPtrKind),
+                    MakeSig::Returns(kRef).Params(kRef, kRef, kRef),
                     {exception, tag_symbol, context}, kNoSourcePosition);
 
     return LiftoffRegister(kReturnRegister0);
@@ -1333,9 +1332,8 @@ class LiftoffCompiler {
 
   void Rethrow(FullDecoder* decoder,
                const LiftoffAssembler::VarState& exception) {
-    DCHECK_EQ(exception.kind(), kRef);
-    CallRuntimeStub(WasmCode::kWasmRethrow, MakeSig::Params(kIntPtrKind),
-                    {exception}, decoder->position());
+    CallRuntimeStub(WasmCode::kWasmRethrow, MakeSig::Params(kRef), {exception},
+                    decoder->position());
   }
 
   void Delegate(FullDecoder* decoder, uint32_t depth, Control* block) {
@@ -2569,7 +2567,7 @@ class LiftoffCompiler {
     LiftoffRegister table_index_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     __ LoadConstant(table_index_reg, WasmValue(imm.index));
-    LiftoffAssembler::VarState table_index(kIntPtrKind, table_index_reg, 0);
+    LiftoffAssembler::VarState table_index{kI32, table_index_reg, 0};
 
     LiftoffAssembler::VarState index = __ cache_state()->stack_state.back();
 
@@ -2596,7 +2594,7 @@ class LiftoffCompiler {
     LiftoffRegister table_index_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     __ LoadConstant(table_index_reg, WasmValue(imm.index));
-    LiftoffAssembler::VarState table_index(kIntPtrKind, table_index_reg, 0);
+    LiftoffAssembler::VarState table_index{kI32, table_index_reg, 0};
 
     LiftoffAssembler::VarState value = __ cache_state()->stack_state.end()[-1];
     LiftoffAssembler::VarState index = __ cache_state()->stack_state.end()[-2];
@@ -2606,7 +2604,7 @@ class LiftoffCompiler {
     auto stub =
         is_funcref ? WasmCode::kWasmTableSetFuncRef : WasmCode::kWasmTableSet;
 
-    CallRuntimeStub(stub, MakeSig::Params(kI32, kI32, type.kind()),
+    CallRuntimeStub(stub, MakeSig::Params(kI32, kI32, kRefNull),
                     {table_index, index, value}, decoder->position());
 
     // Pop parameters from the value stack.
@@ -4624,7 +4622,7 @@ class LiftoffCompiler {
   }
 
   void GetExceptionValues(FullDecoder* decoder,
-                          LiftoffAssembler::VarState& exception_var,
+                          const LiftoffAssembler::VarState& exception_var,
                           const WasmTag* tag) {
     LiftoffRegList pinned;
     CODE_COMMENT("get exception values");
@@ -4679,13 +4677,13 @@ class LiftoffCompiler {
     int encoded_size = WasmExceptionPackage::GetEncodedSize(imm.tag);
     LiftoffRegister encoded_size_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    __ LoadConstant(encoded_size_reg, WasmValue(encoded_size));
+    __ LoadConstant(encoded_size_reg, WasmValue::ForUintPtr(encoded_size));
 
     // Call the WasmAllocateFixedArray builtin to create the values array.
     CallRuntimeStub(WasmCode::kWasmAllocateFixedArray,
                     MakeSig::Returns(kIntPtrKind).Params(kIntPtrKind),
                     {LiftoffAssembler::VarState{
-                        kSmiKind, LiftoffRegister{encoded_size_reg}, 0}},
+                        kIntPtrKind, LiftoffRegister{encoded_size_reg}, 0}},
                     decoder->position());
     MaybeOSR();
 
@@ -4926,7 +4924,7 @@ class LiftoffCompiler {
         __ emit_ptrsize_addi(index_plus_offset, index_plus_offset, offset);
       }
 
-      LiftoffAssembler::VarState index =
+      LiftoffAssembler::VarState& index =
           __ cache_state()->stack_state.end()[-3];
 
       // We replace the index on the value stack with the `index_plus_offset`
@@ -4936,7 +4934,8 @@ class LiftoffCompiler {
         __ cache_state()->dec_used(full_index);
         __ cache_state()->inc_used(LiftoffRegister(index_plus_offset));
       }
-      index.MakeRegister(LiftoffRegister(index_plus_offset));
+      index = LiftoffAssembler::VarState{
+          kIntPtrKind, LiftoffRegister{index_plus_offset}, index.offset()};
     }
     {
       // Convert the top value of the stack (the timeout) from I64 to a BigInt,
@@ -4953,9 +4952,9 @@ class LiftoffCompiler {
       __ PushRegister(kRef, LiftoffRegister(kReturnRegister0));
     }
 
-    Register expected_reg = no_reg;
+    Register expected = no_reg;
     if (kind == kI32) {
-      expected_reg = __ PeekToRegister(1, {}).gp();
+      expected = __ PeekToRegister(1, {}).gp();
     } else {
       LiftoffAssembler::VarState i64_expected =
           __ cache_state()->stack_state.end()[-2];
@@ -4963,21 +4962,21 @@ class LiftoffCompiler {
           kNeedI64RegPair ? WasmCode::kI32PairToBigInt : WasmCode::kI64ToBigInt,
           MakeSig::Returns(kRef).Params(kI64), {i64_expected},
           decoder->position());
-      expected_reg = kReturnRegister0;
+      expected = kReturnRegister0;
     }
-    LiftoffRegister expected(expected_reg);
+    ValueKind expected_kind = kind == kI32 ? kI32 : kRef;
 
     LiftoffAssembler::VarState timeout =
         __ cache_state()->stack_state.end()[-1];
-    LiftoffAssembler::VarState expected_value(kRef, expected, 0);
+    LiftoffAssembler::VarState expected_value{expected_kind,
+                                              LiftoffRegister{expected}, 0};
     LiftoffAssembler::VarState index = __ cache_state()->stack_state.end()[-3];
 
     auto target = kind == kI32 ? WasmCode::kWasmI32AtomicWait
                                : WasmCode::kWasmI64AtomicWait;
 
-    CallRuntimeStub(
-        target, MakeSig::Params(kIntPtrKind, kind == kI32 ? kI32 : kRef, kRef),
-        {index, expected_value, timeout}, decoder->position());
+    CallRuntimeStub(target, MakeSig::Params(kIntPtrKind, expected_kind, kRef),
+                    {index, expected_value, timeout}, decoder->position());
     // Pop parameters from the value stack.
     __ DropValues(3);
 
@@ -5006,12 +5005,12 @@ class LiftoffCompiler {
     }
 
     LiftoffAssembler::VarState count = __ cache_state()->stack_state.end()[-1];
-    LiftoffAssembler::VarState index = __ cache_state()->stack_state.end()[-2];
-    index.MakeRegister(LiftoffRegister(index_plus_offset));
+    LiftoffAssembler::VarState index_plus_offset_input{
+        kIntPtrKind, LiftoffRegister{index_plus_offset}, 0};
 
     CallRuntimeStub(WasmCode::kWasmAtomicNotify,
                     MakeSig::Returns(kI32).Params(kIntPtrKind, kI32),
-                    {index, count}, decoder->position());
+                    {index_plus_offset_input, count}, decoder->position());
     // Pop parameters from the value stack.
     __ DropValues(2);
 
@@ -5353,12 +5352,12 @@ class LiftoffCompiler {
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
 
     LoadSmi(table_index_reg, imm.table.index);
-    LiftoffAssembler::VarState table_index(kIntPtrKind, table_index_reg, 0);
+    LiftoffAssembler::VarState table_index{kSmiKind, table_index_reg, 0};
 
     LiftoffRegister segment_index_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     LoadSmi(segment_index_reg, imm.element_segment.index);
-    LiftoffAssembler::VarState segment_index(kIntPtrKind, segment_index_reg, 0);
+    LiftoffAssembler::VarState segment_index{kSmiKind, segment_index_reg, 0};
 
     LiftoffAssembler::VarState size = __ cache_state()->stack_state.end()[-1];
     LiftoffAssembler::VarState src = __ cache_state()->stack_state.end()[-2];
@@ -5404,14 +5403,14 @@ class LiftoffCompiler {
     LiftoffRegister table_dst_index_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     LoadSmi(table_dst_index_reg, imm.table_dst.index);
-    LiftoffAssembler::VarState table_dst_index(kIntPtrKind, table_dst_index_reg,
-                                               0);
+    LiftoffAssembler::VarState table_dst_index{kSmiKind, table_dst_index_reg,
+                                               0};
 
     LiftoffRegister table_src_index_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     LoadSmi(table_src_index_reg, imm.table_src.index);
-    LiftoffAssembler::VarState table_src_index(kIntPtrKind, table_src_index_reg,
-                                               0);
+    LiftoffAssembler::VarState table_src_index{kSmiKind, table_src_index_reg,
+                                               0};
 
     LiftoffAssembler::VarState size = __ cache_state()->stack_state.end()[-1];
     LiftoffAssembler::VarState src = __ cache_state()->stack_state.end()[-2];
@@ -5440,11 +5439,8 @@ class LiftoffCompiler {
     LiftoffAssembler::VarState delta = __ cache_state()->stack_state.end()[-1];
     LiftoffAssembler::VarState value = __ cache_state()->stack_state.end()[-2];
 
-    DCHECK_EQ(kI32, delta.kind());
-    DCHECK(is_object_reference(value.kind()));
-
     CallRuntimeStub(WasmCode::kWasmTableGrow,
-                    MakeSig::Returns(kSmiKind).Params(kSmiKind, kI32, kRef),
+                    MakeSig::Returns(kSmiKind).Params(kSmiKind, kI32, kRefNull),
                     {table_index, delta, value}, decoder->position());
 
     // Pop parameters from the value stack.
@@ -5493,12 +5489,8 @@ class LiftoffCompiler {
     LiftoffAssembler::VarState value = __ cache_state()->stack_state.end()[-2];
     LiftoffAssembler::VarState start = __ cache_state()->stack_state.end()[-3];
 
-    DCHECK_EQ(kI32, count.kind());
-    DCHECK(is_object_reference(value.kind()));
-    DCHECK_EQ(kI32, start.kind());
-
     CallRuntimeStub(WasmCode::kWasmTableFill,
-                    MakeSig::Params(kSmiKind, kI32, kI32, kRef),
+                    MakeSig::Params(kSmiKind, kI32, kI32, kRefNull),
                     {table_index, start, count, value}, decoder->position());
 
     // Pop parameters from the value stack.
@@ -7375,8 +7367,8 @@ class LiftoffCompiler {
       MaybeEmitNullCheck(decoder, func_ref.gp(), pinned, func_ref_type);
       LiftoffAssembler::VarState func_ref_var(kRef, func_ref, 0);
 
-      __ Fill(vector, liftoff::kFeedbackVectorOffset, kIntPtrKind);
-      LiftoffAssembler::VarState vector_var(kIntPtrKind, vector, 0);
+      __ Fill(vector, liftoff::kFeedbackVectorOffset, kRef);
+      LiftoffAssembler::VarState vector_var{kRef, vector, 0};
       LiftoffRegister index = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
       size_t vector_slot = encountered_call_instructions_.size() * 2;
       encountered_call_instructions_.push_back(
@@ -7388,7 +7380,7 @@ class LiftoffCompiler {
       //           funcref: WasmInternalFunction)
       CallRuntimeStub(WasmCode::kCallRefIC,
                       MakeSig::Returns(kIntPtrKind, kIntPtrKind)
-                          .Params(kIntPtrKind, kIntPtrKind, kIntPtrKind),
+                          .Params(kRef, kIntPtrKind, kRef),
                       {vector_var, index_var, func_ref_var},
                       decoder->position());
 

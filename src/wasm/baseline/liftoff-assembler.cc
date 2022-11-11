@@ -978,6 +978,7 @@ void PrepareStackTransfers(const ValueKindSig* sig,
     const int num_lowered_params = is_gp_pair ? 2 : 1;
     const VarState& slot = slots[param];
     const uint32_t stack_offset = slot.offset();
+    DCHECK(IsAssignable(slot.kind(), kind));
     // Process both halfs of a register pair separately, because they are passed
     // as separate parameters. One or both of them could end up on the stack.
     for (int lowered_idx = 0; lowered_idx < num_lowered_params; ++lowered_idx) {
@@ -1439,6 +1440,13 @@ bool CheckCompatibleStackSlotTypes(ValueKind a, ValueKind b) {
     DCHECK_EQ(a, b);
   }
   return true;  // Dummy so this can be called via DCHECK.
+}
+
+bool IsAssignable(ValueKind src, ValueKind dst) {
+  if (src == dst) return true;
+  if (src == kRef && dst == kRefNull) return true;
+  if (src == kRtt && (dst == kRef || dst == kRefNull)) return true;
+  return false;
 }
 #endif
 
