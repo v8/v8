@@ -1105,8 +1105,17 @@ void Heap::GarbageCollectionPrologueInSafepoint() {
   TRACE_GC(tracer(), GCTracer::Scope::HEAP_PROLOGUE_SAFEPOINT);
   gc_count_++;
 
+  DCHECK_EQ(ResizeNewSpaceMode::kNone, resize_new_space_mode_);
   if (new_space_) {
     UpdateNewSpaceAllocationCounter();
+    if (!v8_flags.minor_mc) {
+      resize_new_space_mode_ = ShouldResizeNewSpace();
+      // Pretenuring heuristics require that new space grows before pretenuring
+      // feedback is processed.
+      if (resize_new_space_mode_ == ResizeNewSpaceMode::kGrow) {
+        ExpandNewSpaceSize();
+      }
+    }
     new_space_->ResetParkedAllocationBuffers();
   }
 }
@@ -1278,16 +1287,12 @@ void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
 
     if (!v8_flags.minor_mc) {
       {
-        TRACE_GC(tracer(), GCTracer::Scope::HEAP_EPILOGUE_ADJUST_NEW_SPACE);
-        ResizeNewSpaceMode resize_new_space = ShouldResizeNewSpace();
-        if (resize_new_space == ResizeNewSpaceMode::kGrow) {
-          ExpandNewSpaceSize();
-        }
-
-        if (resize_new_space == ResizeNewSpaceMode::kShrink) {
+        TRACE_GC(tracer(), GCTracer::Scope::HEAP_EPILOGUE_REDUCE_NEW_SPACE);
+        if (resize_new_space_mode_ == ResizeNewSpaceMode::kShrink) {
           ReduceNewSpaceSize();
         }
       }
+      resize_new_space_mode_ = ResizeNewSpaceMode::kNone;
 
       SemiSpaceNewSpace::From(new_space())->MakeAllPagesInFromSpaceIterable();
     }

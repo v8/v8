@@ -2416,6 +2416,9 @@ class Heap {
 
   PretenturingHandler pretenuring_handler_;
 
+  // This field is used only when not running with MinorMC.
+  ResizeNewSpaceMode resize_new_space_mode_ = ResizeNewSpaceMode::kNone;
+
   // Classes in "heap" can be friends.
   friend class AlwaysAllocateScope;
   friend class ArrayBufferCollector;
