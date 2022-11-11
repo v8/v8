@@ -1115,8 +1115,8 @@ void Heap::GarbageCollectionPrologueInSafepoint() {
       if (resize_new_space_mode_ == ResizeNewSpaceMode::kGrow) {
         ExpandNewSpaceSize();
       }
+      SemiSpaceNewSpace::From(new_space_)->ResetParkedAllocationBuffers();
     }
-    new_space_->ResetParkedAllocationBuffers();
   }
 }
 

@@ -27,9 +27,6 @@ class SemiSpaceNewSpace;
 
 enum SemiSpaceId { kFromSpace = 0, kToSpace = 1 };
 
-using ParkedAllocationBuffer = std::pair<int, Address>;
-using ParkedAllocationBuffersVector = std::vector<ParkedAllocationBuffer>;
-
 // -----------------------------------------------------------------------------
 // SemiSpace in young generation
 //
@@ -242,8 +239,6 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
   inline bool Contains(HeapObject o) const;
   virtual bool ContainsSlow(Address a) const = 0;
 
-  void ResetParkedAllocationBuffers();
-
 #if DEBUG
   void VerifyTop() const override;
 #endif  // DEBUG
@@ -330,8 +325,6 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
   AllocationCounter allocation_counter_;
   LinearAreaOriginalData linear_area_original_data_;
 
-  ParkedAllocationBuffersVector parked_allocation_buffers_;
-
   virtual void RemovePage(Page* page) = 0;
 
   bool SupportsAllocationObserver() const final { return true; }
@@ -344,6 +337,9 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
 // forwards most functions to the appropriate semispace.
 
 class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
+  using ParkedAllocationBuffer = std::pair<int, Address>;
+  using ParkedAllocationBuffersVector = std::vector<ParkedAllocationBuffer>;
+
  public:
   static SemiSpaceNewSpace* From(NewSpace* space) {
     DCHECK(!v8_flags.minor_mc);
@@ -465,6 +461,8 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
   bool AddParkedAllocationBuffer(int size_in_bytes,
                                  AllocationAlignment alignment);
 
+  void ResetParkedAllocationBuffers();
+
   // Creates a filler object in the linear allocation area and closes it.
   void FreeLinearAllocationArea() final;
 
@@ -538,6 +536,8 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
   SemiSpace to_space_;
   SemiSpace from_space_;
   VirtualMemory reservation_;
+
+  ParkedAllocationBuffersVector parked_allocation_buffers_;
 
   bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,
                         AllocationOrigin origin,

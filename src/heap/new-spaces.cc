@@ -436,10 +436,6 @@ NewSpace::NewSpace(Heap* heap, LinearAllocationArea& allocation_info)
                           allocation_counter_, allocation_info,
                           linear_area_original_data_) {}
 
-void NewSpace::ResetParkedAllocationBuffers() {
-  parked_allocation_buffers_.clear();
-}
-
 void NewSpace::MaybeFreeUnusedLab(LinearAllocationArea info) {
   if (allocation_info_.MergeIfAdjacent(info)) {
     linear_area_original_data_.set_original_top_release(allocation_info_.top());
@@ -732,6 +728,10 @@ bool SemiSpaceNewSpace::AddParkedAllocationBuffer(
     }
   }
   return false;
+}
+
+void SemiSpaceNewSpace::ResetParkedAllocationBuffers() {
+  parked_allocation_buffers_.clear();
 }
 
 void SemiSpaceNewSpace::FreeLinearAllocationArea() {
