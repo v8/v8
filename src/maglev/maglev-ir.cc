@@ -29,6 +29,7 @@
 #include "src/maglev/maglev-ir-inl.h"
 #include "src/maglev/maglev-vreg-allocator.h"
 #include "src/objects/instance-type.h"
+#include "src/objects/js-array-buffer.h"
 
 namespace v8 {
 namespace internal {
@@ -1224,6 +1225,27 @@ void CheckSymbol::GenerateCode(MaglevAssembler* masm,
 void CheckSymbol::PrintParams(std::ostream& os,
                               MaglevGraphLabeller* graph_labeller) const {}
 
+void CheckInstanceType::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  UseRegister(receiver_input());
+}
+void CheckInstanceType::GenerateCode(MaglevAssembler* masm,
+                                     const ProcessingState& state) {
+  Register object = ToRegister(receiver_input());
+  if (check_type_ == CheckType::kOmitHeapObjectCheck) {
+    __ AssertNotSmi(object);
+  } else {
+    Condition is_smi = __ CheckSmi(object);
+    __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kWrongInstanceType, this);
+  }
+  __ LoadMap(kScratchRegister, object);
+  __ CmpInstanceType(kScratchRegister, instance_type());
+  __ EmitEagerDeoptIf(not_equal, DeoptimizeReason::kWrongInstanceType, this);
+}
+void CheckInstanceType::PrintParams(std::ostream& os,
+                                    MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << instance_type() << ")";
+}
+
 void CheckString::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseRegister(receiver_input());
 }
@@ -1393,6 +1415,47 @@ void CheckJSArrayBounds::GenerateCode(MaglevAssembler* masm,
   __ SmiUntagField(kScratchRegister,
                    FieldOperand(object, JSArray::kLengthOffset));
   __ cmpl(index, kScratchRegister);
+  __ EmitEagerDeoptIf(above_equal, DeoptimizeReason::kOutOfBounds, this);
+}
+
+namespace {
+int ExternalArrayElementSize(const ExternalArrayType element_type) {
+  switch (element_type) {
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
+  case kExternal##Type##Array:                    \
+    DCHECK_LE(sizeof(ctype), 8);                  \
+    return sizeof(ctype);
+    TYPED_ARRAYS(TYPED_ARRAY_CASE)
+    default:
+      UNREACHABLE();
+#undef TYPED_ARRAY_CASE
+  }
+}
+}  // namespace
+
+void CheckJSDataViewBounds::AllocateVreg(
+    MaglevVregAllocationState* vreg_state) {
+  UseRegister(receiver_input());
+  UseRegister(index_input());
+}
+void CheckJSDataViewBounds::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  Register object = ToRegister(receiver_input());
+  Register index = ToRegister(index_input());
+  Register byte_length = kScratchRegister;
+  if (v8_flags.debug_code) {
+    __ AssertNotSmi(object);
+    __ CmpObjectType(object, JS_DATA_VIEW_TYPE, kScratchRegister);
+    __ Assert(equal, AbortReason::kUnexpectedValue);
+  }
+  __ LoadBoundedSizeFromObject(byte_length, object,
+                               JSDataView::kRawByteLengthOffset);
+  int element_size = ExternalArrayElementSize(element_type_);
+  if (element_size > 1) {
+    __ subq(byte_length, Immediate(element_size - 1));
+    __ EmitEagerDeoptIf(negative, DeoptimizeReason::kOutOfBounds, this);
+  }
+  __ cmpl(index, byte_length);
   __ EmitEagerDeoptIf(above_equal, DeoptimizeReason::kOutOfBounds, this);
 }
 
@@ -1717,6 +1780,149 @@ void LoadDoubleElement::GenerateCode(MaglevAssembler* masm,
   }
   __ Movsd(result_reg, FieldOperand(kScratchRegister, index, times_8,
                                     FixedDoubleArray::kHeaderSize));
+}
+
+namespace {
+bool FromConstantToBool(MaglevAssembler* masm, ValueNode* node) {
+  DCHECK(IsConstantNode(node->opcode()));
+  LocalIsolate* local_isolate = masm->isolate()->AsLocalIsolate();
+  switch (node->opcode()) {
+#define CASE(Name)                                       \
+  case Opcode::k##Name: {                                \
+    return node->Cast<Name>()->ToBoolean(local_isolate); \
+  }
+    CONSTANT_VALUE_NODE_LIST(CASE)
+#undef CASE
+    default:
+      UNREACHABLE();
+  }
+}
+}  // namespace
+
+void LoadDoubleDataViewElement::AllocateVreg(
+    MaglevVregAllocationState* vreg_state) {
+  UseRegister(object_input());
+  UseRegister(index_input());
+  if (is_little_endian_constant()) {
+    UseAny(is_little_endian_input());
+  } else {
+    UseRegister(is_little_endian_input());
+  }
+  set_temporaries_needed(1);
+  DefineAsRegister(vreg_state, this);
+}
+void LoadDoubleDataViewElement::GenerateCode(MaglevAssembler* masm,
+                                             const ProcessingState& state) {
+  Register object = ToRegister(object_input());
+  Register index = ToRegister(index_input());
+  DoubleRegister result_reg = ToDoubleRegister(result());
+  Register data_pointer = general_temporaries().PopFirst();
+
+  __ AssertNotSmi(object);
+  if (v8_flags.debug_code) {
+    __ CmpObjectType(object, JS_DATA_VIEW_TYPE, kScratchRegister);
+    __ Assert(above_equal, AbortReason::kUnexpectedValue);
+  }
+
+  // Load data pointer.
+#ifdef V8_ENABLE_SANDBOX
+  __ LoadSandboxedPointerField(
+      data_pointer, FieldOperand(object, JSDataView::kDataPointerOffset));
+#else
+  __ movq(data_pointer, FieldOperand(object, JSDataView::kDataPointerOffset));
+#endif
+
+  if (is_little_endian_constant()) {
+    if (FromConstantToBool(masm, is_little_endian_input().node())) {
+      __ Movsd(result_reg, Operand(data_pointer, index, times_1, 0));
+    } else {
+      __ movq(kScratchRegister, Operand(data_pointer, index, times_1, 0));
+      __ bswapq(kScratchRegister);
+      __ Movq(result_reg, kScratchRegister);
+    }
+  } else {
+    Label done;
+    ZoneLabelRef is_little_endian(masm), is_big_endian(masm);
+    // TODO(leszeks): We're likely to be calling this on an existing boolean --
+    // maybe that's a case we should fast-path here and re-use that boolean
+    // value?
+    __ ToBoolean(ToRegister(is_little_endian_input()), is_little_endian,
+                 is_big_endian, true);
+    // x64 is little endian.
+    static_assert(V8_TARGET_LITTLE_ENDIAN == 1);
+    __ bind(*is_little_endian);
+    __ Movsd(result_reg, Operand(data_pointer, index, times_1, 0));
+    __ jmp(&done);
+    // We should swap the bytes if big endian.
+    __ bind(*is_big_endian);
+    __ movq(kScratchRegister, Operand(data_pointer, index, times_1, 0));
+    __ bswapq(kScratchRegister);
+    __ Movq(result_reg, kScratchRegister);
+    __ bind(&done);
+  }
+}
+
+void StoreDoubleDataViewElement::AllocateVreg(
+    MaglevVregAllocationState* vreg_state) {
+  UseRegister(object_input());
+  UseRegister(index_input());
+  UseRegister(value_input());
+  if (is_little_endian_constant()) {
+    UseAny(is_little_endian_input());
+  } else {
+    UseRegister(is_little_endian_input());
+  }
+  set_temporaries_needed(1);
+}
+void StoreDoubleDataViewElement::GenerateCode(MaglevAssembler* masm,
+                                              const ProcessingState& state) {
+  Register object = ToRegister(object_input());
+  Register index = ToRegister(index_input());
+  DoubleRegister value = ToDoubleRegister(value_input());
+  Register data_pointer = general_temporaries().PopFirst();
+
+  __ AssertNotSmi(object);
+  if (v8_flags.debug_code) {
+    __ CmpObjectType(object, JS_DATA_VIEW_TYPE, kScratchRegister);
+    __ Assert(above_equal, AbortReason::kUnexpectedValue);
+  }
+
+  // Load data pointer.
+#ifdef V8_ENABLE_SANDBOX
+  __ LoadSandboxedPointerField(
+      data_pointer, FieldOperand(object, JSDataView::kDataPointerOffset));
+#else
+  __ movq(data_pointer, FieldOperand(object, JSDataView::kDataPointerOffset));
+#endif
+
+  if (is_little_endian_constant()) {
+    if (FromConstantToBool(masm, is_little_endian_input().node())) {
+      __ Movsd(Operand(data_pointer, index, times_1, 0), value);
+    } else {
+      __ Movq(kScratchRegister, value);
+      __ bswapq(kScratchRegister);
+      __ movq(Operand(data_pointer, index, times_1, 0), kScratchRegister);
+    }
+  } else {
+    Label done;
+    ZoneLabelRef is_little_endian(masm), is_big_endian(masm);
+    // TODO(leszeks): We're likely to be calling this on an existing boolean --
+    // maybe that's a case we should fast-path here and re-use that boolean
+    // value?
+    __ ToBoolean(ToRegister(is_little_endian_input()), is_little_endian,
+                 is_big_endian, true);
+    // x64 is little endian.
+    static_assert(V8_TARGET_LITTLE_ENDIAN == 1);
+    __ bind(*is_little_endian);
+    __ Movsd(Operand(data_pointer, index, times_1, 0), value);
+    __ jmp(&done);
+    // We should swap the bytes if big endian.
+    __ bind(*is_big_endian);
+    __ Movq(kScratchRegister, value);
+    __ bswapq(kScratchRegister);
+    __ movq(Operand(data_pointer, index, times_1, 0), kScratchRegister);
+    __ bind(&done);
+  }
 }
 
 void StoreDoubleField::AllocateVreg(MaglevVregAllocationState* vreg_state) {

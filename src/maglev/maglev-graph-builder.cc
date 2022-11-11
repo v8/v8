@@ -2728,6 +2728,50 @@ ValueNode* MaglevGraphBuilder::TryReduceStringFromCharCode(
       set_accumulator);
 }
 
+ValueNode* MaglevGraphBuilder::TryReduceDataViewPrototypeGetFloat64(
+    compiler::JSFunctionRef target, CallArguments& args, bool set_accumulator) {
+  if (!broker()->dependencies()->DependOnArrayBufferDetachingProtector()) {
+    // TODO(victorgomes): Add checks whether the array has been detached.
+    return nullptr;
+  }
+  // TODO(victorgomes): Add data view to known types.
+  ValueNode* receiver = GetTaggedOrUndefined(args.receiver());
+  AddNewNode<CheckInstanceType>({receiver}, CheckType::kCheckHeapObject,
+                                JS_DATA_VIEW_TYPE);
+  ValueNode* offset =
+      args[0] ? GetInt32ElementIndex(args[0]) : GetInt32Constant(0);
+  AddNewNode<CheckJSDataViewBounds>({receiver, offset},
+                                    ExternalArrayType::kExternalFloat64Array);
+  ValueNode* is_little_endian =
+      args[1] ? GetTaggedValue(args[1]) : GetBooleanConstant(false);
+  return SetAccumulatorIfNeeded((AddNewNode<LoadDoubleDataViewElement>(
+                                    {receiver, offset, is_little_endian})),
+                                set_accumulator);
+}
+
+ValueNode* MaglevGraphBuilder::TryReduceDataViewPrototypeSetFloat64(
+    compiler::JSFunctionRef target, CallArguments& args, bool set_accumulator) {
+  if (!broker()->dependencies()->DependOnArrayBufferDetachingProtector()) {
+    // TODO(victorgomes): Add checks whether the array has been detached.
+    return nullptr;
+  }
+  // TODO(victorgomes): Add data view to known types.
+  ValueNode* receiver = GetTaggedOrUndefined(args.receiver());
+  AddNewNode<CheckInstanceType>({receiver}, CheckType::kCheckHeapObject,
+                                JS_DATA_VIEW_TYPE);
+  ValueNode* offset =
+      args[0] ? GetInt32ElementIndex(args[0]) : GetInt32Constant(0);
+  AddNewNode<CheckJSDataViewBounds>({receiver, offset},
+                                    ExternalArrayType::kExternalFloat64Array);
+  ValueNode* value = args[1] ? GetFloat64(args[1]) : GetFloat64Constant(0);
+  ValueNode* is_little_endian =
+      args[2] ? GetTaggedValue(args[2]) : GetBooleanConstant(false);
+  AddNewNode<StoreDoubleDataViewElement>(
+      {receiver, offset, value, is_little_endian});
+  return SetAccumulatorIfNeeded(GetRootConstant(RootIndex::kUndefinedValue),
+                                set_accumulator);
+}
+
 ValueNode* MaglevGraphBuilder::TryReduceStringPrototypeCharCodeAt(
     compiler::JSFunctionRef target, CallArguments& args, bool set_accumulator) {
   ValueNode* receiver = GetTaggedOrUndefined(args.receiver());

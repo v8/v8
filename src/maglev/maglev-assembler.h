@@ -96,6 +96,9 @@ class MaglevAssembler : public MacroAssembler {
   inline void PushInput(const Input& input);
   inline Register FromAnyToRegister(const Input& input, Register scratch);
 
+  inline void LoadBoundedSizeFromObject(Register result, Register object,
+                                        int offset);
+
   // Warning: Input registers {string} and {index} will be scratched.
   // {result} is allowed to alias with one the other 3 input registers.
   // {result} is an int32.
