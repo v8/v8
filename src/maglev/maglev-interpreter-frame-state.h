@@ -812,19 +812,17 @@ class MergePointInterpreterFrameState {
     DCHECK_EQ(value->properties().value_representation(),
               ValueRepresentation::kFloat64);
     DCHECK(!value->properties().is_conversion());
-    // Check if the next Node in the block after value is its Float64Box
-    // version and reuse it.
-    if (value->NextNode()) {
-      Float64Box* tagged = value->NextNode()->TryCast<Float64Box>();
-      if (tagged != nullptr && value == tagged->input().node()) {
-        return tagged;
-      }
+    NodeInfo* node_info = known_node_aspects.GetOrCreateInfoFor(value);
+    if (!node_info->tagged_alternative) {
+      // Create a tagged version.
+      ValueNode* tagged =
+          Node::New<Float64Box>(compilation_unit.zone(), {value});
+
+      Node::List::AddAfter(value, tagged);
+      compilation_unit.RegisterNodeInGraphLabeller(tagged);
+      node_info->tagged_alternative = tagged;
     }
-    // Otherwise create a tagged version.
-    ValueNode* tagged = Node::New<Float64Box>(compilation_unit.zone(), {value});
-    Node::List::AddAfter(value, tagged);
-    compilation_unit.RegisterNodeInGraphLabeller(tagged);
-    return tagged;
+    return node_info->tagged_alternative;
   }
 
   // TODO(victorgomes): Consider refactor this function to share code with
