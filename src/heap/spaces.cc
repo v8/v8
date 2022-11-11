@@ -387,28 +387,17 @@ void SpaceWithLinearArea::MarkLabStartInitialized() {
 // actual size needed for the object (required for InvokeAllocationObservers).
 // aligned_size_in_bytes is the size of the object including the filler right
 // before it to reach the right alignment (required to DCHECK the start of the
-// object). allocation_size is the size of the actual allocation which needs to
-// be used for the accounting. It can be different from aligned_size_in_bytes in
-// PagedSpace::AllocateRawAligned, where we have to overallocate in order to be
-// able to align the allocation afterwards.
+// object).
 void SpaceWithLinearArea::InvokeAllocationObservers(
-    Address soon_object, size_t size_in_bytes, size_t aligned_size_in_bytes,
-    size_t allocation_size) {
+    Address soon_object, size_t size_in_bytes, size_t aligned_size_in_bytes) {
   DCHECK_LE(size_in_bytes, aligned_size_in_bytes);
-  DCHECK_LE(aligned_size_in_bytes, allocation_size);
-  DCHECK(size_in_bytes == aligned_size_in_bytes ||
-         aligned_size_in_bytes == allocation_size);
 
   if (!SupportsAllocationObserver() || !allocation_counter_.IsActive()) return;
 
-  if (allocation_size >= allocation_counter_.NextBytes()) {
+  if (aligned_size_in_bytes >= allocation_counter_.NextBytes()) {
     // Only the first object in a LAB should reach the next step.
     DCHECK_EQ(soon_object,
               allocation_info_.start() + aligned_size_in_bytes - size_in_bytes);
-
-    // Right now the LAB only contains that one object.
-    DCHECK_EQ(allocation_info_.top() + allocation_size - aligned_size_in_bytes,
-              allocation_info_.limit());
 
     // Ensure that there is a valid object
     if (identity() == CODE_SPACE) {
@@ -426,17 +415,13 @@ void SpaceWithLinearArea::InvokeAllocationObservers(
 
     // Run AllocationObserver::Step through the AllocationCounter.
     allocation_counter_.InvokeAllocationObservers(soon_object, size_in_bytes,
-                                                  allocation_size);
+                                                  aligned_size_in_bytes);
 
     // Ensure that start/top/limit didn't change.
     DCHECK_EQ(saved_allocation_info.start(), allocation_info_.start());
     DCHECK_EQ(saved_allocation_info.top(), allocation_info_.top());
     DCHECK_EQ(saved_allocation_info.limit(), allocation_info_.limit());
   }
-
-  DCHECK_IMPLIES(allocation_counter_.IsActive(),
-                 (allocation_info_.limit() - allocation_info_.start()) <
-                     allocation_counter_.NextBytes());
 }
 
 #if DEBUG

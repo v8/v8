@@ -264,13 +264,10 @@ AllocationResult SpaceWithLinearArea::AllocateRaw(int size_in_bytes,
 AllocationResult SpaceWithLinearArea::AllocateRawUnaligned(
     int size_in_bytes, AllocationOrigin origin) {
   DCHECK(!v8_flags.enable_third_party_heap);
-  int max_aligned_size;
-  if (!EnsureAllocation(size_in_bytes, kTaggedAligned, origin,
-                        &max_aligned_size)) {
+  if (!EnsureAllocation(size_in_bytes, kTaggedAligned, origin)) {
     return AllocationResult::Failure();
   }
 
-  DCHECK_EQ(max_aligned_size, size_in_bytes);
   DCHECK_LE(allocation_info_.start(), allocation_info_.top());
 
   AllocationResult result = AllocateFastUnaligned(size_in_bytes, origin);
@@ -280,8 +277,9 @@ AllocationResult SpaceWithLinearArea::AllocateRawUnaligned(
     UpdateAllocationOrigins(origin);
   }
 
-  InvokeAllocationObservers(result.ToAddress(), size_in_bytes, size_in_bytes,
-                            size_in_bytes);
+  DCHECK_IMPLIES(allocation_counter_.IsActive(),
+                 (allocation_info_.limit() - allocation_info_.start()) <=
+                     allocation_counter_.NextBytes());
 
   return result;
 }
@@ -289,27 +287,25 @@ AllocationResult SpaceWithLinearArea::AllocateRawUnaligned(
 AllocationResult SpaceWithLinearArea::AllocateRawAligned(
     int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin) {
   DCHECK(!v8_flags.enable_third_party_heap);
-  int max_aligned_size;
-  if (!EnsureAllocation(size_in_bytes, alignment, origin, &max_aligned_size)) {
+  if (!EnsureAllocation(size_in_bytes, alignment, origin)) {
     return AllocationResult::Failure();
   }
 
-  DCHECK_GE(max_aligned_size, size_in_bytes);
   DCHECK_LE(allocation_info_.start(), allocation_info_.top());
 
   int aligned_size_in_bytes;
 
   AllocationResult result = AllocateFastAligned(
       size_in_bytes, &aligned_size_in_bytes, alignment, origin);
-  DCHECK_GE(max_aligned_size, aligned_size_in_bytes);
   DCHECK(!result.IsFailure());
 
   if (v8_flags.trace_allocations_origins) {
     UpdateAllocationOrigins(origin);
   }
 
-  InvokeAllocationObservers(result.ToAddress(), size_in_bytes,
-                            aligned_size_in_bytes, max_aligned_size);
+  DCHECK_IMPLIES(allocation_counter_.IsActive(),
+                 (allocation_info_.limit() - allocation_info_.start()) <=
+                     allocation_counter_.NextBytes());
 
   return result;
 }

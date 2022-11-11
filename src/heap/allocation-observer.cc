@@ -101,13 +101,10 @@ void AllocationCounter::InvokeAllocationObservers(Address soon_object,
     if (aoc.next_counter_ - current_counter_ <= aligned_object_size) {
       {
         DisallowGarbageCollection no_gc;
-        aoc.observer_->Step(
-            static_cast<int>(current_counter_ - aoc.prev_counter_), soon_object,
-            object_size);
+        aoc.observer_->Step(soon_object, object_size);
       }
       size_t observer_step_size = aoc.observer_->GetNextStepSize();
 
-      aoc.prev_counter_ = current_counter_;
       aoc.next_counter_ =
           current_counter_ + aligned_object_size + observer_step_size;
       step_run = true;
@@ -122,7 +119,6 @@ void AllocationCounter::InvokeAllocationObservers(Address soon_object,
   // Now process newly added allocation observers.
   for (AllocationObserverCounter& aoc : pending_added_) {
     size_t observer_step_size = aoc.observer_->GetNextStepSize();
-    aoc.prev_counter_ = current_counter_;
     aoc.next_counter_ =
         current_counter_ + aligned_object_size + observer_step_size;
 

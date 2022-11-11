@@ -322,30 +322,32 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   virtual Page* TryExpandImpl();
 
   bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,
-                        AllocationOrigin origin,
-                        int* out_max_aligned_size) override;
+                        AllocationOrigin origin) override;
 
   V8_WARN_UNUSED_RESULT bool TryAllocationFromFreeListMain(
-      size_t size_in_bytes, AllocationOrigin origin);
+      size_t size_in_bytes, AllocationOrigin origin,
+      AllocationAlignment alignment);
 
-  V8_WARN_UNUSED_RESULT bool ContributeToSweepingMain(int required_freed_bytes,
-                                                      int max_pages,
-                                                      int size_in_bytes,
-                                                      AllocationOrigin origin);
+  V8_WARN_UNUSED_RESULT bool ContributeToSweepingMain(
+      int required_freed_bytes, int max_pages, int size_in_bytes,
+      AllocationOrigin origin, AllocationAlignment alignment);
 
   // Refills LAB for EnsureLabMain. This function is space-dependent. Returns
   // false if there is not enough space and the caller has to retry after
   // collecting garbage.
-  V8_WARN_UNUSED_RESULT virtual bool RefillLabMain(int size_in_bytes,
-                                                   AllocationOrigin origin);
+  V8_WARN_UNUSED_RESULT virtual bool RefillLabMain(
+      int size_in_bytes, AllocationOrigin origin,
+      AllocationAlignment alignment);
 
   // Actual implementation of refilling LAB. Returns false if there is not
   // enough space and the caller has to retry after collecting garbage.
   V8_WARN_UNUSED_RESULT bool RawRefillLabMain(int size_in_bytes,
-                                              AllocationOrigin origin);
+                                              AllocationOrigin origin,
+                                              AllocationAlignment alignment);
 
   V8_WARN_UNUSED_RESULT bool TryExpand(int size_in_bytes,
-                                       AllocationOrigin origin);
+                                       AllocationOrigin origin,
+                                       AllocationAlignment alignment);
 
   size_t committed_physical_memory() const {
     return committed_physical_memory_.load(std::memory_order_relaxed);
@@ -406,8 +408,9 @@ class V8_EXPORT_PRIVATE CompactionSpace final : public PagedSpace {
   LinearAllocationArea allocation_info_;
 
  protected:
-  V8_WARN_UNUSED_RESULT bool RefillLabMain(int size_in_bytes,
-                                           AllocationOrigin origin) override;
+  V8_WARN_UNUSED_RESULT bool RefillLabMain(
+      int size_in_bytes, AllocationOrigin origin,
+      AllocationAlignment alignment) override;
 
   Page* TryExpandImpl() final;
   // The space is temporary and not included in any snapshots.
