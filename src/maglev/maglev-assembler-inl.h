@@ -102,6 +102,51 @@ inline void MaglevAssembler::LoadBoundedSizeFromObject(Register result,
 #endif  // V8_ENABLE_SANDBOX
 }
 
+inline void MaglevAssembler::LoadExternalPointerField(Register result,
+                                                      Operand operand) {
+#ifdef V8_ENABLE_SANDBOX
+  LoadSandboxedPointerField(result, operand);
+#else
+  movq(result, operand);
+#endif
+}
+
+inline void MaglevAssembler::LoadSignedField(Register result, Operand operand,
+                                             int size) {
+  if (size == 1) {
+    movsxbl(result, operand);
+  } else if (size == 2) {
+    movsxwl(result, operand);
+  } else {
+    DCHECK_EQ(size, 4);
+    movl(result, operand);
+  }
+}
+
+inline void MaglevAssembler::StoreField(Operand operand, Register value,
+                                        int size) {
+  DCHECK(size == 1 || size == 2 || size == 4);
+  if (size == 1) {
+    movb(operand, value);
+  } else if (size == 2) {
+    movw(operand, value);
+  } else {
+    DCHECK_EQ(size, 4);
+    movl(operand, value);
+  }
+}
+
+inline void MaglevAssembler::ReverseByteOrder(Register value, int size) {
+  if (size == 2) {
+    bswapl(value);
+    sarl(value, Immediate(16));
+  } else if (size == 4) {
+    bswapl(value);
+  } else {
+    DCHECK_EQ(size, 1);
+  }
+}
+
 // ---
 // Deferred code handling.
 // ---

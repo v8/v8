@@ -1799,6 +1799,114 @@ bool FromConstantToBool(MaglevAssembler* masm, ValueNode* node) {
 }
 }  // namespace
 
+void LoadSignedIntDataViewElement::AllocateVreg(
+    MaglevVregAllocationState* vreg_state) {
+  UseRegister(object_input());
+  UseRegister(index_input());
+  if (is_little_endian_constant() ||
+      type_ == ExternalArrayType::kExternalInt8Array) {
+    UseAny(is_little_endian_input());
+  } else {
+    UseRegister(is_little_endian_input());
+  }
+  set_temporaries_needed(1);
+  DefineAsRegister(vreg_state, this);
+}
+void LoadSignedIntDataViewElement::GenerateCode(MaglevAssembler* masm,
+                                                const ProcessingState& state) {
+  Register object = ToRegister(object_input());
+  Register index = ToRegister(index_input());
+  Register result_reg = ToRegister(result());
+  Register data_pointer = general_temporaries().PopFirst();
+
+  __ AssertNotSmi(object);
+  if (v8_flags.debug_code) {
+    __ CmpObjectType(object, JS_DATA_VIEW_TYPE, kScratchRegister);
+    __ Assert(above_equal, AbortReason::kUnexpectedValue);
+  }
+
+  // Load data pointer.
+  __ LoadExternalPointerField(
+      data_pointer, FieldOperand(object, JSDataView::kDataPointerOffset));
+
+  int element_size = ExternalArrayElementSize(type_);
+  __ LoadSignedField(result_reg, Operand(data_pointer, index, times_1, 0),
+                     element_size);
+
+  // We ignore little endian argument if type is a byte size.
+  if (type_ != ExternalArrayType::kExternalInt8Array) {
+    if (is_little_endian_constant()) {
+      if (!FromConstantToBool(masm, is_little_endian_input().node())) {
+        __ ReverseByteOrder(result_reg, element_size);
+      }
+    } else {
+      ZoneLabelRef is_little_endian(masm), is_big_endian(masm);
+      __ ToBoolean(ToRegister(is_little_endian_input()), is_little_endian,
+                   is_big_endian, false);
+      __ bind(*is_big_endian);
+      __ ReverseByteOrder(result_reg, element_size);
+      __ bind(*is_little_endian);
+      // x64 is little endian.
+      static_assert(V8_TARGET_LITTLE_ENDIAN == 1);
+    }
+  }
+}
+
+void StoreSignedIntDataViewElement::AllocateVreg(
+    MaglevVregAllocationState* vreg_state) {
+  UseRegister(object_input());
+  UseRegister(index_input());
+  // TODO(victorgomes): We only clobber if we need to re-oroder its
+  // representation bytes.
+  UseAndClobberRegister(value_input());
+  if (is_little_endian_constant() ||
+      type_ == ExternalArrayType::kExternalInt8Array) {
+    UseAny(is_little_endian_input());
+  } else {
+    UseRegister(is_little_endian_input());
+  }
+  set_temporaries_needed(1);
+}
+void StoreSignedIntDataViewElement::GenerateCode(MaglevAssembler* masm,
+                                                 const ProcessingState& state) {
+  Register object = ToRegister(object_input());
+  Register index = ToRegister(index_input());
+  Register value = ToRegister(value_input());
+  Register data_pointer = general_temporaries().PopFirst();
+
+  __ AssertNotSmi(object);
+  if (v8_flags.debug_code) {
+    __ CmpObjectType(object, JS_DATA_VIEW_TYPE, kScratchRegister);
+    __ Assert(above_equal, AbortReason::kUnexpectedValue);
+  }
+
+  // Load data pointer.
+  __ LoadExternalPointerField(
+      data_pointer, FieldOperand(object, JSDataView::kDataPointerOffset));
+
+  int element_size = ExternalArrayElementSize(type_);
+
+  // We ignore little endian argument if type is a byte size.
+  if (element_size > 1) {
+    if (is_little_endian_constant()) {
+      if (!FromConstantToBool(masm, is_little_endian_input().node())) {
+        __ ReverseByteOrder(value, element_size);
+      }
+    } else {
+      ZoneLabelRef is_little_endian(masm), is_big_endian(masm);
+      __ ToBoolean(ToRegister(is_little_endian_input()), is_little_endian,
+                   is_big_endian, false);
+      __ bind(*is_big_endian);
+      __ ReverseByteOrder(value, element_size);
+      __ bind(*is_little_endian);
+      // x64 is little endian.
+      static_assert(V8_TARGET_LITTLE_ENDIAN == 1);
+    }
+  }
+
+  __ StoreField(Operand(data_pointer, index, times_1, 0), value, element_size);
+}
+
 void LoadDoubleDataViewElement::AllocateVreg(
     MaglevVregAllocationState* vreg_state) {
   UseRegister(object_input());
@@ -1825,12 +1933,8 @@ void LoadDoubleDataViewElement::GenerateCode(MaglevAssembler* masm,
   }
 
   // Load data pointer.
-#ifdef V8_ENABLE_SANDBOX
-  __ LoadSandboxedPointerField(
+  __ LoadExternalPointerField(
       data_pointer, FieldOperand(object, JSDataView::kDataPointerOffset));
-#else
-  __ movq(data_pointer, FieldOperand(object, JSDataView::kDataPointerOffset));
-#endif
 
   if (is_little_endian_constant()) {
     if (FromConstantToBool(masm, is_little_endian_input().node())) {
@@ -1888,12 +1992,8 @@ void StoreDoubleDataViewElement::GenerateCode(MaglevAssembler* masm,
   }
 
   // Load data pointer.
-#ifdef V8_ENABLE_SANDBOX
-  __ LoadSandboxedPointerField(
+  __ LoadExternalPointerField(
       data_pointer, FieldOperand(object, JSDataView::kDataPointerOffset));
-#else
-  __ movq(data_pointer, FieldOperand(object, JSDataView::kDataPointerOffset));
-#endif
 
   if (is_little_endian_constant()) {
     if (FromConstantToBool(masm, is_little_endian_input().node())) {

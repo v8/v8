@@ -155,6 +155,7 @@ class CompactInterpreterFrameState;
   V(LoadTaggedField)               \
   V(LoadDoubleField)               \
   V(LoadTaggedElement)             \
+  V(LoadSignedIntDataViewElement)  \
   V(LoadDoubleDataViewElement)     \
   V(LoadDoubleElement)             \
   V(LoadGlobal)                    \
@@ -232,6 +233,7 @@ class CompactInterpreterFrameState;
   V(JumpLoopPrologue)                 \
   V(StoreMap)                         \
   V(StoreDoubleField)                 \
+  V(StoreSignedIntDataViewElement)    \
   V(StoreDoubleDataViewElement)       \
   V(StoreTaggedFieldNoWriteBarrier)   \
   V(StoreTaggedFieldWithWriteBarrier) \
@@ -3537,12 +3539,50 @@ class LoadDoubleElement : public FixedInputValueNodeT<2, LoadDoubleElement> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
+class LoadSignedIntDataViewElement
+    : public FixedInputValueNodeT<3, LoadSignedIntDataViewElement> {
+  using Base = FixedInputValueNodeT<3, LoadSignedIntDataViewElement>;
+
+ public:
+  explicit LoadSignedIntDataViewElement(uint64_t bitfield,
+                                        ExternalArrayType type)
+      : Base(bitfield), type_(type) {
+    DCHECK(type == ExternalArrayType::kExternalInt8Array ||
+           type == ExternalArrayType::kExternalInt16Array ||
+           type == ExternalArrayType::kExternalInt32Array);
+  }
+
+  static constexpr OpProperties kProperties =
+      OpProperties::Reading() | OpProperties::Int32();
+
+  static constexpr int kObjectIndex = 0;
+  static constexpr int kIndexIndex = 1;
+  static constexpr int kIsLittleEndianIndex = 2;
+  Input& object_input() { return input(kObjectIndex); }
+  Input& index_input() { return input(kIndexIndex); }
+  Input& is_little_endian_input() { return input(kIsLittleEndianIndex); }
+
+  bool is_little_endian_constant() {
+    return IsConstantNode(is_little_endian_input().node()->opcode());
+  }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  ExternalArrayType type_;
+};
+
 class LoadDoubleDataViewElement
     : public FixedInputValueNodeT<3, LoadDoubleDataViewElement> {
   using Base = FixedInputValueNodeT<3, LoadDoubleDataViewElement>;
 
  public:
-  explicit LoadDoubleDataViewElement(uint64_t bitfield) : Base(bitfield) {}
+  explicit LoadDoubleDataViewElement(uint64_t bitfield, ExternalArrayType type)
+      : Base(bitfield) {
+    DCHECK_EQ(type, ExternalArrayType::kExternalFloat64Array);
+  }
 
   static constexpr OpProperties kProperties =
       OpProperties::Reading() | OpProperties::Float64();
@@ -3563,12 +3603,51 @@ class LoadDoubleDataViewElement
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
+class StoreSignedIntDataViewElement
+    : public FixedInputNodeT<4, StoreSignedIntDataViewElement> {
+  using Base = FixedInputNodeT<4, StoreSignedIntDataViewElement>;
+
+ public:
+  explicit StoreSignedIntDataViewElement(uint64_t bitfield,
+                                         ExternalArrayType type)
+      : Base(bitfield), type_(type) {
+    DCHECK(type == ExternalArrayType::kExternalInt8Array ||
+           type == ExternalArrayType::kExternalInt16Array ||
+           type == ExternalArrayType::kExternalInt32Array);
+  }
+
+  static constexpr OpProperties kProperties = OpProperties::Writing();
+
+  static constexpr int kObjectIndex = 0;
+  static constexpr int kIndexIndex = 1;
+  static constexpr int kValueIndex = 2;
+  static constexpr int kIsLittleEndianIndex = 3;
+  Input& object_input() { return input(kObjectIndex); }
+  Input& index_input() { return input(kIndexIndex); }
+  Input& value_input() { return input(kValueIndex); }
+  Input& is_little_endian_input() { return input(kIsLittleEndianIndex); }
+
+  bool is_little_endian_constant() {
+    return IsConstantNode(is_little_endian_input().node()->opcode());
+  }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  ExternalArrayType type_;
+};
+
 class StoreDoubleDataViewElement
     : public FixedInputNodeT<4, StoreDoubleDataViewElement> {
   using Base = FixedInputNodeT<4, StoreDoubleDataViewElement>;
 
  public:
-  explicit StoreDoubleDataViewElement(uint64_t bitfield) : Base(bitfield) {}
+  explicit StoreDoubleDataViewElement(uint64_t bitfield, ExternalArrayType type)
+      : Base(bitfield) {
+    DCHECK_EQ(type, ExternalArrayType::kExternalFloat64Array);
+  }
 
   static constexpr OpProperties kProperties = OpProperties::Writing();
 
