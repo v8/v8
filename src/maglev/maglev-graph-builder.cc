@@ -303,7 +303,7 @@ using GenericNodeForOperation =
 
 // TODO(victorgomes): Remove this once all operations have fast paths.
 template <Operation kOperation>
-bool BinaryOperationHasInt32FastPath() {
+constexpr bool BinaryOperationHasInt32FastPath() {
   switch (kOperation) {
     case Operation::kAdd:
     case Operation::kSubtract:
@@ -328,7 +328,7 @@ bool BinaryOperationHasInt32FastPath() {
   }
 }
 template <Operation kOperation>
-bool BinaryOperationHasFloat64FastPath() {
+constexpr bool BinaryOperationHasFloat64FastPath() {
   switch (kOperation) {
     case Operation::kAdd:
     case Operation::kSubtract:
@@ -389,38 +389,34 @@ static constexpr base::Optional<int> Int32Identity() {
   }
 }
 
+namespace {
 template <Operation kOperation>
-ValueNode* MaglevGraphBuilder::AddNewInt32BinaryOperationNode(
-    std::initializer_list<ValueNode*> inputs) {
-  switch (kOperation) {
-#define CASE(op, OpNode, _) \
-  case Operation::k##op:    \
-    return AddNewNode<OpNode>(inputs);
-    MAP_OPERATION_TO_INT32_NODE(CASE)
-#undef CASE
-#define CASE(op, OpNode) \
-  case Operation::k##op: \
-    return AddNewNode<OpNode>(inputs);
-    MAP_COMPARE_OPERATION_TO_INT32_NODE(CASE)
-#undef CASE
-    default:
-      UNREACHABLE();
-  }
-}
+struct Int32NodeForHelper;
+#define SPECIALIZATION(op, OpNode, ...)         \
+  template <>                                   \
+  struct Int32NodeForHelper<Operation::k##op> { \
+    using type = OpNode;                        \
+  };
+MAP_OPERATION_TO_INT32_NODE(SPECIALIZATION)
+MAP_COMPARE_OPERATION_TO_INT32_NODE(SPECIALIZATION)
+#undef SPECIALIZATION
 
 template <Operation kOperation>
-ValueNode* MaglevGraphBuilder::AddNewFloat64BinaryOperationNode(
-    std::initializer_list<ValueNode*> inputs) {
-  switch (kOperation) {
-#define CASE(op, OpNode) \
-  case Operation::k##op: \
-    return AddNewNode<OpNode>(inputs);
-    MAP_OPERATION_TO_FLOAT64_NODE(CASE)
-#undef CASE
-    default:
-      UNREACHABLE();
-  }
-}
+using Int32NodeFor = typename Int32NodeForHelper<kOperation>::type;
+
+template <Operation kOperation>
+struct Float64NodeForHelper;
+#define SPECIALIZATION(op, OpNode)                \
+  template <>                                     \
+  struct Float64NodeForHelper<Operation::k##op> { \
+    using type = OpNode;                          \
+  };
+MAP_OPERATION_TO_FLOAT64_NODE(SPECIALIZATION)
+#undef SPECIALIZATION
+
+template <Operation kOperation>
+using Float64NodeFor = typename Float64NodeForHelper<kOperation>::type;
+}  // namespace
 
 template <Operation kOperation>
 void MaglevGraphBuilder::BuildGenericUnaryOperationNode() {
@@ -495,7 +491,22 @@ void MaglevGraphBuilder::BuildInt32BinaryOperationNode() {
     return;
   }
 
-  SetAccumulator(AddNewInt32BinaryOperationNode<kOperation>({left, right}));
+  using OpNodeT = Int32NodeFor<kOperation>;
+
+  OpNodeT* result = AddNewNode<OpNodeT>({left, right});
+  NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(result);
+  node_info->type = NodeType::kSmi;
+  if constexpr (OpNodeT::kProperties.value_representation() ==
+                ValueRepresentation::kInt32) {
+    // For Int32, the check is the same as a tag operation, so we may as well
+    // keep the tagged result as the tagged alternative.
+    node_info->tagged_alternative = AddNewNode<CheckedSmiTagInt32>({result});
+  } else {
+    static_assert(OpNodeT::kProperties.value_representation() ==
+                  ValueRepresentation::kUint32);
+    AddNewNode<CheckUint32IsSmi>({result});
+  }
+  SetAccumulator(result);
 }
 
 template <Operation kOperation>
@@ -514,7 +525,20 @@ void MaglevGraphBuilder::BuildInt32BinarySmiOperationNode() {
     return;
   }
   ValueNode* right = GetInt32Constant(constant);
-  SetAccumulator(AddNewInt32BinaryOperationNode<kOperation>({left, right}));
+
+  using OpNodeT = Int32NodeFor<kOperation>;
+
+  OpNodeT* result = AddNewNode<OpNodeT>({left, right});
+  known_node_aspects().GetOrCreateInfoFor(result)->type = NodeType::kSmi;
+  if constexpr (OpNodeT::kProperties.value_representation() ==
+                ValueRepresentation::kInt32) {
+    AddNewNode<CheckInt32IsSmi>({result});
+  } else {
+    static_assert(OpNodeT::kProperties.value_representation() ==
+                  ValueRepresentation::kUint32);
+    AddNewNode<CheckUint32IsSmi>({result});
+  }
+  SetAccumulator(result);
 }
 
 template <Operation kOperation>
@@ -523,7 +547,7 @@ void MaglevGraphBuilder::BuildFloat64BinarySmiOperationNode() {
   ValueNode* left = GetAccumulatorFloat64();
   double constant = static_cast<double>(iterator_.GetImmediateOperand(0));
   ValueNode* right = GetFloat64Constant(constant);
-  SetAccumulator(AddNewFloat64BinaryOperationNode<kOperation>({left, right}));
+  SetAccumulator(AddNewNode<Float64NodeFor<kOperation>>({left, right}));
 }
 
 template <Operation kOperation>
@@ -532,7 +556,7 @@ void MaglevGraphBuilder::BuildFloat64BinaryOperationNode() {
   ValueNode* left = LoadRegisterFloat64(0);
   ValueNode* right = GetAccumulatorFloat64();
 
-  SetAccumulator(AddNewFloat64BinaryOperationNode<kOperation>({left, right}));
+  SetAccumulator(AddNewNode<Float64NodeFor<kOperation>>({left, right}));
 }
 
 template <Operation kOperation>
@@ -550,17 +574,17 @@ void MaglevGraphBuilder::VisitBinaryOperation() {
           DeoptimizeReason::kInsufficientTypeFeedbackForBinaryOperation);
       return;
     case BinaryOperationHint::kSignedSmall:
-      if (BinaryOperationHasInt32FastPath<kOperation>()) {
+      if constexpr (BinaryOperationHasInt32FastPath<kOperation>()) {
         BuildInt32BinaryOperationNode<kOperation>();
         return;
       }
       break;
     case BinaryOperationHint::kSignedSmallInputs:
     case BinaryOperationHint::kNumber:
-      if (BinaryOperationHasFloat64FastPath<kOperation>()) {
+      if constexpr (BinaryOperationHasFloat64FastPath<kOperation>()) {
         BuildFloat64BinaryOperationNode<kOperation>();
         return;
-        // } else if (BinaryOperationHasInt32FastPath<kOperation>()) {
+        // } else if constexpr (BinaryOperationHasInt32FastPath<kOperation>()) {
         //   // Fall back to int32 fast path if there is one (this will be the
         //   case
         //   // for operations that deal with bits rather than numbers).
@@ -584,17 +608,17 @@ void MaglevGraphBuilder::VisitBinarySmiOperation() {
           DeoptimizeReason::kInsufficientTypeFeedbackForBinaryOperation);
       return;
     case BinaryOperationHint::kSignedSmall:
-      if (BinaryOperationHasInt32FastPath<kOperation>()) {
+      if constexpr (BinaryOperationHasInt32FastPath<kOperation>()) {
         BuildInt32BinarySmiOperationNode<kOperation>();
         return;
       }
       break;
     case BinaryOperationHint::kSignedSmallInputs:
     case BinaryOperationHint::kNumber:
-      if (BinaryOperationHasFloat64FastPath<kOperation>()) {
+      if constexpr (BinaryOperationHasFloat64FastPath<kOperation>()) {
         BuildFloat64BinarySmiOperationNode<kOperation>();
         return;
-        // } else if (BinaryOperationHasInt32FastPath<kOperation>()) {
+        // } else if constexpr (BinaryOperationHasInt32FastPath<kOperation>()) {
         //   // Fall back to int32 fast path if there is one (this will be the
         //   case
         //   // for operations that deal with bits rather than numbers).
@@ -678,7 +702,7 @@ void MaglevGraphBuilder::VisitCompareOperation() {
           DeoptimizeReason::kInsufficientTypeFeedbackForCompareOperation);
       return;
     case CompareOperationHint::kSignedSmall:
-      if (BinaryOperationHasInt32FastPath<kOperation>()) {
+      if constexpr (BinaryOperationHasInt32FastPath<kOperation>()) {
         ValueNode* left = LoadRegisterInt32(0);
         ValueNode* right = GetAccumulatorInt32();
 
@@ -686,13 +710,12 @@ void MaglevGraphBuilder::VisitCompareOperation() {
                                                            right)) {
           return;
         }
-        SetAccumulator(
-            AddNewInt32BinaryOperationNode<kOperation>({left, right}));
+        SetAccumulator(AddNewNode<Int32NodeFor<kOperation>>({left, right}));
         return;
       }
       break;
     case CompareOperationHint::kNumber:
-      if (BinaryOperationHasFloat64FastPath<kOperation>()) {
+      if constexpr (BinaryOperationHasFloat64FastPath<kOperation>()) {
         ValueNode* left = LoadRegisterFloat64(0);
         ValueNode* right = GetAccumulatorFloat64();
 
@@ -700,10 +723,9 @@ void MaglevGraphBuilder::VisitCompareOperation() {
                                                              right)) {
           return;
         }
-        SetAccumulator(
-            AddNewFloat64BinaryOperationNode<kOperation>({left, right}));
+        SetAccumulator(AddNewNode<Float64NodeFor<kOperation>>({left, right}));
         return;
-        // } else if (BinaryOperationHasInt32FastPath<kOperation>()) {
+        // } else if constexpr (BinaryOperationHasInt32FastPath<kOperation>()) {
         //   // Fall back to int32 fast path if there is one (this will be the
         //   case
         //   // for operations that deal with bits rather than numbers).
@@ -4144,7 +4166,7 @@ void MaglevGraphBuilder::VisitForInStep() {
   // contains an Smi.
   ValueNode* index = LoadRegisterInt32(0);
   ValueNode* one = GetInt32Constant(1);
-  SetAccumulator(AddNewInt32BinaryOperationNode<Operation::kAdd>({index, one}));
+  SetAccumulator(AddNewNode<Int32NodeFor<Operation::kAdd>>({index, one}));
 }
 
 void MaglevGraphBuilder::VisitSetPendingMessage() {

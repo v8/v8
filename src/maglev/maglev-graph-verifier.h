@@ -75,6 +75,22 @@ class MaglevGraphVerifier {
     }
   }
 
+  void CheckValueInputIsWord32(NodeBase* node, int i) {
+    ValueNode* input = node->input(i).node();
+    ValueRepresentation got = input->properties().value_representation();
+    if (got != ValueRepresentation::kInt32 &&
+        got != ValueRepresentation::kUint32) {
+      std::ostringstream str;
+      str << "Type representation error: node ";
+      if (graph_labeller_) {
+        str << "#" << graph_labeller_->NodeId(node) << " : ";
+      }
+      str << node->opcode() << " (input @" << i << " = " << input->opcode()
+          << ") type " << got << " is not Int32 or Uint32";
+      FATAL("%s", str.str().c_str());
+    }
+  }
+
   void Process(NodeBase* node, const ProcessingState& state) {
     switch (node->opcode()) {
       case Opcode::kAbort:
@@ -156,18 +172,25 @@ class MaglevGraphVerifier {
         CheckValueInputIs(node, 0, ValueRepresentation::kTagged);
         break;
       case Opcode::kSwitch:
+      case Opcode::kCheckInt32IsSmi:
       case Opcode::kCheckedSmiTagInt32:
-      case Opcode::kUnsafeSmiTag:
       case Opcode::kChangeInt32ToFloat64:
+      case Opcode::kInt32ToNumber:
       case Opcode::kBuiltinStringFromCharCode:
         DCHECK_EQ(node->input_count(), 1);
         CheckValueInputIs(node, 0, ValueRepresentation::kInt32);
         break;
+      case Opcode::kCheckUint32IsSmi:
       case Opcode::kCheckedSmiTagUint32:
       case Opcode::kCheckedUint32ToInt32:
       case Opcode::kChangeUint32ToFloat64:
+      case Opcode::kUint32ToNumber:
         DCHECK_EQ(node->input_count(), 1);
         CheckValueInputIs(node, 0, ValueRepresentation::kUint32);
+        break;
+      case Opcode::kUnsafeSmiTag:
+        DCHECK_EQ(node->input_count(), 1);
+        CheckValueInputIsWord32(node, 0);
         break;
       case Opcode::kFloat64Box:
       case Opcode::kHoleyFloat64Box:

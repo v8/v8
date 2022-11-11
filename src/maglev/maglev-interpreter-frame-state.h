@@ -771,15 +771,13 @@ class MergePointInterpreterFrameState {
         int32_t constant = value->Cast<Int32Constant>()->value();
         return GetSmiConstant(compilation_unit, smi_constants, constant);
       } else if (value->Is<StringLength>() ||
-                 value->Is<BuiltinStringPrototypeCharCodeAt>()) {
+                 value->Is<BuiltinStringPrototypeCharCodeAt>() ||
+                 node_info->is_smi()) {
         static_assert(String::kMaxLength <= kSmiMaxValue,
                       "String length must fit into a Smi");
         tagged = Node::New<UnsafeSmiTag>(compilation_unit.zone(), {value});
       } else {
-        tagged =
-            Node::New<CheckedSmiTagInt32, std::initializer_list<ValueNode*>>(
-                compilation_unit.zone(),
-                DeoptFrame(value->eager_deopt_info()->top_frame()), {value});
+        tagged = Node::New<Int32ToNumber>(compilation_unit.zone(), {value});
       }
 
       Node::List::AddAfter(value, tagged);
@@ -800,10 +798,12 @@ class MergePointInterpreterFrameState {
     NodeInfo* node_info = known_node_aspects.GetOrCreateInfoFor(value);
     if (!node_info->tagged_alternative) {
       // Create a tagged version.
-      ValueNode* tagged =
-          Node::New<CheckedSmiTagUint32, std::initializer_list<ValueNode*>>(
-              compilation_unit.zone(),
-              DeoptFrame(value->eager_deopt_info()->top_frame()), {value});
+      ValueNode* tagged;
+      if (node_info->is_smi()) {
+        tagged = Node::New<UnsafeSmiTag>(compilation_unit.zone(), {value});
+      } else {
+        tagged = Node::New<Uint32ToNumber>(compilation_unit.zone(), {value});
+      }
 
       Node::List::AddAfter(value, tagged);
       compilation_unit.RegisterNodeInGraphLabeller(tagged);

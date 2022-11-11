@@ -655,18 +655,22 @@ class MaglevGraphBuilder {
       case ValueRepresentation::kInt32: {
         NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
         if (node_info->tagged_alternative == nullptr) {
-          // TODO(leszeks): Allow heap number boxing here.
-          node_info->tagged_alternative =
-              AddNewNode<CheckedSmiTagInt32>({value});
+          if (NodeTypeIsSmi(node_info->type)) {
+            node_info->tagged_alternative = AddNewNode<UnsafeSmiTag>({value});
+          } else {
+            node_info->tagged_alternative = AddNewNode<Int32ToNumber>({value});
+          }
         }
         return node_info->tagged_alternative;
       }
       case ValueRepresentation::kUint32: {
         NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
         if (node_info->tagged_alternative == nullptr) {
-          // TODO(leszeks): Allow heap number boxing here.
-          node_info->tagged_alternative =
-              AddNewNode<CheckedSmiTagUint32>({value});
+          if (NodeTypeIsSmi(node_info->type)) {
+            node_info->tagged_alternative = AddNewNode<UnsafeSmiTag>({value});
+          } else {
+            node_info->tagged_alternative = AddNewNode<Uint32ToNumber>({value});
+          }
         }
         return node_info->tagged_alternative;
       }
@@ -1185,13 +1189,6 @@ class MaglevGraphBuilder {
   void BuildGenericBinaryOperationNode();
   template <Operation kOperation>
   void BuildGenericBinarySmiOperationNode();
-
-  template <Operation kOperation>
-  ValueNode* AddNewInt32BinaryOperationNode(
-      std::initializer_list<ValueNode*> inputs);
-  template <Operation kOperation>
-  ValueNode* AddNewFloat64BinaryOperationNode(
-      std::initializer_list<ValueNode*> inputs);
 
   template <Operation kOperation>
   ValueNode* TryFoldInt32BinaryOperation(ValueNode* left, ValueNode* right);

@@ -179,6 +179,8 @@ class CompactInterpreterFrameState;
   V(ChangeInt32ToFloat64)          \
   V(ChangeUint32ToFloat64)         \
   V(CheckedTruncateFloat64ToInt32) \
+  V(Int32ToNumber)                 \
+  V(Uint32ToNumber)                \
   V(Float64Box)                    \
   V(HoleyFloat64Box)               \
   V(CheckedFloat64Unbox)           \
@@ -209,6 +211,8 @@ class CompactInterpreterFrameState;
 
 #define NODE_LIST(V)                  \
   V(AssertInt32)                      \
+  V(CheckInt32IsSmi)                  \
+  V(CheckUint32IsSmi)                 \
   V(CheckHeapObject)                  \
   V(CheckInt32Condition)              \
   V(CheckJSArrayBounds)               \
@@ -1681,8 +1685,7 @@ class Int32BinaryNode : public FixedInputValueNodeT<2, Derived> {
   using Base = FixedInputValueNodeT<2, Derived>;
 
  public:
-  static constexpr OpProperties kProperties =
-      OpProperties::EagerDeopt() | OpProperties::Int32();
+  static constexpr OpProperties kProperties = OpProperties::Int32();
 
   static constexpr int kLeftIndex = 0;
   static constexpr int kRightIndex = 1;
@@ -1724,8 +1727,7 @@ class Int32ShiftRightLogical
   explicit Int32ShiftRightLogical(uint64_t bitfield) : Base(bitfield) {}
 
   // Unlike the other Int32 nodes, logical right shift returns a Uint32.
-  static constexpr OpProperties kProperties =
-      OpProperties::EagerDeopt() | OpProperties::Uint32();
+  static constexpr OpProperties kProperties = OpProperties::Uint32();
 
   static constexpr int kLeftIndex = 0;
   static constexpr int kRightIndex = 1;
@@ -1864,6 +1866,36 @@ DEF_FLOAT64_COMPARE_NODE(GreaterThanOrEqual)
 
 #undef DEF_OPERATION_NODE
 
+class CheckInt32IsSmi : public FixedInputNodeT<1, CheckInt32IsSmi> {
+  using Base = FixedInputNodeT<1, CheckInt32IsSmi>;
+
+ public:
+  explicit CheckInt32IsSmi(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
+
+  Input& input() { return Node::input(0); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class CheckUint32IsSmi : public FixedInputNodeT<1, CheckUint32IsSmi> {
+  using Base = FixedInputNodeT<1, CheckUint32IsSmi>;
+
+ public:
+  explicit CheckUint32IsSmi(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
+
+  Input& input() { return Node::input(0); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
 class CheckedSmiTagInt32 : public FixedInputValueNodeT<1, CheckedSmiTagInt32> {
   using Base = FixedInputValueNodeT<1, CheckedSmiTagInt32>;
 
@@ -1998,6 +2030,38 @@ class Float64Constant : public FixedInputValueNodeT<0, Float64Constant> {
 
  private:
   const double value_;
+};
+
+class Int32ToNumber : public FixedInputValueNodeT<1, Int32ToNumber> {
+  using Base = FixedInputValueNodeT<1, Int32ToNumber>;
+
+ public:
+  explicit Int32ToNumber(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::DeferredCall() | OpProperties::ConversionNode();
+
+  Input& input() { return Node::input(0); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class Uint32ToNumber : public FixedInputValueNodeT<1, Uint32ToNumber> {
+  using Base = FixedInputValueNodeT<1, Uint32ToNumber>;
+
+ public:
+  explicit Uint32ToNumber(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::DeferredCall() | OpProperties::ConversionNode();
+
+  Input& input() { return Node::input(0); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
 class Float64Box : public FixedInputValueNodeT<1, Float64Box> {

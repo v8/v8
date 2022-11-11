@@ -2777,6 +2777,32 @@ void UnsafeSmiUntag::GenerateCode(MaglevAssembler* masm,
   __ SmiToInt32(value);
 }
 
+void CheckInt32IsSmi::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  UseRegister(input());
+}
+void CheckInt32IsSmi::GenerateCode(MaglevAssembler* masm,
+                                   const ProcessingState& state) {
+  // TODO(leszeks): This basically does a SmiTag and throws the result away.
+  // Don't throw the result away if we want to actually use it.
+  Register reg = ToRegister(input());
+  __ movl(kScratchRegister, reg);
+  __ addl(kScratchRegister, kScratchRegister);
+  DCHECK_REGLIST_EMPTY(RegList{reg} &
+                       GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
+  __ EmitEagerDeoptIf(overflow, DeoptimizeReason::kNotASmi, this);
+}
+
+void CheckUint32IsSmi::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  UseRegister(input());
+}
+void CheckUint32IsSmi::GenerateCode(MaglevAssembler* masm,
+                                    const ProcessingState& state) {
+  Register reg = ToRegister(input());
+  // Perform an unsigned comparison against Smi::kMaxValue.
+  __ cmpl(reg, Immediate(Smi::kMaxValue));
+  __ EmitEagerDeoptIf(above, DeoptimizeReason::kNotASmi, this);
+}
+
 void CheckedSmiTagInt32::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseRegister(input());
   DefineSameAsFirst(vreg_state, this);
@@ -2840,6 +2866,56 @@ Handle<Object> Int32Constant::DoReify(LocalIsolate* isolate) {
 void Int32Constant::PrintParams(std::ostream& os,
                                 MaglevGraphLabeller* graph_labeller) const {
   os << "(" << value() << ")";
+}
+
+void Int32ToNumber::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  UseRegister(input());
+  DefineAsRegister(vreg_state, this);
+}
+void Int32ToNumber::GenerateCode(MaglevAssembler* masm,
+                                 const ProcessingState& state) {
+  ZoneLabelRef done(masm);
+  Register value = ToRegister(input());
+  Register object = ToRegister(result());
+  __ movl(kScratchRegister, value);
+  __ addl(kScratchRegister, kScratchRegister);
+  __ JumpToDeferredIf(
+      overflow,
+      [](MaglevAssembler* masm, Register object, Register value,
+         ZoneLabelRef done, Int32ToNumber* node) {
+        DoubleRegister double_value = kScratchDoubleReg;
+        __ Cvtlsi2sd(double_value, value);
+        __ AllocateHeapNumber(node->register_snapshot(), object, double_value);
+        __ jmp(*done);
+      },
+      object, value, done, this);
+  __ Move(object, kScratchRegister);
+  __ bind(*done);
+}
+
+void Uint32ToNumber::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  UseRegister(input());
+  DefineSameAsFirst(vreg_state, this);
+}
+void Uint32ToNumber::GenerateCode(MaglevAssembler* masm,
+                                  const ProcessingState& state) {
+  ZoneLabelRef done(masm);
+  Register value = ToRegister(input());
+  Register object = ToRegister(result());
+  __ cmpl(value, Immediate(Smi::kMaxValue));
+  __ JumpToDeferredIf(
+      above,
+      [](MaglevAssembler* masm, Register object, Register value,
+         ZoneLabelRef done, Uint32ToNumber* node) {
+        DoubleRegister double_value = kScratchDoubleReg;
+        __ Cvtlui2sd(double_value, value);
+        __ AllocateHeapNumber(node->register_snapshot(), object, double_value);
+        __ jmp(*done);
+      },
+      object, value, done, this);
+  __ addl(value, value);
+  DCHECK_EQ(object, value);
+  __ bind(*done);
 }
 
 void Float64Box::AllocateVreg(MaglevVregAllocationState* vreg_state) {
