@@ -69,6 +69,8 @@ class PretenturingHandler final {
   void RemoveAllocationSitePretenuringFeedback(AllocationSite site);
 
  private:
+  bool DeoptMaybeTenuredAllocationSites() const;
+
   Heap* const heap_;
 
   // The feedback storage is used to store allocation sites (keys) and how often
