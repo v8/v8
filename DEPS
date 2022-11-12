@@ -65,7 +65,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:10.20221110.0.1',
+  'fuchsia_version': 'version:10.20221111.1.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -98,14 +98,14 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_tools-lint_version
   # and whatever else without interference from each other.
-  'android_sdk_cmdline-tools_version': 'IPzAG-uU5zVMxohpg9-7-N0tQC1TCSW1VbrBFw7Ld04C',
+  'android_sdk_cmdline-tools_version': 'oWlET2yQhaPKQ66tYNuSPaueU78Z9VlxpyxOoUjwRuIC',
 }
 
 deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '521ac34ebd795939c7e16b37d9d3ddb40e8ed556',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '088aeb2cc38daf1fdf1bd1f5eb0e484f78149390',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '4f35453d0ebe4f0760ffe549357a8a3f05fc6161',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'c3244c4dbc56624d654600aab25b018ad53024c3',
   'buildtools/clang_format/script':
@@ -209,7 +209,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '037b0ac25d75c1274af5aa2e3c8316f81b99d5be',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'dc9aaefb883a8f6720045d839feedd7bfe653457',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -217,7 +217,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'f9c13056120aa60f702c7980095047ec12c57be5',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '7aaca9428691c22c7efd6e769487a9bcc17e388b',
   'third_party/fuchsia-sdk/sdk': {
     'packages': [
         {
