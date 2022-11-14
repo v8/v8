@@ -1418,7 +1418,9 @@ class KnownMapsMerger {
     if (map.is_migration_target()) {
       emit_check_with_migration_ = true;
     }
-    if (!map.IsHeapObject()) {
+    if (map.IsHeapNumberMap()) {
+      // If this is a heap number map, the object may be a Smi, so mask away
+      // the known HeapObject bit.
       node_type_ = IntersectType(node_type_, NodeType::kObjectWithKnownMap);
     } else if (!map.IsJSReceiverMap()) {
       node_type_ = IntersectType(node_type_, NodeType::kHeapObjectWithKnownMap);
