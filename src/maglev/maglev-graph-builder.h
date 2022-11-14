@@ -39,6 +39,26 @@ namespace maglev {
 
 class CallArguments;
 
+template <typename NodeT>
+inline void MarkAsLazyDeoptResult(NodeT* value,
+                                  interpreter::Register result_location,
+                                  int result_size) {
+  DCHECK_EQ(NodeT::kProperties.can_lazy_deopt(),
+            value->properties().can_lazy_deopt());
+  if constexpr (NodeT::kProperties.can_lazy_deopt()) {
+    value->lazy_deopt_info()->SetResultLocation(result_location, result_size);
+  }
+}
+
+template <>
+inline void MarkAsLazyDeoptResult(ValueNode* value,
+                                  interpreter::Register result_location,
+                                  int result_size) {
+  if (value->properties().can_lazy_deopt()) {
+    value->lazy_deopt_info()->SetResultLocation(result_location, result_size);
+  }
+}
+
 class MaglevGraphBuilder {
  public:
   explicit MaglevGraphBuilder(LocalIsolate* local_isolate,
@@ -836,14 +856,6 @@ class MaglevGraphBuilder {
     StoreRegister(interpreter::Register::virtual_accumulator(), node);
   }
 
-  template <typename NodeT>
-  NodeT* SetAccumulatorIfNeeded(NodeT* node, bool set_accumulator) {
-    if (set_accumulator) {
-      SetAccumulator(node);
-    }
-    return node;
-  }
-
   ValueNode* GetSecondValue(ValueNode* result) {
     // GetSecondReturnedValue must be added just after a node that calls a
     // builtin that expects 2 returned values. It simply binds kReturnRegister1
@@ -918,17 +930,6 @@ class MaglevGraphBuilder {
         BytecodeOffset(iterator_.current_offset()), current_source_position_,
         // TODO(leszeks): Support inlining for lazy deopts.
         nullptr);
-  }
-
-  template <typename NodeT>
-  void MarkAsLazyDeoptResult(NodeT* value,
-                             interpreter::Register result_location,
-                             int result_size) {
-    DCHECK_EQ(NodeT::kProperties.can_lazy_deopt(),
-              value->properties().can_lazy_deopt());
-    if constexpr (NodeT::kProperties.can_lazy_deopt()) {
-      value->lazy_deopt_info()->SetResultLocation(result_location, result_size);
-    }
   }
 
   void MarkPossibleSideEffect() {
@@ -1058,11 +1059,10 @@ class MaglevGraphBuilder {
 
   template <typename LoadNode>
   ValueNode* TryBuildLoadDataView(const CallArguments& args,
-                                  ExternalArrayType type, bool set_accumulator);
+                                  ExternalArrayType type);
   template <typename StoreNode, typename Function>
   ValueNode* TryBuildStoreDataView(const CallArguments& args,
-                                   ExternalArrayType type, Function&& getValue,
-                                   bool set_accumulator);
+                                   ExternalArrayType type, Function&& getValue);
 
 #define MAGLEV_REDUCED_BUILTIN(V) \
   V(DataViewPrototypeGetInt8)     \
@@ -1079,22 +1079,20 @@ class MaglevGraphBuilder {
 
 #define DEFINE_BUILTIN_REDUCER(Name)                                 \
   ValueNode* TryReduce##Name(compiler::JSFunctionRef builtin_target, \
-                             CallArguments& args, bool set_accumulator);
+                             CallArguments& args);
   MAGLEV_REDUCED_BUILTIN(DEFINE_BUILTIN_REDUCER)
 #undef DEFINE_BUILTIN_REDUCER
 
   ValueNode* TryReduceBuiltin(compiler::JSFunctionRef builtin_target,
-                              CallArguments& args, bool set_accumulator);
+                              CallArguments& args);
   ValueNode* TryBuildCallKnownJSFunction(compiler::JSFunctionRef function,
-                                         CallArguments& args,
-                                         bool set_accumulator);
+                                         CallArguments& args);
   Call* BuildGenericCall(ValueNode* target, ValueNode* context,
                          Call::TargetType target_type,
                          const CallArguments& args,
                          const compiler::FeedbackSource& feedback_source =
                              compiler::FeedbackSource());
-  ValueNode* ReduceCall(compiler::ObjectRef target, CallArguments& args,
-                        bool set_accumulator = true);
+  ValueNode* ReduceCall(compiler::ObjectRef target, CallArguments& args);
   void BuildCall(ValueNode* target_node, CallArguments& args,
                  compiler::FeedbackSource& feedback_source);
   void BuildCallFromRegisterList(ConvertReceiverMode receiver_mode);

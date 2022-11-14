@@ -1606,7 +1606,7 @@ bool MaglevGraphBuilder::TryBuildPropertyGetterCall(
             ? ConvertReceiverMode::kNotNullOrUndefined
             : ConvertReceiverMode::kAny;
     CallArguments args(receiver_mode, {receiver});
-    ReduceCall(constant.AsJSFunction(), args);
+    SetAccumulator(ReduceCall(constant.AsJSFunction(), args));
     return true;
   } else {
     // TODO(victorgomes): API calls.
@@ -1621,7 +1621,7 @@ bool MaglevGraphBuilder::TryBuildPropertySetterCall(
   if (constant.IsJSFunction()) {
     CallArguments args(ConvertReceiverMode::kNotNullOrUndefined,
                        {receiver, value});
-    ReduceCall(constant.AsJSFunction(), args);
+    SetAccumulator(ReduceCall(constant.AsJSFunction(), args));
     return true;
   } else {
     // TODO(victorgomes): API calls.
@@ -2721,15 +2721,13 @@ void MaglevGraphBuilder::InlineCallFromRegisters(
 }
 
 ValueNode* MaglevGraphBuilder::TryReduceStringFromCharCode(
-    compiler::JSFunctionRef target, CallArguments& args, bool set_accumulator) {
+    compiler::JSFunctionRef target, CallArguments& args) {
   if (args.count() != 1) return nullptr;
-  return SetAccumulatorIfNeeded(
-      AddNewNode<BuiltinStringFromCharCode>({GetInt32(args[0])}),
-      set_accumulator);
+  return AddNewNode<BuiltinStringFromCharCode>({GetInt32(args[0])});
 }
 
 ValueNode* MaglevGraphBuilder::TryReduceStringPrototypeCharCodeAt(
-    compiler::JSFunctionRef target, CallArguments& args, bool set_accumulator) {
+    compiler::JSFunctionRef target, CallArguments& args) {
   ValueNode* receiver = GetTaggedOrUndefined(args.receiver());
   ValueNode* index;
   if (args.count() == 0) {
@@ -2745,15 +2743,12 @@ ValueNode* MaglevGraphBuilder::TryReduceStringPrototypeCharCodeAt(
   ValueNode* length = AddNewNode<StringLength>({receiver});
   AddNewNode<CheckInt32Condition>({index, length}, AssertCondition::kLess,
                                   DeoptimizeReason::kOutOfBounds);
-  return SetAccumulatorIfNeeded(
-      AddNewNode<BuiltinStringPrototypeCharCodeAt>({receiver, index}),
-      set_accumulator);
+  return AddNewNode<BuiltinStringPrototypeCharCodeAt>({receiver, index});
 }
 
 template <typename LoadNode>
 ValueNode* MaglevGraphBuilder::TryBuildLoadDataView(const CallArguments& args,
-                                                    ExternalArrayType type,
-                                                    bool set_accumulator) {
+                                                    ExternalArrayType type) {
   if (!broker()->dependencies()->DependOnArrayBufferDetachingProtector()) {
     // TODO(victorgomes): Add checks whether the array has been detached.
     return nullptr;
@@ -2767,16 +2762,13 @@ ValueNode* MaglevGraphBuilder::TryBuildLoadDataView(const CallArguments& args,
   AddNewNode<CheckJSDataViewBounds>({receiver, offset}, type);
   ValueNode* is_little_endian =
       args[1] ? GetTaggedValue(args[1]) : GetBooleanConstant(false);
-  return SetAccumulatorIfNeeded(
-      AddNewNode<LoadNode>({receiver, offset, is_little_endian}, type),
-      set_accumulator);
+  return AddNewNode<LoadNode>({receiver, offset, is_little_endian}, type);
 }
 
 template <typename StoreNode, typename Function>
 ValueNode* MaglevGraphBuilder::TryBuildStoreDataView(const CallArguments& args,
                                                      ExternalArrayType type,
-                                                     Function&& getValue,
-                                                     bool set_accumulator) {
+                                                     Function&& getValue) {
   if (!broker()->dependencies()->DependOnArrayBufferDetachingProtector()) {
     // TODO(victorgomes): Add checks whether the array has been detached.
     return nullptr;
@@ -2793,87 +2785,75 @@ ValueNode* MaglevGraphBuilder::TryBuildStoreDataView(const CallArguments& args,
   ValueNode* is_little_endian =
       args[2] ? GetTaggedValue(args[2]) : GetBooleanConstant(false);
   AddNewNode<StoreNode>({receiver, offset, value, is_little_endian}, type);
-  return SetAccumulatorIfNeeded(GetRootConstant(RootIndex::kUndefinedValue),
-                                set_accumulator);
+  return GetRootConstant(RootIndex::kUndefinedValue);
 }
 
 ValueNode* MaglevGraphBuilder::TryReduceDataViewPrototypeGetInt8(
-    compiler::JSFunctionRef target, CallArguments& args, bool set_accumulator) {
+    compiler::JSFunctionRef target, CallArguments& args) {
   return TryBuildLoadDataView<LoadSignedIntDataViewElement>(
-      args, ExternalArrayType::kExternalInt8Array, set_accumulator);
+      args, ExternalArrayType::kExternalInt8Array);
 }
 ValueNode* MaglevGraphBuilder::TryReduceDataViewPrototypeSetInt8(
-    compiler::JSFunctionRef target, CallArguments& args, bool set_accumulator) {
+    compiler::JSFunctionRef target, CallArguments& args) {
   return TryBuildStoreDataView<StoreSignedIntDataViewElement>(
-      args, ExternalArrayType::kExternalInt8Array,
-      [&](ValueNode* value) {
+      args, ExternalArrayType::kExternalInt8Array, [&](ValueNode* value) {
         return value ? GetInt32(value) : GetInt32Constant(0);
-      },
-      set_accumulator);
+      });
 }
 ValueNode* MaglevGraphBuilder::TryReduceDataViewPrototypeGetInt16(
-    compiler::JSFunctionRef target, CallArguments& args, bool set_accumulator) {
+    compiler::JSFunctionRef target, CallArguments& args) {
   return TryBuildLoadDataView<LoadSignedIntDataViewElement>(
-      args, ExternalArrayType::kExternalInt16Array, set_accumulator);
+      args, ExternalArrayType::kExternalInt16Array);
 }
 ValueNode* MaglevGraphBuilder::TryReduceDataViewPrototypeSetInt16(
-    compiler::JSFunctionRef target, CallArguments& args, bool set_accumulator) {
+    compiler::JSFunctionRef target, CallArguments& args) {
   return TryBuildStoreDataView<StoreSignedIntDataViewElement>(
-      args, ExternalArrayType::kExternalInt16Array,
-      [&](ValueNode* value) {
+      args, ExternalArrayType::kExternalInt16Array, [&](ValueNode* value) {
         return value ? GetInt32(value) : GetInt32Constant(0);
-      },
-      set_accumulator);
+      });
 }
 ValueNode* MaglevGraphBuilder::TryReduceDataViewPrototypeGetInt32(
-    compiler::JSFunctionRef target, CallArguments& args, bool set_accumulator) {
+    compiler::JSFunctionRef target, CallArguments& args) {
   return TryBuildLoadDataView<LoadSignedIntDataViewElement>(
-      args, ExternalArrayType::kExternalInt32Array, set_accumulator);
+      args, ExternalArrayType::kExternalInt32Array);
 }
 ValueNode* MaglevGraphBuilder::TryReduceDataViewPrototypeSetInt32(
-    compiler::JSFunctionRef target, CallArguments& args, bool set_accumulator) {
+    compiler::JSFunctionRef target, CallArguments& args) {
   return TryBuildStoreDataView<StoreSignedIntDataViewElement>(
-      args, ExternalArrayType::kExternalInt32Array,
-      [&](ValueNode* value) {
+      args, ExternalArrayType::kExternalInt32Array, [&](ValueNode* value) {
         return value ? GetInt32(value) : GetInt32Constant(0);
-      },
-      set_accumulator);
+      });
 }
 ValueNode* MaglevGraphBuilder::TryReduceDataViewPrototypeGetFloat64(
-    compiler::JSFunctionRef target, CallArguments& args, bool set_accumulator) {
+    compiler::JSFunctionRef target, CallArguments& args) {
   return TryBuildLoadDataView<LoadDoubleDataViewElement>(
-      args, ExternalArrayType::kExternalFloat64Array, set_accumulator);
+      args, ExternalArrayType::kExternalFloat64Array);
 }
 ValueNode* MaglevGraphBuilder::TryReduceDataViewPrototypeSetFloat64(
-    compiler::JSFunctionRef target, CallArguments& args, bool set_accumulator) {
+    compiler::JSFunctionRef target, CallArguments& args) {
   return TryBuildStoreDataView<StoreDoubleDataViewElement>(
-      args, ExternalArrayType::kExternalFloat64Array,
-      [&](ValueNode* value) {
+      args, ExternalArrayType::kExternalFloat64Array, [&](ValueNode* value) {
         return value ? GetFloat64(value) : GetFloat64Constant(0);
-      },
-      set_accumulator);
+      });
 }
 
 ValueNode* MaglevGraphBuilder::TryReduceFunctionPrototypeCall(
-    compiler::JSFunctionRef target, CallArguments& args, bool set_accumulator) {
+    compiler::JSFunctionRef target, CallArguments& args) {
   // Use Function.prototype.call context, to ensure any exception is thrown in
   // the correct context.
   ValueNode* context = GetConstant(target.context());
   ValueNode* receiver = GetTaggedOrUndefined(args.receiver());
   args.PopReceiver(ConvertReceiverMode::kAny);
-  return SetAccumulatorIfNeeded(
-      BuildGenericCall(receiver, context, Call::TargetType::kAny, args),
-      set_accumulator);
+  return BuildGenericCall(receiver, context, Call::TargetType::kAny, args);
 }
 
 ValueNode* MaglevGraphBuilder::TryReduceBuiltin(compiler::JSFunctionRef target,
-                                                CallArguments& args,
-                                                bool set_accumulator) {
+                                                CallArguments& args) {
   if (!target.shared().HasBuiltinId()) return nullptr;
   switch (target.shared().builtin_id()) {
 #define CASE(Name)       \
   case Builtin::k##Name: \
-    return TryReduce##Name(target, args, set_accumulator);
+    return TryReduce##Name(target, args);
     MAGLEV_REDUCED_BUILTIN(CASE)
 #undef CASE
     default:
@@ -2910,8 +2890,7 @@ ValueNode* MaglevGraphBuilder::GetConvertReceiver(
 }
 
 ValueNode* MaglevGraphBuilder::TryBuildCallKnownJSFunction(
-    compiler::JSFunctionRef function, CallArguments& args,
-    bool set_accumulator) {
+    compiler::JSFunctionRef function, CallArguments& args) {
   // Don't inline CallFunction stub across native contexts.
   if (function.native_context() != broker()->target_native_context()) {
     return nullptr;
@@ -2923,7 +2902,7 @@ ValueNode* MaglevGraphBuilder::TryBuildCallKnownJSFunction(
   for (int i = 0; i < static_cast<int>(args.count()); i++) {
     call->set_arg(i, GetTaggedValue(args[i]));
   }
-  return SetAccumulatorIfNeeded(AddNode(call), set_accumulator);
+  return AddNode(call);
 }
 
 Call* MaglevGraphBuilder::BuildGenericCall(
@@ -2954,8 +2933,7 @@ bool MaglevGraphBuilder::BuildCheckValue(ValueNode* node,
 }
 
 ValueNode* MaglevGraphBuilder::ReduceCall(compiler::ObjectRef object,
-                                          CallArguments& args,
-                                          bool set_accumulator) {
+                                          CallArguments& args) {
   if (!object.IsJSFunction()) {
     return BuildGenericCall(GetConstant(object), GetContext(),
                             Call::TargetType::kAny, args);
@@ -2965,18 +2943,15 @@ ValueNode* MaglevGraphBuilder::ReduceCall(compiler::ObjectRef object,
   if (!target.shared().HasBreakInfo()) {
     if (target.object()->IsJSClassConstructor()) {
       // If we have a class constructor, we should raise an exception.
-      return SetAccumulatorIfNeeded(
-          BuildCallRuntime(Runtime::kThrowConstructorNonCallableError,
-                           {GetConstant(target)}),
-          set_accumulator);
+      return BuildCallRuntime(Runtime::kThrowConstructorNonCallableError,
+                              {GetConstant(target)});
     }
 
     DCHECK(target.object()->IsCallable());
-    if (ValueNode* result = TryReduceBuiltin(target, args, set_accumulator)) {
+    if (ValueNode* result = TryReduceBuiltin(target, args)) {
       return result;
     }
-    if (ValueNode* result =
-            TryBuildCallKnownJSFunction(target, args, set_accumulator)) {
+    if (ValueNode* result = TryBuildCallKnownJSFunction(target, args)) {
       return result;
     }
   }
@@ -3010,7 +2985,7 @@ void MaglevGraphBuilder::BuildCall(ValueNode* target_node, CallArguments& args,
 
       if (!BuildCheckValue(target_node, target)) return;
 
-      ReduceCall(function, args, true);
+      SetAccumulator(ReduceCall(function, args));
       return;
     }
 
@@ -3601,8 +3576,7 @@ bool MaglevGraphBuilder::TryBuildFastInstanceOf(
     // Call @@hasInstance
     CallArguments args(ConvertReceiverMode::kNotNullOrUndefined,
                        {callable_node, object});
-    ValueNode* call =
-        ReduceCall(has_instance_field->AsJSFunction(), args, false);
+    ValueNode* call = ReduceCall(has_instance_field->AsJSFunction(), args);
 
     // Make sure that a lazy deopt after the @@hasInstance call also performs
     // ToBoolean before returning to the interpreter.
