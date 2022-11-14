@@ -177,10 +177,13 @@ class CompactInterpreterFrameState;
   V(UnsafeSmiUntag)                \
   V(CheckedInternalizedString)     \
   V(CheckedObjectToIndex)          \
+  V(CheckedTruncateNumberToInt32)  \
   V(CheckedUint32ToInt32)          \
   V(ChangeInt32ToFloat64)          \
   V(ChangeUint32ToFloat64)         \
   V(CheckedTruncateFloat64ToInt32) \
+  V(TruncateUint32ToInt32)         \
+  V(TruncateFloat64ToInt32)        \
   V(Int32ToNumber)                 \
   V(Uint32ToNumber)                \
   V(Float64Box)                    \
@@ -2171,6 +2174,38 @@ class CheckedTruncateFloat64ToInt32
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
+class TruncateUint32ToInt32
+    : public FixedInputValueNodeT<1, TruncateUint32ToInt32> {
+  using Base = FixedInputValueNodeT<1, TruncateUint32ToInt32>;
+
+ public:
+  explicit TruncateUint32ToInt32(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::Int32();
+
+  Input& input() { return Node::input(0); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class TruncateFloat64ToInt32
+    : public FixedInputValueNodeT<1, TruncateFloat64ToInt32> {
+  using Base = FixedInputValueNodeT<1, TruncateFloat64ToInt32>;
+
+ public:
+  explicit TruncateFloat64ToInt32(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::Int32();
+
+  Input& input() { return Node::input(0); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
 class CheckedFloat64Unbox
     : public FixedInputValueNodeT<1, CheckedFloat64Unbox> {
   using Base = FixedInputValueNodeT<1, CheckedFloat64Unbox>;
@@ -2181,6 +2216,23 @@ class CheckedFloat64Unbox
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt() |
                                               OpProperties::Float64() |
                                               OpProperties::ConversionNode();
+
+  Input& input() { return Node::input(0); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class CheckedTruncateNumberToInt32
+    : public FixedInputValueNodeT<1, CheckedTruncateNumberToInt32> {
+  using Base = FixedInputValueNodeT<1, CheckedTruncateNumberToInt32>;
+
+ public:
+  explicit CheckedTruncateNumberToInt32(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::EagerDeopt() | OpProperties::Int32();
 
   Input& input() { return Node::input(0); }
 

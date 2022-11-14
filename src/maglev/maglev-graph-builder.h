@@ -30,6 +30,7 @@
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph-printer.h"
 #include "src/maglev/maglev-graph.h"
+#include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/utils/memcopy.h"
 
@@ -734,6 +735,55 @@ class MaglevGraphBuilder {
     return node;
   }
 
+  ValueNode* GetTruncatedInt32FromNumber(ValueNode* value) {
+    switch (value->properties().value_representation()) {
+      case ValueRepresentation::kTagged: {
+        if (SmiConstant* constant = value->TryCast<SmiConstant>()) {
+          return GetInt32Constant(constant->value().value());
+        }
+        NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
+        if (node_info->int32_alternative == nullptr) {
+          NodeType old_type;
+          EnsureType(value, NodeType::kNumber, &old_type);
+          if (NodeTypeIsSmi(old_type)) {
+            node_info->int32_alternative = AddNewNode<UnsafeSmiUntag>({value});
+          } else {
+            // TODO(leszeks): Cache this value somehow.
+            return AddNewNode<CheckedTruncateNumberToInt32>({value});
+          }
+        }
+        return node_info->int32_alternative;
+      }
+      case ValueRepresentation::kFloat64:
+        // TODO(leszeks): Cache this value somehow.
+        return AddNewNode<TruncateFloat64ToInt32>({value});
+      case ValueRepresentation::kInt32:
+        // Already good.
+        return value;
+      case ValueRepresentation::kUint32:
+        return AddNewNode<TruncateUint32ToInt32>({value});
+    }
+    UNREACHABLE();
+  }
+
+  ValueNode* GetTruncatedInt32(ValueNode* value) {
+    switch (value->properties().value_representation()) {
+      case ValueRepresentation::kTagged:
+      case ValueRepresentation::kFloat64:
+        return GetInt32(value);
+      case ValueRepresentation::kInt32:
+        // Already good.
+        return value;
+      case ValueRepresentation::kUint32:
+        return AddNewNode<TruncateUint32ToInt32>({value});
+    }
+    UNREACHABLE();
+  }
+
+  ValueNode* GetTruncatedInt32(interpreter::Register reg) {
+    return GetTruncatedInt32(current_interpreter_frame_.get(reg));
+  }
+
   ValueNode* GetInt32(ValueNode* value) {
     switch (value->properties().value_representation()) {
       case ValueRepresentation::kTagged: {
@@ -817,6 +867,10 @@ class MaglevGraphBuilder {
     return GetInt32(interpreter::Register::virtual_accumulator());
   }
 
+  ValueNode* GetAccumulatorTruncatedInt32() {
+    return GetTruncatedInt32(interpreter::Register::virtual_accumulator());
+  }
+
   ValueNode* GetAccumulatorFloat64() {
     return GetFloat64(interpreter::Register::virtual_accumulator());
   }
@@ -838,6 +892,10 @@ class MaglevGraphBuilder {
 
   ValueNode* LoadRegisterInt32(int operand_index) {
     return GetInt32(iterator_.GetRegisterOperand(operand_index));
+  }
+
+  ValueNode* LoadRegisterTruncatedInt32(int operand_index) {
+    return GetTruncatedInt32(iterator_.GetRegisterOperand(operand_index));
   }
 
   ValueNode* LoadRegisterFloat64(int operand_index) {
@@ -1213,6 +1271,10 @@ class MaglevGraphBuilder {
   void BuildInt32BinaryOperationNode();
   template <Operation kOperation>
   void BuildInt32BinarySmiOperationNode();
+  template <Operation kOperation>
+  void BuildTruncatingInt32BinaryOperationNodeForNumber();
+  template <Operation kOperation>
+  void BuildTruncatingInt32BinarySmiOperationNodeForNumber();
   template <Operation kOperation>
   void BuildFloat64BinaryOperationNode();
   template <Operation kOperation>

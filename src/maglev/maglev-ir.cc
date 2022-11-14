@@ -3267,7 +3267,7 @@ void CheckedFloat64Unbox::GenerateCode(MaglevAssembler* masm,
   Register value = ToRegister(input());
   Label is_not_smi, done;
   // Check if Smi.
-  __ JumpIfNotSmi(value, &is_not_smi);
+  __ JumpIfNotSmi(value, &is_not_smi, Label::kNear);
   // If Smi, convert to Float64.
   __ SmiToInt32(value);
   __ Cvtlsi2sd(ToDoubleRegister(result()), value);
@@ -3277,7 +3277,7 @@ void CheckedFloat64Unbox::GenerateCode(MaglevAssembler* masm,
   // not the same as the output register or the function does not call a
   // builtin. So, we recover the Smi value here.
   __ SmiTag(value);
-  __ jmp(&done);
+  __ jmp(&done, Label::kNear);
   __ bind(&is_not_smi);
   // Check if HeapNumber, deopt otherwise.
   __ CompareRoot(FieldOperand(value, HeapObject::kMapOffset),
@@ -3285,6 +3285,33 @@ void CheckedFloat64Unbox::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(not_equal, DeoptimizeReason::kNotANumber, this);
   __ Movsd(ToDoubleRegister(result()),
            FieldOperand(value, HeapNumber::kValueOffset));
+  __ bind(&done);
+}
+
+void CheckedTruncateNumberToInt32::AllocateVreg(
+    MaglevVregAllocationState* vreg_state) {
+  UseRegister(input());
+  DefineSameAsFirst(vreg_state, this);
+}
+void CheckedTruncateNumberToInt32::GenerateCode(MaglevAssembler* masm,
+                                                const ProcessingState& state) {
+  Register value = ToRegister(input());
+  Register result_reg = ToRegister(result());
+  DCHECK_EQ(value, result_reg);
+  Label is_not_smi, done;
+  // Check if Smi.
+  __ JumpIfNotSmi(value, &is_not_smi, Label::kNear);
+  // If Smi, convert to Int32.
+  __ SmiToInt32(value);
+  __ jmp(&done, Label::kNear);
+  __ bind(&is_not_smi);
+  // Check if HeapNumber, deopt otherwise.
+  __ CompareRoot(FieldOperand(value, HeapObject::kMapOffset),
+                 RootIndex::kHeapNumberMap);
+  __ EmitEagerDeoptIf(not_equal, DeoptimizeReason::kNotANumber, this);
+  auto double_value = kScratchDoubleReg;
+  __ Movsd(double_value, FieldOperand(value, HeapNumber::kValueOffset));
+  __ TruncateDoubleToInt32(result_reg, double_value);
   __ bind(&done);
 }
 
@@ -3716,6 +3743,27 @@ void CheckedTruncateFloat64ToInt32::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(less, DeoptimizeReason::kNotInt32, this);
 
   __ bind(&check_done);
+}
+
+void TruncateUint32ToInt32::AllocateVreg(
+    MaglevVregAllocationState* vreg_state) {
+  UseRegister(input());
+  DefineSameAsFirst(vreg_state, this);
+}
+void TruncateUint32ToInt32::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  // No code emitted -- as far as the machine is concerned, int32 is uint32.
+  DCHECK_EQ(ToRegister(input()), ToRegister(result()));
+}
+
+void TruncateFloat64ToInt32::AllocateVreg(
+    MaglevVregAllocationState* vreg_state) {
+  UseRegister(input());
+  DefineAsRegister(vreg_state, this);
+}
+void TruncateFloat64ToInt32::GenerateCode(MaglevAssembler* masm,
+                                          const ProcessingState& state) {
+  __ TruncateDoubleToInt32(ToRegister(result()), ToDoubleRegister(input()));
 }
 
 void Phi::AllocateVreg(MaglevVregAllocationState* vreg_state) {
