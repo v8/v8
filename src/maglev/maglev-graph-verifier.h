@@ -199,6 +199,7 @@ class MaglevGraphVerifier {
         DCHECK_EQ(node->input_count(), 1);
         CheckValueInputIs(node, 0, ValueRepresentation::kFloat64);
         break;
+      case Opcode::kCheckDynamicValue:
       case Opcode::kForInPrepare:
       case Opcode::kGenericAdd:
       case Opcode::kGenericBitwiseAnd:

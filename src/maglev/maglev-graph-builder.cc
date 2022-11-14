@@ -1565,25 +1565,24 @@ bool MaglevGraphBuilder::TryFoldLoadDictPrototypeConstant(
   return true;
 }
 
-bool MaglevGraphBuilder::TryFoldLoadConstantDataField(
+ValueNode* MaglevGraphBuilder::TryFoldLoadConstantDataField(
     compiler::PropertyAccessInfo access_info, ValueNode* lookup_start_object) {
-  if (!access_info.IsFastDataConstant()) return false;
+  if (!access_info.IsFastDataConstant()) return nullptr;
   base::Optional<compiler::JSObjectRef> source;
   if (access_info.holder().has_value()) {
     source = access_info.holder();
   } else if (Constant* n = lookup_start_object->TryCast<Constant>()) {
-    if (!n->ref().IsJSObject()) return false;
+    if (!n->ref().IsJSObject()) return nullptr;
     source = n->ref().AsJSObject();
   } else {
-    return false;
+    return nullptr;
   }
   base::Optional<compiler::ObjectRef> constant =
       source.value().GetOwnFastDataProperty(access_info.field_representation(),
                                             access_info.field_index(),
                                             broker()->dependencies());
-  if (!constant.has_value()) return false;
-  SetAccumulator(GetConstant(constant.value()));
-  return true;
+  if (!constant.has_value()) return nullptr;
+  return GetConstant(constant.value());
 }
 
 bool MaglevGraphBuilder::TryBuildPropertyGetterCall(
@@ -1629,9 +1628,12 @@ bool MaglevGraphBuilder::TryBuildPropertySetterCall(
   }
 }
 
-void MaglevGraphBuilder::BuildLoadField(
+ValueNode* MaglevGraphBuilder::BuildLoadField(
     compiler::PropertyAccessInfo access_info, ValueNode* lookup_start_object) {
-  if (TryFoldLoadConstantDataField(access_info, lookup_start_object)) return;
+  if (ValueNode* result =
+          TryFoldLoadConstantDataField(access_info, lookup_start_object)) {
+    return result;
+  }
 
   // Resolve property holder.
   ValueNode* load_source;
@@ -1650,37 +1652,36 @@ void MaglevGraphBuilder::BuildLoadField(
 
   // Do the load.
   if (field_index.is_double()) {
-    SetAccumulator(
-        AddNewNode<LoadDoubleField>({load_source}, field_index.offset()));
-  } else {
-    ValueNode* value =
-        AddNewNode<LoadTaggedField>({load_source}, field_index.offset());
-    SetAccumulator(value);
-    // Insert stable field information if present.
-    if (access_info.field_representation().IsSmi()) {
-      NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(value);
-      known_info->type = NodeType::kSmi;
-    } else if (access_info.field_representation().IsHeapObject()) {
-      NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(value);
-      if (access_info.field_map().has_value() &&
-          access_info.field_map().value().is_stable()) {
-        DCHECK(access_info.field_map().value().IsJSReceiverMap());
-        known_info->type = NodeType::kJSReceiverWithKnownMap;
-        auto map = access_info.field_map().value();
-        ZoneHandleSet<Map> stable_maps(map.object());
-        ZoneHandleSet<Map> unstable_maps;
-        known_node_aspects().stable_maps.emplace(value, stable_maps);
-        known_node_aspects().unstable_maps.emplace(value, unstable_maps);
-        broker()->dependencies()->DependOnStableMap(map);
-      } else {
-        known_info->type = NodeType::kAnyHeapObject;
-      }
+    return AddNewNode<LoadDoubleField>({load_source}, field_index.offset());
+  }
+  ValueNode* value =
+      AddNewNode<LoadTaggedField>({load_source}, field_index.offset());
+  // Insert stable field information if present.
+  if (access_info.field_representation().IsSmi()) {
+    NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(value);
+    known_info->type = NodeType::kSmi;
+  } else if (access_info.field_representation().IsHeapObject()) {
+    NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(value);
+    if (access_info.field_map().has_value() &&
+        access_info.field_map().value().is_stable()) {
+      DCHECK(access_info.field_map().value().IsJSReceiverMap());
+      known_info->type = NodeType::kJSReceiverWithKnownMap;
+      auto map = access_info.field_map().value();
+      ZoneHandleSet<Map> stable_maps(map.object());
+      ZoneHandleSet<Map> unstable_maps;
+      known_node_aspects().stable_maps.emplace(value, stable_maps);
+      known_node_aspects().unstable_maps.emplace(value, unstable_maps);
+      broker()->dependencies()->DependOnStableMap(map);
+    } else {
+      known_info->type = NodeType::kAnyHeapObject;
     }
   }
+  return value;
 }
 
 bool MaglevGraphBuilder::TryBuildStoreField(
-    compiler::PropertyAccessInfo access_info, ValueNode* receiver) {
+    compiler::PropertyAccessInfo access_info, ValueNode* receiver,
+    compiler::AccessMode access_mode) {
   FieldIndex field_index = access_info.field_index();
   Representation field_representation = access_info.field_representation();
 
@@ -1688,9 +1689,25 @@ bool MaglevGraphBuilder::TryBuildStoreField(
     compiler::MapRef transition = access_info.transition_map().value();
     compiler::MapRef original_map = transition.GetBackPointer().AsMap();
     // TODO(verwaest): Support growing backing stores.
-    if (original_map.UnusedPropertyFields() == 0) return false;
-  } else if (access_info.IsFastDataConstant()) {
-    return false;
+    if (original_map.UnusedPropertyFields() == 0) {
+      return false;
+    }
+  } else if (access_info.IsFastDataConstant() &&
+             access_mode != compiler::AccessMode::kStoreInLiteral) {
+    // For object literals we want to just store, similar to StoreInLiteral, but
+    // Define is also used for classes so we can't. Bail out for now.
+    if (access_mode == compiler::AccessMode::kDefine) return false;
+    // TODO(verwaest): Support doubles.
+    if (field_representation.IsDouble()) return false;
+    ValueNode* value = GetAccumulatorTagged();
+    ValueNode* expected = BuildLoadField(access_info, receiver);
+    if (Constant* constant = expected->TryCast<Constant>()) {
+      BuildCheckValue(value, constant->ref());
+    } else {
+      AddNewNode<CheckDynamicValue>({value, expected});
+    }
+
+    return true;
   }
 
   ValueNode* store_target;
@@ -1781,7 +1798,7 @@ bool MaglevGraphBuilder::TryBuildPropertyLoad(
       return true;
     case compiler::PropertyAccessInfo::kDataField:
     case compiler::PropertyAccessInfo::kFastDataConstant:
-      BuildLoadField(access_info, lookup_start_object);
+      SetAccumulator(BuildLoadField(access_info, lookup_start_object));
       RecordKnownProperty(lookup_start_object, name,
                           current_interpreter_frame_.accumulator(),
                           access_info.IsFastDataConstant());
@@ -1808,7 +1825,8 @@ bool MaglevGraphBuilder::TryBuildPropertyLoad(
 
 bool MaglevGraphBuilder::TryBuildPropertyStore(
     ValueNode* receiver, compiler::NameRef name,
-    compiler::PropertyAccessInfo const& access_info) {
+    compiler::PropertyAccessInfo const& access_info,
+    compiler::AccessMode access_mode) {
   if (access_info.holder().has_value()) {
     broker()->dependencies()->DependOnStablePrototypeChains(
         access_info.lookup_start_object_maps(), kStartAtPrototype,
@@ -1820,7 +1838,7 @@ bool MaglevGraphBuilder::TryBuildPropertyStore(
                                       GetAccumulatorTagged());
   } else {
     DCHECK(access_info.IsDataField() || access_info.IsFastDataConstant());
-    if (TryBuildStoreField(access_info, receiver)) {
+    if (TryBuildStoreField(access_info, receiver, access_mode)) {
       RecordKnownProperty(receiver, name,
                           current_interpreter_frame_.accumulator(),
                           access_info.IsFastDataConstant());
@@ -1842,7 +1860,7 @@ bool MaglevGraphBuilder::TryBuildPropertyAccess(
     case compiler::AccessMode::kStoreInLiteral:
     case compiler::AccessMode::kDefine:
       DCHECK_EQ(receiver, lookup_start_object);
-      return TryBuildPropertyStore(receiver, name, access_info);
+      return TryBuildPropertyStore(receiver, name, access_info, access_mode);
     case compiler::AccessMode::kHas:
       // TODO(victorgomes): BuildPropertyTest.
       return false;
@@ -2922,7 +2940,7 @@ Call* MaglevGraphBuilder::BuildGenericCall(
 }
 
 bool MaglevGraphBuilder::BuildCheckValue(ValueNode* node,
-                                         const compiler::HeapObjectRef& ref) {
+                                         const compiler::ObjectRef& ref) {
   if (node->Is<Constant>()) {
     if (node->Cast<Constant>()->object().equals(ref)) return true;
     EmitUnconditionalDeopt(DeoptimizeReason::kUnknown);

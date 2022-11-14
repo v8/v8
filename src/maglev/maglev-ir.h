@@ -213,6 +213,7 @@ class CompactInterpreterFrameState;
 
 #define NODE_LIST(V)                  \
   V(AssertInt32)                      \
+  V(CheckDynamicValue)                \
   V(CheckInt32IsSmi)                  \
   V(CheckUint32IsSmi)                 \
   V(CheckHeapObject)                  \
@@ -3085,12 +3086,12 @@ class CheckValue : public FixedInputNodeT<1, CheckValue> {
   using Base = FixedInputNodeT<1, CheckValue>;
 
  public:
-  explicit CheckValue(uint64_t bitfield, const compiler::HeapObjectRef& value)
+  explicit CheckValue(uint64_t bitfield, const compiler::ObjectRef& value)
       : Base(bitfield), value_(value) {}
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
 
-  compiler::HeapObjectRef value() const { return value_; }
+  compiler::ObjectRef value() const { return value_; }
 
   static constexpr int kTargetIndex = 0;
   Input& target_input() { return input(kTargetIndex); }
@@ -3100,7 +3101,25 @@ class CheckValue : public FixedInputNodeT<1, CheckValue> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
  private:
-  const compiler::HeapObjectRef value_;
+  const compiler::ObjectRef value_;
+};
+
+class CheckDynamicValue : public FixedInputNodeT<2, CheckDynamicValue> {
+  using Base = FixedInputNodeT<2, CheckDynamicValue>;
+
+ public:
+  explicit CheckDynamicValue(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
+
+  static constexpr int kFirstIndex = 0;
+  static constexpr int kSecondIndex = 1;
+  Input& first_input() { return input(kFirstIndex); }
+  Input& second_input() { return input(kSecondIndex); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 };
 
 class CheckSmi : public FixedInputNodeT<1, CheckSmi> {

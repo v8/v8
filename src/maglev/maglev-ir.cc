@@ -1159,6 +1159,22 @@ void CheckValue::PrintParams(std::ostream& os,
                              MaglevGraphLabeller* graph_labeller) const {
   os << "(" << *value().object() << ")";
 }
+void CheckDynamicValue::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  UseRegister(first_input());
+  UseRegister(second_input());
+}
+void CheckDynamicValue::GenerateCode(MaglevAssembler* masm,
+                                     const ProcessingState& state) {
+  Register first = ToRegister(first_input());
+  Register second = ToRegister(second_input());
+
+  __ cmpl(first, second);
+  __ EmitEagerDeoptIf(not_equal, DeoptimizeReason::kWrongValue, this);
+}
+void CheckDynamicValue::PrintParams(std::ostream& os,
+                                    MaglevGraphLabeller* graph_labeller) const {
+}
+
 void CheckSmi::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseRegister(receiver_input());
 }

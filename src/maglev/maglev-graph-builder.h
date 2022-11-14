@@ -1117,7 +1117,7 @@ class MaglevGraphBuilder {
                       ZoneVector<compiler::MapRef> const& maps);
   // Emits an unconditional deopt and returns false if the node is a constant
   // that doesn't match the ref.
-  bool BuildCheckValue(ValueNode* node, const compiler::HeapObjectRef& ref);
+  bool BuildCheckValue(ValueNode* node, const compiler::ObjectRef& ref);
 
   ValueNode* GetInt32ElementIndex(interpreter::Register reg) {
     ValueNode* index_object = current_interpreter_frame_.get(reg);
@@ -1130,13 +1130,16 @@ class MaglevGraphBuilder {
 
   bool TryFoldLoadDictPrototypeConstant(
       compiler::PropertyAccessInfo access_info);
-  bool TryFoldLoadConstantDataField(compiler::PropertyAccessInfo access_info,
-                                    ValueNode* lookup_start_object);
+  // Returns a ValueNode if the load could be folded, and nullptr otherwise.
+  ValueNode* TryFoldLoadConstantDataField(
+      compiler::PropertyAccessInfo access_info, ValueNode* lookup_start_object);
 
-  void BuildLoadField(compiler::PropertyAccessInfo access_info,
-                      ValueNode* lookup_start_object);
+  // Returns the loaded value node but doesn't update the accumulator yet.
+  ValueNode* BuildLoadField(compiler::PropertyAccessInfo access_info,
+                            ValueNode* lookup_start_object);
   bool TryBuildStoreField(compiler::PropertyAccessInfo access_info,
-                          ValueNode* receiver);
+                          ValueNode* receiver,
+                          compiler::AccessMode access_mode);
   bool TryBuildPropertyGetterCall(compiler::PropertyAccessInfo access_info,
                                   ValueNode* receiver,
                                   ValueNode* lookup_start_object);
@@ -1147,7 +1150,8 @@ class MaglevGraphBuilder {
                             compiler::NameRef name,
                             compiler::PropertyAccessInfo const& access_info);
   bool TryBuildPropertyStore(ValueNode* receiver, compiler::NameRef name,
-                             compiler::PropertyAccessInfo const& access_info);
+                             compiler::PropertyAccessInfo const& access_info,
+                             compiler::AccessMode access_mode);
   bool TryBuildPropertyAccess(ValueNode* receiver,
                               ValueNode* lookup_start_object,
                               compiler::NameRef name,
