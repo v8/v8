@@ -384,6 +384,23 @@ constexpr int kMaxDoubleStringLength = 24;
 // Just below 4GB, such that {kMaxWasmCodeMemory} fits in a 32-bit size_t.
 constexpr uint32_t kMaxCommittedWasmCodeMB = 4095;
 
+// The actual maximum code space size used can be configured with
+// --max-wasm-code-space-size. This constant is the default value, and at the
+// same time the maximum allowed value (checked by the WasmCodeManager).
+#if V8_TARGET_ARCH_ARM64
+// ARM64 only supports direct calls within a 128 MB range.
+constexpr uint32_t kDefaultMaxWasmCodeSpaceSizeMb = 128;
+#elif V8_TARGET_ARCH_PPC64
+// Branches only take 26 bits.
+constexpr uint32_t kDefaultMaxWasmCodeSpaceSizeMb = 32;
+#else
+// Use 1024 MB limit for code spaces on other platforms. This is smaller than
+// the total allowed code space (kMaxWasmCodeMemory) to avoid unnecessarily
+// big reservations, and to ensure that distances within a code space fit
+// within a 32-bit signed integer.
+constexpr uint32_t kDefaultMaxWasmCodeSpaceSizeMb = 1024;
+#endif
+
 #if V8_HOST_ARCH_64_BIT
 constexpr int kSystemPointerSizeLog2 = 3;
 constexpr intptr_t kIntptrSignBit =

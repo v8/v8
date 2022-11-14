@@ -520,20 +520,6 @@ const char* GetWasmCodeKindAsString(WasmCode::Kind);
 // Manages the code reservations and allocations of a single {NativeModule}.
 class WasmCodeAllocator {
  public:
-#if V8_TARGET_ARCH_ARM64
-  // ARM64 only supports direct calls within a 128 MB range.
-  static constexpr size_t kMaxCodeSpaceSize = 128 * MB;
-#elif V8_TARGET_ARCH_PPC64
-  // branches only takes 26 bits
-  static constexpr size_t kMaxCodeSpaceSize = 32 * MB;
-#else
-  // Use 1024 MB limit for code spaces on other platforms. This is smaller than
-  // the total allowed code space (kMaxWasmCodeMemory) to avoid unnecessarily
-  // big reservations, and to ensure that distances within a code space fit
-  // within a 32-bit signed integer.
-  static constexpr size_t kMaxCodeSpaceSize = 1024 * MB;
-#endif
-
   explicit WasmCodeAllocator(std::shared_ptr<Counters> async_counters);
   ~WasmCodeAllocator();
 
