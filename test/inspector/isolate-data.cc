@@ -62,6 +62,7 @@ InspectorIsolateData::InspectorIsolateData(
         &InspectorIsolateData::PromiseRejectHandler);
     inspector_ = v8_inspector::V8Inspector::create(isolate_.get(), this);
   }
+  v8::Isolate::Scope isolate_scope(isolate_.get());
   v8::HandleScope handle_scope(isolate_.get());
   not_inspectable_private_.Reset(
       isolate_.get(),

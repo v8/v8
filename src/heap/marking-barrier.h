@@ -53,13 +53,15 @@ class MarkingBarrier {
     return marking_barrier_type_ == MarkingBarrierType::kMinor;
   }
 
+  Heap* heap() const { return heap_; }
+
  private:
   inline bool ProcessSharedObject(HeapObject value);
   inline bool WhiteToGreyAndPush(HeapObject value);
 
   void RecordRelocSlot(Code host, RelocInfo* rinfo, HeapObject target);
 
-  bool IsCurrentMarkingBarrier();
+  bool IsCurrentMarkingBarrier(HeapObject verification_candidate);
 
   template <typename TSlot>
   inline void MarkRange(HeapObject value, TSlot start, TSlot end);
