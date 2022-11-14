@@ -119,6 +119,8 @@ class MaglevAssembler : public MacroAssembler {
   void ToBoolean(Register value, ZoneLabelRef is_true, ZoneLabelRef is_false,
                  bool fallthrough_when_true);
 
+  void TruncateDoubleToInt32(Register dst, DoubleRegister src);
+
   inline void DefineLazyDeoptPoint(LazyDeoptInfo* info);
   inline void DefineExceptionHandlerPoint(NodeBase* node);
   inline void DefineExceptionHandlerAndLazyDeoptPoint(NodeBase* node);

@@ -760,6 +760,8 @@ class MergePointInterpreterFrameState {
     DCHECK(!value->properties().is_conversion());
 #define IS_INT32_OP_NODE(Name) || value->Is<Name>()
     DCHECK(value->Is<Int32Constant>() || value->Is<StringLength>() ||
+           value->Is<TruncateFloat64ToInt32>() ||
+           value->Is<TruncateUint32ToInt32>() ||
            value->Is<BuiltinStringPrototypeCharCodeAt>()
                INT32_OPERATIONS_NODE_LIST(IS_INT32_OP_NODE));
 #undef IS_INT32_OP_NODE
