@@ -575,7 +575,11 @@ void MaglevGraphBuilder::BuildInt32BinarySmiOperationNode() {
   int32_t constant = iterator_.GetImmediateOperand(0);
   if (base::Optional<int>(constant) == Int32Identity<kOperation>()) {
     // If the constant is the unit of the operation, it already has the right
-    // value, so just return.
+    // value, so use the truncated value if necessary (and if not just a
+    // conversion) and return.
+    if (inputs_are_truncated && !left->properties().is_conversion()) {
+      current_interpreter_frame_.set_accumulator(left);
+    }
     return;
   }
   if (ValueNode* result =
