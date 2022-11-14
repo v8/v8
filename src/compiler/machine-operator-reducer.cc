@@ -237,13 +237,27 @@ Node* MachineOperatorReducer::Word32Sar(Node* lhs, uint32_t rhs) {
   return graph()->NewNode(machine()->Word32Sar(), lhs, Uint32Constant(rhs));
 }
 
+Node* MachineOperatorReducer::Word64Sar(Node* lhs, uint32_t rhs) {
+  if (rhs == 0) return lhs;
+  return graph()->NewNode(machine()->Word64Sar(), lhs, Uint64Constant(rhs));
+}
+
 Node* MachineOperatorReducer::Word32Shr(Node* lhs, uint32_t rhs) {
   if (rhs == 0) return lhs;
   return graph()->NewNode(machine()->Word32Shr(), lhs, Uint32Constant(rhs));
 }
 
+Node* MachineOperatorReducer::Word64Shr(Node* lhs, uint32_t rhs) {
+  if (rhs == 0) return lhs;
+  return graph()->NewNode(machine()->Word64Shr(), lhs, Uint64Constant(rhs));
+}
+
 Node* MachineOperatorReducer::Word32Equal(Node* lhs, Node* rhs) {
   return graph()->NewNode(machine()->Word32Equal(), lhs, rhs);
+}
+
+Node* MachineOperatorReducer::Word64Equal(Node* lhs, Node* rhs) {
+  return graph()->NewNode(machine()->Word64Equal(), lhs, rhs);
 }
 
 Node* MachineOperatorReducer::Word64And(Node* lhs, Node* rhs) {
@@ -258,14 +272,30 @@ Node* MachineOperatorReducer::Int32Add(Node* lhs, Node* rhs) {
   return reduction.Changed() ? reduction.replacement() : node;
 }
 
+Node* MachineOperatorReducer::Int64Add(Node* lhs, Node* rhs) {
+  Node* const node = graph()->NewNode(machine()->Int64Add(), lhs, rhs);
+  Reduction const reduction = ReduceInt64Add(node);
+  return reduction.Changed() ? reduction.replacement() : node;
+}
+
 Node* MachineOperatorReducer::Int32Sub(Node* lhs, Node* rhs) {
   Node* const node = graph()->NewNode(machine()->Int32Sub(), lhs, rhs);
   Reduction const reduction = ReduceInt32Sub(node);
   return reduction.Changed() ? reduction.replacement() : node;
 }
 
+Node* MachineOperatorReducer::Int64Sub(Node* lhs, Node* rhs) {
+  Node* const node = graph()->NewNode(machine()->Int64Sub(), lhs, rhs);
+  Reduction const reduction = ReduceInt64Sub(node);
+  return reduction.Changed() ? reduction.replacement() : node;
+}
+
 Node* MachineOperatorReducer::Int32Mul(Node* lhs, Node* rhs) {
   return graph()->NewNode(machine()->Int32Mul(), lhs, rhs);
+}
+
+Node* MachineOperatorReducer::Int64Mul(Node* lhs, Node* rhs) {
+  return graph()->NewNode(machine()->Int64Mul(), lhs, rhs);
 }
 
 Node* MachineOperatorReducer::Int32Div(Node* dividend, int32_t divisor) {
@@ -281,6 +311,21 @@ Node* MachineOperatorReducer::Int32Div(Node* dividend, int32_t divisor) {
     quotient = Int32Sub(quotient, dividend);
   }
   return Int32Add(Word32Sar(quotient, mag.shift), Word32Shr(dividend, 31));
+}
+
+Node* MachineOperatorReducer::Int64Div(Node* dividend, int64_t divisor) {
+  DCHECK_NE(0, divisor);
+  DCHECK_NE(std::numeric_limits<int64_t>::min(), divisor);
+  base::MagicNumbersForDivision<uint64_t> const mag =
+      base::SignedDivisionByConstant(base::bit_cast<uint64_t>(divisor));
+  Node* quotient = graph()->NewNode(machine()->Int64MulHigh(), dividend,
+                                    Uint64Constant(mag.multiplier));
+  if (divisor > 0 && base::bit_cast<int64_t>(mag.multiplier) < 0) {
+    quotient = Int64Add(quotient, dividend);
+  } else if (divisor < 0 && base::bit_cast<int64_t>(mag.multiplier) > 0) {
+    quotient = Int64Sub(quotient, dividend);
+  }
+  return Int64Add(Word64Sar(quotient, mag.shift), Word64Shr(dividend, 63));
 }
 
 Node* MachineOperatorReducer::Uint32Div(Node* dividend, uint32_t divisor) {
@@ -302,6 +347,29 @@ Node* MachineOperatorReducer::Uint32Div(Node* dividend, uint32_t divisor) {
         mag.shift - 1);
   } else {
     quotient = Word32Shr(quotient, mag.shift);
+  }
+  return quotient;
+}
+
+Node* MachineOperatorReducer::Uint64Div(Node* dividend, uint64_t divisor) {
+  DCHECK_LT(0u, divisor);
+  // If the divisor is even, we can avoid using the expensive fixup by shifting
+  // the dividend upfront.
+  unsigned const shift = base::bits::CountTrailingZeros(divisor);
+  dividend = Word64Shr(dividend, shift);
+  divisor >>= shift;
+  // Compute the magic number for the (shifted) divisor.
+  base::MagicNumbersForDivision<uint64_t> const mag =
+      base::UnsignedDivisionByConstant(divisor, shift);
+  Node* quotient = graph()->NewNode(machine()->Uint64MulHigh(), dividend,
+                                    Uint64Constant(mag.multiplier));
+  if (mag.add) {
+    DCHECK_LE(1u, mag.shift);
+    quotient = Word64Shr(
+        Int64Add(Word64Shr(Int64Sub(dividend, quotient), 1), quotient),
+        mag.shift - 1);
+  } else {
+    quotient = Word64Shr(quotient, mag.shift);
   }
   return quotient;
 }
@@ -414,12 +482,20 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       return ReduceInt64Mul(node);
     case IrOpcode::kInt32Div:
       return ReduceInt32Div(node);
+    case IrOpcode::kInt64Div:
+      return ReduceInt64Div(node);
     case IrOpcode::kUint32Div:
       return ReduceUint32Div(node);
+    case IrOpcode::kUint64Div:
+      return ReduceUint64Div(node);
     case IrOpcode::kInt32Mod:
       return ReduceInt32Mod(node);
+    case IrOpcode::kInt64Mod:
+      return ReduceInt64Mod(node);
     case IrOpcode::kUint32Mod:
       return ReduceUint32Mod(node);
+    case IrOpcode::kUint64Mod:
+      return ReduceUint64Mod(node);
     case IrOpcode::kInt32LessThan: {
       Int32BinopMatcher m(node);
       if (m.IsFoldable()) {  // K < K => K  (K stands for arbitrary constants)
@@ -1166,6 +1242,53 @@ Reduction MachineOperatorReducer::ReduceInt32Div(Node* node) {
   return NoChange();
 }
 
+Reduction MachineOperatorReducer::ReduceInt64Div(Node* node) {
+  Int64BinopMatcher m(node);
+  if (m.left().Is(0)) return Replace(m.left().node());    // 0 / x => 0
+  if (m.right().Is(0)) return Replace(m.right().node());  // x / 0 => 0
+  if (m.right().Is(1)) return Replace(m.left().node());   // x / 1 => x
+  if (m.IsFoldable()) {  // K / K => K  (K stands for arbitrary constants)
+    return ReplaceInt64(base::bits::SignedDiv64(m.left().ResolvedValue(),
+                                                m.right().ResolvedValue()));
+  }
+  if (m.LeftEqualsRight()) {  // x / x => x != 0
+    Node* const zero = Int64Constant(0);
+    return Replace(Word64Equal(Word64Equal(m.left().node(), zero), zero));
+  }
+  if (m.right().Is(-1)) {  // x / -1 => 0 - x
+    node->ReplaceInput(0, Int64Constant(0));
+    node->ReplaceInput(1, m.left().node());
+    node->TrimInputCount(2);
+    NodeProperties::ChangeOp(node, machine()->Int64Sub());
+    return Changed(node);
+  }
+  if (m.right().HasResolvedValue()) {
+    int64_t const divisor = m.right().ResolvedValue();
+    Node* const dividend = m.left().node();
+    Node* quotient = dividend;
+    if (base::bits::IsPowerOfTwo(Abs(divisor))) {
+      uint32_t const shift = base::bits::WhichPowerOfTwo(Abs(divisor));
+      DCHECK_NE(0u, shift);
+      if (shift > 1) {
+        quotient = Word64Sar(quotient, 63);
+      }
+      quotient = Int64Add(Word64Shr(quotient, 64u - shift), dividend);
+      quotient = Word64Sar(quotient, shift);
+    } else {
+      quotient = Int64Div(quotient, Abs(divisor));
+    }
+    if (divisor < 0) {
+      node->ReplaceInput(0, Int64Constant(0));
+      node->ReplaceInput(1, quotient);
+      node->TrimInputCount(2);
+      NodeProperties::ChangeOp(node, machine()->Int64Sub());
+      return Changed(node);
+    }
+    return Replace(quotient);
+  }
+  return NoChange();
+}
+
 Reduction MachineOperatorReducer::ReduceUint32Div(Node* node) {
   Uint32BinopMatcher m(node);
   if (m.left().Is(0)) return Replace(m.left().node());    // 0 / x => 0
@@ -1190,6 +1313,35 @@ Reduction MachineOperatorReducer::ReduceUint32Div(Node* node) {
       return Changed(node);
     } else {
       return Replace(Uint32Div(dividend, divisor));
+    }
+  }
+  return NoChange();
+}
+
+Reduction MachineOperatorReducer::ReduceUint64Div(Node* node) {
+  Uint64BinopMatcher m(node);
+  if (m.left().Is(0)) return Replace(m.left().node());    // 0 / x => 0
+  if (m.right().Is(0)) return Replace(m.right().node());  // x / 0 => 0
+  if (m.right().Is(1)) return Replace(m.left().node());   // x / 1 => x
+  if (m.IsFoldable()) {  // K / K => K  (K stands for arbitrary constants)
+    return ReplaceUint64(base::bits::UnsignedDiv64(m.left().ResolvedValue(),
+                                                   m.right().ResolvedValue()));
+  }
+  if (m.LeftEqualsRight()) {  // x / x => x != 0
+    Node* const zero = Int64Constant(0);
+    return Replace(Word64Equal(Word64Equal(m.left().node(), zero), zero));
+  }
+  if (m.right().HasResolvedValue()) {
+    Node* const dividend = m.left().node();
+    uint64_t const divisor = m.right().ResolvedValue();
+    if (base::bits::IsPowerOfTwo(divisor)) {  // x / 2^n => x >> n
+      node->ReplaceInput(1, Uint64Constant(base::bits::WhichPowerOfTwo(
+                                m.right().ResolvedValue())));
+      node->TrimInputCount(2);
+      NodeProperties::ChangeOp(node, machine()->Word64Shr());
+      return Changed(node);
+    } else {
+      return Replace(Uint64Div(dividend, divisor));
     }
   }
   return NoChange();
@@ -1231,12 +1383,48 @@ Reduction MachineOperatorReducer::ReduceInt32Mod(Node* node) {
   return NoChange();
 }
 
+Reduction MachineOperatorReducer::ReduceInt64Mod(Node* node) {
+  Int64BinopMatcher m(node);
+  if (m.left().Is(0)) return Replace(m.left().node());    // 0 % x  => 0
+  if (m.right().Is(0)) return Replace(m.right().node());  // x % 0  => 0
+  if (m.right().Is(1)) return ReplaceInt64(0);            // x % 1  => 0
+  if (m.right().Is(-1)) return ReplaceInt64(0);           // x % -1 => 0
+  if (m.LeftEqualsRight()) return ReplaceInt64(0);        // x % x  => 0
+  if (m.IsFoldable()) {  // K % K => K  (K stands for arbitrary constants)
+    return ReplaceInt64(base::bits::SignedMod64(m.left().ResolvedValue(),
+                                                m.right().ResolvedValue()));
+  }
+  if (m.right().HasResolvedValue()) {
+    Node* const dividend = m.left().node();
+    uint64_t const divisor = Abs(m.right().ResolvedValue());
+    if (base::bits::IsPowerOfTwo(divisor)) {
+      uint64_t const mask = divisor - 1;
+      Node* const zero = Int64Constant(0);
+      Diamond d(graph(), common(),
+                graph()->NewNode(machine()->Int64LessThan(), dividend, zero),
+                BranchHint::kFalse);
+      return Replace(
+          d.Phi(MachineRepresentation::kWord64,
+                Int64Sub(zero, Word64And(Int64Sub(zero, dividend), mask)),
+                Word64And(dividend, mask)));
+    } else {
+      Node* quotient = Int64Div(dividend, divisor);
+      DCHECK_EQ(dividend, node->InputAt(0));
+      node->ReplaceInput(1, Int64Mul(quotient, Int64Constant(divisor)));
+      node->TrimInputCount(2);
+      NodeProperties::ChangeOp(node, machine()->Int64Sub());
+    }
+    return Changed(node);
+  }
+  return NoChange();
+}
+
 Reduction MachineOperatorReducer::ReduceUint32Mod(Node* node) {
   Uint32BinopMatcher m(node);
   if (m.left().Is(0)) return Replace(m.left().node());    // 0 % x => 0
   if (m.right().Is(0)) return Replace(m.right().node());  // x % 0 => 0
   if (m.right().Is(1)) return ReplaceUint32(0);           // x % 1 => 0
-  if (m.LeftEqualsRight()) return ReplaceInt32(0);        // x % x  => 0
+  if (m.LeftEqualsRight()) return ReplaceUint32(0);       // x % x  => 0
   if (m.IsFoldable()) {  // K % K => K  (K stands for arbitrary constants)
     return ReplaceUint32(base::bits::UnsignedMod32(m.left().ResolvedValue(),
                                                    m.right().ResolvedValue()));
@@ -1254,6 +1442,35 @@ Reduction MachineOperatorReducer::ReduceUint32Mod(Node* node) {
       node->ReplaceInput(1, Int32Mul(quotient, Uint32Constant(divisor)));
       node->TrimInputCount(2);
       NodeProperties::ChangeOp(node, machine()->Int32Sub());
+    }
+    return Changed(node);
+  }
+  return NoChange();
+}
+
+Reduction MachineOperatorReducer::ReduceUint64Mod(Node* node) {
+  Uint64BinopMatcher m(node);
+  if (m.left().Is(0)) return Replace(m.left().node());    // 0 % x => 0
+  if (m.right().Is(0)) return Replace(m.right().node());  // x % 0 => 0
+  if (m.right().Is(1)) return ReplaceUint64(0);           // x % 1 => 0
+  if (m.LeftEqualsRight()) return ReplaceUint64(0);       // x % x  => 0
+  if (m.IsFoldable()) {  // K % K => K  (K stands for arbitrary constants)
+    return ReplaceUint64(base::bits::UnsignedMod64(m.left().ResolvedValue(),
+                                                   m.right().ResolvedValue()));
+  }
+  if (m.right().HasResolvedValue()) {
+    Node* const dividend = m.left().node();
+    uint64_t const divisor = m.right().ResolvedValue();
+    if (base::bits::IsPowerOfTwo(divisor)) {  // x % 2^n => x & 2^n-1
+      node->ReplaceInput(1, Uint64Constant(m.right().ResolvedValue() - 1));
+      node->TrimInputCount(2);
+      NodeProperties::ChangeOp(node, machine()->Word64And());
+    } else {
+      Node* quotient = Uint64Div(dividend, divisor);
+      DCHECK_EQ(dividend, node->InputAt(0));
+      node->ReplaceInput(1, Int64Mul(quotient, Uint64Constant(divisor)));
+      node->TrimInputCount(2);
+      NodeProperties::ChangeOp(node, machine()->Int64Sub());
     }
     return Changed(node);
   }
