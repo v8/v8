@@ -259,6 +259,10 @@ std::shared_ptr<NativeModule> NativeModuleCache::Update(
       auto conflicting_module = it->second.value().lock();
       if (conflicting_module != nullptr) {
         DCHECK_EQ(conflicting_module->wire_bytes(), wire_bytes);
+        // This return might delete {native_module} if we were the last holder.
+        // That in turn can call {NativeModuleCache::Erase}, which takes the
+        // mutex. This is not a problem though, since the {MutexGuard} above is
+        // released before the {native_module}, per the definition order.
         return conflicting_module;
       }
     }
@@ -1249,32 +1253,31 @@ std::shared_ptr<NativeModule> WasmEngine::MaybeGetNativeModule(
   return native_module;
 }
 
-bool WasmEngine::UpdateNativeModuleCache(
-    bool error, std::shared_ptr<NativeModule>* native_module,
+std::shared_ptr<NativeModule> WasmEngine::UpdateNativeModuleCache(
+    bool has_error, std::shared_ptr<NativeModule> native_module,
     Isolate* isolate) {
-  // Pass {native_module} by value here to keep it alive until at least after
-  // we returned from {Update}. Otherwise, we might {Erase} it inside {Update}
-  // which would lock the mutex twice.
-  auto prev = native_module->get();
-  *native_module = native_module_cache_.Update(*native_module, error);
-
-  if (prev == native_module->get()) return true;
+  // Keep the previous pointer, but as a `void*`, because we only want to use it
+  // later to compare pointers, and never need to dereference it.
+  void* prev = native_module.get();
+  native_module =
+      native_module_cache_.Update(std::move(native_module), has_error);
+  if (prev == native_module.get()) return native_module;
 
   bool recompile_module = false;
   {
     base::MutexGuard guard(&mutex_);
-    DCHECK_EQ(1, native_modules_.count(native_module->get()));
-    native_modules_[native_module->get()]->isolates.insert(isolate);
+    DCHECK_EQ(1, native_modules_.count(native_module.get()));
+    native_modules_[native_module.get()]->isolates.insert(isolate);
     DCHECK_EQ(1, isolates_.count(isolate));
-    isolates_[isolate]->native_modules.insert(native_module->get());
+    isolates_[isolate]->native_modules.insert(native_module.get());
     if (isolates_[isolate]->keep_tiered_down) {
-      native_module->get()->SetTieringState(kTieredDown);
+      native_module->SetTieringState(kTieredDown);
       recompile_module = true;
     }
   }
   // Potentially recompile the module for tier down, after releasing the mutex.
-  if (recompile_module) native_module->get()->RecompileForTiering();
-  return false;
+  if (recompile_module) native_module->RecompileForTiering();
+  return native_module;
 }
 
 bool WasmEngine::GetStreamingCompilationOwnership(size_t prefix_hash) {

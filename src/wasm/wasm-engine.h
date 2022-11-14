@@ -301,12 +301,13 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // To avoid a deadlock on the main thread between synchronous and streaming
   // compilation, two compilation jobs might compile the same native module at
   // the same time. In this case the first call to {UpdateNativeModuleCache}
-  // will insert the native module in the cache, and the last call will discard
-  // its {native_module} argument and replace it with the existing entry.
-  // Return true in the former case, and false in the latter.
-  bool UpdateNativeModuleCache(bool error,
-                               std::shared_ptr<NativeModule>* native_module,
-                               Isolate* isolate);
+  // will insert the native module in the cache, and the last call will receive
+  // the existing entry from the cache.
+  // Return the cached entry, or {native_module} if there was no previously
+  // cached module.
+  std::shared_ptr<NativeModule> UpdateNativeModuleCache(
+      bool has_error, std::shared_ptr<NativeModule> native_module,
+      Isolate* isolate);
 
   // Register this prefix hash for a streaming compilation job.
   // If the hash is not in the cache yet, the function returns true and the

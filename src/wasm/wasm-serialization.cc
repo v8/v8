@@ -891,13 +891,13 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
     Reader reader(data + WasmSerializer::kHeaderSize);
     bool error = !deserializer.Read(&reader);
     if (error) {
-      wasm_engine->UpdateNativeModuleCache(error, &shared_native_module,
-                                           isolate);
+      wasm_engine->UpdateNativeModuleCache(
+          error, std::move(shared_native_module), isolate);
       return {};
     }
     shared_native_module->compilation_state()->InitializeAfterDeserialization(
         deserializer.lazy_functions(), deserializer.eager_functions());
-    wasm_engine->UpdateNativeModuleCache(error, &shared_native_module, isolate);
+    wasm_engine->UpdateNativeModuleCache(error, shared_native_module, isolate);
   }
 
   Handle<Script> script =

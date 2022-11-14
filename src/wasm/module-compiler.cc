@@ -1984,10 +1984,9 @@ class BackgroundCompileJob final : public JobTask {
 
 std::shared_ptr<NativeModule> CompileToNativeModule(
     Isolate* isolate, const WasmFeatures& enabled, ErrorThrower* thrower,
-    std::shared_ptr<const WasmModule> shared_module, ModuleWireBytes wire_bytes,
+    std::shared_ptr<const WasmModule> module, ModuleWireBytes wire_bytes,
     int compilation_id, v8::metrics::Recorder::ContextId context_id,
     ProfileInformation* pgo_info) {
-  const WasmModule* module = shared_module.get();
   WasmEngine* engine = GetWasmEngine();
   base::OwnedVector<uint8_t> wire_bytes_copy =
       base::OwnedVector<uint8_t>::Of(wire_bytes.module_bytes());
@@ -1998,7 +1997,7 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
   std::shared_ptr<NativeModule> native_module = engine->MaybeGetNativeModule(
       module->origin, wire_bytes_copy.as_vector(), isolate);
   if (native_module) {
-    CompileJsToWasmWrappers(isolate, module);
+    CompileJsToWasmWrappers(isolate, module.get());
     return native_module;
   }
 
@@ -2018,26 +2017,32 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
       module->origin == kWasmOrigin && v8_flags.liftoff;
   size_t code_size_estimate =
       wasm::WasmCodeManager::EstimateNativeModuleCodeSize(
-          module, include_liftoff,
+          module.get(), include_liftoff,
           DynamicTiering{v8_flags.wasm_dynamic_tiering.value()});
-  native_module = engine->NewNativeModule(
-      isolate, enabled, std::move(shared_module), code_size_estimate);
+  native_module =
+      engine->NewNativeModule(isolate, enabled, module, code_size_estimate);
   native_module->SetWireBytes(std::move(wire_bytes_copy));
   native_module->compilation_state()->set_compilation_id(compilation_id);
   // Sync compilation is user blocking, so we increase the priority.
   native_module->compilation_state()->SetHighPriority();
 
   CompileNativeModule(isolate, context_id, thrower, native_module, pgo_info);
-  bool cache_hit = !engine->UpdateNativeModuleCache(thrower->error(),
-                                                    &native_module, isolate);
-  if (thrower->error()) return {};
 
-  if (cache_hit) {
-    // Update {module} from {native_module}; {module} might be a dangling
-    // pointer now.
-    module = native_module->module();
-    CompileJsToWasmWrappers(isolate, module);
-    return native_module;
+  if (thrower->error()) {
+    engine->UpdateNativeModuleCache(true, std::move(native_module), isolate);
+    return {};
+  }
+
+  std::shared_ptr<NativeModule> cached_native_module =
+      engine->UpdateNativeModuleCache(false, native_module, isolate);
+
+  if (cached_native_module != native_module) {
+    // Do not use {module} or {native_module} any more; use
+    // {cached_native_module} instead.
+    module.reset();
+    native_module.reset();
+    CompileJsToWasmWrappers(isolate, cached_native_module->module());
+    return cached_native_module;
   }
 
   // Ensure that the code objects are logged before returning.
@@ -2391,12 +2396,14 @@ class AsyncCompileJob::CompilationStateCallback
           // Install the native module in the cache, or reuse a conflicting one.
           // If we get a conflicting module, wait until we are back in the
           // main thread to update {job_->native_module_} to avoid a data race.
-          std::shared_ptr<NativeModule> native_module = job_->native_module_;
-          bool cache_hit = !GetWasmEngine()->UpdateNativeModuleCache(
-              false, &native_module, job_->isolate_);
-          DCHECK_EQ(cache_hit, native_module != job_->native_module_);
-          job_->DoSync<CompileFinished>(cache_hit ? std::move(native_module)
-                                                  : nullptr);
+          std::shared_ptr<NativeModule> cached_native_module =
+              GetWasmEngine()->UpdateNativeModuleCache(
+                  false, job_->native_module_, job_->isolate_);
+          if (cached_native_module == job_->native_module_) {
+            // There was no cached module.
+            cached_native_module = nullptr;
+          }
+          job_->DoSync<CompileFinished>(std::move(cached_native_module));
         }
         break;
       case CompilationEvent::kFinishedCompilationChunk:
@@ -2409,8 +2416,7 @@ class AsyncCompileJob::CompilationStateCallback
         if (job_->DecrementAndCheckFinisherCount(kCompilation)) {
           // Don't update {job_->native_module_} to avoid data races with other
           // compilation threads. Use a copy of the shared pointer instead.
-          std::shared_ptr<NativeModule> native_module = job_->native_module_;
-          GetWasmEngine()->UpdateNativeModuleCache(true, &native_module,
+          GetWasmEngine()->UpdateNativeModuleCache(true, job_->native_module_,
                                                    job_->isolate_);
           job_->DoSync<CompileFailed>();
         }
@@ -3043,8 +3049,10 @@ void AsyncStreamingProcessor::OnFinishedStream(
   if (needs_finish) {
     const bool failed = job_->native_module_->compilation_state()->failed();
     if (!cache_hit) {
-      cache_hit = !GetWasmEngine()->UpdateNativeModuleCache(
-          failed, &job_->native_module_, job_->isolate_);
+      auto* prev_native_module = job_->native_module_.get();
+      job_->native_module_ = GetWasmEngine()->UpdateNativeModuleCache(
+          failed, std::move(job_->native_module_), job_->isolate_);
+      cache_hit = prev_native_module != job_->native_module_.get();
     }
     if (failed) {
       job_->AsyncCompileFailed();
