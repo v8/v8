@@ -44,10 +44,9 @@ constexpr size_t kThunkBufferSize = 64 * KB;
 // is not reliable enough to guarantee that we can always achieve this with
 // separate allocations, so we generate all code in a single
 // kMaxCodeMemory-sized chunk.
-constexpr size_t kAssemblerBufferSize =
-    size_t{kDefaultMaxWasmCodeSpaceSizeMb} * MB;
+constexpr size_t kAssemblerBufferSize = WasmCodeAllocator::kMaxCodeSpaceSize;
 constexpr uint32_t kAvailableBufferSlots =
-    (kAssemblerBufferSize - kJumpTableSize) / kThunkBufferSize;
+    (WasmCodeAllocator::kMaxCodeSpaceSize - kJumpTableSize) / kThunkBufferSize;
 constexpr uint32_t kBufferSlotStartOffset =
     RoundUp<kThunkBufferSize>(kJumpTableSize);
 #else
