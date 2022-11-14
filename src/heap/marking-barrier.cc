@@ -77,10 +77,6 @@ void MarkingBarrier::Write(Code host, RelocInfo* reloc_info, HeapObject value) {
 void MarkingBarrier::Write(JSArrayBuffer host,
                            ArrayBufferExtension* extension) {
   DCHECK(IsCurrentMarkingBarrier());
-  if (!V8_CONCURRENT_MARKING_BOOL && !marking_state_.IsBlack(host)) {
-    // The extension will be marked when the marker visits the host object.
-    return;
-  }
   if (is_minor()) {
     if (Heap::InYoungGeneration(host)) {
       extension->YoungMark();
