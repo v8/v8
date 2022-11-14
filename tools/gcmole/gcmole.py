@@ -524,89 +524,97 @@ def main(argv):
     default_gcmole_dir = relative_parents(Path(argv[0]))
   if default_gcmole_dir or not default_gcmole_dir.exists():
     default_gcmole_dir = default_root_dir / 'tools' / 'gcmole'
+  default_clang_bin_dir = default_gcmole_dir / 'gcmole-tools/bin'
+
+  def add_common_args(parser):
+    archs = list(ARCHITECTURES.keys())
+    parser.add_argument(
+        "--v8-root-dir",
+        metavar="DIR",
+        default=default_root_dir,
+        help="V8 checkout directory. Default: '{}'".format(
+            default_root_dir.absolute()))
+    parser.add_argument(
+        "--v8-target-cpu",
+        default="x64",
+        choices=archs,
+        help="Tested CPU architecture. Choices: {}".format(archs),
+        metavar="CPU")
+    parser.add_argument(
+        "--clang-bin-dir",
+        metavar="DIR",
+        help="Build dir of the custom clang version for gcmole." + \
+        "Default: env['CLANG_DIR'] or '{}'".format(default_clang_bin_dir))
+    parser.add_argument(
+        "--clang-plugins-dir",
+        metavar="DIR",
+        help="Containing dir for libgcmole.so."
+        "Default: env['CLANG_PLUGINS'] or '{}'".format(default_gcmole_dir))
+    parser.add_argument(
+        "--v8-build-dir",
+        metavar="BUILD_DIR",
+        help="GN build dir for v8. Default: 'out/CPU.Release'. "
+        "Config must match cpu specified by --v8-target-cpu")
+    parser.add_argument(
+        "--out-dir",
+        metavar="DIR",
+        help="Output location for the gcsuspect and gcauses file."
+        "Default: BUILD_DIR/gen/tools/gcmole")
+    parser.add_argument(
+        "--is-bot",
+        action="store_true",
+        default=False,
+        help="Flag for setting build bot specific settings.")
+
+    group = parser.add_argument_group("GCMOLE options")
+    group.add_argument(
+        "--reuse-gcsuspects",
+        action="store_true",
+        default=False,
+        help="Don't build gcsuspects file and reuse previously generated one.")
+    group.add_argument(
+        "--sequential",
+        action="store_true",
+        default=False,
+        help="Don't use parallel python runner.")
+    group.add_argument(
+        "--verbose",
+        action="store_true",
+        default=False,
+        help="Print commands to console before executing them.")
+    group.add_argument(
+        "--no-dead-vars",
+        action="store_false",
+        dest="dead_vars",
+        default=True,
+        help="Don't perform dead variable analysis.")
+    group.add_argument(
+        "--verbose-trace",
+        action="store_true",
+        default=False,
+        help="Enable verbose tracing from the plugin itself."
+        "This can be useful to debug finding dead variable.")
+    group.add_argument(
+        "--no-allowlist",
+        action="store_true",
+        default=True,
+        dest="allowlist",
+        help="When building gcsuspects allowlist certain functions as if they can be "
+        "causing GC. Currently used to reduce number of false positives in dead "
+        "variables analysis. See TODO for ALLOWLIST in gcmole.py")
+    group.add_argument(
+        "--test-run",
+        action="store_true",
+        default=False,
+        help="Test gcmole on tools/gcmole/gcmole-test.cc")
 
   parser = argparse.ArgumentParser()
-  archs = list(ARCHITECTURES.keys())
-  parser.add_argument(
-      "--v8-root-dir",
-      metavar="DIR",
-      default=default_root_dir,
-      help="V8 checkout directory. Default: '{}'".format(
-          default_root_dir.absolute()))
-  parser.add_argument(
-      "--v8-target-cpu",
-      default="x64",
-      choices=archs,
-      help="Tested CPU architecture. Choices: {}".format(archs),
-      metavar="CPU")
-  default_clang_bin_dir = default_gcmole_dir / 'gcmole-tools/bin'
-  parser.add_argument(
-      "--clang-bin-dir",
-      metavar="DIR",
-      help="Build dir of the custom clang version for gcmole." + \
-      "Default: env['CLANG_DIR'] or '{}'".format(default_clang_bin_dir))
-  parser.add_argument(
-      "--clang-plugins-dir",
-      metavar="DIR",
-      help="Containing dir for libgcmole.so."
-      "Default: env['CLANG_PLUGINS'] or '{}'".format(default_gcmole_dir))
-  parser.add_argument(
-      "--v8-build-dir",
-      metavar="BUILD_DIR",
-      help="GN build dir for v8. Default: 'out/CPU.Release'. "
-      "Config must match cpu specified by --v8-target-cpu")
-  parser.add_argument(
-      "--out-dir",
-      metavar="DIR",
-      help="Output location for the gcsuspect and gcauses file."
-      "Default: BUILD_DIR/gen/tools/gcmole")
-  parser.add_argument(
-      "--is-bot",
-      action="store_true",
-      default=False,
-      help="Flag for setting build bot specific settings.")
+  subps = parser.add_subparsers()
 
-  group = parser.add_argument_group("GCMOLE options")
-  group.add_argument(
-      "--reuse-gcsuspects",
-      action="store_true",
-      default=False,
-      help="Don't build gcsuspects file and reuse previously generated one.")
-  group.add_argument(
-      "--sequential",
-      action="store_true",
-      default=False,
-      help="Don't use parallel python runner.")
-  group.add_argument(
-      "--verbose",
-      action="store_true",
-      default=False,
-      help="Print commands to console before executing them.")
-  group.add_argument(
-      "--no-dead-vars",
-      action="store_false",
-      dest="dead_vars",
-      default=True,
-      help="Don't perform dead variable analysis.")
-  group.add_argument(
-      "--verbose-trace",
-      action="store_true",
-      default=False,
-      help="Enable verbose tracing from the plugin itself."
-      "This can be useful to debug finding dead variable.")
-  group.add_argument(
-      "--no-allowlist",
-      action="store_true",
-      default=True,
-      dest="allowlist",
-      help="When building gcsuspects allowlist certain functions as if they can be "
-      "causing GC. Currently used to reduce number of false positives in dead "
-      "variables analysis. See TODO for ALLOWLIST in gcmole.py")
-  group.add_argument(
-      "--test-run",
-      action="store_true",
-      default=False,
-      help="Test gcmole on tools/gcmole/gcmole-test.cc")
+  subp = subps.add_parser(
+      "full", description="Run both gcmole analysis passes.")
+  add_common_args(subp)
+  subp.set_defaults(func=full_run)
 
   options = parser.parse_args(argv[1:])
 
@@ -616,6 +624,10 @@ def main(argv):
   prepare_gcmole_files(options)
   verify_build_config(parser, options)
 
+  options.func(options)
+
+
+def full_run(options):
   any_errors_found = False
   if not test_run(options):
     any_errors_found = True

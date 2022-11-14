@@ -43,6 +43,7 @@ proc = subprocess.Popen(
     [
         sys.executable,
         GCMOLE_PY,
+        "full",
         "--v8-build-dir=%s" % os.path.join(V8_ROOT_DIR, 'out', 'build'),
         "--v8-target-cpu=%s" % sys.argv[1],
         "--clang-plugins-dir=%s" % CLANG_PLUGINS,
