@@ -99,6 +99,25 @@ TEST_F(WasmDisassemblerTest, Simd) {
   CheckDisassemblerOutput(base::ArrayVector(module_bytes), expected);
 }
 
+TEST_F(WasmDisassemblerTest, Gc) {
+  // Since WABT's `wat2wasm` didn't support some GC features yet, I used
+  // Binaryen's `wasm-as --enable-gc --hybrid` here to produce the binary.
+  constexpr byte module_bytes[] = {
+#include "wasm-disassembler-unittest-gc.wasm.inc"
+  };
+  std::string expected;
+#include "wasm-disassembler-unittest-gc.wat.inc"
+  CheckDisassemblerOutput(base::ArrayVector(module_bytes), expected);
+}
+
+// TODO(dlehmann): Add tests for the following Wasm features and extensions:
+// - custom name section for Wasm GC constructs (struct and array type names,
+// struct fields).
+// - exception-related instructions (try, catch, catch_all, delegate) and named
+// exception tags.
+// - atomic instructions (threads proposal, 0xfe prefix).
+// - some "numeric" instructions (0xfc prefix).
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

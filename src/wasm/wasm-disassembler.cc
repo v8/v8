@@ -694,12 +694,11 @@ void ModuleDisassembler::PrintTypeDefinition(uint32_t type_index,
     // types; update this for isorecursive hybrid types.
     out_ << (has_super ? " (array_subtype (field " : " (array (field ");
     PrintMutableType(type->mutability(), type->element_type());
-    out_ << ")";
+    out_ << ")";  // Closes `(field ...`
     if (has_super) {
       out_ << " ";
       names_->PrintHeapType(out_, HeapType(module_->supertype(type_index)));
     }
-    out_ << ")";
   } else if (module_->has_struct(type_index)) {
     const StructType* type = module_->struct_type(type_index);
     out_ << (has_super ? " (struct_subtype" : " (struct");
@@ -716,7 +715,6 @@ void ModuleDisassembler::PrintTypeDefinition(uint32_t type_index,
       LineBreakOrSpace(break_lines, indentation, offset);
       names_->PrintHeapType(out_, HeapType(module_->supertype(type_index)));
     }
-    out_ << ")";
   } else if (module_->has_signature(type_index)) {
     const FunctionSig* sig = module_->signature(type_index);
     out_ << (has_super ? " (func_subtype" : " (func");
@@ -739,8 +737,8 @@ void ModuleDisassembler::PrintTypeDefinition(uint32_t type_index,
       LineBreakOrSpace(break_lines, indentation, offset);
       names_->PrintHeapType(out_, HeapType(module_->supertype(type_index)));
     }
-    out_ << ")";
   }
+  out_ << "))";  // Closes "(type" and "(array" / "(struct" / "(func".
 }
 
 void ModuleDisassembler::PrintModule(Indentation indentation, size_t max_mb) {
