@@ -293,12 +293,10 @@ Reduction WasmGCLowering::ReduceTypeGuard(Node* node) {
 }
 
 Reduction WasmGCLowering::ReduceWasmExternInternalize(Node* node) {
-  DCHECK_EQ(node->opcode(), IrOpcode::kWasmExternInternalize);
-  Node* object = NodeProperties::GetValueInput(node, 0);
-  // TODO(7748): Canonicalize HeapNumbers.
-  ReplaceWithValue(node, object);
-  node->Kill();
-  return Replace(object);
+  // TODO(7748): This is not used right now. Either use the
+  // WasmExternInternalize operator and implement its lowering here, or remove
+  // it entirely.
+  UNREACHABLE();
 }
 
 // TODO(7748): WasmExternExternalize is a no-op. Consider removing it.
