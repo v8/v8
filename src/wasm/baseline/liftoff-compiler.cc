@@ -7424,7 +7424,6 @@ class LiftoffCompiler {
           wasm::ObjectAccess::ToTagged(WasmInternalFunction::kRefOffset));
 
 #ifdef V8_ENABLE_SANDBOX
-      LOAD_INSTANCE_FIELD(temp.gp(), IsolateRoot, kSystemPointerSize, pinned);
       __ LoadExternalPointer(target.gp(), func_ref.gp(),
                              WasmInternalFunction::kCallTargetOffset,
                              kWasmInternalFunctionCallTargetTag, temp.gp());
@@ -7478,9 +7477,7 @@ class LiftoffCompiler {
   }
 
   void LoadNullValue(Register null, LiftoffRegList pinned) {
-    // TODO(13449): Use root register instead of isolate to retrieve null.
-    LOAD_INSTANCE_FIELD(null, IsolateRoot, kSystemPointerSize, pinned);
-    __ LoadFullPointer(null, null,
+    __ LoadFullPointer(null, kRootRegister,
                        IsolateData::root_slot_offset(RootIndex::kNullValue));
   }
 
@@ -7503,9 +7500,8 @@ class LiftoffCompiler {
 
   void LoadExceptionSymbol(Register dst, LiftoffRegList pinned,
                            RootIndex root_index) {
-    LOAD_INSTANCE_FIELD(dst, IsolateRoot, kSystemPointerSize, pinned);
-    uint32_t offset_imm = IsolateData::root_slot_offset(root_index);
-    __ LoadFullPointer(dst, dst, offset_imm);
+    __ LoadFullPointer(dst, kRootRegister,
+                       IsolateData::root_slot_offset(root_index));
   }
 
   void MaybeEmitNullCheck(FullDecoder* decoder, Register object,

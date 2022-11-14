@@ -770,8 +770,7 @@ class LiftoffAssembler : public TurboAssembler {
   inline void LoadTaggedPointerFromInstance(Register dst, Register instance,
                                             int offset);
   inline void LoadExternalPointer(Register dst, Register instance, int offset,
-                                  ExternalPointerTag tag,
-                                  Register isolate_root);
+                                  ExternalPointerTag tag, Register scratch);
   inline void SpillInstance(Register instance);
   inline void ResetOSRTarget();
   inline void LoadTaggedPointer(Register dst, Register src_addr,

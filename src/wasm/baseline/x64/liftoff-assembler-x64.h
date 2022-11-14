@@ -381,10 +381,9 @@ void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
 
 void LiftoffAssembler::LoadExternalPointer(Register dst, Register instance,
                                            int offset, ExternalPointerTag tag,
-                                           Register isolate_root) {
-  LoadExternalPointerField(dst, FieldOperand(instance, offset), tag,
-                           isolate_root,
-                           IsolateRootLocation::kInScratchRegister);
+                                           Register scratch) {
+  LoadExternalPointerField(dst, FieldOperand(instance, offset), tag, scratch,
+                           IsolateRootLocation::kInRootRegister);
 }
 
 void LiftoffAssembler::SpillInstance(Register instance) {
