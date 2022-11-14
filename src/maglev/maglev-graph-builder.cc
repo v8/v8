@@ -90,8 +90,10 @@ class CallArguments {
  public:
   CallArguments(ConvertReceiverMode receiver_mode,
                 interpreter::RegisterList reglist,
-                const InterpreterFrameState& frame)
-      : receiver_mode_(receiver_mode), args_(reglist.register_count()) {
+                const InterpreterFrameState& frame, bool has_spread = false)
+      : receiver_mode_(receiver_mode),
+        args_(reglist.register_count()),
+        has_spread_(has_spread) {
     for (int i = 0; i < reglist.register_count(); i++) {
       args_[i] = frame.get(reglist[i]);
     }
@@ -100,13 +102,13 @@ class CallArguments {
   }
 
   explicit CallArguments(ConvertReceiverMode receiver_mode)
-      : receiver_mode_(receiver_mode), args_() {
+      : receiver_mode_(receiver_mode), args_(), has_spread_(false) {
     DCHECK_EQ(receiver_mode, ConvertReceiverMode::kNullOrUndefined);
   }
 
   CallArguments(ConvertReceiverMode receiver_mode,
-                std::initializer_list<ValueNode*> args)
-      : receiver_mode_(receiver_mode), args_(args) {}
+                std::initializer_list<ValueNode*> args, bool has_spread = false)
+      : receiver_mode_(receiver_mode), args_(args), has_spread_(has_spread) {}
 
   ValueNode* receiver() const {
     if (receiver_mode_ == ConvertReceiverMode::kNullOrUndefined) {
@@ -132,6 +134,8 @@ class CallArguments {
     return args_[i];
   }
 
+  bool has_spread() const { return has_spread_; }
+
   ConvertReceiverMode receiver_mode() const { return receiver_mode_; }
 
   void PopReceiver(ConvertReceiverMode new_receiver_mode) {
@@ -155,6 +159,7 @@ class CallArguments {
  private:
   ConvertReceiverMode receiver_mode_;
   base::SmallVector<ValueNode*, 8> args_;
+  bool has_spread_;
 };
 
 MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
@@ -2936,6 +2941,11 @@ ValueNode* MaglevGraphBuilder::TryReduceFunctionPrototypeCall(
 
 ValueNode* MaglevGraphBuilder::TryReduceBuiltin(compiler::JSFunctionRef target,
                                                 CallArguments& args) {
+  if (args.has_spread()) {
+    // TODO(victorgomes): Some builtins might be able to be reducer with a
+    // spread argument.
+    return nullptr;
+  }
   if (!target.shared().HasBuiltinId()) return nullptr;
   switch (target.shared().builtin_id()) {
 #define CASE(Name)       \
@@ -2976,10 +2986,41 @@ ValueNode* MaglevGraphBuilder::GetConvertReceiver(
                                      args.receiver_mode());
 }
 
+template <typename CallNode, typename... Args>
+CallNode* MaglevGraphBuilder::AddNewCallNode(const CallArguments& args,
+                                             Args&&... extra_args) {
+  size_t input_count = args.count_with_receiver() + CallNode::kFixedInputCount;
+  CallNode* call =
+      CreateNewNode<CallNode>(input_count, std::forward<Args>(extra_args)...);
+  int arg_index = 0;
+  call->set_arg(arg_index++, GetTaggedOrUndefined(args.receiver()));
+  for (size_t i = 0; i < args.count(); ++i) {
+    call->set_arg(arg_index++, GetTaggedValue(args[i]));
+  }
+  return AddNode(call);
+}
+
+ValueNode* MaglevGraphBuilder::BuildGenericCall(
+    ValueNode* target, ValueNode* context, Call::TargetType target_type,
+    const CallArguments& args,
+    const compiler::FeedbackSource& feedback_source) {
+  if (args.has_spread()) {
+    DCHECK_EQ(args.receiver_mode(), ConvertReceiverMode::kAny);
+    return AddNewCallNode<CallWithSpread>(args, feedback_source, target,
+                                          context);
+  }
+  return AddNewCallNode<Call>(args, args.receiver_mode(), target_type,
+                              feedback_source, target, context);
+}
+
 ValueNode* MaglevGraphBuilder::TryBuildCallKnownJSFunction(
     compiler::JSFunctionRef function, CallArguments& args) {
   // Don't inline CallFunction stub across native contexts.
   if (function.native_context() != broker()->target_native_context()) {
+    return nullptr;
+  }
+  if (args.has_spread()) {
+    // TODO(victorgomes): Maybe inline the spread stub?
     return nullptr;
   }
   ValueNode* receiver = GetConvertReceiver(function, args);
@@ -2988,22 +3029,6 @@ ValueNode* MaglevGraphBuilder::TryBuildCallKnownJSFunction(
       CreateNewNode<CallKnownJSFunction>(input_count, function, receiver);
   for (int i = 0; i < static_cast<int>(args.count()); i++) {
     call->set_arg(i, GetTaggedValue(args[i]));
-  }
-  return AddNode(call);
-}
-
-Call* MaglevGraphBuilder::BuildGenericCall(
-    ValueNode* target, ValueNode* context, Call::TargetType target_type,
-    const CallArguments& args,
-    const compiler::FeedbackSource& feedback_source) {
-  size_t input_count = args.count_with_receiver() + Call::kFixedInputCount;
-  Call* call =
-      CreateNewNode<Call>(input_count, args.receiver_mode(), target_type,
-                          feedback_source, target, context);
-  int arg_index = 0;
-  call->set_arg(arg_index++, GetTaggedOrUndefined(args.receiver()));
-  for (size_t i = 0; i < args.count(); ++i) {
-    call->set_arg(arg_index++, GetTaggedValue(args[i]));
   }
   return AddNode(call);
 }
@@ -3163,26 +3188,18 @@ void MaglevGraphBuilder::VisitCallUndefinedReceiver2() {
 
 void MaglevGraphBuilder::VisitCallWithSpread() {
   ValueNode* function = LoadRegisterTagged(0);
-  interpreter::RegisterList args = iterator_.GetRegisterListOperand(1);
-  ValueNode* context = GetContext();
+  interpreter::RegisterList reglist = iterator_.GetRegisterListOperand(1);
   FeedbackSlot slot = GetSlotOperand(3);
   compiler::FeedbackSource feedback_source(feedback(), slot);
-
-  size_t input_count = args.register_count() + CallWithSpread::kFixedInputCount;
-  CallWithSpread* call = CreateNewNode<CallWithSpread>(
-      input_count, feedback_source, function, context);
-  for (int i = 0; i < args.register_count(); ++i) {
-    call->set_arg(i, GetTaggedValue(args[i]));
-  }
-
-  SetAccumulator(AddNode(call));
+  CallArguments args(ConvertReceiverMode::kAny, reglist,
+                     current_interpreter_frame_, true);
+  BuildCall(function, args, feedback_source);
 }
 
 void MaglevGraphBuilder::VisitCallRuntime() {
   Runtime::FunctionId function_id = iterator_.GetRuntimeIdOperand(0);
   interpreter::RegisterList args = iterator_.GetRegisterListOperand(1);
   ValueNode* context = GetContext();
-
   size_t input_count = args.register_count() + CallRuntime::kFixedInputCount;
   CallRuntime* call_runtime =
       CreateNewNode<CallRuntime>(input_count, function_id, context);

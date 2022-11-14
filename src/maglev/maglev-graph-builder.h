@@ -1141,15 +1141,18 @@ class MaglevGraphBuilder {
   MAGLEV_REDUCED_BUILTIN(DEFINE_BUILTIN_REDUCER)
 #undef DEFINE_BUILTIN_REDUCER
 
+  template <typename CallNode, typename... Args>
+  CallNode* AddNewCallNode(const CallArguments& args, Args&&... extra_args);
+
   ValueNode* TryReduceBuiltin(compiler::JSFunctionRef builtin_target,
                               CallArguments& args);
   ValueNode* TryBuildCallKnownJSFunction(compiler::JSFunctionRef function,
                                          CallArguments& args);
-  Call* BuildGenericCall(ValueNode* target, ValueNode* context,
-                         Call::TargetType target_type,
-                         const CallArguments& args,
-                         const compiler::FeedbackSource& feedback_source =
-                             compiler::FeedbackSource());
+  ValueNode* BuildGenericCall(ValueNode* target, ValueNode* context,
+                              Call::TargetType target_type,
+                              const CallArguments& args,
+                              const compiler::FeedbackSource& feedback_source =
+                                  compiler::FeedbackSource());
   ValueNode* ReduceCall(compiler::ObjectRef target, CallArguments& args);
   void BuildCall(ValueNode* target_node, CallArguments& args,
                  compiler::FeedbackSource& feedback_source);
