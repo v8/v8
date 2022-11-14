@@ -885,7 +885,7 @@ class FastCApiObject {
       args.GetReturnValue().Set(Number::New(isolate, result));
     } else {
       IntegerT clamped = std::numeric_limits<IntegerT>::max();
-      if (std::isnan(checked_arg_dbl)) {
+      if (std::isnan(checked_arg_dbl) || std::isnan(real_arg)) {
         clamped = 0;
       } else {
         IntegerT lower_bound = std::numeric_limits<IntegerT>::min();
