@@ -301,23 +301,6 @@ template <Operation kOperation>
 using GenericNodeForOperation =
     typename NodeForOperationHelper<kOperation>::generic_type;
 
-// Bitwise operations reinterpreters the numeric input as Int32 bits for a
-// bitwise operation, which means we want to do slightly different conversions.
-template <Operation kOperation>
-constexpr bool BinaryOperationIsBitwiseInt32() {
-  switch (kOperation) {
-    case Operation::kBitwiseAnd:
-    case Operation::kBitwiseOr:
-    case Operation::kBitwiseXor:
-    case Operation::kShiftLeft:
-    case Operation::kShiftRight:
-    case Operation::kShiftRightLogical:
-      return true;
-    default:
-      return false;
-  }
-}
-
 // TODO(victorgomes): Remove this once all operations have fast paths.
 template <Operation kOperation>
 constexpr bool BinaryOperationHasInt32FastPath() {
@@ -340,7 +323,7 @@ constexpr bool BinaryOperationHasInt32FastPath() {
     case Operation::kGreaterThan:
     case Operation::kGreaterThanOrEqual:
       return true;
-    case Operation::kExponentiate:
+    default:
       return false;
   }
 }
@@ -498,16 +481,9 @@ ValueNode* MaglevGraphBuilder::TryFoldInt32BinaryOperation(ValueNode* left,
 
 template <Operation kOperation>
 void MaglevGraphBuilder::BuildInt32BinaryOperationNode() {
-  // Truncating Int32 nodes treat their input as a signed int32 regardless
-  // of whether it's really signed or not, so we allow Uint32 by loading a
-  // TruncatedInt32 value.
-  static const bool inputs_are_truncated =
-      BinaryOperationIsBitwiseInt32<kOperation>();
   // TODO(v8:7700): Do constant folding.
-  ValueNode* left = inputs_are_truncated ? LoadRegisterTruncatedInt32(0)
-                                         : LoadRegisterInt32(0);
-  ValueNode* right = inputs_are_truncated ? GetAccumulatorTruncatedInt32()
-                                          : GetAccumulatorInt32();
+  ValueNode* left = LoadRegisterInt32(0);
+  ValueNode* right = GetAccumulatorInt32();
 
   if (ValueNode* result =
           TryFoldInt32BinaryOperation<kOperation>(left, right)) {
@@ -534,43 +510,13 @@ void MaglevGraphBuilder::BuildInt32BinaryOperationNode() {
 }
 
 template <Operation kOperation>
-void MaglevGraphBuilder::BuildTruncatingInt32BinaryOperationNodeForNumber() {
-  DCHECK(BinaryOperationIsBitwiseInt32<kOperation>());
-  // TODO(v8:7700): Do constant folding.
-  ValueNode* left;
-  ValueNode* right;
-  if (IsRegisterEqualToAccumulator(0)) {
-    left = right = GetTruncatedInt32FromNumber(
-        current_interpreter_frame_.get(iterator_.GetRegisterOperand(0)));
-  } else {
-    left = GetTruncatedInt32FromNumber(
-        current_interpreter_frame_.get(iterator_.GetRegisterOperand(0)));
-    right =
-        GetTruncatedInt32FromNumber(current_interpreter_frame_.accumulator());
-  }
-
-  if (ValueNode* result =
-          TryFoldInt32BinaryOperation<kOperation>(left, right)) {
-    SetAccumulator(result);
-    return;
-  }
-  SetAccumulator(AddNewNode<Int32NodeFor<kOperation>>({left, right}));
-}
-
-template <Operation kOperation>
 void MaglevGraphBuilder::BuildInt32BinarySmiOperationNode() {
-  // Truncating Int32 nodes treat their input as a signed int32 regardless
-  // of whether it's really signed or not, so we allow Uint32 by loading a
-  // TruncatedInt32 value.
-  static const bool inputs_are_truncated =
-      BinaryOperationIsBitwiseInt32<kOperation>();
   // TODO(v8:7700): Do constant folding.
-  ValueNode* left = inputs_are_truncated ? GetAccumulatorTruncatedInt32()
-                                         : GetAccumulatorInt32();
+  ValueNode* left = GetAccumulatorInt32();
   int32_t constant = iterator_.GetImmediateOperand(0);
   if (base::Optional<int>(constant) == Int32Identity<kOperation>()) {
     // If the constant is the unit of the operation, it already has the right
-    // value, so just return.
+    // value, so we can just return.
     return;
   }
   if (ValueNode* result =
@@ -593,30 +539,6 @@ void MaglevGraphBuilder::BuildInt32BinarySmiOperationNode() {
     AddNewNode<CheckUint32IsSmi>({result});
   }
   SetAccumulator(result);
-}
-
-template <Operation kOperation>
-void MaglevGraphBuilder::BuildTruncatingInt32BinarySmiOperationNodeForNumber() {
-  DCHECK(BinaryOperationIsBitwiseInt32<kOperation>());
-  // TODO(v8:7700): Do constant folding.
-  ValueNode* left =
-      GetTruncatedInt32FromNumber(current_interpreter_frame_.accumulator());
-  int32_t constant = iterator_.GetImmediateOperand(0);
-  if (base::Optional<int>(constant) == Int32Identity<kOperation>()) {
-    // If the constant is the unit of the operation, it already has the right
-    // value, so use the truncated value (if not just a conversion) and return.
-    if (!left->properties().is_conversion()) {
-      current_interpreter_frame_.set_accumulator(left);
-    }
-    return;
-  }
-  if (ValueNode* result =
-          TryFoldInt32BinaryOperation<kOperation>(left, constant)) {
-    SetAccumulator(result);
-    return;
-  }
-  ValueNode* right = GetInt32Constant(constant);
-  SetAccumulator(AddNewNode<Int32NodeFor<kOperation>>({left, right}));
 }
 
 template <Operation kOperation>
@@ -648,20 +570,26 @@ void MaglevGraphBuilder::VisitBinaryOperation() {
   FeedbackNexus nexus = FeedbackNexusForOperand(1);
   switch (nexus.GetBinaryOperationFeedback()) {
     case BinaryOperationHint::kNone:
-      return EmitUnconditionalDeopt(
+      EmitUnconditionalDeopt(
           DeoptimizeReason::kInsufficientTypeFeedbackForBinaryOperation);
+      return;
     case BinaryOperationHint::kSignedSmall:
       if constexpr (BinaryOperationHasInt32FastPath<kOperation>()) {
-        return BuildInt32BinaryOperationNode<kOperation>();
+        BuildInt32BinaryOperationNode<kOperation>();
+        return;
       }
       break;
     case BinaryOperationHint::kSignedSmallInputs:
     case BinaryOperationHint::kNumber:
       if constexpr (BinaryOperationHasFloat64FastPath<kOperation>()) {
-        return BuildFloat64BinaryOperationNode<kOperation>();
-      } else if constexpr (BinaryOperationHasInt32FastPath<kOperation>() &&
-                           BinaryOperationIsBitwiseInt32<kOperation>()) {
-        return BuildTruncatingInt32BinaryOperationNodeForNumber<kOperation>();
+        BuildFloat64BinaryOperationNode<kOperation>();
+        return;
+        // } else if constexpr (BinaryOperationHasInt32FastPath<kOperation>()) {
+        //   // Fall back to int32 fast path if there is one (this will be the
+        //   case
+        //   // for operations that deal with bits rather than numbers).
+        //   BuildInt32BinaryOperationNode<kOperation>();
+        //   return;
       }
       break;
     default:
@@ -676,21 +604,26 @@ void MaglevGraphBuilder::VisitBinarySmiOperation() {
   FeedbackNexus nexus = FeedbackNexusForOperand(1);
   switch (nexus.GetBinaryOperationFeedback()) {
     case BinaryOperationHint::kNone:
-      return EmitUnconditionalDeopt(
+      EmitUnconditionalDeopt(
           DeoptimizeReason::kInsufficientTypeFeedbackForBinaryOperation);
+      return;
     case BinaryOperationHint::kSignedSmall:
       if constexpr (BinaryOperationHasInt32FastPath<kOperation>()) {
-        return BuildInt32BinarySmiOperationNode<kOperation>();
+        BuildInt32BinarySmiOperationNode<kOperation>();
+        return;
       }
       break;
     case BinaryOperationHint::kSignedSmallInputs:
     case BinaryOperationHint::kNumber:
       if constexpr (BinaryOperationHasFloat64FastPath<kOperation>()) {
-        return BuildFloat64BinarySmiOperationNode<kOperation>();
-      } else if constexpr (BinaryOperationHasInt32FastPath<kOperation>() &&
-                           BinaryOperationIsBitwiseInt32<kOperation>()) {
-        return BuildTruncatingInt32BinarySmiOperationNodeForNumber<
-            kOperation>();
+        BuildFloat64BinarySmiOperationNode<kOperation>();
+        return;
+        // } else if constexpr (BinaryOperationHasInt32FastPath<kOperation>()) {
+        //   // Fall back to int32 fast path if there is one (this will be the
+        //   case
+        //   // for operations that deal with bits rather than numbers).
+        //   BuildInt32BinarySmiOperationNode<kOperation>();
+        //   return;
       }
       break;
     default:
