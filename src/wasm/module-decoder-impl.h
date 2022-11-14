@@ -1622,12 +1622,31 @@ class ModuleDecoderTemplate : public Decoder {
   void ValidateAllFunctions() {
     DCHECK(ok());
 
-    // Spawn a {ValidateFunctionsTask} and join it. The earliest error found
-    // will be set on this decoder.
-    std::unique_ptr<JobHandle> job_handle = V8::GetCurrentPlatform()->CreateJob(
-        TaskPriority::kUserVisible,
-        std::make_unique<ValidateFunctionsTask>(this));
-    job_handle->Join();
+    class NeverYieldDelegate final : public JobDelegate {
+     public:
+      bool ShouldYield() override { return false; }
+
+      bool IsJoiningThread() const override { UNIMPLEMENTED(); }
+      void NotifyConcurrencyIncrease() override { UNIMPLEMENTED(); }
+      uint8_t GetTaskId() override { UNIMPLEMENTED(); }
+    };
+
+    // Create a {ValidateFunctionsTask} to validate all functions. The earliest
+    // error found will be set on this decoder.
+    std::unique_ptr<JobTask> validate_job =
+        std::make_unique<ValidateFunctionsTask>(this);
+
+    if (v8_flags.single_threaded) {
+      // In single-threaded mode, run the {ValidateFunctionsTask} synchronously.
+      NeverYieldDelegate delegate;
+      validate_job->Run(&delegate);
+    } else {
+      // Spawn the task and join it.
+      std::unique_ptr<JobHandle> job_handle =
+          V8::GetCurrentPlatform()->CreateJob(TaskPriority::kUserVisible,
+                                              std::move(validate_job));
+      job_handle->Join();
+    }
   }
 
   // Decodes an entire module.
