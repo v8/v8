@@ -2014,12 +2014,13 @@ struct LateOptimizationPhase {
 struct MachineOperatorOptimizationPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(MachineOperatorOptimization)
 
-  void Run(PipelineData* data, Zone* temp_zone) {
+  void Run(PipelineData* data, Zone* temp_zone, bool allow_signalling_nan) {
     GraphReducer graph_reducer(
         temp_zone, data->graph(), &data->info()->tick_counter(), data->broker(),
         data->jsgraph()->Dead(), data->observe_node_manager());
     ValueNumberingReducer value_numbering(temp_zone, data->graph()->zone());
-    MachineOperatorReducer machine_reducer(&graph_reducer, data->jsgraph());
+    MachineOperatorReducer machine_reducer(&graph_reducer, data->jsgraph(),
+                                           allow_signalling_nan);
 
     AddReducer(data, &graph_reducer, &machine_reducer);
     AddReducer(data, &graph_reducer, &value_numbering);
@@ -3014,7 +3015,7 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
     // Run value numbering and machine operator reducer to optimize load/store
     // address computation (in particular, reuse the address computation
     // whenever possible).
-    Run<MachineOperatorOptimizationPhase>();
+    Run<MachineOperatorOptimizationPhase>(true);
     RunPrintAndVerify(MachineOperatorOptimizationPhase::phase_name(), true);
 
     Run<DecompressionOptimizationPhase>();
@@ -3443,7 +3444,7 @@ void Pipeline::GenerateCodeForWasmFunction(
     // Run value numbering and machine operator reducer to optimize load/store
     // address computation (in particular, reuse the address computation
     // whenever possible).
-    pipeline.Run<MachineOperatorOptimizationPhase>();
+    pipeline.Run<MachineOperatorOptimizationPhase>(is_asm_js);
     pipeline.RunPrintAndVerify(MachineOperatorOptimizationPhase::phase_name(),
                                true);
     if (!v8_flags.turboshaft_wasm) {
