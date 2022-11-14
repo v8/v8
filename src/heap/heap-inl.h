@@ -61,7 +61,7 @@ T ForwardingAddress(T heap_obj) {
   MapWord map_word = heap_obj.map_word(kRelaxedLoad);
 
   if (map_word.IsForwardingAddress()) {
-    return T::cast(map_word.ToForwardingAddress());
+    return T::cast(map_word.ToForwardingAddress(heap_obj));
   } else if (Heap::InFromPage(heap_obj)) {
     DCHECK(!v8_flags.minor_mc);
     return T();

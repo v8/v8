@@ -1116,7 +1116,7 @@ void VisitSpillSlot(Isolate* isolate, RootVisitor* v,
         HeapObject raw = HeapObject::cast(Object(*spill_slot.location()));
         MapWord map_word = raw.map_word(cage_base, kRelaxedLoad);
         HeapObject forwarded = map_word.IsForwardingAddress()
-                                   ? map_word.ToForwardingAddress()
+                                   ? map_word.ToForwardingAddress(raw)
                                    : raw;
         bool is_self_forwarded =
             forwarded.map_word(cage_base, kRelaxedLoad).ptr() ==
@@ -1132,7 +1132,7 @@ void VisitSpillSlot(Isolate* isolate, RootVisitor* v,
           MapWord fwd_map_map_word =
               forwarded_map.map_word(cage_base, kRelaxedLoad);
           if (fwd_map_map_word.IsForwardingAddress()) {
-            forwarded_map = fwd_map_map_word.ToForwardingAddress();
+            forwarded_map = fwd_map_map_word.ToForwardingAddress(forwarded_map);
           }
           CHECK(forwarded_map.IsMap(cage_base));
         }

@@ -76,7 +76,7 @@ void StringForwardingTable::Block::UpdateAfterEvacuation(
       DCHECK(!object.InSharedWritableHeap());
       MapWord map_word = object.map_word(kRelaxedLoad);
       if (map_word.IsForwardingAddress()) {
-        HeapObject forwarded_object = map_word.ToForwardingAddress();
+        HeapObject forwarded_object = map_word.ToForwardingAddress(object);
         record(index)->set_original_string(forwarded_object);
       } else {
         record(index)->set_original_string(deleted_element());

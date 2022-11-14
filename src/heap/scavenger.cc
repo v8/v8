@@ -296,7 +296,7 @@ class GlobalHandlesWeakRootsUpdatingVisitor final : public RootVisitor {
     CHECK(Heap::InFromPage(heap_object));
     MapWord first_word = heap_object.map_word(kRelaxedLoad);
     CHECK(first_word.IsForwardingAddress());
-    HeapObject dest = first_word.ToForwardingAddress();
+    HeapObject dest = first_word.ToForwardingAddress(heap_object);
     HeapObjectReference::Update(FullHeapObjectSlot(p), dest);
     CHECK_IMPLIES(Heap::InYoungGeneration(dest),
                   Heap::InToPage(dest) || Heap::IsLargeObject(dest));
@@ -552,7 +552,7 @@ void ScavengerCollector::HandleSurvivingNewLargeObjects() {
     Map map = update_info.second;
     // Order is important here. We have to re-install the map to have access
     // to meta-data like size during page promotion.
-    object.set_map_word(MapWord::FromMap(map), kRelaxedStore);
+    object.set_map_word(map, kRelaxedStore);
 
     if (is_compacting && marking_state->IsBlack(object) &&
         MarkCompactCollector::IsOnEvacuationCandidate(map)) {

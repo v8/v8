@@ -489,7 +489,7 @@ void IncrementalMarking::UpdateMarkingWorklistAfterYoungGenGC() {
         // Hence, we can discard them.
         return false;
       }
-      HeapObject dest = map_word.ToForwardingAddress();
+      HeapObject dest = map_word.ToForwardingAddress(obj);
       USE(this);
       DCHECK_IMPLIES(marking_state->IsWhite(obj), obj.IsFreeSpaceOrFiller());
       if (dest.InSharedHeap()) {

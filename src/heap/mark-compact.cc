@@ -1680,7 +1680,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
       if (mode != MigrationMode::kFast)
         base->ExecuteMigrationObservers(dest, src, dst, size);
     }
-    src.set_map_word(MapWord::FromForwardingAddress(dst), kRelaxedStore);
+    src.set_map_word_forwarded(dst, kRelaxedStore);
   }
 
   EvacuateVisitorBase(Heap* heap, EvacuationAllocator* local_allocator,
@@ -1835,8 +1835,7 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
     if (map.visitor_id() == kVisitThinString) {
       HeapObject actual = ThinString::cast(object).unchecked_actual();
       if (MarkCompactCollector::IsOnEvacuationCandidate(actual)) return false;
-      object.set_map_word(MapWord::FromForwardingAddress(actual),
-                          kRelaxedStore);
+      object.set_map_word_forwarded(actual, kRelaxedStore);
       return true;
     }
     // TODO(mlippautz): Handle ConsString.
@@ -3705,7 +3704,7 @@ MaybeObject MakeSlotValue<FullMaybeObjectSlot, HeapObjectReferenceType::STRONG>(
 // The following specialization
 //   MakeSlotValue<FullMaybeObjectSlot, HeapObjectReferenceType::WEAK>()
 // is not used.
-#endif
+#endif  // V8_COMPRESS_POINTERS
 
 template <AccessMode access_mode, HeapObjectReferenceType reference_type,
           typename TSlot>
@@ -3725,10 +3724,8 @@ static inline void UpdateSlot(PtrComprCageBase cage_base, TSlot slot,
                    MarkCompactCollector::IsOnEvacuationCandidate(heap_obj) ||
                        Page::FromHeapObject(heap_obj)->IsFlagSet(
                            Page::COMPACTION_WAS_ABORTED));
-    PtrComprCageBase host_cage_base =
-        V8_EXTERNAL_CODE_SPACE_BOOL ? GetPtrComprCageBase(heap_obj) : cage_base;
     typename TSlot::TObject target = MakeSlotValue<TSlot, reference_type>(
-        map_word.ToForwardingAddress(host_cage_base));
+        map_word.ToForwardingAddress(heap_obj));
     if (access_mode == AccessMode::NON_ATOMIC) {
       // Needs to be atomic for map space compaction: This slot could be a map
       // word which we update while loading the map word for updating the slot
@@ -3925,7 +3922,7 @@ static String UpdateReferenceInExternalStringTableEntry(Heap* heap,
   MapWord map_word = old_string.map_word(kRelaxedLoad);
 
   if (map_word.IsForwardingAddress()) {
-    String new_string = String::cast(map_word.ToForwardingAddress());
+    String new_string = String::cast(map_word.ToForwardingAddress(old_string));
 
     if (new_string.IsExternalString()) {
       MemoryChunk::MoveExternalBackingStoreBytes(
@@ -4533,7 +4530,7 @@ class EvacuationWeakObjectRetainer : public WeakObjectRetainer {
       HeapObject heap_object = HeapObject::cast(object);
       MapWord map_word = heap_object.map_word(kRelaxedLoad);
       if (map_word.IsForwardingAddress()) {
-        return map_word.ToForwardingAddress();
+        return map_word.ToForwardingAddress(heap_object);
       }
     }
     return object;
@@ -4895,7 +4892,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
       MapWord map_word = heap_object.map_word(kRelaxedLoad);
       if (map_word.IsForwardingAddress()) {
         HeapObjectReference::Update(THeapObjectSlot(slot),
-                                    map_word.ToForwardingAddress());
+                                    map_word.ToForwardingAddress(heap_object));
       }
       bool success = (*slot).GetHeapObject(&heap_object);
       USE(success);
@@ -4918,8 +4915,8 @@ class RememberedSetUpdatingItem : public UpdatingItem {
       if (v8_flags.minor_mc) {
         MapWord map_word = heap_object.map_word(kRelaxedLoad);
         if (map_word.IsForwardingAddress()) {
-          HeapObjectReference::Update(THeapObjectSlot(slot),
-                                      map_word.ToForwardingAddress());
+          HeapObjectReference::Update(
+              THeapObjectSlot(slot), map_word.ToForwardingAddress(heap_object));
           bool success = (*slot).GetHeapObject(&heap_object);
           USE(success);
           DCHECK(success);
@@ -5181,7 +5178,7 @@ class EphemeronTableUpdatingItem : public UpdatingItem {
         HeapObject key = key_slot.ToHeapObject();
         MapWord map_word = key.map_word(cage_base, kRelaxedLoad);
         if (map_word.IsForwardingAddress()) {
-          key = map_word.ToForwardingAddress();
+          key = map_word.ToForwardingAddress(key);
           key_slot.StoreHeapObject(key);
         }
         if (!heap_->InYoungGeneration(key)) {

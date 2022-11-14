@@ -973,13 +973,13 @@ void UpdateRetainersMapAfterScavenge(UnorderedHeapObjectMap<HeapObject>* map) {
     if (Heap::InFromPage(object)) {
       MapWord map_word = object.map_word(kRelaxedLoad);
       if (!map_word.IsForwardingAddress()) continue;
-      object = map_word.ToForwardingAddress();
+      object = map_word.ToForwardingAddress(object);
     }
 
     if (Heap::InFromPage(retainer)) {
       MapWord map_word = retainer.map_word(kRelaxedLoad);
       if (!map_word.IsForwardingAddress()) continue;
-      retainer = map_word.ToForwardingAddress();
+      retainer = map_word.ToForwardingAddress(retainer);
     }
 
     updated_map[object] = retainer;
@@ -1005,7 +1005,7 @@ void Heap::UpdateRetainersAfterScavenge() {
     if (Heap::InFromPage(object)) {
       MapWord map_word = object.map_word(kRelaxedLoad);
       if (!map_word.IsForwardingAddress()) continue;
-      object = map_word.ToForwardingAddress();
+      object = map_word.ToForwardingAddress(object);
     }
 
     updated_retaining_root[object] = pair.second;
@@ -2756,7 +2756,7 @@ String Heap::UpdateYoungReferenceInExternalStringTableEntry(Heap* heap,
       heap->FinalizeExternalString(string);
       return String();
     }
-    new_string = String::cast(first_word.ToForwardingAddress());
+    new_string = String::cast(first_word.ToForwardingAddress(obj));
   } else {
     new_string = String::cast(obj);
   }
@@ -6999,12 +6999,7 @@ Map Heap::GcSafeMapOfCodeSpaceObject(HeapObject object) {
   PtrComprCageBase cage_base(isolate());
   MapWord map_word = object.map_word(cage_base, kRelaxedLoad);
   if (map_word.IsForwardingAddress()) {
-#ifdef V8_EXTERNAL_CODE_SPACE
-    PtrComprCageBase code_cage_base(isolate()->code_cage_base());
-#else
-    PtrComprCageBase code_cage_base = cage_base;
-#endif
-    return map_word.ToForwardingAddress(code_cage_base).map(cage_base);
+    return map_word.ToForwardingAddress(object).map(cage_base);
   }
   return map_word.ToMap();
 }

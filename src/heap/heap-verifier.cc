@@ -498,11 +498,11 @@ void HeapVerifier::VerifySafeMapTransition(Heap* heap, HeapObject object,
   object.IterateFast(cage_base, &old_visitor);
   MapWord old_map_word = object.map_word(cage_base, kRelaxedLoad);
   // Temporarily set the new map to iterate new slots.
-  object.set_map_word(MapWord::FromMap(new_map), kRelaxedStore);
+  object.set_map_word(new_map, kRelaxedStore);
   SlotCollectingVisitor new_visitor;
   object.IterateFast(cage_base, &new_visitor);
   // Restore the old map.
-  object.set_map_word(old_map_word, kRelaxedStore);
+  object.set_map_word(old_map_word.ToMap(), kRelaxedStore);
   DCHECK_EQ(new_visitor.number_of_slots(), old_visitor.number_of_slots());
   for (int i = 0; i < new_visitor.number_of_slots(); i++) {
     DCHECK_EQ(new_visitor.slot(i), old_visitor.slot(i));
