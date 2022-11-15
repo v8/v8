@@ -19,13 +19,6 @@ PtrComprCageBase::PtrComprCageBase(const Isolate* isolate)
 PtrComprCageBase::PtrComprCageBase(const LocalIsolate* isolate)
     : address_(isolate->cage_base()) {}
 
-Address PtrComprCageBase::address() const {
-  Address ret = address_;
-  ret = reinterpret_cast<Address>(V8_ASSUME_ALIGNED(
-      reinterpret_cast<void*>(ret), kPtrComprCageBaseAlignment));
-  return ret;
-}
-
 //
 // V8HeapCompressionScheme
 //
@@ -39,7 +32,10 @@ Address V8HeapCompressionScheme::GetPtrComprCageBaseAddress(
 // static
 Address V8HeapCompressionScheme::GetPtrComprCageBaseAddress(
     PtrComprCageBase cage_base) {
-  return cage_base.address();
+  Address base = cage_base.address();
+  base = reinterpret_cast<Address>(V8_ASSUME_ALIGNED(
+      reinterpret_cast<void*>(base), kPtrComprCageBaseAlignment));
+  return base;
 }
 
 // static
@@ -84,6 +80,66 @@ void V8HeapCompressionScheme::ProcessIntermediatePointers(
       static_cast<Tagged_t>(raw_value >> (sizeof(Tagged_t) * CHAR_BIT)));
   callback(decompressed_high);
 }
+
+#ifdef V8_EXTERNAL_CODE_SPACE
+
+//
+// ExternalCodeCompressionScheme
+//
+
+// static
+Address ExternalCodeCompressionScheme::PrepareCageBaseAddress(
+    Address on_heap_addr) {
+  return RoundDown<kMinExpectedOSPageSize>(on_heap_addr);
+}
+
+// static
+Address ExternalCodeCompressionScheme::GetPtrComprCageBaseAddress(
+    PtrComprCageBase cage_base) {
+  Address base = cage_base.address();
+  base = reinterpret_cast<Address>(
+      V8_ASSUME_ALIGNED(reinterpret_cast<void*>(base), kMinExpectedOSPageSize));
+  return base;
+}
+
+// static
+Tagged_t ExternalCodeCompressionScheme::CompressTagged(Address tagged) {
+  return static_cast<Tagged_t>(static_cast<uint32_t>(tagged));
+}
+
+// static
+Address ExternalCodeCompressionScheme::DecompressTaggedSigned(
+    Tagged_t raw_value) {
+  // For runtime code the upper 32-bits of the Smi value do not matter.
+  return static_cast<Address>(raw_value);
+}
+
+// static
+template <typename TOnHeapAddress>
+Address ExternalCodeCompressionScheme::DecompressTaggedPointer(
+    TOnHeapAddress on_heap_addr, Tagged_t raw_value) {
+  Address cage_base = GetPtrComprCageBaseAddress(on_heap_addr);
+  Address diff = static_cast<Address>(static_cast<uint32_t>(raw_value)) -
+                 static_cast<Address>(static_cast<uint32_t>(cage_base));
+  // The cage base value was chosen such that it's less or equal than any
+  // pointer in the cage, thus if we got a negative diff then it means that
+  // the decompressed value is off by 4GB.
+  if (static_cast<intptr_t>(diff) < 0) {
+    diff += size_t{4} * GB;
+  }
+  DCHECK(is_uint32(diff));
+  return cage_base + diff;
+}
+
+// static
+template <typename TOnHeapAddress>
+Address ExternalCodeCompressionScheme::DecompressTaggedAny(
+    TOnHeapAddress on_heap_addr, Tagged_t raw_value) {
+  if (HAS_SMI_TAG(raw_value)) return DecompressTaggedSigned(raw_value);
+  return DecompressTaggedPointer(on_heap_addr, raw_value);
+}
+
+#endif  // V8_EXTERNAL_CODE_SPACE
 
 //
 // Misc functions.

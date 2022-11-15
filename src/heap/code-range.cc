@@ -108,21 +108,6 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
     requested = kMinimumCodeRangeSize;
   }
 
-  // When V8_EXTERNAL_CODE_SPACE_BOOL is enabled the allocatable region must
-  // not cross the 4Gb boundary and thus the default compression scheme of
-  // truncating the Code pointers to 32-bits still works. It's achieved by
-  // specifying base_alignment parameter.
-  // Note that the alignment is calculated before adjusting the requested size
-  // for GetWritableReservedAreaSize(). The reasons are:
-  //  - this extra page is used by breakpad on Windows and it's allowed to cross
-  //    the 4Gb boundary,
-  //  - rounding up the adjusted size would result in requresting unnecessarily
-  //    big aligment.
-  const size_t base_alignment =
-      V8_EXTERNAL_CODE_SPACE_BOOL
-          ? base::bits::RoundUpToPowerOfTwo(requested)
-          : VirtualMemoryCage::ReservationParams::kAnyBaseAlignment;
-
   const size_t reserved_area = GetWritableReservedAreaSize();
   if (requested < (kMaximalCodeRangeSize - reserved_area)) {
     requested += RoundUp(reserved_area, MemoryChunk::kPageSize);
@@ -137,7 +122,8 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
   params.page_allocator = page_allocator;
   params.reservation_size = requested;
   const size_t allocate_page_size = page_allocator->AllocatePageSize();
-  params.base_alignment = base_alignment;
+  params.base_alignment =
+      VirtualMemoryCage::ReservationParams::kAnyBaseAlignment;
   params.base_bias_size = RoundUp(reserved_area, allocate_page_size);
   params.page_size = MemoryChunk::kPageSize;
   params.requested_start_hint =
@@ -150,10 +136,14 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
 #ifdef V8_EXTERNAL_CODE_SPACE
   // Ensure that ExternalCodeCompressionScheme is applicable to all objects
   // stored in the code range.
+  using ComprScheme = ExternalCodeCompressionScheme;
   Address base = page_allocator_->begin();
   Address last = base + page_allocator_->size() - 1;
-  CHECK_EQ(ExternalCodeCompressionScheme::GetPtrComprCageBaseAddress(base),
-           ExternalCodeCompressionScheme::GetPtrComprCageBaseAddress(last));
+  PtrComprCageBase code_cage_base{base};
+  CHECK_EQ(base, ComprScheme::DecompressTaggedPointer(
+                     code_cage_base, ComprScheme::CompressTagged(base)));
+  CHECK_EQ(last, ComprScheme::DecompressTaggedPointer(
+                     code_cage_base, ComprScheme::CompressTagged(last)));
 #endif  // V8_EXTERNAL_CODE_SPACE
 
   // On some platforms, specifically Win64, we need to reserve some pages at
