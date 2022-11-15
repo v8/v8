@@ -2426,10 +2426,10 @@ class Heap {
   friend class CollectorBase;
   friend class ConcurrentAllocator;
   friend class ConcurrentMarking;
+  friend class ConservativeTracedHandlesMarkingVisitor;
   friend class EvacuateVisitorBase;
   friend class GCCallbacksScope;
   friend class GCTracer;
-  friend class GlobalHandleMarkingVisitor;
   friend class HeapAllocator;
   friend class HeapObjectIterator;
   friend class HeapVerifier;

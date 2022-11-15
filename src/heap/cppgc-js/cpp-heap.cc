@@ -47,10 +47,10 @@
 #include "src/heap/embedder-tracing-inl.h"
 #include "src/heap/embedder-tracing.h"
 #include "src/heap/gc-tracer.h"
-#include "src/heap/global-handle-marking-visitor.h"
 #include "src/heap/heap.h"
 #include "src/heap/marking-worklist.h"
 #include "src/heap/sweeper.h"
+#include "src/heap/traced-handles-marking-visitor.h"
 #include "src/init/v8.h"
 #include "src/profiler/heap-profiler.h"
 
@@ -307,22 +307,21 @@ class UnifiedHeapConservativeMarkingVisitor final
       : ConservativeMarkingVisitor(heap, mutator_marking_state, visitor) {}
   ~UnifiedHeapConservativeMarkingVisitor() override = default;
 
-  void SetGlobalHandlesMarkingVisitor(
-      std::unique_ptr<GlobalHandleMarkingVisitor>
+  void SetConservativeTracedHandlesMarkingVisitor(
+      std::unique_ptr<ConservativeTracedHandlesMarkingVisitor>
           global_handle_marking_visitor) {
-    global_handle_marking_visitor_ = std::move(global_handle_marking_visitor);
+    marking_visitor_ = std::move(global_handle_marking_visitor);
   }
 
   void TraceConservativelyIfNeeded(const void* address) override {
     ConservativeMarkingVisitor::TraceConservativelyIfNeeded(address);
-    if (global_handle_marking_visitor_) {
-      global_handle_marking_visitor_->VisitPointer(address);
+    if (marking_visitor_) {
+      marking_visitor_->VisitPointer(address);
     }
   }
 
  private:
-  std::unique_ptr<GlobalHandleMarkingVisitor> global_handle_marking_visitor_ =
-      nullptr;
+  std::unique_ptr<ConservativeTracedHandlesMarkingVisitor> marking_visitor_;
 };
 
 }  // namespace
@@ -788,8 +787,8 @@ void CppHeap::EnterFinalPause(cppgc::EmbedderStackState stack_state) {
   // TODO(1029379): Support global handle marking visitors with minor GC.
   if (isolate_ && !generational_gc_supported()) {
     auto& heap = *isolate()->heap();
-    marker.conservative_visitor().SetGlobalHandlesMarkingVisitor(
-        std::make_unique<GlobalHandleMarkingVisitor>(
+    marker.conservative_visitor().SetConservativeTracedHandlesMarkingVisitor(
+        std::make_unique<ConservativeTracedHandlesMarkingVisitor>(
             heap, *heap.mark_compact_collector()->local_marking_worklists()));
   }
   marker.EnterAtomicPause(stack_state);

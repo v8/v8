@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/heap/global-handle-marking-visitor.h"
+#include "src/heap/traced-handles-marking-visitor.h"
 
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/marking-worklist-inl.h"
@@ -10,14 +10,16 @@
 namespace v8 {
 namespace internal {
 
-GlobalHandleMarkingVisitor::GlobalHandleMarkingVisitor(
-    Heap& heap, MarkingWorklists::Local& local_marking_worklist)
+ConservativeTracedHandlesMarkingVisitor::
+    ConservativeTracedHandlesMarkingVisitor(
+        Heap& heap, MarkingWorklists::Local& local_marking_worklist)
     : heap_(heap),
       marking_state_(*heap_.marking_state()),
       local_marking_worklist_(local_marking_worklist),
       traced_node_bounds_(heap.isolate()->traced_handles()->GetNodeBounds()) {}
 
-void GlobalHandleMarkingVisitor::VisitPointer(const void* address) {
+void ConservativeTracedHandlesMarkingVisitor::VisitPointer(
+    const void* address) {
   const auto upper_it = std::upper_bound(
       traced_node_bounds_.begin(), traced_node_bounds_.end(), address,
       [](const void* needle, const auto& pair) { return needle < pair.first; });

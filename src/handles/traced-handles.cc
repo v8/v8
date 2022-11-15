@@ -998,10 +998,16 @@ void TracedHandles::Move(Address** from, Address** to) {
 }
 
 // static
-void TracedHandles::Mark(Address* location) {
+Object TracedHandles::Mark(Address* location) {
+  // The load synchronizes internal bitfields that are also read atomically
+  // from the concurrent marker. The counterpart is `TracedNode::Publish()`.
+  Object object =
+      Object(reinterpret_cast<std::atomic<Address>*>(location)->load(
+          std::memory_order_acquire));
   auto* node = TracedNode::FromLocation(location);
   DCHECK(node->is_in_use());
   node->set_markbit<AccessMode::ATOMIC>();
+  return object;
 }
 
 // static

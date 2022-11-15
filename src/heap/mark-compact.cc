@@ -31,7 +31,6 @@
 #include "src/heap/evacuation-verifier-inl.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
-#include "src/heap/global-handle-marking-visitor.h"
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking-inl.h"
 #include "src/heap/index-generator.h"
@@ -60,6 +59,7 @@
 #include "src/heap/slot-set.h"
 #include "src/heap/spaces-inl.h"
 #include "src/heap/sweeper.h"
+#include "src/heap/traced-handles-marking-visitor.h"
 #include "src/heap/weak-object-worklists.h"
 #include "src/init/v8.h"
 #include "src/logging/tracing-flags.h"
@@ -2027,9 +2027,9 @@ void MarkCompactCollector::MarkRoots(RootVisitor* root_visitor,
     if (stack.stack_start() &&
         heap_->local_embedder_heap_tracer()->embedder_stack_state() ==
             cppgc::EmbedderStackState::kMayContainHeapPointers) {
-      GlobalHandleMarkingVisitor global_handles_marker(
+      ConservativeTracedHandlesMarkingVisitor conservative_marker(
           *heap_, *local_marking_worklists_);
-      stack.IteratePointers(&global_handles_marker);
+      stack.IteratePointers(&conservative_marker);
     }
   }
 }
