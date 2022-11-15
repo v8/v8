@@ -80,6 +80,7 @@
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/store-store-elimination.h"
 #include "src/compiler/turboshaft/assembler.h"
+#include "src/compiler/turboshaft/branch-elimination-reducer.h"
 #include "src/compiler/turboshaft/decompression-optimization.h"
 #include "src/compiler/turboshaft/graph-builder.h"
 #include "src/compiler/turboshaft/graph-visualizer.h"
@@ -90,6 +91,7 @@
 #include "src/compiler/turboshaft/select-lowering-reducer.h"
 #include "src/compiler/turboshaft/simplify-tf-loops.h"
 #include "src/compiler/turboshaft/value-numbering-reducer.h"
+#include "src/compiler/turboshaft/variable-reducer.h"
 #include "src/compiler/type-narrowing-reducer.h"
 #include "src/compiler/typed-optimization.h"
 #include "src/compiler/typer.h"
@@ -1963,10 +1965,12 @@ struct LateOptimizationPhase {
 
   void Run(PipelineData* data, Zone* temp_zone) {
     if (data->HasTurboshaftGraph()) {
-      // TODO(dmercadier,tebbi): add missing reducers (LateEscapeAnalysis,
-      // BranchElimination, MachineOperatorReducer and CommonOperatorReducer).
+      // TODO(dmercadier,tebbi): add missing reducers (LateEscapeAnalysis and
+      // CommonOperatorReducer).
       turboshaft::OptimizationPhase<
+          turboshaft::VariableReducer, turboshaft::BranchEliminationReducer,
           turboshaft::SelectLoweringReducer,
+          turboshaft::MachineOptimizationReducerSignallingNanImpossible,
           turboshaft::ValueNumberingReducer>::Run(&data->turboshaft_graph(),
                                                   temp_zone,
                                                   data->node_origins());
@@ -1990,9 +1994,13 @@ struct LateOptimizationPhase {
                                        BranchSemantics::kMachine);
       SelectLowering select_lowering(&graph_assembler, data->graph());
       AddReducer(data, &graph_reducer, &escape_analysis);
-      AddReducer(data, &graph_reducer, &branch_condition_elimination);
+      if (!v8_flags.turboshaft) {
+        AddReducer(data, &graph_reducer, &branch_condition_elimination);
+      }
       AddReducer(data, &graph_reducer, &dead_code_elimination);
-      AddReducer(data, &graph_reducer, &machine_reducer);
+      if (!v8_flags.turboshaft) {
+        AddReducer(data, &graph_reducer, &machine_reducer);
+      }
       AddReducer(data, &graph_reducer, &common_reducer);
       if (!v8_flags.turboshaft) {
         AddReducer(data, &graph_reducer, &select_lowering);
@@ -2061,13 +2069,14 @@ struct BranchConditionDuplicationPhase {
 struct BuildTurboshaftPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(BuildTurboshaft)
 
-  base::Optional<BailoutReason> Run(PipelineData* data, Zone* temp_zone) {
+  base::Optional<BailoutReason> Run(PipelineData* data, Zone* temp_zone,
+                                    Linkage* linkage) {
     Schedule* schedule = data->schedule();
     data->reset_schedule();
     data->CreateTurboshaftGraph();
     if (auto bailout = turboshaft::BuildGraph(
             schedule, data->graph_zone(), temp_zone, &data->turboshaft_graph(),
-            data->source_positions(), data->node_origins())) {
+            linkage, data->source_positions(), data->node_origins())) {
       return bailout;
     }
     return {};
@@ -2093,9 +2102,9 @@ struct TurboshaftRecreateSchedulePhase {
 
   void Run(PipelineData* data, Zone* temp_zone, Linkage* linkage) {
     auto result = turboshaft::RecreateSchedule(
-        data->turboshaft_graph(), linkage->GetIncomingDescriptor(),
-        data->graph_zone(), temp_zone, data->source_positions(),
-        data->node_origins());
+        data->turboshaft_graph(), data->broker(),
+        linkage->GetIncomingDescriptor(), data->graph_zone(), temp_zone,
+        data->source_positions(), data->node_origins());
     data->set_graph(result.graph);
     data->set_schedule(result.schedule);
   }
@@ -3023,11 +3032,13 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
   ComputeScheduledGraph();
 
   if (v8_flags.turboshaft) {
-    if (base::Optional<BailoutReason> bailout = Run<BuildTurboshaftPhase>()) {
+    if (base::Optional<BailoutReason> bailout =
+            Run<BuildTurboshaftPhase>(linkage)) {
       info()->AbortOptimization(*bailout);
       data->EndPhaseKind();
       return false;
     }
+
     Run<PrintTurboshaftGraphPhase>(BuildTurboshaftPhase::phase_name());
 
     Run<LateOptimizationPhase>();
@@ -3468,7 +3479,7 @@ void Pipeline::GenerateCodeForWasmFunction(
 
   if (v8_flags.turboshaft_wasm) {
     if (base::Optional<BailoutReason> bailout =
-            pipeline.Run<BuildTurboshaftPhase>()) {
+            pipeline.Run<BuildTurboshaftPhase>(&linkage)) {
       pipeline.info()->AbortOptimization(*bailout);
       data.EndPhaseKind();
       info->SetWasmCompilationResult({});

@@ -19,6 +19,7 @@
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-aux-data.h"
 #include "src/compiler/node-origin-table.h"
+#include "src/compiler/node-properties.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
 #include "src/compiler/schedule.h"
@@ -37,6 +38,7 @@ struct GraphBuilder {
   Zone* phase_zone;
   Schedule& schedule;
   Assembler<> assembler;
+  Linkage* linkage;
   SourcePositionTable* source_positions;
   NodeOriginTable* origins;
 
@@ -146,7 +148,9 @@ struct GraphBuilder {
 
 base::Optional<BailoutReason> GraphBuilder::Run() {
   for (BasicBlock* block : *schedule.rpo_order()) {
-    block_mapping[block->rpo_number()] = assembler.NewBlock(BlockKind(block));
+    block_mapping[block->rpo_number()] = block->IsLoopHeader()
+                                             ? assembler.NewLoopHeader()
+                                             : assembler.NewBlock();
   }
   for (BasicBlock* block : *schedule.rpo_order()) {
     Block* target_block = Map(block);
@@ -278,7 +282,11 @@ OpIndex GraphBuilder::Process(
 
     case IrOpcode::kParameter: {
       const ParameterInfo& info = ParameterInfoOf(op);
-      return assembler.Parameter(info.index(), info.debug_name());
+      RegisterRepresentation rep =
+          RegisterRepresentation::FromMachineRepresentation(
+              linkage->GetParameterType(ParameterIndexOf(node->op()))
+                  .representation());
+      return assembler.Parameter(info.index(), rep, info.debug_name());
     }
 
     case IrOpcode::kOsrValue: {
@@ -725,13 +733,24 @@ OpIndex GraphBuilder::Process(
            ++i) {
         arguments.emplace_back(Map(node->InputAt(i)));
       }
+
+      ZoneVector<RegisterRepresentation> output_reps(graph_zone);
+      for (size_t i = 0; i < call_descriptor->ReturnCount(); i++) {
+        output_reps.push_back(RegisterRepresentation::FromMachineRepresentation(
+            call_descriptor->GetReturnType(i).representation()));
+      }
+
+      TSCallDescriptor* ts_descriptor = graph_zone->New<TSCallDescriptor>(
+          call_descriptor, base::VectorOf(output_reps));
+
       if (call_descriptor->NeedsFrameState()) {
         FrameState frame_state{
             node->InputAt(static_cast<int>(call_descriptor->InputCount()))};
         return assembler.CallMaybeDeopt(callee, base::VectorOf(arguments),
-                                        call_descriptor, Map(frame_state));
+                                        ts_descriptor, Map(frame_state));
       }
-      return assembler.Call(callee, base::VectorOf(arguments), call_descriptor);
+
+      return assembler.Call(callee, base::VectorOf(arguments), ts_descriptor);
     }
 
     case IrOpcode::kTailCall: {
@@ -745,7 +764,17 @@ OpIndex GraphBuilder::Process(
            ++i) {
         arguments.emplace_back(Map(node->InputAt(i)));
       }
-      assembler.TailCall(callee, base::VectorOf(arguments), call_descriptor);
+
+      ZoneVector<RegisterRepresentation> output_reps(graph_zone);
+      for (size_t i = 0; i < call_descriptor->ReturnCount(); i++) {
+        output_reps.push_back(RegisterRepresentation::FromMachineRepresentation(
+            call_descriptor->GetReturnType(i).representation()));
+      }
+
+      TSCallDescriptor* ts_descriptor = graph_zone->New<TSCallDescriptor>(
+          call_descriptor, base::VectorOf(output_reps));
+
+      assembler.TailCall(callee, base::VectorOf(arguments), ts_descriptor);
       return OpIndex::Invalid();
     }
 
@@ -803,7 +832,20 @@ OpIndex GraphBuilder::Process(
     case IrOpcode::kProjection: {
       Node* input = node->InputAt(0);
       size_t index = ProjectionIndexOf(op);
-      return assembler.Projection(Map(input), index);
+      RegisterRepresentation rep =
+          RegisterRepresentation::FromMachineRepresentation(
+              NodeProperties::GetProjectionType(node));
+      return assembler.Projection(Map(input), index, rep);
+    }
+
+    case IrOpcode::kStaticAssert: {
+      // We currently ignore StaticAsserts in turboshaft (because some of them
+      // need specific unported optimizations to be evaluated).
+      // TODO(turboshaft): once CommonOperatorReducer and MachineOperatorReducer
+      // have been ported, re-enable StaticAsserts.
+      // return assembler.ReduceStaticAssert(Map(node->InputAt(0)),
+      //                                     StaticAssertSourceOf(node->op()));
+      return OpIndex::Invalid();
     }
 
     default:
@@ -817,12 +859,13 @@ OpIndex GraphBuilder::Process(
 
 base::Optional<BailoutReason> BuildGraph(Schedule* schedule, Zone* graph_zone,
                                          Zone* phase_zone, Graph* graph,
+                                         Linkage* linkage,
                                          SourcePositionTable* source_positions,
                                          NodeOriginTable* origins) {
-  GraphBuilder builder{
-      graph_zone,       phase_zone,
-      *schedule,        Assembler<>(*graph, *graph, phase_zone),
-      source_positions, origins};
+  GraphBuilder builder{graph_zone, phase_zone,
+                       *schedule,  Assembler<>(*graph, *graph, phase_zone),
+                       linkage,    source_positions,
+                       origins};
   return builder.Run();
 }
 
