@@ -212,6 +212,7 @@ size_t HeapBase::ExecutePreFinalizers() {
 #if defined(CPPGC_YOUNG_GENERATION)
 void HeapBase::EnableGenerationalGC() {
   DCHECK(in_atomic_pause());
+  if (HeapHandle::is_young_generation_enabled_) return;
   // Notify the global flag that the write barrier must always be enabled.
   YoungGenerationEnabler::Enable();
   // Enable young generation for the current heap.

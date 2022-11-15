@@ -693,6 +693,22 @@ void CppHeap::ReduceGCCapabilititesFromFlags() {
 
 void CppHeap::InitializeTracing(CollectionType collection_type,
                                 GarbageCollectionFlags gc_flags) {
+  DCHECK(!collection_type_);
+
+  if (collection_type == CollectionType::kMinor) {
+    if (!generational_gc_supported()) return;
+    // Notify GC tracer that CppGC started young GC cycle.
+    isolate_->heap()->tracer()->NotifyYoungCppGCRunning();
+  }
+
+  collection_type_ = collection_type;
+
+  if (collection_type == CollectionType::kMinor) {
+    if (!generational_gc_supported()) return;
+    // Notify GC tracer that CppGC started young GC cycle.
+    isolate_->heap()->tracer()->NotifyYoungCppGCRunning();
+  }
+
   CHECK(!sweeper_.IsSweepingInProgress());
 
   // Check that previous cycle metrics for the same collection type have been
@@ -703,9 +719,6 @@ void CppHeap::InitializeTracing(CollectionType collection_type,
     else
       DCHECK(!GetMetricRecorder()->YoungGCMetricsReportPending());
   }
-
-  DCHECK(!collection_type_);
-  collection_type_ = collection_type;
 
 #if defined(CPPGC_YOUNG_GENERATION)
   if (generational_gc_supported() &&
@@ -738,6 +751,7 @@ void CppHeap::InitializeTracing(CollectionType collection_type,
 }
 
 void CppHeap::StartTracing() {
+  if (!TracingInitialized()) return;
   if (isolate_) {
     // Reuse the same local worklist for the mutator marking state which results
     // in directly processing the objects by the JS logic. Also avoids
@@ -754,6 +768,7 @@ void CppHeap::StartTracing() {
 }
 
 bool CppHeap::AdvanceTracing(double max_duration) {
+  if (!TracingInitialized()) return true;
   is_in_v8_marking_step_ = true;
   cppgc::internal::StatsCollector::EnabledScope stats_scope(
       stats_collector(),
@@ -777,11 +792,17 @@ bool CppHeap::AdvanceTracing(double max_duration) {
   return marking_done_;
 }
 
-bool CppHeap::IsTracingDone() { return marking_done_; }
+bool CppHeap::IsTracingDone() {
+  if (!TracingInitialized()) return true;
+  return marking_done_;
+}
 
 void CppHeap::EnterFinalPause(cppgc::EmbedderStackState stack_state) {
   CHECK(!in_disallow_gc_scope());
+  // Enter atomic pause even if tracing is not initialized. This is needed to
+  // make sure that we always enable young generation from the atomic pause.
   in_atomic_pause_ = true;
+  if (!TracingInitialized()) return;
   auto& marker = marker_.get()->To<UnifiedHeapMarker>();
   // Scan global handles conservatively in case we are attached to an Isolate.
   // TODO(1029379): Support global handle marking visitors with minor GC.
@@ -801,6 +822,7 @@ void CppHeap::EnterFinalPause(cppgc::EmbedderStackState stack_state) {
 }
 
 bool CppHeap::FinishConcurrentMarkingIfNeeded() {
+  if (!TracingInitialized()) return true;
   return marker_->JoinConcurrentMarkingIfNeeded();
 }
 
@@ -816,6 +838,12 @@ void CppHeap::TraceEpilogue() {
     EnableGenerationalGC();
   }
 #endif  // defined(CPPGC_YOUNG_GENERATION)
+
+  if (!TracingInitialized()) {
+    in_atomic_pause_ = false;
+    return;
+  }
+
   {
     cppgc::subtle::DisallowGarbageCollectionScope disallow_gc_scope(*this);
     marker_->LeaveAtomicPause();
@@ -871,35 +899,6 @@ void CppHeap::TraceEpilogue() {
   in_atomic_pause_ = false;
   collection_type_.reset();
   sweeper().NotifyDoneIfNeeded();
-}
-
-void CppHeap::RunMinorGCIfNeeded() {
-  if (!generational_gc_supported()) return;
-  if (in_no_gc_scope()) return;
-  // Minor GC does not support nesting in full GCs.
-  if (IsMarking()) return;
-  // Run only when the limit is reached.
-  if (!minor_gc_heap_growing_->LimitReached()) return;
-
-  DCHECK(!sweeper_.IsSweepingInProgress());
-
-  // Notify GC tracer that CppGC started young GC cycle.
-  isolate_->heap()->tracer()->NotifyYoungCppGCRunning();
-
-  SetStackEndOfCurrentGC(v8::base::Stack::GetCurrentStackPosition());
-
-  // Perform an atomic GC, with starting incremental/concurrent marking and
-  // immediately finalizing the garbage collection.
-  InitializeTracing(CollectionType::kMinor,
-                    GarbageCollectionFlagValues::kNoFlags);
-  StartTracing();
-  // TODO(chromium:1029379): Should be safe to run without stack.
-  EnterFinalPause(cppgc::EmbedderStackState::kMayContainHeapPointers);
-  CHECK(AdvanceTracing(std::numeric_limits<double>::infinity()));
-  if (FinishConcurrentMarkingIfNeeded()) {
-    CHECK(AdvanceTracing(std::numeric_limits<double>::infinity()));
-  }
-  TraceEpilogue();
 }
 
 void CppHeap::AllocatedObjectSizeIncreased(size_t bytes) {
@@ -1097,6 +1096,7 @@ std::unique_ptr<CppMarkingState> CppHeap::CreateCppMarkingState() {
 
 std::unique_ptr<CppMarkingState>
 CppHeap::CreateCppMarkingStateForMutatorThread() {
+  if (!TracingInitialized()) return {};
   DCHECK(IsMarking());
   return std::make_unique<CppMarkingState>(
       isolate(), wrapper_descriptor_,

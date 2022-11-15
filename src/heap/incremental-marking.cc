@@ -323,7 +323,8 @@ void IncrementalMarking::StartMarkingMajor() {
              GCTracer::Scope::MC_INCREMENTAL_EMBEDDER_PROLOGUE);
     // PrepareForTrace should be called before visitor initialization in
     // StartMarking. It is only used with CppHeap.
-    heap_->local_embedder_heap_tracer()->PrepareForTrace(embedder_flags);
+    heap_->local_embedder_heap_tracer()->PrepareForTrace(
+        embedder_flags, LocalEmbedderHeapTracer::CollectionType::kMajor);
   }
 
   major_collector_->StartMarking();

@@ -1673,15 +1673,19 @@ bool Heap::CollectGarbage(AllocationSpace space,
 #ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
     stack().set_marker(stack_marker);
 #endif
-    if (collector == GarbageCollector::MARK_COMPACTOR && cpp_heap()) {
-      // CppHeap needs a stack marker at the top of all entry points to allow
-      // deterministic passes over the stack. E.g., a verifier that should only
-      // find a subset of references of the marker.
-      //
-      // TODO(chromium:1056170): Consider adding a component that keeps track
-      // of relevant GC stack regions where interesting pointers can be found.
-      static_cast<v8::internal::CppHeap*>(cpp_heap())
-          ->SetStackEndOfCurrentGC(stack_marker);
+    if (cpp_heap()) {
+      if (collector == GarbageCollector::MARK_COMPACTOR ||
+          (collector == GarbageCollector::MINOR_MARK_COMPACTOR &&
+           CppHeap::From(cpp_heap())->generational_gc_supported())) {
+        // CppHeap needs a stack marker at the top of all entry points to allow
+        // deterministic passes over the stack. E.g., a verifier that should
+        // only find a subset of references of the marker.
+        //
+        // TODO(chromium:1056170): Consider adding a component that keeps track
+        // of relevant GC stack regions where interesting pointers can be found.
+        static_cast<v8::internal::CppHeap*>(cpp_heap())
+            ->SetStackEndOfCurrentGC(stack_marker);
+      }
     }
 
     GarbageCollectionPrologue(gc_reason, gc_callback_flags);
@@ -2257,24 +2261,16 @@ size_t Heap::PerformGarbageCollection(GarbageCollector collector,
         isolate_->global_handles()->InvokeFirstPassWeakCallbacks();
   }
 
-  if (collector == GarbageCollector::MARK_COMPACTOR) {
-    TRACE_GC(tracer(), GCTracer::Scope::HEAP_EMBEDDER_TRACING_EPILOGUE);
+  if (collector == GarbageCollector::MARK_COMPACTOR ||
+      collector == GarbageCollector::MINOR_MARK_COMPACTOR) {
     // TraceEpilogue may trigger operations that invalidate global handles. It
     // has to be called *after* all other operations that potentially touch and
     // reset global handles. It is also still part of the main garbage
     // collection pause and thus needs to be called *before* any operation that
     // can potentially trigger recursive garbage
+    TRACE_GC(tracer(), GCTracer::Scope::HEAP_EMBEDDER_TRACING_EPILOGUE);
     local_embedder_heap_tracer()->TraceEpilogue();
   }
-
-#if defined(CPPGC_YOUNG_GENERATION)
-  // Schedule Oilpan's Minor GC. Since the minor GC doesn't support conservative
-  // stack scanning, do it only when Scavenger runs from task, which is
-  // non-nestable.
-  if (cpp_heap() && IsYoungGenerationCollector(collector)) {
-    CppHeap::From(cpp_heap())->RunMinorGCIfNeeded();
-  }
-#endif  // defined(CPPGC_YOUNG_GENERATION)
 
   RecomputeLimits(collector);
 

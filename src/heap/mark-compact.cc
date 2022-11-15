@@ -902,7 +902,8 @@ void MarkCompactCollector::Prepare() {
       TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_EMBEDDER_PROLOGUE);
       // PrepareForTrace should be called before visitor initialization in
       // StartMarking.
-      heap_->local_embedder_heap_tracer()->PrepareForTrace(embedder_flags);
+      heap_->local_embedder_heap_tracer()->PrepareForTrace(
+          embedder_flags, LocalEmbedderHeapTracer::CollectionType::kMajor);
     }
     StartCompaction(StartCompactionMode::kAtomic);
     StartMarking();
@@ -5596,6 +5597,9 @@ void MinorMarkCompactCollector::FinishConcurrentMarking() {
     heap()->concurrent_marking()->FlushMemoryChunkData(
         non_atomic_marking_state());
   }
+  if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap())) {
+    cpp_heap->FinishConcurrentMarkingIfNeeded();
+  }
 }
 
 // static
@@ -5818,15 +5822,33 @@ void MinorMarkCompactCollector::Prepare() {
 
   // Probably requires more.
   if (!heap()->incremental_marking()->IsMarking()) {
+    const auto embedder_flags = heap_->flags_for_embedder_tracer();
+    {
+      TRACE_GC(heap()->tracer(),
+               GCTracer::Scope::MINOR_MC_MARK_EMBEDDER_PROLOGUE);
+      // PrepareForTrace should be called before visitor initialization in
+      // StartMarking.
+      heap_->local_embedder_heap_tracer()->PrepareForTrace(
+          embedder_flags, LocalEmbedderHeapTracer::CollectionType::kMinor);
+    }
     StartMarking();
+    {
+      TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_EMBEDDER_PROLOGUE);
+      // TracePrologue immediately starts marking which requires V8 worklists to
+      // be set up.
+      heap_->local_embedder_heap_tracer()->TracePrologue(embedder_flags);
+    }
   }
 
   heap()->new_space()->FreeLinearAllocationArea();
 }
 
 void MinorMarkCompactCollector::StartMarking() {
-  local_marking_worklists_ =
-      std::make_unique<MarkingWorklists::Local>(&marking_worklists_);
+  auto* cpp_heap = CppHeap::From(heap_->cpp_heap());
+  local_marking_worklists_ = std::make_unique<MarkingWorklists::Local>(
+      marking_worklists(),
+      cpp_heap ? cpp_heap->CreateCppMarkingStateForMutatorThread()
+               : MarkingWorklists::Local::kNoCppMarkingState);
   main_marking_visitor_ = std::make_unique<YoungGenerationMainMarkingVisitor>(
       heap()->isolate(), marking_state(), local_marking_worklists());
 
@@ -6048,8 +6070,11 @@ class YoungGenerationMarkingTask {
  public:
   YoungGenerationMarkingTask(Isolate* isolate, Heap* heap,
                              MarkingWorklists* global_worklists)
-      : marking_worklists_local_(
-            std::make_unique<MarkingWorklists::Local>(global_worklists)),
+      : marking_worklists_local_(std::make_unique<MarkingWorklists::Local>(
+            global_worklists,
+            heap->cpp_heap() ? CppHeap::From(heap->cpp_heap())
+                                   ->CreateCppMarkingStateForMutatorThread()
+                             : MarkingWorklists::Local::kNoCppMarkingState)),
         marking_state_(heap->marking_state()),
         visitor_(isolate, marking_state_, marking_worklists_local()) {}
 
@@ -6285,6 +6310,8 @@ void MinorMarkCompactCollector::MarkLiveObjects() {
       was_marked_incrementally = true;
     }
   }
+
+  heap_->local_embedder_heap_tracer()->EnterFinalPause();
 
   RootMarkingVisitor root_visitor(this);
 

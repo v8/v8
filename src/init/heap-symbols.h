@@ -651,6 +651,8 @@
   F(MINOR_MC_MARK_ROOTS)                             \
   F(MINOR_MC_MARK_CLOSURE_PARALLEL)                  \
   F(MINOR_MC_MARK_CLOSURE)                           \
+  F(MINOR_MC_MARK_EMBEDDER_PROLOGUE)                 \
+  F(MINOR_MC_MARK_EMBEDDER_TRACING)                  \
   F(MINOR_MC_SWEEP_NEW)                              \
   F(MINOR_MC_SWEEP_NEW_LO)                           \
   F(SAFEPOINT)                                       \

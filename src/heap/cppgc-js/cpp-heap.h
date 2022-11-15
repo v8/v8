@@ -147,8 +147,6 @@ class V8_EXPORT_PRIVATE CppHeap final
   void EnterFinalPause(cppgc::EmbedderStackState stack_state);
   bool FinishConcurrentMarkingIfNeeded();
 
-  void RunMinorGCIfNeeded();
-
   // StatsCollector::AllocationObserver interface.
   void AllocatedObjectSizeIncreased(size_t) final;
   void AllocatedObjectSizeDecreased(size_t) final;
@@ -190,6 +188,8 @@ class V8_EXPORT_PRIVATE CppHeap final
 
   MarkingType SelectMarkingType() const;
   SweepingType SelectSweepingType() const;
+
+  bool TracingInitialized() const { return collection_type_.has_value(); }
 
   Isolate* isolate_ = nullptr;
   bool marking_done_ = false;
