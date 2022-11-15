@@ -6,6 +6,7 @@
 #define V8_BASE_CONTAINER_UTILS_H_
 
 #include <algorithm>
+#include <iterator>
 #include <optional>
 #include <vector>
 
@@ -60,15 +61,10 @@ inline size_t erase_at(C& container, size_t index, size_t count = 1) {
 // TODO(C++20): Replace with std::erase_if.
 template <typename C, typename P>
 inline size_t erase_if(C& container, const P& predicate) {
-  size_t count = 0;
-  auto e = end(container);
-  for (auto it = begin(container); it != e;) {
-    it = std::find_if(it, e, predicate);
-    if (it == e) break;
-    it = container.erase(it);
-    e = end(container);
-    ++count;
-  }
+  auto it =
+      std::remove_if(std::begin(container), std::end(container), predicate);
+  auto count = std::distance(it, std::end(container));
+  container.erase(it, std::end(container));
   return count;
 }
 
