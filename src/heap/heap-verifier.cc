@@ -58,8 +58,13 @@ class HeapVerification final {
   ReadOnlySpace* read_only_space() const { return heap_->read_only_space(); }
   NewSpace* new_space() const { return heap_->new_space(); }
   OldSpace* old_space() const { return heap_->old_space(); }
+  SharedSpace* shared_space() const { return heap_->shared_space(); }
+
   CodeSpace* code_space() const { return heap_->code_space(); }
   LargeObjectSpace* lo_space() const { return heap_->lo_space(); }
+  SharedLargeObjectSpace* shared_lo_space() const {
+    return heap_->shared_lo_space();
+  }
   CodeLargeObjectSpace* code_lo_space() const { return heap_->code_lo_space(); }
   NewLargeObjectSpace* new_lo_space() const { return heap_->new_lo_space(); }
 
@@ -108,10 +113,13 @@ void HeapVerification::Verify() {
 
   old_space()->Verify(isolate(), &visitor);
 
+  if (shared_space()) shared_space()->Verify(isolate(), &visitor);
+
   VerifyPointersVisitor no_dirty_regions_visitor(heap());
   code_space()->Verify(isolate(), &no_dirty_regions_visitor);
 
   lo_space()->Verify(isolate());
+  if (shared_lo_space()) shared_lo_space()->Verify(isolate());
   code_lo_space()->Verify(isolate());
   if (new_lo_space()) new_lo_space()->Verify(isolate());
   isolate()->string_table()->VerifyIfOwnedBy(isolate());
