@@ -1312,7 +1312,9 @@ void MaglevGraphBuilder::VisitStaLookupSlot() {
 
 namespace {
 NodeType StaticTypeForNode(ValueNode* node) {
-  DCHECK(node->is_tagged());
+  if (!node->is_tagged()) {
+    return NodeType::kNumber;
+  }
   switch (node->opcode()) {
     case Opcode::kCheckedSmiTagInt32:
     case Opcode::kCheckedSmiTagUint32:
@@ -2819,11 +2821,26 @@ void MaglevGraphBuilder::InlineCallFromRegisters(
 ValueNode* MaglevGraphBuilder::TryReduceStringFromCharCode(
     compiler::JSFunctionRef target, CallArguments& args) {
   if (args.count() != 1) return nullptr;
-  return AddNewNode<BuiltinStringFromCharCode>({GetInt32(args[0])});
+  ValueNode* arg = args[0];
+  // Bail out of the inlining if the known type is not Number. This prevents
+  // GetTruncatedInt32FromNumber from deoptimizing.
+  // TODO(leszeks): Add support for call feedback speculation.
+  if (!CheckType(arg, NodeType::kNumber)) {
+    return nullptr;
+  }
+  return AddNewNode<BuiltinStringFromCharCode>(
+      {GetTruncatedInt32FromNumber(arg)});
 }
 
 ValueNode* MaglevGraphBuilder::TryReduceStringPrototypeCharCodeAt(
     compiler::JSFunctionRef target, CallArguments& args) {
+  // Bail out of the inlining if the known type is not Number or String. This
+  // prevents GetInt32ElementIndex from deoptimizing.
+  // TODO(leszeks): Add support for call feedback speculation.
+  if (args.count() != 0 && !CheckType(args[0], NodeType::kNumber) &&
+      !CheckType(args[0], NodeType::kString)) {
+    return nullptr;
+  }
   ValueNode* receiver = GetTaggedOrUndefined(args.receiver());
   ValueNode* index;
   if (args.count() == 0) {

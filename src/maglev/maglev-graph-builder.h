@@ -749,6 +749,8 @@ class MaglevGraphBuilder {
             node_info->int32_alternative = AddNewNode<UnsafeSmiUntag>({value});
           } else {
             // TODO(leszeks): Cache this value somehow.
+            // TODO(leszeks): Add a non-checked version for when the node has a
+            // known Number NodeType.
             return AddNewNode<CheckedTruncateNumberToInt32>({value});
           }
         }
@@ -801,8 +803,13 @@ class MaglevGraphBuilder {
       case ValueRepresentation::kUint32: {
         NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
         if (node_info->int32_alternative == nullptr) {
-          node_info->int32_alternative =
-              AddNewNode<CheckedUint32ToInt32>({value});
+          if (node_info->is_smi()) {
+            node_info->int32_alternative =
+                AddNewNode<TruncateUint32ToInt32>({value});
+          } else {
+            node_info->int32_alternative =
+                AddNewNode<CheckedUint32ToInt32>({value});
+          }
         }
         return node_info->int32_alternative;
       }
