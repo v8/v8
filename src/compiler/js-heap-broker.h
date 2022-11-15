@@ -247,6 +247,15 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
                                       : isolate()->AsLocalIsolate();
   }
 
+  base::Optional<RootIndex> FindRootIndex(const HeapObjectRef& object) {
+    Address address = object.object()->ptr();
+    RootIndex root_index;
+    if (root_index_map_.Lookup(address, &root_index)) {
+      return root_index;
+    }
+    return {};
+  }
+
   // Return the corresponding canonical persistent handle for {object}. Create
   // one if it does not exist.
   // If we have the canonical map, we can create the canonical & persistent

@@ -633,9 +633,13 @@ class MaglevGraphBuilder {
 
   ValueNode* GetConstant(const compiler::ObjectRef& ref) {
     if (ref.IsSmi()) return GetSmiConstant(ref.AsSmi());
-
-    // TODO(verwaest): Handle roots.
     const compiler::HeapObjectRef& constant = ref.AsHeapObject();
+
+    auto root_index = broker()->FindRootIndex(constant);
+    if (root_index.has_value()) {
+      return GetRootConstant(*root_index);
+    }
+
     auto it = graph_->constants().find(constant);
     if (it == graph_->constants().end()) {
       Constant* node = CreateNewNode<Constant>(0, constant);
@@ -646,17 +650,15 @@ class MaglevGraphBuilder {
     return it->second;
   }
 
-  bool IsConstantNodeTheHole(ValueNode* value) {
-    DCHECK(IsConstantNode(value->opcode()));
-    if (RootConstant* constant = value->TryCast<RootConstant>()) {
-      return constant->index() == RootIndex::kTheHoleValue;
-    }
-    if (Constant* constant = value->TryCast<Constant>()) {
-      return constant->IsTheHole();
-    }
-    // The other constants nodes cannot be TheHole.
-    return false;
+#define DEFINE_IS_ROOT_OBJECT(type, name, CamelName)               \
+  bool Is##CamelName(ValueNode* value) const {                     \
+    if (RootConstant* constant = value->TryCast<RootConstant>()) { \
+      return constant->index() == RootIndex::k##CamelName;         \
+    }                                                              \
+    return false;                                                  \
   }
+  ROOT_LIST(DEFINE_IS_ROOT_OBJECT)
+#undef DEFINE_IS_ROOT_OBJECT
 
   // Move an existing ValueNode between two registers. You can pass
   // virtual_accumulator as the src or dst to move in or out of the accumulator.
