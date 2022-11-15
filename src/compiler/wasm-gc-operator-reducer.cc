@@ -60,7 +60,7 @@ bool InDeadBranch(Node* node) {
 
 Node* GetAlias(Node* node) {
   switch (node->opcode()) {
-    case IrOpcode::kWasmTypeCheck:
+    case IrOpcode::kWasmTypeCast:
     case IrOpcode::kTypeGuard:
     case IrOpcode::kAssertNotNull:
       return NodeProperties::GetValueInput(node, 0);
