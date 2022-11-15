@@ -2260,15 +2260,15 @@ void AsyncCompileJob::PrepareRuntimeObjects() {
 void AsyncCompileJob::FinishCompile(bool is_after_cache_hit) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.FinishAsyncCompile");
+  if (stream_) {
+    stream_->NotifyNativeModuleCreated(native_module_);
+  }
   bool is_after_deserialization = !module_object_.is_null();
-  auto compilation_state = Impl(native_module_->compilation_state());
   if (!is_after_deserialization) {
-    if (stream_) {
-      stream_->NotifyNativeModuleCreated(native_module_);
-    }
     PrepareRuntimeObjects();
   }
 
+  auto compilation_state = Impl(native_module_->compilation_state());
   // Measure duration of baseline compilation or deserialization from cache.
   if (base::TimeTicks::IsHighResolution()) {
     base::TimeDelta duration = base::TimeTicks::Now() - start_time_;
