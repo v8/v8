@@ -1180,9 +1180,7 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
   instance->set_hook_on_function_call_address(
       isolate->debug()->hook_on_function_call_address());
   instance->set_managed_object_maps(*isolate->factory()->empty_fixed_array());
-  // TODO(manoskouk): Initialize this array with zeroes, and check for zero in
-  // wasm-compiler.
-  Handle<FixedArray> functions = isolate->factory()->NewFixedArray(
+  Handle<FixedArray> functions = isolate->factory()->NewFixedArrayWithZeroes(
       static_cast<int>(module->functions.size()));
   instance->set_wasm_internal_functions(*functions);
   instance->set_feedback_vectors(*isolate->factory()->empty_fixed_array());
@@ -1329,9 +1327,8 @@ base::Optional<MessageTemplate> WasmInstanceObject::InitTableEntries(
 MaybeHandle<WasmInternalFunction> WasmInstanceObject::GetWasmInternalFunction(
     Isolate* isolate, Handle<WasmInstanceObject> instance, int index) {
   Object val = instance->wasm_internal_functions().get(index);
-  return val.IsWasmInternalFunction()
-             ? handle(WasmInternalFunction::cast(val), isolate)
-             : MaybeHandle<WasmInternalFunction>();
+  if (val.IsSmi()) return {};
+  return handle(WasmInternalFunction::cast(val), isolate);
 }
 
 Handle<WasmInternalFunction>

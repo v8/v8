@@ -185,7 +185,7 @@ uint32_t TestingModuleBuilder::AddFunction(const FunctionSig* sig,
   }
   DCHECK_LT(index, kMaxFunctions);  // limited for testing.
   if (!instance_object_.is_null()) {
-    Handle<FixedArray> funcs = isolate_->factory()->NewFixedArray(
+    Handle<FixedArray> funcs = isolate_->factory()->NewFixedArrayWithZeroes(
         static_cast<int>(test_module_->functions.size()));
     instance_object_->set_wasm_internal_functions(*funcs);
   }

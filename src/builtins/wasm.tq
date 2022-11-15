@@ -288,10 +288,11 @@ builtin WasmRefFunc(index: uint32): Object {
   const instance: WasmInstanceObject = LoadInstanceFromFrame();
   try {
     const table: FixedArray = LoadInternalFunctionsFromInstance(instance);
-    if (table == Undefined) goto CallRuntime;
     const functionIndex: intptr = Signed(ChangeUint32ToWord(index));
     const result: Object = LoadFixedArrayElement(table, functionIndex);
-    if (result == Undefined) goto CallRuntime;
+    // {result} is either a funcref or nullptr. A Smi check is the fastest
+    // way to distinguish these two cases.
+    if (TaggedIsSmi(result)) goto CallRuntime;
     return result;
   } label CallRuntime deferred {
     tail runtime::WasmRefFunc(

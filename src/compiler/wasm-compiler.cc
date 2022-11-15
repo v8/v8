@@ -287,12 +287,18 @@ Node* WasmGraphBuilder::RefFunc(uint32_t function_index) {
   Node* maybe_function =
       gasm_->LoadFixedArrayElementPtr(functions, function_index);
   auto done = gasm_->MakeLabel(MachineRepresentation::kTaggedPointer);
-  gasm_->GotoIfNot(gasm_->TaggedEqual(maybe_function, UndefinedValue()), &done,
-                   maybe_function);
+  auto create_funcref = gasm_->MakeDeferredLabel();
+  // We only care to distinguish between zero and funcref, "IsI31" is close
+  // enough.
+  gasm_->GotoIf(gasm_->IsI31(maybe_function), &create_funcref);
+  gasm_->Goto(&done, maybe_function);
+
+  gasm_->Bind(&create_funcref);
   Node* function_from_builtin =
       gasm_->CallRuntimeStub(wasm::WasmCode::kWasmRefFunc, Operator::kNoThrow,
                              gasm_->Uint32Constant(function_index));
   gasm_->Goto(&done, function_from_builtin);
+
   gasm_->Bind(&done);
   return done.PhiAt(0);
 }
