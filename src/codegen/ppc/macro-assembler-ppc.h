@@ -1347,6 +1347,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                               Register scratch1, Simd128Register scratch2);
   void V128AnyTrue(Register dst, Simd128Register src, Register scratch1,
                    Register scratch2, Simd128Register scratch3);
+  void S128Select(Simd128Register dst, Simd128Register src1,
+                  Simd128Register src2, Simd128Register mask);
 
  private:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;

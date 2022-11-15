@@ -2560,7 +2560,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register mask = i.InputSimd128Register(0);
       Simd128Register src1 = i.InputSimd128Register(1);
       Simd128Register src2 = i.InputSimd128Register(2);
-      __ vsel(dst, src2, src1, mask);
+      __ S128Select(dst, src1, src2, mask);
       break;
     }
     case kPPC_V128AnyTrue: {

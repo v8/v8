@@ -4468,6 +4468,11 @@ void TurboAssembler::S128Not(Simd128Register dst, Simd128Register src) {
   vnor(dst, src, src);
 }
 
+void TurboAssembler::S128Select(Simd128Register dst, Simd128Register src1,
+                                Simd128Register src2, Simd128Register mask) {
+  vsel(dst, src2, src1, mask);
+}
+
 Register GetRegisterThatIsNotOneOf(Register reg1, Register reg2, Register reg3,
                                    Register reg4, Register reg5,
                                    Register reg6) {
