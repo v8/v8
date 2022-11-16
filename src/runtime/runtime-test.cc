@@ -1195,6 +1195,7 @@ RUNTIME_FUNCTION(Runtime_GlobalPrint) {
     uint16_t character = stream.GetNext();
     PrintF(output_stream, "%c", character);
   }
+  fflush(output_stream);
   return string;
 }
 
