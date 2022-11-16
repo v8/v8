@@ -1873,9 +1873,11 @@ void StoreSignedIntDataViewElement::AllocateVreg(
     MaglevVregAllocationState* vreg_state) {
   UseRegister(object_input());
   UseRegister(index_input());
-  // TODO(victorgomes): We only clobber if we need to re-oroder its
-  // representation bytes.
-  UseAndClobberRegister(value_input());
+  if (ExternalArrayElementSize(type_) > 1) {
+    UseAndClobberRegister(value_input());
+  } else {
+    UseRegister(value_input());
+  }
   if (is_little_endian_constant() ||
       type_ == ExternalArrayType::kExternalInt8Array) {
     UseAny(is_little_endian_input());
