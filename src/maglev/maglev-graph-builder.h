@@ -1110,10 +1110,6 @@ class MaglevGraphBuilder {
     }
   }
 
-  void InlineCallFromRegisters(int argc_count,
-                               ConvertReceiverMode receiver_mode,
-                               compiler::JSFunctionRef function);
-
   ValueNode* GetTaggedOrUndefined(ValueNode* maybe_value) {
     if (maybe_value == nullptr) {
       return GetRootConstant(RootIndex::kUndefinedValue);
@@ -1157,6 +1153,8 @@ class MaglevGraphBuilder {
                               CallArguments& args);
   ValueNode* TryBuildCallKnownJSFunction(compiler::JSFunctionRef function,
                                          CallArguments& args);
+  ValueNode* TryBuildInlinedCall(compiler::JSFunctionRef function,
+                                 CallArguments& args);
   ValueNode* BuildGenericCall(ValueNode* target, ValueNode* context,
                               Call::TargetType target_type,
                               const CallArguments& args,

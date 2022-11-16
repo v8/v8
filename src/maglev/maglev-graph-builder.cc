@@ -2741,13 +2741,12 @@ void MaglevGraphBuilder::VisitFindNonDefaultConstructorOrConstruct() {
   StoreRegisterPair(result, call_builtin);
 }
 
-void MaglevGraphBuilder::InlineCallFromRegisters(
-    int argc_count, ConvertReceiverMode receiver_mode,
-    compiler::JSFunctionRef function) {
+ValueNode* MaglevGraphBuilder::TryBuildInlinedCall(
+    compiler::JSFunctionRef function, CallArguments& args) {
   // The undefined constant node has to be created before the inner graph is
   // created.
   RootConstant* undefined_constant;
-  if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
+  if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
     undefined_constant = GetRootConstant(RootIndex::kUndefinedValue);
   }
 
@@ -2766,24 +2765,20 @@ void MaglevGraphBuilder::InlineCallFromRegisters(
   // can manually set up the arguments.
   inner_graph_builder.StartPrologue();
 
-  int arg_index = 0;
-  int reg_count;
-  if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
-    reg_count = argc_count;
+  if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
     if (function.shared().language_mode() == LanguageMode::kSloppy) {
       // TODO(leszeks): Store the global proxy somehow.
-      inner_graph_builder.SetArgument(arg_index++, undefined_constant);
+      inner_graph_builder.SetArgument(0, undefined_constant);
     } else {
-      inner_graph_builder.SetArgument(arg_index++, undefined_constant);
+      inner_graph_builder.SetArgument(0, undefined_constant);
     }
   } else {
-    reg_count = argc_count + 1;
+    inner_graph_builder.SetArgument(0, args.receiver());
   }
-  for (int i = 0; i < reg_count && i < inner_unit->parameter_count(); i++) {
-    inner_graph_builder.SetArgument(arg_index++, LoadRegisterTagged(i + 1));
-  }
-  for (; arg_index < inner_unit->parameter_count(); arg_index++) {
-    inner_graph_builder.SetArgument(arg_index, undefined_constant);
+  for (int i = 1; i < inner_unit->parameter_count(); i++) {
+    ValueNode* arg_value = args[i - 1];
+    if (arg_value == nullptr) arg_value = undefined_constant;
+    inner_graph_builder.SetArgument(i, arg_value);
   }
   // TODO(leszeks): Also correctly set up the closure and context slots, instead
   // of using InitialValue.
@@ -2812,11 +2807,6 @@ void MaglevGraphBuilder::InlineCallFromRegisters(
   inner_graph_builder.StartNewBlock(inner_graph_builder.inline_exit_offset());
   inner_graph_builder.FinishBlock<JumpFromInlined>({}, &end_ref);
 
-  // Pull the returned accumulator value out of the inlined function's final
-  // merged return state.
-  current_interpreter_frame_.set_accumulator(
-      inner_graph_builder.current_interpreter_frame_.accumulator());
-
   // Create a new block at our current offset, and resume execution. Do this
   // manually to avoid trying to resolve any merges to this offset, which will
   // have already been processed on entry to this visitor.
@@ -2829,6 +2819,18 @@ void MaglevGraphBuilder::InlineCallFromRegisters(
   // instead.
   end_ref.SetToBlockAndReturnNext(current_block_)
       ->SetToBlockAndReturnNext(current_block_);
+
+  // Pull the returned accumulator value out of the inlined function's final
+  // merged return state.
+  ValueNode* result =
+      inner_graph_builder.current_interpreter_frame_.accumulator();
+#ifdef DEBUG
+  new_nodes_.insert(result);
+#endif
+  // TODO(leszeks): Lazy deopts break the auto-lazy deopt attachment when passed
+  // to SetAccumulator later, we'll need to work around this.
+  DCHECK(!result->properties().can_lazy_deopt());
+  return result;
 }
 
 ValueNode* MaglevGraphBuilder::TryReduceStringFromCharCode(
@@ -3063,6 +3065,11 @@ ValueNode* MaglevGraphBuilder::TryBuildCallKnownJSFunction(
     // TODO(victorgomes): Maybe inline the spread stub? Or call known function
     // directly if arguments list is an array.
     return nullptr;
+  }
+  if (v8_flags.maglev_inlining) {
+    if (ValueNode* inlined_result = TryBuildInlinedCall(function, args)) {
+      return inlined_result;
+    }
   }
   ValueNode* receiver = GetConvertReceiver(function, args);
   size_t input_count = args.count() + CallKnownJSFunction::kFixedInputCount;
