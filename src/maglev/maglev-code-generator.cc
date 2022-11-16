@@ -547,16 +547,7 @@ class ExceptionHandlerTrampolineBuilder {
           break;
         case ValueRepresentation::kInt32:
         case ValueRepresentation::kUint32:
-          if (source->allocation().IsConstant()) {
-            // TODO(jgruber): Why is it okay for Int32 constants to remain
-            // untagged while non-constants are unconditionally smi-tagged or
-            // converted to a HeapNumber during materialisation?
-            direct_moves->RecordMove(
-                source, source->allocation(),
-                compiler::AllocatedOperand::cast(target.operand()));
-          } else {
-            materialising_moves->emplace_back(target, source);
-          }
+          materialising_moves->emplace_back(target, source);
           break;
         case ValueRepresentation::kFloat64:
           materialising_moves->emplace_back(target, source);
@@ -585,7 +576,10 @@ class ExceptionHandlerTrampolineBuilder {
     __ RecordComment("EmitMaterialisationsAndPushResults");
     if (save_accumulator) __ Push(kReturnRegister0);
     for (const Move& move : moves) {
-      MaterialiseTo(move.source, kReturnRegister0);
+      // We consider constants after all other operations, since constants
+      // don't need to call NewHeapNumber.
+      if (IsConstantNode(move.source->opcode())) continue;
+      MaterialiseNonConstantTo(move.source, kReturnRegister0);
       __ Push(kReturnRegister0);
     }
   }
@@ -594,13 +588,17 @@ class ExceptionHandlerTrampolineBuilder {
                                   bool save_accumulator) const {
     if (moves.size() == 0) return;
     __ RecordComment("EmitPopMaterialisedResults");
-    for (auto it = moves.rbegin(); it < moves.rend(); it++) {
-      const ValueLocation& target = it->target;
-      if (target.operand().IsRegister()) {
-        __ Pop(target.AssignedGeneralRegister());
+    for (const Move& move : base::Reversed(moves)) {
+      const ValueLocation& target = move.target;
+      Register target_reg = target.operand().IsAnyRegister()
+                                ? target.AssignedGeneralRegister()
+                                : kScratchRegister;
+      if (IsConstantNode(move.source->opcode())) {
+        MaterialiseConstantTo(move.source, target_reg);
       } else {
-        DCHECK(target.operand().IsStackSlot());
-        __ Pop(kScratchRegister);
+        __ Pop(target_reg);
+      }
+      if (target_reg == kScratchRegister) {
         __ movq(masm_->ToMemOperand(target.operand()), kScratchRegister);
       }
     }
@@ -608,12 +606,12 @@ class ExceptionHandlerTrampolineBuilder {
     if (save_accumulator) __ Pop(kReturnRegister0);
   }
 
-  void MaterialiseTo(ValueNode* value, Register dst) const {
+  void MaterialiseNonConstantTo(ValueNode* value, Register dst) const {
+    DCHECK(!value->allocation().IsConstant());
+
     using D = NewHeapNumberDescriptor;
     switch (value->properties().value_representation()) {
       case ValueRepresentation::kInt32: {
-        // We consider constants together with tagged values.
-        DCHECK(!value->allocation().IsConstant());
         Label done;
         __ movl(dst, ToMemOperand(value));
         __ addl(dst, dst);
@@ -628,8 +626,6 @@ class ExceptionHandlerTrampolineBuilder {
         break;
       }
       case ValueRepresentation::kUint32: {
-        // We consider constants together with tagged values.
-        DCHECK(!value->allocation().IsConstant());
         Label done, tag_smi;
         __ movl(dst, ToMemOperand(value));
         // Unsigned comparison against Smi::kMaxValue.
@@ -651,16 +647,34 @@ class ExceptionHandlerTrampolineBuilder {
         break;
       }
       case ValueRepresentation::kFloat64:
-        if (Float64Constant* constant = value->TryCast<Float64Constant>()) {
-          __ Move(D::GetDoubleRegisterParameter(D::kValue), constant->value());
-        } else {
-          __ Movsd(D::GetDoubleRegisterParameter(D::kValue),
-                   ToMemOperand(value));
-        }
+        __ Movsd(D::GetDoubleRegisterParameter(D::kValue), ToMemOperand(value));
         __ CallBuiltin(Builtin::kNewHeapNumber);
         __ Move(dst, kReturnRegister0);
         break;
       case ValueRepresentation::kTagged:
+        UNREACHABLE();
+    }
+  }
+
+  void MaterialiseConstantTo(ValueNode* value, Register dst) const {
+    DCHECK(value->allocation().IsConstant());
+
+    switch (value->opcode()) {
+      case Opcode::kInt32Constant: {
+        int32_t int_value = value->Cast<Int32Constant>()->value();
+        if (Smi::IsValid(int_value)) {
+          __ Move(dst, Smi::FromInt(int_value));
+        } else {
+          __ movq_heap_number(dst, int_value);
+        }
+        break;
+      }
+      case Opcode::kFloat64Constant: {
+        double double_value = value->Cast<Float64Constant>()->value();
+        __ movq_heap_number(dst, double_value);
+        break;
+      }
+      default:
         UNREACHABLE();
     }
   }
