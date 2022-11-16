@@ -723,6 +723,7 @@ void CppHeap::InitializeTracing(CollectionType collection_type,
 #if defined(CPPGC_YOUNG_GENERATION)
   if (generational_gc_supported() &&
       *collection_type_ == CollectionType::kMajor) {
+    stats_collector()->NotifyUnmarkingStarted(*collection_type_);
     cppgc::internal::StatsCollector::EnabledScope stats_scope(
         stats_collector(), cppgc::internal::StatsCollector::kUnmark);
     cppgc::internal::SequentialUnmarker unmarker(raw_heap());

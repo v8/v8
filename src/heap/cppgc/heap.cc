@@ -146,8 +146,13 @@ void Heap::StartGarbageCollection(GCConfig config) {
   epoch_++;
 
 #if defined(CPPGC_YOUNG_GENERATION)
-  if (config.collection_type == CollectionType::kMajor)
+  if (config.collection_type == CollectionType::kMajor &&
+      generational_gc_supported()) {
+    stats_collector()->NotifyUnmarkingStarted(config.collection_type);
+    cppgc::internal::StatsCollector::EnabledScope stats_scope(
+        stats_collector(), cppgc::internal::StatsCollector::kUnmark);
     SequentialUnmarker unmarker(raw_heap());
+  }
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 
   const MarkingConfig marking_config{config.collection_type, config.stack_state,
