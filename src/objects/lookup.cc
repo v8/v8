@@ -927,19 +927,14 @@ bool LookupIterator::IsConstFieldValueEqualTo(Object value) const {
     // base::bit_cast or value(), will change its value on ia32 (the x87
     // stack is used to return values and stores to the stack silently clear the
     // signalling bit).
-    if (bits == kHoleNanInt64) {
-      // Uninitialized double field.
-      return true;
-    }
-    // Only allow exact same bitpatterns (and smis) to ensure we don't need
-    // expensive validation in optimized code.
-    return bits == base::bit_cast<uint64_t>(value.Number());
-  } else {
-    Object current_value = holder->RawFastPropertyAt(isolate_, field_index);
-    // Only allow exact same objects to ensure we don't need expensive
-    // validation in optimized code.
-    return current_value.IsUninitialized(isolate()) || current_value == value;
+    // Only allow initializing stores to double to stay constant.
+    return bits == kHoleNanInt64;
   }
+
+  Object current_value = holder->RawFastPropertyAt(isolate_, field_index);
+  // Only allow exact same objects to ensure we don't need expensive
+  // validation in optimized code.
+  return current_value.IsUninitialized(isolate()) || current_value == value;
 }
 
 bool LookupIterator::IsConstDictValueEqualTo(Object value) const {

@@ -2926,10 +2926,8 @@ TEST(StoreToConstantField_PlusMinusZero) {
       "}";
 
   TestStoreToConstantField_PlusMinusZero(store_func_source, 1);
-  TestStoreToConstantField_PlusMinusZero(store_func_source, 3);
 
   TestStoreToConstantField_NaN(store_func_source, 1);
-  TestStoreToConstantField_NaN(store_func_source, 2);
 }
 
 TEST(StoreToConstantField_ObjectDefineProperty) {
@@ -2946,10 +2944,8 @@ TEST(StoreToConstantField_ObjectDefineProperty) {
       "}";
 
   TestStoreToConstantField_PlusMinusZero(store_func_source, 1);
-  TestStoreToConstantField_PlusMinusZero(store_func_source, 3);
 
   TestStoreToConstantField_NaN(store_func_source, 1);
-  TestStoreToConstantField_NaN(store_func_source, 2);
 }
 
 TEST(StoreToConstantField_ReflectSet) {
@@ -2962,10 +2958,8 @@ TEST(StoreToConstantField_ReflectSet) {
       "}";
 
   TestStoreToConstantField_PlusMinusZero(store_func_source, 1);
-  TestStoreToConstantField_PlusMinusZero(store_func_source, 3);
 
   TestStoreToConstantField_NaN(store_func_source, 1);
-  TestStoreToConstantField_NaN(store_func_source, 2);
 }
 
 TEST(StoreToConstantField_StoreIC) {
@@ -2978,10 +2972,8 @@ TEST(StoreToConstantField_StoreIC) {
       "}";
 
   TestStoreToConstantField_PlusMinusZero(store_func_source, 1);
-  TestStoreToConstantField_PlusMinusZero(store_func_source, 3);
 
   TestStoreToConstantField_NaN(store_func_source, 1);
-  TestStoreToConstantField_NaN(store_func_source, 2);
 }
 
 TEST(NormalizeToMigrationTarget) {
