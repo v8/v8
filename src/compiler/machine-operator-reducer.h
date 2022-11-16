@@ -25,8 +25,14 @@ class Word64Adapter;
 class V8_EXPORT_PRIVATE MachineOperatorReducer final
     : public NON_EXPORTED_BASE(AdvancedReducer) {
  public:
-  explicit MachineOperatorReducer(Editor* editor, MachineGraph* mcgraph,
-                                  bool allow_signalling_nan = true);
+  enum SignallingNanPropagation {
+    kSilenceSignallingNan,
+    kPropagateSignallingNan
+  };
+
+  explicit MachineOperatorReducer(
+      Editor* editor, MachineGraph* mcgraph,
+      SignallingNanPropagation signalling_nan_propagation);
   ~MachineOperatorReducer() override;
 
   const char* reducer_name() const override { return "MachineOperatorReducer"; }
@@ -175,7 +181,7 @@ class V8_EXPORT_PRIVATE MachineOperatorReducer final
       Node* lhs, uintN_t rhs);
 
   MachineGraph* mcgraph_;
-  bool allow_signalling_nan_;
+  SignallingNanPropagation signalling_nan_propagation_;
 };
 
 }  // namespace compiler

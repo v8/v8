@@ -45,7 +45,9 @@ class MachineOperatorReducerTest : public GraphTest {
     JSOperatorBuilder javascript(zone());
     JSGraph jsgraph(isolate(), graph(), common(), &javascript, nullptr,
                     &machine_);
-    MachineOperatorReducer reducer(&graph_reducer_, &jsgraph);
+    MachineOperatorReducer reducer(
+        &graph_reducer_, &jsgraph,
+        MachineOperatorReducer::kPropagateSignallingNan);
     return reducer.Reduce(node);
   }
 

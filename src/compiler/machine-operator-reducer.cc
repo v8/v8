@@ -185,12 +185,12 @@ T SilenceNaN(T x) {
 
 }  // namespace
 
-MachineOperatorReducer::MachineOperatorReducer(Editor* editor,
-                                               MachineGraph* mcgraph,
-                                               bool allow_signalling_nan)
+MachineOperatorReducer::MachineOperatorReducer(
+    Editor* editor, MachineGraph* mcgraph,
+    SignallingNanPropagation signalling_nan_propagation)
     : AdvancedReducer(editor),
       mcgraph_(mcgraph),
-      allow_signalling_nan_(allow_signalling_nan) {}
+      signalling_nan_propagation_(signalling_nan_propagation) {}
 
 MachineOperatorReducer::~MachineOperatorReducer() = default;
 
@@ -552,7 +552,8 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     }
     case IrOpcode::kFloat32Sub: {
       Float32BinopMatcher m(node);
-      if (allow_signalling_nan_ && m.right().Is(0) &&
+      if (signalling_nan_propagation_ == kPropagateSignallingNan &&
+          m.right().Is(0) &&
           (std::copysign(1.0, m.right().ResolvedValue()) > 0)) {
         return Replace(m.left().node());  // x - 0 => x
       }
@@ -566,7 +567,8 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
         return ReplaceFloat32(m.left().ResolvedValue() -
                               m.right().ResolvedValue());
       }
-      if (allow_signalling_nan_ && m.left().IsMinusZero()) {
+      if (signalling_nan_propagation_ == kPropagateSignallingNan &&
+          m.left().IsMinusZero()) {
         // -0.0 - round_down(-0.0 - R) => round_up(R)
         if (machine()->Float32RoundUp().IsSupported() &&
             m.right().IsFloat32RoundDown()) {
@@ -601,7 +603,8 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     }
     case IrOpcode::kFloat64Sub: {
       Float64BinopMatcher m(node);
-      if (allow_signalling_nan_ && m.right().Is(0) &&
+      if (signalling_nan_propagation_ == kPropagateSignallingNan &&
+          m.right().Is(0) &&
           (base::Double(m.right().ResolvedValue()).Sign() > 0)) {
         return Replace(m.left().node());  // x - 0 => x
       }
@@ -615,7 +618,8 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
         return ReplaceFloat64(m.left().ResolvedValue() -
                               m.right().ResolvedValue());
       }
-      if (allow_signalling_nan_ && m.left().IsMinusZero()) {
+      if (signalling_nan_propagation_ == kPropagateSignallingNan &&
+          m.left().IsMinusZero()) {
         // -0.0 - round_down(-0.0 - R) => round_up(R)
         if (machine()->Float64RoundUp().IsSupported() &&
             m.right().IsFloat64RoundDown()) {
@@ -636,7 +640,8 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     }
     case IrOpcode::kFloat64Mul: {
       Float64BinopMatcher m(node);
-      if (allow_signalling_nan_ && m.right().Is(1))
+      if (signalling_nan_propagation_ == kPropagateSignallingNan &&
+          m.right().Is(1))
         return Replace(m.left().node());  // x * 1.0 => x
       if (m.right().Is(-1)) {             // x * -1.0 => -0.0 - x
         node->ReplaceInput(0, Float64Constant(-0.0));
@@ -660,7 +665,8 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     }
     case IrOpcode::kFloat64Div: {
       Float64BinopMatcher m(node);
-      if (allow_signalling_nan_ && m.right().Is(1))
+      if (signalling_nan_propagation_ == kPropagateSignallingNan &&
+          m.right().Is(1))
         return Replace(m.left().node());  // x / 1.0 => x
       // TODO(ahaas): We could do x / 1.0 = x if we knew that x is not an sNaN.
       if (m.right().IsNaN()) {  // x / NaN => NaN
@@ -673,7 +679,8 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
         return ReplaceFloat64(
             base::Divide(m.left().ResolvedValue(), m.right().ResolvedValue()));
       }
-      if (allow_signalling_nan_ && m.right().Is(-1)) {  // x / -1.0 => -x
+      if (signalling_nan_propagation_ == kPropagateSignallingNan &&
+          m.right().Is(-1)) {  // x / -1.0 => -x
         node->RemoveInput(1);
         NodeProperties::ChangeOp(node, machine()->Float64Neg());
         return Changed(node);
@@ -853,7 +860,8 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     case IrOpcode::kChangeFloat32ToFloat64: {
       Float32Matcher m(node->InputAt(0));
       if (m.HasResolvedValue()) {
-        if (!allow_signalling_nan_ && std::isnan(m.ResolvedValue())) {
+        if (signalling_nan_propagation_ == kSilenceSignallingNan &&
+            std::isnan(m.ResolvedValue())) {
           return ReplaceFloat64(SilenceNaN(m.ResolvedValue()));
         }
         return ReplaceFloat64(m.ResolvedValue());
@@ -928,12 +936,13 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     case IrOpcode::kTruncateFloat64ToFloat32: {
       Float64Matcher m(node->InputAt(0));
       if (m.HasResolvedValue()) {
-        if (!allow_signalling_nan_ && m.IsNaN()) {
+        if (signalling_nan_propagation_ == kSilenceSignallingNan && m.IsNaN()) {
           return ReplaceFloat32(DoubleToFloat32(SilenceNaN(m.ResolvedValue())));
         }
         return ReplaceFloat32(DoubleToFloat32(m.ResolvedValue()));
       }
-      if (allow_signalling_nan_ && m.IsChangeFloat32ToFloat64())
+      if (signalling_nan_propagation_ == kPropagateSignallingNan &&
+          m.IsChangeFloat32ToFloat64())
         return Replace(m.node()->InputAt(0));
       break;
     }
