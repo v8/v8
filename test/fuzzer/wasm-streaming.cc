@@ -151,10 +151,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   v8::HandleScope handle_scope(isolate);
   v8::Context::Scope context_scope(support->GetContext());
 
-  // We explicitly enable staged WebAssembly features here to increase fuzzer
-  // coverage. For libfuzzer fuzzers it is not possible that the fuzzer enables
-  // the flag by itself.
-  OneTimeEnableStagedWasmFeatures(isolate);
+  // We explicitly enable staged/experimental WebAssembly features here to
+  // increase fuzzer coverage. For libfuzzer fuzzers it is not possible that the
+  // fuzzer enables the flag by itself.
+  EnableExperimentalWasmFeatures(isolate);
 
   // Limit the maximum module size to avoid OOM.
   v8_flags.wasm_max_module_size = 256 * KB;

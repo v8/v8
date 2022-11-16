@@ -714,18 +714,29 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
   }
 }
 
-void OneTimeEnableStagedWasmFeatures(v8::Isolate* isolate) {
-  struct EnableStagedWasmFeatures {
-    explicit EnableStagedWasmFeatures(v8::Isolate* isolate) {
-#define ENABLE_STAGED_FEATURES(feat, desc, val) \
+void EnableExperimentalWasmFeatures(v8::Isolate* isolate) {
+  struct EnableExperimentalWasmFeatures {
+    explicit EnableExperimentalWasmFeatures(v8::Isolate* isolate) {
+      // Enable all staged features.
+#define ENABLE_STAGED_FEATURES(feat, ...) \
   v8_flags.experimental_wasm_##feat = true;
       FOREACH_WASM_STAGING_FEATURE_FLAG(ENABLE_STAGED_FEATURES)
 #undef ENABLE_STAGED_FEATURES
+
+      // Enable non-staged experimental features that we also want to fuzz.
+      v8_flags.experimental_wasm_gc = true;
+
+      // Enforce implications from enabling features.
+      FlagList::EnforceFlagImplications();
+
+      // Last, install any conditional features. Implications are handled
+      // implicitly.
       isolate->InstallConditionalFeatures(isolate->GetCurrentContext());
     }
   };
   // The compiler will properly synchronize the constructor call.
-  static EnableStagedWasmFeatures one_time_enable_staged_features(isolate);
+  static EnableExperimentalWasmFeatures one_time_enable_experimental_features(
+      isolate);
 }
 
 void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
@@ -750,7 +761,7 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   // We explicitly enable staged WebAssembly features here to increase fuzzer
   // coverage. For libfuzzer fuzzers it is not possible that the fuzzer enables
   // the flag by itself.
-  OneTimeEnableStagedWasmFeatures(isolate);
+  EnableExperimentalWasmFeatures(isolate);
 
   v8::TryCatch try_catch(isolate);
   HandleScope scope(i_isolate);
