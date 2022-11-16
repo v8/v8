@@ -758,13 +758,6 @@ class MergePointInterpreterFrameState {
     DCHECK_EQ(value->properties().value_representation(),
               ValueRepresentation::kInt32);
     DCHECK(!value->properties().is_conversion());
-#define IS_INT32_OP_NODE(Name) || value->Is<Name>()
-    DCHECK(value->Is<Int32Constant>() || value->Is<StringLength>() ||
-           value->Is<TruncateFloat64ToInt32>() ||
-           value->Is<TruncateUint32ToInt32>() ||
-           value->Is<BuiltinStringPrototypeCharCodeAt>()
-               INT32_OPERATIONS_NODE_LIST(IS_INT32_OP_NODE));
-#undef IS_INT32_OP_NODE
     NodeInfo* node_info = known_node_aspects.GetOrCreateInfoFor(value);
     if (!node_info->tagged_alternative) {
       // Create a tagged version.
@@ -796,7 +789,6 @@ class MergePointInterpreterFrameState {
     DCHECK_EQ(value->properties().value_representation(),
               ValueRepresentation::kUint32);
     DCHECK(!value->properties().is_conversion());
-    DCHECK(value->Is<Int32ShiftRightLogical>());
     NodeInfo* node_info = known_node_aspects.GetOrCreateInfoFor(value);
     if (!node_info->tagged_alternative) {
       // Create a tagged version.
