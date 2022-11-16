@@ -23792,12 +23792,6 @@ TEST(StreamingWithIsolateScriptCache) {
 // Variant of the above test which evicts the root SharedFunctionInfo from the
 // Isolate script cache but still reuses the same Script.
 TEST(StreamingWithIsolateScriptCacheClearingRootSFI) {
-  // TODO(v8:12808): Remove this check once background compilation is capable of
-  // reusing an existing Script.
-  if (i::v8_flags.stress_background_compile) {
-    return;
-  }
-
   StreamingWithIsolateScriptCache(true);
 }
 
