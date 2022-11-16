@@ -4181,6 +4181,28 @@ void CallWithSpread::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
+void CallWithArrayLike::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  using D = CallInterfaceDescriptorFor<Builtin::kCallWithArrayLike>::type;
+  UseFixed(function(), D::GetRegisterParameter(D::kTarget));
+  UseAny(receiver());
+  UseFixed(arguments_list(), D::GetRegisterParameter(D::kArgumentsList));
+  UseFixed(context(), kContextRegister);
+  DefineAsFixed(vreg_state, this, kReturnRegister0);
+}
+void CallWithArrayLike::GenerateCode(MaglevAssembler* masm,
+                                     const ProcessingState& state) {
+#ifdef DEBUG
+  using D = CallInterfaceDescriptorFor<Builtin::kCallWithArrayLike>::type;
+  DCHECK_EQ(ToRegister(function()), D::GetRegisterParameter(D::kTarget));
+  DCHECK_EQ(ToRegister(arguments_list()),
+            D::GetRegisterParameter(D::kArgumentsList));
+  DCHECK_EQ(ToRegister(context()), kContextRegister);
+#endif  // DEBUG
+  __ PushInput(receiver());
+  __ CallBuiltin(Builtin::kCallWithArrayLike);
+  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
+}
+
 void ConstructWithSpread::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   using D = CallInterfaceDescriptorFor<
       Builtin::kConstructWithSpread_WithFeedback>::type;

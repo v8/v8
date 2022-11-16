@@ -1163,6 +1163,12 @@ class MaglevGraphBuilder {
                               const compiler::FeedbackSource& feedback_source =
                                   compiler::FeedbackSource());
   ValueNode* ReduceCall(compiler::ObjectRef target, CallArguments& args);
+  ValueNode* ReduceCallForTarget(ValueNode* target_node,
+                                 compiler::JSFunctionRef target,
+                                 CallArguments& args);
+  ValueNode* ReduceFunctionPrototypeApplyCallWithReceiver(
+      ValueNode* target_node, compiler::JSFunctionRef receiver,
+      CallArguments& args);
   void BuildCall(ValueNode* target_node, CallArguments& args,
                  compiler::FeedbackSource& feedback_source);
   void BuildCallFromRegisterList(ConvertReceiverMode receiver_mode);

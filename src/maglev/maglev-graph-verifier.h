@@ -253,6 +253,7 @@ class MaglevGraphVerifier {
         CheckValueInputIs(node, 1, ValueRepresentation::kTagged);
         CheckValueInputIs(node, 2, ValueRepresentation::kTagged);
         break;
+      case Opcode::kCallWithArrayLike:
       case Opcode::kSetKeyedGeneric:
       case Opcode::kDefineKeyedOwnGeneric:
       case Opcode::kStoreInArrayLiteralGeneric:

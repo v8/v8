@@ -129,6 +129,7 @@ class CompactInterpreterFrameState;
   V(CallBuiltin)                   \
   V(CallRuntime)                   \
   V(CallWithSpread)                \
+  V(CallWithArrayLike)             \
   V(CallKnownJSFunction)           \
   V(Construct)                     \
   V(ConstructWithSpread)           \
@@ -4518,6 +4519,32 @@ class CallWithSpread : public ValueNodeT<CallWithSpread> {
 
  private:
   const compiler::FeedbackSource feedback_;
+};
+
+class CallWithArrayLike : public FixedInputValueNodeT<4, CallWithArrayLike> {
+  using Base = FixedInputValueNodeT<4, CallWithArrayLike>;
+
+ public:
+  // We assume function and context as fixed inputs.
+  static constexpr int kFunctionIndex = 0;
+  static constexpr int kReceiverIndex = 1;
+  static constexpr int kArgumentsListIndex = 2;
+  static constexpr int kContextIndex = 3;
+
+  // This ctor is used when for variable input counts.
+  // Inputs must be initialized manually.
+  explicit CallWithArrayLike(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::JSCall();
+
+  Input& function() { return input(kFunctionIndex); }
+  Input& receiver() { return input(kReceiverIndex); }
+  Input& arguments_list() { return input(kArgumentsListIndex); }
+  Input& context() { return input(kContextIndex); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
 class CallKnownJSFunction : public ValueNodeT<CallKnownJSFunction> {
