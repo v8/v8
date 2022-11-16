@@ -3657,11 +3657,7 @@ class TypedElementsAccessor
     DCHECK_LE(start, end);
     DCHECK_LE(end, source.GetLength());
     size_t count = end - start;
-    auto dest_length = destination.GetLength();
-    if (V8_UNLIKELY(count > dest_length)) {
-      DCHECK(destination.is_backed_by_rab());
-      count = dest_length;
-    }
+    DCHECK_LE(count, destination.GetLength());
     ElementType* dest_data = static_cast<ElementType*>(destination.DataPtr());
     auto is_shared =
         source.buffer().is_shared() || destination.buffer().is_shared()
