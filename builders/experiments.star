@@ -17,12 +17,10 @@ def experiment_builder(**kwargs):
     properties = kwargs.pop("properties", {})
     if "builder_group" not in properties:
         properties["builder_group"] = "client.v8"
-    experiments = kwargs.pop("experiments", {})
-    experiments["luci.buildbucket.omit_python2"] = 100
     return v8_builder(
         bucket = bucket,
         properties = properties,
-        experiments = experiments,
+        experiments = {"luci.buildbucket.omit_python2": 100},
         **kwargs
     )
 
@@ -161,7 +159,6 @@ in_category(
         use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["sheriffs on new failure", "blamelist"],
         enable_rdb = True,
-        experiments = {"v8.resultdb": 100},
     ),
 )
 

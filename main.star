@@ -167,7 +167,6 @@ def grantInvocationCreator(realms, users):
         ])
 
 grantInvocationCreator(["try", "try.triggered"], [V8_TRY_ACCOUNT])
-grantInvocationCreator(["ci"], [V8_CI_ACCOUNT])
 
 luci.logdog(gs_bucket = "chromium-luci-logdog")
 
