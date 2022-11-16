@@ -96,6 +96,7 @@ int WriteBarrier::MarkingFromCode(Address raw_host, Address raw_slot) {
   HeapObject host = HeapObject::cast(Object(raw_host));
   MaybeObjectSlot slot(raw_slot);
   Address value = (*slot).ptr();
+
 #ifdef V8_MAP_PACKING
   if (slot.address() == host.address()) {
     // Clear metadata bits and fix object tag.
@@ -104,7 +105,51 @@ int WriteBarrier::MarkingFromCode(Address raw_host, Address raw_slot) {
             (uint64_t)kHeapObjectTag;
   }
 #endif
+
+  DCHECK_IMPLIES(host.InSharedWritableHeap(), v8_flags.shared_space);
+
+#if DEBUG
+  Heap* heap = MemoryChunk::FromHeapObject(host)->heap();
+  DCHECK(heap->incremental_marking()->IsMarking());
+
+  // We will only reach local objects here while incremental marking in the
+  // current isolate is enabled. However, we might still reach objects in the
+  // shared space but only from the shared space isolate (= the main isolate).
+  MarkingBarrier* barrier = CurrentMarkingBarrier(host);
+  DCHECK_IMPLIES(host.InSharedWritableHeap(),
+                 barrier->heap()->isolate()->is_shared_heap_isolate());
+  barrier->AssertMarkingIsActivated();
+#endif  // DEBUG
+
   WriteBarrier::Marking(host, slot, MaybeObject(value));
+  // Called by WriteBarrierCodeStubAssembler, which doesn't accept void type
+  return 0;
+}
+
+int WriteBarrier::SharedMarkingFromCode(Address raw_host, Address raw_slot) {
+  HeapObject host = HeapObject::cast(Object(raw_host));
+  MaybeObjectSlot slot(raw_slot);
+  Address raw_value = (*slot).ptr();
+  MaybeObject value(raw_value);
+
+  DCHECK(host.InSharedWritableHeap());
+  DCHECK(v8_flags.shared_space);
+
+#if DEBUG
+  Heap* heap = MemoryChunk::FromHeapObject(host)->heap();
+  DCHECK(heap->incremental_marking()->IsMarking());
+  Isolate* isolate = heap->isolate();
+  DCHECK(isolate->is_shared_space_isolate());
+
+  // The shared marking barrier will only be reached from client isolates (=
+  // worker isolates).
+  MarkingBarrier* barrier = CurrentMarkingBarrier(host);
+  DCHECK(!barrier->heap()->isolate()->is_shared_heap_isolate());
+  barrier->AssertSharedMarkingIsActivated();
+#endif  // DEBUG
+
+  WriteBarrier::Marking(host, slot, MaybeObject(value));
+
   // Called by WriteBarrierCodeStubAssembler, which doesn't accept void type
   return 0;
 }

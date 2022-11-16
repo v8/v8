@@ -55,6 +55,11 @@ class MarkingBarrier {
 
   Heap* heap() const { return heap_; }
 
+#if DEBUG
+  void AssertMarkingIsActivated() const;
+  void AssertSharedMarkingIsActivated() const;
+#endif  // DEBUG
+
  private:
   inline void MarkValueShared(HeapObject value);
   inline void MarkValueLocal(HeapObject value);

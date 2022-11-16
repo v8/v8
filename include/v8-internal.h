@@ -544,7 +544,7 @@ class Internals {
   static const int kVariousBooleanFlagsOffset =
       kIsolateStackGuardOffset + kStackGuardSize;
   static const int kBuiltinTier0EntryTableOffset =
-      kVariousBooleanFlagsOffset + kApiSystemPointerSize;
+      kVariousBooleanFlagsOffset + 8;
   static const int kBuiltinTier0TableOffset =
       kBuiltinTier0EntryTableOffset + kBuiltinTier0EntryTableSize;
   static const int kIsolateEmbedderDataOffset =

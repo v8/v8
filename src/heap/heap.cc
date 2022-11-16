@@ -5888,6 +5888,10 @@ void Heap::TearDownWithSharedHeap() {
 
   // Might use the external pointer which might be in the shared heap.
   external_string_table_.TearDown();
+
+  // Publish shared object worklist for the main thread if incremental marking
+  // is enabled for the shared heap.
+  main_thread_local_heap()->marking_barrier()->PublishSharedIfNeeded();
 }
 
 void Heap::TearDown() {

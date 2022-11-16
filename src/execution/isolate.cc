@@ -4231,6 +4231,9 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   DCHECK_IMPLIES(shared_isolate(), !shared_space_isolate());
   DCHECK_IMPLIES(shared_space_isolate(), !shared_isolate());
 
+  isolate_data_.is_shared_space_isolate_flag_ = is_shared_heap_isolate();
+  isolate_data_.uses_shared_heap_flag_ = has_shared_heap();
+
   // SetUp the object heap.
   DCHECK(!heap_.HasBeenSetUp());
   heap_.SetUp(main_thread_local_heap());
