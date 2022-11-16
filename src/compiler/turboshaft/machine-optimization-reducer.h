@@ -1149,6 +1149,19 @@ class MachineOptimizationReducer : public Next {
                 rep_w);
           }
         }
+        // Map 64bit to 32bit equals.
+        if (rep_w == WordRepresentation::Word64()) {
+          base::Optional<bool> left_sign_extended;
+          base::Optional<bool> right_sign_extended;
+          if (IsWord32ConvertedToWord64(left, &left_sign_extended) &&
+              IsWord32ConvertedToWord64(right, &right_sign_extended)) {
+            if (left_sign_extended == right_sign_extended) {
+              return Asm().Equal(UndoWord32ToWord64Conversion(left),
+                                 UndoWord32ToWord64Conversion(right),
+                                 WordRepresentation::Word32());
+            }
+          }
+        }
       }
     }
     return Next::ReduceEqual(left, right, rep);

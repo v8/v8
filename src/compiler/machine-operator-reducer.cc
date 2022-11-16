@@ -194,7 +194,6 @@ MachineOperatorReducer::MachineOperatorReducer(Editor* editor,
 
 MachineOperatorReducer::~MachineOperatorReducer() = default;
 
-
 Node* MachineOperatorReducer::Float32Constant(float value) {
   return graph()->NewNode(common()->Float32Constant(value));
 }
@@ -639,13 +638,13 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       Float64BinopMatcher m(node);
       if (allow_signalling_nan_ && m.right().Is(1))
         return Replace(m.left().node());  // x * 1.0 => x
-      if (m.right().Is(-1)) {  // x * -1.0 => -0.0 - x
+      if (m.right().Is(-1)) {             // x * -1.0 => -0.0 - x
         node->ReplaceInput(0, Float64Constant(-0.0));
         node->ReplaceInput(1, m.left().node());
         NodeProperties::ChangeOp(node, machine()->Float64Sub());
         return Changed(node);
       }
-      if (m.right().IsNaN()) {                               // x * NaN => NaN
+      if (m.right().IsNaN()) {  // x * NaN => NaN
         return ReplaceFloat64(SilenceNaN(m.right().ResolvedValue()));
       }
       if (m.IsFoldable()) {  // K * K => K  (K stands for arbitrary constants)
@@ -664,7 +663,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       if (allow_signalling_nan_ && m.right().Is(1))
         return Replace(m.left().node());  // x / 1.0 => x
       // TODO(ahaas): We could do x / 1.0 = x if we knew that x is not an sNaN.
-      if (m.right().IsNaN()) {                               // x / NaN => NaN
+      if (m.right().IsNaN()) {  // x / NaN => NaN
         return ReplaceFloat64(SilenceNaN(m.right().ResolvedValue()));
       }
       if (m.left().IsNaN()) {  // NaN / x => NaN
@@ -1759,6 +1758,132 @@ Reduction MachineOperatorReducer::ReduceWord64Comparisons(Node* node) {
     }
   }
 
+  /*
+    If Int64Constant(c) can be casted from an Int32Constant:
+    -------------------------------------------------
+    Int64LessThan(Int32ToInt64(a), Int64Constant(c))
+    ====>
+    Int32LessThan(a,Int32Constant(c))
+    -------------------------------------------------
+  */
+  if (node->opcode() == IrOpcode::kInt64LessThan ||
+      node->opcode() == IrOpcode::kInt64LessThanOrEqual) {
+    // Int64LessThan(Int32ToInt64(a), Int64Constant(c))
+    if (m.left().IsChangeInt32ToInt64() && m.right().HasResolvedValue()) {
+      int64_t right_value = static_cast<int64_t>(m.right().ResolvedValue());
+      // Int64Constant can be casted from an Int32Constant
+      if (right_value == static_cast<int32_t>(right_value)) {
+        const Operator* new_op;
+
+        if (node->opcode() == IrOpcode::kInt64LessThan) {
+          new_op = machine()->Int32LessThan();
+        } else {
+          new_op = machine()->Int32LessThanOrEqual();
+        }
+        NodeProperties::ChangeOp(node, new_op);
+        node->ReplaceInput(0, m.left().InputAt(0));
+        node->ReplaceInput(1, Int32Constant(static_cast<int32_t>(right_value)));
+        return Changed(node);
+      } else if (right_value < std::numeric_limits<int32_t>::min()) {
+        // left > right always
+        node->TrimInputCount(0);
+        NodeProperties::ChangeOp(node, common()->Int32Constant(0));
+        return Changed(node);
+      } else if (right_value > std::numeric_limits<int32_t>::max()) {
+        // left < right always
+        node->TrimInputCount(0);
+        NodeProperties::ChangeOp(node, common()->Int32Constant(1));
+        return Changed(node);
+      }
+    }
+    // Int64LessThan(Int64Constant(c), Int32ToInt64(a))
+    if (m.right().IsChangeInt32ToInt64() && m.left().HasResolvedValue()) {
+      int64_t left_value = static_cast<int64_t>(m.left().ResolvedValue());
+      // Int64Constant can be casted from an Int32Constant
+      if (left_value == static_cast<int32_t>(left_value)) {
+        const Operator* new_op;
+
+        if (node->opcode() == IrOpcode::kInt64LessThan) {
+          new_op = machine()->Int32LessThan();
+        } else {
+          new_op = machine()->Int32LessThanOrEqual();
+        }
+        NodeProperties::ChangeOp(node, new_op);
+        node->ReplaceInput(1, m.right().InputAt(0));
+        node->ReplaceInput(0, Int32Constant(static_cast<int32_t>(left_value)));
+        return Changed(node);
+      } else if (left_value < std::numeric_limits<int32_t>::min()) {
+        // left < right always
+        node->TrimInputCount(0);
+        NodeProperties::ChangeOp(node, common()->Int32Constant(1));
+        return Changed(node);
+      } else if (left_value > std::numeric_limits<int32_t>::max()) {
+        // left > right always
+        node->TrimInputCount(0);
+        NodeProperties::ChangeOp(node, common()->Int32Constant(0));
+        return Changed(node);
+      }
+    }
+  }
+
+  /*
+    If Uint64Constant(c) can be casted from an Uint32Constant:
+    -------------------------------------------------
+    Uint64LessThan(Uint32ToInt64(a), Uint64Constant(c))
+    ====>
+    Uint32LessThan(a,Uint32Constant(c))
+    -------------------------------------------------
+  */
+  if (node->opcode() == IrOpcode::kUint64LessThan ||
+      node->opcode() == IrOpcode::kUint64LessThanOrEqual) {
+    // Uint64LessThan(Uint32ToInt64(a), Uint32Constant(c))
+    if (m.left().IsChangeUint32ToUint64() && m.right().HasResolvedValue()) {
+      uint64_t right_value = static_cast<uint64_t>(m.right().ResolvedValue());
+      // Uint64Constant can be casted from an Uint32Constant
+      if (right_value == static_cast<uint32_t>(right_value)) {
+        const Operator* new_op;
+
+        if (node->opcode() == IrOpcode::kUint64LessThan) {
+          new_op = machine()->Uint32LessThan();
+        } else {
+          new_op = machine()->Uint32LessThanOrEqual();
+        }
+        NodeProperties::ChangeOp(node, new_op);
+        node->ReplaceInput(0, m.left().InputAt(0));
+        node->ReplaceInput(1,
+                           Uint32Constant(static_cast<uint32_t>(right_value)));
+        return Changed(node);
+      } else {
+        // left < right always
+        node->TrimInputCount(0);
+        NodeProperties::ChangeOp(node, common()->Int32Constant(1));
+        return Changed(node);
+      }
+    }
+    // Uint64LessThan(Uint64Constant(c), Uint32ToInt64(a))
+    if (m.right().IsChangeUint32ToUint64() && m.left().HasResolvedValue()) {
+      uint64_t left_value = static_cast<uint64_t>(m.left().ResolvedValue());
+      // Uint64Constant can be casted from an Uint32Constant
+      if (left_value == static_cast<uint32_t>(left_value)) {
+        const Operator* new_op;
+        if (node->opcode() == IrOpcode::kUint64LessThan) {
+          new_op = machine()->Uint32LessThan();
+        } else {
+          new_op = machine()->Uint32LessThanOrEqual();
+        }
+        NodeProperties::ChangeOp(node, new_op);
+        node->ReplaceInput(1, m.right().InputAt(0));
+        node->ReplaceInput(0,
+                           Uint32Constant(static_cast<uint32_t>(left_value)));
+        return Changed(node);
+      } else {
+        // left > right always
+        node->TrimInputCount(0);
+        NodeProperties::ChangeOp(node, common()->Int32Constant(0));
+        return Changed(node);
+      }
+    }
+  }
   return NoChange();
 }
 
@@ -1984,7 +2109,7 @@ Reduction MachineOperatorReducer::ReduceWordNAnd(Node* node) {
       return a.ReplaceIntN(0);
     }
   }
-  if (m.left().IsComparison() && m.right().Is(1)) {       // CMP & 1 => CMP
+  if (m.left().IsComparison() && m.right().Is(1)) {  // CMP & 1 => CMP
     return Replace(m.left().node());
   }
   if (m.IsFoldable()) {  // K & K  => K  (K stands for arbitrary constants)
@@ -2424,6 +2549,30 @@ Reduction MachineOperatorReducer::ReduceWord64Equal(Node* node) {
       node->ReplaceInput(0, replacements->first);
       node->ReplaceInput(1, Uint64Constant(replacements->second));
       return Changed(node);
+    }
+
+    /*
+      If Int64Constant(c) can be casted from an Int32Constant:
+      -------------------------------------------------
+      Word64Equal(Int32ToInt64(a), Int64Constant(c))
+      ====>
+      Word32Equal(a,Int32Constant(c))
+      -------------------------------------------------
+    */
+    if (m.left().IsChangeInt32ToInt64()) {
+      int64_t right_value = m.right().ResolvedValue();
+      // Int64Constant can be casted from an Int32Constant
+      if (right_value == static_cast<int32_t>(right_value)) {
+        NodeProperties::ChangeOp(node, machine()->Word32Equal());
+        node->ReplaceInput(0, m.left().InputAt(0));
+        node->ReplaceInput(1, Int32Constant(static_cast<int32_t>(right_value)));
+        return Changed(node);
+      } else {
+        // Always false, change node op to zero(false).
+        node->TrimInputCount(0);
+        NodeProperties::ChangeOp(node, common()->Int32Constant(0));
+        return Changed(node);
+      }
     }
   }
 
