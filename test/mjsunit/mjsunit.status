@@ -1586,7 +1586,7 @@
 
 ################################################################################
 ['conservative_stack_scanning', {
-  # TODO(v8:13257): Conservative stack scanning is not currently compatible
+  # TODO(v8:13493): Conservative stack scanning is not currently compatible
   # with stack switching.
   'wasm/stack-switching': [SKIP],
   'wasm/stack-switching-export': [SKIP],

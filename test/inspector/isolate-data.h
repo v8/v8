@@ -11,7 +11,9 @@
 #include "include/v8-array-buffer.h"
 #include "include/v8-inspector.h"
 #include "include/v8-local-handle.h"
+#include "include/v8-locker.h"
 #include "include/v8-script.h"
+#include "src/base/optional.h"
 
 namespace v8 {
 
@@ -47,7 +49,9 @@ class InspectorIsolateData : public v8_inspector::V8InspectorClient {
   ~InspectorIsolateData() override {
     // Enter the isolate before destructing this InspectorIsolateData, so that
     // destructors that run before the Isolate's destructor still see it as
-    // entered.
+    // entered. Use a v8::Locker, in case the thread destroying the isolate is
+    // not the last one that entered it.
+    locker_.emplace(isolate());
     isolate()->Enter();
   }
 
@@ -159,6 +163,9 @@ class InspectorIsolateData : public v8_inspector::V8InspectorClient {
   SetupGlobalTasks setup_global_tasks_;
   std::unique_ptr<v8::ArrayBuffer::Allocator> array_buffer_allocator_;
   std::unique_ptr<v8::Isolate, IsolateDeleter> isolate_;
+  // The locker_ field has to come after isolate_ because the locker has to
+  // outlive the isolate.
+  base::Optional<v8::Locker> locker_;
   std::unique_ptr<v8_inspector::V8Inspector> inspector_;
   int last_context_group_id_ = 0;
   std::map<int, std::vector<v8::Global<v8::Context>>> contexts_;

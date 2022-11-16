@@ -1668,25 +1668,7 @@ bool Heap::CollectGarbage(AllocationSpace space,
     DevToolsTraceEventScope devtools_trace_event_scope(
         this, IsYoungGenerationCollector(collector) ? "MinorGC" : "MajorGC",
         GarbageCollectionReasonToString(gc_reason));
-
-    auto stack_marker = v8::base::Stack::GetCurrentStackPosition();
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-    stack().set_marker(stack_marker);
-#endif
-    if (cpp_heap()) {
-      if (collector == GarbageCollector::MARK_COMPACTOR ||
-          (collector == GarbageCollector::MINOR_MARK_COMPACTOR &&
-           CppHeap::From(cpp_heap())->generational_gc_supported())) {
-        // CppHeap needs a stack marker at the top of all entry points to allow
-        // deterministic passes over the stack. E.g., a verifier that should
-        // only find a subset of references of the marker.
-        //
-        // TODO(chromium:1056170): Consider adding a component that keeps track
-        // of relevant GC stack regions where interesting pointers can be found.
-        static_cast<v8::internal::CppHeap*>(cpp_heap())
-            ->SetStackEndOfCurrentGC(stack_marker);
-      }
-    }
+    SaveStackContextScope stack_context_scope(&stack());
 
     GarbageCollectionPrologue(gc_reason, gc_callback_flags);
     {
@@ -1770,10 +1752,6 @@ bool Heap::CollectGarbage(AllocationSpace space,
     } else {
       tracer()->StopFullCycleIfNeeded();
     }
-
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-    stack().clear_marker();
-#endif
   }
 
   // Part 3: Invoke all callbacks which should happen after the actual garbage
@@ -2355,9 +2333,7 @@ void Heap::PerformSharedGarbageCollection(Isolate* initiator,
   DCHECK(incremental_marking_->IsStopped());
   DCHECK_NOT_NULL(isolate()->global_safepoint());
 
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-  stack().set_marker(v8::base::Stack::GetCurrentStackPosition());
-#endif
+  SaveStackContextScope stack_context_scope(&stack());
 
   isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
     client->heap()->FreeSharedLinearAllocationAreas();
@@ -2389,10 +2365,6 @@ void Heap::PerformSharedGarbageCollection(Isolate* initiator,
   tracer()->StopObservablePause();
   tracer()->UpdateStatistics(collector);
   tracer()->StopFullCycleIfNeeded();
-
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-  stack().clear_marker();
-#endif
 }
 
 void Heap::CompleteSweepingYoung(GarbageCollector collector) {
@@ -4709,11 +4681,10 @@ void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options) {
     v->Synchronize(VisitorSynchronization::kGlobalHandles);
 
     if (!options.contains(SkipRoot::kStack)) {
-      ScanStackMode mode =
-          options.contains(SkipRoot::kConservativeStack) ? ScanStackMode::kNone
-          : options.contains(SkipRoot::kTopOfStack) ? ScanStackMode::kFromMarker
-                                                    : ScanStackMode::kComplete;
-      IterateStackRoots(v, mode);
+      StackState stack_state = options.contains(SkipRoot::kConservativeStack)
+                                   ? StackState::kNoHeapPointers
+                                   : StackState::kMayContainHeapPointers;
+      IterateStackRoots(v, stack_state);
       v->Synchronize(VisitorSynchronization::kStackRoots);
     }
 
@@ -4844,9 +4815,9 @@ void Heap::IterateRootsIncludingClients(RootVisitor* v,
   }
 }
 
-void Heap::IterateRootsFromStackIncludingClient(RootVisitor* v,
-                                                ScanStackMode mode) {
-  IterateStackRoots(v, mode);
+void Heap::IterateRootsFromStackIncludingClients(RootVisitor* v,
+                                                 StackState stack_state) {
+  IterateStackRoots(v, stack_state);
 
   if (isolate()->is_shared_heap_isolate()) {
     ClientRootVisitor client_root_visitor(v);
@@ -4854,7 +4825,7 @@ void Heap::IterateRootsFromStackIncludingClient(RootVisitor* v,
         [v = &client_root_visitor](Isolate* client) {
           // TODO(v8:13257): We cannot run CSS on client isolates now, as the
           // stack markers will not be correct.
-          client->heap()->IterateStackRoots(v, ScanStackMode::kNone);
+          client->heap()->IterateStackRoots(v, StackState::kNoHeapPointers);
         });
   }
 }
@@ -4882,24 +4853,14 @@ void Heap::IterateBuiltins(RootVisitor* v) {
   static_assert(Builtins::AllBuiltinsAreIsolateIndependent());
 }
 
-void Heap::IterateStackRoots(RootVisitor* v, ScanStackMode mode) {
+void Heap::IterateStackRoots(RootVisitor* v, StackState stack_state) {
   isolate_->Iterate(v);
 
 #ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-  switch (std::min(mode, scan_stack_mode_for_testing_)) {
-    case ScanStackMode::kNone: {
-      break;
-    }
-    case ScanStackMode::kComplete: {
-      ConservativeStackVisitor stack_visitor(isolate(), v);
-      stack().IteratePointers(&stack_visitor);
-      break;
-    }
-    case ScanStackMode::kFromMarker: {
-      ConservativeStackVisitor stack_visitor(isolate(), v);
-      stack().IteratePointersUnsafe(&stack_visitor, stack().get_marker());
-      break;
-    }
+  if (stack_state == StackState::kMayContainHeapPointers &&
+      !disable_conservative_stack_scanning_for_testing_) {
+    ConservativeStackVisitor stack_visitor(isolate(), v);
+    stack().IteratePointers(&stack_visitor);
   }
 #endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
 }
@@ -6487,7 +6448,8 @@ HeapObjectIterator::HeapObjectIterator(
       filtering_(filtering),
       filter_(nullptr),
       space_iterator_(nullptr),
-      object_iterator_(nullptr) {
+      object_iterator_(nullptr),
+      stack_context_scope_(&heap->stack()) {
   heap_->MakeHeapIterable();
   // Start the iteration.
   space_iterator_ = new SpaceIterator(heap_);
@@ -7536,6 +7498,29 @@ CppClassNamesAsHeapObjectNameScope::CppClassNamesAsHeapObjectNameScope(
 
 CppClassNamesAsHeapObjectNameScope::~CppClassNamesAsHeapObjectNameScope() =
     default;
+
+SaveStackContextScope::SaveStackContextScope(::heap::base::Stack* stack)
+    : stack_(stack) {
+#if V8_ENABLE_WEBASSEMBLY
+  // TODO(v8:13493): Do not check the stack context invariant if WASM stack
+  // switching is enabled. This will be removed as soon as context saving
+  // becomes compatible with stack switching.
+  stack_->SaveContext(!v8_flags.experimental_wasm_stack_switching);
+#else
+  stack_->SaveContext();
+#endif  // V8_ENABLE_WEBASSEMBLY
+}
+
+SaveStackContextScope::~SaveStackContextScope() {
+#if V8_ENABLE_WEBASSEMBLY
+  // TODO(v8:13493): Do not check the stack context invariant if WASM stack
+  // switching is enabled. This will be removed as soon as context saving
+  // becomes compatible with stack switching.
+  stack_->ClearContext(!v8_flags.experimental_wasm_stack_switching);
+#else
+  stack_->ClearContext();
+#endif  // V8_ENABLE_WEBASSEMBLY
+}
 
 }  // namespace internal
 }  // namespace v8

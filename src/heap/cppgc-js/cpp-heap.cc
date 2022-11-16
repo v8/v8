@@ -16,7 +16,6 @@
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/optional.h"
-#include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
 #include "src/execution/isolate-inl.h"
 #include "src/flags/flags.h"
@@ -863,7 +862,7 @@ void CppHeap::TraceEpilogue() {
   const size_t bytes_allocated_in_prefinalizers = ExecutePreFinalizers();
 #if CPPGC_VERIFY_HEAP
   UnifiedHeapMarkingVerifier verifier(*this, *collection_type_);
-  verifier.Run(stack_state_of_prev_gc(), stack_end_of_current_gc(),
+  verifier.Run(stack_state_of_prev_gc(),
                stats_collector()->marked_bytes_on_current_cycle() +
                    bytes_allocated_in_prefinalizers);
 #endif  // CPPGC_VERIFY_HEAP
@@ -943,7 +942,7 @@ void CppHeap::CollectGarbageForTesting(CollectionType collection_type,
   // Finish sweeping in case it is still running.
   sweeper().FinishIfRunning();
 
-  SetStackEndOfCurrentGC(v8::base::Stack::GetCurrentStackPosition());
+  SaveStackContextScope stack_context_scope(stack());
 
   if (isolate_) {
     reinterpret_cast<v8::Isolate*>(isolate_)

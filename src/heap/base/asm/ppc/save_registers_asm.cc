@@ -22,7 +22,7 @@
 #ifdef __PPC64__
 
 // 20 64-bit registers = 20 intprt_t
-static_assert(heap::base::Stack::NumberOfCalleeSavedRegisters == 20,
+static_assert(heap::base::Stack::NumberOfCalleeSavedRegisters() == 20,
               "Mismatch in the number of callee-saved registers");
 static_assert(sizeof(intptr_t) == 8, "Mismatch in word size");
 
@@ -66,7 +66,7 @@ asm(".align 2                                    \n"
 #else  // !__PPC64__
 
 // 20 32-bit registers = 20 intprt_t
-static_assert(heap::base::Stack::NumberOfCalleeSavedRegisters == 20,
+static_assert(heap::base::Stack::NumberOfCalleeSavedRegisters() == 20,
               "Mismatch in the number of callee-saved registers");
 static_assert(sizeof(intptr_t) == 4, "Mismatch in word size");
 

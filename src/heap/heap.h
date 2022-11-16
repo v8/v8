@@ -173,7 +173,6 @@ enum class SkipRoot {
   kMainThreadHandles,
   kUnserializable,
   kWeak,
-  kTopOfStack,
   kConservativeStack,
 };
 
@@ -1029,16 +1028,12 @@ class Heap {
   // garbage collection and is usually only performed as part of
   // (de)serialization or heap verification.
 
-  // The order of this enumeration's elements is important: they should go from
-  // more precise to more conservative modes for stack scanning, so that we can
-  // use std::min to override for testing purposes.
-  enum class ScanStackMode { kNone, kFromMarker, kComplete };
-
   // Iterates over the strong roots and the weak roots.
   void IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options);
   void IterateRootsIncludingClients(RootVisitor* v,
                                     base::EnumSet<SkipRoot> options);
-  void IterateRootsFromStackIncludingClient(RootVisitor* v, ScanStackMode mode);
+  void IterateRootsFromStackIncludingClients(RootVisitor* v,
+                                             StackState stack_state);
 
   // Iterates over entries in the smi roots list.  Only interesting to the
   // serializer/deserializer, since GC does not care about smis.
@@ -1047,7 +1042,7 @@ class Heap {
   void IterateWeakRoots(RootVisitor* v, base::EnumSet<SkipRoot> options);
   void IterateWeakGlobalHandles(RootVisitor* v);
   void IterateBuiltins(RootVisitor* v);
-  void IterateStackRoots(RootVisitor* v, ScanStackMode mode);
+  void IterateStackRoots(RootVisitor* v, StackState stack_state);
 
   // ===========================================================================
   // Remembered set API. =======================================================
@@ -2391,7 +2386,7 @@ class Heap {
   bool force_oom_ = false;
   bool force_gc_on_next_allocation_ = false;
   bool delay_sweeper_tasks_for_testing_ = false;
-  ScanStackMode scan_stack_mode_for_testing_ = ScanStackMode::kComplete;
+  bool disable_conservative_stack_scanning_for_testing_ = false;
 
   UnorderedHeapObjectMap<HeapObject> retainer_;
   UnorderedHeapObjectMap<Root> retaining_root_;
@@ -2456,7 +2451,7 @@ class Heap {
   friend class PagedSpaceBase;
   friend class PretenturingHandler;
   friend class ReadOnlyRoots;
-  friend class ScanStackModeScopeForTesting;
+  friend class DisableConservativeStackScanningScopeForTesting;
   friend class Scavenger;
   friend class ScavengerCollector;
   friend class StressConcurrentAllocationObserver;
@@ -2676,21 +2671,32 @@ class V8_NODISCARD IgnoreLocalGCRequests {
   Heap* heap_;
 };
 
-class V8_NODISCARD ScanStackModeScopeForTesting {
+// TODO(v8:13493): This class will move to src/heap/base/stack.h once its
+// implementation no longer needs access to V8 flags.
+class V8_EXPORT_PRIVATE V8_NODISCARD SaveStackContextScope {
  public:
-  explicit inline ScanStackModeScopeForTesting(Heap* heap,
-                                               Heap::ScanStackMode mode)
-      : heap_(heap), old_value_(heap_->scan_stack_mode_for_testing_) {
-    heap_->scan_stack_mode_for_testing_ = mode;
+  explicit SaveStackContextScope(::heap::base::Stack* stack);
+  ~SaveStackContextScope();
+
+ protected:
+  ::heap::base::Stack* stack_;
+};
+
+class V8_NODISCARD DisableConservativeStackScanningScopeForTesting {
+ public:
+  explicit inline DisableConservativeStackScanningScopeForTesting(Heap* heap)
+      : heap_(heap),
+        old_value_(heap_->disable_conservative_stack_scanning_for_testing_) {
+    heap_->disable_conservative_stack_scanning_for_testing_ = true;
   }
 
-  inline ~ScanStackModeScopeForTesting() {
-    heap_->scan_stack_mode_for_testing_ = old_value_;
+  inline ~DisableConservativeStackScanningScopeForTesting() {
+    heap_->disable_conservative_stack_scanning_for_testing_ = old_value_;
   }
 
  protected:
   Heap* heap_;
-  Heap::ScanStackMode old_value_;
+  bool old_value_;
 };
 
 // Visitor class to verify interior pointers in spaces that do not contain
@@ -2793,6 +2799,7 @@ class V8_EXPORT_PRIVATE HeapObjectIterator {
   SpaceIterator* space_iterator_;
   // Object iterator for the space currently being iterated.
   std::unique_ptr<ObjectIterator> object_iterator_;
+  SaveStackContextScope stack_context_scope_;
 
   DISALLOW_GARBAGE_COLLECTION(no_heap_allocation_)
 };

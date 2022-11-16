@@ -3338,13 +3338,18 @@ void Isolate::Delete(Isolate* isolate) {
   SetIsolateThreadLocals(isolate, nullptr);
   isolate->set_thread_id(ThreadId::Current());
   isolate->thread_local_top()->stack_ =
-      saved_isolate ? saved_isolate->thread_local_top()->stack_
+      saved_isolate ? std::move(saved_isolate->thread_local_top()->stack_)
                     : ::heap::base::Stack(base::Stack::GetStackStart());
 
   bool owns_shared_isolate = isolate->owns_shared_isolate_;
   Isolate* maybe_shared_isolate = isolate->shared_isolate_;
 
   isolate->Deinit();
+
+  // Restore the saved isolate's stack.
+  if (saved_isolate)
+    saved_isolate->thread_local_top()->stack_ =
+        std::move(isolate->thread_local_top()->stack_);
 
 #ifdef DEBUG
   non_disposed_isolates_--;

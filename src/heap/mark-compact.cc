@@ -153,10 +153,8 @@ class MarkingVerifier : public ObjectVisitorWithCageBases, public RootVisitor {
 };
 
 void MarkingVerifier::VerifyRoots() {
-  // When verifying marking, we never want to scan conservatively the top of the
-  // stack.
-  heap_->IterateRootsIncludingClients(
-      this, base::EnumSet<SkipRoot>{SkipRoot::kWeak, SkipRoot::kTopOfStack});
+  heap_->IterateRootsIncludingClients(this,
+                                      base::EnumSet<SkipRoot>{SkipRoot::kWeak});
 }
 
 void MarkingVerifier::VerifyMarkingOnPage(const Page* page, Address start,
@@ -2025,9 +2023,8 @@ void MarkCompactCollector::MarkRoots(RootVisitor* root_visitor,
     // v8::TracedReference alive from the stack. This is only needed when using
     // `EmbedderHeapTracer` and not using `CppHeap`.
     auto& stack = heap()->stack();
-    if (stack.stack_start() &&
-        heap_->local_embedder_heap_tracer()->embedder_stack_state() ==
-            cppgc::EmbedderStackState::kMayContainHeapPointers) {
+    if (heap_->local_embedder_heap_tracer()->embedder_stack_state() ==
+        cppgc::EmbedderStackState::kMayContainHeapPointers) {
       ConservativeTracedHandlesMarkingVisitor conservative_marker(
           *heap_, *local_marking_worklists_);
       stack.IteratePointers(&conservative_marker);
@@ -2159,8 +2156,8 @@ Address MarkCompactCollector::FindBasePtrForMarking(Address maybe_inner_ptr) {
 #endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_MB
 
 void MarkCompactCollector::MarkRootsFromStack(RootVisitor* root_visitor) {
-  heap()->IterateRootsFromStackIncludingClient(root_visitor,
-                                               Heap::ScanStackMode::kComplete);
+  heap()->IterateRootsFromStackIncludingClients(
+      root_visitor, StackState::kMayContainHeapPointers);
 }
 
 void MarkCompactCollector::MarkObjectsFromClientHeaps() {
