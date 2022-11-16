@@ -7,8 +7,6 @@
 #include <atomic>
 #include <sstream>
 
-#include "src/base/logging.h"
-#include "src/base/optional.h"
 #include "src/base/platform/mutex.h"
 #include "src/codegen/machine-type.h"
 #include "src/common/globals.h"
@@ -540,13 +538,6 @@ void OverflowCheckedBinopOp::PrintOptions(std::ostream& os) const {
   }
   os << rep;
   os << "]";
-}
-
-std::ostream& operator<<(std::ostream& os, OpIndex idx) {
-  if (!idx.valid()) {
-    return os << "<invalid OpIndex>";
-  }
-  return os << idx.id();
 }
 
 std::ostream& operator<<(std::ostream& os, BlockIndex b) {

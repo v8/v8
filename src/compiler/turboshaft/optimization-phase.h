@@ -18,13 +18,8 @@
 #include "src/compiler/node-origin-table.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/operations.h"
-#include "src/compiler/turboshaft/snapshot-table.h"
 
 namespace v8::internal::compiler::turboshaft {
-
-using Variable =
-    SnapshotTable<OpIndex, base::Optional<RegisterRepresentation>>::Key;
-using MaybeVariable = base::Optional<Variable>;
 
 int CountDecimalDigits(uint32_t value);
 struct PaddingSpace {
@@ -137,10 +132,7 @@ class GraphVisitor {
         origins_(origins),
         current_input_block_(nullptr),
         block_mapping_(input_graph.block_count(), nullptr, phase_zone),
-        op_mapping_(input_graph.op_id_count(), OpIndex::Invalid(), phase_zone),
-        visiting_cloned_block_(false),
-        blocks_needing_variables(phase_zone),
-        old_opindex_to_variables(input_graph.op_id_count(), phase_zone) {
+        op_mapping_(input_graph.op_id_count(), OpIndex::Invalid(), phase_zone) {
     output_graph_.Reset();
   }
 
@@ -150,15 +142,8 @@ class GraphVisitor {
   void VisitGraph() {
     // Creating initial old-to-new Block mapping.
     for (const Block& input_block : input_graph().blocks()) {
-      Block* new_block = input_block.IsLoop() ? assembler().NewLoopHeader()
-                                              : assembler().NewBlock();
-      block_mapping_[input_block.index().id()] = new_block;
-      new_block->SetOrigin(&input_graph().Get(input_block.index()));
-      DCHECK_EQ(block_mapping_[input_block.index().id()]->LastPredecessor(),
-                nullptr);
-      DCHECK_EQ(
-          block_mapping_[input_block.index().id()]->NeighboringPredecessor(),
-          nullptr);
+      block_mapping_[input_block.index().id()] =
+          assembler().NewBlock(input_block.kind());
     }
 
     // Visiting the graph.
@@ -187,53 +172,6 @@ class GraphVisitor {
   const Graph& input_graph() const { return input_graph_; }
   Graph& output_graph() const { return output_graph_; }
   Zone* phase_zone() { return phase_zone_; }
-  const Block* current_input_block() { return current_input_block_; }
-
-  // Visits and emits {input_block} right now (ie, in the current block).
-  void CloneAndInlineBlock(const Block* input_block) {
-    // Computing which input of Phi operations to use when visiting
-    // {input_block} (since {input_block} doesn't really have predecessors
-    // anymore).
-    added_block_phi_input_ =
-        input_block->GetPredecessorIndex(assembler().current_block()->Origin());
-
-    // There is no guarantees that {input_block} will be entirely removed just
-    // because it's cloned/inlined, since it's possible that it has predecessors
-    // for which this optimization didn't apply. As a result, we add it to
-    // {blocks_needing_variables}, so that if it's ever generated
-    // normally, Variables are used when emitting its content, so that
-    // they can later be merged when control flow merges with the current
-    // version of {input_block} that we just cloned.
-    blocks_needing_variables.insert(input_block->index());
-
-    // Updating the origin of "current_block", so that translating Phis can
-    // still properly be done (in OptimizationPhase::ReducePhi).
-    assembler().current_block()->SetOrigin(input_block);
-
-    visiting_cloned_block_ = true;
-    for (OpIndex index : input_graph().OperationIndices(*input_block)) {
-      if (!VisitOp<false>(index, input_block)) break;
-    }
-    visiting_cloned_block_ = false;
-  }
-
-  template <bool can_be_invalid = false>
-  OpIndex MapToNewGraph(OpIndex old_index) {
-    OpIndex result = op_mapping_[old_index.id()];
-    if (!result.valid()) {
-      // {op_mapping} doesn't have a mapping for {old_index}. The assembler
-      // should provide the mapping.
-      MaybeVariable var = GetVariableFor(old_index);
-      if constexpr (can_be_invalid) {
-        if (!var.has_value()) {
-          return OpIndex::Invalid();
-        }
-      }
-      result = assembler().Get(var.value());
-    }
-    DCHECK(result.valid());
-    return result;
-  }
 
  private:
   template <bool trace_reduction>
@@ -256,13 +194,10 @@ class GraphVisitor {
   template <bool trace_reduction>
   void VisitBlock(const Block* input_block) {
     current_input_block_ = input_block;
-    current_block_needs_variables_ =
-        blocks_needing_variables.find(input_block->index()) !=
-        blocks_needing_variables.end();
     if constexpr (trace_reduction) {
       std::cout << PrintAsBlockHeader{*input_block} << "\n";
     }
-    if (!assembler().Bind(MapToNewGraph(input_block->index()), input_block)) {
+    if (!assembler().Bind(MapToNewGraph(input_block->index()))) {
       if constexpr (trace_reduction) TraceBlockUnreachable();
       // If we eliminate a loop backedge, we need to turn the loop into a
       // single-predecessor merge block.
@@ -305,7 +240,6 @@ class GraphVisitor {
       const PhiOp& phi = op.Cast<PhiOp>();
       new_index = assembler().PendingLoopPhi(MapToNewGraph(phi.inputs()[0]),
                                              phi.rep, phi.inputs()[1]);
-      CreateOldToNewMapping(index, new_index);
       if constexpr (trace_reduction) {
         TraceReductionResult(first_output_index, new_index);
       }
@@ -314,9 +248,6 @@ class GraphVisitor {
 #define EMIT_INSTR_CASE(Name)                           \
   case Opcode::k##Name:                                 \
     new_index = this->Visit##Name(op.Cast<Name##Op>()); \
-    if constexpr (CanBeUsedAsInput<Name##Op>()) {       \
-      CreateOldToNewMapping(index, new_index);          \
-    }                                                   \
     break;
         TURBOSHAFT_OPERATION_LIST(EMIT_INSTR_CASE)
 #undef EMIT_INSTR_CASE
@@ -325,6 +256,7 @@ class GraphVisitor {
         TraceReductionResult(first_output_index, new_index);
       }
     }
+    op_mapping_[index.id()] = new_index;
     return true;
   }
 
@@ -367,6 +299,7 @@ class GraphVisitor {
 
   V8_INLINE OpIndex VisitGoto(const GotoOp& op) {
     Block* destination = MapToNewGraph(op.destination->index());
+    assembler().current_block()->SetOrigin(current_input_block_);
     assembler().ReduceGoto(destination);
     if (destination->IsBound()) {
       DCHECK(destination->IsLoop());
@@ -397,11 +330,6 @@ class GraphVisitor {
         MapToNewGraph(op.default_case->index()));
   }
   OpIndex VisitPhi(const PhiOp& op) {
-    if (visiting_cloned_block_) {
-      // This Phi has been cloned/inlined, and has thus now a single
-      // predecessor, and shouldn't be a Phi anymore.
-      return MapToNewGraph(op.input(added_block_phi_input_));
-    }
     base::Vector<const OpIndex> old_inputs = op.inputs();
     base::SmallVector<OpIndex, 8> new_inputs;
     Block* old_pred = current_input_block_->LastPredecessor();
@@ -575,8 +503,7 @@ class GraphVisitor {
     return assembler().ReduceRetain(MapToNewGraph(op.retained()));
   }
   OpIndex VisitParameter(const ParameterOp& op) {
-    return assembler().ReduceParameter(op.parameter_index, op.rep,
-                                       op.debug_name);
+    return assembler().ReduceParameter(op.parameter_index, op.debug_name);
   }
   OpIndex VisitOsrValue(const OsrValueOp& op) {
     return assembler().ReduceOsrValue(op.index);
@@ -613,8 +540,7 @@ class GraphVisitor {
         base::VectorOf(MapToNewGraph<4>(op.inputs())));
   }
   OpIndex VisitProjection(const ProjectionOp& op) {
-    return assembler().ReduceProjection(MapToNewGraph(op.input()), op.index,
-                                        op.rep);
+    return assembler().ReduceProjection(MapToNewGraph(op.input()), op.index);
   }
   OpIndex VisitWordBinop(const WordBinopOp& op) {
     return assembler().ReduceWordBinop(
@@ -627,28 +553,6 @@ class GraphVisitor {
   OpIndex VisitUnreachable(const UnreachableOp& op) {
     return assembler().ReduceUnreachable();
   }
-  OpIndex VisitStaticAssert(const StaticAssertOp& op) {
-    return assembler().ReduceStaticAssert(op.input(), op.source);
-  }
-
-  void CreateOldToNewMapping(OpIndex old_index, OpIndex new_index) {
-    if (visiting_cloned_block_ || current_block_needs_variables_) {
-      MaybeVariable var = GetVariableFor(old_index);
-      if (!var.has_value()) {
-        base::Optional<RegisterRepresentation> rep =
-            input_graph().Get(old_index).outputs_rep().size() == 1
-                ? base::Optional<RegisterRepresentation>{input_graph()
-                                                             .Get(old_index)
-                                                             .outputs_rep()[0]}
-                : base::nullopt;
-        var = assembler().NewFreshVariable(rep);
-        SetVariableFor(old_index, *var);
-      }
-      assembler().Set(*var, new_index);
-      return;
-    }
-    op_mapping_[old_index.id()] = new_index;
-  }
 
   Block* MapToNewGraph(BlockIndex old_index) const {
     Block* result = block_mapping_[old_index.id()];
@@ -656,13 +560,10 @@ class GraphVisitor {
     return result;
   }
 
-  MaybeVariable GetVariableFor(OpIndex old_index) const {
-    return old_opindex_to_variables[old_index];
-  }
-
-  void SetVariableFor(OpIndex old_index, MaybeVariable var) {
-    DCHECK(!old_opindex_to_variables[old_index].has_value());
-    old_opindex_to_variables[old_index] = var;
+  OpIndex MapToNewGraph(OpIndex old_index) {
+    OpIndex result = op_mapping_[old_index.id()];
+    DCHECK(result.valid());
+    return result;
   }
 
   template <size_t expected_size>
@@ -702,26 +603,6 @@ class GraphVisitor {
   // Mappings from the old graph to the new graph.
   ZoneVector<Block*> block_mapping_;
   ZoneVector<OpIndex> op_mapping_;
-
-  // {visiting_cloned_block_} is set to true when cloning a block, which impacts
-  // how Phis are reduced, and how mappings from old to new OpIndex are
-  // maintained.
-  bool visiting_cloned_block_ = false;
-  // When visiting a cloned block, the {added_block_phi_input_}th of Phis is
-  // used to replace those Phis.
-  int added_block_phi_input_;
-
-  // {current_block_needs_variables_} is set to true if the current block should
-  // use Variables to map old to new OpIndex rather than just {op_mapping}. This
-  // is typically the case when the block has been cloned.
-  bool current_block_needs_variables_ = false;
-
-  // Set of Blocks for which Variables should be used rather than
-  // {op_mapping}.
-  ZoneSet<BlockIndex> blocks_needing_variables;
-
-  // Mapping from old OpIndex to Variables.
-  FixedSidetable<MaybeVariable> old_opindex_to_variables;
 };
 
 }  // namespace v8::internal::compiler::turboshaft
