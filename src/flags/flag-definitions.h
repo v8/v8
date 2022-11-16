@@ -1010,7 +1010,7 @@ DEFINE_INT(wasm_num_compilation_tasks, 128,
 DEFINE_VALUE_IMPLICATION(single_threaded, wasm_num_compilation_tasks, 0)
 DEFINE_DEBUG_BOOL(trace_wasm_native_heap, false,
                   "trace wasm native heap events")
-DEFINE_BOOL(wasm_write_protect_code_memory, true,
+DEFINE_BOOL(wasm_write_protect_code_memory, false,
             "write protect code memory on the wasm native heap with mprotect")
 DEFINE_BOOL(wasm_memory_protection_keys, true,
             "protect wasm code memory with PKU if available (takes precedence "
@@ -1178,9 +1178,6 @@ DEFINE_BOOL(asm_wasm_lazy_compilation, false,
 DEFINE_IMPLICATION(validate_asm, asm_wasm_lazy_compilation)
 DEFINE_BOOL(wasm_lazy_compilation, true,
             "enable lazy compilation for all wasm modules")
-// Write protect code causes too much overhead for lazy compilation.
-DEFINE_WEAK_NEG_IMPLICATION(wasm_lazy_compilation,
-                            wasm_write_protect_code_memory)
 DEFINE_DEBUG_BOOL(trace_wasm_lazy_compilation, false,
                   "trace lazy compilation of wasm functions")
 DEFINE_BOOL(wasm_lazy_validation, false,
