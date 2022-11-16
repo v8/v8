@@ -286,6 +286,7 @@ class V8_EXPORT_PRIVATE NativeModuleSerializer {
   size_t MeasureCode(const WasmCode*) const;
   void WriteHeader(Writer*, size_t total_code_size);
   void WriteCode(const WasmCode*, Writer*);
+  void WriteTieringBudget(Writer* writer);
 
   const NativeModule* const native_module_;
   const base::Vector<WasmCode* const> code_table_;
@@ -318,6 +319,9 @@ size_t NativeModuleSerializer::Measure() const {
   for (WasmCode* code : code_table_) {
     size += MeasureCode(code);
   }
+  // Add the size of the tiering budget.
+  size += native_module_->module()->num_declared_functions * sizeof(uint32_t);
+
   return size;
 }
 
@@ -446,6 +450,12 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
   total_written_code_ += code_size;
 }
 
+void NativeModuleSerializer::WriteTieringBudget(Writer* writer) {
+  writer->WriteVector(base::Vector<const byte>::cast(
+      base::VectorOf(native_module_->tiering_budget_array(),
+                     native_module_->module()->num_declared_functions)));
+}
+
 bool NativeModuleSerializer::Write(Writer* writer) {
   DCHECK(!write_called_);
   write_called_ = true;
@@ -468,6 +478,7 @@ bool NativeModuleSerializer::Write(Writer* writer) {
   // Make sure that the serialized total code size was correct.
   CHECK_EQ(total_written_code_, total_code_size);
 
+  WriteTieringBudget(writer);
   return true;
 }
 
@@ -561,6 +572,7 @@ class V8_EXPORT_PRIVATE NativeModuleDeserializer {
 
   void ReadHeader(Reader* reader);
   DeserializationUnit ReadCode(int fn_index, Reader* reader);
+  void ReadTieringBudget(Reader* reader);
   void CopyAndRelocate(const DeserializationUnit& unit);
   void Publish(std::vector<DeserializationUnit> batch);
 
@@ -700,6 +712,7 @@ bool NativeModuleDeserializer::Read(Reader* reader) {
   // Wait for all tasks to finish, while participating in their work.
   job_handle->Join();
 
+  ReadTieringBudget(reader);
   return reader->current_size() == 0;
 }
 
@@ -821,6 +834,19 @@ void NativeModuleDeserializer::CopyAndRelocate(
   // Finally, flush the icache for that code.
   FlushInstructionCache(unit.code->instructions().begin(),
                         unit.code->instructions().size());
+}
+
+void NativeModuleDeserializer::ReadTieringBudget(Reader* reader) {
+  size_t size_of_tiering_budget =
+      native_module_->module()->num_declared_functions * sizeof(uint32_t);
+  if (size_of_tiering_budget > reader->current_size()) {
+    return;
+  }
+  base::Vector<const byte> serialized_budget =
+      reader->ReadVector<const byte>(size_of_tiering_budget);
+
+  memcpy(native_module_->tiering_budget_array(), serialized_budget.begin(),
+         size_of_tiering_budget);
 }
 
 void NativeModuleDeserializer::Publish(std::vector<DeserializationUnit> batch) {
