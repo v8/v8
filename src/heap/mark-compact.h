@@ -707,6 +707,9 @@ class MinorMarkCompactCollector final : public CollectorBase {
 
   void VisitObject(HeapObject obj) final;
 
+  // Perform Wrapper Tracing if in use.
+  void PerformWrapperTracing();
+
  private:
   class RootMarkingVisitor;
 

@@ -5644,6 +5644,16 @@ void MinorMarkCompactCollector::SweepArrayBufferExtensions() {
       ArrayBufferSweeper::SweepingType::kYoung);
 }
 
+void MinorMarkCompactCollector::PerformWrapperTracing() {
+  if (!heap_->local_embedder_heap_tracer()->InUse()) return;
+  TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_EMBEDDER_TRACING);
+  const bool published = local_marking_worklists()->PublishWrapper();
+  DCHECK(published);
+  USE(published);
+  heap_->local_embedder_heap_tracer()->Trace(
+      std::numeric_limits<double>::infinity());
+}
+
 class YoungGenerationMigrationObserver final : public MigrationObserver {
  public:
   YoungGenerationMigrationObserver(Heap* heap,
@@ -6091,6 +6101,8 @@ class YoungGenerationMarkingTask {
            marking_worklists_local_->PopOnHold(&object)) {
       visitor_.Visit(object);
     }
+    // Publish wrapper objects to the cppgc marking state, if registered.
+    marking_worklists_local_->PublishWrapper();
   }
 
   void PublishMarkingWorklist() { marking_worklists_local_->Publish(); }
@@ -6314,6 +6326,10 @@ void MinorMarkCompactCollector::MarkLiveObjects() {
 
   MarkRootSetInParallel(&root_visitor, was_marked_incrementally);
 
+  if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap())) {
+    cpp_heap->FinishConcurrentMarkingIfNeeded();
+  }
+
   // Mark rest on the main thread.
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_CLOSURE);
@@ -6340,14 +6356,19 @@ void MinorMarkCompactCollector::MarkLiveObjects() {
 
 void MinorMarkCompactCollector::DrainMarkingWorklist() {
   PtrComprCageBase cage_base(isolate());
-  HeapObject object;
-  while (local_marking_worklists_->Pop(&object)) {
-    DCHECK(!object.IsFreeSpaceOrFiller(cage_base));
-    DCHECK(object.IsHeapObject());
-    DCHECK(heap()->Contains(object));
-    DCHECK(!non_atomic_marking_state()->IsWhite(object));
-    main_marking_visitor_->Visit(object);
-  }
+  do {
+    PerformWrapperTracing();
+
+    HeapObject object;
+    while (local_marking_worklists_->Pop(&object)) {
+      DCHECK(!object.IsFreeSpaceOrFiller(cage_base));
+      DCHECK(object.IsHeapObject());
+      DCHECK(heap()->Contains(object));
+      DCHECK(!non_atomic_marking_state()->IsWhite(object));
+      main_marking_visitor_->Visit(object);
+    }
+  } while (!local_marking_worklists_->IsWrapperEmpty() ||
+           !heap()->local_embedder_heap_tracer()->IsRemoteTracingDone());
   DCHECK(local_marking_worklists_->IsEmpty());
 }
 

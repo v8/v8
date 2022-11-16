@@ -98,64 +98,6 @@ class MinorGCHeapGrowing
 
 }  // namespace internal
 
-namespace {
-
-START_ALLOW_USE_DEPRECATED()
-
-class V8ToCppGCReferencesVisitor final
-    : public v8::EmbedderHeapTracer::TracedGlobalHandleVisitor {
- public:
-  V8ToCppGCReferencesVisitor(
-      cppgc::internal::MutatorMarkingState& marking_state,
-      v8::internal::Isolate* isolate,
-      const v8::WrapperDescriptor& wrapper_descriptor)
-      : marking_state_(marking_state),
-        isolate_(isolate),
-        wrapper_descriptor_(wrapper_descriptor) {}
-
-  void VisitTracedReference(const v8::TracedReference<v8::Value>& value) final {
-    VisitHandle(value, value.WrapperClassId());
-  }
-
- private:
-  void VisitHandle(const v8::TracedReference<v8::Value>& value,
-                   uint16_t class_id) {
-    DCHECK(!value.IsEmpty());
-
-    const internal::JSObject js_object =
-        *reinterpret_cast<const internal::JSObject* const&>(value);
-    if (!js_object.ptr() || js_object.IsSmi() ||
-        !js_object.MayHaveEmbedderFields())
-      return;
-
-    internal::LocalEmbedderHeapTracer::WrapperInfo info;
-    if (!internal::LocalEmbedderHeapTracer::ExtractWrappableInfo(
-            isolate_, js_object, wrapper_descriptor_, &info))
-      return;
-
-    marking_state_.MarkAndPush(
-        cppgc::internal::HeapObjectHeader::FromObject(info.second));
-  }
-
-  cppgc::internal::MutatorMarkingState& marking_state_;
-  v8::internal::Isolate* isolate_;
-  const v8::WrapperDescriptor& wrapper_descriptor_;
-};
-
-END_ALLOW_USE_DEPRECATED()
-
-void TraceV8ToCppGCReferences(
-    v8::internal::Isolate* isolate,
-    cppgc::internal::MutatorMarkingState& marking_state,
-    const v8::WrapperDescriptor& wrapper_descriptor) {
-  DCHECK(isolate);
-  V8ToCppGCReferencesVisitor forwarding_visitor(marking_state, isolate,
-                                                wrapper_descriptor);
-  isolate->traced_handles()->Iterate(&forwarding_visitor);
-}
-
-}  // namespace
-
 // static
 constexpr uint16_t WrapperDescriptor::kUnknownEmbedderId;
 
@@ -702,12 +644,6 @@ void CppHeap::InitializeTracing(CollectionType collection_type,
 
   collection_type_ = collection_type;
 
-  if (collection_type == CollectionType::kMinor) {
-    if (!generational_gc_supported()) return;
-    // Notify GC tracer that CppGC started young GC cycle.
-    isolate_->heap()->tracer()->NotifyYoungCppGCRunning();
-  }
-
   CHECK(!sweeper_.IsSweepingInProgress());
 
   // Check that previous cycle metrics for the same collection type have been
@@ -813,11 +749,6 @@ void CppHeap::EnterFinalPause(cppgc::EmbedderStackState stack_state) {
             heap, *heap.mark_compact_collector()->local_marking_worklists()));
   }
   marker.EnterAtomicPause(stack_state);
-  if (isolate_ && *collection_type_ == CollectionType::kMinor) {
-    // Visit V8 -> cppgc references.
-    TraceV8ToCppGCReferences(isolate_, marker.GetMutatorMarkingState(),
-                             wrapper_descriptor_);
-  }
   compactor_.CancelIfShouldNotCompact(MarkingType::kAtomic, stack_state);
 }
 

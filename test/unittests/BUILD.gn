@@ -398,6 +398,7 @@ v8_source_set("unittests_sources") {
     "heap/cppgc-js/unified-heap-unittest.cc",
     "heap/cppgc-js/unified-heap-utils.cc",
     "heap/cppgc-js/unified-heap-utils.h",
+    "heap/cppgc-js/young-unified-heap-unittest.cc",
     "heap/embedder-tracing-unittest.cc",
     "heap/gc-idle-time-handler-unittest.cc",
     "heap/gc-tracer-unittest.cc",
