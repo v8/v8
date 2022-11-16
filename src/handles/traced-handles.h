@@ -56,6 +56,9 @@ class V8_EXPORT_PRIVATE TracedHandles final {
 
   void ResetDeadNodes(WeakSlotCallbackWithHeap should_reset_handle);
 
+  void CheckNodeMarkingStateIsConsistent(
+      bool may_find_marked_nodes, WeakSlotCallbackWithHeap should_reset_handle);
+
   // Computes whether young weak objects should be considered roots for young
   // generation garbage collections  or just be treated weakly. Per default
   // objects are considered as roots. Objects are treated not as root when both

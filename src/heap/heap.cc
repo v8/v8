@@ -2652,6 +2652,12 @@ void Heap::Scavenge() {
   IncrementalMarking::PauseBlackAllocationScope pause_black_allocation(
       incremental_marking());
 
+  // Temporary checks for diagnosing https://crbug.com/1380114.
+  if (incremental_marking()->IsMarking()) {
+    isolate()->traced_handles()->CheckNodeMarkingStateIsConsistent(
+        true, &MarkCompactCollector::IsUnmarkedHeapObject);
+  }
+
   SetGCState(SCAVENGE);
 
   SemiSpaceNewSpace::From(new_space())->EvacuatePrologue();
@@ -2665,6 +2671,12 @@ void Heap::Scavenge() {
   scavenger_collector_->CollectGarbage();
 
   SetGCState(NOT_IN_GC);
+
+  // Temporary checks for diagnosing https://crbug.com/1380114.
+  if (incremental_marking()->IsMarking()) {
+    isolate()->traced_handles()->CheckNodeMarkingStateIsConsistent(
+        true, &MarkCompactCollector::IsUnmarkedHeapObject);
+  }
 }
 
 void Heap::UnprotectAndRegisterMemoryChunk(MemoryChunk* chunk,
