@@ -1282,7 +1282,6 @@ class WasmModuleBuilder {
     // a separate rec. group instead.
     // TODO(7748): Support more flexible rec. groups.
     this.singleton_rec_groups = false;
-    this.early_data_count_section = false;
     return this;
   }
 
@@ -1613,10 +1612,6 @@ class WasmModuleBuilder {
     this.singleton_rec_groups = true;
   }
 
-  setEarlyDataCountSection() {
-    this.early_data_count_section = true;
-  }
-
   setName(name) {
     this.name = name;
     return this;
@@ -1724,14 +1719,6 @@ class WasmModuleBuilder {
         for (let func of wasm.functions) {
           section.emit_u32v(func.type_index);
         }
-      });
-    }
-
-    // If there are any passive data segments, add the DataCount section.
-    if (this.early_data_count_section &&
-        wasm.data_segments.some(seg => !seg.is_active)) {
-      binary.emit_section(kDataCountSectionCode, section => {
-        section.emit_u32v(wasm.data_segments.length);
       });
     }
 
@@ -1900,8 +1887,7 @@ class WasmModuleBuilder {
     }
 
     // If there are any passive data segments, add the DataCount section.
-    if (!this.early_data_count_section &&
-        wasm.data_segments.some(seg => !seg.is_active)) {
+    if (wasm.data_segments.some(seg => !seg.is_active)) {
       binary.emit_section(kDataCountSectionCode, section => {
         section.emit_u32v(wasm.data_segments.length);
       });

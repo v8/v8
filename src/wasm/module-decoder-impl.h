@@ -447,9 +447,6 @@ class ModuleDecoderTemplate : public Decoder {
     // Now check the ordering constraints of specific unordered sections.
     switch (section_code) {
       case kDataCountSectionCode:
-        // If wasm-gc is enabled, we allow the data count section anywhere in
-        // the module.
-        if (enabled_features_.has_gc()) return true;
         return check_order(kElementSectionCode, kCodeSectionCode);
       case kTagSectionCode:
         return check_order(kMemorySectionCode, kGlobalSectionCode);

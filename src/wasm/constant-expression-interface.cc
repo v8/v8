@@ -236,6 +236,9 @@ void ConstantExpressionInterface::ArrayNewFixed(
                 ValueType::Ref(HeapType(imm.index)));
 }
 
+// TODO(7748): These expressions are non-constant for now. There are plans to
+// make them constant in the future, so we retain the required infrastructure
+// here.
 void ConstantExpressionInterface::ArrayNewSegment(
     FullDecoder* decoder, const ArrayIndexImmediate& array_imm,
     const IndexImmediate& segment_imm, const Value& offset_value,
