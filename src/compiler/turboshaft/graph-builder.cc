@@ -143,7 +143,8 @@ struct GraphBuilder {
     }
   }
   OpIndex Process(Node* node, BasicBlock* block,
-                  const base::SmallVector<int, 16>& predecessor_permutation);
+                  const base::SmallVector<int, 16>& predecessor_permutation,
+                  base::Optional<BailoutReason>* bailout);
 };
 
 base::Optional<BailoutReason> GraphBuilder::Run() {
@@ -171,13 +172,15 @@ base::Optional<BailoutReason> GraphBuilder::Run() {
                        predecessors[j]->rpo_number();
               });
 
+    base::Optional<BailoutReason> bailout = base::nullopt;
     for (Node* node : *block->nodes()) {
       if (V8_UNLIKELY(node->InputCount() >=
                       int{std::numeric_limits<
                           decltype(Operation::input_count)>::max()})) {
         return BailoutReason::kTooManyArguments;
       }
-      OpIndex i = Process(node, block, predecessor_permutation);
+      OpIndex i = Process(node, block, predecessor_permutation, &bailout);
+      if (V8_UNLIKELY(bailout)) return bailout;
       op_mapping.Set(node, i);
     }
     if (Node* node = block->control_input()) {
@@ -186,7 +189,8 @@ base::Optional<BailoutReason> GraphBuilder::Run() {
                           decltype(Operation::input_count)>::max()})) {
         return BailoutReason::kTooManyArguments;
       }
-      OpIndex i = Process(node, block, predecessor_permutation);
+      OpIndex i = Process(node, block, predecessor_permutation, &bailout);
+      if (V8_UNLIKELY(bailout)) return bailout;
       op_mapping.Set(node, i);
     }
     switch (block->control()) {
@@ -248,7 +252,8 @@ base::Optional<BailoutReason> GraphBuilder::Run() {
 
 OpIndex GraphBuilder::Process(
     Node* node, BasicBlock* block,
-    const base::SmallVector<int, 16>& predecessor_permutation) {
+    const base::SmallVector<int, 16>& predecessor_permutation,
+    base::Optional<BailoutReason>* bailout) {
   assembler.SetCurrentOrigin(OpIndex::EncodeTurbofanNodeId(node->id()));
   const Operator* op = node->op();
   Operator::Opcode opcode = op->opcode();
@@ -786,6 +791,11 @@ OpIndex GraphBuilder::Process(
       FrameState frame_state{node};
       FrameStateData::Builder builder;
       BuildFrameStateData(&builder, frame_state);
+      if (builder.Inputs().size() >
+          std::numeric_limits<decltype(Operation::input_count)>::max() - 1) {
+        *bailout = BailoutReason::kTooManyArguments;
+        return OpIndex::Invalid();
+      }
       return assembler.FrameState(
           builder.Inputs(), builder.inlined(),
           builder.AllocateFrameStateData(frame_state.frame_state_info(),
