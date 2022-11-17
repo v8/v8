@@ -62,9 +62,6 @@ class RegExpTextBuilder {
   void FlushPendingSurrogate();
   void FlushText();
   RegExpTree* PopLastAtom();
-#ifdef DEBUG
-  bool HasUnflushedCharacters();
-#endif
 
  private:
   static const base::uc16 kNoPendingSurrogate = 0;
@@ -140,12 +137,6 @@ void RegExpTextBuilder::FlushCharacters() {
     text_.emplace_back(atom);
   }
 }
-
-#ifdef DEBUG
-bool RegExpTextBuilder::HasUnflushedCharacters() {
-  return characters_ != nullptr && !characters_->is_empty();
-}
-#endif  // DEBUG
 
 void RegExpTextBuilder::FlushText() {
   FlushCharacters();
@@ -339,18 +330,6 @@ class RegExpBuilder {
   SmallRegExpTreeVector terms_;
   SmallRegExpTreeVector alternatives_;
   RegExpTextBuilder text_builder_;
-#ifdef DEBUG
-  enum {
-    ADD_NONE,
-    ADD_CHAR,
-    ADD_TERM,
-    ADD_ASSERT,
-    ADD_ATOM
-  } last_added_ = ADD_NONE;
-#define LAST(x) last_added_ = x;
-#else
-#define LAST(x)
-#endif
 };
 
 enum SubexpressionType {
@@ -2761,27 +2740,21 @@ bool RegExpParserImpl<CharT>::Parse(RegExpCompileData* result) {
   return true;
 }
 
-void RegExpBuilder::FlushText() {
-  text_builder().FlushText();
-  LAST(ADD_ATOM);
-}
+void RegExpBuilder::FlushText() { text_builder().FlushText(); }
 
 void RegExpBuilder::AddCharacter(base::uc16 c) {
   pending_empty_ = false;
   text_builder().AddCharacter(c);
-  LAST(ADD_CHAR);
 }
 
 void RegExpBuilder::AddUnicodeCharacter(base::uc32 c) {
   pending_empty_ = false;
   text_builder().AddUnicodeCharacter(c);
-  LAST(text_builder().HasUnflushedCharacters() ? ADD_CHAR : ADD_ATOM);
 }
 
 void RegExpBuilder::AddEscapedUnicodeCharacter(base::uc32 character) {
   pending_empty_ = false;
   text_builder().AddEscapedUnicodeCharacter(character);
-  LAST(text_builder().HasUnflushedCharacters() ? ADD_CHAR : ADD_ATOM);
 }
 
 void RegExpBuilder::AddEmpty() {
@@ -2792,7 +2765,6 @@ void RegExpBuilder::AddEmpty() {
 void RegExpBuilder::AddClassRanges(RegExpClassRanges* cc) {
   pending_empty_ = false;
   text_builder().AddClassRanges(cc);
-  LAST(ADD_ATOM);
 }
 
 void RegExpBuilder::AddAtom(RegExpTree* term) {
@@ -2807,7 +2779,6 @@ void RegExpBuilder::AddAtom(RegExpTree* term) {
     FlushText();
     terms_.emplace_back(term);
   }
-  LAST(ADD_ATOM);
 }
 
 void RegExpBuilder::AddTerm(RegExpTree* term) {
@@ -2819,14 +2790,12 @@ void RegExpBuilder::AddTerm(RegExpTree* term) {
     FlushText();
     terms_.emplace_back(term);
   }
-  LAST(ADD_ATOM);
 }
 
 void RegExpBuilder::AddAssertion(RegExpTree* assert) {
   FlushText();
   pending_empty_ = false;
   terms_.emplace_back(assert);
-  LAST(ADD_ASSERT);
 }
 
 void RegExpBuilder::NewAlternative() { FlushTerms(); }
@@ -2846,7 +2815,6 @@ void RegExpBuilder::FlushTerms() {
   }
   alternatives_.emplace_back(alternative);
   terms_.clear();
-  LAST(ADD_NONE);
 }
 
 RegExpTree* RegExpBuilder::ToRegExp() {
@@ -2868,7 +2836,6 @@ bool RegExpBuilder::AddQuantifierToAtom(
   if (atom != nullptr) {
     FlushText();
   } else if (terms_.size() > 0) {
-    DCHECK_EQ(last_added_, ADD_ATOM);
     atom = terms_.back();
     terms_.pop_back();
     if (atom->IsLookaround()) {
@@ -2881,7 +2848,6 @@ bool RegExpBuilder::AddQuantifierToAtom(
     }
     if (atom->max_match() == 0) {
       // Guaranteed to only match an empty string.
-      LAST(ADD_TERM);
       if (min == 0) {
         return true;
       }
@@ -2894,7 +2860,6 @@ bool RegExpBuilder::AddQuantifierToAtom(
   }
   terms_.emplace_back(
       zone()->New<RegExpQuantifier>(min, max, quantifier_type, atom));
-  LAST(ADD_TERM);
   return true;
 }
 
@@ -2942,8 +2907,6 @@ template bool RegExpParser::VerifyRegExpSyntax<uint8_t>(
 template bool RegExpParser::VerifyRegExpSyntax<base::uc16>(
     Zone*, uintptr_t, const base::uc16*, int, RegExpFlags, RegExpCompileData*,
     const DisallowGarbageCollection&);
-
-#undef LAST
 
 }  // namespace internal
 }  // namespace v8
