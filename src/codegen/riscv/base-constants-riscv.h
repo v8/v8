@@ -53,7 +53,7 @@ const uint32_t kLessSignificantWordInDoublewordOffset = 4;
 // Try https://content.riscv.org/wp-content/uploads/2017/05/riscv-spec-v2.2.pdf.
 namespace v8 {
 namespace internal {
-
+using Opcode = uint32_t;
 // Actual value of root register is offset from the root array's start
 // to take advantage of negative displacement values.
 // TODO(sigurds): Choose best value.
