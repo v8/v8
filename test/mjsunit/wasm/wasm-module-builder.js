@@ -1121,9 +1121,8 @@ class WasmFunctionBuilder {
 
   addBody(body) {
     checkExpr(body);
-    this.body = body.slice();
-    // Automatically add the end for the function block to the body.
-    this.body.push(kExprEnd);
+    // Store a copy of the body, and automatically add the end opcode.
+    this.body = body.concat([kExprEnd]);
     return this;
   }
 
