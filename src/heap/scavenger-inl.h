@@ -290,7 +290,7 @@ SlotCallbackResult Scavenger::EvacuateThinString(Map map, THeapObjectSlot slot,
   static_assert(std::is_same<THeapObjectSlot, FullHeapObjectSlot>::value ||
                     std::is_same<THeapObjectSlot, HeapObjectSlot>::value,
                 "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
-  if (!is_incremental_marking_) {
+  if (!is_incremental_marking_ && shortcut_strings_) {
     // The ThinString should die after Scavenge, so avoid writing the proper
     // forwarding pointer and instead just signal the actual object as forwarded
     // reference.
@@ -317,7 +317,8 @@ SlotCallbackResult Scavenger::EvacuateShortcutCandidate(Map map,
                     std::is_same<THeapObjectSlot, HeapObjectSlot>::value,
                 "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
   DCHECK(IsShortcutCandidate(map.instance_type()));
-  if (!is_incremental_marking_ &&
+
+  if (!is_incremental_marking_ && shortcut_strings_ &&
       object.unchecked_second() == ReadOnlyRoots(heap()).empty_string()) {
     HeapObject first = HeapObject::cast(object.unchecked_first());
 
