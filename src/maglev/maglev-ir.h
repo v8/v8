@@ -807,10 +807,14 @@ DeoptFrame::as_builtin_continuation() const {
 
 class DeoptInfo {
  protected:
-  DeoptInfo(Zone* zone, DeoptFrame top_frame);
+  DeoptInfo(Zone* zone, DeoptFrame top_frame,
+            compiler::FeedbackSource feedback_to_update);
 
  public:
   const DeoptFrame& top_frame() const { return top_frame_; }
+  const compiler::FeedbackSource& feedback_to_update() {
+    return feedback_to_update_;
+  }
 
   InputLocation* input_locations() const { return input_locations_; }
   Label* deopt_entry_label() { return &deopt_entry_label_; }
@@ -820,6 +824,7 @@ class DeoptInfo {
 
  private:
   const DeoptFrame top_frame_;
+  const compiler::FeedbackSource feedback_to_update_;
   InputLocation* const input_locations_;
   Label deopt_entry_label_;
   int translation_index_ = -1;
@@ -833,8 +838,9 @@ struct RegisterSnapshot {
 
 class EagerDeoptInfo : public DeoptInfo {
  public:
-  EagerDeoptInfo(Zone* zone, DeoptFrame&& top_frame)
-      : DeoptInfo(zone, std::move(top_frame)) {}
+  EagerDeoptInfo(Zone* zone, DeoptFrame&& top_frame,
+                 compiler::FeedbackSource feedback_to_update)
+      : DeoptInfo(zone, std::move(top_frame), feedback_to_update) {}
 
   DeoptimizeReason reason() const { return reason_; }
   void set_reason(DeoptimizeReason reason) { reason_ = reason; }
@@ -845,8 +851,9 @@ class EagerDeoptInfo : public DeoptInfo {
 
 class LazyDeoptInfo : public DeoptInfo {
  public:
-  LazyDeoptInfo(Zone* zone, DeoptFrame&& top_frame)
-      : DeoptInfo(zone, std::move(top_frame)) {}
+  LazyDeoptInfo(Zone* zone, DeoptFrame&& top_frame,
+                compiler::FeedbackSource feedback_to_update)
+      : DeoptInfo(zone, std::move(top_frame), feedback_to_update) {}
 
   interpreter::Register result_location() const { return result_location_; }
   int result_size() const { return result_size_; }
@@ -965,14 +972,17 @@ class NodeBase : public ZoneObject {
   }
 
   template <class Derived, typename... Args>
-  static Derived* New(Zone* zone, DeoptFrame&& deopt_frame, Args&&... args) {
+  static Derived* New(Zone* zone, DeoptFrame&& deopt_frame,
+                      compiler::FeedbackSource feedback_to_update,
+                      Args&&... args) {
     Derived* node = New<Derived>(zone, std::forward<Args>(args)...);
     if constexpr (Derived::kProperties.can_eager_deopt()) {
       new (node->eager_deopt_info())
-          EagerDeoptInfo(zone, std::move(deopt_frame));
+          EagerDeoptInfo(zone, std::move(deopt_frame), feedback_to_update);
     } else {
       static_assert(Derived::kProperties.can_lazy_deopt());
-      new (node->lazy_deopt_info()) LazyDeoptInfo(zone, std::move(deopt_frame));
+      new (node->lazy_deopt_info())
+          LazyDeoptInfo(zone, std::move(deopt_frame), feedback_to_update);
     }
     return node;
   }

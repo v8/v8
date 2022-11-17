@@ -1075,6 +1075,11 @@ class MaglevTranslationArrayBuilder {
     deopt_info->set_translation_index(
         translation_array_builder_->BeginTranslation(frame_count, jsframe_count,
                                                      update_feedback_count));
+    if (deopt_info->feedback_to_update().IsValid()) {
+      translation_array_builder_->AddUpdateFeedback(
+          GetDeoptLiteral(*deopt_info->feedback_to_update().vector),
+          deopt_info->feedback_to_update().index());
+    }
 
     const InputLocation* current_input_location = deopt_info->input_locations();
     BuildDeoptFrame(deopt_info->top_frame(), current_input_location);
