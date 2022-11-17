@@ -2724,6 +2724,7 @@ class VerifyPointersVisitor : public ObjectVisitorWithCageBases,
   void VisitRootPointers(Root root, const char* description,
                          OffHeapObjectSlot start,
                          OffHeapObjectSlot end) override;
+  void VisitMapPointer(HeapObject host) override;
 
  protected:
   V8_INLINE void VerifyHeapObjectImpl(HeapObject heap_object);

@@ -9,6 +9,7 @@
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/heap/combined-heap.h"
+#include "src/heap/heap-verifier.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/list.h"
 #include "src/heap/marking-state-inl.h"
@@ -353,7 +354,8 @@ std::unique_ptr<ObjectIterator> LargeObjectSpace::GetObjectIterator(
 #ifdef VERIFY_HEAP
 // We do not assume that the large object iterator works, because it depends
 // on the invariants we are checking during verification.
-void LargeObjectSpace::Verify(Isolate* isolate) {
+void LargeObjectSpace::Verify(Isolate* isolate,
+                              SpaceVerificationVisitor* visitor) {
   size_t external_backing_store_bytes[kNumTypes];
 
   for (int i = 0; i < kNumTypes; i++) {
@@ -363,18 +365,13 @@ void LargeObjectSpace::Verify(Isolate* isolate) {
   PtrComprCageBase cage_base(isolate);
   for (LargePage* chunk = first_page(); chunk != nullptr;
        chunk = chunk->next_page()) {
+    visitor->VerifyPage(chunk);
+
     // Each chunk contains an object that starts at the large object page's
     // object area start.
     HeapObject object = chunk->GetObject();
     Page* page = Page::FromHeapObject(object);
     CHECK(object.address() == page->area_start());
-
-    // The first word should be a map, and we expect all map pointers to be
-    // in map space or read-only space.
-    Map map = object.map(cage_base);
-    CHECK(map.IsMap(cage_base));
-    CHECK(ReadOnlyHeap::Contains(map) ||
-          isolate->heap()->old_space()->Contains(map));
 
     // We have only the following types in the large object space:
     const bool is_valid_lo_space_object =                         //
@@ -407,45 +404,15 @@ void LargeObjectSpace::Verify(Isolate* isolate) {
             object.map(cage_base).instance_type());
     }
 
-    // The object itself should look OK.
-    object.ObjectVerify(isolate);
+    // Invoke visitor on each object.
+    visitor->VerifyObject(object);
 
-    if (!v8_flags.verify_heap_skip_remembered_set) {
-      HeapVerifier::VerifyRememberedSetFor(heap(), object);
-    }
-
-    // Byte arrays and strings don't have interior pointers.
-    if (object.IsAbstractCode(cage_base)) {
-      VerifyPointersVisitor code_visitor(heap());
-      object.IterateBody(map, object.Size(cage_base), &code_visitor);
-    } else if (object.IsFixedArray(cage_base)) {
-      FixedArray array = FixedArray::cast(object);
-      for (int j = 0; j < array.length(); j++) {
-        Object element = array.get(j);
-        if (element.IsHeapObject()) {
-          HeapObject element_object = HeapObject::cast(element);
-          CHECK(IsValidHeapObject(heap(), element_object));
-          CHECK(element_object.map(cage_base).IsMap(cage_base));
-        }
-      }
-    } else if (object.IsPropertyArray(cage_base)) {
-      PropertyArray array = PropertyArray::cast(object);
-      for (int j = 0; j < array.length(); j++) {
-        Object property = array.get(j);
-        if (property.IsHeapObject()) {
-          HeapObject property_object = HeapObject::cast(property);
-          CHECK(heap()->Contains(property_object));
-          CHECK(property_object.map(cage_base).IsMap(cage_base));
-        }
-      }
-    }
     for (int i = 0; i < kNumTypes; i++) {
       ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
       external_backing_store_bytes[t] += chunk->ExternalBackingStoreBytes(t);
     }
 
-    CHECK(!chunk->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION));
-    CHECK(!chunk->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION));
+    visitor->VerifyPageDone(chunk);
   }
   for (int i = 0; i < kNumTypes; i++) {
     ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);

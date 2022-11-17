@@ -13,6 +13,7 @@
 #include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
 #include "src/heap/allocation-observer.h"
+#include "src/heap/heap-verifier.h"
 #include "src/heap/heap.h"
 #include "src/heap/paged-spaces.h"
 #include "src/heap/spaces.h"
@@ -282,12 +283,8 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
   virtual void MakeLinearAllocationAreaIterable() = 0;
 
 #ifdef VERIFY_HEAP
-  virtual void Verify(Isolate* isolate) const = 0;
-  // VerifyImpl verifies objects on the space starting from |current_page| and
-  // |current_address|. |current_address| should be a valid limit on
-  // |current_page| (see BasicMemoryChunk::ContainsLimit).
-  void VerifyImpl(Isolate* isolate, const Page* current_page,
-                  Address current_address) const;
+  virtual void Verify(Isolate* isolate,
+                      SpaceVerificationVisitor* visitor) const = 0;
 #endif
 
   virtual void MakeIterable() = 0;
@@ -468,7 +465,10 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
 
 #ifdef VERIFY_HEAP
   // Verify the active semispace.
-  void Verify(Isolate* isolate) const final;
+  void Verify(Isolate* isolate, SpaceVerificationVisitor* visitor) const final;
+
+  // VerifyObjects verifies all objects in the active semi space.
+  void VerifyObjects(Isolate* isolate, SpaceVerificationVisitor* visitor) const;
 #endif
 
 #ifdef DEBUG
@@ -622,7 +622,7 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   }
 
 #ifdef VERIFY_HEAP
-  void Verify(Isolate* isolate, ObjectVisitor* visitor) const final;
+  void Verify(Isolate* isolate, SpaceVerificationVisitor* visitor) const final;
 #endif
 
   void MakeIterable() { free_list()->RepairLists(heap()); }
@@ -746,7 +746,9 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
 
 #ifdef VERIFY_HEAP
   // Verify the active semispace.
-  void Verify(Isolate* isolate) const final;
+  void Verify(Isolate* isolate, SpaceVerificationVisitor* visitor) const final {
+    paged_space_.Verify(isolate, visitor);
+  }
 #endif
 
 #ifdef DEBUG

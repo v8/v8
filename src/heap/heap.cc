@@ -6863,6 +6863,10 @@ void VerifyPointersVisitor::VisitRootPointers(Root root,
   VerifyPointersImpl(start, end);
 }
 
+void VerifyPointersVisitor::VisitMapPointer(HeapObject host) {
+  VerifyHeapObjectImpl(host.map(cage_base()));
+}
+
 void VerifyPointersVisitor::VerifyHeapObjectImpl(HeapObject heap_object) {
   CHECK(IsValidHeapObject(heap_, heap_object));
   CHECK(heap_object.map(cage_base()).IsMap());

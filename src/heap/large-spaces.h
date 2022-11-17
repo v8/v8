@@ -13,6 +13,7 @@
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
+#include "src/heap/heap-verifier.h"
 #include "src/heap/heap.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/spaces.h"
@@ -116,7 +117,7 @@ class V8_EXPORT_PRIVATE LargeObjectSpace : public Space {
   virtual bool is_off_thread() const { return false; }
 
 #ifdef VERIFY_HEAP
-  virtual void Verify(Isolate* isolate);
+  virtual void Verify(Isolate* isolate, SpaceVerificationVisitor* visitor);
 #endif
 
 #ifdef DEBUG
