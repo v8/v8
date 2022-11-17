@@ -3952,22 +3952,39 @@ TEST(IsDoubleElementsKind) {
            0);
 }
 
-TEST(TestCallBuiltinAbsolute) {
+namespace {
+
+enum CallJumpMode { kCall, kTailCall };
+
+void TestCallJumpBuiltin(CallJumpMode mode,
+                         BuiltinCallJumpMode builtin_call_jump_mode) {
   Isolate* isolate(CcTest::InitIsolateOnce());
+  if (builtin_call_jump_mode == BuiltinCallJumpMode::kPCRelative &&
+      !isolate->is_short_builtin_calls_enabled()) {
+    // PC-relative mode requires short builtin calls to be enabled.
+    return;
+  }
+
   const int kNumParams = 1;
   CodeAssemblerTester asm_tester(isolate, kNumParams + 1);  // Include receiver.
   CodeStubAssembler m(asm_tester.state());
 
-  const int kContextOffset = 3;
-  auto str = m.Parameter<String>(1);
-  auto context = m.Parameter<Context>(kNumParams + kContextOffset);
+  {
+    auto str = m.Parameter<String>(1);
+    auto context = m.GetJSContextParameter();
 
-  TNode<Smi> index = m.SmiConstant(2);
+    TNode<Smi> index = m.SmiConstant(2);
 
-  m.Return(m.CallStub(Builtins::CallableFor(isolate, Builtin::kStringRepeat),
-                      context, str, index));
+    Callable callable = Builtins::CallableFor(isolate, Builtin::kStringRepeat);
+    if (mode == kCall) {
+      m.Return(m.CallStub(callable, context, str, index));
+    } else {
+      DCHECK_EQ(mode, kTailCall);
+      m.TailCallStub(callable, context, str, index);
+    }
+  }
   AssemblerOptions options = AssemblerOptions::Default(isolate);
-  options.builtin_call_jump_mode = BuiltinCallJumpMode::kAbsolute;
+  options.builtin_call_jump_mode = builtin_call_jump_mode;
   options.isolate_independent_code = false;
   FunctionTester ft(asm_tester.GenerateCode(options), kNumParams);
   MaybeHandle<Object> result = ft.Call(CcTest::MakeString("abcdef"));
@@ -3975,54 +3992,30 @@ TEST(TestCallBuiltinAbsolute) {
                        Handle<String>::cast(result.ToHandleChecked())));
 }
 
-DISABLED_TEST(TestCallBuiltinPCRelative) {
-  Isolate* isolate(CcTest::InitIsolateOnce());
-  if (!isolate->is_short_builtin_calls_enabled()) return;
+}  // namespace
 
-  const int kNumParams = 1;
-  CodeAssemblerTester asm_tester(isolate, kNumParams);
-  CodeStubAssembler m(asm_tester.state());
-
-  const int kContextOffset = 2;
-  auto str = m.Parameter<String>(0);
-  auto context = m.Parameter<Context>(kNumParams + kContextOffset);
-
-  TNode<Smi> index = m.SmiConstant(2);
-
-  m.Return(m.CallStub(Builtins::CallableFor(isolate, Builtin::kStringRepeat),
-                      context, str, index));
-  AssemblerOptions options = AssemblerOptions::Default(isolate);
-  options.builtin_call_jump_mode = BuiltinCallJumpMode::kPCRelative;
-  options.isolate_independent_code = false;
-  FunctionTester ft(asm_tester.GenerateCode(options), kNumParams);
-  MaybeHandle<Object> result = ft.Call(CcTest::MakeString("abcdef"));
-  CHECK(String::Equals(isolate, CcTest::MakeString("abcdefabcdef"),
-                       Handle<String>::cast(result.ToHandleChecked())));
+TEST(TestCallBuiltinAbsolute) {
+  TestCallJumpBuiltin(kCall, BuiltinCallJumpMode::kAbsolute);
 }
 
-// TODO(v8:9821): Remove the option to disable inlining off-heap trampolines
-// along with this test.
-DISABLED_TEST(TestCallBuiltinIndirect) {
-  Isolate* isolate(CcTest::InitIsolateOnce());
-  const int kNumParams = 1;
-  CodeAssemblerTester asm_tester(isolate, kNumParams);
-  CodeStubAssembler m(asm_tester.state());
+TEST(TestCallBuiltinPCRelative) {
+  TestCallJumpBuiltin(kCall, BuiltinCallJumpMode::kPCRelative);
+}
 
-  const int kContextOffset = 2;
-  auto str = m.Parameter<String>(0);
-  auto context = m.Parameter<Context>(kNumParams + kContextOffset);
+TEST(TestCallBuiltinIndirect) {
+  TestCallJumpBuiltin(kCall, BuiltinCallJumpMode::kIndirect);
+}
 
-  TNode<Smi> index = m.SmiConstant(2);
+TEST(TestTailCallBuiltinAbsolute) {
+  TestCallJumpBuiltin(kTailCall, BuiltinCallJumpMode::kAbsolute);
+}
 
-  m.Return(m.CallStub(Builtins::CallableFor(isolate, Builtin::kStringRepeat),
-                      context, str, index));
-  AssemblerOptions options = AssemblerOptions::Default(isolate);
-  options.builtin_call_jump_mode = BuiltinCallJumpMode::kIndirect;
-  options.isolate_independent_code = true;
-  FunctionTester ft(asm_tester.GenerateCode(options), kNumParams);
-  MaybeHandle<Object> result = ft.Call(CcTest::MakeString("abcdef"));
-  CHECK(String::Equals(isolate, CcTest::MakeString("abcdefabcdef"),
-                       Handle<String>::cast(result.ToHandleChecked())));
+TEST(TestTailCallBuiltinPCRelative) {
+  TestCallJumpBuiltin(kTailCall, BuiltinCallJumpMode::kPCRelative);
+}
+
+TEST(TestTailCallBuiltinIndirect) {
+  TestCallJumpBuiltin(kTailCall, BuiltinCallJumpMode::kIndirect);
 }
 
 TEST(InstructionSchedulingCallerSavedRegisters) {
