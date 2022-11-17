@@ -621,7 +621,7 @@ class ModuleDecoderTemplate : public Decoder {
 
   bool check_supertype(uint32_t supertype) {
     if (V8_UNLIKELY(supertype >= module_->types.size())) {
-      errorf(pc(), "type %zu: forward-declared supertype %d",
+      errorf(pc(), "type %zu: forward-declared supertype %u",
              module_->types.size(), supertype);
       return false;
     }
@@ -643,7 +643,7 @@ class ModuleDecoderTemplate : public Decoder {
         tracer_.Description(supertype);
         tracer_.NextLine();
       }
-      if (!check_supertype(supertype)) return {};
+      if (supertype != kNoSuperType && !check_supertype(supertype)) return {};
       TypeDefinition type = consume_base_type_definition();
       type.supertype = supertype;
       return type;

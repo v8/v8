@@ -1074,6 +1074,18 @@ TEST_F(WasmModuleVerifyTest, InvalidSupertypeInRecGroup) {
                           "type 1 has invalid explicit supertype 0");
 }
 
+// Tests supertype declaration with 0 supertypes.
+TEST_F(WasmModuleVerifyTest, SuperTypeDeclarationWith0Supertypes) {
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(gc);
+  static const byte zero_supertypes[] = {
+      SECTION(Type, ENTRY_COUNT(1),  // --
+              kWasmSubtypeCode, 0,   // supertype count
+              kWasmArrayTypeCode, kI32Code, 0)};
+
+  EXPECT_VERIFIES(zero_supertypes);
+}
+
 TEST_F(WasmModuleVerifyTest, ZeroExceptions) {
   static const byte data[] = {SECTION(Tag, ENTRY_COUNT(0))};
   ModuleResult result = DecodeModule(data, data + sizeof(data));
