@@ -605,9 +605,8 @@ std::unique_ptr<ObjectIterator> PagedSpaceBase::GetObjectIterator(Heap* heap) {
       new PagedSpaceObjectIterator(heap, this));
 }
 
-bool PagedSpaceBase::TryAllocationFromFreeListMain(
-    size_t size_in_bytes, AllocationOrigin origin,
-    AllocationAlignment alignment) {
+bool PagedSpaceBase::TryAllocationFromFreeListMain(size_t size_in_bytes,
+                                                   AllocationOrigin origin) {
   ConcurrentAllocationMutex guard(this);
   DCHECK(IsAligned(size_in_bytes, kTaggedSize));
   DCHECK_LE(top(), limit());
@@ -643,11 +642,6 @@ bool PagedSpaceBase::TryAllocationFromFreeListMain(
   DCHECK_EQ(allocation_info_.start(), allocation_info_.top());
   Address start = new_node.address();
   Address end = new_node.address() + new_node_size;
-  bool was_black_allocating = heap()->incremental_marking()->black_allocation();
-  SetTopAndLimit(start, end);
-  InvokeAllocationObservers(
-      start + Heap::GetFillToAlign(start, alignment), size_in_bytes,
-      size_in_bytes + Heap::GetFillToAlign(start, alignment));
   Address limit = ComputeLimit(start, end, size_in_bytes);
   DCHECK_LE(limit, end);
   DCHECK_LE(size_in_bytes, limit - start);
@@ -655,12 +649,6 @@ bool PagedSpaceBase::TryAllocationFromFreeListMain(
     if (identity() == CODE_SPACE) {
       heap()->UnprotectAndRegisterMemoryChunk(
           page, GetUnprotectMemoryOrigin(is_compaction_space()));
-    }
-    if (!was_black_allocating &&
-        heap()->incremental_marking()->black_allocation() &&
-        identity() != NEW_SPACE) {
-      // Allocation observers triggered black allocation.
-      page->DestroyBlackArea(limit, end);
     }
     Free(limit, end - limit, SpaceAccountingMode::kSpaceAccounted);
   }
@@ -866,11 +854,11 @@ void PagedSpaceBase::UpdateInlineAllocationLimit(size_t min_size) {
 // -----------------------------------------------------------------------------
 // OldSpace implementation
 
-bool PagedSpaceBase::RefillLabMain(int size_in_bytes, AllocationOrigin origin,
-                                   AllocationAlignment alignment) {
+bool PagedSpaceBase::RefillLabMain(int size_in_bytes, AllocationOrigin origin) {
+  VMState<GC> state(heap()->isolate());
   RCS_SCOPE(heap()->isolate(),
             RuntimeCallCounterId::kGC_Custom_SlowAllocateRaw);
-  return RawRefillLabMain(size_in_bytes, origin, alignment);
+  return RawRefillLabMain(size_in_bytes, origin);
 }
 
 Page* CompactionSpace::TryExpandImpl() {
@@ -880,13 +868,12 @@ Page* CompactionSpace::TryExpandImpl() {
   return page;
 }
 
-bool CompactionSpace::RefillLabMain(int size_in_bytes, AllocationOrigin origin,
-                                    AllocationAlignment alignment) {
-  return RawRefillLabMain(size_in_bytes, origin, alignment);
+bool CompactionSpace::RefillLabMain(int size_in_bytes,
+                                    AllocationOrigin origin) {
+  return RawRefillLabMain(size_in_bytes, origin);
 }
 
-bool PagedSpaceBase::TryExpand(int size_in_bytes, AllocationOrigin origin,
-                               AllocationAlignment alignment) {
+bool PagedSpaceBase::TryExpand(int size_in_bytes, AllocationOrigin origin) {
   DCHECK_NE(NEW_SPACE, identity());
   Page* page = TryExpandImpl();
   if (!page) return false;
@@ -894,18 +881,16 @@ bool PagedSpaceBase::TryExpand(int size_in_bytes, AllocationOrigin origin,
     heap()->NotifyOldGenerationExpansion(identity(), page);
   }
   return TryAllocationFromFreeListMain(static_cast<size_t>(size_in_bytes),
-                                       origin, alignment);
+                                       origin);
 }
 
 bool PagedSpaceBase::RawRefillLabMain(int size_in_bytes,
-                                      AllocationOrigin origin,
-                                      AllocationAlignment alignment) {
+                                      AllocationOrigin origin) {
   // Allocation in this space has failed.
   DCHECK_GE(size_in_bytes, 0);
   const int kMaxPagesToSweep = 1;
 
-  if (TryAllocationFromFreeListMain(size_in_bytes, origin, alignment))
-    return true;
+  if (TryAllocationFromFreeListMain(size_in_bytes, origin)) return true;
 
   const bool is_main_thread =
       heap()->IsMainThread() || heap()->IsSharedMainThread();
@@ -924,13 +909,13 @@ bool PagedSpaceBase::RawRefillLabMain(int size_in_bytes,
 
     // Retry the free list allocation.
     if (TryAllocationFromFreeListMain(static_cast<size_t>(size_in_bytes),
-                                      origin, alignment))
+                                      origin))
       return true;
 
     {
       TRACE_GC_EPOCH(heap()->tracer(), sweeping_scope_id, sweeping_scope_kind);
       if (ContributeToSweepingMain(size_in_bytes, kMaxPagesToSweep,
-                                   size_in_bytes, origin, alignment))
+                                   size_in_bytes, origin))
         return true;
     }
   }
@@ -944,7 +929,7 @@ bool PagedSpaceBase::RawRefillLabMain(int size_in_bytes,
     if (page != nullptr) {
       AddPage(page);
       if (TryAllocationFromFreeListMain(static_cast<size_t>(size_in_bytes),
-                                        origin, alignment))
+                                        origin))
         return true;
     }
   }
@@ -953,7 +938,7 @@ bool PagedSpaceBase::RawRefillLabMain(int size_in_bytes,
       heap()->ShouldExpandOldGenerationOnSlowAllocation(
           heap()->main_thread_local_heap()) &&
       heap()->CanExpandOldGeneration(AreaSize())) {
-    if (TryExpand(size_in_bytes, origin, alignment)) {
+    if (TryExpand(size_in_bytes, origin)) {
       return true;
     }
   }
@@ -961,23 +946,21 @@ bool PagedSpaceBase::RawRefillLabMain(int size_in_bytes,
   // Try sweeping all pages.
   {
     TRACE_GC_EPOCH(heap()->tracer(), sweeping_scope_id, sweeping_scope_kind);
-    if (ContributeToSweepingMain(0, 0, size_in_bytes, origin, alignment))
-      return true;
+    if (ContributeToSweepingMain(0, 0, size_in_bytes, origin)) return true;
   }
 
   if (identity() != NEW_SPACE && heap()->gc_state() != Heap::NOT_IN_GC &&
       !heap()->force_oom()) {
     // Avoid OOM crash in the GC in order to invoke NearHeapLimitCallback after
     // GC and give it a chance to increase the heap limit.
-    return TryExpand(size_in_bytes, origin, alignment);
+    return TryExpand(size_in_bytes, origin);
   }
   return false;
 }
 
 bool PagedSpaceBase::ContributeToSweepingMain(int required_freed_bytes,
                                               int max_pages, int size_in_bytes,
-                                              AllocationOrigin origin,
-                                              AllocationAlignment alignment) {
+                                              AllocationOrigin origin) {
   // Cleanup invalidated old-to-new refs for compaction space in the
   // final atomic pause.
   Sweeper::SweepingMode sweeping_mode =
@@ -988,7 +971,7 @@ bool PagedSpaceBase::ContributeToSweepingMain(int required_freed_bytes,
     heap()->sweeper()->ParallelSweepSpace(identity(), sweeping_mode,
                                           required_freed_bytes, max_pages);
     RefillFreeList();
-    return TryAllocationFromFreeListMain(size_in_bytes, origin, alignment);
+    return TryAllocationFromFreeListMain(size_in_bytes, origin);
   }
   return false;
 }

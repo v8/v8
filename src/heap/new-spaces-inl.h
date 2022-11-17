@@ -59,7 +59,8 @@ V8_WARN_UNUSED_RESULT inline AllocationResult NewSpace::AllocateRawSynchronized(
 // SemiSpaceNewSpace
 
 V8_INLINE bool SemiSpaceNewSpace::EnsureAllocation(
-    int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin) {
+    int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin,
+    int* out_max_aligned_size) {
   size_in_bytes = ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes);
   DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 #if DEBUG
@@ -84,12 +85,15 @@ V8_INLINE bool SemiSpaceNewSpace::EnsureAllocation(
 
     old_top = allocation_info_.top();
     high = to_space_.page_high();
+    filler_size = Heap::GetFillToAlign(old_top, alignment);
+    aligned_size_in_bytes = size_in_bytes + filler_size;
+  }
+
+  if (out_max_aligned_size) {
+    *out_max_aligned_size = aligned_size_in_bytes;
   }
 
   DCHECK(old_top + aligned_size_in_bytes <= high);
-  InvokeAllocationObservers(
-      top() + Heap::GetFillToAlign(top(), alignment), size_in_bytes,
-      size_in_bytes + Heap::GetFillToAlign(top(), alignment));
   UpdateInlineAllocationLimit(aligned_size_in_bytes);
   DCHECK_EQ(allocation_info_.start(), allocation_info_.top());
   DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
@@ -100,8 +104,10 @@ V8_INLINE bool SemiSpaceNewSpace::EnsureAllocation(
 // PagedSpaceForNewSpace
 
 V8_INLINE bool PagedSpaceForNewSpace::EnsureAllocation(
-    int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin) {
-  if (!PagedSpaceBase::EnsureAllocation(size_in_bytes, alignment, origin)) {
+    int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin,
+    int* out_max_aligned_size) {
+  if (!PagedSpaceBase::EnsureAllocation(size_in_bytes, alignment, origin,
+                                        out_max_aligned_size)) {
     return false;
   }
   allocated_linear_areas_ += limit() - top();

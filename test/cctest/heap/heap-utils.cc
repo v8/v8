@@ -234,6 +234,7 @@ void FillPageInPagedSpace(Page* page,
 void FillCurrentPage(v8::internal::NewSpace* space,
                      std::vector<Handle<FixedArray>>* out_handles) {
   if (v8_flags.minor_mc) {
+    PauseAllocationObserversScope pause_observers(space->heap());
     if (space->top() == kNullAddress) return;
     Page* page = Page::FromAllocationAreaAddress(space->top());
     space->heap()->EnsureSweepingCompleted(

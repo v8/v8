@@ -41,7 +41,8 @@
 namespace v8 {
 namespace internal {
 
-void IncrementalMarking::Observer::Step(Address addr, size_t size) {
+void IncrementalMarking::Observer::Step(int bytes_allocated, Address addr,
+                                        size_t size) {
   Heap* heap = incremental_marking_->heap();
   VMState<GC> state(heap->isolate());
   RCS_SCOPE(heap->isolate(),

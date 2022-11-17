@@ -2213,9 +2213,6 @@ class Heap {
   // marking limit.
   AllocationObserver* stress_marking_observer_ = nullptr;
 
-  // Mutex used for synchronizing getting next stress marking limit.
-  base::Mutex stress_marking_mutex_;
-
   // Observer that can cause early scavenge start.
   StressScavengeObserver* stress_scavenge_observer_ = nullptr;
 

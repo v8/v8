@@ -497,7 +497,7 @@ class Observer : public AllocationObserver {
   explicit Observer(intptr_t step_size)
       : AllocationObserver(step_size), count_(0) {}
 
-  void Step(Address addr, size_t) override { count_++; }
+  void Step(int bytes_allocated, Address addr, size_t) override { count_++; }
 
   int count() const { return count_; }
 

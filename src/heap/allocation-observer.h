@@ -37,7 +37,7 @@ class AllocationObserver {
   //    rather than the first object.
   // 3. `size` is the requested size at the time of allocation. Right-trimming
   //    may change the object size dynamically.
-  virtual void Step(Address soon_object, size_t size) = 0;
+  virtual void Step(int bytes_allocated, Address soon_object, size_t size) = 0;
 
   // Subclasses can override this method to make step size dynamic.
   virtual intptr_t GetNextStepSize() { return step_size_; }
@@ -94,9 +94,12 @@ class AllocationCounter final {
   struct AllocationObserverCounter final {
     AllocationObserverCounter(AllocationObserver* observer, size_t prev_counter,
                               size_t next_counter)
-        : observer_(observer), next_counter_(next_counter) {}
+        : observer_(observer),
+          prev_counter_(prev_counter),
+          next_counter_(next_counter) {}
 
     AllocationObserver* observer_;
+    size_t prev_counter_;
     size_t next_counter_;
   };
 
