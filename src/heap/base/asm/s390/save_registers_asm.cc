@@ -21,7 +21,9 @@ static_assert(heap::base::Stack::NumberOfCalleeSavedRegisters() == 10,
               "Mismatch in the number of callee-saved registers");
 static_assert(sizeof(intptr_t) == 8, "Mismatch in word size");
 
-asm(".globl SaveCalleeSavedRegisters             \n"
+asm(".text                                       \n"
+    ".align 8                                    \n"
+    ".globl SaveCalleeSavedRegisters             \n"
     ".type SaveCalleeSavedRegisters, %function   \n"
     ".hidden SaveCalleeSavedRegisters            \n"
     "SaveCalleeSavedRegisters:                   \n"
