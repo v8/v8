@@ -265,7 +265,8 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCast(Node* node) {
       return Replace(object);
     } else {
       gasm_.InitializeEffectControl(effect, control);
-      return Replace(gasm_.AssertNotNull(object));
+      return Replace(
+          SetType(gasm_.AssertNotNull(object), object_type.type.AsNonNull()));
     }
   }
 
