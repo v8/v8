@@ -183,25 +183,6 @@ class CallArguments {
   Mode mode_;
 };
 
-class MaglevGraphBuilder::CallSpeculationScope {
- public:
-  CallSpeculationScope(MaglevGraphBuilder* builder,
-                       compiler::FeedbackSource feedback_source)
-      : builder_(builder) {
-    DCHECK(!builder_->current_speculation_feedback_.IsValid());
-    DCHECK_EQ(
-        FeedbackNexus(feedback_source.vector, feedback_source.slot).kind(),
-        FeedbackSlotKind::kCall);
-    builder_->current_speculation_feedback_ = feedback_source;
-  }
-  ~CallSpeculationScope() {
-    builder_->current_speculation_feedback_ = compiler::FeedbackSource();
-  }
-
- private:
-  MaglevGraphBuilder* builder_;
-};
-
 MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
                                        MaglevCompilationUnit* compilation_unit,
                                        Graph* graph, MaglevGraphBuilder* parent)
@@ -2861,12 +2842,26 @@ ValueNode* MaglevGraphBuilder::TryBuildInlinedCall(
 ValueNode* MaglevGraphBuilder::TryReduceStringFromCharCode(
     compiler::JSFunctionRef target, CallArguments& args) {
   if (args.count() != 1) return nullptr;
+  ValueNode* arg = args[0];
+  // Bail out of the inlining if the known type is not Number. This prevents
+  // GetTruncatedInt32FromNumber from deoptimizing.
+  // TODO(leszeks): Add support for call feedback speculation.
+  if (!CheckType(arg, NodeType::kNumber)) {
+    return nullptr;
+  }
   return AddNewNode<BuiltinStringFromCharCode>(
-      {GetTruncatedInt32FromNumber(args[0])});
+      {GetTruncatedInt32FromNumber(arg)});
 }
 
 ValueNode* MaglevGraphBuilder::TryReduceStringPrototypeCharCodeAt(
     compiler::JSFunctionRef target, CallArguments& args) {
+  // Bail out of the inlining if the known type is not Number or String. This
+  // prevents GetInt32ElementIndex from deoptimizing.
+  // TODO(leszeks): Add support for call feedback speculation.
+  if (args.count() != 0 && !CheckType(args[0], NodeType::kNumber) &&
+      !CheckType(args[0], NodeType::kString)) {
+    return nullptr;
+  }
   ValueNode* receiver = GetTaggedOrUndefined(args.receiver());
   ValueNode* index;
   if (args.count() == 0) {
@@ -2986,20 +2981,13 @@ ValueNode* MaglevGraphBuilder::TryReduceFunctionPrototypeCall(
   return BuildGenericCall(receiver, context, Call::TargetType::kAny, args);
 }
 
-ValueNode* MaglevGraphBuilder::TryReduceBuiltin(
-    compiler::JSFunctionRef target, CallArguments& args,
-    const compiler::FeedbackSource& feedback_source,
-    SpeculationMode speculation_mode) {
+ValueNode* MaglevGraphBuilder::TryReduceBuiltin(compiler::JSFunctionRef target,
+                                                CallArguments& args) {
   if (args.mode() != CallArguments::kDefault) {
     // TODO(victorgomes): Maybe inline the spread stub? Or call known function
     // directly if arguments list is an array.
     return nullptr;
   }
-  if (speculation_mode == SpeculationMode::kDisallowSpeculation) {
-    // TODO(leszeks): Some builtins might be inlinable without speculation.
-    return nullptr;
-  }
-  CallSpeculationScope speculate(this, feedback_source);
   if (!target.shared().HasBuiltinId()) return nullptr;
   switch (target.shared().builtin_id()) {
 #define CASE(Name)       \
@@ -3110,10 +3098,8 @@ bool MaglevGraphBuilder::BuildCheckValue(ValueNode* node,
   return true;
 }
 
-ValueNode* MaglevGraphBuilder::ReduceCall(
-    compiler::ObjectRef object, CallArguments& args,
-    const compiler::FeedbackSource& feedback_source,
-    SpeculationMode speculation_mode) {
+ValueNode* MaglevGraphBuilder::ReduceCall(compiler::ObjectRef object,
+                                          CallArguments& args) {
   if (!object.IsJSFunction()) {
     return BuildGenericCall(GetConstant(object), GetContext(),
                             Call::TargetType::kAny, args);
@@ -3128,8 +3114,7 @@ ValueNode* MaglevGraphBuilder::ReduceCall(
     }
 
     DCHECK(target.object()->IsCallable());
-    if (ValueNode* result =
-            TryReduceBuiltin(target, args, feedback_source, speculation_mode)) {
+    if (ValueNode* result = TryReduceBuiltin(target, args)) {
       return result;
     }
     if (ValueNode* result = TryBuildCallKnownJSFunction(target, args)) {
@@ -3141,17 +3126,15 @@ ValueNode* MaglevGraphBuilder::ReduceCall(
 }
 
 ValueNode* MaglevGraphBuilder::ReduceCallForTarget(
-    ValueNode* target_node, compiler::JSFunctionRef target, CallArguments& args,
-    const compiler::FeedbackSource& feedback_source,
-    SpeculationMode speculation_mode) {
+    ValueNode* target_node, compiler::JSFunctionRef target,
+    CallArguments& args) {
   if (!BuildCheckValue(target_node, target)) return nullptr;
-  return ReduceCall(target, args, feedback_source, speculation_mode);
+  return ReduceCall(target, args);
 }
 
 ValueNode* MaglevGraphBuilder::ReduceFunctionPrototypeApplyCallWithReceiver(
     ValueNode* target_node, compiler::JSFunctionRef receiver,
-    CallArguments& args, const compiler::FeedbackSource& feedback_source,
-    SpeculationMode speculation_mode) {
+    CallArguments& args) {
   compiler::NativeContextRef native_context = broker()->target_native_context();
   if (!BuildCheckValue(target_node,
                        native_context.function_prototype_apply())) {
@@ -3165,12 +3148,12 @@ ValueNode* MaglevGraphBuilder::ReduceFunctionPrototypeApplyCallWithReceiver(
   if (args.count() == 0) {
     // No need for spread.
     CallArguments empty_args(ConvertReceiverMode::kNullOrUndefined);
-    call = ReduceCall(receiver, empty_args, feedback_source, speculation_mode);
+    call = ReduceCall(receiver, empty_args);
   } else if (args.count() == 1 || IsNullValue(args[1]) ||
              IsUndefinedValue(args[1])) {
     // No need for spread. We have only the new receiver.
     CallArguments new_args(ConvertReceiverMode::kAny, {args[0]});
-    call = ReduceCall(receiver, new_args, feedback_source, speculation_mode);
+    call = ReduceCall(receiver, new_args);
   } else {
     // FunctionPrototypeApply only consider two arguments: the new receiver and
     // an array-like arguments_list. All others shall be ignored.
@@ -3182,11 +3165,10 @@ ValueNode* MaglevGraphBuilder::ReduceFunctionPrototypeApplyCallWithReceiver(
       // constant and unfold the arguments.
       CallArguments new_args(ConvertReceiverMode::kAny, {args[0], args[1]},
                              CallArguments::kWithArrayLike);
-      call = ReduceCall(receiver, new_args, feedback_source, speculation_mode);
+      call = ReduceCall(receiver, new_args);
     } else {
       args.Truncate(2);
-      call = ReduceCall(native_context.function_prototype_apply(), args,
-                        feedback_source, speculation_mode);
+      call = ReduceCall(native_context.function_prototype_apply(), args);
     }
   }
   return call;
@@ -3209,15 +3191,13 @@ void MaglevGraphBuilder::BuildCall(ValueNode* target_node, CallArguments& args,
     compiler::JSFunctionRef function = call_feedback.target()->AsJSFunction();
     ValueNode* call;
     if (content == CallFeedbackContent::kTarget) {
-      call = ReduceCallForTarget(target_node, function, args, feedback_source,
-                                 call_feedback.speculation_mode());
+      call = ReduceCallForTarget(target_node, function, args);
     } else {
       DCHECK_EQ(content, CallFeedbackContent::kReceiver);
       // We only collect receiver feedback for FunctionPrototypeApply.
       // See CollectCallFeedback in ic-callable.tq
-      call = ReduceFunctionPrototypeApplyCallWithReceiver(
-          target_node, function, args, feedback_source,
-          call_feedback.speculation_mode());
+      call = ReduceFunctionPrototypeApplyCallWithReceiver(target_node, function,
+                                                          args);
     }
     // If {call} is null, we hit an unconditional deopt.
     if (!call) return;
@@ -3811,8 +3791,7 @@ bool MaglevGraphBuilder::TryBuildFastInstanceOf(
           BuiltinContinuationDeoptFrame(
               Builtin::kToBooleanLazyDeoptContinuation, {}, GetContext(),
               zone()->New<InterpretedDeoptFrame>(
-                  call->lazy_deopt_info()->top_frame().as_interpreted())),
-          call->lazy_deopt_info()->feedback_to_update());
+                  call->lazy_deopt_info()->top_frame().as_interpreted())));
     }
 
     // TODO(v8:7700): Do we need to call ToBoolean here? If we have reduce the

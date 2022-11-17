@@ -102,8 +102,6 @@ class MaglevGraphBuilder {
   Graph* graph() const { return graph_; }
 
  private:
-  class CallSpeculationScope;
-
   bool CheckType(ValueNode* node, NodeType type);
   NodeInfo* CreateInfoIfNot(ValueNode* node, NodeType type);
   bool EnsureType(ValueNode* node, NodeType type, NodeType* old = nullptr);
@@ -420,11 +418,9 @@ class MaglevGraphBuilder {
   NodeT* CreateNewNodeHelper(Args&&... args) {
     if constexpr (NodeT::kProperties.can_eager_deopt()) {
       return NodeBase::New<NodeT>(zone(), GetLatestCheckpointedFrame(),
-                                  current_speculation_feedback_,
                                   std::forward<Args>(args)...);
     } else if constexpr (NodeT::kProperties.can_lazy_deopt()) {
       return NodeBase::New<NodeT>(zone(), GetDeoptFrameForLazyDeopt(),
-                                  current_speculation_feedback_,
                                   std::forward<Args>(args)...);
     } else {
       return NodeBase::New<NodeT>(zone(), std::forward<Args>(args)...);
@@ -1154,9 +1150,7 @@ class MaglevGraphBuilder {
   CallNode* AddNewCallNode(const CallArguments& args, Args&&... extra_args);
 
   ValueNode* TryReduceBuiltin(compiler::JSFunctionRef builtin_target,
-                              CallArguments& args,
-                              const compiler::FeedbackSource& feedback_source,
-                              SpeculationMode speculation_mode);
+                              CallArguments& args);
   ValueNode* TryBuildCallKnownJSFunction(compiler::JSFunctionRef function,
                                          CallArguments& args);
   ValueNode* TryBuildInlinedCall(compiler::JSFunctionRef function,
@@ -1166,19 +1160,13 @@ class MaglevGraphBuilder {
                               const CallArguments& args,
                               const compiler::FeedbackSource& feedback_source =
                                   compiler::FeedbackSource());
-  ValueNode* ReduceCall(
-      compiler::ObjectRef target, CallArguments& args,
-      const compiler::FeedbackSource& feedback_source =
-          compiler::FeedbackSource(),
-      SpeculationMode speculation_mode = SpeculationMode::kDisallowSpeculation);
-  ValueNode* ReduceCallForTarget(
-      ValueNode* target_node, compiler::JSFunctionRef target,
-      CallArguments& args, const compiler::FeedbackSource& feedback_source,
-      SpeculationMode speculation_mode);
+  ValueNode* ReduceCall(compiler::ObjectRef target, CallArguments& args);
+  ValueNode* ReduceCallForTarget(ValueNode* target_node,
+                                 compiler::JSFunctionRef target,
+                                 CallArguments& args);
   ValueNode* ReduceFunctionPrototypeApplyCallWithReceiver(
       ValueNode* target_node, compiler::JSFunctionRef receiver,
-      CallArguments& args, const compiler::FeedbackSource& feedback_source,
-      SpeculationMode speculation_mode);
+      CallArguments& args);
   void BuildCall(ValueNode* target_node, CallArguments& args,
                  compiler::FeedbackSource& feedback_source);
   void BuildCallFromRegisterList(ConvertReceiverMode receiver_mode);
@@ -1439,7 +1427,6 @@ class MaglevGraphBuilder {
   MergePointInterpreterFrameState** merge_states_;
 
   InterpreterFrameState current_interpreter_frame_;
-  compiler::FeedbackSource current_speculation_feedback_;
 
   struct HandlerTableEntry {
     int end;
