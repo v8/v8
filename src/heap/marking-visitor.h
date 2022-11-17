@@ -244,8 +244,6 @@ class YoungGenerationMarkingVisitorBase
 
   V8_INLINE int VisitJSArrayBuffer(Map map, JSArrayBuffer object);
 
-  V8_INLINE int VisitJSApiObject(Map map, JSObject object);
-
  protected:
   ConcreteVisitor* concrete_visitor() {
     return static_cast<ConcreteVisitor*>(this);

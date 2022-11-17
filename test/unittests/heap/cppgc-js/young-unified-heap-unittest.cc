@@ -87,47 +87,6 @@ TEST_F(YoungUnifiedHeapTest, CollectUnreachableCppGCObject) {
   EXPECT_EQ(1u, Wrappable::destructor_callcount);
 }
 
-TEST_F(YoungUnifiedHeapTest, FindingV8ToCppGCReference) {
-  v8::HandleScope scope(v8_isolate());
-  v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
-  v8::Context::Scope context_scope(context);
-
-  uint16_t wrappable_type = WrapperHelper::kTracedEmbedderId;
-  auto* wrappable_object =
-      cppgc::MakeGarbageCollected<Wrappable>(allocation_handle());
-  v8::Local<v8::Object> api_object =
-      WrapperHelper::CreateWrapper(context, &wrappable_type, wrappable_object);
-  EXPECT_FALSE(api_object.IsEmpty());
-
-  Wrappable::destructor_callcount = 0;
-  CollectYoungGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
-  EXPECT_EQ(0u, Wrappable::destructor_callcount);
-
-  WrapperHelper::ResetWrappableConnection(api_object);
-  CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
-  EXPECT_EQ(1u, Wrappable::destructor_callcount);
-}
-
-TEST_F(YoungUnifiedHeapTest, FindingCppGCToV8Reference) {
-  v8::HandleScope handle_scope(v8_isolate());
-  v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
-  v8::Context::Scope context_scope(context);
-
-  auto* wrappable_object =
-      cppgc::MakeGarbageCollected<Wrappable>(allocation_handle());
-
-  {
-    v8::HandleScope inner_handle_scope(v8_isolate());
-    auto local = v8::Object::New(v8_isolate());
-    EXPECT_TRUE(local->IsObject());
-    wrappable_object->SetWrapper(v8_isolate(), local);
-  }
-
-  CollectYoungGarbageWithEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
-  auto local = wrappable_object->wrapper().Get(v8_isolate());
-  EXPECT_TRUE(local->IsObject());
-}
-
 }  // namespace internal
 }  // namespace v8
 

@@ -479,7 +479,6 @@ class ScavengeVisitor final : public NewSpaceVisitor<ScavengeVisitor> {
   V8_INLINE void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) final;
   V8_INLINE int VisitEphemeronHashTable(Map map, EphemeronHashTable object);
   V8_INLINE int VisitJSArrayBuffer(Map map, JSArrayBuffer object);
-  V8_INLINE int VisitJSApiObject(Map map, JSObject object);
 
  private:
   template <typename TSlot>
@@ -558,10 +557,6 @@ int ScavengeVisitor::VisitJSArrayBuffer(Map map, JSArrayBuffer object) {
   int size = JSArrayBuffer::BodyDescriptor::SizeOf(map, object);
   JSArrayBuffer::BodyDescriptor::IterateBody(map, object, size, this);
   return size;
-}
-
-int ScavengeVisitor::VisitJSApiObject(Map map, JSObject object) {
-  return VisitJSObject(map, object);
 }
 
 int ScavengeVisitor::VisitEphemeronHashTable(Map map,

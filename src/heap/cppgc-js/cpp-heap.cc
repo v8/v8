@@ -220,8 +220,12 @@ class UnifiedHeapConcurrentMarker
 std::unique_ptr<cppgc::Visitor>
 UnifiedHeapConcurrentMarker::CreateConcurrentMarkingVisitor(
     cppgc::internal::ConcurrentMarkingState& marking_state) const {
-  return std::make_unique<ConcurrentUnifiedHeapMarkingVisitor>(
-      heap(), v8_heap_, marking_state, collection_type_);
+  if (collection_type_ == CppHeap::CollectionType::kMajor)
+    return std::make_unique<ConcurrentUnifiedHeapMarkingVisitor>(
+        heap(), v8_heap_, marking_state);
+  else
+    return std::make_unique<ConcurrentMinorGCMarkingVisitor>(heap(), v8_heap_,
+                                                             marking_state);
 }
 
 void FatalOutOfMemoryHandlerImpl(const std::string& reason,
@@ -308,8 +312,13 @@ UnifiedHeapMarker::UnifiedHeapMarker(Heap* v8_heap,
                                      cppgc::internal::MarkingConfig config)
     : cppgc::internal::MarkerBase(heap, platform, config),
       mutator_unified_heap_marking_state_(v8_heap, nullptr),
-      marking_visitor_(std::make_unique<MutatorUnifiedHeapMarkingVisitor>(
-          heap, mutator_marking_state_, mutator_unified_heap_marking_state_)),
+      marking_visitor_(config.collection_type == CppHeap::CollectionType::kMajor
+                           ? std::make_unique<MutatorUnifiedHeapMarkingVisitor>(
+                                 heap, mutator_marking_state_,
+                                 mutator_unified_heap_marking_state_)
+                           : std::make_unique<MutatorMinorGCMarkingVisitor>(
+                                 heap, mutator_marking_state_,
+                                 mutator_unified_heap_marking_state_)),
       conservative_marking_visitor_(heap, mutator_marking_state_,
                                     *marking_visitor_) {
   concurrent_marker_ = std::make_unique<UnifiedHeapConcurrentMarker>(
@@ -677,18 +686,6 @@ void CppHeap::InitializeTracing(CollectionType collection_type,
       marking_config);
 }
 
-namespace {
-MarkingWorklists::Local* GetV8MarkingWorklists(
-    Isolate* isolate, cppgc::internal::CollectionType collection_type) {
-  auto* heap = isolate->heap();
-  if (collection_type == cppgc::internal::CollectionType::kMajor) {
-    return heap->mark_compact_collector()->local_marking_worklists();
-  } else {
-    return heap->minor_mark_compact_collector()->local_marking_worklists();
-  }
-}
-}  // namespace
-
 void CppHeap::StartTracing() {
   if (!TracingInitialized()) return;
   if (isolate_) {
@@ -698,7 +695,9 @@ void CppHeap::StartTracing() {
     marker_.get()
         ->To<UnifiedHeapMarker>()
         .GetMutatorUnifiedHeapMarkingState()
-        .Update(GetV8MarkingWorklists(isolate_, *collection_type_));
+        .Update(isolate_->heap()
+                    ->mark_compact_collector()
+                    ->local_marking_worklists());
   }
   marker_->StartMarking();
   marking_done_ = false;
@@ -743,11 +742,11 @@ void CppHeap::EnterFinalPause(cppgc::EmbedderStackState stack_state) {
   auto& marker = marker_.get()->To<UnifiedHeapMarker>();
   // Scan global handles conservatively in case we are attached to an Isolate.
   // TODO(1029379): Support global handle marking visitors with minor GC.
-  if (isolate_) {
+  if (isolate_ && !generational_gc_supported()) {
     auto& heap = *isolate()->heap();
     marker.conservative_visitor().SetConservativeTracedHandlesMarkingVisitor(
         std::make_unique<ConservativeTracedHandlesMarkingVisitor>(
-            heap, *GetV8MarkingWorklists(isolate_, *collection_type_)));
+            heap, *heap.mark_compact_collector()->local_marking_worklists()));
   }
   marker.EnterAtomicPause(stack_state);
   compactor_.CancelIfShouldNotCompact(MarkingType::kAtomic, stack_state);
