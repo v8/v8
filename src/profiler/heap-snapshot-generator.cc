@@ -1398,14 +1398,10 @@ void V8HeapExplorer::ExtractContextReferences(HeapEntry* entry,
                      context.get(Context::OPTIMIZED_CODE_LIST),
                      Context::OffsetOfElementAt(Context::OPTIMIZED_CODE_LIST),
                      HeapEntry::kCustomWeakPointer);
-    SetWeakReference(entry, "deoptimized_code_list",
-                     context.get(Context::DEOPTIMIZED_CODE_LIST),
-                     Context::OffsetOfElementAt(Context::DEOPTIMIZED_CODE_LIST),
-                     HeapEntry::kCustomWeakPointer);
     static_assert(Context::OPTIMIZED_CODE_LIST == Context::FIRST_WEAK_SLOT);
     static_assert(Context::NEXT_CONTEXT_LINK + 1 ==
                   Context::NATIVE_CONTEXT_SLOTS);
-    static_assert(Context::FIRST_WEAK_SLOT + 3 ==
+    static_assert(Context::FIRST_WEAK_SLOT + 2 ==
                   Context::NATIVE_CONTEXT_SLOTS);
   }
 }
