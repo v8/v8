@@ -32,7 +32,7 @@ MarkingBarrier::MarkingBarrier(LocalHeap* local_heap)
       marking_state_(isolate()),
       is_main_thread_barrier_(local_heap->is_main_thread()),
       uses_shared_heap_(isolate()->has_shared_heap()),
-      is_shared_heap_isolate_(isolate()->is_shared_heap_isolate()) {}
+      is_shared_space_isolate_(isolate()->is_shared_space_isolate()) {}
 
 MarkingBarrier::~MarkingBarrier() { DCHECK(typed_slots_map_.empty()); }
 
@@ -53,8 +53,18 @@ void MarkingBarrier::Write(HeapObject host, HeapObjectSlot slot,
 
 void MarkingBarrier::WriteWithoutHost(HeapObject value) {
   DCHECK(is_main_thread_barrier_);
-  DCHECK(is_activated_ || shared_heap_worklist_.has_value());
-  MarkValue(HeapObject(), value);
+  DCHECK(is_activated_);
+
+  // Without a shared heap and on the shared space isolate (= main isolate) all
+  // objects are considered local.
+  if (V8_UNLIKELY(uses_shared_heap_) && !is_shared_space_isolate_) {
+    // On client isolates (= worker isolates) shared values can be ignored.
+    if (value.InSharedWritableHeap()) {
+      return;
+    }
+  }
+
+  MarkValueLocal(value);
 }
 
 void MarkingBarrier::Write(Code host, RelocInfo* reloc_info, HeapObject value) {

@@ -56,7 +56,9 @@ class MarkingBarrier {
   Heap* heap() const { return heap_; }
 
  private:
-  inline bool ProcessSharedObject(HeapObject value);
+  inline void MarkValueShared(HeapObject value);
+  inline void MarkValueLocal(HeapObject value);
+
   inline bool WhiteToGreyAndPush(HeapObject value);
 
   void RecordRelocSlot(Code host, RelocInfo* rinfo, HeapObject target);
@@ -86,9 +88,9 @@ class MarkingBarrier {
       typed_slots_map_;
   bool is_compacting_ = false;
   bool is_activated_ = false;
-  bool is_main_thread_barrier_;
+  const bool is_main_thread_barrier_;
   const bool uses_shared_heap_;
-  const bool is_shared_heap_isolate_;
+  const bool is_shared_space_isolate_;
   MarkingBarrierType marking_barrier_type_;
 };
 

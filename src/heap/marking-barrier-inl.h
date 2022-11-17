@@ -23,19 +23,52 @@ void MarkingBarrier::MarkValue(HeapObject host, HeapObject value) {
   // In that case host has only one markbit and the second markbit belongs to
   // another object. We can detect that case by checking if value is a one word
   // filler map.
-  DCHECK_IMPLIES(
-      !host.is_null(),
-      !marking_state_.IsImpossible(host) ||
-          value == ReadOnlyRoots(heap_->isolate()).one_pointer_filler_map());
+  DCHECK(!marking_state_.IsImpossible(host) ||
+         value == ReadOnlyRoots(heap_->isolate()).one_pointer_filler_map());
 
-  if (V8_UNLIKELY(uses_shared_heap_) && value.InSharedWritableHeap()) {
-    if (ProcessSharedObject(value)) return;
+  // When shared heap isn't enabled all objects are local, we can just run the
+  // local marking barrier. Also from the point-of-view of the shared space
+  // isolate (= main isolate) also shared objects are considered local.
+  if (V8_UNLIKELY(uses_shared_heap_) && !is_shared_space_isolate_) {
+    // Check whether incremental marking is enabled for that object's space.
+    if (!MemoryChunk::FromHeapObject(host)->IsFlagSet(
+            BasicMemoryChunk::Flag::INCREMENTAL_MARKING)) {
+      return;
+    }
+
+    if (host.InSharedWritableHeap()) {
+      // Invoking shared marking barrier when storing into shared objects.
+      MarkValueShared(value);
+      return;
+    } else if (value.InSharedWritableHeap()) {
+      // No marking needed when storing shared objects in local objects.
+      return;
+    }
   }
 
-  DCHECK_IMPLIES(value.InSharedWritableHeap(), is_shared_heap_isolate_);
+  DCHECK_IMPLIES(host.InSharedWritableHeap(), is_shared_space_isolate_);
+  DCHECK_IMPLIES(value.InSharedWritableHeap(), is_shared_space_isolate_);
 
-  if (!is_activated_) return;
+  DCHECK(is_activated_);
+  MarkValueLocal(value);
+}
 
+void MarkingBarrier::MarkValueShared(HeapObject value) {
+  // Value is either in read-only space or shared heap.
+  DCHECK(value.InSharedHeap());
+
+  // We should only reach this on client isolates (= worker isolates).
+  DCHECK(v8_flags.shared_space);
+  DCHECK(!is_shared_space_isolate_);
+  DCHECK(shared_heap_worklist_.has_value());
+
+  // Mark shared object and push it onto shared heap worklist.
+  if (marking_state_.WhiteToGrey(value)) {
+    shared_heap_worklist_->Push(value);
+  }
+}
+
+void MarkingBarrier::MarkValueLocal(HeapObject value) {
   if (is_minor()) {
     // We do not need to insert into RememberedSet<OLD_TO_NEW> here because the
     // C++ marking barrier already does this for us.
@@ -48,33 +81,6 @@ void MarkingBarrier::MarkValue(HeapObject host, HeapObject value) {
         heap_->AddRetainingRoot(Root::kWriteBarrier, value);
       }
     }
-  }
-}
-
-bool MarkingBarrier::ProcessSharedObject(HeapObject value) {
-  if (v8_flags.shared_space) {
-    if (is_shared_heap_isolate_) {
-      // The main isolate processes objects in the shared heap as regular local
-      // objects.
-      return false;
-    } else {
-      // Background threads need to mark shared objects when incremental marking
-      // in the shared heap is active.
-      if (shared_heap_worklist_.has_value() &&
-          marking_state_.WhiteToGrey(value)) {
-        DCHECK(v8_flags.shared_space);
-        DCHECK(!is_shared_heap_isolate_);
-        shared_heap_worklist_->Push(value);
-      }
-
-      // Background threads do not process shared objects as regular local
-      // objects.
-      return true;
-    }
-
-  } else {
-    // All threads ignore shared objects during incremental marking.
-    return true;
   }
 }
 
