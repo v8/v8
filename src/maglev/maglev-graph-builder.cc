@@ -2762,6 +2762,12 @@ void MaglevGraphBuilder::VisitFindNonDefaultConstructorOrConstruct() {
 
 ValueNode* MaglevGraphBuilder::TryBuildInlinedCall(
     compiler::JSFunctionRef function, CallArguments& args) {
+  // Don't try to inline if the target function hasn't been compiled yet.
+  // TODO(verwaest): Soft deopt instead?
+  if (!function.shared().HasBytecodeArray()) return nullptr;
+  if (!function.feedback_vector(broker()->dependencies()).has_value()) {
+    return nullptr;
+  }
   // The undefined constant node has to be created before the inner graph is
   // created.
   RootConstant* undefined_constant;

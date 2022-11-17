@@ -234,7 +234,7 @@ void StraightForwardRegisterAllocator::ComputePostDominatingHoles() {
   // the block. Such a list of jumps terminates in return or jumploop.
   for (BasicBlock* block : base::Reversed(*graph_)) {
     ControlNode* control = block->control_node();
-    if (auto node = control->TryCast<Jump>()) {
+    if (auto node = control->TryCast<UnconditionalControlNode>()) {
       // If the current control node is a jump, prepend it to the list of jumps
       // at the target.
       control->set_next_post_dominating_hole(
