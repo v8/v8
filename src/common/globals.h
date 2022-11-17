@@ -920,7 +920,6 @@ class CompressedMaybeObjectSlot;
 class CompressedMapWordSlot;
 class CompressedHeapObjectSlot;
 class V8HeapCompressionScheme;
-class ExternalCodeCompressionScheme;
 template <typename CompressionScheme>
 class OffHeapCompressedObjectSlot;
 class FullObjectSlot;
@@ -952,12 +951,7 @@ struct SlotTraits {
   using THeapObjectSlot = CompressedHeapObjectSlot;
   using TOffHeapObjectSlot =
       OffHeapCompressedObjectSlot<V8HeapCompressionScheme>;
-#ifdef V8_EXTERNAL_CODE_SPACE
-  using TCodeObjectSlot =
-      OffHeapCompressedObjectSlot<ExternalCodeCompressionScheme>;
-#else
-  using TCodeObjectSlot = TObjectSlot;
-#endif  // V8_EXTERNAL_CODE_SPACE
+  using TCodeObjectSlot = OffHeapCompressedObjectSlot<V8HeapCompressionScheme>;
 #else
   using TObjectSlot = FullObjectSlot;
   using TMaybeObjectSlot = FullMaybeObjectSlot;
@@ -2088,7 +2082,7 @@ class PtrComprCageBase {
   // NOLINTNEXTLINE
   inline PtrComprCageBase(const LocalIsolate* isolate);
 
-  inline Address address() const { return address_; }
+  inline Address address() const;
 
   bool operator==(const PtrComprCageBase& other) const {
     return address_ == other.address_;
