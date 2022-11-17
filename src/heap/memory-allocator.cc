@@ -423,8 +423,8 @@ void MemoryAllocator::PartialFreeMemory(BasicMemoryChunk* chunk,
       DCHECK(isolate_->RequiresCodeRange());
       reservation->DiscardSystemPages(chunk->area_end(), page_size);
     } else {
-      reservation->SetPermissions(chunk->area_end(), page_size,
-                                  PageAllocator::kNoAccess);
+      CHECK(reservation->SetPermissions(chunk->area_end(), page_size,
+                                        PageAllocator::kNoAccess));
     }
   }
   // On e.g. Windows, a reservation may be larger than a page and releasing
@@ -760,10 +760,12 @@ bool MemoryAllocator::SetPermissionsOnExecutableMemoryChunk(VirtualMemory* vm,
             return true;
           }
 
-          vm->SetPermissions(code_area, area_size, PageAllocator::kNoAccess);
+          CHECK(vm->SetPermissions(code_area, area_size,
+                                   PageAllocator::kNoAccess));
         }
       }
-      vm->SetPermissions(start, pre_guard_offset, PageAllocator::kNoAccess);
+      CHECK(vm->SetPermissions(start, pre_guard_offset,
+                               PageAllocator::kNoAccess));
     }
   }
   return false;

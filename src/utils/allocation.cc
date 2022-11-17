@@ -240,7 +240,6 @@ bool VirtualMemory::SetPermissions(Address address, size_t size,
   CHECK(InVM(address, size));
   bool result = page_allocator_->SetPermissions(
       reinterpret_cast<void*>(address), size, access);
-  DCHECK(result);
   return result;
 }
 
@@ -249,7 +248,6 @@ bool VirtualMemory::RecommitPages(Address address, size_t size,
   CHECK(InVM(address, size));
   bool result = page_allocator_->RecommitPages(reinterpret_cast<void*>(address),
                                                size, access);
-  DCHECK(result);
   return result;
 }
 
