@@ -1739,8 +1739,11 @@ void V8FileLogger::ScriptEvent(ScriptEventType type, int script_id) {
     case ScriptEventType::kBackgroundCompile:
       msg << "background-compile";
       break;
-    case ScriptEventType::kStreamingCompile:
+    case ScriptEventType::kStreamingCompileBackground:
       msg << "streaming-compile";
+      break;
+    case ScriptEventType::kStreamingCompileForeground:
+      msg << "streaming-compile-foreground";
       break;
   }
   msg << V8FileLogger::kNext << script_id << V8FileLogger::kNext << Time();

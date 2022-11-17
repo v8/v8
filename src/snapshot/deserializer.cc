@@ -285,8 +285,7 @@ void Deserializer<IsolateT>::WeakenDescriptorArrays() {
 template <typename IsolateT>
 void Deserializer<IsolateT>::LogScriptEvents(Script script) {
   DisallowGarbageCollection no_gc;
-  LOG(isolate(),
-      ScriptEvent(V8FileLogger::ScriptEventType::kDeserialize, script.id()));
+  LOG(isolate(), ScriptEvent(ScriptEventType::kDeserialize, script.id()));
   LOG(isolate(), ScriptDetails(script));
 }
 

@@ -1189,6 +1189,15 @@ enum ParseRestriction : bool {
   ONLY_SINGLE_FUNCTION_LITERAL  // Only a single FunctionLiteral expression.
 };
 
+enum class ScriptEventType {
+  kReserveId,
+  kCreate,
+  kDeserialize,
+  kBackgroundCompile,
+  kStreamingCompileBackground,
+  kStreamingCompileForeground
+};
+
 // State for inline cache call sites. Aliased as IC::State.
 enum class InlineCacheState {
   // No feedback will be collected.

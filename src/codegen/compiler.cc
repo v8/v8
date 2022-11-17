@@ -1585,7 +1585,9 @@ BackgroundCompileTask::BackgroundCompileTask(
       timer_(isolate->counters()->compile_script_on_background()),
       start_position_(0),
       end_position_(0),
-      function_literal_id_(kFunctionLiteralIdTopLevel) {}
+      function_literal_id_(kFunctionLiteralIdTopLevel) {
+  DCHECK(is_streaming_compilation());
+}
 
 BackgroundCompileTask::BackgroundCompileTask(
     Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
@@ -1606,6 +1608,7 @@ BackgroundCompileTask::BackgroundCompileTask(
       end_position_(shared_info->EndPosition()),
       function_literal_id_(shared_info->function_literal_id()) {
   DCHECK(!shared_info->is_toplevel());
+  DCHECK(!is_streaming_compilation());
 
   character_stream_->Seek(start_position_);
 
@@ -1758,6 +1761,10 @@ class MergeAssumptionChecker final : public ObjectVisitor {
 
 }  // namespace
 
+bool BackgroundCompileTask::is_streaming_compilation() const {
+  return function_literal_id_ == kFunctionLiteralIdTopLevel;
+}
+
 void BackgroundCompileTask::Run() {
   RwxMemoryWriteScope::SetDefaultPermissionsForNewThread();
   DCHECK_NE(ThreadId::Current(), isolate_for_local_isolate_->thread_id());
@@ -1790,6 +1797,7 @@ void BackgroundCompileTask::Run(
   ParseInfo info(isolate, flags_, &compile_state_, reusable_state,
                  GetCurrentStackPosition() - stack_size_ * KB);
   info.set_character_stream(std::move(character_stream_));
+  if (is_streaming_compilation()) info.set_is_streaming_compilation();
 
   if (toplevel_script_compilation) {
     DCHECK_NULL(persistent_handles_);

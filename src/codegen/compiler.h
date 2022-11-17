@@ -520,7 +520,7 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   BackgroundCompileTask& operator=(const BackgroundCompileTask&) = delete;
   ~BackgroundCompileTask();
 
-  // Creates a new task that when run will parse and compile the top-level
+  // Creates a new task that when run will parse and compile the non-top-level
   // |shared_info| and can be finalized with FinalizeFunction in
   // Compiler::FinalizeBackgroundCompileTask.
   BackgroundCompileTask(
@@ -549,6 +549,8 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   void ReportStatistics(Isolate* isolate);
 
   void ClearFunctionJobPointer();
+
+  bool is_streaming_compilation() const;
 
   // Data needed for parsing and compilation. These need to be initialized
   // before the compilation starts.

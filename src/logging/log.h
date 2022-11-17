@@ -110,14 +110,6 @@ enum class LogSeparator;
 
 class V8FileLogger : public LogEventListener {
  public:
-  enum class ScriptEventType {
-    kReserveId,
-    kCreate,
-    kDeserialize,
-    kBackgroundCompile,
-    kStreamingCompile
-  };
-
   explicit V8FileLogger(Isolate* isolate);
   ~V8FileLogger() override;
 

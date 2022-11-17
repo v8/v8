@@ -259,14 +259,16 @@ Handle<BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
 }
 
 template <typename Impl>
-Handle<Script> FactoryBase<Impl>::NewScript(
-    Handle<PrimitiveHeapObject> source) {
-  return NewScriptWithId(source, isolate()->GetNextScriptId());
+Handle<Script> FactoryBase<Impl>::NewScript(Handle<PrimitiveHeapObject> source,
+                                            ScriptEventType script_event_type) {
+  return NewScriptWithId(source, isolate()->GetNextScriptId(),
+                         script_event_type);
 }
 
 template <typename Impl>
 Handle<Script> FactoryBase<Impl>::NewScriptWithId(
-    Handle<PrimitiveHeapObject> source, int script_id) {
+    Handle<PrimitiveHeapObject> source, int script_id,
+    ScriptEventType script_event_type) {
   DCHECK(source->IsString() || source->IsUndefined());
   // Create and initialize script object.
   ReadOnlyRoots roots = read_only_roots();
@@ -300,8 +302,7 @@ Handle<Script> FactoryBase<Impl>::NewScriptWithId(
     impl()->AddToScriptList(script);
   }
 
-  LOG(isolate(),
-      ScriptEvent(V8FileLogger::ScriptEventType::kCreate, script_id));
+  LOG(isolate(), ScriptEvent(script_event_type, script_id));
   return script;
 }
 
