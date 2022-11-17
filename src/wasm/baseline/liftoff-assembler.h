@@ -1850,8 +1850,7 @@ class LiftoffStackSlots {
 };
 
 #if DEBUG
-bool CheckCompatibleStackSlotTypes(ValueKind a, ValueKind b);
-bool IsAssignable(ValueKind src, ValueKind dst);
+bool CompatibleStackSlotTypes(ValueKind a, ValueKind b);
 #endif
 
 }  // namespace wasm

@@ -93,7 +93,7 @@ class StackTransferRecipe {
   }
 
   V8_INLINE void TransferStackSlot(const VarState& dst, const VarState& src) {
-    DCHECK(CheckCompatibleStackSlotTypes(dst.kind(), src.kind()));
+    DCHECK(CompatibleStackSlotTypes(dst.kind(), src.kind()));
     if (dst.is_reg()) {
       LoadIntoRegister(dst.reg(), src, src.offset());
       return;
@@ -978,7 +978,7 @@ void PrepareStackTransfers(const ValueKindSig* sig,
     const int num_lowered_params = is_gp_pair ? 2 : 1;
     const VarState& slot = slots[param];
     const uint32_t stack_offset = slot.offset();
-    DCHECK(IsAssignable(slot.kind(), kind));
+    DCHECK(CompatibleStackSlotTypes(slot.kind(), kind));
     // Process both halfs of a register pair separately, because they are passed
     // as separate parameters. One or both of them could end up on the stack.
     for (int lowered_idx = 0; lowered_idx < num_lowered_params; ++lowered_idx) {
@@ -1426,27 +1426,11 @@ std::ostream& operator<<(std::ostream& os, VarState slot) {
 }
 
 #if DEBUG
-bool CheckCompatibleStackSlotTypes(ValueKind a, ValueKind b) {
-  if (is_object_reference(a)) {
-    // Since Liftoff doesn't do accurate type tracking (e.g. on loop back
-    // edges), we only care that pointer types stay amongst pointer types.
-    // It's fine if ref/ref null overwrite each other.
-    DCHECK(is_object_reference(b));
-  } else if (is_rtt(a)) {
-    // Same for rtt/rtt_with_depth.
-    DCHECK(is_rtt(b));
-  } else {
-    // All other types (primitive numbers, bottom/stmt) must be equal.
-    DCHECK_EQ(a, b);
-  }
-  return true;  // Dummy so this can be called via DCHECK.
-}
-
-bool IsAssignable(ValueKind src, ValueKind dst) {
-  if (src == dst) return true;
-  if (src == kRef && dst == kRefNull) return true;
-  if (src == kRtt && (dst == kRef || dst == kRefNull)) return true;
-  return false;
+bool CompatibleStackSlotTypes(ValueKind a, ValueKind b) {
+  // Since Liftoff doesn't do accurate type tracking (e.g. on loop back edges,
+  // ref.as_non_null/br_on_cast results), we only care that pointer types stay
+  // amongst pointer types. It's fine if ref/ref null overwrite each other.
+  return a == b || (is_object_reference(a) && is_object_reference(b));
 }
 #endif
 

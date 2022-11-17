@@ -2394,7 +2394,7 @@ class LiftoffCompiler {
       state.dec_used(slot_reg);
       dst_slot->MakeStack();
     }
-    DCHECK(CheckCompatibleStackSlotTypes(kind, __ local_kind(local_index)));
+    DCHECK(CompatibleStackSlotTypes(kind, __ local_kind(local_index)));
     RegClass rc = reg_class_for(kind);
     LiftoffRegister dst_reg = __ GetUnusedRegister(rc, {});
     __ Fill(dst_reg, src_slot.offset(), kind);
@@ -2673,7 +2673,7 @@ class LiftoffCompiler {
     LiftoffRegList pinned;
     Register condition = pinned.set(__ PopToRegister()).gp();
     ValueKind kind = __ cache_state()->stack_state.end()[-1].kind();
-    DCHECK(CheckCompatibleStackSlotTypes(
+    DCHECK(CompatibleStackSlotTypes(
         kind, __ cache_state()->stack_state.end()[-2].kind()));
     LiftoffRegister false_value = pinned.set(__ PopToRegister(pinned));
     LiftoffRegister true_value = __ PopToRegister(pinned);
@@ -3467,7 +3467,7 @@ class LiftoffCompiler {
                 ? decoder->local_type(index)
             : exception ? ValueType::Ref(HeapType::kAny)
                         : decoder->stack_value(decoder_stack_index--)->type;
-        DCHECK(CheckCompatibleStackSlotTypes(slot.kind(), type.kind()));
+        DCHECK(CompatibleStackSlotTypes(slot.kind(), type.kind()));
         value.type = type;
         switch (slot.loc()) {
           case kIntConst:
