@@ -290,10 +290,6 @@
   'built-ins/RegExp/property-escapes/generated/strings/Emoji_Keycap_Sequence-negative-CharacterClass': [SKIP],
   'built-ins/RegExp/property-escapes/generated/strings/Emoji_Keycap_Sequence-negative-P': [SKIP],
   'built-ins/RegExp/property-escapes/generated/strings/Emoji_Keycap_Sequence-negative-u': [SKIP],
-  'built-ins/RegExp/property-escapes/generated/strings/Emoji_Test': [SKIP],
-  'built-ins/RegExp/property-escapes/generated/strings/Emoji_Test-negative-CharacterClass': [SKIP],
-  'built-ins/RegExp/property-escapes/generated/strings/Emoji_Test-negative-P': [SKIP],
-  'built-ins/RegExp/property-escapes/generated/strings/Emoji_Test-negative-u': [SKIP],
   'built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji': [SKIP],
   'built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji-negative-CharacterClass': [SKIP],
   'built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji-negative-P': [SKIP],
@@ -376,10 +372,22 @@
   'built-ins/RegExp/unicodeSets/generated/string-literal-union-string-literal': [SKIP],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=13173
-  'built-ins/RegExp/named-groups/duplicate-names': [FAIL],
+  'built-ins/RegExp/duplicate-named-capturing-groups-syntax': [FAIL],
   'built-ins/RegExp/named-groups/duplicate-names-group-property-enumeration-order': [FAIL],
   'built-ins/RegExp/named-groups/duplicate-names-match-indices': [FAIL],
   'built-ins/RegExp/named-groups/duplicate-names-replace': [FAIL],
+  'built-ins/RegExp/named-groups/duplicate-names-exec': [FAIL],
+  'built-ins/RegExp/named-groups/duplicate-names-matchall': [FAIL],
+  'built-ins/RegExp/named-groups/duplicate-names-match': [FAIL],
+  'built-ins/RegExp/named-groups/duplicate-names-replaceall': [FAIL],
+  'built-ins/RegExp/named-groups/duplicate-names-search': [FAIL],
+  'built-ins/RegExp/named-groups/duplicate-names-split': [FAIL],
+  'built-ins/RegExp/named-groups/duplicate-names-test': [FAIL],
+  'built-ins/RegExp/prototype/exec/duplicate-named-groups-properties': [FAIL],
+  'built-ins/RegExp/prototype/exec/duplicate-named-indices-groups-properties': [FAIL],
+  'built-ins/String/prototype/match/duplicate-named-groups-properties': [FAIL],
+  'built-ins/String/prototype/match/duplicate-named-indices-groups-properties': [FAIL],
+  'annexB/built-ins/RegExp/prototype/compile/duplicate-named-capturing-groups-syntax': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=13174
   'built-ins/RegExp/prototype/Symbol.match/flags-tostring-error': [FAIL],
@@ -861,6 +869,12 @@
   'intl402/Temporal/Calendar/prototype/eraYear/argument-string-calendar-annotation': [FAIL],
   'intl402/Temporal/Calendar/prototype/eraYear/argument-string-time-zone-annotation': [FAIL],
   'intl402/Temporal/Calendar/prototype/eraYear/argument-string-unknown-annotation': [FAIL],
+
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=13506
+  'intl402/Intl/supportedValuesOf/units-accepted-by-NumberFormat': [FAIL],
+  'intl402/NumberFormat/constructor-unit': [FAIL],
+  'intl402/NumberFormat/prototype/format/units': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=13342
   'built-ins/RegExp/property-escapes/generated/Alphabetic': [FAIL],
