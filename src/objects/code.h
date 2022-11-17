@@ -261,9 +261,8 @@ class CodeDataContainer : public HeapObject {
 #undef CODE_DATA_FIELDS
 
 #ifdef V8_EXTERNAL_CODE_SPACE
-  template <typename T>
   using ExternalCodeField =
-      TaggedField<T, kCodeOffset, ExternalCodeCompressionScheme>;
+      TaggedField<Object, kCodeOffset, ExternalCodeCompressionScheme>;
 #endif
 
   class BodyDescriptor;
