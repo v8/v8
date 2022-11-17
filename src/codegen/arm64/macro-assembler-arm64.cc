@@ -3324,15 +3324,14 @@ void TurboAssembler::LoadExternalPointerField(Register destination,
   DCHECK(!AreAliased(destination, isolate_root));
   ASM_CODE_COMMENT(this);
 #ifdef V8_ENABLE_SANDBOX
-  if (IsSandboxedExternalPointerType(tag)) {
-    DCHECK_NE(kExternalPointerNullTag, tag);
-    DCHECK(!IsSharedExternalPointerType(tag));
-    UseScratchRegisterScope temps(this);
-    Register external_table = temps.AcquireX();
-    if (isolate_root == no_reg) {
-      DCHECK(root_array_available_);
-      isolate_root = kRootRegister;
-    }
+  DCHECK_NE(tag, kExternalPointerNullTag);
+  DCHECK(!IsSharedExternalPointerType(tag));
+  UseScratchRegisterScope temps(this);
+  Register external_table = temps.AcquireX();
+  if (isolate_root == no_reg) {
+    DCHECK(root_array_available_);
+    isolate_root = kRootRegister;
+  }
     Ldr(external_table,
         MemOperand(isolate_root,
                    IsolateData::external_pointer_table_offset() +
@@ -3345,10 +3344,9 @@ void TurboAssembler::LoadExternalPointerField(Register destination,
     Mov(destination, Operand(destination, LSR, shift_amount));
     Ldr(destination, MemOperand(external_table, destination));
     And(destination, destination, Immediate(~tag));
-    return;
-  }
-#endif  // V8_ENABLE_SANDBOX
+#else
   Ldr(destination, field_operand);
+#endif  // V8_ENABLE_SANDBOX
 }
 
 void TurboAssembler::MaybeSaveRegisters(RegList registers) {

@@ -146,13 +146,12 @@ template <typename ConcreteVisitor, typename MarkingState>
 void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitExternalPointer(
     HeapObject host, ExternalPointerSlot slot, ExternalPointerTag tag) {
 #ifdef V8_ENABLE_SANDBOX
-  if (IsSandboxedExternalPointerType(tag)) {
-    ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
-    ExternalPointerTable* table = IsSharedExternalPointerType(tag)
-                                      ? shared_external_pointer_table_
-                                      : external_pointer_table_;
-    table->Mark(handle, slot.address());
-  }
+  DCHECK_NE(tag, kExternalPointerNullTag);
+  ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
+  ExternalPointerTable* table = IsSharedExternalPointerType(tag)
+                                    ? shared_external_pointer_table_
+                                    : external_pointer_table_;
+  table->Mark(handle, slot.address());
 #endif  // V8_ENABLE_SANDBOX
 }
 

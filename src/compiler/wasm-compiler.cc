@@ -2896,26 +2896,25 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
 Node* WasmGraphBuilder::BuildLoadExternalPointerFromObject(
     Node* object, int offset, ExternalPointerTag tag) {
 #ifdef V8_ENABLE_SANDBOX
-  if (IsSandboxedExternalPointerType(tag)) {
-    DCHECK(!IsSharedExternalPointerType(tag));
-    Node* external_pointer = gasm_->LoadFromObject(
-        MachineType::Uint32(), object, wasm::ObjectAccess::ToTagged(offset));
-    static_assert(kExternalPointerIndexShift > kSystemPointerSizeLog2);
-    Node* shift_amount = gasm_->Int32Constant(kExternalPointerIndexShift -
-                                              kSystemPointerSizeLog2);
-    Node* scaled_index = gasm_->Word32Shr(external_pointer, shift_amount);
-    Node* isolate_root = BuildLoadIsolateRoot();
-    Node* table =
-        gasm_->LoadFromObject(MachineType::Pointer(), isolate_root,
-                              IsolateData::external_pointer_table_offset() +
-                                  Internals::kExternalPointerTableBufferOffset);
-    Node* decoded_ptr =
-        gasm_->Load(MachineType::Pointer(), table, scaled_index);
-    return gasm_->WordAnd(decoded_ptr, gasm_->IntPtrConstant(~tag));
-  }
-#endif
+  DCHECK_NE(tag, kExternalPointerNullTag);
+  DCHECK(!IsSharedExternalPointerType(tag));
+  Node* external_pointer = gasm_->LoadFromObject(
+      MachineType::Uint32(), object, wasm::ObjectAccess::ToTagged(offset));
+  static_assert(kExternalPointerIndexShift > kSystemPointerSizeLog2);
+  Node* shift_amount =
+      gasm_->Int32Constant(kExternalPointerIndexShift - kSystemPointerSizeLog2);
+  Node* scaled_index = gasm_->Word32Shr(external_pointer, shift_amount);
+  Node* isolate_root = BuildLoadIsolateRoot();
+  Node* table =
+      gasm_->LoadFromObject(MachineType::Pointer(), isolate_root,
+                            IsolateData::external_pointer_table_offset() +
+                                Internals::kExternalPointerTableBufferOffset);
+  Node* decoded_ptr = gasm_->Load(MachineType::Pointer(), table, scaled_index);
+  return gasm_->WordAnd(decoded_ptr, gasm_->IntPtrConstant(~tag));
+#else
   return gasm_->LoadFromObject(MachineType::Pointer(), object,
                                wasm::ObjectAccess::ToTagged(offset));
+#endif  // V8_ENABLE_SANDBOX
 }
 
 Node* WasmGraphBuilder::BuildLoadCallTargetFromExportedFunctionData(

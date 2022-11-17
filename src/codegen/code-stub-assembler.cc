@@ -1613,28 +1613,28 @@ TNode<RawPtrT> CodeStubAssembler::ExternalPointerTableAddress(
 TNode<RawPtrT> CodeStubAssembler::LoadExternalPointerFromObject(
     TNode<HeapObject> object, TNode<IntPtrT> offset, ExternalPointerTag tag) {
 #ifdef V8_ENABLE_SANDBOX
-  if (IsSandboxedExternalPointerType(tag)) {
-    TNode<RawPtrT> external_pointer_table_address =
-        ExternalPointerTableAddress(tag);
-    TNode<RawPtrT> table = UncheckedCast<RawPtrT>(
-        Load(MachineType::Pointer(), external_pointer_table_address,
-             UintPtrConstant(Internals::kExternalPointerTableBufferOffset)));
+  DCHECK_NE(tag, kExternalPointerNullTag);
+  TNode<RawPtrT> external_pointer_table_address =
+      ExternalPointerTableAddress(tag);
+  TNode<RawPtrT> table = UncheckedCast<RawPtrT>(
+      Load(MachineType::Pointer(), external_pointer_table_address,
+           UintPtrConstant(Internals::kExternalPointerTableBufferOffset)));
 
-    TNode<ExternalPointerHandleT> handle =
-        LoadObjectField<ExternalPointerHandleT>(object, offset);
-    TNode<Uint32T> index =
-        Word32Shr(handle, Uint32Constant(kExternalPointerIndexShift));
-    // TODO(v8:10391): consider updating ElementOffsetFromIndex to generate code
-    // that does one shift right instead of two shifts (right and then left).
-    TNode<IntPtrT> table_offset = ElementOffsetFromIndex(
-        ChangeUint32ToWord(index), SYSTEM_POINTER_ELEMENTS, 0);
+  TNode<ExternalPointerHandleT> handle =
+      LoadObjectField<ExternalPointerHandleT>(object, offset);
+  TNode<Uint32T> index =
+      Word32Shr(handle, Uint32Constant(kExternalPointerIndexShift));
+  // TODO(v8:10391): consider updating ElementOffsetFromIndex to generate code
+  // that does one shift right instead of two shifts (right and then left).
+  TNode<IntPtrT> table_offset = ElementOffsetFromIndex(
+      ChangeUint32ToWord(index), SYSTEM_POINTER_ELEMENTS, 0);
 
-    TNode<UintPtrT> entry = Load<UintPtrT>(table, table_offset);
-    entry = UncheckedCast<UintPtrT>(WordAnd(entry, UintPtrConstant(~tag)));
-    return UncheckedCast<RawPtrT>(UncheckedCast<WordT>(entry));
-  }
-#endif  // V8_ENABLE_SANDBOX
+  TNode<UintPtrT> entry = Load<UintPtrT>(table, table_offset);
+  entry = UncheckedCast<UintPtrT>(WordAnd(entry, UintPtrConstant(~tag)));
+  return UncheckedCast<RawPtrT>(UncheckedCast<WordT>(entry));
+#else
   return LoadObjectField<RawPtrT>(object, offset);
+#endif  // V8_ENABLE_SANDBOX
 }
 
 void CodeStubAssembler::StoreExternalPointerToObject(TNode<HeapObject> object,
@@ -1642,30 +1642,29 @@ void CodeStubAssembler::StoreExternalPointerToObject(TNode<HeapObject> object,
                                                      TNode<RawPtrT> pointer,
                                                      ExternalPointerTag tag) {
 #ifdef V8_ENABLE_SANDBOX
-  if (IsSandboxedExternalPointerType(tag)) {
-    TNode<RawPtrT> external_pointer_table_address =
-        ExternalPointerTableAddress(tag);
-    TNode<RawPtrT> table = UncheckedCast<RawPtrT>(
-        Load(MachineType::Pointer(), external_pointer_table_address,
-             UintPtrConstant(Internals::kExternalPointerTableBufferOffset)));
+  DCHECK_NE(tag, kExternalPointerNullTag);
+  TNode<RawPtrT> external_pointer_table_address =
+      ExternalPointerTableAddress(tag);
+  TNode<RawPtrT> table = UncheckedCast<RawPtrT>(
+      Load(MachineType::Pointer(), external_pointer_table_address,
+           UintPtrConstant(Internals::kExternalPointerTableBufferOffset)));
 
-    TNode<ExternalPointerHandleT> handle =
-        LoadObjectField<ExternalPointerHandleT>(object, offset);
-    TNode<Uint32T> index =
-        Word32Shr(handle, Uint32Constant(kExternalPointerIndexShift));
-    // TODO(v8:10391): consider updating ElementOffsetFromIndex to generate code
-    // that does one shift right instead of two shifts (right and then left).
-    TNode<IntPtrT> table_offset = ElementOffsetFromIndex(
-        ChangeUint32ToWord(index), SYSTEM_POINTER_ELEMENTS, 0);
+  TNode<ExternalPointerHandleT> handle =
+      LoadObjectField<ExternalPointerHandleT>(object, offset);
+  TNode<Uint32T> index =
+      Word32Shr(handle, Uint32Constant(kExternalPointerIndexShift));
+  // TODO(v8:10391): consider updating ElementOffsetFromIndex to generate code
+  // that does one shift right instead of two shifts (right and then left).
+  TNode<IntPtrT> table_offset = ElementOffsetFromIndex(
+      ChangeUint32ToWord(index), SYSTEM_POINTER_ELEMENTS, 0);
 
-    TNode<UintPtrT> value = UncheckedCast<UintPtrT>(pointer);
-    value = UncheckedCast<UintPtrT>(WordOr(pointer, UintPtrConstant(tag)));
-    StoreNoWriteBarrier(MachineType::PointerRepresentation(), table,
-                        table_offset, value);
-    return;
-  }
-#endif  // V8_ENABLE_SANDBOX
+  TNode<UintPtrT> value = UncheckedCast<UintPtrT>(pointer);
+  value = UncheckedCast<UintPtrT>(WordOr(pointer, UintPtrConstant(tag)));
+  StoreNoWriteBarrier(MachineType::PointerRepresentation(), table, table_offset,
+                      value);
+#else
   StoreObjectFieldNoWriteBarrier<RawPtrT>(object, offset, pointer);
+#endif  // V8_ENABLE_SANDBOX
 }
 
 TNode<Object> CodeStubAssembler::LoadFromParentFrame(int offset) {
