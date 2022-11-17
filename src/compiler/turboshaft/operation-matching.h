@@ -94,7 +94,7 @@ class OperationMatching {
                          int64_t* signed_constant = nullptr) {
     const ConstantOp* op = TryCast<ConstantOp>(matched);
     if (!op) return false;
-    switch (op->Representation()) {
+    switch (op->rep) {
       case RegisterRepresentation::Word32():
         if (rep != WordRepresentation::Word32()) return false;
         break;

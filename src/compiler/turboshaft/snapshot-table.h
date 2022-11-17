@@ -167,6 +167,9 @@ class SnapshotTable {
     return NewKey(KeyData{}, initial_value);
   }
 
+  // Returns true if {current_snapshot_} is sealed.
+  bool IsSealed() { return current_snapshot_->IsSealed(); }
+
  private:
   Zone* zone_;
   ZoneDeque<TableEntry> table_{zone_};

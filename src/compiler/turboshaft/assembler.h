@@ -21,8 +21,15 @@
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/optimization-phase.h"
 #include "src/compiler/turboshaft/representations.h"
+#include "src/compiler/turboshaft/snapshot-table.h"
 
 namespace v8::internal::compiler::turboshaft {
+
+// Forward declarations
+template <class Assembler>
+class GraphVisitor;
+using Variable =
+    SnapshotTable<OpIndex, base::Optional<RegisterRepresentation>>::Key;
 
 template <class Assembler, template <class> class... Reducers>
 class ReducerStack {};
@@ -37,6 +44,21 @@ class ReducerStack<Assembler> {
  public:
   Assembler& Asm() { return *static_cast<Assembler*>(this); }
 };
+
+// LABEL_BLOCK is used in Reducers to have a single call forwarding to the next
+// reducer without change. A typical use would be:
+//
+//     OpIndex ReduceFoo(OpIndex arg) {
+//       LABEL_BLOCK(no_change) return Next::ReduceFoo(arg);
+//       ...
+//       if (...) goto no_change;
+//       ...
+//       if (...) goto no_change;
+//       ...
+//     }
+#define LABEL_BLOCK(label)     \
+  for (; false; UNREACHABLE()) \
+  label:
 
 // This empty base-class is used to provide default-implementations of plain
 // methods emitting operations.
@@ -64,6 +86,16 @@ class ReducerBase : public ReducerBaseForwarder<Next> {
 
   void Bind(Block*, const Block*) {}
 
+  // Get, GetPredecessorValue, Set and NewFreshVariable should be overwritten by
+  // the VariableReducer. If the reducer stack has no VariableReducer, then
+  // those methods should not be called.
+  OpIndex Get(Variable) { UNREACHABLE(); }
+  OpIndex GetPredecessorValue(Variable, int) { UNREACHABLE(); }
+  void Set(Variable, OpIndex) { UNREACHABLE(); }
+  Variable NewFreshVariable(base::Optional<RegisterRepresentation>) {
+    UNREACHABLE();
+  }
+
   OpIndex ReducePhi(base::Vector<const OpIndex> inputs,
                     RegisterRepresentation rep) {
     DCHECK(Asm().current_block()->IsMerge() &&
@@ -78,30 +110,65 @@ class ReducerBase : public ReducerBaseForwarder<Next> {
   }
 
   OpIndex ReduceGoto(Block* destination) {
-    destination->AddPredecessor(Asm().current_block());
-    return Base::ReduceGoto(destination);
+    // Calling Base::Goto will call Emit<Goto>, which will call FinalizeBlock,
+    // which will reset {current_block_}. We thus save {current_block_} before
+    // calling Base::Goto, as we'll need it for AddPredecessor. Note also that
+    // AddPredecessor might introduce some new blocks/operations if it needs to
+    // split an edge, which means that it has to run after Base::Goto
+    // (otherwise, the current Goto could be inserted in the wrong block).
+    Block* saved_current_block = Asm().current_block();
+    OpIndex new_opindex = Base::ReduceGoto(destination);
+    Asm().AddPredecessor(saved_current_block, destination, false);
+    return new_opindex;
   }
 
   OpIndex ReduceBranch(OpIndex condition, Block* if_true, Block* if_false) {
-    if_true->AddPredecessor(Asm().current_block());
-    if_false->AddPredecessor(Asm().current_block());
-    return Base::ReduceBranch(condition, if_true, if_false);
+    // There should never be a good reason to generate a Branch where both the
+    // {if_true} and {if_false} are the same Block. If we ever decide to lift
+    // this condition, then AddPredecessor and SplitEdge should be updated
+    // accordingly.
+    DCHECK_NE(if_true, if_false);
+    Block* saved_current_block = Asm().current_block();
+    OpIndex new_opindex = Base::ReduceBranch(condition, if_true, if_false);
+    Asm().AddPredecessor(saved_current_block, if_true, true);
+    Asm().AddPredecessor(saved_current_block, if_false, true);
+    return new_opindex;
   }
 
   OpIndex ReduceCatchException(OpIndex call, Block* if_success,
                                Block* if_exception) {
-    if_success->AddPredecessor(Asm().current_block());
-    if_exception->AddPredecessor(Asm().current_block());
-    return Base::ReduceCatchException(call, if_success, if_exception);
+    // {if_success} and {if_exception} should never be the same.  If we ever
+    // decide to lift this condition, then AddPredecessor and SplitEdge should
+    // be updated accordingly.
+    DCHECK_NE(if_success, if_exception);
+    Block* saved_current_block = Asm().current_block();
+    OpIndex new_opindex =
+        Base::ReduceCatchException(call, if_success, if_exception);
+    Asm().AddPredecessor(saved_current_block, if_success, true);
+    Asm().AddPredecessor(saved_current_block, if_exception, true);
+    return new_opindex;
   }
 
   OpIndex ReduceSwitch(OpIndex input, base::Vector<const SwitchOp::Case> cases,
                        Block* default_case) {
-    for (SwitchOp::Case c : cases) {
-      c.destination->AddPredecessor(Asm().current_block());
+#ifdef DEBUG
+    // Making sure that all cases and {default_case} are different. If we ever
+    // decide to lift this condition, then AddPredecessor and SplitEdge should
+    // be updated accordingly.
+    std::unordered_set<Block*> seen;
+    seen.insert(default_case);
+    for (auto switch_case : cases) {
+      DCHECK_EQ(seen.count(switch_case.destination), 0);
+      seen.insert(switch_case.destination);
     }
-    default_case->AddPredecessor(Asm().current_block());
-    return Base::ReduceSwitch(input, cases, default_case);
+#endif
+    Block* saved_current_block = Asm().current_block();
+    OpIndex new_opindex = Base::ReduceSwitch(input, cases, default_case);
+    for (SwitchOp::Case c : cases) {
+      Asm().AddPredecessor(saved_current_block, c.destination, true);
+    }
+    Asm().AddPredecessor(saved_current_block, default_case, true);
+    return new_opindex;
   }
 };
 
@@ -722,8 +789,9 @@ class AssemblerOpInterface {
   }
   void Unreachable() { stack().ReduceUnreachable(); }
 
-  OpIndex Parameter(int index, const char* debug_name = nullptr) {
-    return stack().ReduceParameter(index, debug_name);
+  OpIndex Parameter(int index, RegisterRepresentation rep,
+                    const char* debug_name = nullptr) {
+    return stack().ReduceParameter(index, rep, debug_name);
   }
   OpIndex OsrValue(int index) { return stack().ReduceOsrValue(index); }
   void Return(OpIndex pop_count, base::Vector<OpIndex> return_values) {
@@ -734,18 +802,18 @@ class AssemblerOpInterface {
   }
 
   OpIndex Call(OpIndex callee, base::Vector<const OpIndex> arguments,
-               const CallDescriptor* descriptor) {
+               const TSCallDescriptor* descriptor) {
     return stack().ReduceCall(callee, arguments, descriptor);
   }
   OpIndex CallMaybeDeopt(OpIndex callee, base::Vector<const OpIndex> arguments,
-                         const CallDescriptor* descriptor,
+                         const TSCallDescriptor* descriptor,
                          OpIndex frame_state) {
     OpIndex call = stack().ReduceCall(callee, arguments, descriptor);
     stack().ReduceCheckLazyDeopt(call, frame_state);
     return call;
   }
   void TailCall(OpIndex callee, base::Vector<const OpIndex> arguments,
-                const CallDescriptor* descriptor) {
+                const TSCallDescriptor* descriptor) {
     stack().ReduceTailCall(callee, arguments, descriptor);
   }
 
@@ -787,8 +855,9 @@ class AssemblerOpInterface {
   OpIndex Tuple(OpIndex a, OpIndex b) {
     return stack().ReduceTuple(base::VectorOf({a, b}));
   }
-  OpIndex Projection(OpIndex tuple, uint16_t index) {
-    return stack().ReduceProjection(tuple, index);
+  OpIndex Projection(OpIndex tuple, uint16_t index,
+                     RegisterRepresentation rep) {
+    return stack().ReduceProjection(tuple, index, rep);
   }
 
  private:
@@ -812,17 +881,19 @@ class Assembler
     SupportedOperations::Initialize();
   }
 
-  Block* NewBlock(Block::Kind kind) {
-    return this->output_graph().NewBlock(kind);
-  }
+  Block* NewLoopHeader() { return this->output_graph().NewLoopHeader(); }
+  Block* NewBlock() { return this->output_graph().NewBlock(); }
 
   using OperationMatching<Assembler<Reducers...>>::Get;
+  using Stack::Get;
 
   V8_INLINE V8_WARN_UNUSED_RESULT bool Bind(Block* block,
                                             const Block* origin = nullptr) {
     if (!this->output_graph().Add(block)) return false;
     DCHECK_NULL(current_block_);
     current_block_ = block;
+    if (origin == nullptr) origin = this->current_input_block();
+    if (origin != nullptr) block->SetOrigin(origin);
     Stack::Bind(block, origin);
     return true;
   }
@@ -853,10 +924,133 @@ class Assembler
     return result;
   }
 
+  // Adds {source} to the predecessors of {destination}.
+  void AddPredecessor(Block* source, Block* destination, bool branch) {
+    DCHECK_IMPLIES(branch, source->EndsWithBranchingOp(this->output_graph()));
+    if (destination->LastPredecessor() == nullptr) {
+      // {destination} has currently no predecessors.
+      DCHECK(destination->IsLoopOrMerge());
+      if (branch && destination->IsLoop()) {
+        // We always split Branch edges that go to loop headers.
+        SplitEdge(source, destination);
+      } else {
+        destination->AddPredecessor(source);
+        if (branch) {
+          DCHECK(!destination->IsLoop());
+          destination->SetKind(Block::Kind::kBranchTarget);
+        }
+      }
+      return;
+    } else if (destination->IsBranchTarget()) {
+      // {destination} used to be a BranchTarget, but branch targets can only
+      // have one predecessor. We'll thus split its (single) incoming edge, and
+      // change its type to kMerge.
+      DCHECK_EQ(destination->PredecessorCount(), 1);
+      Block* pred = destination->LastPredecessor();
+      destination->ResetLastPredecessor();
+      destination->SetKind(Block::Kind::kMerge);
+      SplitEdge(pred, destination);
+    }
+
+    DCHECK(destination->IsLoopOrMerge());
+
+    if (branch) {
+      // A branch always goes to a BranchTarget. We thus split the edge: we'll
+      // insert a new Block, to which {source} will branch, and which will
+      // "Goto" to {destination}.
+      SplitEdge(source, destination);
+    } else {
+      // {destination} is a Merge, and {source} just does a Goto; nothing
+      // special to do.
+      destination->AddPredecessor(source);
+    }
+  }
+
  private:
   void FinalizeBlock() {
     this->output_graph().Finalize(current_block_);
     current_block_ = nullptr;
+  }
+
+  // Insert a new Block between {source} and {destination}, in order to maintain
+  // the split-edge form.
+  void SplitEdge(Block* source, Block* destination) {
+    DCHECK(source->EndsWithBranchingOp(this->output_graph()));
+    // Creating the new intermediate block
+    Block* intermediate_block = NewBlock();
+    intermediate_block->SetKind(Block::Kind::kBranchTarget);
+    // Updating "predecessor" edge of {intermediate_block}. This needs to be
+    // done before calling Bind, because otherwise Bind will think that this
+    // block is not reachable.
+    intermediate_block->AddPredecessor(source);
+
+    // Updating {source}'s last Branch/Switch/CatchException. Note that this
+    // must be done before Binding {intermediate_block}, otherwise,
+    // Reducer::Bind methods will see an invalid block being bound (because its
+    // predecessor would be a branch, but none of its targets would be the block
+    // being bound).
+    Operation& op = this->output_graph().Get(
+        this->output_graph().PreviousIndex(source->end()));
+    switch (op.opcode) {
+      case Opcode::kBranch: {
+        BranchOp& branch = op.Cast<BranchOp>();
+        if (branch.if_true == destination) {
+          branch.if_true = intermediate_block;
+          // We enforce that Branches if_false and if_true can never be the same
+          // (there is a DCHECK in Assembler::Branch enforcing that).
+          DCHECK_NE(branch.if_false, destination);
+        } else {
+          DCHECK_EQ(branch.if_false, destination);
+          branch.if_false = intermediate_block;
+        }
+        break;
+      }
+      case Opcode::kCatchException: {
+        CatchExceptionOp& catch_exception = op.Cast<CatchExceptionOp>();
+        if (catch_exception.if_success == destination) {
+          catch_exception.if_success = intermediate_block;
+          // We enforce that CatchException's if_success and if_exception can
+          // never be the same (there is a DCHECK in Assembler::CatchException
+          // enforcing that).
+          DCHECK_NE(catch_exception.if_exception, destination);
+        } else {
+          DCHECK_EQ(catch_exception.if_exception, destination);
+          catch_exception.if_exception = intermediate_block;
+        }
+        break;
+      }
+      case Opcode::kSwitch: {
+        SwitchOp& switch_op = op.Cast<SwitchOp>();
+        bool found = false;
+        for (auto case_block : switch_op.cases) {
+          if (case_block.destination == destination) {
+            case_block.destination = intermediate_block;
+            DCHECK(!found);
+            found = true;
+#ifndef DEBUG
+            break;
+#endif
+          }
+        }
+        DCHECK_IMPLIES(found, switch_op.default_case != destination);
+        if (!found) {
+          DCHECK_EQ(switch_op.default_case, destination);
+          switch_op.default_case = intermediate_block;
+        }
+        break;
+      }
+
+      default:
+        UNREACHABLE();
+    }
+
+    BindReachable(intermediate_block, source->Origin());
+    // Inserting a Goto in {intermediate_block} to {destination}. This will
+    // create the edge from {intermediate_block} to {destination}. Note that
+    // this will call AddPredecessor, but we've already removed the eventual
+    // edge of {destination} that need splitting, so no risks of inifinite
+    // recursion here.
+    this->Goto(destination);
   }
 
   Block* current_block_ = nullptr;
