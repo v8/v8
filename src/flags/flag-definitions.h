@@ -1335,7 +1335,11 @@ DEFINE_BOOL(scavenge_separate_stack_scanning, false,
 DEFINE_BOOL(trace_parallel_scavenge, false, "trace parallel scavenge")
 DEFINE_BOOL(cppgc_young_generation, false,
             "run young generation garbage collections in Oilpan")
+// CppGC young generation (enables unified young heap) is based on Minor MC.
 DEFINE_IMPLICATION(cppgc_young_generation, minor_mc)
+// Unified young generation disables the unmodified wrapper reclamation
+// optimization.
+DEFINE_NEG_IMPLICATION(cppgc_young_generation, reclaim_unmodified_wrappers)
 DEFINE_BOOL(write_protect_code_memory, true, "write protect code memory")
 #if defined(V8_ATOMIC_OBJECT_FIELD_WRITES)
 DEFINE_BOOL(concurrent_marking, true, "use concurrent marking")

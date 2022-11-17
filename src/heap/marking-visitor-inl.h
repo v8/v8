@@ -593,6 +593,23 @@ int YoungGenerationMarkingVisitorBase<
 }
 
 template <typename ConcreteVisitor, typename MarkingState>
+int YoungGenerationMarkingVisitorBase<
+    ConcreteVisitor, MarkingState>::VisitJSApiObject(Map map, JSObject object) {
+  if (!worklists_local_->SupportsExtractWrapper())
+    return this->VisitJSObject(map, object);
+  if (!concrete_visitor()->ShouldVisit(object)) return 0;
+  MarkingWorklists::Local::WrapperSnapshot wrapper_snapshot;
+  const bool valid_snapshot =
+      worklists_local_->ExtractWrapper(map, object, wrapper_snapshot);
+  const int size = concrete_visitor()->VisitJSObjectSubclass(map, object);
+  if (size && valid_snapshot) {
+    // Success: The object needs to be processed for embedder references.
+    worklists_local_->PushExtractedWrapper(wrapper_snapshot);
+  }
+  return size;
+}
+
+template <typename ConcreteVisitor, typename MarkingState>
 void YoungGenerationMarkingVisitorBase<ConcreteVisitor, MarkingState>::
     MarkObjectViaMarkingWorklist(HeapObject object) {
   if (concrete_visitor()->marking_state()->WhiteToGrey(object)) {
