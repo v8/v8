@@ -18,7 +18,7 @@ in_category(
     main_multibranch_builder_pair(
         name = "V8 Mac64 ASAN",
         triggered_by_gitiles = True,
-        dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
+        dimensions = {"os": "Mac", "cpu": "x86-64"},
     ),
     main_multibranch_builder_pair(
         name = "V8 Win64 ASAN",

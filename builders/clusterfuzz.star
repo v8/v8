@@ -38,12 +38,12 @@ in_category(
     "Mac",
     clusterfuzz_builder(
         name = "V8 Clusterfuzz Mac64 ASAN - release builder",
-        dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
+        dimensions = {"os": "Mac", "cpu": "x86-64"},
         properties = {"clobber": True, "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8-asan"}},
     ),
     clusterfuzz_builder(
         name = "V8 Clusterfuzz Mac64 ASAN - debug builder",
-        dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
+        dimensions = {"os": "Mac", "cpu": "x86-64"},
         properties = {"clobber": True, "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8-asan"}},
     ),
 )

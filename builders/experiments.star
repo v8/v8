@@ -190,7 +190,7 @@ in_category(
     experiment_builder(
         name = "V8 iOS - sim - builder",
         triggered_by = ["v8-trigger"],
-        dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
+        dimensions = {"os": "Mac", "cpu": "x86-64"},
         properties = {"$depot_tools/osx_sdk": {"sdk_version": "12d4e"}, "target_platform": "ios"},
         caches = [
             swarming.cache(
@@ -217,7 +217,7 @@ in_category(
     experiment_builder(
         name = "V8 Mac64 - full debug builder",
         triggered_by = ["v8-trigger"],
-        dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
+        dimensions = {"os": "Mac", "cpu": "x86-64"},
         use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["sheriffs on new failure", "blamelist"],

@@ -57,7 +57,7 @@ try_builder(
     name = "v8_ios_simulator",
     bucket = "try",
     cq_properties = CQ.OPTIONAL,
-    dimensions = {"os": "Mac-10.15"},
+    dimensions = {"os": "Mac"},
     execution_timeout = 3600,
     properties = {"$depot_tools/osx_sdk": {"sdk_version": "12d4e"}, "target_platform": "ios"},
     caches = [
