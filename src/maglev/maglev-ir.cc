@@ -1436,6 +1436,19 @@ void CheckJSArrayBounds::GenerateCode(MaglevAssembler* masm,
 }
 
 namespace {
+int ElementsKindSize(ElementsKind element_kind) {
+  switch (element_kind) {
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
+  case TYPE##_ELEMENTS:                           \
+    DCHECK_LE(sizeof(ctype), 8);                  \
+    return sizeof(ctype);
+    TYPED_ARRAYS(TYPED_ARRAY_CASE)
+    default:
+      UNREACHABLE();
+#undef TYPED_ARRAY_CASE
+  }
+}
+
 int ExternalArrayElementSize(const ExternalArrayType element_type) {
   switch (element_type) {
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
@@ -1449,6 +1462,38 @@ int ExternalArrayElementSize(const ExternalArrayType element_type) {
   }
 }
 }  // namespace
+
+void CheckJSTypedArrayBounds::AllocateVreg(
+    MaglevVregAllocationState* vreg_state) {
+  UseRegister(receiver_input());
+  if (ElementsKindSize(elements_kind_) == 1) {
+    UseRegister(index_input());
+  } else {
+    UseAndClobberRegister(index_input());
+  }
+}
+void CheckJSTypedArrayBounds::GenerateCode(MaglevAssembler* masm,
+                                           const ProcessingState& state) {
+  Register object = ToRegister(receiver_input());
+  Register index = ToRegister(index_input());
+  Register byte_length = kScratchRegister;
+  if (v8_flags.debug_code) {
+    __ AssertNotSmi(object);
+    __ CmpObjectType(object, JS_TYPED_ARRAY_TYPE, kScratchRegister);
+    __ Assert(equal, AbortReason::kUnexpectedValue);
+  }
+  __ LoadBoundedSizeFromObject(byte_length, object,
+                               JSTypedArray::kRawByteLengthOffset);
+  int element_size = ElementsKindSize(elements_kind_);
+  if (element_size > 1) {
+    DCHECK(element_size == 2 || element_size == 4);
+    __ shlq(index, Immediate(element_size / 2));
+  }
+  __ cmpq(index, byte_length);
+  // We use {above_equal} which does an unsigned comparison to handle negative
+  // indices as well.
+  __ EmitEagerDeoptIf(above_equal, DeoptimizeReason::kOutOfBounds, this);
+}
 
 void CheckJSDataViewBounds::AllocateVreg(
     MaglevVregAllocationState* vreg_state) {
@@ -2041,6 +2086,107 @@ void StoreDoubleDataViewElement::GenerateCode(MaglevAssembler* masm,
     __ bswapq(kScratchRegister);
     __ movq(Operand(data_pointer, index, times_1, 0), kScratchRegister);
     __ bind(&done);
+  }
+}
+
+namespace {
+
+ScaleFactor ScaleFactorFromInt(int n) {
+  switch (n) {
+    case 1:
+      return times_1;
+    case 2:
+      return times_2;
+    case 4:
+      return times_4;
+    default:
+      UNREACHABLE();
+  }
+}
+
+}  // namespace
+
+void LoadSignedIntTypedArrayElement::AllocateVreg(
+    MaglevVregAllocationState* vreg_state) {
+  UseRegister(object_input());
+  UseRegister(index_input());
+  DefineAsRegister(vreg_state, this);
+}
+void LoadSignedIntTypedArrayElement::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
+  Register object = ToRegister(object_input());
+  Register index = ToRegister(index_input());
+  Register result_reg = ToRegister(result());
+  Register data_pointer = result_reg;
+  __ AssertNotSmi(object);
+  if (v8_flags.debug_code) {
+    __ CmpObjectType(object, JS_TYPED_ARRAY_TYPE, kScratchRegister);
+    __ Assert(equal, AbortReason::kUnexpectedValue);
+  }
+  int element_size = ElementsKindSize(elements_kind_);
+  __ LoadExternalPointerField(
+      data_pointer, FieldOperand(object, JSTypedArray::kExternalPointerOffset));
+  __ LoadSignedField(
+      result_reg,
+      Operand(data_pointer, index, ScaleFactorFromInt(element_size), 0),
+      element_size);
+}
+
+void LoadUnsignedIntTypedArrayElement::AllocateVreg(
+    MaglevVregAllocationState* vreg_state) {
+  UseRegister(object_input());
+  UseRegister(index_input());
+  DefineAsRegister(vreg_state, this);
+}
+void LoadUnsignedIntTypedArrayElement::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
+  Register object = ToRegister(object_input());
+  Register index = ToRegister(index_input());
+  Register result_reg = ToRegister(result());
+  Register data_pointer = result_reg;
+  __ AssertNotSmi(object);
+  if (v8_flags.debug_code) {
+    __ CmpObjectType(object, JS_TYPED_ARRAY_TYPE, kScratchRegister);
+    __ Assert(equal, AbortReason::kUnexpectedValue);
+  }
+  int element_size = ElementsKindSize(elements_kind_);
+  __ LoadExternalPointerField(
+      data_pointer, FieldOperand(object, JSTypedArray::kExternalPointerOffset));
+  __ LoadUnsignedField(
+      result_reg,
+      Operand(data_pointer, index, ScaleFactorFromInt(element_size), 0),
+      element_size);
+}
+
+void LoadDoubleTypedArrayElement::AllocateVreg(
+    MaglevVregAllocationState* vreg_state) {
+  UseRegister(object_input());
+  UseRegister(index_input());
+  DefineAsRegister(vreg_state, this);
+}
+void LoadDoubleTypedArrayElement::GenerateCode(MaglevAssembler* masm,
+                                               const ProcessingState& state) {
+  Register object = ToRegister(object_input());
+  Register index = ToRegister(index_input());
+  DoubleRegister result_reg = ToDoubleRegister(result());
+  Register data_pointer = kScratchRegister;
+  __ AssertNotSmi(object);
+  if (v8_flags.debug_code) {
+    __ CmpObjectType(object, JS_TYPED_ARRAY_TYPE, kScratchRegister);
+    __ Assert(equal, AbortReason::kUnexpectedValue);
+  }
+  __ LoadExternalPointerField(
+      data_pointer, FieldOperand(object, JSTypedArray::kExternalPointerOffset));
+  switch (elements_kind_) {
+    case FLOAT32_ELEMENTS:
+      __ Movss(result_reg, Operand(data_pointer, index, times_4, 0));
+      __ Cvtss2sd(result_reg, result_reg);
+      break;
+    case FLOAT64_ELEMENTS:
+      __ Movsd(result_reg, Operand(data_pointer, index, times_8, 0));
+      break;
+    default:
+      UNREACHABLE();
   }
 }
 
@@ -3695,6 +3841,17 @@ void ToString::GenerateCode(MaglevAssembler* masm,
   __ bind(&done);
 }
 
+void CheckedInt32ToUint32::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  UseRegister(input());
+  DefineSameAsFirst(vreg_state, this);
+}
+void CheckedInt32ToUint32::GenerateCode(MaglevAssembler* masm,
+                                        const ProcessingState& state) {
+  Register input_reg = ToRegister(input());
+  __ testl(input_reg, input_reg);
+  __ EmitEagerDeoptIf(negative, DeoptimizeReason::kNotUint32, this);
+}
+
 void CheckedUint32ToInt32::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseRegister(input());
   DefineSameAsFirst(vreg_state, this);
@@ -3760,6 +3917,44 @@ void CheckedTruncateFloat64ToInt32::GenerateCode(MaglevAssembler* masm,
   __ Pextrd(high_word32_of_input, input_reg, 1);
   __ cmpl(high_word32_of_input, Immediate(0));
   __ EmitEagerDeoptIf(less, DeoptimizeReason::kNotInt32, this);
+
+  __ bind(&check_done);
+}
+
+void CheckedTruncateFloat64ToUint32::AllocateVreg(
+    MaglevVregAllocationState* vreg_state) {
+  UseRegister(input());
+  DefineAsRegister(vreg_state, this);
+}
+void CheckedTruncateFloat64ToUint32::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
+  DoubleRegister input_reg = ToDoubleRegister(input());
+  Register result_reg = ToRegister(result());
+  DoubleRegister converted_back = kScratchDoubleReg;
+
+  Label fail;
+  // Convert the input float64 value to uint32.
+  __ Cvttsd2ui(result_reg, input_reg, &fail);
+  // Convert that uint32 value back to float64.
+  __ Cvtlui2sd(converted_back, result_reg);
+  // Check that the result of the float64->uint32->float64 is equal to the input
+  // (i.e. that the conversion didn't truncate.
+  __ Ucomisd(input_reg, converted_back);
+  __ EmitEagerDeoptIf(not_equal, DeoptimizeReason::kNotUint32, this);
+
+  // Check if {input} is -0.
+  Label check_done;
+  __ cmpl(result_reg, Immediate(0));
+  __ j(not_equal, &check_done);
+
+  // In case of 0, we need to check the high bits for the IEEE -0 pattern.
+  Register high_word32_of_input = kScratchRegister;
+  __ Pextrd(high_word32_of_input, input_reg, 1);
+  __ cmpl(high_word32_of_input, Immediate(0));
+  __ EmitEagerDeoptIf(less, DeoptimizeReason::kNotUint32, this);
+
+  __ bind(&fail);
+  __ EmitEagerDeopt(this, DeoptimizeReason::kNotUint32);
 
   __ bind(&check_done);
 }

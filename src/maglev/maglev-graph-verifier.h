@@ -176,6 +176,7 @@ class MaglevGraphVerifier {
       case Opcode::kSwitch:
       case Opcode::kCheckInt32IsSmi:
       case Opcode::kCheckedSmiTagInt32:
+      case Opcode::kCheckedInt32ToUint32:
       case Opcode::kChangeInt32ToFloat64:
       case Opcode::kInt32ToNumber:
       case Opcode::kBuiltinStringFromCharCode:
@@ -198,6 +199,7 @@ class MaglevGraphVerifier {
       case Opcode::kFloat64Box:
       case Opcode::kHoleyFloat64Box:
       case Opcode::kCheckedTruncateFloat64ToInt32:
+      case Opcode::kCheckedTruncateFloat64ToUint32:
       case Opcode::kTruncateFloat64ToInt32:
         DCHECK_EQ(node->input_count(), 1);
         CheckValueInputIs(node, 0, ValueRepresentation::kFloat64);
@@ -330,6 +332,14 @@ class MaglevGraphVerifier {
         for (int i = 0; i < node->input_count(); i++) {
           CheckValueInputIs(node, i, ValueRepresentation::kTagged);
         }
+        break;
+      case Opcode::kCheckJSTypedArrayBounds:
+      case Opcode::kLoadSignedIntTypedArrayElement:
+      case Opcode::kLoadUnsignedIntTypedArrayElement:
+      case Opcode::kLoadDoubleTypedArrayElement:
+        DCHECK_EQ(node->input_count(), 2);
+        CheckValueInputIs(node, 0, ValueRepresentation::kTagged);
+        CheckValueInputIs(node, 1, ValueRepresentation::kUint32);
         break;
       case Opcode::kCheckJSArrayBounds:
       case Opcode::kCheckJSDataViewBounds:

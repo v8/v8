@@ -1200,6 +1200,12 @@ class MaglevGraphBuilder {
   }
   ValueNode* GetInt32ElementIndex(ValueNode* index_object);
 
+  ValueNode* GetUint32ElementIndex(interpreter::Register reg) {
+    ValueNode* index_object = current_interpreter_frame_.get(reg);
+    return GetUint32ElementIndex(index_object);
+  }
+  ValueNode* GetUint32ElementIndex(ValueNode* index_object);
+
   bool CanTreatHoleAsUndefined(
       ZoneVector<compiler::MapRef> const& receiver_maps);
 

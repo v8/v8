@@ -102,6 +102,8 @@ class MaglevAssembler : public MacroAssembler {
 
   inline void LoadSignedField(Register result, Operand operand,
                               int element_size);
+  inline void LoadUnsignedField(Register result, Operand operand,
+                                int element_size);
   inline void StoreField(Operand operand, Register value, int element_size);
   inline void ReverseByteOrder(Register value, int element_size);
 

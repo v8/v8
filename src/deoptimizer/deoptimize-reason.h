@@ -53,6 +53,7 @@ namespace internal {
   V(NotAString, "not a String")                                                \
   V(NotASymbol, "not a Symbol")                                                \
   V(NotInt32, "not int32")                                                     \
+  V(NotUint32, "not unsigned int32")                                           \
   V(OutOfBounds, "out of bounds")                                              \
   V(Overflow, "overflow")                                                      \
   V(Smi, "Smi")                                                                \

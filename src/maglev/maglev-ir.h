@@ -124,91 +124,96 @@ class CompactInterpreterFrameState;
   V(BuiltinStringFromCharCode)      \
   V(BuiltinStringPrototypeCharCodeAt)
 
-#define VALUE_NODE_LIST(V)         \
-  V(Call)                          \
-  V(CallBuiltin)                   \
-  V(CallRuntime)                   \
-  V(CallWithSpread)                \
-  V(CallWithArrayLike)             \
-  V(CallKnownJSFunction)           \
-  V(Construct)                     \
-  V(ConstructWithSpread)           \
-  V(ConvertReceiver)               \
-  V(ConvertHoleToUndefined)        \
-  V(CreateEmptyArrayLiteral)       \
-  V(CreateArrayLiteral)            \
-  V(CreateShallowArrayLiteral)     \
-  V(CreateObjectLiteral)           \
-  V(CreateEmptyObjectLiteral)      \
-  V(CreateShallowObjectLiteral)    \
-  V(CreateFunctionContext)         \
-  V(CreateClosure)                 \
-  V(FastCreateClosure)             \
-  V(CreateRegExpLiteral)           \
-  V(DeleteProperty)                \
-  V(ForInPrepare)                  \
-  V(ForInNext)                     \
-  V(GeneratorRestoreRegister)      \
-  V(GetIterator)                   \
-  V(GetSecondReturnedValue)        \
-  V(GetTemplateObject)             \
-  V(InitialValue)                  \
-  V(LoadTaggedField)               \
-  V(LoadDoubleField)               \
-  V(LoadTaggedElement)             \
-  V(LoadSignedIntDataViewElement)  \
-  V(LoadDoubleDataViewElement)     \
-  V(LoadDoubleElement)             \
-  V(LoadGlobal)                    \
-  V(LoadNamedGeneric)              \
-  V(LoadNamedFromSuperGeneric)     \
-  V(SetNamedGeneric)               \
-  V(DefineNamedOwnGeneric)         \
-  V(StoreInArrayLiteralGeneric)    \
-  V(StoreGlobal)                   \
-  V(GetKeyedGeneric)               \
-  V(SetKeyedGeneric)               \
-  V(DefineKeyedOwnGeneric)         \
-  V(Phi)                           \
-  V(RegisterInput)                 \
-  V(CheckedSmiTagInt32)            \
-  V(CheckedSmiTagUint32)           \
-  V(UnsafeSmiTag)                  \
-  V(CheckedSmiUntag)               \
-  V(UnsafeSmiUntag)                \
-  V(CheckedInternalizedString)     \
-  V(CheckedObjectToIndex)          \
-  V(CheckedTruncateNumberToInt32)  \
-  V(CheckedUint32ToInt32)          \
-  V(ChangeInt32ToFloat64)          \
-  V(ChangeUint32ToFloat64)         \
-  V(CheckedTruncateFloat64ToInt32) \
-  V(TruncateUint32ToInt32)         \
-  V(TruncateFloat64ToInt32)        \
-  V(Int32ToNumber)                 \
-  V(Uint32ToNumber)                \
-  V(Float64Box)                    \
-  V(HoleyFloat64Box)               \
-  V(CheckedFloat64Unbox)           \
-  V(LogicalNot)                    \
-  V(SetPendingMessage)             \
-  V(StringAt)                      \
-  V(StringLength)                  \
-  V(ToBoolean)                     \
-  V(ToBooleanLogicalNot)           \
-  V(TaggedEqual)                   \
-  V(TaggedNotEqual)                \
-  V(TestInstanceOf)                \
-  V(TestUndetectable)              \
-  V(TestTypeOf)                    \
-  V(ToName)                        \
-  V(ToNumberOrNumeric)             \
-  V(ToObject)                      \
-  V(ToString)                      \
-  CONSTANT_VALUE_NODE_LIST(V)      \
-  INT32_OPERATIONS_NODE_LIST(V)    \
-  FLOAT64_OPERATIONS_NODE_LIST(V)  \
-  GENERIC_OPERATIONS_NODE_LIST(V)  \
+#define VALUE_NODE_LIST(V)            \
+  V(Call)                             \
+  V(CallBuiltin)                      \
+  V(CallRuntime)                      \
+  V(CallWithArrayLike)                \
+  V(CallWithSpread)                   \
+  V(CallKnownJSFunction)              \
+  V(Construct)                        \
+  V(ConstructWithSpread)              \
+  V(ConvertReceiver)                  \
+  V(ConvertHoleToUndefined)           \
+  V(CreateEmptyArrayLiteral)          \
+  V(CreateArrayLiteral)               \
+  V(CreateShallowArrayLiteral)        \
+  V(CreateObjectLiteral)              \
+  V(CreateEmptyObjectLiteral)         \
+  V(CreateShallowObjectLiteral)       \
+  V(CreateFunctionContext)            \
+  V(CreateClosure)                    \
+  V(FastCreateClosure)                \
+  V(CreateRegExpLiteral)              \
+  V(DeleteProperty)                   \
+  V(ForInPrepare)                     \
+  V(ForInNext)                        \
+  V(GeneratorRestoreRegister)         \
+  V(GetIterator)                      \
+  V(GetSecondReturnedValue)           \
+  V(GetTemplateObject)                \
+  V(InitialValue)                     \
+  V(LoadTaggedField)                  \
+  V(LoadDoubleField)                  \
+  V(LoadTaggedElement)                \
+  V(LoadSignedIntDataViewElement)     \
+  V(LoadDoubleDataViewElement)        \
+  V(LoadSignedIntTypedArrayElement)   \
+  V(LoadUnsignedIntTypedArrayElement) \
+  V(LoadDoubleTypedArrayElement)      \
+  V(LoadDoubleElement)                \
+  V(LoadGlobal)                       \
+  V(LoadNamedGeneric)                 \
+  V(LoadNamedFromSuperGeneric)        \
+  V(SetNamedGeneric)                  \
+  V(DefineNamedOwnGeneric)            \
+  V(StoreInArrayLiteralGeneric)       \
+  V(StoreGlobal)                      \
+  V(GetKeyedGeneric)                  \
+  V(SetKeyedGeneric)                  \
+  V(DefineKeyedOwnGeneric)            \
+  V(Phi)                              \
+  V(RegisterInput)                    \
+  V(CheckedSmiTagInt32)               \
+  V(CheckedSmiTagUint32)              \
+  V(UnsafeSmiTag)                     \
+  V(CheckedSmiUntag)                  \
+  V(UnsafeSmiUntag)                   \
+  V(CheckedInternalizedString)        \
+  V(CheckedObjectToIndex)             \
+  V(CheckedTruncateNumberToInt32)     \
+  V(CheckedInt32ToUint32)             \
+  V(CheckedUint32ToInt32)             \
+  V(ChangeInt32ToFloat64)             \
+  V(ChangeUint32ToFloat64)            \
+  V(CheckedTruncateFloat64ToInt32)    \
+  V(CheckedTruncateFloat64ToUint32)   \
+  V(TruncateUint32ToInt32)            \
+  V(TruncateFloat64ToInt32)           \
+  V(Int32ToNumber)                    \
+  V(Uint32ToNumber)                   \
+  V(Float64Box)                       \
+  V(HoleyFloat64Box)                  \
+  V(CheckedFloat64Unbox)              \
+  V(LogicalNot)                       \
+  V(SetPendingMessage)                \
+  V(StringAt)                         \
+  V(StringLength)                     \
+  V(ToBoolean)                        \
+  V(ToBooleanLogicalNot)              \
+  V(TaggedEqual)                      \
+  V(TaggedNotEqual)                   \
+  V(TestInstanceOf)                   \
+  V(TestUndetectable)                 \
+  V(TestTypeOf)                       \
+  V(ToName)                           \
+  V(ToNumberOrNumeric)                \
+  V(ToObject)                         \
+  V(ToString)                         \
+  CONSTANT_VALUE_NODE_LIST(V)         \
+  INT32_OPERATIONS_NODE_LIST(V)       \
+  FLOAT64_OPERATIONS_NODE_LIST(V)     \
+  GENERIC_OPERATIONS_NODE_LIST(V)     \
   INLINE_BUILTIN_NODE_LIST(V)
 
 #define GAP_MOVE_NODE_LIST(V) \
@@ -223,8 +228,9 @@ class CompactInterpreterFrameState;
   V(CheckHeapObject)                  \
   V(CheckInt32Condition)              \
   V(CheckJSArrayBounds)               \
-  V(CheckJSObjectElementsBounds)      \
   V(CheckJSDataViewBounds)            \
+  V(CheckJSObjectElementsBounds)      \
+  V(CheckJSTypedArrayBounds)          \
   V(CheckMaps)                        \
   V(CheckMapsWithMigration)           \
   V(CheckNumber)                      \
@@ -2106,6 +2112,24 @@ class HoleyFloat64Box : public FixedInputValueNodeT<1, HoleyFloat64Box> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
+class CheckedInt32ToUint32
+    : public FixedInputValueNodeT<1, CheckedInt32ToUint32> {
+  using Base = FixedInputValueNodeT<1, CheckedInt32ToUint32>;
+
+ public:
+  explicit CheckedInt32ToUint32(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::Uint32() |
+                                              OpProperties::ConversionNode() |
+                                              OpProperties::EagerDeopt();
+
+  Input& input() { return Node::input(0); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
 class CheckedUint32ToInt32
     : public FixedInputValueNodeT<1, CheckedUint32ToInt32> {
   using Base = FixedInputValueNodeT<1, CheckedUint32ToInt32>;
@@ -2167,6 +2191,24 @@ class CheckedTruncateFloat64ToInt32
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt() |
                                               OpProperties::Int32() |
+                                              OpProperties::ConversionNode();
+
+  Input& input() { return Node::input(0); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class CheckedTruncateFloat64ToUint32
+    : public FixedInputValueNodeT<1, CheckedTruncateFloat64ToUint32> {
+  using Base = FixedInputValueNodeT<1, CheckedTruncateFloat64ToUint32>;
+
+ public:
+  explicit CheckedTruncateFloat64ToUint32(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt() |
+                                              OpProperties::Uint32() |
                                               OpProperties::ConversionNode();
 
   Input& input() { return Node::input(0); }
@@ -3361,6 +3403,29 @@ class CheckJSDataViewBounds : public FixedInputNodeT<2, CheckJSDataViewBounds> {
   ExternalArrayType element_type_;
 };
 
+class CheckJSTypedArrayBounds
+    : public FixedInputNodeT<2, CheckJSTypedArrayBounds> {
+  using Base = FixedInputNodeT<2, CheckJSTypedArrayBounds>;
+
+ public:
+  explicit CheckJSTypedArrayBounds(uint64_t bitfield,
+                                   ElementsKind elements_kind)
+      : Base(bitfield), elements_kind_(elements_kind) {}
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
+
+  static constexpr int kReceiverIndex = 0;
+  static constexpr int kIndexIndex = 1;
+  Input& receiver_input() { return input(kReceiverIndex); }
+  Input& index_input() { return input(kIndexIndex); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  ElementsKind elements_kind_;
+};
+
 class CheckInt32Condition : public FixedInputNodeT<2, CheckInt32Condition> {
   using Base = FixedInputNodeT<2, CheckInt32Condition>;
 
@@ -3673,6 +3738,93 @@ class LoadDoubleDataViewElement
   void AllocateVreg(MaglevVregAllocationState*);
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class LoadSignedIntTypedArrayElement
+    : public FixedInputValueNodeT<2, LoadSignedIntTypedArrayElement> {
+  using Base = FixedInputValueNodeT<2, LoadSignedIntTypedArrayElement>;
+
+ public:
+  explicit LoadSignedIntTypedArrayElement(uint64_t bitfield,
+                                          ElementsKind elements_kind)
+      : Base(bitfield), elements_kind_(elements_kind) {
+    DCHECK(elements_kind == INT8_ELEMENTS || elements_kind == INT16_ELEMENTS ||
+           elements_kind == INT32_ELEMENTS);
+  }
+
+  static constexpr OpProperties kProperties =
+      OpProperties::Reading() | OpProperties::Int32();
+
+  static constexpr int kObjectIndex = 0;
+  static constexpr int kIndexIndex = 1;
+  Input& object_input() { return input(kObjectIndex); }
+  Input& index_input() { return input(kIndexIndex); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  ElementsKind elements_kind_;
+};
+
+class LoadUnsignedIntTypedArrayElement
+    : public FixedInputValueNodeT<2, LoadUnsignedIntTypedArrayElement> {
+  using Base = FixedInputValueNodeT<2, LoadUnsignedIntTypedArrayElement>;
+
+ public:
+  explicit LoadUnsignedIntTypedArrayElement(uint64_t bitfield,
+                                            ElementsKind elements_kind)
+      : Base(bitfield), elements_kind_(elements_kind) {
+    DCHECK(elements_kind == UINT8_ELEMENTS ||
+           elements_kind == UINT8_CLAMPED_ELEMENTS ||
+           elements_kind == UINT16_ELEMENTS ||
+           elements_kind == UINT16_ELEMENTS ||
+           elements_kind == UINT32_ELEMENTS);
+  }
+
+  static constexpr OpProperties kProperties =
+      OpProperties::Reading() | OpProperties::Uint32();
+
+  static constexpr int kObjectIndex = 0;
+  static constexpr int kIndexIndex = 1;
+  Input& object_input() { return input(kObjectIndex); }
+  Input& index_input() { return input(kIndexIndex); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  ElementsKind elements_kind_;
+};
+
+class LoadDoubleTypedArrayElement
+    : public FixedInputValueNodeT<2, LoadDoubleTypedArrayElement> {
+  using Base = FixedInputValueNodeT<2, LoadDoubleTypedArrayElement>;
+
+ public:
+  explicit LoadDoubleTypedArrayElement(uint64_t bitfield,
+                                       ElementsKind elements_kind)
+      : Base(bitfield), elements_kind_(elements_kind) {
+    DCHECK(elements_kind == FLOAT32_ELEMENTS ||
+           elements_kind == FLOAT64_ELEMENTS);
+  }
+
+  static constexpr OpProperties kProperties =
+      OpProperties::Reading() | OpProperties::Float64();
+
+  static constexpr int kObjectIndex = 0;
+  static constexpr int kIndexIndex = 1;
+  Input& object_input() { return input(kObjectIndex); }
+  Input& index_input() { return input(kIndexIndex); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  ElementsKind elements_kind_;
 };
 
 class StoreSignedIntDataViewElement

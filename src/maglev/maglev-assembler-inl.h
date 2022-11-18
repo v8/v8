@@ -123,6 +123,18 @@ inline void MaglevAssembler::LoadSignedField(Register result, Operand operand,
   }
 }
 
+inline void MaglevAssembler::LoadUnsignedField(Register result, Operand operand,
+                                               int size) {
+  if (size == 1) {
+    movzxbl(result, operand);
+  } else if (size == 2) {
+    movzxwl(result, operand);
+  } else {
+    DCHECK_EQ(size, 4);
+    movl(result, operand);
+  }
+}
+
 inline void MaglevAssembler::StoreField(Operand operand, Register value,
                                         int size) {
   DCHECK(size == 1 || size == 2 || size == 4);

@@ -2059,6 +2059,23 @@ ValueNode* MaglevGraphBuilder::GetInt32ElementIndex(ValueNode* object) {
   }
 }
 
+// TODO(victorgomes): Consider caching the values and adding an
+// uint32_alternative in node_info.
+ValueNode* MaglevGraphBuilder::GetUint32ElementIndex(ValueNode* object) {
+  switch (object->properties().value_representation()) {
+    case ValueRepresentation::kTagged:
+      // TODO(victorgomes): Consider create Uint32Constants and
+      // CheckedObjectToUnsignedIndex.
+      return AddNewNode<CheckedInt32ToUint32>({GetInt32ElementIndex(object)});
+    case ValueRepresentation::kInt32:
+      return AddNewNode<CheckedInt32ToUint32>({object});
+    case ValueRepresentation::kUint32:
+      return object;
+    case ValueRepresentation::kFloat64:
+      return AddNewNode<CheckedTruncateFloat64ToUint32>({object});
+  }
+}
+
 bool MaglevGraphBuilder::TryBuildElementAccessOnString(
     ValueNode* object, ValueNode* index_object,
     compiler::KeyedAccessMode const& keyed_mode) {
@@ -2121,7 +2138,19 @@ bool MaglevGraphBuilder::TryBuildElementAccess(
 
     // TODO(victorgomes): Support more elements kind.
     ElementsKind elements_kind = access_info.elements_kind();
-    if (!IsFastElementsKind(elements_kind)) return false;
+    if (IsTypedArrayElementsKind(elements_kind)) {
+      if (JSTypedArray::kMaxSizeInHeap != 0) {
+        // TODO(victorgomes): Support typed array in heap.
+        // Note that the common config is equal to 0 (for Chrome and Node).
+        return false;
+      }
+      if (elements_kind == BIGUINT64_ELEMENTS ||
+          elements_kind == BIGINT64_ELEMENTS) {
+        return false;
+      }
+    } else if (!IsFastElementsKind(elements_kind)) {
+      return false;
+    }
     if (IsHoleyElementsKind(elements_kind) &&
         !CanTreatHoleAsUndefined(access_info.lookup_start_object_maps())) {
       return false;
@@ -2135,11 +2164,18 @@ bool MaglevGraphBuilder::TryBuildElementAccess(
     }
     BuildCheckMaps(object, access_info.lookup_start_object_maps());
 
-    ValueNode* index = GetInt32ElementIndex(index_object);
+    // TODO(victorgomes): To support large typed array access, we should use
+    // Uint32 here.
+    ValueNode* index;
     if (map.IsJSArrayMap()) {
+      index = GetInt32ElementIndex(index_object);
       AddNewNode<CheckJSArrayBounds>({object, index});
+    } else if (map.IsJSTypedArrayMap()) {
+      index = GetUint32ElementIndex(index_object);
+      AddNewNode<CheckJSTypedArrayBounds>({object, index}, elements_kind);
     } else {
       DCHECK(map.IsJSObjectMap());
+      index = GetInt32ElementIndex(index_object);
       AddNewNode<CheckJSObjectElementsBounds>({object, index});
     }
     if (IsDoubleElementsKind(elements_kind)) {
@@ -2149,6 +2185,29 @@ bool MaglevGraphBuilder::TryBuildElementAccess(
         // boxing lazily.
         SetAccumulator(AddNewNode<HoleyFloat64Box>(
             {current_interpreter_frame_.accumulator()}));
+      }
+    } else if (IsTypedArrayElementsKind(elements_kind)) {
+      switch (elements_kind) {
+        case INT8_ELEMENTS:
+        case INT16_ELEMENTS:
+        case INT32_ELEMENTS:
+          SetAccumulator(AddNewNode<LoadSignedIntTypedArrayElement>(
+              {object, index}, elements_kind));
+          break;
+        case UINT8_CLAMPED_ELEMENTS:
+        case UINT8_ELEMENTS:
+        case UINT16_ELEMENTS:
+        case UINT32_ELEMENTS:
+          SetAccumulator(AddNewNode<LoadUnsignedIntTypedArrayElement>(
+              {object, index}, elements_kind));
+          break;
+        case FLOAT32_ELEMENTS:
+        case FLOAT64_ELEMENTS:
+          SetAccumulator(AddNewNode<LoadDoubleTypedArrayElement>(
+              {object, index}, elements_kind));
+          break;
+        default:
+          UNREACHABLE();
       }
     } else {
       SetAccumulator(AddNewNode<LoadTaggedElement>({object, index}));
