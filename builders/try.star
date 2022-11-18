@@ -240,7 +240,7 @@ try_builder(
     executable = "recipe:run_presubmit",
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     execution_timeout = 600,
-    properties = {"runhooks": True, "repo_name": "v8"},
+    properties = {"runhooks": True},
     priority = 25,
 )
 

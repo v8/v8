@@ -15,3 +15,5 @@ exec("/try_ng.star")
 exec("/try.star")
 
 exec("/tools.star")
+
+exec("/crossbench.star")
