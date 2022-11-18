@@ -181,13 +181,6 @@ trybot_pair(
 )
 
 trybot_pair(
-    name = "v8_linux64_heap_sandbox_dbg",
-    cq_properties = CQ.BLOCK,
-    dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-    use_goma = GOMA.DEFAULT,
-)
-
-trybot_pair(
     name = "v8_linux64_fuzzilli_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
@@ -347,18 +340,6 @@ trybot_pair(
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
-)
-
-trybot_pair(
-    name = "v8_linux_arm64_sim_heap_sandbox_dbg",
-    cq_properties = CQ.OPTIONAL,
-    dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-    use_goma = GOMA.DEFAULT,
-    description = {
-        "purpose": "Arm64 simulator heap sandbox",
-        "request": "https://crbug.com/v8/12257",
-        "ci_base": "V8 Linux64 - arm64 - sim - heap sandbox - debug",
-    },
 )
 
 trybot_pair(

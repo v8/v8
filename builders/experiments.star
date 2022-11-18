@@ -166,24 +166,6 @@ in_category(
 )
 
 in_category(
-    "Heap Sandbox",
-    experiment_builder_pair(
-        name = "V8 Linux64 - arm64 - sim - heap sandbox - debug",
-        triggered_by = ["v8-trigger"],
-        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-        use_goma = GOMA.NO,
-        use_remoteexec = RECLIENT.DEFAULT,
-        notify_owners = ["saelo@chromium.org"],
-        notifies = ["sheriffs on new failure", "blamelist"],
-        description = {
-            "purpose": "Arm64 simulator heap sandbox",
-            "request": "https://crbug.com/v8/12257",
-            "cq_base": "v8_linux_arm64_sim_heap_sandbox_dbg",
-        },
-    ),
-)
-
-in_category(
     "Linux64 no sandbox",
     experiment_builder_pair(
         name = "V8 Linux64 - no sandbox",
