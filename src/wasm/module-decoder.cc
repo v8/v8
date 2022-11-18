@@ -410,10 +410,12 @@ class ValidateFunctionsTask : public JobTask {
   explicit ValidateFunctionsTask(base::Vector<const uint8_t> wire_bytes,
                                  const WasmModule* module,
                                  WasmFeatures enabled_features,
+                                 std::function<bool(int)> filter,
                                  WasmError* error_out)
       : wire_bytes_(wire_bytes),
         module_(module),
         enabled_features_(enabled_features),
+        filter_(std::move(filter)),
         next_function_(module->num_imported_functions),
         after_last_function_(next_function_ + module->num_declared_functions),
         error_out_(error_out) {
@@ -428,9 +430,12 @@ class ValidateFunctionsTask : public JobTask {
       // number of functions is limited to a value much smaller than the
       // integer range, this is near impossible to happen.
       static_assert(kV8MaxWasmFunctions < kMaxInt / 2);
-      int func_index = next_function_.fetch_add(1, std::memory_order_relaxed);
-      if (V8_UNLIKELY(func_index >= after_last_function_)) return;
-      DCHECK_LE(0, func_index);
+      int func_index;
+      do {
+        func_index = next_function_.fetch_add(1, std::memory_order_relaxed);
+        if (V8_UNLIKELY(func_index >= after_last_function_)) return;
+        DCHECK_LE(0, func_index);
+      } while (filter_ && !filter_(func_index));
 
       if (!ValidateFunction(allocator, func_index)) {
         // No need to validate any more functions.
@@ -483,6 +488,7 @@ class ValidateFunctionsTask : public JobTask {
   const base::Vector<const uint8_t> wire_bytes_;
   const WasmModule* const module_;
   const WasmFeatures enabled_features_;
+  const std::function<bool(int)> filter_;
   std::atomic<int> next_function_;
   const int after_last_function_;
   base::Mutex set_error_mutex_;
@@ -492,7 +498,8 @@ class ValidateFunctionsTask : public JobTask {
 
 WasmError ValidateFunctions(const WasmModule* module,
                             WasmFeatures enabled_features,
-                            base::Vector<const uint8_t> wire_bytes) {
+                            base::Vector<const uint8_t> wire_bytes,
+                            std::function<bool(int)> filter) {
   DCHECK_EQ(kWasmOrigin, module->origin);
 
   class NeverYieldDelegate final : public JobDelegate {
@@ -509,7 +516,8 @@ WasmError ValidateFunctions(const WasmModule* module,
   WasmError validation_error;
   std::unique_ptr<JobTask> validate_job =
       std::make_unique<ValidateFunctionsTask>(
-          wire_bytes, module, enabled_features, &validation_error);
+          wire_bytes, module, enabled_features, std::move(filter),
+          &validation_error);
 
   if (v8_flags.single_threaded) {
     // In single-threaded mode, run the {ValidateFunctionsTask} synchronously.

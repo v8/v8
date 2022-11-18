@@ -132,11 +132,13 @@ AsmJsOffsetsResult DecodeAsmJsOffsets(
 void DecodeFunctionNames(base::Vector<const uint8_t> wire_bytes,
                          NameMap& names);
 
-// Validate all functions in the module. Return the first validation error
-// (deterministically), or an empty {WasmError} if all functions are valid.
-V8_EXPORT_PRIVATE WasmError
-ValidateFunctions(const WasmModule*, WasmFeatures enabled_features,
-                  base::Vector<const uint8_t> wire_bytes);
+// Validate specific functions in the module. Return the first validation error
+// (deterministically), or an empty {WasmError} if all validated functions are
+// valid. {filter} determines which functions are validated. Pass an empty
+// function for "all functions". The {filter} callback needs to be thread-safe.
+V8_EXPORT_PRIVATE WasmError ValidateFunctions(
+    const WasmModule*, WasmFeatures enabled_features,
+    base::Vector<const uint8_t> wire_bytes, std::function<bool(int)> filter);
 
 class ModuleDecoderImpl;
 
