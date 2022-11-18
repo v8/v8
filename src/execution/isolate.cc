@@ -4109,6 +4109,11 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
                    SnapshotData* read_only_snapshot_data,
                    SnapshotData* shared_heap_snapshot_data, bool can_rehash) {
   TRACE_ISOLATE(init);
+
+#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+  CHECK_EQ(V8HeapCompressionScheme::base(), cage_base());
+#endif  // V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+
   const bool create_heap_objects = (read_only_snapshot_data == nullptr);
   // We either have all or none.
   DCHECK_EQ(create_heap_objects, startup_snapshot_data == nullptr);
@@ -4287,15 +4292,32 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     }
   }
 #ifdef V8_EXTERNAL_CODE_SPACE
-  if (heap_.code_range()) {
-    code_cage_base_ = ExternalCodeCompressionScheme::GetPtrComprCageBaseAddress(
-        heap_.code_range()->base());
-  } else {
-    CHECK(jitless_);
-    // In jitless mode the code space pages will be allocated in the main
-    // pointer compression cage.
-    code_cage_base_ =
-        ExternalCodeCompressionScheme::GetPtrComprCageBaseAddress(cage_base());
+  {
+    VirtualMemoryCage* code_cage;
+    if (heap_.code_range()) {
+      code_cage = heap_.code_range();
+    } else {
+      CHECK(jitless_);
+      // In jitless mode the code space pages will be allocated in the main
+      // pointer compression cage.
+      code_cage = GetPtrComprCage();
+    }
+    code_cage_base_ = ExternalCodeCompressionScheme::PrepareCageBaseAddress(
+        code_cage->base());
+#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+    CHECK_EQ(ExternalCodeCompressionScheme::base(), code_cage_base_);
+#endif  // V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+
+    // Ensure that ExternalCodeCompressionScheme is applicable to all objects
+    // stored in the code cage.
+    using ComprScheme = ExternalCodeCompressionScheme;
+    Address base = code_cage->base();
+    Address last = base + code_cage->size() - 1;
+    PtrComprCageBase code_cage_base{code_cage_base_};
+    CHECK_EQ(base, ComprScheme::DecompressTaggedPointer(
+                       code_cage_base, ComprScheme::CompressTagged(base)));
+    CHECK_EQ(last, ComprScheme::DecompressTaggedPointer(
+                       code_cage_base, ComprScheme::CompressTagged(last)));
   }
 #endif  // V8_EXTERNAL_CODE_SPACE
 

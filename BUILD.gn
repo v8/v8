@@ -4407,6 +4407,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/codegen/unoptimized-compilation-info.cc",
     "src/common/assert-scope.cc",
     "src/common/code-memory-access.cc",
+    "src/common/ptr-compr.cc",
     "src/compiler-dispatcher/lazy-compile-dispatcher.cc",
     "src/compiler-dispatcher/optimizing-compile-dispatcher.cc",
     "src/date/date.cc",

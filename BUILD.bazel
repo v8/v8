@@ -1245,6 +1245,7 @@ filegroup(
         "src/common/message-template.h",
         "src/common/operation.h",
         "src/common/ptr-compr-inl.h",
+        "src/common/ptr-compr.cc",
         "src/common/ptr-compr.h",
         "src/compiler-dispatcher/lazy-compile-dispatcher.cc",
         "src/compiler-dispatcher/lazy-compile-dispatcher.h",

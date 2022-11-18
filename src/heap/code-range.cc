@@ -147,15 +147,6 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
 
   if (!VirtualMemoryCage::InitReservation(params)) return false;
 
-#ifdef V8_EXTERNAL_CODE_SPACE
-  // Ensure that ExternalCodeCompressionScheme is applicable to all objects
-  // stored in the code range.
-  Address base = page_allocator_->begin();
-  Address last = base + page_allocator_->size() - 1;
-  CHECK_EQ(ExternalCodeCompressionScheme::GetPtrComprCageBaseAddress(base),
-           ExternalCodeCompressionScheme::GetPtrComprCageBaseAddress(last));
-#endif  // V8_EXTERNAL_CODE_SPACE
-
   // On some platforms, specifically Win64, we need to reserve some pages at
   // the beginning of an executable space. See
   //   https://cs.chromium.org/chromium/src/components/crash/content/
@@ -319,6 +310,16 @@ std::shared_ptr<CodeRange> CodeRange::EnsureProcessWideCodeRange(
           nullptr, "Failed to reserve virtual memory for CodeRange");
     }
     *process_wide_code_range_.Pointer() = code_range;
+#ifdef V8_EXTERNAL_CODE_SPACE
+#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+    // This might be not the first time we create a code range because previous
+    // code range instance could have been deleted if it wasn't kept alive by an
+    // active Isolate. Let the base be initialized from scratch once again.
+    ExternalCodeCompressionScheme::InitBase(
+        ExternalCodeCompressionScheme::PrepareCageBaseAddress(
+            code_range->base()));
+#endif  // V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+#endif  // V8_EXTERNAL_CODE_SPACE
   }
   return code_range;
 }
