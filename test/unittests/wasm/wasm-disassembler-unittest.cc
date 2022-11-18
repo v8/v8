@@ -24,8 +24,8 @@ void CheckDisassemblerOutput(base::Vector<const byte> module_bytes,
                              std::string expected_output) {
   AccountingAllocator allocator;
 
-  ModuleResult module_result = DecodeWasmModuleForDisassembler(
-      module_bytes.begin(), module_bytes.end(), &allocator);
+  ModuleResult module_result =
+      DecodeWasmModuleForDisassembler(module_bytes, &allocator);
   DCHECK(module_result.ok());
   WasmModule* module = module_result.value().get();
 

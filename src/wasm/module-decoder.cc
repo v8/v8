@@ -74,38 +74,33 @@ const char* SectionName(SectionCode code) {
 // but that doesn't work with the forward declaration in the header file.
 class ModuleDecoderImpl : public ModuleDecoderTemplate<NoTracer> {
  public:
-  ModuleDecoderImpl(const WasmFeatures& enabled, ModuleOrigin origin)
-      : ModuleDecoderTemplate<NoTracer>(enabled, origin, no_tracer_) {}
-
-  ModuleDecoderImpl(const WasmFeatures& enabled, const byte* module_start,
-                    const byte* module_end, ModuleOrigin origin)
-      : ModuleDecoderTemplate<NoTracer>(enabled, module_start, module_end,
-                                        origin, no_tracer_) {}
+  ModuleDecoderImpl(WasmFeatures enabled_features,
+                    base::Vector<const uint8_t> wire_bytes, ModuleOrigin origin)
+      : ModuleDecoderTemplate<NoTracer>(enabled_features, wire_bytes, origin,
+                                        no_tracer_) {}
 
  private:
   NoTracer no_tracer_;
 };
 
 ModuleResult DecodeWasmModule(
-    const WasmFeatures& enabled, const byte* module_start,
-    const byte* module_end, bool validate_functions, ModuleOrigin origin,
-    Counters* counters, std::shared_ptr<metrics::Recorder> metrics_recorder,
+    WasmFeatures enabled_features, base::Vector<const uint8_t> wire_bytes,
+    bool validate_functions, ModuleOrigin origin, Counters* counters,
+    std::shared_ptr<metrics::Recorder> metrics_recorder,
     v8::metrics::Recorder::ContextId context_id, DecodingMethod decoding_method,
     AccountingAllocator* allocator) {
-  size_t size = module_end - module_start;
-  CHECK_LE(module_start, module_end);
   size_t max_size = max_module_size();
-  if (size > max_size) {
-    return ModuleResult{
-        WasmError{0, "size > maximum module size (%zu): %zu", max_size, size}};
+  if (wire_bytes.size() > max_size) {
+    return ModuleResult{WasmError{0, "size > maximum module size (%zu): %zu",
+                                  max_size, wire_bytes.size()}};
   }
   // TODO(bradnelson): Improve histogram handling of size_t.
   auto size_counter =
       SELECT_WASM_COUNTER(counters, origin, wasm, module_size_bytes);
-  size_counter->AddSample(static_cast<int>(size));
+  size_counter->AddSample(static_cast<int>(wire_bytes.size()));
   // Signatures are stored in zone memory, which have the same lifetime
   // as the {module}.
-  ModuleDecoderImpl decoder(enabled, module_start, module_end, origin);
+  ModuleDecoderImpl decoder(enabled_features, wire_bytes, origin);
   v8::metrics::WasmModuleDecoded metrics_event;
   base::ElapsedTimer timer;
   timer.Start();
@@ -132,23 +127,21 @@ ModuleResult DecodeWasmModule(
   } else if (auto&& module = decoder.shared_module()) {
     metrics_event.function_count = module->num_declared_functions;
   }
-  metrics_event.module_size_in_bytes = size;
+  metrics_event.module_size_in_bytes = wire_bytes.size();
   metrics_recorder->DelayMainThreadEvent(metrics_event, context_id);
 
   return result;
 }
 
-ModuleResult DecodeWasmModuleForDisassembler(const byte* module_start,
-                                             const byte* module_end,
-                                             AccountingAllocator* allocator) {
+ModuleResult DecodeWasmModuleForDisassembler(
+    base::Vector<const uint8_t> wire_bytes, AccountingAllocator* allocator) {
   constexpr bool validate_functions = false;
-  ModuleDecoderImpl decoder(WasmFeatures::All(), module_start, module_end,
-                            kWasmOrigin);
+  ModuleDecoderImpl decoder(WasmFeatures::All(), wire_bytes, kWasmOrigin);
   return decoder.DecodeModule(nullptr, allocator, validate_functions);
 }
 
-ModuleDecoder::ModuleDecoder(const WasmFeatures& enabled)
-    : enabled_features_(enabled) {}
+ModuleDecoder::ModuleDecoder(WasmFeatures enabled_features)
+    : enabled_features_(enabled_features) {}
 
 ModuleDecoder::~ModuleDecoder() = default;
 
@@ -161,7 +154,8 @@ void ModuleDecoder::StartDecoding(
     v8::metrics::Recorder::ContextId context_id, AccountingAllocator* allocator,
     ModuleOrigin origin) {
   DCHECK_NULL(impl_);
-  impl_.reset(new ModuleDecoderImpl(enabled_features_, origin));
+  static constexpr base::Vector<const uint8_t> kNoWireBytes{nullptr, 0};
+  impl_.reset(new ModuleDecoderImpl(enabled_features_, kNoWireBytes, origin));
   impl_->StartDecoding(counters, allocator);
 }
 
@@ -206,34 +200,31 @@ size_t ModuleDecoder::IdentifyUnknownSection(ModuleDecoder* decoder,
 bool ModuleDecoder::ok() { return impl_->ok(); }
 
 Result<const FunctionSig*> DecodeWasmSignatureForTesting(
-    const WasmFeatures& enabled, Zone* zone, const byte* start,
-    const byte* end) {
-  ModuleDecoderImpl decoder(enabled, start, end, kWasmOrigin);
-  return decoder.toResult(decoder.DecodeFunctionSignature(zone, start));
+    WasmFeatures enabled_features, Zone* zone,
+    base::Vector<const uint8_t> bytes) {
+  ModuleDecoderImpl decoder(enabled_features, bytes, kWasmOrigin);
+  return decoder.toResult(decoder.DecodeFunctionSignature(zone, bytes.begin()));
 }
 
-ConstantExpression DecodeWasmInitExprForTesting(const WasmFeatures& enabled,
-                                                const byte* start,
-                                                const byte* end,
-                                                ValueType expected) {
-  ModuleDecoderImpl decoder(enabled, start, end, kWasmOrigin);
+ConstantExpression DecodeWasmInitExprForTesting(
+    WasmFeatures enabled_features, base::Vector<const uint8_t> bytes,
+    ValueType expected) {
+  ModuleDecoderImpl decoder(enabled_features, bytes, kWasmOrigin);
   AccountingAllocator allocator;
   decoder.StartDecoding(nullptr, &allocator);
   return decoder.DecodeInitExprForTesting(expected);
 }
 
 FunctionResult DecodeWasmFunctionForTesting(
-    const WasmFeatures& enabled, Zone* zone, ModuleWireBytes wire_bytes,
-    const WasmModule* module, const byte* function_start,
-    const byte* function_end, Counters* counters) {
-  size_t size = function_end - function_start;
-  CHECK_LE(function_start, function_end);
-  if (size > kV8MaxWasmFunctionSize) {
-    return FunctionResult{WasmError{0,
-                                    "size > maximum function size (%zu): %zu",
-                                    kV8MaxWasmFunctionSize, size}};
+    WasmFeatures enabled_features, Zone* zone, ModuleWireBytes wire_bytes,
+    const WasmModule* module, base::Vector<const uint8_t> function_bytes,
+    Counters* counters) {
+  if (function_bytes.size() > kV8MaxWasmFunctionSize) {
+    return FunctionResult{
+        WasmError{0, "size > maximum function size (%zu): %zu",
+                  kV8MaxWasmFunctionSize, function_bytes.size()}};
   }
-  ModuleDecoderImpl decoder(enabled, function_start, function_end, kWasmOrigin);
+  ModuleDecoderImpl decoder(enabled_features, function_bytes, kWasmOrigin);
   decoder.SetCounters(counters);
   return decoder.DecodeSingleFunctionForTesting(zone, wire_bytes, module);
 }
@@ -294,9 +285,9 @@ AsmJsOffsetsResult DecodeAsmJsOffsets(
   return decoder.toResult(AsmJsOffsets{std::move(functions)});
 }
 
-std::vector<CustomSectionOffset> DecodeCustomSections(const byte* start,
-                                                      const byte* end) {
-  Decoder decoder(start, end);
+std::vector<CustomSectionOffset> DecodeCustomSections(
+    base::Vector<const uint8_t> bytes) {
+  Decoder decoder(bytes);
   decoder.consume_bytes(4, "wasm magic");
   decoder.consume_bytes(4, "wasm version");
 
@@ -383,9 +374,9 @@ void DecodeIndirectNameMap(IndirectNameMap& target, Decoder& decoder) {
 
 }  // namespace
 
-void DecodeFunctionNames(const byte* module_start, const byte* module_end,
+void DecodeFunctionNames(base::Vector<const uint8_t> wire_bytes,
                          NameMap& names) {
-  Decoder decoder(module_start, module_end);
+  Decoder decoder(wire_bytes);
   if (FindNameSection(&decoder)) {
     while (decoder.ok() && decoder.more()) {
       uint8_t name_type = decoder.consume_u8("name type");

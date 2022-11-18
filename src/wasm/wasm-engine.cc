@@ -475,8 +475,8 @@ bool WasmEngine::SyncValidate(Isolate* isolate, const WasmFeatures& enabled,
     return false;
   }
   auto result = DecodeWasmModule(
-      enabled, bytes.start(), bytes.end(), true, kWasmOrigin,
-      isolate->counters(), isolate->metrics_recorder(),
+      enabled, bytes.module_bytes(), true, kWasmOrigin, isolate->counters(),
+      isolate->metrics_recorder(),
       isolate->GetOrRegisterRecorderContextId(isolate->native_context()),
       DecodingMethod::kSync, allocator());
   if (result.failed() && error_message) {
@@ -499,10 +499,10 @@ MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
   // the context id in here.
   v8::metrics::Recorder::ContextId context_id =
       v8::metrics::Recorder::ContextId::Empty();
-  ModuleResult result = DecodeWasmModule(
-      WasmFeatures::ForAsmjs(), bytes.start(), bytes.end(), false, origin,
-      isolate->counters(), isolate->metrics_recorder(), context_id,
-      DecodingMethod::kSync, allocator());
+  ModuleResult result =
+      DecodeWasmModule(WasmFeatures::ForAsmjs(), bytes.module_bytes(), false,
+                       origin, isolate->counters(), isolate->metrics_recorder(),
+                       context_id, DecodingMethod::kSync, allocator());
   if (result.failed()) {
     // This happens once in a while when we have missed some limit check
     // in the asm parser. Output an error message to help diagnose, but crash.
@@ -543,10 +543,10 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
       isolate->GetOrRegisterRecorderContextId(isolate->native_context());
   std::shared_ptr<WasmModule> module;
   {
-    ModuleResult result = DecodeWasmModule(
-        enabled, bytes.start(), bytes.end(), false, kWasmOrigin,
-        isolate->counters(), isolate->metrics_recorder(), context_id,
-        DecodingMethod::kSync, allocator());
+    ModuleResult result =
+        DecodeWasmModule(enabled, bytes.module_bytes(), false, kWasmOrigin,
+                         isolate->counters(), isolate->metrics_recorder(),
+                         context_id, DecodingMethod::kSync, allocator());
     if (result.failed()) {
       thrower->CompileFailed(result.error());
       return {};

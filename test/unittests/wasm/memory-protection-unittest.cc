@@ -120,12 +120,11 @@ class MemoryProtectionTest : public TestWithNativeContext {
         SECTION(Function, ENTRY_COUNT(1), SIG_INDEX(0)),
         SECTION(Code, ENTRY_COUNT(1), ADD_COUNT(0 /* locals */, kExprEnd))};
 
-    ModuleResult result =
-        DecodeWasmModule(WasmFeatures::All(), std::begin(module_bytes),
-                         std::end(module_bytes), false, kWasmOrigin,
-                         isolate()->counters(), isolate()->metrics_recorder(),
-                         v8::metrics::Recorder::ContextId::Empty(),
-                         DecodingMethod::kSync, GetWasmEngine()->allocator());
+    ModuleResult result = DecodeWasmModule(
+        WasmFeatures::All(), base::ArrayVector(module_bytes), false,
+        kWasmOrigin, isolate()->counters(), isolate()->metrics_recorder(),
+        v8::metrics::Recorder::ContextId::Empty(), DecodingMethod::kSync,
+        GetWasmEngine()->allocator());
     CHECK(result.ok());
 
     ErrorThrower thrower(isolate(), "");

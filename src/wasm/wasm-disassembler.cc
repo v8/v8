@@ -554,8 +554,9 @@ class OffsetsProvider {
  public:
   OffsetsProvider() = default;
 
-  void CollectOffsets(const WasmModule* module, const byte* start,
-                      const byte* end, AccountingAllocator* allocator) {
+  void CollectOffsets(const WasmModule* module,
+                      base::Vector<const uint8_t> wire_bytes,
+                      AccountingAllocator* allocator) {
     num_imported_tables_ = module->num_imported_tables;
     num_imported_globals_ = module->num_imported_globals;
     num_imported_tags_ = module->num_imported_tags;
@@ -568,7 +569,7 @@ class OffsetsProvider {
     data_offsets_.reserve(module->data_segments.size());
 
     using OffsetsCollectingDecoder = ModuleDecoderTemplate<OffsetsProvider>;
-    OffsetsCollectingDecoder decoder(WasmFeatures::All(), start, end,
+    OffsetsCollectingDecoder decoder(WasmFeatures::All(), wire_bytes,
                                      kWasmOrigin, *this);
     constexpr bool verify_functions = false;
     decoder.DecodeModule(nullptr, allocator, verify_functions);
@@ -673,8 +674,7 @@ ModuleDisassembler::ModuleDisassembler(MultiLineStringBuilder& out,
       offsets_(new OffsetsProvider()),
       function_body_offsets_(function_body_offsets) {
   if (function_body_offsets != nullptr) {
-    offsets_->CollectOffsets(module, wire_bytes_.start(), wire_bytes_.end(),
-                             allocator);
+    offsets_->CollectOffsets(module, wire_bytes_.module_bytes(), allocator);
   }
 }
 

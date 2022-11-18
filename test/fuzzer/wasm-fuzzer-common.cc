@@ -42,8 +42,8 @@ Handle<WasmModuleObject> CompileReferenceModule(Zone* zone, Isolate* isolate,
   constexpr bool kNoVerifyFunctions = false;
   auto enabled_features = WasmFeatures::FromIsolate(isolate);
   ModuleResult module_res = DecodeWasmModule(
-      enabled_features, wire_bytes.start(), wire_bytes.end(),
-      kNoVerifyFunctions, ModuleOrigin::kWasmOrigin, isolate->counters(),
+      enabled_features, wire_bytes.module_bytes(), kNoVerifyFunctions,
+      ModuleOrigin::kWasmOrigin, isolate->counters(),
       isolate->metrics_recorder(), v8::metrics::Recorder::ContextId::Empty(),
       DecodingMethod::kSync, GetWasmEngine()->allocator());
   CHECK(module_res.ok());
@@ -505,7 +505,7 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
   constexpr bool kVerifyFunctions = false;
   auto enabled_features = WasmFeatures::FromIsolate(isolate);
   ModuleResult module_res = DecodeWasmModule(
-      enabled_features, wire_bytes.start(), wire_bytes.end(), kVerifyFunctions,
+      enabled_features, wire_bytes.module_bytes(), kVerifyFunctions,
       ModuleOrigin::kWasmOrigin, isolate->counters(),
       isolate->metrics_recorder(), v8::metrics::Recorder::ContextId::Empty(),
       DecodingMethod::kSync, GetWasmEngine()->allocator());

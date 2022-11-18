@@ -805,7 +805,7 @@ bool BackgroundCompileScope::cancelled() const {
          Impl(native_module_->compilation_state())->cancelled();
 }
 
-void UpdateFeatureUseCounts(Isolate* isolate, const WasmFeatures& detected) {
+void UpdateFeatureUseCounts(Isolate* isolate, WasmFeatures detected) {
   using Feature = v8::Isolate::UseCounterFeature;
   constexpr static std::pair<WasmFeature, Feature> kUseCounters[] = {
       {kFeature_reftypes, Feature::kWasmRefTypes},
@@ -920,7 +920,7 @@ const WasmCompilationHint* GetCompilationHint(const WasmModule* module,
 }
 
 CompileStrategy GetCompileStrategy(const WasmModule* module,
-                                   const WasmFeatures& enabled_features,
+                                   WasmFeatures enabled_features,
                                    uint32_t func_index, bool lazy_module) {
   if (lazy_module) return CompileStrategy::kLazy;
   if (!enabled_features.has_compilation_hints()) {
@@ -1762,7 +1762,7 @@ std::unique_ptr<CompilationUnitBuilder> InitializeCompilation(
 }
 
 bool MayCompriseLazyFunctions(const WasmModule* module,
-                              const WasmFeatures& enabled_features) {
+                              WasmFeatures enabled_features) {
   if (IsLazyModule(module)) return true;
   if (enabled_features.has_compilation_hints()) return true;
 #ifdef ENABLE_SLOW_DCHECKS
@@ -1983,7 +1983,7 @@ class BackgroundCompileJob final : public JobTask {
 }  // namespace
 
 std::shared_ptr<NativeModule> CompileToNativeModule(
-    Isolate* isolate, const WasmFeatures& enabled, ErrorThrower* thrower,
+    Isolate* isolate, WasmFeatures enabled_features, ErrorThrower* thrower,
     std::shared_ptr<const WasmModule> module, ModuleWireBytes wire_bytes,
     int compilation_id, v8::metrics::Recorder::ContextId context_id,
     ProfileInformation* pgo_info) {
@@ -2019,8 +2019,8 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
       wasm::WasmCodeManager::EstimateNativeModuleCodeSize(
           module.get(), include_liftoff,
           DynamicTiering{v8_flags.wasm_dynamic_tiering.value()});
-  native_module =
-      engine->NewNativeModule(isolate, enabled, module, code_size_estimate);
+  native_module = engine->NewNativeModule(isolate, enabled_features, module,
+                                          code_size_estimate);
   native_module->SetWireBytes(std::move(wire_bytes_copy));
   native_module->compilation_state()->set_compilation_id(compilation_id);
   // Sync compilation is user blocking, so we increase the priority.
@@ -2090,13 +2090,13 @@ void RecompileNativeModule(NativeModule* native_module,
 }
 
 AsyncCompileJob::AsyncCompileJob(
-    Isolate* isolate, const WasmFeatures& enabled,
+    Isolate* isolate, WasmFeatures enabled_features,
     std::unique_ptr<byte[]> bytes_copy, size_t length, Handle<Context> context,
     Handle<Context> incumbent_context, const char* api_method_name,
     std::shared_ptr<CompilationResultResolver> resolver, int compilation_id)
     : isolate_(isolate),
       api_method_name_(api_method_name),
-      enabled_features_(enabled),
+      enabled_features_(enabled_features),
       dynamic_tiering_(DynamicTiering{v8_flags.wasm_dynamic_tiering.value()}),
       start_time_(base::TimeTicks::Now()),
       bytes_copy_(std::move(bytes_copy)),
@@ -2581,8 +2581,8 @@ class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
                    "wasm.DecodeModule");
       auto enabled_features = job->enabled_features_;
       result = DecodeWasmModule(
-          enabled_features, job->wire_bytes_.start(), job->wire_bytes_.end(),
-          false, kWasmOrigin, counters_, metrics_recorder_, job->context_id(),
+          enabled_features, job->wire_bytes_.module_bytes(), false, kWasmOrigin,
+          counters_, metrics_recorder_, job->context_id(),
           DecodingMethod::kAsync, GetWasmEngine()->allocator());
 
       // Validate lazy functions here if requested.

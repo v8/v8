@@ -307,27 +307,15 @@ WasmSectionIterator(Decoder*, T&) -> WasmSectionIterator<T>;
 template <class Tracer>
 class ModuleDecoderTemplate : public Decoder {
  public:
-  explicit ModuleDecoderTemplate(const WasmFeatures& enabled,
-                                 ModuleOrigin origin, Tracer& tracer)
-      : Decoder(nullptr, nullptr),
-        enabled_features_(enabled),
+  ModuleDecoderTemplate(WasmFeatures enabled_features,
+                        base::Vector<const uint8_t> wire_bytes,
+                        ModuleOrigin origin, Tracer& tracer)
+      : Decoder(wire_bytes),
+        enabled_features_(enabled_features),
+        module_start_(wire_bytes.begin()),
+        module_end_(wire_bytes.end()),
         tracer_(tracer),
         origin_(origin) {}
-
-  ModuleDecoderTemplate(const WasmFeatures& enabled, const byte* module_start,
-                        const byte* module_end, ModuleOrigin origin,
-                        Tracer& tracer)
-      : Decoder(module_start, module_end),
-        enabled_features_(enabled),
-        module_start_(module_start),
-        module_end_(module_end),
-        tracer_(tracer),
-        origin_(origin) {
-    if (end_ < start_) {
-      error(start_, "end is less than start");
-      end_ = start_;
-    }
-  }
 
   void onFirstError() override {
     pc_ = end_;  // On error, terminate section decoding loop.
@@ -2420,7 +2408,7 @@ class ModuleDecoderTemplate : public Decoder {
   // validation error in {this} decoder.
   class ValidateFunctionsTask : public JobTask {
    public:
-    ValidateFunctionsTask(ModuleDecoderTemplate* decoder)
+    explicit ValidateFunctionsTask(ModuleDecoderTemplate* decoder)
         : decoder_(decoder),
           next_function_(decoder->module_->num_imported_functions),
           after_last_function_(next_function_ +

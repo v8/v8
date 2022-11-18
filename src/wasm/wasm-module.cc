@@ -51,7 +51,7 @@ WireBytesRef LazilyGeneratedNames::LookupFunctionName(
   base::MutexGuard lock(&mutex_);
   if (!has_functions_) {
     has_functions_ = true;
-    DecodeFunctionNames(wire_bytes.start(), wire_bytes.end(), function_names_);
+    DecodeFunctionNames(wire_bytes.module_bytes(), function_names_);
   }
   const WireBytesRef* result = function_names_.Get(function_index);
   if (!result) return WireBytesRef();
@@ -555,7 +555,7 @@ Handle<JSArray> GetCustomSections(Isolate* isolate,
   base::Vector<const uint8_t> wire_bytes =
       module_object->native_module()->wire_bytes();
   std::vector<CustomSectionOffset> custom_sections =
-      DecodeCustomSections(wire_bytes.begin(), wire_bytes.end());
+      DecodeCustomSections(wire_bytes);
 
   std::vector<Handle<Object>> matching_sections;
 

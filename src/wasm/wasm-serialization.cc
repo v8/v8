@@ -887,7 +887,7 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   WasmEngine* wasm_engine = GetWasmEngine();
   WasmFeatures enabled_features = WasmFeatures::FromIsolate(isolate);
   ModuleResult decode_result = DecodeWasmModule(
-      enabled_features, owned_wire_bytes.start(), owned_wire_bytes.end(), false,
+      enabled_features, owned_wire_bytes.as_vector(), false,
       i::wasm::kWasmOrigin, isolate->counters(), isolate->metrics_recorder(),
       isolate->GetOrRegisterRecorderContextId(isolate->native_context()),
       DecodingMethod::kDeserialize, wasm_engine->allocator());
