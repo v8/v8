@@ -16,7 +16,6 @@
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/feedback-source.h"
 #include "src/compiler/graph.h"
-#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-origin-table.h"
@@ -36,7 +35,6 @@ namespace {
 
 struct ScheduleBuilder {
   const Graph& input_graph;
-  JSHeapBroker* broker;
   CallDescriptor* call_descriptor;
   Zone* graph_zone;
   Zone* phase_zone;
@@ -1071,15 +1069,6 @@ Node* ScheduleBuilder::ProcessOperation(const PhiOp& op) {
 Node* ScheduleBuilder::ProcessOperation(const ProjectionOp& op) {
   return AddNode(common.Projection(op.index), {GetNode(op.input())});
 }
-Node* ScheduleBuilder::ProcessOperation(const StaticAssertOp& op) {
-  // Static asserts should be (statically asserted and) removed by turboshaft.
-  UnparkedScopeIfNeeded scope(broker);
-  AllowHandleDereference allow_handle_dereference;
-  std::cout << input_graph.Get(op.input());
-  FATAL(
-      "Expected Turbofan static assert to hold, but got non-true input:\n  %s",
-      op.source);
-}
 
 std::pair<Node*, MachineType> ScheduleBuilder::BuildDeoptInput(
     FrameStateData::Iterator* it) {
@@ -1207,8 +1196,7 @@ Node* ScheduleBuilder::ProcessOperation(const CallOp& op) {
   for (OpIndex i : op.arguments()) {
     inputs.push_back(GetNode(i));
   }
-  return AddNode(common.Call(op.descriptor->descriptor),
-                 base::VectorOf(inputs));
+  return AddNode(common.Call(op.descriptor), base::VectorOf(inputs));
 }
 Node* ScheduleBuilder::ProcessOperation(const TailCallOp& op) {
   base::SmallVector<Node*, 16> inputs;
@@ -1216,8 +1204,7 @@ Node* ScheduleBuilder::ProcessOperation(const TailCallOp& op) {
   for (OpIndex i : op.arguments()) {
     inputs.push_back(GetNode(i));
   }
-  Node* call = MakeNode(common.TailCall(op.descriptor->descriptor),
-                        base::VectorOf(inputs));
+  Node* call = MakeNode(common.TailCall(op.descriptor), base::VectorOf(inputs));
   schedule->AddTailCall(current_block, call);
   current_block = nullptr;
   return nullptr;
@@ -1289,14 +1276,12 @@ Node* ScheduleBuilder::ProcessOperation(const SwitchOp& op) {
 }  // namespace
 
 RecreateScheduleResult RecreateSchedule(const Graph& graph,
-                                        JSHeapBroker* broker,
                                         CallDescriptor* call_descriptor,
                                         Zone* graph_zone, Zone* phase_zone,
                                         SourcePositionTable* source_positions,
                                         NodeOriginTable* origins) {
-  ScheduleBuilder builder{graph,      broker,     call_descriptor,
-                          graph_zone, phase_zone, source_positions,
-                          origins};
+  ScheduleBuilder builder{graph,      call_descriptor,  graph_zone,
+                          phase_zone, source_positions, origins};
   return builder.Run();
 }
 

@@ -43,10 +43,9 @@ class SelectLoweringReducer : public Next {
       // CMove.
       return Next::ReduceSelect(cond, vtrue, vfalse, rep, hint, implem);
     }
-
-    Block* true_block = Asm().NewBlock();
-    Block* false_block = Asm().NewBlock();
-    Block* merge_block = Asm().NewBlock();
+    Block* true_block = Asm().NewBlock(Block::Kind::kBranchTarget);
+    Block* false_block = Asm().NewBlock(Block::Kind::kBranchTarget);
+    Block* merge_block = Asm().NewBlock(Block::Kind::kMerge);
 
     if (hint == BranchHint::kTrue) {
       false_block->SetDeferred(true);

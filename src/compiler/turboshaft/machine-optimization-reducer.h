@@ -528,10 +528,10 @@ class MachineOptimizationReducer : public Next {
         if (Asm().MatchFloat(rhs, 0.5)) {
           // lhs ** 0.5  ==>  sqrt(lhs)
           // (unless if lhs is -infinity)
-          Block* if_neg_infinity = Asm().NewBlock();
+          Block* if_neg_infinity = Asm().NewBlock(Block::Kind::kBranchTarget);
           if_neg_infinity->SetDeferred(true);
-          Block* otherwise = Asm().NewBlock();
-          Block* merge = Asm().NewBlock();
+          Block* otherwise = Asm().NewBlock(Block::Kind::kBranchTarget);
+          Block* merge = Asm().NewBlock(Block::Kind::kMerge);
           Asm().Branch(Asm().FloatLessThanOrEqual(
                            lhs, Asm().FloatConstant(-V8_INFINITY, rep), rep),
                        if_neg_infinity, otherwise);
@@ -964,12 +964,11 @@ class MachineOptimizationReducer : public Next {
     }
   }
 
-  OpIndex ReduceProjection(OpIndex tuple, uint16_t index,
-                           RegisterRepresentation rep) {
+  OpIndex ReduceProjection(OpIndex tuple, uint16_t index) {
     if (auto* tuple_op = Asm().template TryCast<TupleOp>(tuple)) {
       return tuple_op->input(index);
     }
-    return Next::ReduceProjection(tuple, index, rep);
+    return Next::ReduceProjection(tuple, index);
   }
 
   OpIndex ReduceOverflowCheckedBinop(OpIndex left, OpIndex right,
@@ -1604,7 +1603,7 @@ class MachineOptimizationReducer : public Next {
                        uint8_t element_scale) {
     if (!maybe_constant.Is<ConstantOp>()) return false;
     const ConstantOp& constant = maybe_constant.Cast<ConstantOp>();
-    if (constant.rep != WordRepresentation::PointerSized()) {
+    if (constant.Representation() != WordRepresentation::PointerSized()) {
       // This can only happen in unreachable code. Ideally, we identify this
       // situation and use `Asm().Unreachable()`. However, this is difficult to
       // do from within this helper, so we just don't perform the reduction.

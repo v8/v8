@@ -17,16 +17,13 @@
 #include "src/base/macros.h"
 #include "src/base/optional.h"
 #include "src/base/platform/mutex.h"
-#include "src/base/small-vector.h"
 #include "src/base/template-utils.h"
 #include "src/base/vector.h"
 #include "src/codegen/external-reference.h"
 #include "src/common/globals.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/globals.h"
-#include "src/compiler/turboshaft/deopt-data.h"
 #include "src/compiler/turboshaft/fast-hash.h"
-#include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/compiler/turboshaft/utils.h"
 #include "src/compiler/write-barrier-kind.h"
@@ -44,6 +41,7 @@ enum class TrapId : uint32_t;
 namespace v8::internal::compiler::turboshaft {
 class Block;
 struct FrameStateData;
+class Variable;
 class Graph;
 
 // DEFINING NEW OPERATIONS
@@ -106,8 +104,7 @@ class Graph;
   V(CatchException)                  \
   V(Switch)                          \
   V(Tuple)                           \
-  V(Projection)                      \
-  V(StaticAssert)
+  V(Projection)
 
 enum class Opcode : uint8_t {
 #define ENUM_CONSTANT(Name) k##Name,
@@ -124,6 +121,104 @@ constexpr std::underlying_type_t<Opcode> OpcodeIndex(Opcode x) {
 constexpr uint16_t kNumberOfOpcodes =
     0 TURBOSHAFT_OPERATION_LIST(COUNT_OPCODES);
 #undef COUNT_OPCODES
+
+// Operations are stored in possibly muliple sequential storage slots.
+using OperationStorageSlot = std::aligned_storage_t<8, 8>;
+// Operations occupy at least 2 slots, therefore we assign one id per two slots.
+constexpr size_t kSlotsPerId = 2;
+
+// `OpIndex` is an offset from the beginning of the operations buffer.
+// Compared to `Operation*`, it is more memory efficient (32bit) and stable when
+// the operations buffer is re-allocated.
+class OpIndex {
+ public:
+  explicit constexpr OpIndex(uint32_t offset) : offset_(offset) {
+    DCHECK_EQ(offset % sizeof(OperationStorageSlot), 0);
+  }
+  constexpr OpIndex() : offset_(std::numeric_limits<uint32_t>::max()) {}
+
+  uint32_t id() const {
+    // Operations are stored at an offset that's a multiple of
+    // `sizeof(OperationStorageSlot)`. In addition, an operation occupies at
+    // least `kSlotsPerId` many `OperationSlot`s. Therefore, we can assign id's
+    // by dividing by `kSlotsPerId`. A compact id space is important, because it
+    // makes side-tables smaller.
+    DCHECK_EQ(offset_ % sizeof(OperationStorageSlot), 0);
+    return offset_ / sizeof(OperationStorageSlot) / kSlotsPerId;
+  }
+  uint32_t offset() const {
+    DCHECK_EQ(offset_ % sizeof(OperationStorageSlot), 0);
+    return offset_;
+  }
+
+  bool valid() const { return *this != Invalid(); }
+
+  static constexpr OpIndex Invalid() { return OpIndex(); }
+
+  // Encode a sea-of-nodes node id in the `OpIndex` type.
+  // Only used for node origins that actually point to sea-of-nodes graph nodes.
+  static OpIndex EncodeTurbofanNodeId(uint32_t id) {
+    OpIndex result = OpIndex(id * sizeof(OperationStorageSlot));
+    result.offset_ += kTurbofanNodeIdFlag;
+    return result;
+  }
+  uint32_t DecodeTurbofanNodeId() const {
+    DCHECK(IsTurbofanNodeId());
+    return offset_ / sizeof(OperationStorageSlot);
+  }
+  bool IsTurbofanNodeId() const {
+    return offset_ % sizeof(OperationStorageSlot) == kTurbofanNodeIdFlag;
+  }
+
+  bool operator==(OpIndex other) const { return offset_ == other.offset_; }
+  bool operator!=(OpIndex other) const { return offset_ != other.offset_; }
+  bool operator<(OpIndex other) const { return offset_ < other.offset_; }
+  bool operator>(OpIndex other) const { return offset_ > other.offset_; }
+  bool operator<=(OpIndex other) const { return offset_ <= other.offset_; }
+  bool operator>=(OpIndex other) const { return offset_ >= other.offset_; }
+
+ private:
+  uint32_t offset_;
+
+  static constexpr uint32_t kTurbofanNodeIdFlag = 1;
+};
+
+template <>
+struct fast_hash<OpIndex> {
+  V8_INLINE size_t operator()(OpIndex op) { return op.id(); }
+};
+
+// `BlockIndex` is the index of a bound block.
+// A dominating block always has a smaller index.
+// It corresponds to the ordering of basic blocks in the operations buffer.
+class BlockIndex {
+ public:
+  explicit constexpr BlockIndex(uint32_t id) : id_(id) {}
+  constexpr BlockIndex() : id_(std::numeric_limits<uint32_t>::max()) {}
+
+  uint32_t id() const { return id_; }
+  bool valid() const { return *this != Invalid(); }
+
+  static constexpr BlockIndex Invalid() { return BlockIndex(); }
+
+  bool operator==(BlockIndex other) const { return id_ == other.id_; }
+  bool operator!=(BlockIndex other) const { return id_ != other.id_; }
+  bool operator<(BlockIndex other) const { return id_ < other.id_; }
+  bool operator>(BlockIndex other) const { return id_ > other.id_; }
+  bool operator<=(BlockIndex other) const { return id_ <= other.id_; }
+  bool operator>=(BlockIndex other) const { return id_ >= other.id_; }
+
+ private:
+  uint32_t id_;
+};
+
+template <>
+struct fast_hash<BlockIndex> {
+  V8_INLINE size_t operator()(BlockIndex op) { return op.id(); }
+};
+
+std::ostream& operator<<(std::ostream& os, BlockIndex b);
+std::ostream& operator<<(std::ostream& os, const Block* b);
 
 struct OpProperties {
   // The operation may read memory or depend on other information beyond its
@@ -214,8 +309,6 @@ struct alignas(OpIndex) Operation {
   size_t StorageSlotCount() const {
     return StorageSlotCount(opcode, input_count);
   }
-
-  base::Vector<const RegisterRepresentation> outputs_rep() const;
 
   template <class Op>
   bool Is() const {
@@ -409,15 +502,6 @@ struct OperationT : Operation {
      ...);
     os << "]";
   }
-
-  // All Operations have to define the outputs_rep function, to which
-  // Operation::outputs_rep() will forward, based on their opcode. If you forget
-  // to define it, then Operation::outputs_rep() would forward to itself,
-  // resulting in an infinite loop. To avoid this, we define here in OperationT
-  // a private version outputs_rep (with no implementation): if an operation
-  // forgets to define outputs_rep, then Operation::outputs_rep() tries to call
-  // this private version, which fails at compile time.
-  base::Vector<const RegisterRepresentation> outputs_rep() const;
 };
 
 template <size_t InputCount, class Derived>
@@ -503,13 +587,6 @@ class SupportedOperations {
 #undef DECLARE_GETTER
 };
 
-template <RegisterRepresentation::Enum... reps>
-base::Vector<const RegisterRepresentation> RepVector() {
-  static const std::array<RegisterRepresentation, sizeof...(reps)> rep_array{
-      RegisterRepresentation{reps}...};
-  return base::VectorOf(rep_array);
-}
-
 struct WordBinopOp : FixedArityOperationT<2, WordBinopOp> {
   enum class Kind : uint8_t {
     kAdd,
@@ -529,9 +606,6 @@ struct WordBinopOp : FixedArityOperationT<2, WordBinopOp> {
   WordRepresentation rep;
 
   static constexpr OpProperties properties = OpProperties::Pure();
-  base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return base::VectorOf(static_cast<const RegisterRepresentation*>(&rep), 1);
-  }
 
   OpIndex left() const { return input(0); }
   OpIndex right() const { return input(1); }
@@ -616,9 +690,6 @@ struct FloatBinopOp : FixedArityOperationT<2, FloatBinopOp> {
   FloatRepresentation rep;
 
   static constexpr OpProperties properties = OpProperties::Pure();
-  base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return base::VectorOf(static_cast<const RegisterRepresentation*>(&rep), 1);
-  }
 
   OpIndex left() const { return input(0); }
   OpIndex right() const { return input(1); }
@@ -659,16 +730,6 @@ struct OverflowCheckedBinopOp
   WordRepresentation rep;
 
   static constexpr OpProperties properties = OpProperties::Pure();
-  base::Vector<const RegisterRepresentation> outputs_rep() const {
-    switch (rep.value()) {
-      case WordRepresentation::Word32():
-        return RepVector<RegisterRepresentation::Word32(),
-                         RegisterRepresentation::Word32()>();
-      case WordRepresentation::Word64():
-        return RepVector<RegisterRepresentation::Word64(),
-                         RegisterRepresentation::Word32()>();
-    }
-  }
 
   OpIndex left() const { return input(0); }
   OpIndex right() const { return input(1); }
@@ -702,9 +763,6 @@ struct WordUnaryOp : FixedArityOperationT<1, WordUnaryOp> {
   Kind kind;
   WordRepresentation rep;
   static constexpr OpProperties properties = OpProperties::Pure();
-  base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return base::VectorOf(static_cast<const RegisterRepresentation*>(&rep), 1);
-  }
 
   OpIndex input() const { return Base::input(0); }
 
@@ -751,9 +809,6 @@ struct FloatUnaryOp : FixedArityOperationT<1, FloatUnaryOp> {
   Kind kind;
   FloatRepresentation rep;
   static constexpr OpProperties properties = OpProperties::Pure();
-  base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return base::VectorOf(static_cast<const RegisterRepresentation*>(&rep), 1);
-  }
 
   OpIndex input() const { return Base::input(0); }
 
@@ -780,9 +835,6 @@ struct ShiftOp : FixedArityOperationT<2, ShiftOp> {
   WordRepresentation rep;
 
   static constexpr OpProperties properties = OpProperties::Pure();
-  base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return base::VectorOf(static_cast<const RegisterRepresentation*>(&rep), 1);
-  }
 
   OpIndex left() const { return input(0); }
   OpIndex right() const { return input(1); }
@@ -824,9 +876,6 @@ struct EqualOp : FixedArityOperationT<2, EqualOp> {
   RegisterRepresentation rep;
 
   static constexpr OpProperties properties = OpProperties::Pure();
-  base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return base::VectorOf(&rep, 1);
-  }
 
   OpIndex left() const { return input(0); }
   OpIndex right() const { return input(1); }
@@ -852,9 +901,6 @@ struct ComparisonOp : FixedArityOperationT<2, ComparisonOp> {
   RegisterRepresentation rep;
 
   static constexpr OpProperties properties = OpProperties::Pure();
-  base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return base::VectorOf(&rep, 1);
-  }
 
   OpIndex left() const { return input(0); }
   OpIndex right() const { return input(1); }
@@ -991,9 +1037,6 @@ struct ChangeOp : FixedArityOperationT<1, ChangeOp> {
   }
 
   static constexpr OpProperties properties = OpProperties::Pure();
-  base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return base::VectorOf(&to, 1);
-  }
 
   OpIndex input() const { return Base::input(0); }
 
@@ -1018,16 +1061,6 @@ struct TryChangeOp : FixedArityOperationT<1, TryChangeOp> {
   WordRepresentation to;
 
   static constexpr OpProperties properties = OpProperties::Pure();
-  base::Vector<const RegisterRepresentation> outputs_rep() const {
-    switch (to.value()) {
-      case WordRepresentation::Word32():
-        return RepVector<RegisterRepresentation::Word32(),
-                         RegisterRepresentation::Word32()>();
-      case WordRepresentation::Word64():
-        return RepVector<RegisterRepresentation::Word64(),
-                         RegisterRepresentation::Word32()>();
-    }
-  }
 
   OpIndex input() const { return Base::input(0); }
 
@@ -1044,9 +1077,6 @@ struct Float64InsertWord32Op : FixedArityOperationT<2, Float64InsertWord32Op> {
   Kind kind;
 
   static constexpr OpProperties properties = OpProperties::Pure();
-  base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return RepVector<RegisterRepresentation::Float64()>();
-  }
 
   OpIndex float64() const { return input(0); }
   OpIndex word32() const { return input(1); }
@@ -1063,9 +1093,6 @@ struct TaggedBitcastOp : FixedArityOperationT<1, TaggedBitcastOp> {
 
   // Due to moving GC, converting from or to pointers doesn't commute with GC.
   static constexpr OpProperties properties = OpProperties::Reading();
-  base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return base::VectorOf(&to, 1);
-  }
 
   OpIndex input() const { return Base::input(0); }
 
@@ -1083,14 +1110,10 @@ struct TaggedBitcastOp : FixedArityOperationT<1, TaggedBitcastOp> {
 struct SelectOp : FixedArityOperationT<3, SelectOp> {
   enum class Implementation : uint8_t { kBranch, kCMove };
 
+  static constexpr OpProperties properties = OpProperties::Pure();
   RegisterRepresentation rep;
   BranchHint hint;
   Implementation implem;
-
-  static constexpr OpProperties properties = OpProperties::Pure();
-  base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return base::VectorOf(&rep, 1);
-  }
 
   SelectOp(OpIndex cond, OpIndex vtrue, OpIndex vfalse,
            RegisterRepresentation rep, BranchHint hint, Implementation implem)
@@ -1117,9 +1140,6 @@ struct PhiOp : OperationT<PhiOp> {
   RegisterRepresentation rep;
 
   static constexpr OpProperties properties = OpProperties::Pure();
-  base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return base::VectorOf(&rep, 1);
-  }
 
   static constexpr size_t kLoopPhiBackEdgeIndex = 1;
 
@@ -1141,9 +1161,6 @@ struct PendingLoopPhiOp : FixedArityOperationT<1, PendingLoopPhiOp> {
   };
 
   static constexpr OpProperties properties = OpProperties::Pure();
-  base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return base::VectorOf(&rep, 1);
-  }
 
   OpIndex first() const { return input(0); }
 
@@ -1175,7 +1192,6 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
   };
 
   Kind kind;
-  RegisterRepresentation rep = Representation(kind);
   union Storage {
     uint64_t integral;
     float float32;
@@ -1191,11 +1207,8 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
   } storage;
 
   static constexpr OpProperties properties = OpProperties::Pure();
-  base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return base::VectorOf(&rep, 1);
-  }
 
-  static RegisterRepresentation Representation(Kind kind) {
+  RegisterRepresentation Representation() const {
     switch (kind) {
       case Kind::kWord32:
         return RegisterRepresentation::Word32();
@@ -1426,9 +1439,6 @@ struct LoadOp : OperationT<LoadOp> {
     return kind.with_trap_handler ? OpProperties::ReadingAndCanAbort()
                                   : OpProperties::Reading();
   }
-  base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return base::VectorOf(&result_rep, 1);
-  }
 
   OpIndex base() const { return input(0); }
   OpIndex index() const {
@@ -1486,7 +1496,6 @@ struct StoreOp : OperationT<StoreOp> {
     return kind.with_trap_handler ? OpProperties::WritingAndCanAbort()
                                   : OpProperties::Writing();
   }
-  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
 
   OpIndex base() const { return input(0); }
   OpIndex value() const { return input(1); }
@@ -1532,7 +1541,6 @@ struct RetainOp : FixedArityOperationT<1, RetainOp> {
   // this must not be reordered with operations reading from the heap, we mark
   // it as writing to prevent such reorderings.
   static constexpr OpProperties properties = OpProperties::Writing();
-  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
 
   explicit RetainOp(OpIndex retained) : Base(retained) {}
   auto options() const { return std::tuple{}; }
@@ -1543,9 +1551,6 @@ struct StackPointerGreaterThanOp
   StackCheckKind kind;
 
   static constexpr OpProperties properties = OpProperties::Reading();
-  base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return RepVector<RegisterRepresentation::Word32()>();
-  }
 
   OpIndex stack_limit() const { return input(0); }
 
@@ -1562,7 +1567,6 @@ struct StackSlotOp : FixedArityOperationT<0, StackSlotOp> {
   int alignment;
 
   static constexpr OpProperties properties = OpProperties::Writing();
-  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
 
   StackSlotOp(int size, int alignment) : size(size), alignment(alignment) {}
   auto options() const { return std::tuple{size, alignment}; }
@@ -1576,9 +1580,6 @@ struct FrameConstantOp : FixedArityOperationT<0, FrameConstantOp> {
   Kind kind;
 
   static constexpr OpProperties properties = OpProperties::Pure();
-  base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return RepVector<RegisterRepresentation::Tagged()>();
-  }
 
   explicit FrameConstantOp(Kind kind) : Base(), kind(kind) {}
   auto options() const { return std::tuple{kind}; }
@@ -1590,7 +1591,6 @@ struct FrameStateOp : OperationT<FrameStateOp> {
   const FrameStateData* data;
 
   static constexpr OpProperties properties = OpProperties::Pure();
-  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
 
   OpIndex parent_frame_state() const {
     DCHECK(inlined);
@@ -1600,16 +1600,6 @@ struct FrameStateOp : OperationT<FrameStateOp> {
     base::Vector<const OpIndex> result = inputs();
     if (inlined) result += 1;
     return result;
-  }
-  uint16_t state_values_count() const {
-    DCHECK_EQ(input_count - inlined, state_values().size());
-    return input_count - inlined;
-  }
-  const OpIndex state_value(size_t idx) const { return state_values()[idx]; }
-
-  RegisterRepresentation state_value_rep(size_t idx) const {
-    return RegisterRepresentation::FromMachineRepresentation(
-        data->machine_types[idx].representation());
   }
 
   FrameStateOp(base::Vector<const OpIndex> inputs, bool inlined,
@@ -1624,7 +1614,6 @@ struct FrameStateOp : OperationT<FrameStateOp> {
 // deoptimized. But this might also be implemented differently.
 struct CheckLazyDeoptOp : FixedArityOperationT<2, CheckLazyDeoptOp> {
   static constexpr OpProperties properties = OpProperties::CanAbort();
-  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
 
   OpIndex call() const { return input(0); }
   OpIndex frame_state() const { return input(1); }
@@ -1638,7 +1627,6 @@ struct DeoptimizeOp : FixedArityOperationT<1, DeoptimizeOp> {
   const DeoptimizeParameters* parameters;
 
   static constexpr OpProperties properties = OpProperties::BlockTerminator();
-  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
 
   OpIndex frame_state() const { return input(0); }
 
@@ -1652,7 +1640,6 @@ struct DeoptimizeIfOp : FixedArityOperationT<2, DeoptimizeIfOp> {
   const DeoptimizeParameters* parameters;
 
   static constexpr OpProperties properties = OpProperties::CanAbort();
-  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
 
   OpIndex condition() const { return input(0); }
   OpIndex frame_state() const { return input(1); }
@@ -1670,7 +1657,6 @@ struct TrapIfOp : FixedArityOperationT<1, TrapIfOp> {
   const TrapId trap_id;
 
   static constexpr OpProperties properties = OpProperties::CanAbort();
-  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
 
   OpIndex condition() const { return input(0); }
 
@@ -1681,21 +1667,13 @@ struct TrapIfOp : FixedArityOperationT<1, TrapIfOp> {
 
 struct ParameterOp : FixedArityOperationT<0, ParameterOp> {
   int32_t parameter_index;
-  RegisterRepresentation rep;
   const char* debug_name;
 
   static constexpr OpProperties properties = OpProperties::Pure();
-  base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return {&rep, 1};
-  }
 
-  explicit ParameterOp(int32_t parameter_index, RegisterRepresentation rep,
-                       const char* debug_name = "")
-      : Base(),
-        parameter_index(parameter_index),
-        rep(rep),
-        debug_name(debug_name) {}
-  auto options() const { return std::tuple{parameter_index, rep, debug_name}; }
+  explicit ParameterOp(int32_t parameter_index, const char* debug_name = "")
+      : Base(), parameter_index(parameter_index), debug_name(debug_name) {}
+  auto options() const { return std::tuple{parameter_index, debug_name}; }
   void PrintOptions(std::ostream& os) const;
 };
 
@@ -1703,30 +1681,15 @@ struct OsrValueOp : FixedArityOperationT<0, OsrValueOp> {
   int32_t index;
 
   static constexpr OpProperties properties = OpProperties::Pure();
-  base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return RepVector<RegisterRepresentation::Tagged()>();
-  }
 
   explicit OsrValueOp(int32_t index) : Base(), index(index) {}
   auto options() const { return std::tuple{index}; }
 };
 
-struct TSCallDescriptor : public NON_EXPORTED_BASE(ZoneObject) {
-  const CallDescriptor* descriptor;
-  base::Vector<const RegisterRepresentation> out_reps;
-
-  TSCallDescriptor(const CallDescriptor* descriptor,
-                   base::Vector<const RegisterRepresentation> out_reps)
-      : descriptor(descriptor), out_reps(out_reps) {}
-};
-
 struct CallOp : OperationT<CallOp> {
-  const TSCallDescriptor* descriptor;
+  const CallDescriptor* descriptor;
 
   static constexpr OpProperties properties = OpProperties::AnySideEffects();
-  base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return descriptor->out_reps;
-  }
 
   OpIndex callee() const { return input(0); }
   base::Vector<const OpIndex> arguments() const {
@@ -1734,7 +1697,7 @@ struct CallOp : OperationT<CallOp> {
   }
 
   CallOp(OpIndex callee, base::Vector<const OpIndex> arguments,
-         const TSCallDescriptor* descriptor)
+         const CallDescriptor* descriptor)
       : Base(1 + arguments.size()), descriptor(descriptor) {
     base::Vector<OpIndex> inputs = this->inputs();
     inputs[0] = callee;
@@ -1742,7 +1705,7 @@ struct CallOp : OperationT<CallOp> {
   }
   static CallOp& New(Graph* graph, OpIndex callee,
                      base::Vector<const OpIndex> arguments,
-                     const TSCallDescriptor* descriptor) {
+                     const CallDescriptor* descriptor) {
     return Base::New(graph, 1 + arguments.size(), callee, arguments,
                      descriptor);
   }
@@ -1750,13 +1713,10 @@ struct CallOp : OperationT<CallOp> {
 };
 
 struct TailCallOp : OperationT<TailCallOp> {
-  const TSCallDescriptor* descriptor;
+  const CallDescriptor* descriptor;
 
   static constexpr OpProperties properties =
       OpProperties::BlockTerminatorWithAnySideEffect();
-  base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return descriptor->out_reps;
-  }
 
   OpIndex callee() const { return input(0); }
   base::Vector<const OpIndex> arguments() const {
@@ -1764,7 +1724,7 @@ struct TailCallOp : OperationT<TailCallOp> {
   }
 
   TailCallOp(OpIndex callee, base::Vector<const OpIndex> arguments,
-             const TSCallDescriptor* descriptor)
+             const CallDescriptor* descriptor)
       : Base(1 + arguments.size()), descriptor(descriptor) {
     base::Vector<OpIndex> inputs = this->inputs();
     inputs[0] = callee;
@@ -1772,7 +1732,7 @@ struct TailCallOp : OperationT<TailCallOp> {
   }
   static TailCallOp& New(Graph* graph, OpIndex callee,
                          base::Vector<const OpIndex> arguments,
-                         const TSCallDescriptor* descriptor) {
+                         const CallDescriptor* descriptor) {
     return Base::New(graph, 1 + arguments.size(), callee, arguments,
                      descriptor);
   }
@@ -1782,7 +1742,6 @@ struct TailCallOp : OperationT<TailCallOp> {
 // Control-flow should never reach here.
 struct UnreachableOp : FixedArityOperationT<0, UnreachableOp> {
   static constexpr OpProperties properties = OpProperties::BlockTerminator();
-  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
 
   UnreachableOp() : Base() {}
   auto options() const { return std::tuple{}; }
@@ -1790,7 +1749,6 @@ struct UnreachableOp : FixedArityOperationT<0, UnreachableOp> {
 
 struct ReturnOp : OperationT<ReturnOp> {
   static constexpr OpProperties properties = OpProperties::BlockTerminator();
-  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
 
   // Number of additional stack slots to be removed.
   OpIndex pop_count() const { return input(0); }
@@ -1816,7 +1774,6 @@ struct GotoOp : FixedArityOperationT<0, GotoOp> {
   Block* destination;
 
   static constexpr OpProperties properties = OpProperties::BlockTerminator();
-  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
 
   explicit GotoOp(Block* destination) : Base(), destination(destination) {}
   auto options() const { return std::tuple{destination}; }
@@ -1827,7 +1784,6 @@ struct BranchOp : FixedArityOperationT<1, BranchOp> {
   Block* if_false;
 
   static constexpr OpProperties properties = OpProperties::BlockTerminator();
-  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
 
   OpIndex condition() const { return input(0); }
 
@@ -1844,9 +1800,6 @@ struct CatchExceptionOp : FixedArityOperationT<1, CatchExceptionOp> {
   Block* if_exception;
 
   static constexpr OpProperties properties = OpProperties::BlockTerminator();
-  base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return RepVector<RegisterRepresentation::Tagged()>();
-  }
 
   OpIndex call() const { return input(0); }
 
@@ -1872,7 +1825,6 @@ struct SwitchOp : FixedArityOperationT<1, SwitchOp> {
   Block* default_case;
 
   static constexpr OpProperties properties = OpProperties::BlockTerminator();
-  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
 
   OpIndex input() const { return Base::input(0); }
 
@@ -1893,7 +1845,6 @@ struct fast_hash<SwitchOp::Case> {
 // `TupleOp` should be folded away by subsequent `ProjectionOp`s.
 struct TupleOp : OperationT<TupleOp> {
   static constexpr OpProperties properties = OpProperties::Pure();
-  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
 
   explicit TupleOp(base::Vector<const OpIndex> inputs) : Base(inputs) {}
   auto options() const { return std::tuple{}; }
@@ -1903,30 +1854,13 @@ struct TupleOp : OperationT<TupleOp> {
 // distinguish them.
 struct ProjectionOp : FixedArityOperationT<1, ProjectionOp> {
   uint16_t index;
-  RegisterRepresentation rep;
 
   static constexpr OpProperties properties = OpProperties::Pure();
-  base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return base::VectorOf(&rep, 1);
-  }
 
   OpIndex input() const { return Base::input(0); }
 
-  ProjectionOp(OpIndex input, uint16_t index, RegisterRepresentation rep)
-      : Base(input), index(index), rep(rep) {}
+  ProjectionOp(OpIndex input, uint16_t index) : Base(input), index(index) {}
   auto options() const { return std::tuple{index}; }
-};
-
-struct StaticAssertOp : FixedArityOperationT<1, StaticAssertOp> {
-  static constexpr OpProperties properties = OpProperties::CanAbort();
-  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
-  const char* source;
-
-  OpIndex input() const { return Base::input(0); }
-
-  explicit StaticAssertOp(OpIndex input, const char* source)
-      : Base(input), source(source) {}
-  auto options() const { return std::tuple{}; }
 };
 
 #define OPERATION_PROPERTIES_CASE(Name) Name##Op::PropertiesIfStatic(),
@@ -1993,48 +1927,6 @@ inline size_t Operation::StorageSlotCount(Opcode opcode, size_t input_count) {
   constexpr size_t r = sizeof(OperationStorageSlot) / sizeof(OpIndex);
   static_assert(sizeof(OperationStorageSlot) % sizeof(OpIndex) == 0);
   return std::max<size_t>(2, (r - 1 + size + input_count) / r);
-}
-
-// CanBeUsedAsInput<Op> returns true if Op can be used as an input for another
-// Operation. For instance, a WordBinop can be used as an input of another
-// Operation, but a Goto cannot.
-template <class Op>
-constexpr inline bool CanBeUsedAsInput() {
-  // CatchException is the only block terminator that can be used as input.
-  if (std::is_same<Op, CatchExceptionOp>::value) return true;
-
-  if (kOperationPropertiesTable[static_cast<uint8_t>(Op::opcode)].has_value() &&
-      kOperationPropertiesTable[static_cast<uint8_t>(Op::opcode)]
-          ->is_block_terminator) {
-    return false;
-  }
-
-#define FALSE_CASE(op_to_test)                         \
-  if constexpr (std::is_same<Op, op_to_test>::value) { \
-    return false;                                      \
-  }
-  FALSE_CASE(StoreOp);
-  FALSE_CASE(RetainOp);
-  FALSE_CASE(CheckLazyDeoptOp);
-  FALSE_CASE(DeoptimizeIfOp);
-  FALSE_CASE(TrapIfOp);
-#undef FALSE_CASE
-
-  // All other types of Op can be used as input for other Operations.
-  return true;
-}
-
-inline base::Vector<const RegisterRepresentation> Operation::outputs_rep()
-    const {
-  switch (opcode) {
-#define CASE(type)                         \
-  case Opcode::k##type: {                  \
-    const type##Op& op = Cast<type##Op>(); \
-    return op.outputs_rep();               \
-  }
-    TURBOSHAFT_OPERATION_LIST(CASE)
-#undef CASE
-  }
 }
 
 }  // namespace v8::internal::compiler::turboshaft
