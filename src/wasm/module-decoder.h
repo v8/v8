@@ -140,6 +140,10 @@ V8_EXPORT_PRIVATE WasmError ValidateFunctions(
     const WasmModule*, WasmFeatures enabled_features,
     base::Vector<const uint8_t> wire_bytes, std::function<bool(int)> filter);
 
+WasmError GetWasmErrorWithName(base::Vector<const uint8_t> wire_bytes,
+                               int func_index, const WasmModule* module,
+                               WasmError error);
+
 class ModuleDecoderImpl;
 
 class ModuleDecoder {

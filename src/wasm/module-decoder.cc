@@ -475,14 +475,7 @@ class ValidateFunctionsTask : public JobTask {
     if (!error_out_->empty() && error_out_->offset() <= error.offset()) {
       return;
     }
-    // Wrap the error message from the function decoder.
-    const WasmFunction& function = module_->functions[func_index];
-    WasmFunctionName func_name{
-        &function,
-        ModuleWireBytes{wire_bytes_}.GetNameOrNull(&function, module_)};
-    std::ostringstream error_msg;
-    error_msg << "in function " << func_name << ": " << error.message();
-    *error_out_ = WasmError{error.offset(), error_msg.str()};
+    *error_out_ = GetWasmErrorWithName(wire_bytes_, func_index, module_, error);
   }
 
   const base::Vector<const uint8_t> wire_bytes_;
@@ -531,6 +524,22 @@ WasmError ValidateFunctions(const WasmModule* module,
   }
 
   return validation_error;
+}
+
+WasmError GetWasmErrorWithName(base::Vector<const uint8_t> wire_bytes,
+                               int func_index, const WasmModule* module,
+                               WasmError error) {
+  WasmName name = ModuleWireBytes{wire_bytes}.GetNameOrNull(func_index, module);
+  if (name.begin() == nullptr) {
+    return WasmError(error.offset(), "Compiling function #%d failed: %s",
+                     func_index, error.message().c_str());
+  } else {
+    TruncatedUserString<> truncated_name(name);
+    return WasmError(error.offset(),
+                     "Compiling function #%d:\"%.*s\" failed: %s", func_index,
+                     truncated_name.length(), truncated_name.start(),
+                     error.message().c_str());
+  }
 }
 
 DecodedNameSection::DecodedNameSection(base::Vector<const uint8_t> wire_bytes,

@@ -194,14 +194,14 @@ WasmName ModuleWireBytes::GetNameOrNull(WireBytesRef ref) const {
 }
 
 // Get a string stored in the module bytes representing a function name.
-WasmName ModuleWireBytes::GetNameOrNull(const WasmFunction* function,
+WasmName ModuleWireBytes::GetNameOrNull(int func_index,
                                         const WasmModule* module) const {
-  return GetNameOrNull(module->lazily_generated_names.LookupFunctionName(
-      *this, function->func_index));
+  return GetNameOrNull(
+      module->lazily_generated_names.LookupFunctionName(*this, func_index));
 }
 
 std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name) {
-  os << "#" << name.function_->func_index;
+  os << "#" << name.func_index_;
   if (!name.name_.empty()) {
     if (name.name_.begin()) {
       os << ":";

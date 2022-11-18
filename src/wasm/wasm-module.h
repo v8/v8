@@ -703,8 +703,7 @@ struct V8_EXPORT_PRIVATE ModuleWireBytes {
   WasmName GetNameOrNull(WireBytesRef ref) const;
 
   // Get a string stored in the module bytes representing a function name.
-  WasmName GetNameOrNull(const WasmFunction* function,
-                         const WasmModule* module) const;
+  WasmName GetNameOrNull(int func_index, const WasmModule* module) const;
 
   // Checks the given reference is contained within the module bytes.
   bool BoundsCheck(WireBytesRef ref) const {
@@ -730,10 +729,10 @@ ASSERT_TRIVIALLY_COPYABLE(ModuleWireBytes);
 
 // A helper for printing out the names of functions.
 struct WasmFunctionName {
-  WasmFunctionName(const WasmFunction* function, WasmName name)
-      : function_(function), name_(name) {}
+  WasmFunctionName(int func_index, WasmName name)
+      : func_index_(func_index), name_(name) {}
 
-  const WasmFunction* function_;
+  const int func_index_;
   const WasmName name_;
 };
 
