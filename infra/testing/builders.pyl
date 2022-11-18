@@ -506,14 +506,6 @@
       {'name': 'v8testing'},
     ],
   },
-  'v8_linux64_heap_sandbox_dbg': {
-    'swarming_dimensions' : {
-      'os': 'Ubuntu-18.04',
-    },
-    'tests': [
-      {'name': 'v8testing', 'shards': 4},
-    ],
-  },
   'v8_linux64_minor_mc_dbg': {
     'swarming_dimensions' : {
       'cpu': 'x86-64-avx2',
@@ -714,14 +706,6 @@
     },
     'tests': [
       {'name': 'd8testing', 'test_args': ['--gc-stress'], 'shards': 12},
-    ],
-  },
-  'v8_linux_arm64_sim_heap_sandbox_dbg': {
-    'swarming_dimensions' : {
-      'os': 'Ubuntu-18.04',
-    },
-    'tests': [
-      {'name': 'v8testing', 'shards': 14},
     ],
   },
   'v8_linux_arm64_rel': {
@@ -1542,14 +1526,6 @@
       {'name': 'v8testing'},
     ],
   },
-  'V8 Linux64 - heap sandbox - debug': {
-    'swarming_dimensions' : {
-      'os': 'Ubuntu-18.04',
-    },
-    'tests': [
-      {'name': 'v8testing', 'shards': 2},
-    ],
-  },
   'V8 Linux64 - internal snapshot': {
     'swarming_dimensions' : {
       'os': 'Ubuntu-18.04',
@@ -2138,19 +2114,6 @@
         'test_args': ['--gc-stress', '--extra-flags=--verify-heap-skip-remembered-set'],
         'shards': 7
       },
-    ],
-  },
-  'V8 Linux64 - arm64 - sim - heap sandbox - debug': {
-    'swarming_dimensions' : {
-      'os': 'Ubuntu-18.04',
-    },
-    'swarming_task_attrs': {
-      'expiration': 14400,
-      'hard_timeout': 7200,
-      'priority': 35,
-    },
-    'tests': [
-      {'name': 'v8testing', 'shards': 14},
     ],
   },
   'V8 Linux - loong64 - sim': {

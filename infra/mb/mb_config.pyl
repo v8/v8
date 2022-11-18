@@ -66,7 +66,6 @@
       'V8 Linux64 - debug builder': 'debug_x64',
       'V8 Linux64 - external code space - debug - builder': 'debug_x64_external_code_space',
       'V8 Linux64 - custom snapshot - debug builder': 'debug_x64_custom',
-      'V8 Linux64 - heap sandbox - debug - builder': 'debug_x64_heap_sandbox',
       'V8 Linux64 - internal snapshot - builder': 'release_x64_internal',
       'V8 Linux64 - debug - header includes - builder': 'debug_x64_header_includes',
       'V8 Linux64 - no sandbox - debug builder': 'debug_x64_no_sandbox',
@@ -108,7 +107,6 @@
       'V8 Linux - arm64 - sim - MSAN - builder': 'release_simulate_arm64_msan',
       # FYI.
       'V8 iOS - sim - builder': 'release_x64_ios_simulator',
-      'V8 Linux64 - arm64 - sim - heap sandbox - debug - builder': 'debug_x64_heap_sandbox_arm64_sim',
       'V8 Linux64 - arm64 - sim - no pointer compression - builder':
           'release_simulate_arm64_no_pointer_compression',
       'V8 Linux64 - coverage': 'release_x64_coverage',
@@ -239,9 +237,7 @@
       'v8_linux64_gcc_compile_rel': 'release_x64_gcc',
       'v8_linux64_gcov_coverage': 'release_x64_gcc_coverage',
       'v8_linux64_header_includes_dbg': 'debug_x64_header_includes',
-      'v8_linux64_heap_sandbox_compile_dbg': 'debug_x64_heap_sandbox',
       'v8_linux64_minor_mc_compile_dbg': 'debug_x64_trybot',
-      'v8_linux_arm64_sim_heap_sandbox_compile_dbg': 'debug_x64_heap_sandbox_arm64_sim',
       'v8_linux64_fyi_compile_rel': 'release_x64_test_features_trybot',
       'v8_linux64_nodcheck_compile_rel': 'release_x64',
       'v8_linux64_perfetto_compile_dbg': 'debug_x64_perfetto',
@@ -560,8 +556,7 @@
     'release_x64_webassembly_disabled': [
       'release_bot', 'x64', 'webassembly_disabled'],
     'release_x64_asan_sandbox_testing': [
-      'release_bot', 'x64', 'asan', 'symbolized', 'v8_enable_sandbox_future',
-      'v8_expose_memory_corruption_api'],
+      'release_bot', 'x64', 'asan', 'symbolized', 'v8_expose_memory_corruption_api'],
 
     # Official configs for x64.
     'official_x64': [
@@ -587,10 +582,6 @@
       'debug_bot_no_goma', 'x64', 'gcc', 'lld', 'no_custom_libcxx'],
     'debug_x64_header_includes': [
       'debug_bot', 'x64', 'v8_check_header_includes'],
-    'debug_x64_heap_sandbox': [
-      'debug_bot', 'x64', 'v8_enable_sandbox_future', 'v8_expose_memory_corruption_api'],
-    'debug_x64_heap_sandbox_arm64_sim': [
-      'debug_bot', 'simulate_arm64', 'v8_enable_sandbox_future', 'v8_expose_memory_corruption_api'],
     'debug_x64_minimal_symbols': [
       'debug_bot', 'x64', 'minimal_symbols'],
     'debug_x64_non_default_cppgc': [
@@ -944,10 +935,6 @@
 
     'v8_disable_runtime_call_stats': {
       'gn_args': 'v8_enable_runtime_call_stats=false',
-    },
-
-    'v8_enable_sandbox_future': {
-      'gn_args': 'v8_enable_sandbox_future=true',
     },
 
     'v8_expose_memory_corruption_api': {
