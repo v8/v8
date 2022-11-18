@@ -132,6 +132,12 @@ AsmJsOffsetsResult DecodeAsmJsOffsets(
 void DecodeFunctionNames(base::Vector<const uint8_t> wire_bytes,
                          NameMap& names);
 
+// Validate all functions in the module. Return the first validation error
+// (deterministically), or an empty {WasmError} if all functions are valid.
+V8_EXPORT_PRIVATE WasmError
+ValidateFunctions(const WasmModule*, WasmFeatures enabled_features,
+                  base::Vector<const uint8_t> wire_bytes);
+
 class ModuleDecoderImpl;
 
 class ModuleDecoder {

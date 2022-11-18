@@ -402,6 +402,129 @@ void DecodeFunctionNames(base::Vector<const uint8_t> wire_bytes,
   }
 }
 
+namespace {
+// A task that validates multiple functions in parallel, storing the earliest
+// validation error in {this} decoder.
+class ValidateFunctionsTask : public JobTask {
+ public:
+  explicit ValidateFunctionsTask(base::Vector<const uint8_t> wire_bytes,
+                                 const WasmModule* module,
+                                 WasmFeatures enabled_features,
+                                 WasmError* error_out)
+      : wire_bytes_(wire_bytes),
+        module_(module),
+        enabled_features_(enabled_features),
+        next_function_(module->num_imported_functions),
+        after_last_function_(next_function_ + module->num_declared_functions),
+        error_out_(error_out) {
+    DCHECK(error_out->empty());
+  }
+
+  void Run(JobDelegate* delegate) override {
+    AccountingAllocator* allocator = module_->allocator();
+    do {
+      // Get the index of the next function to validate.
+      // {fetch_add} might overrun {after_last_function_} by a bit. Since the
+      // number of functions is limited to a value much smaller than the
+      // integer range, this is near impossible to happen.
+      static_assert(kV8MaxWasmFunctions < kMaxInt / 2);
+      int func_index = next_function_.fetch_add(1, std::memory_order_relaxed);
+      if (V8_UNLIKELY(func_index >= after_last_function_)) return;
+      DCHECK_LE(0, func_index);
+
+      if (!ValidateFunction(allocator, func_index)) {
+        // No need to validate any more functions.
+        next_function_.store(after_last_function_, std::memory_order_relaxed);
+        return;
+      }
+    } while (!delegate->ShouldYield());
+  }
+
+  size_t GetMaxConcurrency(size_t /* worker_count */) const override {
+    int next_func = next_function_.load(std::memory_order_relaxed);
+    return std::max(0, after_last_function_ - next_func);
+  }
+
+ private:
+  bool ValidateFunction(AccountingAllocator* allocator, int func_index) {
+    DCHECK(!module_->function_was_validated(func_index));
+    WasmFeatures unused_detected_features;
+    const WasmFunction& function = module_->functions[func_index];
+    FunctionBody body{function.sig, function.code.offset(),
+                      wire_bytes_.begin() + function.code.offset(),
+                      wire_bytes_.begin() + function.code.end_offset()};
+    DecodeResult validation_result = ValidateFunctionBody(
+        allocator, enabled_features_, module_, &unused_detected_features, body);
+    if (V8_UNLIKELY(validation_result.failed())) {
+      SetError(func_index, std::move(validation_result).error());
+      return false;
+    }
+    module_->set_function_validated(func_index);
+    return true;
+  }
+
+  // Set the error from the argument if it's earlier than the error we already
+  // have (or if we have none yet). Thread-safe.
+  void SetError(int func_index, WasmError error) {
+    base::MutexGuard mutex_guard{&set_error_mutex_};
+    if (!error_out_->empty() && error_out_->offset() <= error.offset()) {
+      return;
+    }
+    // Wrap the error message from the function decoder.
+    const WasmFunction& function = module_->functions[func_index];
+    WasmFunctionName func_name{
+        &function,
+        ModuleWireBytes{wire_bytes_}.GetNameOrNull(&function, module_)};
+    std::ostringstream error_msg;
+    error_msg << "in function " << func_name << ": " << error.message();
+    *error_out_ = WasmError{error.offset(), error_msg.str()};
+  }
+
+  const base::Vector<const uint8_t> wire_bytes_;
+  const WasmModule* const module_;
+  const WasmFeatures enabled_features_;
+  std::atomic<int> next_function_;
+  const int after_last_function_;
+  base::Mutex set_error_mutex_;
+  WasmError* const error_out_;
+};
+}  // namespace
+
+WasmError ValidateFunctions(const WasmModule* module,
+                            WasmFeatures enabled_features,
+                            base::Vector<const uint8_t> wire_bytes) {
+  DCHECK_EQ(kWasmOrigin, module->origin);
+
+  class NeverYieldDelegate final : public JobDelegate {
+   public:
+    bool ShouldYield() override { return false; }
+
+    bool IsJoiningThread() const override { UNIMPLEMENTED(); }
+    void NotifyConcurrencyIncrease() override { UNIMPLEMENTED(); }
+    uint8_t GetTaskId() override { UNIMPLEMENTED(); }
+  };
+
+  // Create a {ValidateFunctionsTask} to validate all functions. The earliest
+  // error found will be set on this decoder.
+  WasmError validation_error;
+  std::unique_ptr<JobTask> validate_job =
+      std::make_unique<ValidateFunctionsTask>(
+          wire_bytes, module, enabled_features, &validation_error);
+
+  if (v8_flags.single_threaded) {
+    // In single-threaded mode, run the {ValidateFunctionsTask} synchronously.
+    NeverYieldDelegate delegate;
+    validate_job->Run(&delegate);
+  } else {
+    // Spawn the task and join it.
+    std::unique_ptr<JobHandle> job_handle = V8::GetCurrentPlatform()->CreateJob(
+        TaskPriority::kUserVisible, std::move(validate_job));
+    job_handle->Join();
+  }
+
+  return validation_error;
+}
+
 DecodedNameSection::DecodedNameSection(base::Vector<const uint8_t> wire_bytes,
                                        WireBytesRef name_section) {
   if (name_section.is_empty()) return;  // No name section.
