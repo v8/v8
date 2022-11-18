@@ -55,7 +55,8 @@ template <>
 inline void MarkAsLazyDeoptResult(ValueNode* value,
                                   interpreter::Register result_location,
                                   int result_size) {
-  if (value->properties().can_lazy_deopt()) {
+  if (value->properties().can_lazy_deopt() &&
+      !value->lazy_deopt_info()->result_location().is_valid()) {
     value->lazy_deopt_info()->SetResultLocation(result_location, result_size);
   }
 }

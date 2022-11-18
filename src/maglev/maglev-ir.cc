@@ -4620,10 +4620,12 @@ void AttemptOnStackReplacement(MaglevAssembler* masm,
 }  // namespace
 
 void JumpLoopPrologue::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  if (!v8_flags.use_osr) return;
   set_temporaries_needed(2);
 }
 void JumpLoopPrologue::GenerateCode(MaglevAssembler* masm,
                                     const ProcessingState& state) {
+  if (!v8_flags.use_osr) return;
   Register scratch0 = general_temporaries().PopFirst();
   Register scratch1 = general_temporaries().PopFirst();
 

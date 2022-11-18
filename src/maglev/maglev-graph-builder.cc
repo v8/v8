@@ -2749,6 +2749,10 @@ ValueNode* MaglevGraphBuilder::TryBuildInlinedCall(
   if (!function.feedback_vector(broker()->dependencies()).has_value()) {
     return nullptr;
   }
+  if (function.code().object()->kind() == CodeKind::TURBOFAN) return nullptr;
+  if (v8_flags.trace_maglev_inlining) {
+    std::cout << "  inlining " << function.shared() << std::endl;
+  }
   // The undefined constant node has to be created before the inner graph is
   // created.
   RootConstant* undefined_constant;
@@ -2833,9 +2837,6 @@ ValueNode* MaglevGraphBuilder::TryBuildInlinedCall(
 #ifdef DEBUG
   new_nodes_.insert(result);
 #endif
-  // TODO(leszeks): Lazy deopts break the auto-lazy deopt attachment when passed
-  // to SetAccumulator later, we'll need to work around this.
-  DCHECK(!result->properties().can_lazy_deopt());
   return result;
 }
 
