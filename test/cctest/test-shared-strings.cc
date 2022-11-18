@@ -1056,7 +1056,6 @@ UNINITIALIZED_TEST(InternalizedSharedStringsTransitionDuringGC) {
   if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
 
   v8_flags.shared_string_table = true;
-  v8_flags.transition_strings_during_gc_with_stack = true;
 
   constexpr int kStrings = 4096;
 
@@ -1200,7 +1199,6 @@ UNINITIALIZED_TEST(ExternalizedSharedStringsTransitionDuringGC) {
   if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
 
   v8_flags.shared_string_table = true;
-  v8_flags.transition_strings_during_gc_with_stack = true;
 
   ExternalResourceFactory resource_factory;
   MultiClientIsolateTest test;
@@ -1320,7 +1318,6 @@ UNINITIALIZED_TEST(InternalizeSharedExternalString) {
   if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
 
   v8_flags.shared_string_table = true;
-  v8_flags.transition_strings_during_gc_with_stack = true;
 
   ExternalResourceFactory resource_factory;
   MultiClientIsolateTest test;
@@ -1587,7 +1584,6 @@ void TestConcurrentExternalization(bool share_resources) {
   if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
 
   v8_flags.shared_string_table = true;
-  v8_flags.transition_strings_during_gc_with_stack = true;
 
   ExternalResourceFactory resource_factory;
   MultiClientIsolateTest test;
@@ -1685,7 +1681,6 @@ void TestConcurrentExternalizationAndInternalization(
   if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
 
   v8_flags.shared_string_table = true;
-  v8_flags.transition_strings_during_gc_with_stack = true;
 
   ExternalResourceFactory resource_factory;
   MultiClientIsolateTest test;

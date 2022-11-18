@@ -1782,9 +1782,7 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
         pretenuring_handler_(heap_->pretenuring_handler()),
         local_pretenuring_feedback_(local_pretenuring_feedback),
         is_incremental_marking_(heap->incremental_marking()->IsMarking()),
-        always_promote_young_(always_promote_young),
-        shortcut_strings_(!heap_->IsGCWithStack() ||
-                          v8_flags.shortcut_strings_with_stack) {}
+        always_promote_young_(always_promote_young) {}
 
   inline bool Visit(HeapObject object, int size) override {
     if (TryEvacuateWithoutCopy(object)) return true;
@@ -1829,8 +1827,6 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
  private:
   inline bool TryEvacuateWithoutCopy(HeapObject object) {
     DCHECK(!is_incremental_marking_);
-
-    if (!shortcut_strings_) return false;
 
     Map map = object.map();
 
@@ -1881,7 +1877,6 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
   PretenturingHandler::PretenuringFeedbackMap* local_pretenuring_feedback_;
   bool is_incremental_marking_;
   AlwaysPromoteYoung always_promote_young_;
-  const bool shortcut_strings_;
 };
 
 template <PageEvacuationMode mode>
@@ -2936,9 +2931,7 @@ class StringForwardingTableCleaner final {
 void MarkCompactCollector::ClearNonLiveReferences() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_CLEAR);
 
-  if (isolate()->OwnsStringTables() &&
-      (!heap()->IsGCWithStack() ||
-       v8_flags.transition_strings_during_gc_with_stack)) {
+  if (isolate()->OwnsStringTables()) {
     TRACE_GC(heap()->tracer(),
              GCTracer::Scope::MC_CLEAR_STRING_FORWARDING_TABLE);
     // Clear string forwarding table. Live strings are transitioned to
