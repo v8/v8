@@ -248,6 +248,8 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   }
 
   base::Optional<RootIndex> FindRootIndex(const HeapObjectRef& object) {
+    // No root constant is a JSReceiver.
+    if (object.IsJSReceiver()) return {};
     Address address = object.object()->ptr();
     RootIndex root_index;
     if (root_index_map_.Lookup(address, &root_index)) {
