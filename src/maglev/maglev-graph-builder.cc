@@ -3781,7 +3781,7 @@ bool MaglevGraphBuilder::TryBuildFastInstanceOf(
     // Call @@hasInstance
     CallArguments args(ConvertReceiverMode::kNotNullOrUndefined,
                        {callable_node, object});
-    ValueNode* call = ReduceCall(has_instance_field->AsJSFunction(), args);
+    ValueNode* call = ReduceCall(*has_instance_field, args);
 
     // Make sure that a lazy deopt after the @@hasInstance call also performs
     // ToBoolean before returning to the interpreter.
