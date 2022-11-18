@@ -435,7 +435,8 @@ class ValidateFunctionsTask : public JobTask {
         func_index = next_function_.fetch_add(1, std::memory_order_relaxed);
         if (V8_UNLIKELY(func_index >= after_last_function_)) return;
         DCHECK_LE(0, func_index);
-      } while (filter_ && !filter_(func_index));
+      } while ((filter_ && !filter_(func_index)) ||
+               module_->function_was_validated(func_index));
 
       if (!ValidateFunction(allocator, func_index)) {
         // No need to validate any more functions.
@@ -452,7 +453,6 @@ class ValidateFunctionsTask : public JobTask {
 
  private:
   bool ValidateFunction(AccountingAllocator* allocator, int func_index) {
-    DCHECK(!module_->function_was_validated(func_index));
     WasmFeatures unused_detected_features;
     const WasmFunction& function = module_->functions[func_index];
     FunctionBody body{function.sig, function.code.offset(),

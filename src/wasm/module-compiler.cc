@@ -1833,7 +1833,7 @@ class CompilationTimeCallback : public CompilationEventCallback {
 };
 
 WasmError ValidateFunctions(const WasmModule* module,
-                            ModuleWireBytes wire_bytes,
+                            base::Vector<const uint8_t> wire_bytes,
                             WasmFeatures enabled_features,
                             OnlyLazyFunctions only_lazy_functions) {
   DCHECK_EQ(module->origin, kWasmOrigin);
@@ -1842,41 +1842,24 @@ WasmError ValidateFunctions(const WasmModule* module,
     return {};
   }
 
-  auto allocator = GetWasmEngine()->allocator();
-
-  // TODO(clemensb): Parallelize this.
-  auto declared_functions =
-      base::VectorOf(module->functions) + module->num_imported_functions;
-  const bool is_lazy_module = IsLazyModule(module);
-  for (const WasmFunction& function : declared_functions) {
-    if (module->function_was_validated(function.func_index)) continue;
-    base::Vector<const uint8_t> code = wire_bytes.GetFunctionBytes(&function);
-
-    if (only_lazy_functions) {
-      CompileStrategy strategy = GetCompileStrategy(
-          module, enabled_features, function.func_index, is_lazy_module);
-      if (strategy != CompileStrategy::kLazy &&
-          strategy != CompileStrategy::kLazyBaselineEagerTopTier) {
-        continue;
-      }
-    }
-    DecodeResult function_result = ValidateSingleFunction(
-        module, function.func_index, code, allocator, enabled_features);
-    if (function_result.failed()) {
-      return GetWasmErrorWithName(wire_bytes.module_bytes(),
-                                  function.func_index, module,
-                                  std::move(function_result).error());
-    }
-    module->set_function_validated(function.func_index);
+  std::function<bool(int)> filter;  // Initially empty for "all functions".
+  if (only_lazy_functions) {
+    const bool is_lazy_module = IsLazyModule(module);
+    filter = [module, enabled_features, is_lazy_module](int func_index) {
+      CompileStrategy strategy = GetCompileStrategy(module, enabled_features,
+                                                    func_index, is_lazy_module);
+      return strategy == CompileStrategy::kLazy ||
+             strategy == CompileStrategy::kLazyBaselineEagerTopTier;
+    };
   }
-  return {};
+  return ValidateFunctions(module, enabled_features, wire_bytes, filter);
 }
 
 WasmError ValidateFunctions(const NativeModule& native_module,
                             OnlyLazyFunctions only_lazy_functions) {
-  return ValidateFunctions(
-      native_module.module(), ModuleWireBytes{native_module.wire_bytes()},
-      native_module.enabled_features(), only_lazy_functions);
+  return ValidateFunctions(native_module.module(), native_module.wire_bytes(),
+                           native_module.enabled_features(),
+                           only_lazy_functions);
 }
 
 void CompileNativeModule(Isolate* isolate,
@@ -2574,7 +2557,7 @@ class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
       if (result.ok() && !v8_flags.wasm_lazy_validation) {
         const WasmModule* module = result.value().get();
         if (WasmError validation_error =
-                ValidateFunctions(module, job->wire_bytes_,
+                ValidateFunctions(module, job->wire_bytes_.module_bytes(),
                                   job->enabled_features_, kOnlyLazyFunctions))
           result = ModuleResult{std::move(validation_error)};
       }
