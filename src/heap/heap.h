@@ -2699,43 +2699,6 @@ class V8_NODISCARD DisableConservativeStackScanningScopeForTesting {
   bool old_value_;
 };
 
-// Visitor class to verify interior pointers in spaces that do not contain
-// or care about inter-generational references. All heap object pointers have to
-// point into the heap to a location that has a map pointer at its first word.
-// Caveat: Heap::Contains is an approximation because it can return true for
-// objects in a heap space but above the allocation pointer.
-class VerifyPointersVisitor : public ObjectVisitorWithCageBases,
-                              public RootVisitor {
- public:
-  V8_INLINE explicit VerifyPointersVisitor(Heap* heap);
-  void VisitPointers(HeapObject host, ObjectSlot start,
-                     ObjectSlot end) override;
-  void VisitPointers(HeapObject host, MaybeObjectSlot start,
-                     MaybeObjectSlot end) override;
-  void VisitCodePointer(HeapObject host, CodeObjectSlot slot) override;
-  void VisitCodeTarget(Code host, RelocInfo* rinfo) override;
-  void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override;
-
-  void VisitRootPointers(Root root, const char* description,
-                         FullObjectSlot start, FullObjectSlot end) override;
-  void VisitRootPointers(Root root, const char* description,
-                         OffHeapObjectSlot start,
-                         OffHeapObjectSlot end) override;
-  void VisitMapPointer(HeapObject host) override;
-
- protected:
-  V8_INLINE void VerifyHeapObjectImpl(HeapObject heap_object);
-  V8_INLINE void VerifyCodeObjectImpl(HeapObject heap_object);
-
-  template <typename TSlot>
-  V8_INLINE void VerifyPointersImpl(TSlot start, TSlot end);
-
-  virtual void VerifyPointers(HeapObject host, MaybeObjectSlot start,
-                              MaybeObjectSlot end);
-
-  Heap* heap_;
-};
-
 // Space iterator for iterating over all the paged spaces of the heap: Map
 // space, old space and code space. Returns each space in turn, and null when it
 // is done.

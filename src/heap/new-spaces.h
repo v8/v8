@@ -173,7 +173,10 @@ class SemiSpace final : public Space {
 #endif
 
 #ifdef VERIFY_HEAP
-  virtual void Verify() const;
+  void Verify(Isolate* isolate, SpaceVerificationVisitor* visitor) const final {
+    UNREACHABLE();
+  }
+  void VerifyPageMetadata() const;
 #endif
 
   void AddRangeToActiveSystemPages(Address start, Address end);
@@ -281,11 +284,6 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
 
   // Creates a filler object in the linear allocation area.
   virtual void MakeLinearAllocationAreaIterable() = 0;
-
-#ifdef VERIFY_HEAP
-  virtual void Verify(Isolate* isolate,
-                      SpaceVerificationVisitor* visitor) const = 0;
-#endif
 
   virtual void MakeIterable() = 0;
 
@@ -624,7 +622,12 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   }
 
 #ifdef VERIFY_HEAP
-  void Verify(Isolate* isolate, SpaceVerificationVisitor* visitor) const final;
+  void Verify(Isolate* isolate, SpaceVerificationVisitor* visitor) const final {
+    PagedSpaceBase::Verify(isolate, visitor);
+
+    DCHECK_EQ(current_capacity_, target_capacity_);
+    DCHECK_EQ(current_capacity_, Page::kPageSize * CountTotalPages());
+  }
 #endif
 
   void MakeIterable() { free_list()->RepairLists(heap()); }

@@ -11,6 +11,7 @@
 #include "src/execution/isolate.h"
 #include "src/heap/array-buffer-sweeper.h"
 #include "src/heap/basic-memory-chunk.h"
+#include "src/heap/combined-heap.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/large-spaces.h"
@@ -46,6 +47,155 @@ class VerifySmisVisitor final : public RootVisitor {
   }
 };
 
+// Visitor class to verify interior pointers in spaces that do not contain
+// or care about inter-generational references. All heap object pointers have to
+// point into the heap to a location that has a map pointer at its first word.
+// Caveat: Heap::Contains is an approximation because it can return true for
+// objects in a heap space but above the allocation pointer.
+class VerifyPointersVisitor : public ObjectVisitorWithCageBases,
+                              public RootVisitor {
+ public:
+  V8_INLINE explicit VerifyPointersVisitor(Heap* heap)
+      : ObjectVisitorWithCageBases(heap), heap_(heap) {}
+
+  void VisitPointers(HeapObject host, ObjectSlot start,
+                     ObjectSlot end) override;
+  void VisitPointers(HeapObject host, MaybeObjectSlot start,
+                     MaybeObjectSlot end) override;
+  void VisitCodePointer(HeapObject host, CodeObjectSlot slot) override;
+  void VisitCodeTarget(Code host, RelocInfo* rinfo) override;
+  void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override;
+
+  void VisitRootPointers(Root root, const char* description,
+                         FullObjectSlot start, FullObjectSlot end) override;
+  void VisitRootPointers(Root root, const char* description,
+                         OffHeapObjectSlot start,
+                         OffHeapObjectSlot end) override;
+  void VisitMapPointer(HeapObject host) override;
+
+ protected:
+  V8_INLINE void VerifyHeapObjectImpl(HeapObject heap_object);
+  V8_INLINE void VerifyCodeObjectImpl(HeapObject heap_object);
+
+  template <typename TSlot>
+  V8_INLINE void VerifyPointersImpl(TSlot start, TSlot end);
+
+  virtual void VerifyPointers(HeapObject host, MaybeObjectSlot start,
+                              MaybeObjectSlot end);
+
+  Heap* heap_;
+};
+
+void VerifyPointersVisitor::VisitPointers(HeapObject host, ObjectSlot start,
+                                          ObjectSlot end) {
+  VerifyPointers(host, MaybeObjectSlot(start), MaybeObjectSlot(end));
+}
+
+void VerifyPointersVisitor::VisitPointers(HeapObject host,
+                                          MaybeObjectSlot start,
+                                          MaybeObjectSlot end) {
+  VerifyPointers(host, start, end);
+}
+
+void VerifyPointersVisitor::VisitCodePointer(HeapObject host,
+                                             CodeObjectSlot slot) {
+  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+  Object maybe_code = slot.load(code_cage_base());
+  HeapObject code;
+  // The slot might contain smi during CodeDataContainer creation.
+  if (maybe_code.GetHeapObject(&code)) {
+    VerifyCodeObjectImpl(code);
+  } else {
+    CHECK(maybe_code.IsSmi());
+  }
+}
+
+void VerifyPointersVisitor::VisitRootPointers(Root root,
+                                              const char* description,
+                                              FullObjectSlot start,
+                                              FullObjectSlot end) {
+  VerifyPointersImpl(start, end);
+}
+
+void VerifyPointersVisitor::VisitRootPointers(Root root,
+                                              const char* description,
+                                              OffHeapObjectSlot start,
+                                              OffHeapObjectSlot end) {
+  VerifyPointersImpl(start, end);
+}
+
+void VerifyPointersVisitor::VisitMapPointer(HeapObject host) {
+  VerifyHeapObjectImpl(host.map(cage_base()));
+}
+
+void VerifyPointersVisitor::VerifyHeapObjectImpl(HeapObject heap_object) {
+  CHECK(IsValidHeapObject(heap_, heap_object));
+  CHECK(heap_object.map(cage_base()).IsMap());
+}
+
+void VerifyPointersVisitor::VerifyCodeObjectImpl(HeapObject heap_object) {
+  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+  CHECK(IsValidCodeObject(heap_, heap_object));
+  CHECK(heap_object.map(cage_base()).IsMap());
+  CHECK(heap_object.map(cage_base()).instance_type() == CODE_TYPE);
+}
+
+template <typename TSlot>
+void VerifyPointersVisitor::VerifyPointersImpl(TSlot start, TSlot end) {
+  for (TSlot slot = start; slot < end; ++slot) {
+    typename TSlot::TObject object = slot.load(cage_base());
+    HeapObject heap_object;
+    if (object.GetHeapObject(&heap_object)) {
+      VerifyHeapObjectImpl(heap_object);
+    } else {
+      CHECK(object.IsSmi() || object.IsCleared() ||
+            MapWord::IsPacked(object.ptr()));
+    }
+  }
+}
+
+void VerifyPointersVisitor::VerifyPointers(HeapObject host,
+                                           MaybeObjectSlot start,
+                                           MaybeObjectSlot end) {
+  // If this DCHECK fires then you probably added a pointer field
+  // to one of objects in DATA_ONLY_VISITOR_ID_LIST. You can fix
+  // this by moving that object to POINTER_VISITOR_ID_LIST.
+  DCHECK_EQ(ObjectFields::kMaybePointers,
+            Map::ObjectFieldsFrom(host.map(cage_base()).visitor_id()));
+  VerifyPointersImpl(start, end);
+}
+
+void VerifyPointersVisitor::VisitCodeTarget(Code host, RelocInfo* rinfo) {
+  Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+  VerifyHeapObjectImpl(target);
+}
+
+void VerifyPointersVisitor::VisitEmbeddedPointer(Code host, RelocInfo* rinfo) {
+  VerifyHeapObjectImpl(rinfo->target_object(cage_base()));
+}
+
+class VerifyReadOnlyPointersVisitor : public VerifyPointersVisitor {
+ public:
+  explicit VerifyReadOnlyPointersVisitor(Heap* heap)
+      : VerifyPointersVisitor(heap) {}
+
+ protected:
+  void VerifyPointers(HeapObject host, MaybeObjectSlot start,
+                      MaybeObjectSlot end) override {
+    if (!host.is_null()) {
+      CHECK(ReadOnlyHeap::Contains(host.map()));
+    }
+    VerifyPointersVisitor::VerifyPointers(host, start, end);
+
+    for (MaybeObjectSlot current = start; current < end; ++current) {
+      HeapObject heap_object;
+      if ((*current)->GetHeapObject(&heap_object)) {
+        CHECK(ReadOnlyHeap::Contains(heap_object));
+      }
+    }
+  }
+};
+
 class HeapVerification final : public SpaceVerificationVisitor {
  public:
   explicit HeapVerification(Heap* heap)
@@ -56,14 +206,17 @@ class HeapVerification final : public SpaceVerificationVisitor {
   void VerifySharedHeap(Isolate* initiator);
 
  private:
-  void VerifySpace(PagedSpace* space);
-  void VerifySpace(NewSpace* space);
-  void VerifySpace(LargeObjectSpace* space);
+  void VerifySpace(BaseSpace* space);
 
   void VerifyPage(const BasicMemoryChunk* chunk) final;
   void VerifyPageDone(const BasicMemoryChunk* chunk) final;
 
   void VerifyObject(HeapObject object) final;
+  void VerifyObjectMap(HeapObject object);
+  void VerifyOutgoingPointers(HeapObject object);
+  // Verifies OLD_TO_NEW and OLD_TO_SHARED remembered sets for this object.
+  void VerifyRememberedSetFor(HeapObject object);
+
   void VerifyInvalidatedObjectSize();
 
   ReadOnlySpace* read_only_space() const { return heap_->read_only_space(); }
@@ -148,21 +301,7 @@ void HeapVerification::Verify() {
 #endif  // DEBUG
 }
 
-void HeapVerification::VerifySpace(PagedSpace* space) {
-  if (!space) return;
-  current_space_identity_ = space->identity();
-  space->Verify(isolate(), this);
-  current_space_identity_.reset();
-}
-
-void HeapVerification::VerifySpace(LargeObjectSpace* space) {
-  if (!space) return;
-  current_space_identity_ = space->identity();
-  space->Verify(isolate(), this);
-  current_space_identity_.reset();
-}
-
-void HeapVerification::VerifySpace(NewSpace* space) {
+void HeapVerification::VerifySpace(BaseSpace* space) {
   if (!space) return;
   current_space_identity_ = space->identity();
   space->Verify(isolate(), this);
@@ -190,31 +329,45 @@ void HeapVerification::VerifyPageDone(const BasicMemoryChunk* chunk) {
 }
 
 void HeapVerification::VerifyObject(HeapObject object) {
-  CHECK_EQ(MemoryChunk::FromHeapObject(object), *current_chunk_);
+  CHECK_EQ(BasicMemoryChunk::FromHeapObject(object), *current_chunk_);
 
+  // Verify object map.
+  VerifyObjectMap(object);
+
+  // The object itself should look OK.
+  object.ObjectVerify(isolate_);
+
+  // Verify outgoing references.
+  VerifyOutgoingPointers(object);
+
+  // Verify remembered set.
+  VerifyRememberedSetFor(object);
+}
+
+void HeapVerification::VerifyOutgoingPointers(HeapObject object) {
+  if (current_space_identity() == RO_SPACE) {
+    VerifyReadOnlyPointersVisitor visitor(heap());
+    object.Iterate(cage_base_, &visitor);
+  } else {
+    VerifyPointersVisitor visitor(heap());
+    object.Iterate(cage_base_, &visitor);
+  }
+}
+
+void HeapVerification::VerifyObjectMap(HeapObject object) {
   // The first word should be a map, and we expect all map pointers to be
   // in map space or read-only space.
   Map map = object.map(cage_base_);
   CHECK(map.IsMap(cage_base_));
   CHECK(ReadOnlyHeap::Contains(map) || old_space()->Contains(map));
 
-  // The object itself should look OK.
-  object.ObjectVerify(isolate_);
-
-  // Verify outgoing references.
-  VerifyPointersVisitor visitor(heap());
-  object.Iterate(cage_base_, &visitor);
-
-  // Verify remembered set.
-  if (current_space_identity() != RO_SPACE &&
-      !v8_flags.verify_heap_skip_remembered_set) {
-    HeapVerifier::VerifyRememberedSetFor(heap_, object);
-  }
-
   if (Heap::InYoungGeneration(object)) {
     // The object should not be code or a map.
     CHECK(!object.IsMap(cage_base_));
     CHECK(!object.IsAbstractCode(cage_base_));
+  } else if (current_space_identity() == RO_SPACE) {
+    CHECK(!object.IsExternalString());
+    CHECK(!object.IsJSArrayBuffer());
   }
 }
 
@@ -242,7 +395,7 @@ void HeapVerification::VerifyInvalidatedObjectSize() {
 
 void HeapVerification::VerifyReadOnlyHeap() {
   CHECK(!read_only_space()->writable());
-  read_only_space()->Verify(isolate());
+  VerifySpace(read_only_space());
 }
 
 class SlotVerifyingVisitor : public ObjectVisitorWithCageBases {
@@ -433,6 +586,45 @@ class SlotCollectingVisitor final : public ObjectVisitor {
 #endif
 };
 
+void HeapVerification::VerifyRememberedSetFor(HeapObject object) {
+  if (current_space_identity() == RO_SPACE ||
+      v8_flags.verify_heap_skip_remembered_set) {
+    return;
+  }
+
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
+
+  Address start = object.address();
+  Address end = start + object.Size(cage_base_);
+
+  std::set<Address> old_to_new;
+  std::set<std::pair<SlotType, Address>> typed_old_to_new;
+  CollectSlots<OLD_TO_NEW>(chunk, start, end, &old_to_new, &typed_old_to_new);
+  OldToNewSlotVerifyingVisitor old_to_new_visitor(
+      isolate(), &old_to_new, &typed_old_to_new,
+      &heap()->ephemeron_remembered_set_);
+  object.IterateBody(cage_base_, &old_to_new_visitor);
+
+  std::set<Address> old_to_shared;
+  std::set<std::pair<SlotType, Address>> typed_old_to_shared;
+  CollectSlots<OLD_TO_SHARED>(chunk, start, end, &old_to_shared,
+                              &typed_old_to_shared);
+  OldToSharedSlotVerifyingVisitor old_to_shared_visitor(
+      isolate(), &old_to_shared, &typed_old_to_shared);
+  object.IterateBody(cage_base_, &old_to_shared_visitor);
+
+  if (Heap::InYoungGeneration(object)) {
+    CHECK_NULL(chunk->slot_set<OLD_TO_NEW>());
+    CHECK_NULL(chunk->typed_slot_set<OLD_TO_NEW>());
+
+    CHECK_NULL(chunk->slot_set<OLD_TO_OLD>());
+    CHECK_NULL(chunk->typed_slot_set<OLD_TO_OLD>());
+  }
+
+  // TODO(v8:11797): Add old to old slot set verification once all weak objects
+  // have their own instance types and slots are recorded for all weak fields.
+}
+
 // static
 void HeapVerifier::VerifyHeap(Heap* heap) {
   HeapVerification verifier(heap);
@@ -465,46 +657,6 @@ void HeapVerifier::VerifySharedHeap(Heap* heap, Isolate* initiator) {
   });
 
   HeapVerifier::VerifyHeap(heap);
-}
-
-// static
-void HeapVerifier::VerifyRememberedSetFor(Heap* heap, HeapObject object) {
-  MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
-  DCHECK_IMPLIES(chunk->mutex() == nullptr, ReadOnlyHeap::Contains(object));
-  // In RO_SPACE chunk->mutex() may be nullptr, so just ignore it.
-  base::LockGuard<base::Mutex, base::NullBehavior::kIgnoreIfNull> lock_guard(
-      chunk->mutex());
-  PtrComprCageBase cage_base(heap->isolate());
-  Address start = object.address();
-  Address end = start + object.Size(cage_base);
-
-  if (chunk->InSharedHeap() || Heap::InYoungGeneration(object)) {
-    CHECK_NULL(chunk->slot_set<OLD_TO_NEW>());
-    CHECK_NULL(chunk->typed_slot_set<OLD_TO_NEW>());
-
-    CHECK_NULL(chunk->slot_set<OLD_TO_OLD>());
-    CHECK_NULL(chunk->typed_slot_set<OLD_TO_OLD>());
-  }
-
-  if (!Heap::InYoungGeneration(object)) {
-    std::set<Address> old_to_new;
-    std::set<std::pair<SlotType, Address>> typed_old_to_new;
-    CollectSlots<OLD_TO_NEW>(chunk, start, end, &old_to_new, &typed_old_to_new);
-    OldToNewSlotVerifyingVisitor old_to_new_visitor(
-        heap->isolate(), &old_to_new, &typed_old_to_new,
-        &heap->ephemeron_remembered_set_);
-    object.IterateBody(cage_base, &old_to_new_visitor);
-
-    std::set<Address> old_to_shared;
-    std::set<std::pair<SlotType, Address>> typed_old_to_shared;
-    CollectSlots<OLD_TO_SHARED>(chunk, start, end, &old_to_shared,
-                                &typed_old_to_shared);
-    OldToSharedSlotVerifyingVisitor old_to_shared_visitor(
-        heap->isolate(), &old_to_shared, &typed_old_to_shared);
-    object.IterateBody(cage_base, &old_to_shared_visitor);
-  }
-  // TODO(v8:11797): Add old to old slot set verification once all weak objects
-  // have their own instance types and slots are recorded for all weak fields.
 }
 
 // static

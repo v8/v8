@@ -496,9 +496,6 @@ bool Heap::HasDirtyJSFinalizationRegistries() {
   return !dirty_js_finalization_registries_list().IsUndefined(isolate());
 }
 
-VerifyPointersVisitor::VerifyPointersVisitor(Heap* heap)
-    : ObjectVisitorWithCageBases(heap), heap_(heap) {}
-
 AlwaysAllocateScope::AlwaysAllocateScope(Heap* heap) : heap_(heap) {
   heap_->always_allocate_scope_count_++;
 }

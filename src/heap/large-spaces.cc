@@ -355,7 +355,7 @@ std::unique_ptr<ObjectIterator> LargeObjectSpace::GetObjectIterator(
 // We do not assume that the large object iterator works, because it depends
 // on the invariants we are checking during verification.
 void LargeObjectSpace::Verify(Isolate* isolate,
-                              SpaceVerificationVisitor* visitor) {
+                              SpaceVerificationVisitor* visitor) const {
   size_t external_backing_store_bytes[kNumTypes];
 
   for (int i = 0; i < kNumTypes; i++) {
@@ -363,7 +363,7 @@ void LargeObjectSpace::Verify(Isolate* isolate,
   }
 
   PtrComprCageBase cage_base(isolate);
-  for (LargePage* chunk = first_page(); chunk != nullptr;
+  for (const LargePage* chunk = first_page(); chunk != nullptr;
        chunk = chunk->next_page()) {
     visitor->VerifyPage(chunk);
 

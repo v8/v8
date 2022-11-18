@@ -47,9 +47,6 @@ class HeapVerifier final {
   // global safepoint, then the normal heap verification.
   static void VerifySharedHeap(Heap* heap, Isolate* initiator);
 
-  // Verifies OLD_TO_NEW and OLD_TO_SHARED remembered sets for this object.
-  static void VerifyRememberedSetFor(Heap* heap, HeapObject object);
-
   // Checks that this is a safe map transition.
   V8_EXPORT_PRIVATE static void VerifySafeMapTransition(Heap* heap,
                                                         HeapObject object,

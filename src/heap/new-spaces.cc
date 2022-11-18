@@ -358,7 +358,7 @@ void SemiSpace::Print() {}
 #endif
 
 #ifdef VERIFY_HEAP
-void SemiSpace::Verify() const {
+void SemiSpace::VerifyPageMetadata() const {
   bool is_from_space = (id_ == kFromSpace);
   size_t external_backing_store_bytes[kNumTypes];
 
@@ -688,8 +688,8 @@ void SemiSpaceNewSpace::Verify(Isolate* isolate,
   // Check semi-spaces.
   CHECK_EQ(from_space_.id(), kFromSpace);
   CHECK_EQ(to_space_.id(), kToSpace);
-  from_space_.Verify();
-  to_space_.Verify();
+  from_space_.VerifyPageMetadata();
+  to_space_.VerifyPageMetadata();
 }
 
 // We do not use the SemiSpaceObjectIterator because verification doesn't assume
@@ -1001,16 +1001,6 @@ void PagedSpaceForNewSpace::FreeLinearAllocationArea() {
   allocated_linear_areas_ -= remaining_allocation_area_size;
   PagedSpaceBase::FreeLinearAllocationArea();
 }
-
-#ifdef VERIFY_HEAP
-void PagedSpaceForNewSpace::Verify(Isolate* isolate,
-                                   SpaceVerificationVisitor* visitor) const {
-  PagedSpaceBase::Verify(isolate, visitor);
-
-  DCHECK_EQ(current_capacity_, target_capacity_);
-  DCHECK_EQ(current_capacity_, Page::kPageSize * CountTotalPages());
-}
-#endif  // VERIFY_HEAP
 
 bool PagedSpaceForNewSpace::ShouldReleasePage() const {
   return current_capacity_ > target_capacity_;

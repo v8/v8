@@ -185,8 +185,8 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
 
 #ifdef VERIFY_HEAP
   // Verify integrity of this space.
-  virtual void Verify(Isolate* isolate,
-                      SpaceVerificationVisitor* visitor) const;
+  void Verify(Isolate* isolate,
+              SpaceVerificationVisitor* visitor) const override;
 
   void VerifyLiveBytes() const;
 #endif
