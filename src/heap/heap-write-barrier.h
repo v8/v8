@@ -66,7 +66,12 @@ class V8_EXPORT_PRIVATE WriteBarrier {
 
   // Invoked from global handles where no host object is available.
   static inline void MarkingFromGlobalHandle(Object value);
-  static inline void MarkingFromInternalFields(JSObject host);
+
+  static inline void CombinedBarrierFromInternalFields(JSObject host,
+                                                       void* value);
+  static inline void CombinedBarrierFromInternalFields(JSObject host,
+                                                       size_t argc,
+                                                       void** values);
 
   static MarkingBarrier* SetForThread(MarkingBarrier*);
 
@@ -89,6 +94,12 @@ class V8_EXPORT_PRIVATE WriteBarrier {
   static void MarkingSlow(DescriptorArray, int number_of_own_descriptors);
   static void MarkingSlowFromGlobalHandle(HeapObject value);
   static void MarkingSlowFromInternalFields(Heap* heap, JSObject host);
+
+  static inline void GenerationalBarrierFromInternalFields(JSObject host,
+                                                           void* value);
+  static inline void GenerationalBarrierFromInternalFields(JSObject host,
+                                                           size_t argc,
+                                                           void** values);
 
   static void SharedSlow(Code host, RelocInfo*, HeapObject value);
 

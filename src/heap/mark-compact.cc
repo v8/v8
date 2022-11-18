@@ -557,6 +557,22 @@ bool MarkCompactCollector::StartCompaction(StartCompactionMode mode) {
   return compacting_;
 }
 
+namespace {
+void VisitObjectWithEmbedderFields(JSObject object,
+                                   MarkingWorklists::Local& worklist) {
+  DCHECK(object.IsJSApiObject() || object.IsJSArrayBuffer() ||
+         object.IsJSDataView() || object.IsJSTypedArray());
+  DCHECK(!Heap::InYoungGeneration(object));
+
+  MarkingWorklists::Local::WrapperSnapshot wrapper_snapshot;
+  const bool valid_snapshot =
+      worklist.ExtractWrapper(object.map(), object, wrapper_snapshot);
+  DCHECK(valid_snapshot);
+  USE(valid_snapshot);
+  worklist.PushExtractedWrapper(wrapper_snapshot);
+}
+}  // namespace
+
 void MarkCompactCollector::StartMarking() {
   std::vector<Address> contexts =
       heap()->memory_measurement()->StartProcessing();
@@ -6255,6 +6271,11 @@ void MinorMarkCompactCollector::MarkRootSetInParallel(
     isolate()->global_handles()->IterateYoungStrongAndDependentRoots(
         root_visitor);
     isolate()->traced_handles()->IterateYoungRoots(root_visitor);
+    if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap())) {
+      cpp_heap->VisitCrossHeapRememberedSetIfNeeded([this](JSObject obj) {
+        VisitObjectWithEmbedderFields(obj, *local_marking_worklists());
+      });
+    }
 
     if (!was_marked_incrementally) {
       // Create items for each page.

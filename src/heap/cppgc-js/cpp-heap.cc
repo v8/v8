@@ -465,6 +465,7 @@ CppHeap::CppHeap(
           marking_support, sweeping_support, *this),
       minor_gc_heap_growing_(
           std::make_unique<MinorGCHeapGrowing>(*stats_collector())),
+      cross_heap_remembered_set_(*this),
       wrapper_descriptor_(wrapper_descriptor) {
   CHECK_NE(WrapperDescriptor::kUnknownEmbedderId,
            wrapper_descriptor_.embedder_id_for_garbage_collected);
@@ -802,6 +803,9 @@ void CppHeap::TraceEpilogue() {
 
 #if defined(CPPGC_YOUNG_GENERATION)
   ResetRememberedSet();
+  // We can reset the remembered set on each GC because surviving Oilpan objects
+  // are immediately considered old.
+  ResetCrossHeapRememberedSet();
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 
   {
@@ -1063,6 +1067,15 @@ void CppHeap::StartIncrementalGarbageCollection(cppgc::internal::GCConfig) {
   UNIMPLEMENTED();
 }
 size_t CppHeap::epoch() const { UNIMPLEMENTED(); }
+
+void CppHeap::ResetCrossHeapRememberedSet() {
+  if (!generational_gc_supported()) {
+    DCHECK(cross_heap_remembered_set_.IsEmpty());
+    return;
+  }
+  DCHECK(isolate_);
+  cross_heap_remembered_set_.Reset(*isolate_);
+}
 
 }  // namespace internal
 }  // namespace v8

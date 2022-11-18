@@ -6144,7 +6144,8 @@ void v8::Object::SetAlignedPointerInInternalField(int index, void* value) {
                       .store_aligned_pointer(obj->GetIsolate(), value),
                   location, "Unaligned pointer");
   DCHECK_EQ(value, GetAlignedPointerFromInternalField(index));
-  internal::WriteBarrier::MarkingFromInternalFields(i::JSObject::cast(*obj));
+  internal::WriteBarrier::CombinedBarrierFromInternalFields(
+      i::JSObject::cast(*obj), value);
 }
 
 void v8::Object::SetAlignedPointerInInternalFields(int argc, int indices[],
@@ -6167,7 +6168,8 @@ void v8::Object::SetAlignedPointerInInternalFields(int argc, int indices[],
                     location, "Unaligned pointer");
     DCHECK_EQ(value, GetAlignedPointerFromInternalField(index));
   }
-  internal::WriteBarrier::MarkingFromInternalFields(js_obj);
+  internal::WriteBarrier::CombinedBarrierFromInternalFields(js_obj, argc,
+                                                            values);
 }
 
 // --- E n v i r o n m e n t ---

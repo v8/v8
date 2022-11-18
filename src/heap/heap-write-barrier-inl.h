@@ -10,6 +10,7 @@
 
 #include "src/common/code-memory-access-inl.h"
 #include "src/common/globals.h"
+#include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/heap/heap-write-barrier.h"
 #include "src/heap/marking-barrier.h"
 #include "src/objects/code.h"
@@ -327,9 +328,19 @@ void WriteBarrier::MarkingFromGlobalHandle(Object value) {
 }
 
 // static
-void WriteBarrier::MarkingFromInternalFields(JSObject host) {
+void WriteBarrier::CombinedBarrierFromInternalFields(JSObject host,
+                                                     void* value) {
+  CombinedBarrierFromInternalFields(host, 1, &value);
+}
+
+// static
+void WriteBarrier::CombinedBarrierFromInternalFields(JSObject host, size_t argc,
+                                                     void** values) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return;
-  if (!IsMarking(host)) return;
+  if (V8_LIKELY(!IsMarking(host))) {
+    GenerationalBarrierFromInternalFields(host, argc, values);
+    return;
+  }
   MarkingBarrier* marking_barrier = CurrentMarkingBarrier(host);
   if (marking_barrier->is_minor()) {
     // TODO(v8:13012): We do not currently mark Oilpan objects while MinorMC is
@@ -338,6 +349,27 @@ void WriteBarrier::MarkingFromInternalFields(JSObject host) {
     return;
   }
   MarkingSlowFromInternalFields(marking_barrier->heap(), host);
+}
+
+// static
+void WriteBarrier::GenerationalBarrierFromInternalFields(JSObject host,
+                                                         void* value) {
+  GenerationalBarrierFromInternalFields(host, 1, &value);
+}
+
+// static
+void WriteBarrier::GenerationalBarrierFromInternalFields(JSObject host,
+                                                         size_t argc,
+                                                         void** values) {
+  auto* memory_chunk = MemoryChunk::FromHeapObject(host);
+  if (V8_LIKELY(memory_chunk->InYoungGeneration())) return;
+  auto* cpp_heap = memory_chunk->heap()->cpp_heap();
+  if (!cpp_heap) return;
+  for (size_t i = 0; i < argc; ++i) {
+    if (!values[i]) continue;
+    v8::internal::CppHeap::From(cpp_heap)->RememberCrossHeapReferenceIfNeeded(
+        host, values[i]);
+  }
 }
 
 #ifdef ENABLE_SLOW_DCHECKS
