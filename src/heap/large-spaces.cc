@@ -69,12 +69,21 @@ size_t LargeObjectSpace::Available() const {
 }
 
 void LargePage::ClearOutOfLiveRangeSlots(Address free_start) {
-  RememberedSet<OLD_TO_NEW>::RemoveRange(this, free_start, area_end(),
-                                         SlotSet::FREE_EMPTY_BUCKETS);
-  RememberedSet<OLD_TO_OLD>::RemoveRange(this, free_start, area_end(),
-                                         SlotSet::FREE_EMPTY_BUCKETS);
-  RememberedSet<OLD_TO_NEW>::RemoveRangeTyped(this, free_start, area_end());
-  RememberedSet<OLD_TO_OLD>::RemoveRangeTyped(this, free_start, area_end());
+  DCHECK_NULL(slot_set<OLD_TO_NEW>());
+  DCHECK_NULL(typed_slot_set<OLD_TO_NEW>());
+
+  DCHECK_NULL(slot_set<OLD_TO_OLD>());
+  DCHECK_NULL(typed_slot_set<OLD_TO_OLD>());
+
+  // area_end() might not be aligned to a full bucket size with large objects.
+  // Align it to bucket size such that the following RemoveRange invocation just
+  // drops the whole bucket and the bucket is reset to nullptr.
+  Address aligned_area_end = address() + SlotSet::OffsetForBucket(buckets());
+  DCHECK_LE(area_end(), aligned_area_end);
+  RememberedSet<OLD_TO_SHARED>::RemoveRange(this, free_start, aligned_area_end,
+                                            SlotSet::FREE_EMPTY_BUCKETS);
+
+  RememberedSet<OLD_TO_SHARED>::RemoveRangeTyped(this, free_start, area_end());
 }
 
 // -----------------------------------------------------------------------------
@@ -288,26 +297,6 @@ void LargeObjectSpace::RemovePage(LargePage* page) {
   }
 }
 
-namespace {
-
-// Returns the `GetCommitPageSize()`-aligned end of the payload that can be
-// used to shrink down an object. Returns kNullAddress if shrinking is not
-// supported.
-Address GetEndOfPayload(LargePage* page, Address object_address,
-                        size_t object_size) {
-  if (page->executable() == EXECUTABLE) {
-    return kNullAddress;
-  }
-  const size_t used_committed_size =
-      ::RoundUp((object_address - page->address()) + object_size,
-                MemoryAllocator::GetCommitPageSize());
-  return (used_committed_size < page->size())
-             ? page->address() + used_committed_size
-             : kNullAddress;
-}
-
-}  // namespace
-
 void LargeObjectSpace::ShrinkPageToObjectSize(LargePage* page,
                                               HeapObject object,
                                               size_t object_size) {
@@ -315,17 +304,34 @@ void LargeObjectSpace::ShrinkPageToObjectSize(LargePage* page,
   PtrComprCageBase cage_base(heap()->isolate());
   DCHECK_EQ(object, page->GetObject());
   DCHECK_EQ(object_size, page->GetObject().Size(cage_base));
+  DCHECK_EQ(page->executable(), NOT_EXECUTABLE);
 #endif  // DEBUG
-  Address free_start = GetEndOfPayload(page, object.address(), object_size);
-  if (free_start != kNullAddress) {
-    DCHECK(!page->IsFlagSet(Page::IS_EXECUTABLE));
-    page->ClearOutOfLiveRangeSlots(free_start);
-    const size_t bytes_to_free = page->size() - (free_start - page->address());
-    heap()->memory_allocator()->PartialFreeMemory(
-        page, free_start, bytes_to_free, page->area_start() + object_size);
-    size_ -= bytes_to_free;
-    AccountUncommitted(bytes_to_free);
+
+  const size_t used_committed_size =
+      ::RoundUp(object.address() - page->address() + object_size,
+                MemoryAllocator::GetCommitPageSize());
+
+  // Object shrunk since last GC.
+  if (object_size < page->area_size()) {
+    page->ClearOutOfLiveRangeSlots(object.address() + object_size);
+    const Address new_area_end = page->area_start() + object_size;
+
+    // Object shrunk enough that we can even free some OS pages.
+    if (used_committed_size < page->size()) {
+      const size_t bytes_to_free = page->size() - used_committed_size;
+      heap()->memory_allocator()->PartialFreeMemory(
+          page, page->address() + used_committed_size, bytes_to_free,
+          new_area_end);
+      size_ -= bytes_to_free;
+      AccountUncommitted(bytes_to_free);
+    } else {
+      // Can't free OS page but keep object area up-to-date.
+      page->set_area_end(new_area_end);
+    }
   }
+
+  DCHECK_EQ(used_committed_size, page->size());
+  DCHECK_EQ(object_size, page->area_size());
 }
 
 bool LargeObjectSpace::Contains(HeapObject object) const {

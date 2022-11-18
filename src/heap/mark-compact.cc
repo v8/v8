@@ -1056,7 +1056,6 @@ void MarkCompactCollector::Finish() {
 
   // Shrink pages if possible after processing and filtering slots.
   ShrinkPagesToObjectSizes(heap(), heap()->lo_space());
-  ShrinkPagesToObjectSizes(heap(), heap()->code_lo_space());
 
 #ifdef DEBUG
   DCHECK(state_ == SWEEP_SPACES || state_ == RELOCATE_OBJECTS);
