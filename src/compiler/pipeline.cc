@@ -3043,6 +3043,9 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
   ComputeScheduledGraph();
 
   if (v8_flags.turboshaft) {
+    UnparkedScopeIfNeeded scope(data->broker(),
+                                v8_flags.turboshaft_trace_reduction);
+
     if (base::Optional<BailoutReason> bailout =
             Run<BuildTurboshaftPhase>(linkage)) {
       info()->AbortOptimization(*bailout);
