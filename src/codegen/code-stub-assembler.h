@@ -501,6 +501,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // TODO(v8:9708): Define BInt operations once all uses are ported.
   PARAMETER_BINOP(IntPtrOrSmiEqual, WordEqual, SmiEqual)
   PARAMETER_BINOP(IntPtrOrSmiNotEqual, WordNotEqual, SmiNotEqual)
+  PARAMETER_BINOP(IntPtrOrSmiLessThan, IntPtrLessThan, SmiLessThan)
   PARAMETER_BINOP(IntPtrOrSmiLessThanOrEqual, IntPtrLessThanOrEqual,
                   SmiLessThanOrEqual)
   PARAMETER_BINOP(IntPtrOrSmiGreaterThan, IntPtrGreaterThan, SmiGreaterThan)
@@ -3593,6 +3594,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Int32T> LoadElementsKind(TNode<AllocationSite> allocation_site);
 
   enum class IndexAdvanceMode { kPre, kPost };
+  enum class LoopUnrollingMode { kNo, kYes };
 
   template <typename TIndex>
   using FastLoopBody = std::function<void(TNode<TIndex> index)>;
@@ -3601,15 +3603,17 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<TIndex> BuildFastLoop(
       const VariableList& var_list, TNode<TIndex> start_index,
       TNode<TIndex> end_index, const FastLoopBody<TIndex>& body, int increment,
+      LoopUnrollingMode unrolling_mode,
       IndexAdvanceMode advance_mode = IndexAdvanceMode::kPre);
 
   template <typename TIndex>
   TNode<TIndex> BuildFastLoop(
       TNode<TIndex> start_index, TNode<TIndex> end_index,
       const FastLoopBody<TIndex>& body, int increment,
+      LoopUnrollingMode unrolling_mode,
       IndexAdvanceMode advance_mode = IndexAdvanceMode::kPre) {
     return BuildFastLoop(VariableList(0, zone()), start_index, end_index, body,
-                         increment, advance_mode);
+                         increment, unrolling_mode, advance_mode);
   }
 
   enum class ForEachDirection { kForward, kReverse };
@@ -3622,6 +3626,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<UnionT<UnionT<FixedArray, PropertyArray>, HeapObject>> array,
       ElementsKind kind, TNode<TIndex> first_element_inclusive,
       TNode<TIndex> last_element_exclusive, const FastArrayForEachBody& body,
+      LoopUnrollingMode loop_unrolling_mode,
       ForEachDirection direction = ForEachDirection::kReverse);
 
   template <typename TIndex>

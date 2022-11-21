@@ -4967,7 +4967,7 @@ void AccessorAssembler::GenerateCloneObjectIC() {
               IntPtrAdd(field_offset, field_offset_difference);
           StoreObjectFieldNoWriteBarrier(object, result_offset, field);
         },
-        1, IndexAdvanceMode::kPost);
+        1, LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
 
     // We need to go through the {object} again here and properly clone them. We
     // use a second loop here to ensure that the GC (and heap verifier) always

@@ -2148,7 +2148,8 @@ void CallFunctionWithStackPointerChecks(Isolate* isolate,
           CSA_CHECK(
               &m, m.TaggedEqual(result, MakeConstantNode(m, expected_result)));
         },
-        1, CodeStubAssembler::IndexAdvanceMode::kPost);
+        1, CodeStubAssembler::LoopUnrollingMode::kNo,
+        CodeStubAssembler::IndexAdvanceMode::kPost);
 
 #ifdef V8_CC_GNU
     TNode<WordT> stack_pointer1 =

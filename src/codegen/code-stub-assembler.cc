@@ -4039,7 +4039,7 @@ void CodeStubAssembler::StoreFieldsNoWriteBarrier(TNode<IntPtrT> start_address,
         UnsafeStoreNoWriteBarrier(MachineRepresentation::kTagged, current,
                                   value);
       },
-      kTaggedSize, IndexAdvanceMode::kPost);
+      kTaggedSize, LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
 }
 
 void CodeStubAssembler::MakeFixedArrayCOW(TNode<FixedArray> array) {
@@ -4783,7 +4783,8 @@ void CodeStubAssembler::FillPropertyArrayWithUndefined(
       [this, value](TNode<HeapObject> array, TNode<IntPtrT> offset) {
         StoreNoWriteBarrier(MachineRepresentation::kTagged, array, offset,
                             value);
-      });
+      },
+      LoopUnrollingMode::kYes);
 }
 
 template <typename TIndex>
@@ -4818,7 +4819,8 @@ void CodeStubAssembler::FillFixedArrayWithValue(ElementsKind kind,
           StoreNoWriteBarrier(MachineRepresentation::kTagged, array, offset,
                               value);
         }
-      });
+      },
+      LoopUnrollingMode::kYes);
 }
 
 template V8_EXPORT_PRIVATE void
@@ -5002,6 +5004,7 @@ void CodeStubAssembler::MoveElements(ElementsKind kind,
       {
         // Make a loop for the stores.
         BuildFastArrayForEach(elements, kind, begin, end, loop_body,
+                              LoopUnrollingMode::kYes,
                               ForEachDirection::kForward);
         Goto(&finished);
       }
@@ -5009,6 +5012,7 @@ void CodeStubAssembler::MoveElements(ElementsKind kind,
       BIND(&iterate_backward);
       {
         BuildFastArrayForEach(elements, kind, begin, end, loop_body,
+                              LoopUnrollingMode::kYes,
                               ForEachDirection::kReverse);
         Goto(&finished);
       }
@@ -5093,7 +5097,7 @@ void CodeStubAssembler::CopyElements(ElementsKind kind,
               Store(dst_elements, delta_offset, element);
             }
           },
-          ForEachDirection::kForward);
+          LoopUnrollingMode::kYes, ForEachDirection::kForward);
       Goto(&finished);
     }
     BIND(&finished);
@@ -5327,7 +5331,8 @@ void CodeStubAssembler::CopyPropertyArrayValues(TNode<HeapObject> from_array,
           StoreNoWriteBarrier(MachineRepresentation::kTagged, to_array, offset,
                               value);
         }
-      });
+      },
+      LoopUnrollingMode::kYes);
 
 #ifdef DEBUG
   // Zap {from_array} if the copying above has made it invalid.
@@ -9133,7 +9138,7 @@ void CodeStubAssembler::LookupLinear(TNode<Name> unique_name,
         *var_name_index = name_index;
         GotoIf(TaggedEqual(candidate_name, unique_name), if_found);
       },
-      -Array::kEntrySize, IndexAdvanceMode::kPre);
+      -Array::kEntrySize, LoopUnrollingMode::kYes, IndexAdvanceMode::kPre);
   Goto(if_not_found);
 }
 
@@ -9460,7 +9465,8 @@ void CodeStubAssembler::ForEachEnumerableOwnProperty(
         }
         BIND(&next_iteration);
       },
-      DescriptorArray::kEntrySize, IndexAdvanceMode::kPost);
+      DescriptorArray::kEntrySize, LoopUnrollingMode::kNo,
+      IndexAdvanceMode::kPost);
 
   if (mode == kEnumerationOrder) {
     Label done(this);
@@ -11947,62 +11953,111 @@ TNode<Int32T> CodeStubAssembler::LoadElementsKind(
 }
 
 template <typename TIndex>
-TNode<TIndex> CodeStubAssembler::BuildFastLoop(const VariableList& vars,
-                                               TNode<TIndex> start_index,
-                                               TNode<TIndex> end_index,
-                                               const FastLoopBody<TIndex>& body,
-                                               int increment,
-                                               IndexAdvanceMode advance_mode) {
-  TVARIABLE(TIndex, var, start_index);
+TNode<TIndex> CodeStubAssembler::BuildFastLoop(
+    const VariableList& vars, TNode<TIndex> start_index,
+    TNode<TIndex> end_index, const FastLoopBody<TIndex>& body, int increment,
+    LoopUnrollingMode unrolling_mode, IndexAdvanceMode advance_mode) {
+  TVARIABLE(TIndex, var_index, start_index);
   VariableList vars_copy(vars.begin(), vars.end(), zone());
-  vars_copy.push_back(&var);
+  vars_copy.push_back(&var_index);
   Label loop(this, vars_copy);
-  Label after_loop(this);
-  // Introduce an explicit second check of the termination condition before the
-  // loop that helps turbofan generate better code. If there's only a single
-  // check, then the CodeStubAssembler forces it to be at the beginning of the
-  // loop requiring a backwards branch at the end of the loop (it's not possible
-  // to force the loop header check at the end of the loop and branch forward to
-  // it from the pre-header). The extra branch is slower in the case that the
-  // loop actually iterates.
-  TNode<BoolT> first_check = IntPtrOrSmiEqual(var.value(), end_index);
-  int32_t first_check_val;
-  if (TryToInt32Constant(first_check, &first_check_val)) {
-    if (first_check_val) return var.value();
-    Goto(&loop);
-  } else {
-    Branch(first_check, &after_loop, &loop);
-  }
+  Label after_loop(this), done(this);
 
-  BIND(&loop);
-  {
+  auto loop_body = [&]() {
     if (advance_mode == IndexAdvanceMode::kPre) {
-      Increment(&var, increment);
+      Increment(&var_index, increment);
     }
-    body(var.value());
+    body(var_index.value());
     if (advance_mode == IndexAdvanceMode::kPost) {
-      Increment(&var, increment);
+      Increment(&var_index, increment);
     }
-    Branch(IntPtrOrSmiNotEqual(var.value(), end_index), &loop, &after_loop);
+  };
+  // The loops below are generated using the following trick:
+  // Introduce an explicit second check of the termination condition before
+  // the loop that helps turbofan generate better code. If there's only a
+  // single check, then the CodeStubAssembler forces it to be at the beginning
+  // of the loop requiring a backwards branch at the end of the loop (it's not
+  // possible to force the loop header check at the end of the loop and branch
+  // forward to it from the pre-header). The extra branch is slower in the
+  // case that the loop actually iterates.
+  if (unrolling_mode == LoopUnrollingMode::kNo) {
+    TNode<BoolT> first_check = IntPtrOrSmiEqual(var_index.value(), end_index);
+    int32_t first_check_val;
+    if (TryToInt32Constant(first_check, &first_check_val)) {
+      if (first_check_val) return var_index.value();
+      Goto(&loop);
+    } else {
+      Branch(first_check, &done, &loop);
+    }
+
+    BIND(&loop);
+    {
+      loop_body();
+      Branch(IntPtrOrSmiNotEqual(var_index.value(), end_index), &loop, &done);
+    }
+    BIND(&done);
+  } else {
+    // Check if there are at least two elements between start_index and
+    // end_index.
+    DCHECK_EQ(unrolling_mode, LoopUnrollingMode::kYes);
+    CSA_DCHECK(this, increment > 0
+                         ? IntPtrOrSmiLessThanOrEqual(start_index, end_index)
+                         : IntPtrOrSmiLessThanOrEqual(end_index, start_index));
+    TNode<TIndex> next_index =
+        IntPtrOrSmiAdd(start_index, IntPtrOrSmiConstant<TIndex>(increment));
+    TNode<BoolT> first_check =
+        increment > 0 ? IntPtrOrSmiLessThan(next_index, end_index)
+                      : IntPtrOrSmiGreaterThan(next_index, end_index);
+    int32_t first_check_val;
+    if (TryToInt32Constant(first_check, &first_check_val)) {
+      if (first_check_val) {
+        Goto(&loop);
+      } else {
+        Goto(&after_loop);
+      }
+    } else {
+      Branch(first_check, &loop, &after_loop);
+    }
+
+    BIND(&loop);
+    {
+      Comment("Unrolled Loop");
+      loop_body();
+      loop_body();
+      TNode<TIndex> next_index = IntPtrOrSmiAdd(
+          var_index.value(), IntPtrOrSmiConstant<TIndex>(increment));
+      TNode<BoolT> loop_check =
+          increment > 0 ? IntPtrOrSmiLessThan(next_index, end_index)
+                        : IntPtrOrSmiGreaterThan(next_index, end_index);
+      Branch(loop_check, &loop, &after_loop);
+    }
+    BIND(&after_loop);
+    {
+      TNode<TIndex> next_index = IntPtrOrSmiAdd(
+          var_index.value(), IntPtrOrSmiConstant<TIndex>(increment));
+      GotoIfNot(IntPtrOrSmiEqual(next_index, end_index), &done);
+      // Iteration count is odd.
+      loop_body();
+      Goto(&done);
+    }
+    BIND(&done);
   }
-  BIND(&after_loop);
-  return var.value();
+  return var_index.value();
 }
 
 // Instantiate BuildFastLoop for IntPtrT and UintPtrT.
 template V8_EXPORT_PRIVATE TNode<IntPtrT>
-CodeStubAssembler::BuildFastLoop<IntPtrT>(const VariableList& vars,
-                                          TNode<IntPtrT> start_index,
-                                          TNode<IntPtrT> end_index,
-                                          const FastLoopBody<IntPtrT>& body,
-                                          int increment,
-                                          IndexAdvanceMode advance_mode);
+CodeStubAssembler::BuildFastLoop<IntPtrT>(
+    const VariableList& vars, TNode<IntPtrT> start_index,
+    TNode<IntPtrT> end_index, const FastLoopBody<IntPtrT>& body, int increment,
+    LoopUnrollingMode unrolling_mode, IndexAdvanceMode advance_mode);
 template V8_EXPORT_PRIVATE TNode<UintPtrT>
 CodeStubAssembler::BuildFastLoop<UintPtrT>(const VariableList& vars,
                                            TNode<UintPtrT> start_index,
                                            TNode<UintPtrT> end_index,
                                            const FastLoopBody<UintPtrT>& body,
                                            int increment,
+                                           LoopUnrollingMode unrolling_mode,
                                            IndexAdvanceMode advance_mode);
 
 template <typename TIndex>
@@ -12010,7 +12065,7 @@ void CodeStubAssembler::BuildFastArrayForEach(
     TNode<UnionT<UnionT<FixedArray, PropertyArray>, HeapObject>> array,
     ElementsKind kind, TNode<TIndex> first_element_inclusive,
     TNode<TIndex> last_element_exclusive, const FastArrayForEachBody& body,
-    ForEachDirection direction) {
+    LoopUnrollingMode loop_unrolling_mode, ForEachDirection direction) {
   static_assert(FixedArray::kHeaderSize == FixedDoubleArray::kHeaderSize);
   CSA_SLOW_DCHECK(this, Word32Or(IsFixedArrayWithKind(array, kind),
                                  IsPropertyArray(array)));
@@ -12053,6 +12108,7 @@ void CodeStubAssembler::BuildFastArrayForEach(
   BuildFastLoop<IntPtrT>(
       start, limit, [&](TNode<IntPtrT> offset) { body(array, offset); },
       direction == ForEachDirection::kReverse ? -increment : increment,
+      loop_unrolling_mode,
       direction == ForEachDirection::kReverse ? IndexAdvanceMode::kPre
                                               : IndexAdvanceMode::kPost);
 }
@@ -12083,7 +12139,7 @@ void CodeStubAssembler::InitializeFieldsWithRoot(TNode<HeapObject> object,
         StoreNoWriteBarrier(MachineRepresentation::kTagged, object, current,
                             root_value);
       },
-      -kTaggedSize, CodeStubAssembler::IndexAdvanceMode::kPre);
+      -kTaggedSize, LoopUnrollingMode::kYes, IndexAdvanceMode::kPre);
 }
 
 void CodeStubAssembler::BranchIfNumberRelationalComparison(Operation op,
@@ -14845,7 +14901,8 @@ void CodeStubArguments::ForEach(
         TNode<Object> arg = assembler_->LoadFullTagged(current);
         body(arg);
       },
-      increment, CodeStubAssembler::IndexAdvanceMode::kPost);
+      increment, CodeStubAssembler::LoopUnrollingMode::kNo,
+      CodeStubAssembler::IndexAdvanceMode::kPost);
 }
 
 void CodeStubArguments::PopAndReturn(TNode<Object> value) {
@@ -16006,7 +16063,7 @@ CodeStubAssembler::AllocateSwissNameDictionaryWithCapacity(
         UnsafeStoreNoWriteBarrier(MachineRepresentation::kWord32, current,
                                   empty32);
       },
-      sizeof(uint32_t), IndexAdvanceMode::kPost);
+      sizeof(uint32_t), LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
 
   Comment("Initialize the data table.");
 
@@ -16101,7 +16158,7 @@ TNode<SwissNameDictionary> CodeStubAssembler::CopySwissNameDictionary(
           TNode<Object> table_field = LoadObjectField(original, offset);
           StoreObjectField(table, offset, table_field);
         },
-        kTaggedSize, IndexAdvanceMode::kPost);
+        kTaggedSize, LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
   }
 
   Comment("Copy the meta table");
@@ -16171,7 +16228,7 @@ TNode<SwissNameDictionary> CodeStubAssembler::CopySwissNameDictionary(
               IntPtrAdd(details_table_offset_minus_tag.value(),
                         IntPtrConstant(kOneByteSize));
         },
-        kOneByteSize, IndexAdvanceMode::kPost);
+        kOneByteSize, LoopUnrollingMode::kNo, IndexAdvanceMode::kPost);
   }
 
   Comment("CopySwissNameDictionary ]");
