@@ -735,6 +735,9 @@ DEFINE_BOOL(
 // forwarding table.
 DEFINE_NEG_IMPLICATION(shared_string_table, always_use_string_forwarding_table)
 
+DEFINE_BOOL(transition_strings_during_gc_with_stack, false,
+            "Transition strings during a full GC with stack")
+
 DEFINE_SIZE_T(initial_shared_heap_size, 0,
               "initial size of the shared heap (in Mbytes); "
               "other heap size flags (e.g. initial_heap_size) take precedence")
@@ -1440,6 +1443,8 @@ DEFINE_BOOL(compact_with_stack, true,
 DEFINE_BOOL(
     compact_code_space_with_stack, true,
     "Perform code space compaction when finalizing a full GC with stack")
+DEFINE_BOOL(shortcut_strings_with_stack, false,
+            "Shortcut Strings during GC with stack")
 DEFINE_BOOL(stress_compaction, false,
             "Stress GC compaction to flush out bugs (implies "
             "--force_marking_deque_overflows)")

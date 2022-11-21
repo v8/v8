@@ -1797,7 +1797,9 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
         pretenuring_handler_(heap_->pretenuring_handler()),
         local_pretenuring_feedback_(local_pretenuring_feedback),
         is_incremental_marking_(heap->incremental_marking()->IsMarking()),
-        always_promote_young_(always_promote_young) {}
+        always_promote_young_(always_promote_young),
+        shortcut_strings_(!heap_->IsGCWithStack() ||
+                          v8_flags.shortcut_strings_with_stack) {}
 
   inline bool Visit(HeapObject object, int size) override {
     if (TryEvacuateWithoutCopy(object)) return true;
@@ -1842,6 +1844,8 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
  private:
   inline bool TryEvacuateWithoutCopy(HeapObject object) {
     DCHECK(!is_incremental_marking_);
+
+    if (!shortcut_strings_) return false;
 
     Map map = object.map();
 
@@ -1892,6 +1896,7 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
   PretenturingHandler::PretenuringFeedbackMap* local_pretenuring_feedback_;
   bool is_incremental_marking_;
   AlwaysPromoteYoung always_promote_young_;
+  const bool shortcut_strings_;
 };
 
 template <PageEvacuationMode mode>
@@ -2861,24 +2866,54 @@ class StringForwardingTableCleaner final {
   explicit StringForwardingTableCleaner(Heap* heap)
       : heap_(heap),
         isolate_(heap_->isolate()),
-        marking_state_(heap_->non_atomic_marking_state()) {}
+        marking_state_(heap_->non_atomic_marking_state()),
+        transition_strings_(!heap_->IsGCWithStack() ||
+                            v8_flags.transition_strings_during_gc_with_stack) {}
   void Run() {
     StringForwardingTable* forwarding_table =
         isolate_->string_forwarding_table();
-    forwarding_table->IterateElements(
-        [&](StringForwardingTable::Record* record) {
-          TransitionStrings(record);
-        });
-    forwarding_table->Reset();
+    if (transition_strings_) {
+      forwarding_table->IterateElements(
+          [&](StringForwardingTable::Record* record) {
+            TransitionStrings(record);
+          });
+      forwarding_table->Reset();
+    } else {
+      // When performing GC with a stack, we conservatively assume that
+      // the GC could have been triggered by optimized code. Optimized code
+      // assumes that flat strings don't transition during GCs, so we are not
+      // allowed to transition strings to ThinString/ExternalString in that
+      // case.
+      // Instead we mark forward objects to keep them alive and update entries
+      // of evacuated objects later.
+      forwarding_table->IterateElements(
+          [&](StringForwardingTable::Record* record) {
+            MarkForwardObject(record);
+          });
+    }
   }
 
  private:
+  void MarkForwardObject(StringForwardingTable::Record* record) {
+    Object original = record->OriginalStringObject(isolate_);
+    if (!original.IsHeapObject()) {
+      DCHECK_EQ(original, StringForwardingTable::deleted_element());
+      return;
+    }
+    String original_string = String::cast(original);
+    if (marking_state_->IsBlack(original_string)) {
+      Object forward = record->ForwardStringObjectOrHash(isolate_);
+      if (!forward.IsHeapObject()) return;
+      marking_state_->WhiteToBlack(HeapObject::cast(forward));
+    } else {
+      record->DisposeUnusedExternalResource(original_string);
+      record->set_original_string(StringForwardingTable::deleted_element());
+    }
+  }
+
   void TransitionStrings(StringForwardingTable::Record* record) {
     Object original = record->OriginalStringObject(isolate_);
     if (!original.IsHeapObject()) {
-      // Only if we always use the forwarding table, the string could be a
-      // smi, indicating that the entry died during scavenge.
-      DCHECK(v8_flags.always_use_string_forwarding_table);
       DCHECK_EQ(original, StringForwardingTable::deleted_element());
       return;
     }
@@ -2942,6 +2977,7 @@ class StringForwardingTableCleaner final {
   Heap* const heap_;
   Isolate* const isolate_;
   NonAtomicMarkingState* const marking_state_;
+  bool transition_strings_;
 };
 
 }  // namespace
@@ -2953,7 +2989,8 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     TRACE_GC(heap()->tracer(),
              GCTracer::Scope::MC_CLEAR_STRING_FORWARDING_TABLE);
     // Clear string forwarding table. Live strings are transitioned to
-    // ThinStrings/ExternalStrings in the cleanup process.
+    // ThinStrings/ExternalStrings in the cleanup process, if this is a GC
+    // without stack.
     // Clearing the string forwarding table must happen before clearing the
     // string table, as entries in the forwarding table can keep internalized
     // strings alive.
@@ -5295,6 +5332,12 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
     // Update pointers from external string table.
     heap_->UpdateReferencesInExternalStringTable(
         &UpdateReferenceInExternalStringTableEntry);
+
+    // Update pointers in string forwarding table.
+    // When GC was performed without a stack, the table was cleared and this
+    // does nothing. In the case this was a GC with stack, we need to update
+    // the entries for evacuated objects.
+    isolate()->string_forwarding_table()->UpdateAfterFullEvacuation();
 
     EvacuationWeakObjectRetainer evacuation_object_retainer;
     heap()->ProcessWeakListRoots(&evacuation_object_retainer);

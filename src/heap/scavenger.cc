@@ -449,7 +449,7 @@ void ScavengerCollector::CollectGarbage() {
     }
 
     if (V8_UNLIKELY(v8_flags.always_use_string_forwarding_table)) {
-      isolate_->string_forwarding_table()->UpdateAfterEvacuation();
+      isolate_->string_forwarding_table()->UpdateAfterYoungEvacuation();
     }
   }
 
@@ -634,7 +634,9 @@ Scavenger::Scavenger(ScavengerCollector* collector, Heap* heap, bool is_logging,
       is_incremental_marking_(heap->incremental_marking()->IsMarking()),
       is_compacting_(heap->incremental_marking()->IsCompacting()),
       shared_string_table_(shared_old_allocator_.get() != nullptr),
-      mark_shared_heap_(heap->isolate()->is_shared_space_isolate()) {}
+      mark_shared_heap_(heap->isolate()->is_shared_space_isolate()),
+      shortcut_strings_(!heap->IsGCWithStack() ||
+                        v8_flags.shortcut_strings_with_stack) {}
 
 void Scavenger::IterateAndScavengePromotedObject(HeapObject target, Map map,
                                                  int size) {
