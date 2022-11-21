@@ -2268,7 +2268,7 @@ class ModuleDecoderTemplate : public Decoder {
       } else {
         tracer_.Description(" element type:");
         type = consume_value_type();
-        if (type == kWasmBottom) return {};
+        if (failed()) return {};
       }
       if (V8_UNLIKELY(is_active &&
                       !IsSubtypeOf(type, table_type, this->module_.get()))) {
