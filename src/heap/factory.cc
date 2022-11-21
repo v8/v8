@@ -3991,6 +3991,10 @@ Handle<JSSharedArray> Factory::NewJSSharedArray(Handle<JSFunction> constructor,
   Handle<JSSharedArray> instance = Handle<JSSharedArray>::cast(
       NewJSObject(constructor, AllocationType::kSharedOld));
   instance->set_elements(*storage);
+  FieldIndex index = FieldIndex::ForDescriptor(
+      constructor->initial_map(),
+      InternalIndex(JSSharedArray::kLengthFieldIndex));
+  instance->FastPropertyAtPut(index, Smi::FromInt(length), SKIP_WRITE_BARRIER);
   return instance;
 }
 

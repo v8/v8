@@ -88,7 +88,7 @@
   let shared_array = new SharedArray(2);
   shared_array[0] = 42;
 
-  assertArrayEquals(shared_array.length, 10);
+  assertEquals(2, shared_array.length);
 
   let propDescs = Object.getOwnPropertyDescriptors(shared_array);
   let desc = propDescs[0];
