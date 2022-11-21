@@ -2111,7 +2111,7 @@ bool MaglevGraphBuilder::TryBuildElementAccessOnString(
 
   ValueNode* length = AddNewNode<StringLength>({object});
   ValueNode* index = GetInt32ElementIndex(index_object);
-  AddNewNode<CheckInt32Condition>({index, length}, AssertCondition::kLess,
+  AddNewNode<CheckInt32Condition>({index, length}, AssertCondition::kBelow,
                                   DeoptimizeReason::kOutOfBounds);
 
   SetAccumulator(AddNewNode<StringAt>({object, index}));
@@ -2940,7 +2940,7 @@ ValueNode* MaglevGraphBuilder::TryReduceStringPrototypeCharCodeAt(
   BuildCheckString(receiver);
   // And index is below length.
   ValueNode* length = AddNewNode<StringLength>({receiver});
-  AddNewNode<CheckInt32Condition>({index, length}, AssertCondition::kLess,
+  AddNewNode<CheckInt32Condition>({index, length}, AssertCondition::kBelow,
                                   DeoptimizeReason::kOutOfBounds);
   return AddNewNode<BuiltinStringPrototypeCharCodeAt>({receiver, index});
 }

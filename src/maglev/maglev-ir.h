@@ -3132,14 +3132,35 @@ class CreateClosure : public FixedInputValueNodeT<1, CreateClosure> {
   const bool pretenured_;
 };
 
+#define ASSERT_CONDITION(V) \
+  V(Less)                   \
+  V(LessOrEqual)            \
+  V(Greater)                \
+  V(GeaterOrEqual)          \
+  V(Below)                  \
+  V(BelowOrEqual)           \
+  V(Above)                  \
+  V(AboveOrEqual)           \
+  V(Equal)                  \
+  V(NotEqual)
+
 enum class AssertCondition {
-  kLess,
-  kLessOrEqual,
-  kGreater,
-  kGeaterOrEqual,
-  kEqual,
-  kNotEqual,
+#define D(Name) k##Name,
+  ASSERT_CONDITION(D)
+#undef D
 };
+
+inline std::ostream& operator<<(std::ostream& os, const AssertCondition cond) {
+  switch (cond) {
+#define CASE(Name)               \
+  case AssertCondition::k##Name: \
+    os << #Name;                 \
+    break;
+    ASSERT_CONDITION(CASE)
+#undef CASE
+  }
+  return os;
+}
 
 class AssertInt32 : public FixedInputNodeT<2, AssertInt32> {
   using Base = FixedInputNodeT<2, AssertInt32>;

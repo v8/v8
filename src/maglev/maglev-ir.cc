@@ -1045,35 +1045,19 @@ Condition ToCondition(AssertCondition cond) {
       return greater;
     case AssertCondition::kGeaterOrEqual:
       return greater_equal;
+    case AssertCondition::kBelow:
+      return below;
+    case AssertCondition::kBelowOrEqual:
+      return below_equal;
+    case AssertCondition::kAbove:
+      return above;
+    case AssertCondition::kAboveOrEqual:
+      return above_equal;
     case AssertCondition::kEqual:
       return equal;
     case AssertCondition::kNotEqual:
       return not_equal;
   }
-}
-
-std::ostream& operator<<(std::ostream& os, const AssertCondition cond) {
-  switch (cond) {
-    case AssertCondition::kLess:
-      os << "Less";
-      break;
-    case AssertCondition::kLessOrEqual:
-      os << "LessOrEqual";
-      break;
-    case AssertCondition::kGreater:
-      os << "Greater";
-      break;
-    case AssertCondition::kGeaterOrEqual:
-      os << "GeaterOrEqual";
-      break;
-    case AssertCondition::kEqual:
-      os << "Equal";
-      break;
-    case AssertCondition::kNotEqual:
-      os << "NotEqual";
-      break;
-  }
-  return os;
 }
 }  // namespace
 
