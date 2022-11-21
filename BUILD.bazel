@@ -3557,12 +3557,14 @@ v8_mksnapshot(
 cc_library(
     name = "icu/generated_torque_headers",
     hdrs = [":icu/generated_torque_files"],
+    copts = ["-Wno-implicit-fallthrough"],
     strip_include_prefix = "icu",
 )
 
 cc_library(
     name = "noicu/generated_torque_headers",
     hdrs = [":noicu/generated_torque_files"],
+    copts = ["-Wno-implicit-fallthrough"],
     strip_include_prefix = "noicu",
 )
 
@@ -3572,6 +3574,7 @@ v8_library(
         ":v8_libbase_files",
         ":v8_shared_internal_headers",
     ],
+    copts = ["-Wno-implicit-fallthrough"],
 )
 
 cc_library(
@@ -3580,6 +3583,7 @@ cc_library(
         "src/torque/kythe-data.h",
         "src/torque/torque-compiler.h",
     ],
+    copts = ["-Wno-implicit-fallthrough"],
     include_prefix = "third_party/v8",
     includes = ["."],
 )
@@ -3589,7 +3593,7 @@ cc_library(
     srcs = [
         ":torque_base_files",
     ],
-    copts = select({
+    copts = ["-Wno-implicit-fallthrough"] + select({
         "@v8//bazel/config:is_posix": ["-fexceptions"],
         "//conditions:default": [],
     }),
@@ -3606,6 +3610,7 @@ v8_library(
         ":v8_base_without_compiler_files",
         ":v8_common_libshared_files",
     ],
+    copts = ["-Wno-implicit-fallthrough"],
     icu_deps = [
         ":icu/generated_torque_headers",
         "//external:icu",
@@ -3631,6 +3636,7 @@ v8_library(
     name = "v8",
     srcs = [":v8_inspector_files"],
     hdrs = [":public_header_files"],
+    copts = ["-Wno-implicit-fallthrough"],
     icu_deps = [":icu/v8_libshared"],
     icu_srcs = [":icu/snapshot_files"],
     noicu_deps = [":noicu/v8_libshared"],
@@ -3643,6 +3649,7 @@ v8_library(
     name = "wee8",
     srcs = [":wee8_files"],
     hdrs = [":public_wasm_c_api_header_files"],
+    copts = ["-Wno-implicit-fallthrough"],
     strip_include_prefix = "third_party",
     visibility = ["//visibility:public"],
     deps = [":noicu/v8"],
@@ -3672,6 +3679,7 @@ v8_binary(
         "src/interpreter/bytecodes.cc",
         "src/interpreter/bytecodes.h",
     ],
+    copts = ["-Wno-implicit-fallthrough"],
     deps = ["v8_libbase"],
 )
 
@@ -3683,6 +3691,7 @@ v8_binary(
         ":v8_libbase_files",
         ":v8_shared_internal_headers",
     ],
+    copts = ["-Wno-implicit-fallthrough"],
     defines = [
         "V8_INTL_SUPPORT",
         "ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_STATIC",
@@ -3701,7 +3710,7 @@ v8_binary(
         "src/torque/torque.cc",
         ":torque_base_files",
     ],
-    copts = select({
+    copts = ["-Wno-implicit-fallthrough"] + select({
         "@v8//bazel/config:is_posix": ["-fexceptions"],
         "//conditions:default": [],
     }),
@@ -3716,6 +3725,7 @@ v8_binary(
 v8_binary(
     name = "mksnapshot",
     srcs = [":mksnapshot_files"],
+    copts = ["-Wno-implicit-fallthrough"],
     icu_deps = [":icu/v8_libshared"],
     linkopts = select({
         "@v8//bazel/config:is_android": ["-llog"],
@@ -3727,6 +3737,7 @@ v8_binary(
 v8_binary(
     name = "d8",
     srcs = [":d8_files"],
+    copts = ["-Wno-implicit-fallthrough"],
     icu_deps = [":icu/v8"],
     noicu_deps = [":noicu/v8"],
 )
