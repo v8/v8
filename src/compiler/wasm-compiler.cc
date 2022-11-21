@@ -355,7 +355,9 @@ void WasmGraphBuilder::StackCheck(
 
   Node* limit_address =
       LOAD_INSTANCE_FIELD(StackLimitAddress, MachineType::Pointer());
-  Node* limit = gasm_->LoadFromObject(MachineType::Pointer(), limit_address, 0);
+  // Since the limit can be mutated by a trap handler, we cannot use load
+  // elimination.
+  Node* limit = gasm_->Load(MachineType::Pointer(), limit_address, 0);
 
   Node* check = SetEffect(graph()->NewNode(
       mcgraph()->machine()->StackPointerGreaterThan(StackCheckKind::kWasm),
