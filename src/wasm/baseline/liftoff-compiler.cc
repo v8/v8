@@ -1691,6 +1691,26 @@ class LiftoffCompiler {
     __ PushRegister(dst_kind, dst);
   }
 
+  void EmitIsNull(WasmOpcode opcode) {
+    LiftoffRegList pinned;
+    LiftoffRegister ref = pinned.set(__ PopToRegister());
+    LiftoffRegister null = __ GetUnusedRegister(kGpReg, pinned);
+    LoadNullValueForCompare(null.gp(), pinned);
+    // Prefer to overwrite one of the input registers with the result
+    // of the comparison.
+    LiftoffRegister dst = __ GetUnusedRegister(kGpReg, {ref, null}, {});
+#if defined(V8_COMPRESS_POINTERS)
+    // As the value in the {null} register is only the tagged pointer part,
+    // we may only compare 32 bits, not the full pointer size.
+    __ emit_i32_set_cond(opcode == kExprRefIsNull ? kEqual : kUnequal, dst.gp(),
+                         ref.gp(), null.gp());
+#else
+    __ emit_ptrsize_set_cond(opcode == kExprRefIsNull ? kEqual : kUnequal,
+                             dst.gp(), ref, null);
+#endif
+    __ PushRegister(kI32, dst);
+  }
+
   void UnOp(FullDecoder* decoder, WasmOpcode opcode, const Value& value,
             Value* result) {
 #define CASE_I32_UNOP(opcode, fn) \
@@ -1819,26 +1839,8 @@ class LiftoffCompiler {
       case kExprRefIsNull:
       // We abuse ref.as_non_null, which isn't otherwise used in this switch, as
       // a sentinel for the negation of ref.is_null.
-      case kExprRefAsNonNull: {
-        LiftoffRegList pinned;
-        LiftoffRegister ref = pinned.set(__ PopToRegister());
-        LiftoffRegister null = __ GetUnusedRegister(kGpReg, pinned);
-        LoadNullValueForCompare(null.gp(), pinned);
-        // Prefer to overwrite one of the input registers with the result
-        // of the comparison.
-        LiftoffRegister dst = __ GetUnusedRegister(kGpReg, {ref, null}, {});
-#if defined(V8_COMPRESS_POINTERS)
-        // As the value in the {null} register is only the tagged pointer part,
-        // we may only compare 32 bits, not the full pointer size.
-        __ emit_i32_set_cond(opcode == kExprRefIsNull ? kEqual : kUnequal,
-                             dst.gp(), ref.gp(), null.gp());
-#else
-        __ emit_ptrsize_set_cond(opcode == kExprRefIsNull ? kEqual : kUnequal,
-                                 dst.gp(), ref, null);
-#endif
-        __ PushRegister(kI32, dst);
-        return;
-      }
+      case kExprRefAsNonNull:
+        return EmitIsNull(opcode);
       case kExprExternInternalize: {
         LiftoffAssembler::VarState input_state =
             __ cache_state()->stack_state.back();
@@ -6010,6 +6012,11 @@ class LiftoffCompiler {
         return RefIsStruct(decoder, obj, result_val, null_succeeds);
       case HeapType::kArray:
         return RefIsArray(decoder, obj, result_val, null_succeeds);
+      case HeapType::kNone:
+      case HeapType::kNoExtern:
+      case HeapType::kNoFunc:
+        DCHECK(null_succeeds);
+        return EmitIsNull(kExprRefIsNull);
       case HeapType::kAny:
         // Any may never need a cast as it is either implicitly convertible or
         // never convertible for any given type.
@@ -6056,6 +6063,11 @@ class LiftoffCompiler {
         return RefAsStruct(decoder, obj, result_val, null_succeeds);
       case HeapType::kArray:
         return RefAsArray(decoder, obj, result_val, null_succeeds);
+      case HeapType::kNone:
+      case HeapType::kNoExtern:
+      case HeapType::kNoFunc:
+        DCHECK(null_succeeds);
+        return AssertNull(decoder, obj, result_val);
       case HeapType::kAny:
         // Any may never need a cast as it is either implicitly convertible or
         // never convertible for any given type.

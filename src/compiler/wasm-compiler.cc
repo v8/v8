@@ -5611,6 +5611,11 @@ Node* WasmGraphBuilder::RefTestAbstract(Node* object, wasm::HeapType type,
       return RefIsStruct(object, is_nullable, null_succeeds);
     case wasm::HeapType::kArray:
       return RefIsArray(object, is_nullable, null_succeeds);
+    case wasm::HeapType::kNone:
+    case wasm::HeapType::kNoExtern:
+    case wasm::HeapType::kNoFunc:
+      DCHECK(null_succeeds);
+      return IsNull(object);
     case wasm::HeapType::kAny:
       // Any may never need a cast as it is either implicitly convertible or
       // never convertible for any given type.
@@ -5639,6 +5644,13 @@ Node* WasmGraphBuilder::RefCastAbstract(Node* object, wasm::HeapType type,
       return RefAsStruct(object, is_nullable, position, null_succeeds);
     case wasm::HeapType::kArray:
       return RefAsArray(object, is_nullable, position, null_succeeds);
+    case wasm::HeapType::kNone:
+    case wasm::HeapType::kNoExtern:
+    case wasm::HeapType::kNoFunc: {
+      DCHECK(null_succeeds);
+      TrapIfFalse(wasm::kTrapIllegalCast, IsNull(object), position);
+      return object;
+    }
     case wasm::HeapType::kAny:
       // Any may never need a cast as it is either implicitly convertible or
       // never convertible for any given type.
