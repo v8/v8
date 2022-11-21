@@ -310,18 +310,11 @@ IS_SPECIAL_WITH_ALLOW_LIST = merge_regexp({
 })
 
 
-class GCSuspectsCollector:
+class CallGraph:
 
-  def __init__(self, options):
-    self.gc = {}
-    self.gc_caused = collections.defaultdict(lambda: set())
-    self.funcs = {}
+  def __init__(self):
+    self.funcs = collections.defaultdict(set)
     self.current_caller = None
-    self.allowlist = options.allowlist
-    self.is_special = IS_SPECIAL_WITH_ALLOW_LIST if self.allowlist else IS_SPECIAL_WITHOUT_ALLOW_LIST
-
-  def add_cause(self, name, cause):
-    self.gc_caused[name].add(cause)
 
   def parse(self, lines):
     for funcname in lines:
@@ -329,52 +322,70 @@ class GCSuspectsCollector:
         continue
 
       if funcname[0] != "\t":
-        self.resolve(funcname)
+        # Always inserting the current caller makes the serialized version
+        # more compact.
+        self.funcs[funcname]
         self.current_caller = funcname
       else:
-        name = funcname[1:]
-        callers_for_name = self.resolve(name)
-        callers_for_name.add(self.current_caller)
+        self.funcs[funcname[1:]].add(self.current_caller)
+
+
+class GCSuspectsCollector:
+
+  def __init__(self, options, funcs):
+    self.gc = {}
+    self.gc_caused = collections.defaultdict(set)
+    self.funcs = funcs
+    if options.allowlist:
+      self.is_special = IS_SPECIAL_WITH_ALLOW_LIST
+    else:
+      self.is_special = IS_SPECIAL_WITHOUT_ALLOW_LIST
+
+  def add_cause(self, name, cause):
+    self.gc_caused[name].add(cause)
 
   def resolve(self, name):
-    if name not in self.funcs:
-      self.funcs[name] = set()
-      m = self.is_special.search(name)
-      if m:
-        if m.group("gc"):
-          self.gc[name] = True
-          self.add_cause(name, "<GC>")
-        elif m.group("safepoint"):
-          self.gc[name] = True
-          self.add_cause(name, "<Safepoint>")
-        elif m.group("allow"):
-          self.gc[name] = False
+    m = self.is_special.search(name)
+    if not m:
+      return
 
-    return self.funcs[name]
+    if m.group("gc"):
+      self.gc[name] = True
+      self.add_cause(name, "<GC>")
+    elif m.group("safepoint"):
+      self.gc[name] = True
+      self.add_cause(name, "<Safepoint>")
+    elif m.group("allow"):
+      self.gc[name] = False
 
   def propagate(self):
     log("Propagating GC information")
 
-    def mark(funcname, callers):
-      for caller in callers:
+    def mark(funcname):
+      for caller in self.funcs[funcname]:
         if caller not in self.gc:
           self.gc[caller] = True
-          mark(caller, self.funcs[caller])
+          mark(caller)
         self.add_cause(caller, funcname)
 
-    for funcname, callers in list(self.funcs.items()):
+    for funcname in self.funcs:
+      self.resolve(funcname)
+
+    for funcname in self.funcs:
       if self.gc.get(funcname, False):
-        mark(funcname, callers)
+        mark(funcname)
 
 
 def generate_gc_suspects(files, options):
   # Reset the global state.
-  collector = GCSuspectsCollector(options)
+  call_graph = CallGraph()
 
   log("Building GC Suspects for {}", options.v8_target_cpu)
   for _, stdout, _ in invoke_clang_plugin_for_each_file(files, "dump-callees",
                                                         [], options):
-    collector.parse(stdout.splitlines())
+    call_graph.parse(stdout.splitlines())
+
+  collector = GCSuspectsCollector(options, call_graph.funcs)
   collector.propagate()
   # TODO(cbruni): remove once gcmole.cc is migrated
   write_gcmole_results(collector, options, options.v8_root_dir)

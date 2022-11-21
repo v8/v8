@@ -97,12 +97,39 @@ class OutputLines:
 
 class SuspectCollectorTest(unittest.TestCase):
 
+  def create_callgraph(self, *outputs):
+    call_graph = gcmole.CallGraph()
+    for output in outputs:
+      call_graph.parse(output.lines())
+    return call_graph
+
+  def testCallGraph(self):
+    call_graph = self.create_callgraph(OutputLines())
+    self.assertDictEqual(call_graph.funcs, {})
+
+    call_graph = self.create_callgraph(OutputLines('A →'))
+    self.assertDictEqual(call_graph.funcs, {'A': set()})
+
+    call_graph = self.create_callgraph(OutputLines('A → B'))
+    self.assertDictEqual(call_graph.funcs, {'A': set(), 'B': set('A')})
+
+    call_graph = self.create_callgraph(
+        OutputLines('A → B C', 'B → C D', 'D →'))
+    self.assertDictEqual(
+        call_graph.funcs,
+        {'A': set(), 'B': set('A'), 'C': set(['A', 'B']), 'D': set('B')})
+
+    call_graph = self.create_callgraph(
+        OutputLines('B → C D', 'D →'), OutputLines('A → B C'))
+    self.assertDictEqual(
+        call_graph.funcs,
+        {'A': set(), 'B': set('A'), 'C': set(['A', 'B']), 'D': set('B')})
+
   def create_collector(self, outputs):
     Options = collections.namedtuple('OptionsForCollector', ['allowlist'])
     options = Options(True)
-    collector = gcmole.GCSuspectsCollector(options)
-    for output in outputs:
-      collector.parse(output.lines())
+    call_graph = self.create_callgraph(*outputs)
+    collector = gcmole.GCSuspectsCollector(options, call_graph.funcs)
     collector.propagate()
     return collector
 
