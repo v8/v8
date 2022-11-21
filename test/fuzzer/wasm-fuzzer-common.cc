@@ -790,15 +790,11 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   }
   // Note: After dividing by 3 for 4 times, configuration_byte is within [0, 3].
 
-// Control whether Liftoff or the interpreter will be used as the reference
-// tier.
-// TODO(thibaudm): Port nondeterminism detection to arm.
-#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_X86) || \
-    defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_ARM)
-  bool liftoff_as_reference = configuration_byte & 1;
-#else
-  bool liftoff_as_reference = false;
-#endif
+  // Control whether Liftoff or the interpreter will be used as the reference
+  // tier.
+  bool liftoff_as_reference =
+      v8_flags.experimental_wasm_gc || (configuration_byte & 1);
+
   FlagScope<bool> turbo_mid_tier_regalloc(
       &v8_flags.turbo_force_mid_tier_regalloc, configuration_byte == 0);
 
