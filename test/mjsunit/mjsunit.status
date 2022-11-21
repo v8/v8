@@ -1353,6 +1353,7 @@
   # Type assertions block the propagation of word64 truncation useinfo,
   # leading to differences in representation selection.
   'compiler/bigint-multiply-truncate': [SKIP],
+  'compiler/bigint-shift-left': [SKIP],
   'wasm/bigint-opt': [SKIP]
 }],  # variant == assert_types
 

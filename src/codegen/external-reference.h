@@ -207,6 +207,11 @@ class StatsCounter;
     "MutableBigInt_BitwiseXorNegNegAndCanonicalize")                           \
   V(mutable_big_int_bitwise_xor_pn_and_canonicalize_function,                  \
     "MutableBigInt_BitwiseXorPosNegAndCanonicalize")                           \
+  V(mutable_big_int_left_shift_and_canonicalize_function,                      \
+    "MutableBigInt_LeftShiftAndCanonicalize")                                  \
+  V(big_int_right_shift_result_length_function, "RightShiftResultLength")      \
+  V(mutable_big_int_right_shift_and_canonicalize_function,                     \
+    "MutableBigInt_RightShiftAndCanonicalize")                                 \
   V(new_deoptimizer_function, "Deoptimizer::New()")                            \
   V(orderedhashmap_gethash_raw, "orderedhashmap_gethash_raw")                  \
   V(printf_function, "printf")                                                 \

@@ -942,14 +942,36 @@ TNode<Object> BinaryOpAssembler::Generate_BitwiseBinaryOpWithOptionalFeedback(
           ThrowRangeError(context(), MessageTemplate::kBigIntTooBig);
           break;
         }
-        case Operation::kShiftLeft:
+        case Operation::kShiftLeft: {
+          result =
+              CallBuiltin(Builtin::kBigIntShiftLeftNoThrow, context(),
+                          var_left_bigint.value(), var_right_bigint.value());
+          // Check for sentinel that signals BigIntTooBig exception.
+          GotoIfNot(TaggedIsSmi(result.value()), &done);
+
+          if (slot) {
+            // Update feedback to prevent deopt loop.
+            UpdateFeedback(SmiConstant(BinaryOperationFeedback::kAny),
+                           (*maybe_feedback_vector)(), *slot,
+                           update_feedback_mode);
+          }
+          ThrowRangeError(context(), MessageTemplate::kBigIntTooBig);
+          break;
+        }
         case Operation::kShiftRight: {
-          // TODO(panq): replace the runtime with builtin once it is
-          // implemented.
-          result = CallRuntime(
-              Runtime::kBigIntBinaryOp, context(), var_left_bigint.value(),
-              var_right_bigint.value(), SmiConstant(bitwise_op));
-          Goto(&done);
+          result =
+              CallBuiltin(Builtin::kBigIntShiftRightNoThrow, context(),
+                          var_left_bigint.value(), var_right_bigint.value());
+          // Check for sentinel that signals BigIntTooBig exception.
+          GotoIfNot(TaggedIsSmi(result.value()), &done);
+
+          if (slot) {
+            // Update feedback to prevent deopt loop.
+            UpdateFeedback(SmiConstant(BinaryOperationFeedback::kAny),
+                           (*maybe_feedback_vector)(), *slot,
+                           update_feedback_mode);
+          }
+          ThrowRangeError(context(), MessageTemplate::kBigIntTooBig);
           break;
         }
         case Operation::kShiftRightLogical: {
@@ -1022,7 +1044,7 @@ BinaryOpAssembler::Generate_BitwiseBinaryOpWithSmiOperandAndOptionalFeedback(
     TNode<HeapObject> left_pointer = CAST(left);
     TaggedPointerToWord32OrBigIntWithFeedback(
         context(), left_pointer, &do_number_op, &var_left_word32,
-        &if_bigint_mix, &if_bigint_mix, &var_left_bigint, &var_left_feedback);
+        &if_bigint_mix, nullptr, &var_left_bigint, &var_left_feedback);
     BIND(&do_number_op);
     {
       result =
@@ -1040,9 +1062,8 @@ BinaryOpAssembler::Generate_BitwiseBinaryOpWithSmiOperandAndOptionalFeedback(
     {
       if (slot) {
         // Ensure that the feedback is updated before we throw.
-        feedback = var_left_feedback.value();
-        UpdateFeedback(feedback.value(), (*maybe_feedback_vector)(), *slot,
-                       update_feedback_mode);
+        UpdateFeedback(SmiConstant(BinaryOperationFeedback::kAny),
+                       (*maybe_feedback_vector)(), *slot, update_feedback_mode);
       }
       ThrowTypeError(context(), MessageTemplate::kBigIntMixedTypes);
     }

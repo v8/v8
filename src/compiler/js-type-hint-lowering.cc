@@ -173,6 +173,10 @@ class JSSpeculativeBinopBuilder final {
         return simplified()->SpeculativeBigIntBitwiseOr(hint);
       case IrOpcode::kJSBitwiseXor:
         return simplified()->SpeculativeBigIntBitwiseXor(hint);
+      case IrOpcode::kJSShiftLeft:
+        return simplified()->SpeculativeBigIntShiftLeft(hint);
+      case IrOpcode::kJSShiftRight:
+        return simplified()->SpeculativeBigIntShiftRight(hint);
       default:
         break;
     }
@@ -425,7 +429,9 @@ JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceBinaryOperation(
           op->opcode() == IrOpcode::kJSModulus ||
           op->opcode() == IrOpcode::kJSBitwiseAnd ||
           op->opcode() == IrOpcode::kJSBitwiseOr ||
-          op->opcode() == IrOpcode::kJSBitwiseXor) {
+          op->opcode() == IrOpcode::kJSBitwiseXor ||
+          op->opcode() == IrOpcode::kJSShiftLeft ||
+          op->opcode() == IrOpcode::kJSShiftRight) {
         if (Node* node = b.TryBuildBigIntBinop()) {
           return LoweringResult::SideEffectFree(node, node, control);
         }

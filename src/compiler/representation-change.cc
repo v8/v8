@@ -1419,6 +1419,10 @@ const Operator* RepresentationChanger::BigIntOperatorFor(
       return simplified()->BigIntBitwiseOr();
     case IrOpcode::kSpeculativeBigIntBitwiseXor:
       return simplified()->BigIntBitwiseXor();
+    case IrOpcode::kSpeculativeBigIntShiftLeft:
+      return simplified()->BigIntShiftLeft();
+    case IrOpcode::kSpeculativeBigIntShiftRight:
+      return simplified()->BigIntShiftRight();
     default:
       UNREACHABLE();
   }

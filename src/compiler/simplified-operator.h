@@ -792,6 +792,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* BigIntBitwiseAnd();
   const Operator* BigIntBitwiseOr();
   const Operator* BigIntBitwiseXor();
+  const Operator* BigIntShiftLeft();
+  const Operator* BigIntShiftRight();
   const Operator* BigIntNegate();
 
   const Operator* SpeculativeSafeIntegerAdd(NumberOperationHint hint);
@@ -822,6 +824,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* SpeculativeBigIntBitwiseAnd(BigIntOperationHint hint);
   const Operator* SpeculativeBigIntBitwiseOr(BigIntOperationHint hint);
   const Operator* SpeculativeBigIntBitwiseXor(BigIntOperationHint hint);
+  const Operator* SpeculativeBigIntShiftLeft(BigIntOperationHint hint);
+  const Operator* SpeculativeBigIntShiftRight(BigIntOperationHint hint);
   const Operator* SpeculativeBigIntNegate(BigIntOperationHint hint);
   const Operator* SpeculativeBigIntAsIntN(int bits,
                                           const FeedbackSource& feedback);

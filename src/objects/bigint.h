@@ -62,6 +62,13 @@ void MutableBigInt_BitwiseXorNegNegAndCanonicalize(Address result_addr,
 void MutableBigInt_BitwiseXorPosNegAndCanonicalize(Address result_addr,
                                                    Address x_addr,
                                                    Address y_addr);
+void MutableBigInt_LeftShiftAndCanonicalize(Address result_addr, Address x_addr,
+                                            intptr_t shift);
+uint32_t RightShiftResultLength(Address x_addr, uint32_t x_sign,
+                                intptr_t shift);
+void MutableBigInt_RightShiftAndCanonicalize(Address result_addr,
+                                             Address x_addr, intptr_t shift,
+                                             uint32_t must_round_down);
 
 class BigInt;
 class ValueDeserializer;

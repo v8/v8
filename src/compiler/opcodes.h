@@ -355,7 +355,9 @@
   V(BigIntModulus)                      \
   V(BigIntBitwiseAnd)                   \
   V(BigIntBitwiseOr)                    \
-  V(BigIntBitwiseXor)
+  V(BigIntBitwiseXor)                   \
+  V(BigIntShiftLeft)                    \
+  V(BigIntShiftRight)
 
 #define SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(V) \
   V(SpeculativeNumberAdd)                           \
@@ -528,7 +530,9 @@
   V(SpeculativeBigIntModulus)                       \
   V(SpeculativeBigIntBitwiseAnd)                    \
   V(SpeculativeBigIntBitwiseOr)                     \
-  V(SpeculativeBigIntBitwiseXor)
+  V(SpeculativeBigIntBitwiseXor)                    \
+  V(SpeculativeBigIntShiftLeft)                     \
+  V(SpeculativeBigIntShiftRight)
 
 #define SIMPLIFIED_SPECULATIVE_BIGINT_UNOP_LIST(V) \
   V(SpeculativeBigIntAsIntN)                       \

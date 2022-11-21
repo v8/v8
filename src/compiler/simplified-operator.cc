@@ -551,7 +551,9 @@ BigIntOperationHint BigIntOperationHintOf(const Operator* op) {
          op->opcode() == IrOpcode::kSpeculativeBigIntModulus ||
          op->opcode() == IrOpcode::kSpeculativeBigIntBitwiseAnd ||
          op->opcode() == IrOpcode::kSpeculativeBigIntBitwiseOr ||
-         op->opcode() == IrOpcode::kSpeculativeBigIntBitwiseXor);
+         op->opcode() == IrOpcode::kSpeculativeBigIntBitwiseXor ||
+         op->opcode() == IrOpcode::kSpeculativeBigIntShiftLeft ||
+         op->opcode() == IrOpcode::kSpeculativeBigIntShiftRight);
   return OpParameter<BigIntOperationHint>(op);
 }
 
@@ -815,6 +817,8 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(BigIntBitwiseAnd, Operator::kNoProperties, 2, 1)      \
   V(BigIntBitwiseOr, Operator::kNoProperties, 2, 1)       \
   V(BigIntBitwiseXor, Operator::kNoProperties, 2, 1)      \
+  V(BigIntShiftLeft, Operator::kNoProperties, 2, 1)       \
+  V(BigIntShiftRight, Operator::kNoProperties, 2, 1)      \
   V(StringCharCodeAt, Operator::kNoProperties, 2, 1)      \
   V(StringCodePointAt, Operator::kNoProperties, 2, 1)     \
   V(StringFromCodePointAt, Operator::kNoProperties, 2, 1) \

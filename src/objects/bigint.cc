@@ -1305,6 +1305,7 @@ Handle<BigInt> MutableBigInt::RightShiftByMaximum(Isolate* isolate, bool sign) {
 Maybe<BigInt::digit_t> MutableBigInt::ToShiftAmount(Handle<BigIntBase> x) {
   if (x->length() > 1) return Nothing<digit_t>();
   digit_t value = x->digit(0);
+  // The Torque builtin also depends on the assertion.
   static_assert(kMaxLengthBits < std::numeric_limits<digit_t>::max());
   if (value > kMaxLengthBits) return Nothing<digit_t>();
   return Just(value);
@@ -1802,6 +1803,38 @@ void MutableBigInt_BitwiseXorPosNegAndCanonicalize(Address result_addr,
   MutableBigInt result = MutableBigInt::cast(Object(result_addr));
 
   bigint::BitwiseXor_PosNeg(GetRWDigits(result), GetDigits(x), GetDigits(y));
+  MutableBigInt::Canonicalize(result);
+}
+
+void MutableBigInt_LeftShiftAndCanonicalize(Address result_addr, Address x_addr,
+                                            intptr_t shift) {
+  BigInt x = BigInt::cast(Object(x_addr));
+  MutableBigInt result = MutableBigInt::cast(Object(result_addr));
+
+  bigint::LeftShift(GetRWDigits(result), GetDigits(x), shift);
+  MutableBigInt::Canonicalize(result);
+}
+
+uint32_t RightShiftResultLength(Address x_addr, uint32_t x_sign,
+                                intptr_t shift) {
+  BigInt x = BigInt::cast(Object(x_addr));
+  bigint::RightShiftState state;
+  int length =
+      bigint::RightShift_ResultLength(GetDigits(x), x_sign, shift, &state);
+  // {length} should be non-negative and fit in 30 bits.
+  DCHECK_EQ(length >> BigInt::kLengthFieldBits, 0);
+  return (static_cast<uint32_t>(state.must_round_down)
+          << BigInt::kLengthFieldBits) |
+         length;
+}
+
+void MutableBigInt_RightShiftAndCanonicalize(Address result_addr,
+                                             Address x_addr, intptr_t shift,
+                                             uint32_t must_round_down) {
+  BigInt x = BigInt::cast(Object(x_addr));
+  MutableBigInt result = MutableBigInt::cast(Object(result_addr));
+  bigint::RightShiftState state{must_round_down == 1};
+  bigint::RightShift(GetRWDigits(result), GetDigits(x), shift, state);
   MutableBigInt::Canonicalize(result);
 }
 

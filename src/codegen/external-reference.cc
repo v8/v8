@@ -1163,6 +1163,15 @@ FUNCTION_REFERENCE(mutable_big_int_bitwise_xor_nn_and_canonicalize_function,
 FUNCTION_REFERENCE(mutable_big_int_bitwise_xor_pn_and_canonicalize_function,
                    MutableBigInt_BitwiseXorPosNegAndCanonicalize)
 
+FUNCTION_REFERENCE(mutable_big_int_left_shift_and_canonicalize_function,
+                   MutableBigInt_LeftShiftAndCanonicalize)
+
+FUNCTION_REFERENCE(big_int_right_shift_result_length_function,
+                   RightShiftResultLength)
+
+FUNCTION_REFERENCE(mutable_big_int_right_shift_and_canonicalize_function,
+                   MutableBigInt_RightShiftAndCanonicalize)
+
 FUNCTION_REFERENCE(check_object_type, CheckObjectType)
 
 #ifdef V8_INTL_SUPPORT

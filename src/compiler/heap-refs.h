@@ -679,6 +679,7 @@ class BigIntRef : public HeapObjectRef {
   Handle<BigInt> object() const;
 
   uint64_t AsUint64() const;
+  int64_t AsInt64(bool* lossless) const;
 };
 
 class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
