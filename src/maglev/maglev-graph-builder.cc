@@ -4683,8 +4683,10 @@ void MaglevGraphBuilder::VisitSuspendGenerator() {
 
   int input_count = parameter_count_without_receiver() + args.register_count() +
                     GeneratorStore::kFixedInputCount;
+  int debug_pos_offset = iterator_.current_offset() +
+                         (BytecodeArray::kHeaderSize - kHeapObjectTag);
   GeneratorStore* node = CreateNewNode<GeneratorStore>(
-      input_count, context, generator, suspend_id, iterator_.current_offset());
+      input_count, context, generator, suspend_id, debug_pos_offset);
   int arg_index = 0;
   for (int i = 1 /* skip receiver */; i < parameter_count(); ++i) {
     node->set_parameters_and_registers(arg_index++, GetTaggedArgument(i));
