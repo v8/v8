@@ -2008,12 +2008,17 @@ class EvacuateRecordOnlyVisitor final : public HeapObjectVisitor {
 #endif  // V8_COMPRESS_POINTERS
 };
 
+// static
 bool MarkCompactCollector::IsUnmarkedHeapObject(Heap* heap, FullObjectSlot p) {
   Object o = *p;
   if (!o.IsHeapObject()) return false;
   HeapObject heap_object = HeapObject::cast(o);
-  return heap->mark_compact_collector()->non_atomic_marking_state()->IsWhite(
-      heap_object);
+  MarkCompactCollector* collector = heap->mark_compact_collector();
+  if (V8_UNLIKELY(collector->uses_shared_heap_) &&
+      !collector->is_shared_heap_isolate_) {
+    if (heap_object.InSharedWritableHeap()) return false;
+  }
+  return collector->non_atomic_marking_state()->IsWhite(heap_object);
 }
 
 void MarkCompactCollector::MarkRoots(RootVisitor* root_visitor,

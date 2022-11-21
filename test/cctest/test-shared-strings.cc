@@ -1778,6 +1778,31 @@ UNINITIALIZED_TEST(ConcurrentExternalizationAndInternalizationHit) {
   TestConcurrentExternalizationAndInternalization(kTestHit);
 }
 
+UNINITIALIZED_TEST(SharedStringInGlobalHandle) {
+  if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
+
+  v8_flags.shared_string_table = true;
+
+  ExternalResourceFactory resource_factory;
+  MultiClientIsolateTest test;
+  Isolate* i_isolate = test.i_main_isolate();
+  Factory* factory = i_isolate->factory();
+
+  HandleScope handle_scope(i_isolate);
+  Handle<String> shared_string =
+      factory->NewStringFromAsciiChecked("foobar", AllocationType::kSharedOld);
+  CHECK(shared_string->InSharedWritableHeap());
+  v8::Local<v8::String> lh_shared_string =
+      Utils::Convert<String, v8::String>(shared_string);
+  v8::Global<v8::String> gh_shared_string(test.main_isolate(),
+                                          lh_shared_string);
+  gh_shared_string.SetWeak();
+
+  CcTest::CollectGarbage(OLD_SPACE, i_isolate);
+
+  CHECK(!gh_shared_string.IsEmpty());
+}
+
 }  // namespace test_shared_strings
 }  // namespace internal
 }  // namespace v8
