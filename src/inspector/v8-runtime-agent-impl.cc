@@ -709,13 +709,7 @@ Response V8RuntimeAgentImpl::getHeapUsage(double* out_usedSize,
 
 void V8RuntimeAgentImpl::terminateExecution(
     std::unique_ptr<TerminateExecutionCallback> callback) {
-  v8::HandleScope handles(m_inspector->isolate());
-  v8::Local<v8::Context> defaultContext =
-      m_inspector->client()->ensureDefaultContextInGroup(
-          m_session->contextGroupId());
-
-  m_inspector->debugger()->terminateExecution(defaultContext,
-                                              std::move(callback));
+  m_inspector->debugger()->terminateExecution(std::move(callback));
 }
 
 namespace {

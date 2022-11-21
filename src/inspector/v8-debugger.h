@@ -71,8 +71,7 @@ class V8Debugger : public v8::debug::DebugDelegate,
   void stepOverStatement(int targetContextGroupId);
   void stepOutOfFunction(int targetContextGroupId);
 
-  void terminateExecution(v8::Local<v8::Context> context,
-                          std::unique_ptr<TerminateExecutionCallback> callback);
+  void terminateExecution(std::unique_ptr<TerminateExecutionCallback> callback);
 
   Response continueToLocation(int targetContextGroupId,
                               V8DebuggerScript* script,
@@ -298,7 +297,6 @@ class V8Debugger : public v8::debug::DebugDelegate,
   std::unordered_map<int, internal::V8DebuggerId> m_contextGroupIdToDebuggerId;
 
   std::unique_ptr<TerminateExecutionCallback> m_terminateExecutionCallback;
-  v8::Global<v8::Context> m_terminateExecutionCallbackContext;
 };
 
 }  // namespace v8_inspector
