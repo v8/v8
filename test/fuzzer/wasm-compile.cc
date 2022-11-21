@@ -631,8 +631,7 @@ class WasmGenerator {
     // Emit call.
     // If the return types of the callee happen to match the return types of the
     // caller, generate a tail call.
-    // TODO(thibaudm): Re-enable when crbug.com/1269989 is fixed.
-    bool use_return_call = false;
+    bool use_return_call = random_byte > 127;
     if (use_return_call &&
         std::equal(sig->returns().begin(), sig->returns().end(),
                    builder_->signature()->returns().begin(),
