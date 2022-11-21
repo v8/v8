@@ -106,6 +106,8 @@ base::OwnedVector<Handle<Object>> MakeDefaultArguments(Isolate* isolate,
         arguments[i] = isolate->factory()->null_value();
         break;
       case kRef:
+        arguments[i] = isolate->factory()->undefined_value();
+        break;
       case kRtt:
       case kI8:
       case kI16:
