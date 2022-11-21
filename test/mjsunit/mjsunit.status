@@ -982,6 +982,13 @@
   # not possible.
   'wasm/serialization-with-compilation-hints': [SKIP],
 
+  # The test explicitly deserializes a wasm module and expects the resulting
+  # wasm module to match the serialized one. With multiple isolate the resulting
+  # wasm module can however, come from the native module cache, and therefore
+  # does not match the serialized one, e.g. some functions are not compiled with
+  # TurboFan.
+  'regress/wasm/regress-11024': [SKIP],
+
   # waitAsync tests modify the global state (across Isolates)
   'harmony/atomics-waitasync': [SKIP],
   'harmony/atomics-waitasync-1thread-2timeout': [SKIP],
