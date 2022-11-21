@@ -1071,10 +1071,16 @@ class MaglevTranslationArrayBuilder {
   void BuildEagerDeopt(EagerDeoptInfo* deopt_info) {
     int frame_count = GetFrameCount(deopt_info->top_frame());
     int jsframe_count = frame_count;
-    int update_feedback_count = 0;
+    int update_feedback_count =
+        deopt_info->feedback_to_update().IsValid() ? 1 : 0;
     deopt_info->set_translation_index(
         translation_array_builder_->BeginTranslation(frame_count, jsframe_count,
                                                      update_feedback_count));
+    if (deopt_info->feedback_to_update().IsValid()) {
+      translation_array_builder_->AddUpdateFeedback(
+          GetDeoptLiteral(*deopt_info->feedback_to_update().vector),
+          deopt_info->feedback_to_update().index());
+    }
 
     const InputLocation* current_input_location = deopt_info->input_locations();
     BuildDeoptFrame(deopt_info->top_frame(), current_input_location);
@@ -1083,10 +1089,16 @@ class MaglevTranslationArrayBuilder {
   void BuildLazyDeopt(LazyDeoptInfo* deopt_info) {
     int frame_count = GetFrameCount(deopt_info->top_frame());
     int jsframe_count = frame_count;
-    int update_feedback_count = 0;
+    int update_feedback_count =
+        deopt_info->feedback_to_update().IsValid() ? 1 : 0;
     deopt_info->set_translation_index(
         translation_array_builder_->BeginTranslation(frame_count, jsframe_count,
                                                      update_feedback_count));
+    if (deopt_info->feedback_to_update().IsValid()) {
+      translation_array_builder_->AddUpdateFeedback(
+          GetDeoptLiteral(*deopt_info->feedback_to_update().vector),
+          deopt_info->feedback_to_update().index());
+    }
 
     const InputLocation* current_input_location = deopt_info->input_locations();
 

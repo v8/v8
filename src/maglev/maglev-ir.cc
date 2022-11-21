@@ -16,6 +16,7 @@
 #include "src/codegen/x64/register-x64.h"
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction.h"
+#include "src/compiler/feedback-source.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/ic/handler-configuration.h"
@@ -259,8 +260,10 @@ size_t GetInputLocationsArraySize(const DeoptFrame& top_frame) {
 }
 }  // namespace
 
-DeoptInfo::DeoptInfo(Zone* zone, DeoptFrame top_frame)
+DeoptInfo::DeoptInfo(Zone* zone, DeoptFrame top_frame,
+                     compiler::FeedbackSource feedback_to_update)
     : top_frame_(top_frame),
+      feedback_to_update_(feedback_to_update),
       input_locations_(zone->NewArray<InputLocation>(
           GetInputLocationsArraySize(top_frame))) {
   // Initialise InputLocations so that they correctly don't have a next use id.
