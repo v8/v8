@@ -796,7 +796,16 @@ void TracedHandlesImpl::ResetDeadNodes(
 
 void TracedHandlesImpl::CheckNodeMarkingStateIsConsistent(
     bool may_find_marked_nodes, WeakSlotCallbackWithHeap should_reset_handle) {
-  DCHECK(isolate_->heap()->concurrent_marking()->IsStopped());
+  CHECK(isolate_->heap()->concurrent_marking()->IsStopped());
+  for (TracedNode* node : young_nodes_) {
+    CHECK_IMPLIES(!node->is_in_use(), !node->markbit());
+    if (!node->is_in_use()) {
+      continue;
+    }
+    CHECK_IMPLIES(node->markbit(), may_find_marked_nodes);
+    CHECK_IMPLIES(node->markbit(),
+                  !should_reset_handle(isolate_->heap(), node->location()));
+  }
   for (const auto block : blocks_) {
     for (const auto node : *block) {
       CHECK_IMPLIES(!node->is_in_use(), !node->markbit());
@@ -840,9 +849,10 @@ void TracedHandlesImpl::ProcessYoungObjects(
   for (TracedNode* node : young_nodes_) {
     if (!node->is_in_use()) continue;
 
-    DCHECK_IMPLIES(node->is_root(),
-                   !should_reset_handle(isolate_->heap(), node->location()));
+    CHECK_IMPLIES(node->is_root(),
+                  !should_reset_handle(isolate_->heap(), node->location()));
     if (should_reset_handle(isolate_->heap(), node->location())) {
+      CHECK(!is_marking_);
       v8::Value* value = ToApi<v8::Value>(node->handle());
       handler->ResetRoot(
           *reinterpret_cast<v8::TracedReference<v8::Value>*>(&value));
@@ -881,6 +891,8 @@ void TracedHandlesImpl::IterateYoung(RootVisitor* visitor) {
 void TracedHandlesImpl::IterateYoungRoots(RootVisitor* visitor) {
   for (auto* node : young_nodes_) {
     if (!node->is_in_use()) continue;
+
+    CHECK_IMPLIES(is_marking_, node->is_root());
 
     if (!node->is_root()) continue;
 

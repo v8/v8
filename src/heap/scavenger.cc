@@ -384,6 +384,11 @@ void ScavengerCollector::CollectGarbage() {
           &root_scavenge_visitor);
       isolate_->traced_handles()->IterateYoungRoots(&root_scavenge_visitor);
       scavengers[kMainThreadId]->Publish();
+      // Temporary checks for diagnosing https://crbug.com/1380114.
+      if (isolate_->heap()->incremental_marking()->IsMarking()) {
+        isolate_->traced_handles()->CheckNodeMarkingStateIsConsistent(
+            true, &MarkCompactCollector::IsUnmarkedHeapObject);
+      }
     }
     {
       // Parallel phase scavenging all copied and promoted objects.
