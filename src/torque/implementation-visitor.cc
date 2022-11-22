@@ -1171,19 +1171,28 @@ const Type* ImplementationVisitor::Visit(BlockStatement* block) {
 }
 
 const Type* ImplementationVisitor::Visit(DebugStatement* stmt) {
-#if defined(DEBUG)
-  assembler().Emit(PrintConstantStringInstruction{"halting because of '" +
-                                                  stmt->reason + "' at " +
-                                                  PositionAsString(stmt->pos)});
-#endif
-  assembler().Emit(AbortInstruction{stmt->never_continues
-                                        ? AbortInstruction::Kind::kUnreachable
-                                        : AbortInstruction::Kind::kDebugBreak});
-  if (stmt->never_continues) {
-    return TypeOracle::GetNeverType();
-  } else {
-    return TypeOracle::GetVoidType();
+  std::string reason;
+  const Type* return_type;
+  AbortInstruction::Kind kind;
+  switch (stmt->kind) {
+    case DebugStatement::Kind::kUnreachable:
+      // Use the same string as in C++ to simplify fuzzer pattern-matching.
+      reason = base::kUnreachableCodeMessage;
+      return_type = TypeOracle::GetNeverType();
+      kind = AbortInstruction::Kind::kUnreachable;
+      break;
+    case DebugStatement::Kind::kDebug:
+      reason = "debug break";
+      return_type = TypeOracle::GetVoidType();
+      kind = AbortInstruction::Kind::kDebugBreak;
+      break;
   }
+#if defined(DEBUG)
+  assembler().Emit(PrintErrorInstruction{"halting because of " + reason +
+                                         " at " + PositionAsString(stmt->pos)});
+#endif
+  assembler().Emit(AbortInstruction{kind});
+  return return_type;
 }
 
 namespace {

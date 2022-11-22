@@ -546,7 +546,9 @@ base::Optional<ParseResult> MakeDebugStatement(
     ParseResultIterator* child_results) {
   auto kind = child_results->NextAs<Identifier*>()->value;
   DCHECK(kind == "unreachable" || kind == "debug");
-  Statement* result = MakeNode<DebugStatement>(kind, kind == "unreachable");
+  Statement* result = MakeNode<DebugStatement>(
+      kind == "unreachable" ? DebugStatement::Kind::kUnreachable
+                            : DebugStatement::Kind::kDebug);
   return ParseResult{result};
 }
 
