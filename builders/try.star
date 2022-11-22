@@ -9,13 +9,10 @@ def try_builder(
         bucket = "try",
         cq_properties = CQ.NONE,
         cq_branch_properties = CQ.NONE,
-        enable_rdb = True,
         **kwargs):
     # All unspecified branch trybots are per default optional.
     if (cq_properties != CQ.NONE and cq_branch_properties == CQ.NONE):
         cq_branch_properties = CQ.OPTIONAL
-    if bucket == "try":
-        kwargs["enable_rdb"] = enable_rdb
     v8_builder(
         name = name,
         bucket = bucket,

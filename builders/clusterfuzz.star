@@ -15,6 +15,7 @@ def clusterfuzz_builder(properties, close_tree = True, use_goma = GOMA.NO, use_r
         triggering_policy = greedy_batching_of_1,
         use_goma = use_goma,
         use_remoteexec = use_remoteexec,
+        experiments = {"v8.resultdb": 100},
         **kwargs
     )
 

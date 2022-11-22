@@ -387,8 +387,10 @@ def v8_basic_builder(defaults, **kwargs):
         )
 
     defaults = defaults_dict[kwargs["bucket"]]
-    enable_rdb = kwargs.pop("enable_rdb", False)
-    if enable_rdb:
+
+    experiments = kwargs.get("experiments", {})
+    rdb_experiment = experiments.get("v8.resultdb", 0)
+    if rdb_experiment:
         resultdb_bq_table_prefix = defaults.get("resultdb_bq_table_prefix")
         kwargs["resultdb_settings"] = resultdb.settings(
             enable = True,

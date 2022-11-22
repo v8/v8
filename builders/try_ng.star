@@ -24,8 +24,7 @@ def trybot_pair(
         cq_branch_properties = CQ.OPTIONAL,
         cq_compile_only_properties = CQ.OPTIONAL,
         cq_branch_compile_only_properties = CQ.OPTIONAL,
-        experiments = None,
-        enable_rdb = True,
+        experiments = {},
         description = None,
         build_timeout = None,
         total_timeout = None,
@@ -65,7 +64,6 @@ def trybot_pair(
         cq_properties = with_cancel(cq_compile_only_properties),
         cq_branch_properties = with_cancel(cq_branch_compile_only_properties),
         in_list = "tryserver",
-        enable_rdb = True,
         experiments = experiments,
         description = description,
         **kwargs
