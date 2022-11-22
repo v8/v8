@@ -215,8 +215,6 @@ void DecodeError(Decoder* decoder, const char* str) {
 
 namespace value_type_reader {
 
-// If {module} is not null, the read index will be checked against the module's
-// type capacity.
 template <typename ValidationTag>
 HeapType read_heap_type(Decoder* decoder, const byte* pc,
                         uint32_t* const length, const WasmFeatures& enabled) {
@@ -392,8 +390,7 @@ bool ValidateHeapType(Decoder* decoder, const byte* pc,
   // A {nullptr} module is accepted if we are not validating anyway (e.g. for
   // opcode length computation).
   if (!ValidationTag::validate && module == nullptr) return true;
-  // We use capacity over size so this works mid-DecodeTypeSection.
-  if (!VALIDATE(type.ref_index() < module->types.capacity())) {
+  if (!VALIDATE(type.ref_index() < module->types.size())) {
     DecodeError<ValidationTag>(decoder, pc, "Type index %u is out of bounds",
                                type.ref_index());
     return false;

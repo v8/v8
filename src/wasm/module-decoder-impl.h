@@ -605,15 +605,6 @@ class ModuleDecoderTemplate : public Decoder {
     }
   }
 
-  bool check_supertype(uint32_t supertype) {
-    if (V8_UNLIKELY(supertype >= module_->types.size())) {
-      errorf(pc(), "type %zu: forward-declared supertype %u",
-             module_->types.size(), supertype);
-      return false;
-    }
-    return true;
-  }
-
   TypeDefinition consume_subtype_definition() {
     DCHECK(enabled_features_.has_gc());
     uint8_t kind = read_u8<Decoder::FullValidationTag>(pc(), "type kind");
@@ -629,7 +620,6 @@ class ModuleDecoderTemplate : public Decoder {
         tracer_.Description(supertype);
         tracer_.NextLine();
       }
-      if (supertype != kNoSuperType && !check_supertype(supertype)) return {};
       TypeDefinition type = consume_base_type_definition();
       type.supertype = supertype;
       return type;
@@ -644,7 +634,8 @@ class ModuleDecoderTemplate : public Decoder {
 
     // Non wasm-gc type section decoding.
     if (!enabled_features_.has_gc()) {
-      module_->types.reserve(types_count);
+      module_->types.resize(types_count);
+      module_->isorecursive_canonical_type_ids.resize(types_count);
       for (uint32_t i = 0; i < types_count; ++i) {
         TRACE("DecodeSignature[%d] module+%d\n", i,
               static_cast<int>(pc_ - start_));
@@ -660,8 +651,8 @@ class ModuleDecoderTemplate : public Decoder {
             consume_bytes(1, "function");
             const FunctionSig* sig = consume_sig(module_->signature_zone.get());
             if (!ok()) break;
-            module_->add_signature(sig, kNoSuperType);
-            type_canon->AddRecursiveGroup(module_.get(), 1);
+            module_->types[i] = {sig, kNoSuperType};
+            type_canon->AddRecursiveGroup(module_.get(), 1, i);
             break;
           }
           case kWasmArrayTypeCode:
@@ -687,22 +678,26 @@ class ModuleDecoderTemplate : public Decoder {
       if (kind == kWasmRecursiveTypeGroupCode) {
         consume_bytes(1, "rec. group definition", tracer_);
         tracer_.NextLine();
+        size_t initial_size = module_->types.size();
         uint32_t group_size =
             consume_count("recursive group size", kV8MaxWasmTypes);
-        if (module_->types.size() + group_size > kV8MaxWasmTypes) {
+        if (initial_size + group_size > kV8MaxWasmTypes) {
           errorf(pc(), "Type definition count exceeds maximum %zu",
                  kV8MaxWasmTypes);
           return;
         }
-        // Reserve space for the current recursive group, so we are
-        // allowed to reference its elements.
-        module_->types.reserve(module_->types.size() + group_size);
+        module_->types.resize(initial_size + group_size);
+        module_->isorecursive_canonical_type_ids.resize(initial_size +
+                                                        group_size);
         for (uint32_t j = 0; j < group_size; j++) {
           tracer_.TypeOffset(pc_offset());
           TypeDefinition type = consume_subtype_definition();
-          if (ok()) module_->add_type(type);
+          if (ok()) module_->types[initial_size + j] = type;
         }
-        if (ok()) type_canon->AddRecursiveGroup(module_.get(), group_size);
+        if (ok()) {
+          type_canon->AddRecursiveGroup(module_.get(), group_size,
+                                        static_cast<uint32_t>(initial_size));
+        }
       } else {
         tracer_.TypeOffset(pc_offset());
         TypeDefinition type = consume_subtype_definition();
@@ -718,16 +713,22 @@ class ModuleDecoderTemplate : public Decoder {
     for (uint32_t i = 0; ok() && i < module_->types.size(); ++i) {
       uint32_t explicit_super = module_->supertype(i);
       if (explicit_super == kNoSuperType) continue;
-      // {consume_super_type} has checked this.
-      DCHECK_LT(explicit_super, module_->types.size());
+      if (explicit_super >= module_->types.size()) {
+        errorf("type %u: supertype %u out of bounds", i, explicit_super);
+        continue;
+      }
+      if (explicit_super >= i) {
+        errorf("type %u: forward-declared supertype %u", i, explicit_super);
+        continue;
+      }
       int depth = GetSubtypingDepth(module, i);
       DCHECK_GE(depth, 0);
       if (depth > static_cast<int>(kV8MaxRttSubtypingDepth)) {
-        errorf("type %d: subtyping depth is greater than allowed", i);
+        errorf("type %u: subtyping depth is greater than allowed", i);
         continue;
       }
       if (!ValidSubtypeDefinition(i, explicit_super, module, module)) {
-        errorf("type %d has invalid explicit supertype %d", i, explicit_super);
+        errorf("type %u has invalid explicit supertype %u", i, explicit_super);
         continue;
       }
     }

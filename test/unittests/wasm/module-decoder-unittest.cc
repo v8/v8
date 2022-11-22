@@ -3345,13 +3345,36 @@ TEST_F(WasmModuleVerifyTest, OutOfBoundsTypeInType) {
   EXPECT_NOT_OK(result, "Type index 1 is out of bounds");
 }
 
-TEST_F(WasmModuleVerifyTest, ForwardSupertype) {
+TEST_F(WasmModuleVerifyTest, OutOfBoundsSupertype) {
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(gc);
+  static const byte data[] = {
+      SECTION(Type, ENTRY_COUNT(1), kWasmRecursiveTypeGroupCode, ENTRY_COUNT(1),
+              kWasmSubtypeCode, ENTRY_COUNT(1), 1,
+              WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI32Code, true)))};
+  ModuleResult result = DecodeModule(base::ArrayVector(data));
+  EXPECT_NOT_OK(result, "type 0: supertype 1 out of bounds");
+}
+
+TEST_F(WasmModuleVerifyTest, ForwardSupertypeSameType) {
   WASM_FEATURE_SCOPE(typed_funcref);
   WASM_FEATURE_SCOPE(gc);
   static const byte data[] = {
       SECTION(Type, ENTRY_COUNT(1), kWasmRecursiveTypeGroupCode, ENTRY_COUNT(1),
               kWasmSubtypeCode, ENTRY_COUNT(1), 0,
-              WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kRefCode, true)))};
+              WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI32Code, true)))};
+  ModuleResult result = DecodeModule(base::ArrayVector(data));
+  EXPECT_NOT_OK(result, "type 0: forward-declared supertype 0");
+}
+
+TEST_F(WasmModuleVerifyTest, ForwardSupertypeSameRecGroup) {
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(gc);
+  static const byte data[] = {
+      SECTION(Type, ENTRY_COUNT(1), kWasmRecursiveTypeGroupCode, ENTRY_COUNT(2),
+              kWasmSubtypeCode, ENTRY_COUNT(1), 0,
+              WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI32Code, true)),
+              WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI32Code, true)))};
   ModuleResult result = DecodeModule(base::ArrayVector(data));
   EXPECT_NOT_OK(result, "type 0: forward-declared supertype 0");
 }

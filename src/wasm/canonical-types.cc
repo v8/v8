@@ -15,11 +15,16 @@ TypeCanonicalizer* GetTypeCanonicalizer() {
 }
 
 void TypeCanonicalizer::AddRecursiveGroup(WasmModule* module, uint32_t size) {
+  AddRecursiveGroup(module, size,
+                    static_cast<uint32_t>(module->types.size() - size));
+}
+
+void TypeCanonicalizer::AddRecursiveGroup(WasmModule* module, uint32_t size,
+                                          uint32_t start_index) {
   // Multiple threads could try to register recursive groups concurrently.
   // TODO(manoskouk): Investigate if we can fine-grain the synchronization.
   base::MutexGuard mutex_guard(&mutex_);
-  DCHECK_GE(module->types.size(), size);
-  uint32_t start_index = static_cast<uint32_t>(module->types.size()) - size;
+  DCHECK_GE(module->types.size(), start_index + size);
   CanonicalGroup group;
   group.types.resize(size);
   for (uint32_t i = 0; i < size; i++) {
