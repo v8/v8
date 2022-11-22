@@ -736,7 +736,7 @@ class InstructionStream : public HeapObject {
 #elif V8_TARGET_ARCH_MIPS64
   static constexpr int kHeaderPaddingSize = 20;
 #elif V8_TARGET_ARCH_LOONG64
-  static constexpr int kHeaderPaddingSize = 20;
+  static constexpr int kHeaderPaddingSize = (COMPRESS_POINTERS_BOOL ? 8 : 20);
 #elif V8_TARGET_ARCH_X64
   static constexpr int kHeaderPaddingSize =
       V8_EXTERNAL_CODE_SPACE_BOOL ? 4 : (COMPRESS_POINTERS_BOOL ? 8 : 52);

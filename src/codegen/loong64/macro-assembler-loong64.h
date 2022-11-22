@@ -52,7 +52,7 @@ Register GetRegisterThatIsNotOneOf(Register reg1, Register reg2 = no_reg,
 // -----------------------------------------------------------------------------
 // Static helper functions.
 
-#define SmiWordOffset(offset) (offset + kPointerSize / 2)
+#define SmiWordOffset(offset) (offset + kSystemPointerSize / 2)
 
 // Generate a MemOperand for loading a field from an object.
 inline MemOperand FieldMemOperand(Register object, int offset) {
@@ -116,6 +116,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                    bool need_link = false);
   void Branch(Label* L, Condition cond, Register rj, RootIndex index);
 
+  void CompareTaggedAndBranch(Label* label, Condition cond, Register r1,
+                              const Operand& r2, bool need_link = false);
+
   // Floating point branches
   void CompareF32(FPURegister cmp1, FPURegister cmp2, FPUCondition cc,
                   CFRegister cd = FCC0) {
@@ -153,7 +156,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   inline void li(Register rd, int32_t j, LiFlags mode = OPTIMIZE_SIZE) {
     li(rd, Operand(static_cast<int64_t>(j)), mode);
   }
-  void li(Register dst, Handle<HeapObject> value, LiFlags mode = OPTIMIZE_SIZE);
+  void li(Register dst, Handle<HeapObject> value,
+          RelocInfo::Mode rmode = RelocInfo::NO_INFO,
+          LiFlags mode = OPTIMIZE_SIZE);
   void li(Register dst, ExternalReference value, LiFlags mode = OPTIMIZE_SIZE);
 
   void LoadFromConstantsTable(Register destination, int constant_index) final;
@@ -250,43 +255,43 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void Push(Smi smi);
 
   void Push(Register src) {
-    Add_d(sp, sp, Operand(-kPointerSize));
+    Add_d(sp, sp, Operand(-kSystemPointerSize));
     St_d(src, MemOperand(sp, 0));
   }
 
   // Push two registers. Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2) {
-    Sub_d(sp, sp, Operand(2 * kPointerSize));
-    St_d(src1, MemOperand(sp, 1 * kPointerSize));
-    St_d(src2, MemOperand(sp, 0 * kPointerSize));
+    Sub_d(sp, sp, Operand(2 * kSystemPointerSize));
+    St_d(src1, MemOperand(sp, 1 * kSystemPointerSize));
+    St_d(src2, MemOperand(sp, 0 * kSystemPointerSize));
   }
 
   // Push three registers. Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2, Register src3) {
-    Sub_d(sp, sp, Operand(3 * kPointerSize));
-    St_d(src1, MemOperand(sp, 2 * kPointerSize));
-    St_d(src2, MemOperand(sp, 1 * kPointerSize));
-    St_d(src3, MemOperand(sp, 0 * kPointerSize));
+    Sub_d(sp, sp, Operand(3 * kSystemPointerSize));
+    St_d(src1, MemOperand(sp, 2 * kSystemPointerSize));
+    St_d(src2, MemOperand(sp, 1 * kSystemPointerSize));
+    St_d(src3, MemOperand(sp, 0 * kSystemPointerSize));
   }
 
   // Push four registers. Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2, Register src3, Register src4) {
-    Sub_d(sp, sp, Operand(4 * kPointerSize));
-    St_d(src1, MemOperand(sp, 3 * kPointerSize));
-    St_d(src2, MemOperand(sp, 2 * kPointerSize));
-    St_d(src3, MemOperand(sp, 1 * kPointerSize));
-    St_d(src4, MemOperand(sp, 0 * kPointerSize));
+    Sub_d(sp, sp, Operand(4 * kSystemPointerSize));
+    St_d(src1, MemOperand(sp, 3 * kSystemPointerSize));
+    St_d(src2, MemOperand(sp, 2 * kSystemPointerSize));
+    St_d(src3, MemOperand(sp, 1 * kSystemPointerSize));
+    St_d(src4, MemOperand(sp, 0 * kSystemPointerSize));
   }
 
   // Push five registers. Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2, Register src3, Register src4,
             Register src5) {
-    Sub_d(sp, sp, Operand(5 * kPointerSize));
-    St_d(src1, MemOperand(sp, 4 * kPointerSize));
-    St_d(src2, MemOperand(sp, 3 * kPointerSize));
-    St_d(src3, MemOperand(sp, 2 * kPointerSize));
-    St_d(src4, MemOperand(sp, 1 * kPointerSize));
-    St_d(src5, MemOperand(sp, 0 * kPointerSize));
+    Sub_d(sp, sp, Operand(5 * kSystemPointerSize));
+    St_d(src1, MemOperand(sp, 4 * kSystemPointerSize));
+    St_d(src2, MemOperand(sp, 3 * kSystemPointerSize));
+    St_d(src3, MemOperand(sp, 2 * kSystemPointerSize));
+    St_d(src4, MemOperand(sp, 1 * kSystemPointerSize));
+    St_d(src5, MemOperand(sp, 0 * kSystemPointerSize));
   }
 
   enum PushArrayOrder { kNormal, kReverse };
@@ -343,23 +348,23 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   void Pop(Register dst) {
     Ld_d(dst, MemOperand(sp, 0));
-    Add_d(sp, sp, Operand(kPointerSize));
+    Add_d(sp, sp, Operand(kSystemPointerSize));
   }
 
   // Pop two registers. Pops rightmost register first (from lower address).
   void Pop(Register src1, Register src2) {
     DCHECK(src1 != src2);
-    Ld_d(src2, MemOperand(sp, 0 * kPointerSize));
-    Ld_d(src1, MemOperand(sp, 1 * kPointerSize));
-    Add_d(sp, sp, 2 * kPointerSize);
+    Ld_d(src2, MemOperand(sp, 0 * kSystemPointerSize));
+    Ld_d(src1, MemOperand(sp, 1 * kSystemPointerSize));
+    Add_d(sp, sp, 2 * kSystemPointerSize);
   }
 
   // Pop three registers. Pops rightmost register first (from lower address).
   void Pop(Register src1, Register src2, Register src3) {
-    Ld_d(src3, MemOperand(sp, 0 * kPointerSize));
-    Ld_d(src2, MemOperand(sp, 1 * kPointerSize));
-    Ld_d(src1, MemOperand(sp, 2 * kPointerSize));
-    Add_d(sp, sp, 3 * kPointerSize);
+    Ld_d(src3, MemOperand(sp, 0 * kSystemPointerSize));
+    Ld_d(src2, MemOperand(sp, 1 * kSystemPointerSize));
+    Ld_d(src1, MemOperand(sp, 2 * kSystemPointerSize));
+    Add_d(sp, sp, 3 * kSystemPointerSize);
   }
 
   // Pops multiple values from the stack and load them in the
@@ -473,7 +478,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
       AssertSmi(smi);
     }
     DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
-    SmiUntag(smi);
+    SmiUntag(smi, smi);
   }
 
   // Abort execution if argument is a smi, enabled via --debug-code.
@@ -524,7 +529,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     li(a1, ref);
   }
 
-  void CheckPageFlag(const Register& object, int mask, Condition cc,
+  void CheckPageFlag(Register object, int mask, Condition cc,
                      Label* condition_met);
 #undef COND_ARGS
 
@@ -784,6 +789,39 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Define an exception handler and bind a label.
   void BindExceptionHandler(Label* label) { bind(label); }
 
+  // ---------------------------------------------------------------------------
+  // Pointer compression Support
+
+  // Loads a field containing any tagged value and decompresses it if necessary.
+  void LoadTaggedField(Register destination, const MemOperand& field_operand);
+
+  // Loads a field containing a tagged signed value and decompresses it if
+  // necessary.
+  void LoadTaggedSignedField(Register destination,
+                             const MemOperand& field_operand);
+
+  // Loads a field containing smi value and untags it.
+  void SmiUntagField(Register dst, const MemOperand& src);
+
+  // Compresses and stores tagged value to given on-heap location.
+  void StoreTaggedField(Register src, const MemOperand& dst);
+
+  void AtomicStoreTaggedField(Register dst, const MemOperand& src);
+
+  void DecompressTaggedSigned(Register dst, const MemOperand& src);
+  void DecompressTagged(Register dst, const MemOperand& src);
+  void DecompressTagged(Register dst, Register src);
+
+  void AtomicDecompressTaggedSigned(Register dst, const MemOperand& src);
+  void AtomicDecompressTagged(Register dst, const MemOperand& src);
+
+  // Performs a truncating conversion of a floating point number as used by
+  // the JS bitwise operations. See ECMA-262 9.5: ToInt32. Goes to 'done' if it
+  // succeeds, otherwise falls through if result is saturated. On return
+  // 'result' either holds answer, or is clobbered on fall through.
+  void TryInlineTruncateDoubleToI(Register result, DoubleRegister input,
+                                  Label* done);
+
   // It assumes that the arguments are located below the stack pointer.
   // argc is the number of arguments not including the receiver.
   // TODO(LOONG_dev): LOONG64: Remove this function once we stick with the
@@ -819,7 +857,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
     LoadRoot(scratch, index);
-    Branch(if_equal, eq, with, Operand(scratch));
+    CompareTaggedAndBranch(if_equal, eq, with, Operand(scratch));
   }
 
   // Compare the object in a register to a value and jump if they are not equal.
@@ -827,7 +865,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
     LoadRoot(scratch, index);
-    Branch(if_not_equal, ne, with, Operand(scratch));
+    CompareTaggedAndBranch(if_not_equal, ne, with, Operand(scratch));
   }
 
   // Checks if value is in range [lower_limit, higher_limit] using a single
@@ -1066,8 +1104,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // the JS bitwise operations. See ECMA-262 9.5: ToInt32. Goes to 'done' if it
   // succeeds, otherwise falls through if result is saturated. On return
   // 'result' either holds answer, or is clobbered on fall through.
-  void TryInlineTruncateDoubleToI(Register result, DoubleRegister input,
-                                  Label* done);
 
   bool BranchShortOrFallback(Label* L, Condition cond, Register rj,
                              const Operand& rk, bool need_link);

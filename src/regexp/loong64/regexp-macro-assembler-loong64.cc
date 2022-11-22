@@ -724,7 +724,8 @@ Handle<HeapObject> RegExpMacroAssemblerLOONG64::GetCode(Handle<String> source) {
       __ Branch(&stack_limit_hit, le, a0, Operand(zero_reg));
       // Check if there is room for the variable number of registers above
       // the stack limit.
-      __ Branch(&stack_ok, hs, a0, Operand(num_registers_ * kPointerSize));
+      __ Branch(&stack_ok, hs, a0,
+                Operand(num_registers_ * kSystemPointerSize));
       // Exit with OutOfMemory exception. There is not enough space on the stack
       // for our working registers.
       __ li(a0, Operand(EXCEPTION));
@@ -740,7 +741,7 @@ Handle<HeapObject> RegExpMacroAssemblerLOONG64::GetCode(Handle<String> source) {
     }
 
     // Allocate space on stack for registers.
-    __ Sub_d(sp, sp, Operand(num_registers_ * kPointerSize));
+    __ Sub_d(sp, sp, Operand(num_registers_ * kSystemPointerSize));
     // Load string end.
     __ Ld_d(end_of_input_address(),
             MemOperand(frame_pointer(), kInputEndOffset));
@@ -786,7 +787,7 @@ Handle<HeapObject> RegExpMacroAssemblerLOONG64::GetCode(Handle<String> source) {
         Label init_loop;
         __ bind(&init_loop);
         __ St_d(a0, MemOperand(a1, 0));
-        __ Add_d(a1, a1, Operand(-kPointerSize));
+        __ Add_d(a1, a1, Operand(-kSystemPointerSize));
         __ Sub_d(a2, a2, Operand(1));
         __ Branch(&init_loop, ne, a2, Operand(zero_reg));
       } else {
@@ -1135,7 +1136,7 @@ void RegExpMacroAssemblerLOONG64::CallCheckStackGuardState(Register scratch) {
 
   // Align the stack pointer and save the original sp value on the stack.
   __ mov(scratch, sp);
-  __ Sub_d(sp, sp, Operand(kPointerSize));
+  __ Sub_d(sp, sp, Operand(kSystemPointerSize));
   DCHECK(base::bits::IsPowerOfTwo(stack_alignment));
   __ And(sp, sp, Operand(-stack_alignment));
   __ St_d(scratch, MemOperand(sp, 0));
@@ -1145,7 +1146,7 @@ void RegExpMacroAssemblerLOONG64::CallCheckStackGuardState(Register scratch) {
   __ li(a1, Operand(masm_->CodeObject()), CONSTANT_SIZE);
 
   // We need to make room for the return address on the stack.
-  DCHECK(IsAligned(stack_alignment, kPointerSize));
+  DCHECK(IsAligned(stack_alignment, kSystemPointerSize));
   __ Sub_d(sp, sp, Operand(stack_alignment));
 
   // The stack pointer now points to cell where the return address will be
@@ -1218,7 +1219,7 @@ MemOperand RegExpMacroAssemblerLOONG64::register_location(int register_index) {
     num_registers_ = register_index + 1;
   }
   return MemOperand(frame_pointer(),
-                    kRegisterZeroOffset - register_index * kPointerSize);
+                    kRegisterZeroOffset - register_index * kSystemPointerSize);
 }
 
 void RegExpMacroAssemblerLOONG64::CheckPosition(int cp_offset,

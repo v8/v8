@@ -72,7 +72,7 @@ const uint32_t kFCSRExceptionCauseMask = kFCSRCauseMask ^ kFCSRInexactCauseMask;
 // Actual value of root register is offset from the root array's start
 // to take advantage of negative displacement values.
 // TODO(sigurds): Choose best value.
-constexpr int kRootRegisterBias = 256;
+constexpr int kRootRegisterBias = kSystemPointerSize == kTaggedSize ? 256 : 0;
 
 // Helper functions for converting between register numbers and names.
 class Registers {

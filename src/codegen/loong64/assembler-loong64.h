@@ -211,24 +211,34 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Read/Modify the code target address in the branch/call instruction at pc.
   // The isolate argument is unused (and may be nullptr) when skipping flushing.
   static Address target_address_at(Address pc);
-  V8_INLINE static void set_target_address_at(
-      Address pc, Address target,
+  static uint32_t target_compressed_address_at(Address pc);
+  // On LOONG64 there is no Constant Pool so we skip that parameter.
+  inline static Address target_address_at(Address pc, Address constant_pool) {
+    return target_address_at(pc);
+  }
+  inline static Tagged_t target_compressed_address_at(Address pc,
+                                                      Address constant_pool) {
+    return target_compressed_address_at(pc);
+  }
+  inline static void set_target_address_at(
+      Address pc, Address constant_pool, Address target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED) {
     set_target_value_at(pc, target, icache_flush_mode);
   }
-  // On LOONG64 there is no Constant Pool so we skip that parameter.
-  V8_INLINE static Address target_address_at(Address pc,
-                                             Address constant_pool) {
-    return target_address_at(pc);
-  }
-  V8_INLINE static void set_target_address_at(
-      Address pc, Address constant_pool, Address target,
+  inline static void set_target_compressed_address_at(
+      Address pc, Address constant_pool, Tagged_t target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED) {
-    set_target_address_at(pc, target, icache_flush_mode);
+    set_target_compressed_value_at(pc, target, icache_flush_mode);
   }
+
+  inline Handle<Code> code_target_object_handle_at(Address pc,
+                                                   Address constant_pool);
 
   static void set_target_value_at(
       Address pc, uint64_t target,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+  static void set_target_compressed_value_at(
+      Address pc, uint32_t target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   static void JumpLabelToJumpRegister(Address pc);
@@ -247,6 +257,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   inline static void deserialization_set_target_internal_reference_at(
       Address pc, Address target,
       RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
+
+  inline Handle<HeapObject> compressed_embedded_object_handle_at(
+      Address pc, Address constant_pool);
+  inline Handle<HeapObject> embedded_object_handle_at(Address pc,
+                                                      Address constant_pool);
 
   // Here we are patching the address in the LUI/ORI instruction pair.
   // These values are used in the serialization process and must be zero for

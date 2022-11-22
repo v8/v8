@@ -159,6 +159,9 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   }
 
   void Generate() final {
+    if (COMPRESS_POINTERS_BOOL) {
+      __ DecompressTagged(value_, value_);
+    }
     __ CheckPageFlag(
         value_, MemoryChunk::kPointersToHereAreInterestingOrInSharedHeapMask,
         eq, exit());
@@ -199,13 +202,13 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   Zone* zone_;
 };
 
-#define CREATE_OOL_CLASS(ool_name, tasm_ool_name, T)                 \
+#define CREATE_OOL_CLASS(ool_name, masm_ool_name, T)                 \
   class ool_name final : public OutOfLineCode {                      \
    public:                                                           \
     ool_name(CodeGenerator* gen, T dst, T src1, T src2)              \
         : OutOfLineCode(gen), dst_(dst), src1_(src1), src2_(src2) {} \
                                                                      \
-    void Generate() final { __ tasm_ool_name(dst_, src1_, src2_); }  \
+    void Generate() final { __ masm_ool_name(dst_, src1_, src2_); }  \
                                                                      \
    private:                                                          \
     T const dst_;                                                    \
@@ -537,7 +540,8 @@ void CodeGenerator::BailoutIfDeoptimized() {
   UseScratchRegisterScope temps(masm());
   Register scratch = temps.Acquire();
   int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
-  __ Ld_d(scratch, MemOperand(kJavaScriptCallCodeStartRegister, offset));
+  __ LoadTaggedField(scratch,
+                     MemOperand(kJavaScriptCallCodeStartRegister, offset));
   __ Ld_w(scratch, FieldMemOperand(scratch, Code::kKindSpecificFlagsOffset));
   __ And(scratch, scratch,
          Operand(1 << InstructionStream::kMarkedForDeoptimizationBit));
@@ -631,11 +635,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         UseScratchRegisterScope temps(masm());
         Register scratch = temps.Acquire();
         // Check the function's context matches the context argument.
-        __ Ld_d(scratch, FieldMemOperand(func, JSFunction::kContextOffset));
+        __ LoadTaggedField(scratch,
+                           FieldMemOperand(func, JSFunction::kContextOffset));
         __ Assert(eq, AbortReason::kWrongFunctionContext, cp, Operand(scratch));
       }
       static_assert(kJavaScriptCallCodeStartRegister == a2, "ABI mismatch");
-      __ Ld_d(a2, FieldMemOperand(func, JSFunction::kCodeOffset));
+      __ LoadTaggedField(a2, FieldMemOperand(func, JSFunction::kCodeOffset));
       __ CallCodeObject(a2);
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
@@ -801,39 +806,53 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ TruncateDoubleToI(isolate(), zone(), i.OutputRegister(),
                            i.InputDoubleRegister(0), DetermineStubCallMode());
       break;
-    case kArchStoreWithWriteBarrier:  // Fall through.
-    case kArchAtomicStoreWithWriteBarrier: {
+    case kArchStoreWithWriteBarrier: {  // Fall through.
       RecordWriteMode mode =
           static_cast<RecordWriteMode>(MiscField::decode(instr->opcode()));
       AddressingMode addressing_mode =
           AddressingModeField::decode(instr->opcode());
       Register object = i.InputRegister(0);
-      Operand offset(zero_reg);
+      Register value = i.InputRegister(2);
+
       if (addressing_mode == kMode_MRI) {
-        offset = Operand(i.InputInt64(1));
+        auto ool = zone()->New<OutOfLineRecordWrite>(
+            this, object, Operand(i.InputInt64(1)), value, mode,
+            DetermineStubCallMode());
+        __ StoreTaggedField(value, MemOperand(object, i.InputInt64(1)));
+
+        if (mode > RecordWriteMode::kValueIsPointer) {
+          __ JumpIfSmi(value, ool->exit());
+        }
+        __ CheckPageFlag(object,
+                         MemoryChunk::kPointersFromHereAreInterestingMask, ne,
+                         ool->entry());
+        __ bind(ool->exit());
       } else {
         DCHECK_EQ(addressing_mode, kMode_MRR);
-        offset = Operand(i.InputRegister(1));
+        auto ool = zone()->New<OutOfLineRecordWrite>(
+            this, object, Operand(i.InputRegister(1)), value, mode,
+            DetermineStubCallMode());
+        __ StoreTaggedField(value, MemOperand(object, i.InputRegister(1)));
+        if (mode > RecordWriteMode::kValueIsPointer) {
+          __ JumpIfSmi(value, ool->exit());
+        }
+        __ CheckPageFlag(object,
+                         MemoryChunk::kPointersFromHereAreInterestingMask, ne,
+                         ool->entry());
+        __ bind(ool->exit());
       }
+      break;
+    }
+    case kArchAtomicStoreWithWriteBarrier: {
+      RecordWriteMode mode =
+          static_cast<RecordWriteMode>(MiscField::decode(instr->opcode()));
+      Register object = i.InputRegister(0);
+      int64_t offset = i.InputInt64(1);
       Register value = i.InputRegister(2);
 
       auto ool = zone()->New<OutOfLineRecordWrite>(
-          this, object, offset, value, mode, DetermineStubCallMode());
-      if (arch_opcode == kArchStoreWithWriteBarrier) {
-        if (addressing_mode == kMode_MRI) {
-          __ St_d(value, MemOperand(object, i.InputInt64(1)));
-        } else {
-          DCHECK_EQ(addressing_mode, kMode_MRR);
-          __ St_d(value, MemOperand(object, i.InputRegister(1)));
-        }
-      } else {
-        DCHECK_EQ(kArchAtomicStoreWithWriteBarrier, arch_opcode);
-        DCHECK_EQ(addressing_mode, kMode_MRI);
-        UseScratchRegisterScope temps(masm());
-        Register scratch = temps.Acquire();
-        __ Add_d(scratch, object, Operand(i.InputInt64(1)));
-        __ amswap_db_d(zero_reg, value, scratch);
-      }
+          this, object, Operand(offset), value, mode, DetermineStubCallMode());
+      __ AtomicStoreTaggedField(value, MemOperand(object, offset));
       if (mode > RecordWriteMode::kValueIsPointer) {
         __ JumpIfSmi(value, ool->exit());
       }
@@ -1121,7 +1140,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ And(t8, i.InputRegister(0), i.InputOperand(1));
       // Pseudo-instruction used for cmp/branch. No opcode emitted here.
       break;
-    case kLoong64Cmp:
+    case kLoong64Cmp32:
+    case kLoong64Cmp64:
       // Pseudo-instruction used for cmp/branch. No opcode emitted here.
       break;
     case kLoong64Mov:
@@ -1520,6 +1540,30 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kLoong64St_d:
       __ St_d(i.InputOrZeroRegister(2), i.MemoryOperand());
       break;
+    case kLoong64LoadDecompressTaggedSigned:
+      __ DecompressTaggedSigned(i.OutputRegister(), i.MemoryOperand());
+      break;
+    case kLoong64LoadDecompressTagged:
+      __ DecompressTagged(i.OutputRegister(), i.MemoryOperand());
+      break;
+    case kLoong64StoreCompressTagged: {
+      size_t index = 0;
+      MemOperand mem = i.MemoryOperand(&index);
+      __ StoreTaggedField(i.InputOrZeroRegister(index), mem);
+      break;
+    }
+    case kLoong64AtomicLoadDecompressTaggedSigned:
+      __ AtomicDecompressTaggedSigned(i.OutputRegister(), i.MemoryOperand());
+      break;
+    case kLoong64AtomicLoadDecompressTagged:
+      __ AtomicDecompressTagged(i.OutputRegister(), i.MemoryOperand());
+      break;
+    case kLoong64AtomicStoreCompressTagged: {
+      size_t index = 0;
+      MemOperand mem = i.MemoryOperand(&index);
+      __ AtomicStoreTaggedField(i.InputOrZeroRegister(index), mem);
+      break;
+    }
     case kLoong64Fld_s: {
       __ Fld_s(i.OutputSingleRegister(), i.MemoryOperand());
       break;
@@ -1634,7 +1678,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kAtomicStoreWord32:
       ASSEMBLE_ATOMIC_STORE_INTEGER(St_w);
       break;
-    case kLoong64StoreCompressTagged:
     case kLoong64Word64AtomicStoreWord64:
       ASSEMBLE_ATOMIC_STORE_INTEGER(St_d);
       break;
@@ -1863,6 +1906,30 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                  << "\"";                                                      \
   UNIMPLEMENTED();
 
+void SignExtend(MacroAssembler* masm, Instruction* instr, Register* left,
+                Operand* right, Register* temp0, Register* temp1) {
+  bool need_signed = false;
+  MachineRepresentation rep_left =
+      LocationOperand::cast(instr->InputAt(0))->representation();
+  need_signed = IsAnyTagged(rep_left) || IsAnyCompressed(rep_left) ||
+                rep_left == MachineRepresentation::kWord64;
+  if (need_signed) {
+    masm->slli_w(*temp0, *left, 0);
+    *left = *temp0;
+  }
+
+  if (instr->InputAt(1)->IsAnyLocationOperand()) {
+    MachineRepresentation rep_right =
+        LocationOperand::cast(instr->InputAt(1))->representation();
+    need_signed = IsAnyTagged(rep_right) || IsAnyCompressed(rep_right) ||
+                  rep_right == MachineRepresentation::kWord64;
+    if (need_signed && right->is_reg()) {
+      masm->slli_w(*temp1, right->rm(), 0);
+      *right = Operand(*temp1);
+    }
+  }
+}
+
 void AssembleBranchToLabels(CodeGenerator* gen, MacroAssembler* masm,
                             Instruction* instr, FlagsCondition condition,
                             Label* tlabel, Label* flabel, bool fallthru) {
@@ -1915,9 +1982,18 @@ void AssembleBranchToLabels(CodeGenerator* gen, MacroAssembler* masm,
       default:
         UNSUPPORTED_COND(instr->arch_opcode(), condition);
     }
-  } else if (instr->arch_opcode() == kLoong64Cmp) {
+  } else if (instr->arch_opcode() == kLoong64Cmp32 ||
+             instr->arch_opcode() == kLoong64Cmp64) {
     Condition cc = FlagsConditionToConditionCmp(condition);
-    __ Branch(tlabel, cc, i.InputRegister(0), i.InputOperand(1));
+    Register left = i.InputRegister(0);
+    Operand right = i.InputOperand(1);
+    // Word32Compare has two temp registers.
+    if (COMPRESS_POINTERS_BOOL && (instr->arch_opcode() == kLoong64Cmp32)) {
+      Register temp0 = i.TempRegister(0);
+      Register temp1 = i.TempRegister(1);
+      SignExtend(masm, instr, &left, &right, &temp0, &temp1);
+    }
+    __ Branch(tlabel, cc, left, right);
   } else if (instr->arch_opcode() == kArchStackPointerGreaterThan) {
     Condition cc = FlagsConditionToConditionCmp(condition);
     DCHECK((cc == ls) || (cc == hi));
@@ -2059,13 +2135,19 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
              instr->arch_opcode() == kLoong64MulOvf_d) {
     // Overflow occurs if overflow register is not zero
     __ Sgtu(result, t8, zero_reg);
-  } else if (instr->arch_opcode() == kLoong64Cmp) {
+  } else if (instr->arch_opcode() == kLoong64Cmp32 ||
+             instr->arch_opcode() == kLoong64Cmp64) {
     Condition cc = FlagsConditionToConditionCmp(condition);
     switch (cc) {
       case eq:
       case ne: {
         Register left = i.InputRegister(0);
         Operand right = i.InputOperand(1);
+        if (COMPRESS_POINTERS_BOOL && (instr->arch_opcode() == kLoong64Cmp32)) {
+          Register temp0 = i.TempRegister(0);
+          Register temp1 = i.TempRegister(1);
+          SignExtend(masm(), instr, &left, &right, &temp0, &temp1);
+        }
         if (instr->InputAt(1)->IsImmediate()) {
           if (is_int12(-right.immediate())) {
             if (right.immediate() == 0) {
@@ -2103,6 +2185,11 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
       case ge: {
         Register left = i.InputRegister(0);
         Operand right = i.InputOperand(1);
+        if (COMPRESS_POINTERS_BOOL && (instr->arch_opcode() == kLoong64Cmp32)) {
+          Register temp0 = i.TempRegister(0);
+          Register temp1 = i.TempRegister(1);
+          SignExtend(masm(), instr, &left, &right, &temp0, &temp1);
+        }
         __ Slt(result, left, right);
         if (cc == ge) {
           __ xori(result, result, 1);
@@ -2112,6 +2199,11 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
       case le: {
         Register left = i.InputRegister(1);
         Operand right = i.InputOperand(0);
+        if (COMPRESS_POINTERS_BOOL && (instr->arch_opcode() == kLoong64Cmp32)) {
+          Register temp0 = i.TempRegister(0);
+          Register temp1 = i.TempRegister(1);
+          SignExtend(masm(), instr, &left, &right, &temp0, &temp1);
+        }
         __ Slt(result, left, right);
         if (cc == le) {
           __ xori(result, result, 1);
@@ -2121,6 +2213,11 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
       case hs: {
         Register left = i.InputRegister(0);
         Operand right = i.InputOperand(1);
+        if (COMPRESS_POINTERS_BOOL && (instr->arch_opcode() == kLoong64Cmp32)) {
+          Register temp0 = i.TempRegister(0);
+          Register temp1 = i.TempRegister(1);
+          SignExtend(masm(), instr, &left, &right, &temp0, &temp1);
+        }
         __ Sltu(result, left, right);
         if (cc == hs) {
           __ xori(result, result, 1);
@@ -2130,6 +2227,11 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
       case ls: {
         Register left = i.InputRegister(1);
         Operand right = i.InputOperand(0);
+        if (COMPRESS_POINTERS_BOOL && (instr->arch_opcode() == kLoong64Cmp32)) {
+          Register temp0 = i.TempRegister(0);
+          Register temp1 = i.TempRegister(1);
+          SignExtend(masm(), instr, &left, &right, &temp0, &temp1);
+        }
         __ Sltu(result, left, right);
         if (cc == ls) {
           __ xori(result, result, 1);
@@ -2685,8 +2787,16 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           }
           break;
         }
-        case Constant::kCompressedHeapObject:
-          UNREACHABLE();
+        case Constant::kCompressedHeapObject: {
+          Handle<HeapObject> src_object = src.ToHeapObject();
+          RootIndex index;
+          if (IsMaterializableFromRoot(src_object, &index)) {
+            __ LoadRoot(dst, index);
+          } else {
+            __ li(dst, src_object, RelocInfo::COMPRESSED_EMBEDDED_OBJECT);
+          }
+          break;
+        }
         case Constant::kRpoNumber:
           UNREACHABLE();  // TODO(titzer): loading RPO numbers on LOONG64.
       }

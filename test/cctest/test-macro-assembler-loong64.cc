@@ -151,7 +151,7 @@ TEST(LoadConstants) {
     // Load constant.
     __ li(a5, Operand(refConstants[i]));
     __ St_d(a5, MemOperand(a4, zero_reg));
-    __ Add_d(a4, a4, Operand(kPointerSize));
+    __ Add_d(a4, a4, Operand(kSystemPointerSize));
   }
 
   __ jirl(zero_reg, ra, 0);
