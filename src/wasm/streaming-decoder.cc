@@ -461,7 +461,7 @@ class AsyncStreamingDecoder::DecodeSectionPayload : public DecodingState {
 class AsyncStreamingDecoder::DecodeNumberOfFunctions : public DecodeVarInt32 {
  public:
   explicit DecodeNumberOfFunctions(SectionBuffer* section_buffer)
-      : DecodeVarInt32(kV8MaxWasmFunctions, "functions count"),
+      : DecodeVarInt32(v8_flags.max_wasm_functions, "functions count"),
         section_buffer_(section_buffer) {}
 
   std::unique_ptr<DecodingState> NextWithValue(

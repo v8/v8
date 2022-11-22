@@ -842,7 +842,7 @@ class ModuleDecoderTemplate : public Decoder {
 
   void DecodeFunctionSection() {
     uint32_t functions_count =
-        consume_count("functions count", kV8MaxWasmFunctions);
+        consume_count("functions count", v8_flags.max_wasm_functions);
     if (counters_ != nullptr) {
       auto counter = SELECT_WASM_COUNTER(GetCounters(), origin_,
                                          wasm_functions_per, module);
