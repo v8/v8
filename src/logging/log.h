@@ -95,7 +95,7 @@ class ExistingCodeLogger {
   void LogCodeObjects();
   void LogBuiltins();
 
-  void LogCompiledFunctions();
+  void LogCompiledFunctions(bool ensure_source_positions_available = true);
   void LogExistingFunction(
       Handle<SharedFunctionInfo> shared, Handle<AbstractCode> code,
       LogEventListener::CodeTag tag = LogEventListener::CodeTag::kFunction);
@@ -272,7 +272,8 @@ class V8FileLogger : public LogEventListener {
   void LogExistingFunction(Handle<SharedFunctionInfo> shared,
                            Handle<AbstractCode> code);
   // Logs all compiled functions found in the heap.
-  V8_EXPORT_PRIVATE void LogCompiledFunctions();
+  V8_EXPORT_PRIVATE void LogCompiledFunctions(
+      bool ensure_source_positions_available = true);
   // Logs all accessor callbacks found in the heap.
   V8_EXPORT_PRIVATE void LogAccessorCallbacks();
   // Used for logging stubs found in the snapshot.
