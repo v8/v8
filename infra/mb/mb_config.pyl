@@ -167,7 +167,7 @@
       'V8 Clusterfuzz Linux64 UBSan - release builder':
           'release_x64_ubsan_recover',
       'V8 Clusterfuzz Linux64 ASAN sandbox testing - release builder':
-          'release_x64_asan_sandbox_testing',
+          'release_x64_asan_symbolized_expose_memory_corruption',
     },
     'client.v8.perf' : {
       'V8 Arm - builder - perf': 'official_arm',
@@ -410,7 +410,7 @@
     'release_simulate_arm64_cfi': [
       'release_bot', 'simulate_arm64', 'v8_control_flow_integrity'],
     'release_simulate_arm64_no_pointer_compression': [
-      'release_bot', 'simulate_arm64_no_sandbox', 'dcheck_always_on',
+      'release_bot', 'simulate_arm64', 'no_sandbox', 'dcheck_always_on',
       'v8_enable_slow_dchecks', 'v8_disable_pointer_compression'],
     'release_simulate_arm64_msan': [
       'release_bot', 'simulate_arm64', 'msan'],
@@ -443,7 +443,7 @@
     'debug_arm64': [
       'debug_bot', 'arm64'],
     'debug_arm64_no_pointer_compression': [
-      'debug_bot', 'arm64_no_sandbox', 'dcheck_always_on', 'v8_enable_slow_dchecks', 'v8_enable_javascript_promise_hooks',
+      'debug_bot', 'arm64', 'no_sandbox', 'dcheck_always_on', 'v8_enable_slow_dchecks', 'v8_enable_javascript_promise_hooks',
       'v8_disable_pointer_compression'],
     'full_debug_arm64': [
       'debug_bot', 'arm64', 'v8_full_debug'],
@@ -490,6 +490,9 @@
     'release_x64_asan_no_lsan_verify_heap_dchecks': [
       'release_bot', 'x64', 'asan', 'dcheck_always_on',
       'v8_enable_slow_dchecks', 'v8_verify_heap'],
+    'release_x64_asan_symbolized_expose_memory_corruption': [
+      'release_bot', 'x64', 'asan', 'symbolized',
+      'v8_expose_memory_corruption_api'],
     'release_x64_asan_symbolized_verify_heap': [
       'release_bot', 'x64', 'asan', 'lsan', 'symbolized',
       'v8_verify_heap'],
@@ -526,12 +529,12 @@
     'release_x64_minimal_symbols_reclient': [
       'release_bot_reclient', 'x64', 'minimal_symbols'],
     'release_x64_no_pointer_compression': [
-      'release_bot', 'x64_no_sandbox', 'dcheck_always_on', 'v8_enable_slow_dchecks', 'v8_enable_javascript_promise_hooks',
-      'v8_disable_pointer_compression'],
+      'release_bot', 'x64', 'no_sandbox', 'dcheck_always_on', 'v8_enable_slow_dchecks',
+      'v8_enable_javascript_promise_hooks', 'v8_disable_pointer_compression'],
     'release_x64_reclient': [
       'release_bot_reclient', 'x64'],
     'release_x64_no_sandbox': [
-      'release_bot', 'x64_no_sandbox'],
+      'release_bot', 'x64', 'no_sandbox'],
     'release_x64_trybot': [
       'release_trybot', 'x64'],
     'release_x64_test_features_trybot': [
@@ -555,8 +558,6 @@
       'v8_enable_slow_dchecks', 'v8_verify_csa'],
     'release_x64_webassembly_disabled': [
       'release_bot', 'x64', 'webassembly_disabled'],
-    'release_x64_asan_sandbox_testing': [
-      'release_bot', 'x64', 'asan', 'symbolized', 'v8_expose_memory_corruption_api'],
 
     # Official configs for x64.
     'official_x64': [
@@ -589,7 +590,7 @@
     'debug_x64_perfetto': [
       'debug_bot', 'x64', 'perfetto'],
     'debug_x64_no_sandbox': [
-      'debug_bot', 'x64_no_sandbox'],
+      'debug_bot', 'x64', 'no_sandbox'],
     'debug_x64_single_generation': [
       'debug_bot', 'x64', 'v8_enable_single_generation'],
     'debug_x64_trybot': [
@@ -666,11 +667,7 @@
     },
 
     'arm64': {
-      'gn_args': 'target_cpu="arm64" v8_enable_sandbox=true',
-    },
-
-    'arm64_no_sandbox': {
-      'gn_args': 'target_cpu="arm64" v8_enable_sandbox=false',
+      'gn_args': 'target_cpu="arm64"',
     },
 
     'asan': {
@@ -812,6 +809,10 @@
       'gn_args': 'use_goma=false',
     },
 
+    'no_sandbox': {
+      'gn_args': 'v8_enable_sandbox=false',
+    },
+
     'no_sysroot': {
       'gn_args': 'use_sysroot=false',
     },
@@ -861,11 +862,7 @@
     },
 
     'simulate_arm64': {
-      'gn_args': 'target_cpu="x64" v8_target_cpu="arm64" v8_enable_sandbox=true',
-    },
-
-    'simulate_arm64_no_sandbox': {
-      'gn_args': 'target_cpu="x64" v8_target_cpu="arm64" v8_enable_sandbox=false',
+      'gn_args': 'target_cpu="x64" v8_target_cpu="arm64"',
     },
 
     'simulate_loong64': {
@@ -1026,11 +1023,7 @@
     },
 
     'x64': {
-      'gn_args': 'target_cpu="x64" v8_enable_sandbox=true',
-    },
-
-    'x64_no_sandbox': {
-      'gn_args': 'target_cpu="x64" v8_enable_sandbox=false',
+      'gn_args': 'target_cpu="x64"',
     },
 
     'x86': {
