@@ -2140,7 +2140,7 @@ void V8FileLogger::LateSetup(Isolate* isolate) {
   if (!isolate->logger()->is_listening_to_code_events()) return;
   Builtins::EmitCodeCreateEvents(isolate);
 #if V8_ENABLE_WEBASSEMBLY
-  wasm::GetWasmEngine()->EnableCodeLogging(isolate);
+  if (!isolate->is_shared()) wasm::GetWasmEngine()->EnableCodeLogging(isolate);
 #endif
 }
 

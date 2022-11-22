@@ -418,7 +418,9 @@ void GlobalSafepoint::LeaveGlobalSafepointScope(Isolate* initiator) {
 
 GlobalSafepointScope::GlobalSafepointScope(Isolate* initiator)
     : initiator_(initiator),
-      shared_heap_isolate_(initiator->shared_heap_isolate()) {
+      shared_heap_isolate_(initiator->is_shared()
+                               ? initiator
+                               : initiator->shared_heap_isolate()) {
   shared_heap_isolate_->global_safepoint()->EnterGlobalSafepointScope(
       initiator_);
 }
