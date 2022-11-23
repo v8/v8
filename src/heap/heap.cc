@@ -1834,7 +1834,7 @@ void Heap::StartIncrementalMarking(int gc_flags,
   DCHECK(incremental_marking()->IsStopped());
 
   if (IsYoungGenerationCollector(collector)) {
-    CompleteSweepingYoung(collector);
+    CompleteSweepingYoung();
   } else {
     // Sweeping needs to be completed such that markbits are all cleared before
     // starting marking again.
@@ -1889,8 +1889,21 @@ void Heap::StartIncrementalMarking(int gc_flags,
 }
 
 void Heap::CompleteSweepingFull() {
-  {
-    TRACE_GC(tracer(), GCTracer::Scope::MC_COMPLETE_SWEEP_ARRAY_BUFFERS);
+  if (array_buffer_sweeper()->sweeping_in_progress()) {
+    GCTracer::Scope::ScopeId scope_id;
+
+    switch (tracer()->GetCurrentCollector()) {
+      case GarbageCollector::MINOR_MARK_COMPACTOR:
+        scope_id = GCTracer::Scope::MINOR_MC_COMPLETE_SWEEP_ARRAY_BUFFERS;
+        break;
+      case GarbageCollector::SCAVENGER:
+        scope_id = GCTracer::Scope::SCAVENGER_COMPLETE_SWEEP_ARRAY_BUFFERS;
+        break;
+      case GarbageCollector::MARK_COMPACTOR:
+        scope_id = GCTracer::Scope::MC_COMPLETE_SWEEP_ARRAY_BUFFERS;
+    }
+
+    TRACE_GC_EPOCH(tracer(), scope_id, ThreadKind::kMain);
     array_buffer_sweeper()->EnsureFinished();
   }
   EnsureSweepingCompleted(SweepingForcedFinalizationMode::kUnifiedHeap);
@@ -2124,7 +2137,7 @@ size_t Heap::PerformGarbageCollection(GarbageCollector collector,
   DisallowJavascriptExecution no_js(isolate());
 
   if (IsYoungGenerationCollector(collector)) {
-    CompleteSweepingYoung(collector);
+    CompleteSweepingYoung();
     if (v8_flags.verify_heap) {
       // If heap verification is enabled, we want to ensure that sweeping is
       // completed here, as it will be triggered from Heap::Verify anyway.
@@ -2367,21 +2380,21 @@ void Heap::PerformSharedGarbageCollection(Isolate* initiator,
   tracer()->StopFullCycleIfNeeded();
 }
 
-void Heap::CompleteSweepingYoung(GarbageCollector collector) {
-  GCTracer::Scope::ScopeId scope_id;
+void Heap::CompleteSweepingYoung() {
+  if (array_buffer_sweeper()->sweeping_in_progress()) {
+    GCTracer::Scope::ScopeId scope_id;
 
-  switch (collector) {
-    case GarbageCollector::MINOR_MARK_COMPACTOR:
-      scope_id = GCTracer::Scope::MINOR_MC_COMPLETE_SWEEP_ARRAY_BUFFERS;
-      break;
-    case GarbageCollector::SCAVENGER:
-      scope_id = GCTracer::Scope::SCAVENGER_COMPLETE_SWEEP_ARRAY_BUFFERS;
-      break;
-    default:
-      UNREACHABLE();
-  }
+    switch (tracer()->GetCurrentCollector()) {
+      case GarbageCollector::MINOR_MARK_COMPACTOR:
+        scope_id = GCTracer::Scope::MINOR_MC_COMPLETE_SWEEP_ARRAY_BUFFERS;
+        break;
+      case GarbageCollector::SCAVENGER:
+        scope_id = GCTracer::Scope::SCAVENGER_COMPLETE_SWEEP_ARRAY_BUFFERS;
+        break;
+      case GarbageCollector::MARK_COMPACTOR:
+        scope_id = GCTracer::Scope::MC_COMPLETE_SWEEP_ARRAY_BUFFERS;
+    }
 
-  {
     TRACE_GC_EPOCH(tracer(), scope_id, ThreadKind::kMain);
     array_buffer_sweeper()->EnsureFinished();
   }
@@ -7318,21 +7331,25 @@ void Heap::FinishSweepingIfOutOfWork() {
 
 void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
   if (sweeper()->sweeping_in_progress()) {
-    TRACE_GC_EPOCH(tracer(), GCTracer::Scope::MC_COMPLETE_SWEEPING,
-                   ThreadKind::kMain);
-
     sweeper()->EnsureCompleted();
-    old_space()->RefillFreeList();
+
     {
-      CodePageHeaderModificationScope rwx_write_scope(
-          "Updating per-page stats stored in page headers requires write "
-          "access to Code page headers");
-      code_space()->RefillFreeList();
-    }
-    if (shared_space()) {
-      shared_space()->RefillFreeList();
+      TRACE_GC_EPOCH(tracer(), GCTracer::Scope::MC_COMPLETE_SWEEPING,
+                     ThreadKind::kMain);
+      old_space()->RefillFreeList();
+      {
+        CodePageHeaderModificationScope rwx_write_scope(
+            "Updating per-page stats stored in page headers requires write "
+            "access to Code page headers");
+        code_space()->RefillFreeList();
+      }
+      if (shared_space()) {
+        shared_space()->RefillFreeList();
+      }
     }
 
+    TRACE_GC_EPOCH(tracer(), sweeper()->GetTracingScopeForCompleteYoungSweep(),
+                   ThreadKind::kMain);
     if (v8_flags.minor_mc && new_space()) {
       paged_new_space()->paged_space()->RefillFreeList();
     }

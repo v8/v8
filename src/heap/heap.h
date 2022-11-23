@@ -1094,7 +1094,7 @@ class Heap {
       GarbageCollectionReason gc_reason);
 
   V8_EXPORT_PRIVATE void CompleteSweepingFull();
-  void CompleteSweepingYoung(GarbageCollector collector);
+  void CompleteSweepingYoung();
 
   // Ensures that sweeping is finished for that object's page.
   void EnsureSweepingCompletedForObject(HeapObject object);

@@ -247,9 +247,17 @@ void Sweeper::EnsureCompleted() {
 
   // If sweeping is not completed or not running at all, we try to complete it
   // here.
-  ForAllSweepingSpaces([this](AllocationSpace space) {
-    ParallelSweepSpace(space, SweepingMode::kLazyOrConcurrent, 0);
-  });
+  if (should_sweep_non_new_spaces_) {
+    TRACE_GC_EPOCH(heap_->tracer(), GCTracer::Scope::MC_COMPLETE_SWEEPING,
+                   ThreadKind::kMain);
+    ForAllSweepingSpaces([this](AllocationSpace space) {
+      if (space == NEW_SPACE) return;
+      ParallelSweepSpace(space, SweepingMode::kLazyOrConcurrent, 0);
+    });
+  }
+  TRACE_GC_EPOCH(heap_->tracer(), GetTracingScopeForCompleteYoungSweep(),
+                 ThreadKind::kMain);
+  ParallelSweepSpace(NEW_SPACE, SweepingMode::kLazyOrConcurrent, 0);
 
   if (job_handle_ && job_handle_->IsValid()) job_handle_->Join();
 
