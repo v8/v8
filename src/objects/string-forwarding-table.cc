@@ -120,7 +120,8 @@ void StringForwardingTable::Block::UpdateAfterFullEvacuation(
   for (int index = 0; index < up_to_index; ++index) {
     OffHeapObjectSlot original_slot = record(index)->OriginalStringSlot();
     Object original = original_slot.Acquire_Load(cage_base);
-    UpdateForwardedSlot(original, original_slot);
+    if (!original.IsHeapObject()) continue;
+    UpdateForwardedSlot(HeapObject::cast(original), original_slot);
     // During mark compact the forwarded (internalized) string may have been
     // evacuated.
     OffHeapObjectSlot forward_slot = record(index)->ForwardStringOrHashSlot();
