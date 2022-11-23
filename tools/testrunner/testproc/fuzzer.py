@@ -15,7 +15,9 @@ EXTRA_FLAGS = [
     (0.1, '--cache=code'),
     (0.1, '--force-slow-path'),
     (0.2, '--future'),
-    (0.1, '--harmony-struct'),
+    # TODO(v8:13524): Enable when issue is fixed
+    # TODO(v8:13528): Enable when issue is fixed
+    # (0.1, '--harmony-struct'),
     (0.1, '--interrupt-budget=100'),
     (0.1, '--interrupt-budget-for-maglev=100'),
     (0.1, '--liftoff'),
