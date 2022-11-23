@@ -720,7 +720,7 @@ void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
   if (kind != kS128) {
     TurboAssembler::Move(dst, src);
   } else {
-    TurboAssembler::vmv_vv(dst.toV(), dst.toV());
+    TurboAssembler::vmv_vv(dst.toV(), src.toV());
   }
 }
 
