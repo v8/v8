@@ -797,24 +797,34 @@ void TracedHandlesImpl::ResetDeadNodes(
 void TracedHandlesImpl::CheckNodeMarkingStateIsConsistent(
     bool may_find_marked_nodes, WeakSlotCallbackWithHeap should_reset_handle) {
   CHECK(isolate_->heap()->concurrent_marking()->IsStopped());
-  for (TracedNode* node : young_nodes_) {
+  auto consistency_check = [this](bool may_find_marked_nodes,
+                                  WeakSlotCallbackWithHeap should_reset_handle,
+                                  TracedNode* node) {
     CHECK_IMPLIES(!node->is_in_use(), !node->markbit());
     if (!node->is_in_use()) {
-      continue;
+      return;
+    }
+    if (is_marking_) {
+      // During marking, all nodes are considered roots, so there should be no
+      // nodes pointing into from space, as we only call this method after
+      // page flips and roots processing.
+      Object object = node->object();
+      if (object.IsHeapObject()) {
+        auto* chunk =
+            BasicMemoryChunk::FromHeapObject(HeapObject::cast(object));
+        CHECK(!chunk->IsFlagSet(BasicMemoryChunk::FROM_PAGE));
+      }
     }
     CHECK_IMPLIES(node->markbit(), may_find_marked_nodes);
     CHECK_IMPLIES(node->markbit(),
                   !should_reset_handle(isolate_->heap(), node->location()));
+  };
+  for (TracedNode* node : young_nodes_) {
+    consistency_check(may_find_marked_nodes, should_reset_handle, node);
   }
   for (const auto block : blocks_) {
     for (const auto node : *block) {
-      CHECK_IMPLIES(!node->is_in_use(), !node->markbit());
-      if (!node->is_in_use()) {
-        continue;
-      }
-      CHECK_IMPLIES(node->markbit(), may_find_marked_nodes);
-      CHECK_IMPLIES(node->markbit(),
-                    !should_reset_handle(isolate_->heap(), node->location()));
+      consistency_check(may_find_marked_nodes, should_reset_handle, node);
     }
   }
 }
