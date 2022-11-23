@@ -2026,6 +2026,19 @@ bool MarkCompactCollector::IsUnmarkedHeapObject(Heap* heap, FullObjectSlot p) {
   return collector->non_atomic_marking_state()->IsWhite(heap_object);
 }
 
+// static
+bool MarkCompactCollector::IsUnmarkedSharedHeapObject(Heap* heap,
+                                                      FullObjectSlot p) {
+  Object o = *p;
+  if (!o.IsHeapObject()) return false;
+  HeapObject heap_object = HeapObject::cast(o);
+  Isolate* shared_heap_isolate = heap->isolate()->shared_heap_isolate();
+  MarkCompactCollector* collector =
+      shared_heap_isolate->heap()->mark_compact_collector();
+  if (!heap_object.InSharedWritableHeap()) return false;
+  return collector->non_atomic_marking_state()->IsWhite(heap_object);
+}
+
 void MarkCompactCollector::MarkRoots(RootVisitor* root_visitor,
                                      ObjectVisitor* custom_root_body_visitor) {
   // Mark the heap roots including global variables, stack variables,
@@ -3015,9 +3028,18 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     // We depend on `IterateWeakRootsForPhantomHandles()` being called before
     // `ProcessOldCodeCandidates()` in order to identify flushed bytecode in the
     // CPU profiler.
-    heap()->isolate()->global_handles()->IterateWeakRootsForPhantomHandles(
+    isolate()->global_handles()->IterateWeakRootsForPhantomHandles(
         &IsUnmarkedHeapObject);
-    heap()->isolate()->traced_handles()->ResetDeadNodes(&IsUnmarkedHeapObject);
+    isolate()->traced_handles()->ResetDeadNodes(&IsUnmarkedHeapObject);
+
+    if (isolate()->is_shared_heap_isolate()) {
+      isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
+        if (client->is_shared_heap_isolate()) return;
+        client->global_handles()->IterateWeakRootsForPhantomHandles(
+            &IsUnmarkedSharedHeapObject);
+        // No need to reset traced handles since they are always strong.
+      });
+    }
   }
 
   {

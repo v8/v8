@@ -341,6 +341,7 @@ class MarkCompactCollector final : public CollectorBase {
   // Callback function for telling whether the object *p is an unmarked
   // heap object.
   static bool IsUnmarkedHeapObject(Heap* heap, FullObjectSlot p);
+  static bool IsUnmarkedSharedHeapObject(Heap* heap, FullObjectSlot p);
 
   std::pair<size_t, size_t> ProcessMarkingWorklist(
       size_t bytes_to_process) final;
