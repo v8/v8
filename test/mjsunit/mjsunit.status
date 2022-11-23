@@ -158,7 +158,7 @@
   'wasm/compare-exchange-stress': [PASS, SLOW, NO_VARIANTS],
   'wasm/compare-exchange64-stress': [PASS, SLOW, NO_VARIANTS],
   'wasm/code-space-overflow': [PASS, SLOW, NO_VARIANTS, ['gc_stress == True or (simulator_run and mode == debug)', SKIP]],
-  'wasm/max-wasm-functions': [PASS, SLOW, ['mode != release or dcheck_always_on', SKIP], ['tsan', SKIP]],
+  'wasm/max-wasm-functions': [PASS, SLOW, ['mode != release or dcheck_always_on or simulator_run or predictable', SKIP], ['tsan', SKIP]],
 
   # Very slow on ARM, MIPS, RISCV and LOONG, contains no architecture dependent code.
   'unicode-case-overoptimization0': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mips64el, mips64, riscv64, riscv32, loong64)', SKIP]],
