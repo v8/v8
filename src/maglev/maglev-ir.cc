@@ -3042,6 +3042,45 @@ void Int32ShiftRightLogical::GenerateCode(MaglevAssembler* masm,
   __ shrl_cl(left);
 }
 
+void Int32IncrementWithOverflow::AllocateVreg(
+    MaglevVregAllocationState* vreg_state) {
+  UseRegister(value_input());
+  DefineSameAsFirst(vreg_state, this);
+}
+
+void Int32IncrementWithOverflow::GenerateCode(MaglevAssembler* masm,
+                                              const ProcessingState& state) {
+  Register value = ToRegister(value_input());
+  __ incl(value);
+  __ EmitEagerDeoptIf(overflow, DeoptimizeReason::kOverflow, this);
+}
+
+void Int32DecrementWithOverflow::AllocateVreg(
+    MaglevVregAllocationState* vreg_state) {
+  UseRegister(value_input());
+  DefineSameAsFirst(vreg_state, this);
+}
+
+void Int32DecrementWithOverflow::GenerateCode(MaglevAssembler* masm,
+                                              const ProcessingState& state) {
+  Register value = ToRegister(value_input());
+  __ decl(value);
+  __ EmitEagerDeoptIf(overflow, DeoptimizeReason::kOverflow, this);
+}
+
+void Int32NegateWithOverflow::AllocateVreg(
+    MaglevVregAllocationState* vreg_state) {
+  UseRegister(value_input());
+  DefineSameAsFirst(vreg_state, this);
+}
+
+void Int32NegateWithOverflow::GenerateCode(MaglevAssembler* masm,
+                                           const ProcessingState& state) {
+  Register value = ToRegister(value_input());
+  __ negl(value);
+  __ EmitEagerDeoptIf(overflow, DeoptimizeReason::kOverflow, this);
+}
+
 namespace {
 
 constexpr Condition ConditionFor(Operation operation) {

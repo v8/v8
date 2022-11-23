@@ -86,9 +86,9 @@ class CompactInterpreterFrameState;
   V(Int32ShiftRight)                   \
   V(Int32ShiftRightLogical)            \
   /*V(Int32BitwiseNot)     */          \
-  /*V(Int32NegateWithOverflow) */      \
-  /*V(Int32IncrementWithOverflow)*/    \
-  /*V(Int32DecrementWithOverflow)*/    \
+  V(Int32NegateWithOverflow)           \
+  V(Int32IncrementWithOverflow)        \
+  V(Int32DecrementWithOverflow)        \
   V(Int32Equal)                        \
   V(Int32StrictEqual)                  \
   V(Int32LessThan)                     \
@@ -1642,7 +1642,7 @@ class BinaryWithFeedbackNode : public FixedInputValueNodeT<2, Derived> {
   const compiler::FeedbackSource feedback_;
 };
 
-#define DEF_OPERATION_NODE(Name, Super, OpName)                       \
+#define DEF_OPERATION_WITH_FEEDBACK_NODE(Name, Super, OpName)         \
   class Name : public Super<Name, Operation::k##OpName> {             \
     using Base = Super<Name, Operation::k##OpName>;                   \
                                                                       \
@@ -1655,16 +1655,15 @@ class BinaryWithFeedbackNode : public FixedInputValueNodeT<2, Derived> {
   };
 
 #define DEF_UNARY_WITH_FEEDBACK_NODE(Name) \
-  DEF_OPERATION_NODE(Generic##Name, UnaryWithFeedbackNode, Name)
+  DEF_OPERATION_WITH_FEEDBACK_NODE(Generic##Name, UnaryWithFeedbackNode, Name)
 #define DEF_BINARY_WITH_FEEDBACK_NODE(Name) \
-  DEF_OPERATION_NODE(Generic##Name, BinaryWithFeedbackNode, Name)
+  DEF_OPERATION_WITH_FEEDBACK_NODE(Generic##Name, BinaryWithFeedbackNode, Name)
 UNARY_OPERATION_LIST(DEF_UNARY_WITH_FEEDBACK_NODE)
 ARITHMETIC_OPERATION_LIST(DEF_BINARY_WITH_FEEDBACK_NODE)
 COMPARISON_OPERATION_LIST(DEF_BINARY_WITH_FEEDBACK_NODE)
 #undef DEF_UNARY_WITH_FEEDBACK_NODE
 #undef DEF_BINARY_WITH_FEEDBACK_NODE
-
-#undef DEF_OPERATION_NODE
+#undef DEF_OPERATION_WITH_FEEDBACK_NODE
 
 template <class Derived, Operation kOperation>
 class Int32BinaryWithOverflowNode : public FixedInputValueNodeT<2, Derived> {
@@ -1723,17 +1722,6 @@ class Int32BinaryNode : public FixedInputValueNodeT<2, Derived> {
   explicit Int32BinaryNode(uint64_t bitfield) : Base(bitfield) {}
 };
 
-#define DEF_OPERATION_NODE(Name, Super, OpName)                    \
-  class Name : public Super<Name, Operation::k##OpName> {          \
-    using Base = Super<Name, Operation::k##OpName>;                \
-                                                                   \
-   public:                                                         \
-    explicit Name(uint64_t bitfield) : Base(bitfield) {}           \
-    void AllocateVreg(MaglevVregAllocationState*);                 \
-    void GenerateCode(MaglevAssembler*, const ProcessingState&);   \
-    void PrintParams(std::ostream&, MaglevGraphLabeller*) const {} \
-  };
-
 #define DEF_INT32_BINARY_NODE(Name) \
   DEF_OPERATION_NODE(Int32##Name, Int32BinaryNode, Name)
 DEF_INT32_BINARY_NODE(BitwiseAnd)
@@ -1742,9 +1730,29 @@ DEF_INT32_BINARY_NODE(BitwiseXor)
 DEF_INT32_BINARY_NODE(ShiftLeft)
 DEF_INT32_BINARY_NODE(ShiftRight)
 #undef DEF_INT32_BINARY_NODE
-// DEF_INT32_UNARY_WITH_OVERFLOW_NODE(Negate)
-// DEF_INT32_UNARY_WITH_OVERFLOW_NODE(Increment)
-// DEF_INT32_UNARY_WITH_OVERFLOW_NODE(Decrement)
+
+template <class Derived, Operation kOperation>
+class Int32UnaryWithOverflowNode : public FixedInputValueNodeT<1, Derived> {
+  using Base = FixedInputValueNodeT<1, Derived>;
+
+ public:
+  static constexpr OpProperties kProperties =
+      OpProperties::EagerDeopt() | OpProperties::Int32();
+
+  static constexpr int kValueIndex = 0;
+  Input& value_input() { return Node::input(kValueIndex); }
+
+ protected:
+  explicit Int32UnaryWithOverflowNode(uint64_t bitfield) : Base(bitfield) {}
+};
+
+#define DEF_INT32_UNARY_WITH_OVERFLOW_NODE(Name)                            \
+  DEF_OPERATION_NODE(Int32##Name##WithOverflow, Int32UnaryWithOverflowNode, \
+                     Name)
+DEF_INT32_UNARY_WITH_OVERFLOW_NODE(Negate)
+DEF_INT32_UNARY_WITH_OVERFLOW_NODE(Increment)
+DEF_INT32_UNARY_WITH_OVERFLOW_NODE(Decrement)
+#undef DEF_INT32_UNARY_WITH_OVERFLOW_NODE
 
 class Int32ShiftRightLogical
     : public FixedInputValueNodeT<2, Int32ShiftRightLogical> {
@@ -1784,17 +1792,6 @@ class Int32CompareNode : public FixedInputValueNodeT<2, Derived> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
-#define DEF_OPERATION_NODE(Name, Super, OpName)                    \
-  class Name : public Super<Name, Operation::k##OpName> {          \
-    using Base = Super<Name, Operation::k##OpName>;                \
-                                                                   \
-   public:                                                         \
-    explicit Name(uint64_t bitfield) : Base(bitfield) {}           \
-    void AllocateVreg(MaglevVregAllocationState*);                 \
-    void GenerateCode(MaglevAssembler*, const ProcessingState&);   \
-    void PrintParams(std::ostream&, MaglevGraphLabeller*) const {} \
-  };
-
 #define DEF_INT32_COMPARE_NODE(Name) \
   DEF_OPERATION_NODE(Int32##Name, Int32CompareNode, Name)
 DEF_INT32_COMPARE_NODE(Equal)
@@ -1804,8 +1801,6 @@ DEF_INT32_COMPARE_NODE(LessThanOrEqual)
 DEF_INT32_COMPARE_NODE(GreaterThan)
 DEF_INT32_COMPARE_NODE(GreaterThanOrEqual)
 #undef DEF_INT32_COMPARE_NODE
-
-#undef DEF_OPERATION_NODE
 
 template <class Derived, Operation kOperation>
 class Float64BinaryNode : public FixedInputValueNodeT<2, Derived> {
@@ -1824,17 +1819,6 @@ class Float64BinaryNode : public FixedInputValueNodeT<2, Derived> {
 
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
-
-#define DEF_OPERATION_NODE(Name, Super, OpName)                    \
-  class Name : public Super<Name, Operation::k##OpName> {          \
-    using Base = Super<Name, Operation::k##OpName>;                \
-                                                                   \
-   public:                                                         \
-    explicit Name(uint64_t bitfield) : Base(bitfield) {}           \
-    void AllocateVreg(MaglevVregAllocationState*);                 \
-    void GenerateCode(MaglevAssembler*, const ProcessingState&);   \
-    void PrintParams(std::ostream&, MaglevGraphLabeller*) const {} \
-  };
 
 #define DEF_FLOAT64_BINARY_NODE(Name) \
   DEF_OPERATION_NODE(Float64##Name, Float64BinaryNode, Name)
@@ -1869,17 +1853,6 @@ class Float64CompareNode : public FixedInputValueNodeT<2, Derived> {
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
-
-#define DEF_OPERATION_NODE(Name, Super, OpName)                    \
-  class Name : public Super<Name, Operation::k##OpName> {          \
-    using Base = Super<Name, Operation::k##OpName>;                \
-                                                                   \
-   public:                                                         \
-    explicit Name(uint64_t bitfield) : Base(bitfield) {}           \
-    void AllocateVreg(MaglevVregAllocationState*);                 \
-    void GenerateCode(MaglevAssembler*, const ProcessingState&);   \
-    void PrintParams(std::ostream&, MaglevGraphLabeller*) const {} \
-  };
 
 #define DEF_FLOAT64_COMPARE_NODE(Name) \
   DEF_OPERATION_NODE(Float64##Name, Float64CompareNode, Name)

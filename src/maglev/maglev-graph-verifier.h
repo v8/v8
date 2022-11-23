@@ -180,6 +180,9 @@ class MaglevGraphVerifier {
       case Opcode::kChangeInt32ToFloat64:
       case Opcode::kInt32ToNumber:
       case Opcode::kBuiltinStringFromCharCode:
+      case Opcode::kInt32IncrementWithOverflow:
+      case Opcode::kInt32DecrementWithOverflow:
+      case Opcode::kInt32NegateWithOverflow:
         DCHECK_EQ(node->input_count(), 1);
         CheckValueInputIs(node, 0, ValueRepresentation::kInt32);
         break;

@@ -1307,6 +1307,8 @@ class MaglevGraphBuilder {
   ValueNode* TryFoldInt32BinaryOperation(ValueNode* left, int right);
 
   template <Operation kOperation>
+  void BuildInt32UnaryOperationNode();
+  template <Operation kOperation>
   void BuildInt32BinaryOperationNode();
   template <Operation kOperation>
   void BuildInt32BinarySmiOperationNode();

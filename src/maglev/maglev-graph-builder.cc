@@ -384,8 +384,12 @@ constexpr bool BinaryOperationHasInt32FastPath() {
     case Operation::kLessThanOrEqual:
     case Operation::kGreaterThan:
     case Operation::kGreaterThanOrEqual:
+    case Operation::kDecrement:
+    case Operation::kIncrement:
+    case Operation::kNegate:
       return true;
     case Operation::kExponentiate:
+    case Operation::kBitwiseNot:
       return false;
   }
 }
@@ -409,18 +413,23 @@ constexpr bool BinaryOperationHasFloat64FastPath() {
 // - Int32 operation node,
 // - Identity of int32 operation (e.g, 0 for add/sub and 1 for mul/div), if it
 //   exists, or otherwise {}.
-#define MAP_OPERATION_TO_INT32_NODE(V)      \
-  V(Add, Int32AddWithOverflow, 0)           \
-  V(Subtract, Int32SubtractWithOverflow, 0) \
-  V(Multiply, Int32MultiplyWithOverflow, 1) \
-  V(Divide, Int32DivideWithOverflow, 1)     \
-  V(Modulus, Int32ModulusWithOverflow, {})  \
-  V(BitwiseAnd, Int32BitwiseAnd, ~0)        \
-  V(BitwiseOr, Int32BitwiseOr, 0)           \
-  V(BitwiseXor, Int32BitwiseXor, 0)         \
-  V(ShiftLeft, Int32ShiftLeft, 0)           \
-  V(ShiftRight, Int32ShiftRight, 0)         \
+#define MAP_BINARY_OPERATION_TO_INT32_NODE(V) \
+  V(Add, Int32AddWithOverflow, 0)             \
+  V(Subtract, Int32SubtractWithOverflow, 0)   \
+  V(Multiply, Int32MultiplyWithOverflow, 1)   \
+  V(Divide, Int32DivideWithOverflow, 1)       \
+  V(Modulus, Int32ModulusWithOverflow, {})    \
+  V(BitwiseAnd, Int32BitwiseAnd, ~0)          \
+  V(BitwiseOr, Int32BitwiseOr, 0)             \
+  V(BitwiseXor, Int32BitwiseXor, 0)           \
+  V(ShiftLeft, Int32ShiftLeft, 0)             \
+  V(ShiftRight, Int32ShiftRight, 0)           \
   V(ShiftRightLogical, Int32ShiftRightLogical, {})
+
+#define MAP_UNARY_OPERATION_TO_INT32_NODE(V) \
+  V(Increment, Int32IncrementWithOverflow)   \
+  V(Decrement, Int32DecrementWithOverflow)   \
+  V(Negate, Int32NegateWithOverflow)
 
 #define MAP_COMPARE_OPERATION_TO_INT32_NODE(V) \
   V(Equal, Int32Equal)                         \
@@ -444,7 +453,7 @@ static constexpr base::Optional<int> Int32Identity() {
 #define CASE(op, _, identity) \
   case Operation::k##op:      \
     return identity;
-    MAP_OPERATION_TO_INT32_NODE(CASE)
+    MAP_BINARY_OPERATION_TO_INT32_NODE(CASE)
 #undef CASE
     default:
       UNREACHABLE();
@@ -459,7 +468,8 @@ struct Int32NodeForHelper;
   struct Int32NodeForHelper<Operation::k##op> { \
     using type = OpNode;                        \
   };
-MAP_OPERATION_TO_INT32_NODE(SPECIALIZATION)
+MAP_UNARY_OPERATION_TO_INT32_NODE(SPECIALIZATION)
+MAP_BINARY_OPERATION_TO_INT32_NODE(SPECIALIZATION)
 MAP_COMPARE_OPERATION_TO_INT32_NODE(SPECIALIZATION)
 #undef SPECIALIZATION
 
@@ -505,6 +515,21 @@ void MaglevGraphBuilder::BuildGenericBinarySmiOperationNode() {
   FeedbackSlot slot_index = GetSlotOperand(1);
   SetAccumulator(AddNewNode<GenericNodeForOperation<kOperation>>(
       {left, right}, compiler::FeedbackSource{feedback(), slot_index}));
+}
+
+template <Operation kOperation>
+void MaglevGraphBuilder::BuildInt32UnaryOperationNode() {
+  // TODO(victorgomes): Get the TruncatedInt32 version when we support
+  // BitwiseNot.
+  ValueNode* value = GetAccumulatorInt32();
+  using OpNodeT = Int32NodeFor<kOperation>;
+  OpNodeT* result = AddNewNode<OpNodeT>({value});
+  NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(result);
+  node_info->type = NodeType::kSmi;
+  static_assert(OpNodeT::kProperties.value_representation() ==
+                ValueRepresentation::kInt32);
+  node_info->tagged_alternative = AddNewNode<CheckedSmiTagInt32>({result});
+  SetAccumulator(result);
 }
 
 template <Operation kOperation>
@@ -688,7 +713,20 @@ void MaglevGraphBuilder::BuildFloat64BinaryOperationNode() {
 
 template <Operation kOperation>
 void MaglevGraphBuilder::VisitUnaryOperation() {
-  // TODO(victorgomes): Use feedback info and create optimized versions.
+  FeedbackNexus nexus = FeedbackNexusForOperand(0);
+  switch (nexus.GetBinaryOperationFeedback()) {
+    case BinaryOperationHint::kNone:
+      return EmitUnconditionalDeopt(
+          DeoptimizeReason::kInsufficientTypeFeedbackForBinaryOperation);
+    case BinaryOperationHint::kSignedSmall:
+      if constexpr (BinaryOperationHasInt32FastPath<kOperation>()) {
+        return BuildInt32UnaryOperationNode<kOperation>();
+      }
+      break;
+    default:
+      // Fallback to generic node.
+      break;
+  }
   BuildGenericUnaryOperationNode<kOperation>();
 }
 
