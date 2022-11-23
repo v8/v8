@@ -187,7 +187,15 @@ CopyAndForwardResult Scavenger::PromoteObject(Map map, THeapObjectSlot slot,
     const bool self_success =
         MigrateObject(map, object, target, object_size, promotion_heap_choice);
     if (!self_success) {
-      allocator_.FreeLast(OLD_SPACE, target, object_size);
+      switch (promotion_heap_choice) {
+        case kPromoteIntoLocalHeap:
+          allocator_.FreeLast(OLD_SPACE, target, object_size);
+          break;
+        case kPromoteIntoSharedHeap:
+          heap()->CreateFillerObjectAt(target.address(), object_size);
+          break;
+      }
+
       MapWord map_word = object.map_word(kAcquireLoad);
       HeapObjectReference::Update(slot, map_word.ToForwardingAddress(object));
       DCHECK(!Heap::InFromPage(*slot));
