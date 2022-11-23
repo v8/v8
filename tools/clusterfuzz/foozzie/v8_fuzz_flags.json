@@ -31,7 +31,5 @@
   [0.1, "--no-wasm-generic-wrapper"],
   [0.1, "--turbo-force-mid-tier-regalloc"],
   [0.0001, "--simulate-errors"],
-  [0.1, "--minor-mc"],
-  [0.1, "--harmony-struct"],
-  [0.1, "--shared-string-table"]
+  [0.1, "--minor-mc"]
 ]
