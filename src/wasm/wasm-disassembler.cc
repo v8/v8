@@ -195,7 +195,9 @@ void FunctionBodyDisassembler::DecodeAsWat(MultiLineStringBuilder& out,
     // Deal with indentation.
     if (opcode == kExprEnd || opcode == kExprElse || opcode == kExprCatch ||
         opcode == kExprCatchAll || opcode == kExprDelegate) {
-      indentation.decrease();
+      if (indentation.current() >= base_indentation) {
+        indentation.decrease();
+      }
     }
     out << indentation;
     if (opcode == kExprElse || opcode == kExprCatch ||
@@ -206,7 +208,9 @@ void FunctionBodyDisassembler::DecodeAsWat(MultiLineStringBuilder& out,
 
     // Print the opcode and its immediates.
     if (opcode == kExprEnd) {
-      if (indentation.current() == base_indentation) {
+      if (indentation.current() < base_indentation) {
+        out << ";; Unexpected end byte";
+      } else if (indentation.current() == base_indentation) {
         out << ")";  // End of the function.
       } else {
         out << "end";

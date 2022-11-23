@@ -44,10 +44,11 @@ void CheckDisassemblerOutput(base::Vector<const byte> module_bytes,
   // Remove comment lines from expected output since they cannot be recovered
   // by a disassembler.
   // They were also used as part of the C++/WAT polyglot trick described below.
-  expected_output =
-      std::regex_replace(expected_output, std::regex(" *;;[^\\n]*\\n?"), "");
+  std::regex comment_regex(" *;;[^\\n]*\\n?");
+  expected_output = std::regex_replace(expected_output, comment_regex, "");
+  std::string output_str = std::regex_replace(output.str(), comment_regex, "");
 
-  EXPECT_EQ(output.str(), expected_output);
+  EXPECT_EQ(expected_output, output_str);
 }
 
 TEST_F(WasmDisassemblerTest, Mvp) {
@@ -107,6 +108,15 @@ TEST_F(WasmDisassemblerTest, Gc) {
   };
   std::string expected;
 #include "wasm-disassembler-unittest-gc.wat.inc"
+  CheckDisassemblerOutput(base::ArrayVector(module_bytes), expected);
+}
+
+TEST_F(WasmDisassemblerTest, TooManyends) {
+  constexpr byte module_bytes[] = {
+#include "wasm-disassembler-unittest-too-many-ends.wasm.inc"
+  };
+  std::string expected;
+#include "wasm-disassembler-unittest-too-many-ends.wat.inc"
   CheckDisassemblerOutput(base::ArrayVector(module_bytes), expected);
 }
 
