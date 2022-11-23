@@ -714,7 +714,8 @@ void Scavenger::ScavengePage(MemoryChunk* page) {
               // A new space string might have been promoted into the shared
               // heap during GC.
               if (record_old_to_shared_slots) {
-                CheckOldToNewSlotForSharedTyped(page, slot_type, slot_address);
+                CheckOldToNewSlotForSharedTyped(page, slot_type, slot_address,
+                                                *slot);
               }
               return result;
             });
@@ -861,9 +862,12 @@ void Scavenger::CheckOldToNewSlotForSharedUntyped(MemoryChunk* chunk,
 
 void Scavenger::CheckOldToNewSlotForSharedTyped(MemoryChunk* chunk,
                                                 SlotType slot_type,
-                                                Address slot_address) {
-  HeapObject heap_object = UpdateTypedSlotHelper::GetTargetObject(
-      chunk->heap(), slot_type, slot_address);
+                                                Address slot_address,
+                                                MaybeObject new_target) {
+  HeapObject heap_object;
+  if (!new_target.GetHeapObject(&heap_object)) {
+    return;
+  }
 
 #if DEBUG
   UpdateTypedSlotHelper::UpdateTypedSlot(
