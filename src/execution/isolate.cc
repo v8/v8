@@ -4277,8 +4277,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     // Additionally, enable if there is already a process-wide CodeRange that
     // has re-embedded builtins.
     if (COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL) {
-      std::shared_ptr<CodeRange> code_range =
-          CodeRange::GetProcessWideCodeRange();
+      CodeRange* code_range = CodeRange::GetProcessWideCodeRange();
       if (code_range && code_range->embedded_blob_code_copy() != nullptr) {
         is_short_builtin_calls_enabled_ = true;
       }

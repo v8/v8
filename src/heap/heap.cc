@@ -5445,20 +5445,20 @@ void Heap::SetUp(LocalHeap* main_thread_local_heap) {
     // When a target requires the code range feature, we put all code objects in
     // a contiguous range of virtual address space, so that they can call each
     // other with near calls.
-    if (COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL) {
-      // When sharing a pointer cage among Isolates, also share the
-      // CodeRange. isolate_->page_allocator() is the process-wide pointer
-      // compression cage's PageAllocator.
-      code_range_ = CodeRange::EnsureProcessWideCodeRange(
-          isolate_->page_allocator(), requested_size);
-    } else {
-      code_range_ = std::make_shared<CodeRange>();
-      if (!code_range_->InitReservation(isolate_->page_allocator(),
-                                        requested_size)) {
-        V8::FatalProcessOutOfMemory(
-            isolate_, "Failed to reserve virtual memory for CodeRange");
-      }
+#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+    // When sharing a pointer cage among Isolates, also share the
+    // CodeRange. isolate_->page_allocator() is the process-wide pointer
+    // compression cage's PageAllocator.
+    code_range_ = CodeRange::EnsureProcessWideCodeRange(
+        isolate_->page_allocator(), requested_size);
+#else
+    code_range_ = std::make_unique<CodeRange>();
+    if (!code_range_->InitReservation(isolate_->page_allocator(),
+                                      requested_size)) {
+      V8::FatalProcessOutOfMemory(
+          isolate_, "Failed to reserve virtual memory for CodeRange");
     }
+#endif  // V8_COMPRESS_POINTERS_IN_SHARED_CAGE
 
     LOG(isolate_,
         NewEvent("CodeRange",
@@ -6964,7 +6964,7 @@ CodeLookupResult Heap::GcSafeFindCodeForInnerPointer(
   // Put useful info on the stack for debugging and crash the process.
 
   // TODO(1241665): Remove once the issue is solved.
-  std::shared_ptr<CodeRange> code_range = CodeRange::GetProcessWideCodeRange();
+  CodeRange* code_range = CodeRange::GetProcessWideCodeRange();
   void* code_range_embedded_blob_code_copy =
       code_range ? code_range->embedded_blob_code_copy() : nullptr;
   Address flags = (isolate()->is_short_builtin_calls_enabled() ? 1 : 0) |

@@ -64,8 +64,7 @@ DEFINE_LAZY_LEAKY_OBJECT_GETTER(VirtualMemoryCage, GetProcessWidePtrComprCage)
 
 // static
 void IsolateAllocator::FreeProcessWidePtrComprCageForTesting() {
-  if (std::shared_ptr<CodeRange> code_range =
-          CodeRange::GetProcessWideCodeRange()) {
+  if (CodeRange* code_range = CodeRange::GetProcessWideCodeRange()) {
     code_range->Free();
   }
   GetProcessWidePtrComprCage()->Free();

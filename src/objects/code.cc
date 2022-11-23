@@ -49,7 +49,7 @@ inline EmbeddedData EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(
   // copy of the re-embedded builtins in the shared CodeRange, so use that if
   // it's present.
   if (v8_flags.jitless) return EmbeddedData::FromBlob();
-  CodeRange* code_range = CodeRange::GetProcessWideCodeRange().get();
+  CodeRange* code_range = CodeRange::GetProcessWideCodeRange();
   return (code_range && code_range->embedded_blob_code_copy() != nullptr)
              ? EmbeddedData::FromBlob(code_range)
              : EmbeddedData::FromBlob();

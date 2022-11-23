@@ -6,6 +6,7 @@
 
 #include "src/base/bits.h"
 #include "src/base/lazy-instance.h"
+#include "src/base/once.h"
 #include "src/codegen/constants-arch.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
@@ -17,19 +18,10 @@ namespace internal {
 
 namespace {
 
-// Mutex for creating process_wide_code_range_.
-base::LazyMutex process_wide_code_range_creation_mutex_ =
-    LAZY_MUTEX_INITIALIZER;
-
-// Weak pointer holding the process-wide CodeRange, if one has been created. All
-// Heaps hold a std::shared_ptr to this, so this is destroyed when no Heaps
-// remain.
-base::LazyInstance<std::weak_ptr<CodeRange>>::type process_wide_code_range_ =
-    LAZY_INSTANCE_INITIALIZER;
-
 DEFINE_LAZY_LEAKY_OBJECT_GETTER(CodeRangeAddressHint, GetCodeRangeAddressHint)
 
 void FunctionInStaticBinaryForAddressHint() {}
+
 }  // anonymous namespace
 
 Address CodeRangeAddressHint::GetAddressHint(size_t code_range_size,
@@ -298,35 +290,40 @@ uint8_t* CodeRange::RemapEmbeddedBuiltins(Isolate* isolate,
   return embedded_blob_code_copy;
 }
 
-// static
-std::shared_ptr<CodeRange> CodeRange::EnsureProcessWideCodeRange(
-    v8::PageAllocator* page_allocator, size_t requested_size) {
-  base::MutexGuard guard(process_wide_code_range_creation_mutex_.Pointer());
-  std::shared_ptr<CodeRange> code_range = process_wide_code_range_.Get().lock();
-  if (!code_range) {
-    code_range = std::make_shared<CodeRange>();
-    if (!code_range->InitReservation(page_allocator, requested_size)) {
-      V8::FatalProcessOutOfMemory(
-          nullptr, "Failed to reserve virtual memory for CodeRange");
-    }
-    *process_wide_code_range_.Pointer() = code_range;
+namespace {
+
+CodeRange* process_wide_code_range_ = nullptr;
+
+V8_DECLARE_ONCE(init_code_range_once);
+void InitProcessWideCodeRange(v8::PageAllocator* page_allocator,
+                              size_t requested_size) {
+  CodeRange* code_range = new CodeRange();
+  if (!code_range->InitReservation(page_allocator, requested_size)) {
+    V8::FatalProcessOutOfMemory(
+        nullptr, "Failed to reserve virtual memory for CodeRange");
+  }
+  process_wide_code_range_ = code_range;
 #ifdef V8_EXTERNAL_CODE_SPACE
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
-    // This might be not the first time we create a code range because previous
-    // code range instance could have been deleted if it wasn't kept alive by an
-    // active Isolate. Let the base be initialized from scratch once again.
-    ExternalCodeCompressionScheme::InitBase(
-        ExternalCodeCompressionScheme::PrepareCageBaseAddress(
-            code_range->base()));
+  ExternalCodeCompressionScheme::InitBase(
+      ExternalCodeCompressionScheme::PrepareCageBaseAddress(
+          code_range->base()));
 #endif  // V8_COMPRESS_POINTERS_IN_SHARED_CAGE
 #endif  // V8_EXTERNAL_CODE_SPACE
-  }
-  return code_range;
+}
+}  // namespace
+
+// static
+CodeRange* CodeRange::EnsureProcessWideCodeRange(
+    v8::PageAllocator* page_allocator, size_t requested_size) {
+  base::CallOnce(&init_code_range_once, InitProcessWideCodeRange,
+                 page_allocator, requested_size);
+  return process_wide_code_range_;
 }
 
 // static
-std::shared_ptr<CodeRange> CodeRange::GetProcessWideCodeRange() {
-  return process_wide_code_range_.Get().lock();
+CodeRange* CodeRange::GetProcessWideCodeRange() {
+  return process_wide_code_range_;
 }
 
 }  // namespace internal
