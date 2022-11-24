@@ -196,6 +196,40 @@ class VerifyReadOnlyPointersVisitor : public VerifyPointersVisitor {
   }
 };
 
+class VerifySharedHeapObjectVisitor : public VerifyPointersVisitor {
+ public:
+  explicit VerifySharedHeapObjectVisitor(Heap* heap)
+      : VerifyPointersVisitor(heap),
+        shared_space_(heap->shared_space()),
+        shared_lo_space_(heap->shared_lo_space()) {
+    DCHECK_NOT_NULL(shared_space_);
+    DCHECK_NOT_NULL(shared_lo_space_);
+  }
+
+ protected:
+  void VerifyPointers(HeapObject host, MaybeObjectSlot start,
+                      MaybeObjectSlot end) override {
+    if (!host.is_null()) {
+      Map map = host.map();
+      CHECK(ReadOnlyHeap::Contains(map) || shared_space_->Contains(map));
+    }
+    VerifyPointersVisitor::VerifyPointers(host, start, end);
+
+    for (MaybeObjectSlot current = start; current < end; ++current) {
+      HeapObject heap_object;
+      if ((*current)->GetHeapObject(&heap_object)) {
+        CHECK(ReadOnlyHeap::Contains(heap_object) ||
+              shared_space_->Contains(heap_object) ||
+              shared_lo_space_->Contains(heap_object));
+      }
+    }
+  }
+
+ private:
+  SharedSpace* shared_space_;
+  SharedLargeObjectSpace* shared_lo_space_;
+};
+
 class HeapVerification final : public SpaceVerificationVisitor {
  public:
   explicit HeapVerification(Heap* heap)
@@ -345,12 +379,25 @@ void HeapVerification::VerifyObject(HeapObject object) {
 }
 
 void HeapVerification::VerifyOutgoingPointers(HeapObject object) {
-  if (current_space_identity() == RO_SPACE) {
-    VerifyReadOnlyPointersVisitor visitor(heap());
-    object.Iterate(cage_base_, &visitor);
-  } else {
-    VerifyPointersVisitor visitor(heap());
-    object.Iterate(cage_base_, &visitor);
+  switch (current_space_identity()) {
+    case RO_SPACE: {
+      VerifyReadOnlyPointersVisitor visitor(heap());
+      object.Iterate(cage_base_, &visitor);
+      break;
+    }
+
+    case SHARED_SPACE:
+    case SHARED_LO_SPACE: {
+      VerifySharedHeapObjectVisitor visitor(heap());
+      object.Iterate(cage_base_, &visitor);
+      break;
+    }
+
+    default: {
+      VerifyPointersVisitor visitor(heap());
+      object.Iterate(cage_base_, &visitor);
+      break;
+    }
   }
 }
 
