@@ -5729,10 +5729,12 @@ void MinorMarkCompactCollector::SweepArrayBufferExtensions() {
 
 void MinorMarkCompactCollector::PerformWrapperTracing() {
   if (!heap_->local_embedder_heap_tracer()->InUse()) return;
+  // TODO(v8:13475): DCHECK instead of bailing out once EmbedderHeapTracer is
+  // removed.
+  if (!local_marking_worklists()->PublishWrapper()) return;
+  DCHECK_NOT_NULL(CppHeap::From(heap_->cpp_heap()));
+  DCHECK(CppHeap::From(heap_->cpp_heap())->generational_gc_supported());
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_EMBEDDER_TRACING);
-  const bool published = local_marking_worklists()->PublishWrapper();
-  DCHECK(published);
-  USE(published);
   heap_->local_embedder_heap_tracer()->Trace(
       std::numeric_limits<double>::infinity());
 }
