@@ -1227,6 +1227,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   V(F32x4Ceil)              \
   V(F32x4Floor)             \
   V(F32x4Trunc)             \
+  V(F32x4SConvertI32x4)     \
+  V(F32x4UConvertI32x4)     \
   V(I64x2Neg)               \
   V(F64x2ConvertLowI32x4S)  \
   V(I64x2SConvertI32x4Low)  \
@@ -1234,6 +1236,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   V(I32x4Neg)               \
   V(I32x4SConvertI16x8Low)  \
   V(I32x4SConvertI16x8High) \
+  V(I32x4UConvertF32x4)     \
   V(I16x8SConvertI8x16Low)  \
   V(I16x8SConvertI8x16High) \
   V(I8x16Popcnt)            \
@@ -1248,6 +1251,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 #define SIMD_UNOP_WITH_SCRATCH_LIST(V) \
   V(I64x2Abs)                          \
   V(I32x4Abs)                          \
+  V(I32x4SConvertF32x4)                \
   V(I16x8Abs)                          \
   V(I16x8Neg)                          \
   V(I8x16Abs)                          \

@@ -2353,6 +2353,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   V(F64x2Trunc)             \
   V(F32x4Abs)               \
   V(F32x4Neg)               \
+  V(F32x4SConvertI32x4)     \
+  V(F32x4UConvertI32x4)     \
   V(I64x2Neg)               \
   V(I32x4Neg)               \
   V(F32x4Sqrt)              \
@@ -2364,6 +2366,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   V(I64x2SConvertI32x4High) \
   V(I32x4SConvertI16x8Low)  \
   V(I32x4SConvertI16x8High) \
+  V(I32x4UConvertF32x4)     \
   V(I16x8SConvertI8x16Low)  \
   V(I16x8SConvertI8x16High) \
   V(I8x16Popcnt)            \
@@ -2381,6 +2384,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #define SIMD_UNOP_WITH_SCRATCH_LIST(V) \
   V(I64x2Abs)                          \
   V(I32x4Abs)                          \
+  V(I32x4SConvertF32x4)                \
   V(I16x8Abs)                          \
   V(I16x8Neg)                          \
   V(I8x16Abs)                          \
@@ -2566,27 +2570,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kPPC_V128AnyTrue: {
       __ V128AnyTrue(i.OutputRegister(), i.InputSimd128Register(0), r0, ip,
                      kScratchSimd128Reg);
-      break;
-    }
-    case kPPC_I32x4SConvertF32x4: {
-      Simd128Register src = i.InputSimd128Register(0);
-      // NaN to 0
-      __ vor(kScratchSimd128Reg, src, src);
-      __ xvcmpeqsp(kScratchSimd128Reg, kScratchSimd128Reg, kScratchSimd128Reg);
-      __ vand(kScratchSimd128Reg, src, kScratchSimd128Reg);
-      __ xvcvspsxws(i.OutputSimd128Register(), kScratchSimd128Reg);
-      break;
-    }
-    case kPPC_I32x4UConvertF32x4: {
-      __ xvcvspuxws(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      break;
-    }
-    case kPPC_F32x4SConvertI32x4: {
-      __ xvcvsxwsp(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      break;
-    }
-    case kPPC_F32x4UConvertI32x4: {
-      __ xvcvuxwsp(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
     case kPPC_F64x2ConvertLowI32x4U: {

@@ -1975,6 +1975,8 @@ SIMD_SHIFT_RI_LIST(EMIT_SIMD_SHIFT_RI)
   V(f32x4_ceil, F32x4Ceil, true, bool)                         \
   V(f32x4_floor, F32x4Floor, true, bool)                       \
   V(f32x4_trunc, F32x4Trunc, true, bool)                       \
+  V(f32x4_sconvert_i32x4, F32x4SConvertI32x4, , void)          \
+  V(f32x4_uconvert_i32x4, F32x4UConvertI32x4, , void)          \
   V(i64x2_neg, I64x2Neg, , void)                               \
   V(f64x2_convert_low_i32x4_s, F64x2ConvertLowI32x4S, , void)  \
   V(i64x2_sconvert_i32x4_low, I64x2SConvertI32x4Low, , void)   \
@@ -1982,6 +1984,7 @@ SIMD_SHIFT_RI_LIST(EMIT_SIMD_SHIFT_RI)
   V(i32x4_neg, I32x4Neg, , void)                               \
   V(i32x4_sconvert_i16x8_low, I32x4SConvertI16x8Low, , void)   \
   V(i32x4_sconvert_i16x8_high, I32x4SConvertI16x8High, , void) \
+  V(i32x4_uconvert_f32x4, I32x4UConvertF32x4, , void)          \
   V(i16x8_sconvert_i8x16_low, I16x8SConvertI8x16Low, , void)   \
   V(i16x8_sconvert_i8x16_high, I16x8SConvertI8x16High, , void) \
   V(i8x16_popcnt, I8x16Popcnt, , void)                         \
@@ -1997,12 +2000,13 @@ SIMD_UNOP_LIST(EMIT_SIMD_UNOP)
 #undef EMIT_SIMD_UNOP
 #undef SIMD_UNOP_LIST
 
-#define SIMD_UNOP_WITH_SCRATCH_LIST(V) \
-  V(i64x2_abs, I64x2Abs, , void)       \
-  V(i32x4_abs, I32x4Abs, , void)       \
-  V(i16x8_abs, I16x8Abs, , void)       \
-  V(i16x8_neg, I16x8Neg, , void)       \
-  V(i8x16_abs, I8x16Abs, , void)       \
+#define SIMD_UNOP_WITH_SCRATCH_LIST(V)                \
+  V(i64x2_abs, I64x2Abs, , void)                      \
+  V(i32x4_abs, I32x4Abs, , void)                      \
+  V(i32x4_sconvert_f32x4, I32x4SConvertF32x4, , void) \
+  V(i16x8_abs, I16x8Abs, , void)                      \
+  V(i16x8_neg, I16x8Neg, , void)                      \
+  V(i8x16_abs, I8x16Abs, , void)                      \
   V(i8x16_neg, I8x16Neg, , void)
 
 #define EMIT_SIMD_UNOP_WITH_SCRATCH(name, op, return_val, return_type) \
@@ -2406,26 +2410,6 @@ void LiftoffAssembler::emit_s128_select(LiftoffRegister dst,
                                         LiftoffRegister mask) {
   S128Select(dst.fp().toSimd(), src1.fp().toSimd(), src2.fp().toSimd(),
              mask.fp().toSimd());
-}
-
-void LiftoffAssembler::emit_i32x4_sconvert_f32x4(LiftoffRegister dst,
-                                                 LiftoffRegister src) {
-  bailout(kSimd, "i32x4_sconvert_f32x4");
-}
-
-void LiftoffAssembler::emit_i32x4_uconvert_f32x4(LiftoffRegister dst,
-                                                 LiftoffRegister src) {
-  bailout(kSimd, "i32x4_uconvert_f32x4");
-}
-
-void LiftoffAssembler::emit_f32x4_sconvert_i32x4(LiftoffRegister dst,
-                                                 LiftoffRegister src) {
-  bailout(kSimd, "f32x4_sconvert_i32x4");
-}
-
-void LiftoffAssembler::emit_f32x4_uconvert_i32x4(LiftoffRegister dst,
-                                                 LiftoffRegister src) {
-  bailout(kSimd, "f32x4_uconvert_i32x4");
 }
 
 void LiftoffAssembler::emit_f32x4_demote_f64x2_zero(LiftoffRegister dst,
