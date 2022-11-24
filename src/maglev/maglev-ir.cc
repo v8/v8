@@ -3229,6 +3229,17 @@ void Float64Divide::GenerateCode(MaglevAssembler* masm,
   __ Divsd(left, right);
 }
 
+void Float64Negate::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  UseRegister(input());
+  DefineSameAsFirst(vreg_state, this);
+}
+
+void Float64Negate::GenerateCode(MaglevAssembler* masm,
+                                 const ProcessingState& state) {
+  DoubleRegister value = ToDoubleRegister(input());
+  __ Negpd(value, value, kScratchRegister);
+}
+
 template <class Derived, Operation kOperation>
 void Float64CompareNode<Derived, kOperation>::AllocateVreg(
     MaglevVregAllocationState* vreg_state) {
