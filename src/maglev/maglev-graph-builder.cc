@@ -365,35 +365,6 @@ constexpr bool BinaryOperationIsBitwiseInt32() {
 
 // TODO(victorgomes): Remove this once all operations have fast paths.
 template <Operation kOperation>
-constexpr bool BinaryOperationHasInt32FastPath() {
-  switch (kOperation) {
-    case Operation::kAdd:
-    case Operation::kSubtract:
-    case Operation::kMultiply:
-    case Operation::kDivide:
-    case Operation::kModulus:
-    case Operation::kBitwiseAnd:
-    case Operation::kBitwiseOr:
-    case Operation::kBitwiseXor:
-    case Operation::kShiftLeft:
-    case Operation::kShiftRight:
-    case Operation::kShiftRightLogical:
-    case Operation::kEqual:
-    case Operation::kStrictEqual:
-    case Operation::kLessThan:
-    case Operation::kLessThanOrEqual:
-    case Operation::kGreaterThan:
-    case Operation::kGreaterThanOrEqual:
-    case Operation::kDecrement:
-    case Operation::kIncrement:
-    case Operation::kNegate:
-      return true;
-    case Operation::kExponentiate:
-    case Operation::kBitwiseNot:
-      return false;
-  }
-}
-template <Operation kOperation>
 constexpr bool BinaryOperationHasFloat64FastPath() {
   switch (kOperation) {
     case Operation::kAdd:
@@ -433,6 +404,7 @@ constexpr bool BinaryOperationHasFloat64FastPath() {
   V(ShiftRightLogical, Int32ShiftRightLogical, {})
 
 #define MAP_UNARY_OPERATION_TO_INT32_NODE(V) \
+  V(BitwiseNot, Int32BitwiseNot)             \
   V(Increment, Int32IncrementWithOverflow)   \
   V(Decrement, Int32DecrementWithOverflow)   \
   V(Negate, Int32NegateWithOverflow)
@@ -534,9 +506,11 @@ void MaglevGraphBuilder::BuildGenericBinarySmiOperationNode() {
 
 template <Operation kOperation>
 void MaglevGraphBuilder::BuildInt32UnaryOperationNode() {
-  // TODO(victorgomes): Get the TruncatedInt32 version when we support
-  // BitwiseNot.
-  ValueNode* value = GetAccumulatorInt32();
+  static const bool input_is_truncated =
+      BinaryOperationIsBitwiseInt32<kOperation>();
+  // TODO(v8:7700): Do constant folding.
+  ValueNode* value = input_is_truncated ? GetAccumulatorTruncatedInt32()
+                                        : GetAccumulatorInt32();
   using OpNodeT = Int32NodeFor<kOperation>;
   OpNodeT* result = AddNewNode<OpNodeT>({value});
   NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(result);
@@ -599,7 +573,6 @@ void MaglevGraphBuilder::BuildInt32BinaryOperationNode() {
     SetAccumulator(result);
     return;
   }
-
   using OpNodeT = Int32NodeFor<kOperation>;
 
   OpNodeT* result = AddNewNode<OpNodeT>({left, right});
@@ -734,10 +707,7 @@ void MaglevGraphBuilder::VisitUnaryOperation() {
       return EmitUnconditionalDeopt(
           DeoptimizeReason::kInsufficientTypeFeedbackForBinaryOperation);
     case BinaryOperationHint::kSignedSmall:
-      if constexpr (BinaryOperationHasInt32FastPath<kOperation>()) {
-        return BuildInt32UnaryOperationNode<kOperation>();
-      }
-      break;
+      return BuildInt32UnaryOperationNode<kOperation>();
     default:
       // Fallback to generic node.
       break;
@@ -753,16 +723,17 @@ void MaglevGraphBuilder::VisitBinaryOperation() {
       return EmitUnconditionalDeopt(
           DeoptimizeReason::kInsufficientTypeFeedbackForBinaryOperation);
     case BinaryOperationHint::kSignedSmall:
-      if constexpr (BinaryOperationHasInt32FastPath<kOperation>()) {
+      if constexpr (kOperation == Operation::kExponentiate) {
+        // Exponentiate never updates the feedback to be a Smi.
+        UNREACHABLE();
+      } else {
         return BuildInt32BinaryOperationNode<kOperation>();
       }
-      break;
     case BinaryOperationHint::kSignedSmallInputs:
     case BinaryOperationHint::kNumber:
       if constexpr (BinaryOperationHasFloat64FastPath<kOperation>()) {
         return BuildFloat64BinaryOperationNode<kOperation>();
-      } else if constexpr (BinaryOperationHasInt32FastPath<kOperation>() &&
-                           BinaryOperationIsBitwiseInt32<kOperation>()) {
+      } else if constexpr (BinaryOperationIsBitwiseInt32<kOperation>()) {
         return BuildTruncatingInt32BinaryOperationNodeForNumber<kOperation>();
       }
       break;
@@ -781,16 +752,17 @@ void MaglevGraphBuilder::VisitBinarySmiOperation() {
       return EmitUnconditionalDeopt(
           DeoptimizeReason::kInsufficientTypeFeedbackForBinaryOperation);
     case BinaryOperationHint::kSignedSmall:
-      if constexpr (BinaryOperationHasInt32FastPath<kOperation>()) {
+      if constexpr (kOperation == Operation::kExponentiate) {
+        // Exponentiate never updates the feedback to be a Smi.
+        UNREACHABLE();
+      } else {
         return BuildInt32BinarySmiOperationNode<kOperation>();
       }
-      break;
     case BinaryOperationHint::kSignedSmallInputs:
     case BinaryOperationHint::kNumber:
       if constexpr (BinaryOperationHasFloat64FastPath<kOperation>()) {
         return BuildFloat64BinarySmiOperationNode<kOperation>();
-      } else if constexpr (BinaryOperationHasInt32FastPath<kOperation>() &&
-                           BinaryOperationIsBitwiseInt32<kOperation>()) {
+      } else if constexpr (BinaryOperationIsBitwiseInt32<kOperation>()) {
         return BuildTruncatingInt32BinarySmiOperationNodeForNumber<
             kOperation>();
       }
@@ -870,19 +842,16 @@ void MaglevGraphBuilder::VisitCompareOperation() {
       EmitUnconditionalDeopt(
           DeoptimizeReason::kInsufficientTypeFeedbackForCompareOperation);
       return;
-    case CompareOperationHint::kSignedSmall:
-      if constexpr (BinaryOperationHasInt32FastPath<kOperation>()) {
-        ValueNode* left = LoadRegisterInt32(0);
-        ValueNode* right = GetAccumulatorInt32();
-
-        if (TryBuildCompareOperation<BranchIfInt32Compare>(kOperation, left,
-                                                           right)) {
-          return;
-        }
-        SetAccumulator(AddNewNode<Int32NodeFor<kOperation>>({left, right}));
+    case CompareOperationHint::kSignedSmall: {
+      ValueNode* left = LoadRegisterInt32(0);
+      ValueNode* right = GetAccumulatorInt32();
+      if (TryBuildCompareOperation<BranchIfInt32Compare>(kOperation, left,
+                                                         right)) {
         return;
       }
-      break;
+      SetAccumulator(AddNewNode<Int32NodeFor<kOperation>>({left, right}));
+      return;
+    }
     case CompareOperationHint::kNumber:
       if constexpr (BinaryOperationHasFloat64FastPath<kOperation>()) {
         ValueNode* left = LoadRegisterFloat64(0);

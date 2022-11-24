@@ -3081,6 +3081,17 @@ void Int32NegateWithOverflow::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(overflow, DeoptimizeReason::kOverflow, this);
 }
 
+void Int32BitwiseNot::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  UseRegister(value_input());
+  DefineSameAsFirst(vreg_state, this);
+}
+
+void Int32BitwiseNot::GenerateCode(MaglevAssembler* masm,
+                                   const ProcessingState& state) {
+  Register value = ToRegister(value_input());
+  __ notl(value);
+}
+
 namespace {
 
 constexpr Condition ConditionFor(Operation operation) {

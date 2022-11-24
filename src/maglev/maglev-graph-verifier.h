@@ -287,6 +287,10 @@ class MaglevGraphVerifier {
         CheckValueInputIs(node, 0, ValueRepresentation::kInt32);
         CheckValueInputIs(node, 1, ValueRepresentation::kInt32);
         break;
+      case Opcode::kInt32BitwiseNot:
+        DCHECK_EQ(node->input_count(), 1);
+        CheckValueInputIsWord32(node, 0);
+        break;
       case Opcode::kInt32BitwiseAnd:
       case Opcode::kInt32BitwiseOr:
       case Opcode::kInt32BitwiseXor:

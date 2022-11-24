@@ -85,7 +85,7 @@ class CompactInterpreterFrameState;
   V(Int32ShiftLeft)                    \
   V(Int32ShiftRight)                   \
   V(Int32ShiftRightLogical)            \
-  /*V(Int32BitwiseNot)     */          \
+  V(Int32BitwiseNot)                   \
   V(Int32NegateWithOverflow)           \
   V(Int32IncrementWithOverflow)        \
   V(Int32DecrementWithOverflow)        \
@@ -1730,6 +1730,22 @@ DEF_INT32_BINARY_NODE(BitwiseXor)
 DEF_INT32_BINARY_NODE(ShiftLeft)
 DEF_INT32_BINARY_NODE(ShiftRight)
 #undef DEF_INT32_BINARY_NODE
+
+class Int32BitwiseNot : public FixedInputValueNodeT<1, Int32BitwiseNot> {
+  using Base = FixedInputValueNodeT<1, Int32BitwiseNot>;
+
+ public:
+  explicit Int32BitwiseNot(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::Int32();
+
+  static constexpr int kValueIndex = 0;
+  Input& value_input() { return Node::input(kValueIndex); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
 
 template <class Derived, Operation kOperation>
 class Int32UnaryWithOverflowNode : public FixedInputValueNodeT<1, Derived> {
