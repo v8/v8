@@ -193,7 +193,9 @@ void ShrinkNewSpace(NewSpace* new_space) {
   }
   // MinorMC shrinks the space as part of sweeping.
   PagedNewSpace* paged_new_space = PagedNewSpace::From(new_space);
-  GCTracer* tracer = paged_new_space->heap()->tracer();
+  Heap* heap = paged_new_space->heap();
+  heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only);
+  GCTracer* tracer = heap->tracer();
   tracer->StartObservablePause();
   tracer->StartCycle(GarbageCollector::MARK_COMPACTOR,
                      GarbageCollectionReason::kTesting, "heap unittest",
