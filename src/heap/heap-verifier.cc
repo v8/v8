@@ -359,7 +359,8 @@ void HeapVerification::VerifyObjectMap(HeapObject object) {
   // in map space or read-only space.
   Map map = object.map(cage_base_);
   CHECK(map.IsMap(cage_base_));
-  CHECK(ReadOnlyHeap::Contains(map) || old_space()->Contains(map));
+  CHECK(ReadOnlyHeap::Contains(map) || old_space()->Contains(map) ||
+        (shared_space() && shared_space()->Contains(map)));
 
   if (Heap::InYoungGeneration(object)) {
     // The object should not be code or a map.
