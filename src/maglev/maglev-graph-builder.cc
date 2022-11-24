@@ -378,6 +378,8 @@ constexpr bool BinaryOperationHasFloat64FastPath() {
     case Operation::kGreaterThan:
     case Operation::kGreaterThanOrEqual:
     case Operation::kNegate:
+    case Operation::kIncrement:
+    case Operation::kDecrement:
       return true;
     default:
       return false;
@@ -703,7 +705,20 @@ template <Operation kOperation>
 void MaglevGraphBuilder::BuildFloat64UnaryOperationNode() {
   // TODO(v8:7700): Do constant folding.
   ValueNode* value = GetAccumulatorFloat64();
-  SetAccumulator(AddNewNode<Float64NodeFor<kOperation>>({value}));
+  switch (kOperation) {
+    case Operation::kNegate:
+      SetAccumulator(AddNewNode<Float64Negate>({value}));
+      break;
+    case Operation::kIncrement:
+      SetAccumulator(AddNewNode<Float64Add>({value, GetFloat64Constant(1)}));
+      break;
+    case Operation::kDecrement:
+      SetAccumulator(
+          AddNewNode<Float64Subtract>({value, GetFloat64Constant(1)}));
+      break;
+    default:
+      UNREACHABLE();
+  }
 }
 
 template <Operation kOperation>

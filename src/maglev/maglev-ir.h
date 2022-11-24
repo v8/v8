@@ -104,8 +104,6 @@ class CompactInterpreterFrameState;
   /*V(Float64Modulus)*/                 \
   /*V(Float64Exponentiate)*/            \
   V(Float64Negate)                      \
-  /*V(Float64Increment)*/               \
-  /*V(Float64Decrement)*/               \
   V(Float64Equal)                       \
   V(Float64StrictEqual)                 \
   V(Float64LessThan)                    \
