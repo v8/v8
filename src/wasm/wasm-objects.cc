@@ -327,6 +327,9 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
     case wasm::HeapType::kArray:
     case wasm::HeapType::kAny:
     case wasm::HeapType::kI31:
+    case wasm::HeapType::kNone:
+    case wasm::HeapType::kNoFunc:
+    case wasm::HeapType::kNoExtern:
       entries->set(entry_index, *entry);
       return;
     case wasm::HeapType::kFunc:
@@ -374,6 +377,9 @@ Handle<Object> WasmTableObject::Get(Isolate* isolate,
     case wasm::HeapType::kStruct:
     case wasm::HeapType::kArray:
     case wasm::HeapType::kAny:
+    case wasm::HeapType::kNone:
+    case wasm::HeapType::kNoFunc:
+    case wasm::HeapType::kNoExtern:
       return entry;
     case wasm::HeapType::kFunc:
       if (entry->IsWasmInternalFunction()) return entry;
