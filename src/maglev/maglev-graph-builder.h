@@ -1309,6 +1309,7 @@ class MaglevGraphBuilder {
 
   template <Operation kOperation>
   void BuildInt32UnaryOperationNode();
+  void BuildTruncatingInt32BitwiseNotForNumber();
   template <Operation kOperation>
   void BuildInt32BinaryOperationNode();
   template <Operation kOperation>
