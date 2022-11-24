@@ -103,7 +103,7 @@ class CompactInterpreterFrameState;
   V(Float64Divide)                      \
   /*V(Float64Modulus)*/                 \
   /*V(Float64Exponentiate)*/            \
-  V(Float64Negate)                      \
+  /*V(Float64Negate) */                 \
   /*V(Float64Increment)*/               \
   /*V(Float64Decrement)*/               \
   V(Float64Equal)                       \
@@ -1844,6 +1844,12 @@ DEF_FLOAT64_BINARY_NODE(Multiply)
 DEF_FLOAT64_BINARY_NODE(Divide)
 // DEF_FLOAT64_BINARY_NODE(Modulus)
 // DEF_FLOAT64_BINARY_NODE(Exponentiate)
+// DEF_FLOAT64_BINARY_NODE(Equal)
+// DEF_FLOAT64_BINARY_NODE(StrictEqual)
+// DEF_FLOAT64_BINARY_NODE(LessThan)
+// DEF_FLOAT64_BINARY_NODE(LessThanOrEqual)
+// DEF_FLOAT64_BINARY_NODE(GreaterThan)
+// DEF_FLOAT64_BINARY_NODE(GreaterThanOrEqual)
 #undef DEF_FLOAT64_BINARY_NODE
 
 template <class Derived, Operation kOperation>
@@ -1875,20 +1881,6 @@ DEF_FLOAT64_COMPARE_NODE(GreaterThanOrEqual)
 #undef DEF_FLOAT64_COMPARE_NODE
 
 #undef DEF_OPERATION_NODE
-
-class Float64Negate : public FixedInputValueNodeT<1, Float64Negate> {
-  using Base = FixedInputValueNodeT<1, Float64Negate>;
-
- public:
-  explicit Float64Negate(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties = OpProperties::Float64();
-  Input& input() { return Node::input(0); }
-
-  void AllocateVreg(MaglevVregAllocationState*);
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
-};
 
 class CheckInt32IsSmi : public FixedInputNodeT<1, CheckInt32IsSmi> {
   using Base = FixedInputNodeT<1, CheckInt32IsSmi>;
