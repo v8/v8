@@ -308,6 +308,7 @@ class MaglevGraphBuilder {
           MarkBytecodeDead();
           return;
         }
+        graph_->set_has_catch_block();
         ProcessMergePointAtExceptionHandlerStart(offset);
       } else {
         ProcessMergePoint(offset);
