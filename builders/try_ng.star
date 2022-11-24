@@ -7,6 +7,7 @@ load(
     "CQ",
     "GCLIENT_VARS",
     "GOMA",
+    "RECLIENT",
     "defaults_triggered",
     "defaults_try",
     "v8_builder",
@@ -106,7 +107,8 @@ trybot_pair(
     name = "v8_linux64_cfi_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-    use_goma = GOMA.DEFAULT,
+    use_goma = GOMA.NO,
+    use_remoteexec = RECLIENT.DEFAULT,
 )
 
 trybot_pair(
@@ -450,7 +452,8 @@ trybot_pair(
     # (i.e. M100).
     cq_compile_only_properties = CQ.EXP_100_PERCENT,
     dimensions = {"os": "Mac"},
-    use_goma = GOMA.DEFAULT,
+    use_goma = GOMA.NO,
+    use_remoteexec = RECLIENT.DEFAULT,
 )
 
 trybot_pair(
