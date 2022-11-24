@@ -1884,14 +1884,19 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
     }
 
     if (node != nullptr && !node->is_loadable() && !node->has_register()) {
-      // We've discovered a node that's not yet loadable but also isn't in a
-      // register. Make sure we spill it at definition so we can reload it here.
-      // This can happen because catch blocks drop all register state, but if
-      // there's a JumpLoop after the catch we might need to restore a value
-      // that wasn't spilled yet (e.g., because the only throw in the try-block
-      // didn't force spill values).
-      CHECK(graph_->has_catch_block());
-      Spill(node);
+      // If we have a node already, but can't load it here, we must be in a
+      // liveness hole for it, so nuke the merge state.
+      // This can only happen for conversion nodes, as they can split and take
+      // over the liveness of the node they are converting.
+      // TODO(v8:7700): Overeager DCHECK.
+      // DCHECK(node->properties().is_conversion());
+      if (v8_flags.trace_maglev_regalloc) {
+        printing_visitor_->os() << "  " << reg << " - can't load "
+                                << PrintNodeLabel(graph_labeller(), node)
+                                << ", dropping the merge\n";
+      }
+      state = {nullptr, initialized_node};
+      return;
     }
 
     const size_t size = sizeof(RegisterMerge) +

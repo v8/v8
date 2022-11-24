@@ -76,9 +76,6 @@ class Graph final : public ZoneObject {
     nan_ = nan;
   }
 
-  bool has_catch_block() const { return has_catch_block_; }
-  void set_has_catch_block() { has_catch_block_ = true; }
-
  private:
   uint32_t tagged_stack_slots_ = kMaxUInt32;
   uint32_t untagged_stack_slots_ = kMaxUInt32;
@@ -90,7 +87,6 @@ class Graph final : public ZoneObject {
   ZoneVector<InitialValue*> parameters_;
   compiler::ZoneRefMap<compiler::ObjectRef, Constant*> constants_;
   Float64Constant* nan_ = nullptr;
-  bool has_catch_block_ = false;
 };
 
 }  // namespace maglev
