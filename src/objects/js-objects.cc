@@ -4998,7 +4998,10 @@ void InvalidateOnePrototypeValidityCellInternal(Map map) {
   if (maybe_cell.IsCell()) {
     // Just set the value; the cell will be replaced lazily.
     Cell cell = Cell::cast(maybe_cell);
-    cell.set_value(Smi::FromInt(Map::kPrototypeChainInvalid));
+    Smi invalid_value = Smi::FromInt(Map::kPrototypeChainInvalid);
+    if (cell.value() != invalid_value) {
+      cell.set_value(invalid_value);
+    }
   }
   Object maybe_prototype_info = map.prototype_info();
   if (maybe_prototype_info.IsPrototypeInfo()) {

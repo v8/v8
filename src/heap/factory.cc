@@ -2049,7 +2049,7 @@ Map Factory::InitializeMap(Map map, InstanceType type, int instance_size,
     map.SetInObjectPropertiesStartInWords(instance_size / kTaggedSize -
                                           inobject_properties);
     DCHECK_EQ(map.GetInObjectProperties(), inobject_properties);
-    map.set_prototype_validity_cell(roots->invalid_prototype_validity_cell(),
+    map.set_prototype_validity_cell(ro_roots.invalid_prototype_validity_cell(),
                                     kRelaxedStore);
   } else {
     DCHECK_EQ(inobject_properties, 0);
