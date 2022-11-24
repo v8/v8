@@ -1865,7 +1865,7 @@ class MachineOptimizationReducer : public Next {
             Asm().ShiftRightArithmetic(quotient, rep.bit_width() - 1, rep);
       }
       quotient =
-          Asm().ShiftRightArithmetic(quotient, rep.bit_width() - shift, rep);
+          Asm().ShiftRightLogical(quotient, rep.bit_width() - shift, rep);
       quotient = Asm().WordAdd(quotient, left, rep);
       quotient = Asm().ShiftRightArithmetic(quotient, shift, rep);
       return quotient;
