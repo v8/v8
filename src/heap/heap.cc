@@ -2275,12 +2275,12 @@ size_t Heap::PerformGarbageCollection(GarbageCollector collector,
     isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
       if (client->is_shared_heap_isolate()) return;
 
+      HeapVerifier::VerifyHeapIfEnabled(client->heap());
+
       if (v8_flags.concurrent_marking &&
           client->heap()->incremental_marking()->IsMarking()) {
         client->heap()->concurrent_marking()->Resume();
       }
-
-      HeapVerifier::VerifyHeapIfEnabled(client->heap());
     });
   }
 
@@ -2354,25 +2354,10 @@ void Heap::PerformSharedGarbageCollection(Isolate* initiator,
     // As long as we need to iterate the client heap to find references into the
     // shared heap, all client heaps need to be iterable.
     client->heap()->MakeHeapIterable();
-
-    if (v8_flags.concurrent_marking) {
-      client->heap()->concurrent_marking()->Pause();
-    }
-
-    HeapVerifier::VerifyHeapIfEnabled(client->heap());
   });
 
   const GarbageCollector collector = GarbageCollector::MARK_COMPACTOR;
   PerformGarbageCollection(collector, gc_reason, nullptr);
-
-  isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
-    HeapVerifier::VerifyHeapIfEnabled(client->heap());
-
-    if (v8_flags.concurrent_marking &&
-        client->heap()->incremental_marking()->IsMarking()) {
-      client->heap()->concurrent_marking()->Resume();
-    }
-  });
 
   tracer()->StopAtomicPause();
   tracer()->StopObservablePause();
