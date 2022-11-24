@@ -377,6 +377,7 @@ constexpr bool BinaryOperationHasFloat64FastPath() {
     case Operation::kLessThanOrEqual:
     case Operation::kGreaterThan:
     case Operation::kGreaterThanOrEqual:
+    case Operation::kNegate:
       return true;
     default:
       return false;
@@ -423,7 +424,8 @@ constexpr bool BinaryOperationHasFloat64FastPath() {
   V(Add, Float64Add)                     \
   V(Subtract, Float64Subtract)           \
   V(Multiply, Float64Multiply)           \
-  V(Divide, Float64Divide)
+  V(Divide, Float64Divide)               \
+  V(Negate, Float64Negate)
 
 #define MAP_COMPARE_OPERATION_TO_FLOAT64_NODE(V) \
   V(Equal, Float64Equal)                         \
@@ -698,11 +700,17 @@ void MaglevGraphBuilder::BuildFloat64BinarySmiOperationNode() {
 }
 
 template <Operation kOperation>
+void MaglevGraphBuilder::BuildFloat64UnaryOperationNode() {
+  // TODO(v8:7700): Do constant folding.
+  ValueNode* value = GetAccumulatorFloat64();
+  SetAccumulator(AddNewNode<Float64NodeFor<kOperation>>({value}));
+}
+
+template <Operation kOperation>
 void MaglevGraphBuilder::BuildFloat64BinaryOperationNode() {
   // TODO(v8:7700): Do constant folding.
   ValueNode* left = LoadRegisterFloat64(0);
   ValueNode* right = GetAccumulatorFloat64();
-
   SetAccumulator(AddNewNode<Float64NodeFor<kOperation>>({left, right}));
 }
 
@@ -720,6 +728,8 @@ void MaglevGraphBuilder::VisitUnaryOperation() {
       if constexpr (BinaryOperationIsBitwiseInt32<kOperation>()) {
         static_assert(kOperation == Operation::kBitwiseNot);
         return BuildTruncatingInt32BitwiseNotForNumber();
+      } else if constexpr (BinaryOperationHasFloat64FastPath<kOperation>()) {
+        return BuildFloat64UnaryOperationNode<kOperation>();
       }
       break;
     default:
