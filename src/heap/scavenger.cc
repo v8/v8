@@ -869,15 +869,6 @@ void Scavenger::CheckOldToNewSlotForSharedTyped(MemoryChunk* chunk,
     return;
   }
 
-#if DEBUG
-  UpdateTypedSlotHelper::UpdateTypedSlot(
-      chunk->heap(), slot_type, slot_address,
-      [heap_object](FullMaybeObjectSlot slot) {
-        DCHECK_EQ((*slot).GetHeapObjectAssumeStrong(), heap_object);
-        return KEEP_SLOT;
-      });
-#endif  // DEBUG
-
   if (heap_object.InSharedWritableHeap()) {
     const uintptr_t offset = slot_address - chunk->address();
     DCHECK_LT(offset, static_cast<uintptr_t>(TypedSlotSet::kMaxOffset));
