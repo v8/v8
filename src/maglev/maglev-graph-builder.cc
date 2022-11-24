@@ -400,6 +400,12 @@ constexpr bool BinaryOperationHasFloat64FastPath() {
     case Operation::kSubtract:
     case Operation::kMultiply:
     case Operation::kDivide:
+    case Operation::kEqual:
+    case Operation::kStrictEqual:
+    case Operation::kLessThan:
+    case Operation::kLessThanOrEqual:
+    case Operation::kGreaterThan:
+    case Operation::kGreaterThanOrEqual:
       return true;
     default:
       return false;
@@ -447,6 +453,14 @@ constexpr bool BinaryOperationHasFloat64FastPath() {
   V(Multiply, Float64Multiply)           \
   V(Divide, Float64Divide)
 
+#define MAP_COMPARE_OPERATION_TO_FLOAT64_NODE(V) \
+  V(Equal, Float64Equal)                         \
+  V(StrictEqual, Float64StrictEqual)             \
+  V(LessThan, Float64LessThan)                   \
+  V(LessThanOrEqual, Float64LessThanOrEqual)     \
+  V(GreaterThan, Float64GreaterThan)             \
+  V(GreaterThanOrEqual, Float64GreaterThanOrEqual)
+
 template <Operation kOperation>
 static constexpr base::Optional<int> Int32Identity() {
   switch (kOperation) {
@@ -484,6 +498,7 @@ struct Float64NodeForHelper;
     using type = OpNode;                          \
   };
 MAP_OPERATION_TO_FLOAT64_NODE(SPECIALIZATION)
+MAP_COMPARE_OPERATION_TO_FLOAT64_NODE(SPECIALIZATION)
 #undef SPECIALIZATION
 
 template <Operation kOperation>

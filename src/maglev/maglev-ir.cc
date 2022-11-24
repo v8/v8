@@ -3101,6 +3101,24 @@ constexpr Condition ConditionFor(Operation operation) {
   }
 }
 
+constexpr Condition ConditionForFloat64(Operation operation) {
+  switch (operation) {
+    case Operation::kEqual:
+    case Operation::kStrictEqual:
+      return equal;
+    case Operation::kLessThan:
+      return below;
+    case Operation::kLessThanOrEqual:
+      return below_equal;
+    case Operation::kGreaterThan:
+      return above;
+    case Operation::kGreaterThanOrEqual:
+      return above_equal;
+    default:
+      UNREACHABLE();
+  }
+}
+
 }  // namespace
 
 template <class Derived, Operation kOperation>
@@ -3214,17 +3232,23 @@ void Float64CompareNode<Derived, kOperation>::GenerateCode(
   DoubleRegister left = ToDoubleRegister(left_input());
   DoubleRegister right = ToDoubleRegister(right_input());
   Register result = ToRegister(this->result());
-  Label is_true, end;
+  Label is_false, end;
   __ Ucomisd(left, right);
-  // TODO(leszeks): Investigate using cmov here.
-  __ j(ConditionFor(kOperation), &is_true);
+  // Ucomisd sets these flags accordingly:
+  //   UNORDERED(one of the operands is a NaN): ZF,PF,CF := 111;
+  //   GREATER_THAN: ZF,PF,CF := 000;
+  //   LESS_THAN: ZF,PF,CF := 001;
+  //   EQUAL: ZF,PF,CF := 100;
+  // Since ZF can be set by NaN or EQUAL, we check for NaN first.
+  __ j(parity_even, &is_false);
+  __ j(NegateCondition(ConditionForFloat64(kOperation)), &is_false);
   // TODO(leszeks): Investigate loading existing materialisations of roots here,
   // if available.
-  __ LoadRoot(result, RootIndex::kFalseValue);
+  __ LoadRoot(result, RootIndex::kTrueValue);
   __ jmp(&end);
   {
-    __ bind(&is_true);
-    __ LoadRoot(result, RootIndex::kTrueValue);
+    __ bind(&is_false);
+    __ LoadRoot(result, RootIndex::kFalseValue);
   }
   __ bind(&end);
 }
@@ -4940,7 +4964,8 @@ void BranchIfFloat64Compare::GenerateCode(MaglevAssembler* masm,
   DoubleRegister left = ToDoubleRegister(left_input());
   DoubleRegister right = ToDoubleRegister(right_input());
   __ Ucomisd(left, right);
-  __ Branch(ConditionFor(operation_), if_true(), if_false(),
+  __ j(parity_even, if_false()->label());
+  __ Branch(ConditionForFloat64(operation_), if_true(), if_false(),
             state.next_block());
 }
 void BranchIfInt32Compare::PrintParams(
