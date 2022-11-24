@@ -613,6 +613,11 @@ void HeapVerification::VerifyRememberedSetFor(HeapObject object) {
       isolate(), &old_to_shared, &typed_old_to_shared);
   object.IterateBody(cage_base_, &old_to_shared_visitor);
 
+  if (object.InSharedWritableHeap()) {
+    CHECK_NULL(chunk->slot_set<OLD_TO_SHARED>());
+    CHECK_NULL(chunk->typed_slot_set<OLD_TO_SHARED>());
+  }
+
   if (Heap::InYoungGeneration(object)) {
     CHECK_NULL(chunk->slot_set<OLD_TO_NEW>());
     CHECK_NULL(chunk->typed_slot_set<OLD_TO_NEW>());
