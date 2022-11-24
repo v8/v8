@@ -109,8 +109,10 @@ void MaglevAssembler::LoadSingleCharacterString(Register result,
 void MaglevAssembler::LoadSingleCharacterString(Register result,
                                                 Register char_code,
                                                 Register scratch) {
+  // Make sure char_code is zero extended.
+  movl(char_code, char_code);
   if (v8_flags.debug_code) {
-    cmpl(char_code, Immediate(String::kMaxOneByteCharCode));
+    cmpq(char_code, Immediate(String::kMaxOneByteCharCode));
     Assert(below_equal, AbortReason::kUnexpectedValue);
   }
   DCHECK_NE(char_code, scratch);
