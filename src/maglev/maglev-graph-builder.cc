@@ -6,6 +6,7 @@
 
 #include "src/base/optional.h"
 #include "src/base/v8-fallthrough.h"
+#include "src/base/vector.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/common/globals.h"
@@ -1521,7 +1522,7 @@ class KnownMapsMerger {
  public:
   explicit KnownMapsMerger(compiler::JSHeapBroker* broker, ValueNode* object,
                            KnownNodeAspects& known_node_aspects,
-                           ZoneVector<compiler::MapRef> const& maps)
+                           base::Vector<const compiler::MapRef> maps)
       : broker_(broker),
         maps_(maps),
         known_maps_are_subset_of_maps_(true),
@@ -1557,7 +1558,7 @@ class KnownMapsMerger {
 
  private:
   compiler::JSHeapBroker* broker_;
-  ZoneVector<compiler::MapRef> const& maps_;
+  base::Vector<const compiler::MapRef> maps_;
   bool known_maps_are_subset_of_maps_;
   bool emit_check_with_migration_;
   ZoneHandleSet<Map> stable_map_set_;
@@ -1635,7 +1636,7 @@ class KnownMapsMerger {
 }  // namespace
 
 void MaglevGraphBuilder::BuildCheckMaps(
-    ValueNode* object, ZoneVector<compiler::MapRef> const& maps) {
+    ValueNode* object, base::Vector<const compiler::MapRef> maps) {
   // TODO(verwaest): Support other objects with possible known stable maps as
   // well.
   if (object->Is<Constant>()) {
@@ -1907,9 +1908,8 @@ bool MaglevGraphBuilder::TryBuildStoreField(
       // Emit a map check for the field type, if needed, otherwise just a
       // HeapObject check.
       if (access_info.field_map().has_value()) {
-        ZoneVector<compiler::MapRef> maps({access_info.field_map().value()},
-                                          zone());
-        BuildCheckMaps(value, maps);
+        BuildCheckMaps(value,
+                       base::VectorOf({access_info.field_map().value()}));
       } else {
         BuildCheckHeapObject(value);
       }
@@ -2041,14 +2041,14 @@ bool MaglevGraphBuilder::TryBuildPropertyAccess(
 }
 
 namespace {
-bool HasOnlyStringMaps(ZoneVector<compiler::MapRef> const& maps) {
+bool HasOnlyStringMaps(base::Vector<const compiler::MapRef> maps) {
   for (compiler::MapRef map : maps) {
     if (!map.IsStringMap()) return false;
   }
   return true;
 }
 
-bool HasOnlyNumberMaps(ZoneVector<compiler::MapRef> const& maps) {
+bool HasOnlyNumberMaps(base::Vector<const compiler::MapRef> maps) {
   for (compiler::MapRef map : maps) {
     if (map.instance_type() != HEAP_NUMBER_TYPE) return false;
   }
@@ -2092,8 +2092,8 @@ bool MaglevGraphBuilder::TryBuildNamedAccess(
   // Check for monomorphic case.
   if (access_infos.size() == 1) {
     compiler::PropertyAccessInfo access_info = access_infos.front();
-    const ZoneVector<compiler::MapRef>& maps =
-        access_info.lookup_start_object_maps();
+    base::Vector<const compiler::MapRef> maps =
+        base::VectorOf(access_info.lookup_start_object_maps());
     if (HasOnlyStringMaps(maps)) {
       // Check for string maps before checking if we need to do an access
       // check. Primitive strings always get the prototype from the native
@@ -2242,7 +2242,8 @@ bool MaglevGraphBuilder::TryBuildElementAccess(
       // TODO(victorgomes): polymorphic case.
       return false;
     }
-    BuildCheckMaps(object, access_info.lookup_start_object_maps());
+    BuildCheckMaps(object,
+                   base::VectorOf(access_info.lookup_start_object_maps()));
 
     // TODO(victorgomes): To support large typed array access, we should use
     // Uint32 here.
@@ -3885,7 +3886,7 @@ bool MaglevGraphBuilder::TryBuildFastInstanceOf(
     // Monomorphic property access.
     if (callable_node_if_not_constant) {
       BuildCheckMaps(callable_node_if_not_constant,
-                     access_info.lookup_start_object_maps());
+                     base::VectorOf(access_info.lookup_start_object_maps()));
     }
 
     BuildOrdinaryHasInstance(object, callable, callable_node_if_not_constant);
