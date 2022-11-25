@@ -5001,6 +5001,23 @@ function LastIndexOfParameterConversionShrinks(lastIndexOfHelper) {
     // 2 no longer found.
     assertEquals(-1, lastIndexOfHelper(lengthTracking, 2, evil));
   }
+  // Test resizing to 0 separately since it's special.
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(lengthTracking, i, i);
+    }
+
+    const evil = { valueOf: () => {
+      rab.resize(0);
+      return 2;
+    }};
+    assertEquals(2, lastIndexOfHelper(lengthTracking, 2));
+    // 2 no longer found.
+    assertEquals(-1, lastIndexOfHelper(lengthTracking, 2, evil));
+  }
 }
 LastIndexOfParameterConversionShrinks(TypedArrayLastIndexOfHelper);
 LastIndexOfParameterConversionShrinks(ArrayLastIndexOfHelper);
