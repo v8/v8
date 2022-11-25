@@ -372,6 +372,7 @@ constexpr bool BinaryOperationHasFloat64FastPath() {
     case Operation::kSubtract:
     case Operation::kMultiply:
     case Operation::kDivide:
+    case Operation::kExponentiate:
     case Operation::kEqual:
     case Operation::kStrictEqual:
     case Operation::kLessThan:
@@ -428,7 +429,8 @@ constexpr bool BinaryOperationHasFloat64FastPath() {
   V(Subtract, Float64Subtract)           \
   V(Multiply, Float64Multiply)           \
   V(Divide, Float64Divide)               \
-  V(Negate, Float64Negate)
+  V(Negate, Float64Negate)               \
+  V(Exponentiate, Float64Exponentiate)
 
 #define MAP_COMPARE_OPERATION_TO_FLOAT64_NODE(V) \
   V(Equal, Float64Equal)                         \
@@ -3110,6 +3112,16 @@ ValueNode* MaglevGraphBuilder::TryReduceFunctionPrototypeCall(
   ValueNode* receiver = GetTaggedOrUndefined(args.receiver());
   args.PopReceiver(ConvertReceiverMode::kAny);
   return BuildGenericCall(receiver, context, Call::TargetType::kAny, args);
+}
+
+ValueNode* MaglevGraphBuilder::TryReduceMathPow(compiler::JSFunctionRef target,
+                                                CallArguments& args) {
+  if (args.count() < 2) {
+    return GetRootConstant(RootIndex::kNanValue);
+  }
+  ValueNode* left = GetFloat64(args[0]);
+  ValueNode* right = GetFloat64(args[1]);
+  return AddNewNode<Float64Exponentiate>({left, right});
 }
 
 ValueNode* MaglevGraphBuilder::TryReduceBuiltin(

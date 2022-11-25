@@ -72,28 +72,27 @@ class CompactInterpreterFrameState;
   V(GenericGreaterThan)                 \
   V(GenericGreaterThanOrEqual)
 
-#define INT32_OPERATIONS_NODE_LIST(V)  \
-  V(Int32AddWithOverflow)              \
-  V(Int32SubtractWithOverflow)         \
-  V(Int32MultiplyWithOverflow)         \
-  V(Int32DivideWithOverflow)           \
-  V(Int32ModulusWithOverflow)          \
-  /*V(Int32ExponentiateWithOverflow)*/ \
-  V(Int32BitwiseAnd)                   \
-  V(Int32BitwiseOr)                    \
-  V(Int32BitwiseXor)                   \
-  V(Int32ShiftLeft)                    \
-  V(Int32ShiftRight)                   \
-  V(Int32ShiftRightLogical)            \
-  V(Int32BitwiseNot)                   \
-  V(Int32NegateWithOverflow)           \
-  V(Int32IncrementWithOverflow)        \
-  V(Int32DecrementWithOverflow)        \
-  V(Int32Equal)                        \
-  V(Int32StrictEqual)                  \
-  V(Int32LessThan)                     \
-  V(Int32LessThanOrEqual)              \
-  V(Int32GreaterThan)                  \
+#define INT32_OPERATIONS_NODE_LIST(V) \
+  V(Int32AddWithOverflow)             \
+  V(Int32SubtractWithOverflow)        \
+  V(Int32MultiplyWithOverflow)        \
+  V(Int32DivideWithOverflow)          \
+  V(Int32ModulusWithOverflow)         \
+  V(Int32BitwiseAnd)                  \
+  V(Int32BitwiseOr)                   \
+  V(Int32BitwiseXor)                  \
+  V(Int32ShiftLeft)                   \
+  V(Int32ShiftRight)                  \
+  V(Int32ShiftRightLogical)           \
+  V(Int32BitwiseNot)                  \
+  V(Int32NegateWithOverflow)          \
+  V(Int32IncrementWithOverflow)       \
+  V(Int32DecrementWithOverflow)       \
+  V(Int32Equal)                       \
+  V(Int32StrictEqual)                 \
+  V(Int32LessThan)                    \
+  V(Int32LessThanOrEqual)             \
+  V(Int32GreaterThan)                 \
   V(Int32GreaterThanOrEqual)
 
 #define FLOAT64_OPERATIONS_NODE_LIST(V) \
@@ -102,8 +101,8 @@ class CompactInterpreterFrameState;
   V(Float64Multiply)                    \
   V(Float64Divide)                      \
   /*V(Float64Modulus)*/                 \
-  /*V(Float64Exponentiate)*/            \
   V(Float64Negate)                      \
+  V(Float64Exponentiate)                \
   V(Float64Equal)                       \
   V(Float64StrictEqual)                 \
   V(Float64LessThan)                    \
@@ -1701,7 +1700,6 @@ DEF_INT32_BINARY_WITH_OVERFLOW_NODE(Subtract)
 DEF_INT32_BINARY_WITH_OVERFLOW_NODE(Multiply)
 DEF_INT32_BINARY_WITH_OVERFLOW_NODE(Divide)
 DEF_INT32_BINARY_WITH_OVERFLOW_NODE(Modulus)
-// DEF_INT32_BINARY_WITH_OVERFLOW_NODE(Exponentiate)
 #undef DEF_INT32_BINARY_WITH_OVERFLOW_NODE
 
 template <class Derived, Operation kOperation>
@@ -1841,8 +1839,26 @@ DEF_FLOAT64_BINARY_NODE(Subtract)
 DEF_FLOAT64_BINARY_NODE(Multiply)
 DEF_FLOAT64_BINARY_NODE(Divide)
 // DEF_FLOAT64_BINARY_NODE(Modulus)
-// DEF_FLOAT64_BINARY_NODE(Exponentiate)
 #undef DEF_FLOAT64_BINARY_NODE
+
+class Float64Exponentiate
+    : public FixedInputValueNodeT<2, Float64Exponentiate> {
+  using Base = FixedInputValueNodeT<2, Float64Exponentiate>;
+
+ public:
+  explicit Float64Exponentiate(uint64_t bitfield) : Base(bitfield) {}
+  static constexpr OpProperties kProperties =
+      OpProperties::Float64() | OpProperties::Call();
+
+  static constexpr int kLeftIndex = 0;
+  static constexpr int kRightIndex = 1;
+  Input& left_input() { return Node::input(kLeftIndex); }
+  Input& right_input() { return Node::input(kRightIndex); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
 
 template <class Derived, Operation kOperation>
 class Float64CompareNode : public FixedInputValueNodeT<2, Derived> {

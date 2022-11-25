@@ -1142,6 +1142,7 @@ class MaglevGraphBuilder {
   V(DataViewPrototypeGetFloat64)  \
   V(DataViewPrototypeSetFloat64)  \
   V(FunctionPrototypeCall)        \
+  V(MathPow)                      \
   V(StringFromCharCode)           \
   V(StringPrototypeCharCodeAt)
 

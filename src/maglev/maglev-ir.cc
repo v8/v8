@@ -98,7 +98,7 @@ void UseFixed(Input& input, Register reg) {
   input.SetUnallocated(compiler::UnallocatedOperand::FIXED_REGISTER, reg.code(),
                        GetVirtualRegister(input.node()));
 }
-[[maybe_unused]] void UseFixed(Input& input, DoubleRegister reg) {
+void UseFixed(Input& input, DoubleRegister reg) {
   input.SetUnallocated(compiler::UnallocatedOperand::FIXED_FP_REGISTER,
                        reg.code(), GetVirtualRegister(input.node()));
 }
@@ -3238,6 +3238,19 @@ void Float64Negate::GenerateCode(MaglevAssembler* masm,
                                  const ProcessingState& state) {
   DoubleRegister value = ToDoubleRegister(input());
   __ Negpd(value, value, kScratchRegister);
+}
+
+void Float64Exponentiate::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  UseFixed(left_input(), xmm0);
+  UseFixed(right_input(), xmm1);
+  DefineSameAsFirst(vreg_state, this);
+}
+
+void Float64Exponentiate::GenerateCode(MaglevAssembler* masm,
+                                       const ProcessingState& state) {
+  AllowExternalCallThatCantCauseGC scope(masm);
+  __ PrepareCallCFunction(2);
+  __ CallCFunction(ExternalReference::ieee754_pow_function(), 2);
 }
 
 template <class Derived, Operation kOperation>
