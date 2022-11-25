@@ -1446,7 +1446,7 @@ DEFINE_BOOL(compact_with_stack, true,
 DEFINE_BOOL(
     compact_code_space_with_stack, true,
     "Perform code space compaction when finalizing a full GC with stack")
-DEFINE_BOOL(shortcut_strings_with_stack, false,
+DEFINE_BOOL(shortcut_strings_with_stack, true,
             "Shortcut Strings during GC with stack")
 DEFINE_BOOL(stress_compaction, false,
             "Stress GC compaction to flush out bugs (implies "
