@@ -350,6 +350,10 @@ class BasicMemoryChunk {
   void SynchronizedHeapLoad() const;
 #endif
 
+  // Computes position of object in marking bitmap. Useful for debugging.
+  V8_ALLOW_UNUSED static MarkBit ComputeMarkBit(HeapObject object);
+  V8_ALLOW_UNUSED static MarkBit ComputeMarkBit(Address address);
+
  protected:
   // Overall size of the chunk, including the header and guards.
   size_t size_;
