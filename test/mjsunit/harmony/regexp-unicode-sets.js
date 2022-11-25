@@ -67,6 +67,15 @@ assertEarlyError('/[^\q{foo}--\q{bar}]/v');
 // The first operand of a subtraction doesn't contain strings.
 /[^a--\q{foo}--\q{bar}]/v;
 
+// Negated properties of strings are not allowed.
+assertEarlyError('/\P{Basic_Emoji}/v');
+assertEarlyError('/\P{Emoji_Keycap_Sequence}/v');
+assertEarlyError('/\P{RGI_Emoji_Modifier_Sequence}/v');
+assertEarlyError('/\P{RGI_Emoji_Flag_Sequence}/v');
+assertEarlyError('/\P{RGI_Emoji_Tag_Sequence}/v');
+assertEarlyError('/\P{RGI_Emoji_ZWJ_Sequence}/v');
+assertEarlyError('/\P{RGI_Emoji}/v');
+
 const allAscii = Array.from(
     {length: 127}, (v, i) => { return String.fromCharCode(i); });
 
@@ -190,16 +199,43 @@ assertEquals(['a'], /[\q{W|}a-c]/v.exec('abc'))
 
 // Some more sophisticated tests taken from
 // https://v8.dev/features/regexp-v-flag
+assertTrue(/^\p{RGI_Emoji}$/v.test('⚽'));
+assertTrue(/^\p{RGI_Emoji}$/v.test('👨🏾‍⚕️'));
 assertFalse(/[\p{Script_Extensions=Greek}--π]/v.test('π'));
 assertFalse(/[\p{Script_Extensions=Greek}--[αβγ]]/v.test('α'));
 assertFalse(/[\p{Script_Extensions=Greek}--[α-γ]]/v.test('β'));
 assertTrue(/[\p{Decimal_Number}--[0-9]]/v.test('𑜹'));
 assertFalse(/[\p{Decimal_Number}--[0-9]]/v.test('4'));
+assertTrue(
+    /^\p{RGI_Emoji_Tag_Sequence}$/v.test('🏴󠁧󠁢󠁳󠁣󠁴󠁿'));
+assertFalse(
+    /^[\p{RGI_Emoji_Tag_Sequence}--\q{🏴󠁧󠁢󠁳󠁣󠁴󠁿}]$/v.test(
+        '🏴󠁧󠁢󠁳󠁣󠁴󠁿'));
 assertTrue(/[\p{Script_Extensions=Greek}&&\p{Letter}]/v.test('π'));
 assertFalse(/[\p{Script_Extensions=Greek}&&\p{Letter}]/v.test('𐆊'));
 assertTrue(/[\p{White_Space}&&\p{ASCII}]/v.test('\n'));
 assertFalse(/[\p{White_Space}&&\p{ASCII}]/v.test('\u2028'));
 assertTrue(/[\p{Script_Extensions=Mongolian}&&\p{Number}]/v.test('᠗'));
 assertFalse(/[\p{Script_Extensions=Mongolian}&&\p{Number}]/v.test('ᠴ'));
+assertTrue(/^[\p{Emoji_Keycap_Sequence}\p{ASCII}\q{🇧🇪|abc}xyz0-9]$/v.test(
+    '4️⃣'));
+assertTrue(
+    /^[\p{Emoji_Keycap_Sequence}\p{ASCII}\q{🇧🇪|abc}xyz0-9]$/v.test('_'));
+assertTrue(
+    /^[\p{Emoji_Keycap_Sequence}\p{ASCII}\q{🇧🇪|abc}xyz0-9]$/v.test('🇧🇪'));
+assertTrue(/^[\p{Emoji_Keycap_Sequence}\p{ASCII}\q{🇧🇪|abc}xyz0-9]$/v.test(
+    'abc'));
+assertTrue(
+    /^[\p{Emoji_Keycap_Sequence}\p{ASCII}\q{🇧🇪|abc}xyz0-9]$/v.test('x'));
+assertTrue(
+    /^[\p{Emoji_Keycap_Sequence}\p{ASCII}\q{🇧🇪|abc}xyz0-9]$/v.test('4'));
+assertTrue(
+    /[\p{RGI_Emoji_Flag_Sequence}\p{RGI_Emoji_Tag_Sequence}]/v.test('🇧🇪'));
+assertTrue(/[\p{RGI_Emoji_Flag_Sequence}\p{RGI_Emoji_Tag_Sequence}]/v.test(
+    '🏴󠁧󠁢󠁥󠁮󠁧󠁿'));
+assertTrue(
+    /[\p{RGI_Emoji_Flag_Sequence}\p{RGI_Emoji_Tag_Sequence}]/v.test('🇨🇭'));
+assertTrue(/[\p{RGI_Emoji_Flag_Sequence}\p{RGI_Emoji_Tag_Sequence}]/v.test(
+    '🏴󠁧󠁢󠁷󠁬󠁳󠁿'));
 assertEquals('XXXXXX4#', 'aAbBcC4#'.replaceAll(/\p{Lowercase_Letter}/giv, 'X'));
 assertEquals('XXXXXX4#', 'aAbBcC4#'.replaceAll(/[^\P{Lowercase_Letter}]/giv, 'X'));

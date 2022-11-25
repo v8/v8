@@ -450,7 +450,8 @@ class RegExpParserImpl final {
 
   bool ParsePropertyClassName(ZoneVector<char>* name_1,
                               ZoneVector<char>* name_2);
-  bool AddPropertyClassRange(ZoneList<CharacterRange>* add_to, bool negate,
+  bool AddPropertyClassRange(ZoneList<CharacterRange>* add_to_range,
+                             CharacterClassStrings* add_to_strings, bool negate,
                              const ZoneVector<char>& name_1,
                              const ZoneVector<char>& name_2);
 
@@ -465,7 +466,7 @@ class RegExpParserImpl final {
   bool TryParseCharacterClassEscape(base::uc32 next,
                                     InClassEscapeState in_class_escape_state,
                                     ZoneList<CharacterRange>* ranges,
-                                    Zone* zone,
+                                    CharacterClassStrings* strings, Zone* zone,
                                     bool add_unicode_case_equivalents);
   RegExpTree* ParseClassStringDisjunction(ZoneList<CharacterRange>* ranges,
                                           CharacterClassStrings* strings);
@@ -1094,22 +1095,52 @@ RegExpTree* RegExpParserImpl<CharT>::ParseDisjunction() {
           case 's':
           case 'S':
           case 'w':
-          case 'W':
-          case 'p':
-          case 'P': {
+          case 'W': {
             base::uc32 next = Next();
             ZoneList<CharacterRange>* ranges =
                 zone()->template New<ZoneList<CharacterRange>>(2, zone());
             bool add_unicode_case_equivalents =
                 IsUnicodeMode() && ignore_case();
             bool parsed_character_class_escape = TryParseCharacterClassEscape(
-                next, InClassEscapeState::kNotInClass, ranges, zone(),
+                next, InClassEscapeState::kNotInClass, ranges, nullptr, zone(),
                 add_unicode_case_equivalents CHECK_FAILED);
 
             if (parsed_character_class_escape) {
               RegExpClassRanges* cc =
                   zone()->template New<RegExpClassRanges>(zone(), ranges);
               builder->AddClassRanges(cc);
+            } else {
+              CHECK(!IsUnicodeMode());
+              Advance(2);
+              builder->AddCharacter(next);  // IdentityEscape.
+            }
+            break;
+          }
+          case 'p':
+          case 'P': {
+            base::uc32 next = Next();
+            ZoneList<CharacterRange>* ranges =
+                zone()->template New<ZoneList<CharacterRange>>(2, zone());
+            CharacterClassStrings* strings = nullptr;
+            if (unicode_sets()) {
+              strings = zone()->template New<CharacterClassStrings>(zone());
+            }
+            bool add_unicode_case_equivalents = ignore_case();
+            bool parsed_character_class_escape = TryParseCharacterClassEscape(
+                next, InClassEscapeState::kNotInClass, ranges, strings, zone(),
+                add_unicode_case_equivalents CHECK_FAILED);
+
+            if (parsed_character_class_escape) {
+              if (unicode_sets()) {
+                RegExpClassSetOperand* op =
+                    zone()->template New<RegExpClassSetOperand>(ranges,
+                                                                strings);
+                builder->AddTerm(op);
+              } else {
+                RegExpClassRanges* cc =
+                    zone()->template New<RegExpClassRanges>(zone(), ranges);
+                builder->AddClassRanges(cc);
+              }
             } else {
               CHECK(!IsUnicodeMode());
               Advance(2);
@@ -1827,10 +1858,44 @@ bool IsExactPropertyValueAlias(const char* property_value_name,
   return false;
 }
 
+void ExtractStringsFromUnicodeSet(const icu::UnicodeSet& set,
+                                  CharacterClassStrings* strings,
+                                  RegExpFlags flags, Zone* zone) {
+  DCHECK(set.hasStrings());
+  DCHECK(IsUnicodeSets(flags));
+  DCHECK_NOT_NULL(strings);
+
+  RegExpTextBuilder::SmallRegExpTreeVector string_storage(
+      ZoneAllocator<RegExpTree*>{zone});
+  RegExpTextBuilder string_builder(zone, &string_storage, flags);
+  const bool needs_case_folding = IsIgnoreCase(flags);
+  icu::UnicodeSetIterator iter(set);
+  iter.skipToStrings();
+  while (iter.next()) {
+    const icu::UnicodeString& s = iter.getString();
+    const char16_t* p = s.getBuffer();
+    int32_t length = s.length();
+    ZoneList<base::uc32>* string =
+        zone->template New<ZoneList<base::uc32>>(length, zone);
+    for (int32_t i = 0; i < length;) {
+      UChar32 c;
+      U16_NEXT(p, i, length, c);
+      string_builder.AddUnicodeCharacter(c);
+      if (needs_case_folding) {
+        c = u_foldCase(c, U_FOLD_CASE_DEFAULT);
+      }
+      string->Add(c, zone);
+    }
+    strings->emplace(string->ToVector(), string_builder.ToRegExp());
+    string_storage.clear();
+  }
+}
+
 bool LookupPropertyValueName(UProperty property,
                              const char* property_value_name, bool negate,
-                             bool needs_case_folding,
-                             ZoneList<CharacterRange>* result, Zone* zone) {
+                             ZoneList<CharacterRange>* result_ranges,
+                             CharacterClassStrings* result_strings,
+                             RegExpFlags flags, Zone* zone) {
   UProperty property_for_lookup = property;
   if (property_for_lookup == UCHAR_SCRIPT_EXTENSIONS) {
     // For the property Script_Extensions, we have to do the property value
@@ -1854,11 +1919,15 @@ bool LookupPropertyValueName(UProperty property,
   bool success = ec == U_ZERO_ERROR && !set.isEmpty();
 
   if (success) {
+    if (set.hasStrings()) {
+      ExtractStringsFromUnicodeSet(set, result_strings, flags, zone);
+    }
+    const bool needs_case_folding = IsUnicodeSets(flags) && IsIgnoreCase(flags);
     if (needs_case_folding) CharacterRange::UnicodeSimpleCloseOver(set);
     set.removeAllStrings();
     if (negate) set.complement();
     for (int i = 0; i < set.getRangeCount(); i++) {
-      result->Add(
+      result_ranges->Add(
           CharacterRange::Range(set.getRangeStart(i), set.getRangeEnd(i)),
           zone);
     }
@@ -1873,7 +1942,7 @@ inline bool NameEquals(const char* name, const char (&literal)[N]) {
 
 bool LookupSpecialPropertyValueName(const char* name,
                                     ZoneList<CharacterRange>* result,
-                                    bool negate, bool needs_case_folding,
+                                    bool negate, RegExpFlags flags,
                                     Zone* zone) {
   if (NameEquals(name, "Any")) {
     if (negate) {
@@ -1888,7 +1957,7 @@ bool LookupSpecialPropertyValueName(const char* name,
                 zone);
   } else if (NameEquals(name, "Assigned")) {
     return LookupPropertyValueName(UCHAR_GENERAL_CATEGORY, "Unassigned",
-                                   !negate, needs_case_folding, result, zone);
+                                   !negate, result, nullptr, flags, zone);
   } else {
     return false;
   }
@@ -1897,7 +1966,7 @@ bool LookupSpecialPropertyValueName(const char* name,
 
 // Explicitly allowlist supported binary properties. The spec forbids supporting
 // properties outside of this set to ensure interoperability.
-bool IsSupportedBinaryProperty(UProperty property) {
+bool IsSupportedBinaryProperty(UProperty property, bool unicode_sets) {
   switch (property) {
     case UCHAR_ALPHABETIC:
     // 'Any' is not supported by ICU. See LookupSpecialPropertyValueName.
@@ -1952,6 +2021,30 @@ bool IsSupportedBinaryProperty(UProperty property) {
     case UCHAR_WHITE_SPACE:
     case UCHAR_XID_CONTINUE:
     case UCHAR_XID_START:
+      return true;
+    case UCHAR_BASIC_EMOJI:
+    case UCHAR_EMOJI_KEYCAP_SEQUENCE:
+    case UCHAR_RGI_EMOJI_MODIFIER_SEQUENCE:
+    case UCHAR_RGI_EMOJI_FLAG_SEQUENCE:
+    case UCHAR_RGI_EMOJI_TAG_SEQUENCE:
+    case UCHAR_RGI_EMOJI_ZWJ_SEQUENCE:
+    case UCHAR_RGI_EMOJI:
+      return unicode_sets;
+    default:
+      break;
+  }
+  return false;
+}
+
+bool IsBinaryPropertyOfStrings(UProperty property) {
+  switch (property) {
+    case UCHAR_BASIC_EMOJI:
+    case UCHAR_EMOJI_KEYCAP_SEQUENCE:
+    case UCHAR_RGI_EMOJI_MODIFIER_SEQUENCE:
+    case UCHAR_RGI_EMOJI_FLAG_SEQUENCE:
+    case UCHAR_RGI_EMOJI_TAG_SEQUENCE:
+    case UCHAR_RGI_EMOJI_ZWJ_SEQUENCE:
+    case UCHAR_RGI_EMOJI:
       return true;
     default:
       break;
@@ -2015,31 +2108,34 @@ bool RegExpParserImpl<CharT>::ParsePropertyClassName(ZoneVector<char>* name_1,
 
 template <class CharT>
 bool RegExpParserImpl<CharT>::AddPropertyClassRange(
-    ZoneList<CharacterRange>* add_to, bool negate,
+    ZoneList<CharacterRange>* add_to_ranges,
+    CharacterClassStrings* add_to_strings, bool negate,
     const ZoneVector<char>& name_1, const ZoneVector<char>& name_2) {
-  // With /vi, we need to apply case folding to property values.
-  // TODO(v8:11935): Change permalink once proposal is in stage 4.
-  // See
-  // https://arai-a.github.io/ecma262-compare/snapshot.html?pr=2418#prod-maybesimplecasefolding
-  const bool needs_case_folding = unicode_sets() && ignore_case();
   if (name_2.empty()) {
     // First attempt to interpret as general category property value name.
     const char* name = name_1.data();
     if (LookupPropertyValueName(UCHAR_GENERAL_CATEGORY_MASK, name, negate,
-                                needs_case_folding, add_to, zone())) {
+                                add_to_ranges, add_to_strings, flags(),
+                                zone())) {
       return true;
     }
     // Interpret "Any", "ASCII", and "Assigned".
-    if (LookupSpecialPropertyValueName(name, add_to, negate, needs_case_folding,
+    if (LookupSpecialPropertyValueName(name, add_to_ranges, negate, flags(),
                                        zone())) {
       return true;
     }
     // Then attempt to interpret as binary property name with value name 'Y'.
     UProperty property = u_getPropertyEnum(name);
-    if (!IsSupportedBinaryProperty(property)) return false;
+    if (!IsSupportedBinaryProperty(property, unicode_sets())) return false;
     if (!IsExactPropertyAlias(name, property)) return false;
+    // Negation of properties with strings is not allowed.
+    // TODO(v8:11935): Change permalink once proposal is in stage 4.
+    // See
+    // https://arai-a.github.io/ecma262-compare/snapshot.html?pr=2418#sec-static-semantics-maycontainstrings
+    if (negate && IsBinaryPropertyOfStrings(property)) return false;
     return LookupPropertyValueName(property, negate ? "N" : "Y", false,
-                                   needs_case_folding, add_to, zone());
+                                   add_to_ranges, add_to_strings, flags(),
+                                   zone());
   } else {
     // Both property name and value name are specified. Attempt to interpret
     // the property name as enumerated property.
@@ -2054,8 +2150,8 @@ bool RegExpParserImpl<CharT>::AddPropertyClassRange(
                property != UCHAR_SCRIPT_EXTENSIONS) {
       return false;
     }
-    return LookupPropertyValueName(property, value_name, negate,
-                                   needs_case_folding, add_to, zone());
+    return LookupPropertyValueName(property, value_name, negate, add_to_ranges,
+                                   add_to_strings, flags(), zone());
   }
 }
 
@@ -2069,7 +2165,8 @@ bool RegExpParserImpl<CharT>::ParsePropertyClassName(ZoneVector<char>* name_1,
 
 template <class CharT>
 bool RegExpParserImpl<CharT>::AddPropertyClassRange(
-    ZoneList<CharacterRange>* add_to, bool negate,
+    ZoneList<CharacterRange>* add_to_ranges,
+    CharacterClassStrings* add_to_strings, bool negate,
     const ZoneVector<char>& name_1, const ZoneVector<char>& name_2) {
   return false;
 }
@@ -2345,8 +2442,9 @@ void RegExpParserImpl<CharT>::ParseClassEscape(
 
   static constexpr InClassEscapeState kInClassEscape =
       InClassEscapeState::kInClass;
-  *is_class_escape = TryParseCharacterClassEscape(
-      next, kInClassEscape, ranges, zone, add_unicode_case_equivalents);
+  *is_class_escape =
+      TryParseCharacterClassEscape(next, kInClassEscape, ranges, nullptr, zone,
+                                   add_unicode_case_equivalents);
   if (*is_class_escape) return;
 
   bool dummy = false;  // Unused.
@@ -2357,8 +2455,8 @@ void RegExpParserImpl<CharT>::ParseClassEscape(
 template <class CharT>
 bool RegExpParserImpl<CharT>::TryParseCharacterClassEscape(
     base::uc32 next, InClassEscapeState in_class_escape_state,
-    ZoneList<CharacterRange>* ranges, Zone* zone,
-    bool add_unicode_case_equivalents) {
+    ZoneList<CharacterRange>* ranges, CharacterClassStrings* strings,
+    Zone* zone, bool add_unicode_case_equivalents) {
   DCHECK_EQ(current(), '\\');
   DCHECK_EQ(Next(), next);
 
@@ -2382,7 +2480,7 @@ bool RegExpParserImpl<CharT>::TryParseCharacterClassEscape(
       ZoneVector<char> name_1(zone);
       ZoneVector<char> name_2(zone);
       if (!ParsePropertyClassName(&name_1, &name_2) ||
-          !AddPropertyClassRange(ranges, negate, name_1, name_2)) {
+          !AddPropertyClassRange(ranges, strings, negate, name_1, name_2)) {
         ReportError(in_class_escape_state == InClassEscapeState::kInClass
                         ? RegExpError::kInvalidClassPropertyName
                         : RegExpError::kInvalidPropertyName);
@@ -2521,8 +2619,8 @@ RegExpTree* RegExpParserImpl<CharT>::ParseClassSetOperand(
     static constexpr InClassEscapeState kInClassEscape =
         InClassEscapeState::kInClass;
     const bool add_unicode_case_equivalents = ignore_case();
-    if (TryParseCharacterClassEscape(next, kInClassEscape, ranges, zone(),
-                                     add_unicode_case_equivalents)) {
+    if (TryParseCharacterClassEscape(next, kInClassEscape, ranges, strings,
+                                     zone(), add_unicode_case_equivalents)) {
       *type_out = ClassSetOperandType::kCharacterClassEscape;
       return nullptr;
     }
