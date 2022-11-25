@@ -343,6 +343,13 @@ inline bool SignedMulOverflow64(int64_t lhs, int64_t rhs, int64_t* val) {
   int64_t res = base::bit_cast<int64_t>(static_cast<uint64_t>(lhs) *
                                         static_cast<uint64_t>(rhs));
   *val = res;
+
+  // Check for INT64_MIN / -1 as it's undefined behaviour and could cause
+  // hardware exceptions.
+  if ((res == INT64_MIN && lhs == -1)) {
+    return true;
+  }
+
   return lhs != 0 && (res / lhs) != rhs;
 #endif
 }
