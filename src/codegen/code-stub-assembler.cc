@@ -356,163 +356,107 @@ TNode<Float64T> CodeStubAssembler::Float64Round(TNode<Float64T> x) {
 }
 
 TNode<Float64T> CodeStubAssembler::Float64Ceil(TNode<Float64T> x) {
-  if (IsFloat64RoundUpSupported()) {
-    return Float64RoundUp(x);
-  }
-
-  TNode<Float64T> one = Float64Constant(1.0);
-  TNode<Float64T> zero = Float64Constant(0.0);
-  TNode<Float64T> two_52 = Float64Constant(4503599627370496.0E0);
-  TNode<Float64T> minus_two_52 = Float64Constant(-4503599627370496.0E0);
-
   TVARIABLE(Float64T, var_x, x);
-  Label return_x(this), return_minus_x(this);
+  Label round_op_supported(this), round_op_fallback(this), return_x(this);
+  // Use UniqueInt32Constant instead of BoolConstant here in order to ensure
+  // that the graph structure does not depend on the value of the predicate
+  // (BoolConstant uses cached nodes).
+  Branch(UniqueInt32Constant(IsFloat64RoundUpSupported()), &round_op_supported,
+         &round_op_fallback);
 
-  // Check if {x} is greater than zero.
-  Label if_xgreaterthanzero(this), if_xnotgreaterthanzero(this);
-  Branch(Float64GreaterThan(x, zero), &if_xgreaterthanzero,
-         &if_xnotgreaterthanzero);
-
-  BIND(&if_xgreaterthanzero);
+  BIND(&round_op_supported);
   {
-    // Just return {x} unless it's in the range ]0,2^52[.
-    GotoIf(Float64GreaterThanOrEqual(x, two_52), &return_x);
-
-    // Round positive {x} towards Infinity.
-    var_x = Float64Sub(Float64Add(two_52, x), two_52);
-    GotoIfNot(Float64LessThan(var_x.value(), x), &return_x);
-    var_x = Float64Add(var_x.value(), one);
+    // This optional operation is used behind a static check and we rely
+    // on the dead code elimination to remove this unused unsupported
+    // instruction. We generate builtins this way in order to ensure that
+    // builtins PGO profiles are interchangeable between architectures.
+    var_x = Float64RoundUp(x);
     Goto(&return_x);
   }
 
-  BIND(&if_xnotgreaterthanzero);
+  BIND(&round_op_fallback);
   {
-    // Just return {x} unless it's in the range ]-2^52,0[
-    GotoIf(Float64LessThanOrEqual(x, minus_two_52), &return_x);
-    GotoIfNot(Float64LessThan(x, zero), &return_x);
+    TNode<Float64T> one = Float64Constant(1.0);
+    TNode<Float64T> zero = Float64Constant(0.0);
+    TNode<Float64T> two_52 = Float64Constant(4503599627370496.0E0);
+    TNode<Float64T> minus_two_52 = Float64Constant(-4503599627370496.0E0);
 
-    // Round negated {x} towards Infinity and return the result negated.
-    TNode<Float64T> minus_x = Float64Neg(x);
-    var_x = Float64Sub(Float64Add(two_52, minus_x), two_52);
-    GotoIfNot(Float64GreaterThan(var_x.value(), minus_x), &return_minus_x);
-    var_x = Float64Sub(var_x.value(), one);
-    Goto(&return_minus_x);
+    Label return_minus_x(this);
+
+    // Check if {x} is greater than zero.
+    Label if_xgreaterthanzero(this), if_xnotgreaterthanzero(this);
+    Branch(Float64GreaterThan(x, zero), &if_xgreaterthanzero,
+           &if_xnotgreaterthanzero);
+
+    BIND(&if_xgreaterthanzero);
+    {
+      // Just return {x} unless it's in the range ]0,2^52[.
+      GotoIf(Float64GreaterThanOrEqual(x, two_52), &return_x);
+
+      // Round positive {x} towards Infinity.
+      var_x = Float64Sub(Float64Add(two_52, x), two_52);
+      GotoIfNot(Float64LessThan(var_x.value(), x), &return_x);
+      var_x = Float64Add(var_x.value(), one);
+      Goto(&return_x);
+    }
+
+    BIND(&if_xnotgreaterthanzero);
+    {
+      // Just return {x} unless it's in the range ]-2^52,0[
+      GotoIf(Float64LessThanOrEqual(x, minus_two_52), &return_x);
+      GotoIfNot(Float64LessThan(x, zero), &return_x);
+
+      // Round negated {x} towards Infinity and return the result negated.
+      TNode<Float64T> minus_x = Float64Neg(x);
+      var_x = Float64Sub(Float64Add(two_52, minus_x), two_52);
+      GotoIfNot(Float64GreaterThan(var_x.value(), minus_x), &return_minus_x);
+      var_x = Float64Sub(var_x.value(), one);
+      Goto(&return_minus_x);
+    }
+
+    BIND(&return_minus_x);
+    var_x = Float64Neg(var_x.value());
+    Goto(&return_x);
   }
-
-  BIND(&return_minus_x);
-  var_x = Float64Neg(var_x.value());
-  Goto(&return_x);
-
   BIND(&return_x);
   return var_x.value();
 }
 
 TNode<Float64T> CodeStubAssembler::Float64Floor(TNode<Float64T> x) {
-  if (IsFloat64RoundDownSupported()) {
-    return Float64RoundDown(x);
-  }
-
-  TNode<Float64T> one = Float64Constant(1.0);
-  TNode<Float64T> zero = Float64Constant(0.0);
-  TNode<Float64T> two_52 = Float64Constant(4503599627370496.0E0);
-  TNode<Float64T> minus_two_52 = Float64Constant(-4503599627370496.0E0);
-
   TVARIABLE(Float64T, var_x, x);
-  Label return_x(this), return_minus_x(this);
+  Label round_op_supported(this), round_op_fallback(this), return_x(this);
+  // Use UniqueInt32Constant instead of BoolConstant here in order to ensure
+  // that the graph structure does not depend on the value of the predicate
+  // (BoolConstant uses cached nodes).
+  Branch(UniqueInt32Constant(IsFloat64RoundDownSupported()),
+         &round_op_supported, &round_op_fallback);
 
-  // Check if {x} is greater than zero.
-  Label if_xgreaterthanzero(this), if_xnotgreaterthanzero(this);
-  Branch(Float64GreaterThan(x, zero), &if_xgreaterthanzero,
-         &if_xnotgreaterthanzero);
-
-  BIND(&if_xgreaterthanzero);
+  BIND(&round_op_supported);
   {
-    // Just return {x} unless it's in the range ]0,2^52[.
-    GotoIf(Float64GreaterThanOrEqual(x, two_52), &return_x);
-
-    // Round positive {x} towards -Infinity.
-    var_x = Float64Sub(Float64Add(two_52, x), two_52);
-    GotoIfNot(Float64GreaterThan(var_x.value(), x), &return_x);
-    var_x = Float64Sub(var_x.value(), one);
+    // This optional operation is used behind a static check and we rely
+    // on the dead code elimination to remove this unused unsupported
+    // instruction. We generate builtins this way in order to ensure that
+    // builtins PGO profiles are interchangeable between architectures.
+    var_x = Float64RoundDown(x);
     Goto(&return_x);
   }
 
-  BIND(&if_xnotgreaterthanzero);
+  BIND(&round_op_fallback);
   {
-    // Just return {x} unless it's in the range ]-2^52,0[
-    GotoIf(Float64LessThanOrEqual(x, minus_two_52), &return_x);
-    GotoIfNot(Float64LessThan(x, zero), &return_x);
+    TNode<Float64T> one = Float64Constant(1.0);
+    TNode<Float64T> zero = Float64Constant(0.0);
+    TNode<Float64T> two_52 = Float64Constant(4503599627370496.0E0);
+    TNode<Float64T> minus_two_52 = Float64Constant(-4503599627370496.0E0);
 
-    // Round negated {x} towards -Infinity and return the result negated.
-    TNode<Float64T> minus_x = Float64Neg(x);
-    var_x = Float64Sub(Float64Add(two_52, minus_x), two_52);
-    GotoIfNot(Float64LessThan(var_x.value(), minus_x), &return_minus_x);
-    var_x = Float64Add(var_x.value(), one);
-    Goto(&return_minus_x);
-  }
+    Label return_minus_x(this);
 
-  BIND(&return_minus_x);
-  var_x = Float64Neg(var_x.value());
-  Goto(&return_x);
+    // Check if {x} is greater than zero.
+    Label if_xgreaterthanzero(this), if_xnotgreaterthanzero(this);
+    Branch(Float64GreaterThan(x, zero), &if_xgreaterthanzero,
+           &if_xnotgreaterthanzero);
 
-  BIND(&return_x);
-  return var_x.value();
-}
-
-TNode<Float64T> CodeStubAssembler::Float64RoundToEven(TNode<Float64T> x) {
-  if (IsFloat64RoundTiesEvenSupported()) {
-    return Float64RoundTiesEven(x);
-  }
-  // See ES#sec-touint8clamp for details.
-  TNode<Float64T> f = Float64Floor(x);
-  TNode<Float64T> f_and_half = Float64Add(f, Float64Constant(0.5));
-
-  TVARIABLE(Float64T, var_result);
-  Label return_f(this), return_f_plus_one(this), done(this);
-
-  GotoIf(Float64LessThan(f_and_half, x), &return_f_plus_one);
-  GotoIf(Float64LessThan(x, f_and_half), &return_f);
-  {
-    TNode<Float64T> f_mod_2 = Float64Mod(f, Float64Constant(2.0));
-    Branch(Float64Equal(f_mod_2, Float64Constant(0.0)), &return_f,
-           &return_f_plus_one);
-  }
-
-  BIND(&return_f);
-  var_result = f;
-  Goto(&done);
-
-  BIND(&return_f_plus_one);
-  var_result = Float64Add(f, Float64Constant(1.0));
-  Goto(&done);
-
-  BIND(&done);
-  return var_result.value();
-}
-
-TNode<Float64T> CodeStubAssembler::Float64Trunc(TNode<Float64T> x) {
-  if (IsFloat64RoundTruncateSupported()) {
-    return Float64RoundTruncate(x);
-  }
-
-  TNode<Float64T> one = Float64Constant(1.0);
-  TNode<Float64T> zero = Float64Constant(0.0);
-  TNode<Float64T> two_52 = Float64Constant(4503599627370496.0E0);
-  TNode<Float64T> minus_two_52 = Float64Constant(-4503599627370496.0E0);
-
-  TVARIABLE(Float64T, var_x, x);
-  Label return_x(this), return_minus_x(this);
-
-  // Check if {x} is greater than 0.
-  Label if_xgreaterthanzero(this), if_xnotgreaterthanzero(this);
-  Branch(Float64GreaterThan(x, zero), &if_xgreaterthanzero,
-         &if_xnotgreaterthanzero);
-
-  BIND(&if_xgreaterthanzero);
-  {
-    if (IsFloat64RoundDownSupported()) {
-      var_x = Float64RoundDown(x);
-    } else {
+    BIND(&if_xgreaterthanzero);
+    {
       // Just return {x} unless it's in the range ]0,2^52[.
       GotoIf(Float64GreaterThanOrEqual(x, two_52), &return_x);
 
@@ -520,33 +464,171 @@ TNode<Float64T> CodeStubAssembler::Float64Trunc(TNode<Float64T> x) {
       var_x = Float64Sub(Float64Add(two_52, x), two_52);
       GotoIfNot(Float64GreaterThan(var_x.value(), x), &return_x);
       var_x = Float64Sub(var_x.value(), one);
-    }
-    Goto(&return_x);
-  }
-
-  BIND(&if_xnotgreaterthanzero);
-  {
-    if (IsFloat64RoundUpSupported()) {
-      var_x = Float64RoundUp(x);
       Goto(&return_x);
-    } else {
-      // Just return {x} unless its in the range ]-2^52,0[.
+    }
+
+    BIND(&if_xnotgreaterthanzero);
+    {
+      // Just return {x} unless it's in the range ]-2^52,0[
       GotoIf(Float64LessThanOrEqual(x, minus_two_52), &return_x);
       GotoIfNot(Float64LessThan(x, zero), &return_x);
 
-      // Round negated {x} towards -Infinity and return result negated.
+      // Round negated {x} towards -Infinity and return the result negated.
       TNode<Float64T> minus_x = Float64Neg(x);
       var_x = Float64Sub(Float64Add(two_52, minus_x), two_52);
-      GotoIfNot(Float64GreaterThan(var_x.value(), minus_x), &return_minus_x);
-      var_x = Float64Sub(var_x.value(), one);
+      GotoIfNot(Float64LessThan(var_x.value(), minus_x), &return_minus_x);
+      var_x = Float64Add(var_x.value(), one);
       Goto(&return_minus_x);
     }
+
+    BIND(&return_minus_x);
+    var_x = Float64Neg(var_x.value());
+    Goto(&return_x);
+  }
+  BIND(&return_x);
+  return var_x.value();
+}
+
+TNode<Float64T> CodeStubAssembler::Float64RoundToEven(TNode<Float64T> x) {
+  TVARIABLE(Float64T, var_result);
+  Label round_op_supported(this), round_op_fallback(this), done(this);
+  // Use UniqueInt32Constant instead of BoolConstant here in order to ensure
+  // that the graph structure does not depend on the value of the predicate
+  // (BoolConstant uses cached nodes).
+  Branch(UniqueInt32Constant(IsFloat64RoundTiesEvenSupported()),
+         &round_op_supported, &round_op_fallback);
+
+  BIND(&round_op_supported);
+  {
+    // This optional operation is used behind a static check and we rely
+    // on the dead code elimination to remove this unused unsupported
+    // instruction. We generate builtins this way in order to ensure that
+    // builtins PGO profiles are interchangeable between architectures.
+    var_result = Float64RoundTiesEven(x);
+    Goto(&done);
   }
 
-  BIND(&return_minus_x);
-  var_x = Float64Neg(var_x.value());
-  Goto(&return_x);
+  BIND(&round_op_fallback);
+  {
+    // See ES#sec-touint8clamp for details.
+    TNode<Float64T> f = Float64Floor(x);
+    TNode<Float64T> f_and_half = Float64Add(f, Float64Constant(0.5));
 
+    Label return_f(this), return_f_plus_one(this);
+
+    GotoIf(Float64LessThan(f_and_half, x), &return_f_plus_one);
+    GotoIf(Float64LessThan(x, f_and_half), &return_f);
+    {
+      TNode<Float64T> f_mod_2 = Float64Mod(f, Float64Constant(2.0));
+      Branch(Float64Equal(f_mod_2, Float64Constant(0.0)), &return_f,
+             &return_f_plus_one);
+    }
+
+    BIND(&return_f);
+    var_result = f;
+    Goto(&done);
+
+    BIND(&return_f_plus_one);
+    var_result = Float64Add(f, Float64Constant(1.0));
+    Goto(&done);
+  }
+  BIND(&done);
+  return var_result.value();
+}
+
+TNode<Float64T> CodeStubAssembler::Float64Trunc(TNode<Float64T> x) {
+  TVARIABLE(Float64T, var_x, x);
+  Label trunc_op_supported(this), trunc_op_fallback(this), return_x(this);
+  // Use UniqueInt32Constant instead of BoolConstant here in order to ensure
+  // that the graph structure does not depend on the value of the predicate
+  // (BoolConstant uses cached nodes).
+  Branch(UniqueInt32Constant(IsFloat64RoundTruncateSupported()),
+         &trunc_op_supported, &trunc_op_fallback);
+
+  BIND(&trunc_op_supported);
+  {
+    // This optional operation is used behind a static check and we rely
+    // on the dead code elimination to remove this unused unsupported
+    // instruction. We generate builtins this way in order to ensure that
+    // builtins PGO profiles are interchangeable between architectures.
+    var_x = Float64RoundTruncate(x);
+    Goto(&return_x);
+  }
+
+  BIND(&trunc_op_fallback);
+  {
+    TNode<Float64T> one = Float64Constant(1.0);
+    TNode<Float64T> zero = Float64Constant(0.0);
+    TNode<Float64T> two_52 = Float64Constant(4503599627370496.0E0);
+    TNode<Float64T> minus_two_52 = Float64Constant(-4503599627370496.0E0);
+
+    Label return_minus_x(this);
+
+    // Check if {x} is greater than 0.
+    Label if_xgreaterthanzero(this), if_xnotgreaterthanzero(this);
+    Branch(Float64GreaterThan(x, zero), &if_xgreaterthanzero,
+           &if_xnotgreaterthanzero);
+
+    BIND(&if_xgreaterthanzero);
+    {
+      Label round_op_supported(this), round_op_fallback(this);
+      Branch(UniqueInt32Constant(IsFloat64RoundDownSupported()),
+             &round_op_supported, &round_op_fallback);
+      BIND(&round_op_supported);
+      {
+        // This optional operation is used behind a static check and we rely
+        // on the dead code elimination to remove this unused unsupported
+        // instruction. We generate builtins this way in order to ensure that
+        // builtins PGO profiles are interchangeable between architectures.
+        var_x = Float64RoundDown(x);
+        Goto(&return_x);
+      }
+      BIND(&round_op_fallback);
+      {
+        // Just return {x} unless it's in the range ]0,2^52[.
+        GotoIf(Float64GreaterThanOrEqual(x, two_52), &return_x);
+
+        // Round positive {x} towards -Infinity.
+        var_x = Float64Sub(Float64Add(two_52, x), two_52);
+        GotoIfNot(Float64GreaterThan(var_x.value(), x), &return_x);
+        var_x = Float64Sub(var_x.value(), one);
+        Goto(&return_x);
+      }
+    }
+
+    BIND(&if_xnotgreaterthanzero);
+    {
+      Label round_op_supported(this), round_op_fallback(this);
+      Branch(UniqueInt32Constant(IsFloat64RoundUpSupported()),
+             &round_op_supported, &round_op_fallback);
+      BIND(&round_op_supported);
+      {
+        // This optional operation is used behind a static check and we rely
+        // on the dead code elimination to remove this unused unsupported
+        // instruction. We generate builtins this way in order to ensure that
+        // builtins PGO profiles are interchangeable between architectures.
+        var_x = Float64RoundUp(x);
+        Goto(&return_x);
+      }
+      BIND(&round_op_fallback);
+      {
+        // Just return {x} unless its in the range ]-2^52,0[.
+        GotoIf(Float64LessThanOrEqual(x, minus_two_52), &return_x);
+        GotoIfNot(Float64LessThan(x, zero), &return_x);
+
+        // Round negated {x} towards -Infinity and return result negated.
+        TNode<Float64T> minus_x = Float64Neg(x);
+        var_x = Float64Sub(Float64Add(two_52, minus_x), two_52);
+        GotoIfNot(Float64GreaterThan(var_x.value(), minus_x), &return_minus_x);
+        var_x = Float64Sub(var_x.value(), one);
+        Goto(&return_minus_x);
+      }
+    }
+
+    BIND(&return_minus_x);
+    var_x = Float64Neg(var_x.value());
+    Goto(&return_x);
+  }
   BIND(&return_x);
   return var_x.value();
 }
