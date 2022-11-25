@@ -119,7 +119,6 @@ def make_clang_command_line(plugin, plugin_args, options):
       "-Wno-everything",
       "-D",
       arch_cfg.arch_define,
-      "-DENABLE_DEBUGGER_SUPPORT",
       "-DV8_ENABLE_WEBASSEMBLY",
       "-DV8_GC_MOLE",
       "-DV8_INTL_SUPPORT",

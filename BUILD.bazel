@@ -325,7 +325,6 @@ v8_config(
     },
     defines = [
         "GOOGLE3",
-        "ENABLE_DEBUGGER_SUPPORT",
         "V8_ADVANCED_BIGINT_ALGORITHMS",
         "V8_CONCURRENT_MARKING",
     ] + select({
