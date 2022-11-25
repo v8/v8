@@ -178,6 +178,8 @@ class HeapType {
         return std::string("noextern");
       case kNoFunc:
         return std::string("nofunc");
+      case kBottom:
+        return std::string("<bot>");
       default:
         return std::to_string(representation_);
     }
