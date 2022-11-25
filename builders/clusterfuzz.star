@@ -139,7 +139,6 @@ in_category(
         execution_timeout = 19800,
         properties = {"builder_group": "client.v8.clusterfuzz", "disable_auto_bisect": True},
         close_tree = False,
-        experiments = {"v8.resultdb": 100},
         notifies = ["NumFuzz maintainer"],
     ),
     v8_builder(
@@ -149,7 +148,6 @@ in_category(
         execution_timeout = 19800,
         properties = {"builder_group": "client.v8.clusterfuzz", "disable_auto_bisect": True},
         close_tree = False,
-        experiments = {"v8.resultdb": 100},
         notifies = ["NumFuzz maintainer"],
     ),
     v8_builder(
@@ -159,7 +157,6 @@ in_category(
         execution_timeout = 19800,
         properties = {"builder_group": "client.v8.clusterfuzz", "disable_auto_bisect": True},
         close_tree = False,
-        experiments = {"v8.resultdb": 100},
         notifies = ["NumFuzz maintainer"],
     ),
 )
