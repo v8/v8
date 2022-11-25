@@ -75,8 +75,8 @@ class ReducerBaseForwarder : public Next {
 };
 
 // ReducerBase provides default implementations of Branch-related Operations
-// (Goto, Branch, Switch, CatchException), and takes care of updating Block
-// predecessors (and calls the Assembler to maintain split-edge form).
+// (Goto, Branch, Switch, CallAndCatchException), and takes care of updating
+// Block predecessors (and calls the Assembler to maintain split-edge form).
 // ReducerBase is always added by Assembler at the bottom of the reducer stack.
 template <class Next>
 class ReducerBase : public ReducerBaseForwarder<Next> {
@@ -135,15 +135,17 @@ class ReducerBase : public ReducerBaseForwarder<Next> {
     return new_opindex;
   }
 
-  OpIndex ReduceCatchException(OpIndex call, Block* if_success,
-                               Block* if_exception) {
+  OpIndex ReduceCallAndCatchException(OpIndex callee, OpIndex frame_state,
+                                      base::Vector<const OpIndex> arguments,
+                                      Block* if_success, Block* if_exception,
+                                      const TSCallDescriptor* descriptor) {
     // {if_success} and {if_exception} should never be the same.  If we ever
     // decide to lift this condition, then AddPredecessor and SplitEdge should
     // be updated accordingly.
     DCHECK_NE(if_success, if_exception);
     Block* saved_current_block = Asm().current_block();
-    OpIndex new_opindex =
-        Base::ReduceCatchException(call, if_success, if_exception);
+    OpIndex new_opindex = Base::ReduceCallAndCatchException(
+        callee, frame_state, arguments, if_success, if_exception, descriptor);
     Asm().AddPredecessor(saved_current_block, if_success, true);
     Asm().AddPredecessor(saved_current_block, if_exception, true);
     return new_opindex;
@@ -784,9 +786,6 @@ class AssemblerOpInterface {
               Block* default_case) {
     stack().ReduceSwitch(input, cases, default_case);
   }
-  OpIndex CatchException(OpIndex call, Block* if_success, Block* if_exception) {
-    return stack().ReduceCatchException(call, if_success, if_exception);
-  }
   void Unreachable() { stack().ReduceUnreachable(); }
 
   OpIndex Parameter(int index, RegisterRepresentation rep,
@@ -801,16 +800,17 @@ class AssemblerOpInterface {
     Return(Word32Constant(0), base::VectorOf({result}));
   }
 
-  OpIndex Call(OpIndex callee, base::Vector<const OpIndex> arguments,
+  OpIndex Call(OpIndex callee, OpIndex frame_state,
+               base::Vector<const OpIndex> arguments,
                const TSCallDescriptor* descriptor) {
-    return stack().ReduceCall(callee, arguments, descriptor);
+    return stack().ReduceCall(callee, frame_state, arguments, descriptor);
   }
-  OpIndex CallMaybeDeopt(OpIndex callee, base::Vector<const OpIndex> arguments,
-                         const TSCallDescriptor* descriptor,
-                         OpIndex frame_state) {
-    OpIndex call = stack().ReduceCall(callee, arguments, descriptor);
-    stack().ReduceCheckLazyDeopt(call, frame_state);
-    return call;
+  OpIndex CallAndCatchException(OpIndex callee, OpIndex frame_state,
+                                base::Vector<const OpIndex> arguments,
+                                Block* if_success, Block* if_exception,
+                                const TSCallDescriptor* descriptor) {
+    return stack().ReduceCallAndCatchException(
+        callee, frame_state, arguments, if_success, if_exception, descriptor);
   }
   void TailCall(OpIndex callee, base::Vector<const OpIndex> arguments,
                 const TSCallDescriptor* descriptor) {
@@ -852,6 +852,9 @@ class AssemblerOpInterface {
     return stack().ReducePendingLoopPhi(first, rep, old_backedge_index);
   }
 
+  OpIndex Tuple(base::Vector<OpIndex> indices) {
+    return stack().ReduceTuple(indices);
+  }
   OpIndex Tuple(OpIndex a, OpIndex b) {
     return stack().ReduceTuple(base::VectorOf({a, b}));
   }
@@ -859,6 +862,8 @@ class AssemblerOpInterface {
                      RegisterRepresentation rep) {
     return stack().ReduceProjection(tuple, index, rep);
   }
+
+  OpIndex LoadException() { return stack().ReduceLoadException(); }
 
  private:
   Assembler& stack() { return *static_cast<Assembler*>(this); }
@@ -910,6 +915,21 @@ class Assembler
 
   Block* current_block() const { return current_block_; }
   OpIndex current_operation_origin() const { return current_operation_origin_; }
+
+  // ReduceProjection eliminates projections to tuples and returns instead the
+  // corresponding tuple input. We do this at the top of the stack to avoid
+  // passing this Projection around needlessly. This is in particular important
+  // to ValueNumberingReducer, which assumes that it's at the bottom of the
+  // stack, and that the BaseReducer will actually emit an Operation. If we put
+  // this projection-to-tuple-simplification in the BaseReducer, then this
+  // assumption of the ValueNumberingReducer will break.
+  OpIndex ReduceProjection(OpIndex tuple, uint16_t index,
+                           RegisterRepresentation rep) {
+    if (auto* tuple_op = this->template TryCast<TupleOp>(tuple)) {
+      return tuple_op->input(index);
+    }
+    return Stack::ReduceProjection(tuple, index, rep);
+  }
 
   template <class Op, class... Args>
   OpIndex Emit(Args... args) {
@@ -984,8 +1004,8 @@ class Assembler
     // block is not reachable.
     intermediate_block->AddPredecessor(source);
 
-    // Updating {source}'s last Branch/Switch/CatchException. Note that this
-    // must be done before Binding {intermediate_block}, otherwise,
+    // Updating {source}'s last Branch/Switch/CallAndCatchException. Note that
+    // this must be done before Binding {intermediate_block}, otherwise,
     // Reducer::Bind methods will see an invalid block being bound (because its
     // predecessor would be a branch, but none of its targets would be the block
     // being bound).
@@ -1005,13 +1025,14 @@ class Assembler
         }
         break;
       }
-      case Opcode::kCatchException: {
-        CatchExceptionOp& catch_exception = op.Cast<CatchExceptionOp>();
+      case Opcode::kCallAndCatchException: {
+        CallAndCatchExceptionOp& catch_exception =
+            op.Cast<CallAndCatchExceptionOp>();
         if (catch_exception.if_success == destination) {
           catch_exception.if_success = intermediate_block;
-          // We enforce that CatchException's if_success and if_exception can
-          // never be the same (there is a DCHECK in Assembler::CatchException
-          // enforcing that).
+          // We enforce that CallAndCatchException's if_success and if_exception
+          // can never be the same (there is a DCHECK in
+          // Assembler::CallAndCatchException enforcing that).
           DCHECK_NE(catch_exception.if_exception, destination);
         } else {
           DCHECK_EQ(catch_exception.if_exception, destination);

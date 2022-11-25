@@ -28,6 +28,8 @@
 #include "src/compiler/turboshaft/deopt-data.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/turboshaft/representations.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -144,7 +146,23 @@ struct GraphBuilder {
   }
   OpIndex Process(Node* node, BasicBlock* block,
                   const base::SmallVector<int, 16>& predecessor_permutation,
-                  base::Optional<BailoutReason>* bailout);
+                  base::Optional<BailoutReason>* bailout,
+                  bool is_final_control = false);
+
+  OpIndex EmitProjectionsAndTuple(OpIndex op_idx) {
+    Operation& op = assembler.output_graph().Get(op_idx);
+    base::Vector<const RegisterRepresentation> outputs_rep = op.outputs_rep();
+    if (outputs_rep.size() <= 1) {
+      // If {op} has a single output, there is no need to emit Projections or
+      // Tuple, so we just return it.
+      return op_idx;
+    }
+    base::SmallVector<OpIndex, 16> tuple_inputs;
+    for (size_t i = 0; i < outputs_rep.size(); i++) {
+      tuple_inputs.push_back(assembler.Projection(op_idx, i, outputs_rep[i]));
+    }
+    return assembler.Tuple(base::VectorOf(tuple_inputs));
+  }
 };
 
 base::Optional<BailoutReason> GraphBuilder::Run() {
@@ -189,7 +207,7 @@ base::Optional<BailoutReason> GraphBuilder::Run() {
                           decltype(Operation::input_count)>::max()})) {
         return BailoutReason::kTooManyArguments;
       }
-      OpIndex i = Process(node, block, predecessor_permutation, &bailout);
+      OpIndex i = Process(node, block, predecessor_permutation, &bailout, true);
       if (V8_UNLIKELY(bailout)) return bailout;
       op_mapping.Set(node, i);
     }
@@ -209,21 +227,9 @@ base::Optional<BailoutReason> GraphBuilder::Run() {
       case BasicBlock::kReturn:
       case BasicBlock::kDeoptimize:
       case BasicBlock::kThrow:
+      case BasicBlock::kCall:
       case BasicBlock::kTailCall:
         break;
-      case BasicBlock::kCall: {
-        Node* call = block->control_input();
-        DCHECK_EQ(call->opcode(), IrOpcode::kCall);
-        DCHECK_EQ(block->SuccessorCount(), 2);
-        Block* if_success = Map(block->SuccessorAt(0));
-        Block* if_exception = Map(block->SuccessorAt(1));
-        OpIndex catch_exception =
-            assembler.CatchException(Map(call), if_success, if_exception);
-        Node* if_exception_node = block->SuccessorAt(1)->NodeAt(0);
-        DCHECK_EQ(if_exception_node->opcode(), IrOpcode::kIfException);
-        op_mapping.Set(if_exception_node, catch_exception);
-        break;
-      }
       case BasicBlock::kNone:
         UNREACHABLE();
     }
@@ -253,7 +259,7 @@ base::Optional<BailoutReason> GraphBuilder::Run() {
 OpIndex GraphBuilder::Process(
     Node* node, BasicBlock* block,
     const base::SmallVector<int, 16>& predecessor_permutation,
-    base::Optional<BailoutReason>* bailout) {
+    base::Optional<BailoutReason>* bailout, bool is_final_control) {
   assembler.SetCurrentOrigin(OpIndex::EncodeTurbofanNodeId(node->id()));
   const Operator* op = node->op();
   Operator::Opcode opcode = op->opcode();
@@ -273,16 +279,41 @@ OpIndex GraphBuilder::Process(
     case IrOpcode::kArgumentsLengthState:
     case IrOpcode::kEffectPhi:
     case IrOpcode::kTerminate:
-    case IrOpcode::kIfSuccess:
       return OpIndex::Invalid();
 
     case IrOpcode::kIfException: {
-      // Use the `CatchExceptionOp` that has already been produced when
-      // processing the call.
-      OpIndex catch_exception = Map(node);
-      DCHECK(
-          assembler.output_graph().Get(catch_exception).Is<CatchExceptionOp>());
-      return catch_exception;
+      return assembler.LoadException();
+    }
+
+    case IrOpcode::kIfSuccess: {
+      // We emit all of the value projections of the call now, emit a Tuple with
+      // all of those projections, and remap the old call to this new Tuple
+      // instead of the CallAndCatchExceptionOp.
+      Node* call = node->InputAt(0);
+      DCHECK_EQ(call->opcode(), IrOpcode::kCall);
+      OpIndex call_idx = Map(call);
+      CallAndCatchExceptionOp& op = assembler.output_graph()
+                                        .Get(call_idx)
+                                        .Cast<CallAndCatchExceptionOp>();
+
+      size_t return_count = op.outputs_rep().size();
+      DCHECK_EQ(return_count, op.descriptor->descriptor->ReturnCount());
+      if (return_count <= 1) {
+        // Calls with one output (or zero) do not require Projections.
+        return OpIndex::Invalid();
+      }
+      base::Vector<OpIndex> projections =
+          graph_zone->NewVector<OpIndex>(return_count);
+      for (size_t i = 0; i < return_count; i++) {
+        projections[i] = assembler.Projection(call_idx, i, op.outputs_rep()[i]);
+      }
+      OpIndex tuple_idx = assembler.Tuple(projections);
+
+      // Re-mapping {call} to {tuple_idx} so that subsequent projections are not
+      // emitted.
+      op_mapping.Set(call, tuple_idx);
+
+      return OpIndex::Invalid();
     }
 
     case IrOpcode::kParameter: {
@@ -385,13 +416,6 @@ OpIndex GraphBuilder::Process(
       BINOP_CASE(Float64Pow, Float64Power)
       BINOP_CASE(Float64Atan2, Float64Atan2)
 
-      BINOP_CASE(Int32AddWithOverflow, Int32AddCheckOverflow)
-      BINOP_CASE(Int64AddWithOverflow, Int64AddCheckOverflow)
-      BINOP_CASE(Int32MulWithOverflow, Int32MulCheckOverflow)
-      BINOP_CASE(Int64MulWithOverflow, Int64MulCheckOverflow)
-      BINOP_CASE(Int32SubWithOverflow, Int32SubCheckOverflow)
-      BINOP_CASE(Int64SubWithOverflow, Int64SubCheckOverflow)
-
       BINOP_CASE(Word32Shr, Word32ShiftRightLogical)
       BINOP_CASE(Word64Shr, Word64ShiftRightLogical)
 
@@ -424,6 +448,20 @@ OpIndex GraphBuilder::Process(
       BINOP_CASE(Float64LessThanOrEqual, Float64LessThanOrEqual)
 #undef BINOP_CASE
 
+#define TUPLE_BINOP_CASE(opcode, assembler_op)                                \
+  case IrOpcode::k##opcode: {                                                 \
+    OpIndex idx =                                                             \
+        assembler.assembler_op(Map(node->InputAt(0)), Map(node->InputAt(1))); \
+    return EmitProjectionsAndTuple(idx);                                      \
+  }
+      TUPLE_BINOP_CASE(Int32AddWithOverflow, Int32AddCheckOverflow)
+      TUPLE_BINOP_CASE(Int64AddWithOverflow, Int64AddCheckOverflow)
+      TUPLE_BINOP_CASE(Int32MulWithOverflow, Int32MulCheckOverflow)
+      TUPLE_BINOP_CASE(Int64MulWithOverflow, Int64MulCheckOverflow)
+      TUPLE_BINOP_CASE(Int32SubWithOverflow, Int32SubCheckOverflow)
+      TUPLE_BINOP_CASE(Int64SubWithOverflow, Int64SubCheckOverflow)
+#undef TUPLE_BINOP_CASE
+
     case IrOpcode::kWord64Sar:
     case IrOpcode::kWord32Sar: {
       WordRepresentation rep = opcode == IrOpcode::kWord64Sar
@@ -445,6 +483,11 @@ OpIndex GraphBuilder::Process(
 #define UNARY_CASE(opcode, assembler_op) \
   case IrOpcode::k##opcode:              \
     return assembler.assembler_op(Map(node->InputAt(0)));
+#define TUPLE_UNARY_CASE(opcode, assembler_op)                   \
+  case IrOpcode::k##opcode: {                                    \
+    OpIndex idx = assembler.assembler_op(Map(node->InputAt(0))); \
+    return EmitProjectionsAndTuple(idx);                         \
+  }
 
       UNARY_CASE(Word32ReverseBytes, Word32ReverseBytes)
       UNARY_CASE(Word64ReverseBytes, Word64ReverseBytes)
@@ -525,16 +568,18 @@ OpIndex GraphBuilder::Process(
       UNARY_CASE(TruncateFloat64ToUint32,
                  TruncateFloat64ToUint32OverflowUndefined)
       UNARY_CASE(TruncateFloat64ToWord32, JSTruncateFloat64ToWord32)
-      UNARY_CASE(TryTruncateFloat32ToInt64, TryTruncateFloat32ToInt64)
-      UNARY_CASE(TryTruncateFloat32ToUint64, TryTruncateFloat32ToUint64)
-      UNARY_CASE(TryTruncateFloat64ToInt32, TryTruncateFloat64ToInt32)
-      UNARY_CASE(TryTruncateFloat64ToInt64, TryTruncateFloat64ToInt64)
-      UNARY_CASE(TryTruncateFloat64ToUint32, TryTruncateFloat64ToUint32)
-      UNARY_CASE(TryTruncateFloat64ToUint64, TryTruncateFloat64ToUint64)
+
+      TUPLE_UNARY_CASE(TryTruncateFloat32ToInt64, TryTruncateFloat32ToInt64)
+      TUPLE_UNARY_CASE(TryTruncateFloat32ToUint64, TryTruncateFloat32ToUint64)
+      TUPLE_UNARY_CASE(TryTruncateFloat64ToInt32, TryTruncateFloat64ToInt32)
+      TUPLE_UNARY_CASE(TryTruncateFloat64ToInt64, TryTruncateFloat64ToInt64)
+      TUPLE_UNARY_CASE(TryTruncateFloat64ToUint32, TryTruncateFloat64ToUint32)
+      TUPLE_UNARY_CASE(TryTruncateFloat64ToUint64, TryTruncateFloat64ToUint64)
 
       UNARY_CASE(Float64ExtractLowWord32, Float64ExtractLowWord32)
       UNARY_CASE(Float64ExtractHighWord32, Float64ExtractHighWord32)
 #undef UNARY_CASE
+#undef TUPLE_UNARY_CASE
     case IrOpcode::kTruncateInt64ToInt32:
       // 64- to 32-bit truncation is implicit in Turboshaft.
       return Map(node->InputAt(0));
@@ -750,14 +795,28 @@ OpIndex GraphBuilder::Process(
       TSCallDescriptor* ts_descriptor =
           graph_zone->New<TSCallDescriptor>(call_descriptor, output_reps);
 
+      OpIndex frame_state_idx = OpIndex::Invalid();
       if (call_descriptor->NeedsFrameState()) {
         FrameState frame_state{
             node->InputAt(static_cast<int>(call_descriptor->InputCount()))};
-        return assembler.CallMaybeDeopt(callee, base::VectorOf(arguments),
-                                        ts_descriptor, Map(frame_state));
+        frame_state_idx = Map(frame_state);
       }
 
-      return assembler.Call(callee, base::VectorOf(arguments), ts_descriptor);
+      if (!is_final_control) {
+        return EmitProjectionsAndTuple(assembler.Call(
+            callee, frame_state_idx, base::VectorOf(arguments), ts_descriptor));
+      } else {
+        DCHECK_EQ(block->SuccessorCount(), 2);
+
+        Block* if_success = Map(block->SuccessorAt(0));
+        Block* if_exception = Map(block->SuccessorAt(1));
+        // CallAndCatchException is a block terminator, so we can't generate the
+        // projections right away. We'll generate them in the IfSuccess
+        // successor.
+        return assembler.CallAndCatchException(
+            callee, frame_state_idx, base::VectorOf(arguments), if_success,
+            if_exception, ts_descriptor);
+      }
     }
 
     case IrOpcode::kTailCall: {

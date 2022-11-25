@@ -80,10 +80,13 @@ class VariableReducer : public Next {
 
     auto merge_variables = [&](Variable var,
                                base::Vector<OpIndex> predecessors) -> OpIndex {
-      ConstantOp* first_constant = Asm()
-                                       .output_graph()
-                                       .Get(predecessors[0])
-                                       .template TryCast<ConstantOp>();
+      ConstantOp* first_constant = nullptr;
+      if (predecessors[0].valid()) {
+        first_constant = Asm()
+                             .output_graph()
+                             .Get(predecessors[0])
+                             .template TryCast<ConstantOp>();
+      }
       bool all_are_same_constant = first_constant != nullptr;
 
       for (OpIndex idx : predecessors) {
@@ -188,7 +191,6 @@ class VariableReducer : public Next {
         case Opcode::kStore:
         case Opcode::kRetain:
         case Opcode::kStackSlot:
-        case Opcode::kCheckLazyDeopt:
         case Opcode::kDeoptimize:
         case Opcode::kDeoptimizeIf:
         case Opcode::kTrapIf:
@@ -200,7 +202,6 @@ class VariableReducer : public Next {
         case Opcode::kReturn:
         case Opcode::kGoto:
         case Opcode::kBranch:
-        case Opcode::kCatchException:
         case Opcode::kSwitch:
         case Opcode::kTuple:
         case Opcode::kProjection:

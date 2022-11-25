@@ -561,22 +561,16 @@ std::ostream& operator<<(std::ostream& os, const Block* b) {
 }
 
 std::ostream& operator<<(std::ostream& os, OpProperties opProperties) {
-  if (opProperties == OpProperties::Pure()) {
-    os << "Pure";
-  } else if (opProperties == OpProperties::Reading()) {
-    os << "Reading";
-  } else if (opProperties == OpProperties::Writing()) {
-    os << "Writing";
-  } else if (opProperties == OpProperties::CanAbort()) {
-    os << "CanAbort";
-  } else if (opProperties == OpProperties::AnySideEffects()) {
-    os << "AnySideEffects";
-  } else if (opProperties == OpProperties::BlockTerminator()) {
-    os << "BlockTerminator";
-  } else {
-    UNREACHABLE();
+#define PRINT_PROPERTY(Name, ...)             \
+  if (opProperties == OpProperties::Name()) { \
+    return os << #Name;                       \
   }
-  return os;
+
+  ALL_OP_PROPERTIES(PRINT_PROPERTY)
+
+#undef PRINT_PROPERTY
+
+  UNREACHABLE();
 }
 
 void SwitchOp::PrintOptions(std::ostream& os) const {

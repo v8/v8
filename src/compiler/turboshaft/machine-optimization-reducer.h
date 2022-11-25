@@ -964,14 +964,6 @@ class MachineOptimizationReducer : public Next {
     }
   }
 
-  OpIndex ReduceProjection(OpIndex tuple, uint16_t index,
-                           RegisterRepresentation rep) {
-    if (auto* tuple_op = Asm().template TryCast<TupleOp>(tuple)) {
-      return tuple_op->input(index);
-    }
-    return Next::ReduceProjection(tuple, index, rep);
-  }
-
   OpIndex ReduceOverflowCheckedBinop(OpIndex left, OpIndex right,
                                      OverflowCheckedBinopOp::Kind kind,
                                      WordRepresentation rep) {
