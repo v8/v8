@@ -1796,6 +1796,15 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
     PopSizeRegList(regs, kSRegSizeInBits);
   }
 
+  inline void PushAll(RegList registers) { PushXRegList(registers); }
+  inline void PopAll(RegList registers) { PopXRegList(registers); }
+  inline void PushAll(DoubleRegList registers, int stack_slot_size) {
+    PushQRegList(registers);
+  }
+  inline void PopAll(DoubleRegList registers, int stack_slot_size) {
+    PopQRegList(registers);
+  }
+
   // Push the specified register 'count' times.
   void PushMultipleTimes(CPURegister src, Register count);
 

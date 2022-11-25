@@ -25,7 +25,9 @@
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-regalloc-data.h"
 
-#ifdef V8_TARGET_ARCH_X64
+#ifdef V8_TARGET_ARCH_ARM64
+#include "src/codegen/arm64/register-arm64.h"
+#elif V8_TARGET_ARCH_X64
 #include "src/codegen/x64/register-x64.h"
 #else
 #error "Maglev does not supported this architecture."

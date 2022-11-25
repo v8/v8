@@ -41,17 +41,9 @@ class MaglevAssembler : public MacroAssembler {
       : MacroAssembler(isolate, CodeObjectRequired::kNo),
         code_gen_state_(code_gen_state) {}
 
-  inline MemOperand GetStackSlot(const compiler::AllocatedOperand& operand) {
-    return MemOperand(rbp, GetFramePointerOffsetForStackSlot(operand));
-  }
-
-  inline MemOperand ToMemOperand(const compiler::InstructionOperand& operand) {
-    return GetStackSlot(compiler::AllocatedOperand::cast(operand));
-  }
-
-  inline MemOperand ToMemOperand(const ValueLocation& location) {
-    return ToMemOperand(location.operand());
-  }
+  inline MemOperand GetStackSlot(const compiler::AllocatedOperand& operand);
+  inline MemOperand ToMemOperand(const compiler::InstructionOperand& operand);
+  inline MemOperand ToMemOperand(const ValueLocation& location);
 
   inline int GetFramePointerOffsetForStackSlot(
       const compiler::AllocatedOperand& operand) {

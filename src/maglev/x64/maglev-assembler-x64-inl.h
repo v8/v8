@@ -74,6 +74,20 @@ Register MaglevAssembler::FromAnyToRegister(const Input& input,
   }
 }
 
+inline MemOperand MaglevAssembler::GetStackSlot(
+    const compiler::AllocatedOperand& operand) {
+  return MemOperand(rbp, GetFramePointerOffsetForStackSlot(operand));
+}
+
+inline MemOperand MaglevAssembler::ToMemOperand(
+    const compiler::InstructionOperand& operand) {
+  return GetStackSlot(compiler::AllocatedOperand::cast(operand));
+}
+
+inline MemOperand MaglevAssembler::ToMemOperand(const ValueLocation& location) {
+  return ToMemOperand(location.operand());
+}
+
 inline void MaglevAssembler::DefineLazyDeoptPoint(LazyDeoptInfo* info) {
   info->set_deopting_call_return_pc(pc_offset_for_safepoint());
   code_gen_state()->PushLazyDeopt(info);

@@ -3600,7 +3600,9 @@ v8_header_set("v8_internal_headers") {
       "src/maglev/maglev-vreg-allocator.h",
       "src/maglev/maglev.h",
     ]
-    if (v8_current_cpu == "x64") {
+    if (v8_current_cpu == "arm64") {
+      sources += [ "src/maglev/arm64/maglev-assembler-arm64-inl.h" ]
+    } else if (v8_current_cpu == "x64") {
       sources += [ "src/maglev/x64/maglev-assembler-x64-inl.h" ]
     }
   }
@@ -4780,10 +4782,17 @@ v8_source_set("v8_base_without_compiler") {
       "src/maglev/maglev-graph-builder.cc",
       "src/maglev/maglev-graph-printer.cc",
       "src/maglev/maglev-interpreter-frame-state.cc",
+      "src/maglev/maglev-ir.cc",
       "src/maglev/maglev-regalloc.cc",
       "src/maglev/maglev.cc",
     ]
-    if (v8_current_cpu == "x64") {
+    if (v8_current_cpu == "arm64") {
+      sources += [
+        "src/maglev/arm64/maglev-assembler-arm64.cc",
+        "src/maglev/arm64/maglev-code-generator-arm64.cc",
+        "src/maglev/arm64/maglev-ir-arm64.cc",
+      ]
+    } else if (v8_current_cpu == "x64") {
       sources += [
         "src/maglev/x64/maglev-assembler-x64.cc",
         "src/maglev/x64/maglev-code-generator-x64.cc",
