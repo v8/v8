@@ -1132,6 +1132,27 @@ class MaglevGraphBuilder {
   ValueNode* TryBuildStoreDataView(const CallArguments& args,
                                    ExternalArrayType type, Function&& getValue);
 
+#define MATH_UNARY_IEEE_BUILTIN(V) \
+  V(MathAcos)                      \
+  V(MathAcosh)                     \
+  V(MathAsin)                      \
+  V(MathAsinh)                     \
+  V(MathAtan)                      \
+  V(MathAtanh)                     \
+  V(MathCbrt)                      \
+  V(MathCos)                       \
+  V(MathCosh)                      \
+  V(MathExp)                       \
+  V(MathExpm1)                     \
+  V(MathLog)                       \
+  V(MathLog1p)                     \
+  V(MathLog10)                     \
+  V(MathLog2)                      \
+  V(MathSin)                       \
+  V(MathSinh)                      \
+  V(MathTan)                       \
+  V(MathTanh)
+
 #define MAGLEV_REDUCED_BUILTIN(V) \
   V(DataViewPrototypeGetInt8)     \
   V(DataViewPrototypeSetInt8)     \
@@ -1144,7 +1165,8 @@ class MaglevGraphBuilder {
   V(FunctionPrototypeCall)        \
   V(MathPow)                      \
   V(StringFromCharCode)           \
-  V(StringPrototypeCharCodeAt)
+  V(StringPrototypeCharCodeAt)    \
+  MATH_UNARY_IEEE_BUILTIN(V)
 
 #define DEFINE_BUILTIN_REDUCER(Name)                                 \
   ValueNode* TryReduce##Name(compiler::JSFunctionRef builtin_target, \

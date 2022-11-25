@@ -108,7 +108,8 @@ class CompactInterpreterFrameState;
   V(Float64LessThan)                    \
   V(Float64LessThanOrEqual)             \
   V(Float64GreaterThan)                 \
-  V(Float64GreaterThanOrEqual)
+  V(Float64GreaterThanOrEqual)          \
+  V(Float64Ieee754Unary)
 
 #define CONSTANT_VALUE_NODE_LIST(V) \
   V(Constant)                       \
@@ -1902,6 +1903,27 @@ class Float64Negate : public FixedInputValueNodeT<1, Float64Negate> {
   void AllocateVreg(MaglevVregAllocationState*);
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class Float64Ieee754Unary
+    : public FixedInputValueNodeT<1, Float64Ieee754Unary> {
+  using Base = FixedInputValueNodeT<1, Float64Ieee754Unary>;
+
+ public:
+  explicit Float64Ieee754Unary(uint64_t bitfield,
+                               ExternalReference ieee_function)
+      : Base(bitfield), ieee_function_(ieee_function) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::Float64() | OpProperties::Call();
+  Input& input() { return Node::input(0); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  ExternalReference ieee_function_;
 };
 
 class CheckInt32IsSmi : public FixedInputNodeT<1, CheckInt32IsSmi> {

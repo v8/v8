@@ -201,6 +201,7 @@ class MaglevGraphVerifier {
         break;
       case Opcode::kFloat64Box:
       case Opcode::kFloat64Negate:
+      case Opcode::kFloat64Ieee754Unary:
       case Opcode::kHoleyFloat64Box:
       case Opcode::kCheckedTruncateFloat64ToInt32:
       case Opcode::kCheckedTruncateFloat64ToUint32:

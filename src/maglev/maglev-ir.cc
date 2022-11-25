@@ -3253,6 +3253,26 @@ void Float64Exponentiate::GenerateCode(MaglevAssembler* masm,
   __ CallCFunction(ExternalReference::ieee754_pow_function(), 2);
 }
 
+void Float64Ieee754Unary::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  UseFixed(input(), xmm0);
+  DefineSameAsFirst(vreg_state, this);
+}
+
+void Float64Ieee754Unary::GenerateCode(MaglevAssembler* masm,
+                                       const ProcessingState& state) {
+  AllowExternalCallThatCantCauseGC scope(masm);
+  __ PrepareCallCFunction(1);
+  __ CallCFunction(ieee_function_, 1);
+}
+
+void Float64Ieee754Unary::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  os << "("
+     << ExternalReferenceTable::NameOfIsolateIndependentAddress(
+            ieee_function_.address())
+     << ")";
+}
+
 template <class Derived, Operation kOperation>
 void Float64CompareNode<Derived, kOperation>::AllocateVreg(
     MaglevVregAllocationState* vreg_state) {
