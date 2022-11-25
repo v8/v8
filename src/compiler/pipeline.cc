@@ -1969,9 +1969,9 @@ struct LateOptimizationPhase {
     if (data->HasTurboshaftGraph()) {
       // TODO(dmercadier,tebbi): port missing reducers (LateEscapeAnalysis and
       // CommonOperatorReducer) to turboshaft.
-      // TODO(dmercadier, tebbi): re-enable BranchElimination in turboshaft.
       turboshaft::OptimizationPhase<
-          turboshaft::VariableReducer, turboshaft::SelectLoweringReducer,
+          turboshaft::VariableReducer, turboshaft::BranchEliminationReducer,
+          turboshaft::SelectLoweringReducer,
           turboshaft::MachineOptimizationReducerSignallingNanImpossible,
           turboshaft::ValueNumberingReducer>::Run(&data->turboshaft_graph(),
                                                   temp_zone,
@@ -1998,7 +1998,9 @@ struct LateOptimizationPhase {
                                        BranchSemantics::kMachine);
       SelectLowering select_lowering(&graph_assembler, data->graph());
       AddReducer(data, &graph_reducer, &escape_analysis);
-      AddReducer(data, &graph_reducer, &branch_condition_elimination);
+      if (!v8_flags.turboshaft) {
+        AddReducer(data, &graph_reducer, &branch_condition_elimination);
+      }
       AddReducer(data, &graph_reducer, &dead_code_elimination);
       if (!v8_flags.turboshaft) {
         AddReducer(data, &graph_reducer, &machine_reducer);
