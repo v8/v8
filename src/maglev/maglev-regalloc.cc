@@ -610,6 +610,20 @@ void StraightForwardRegisterAllocator::AllocateNode(Node* node) {
     if (v8_flags.trace_maglev_regalloc) {
       printing_visitor_->os() << "Allocating lazy deopt inputs...\n";
     }
+    // Ensure all values live from a throwing node across its catch block are
+    // spilled so they can properly be merged after the catch block.
+    if (node->properties().can_throw()) {
+      ExceptionHandlerInfo* info = node->exception_handler_info();
+      if (info->HasExceptionHandler() && !node->properties().is_call()) {
+        BasicBlock* block = info->catch_block.block_ptr();
+        auto spill = [&](auto reg, ValueNode* node) {
+          if (node->live_range().end < block->first_id()) return;
+          Spill(node);
+        };
+        general_registers_.ForEachUsedRegister(spill);
+        double_registers_.ForEachUsedRegister(spill);
+      }
+    }
     AllocateLazyDeopt(*node->lazy_deopt_info());
   }
 
@@ -1895,6 +1909,9 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
                                 << PrintNodeLabel(graph_labeller(), node)
                                 << ", dropping the merge\n";
       }
+      // We always need to be able to restore values on JumpLoop since the value
+      // is definitely live at the loop header.
+      CHECK(!control->Is<JumpLoop>());
       state = {nullptr, initialized_node};
       return;
     }
