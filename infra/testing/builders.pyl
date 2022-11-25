@@ -180,7 +180,10 @@
         ],
         'shards': 4,
       },
-      {'name': 'gcmole'},
+      {'name': 'gcmole_v2', 'variant': 'ia32'},
+      {'name': 'gcmole_v2', 'variant': 'x64'},
+      {'name': 'gcmole_v2', 'variant': 'arm'},
+      {'name': 'gcmole_v2', 'variant': 'arm64'},
     ],
   },
   'v8_linux_optional_rel': {
@@ -1061,7 +1064,10 @@
         'test_args': ['--extra-flags', '--noenable-avx'],
         'shards': 2
       },
-      {'name': 'gcmole'},
+      {'name': 'gcmole_v2', 'variant': 'ia32'},
+      {'name': 'gcmole_v2', 'variant': 'x64'},
+      {'name': 'gcmole_v2', 'variant': 'arm'},
+      {'name': 'gcmole_v2', 'variant': 'arm64'},
     ],
   },
   'V8 Linux - arm64 - sim - CFI': {
