@@ -812,7 +812,11 @@ void TracedHandlesImpl::CheckNodeMarkingStateIsConsistent(
       if (object.IsHeapObject()) {
         auto* chunk =
             BasicMemoryChunk::FromHeapObject(HeapObject::cast(object));
-        CHECK(!chunk->IsFlagSet(BasicMemoryChunk::FROM_PAGE));
+        // Non-LO pages must not be in from space.
+        CHECK_IMPLIES(!chunk->IsLargePage(),
+                      !chunk->IsFlagSet(BasicMemoryChunk::FROM_PAGE));
+        CHECK_IMPLIES(chunk->InNewLargeObjectSpace(),
+                      chunk->IsFlagSet(BasicMemoryChunk::FROM_PAGE));
       }
     }
     CHECK_IMPLIES(node->markbit(), may_find_marked_nodes);
