@@ -1011,7 +1011,8 @@ class MachineOptimizationReducer : public Next {
             overflow = base::bits::SignedAddOverflow64(k1, k2, &res);
             break;
           case OverflowCheckedBinopOp::Kind::kSignedMul:
-            UNREACHABLE();
+            overflow = base::bits::SignedMulOverflow64(k1, k2, &res);
+            break;
           case OverflowCheckedBinopOp::Kind::kSignedSub:
             overflow = base::bits::SignedSubOverflow64(k1, k2, &res);
             break;

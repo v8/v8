@@ -308,6 +308,9 @@ path. Add it with -I<path> to the command line
 //  V8_HAS_BUILTIN_EXPECT               - __builtin_expect() supported
 //  V8_HAS_BUILTIN_FRAME_ADDRESS        - __builtin_frame_address() supported
 //  V8_HAS_BUILTIN_POPCOUNT             - __builtin_popcount() supported
+//  V8_HAS_BUILTIN_ADD_OVERFLOW         - __builtin_add_overflow() supported
+//  V8_HAS_BUILTIN_SUB_OVERFLOW         - __builtin_sub_overflow() supported
+//  V8_HAS_BUILTIN_MUL_OVERFLOW         - __builtin_mul_overflow() supported
 //  V8_HAS_BUILTIN_SADD_OVERFLOW        - __builtin_sadd_overflow() supported
 //  V8_HAS_BUILTIN_SSUB_OVERFLOW        - __builtin_ssub_overflow() supported
 //  V8_HAS_BUILTIN_UADD_OVERFLOW        - __builtin_uadd_overflow() supported
@@ -360,6 +363,9 @@ path. Add it with -I<path> to the command line
 # define V8_HAS_BUILTIN_EXPECT (__has_builtin(__builtin_expect))
 # define V8_HAS_BUILTIN_FRAME_ADDRESS (__has_builtin(__builtin_frame_address))
 # define V8_HAS_BUILTIN_POPCOUNT (__has_builtin(__builtin_popcount))
+# define V8_HAS_BUILTIN_ADD_OVERFLOW (__has_builtin(__builtin_add_overflow))
+# define V8_HAS_BUILTIN_SUB_OVERFLOW (__has_builtin(__builtin_sub_overflow))
+# define V8_HAS_BUILTIN_MUL_OVERFLOW (__has_builtin(__builtin_mul_overflow))
 # define V8_HAS_BUILTIN_SADD_OVERFLOW (__has_builtin(__builtin_sadd_overflow))
 # define V8_HAS_BUILTIN_SSUB_OVERFLOW (__has_builtin(__builtin_ssub_overflow))
 # define V8_HAS_BUILTIN_UADD_OVERFLOW (__has_builtin(__builtin_uadd_overflow))
