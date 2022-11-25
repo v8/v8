@@ -14338,6 +14338,22 @@ void CodeStubAssembler::GotoIfNumber(TNode<Object> input, Label* is_number) {
   GotoIf(IsHeapNumber(CAST(input)), is_number);
 }
 
+TNode<Word32T> CodeStubAssembler::NormalizeShift32OperandIfNecessary(
+    TNode<Word32T> right32) {
+  TVARIABLE(Word32T, result, right32);
+  Label done(this);
+  // Use UniqueInt32Constant instead of BoolConstant here in order to ensure
+  // that the graph structure does not depend on the value of the predicate
+  // (BoolConstant uses cached nodes).
+  GotoIf(UniqueInt32Constant(Word32ShiftIsSafe()), &done);
+  {
+    result = Word32And(right32, Int32Constant(0x1F));
+    Goto(&done);
+  }
+  BIND(&done);
+  return result.value();
+}
+
 TNode<Number> CodeStubAssembler::BitwiseOp(TNode<Word32T> left32,
                                            TNode<Word32T> right32,
                                            Operation bitwise_op) {
@@ -14349,19 +14365,13 @@ TNode<Number> CodeStubAssembler::BitwiseOp(TNode<Word32T> left32,
     case Operation::kBitwiseXor:
       return ChangeInt32ToTagged(Signed(Word32Xor(left32, right32)));
     case Operation::kShiftLeft:
-      if (!Word32ShiftIsSafe()) {
-        right32 = Word32And(right32, Int32Constant(0x1F));
-      }
+      right32 = NormalizeShift32OperandIfNecessary(right32);
       return ChangeInt32ToTagged(Signed(Word32Shl(left32, right32)));
     case Operation::kShiftRight:
-      if (!Word32ShiftIsSafe()) {
-        right32 = Word32And(right32, Int32Constant(0x1F));
-      }
+      right32 = NormalizeShift32OperandIfNecessary(right32);
       return ChangeInt32ToTagged(Signed(Word32Sar(left32, right32)));
     case Operation::kShiftRightLogical:
-      if (!Word32ShiftIsSafe()) {
-        right32 = Word32And(right32, Int32Constant(0x1F));
-      }
+      right32 = NormalizeShift32OperandIfNecessary(right32);
       return ChangeUint32ToTagged(Unsigned(Word32Shr(left32, right32)));
     default:
       break;
@@ -14387,10 +14397,8 @@ TNode<Number> CodeStubAssembler::BitwiseSmiOp(TNode<Smi> left, TNode<Smi> right,
     // perform int32 operation but don't check for overflow.
     case Operation::kShiftRight: {
       TNode<Int32T> left32 = SmiToInt32(left);
-      TNode<Int32T> right32 = SmiToInt32(right);
-      if (!Word32ShiftIsSafe()) {
-        right32 = Word32And(right32, Int32Constant(0x1F));
-      }
+      TNode<Int32T> right32 =
+          Signed(NormalizeShift32OperandIfNecessary(SmiToInt32(right)));
       return ChangeInt32ToTaggedNoOverflow(Word32Sar(left32, right32));
     }
     default:

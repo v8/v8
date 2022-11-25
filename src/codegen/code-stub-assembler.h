@@ -782,6 +782,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // BigInt operations.
   void GotoIfLargeBigInt(TNode<BigInt> bigint, Label* true_label);
 
+  TNode<Word32T> NormalizeShift32OperandIfNecessary(TNode<Word32T> right32);
   TNode<Number> BitwiseOp(TNode<Word32T> left32, TNode<Word32T> right32,
                           Operation bitwise_op);
   TNode<Number> BitwiseSmiOp(TNode<Smi> left32, TNode<Smi> right32,
