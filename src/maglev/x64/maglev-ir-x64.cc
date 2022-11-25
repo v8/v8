@@ -3228,6 +3228,48 @@ void Float64Divide::GenerateCode(MaglevAssembler* masm,
   __ Divsd(left, right);
 }
 
+void Float64Modulus::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  RequireSpecificTemporary(rax);
+  DefineAsRegister(vreg_state, this);
+}
+
+void Float64Modulus::GenerateCode(MaglevAssembler* masm,
+                                  const ProcessingState& state) {
+  // Approach copied from code-generator-x64.cc
+  // Allocate space to use fld to move the value to the FPU stack.
+  __ AllocateStackSpace(kDoubleSize);
+  Operand scratch_stack_space = Operand(rsp, 0);
+  __ Movsd(scratch_stack_space, ToDoubleRegister(right_input()));
+  __ fld_d(scratch_stack_space);
+  __ Movsd(scratch_stack_space, ToDoubleRegister(left_input()));
+  __ fld_d(scratch_stack_space);
+  // Loop while fprem isn't done.
+  Label mod_loop;
+  __ bind(&mod_loop);
+  // This instructions traps on all kinds inputs, but we are assuming the
+  // floating point control word is set to ignore them all.
+  __ fprem();
+  // The following 2 instruction implicitly use rax.
+  __ fnstsw_ax();
+  if (CpuFeatures::IsSupported(SAHF)) {
+    CpuFeatureScope sahf_scope(masm, SAHF);
+    __ sahf();
+  } else {
+    __ shrl(rax, Immediate(8));
+    __ andl(rax, Immediate(0xFF));
+    __ pushq(rax);
+    __ popfq();
+  }
+  __ j(parity_even, &mod_loop);
+  // Move output to stack and clean up.
+  __ fstp(1);
+  __ fstp_d(scratch_stack_space);
+  __ Movsd(ToDoubleRegister(result()), scratch_stack_space);
+  __ addq(rsp, Immediate(kDoubleSize));
+}
+
 void Float64Negate::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseRegister(input());
   DefineSameAsFirst(vreg_state, this);

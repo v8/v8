@@ -347,11 +347,12 @@ template <Operation kOperation>
 using GenericNodeForOperation =
     typename NodeForOperationHelper<kOperation>::generic_type;
 
-// Bitwise operations reinterpreters the numeric input as Int32 bits for a
+// Bitwise operations reinterprets the numeric input as Int32 bits for a
 // bitwise operation, which means we want to do slightly different conversions.
 template <Operation kOperation>
 constexpr bool BinaryOperationIsBitwiseInt32() {
   switch (kOperation) {
+    case Operation::kBitwiseNot:
     case Operation::kBitwiseAnd:
     case Operation::kBitwiseOr:
     case Operation::kBitwiseXor:
@@ -363,31 +364,6 @@ constexpr bool BinaryOperationIsBitwiseInt32() {
       return false;
   }
 }
-
-// TODO(victorgomes): Remove this once all operations have fast paths.
-template <Operation kOperation>
-constexpr bool BinaryOperationHasFloat64FastPath() {
-  switch (kOperation) {
-    case Operation::kAdd:
-    case Operation::kSubtract:
-    case Operation::kMultiply:
-    case Operation::kDivide:
-    case Operation::kExponentiate:
-    case Operation::kEqual:
-    case Operation::kStrictEqual:
-    case Operation::kLessThan:
-    case Operation::kLessThanOrEqual:
-    case Operation::kGreaterThan:
-    case Operation::kGreaterThanOrEqual:
-    case Operation::kNegate:
-    case Operation::kIncrement:
-    case Operation::kDecrement:
-      return true;
-    default:
-      return false;
-  }
-}
-
 }  // namespace
 
 // MAP_OPERATION_TO_NODES are tuples with the following format:
@@ -429,6 +405,7 @@ constexpr bool BinaryOperationHasFloat64FastPath() {
   V(Subtract, Float64Subtract)           \
   V(Multiply, Float64Multiply)           \
   V(Divide, Float64Divide)               \
+  V(Modulus, Float64Modulus)             \
   V(Negate, Float64Negate)               \
   V(Exponentiate, Float64Exponentiate)
 
@@ -746,9 +723,8 @@ void MaglevGraphBuilder::VisitUnaryOperation() {
       if constexpr (BinaryOperationIsBitwiseInt32<kOperation>()) {
         static_assert(kOperation == Operation::kBitwiseNot);
         return BuildTruncatingInt32BitwiseNotForNumber();
-      } else if constexpr (BinaryOperationHasFloat64FastPath<kOperation>()) {
-        return BuildFloat64UnaryOperationNode<kOperation>();
       }
+      return BuildFloat64UnaryOperationNode<kOperation>();
       break;
     default:
       // Fallback to generic node.
@@ -773,10 +749,10 @@ void MaglevGraphBuilder::VisitBinaryOperation() {
       }
     case BinaryOperationHint::kSignedSmallInputs:
     case BinaryOperationHint::kNumber:
-      if constexpr (BinaryOperationHasFloat64FastPath<kOperation>()) {
-        return BuildFloat64BinaryOperationNode<kOperation>();
-      } else if constexpr (BinaryOperationIsBitwiseInt32<kOperation>()) {
+      if constexpr (BinaryOperationIsBitwiseInt32<kOperation>()) {
         return BuildTruncatingInt32BinaryOperationNodeForNumber<kOperation>();
+      } else {
+        return BuildFloat64BinaryOperationNode<kOperation>();
       }
       break;
     default:
@@ -802,11 +778,11 @@ void MaglevGraphBuilder::VisitBinarySmiOperation() {
       }
     case BinaryOperationHint::kSignedSmallInputs:
     case BinaryOperationHint::kNumber:
-      if constexpr (BinaryOperationHasFloat64FastPath<kOperation>()) {
-        return BuildFloat64BinarySmiOperationNode<kOperation>();
-      } else if constexpr (BinaryOperationIsBitwiseInt32<kOperation>()) {
+      if constexpr (BinaryOperationIsBitwiseInt32<kOperation>()) {
         return BuildTruncatingInt32BinarySmiOperationNodeForNumber<
             kOperation>();
+      } else {
+        return BuildFloat64BinarySmiOperationNode<kOperation>();
       }
       break;
     default:
@@ -894,25 +870,16 @@ void MaglevGraphBuilder::VisitCompareOperation() {
       SetAccumulator(AddNewNode<Int32NodeFor<kOperation>>({left, right}));
       return;
     }
-    case CompareOperationHint::kNumber:
-      if constexpr (BinaryOperationHasFloat64FastPath<kOperation>()) {
-        ValueNode* left = LoadRegisterFloat64(0);
-        ValueNode* right = GetAccumulatorFloat64();
-
-        if (TryBuildCompareOperation<BranchIfFloat64Compare>(kOperation, left,
-                                                             right)) {
-          return;
-        }
-        SetAccumulator(AddNewNode<Float64NodeFor<kOperation>>({left, right}));
+    case CompareOperationHint::kNumber: {
+      ValueNode* left = LoadRegisterFloat64(0);
+      ValueNode* right = GetAccumulatorFloat64();
+      if (TryBuildCompareOperation<BranchIfFloat64Compare>(kOperation, left,
+                                                           right)) {
         return;
-        // } else if constexpr (BinaryOperationHasInt32FastPath<kOperation>()) {
-        //   // Fall back to int32 fast path if there is one (this will be the
-        //   case
-        //   // for operations that deal with bits rather than numbers).
-        //   BuildInt32BinaryOperationNode<kOperation>();
-        //   return;
       }
-      break;
+      SetAccumulator(AddNewNode<Float64NodeFor<kOperation>>({left, right}));
+      return;
+    }
     case CompareOperationHint::kInternalizedString: {
       DCHECK(kOperation == Operation::kEqual ||
              kOperation == Operation::kStrictEqual);

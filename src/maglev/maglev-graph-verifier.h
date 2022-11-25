@@ -313,6 +313,7 @@ class MaglevGraphVerifier {
       case Opcode::kFloat64Multiply:
       case Opcode::kFloat64Divide:
       case Opcode::kFloat64Exponentiate:
+      case Opcode::kFloat64Modulus:
       case Opcode::kFloat64Equal:
       case Opcode::kFloat64StrictEqual:
       case Opcode::kFloat64LessThan:

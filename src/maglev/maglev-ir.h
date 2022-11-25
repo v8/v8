@@ -100,9 +100,9 @@ class CompactInterpreterFrameState;
   V(Float64Subtract)                    \
   V(Float64Multiply)                    \
   V(Float64Divide)                      \
-  /*V(Float64Modulus)*/                 \
-  V(Float64Negate)                      \
   V(Float64Exponentiate)                \
+  V(Float64Modulus)                     \
+  V(Float64Negate)                      \
   V(Float64Equal)                       \
   V(Float64StrictEqual)                 \
   V(Float64LessThan)                    \
@@ -1839,7 +1839,7 @@ DEF_FLOAT64_BINARY_NODE(Add)
 DEF_FLOAT64_BINARY_NODE(Subtract)
 DEF_FLOAT64_BINARY_NODE(Multiply)
 DEF_FLOAT64_BINARY_NODE(Divide)
-// DEF_FLOAT64_BINARY_NODE(Modulus)
+DEF_FLOAT64_BINARY_NODE(Modulus)
 #undef DEF_FLOAT64_BINARY_NODE
 
 class Float64Exponentiate
