@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/maglev/maglev-ir.h"
-
 #include "src/base/bits.h"
 #include "src/base/logging.h"
 #include "src/baseline/baseline-assembler-inl.h"
@@ -21,7 +19,6 @@
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/ic/handler-configuration.h"
 #include "src/interpreter/bytecode-flags.h"
-#include "src/maglev/maglev-assembler-inl.h"
 #include "src/maglev/maglev-code-gen-state.h"
 #include "src/maglev/maglev-compilation-unit.h"
 #include "src/maglev/maglev-graph-labeller.h"
@@ -29,7 +26,9 @@
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir-inl.h"
+#include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-vreg-allocator.h"
+#include "src/maglev/x64/maglev-assembler-x64-inl.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/js-array-buffer.h"
 

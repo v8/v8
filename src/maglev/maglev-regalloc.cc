@@ -11,7 +11,6 @@
 #include "src/codegen/machine-type.h"
 #include "src/codegen/register.h"
 #include "src/codegen/reglist.h"
-#include "src/codegen/x64/register-x64.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/heap/parked-scope.h"
 #include "src/maglev/maglev-code-gen-state.h"
@@ -25,6 +24,12 @@
 #include "src/maglev/maglev-ir-inl.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-regalloc-data.h"
+
+#ifdef V8_TARGET_ARCH_X64
+#include "src/codegen/x64/register-x64.h"
+#else
+#error "Maglev does not supported this architecture."
+#endif
 
 namespace v8 {
 namespace internal {

@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/maglev/maglev-code-generator.h"
-
 #include <algorithm>
 
 #include "src/base/hashmap.h"
@@ -20,8 +18,8 @@
 #include "src/deoptimizer/translation-array.h"
 #include "src/execution/frame-constants.h"
 #include "src/interpreter/bytecode-register.h"
-#include "src/maglev/maglev-assembler-inl.h"
 #include "src/maglev/maglev-code-gen-state.h"
+#include "src/maglev/maglev-code-generator.h"
 #include "src/maglev/maglev-compilation-unit.h"
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph-printer.h"
@@ -29,6 +27,7 @@
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-regalloc-data.h"
+#include "src/maglev/x64/maglev-assembler-x64-inl.h"
 #include "src/objects/code-inl.h"
 #include "src/utils/identity-map.h"
 

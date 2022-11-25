@@ -4,7 +4,7 @@
 
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/common/globals.h"
-#include "src/maglev/maglev-assembler-inl.h"
+#include "src/maglev/x64/maglev-assembler-x64-inl.h"
 #include "src/objects/heap-number.h"
 
 namespace v8 {

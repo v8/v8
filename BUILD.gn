@@ -3585,7 +3585,6 @@ v8_header_set("v8_internal_headers") {
 
   if (v8_enable_maglev) {
     sources += [
-      "src/maglev/maglev-assembler-inl.h",
       "src/maglev/maglev-assembler.h",
       "src/maglev/maglev-basic-block.h",
       "src/maglev/maglev-code-gen-state.h",
@@ -3609,6 +3608,9 @@ v8_header_set("v8_internal_headers") {
       "src/maglev/maglev-vreg-allocator.h",
       "src/maglev/maglev.h",
     ]
+    if (v8_current_cpu == "x64") {
+      sources += [ "src/maglev/x64/maglev-assembler-x64-inl.h" ]
+    }
   }
 
   if (v8_enable_webassembly) {
@@ -4779,8 +4781,6 @@ v8_source_set("v8_base_without_compiler") {
 
   if (v8_enable_maglev) {
     sources += [
-      "src/maglev/maglev-assembler.cc",
-      "src/maglev/maglev-code-generator.cc",
       "src/maglev/maglev-compilation-info.cc",
       "src/maglev/maglev-compilation-unit.cc",
       "src/maglev/maglev-compiler.cc",
@@ -4788,10 +4788,16 @@ v8_source_set("v8_base_without_compiler") {
       "src/maglev/maglev-graph-builder.cc",
       "src/maglev/maglev-graph-printer.cc",
       "src/maglev/maglev-interpreter-frame-state.cc",
-      "src/maglev/maglev-ir.cc",
       "src/maglev/maglev-regalloc.cc",
       "src/maglev/maglev.cc",
     ]
+    if (v8_current_cpu == "x64") {
+      sources += [
+        "src/maglev/x64/maglev-assembler-x64.cc",
+        "src/maglev/x64/maglev-code-generator-x64.cc",
+        "src/maglev/x64/maglev-ir-x64.cc",
+      ]
+    }
   }
 
   if (v8_enable_webassembly) {
