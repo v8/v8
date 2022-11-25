@@ -67,6 +67,7 @@ in_category(
         triggering_policy = greedy_batching_of_1,
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"track_build_dependencies": True, "binary_size_tracking": {"category": "linux64", "binary": "d8"}},
+        gclient_vars = [GCLIENT_VARS.GCMOLE],
         use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
     ),

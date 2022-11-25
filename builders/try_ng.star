@@ -257,6 +257,7 @@ trybot_pair(
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+    gclient_vars = [GCLIENT_VARS.GCMOLE],
     use_goma = GOMA.DEFAULT,
 )
 
@@ -347,6 +348,7 @@ trybot_pair(
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+    gclient_vars = [GCLIENT_VARS.GCMOLE],
     use_goma = GOMA.DEFAULT,
 )
 
@@ -376,6 +378,7 @@ trybot_pair(
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+    gclient_vars = [GCLIENT_VARS.GCMOLE],
     use_goma = GOMA.DEFAULT,
 )
 

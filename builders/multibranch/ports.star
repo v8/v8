@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "GOMA", "RECLIENT", "ci_pair_factory", "greedy_batching_of_1", "in_branch_console", "multibranch_builder")
+load("//lib/lib.star", "GCLIENT_VARS", "GOMA", "RECLIENT", "ci_pair_factory", "greedy_batching_of_1", "in_branch_console", "multibranch_builder")
 
 in_category = in_branch_console("ports")
 multibranch_builder_pair = ci_pair_factory(multibranch_builder)
@@ -40,6 +40,7 @@ in_category(
         triggered_by_gitiles = True,
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports"},
+        gclient_vars = [GCLIENT_VARS.GCMOLE],
         tester_notifies = ["V8 Flake Sheriff"],
         use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
@@ -139,6 +140,7 @@ in_category(
         triggered_by_gitiles = True,
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports"},
+        gclient_vars = [GCLIENT_VARS.GCMOLE],
         tester_notifies = ["V8 Flake Sheriff"],
         use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
