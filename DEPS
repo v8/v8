@@ -50,7 +50,7 @@ vars = {
   'fuchsia_sdk_cipd_prefix': 'fuchsia/sdk/gn/',
 
   # reclient CIPD package version
-  'reclient_version': 're_client_version:0.86.0.25feac0-gomaip',
+  'reclient_version': 're_client_version:0.87.0.b6908b3-gomaip',
 
   # GN CIPD package version.
   'gn_version': 'git_revision:1c4151ff5c1d6fbf7fa800b8d4bb34d3abc03a41',
@@ -105,9 +105,9 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '521ac34ebd795939c7e16b37d9d3ddb40e8ed556',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'f57e5d4150475ebc635b4fd96fc2803de5257c50',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'abd061c60ec0c768f5039f65ede4c9bb9e0285c2',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '9ca2fd2711d1213cffe277b0e2e65ea8e80e4492',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '8641823a809ef40bc11eb5495253f26357ef1078',
   'buildtools/clang_format/script':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/clang/tools/clang-format.git' + '@' + '8b525d2747f2584fc35d8c7e612e66f377858df7',
   'buildtools/linux64': {
@@ -131,7 +131,7 @@ deps = {
     'condition': 'host_os == "mac"',
   },
   'buildtools/third_party/libc++/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'cd0a05047451dfbdef5ba85f97ac4888e432a377',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '8a91ae4de9210903edc15acdb0da79747c78903b',
   'buildtools/third_party/libc++abi/trunk':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '83cce21b4ba08febc479593fc86affb2e1b03ccf',
   'buildtools/third_party/libunwind/trunk':
