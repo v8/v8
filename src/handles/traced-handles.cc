@@ -463,21 +463,8 @@ void TracedNodeBlock::FreeNode(TracedNode* node) {
   used_--;
 }
 
-CppHeap* GetCppHeapIfUnifiedYoungGC(Isolate* isolate) {
-  // TODO(v8:13475) Consider removing this check when unified-young-gen becomes
-  // default.
-  if (!v8_flags.cppgc_young_generation) return nullptr;
-  auto* cpp_heap = CppHeap::From(isolate->heap()->cpp_heap());
-  if (cpp_heap && cpp_heap->generational_gc_supported()) return cpp_heap;
-  return nullptr;
-}
-
-bool IsCppGCHostOld(CppHeap& cpp_heap, Address host) {
-  DCHECK(host);
-  DCHECK(cpp_heap.generational_gc_supported());
-  auto* host_ptr = reinterpret_cast<void*>(host);
-  auto* page = cppgc::internal::BasePage::FromInnerAddress(&cpp_heap, host_ptr);
-  return !page->ObjectHeaderFromInnerAddress(host_ptr).IsYoung();
+bool NeedsTrackingInYoungNodes(Object value, TracedNode* node) {
+  return ObjectInYoungGeneration(value) && !node->is_in_young_list();
 }
 
 void SetSlotThreadSafe(Address** slot, Address* val) {
@@ -534,14 +521,10 @@ class TracedHandlesImpl final {
   TracedNode* AllocateNode();
   void FreeNode(TracedNode*);
 
-  bool NeedsTrackingInYoungNodes(Object value, TracedNode* node, Address* slot,
-                                 GlobalHandleStoreMode store_mode) const;
-
   TracedNodeBlock::OverallList blocks_;
   TracedNodeBlock::UsableList usable_blocks_;
   // List of young nodes. May refer to nodes in `blocks_`, `usable_blocks_`, and
-  // `empty_block_candidates_`. In case unified young GC is enabled, this serves
-  // as an old-to-young remembered set for cppgc-to-V8 references.
+  // `empty_block_candidates_`.
   std::vector<TracedNode*> young_nodes_;
   // Empty blocks that are still referred to from `young_nodes_`.
   std::vector<TracedNodeBlock*> empty_block_candidates_;
@@ -621,37 +604,15 @@ TracedHandlesImpl::~TracedHandlesImpl() {
   DCHECK_EQ(block_size_bytes, block_size_bytes_);
 }
 
-bool TracedHandlesImpl::NeedsTrackingInYoungNodes(
-    Object object, TracedNode* node, Address* slot,
-    GlobalHandleStoreMode store_mode) const {
-  // If unified young generation is supported, we don't want to treat all young
-  // nodes as roots, but rather trace them normally. With unified GC we only
-  // track old-to-young nodes in the vector.
-  if (auto* cpp_heap = GetCppHeapIfUnifiedYoungGC(isolate_)) {
-    if (store_mode == GlobalHandleStoreMode::kInitializingStore) {
-      // Don't record initializing stores.
-      return false;
-    } else if (is_marking_) {
-      // If marking is in progress, the marking barrier will be issued.
-      return false;
-    } else if (!IsCppGCHostOld(*cpp_heap, reinterpret_cast<Address>(slot))) {
-      // Otherwise, if the host object is young, we don't need to record.
-      return false;
-    }
-  }
-  return ObjectInYoungGeneration(object) && !node->is_in_young_list();
-}
-
 Handle<Object> TracedHandlesImpl::Create(Address value, Address* slot,
                                          GlobalHandleStoreMode store_mode) {
   Object object(value);
   auto* node = AllocateNode();
   bool needs_young_bit_update = false;
-  if (NeedsTrackingInYoungNodes(object, node, slot, store_mode)) {
+  if (NeedsTrackingInYoungNodes(object, node)) {
     needs_young_bit_update = true;
     young_nodes_.push_back(node);
   }
-
   bool needs_black_allocation = false;
   if (is_marking_ && store_mode != GlobalHandleStoreMode::kInitializingStore) {
     needs_black_allocation = true;
@@ -731,17 +692,6 @@ void TracedHandlesImpl::Move(TracedNode& from_node, Address** from,
     // Write barrier needs to cover node as well as object.
     to_node->set_markbit<AccessMode::ATOMIC>();
     WriteBarrier::MarkingFromGlobalHandle(to_node->object());
-  } else if (auto* cpp_heap = GetCppHeapIfUnifiedYoungGC(isolate_)) {
-    const bool object_is_young_and_not_yet_recorded =
-        !from_node.is_in_young_list() &&
-        ObjectInYoungGeneration(from_node.object());
-    if (object_is_young_and_not_yet_recorded &&
-        IsCppGCHostOld(*cpp_heap, reinterpret_cast<Address>(to))) {
-      DCHECK_EQ(std::find(young_nodes_.begin(), young_nodes_.end(), &from_node),
-                young_nodes_.end());
-      from_node.set_is_in_young_list(true);
-      young_nodes_.push_back(&from_node);
-    }
   }
   SetSlotThreadSafe(from, nullptr);
 }
