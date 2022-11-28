@@ -6384,7 +6384,10 @@ void MinorMarkCompactCollector::MarkRootSetInParallel(
                         std::move(marking_items), YoungMarkingJobType::kAtomic))
         ->Join();
 
-    DCHECK(local_marking_worklists_->IsEmpty());
+    // If unified young generation is in progress, the parallel marker may add
+    // more entries into local_marking_worklists_.
+    DCHECK_IMPLIES(!v8_flags.cppgc_young_generation,
+                   local_marking_worklists_->IsEmpty());
   }
 }
 
