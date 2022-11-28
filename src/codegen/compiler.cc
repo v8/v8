@@ -1228,6 +1228,9 @@ MaybeHandle<CodeT> CompileMaglev(Isolate* isolate, Handle<JSFunction> function,
       CompilationJob::Status status =
           job->ExecuteJob(isolate->counters()->runtime_call_stats(),
                           isolate->main_thread_local_isolate());
+      if (status == CompilationJob::FAILED) {
+        return {};
+      }
       CHECK_EQ(status, CompilationJob::SUCCEEDED);
     }
 

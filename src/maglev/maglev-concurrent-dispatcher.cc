@@ -106,7 +106,9 @@ CompilationJob::Status MaglevCompilationJob::PrepareJobImpl(Isolate* isolate) {
 CompilationJob::Status MaglevCompilationJob::ExecuteJobImpl(
     RuntimeCallStats* stats, LocalIsolate* local_isolate) {
   LocalIsolateScope scope{info(), local_isolate};
-  maglev::MaglevCompiler::Compile(local_isolate, info());
+  if (!maglev::MaglevCompiler::Compile(local_isolate, info())) {
+    return CompilationJob::FAILED;
+  }
   // TODO(v8:7700): Actual return codes.
   return CompilationJob::SUCCEEDED;
 }
@@ -148,8 +150,9 @@ class MaglevConcurrentDispatcher::JobTask final : public v8::JobTask {
           job.get(), TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
       RuntimeCallStats* rcs = nullptr;  // TODO(v8:7700): Implement.
       CompilationJob::Status status = job->ExecuteJob(rcs, &local_isolate);
-      CHECK_EQ(status, CompilationJob::SUCCEEDED);
-      outgoing_queue()->Enqueue(std::move(job));
+      if (status == CompilationJob::SUCCEEDED) {
+        outgoing_queue()->Enqueue(std::move(job));
+      }
     }
     isolate()->stack_guard()->RequestInstallMaglevCode();
   }

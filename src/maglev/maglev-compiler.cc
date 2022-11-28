@@ -257,7 +257,7 @@ class UseMarkingProcessor {
 };
 
 // static
-void MaglevCompiler::Compile(LocalIsolate* local_isolate,
+bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
                              MaglevCompilationInfo* compilation_info) {
   Graph* graph = Graph::New(compilation_info->zone());
 
@@ -301,6 +301,14 @@ void MaglevCompiler::Compile(LocalIsolate* local_isolate,
   }
 #endif
 
+#ifdef V8_TARGET_ARCH_ARM64
+  {
+    extern bool MaglevGraphHasUnimplementedNode(Graph*);
+    // TODO(v8:7700): Remove return type once all nodes are implemented.
+    if (MaglevGraphHasUnimplementedNode(graph)) return false;
+  }
+#endif
+
   {
     GraphMultiProcessor<MaglevVregAllocator, UseMarkingProcessor> processor(
         UseMarkingProcessor{compilation_info});
@@ -331,6 +339,8 @@ void MaglevCompiler::Compile(LocalIsolate* local_isolate,
     // Stash the compiled code_generator on the compilation info.
     compilation_info->set_code_generator(std::move(code_generator));
   }
+
+  return true;
 }
 
 // static
