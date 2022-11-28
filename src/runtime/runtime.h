@@ -314,6 +314,7 @@ namespace internal {
   F(GetDerivedMap, 2, 1)                                               \
   F(GetFunctionName, 1, 1)                                             \
   F(GetOwnPropertyDescriptor, 2, 1)                                    \
+  F(GetOwnPropertyDescriptorObject, 2, 1)                              \
   F(GetOwnPropertyKeys, 2, 1)                                          \
   F(GetProperty, -1 /* [2, 3] */, 1)                                   \
   F(HasFastPackedElements, 1, 1)                                       \

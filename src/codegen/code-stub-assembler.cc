@@ -30,6 +30,7 @@
 #include "src/objects/oddball.h"
 #include "src/objects/ordered-hash-table-inl.h"
 #include "src/objects/property-cell.h"
+#include "src/objects/property-descriptor-object.h"
 #include "src/roots/roots.h"
 
 namespace v8 {
@@ -10272,6 +10273,130 @@ void CodeStubAssembler::TryGetOwnProperty(
     *var_value = value;
     Goto(if_found_value);
   }
+}
+
+void CodeStubAssembler::InitializePropertyDescriptorObject(
+    TNode<PropertyDescriptorObject> descriptor, TNode<Object> value,
+    TNode<Uint32T> details, Label* if_bailout) {
+  Label if_data_property(this), if_accessor_property(this),
+      test_configurable(this), test_property_type(this), done(this);
+  TVARIABLE(Smi, flags,
+            SmiConstant(PropertyDescriptorObject::HasEnumerableBit::kMask |
+                        PropertyDescriptorObject::HasConfigurableBit::kMask));
+
+  {  // test enumerable
+    TNode<Uint32T> dont_enum =
+        Uint32Constant(DONT_ENUM << PropertyDetails::AttributesField::kShift);
+    GotoIf(Word32And(details, dont_enum), &test_configurable);
+    flags =
+        SmiOr(flags.value(),
+              SmiConstant(PropertyDescriptorObject::IsEnumerableBit::kMask));
+    Goto(&test_configurable);
+  }
+
+  BIND(&test_configurable);
+  {
+    TNode<Uint32T> dont_delete =
+        Uint32Constant(DONT_DELETE << PropertyDetails::AttributesField::kShift);
+    GotoIf(Word32And(details, dont_delete), &test_property_type);
+    flags =
+        SmiOr(flags.value(),
+              SmiConstant(PropertyDescriptorObject::IsConfigurableBit::kMask));
+    Goto(&test_property_type);
+  }
+
+  BIND(&test_property_type);
+  BranchIfAccessorPair(value, &if_accessor_property, &if_data_property);
+
+  BIND(&if_accessor_property);
+  {
+    Label done_get(this), store_fields(this);
+    TNode<AccessorPair> accessor_pair = CAST(value);
+
+    auto BailoutIfTemplateInfo = [this, &if_bailout](TNode<HeapObject> value) {
+      TVARIABLE(HeapObject, result);
+
+      Label bind_undefined(this), return_result(this);
+      GotoIf(IsNull(value), &bind_undefined);
+      result = value;
+      TNode<Map> map = LoadMap(value);
+      // TODO(ishell): probe template instantiations cache.
+      GotoIf(IsFunctionTemplateInfoMap(map), if_bailout);
+      Goto(&return_result);
+
+      BIND(&bind_undefined);
+      result = UndefinedConstant();
+      Goto(&return_result);
+
+      BIND(&return_result);
+      return result.value();
+    };
+
+    TNode<HeapObject> getter =
+        LoadObjectField<HeapObject>(accessor_pair, AccessorPair::kGetterOffset);
+    TNode<HeapObject> setter =
+        LoadObjectField<HeapObject>(accessor_pair, AccessorPair::kSetterOffset);
+    getter = BailoutIfTemplateInfo(getter);
+    setter = BailoutIfTemplateInfo(setter);
+
+    Label bind_undefined(this, Label::kDeferred), return_result(this);
+    flags = SmiOr(flags.value(),
+                  SmiConstant(PropertyDescriptorObject::HasGetBit::kMask |
+                              PropertyDescriptorObject::HasSetBit::kMask));
+    StoreObjectField(descriptor, PropertyDescriptorObject::kFlagsOffset,
+                     flags.value());
+    StoreObjectField(descriptor, PropertyDescriptorObject::kValueOffset,
+                     NullConstant());
+    StoreObjectField(descriptor, PropertyDescriptorObject::kGetOffset,
+                     BailoutIfTemplateInfo(getter));
+    StoreObjectField(descriptor, PropertyDescriptorObject::kSetOffset,
+                     BailoutIfTemplateInfo(setter));
+    Goto(&done);
+  }
+
+  BIND(&if_data_property);
+  {
+    Label store_fields(this);
+    flags = SmiOr(flags.value(),
+                  SmiConstant(PropertyDescriptorObject::HasValueBit::kMask |
+                              PropertyDescriptorObject::HasWritableBit::kMask));
+    TNode<Uint32T> read_only =
+        Uint32Constant(READ_ONLY << PropertyDetails::AttributesField::kShift);
+    GotoIf(Word32And(details, read_only), &store_fields);
+    flags = SmiOr(flags.value(),
+                  SmiConstant(PropertyDescriptorObject::IsWritableBit::kMask));
+    Goto(&store_fields);
+
+    BIND(&store_fields);
+    StoreObjectField(descriptor, PropertyDescriptorObject::kFlagsOffset,
+                     flags.value());
+    StoreObjectField(descriptor, PropertyDescriptorObject::kValueOffset, value);
+    StoreObjectField(descriptor, PropertyDescriptorObject::kGetOffset,
+                     NullConstant());
+    StoreObjectField(descriptor, PropertyDescriptorObject::kSetOffset,
+                     NullConstant());
+    Goto(&done);
+  }
+
+  BIND(&done);
+}
+
+TNode<PropertyDescriptorObject>
+CodeStubAssembler::AllocatePropertyDescriptorObject(TNode<Context> context) {
+  TNode<HeapObject> result = Allocate(PropertyDescriptorObject::kSize);
+  TNode<Map> map = GetInstanceTypeMap(PROPERTY_DESCRIPTOR_OBJECT_TYPE);
+  StoreMapNoWriteBarrier(result, map);
+  TNode<Smi> zero = SmiConstant(0);
+  StoreObjectFieldNoWriteBarrier(result, PropertyDescriptorObject::kFlagsOffset,
+                                 zero);
+  TNode<Oddball> the_hole = TheHoleConstant();
+  StoreObjectFieldNoWriteBarrier(result, PropertyDescriptorObject::kValueOffset,
+                                 the_hole);
+  StoreObjectFieldNoWriteBarrier(result, PropertyDescriptorObject::kGetOffset,
+                                 the_hole);
+  StoreObjectFieldNoWriteBarrier(result, PropertyDescriptorObject::kSetOffset,
+                                 the_hole);
+  return CAST(result);
 }
 
 void CodeStubAssembler::TryLookupElement(

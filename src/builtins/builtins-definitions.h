@@ -834,7 +834,6 @@ namespace internal {
   ASM(ReflectApply, JSTrampoline)                                              \
   ASM(ReflectConstruct, JSTrampoline)                                          \
   CPP(ReflectDefineProperty)                                                   \
-  CPP(ReflectGetOwnPropertyDescriptor)                                         \
   CPP(ReflectOwnKeys)                                                          \
   CPP(ReflectSet)                                                              \
                                                                                \
@@ -1094,10 +1093,12 @@ namespace internal {
   TFS(GetPropertyWithReceiver, kObject, kKey, kReceiver, kOnNonExistent)       \
   TFS(SetProperty, kReceiver, kKey, kValue)                                    \
   TFS(CreateDataProperty, kReceiver, kKey, kValue)                             \
+  TFS(GetOwnPropertyDescriptor, kReceiver, kKey)                               \
   ASM(MemCopyUint8Uint8, CCall)                                                \
   ASM(MemMove, CCall)                                                          \
   TFC(FindNonDefaultConstructorOrConstruct,                                    \
       FindNonDefaultConstructorOrConstruct)                                    \
+  TFS(OrdinaryGetOwnPropertyDescriptor, kReceiver, kKey)                       \
                                                                                \
   /* Trace */                                                                  \
   CPP(IsTraceCategoryEnabled)                                                  \

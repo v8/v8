@@ -2999,6 +2999,7 @@ filegroup(
         "src/builtins/builtins-microtask-queue-gen.cc",
         "src/builtins/builtins-number-gen.cc",
         "src/builtins/builtins-object-gen.cc",
+        "src/builtins/builtins-object-gen.h",
         "src/builtins/builtins-promise-gen.cc",
         "src/builtins/builtins-promise-gen.h",
         "src/builtins/builtins-proxy-gen.cc",
