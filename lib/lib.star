@@ -238,6 +238,10 @@ RECLIENT = struct(
         "instance": "rbe-chromium-trusted",
         "metrics_project": "chromium-reclient-metrics",
     },
+    DEFAULT_UNTRUSTED = {
+        "instance": "rbe-chromium-untrusted",
+        "metrics_project": "chromium-reclient-metrics",
+    },
     CACHE_SILO = {
         "instance": "rbe-chromium-trusted",
         "metrics_project": "chromium-reclient-metrics",

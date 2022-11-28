@@ -108,7 +108,7 @@ trybot_pair(
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.NO,
-    use_remoteexec = RECLIENT.DEFAULT,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -456,7 +456,7 @@ trybot_pair(
     cq_compile_only_properties = CQ.EXP_100_PERCENT,
     dimensions = {"os": "Mac"},
     use_goma = GOMA.NO,
-    use_remoteexec = RECLIENT.DEFAULT,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
