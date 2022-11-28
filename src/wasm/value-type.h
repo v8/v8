@@ -610,11 +610,20 @@ class ValueType {
         break;
       case kRefNull:
         if (heap_type().is_generic()) {
-          // TODO(mliedtke): Adapt short names:
-          // noneref     -> nullref
-          // nofuncref   -> nullfuncref
-          // noexternref -> nullexternref
-          buf << heap_type().name() << "ref";
+          switch (heap_type().representation()) {
+            case HeapType::kNone:
+              buf << "nullref";
+              break;
+            case HeapType::kNoExtern:
+              buf << "nullexternref";
+              break;
+            case HeapType::kNoFunc:
+              buf << "nullfuncref";
+              break;
+            default:
+              buf << heap_type().name() << "ref";
+              break;
+          }
         } else {
           buf << "(ref null " << heap_type().name() << ")";
         }
