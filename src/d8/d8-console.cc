@@ -30,6 +30,9 @@ void WriteToFile(const char* prefix, FILE* file, Isolate* isolate,
     }
   }
   fprintf(file, "\n");
+  // Flush the file to avoid output to pile up in a buffer. Console output is
+  // often used for timing, so it should appear as soon as the code is executed.
+  fflush(file);
 }
 }  // anonymous namespace
 
