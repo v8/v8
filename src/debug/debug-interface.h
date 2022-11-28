@@ -316,7 +316,7 @@ V8_EXPORT_PRIVATE void SetDebugDelegate(Isolate* isolate,
 
 #if V8_ENABLE_WEBASSEMBLY
 V8_EXPORT_PRIVATE void TierDownAllModulesPerIsolate(Isolate* isolate);
-V8_EXPORT_PRIVATE void TierUpAllModulesPerIsolate(Isolate* isolate);
+V8_EXPORT_PRIVATE void LeaveDebuggingForIsolate(Isolate* isolate);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 class AsyncEventDelegate {

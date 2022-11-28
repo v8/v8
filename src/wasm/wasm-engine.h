@@ -205,7 +205,8 @@ class V8_EXPORT_PRIVATE WasmEngine {
                        uint32_t function_index, ExecutionTier tier);
 
   void TierDownAllModulesPerIsolate(Isolate* isolate);
-  void TierUpAllModulesPerIsolate(Isolate* isolate);
+
+  void LeaveDebuggingForIsolate(Isolate* isolate);
 
   // Exports the sharable parts of the given module object so that they can be
   // transferred to a different Context/Isolate using the same engine.

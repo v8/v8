@@ -678,6 +678,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   WasmCode* GetCode(uint32_t index) const;
   bool HasCode(uint32_t index) const;
   bool HasCodeWithTier(uint32_t index, ExecutionTier tier) const;
+  void ResetCode(uint32_t index) const;
 
   void SetWasmSourceMap(std::unique_ptr<WasmModuleSourceMap> source_map);
   WasmModuleSourceMap* GetWasmSourceMap() const;
@@ -837,6 +838,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   // Check whether this modules is tiered down for debugging.
   bool IsTieredDown();
+
+  // Remove all compiled code from the {NativeModule} and replace it with
+  // {CompileLazy} builtins.
+  void RemoveAllCompiledCode();
 
   // Fully recompile this module in the tier set previously via
   // {SetTieringState}. The calling thread contributes to compilation and only

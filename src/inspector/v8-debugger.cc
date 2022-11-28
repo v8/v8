@@ -121,7 +121,7 @@ void V8Debugger::disable() {
   m_pauseOnNextCallRequested = false;
   m_pauseOnAsyncCall = false;
 #if V8_ENABLE_WEBASSEMBLY
-  v8::debug::TierUpAllModulesPerIsolate(m_isolate);
+  v8::debug::LeaveDebuggingForIsolate(m_isolate);
 #endif  // V8_ENABLE_WEBASSEMBLY
   v8::debug::SetDebugDelegate(m_isolate, nullptr);
   m_isolate->RemoveNearHeapLimitCallback(&V8Debugger::nearHeapLimitCallback,

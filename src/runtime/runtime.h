@@ -662,7 +662,6 @@ namespace internal {
   F(WasmGetNumberOfInstances, 1, 1)        \
   F(WasmNumCodeSpaces, 1, 1)               \
   F(WasmTierDown, 0, 1)                    \
-  F(WasmTierUp, 0, 1)                      \
   F(WasmTierUpFunction, 2, 1)              \
   F(WasmTraceEnter, 0, 1)                  \
   F(WasmTraceExit, 1, 1)                   \

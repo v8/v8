@@ -735,7 +735,7 @@ void WasmEngine::TierDownAllModulesPerIsolate(Isolate* isolate) {
   }
 }
 
-void WasmEngine::TierUpAllModulesPerIsolate(Isolate* isolate) {
+void WasmEngine::LeaveDebuggingForIsolate(Isolate* isolate) {
   // Only trigger recompilation after releasing the mutex, otherwise we risk
   // deadlocks because of lock inversion. The bool tells whether the module
   // needs recompilation for tier up.
@@ -743,7 +743,7 @@ void WasmEngine::TierUpAllModulesPerIsolate(Isolate* isolate) {
   {
     base::MutexGuard lock(&mutex_);
     isolates_[isolate]->keep_tiered_down = false;
-    auto test_can_tier_up = [this](NativeModule* native_module) {
+    auto can_remove_debug_code = [this](NativeModule* native_module) {
       DCHECK_EQ(1, native_modules_.count(native_module));
       for (auto* isolate : native_modules_[native_module]->isolates) {
         DCHECK_EQ(1, isolates_.count(isolate));
@@ -758,19 +758,19 @@ void WasmEngine::TierUpAllModulesPerIsolate(Isolate* isolate) {
       if (!native_module->IsTieredDown()) continue;
       // Only start tier-up if no other isolate needs this module in tiered
       // down state.
-      bool tier_up = test_can_tier_up(native_module);
-      if (tier_up) native_module->SetTieringState(kTieredUp);
-      native_modules.emplace_back(std::move(shared_ptr), tier_up);
+      bool remove_debug_code = can_remove_debug_code(native_module);
+      if (remove_debug_code) native_module->SetTieringState(kTieredUp);
+      native_modules.emplace_back(std::move(shared_ptr), remove_debug_code);
     }
   }
   for (auto& entry : native_modules) {
     auto& native_module = entry.first;
-    bool tier_up = entry.second;
+    bool remove_debug_code = entry.second;
     // Remove all breakpoints set by this isolate.
     if (native_module->HasDebugInfo()) {
       native_module->GetDebugInfo()->RemoveIsolate(isolate);
     }
-    if (tier_up) native_module->RecompileForTiering();
+    if (remove_debug_code) native_module->RemoveAllCompiledCode();
   }
 }
 

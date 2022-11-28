@@ -1459,6 +1459,19 @@ WasmCode* NativeModule::GetCode(uint32_t index) const {
   return code;
 }
 
+void NativeModule::ResetCode(uint32_t index) const {
+  base::RecursiveMutexGuard guard(&allocation_mutex_);
+  int declared_index = declared_function_index(module(), index);
+  WasmCode* code = code_table_[declared_index];
+  if (!code) return;
+
+  WasmCodeRefScope::AddRef(code);
+  code_table_[declared_index] = nullptr;
+  // The code is added to the current {WasmCodeRefScope}, hence the ref
+  // count cannot drop to zero here.
+  code->DecRefOnLiveCode();
+}
+
 bool NativeModule::HasCode(uint32_t index) const {
   base::RecursiveMutexGuard guard(&allocation_mutex_);
   return code_table_[declared_function_index(module(), index)] != nullptr;
@@ -2422,6 +2435,18 @@ void NativeModule::SetTieringState(TieringState new_tiering_state) {
 bool NativeModule::IsTieredDown() {
   base::RecursiveMutexGuard lock(&allocation_mutex_);
   return tiering_state_ == kTieredDown;
+}
+
+void NativeModule::RemoveAllCompiledCode() {
+  const uint32_t num_imports = module_->num_imported_functions;
+  const uint32_t num_functions = module_->num_declared_functions;
+  WasmCodeRefScope ref_scope;
+  CodeSpaceWriteScope write_scope(this);
+  for (uint32_t i = 0; i < num_functions; i++) {
+    uint32_t func_index = i + num_imports;
+    ResetCode(func_index);
+    UseLazyStub(func_index);
+  }
 }
 
 void NativeModule::RecompileForTiering() {
