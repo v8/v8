@@ -3984,7 +3984,7 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
     // Overflow occurs if overflow register is negative
     __ slt(result, kScratchReg, zero_reg);
   } else if (instr->arch_opcode() == kMips64MulOvf ||
-             instr->arch_opcode() == kMips64MulOvf) {
+             instr->arch_opcode() == kMips64DMulOvf) {
     // Overflow occurs if overflow register is not zero
     __ Sgtu(result, kScratchReg, zero_reg);
   } else if (instr->arch_opcode() == kMips64Cmp) {
