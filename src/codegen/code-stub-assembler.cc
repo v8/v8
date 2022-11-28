@@ -1302,12 +1302,27 @@ void CodeStubAssembler::BranchIfJSReceiver(TNode<Object> object, Label* if_true,
 
 void CodeStubAssembler::GotoIfForceSlowPath(Label* if_true) {
 #ifdef V8_ENABLE_FORCE_SLOW_PATH
-  const TNode<ExternalReference> force_slow_path_addr =
-      ExternalConstant(ExternalReference::force_slow_path(isolate()));
-  const TNode<Uint8T> force_slow = Load<Uint8T>(force_slow_path_addr);
-
-  GotoIf(force_slow, if_true);
+  bool enable_force_slow_path = true;
+#else
+  bool enable_force_slow_path = false;
 #endif
+
+  Label done(this);
+  // Use UniqueInt32Constant instead of BoolConstant here in order to ensure
+  // that the graph structure does not depend on the value of the predicate
+  // (BoolConstant uses cached nodes).
+  GotoIf(UniqueInt32Constant(!enable_force_slow_path), &done);
+  {
+    // This optional block is used behind a static check and we rely
+    // on the dead code elimination to remove it. We generate builtins this
+    // way in order to ensure that builtins PGO profiles are agnostic to
+    // V8_ENABLE_FORCE_SLOW_PATH value.
+    const TNode<ExternalReference> force_slow_path_addr =
+        ExternalConstant(ExternalReference::force_slow_path(isolate()));
+    const TNode<Uint8T> force_slow = Load<Uint8T>(force_slow_path_addr);
+    Branch(force_slow, if_true, &done);
+  }
+  BIND(&done);
 }
 
 TNode<HeapObject> CodeStubAssembler::AllocateRaw(TNode<IntPtrT> size_in_bytes,
