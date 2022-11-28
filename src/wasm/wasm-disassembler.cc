@@ -575,8 +575,8 @@ class OffsetsProvider {
     using OffsetsCollectingDecoder = ModuleDecoderTemplate<OffsetsProvider>;
     OffsetsCollectingDecoder decoder(WasmFeatures::All(), wire_bytes,
                                      kWasmOrigin, *this);
-    constexpr bool verify_functions = false;
-    decoder.DecodeModule(nullptr, allocator, verify_functions);
+    constexpr bool kNoVerifyFunctions = false;
+    decoder.DecodeModule(allocator, kNoVerifyFunctions);
 
     enabled_ = true;
   }

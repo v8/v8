@@ -84,12 +84,19 @@ enum class DecodingMethod {
   kDeserialize
 };
 
-// Decodes the bytes of a wasm module in {wire_bytes}.
+// Decodes the bytes of a wasm module in {wire_bytes} while recording events and
+// updating counters.
 V8_EXPORT_PRIVATE ModuleResult DecodeWasmModule(
     WasmFeatures enabled_features, base::Vector<const uint8_t> wire_bytes,
     bool validate_functions, ModuleOrigin origin, Counters* counters,
     std::shared_ptr<metrics::Recorder> metrics_recorder,
     v8::metrics::Recorder::ContextId context_id, DecodingMethod decoding_method,
+    AccountingAllocator* allocator);
+// Decodes the bytes of a wasm module in {wire_bytes} without recording events
+// or updating counters.
+V8_EXPORT_PRIVATE ModuleResult DecodeWasmModule(
+    WasmFeatures enabled_features, base::Vector<const uint8_t> wire_bytes,
+    bool validate_functions, ModuleOrigin origin,
     AccountingAllocator* allocator);
 // Stripped down version for disassembler needs.
 V8_EXPORT_PRIVATE ModuleResult DecodeWasmModuleForDisassembler(
@@ -105,8 +112,7 @@ V8_EXPORT_PRIVATE Result<const FunctionSig*> DecodeWasmSignatureForTesting(
 // {wire_bytes}).
 V8_EXPORT_PRIVATE FunctionResult DecodeWasmFunctionForTesting(
     WasmFeatures enabled, Zone* zone, ModuleWireBytes wire_bytes,
-    const WasmModule* module, base::Vector<const uint8_t> function_bytes,
-    Counters* counters);
+    const WasmModule* module, base::Vector<const uint8_t> function_bytes);
 
 V8_EXPORT_PRIVATE ConstantExpression DecodeWasmInitExprForTesting(
     WasmFeatures enabled_features, base::Vector<const uint8_t> bytes,
@@ -151,10 +157,7 @@ class ModuleDecoder {
   explicit ModuleDecoder(WasmFeatures enabled);
   ~ModuleDecoder();
 
-  void StartDecoding(Counters* counters,
-                     std::shared_ptr<metrics::Recorder> metrics_recorder,
-                     v8::metrics::Recorder::ContextId context_id,
-                     AccountingAllocator* allocator,
+  void StartDecoding(AccountingAllocator* allocator,
                      ModuleOrigin origin = ModuleOrigin::kWasmOrigin);
 
   void DecodeModuleHeader(base::Vector<const uint8_t> bytes, uint32_t offset);

@@ -2389,10 +2389,8 @@ class WasmFunctionVerifyTest : public TestWithIsolateAndZone {
   FunctionResult DecodeWasmFunction(
       ModuleWireBytes wire_bytes, const WasmModule* module,
       base::Vector<const uint8_t> function_bytes) {
-    WasmFeatures enabled_features;
-    return DecodeWasmFunctionForTesting(enabled_features, zone(), wire_bytes,
-                                        module, function_bytes,
-                                        isolate()->counters());
+    return DecodeWasmFunctionForTesting(WasmFeatures::All(), zone(), wire_bytes,
+                                        module, function_bytes);
   }
 };
 

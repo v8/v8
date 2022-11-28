@@ -403,8 +403,8 @@ class HexDumpModuleDis {
 
     out_ << "[";
     out_.NextLine(0);
-    constexpr bool verify_functions = false;
-    decoder.DecodeModule(nullptr, allocator_, verify_functions);
+    constexpr bool kNoVerifyFunctions = false;
+    decoder.DecodeModule(allocator_, kNoVerifyFunctions);
     out_ << "]";
 
     if (total_bytes_ != wire_bytes_.length()) {

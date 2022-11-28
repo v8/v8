@@ -345,9 +345,8 @@ class ModuleDecoderTemplate : public Decoder {
     }
   }
 
-  void StartDecoding(Counters* counters, AccountingAllocator* allocator) {
+  void StartDecoding(AccountingAllocator* allocator) {
     CHECK_NULL(module_);
-    SetCounters(counters);
     module_.reset(
         new WasmModule(std::make_unique<Zone>(allocator, "signatures")));
     module_->initial_pages = 0;
@@ -844,11 +843,6 @@ class ModuleDecoderTemplate : public Decoder {
   void DecodeFunctionSection() {
     uint32_t functions_count =
         consume_count("functions count", v8_flags.max_wasm_functions);
-    if (counters_ != nullptr) {
-      auto counter = SELECT_WASM_COUNTER(GetCounters(), origin_,
-                                         wasm_functions_per, module);
-      counter->AddSample(static_cast<int>(functions_count));
-    }
     DCHECK_EQ(module_->functions.size(), module_->num_imported_functions);
     uint32_t total_function_count =
         module_->num_imported_functions + functions_count;
@@ -1611,15 +1605,20 @@ class ModuleDecoderTemplate : public Decoder {
   }
 
   // Decodes an entire module.
-  ModuleResult DecodeModule(Counters* counters, AccountingAllocator* allocator,
+  ModuleResult DecodeModule(AccountingAllocator* allocator,
                             bool validate_functions) {
-    StartDecoding(counters, allocator);
-    uint32_t offset = 0;
-    base::Vector<const byte> orig_bytes(start(), end() - start());
-    DecodeModuleHeader(base::VectorOf(start(), end() - start()), offset);
-    if (failed()) {
-      return FinishDecoding();
+    base::Vector<const byte> wire_bytes(start_, end_ - start_);
+    size_t max_size = max_module_size();
+    if (wire_bytes.size() > max_size) {
+      return ModuleResult{WasmError{0, "size > maximum module size (%zu): %zu",
+                                    max_size, wire_bytes.size()}};
     }
+
+    StartDecoding(allocator);
+    uint32_t offset = 0;
+    DecodeModuleHeader(wire_bytes, offset);
+    if (failed()) return toResult<std::shared_ptr<WasmModule>>(nullptr);
+
     // Size of the module header.
     offset += 8;
     Decoder decoder(start_ + offset, end_, offset);
@@ -1627,24 +1626,24 @@ class ModuleDecoderTemplate : public Decoder {
     WasmSectionIterator section_iter(&decoder, tracer_);
 
     while (ok()) {
-      // Shift the offset by the section header length
+      // Shift the offset by the section header length.
       offset += section_iter.payload_start() - section_iter.section_start();
       if (section_iter.section_code() != SectionCode::kUnknownSectionCode) {
         DecodeSection(section_iter.section_code(), section_iter.payload(),
                       offset);
       }
-      // Shift the offset by the remaining section payload
+      // Shift the offset by the remaining section payload.
       offset += section_iter.payload_length();
       if (!section_iter.more() || !ok()) break;
       section_iter.advance(true);
     }
 
     if (ok() && validate_functions) {
-      Reset(orig_bytes);
+      Reset(wire_bytes);
       ValidateAllFunctions();
     }
 
-    if (v8_flags.dump_wasm_module) DumpModule(orig_bytes);
+    if (v8_flags.dump_wasm_module) DumpModule(wire_bytes);
 
     if (decoder.failed()) {
       return decoder.toResult<std::shared_ptr<WasmModule>>(nullptr);
@@ -1693,22 +1692,11 @@ class ModuleDecoderTemplate : public Decoder {
 
   const std::shared_ptr<WasmModule>& shared_module() const { return module_; }
 
-  Counters* GetCounters() const {
-    DCHECK_NOT_NULL(counters_);
-    return counters_;
-  }
-
-  void SetCounters(Counters* counters) {
-    DCHECK_NULL(counters_);
-    counters_ = counters;
-  }
-
  private:
   const WasmFeatures enabled_features_;
   std::shared_ptr<WasmModule> module_;
   const byte* module_start_ = nullptr;
   const byte* module_end_ = nullptr;
-  Counters* counters_ = nullptr;
   Tracer& tracer_;
   // The type section is the first section in a module.
   uint8_t next_ordered_section_ = kFirstSectionInModule;
