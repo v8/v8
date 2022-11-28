@@ -87,6 +87,15 @@ class Result {
 
   explicit Result(WasmError error) : error_(std::move(error)) {}
 
+  // Implicitly convert a Result<T> to Result<U> if T implicitly converts to U.
+  // Only provide that for r-value references (i.e. temporary objects) though,
+  // to be used if passing or returning a result by value.
+  template <typename U,
+            typename = std::enable_if_t<std::is_assignable_v<U, T&&>>>
+  operator Result<U>() const&& {
+    return ok() ? Result<U>{std::move(value_)} : Result<U>{error_};
+  }
+
   bool ok() const { return error_.empty(); }
   bool failed() const { return error_.has_error(); }
   const WasmError& error() const& { return error_; }

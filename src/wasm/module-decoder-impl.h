@@ -1617,7 +1617,7 @@ class ModuleDecoderTemplate : public Decoder {
     StartDecoding(allocator);
     uint32_t offset = 0;
     DecodeModuleHeader(wire_bytes, offset);
-    if (failed()) return toResult<std::shared_ptr<WasmModule>>(nullptr);
+    if (failed()) return toResult(nullptr);
 
     // Size of the module header.
     offset += 8;
@@ -1646,7 +1646,7 @@ class ModuleDecoderTemplate : public Decoder {
     if (v8_flags.dump_wasm_module) DumpModule(wire_bytes);
 
     if (decoder.failed()) {
-      return decoder.toResult<std::shared_ptr<WasmModule>>(nullptr);
+      return decoder.toResult(nullptr);
     }
 
     return FinishDecoding();
