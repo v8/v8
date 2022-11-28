@@ -279,7 +279,7 @@ MaybeHandle<String> LocaleConvertCase(Isolate* isolate, Handle<String> s,
     return result;
   }
   DCHECK(dest_length < result->length());
-  return SeqString::Truncate(result, dest_length);
+  return SeqString::Truncate(isolate, result, dest_length);
 }
 
 }  // namespace

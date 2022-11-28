@@ -1764,7 +1764,8 @@ void String::PrintOn(std::ostream& ostream) {
   }
 }
 
-Handle<String> SeqString::Truncate(Handle<SeqString> string, int new_length) {
+Handle<String> SeqString::Truncate(Isolate* isolate, Handle<SeqString> string,
+                                   int new_length) {
   if (new_length == 0) return string->GetReadOnlyRoots().empty_string_handle();
 
   int new_size, old_size;
@@ -1786,12 +1787,15 @@ Handle<String> SeqString::Truncate(Handle<SeqString> string, int new_length) {
   DCHECK(IsAligned(start_of_string + new_size, kObjectAlignment));
 #endif
 
-  Heap* heap = Heap::FromWritableHeapObject(*string);
+  Heap* heap = isolate->heap();
   if (!heap->IsLargeObject(*string)) {
     // Sizes are pointer size aligned, so that we can use filler objects
     // that are a multiple of pointer size.
+    // No slot invalidation needed since this method is only used on freshly
+    // allocated strings.
     heap->NotifyObjectSizeChange(*string, old_size, new_size,
-                                 ClearRecordedSlots::kNo);
+                                 ClearRecordedSlots::kNo,
+                                 UpdateInvalidatedObjectSize::kNo);
   }
   // We are storing the new length using release store after creating a filler
   // for the left-over space to avoid races with the sweeper thread.
