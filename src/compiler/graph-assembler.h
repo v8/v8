@@ -369,14 +369,7 @@ class V8_EXPORT_PRIVATE GraphAssembler {
 
   Node* DebugBreak();
 
-  // Unreachable nodes are similar to Goto in that they reset effect/control to
-  // nullptr and it's thus not possible to append other nodes without first
-  // binding a new label.
-  // The block_updater_successor label is a crutch to work around block updater
-  // weaknesses (see the related comment in ConnectUnreachableToEnd); if the
-  // block updater exists, we cannot connect unreachable to end, instead we
-  // must preserve the Goto pattern.
-  Node* Unreachable(GraphAssemblerLabel<0u>* block_updater_successor = nullptr);
+  Node* Unreachable();
   // This special variant doesn't connect the Unreachable node to end, and does
   // not reset current effect/control. Intended only for special use-cases like
   // lowering DeadValue.

@@ -13,6 +13,7 @@
 #include "src/compiler/access-info.h"
 #include "src/compiler/allocation-builder-inl.h"
 #include "src/compiler/allocation-builder.h"
+#include "src/compiler/common-operator.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/frame-states.h"
 #include "src/compiler/graph-assembler.h"
@@ -3155,18 +3156,30 @@ JSNativeContextSpecialization::BuildElementAccess(
     base::Optional<JSTypedArrayRef> typed_array =
         GetTypedArrayConstant(broker(), receiver);
     if (typed_array.has_value() &&
+        // TODO(v8:11111): Add support for rab/gsab here.
         !IsRabGsabTypedArrayElementsKind(elements_kind)) {
-      // TODO(v8:11111): Add support for rab/gsab here.
-      length = jsgraph()->Constant(static_cast<double>(typed_array->length()));
+      if (typed_array->map().elements_kind() != elements_kind) {
+        // This case should never be reachable at runtime.
+        JSGraphAssembler assembler(jsgraph_, zone(), BranchSemantics::kJS,
+                                   [this](Node* n) { this->Revisit(n); });
+        assembler.InitializeEffectControl(effect, control);
+        assembler.Unreachable();
+        ReleaseEffectAndControlFromAssembler(&assembler);
+        Node* dead = jsgraph_->Dead();
+        return ValueEffectControl{dead, dead, dead};
+      } else {
+        length =
+            jsgraph()->Constant(static_cast<double>(typed_array->length()));
 
-      DCHECK(!typed_array->is_on_heap());
-      // Load the (known) data pointer for the {receiver} and set {base_pointer}
-      // and {external_pointer} to the values that will allow to generate typed
-      // element accesses using the known data pointer.
-      // The data pointer might be invalid if the {buffer} was detached,
-      // so we need to make sure that any access is properly guarded.
-      base_pointer = jsgraph()->ZeroConstant();
-      external_pointer = jsgraph()->PointerConstant(typed_array->data_ptr());
+        DCHECK(!typed_array->is_on_heap());
+        // Load the (known) data pointer for the {receiver} and set
+        // {base_pointer} and {external_pointer} to the values that will allow
+        // to generate typed element accesses using the known data pointer. The
+        // data pointer might be invalid if the {buffer} was detached, so we
+        // need to make sure that any access is properly guarded.
+        base_pointer = jsgraph()->ZeroConstant();
+        external_pointer = jsgraph()->PointerConstant(typed_array->data_ptr());
+      }
     } else {
       // Load the {receiver}s length.
       JSGraphAssembler assembler(jsgraph_, zone(), BranchSemantics::kJS,
