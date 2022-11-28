@@ -196,6 +196,10 @@ void ValueNode::SetConstantLocation() {
           .virtual_register());
 }
 
+// ---
+// Check input value representation
+// ---
+
 ValueRepresentation ToValueRepresentation(MachineType type) {
   switch (type.representation()) {
     case MachineRepresentation::kTagged:
@@ -332,6 +336,276 @@ void CallRuntime::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
   for (int i = 0; i < input_count(); i++) {
     CheckValueInputIs(this, i, ValueRepresentation::kTagged, graph_labeller);
   }
+}
+
+// ---
+// Print params
+// ---
+
+void SmiConstant::PrintParams(std::ostream& os,
+                              MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << value() << ")";
+}
+
+void Int32Constant::PrintParams(std::ostream& os,
+                                MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << value() << ")";
+}
+
+void Float64Constant::PrintParams(std::ostream& os,
+                                  MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << value() << ")";
+}
+
+void Constant::PrintParams(std::ostream& os,
+                           MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << object_ << ")";
+}
+
+void DeleteProperty::PrintParams(std::ostream& os,
+                                 MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << LanguageMode2String(mode()) << ")";
+}
+
+void InitialValue::PrintParams(std::ostream& os,
+                               MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << source().ToString() << ")";
+}
+
+void LoadGlobal::PrintParams(std::ostream& os,
+                             MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << name() << ")";
+}
+
+void StoreGlobal::PrintParams(std::ostream& os,
+                              MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << name() << ")";
+}
+
+void RegisterInput::PrintParams(std::ostream& os,
+                                MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << input() << ")";
+}
+
+void RootConstant::PrintParams(std::ostream& os,
+                               MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << RootsTable::name(index()) << ")";
+}
+
+void CreateFunctionContext::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << *scope_info().object() << ", " << slot_count() << ")";
+}
+
+void FastCreateClosure::PrintParams(std::ostream& os,
+                                    MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << *shared_function_info().object() << ", "
+     << feedback_cell().object() << ")";
+}
+
+void CreateClosure::PrintParams(std::ostream& os,
+                                MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << *shared_function_info().object() << ", "
+     << feedback_cell().object();
+  if (pretenured()) {
+    os << " [pretenured]";
+  }
+  os << ")";
+}
+
+void Abort::PrintParams(std::ostream& os,
+                        MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << GetAbortReason(reason()) << ")";
+}
+
+void AssertInt32::PrintParams(std::ostream& os,
+                              MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << condition_ << ")";
+}
+
+void CheckMaps::PrintParams(std::ostream& os,
+                            MaglevGraphLabeller* graph_labeller) const {
+  os << "(";
+  size_t map_count = maps().size();
+  if (map_count > 0) {
+    for (size_t i = 0; i < map_count - 1; ++i) {
+      os << maps().at(i) << ", ";
+    }
+    os << maps().at(map_count - 1);
+  }
+  os << ")";
+}
+
+void CheckValue::PrintParams(std::ostream& os,
+                             MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << *value().object() << ")";
+}
+
+void CheckInstanceType::PrintParams(std::ostream& os,
+                                    MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << instance_type() << ")";
+}
+
+void CheckMapsWithMigration::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  os << "(";
+  size_t map_count = maps().size();
+  if (map_count > 0) {
+    for (size_t i = 0; i < map_count - 1; ++i) {
+      os << maps().at(i) << ", ";
+    }
+    os << maps().at(map_count - 1);
+  }
+  os << ")";
+}
+
+void CheckInt32Condition::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << condition_ << ")";
+}
+
+void LoadTaggedField::PrintParams(std::ostream& os,
+                                  MaglevGraphLabeller* graph_labeller) const {
+  os << "(0x" << std::hex << offset() << std::dec << ")";
+}
+
+void LoadDoubleField::PrintParams(std::ostream& os,
+                                  MaglevGraphLabeller* graph_labeller) const {
+  os << "(0x" << std::hex << offset() << std::dec << ")";
+}
+
+void StoreDoubleField::PrintParams(std::ostream& os,
+                                   MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << std::hex << offset() << std::dec << ")";
+}
+
+void StoreTaggedFieldNoWriteBarrier::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << std::hex << offset() << std::dec << ")";
+}
+
+void StoreMap::PrintParams(std::ostream& os,
+                           MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << *map_.object() << ")";
+}
+
+void StoreTaggedFieldWithWriteBarrier::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << std::hex << offset() << std::dec << ")";
+}
+
+void LoadNamedGeneric::PrintParams(std::ostream& os,
+                                   MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << name_ << ")";
+}
+
+void LoadNamedFromSuperGeneric::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << name_ << ")";
+}
+
+void SetNamedGeneric::PrintParams(std::ostream& os,
+                                  MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << name_ << ")";
+}
+
+void DefineNamedOwnGeneric::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << name_ << ")";
+}
+
+void GapMove::PrintParams(std::ostream& os,
+                          MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << source() << " → " << target() << ")";
+}
+
+void ConstantGapMove::PrintParams(std::ostream& os,
+                                  MaglevGraphLabeller* graph_labeller) const {
+  os << "(";
+  graph_labeller->PrintNodeLabel(os, node_);
+  os << " → " << target() << ")";
+}
+
+void Float64Ieee754Unary::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  os << "("
+     << ExternalReferenceTable::NameOfIsolateIndependentAddress(
+            ieee_function_.address())
+     << ")";
+}
+
+void Phi::PrintParams(std::ostream& os,
+                      MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << owner().ToString() << ")";
+}
+
+void Call::PrintParams(std::ostream& os,
+                       MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << receiver_mode_ << ", ";
+  switch (target_type_) {
+    case TargetType::kJSFunction:
+      os << "JSFunction";
+      break;
+    case TargetType::kAny:
+      os << "Any";
+      break;
+  }
+  os << ")";
+}
+
+void CallKnownJSFunction::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << function_.object() << ")";
+}
+
+void CallBuiltin::PrintParams(std::ostream& os,
+                              MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << Builtins::name(builtin()) << ")";
+}
+
+void CallRuntime::PrintParams(std::ostream& os,
+                              MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << Runtime::FunctionForId(function_id())->name << ")";
+}
+
+void IncreaseInterruptBudget::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << amount() << ")";
+}
+
+void ReduceInterruptBudget::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << amount() << ")";
+}
+
+void Deopt::PrintParams(std::ostream& os,
+                        MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << DeoptimizeReasonToString(reason()) << ")";
+}
+
+void JumpToInlined::PrintParams(std::ostream& os,
+                                MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << Brief(*unit()->shared_function_info().object()) << ")";
+}
+
+void BranchIfRootConstant::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << RootsTable::name(root_index_) << ")";
+}
+
+void BranchIfFloat64Compare::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << operation_ << ")";
+}
+
+void BranchIfInt32Compare::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << operation_ << ")";
+}
+
+void BranchIfReferenceCompare::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << operation_ << ")";
 }
 
 }  // namespace maglev

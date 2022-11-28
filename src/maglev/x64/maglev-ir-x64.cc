@@ -211,10 +211,6 @@ Handle<Object> SmiConstant::DoReify(LocalIsolate* isolate) {
 void SmiConstant::DoLoadToRegister(MaglevAssembler* masm, Register reg) {
   __ Move(reg, Immediate(value()));
 }
-void SmiConstant::PrintParams(std::ostream& os,
-                              MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << value() << ")";
-}
 
 void Float64Constant::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   DefineAsConstant(vreg_state, this);
@@ -228,10 +224,6 @@ void Float64Constant::DoLoadToRegister(MaglevAssembler* masm,
                                        DoubleRegister reg) {
   __ Move(reg, value());
 }
-void Float64Constant::PrintParams(std::ostream& os,
-                                  MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << value() << ")";
-}
 
 void Constant::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   DefineAsConstant(vreg_state, this);
@@ -243,10 +235,6 @@ void Constant::DoLoadToRegister(MaglevAssembler* masm, Register reg) {
 }
 Handle<Object> Constant::DoReify(LocalIsolate* isolate) {
   return object_.object();
-}
-void Constant::PrintParams(std::ostream& os,
-                           MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << object_ << ")";
 }
 
 void DeleteProperty::AllocateVreg(MaglevVregAllocationState* vreg_state) {
@@ -266,10 +254,6 @@ void DeleteProperty::GenerateCode(MaglevAssembler* masm,
           Smi::FromInt(static_cast<int>(mode())));
   __ CallBuiltin(Builtin::kDeleteProperty);
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
-}
-void DeleteProperty::PrintParams(std::ostream& os,
-                                 MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << LanguageMode2String(mode()) << ")";
 }
 
 void GeneratorStore::AllocateVreg(MaglevVregAllocationState* vreg_state) {
@@ -526,10 +510,6 @@ void InitialValue::GenerateCode(MaglevAssembler* masm,
                                 const ProcessingState& state) {
   // No-op, the value is already in the appropriate slot.
 }
-void InitialValue::PrintParams(std::ostream& os,
-                               MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << source().ToString() << ")";
-}
 
 void LoadGlobal::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseFixed(context(), kContextRegister);
@@ -562,10 +542,6 @@ void LoadGlobal::GenerateCode(MaglevAssembler* masm,
 
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
-void LoadGlobal::PrintParams(std::ostream& os,
-                             MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << name() << ")";
-}
 
 void StoreGlobal::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   using D = CallInterfaceDescriptorFor<Builtin::kStoreGlobalIC>::type;
@@ -586,10 +562,6 @@ void StoreGlobal::GenerateCode(MaglevAssembler* masm,
   __ CallBuiltin(Builtin::kStoreGlobalIC);
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
-void StoreGlobal::PrintParams(std::ostream& os,
-                              MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << name() << ")";
-}
 
 void RegisterInput::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   DefineAsFixed(vreg_state, this, input());
@@ -597,10 +569,6 @@ void RegisterInput::AllocateVreg(MaglevVregAllocationState* vreg_state) {
 void RegisterInput::GenerateCode(MaglevAssembler* masm,
                                  const ProcessingState& state) {
   // Nothing to be done, the value is already in the register.
-}
-void RegisterInput::PrintParams(std::ostream& os,
-                                MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << input() << ")";
 }
 
 void RootConstant::AllocateVreg(MaglevVregAllocationState* vreg_state) {
@@ -613,10 +581,6 @@ void RootConstant::DoLoadToRegister(MaglevAssembler* masm, Register reg) {
 }
 Handle<Object> RootConstant::DoReify(LocalIsolate* isolate) {
   return isolate->root_handle(index());
-}
-void RootConstant::PrintParams(std::ostream& os,
-                               MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << RootsTable::name(index()) << ")";
 }
 
 void CreateEmptyArrayLiteral::AllocateVreg(
@@ -760,10 +724,6 @@ void CreateFunctionContext::GenerateCode(MaglevAssembler* masm,
   }
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
-void CreateFunctionContext::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << *scope_info().object() << ", " << slot_count() << ")";
-}
 
 void FastCreateClosure::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   using D = CallInterfaceDescriptorFor<Builtin::kFastNewClosure>::type;
@@ -782,11 +742,6 @@ void FastCreateClosure::GenerateCode(MaglevAssembler* masm,
   __ CallBuiltin(Builtin::kFastNewClosure);
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
-void FastCreateClosure::PrintParams(std::ostream& os,
-                                    MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << *shared_function_info().object() << ", "
-     << feedback_cell().object() << ")";
-}
 
 void CreateClosure::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseFixed(context(), kContextRegister);
@@ -799,15 +754,6 @@ void CreateClosure::GenerateCode(MaglevAssembler* masm,
   __ Push(shared_function_info().object());
   __ Push(feedback_cell().object());
   __ CallRuntime(function_id);
-}
-void CreateClosure::PrintParams(std::ostream& os,
-                                MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << *shared_function_info().object() << ", "
-     << feedback_cell().object();
-  if (pretenured()) {
-    os << " [pretenured]";
-  }
-  os << ")";
 }
 
 void CreateRegExpLiteral::AllocateVreg(MaglevVregAllocationState* vreg_state) {
@@ -848,10 +794,6 @@ void Abort::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   __ CallRuntime(Runtime::kAbort, 1);
   __ Trap();
 }
-void Abort::PrintParams(std::ostream& os,
-                        MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << GetAbortReason(reason()) << ")";
-}
 
 namespace {
 Condition ToCondition(AssertCondition cond) {
@@ -888,10 +830,6 @@ void AssertInt32::GenerateCode(MaglevAssembler* masm,
                                const ProcessingState& state) {
   __ cmpq(ToRegister(left_input()), ToRegister(right_input()));
   __ Check(ToCondition(condition_), reason_);
-}
-void AssertInt32::PrintParams(std::ostream& os,
-                              MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << condition_ << ")";
 }
 
 bool AnyMapIsHeapNumber(const ZoneHandleSet<Map>& maps) {
@@ -940,18 +878,7 @@ void CheckMaps::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(not_equal, DeoptimizeReason::kWrongMap, this);
   __ bind(&done);
 }
-void CheckMaps::PrintParams(std::ostream& os,
-                            MaglevGraphLabeller* graph_labeller) const {
-  os << "(";
-  size_t map_count = maps().size();
-  if (map_count > 0) {
-    for (size_t i = 0; i < map_count - 1; ++i) {
-      os << maps().at(i) << ", ";
-    }
-    os << maps().at(map_count - 1);
-  }
-  os << ")";
-}
+
 void CheckValue::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseRegister(target_input());
 }
@@ -962,10 +889,7 @@ void CheckValue::GenerateCode(MaglevAssembler* masm,
   __ Cmp(target, value().object());
   __ EmitEagerDeoptIf(not_equal, DeoptimizeReason::kWrongValue, this);
 }
-void CheckValue::PrintParams(std::ostream& os,
-                             MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << *value().object() << ")";
-}
+
 void CheckDynamicValue::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseRegister(first_input());
   UseRegister(second_input());
@@ -978,9 +902,6 @@ void CheckDynamicValue::GenerateCode(MaglevAssembler* masm,
   __ cmpl(first, second);
   __ EmitEagerDeoptIf(not_equal, DeoptimizeReason::kWrongValue, this);
 }
-void CheckDynamicValue::PrintParams(std::ostream& os,
-                                    MaglevGraphLabeller* graph_labeller) const {
-}
 
 void CheckSmi::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseRegister(receiver_input());
@@ -992,8 +913,6 @@ void CheckSmi::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(NegateCondition(is_smi), DeoptimizeReason::kNotASmi,
                       this);
 }
-void CheckSmi::PrintParams(std::ostream& os,
-                           MaglevGraphLabeller* graph_labeller) const {}
 
 void CheckNumber::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseRegister(receiver_input());
@@ -1027,8 +946,7 @@ void CheckHeapObject::GenerateCode(MaglevAssembler* masm,
   Condition is_smi = __ CheckSmi(object);
   __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kSmi, this);
 }
-void CheckHeapObject::PrintParams(std::ostream& os,
-                                  MaglevGraphLabeller* graph_labeller) const {}
+
 void CheckSymbol::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseRegister(receiver_input());
 }
@@ -1045,8 +963,6 @@ void CheckSymbol::GenerateCode(MaglevAssembler* masm,
   __ CmpInstanceType(kScratchRegister, SYMBOL_TYPE);
   __ EmitEagerDeoptIf(not_equal, DeoptimizeReason::kNotASymbol, this);
 }
-void CheckSymbol::PrintParams(std::ostream& os,
-                              MaglevGraphLabeller* graph_labeller) const {}
 
 void CheckInstanceType::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseRegister(receiver_input());
@@ -1063,10 +979,6 @@ void CheckInstanceType::GenerateCode(MaglevAssembler* masm,
   __ LoadMap(kScratchRegister, object);
   __ CmpInstanceType(kScratchRegister, instance_type());
   __ EmitEagerDeoptIf(not_equal, DeoptimizeReason::kWrongInstanceType, this);
-}
-void CheckInstanceType::PrintParams(std::ostream& os,
-                                    MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << instance_type() << ")";
 }
 
 void CheckString::AllocateVreg(MaglevVregAllocationState* vreg_state) {
@@ -1086,8 +998,6 @@ void CheckString::GenerateCode(MaglevAssembler* masm,
                           LAST_STRING_TYPE);
   __ EmitEagerDeoptIf(above, DeoptimizeReason::kNotAString, this);
 }
-void CheckString::PrintParams(std::ostream& os,
-                              MaglevGraphLabeller* graph_labeller) const {}
 
 void CheckMapsWithMigration::AllocateVreg(
     MaglevVregAllocationState* vreg_state) {
@@ -1207,18 +1117,6 @@ void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
   }
 
   __ bind(*done);
-}
-void CheckMapsWithMigration::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
-  os << "(";
-  size_t map_count = maps().size();
-  if (map_count > 0) {
-    for (size_t i = 0; i < map_count - 1; ++i) {
-      os << maps().at(i) << ", ";
-    }
-    os << maps().at(map_count - 1);
-  }
-  os << ")";
 }
 
 void CheckJSArrayBounds::AllocateVreg(MaglevVregAllocationState* vreg_state) {
@@ -1361,10 +1259,6 @@ void CheckInt32Condition::GenerateCode(MaglevAssembler* masm,
                                        const ProcessingState& state) {
   __ cmpq(ToRegister(left_input()), ToRegister(right_input()));
   __ EmitEagerDeoptIf(NegateCondition(ToCondition(condition_)), reason_, this);
-}
-void CheckInt32Condition::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << condition_ << ")";
 }
 
 void DebugBreak::AllocateVreg(MaglevVregAllocationState* vreg_state) {}
@@ -1567,10 +1461,6 @@ void LoadTaggedField::GenerateCode(MaglevAssembler* masm,
   __ AssertNotSmi(object);
   __ DecompressAnyTagged(ToRegister(result()), FieldOperand(object, offset()));
 }
-void LoadTaggedField::PrintParams(std::ostream& os,
-                                  MaglevGraphLabeller* graph_labeller) const {
-  os << "(0x" << std::hex << offset() << std::dec << ")";
-}
 
 void LoadDoubleField::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseRegister(object_input());
@@ -1586,10 +1476,6 @@ void LoadDoubleField::GenerateCode(MaglevAssembler* masm,
   __ AssertNotSmi(tmp);
   __ Movsd(ToDoubleRegister(result()),
            FieldOperand(tmp, HeapNumber::kValueOffset));
-}
-void LoadDoubleField::PrintParams(std::ostream& os,
-                                  MaglevGraphLabeller* graph_labeller) const {
-  os << "(0x" << std::hex << offset() << std::dec << ")";
 }
 
 void LoadTaggedElement::AllocateVreg(MaglevVregAllocationState* vreg_state) {
@@ -2012,10 +1898,7 @@ void StoreDoubleField::GenerateCode(MaglevAssembler* masm,
   __ AssertNotSmi(tmp);
   __ Movsd(FieldOperand(tmp, HeapNumber::kValueOffset), value);
 }
-void StoreDoubleField::PrintParams(std::ostream& os,
-                                   MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << std::hex << offset() << std::dec << ")";
-}
+
 void StoreTaggedFieldNoWriteBarrier::AllocateVreg(
     MaglevVregAllocationState* vreg_state) {
   UseRegister(object_input());
@@ -2028,10 +1911,6 @@ void StoreTaggedFieldNoWriteBarrier::GenerateCode(
 
   __ AssertNotSmi(object);
   __ StoreTaggedField(FieldOperand(object, offset()), value);
-}
-void StoreTaggedFieldNoWriteBarrier::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << std::hex << offset() << std::dec << ")";
 }
 
 void StoreMap::AllocateVreg(MaglevVregAllocationState* vreg_state) {
@@ -2086,10 +1965,6 @@ void StoreMap::GenerateCode(MaglevAssembler* masm,
                    MemoryChunk::kPointersFromHereAreInterestingMask, not_zero,
                    &deferred_write_barrier->deferred_code_label);
   __ bind(*done);
-}
-void StoreMap::PrintParams(std::ostream& os,
-                           MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << *map_.object() << ")";
 }
 
 void StoreTaggedFieldWithWriteBarrier::AllocateVreg(
@@ -2146,10 +2021,6 @@ void StoreTaggedFieldWithWriteBarrier::GenerateCode(
                    &deferred_write_barrier->deferred_code_label);
   __ bind(*done);
 }
-void StoreTaggedFieldWithWriteBarrier::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << std::hex << offset() << std::dec << ")";
-}
 
 void LoadNamedGeneric::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   using D = LoadWithVectorDescriptor;
@@ -2168,10 +2039,6 @@ void LoadNamedGeneric::GenerateCode(MaglevAssembler* masm,
   __ Move(D::GetRegisterParameter(D::kVector), feedback().vector);
   __ CallBuiltin(Builtin::kLoadIC);
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
-}
-void LoadNamedGeneric::PrintParams(std::ostream& os,
-                                   MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << name_ << ")";
 }
 
 void LoadNamedFromSuperGeneric::AllocateVreg(
@@ -2197,10 +2064,6 @@ void LoadNamedFromSuperGeneric::GenerateCode(MaglevAssembler* masm,
   __ CallBuiltin(Builtin::kLoadSuperIC);
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
-void LoadNamedFromSuperGeneric::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << name_ << ")";
-}
 
 void SetNamedGeneric::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   using D = CallInterfaceDescriptorFor<Builtin::kStoreIC>::type;
@@ -2221,10 +2084,6 @@ void SetNamedGeneric::GenerateCode(MaglevAssembler* masm,
   __ Move(D::GetRegisterParameter(D::kVector), feedback().vector);
   __ CallBuiltin(Builtin::kStoreIC);
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
-}
-void SetNamedGeneric::PrintParams(std::ostream& os,
-                                  MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << name_ << ")";
 }
 
 void StringLength::AllocateVreg(MaglevVregAllocationState* vreg_state) {
@@ -2293,10 +2152,6 @@ void DefineNamedOwnGeneric::GenerateCode(MaglevAssembler* masm,
   __ Move(D::GetRegisterParameter(D::kVector), feedback().vector);
   __ CallBuiltin(Builtin::kDefineNamedOwnIC);
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
-}
-void DefineNamedOwnGeneric::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << name_ << ")";
 }
 
 void SetKeyedGeneric::AllocateVreg(MaglevVregAllocationState* vreg_state) {
@@ -2424,10 +2279,7 @@ void GapMove::GenerateCode(MaglevAssembler* masm,
     }
   }
 }
-void GapMove::PrintParams(std::ostream& os,
-                          MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << source() << " → " << target() << ")";
-}
+
 void ConstantGapMove::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UNREACHABLE();
 }
@@ -2460,12 +2312,6 @@ void ConstantGapMove::GenerateCode(MaglevAssembler* masm,
     default:
       UNREACHABLE();
   }
-}
-void ConstantGapMove::PrintParams(std::ostream& os,
-                                  MaglevGraphLabeller* graph_labeller) const {
-  os << "(";
-  graph_labeller->PrintNodeLabel(os, node_);
-  os << " → " << target() << ")";
 }
 
 namespace {
@@ -3126,14 +2972,6 @@ void Float64Ieee754Unary::GenerateCode(MaglevAssembler* masm,
   __ CallCFunction(ieee_function_, 1);
 }
 
-void Float64Ieee754Unary::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
-  os << "("
-     << ExternalReferenceTable::NameOfIsolateIndependentAddress(
-            ieee_function_.address())
-     << ")";
-}
-
 template <class Derived, Operation kOperation>
 void Float64CompareNode<Derived, kOperation>::AllocateVreg(
     MaglevVregAllocationState* vreg_state) {
@@ -3299,10 +3137,6 @@ void Int32Constant::DoLoadToRegister(MaglevAssembler* masm, Register reg) {
 }
 Handle<Object> Int32Constant::DoReify(LocalIsolate* isolate) {
   return isolate->factory()->NewNumber<AllocationType::kOld>(value());
-}
-void Int32Constant::PrintParams(std::ostream& os,
-                                MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << value() << ")";
 }
 
 void Int32ToNumber::AllocateVreg(MaglevVregAllocationState* vreg_state) {
@@ -3966,10 +3800,6 @@ void Phi::AllocateVregInPostProcess(MaglevVregAllocationState* vreg_state) {
   }
 }
 void Phi::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {}
-void Phi::PrintParams(std::ostream& os,
-                      MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << owner().ToString() << ")";
-}
 
 void Call::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   // TODO(leszeks): Consider splitting Call into with- and without-feedback
@@ -4065,19 +3895,6 @@ void Call::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
 
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
-void Call::PrintParams(std::ostream& os,
-                       MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << receiver_mode_ << ", ";
-  switch (target_type_) {
-    case TargetType::kJSFunction:
-      os << "JSFunction";
-      break;
-    case TargetType::kAny:
-      os << "Any";
-      break;
-  }
-  os << ")";
-}
 
 void CallKnownJSFunction::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseAny(receiver());
@@ -4117,10 +3934,6 @@ void CallKnownJSFunction::GenerateCode(MaglevAssembler* masm,
     __ CallCodeTObject(kJavaScriptCallCodeStartRegister);
   }
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
-}
-void CallKnownJSFunction::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << function_.object() << ")";
 }
 
 void Construct::AllocateVreg(MaglevVregAllocationState* vreg_state) {
@@ -4257,10 +4070,6 @@ void CallBuiltin::GenerateCode(MaglevAssembler* masm,
   __ CallBuiltin(builtin());
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
-void CallBuiltin::PrintParams(std::ostream& os,
-                              MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << Builtins::name(builtin()) << ")";
-}
 
 void CallRuntime::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseFixed(context(), kContextRegister);
@@ -4278,10 +4087,6 @@ void CallRuntime::GenerateCode(MaglevAssembler* masm,
   __ CallRuntime(function_id(), num_args());
   // TODO(victorgomes): Not sure if this is needed for all runtime calls.
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
-}
-void CallRuntime::PrintParams(std::ostream& os,
-                              MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << Runtime::FunctionForId(function_id())->name << ")";
 }
 
 void CallWithSpread::AllocateVreg(MaglevVregAllocationState* vreg_state) {
@@ -4466,10 +4271,6 @@ void IncreaseInterruptBudget::GenerateCode(MaglevAssembler* masm,
   __ addl(FieldOperand(scratch, FeedbackCell::kInterruptBudgetOffset),
           Immediate(amount()));
 }
-void IncreaseInterruptBudget::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << amount() << ")";
-}
 
 void ReduceInterruptBudget::AllocateVreg(
     MaglevVregAllocationState* vreg_state) {
@@ -4502,10 +4303,6 @@ void ReduceInterruptBudget::GenerateCode(MaglevAssembler* masm,
       },
       done, this);
   __ bind(*done);
-}
-void ReduceInterruptBudget::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << amount() << ")";
 }
 
 void ThrowReferenceErrorIfHole::AllocateVreg(
@@ -4649,10 +4446,6 @@ void Deopt::AllocateVreg(MaglevVregAllocationState* vreg_state) {}
 void Deopt::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   __ EmitEagerDeopt(this, reason());
 }
-void Deopt::PrintParams(std::ostream& os,
-                        MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << DeoptimizeReasonToString(reason()) << ")";
-}
 
 void Switch::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseRegister(value());
@@ -4687,11 +4480,6 @@ void JumpToInlined::GenerateCode(MaglevAssembler* masm,
     __ jmp(target()->label());
   }
 }
-void JumpToInlined::PrintParams(std::ostream& os,
-                                MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << Brief(*unit()->shared_function_info().object()) << ")";
-}
-
 void JumpFromInlined::AllocateVreg(MaglevVregAllocationState* vreg_state) {}
 void JumpFromInlined::GenerateCode(MaglevAssembler* masm,
                                    const ProcessingState& state) {
@@ -4821,10 +4609,6 @@ void BranchIfRootConstant::GenerateCode(MaglevAssembler* masm,
   __ CompareRoot(ToRegister(condition_input()), root_index());
   __ Branch(equal, if_true(), if_false(), state.next_block());
 }
-void BranchIfRootConstant::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << RootsTable::name(root_index_) << ")";
-}
 
 void BranchIfUndefinedOrNull::AllocateVreg(
     MaglevVregAllocationState* vreg_state) {
@@ -4865,10 +4649,6 @@ void BranchIfInt32Compare::GenerateCode(MaglevAssembler* masm,
   __ Branch(ConditionFor(operation_), if_true(), if_false(),
             state.next_block());
 }
-void BranchIfFloat64Compare::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << operation_ << ")";
-}
 
 void BranchIfFloat64Compare::AllocateVreg(
     MaglevVregAllocationState* vreg_state) {
@@ -4884,10 +4664,6 @@ void BranchIfFloat64Compare::GenerateCode(MaglevAssembler* masm,
   __ Branch(ConditionForFloat64(operation_), if_true(), if_false(),
             state.next_block());
 }
-void BranchIfInt32Compare::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << operation_ << ")";
-}
 
 void BranchIfReferenceCompare::AllocateVreg(
     MaglevVregAllocationState* vreg_state) {
@@ -4901,10 +4677,6 @@ void BranchIfReferenceCompare::GenerateCode(MaglevAssembler* masm,
   __ cmp_tagged(left, right);
   __ Branch(ConditionFor(operation_), if_true(), if_false(),
             state.next_block());
-}
-void BranchIfReferenceCompare::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << operation_ << ")";
 }
 
 void BranchIfToBooleanTrue::AllocateVreg(
