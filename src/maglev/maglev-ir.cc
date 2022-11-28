@@ -196,6 +196,144 @@ void ValueNode::SetConstantLocation() {
           .virtual_register());
 }
 
+ValueRepresentation ToValueRepresentation(MachineType type) {
+  switch (type.representation()) {
+    case MachineRepresentation::kTagged:
+    case MachineRepresentation::kTaggedSigned:
+    case MachineRepresentation::kTaggedPointer:
+      return ValueRepresentation::kTagged;
+    case MachineRepresentation::kFloat64:
+      return ValueRepresentation::kFloat64;
+    default:
+      return ValueRepresentation::kInt32;
+  }
+}
+
+void CheckValueInputIs(const NodeBase* node, int i,
+                       ValueRepresentation expected,
+                       MaglevGraphLabeller* graph_labeller) {
+  ValueNode* input = node->input(i).node();
+  ValueRepresentation got = input->properties().value_representation();
+  if (got != expected) {
+    std::ostringstream str;
+    str << "Type representation error: node ";
+    if (graph_labeller) {
+      str << "#" << graph_labeller->NodeId(node) << " : ";
+    }
+    str << node->opcode() << " (input @" << i << " = " << input->opcode()
+        << ") type " << got << " is not " << expected;
+    FATAL("%s", str.str().c_str());
+  }
+}
+
+void CheckValueInputIsWord32(const NodeBase* node, int i,
+                             MaglevGraphLabeller* graph_labeller) {
+  ValueNode* input = node->input(i).node();
+  ValueRepresentation got = input->properties().value_representation();
+  if (got != ValueRepresentation::kInt32 &&
+      got != ValueRepresentation::kUint32) {
+    std::ostringstream str;
+    str << "Type representation error: node ";
+    if (graph_labeller) {
+      str << "#" << graph_labeller->NodeId(node) << " : ";
+    }
+    str << node->opcode() << " (input @" << i << " = " << input->opcode()
+        << ") type " << got << " is not Word32 (Int32 or Uint32)";
+    FATAL("%s", str.str().c_str());
+  }
+}
+
+void GeneratorStore::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
+  for (int i = 0; i < input_count(); i++) {
+    CheckValueInputIs(this, i, ValueRepresentation::kTagged, graph_labeller);
+  }
+}
+
+void UnsafeSmiTag::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
+  DCHECK_EQ(input_count(), 1);
+  CheckValueInputIsWord32(this, 0, graph_labeller);
+}
+
+void Phi::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
+  for (int i = 0; i < input_count(); i++) {
+    CheckValueInputIs(this, i, ValueRepresentation::kTagged, graph_labeller);
+  }
+}
+
+void Call::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
+  for (int i = 0; i < input_count(); i++) {
+    CheckValueInputIs(this, i, ValueRepresentation::kTagged, graph_labeller);
+  }
+}
+
+void CallWithArrayLike::VerifyInputs(
+    MaglevGraphLabeller* graph_labeller) const {
+  for (int i = 0; i < input_count(); i++) {
+    CheckValueInputIs(this, i, ValueRepresentation::kTagged, graph_labeller);
+  }
+}
+
+void CallWithSpread::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
+  for (int i = 0; i < input_count(); i++) {
+    CheckValueInputIs(this, i, ValueRepresentation::kTagged, graph_labeller);
+  }
+}
+
+void CallKnownJSFunction::VerifyInputs(
+    MaglevGraphLabeller* graph_labeller) const {
+  for (int i = 0; i < input_count(); i++) {
+    CheckValueInputIs(this, i, ValueRepresentation::kTagged, graph_labeller);
+  }
+}
+
+void Construct::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
+  for (int i = 0; i < input_count(); i++) {
+    CheckValueInputIs(this, i, ValueRepresentation::kTagged, graph_labeller);
+  }
+}
+
+void ConstructWithSpread::VerifyInputs(
+    MaglevGraphLabeller* graph_labeller) const {
+  for (int i = 0; i < input_count(); i++) {
+    CheckValueInputIs(this, i, ValueRepresentation::kTagged, graph_labeller);
+  }
+}
+
+void CallBuiltin::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
+  auto descriptor = Builtins::CallInterfaceDescriptorFor(builtin());
+  int count = input_count();
+  // Verify context.
+  if (descriptor.HasContextParameter()) {
+    CheckValueInputIs(this, count - 1, ValueRepresentation::kTagged,
+                      graph_labeller);
+    count--;
+  }
+
+// {all_input_count} includes the feedback slot and vector.
+#ifdef DEBUG
+  int all_input_count = count + (has_feedback() ? 2 : 0);
+  if (descriptor.AllowVarArgs()) {
+    DCHECK_GE(all_input_count, descriptor.GetParameterCount());
+  } else {
+    DCHECK_EQ(all_input_count, descriptor.GetParameterCount());
+  }
+#endif
+  int i = 0;
+  // Check the rest of inputs.
+  for (; i < count; ++i) {
+    MachineType type = i < descriptor.GetParameterCount()
+                           ? descriptor.GetParameterType(i)
+                           : MachineType::AnyTagged();
+    CheckValueInputIs(this, i, ToValueRepresentation(type), graph_labeller);
+  }
+}
+
+void CallRuntime::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
+  for (int i = 0; i < input_count(); i++) {
+    CheckValueInputIs(this, i, ValueRepresentation::kTagged, graph_labeller);
+  }
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8
