@@ -2059,7 +2059,7 @@ void RecompileNativeModule(NativeModule* native_module,
 
 AsyncCompileJob::AsyncCompileJob(
     Isolate* isolate, WasmFeatures enabled_features,
-    std::unique_ptr<byte[]> bytes_copy, size_t length, Handle<Context> context,
+    base::OwnedVector<const uint8_t> bytes, Handle<Context> context,
     Handle<Context> incumbent_context, const char* api_method_name,
     std::shared_ptr<CompilationResultResolver> resolver, int compilation_id)
     : isolate_(isolate),
@@ -2067,8 +2067,8 @@ AsyncCompileJob::AsyncCompileJob(
       enabled_features_(enabled_features),
       dynamic_tiering_(DynamicTiering{v8_flags.wasm_dynamic_tiering.value()}),
       start_time_(base::TimeTicks::Now()),
-      bytes_copy_(std::move(bytes_copy)),
-      wire_bytes_(bytes_copy_.get(), bytes_copy_.get() + length),
+      bytes_copy_(std::move(bytes)),
+      wire_bytes_(bytes_copy_.as_vector()),
       resolver_(std::move(resolver)),
       compilation_id_(compilation_id) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
@@ -2199,7 +2199,7 @@ void AsyncCompileJob::CreateNativeModule(
 
   native_module_ = GetWasmEngine()->NewNativeModule(
       isolate_, enabled_features_, std::move(module), code_size_estimate);
-  native_module_->SetWireBytes({std::move(bytes_copy_), wire_bytes_.length()});
+  native_module_->SetWireBytes(std::move(bytes_copy_));
   native_module_->compilation_state()->set_compilation_id(compilation_id_);
 }
 
@@ -2961,7 +2961,7 @@ void AsyncStreamingProcessor::OnFinishedStream(
   }
 
   job_->wire_bytes_ = ModuleWireBytes(bytes.as_vector());
-  job_->bytes_copy_ = bytes.ReleaseData();
+  job_->bytes_copy_ = std::move(bytes);
 
   // Record event metrics.
   auto duration = base::TimeTicks::Now() - job_->start_time_;
@@ -3006,8 +3006,7 @@ void AsyncStreamingProcessor::OnFinishedStream(
     cache_hit = job_->GetOrCreateNativeModule(std::move(result).value(),
                                               kCodeSizeEstimate);
   } else {
-    job_->native_module_->SetWireBytes(
-        {std::move(job_->bytes_copy_), job_->wire_bytes_.length()});
+    job_->native_module_->SetWireBytes(std::move(job_->bytes_copy_));
   }
   const bool needs_finish =
       job_->DecrementAndCheckFinisherCount(AsyncCompileJob::kStreamingDecoder);

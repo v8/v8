@@ -680,13 +680,12 @@ void WasmEngine::AsyncCompile(
   }
   // Make a copy of the wire bytes in case the user program changes them
   // during asynchronous compilation.
-  std::unique_ptr<byte[]> copy(new byte[bytes.length()]);
-  memcpy(copy.get(), bytes.start(), bytes.length());
+  base::OwnedVector<const uint8_t> copy =
+      base::OwnedVector<const uint8_t>::Of(bytes.module_bytes());
 
   AsyncCompileJob* job = CreateAsyncCompileJob(
-      isolate, enabled, std::move(copy), bytes.length(),
-      handle(isolate->context(), isolate), api_method_name_for_errors,
-      std::move(resolver), compilation_id);
+      isolate, enabled, std::move(copy), handle(isolate->context(), isolate),
+      api_method_name_for_errors, std::move(resolver), compilation_id);
   job->Start();
 }
 
@@ -698,9 +697,9 @@ std::shared_ptr<StreamingDecoder> WasmEngine::StartStreamingCompilation(
   TRACE_EVENT1("v8.wasm", "wasm.StartStreamingCompilation", "id",
                compilation_id);
   if (v8_flags.wasm_async_compilation) {
-    AsyncCompileJob* job = CreateAsyncCompileJob(
-        isolate, enabled, std::unique_ptr<byte[]>(nullptr), 0, context,
-        api_method_name, std::move(resolver), compilation_id);
+    AsyncCompileJob* job =
+        CreateAsyncCompileJob(isolate, enabled, {}, context, api_method_name,
+                              std::move(resolver), compilation_id);
     return job->CreateStreamingDecoder();
   }
   return StreamingDecoder::CreateSyncStreamingDecoder(
@@ -921,13 +920,13 @@ CodeTracer* WasmEngine::GetCodeTracer() {
 
 AsyncCompileJob* WasmEngine::CreateAsyncCompileJob(
     Isolate* isolate, const WasmFeatures& enabled,
-    std::unique_ptr<byte[]> bytes_copy, size_t length, Handle<Context> context,
+    base::OwnedVector<const uint8_t> bytes, Handle<Context> context,
     const char* api_method_name,
     std::shared_ptr<CompilationResultResolver> resolver, int compilation_id) {
   Handle<Context> incumbent_context = isolate->GetIncumbentContext();
   AsyncCompileJob* job = new AsyncCompileJob(
-      isolate, enabled, std::move(bytes_copy), length, context,
-      incumbent_context, api_method_name, std::move(resolver), compilation_id);
+      isolate, enabled, std::move(bytes), context, incumbent_context,
+      api_method_name, std::move(resolver), compilation_id);
   // Pass ownership to the unique_ptr in {async_compile_jobs_}.
   base::MutexGuard guard(&mutex_);
   async_compile_jobs_[job] = std::unique_ptr<AsyncCompileJob>(job);

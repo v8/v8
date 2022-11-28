@@ -139,7 +139,7 @@ class WrapperQueue {
 class AsyncCompileJob {
  public:
   AsyncCompileJob(Isolate* isolate, WasmFeatures enabled_features,
-                  std::unique_ptr<byte[]> bytes_copy, size_t length,
+                  base::OwnedVector<const uint8_t> bytes,
                   Handle<Context> context, Handle<Context> incumbent_context,
                   const char* api_method_name,
                   std::shared_ptr<CompilationResultResolver> resolver,
@@ -263,7 +263,7 @@ class AsyncCompileJob {
   base::TimeTicks start_time_;
   // Copy of the module wire bytes, moved into the {native_module_} on its
   // creation.
-  std::unique_ptr<byte[]> bytes_copy_;
+  base::OwnedVector<const uint8_t> bytes_copy_;
   // Reference to the wire bytes (held in {bytes_copy_} or as part of
   // {native_module_}).
   ModuleWireBytes wire_bytes_;

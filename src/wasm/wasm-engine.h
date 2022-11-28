@@ -379,8 +379,8 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   AsyncCompileJob* CreateAsyncCompileJob(
       Isolate* isolate, const WasmFeatures& enabled,
-      std::unique_ptr<byte[]> bytes_copy, size_t length,
-      Handle<Context> context, const char* api_method_name,
+      base::OwnedVector<const uint8_t> bytes, Handle<Context> context,
+      const char* api_method_name,
       std::shared_ptr<CompilationResultResolver> resolver, int compilation_id);
 
   void TriggerGC(int8_t gc_sequence_index);
