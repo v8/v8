@@ -694,7 +694,7 @@ DEFINE_BOOL(baseline_batch_compilation, true, "batch compile Sparkplug code")
 DEFINE_BOOL_READONLY(concurrent_sparkplug, false,
                      "compile Sparkplug code in a background thread")
 #else
-DEFINE_BOOL(concurrent_sparkplug, false,
+DEFINE_BOOL(concurrent_sparkplug, ENABLE_SPARKPLUG_BY_DEFAULT,
             "compile Sparkplug code in a background thread")
 DEFINE_WEAK_IMPLICATION(future, concurrent_sparkplug)
 DEFINE_NEG_IMPLICATION(predictable, concurrent_sparkplug)
@@ -702,7 +702,7 @@ DEFINE_NEG_IMPLICATION(single_threaded, concurrent_sparkplug)
 DEFINE_NEG_IMPLICATION(jitless, concurrent_sparkplug)
 #endif
 DEFINE_UINT(
-    concurrent_sparkplug_max_threads, 0,
+    concurrent_sparkplug_max_threads, 1,
     "max number of threads that concurrent Sparkplug can use (0 for unbounded)")
 DEFINE_BOOL(concurrent_sparkplug_high_priority_threads, false,
             "use high priority compiler threads for concurrent Sparkplug")
