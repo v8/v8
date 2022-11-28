@@ -344,6 +344,26 @@ class MonochromeProgressIndicator(CompactProgressIndicator):
     print(("\r" + (" " * last_length) + "\r"), end='')
 
 
+class CrashInfo:
+  """Parsed crash information."""
+
+  def __init__(self):
+    self.crash_stacktrace = ''
+    self.crash_type = 'Dummy Type'
+    self.crash_state = 'Dummy State'
+
+
+class StackParser:
+  """Stack parser."""
+
+  def parse(self, stacktrace: str) -> CrashInfo:
+    """Parse a stacktrace."""
+    state = CrashInfo()
+    state.crash_stacktrace = stacktrace
+
+    return state
+
+
 class JsonTestProgressIndicator(ProgressIndicator):
 
   def __init__(self, context, options, test_count, framework_name):
@@ -385,6 +405,14 @@ class JsonTestProgressIndicator(ProgressIndicator):
           "stderr": output.stderr,
           "error_details": result.error_details,
       })
+
+      stack_parser = StackParser()
+      stderr_analysis = stack_parser.parse(output.stderr)
+      record.update({
+          "crash_state": stderr_analysis.crash_state,
+          "crash_type": stderr_analysis.crash_type,
+      })
+
       self.results.append(record)
 
   def _buffer_slow_tests(self, test, result, output, run):
