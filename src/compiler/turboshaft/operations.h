@@ -1661,6 +1661,18 @@ struct TrapIfOp : FixedArityOperationT<1, TrapIfOp> {
   auto options() const { return std::tuple{negated, trap_id}; }
 };
 
+struct StaticAssertOp : FixedArityOperationT<1, StaticAssertOp> {
+  static constexpr OpProperties properties = OpProperties::CanAbort();
+  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
+  const char* source;
+
+  OpIndex condition() const { return Base::input(0); }
+
+  StaticAssertOp(OpIndex condition, const char* source)
+      : Base(condition), source(source) {}
+  auto options() const { return std::tuple{source}; }
+};
+
 struct ParameterOp : FixedArityOperationT<0, ParameterOp> {
   int32_t parameter_index;
   RegisterRepresentation rep;
@@ -1956,18 +1968,6 @@ struct ProjectionOp : FixedArityOperationT<1, ProjectionOp> {
   ProjectionOp(OpIndex input, uint16_t index, RegisterRepresentation rep)
       : Base(input), index(index), rep(rep) {}
   auto options() const { return std::tuple{index}; }
-};
-
-struct StaticAssertOp : FixedArityOperationT<1, StaticAssertOp> {
-  static constexpr OpProperties properties = OpProperties::CanAbort();
-  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
-  const char* source;
-
-  OpIndex input() const { return Base::input(0); }
-
-  explicit StaticAssertOp(OpIndex input, const char* source)
-      : Base(input), source(source) {}
-  auto options() const { return std::tuple{}; }
 };
 
 #define OPERATION_PROPERTIES_CASE(Name) Name##Op::PropertiesIfStatic(),

@@ -49,9 +49,14 @@ Reduction CommonOperatorReducer::Reduce(Node* node) {
     case IrOpcode::kEffectPhi:
       return ReduceEffectPhi(node);
     case IrOpcode::kPhi:
-      return ReducePhi(node);
+      return ReducePhi(node);  // TODO(mslekova):
+      // 1. Reduce a Phi whose all inputs are the same, replace
+      // it with its input;
+      // 2. Reduce a Loop Phi which points to itself, replace it
+      // with it's 0'th input.
     case IrOpcode::kReturn:
-      return ReduceReturn(node);
+      return ReduceReturn(node);  // TODO(mslekova):
+      // Add to Branch Elimination.
     case IrOpcode::kSelect:
       return ReduceSelect(node);
     case IrOpcode::kSwitch:

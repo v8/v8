@@ -840,6 +840,10 @@ class AssemblerOpInterface {
     stack().ReduceTrapIf(condition, true, trap_id);
   }
 
+  void StaticAssert(OpIndex condition, const char* source) {
+    stack().ReduceStaticAssert(condition, source);
+  }
+
   OpIndex Phi(base::Vector<const OpIndex> inputs, RegisterRepresentation rep) {
     return stack().ReducePhi(inputs, rep);
   }

@@ -1069,7 +1069,7 @@ Node* ScheduleBuilder::ProcessOperation(const StaticAssertOp& op) {
   // Static asserts should be (statically asserted and) removed by turboshaft.
   UnparkedScopeIfNeeded scope(broker);
   AllowHandleDereference allow_handle_dereference;
-  std::cout << input_graph.Get(op.input());
+  std::cout << input_graph.Get(op.condition());
   FATAL(
       "Expected Turbofan static assert to hold, but got non-true input:\n  %s",
       op.source);

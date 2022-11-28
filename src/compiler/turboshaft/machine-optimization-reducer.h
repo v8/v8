@@ -1532,6 +1532,62 @@ class MachineOptimizationReducer : public Next {
     }
   }
 
+  OpIndex ReduceTrapIf(OpIndex condition, bool negated, TrapId trap_id) {
+    LABEL_BLOCK(no_change) {
+      return Next::ReduceTrapIf(condition, negated, trap_id);
+    }
+    if (ShouldSkipOptimizationStep()) goto no_change;
+    if (base::Optional<bool> decision = DecideBranchCondition(condition)) {
+      if (*decision != negated) {
+        Next::ReduceTrapIf(condition, negated, trap_id);
+        Asm().Unreachable();
+      }
+      // `TrapIf` doesn't produce a value.
+      return OpIndex::Invalid();
+    }
+    if (base::Optional<OpIndex> new_condition =
+            ReduceBranchCondition(condition, &negated)) {
+      return Asm().ReduceTrapIf(new_condition.value(), negated, trap_id);
+    } else {
+      goto no_change;
+    }
+  }
+
+  OpIndex ReduceStaticAssert(OpIndex condition, const char* source) {
+    LABEL_BLOCK(no_change) {
+      return Next::ReduceStaticAssert(condition, source);
+    }
+    if (base::Optional<bool> decision = DecideBranchCondition(condition)) {
+      if (decision) {
+        // Drop the assert, the condition holds true.
+        return OpIndex::Invalid();
+      } else {
+        // Leave the assert, as the condition is not true.
+        goto no_change;
+      }
+    }
+    goto no_change;
+  }
+
+  OpIndex ReduceSwitch(OpIndex input, base::Vector<const SwitchOp::Case> cases,
+                       Block* default_case) {
+    LABEL_BLOCK(no_change) {
+      return Next::ReduceSwitch(input, cases, default_case);
+    }
+    if (ShouldSkipOptimizationStep()) goto no_change;
+    if (int32_t value; Asm().MatchWord32Constant(input, &value)) {
+      for (const SwitchOp::Case& if_value : cases) {
+        if (if_value.value == value) {
+          Asm().Goto(if_value.destination);
+          return OpIndex::Invalid();
+        }
+      }
+      Asm().Goto(default_case);
+      return OpIndex::Invalid();
+    }
+    goto no_change;
+  }
+
   OpIndex ReduceStore(OpIndex base, OpIndex index, OpIndex value,
                       StoreOp::Kind kind, MemoryRepresentation stored_rep,
                       WriteBarrierKind write_barrier, int32_t offset,
