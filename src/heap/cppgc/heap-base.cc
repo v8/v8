@@ -217,6 +217,8 @@ void HeapBase::EnableGenerationalGC() {
   YoungGenerationEnabler::Enable();
   // Enable young generation for the current heap.
   HeapHandle::is_young_generation_enabled_ = true;
+  // Assume everything that has so far been allocated is young.
+  object_allocator_.MarkAllPagesAsYoung();
 }
 
 void HeapBase::ResetRememberedSet() {
