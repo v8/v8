@@ -174,9 +174,10 @@ class BranchEliminationReducer : public Next {
     }
   }
 
-  OpIndex ReduceBranch(OpIndex cond, Block* if_true, Block* if_false) {
+  OpIndex ReduceBranch(OpIndex cond, Block* if_true, Block* if_false,
+                       BranchHint hint) {
     LABEL_BLOCK(no_change) {
-      return Next::ReduceBranch(cond, if_true, if_false);
+      return Next::ReduceBranch(cond, if_true, if_false, hint);
     }
     if (ShouldSkipOptimizationStep()) goto no_change;
 

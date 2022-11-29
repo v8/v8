@@ -279,7 +279,8 @@ class GraphVisitor {
                                 assembler().output_graph().next_block_index()}
           << "\n";
     }
-    if (!assembler().Bind(MapToNewGraph(input_block->index()), input_block)) {
+    Block* new_block = MapToNewGraph(input_block->index());
+    if (!assembler().Bind(new_block, input_block)) {
       if constexpr (trace_reduction) TraceBlockUnreachable();
       // If we eliminate a loop backedge, we need to turn the loop into a
       // single-predecessor merge block.
@@ -296,7 +297,6 @@ class GraphVisitor {
       }
       return;
     }
-    assembler().current_block()->SetDeferred(input_block->IsDeferred());
     for (OpIndex index : input_graph().OperationIndices(*input_block)) {
       if (!VisitOp<trace_reduction>(index, input_block)) break;
     }
@@ -403,17 +403,18 @@ class GraphVisitor {
     Block* if_true = MapToNewGraph(op.if_true->index());
     Block* if_false = MapToNewGraph(op.if_false->index());
     return assembler().ReduceBranch(MapToNewGraph(op.condition()), if_true,
-                                    if_false);
+                                    if_false, op.hint);
   }
   OpIndex VisitSwitch(const SwitchOp& op) {
     base::SmallVector<SwitchOp::Case, 16> cases;
     for (SwitchOp::Case c : op.cases) {
-      cases.emplace_back(c.value, MapToNewGraph(c.destination->index()));
+      cases.emplace_back(c.value, MapToNewGraph(c.destination->index()),
+                         c.hint);
     }
     return assembler().ReduceSwitch(
         MapToNewGraph(op.input()),
         graph_zone()->CloneVector(base::VectorOf(cases)),
-        MapToNewGraph(op.default_case->index()));
+        MapToNewGraph(op.default_case->index()), op.default_hint);
   }
   OpIndex VisitPhi(const PhiOp& op) {
     if (visiting_cloned_block_) {

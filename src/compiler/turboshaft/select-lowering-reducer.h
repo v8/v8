@@ -52,13 +52,7 @@ class SelectLoweringReducer : public Next {
     Block* false_block = Asm().NewBlock();
     Block* merge_block = Asm().NewBlock();
 
-    if (hint == BranchHint::kTrue) {
-      false_block->SetDeferred(true);
-    } else if (hint == BranchHint::kFalse) {
-      true_block->SetDeferred(true);
-    }
-
-    Asm().Branch(cond, true_block, false_block);
+    Asm().Branch(cond, true_block, false_block, hint);
 
     // Note that it's possible that other reducers of the stack optimizes the
     // Branch that we just introduced into a Goto (if its condition is already

@@ -175,7 +175,6 @@ base::Optional<BailoutReason> GraphBuilder::Run() {
   for (BasicBlock* block : *schedule.rpo_order()) {
     Block* target_block = Map(block);
     if (!assembler.Bind(target_block)) continue;
-    target_block->SetDeferred(block->deferred());
 
     // Since we visit blocks in rpo-order, the new block predecessors are sorted
     // in rpo order too. However, the input schedule does not order
@@ -754,7 +753,7 @@ OpIndex GraphBuilder::Process(
     case IrOpcode::kBranch:
       DCHECK_EQ(block->SuccessorCount(), 2);
       assembler.Branch(Map(node->InputAt(0)), Map(block->SuccessorAt(0)),
-                       Map(block->SuccessorAt(1)));
+                       Map(block->SuccessorAt(1)), BranchHintOf(node->op()));
       return OpIndex::Invalid();
 
     case IrOpcode::kSwitch: {
@@ -765,11 +764,11 @@ OpIndex GraphBuilder::Process(
       for (size_t i = 0; i < case_count; ++i) {
         BasicBlock* branch = block->SuccessorAt(i);
         const IfValueParameters& p = IfValueParametersOf(branch->front()->op());
-        cases.emplace_back(p.value(), Map(branch));
+        cases.emplace_back(p.value(), Map(branch), p.hint());
       }
-      assembler.Switch(Map(node->InputAt(0)),
-                       graph_zone->CloneVector(base::VectorOf(cases)),
-                       Map(default_branch));
+      assembler.Switch(
+          Map(node->InputAt(0)), graph_zone->CloneVector(base::VectorOf(cases)),
+          Map(default_branch), BranchHintOf(default_branch->front()->op()));
       return OpIndex::Invalid();
     }
 

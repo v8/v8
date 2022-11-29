@@ -16,6 +16,7 @@
 #include "src/base/small-vector.h"
 #include "src/base/template-utils.h"
 #include "src/codegen/reloc-info.h"
+#include "src/compiler/common-operator.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/operation-matching.h"
 #include "src/compiler/turboshaft/operations.h"
@@ -139,14 +140,16 @@ class ReducerBase : public ReducerBaseForwarder<Next> {
     return new_opindex;
   }
 
-  OpIndex ReduceBranch(OpIndex condition, Block* if_true, Block* if_false) {
+  OpIndex ReduceBranch(OpIndex condition, Block* if_true, Block* if_false,
+                       BranchHint hint) {
     // There should never be a good reason to generate a Branch where both the
     // {if_true} and {if_false} are the same Block. If we ever decide to lift
     // this condition, then AddPredecessor and SplitEdge should be updated
     // accordingly.
     DCHECK_NE(if_true, if_false);
     Block* saved_current_block = Asm().current_block();
-    OpIndex new_opindex = Base::ReduceBranch(condition, if_true, if_false);
+    OpIndex new_opindex =
+        Base::ReduceBranch(condition, if_true, if_false, hint);
     Asm().AddPredecessor(saved_current_block, if_true, true);
     Asm().AddPredecessor(saved_current_block, if_false, true);
     return new_opindex;
@@ -169,7 +172,7 @@ class ReducerBase : public ReducerBaseForwarder<Next> {
   }
 
   OpIndex ReduceSwitch(OpIndex input, base::Vector<const SwitchOp::Case> cases,
-                       Block* default_case) {
+                       Block* default_case, BranchHint default_hint) {
 #ifdef DEBUG
     // Making sure that all cases and {default_case} are different. If we ever
     // decide to lift this condition, then AddPredecessor and SplitEdge should
@@ -182,7 +185,8 @@ class ReducerBase : public ReducerBaseForwarder<Next> {
     }
 #endif
     Block* saved_current_block = Asm().current_block();
-    OpIndex new_opindex = Base::ReduceSwitch(input, cases, default_case);
+    OpIndex new_opindex =
+        Base::ReduceSwitch(input, cases, default_case, default_hint);
     for (SwitchOp::Case c : cases) {
       Asm().AddPredecessor(saved_current_block, c.destination, true);
     }
@@ -846,8 +850,9 @@ class AssemblerOpInterface {
   }
 
   void Goto(Block* destination) { stack().ReduceGoto(destination); }
-  void Branch(OpIndex condition, Block* if_true, Block* if_false) {
-    stack().ReduceBranch(condition, if_true, if_false);
+  void Branch(OpIndex condition, Block* if_true, Block* if_false,
+              BranchHint hint = BranchHint::kNone) {
+    stack().ReduceBranch(condition, if_true, if_false, hint);
   }
   OpIndex Select(OpIndex cond, OpIndex vtrue, OpIndex vfalse,
                  RegisterRepresentation rep, BranchHint hint,
@@ -855,8 +860,9 @@ class AssemblerOpInterface {
     return stack().ReduceSelect(cond, vtrue, vfalse, rep, hint, implem);
   }
   void Switch(OpIndex input, base::Vector<const SwitchOp::Case> cases,
-              Block* default_case) {
-    stack().ReduceSwitch(input, cases, default_case);
+              Block* default_case,
+              BranchHint default_hint = BranchHint::kNone) {
+    stack().ReduceSwitch(input, cases, default_case, default_hint);
   }
   void Unreachable() { stack().ReduceUnreachable(); }
 
@@ -951,15 +957,17 @@ class AssemblerOpInterface {
   OpIndex LoadException() { return stack().ReduceLoadException(); }
 
   // Return `true` if the control flow after the conditional jump is reachable.
-  V8_WARN_UNUSED_RESULT bool GotoIf(OpIndex condition, Block* if_true) {
+  V8_WARN_UNUSED_RESULT bool GotoIf(OpIndex condition, Block* if_true,
+                                    BranchHint hint = BranchHint::kNone) {
     Block* if_false = stack().NewBlock();
-    stack().Branch(condition, if_true, if_false);
+    stack().Branch(condition, if_true, if_false, hint);
     return stack().Bind(if_false);
   }
   // Return `true` if the control flow after the conditional jump is reachable.
-  V8_WARN_UNUSED_RESULT bool GotoIfNot(OpIndex condition, Block* if_false) {
+  V8_WARN_UNUSED_RESULT bool GotoIfNot(OpIndex condition, Block* if_false,
+                                       BranchHint hint = BranchHint::kNone) {
     Block* if_true = stack().NewBlock();
-    stack().Branch(condition, if_true, if_false);
+    stack().Branch(condition, if_true, if_false, hint);
     return stack().Bind(if_true);
   }
 

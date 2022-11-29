@@ -534,12 +534,11 @@ class MachineOptimizationReducer : public Next {
           // lhs ** 0.5  ==>  sqrt(lhs)
           // (unless if lhs is -infinity)
           Block* if_neg_infinity = Asm().NewBlock();
-          if_neg_infinity->SetDeferred(true);
           Block* otherwise = Asm().NewBlock();
           Block* merge = Asm().NewBlock();
           Asm().Branch(Asm().FloatLessThanOrEqual(
                            lhs, Asm().FloatConstant(-V8_INFINITY, rep), rep),
-                       if_neg_infinity, otherwise);
+                       if_neg_infinity, otherwise, BranchHint::kFalse);
 
           // TODO(dmercadier,tebbi): once the VariableAssembler has landed, and
           // use only one AutoVariable both both {infty} and {sqrt} to avoid the
@@ -1495,9 +1494,10 @@ class MachineOptimizationReducer : public Next {
     return Next::ReduceShift(left, right, kind, rep);
   }
 
-  OpIndex ReduceBranch(OpIndex condition, Block* if_true, Block* if_false) {
+  OpIndex ReduceBranch(OpIndex condition, Block* if_true, Block* if_false,
+                       BranchHint hint) {
     if (ShouldSkipOptimizationStep()) {
-      return Next::ReduceBranch(condition, if_true, if_false);
+      return Next::ReduceBranch(condition, if_true, if_false, hint);
     }
     if (base::Optional<bool> decision = DecideBranchCondition(condition)) {
       Asm().Goto(*decision ? if_true : if_false);
@@ -1506,10 +1506,14 @@ class MachineOptimizationReducer : public Next {
     bool negated = false;
     if (base::Optional<OpIndex> new_condition =
             ReduceBranchCondition(condition, &negated)) {
-      if (negated) std::swap(if_true, if_false);
-      return Asm().ReduceBranch(new_condition.value(), if_true, if_false);
+      if (negated) {
+        std::swap(if_true, if_false);
+        hint = NegateBranchHint(hint);
+      }
+
+      return Asm().ReduceBranch(new_condition.value(), if_true, if_false, hint);
     } else {
-      return Next::ReduceBranch(condition, if_true, if_false);
+      return Next::ReduceBranch(condition, if_true, if_false, hint);
     }
   }
 
@@ -1575,9 +1579,9 @@ class MachineOptimizationReducer : public Next {
   }
 
   OpIndex ReduceSwitch(OpIndex input, base::Vector<const SwitchOp::Case> cases,
-                       Block* default_case) {
+                       Block* default_case, BranchHint default_hint) {
     LABEL_BLOCK(no_change) {
-      return Next::ReduceSwitch(input, cases, default_case);
+      return Next::ReduceSwitch(input, cases, default_case, default_hint);
     }
     if (ShouldSkipOptimizationStep()) goto no_change;
     if (int32_t value; Asm().MatchWord32Constant(input, &value)) {

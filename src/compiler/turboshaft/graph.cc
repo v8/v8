@@ -64,7 +64,6 @@ void Block::PrintDominatorTree(std::vector<const char*> tree_symbols,
 std::ostream& operator<<(std::ostream& os, PrintAsBlockHeader block_header) {
   const Block& block = block_header.block;
   os << block.kind() << " " << block_header.block_id;
-  if (block.IsDeferred()) os << " (deferred)";
   if (!block.Predecessors().empty()) {
     os << " <- ";
     bool first = true;

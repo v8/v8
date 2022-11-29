@@ -135,7 +135,6 @@ RecreateScheduleResult ScheduleBuilder::Run() {
   for (const Block& block : input_graph.blocks()) {
     current_input_block = &block;
     current_block = GetBlock(block);
-    current_block->set_deferred(current_input_block->IsDeferred());
     for (OpIndex op : input_graph.OperationIndices(block)) {
       DCHECK_NOT_NULL(current_block);
       ProcessOperation(input_graph.Get(op));
@@ -148,6 +147,10 @@ RecreateScheduleResult ScheduleBuilder::Run() {
 
   DCHECK(schedule->rpo_order()->empty());
   Scheduler::ComputeSpecialRPO(phase_zone, schedule);
+  // Note that Scheduler::GenerateDominatorTree also infers which blocks are
+  // deferred, so we only need to set branch targets as deferred based on the
+  // hints, and we let Scheduler::GenerateDominatorTree propagate this
+  // information to other blocks.
   Scheduler::GenerateDominatorTree(schedule);
   return {tf_graph, schedule};
 }
@@ -1289,13 +1292,22 @@ Node* ScheduleBuilder::ProcessOperation(const ReturnOp& op) {
   return nullptr;
 }
 Node* ScheduleBuilder::ProcessOperation(const BranchOp& op) {
-  Node* branch =
-      MakeNode(common.Branch(BranchHint::kNone), {GetNode(op.condition())});
+  Node* branch = MakeNode(common.Branch(op.hint), {GetNode(op.condition())});
   BasicBlock* true_block = GetBlock(*op.if_true);
   BasicBlock* false_block = GetBlock(*op.if_false);
   schedule->AddBranch(current_block, branch, true_block, false_block);
   schedule->AddNode(true_block, MakeNode(common.IfTrue(), {branch}));
   schedule->AddNode(false_block, MakeNode(common.IfFalse(), {branch}));
+  switch (op.hint) {
+    case BranchHint::kNone:
+      break;
+    case BranchHint::kTrue:
+      false_block->set_deferred(true);
+      break;
+    case BranchHint::kFalse:
+      true_block->set_deferred(false);
+      break;
+  }
   current_block = nullptr;
   return nullptr;
 }
@@ -1308,12 +1320,20 @@ Node* ScheduleBuilder::ProcessOperation(const SwitchOp& op) {
   for (SwitchOp::Case c : op.cases) {
     BasicBlock* case_block = GetBlock(*c.destination);
     successors.push_back(case_block);
-    Node* case_node = MakeNode(common.IfValue(c.value), {switch_node});
+    Node* case_node =
+        MakeNode(common.IfValue(c.value, 0, c.hint), {switch_node});
     schedule->AddNode(case_block, case_node);
+    if (c.hint == BranchHint::kFalse) {
+      case_block->set_deferred(true);
+    }
   }
   BasicBlock* default_block = GetBlock(*op.default_case);
   successors.push_back(default_block);
-  schedule->AddNode(default_block, MakeNode(common.IfDefault(), {switch_node}));
+  schedule->AddNode(default_block,
+                    MakeNode(common.IfDefault(op.default_hint), {switch_node}));
+  if (op.default_hint == BranchHint::kFalse) {
+    default_block->set_deferred(true);
+  }
 
   schedule->AddSwitch(current_block, switch_node, successors.data(),
                       successors.size());

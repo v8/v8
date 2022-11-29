@@ -165,7 +165,6 @@ class MemoryOptimizationReducer : public Next {
     }
 
     Block* call_runtime = Asm().NewBlock();
-    call_runtime->SetDeferred(true);
     Block* done = Asm().NewBlock();
 
     OpIndex limit_address = Asm().ExternalConstant(
@@ -187,13 +186,13 @@ class MemoryOptimizationReducer : public Next {
       reachable = Asm().GotoIfNot(
           Asm().UintPtrLessThan(
               size, Asm().IntPtrConstant(kMaxRegularHeapObjectSize)),
-          call_runtime);
+          call_runtime, BranchHint::kTrue);
     }
     if (reachable) {
       Asm().Branch(
           Asm().UintPtrLessThan(
               Asm().PointerAdd(Asm().Get(top), reservation_size), limit),
-          done, call_runtime);
+          done, call_runtime, BranchHint::kTrue);
     }
 
     // Call the runtime if bump pointer area exhausted.

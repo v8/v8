@@ -1970,41 +1970,49 @@ struct GotoOp : FixedArityOperationT<0, GotoOp> {
 struct BranchOp : FixedArityOperationT<1, BranchOp> {
   Block* if_true;
   Block* if_false;
+  BranchHint hint;
 
   static constexpr OpProperties properties = OpProperties::BlockTerminator();
   base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
 
   OpIndex condition() const { return input(0); }
 
-  BranchOp(OpIndex condition, Block* if_true, Block* if_false)
-      : Base(condition), if_true(if_true), if_false(if_false) {}
-  auto options() const { return std::tuple{if_true, if_false}; }
+  BranchOp(OpIndex condition, Block* if_true, Block* if_false, BranchHint hint)
+      : Base(condition), if_true(if_true), if_false(if_false), hint(hint) {}
+  auto options() const { return std::tuple{if_true, if_false, hint}; }
 };
 
 struct SwitchOp : FixedArityOperationT<1, SwitchOp> {
   struct Case {
     int32_t value;
     Block* destination;
+    BranchHint hint;
 
-    Case(int32_t value, Block* destination)
-        : value(value), destination(destination) {}
+    Case(int32_t value, Block* destination, BranchHint hint)
+        : value(value), destination(destination), hint(hint) {}
 
     bool operator==(const Case& other) const {
-      return value == other.value && destination == other.destination;
+      return value == other.value && destination == other.destination &&
+             hint == other.hint;
     }
   };
   base::Vector<const Case> cases;
   Block* default_case;
+  BranchHint default_hint;
 
   static constexpr OpProperties properties = OpProperties::BlockTerminator();
   base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
 
   OpIndex input() const { return Base::input(0); }
 
-  SwitchOp(OpIndex input, base::Vector<const Case> cases, Block* default_case)
-      : Base(input), cases(cases), default_case(default_case) {}
+  SwitchOp(OpIndex input, base::Vector<const Case> cases, Block* default_case,
+           BranchHint default_hint)
+      : Base(input),
+        cases(cases),
+        default_case(default_case),
+        default_hint(default_hint) {}
   void PrintOptions(std::ostream& os) const;
-  auto options() const { return std::tuple{cases, default_case}; }
+  auto options() const { return std::tuple{cases, default_case, default_hint}; }
 };
 
 template <>

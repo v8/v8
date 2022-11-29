@@ -281,9 +281,6 @@ class Block : public RandomAccessStackDominatorNode<Block> {
 
   BlockIndex index() const { return index_; }
 
-  bool IsDeferred() const { return deferred_; }
-  void SetDeferred(bool deferred) { deferred_ = deferred; }
-
   bool Contains(OpIndex op_idx) const {
     return begin_ <= op_idx && op_idx < end_;
   }
@@ -403,7 +400,6 @@ class Block : public RandomAccessStackDominatorNode<Block> {
   friend class Assembler;
 
   Kind kind_;
-  bool deferred_ = false;
   OpIndex begin_ = OpIndex::Invalid();
   OpIndex end_ = OpIndex::Invalid();
   BlockIndex index_ = BlockIndex::Invalid();
@@ -526,17 +522,7 @@ class Graph {
   V8_INLINE bool Add(Block* block) {
     DCHECK_EQ(block->graph_generation_, generation_);
     if (!bound_blocks_.empty() && !block->HasPredecessors()) return false;
-    if (!block->IsDeferred()) {
-      bool deferred = true;
-      for (Block* pred = block->last_predecessor_; pred != nullptr;
-           pred = pred->neighboring_predecessor_) {
-        if (!pred->IsDeferred()) {
-          deferred = false;
-          break;
-        }
-      }
-      block->SetDeferred(deferred);
-    }
+
     DCHECK(!block->begin_.valid());
     block->begin_ = next_operation_index();
     DCHECK_EQ(block->index_, BlockIndex::Invalid());
@@ -544,6 +530,7 @@ class Graph {
     bound_blocks_.push_back(block);
     uint32_t depth = block->ComputeDominator();
     dominator_tree_depth_ = std::max<uint32_t>(dominator_tree_depth_, depth);
+
     return true;
   }
 
