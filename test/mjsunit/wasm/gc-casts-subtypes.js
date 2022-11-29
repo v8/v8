@@ -11,9 +11,15 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 (function RefCastFromNull() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
+  builder.startRecGroup();
   let structSuper = builder.addStruct([makeField(kWasmI32, true)]);
+  builder.endRecGroup();
+  builder.startRecGroup();
   let structSub = builder.addStruct([makeField(kWasmI32, true)], structSuper);
+  builder.endRecGroup();
+  builder.startRecGroup();
   let array = builder.addArray(kWasmI32);
+  builder.endRecGroup();
 
   // Note: Casting between unrelated types is allowed as long as the types
   // belong to the same type hierarchy (func / any / extern). In these cases the
