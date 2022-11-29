@@ -1142,8 +1142,10 @@ void WasmGraphBuilder::TrapIfFalse(wasm::TrapReason reason, Node* cond,
 }
 
 Node* WasmGraphBuilder::AssertNotNull(Node* object,
-                                      wasm::WasmCodePosition position) {
-  Node* result = gasm_->AssertNotNull(object);
+                                      wasm::WasmCodePosition position,
+                                      wasm::TrapReason reason) {
+  TrapId trap_id = GetTrapIdForTrap(reason);
+  Node* result = gasm_->AssertNotNull(object, trap_id);
   SetSourcePosition(result, position);
   return result;
 }

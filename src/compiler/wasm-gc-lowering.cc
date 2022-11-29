@@ -248,7 +248,7 @@ Reduction WasmGCLowering::ReduceAssertNotNull(Node* node) {
   Node* object = NodeProperties::GetValueInput(node, 0);
   gasm_.InitializeEffectControl(effect, control);
   if (!v8_flags.experimental_wasm_skip_null_checks) {
-    gasm_.TrapIf(IsNull(object), TrapId::kTrapNullDereference);
+    gasm_.TrapIf(IsNull(object), TrapIdOf(node->op()));
   }
 
   ReplaceWithValue(node, object, gasm_.effect(), gasm_.control());

@@ -1093,8 +1093,8 @@ struct ControlBase : public PcForErrors<ValidationTag::full_validation> {
     bool null_succeeds)                                                        \
   F(RefCastAbstract, const Value& obj, HeapType type, Value* result,           \
     bool null_succeeds)                                                        \
-  F(AssertNull, const Value& obj, Value* result)                               \
-  F(AssertNotNull, const Value& obj, Value* result)                            \
+  F(AssertNullTypecheck, const Value& obj, Value* result)                      \
+  F(AssertNotNullTypecheck, const Value& obj, Value* result)                   \
   F(BrOnCast, const Value& obj, const Value& rtt, Value* result_on_branch,     \
     uint32_t depth)                                                            \
   F(BrOnCastFail, const Value& obj, const Value& rtt,                          \
@@ -4892,7 +4892,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
               CALL_INTERFACE(Drop);
             }
             if (obj.type.is_nullable() && !null_succeeds) {
-              CALL_INTERFACE(AssertNotNull, obj, &value);
+              CALL_INTERFACE(AssertNotNullTypecheck, obj, &value);
             } else {
               CALL_INTERFACE(Forward, obj, &value);
             }
@@ -4905,7 +4905,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
             // is null.
             if (obj.type.is_nullable() && null_succeeds) {
               // Drop rtt from the stack, then assert that obj is null.
-              CALL_INTERFACE(AssertNull, obj, &value);
+              CALL_INTERFACE(AssertNullTypecheck, obj, &value);
             } else {
               CALL_INTERFACE(Trap, TrapReason::kTrapIllegalCast);
               // We know that the following code is not reachable, but according
@@ -5115,7 +5115,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
             if (obj.type.is_nullable()) {
               // Drop rtt from the stack, then assert that obj is null.
               CALL_INTERFACE(Drop);
-              CALL_INTERFACE(AssertNull, obj, &value);
+              CALL_INTERFACE(AssertNullTypecheck, obj, &value);
             } else {
               CALL_INTERFACE(Trap, TrapReason::kTrapIllegalCast);
               // We know that the following code is not reachable, but according

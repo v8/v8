@@ -1086,7 +1086,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* VerifyType();
 
 #if V8_ENABLE_WEBASSEMBLY
-  const Operator* AssertNotNull();
+  const Operator* AssertNotNull(TrapId trap_id);
   const Operator* IsNull();
   const Operator* IsNotNull();
   const Operator* Null();

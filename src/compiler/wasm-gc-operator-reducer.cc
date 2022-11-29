@@ -266,7 +266,8 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCast(Node* node) {
     } else {
       gasm_.InitializeEffectControl(effect, control);
       return Replace(
-          SetType(gasm_.AssertNotNull(object), object_type.type.AsNonNull()));
+          SetType(gasm_.AssertNotNull(object, TrapId::kTrapIllegalCast),
+                  object_type.type.AsNonNull()));
     }
   }
 

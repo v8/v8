@@ -1200,14 +1200,16 @@ struct SimplifiedOperatorGlobalCache final {
   };
   NullOperator kNull;
 
-  struct AssertNotNullOperator final : public Operator {
-    AssertNotNullOperator()
-        : Operator(
+  struct AssertNotNullOperator final : public Operator1<TrapId> {
+    explicit AssertNotNullOperator(TrapId trap_id)
+        : Operator1(
               IrOpcode::kAssertNotNull,
               Operator::kNoWrite | Operator::kNoThrow | Operator::kIdempotent,
-              "AssertNotNull", 1, 1, 1, 1, 1, 1) {}
+              "AssertNotNull", 1, 1, 1, 1, 1, 1, trap_id) {}
   };
-  AssertNotNullOperator kAssertNotNull;
+  AssertNotNullOperator kAssertNotNullIllegalCast{TrapId::kTrapIllegalCast};
+  AssertNotNullOperator kAssertNotNullNullDereference{
+      TrapId::kTrapNullDereference};
 #endif
 
 #define SPECULATIVE_NUMBER_BINOP(Name)                                      \
@@ -1404,8 +1406,15 @@ const Operator* SimplifiedOperatorBuilder::RttCanon(int index) {
 
 const Operator* SimplifiedOperatorBuilder::Null() { return &cache_.kNull; }
 
-const Operator* SimplifiedOperatorBuilder::AssertNotNull() {
-  return &cache_.kAssertNotNull;
+const Operator* SimplifiedOperatorBuilder::AssertNotNull(TrapId trap_id) {
+  switch (trap_id) {
+    case TrapId::kTrapNullDereference:
+      return &cache_.kAssertNotNullNullDereference;
+    case TrapId::kTrapIllegalCast:
+      return &cache_.kAssertNotNullIllegalCast;
+    default:
+      UNREACHABLE();
+  }
 }
 
 const Operator* SimplifiedOperatorBuilder::IsNull() { return &cache_.kIsNull; }

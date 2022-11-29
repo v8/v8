@@ -255,7 +255,9 @@ class WasmGraphBuilder {
   Node* EffectPhi(unsigned count, Node** effects_and_control);
   Node* RefNull();
   Node* RefFunc(uint32_t function_index);
-  Node* AssertNotNull(Node* object, wasm::WasmCodePosition position);
+  Node* AssertNotNull(
+      Node* object, wasm::WasmCodePosition position,
+      wasm::TrapReason reason = wasm::TrapReason::kTrapNullDereference);
   Node* TraceInstruction(uint32_t mark_id);
   Node* Int32Constant(int32_t value);
   Node* Int64Constant(int64_t value);

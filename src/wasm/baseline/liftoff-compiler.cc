@@ -2642,8 +2642,8 @@ class LiftoffCompiler {
     __ AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
   }
 
-  void AssertNullImpl(FullDecoder* decoder, const Value& arg, Value* result,
-                      LiftoffCondition cond) {
+  void AssertNullTypecheckImpl(FullDecoder* decoder, const Value& arg,
+                               Value* result, LiftoffCondition cond) {
     LiftoffRegList pinned;
     LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
     Label* trap_label =
@@ -2658,12 +2658,14 @@ class LiftoffCompiler {
     __ PushRegister(kRefNull, obj);
   }
 
-  void AssertNull(FullDecoder* decoder, const Value& arg, Value* result) {
-    AssertNullImpl(decoder, arg, result, kUnequal);
+  void AssertNullTypecheck(FullDecoder* decoder, const Value& arg,
+                           Value* result) {
+    AssertNullTypecheckImpl(decoder, arg, result, kUnequal);
   }
 
-  void AssertNotNull(FullDecoder* decoder, const Value& arg, Value* result) {
-    AssertNullImpl(decoder, arg, result, kEqual);
+  void AssertNotNullTypecheck(FullDecoder* decoder, const Value& arg,
+                              Value* result) {
+    AssertNullTypecheckImpl(decoder, arg, result, kEqual);
   }
 
   void NopForTestingUnsupportedInLiftoff(FullDecoder* decoder) {
@@ -6067,7 +6069,7 @@ class LiftoffCompiler {
       case HeapType::kNoExtern:
       case HeapType::kNoFunc:
         DCHECK(null_succeeds);
-        return AssertNull(decoder, obj, result_val);
+        return AssertNullTypecheck(decoder, obj, result_val);
       case HeapType::kAny:
         // Any may never need a cast as it is either implicitly convertible or
         // never convertible for any given type.

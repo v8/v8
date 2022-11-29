@@ -56,7 +56,11 @@ std::ostream& operator<<(std::ostream& os, TrapId trap_id) {
 
 TrapId TrapIdOf(const Operator* const op) {
   DCHECK(op->opcode() == IrOpcode::kTrapIf ||
-         op->opcode() == IrOpcode::kTrapUnless);
+         op->opcode() == IrOpcode::kTrapUnless
+#if V8_ENABLE_WEBASSEMBLY
+         || op->opcode() == IrOpcode::kAssertNotNull
+#endif
+  );
   return OpParameter<TrapId>(op);
 }
 
