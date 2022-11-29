@@ -983,6 +983,10 @@
   # not possible.
   'wasm/serialization-with-compilation-hints': [SKIP],
 
+  # The test enables the global profiler, and there can only exist one profiler
+  # at a time.
+  'wasm/log-code-after-post-message': [SKIP],
+
   # The test explicitly deserializes a wasm module and expects the resulting
   # wasm module to match the serialized one. With multiple isolate the resulting
   # wasm module can however, come from the native module cache, and therefore

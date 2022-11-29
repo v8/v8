@@ -4,6 +4,12 @@
 
 #include "src/d8/d8-console.h"
 
+#include <stdio.h>
+
+#include <fstream>
+
+#include "include/v8-profiler.h"
+#include "src/d8/d8.h"
 #include "src/execution/isolate.h"
 
 namespace v8 {
@@ -34,10 +40,47 @@ void WriteToFile(const char* prefix, FILE* file, Isolate* isolate,
   // often used for timing, so it should appear as soon as the code is executed.
   fflush(file);
 }
+
+class FileOutputStream : public v8::OutputStream {
+ public:
+  explicit FileOutputStream(const char* filename)
+      : os_(filename, std::ios_base::out | std::ios_base::trunc) {}
+
+  WriteResult WriteAsciiChunk(char* data, int size) override {
+    os_.write(data, size);
+    return kContinue;
+  }
+
+  void EndOfStream() override { os_.close(); }
+
+ private:
+  std::ofstream os_;
+};
+
+static constexpr const char* kCpuProfileOutputFilename = "v8.prof";
+
+class StringOutputStream : public v8::OutputStream {
+ public:
+  WriteResult WriteAsciiChunk(char* data, int size) override {
+    os_.write(data, size);
+    return kContinue;
+  }
+
+  void EndOfStream() override {}
+
+  std::string result() { return os_.str(); }
+
+ private:
+  std::ostringstream os_;
+};
 }  // anonymous namespace
 
 D8Console::D8Console(Isolate* isolate) : isolate_(isolate) {
   default_timer_ = base::TimeTicks::Now();
+}
+
+D8Console::~D8Console() {
+  if (profiler_) profiler_->Dispose();
 }
 
 void D8Console::Assert(const debug::ConsoleCallArguments& args,
@@ -72,6 +115,31 @@ void D8Console::Info(const debug::ConsoleCallArguments& args,
 void D8Console::Debug(const debug::ConsoleCallArguments& args,
                       const v8::debug::ConsoleContext&) {
   WriteToFile("console.debug", stdout, isolate_, args);
+}
+
+void D8Console::Profile(const debug::ConsoleCallArguments& args,
+                        const v8::debug::ConsoleContext&) {
+  if (!profiler_) {
+    profiler_ = CpuProfiler::New(isolate_);
+    Shell::SetCpuProfiler(profiler_);
+  }
+  profiler_->StartProfiling(String::Empty(isolate_), CpuProfilingOptions{});
+}
+
+void D8Console::ProfileEnd(const debug::ConsoleCallArguments& args,
+                           const v8::debug::ConsoleContext&) {
+  if (!profiler_) return;
+  CpuProfile* profile = profiler_->StopProfiling(String::Empty(isolate_));
+  if (Shell::HasOnProfileEndListener()) {
+    StringOutputStream out;
+    profile->Serialize(&out);
+    Shell::TriggerOnProfileEndListener(isolate_, out.result());
+    Shell::ResetCpuProfiler();
+  } else {
+    FileOutputStream out(kCpuProfileOutputFilename);
+    profile->Serialize(&out);
+  }
+  profile->Delete();
 }
 
 void D8Console::Time(const debug::ConsoleCallArguments& args,

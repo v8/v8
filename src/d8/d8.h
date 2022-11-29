@@ -598,6 +598,22 @@ class Shell : public i::AllStatic {
   static void SerializerDeserialize(
       const v8::FunctionCallbackInfo<v8::Value>& args);
 
+  static void ProfilerSetOnProfileEndListener(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ProfilerTriggerSample(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  static bool HasOnProfileEndListener();
+
+  static void TriggerOnProfileEndListener(Isolate* isolate,
+                                          std::string profile);
+
+  static void SetCpuProfiler(CpuProfiler* cpu_profiler) {
+    cpu_profiler_ = cpu_profiler;
+  }
+
+  static void ResetCpuProfiler() { cpu_profiler_ = nullptr; }
+
   static void Print(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void PrintErr(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void WriteStdout(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -734,6 +750,11 @@ class Shell : public i::AllStatic {
   static Global<Context> evaluation_context_;
   static base::OnceType quit_once_;
   static Global<Function> stringify_function_;
+
+  static Global<Function> profile_end_callback_;
+  static Global<Context> profile_end_callback_context_;
+  static CpuProfiler* cpu_profiler_;
+
   static const char* stringify_source_;
   static CounterMap* counter_map_;
   static base::SharedMutex counter_mutex_;

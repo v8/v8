@@ -465,6 +465,9 @@ CounterCollection* Shell::counters_ = &local_counters_;
 base::LazyMutex Shell::context_mutex_;
 const base::TimeTicks Shell::kInitialTicks = base::TimeTicks::Now();
 Global<Function> Shell::stringify_function_;
+Global<Function> Shell::profile_end_callback_;
+Global<Context> Shell::profile_end_callback_context_;
+CpuProfiler* Shell::cpu_profiler_ = nullptr;
 base::LazyMutex Shell::workers_mutex_;
 bool Shell::allow_new_workers_ = true;
 std::unordered_set<std::shared_ptr<Worker>> Shell::running_workers_;
@@ -2509,6 +2512,47 @@ void Shell::SerializerDeserialize(
   args.GetReturnValue().Set(result);
 }
 
+void Shell::ProfilerSetOnProfileEndListener(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  HandleScope handle_scope(isolate);
+  if (!args[0]->IsFunction()) {
+    isolate->ThrowError("The OnProfileEnd listener has to be a function");
+  }
+  profile_end_callback_.Reset(isolate, args[0].As<Function>());
+  profile_end_callback_context_.Reset(isolate, isolate->GetCurrentContext());
+}
+
+bool Shell::HasOnProfileEndListener() {
+  CHECK_EQ(profile_end_callback_.IsEmpty(),
+           profile_end_callback_context_.IsEmpty());
+  return !profile_end_callback_.IsEmpty();
+}
+
+void Shell::ProfilerTriggerSample(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  if (cpu_profiler_) {
+    Isolate* isolate = args.GetIsolate();
+    cpu_profiler_->CollectSample(isolate);
+  }
+}
+
+void Shell::TriggerOnProfileEndListener(Isolate* isolate, std::string profile) {
+  CHECK(HasOnProfileEndListener());
+  Local<Value> argv[1] = {
+      String::NewFromUtf8(isolate, profile.c_str()).ToLocalChecked()};
+  Local<Context> context = profile_end_callback_context_.Get(isolate);
+  TryCatch try_catch(isolate);
+  try_catch.SetVerbose(true);
+  USE(profile_end_callback_.Get(isolate)->Call(context, Undefined(isolate), 1,
+                                               argv));
+  // The profiler callback may have been set up on a worker. We reset the
+  // callbacks now to avoid problems in the shutdown sequence of the worker and
+  // the main thread.
+  profile_end_callback_.Reset();
+  profile_end_callback_context_.Reset();
+}
+
 void WriteToFile(FILE* file, const v8::FunctionCallbackInfo<v8::Value>& args) {
   for (int i = 0; i < args.Length(); i++) {
     HandleScope handle_scope(args.GetIsolate());
@@ -3534,6 +3578,16 @@ Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
         FunctionTemplate::New(isolate, SerializerDeserialize, Local<Value>(),
                               Local<Signature>(), 1));
     d8_template->Set(isolate, "serializer", serializer_template);
+  }
+  {
+    Local<ObjectTemplate> profiler_template = ObjectTemplate::New(isolate);
+    profiler_template->Set(
+        isolate, "setOneShotOnProfileEndListener",
+        FunctionTemplate::New(isolate, ProfilerSetOnProfileEndListener));
+    profiler_template->Set(
+        isolate, "triggerSample",
+        FunctionTemplate::New(isolate, ProfilerTriggerSample));
+    d8_template->Set(isolate, "profiler", profiler_template);
   }
   return d8_template;
 }
@@ -5919,6 +5973,8 @@ int Shell::Main(int argc, char* argv[]) {
       cached_code_map_.clear();
       evaluation_context_.Reset();
       stringify_function_.Reset();
+      profile_end_callback_.Reset();
+      profile_end_callback_context_.Reset();
       CollectGarbage(isolate);
 #ifdef V8_FUZZILLI
       // Send result to parent (fuzzilli) and reset edge guards.
