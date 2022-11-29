@@ -3183,6 +3183,39 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
     pipeline.Run<PrintGraphPhase>("V8.TFMachineCode");
   }
 
+  int initial_graph_hash = 0;
+  if (v8_flags.turbo_profiling || profile_data != nullptr) {
+    initial_graph_hash = HashGraphForPGO(data.graph());
+  }
+
+  if (profile_data != nullptr && profile_data->hash() != initial_graph_hash) {
+    if (v8_flags.abort_on_bad_builtin_profile_data ||
+        v8_flags.warn_about_builtin_profile_data) {
+      base::EmbeddedVector<char, 256> msg;
+      SNPrintF(msg,
+               "Rejected profile data for %s due to function change. "
+               "Please use tools/builtins-pgo/generate.py to refresh it.",
+               debug_name);
+      if (v8_flags.abort_on_bad_builtin_profile_data) {
+        // mksnapshot might fail here because of the following reasons:
+        // * builtins were changed since the builtins profile generation,
+        // * current build options affect builtins code and they don't match
+        //   the options used for building the profile (for example, it might
+        //   be because of gn argument 'dcheck_always_on=true').
+        // To fix the issue one must either update the builtins PGO profiles
+        // (see tools/builtins-pgo/generate.py) or disable builtins PGO by
+        // setting gn argument v8_builtins_profiling_log_file="".
+        // One might also need to update the tools/builtins-pgo/generate.py if
+        // the set of default release arguments has changed.
+        FATAL("%s", msg.begin());
+      } else {
+        PrintF("%s\n", msg.begin());
+      }
+    }
+    profile_data = nullptr;
+    data.set_profile_data(profile_data);
+  }
+
   pipeline.Run<CsaEarlyOptimizationPhase>();
   pipeline.RunPrintAndVerify(CsaEarlyOptimizationPhase::phase_name(), true);
 
@@ -3203,22 +3236,6 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
 
   pipeline.Run<VerifyGraphPhase>(true);
 
-  int graph_hash_before_scheduling = 0;
-  if (v8_flags.turbo_profiling || profile_data != nullptr) {
-    graph_hash_before_scheduling = HashGraphForPGO(data.graph());
-  }
-
-  if (profile_data != nullptr &&
-      profile_data->hash() != graph_hash_before_scheduling) {
-    if (v8_flags.warn_about_builtin_profile_data) {
-      PrintF("Rejected profile data for %s due to function change\n",
-             debug_name);
-      PrintF("Please use tools/builtins-pgo/generate.py to refresh it.\n");
-    }
-    profile_data = nullptr;
-    data.set_profile_data(profile_data);
-  }
-
   pipeline.ComputeScheduledGraph();
   DCHECK_NOT_NULL(data.schedule());
 
@@ -3237,7 +3254,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
   second_pipeline.SelectInstructionsAndAssemble(call_descriptor);
 
   if (v8_flags.turbo_profiling) {
-    info.profiler_data()->SetHash(graph_hash_before_scheduling);
+    info.profiler_data()->SetHash(initial_graph_hash);
   }
 
   if (jump_opt.is_optimizable()) {

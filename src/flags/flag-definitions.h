@@ -916,6 +916,8 @@ DEFINE_STRING(
     "emit data about basic block usage in builtins to this file "
     "(requires that V8 was built with v8_enable_builtins_profiling=true)")
 
+DEFINE_BOOL(abort_on_bad_builtin_profile_data, false,
+            "flag for mksnapshot, abort if builtins profile can't be applied")
 DEFINE_BOOL(
     warn_about_builtin_profile_data, false,
     "flag for mksnapshot, emit warnings when applying builtin profile data")

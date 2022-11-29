@@ -463,13 +463,26 @@ if (v8_enable_maglev == "") {
 }
 if (v8_builtins_profiling_log_file == "default") {
   v8_builtins_profiling_log_file = ""
-  if (is_debug == false) {
-    if (v8_current_cpu == "x64") {
+
+  # Don't use existing profile when
+  # * generating a new one (i.e. v8_enable_builtins_profiling),
+  # * is_debug or dcheck_always_on because they add more checks to the
+  #   builtins control flow which we don't want to generate,
+  # * v8_enable_webassembly because it changes the set of opcodes which affects
+  #   graphs hashes,
+  # * !is_clang because it might affect argument evaluation order, which
+  #    makes node IDs not predictable for subgraphs like Op1(Op2(), Op3()) and
+  #    as a result different graph hash.
+  if (!v8_enable_builtins_profiling && is_clang && !is_debug &&
+      !dcheck_always_on && v8_enable_webassembly) {
+    if ((v8_current_cpu == "x64" || v8_current_cpu == "arm64") &&
+        v8_enable_pointer_compression && v8_enable_external_code_space) {
+      # Note, currently x64 profile can be applied to arm64 but not the other
+      # way round.
       v8_builtins_profiling_log_file = "tools/builtins-pgo/x64.profile"
-    } else if (v8_current_cpu == "arm64") {
-      v8_builtins_profiling_log_file = "tools/builtins-pgo/arm64.profile"
-    } else if (v8_current_cpu == "arm") {
-      v8_builtins_profiling_log_file = "tools/builtins-pgo/arm.profile"
+    } else if (v8_current_cpu == "x86" || v8_current_cpu == "arm") {
+      # Note, x86 profile can be applied to arm but not the other way round.
+      v8_builtins_profiling_log_file = "tools/builtins-pgo/x86.profile"
     }
   }
 }
@@ -2157,6 +2170,10 @@ template("run_mksnapshot") {
         "--turbo-profiling-input",
         rebase_path(v8_builtins_profiling_log_file, root_build_dir),
       ]
+
+      # Replace this with --warn-about-builtin-profile-data to see the full
+      # list of builtins with incompatible profiles.
+      args += [ "--abort-on-bad-builtin-profile-data" ]
     }
 
     # This is needed to distinguish between generating code for the simulator
