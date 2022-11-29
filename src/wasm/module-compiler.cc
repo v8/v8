@@ -2147,7 +2147,6 @@ class AsyncStreamingProcessor final : public StreamingProcessor {
   bool prefix_cache_hit_ = false;
   bool before_code_section_ = true;
   std::shared_ptr<Counters> async_counters_;
-  AccountingAllocator* allocator_;
 
   // Running hash of the wire bytes up to code section size, but excluding the
   // code section itself. Used by the {NativeModuleCache} to detect potential
@@ -2729,11 +2728,10 @@ void AsyncCompileJob::FinishModule() {
 AsyncStreamingProcessor::AsyncStreamingProcessor(
     AsyncCompileJob* job, std::shared_ptr<Counters> async_counters,
     AccountingAllocator* allocator)
-    : decoder_(job->enabled_features_),
+    : decoder_(job->enabled_features_, allocator),
       job_(job),
       compilation_unit_builder_(nullptr),
-      async_counters_(async_counters),
-      allocator_(allocator) {}
+      async_counters_(async_counters) {}
 
 AsyncStreamingProcessor::~AsyncStreamingProcessor() {
   if (job_->native_module_ && job_->native_module_->wire_bytes().empty()) {
@@ -2786,7 +2784,6 @@ void AsyncStreamingProcessor::FinishAsyncCompileJobWithError(
 bool AsyncStreamingProcessor::ProcessModuleHeader(
     base::Vector<const uint8_t> bytes, uint32_t offset) {
   TRACE_STREAMING("Process module header...\n");
-  decoder_.StartDecoding(GetWasmEngine()->allocator());
   decoder_.DecodeModuleHeader(bytes, offset);
   if (!decoder_.ok()) {
     FinishAsyncCompileJobWithError(decoder_.FinishDecoding().error());
@@ -2925,8 +2922,8 @@ void AsyncStreamingProcessor::ProcessFunctionBody(
   if (validate_lazily_compiled_function) {
     // The native module does not own the wire bytes until {SetWireBytes} is
     // called in {OnFinishedStream}. Validation must use {bytes} parameter.
-    DecodeResult result = ValidateSingleFunction(module, func_index, bytes,
-                                                 allocator_, enabled_features);
+    DecodeResult result = ValidateSingleFunction(
+        module, func_index, bytes, module->allocator(), enabled_features);
 
     if (result.failed()) {
       FinishAsyncCompileJobWithError(result.error(), kErrorInFunction);

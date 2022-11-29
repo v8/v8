@@ -307,13 +307,17 @@ class ModuleDecoderTemplate : public Decoder {
  public:
   ModuleDecoderTemplate(WasmFeatures enabled_features,
                         base::Vector<const uint8_t> wire_bytes,
-                        ModuleOrigin origin, Tracer& tracer)
+                        ModuleOrigin origin, AccountingAllocator* allocator,
+                        Tracer& tracer)
       : Decoder(wire_bytes),
         enabled_features_(enabled_features),
+        module_(std::make_shared<WasmModule>(
+            std::make_unique<Zone>(allocator, "signatures"))),
         module_start_(wire_bytes.begin()),
         module_end_(wire_bytes.end()),
-        tracer_(tracer),
-        origin_(origin) {}
+        tracer_(tracer) {
+    module_->origin = origin;
+  }
 
   void onFirstError() override {
     pc_ = end_;  // On error, terminate section decoding loop.
@@ -343,16 +347,6 @@ class ModuleDecoderTemplate : public Decoder {
       OFStream os(stderr);
       os << "Error while dumping wasm file to " << path << std::endl;
     }
-  }
-
-  void StartDecoding(AccountingAllocator* allocator) {
-    CHECK_NULL(module_);
-    module_.reset(
-        new WasmModule(std::make_unique<Zone>(allocator, "signatures")));
-    module_->initial_pages = 0;
-    module_->maximum_pages = 0;
-    module_->mem_export = false;
-    module_->origin = origin_;
   }
 
   void DecodeModuleHeader(base::Vector<const uint8_t> bytes, uint8_t offset) {
@@ -1013,7 +1007,8 @@ class ModuleDecoderTemplate : public Decoder {
       tracer_.NextLine();
     }
     // Check for duplicate exports (except for asm.js).
-    if (ok() && origin_ == kWasmOrigin && module_->export_table.size() > 1) {
+    if (ok() && module_->origin == kWasmOrigin &&
+        module_->export_table.size() > 1) {
       std::vector<WasmExport> sorted_exports(module_->export_table);
 
       auto cmp_less = [this](const WasmExport& a, const WasmExport& b) {
@@ -1605,8 +1600,7 @@ class ModuleDecoderTemplate : public Decoder {
   }
 
   // Decodes an entire module.
-  ModuleResult DecodeModule(AccountingAllocator* allocator,
-                            bool validate_functions) {
+  ModuleResult DecodeModule(bool validate_functions) {
     base::Vector<const byte> wire_bytes(start_, end_ - start_);
     size_t max_size = max_module_size();
     if (wire_bytes.size() > max_size) {
@@ -1614,7 +1608,6 @@ class ModuleDecoderTemplate : public Decoder {
                                     max_size, wire_bytes.size()}};
     }
 
-    StartDecoding(allocator);
     uint32_t offset = 0;
     DecodeModuleHeader(wire_bytes, offset);
     if (failed()) return toResult(nullptr);
@@ -1711,7 +1704,6 @@ class ModuleDecoderTemplate : public Decoder {
       kBitsPerByte * sizeof(ModuleDecoderTemplate::seen_unordered_sections_) >
           kLastKnownModuleSection,
       "not enough bits");
-  ModuleOrigin origin_;
   AccountingAllocator allocator_;
   Zone init_expr_zone_{&allocator_, "constant expr. zone"};
 
@@ -2076,7 +2068,8 @@ class ModuleDecoderTemplate : public Decoder {
     uint32_t type_length;
     ValueType result = value_type_reader::read_value_type<FullValidationTag>(
         this, pc_, &type_length,
-        origin_ == kWasmOrigin ? enabled_features_ : WasmFeatures::None());
+        module_->origin == kWasmOrigin ? enabled_features_
+                                       : WasmFeatures::None());
     value_type_reader::ValidateValueType<FullValidationTag>(
         this, pc_, module_.get(), result);
     tracer_.Bytes(pc_, type_length);

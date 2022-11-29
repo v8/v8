@@ -573,10 +573,10 @@ class OffsetsProvider {
     data_offsets_.reserve(module->data_segments.size());
 
     using OffsetsCollectingDecoder = ModuleDecoderTemplate<OffsetsProvider>;
-    OffsetsCollectingDecoder decoder(WasmFeatures::All(), wire_bytes,
-                                     kWasmOrigin, *this);
+    OffsetsCollectingDecoder decoder{WasmFeatures::All(), wire_bytes,
+                                     kWasmOrigin, allocator, *this};
     constexpr bool kNoVerifyFunctions = false;
-    decoder.DecodeModule(allocator, kNoVerifyFunctions);
+    decoder.DecodeModule(kNoVerifyFunctions);
 
     enabled_ = true;
   }
