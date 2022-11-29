@@ -4,13 +4,10 @@
 
 #if defined(CPPGC_YOUNG_GENERATION)
 
-#include <algorithm>
 #include <memory>
-#include <vector>
 
 #include "include/cppgc/allocation.h"
 #include "include/cppgc/garbage-collected.h"
-#include "include/cppgc/persistent.h"
 #include "include/cppgc/testing.h"
 #include "include/v8-context.h"
 #include "include/v8-cppgc.h"
@@ -31,25 +28,9 @@ namespace internal {
 
 namespace {
 
-bool IsHeapObjectYoung(void* obj) {
-  return cppgc::internal::HeapObjectHeader::FromObject(obj).IsYoung();
-}
-
-bool IsHeapObjectOld(void* obj) { return !IsHeapObjectYoung(obj); }
-
 class Wrappable final : public cppgc::GarbageCollected<Wrappable> {
  public:
   static size_t destructor_callcount;
-
-  Wrappable() = default;
-  Wrappable(v8::Isolate* isolate, v8::Local<v8::Object> local)
-      : wrapper_(isolate, local) {}
-
-  Wrappable(const Wrappable&) = default;
-  Wrappable(Wrappable&&) = default;
-
-  Wrappable& operator=(const Wrappable&) = default;
-  Wrappable& operator=(Wrappable&&) = default;
 
   ~Wrappable() { destructor_callcount++; }
 
@@ -76,81 +57,6 @@ class MinorMCEnabler {
  private:
   FlagScope<bool> minor_mc_;
   FlagScope<bool> cppgc_young_generation_;
-};
-
-class YoungWrapperCollector : public RootVisitor {
- public:
-  using YoungWrappers = std::set<Address>;
-
-  void VisitRootPointers(Root root, const char*, FullObjectSlot start,
-                         FullObjectSlot end) override {
-    for (FullObjectSlot p = start; p < end; ++p) {
-      all_young_wrappers_.insert(*p.location());
-    }
-  }
-
-  YoungWrappers get_wrappers() { return std::move(all_young_wrappers_); }
-
- private:
-  YoungWrappers all_young_wrappers_;
-};
-
-class ExpectCppGCToV8GenerationalBarrierToFire {
- public:
-  ExpectCppGCToV8GenerationalBarrierToFire(
-      v8::Isolate& isolate, std::initializer_list<Address> expected_wrappers)
-      : isolate_(reinterpret_cast<Isolate&>(isolate)),
-        expected_wrappers_(expected_wrappers) {
-    YoungWrapperCollector visitor;
-    isolate_.traced_handles()->IterateYoung(&visitor);
-    young_wrappers_before_ = visitor.get_wrappers();
-
-    std::vector<Address> diff;
-    std::set_intersection(young_wrappers_before_.begin(),
-                          young_wrappers_before_.end(),
-                          expected_wrappers_.begin(), expected_wrappers_.end(),
-                          std::back_inserter(diff));
-    EXPECT_TRUE(diff.empty());
-  }
-
-  ~ExpectCppGCToV8GenerationalBarrierToFire() {
-    YoungWrapperCollector visitor;
-    isolate_.traced_handles()->IterateYoung(&visitor);
-    const auto young_wrappers_after = visitor.get_wrappers();
-    EXPECT_GE(young_wrappers_after.size(), young_wrappers_before_.size());
-
-    EXPECT_TRUE(
-        std::includes(young_wrappers_after.begin(), young_wrappers_after.end(),
-                      expected_wrappers_.begin(), expected_wrappers_.end()));
-    EXPECT_EQ(expected_wrappers_.size(),
-              young_wrappers_after.size() - young_wrappers_before_.size());
-  }
-
- private:
-  Isolate& isolate_;
-  YoungWrapperCollector::YoungWrappers expected_wrappers_;
-  YoungWrapperCollector::YoungWrappers young_wrappers_before_;
-};
-
-class ExpectCppGCToV8NoGenerationalBarrier {
- public:
-  explicit ExpectCppGCToV8NoGenerationalBarrier(v8::Isolate& isolate)
-      : isolate_(reinterpret_cast<Isolate&>(isolate)) {
-    YoungWrapperCollector visitor;
-    isolate_.traced_handles()->IterateYoung(&visitor);
-    young_wrappers_before_ = visitor.get_wrappers();
-  }
-
-  ~ExpectCppGCToV8NoGenerationalBarrier() {
-    YoungWrapperCollector visitor;
-    isolate_.traced_handles()->IterateYoung(&visitor);
-    const auto young_wrappers_after = visitor.get_wrappers();
-    EXPECT_EQ(young_wrappers_before_, young_wrappers_after);
-  }
-
- private:
-  Isolate& isolate_;
-  YoungWrapperCollector::YoungWrappers young_wrappers_before_;
 };
 
 }  // namespace
@@ -246,144 +152,6 @@ TEST_F(YoungUnifiedHeapTest, GenerationalBarrierV8ToCppGCReference) {
   Wrappable::destructor_callcount = 0;
   CollectYoungGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
   EXPECT_EQ(0u, Wrappable::destructor_callcount);
-}
-
-TEST_F(YoungUnifiedHeapTest,
-       GenerationalBarrierCppGCToV8NoInitializingStoreBarrier) {
-  if (i::v8_flags.single_generation) return;
-
-  v8::HandleScope handle_scope(v8_isolate());
-  v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
-  v8::Context::Scope context_scope(context);
-
-  auto local = v8::Object::New(v8_isolate());
-  {
-    ExpectCppGCToV8NoGenerationalBarrier expect_no_barrier(*v8_isolate());
-    auto* wrappable = cppgc::MakeGarbageCollected<Wrappable>(
-        allocation_handle(), v8_isolate(), local);
-    auto* copied_wrappable =
-        cppgc::MakeGarbageCollected<Wrappable>(allocation_handle(), *wrappable);
-    auto* moved_wrappable = cppgc::MakeGarbageCollected<Wrappable>(
-        allocation_handle(), std::move(*wrappable));
-    USE(moved_wrappable);
-    USE(copied_wrappable);
-    USE(wrappable);
-  }
-}
-
-TEST_F(YoungUnifiedHeapTest, GenerationalBarrierCppGCToV8ReferenceReset) {
-  if (i::v8_flags.single_generation) return;
-
-  v8::HandleScope handle_scope(v8_isolate());
-  v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
-  v8::Context::Scope context_scope(context);
-
-  cppgc::Persistent<Wrappable> wrappable_object =
-      cppgc::MakeGarbageCollected<Wrappable>(allocation_handle());
-
-  EXPECT_TRUE(IsHeapObjectYoung(wrappable_object.Get()));
-  CollectAllAvailableGarbage();
-  EXPECT_EQ(0u, Wrappable::destructor_callcount);
-  EXPECT_TRUE(IsHeapObjectOld(wrappable_object.Get()));
-
-  {
-    v8::HandleScope inner_handle_scope(v8_isolate());
-    auto local = v8::Object::New(v8_isolate());
-    EXPECT_TRUE(local->IsObject());
-    {
-      ExpectCppGCToV8GenerationalBarrierToFire expect_barrier(
-          *v8_isolate(), {*reinterpret_cast<Address*>(*local)});
-      wrappable_object->SetWrapper(v8_isolate(), local);
-    }
-  }
-
-  CollectYoungGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
-  auto local = wrappable_object->wrapper().Get(v8_isolate());
-  EXPECT_TRUE(local->IsObject());
-}
-
-TEST_F(YoungUnifiedHeapTest, GenerationalBarrierCppGCToV8ReferenceCopy) {
-  if (i::v8_flags.single_generation) return;
-
-  v8::HandleScope handle_scope(v8_isolate());
-  v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
-  v8::Context::Scope context_scope(context);
-
-  cppgc::Persistent<Wrappable> wrappable_object =
-      cppgc::MakeGarbageCollected<Wrappable>(allocation_handle());
-
-  EXPECT_TRUE(IsHeapObjectYoung(wrappable_object.Get()));
-  CollectAllAvailableGarbage();
-  EXPECT_EQ(0u, Wrappable::destructor_callcount);
-  EXPECT_TRUE(IsHeapObjectOld(wrappable_object.Get()));
-
-  {
-    v8::HandleScope inner_handle_scope(v8_isolate());
-    auto local = v8::Object::New(v8_isolate());
-    EXPECT_TRUE(local->IsObject());
-
-    Wrappable* another_wrappable_object = nullptr;
-    {
-      // Assign to young host and expect no barrier.
-      ExpectCppGCToV8NoGenerationalBarrier expect_no_barrier(*v8_isolate());
-      another_wrappable_object =
-          cppgc::MakeGarbageCollected<Wrappable>(allocation_handle());
-      another_wrappable_object->SetWrapper(v8_isolate(), local);
-    }
-    {
-      // Assign to old object using TracedReference::operator= and expect
-      // the barrier to trigger.
-      ExpectCppGCToV8GenerationalBarrierToFire expect_barrier(
-          *v8_isolate(), {*reinterpret_cast<Address*>(*local)});
-      *wrappable_object = *another_wrappable_object;
-    }
-  }
-
-  CollectYoungGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
-  auto local = wrappable_object->wrapper().Get(v8_isolate());
-  EXPECT_TRUE(local->IsObject());
-}
-
-TEST_F(YoungUnifiedHeapTest, GenerationalBarrierCppGCToV8ReferenceMove) {
-  if (i::v8_flags.single_generation) return;
-
-  v8::HandleScope handle_scope(v8_isolate());
-  v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
-  v8::Context::Scope context_scope(context);
-
-  cppgc::Persistent<Wrappable> wrappable_object =
-      cppgc::MakeGarbageCollected<Wrappable>(allocation_handle());
-
-  EXPECT_TRUE(IsHeapObjectYoung(wrappable_object.Get()));
-  CollectAllAvailableGarbage();
-  EXPECT_EQ(0u, Wrappable::destructor_callcount);
-  EXPECT_TRUE(IsHeapObjectOld(wrappable_object.Get()));
-
-  {
-    v8::HandleScope inner_handle_scope(v8_isolate());
-    auto local = v8::Object::New(v8_isolate());
-    EXPECT_TRUE(local->IsObject());
-
-    Wrappable* another_wrappable_object = nullptr;
-    {
-      // Assign to young host and expect no barrier.
-      ExpectCppGCToV8NoGenerationalBarrier expect_no_barrier(*v8_isolate());
-      another_wrappable_object =
-          cppgc::MakeGarbageCollected<Wrappable>(allocation_handle());
-      another_wrappable_object->SetWrapper(v8_isolate(), local);
-    }
-    {
-      // Assign to old object using TracedReference::operator= and expect
-      // the barrier to trigger.
-      ExpectCppGCToV8GenerationalBarrierToFire expect_barrier(
-          *v8_isolate(), {*reinterpret_cast<Address*>(*local)});
-      *wrappable_object = std::move(*another_wrappable_object);
-    }
-  }
-
-  CollectYoungGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
-  auto local = wrappable_object->wrapper().Get(v8_isolate());
-  EXPECT_TRUE(local->IsObject());
 }
 
 }  // namespace internal
