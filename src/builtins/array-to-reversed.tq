@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 namespace array {
-macro FastPackedArrayToReversed<Accessor: type, T: type>(
+macro FastArrayToReversed<Elements : type extends FixedArrayBase, T: type>(
     implicit context: Context)(
     kind: constexpr ElementsKind, elements: FixedArrayBase,
     length: Smi): JSArray {
@@ -21,10 +21,10 @@ macro FastPackedArrayToReversed<Accessor: type, T: type>(
     const from = length - k - 1;
 
     // c. Let fromValue be ? Get(O, from).
-    const fromValue: T = LoadElement<Accessor, T>(elements, from);
+    const fromValue: T = LoadElement<Elements, T>(elements, from);
 
     // d. Perform ! CreateDataPropertyOrThrow(A, Pk, fromValue).
-    StoreElement<Accessor>(copy, k, fromValue);
+    StoreElement<Elements>(copy, k, fromValue);
 
     // e. Set k to k + 1.
     ++k;
@@ -35,7 +35,7 @@ macro FastPackedArrayToReversed<Accessor: type, T: type>(
   return NewJSArray(map, copy);
 }
 
-macro TryFastPackedArrayToReversed(implicit context: Context)(receiver: JSAny):
+macro TryFastArrayToReversed(implicit context: Context)(receiver: JSAny):
     JSArray labels Slow {
   const array: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
 
@@ -43,19 +43,31 @@ macro TryFastPackedArrayToReversed(implicit context: Context)(receiver: JSAny):
 
   const kind: ElementsKind = array.map.elements_kind;
   if (kind == ElementsKind::PACKED_SMI_ELEMENTS) {
-    return FastPackedArrayToReversed<array::FastPackedSmiElements, Smi>(
+    return FastArrayToReversed<FixedArray, Object>(
         ElementsKind::PACKED_SMI_ELEMENTS, array.elements, array.length);
-  }
-  if (kind == ElementsKind::PACKED_ELEMENTS) {
-    return FastPackedArrayToReversed<array::FastPackedObjectElements, JSAny>(
+  } else if (kind == ElementsKind::PACKED_ELEMENTS) {
+    return FastArrayToReversed<FixedArray, Object>(
         ElementsKind::PACKED_ELEMENTS, array.elements, array.length);
-  }
-  if (kind == ElementsKind::PACKED_DOUBLE_ELEMENTS) {
-    return FastPackedArrayToReversed<array::FastPackedDoubleElements, float64>(
+  } else if (kind == ElementsKind::PACKED_DOUBLE_ELEMENTS) {
+    return FastArrayToReversed<FixedDoubleArray, float64_or_hole>(
         ElementsKind::PACKED_DOUBLE_ELEMENTS, array.elements, array.length);
-  }
+  } else {
+    if (!IsPrototypeInitialArrayPrototype(array.map)) goto Slow;
+    if (IsNoElementsProtectorCellInvalid()) goto Slow;
 
-  goto Slow;
+    if (kind == ElementsKind::HOLEY_SMI_ELEMENTS) {
+      return FastArrayToReversed<FixedArray, Object>(
+          ElementsKind::HOLEY_SMI_ELEMENTS, array.elements, array.length);
+    } else if (kind == ElementsKind::HOLEY_ELEMENTS) {
+      return FastArrayToReversed<FixedArray, Object>(
+          ElementsKind::HOLEY_ELEMENTS, array.elements, array.length);
+    } else if (kind == ElementsKind::HOLEY_DOUBLE_ELEMENTS) {
+      return FastArrayToReversed<FixedDoubleArray, float64_or_hole>(
+          ElementsKind::HOLEY_DOUBLE_ELEMENTS, array.elements, array.length);
+    }
+
+    goto Slow;
+  }
 }
 
 transitioning builtin GenericArrayToReversed(implicit context: Context)(
@@ -96,7 +108,7 @@ transitioning builtin GenericArrayToReversed(implicit context: Context)(
 transitioning javascript builtin ArrayPrototypeToReversed(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   try {
-    return TryFastPackedArrayToReversed(receiver) otherwise Slow;
+    return TryFastArrayToReversed(receiver) otherwise Slow;
   } label Slow {
     return GenericArrayToReversed(receiver);
   }
