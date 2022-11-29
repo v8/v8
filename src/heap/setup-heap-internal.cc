@@ -68,8 +68,8 @@ Handle<SharedFunctionInfo> CreateSharedFunctionInfo(
 
 }  // namespace
 
-bool SetupIsolateDelegate::SetupHeapInternal(Heap* heap) {
-  return heap->CreateHeapObjects();
+bool SetupIsolateDelegate::SetupHeapInternal(Isolate* isolate) {
+  return isolate->heap()->CreateHeapObjects();
 }
 
 bool Heap::CreateHeapObjects() {

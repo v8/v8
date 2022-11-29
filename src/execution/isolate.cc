@@ -4352,12 +4352,12 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 #endif  // defined(V8_OS_WIN)
 
   if (setup_delegate_ == nullptr) {
-    setup_delegate_ = new SetupIsolateDelegate(create_heap_objects);
+    setup_delegate_ = new SetupIsolateDelegate;
   }
 
   if (!v8_flags.inline_new) heap_.DisableInlineAllocation();
 
-  if (!setup_delegate_->SetupHeap(&heap_)) {
+  if (!setup_delegate_->SetupHeap(this, create_heap_objects)) {
     V8::FatalProcessOutOfMemory(this, "heap object creation");
   }
 
@@ -4378,7 +4378,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   if (create_heap_objects) {
     builtins_constants_table_builder_ = new BuiltinsConstantsTableBuilder(this);
 
-    setup_delegate_->SetupBuiltins(this);
+    setup_delegate_->SetupBuiltins(this, true);
 
     builtins_constants_table_builder_->Finalize();
     delete builtins_constants_table_builder_;
@@ -4386,7 +4386,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
     CreateAndSetEmbeddedBlob();
   } else {
-    setup_delegate_->SetupBuiltins(this);
+    setup_delegate_->SetupBuiltins(this, false);
     MaybeRemapEmbeddedBuiltinsIntoCodeRange();
   }
 
