@@ -868,8 +868,8 @@ void TracedHandlesImpl::CheckNodeMarkingStateIsConsistent(
         // Non-LO pages must not be in from space.
         CHECK_IMPLIES(!chunk->IsLargePage(),
                       !chunk->IsFlagSet(BasicMemoryChunk::FROM_PAGE));
-        CHECK_IMPLIES(chunk->InNewLargeObjectSpace(),
-                      chunk->IsFlagSet(BasicMemoryChunk::FROM_PAGE));
+        // LO pages may be in from space depending on where this method was
+        // called.
       }
     }
     CHECK_IMPLIES(node->markbit(), may_find_marked_nodes);
