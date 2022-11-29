@@ -133,8 +133,10 @@ class BranchEliminationReducer : public Next {
   // optimization will replace its final Branch by a Goto when reaching it.
  public:
   using Next::Asm;
-  BranchEliminationReducer()
-      : dominator_path_(Asm().phase_zone()),
+  template <class... Args>
+  explicit BranchEliminationReducer(const std::tuple<Args...>& args)
+      : Next(args),
+        dominator_path_(Asm().phase_zone()),
         known_conditions_(Asm().phase_zone(),
                           Asm().input_graph().DominatorTreeDepth() * 2) {}
 

@@ -23,6 +23,7 @@
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
 #include "src/compiler/schedule.h"
+#include "src/compiler/simplified-operator.h"
 #include "src/compiler/state-values-utils.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/deopt-data.h"
@@ -784,16 +785,8 @@ OpIndex GraphBuilder::Process(
         arguments.emplace_back(Map(node->InputAt(i)));
       }
 
-      base::Vector<RegisterRepresentation> output_reps =
-          graph_zone->NewVector<RegisterRepresentation>(
-              call_descriptor->ReturnCount());
-      for (size_t i = 0; i < call_descriptor->ReturnCount(); i++) {
-        output_reps[i] = RegisterRepresentation::FromMachineRepresentation(
-            call_descriptor->GetReturnType(i).representation());
-      }
-
-      TSCallDescriptor* ts_descriptor =
-          graph_zone->New<TSCallDescriptor>(call_descriptor, output_reps);
+      const TSCallDescriptor* ts_descriptor =
+          TSCallDescriptor::Create(call_descriptor, graph_zone);
 
       OpIndex frame_state_idx = OpIndex::Invalid();
       if (call_descriptor->NeedsFrameState()) {
@@ -831,16 +824,8 @@ OpIndex GraphBuilder::Process(
         arguments.emplace_back(Map(node->InputAt(i)));
       }
 
-      base::Vector<RegisterRepresentation> output_reps =
-          graph_zone->NewVector<RegisterRepresentation>(
-              call_descriptor->ReturnCount());
-      for (size_t i = 0; i < call_descriptor->ReturnCount(); i++) {
-        output_reps[i] = RegisterRepresentation::FromMachineRepresentation(
-            call_descriptor->GetReturnType(i).representation());
-      }
-
-      TSCallDescriptor* ts_descriptor =
-          graph_zone->New<TSCallDescriptor>(call_descriptor, output_reps);
+      const TSCallDescriptor* ts_descriptor =
+          TSCallDescriptor::Create(call_descriptor, graph_zone);
 
       assembler.TailCall(callee, base::VectorOf(arguments), ts_descriptor);
       return OpIndex::Invalid();
@@ -921,6 +906,123 @@ OpIndex GraphBuilder::Process(
       return OpIndex::Invalid();
     }
 
+    case IrOpcode::kAllocateRaw: {
+      Node* size = node->InputAt(0);
+      const AllocateParameters& params = AllocateParametersOf(node->op());
+      return assembler.Allocate(Map(size), params.allocation_type(),
+                                params.allow_large_objects());
+    }
+    case IrOpcode::kStoreToObject: {
+      Node* object = node->InputAt(0);
+      Node* offset = node->InputAt(1);
+      Node* value = node->InputAt(2);
+      ObjectAccess const& access = ObjectAccessOf(node->op());
+      assembler.Store(
+          Map(object), Map(offset), Map(value), StoreOp::Kind::TaggedBase(),
+          MemoryRepresentation::FromMachineType(access.machine_type),
+          access.write_barrier_kind, kHeapObjectTag);
+      return OpIndex::Invalid();
+    }
+    case IrOpcode::kStoreElement: {
+      Node* object = node->InputAt(0);
+      Node* index = node->InputAt(1);
+      Node* value = node->InputAt(2);
+      ElementAccess const& access = ElementAccessOf(node->op());
+      DCHECK(!access.machine_type.IsMapWord());
+      StoreOp::Kind kind = StoreOp::Kind::Aligned(access.base_is_tagged);
+      MemoryRepresentation rep =
+          MemoryRepresentation::FromMachineType(access.machine_type);
+      assembler.Store(Map(object), Map(index), Map(value), kind, rep,
+                      access.write_barrier_kind, access.header_size,
+                      rep.SizeInBytesLog2());
+      return OpIndex::Invalid();
+    }
+    case IrOpcode::kStoreField: {
+      OpIndex object = Map(node->InputAt(0));
+      OpIndex value = Map(node->InputAt(1));
+      FieldAccess const& access = FieldAccessOf(node->op());
+      // External pointer must never be stored by optimized code.
+      DCHECK(!access.type.Is(Type::ExternalPointer()));
+      // SandboxedPointers are not currently stored by optimized code.
+      DCHECK(!access.type.Is(Type::SandboxedPointer()));
+
+#ifdef V8_ENABLE_SANDBOX
+      if (access.is_bounded_size_access) {
+        value = assembler.ShiftLeft(value, kBoundedSizeShift,
+                                    WordRepresentation::PointerSized());
+      }
+#endif  // V8_ENABLE_SANDBOX
+
+      StoreOp::Kind kind = StoreOp::Kind::Aligned(access.base_is_tagged);
+      MachineType machine_type = access.machine_type;
+      if (machine_type.IsMapWord()) {
+        machine_type = MachineType::TaggedPointer();
+#ifdef V8_MAP_PACKING
+        UNIMPLEMENTED();
+#endif
+      }
+      MemoryRepresentation rep =
+          MemoryRepresentation::FromMachineType(machine_type);
+      assembler.Store(object, value, kind, rep, access.write_barrier_kind,
+                      access.offset);
+      return OpIndex::Invalid();
+    }
+    case IrOpcode::kLoadFromObject:
+    case IrOpcode::kLoadImmutableFromObject: {
+      Node* object = node->InputAt(0);
+      Node* offset = node->InputAt(1);
+      ObjectAccess const& access = ObjectAccessOf(node->op());
+      MemoryRepresentation rep =
+          MemoryRepresentation::FromMachineType(access.machine_type);
+      return assembler.Load(Map(object), Map(offset),
+                            LoadOp::Kind::TaggedBase(), rep, kHeapObjectTag);
+    }
+    case IrOpcode::kLoadField: {
+      Node* object = node->InputAt(0);
+      FieldAccess const& access = FieldAccessOf(node->op());
+      StoreOp::Kind kind = StoreOp::Kind::Aligned(access.base_is_tagged);
+      MachineType machine_type = access.machine_type;
+      if (machine_type.IsMapWord()) {
+        machine_type = MachineType::TaggedPointer();
+#ifdef V8_MAP_PACKING
+        UNIMPLEMENTED();
+#endif
+      }
+      MemoryRepresentation rep =
+          MemoryRepresentation::FromMachineType(machine_type);
+#ifdef V8_ENABLE_SANDBOX
+      bool is_sandboxed_external = access.type.Is(Type::ExternalPointer());
+      if (is_sandboxed_external) {
+        // Fields for sandboxed external pointer contain a 32-bit handle, not a
+        // 64-bit raw pointer.
+        rep = MemoryRepresentation::Uint32();
+      }
+#endif  // V8_ENABLE_SANDBOX
+      OpIndex value = assembler.Load(Map(object), kind, rep, access.offset);
+#ifdef V8_ENABLE_SANDBOX
+      if (is_sandboxed_external) {
+        value =
+            assembler.DecodeExternalPointer(value, access.external_pointer_tag);
+      }
+      if (access.is_bounded_size_access) {
+        DCHECK(!is_sandboxed_external);
+        value = assembler.ShiftRightLogical(value, kBoundedSizeShift,
+                                            WordRepresentation::PointerSized());
+      }
+#endif  // V8_ENABLE_SANDBOX
+      return value;
+    }
+    case IrOpcode::kLoadElement: {
+      Node* object = node->InputAt(0);
+      Node* index = node->InputAt(1);
+      ElementAccess const& access = ElementAccessOf(node->op());
+      LoadOp::Kind kind = LoadOp::Kind::Aligned(access.base_is_tagged);
+      MemoryRepresentation rep =
+          MemoryRepresentation::FromMachineType(access.machine_type);
+      return assembler.Load(Map(object), Map(index), kind, rep,
+                            access.header_size, rep.SizeInBytesLog2());
+    }
+
     default:
       std::cerr << "unsupported node type: " << *node->op() << "\n";
       node->Print(std::cerr);
@@ -935,10 +1037,14 @@ base::Optional<BailoutReason> BuildGraph(Schedule* schedule, Zone* graph_zone,
                                          Linkage* linkage,
                                          SourcePositionTable* source_positions,
                                          NodeOriginTable* origins) {
-  GraphBuilder builder{graph_zone, phase_zone,
-                       *schedule,  Assembler<>(*graph, *graph, phase_zone),
-                       linkage,    source_positions,
-                       origins};
+  GraphBuilder builder{
+      graph_zone,
+      phase_zone,
+      *schedule,
+      Assembler<>(*graph, *graph, phase_zone, nullptr, std::tuple<>{}),
+      linkage,
+      source_positions,
+      origins};
   return builder.Run();
 }
 

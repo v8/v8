@@ -2937,6 +2937,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/index.h",
     "src/compiler/turboshaft/layered-hash-map.h",
     "src/compiler/turboshaft/machine-optimization-reducer.h",
+    "src/compiler/turboshaft/memory-optimization.h",
     "src/compiler/turboshaft/operation-matching.h",
     "src/compiler/turboshaft/operations.h",
     "src/compiler/turboshaft/optimization-phase.h",
@@ -4265,10 +4266,12 @@ v8_source_set("v8_turboshaft") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   sources = [
+    "src/compiler/turboshaft/assembler.cc",
     "src/compiler/turboshaft/decompression-optimization.cc",
     "src/compiler/turboshaft/graph-builder.cc",
     "src/compiler/turboshaft/graph-visualizer.cc",
     "src/compiler/turboshaft/graph.cc",
+    "src/compiler/turboshaft/memory-optimization.cc",
     "src/compiler/turboshaft/operations.cc",
     "src/compiler/turboshaft/optimization-phase.cc",
     "src/compiler/turboshaft/recreate-schedule.cc",

@@ -856,6 +856,14 @@ Node* ScheduleBuilder::ProcessOperation(const SelectOp& op) {
 Node* ScheduleBuilder::ProcessOperation(const PendingLoopPhiOp& op) {
   UNREACHABLE();
 }
+Node* ScheduleBuilder::ProcessOperation(const DecodeExternalPointerOp& op) {
+  // This should have been lowered before already.
+  UNREACHABLE();
+}
+Node* ScheduleBuilder::ProcessOperation(const AllocateOp& op) {
+  // This should have been lowered before already.
+  UNREACHABLE();
+}
 Node* ScheduleBuilder::ProcessOperation(const TupleOp& op) {
   // Tuples are only used for lowerings during reduction. Therefore, we can
   // assume that it is unused if it occurs at this point.

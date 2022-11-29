@@ -41,8 +41,6 @@ class Operator;
 struct SimplifiedOperatorGlobalCache;
 struct WasmTypeCheckConfig;
 
-enum BaseTaggedness : uint8_t { kUntaggedBase, kTaggedBase };
-
 size_t hash_value(BaseTaggedness);
 
 std::ostream& operator<<(std::ostream&, BaseTaggedness);

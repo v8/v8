@@ -86,6 +86,7 @@
 #include "src/compiler/turboshaft/graph-visualizer.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/machine-optimization-reducer.h"
+#include "src/compiler/turboshaft/memory-optimization.h"
 #include "src/compiler/turboshaft/optimization-phase.h"
 #include "src/compiler/turboshaft/recreate-schedule.h"
 #include "src/compiler/turboshaft/select-lowering-reducer.h"
@@ -1001,9 +1002,7 @@ void TraceSchedule(OptimizedCompilationInfo* info, PipelineData* data,
     AllowHandleDereference allow_deref;
 
     CodeTracer::StreamScope tracing_scope(data->GetCodeTracer());
-    tracing_scope.stream()
-        << "----- " << phase_name << " -----\n"
-        << *schedule;
+    tracing_scope.stream() << "----- " << phase_name << " -----\n" << *schedule;
   }
 }
 
@@ -1356,15 +1355,15 @@ struct GraphBuilderPhase {
 
     JSFunctionRef closure = MakeRef(data->broker(), data->info()->closure());
     CallFrequency frequency(1.0f);
-    BuildGraphFromBytecode(
-        data->broker(), temp_zone, closure.shared(),
-        closure.raw_feedback_cell(data->dependencies()),
-        data->info()->osr_offset(), data->jsgraph(), frequency,
-        data->source_positions(), data->node_origins(),
-        SourcePosition::kNotInlined, data->info()->code_kind(),
-        flags, &data->info()->tick_counter(),
-        ObserveNodeInfo{data->observe_node_manager(),
-                        data->info()->node_observer()});
+    BuildGraphFromBytecode(data->broker(), temp_zone, closure.shared(),
+                           closure.raw_feedback_cell(data->dependencies()),
+                           data->info()->osr_offset(), data->jsgraph(),
+                           frequency, data->source_positions(),
+                           data->node_origins(), SourcePosition::kNotInlined,
+                           data->info()->code_kind(), flags,
+                           &data->info()->tick_counter(),
+                           ObserveNodeInfo{data->observe_node_manager(),
+                                           data->info()->node_observer()});
   }
 };
 
@@ -1408,10 +1407,10 @@ struct InliningPhase {
     JSNativeContextSpecialization native_context_specialization(
         &graph_reducer, data->jsgraph(), data->broker(), flags,
         data->dependencies(), temp_zone, info->zone());
-    JSInliningHeuristic inlining(
-        &graph_reducer, temp_zone, data->info(), data->jsgraph(),
-        data->broker(), data->source_positions(), data->node_origins(),
-        JSInliningHeuristic::kJSOnly);
+    JSInliningHeuristic inlining(&graph_reducer, temp_zone, data->info(),
+                                 data->jsgraph(), data->broker(),
+                                 data->source_positions(), data->node_origins(),
+                                 JSInliningHeuristic::kJSOnly);
 
     JSIntrinsicLowering intrinsic_lowering(&graph_reducer, data->jsgraph(),
                                            data->broker());
@@ -1451,8 +1450,7 @@ struct JSWasmInliningPhase {
         data->machine(), temp_zone, BranchSemantics::kMachine);
     JSInliningHeuristic inlining(&graph_reducer, temp_zone, data->info(),
                                  data->jsgraph(), data->broker(),
-                                 data->source_positions(),
-                                 data->node_origins(),
+                                 data->source_positions(), data->node_origins(),
                                  JSInliningHeuristic::kWasmOnly);
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &common_reducer);
@@ -1575,7 +1573,6 @@ struct TypedLoweringPhase {
     graph_reducer.ReduceGraph();
   }
 };
-
 
 struct EscapeAnalysisPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(EscapeAnalysis)
@@ -2097,10 +2094,12 @@ struct OptimizeTurboshaftPhase {
     UnparkedScopeIfNeeded scope(data->broker(),
                                 v8_flags.turboshaft_trace_reduction);
     turboshaft::OptimizationPhase<
+        turboshaft::MemoryOptimizationReducer, turboshaft::VariableReducer,
         turboshaft::MachineOptimizationReducerSignallingNanImpossible,
-        turboshaft::ValueNumberingReducer>::Run(&data->turboshaft_graph(),
-                                                temp_zone,
-                                                data->node_origins());
+        turboshaft::ValueNumberingReducer>::
+        Run(&data->turboshaft_graph(), temp_zone, data->node_origins(),
+            std::tuple{
+                turboshaft::MemoryOptimizationReducerArgs{data->isolate()}});
   }
 };
 
@@ -2423,7 +2422,6 @@ struct MeetRegisterConstraintsPhase {
   }
 };
 
-
 struct ResolvePhisPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(ResolvePhis)
 
@@ -2432,7 +2430,6 @@ struct ResolvePhisPhase {
     builder.ResolvePhis();
   }
 };
-
 
 struct BuildLiveRangesPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(BuildLiveRanges)
@@ -2504,7 +2501,6 @@ struct AssignSpillSlotsPhase {
   }
 };
 
-
 struct CommitAssignmentPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(CommitAssignment)
 
@@ -2513,7 +2509,6 @@ struct CommitAssignmentPhase {
     assigner.CommitAssignment();
   }
 };
-
 
 struct PopulateReferenceMapsPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(PopulatePointerMaps)
@@ -2524,7 +2519,6 @@ struct PopulateReferenceMapsPhase {
   }
 };
 
-
 struct ConnectRangesPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(ConnectRanges)
 
@@ -2533,7 +2527,6 @@ struct ConnectRangesPhase {
     connector.ConnectRanges(temp_zone);
   }
 };
-
 
 struct ResolveControlFlowPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(ResolveControlFlow)
@@ -2695,9 +2688,8 @@ struct PrintTurboshaftGraphPhase {
       AllowHandleDereference allow_deref;
 
       CodeTracer::StreamScope tracing_scope(data->GetCodeTracer());
-      tracing_scope.stream()
-          << "\n----- " << phase << " -----\n"
-          << data->turboshaft_graph();
+      tracing_scope.stream() << "\n----- " << phase << " -----\n"
+                             << data->turboshaft_graph();
     }
   }
 };
@@ -3018,11 +3010,11 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
   Run<LateOptimizationPhase>();
   RunPrintAndVerify(LateOptimizationPhase::phase_name(), true);
 
-  // Optimize memory access and allocation operations.
-  Run<MemoryOptimizationPhase>();
-  RunPrintAndVerify(MemoryOptimizationPhase::phase_name(), true);
-
   if (!v8_flags.turboshaft) {
+    // Optimize memory access and allocation operations.
+    Run<MemoryOptimizationPhase>();
+    RunPrintAndVerify(MemoryOptimizationPhase::phase_name(), true);
+
     // Run value numbering and machine operator reducer to optimize load/store
     // address computation (in particular, reuse the address computation
     // whenever possible).
@@ -4120,7 +4112,6 @@ void PipelineImpl::AllocateRegistersForTopTier(
   if (verifier != nullptr) {
     verifier->VerifyAssignment("Immediately after CommitAssignmentPhase.");
   }
-
 
   Run<ConnectRangesPhase>();
 

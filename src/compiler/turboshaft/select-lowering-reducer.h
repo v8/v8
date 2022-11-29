@@ -35,6 +35,10 @@ class SelectLoweringReducer : public Next {
  public:
   using Next::Asm;
 
+  template <class... Args>
+  explicit SelectLoweringReducer(const std::tuple<Args...>& args)
+      : Next(args) {}
+
   OpIndex ReduceSelect(OpIndex cond, OpIndex vtrue, OpIndex vfalse,
                        RegisterRepresentation rep, BranchHint hint,
                        SelectOp::Implementation implem) {

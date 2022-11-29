@@ -66,19 +66,21 @@ class GrowingSidetable {
   }
 };
 
-// A fixed-size sidetable mapping from `OpIndex` to `T`.
+// A fixed-size sidetable mapping from `Key` to `T`.
 // Elements are default-initialized.
-template <class T>
+template <class T, class Key = OpIndex>
 class FixedSidetable {
  public:
+  static_assert(std::is_same_v<Key, OpIndex> ||
+                std::is_same_v<Key, BlockIndex>);
   explicit FixedSidetable(size_t size, Zone* zone) : table_(size, zone) {}
 
-  T& operator[](OpIndex op) {
+  T& operator[](Key op) {
     DCHECK_LT(op.id(), table_.size());
     return table_[op.id()];
   }
 
-  const T& operator[](OpIndex op) const {
+  const T& operator[](Key op) const {
     DCHECK_LT(op.id(), table_.size());
     return table_[op.id()];
   }

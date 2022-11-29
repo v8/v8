@@ -540,7 +540,7 @@ class Graph {
     DCHECK(!block->begin_.valid());
     block->begin_ = next_operation_index();
     DCHECK_EQ(block->index_, BlockIndex::Invalid());
-    block->index_ = BlockIndex(static_cast<uint32_t>(bound_blocks_.size()));
+    block->index_ = next_block_index();
     bound_blocks_.push_back(block);
     uint32_t depth = block->ComputeDominator();
     dominator_tree_depth_ = std::max<uint32_t>(dominator_tree_depth_, depth);
@@ -566,6 +566,9 @@ class Graph {
   }
 
   OpIndex next_operation_index() const { return operations_.EndIndex(); }
+  BlockIndex next_block_index() const {
+    return BlockIndex(static_cast<uint32_t>(bound_blocks_.size()));
+  }
 
   Zone* graph_zone() const { return graph_zone_; }
   uint32_t block_count() const {
@@ -697,6 +700,11 @@ class Graph {
                                                 bound_blocks_.size())};
   }
 
+  bool IsLoopBackedge(const GotoOp& op) const {
+    DCHECK(op.destination->IsBound());
+    return op.destination->begin() <= Index(op);
+  }
+
   bool IsValid(OpIndex i) const { return i < next_operation_index(); }
 
   const GrowingSidetable<SourcePosition>& source_positions() const {
@@ -818,6 +826,7 @@ V8_INLINE const Operation& Block::LastOperation(const Graph& graph) const {
 
 struct PrintAsBlockHeader {
   const Block& block;
+  BlockIndex block_id = block.index();
 };
 std::ostream& operator<<(std::ostream& os, PrintAsBlockHeader block);
 std::ostream& operator<<(std::ostream& os, const Graph& graph);

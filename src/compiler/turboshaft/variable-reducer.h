@@ -56,8 +56,11 @@ class VariableReducer : public Next {
 
  public:
   using Next::Asm;
-  VariableReducer()
-      : table_(Asm().phase_zone()),
+
+  template <class... Args>
+  explicit VariableReducer(const std::tuple<Args...>& args)
+      : Next(args),
+        table_(Asm().phase_zone()),
         block_to_snapshot_mapping_(Asm().input_graph().block_count(),
                                    base::nullopt, Asm().phase_zone()),
         predecessors_(Asm().phase_zone()) {}

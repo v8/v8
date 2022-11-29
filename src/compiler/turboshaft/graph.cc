@@ -63,7 +63,7 @@ void Block::PrintDominatorTree(std::vector<const char*> tree_symbols,
 
 std::ostream& operator<<(std::ostream& os, PrintAsBlockHeader block_header) {
   const Block& block = block_header.block;
-  os << "\n" << block.kind() << " " << block.index();
+  os << block.kind() << " " << block_header.block_id;
   if (block.IsDeferred()) os << " (deferred)";
   if (!block.Predecessors().empty()) {
     os << " <- ";
@@ -79,7 +79,7 @@ std::ostream& operator<<(std::ostream& os, PrintAsBlockHeader block_header) {
 
 std::ostream& operator<<(std::ostream& os, const Graph& graph) {
   for (const Block& block : graph.blocks()) {
-    os << PrintAsBlockHeader{block} << "\n";
+    os << "\n" << PrintAsBlockHeader{block} << "\n";
     for (const Operation& op : graph.operations(block)) {
       os << std::setw(5) << graph.Index(op).id() << ": " << op << "\n";
     }

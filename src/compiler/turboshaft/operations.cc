@@ -396,6 +396,20 @@ void StoreOp::PrintOptions(std::ostream& os) const {
   os << "]";
 }
 
+void AllocateOp::PrintOptions(std::ostream& os) const {
+  os << "[";
+  os << type << ", ";
+  os << (allow_large_objects == AllowLargeObjects::kTrue ? "allow large objects"
+                                                         : "no large objects");
+  os << "]";
+}
+
+void DecodeExternalPointerOp::PrintOptions(std::ostream& os) const {
+  os << "[";
+  os << "tag: " << std::hex << tag << std::dec;
+  os << "]";
+}
+
 void FrameStateOp::PrintOptions(std::ostream& os) const {
   os << "[";
   os << (inlined ? "inlined" : "not inlined");

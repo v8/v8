@@ -22,6 +22,7 @@
 #include "src/base/vector.h"
 #include "src/codegen/machine-type.h"
 #include "src/compiler/backend/instruction.h"
+#include "src/compiler/machine-operator-reducer.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/representations.h"
@@ -47,6 +48,10 @@ template <bool signalling_nan_possible, class Next>
 class MachineOptimizationReducer : public Next {
  public:
   using Next::Asm;
+
+  template <class... Args>
+  explicit MachineOptimizationReducer(const std::tuple<Args...>& args)
+      : Next(args) {}
 
   OpIndex ReduceChange(OpIndex input, ChangeOp::Kind kind,
                        ChangeOp::Assumption assumption,
