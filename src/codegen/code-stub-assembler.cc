@@ -3212,19 +3212,11 @@ void CodeStubAssembler::StoreSharedObjectField(TNode<HeapObject> object,
       WordNotEqual(WordAnd(LoadBasicMemoryChunkFlags(object),
                            IntPtrConstant(BasicMemoryChunk::IN_SHARED_HEAP)),
                    IntPtrConstant(0)));
-  // JSSharedStructs are allocated in the shared old space, which is currently
-  // collected by stopping the world, so the incremental write barrier is not
-  // needed. They can only store Smis and other HeapObjects in the shared old
-  // space, so the generational write barrier is also not needed.
-  // TODO(v8:12547): Add a safer, shared variant of NoWriteBarrier instead of
-  // using Unsafe.
   int const_offset;
   if (TryToInt32Constant(offset, &const_offset)) {
-    UnsafeStoreObjectFieldNoWriteBarrier(object, const_offset, value);
+    StoreObjectField(object, const_offset, value);
   } else {
-    UnsafeStoreNoWriteBarrier(MachineRepresentation::kTagged, object,
-                              IntPtrSub(offset, IntPtrConstant(kHeapObjectTag)),
-                              value);
+    Store(object, IntPtrSub(offset, IntPtrConstant(kHeapObjectTag)), value);
   }
 }
 

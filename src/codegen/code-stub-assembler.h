@@ -1866,13 +1866,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void StoreJSSharedStructPropertyArrayElement(TNode<PropertyArray> array,
                                                TNode<IntPtrT> index,
                                                TNode<Object> value) {
-    // JSSharedStructs are allocated in the shared old space, which is currently
-    // collected by stopping the world, so the incremental write barrier is not
-    // needed. They can only store Smis and other HeapObjects in the shared old
-    // space, so the generational write barrier is also not needed.
-    // TODO(v8:12547): Add a safer, shared variant of SKIP_WRITE_BARRIER.
-    StoreFixedArrayOrPropertyArrayElement(array, index, value,
-                                          UNSAFE_SKIP_WRITE_BARRIER);
+    StoreFixedArrayOrPropertyArrayElement(array, index, value);
   }
 
   // EnsureArrayPushable verifies that receiver with this map is:
