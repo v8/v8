@@ -691,6 +691,7 @@ MarkingWorklists::Local* GetV8MarkingWorklists(
 }  // namespace
 
 void CppHeap::StartTracing() {
+  CHECK(marking_done_);
   if (!TracingInitialized()) return;
   if (isolate_) {
     // Reuse the same local worklist for the mutator marking state which results

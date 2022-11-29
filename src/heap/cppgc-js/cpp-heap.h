@@ -200,7 +200,7 @@ class V8_EXPORT_PRIVATE CppHeap final
   bool TracingInitialized() const { return collection_type_.has_value(); }
 
   Isolate* isolate_ = nullptr;
-  bool marking_done_ = false;
+  bool marking_done_ = true;
   // |collection_type_| is initialized when marking is in progress.
   base::Optional<CollectionType> collection_type_;
   GarbageCollectionFlags current_gc_flags_;
