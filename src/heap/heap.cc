@@ -2118,6 +2118,7 @@ void Heap::UpdateSurvivalStatistics(int start_new_space_size) {
 }
 
 namespace {
+
 GCTracer::Scope::ScopeId CollectorScopeId(GarbageCollector collector) {
   switch (collector) {
     case GarbageCollector::MARK_COMPACTOR:
@@ -2129,6 +2130,21 @@ GCTracer::Scope::ScopeId CollectorScopeId(GarbageCollector collector) {
   }
   UNREACHABLE();
 }
+
+void ClearStubCaches(Isolate* isolate) {
+  isolate->load_stub_cache()->Clear();
+  isolate->store_stub_cache()->Clear();
+
+  if (isolate->is_shared_heap_isolate()) {
+    isolate->global_safepoint()->IterateClientIsolates([](Isolate* client) {
+      if (client->is_shared_heap_isolate()) return;
+
+      client->load_stub_cache()->Clear();
+      client->store_stub_cache()->Clear();
+    });
+  }
+}
+
 }  // namespace
 
 size_t Heap::PerformGarbageCollection(GarbageCollector collector,
@@ -2264,6 +2280,10 @@ size_t Heap::PerformGarbageCollection(GarbageCollector collector,
   }
 
   RecomputeLimits(collector);
+
+  if (collector == GarbageCollector::MARK_COMPACTOR) {
+    ClearStubCaches(isolate());
+  }
 
   GarbageCollectionEpilogueInSafepoint(collector);
 
