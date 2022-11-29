@@ -560,8 +560,7 @@ bool MarkCompactCollector::StartCompaction(StartCompactionMode mode) {
 namespace {
 void VisitObjectWithEmbedderFields(JSObject object,
                                    MarkingWorklists::Local& worklist) {
-  DCHECK(object.IsJSApiObject() || object.IsJSArrayBuffer() ||
-         object.IsJSDataView() || object.IsJSTypedArray());
+  DCHECK(object.MayHaveEmbedderFields());
   DCHECK(!Heap::InYoungGeneration(object));
 
   MarkingWorklists::Local::WrapperSnapshot wrapper_snapshot;
