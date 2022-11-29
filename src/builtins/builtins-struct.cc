@@ -126,11 +126,7 @@ BUILTIN(SharedStructTypeConstructor) {
   }
   instance_map->set_is_extensible(false);
   JSFunction::SetInitialMap(isolate, constructor, instance_map,
-                            factory->null_value());
-
-  // The constructor is not a shared object, so the shared map should not point
-  // to it.
-  instance_map->set_constructor_or_back_pointer(*factory->null_value());
+                            factory->null_value(), factory->null_value());
 
   // Pre-create the enum cache in the shared space, as otherwise for-in
   // enumeration will incorrectly create an enum cache in the per-thread heap.
