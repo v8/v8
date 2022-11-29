@@ -1272,11 +1272,15 @@ class WasmModuleBuilder {
     this.element_segments = [];
     this.data_segments = [];
     this.explicit = [];
-    this.rec_groups = [];
     this.num_imported_funcs = 0;
     this.num_imported_globals = 0;
     this.num_imported_tables = 0;
     this.num_imported_tags = 0;
+    // If a wasm-gc type is detected, all types are put by default into a single
+    // recursive group. This field overrides this behavior and puts each type in
+    // a separate rec. group instead.
+    // TODO(7748): Support more flexible rec. groups.
+    this.singleton_rec_groups = false;
     return this;
   }
 
@@ -1334,6 +1338,8 @@ class WasmModuleBuilder {
   addCustomSection(name, bytes) {
     this.explicit.push(this.createCustomSection(name, bytes));
   }
+
+  // TODO(7748): Support recursive groups.
 
   addType(type, supertype_idx = kNoSuperType) {
     var pl = type.params.length;   // should have params
@@ -1601,19 +1607,8 @@ class WasmModuleBuilder {
     return this;
   }
 
-  startRecGroup() {
-    this.rec_groups.push({start: this.types.length, size: 0});
-  }
-
-  endRecGroup() {
-    if (this.rec_groups.length == 0) {
-      throw new Error("Did not start a recursive group before ending one")
-    }
-    let last_element = this.rec_groups[this.rec_groups.length - 1]
-    if (last_element.size != 0) {
-      throw new Error("Did not start a recursive group before ending one")
-    }
-    last_element.size = this.types.length - last_element.start;
+  setSingletonRecGroups() {
+    this.singleton_rec_groups = true;
   }
 
   setName(name) {
@@ -1632,23 +1627,17 @@ class WasmModuleBuilder {
     if (wasm.types.length > 0) {
       if (debug) print('emitting types @ ' + binary.length);
       binary.emit_section(kTypeSectionCode, section => {
-        let length_with_groups = wasm.types.length;
-        for (let group of wasm.rec_groups) {
-          length_with_groups -= group.size - 1;
+        // If any type is a wasm-gc type, wrap everything in a recursive group.
+        // TODO(7748): Support more flexible rec. groups.
+        if (!this.singleton_rec_groups &&
+            wasm.types.findIndex(type => type instanceof WasmStruct ||
+                                         type instanceof WasmArray) >= 0) {
+          section.emit_u32v(1);
+          section.emit_u8(kWasmRecursiveTypeGroupForm);
         }
-        section.emit_u32v(length_with_groups);
+        section.emit_u32v(wasm.types.length);
 
-        let rec_group_index = 0;
-
-        for (let i = 0; i < wasm.types.length; i++) {
-          if (rec_group_index < wasm.rec_groups.length &&
-              wasm.rec_groups[rec_group_index].start == i) {
-            section.emit_u8(kWasmRecursiveTypeGroupForm);
-            section.emit_u32v(wasm.rec_groups[rec_group_index].size);
-            rec_group_index++;
-          }
-
-          let type = wasm.types[i];
+        for (let type of wasm.types) {
           if (type.supertype != kNoSuperType) {
             section.emit_u8(kWasmSubtypeForm);
             section.emit_u8(1);  // supertype count

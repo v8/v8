@@ -66,7 +66,6 @@ async function printPauseLocationsAndContinue(msg) {
 
 async function instantiateWasm() {
   var builder = new WasmModuleBuilder();
-  builder.startRecGroup();
   let struct_type = builder.addStruct([makeField(kWasmI32, false)]);
   let array_type = builder.addArray(kWasmI32);
   let imported_ref_table =
@@ -129,7 +128,7 @@ async function instantiateWasm() {
       .addLocals(kWasmAnyRef, 1, ['anyref_local_null'])
       .addBody(body)
       .exportFunc();
-  builder.endRecGroup();
+
   var module_bytes = builder.toArray();
   breakpointLocation = main.body_offset + body.length - 1;
 

@@ -48,6 +48,8 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   let exporting_instance = (function() {
     const builder = new WasmModuleBuilder();
 
+    builder.setSingletonRecGroups();
+
     let struct_mistyped = builder.addStruct([]);
 
     let struct = builder.addStruct([makeField(kWasmI32, true)]);
@@ -69,6 +71,8 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   })();
 
   const builder = new WasmModuleBuilder();
+
+  builder.setSingletonRecGroups();
 
   // Have these in the reverse order than before.
   let struct = builder.addStruct([makeField(kWasmI32, true)]);

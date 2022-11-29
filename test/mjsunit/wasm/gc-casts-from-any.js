@@ -8,11 +8,9 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 (function TestRefTest() {
   var builder = new WasmModuleBuilder();
-  builder.startRecGroup();
   let structSuper = builder.addStruct([makeField(kWasmI32, true)]);
   let structSub = builder.addStruct([makeField(kWasmI32, true)], structSuper);
   let array = builder.addArray(kWasmI32);
-  builder.endRecGroup();
 
   let fct =
   builder.addFunction('createStructSuper',
