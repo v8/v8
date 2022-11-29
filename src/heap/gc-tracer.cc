@@ -547,7 +547,7 @@ void GCTracer::NotifyFullSweepingCompleted() {
   // Notifying twice that V8 sweeping is finished for the same cycle is possible
   // only if Oilpan sweeping is still in progress.
   DCHECK_IMPLIES(notified_full_sweeping_completed_,
-                 notified_full_cppgc_completed_);
+                 !notified_full_cppgc_completed_);
   notified_full_sweeping_completed_ = true;
   StopFullCycleIfNeeded();
 }
