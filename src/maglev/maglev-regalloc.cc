@@ -808,7 +808,6 @@ void StraightForwardRegisterAllocator::InitializeBranchTargetPhis(
     Input& input = phi->input(predecessor_id);
     input.InjectLocation(input.node()->allocation());
   }
-  for (Phi* phi : *phis) UpdateUse(&phi->input(predecessor_id));
 }
 
 void StraightForwardRegisterAllocator::InitializeConditionalBranchTarget(
@@ -881,6 +880,11 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
 
     InitializeBranchTargetPhis(predecessor_id, target);
     MergeRegisterValues(unconditional, target, predecessor_id);
+    if (target->has_phi()) {
+      for (Phi* phi : *target->phis()) {
+        UpdateUse(&phi->input(predecessor_id));
+      }
+    }
 
     // For JumpLoops, now update the uses of any node used in, but not defined
     // in the loop. This makes sure that such nodes' lifetimes are extended to
