@@ -4218,7 +4218,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
   // Lock clients_mutex_ in order to prevent shared GCs from other clients
   // during deserialization.
-  base::Optional<base::MutexGuard> clients_guard;
+  base::Optional<base::RecursiveMutexGuard> clients_guard;
 
   if (Isolate* isolate =
           shared_isolate_ ? shared_isolate_ : attach_to_shared_space_isolate) {
