@@ -163,19 +163,17 @@ class CallArguments {
   void PopReceiver(ConvertReceiverMode new_receiver_mode) {
     DCHECK_NE(receiver_mode_, ConvertReceiverMode::kNullOrUndefined);
     DCHECK_NE(new_receiver_mode, ConvertReceiverMode::kNullOrUndefined);
-
-    if (count() == 0) {
-      // If there is no non-receiver argument to become the new receiver,
-      // consider the new receiver to be known undefined.
-      receiver_mode_ = ConvertReceiverMode::kNullOrUndefined;
-    } else {
-      // TODO(victorgomes): Do this better!
-      for (size_t i = 0; i < args_.size() - 1; i++) {
-        args_[i] = args_[i + 1];
-      }
-      args_.pop_back();
-      receiver_mode_ = new_receiver_mode;
+    DCHECK_GT(args_.size(), 0);  // We have at least a receiver to pop!
+    // TODO(victorgomes): Do this better!
+    for (size_t i = 0; i < args_.size() - 1; i++) {
+      args_[i] = args_[i + 1];
     }
+    args_.pop_back();
+
+    // If there is no non-receiver argument to become the new receiver,
+    // consider the new receiver to be known undefined.
+    receiver_mode_ = args_.size() == 0 ? ConvertReceiverMode::kNullOrUndefined
+                                       : new_receiver_mode;
   }
 
  private:
