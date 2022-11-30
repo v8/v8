@@ -596,25 +596,11 @@ class ExceptionHandlerTrampolineBuilder {
 class MaglevCodeGeneratingNodeProcessor {
  public:
   explicit MaglevCodeGeneratingNodeProcessor(MaglevAssembler* masm)
-      : masm_(masm),
-        deferred_call_stack_guard_(masm),
-        deferred_call_stack_guard_return_(masm),
-        deferred_flags_need_processing_(masm) {}
+      : masm_(masm) {}
 
-  void PreProcessGraph(Graph* graph) {
-    __ Prologue(graph, *deferred_flags_need_processing_,
-                *deferred_call_stack_guard_,
-                *deferred_call_stack_guard_return_);
-  }
+  void PreProcessGraph(Graph* graph) { __ Prologue(graph); }
 
-  void PostProcessGraph(Graph* graph) {
-    __ Trap();
-    // TODO(victorgomes): Use normal deferred code mechanism in Prologue
-    // instead.
-    __ DeferredPrologue(graph, *deferred_flags_need_processing_,
-                        *deferred_call_stack_guard_,
-                        *deferred_call_stack_guard_return_);
-  }
+  void PostProcessGraph(Graph* graph) {}
 
   void PreProcessBasicBlock(BasicBlock* block) {
     if (v8_flags.code_comments) {
@@ -778,9 +764,6 @@ class MaglevCodeGeneratingNodeProcessor {
 
  private:
   MaglevAssembler* const masm_;
-  ZoneLabelRef deferred_call_stack_guard_;
-  ZoneLabelRef deferred_call_stack_guard_return_;
-  ZoneLabelRef deferred_flags_need_processing_;
 };
 
 class SafepointingNodeProcessor {

@@ -378,10 +378,7 @@ void MaglevAssembler::TruncateDoubleToInt32(Register dst, DoubleRegister src) {
   bind(*done);
 }
 
-void MaglevAssembler::Prologue(Graph* graph,
-                               Label* deferred_flags_need_processing,
-                               Label* deferred_call_stack_guard,
-                               Label* deferred_call_stack_guard_return) {
+void MaglevAssembler::Prologue(Graph* graph) {
   code_gen_state()->set_untagged_slots(graph->untagged_stack_slots());
   code_gen_state()->set_tagged_slots(graph->tagged_stack_slots());
 
@@ -415,9 +412,20 @@ void MaglevAssembler::Prologue(Graph* graph,
                              FieldOperand(feedback_vector, Cell::kValueOffset));
       AssertFeedbackVector(feedback_vector);
 
+      DeferredCodeInfo* deferred_flags_need_processing = PushDeferredCode(
+          [](MaglevAssembler* masm, Register flags, Register feedback_vector) {
+            ASM_CODE_COMMENT_STRING(masm, "Optimized marker check");
+            // TODO(leszeks): This could definitely be a builtin that we
+            // tail-call.
+            __ OptimizeCodeOrTailCallOptimizedCodeSlot(
+                flags, feedback_vector, kJSFunctionRegister, JumpMode::kJump);
+            __ Trap();
+          },
+          flags, feedback_vector);
+
       LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
           flags, feedback_vector, CodeKind::MAGLEV,
-          deferred_flags_need_processing);
+          &deferred_flags_need_processing->deferred_code_label);
     }
 
     EnterFrame(StackFrame::MAGLEV);
@@ -443,8 +451,22 @@ void MaglevAssembler::Prologue(Graph* graph,
       cmpq(kScratchRegister,
            StackLimitAsOperand(StackLimitKind::kInterruptStackLimit));
 
-      j(below, deferred_call_stack_guard);
-      bind(deferred_call_stack_guard_return);
+      ZoneLabelRef deferred_call_stack_guard_return(this);
+      JumpToDeferredIf(
+          below,
+          [](MaglevAssembler* masm, ZoneLabelRef done, int stack_slots) {
+            ASM_CODE_COMMENT_STRING(masm, "Stack/interrupt call");
+            // Save any registers that can be referenced by RegisterInput.
+            // TODO(leszeks): Only push those that are used by the graph.
+            __ PushAll(RegisterInput::kAllowedRegisters);
+            // Push the frame size
+            __ Push(Immediate(Smi::FromInt(stack_slots * kSystemPointerSize)));
+            __ CallRuntime(Runtime::kStackGuardWithGap, 1);
+            __ PopAll(RegisterInput::kAllowedRegisters);
+            __ jmp(*done);
+          },
+          deferred_call_stack_guard_return, code_gen_state()->stack_slots());
+      bind(*deferred_call_stack_guard_return);
     }
 
     // Initialize stack slots.
@@ -486,38 +508,6 @@ void MaglevAssembler::Prologue(Graph* graph,
       // Extend rsp by the size of the remaining untagged part of the frame,
       // no need to initialise these.
       subq(rsp, Immediate(graph->untagged_stack_slots() * kSystemPointerSize));
-    }
-  }
-}
-
-void MaglevAssembler::DeferredPrologue(
-    Graph* graph, Label* deferred_flags_need_processing,
-    Label* deferred_call_stack_guard, Label* deferred_call_stack_guard_return) {
-  if (!v8_flags.maglev_ool_prologue) {
-    bind(deferred_call_stack_guard);
-    {
-      ASM_CODE_COMMENT_STRING(this, "Stack/interrupt call");
-      // Save any registers that can be referenced by RegisterInput.
-      // TODO(leszeks): Only push those that are used by the graph.
-      PushAll(RegisterInput::kAllowedRegisters);
-      // Push the frame size
-      Push(Immediate(
-          Smi::FromInt(code_gen_state()->stack_slots() * kSystemPointerSize)));
-      CallRuntime(Runtime::kStackGuardWithGap, 1);
-      PopAll(RegisterInput::kAllowedRegisters);
-      jmp(deferred_call_stack_guard_return);
-    }
-
-    bind(deferred_flags_need_processing);
-    {
-      ASM_CODE_COMMENT_STRING(this, "Optimized marker check");
-      // See PreProcessGraph.
-      Register flags = rcx;
-      Register feedback_vector = r9;
-      // TODO(leszeks): This could definitely be a builtin that we tail-call.
-      OptimizeCodeOrTailCallOptimizedCodeSlot(
-          flags, feedback_vector, kJSFunctionRegister, JumpMode::kJump);
-      Trap();
     }
   }
 }

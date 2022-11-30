@@ -159,12 +159,7 @@ class MaglevAssembler : public MacroAssembler {
   inline void Move(DoubleRegister dst, double n);
   inline void Move(Register dst, Handle<HeapObject> obj);
 
-  void Prologue(Graph* graph, Label* deferred_flags_need_processing,
-                Label* deferred_call_stack_guard,
-                Label* deferred_call_stack_guard_return);
-  void DeferredPrologue(Graph* graph, Label* deferred_flags_need_processing,
-                        Label* deferred_call_stack_guard,
-                        Label* deferred_call_stack_guard_return);
+  void Prologue(Graph* graph);
 
   inline void AssertStackSizeCorrect();
 
