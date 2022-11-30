@@ -19,6 +19,8 @@ class D8Console : public debug::ConsoleDelegate {
   explicit D8Console(Isolate* isolate);
   ~D8Console() override;
 
+  CpuProfiler* profiler() const { return profiler_; }
+
  private:
   void Assert(const debug::ConsoleCallArguments& args,
               const v8::debug::ConsoleContext&) override;
@@ -49,6 +51,7 @@ class D8Console : public debug::ConsoleDelegate {
   std::map<std::string, base::TimeTicks> timers_;
   base::TimeTicks default_timer_;
   CpuProfiler* profiler_{nullptr};
+  bool profiler_active_{false};
 };
 
 }  // namespace v8

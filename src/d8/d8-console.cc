@@ -80,7 +80,12 @@ D8Console::D8Console(Isolate* isolate) : isolate_(isolate) {
 }
 
 D8Console::~D8Console() {
-  if (profiler_) profiler_->Dispose();
+  if (profiler_) {
+    if (profiler_active_) {
+      profiler_->StopProfiling(String::Empty(isolate_));
+    }
+    profiler_->Dispose();
+  }
 }
 
 void D8Console::Assert(const debug::ConsoleCallArguments& args,
@@ -121,8 +126,8 @@ void D8Console::Profile(const debug::ConsoleCallArguments& args,
                         const v8::debug::ConsoleContext&) {
   if (!profiler_) {
     profiler_ = CpuProfiler::New(isolate_);
-    Shell::SetCpuProfiler(profiler_);
   }
+  profiler_active_ = true;
   profiler_->StartProfiling(String::Empty(isolate_), CpuProfilingOptions{});
 }
 
@@ -130,11 +135,11 @@ void D8Console::ProfileEnd(const debug::ConsoleCallArguments& args,
                            const v8::debug::ConsoleContext&) {
   if (!profiler_) return;
   CpuProfile* profile = profiler_->StopProfiling(String::Empty(isolate_));
+  profiler_active_ = false;
   if (Shell::HasOnProfileEndListener()) {
     StringOutputStream out;
     profile->Serialize(&out);
     Shell::TriggerOnProfileEndListener(isolate_, out.result());
-    Shell::ResetCpuProfiler();
   } else {
     FileOutputStream out(kCpuProfileOutputFilename);
     profile->Serialize(&out);

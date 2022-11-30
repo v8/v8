@@ -467,7 +467,6 @@ const base::TimeTicks Shell::kInitialTicks = base::TimeTicks::Now();
 Global<Function> Shell::stringify_function_;
 Global<Function> Shell::profile_end_callback_;
 Global<Context> Shell::profile_end_callback_context_;
-CpuProfiler* Shell::cpu_profiler_ = nullptr;
 base::LazyMutex Shell::workers_mutex_;
 bool Shell::allow_new_workers_ = true;
 std::unordered_set<std::shared_ptr<Worker>> Shell::running_workers_;
@@ -1766,7 +1765,7 @@ uint64_t Shell::GetTracingTimestampFromPerformanceTimestamp(
       base::TimeDelta::FromMillisecondsD(performance_timestamp);
   // See TracingController::CurrentTimestampMicroseconds().
   int64_t internal_value = (delta + kInitialTicks).ToInternalValue();
-  DCHECK(internal_value >= 0);
+  DCHECK_GE(internal_value, 0);
   return internal_value;
 }
 
@@ -2531,10 +2530,11 @@ bool Shell::HasOnProfileEndListener() {
 
 void Shell::ProfilerTriggerSample(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
-  if (cpu_profiler_) {
-    Isolate* isolate = args.GetIsolate();
-    cpu_profiler_->CollectSample(isolate);
-  }
+  Isolate* isolate = args.GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  D8Console* console =
+      reinterpret_cast<D8Console*>(i_isolate->console_delegate());
+  if (console->profiler()) console->profiler()->CollectSample(isolate);
 }
 
 void Shell::TriggerOnProfileEndListener(Isolate* isolate, std::string profile) {
