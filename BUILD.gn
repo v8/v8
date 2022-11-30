@@ -1582,93 +1582,95 @@ if (is_android && enable_java_templates) {
   }
 }
 
-action("postmortem-metadata") {
-  # Only targets in this file and the top-level visibility target can
-  # depend on this.
-  visibility = [
-    ":*",
-    "//:gn_visibility",
-  ]
+if (v8_postmortem_support) {
+  action("postmortem-metadata") {
+    # Only targets in this file and the top-level visibility target can
+    # depend on this.
+    visibility = [
+      ":*",
+      "//:gn_visibility",
+    ]
 
-  script = "tools/gen-postmortem-metadata.py"
+    script = "tools/gen-postmortem-metadata.py"
 
-  # NOSORT
-  sources = [
-    "$target_gen_dir/torque-generated/instance-types.h",
-    "src/objects/allocation-site.h",
-    "src/objects/allocation-site-inl.h",
-    "src/objects/cell.h",
-    "src/objects/cell-inl.h",
-    "src/objects/code.h",
-    "src/objects/code-inl.h",
-    "src/objects/data-handler.h",
-    "src/objects/data-handler-inl.h",
-    "src/objects/descriptor-array.h",
-    "src/objects/descriptor-array-inl.h",
-    "src/objects/feedback-cell.h",
-    "src/objects/feedback-cell-inl.h",
-    "src/objects/fixed-array.h",
-    "src/objects/fixed-array-inl.h",
-    "src/objects/heap-number.h",
-    "src/objects/heap-number-inl.h",
-    "src/objects/heap-object.h",
-    "src/objects/heap-object-inl.h",
-    "src/objects/instance-type.h",
-    "src/objects/js-array-buffer.h",
-    "src/objects/js-array-buffer-inl.h",
-    "src/objects/js-array.h",
-    "src/objects/js-array-inl.h",
-    "src/objects/js-function-inl.h",
-    "src/objects/js-function.cc",
-    "src/objects/js-function.h",
-    "src/objects/js-objects.cc",
-    "src/objects/js-objects.h",
-    "src/objects/js-objects-inl.h",
-    "src/objects/js-promise.h",
-    "src/objects/js-promise-inl.h",
-    "src/objects/js-raw-json.cc",
-    "src/objects/js-raw-json.h",
-    "src/objects/js-raw-json-inl.h",
-    "src/objects/js-regexp.cc",
-    "src/objects/js-regexp.h",
-    "src/objects/js-regexp-inl.h",
-    "src/objects/js-regexp-string-iterator.h",
-    "src/objects/js-regexp-string-iterator-inl.h",
-    "src/objects/map.cc",
-    "src/objects/map.h",
-    "src/objects/map-inl.h",
-    "src/objects/megadom-handler.h",
-    "src/objects/megadom-handler-inl.h",
-    "src/objects/name.h",
-    "src/objects/name-inl.h",
-    "src/objects/objects.h",
-    "src/objects/objects-inl.h",
-    "src/objects/oddball.h",
-    "src/objects/oddball-inl.h",
-    "src/objects/primitive-heap-object.h",
-    "src/objects/primitive-heap-object-inl.h",
-    "src/objects/scope-info.h",
-    "src/objects/scope-info-inl.h",
-    "src/objects/script.h",
-    "src/objects/script-inl.h",
-    "src/objects/shared-function-info.cc",
-    "src/objects/shared-function-info.h",
-    "src/objects/shared-function-info-inl.h",
-    "src/objects/string.cc",
-    "src/objects/string-comparator.cc",
-    "src/objects/string-comparator.h",
-    "src/objects/string.h",
-    "src/objects/string-inl.h",
-    "src/objects/struct.h",
-    "src/objects/struct-inl.h",
-  ]
+    # NOSORT
+    sources = [
+      "$target_gen_dir/torque-generated/instance-types.h",
+      "src/objects/allocation-site.h",
+      "src/objects/allocation-site-inl.h",
+      "src/objects/cell.h",
+      "src/objects/cell-inl.h",
+      "src/objects/code.h",
+      "src/objects/code-inl.h",
+      "src/objects/data-handler.h",
+      "src/objects/data-handler-inl.h",
+      "src/objects/descriptor-array.h",
+      "src/objects/descriptor-array-inl.h",
+      "src/objects/feedback-cell.h",
+      "src/objects/feedback-cell-inl.h",
+      "src/objects/fixed-array.h",
+      "src/objects/fixed-array-inl.h",
+      "src/objects/heap-number.h",
+      "src/objects/heap-number-inl.h",
+      "src/objects/heap-object.h",
+      "src/objects/heap-object-inl.h",
+      "src/objects/instance-type.h",
+      "src/objects/js-array-buffer.h",
+      "src/objects/js-array-buffer-inl.h",
+      "src/objects/js-array.h",
+      "src/objects/js-array-inl.h",
+      "src/objects/js-function-inl.h",
+      "src/objects/js-function.cc",
+      "src/objects/js-function.h",
+      "src/objects/js-objects.cc",
+      "src/objects/js-objects.h",
+      "src/objects/js-objects-inl.h",
+      "src/objects/js-promise.h",
+      "src/objects/js-promise-inl.h",
+      "src/objects/js-raw-json.cc",
+      "src/objects/js-raw-json.h",
+      "src/objects/js-raw-json-inl.h",
+      "src/objects/js-regexp.cc",
+      "src/objects/js-regexp.h",
+      "src/objects/js-regexp-inl.h",
+      "src/objects/js-regexp-string-iterator.h",
+      "src/objects/js-regexp-string-iterator-inl.h",
+      "src/objects/map.cc",
+      "src/objects/map.h",
+      "src/objects/map-inl.h",
+      "src/objects/megadom-handler.h",
+      "src/objects/megadom-handler-inl.h",
+      "src/objects/name.h",
+      "src/objects/name-inl.h",
+      "src/objects/objects.h",
+      "src/objects/objects-inl.h",
+      "src/objects/oddball.h",
+      "src/objects/oddball-inl.h",
+      "src/objects/primitive-heap-object.h",
+      "src/objects/primitive-heap-object-inl.h",
+      "src/objects/scope-info.h",
+      "src/objects/scope-info-inl.h",
+      "src/objects/script.h",
+      "src/objects/script-inl.h",
+      "src/objects/shared-function-info.cc",
+      "src/objects/shared-function-info.h",
+      "src/objects/shared-function-info-inl.h",
+      "src/objects/string.cc",
+      "src/objects/string-comparator.cc",
+      "src/objects/string-comparator.h",
+      "src/objects/string.h",
+      "src/objects/string-inl.h",
+      "src/objects/struct.h",
+      "src/objects/struct-inl.h",
+    ]
 
-  outputs = [ "$target_gen_dir/debug-support.cc" ]
+    outputs = [ "$target_gen_dir/debug-support.cc" ]
 
-  args = rebase_path(outputs, root_build_dir) +
-         rebase_path(sources, root_build_dir)
+    args = rebase_path(outputs, root_build_dir) +
+           rebase_path(sources, root_build_dir)
 
-  deps = [ ":run_torque" ]
+    deps = [ ":run_torque" ]
+  }
 }
 
 torque_files = [
