@@ -530,6 +530,13 @@ TEST(Word64) {
       IrOpcode::kChangeInt64ToFloat64, IrOpcode::kChangeFloat64ToTaggedPointer,
       MachineRepresentation::kWord64, TypeCache::Get()->kSafeInteger,
       MachineRepresentation::kTaggedPointer);
+
+  CheckChange(IrOpcode::kTruncateBigIntToWord64,
+              MachineRepresentation::kTaggedPointer, Type::SignedBigInt64(),
+              MachineRepresentation::kWord64);
+  CheckChange(IrOpcode::kTruncateBigIntToWord64,
+              MachineRepresentation::kTaggedPointer, Type::UnsignedBigInt64(),
+              MachineRepresentation::kWord64);
 }
 
 TEST(SingleChanges) {

@@ -1245,7 +1245,9 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
              ((use_info.truncation().IsUsedAsWord64() &&
                (use_info.type_check() == TypeCheckKind::kBigInt ||
                 output_type.Is(Type::BigInt()))) ||
-              use_info.type_check() == TypeCheckKind::kBigInt64)) {
+              (use_info.type_check() == TypeCheckKind::kBigInt64 ||
+               output_type.Is(Type::SignedBigInt64()) ||
+               output_type.Is(Type::UnsignedBigInt64())))) {
     node = GetTaggedPointerRepresentationFor(node, output_rep, output_type,
                                              use_node, use_info);
     op = simplified()->TruncateBigIntToWord64();
