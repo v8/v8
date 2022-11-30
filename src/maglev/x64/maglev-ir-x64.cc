@@ -4327,8 +4327,7 @@ void Return::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
           MemOperand(rbp, StandardFrameConstants::kArgCOffset));
 
   // Leave the frame.
-  // TODO(leszeks): Add a new frame maker for Maglev.
-  __ LeaveFrame(StackFrame::BASELINE);
+  __ LeaveFrame(StackFrame::MAGLEV);
 
   // If actual is bigger than formal, then we should use it to free up the stack
   // arguments.
