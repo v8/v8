@@ -781,7 +781,7 @@ void CheckMaps::GenerateCode(MaglevAssembler* masm,
   for (size_t i = 0; i < map_count - 1; ++i) {
     Handle<Map> map = maps().at(i);
     __ Cmp(FieldOperand(object, HeapObject::kMapOffset), map);
-    __ j(equal, &done, Label::kNear);
+    __ j(equal, &done);
   }
   Handle<Map> last_map = maps().at(map_count - 1);
   __ Cmp(FieldOperand(object, HeapObject::kMapOffset), last_map);
