@@ -9,9 +9,19 @@
 #include "src/heap/parked-scope.h"
 #include "src/maglev/maglev-graph-labeller.h"
 
+#ifdef V8_TARGET_ARCH_ARM64
+#include "src/maglev/arm64/maglev-assembler-arm64-inl.h"
+#elif V8_TARGET_ARCH_X64
+#include "src/maglev/x64/maglev-assembler-x64-inl.h"
+#else
+#error "Maglev does not supported this architecture."
+#endif
+
 namespace v8 {
 namespace internal {
 namespace maglev {
+
+#define __ masm->
 
 const char* OpcodeToString(Opcode opcode) {
 #define DEF_NAME(Name) #Name,
@@ -336,6 +346,126 @@ void CallRuntime::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
   for (int i = 0; i < input_count(); i++) {
     CheckValueInputIs(this, i, ValueRepresentation::kTagged, graph_labeller);
   }
+}
+
+// ---
+// Reify constants
+// ---
+
+Handle<Object> ValueNode::Reify(LocalIsolate* isolate) {
+  switch (opcode()) {
+#define V(Name)         \
+  case Opcode::k##Name: \
+    return this->Cast<Name>()->DoReify(isolate);
+    CONSTANT_VALUE_NODE_LIST(V)
+#undef V
+    default:
+      UNREACHABLE();
+  }
+}
+
+Handle<Object> SmiConstant::DoReify(LocalIsolate* isolate) {
+  return handle(value_, isolate);
+}
+
+Handle<Object> Int32Constant::DoReify(LocalIsolate* isolate) {
+  return isolate->factory()->NewNumber<AllocationType::kOld>(value());
+}
+
+Handle<Object> Float64Constant::DoReify(LocalIsolate* isolate) {
+  return isolate->factory()->NewNumber<AllocationType::kOld>(value_);
+}
+
+Handle<Object> Constant::DoReify(LocalIsolate* isolate) {
+  return object_.object();
+}
+
+Handle<Object> RootConstant::DoReify(LocalIsolate* isolate) {
+  return isolate->root_handle(index());
+}
+
+// ---
+// Load node to registers
+// ---
+
+namespace {
+template <typename NodeT>
+void LoadToRegisterHelper(NodeT* node, MaglevAssembler* masm, Register reg) {
+  if constexpr (NodeT::kProperties.value_representation() !=
+                ValueRepresentation::kFloat64) {
+    return node->DoLoadToRegister(masm, reg);
+  } else {
+    UNREACHABLE();
+  }
+}
+template <typename NodeT>
+void LoadToRegisterHelper(NodeT* node, MaglevAssembler* masm,
+                          DoubleRegister reg) {
+  if constexpr (NodeT::kProperties.value_representation() ==
+                ValueRepresentation::kFloat64) {
+    return node->DoLoadToRegister(masm, reg);
+  } else {
+    UNREACHABLE();
+  }
+}
+}  // namespace
+
+void ValueNode::LoadToRegister(MaglevAssembler* masm, Register reg) {
+  switch (opcode()) {
+#define V(Name)         \
+  case Opcode::k##Name: \
+    return LoadToRegisterHelper(this->Cast<Name>(), masm, reg);
+    VALUE_NODE_LIST(V)
+#undef V
+    default:
+      UNREACHABLE();
+  }
+}
+void ValueNode::LoadToRegister(MaglevAssembler* masm, DoubleRegister reg) {
+  switch (opcode()) {
+#define V(Name)         \
+  case Opcode::k##Name: \
+    return LoadToRegisterHelper(this->Cast<Name>(), masm, reg);
+    VALUE_NODE_LIST(V)
+#undef V
+    default:
+      UNREACHABLE();
+  }
+}
+
+void ValueNode::DoLoadToRegister(MaglevAssembler* masm, Register reg) {
+  DCHECK(is_spilled());
+  DCHECK(!use_double_register());
+  __ Move(reg,
+          masm->GetStackSlot(compiler::AllocatedOperand::cast(spill_slot())));
+}
+
+void ValueNode::DoLoadToRegister(MaglevAssembler* masm, DoubleRegister reg) {
+  DCHECK(is_spilled());
+  DCHECK(use_double_register());
+  __ Move(reg,
+          masm->GetStackSlot(compiler::AllocatedOperand::cast(spill_slot())));
+}
+
+void SmiConstant::DoLoadToRegister(MaglevAssembler* masm, Register reg) {
+  __ Move(reg, Immediate(value()));
+}
+
+void Int32Constant::DoLoadToRegister(MaglevAssembler* masm, Register reg) {
+  __ Move(reg, Immediate(value()));
+}
+
+void Float64Constant::DoLoadToRegister(MaglevAssembler* masm,
+                                       DoubleRegister reg) {
+  __ Move(reg, value());
+}
+
+void Constant::DoLoadToRegister(MaglevAssembler* masm, Register reg) {
+  __ Move(reg, object_.object());
+}
+
+void RootConstant::DoLoadToRegister(MaglevAssembler* masm, Register reg) {
+  __ LoadRoot(reg, index());
 }
 
 // ---

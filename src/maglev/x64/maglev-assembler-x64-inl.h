@@ -9,6 +9,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/maglev/maglev-assembler.h"
 #include "src/maglev/maglev-basic-block.h"
@@ -17,9 +18,6 @@
 namespace v8 {
 namespace internal {
 namespace maglev {
-
-ZoneLabelRef::ZoneLabelRef(MaglevAssembler* masm)
-    : ZoneLabelRef(masm->compilation_info()->zone()) {}
 
 void MaglevAssembler::Branch(Condition condition, BasicBlock* if_true,
                              BasicBlock* if_false, BasicBlock* next_block) {
@@ -170,6 +168,150 @@ inline void MaglevAssembler::ReverseByteOrder(Register value, int size) {
     bswapl(value);
   } else {
     DCHECK_EQ(size, 1);
+  }
+}
+
+inline MemOperand MaglevAssembler::StackSlotOperand(StackSlot stack_slot) {
+  return MemOperand(rbp, stack_slot.index);
+}
+
+inline void MaglevAssembler::Move(StackSlot dst, Register src) {
+  movq(StackSlotOperand(dst), src);
+}
+
+inline void MaglevAssembler::Move(StackSlot dst, DoubleRegister src) {
+  Movsd(StackSlotOperand(dst), src);
+}
+
+inline void MaglevAssembler::Move(Register dst, StackSlot src) {
+  movq(dst, StackSlotOperand(src));
+}
+
+inline void MaglevAssembler::Move(DoubleRegister dst, StackSlot src) {
+  Movsd(dst, StackSlotOperand(src));
+}
+
+inline void MaglevAssembler::Move(MemOperand dst, Register src) {
+  movq(dst, src);
+}
+
+inline void MaglevAssembler::Move(MemOperand dst, DoubleRegister src) {
+  Movsd(dst, src);
+}
+
+inline void MaglevAssembler::Move(Register dst, TaggedIndex i) {
+  MacroAssembler::Move(dst, i);
+}
+
+inline void MaglevAssembler::Move(DoubleRegister dst, DoubleRegister src) {
+  MacroAssembler::Move(dst, src);
+}
+
+inline void MaglevAssembler::Move(Register dst, Smi src) {
+  MacroAssembler::Move(dst, src);
+}
+
+inline void MaglevAssembler::Move(Register dst, MemOperand src) {
+  MacroAssembler::Move(dst, src);
+}
+
+inline void MaglevAssembler::Move(DoubleRegister dst, MemOperand src) {
+  Movsd(dst, src);
+}
+
+inline void MaglevAssembler::Move(Register dst, Register src) {
+  MacroAssembler::Move(dst, src);
+}
+
+inline void MaglevAssembler::Move(Register dst, Immediate i) {
+  MacroAssembler::Move(dst, i);
+}
+
+inline void MaglevAssembler::Move(DoubleRegister dst, double n) {
+  MacroAssembler::Move(dst, n);
+}
+
+inline void MaglevAssembler::Move(Register dst, Handle<HeapObject> obj) {
+  MacroAssembler::Move(dst, obj);
+}
+
+inline void MaglevAssembler::MaterialiseValueNode(Register dst,
+                                                  ValueNode* value) {
+  switch (value->opcode()) {
+    case Opcode::kInt32Constant: {
+      int32_t int_value = value->Cast<Int32Constant>()->value();
+      if (Smi::IsValid(int_value)) {
+        Move(dst, Smi::FromInt(int_value));
+      } else {
+        movq_heap_number(dst, int_value);
+      }
+      break;
+    }
+    case Opcode::kFloat64Constant: {
+      double double_value = value->Cast<Float64Constant>()->value();
+      movq_heap_number(dst, double_value);
+      break;
+    }
+    default:
+      break;
+  }
+
+  DCHECK(!value->allocation().IsConstant());
+  DCHECK(value->allocation().IsAnyStackSlot());
+  using D = NewHeapNumberDescriptor;
+  MemOperand src = ToMemOperand(value->allocation());
+  switch (value->properties().value_representation()) {
+    case ValueRepresentation::kInt32: {
+      Label done;
+      movl(dst, src);
+      addl(dst, dst);
+      j(no_overflow, &done, Label::kNear);
+      // If we overflow, instead of bailing out (deopting), we change
+      // representation to a HeapNumber.
+      Cvtlsi2sd(D::GetDoubleRegisterParameter(D::kValue), src);
+      CallBuiltin(Builtin::kNewHeapNumber);
+      Move(dst, kReturnRegister0);
+      bind(&done);
+      break;
+    }
+    case ValueRepresentation::kUint32: {
+      Label done, tag_smi;
+      movl(dst, src);
+      // Unsigned comparison against Smi::kMaxValue.
+      cmpl(dst, Immediate(Smi::kMaxValue));
+      // If we don't fit in a Smi, instead of bailing out (deopting), we
+      // change representation to a HeapNumber.
+      j(below_equal, &tag_smi, Label::kNear);
+      // The value was loaded with movl, so is zero extended in 64-bit.
+      // Therefore, we can do an unsigned 32-bit converstion to double with a
+      // 64-bit signed conversion (Cvt_q_si2sd instead of Cvt_l_si2sd).
+      Cvtqsi2sd(D::GetDoubleRegisterParameter(D::kValue), src);
+      CallBuiltin(Builtin::kNewHeapNumber);
+      Move(dst, kReturnRegister0);
+      jmp(&done, Label::kNear);
+      bind(&tag_smi);
+      SmiTag(dst);
+      bind(&done);
+      break;
+    }
+    case ValueRepresentation::kFloat64:
+      Movsd(D::GetDoubleRegisterParameter(D::kValue), src);
+      CallBuiltin(Builtin::kNewHeapNumber);
+      Move(dst, kReturnRegister0);
+      break;
+    case ValueRepresentation::kTagged:
+      UNREACHABLE();
+  }
+}
+
+inline void MaglevAssembler::AssertStackSizeCorrect() {
+  if (v8_flags.debug_code) {
+    movq(kScratchRegister, rbp);
+    subq(kScratchRegister, rsp);
+    cmpq(kScratchRegister,
+         Immediate(code_gen_state()->stack_slots() * kSystemPointerSize +
+                   StandardFrameConstants::kFixedFrameSizeFromFp));
+    Assert(equal, AbortReason::kStackAccessBelowStackPointer);
   }
 }
 

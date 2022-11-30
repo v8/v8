@@ -9,7 +9,19 @@ namespace v8 {
 namespace internal {
 namespace maglev {
 
-// TODO(v8:7700): Implement!
+void MaglevAssembler::Prologue(Graph* graph,
+                               Label* deferred_flags_need_processing,
+                               Label* deferred_call_stack_guard,
+                               Label* deferred_call_stack_guard_return) {
+  // TODO(v8:7700): Implement!
+  UNREACHABLE();
+}
+void MaglevAssembler::DeferredPrologue(
+    Graph* graph, Label* deferred_flags_need_processing,
+    Label* deferred_call_stack_guard, Label* deferred_call_stack_guard_return) {
+  // TODO(v8:7700): Implement!
+  UNREACHABLE();
+}
 
 }  // namespace maglev
 }  // namespace internal

@@ -13,6 +13,7 @@ namespace v8 {
 namespace internal {
 namespace maglev {
 
+class Graph;
 class MaglevAssembler;
 
 // Label allowed to be passed to deferred code.
@@ -33,6 +34,11 @@ class ZoneLabelRef {
 
   // Unsafe constructor. {label} must be zone allocated.
   explicit ZoneLabelRef(Label* label) : label_(label) {}
+};
+
+// The slot index is the offset from the frame pointer.
+struct StackSlot {
+  uint32_t index;
 };
 
 class MaglevAssembler : public MacroAssembler {
@@ -134,6 +140,34 @@ class MaglevAssembler : public MacroAssembler {
   inline void EmitEagerDeoptIf(Condition cond, DeoptimizeReason reason,
                                NodeT* node);
 
+  inline void MaterialiseValueNode(Register dst, ValueNode* value);
+
+  inline MemOperand StackSlotOperand(StackSlot slot);
+  inline void Move(StackSlot dst, Register src);
+  inline void Move(StackSlot dst, DoubleRegister src);
+  inline void Move(Register dst, StackSlot src);
+  inline void Move(DoubleRegister dst, StackSlot src);
+  inline void Move(MemOperand dst, Register src);
+  inline void Move(MemOperand dst, DoubleRegister src);
+  inline void Move(Register dst, MemOperand src);
+  inline void Move(DoubleRegister dst, MemOperand src);
+  inline void Move(DoubleRegister dst, DoubleRegister src);
+  inline void Move(Register dst, Smi src);
+  inline void Move(Register dst, Register src);
+  inline void Move(Register dst, TaggedIndex i);
+  inline void Move(Register dst, Immediate i);
+  inline void Move(DoubleRegister dst, double n);
+  inline void Move(Register dst, Handle<HeapObject> obj);
+
+  void Prologue(Graph* graph, Label* deferred_flags_need_processing,
+                Label* deferred_call_stack_guard,
+                Label* deferred_call_stack_guard_return);
+  void DeferredPrologue(Graph* graph, Label* deferred_flags_need_processing,
+                        Label* deferred_call_stack_guard,
+                        Label* deferred_call_stack_guard_return);
+
+  inline void AssertStackSizeCorrect();
+
   compiler::NativeContextRef native_context() const {
     return code_gen_state()->broker()->target_native_context();
   }
@@ -196,6 +230,9 @@ class SaveRegisterStateForCall {
   MaglevAssembler* masm;
   RegisterSnapshot snapshot_;
 };
+
+ZoneLabelRef::ZoneLabelRef(MaglevAssembler* masm)
+    : ZoneLabelRef(masm->compilation_info()->zone()) {}
 
 }  // namespace maglev
 }  // namespace internal

@@ -133,109 +133,24 @@ RegList GetGeneralRegistersUsedAsInputs(const EagerDeoptInfo* deopt_info) {
 // ---
 // Nodes
 // ---
-namespace {
-template <typename NodeT>
-void LoadToRegisterHelper(NodeT* node, MaglevAssembler* masm, Register reg) {
-  if constexpr (NodeT::kProperties.value_representation() !=
-                ValueRepresentation::kFloat64) {
-    return node->DoLoadToRegister(masm, reg);
-  } else {
-    UNREACHABLE();
-  }
-}
-template <typename NodeT>
-void LoadToRegisterHelper(NodeT* node, MaglevAssembler* masm,
-                          DoubleRegister reg) {
-  if constexpr (NodeT::kProperties.value_representation() ==
-                ValueRepresentation::kFloat64) {
-    return node->DoLoadToRegister(masm, reg);
-  } else {
-    UNREACHABLE();
-  }
-}
-}  // namespace
-void ValueNode::LoadToRegister(MaglevAssembler* masm, Register reg) {
-  switch (opcode()) {
-#define V(Name)         \
-  case Opcode::k##Name: \
-    return LoadToRegisterHelper(this->Cast<Name>(), masm, reg);
-    VALUE_NODE_LIST(V)
-#undef V
-    default:
-      UNREACHABLE();
-  }
-}
-void ValueNode::LoadToRegister(MaglevAssembler* masm, DoubleRegister reg) {
-  switch (opcode()) {
-#define V(Name)         \
-  case Opcode::k##Name: \
-    return LoadToRegisterHelper(this->Cast<Name>(), masm, reg);
-    VALUE_NODE_LIST(V)
-#undef V
-    default:
-      UNREACHABLE();
-  }
-}
-void ValueNode::DoLoadToRegister(MaglevAssembler* masm, Register reg) {
-  DCHECK(is_spilled());
-  DCHECK(!use_double_register());
-  __ movq(reg,
-          masm->GetStackSlot(compiler::AllocatedOperand::cast(spill_slot())));
-}
-void ValueNode::DoLoadToRegister(MaglevAssembler* masm, DoubleRegister reg) {
-  DCHECK(is_spilled());
-  DCHECK(use_double_register());
-  __ Movsd(reg,
-           masm->GetStackSlot(compiler::AllocatedOperand::cast(spill_slot())));
-}
-Handle<Object> ValueNode::Reify(LocalIsolate* isolate) {
-  switch (opcode()) {
-#define V(Name)         \
-  case Opcode::k##Name: \
-    return this->Cast<Name>()->DoReify(isolate);
-    CONSTANT_VALUE_NODE_LIST(V)
-#undef V
-    default:
-      UNREACHABLE();
-  }
-}
 
 void SmiConstant::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   DefineAsConstant(vreg_state, this);
 }
 void SmiConstant::GenerateCode(MaglevAssembler* masm,
                                const ProcessingState& state) {}
-Handle<Object> SmiConstant::DoReify(LocalIsolate* isolate) {
-  return handle(value_, isolate);
-}
-void SmiConstant::DoLoadToRegister(MaglevAssembler* masm, Register reg) {
-  __ Move(reg, Immediate(value()));
-}
 
 void Float64Constant::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   DefineAsConstant(vreg_state, this);
 }
 void Float64Constant::GenerateCode(MaglevAssembler* masm,
                                    const ProcessingState& state) {}
-Handle<Object> Float64Constant::DoReify(LocalIsolate* isolate) {
-  return isolate->factory()->NewNumber<AllocationType::kOld>(value_);
-}
-void Float64Constant::DoLoadToRegister(MaglevAssembler* masm,
-                                       DoubleRegister reg) {
-  __ Move(reg, value());
-}
 
 void Constant::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   DefineAsConstant(vreg_state, this);
 }
 void Constant::GenerateCode(MaglevAssembler* masm,
                             const ProcessingState& state) {}
-void Constant::DoLoadToRegister(MaglevAssembler* masm, Register reg) {
-  __ Move(reg, object_.object());
-}
-Handle<Object> Constant::DoReify(LocalIsolate* isolate) {
-  return object_.object();
-}
 
 void DeleteProperty::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   using D = CallInterfaceDescriptorFor<Builtin::kDeleteProperty>::type;
@@ -576,12 +491,6 @@ void RootConstant::AllocateVreg(MaglevVregAllocationState* vreg_state) {
 }
 void RootConstant::GenerateCode(MaglevAssembler* masm,
                                 const ProcessingState& state) {}
-void RootConstant::DoLoadToRegister(MaglevAssembler* masm, Register reg) {
-  __ LoadRoot(reg, index());
-}
-Handle<Object> RootConstant::DoReify(LocalIsolate* isolate) {
-  return isolate->root_handle(index());
-}
 
 void CreateEmptyArrayLiteral::AllocateVreg(
     MaglevVregAllocationState* vreg_state) {
@@ -782,7 +691,8 @@ void GetTemplateObject::GenerateCode(MaglevAssembler* masm,
   using D = GetTemplateObjectDescriptor;
   __ Move(D::ContextRegister(), masm->native_context().object());
   __ Move(D::GetRegisterParameter(D::kMaybeFeedbackVector), feedback().vector);
-  __ Move(D::GetRegisterParameter(D::kSlot), feedback().slot.ToInt());
+  __ Move(D::GetRegisterParameter(D::kSlot),
+          Immediate(feedback().slot.ToInt()));
   __ Move(D::GetRegisterParameter(D::kShared), shared_function_info_.object());
   __ CallBuiltin(Builtin::kGetTemplateObject);
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
@@ -3132,12 +3042,6 @@ void Int32Constant::AllocateVreg(MaglevVregAllocationState* vreg_state) {
 }
 void Int32Constant::GenerateCode(MaglevAssembler* masm,
                                  const ProcessingState& state) {}
-void Int32Constant::DoLoadToRegister(MaglevAssembler* masm, Register reg) {
-  __ Move(reg, Immediate(value()));
-}
-Handle<Object> Int32Constant::DoReify(LocalIsolate* isolate) {
-  return isolate->factory()->NewNumber<AllocationType::kOld>(value());
-}
 
 void Int32ToNumber::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseRegister(input());
@@ -3210,7 +3114,7 @@ void HoleyFloat64Box::GenerateCode(MaglevAssembler* masm,
   DoubleRegister value = ToDoubleRegister(input());
   Register object = ToRegister(result());
   __ movq(object, value);
-  __ Move(kScratchRegister, kHoleNanInt64);
+  __ movq(kScratchRegister, kHoleNanInt64);
   __ cmpq(object, kScratchRegister);
   __ JumpToDeferredIf(
       equal,

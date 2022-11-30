@@ -1798,10 +1798,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   inline void PushAll(RegList registers) { PushXRegList(registers); }
   inline void PopAll(RegList registers) { PopXRegList(registers); }
-  inline void PushAll(DoubleRegList registers, int stack_slot_size) {
+  inline void PushAll(DoubleRegList registers,
+                      int stack_slot_size = kDoubleSize) {
     PushQRegList(registers);
   }
-  inline void PopAll(DoubleRegList registers, int stack_slot_size) {
+  inline void PopAll(DoubleRegList registers,
+                     int stack_slot_size = kDoubleSize) {
     PopQRegList(registers);
   }
 

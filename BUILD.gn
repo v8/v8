@@ -4795,6 +4795,7 @@ v8_source_set("v8_base_without_compiler") {
 
   if (v8_enable_maglev) {
     sources += [
+      "src/maglev/maglev-code-generator.cc",
       "src/maglev/maglev-compilation-info.cc",
       "src/maglev/maglev-compilation-unit.cc",
       "src/maglev/maglev-compiler.cc",
@@ -4809,13 +4810,11 @@ v8_source_set("v8_base_without_compiler") {
     if (v8_current_cpu == "arm64") {
       sources += [
         "src/maglev/arm64/maglev-assembler-arm64.cc",
-        "src/maglev/arm64/maglev-code-generator-arm64.cc",
         "src/maglev/arm64/maglev-ir-arm64.cc",
       ]
     } else if (v8_current_cpu == "x64") {
       sources += [
         "src/maglev/x64/maglev-assembler-x64.cc",
-        "src/maglev/x64/maglev-code-generator-x64.cc",
         "src/maglev/x64/maglev-ir-x64.cc",
       ]
     }

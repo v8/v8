@@ -4,6 +4,7 @@
 
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/common/globals.h"
+#include "src/maglev/maglev-graph.h"
 #include "src/maglev/x64/maglev-assembler-x64-inl.h"
 #include "src/objects/heap-number.h"
 
@@ -53,7 +54,8 @@ void MaglevAssembler::Allocate(RegisterSnapshot& register_snapshot,
         {
           SaveRegisterStateForCall save_register_state(masm, register_snapshot);
           using D = AllocateDescriptor;
-          __ Move(D::GetRegisterParameter(D::kRequestedSize), size_in_bytes);
+          __ Move(D::GetRegisterParameter(D::kRequestedSize),
+                  Immediate(size_in_bytes));
           __ CallBuiltin(builtin);
           save_register_state.DefineSafepoint();
           __ Move(object, kReturnRegister0);
@@ -374,6 +376,150 @@ void MaglevAssembler::TruncateDoubleToInt32(Register dst, DoubleRegister src) {
       },
       src, dst, done);
   bind(*done);
+}
+
+void MaglevAssembler::Prologue(Graph* graph,
+                               Label* deferred_flags_need_processing,
+                               Label* deferred_call_stack_guard,
+                               Label* deferred_call_stack_guard_return) {
+  code_gen_state()->set_untagged_slots(graph->untagged_stack_slots());
+  code_gen_state()->set_tagged_slots(graph->tagged_stack_slots());
+
+  if (v8_flags.maglev_break_on_entry) {
+    int3();
+  }
+
+  if (v8_flags.maglev_ool_prologue) {
+    // Call the out-of-line prologue (with parameters passed on the stack).
+    Push(Immediate(code_gen_state()->stack_slots() * kSystemPointerSize));
+    Push(Immediate(code_gen_state()->tagged_slots() * kSystemPointerSize));
+    CallBuiltin(Builtin::kMaglevOutOfLinePrologue);
+  } else {
+    BailoutIfDeoptimized(rbx);
+
+    // Tiering support.
+    // TODO(jgruber): Extract to a builtin (the tiering prologue is ~230 bytes
+    // per Maglev code object on x64).
+    {
+      // Scratch registers. Don't clobber regs related to the calling
+      // convention (e.g. kJavaScriptCallArgCountRegister). Keep up-to-date
+      // with deferred flags code.
+      Register flags = rcx;
+      Register feedback_vector = r9;
+
+      // Load the feedback vector.
+      LoadTaggedPointerField(
+          feedback_vector,
+          FieldOperand(kJSFunctionRegister, JSFunction::kFeedbackCellOffset));
+      LoadTaggedPointerField(feedback_vector,
+                             FieldOperand(feedback_vector, Cell::kValueOffset));
+      AssertFeedbackVector(feedback_vector);
+
+      LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
+          flags, feedback_vector, CodeKind::MAGLEV,
+          deferred_flags_need_processing);
+    }
+
+    EnterFrame(StackFrame::MAGLEV);
+
+    // Save arguments in frame.
+    // TODO(leszeks): Consider eliding this frame if we don't make any calls
+    // that could clobber these registers.
+    Push(kContextRegister);
+    Push(kJSFunctionRegister);              // Callee's JS function.
+    Push(kJavaScriptCallArgCountRegister);  // Actual argument count.
+
+    {
+      ASM_CODE_COMMENT_STRING(this, " Stack/interrupt check");
+      // Stack check. This folds the checks for both the interrupt stack limit
+      // check and the real stack limit into one by just checking for the
+      // interrupt limit. The interrupt limit is either equal to the real
+      // stack limit or tighter. By ensuring we have space until that limit
+      // after building the frame we can quickly precheck both at once.
+      Move(kScratchRegister, rsp);
+      // TODO(leszeks): Include a max call argument size here.
+      subq(kScratchRegister,
+           Immediate(code_gen_state()->stack_slots() * kSystemPointerSize));
+      cmpq(kScratchRegister,
+           StackLimitAsOperand(StackLimitKind::kInterruptStackLimit));
+
+      j(below, deferred_call_stack_guard);
+      bind(deferred_call_stack_guard_return);
+    }
+
+    // Initialize stack slots.
+    if (graph->tagged_stack_slots() > 0) {
+      ASM_CODE_COMMENT_STRING(this, "Initializing stack slots");
+      // TODO(leszeks): Consider filling with xmm + movdqa instead.
+      Move(rax, Immediate(0));
+
+      // Magic value. Experimentally, an unroll size of 8 doesn't seem any
+      // worse than fully unrolled pushes.
+      const int kLoopUnrollSize = 8;
+      int tagged_slots = graph->tagged_stack_slots();
+      if (tagged_slots < 2 * kLoopUnrollSize) {
+        // If the frame is small enough, just unroll the frame fill
+        // completely.
+        for (int i = 0; i < tagged_slots; ++i) {
+          pushq(rax);
+        }
+      } else {
+        // Extract the first few slots to round to the unroll size.
+        int first_slots = tagged_slots % kLoopUnrollSize;
+        for (int i = 0; i < first_slots; ++i) {
+          pushq(rax);
+        }
+        Move(rbx, Immediate(tagged_slots / kLoopUnrollSize));
+        // We enter the loop unconditionally, so make sure we need to loop at
+        // least once.
+        DCHECK_GT(tagged_slots / kLoopUnrollSize, 0);
+        Label loop;
+        bind(&loop);
+        for (int i = 0; i < kLoopUnrollSize; ++i) {
+          pushq(rax);
+        }
+        decl(rbx);
+        j(greater, &loop);
+      }
+    }
+    if (graph->untagged_stack_slots() > 0) {
+      // Extend rsp by the size of the remaining untagged part of the frame,
+      // no need to initialise these.
+      subq(rsp, Immediate(graph->untagged_stack_slots() * kSystemPointerSize));
+    }
+  }
+}
+
+void MaglevAssembler::DeferredPrologue(
+    Graph* graph, Label* deferred_flags_need_processing,
+    Label* deferred_call_stack_guard, Label* deferred_call_stack_guard_return) {
+  if (!v8_flags.maglev_ool_prologue) {
+    bind(deferred_call_stack_guard);
+    {
+      ASM_CODE_COMMENT_STRING(this, "Stack/interrupt call");
+      // Save any registers that can be referenced by RegisterInput.
+      // TODO(leszeks): Only push those that are used by the graph.
+      PushAll(RegisterInput::kAllowedRegisters);
+      // Push the frame size
+      Push(Immediate(
+          Smi::FromInt(code_gen_state()->stack_slots() * kSystemPointerSize)));
+      CallRuntime(Runtime::kStackGuardWithGap, 1);
+      PopAll(RegisterInput::kAllowedRegisters);
+      jmp(deferred_call_stack_guard_return);
+    }
+
+    bind(deferred_flags_need_processing);
+    {
+      ASM_CODE_COMMENT_STRING(this, "Optimized marker check");
+      // See PreProcessGraph.
+      Register flags = rcx;
+      Register feedback_vector = r9;
+      // TODO(leszeks): This could definitely be a builtin that we tail-call.
+      OptimizeCodeOrTailCallOptimizedCodeSlot(
+          flags, feedback_vector, kJSFunctionRegister, JumpMode::kJump);
+      Trap();
+    }
+  }
 }
 
 }  // namespace maglev
