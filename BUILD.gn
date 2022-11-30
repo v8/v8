@@ -1063,6 +1063,9 @@ config("features") {
   if (v8_use_zlib) {
     defines += [ "V8_USE_ZLIB" ]
   }
+  if (v8_use_libm_trig_functions) {
+    defines += [ "V8_USE_LIBM_TRIG_FUNCTIONS" ]
+  }
   if (v8_value_deserializer_hard_fail) {
     defines += [ "V8_VALUE_DESERIALIZER_HARD_FAIL" ]
   }
@@ -5674,7 +5677,33 @@ v8_component("v8_libbase") {
         [ "//build/config/clang:llvm-symbolizer_data($host_toolchain)" ]
   }
 
+  if (v8_use_libm_trig_functions) {
+    deps += [ ":libm" ]
+  }
+
   # TODO(infra): Add support for qnx, freebsd, openbsd, netbsd, and solaris.
+}
+
+source_set("libm") {
+  sources = [
+    "third_party/glibc/src/sysdeps/ieee754/dbl-64/branred.c",
+    "third_party/glibc/src/sysdeps/ieee754/dbl-64/branred.h",
+    "third_party/glibc/src/sysdeps/ieee754/dbl-64/dla.h",
+    "third_party/glibc/src/sysdeps/ieee754/dbl-64/endian.h",
+    "third_party/glibc/src/sysdeps/ieee754/dbl-64/mydefs.h",
+    "third_party/glibc/src/sysdeps/ieee754/dbl-64/sincostab.c",
+    "third_party/glibc/src/sysdeps/ieee754/dbl-64/s_sin.c",
+    "third_party/glibc/src/sysdeps/ieee754/dbl-64/trig.h",
+    "third_party/glibc/src/sysdeps/ieee754/dbl-64/usncs.h",
+  ]
+  configs += [
+    "//build/config/compiler:no_chromium_code",
+  ]
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  if (!is_debug) {
+    # Build code using -O3, see: crbug.com/1084371.
+    configs += [ "//build/config/compiler:optimize_speed" ]
+  }
 }
 
 v8_component("v8_libplatform") {

@@ -16,8 +16,8 @@
  * along with this program; if not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <mydefs.h>
-#include <endian.h>
+#include "mydefs.h"
+#include "endian.h"
 
 /****************************************************************/
 /* TABLES FOR THE usin() and ucos()   FUNCTION                  */
