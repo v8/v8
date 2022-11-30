@@ -3849,6 +3849,28 @@ SIMD_ALL_TRUE_LIST(EMIT_SIMD_ALL_TRUE)
 #undef EMIT_SIMD_ALL_TRUE
 #undef SIMD_ALL_TRUE_LIST
 
+#define SIMD_BITMASK_LIST(V)                      \
+  V(I64x2BitMask, vextractdm, 0x8080808080800040) \
+  V(I32x4BitMask, vextractwm, 0x8080808000204060) \
+  V(I16x8BitMask, vextracthm, 0x10203040506070)
+
+#define EMIT_SIMD_BITMASK(name, op, indicies)                              \
+  void TurboAssembler::name(Register dst, Simd128Register src,             \
+                            Register scratch1, Simd128Register scratch2) { \
+    if (CpuFeatures::IsSupported(PPC_10_PLUS)) {                           \
+      op(dst, src);                                                        \
+    } else {                                                               \
+      mov(scratch1, Operand(indicies)); /* Select 0 for the high bits. */  \
+      mtvsrd(scratch2, scratch1);                                          \
+      vbpermq(scratch2, src, scratch2);                                    \
+      vextractub(scratch2, scratch2, Operand(6));                          \
+      mfvsrd(dst, scratch2);                                               \
+    }                                                                      \
+  }
+SIMD_BITMASK_LIST(EMIT_SIMD_BITMASK)
+#undef EMIT_SIMD_BITMASK
+#undef SIMD_BITMASK_LIST
+
 void TurboAssembler::I64x2ExtMulLowI32x4S(Simd128Register dst,
                                           Simd128Register src1,
                                           Simd128Register src2,
@@ -4460,6 +4482,20 @@ void TurboAssembler::I16x8UConvertI8x16High(Simd128Register dst,
   mtvsrd(scratch2, scratch1);
   vsplth(scratch2, scratch2, Operand(3));
   vand(dst, scratch2, dst);
+}
+
+void TurboAssembler::I8x16BitMask(Register dst, Simd128Register src,
+                                  Register scratch1, Register scratch2,
+                                  Simd128Register scratch3) {
+  if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
+    vextractbm(dst, src);
+  } else {
+    mov(scratch1, Operand(0x8101820283038));
+    mov(scratch2, Operand(0x4048505860687078));
+    mtvsrdd(scratch3, scratch1, scratch2);
+    vbpermq(scratch3, src, scratch3);
+    mfvsrd(dst, scratch3);
+  }
 }
 
 void TurboAssembler::V128AnyTrue(Register dst, Simd128Register src,

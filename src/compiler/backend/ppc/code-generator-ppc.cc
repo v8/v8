@@ -2691,58 +2691,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kPPC_I64x2BitMask: {
-      if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
-        __ vextractdm(i.OutputRegister(), i.InputSimd128Register(0));
-      } else {
-        __ mov(kScratchReg,
-               Operand(0x8080808080800040));  // Select 0 for the high bits.
-        __ mtvsrd(kScratchSimd128Reg, kScratchReg);
-        __ vbpermq(kScratchSimd128Reg, i.InputSimd128Register(0),
-                   kScratchSimd128Reg);
-        __ vextractub(kScratchSimd128Reg, kScratchSimd128Reg, Operand(6));
-        __ mfvsrd(i.OutputRegister(), kScratchSimd128Reg);
-      }
+      __ I64x2BitMask(i.OutputRegister(), i.InputSimd128Register(0),
+                      kScratchReg, kScratchSimd128Reg);
       break;
     }
     case kPPC_I32x4BitMask: {
-      if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
-        __ vextractwm(i.OutputRegister(), i.InputSimd128Register(0));
-      } else {
-        __ mov(kScratchReg,
-               Operand(0x8080808000204060));  // Select 0 for the high bits.
-        __ mtvsrd(kScratchSimd128Reg, kScratchReg);
-        __ vbpermq(kScratchSimd128Reg, i.InputSimd128Register(0),
-                   kScratchSimd128Reg);
-        __ vextractub(kScratchSimd128Reg, kScratchSimd128Reg, Operand(6));
-        __ mfvsrd(i.OutputRegister(), kScratchSimd128Reg);
-      }
+      __ I32x4BitMask(i.OutputRegister(), i.InputSimd128Register(0),
+                      kScratchReg, kScratchSimd128Reg);
       break;
     }
     case kPPC_I16x8BitMask: {
-      if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
-        __ vextracthm(i.OutputRegister(), i.InputSimd128Register(0));
-      } else {
-        __ mov(kScratchReg, Operand(0x10203040506070));
-        __ mtvsrd(kScratchSimd128Reg, kScratchReg);
-        __ vbpermq(kScratchSimd128Reg, i.InputSimd128Register(0),
-                   kScratchSimd128Reg);
-        __ vextractub(kScratchSimd128Reg, kScratchSimd128Reg, Operand(6));
-        __ mfvsrd(i.OutputRegister(), kScratchSimd128Reg);
-      }
+      __ I16x8BitMask(i.OutputRegister(), i.InputSimd128Register(0),
+                      kScratchReg, kScratchSimd128Reg);
       break;
     }
     case kPPC_I8x16BitMask: {
-      if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
-        __ vextractbm(i.OutputRegister(), i.InputSimd128Register(0));
-      } else {
-        __ mov(kScratchReg, Operand(0x8101820283038));
-        __ mov(ip, Operand(0x4048505860687078));
-        __ mtvsrdd(kScratchSimd128Reg, kScratchReg, ip);
-        __ vbpermq(kScratchSimd128Reg, i.InputSimd128Register(0),
-                   kScratchSimd128Reg);
-        __ vextractuh(kScratchSimd128Reg, kScratchSimd128Reg, Operand(6));
-        __ mfvsrd(i.OutputRegister(), kScratchSimd128Reg);
-      }
+      __ I8x16BitMask(i.OutputRegister(), i.InputSimd128Register(0), r0, ip,
+                      kScratchSimd128Reg);
       break;
     }
     case kPPC_I32x4DotI16x8S: {

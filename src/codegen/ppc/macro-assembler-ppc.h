@@ -1214,6 +1214,18 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 #undef PROTOTYPE_SIMD_SHIFT
 #undef SIMD_SHIFT_LIST
 
+#define SIMD_BITMASK_LIST(V) \
+  V(I64x2BitMask)            \
+  V(I32x4BitMask)            \
+  V(I16x8BitMask)
+
+#define PROTOTYPE_SIMD_BITMASK(name)                              \
+  void name(Register dst, Simd128Register src, Register scratch1, \
+            Simd128Register scratch2);
+  SIMD_BITMASK_LIST(PROTOTYPE_SIMD_BITMASK)
+#undef PROTOTYPE_SIMD_BITMASK
+#undef SIMD_BITMASK_LIST
+
 #define SIMD_UNOP_LIST(V)   \
   V(F64x2Abs)               \
   V(F64x2Neg)               \
@@ -1349,6 +1361,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                              Register scratch1, Simd128Register scratch2);
   void I16x8UConvertI8x16High(Simd128Register dst, Simd128Register src,
                               Register scratch1, Simd128Register scratch2);
+  void I8x16BitMask(Register dst, Simd128Register src, Register scratch1,
+                    Register scratch2, Simd128Register scratch3);
   void V128AnyTrue(Register dst, Simd128Register src, Register scratch1,
                    Register scratch2, Simd128Register scratch3);
   void S128Select(Simd128Register dst, Simd128Register src1,
