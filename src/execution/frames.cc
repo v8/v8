@@ -1119,8 +1119,8 @@ void VisitSpillSlot(Isolate* isolate, RootVisitor* v,
                                    ? map_word.ToForwardingAddress(raw)
                                    : raw;
         bool is_self_forwarded =
-            forwarded.map_word(cage_base, kRelaxedLoad).ptr() ==
-            forwarded.address();
+            forwarded.map_word(cage_base, kRelaxedLoad) ==
+            MapWord::FromForwardingAddress(forwarded, forwarded);
         if (is_self_forwarded) {
           // The object might be in a self-forwarding state if it's located
           // in new large object space. GC will fix this at a later stage.
