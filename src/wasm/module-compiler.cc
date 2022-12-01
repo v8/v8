@@ -2099,8 +2099,7 @@ void AsyncCompileJob::Abort() {
 
 class AsyncStreamingProcessor final : public StreamingProcessor {
  public:
-  explicit AsyncStreamingProcessor(AsyncCompileJob* job,
-                                   std::shared_ptr<Counters> counters);
+  explicit AsyncStreamingProcessor(AsyncCompileJob* job);
 
   ~AsyncStreamingProcessor() override;
 
@@ -2145,7 +2144,6 @@ class AsyncStreamingProcessor final : public StreamingProcessor {
   int num_functions_ = 0;
   bool prefix_cache_hit_ = false;
   bool before_code_section_ = true;
-  std::shared_ptr<Counters> async_counters_;
 
   // Running hash of the wire bytes up to code section size, but excluding the
   // code section itself. Used by the {NativeModuleCache} to detect potential
@@ -2156,8 +2154,7 @@ class AsyncStreamingProcessor final : public StreamingProcessor {
 std::shared_ptr<StreamingDecoder> AsyncCompileJob::CreateStreamingDecoder() {
   DCHECK_NULL(stream_);
   stream_ = StreamingDecoder::CreateAsyncStreamingDecoder(
-      std::make_unique<AsyncStreamingProcessor>(this,
-                                                isolate_->async_counters()));
+      std::make_unique<AsyncStreamingProcessor>(this));
   return stream_;
 }
 
@@ -2724,12 +2721,10 @@ void AsyncCompileJob::FinishModule() {
   GetWasmEngine()->RemoveCompileJob(this);
 }
 
-AsyncStreamingProcessor::AsyncStreamingProcessor(
-    AsyncCompileJob* job, std::shared_ptr<Counters> async_counters)
+AsyncStreamingProcessor::AsyncStreamingProcessor(AsyncCompileJob* job)
     : decoder_(job->enabled_features_),
       job_(job),
-      compilation_unit_builder_(nullptr),
-      async_counters_(async_counters) {}
+      compilation_unit_builder_(nullptr) {}
 
 AsyncStreamingProcessor::~AsyncStreamingProcessor() {
   if (job_->native_module_ && job_->native_module_->wire_bytes().empty()) {
