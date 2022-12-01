@@ -39,11 +39,11 @@
 #include "mydefs.h"
 #include "usncs.h"
 #include <math.h>
-#include <math_private.h>
-#include <fenv_private.h>
-#include <math-underflow.h>
-#include <libm-alias-double.h>
-#include <fenv.h>
+
+#define attribute_hidden
+#if !defined(__always_inline)
+#define __always_inline
+#endif
 
 /* Helper macros to compute sin of the input values.  */
 #define POLYNOMIAL2(xx) ((((s5 * (xx) + s4) * (xx) + s3) * (xx) + s2) * (xx))
@@ -197,21 +197,18 @@ do_sincos (double a, double da, int4 n)
 #ifndef IN_SINCOS
 double
 SECTION
-__sin (double x)
+glibc_sin (double x)
 {
   double t, a, da;
   mynumber u;
   int4 k, m, n;
   double retval = 0;
 
-  SET_RESTORE_ROUND_53BIT (FE_TONEAREST);
-
   u.x = x;
   m = u.i[HIGH_HALF];
   k = 0x7fffffff & m;		/* no sign           */
   if (k < 0x3e500000)		/* if x->0 =>sin(x)=x */
     {
-      math_check_force_underflow (x);
       retval = x;
     }
 /*--------------------------- 2^-26<|x|< 0.855469---------------------- */
@@ -245,8 +242,6 @@ __sin (double x)
 /*--------------------- |x| > 2^1024 ----------------------------------*/
   else
     {
-      if (k == 0x7ff00000 && u.i[LOW_HALF] == 0)
-	__set_errno (EDOM);
       retval = x / x;
     }
 
@@ -261,15 +256,13 @@ __sin (double x)
 
 double
 SECTION
-__cos (double x)
+glibc_cos (double x)
 {
   double y, a, da;
   mynumber u;
   int4 k, m, n;
 
   double retval = 0;
-
-  SET_RESTORE_ROUND_53BIT (FE_TONEAREST);
 
   u.x = x;
   m = u.i[HIGH_HALF];
@@ -310,19 +303,10 @@ __cos (double x)
 
   else
     {
-      if (k == 0x7ff00000 && u.i[LOW_HALF] == 0)
-	__set_errno (EDOM);
       retval = x / x;		/* |x| > 2^1024 */
     }
 
   return retval;
 }
-
-#ifndef __cos
-libm_alias_double (__cos, cos)
-#endif
-#ifndef __sin
-libm_alias_double (__sin, sin)
-#endif
 
 #endif

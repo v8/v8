@@ -25,7 +25,7 @@
 #ifndef BRANRED_H
 #define BRANRED_H
 
-#include <dla.h>
+#include "dla.h"
 
 #ifdef BIG_ENDI
 static const mynumber
