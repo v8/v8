@@ -6,7 +6,8 @@
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
-(function Test1() {
+(function TestImportedRefCall() {
+  print(arguments.callee.name);
   var exporting_instance = (function () {
     var builder = new WasmModuleBuilder();
 
@@ -120,6 +121,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 })();
 
 (function TestFromJSSlowPath() {
+  print(arguments.callee.name);
   var builder = new WasmModuleBuilder();
   var sig_index = builder.addType(kSig_i_i);
 
@@ -134,4 +136,39 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
       { parameters: ['i32'], results: ['i32'] }, (a) => undefined);
   // {undefined} is converted to 0.
   assertEquals(0, instance.exports.main(fun, 1000));
+})();
+
+(function TestImportedFunctionSubtyping() {
+  print(arguments.callee.name);
+  var exporting_instance = (function () {
+    var builder = new WasmModuleBuilder();
+    let super_struct = builder.addStruct([makeField(kWasmI32, true)]);
+    let sub_struct = builder.addStruct(
+      [makeField(kWasmI32, true), makeField(kWasmI64, true)], super_struct);
+    let super_sig = builder.addType(makeSig([wasmRefNullType(sub_struct)],
+                                            [kWasmI32]))
+    let sub_sig = builder.addType(makeSig([wasmRefNullType(super_struct)],
+                                          [kWasmI32]), super_sig)
+
+    builder.addFunction("exported_function", sub_sig)
+      .addBody([kExprLocalGet, 0, kGCPrefix, kExprStructGet, super_struct, 0])
+      .exportFunc();
+
+    return builder.instantiate({});
+  })();
+
+  var instance = (function () {
+    var builder = new WasmModuleBuilder();
+    // These should canonicalize to the same types as the exporting instance.
+    let super_struct = builder.addStruct([makeField(kWasmI32, true)]);
+    let sub_struct = builder.addStruct(
+      [makeField(kWasmI32, true), makeField(kWasmI64, true)], super_struct);
+    let super_sig = builder.addType(makeSig([wasmRefNullType(sub_struct)],
+                                            [kWasmI32]))
+    builder.addImport("m", "f", super_sig);
+
+    // Import is a function of the declared type.
+    return builder.instantiate({m: {f:
+      exporting_instance.exports.exported_function}});
+  })();
 })();

@@ -100,23 +100,28 @@ ValueType TypeCanonicalizer::CanonicalizeValueType(
                    module->isorecursive_canonical_type_ids[type.ref_index()]);
 }
 
-bool TypeCanonicalizer::IsCanonicalSubtype(uint32_t sub_index,
-                                           uint32_t super_index,
-                                           const WasmModule* sub_module,
-                                           const WasmModule* super_module) {
+bool TypeCanonicalizer::IsCanonicalSubtype(uint32_t canonical_sub_index,
+                                           uint32_t canonical_super_index) {
   // Multiple threads could try to register and access recursive groups
   // concurrently.
   // TODO(manoskouk): Investigate if we can improve this synchronization.
   base::MutexGuard mutex_guard(&mutex_);
+  while (canonical_sub_index != kNoSuperType) {
+    if (canonical_sub_index == canonical_super_index) return true;
+    canonical_sub_index = canonical_supertypes_[canonical_sub_index];
+  }
+  return false;
+}
+
+bool TypeCanonicalizer::IsCanonicalSubtype(uint32_t sub_index,
+                                           uint32_t super_index,
+                                           const WasmModule* sub_module,
+                                           const WasmModule* super_module) {
   uint32_t canonical_super =
       super_module->isorecursive_canonical_type_ids[super_index];
   uint32_t canonical_sub =
       sub_module->isorecursive_canonical_type_ids[sub_index];
-  while (canonical_sub != kNoSuperType) {
-    if (canonical_sub == canonical_super) return true;
-    canonical_sub = canonical_supertypes_[canonical_sub];
-  }
-  return false;
+  return IsCanonicalSubtype(canonical_sub, canonical_super);
 }
 
 TypeCanonicalizer::CanonicalType TypeCanonicalizer::CanonicalizeTypeDef(

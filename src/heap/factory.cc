@@ -1676,8 +1676,8 @@ Handle<WasmResumeData> Factory::NewWasmResumeData(
 Handle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
     Handle<CodeT> export_wrapper, Handle<WasmInstanceObject> instance,
     Address call_target, Handle<Object> ref, int func_index,
-    const wasm::FunctionSig* sig, int wrapper_budget, Handle<Map> rtt,
-    wasm::Promise promise) {
+    const wasm::FunctionSig* sig, uint32_t canonical_type_index,
+    int wrapper_budget, Handle<Map> rtt, wasm::Promise promise) {
   Handle<WasmInternalFunction> internal =
       NewWasmInternalFunction(call_target, Handle<HeapObject>::cast(ref), rtt);
   Map map = *wasm_exported_function_data_map();
@@ -1691,6 +1691,7 @@ Handle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
   result.set_instance(*instance);
   result.set_function_index(func_index);
   result.init_sig(isolate(), sig);
+  result.set_canonical_type_index(canonical_type_index);
   result.set_wrapper_budget(wrapper_budget);
   // We can't skip the write barrier when V8_EXTERNAL_CODE_SPACE is enabled
   // because in this case the CodeT (CodeDataContainer) objects are not

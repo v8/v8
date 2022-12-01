@@ -7906,12 +7906,12 @@ bool ResolveBoundJSFastApiFunction(const wasm::FunctionSig* expected_sig,
 
 WasmImportData ResolveWasmImportCall(
     Handle<JSReceiver> callable, const wasm::FunctionSig* expected_sig,
-    const wasm::WasmModule* module,
+    uint32_t expected_canonical_type_index, const wasm::WasmModule* module,
     const wasm::WasmFeatures& enabled_features) {
   Isolate* isolate = callable->GetIsolate();
   if (WasmExportedFunction::IsWasmExportedFunction(*callable)) {
     auto imported_function = Handle<WasmExportedFunction>::cast(callable);
-    if (!imported_function->MatchesSignature(module, expected_sig)) {
+    if (!imported_function->MatchesSignature(expected_canonical_type_index)) {
       return {WasmImportCallKind::kLinkError, callable, wasm::kNoSuspend};
     }
     uint32_t func_index =

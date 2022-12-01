@@ -636,8 +636,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<WasmExportedFunctionData> NewWasmExportedFunctionData(
       Handle<CodeT> export_wrapper, Handle<WasmInstanceObject> instance,
       Address call_target, Handle<Object> ref, int func_index,
-      const wasm::FunctionSig* sig, int wrapper_budget, Handle<Map> rtt,
-      wasm::Promise promise);
+      const wasm::FunctionSig* sig, uint32_t canonical_type_index,
+      int wrapper_budget, Handle<Map> rtt, wasm::Promise promise);
   Handle<WasmApiFunctionRef> NewWasmApiFunctionRef(
       Handle<JSReceiver> callable, wasm::Suspend suspend,
       Handle<WasmInstanceObject> instance);

@@ -618,8 +618,7 @@ class WasmExportedFunction : public JSFunction {
 
   V8_EXPORT_PRIVATE const wasm::FunctionSig* sig();
 
-  bool MatchesSignature(const wasm::WasmModule* other_module,
-                        const wasm::FunctionSig* other_sig);
+  bool MatchesSignature(uint32_t other_canonical_sig_index);
 
   // Return a null-terminated string with the debug name in the form
   // 'js-to-wasm:<sig>'.

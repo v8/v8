@@ -1425,7 +1425,7 @@ void WasmInstanceObject::ImportWasmJSFunctionIntoTable(
     // and permissions switching.
     const wasm::WasmFeatures enabled = native_module->enabled_features();
     auto resolved = compiler::ResolveWasmImportCall(
-        callable, sig, instance->module(), enabled);
+        callable, sig, canonical_sig_index, instance->module(), enabled);
     compiler::WasmImportCallKind kind = resolved.kind;
     callable = resolved.callable;  // Update to ultimate target.
     DCHECK_NE(compiler::WasmImportCallKind::kLinkError, kind);
@@ -1937,10 +1937,13 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
       export_wrapper->builtin_id() == Builtin::kWasmReturnPromiseOnSuspend
           ? wasm::kPromise
           : wasm::kNoPromise;
+  uint32_t sig_index = instance->module()->functions[func_index].sig_index;
+  uint32_t canonical_type_index =
+      instance->module()->isorecursive_canonical_type_ids[sig_index];
   Handle<WasmExportedFunctionData> function_data =
       factory->NewWasmExportedFunctionData(
           export_wrapper, instance, call_target, ref, func_index, sig,
-          wasm::kGenericWrapperBudget, rtt, promise);
+          canonical_type_index, wasm::kGenericWrapperBudget, rtt, promise);
 
   MaybeHandle<String> maybe_name;
   bool is_asm_js_module = instance->module_object().is_asm_js();
@@ -2000,20 +2003,10 @@ const wasm::FunctionSig* WasmExportedFunction::sig() {
 }
 
 bool WasmExportedFunction::MatchesSignature(
-    const WasmModule* other_module, const wasm::FunctionSig* other_sig) {
-  const wasm::FunctionSig* sig = this->sig();
-  if (sig->parameter_count() != other_sig->parameter_count() ||
-      sig->return_count() != other_sig->return_count()) {
-    return false;
-  }
-
-  for (int i = 0; i < sig->all().size(); i++) {
-    if (!wasm::EquivalentTypes(sig->all()[i], other_sig->all()[i],
-                               this->instance().module(), other_module)) {
-      return false;
-    }
-  }
-  return true;
+    uint32_t other_canonical_type_index) {
+  return wasm::GetWasmEngine()->type_canonicalizer()->IsCanonicalSubtype(
+      this->shared().wasm_exported_function_data().canonical_type_index(),
+      other_canonical_type_index);
 }
 
 // static
