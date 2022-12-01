@@ -154,9 +154,11 @@ class ModuleDecoderImpl;
 
 class ModuleDecoder {
  public:
-  explicit ModuleDecoder(WasmFeatures enabled_feature,
-                         AccountingAllocator* allocator);
+  explicit ModuleDecoder(WasmFeatures enabled);
   ~ModuleDecoder();
+
+  void StartDecoding(AccountingAllocator* allocator,
+                     ModuleOrigin origin = ModuleOrigin::kWasmOrigin);
 
   void DecodeModuleHeader(base::Vector<const uint8_t> bytes, uint32_t offset);
 
@@ -187,6 +189,7 @@ class ModuleDecoder {
                                        uint32_t offset, SectionCode* result);
 
  private:
+  const WasmFeatures enabled_features_;
   std::unique_ptr<ModuleDecoderImpl> impl_;
 };
 

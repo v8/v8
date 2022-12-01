@@ -75,10 +75,9 @@ const char* SectionName(SectionCode code) {
 class ModuleDecoderImpl : public ModuleDecoderTemplate<NoTracer> {
  public:
   ModuleDecoderImpl(WasmFeatures enabled_features,
-                    base::Vector<const uint8_t> wire_bytes, ModuleOrigin origin,
-                    AccountingAllocator* allocator)
+                    base::Vector<const uint8_t> wire_bytes, ModuleOrigin origin)
       : ModuleDecoderTemplate<NoTracer>(enabled_features, wire_bytes, origin,
-                                        allocator, no_tracer_) {}
+                                        no_tracer_) {}
 
  private:
   NoTracer no_tracer_;
@@ -142,28 +141,32 @@ ModuleResult DecodeWasmModule(WasmFeatures enabled_features,
                               base::Vector<const uint8_t> wire_bytes,
                               bool validate_functions, ModuleOrigin origin,
                               AccountingAllocator* allocator) {
-  ModuleDecoderImpl decoder{enabled_features, wire_bytes, origin, allocator};
-  return decoder.DecodeModule(validate_functions);
+  ModuleDecoderImpl decoder{enabled_features, wire_bytes, origin};
+  return decoder.DecodeModule(allocator, validate_functions);
 }
 
 ModuleResult DecodeWasmModuleForDisassembler(
     base::Vector<const uint8_t> wire_bytes, AccountingAllocator* allocator) {
   constexpr bool kNoValidateFunctions = false;
-  ModuleDecoderImpl decoder{WasmFeatures::All(), wire_bytes, kWasmOrigin,
-                            allocator};
-  return decoder.DecodeModule(kNoValidateFunctions);
+  ModuleDecoderImpl decoder(WasmFeatures::All(), wire_bytes, kWasmOrigin);
+  return decoder.DecodeModule(allocator, kNoValidateFunctions);
 }
 
-ModuleDecoder::ModuleDecoder(WasmFeatures enabled_features,
-                             AccountingAllocator* allocator)
-    : impl_(std::make_unique<ModuleDecoderImpl>(enabled_features,
-                                                base::Vector<const uint8_t>{},
-                                                kWasmOrigin, allocator)) {}
+ModuleDecoder::ModuleDecoder(WasmFeatures enabled_features)
+    : enabled_features_(enabled_features) {}
 
 ModuleDecoder::~ModuleDecoder() = default;
 
 const std::shared_ptr<WasmModule>& ModuleDecoder::shared_module() const {
   return impl_->shared_module();
+}
+
+void ModuleDecoder::StartDecoding(AccountingAllocator* allocator,
+                                  ModuleOrigin origin) {
+  DCHECK_NULL(impl_);
+  static constexpr base::Vector<const uint8_t> kNoWireBytes{nullptr, 0};
+  impl_.reset(new ModuleDecoderImpl(enabled_features_, kNoWireBytes, origin));
+  impl_->StartDecoding(allocator);
 }
 
 void ModuleDecoder::DecodeModuleHeader(base::Vector<const uint8_t> bytes,
@@ -209,16 +212,16 @@ bool ModuleDecoder::ok() { return impl_->ok(); }
 Result<const FunctionSig*> DecodeWasmSignatureForTesting(
     WasmFeatures enabled_features, Zone* zone,
     base::Vector<const uint8_t> bytes) {
-  ModuleDecoderImpl decoder{enabled_features, bytes, kWasmOrigin,
-                            zone->allocator()};
+  ModuleDecoderImpl decoder(enabled_features, bytes, kWasmOrigin);
   return decoder.toResult(decoder.DecodeFunctionSignature(zone, bytes.begin()));
 }
 
 ConstantExpression DecodeWasmInitExprForTesting(
     WasmFeatures enabled_features, base::Vector<const uint8_t> bytes,
     ValueType expected) {
+  ModuleDecoderImpl decoder(enabled_features, bytes, kWasmOrigin);
   AccountingAllocator allocator;
-  ModuleDecoderImpl decoder{enabled_features, bytes, kWasmOrigin, &allocator};
+  decoder.StartDecoding(&allocator);
   return decoder.DecodeInitExprForTesting(expected);
 }
 
@@ -230,8 +233,7 @@ FunctionResult DecodeWasmFunctionForTesting(
         WasmError{0, "size > maximum function size (%zu): %zu",
                   kV8MaxWasmFunctionSize, function_bytes.size()}};
   }
-  ModuleDecoderImpl decoder{enabled_features, function_bytes, kWasmOrigin,
-                            zone->allocator()};
+  ModuleDecoderImpl decoder(enabled_features, function_bytes, kWasmOrigin);
   return decoder.DecodeSingleFunctionForTesting(zone, wire_bytes, module);
 }
 
