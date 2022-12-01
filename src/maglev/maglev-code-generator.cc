@@ -558,6 +558,7 @@ class ExceptionHandlerTrampolineBuilder {
     // talking about a presumably infrequent case for exception handlers.
 
     __ RecordComment("EmitMaterialisationsAndPushResults");
+
     if (save_accumulator) __ Push(kReturnRegister0);
     for (const Move& move : moves) {
       // We consider constants after all other operations, since constants
@@ -586,7 +587,6 @@ class ExceptionHandlerTrampolineBuilder {
         __ Move(masm_->ToMemOperand(target.operand()), kScratchRegister);
       }
     }
-
     if (save_accumulator) __ Pop(kReturnRegister0);
   }
 
@@ -598,7 +598,16 @@ class MaglevCodeGeneratingNodeProcessor {
   explicit MaglevCodeGeneratingNodeProcessor(MaglevAssembler* masm)
       : masm_(masm) {}
 
-  void PreProcessGraph(Graph* graph) { __ Prologue(graph); }
+  void PreProcessGraph(Graph* graph) {
+    code_gen_state()->set_untagged_slots(graph->untagged_stack_slots());
+    code_gen_state()->set_tagged_slots(graph->tagged_stack_slots());
+
+    if (v8_flags.maglev_break_on_entry) {
+      __ DebugBreak();
+    }
+
+    __ Prologue(graph);
+  }
 
   void PostProcessGraph(Graph* graph) {}
 
@@ -1228,9 +1237,14 @@ void MaglevCodeGenerator::EmitDeopts() {
                            deopt_index);
     }
     __ bind(deopt_info->deopt_entry_label());
+
+#ifndef V8_TARGET_ARCH_ARM64
+    // TODO(victorgomes): Implement jump deoptimizer entry label mechanism.
     __ CallForDeoptimization(Builtin::kDeoptimizationEntry_Eager, deopt_index,
                              deopt_info->deopt_entry_label(),
                              DeoptimizeKind::kEager, nullptr, nullptr);
+#endif
+
     deopt_index++;
   }
 
@@ -1246,9 +1260,13 @@ void MaglevCodeGenerator::EmitDeopts() {
                            deopt_index);
     }
     __ bind(deopt_info->deopt_entry_label());
+
+#ifndef V8_TARGET_ARCH_ARM64
+    // TODO(victorgomes): Implement jump deoptimizer entry label mechanism.
     __ CallForDeoptimization(Builtin::kDeoptimizationEntry_Lazy, deopt_index,
                              deopt_info->deopt_entry_label(),
                              DeoptimizeKind::kLazy, nullptr, nullptr);
+#endif
 
     last_updated_safepoint = safepoint_table_builder_.UpdateDeoptimizationInfo(
         deopt_info->deopting_call_return_pc(),

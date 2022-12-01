@@ -2447,6 +2447,28 @@ bool TurboAssembler::IsNearCallOffset(int64_t offset) {
   return is_int26(offset);
 }
 
+// Check if the code object is marked for deoptimization. If it is, then it
+// jumps to the CompileLazyDeoptimizedCode builtin. In order to do this we need
+// to:
+//    1. read from memory the word that contains that bit, which can be found in
+//       the flags in the referenced {CodeDataContainer} object;
+//    2. test kMarkedForDeoptimizationBit in those flags; and
+//    3. if it is not zero then it jumps to the builtin.
+void TurboAssembler::BailoutIfDeoptimized() {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.AcquireX();
+  int offset = Code::kCodeDataContainerOffset - Code::kHeaderSize;
+  LoadTaggedPointerField(scratch,
+                         MemOperand(kJavaScriptCallCodeStartRegister, offset));
+  Ldr(scratch.W(),
+      FieldMemOperand(scratch, CodeDataContainer::kKindSpecificFlagsOffset));
+  Label not_deoptimized;
+  Tbz(scratch.W(), Code::kMarkedForDeoptimizationBit, &not_deoptimized);
+  Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
+       RelocInfo::CODE_TARGET);
+  Bind(&not_deoptimized);
+}
+
 void TurboAssembler::CallForDeoptimization(
     Builtin target, int deopt_id, Label* exit, DeoptimizeKind kind, Label* ret,
     Label* jump_deoptimization_entry_label) {

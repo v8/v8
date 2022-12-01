@@ -8,6 +8,8 @@
 #include "src/heap/local-heap.h"
 #include "src/heap/parked-scope.h"
 #include "src/maglev/maglev-graph-labeller.h"
+#include "src/maglev/maglev-graph-processor.h"
+#include "src/maglev/maglev-vreg-allocator.h"
 
 #ifdef V8_TARGET_ARCH_ARM64
 #include "src/maglev/arm64/maglev-assembler-arm64-inl.h"
@@ -466,6 +468,117 @@ void Constant::DoLoadToRegister(MaglevAssembler* masm, Register reg) {
 
 void RootConstant::DoLoadToRegister(MaglevAssembler* masm, Register reg) {
   __ LoadRoot(reg, index());
+}
+
+// ---
+// Arch agnostic nodes
+// ---
+
+void SmiConstant::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  DefineAsConstant(vreg_state, this);
+}
+void SmiConstant::GenerateCode(MaglevAssembler* masm,
+                               const ProcessingState& state) {}
+
+void Int32Constant::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  DefineAsConstant(vreg_state, this);
+}
+void Int32Constant::GenerateCode(MaglevAssembler* masm,
+                                 const ProcessingState& state) {}
+
+void Float64Constant::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  DefineAsConstant(vreg_state, this);
+}
+void Float64Constant::GenerateCode(MaglevAssembler* masm,
+                                   const ProcessingState& state) {}
+
+void Constant::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  DefineAsConstant(vreg_state, this);
+}
+void Constant::GenerateCode(MaglevAssembler* masm,
+                            const ProcessingState& state) {}
+
+void RootConstant::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  DefineAsConstant(vreg_state, this);
+}
+void RootConstant::GenerateCode(MaglevAssembler* masm,
+                                const ProcessingState& state) {}
+
+void InitialValue::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  // TODO(leszeks): Make this nicer.
+  result().SetUnallocated(compiler::UnallocatedOperand::FIXED_SLOT,
+                          (StandardFrameConstants::kExpressionsOffset -
+                           UnoptimizedFrameConstants::kRegisterFileFromFp) /
+                                  kSystemPointerSize +
+                              source().index(),
+                          vreg_state->AllocateVirtualRegister());
+}
+void InitialValue::GenerateCode(MaglevAssembler* masm,
+                                const ProcessingState& state) {
+  // No-op, the value is already in the appropriate slot.
+}
+
+void ConstantGapMove::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  UNREACHABLE();
+}
+
+namespace {
+template <typename T>
+struct GetRegister;
+template <>
+struct GetRegister<Register> {
+  static Register Get(compiler::AllocatedOperand target) {
+    return target.GetRegister();
+  }
+};
+template <>
+struct GetRegister<DoubleRegister> {
+  static DoubleRegister Get(compiler::AllocatedOperand target) {
+    return target.GetDoubleRegister();
+  }
+};
+}  // namespace
+void ConstantGapMove::GenerateCode(MaglevAssembler* masm,
+                                   const ProcessingState& state) {
+  switch (node_->opcode()) {
+#define CASE(Name)                                \
+  case Opcode::k##Name:                           \
+    return node_->Cast<Name>()->DoLoadToRegister( \
+        masm, GetRegister<Name::OutputRegister>::Get(target()));
+    CONSTANT_VALUE_NODE_LIST(CASE)
+#undef CASE
+    default:
+      UNREACHABLE();
+  }
+}
+
+// ---
+// Arch agnostic control nodes
+// ---
+
+void Jump::AllocateVreg(MaglevVregAllocationState* vreg_state) {}
+void Jump::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
+  // Avoid emitting a jump to the next block.
+  if (target() != state.next_block()) {
+    __ Jump(target()->label());
+  }
+}
+
+void JumpToInlined::AllocateVreg(MaglevVregAllocationState* vreg_state) {}
+void JumpToInlined::GenerateCode(MaglevAssembler* masm,
+                                 const ProcessingState& state) {
+  // Avoid emitting a jump to the next block.
+  if (target() != state.next_block()) {
+    __ Jump(target()->label());
+  }
+}
+void JumpFromInlined::AllocateVreg(MaglevVregAllocationState* vreg_state) {}
+void JumpFromInlined::GenerateCode(MaglevAssembler* masm,
+                                   const ProcessingState& state) {
+  // Avoid emitting a jump to the next block.
+  if (target() != state.next_block()) {
+    __ Jump(target()->label());
+  }
 }
 
 // ---

@@ -18,9 +18,7 @@ constexpr Register kScratchRegister = x16;
 constexpr DoubleRegister kScratchDoubleReg = d30;
 
 inline MemOperand MaglevAssembler::StackSlotOperand(StackSlot slot) {
-  // TODO(v8:7700): Implement!
-  UNREACHABLE();
-  return MemOperand();
+  return MemOperand(fp, slot.index);
 }
 
 inline MemOperand MaglevAssembler::GetStackSlot(
@@ -40,31 +38,28 @@ inline MemOperand MaglevAssembler::ToMemOperand(const ValueLocation& location) {
 }
 
 inline void MaglevAssembler::Move(StackSlot dst, Register src) {
-  // TODO(v8:7700): Implement!
-  UNREACHABLE();
+  Str(src, StackSlotOperand(dst));
 }
 inline void MaglevAssembler::Move(StackSlot dst, DoubleRegister src) {
   // TODO(v8:7700): Implement!
   UNREACHABLE();
 }
 inline void MaglevAssembler::Move(Register dst, StackSlot src) {
-  // TODO(v8:7700): Implement!
-  UNREACHABLE();
+  Ldr(dst, StackSlotOperand(src));
 }
 inline void MaglevAssembler::Move(DoubleRegister dst, StackSlot src) {
   // TODO(v8:7700): Implement!
   UNREACHABLE();
 }
 inline void MaglevAssembler::Move(MemOperand dst, Register src) {
-  // TODO(v8:7700): Implement!
-  UNREACHABLE();
+  Str(src, dst);
 }
 inline void MaglevAssembler::Move(MemOperand dst, DoubleRegister src) {
   // TODO(v8:7700): Implement!
   UNREACHABLE();
 }
 inline void MaglevAssembler::Move(Register dst, MemOperand src) {
-  MacroAssembler::Move(dst, src);
+  Ldr(dst, src);
 }
 inline void MaglevAssembler::Move(DoubleRegister dst, MemOperand src) {
   // TODO(v8:7700): Implement!
@@ -80,22 +75,27 @@ inline void MaglevAssembler::Move(Register dst, Smi src) {
 inline void MaglevAssembler::Move(Register dst, Register src) {
   MacroAssembler::Move(dst, src);
 }
-inline void MaglevAssembler::Move(Register dst, Immediate i) {
-  // TODO(v8:7700): Implement!
-  UNREACHABLE();
-}
+inline void MaglevAssembler::Move(Register dst, Immediate i) { Mov(dst, i); }
 inline void MaglevAssembler::Move(DoubleRegister dst, double n) {
   // TODO(v8:7700): Implement!
   UNREACHABLE();
 }
 inline void MaglevAssembler::Move(Register dst, Handle<HeapObject> obj) {
-  // TODO(v8:7700): Implement!
-  UNREACHABLE();
+  Mov(dst, Operand(obj));
 }
+
+inline void MaglevAssembler::Jump(Label* target) { B(target); }
+
+inline void MaglevAssembler::JumpIf(Condition cond, Label* target) {
+  b(target, cond);
+}
+
+// TODO(victorgomes): We should avoid dong a single push in arm64!
+inline void MaglevAssembler::Push(Register src) { Push(src, padreg); }
+inline void MaglevAssembler::Pop(Register dst) { Pop(padreg, dst); }
 
 inline void MaglevAssembler::AssertStackSizeCorrect() {
   // TODO(v8:7700): Implement!
-  UNREACHABLE();
 }
 
 inline void MaglevAssembler::MaterialiseValueNode(Register dst,

@@ -159,6 +159,15 @@ class MaglevAssembler : public MacroAssembler {
   inline void Move(DoubleRegister dst, double n);
   inline void Move(Register dst, Handle<HeapObject> obj);
 
+  inline void Jump(Label* target);
+  inline void JumpIf(Condition cond, Label* target);
+
+  // TODO(victorgomes): Import baseline Push(T...) methods.
+  inline void Push(Register src);
+  using MacroAssembler::Push;
+  inline void Pop(Register dst);
+  using MacroAssembler::Pop;
+
   void Prologue(Graph* graph);
 
   inline void AssertStackSizeCorrect();
@@ -228,6 +237,218 @@ class SaveRegisterStateForCall {
 
 ZoneLabelRef::ZoneLabelRef(MaglevAssembler* masm)
     : ZoneLabelRef(masm->compilation_info()->zone()) {}
+
+// ---
+// Deferred code handling.
+// ---
+
+namespace detail {
+
+// Base case provides an error.
+template <typename T, typename Enable = void>
+struct CopyForDeferredHelper {
+  template <typename U>
+  struct No_Copy_Helper_Implemented_For_Type;
+  static void Copy(MaglevCompilationInfo* compilation_info,
+                   No_Copy_Helper_Implemented_For_Type<T>);
+};
+
+// Helper for copies by value.
+template <typename T, typename Enable = void>
+struct CopyForDeferredByValue {
+  static T Copy(MaglevCompilationInfo* compilation_info, T node) {
+    return node;
+  }
+};
+
+// Node pointers are copied by value.
+template <typename T>
+struct CopyForDeferredHelper<
+    T*, typename std::enable_if<std::is_base_of<NodeBase, T>::value>::type>
+    : public CopyForDeferredByValue<T*> {};
+// Arithmetic values and enums are copied by value.
+template <typename T>
+struct CopyForDeferredHelper<
+    T, typename std::enable_if<std::is_arithmetic<T>::value>::type>
+    : public CopyForDeferredByValue<T> {};
+template <typename T>
+struct CopyForDeferredHelper<
+    T, typename std::enable_if<std::is_enum<T>::value>::type>
+    : public CopyForDeferredByValue<T> {};
+// MaglevCompilationInfos are copied by value.
+template <>
+struct CopyForDeferredHelper<MaglevCompilationInfo*>
+    : public CopyForDeferredByValue<MaglevCompilationInfo*> {};
+// Machine registers are copied by value.
+template <>
+struct CopyForDeferredHelper<Register>
+    : public CopyForDeferredByValue<Register> {};
+template <>
+struct CopyForDeferredHelper<DoubleRegister>
+    : public CopyForDeferredByValue<DoubleRegister> {};
+// Bytecode offsets are copied by value.
+template <>
+struct CopyForDeferredHelper<BytecodeOffset>
+    : public CopyForDeferredByValue<BytecodeOffset> {};
+// EagerDeoptInfo pointers are copied by value.
+template <>
+struct CopyForDeferredHelper<EagerDeoptInfo*>
+    : public CopyForDeferredByValue<EagerDeoptInfo*> {};
+// ZoneLabelRef is copied by value.
+template <>
+struct CopyForDeferredHelper<ZoneLabelRef>
+    : public CopyForDeferredByValue<ZoneLabelRef> {};
+// Register snapshots are copied by value.
+template <>
+struct CopyForDeferredHelper<RegisterSnapshot>
+    : public CopyForDeferredByValue<RegisterSnapshot> {};
+// Feedback slots are copied by value.
+template <>
+struct CopyForDeferredHelper<FeedbackSlot>
+    : public CopyForDeferredByValue<FeedbackSlot> {};
+
+template <typename T>
+T CopyForDeferred(MaglevCompilationInfo* compilation_info, T&& value) {
+  return CopyForDeferredHelper<T>::Copy(compilation_info,
+                                        std::forward<T>(value));
+}
+
+template <typename T>
+T CopyForDeferred(MaglevCompilationInfo* compilation_info, T& value) {
+  return CopyForDeferredHelper<T>::Copy(compilation_info, value);
+}
+
+template <typename T>
+T CopyForDeferred(MaglevCompilationInfo* compilation_info, const T& value) {
+  return CopyForDeferredHelper<T>::Copy(compilation_info, value);
+}
+
+template <typename Function>
+struct FunctionArgumentsTupleHelper
+    : public FunctionArgumentsTupleHelper<decltype(&Function::operator())> {};
+
+template <typename C, typename R, typename... A>
+struct FunctionArgumentsTupleHelper<R (C::*)(A...) const> {
+  using FunctionPointer = R (*)(A...);
+  using Tuple = std::tuple<A...>;
+  static constexpr size_t kSize = sizeof...(A);
+};
+
+template <typename R, typename... A>
+struct FunctionArgumentsTupleHelper<R (&)(A...)> {
+  using FunctionPointer = R (*)(A...);
+  using Tuple = std::tuple<A...>;
+  static constexpr size_t kSize = sizeof...(A);
+};
+
+template <typename T>
+struct StripFirstTupleArg;
+
+template <typename T1, typename... T>
+struct StripFirstTupleArg<std::tuple<T1, T...>> {
+  using Stripped = std::tuple<T...>;
+};
+
+template <typename Function>
+class DeferredCodeInfoImpl final : public DeferredCodeInfo {
+ public:
+  using FunctionPointer =
+      typename FunctionArgumentsTupleHelper<Function>::FunctionPointer;
+  using Tuple = typename StripFirstTupleArg<
+      typename FunctionArgumentsTupleHelper<Function>::Tuple>::Stripped;
+
+  template <typename... InArgs>
+  explicit DeferredCodeInfoImpl(MaglevCompilationInfo* compilation_info,
+                                FunctionPointer function, InArgs&&... args)
+      : function(function),
+        args(CopyForDeferred(compilation_info, std::forward<InArgs>(args))...) {
+  }
+
+  DeferredCodeInfoImpl(DeferredCodeInfoImpl&&) = delete;
+  DeferredCodeInfoImpl(const DeferredCodeInfoImpl&) = delete;
+
+  void Generate(MaglevAssembler* masm) override {
+    std::apply(function,
+               std::tuple_cat(std::make_tuple(masm), std::move(args)));
+  }
+
+ private:
+  FunctionPointer function;
+  Tuple args;
+};
+
+}  // namespace detail
+
+template <typename Function, typename... Args>
+inline DeferredCodeInfo* MaglevAssembler::PushDeferredCode(
+    Function&& deferred_code_gen, Args&&... args) {
+  using FunctionPointer =
+      typename detail::FunctionArgumentsTupleHelper<Function>::FunctionPointer;
+  static_assert(
+      std::is_invocable_v<FunctionPointer, MaglevAssembler*,
+                          decltype(detail::CopyForDeferred(
+                              std::declval<MaglevCompilationInfo*>(),
+                              std::declval<Args>()))...>,
+      "Parameters of deferred_code_gen function should match arguments into "
+      "PushDeferredCode");
+
+  using DeferredCodeInfoT = detail::DeferredCodeInfoImpl<Function>;
+  DeferredCodeInfoT* deferred_code =
+      compilation_info()->zone()->New<DeferredCodeInfoT>(
+          compilation_info(), deferred_code_gen, std::forward<Args>(args)...);
+
+  code_gen_state()->PushDeferredCode(deferred_code);
+  return deferred_code;
+}
+
+// Note this doesn't take capturing lambdas by design, since state may
+// change until `deferred_code_gen` is actually executed. Use either a
+// non-capturing lambda, or a plain function pointer.
+template <typename Function, typename... Args>
+inline void MaglevAssembler::JumpToDeferredIf(Condition cond,
+                                              Function&& deferred_code_gen,
+                                              Args&&... args) {
+  DeferredCodeInfo* deferred_code = PushDeferredCode<Function, Args...>(
+      std::forward<Function>(deferred_code_gen), std::forward<Args>(args)...);
+  if (v8_flags.code_comments) {
+    RecordComment("-- Jump to deferred code");
+  }
+  JumpIf(cond, &deferred_code->deferred_code_label);
+}
+
+// ---
+// Deopt
+// ---
+
+inline void MaglevAssembler::RegisterEagerDeopt(EagerDeoptInfo* deopt_info,
+                                                DeoptimizeReason reason) {
+  if (deopt_info->reason() != DeoptimizeReason::kUnknown) {
+    DCHECK_EQ(deopt_info->reason(), reason);
+  }
+  if (deopt_info->deopt_entry_label()->is_unused()) {
+    code_gen_state()->PushEagerDeopt(deopt_info);
+    deopt_info->set_reason(reason);
+  }
+}
+
+template <typename NodeT>
+inline void MaglevAssembler::EmitEagerDeopt(NodeT* node,
+                                            DeoptimizeReason reason) {
+  static_assert(NodeT::kProperties.can_eager_deopt());
+  RegisterEagerDeopt(node->eager_deopt_info(), reason);
+  RecordComment("-- Jump to eager deopt");
+  Jump(node->eager_deopt_info()->deopt_entry_label());
+}
+
+template <typename NodeT>
+inline void MaglevAssembler::EmitEagerDeoptIf(Condition cond,
+                                              DeoptimizeReason reason,
+                                              NodeT* node) {
+  static_assert(NodeT::kProperties.can_eager_deopt());
+  RegisterEagerDeopt(node->eager_deopt_info(), reason);
+  RecordComment("-- Jump to eager deopt");
+  JumpIf(cond, node->eager_deopt_info()->deopt_entry_label());
+}
 
 }  // namespace maglev
 }  // namespace internal

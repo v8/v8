@@ -48,6 +48,64 @@ class MaglevVregAllocator {
   MaglevVregAllocationState state_;
 };
 
+// ---
+// Vreg allocation helpers.
+// ---
+
+inline int GetVirtualRegister(Node* node) {
+  return compiler::UnallocatedOperand::cast(node->result().operand())
+      .virtual_register();
+}
+
+inline void DefineAsRegister(MaglevVregAllocationState* vreg_state,
+                             Node* node) {
+  node->result().SetUnallocated(
+      compiler::UnallocatedOperand::MUST_HAVE_REGISTER,
+      vreg_state->AllocateVirtualRegister());
+}
+inline void DefineAsConstant(MaglevVregAllocationState* vreg_state,
+                             Node* node) {
+  node->result().SetUnallocated(compiler::UnallocatedOperand::NONE,
+                                vreg_state->AllocateVirtualRegister());
+}
+
+inline void DefineAsFixed(MaglevVregAllocationState* vreg_state, Node* node,
+                          Register reg) {
+  node->result().SetUnallocated(compiler::UnallocatedOperand::FIXED_REGISTER,
+                                reg.code(),
+                                vreg_state->AllocateVirtualRegister());
+}
+
+inline void DefineSameAsFirst(MaglevVregAllocationState* vreg_state,
+                              Node* node) {
+  node->result().SetUnallocated(vreg_state->AllocateVirtualRegister(), 0);
+}
+
+inline void UseRegister(Input& input) {
+  input.SetUnallocated(compiler::UnallocatedOperand::MUST_HAVE_REGISTER,
+                       compiler::UnallocatedOperand::USED_AT_END,
+                       GetVirtualRegister(input.node()));
+}
+inline void UseAndClobberRegister(Input& input) {
+  input.SetUnallocated(compiler::UnallocatedOperand::MUST_HAVE_REGISTER,
+                       compiler::UnallocatedOperand::USED_AT_START,
+                       GetVirtualRegister(input.node()));
+}
+inline void UseAny(Input& input) {
+  input.SetUnallocated(
+      compiler::UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT,
+      compiler::UnallocatedOperand::USED_AT_END,
+      GetVirtualRegister(input.node()));
+}
+inline void UseFixed(Input& input, Register reg) {
+  input.SetUnallocated(compiler::UnallocatedOperand::FIXED_REGISTER, reg.code(),
+                       GetVirtualRegister(input.node()));
+}
+inline void UseFixed(Input& input, DoubleRegister reg) {
+  input.SetUnallocated(compiler::UnallocatedOperand::FIXED_FP_REGISTER,
+                       reg.code(), GetVirtualRegister(input.node()));
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8

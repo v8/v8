@@ -40,61 +40,6 @@ namespace maglev {
 
 namespace {
 
-// ---
-// Vreg allocation helpers.
-// ---
-
-int GetVirtualRegister(Node* node) {
-  return compiler::UnallocatedOperand::cast(node->result().operand())
-      .virtual_register();
-}
-
-void DefineAsRegister(MaglevVregAllocationState* vreg_state, Node* node) {
-  node->result().SetUnallocated(
-      compiler::UnallocatedOperand::MUST_HAVE_REGISTER,
-      vreg_state->AllocateVirtualRegister());
-}
-void DefineAsConstant(MaglevVregAllocationState* vreg_state, Node* node) {
-  node->result().SetUnallocated(compiler::UnallocatedOperand::NONE,
-                                vreg_state->AllocateVirtualRegister());
-}
-
-void DefineAsFixed(MaglevVregAllocationState* vreg_state, Node* node,
-                   Register reg) {
-  node->result().SetUnallocated(compiler::UnallocatedOperand::FIXED_REGISTER,
-                                reg.code(),
-                                vreg_state->AllocateVirtualRegister());
-}
-
-void DefineSameAsFirst(MaglevVregAllocationState* vreg_state, Node* node) {
-  node->result().SetUnallocated(vreg_state->AllocateVirtualRegister(), 0);
-}
-
-void UseRegister(Input& input) {
-  input.SetUnallocated(compiler::UnallocatedOperand::MUST_HAVE_REGISTER,
-                       compiler::UnallocatedOperand::USED_AT_END,
-                       GetVirtualRegister(input.node()));
-}
-void UseAndClobberRegister(Input& input) {
-  input.SetUnallocated(compiler::UnallocatedOperand::MUST_HAVE_REGISTER,
-                       compiler::UnallocatedOperand::USED_AT_START,
-                       GetVirtualRegister(input.node()));
-}
-void UseAny(Input& input) {
-  input.SetUnallocated(
-      compiler::UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT,
-      compiler::UnallocatedOperand::USED_AT_END,
-      GetVirtualRegister(input.node()));
-}
-void UseFixed(Input& input, Register reg) {
-  input.SetUnallocated(compiler::UnallocatedOperand::FIXED_REGISTER, reg.code(),
-                       GetVirtualRegister(input.node()));
-}
-void UseFixed(Input& input, DoubleRegister reg) {
-  input.SetUnallocated(compiler::UnallocatedOperand::FIXED_FP_REGISTER,
-                       reg.code(), GetVirtualRegister(input.node()));
-}
-
 void AddDeoptRegistersToSnapshot(RegisterSnapshot* snapshot,
                                  const EagerDeoptInfo* deopt_info) {
   detail::DeepForEachInput(deopt_info, [&](ValueNode* node,
@@ -133,24 +78,6 @@ RegList GetGeneralRegistersUsedAsInputs(const EagerDeoptInfo* deopt_info) {
 // ---
 // Nodes
 // ---
-
-void SmiConstant::AllocateVreg(MaglevVregAllocationState* vreg_state) {
-  DefineAsConstant(vreg_state, this);
-}
-void SmiConstant::GenerateCode(MaglevAssembler* masm,
-                               const ProcessingState& state) {}
-
-void Float64Constant::AllocateVreg(MaglevVregAllocationState* vreg_state) {
-  DefineAsConstant(vreg_state, this);
-}
-void Float64Constant::GenerateCode(MaglevAssembler* masm,
-                                   const ProcessingState& state) {}
-
-void Constant::AllocateVreg(MaglevVregAllocationState* vreg_state) {
-  DefineAsConstant(vreg_state, this);
-}
-void Constant::GenerateCode(MaglevAssembler* masm,
-                            const ProcessingState& state) {}
 
 void DeleteProperty::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   using D = CallInterfaceDescriptorFor<Builtin::kDeleteProperty>::type;
@@ -412,20 +339,6 @@ void GetSecondReturnedValue::GenerateCode(MaglevAssembler* masm,
 #endif  // DEBUG
 }
 
-void InitialValue::AllocateVreg(MaglevVregAllocationState* vreg_state) {
-  // TODO(leszeks): Make this nicer.
-  result().SetUnallocated(compiler::UnallocatedOperand::FIXED_SLOT,
-                          (StandardFrameConstants::kExpressionsOffset -
-                           UnoptimizedFrameConstants::kRegisterFileFromFp) /
-                                  kSystemPointerSize +
-                              source().index(),
-                          vreg_state->AllocateVirtualRegister());
-}
-void InitialValue::GenerateCode(MaglevAssembler* masm,
-                                const ProcessingState& state) {
-  // No-op, the value is already in the appropriate slot.
-}
-
 void LoadGlobal::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseFixed(context(), kContextRegister);
   DefineAsFixed(vreg_state, this, kReturnRegister0);
@@ -485,12 +398,6 @@ void RegisterInput::GenerateCode(MaglevAssembler* masm,
                                  const ProcessingState& state) {
   // Nothing to be done, the value is already in the register.
 }
-
-void RootConstant::AllocateVreg(MaglevVregAllocationState* vreg_state) {
-  DefineAsConstant(vreg_state, this);
-}
-void RootConstant::GenerateCode(MaglevAssembler* masm,
-                                const ProcessingState& state) {}
 
 void CreateEmptyArrayLiteral::AllocateVreg(
     MaglevVregAllocationState* vreg_state) {
@@ -2190,40 +2097,6 @@ void GapMove::GenerateCode(MaglevAssembler* masm,
   }
 }
 
-void ConstantGapMove::AllocateVreg(MaglevVregAllocationState* vreg_state) {
-  UNREACHABLE();
-}
-
-namespace {
-template <typename T>
-struct GetRegister;
-template <>
-struct GetRegister<Register> {
-  static Register Get(compiler::AllocatedOperand target) {
-    return target.GetRegister();
-  }
-};
-template <>
-struct GetRegister<DoubleRegister> {
-  static DoubleRegister Get(compiler::AllocatedOperand target) {
-    return target.GetDoubleRegister();
-  }
-};
-}  // namespace
-void ConstantGapMove::GenerateCode(MaglevAssembler* masm,
-                                   const ProcessingState& state) {
-  switch (node_->opcode()) {
-#define CASE(Name)                                \
-  case Opcode::k##Name:                           \
-    return node_->Cast<Name>()->DoLoadToRegister( \
-        masm, GetRegister<Name::OutputRegister>::Get(target()));
-    CONSTANT_VALUE_NODE_LIST(CASE)
-#undef CASE
-    default:
-      UNREACHABLE();
-  }
-}
-
 namespace {
 
 constexpr Builtin BuiltinFor(Operation operation) {
@@ -3036,12 +2909,6 @@ void UnsafeSmiTag::GenerateCode(MaglevAssembler* masm,
     __ Check(no_overflow, AbortReason::kInputDoesNotFitSmi);
   }
 }
-
-void Int32Constant::AllocateVreg(MaglevVregAllocationState* vreg_state) {
-  DefineAsConstant(vreg_state, this);
-}
-void Int32Constant::GenerateCode(MaglevAssembler* masm,
-                                 const ProcessingState& state) {}
 
 void Int32ToNumber::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseRegister(input());
@@ -4364,31 +4231,6 @@ void Switch::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
     DCHECK_EQ(fallthrough(), state.next_block());
   } else {
     __ Trap();
-  }
-}
-
-void Jump::AllocateVreg(MaglevVregAllocationState* vreg_state) {}
-void Jump::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
-  // Avoid emitting a jump to the next block.
-  if (target() != state.next_block()) {
-    __ jmp(target()->label());
-  }
-}
-
-void JumpToInlined::AllocateVreg(MaglevVregAllocationState* vreg_state) {}
-void JumpToInlined::GenerateCode(MaglevAssembler* masm,
-                                 const ProcessingState& state) {
-  // Avoid emitting a jump to the next block.
-  if (target() != state.next_block()) {
-    __ jmp(target()->label());
-  }
-}
-void JumpFromInlined::AllocateVreg(MaglevVregAllocationState* vreg_state) {}
-void JumpFromInlined::GenerateCode(MaglevAssembler* masm,
-                                   const ProcessingState& state) {
-  // Avoid emitting a jump to the next block.
-  if (target() != state.next_block()) {
-    __ jmp(target()->label());
   }
 }
 

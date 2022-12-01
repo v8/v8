@@ -2,13 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/codegen/arm64/assembler-arm64-inl.h"
+#include "src/codegen/arm64/register-arm64.h"
+#include "src/maglev/arm64/maglev-assembler-arm64-inl.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-vreg-allocator.h"
+#include "src/objects/feedback-cell.h"
+#include "src/objects/js-function.h"
 
 namespace v8 {
 namespace internal {
 namespace maglev {
+
+#define __ masm->
 
 // TODO(v8:7700): Remove this logic when all nodes are implemented.
 class MaglevUnimplementedIRNode {
@@ -38,6 +46,11 @@ class MaglevUnimplementedIRNode {
     std::cerr << "Unimplemented Maglev IR Node: " #Node << std::endl;     \
     has_unimplemented_node_ = true;                                       \
   }
+
+// If we don't have a specialization, it means we have implemented the node.
+template <typename NodeT>
+void MaglevUnimplementedIRNode::Process(NodeT* node,
+                                        const ProcessingState& state) {}
 
 bool MaglevGraphHasUnimplementedNode(Graph* graph) {
   GraphProcessor<MaglevUnimplementedIRNode> processor;
@@ -102,11 +115,6 @@ UNIMPLEMENTED_NODE(Float64LessThanOrEqual)
 UNIMPLEMENTED_NODE(Float64GreaterThan)
 UNIMPLEMENTED_NODE(Float64GreaterThanOrEqual)
 UNIMPLEMENTED_NODE(Float64Ieee754Unary)
-UNIMPLEMENTED_NODE(Constant)
-UNIMPLEMENTED_NODE(Float64Constant)
-UNIMPLEMENTED_NODE(Int32Constant)
-UNIMPLEMENTED_NODE(RootConstant)
-UNIMPLEMENTED_NODE(SmiConstant)
 UNIMPLEMENTED_NODE(BuiltinStringFromCharCode)
 UNIMPLEMENTED_NODE(BuiltinStringPrototypeCharCodeAt)
 UNIMPLEMENTED_NODE(Call, receiver_mode_, target_type_, feedback_)
@@ -136,7 +144,6 @@ UNIMPLEMENTED_NODE(GeneratorRestoreRegister)
 UNIMPLEMENTED_NODE(GetIterator)
 UNIMPLEMENTED_NODE(GetSecondReturnedValue)
 UNIMPLEMENTED_NODE(GetTemplateObject)
-UNIMPLEMENTED_NODE(InitialValue)
 UNIMPLEMENTED_NODE(LoadTaggedField)
 UNIMPLEMENTED_NODE(LoadDoubleField)
 UNIMPLEMENTED_NODE(LoadTaggedElement)
@@ -195,7 +202,6 @@ UNIMPLEMENTED_NODE(ToName)
 UNIMPLEMENTED_NODE(ToNumberOrNumeric)
 UNIMPLEMENTED_NODE(ToObject)
 UNIMPLEMENTED_NODE(ToString)
-UNIMPLEMENTED_NODE(ConstantGapMove)
 UNIMPLEMENTED_NODE(GapMove)
 UNIMPLEMENTED_NODE(AssertInt32, condition_, reason_)
 UNIMPLEMENTED_NODE(CheckDynamicValue)
@@ -224,8 +230,6 @@ UNIMPLEMENTED_NODE(StoreSignedIntDataViewElement, type_)
 UNIMPLEMENTED_NODE(StoreDoubleDataViewElement)
 UNIMPLEMENTED_NODE(StoreTaggedFieldNoWriteBarrier)
 UNIMPLEMENTED_NODE(StoreTaggedFieldWithWriteBarrier)
-UNIMPLEMENTED_NODE(IncreaseInterruptBudget)
-UNIMPLEMENTED_NODE(ReduceInterruptBudget)
 UNIMPLEMENTED_NODE(ThrowReferenceErrorIfHole)
 UNIMPLEMENTED_NODE(ThrowSuperNotCalledIfHole)
 UNIMPLEMENTED_NODE(ThrowSuperAlreadyCalledIfNotHole)
@@ -238,13 +242,117 @@ UNIMPLEMENTED_NODE(BranchIfFloat64Compare, operation_)
 UNIMPLEMENTED_NODE(BranchIfUndefinedOrNull)
 UNIMPLEMENTED_NODE(BranchIfJSReceiver)
 UNIMPLEMENTED_NODE(Switch)
-UNIMPLEMENTED_NODE(Jump)
 UNIMPLEMENTED_NODE(JumpLoop)
-UNIMPLEMENTED_NODE(JumpToInlined)
-UNIMPLEMENTED_NODE(JumpFromInlined)
 UNIMPLEMENTED_NODE(Abort)
-UNIMPLEMENTED_NODE(Return)
 UNIMPLEMENTED_NODE(Deopt)
+
+void IncreaseInterruptBudget::AllocateVreg(
+    MaglevVregAllocationState* vreg_state) {}
+void IncreaseInterruptBudget::GenerateCode(MaglevAssembler* masm,
+                                           const ProcessingState& state) {
+  UseScratchRegisterScope temps(masm);
+  Register feedback_cell = temps.AcquireX();
+  Register budget = temps.AcquireX();
+  __ Ldr(feedback_cell,
+         MemOperand(fp, StandardFrameConstants::kFunctionOffset));
+  __ LoadTaggedPointerField(
+      feedback_cell,
+      FieldMemOperand(feedback_cell, JSFunction::kFeedbackCellOffset));
+  __ Ldr(budget,
+         FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
+  __ Add(budget, budget, Immediate(amount()));
+  __ Str(budget,
+         FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
+}
+
+void ReduceInterruptBudget::AllocateVreg(
+    MaglevVregAllocationState* vreg_state) {}
+void ReduceInterruptBudget::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  {
+    UseScratchRegisterScope temps(masm);
+    Register feedback_cell = temps.AcquireX();
+    Register budget = temps.AcquireX();
+    __ Ldr(feedback_cell,
+           MemOperand(fp, StandardFrameConstants::kFunctionOffset));
+    __ LoadTaggedPointerField(
+        feedback_cell,
+        FieldMemOperand(feedback_cell, JSFunction::kFeedbackCellOffset));
+    __ Ldr(budget, FieldMemOperand(feedback_cell,
+                                   FeedbackCell::kInterruptBudgetOffset));
+    __ Sub(budget, budget, Immediate(amount()));
+    __ Str(budget, FieldMemOperand(feedback_cell,
+                                   FeedbackCell::kInterruptBudgetOffset));
+  }
+
+  ZoneLabelRef done(masm);
+  __ JumpToDeferredIf(
+      lt,
+      [](MaglevAssembler* masm, ZoneLabelRef done,
+         ReduceInterruptBudget* node) {
+        {
+          SaveRegisterStateForCall save_register_state(
+              masm, node->register_snapshot());
+          UseScratchRegisterScope temps(masm);
+          Register function = temps.AcquireX();
+          __ Move(kContextRegister, static_cast<Handle<HeapObject>>(
+                                        masm->native_context().object()));
+          __ Ldr(function,
+                 MemOperand(fp, StandardFrameConstants::kFunctionOffset));
+          __ PushArgument(function);
+          __ CallRuntime(Runtime::kBytecodeBudgetInterruptWithStackCheck_Maglev,
+                         1);
+          save_register_state.DefineSafepointWithLazyDeopt(
+              node->lazy_deopt_info());
+        }
+        __ B(*done);
+      },
+      done, this);
+  __ bind(*done);
+}
+
+// ---
+// Control nodes
+// ---
+void Return::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  UseFixed(value_input(), kReturnRegister0);
+}
+void Return::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
+  DCHECK_EQ(ToRegister(value_input()), kReturnRegister0);
+  // Read the formal number of parameters from the top level compilation unit
+  // (i.e. the outermost, non inlined function).
+  int formal_params_size =
+      masm->compilation_info()->toplevel_compilation_unit()->parameter_count();
+
+  // We're not going to continue execution, so we can use an arbitrary register
+  // here instead of relying on temporaries from the register allocator.
+  // We cannot use scratch registers, since they're used in LeaveFrame and
+  // DropArguments.
+  Register actual_params_size = x9;
+  Register params_size = x10;
+
+  // Compute the size of the actual parameters + receiver (in bytes).
+  // TODO(leszeks): Consider making this an input into Return to re-use the
+  // incoming argc's register (if it's still valid).
+  __ Ldr(actual_params_size,
+         MemOperand(fp, StandardFrameConstants::kArgCOffset));
+  __ Mov(params_size, Immediate(formal_params_size));
+
+  // If actual is bigger than formal, then we should use it to free up the stack
+  // arguments.
+  Label corrected_args_count;
+  __ CompareAndBranch(actual_params_size, params_size, ge,
+                      &corrected_args_count);
+  __ Mov(params_size, actual_params_size);
+  __ bind(&corrected_args_count);
+
+  // Leave the frame.
+  __ LeaveFrame(StackFrame::MAGLEV);
+
+  // Drop receiver + arguments according to dynamic arguments size.
+  __ DropArguments(params_size, TurboAssembler::kCountIncludesReceiver);
+  __ Ret();
+}
 
 }  // namespace maglev
 }  // namespace internal
