@@ -5696,6 +5696,22 @@ Node* WasmGraphBuilder::RefAsEq(Node* object, bool object_can_be_null,
   return object;
 }
 
+void WasmGraphBuilder::BrOnEq(Node* object, Node* /*rtt*/,
+                              WasmTypeCheckConfig config, Node** match_control,
+                              Node** match_effect, Node** no_match_control,
+                              Node** no_match_effect) {
+  BrOnCastAbs(match_control, match_effect, no_match_control, no_match_effect,
+              [=](Callbacks callbacks) -> void {
+                if (config.from.is_nullable()) {
+                  callbacks.fail_if(gasm_->IsNull(object), BranchHint::kFalse);
+                }
+                callbacks.succeed_if(gasm_->IsI31(object), BranchHint::kFalse);
+                Node* map = gasm_->LoadMap(object);
+                callbacks.fail_if_not(gasm_->IsDataRefMap(map),
+                                      BranchHint::kTrue);
+              });
+}
+
 Node* WasmGraphBuilder::RefIsStruct(Node* object, bool object_can_be_null,
                                     bool null_succeeds) {
   auto done = gasm_->MakeLabel(MachineRepresentation::kWord32);

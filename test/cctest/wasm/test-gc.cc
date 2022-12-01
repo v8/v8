@@ -1293,21 +1293,21 @@ WASM_COMPILED_EXEC_TEST(RefTrivialCastsStatic) {
       tester.sigs.i_v(), {refNull(subtype_index)},
       {WASM_LOCAL_SET(0, WASM_STRUCT_NEW_DEFAULT(subtype_index)),
        WASM_BLOCK_R(refNull(sig_index), WASM_LOCAL_GET(0),
-                    WASM_BR_ON_CAST(0, sig_index), WASM_DROP,
+                    WASM_BR_ON_CAST_DEPRECATED(0, sig_index), WASM_DROP,
                     WASM_RETURN(WASM_I32V(0))),
        WASM_DROP, WASM_I32V(1), WASM_END});
 
   const byte kBrOnCastUnrelatedNull = tester.DefineFunction(
       tester.sigs.i_v(), {},
       {WASM_BLOCK_R(refNull(sig_index), WASM_REF_NULL(subtype_index),
-                    WASM_BR_ON_CAST(0, sig_index), WASM_DROP,
+                    WASM_BR_ON_CAST_DEPRECATED(0, sig_index), WASM_DROP,
                     WASM_RETURN(WASM_I32V(0))),
        WASM_DROP, WASM_I32V(1), WASM_END});
 
   const byte kBrOnCastUnrelatedNonNullable = tester.DefineFunction(
       tester.sigs.i_v(), {},
       {WASM_BLOCK_R(refNull(sig_index), WASM_STRUCT_NEW_DEFAULT(subtype_index),
-                    WASM_BR_ON_CAST(0, sig_index), WASM_DROP,
+                    WASM_BR_ON_CAST_DEPRECATED(0, sig_index), WASM_DROP,
                     WASM_RETURN(WASM_I32V(0))),
        WASM_DROP, WASM_I32V(1), WASM_END});
 

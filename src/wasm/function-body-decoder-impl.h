@@ -1099,6 +1099,8 @@ struct ControlBase : public PcForErrors<ValidationTag::full_validation> {
     uint32_t depth)                                                            \
   F(BrOnCastFail, const Value& obj, const Value& rtt,                          \
     Value* result_on_fallthrough, uint32_t depth)                              \
+  F(BrOnCastAbstract, const Value& obj, HeapType type,                         \
+    Value* result_on_branch, uint32_t depth)                                   \
   F(RefIsStruct, const Value& object, Value* result)                           \
   F(RefIsEq, const Value& object, Value* result)                               \
   F(RefIsI31, const Value& object, Value* result)                              \
@@ -2196,6 +2198,14 @@ class WasmDecoder : public Decoder {
           case kExprBrOnCast:
           case kExprBrOnCastFail: {
             BranchDepthImmediate branch(decoder, pc + length, validate);
+            HeapTypeImmediate imm(WasmFeatures::All(), decoder,
+                                  pc + length + branch.length, validate);
+            (ios.BranchDepth(branch), ...);
+            (ios.HeapType(imm), ...);
+            return length + branch.length + imm.length;
+          }
+          case kExprBrOnCastDeprecated: {
+            BranchDepthImmediate branch(decoder, pc + length, validate);
             IndexImmediate index(decoder, pc + length + branch.length,
                                  "type index", validate);
             (ios.BranchDepth(branch), ...);
@@ -2423,6 +2433,7 @@ class WasmDecoder : public Decoder {
           case kExprRefCastNop:
           case kExprBrOnCast:
           case kExprBrOnCastFail:
+          case kExprBrOnCastDeprecated:
             return {1, 1};
           case kExprStructSet:
             return {2, 0};
@@ -5132,6 +5143,102 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         return opcode_length;
       }
       case kExprBrOnCast: {
+        NON_CONST_ONLY
+        BranchDepthImmediate branch_depth(this, this->pc_ + opcode_length,
+                                          validate);
+        if (!this->Validate(this->pc_ + opcode_length, branch_depth,
+                            control_.size())) {
+          return 0;
+        }
+        uint32_t pc_offset = opcode_length + branch_depth.length;
+
+        HeapTypeImmediate imm(this->enabled_, this, this->pc_ + pc_offset,
+                              validate);
+        this->Validate(this->pc_ + opcode_length, imm);
+        if (!VALIDATE(this->ok())) return 0;
+        pc_offset += imm.length;
+
+        std::optional<Value> rtt;
+        HeapType target_type = imm.type;
+        if (imm.type.is_index()) {
+          rtt = CreateValue(ValueType::Rtt(imm.type.ref_index()));
+          CALL_INTERFACE_IF_OK_AND_REACHABLE(RttCanon, imm.type.ref_index(),
+                                             &rtt.value());
+          // Differently to other instructions we don't push the RTT yet.
+        }
+
+        Value obj = Peek(0);
+
+        if (!VALIDATE((obj.type.is_object_reference() &&
+                       IsSameTypeHierarchy(obj.type.heap_type(), target_type,
+                                           this->module_)) ||
+                      obj.type.is_bottom())) {
+          this->DecodeError(
+              obj.pc(),
+              "Invalid types for br_on_cast: %s of type %s has to "
+              "be in the same reference type hierarchy as (ref %s)",
+              SafeOpcodeNameAt(obj.pc()), obj.type.name().c_str(),
+              target_type.name().c_str());
+          return 0;
+        }
+
+        Control* c = control_at(branch_depth.depth);
+        if (c->br_merge()->arity == 0) {
+          this->DecodeError(
+              "br_on_cast must target a branch of arity at least 1");
+          return 0;
+        }
+        // Attention: contrary to most other instructions, we modify the
+        // stack before calling the interface function. This makes it
+        // significantly more convenient to pass around the values that
+        // will be on the stack when the branch is taken.
+        // TODO(jkummerow): Reconsider this choice.
+        Drop(obj);
+        // TODO(mliedtke): Use RefNull for br_on_cast_null.
+        bool null_succeeds = false;
+        Push(CreateValue(ValueType::Ref(target_type)));
+        // The {value_on_branch} parameter we pass to the interface must
+        // be pointer-identical to the object on the stack.
+        Value* value_on_branch = stack_value(1);
+        if (!VALIDATE(TypeCheckBranch<true>(c, 0))) return 0;
+        if (V8_LIKELY(current_code_reachable_and_ok_)) {
+          // This logic ensures that code generation can assume that functions
+          // can only be cast to function types, and data objects to data types.
+          if (V8_UNLIKELY(TypeCheckAlwaysSucceeds(obj, target_type))) {
+            if (rtt.has_value()) {
+              CALL_INTERFACE(Drop);  // rtt
+            }
+            // The branch will still not be taken on null.
+            if (obj.type.is_nullable()) {
+              CALL_INTERFACE(BrOnNonNull, obj, value_on_branch,
+                             branch_depth.depth, false);
+            } else {
+              CALL_INTERFACE(Forward, obj, value_on_branch);
+              CALL_INTERFACE(BrOrRet, branch_depth.depth, 0);
+              // We know that the following code is not reachable, but according
+              // to the spec it technically is. Set it to spec-only reachable.
+              SetSucceedingCodeDynamicallyUnreachable();
+            }
+            c->br_merge()->reached = true;
+          } else if (V8_LIKELY(!TypeCheckAlwaysFails(obj, target_type,
+                                                     null_succeeds))) {
+            if (rtt.has_value()) {
+              CALL_INTERFACE(BrOnCast, obj, rtt.value(), value_on_branch,
+                             branch_depth.depth);
+            } else {
+              CALL_INTERFACE(BrOnCastAbstract, obj, target_type,
+                             value_on_branch, branch_depth.depth);
+            }
+            c->br_merge()->reached = true;
+          }
+          // Otherwise the types are unrelated. Do not branch.
+        }
+
+        Drop(1);    // value_on_branch
+        Push(obj);  // Restore stack state on fallthrough.
+        return pc_offset;
+      }
+      case kExprBrOnCastDeprecated: {
         NON_CONST_ONLY
         BranchDepthImmediate branch_depth(this, this->pc_ + opcode_length,
                                           validate);

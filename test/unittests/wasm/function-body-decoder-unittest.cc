@@ -4407,6 +4407,7 @@ TEST_F(FunctionBodyDecoderTest, BrOnCastOrCastFail) {
   byte super_struct = builder.AddStruct({F(kWasmI16, true)});
   byte sub_struct =
       builder.AddStruct({F(kWasmI16, true), F(kWasmI32, false)}, super_struct);
+  byte fct_type = builder.AddSignature(sigs.i_i(), kNoSuperType);
 
   ValueType supertype = ValueType::RefNull(super_struct);
   ValueType subtype = ValueType::RefNull(sub_struct);
@@ -4445,18 +4446,25 @@ TEST_F(FunctionBodyDecoderTest, BrOnCastOrCastFail) {
       kAppendEnd, "type error in branch[0] (expected i32, got (ref null 0))");
 
   // Argument type error.
-  ExpectFailure(
-      FunctionSig::Build(this->zone(), {subtype}, {kWasmExternRef}),
-      {WASM_LOCAL_GET(0), WASM_BR_ON_CAST(0, sub_struct),
-       WASM_GC_OP(kExprRefCast), sub_struct},
-      kAppendEnd,
-      "br_on_cast[0] expected subtype of (ref null func), (ref null struct) or "
-      "(ref null array), found local.get of type externref");
+  ExpectFailure(FunctionSig::Build(this->zone(), {subtype}, {kWasmExternRef}),
+                {WASM_LOCAL_GET(0), WASM_BR_ON_CAST(0, sub_struct),
+                 WASM_GC_OP(kExprRefCast), sub_struct},
+                kAppendEnd,
+                "Invalid types for br_on_cast: local.get of type externref has "
+                "to be in the same reference type hierarchy as (ref 1)");
   ExpectFailure(
       FunctionSig::Build(this->zone(), {supertype}, {kWasmExternRef}),
       {WASM_LOCAL_GET(0), WASM_BR_ON_CAST_FAIL(0, sub_struct)}, kAppendEnd,
       "br_on_cast_fail[0] expected subtype of (ref null func), (ref null "
       "struct) or (ref null array), found local.get of type externref");
+
+  // Cast between types of different type hierarchies is invalid.
+  ExpectFailure(
+      FunctionSig::Build(this->zone(), {subtype}, {supertype}),
+      {WASM_LOCAL_GET(0), WASM_BR_ON_CAST(0, fct_type), WASM_UNREACHABLE},
+      kAppendEnd,
+      "Invalid types for br_on_cast: local.get of type (ref null 0) has "
+      "to be in the same reference type hierarchy as (ref 2)");
 }
 
 TEST_F(FunctionBodyDecoderTest, BrOnAbstractType) {
@@ -4933,7 +4941,7 @@ TEST_F(WasmOpcodeLengthTest, IllegalRefIndices) {
 
 TEST_F(WasmOpcodeLengthTest, GCOpcodes) {
   // br_on_cast{,_fail}: prefix + opcode + br_depth + type_index
-  ExpectLength(4, 0xfb, kExprBrOnCast & 0xFF);
+  ExpectLength(4, 0xfb, kExprBrOnCastDeprecated & 0xFF);
   ExpectLength(4, 0xfb, kExprBrOnCastFail & 0xFF);
 
   // struct.new, with leb immediate operand.

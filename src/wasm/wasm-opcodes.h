@@ -713,7 +713,8 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(RefCast, 0xfb41, _, "ref.cast")                                            \
   V(RefCastNull, 0xfb49, _, "ref.cast null")                                   \
   V(RefCastDeprecated, 0xfb45, _, "ref.cast")                                  \
-  V(BrOnCast, 0xfb46, _, "br_on_cast")                                         \
+  V(BrOnCast, 0xfb42, _, "br_on_cast")                                         \
+  V(BrOnCastDeprecated, 0xfb46, _, "br_on_cast")                               \
   V(BrOnCastFail, 0xfb47, _, "br_on_cast_fail")                                \
   V(RefCastNop, 0xfb4c, _, "ref.cast_nop")                                     \
   V(RefIsStruct, 0xfb51, _, "ref.is_struct")                                   \

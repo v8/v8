@@ -1297,11 +1297,43 @@ class WasmGraphBuildingInterface {
         decoder, object, rtt, value_on_fallthrough, br_depth, false);
   }
 
+  void BrOnCastAbstract(FullDecoder* decoder, const Value& object,
+                        HeapType type, Value* value_on_branch,
+                        uint32_t br_depth) {
+    switch (type.representation()) {
+      case HeapType::kEq:
+        return BrOnEq(decoder, object, value_on_branch, br_depth);
+      case HeapType::kI31:
+        return BrOnI31(decoder, object, value_on_branch, br_depth);
+      case HeapType::kStruct:
+        return BrOnStruct(decoder, object, value_on_branch, br_depth);
+      case HeapType::kArray:
+        return BrOnArray(decoder, object, value_on_branch, br_depth);
+      case HeapType::kNone:
+      case HeapType::kNoExtern:
+      case HeapType::kNoFunc:
+        // TODO(mliedtke): This becomes reachable for `br_on_cast null`.
+        UNREACHABLE();
+      case HeapType::kAny:
+        // Any may never need a cast as it is either implicitly convertible or
+        // never convertible for any given type.
+      default:
+        UNREACHABLE();
+    }
+  }
+
   void RefIsEq(FullDecoder* decoder, const Value& object, Value* result) {
     bool null_succeeds = false;
     SetAndTypeNode(result,
                    builder_->RefIsEq(object.node, object.type.is_nullable(),
                                      null_succeeds));
+  }
+
+  void BrOnEq(FullDecoder* decoder, const Value& object, Value* value_on_branch,
+              uint32_t br_depth) {
+    BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnEq>(
+        decoder, object, Value{nullptr, kWasmBottom}, value_on_branch, br_depth,
+        true);
   }
 
   void RefIsStruct(FullDecoder* decoder, const Value& object, Value* result) {

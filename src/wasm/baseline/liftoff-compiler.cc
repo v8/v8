@@ -6132,6 +6132,30 @@ class LiftoffCompiler {
     __ bind(&fallthrough);
   }
 
+  void BrOnCastAbstract(FullDecoder* decoder, const Value& obj, HeapType type,
+                        Value* result_on_branch, uint32_t depth) {
+    switch (type.representation()) {
+      case HeapType::kEq:
+        return BrOnEq(decoder, obj, result_on_branch, depth);
+      case HeapType::kI31:
+        return BrOnI31(decoder, obj, result_on_branch, depth);
+      case HeapType::kStruct:
+        return BrOnStruct(decoder, obj, result_on_branch, depth);
+      case HeapType::kArray:
+        return BrOnArray(decoder, obj, result_on_branch, depth);
+      case HeapType::kNone:
+      case HeapType::kNoExtern:
+      case HeapType::kNoFunc:
+        // TODO(mliedtke): This becomes reachable for `br_on_cast null`.
+        UNREACHABLE();
+      case HeapType::kAny:
+        // Any may never need a cast as it is either implicitly convertible or
+        // never convertible for any given type.
+      default:
+        UNREACHABLE();
+    }
+  }
+
   struct TypeCheck {
     Register obj_reg = no_reg;
     ValueType obj_type;
@@ -6356,6 +6380,11 @@ class LiftoffCompiler {
     BrOrRetImpl(decoder, br_depth, check.tmp1, check.tmp2);
 
     __ bind(&end);
+  }
+
+  void BrOnEq(FullDecoder* decoder, const Value& object,
+              Value* /* value_on_branch */, uint32_t br_depth) {
+    BrOnAbstractType<&LiftoffCompiler::EqCheck>(object, decoder, br_depth);
   }
 
   void BrOnStruct(FullDecoder* decoder, const Value& object,

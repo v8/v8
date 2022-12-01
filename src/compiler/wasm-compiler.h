@@ -508,6 +508,9 @@ class WasmGraphBuilder {
   Node* RefIsEq(Node* object, bool object_can_be_null, bool null_succeeds);
   Node* RefAsEq(Node* object, bool object_can_be_null,
                 wasm::WasmCodePosition position, bool null_succeeds);
+  void BrOnEq(Node* object, Node* rtt, WasmTypeCheckConfig config,
+              Node** match_control, Node** match_effect,
+              Node** no_match_control, Node** no_match_effect);
   Node* RefIsStruct(Node* object, bool object_can_be_null, bool null_succeeds);
   Node* RefAsStruct(Node* object, bool object_can_be_null,
                     wasm::WasmCodePosition position, bool null_succeeds);
