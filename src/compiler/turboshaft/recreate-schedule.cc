@@ -1305,7 +1305,7 @@ Node* ScheduleBuilder::ProcessOperation(const BranchOp& op) {
       false_block->set_deferred(true);
       break;
     case BranchHint::kFalse:
-      true_block->set_deferred(false);
+      true_block->set_deferred(true);
       break;
   }
   current_block = nullptr;
