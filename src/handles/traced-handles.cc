@@ -1108,7 +1108,7 @@ Object TracedHandles::Mark(Address* location) {
       Object(reinterpret_cast<std::atomic<Address>*>(location)->load(
           std::memory_order_acquire));
   auto* node = TracedNode::FromLocation(location);
-  DCHECK(node->is_in_use());
+  DCHECK(node->is_in_use<AccessMode::ATOMIC>());
   node->set_markbit<AccessMode::ATOMIC>();
   return object;
 }
