@@ -2517,6 +2517,7 @@ void Shell::ProfilerSetOnProfileEndListener(
   HandleScope handle_scope(isolate);
   if (!args[0]->IsFunction()) {
     isolate->ThrowError("The OnProfileEnd listener has to be a function");
+    return;
   }
   profile_end_callback_.Reset(isolate, args[0].As<Function>());
   profile_end_callback_context_.Reset(isolate, isolate->GetCurrentContext());
