@@ -56,13 +56,16 @@ struct WasmCompilationResult {
   ExecutionTier requested_tier;
   ExecutionTier result_tier;
   Kind kind = kFunction;
-  ForDebugging for_debugging = kNoDebugging;
+  ForDebugging for_debugging = kNotForDebugging;
 };
 
 class V8_EXPORT_PRIVATE WasmCompilationUnit final {
  public:
   WasmCompilationUnit(int index, ExecutionTier tier, ForDebugging for_debugging)
-      : func_index_(index), tier_(tier), for_debugging_(for_debugging) {}
+      : func_index_(index), tier_(tier), for_debugging_(for_debugging) {
+    DCHECK_IMPLIES(for_debugging != ForDebugging::kNotForDebugging,
+                   tier_ == ExecutionTier::kLiftoff);
+  }
 
   WasmCompilationResult ExecuteCompilation(CompilationEnv*,
                                            const WireBytesStorage*, Counters*,

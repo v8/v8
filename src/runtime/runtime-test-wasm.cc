@@ -432,11 +432,28 @@ RUNTIME_FUNCTION(Runtime_WasmTierUpFunction) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_WasmTierDown) {
+RUNTIME_FUNCTION(Runtime_WasmEnterDebugging) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
-  wasm::GetWasmEngine()->TierDownAllModulesPerIsolate(isolate);
+  wasm::GetWasmEngine()->EnterDebuggingForIsolate(isolate);
   return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_IsWasmDebugFunction) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  Handle<JSFunction> function = args.at<JSFunction>(0);
+  CHECK(WasmExportedFunction::IsWasmExportedFunction(*function));
+  Handle<WasmExportedFunction> exp_fun =
+      Handle<WasmExportedFunction>::cast(function);
+  wasm::NativeModule* native_module =
+      exp_fun->instance().module_object().native_module();
+  uint32_t func_index = exp_fun->function_index();
+  wasm::WasmCodeRefScope code_ref_scope;
+  wasm::WasmCode* code = native_module->GetCode(func_index);
+  return isolate->heap()->ToBoolean(
+      code && code->is_liftoff() &&
+      (code->for_debugging() != wasm::kNotForDebugging));
 }
 
 RUNTIME_FUNCTION(Runtime_IsLiftoffFunction) {

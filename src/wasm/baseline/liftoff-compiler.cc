@@ -775,7 +775,7 @@ class LiftoffCompiler {
     // overflows in the budget calculation.
     DCHECK_LE(1, budget_used);
 
-    if (for_debugging_ != kNoDebugging) return;
+    if (for_debugging_ != kNotForDebugging) return;
     CODE_COMMENT("tierup check");
     // We never want to blow the entire budget at once.
     const int kMax = v8_flags.wasm_tiering_budget / 4;
@@ -857,7 +857,7 @@ class LiftoffCompiler {
   }
 
   bool dynamic_tiering() {
-    return env_->dynamic_tiering && for_debugging_ == kNoDebugging &&
+    return env_->dynamic_tiering && for_debugging_ == kNotForDebugging &&
            (v8_flags.wasm_tier_up_filter == -1 ||
             v8_flags.wasm_tier_up_filter == func_index_);
   }

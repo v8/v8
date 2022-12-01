@@ -61,9 +61,6 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
     int compilation_id, v8::metrics::Recorder::ContextId context_id,
     ProfileInformation* pgo_info);
 
-void RecompileNativeModule(NativeModule* native_module,
-                           TieringState new_tiering_state);
-
 V8_EXPORT_PRIVATE
 void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module);
 

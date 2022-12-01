@@ -611,7 +611,7 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
   NativeModule* native_module =
       builder_->instance_object()->module_object().native_module();
   ForDebugging for_debugging =
-      native_module->IsTieredDown() ? kForDebugging : kNoDebugging;
+      native_module->IsInDebugState() ? kForDebugging : kNotForDebugging;
 
   base::Optional<WasmCompilationResult> result;
   if (builder_->test_execution_tier() ==

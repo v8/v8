@@ -26,7 +26,7 @@ class LiftoffCompileEnvironment {
     // Add a table of length 1, for indirect calls.
     wasm_runner_.builder().AddIndirectFunctionTable(nullptr, 1);
     // Set tiered down such that we generate debugging code.
-    wasm_runner_.builder().SetTieredDown();
+    wasm_runner_.builder().SetDebugState();
   }
 
   struct TestFunction {
