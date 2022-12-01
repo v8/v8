@@ -142,6 +142,7 @@ class Reducer;
   V(BigIntMap, Map)                             \
   V(BooleanMap, Map)                            \
   V(EmptyString, String)                        \
+  V(ExternalObjectMap, Map)                     \
   V(False, Boolean)                             \
   V(FixedArrayMap, Map)                         \
   V(FixedDoubleArrayMap, Map)                   \

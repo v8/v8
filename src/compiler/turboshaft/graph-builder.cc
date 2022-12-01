@@ -941,7 +941,8 @@ OpIndex GraphBuilder::Process(
       OpIndex value = Map(node->InputAt(1));
       FieldAccess const& access = FieldAccessOf(node->op());
       // External pointer must never be stored by optimized code.
-      DCHECK(!access.type.Is(Type::ExternalPointer()));
+      DCHECK(!access.type.Is(Type::ExternalPointer()) ||
+             !V8_ENABLE_SANDBOX_BOOL);
       // SandboxedPointers are not currently stored by optimized code.
       DCHECK(!access.type.Is(Type::SandboxedPointer()));
 

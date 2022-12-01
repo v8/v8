@@ -402,6 +402,9 @@ constexpr uint64_t kAllExternalPointerTypeTags[] = {
   V(kForeignForeignAddressTag,                  TAG(10)) \
   V(kNativeContextMicrotaskQueueTag,            TAG(11)) \
   V(kEmbedderDataSlotPayloadTag,                TAG(12)) \
+/* This tag essentially stands for a `void*` pointer in the V8 API, and */ \
+/* it is the Embedder's responsibility to ensure type safety (against */   \
+/* substitution) and lifetime validity of these objects. */                \
   V(kExternalObjectValueTag,                    TAG(13)) \
   V(kCallHandlerInfoCallbackTag,                TAG(14)) \
   V(kAccessorInfoGetterTag,                     TAG(15)) \

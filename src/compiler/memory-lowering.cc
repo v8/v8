@@ -5,6 +5,7 @@
 #include "src/compiler/memory-lowering.h"
 
 #include "src/codegen/interface-descriptors-inl.h"
+#include "src/common/globals.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
@@ -595,8 +596,9 @@ Reduction MemoryLowering::ReduceStoreField(Node* node,
                                            AllocationState const* state) {
   DCHECK_EQ(IrOpcode::kStoreField, node->opcode());
   FieldAccess const& access = FieldAccessOf(node->op());
-  // External pointer must never be stored by optimized code.
-  DCHECK(!access.type.Is(Type::ExternalPointer()));
+  // External pointer must never be stored by optimized code when sandbox is
+  // turned on
+  DCHECK(!access.type.Is(Type::ExternalPointer()) || !V8_ENABLE_SANDBOX_BOOL);
   // SandboxedPointers are not currently stored by optimized code.
   DCHECK(!access.type.Is(Type::SandboxedPointer()));
   // Bounded size fields are not currently stored by optimized code.

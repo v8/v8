@@ -31,6 +31,7 @@ ElementsKind GetTypedArrayElementsKind(CTypeInfo::Type type) {
     case CTypeInfo::Type::kVoid:
     case CTypeInfo::Type::kSeqOneByteString:
     case CTypeInfo::Type::kBool:
+    case CTypeInfo::Type::kPointer:
     case CTypeInfo::Type::kV8Value:
     case CTypeInfo::Type::kApiObject:
     case CTypeInfo::Type::kAny:

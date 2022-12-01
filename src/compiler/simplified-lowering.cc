@@ -1960,6 +1960,7 @@ class RepresentationSelector {
           case CTypeInfo::Type::kFloat32:
           case CTypeInfo::Type::kFloat64:
             return UseInfo::CheckedNumberAsFloat64(kDistinguishZeros, feedback);
+          case CTypeInfo::Type::kPointer:
           case CTypeInfo::Type::kV8Value:
           case CTypeInfo::Type::kSeqOneByteString:
           case CTypeInfo::Type::kApiObject:
