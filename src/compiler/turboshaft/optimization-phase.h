@@ -312,15 +312,14 @@ class GraphVisitor {
         assembler().output_graph().next_operation_index();
     USE(first_output_index);
     const Operation& op = input_graph().Get(index);
-    if (op.saturated_use_count == 0 &&
-        !op.Properties().is_required_when_unused) {
-      if constexpr (trace_reduction) TraceOperationUnused();
-      return true;
-    }
     if constexpr (trace_reduction) TraceReductionStart(index);
     OpIndex new_index;
     if (input_block->IsLoop() && op.Is<PhiOp>()) {
       const PhiOp& phi = op.Cast<PhiOp>();
+      if (assembler().ShouldSkipOperation(phi, index)) {
+        if constexpr (trace_reduction) TraceOperationSkipped();
+        return true;
+      }
       new_index = assembler().PendingLoopPhi(MapToNewGraph(phi.inputs()[0]),
                                              phi.rep, phi.inputs()[1]);
       CreateOldToNewMapping(index, new_index);
@@ -329,12 +328,16 @@ class GraphVisitor {
       }
     } else {
       switch (op.opcode) {
-#define EMIT_INSTR_CASE(Name)                           \
-  case Opcode::k##Name:                                 \
-    new_index = this->Visit##Name(op.Cast<Name##Op>()); \
-    if (CanBeUsedAsInput(op.Cast<Name##Op>())) {        \
-      CreateOldToNewMapping(index, new_index);          \
-    }                                                   \
+#define EMIT_INSTR_CASE(Name)                                          \
+  case Opcode::k##Name:                                                \
+    if (assembler().ShouldSkipOperation(op.Cast<Name##Op>(), index)) { \
+      if constexpr (trace_reduction) TraceOperationSkipped();          \
+      return true;                                                     \
+    }                                                                  \
+    new_index = this->Visit##Name(op.Cast<Name##Op>());                \
+    if (CanBeUsedAsInput(op.Cast<Name##Op>())) {                       \
+      CreateOldToNewMapping(index, new_index);                         \
+    }                                                                  \
     break;
         TURBOSHAFT_OPERATION_LIST(EMIT_INSTR_CASE)
 #undef EMIT_INSTR_CASE
@@ -351,7 +354,7 @@ class GraphVisitor {
               << PaddingSpace{5 - CountDecimalDigits(index.id())}
               << OperationPrintStyle{input_graph().Get(index), "#o"} << "\n";
   }
-  void TraceOperationUnused() { std::cout << "╰─> unused\n\n"; }
+  void TraceOperationSkipped() { std::cout << "╰─> skipped\n\n"; }
   void TraceBlockUnreachable() { std::cout << "╰─> unreachable\n\n"; }
   void TraceReductionResult(Block* current_block, OpIndex first_output_index,
                             OpIndex new_index) {

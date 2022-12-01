@@ -53,6 +53,7 @@ class ReducerStack<Assembler, FirstReducer, Reducers...>
 template <class Assembler>
 class ReducerStack<Assembler> {
  public:
+  using AssemblerType = Assembler;
   Assembler& Asm() { return *static_cast<Assembler*>(this); }
 };
 
@@ -89,6 +90,7 @@ class ReducerBaseForwarder : public Next {
 // (Goto, Branch, Switch, CallAndCatchException), and takes care of updating
 // Block predecessors (and calls the Assembler to maintain split-edge form).
 // ReducerBase is always added by Assembler at the bottom of the reducer stack.
+// It also provides a default ShouldSkipOperation method that returns false.
 template <class Next>
 class ReducerBase : public ReducerBaseForwarder<Next> {
  public:
@@ -192,6 +194,15 @@ class ReducerBase : public ReducerBaseForwarder<Next> {
     }
     Asm().AddPredecessor(saved_current_block, default_case, true);
     return new_opindex;
+  }
+
+  template <class Op>
+  bool ShouldSkipOperation(const Op& op, OpIndex) {
+    if (op.saturated_use_count == 0 &&
+        !op.Properties().is_required_when_unused) {
+      return true;
+    }
+    return false;
   }
 };
 
