@@ -2351,32 +2351,33 @@ void OptimizedFrame::GetFunctions(
 
   TranslationArrayIterator it(data.TranslationByteArray(),
                               data.TranslationIndex(deopt_index).value());
-  TranslationOpcode opcode = TranslationOpcodeFromInt(it.NextUnsigned());
+  TranslationOpcode opcode = it.NextOpcode();
   DCHECK_EQ(TranslationOpcode::BEGIN, opcode);
-  it.Next();  // Skip frame count.
-  int jsframe_count = it.Next();
-  it.Next();  // Skip update feedback count.
+  it.NextOperand();  // Skip lookback distance.
+  it.NextOperand();  // Skip frame count.
+  int jsframe_count = it.NextOperand();
+  it.NextOperand();  // Skip update feedback count.
 
   // We insert the frames in reverse order because the frames
   // in the deoptimization translation are ordered bottom-to-top.
   while (jsframe_count != 0) {
-    opcode = TranslationOpcodeFromInt(it.NextUnsigned());
+    opcode = it.NextOpcode();
     if (opcode == TranslationOpcode::INTERPRETED_FRAME ||
         opcode == TranslationOpcode::JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME ||
         opcode == TranslationOpcode::
                       JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME) {
-      it.Next();  // Skip bailout id.
+      it.NextOperand();  // Skip bailout id.
       jsframe_count--;
 
       // The second operand of the frame points to the function.
-      Object shared = literal_array.get(it.Next());
+      Object shared = literal_array.get(it.NextOperand());
       functions->push_back(SharedFunctionInfo::cast(shared));
 
       // Skip over remaining operands to advance to the next opcode.
-      it.Skip(TranslationOpcodeOperandCount(opcode) - 2);
+      it.SkipOperands(TranslationOpcodeOperandCount(opcode) - 2);
     } else {
       // Skip over operands to advance to the next opcode.
-      it.Skip(TranslationOpcodeOperandCount(opcode));
+      it.SkipOperands(TranslationOpcodeOperandCount(opcode));
     }
   }
 }

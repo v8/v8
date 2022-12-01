@@ -30,40 +30,50 @@ class TranslationArrayIterator {
  public:
   TranslationArrayIterator(TranslationArray buffer, int index);
 
-  int32_t Next();
+  int32_t NextOperand();
 
-  uint32_t NextUnsigned();
+  uint32_t NextOperandUnsigned();
 
-  bool HasNext() const;
+  TranslationOpcode NextOpcode();
 
-  void Skip(int n) {
-    for (int i = 0; i < n; i++) Next();
+  bool HasNextOpcode() const;
+
+  void SkipOperands(int n) {
+    for (int i = 0; i < n; i++) NextOperand();
   }
 
  private:
+  void SkipOpcodeAndItsOperands();
+
   std::vector<int32_t> uncompressed_contents_;
   TranslationArray buffer_;
   int index_;
+
+  // This decrementing counter indicates how many more times to read operations
+  // from the previous translation before continuing to move the index forward.
+  int remaining_ops_to_use_from_previous_translation_ = 0;
+
+  // An iterator for operations starting at the previous BEGIN, which can be
+  // used to read operations referred to by MATCH_PREVIOUS_TRANSLATION.
+  std::unique_ptr<TranslationArrayIterator> previous_translation_;
+
+  // When starting a new MATCH_PREVIOUS_TRANSLATION operation, we'll need to
+  // advance the previous_translation_ iterator by this many steps.
+  int ops_since_previous_iterator_was_updated_ = 0;
 };
 
 class TranslationArrayBuilder {
  public:
   explicit TranslationArrayBuilder(Zone* zone)
-      : contents_(zone), contents_for_compression_(zone), zone_(zone) {}
+      : contents_(zone),
+        contents_for_compression_(zone),
+        recent_instructions_(zone),
+        zone_(zone) {}
 
   Handle<TranslationArray> ToTranslationArray(Factory* factory);
 
   int BeginTranslation(int frame_count, int jsframe_count,
-                       int update_feedback_count) {
-    int start_index = Size();
-    auto opcode = TranslationOpcode::BEGIN;
-    AddOpcode(opcode);
-    Add(frame_count);
-    Add(jsframe_count);
-    Add(update_feedback_count);
-    DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 3);
-    return start_index;
-  }
+                       int update_feedback_count);
 
   void BeginInterpretedFrame(BytecodeOffset bytecode_offset, int literal_id,
                              unsigned height, int return_value_offset,
@@ -110,11 +120,50 @@ class TranslationArrayBuilder {
   void StoreJSFrameFunction();
 
  private:
-  void Add(int32_t value);
-  void AddOpcode(TranslationOpcode opcode);
-  void AddRegister(Register reg);
-  void AddFloatRegister(FloatRegister reg);
-  void AddDoubleRegister(DoubleRegister reg);
+  // How many translations in a row can use MATCH_PREVIOUS_TRANSLATION opcodes
+  // before a translation needs to redefine all instructions. This puts a limit
+  // on the recursion depth required when decoding.
+  static constexpr int kMaxLookback = 10;
+
+  struct Instruction {
+    Instruction() = default;
+    bool operator==(const Instruction& other) const {
+      static_assert(kMaxTranslationOperandCount == 5);
+      return opcode == other.opcode && operands[0] == other.operands[0] &&
+             operands[1] == other.operands[1] &&
+             operands[2] == other.operands[2] &&
+             operands[3] == other.operands[3] &&
+             operands[4] == other.operands[4];
+    }
+    TranslationOpcode opcode;
+    // The operands for the instruction. If turbo_compress_translation_arrays is
+    // set, then signed values were static_casted to unsigned. Otherwise, signed
+    // values have been encoded by base::VLQConvertToUnsigned. Operands not used
+    // by this instruction are zero.
+    uint32_t operands[kMaxTranslationOperandCount];
+  };
+
+  // Either adds the instruction or increments matching_instructions_count_,
+  // depending on whether the instruction matches the corresponding instruction
+  // from the previous translation.
+  void Add(const Instruction& instruction, int value_count);
+
+  void AddRawSigned(int32_t value);
+  void AddRawUnsigned(uint32_t value);
+
+  // Convenience methods which wrap calls to Add(). Unsigned versions are
+  // generally preferable if the data is known to be unsigned.
+  void AddWithNoOperands(TranslationOpcode opcode);
+  void AddWithSignedOperand(TranslationOpcode opcode, int32_t operand);
+  void AddWithSignedOperands(int operand_count, TranslationOpcode opcode,
+                             int32_t operand_1, int32_t operand_2,
+                             int32_t operand_3 = 0, int32_t operand_4 = 0,
+                             int32_t operand_5 = 0);
+  void AddWithUnsignedOperand(TranslationOpcode opcode, uint32_t operand);
+  void AddWithUnsignedOperands(int operand_count, TranslationOpcode opcode,
+                               uint32_t operand_1 = 0, uint32_t operand_2 = 0,
+                               uint32_t operand_3 = 0, uint32_t operand_4 = 0,
+                               uint32_t operand_5 = 0);
 
   int Size() const {
     return V8_UNLIKELY(v8_flags.turbo_compress_translation_arrays)
@@ -129,9 +178,28 @@ class TranslationArrayBuilder {
 
   Zone* zone() const { return zone_; }
 
+  void FinishPendingInstructionIfNeeded();
+
   ZoneVector<uint8_t> contents_;
   ZoneVector<int32_t> contents_for_compression_;
+  // Entries from 0 to instruction_index_within_translation_ are instructions
+  // added since the last BEGIN. Entries after that are instructions from the
+  // previous translation (before the last BEGIN). This allows Add() to easily
+  // check whether a newly added instruction matches the corresponding one from
+  // the previous translation.
+  ZoneVector<Instruction> recent_instructions_;
   Zone* const zone_;
+  // How many instructions we've skipped writing because they match the previous
+  // translation.
+  size_t matching_instructions_count_ = 0;
+  // The current index within recent_instructions_.
+  size_t instruction_index_within_translation_ = 0;
+  // The byte index within the contents_ array of the most recent BEGIN
+  // instruction.
+  int index_of_last_translation_start_ = 0;
+  // How many more translations can be started before recent_instructions_ must
+  // be cleared.
+  int translations_til_reset_ = 0;
 };
 
 }  // namespace internal
