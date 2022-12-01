@@ -90,17 +90,16 @@ V8_EXPORT_PRIVATE ModuleResult DecodeWasmModule(
     WasmFeatures enabled_features, base::Vector<const uint8_t> wire_bytes,
     bool validate_functions, ModuleOrigin origin, Counters* counters,
     std::shared_ptr<metrics::Recorder> metrics_recorder,
-    v8::metrics::Recorder::ContextId context_id, DecodingMethod decoding_method,
-    AccountingAllocator* allocator);
+    v8::metrics::Recorder::ContextId context_id,
+    DecodingMethod decoding_method);
 // Decodes the bytes of a wasm module in {wire_bytes} without recording events
 // or updating counters.
 V8_EXPORT_PRIVATE ModuleResult DecodeWasmModule(
     WasmFeatures enabled_features, base::Vector<const uint8_t> wire_bytes,
-    bool validate_functions, ModuleOrigin origin,
-    AccountingAllocator* allocator);
+    bool validate_functions, ModuleOrigin origin);
 // Stripped down version for disassembler needs.
-V8_EXPORT_PRIVATE ModuleResult DecodeWasmModuleForDisassembler(
-    base::Vector<const uint8_t> wire_bytes, AccountingAllocator* allocator);
+V8_EXPORT_PRIVATE ModuleResult
+DecodeWasmModuleForDisassembler(base::Vector<const uint8_t> wire_bytes);
 
 // Exposed for testing. Decodes a single function signature, allocating it
 // in the given zone.
@@ -154,8 +153,7 @@ class ModuleDecoderImpl;
 
 class ModuleDecoder {
  public:
-  explicit ModuleDecoder(WasmFeatures enabled_feature,
-                         AccountingAllocator* allocator);
+  explicit ModuleDecoder(WasmFeatures enabled_feature);
   ~ModuleDecoder();
 
   void DecodeModuleHeader(base::Vector<const uint8_t> bytes, uint32_t offset);

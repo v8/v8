@@ -884,17 +884,17 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   auto owned_wire_bytes = base::OwnedVector<uint8_t>::Of(wire_bytes_vec);
 
   // TODO(titzer): module features should be part of the serialization format.
-  WasmEngine* wasm_engine = GetWasmEngine();
   WasmFeatures enabled_features = WasmFeatures::FromIsolate(isolate);
   ModuleResult decode_result = DecodeWasmModule(
       enabled_features, owned_wire_bytes.as_vector(), false,
       i::wasm::kWasmOrigin, isolate->counters(), isolate->metrics_recorder(),
       isolate->GetOrRegisterRecorderContextId(isolate->native_context()),
-      DecodingMethod::kDeserialize, wasm_engine->allocator());
+      DecodingMethod::kDeserialize);
   if (decode_result.failed()) return {};
   std::shared_ptr<WasmModule> module = std::move(decode_result).value();
   CHECK_NOT_NULL(module);
 
+  WasmEngine* wasm_engine = GetWasmEngine();
   auto shared_native_module = wasm_engine->MaybeGetNativeModule(
       module->origin, owned_wire_bytes.as_vector(), isolate);
   if (shared_native_module == nullptr) {

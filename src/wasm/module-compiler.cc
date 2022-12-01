@@ -2100,8 +2100,7 @@ void AsyncCompileJob::Abort() {
 class AsyncStreamingProcessor final : public StreamingProcessor {
  public:
   explicit AsyncStreamingProcessor(AsyncCompileJob* job,
-                                   std::shared_ptr<Counters> counters,
-                                   AccountingAllocator* allocator);
+                                   std::shared_ptr<Counters> counters);
 
   ~AsyncStreamingProcessor() override;
 
@@ -2157,8 +2156,8 @@ class AsyncStreamingProcessor final : public StreamingProcessor {
 std::shared_ptr<StreamingDecoder> AsyncCompileJob::CreateStreamingDecoder() {
   DCHECK_NULL(stream_);
   stream_ = StreamingDecoder::CreateAsyncStreamingDecoder(
-      std::make_unique<AsyncStreamingProcessor>(
-          this, isolate_->async_counters(), GetWasmEngine()->allocator()));
+      std::make_unique<AsyncStreamingProcessor>(this,
+                                                isolate_->async_counters()));
   return stream_;
 }
 
@@ -2547,10 +2546,10 @@ class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                    "wasm.DecodeModule");
       auto enabled_features = job->enabled_features_;
-      result = DecodeWasmModule(
-          enabled_features, job->wire_bytes_.module_bytes(), false, kWasmOrigin,
-          counters_, metrics_recorder_, job->context_id(),
-          DecodingMethod::kAsync, GetWasmEngine()->allocator());
+      result =
+          DecodeWasmModule(enabled_features, job->wire_bytes_.module_bytes(),
+                           false, kWasmOrigin, counters_, metrics_recorder_,
+                           job->context_id(), DecodingMethod::kAsync);
 
       // Validate lazy functions here if requested.
       if (result.ok() && !v8_flags.wasm_lazy_validation) {
@@ -2726,9 +2725,8 @@ void AsyncCompileJob::FinishModule() {
 }
 
 AsyncStreamingProcessor::AsyncStreamingProcessor(
-    AsyncCompileJob* job, std::shared_ptr<Counters> async_counters,
-    AccountingAllocator* allocator)
-    : decoder_(job->enabled_features_, allocator),
+    AsyncCompileJob* job, std::shared_ptr<Counters> async_counters)
+    : decoder_(job->enabled_features_),
       job_(job),
       compilation_unit_builder_(nullptr),
       async_counters_(async_counters) {}

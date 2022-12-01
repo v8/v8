@@ -17,6 +17,7 @@
 #include "src/wasm/constant-expression-interface.h"
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/module-decoder.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-subtyping.h"
 
@@ -307,12 +308,11 @@ class ModuleDecoderTemplate : public Decoder {
  public:
   ModuleDecoderTemplate(WasmFeatures enabled_features,
                         base::Vector<const uint8_t> wire_bytes,
-                        ModuleOrigin origin, AccountingAllocator* allocator,
-                        Tracer& tracer)
+                        ModuleOrigin origin, Tracer& tracer)
       : Decoder(wire_bytes),
         enabled_features_(enabled_features),
-        module_(std::make_shared<WasmModule>(
-            std::make_unique<Zone>(allocator, "signatures"))),
+        module_(std::make_shared<WasmModule>(std::make_unique<Zone>(
+            GetWasmEngine()->allocator(), "signatures"))),
         module_start_(wire_bytes.begin()),
         module_end_(wire_bytes.end()),
         tracer_(tracer) {

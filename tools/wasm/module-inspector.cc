@@ -360,12 +360,10 @@ class ExtendedFunctionDis : public FunctionBodyDisassembler {
 class HexDumpModuleDis;
 class DumpingModuleDecoder : public ModuleDecoderTemplate<HexDumpModuleDis> {
  public:
-  DumpingModuleDecoder(ModuleWireBytes wire_bytes,
-                       AccountingAllocator* allocator,
-                       HexDumpModuleDis* module_dis)
-      : ModuleDecoderTemplate<HexDumpModuleDis>(
-            WasmFeatures::All(), wire_bytes.module_bytes(), kWasmOrigin,
-            allocator, *module_dis) {}
+  DumpingModuleDecoder(ModuleWireBytes wire_bytes, HexDumpModuleDis* module_dis)
+      : ModuleDecoderTemplate<HexDumpModuleDis>(WasmFeatures::All(),
+                                                wire_bytes.module_bytes(),
+                                                kWasmOrigin, *module_dis) {}
 
   void onFirstError() override {
     // Pretend we've reached the end of the section, but contrary to the
@@ -388,7 +386,7 @@ class HexDumpModuleDis {
 
   // Public entrypoint.
   void PrintModule() {
-    DumpingModuleDecoder decoder{wire_bytes_, allocator_, this};
+    DumpingModuleDecoder decoder{wire_bytes_, this};
     decoder_ = &decoder;
 
     // If the module failed validation, create fakes to allow us to print
@@ -735,8 +733,7 @@ class FormatConverter {
     base::Vector<const byte> wire_bytes(raw_bytes_.data(), raw_bytes_.size());
     wire_bytes_ = ModuleWireBytes({raw_bytes_.data(), raw_bytes_.size()});
     status_ = kIoInitialized;
-    ModuleResult result =
-        DecodeWasmModuleForDisassembler(raw_bytes(), &allocator_);
+    ModuleResult result = DecodeWasmModuleForDisassembler(raw_bytes());
     if (result.failed()) {
       WasmError error = result.error();
       std::cerr << "Decoding error: " << error.message() << " at offset "

@@ -41,11 +41,9 @@ Handle<WasmModuleObject> CompileReferenceModule(Zone* zone, Isolate* isolate,
   std::shared_ptr<NativeModule> native_module;
   constexpr bool kNoVerifyFunctions = false;
   auto enabled_features = WasmFeatures::FromIsolate(isolate);
-  ModuleResult module_res = DecodeWasmModule(
-      enabled_features, wire_bytes.module_bytes(), kNoVerifyFunctions,
-      ModuleOrigin::kWasmOrigin, isolate->counters(),
-      isolate->metrics_recorder(), v8::metrics::Recorder::ContextId::Empty(),
-      DecodingMethod::kSync, GetWasmEngine()->allocator());
+  ModuleResult module_res =
+      DecodeWasmModule(enabled_features, wire_bytes.module_bytes(),
+                       kNoVerifyFunctions, ModuleOrigin::kWasmOrigin);
   CHECK(module_res.ok());
   std::shared_ptr<WasmModule> module = module_res.value();
   CHECK_NOT_NULL(module);
@@ -504,11 +502,9 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
                       bool compiles) {
   constexpr bool kVerifyFunctions = false;
   auto enabled_features = WasmFeatures::FromIsolate(isolate);
-  ModuleResult module_res = DecodeWasmModule(
-      enabled_features, wire_bytes.module_bytes(), kVerifyFunctions,
-      ModuleOrigin::kWasmOrigin, isolate->counters(),
-      isolate->metrics_recorder(), v8::metrics::Recorder::ContextId::Empty(),
-      DecodingMethod::kSync, GetWasmEngine()->allocator());
+  ModuleResult module_res =
+      DecodeWasmModule(enabled_features, wire_bytes.module_bytes(),
+                       kVerifyFunctions, ModuleOrigin::kWasmOrigin);
   CHECK_WITH_MSG(module_res.ok(), module_res.error().message().c_str());
   WasmModule* module = module_res.value().get();
   CHECK_NOT_NULL(module);

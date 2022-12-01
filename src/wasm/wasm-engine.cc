@@ -478,7 +478,7 @@ bool WasmEngine::SyncValidate(Isolate* isolate, const WasmFeatures& enabled,
       enabled, bytes.module_bytes(), true, kWasmOrigin, isolate->counters(),
       isolate->metrics_recorder(),
       isolate->GetOrRegisterRecorderContextId(isolate->native_context()),
-      DecodingMethod::kSync, allocator());
+      DecodingMethod::kSync);
   if (result.failed() && error_message) {
     *error_message = result.error().message();
   }
@@ -502,7 +502,7 @@ MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
   ModuleResult result =
       DecodeWasmModule(WasmFeatures::ForAsmjs(), bytes.module_bytes(), false,
                        origin, isolate->counters(), isolate->metrics_recorder(),
-                       context_id, DecodingMethod::kSync, allocator());
+                       context_id, DecodingMethod::kSync);
   if (result.failed()) {
     // This happens once in a while when we have missed some limit check
     // in the asm parser. Output an error message to help diagnose, but crash.
@@ -543,10 +543,9 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
       isolate->GetOrRegisterRecorderContextId(isolate->native_context());
   std::shared_ptr<WasmModule> module;
   {
-    ModuleResult result =
-        DecodeWasmModule(enabled, bytes.module_bytes(), false, kWasmOrigin,
-                         isolate->counters(), isolate->metrics_recorder(),
-                         context_id, DecodingMethod::kSync, allocator());
+    ModuleResult result = DecodeWasmModule(
+        enabled, bytes.module_bytes(), false, kWasmOrigin, isolate->counters(),
+        isolate->metrics_recorder(), context_id, DecodingMethod::kSync);
     if (result.failed()) {
       thrower->CompileFailed(result.error());
       return {};

@@ -75,10 +75,9 @@ const char* SectionName(SectionCode code) {
 class ModuleDecoderImpl : public ModuleDecoderTemplate<NoTracer> {
  public:
   ModuleDecoderImpl(WasmFeatures enabled_features,
-                    base::Vector<const uint8_t> wire_bytes, ModuleOrigin origin,
-                    AccountingAllocator* allocator)
+                    base::Vector<const uint8_t> wire_bytes, ModuleOrigin origin)
       : ModuleDecoderTemplate<NoTracer>(enabled_features, wire_bytes, origin,
-                                        allocator, no_tracer_) {}
+                                        no_tracer_) {}
 
  private:
   NoTracer no_tracer_;
@@ -88,8 +87,8 @@ ModuleResult DecodeWasmModule(
     WasmFeatures enabled_features, base::Vector<const uint8_t> wire_bytes,
     bool validate_functions, ModuleOrigin origin, Counters* counters,
     std::shared_ptr<metrics::Recorder> metrics_recorder,
-    v8::metrics::Recorder::ContextId context_id, DecodingMethod decoding_method,
-    AccountingAllocator* allocator) {
+    v8::metrics::Recorder::ContextId context_id,
+    DecodingMethod decoding_method) {
   size_t max_size = max_module_size();
   if (wire_bytes.size() > max_size) {
     return ModuleResult{WasmError{0, "size > maximum module size (%zu): %zu",
@@ -109,7 +108,7 @@ ModuleResult DecodeWasmModule(
                                        ? base::ThreadTicks::Now()
                                        : base::ThreadTicks();
   ModuleResult result = DecodeWasmModule(enabled_features, wire_bytes,
-                                         validate_functions, origin, allocator);
+                                         validate_functions, origin);
   if (counters && result.ok()) {
     auto counter =
         SELECT_WASM_COUNTER(counters, origin, wasm_functions_per, module);
@@ -140,25 +139,21 @@ ModuleResult DecodeWasmModule(
 
 ModuleResult DecodeWasmModule(WasmFeatures enabled_features,
                               base::Vector<const uint8_t> wire_bytes,
-                              bool validate_functions, ModuleOrigin origin,
-                              AccountingAllocator* allocator) {
-  ModuleDecoderImpl decoder{enabled_features, wire_bytes, origin, allocator};
+                              bool validate_functions, ModuleOrigin origin) {
+  ModuleDecoderImpl decoder{enabled_features, wire_bytes, origin};
   return decoder.DecodeModule(validate_functions);
 }
 
 ModuleResult DecodeWasmModuleForDisassembler(
-    base::Vector<const uint8_t> wire_bytes, AccountingAllocator* allocator) {
+    base::Vector<const uint8_t> wire_bytes) {
   constexpr bool kNoValidateFunctions = false;
-  ModuleDecoderImpl decoder{WasmFeatures::All(), wire_bytes, kWasmOrigin,
-                            allocator};
+  ModuleDecoderImpl decoder{WasmFeatures::All(), wire_bytes, kWasmOrigin};
   return decoder.DecodeModule(kNoValidateFunctions);
 }
 
-ModuleDecoder::ModuleDecoder(WasmFeatures enabled_features,
-                             AccountingAllocator* allocator)
-    : impl_(std::make_unique<ModuleDecoderImpl>(enabled_features,
-                                                base::Vector<const uint8_t>{},
-                                                kWasmOrigin, allocator)) {}
+ModuleDecoder::ModuleDecoder(WasmFeatures enabled_features)
+    : impl_(std::make_unique<ModuleDecoderImpl>(
+          enabled_features, base::Vector<const uint8_t>{}, kWasmOrigin)) {}
 
 ModuleDecoder::~ModuleDecoder() = default;
 
@@ -209,16 +204,14 @@ bool ModuleDecoder::ok() { return impl_->ok(); }
 Result<const FunctionSig*> DecodeWasmSignatureForTesting(
     WasmFeatures enabled_features, Zone* zone,
     base::Vector<const uint8_t> bytes) {
-  ModuleDecoderImpl decoder{enabled_features, bytes, kWasmOrigin,
-                            zone->allocator()};
+  ModuleDecoderImpl decoder{enabled_features, bytes, kWasmOrigin};
   return decoder.toResult(decoder.DecodeFunctionSignature(zone, bytes.begin()));
 }
 
 ConstantExpression DecodeWasmInitExprForTesting(
     WasmFeatures enabled_features, base::Vector<const uint8_t> bytes,
     ValueType expected) {
-  AccountingAllocator allocator;
-  ModuleDecoderImpl decoder{enabled_features, bytes, kWasmOrigin, &allocator};
+  ModuleDecoderImpl decoder{enabled_features, bytes, kWasmOrigin};
   return decoder.DecodeInitExprForTesting(expected);
 }
 
@@ -230,8 +223,7 @@ FunctionResult DecodeWasmFunctionForTesting(
         WasmError{0, "size > maximum function size (%zu): %zu",
                   kV8MaxWasmFunctionSize, function_bytes.size()}};
   }
-  ModuleDecoderImpl decoder{enabled_features, function_bytes, kWasmOrigin,
-                            zone->allocator()};
+  ModuleDecoderImpl decoder{enabled_features, function_bytes, kWasmOrigin};
   return decoder.DecodeSingleFunctionForTesting(zone, wire_bytes, module);
 }
 

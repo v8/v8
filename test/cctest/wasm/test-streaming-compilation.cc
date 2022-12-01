@@ -383,11 +383,8 @@ STREAM_TEST(TestAllBytesArriveAOTCompilerFinishesFirst) {
 
 size_t GetFunctionOffset(i::Isolate* isolate, base::Vector<const uint8_t> bytes,
                          size_t index) {
-  ModuleResult result = DecodeWasmModule(
-      WasmFeatures::All(), bytes, false, ModuleOrigin::kWasmOrigin,
-      isolate->counters(), isolate->metrics_recorder(),
-      v8::metrics::Recorder::ContextId::Empty(), DecodingMethod::kSyncStream,
-      GetWasmEngine()->allocator());
+  ModuleResult result = DecodeWasmModule(WasmFeatures::All(), bytes, false,
+                                         ModuleOrigin::kWasmOrigin);
   CHECK(result.ok());
   const WasmFunction* func = &result.value()->functions[index];
   return func->code.offset();
