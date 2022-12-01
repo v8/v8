@@ -193,22 +193,40 @@ class V8_NODISCARD ScopedVector : public Vector<T> {
 template <typename T>
 class OwnedVector {
  public:
-  MOVE_ONLY_WITH_DEFAULT_CONSTRUCTORS(OwnedVector);
+  OwnedVector() = default;
+
   OwnedVector(std::unique_ptr<T[]> data, size_t length)
       : data_(std::move(data)), length_(length) {
     DCHECK_IMPLIES(length_ > 0, data_ != nullptr);
   }
 
-  // Implicit conversion from {OwnedVector<U>} to {OwnedVector<T>}, instantiable
-  // if {std::unique_ptr<U>} can be converted to {std::unique_ptr<T>}.
-  // Can be used to convert {OwnedVector<T>} to {OwnedVector<const T>}.
+  // Disallow copying.
+  OwnedVector(const OwnedVector&) = delete;
+  OwnedVector& operator=(const OwnedVector&) = delete;
+
+  // Move construction and move assignment from {OwnedVector<U>} to
+  // {OwnedVector<T>}, instantiable if {std::unique_ptr<U>} can be converted to
+  // {std::unique_ptr<T>}. Can also be used to convert {OwnedVector<T>} to
+  // {OwnedVector<const T>}.
+  // These also function as the standard move construction/assignment operator.
+  // {other} is left as an empty vector.
   template <typename U,
             typename = typename std::enable_if<std::is_convertible<
                 std::unique_ptr<U>, std::unique_ptr<T>>::value>::type>
-  OwnedVector(OwnedVector<U>&& other)
-      : data_(std::move(other.data_)), length_(other.length_) {
+  OwnedVector(OwnedVector<U>&& other) V8_NOEXCEPT {
+    *this = std::move(other);
+  }
+
+  template <typename U,
+            typename = typename std::enable_if<std::is_convertible<
+                std::unique_ptr<U>, std::unique_ptr<T>>::value>::type>
+  OwnedVector& operator=(OwnedVector<U>&& other) V8_NOEXCEPT {
     static_assert(sizeof(U) == sizeof(T));
+    data_ = std::move(other.data_);
+    length_ = other.length_;
+    DCHECK_NULL(other.data_);
     other.length_ = 0;
+    return *this;
   }
 
   // Returns the length of the vector as a size_t.
