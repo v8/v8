@@ -360,10 +360,12 @@ class ExtendedFunctionDis : public FunctionBodyDisassembler {
 class HexDumpModuleDis;
 class DumpingModuleDecoder : public ModuleDecoderTemplate<HexDumpModuleDis> {
  public:
-  DumpingModuleDecoder(ModuleWireBytes wire_bytes, HexDumpModuleDis* module_dis)
-      : ModuleDecoderTemplate<HexDumpModuleDis>(WasmFeatures::All(),
-                                                wire_bytes.module_bytes(),
-                                                kWasmOrigin, *module_dis) {}
+  DumpingModuleDecoder(ModuleWireBytes wire_bytes,
+                       AccountingAllocator* allocator,
+                       HexDumpModuleDis* module_dis)
+      : ModuleDecoderTemplate<HexDumpModuleDis>(
+            WasmFeatures::All(), wire_bytes.module_bytes(), kWasmOrigin,
+            allocator, *module_dis) {}
 
   void onFirstError() override {
     // Pretend we've reached the end of the section, but contrary to the
@@ -386,7 +388,7 @@ class HexDumpModuleDis {
 
   // Public entrypoint.
   void PrintModule() {
-    DumpingModuleDecoder decoder(wire_bytes_, this);
+    DumpingModuleDecoder decoder{wire_bytes_, allocator_, this};
     decoder_ = &decoder;
 
     // If the module failed validation, create fakes to allow us to print
@@ -404,7 +406,7 @@ class HexDumpModuleDis {
     out_ << "[";
     out_.NextLine(0);
     constexpr bool kNoVerifyFunctions = false;
-    decoder.DecodeModule(allocator_, kNoVerifyFunctions);
+    decoder.DecodeModule(kNoVerifyFunctions);
     out_ << "]";
 
     if (total_bytes_ != wire_bytes_.length()) {
