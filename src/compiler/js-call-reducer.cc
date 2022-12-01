@@ -2507,11 +2507,13 @@ void JSCallReducer::Finalize() {
   std::set<Node*> const waitlist = std::move(waitlist_);
   for (Node* node : waitlist) {
     if (!node->IsDead()) {
+      // Remember the max node id before reduction.
+      NodeId const max_id = static_cast<NodeId>(graph()->NodeCount() - 1);
       Reduction const reduction = Reduce(node);
       if (reduction.Changed()) {
         Node* replacement = reduction.replacement();
         if (replacement != node) {
-          Replace(node, replacement);
+          Replace(node, replacement, max_id);
         }
       }
     }
