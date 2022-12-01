@@ -3573,13 +3573,18 @@ void CodeGenerator::MoveToTempLocation(InstructionOperand* source) {
       ((IsFloatingPoint(rep) &&
         !move_cycle_.pending_double_scratch_register_use))) {
     // The scratch register for this rep is available.
-    int scratch_reg_code =
-        !IsFloatingPoint(rep) ? kScratchReg.code() : kScratchDoubleReg.code();
+    int scratch_reg_code;
+    if (IsSimd128(rep)) {
+      scratch_reg_code = kScratchSimd128Reg.code();
+    } else if (IsFloatingPoint(rep)) {
+      scratch_reg_code = kScratchDoubleReg.code();
+    } else {
+      scratch_reg_code = kScratchReg.code();
+    }
     AllocatedOperand scratch(LocationOperand::REGISTER, rep, scratch_reg_code);
     DCHECK(!AreAliased(kScratchReg, r0, ip));
     AssembleMove(source, &scratch);
   } else {
-    DCHECK(!source->IsRegister() && !source->IsStackSlot());
     // The scratch register is blocked by pending moves. Use the stack instead.
     Push(source);
   }
@@ -3596,18 +3601,14 @@ void CodeGenerator::MoveTempLocationTo(InstructionOperand* dest,
     DCHECK(!AreAliased(kScratchReg, r0, ip));
     AssembleMove(&scratch, dest);
   } else {
-    DCHECK(!dest->IsRegister() && !dest->IsStackSlot());
     Pop(dest, rep);
   }
   move_cycle_ = MoveCycleState();
 }
 
 void CodeGenerator::SetPendingMove(MoveOperands* move) {
-  if (move->source().IsFPStackSlot() && !move->destination().IsFPRegister()) {
-    move_cycle_.pending_double_scratch_register_use = true;
-  } else if (move->source().IsConstant() &&
-             (move->destination().IsDoubleStackSlot() ||
-              move->destination().IsFloatStackSlot())) {
+  if ((move->source().IsConstant() || move->source().IsFPStackSlot()) &&
+      !move->destination().IsFPRegister()) {
     move_cycle_.pending_double_scratch_register_use = true;
   }
 }
@@ -3740,7 +3741,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       } else {
         DCHECK(destination->IsSimd128StackSlot());
         MemOperand dst = g.ToMemOperand(destination);
-        __ StoreSimd128(g.ToSimd128Register(source), dst, kScratchReg);
+        __ StoreSimd128(g.ToSimd128Register(source), dst, r0);
       }
     } else {
       DoubleRegister src = g.ToDoubleRegister(source);
@@ -3769,7 +3770,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       } else {
         DCHECK_EQ(MachineRepresentation::kSimd128, op->representation());
         MemOperand src = g.ToMemOperand(source);
-        __ LoadSimd128(g.ToSimd128Register(destination), src, kScratchReg);
+        __ LoadSimd128(g.ToSimd128Register(destination), src, r0);
       }
     } else {
       LocationOperand* op = LocationOperand::cast(source);
@@ -3784,8 +3785,8 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         DCHECK_EQ(MachineRepresentation::kSimd128, op->representation());
         MemOperand src = g.ToMemOperand(source);
         MemOperand dst = g.ToMemOperand(destination);
-        __ LoadSimd128(kScratchSimd128Reg, src, kScratchReg);
-        __ StoreSimd128(kScratchSimd128Reg, dst, kScratchReg);
+        __ LoadSimd128(kScratchSimd128Reg, src, r0);
+        __ StoreSimd128(kScratchSimd128Reg, dst, r0);
       }
     }
   } else {

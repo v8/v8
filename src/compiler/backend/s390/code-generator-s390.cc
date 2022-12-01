@@ -3661,7 +3661,6 @@ void CodeGenerator::MoveToTempLocation(InstructionOperand* source) {
     DCHECK(!AreAliased(kScratchReg, r0, r1));
     AssembleMove(source, &scratch);
   } else {
-    DCHECK(!source->IsRegister() && !source->IsStackSlot());
     // The scratch register is blocked by pending moves. Use the stack instead.
     Push(source);
   }
@@ -3678,18 +3677,14 @@ void CodeGenerator::MoveTempLocationTo(InstructionOperand* dest,
     DCHECK(!AreAliased(kScratchReg, r0, r1));
     AssembleMove(&scratch, dest);
   } else {
-    DCHECK(!dest->IsRegister() && !dest->IsStackSlot());
     Pop(dest, rep);
   }
   move_cycle_ = MoveCycleState();
 }
 
 void CodeGenerator::SetPendingMove(MoveOperands* move) {
-  if (move->source().IsFPStackSlot() && !move->destination().IsFPRegister()) {
-    move_cycle_.pending_double_scratch_register_use = true;
-  } else if (move->source().IsConstant() &&
-             (move->destination().IsDoubleStackSlot() ||
-              move->destination().IsFloatStackSlot())) {
+  if ((move->source().IsConstant() || move->source().IsFPStackSlot()) &&
+      !move->destination().IsFPRegister()) {
     move_cycle_.pending_double_scratch_register_use = true;
   }
 }
