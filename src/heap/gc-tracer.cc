@@ -517,11 +517,21 @@ void GCTracer::StopYoungCycleIfNeeded() {
 }
 
 void GCTracer::NotifyFullSweepingCompleted() {
+  // Notifying twice that V8 sweeping is finished for the same cycle is possible
+  // only if Oilpan sweeping is still in progress.
+  DCHECK_IMPLIES(notified_full_sweeping_completed_,
+                 !notified_full_cppgc_completed_);
+
   if (Event::IsYoungGenerationEvent(current_.type)) {
-    bool was_young_gc_while_full_gc_ = young_gc_while_full_gc_;
+    bool was_young_gc_while_full_gc = young_gc_while_full_gc_;
+    bool was_full_sweeping_notified = notified_full_sweeping_completed_;
     NotifyYoungSweepingCompleted();
-    if (!was_young_gc_while_full_gc_) return;
+    // NotifyYoungSweepingCompleted checks if the full cycle needs to be stopped
+    // as well. If full sweeping was already notified, nothing more needs to be
+    // done here.
+    if (!was_young_gc_while_full_gc || was_full_sweeping_notified) return;
   }
+
   DCHECK(!Event::IsYoungGenerationEvent(current_.type));
   if (v8_flags.verify_heap) {
     // If heap verification is enabled, sweeping finalization can also be
@@ -544,10 +554,6 @@ void GCTracer::NotifyFullSweepingCompleted() {
     heap_->old_space()->PrintAllocationsOrigins();
     heap_->code_space()->PrintAllocationsOrigins();
   }
-  // Notifying twice that V8 sweeping is finished for the same cycle is possible
-  // only if Oilpan sweeping is still in progress.
-  DCHECK_IMPLIES(notified_full_sweeping_completed_,
-                 !notified_full_cppgc_completed_);
   notified_full_sweeping_completed_ = true;
   StopFullCycleIfNeeded();
 }
