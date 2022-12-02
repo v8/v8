@@ -4516,6 +4516,13 @@ void TurboAssembler::S128Not(Simd128Register dst, Simd128Register src) {
   vnor(dst, src, src);
 }
 
+void TurboAssembler::S128Const(Simd128Register dst, uint64_t high, uint64_t low,
+                               Register scratch1, Register scratch2) {
+  mov(scratch1, Operand(low));
+  mov(scratch2, Operand(high));
+  mtvsrdd(dst, scratch2, scratch1);
+}
+
 void TurboAssembler::S128Select(Simd128Register dst, Simd128Register src1,
                                 Simd128Register src2, Simd128Register mask) {
   vsel(dst, src2, src1, mask);

@@ -1365,6 +1365,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                     Register scratch2, Simd128Register scratch3);
   void V128AnyTrue(Register dst, Simd128Register src, Register scratch1,
                    Register scratch2, Simd128Register scratch3);
+  void S128Const(Simd128Register dst, uint64_t high, uint64_t low,
+                 Register scratch1, Register scratch2);
   void S128Select(Simd128Register dst, Simd128Register src1,
                   Simd128Register src2, Simd128Register mask);
 
