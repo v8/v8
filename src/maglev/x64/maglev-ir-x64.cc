@@ -2059,44 +2059,6 @@ void GetKeyedGeneric::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
-void GapMove::AllocateVreg(MaglevVregAllocationState* vreg_state) {
-  UNREACHABLE();
-}
-void GapMove::GenerateCode(MaglevAssembler* masm,
-                           const ProcessingState& state) {
-  DCHECK_EQ(source().representation(), target().representation());
-  MachineRepresentation repr = source().representation();
-  if (source().IsRegister()) {
-    Register source_reg = ToRegister(source());
-    if (target().IsAnyRegister()) {
-      DCHECK(target().IsRegister());
-      __ MoveRepr(repr, ToRegister(target()), source_reg);
-    } else {
-      __ MoveRepr(repr, masm->ToMemOperand(target()), source_reg);
-    }
-  } else if (source().IsDoubleRegister()) {
-    DoubleRegister source_reg = ToDoubleRegister(source());
-    if (target().IsAnyRegister()) {
-      DCHECK(target().IsDoubleRegister());
-      __ Movsd(ToDoubleRegister(target()), source_reg);
-    } else {
-      __ Movsd(masm->ToMemOperand(target()), source_reg);
-    }
-  } else {
-    DCHECK(source().IsAnyStackSlot());
-    MemOperand source_op = masm->ToMemOperand(source());
-    if (target().IsRegister()) {
-      __ MoveRepr(repr, ToRegister(target()), source_op);
-    } else if (target().IsDoubleRegister()) {
-      __ Movsd(ToDoubleRegister(target()), source_op);
-    } else {
-      DCHECK(target().IsAnyStackSlot());
-      __ MoveRepr(repr, kScratchRegister, source_op);
-      __ MoveRepr(repr, masm->ToMemOperand(target()), kScratchRegister);
-    }
-  }
-}
-
 namespace {
 
 constexpr Builtin BuiltinFor(Operation operation) {

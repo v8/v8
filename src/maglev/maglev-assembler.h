@@ -61,18 +61,7 @@ class MaglevAssembler : public MacroAssembler {
   }
 
   template <typename Dest, typename Source>
-  void MoveRepr(MachineRepresentation repr, Dest dst, Source src) {
-    switch (repr) {
-      case MachineRepresentation::kWord32:
-        return movl(dst, src);
-      case MachineRepresentation::kTagged:
-      case MachineRepresentation::kTaggedPointer:
-      case MachineRepresentation::kTaggedSigned:
-        return movq(dst, src);
-      default:
-        UNREACHABLE();
-    }
-  }
+  inline void MoveRepr(MachineRepresentation repr, Dest dst, Source src);
 
   void Allocate(RegisterSnapshot& register_snapshot, Register result,
                 int size_in_bytes,

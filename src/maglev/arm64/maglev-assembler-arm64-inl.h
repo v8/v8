@@ -21,11 +21,10 @@ inline MemOperand MaglevAssembler::StackSlotOperand(StackSlot slot) {
   return MemOperand(fp, slot.index);
 }
 
+// TODO(Victorgomes): Unify this to use StackSlot struct.
 inline MemOperand MaglevAssembler::GetStackSlot(
     const compiler::AllocatedOperand& operand) {
-  // TODO(v8:7700): Implement!
-  UNREACHABLE();
-  return MemOperand();
+  return MemOperand(fp, GetFramePointerOffsetForStackSlot(operand));
 }
 
 inline MemOperand MaglevAssembler::ToMemOperand(
@@ -102,6 +101,40 @@ inline void MaglevAssembler::MaterialiseValueNode(Register dst,
                                                   ValueNode* value) {
   // TODO(v8:7700): Implement!
   UNREACHABLE();
+}
+
+template <>
+inline void MaglevAssembler::MoveRepr(MachineRepresentation repr, Register dst,
+                                      Register src) {
+  Mov(dst, src);
+}
+template <>
+inline void MaglevAssembler::MoveRepr(MachineRepresentation repr, Register dst,
+                                      MemOperand src) {
+  switch (repr) {
+    case MachineRepresentation::kWord32:
+      return Ldr(dst.W(), src);
+    case MachineRepresentation::kTagged:
+    case MachineRepresentation::kTaggedPointer:
+    case MachineRepresentation::kTaggedSigned:
+      return Ldr(dst, src);
+    default:
+      UNREACHABLE();
+  }
+}
+template <>
+inline void MaglevAssembler::MoveRepr(MachineRepresentation repr,
+                                      MemOperand dst, Register src) {
+  switch (repr) {
+    case MachineRepresentation::kWord32:
+      return Str(src.W(), dst);
+    case MachineRepresentation::kTagged:
+    case MachineRepresentation::kTaggedPointer:
+    case MachineRepresentation::kTaggedSigned:
+      return Str(src, dst);
+    default:
+      UNREACHABLE();
+  }
 }
 
 }  // namespace maglev

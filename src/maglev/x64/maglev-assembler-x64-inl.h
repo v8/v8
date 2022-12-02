@@ -325,6 +325,21 @@ inline void MaglevAssembler::AssertStackSizeCorrect() {
   }
 }
 
+template <typename Dest, typename Source>
+inline void MaglevAssembler::MoveRepr(MachineRepresentation repr, Dest dst,
+                                      Source src) {
+  switch (repr) {
+    case MachineRepresentation::kWord32:
+      return movl(dst, src);
+    case MachineRepresentation::kTagged:
+    case MachineRepresentation::kTaggedPointer:
+    case MachineRepresentation::kTaggedSigned:
+      return movq(dst, src);
+    default:
+      UNREACHABLE();
+  }
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8

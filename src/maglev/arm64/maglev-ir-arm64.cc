@@ -202,7 +202,6 @@ UNIMPLEMENTED_NODE(ToName)
 UNIMPLEMENTED_NODE(ToNumberOrNumeric)
 UNIMPLEMENTED_NODE(ToObject)
 UNIMPLEMENTED_NODE(ToString)
-UNIMPLEMENTED_NODE(GapMove)
 UNIMPLEMENTED_NODE(AssertInt32, condition_, reason_)
 UNIMPLEMENTED_NODE(CheckDynamicValue)
 UNIMPLEMENTED_NODE(CheckInt32IsSmi)
@@ -341,7 +340,7 @@ void Return::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   // If actual is bigger than formal, then we should use it to free up the stack
   // arguments.
   Label corrected_args_count;
-  __ CompareAndBranch(actual_params_size, params_size, ge,
+  __ CompareAndBranch(params_size, actual_params_size, ge,
                       &corrected_args_count);
   __ Mov(params_size, actual_params_size);
   __ bind(&corrected_args_count);
