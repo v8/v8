@@ -64,9 +64,6 @@ namespace internal {
   HR(wasm_memory_allocation_result, V8.WasmMemoryAllocationResult, 0, 3, 4)    \
   /* committed code size per module, collected on GC */                        \
   HR(wasm_module_code_size_mb, V8.WasmModuleCodeSizeMiB, 0, 1024, 64)          \
-  /* code size per module after baseline compilation */                        \
-  HR(wasm_module_code_size_mb_after_baseline,                                  \
-     V8.WasmModuleCodeSizeBaselineMiB, 0, 1024, 64)                            \
   /* percent of freed code size per module, collected on GC */                 \
   HR(wasm_module_freed_code_size_percent, V8.WasmModuleCodeSizePercentFreed,   \
      0, 100, 32)                                                               \

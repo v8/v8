@@ -2702,11 +2702,6 @@ class AsyncCompileJob::CompileFinished : public CompileStep {
     TRACE_COMPILE("(3b) Compilation finished\n");
     if (cached_native_module_) {
       job->native_module_ = cached_native_module_;
-    } else {
-      DCHECK(!job->native_module_->compilation_state()->failed());
-      // Sample the generated code size when baseline compilation finished.
-      job->native_module_->SampleCodeSize(job->isolate_->counters(),
-                                          NativeModule::kAfterBaseline);
     }
     // Then finalize and publish the generated module.
     job->FinishCompile(cached_native_module_ != nullptr);

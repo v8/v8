@@ -1042,7 +1042,7 @@ void WasmEngine::AddIsolate(Isolate* isolate) {
     base::MutexGuard lock(&engine->mutex_);
     DCHECK_EQ(1, engine->isolates_.count(isolate));
     for (auto* native_module : engine->isolates_[isolate]->native_modules) {
-      native_module->SampleCodeSize(counters, NativeModule::kSampling);
+      native_module->SampleCodeSize(counters);
     }
   };
   isolate->heap()->AddGCEpilogueCallback(callback, v8::kGCTypeMarkSweepCompact,

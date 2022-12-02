@@ -2311,34 +2311,20 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
   return ret;
 }
 
-void NativeModule::SampleCodeSize(
-    Counters* counters, NativeModule::CodeSamplingTime sampling_time) const {
-  size_t code_size = sampling_time == kSampling
-                         ? code_allocator_.committed_code_space()
-                         : code_allocator_.generated_code_size();
+void NativeModule::SampleCodeSize(Counters* counters) const {
+  size_t code_size = code_allocator_.committed_code_space();
   int code_size_mb = static_cast<int>(code_size / MB);
-  Histogram* histogram = nullptr;
-  switch (sampling_time) {
-    case kAfterBaseline:
-      histogram = counters->wasm_module_code_size_mb_after_baseline();
-      break;
-    case kSampling: {
-      histogram = counters->wasm_module_code_size_mb();
-      // If this is a wasm module of >= 2MB, also sample the freed code size,
-      // absolute and relative. Code GC does not happen on asm.js modules, and
-      // small modules will never trigger GC anyway.
-      size_t generated_size = code_allocator_.generated_code_size();
-      if (generated_size >= 2 * MB && module()->origin == kWasmOrigin) {
-        size_t freed_size = code_allocator_.freed_code_size();
-        DCHECK_LE(freed_size, generated_size);
-        int freed_percent = static_cast<int>(100 * freed_size / generated_size);
-        counters->wasm_module_freed_code_size_percent()->AddSample(
-            freed_percent);
-      }
-      break;
-    }
+  counters->wasm_module_code_size_mb()->AddSample(code_size_mb);
+  // If this is a wasm module of >= 2MB, also sample the freed code size,
+  // absolute and relative. Code GC does not happen on asm.js modules, and
+  // small modules will never trigger GC anyway.
+  size_t generated_size = code_allocator_.generated_code_size();
+  if (generated_size >= 2 * MB && module()->origin == kWasmOrigin) {
+    size_t freed_size = code_allocator_.freed_code_size();
+    DCHECK_LE(freed_size, generated_size);
+    int freed_percent = static_cast<int>(100 * freed_size / generated_size);
+    counters->wasm_module_freed_code_size_percent()->AddSample(freed_percent);
   }
-  histogram->AddSample(code_size_mb);
 }
 
 std::unique_ptr<WasmCode> NativeModule::AddCompiledCode(
