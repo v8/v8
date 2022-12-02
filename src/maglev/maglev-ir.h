@@ -4744,7 +4744,6 @@ class Phi : public ValueNodeT<Phi> {
   const interpreter::Register owner_;
   Phi* next_ = nullptr;
   const int merge_offset_;
-  friend List;
   friend base::ThreadedListTraits<Phi>;
 };
 
