@@ -1024,6 +1024,7 @@ void CppHeap::FinishSweepingIfRunning() {
 void CppHeap::FinishSweepingIfOutOfWork() { sweeper_.FinishIfOutOfWork(); }
 
 std::unique_ptr<CppMarkingState> CppHeap::CreateCppMarkingState() {
+  if (!TracingInitialized()) return {};
   DCHECK(IsMarking());
   return std::make_unique<CppMarkingState>(
       isolate(), wrapper_descriptor_,

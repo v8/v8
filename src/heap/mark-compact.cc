@@ -6163,9 +6163,9 @@ class YoungGenerationMarkingTask {
                              MarkingWorklists* global_worklists)
       : marking_worklists_local_(std::make_unique<MarkingWorklists::Local>(
             global_worklists,
-            heap->cpp_heap() ? CppHeap::From(heap->cpp_heap())
-                                   ->CreateCppMarkingStateForMutatorThread()
-                             : MarkingWorklists::Local::kNoCppMarkingState)),
+            heap->cpp_heap()
+                ? CppHeap::From(heap->cpp_heap())->CreateCppMarkingState()
+                : MarkingWorklists::Local::kNoCppMarkingState)),
         marking_state_(heap->marking_state()),
         visitor_(isolate, marking_state_, marking_worklists_local()) {}
 
