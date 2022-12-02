@@ -47,7 +47,7 @@ void V8HeapCompressionScheme::InitBase(Address base) {
 }
 
 // static
-Address V8HeapCompressionScheme::base() {
+V8_CONST Address V8HeapCompressionScheme::base() {
   return reinterpret_cast<Address>(V8_ASSUME_ALIGNED(
       reinterpret_cast<void*>(base_), kPtrComprCageBaseAlignment));
 }
@@ -131,7 +131,7 @@ void ExternalCodeCompressionScheme::InitBase(Address base) {
 }
 
 // static
-Address ExternalCodeCompressionScheme::base() {
+V8_CONST Address ExternalCodeCompressionScheme::base() {
   return reinterpret_cast<Address>(V8_ASSUME_ALIGNED(
       reinterpret_cast<void*>(base_), kPtrComprCageBaseAlignment));
 }

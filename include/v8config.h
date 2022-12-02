@@ -342,6 +342,7 @@ path. Add it with -I<path> to the command line
 # define V8_HAS_ATTRIBUTE_ALWAYS_INLINE (__has_attribute(always_inline))
 # define V8_HAS_ATTRIBUTE_CONSTINIT \
     (__has_attribute(require_constant_initialization))
+# define V8_HAS_ATTRIBUTE_CONST (__has_attribute(const))
 # define V8_HAS_ATTRIBUTE_NONNULL (__has_attribute(nonnull))
 # define V8_HAS_ATTRIBUTE_NOINLINE (__has_attribute(noinline))
 # define V8_HAS_ATTRIBUTE_UNUSED (__has_attribute(unused))
@@ -460,6 +461,16 @@ path. Add it with -I<path> to the command line
 # define V8_ASSUME_ALIGNED(ptr, alignment) (ptr)
 #endif
 
+
+// A macro to mark functions whose values don't change (e.g. across calls)
+// and thereby compiler is free to hoist and fold multiple calls together.
+// Use like:
+//   V8_CONST int foo() { ... }
+#if V8_HAS_ATTRIBUTE_CONST
+# define V8_CONST __attribute__((const))
+#else
+# define V8_CONST
+#endif
 
 // A macro to mark a declaration as requiring constant initialization.
 // Use like:
