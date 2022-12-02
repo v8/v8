@@ -154,14 +154,9 @@ class V8_EXPORT_PRIVATE AsyncStreamingDecoder : public StreamingDecoder {
                                  size_t length,
                                  base::Vector<const uint8_t> length_bytes);
 
-  std::unique_ptr<DecodingState> Error(const WasmError& error) {
-    if (ok()) processor_->OnError(error);
+  std::unique_ptr<DecodingState> ToErrorState() {
     Fail();
-    return std::unique_ptr<DecodingState>(nullptr);
-  }
-
-  std::unique_ptr<DecodingState> Error(std::string message) {
-    return Error(WasmError{module_offset_ - 1, std::move(message)});
+    return nullptr;
   }
 
   void ProcessModuleHeader() {
@@ -195,38 +190,42 @@ class V8_EXPORT_PRIVATE AsyncStreamingDecoder : public StreamingDecoder {
   void ProcessFunctionBody(base::Vector<const uint8_t> bytes,
                            uint32_t module_offset) {
     if (!ok()) return;
-    processor_->ProcessFunctionBody(bytes, module_offset);
+    if (!processor_->ProcessFunctionBody(bytes, module_offset)) Fail();
   }
 
   void Fail() {
-    // We reset the {processor_} field to represent failure. This also ensures
-    // that we do not accidentally call further methods on the processor after
-    // failure.
-    processor_.reset();
+    DCHECK_EQ(processor_ == nullptr, failed_processor_ != nullptr);
+    if (processor_ != nullptr) failed_processor_ = std::move(processor_);
+    DCHECK_NULL(processor_);
+    DCHECK_NOT_NULL(failed_processor_);
   }
 
-  bool ok() const { return processor_ != nullptr; }
+  bool ok() const {
+    DCHECK_EQ(processor_ == nullptr, failed_processor_ != nullptr);
+    return processor_ != nullptr;
+  }
 
   uint32_t module_offset() const { return module_offset_; }
 
+  // As long as we did not detect an invalid module, {processor_} will be set.
+  // On failure, the pointer is transferred to {failed_processor_} and will only
+  // be used for a final callback once all bytes have arrived.
   std::unique_ptr<StreamingProcessor> processor_;
+  std::unique_ptr<StreamingProcessor> failed_processor_{nullptr};
   std::unique_ptr<DecodingState> state_;
   std::vector<std::shared_ptr<SectionBuffer>> section_buffers_;
   bool code_section_processed_ = false;
   uint32_t module_offset_ = 0;
-  size_t total_size_ = 0;
   bool stream_finished_ = false;
 
-  // We need wire bytes in an array for deserializing cached modules.
-  std::vector<uint8_t> wire_bytes_for_deserializing_;
+  // TODO(clemensb): Avoid holding the wire bytes live twice (here and in the
+  // section buffers).
+  std::vector<uint8_t> full_wire_bytes_;
 };
 
 void AsyncStreamingDecoder::OnBytesReceived(base::Vector<const uint8_t> bytes) {
-  if (deserializing()) {
-    wire_bytes_for_deserializing_.insert(wire_bytes_for_deserializing_.end(),
-                                         bytes.begin(), bytes.end());
-    return;
-  }
+  full_wire_bytes_.insert(full_wire_bytes_.end(), bytes.begin(), bytes.end());
+  if (deserializing()) return;
 
   TRACE_STREAMING("OnBytesReceived(%zu bytes)\n", bytes.size());
 
@@ -240,7 +239,6 @@ void AsyncStreamingDecoder::OnBytesReceived(base::Vector<const uint8_t> bytes) {
       state_ = state_->Next(this);
     }
   }
-  total_size_ += bytes.size();
   if (ok()) {
     processor_->OnFinishedChunk();
   }
@@ -260,55 +258,45 @@ void AsyncStreamingDecoder::Finish(bool can_use_compiled_module) {
   TRACE_STREAMING("Finish\n");
   DCHECK(!stream_finished_);
   stream_finished_ = true;
-  if (!ok()) return;
-
-  if (deserializing()) {
-    base::Vector<const uint8_t> wire_bytes =
-        base::VectorOf(wire_bytes_for_deserializing_);
+  if (ok() && deserializing()) {
     // Try to deserialize the module from wire bytes and module bytes.
     if (can_use_compiled_module &&
-        processor_->Deserialize(compiled_module_bytes_, wire_bytes))
+        processor_->Deserialize(compiled_module_bytes_,
+                                base::VectorOf(full_wire_bytes_))) {
       return;
+    }
 
     // Compiled module bytes are invalidated by can_use_compiled_module = false
-    // or the deserialization failed. Restart decoding using |wire_bytes|.
+    // or the deserialization failed. Restart decoding using |full_wire_bytes_|.
+    std::vector<uint8_t> wire_bytes = std::move(full_wire_bytes_);
+    DCHECK(full_wire_bytes_.empty());
     compiled_module_bytes_ = {};
     DCHECK(!deserializing());
-    OnBytesReceived(wire_bytes);
+    OnBytesReceived(base::VectorOf(wire_bytes));
     // The decoder has received all wire bytes; fall through and finish.
   }
 
-  if (!state_->is_finishing_allowed()) {
+  if (ok() && !state_->is_finishing_allowed()) {
     // The byte stream ended too early, we report an error.
-    Error("unexpected end of stream");
-    return;
+    Fail();
   }
 
-  base::OwnedVector<uint8_t> bytes =
-      base::OwnedVector<uint8_t>::NewForOverwrite(total_size_);
-  uint8_t* cursor = bytes.start();
-  {
-#define BYTES(x) (x & 0xFF), (x >> 8) & 0xFF, (x >> 16) & 0xFF, (x >> 24) & 0xFF
-    uint8_t module_header[]{BYTES(kWasmMagic), BYTES(kWasmVersion)};
-#undef BYTES
-    memcpy(cursor, module_header, arraysize(module_header));
-    cursor += arraysize(module_header);
+  base::OwnedVector<const uint8_t> bytes_copy =
+      base::OwnedVector<uint8_t>::Of(full_wire_bytes_);
+
+  if (ok()) {
+    processor_->OnFinishedStream(std::move(bytes_copy), false);
+  } else {
+    failed_processor_->OnFinishedStream(std::move(bytes_copy), true);
   }
-  for (const auto& buffer : section_buffers_) {
-    DCHECK_LE(cursor - bytes.start() + buffer->length(), total_size_);
-    memcpy(cursor, buffer->bytes().begin(), buffer->length());
-    cursor += buffer->length();
-  }
-  processor_->OnFinishedStream(std::move(bytes));
 }
 
 void AsyncStreamingDecoder::Abort() {
   TRACE_STREAMING("Abort\n");
   if (stream_finished_) return;
   stream_finished_ = true;
-  if (!ok()) return;  // Failed already.
-  processor_->OnAbort();
   Fail();
+  failed_processor_->OnAbort();
 }
 
 namespace {
@@ -537,7 +525,7 @@ size_t AsyncStreamingDecoder::DecodeVarInt32::ReadBytes(
   if (decoder.failed()) {
     if (new_bytes == remaining_buf.size()) {
       // We only report an error if we read all bytes.
-      streaming->Error(decoder.error());
+      streaming->Fail();
     }
     set_offset(offset() + new_bytes);
     return new_bytes;
@@ -561,12 +549,7 @@ std::unique_ptr<AsyncStreamingDecoder::DecodingState>
 AsyncStreamingDecoder::DecodeVarInt32::Next(AsyncStreamingDecoder* streaming) {
   if (!streaming->ok()) return nullptr;
 
-  if (value_ > max_value_) {
-    std::ostringstream oss;
-    oss << "The value " << value_ << " for " << field_name_
-        << " exceeds the maximum allowed value of " << max_value_;
-    return streaming->Error(oss.str());
-  }
+  if (value_ > max_value_) return streaming->ToErrorState();
 
   return NextWithValue(streaming);
 }
@@ -584,15 +567,11 @@ std::unique_ptr<AsyncStreamingDecoder::DecodingState>
 AsyncStreamingDecoder::DecodeSectionID::Next(AsyncStreamingDecoder* streaming) {
   TRACE_STREAMING("DecodeSectionID: %u (%s)\n", id_,
                   SectionName(static_cast<SectionCode>(id_)));
-  if (!IsValidSectionCode(id_)) return streaming->Error("invalid section code");
+  if (!IsValidSectionCode(id_)) return streaming->ToErrorState();
   if (id_ == SectionCode::kCodeSectionCode) {
     // Explicitly check for multiple code sections as module decoder never
     // sees the code section and hence cannot track this section.
-    if (streaming->code_section_processed_) {
-      // TODO(wasm): This error message (and others in this class) is different
-      // for non-streaming decoding. Bring them in sync and test.
-      return streaming->Error("code section can only appear once");
-    }
+    if (streaming->code_section_processed_) return streaming->ToErrorState();
     streaming->code_section_processed_ = true;
   }
   return std::make_unique<DecodeSectionLength>(id_, module_offset_);
@@ -608,7 +587,7 @@ AsyncStreamingDecoder::DecodeSectionLength::NextWithValue(
   DCHECK_NOT_NULL(buf);
   if (value_ == 0) {
     if (section_id_ == SectionCode::kCodeSectionCode) {
-      return streaming->Error("code section cannot have size 0");
+      return streaming->ToErrorState();
     }
     // Process section without payload as well, to enforce section order and
     // other feature checks specific to each individual section.
@@ -640,9 +619,7 @@ AsyncStreamingDecoder::DecodeNumberOfFunctions::NextWithValue(
   TRACE_STREAMING("DecodeNumberOfFunctions(%zu)\n", value_);
   // Copy the bytes we read into the section buffer.
   base::Vector<uint8_t> payload_buf = section_buffer_->payload();
-  if (payload_buf.size() < bytes_consumed_) {
-    return streaming->Error("invalid code section length");
-  }
+  if (payload_buf.size() < bytes_consumed_) return streaming->ToErrorState();
   memcpy(payload_buf.begin(), buffer().begin(), bytes_consumed_);
 
   DCHECK_GE(kMaxInt, section_buffer_->module_offset() +
@@ -660,7 +637,7 @@ AsyncStreamingDecoder::DecodeNumberOfFunctions::NextWithValue(
   // {value} is the number of functions.
   if (value_ == 0) {
     if (payload_buf.size() != bytes_consumed_) {
-      return streaming->Error("not all code section bytes were used");
+      return streaming->ToErrorState();
     }
     return std::make_unique<DecodeSectionID>(streaming->module_offset());
   }
@@ -678,15 +655,15 @@ AsyncStreamingDecoder::DecodeFunctionLength::NextWithValue(
   base::Vector<uint8_t> fun_length_buffer =
       section_buffer_->bytes() + buffer_offset_;
   if (fun_length_buffer.size() < bytes_consumed_) {
-    return streaming->Error("read past code section end");
+    return streaming->ToErrorState();
   }
   memcpy(fun_length_buffer.begin(), buffer().begin(), bytes_consumed_);
 
   // {value} is the length of the function.
-  if (value_ == 0) return streaming->Error("invalid function length (0)");
+  if (value_ == 0) return streaming->ToErrorState();
 
   if (buffer_offset_ + bytes_consumed_ + value_ > section_buffer_->length()) {
-    return streaming->Error("not enough code section bytes");
+    return streaming->ToErrorState();
   }
 
   return std::make_unique<DecodeFunctionBody>(
@@ -708,7 +685,7 @@ AsyncStreamingDecoder::DecodeFunctionBody::Next(
   }
   // We just read the last function body. Continue with the next section.
   if (end_offset != section_buffer_->length()) {
-    return streaming->Error("not all code section bytes were used");
+    return streaming->ToErrorState();
   }
   return std::make_unique<DecodeSectionID>(streaming->module_offset());
 }

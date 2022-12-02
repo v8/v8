@@ -164,11 +164,25 @@ class AsyncCompileJob {
   class CompilationStateCallback;
 
   // States of the AsyncCompileJob.
-  class DecodeModule;            // Step 1  (async)
-  class DecodeFail;              // Step 1b (sync)
-  class PrepareAndStartCompile;  // Step 2  (sync)
-  class CompileFailed;           // Step 3a (sync)
-  class CompileFinished;         // Step 3b (sync)
+  // Step 1 (async). Decodes the wasm module.
+  // --> Fail on decoding failure,
+  // --> PrepareAndStartCompile on success.
+  class DecodeModule;
+
+  // Step 2 (sync). Prepares runtime objects and starts background compilation.
+  // --> finish directly on native module cache hit,
+  // --> finish directly on validation error,
+  // --> trigger eager compilation, if any; FinishCompile is triggered when
+  // done.
+  class PrepareAndStartCompile;
+
+  // Step 3 (sync). Compilation finished. Finalize the module and resolve the
+  // promise.
+  class FinishCompilation;
+
+  // Step 4 (sync). Decoding, validation or compilation failed. Reject the
+  // promise.
+  class Fail;
 
   friend class AsyncStreamingProcessor;
 
@@ -217,12 +231,11 @@ class AsyncCompileJob {
 
   void FinishCompile(bool is_after_cache_hit);
 
-  void DecodeFailed(const WasmError&);
-  void AsyncCompileFailed();
+  void Failed();
 
   void AsyncCompileSucceeded(Handle<WasmModuleObject> result);
 
-  void FinishModule();
+  void FinishSuccessfully();
 
   void StartForegroundTask();
   void ExecuteForegroundTaskImmediately();

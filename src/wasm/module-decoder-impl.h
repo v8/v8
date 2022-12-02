@@ -262,11 +262,14 @@ class WasmSectionIterator {
     tracer_.NextLine();
 
     payload_start_ = decoder_->pc();
-    if (decoder_->checkAvailable(section_length)) {
-      // Get the limit of the section within the module.
-      section_end_ = payload_start_ + section_length;
-    } else {
-      // The section would extend beyond the end of the module.
+    section_end_ = payload_start_ + section_length;
+    if (section_length > decoder_->available_bytes()) {
+      decoder_->errorf(
+          section_start_,
+          "section (code %u, \"%s\") extends past end of the module "
+          "(length %u, remaining bytes %u)",
+          section_code, SectionName(static_cast<SectionCode>(section_code)),
+          section_length, decoder_->available_bytes());
       section_end_ = payload_start_;
     }
 
