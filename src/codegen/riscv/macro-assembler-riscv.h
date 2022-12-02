@@ -123,10 +123,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void Trap();
   void DebugBreak();
-#ifdef USE_SIMULATOR
-  // See src/codegen/riscv/base-constants-riscv.h DebugParameters.
-  void Debug(uint32_t parameters) { break_(parameters, false); }
-#endif
+
   // Calls Abort(msg) if the condition cc is not satisfied.
   // Use --debug_code to enable.
   void Assert(Condition cc, AbortReason reason, Register rs, Operand rt);
