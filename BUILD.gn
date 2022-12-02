@@ -3618,7 +3618,6 @@ v8_header_set("v8_internal_headers") {
       "src/maglev/maglev-regalloc-data.h",
       "src/maglev/maglev-regalloc.h",
       "src/maglev/maglev-register-frame-array.h",
-      "src/maglev/maglev-vreg-allocator.h",
       "src/maglev/maglev.h",
     ]
     if (v8_current_cpu == "arm64") {

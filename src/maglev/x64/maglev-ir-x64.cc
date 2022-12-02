@@ -27,7 +27,6 @@
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir-inl.h"
 #include "src/maglev/maglev-ir.h"
-#include "src/maglev/maglev-vreg-allocator.h"
 #include "src/maglev/x64/maglev-assembler-x64-inl.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/js-array-buffer.h"
@@ -79,12 +78,12 @@ RegList GetGeneralRegistersUsedAsInputs(const EagerDeoptInfo* deopt_info) {
 // Nodes
 // ---
 
-void DeleteProperty::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void DeleteProperty::SetValueLocationConstraints() {
   using D = CallInterfaceDescriptorFor<Builtin::kDeleteProperty>::type;
   UseFixed(context(), kContextRegister);
   UseFixed(object(), D::GetRegisterParameter(D::kObject));
   UseFixed(key(), D::GetRegisterParameter(D::kKey));
-  DefineAsFixed(vreg_state, this, kReturnRegister0);
+  DefineAsFixed(this, kReturnRegister0);
 }
 void DeleteProperty::GenerateCode(MaglevAssembler* masm,
                                   const ProcessingState& state) {
@@ -98,7 +97,7 @@ void DeleteProperty::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
-void GeneratorStore::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void GeneratorStore::SetValueLocationConstraints() {
   UseAny(context_input());
   UseRegister(generator_input());
   for (int i = 0; i < num_parameters_and_registers(); i++) {
@@ -221,10 +220,9 @@ void GeneratorStore::GenerateCode(MaglevAssembler* masm,
       Smi::FromInt(bytecode_offset()));
 }
 
-void GeneratorRestoreRegister::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void GeneratorRestoreRegister::SetValueLocationConstraints() {
   UseRegister(array_input());
-  DefineAsRegister(vreg_state, this);
+  DefineAsRegister(this);
   set_temporaries_needed(1);
 }
 void GeneratorRestoreRegister::GenerateCode(MaglevAssembler* masm,
@@ -252,11 +250,11 @@ void GeneratorRestoreRegister::GenerateCode(MaglevAssembler* masm,
   }
 }
 
-void ForInPrepare::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void ForInPrepare::SetValueLocationConstraints() {
   using D = CallInterfaceDescriptorFor<Builtin::kForInPrepare>::type;
   UseFixed(context(), kContextRegister);
   UseFixed(enumerator(), D::GetRegisterParameter(D::kEnumerator));
-  DefineAsFixed(vreg_state, this, kReturnRegister0);
+  DefineAsFixed(this, kReturnRegister0);
 }
 void ForInPrepare::GenerateCode(MaglevAssembler* masm,
                                 const ProcessingState& state) {
@@ -270,14 +268,14 @@ void ForInPrepare::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
-void ForInNext::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void ForInNext::SetValueLocationConstraints() {
   using D = CallInterfaceDescriptorFor<Builtin::kForInNext>::type;
   UseFixed(context(), kContextRegister);
   UseFixed(receiver(), D::GetRegisterParameter(D::kReceiver));
   UseFixed(cache_array(), D::GetRegisterParameter(D::kCacheArray));
   UseFixed(cache_type(), D::GetRegisterParameter(D::kCacheType));
   UseFixed(cache_index(), D::GetRegisterParameter(D::kCacheIndex));
-  DefineAsFixed(vreg_state, this, kReturnRegister0);
+  DefineAsFixed(this, kReturnRegister0);
 }
 void ForInNext::GenerateCode(MaglevAssembler* masm,
                              const ProcessingState& state) {
@@ -296,11 +294,11 @@ void ForInNext::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
-void GetIterator::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void GetIterator::SetValueLocationConstraints() {
   using D = CallInterfaceDescriptorFor<Builtin::kGetIteratorWithFeedback>::type;
   UseFixed(context(), kContextRegister);
   UseFixed(receiver(), D::GetRegisterParameter(D::kReceiver));
-  DefineAsFixed(vreg_state, this, kReturnRegister0);
+  DefineAsFixed(this, kReturnRegister0);
 }
 void GetIterator::GenerateCode(MaglevAssembler* masm,
                                const ProcessingState& state) {
@@ -316,9 +314,8 @@ void GetIterator::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
-void GetSecondReturnedValue::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
-  DefineAsFixed(vreg_state, this, kReturnRegister1);
+void GetSecondReturnedValue::SetValueLocationConstraints() {
+  DefineAsFixed(this, kReturnRegister1);
 }
 void GetSecondReturnedValue::GenerateCode(MaglevAssembler* masm,
                                           const ProcessingState& state) {
@@ -339,9 +336,9 @@ void GetSecondReturnedValue::GenerateCode(MaglevAssembler* masm,
 #endif  // DEBUG
 }
 
-void LoadGlobal::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void LoadGlobal::SetValueLocationConstraints() {
   UseFixed(context(), kContextRegister);
-  DefineAsFixed(vreg_state, this, kReturnRegister0);
+  DefineAsFixed(this, kReturnRegister0);
 }
 void LoadGlobal::GenerateCode(MaglevAssembler* masm,
                               const ProcessingState& state) {
@@ -371,11 +368,11 @@ void LoadGlobal::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
-void StoreGlobal::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void StoreGlobal::SetValueLocationConstraints() {
   using D = CallInterfaceDescriptorFor<Builtin::kStoreGlobalIC>::type;
   UseFixed(context(), kContextRegister);
   UseFixed(value(), D::GetRegisterParameter(D::kValue));
-  DefineAsFixed(vreg_state, this, kReturnRegister0);
+  DefineAsFixed(this, kReturnRegister0);
 }
 void StoreGlobal::GenerateCode(MaglevAssembler* masm,
                                const ProcessingState& state) {
@@ -391,17 +388,16 @@ void StoreGlobal::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
-void RegisterInput::AllocateVreg(MaglevVregAllocationState* vreg_state) {
-  DefineAsFixed(vreg_state, this, input());
+void RegisterInput::SetValueLocationConstraints() {
+  DefineAsFixed(this, input());
 }
 void RegisterInput::GenerateCode(MaglevAssembler* masm,
                                  const ProcessingState& state) {
   // Nothing to be done, the value is already in the register.
 }
 
-void CreateEmptyArrayLiteral::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
-  DefineAsFixed(vreg_state, this, kReturnRegister0);
+void CreateEmptyArrayLiteral::SetValueLocationConstraints() {
+  DefineAsFixed(this, kReturnRegister0);
 }
 void CreateEmptyArrayLiteral::GenerateCode(MaglevAssembler* masm,
                                            const ProcessingState& state) {
@@ -413,8 +409,8 @@ void CreateEmptyArrayLiteral::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
-void CreateArrayLiteral::AllocateVreg(MaglevVregAllocationState* vreg_state) {
-  DefineAsFixed(vreg_state, this, kReturnRegister0);
+void CreateArrayLiteral::SetValueLocationConstraints() {
+  DefineAsFixed(this, kReturnRegister0);
 }
 void CreateArrayLiteral::GenerateCode(MaglevAssembler* masm,
                                       const ProcessingState& state) {
@@ -427,9 +423,8 @@ void CreateArrayLiteral::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
-void CreateShallowArrayLiteral::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
-  DefineAsFixed(vreg_state, this, kReturnRegister0);
+void CreateShallowArrayLiteral::SetValueLocationConstraints() {
+  DefineAsFixed(this, kReturnRegister0);
 }
 void CreateShallowArrayLiteral::GenerateCode(MaglevAssembler* masm,
                                              const ProcessingState& state) {
@@ -445,8 +440,8 @@ void CreateShallowArrayLiteral::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
-void CreateObjectLiteral::AllocateVreg(MaglevVregAllocationState* vreg_state) {
-  DefineAsFixed(vreg_state, this, kReturnRegister0);
+void CreateObjectLiteral::SetValueLocationConstraints() {
+  DefineAsFixed(this, kReturnRegister0);
 }
 void CreateObjectLiteral::GenerateCode(MaglevAssembler* masm,
                                        const ProcessingState& state) {
@@ -459,9 +454,8 @@ void CreateObjectLiteral::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
-void CreateEmptyObjectLiteral::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
-  DefineAsRegister(vreg_state, this);
+void CreateEmptyObjectLiteral::SetValueLocationConstraints() {
+  DefineAsRegister(this);
 }
 void CreateEmptyObjectLiteral::GenerateCode(MaglevAssembler* masm,
                                             const ProcessingState& state) {
@@ -483,9 +477,8 @@ void CreateEmptyObjectLiteral::GenerateCode(MaglevAssembler* masm,
   }
 }
 
-void CreateShallowObjectLiteral::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
-  DefineAsFixed(vreg_state, this, kReturnRegister0);
+void CreateShallowObjectLiteral::SetValueLocationConstraints() {
+  DefineAsFixed(this, kReturnRegister0);
 }
 void CreateShallowObjectLiteral::GenerateCode(MaglevAssembler* masm,
                                               const ProcessingState& state) {
@@ -500,8 +493,7 @@ void CreateShallowObjectLiteral::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
-void CreateFunctionContext::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void CreateFunctionContext::SetValueLocationConstraints() {
   DCHECK_LE(slot_count(),
             static_cast<uint32_t>(
                 ConstructorBuiltins::MaximumFunctionContextSlots()));
@@ -517,7 +509,7 @@ void CreateFunctionContext::AllocateVreg(
     static_assert(D::HasContextParameter());
     UseFixed(context(), D::ContextRegister());
   }
-  DefineAsFixed(vreg_state, this, kReturnRegister0);
+  DefineAsFixed(this, kReturnRegister0);
 }
 void CreateFunctionContext::GenerateCode(MaglevAssembler* masm,
                                          const ProcessingState& state) {
@@ -541,11 +533,11 @@ void CreateFunctionContext::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
-void FastCreateClosure::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void FastCreateClosure::SetValueLocationConstraints() {
   using D = CallInterfaceDescriptorFor<Builtin::kFastNewClosure>::type;
   static_assert(D::HasContextParameter());
   UseFixed(context(), D::ContextRegister());
-  DefineAsFixed(vreg_state, this, kReturnRegister0);
+  DefineAsFixed(this, kReturnRegister0);
 }
 void FastCreateClosure::GenerateCode(MaglevAssembler* masm,
                                      const ProcessingState& state) {
@@ -559,9 +551,9 @@ void FastCreateClosure::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
-void CreateClosure::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void CreateClosure::SetValueLocationConstraints() {
   UseFixed(context(), kContextRegister);
-  DefineAsFixed(vreg_state, this, kReturnRegister0);
+  DefineAsFixed(this, kReturnRegister0);
 }
 void CreateClosure::GenerateCode(MaglevAssembler* masm,
                                  const ProcessingState& state) {
@@ -572,8 +564,8 @@ void CreateClosure::GenerateCode(MaglevAssembler* masm,
   __ CallRuntime(function_id);
 }
 
-void CreateRegExpLiteral::AllocateVreg(MaglevVregAllocationState* vreg_state) {
-  DefineAsFixed(vreg_state, this, kReturnRegister0);
+void CreateRegExpLiteral::SetValueLocationConstraints() {
+  DefineAsFixed(this, kReturnRegister0);
 }
 void CreateRegExpLiteral::GenerateCode(MaglevAssembler* masm,
                                        const ProcessingState& state) {
@@ -587,10 +579,10 @@ void CreateRegExpLiteral::GenerateCode(MaglevAssembler* masm,
   __ CallBuiltin(Builtin::kCreateRegExpLiteral);
 }
 
-void GetTemplateObject::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void GetTemplateObject::SetValueLocationConstraints() {
   using D = GetTemplateObjectDescriptor;
   UseFixed(description(), D::GetRegisterParameter(D::kDescription));
-  DefineAsFixed(vreg_state, this, kReturnRegister0);
+  DefineAsFixed(this, kReturnRegister0);
 }
 
 void GetTemplateObject::GenerateCode(MaglevAssembler* masm,
@@ -605,7 +597,7 @@ void GetTemplateObject::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
-void Abort::AllocateVreg(MaglevVregAllocationState* vreg_state) {}
+void Abort::SetValueLocationConstraints() {}
 void Abort::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   __ Push(Smi::FromInt(static_cast<int>(reason())));
   __ CallRuntime(Runtime::kAbort, 1);
@@ -639,7 +631,7 @@ Condition ToCondition(AssertCondition cond) {
 }
 }  // namespace
 
-void AssertInt32::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void AssertInt32::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());
 }
@@ -654,9 +646,7 @@ bool AnyMapIsHeapNumber(const ZoneHandleSet<Map>& maps) {
                      [](Handle<Map> map) { return map->IsHeapNumberMap(); });
 }
 
-void CheckMaps::AllocateVreg(MaglevVregAllocationState* vreg_state) {
-  UseRegister(receiver_input());
-}
+void CheckMaps::SetValueLocationConstraints() { UseRegister(receiver_input()); }
 void CheckMaps::GenerateCode(MaglevAssembler* masm,
                              const ProcessingState& state) {
   Register object = ToRegister(receiver_input());
@@ -696,9 +686,7 @@ void CheckMaps::GenerateCode(MaglevAssembler* masm,
   __ bind(&done);
 }
 
-void CheckValue::AllocateVreg(MaglevVregAllocationState* vreg_state) {
-  UseRegister(target_input());
-}
+void CheckValue::SetValueLocationConstraints() { UseRegister(target_input()); }
 void CheckValue::GenerateCode(MaglevAssembler* masm,
                               const ProcessingState& state) {
   Register target = ToRegister(target_input());
@@ -707,7 +695,7 @@ void CheckValue::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(not_equal, DeoptimizeReason::kWrongValue, this);
 }
 
-void CheckDynamicValue::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void CheckDynamicValue::SetValueLocationConstraints() {
   UseRegister(first_input());
   UseRegister(second_input());
 }
@@ -720,9 +708,7 @@ void CheckDynamicValue::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(not_equal, DeoptimizeReason::kWrongValue, this);
 }
 
-void CheckSmi::AllocateVreg(MaglevVregAllocationState* vreg_state) {
-  UseRegister(receiver_input());
-}
+void CheckSmi::SetValueLocationConstraints() { UseRegister(receiver_input()); }
 void CheckSmi::GenerateCode(MaglevAssembler* masm,
                             const ProcessingState& state) {
   Register object = ToRegister(receiver_input());
@@ -731,7 +717,7 @@ void CheckSmi::GenerateCode(MaglevAssembler* masm,
                       this);
 }
 
-void CheckNumber::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void CheckNumber::SetValueLocationConstraints() {
   UseRegister(receiver_input());
 }
 void CheckNumber::GenerateCode(MaglevAssembler* masm,
@@ -754,7 +740,7 @@ void CheckNumber::GenerateCode(MaglevAssembler* masm,
   __ bind(&done);
 }
 
-void CheckHeapObject::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void CheckHeapObject::SetValueLocationConstraints() {
   UseRegister(receiver_input());
 }
 void CheckHeapObject::GenerateCode(MaglevAssembler* masm,
@@ -764,7 +750,7 @@ void CheckHeapObject::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kSmi, this);
 }
 
-void CheckSymbol::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void CheckSymbol::SetValueLocationConstraints() {
   UseRegister(receiver_input());
 }
 void CheckSymbol::GenerateCode(MaglevAssembler* masm,
@@ -781,7 +767,7 @@ void CheckSymbol::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(not_equal, DeoptimizeReason::kNotASymbol, this);
 }
 
-void CheckInstanceType::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void CheckInstanceType::SetValueLocationConstraints() {
   UseRegister(receiver_input());
 }
 void CheckInstanceType::GenerateCode(MaglevAssembler* masm,
@@ -798,7 +784,7 @@ void CheckInstanceType::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(not_equal, DeoptimizeReason::kWrongInstanceType, this);
 }
 
-void CheckString::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void CheckString::SetValueLocationConstraints() {
   UseRegister(receiver_input());
 }
 void CheckString::GenerateCode(MaglevAssembler* masm,
@@ -816,8 +802,7 @@ void CheckString::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(above, DeoptimizeReason::kNotAString, this);
 }
 
-void CheckMapsWithMigration::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void CheckMapsWithMigration::SetValueLocationConstraints() {
   UseRegister(receiver_input());
 }
 void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
@@ -936,7 +921,7 @@ void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
   __ bind(*done);
 }
 
-void CheckJSArrayBounds::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void CheckJSArrayBounds::SetValueLocationConstraints() {
   UseRegister(receiver_input());
   UseRegister(index_input());
 }
@@ -984,8 +969,7 @@ int ExternalArrayElementSize(const ExternalArrayType element_type) {
 }
 }  // namespace
 
-void CheckJSTypedArrayBounds::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void CheckJSTypedArrayBounds::SetValueLocationConstraints() {
   UseRegister(receiver_input());
   if (ElementsKindSize(elements_kind_) == 1) {
     UseRegister(index_input());
@@ -1016,8 +1000,7 @@ void CheckJSTypedArrayBounds::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(above_equal, DeoptimizeReason::kOutOfBounds, this);
 }
 
-void CheckJSDataViewBounds::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void CheckJSDataViewBounds::SetValueLocationConstraints() {
   UseRegister(receiver_input());
   UseRegister(index_input());
 }
@@ -1042,8 +1025,7 @@ void CheckJSDataViewBounds::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(above_equal, DeoptimizeReason::kOutOfBounds, this);
 }
 
-void CheckJSObjectElementsBounds::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void CheckJSObjectElementsBounds::SetValueLocationConstraints() {
   UseRegister(receiver_input());
   UseRegister(index_input());
 }
@@ -1068,7 +1050,7 @@ void CheckJSObjectElementsBounds::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(above_equal, DeoptimizeReason::kOutOfBounds, this);
 }
 
-void CheckInt32Condition::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void CheckInt32Condition::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());
 }
@@ -1078,17 +1060,16 @@ void CheckInt32Condition::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(NegateCondition(ToCondition(condition_)), reason_, this);
 }
 
-void DebugBreak::AllocateVreg(MaglevVregAllocationState* vreg_state) {}
+void DebugBreak::SetValueLocationConstraints() {}
 void DebugBreak::GenerateCode(MaglevAssembler* masm,
                               const ProcessingState& state) {
   __ int3();
 }
 
-void CheckedInternalizedString::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void CheckedInternalizedString::SetValueLocationConstraints() {
   UseRegister(object_input());
   set_temporaries_needed(1);
-  DefineSameAsFirst(vreg_state, this);
+  DefineSameAsFirst(this);
 }
 void CheckedInternalizedString::GenerateCode(MaglevAssembler* masm,
                                              const ProcessingState& state) {
@@ -1140,9 +1121,9 @@ void CheckedInternalizedString::GenerateCode(MaglevAssembler* masm,
   __ bind(*done);
 }
 
-void CheckedObjectToIndex::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void CheckedObjectToIndex::SetValueLocationConstraints() {
   UseRegister(object_input());
-  DefineAsRegister(vreg_state, this);
+  DefineAsRegister(this);
   set_double_temporaries_needed(1);
 }
 void CheckedObjectToIndex::GenerateCode(MaglevAssembler* masm,
@@ -1215,15 +1196,14 @@ void CheckedObjectToIndex::GenerateCode(MaglevAssembler* masm,
   __ bind(*done);
 }
 
-void BuiltinStringFromCharCode::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void BuiltinStringFromCharCode::SetValueLocationConstraints() {
   if (code_input().node()->Is<Int32Constant>()) {
     UseAny(code_input());
   } else {
     UseAndClobberRegister(code_input());
     set_temporaries_needed(1);
   }
-  DefineAsRegister(vreg_state, this);
+  DefineAsRegister(this);
 }
 void BuiltinStringFromCharCode::GenerateCode(MaglevAssembler* masm,
                                              const ProcessingState& state) {
@@ -1248,11 +1228,10 @@ void BuiltinStringFromCharCode::GenerateCode(MaglevAssembler* masm,
   }
 }
 
-void BuiltinStringPrototypeCharCodeAt::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void BuiltinStringPrototypeCharCodeAt::SetValueLocationConstraints() {
   UseAndClobberRegister(string_input());
   UseAndClobberRegister(index_input());
-  DefineAsRegister(vreg_state, this);
+  DefineAsRegister(this);
   set_temporaries_needed(1);
 }
 
@@ -1268,9 +1247,9 @@ void BuiltinStringPrototypeCharCodeAt::GenerateCode(
   __ bind(*done);
 }
 
-void LoadTaggedField::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void LoadTaggedField::SetValueLocationConstraints() {
   UseRegister(object_input());
-  DefineAsRegister(vreg_state, this);
+  DefineAsRegister(this);
 }
 void LoadTaggedField::GenerateCode(MaglevAssembler* masm,
                                    const ProcessingState& state) {
@@ -1279,9 +1258,9 @@ void LoadTaggedField::GenerateCode(MaglevAssembler* masm,
   __ DecompressAnyTagged(ToRegister(result()), FieldOperand(object, offset()));
 }
 
-void LoadDoubleField::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void LoadDoubleField::SetValueLocationConstraints() {
   UseRegister(object_input());
-  DefineAsRegister(vreg_state, this);
+  DefineAsRegister(this);
   set_temporaries_needed(1);
 }
 void LoadDoubleField::GenerateCode(MaglevAssembler* masm,
@@ -1295,10 +1274,10 @@ void LoadDoubleField::GenerateCode(MaglevAssembler* masm,
            FieldOperand(tmp, HeapNumber::kValueOffset));
 }
 
-void LoadTaggedElement::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void LoadTaggedElement::SetValueLocationConstraints() {
   UseRegister(object_input());
   UseRegister(index_input());
-  DefineAsRegister(vreg_state, this);
+  DefineAsRegister(this);
 }
 void LoadTaggedElement::GenerateCode(MaglevAssembler* masm,
                                      const ProcessingState& state) {
@@ -1324,10 +1303,10 @@ void LoadTaggedElement::GenerateCode(MaglevAssembler* masm,
                                FixedArray::kHeaderSize));
 }
 
-void LoadDoubleElement::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void LoadDoubleElement::SetValueLocationConstraints() {
   UseRegister(object_input());
   UseRegister(index_input());
-  DefineAsRegister(vreg_state, this);
+  DefineAsRegister(this);
 }
 void LoadDoubleElement::GenerateCode(MaglevAssembler* masm,
                                      const ProcessingState& state) {
@@ -1370,8 +1349,7 @@ bool FromConstantToBool(MaglevAssembler* masm, ValueNode* node) {
 }
 }  // namespace
 
-void LoadSignedIntDataViewElement::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void LoadSignedIntDataViewElement::SetValueLocationConstraints() {
   UseRegister(object_input());
   UseRegister(index_input());
   if (is_little_endian_constant() ||
@@ -1381,7 +1359,7 @@ void LoadSignedIntDataViewElement::AllocateVreg(
     UseRegister(is_little_endian_input());
   }
   set_temporaries_needed(1);
-  DefineAsRegister(vreg_state, this);
+  DefineAsRegister(this);
 }
 void LoadSignedIntDataViewElement::GenerateCode(MaglevAssembler* masm,
                                                 const ProcessingState& state) {
@@ -1423,8 +1401,7 @@ void LoadSignedIntDataViewElement::GenerateCode(MaglevAssembler* masm,
   }
 }
 
-void StoreSignedIntDataViewElement::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void StoreSignedIntDataViewElement::SetValueLocationConstraints() {
   UseRegister(object_input());
   UseRegister(index_input());
   if (ExternalArrayElementSize(type_) > 1) {
@@ -1480,8 +1457,7 @@ void StoreSignedIntDataViewElement::GenerateCode(MaglevAssembler* masm,
   __ StoreField(Operand(data_pointer, index, times_1, 0), value, element_size);
 }
 
-void LoadDoubleDataViewElement::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void LoadDoubleDataViewElement::SetValueLocationConstraints() {
   UseRegister(object_input());
   UseRegister(index_input());
   if (is_little_endian_constant()) {
@@ -1490,7 +1466,7 @@ void LoadDoubleDataViewElement::AllocateVreg(
     UseRegister(is_little_endian_input());
   }
   set_temporaries_needed(1);
-  DefineAsRegister(vreg_state, this);
+  DefineAsRegister(this);
 }
 void LoadDoubleDataViewElement::GenerateCode(MaglevAssembler* masm,
                                              const ProcessingState& state) {
@@ -1539,8 +1515,7 @@ void LoadDoubleDataViewElement::GenerateCode(MaglevAssembler* masm,
   }
 }
 
-void StoreDoubleDataViewElement::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void StoreDoubleDataViewElement::SetValueLocationConstraints() {
   UseRegister(object_input());
   UseRegister(index_input());
   UseRegister(value_input());
@@ -1615,11 +1590,10 @@ ScaleFactor ScaleFactorFromInt(int n) {
 
 }  // namespace
 
-void LoadSignedIntTypedArrayElement::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void LoadSignedIntTypedArrayElement::SetValueLocationConstraints() {
   UseRegister(object_input());
   UseRegister(index_input());
-  DefineAsRegister(vreg_state, this);
+  DefineAsRegister(this);
 }
 void LoadSignedIntTypedArrayElement::GenerateCode(
     MaglevAssembler* masm, const ProcessingState& state) {
@@ -1641,11 +1615,10 @@ void LoadSignedIntTypedArrayElement::GenerateCode(
       element_size);
 }
 
-void LoadUnsignedIntTypedArrayElement::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void LoadUnsignedIntTypedArrayElement::SetValueLocationConstraints() {
   UseRegister(object_input());
   UseRegister(index_input());
-  DefineAsRegister(vreg_state, this);
+  DefineAsRegister(this);
 }
 void LoadUnsignedIntTypedArrayElement::GenerateCode(
     MaglevAssembler* masm, const ProcessingState& state) {
@@ -1667,11 +1640,10 @@ void LoadUnsignedIntTypedArrayElement::GenerateCode(
       element_size);
 }
 
-void LoadDoubleTypedArrayElement::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void LoadDoubleTypedArrayElement::SetValueLocationConstraints() {
   UseRegister(object_input());
   UseRegister(index_input());
-  DefineAsRegister(vreg_state, this);
+  DefineAsRegister(this);
 }
 void LoadDoubleTypedArrayElement::GenerateCode(MaglevAssembler* masm,
                                                const ProcessingState& state) {
@@ -1699,7 +1671,7 @@ void LoadDoubleTypedArrayElement::GenerateCode(MaglevAssembler* masm,
   }
 }
 
-void StoreDoubleField::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void StoreDoubleField::SetValueLocationConstraints() {
   UseRegister(object_input());
   UseRegister(value_input());
   set_temporaries_needed(1);
@@ -1716,8 +1688,7 @@ void StoreDoubleField::GenerateCode(MaglevAssembler* masm,
   __ Movsd(FieldOperand(tmp, HeapNumber::kValueOffset), value);
 }
 
-void StoreTaggedFieldNoWriteBarrier::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void StoreTaggedFieldNoWriteBarrier::SetValueLocationConstraints() {
   UseRegister(object_input());
   UseRegister(value_input());
 }
@@ -1730,7 +1701,7 @@ void StoreTaggedFieldNoWriteBarrier::GenerateCode(
   __ StoreTaggedField(FieldOperand(object, offset()), value);
 }
 
-void StoreMap::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void StoreMap::SetValueLocationConstraints() {
   UseFixed(object_input(), WriteBarrierDescriptor::ObjectRegister());
 }
 void StoreMap::GenerateCode(MaglevAssembler* masm,
@@ -1784,8 +1755,7 @@ void StoreMap::GenerateCode(MaglevAssembler* masm,
   __ bind(*done);
 }
 
-void StoreTaggedFieldWithWriteBarrier::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void StoreTaggedFieldWithWriteBarrier::SetValueLocationConstraints() {
   UseFixed(object_input(), WriteBarrierDescriptor::ObjectRegister());
   UseRegister(value_input());
 }
@@ -1839,11 +1809,11 @@ void StoreTaggedFieldWithWriteBarrier::GenerateCode(
   __ bind(*done);
 }
 
-void LoadNamedGeneric::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void LoadNamedGeneric::SetValueLocationConstraints() {
   using D = LoadWithVectorDescriptor;
   UseFixed(context(), kContextRegister);
   UseFixed(object_input(), D::GetRegisterParameter(D::kReceiver));
-  DefineAsFixed(vreg_state, this, kReturnRegister0);
+  DefineAsFixed(this, kReturnRegister0);
 }
 void LoadNamedGeneric::GenerateCode(MaglevAssembler* masm,
                                     const ProcessingState& state) {
@@ -1858,14 +1828,13 @@ void LoadNamedGeneric::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
-void LoadNamedFromSuperGeneric::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void LoadNamedFromSuperGeneric::SetValueLocationConstraints() {
   using D = LoadWithReceiverAndVectorDescriptor;
   UseFixed(context(), kContextRegister);
   UseFixed(receiver(), D::GetRegisterParameter(D::kReceiver));
   UseFixed(lookup_start_object(),
            D::GetRegisterParameter(D::kLookupStartObject));
-  DefineAsFixed(vreg_state, this, kReturnRegister0);
+  DefineAsFixed(this, kReturnRegister0);
 }
 void LoadNamedFromSuperGeneric::GenerateCode(MaglevAssembler* masm,
                                              const ProcessingState& state) {
@@ -1882,12 +1851,12 @@ void LoadNamedFromSuperGeneric::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
-void SetNamedGeneric::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void SetNamedGeneric::SetValueLocationConstraints() {
   using D = CallInterfaceDescriptorFor<Builtin::kStoreIC>::type;
   UseFixed(context(), kContextRegister);
   UseFixed(object_input(), D::GetRegisterParameter(D::kReceiver));
   UseFixed(value_input(), D::GetRegisterParameter(D::kValue));
-  DefineAsFixed(vreg_state, this, kReturnRegister0);
+  DefineAsFixed(this, kReturnRegister0);
 }
 void SetNamedGeneric::GenerateCode(MaglevAssembler* masm,
                                    const ProcessingState& state) {
@@ -1903,9 +1872,9 @@ void SetNamedGeneric::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
-void StringLength::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void StringLength::SetValueLocationConstraints() {
   UseRegister(object_input());
-  DefineAsRegister(vreg_state, this);
+  DefineAsRegister(this);
 }
 void StringLength::GenerateCode(MaglevAssembler* masm,
                                 const ProcessingState& state) {
@@ -1925,10 +1894,10 @@ void StringLength::GenerateCode(MaglevAssembler* masm,
   __ movl(ToRegister(result()), FieldOperand(object, String::kLengthOffset));
 }
 
-void StringAt::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void StringAt::SetValueLocationConstraints() {
   UseAndClobberRegister(string_input());
   UseAndClobberRegister(index_input());
-  DefineAsRegister(vreg_state, this);
+  DefineAsRegister(this);
   set_temporaries_needed(1);
 }
 void StringAt::GenerateCode(MaglevAssembler* masm,
@@ -1949,13 +1918,12 @@ void StringAt::GenerateCode(MaglevAssembler* masm,
                         char_code, scratch);
 }
 
-void DefineNamedOwnGeneric::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void DefineNamedOwnGeneric::SetValueLocationConstraints() {
   using D = CallInterfaceDescriptorFor<Builtin::kDefineNamedOwnIC>::type;
   UseFixed(context(), kContextRegister);
   UseFixed(object_input(), D::GetRegisterParameter(D::kReceiver));
   UseFixed(value_input(), D::GetRegisterParameter(D::kValue));
-  DefineAsFixed(vreg_state, this, kReturnRegister0);
+  DefineAsFixed(this, kReturnRegister0);
 }
 void DefineNamedOwnGeneric::GenerateCode(MaglevAssembler* masm,
                                          const ProcessingState& state) {
@@ -1971,13 +1939,13 @@ void DefineNamedOwnGeneric::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
-void SetKeyedGeneric::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void SetKeyedGeneric::SetValueLocationConstraints() {
   using D = CallInterfaceDescriptorFor<Builtin::kKeyedStoreIC>::type;
   UseFixed(context(), kContextRegister);
   UseFixed(object_input(), D::GetRegisterParameter(D::kReceiver));
   UseFixed(key_input(), D::GetRegisterParameter(D::kName));
   UseFixed(value_input(), D::GetRegisterParameter(D::kValue));
-  DefineAsFixed(vreg_state, this, kReturnRegister0);
+  DefineAsFixed(this, kReturnRegister0);
 }
 void SetKeyedGeneric::GenerateCode(MaglevAssembler* masm,
                                    const ProcessingState& state) {
@@ -1993,14 +1961,13 @@ void SetKeyedGeneric::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
-void DefineKeyedOwnGeneric::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void DefineKeyedOwnGeneric::SetValueLocationConstraints() {
   using D = CallInterfaceDescriptorFor<Builtin::kKeyedStoreIC>::type;
   UseFixed(context(), kContextRegister);
   UseFixed(object_input(), D::GetRegisterParameter(D::kReceiver));
   UseFixed(key_input(), D::GetRegisterParameter(D::kName));
   UseFixed(value_input(), D::GetRegisterParameter(D::kValue));
-  DefineAsFixed(vreg_state, this, kReturnRegister0);
+  DefineAsFixed(this, kReturnRegister0);
 }
 void DefineKeyedOwnGeneric::GenerateCode(MaglevAssembler* masm,
                                          const ProcessingState& state) {
@@ -2016,14 +1983,13 @@ void DefineKeyedOwnGeneric::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
-void StoreInArrayLiteralGeneric::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void StoreInArrayLiteralGeneric::SetValueLocationConstraints() {
   using D = CallInterfaceDescriptorFor<Builtin::kStoreInArrayLiteralIC>::type;
   UseFixed(context(), kContextRegister);
   UseFixed(object_input(), D::GetRegisterParameter(D::kReceiver));
   UseFixed(name_input(), D::GetRegisterParameter(D::kName));
   UseFixed(value_input(), D::GetRegisterParameter(D::kValue));
-  DefineAsFixed(vreg_state, this, kReturnRegister0);
+  DefineAsFixed(this, kReturnRegister0);
 }
 void StoreInArrayLiteralGeneric::GenerateCode(MaglevAssembler* masm,
                                               const ProcessingState& state) {
@@ -2039,12 +2005,12 @@ void StoreInArrayLiteralGeneric::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
-void GetKeyedGeneric::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void GetKeyedGeneric::SetValueLocationConstraints() {
   using D = CallInterfaceDescriptorFor<Builtin::kKeyedLoadIC>::type;
   UseFixed(context(), kContextRegister);
   UseFixed(object_input(), D::GetRegisterParameter(D::kReceiver));
   UseFixed(key_input(), D::GetRegisterParameter(D::kName));
-  DefineAsFixed(vreg_state, this, kReturnRegister0);
+  DefineAsFixed(this, kReturnRegister0);
 }
 void GetKeyedGeneric::GenerateCode(MaglevAssembler* masm,
                                    const ProcessingState& state) {
@@ -2074,11 +2040,10 @@ constexpr Builtin BuiltinFor(Operation operation) {
 }  // namespace
 
 template <class Derived, Operation kOperation>
-void UnaryWithFeedbackNode<Derived, kOperation>::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void UnaryWithFeedbackNode<Derived, kOperation>::SetValueLocationConstraints() {
   using D = UnaryOp_WithFeedbackDescriptor;
   UseFixed(operand_input(), D::GetRegisterParameter(D::kValue));
-  DefineAsFixed(vreg_state, this, kReturnRegister0);
+  DefineAsFixed(this, kReturnRegister0);
 }
 
 template <class Derived, Operation kOperation>
@@ -2094,12 +2059,12 @@ void UnaryWithFeedbackNode<Derived, kOperation>::GenerateCode(
 }
 
 template <class Derived, Operation kOperation>
-void BinaryWithFeedbackNode<Derived, kOperation>::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void BinaryWithFeedbackNode<Derived,
+                            kOperation>::SetValueLocationConstraints() {
   using D = BinaryOp_WithFeedbackDescriptor;
   UseFixed(left_input(), D::GetRegisterParameter(D::kLeft));
   UseFixed(right_input(), D::GetRegisterParameter(D::kRight));
-  DefineAsFixed(vreg_state, this, kReturnRegister0);
+  DefineAsFixed(this, kReturnRegister0);
 }
 
 template <class Derived, Operation kOperation>
@@ -2115,21 +2080,21 @@ void BinaryWithFeedbackNode<Derived, kOperation>::GenerateCode(
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
-#define DEF_OPERATION(Name)                                        \
-  void Name::AllocateVreg(MaglevVregAllocationState* vreg_state) { \
-    Base::AllocateVreg(vreg_state);                                \
-  }                                                                \
-  void Name::GenerateCode(MaglevAssembler* masm,                   \
-                          const ProcessingState& state) {          \
-    Base::GenerateCode(masm, state);                               \
+#define DEF_OPERATION(Name)                               \
+  void Name::SetValueLocationConstraints() {              \
+    Base::SetValueLocationConstraints();                  \
+  }                                                       \
+  void Name::GenerateCode(MaglevAssembler* masm,          \
+                          const ProcessingState& state) { \
+    Base::GenerateCode(masm, state);                      \
   }
 GENERIC_OPERATIONS_NODE_LIST(DEF_OPERATION)
 #undef DEF_OPERATION
 
-void Int32AddWithOverflow::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void Int32AddWithOverflow::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());
-  DefineSameAsFirst(vreg_state, this);
+  DefineSameAsFirst(this);
 }
 
 void Int32AddWithOverflow::GenerateCode(MaglevAssembler* masm,
@@ -2144,11 +2109,10 @@ void Int32AddWithOverflow::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(overflow, DeoptimizeReason::kOverflow, this);
 }
 
-void Int32SubtractWithOverflow::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void Int32SubtractWithOverflow::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());
-  DefineSameAsFirst(vreg_state, this);
+  DefineSameAsFirst(this);
 }
 
 void Int32SubtractWithOverflow::GenerateCode(MaglevAssembler* masm,
@@ -2163,11 +2127,10 @@ void Int32SubtractWithOverflow::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(overflow, DeoptimizeReason::kOverflow, this);
 }
 
-void Int32MultiplyWithOverflow::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void Int32MultiplyWithOverflow::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());
-  DefineSameAsFirst(vreg_state, this);
+  DefineSameAsFirst(this);
   set_temporaries_needed(1);
 }
 
@@ -2203,11 +2166,10 @@ void Int32MultiplyWithOverflow::GenerateCode(MaglevAssembler* masm,
   __ bind(&end);
 }
 
-void Int32ModulusWithOverflow::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void Int32ModulusWithOverflow::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());
-  DefineAsFixed(vreg_state, this, rdx);
+  DefineAsFixed(this, rdx);
   // rax,rdx are clobbered by div.
   RequireSpecificTemporary(rax);
   RequireSpecificTemporary(rdx);
@@ -2291,11 +2253,10 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
   __ bind(*done);
 }
 
-void Int32DivideWithOverflow::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void Int32DivideWithOverflow::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());
-  DefineAsFixed(vreg_state, this, rax);
+  DefineAsFixed(this, rax);
   // rax,rdx are clobbered by idiv.
   RequireSpecificTemporary(rax);
   RequireSpecificTemporary(rdx);
@@ -2367,10 +2328,10 @@ void Int32DivideWithOverflow::GenerateCode(MaglevAssembler* masm,
   DCHECK_EQ(ToRegister(result()), rax);
 }
 
-void Int32BitwiseAnd::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void Int32BitwiseAnd::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());
-  DefineSameAsFirst(vreg_state, this);
+  DefineSameAsFirst(this);
 }
 
 void Int32BitwiseAnd::GenerateCode(MaglevAssembler* masm,
@@ -2380,10 +2341,10 @@ void Int32BitwiseAnd::GenerateCode(MaglevAssembler* masm,
   __ andl(left, right);
 }
 
-void Int32BitwiseOr::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void Int32BitwiseOr::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());
-  DefineSameAsFirst(vreg_state, this);
+  DefineSameAsFirst(this);
 }
 
 void Int32BitwiseOr::GenerateCode(MaglevAssembler* masm,
@@ -2393,10 +2354,10 @@ void Int32BitwiseOr::GenerateCode(MaglevAssembler* masm,
   __ orl(left, right);
 }
 
-void Int32BitwiseXor::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void Int32BitwiseXor::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());
-  DefineSameAsFirst(vreg_state, this);
+  DefineSameAsFirst(this);
 }
 
 void Int32BitwiseXor::GenerateCode(MaglevAssembler* masm,
@@ -2406,12 +2367,12 @@ void Int32BitwiseXor::GenerateCode(MaglevAssembler* masm,
   __ xorl(left, right);
 }
 
-void Int32ShiftLeft::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void Int32ShiftLeft::SetValueLocationConstraints() {
   UseRegister(left_input());
   // Use the "shift by cl" variant of shl.
   // TODO(leszeks): peephole optimise shifts by a constant.
   UseFixed(right_input(), rcx);
-  DefineSameAsFirst(vreg_state, this);
+  DefineSameAsFirst(this);
 }
 
 void Int32ShiftLeft::GenerateCode(MaglevAssembler* masm,
@@ -2421,12 +2382,12 @@ void Int32ShiftLeft::GenerateCode(MaglevAssembler* masm,
   __ shll_cl(left);
 }
 
-void Int32ShiftRight::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void Int32ShiftRight::SetValueLocationConstraints() {
   UseRegister(left_input());
   // Use the "shift by cl" variant of sar.
   // TODO(leszeks): peephole optimise shifts by a constant.
   UseFixed(right_input(), rcx);
-  DefineSameAsFirst(vreg_state, this);
+  DefineSameAsFirst(this);
 }
 
 void Int32ShiftRight::GenerateCode(MaglevAssembler* masm,
@@ -2436,13 +2397,12 @@ void Int32ShiftRight::GenerateCode(MaglevAssembler* masm,
   __ sarl_cl(left);
 }
 
-void Int32ShiftRightLogical::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void Int32ShiftRightLogical::SetValueLocationConstraints() {
   UseRegister(left_input());
   // Use the "shift by cl" variant of shr.
   // TODO(leszeks): peephole optimise shifts by a constant.
   UseFixed(right_input(), rcx);
-  DefineSameAsFirst(vreg_state, this);
+  DefineSameAsFirst(this);
 }
 
 void Int32ShiftRightLogical::GenerateCode(MaglevAssembler* masm,
@@ -2452,10 +2412,9 @@ void Int32ShiftRightLogical::GenerateCode(MaglevAssembler* masm,
   __ shrl_cl(left);
 }
 
-void Int32IncrementWithOverflow::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void Int32IncrementWithOverflow::SetValueLocationConstraints() {
   UseRegister(value_input());
-  DefineSameAsFirst(vreg_state, this);
+  DefineSameAsFirst(this);
 }
 
 void Int32IncrementWithOverflow::GenerateCode(MaglevAssembler* masm,
@@ -2465,10 +2424,9 @@ void Int32IncrementWithOverflow::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(overflow, DeoptimizeReason::kOverflow, this);
 }
 
-void Int32DecrementWithOverflow::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void Int32DecrementWithOverflow::SetValueLocationConstraints() {
   UseRegister(value_input());
-  DefineSameAsFirst(vreg_state, this);
+  DefineSameAsFirst(this);
 }
 
 void Int32DecrementWithOverflow::GenerateCode(MaglevAssembler* masm,
@@ -2478,10 +2436,9 @@ void Int32DecrementWithOverflow::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(overflow, DeoptimizeReason::kOverflow, this);
 }
 
-void Int32NegateWithOverflow::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void Int32NegateWithOverflow::SetValueLocationConstraints() {
   UseRegister(value_input());
-  DefineSameAsFirst(vreg_state, this);
+  DefineSameAsFirst(this);
 }
 
 void Int32NegateWithOverflow::GenerateCode(MaglevAssembler* masm,
@@ -2491,9 +2448,9 @@ void Int32NegateWithOverflow::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(overflow, DeoptimizeReason::kOverflow, this);
 }
 
-void Int32BitwiseNot::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void Int32BitwiseNot::SetValueLocationConstraints() {
   UseRegister(value_input());
-  DefineSameAsFirst(vreg_state, this);
+  DefineSameAsFirst(this);
 }
 
 void Int32BitwiseNot::GenerateCode(MaglevAssembler* masm,
@@ -2543,11 +2500,10 @@ constexpr Condition ConditionForFloat64(Operation operation) {
 }  // namespace
 
 template <class Derived, Operation kOperation>
-void Int32CompareNode<Derived, kOperation>::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void Int32CompareNode<Derived, kOperation>::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());
-  DefineAsRegister(vreg_state, this);
+  DefineAsRegister(this);
 }
 
 template <class Derived, Operation kOperation>
@@ -2571,13 +2527,13 @@ void Int32CompareNode<Derived, kOperation>::GenerateCode(
   __ bind(&end);
 }
 
-#define DEF_OPERATION(Name)                                        \
-  void Name::AllocateVreg(MaglevVregAllocationState* vreg_state) { \
-    Base::AllocateVreg(vreg_state);                                \
-  }                                                                \
-  void Name::GenerateCode(MaglevAssembler* masm,                   \
-                          const ProcessingState& state) {          \
-    Base::GenerateCode(masm, state);                               \
+#define DEF_OPERATION(Name)                               \
+  void Name::SetValueLocationConstraints() {              \
+    Base::SetValueLocationConstraints();                  \
+  }                                                       \
+  void Name::GenerateCode(MaglevAssembler* masm,          \
+                          const ProcessingState& state) { \
+    Base::GenerateCode(masm, state);                      \
   }
 DEF_OPERATION(Int32Equal)
 DEF_OPERATION(Int32StrictEqual)
@@ -2587,10 +2543,10 @@ DEF_OPERATION(Int32GreaterThan)
 DEF_OPERATION(Int32GreaterThanOrEqual)
 #undef DEF_OPERATION
 
-void Float64Add::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void Float64Add::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());
-  DefineSameAsFirst(vreg_state, this);
+  DefineSameAsFirst(this);
 }
 
 void Float64Add::GenerateCode(MaglevAssembler* masm,
@@ -2600,10 +2556,10 @@ void Float64Add::GenerateCode(MaglevAssembler* masm,
   __ Addsd(left, right);
 }
 
-void Float64Subtract::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void Float64Subtract::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());
-  DefineSameAsFirst(vreg_state, this);
+  DefineSameAsFirst(this);
 }
 
 void Float64Subtract::GenerateCode(MaglevAssembler* masm,
@@ -2613,10 +2569,10 @@ void Float64Subtract::GenerateCode(MaglevAssembler* masm,
   __ Subsd(left, right);
 }
 
-void Float64Multiply::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void Float64Multiply::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());
-  DefineSameAsFirst(vreg_state, this);
+  DefineSameAsFirst(this);
 }
 
 void Float64Multiply::GenerateCode(MaglevAssembler* masm,
@@ -2626,10 +2582,10 @@ void Float64Multiply::GenerateCode(MaglevAssembler* masm,
   __ Mulsd(left, right);
 }
 
-void Float64Divide::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void Float64Divide::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());
-  DefineSameAsFirst(vreg_state, this);
+  DefineSameAsFirst(this);
 }
 
 void Float64Divide::GenerateCode(MaglevAssembler* masm,
@@ -2639,11 +2595,11 @@ void Float64Divide::GenerateCode(MaglevAssembler* masm,
   __ Divsd(left, right);
 }
 
-void Float64Modulus::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void Float64Modulus::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());
   RequireSpecificTemporary(rax);
-  DefineAsRegister(vreg_state, this);
+  DefineAsRegister(this);
 }
 
 void Float64Modulus::GenerateCode(MaglevAssembler* masm,
@@ -2681,9 +2637,9 @@ void Float64Modulus::GenerateCode(MaglevAssembler* masm,
   __ addq(rsp, Immediate(kDoubleSize));
 }
 
-void Float64Negate::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void Float64Negate::SetValueLocationConstraints() {
   UseRegister(input());
-  DefineSameAsFirst(vreg_state, this);
+  DefineSameAsFirst(this);
 }
 
 void Float64Negate::GenerateCode(MaglevAssembler* masm,
@@ -2692,10 +2648,10 @@ void Float64Negate::GenerateCode(MaglevAssembler* masm,
   __ Negpd(value, value, kScratchRegister);
 }
 
-void Float64Exponentiate::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void Float64Exponentiate::SetValueLocationConstraints() {
   UseFixed(left_input(), xmm0);
   UseFixed(right_input(), xmm1);
-  DefineSameAsFirst(vreg_state, this);
+  DefineSameAsFirst(this);
 }
 
 void Float64Exponentiate::GenerateCode(MaglevAssembler* masm,
@@ -2705,9 +2661,9 @@ void Float64Exponentiate::GenerateCode(MaglevAssembler* masm,
   __ CallCFunction(ExternalReference::ieee754_pow_function(), 2);
 }
 
-void Float64Ieee754Unary::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void Float64Ieee754Unary::SetValueLocationConstraints() {
   UseFixed(input(), xmm0);
-  DefineSameAsFirst(vreg_state, this);
+  DefineSameAsFirst(this);
 }
 
 void Float64Ieee754Unary::GenerateCode(MaglevAssembler* masm,
@@ -2718,11 +2674,10 @@ void Float64Ieee754Unary::GenerateCode(MaglevAssembler* masm,
 }
 
 template <class Derived, Operation kOperation>
-void Float64CompareNode<Derived, kOperation>::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void Float64CompareNode<Derived, kOperation>::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());
-  DefineAsRegister(vreg_state, this);
+  DefineAsRegister(this);
 }
 
 template <class Derived, Operation kOperation>
@@ -2752,13 +2707,13 @@ void Float64CompareNode<Derived, kOperation>::GenerateCode(
   __ bind(&end);
 }
 
-#define DEF_OPERATION(Name)                                        \
-  void Name::AllocateVreg(MaglevVregAllocationState* vreg_state) { \
-    Base::AllocateVreg(vreg_state);                                \
-  }                                                                \
-  void Name::GenerateCode(MaglevAssembler* masm,                   \
-                          const ProcessingState& state) {          \
-    Base::GenerateCode(masm, state);                               \
+#define DEF_OPERATION(Name)                               \
+  void Name::SetValueLocationConstraints() {              \
+    Base::SetValueLocationConstraints();                  \
+  }                                                       \
+  void Name::GenerateCode(MaglevAssembler* masm,          \
+                          const ProcessingState& state) { \
+    Base::GenerateCode(masm, state);                      \
   }
 DEF_OPERATION(Float64Equal)
 DEF_OPERATION(Float64StrictEqual)
@@ -2768,9 +2723,9 @@ DEF_OPERATION(Float64GreaterThan)
 DEF_OPERATION(Float64GreaterThanOrEqual)
 #undef DEF_OPERATION
 
-void CheckedSmiUntag::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void CheckedSmiUntag::SetValueLocationConstraints() {
   UseRegister(input());
-  DefineSameAsFirst(vreg_state, this);
+  DefineSameAsFirst(this);
 }
 
 void CheckedSmiUntag::GenerateCode(MaglevAssembler* masm,
@@ -2785,9 +2740,9 @@ void CheckedSmiUntag::GenerateCode(MaglevAssembler* masm,
   __ SmiToInt32(value);
 }
 
-void UnsafeSmiUntag::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void UnsafeSmiUntag::SetValueLocationConstraints() {
   UseRegister(input());
-  DefineSameAsFirst(vreg_state, this);
+  DefineSameAsFirst(this);
 }
 
 void UnsafeSmiUntag::GenerateCode(MaglevAssembler* masm,
@@ -2797,9 +2752,7 @@ void UnsafeSmiUntag::GenerateCode(MaglevAssembler* masm,
   __ SmiToInt32(value);
 }
 
-void CheckInt32IsSmi::AllocateVreg(MaglevVregAllocationState* vreg_state) {
-  UseRegister(input());
-}
+void CheckInt32IsSmi::SetValueLocationConstraints() { UseRegister(input()); }
 void CheckInt32IsSmi::GenerateCode(MaglevAssembler* masm,
                                    const ProcessingState& state) {
   // TODO(leszeks): This basically does a SmiTag and throws the result away.
@@ -2812,9 +2765,7 @@ void CheckInt32IsSmi::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(overflow, DeoptimizeReason::kNotASmi, this);
 }
 
-void CheckUint32IsSmi::AllocateVreg(MaglevVregAllocationState* vreg_state) {
-  UseRegister(input());
-}
+void CheckUint32IsSmi::SetValueLocationConstraints() { UseRegister(input()); }
 void CheckUint32IsSmi::GenerateCode(MaglevAssembler* masm,
                                     const ProcessingState& state) {
   Register reg = ToRegister(input());
@@ -2823,9 +2774,9 @@ void CheckUint32IsSmi::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(above, DeoptimizeReason::kNotASmi, this);
 }
 
-void CheckedSmiTagInt32::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void CheckedSmiTagInt32::SetValueLocationConstraints() {
   UseAndClobberRegister(input());
-  DefineSameAsFirst(vreg_state, this);
+  DefineSameAsFirst(this);
 }
 void CheckedSmiTagInt32::GenerateCode(MaglevAssembler* masm,
                                       const ProcessingState& state) {
@@ -2838,9 +2789,9 @@ void CheckedSmiTagInt32::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(overflow, DeoptimizeReason::kOverflow, this);
 }
 
-void CheckedSmiTagUint32::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void CheckedSmiTagUint32::SetValueLocationConstraints() {
   UseRegister(input());
-  DefineSameAsFirst(vreg_state, this);
+  DefineSameAsFirst(this);
 }
 void CheckedSmiTagUint32::GenerateCode(MaglevAssembler* masm,
                                        const ProcessingState& state) {
@@ -2852,9 +2803,9 @@ void CheckedSmiTagUint32::GenerateCode(MaglevAssembler* masm,
   __ Assert(no_overflow, AbortReason::kInputDoesNotFitSmi);
 }
 
-void UnsafeSmiTag::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void UnsafeSmiTag::SetValueLocationConstraints() {
   UseRegister(input());
-  DefineSameAsFirst(vreg_state, this);
+  DefineSameAsFirst(this);
 }
 void UnsafeSmiTag::GenerateCode(MaglevAssembler* masm,
                                 const ProcessingState& state) {
@@ -2872,9 +2823,9 @@ void UnsafeSmiTag::GenerateCode(MaglevAssembler* masm,
   }
 }
 
-void Int32ToNumber::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void Int32ToNumber::SetValueLocationConstraints() {
   UseRegister(input());
-  DefineAsRegister(vreg_state, this);
+  DefineAsRegister(this);
 }
 void Int32ToNumber::GenerateCode(MaglevAssembler* masm,
                                  const ProcessingState& state) {
@@ -2897,9 +2848,9 @@ void Int32ToNumber::GenerateCode(MaglevAssembler* masm,
   __ bind(*done);
 }
 
-void Uint32ToNumber::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void Uint32ToNumber::SetValueLocationConstraints() {
   UseRegister(input());
-  DefineSameAsFirst(vreg_state, this);
+  DefineSameAsFirst(this);
 }
 void Uint32ToNumber::GenerateCode(MaglevAssembler* masm,
                                   const ProcessingState& state) {
@@ -2922,9 +2873,9 @@ void Uint32ToNumber::GenerateCode(MaglevAssembler* masm,
   __ bind(*done);
 }
 
-void Float64Box::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void Float64Box::SetValueLocationConstraints() {
   UseRegister(input());
-  DefineAsRegister(vreg_state, this);
+  DefineAsRegister(this);
 }
 void Float64Box::GenerateCode(MaglevAssembler* masm,
                               const ProcessingState& state) {
@@ -2933,9 +2884,9 @@ void Float64Box::GenerateCode(MaglevAssembler* masm,
   __ AllocateHeapNumber(register_snapshot(), object, value);
 }
 
-void HoleyFloat64Box::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void HoleyFloat64Box::SetValueLocationConstraints() {
   UseRegister(input());
-  DefineAsRegister(vreg_state, this);
+  DefineAsRegister(this);
 }
 void HoleyFloat64Box::GenerateCode(MaglevAssembler* masm,
                                    const ProcessingState& state) {
@@ -2956,9 +2907,9 @@ void HoleyFloat64Box::GenerateCode(MaglevAssembler* masm,
   __ bind(*done);
 }
 
-void CheckedFloat64Unbox::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void CheckedFloat64Unbox::SetValueLocationConstraints() {
   UseRegister(input());
-  DefineAsRegister(vreg_state, this);
+  DefineAsRegister(this);
 }
 void CheckedFloat64Unbox::GenerateCode(MaglevAssembler* masm,
                                        const ProcessingState& state) {
@@ -2986,10 +2937,9 @@ void CheckedFloat64Unbox::GenerateCode(MaglevAssembler* masm,
   __ bind(&done);
 }
 
-void CheckedTruncateNumberToInt32::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void CheckedTruncateNumberToInt32::SetValueLocationConstraints() {
   UseRegister(input());
-  DefineSameAsFirst(vreg_state, this);
+  DefineSameAsFirst(this);
 }
 void CheckedTruncateNumberToInt32::GenerateCode(MaglevAssembler* masm,
                                                 const ProcessingState& state) {
@@ -3013,9 +2963,9 @@ void CheckedTruncateNumberToInt32::GenerateCode(MaglevAssembler* masm,
   __ bind(&done);
 }
 
-void LogicalNot::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void LogicalNot::SetValueLocationConstraints() {
   UseRegister(value());
-  DefineAsRegister(vreg_state, this);
+  DefineAsRegister(this);
 }
 void LogicalNot::GenerateCode(MaglevAssembler* masm,
                               const ProcessingState& state) {
@@ -3044,10 +2994,10 @@ void LogicalNot::GenerateCode(MaglevAssembler* masm,
   __ bind(&done);
 }
 
-void SetPendingMessage::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void SetPendingMessage::SetValueLocationConstraints() {
   UseRegister(value());
   set_temporaries_needed(1);
-  DefineAsRegister(vreg_state, this);
+  DefineAsRegister(this);
 }
 
 void SetPendingMessage::GenerateCode(MaglevAssembler* masm,
@@ -3070,9 +3020,9 @@ void SetPendingMessage::GenerateCode(MaglevAssembler* masm,
   }
 }
 
-void ToBoolean::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void ToBoolean::SetValueLocationConstraints() {
   UseRegister(value());
-  DefineAsRegister(vreg_state, this);
+  DefineAsRegister(this);
 }
 void ToBoolean::GenerateCode(MaglevAssembler* masm,
                              const ProcessingState& state) {
@@ -3091,9 +3041,9 @@ void ToBoolean::GenerateCode(MaglevAssembler* masm,
   __ bind(&done);
 }
 
-void ToBooleanLogicalNot::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void ToBooleanLogicalNot::SetValueLocationConstraints() {
   UseRegister(value());
-  DefineAsRegister(vreg_state, this);
+  DefineAsRegister(this);
 }
 void ToBooleanLogicalNot::GenerateCode(MaglevAssembler* masm,
                                        const ProcessingState& state) {
@@ -3110,10 +3060,10 @@ void ToBooleanLogicalNot::GenerateCode(MaglevAssembler* masm,
   __ bind(&done);
 }
 
-void TaggedEqual::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void TaggedEqual::SetValueLocationConstraints() {
   UseRegister(lhs());
   UseRegister(rhs());
-  DefineAsRegister(vreg_state, this);
+  DefineAsRegister(this);
 }
 void TaggedEqual::GenerateCode(MaglevAssembler* masm,
                                const ProcessingState& state) {
@@ -3127,10 +3077,10 @@ void TaggedEqual::GenerateCode(MaglevAssembler* masm,
   __ bind(&done);
 }
 
-void TaggedNotEqual::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void TaggedNotEqual::SetValueLocationConstraints() {
   UseRegister(lhs());
   UseRegister(rhs());
-  DefineAsRegister(vreg_state, this);
+  DefineAsRegister(this);
 }
 void TaggedNotEqual::GenerateCode(MaglevAssembler* masm,
                                   const ProcessingState& state) {
@@ -3144,12 +3094,12 @@ void TaggedNotEqual::GenerateCode(MaglevAssembler* masm,
   __ bind(&done);
 }
 
-void TestInstanceOf::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void TestInstanceOf::SetValueLocationConstraints() {
   using D = CallInterfaceDescriptorFor<Builtin::kInstanceOf_WithFeedback>::type;
   UseFixed(context(), kContextRegister);
   UseFixed(object(), D::GetRegisterParameter(D::kLeft));
   UseFixed(callable(), D::GetRegisterParameter(D::kRight));
-  DefineAsFixed(vreg_state, this, kReturnRegister0);
+  DefineAsFixed(this, kReturnRegister0);
 }
 void TestInstanceOf::GenerateCode(MaglevAssembler* masm,
                                   const ProcessingState& state) {
@@ -3165,10 +3115,10 @@ void TestInstanceOf::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
-void TestUndetectable::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void TestUndetectable::SetValueLocationConstraints() {
   UseRegister(value());
   set_temporaries_needed(1);
-  DefineAsRegister(vreg_state, this);
+  DefineAsRegister(this);
 }
 void TestUndetectable::GenerateCode(MaglevAssembler* masm,
                                     const ProcessingState& state) {
@@ -3193,9 +3143,9 @@ void TestUndetectable::GenerateCode(MaglevAssembler* masm,
   __ bind(&done);
 }
 
-void TestTypeOf::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void TestTypeOf::SetValueLocationConstraints() {
   UseRegister(value());
-  DefineAsRegister(vreg_state, this);
+  DefineAsRegister(this);
 }
 void TestTypeOf::GenerateCode(MaglevAssembler* masm,
                               const ProcessingState& state) {
@@ -3285,11 +3235,11 @@ void TestTypeOf::GenerateCode(MaglevAssembler* masm,
   __ bind(&done);
 }
 
-void ToName::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void ToName::SetValueLocationConstraints() {
   using D = CallInterfaceDescriptorFor<Builtin::kToName>::type;
   UseFixed(context(), kContextRegister);
   UseFixed(value_input(), D::GetRegisterParameter(D::kInput));
-  DefineAsFixed(vreg_state, this, kReturnRegister0);
+  DefineAsFixed(this, kReturnRegister0);
 }
 void ToName::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
 #ifdef DEBUG
@@ -3301,11 +3251,11 @@ void ToName::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
-void ToNumberOrNumeric::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void ToNumberOrNumeric::SetValueLocationConstraints() {
   using D = TypeConversionDescriptor;
   UseFixed(context(), kContextRegister);
   UseFixed(value_input(), D::GetRegisterParameter(D::kArgument));
-  DefineAsFixed(vreg_state, this, kReturnRegister0);
+  DefineAsFixed(this, kReturnRegister0);
 }
 void ToNumberOrNumeric::GenerateCode(MaglevAssembler* masm,
                                      const ProcessingState& state) {
@@ -3320,11 +3270,11 @@ void ToNumberOrNumeric::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
-void ToObject::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void ToObject::SetValueLocationConstraints() {
   using D = CallInterfaceDescriptorFor<Builtin::kToObject>::type;
   UseFixed(context(), kContextRegister);
   UseFixed(value_input(), D::GetRegisterParameter(D::kInput));
-  DefineAsFixed(vreg_state, this, kReturnRegister0);
+  DefineAsFixed(this, kReturnRegister0);
 }
 void ToObject::GenerateCode(MaglevAssembler* masm,
                             const ProcessingState& state) {
@@ -3347,11 +3297,11 @@ void ToObject::GenerateCode(MaglevAssembler* masm,
   __ bind(&done);
 }
 
-void ToString::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void ToString::SetValueLocationConstraints() {
   using D = CallInterfaceDescriptorFor<Builtin::kToString>::type;
   UseFixed(context(), kContextRegister);
   UseFixed(value_input(), D::GetRegisterParameter(D::kO));
-  DefineAsFixed(vreg_state, this, kReturnRegister0);
+  DefineAsFixed(this, kReturnRegister0);
 }
 void ToString::GenerateCode(MaglevAssembler* masm,
                             const ProcessingState& state) {
@@ -3374,9 +3324,9 @@ void ToString::GenerateCode(MaglevAssembler* masm,
   __ bind(&done);
 }
 
-void CheckedInt32ToUint32::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void CheckedInt32ToUint32::SetValueLocationConstraints() {
   UseRegister(input());
-  DefineSameAsFirst(vreg_state, this);
+  DefineSameAsFirst(this);
 }
 void CheckedInt32ToUint32::GenerateCode(MaglevAssembler* masm,
                                         const ProcessingState& state) {
@@ -3385,9 +3335,9 @@ void CheckedInt32ToUint32::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(negative, DeoptimizeReason::kNotUint32, this);
 }
 
-void CheckedUint32ToInt32::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void CheckedUint32ToInt32::SetValueLocationConstraints() {
   UseRegister(input());
-  DefineSameAsFirst(vreg_state, this);
+  DefineSameAsFirst(this);
 }
 void CheckedUint32ToInt32::GenerateCode(MaglevAssembler* masm,
                                         const ProcessingState& state) {
@@ -3398,19 +3348,18 @@ void CheckedUint32ToInt32::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(not_zero, DeoptimizeReason::kNotInt32, this);
 }
 
-void ChangeInt32ToFloat64::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void ChangeInt32ToFloat64::SetValueLocationConstraints() {
   UseRegister(input());
-  DefineAsRegister(vreg_state, this);
+  DefineAsRegister(this);
 }
 void ChangeInt32ToFloat64::GenerateCode(MaglevAssembler* masm,
                                         const ProcessingState& state) {
   __ Cvtlsi2sd(ToDoubleRegister(result()), ToRegister(input()));
 }
 
-void ChangeUint32ToFloat64::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void ChangeUint32ToFloat64::SetValueLocationConstraints() {
   UseRegister(input());
-  DefineAsRegister(vreg_state, this);
+  DefineAsRegister(this);
 }
 void ChangeUint32ToFloat64::GenerateCode(MaglevAssembler* masm,
                                          const ProcessingState& state) {
@@ -3420,10 +3369,9 @@ void ChangeUint32ToFloat64::GenerateCode(MaglevAssembler* masm,
   __ Cvtlui2sd(ToDoubleRegister(result()), ToRegister(input()));
 }
 
-void CheckedTruncateFloat64ToInt32::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void CheckedTruncateFloat64ToInt32::SetValueLocationConstraints() {
   UseRegister(input());
-  DefineAsRegister(vreg_state, this);
+  DefineAsRegister(this);
 }
 void CheckedTruncateFloat64ToInt32::GenerateCode(MaglevAssembler* masm,
                                                  const ProcessingState& state) {
@@ -3454,10 +3402,9 @@ void CheckedTruncateFloat64ToInt32::GenerateCode(MaglevAssembler* masm,
   __ bind(&check_done);
 }
 
-void CheckedTruncateFloat64ToUint32::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void CheckedTruncateFloat64ToUint32::SetValueLocationConstraints() {
   UseRegister(input());
-  DefineAsRegister(vreg_state, this);
+  DefineAsRegister(this);
 }
 void CheckedTruncateFloat64ToUint32::GenerateCode(
     MaglevAssembler* masm, const ProcessingState& state) {
@@ -3492,10 +3439,9 @@ void CheckedTruncateFloat64ToUint32::GenerateCode(
   __ bind(&check_done);
 }
 
-void TruncateUint32ToInt32::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void TruncateUint32ToInt32::SetValueLocationConstraints() {
   UseRegister(input());
-  DefineSameAsFirst(vreg_state, this);
+  DefineSameAsFirst(this);
 }
 void TruncateUint32ToInt32::GenerateCode(MaglevAssembler* masm,
                                          const ProcessingState& state) {
@@ -3503,38 +3449,31 @@ void TruncateUint32ToInt32::GenerateCode(MaglevAssembler* masm,
   DCHECK_EQ(ToRegister(input()), ToRegister(result()));
 }
 
-void TruncateFloat64ToInt32::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void TruncateFloat64ToInt32::SetValueLocationConstraints() {
   UseRegister(input());
-  DefineAsRegister(vreg_state, this);
+  DefineAsRegister(this);
 }
 void TruncateFloat64ToInt32::GenerateCode(MaglevAssembler* masm,
                                           const ProcessingState& state) {
   __ TruncateDoubleToInt32(ToRegister(result()), ToDoubleRegister(input()));
 }
 
-void Phi::AllocateVreg(MaglevVregAllocationState* vreg_state) {
-  // Phi inputs are processed in the post-process, once loop phis' inputs'
-  // v-regs are allocated.
-
-  // We have to pass a policy, but it is later ignored during register
-  // allocation. See StraightForwardRegisterAllocator::AllocateRegisters
-  // which has special handling for Phis.
-  static const compiler::UnallocatedOperand::ExtendedPolicy kIgnoredPolicy =
-      compiler::UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT;
-
-  result().SetUnallocated(kIgnoredPolicy,
-                          vreg_state->AllocateVirtualRegister());
-}
-// TODO(verwaest): Remove after switching the register allocator.
-void Phi::AllocateVregInPostProcess(MaglevVregAllocationState* vreg_state) {
+void Phi::SetValueLocationConstraints() {
   for (Input& input : *this) {
     UseAny(input);
   }
+
+  // We have to pass a policy for the result, but it is ignored during register
+  // allocation. See StraightForwardRegisterAllocator::AllocateRegisters which
+  // has special handling for Phis.
+  static const compiler::UnallocatedOperand::ExtendedPolicy kIgnoredPolicy =
+      compiler::UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT;
+
+  result().SetUnallocated(kIgnoredPolicy, kNoVreg);
 }
 void Phi::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {}
 
-void Call::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void Call::SetValueLocationConstraints() {
   // TODO(leszeks): Consider splitting Call into with- and without-feedback
   // opcodes, rather than checking for feedback validity.
   if (feedback_.IsValid()) {
@@ -3550,7 +3489,7 @@ void Call::AllocateVreg(MaglevVregAllocationState* vreg_state) {
     UseAny(arg(i));
   }
   UseFixed(context(), kContextRegister);
-  DefineAsFixed(vreg_state, this, kReturnRegister0);
+  DefineAsFixed(this, kReturnRegister0);
 }
 void Call::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   // TODO(leszeks): Port the nice Sparkplug CallBuiltin helper.
@@ -3629,12 +3568,12 @@ void Call::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
-void CallKnownJSFunction::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void CallKnownJSFunction::SetValueLocationConstraints() {
   UseAny(receiver());
   for (int i = 0; i < num_args(); i++) {
     UseAny(arg(i));
   }
-  DefineAsFixed(vreg_state, this, kReturnRegister0);
+  DefineAsFixed(this, kReturnRegister0);
 }
 void CallKnownJSFunction::GenerateCode(MaglevAssembler* masm,
                                        const ProcessingState& state) {
@@ -3669,7 +3608,7 @@ void CallKnownJSFunction::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
-void Construct::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void Construct::SetValueLocationConstraints() {
   using D = Construct_WithFeedbackDescriptor;
   UseFixed(function(), D::GetRegisterParameter(D::kTarget));
   UseFixed(new_target(), D::GetRegisterParameter(D::kNewTarget));
@@ -3677,7 +3616,7 @@ void Construct::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   for (int i = 0; i < num_args(); i++) {
     UseAny(arg(i));
   }
-  DefineAsFixed(vreg_state, this, kReturnRegister0);
+  DefineAsFixed(this, kReturnRegister0);
 }
 void Construct::GenerateCode(MaglevAssembler* masm,
                              const ProcessingState& state) {
@@ -3702,7 +3641,7 @@ void Construct::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
-void CallBuiltin::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void CallBuiltin::SetValueLocationConstraints() {
   auto descriptor = Builtins::CallInterfaceDescriptorFor(builtin());
   bool has_context = descriptor.HasContextParameter();
   int i = 0;
@@ -3715,7 +3654,7 @@ void CallBuiltin::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   if (has_context) {
     UseFixed(input(i), kContextRegister);
   }
-  DefineAsFixed(vreg_state, this, kReturnRegister0);
+  DefineAsFixed(this, kReturnRegister0);
 }
 
 void CallBuiltin::PassFeedbackSlotOnStack(MaglevAssembler* masm) {
@@ -3804,12 +3743,12 @@ void CallBuiltin::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
-void CallRuntime::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void CallRuntime::SetValueLocationConstraints() {
   UseFixed(context(), kContextRegister);
   for (int i = 0; i < num_args(); i++) {
     UseAny(arg(i));
   }
-  DefineAsFixed(vreg_state, this, kReturnRegister0);
+  DefineAsFixed(this, kReturnRegister0);
 }
 void CallRuntime::GenerateCode(MaglevAssembler* masm,
                                const ProcessingState& state) {
@@ -3822,7 +3761,7 @@ void CallRuntime::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
-void CallWithSpread::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void CallWithSpread::SetValueLocationConstraints() {
   if (feedback_.IsValid()) {
     using D =
         CallInterfaceDescriptorFor<Builtin::kCallWithSpread_WithFeedback>::type;
@@ -3837,7 +3776,7 @@ void CallWithSpread::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   for (int i = 0; i < num_args() - 1; i++) {
     UseAny(arg(i));
   }
-  DefineAsFixed(vreg_state, this, kReturnRegister0);
+  DefineAsFixed(this, kReturnRegister0);
 }
 void CallWithSpread::GenerateCode(MaglevAssembler* masm,
                                   const ProcessingState& state) {
@@ -3880,13 +3819,13 @@ void CallWithSpread::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
-void CallWithArrayLike::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void CallWithArrayLike::SetValueLocationConstraints() {
   using D = CallInterfaceDescriptorFor<Builtin::kCallWithArrayLike>::type;
   UseFixed(function(), D::GetRegisterParameter(D::kTarget));
   UseAny(receiver());
   UseFixed(arguments_list(), D::GetRegisterParameter(D::kArgumentsList));
   UseFixed(context(), kContextRegister);
-  DefineAsFixed(vreg_state, this, kReturnRegister0);
+  DefineAsFixed(this, kReturnRegister0);
 }
 void CallWithArrayLike::GenerateCode(MaglevAssembler* masm,
                                      const ProcessingState& state) {
@@ -3902,7 +3841,7 @@ void CallWithArrayLike::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
-void ConstructWithSpread::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void ConstructWithSpread::SetValueLocationConstraints() {
   using D = CallInterfaceDescriptorFor<
       Builtin::kConstructWithSpread_WithFeedback>::type;
   UseFixed(function(), D::GetRegisterParameter(D::kTarget));
@@ -3912,7 +3851,7 @@ void ConstructWithSpread::AllocateVreg(MaglevVregAllocationState* vreg_state) {
     UseAny(arg(i));
   }
   UseFixed(spread(), D::GetRegisterParameter(D::kSpread));
-  DefineAsFixed(vreg_state, this, kReturnRegister0);
+  DefineAsFixed(this, kReturnRegister0);
 }
 void ConstructWithSpread::GenerateCode(MaglevAssembler* masm,
                                        const ProcessingState& state) {
@@ -3937,11 +3876,11 @@ void ConstructWithSpread::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
-void ConvertReceiver::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void ConvertReceiver::SetValueLocationConstraints() {
   using D = CallInterfaceDescriptorFor<Builtin::kToObject>::type;
   UseFixed(receiver_input(), D::GetRegisterParameter(D::kInput));
   set_temporaries_needed(1);
-  DefineAsFixed(vreg_state, this, kReturnRegister0);
+  DefineAsFixed(this, kReturnRegister0);
 }
 void ConvertReceiver::GenerateCode(MaglevAssembler* masm,
                                    const ProcessingState& state) {
@@ -3976,10 +3915,9 @@ void ConvertReceiver::GenerateCode(MaglevAssembler* masm,
   __ bind(&done);
 }
 
-void ConvertHoleToUndefined::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void ConvertHoleToUndefined::SetValueLocationConstraints() {
   UseRegister(object_input());
-  DefineSameAsFirst(vreg_state, this);
+  DefineSameAsFirst(this);
 }
 void ConvertHoleToUndefined::GenerateCode(MaglevAssembler* masm,
                                           const ProcessingState& state) {
@@ -3991,8 +3929,7 @@ void ConvertHoleToUndefined::GenerateCode(MaglevAssembler* masm,
   __ bind(&done);
 }
 
-void IncreaseInterruptBudget::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void IncreaseInterruptBudget::SetValueLocationConstraints() {
   set_temporaries_needed(1);
 }
 void IncreaseInterruptBudget::GenerateCode(MaglevAssembler* masm,
@@ -4005,8 +3942,7 @@ void IncreaseInterruptBudget::GenerateCode(MaglevAssembler* masm,
           Immediate(amount()));
 }
 
-void ReduceInterruptBudget::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void ReduceInterruptBudget::SetValueLocationConstraints() {
   set_temporaries_needed(1);
 }
 void ReduceInterruptBudget::GenerateCode(MaglevAssembler* masm,
@@ -4038,8 +3974,7 @@ void ReduceInterruptBudget::GenerateCode(MaglevAssembler* masm,
   __ bind(*done);
 }
 
-void ThrowReferenceErrorIfHole::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void ThrowReferenceErrorIfHole::SetValueLocationConstraints() {
   UseAny(value());
 }
 void ThrowReferenceErrorIfHole::GenerateCode(MaglevAssembler* masm,
@@ -4062,8 +3997,7 @@ void ThrowReferenceErrorIfHole::GenerateCode(MaglevAssembler* masm,
       this);
 }
 
-void ThrowSuperNotCalledIfHole::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void ThrowSuperNotCalledIfHole::SetValueLocationConstraints() {
   UseAny(value());
 }
 void ThrowSuperNotCalledIfHole::GenerateCode(MaglevAssembler* masm,
@@ -4085,8 +4019,7 @@ void ThrowSuperNotCalledIfHole::GenerateCode(MaglevAssembler* masm,
       this);
 }
 
-void ThrowSuperAlreadyCalledIfNotHole::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void ThrowSuperAlreadyCalledIfNotHole::SetValueLocationConstraints() {
   UseAny(value());
 }
 void ThrowSuperAlreadyCalledIfNotHole::GenerateCode(
@@ -4108,8 +4041,7 @@ void ThrowSuperAlreadyCalledIfNotHole::GenerateCode(
       this);
 }
 
-void ThrowIfNotSuperConstructor::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void ThrowIfNotSuperConstructor::SetValueLocationConstraints() {
   UseRegister(constructor());
   UseRegister(function());
 }
@@ -4134,7 +4066,7 @@ void ThrowIfNotSuperConstructor::GenerateCode(MaglevAssembler* masm,
 // ---
 // Control nodes
 // ---
-void Return::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void Return::SetValueLocationConstraints() {
   UseFixed(value_input(), kReturnRegister0);
 }
 void Return::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
@@ -4174,14 +4106,12 @@ void Return::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   __ Ret();
 }
 
-void Deopt::AllocateVreg(MaglevVregAllocationState* vreg_state) {}
+void Deopt::SetValueLocationConstraints() {}
 void Deopt::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   __ EmitEagerDeopt(this, reason());
 }
 
-void Switch::AllocateVreg(MaglevVregAllocationState* vreg_state) {
-  UseRegister(value());
-}
+void Switch::SetValueLocationConstraints() { UseRegister(value()); }
 void Switch::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   std::unique_ptr<Label*[]> labels = std::make_unique<Label*[]>(size());
   for (int i = 0; i < size(); i++) {
@@ -4275,7 +4205,7 @@ void AttemptOnStackReplacement(MaglevAssembler* masm,
 
 }  // namespace
 
-void JumpLoopPrologue::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void JumpLoopPrologue::SetValueLocationConstraints() {
   if (!v8_flags.use_osr) return;
   set_temporaries_needed(2);
 }
@@ -4302,13 +4232,13 @@ void JumpLoopPrologue::GenerateCode(MaglevAssembler* masm,
   __ bind(*no_code_for_osr);
 }
 
-void JumpLoop::AllocateVreg(MaglevVregAllocationState* vreg_state) {}
+void JumpLoop::SetValueLocationConstraints() {}
 void JumpLoop::GenerateCode(MaglevAssembler* masm,
                             const ProcessingState& state) {
   __ jmp(target()->label());
 }
 
-void BranchIfRootConstant::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void BranchIfRootConstant::SetValueLocationConstraints() {
   UseRegister(condition_input());
 }
 void BranchIfRootConstant::GenerateCode(MaglevAssembler* masm,
@@ -4317,8 +4247,7 @@ void BranchIfRootConstant::GenerateCode(MaglevAssembler* masm,
   __ Branch(equal, if_true(), if_false(), state.next_block());
 }
 
-void BranchIfUndefinedOrNull::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void BranchIfUndefinedOrNull::SetValueLocationConstraints() {
   UseRegister(condition_input());
 }
 void BranchIfUndefinedOrNull::GenerateCode(MaglevAssembler* masm,
@@ -4332,7 +4261,7 @@ void BranchIfUndefinedOrNull::GenerateCode(MaglevAssembler* masm,
   }
 }
 
-void BranchIfJSReceiver::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void BranchIfJSReceiver::SetValueLocationConstraints() {
   UseRegister(condition_input());
 }
 void BranchIfJSReceiver::GenerateCode(MaglevAssembler* masm,
@@ -4344,7 +4273,7 @@ void BranchIfJSReceiver::GenerateCode(MaglevAssembler* masm,
   __ Branch(above_equal, if_true(), if_false(), state.next_block());
 }
 
-void BranchIfInt32Compare::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void BranchIfInt32Compare::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());
 }
@@ -4357,8 +4286,7 @@ void BranchIfInt32Compare::GenerateCode(MaglevAssembler* masm,
             state.next_block());
 }
 
-void BranchIfFloat64Compare::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void BranchIfFloat64Compare::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());
 }
@@ -4372,8 +4300,7 @@ void BranchIfFloat64Compare::GenerateCode(MaglevAssembler* masm,
             state.next_block());
 }
 
-void BranchIfReferenceCompare::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void BranchIfReferenceCompare::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());
 }
@@ -4386,8 +4313,7 @@ void BranchIfReferenceCompare::GenerateCode(MaglevAssembler* masm,
             state.next_block());
 }
 
-void BranchIfToBooleanTrue::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {
+void BranchIfToBooleanTrue::SetValueLocationConstraints() {
   // TODO(victorgomes): consider using any input instead.
   UseRegister(condition_input());
 }

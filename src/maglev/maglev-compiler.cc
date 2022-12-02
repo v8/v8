@@ -38,7 +38,6 @@
 #include "src/maglev/maglev-ir-inl.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-regalloc.h"
-#include "src/maglev/maglev-vreg-allocator.h"
 #include "src/objects/code-inl.h"
 #include "src/objects/js-function.h"
 #include "src/utils/identity-map.h"
@@ -47,6 +46,20 @@
 namespace v8 {
 namespace internal {
 namespace maglev {
+
+class ValueLocationConstraintProcessor {
+ public:
+  void PreProcessGraph(Graph* graph) {}
+  void PostProcessGraph(Graph* graph) {}
+  void PreProcessBasicBlock(BasicBlock* block) {}
+
+#define DEF_PROCESS_NODE(NAME)                             \
+  void Process(NAME* node, const ProcessingState& state) { \
+    node->SetValueLocationConstraints();                   \
+  }
+  NODE_BASE_LIST(DEF_PROCESS_NODE)
+#undef DEF_PROCESS_NODE
+};
 
 class UseMarkingProcessor {
  public:
@@ -310,14 +323,17 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
 #endif
 
   {
-    GraphMultiProcessor<MaglevVregAllocator, UseMarkingProcessor> processor(
-        UseMarkingProcessor{compilation_info});
+    // Preprocessing for register allocation:
+    //   - Collect input/output location constraints
+    //   - Collect use information, for SSA liveness and next-use distance.
+    GraphMultiProcessor<ValueLocationConstraintProcessor, UseMarkingProcessor>
+        processor(UseMarkingProcessor{compilation_info});
     processor.ProcessGraph(graph);
   }
 
   if (v8_flags.print_maglev_graph) {
     UnparkedScope unparked_scope(local_isolate->heap());
-    std::cout << "After node processor" << std::endl;
+    std::cout << "After register allocation pre-processing" << std::endl;
     PrintGraph(std::cout, compilation_info, graph);
   }
 

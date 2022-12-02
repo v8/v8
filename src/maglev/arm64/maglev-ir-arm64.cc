@@ -8,7 +8,6 @@
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-ir.h"
-#include "src/maglev/maglev-vreg-allocator.h"
 #include "src/objects/feedback-cell.h"
 #include "src/objects/js-function.h"
 
@@ -34,7 +33,7 @@ class MaglevUnimplementedIRNode {
 };
 
 #define UNIMPLEMENTED_NODE(Node, ...)                                     \
-  void Node ::AllocateVreg(MaglevVregAllocationState* vreg_state) {}      \
+  void Node ::SetValueLocationConstraints() {}                            \
                                                                           \
   void Node ::GenerateCode(MaglevAssembler* masm,                         \
                            const ProcessingState& state) {                \
@@ -164,7 +163,7 @@ UNIMPLEMENTED_NODE(GetKeyedGeneric)
 UNIMPLEMENTED_NODE(SetKeyedGeneric)
 UNIMPLEMENTED_NODE(DefineKeyedOwnGeneric)
 UNIMPLEMENTED_NODE(Phi)
-void Phi::AllocateVregInPostProcess(MaglevVregAllocationState*) {}
+void Phi::SetValueLocationConstraintsInPostProcess() {}
 UNIMPLEMENTED_NODE(RegisterInput)
 UNIMPLEMENTED_NODE(CheckedSmiTagInt32)
 UNIMPLEMENTED_NODE(CheckedSmiTagUint32)
@@ -245,8 +244,7 @@ UNIMPLEMENTED_NODE(JumpLoop)
 UNIMPLEMENTED_NODE(Abort)
 UNIMPLEMENTED_NODE(Deopt)
 
-void IncreaseInterruptBudget::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {}
+void IncreaseInterruptBudget::SetValueLocationConstraints() {}
 void IncreaseInterruptBudget::GenerateCode(MaglevAssembler* masm,
                                            const ProcessingState& state) {
   UseScratchRegisterScope temps(masm);
@@ -264,8 +262,7 @@ void IncreaseInterruptBudget::GenerateCode(MaglevAssembler* masm,
          FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
 }
 
-void ReduceInterruptBudget::AllocateVreg(
-    MaglevVregAllocationState* vreg_state) {}
+void ReduceInterruptBudget::SetValueLocationConstraints() {}
 void ReduceInterruptBudget::GenerateCode(MaglevAssembler* masm,
                                          const ProcessingState& state) {
   {
@@ -313,7 +310,7 @@ void ReduceInterruptBudget::GenerateCode(MaglevAssembler* masm,
 // ---
 // Control nodes
 // ---
-void Return::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void Return::SetValueLocationConstraints() {
   UseFixed(value_input(), kReturnRegister0);
 }
 void Return::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
