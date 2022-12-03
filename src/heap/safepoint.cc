@@ -393,7 +393,6 @@ void GlobalSafepoint::EnterGlobalSafepointScope(Isolate* initiator) {
 #if DEBUG
   for (const PerClientSafepointData& client : clients) {
     DCHECK_EQ(client.isolate()->shared_heap_isolate(), shared_heap_isolate_);
-    DCHECK(client.heap()->deserialization_complete());
   }
 #endif  // DEBUG
 

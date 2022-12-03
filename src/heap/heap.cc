@@ -2212,6 +2212,7 @@ size_t Heap::PerformGarbageCollection(GarbageCollector collector,
   if (isolate()->is_shared_heap_isolate()) {
     isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
       if (client->is_shared_heap_isolate()) return;
+      CHECK(client->heap()->deserialization_complete());
 
       if (v8_flags.concurrent_marking) {
         client->heap()->concurrent_marking()->Pause();
