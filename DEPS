@@ -107,7 +107,7 @@ deps = {
   'build':
     Var('chromium_url') + '/chromium/src/build.git' + '@' + '988bc9fa63ccda1efdf52aeaf7da022df38cb399',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'fdc7c139836f14b57dc1c3d9db54406f353ce217',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '1547c3fe52d27e9a15c6699c77bf7e224ac91b9b',
   'buildtools/clang_format/script':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/clang/tools/clang-format.git' + '@' + '8b525d2747f2584fc35d8c7e612e66f377858df7',
   'buildtools/linux64': {
@@ -131,7 +131,7 @@ deps = {
     'condition': 'host_os == "mac"',
   },
   'buildtools/third_party/libc++/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '2dda3c5c1b8e6beda9745328fdfdc3953b326d6e',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'f92e1b7e4055ada4cbbaf2329a7e4d73b6fd5ad1',
   'buildtools/third_party/libc++abi/trunk':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '44d54baf424cfcfdd2fa6dab88cb5e536d7d81af',
   'buildtools/third_party/libunwind/trunk':
