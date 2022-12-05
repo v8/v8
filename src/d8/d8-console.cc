@@ -136,7 +136,7 @@ void D8Console::ProfileEnd(const debug::ConsoleCallArguments& args,
   if (!profiler_) return;
   CpuProfile* profile = profiler_->StopProfiling(String::Empty(isolate_));
   profiler_active_ = false;
-  if (Shell::HasOnProfileEndListener()) {
+  if (Shell::HasOnProfileEndListener(isolate_)) {
     StringOutputStream out;
     profile->Serialize(&out);
     Shell::TriggerOnProfileEndListener(isolate_, out.result());

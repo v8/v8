@@ -603,10 +603,12 @@ class Shell : public i::AllStatic {
   static void ProfilerTriggerSample(
       const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  static bool HasOnProfileEndListener();
+  static bool HasOnProfileEndListener(Isolate* isolate);
 
   static void TriggerOnProfileEndListener(Isolate* isolate,
                                           std::string profile);
+
+  static void ResetOnProfileEndListener(Isolate* isolate);
 
   static void Print(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void PrintErr(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -745,8 +747,8 @@ class Shell : public i::AllStatic {
   static base::OnceType quit_once_;
   static Global<Function> stringify_function_;
 
-  static Global<Function> profile_end_callback_;
-  static Global<Context> profile_end_callback_context_;
+  static std::map<Isolate*, std::pair<Global<Function>, Global<Context>>>
+      profiler_end_callback_;
 
   static const char* stringify_source_;
   static CounterMap* counter_map_;

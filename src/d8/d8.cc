@@ -465,8 +465,8 @@ CounterCollection* Shell::counters_ = &local_counters_;
 base::LazyMutex Shell::context_mutex_;
 const base::TimeTicks Shell::kInitialTicks = base::TimeTicks::Now();
 Global<Function> Shell::stringify_function_;
-Global<Function> Shell::profile_end_callback_;
-Global<Context> Shell::profile_end_callback_context_;
+std::map<Isolate*, std::pair<Global<Function>, Global<Context>>>
+    Shell::profiler_end_callback_;
 base::LazyMutex Shell::workers_mutex_;
 bool Shell::allow_new_workers_ = true;
 std::unordered_set<std::shared_ptr<Worker>> Shell::running_workers_;
@@ -2519,14 +2519,17 @@ void Shell::ProfilerSetOnProfileEndListener(
     isolate->ThrowError("The OnProfileEnd listener has to be a function");
     return;
   }
-  profile_end_callback_.Reset(isolate, args[0].As<Function>());
-  profile_end_callback_context_.Reset(isolate, isolate->GetCurrentContext());
+  profiler_end_callback_[isolate] =
+      std::make_pair(Global<Function>(isolate, args[0].As<Function>()),
+                     Global<Context>(isolate, isolate->GetCurrentContext()));
 }
 
-bool Shell::HasOnProfileEndListener() {
-  CHECK_EQ(profile_end_callback_.IsEmpty(),
-           profile_end_callback_context_.IsEmpty());
-  return !profile_end_callback_.IsEmpty();
+bool Shell::HasOnProfileEndListener(Isolate* isolate) {
+  return profiler_end_callback_.find(isolate) != profiler_end_callback_.end();
+}
+
+void Shell::ResetOnProfileEndListener(Isolate* isolate) {
+  profiler_end_callback_.erase(isolate);
 }
 
 void Shell::ProfilerTriggerSample(
@@ -2539,19 +2542,15 @@ void Shell::ProfilerTriggerSample(
 }
 
 void Shell::TriggerOnProfileEndListener(Isolate* isolate, std::string profile) {
-  CHECK(HasOnProfileEndListener());
+  CHECK(HasOnProfileEndListener(isolate));
   Local<Value> argv[1] = {
       String::NewFromUtf8(isolate, profile.c_str()).ToLocalChecked()};
-  Local<Context> context = profile_end_callback_context_.Get(isolate);
+  auto& callback_pair = profiler_end_callback_[isolate];
+  Local<Function> callback = callback_pair.first.Get(isolate);
+  Local<Context> context = callback_pair.second.Get(isolate);
   TryCatch try_catch(isolate);
   try_catch.SetVerbose(true);
-  USE(profile_end_callback_.Get(isolate)->Call(context, Undefined(isolate), 1,
-                                               argv));
-  // The profiler callback may have been set up on a worker. We reset the
-  // callbacks now to avoid problems in the shutdown sequence of the worker and
-  // the main thread.
-  profile_end_callback_.Reset();
-  profile_end_callback_context_.Reset();
+  USE(callback->Call(context, Undefined(isolate), 1, argv));
 }
 
 void WriteToFile(FILE* file, const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -3583,7 +3582,7 @@ Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
   {
     Local<ObjectTemplate> profiler_template = ObjectTemplate::New(isolate);
     profiler_template->Set(
-        isolate, "setOneShotOnProfileEndListener",
+        isolate, "setOnProfileEndListener",
         FunctionTemplate::New(isolate, ProfilerSetOnProfileEndListener));
     profiler_template->Set(
         isolate, "triggerSample",
@@ -4482,6 +4481,7 @@ void SourceGroup::ExecuteInThread() {
     done_semaphore_.Signal();
   }
 
+  Shell::ResetOnProfileEndListener(isolate);
   isolate->Dispose();
 }
 
@@ -4766,6 +4766,7 @@ void Worker::ExecuteInThread() {
     task_manager_ = nullptr;
   }
 
+  Shell::ResetOnProfileEndListener(isolate_);
   context_.Reset();
   platform::NotifyIsolateShutdown(g_default_platform, isolate_);
   isolate_->Dispose();
@@ -5926,6 +5927,7 @@ int Shell::Main(int argc, char* argv[]) {
 
             result = RunMain(isolate2, false);
           }
+          ResetOnProfileEndListener(isolate2);
           isolate2->Dispose();
         }
 
@@ -5974,8 +5976,7 @@ int Shell::Main(int argc, char* argv[]) {
       cached_code_map_.clear();
       evaluation_context_.Reset();
       stringify_function_.Reset();
-      profile_end_callback_.Reset();
-      profile_end_callback_context_.Reset();
+      ResetOnProfileEndListener(isolate);
       CollectGarbage(isolate);
 #ifdef V8_FUZZILLI
       // Send result to parent (fuzzilli) and reset edge guards.

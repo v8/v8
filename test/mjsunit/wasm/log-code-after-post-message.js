@@ -17,7 +17,7 @@ function workerCode() {
         });
   };
 
-  d8.profiler.setOneShotOnProfileEndListener(WorkerOnProfileEnd);
+  d8.profiler.setOnProfileEndListener(WorkerOnProfileEnd);
   // Code logging happens for all code objects when profiling gets started,
   // and when new code objects appear after profiling has started. We want to
   // test the second scenario here. As new code objects appear as the
