@@ -224,21 +224,7 @@ void String::MakeThin(
   int old_size = SizeFromMap(initial_map);
   Map target_map = ComputeThinStringMap(isolate, initial_shape,
                                         internalized.IsOneByteRepresentation());
-  const bool in_shared_heap = InSharedWritableHeap();
-  if (in_shared_heap) {
-    // Objects in the shared heap are always direct, therefore they can't have
-    // any invalidated slots.
-    update_invalidated_object_size = UpdateInvalidatedObjectSize::kNo;
-  }
   if (initial_shape.IsExternal()) {
-    // Conservatively assume ExternalStrings may have recorded slots if they
-    // don't reside in shared heap, because they could have been transitioned
-    // from ConsStrings without having had the recorded slots cleared.
-    // In the shared heap no such transitions are possible, as it can't contain
-    // indirect strings.
-    // TODO(v8:13374): Fix this more uniformly.
-    may_contain_recorded_slots = !in_shared_heap;
-
     // Notify GC about the layout change before the transition to avoid
     // concurrent marking from observing any in-between state (e.g.
     // ExternalString map where the resource external pointer is overwritten
@@ -246,11 +232,14 @@ void String::MakeThin(
     // ExternalString -> ThinString transitions can only happen on the
     // main-thread.
     isolate->AsIsolate()->heap()->NotifyObjectLayoutChange(
-        *this, no_gc,
-        may_contain_recorded_slots ? InvalidateRecordedSlots::kYes
-                                   : InvalidateRecordedSlots::kNo,
-        ThinString::kSize);
+        *this, no_gc, InvalidateRecordedSlots::kYes, ThinString::kSize);
     MigrateExternalString(isolate->AsIsolate(), *this, internalized);
+
+    // Conservatively assume ExternalStrings may have recorded slots, because
+    // they could have been transitioned from ConsStrings without having had the
+    // recorded slots cleared.
+    // TODO(v8:13374): Fix this more uniformly.
+    may_contain_recorded_slots = true;
   }
 
   // Update actual first and then do release store on the map word. This ensures
@@ -393,8 +382,7 @@ void String::MakeExternalDuringGC(Isolate* isolate, T* resource) {
   DCHECK(!StringShape(*this).IsIndirect());
 
   isolate->heap()->NotifyObjectSizeChange(*this, size, new_size,
-                                          ClearRecordedSlots::kNo,
-                                          UpdateInvalidatedObjectSize::kNo);
+                                          ClearRecordedSlots::kNo);
 
   // The external pointer slots must be initialized before the new map is
   // installed. Otherwise, a GC marking thread may see the new map before the
@@ -474,15 +462,9 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   }
 
   if (!isolate->heap()->IsLargeObject(*this)) {
-    // Strings in the shared heap are never indirect and thus cannot have any
-    // invalidated slots.
-    const auto update_invalidated_object_size =
-        InSharedWritableHeap() ? UpdateInvalidatedObjectSize::kNo
-                               : UpdateInvalidatedObjectSize::kYes;
     isolate->heap()->NotifyObjectSizeChange(
         *this, size, new_size,
-        has_pointers ? ClearRecordedSlots::kYes : ClearRecordedSlots::kNo,
-        update_invalidated_object_size);
+        has_pointers ? ClearRecordedSlots::kYes : ClearRecordedSlots::kNo);
   } else {
     // We don't need special handling for the combination IsLargeObject &&
     // has_pointers, because indirect strings never get that large.
@@ -560,19 +542,13 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
     int new_size = this->SizeFromMap(new_map);
 
     if (has_pointers) {
-      DCHECK(!InSharedWritableHeap());
       isolate->heap()->NotifyObjectLayoutChange(
           *this, no_gc, InvalidateRecordedSlots::kYes, new_size);
     }
-    // Strings in the shared heap are never indirect and thus cannot have any
-    // invalidated slots.
-    const auto update_invalidated_object_size =
-        InSharedWritableHeap() ? UpdateInvalidatedObjectSize::kNo
-                               : UpdateInvalidatedObjectSize::kYes;
+
     isolate->heap()->NotifyObjectSizeChange(
         *this, size, new_size,
-        has_pointers ? ClearRecordedSlots::kYes : ClearRecordedSlots::kNo,
-        update_invalidated_object_size);
+        has_pointers ? ClearRecordedSlots::kYes : ClearRecordedSlots::kNo);
   } else {
     // We don't need special handling for the combination IsLargeObject &&
     // has_pointers, because indirect strings never get that large.
