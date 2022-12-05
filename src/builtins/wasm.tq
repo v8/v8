@@ -44,6 +44,7 @@ extern runtime WasmStringNewWtf8Array(
     Context, Smi, WasmArray, Smi, Smi): String;
 extern runtime WasmStringNewWtf16(
     Context, WasmInstanceObject, Smi, Number, Number): String;
+extern runtime WasmStringNewWtf16Array(Context, WasmArray, Smi, Smi): String;
 extern runtime WasmStringConst(Context, WasmInstanceObject, Smi): String;
 extern runtime WasmStringMeasureUtf8(Context, String): Number;
 extern runtime WasmStringMeasureWtf8(Context, String): Number;
@@ -853,7 +854,10 @@ builtin WasmStringNewWtf16Array(
     if (end < start) goto OffsetOutOfRange;
     const length: uint32 = end - start;
     if (length == 0) return kEmptyString;
-    if (length > kStringMaxLength) goto TooLong;
+    // Calling into the runtime has overhead, but once we're there it's faster,
+    // so it pays off for long strings. The threshold has been determined
+    // experimentally.
+    if (length >= 32) goto Runtime;
     const intptrLength = Convert<intptr>(length);
     const arrayContent = torque_internal::unsafe::NewConstSlice<char16>(
         array, kWasmArrayHeaderSize, Convert<intptr>(array.length));
@@ -926,8 +930,10 @@ builtin WasmStringNewWtf16Array(
     const error = MessageTemplate::kWasmTrapArrayOutOfBounds;
     runtime::ThrowWasmError(context, SmiConstant(error));
     unreachable;
-  } label TooLong deferred {
-    ThrowInvalidStringLength(LoadContextFromFrame());
+  } label Runtime deferred {
+    const context = LoadContextFromFrame();
+    tail runtime::WasmStringNewWtf16Array(
+        context, array, SmiFromUint32(start), SmiFromUint32(end));
   }
 }
 

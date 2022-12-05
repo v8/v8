@@ -988,6 +988,18 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf16) {
       {codeunits, size_in_codeunits}));
 }
 
+RUNTIME_FUNCTION(Runtime_WasmStringNewWtf16Array) {
+  ClearThreadInWasmScope flag_scope(isolate);
+  DCHECK_EQ(3, args.length());
+  HandleScope scope(isolate);
+  Handle<WasmArray> array(WasmArray::cast(args[0]), isolate);
+  uint32_t start = NumberToUint32(args[1]);
+  uint32_t end = NumberToUint32(args[2]);
+
+  RETURN_RESULT_OR_TRAP(
+      isolate->factory()->NewStringFromUtf16(array, start, end));
+}
+
 // Returns the new string if the operation succeeds.  Otherwise traps.
 RUNTIME_FUNCTION(Runtime_WasmStringConst) {
   ClearThreadInWasmScope flag_scope(isolate);
