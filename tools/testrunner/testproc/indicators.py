@@ -366,7 +366,7 @@ class StackParser:
 
 class JsonTestProgressIndicator(ProgressIndicator):
 
-  def __init__(self, context, options, test_count, framework_name):
+  def __init__(self, context, options, test_count):
     super(JsonTestProgressIndicator, self).__init__(context, options,
                                                     test_count)
     self.tests = util.FixedSizeTopList(
@@ -377,7 +377,6 @@ class JsonTestProgressIndicator(ProgressIndicator):
     # keep_output set to True in the RerunProc.
     self._requirement = base.DROP_PASS_STDOUT
 
-    self.framework_name = framework_name
     self.results = []
     self.duration_sum = 0
     self.test_count = 0
@@ -434,7 +433,6 @@ class JsonTestProgressIndicator(ProgressIndicator):
   def _test_record(self, test, result, run):
     record = util.base_test_record(test, result, run)
     record.update(
-        framework_name=self.framework_name,
         command=result.cmd.to_string(relative=True),
     )
     return record

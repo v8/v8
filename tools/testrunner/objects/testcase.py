@@ -78,7 +78,8 @@ def read_file(file):
     return f.read()
 
 class TestCase(object):
-  def __init__(self, suite, path, name, test_config):
+
+  def __init__(self, suite, path, name, test_config, framework_name):
     self.suite = suite        # TestSuite object
 
     self.path = path          # string, e.g. 'div-mod', 'test-api/foo'
@@ -103,6 +104,8 @@ class TestCase(object):
     self._checked_flag_contradictions = False
     self._statusfile_flags = None
     self.expected_failure_reason = None
+
+    self.framework_name = framework_name
 
     self._prepare_outcomes()
 

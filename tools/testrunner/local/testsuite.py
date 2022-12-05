@@ -115,8 +115,9 @@ class TestLoader(object):
 
   def _create_test(self, path, suite, **kwargs):
     """Converts paths into test objects using the given options"""
-    return self.test_class(
-      suite, path, self._path_to_name(path), self.test_config, **kwargs)
+    return self.test_class(suite, path, self._path_to_name(path),
+                           self.test_config, self.suite.framework_name,
+                           **kwargs)
 
   def list_tests(self):
     """Loads and returns the test objects for a TestSuite"""

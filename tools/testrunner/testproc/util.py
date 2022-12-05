@@ -64,6 +64,7 @@ def base_test_record(test, result, run):
       'target_name': test.get_shell(),
       'variant': test.variant,
       'variant_flags': test.variant_flags,
+      'framework_name': test.framework_name,
   }
   if result.output:
     record.update(
