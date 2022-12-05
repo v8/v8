@@ -2249,6 +2249,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   V(I16x8SubSatU)          \
   V(I16x8SConvertI32x4)    \
   V(I16x8UConvertI32x4)    \
+  V(I16x8RoundingAverageU) \
   V(I8x16Add)              \
   V(I8x16Sub)              \
   V(I8x16MinS)             \
@@ -2264,6 +2265,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   V(I8x16SubSatU)          \
   V(I8x16SConvertI16x8)    \
   V(I8x16UConvertI16x8)    \
+  V(I8x16RoundingAverageU) \
   V(S128And)               \
   V(S128Or)                \
   V(S128Xor)               \
@@ -2676,16 +2678,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vor(kScratchSimd128Reg, src1, src1);
       __ xvnmsubmsp(kScratchSimd128Reg, src2, src0);
       __ vor(dst, kScratchSimd128Reg, kScratchSimd128Reg);
-      break;
-    }
-    case kPPC_I16x8RoundingAverageU: {
-      __ vavguh(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                i.InputSimd128Register(1));
-      break;
-    }
-    case kPPC_I8x16RoundingAverageU: {
-      __ vavgub(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                i.InputSimd128Register(1));
       break;
     }
     case kPPC_I64x2BitMask: {
