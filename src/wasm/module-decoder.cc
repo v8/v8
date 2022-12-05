@@ -421,7 +421,7 @@ class ValidateFunctionsTask : public JobTask {
   }
 
   void Run(JobDelegate* delegate) override {
-    AccountingAllocator* allocator = module_->allocator();
+    AccountingAllocator* allocator = GetWasmEngine()->allocator();
     do {
       // Get the index of the next function to validate.
       // {fetch_add} might overrun {after_last_function_} by a bit. Since the

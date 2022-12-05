@@ -510,8 +510,6 @@ struct V8_EXPORT_PRIVATE WasmModule {
   // ID and length).
   WireBytesRef name_section = {0, 0};
 
-  AccountingAllocator* allocator() const { return signature_zone->allocator(); }
-
   void add_type(TypeDefinition type) {
     types.push_back(type);
     // Isorecursive canonical type will be computed later.
