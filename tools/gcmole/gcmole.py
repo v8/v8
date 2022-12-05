@@ -17,6 +17,7 @@ import difflib
 import io
 import json
 import os
+import pickle
 import re
 import subprocess
 import sys
@@ -257,7 +258,11 @@ def build_file_list(options):
         for file in file_pattern.findall(sources):
           result.append(options.v8_root_dir / prefix / file)
 
-  return result
+  # Filter files of current shard if running on multiple hosts.
+  def is_in_shard(index):
+    return (index % options.shard_count) == options.shard_index
+
+  return [f for i, f in enumerate(result) if is_in_shard(i)]
 
 
 # -----------------------------------------------------------------------------
@@ -331,6 +336,29 @@ class CallGraph:
       else:
         self.funcs[funcname[1:]].add(self.current_caller)
 
+  def to_file(self, file_name):
+    """Store call graph in file 'file_name'."""
+    log(f"Writing serialized callgraph to {file_name}")
+    with open(file_name, 'wb') as f:
+      pickle.dump(self, f)
+
+  @staticmethod
+  def from_file(file_name):
+    """Restore call graph from file 'file_name'."""
+    log(f"Reading serialized callgraph from {file_name}")
+    with open(file_name, 'rb') as f:
+      return pickle.load(f)
+
+  @staticmethod
+  def from_files(*file_names):
+    """Merge multiple call graphs from a list of files."""
+    callgraph = CallGraph()
+    for file_name in file_names:
+      funcs = CallGraph.from_file(file_name).funcs
+      for callee, callers in funcs.items():
+        callgraph.funcs[callee].update(callers)
+    return callgraph
+
 
 class GCSuspectsCollector:
 
@@ -378,20 +406,35 @@ class GCSuspectsCollector:
         mark(funcname)
 
 
-def generate_gc_suspects(files, options):
-  # Reset the global state.
-  call_graph = CallGraph()
+def generate_callgraph(files, options):
+  """Construct a (potentially partial) call graph from a subset of
+  source files.
+  """
+  callgraph = CallGraph()
 
-  log("Building GC Suspects for {}", options.v8_target_cpu)
-  for _, stdout, _ in invoke_clang_plugin_for_each_file(files, "dump-callees",
-                                                        [], options):
-    call_graph.parse(stdout.splitlines())
+  log(f"Building call graph for {options.v8_target_cpu}")
+  for _, stdout, _ in invoke_clang_plugin_for_each_file(
+      files, "dump-callees", [], options):
+    callgraph.parse(stdout.splitlines())
 
-  collector = GCSuspectsCollector(options, call_graph.funcs)
+  return callgraph
+
+
+def generate_gc_suspects_from_callgraph(callgraph, options):
+  """Calculate and store gc-suspect information from a given call graph."""
+  collector = GCSuspectsCollector(options, callgraph.funcs)
   collector.propagate()
   # TODO(cbruni): remove once gcmole.cc is migrated
   write_gcmole_results(collector, options, options.v8_root_dir)
   write_gcmole_results(collector, options, options.out_dir)
+
+
+def generate_gc_suspects_from_files(options):
+  """Generate file list and corresponding gc-suspect information."""
+  files = build_file_list(options)
+  call_graph = generate_callgraph(files, options)
+  generate_gc_suspects_from_callgraph(call_graph, options)
+  return files
 
 
 def write_gcmole_results(collector, options, dst):
@@ -434,19 +477,12 @@ def write_gcmole_results(collector, options, dst):
 # Analysis
 
 
-def check_correctness_for_arch(options):
-  files = build_file_list(options)
-
-  if not options.reuse_gcsuspects:
-    generate_gc_suspects(files, options)
-  else:
-    log("Reusing GCSuspects for {}", options.v8_target_cpu)
-
+def check_correctness_for_arch(files, options):
   processed_files = 0
   errors_found = False
 
   log("Searching for evaluation order problems " +
-      (' and dead variables' if options.dead_vars else '') + "for" +
+      ("and dead variables " if options.dead_vars else "") + "for " +
       options.v8_target_cpu)
   plugin_args = []
   if options.dead_vars:
@@ -580,13 +616,20 @@ def main(argv):
         action="store_true",
         default=False,
         help="Flag for setting build bot specific settings.")
+    parser.add_argument(
+        "--shard-count",
+        default=1,
+        type=int,
+        help="Number of tasks the current action (e.g. collect or check) "
+             "is distributed to.")
+    parser.add_argument(
+        "--shard-index",
+        default=0,
+        type=int,
+        help="Index of the current task (in [0..shard-count-1]) if the "
+             "overall action is distributed (shard-count > 1).")
 
     group = parser.add_argument_group("GCMOLE options")
-    group.add_argument(
-        "--reuse-gcsuspects",
-        action="store_true",
-        default=False,
-        help="Don't build gcsuspects file and reuse previously generated one.")
     group.add_argument(
         "--sequential",
         action="store_true",
@@ -631,6 +674,38 @@ def main(argv):
   add_common_args(subp)
   subp.set_defaults(func=full_run)
 
+  subp = subps.add_parser(
+      "collect",
+      description="Construct call graph from source files. "
+                  "The action can be distributed using --shard-count and "
+                  "--shard-index.")
+  add_common_args(subp)
+  subp.set_defaults(func=collect_run)
+  subp.add_argument(
+      "--output",
+      required=True,
+      help="Path to a file where to store the constructed call graph")
+
+  subp = subps.add_parser(
+      "merge",
+      description="Merge partial call graphs and propagate gc suspects.")
+  add_common_args(subp)
+  subp.set_defaults(func=merge_run)
+  subp.add_argument(
+      "--input",
+      action='append',
+      required=True,
+      help="Path to a file containing a partial call graph stored by "
+           "'collect'. Repeat for multiple files.")
+
+  subp = subps.add_parser(
+      "check",
+      description="Check for problems using previously collected gc-suspect "
+                  "information. The action can be distributed using "
+                  "--shard-count and --shard-index.")
+  add_common_args(subp)
+  subp.set_defaults(func=check_run)
+
   options = parser.parse_args(argv[1:])
 
   verify_and_convert_dirs(parser, options, default_gcmole_dir,
@@ -638,6 +713,7 @@ def main(argv):
   verify_clang_plugin(parser, options)
   prepare_gcmole_files(options)
   verify_build_config(parser, options)
+  override_env_options(options)
 
   options.func(options)
 
@@ -649,10 +725,29 @@ def maybe_redirect_stderr(options):
     yield f
 
 
-def full_run(options):
+def check_files(options, files):
   with maybe_redirect_stderr(options) as file_io:
-    errors_found = check_correctness_for_arch(options)
+    errors_found = check_correctness_for_arch(files, options)
   sys.exit(has_unexpected_errors(options, errors_found, file_io))
+
+
+def full_run(options):
+  check_files(options, generate_gc_suspects_from_files(options))
+
+
+def collect_run(options):
+  files = build_file_list(options)
+  callgraph = generate_callgraph(files, options)
+  callgraph.to_file(options.output)
+
+
+def merge_run(options):
+  generate_gc_suspects_from_callgraph(
+      CallGraph.from_files(*options.input), options)
+
+
+def check_run(options):
+  check_files(options, build_file_list(options))
 
 
 def verify_and_convert_dirs(parser, options, default_tools_gcmole_dir,
@@ -756,6 +851,14 @@ def verify_build_config(parser, options):
       return
   parser.error("Build dir '{}' config doesn't match request cpu. {}: {}".format(
       options.v8_build_dir, options.v8_target_cpu, found_cpu))
+
+
+def override_env_options(options):
+  """Set shard options if passed as gtest environment vars on bots."""
+  options.shard_count = int(
+    os.environ.get('GTEST_TOTAL_SHARDS', options.shard_count))
+  options.shard_index = int(
+    os.environ.get('GTEST_SHARD_INDEX', options.shard_index))
 
 
 if __name__ == "__main__":

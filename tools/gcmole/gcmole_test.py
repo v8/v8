@@ -18,7 +18,8 @@ TESTDATA_PATH = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), 'testdata', 'v8')
 
 Options = collections.namedtuple(
-    'Options', ['v8_root_dir', 'v8_target_cpu', 'test_run'])
+    'Options', ['v8_root_dir', 'v8_target_cpu', 'shard_count', 'shard_index',
+                'test_run'])
 
 
 def abs_test_file(f):
@@ -28,13 +29,13 @@ def abs_test_file(f):
 class FilesTest(unittest.TestCase):
 
   def testFileList_for_testing(self):
-    options = Options(Path(TESTDATA_PATH), 'x64', True)
+    options = Options(Path(TESTDATA_PATH), 'x64', 1, 0, True)
     self.assertEqual(
         gcmole.build_file_list(options),
         list(map(abs_test_file, ['tools/gcmole/gcmole-test.cc'])))
 
   def testFileList_x64(self):
-    options = Options(Path(TESTDATA_PATH), 'x64', False)
+    options = Options(Path(TESTDATA_PATH), 'x64', 1, 0, False)
     expected = [
         'file1.cc',
         'file2.cc',
@@ -49,8 +50,32 @@ class FilesTest(unittest.TestCase):
         gcmole.build_file_list(options),
         list(map(abs_test_file, expected)))
 
+  def testFileList_x64_shard0(self):
+    options = Options(Path(TESTDATA_PATH), 'x64', 2, 0, False)
+    expected = [
+        'file1.cc',
+        'x64/file1.cc',
+        'file3.cc',
+        'test/cctest/test-x64-file1.cc',
+    ]
+    self.assertEqual(
+        gcmole.build_file_list(options),
+        list(map(abs_test_file, expected)))
+
+  def testFileList_x64_shard1(self):
+    options = Options(Path(TESTDATA_PATH), 'x64', 2, 1, False)
+    expected = [
+        'file2.cc',
+        'x64/file2.cc',
+        'file4.cc',
+        'test/cctest/test-x64-file2.cc',
+    ]
+    self.assertEqual(
+        gcmole.build_file_list(options),
+        list(map(abs_test_file, expected)))
+
   def testFileList_arm(self):
-    options = Options(Path(TESTDATA_PATH), 'arm', False)
+    options = Options(Path(TESTDATA_PATH), 'arm', 1, 0, False)
     expected = [
         'file1.cc',
         'file2.cc',
@@ -125,6 +150,49 @@ class SuspectCollectorTest(unittest.TestCase):
     self.assertDictEqual(
         call_graph.funcs,
         {'A': set(), 'B': set('A'), 'C': set(['A', 'B']), 'D': set('B')})
+
+  def testCallGraphMerge(self):
+    """Test serializing, deserializing and merging call graphs."""
+    temp_dir = Path(tempfile.mkdtemp('gcmole_test'))
+
+    call_graph1 = self.create_callgraph(
+        OutputLines('B → C D E', 'D →'), OutputLines('A → B C'))
+    self.assertDictEqual(
+        call_graph1.funcs,
+        {'A': set(), 'B': set('A'), 'C': set(['A', 'B']), 'D': set('B'),
+         'E': set('B')})
+
+    call_graph2 = self.create_callgraph(
+        OutputLines('E → A'), OutputLines('C → D F'))
+    self.assertDictEqual(
+        call_graph2.funcs,
+        {'A': set('E'), 'C': set(), 'D': set('C'), 'E': set(), 'F': set('C')})
+
+    file1 = temp_dir / 'file1.bin'
+    file2 = temp_dir / 'file2.bin'
+    call_graph1.to_file(file1)
+    call_graph2.to_file(file2)
+
+    expected = {'A': set(['E']), 'B': set('A'), 'C': set(['A', 'B']),
+                'D': set(['B', 'C']), 'E': set(['B']), 'F': set(['C'])}
+
+    call_graph = gcmole.CallGraph.from_files(file1, file2)
+    self.assertDictEqual(call_graph.funcs, expected)
+
+    call_graph = gcmole.CallGraph.from_files(file2, file1)
+    self.assertDictEqual(call_graph.funcs, expected)
+
+    call_graph3 = self.create_callgraph(
+        OutputLines('F → G'), OutputLines('G →'))
+    self.assertDictEqual(
+        call_graph3.funcs,
+        {'G': set('F'), 'F': set()})
+
+    file3 = temp_dir / 'file3.bin'
+    call_graph3.to_file(file3)
+
+    call_graph = gcmole.CallGraph.from_files(file1, file2, file3)
+    self.assertDictEqual(call_graph.funcs, dict(G=set('F'), **expected))
 
   def create_collector(self, outputs):
     Options = collections.namedtuple('OptionsForCollector', ['allowlist'])

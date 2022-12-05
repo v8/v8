@@ -29,9 +29,8 @@ if "--help" in args:
 
 
 # Different modes of running gcmole. Optional to stay backwards-compatible.
-# TODO(https://crbug.com/v8/12660): Add more modes.
 mode = 'full'
-if args and args[0] in ['full']:
+if args and args[0] in ['check', 'collect', 'full', 'merge']:
   mode = args[0]
   args = args[1:]
 

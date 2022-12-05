@@ -184,6 +184,11 @@
       {'name': 'gcmole_v2', 'variant': 'x64'},
       {'name': 'gcmole_v2', 'variant': 'arm'},
       {'name': 'gcmole_v2', 'variant': 'arm64'},
+      # TODO(https://crbug.com/v8/12660): Remove v2 above after testing.
+      {'name': 'gcmole_v3', 'variant': 'ia32', 'shards': 4},
+      {'name': 'gcmole_v3', 'variant': 'x64', 'shards': 4},
+      {'name': 'gcmole_v3', 'variant': 'arm', 'shards': 4},
+      {'name': 'gcmole_v3', 'variant': 'arm64', 'shards': 4},
     ],
   },
   'v8_linux_optional_rel': {
@@ -1076,6 +1081,11 @@
       {'name': 'gcmole_v2', 'variant': 'x64'},
       {'name': 'gcmole_v2', 'variant': 'arm'},
       {'name': 'gcmole_v2', 'variant': 'arm64'},
+      # TODO(https://crbug.com/v8/12660): Remove v2 above after testing.
+      {'name': 'gcmole_v3', 'variant': 'ia32', 'shards': 4},
+      {'name': 'gcmole_v3', 'variant': 'x64', 'shards': 4},
+      {'name': 'gcmole_v3', 'variant': 'arm', 'shards': 4},
+      {'name': 'gcmole_v3', 'variant': 'arm64', 'shards': 4},
     ],
   },
   'V8 Linux - arm64 - sim - CFI': {
