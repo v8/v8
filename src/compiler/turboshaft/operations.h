@@ -835,7 +835,7 @@ struct EqualOp : FixedArityOperationT<2, EqualOp> {
 
   static constexpr OpProperties properties = OpProperties::PureNoAllocation();
   base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return base::VectorOf(&rep, 1);
+    return RepVector<RegisterRepresentation::Word32()>();
   }
 
   OpIndex left() const { return input(0); }
@@ -863,7 +863,7 @@ struct ComparisonOp : FixedArityOperationT<2, ComparisonOp> {
 
   static constexpr OpProperties properties = OpProperties::PureNoAllocation();
   base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return base::VectorOf(&rep, 1);
+    return RepVector<RegisterRepresentation::Word32()>();
   }
 
   OpIndex left() const { return input(0); }
