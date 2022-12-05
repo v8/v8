@@ -79,9 +79,12 @@ void MaglevAssembler::Prologue(Graph* graph) {
     Register stack_slots_size = temps.AcquireX();
     Register interrupt_stack_limit = temps.AcquireX();
     Mov(stack_slots_size, fp);
-    // TODO(leszeks): Include a max call argument size here.
+    // Round up the stack slots and max call args separately, since both will be
+    // padded by their respective uses.
+    const int max_stack_slots_used = RoundUp<2>(remaining_stack_slots) +
+                                     RoundUp<2>(graph->max_call_stack_args());
     Sub(stack_slots_size, stack_slots_size,
-        Immediate(remaining_stack_slots * kSystemPointerSize));
+        Immediate(max_stack_slots_used * kSystemPointerSize));
     LoadStackLimit(interrupt_stack_limit, StackLimitKind::kInterruptStackLimit);
     Cmp(stack_slots_size, interrupt_stack_limit);
 

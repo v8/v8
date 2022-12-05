@@ -116,7 +116,7 @@ class V8_EXPORT_PRIVATE TurboAssembler
 
   // Calculate the number of stack slots to reserve for arguments when calling a
   // C function.
-  int ArgumentStackSlotsForCFunctionCall(int num_arguments);
+  static int ArgumentStackSlotsForCFunctionCall(int num_arguments);
 
   void CheckPageFlag(Register object, Register scratch, int mask, Condition cc,
                      Label* condition_met,

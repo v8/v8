@@ -440,9 +440,10 @@ void MaglevAssembler::Prologue(Graph* graph) {
     // stack limit or tighter. By ensuring we have space until that limit
     // after building the frame we can quickly precheck both at once.
     Move(kScratchRegister, rsp);
-    // TODO(leszeks): Include a max call argument size here.
+    const int max_stack_slots_used =
+        code_gen_state()->stack_slots() + graph->max_call_stack_args();
     subq(kScratchRegister,
-         Immediate(code_gen_state()->stack_slots() * kSystemPointerSize));
+         Immediate(max_stack_slots_used * kSystemPointerSize));
     cmpq(kScratchRegister,
          StackLimitAsOperand(StackLimitKind::kInterruptStackLimit));
 

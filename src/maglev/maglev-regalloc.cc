@@ -844,7 +844,11 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
     DCHECK_EQ(node->num_temporaries_needed<Register>(), 0);
     DCHECK_EQ(node->num_temporaries_needed<DoubleRegister>(), 0);
     DCHECK_EQ(node->input_count(), 0);
-    DCHECK_EQ(node->properties(), OpProperties(0));
+    // Either there are no special properties, or there's a call but it doesn't
+    // matter because we'll abort anyway.
+    DCHECK_IMPLIES(
+        node->properties() != OpProperties(0),
+        node->properties() == OpProperties::Call() && node->Is<Abort>());
 
     if (v8_flags.trace_maglev_regalloc) {
       printing_visitor_->Process(node, ProcessingState(block_it_));

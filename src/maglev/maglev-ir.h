@@ -1698,6 +1698,7 @@ class BinaryWithFeedbackNode : public FixedInputValueNodeT<2, Derived> {
    public:                                                            \
     Name(uint64_t bitfield, const compiler::FeedbackSource& feedback) \
         : Base(bitfield, feedback) {}                                 \
+    int MaxCallStackArgs() const { return 0; }                        \
     void SetValueLocationConstraints();                               \
     void GenerateCode(MaglevAssembler*, const ProcessingState&);      \
     void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}    \
@@ -1924,6 +1925,7 @@ class Float64Exponentiate
   Input& left_input() { return Node::input(kLeftIndex); }
   Input& right_input() { return Node::input(kRightIndex); }
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -1995,6 +1997,7 @@ class Float64Ieee754Unary
 
   Input& input() { return Node::input(0); }
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
@@ -2195,6 +2198,7 @@ class Int32ToNumber : public FixedInputValueNodeT<1, Int32ToNumber> {
 
   Input& input() { return Node::input(0); }
 
+  int MaxCallStackArgs() const { return 0; }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -2213,6 +2217,7 @@ class Uint32ToNumber : public FixedInputValueNodeT<1, Uint32ToNumber> {
 
   Input& input() { return Node::input(0); }
 
+  int MaxCallStackArgs() const { return 0; }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -2231,6 +2236,7 @@ class Float64Box : public FixedInputValueNodeT<1, Float64Box> {
 
   Input& input() { return Node::input(0); }
 
+  int MaxCallStackArgs() const { return 0; }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -2248,6 +2254,7 @@ class HoleyFloat64Box : public FixedInputValueNodeT<1, HoleyFloat64Box> {
 
   Input& input() { return Node::input(0); }
 
+  int MaxCallStackArgs() const { return 0; }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -2563,6 +2570,7 @@ class TestInstanceOf : public FixedInputValueNodeT<3, TestInstanceOf> {
   Input& callable() { return input(2); }
   compiler::FeedbackSource feedback() const { return feedback_; }
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -2622,6 +2630,7 @@ class ToName : public FixedInputValueNodeT<2, ToName> {
   Input& context() { return Node::input(0); }
   Input& value_input() { return Node::input(1); }
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -2643,6 +2652,7 @@ class ToNumberOrNumeric : public FixedInputValueNodeT<2, ToNumberOrNumeric> {
   Input& value_input() { return Node::input(1); }
   Object::Conversion mode() const { return mode_; }
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -2670,6 +2680,7 @@ class DeleteProperty : public FixedInputValueNodeT<3, DeleteProperty> {
 
   LanguageMode mode() const { return mode_; }
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
@@ -2714,6 +2725,7 @@ class GeneratorStore : public NodeT<GeneratorStore> {
     set_input(i + kFixedInputCount, node);
   }
 
+  int MaxCallStackArgs() const;
   void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
@@ -2739,8 +2751,9 @@ class JumpLoopPrologue : public FixedInputNodeT<0, JumpLoopPrologue> {
         unit_(unit) {}
 
   static constexpr OpProperties kProperties =
-      OpProperties::NeedsRegisterSnapshot() | OpProperties::EagerDeopt();
+      OpProperties::DeferredCall() | OpProperties::EagerDeopt();
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -2772,6 +2785,7 @@ class ForInPrepare : public FixedInputValueNodeT<2, ForInPrepare> {
 
   int ReturnCount() const { return 2; }
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -2801,6 +2815,7 @@ class ForInNext : public FixedInputValueNodeT<5, ForInNext> {
   Input& cache_type() { return Node::input(3); }
   Input& cache_index() { return Node::input(4); }
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -2831,6 +2846,7 @@ class GetIterator : public FixedInputValueNodeT<2, GetIterator> {
   int call_slot() const { return call_slot_; }
   Handle<FeedbackVector> feedback() const { return feedback_; }
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -2867,6 +2883,7 @@ class ToObject : public FixedInputValueNodeT<2, ToObject> {
   Input& context() { return Node::input(0); }
   Input& value_input() { return Node::input(1); }
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -2886,6 +2903,7 @@ class ToString : public FixedInputValueNodeT<2, ToString> {
   Input& context() { return Node::input(0); }
   Input& value_input() { return Node::input(1); }
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -3047,6 +3065,7 @@ class CreateEmptyArrayLiteral
   static constexpr OpProperties kProperties =
       OpProperties::GenericRuntimeOrBuiltinCall();
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -3076,6 +3095,7 @@ class CreateArrayLiteral : public FixedInputValueNodeT<0, CreateArrayLiteral> {
   static constexpr OpProperties kProperties =
       OpProperties::Call() | OpProperties::Throw() | OpProperties::LazyDeopt();
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -3107,6 +3127,7 @@ class CreateShallowArrayLiteral
   static constexpr OpProperties kProperties =
       OpProperties::GenericRuntimeOrBuiltinCall();
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -3141,6 +3162,7 @@ class CreateObjectLiteral
   static constexpr OpProperties kProperties =
       OpProperties::Call() | OpProperties::Throw() | OpProperties::LazyDeopt();
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -3163,6 +3185,7 @@ class CreateEmptyObjectLiteral
 
   compiler::MapRef map() { return map_; }
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -3197,6 +3220,7 @@ class CreateShallowObjectLiteral
   static constexpr OpProperties kProperties =
       OpProperties::GenericRuntimeOrBuiltinCall();
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -3232,6 +3256,7 @@ class CreateFunctionContext
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
@@ -3266,6 +3291,7 @@ class FastCreateClosure : public FixedInputValueNodeT<1, FastCreateClosure> {
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
@@ -3293,6 +3319,7 @@ class CreateRegExpLiteral
   // The implementation currently calls runtime.
   static constexpr OpProperties kProperties = OpProperties::Call();
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -3329,6 +3356,7 @@ class CreateClosure : public FixedInputValueNodeT<1, CreateClosure> {
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
@@ -3615,6 +3643,7 @@ class CheckMapsWithMigration
   static constexpr int kReceiverIndex = 0;
   Input& receiver_input() { return input(kReceiverIndex); }
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
@@ -3794,6 +3823,7 @@ class CheckedObjectToIndex
   static constexpr int kObjectIndex = 0;
   Input& object_input() { return Node::input(kObjectIndex); }
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -3824,6 +3854,7 @@ class GetTemplateObject : public FixedInputValueNodeT<1, GetTemplateObject> {
   }
   compiler::FeedbackSource feedback() const { return feedback_; }
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -3846,6 +3877,7 @@ class BuiltinStringFromCharCode
 
   Input& code_input() { return input(0); }
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -3870,6 +3902,7 @@ class BuiltinStringPrototypeCharCodeAt
   Input& string_input() { return input(kStringIndex); }
   Input& index_input() { return input(kIndexIndex); }
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -4268,6 +4301,7 @@ class StoreMap : public FixedInputNodeT<1, StoreMap> {
   static constexpr int kObjectIndex = 0;
   Input& object_input() { return input(kObjectIndex); }
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
@@ -4296,6 +4330,7 @@ class StoreTaggedFieldWithWriteBarrier
   Input& object_input() { return input(kObjectIndex); }
   Input& value_input() { return input(kValueIndex); }
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
@@ -4327,6 +4362,7 @@ class LoadGlobal : public FixedInputValueNodeT<1, LoadGlobal> {
 
   Input& context() { return input(0); }
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
@@ -4356,6 +4392,7 @@ class StoreGlobal : public FixedInputValueNodeT<2, StoreGlobal> {
   Input& context() { return input(0); }
   Input& value() { return input(1); }
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
@@ -4386,6 +4423,7 @@ class LoadNamedGeneric : public FixedInputValueNodeT<2, LoadNamedGeneric> {
   Input& context() { return input(kContextIndex); }
   Input& object_input() { return input(kObjectIndex); }
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
@@ -4421,6 +4459,7 @@ class LoadNamedFromSuperGeneric
   Input& receiver() { return input(kReceiverIndex); }
   Input& lookup_start_object() { return input(kLookupStartObjectIndex); }
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
@@ -4454,6 +4493,7 @@ class SetNamedGeneric : public FixedInputValueNodeT<3, SetNamedGeneric> {
   Input& object_input() { return input(kObjectIndex); }
   Input& value_input() { return input(kValueIndex); }
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
@@ -4479,6 +4519,7 @@ class StringAt : public FixedInputValueNodeT<2, StringAt> {
   Input& string_input() { return input(kStringIndex); }
   Input& index_input() { return input(kIndexIndex); }
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -4498,6 +4539,7 @@ class StringLength : public FixedInputValueNodeT<1, StringLength> {
   static constexpr int kObjectIndex = 0;
   Input& object_input() { return input(kObjectIndex); }
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -4529,6 +4571,7 @@ class DefineNamedOwnGeneric
   Input& object_input() { return input(kObjectIndex); }
   Input& value_input() { return input(kValueIndex); }
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
@@ -4564,6 +4607,7 @@ class StoreInArrayLiteralGeneric
   Input& name_input() { return input(kNameIndex); }
   Input& value_input() { return input(kValueIndex); }
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -4595,6 +4639,7 @@ class GetKeyedGeneric : public FixedInputValueNodeT<3, GetKeyedGeneric> {
   Input& object_input() { return input(kObjectIndex); }
   Input& key_input() { return input(kKeyIndex); }
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -4628,6 +4673,7 @@ class SetKeyedGeneric : public FixedInputValueNodeT<4, SetKeyedGeneric> {
   Input& key_input() { return input(kKeyIndex); }
   Input& value_input() { return input(kValueIndex); }
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -4662,6 +4708,7 @@ class DefineKeyedOwnGeneric
   Input& key_input() { return input(kKeyIndex); }
   Input& value_input() { return input(kValueIndex); }
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -4789,6 +4836,7 @@ class Call : public ValueNodeT<Call> {
   compiler::FeedbackSource feedback() const { return feedback_; }
 
   void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
@@ -4839,6 +4887,7 @@ class Construct : public ValueNodeT<Construct> {
   compiler::FeedbackSource feedback() const { return feedback_; }
 
   void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -4925,6 +4974,7 @@ class CallBuiltin : public ValueNodeT<CallBuiltin> {
   }
 
   void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
@@ -4972,6 +5022,7 @@ class CallRuntime : public ValueNodeT<CallRuntime> {
   }
 
   void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
@@ -5016,6 +5067,7 @@ class CallWithSpread : public ValueNodeT<CallWithSpread> {
   compiler::FeedbackSource feedback() const { return feedback_; }
 
   void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -5046,6 +5098,7 @@ class CallWithArrayLike : public FixedInputValueNodeT<4, CallWithArrayLike> {
   Input& context() { return input(kContextIndex); }
 
   void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -5067,7 +5120,10 @@ class CallKnownJSFunction : public ValueNodeT<CallKnownJSFunction> {
   // Inputs must be initialized manually.
   CallKnownJSFunction(uint64_t bitfield, const compiler::JSFunctionRef function,
                       ValueNode* receiver)
-      : Base(bitfield), function_(function) {
+      : Base(bitfield),
+        function_(function),
+        expected_parameter_count_(
+            function.shared().internal_formal_parameter_count_with_receiver()) {
     set_input(kReceiverIndex, receiver);
   }
 
@@ -5086,12 +5142,16 @@ class CallKnownJSFunction : public ValueNodeT<CallKnownJSFunction> {
   }
 
   void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
  private:
   const compiler::JSFunctionRef function_;
+  // Cache the expected parameter count so that we can access it in
+  // MaxCallStackArgs without needing to unpark the local isolate.
+  int expected_parameter_count_;
 };
 
 class ConstructWithSpread : public ValueNodeT<ConstructWithSpread> {
@@ -5135,6 +5195,7 @@ class ConstructWithSpread : public ValueNodeT<ConstructWithSpread> {
   compiler::FeedbackSource feedback() const { return feedback_; }
 
   void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -5159,6 +5220,7 @@ class ConvertReceiver : public FixedInputValueNodeT<1, ConvertReceiver> {
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -5223,6 +5285,7 @@ class ReduceInterruptBudget : public FixedInputNodeT<0, ReduceInterruptBudget> {
 
   int amount() const { return amount_; }
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
@@ -5249,6 +5312,7 @@ class ThrowReferenceErrorIfHole
 
   Input& value() { return Node::input(0); }
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -5271,6 +5335,7 @@ class ThrowSuperNotCalledIfHole
 
   Input& value() { return Node::input(0); }
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -5291,6 +5356,7 @@ class ThrowSuperAlreadyCalledIfNotHole
 
   Input& value() { return Node::input(0); }
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -5311,6 +5377,7 @@ class ThrowIfNotSuperConstructor
   Input& constructor() { return Node::input(0); }
   Input& function() { return Node::input(1); }
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
@@ -5503,8 +5570,11 @@ class Abort : public TeminalControlNodeT<0, Abort> {
     DCHECK_EQ(NodeBase::opcode(), opcode_of<Abort>);
   }
 
+  static constexpr OpProperties kProperties = OpProperties::Call();
+
   AbortReason reason() const { return reason_; }
 
+  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
@@ -5671,8 +5741,6 @@ class BranchIfToBooleanTrue
 
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
-
-  static constexpr OpProperties kProperties = OpProperties::Call();
 
   Input& condition_input() { return input(0); }
 

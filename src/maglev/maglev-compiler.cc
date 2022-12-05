@@ -37,6 +37,7 @@
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir-inl.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-regalloc-data.h"
 #include "src/maglev/maglev-regalloc.h"
 #include "src/objects/code-inl.h"
 #include "src/objects/js-function.h"
@@ -59,6 +60,33 @@ class ValueLocationConstraintProcessor {
   }
   NODE_BASE_LIST(DEF_PROCESS_NODE)
 #undef DEF_PROCESS_NODE
+};
+
+class MaxCallDepthProcessor {
+ public:
+  void PreProcessGraph(Graph* graph) {}
+  void PostProcessGraph(Graph* graph) {
+    graph->set_max_call_stack_args(max_call_stack_args_);
+  }
+  void PreProcessBasicBlock(BasicBlock* block) {}
+
+  template <typename NodeT>
+  void Process(NodeT* node, const ProcessingState& state) {
+    if constexpr (NodeT::kProperties.is_call() ||
+                  NodeT::kProperties.needs_register_snapshot()) {
+      int node_stack_args = node->MaxCallStackArgs();
+      if constexpr (NodeT::kProperties.needs_register_snapshot()) {
+        // Pessimistically assume that we'll push all registers in deferred
+        // calls.
+        node_stack_args +=
+            kAllocatableGeneralRegisterCount + kAllocatableDoubleRegisterCount;
+      }
+      max_call_stack_args_ = std::max(max_call_stack_args_, node_stack_args);
+    }
+  }
+
+ private:
+  int max_call_stack_args_ = 0;
 };
 
 class UseMarkingProcessor {
@@ -323,10 +351,12 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
 #endif
 
   {
-    // Preprocessing for register allocation:
+    // Preprocessing for register allocation and code gen:
     //   - Collect input/output location constraints
+    //   - Find the maximum number of stack arguments passed to calls
     //   - Collect use information, for SSA liveness and next-use distance.
-    GraphMultiProcessor<ValueLocationConstraintProcessor, UseMarkingProcessor>
+    GraphMultiProcessor<ValueLocationConstraintProcessor, MaxCallDepthProcessor,
+                        UseMarkingProcessor>
         processor(UseMarkingProcessor{compilation_info});
     processor.ProcessGraph(graph);
   }
