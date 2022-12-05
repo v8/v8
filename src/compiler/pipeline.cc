@@ -85,6 +85,7 @@
 #include "src/compiler/turboshaft/graph-builder.h"
 #include "src/compiler/turboshaft/graph-visualizer.h"
 #include "src/compiler/turboshaft/graph.h"
+#include "src/compiler/turboshaft/late-escape-analysis-reducer.h"
 #include "src/compiler/turboshaft/machine-optimization-reducer.h"
 #include "src/compiler/turboshaft/memory-optimization.h"
 #include "src/compiler/turboshaft/optimization-phase.h"
@@ -1964,8 +1965,7 @@ struct LateOptimizationPhase {
 
   void Run(PipelineData* data, Zone* temp_zone) {
     if (data->HasTurboshaftGraph()) {
-      // TODO(dmercadier,tebbi): port missing reducers (LateEscapeAnalysis and
-      // CommonOperatorReducer) to turboshaft.
+      // TODO(dmercadier,tebbi): add missing CommonOperatorReducer.
       turboshaft::OptimizationPhase<
           turboshaft::VariableReducer, turboshaft::BranchEliminationReducer,
           turboshaft::SelectLoweringReducer,
@@ -1994,8 +1994,8 @@ struct LateOptimizationPhase {
       JSGraphAssembler graph_assembler(data->jsgraph(), temp_zone,
                                        BranchSemantics::kMachine);
       SelectLowering select_lowering(&graph_assembler, data->graph());
-      AddReducer(data, &graph_reducer, &escape_analysis);
       if (!v8_flags.turboshaft) {
+        AddReducer(data, &graph_reducer, &escape_analysis);
         AddReducer(data, &graph_reducer, &branch_condition_elimination);
       }
       AddReducer(data, &graph_reducer, &dead_code_elimination);
@@ -2094,6 +2094,7 @@ struct OptimizeTurboshaftPhase {
     UnparkedScopeIfNeeded scope(data->broker(),
                                 v8_flags.turboshaft_trace_reduction);
     turboshaft::OptimizationPhase<
+        turboshaft::LateEscapeAnalysisReducer,
         turboshaft::MemoryOptimizationReducer, turboshaft::VariableReducer,
         turboshaft::MachineOptimizationReducerSignallingNanImpossible,
         turboshaft::ValueNumberingReducer>::

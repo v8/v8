@@ -47,6 +47,15 @@ struct AnalyzerBase {
       : phase_zone(phase_zone), graph(graph) {}
 };
 
+// All operations whose `saturated_use_count` are unused and can be skipped.
+// Analyzers modify the input graph in-place when they want to mark some
+// Operations as removeable. In order to make that work for operations that have
+// no uses such as Goto and Branch, all operations that have the property
+// `is_required_when_unused` have a non-zero `saturated_use_count`.
+V8_INLINE bool ShouldSkipOperation(const Operation& op) {
+  return op.saturated_use_count == 0;
+}
+
 // TODO(dmercadier, tebbi): transform this analyzer into a reducer, and plug in
 // into some reducer stacks.
 struct LivenessAnalyzer : AnalyzerBase {
@@ -194,6 +203,10 @@ class GraphVisitor {
   Zone* phase_zone() { return phase_zone_; }
   const Block* current_input_block() { return current_input_block_; }
 
+  // Analyzers set Operations' saturated_use_count to zero when they are unused,
+  // and thus need to have a non-const input graph.
+  Graph& modifiable_input_graph() const { return input_graph_; }
+
   // Visits and emits {input_block} right now (ie, in the current block).
   void CloneAndInlineBlock(const Block* input_block) {
     // Computing which input of Phi operations to use when visiting
@@ -312,12 +325,11 @@ class GraphVisitor {
         assembler().output_graph().next_operation_index();
     USE(first_output_index);
     const Operation& op = input_graph().Get(index);
-    if (op.saturated_use_count == 0 &&
-        !op.Properties().is_required_when_unused) {
-      if constexpr (trace_reduction) TraceOperationUnused();
+    if constexpr (trace_reduction) TraceReductionStart(index);
+    if (ShouldSkipOperation(op)) {
+      if constexpr (trace_reduction) TraceOperationSkipped();
       return true;
     }
-    if constexpr (trace_reduction) TraceReductionStart(index);
     OpIndex new_index;
     if (input_block->IsLoop() && op.Is<PhiOp>()) {
       const PhiOp& phi = op.Cast<PhiOp>();
@@ -351,7 +363,7 @@ class GraphVisitor {
               << PaddingSpace{5 - CountDecimalDigits(index.id())}
               << OperationPrintStyle{input_graph().Get(index), "#o"} << "\n";
   }
-  void TraceOperationUnused() { std::cout << "╰─> unused\n\n"; }
+  void TraceOperationSkipped() { std::cout << "╰─> skipped\n\n"; }
   void TraceBlockUnreachable() { std::cout << "╰─> unreachable\n\n"; }
   void TraceReductionResult(Block* current_block, OpIndex first_output_index,
                             OpIndex new_index) {

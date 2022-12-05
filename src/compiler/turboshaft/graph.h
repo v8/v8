@@ -454,6 +454,8 @@ class Graph {
     return *ptr;
   }
 
+  void MarkAsUnused(OpIndex i) { Get(i).saturated_use_count = 0; }
+
   const Block& StartBlock() const { return Get(BlockIndex(0)); }
 
   Block& Get(BlockIndex i) {
@@ -488,6 +490,16 @@ class Graph {
 #endif  // DEBUG
     Op& op = Op::New(this, args...);
     IncrementInputUses(op);
+
+    if (op.Properties().is_required_when_unused) {
+      // Once the graph is built, an operation with a `saturated_use_count` of 0
+      // is guaranteed to be unused and can be removed. Thus, to avoid removing
+      // operations that never have uses (such as Goto or Branch), we set the
+      // `saturated_use_count` of Operations that are `required_when_unused`
+      // to 1.
+      op.saturated_use_count = 1;
+    }
+
     DCHECK_EQ(result, Index(op));
 #ifdef DEBUG
     for (OpIndex input : op.inputs()) {

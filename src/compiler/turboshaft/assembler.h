@@ -53,6 +53,7 @@ class ReducerStack<Assembler, FirstReducer, Reducers...>
 template <class Assembler>
 class ReducerStack<Assembler> {
  public:
+  using AssemblerType = Assembler;
   Assembler& Asm() { return *static_cast<Assembler*>(this); }
 };
 

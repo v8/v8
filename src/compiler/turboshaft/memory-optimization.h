@@ -11,7 +11,7 @@
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/utils.h"
 
-namespace v8 ::internal::compiler::turboshaft {
+namespace v8::internal::compiler::turboshaft {
 
 const TSCallDescriptor* CreateAllocateBuiltinDescriptor(Zone* zone);
 
@@ -66,12 +66,13 @@ struct MemoryAnalyzer {
   }
 
   bool IsFoldedAllocation(OpIndex op) {
-    return folded_into.count(input_graph.Get(op).TryCast<AllocateOp>());
+    return folded_into.count(
+        input_graph.Get(op).template TryCast<AllocateOp>());
   }
 
   base::Optional<uint32_t> ReservedSize(OpIndex alloc) {
-    if (auto it =
-            reserved_size.find(input_graph.Get(alloc).TryCast<AllocateOp>());
+    if (auto it = reserved_size.find(
+            input_graph.Get(alloc).template TryCast<AllocateOp>());
         it != reserved_size.end()) {
       return it->second;
     }
@@ -79,6 +80,7 @@ struct MemoryAnalyzer {
   }
 
   void Run();
+
   void Process(const Operation& op);
   void ProcessBlockTerminator(const Operation& op);
   void ProcessAllocation(const AllocateOp& alloc);

@@ -7,7 +7,7 @@
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/compiler/linkage.h"
 
-namespace v8 ::internal::compiler::turboshaft {
+namespace v8::internal::compiler::turboshaft {
 
 const TSCallDescriptor* CreateAllocateBuiltinDescriptor(Zone* zone) {
   return TSCallDescriptor::Create(
@@ -36,6 +36,10 @@ void MemoryAnalyzer::Run() {
 }
 
 void MemoryAnalyzer::Process(const Operation& op) {
+  if (ShouldSkipOperation(op)) {
+    return;
+  }
+
   if (auto* alloc = op.TryCast<AllocateOp>()) {
     ProcessAllocation(*alloc);
     return;
@@ -78,7 +82,7 @@ void MemoryAnalyzer::ProcessBlockTerminator(const Operation& op) {
       // speculation resulting in processing the loop twice.
       for (const Operation& op :
            input_graph.operations(*goto_op->destination)) {
-        if (op.Properties().can_allocate) {
+        if (op.Properties().can_allocate && !ShouldSkipOperation(op)) {
           state = BlockState();
           break;
         }
@@ -96,7 +100,8 @@ void MemoryAnalyzer::ProcessBlockTerminator(const Operation& op) {
 void MemoryAnalyzer::ProcessAllocation(const AllocateOp& alloc) {
   if (ShouldSkipOptimizationStep()) return;
   base::Optional<uint64_t> new_size;
-  if (auto* size = input_graph.Get(alloc.size()).TryCast<ConstantOp>()) {
+  if (auto* size =
+          input_graph.Get(alloc.size()).template TryCast<ConstantOp>()) {
     new_size = size->integral();
   }
   // If the new allocation has a static size and is of the same type, then we
@@ -141,10 +146,7 @@ void MemoryAnalyzer::MergeCurrentStateIntoSuccessor(const Block* successor) {
     return;
   }
   // All predecessors need to have the same last allocation for us to continue
-  // folding into it. This is only true when all the predecessors don't do any
-  // allocations and have the same ancestor that does an allocation (and there
-  // is no allocation on the path from the predecessors to their allocating
-  // common ancestor).
+  // folding into it.
   if (target_state->last_allocation != state.last_allocation) {
     target_state = BlockState();
     return;
