@@ -581,24 +581,13 @@ YoungGenerationMarkingVisitorBase<ConcreteVisitor, MarkingState>::
       worklists_local_(worklists_local) {}
 
 template <typename ConcreteVisitor, typename MarkingState>
-int YoungGenerationMarkingVisitorBase<
-    ConcreteVisitor, MarkingState>::VisitJSArrayBuffer(Map map,
-                                                       JSArrayBuffer object) {
-  if (!concrete_visitor()->ShouldVisit(object)) return 0;
-  object.YoungMarkExtension();
-  int size = JSArrayBuffer::BodyDescriptor::SizeOf(map, object);
-  JSArrayBuffer::BodyDescriptor::IterateBody(map, object, size, this);
-  return size;
-}
-
-template <typename ConcreteVisitor, typename MarkingState>
-int YoungGenerationMarkingVisitorBase<
-    ConcreteVisitor, MarkingState>::VisitJSApiObject(Map map, JSObject object) {
-  if (!worklists_local_->SupportsExtractWrapper())
-    return this->VisitJSObject(map, object);
-  if (!concrete_visitor()->ShouldVisit(object)) return 0;
+template <typename T>
+int YoungGenerationMarkingVisitorBase<ConcreteVisitor, MarkingState>::
+    VisitEmbedderTracingSubClassWithEmbedderTracing(Map map, T object) {
+  const bool requires_snapshot = worklists_local_->SupportsExtractWrapper();
   MarkingWorklists::Local::WrapperSnapshot wrapper_snapshot;
   const bool valid_snapshot =
+      requires_snapshot &&
       worklists_local_->ExtractWrapper(map, object, wrapper_snapshot);
   const int size = concrete_visitor()->VisitJSObjectSubclass(map, object);
   if (size && valid_snapshot) {
@@ -606,6 +595,34 @@ int YoungGenerationMarkingVisitorBase<
     worklists_local_->PushExtractedWrapper(wrapper_snapshot);
   }
   return size;
+}
+
+template <typename ConcreteVisitor, typename MarkingState>
+int YoungGenerationMarkingVisitorBase<
+    ConcreteVisitor, MarkingState>::VisitJSArrayBuffer(Map map,
+                                                       JSArrayBuffer object) {
+  object.YoungMarkExtension();
+  return VisitEmbedderTracingSubClassWithEmbedderTracing(map, object);
+}
+
+template <typename ConcreteVisitor, typename MarkingState>
+int YoungGenerationMarkingVisitorBase<
+    ConcreteVisitor, MarkingState>::VisitJSApiObject(Map map, JSObject object) {
+  return VisitEmbedderTracingSubClassWithEmbedderTracing(map, object);
+}
+
+template <typename ConcreteVisitor, typename MarkingState>
+int YoungGenerationMarkingVisitorBase<
+    ConcreteVisitor, MarkingState>::VisitJSDataView(Map map,
+                                                    JSDataView object) {
+  return VisitEmbedderTracingSubClassWithEmbedderTracing(map, object);
+}
+
+template <typename ConcreteVisitor, typename MarkingState>
+int YoungGenerationMarkingVisitorBase<
+    ConcreteVisitor, MarkingState>::VisitJSTypedArray(Map map,
+                                                      JSTypedArray object) {
+  return VisitEmbedderTracingSubClassWithEmbedderTracing(map, object);
 }
 
 template <typename ConcreteVisitor, typename MarkingState>

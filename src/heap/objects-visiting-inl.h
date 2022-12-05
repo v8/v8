@@ -236,7 +236,7 @@ int NewSpaceVisitor<ConcreteVisitor>::VisitWeakCell(Map map,
 template <typename ConcreteVisitor>
 template <typename T, typename TBodyDescriptor>
 int NewSpaceVisitor<ConcreteVisitor>::VisitJSObjectSubclass(Map map, T object) {
-  if (!this->ShouldVisit(object)) return 0;
+  if (!static_cast<ConcreteVisitor*>(this)->ShouldVisit(object)) return 0;
   this->VisitMapPointer(object);
   int size = TBodyDescriptor::SizeOf(map, object);
   TBodyDescriptor::IterateBody(map, object, size, this);
