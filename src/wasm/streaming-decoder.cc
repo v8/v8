@@ -58,12 +58,12 @@ class V8_EXPORT_PRIVATE AsyncStreamingDecoder : public StreamingDecoder {
           bytes_(base::OwnedVector<uint8_t>::NewForOverwrite(
               1 + length_bytes.length() + payload_length)),
           payload_offset_(1 + length_bytes.length()) {
-      bytes_.start()[0] = id;
-      memcpy(bytes_.start() + 1, &length_bytes.first(), length_bytes.length());
+      bytes_.begin()[0] = id;
+      memcpy(bytes_.begin() + 1, &length_bytes.first(), length_bytes.length());
     }
 
     SectionCode section_code() const {
-      return static_cast<SectionCode>(bytes_.start()[0]);
+      return static_cast<SectionCode>(bytes_.begin()[0]);
     }
 
     base::Vector<const uint8_t> GetCode(WireBytesRef ref) const final {

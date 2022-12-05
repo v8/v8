@@ -235,14 +235,12 @@ class OwnedVector {
   // Returns whether or not the vector is empty.
   constexpr bool empty() const { return length_ == 0; }
 
-  // Returns the pointer to the start of the data in the vector.
-  T* start() const {
+  constexpr T* begin() const {
     DCHECK_IMPLIES(length_ > 0, data_ != nullptr);
     return data_.get();
   }
 
-  constexpr T* begin() const { return start(); }
-  constexpr T* end() const { return start() + size(); }
+  constexpr T* end() const { return begin() + length_; }
 
   // Access individual vector elements - checks bounds in debug mode.
   T& operator[](size_t index) const {
@@ -251,7 +249,7 @@ class OwnedVector {
   }
 
   // Returns a {Vector<T>} view of the data in this vector.
-  Vector<T> as_vector() const { return Vector<T>(start(), size()); }
+  Vector<T> as_vector() const { return {begin(), size()}; }
 
   // Releases the backing data from this vector and transfers ownership to the
   // caller. This vector will be empty afterwards.
@@ -287,7 +285,7 @@ class OwnedVector {
     using non_const_t = typename std::remove_const<T>::type;
     auto vec =
         OwnedVector<non_const_t>::NewForOverwrite(std::distance(begin, end));
-    std::copy(begin, end, vec.start());
+    std::copy(begin, end, vec.begin());
     return vec;
   }
 

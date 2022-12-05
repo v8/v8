@@ -1072,7 +1072,7 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
   base::OwnedVector<byte> source_pos =
       base::OwnedVector<byte>::NewForOverwrite(source_pos_table->length());
   if (source_pos_table->length() > 0) {
-    source_pos_table->copy_out(0, source_pos.start(),
+    source_pos_table->copy_out(0, source_pos.begin(),
                                source_pos_table->length());
   }
   CHECK(!code->is_off_heap_trampoline());

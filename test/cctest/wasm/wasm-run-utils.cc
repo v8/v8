@@ -273,13 +273,13 @@ uint32_t TestingModuleBuilder::AddBytes(base::Vector<const byte> bytes) {
   base::OwnedVector<uint8_t> new_bytes =
       base::OwnedVector<uint8_t>::New(new_size);
   if (old_size > 0) {
-    memcpy(new_bytes.start(), old_bytes.begin(), old_size);
+    memcpy(new_bytes.begin(), old_bytes.begin(), old_size);
   } else {
     // Set the unused byte. It is never decoded, but the bytes are used as the
     // key in the native module cache.
     new_bytes[0] = 0;
   }
-  memcpy(new_bytes.start() + bytes_offset, bytes.begin(), bytes.length());
+  memcpy(new_bytes.begin() + bytes_offset, bytes.begin(), bytes.length());
   native_module_->SetWireBytes(std::move(new_bytes));
   return bytes_offset;
 }
