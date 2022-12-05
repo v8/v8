@@ -577,6 +577,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Like Assert(), but always enabled.
   void Check(Condition cond, AbortReason reason);
 
+  // Functions performing a check on a known or potential smi. Returns
+  // a condition that is satisfied if the check is successful.
+  Condition CheckSmi(Register src);
+
   inline void Debug(const char* message, uint32_t code, Instr params = BREAK);
 
   void Trap();
@@ -1797,14 +1801,34 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
     PopSizeRegList(regs, kSRegSizeInBits);
   }
 
-  inline void PushAll(RegList registers) { PushXRegList(registers); }
-  inline void PopAll(RegList registers) { PopXRegList(registers); }
+  inline void PushAll(RegList registers) {
+    if (registers.Count() % 2 != 0) {
+      DCHECK(!registers.has(xzr));
+      registers.set(xzr);
+    }
+    PushXRegList(registers);
+  }
+  inline void PopAll(RegList registers) {
+    if (registers.Count() % 2 != 0) {
+      DCHECK(!registers.has(xzr));
+      registers.set(xzr);
+    }
+    PopXRegList(registers);
+  }
   inline void PushAll(DoubleRegList registers,
                       int stack_slot_size = kDoubleSize) {
+    if (registers.Count() % 2 != 0) {
+      DCHECK(!registers.has(fp_zero));
+      registers.set(fp_zero);
+    }
     PushQRegList(registers);
   }
   inline void PopAll(DoubleRegList registers,
                      int stack_slot_size = kDoubleSize) {
+    if (registers.Count() % 2 != 0) {
+      DCHECK(!registers.has(fp_zero));
+      registers.set(fp_zero);
+    }
     PopQRegList(registers);
   }
 

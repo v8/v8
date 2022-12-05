@@ -1503,6 +1503,12 @@ void TurboAssembler::AssertFPCRState(Register fpcr) {
   Bind(&done);
 }
 
+Condition TurboAssembler::CheckSmi(Register object) {
+  static_assert(kSmiTag == 0);
+  Tst(object, kSmiTagMask);
+  return eq;
+}
+
 void TurboAssembler::AssertSmi(Register object, AbortReason reason) {
   if (!v8_flags.debug_code) return;
   ASM_CODE_COMMENT(this);

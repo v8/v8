@@ -1203,6 +1203,7 @@ void MaglevCodeGenerator::EmitCode() {
   EmitDeferredCode();
   EmitDeopts();
   EmitExceptionHandlerTrampolines();
+  __ FinishCode();
 }
 
 void MaglevCodeGenerator::EmitDeferredCode() {
@@ -1222,6 +1223,17 @@ void MaglevCodeGenerator::EmitDeopts() {
   MaglevTranslationArrayBuilder translation_builder(
       local_isolate_, &masm_, &translation_array_builder_, &deopt_literals_);
 
+  // Deoptimization exits must be as small as possible, since their count grows
+  // with function size. These labels are an optimization which extracts the
+  // (potentially large) instruction sequence for the final jump to the
+  // deoptimization entry into a single spot per Code object. All deopt exits
+  // can then near-call to this label. Note: not used on all architectures.
+  Label eager_deopt_entry;
+  Label lazy_deopt_entry;
+  __ MaybeEmitDeoptBuiltinsCall(
+      code_gen_state_.eager_deopts().size(), &eager_deopt_entry,
+      code_gen_state_.lazy_deopts().size(), &lazy_deopt_entry);
+
   deopt_exit_start_offset_ = __ pc_offset();
 
   int deopt_index = 0;
@@ -1238,12 +1250,10 @@ void MaglevCodeGenerator::EmitDeopts() {
     }
     __ bind(deopt_info->deopt_entry_label());
 
-#ifndef V8_TARGET_ARCH_ARM64
-    // TODO(victorgomes): Implement jump deoptimizer entry label mechanism.
     __ CallForDeoptimization(Builtin::kDeoptimizationEntry_Eager, deopt_index,
                              deopt_info->deopt_entry_label(),
-                             DeoptimizeKind::kEager, nullptr, nullptr);
-#endif
+                             DeoptimizeKind::kEager, nullptr,
+                             &eager_deopt_entry);
 
     deopt_index++;
   }
@@ -1259,14 +1269,11 @@ void MaglevCodeGenerator::EmitDeopts() {
                            GetSourcePosition(deopt_info->top_frame()),
                            deopt_index);
     }
-    __ bind(deopt_info->deopt_entry_label());
+    __ BindExceptionHandler(deopt_info->deopt_entry_label());
 
-#ifndef V8_TARGET_ARCH_ARM64
-    // TODO(victorgomes): Implement jump deoptimizer entry label mechanism.
     __ CallForDeoptimization(Builtin::kDeoptimizationEntry_Lazy, deopt_index,
                              deopt_info->deopt_entry_label(),
-                             DeoptimizeKind::kLazy, nullptr, nullptr);
-#endif
+                             DeoptimizeKind::kLazy, nullptr, &lazy_deopt_entry);
 
     last_updated_safepoint = safepoint_table_builder_.UpdateDeoptimizationInfo(
         deopt_info->deopting_call_return_pc(),

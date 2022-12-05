@@ -325,6 +325,8 @@ inline void MaglevAssembler::AssertStackSizeCorrect() {
   }
 }
 
+inline void MaglevAssembler::FinishCode() {}
+
 template <typename Dest, typename Source>
 inline void MaglevAssembler::MoveRepr(MachineRepresentation repr, Dest dst,
                                       Source src) {

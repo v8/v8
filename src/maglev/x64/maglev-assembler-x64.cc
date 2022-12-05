@@ -506,6 +506,11 @@ void MaglevAssembler::Prologue(Graph* graph) {
   }
 }
 
+void MaglevAssembler::MaybeEmitDeoptBuiltinsCall(size_t eager_deopt_count,
+                                                 Label* eager_deopt_entry,
+                                                 size_t lazy_deopt_count,
+                                                 Label* lazy_deopt_entry) {}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8

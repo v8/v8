@@ -3,6 +3,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/deoptimizer/deoptimizer.h"
 #include "src/maglev/arm64/maglev-assembler-arm64-inl.h"
 #include "src/maglev/maglev-graph.h"
 
@@ -89,10 +90,19 @@ void MaglevAssembler::Prologue(Graph* graph) {
         lo,
         [](MaglevAssembler* masm, ZoneLabelRef done, int stack_slots) {
           ASM_CODE_COMMENT_STRING(masm, "Stack/interrupt call");
-          // TODO(victorgomes): Push all aligned.
+          // Save any registers that can be referenced by RegisterInput.
+          // TODO(leszeks): Only push those that are used by the graph.
+          __ PushAll(RegisterInput::kAllowedRegisters);
+          // Push the frame size
+          __ Mov(ip0,
+                 Immediate(Smi::FromInt(stack_slots * kSystemPointerSize)));
+          __ PushArgument(ip0);
+          __ CallRuntime(Runtime::kStackGuardWithGap, 1);
+          __ PopAll(RegisterInput::kAllowedRegisters);
           __ B(*done);
         },
-        deferred_call_stack_guard_return, remaining_stack_slots);
+        deferred_call_stack_guard_return,
+        remaining_stack_slots > 0 ? remaining_stack_slots : 0);
     bind(*deferred_call_stack_guard_return);
   }
 
@@ -140,6 +150,32 @@ void MaglevAssembler::Prologue(Graph* graph) {
     // Extend rsp by the size of the remaining untagged part of the frame,
     // no need to initialise these.
     sub(fp, fp, Immediate(remaining_stack_slots * kSystemPointerSize));
+  }
+}
+
+void MaglevAssembler::MaybeEmitDeoptBuiltinsCall(size_t eager_deopt_count,
+                                                 Label* eager_deopt_entry,
+                                                 size_t lazy_deopt_count,
+                                                 Label* lazy_deopt_entry) {
+  ForceConstantPoolEmissionWithoutJump();
+
+  DCHECK_GE(Deoptimizer::kLazyDeoptExitSize, Deoptimizer::kEagerDeoptExitSize);
+  size_t deopt_count = eager_deopt_count + lazy_deopt_count;
+  CheckVeneerPool(
+      false, false,
+      static_cast<int>(deopt_count) * Deoptimizer::kLazyDeoptExitSize);
+
+  UseScratchRegisterScope scope(this);
+  Register scratch = scope.AcquireX();
+  if (eager_deopt_count > 0) {
+    Bind(eager_deopt_entry);
+    LoadEntryFromBuiltin(Builtin::kDeoptimizationEntry_Eager, scratch);
+    MacroAssembler::Jump(scratch);
+  }
+  if (lazy_deopt_count > 0) {
+    Bind(lazy_deopt_entry);
+    LoadEntryFromBuiltin(Builtin::kDeoptimizationEntry_Lazy, scratch);
+    MacroAssembler::Jump(scratch);
   }
 }
 

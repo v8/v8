@@ -7,7 +7,7 @@
 #include "src/maglev/arm64/maglev-assembler-arm64-inl.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-graph.h"
-#include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-ir-inl.h"
 #include "src/objects/feedback-cell.h"
 #include "src/objects/js-function.h"
 
@@ -79,7 +79,6 @@ UNIMPLEMENTED_NODE(GenericLessThan)
 UNIMPLEMENTED_NODE(GenericLessThanOrEqual)
 UNIMPLEMENTED_NODE(GenericGreaterThan)
 UNIMPLEMENTED_NODE(GenericGreaterThanOrEqual)
-UNIMPLEMENTED_NODE(Int32AddWithOverflow)
 UNIMPLEMENTED_NODE(Int32SubtractWithOverflow)
 UNIMPLEMENTED_NODE(Int32MultiplyWithOverflow)
 UNIMPLEMENTED_NODE(Int32DivideWithOverflow)
@@ -165,11 +164,8 @@ UNIMPLEMENTED_NODE(DefineKeyedOwnGeneric)
 UNIMPLEMENTED_NODE(Phi)
 void Phi::SetValueLocationConstraintsInPostProcess() {}
 UNIMPLEMENTED_NODE(RegisterInput)
-UNIMPLEMENTED_NODE(CheckedSmiTagInt32)
 UNIMPLEMENTED_NODE(CheckedSmiTagUint32)
 UNIMPLEMENTED_NODE(UnsafeSmiTag)
-UNIMPLEMENTED_NODE(CheckedSmiUntag)
-UNIMPLEMENTED_NODE(UnsafeSmiUntag)
 UNIMPLEMENTED_NODE(CheckedInternalizedString, check_type_)
 UNIMPLEMENTED_NODE(CheckedObjectToIndex)
 UNIMPLEMENTED_NODE(CheckedTruncateNumberToInt32)
@@ -244,12 +240,47 @@ UNIMPLEMENTED_NODE(JumpLoop)
 UNIMPLEMENTED_NODE(Abort)
 UNIMPLEMENTED_NODE(Deopt)
 
+void Int32AddWithOverflow::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsRegister(this);
+}
+
+void Int32AddWithOverflow::GenerateCode(MaglevAssembler* masm,
+                                        const ProcessingState& state) {
+  Register left = ToRegister(left_input()).W();
+  Register right = ToRegister(right_input()).W();
+  Register out = ToRegister(result()).W();
+  __ Add(out, left, right);
+  // None of the mutated input registers should be a register input into the
+  // eager deopt info.
+  DCHECK_REGLIST_EMPTY(RegList{out} &
+                       GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
+  __ EmitEagerDeoptIf(vs, DeoptimizeReason::kOverflow, this);
+}
+
+void CheckedSmiTagInt32::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineAsRegister(this);
+}
+void CheckedSmiTagInt32::GenerateCode(MaglevAssembler* masm,
+                                      const ProcessingState& state) {
+  Register reg = ToRegister(input()).W();
+  Register out = ToRegister(result()).W();
+  __ Add(out, reg, reg);
+  // None of the mutated input registers should be a register input into the
+  // eager deopt info.
+  DCHECK_REGLIST_EMPTY(RegList{out} &
+                       GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
+  __ EmitEagerDeoptIf(vs, DeoptimizeReason::kOverflow, this);
+}
+
 void IncreaseInterruptBudget::SetValueLocationConstraints() {}
 void IncreaseInterruptBudget::GenerateCode(MaglevAssembler* masm,
                                            const ProcessingState& state) {
   UseScratchRegisterScope temps(masm);
   Register feedback_cell = temps.AcquireX();
-  Register budget = temps.AcquireX();
+  Register budget = temps.AcquireW();
   __ Ldr(feedback_cell,
          MemOperand(fp, StandardFrameConstants::kFunctionOffset));
   __ LoadTaggedPointerField(
@@ -268,7 +299,7 @@ void ReduceInterruptBudget::GenerateCode(MaglevAssembler* masm,
   {
     UseScratchRegisterScope temps(masm);
     Register feedback_cell = temps.AcquireX();
-    Register budget = temps.AcquireX();
+    Register budget = temps.AcquireW();
     __ Ldr(feedback_cell,
            MemOperand(fp, StandardFrameConstants::kFunctionOffset));
     __ LoadTaggedPointerField(

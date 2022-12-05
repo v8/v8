@@ -576,6 +576,35 @@ void GapMove::GenerateCode(MaglevAssembler* masm,
   }
 }
 
+void CheckedSmiUntag::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineSameAsFirst(this);
+}
+
+void CheckedSmiUntag::GenerateCode(MaglevAssembler* masm,
+                                   const ProcessingState& state) {
+  Register value = ToRegister(input());
+  // TODO(leszeks): Consider optimizing away this test and using the carry bit
+  // of the `sarl` for cases where the deopt uses the value from a different
+  // register.
+  Condition is_smi = __ CheckSmi(value);
+  __ EmitEagerDeoptIf(NegateCondition(is_smi), DeoptimizeReason::kNotASmi,
+                      this);
+  __ SmiToInt32(value);
+}
+
+void UnsafeSmiUntag::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineSameAsFirst(this);
+}
+
+void UnsafeSmiUntag::GenerateCode(MaglevAssembler* masm,
+                                  const ProcessingState& state) {
+  Register value = ToRegister(input());
+  __ AssertSmi(value);
+  __ SmiToInt32(value);
+}
+
 // ---
 // Arch agnostic control nodes
 // ---

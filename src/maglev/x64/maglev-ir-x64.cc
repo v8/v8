@@ -37,43 +37,6 @@ namespace maglev {
 
 #define __ masm->
 
-namespace {
-
-void AddDeoptRegistersToSnapshot(RegisterSnapshot* snapshot,
-                                 const EagerDeoptInfo* deopt_info) {
-  detail::DeepForEachInput(deopt_info, [&](ValueNode* node,
-                                           InputLocation* input) {
-    if (!input->IsAnyRegister()) return;
-    if (input->IsDoubleRegister()) {
-      snapshot->live_double_registers.set(input->AssignedDoubleRegister());
-    } else {
-      snapshot->live_registers.set(input->AssignedGeneralRegister());
-      if (node->is_tagged()) {
-        snapshot->live_tagged_registers.set(input->AssignedGeneralRegister());
-      }
-    }
-  });
-}
-
-#ifdef DEBUG
-RegList GetGeneralRegistersUsedAsInputs(const EagerDeoptInfo* deopt_info) {
-  RegList regs;
-  detail::DeepForEachInput(deopt_info,
-                           [&regs](ValueNode* value, InputLocation* input) {
-                             if (input->IsGeneralRegister()) {
-                               regs.set(input->AssignedGeneralRegister());
-                             }
-                           });
-  return regs;
-}
-#endif  // DEBUG
-
-// Helper macro for checking that a reglist is empty which prints the contents
-// when non-empty.
-#define DCHECK_REGLIST_EMPTY(...) DCHECK_EQ((__VA_ARGS__), RegList{})
-
-}  // namespace
-
 // ---
 // Nodes
 // ---
@@ -2722,35 +2685,6 @@ DEF_OPERATION(Float64LessThanOrEqual)
 DEF_OPERATION(Float64GreaterThan)
 DEF_OPERATION(Float64GreaterThanOrEqual)
 #undef DEF_OPERATION
-
-void CheckedSmiUntag::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineSameAsFirst(this);
-}
-
-void CheckedSmiUntag::GenerateCode(MaglevAssembler* masm,
-                                   const ProcessingState& state) {
-  Register value = ToRegister(input());
-  // TODO(leszeks): Consider optimizing away this test and using the carry bit
-  // of the `sarl` for cases where the deopt uses the value from a different
-  // register.
-  Condition is_smi = __ CheckSmi(value);
-  __ EmitEagerDeoptIf(NegateCondition(is_smi), DeoptimizeReason::kNotASmi,
-                      this);
-  __ SmiToInt32(value);
-}
-
-void UnsafeSmiUntag::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineSameAsFirst(this);
-}
-
-void UnsafeSmiUntag::GenerateCode(MaglevAssembler* masm,
-                                  const ProcessingState& state) {
-  Register value = ToRegister(input());
-  __ AssertSmi(value);
-  __ SmiToInt32(value);
-}
 
 void CheckInt32IsSmi::SetValueLocationConstraints() { UseRegister(input()); }
 void CheckInt32IsSmi::GenerateCode(MaglevAssembler* masm,

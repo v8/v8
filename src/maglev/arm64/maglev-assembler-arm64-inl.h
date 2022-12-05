@@ -97,6 +97,10 @@ inline void MaglevAssembler::AssertStackSizeCorrect() {
   // TODO(v8:7700): Implement!
 }
 
+inline void MaglevAssembler::FinishCode() {
+  ForceConstantPoolEmissionWithoutJump();
+}
+
 inline void MaglevAssembler::MaterialiseValueNode(Register dst,
                                                   ValueNode* value) {
   // TODO(v8:7700): Implement!

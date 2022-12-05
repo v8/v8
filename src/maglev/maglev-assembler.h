@@ -159,7 +159,14 @@ class MaglevAssembler : public MacroAssembler {
 
   void Prologue(Graph* graph);
 
+  inline void FinishCode();
+
   inline void AssertStackSizeCorrect();
+
+  void MaybeEmitDeoptBuiltinsCall(size_t eager_deopt_count,
+                                  Label* eager_deopt_entry,
+                                  size_t lazy_deopt_count,
+                                  Label* lazy_deopt_entry);
 
   compiler::NativeContextRef native_context() const {
     return code_gen_state()->broker()->target_native_context();
