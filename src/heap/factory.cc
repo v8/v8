@@ -20,6 +20,7 @@
 #include "src/diagnostics/basic-block-profiler.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/protectors-inl.h"
+#include "src/flags/flags.h"
 #include "src/heap/basic-memory-chunk.h"
 #include "src/heap/heap-allocator-inl.h"
 #include "src/heap/heap-inl.h"
@@ -3004,9 +3005,13 @@ Handle<JSArrayBuffer> Factory::NewJSArrayBuffer(
     std::shared_ptr<BackingStore> backing_store, AllocationType allocation) {
   Handle<Map> map(isolate()->native_context()->array_buffer_fun().initial_map(),
                   isolate());
+  ResizableFlag resizable_by_js = ResizableFlag::kNotResizable;
+  if (v8_flags.harmony_rab_gsab && backing_store->is_resizable_by_js()) {
+    resizable_by_js = ResizableFlag::kResizable;
+  }
   auto result =
       Handle<JSArrayBuffer>::cast(NewJSObjectFromMap(map, allocation));
-  result->Setup(SharedFlag::kNotShared, ResizableFlag::kNotResizable,
+  result->Setup(SharedFlag::kNotShared, resizable_by_js,
                 std::move(backing_store), isolate());
   return result;
 }
@@ -3133,21 +3138,41 @@ Handle<JSArrayBufferView> Factory::NewJSArrayBufferView(
 
 Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type,
                                               Handle<JSArrayBuffer> buffer,
-                                              size_t byte_offset,
-                                              size_t length) {
+                                              size_t byte_offset, size_t length,
+                                              bool is_length_tracking) {
   size_t element_size;
   ElementsKind elements_kind;
   JSTypedArray::ForFixedTypedArray(type, &element_size, &elements_kind);
+
+  CHECK_IMPLIES(is_length_tracking, v8_flags.harmony_rab_gsab);
+  const bool is_backed_by_rab =
+      buffer->is_resizable_by_js() && !buffer->is_shared();
+
+  Handle<Map> map;
+  if (is_backed_by_rab || is_length_tracking) {
+    map = handle(
+        isolate()->raw_native_context().TypedArrayElementsKindToRabGsabCtorMap(
+            elements_kind),
+        isolate());
+  } else {
+    map =
+        handle(isolate()->raw_native_context().TypedArrayElementsKindToCtorMap(
+                   elements_kind),
+               isolate());
+  }
+
+  if (is_length_tracking) {
+    // Security: enforce the invariant that length-tracking TypedArrays have
+    // their length and byte_length set to 0.
+    length = 0;
+  }
+
   size_t byte_length = length * element_size;
 
   CHECK_LE(length, JSTypedArray::kMaxLength);
   CHECK_EQ(length, byte_length / element_size);
   CHECK_EQ(0, byte_offset % ElementsKindToByteSize(elements_kind));
 
-  Handle<Map> map(
-      isolate()->raw_native_context().TypedArrayElementsKindToCtorMap(
-          elements_kind),
-      isolate());
   Handle<JSTypedArray> typed_array =
       Handle<JSTypedArray>::cast(NewJSArrayBufferView(
           map, empty_byte_array(), buffer, byte_offset, byte_length));
@@ -3155,23 +3180,28 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type,
   DisallowGarbageCollection no_gc;
   raw.set_length(length);
   raw.SetOffHeapDataPtr(isolate(), buffer->backing_store(), byte_offset);
-  raw.set_is_length_tracking(false);
-  raw.set_is_backed_by_rab(!buffer->is_shared() &&
-                           buffer->is_resizable_by_js());
+  raw.set_is_length_tracking(is_length_tracking);
+  raw.set_is_backed_by_rab(is_backed_by_rab);
   return typed_array;
 }
 
 Handle<JSDataView> Factory::NewJSDataView(Handle<JSArrayBuffer> buffer,
                                           size_t byte_offset,
-                                          size_t byte_length) {
+                                          size_t byte_length,
+                                          bool is_length_tracking) {
+  CHECK_IMPLIES(is_length_tracking, v8_flags.harmony_rab_gsab);
+  if (is_length_tracking) {
+    // Security: enforce the invariant that length-tracking DataViews have their
+    // byte_length set to 0.
+    byte_length = 0;
+  }
   Handle<Map> map(isolate()->native_context()->data_view_fun().initial_map(),
                   isolate());
   Handle<JSDataView> obj = Handle<JSDataView>::cast(NewJSArrayBufferView(
       map, empty_fixed_array(), buffer, byte_offset, byte_length));
   obj->set_data_pointer(
       isolate(), static_cast<uint8_t*>(buffer->backing_store()) + byte_offset);
-  // TODO(v8:11111): Support creating length tracking DataViews via the API.
-  obj->set_is_length_tracking(false);
+  obj->set_is_length_tracking(is_length_tracking);
   obj->set_is_backed_by_rab(!buffer->is_shared() &&
                             buffer->is_resizable_by_js());
   return obj;

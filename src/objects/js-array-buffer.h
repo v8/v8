@@ -419,6 +419,8 @@ class JSDataView
   DECL_PRINTER(JSDataView)
   DECL_VERIFIER(JSDataView)
 
+  inline bool IsOutOfBounds() const;
+
   // TODO(v8:9287): Re-enable when GCMole stops mixing 32/64 bit configs.
   // static_assert(IsAligned(kDataPointerOffset, kTaggedSize));
 

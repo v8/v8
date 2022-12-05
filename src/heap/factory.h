@@ -702,10 +702,12 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // Creates a new JSTypedArray with the specified buffer.
   Handle<JSTypedArray> NewJSTypedArray(ExternalArrayType type,
                                        Handle<JSArrayBuffer> buffer,
-                                       size_t byte_offset, size_t length);
+                                       size_t byte_offset, size_t length,
+                                       bool is_length_tracking = false);
 
   Handle<JSDataView> NewJSDataView(Handle<JSArrayBuffer> buffer,
-                                   size_t byte_offset, size_t byte_length);
+                                   size_t byte_offset, size_t byte_length,
+                                   bool is_length_tracking = false);
 
   Handle<JSIteratorResult> NewJSIteratorResult(Handle<Object> value, bool done);
   Handle<JSAsyncFromSyncIterator> NewJSAsyncFromSyncIterator(

@@ -395,6 +395,16 @@ void JSDataView::set_data_pointer(Isolate* isolate, void* ptr) {
   WriteSandboxedPointerField(kDataPointerOffset, isolate, value);
 }
 
+bool JSDataView::IsOutOfBounds() const {
+  if (!is_backed_by_rab()) {
+    return false;
+  }
+  if (is_length_tracking()) {
+    return byte_offset() > buffer().GetByteLength();
+  }
+  return byte_offset() + byte_length() > buffer().GetByteLength();
+}
+
 }  // namespace internal
 }  // namespace v8
 

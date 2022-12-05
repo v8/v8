@@ -952,6 +952,11 @@ Maybe<bool> ValueSerializer::WriteJSArrayBufferView(JSArrayBufferView view) {
   WriteTag(SerializationTag::kArrayBufferView);
   ArrayBufferViewTag tag = ArrayBufferViewTag::kInt8Array;
   if (view.IsJSTypedArray()) {
+    if (JSTypedArray::cast(view).IsOutOfBounds()) {
+      DCHECK(v8_flags.harmony_rab_gsab);
+      return ThrowDataCloneError(MessageTemplate::kDataCloneError,
+                                 handle(view, isolate_));
+    }
     switch (JSTypedArray::cast(view).type()) {
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
   case kExternal##Type##Array:                    \
@@ -962,6 +967,12 @@ Maybe<bool> ValueSerializer::WriteJSArrayBufferView(JSArrayBufferView view) {
     }
   } else {
     DCHECK(view.IsJSDataView());
+    if (JSDataView::cast(view).IsOutOfBounds()) {
+      DCHECK(v8_flags.harmony_rab_gsab);
+      return ThrowDataCloneError(MessageTemplate::kDataCloneError,
+                                 handle(view, isolate_));
+    }
+
     tag = ArrayBufferViewTag::kDataView;
   }
   WriteVarint(static_cast<uint8_t>(tag));
@@ -2060,12 +2071,17 @@ MaybeHandle<JSArrayBufferView> ValueDeserializer::ReadJSArrayBufferView(
 
   switch (static_cast<ArrayBufferViewTag>(tag)) {
     case ArrayBufferViewTag::kDataView: {
-      Handle<JSDataView> data_view =
-          isolate_->factory()->NewJSDataView(buffer, byte_offset, byte_length);
-      AddObjectWithID(id, data_view);
-      if (!ValidateAndSetJSArrayBufferViewFlags(*data_view, *buffer, flags)) {
+      bool is_length_tracking = false;
+      bool is_backed_by_rab = false;
+      if (!ValidateJSArrayBufferViewFlags(*buffer, flags, is_length_tracking,
+                                          is_backed_by_rab)) {
         return MaybeHandle<JSArrayBufferView>();
       }
+      Handle<JSDataView> data_view = isolate_->factory()->NewJSDataView(
+          buffer, byte_offset, byte_length, is_length_tracking);
+      CHECK_EQ(is_backed_by_rab, data_view->is_backed_by_rab());
+      CHECK_EQ(is_length_tracking, data_view->is_length_tracking());
+      AddObjectWithID(id, data_view);
       return data_view;
     }
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
@@ -2080,21 +2096,27 @@ MaybeHandle<JSArrayBufferView> ValueDeserializer::ReadJSArrayBufferView(
       byte_length % element_size != 0) {
     return MaybeHandle<JSArrayBufferView>();
   }
-  Handle<JSTypedArray> typed_array = isolate_->factory()->NewJSTypedArray(
-      external_array_type, buffer, byte_offset, byte_length / element_size);
-  if (!ValidateAndSetJSArrayBufferViewFlags(*typed_array, *buffer, flags)) {
+  bool is_length_tracking = false;
+  bool is_backed_by_rab = false;
+  if (!ValidateJSArrayBufferViewFlags(*buffer, flags, is_length_tracking,
+                                      is_backed_by_rab)) {
     return MaybeHandle<JSArrayBufferView>();
   }
+  Handle<JSTypedArray> typed_array = isolate_->factory()->NewJSTypedArray(
+      external_array_type, buffer, byte_offset, byte_length / element_size,
+      is_length_tracking);
+  CHECK_EQ(is_length_tracking, typed_array->is_length_tracking());
+  CHECK_EQ(is_backed_by_rab, typed_array->is_backed_by_rab());
   AddObjectWithID(id, typed_array);
   return typed_array;
 }
 
-bool ValueDeserializer::ValidateAndSetJSArrayBufferViewFlags(
-    JSArrayBufferView view, JSArrayBuffer buffer, uint32_t serialized_flags) {
-  bool is_length_tracking =
+bool ValueDeserializer::ValidateJSArrayBufferViewFlags(
+    JSArrayBuffer buffer, uint32_t serialized_flags, bool& is_length_tracking,
+    bool& is_backed_by_rab) {
+  is_length_tracking =
       JSArrayBufferViewIsLengthTracking::decode(serialized_flags);
-  bool is_backed_by_rab =
-      JSArrayBufferViewIsBackedByRab::decode(serialized_flags);
+  is_backed_by_rab = JSArrayBufferViewIsBackedByRab::decode(serialized_flags);
 
   // TODO(marja): When the version number is bumped the next time, check that
   // serialized_flags doesn't contain spurious 1-bits.
@@ -2110,8 +2132,6 @@ bool ValueDeserializer::ValidateAndSetJSArrayBufferViewFlags(
       return false;
     }
   }
-  view.set_is_length_tracking(is_length_tracking);
-  view.set_is_backed_by_rab(is_backed_by_rab);
   return true;
 }
 
