@@ -1615,13 +1615,12 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
 
   void SetUpAbortEvacuationAtAddress(MemoryChunk* chunk) {
     if (v8_flags.stress_compaction || v8_flags.stress_compaction_random) {
-      // Stress aborting of evacuation by aborting ~10% of evacuation candidates
+      // Stress aborting of evacuation by aborting ~5% of evacuation candidates
       // when stress testing.
       const double kFraction = 0.05;
 
-      if (heap_->isolate()->fuzzer_rng()->NextDouble() < kFraction) {
-        const double abort_evacuation_percentage =
-            heap_->isolate()->fuzzer_rng()->NextDouble();
+      if (rng_->NextDouble() < kFraction) {
+        const double abort_evacuation_percentage = rng_->NextDouble();
         abort_evacuation_at_address_ =
             chunk->area_start() +
             abort_evacuation_percentage * chunk->area_size();
@@ -1706,6 +1705,9 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
         shared_string_table_(v8_flags.shared_string_table &&
                              heap->isolate()->has_shared_heap()) {
     migration_function_ = RawMigrateObject<MigrationMode::kFast>;
+#if DEBUG
+    rng_.emplace(heap_->isolate()->fuzzer_rng()->NextInt64());
+#endif  // DEBUG
   }
 
   inline bool TryEvacuateObject(AllocationSpace target_space, HeapObject object,
@@ -1778,6 +1780,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
 #if DEBUG
   Address abort_evacuation_at_address_{kNullAddress};
 #endif  // DEBUG
+  base::Optional<base::RandomNumberGenerator> rng_;
 };
 
 class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
