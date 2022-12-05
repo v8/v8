@@ -142,8 +142,8 @@ class Vector {
   static Vector<T> cast(Vector<S> input) {
     // Casting is potentially dangerous, so be really restrictive here. This
     // might be lifted once we have use cases for that.
-    static_assert(std::is_pod<S>::value);
-    static_assert(std::is_pod<T>::value);
+    static_assert(std::is_trivial_v<S> && std::is_standard_layout_v<S>);
+    static_assert(std::is_trivial_v<T> && std::is_standard_layout_v<T>);
     DCHECK_EQ(0, (input.size() * sizeof(S)) % sizeof(T));
     DCHECK_EQ(0, reinterpret_cast<uintptr_t>(input.begin()) % alignof(T));
     return Vector<T>(reinterpret_cast<T*>(input.begin()),
