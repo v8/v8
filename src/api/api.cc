@@ -7241,7 +7241,7 @@ bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
   // TODO(v8:12007): Consider adding
   // MakeExternal(Isolate*, ExternalStringResource*).
   i::Isolate* i_isolate;
-  if (obj.IsShared()) {
+  if (obj.InSharedWritableHeap()) {
     i_isolate = i::Isolate::Current();
   } else {
     // It is safe to call GetIsolateFromWritableHeapObject because
@@ -7274,7 +7274,7 @@ bool v8::String::MakeExternal(
   // TODO(v8:12007): Consider adding
   // MakeExternal(Isolate*, ExternalOneByteStringResource*).
   i::Isolate* i_isolate;
-  if (obj.IsShared()) {
+  if (obj.InSharedWritableHeap()) {
     i_isolate = i::Isolate::Current();
   } else {
     // It is safe to call GetIsolateFromWritableHeapObject because

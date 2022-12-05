@@ -1601,7 +1601,9 @@
   'es6/collections-constructor-*': [SKIP],
   'es6/map-constructor-entry-side-effect*': [SKIP],
 
+  # Tests requiring shared heap (not supported in single generation).
   'shared-memory/*': [SKIP],
+  'regress/regress-crbug-1394741': [SKIP],
 }], # single_generation
 
 ################################################################################
