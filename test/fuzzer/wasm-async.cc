@@ -30,7 +30,8 @@ class AsyncFuzzerResolver : public CompilationResultResolver {
 
   void OnCompilationSucceeded(Handle<WasmModuleObject> module) override {
     *done_ = true;
-    InterpretAndExecuteModule(isolate_, module);
+    ExecuteAgainstReference(isolate_, module,
+                            kDefaultMaxFuzzerExecutedInstructions);
   }
 
   void OnCompilationFailed(Handle<Object> error_reason) override {

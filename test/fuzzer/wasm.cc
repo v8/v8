@@ -64,7 +64,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   }
 
   if (compiles) {
-    InterpretAndExecuteModule(i_isolate, module_object);
+    ExecuteAgainstReference(i_isolate, module_object,
+                            kDefaultMaxFuzzerExecutedInstructions);
   }
 
   // Pump the message loop and run micro tasks, e.g. GC finalization tasks.

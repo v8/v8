@@ -13,19 +13,22 @@
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-module-builder.h"
 
-namespace v8 {
-namespace internal {
-namespace wasm {
-namespace fuzzer {
+namespace v8::internal::wasm::fuzzer {
 
-// First instantiates and interprets the "main" function within module_object if
-// possible. If the interpretation finishes within kMaxSteps steps,
-// module_object is instantiated again and the compiled "main" function is
-// executed.
-void InterpretAndExecuteModule(
-    Isolate* isolate, Handle<WasmModuleObject> module_object,
-    Handle<WasmModuleObject> module_ref = Handle<WasmModuleObject>::null(),
-    int32_t* max_steps = nullptr, int32_t* nondeterminism = nullptr);
+// A default value for {max_executed_instructions} in {ExecuteAgainstReference}.
+// Executing 1M wasm instructions should be pretty fast, even in simulator
+// builds.
+constexpr int kDefaultMaxFuzzerExecutedInstructions = 1e6;
+
+// First creates a reference module fully compiled with Liftoff, with
+// instrumentation to stop after a given number of steps and to record any
+// nondeterminism while executing. If execution finishes within {max_steps},
+// {module_object} is instantiated, its "main" function is executed, and the
+// result is compared against the reference execution. If non-determinism was
+// detected during the reference execution, the result is allowed to differ.
+void ExecuteAgainstReference(Isolate* isolate,
+                             Handle<WasmModuleObject> module_object,
+                             int32_t max_executed_instructions);
 
 void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
                       bool compiles);
@@ -47,12 +50,8 @@ class WasmExecutionFuzzer {
  protected:
   virtual bool GenerateModule(Isolate* isolate, Zone* zone,
                               base::Vector<const uint8_t> data,
-                              ZoneBuffer* buffer,
-                              bool liftoff_as_reference) = 0;
+                              ZoneBuffer* buffer) = 0;
 };
 
-}  // namespace fuzzer
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::wasm::fuzzer
 #endif  // WASM_FUZZER_COMMON_H_

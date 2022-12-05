@@ -14,8 +14,8 @@ namespace v8::internal::wasm::fuzzer {
 
 class WasmCodeFuzzer : public WasmExecutionFuzzer {
   bool GenerateModule(Isolate* isolate, Zone* zone,
-                      base::Vector<const uint8_t> data, ZoneBuffer* buffer,
-                      bool liftoff_as_reference) override {
+                      base::Vector<const uint8_t> data,
+                      ZoneBuffer* buffer) override {
     TestSignatures sigs;
     WasmModuleBuilder builder(zone);
     WasmFunctionBuilder* f = builder.AddFunction(sigs.i_iii());
