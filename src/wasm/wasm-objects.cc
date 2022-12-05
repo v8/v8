@@ -1446,7 +1446,7 @@ void WasmInstanceObject::ImportWasmJSFunctionIntoTable(
         result.tagged_parameter_slots,
         result.protected_instructions_data.as_vector(),
         result.source_positions.as_vector(), GetCodeKind(result),
-        wasm::ExecutionTier::kNone, wasm::kNotForDebugging);
+        wasm::ExecutionTier::kNone, wasm::kNoDebugging);
     wasm::WasmCode* published_code =
         native_module->PublishCode(std::move(wasm_code));
     isolate->counters()->wasm_generated_code_size()->Increment(

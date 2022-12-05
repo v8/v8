@@ -654,7 +654,6 @@ namespace internal {
   F(IsAsmWasmCode, 1, 1)                   \
   F(IsLiftoffFunction, 1, 1)               \
   F(IsTurboFanFunction, 1, 1)              \
-  F(IsWasmDebugFunction, 1, 1)             \
   F(IsThreadInWasm, 0, 1)                  \
   F(IsWasmCode, 1, 1)                      \
   F(IsWasmTrapHandlerEnabled, 0, 1)        \
@@ -663,7 +662,7 @@ namespace internal {
   F(SetWasmInstantiateControls, 0, 1)      \
   F(WasmGetNumberOfInstances, 1, 1)        \
   F(WasmNumCodeSpaces, 1, 1)               \
-  F(WasmEnterDebugging, 0, 1)              \
+  F(WasmTierDown, 0, 1)                    \
   F(WasmTierUpFunction, 2, 1)              \
   F(WasmTraceEnter, 0, 1)                  \
   F(WasmTraceExit, 1, 1)                   \

@@ -1601,7 +1601,7 @@ STREAM_TEST(TierDownWithError) {
     builder.WriteTo(&buffer);
   }
 
-  GetWasmEngine()->EnterDebuggingForIsolate(i_isolate);
+  GetWasmEngine()->TierDownAllModulesPerIsolate(i_isolate);
 
   tester.OnBytesReceived(buffer.begin(), buffer.size());
   tester.FinishStream();

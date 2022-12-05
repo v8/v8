@@ -18,22 +18,20 @@ function create_builder(delta = 0) {
   return builder;
 }
 
-function checkForDebugCode(instance) {
+function checkTieredDown(instance) {
   for (let i = 0; i < num_functions; ++i) {
-    // Call the function once because of lazy compilation.
-    instance.exports['f' + i]();
-    assertTrue(%IsWasmDebugFunction(instance.exports['f' + i]));
+    assertTrue(%IsLiftoffFunction(instance.exports['f' + i]));
   }
 }
 
 function check(instance) {
-  %WasmEnterDebugging();
-  checkForDebugCode(instance);
+  %WasmTierDown();
+  checkTieredDown(instance);
 
   for (let i = 0; i < num_functions; ++i) {
     %WasmTierUpFunction(instance, i);
   }
-  checkForDebugCode(instance);
+  checkTieredDown(instance);
 }
 
 (function testTierDownToLiftoff() {

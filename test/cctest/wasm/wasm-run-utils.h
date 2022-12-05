@@ -244,14 +244,14 @@ class TestingModuleBuilder {
     return reinterpret_cast<Address>(globals_data_);
   }
 
-  void SetDebugState() {
-    native_module_->SetDebugState(kDebugging);
+  void SetTieredDown() {
+    native_module_->SetTieringState(kTieredDown);
     execution_tier_ = TestExecutionTier::kLiftoff;
   }
 
-  void SwitchToDebug() {
-    SetDebugState();
-    native_module_->RemoveAllCompiledCode();
+  void TierDown() {
+    SetTieredDown();
+    native_module_->RecompileForTiering();
   }
 
   CompilationEnv CreateCompilationEnv();
@@ -471,7 +471,7 @@ class WasmRunnerBase : public InitializedHandleScope {
 
   bool interpret() { return builder_.interpret(); }
 
-  void SwitchToDebug() { builder_.SwitchToDebug(); }
+  void TierDown() { builder_.TierDown(); }
 
   template <typename ReturnType, typename... ParamTypes>
   FunctionSig* CreateSig() {

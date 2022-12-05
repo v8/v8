@@ -37,13 +37,13 @@ inline const char* ExecutionTierToString(ExecutionTier tier) {
 // the code also contains breakpoints, and {kForStepping} for code that is
 // flooded with breakpoints.
 enum ForDebugging : int8_t {
-  kNotForDebugging = 0,
+  kNoDebugging = 0,
   kForDebugging,
   kWithBreakpoints,
   kForStepping
 };
 
-enum DebugState : bool { kNotDebugging = false, kDebugging = true };
+enum TieringState : int8_t { kTieredUp, kTieredDown };
 
 }  // namespace wasm
 }  // namespace internal

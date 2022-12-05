@@ -56,7 +56,7 @@ enum LiftoffBailoutReason : int8_t {
 
 struct LiftoffOptions {
   int func_index = -1;
-  ForDebugging for_debugging = kNotForDebugging;
+  ForDebugging for_debugging = kNoDebugging;
   Counters* counters = nullptr;
   AssemblerBufferCache* assembler_buffer_cache = nullptr;
   WasmFeatures* detected_features = nullptr;

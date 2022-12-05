@@ -830,19 +830,28 @@ class V8_EXPORT_PRIVATE NativeModule final {
   V8_WARN_UNUSED_RESULT std::vector<std::unique_ptr<WasmCode>> AddCompiledCode(
       base::Vector<WasmCompilationResult>);
 
-  // Set a new debugging state, but don't trigger any recompilation;
-  // recompilation happens lazily.
-  void SetDebugState(DebugState);
+  // Set a new tiering state, but don't trigger any recompilation yet; use
+  // {RecompileForTiering} for that. The two steps are split because In some
+  // scenarios we need to drop locks before triggering recompilation.
+  void SetTieringState(TieringState);
 
-  // Check whether this modules is in debug state.
-  DebugState IsInDebugState() const {
-    base::RecursiveMutexGuard lock(&allocation_mutex_);
-    return debug_state_;
-  }
+  // Check whether this modules is tiered down for debugging.
+  bool IsTieredDown();
 
   // Remove all compiled code from the {NativeModule} and replace it with
   // {CompileLazy} builtins.
   void RemoveAllCompiledCode();
+
+  // Fully recompile this module in the tier set previously via
+  // {SetTieringState}. The calling thread contributes to compilation and only
+  // returns once recompilation is done.
+  void RecompileForTiering();
+
+  // Find all functions that need to be recompiled for a new tier. Note that
+  // compilation jobs might run concurrently, so this method only considers the
+  // compilation state of this native module at the time of the call.
+  // Returns a vector of function indexes to recompile.
+  std::vector<int> FindFunctionsToRecompile(TieringState);
 
   // Free a set of functions of this module. Uncommits whole pages if possible.
   // The given vector must be ordered by the instruction start address, and all
@@ -1010,7 +1019,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   std::unique_ptr<NamesProvider> names_provider_;
 
-  DebugState debug_state_ = kNotDebugging;
+  TieringState tiering_state_ = kTieredUp;
 
   // Cache both baseline and top-tier code if we are debugging, to speed up
   // repeated enabling/disabling of the debugger or profiler.

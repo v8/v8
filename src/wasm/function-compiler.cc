@@ -164,7 +164,7 @@ void WasmCompilationUnit::CompileWasmFunction(Isolate* isolate,
 
   DCHECK_LE(native_module->num_imported_functions(), function->func_index);
   DCHECK_LT(function->func_index, native_module->num_functions());
-  WasmCompilationUnit unit(function->func_index, tier, kNotForDebugging);
+  WasmCompilationUnit unit(function->func_index, tier, kNoDebugging);
   CompilationEnv env = native_module->CreateCompilationEnv();
   WasmCompilationResult result = unit.ExecuteCompilation(
       &env, native_module->compilation_state()->GetWireBytesStorage().get(),

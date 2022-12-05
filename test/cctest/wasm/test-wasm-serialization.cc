@@ -342,11 +342,10 @@ TEST(TierDownAfterDeserialization) {
   CHECK_NOT_NULL(turbofan_code);
   CHECK_EQ(ExecutionTier::kTurbofan, turbofan_code->tier());
 
-  GetWasmEngine()->EnterDebuggingForIsolate(isolate);
+  GetWasmEngine()->TierDownAllModulesPerIsolate(isolate);
 
-  // Entering debugging should delete all code, so that debug code gets compiled
-  // lazily.
-  CHECK_NULL(native_module->GetCode(0));
+  auto* liftoff_code = native_module->GetCode(0);
+  CHECK_EQ(ExecutionTier::kLiftoff, liftoff_code->tier());
 }
 
 TEST(SerializeLiftoffModuleFails) {

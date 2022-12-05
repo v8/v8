@@ -204,7 +204,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
   void CompileFunction(Isolate* isolate, NativeModule* native_module,
                        uint32_t function_index, ExecutionTier tier);
 
-  void EnterDebuggingForIsolate(Isolate* isolate);
+  void TierDownAllModulesPerIsolate(Isolate* isolate);
 
   void LeaveDebuggingForIsolate(Isolate* isolate);
 
