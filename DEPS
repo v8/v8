@@ -272,7 +272,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'd866d41e168ec04545bb17031fa911007a0581f4',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '65848dccd6cb0c9224c8b2ae0dbe503820a1e10d',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'dabb142daf835352d52b9176754ab34e70e457c9',
   'tools/luci-go': {
       'packages': [
         {
