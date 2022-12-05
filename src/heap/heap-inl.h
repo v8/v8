@@ -389,6 +389,10 @@ bool Heap::IsPendingAllocationInternal(HeapObject object) {
 
     case SHARED_SPACE:
     case SHARED_LO_SPACE:
+      // TODO(v8:13267): Ensure that all shared space objects have a memory
+      // barrier after initialization.
+      return false;
+
     case RO_SPACE:
       UNREACHABLE();
   }
