@@ -950,6 +950,7 @@ class StringRef : public NameRef {
   base::Optional<uint16_t> GetFirstChar() const;
   base::Optional<uint16_t> GetChar(int index) const;
   base::Optional<double> ToNumber();
+  base::Optional<double> ToInt(int radix);
 
   bool IsSeqString() const;
   bool IsExternalString() const;

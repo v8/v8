@@ -1353,6 +1353,17 @@ base::Optional<double> StringRef::ToNumber() {
   return TryStringToDouble(broker()->local_isolate(), object());
 }
 
+base::Optional<double> StringRef::ToInt(int radix) {
+  if (!IsContentAccessible()) {
+    TRACE_BROKER_MISSING(
+        broker(),
+        "toInt for kNeverSerialized unsupported string kind " << *this);
+    return base::nullopt;
+  }
+
+  return TryStringToInt(broker()->local_isolate(), object(), radix);
+}
+
 int ArrayBoilerplateDescriptionRef::constants_elements_length() const {
   return object()->constant_elements().length();
 }
