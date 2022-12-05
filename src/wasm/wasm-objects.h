@@ -663,6 +663,7 @@ class WasmCapiFunction : public JSFunction {
   // Checks whether the given {sig} has the same parameter types as the
   // serialized signature stored within this C-API function object.
   bool MatchesSignature(const wasm::FunctionSig* sig) const;
+  const wasm::FunctionSig* GetSignature(Zone* zone);
 
   DECL_CAST(WasmCapiFunction)
   OBJECT_CONSTRUCTORS(WasmCapiFunction, JSFunction);
@@ -1065,11 +1066,15 @@ namespace wasm {
 // Takes a {value} in the JS representation and typechecks it according to
 // {expected}. If the typecheck succeeds, returns the wasm representation of the
 // object; otherwise, returns the empty handle.
+MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
+                                   ValueType expected_canonical,
+                                   const char** error_message);
+
+// Utility which canonicalizes {expected} in addition.
 MaybeHandle<Object> JSToWasmObject(Isolate* isolate, const WasmModule* module,
                                    Handle<Object> value, ValueType expected,
                                    const char** error_message);
 }  // namespace wasm
-
 }  // namespace internal
 }  // namespace v8
 

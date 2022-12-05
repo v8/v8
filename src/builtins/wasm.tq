@@ -58,8 +58,7 @@ extern runtime WasmStringViewWtf8Encode(
     Context, WasmInstanceObject, Smi, ByteArray, Number, Number, Number): JSAny;
 extern runtime WasmStringViewWtf8Slice(
     Context, ByteArray, Number, Number): String;
-extern runtime WasmJSToWasmObject(
-    Context, WasmInstanceObject, JSAny, Smi): JSAny;
+extern runtime WasmJSToWasmObject(Context, JSAny, Smi): JSAny;
 }
 
 namespace unsafe {
@@ -1243,6 +1242,6 @@ builtin WasmExternInternalize(externObject: JSAny): JSAny {
   const context = LoadContextFromInstance(instance);
 
   tail runtime::WasmJSToWasmObject(
-      context, instance, externObject, SmiConstant(kAnyType));
+      context, externObject, SmiConstant(kAnyType));
 }
 }

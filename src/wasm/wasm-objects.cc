@@ -1623,7 +1623,27 @@ bool WasmTagObject::MatchesSignature(const wasm::FunctionSig* sig) {
   return true;
 }
 
-// TODO(9495): Update this if function type variance is introduced.
+const wasm::FunctionSig* WasmCapiFunction::GetSignature(Zone* zone) {
+  WasmCapiFunctionData function_data = shared().wasm_capi_function_data();
+  auto serialized_sig = function_data.serialized_signature();
+  auto sig_size = serialized_sig.Size() - 1;
+  wasm::ValueType* types = zone->NewArray<wasm::ValueType>(sig_size);
+  int returns_size = 0;
+  int index = 0;
+  while (serialized_sig.get(index) != wasm::kWasmVoid) {
+    types[index] = serialized_sig.get(index);
+    index++;
+  }
+  returns_size = index - 1;
+  while (index < sig_size) {
+    types[index] = serialized_sig.get(index + 1);
+    index++;
+  }
+
+  return zone->New<wasm::FunctionSig>(returns_size, sig_size - returns_size,
+                                      types);
+}
+
 bool WasmCapiFunction::MatchesSignature(const wasm::FunctionSig* sig) const {
   // TODO(jkummerow): Unify with "SignatureHelper" in c-api.cc.
   int param_count = static_cast<int>(sig->parameter_count());
@@ -2227,14 +2247,15 @@ Handle<Object> CanonicalizeSmi(Handle<Object> smi, Isolate* isolate) {
 }  // namespace
 
 namespace wasm {
-MaybeHandle<Object> JSToWasmObject(Isolate* isolate, const WasmModule* module,
-                                   Handle<Object> value, ValueType expected,
+MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
+                                   ValueType expected_canonical,
                                    const char** error_message) {
-  DCHECK(expected.is_reference());
-  switch (expected.kind()) {
+  DCHECK(expected_canonical.is_reference());
+  switch (expected_canonical.kind()) {
     case kRefNull:
       if (value->IsNull(isolate)) {
-        HeapType::Representation repr = expected.heap_representation();
+        HeapType::Representation repr =
+            expected_canonical.heap_representation();
         switch (repr) {
           case HeapType::kStringViewWtf8:
             *error_message = "stringview_wtf8 has no JS representation";
@@ -2252,7 +2273,7 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, const WasmModule* module,
       V8_FALLTHROUGH;
     case kRef: {
       // TODO(7748): Streamline interaction of undefined and (ref any).
-      HeapType::Representation repr = expected.heap_representation();
+      HeapType::Representation repr = expected_canonical.heap_representation();
       switch (repr) {
         case HeapType::kFunc: {
           if (!(WasmExternalFunction::IsWasmExternalFunction(*value) ||
@@ -2340,81 +2361,78 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, const WasmModule* module,
         case HeapType::kStringViewIter:
           *error_message = "stringview_iter has no JS representation";
           return {};
-        default:
-          if (module == nullptr) {
-            *error_message =
-                "an object defined in JavaScript cannot be compatible with a "
-                "type defined in a Webassembly module";
-            return {};
-          }
-          DCHECK(module->has_type(expected.ref_index()));
-          if (module->has_signature(expected.ref_index())) {
-            if (WasmExportedFunction::IsWasmExportedFunction(*value)) {
-              WasmExportedFunction function =
-                  WasmExportedFunction::cast(*value);
-              const WasmModule* exporting_module = function.instance().module();
-              ValueType real_type = ValueType::Ref(
-                  exporting_module->functions[function.function_index()]
-                      .sig_index);
-              if (!IsSubtypeOf(real_type, expected, exporting_module, module)) {
-                *error_message =
-                    "assigned exported function has to be a subtype of the "
-                    "expected type";
-                return {};
-              }
-            } else if (WasmJSFunction::IsWasmJSFunction(*value)) {
-              // Since a WasmJSFunction cannot refer to indexed types (definable
-              // only in a module), we do not need full function subtyping.
-              // TODO(manoskouk): Change this if wasm types can be exported.
-              if (!WasmJSFunction::cast(*value).MatchesSignature(
-                      module->signature(expected.ref_index()))) {
-                *error_message =
-                    "assigned WasmJSFunction has to be a subtype of the "
-                    "expected type";
-                return {};
-              }
-            } else if (WasmCapiFunction::IsWasmCapiFunction(*value)) {
-              // Since a WasmCapiFunction cannot refer to indexed types
-              // (definable only in a module), we do not need full function
-              // subtyping.
-              // TODO(manoskouk): Change this if wasm types can be exported.
-              if (!WasmCapiFunction::cast(*value).MatchesSignature(
-                      module->signature(expected.ref_index()))) {
-                *error_message =
-                    "assigned WasmCapiFunction has to be a subtype of the "
-                    "expected type";
-                return {};
-              }
-            } else {
+        default: {
+          auto type_canonicalizer = GetWasmEngine()->type_canonicalizer();
+
+          if (WasmExportedFunction::IsWasmExportedFunction(*value)) {
+            WasmExportedFunction function = WasmExportedFunction::cast(*value);
+            uint32_t real_type_index = function.shared()
+                                           .wasm_exported_function_data()
+                                           .canonical_type_index();
+            if (!type_canonicalizer->IsCanonicalSubtype(
+                    real_type_index, expected_canonical.ref_index())) {
               *error_message =
-                  "function-typed object must be null (if nullable) or a Wasm "
-                  "function object";
+                  "assigned exported function has to be a subtype of the "
+                  "expected type";
               return {};
             }
-            return MaybeHandle<Object>(Handle<JSFunction>::cast(value)
-                                           ->shared()
-                                           .wasm_function_data()
-                                           .internal(),
-                                       isolate);
-          } else {
-            // A struct or array type with index is expected.
-            DCHECK(module->has_struct(expected.ref_index()) ||
-                   module->has_array(expected.ref_index()));
-            if (!value->IsWasmStruct() && !value->IsWasmArray()) {
-              *error_message = "object incompatible with wasm type";
+            return WasmInternalFunction::FromExternal(value, isolate);
+          } else if (WasmJSFunction::IsWasmJSFunction(*value)) {
+            AccountingAllocator allocator;
+            Zone zone(&allocator, ZONE_NAME);
+            // Since a WasmJSFunction cannot refer to indexed types (definable
+            // only in a module), we do not need full function subtyping.
+            // TODO(7748): Change this if wasm types can be exported.
+            const FunctionSig* real_sig =
+                WasmJSFunction::cast(*value).GetSignature(&zone);
+            uint32_t real_canonical_index =
+                type_canonicalizer->AddRecursiveGroup(real_sig);
+            if (real_canonical_index != expected_canonical.ref_index()) {
+              *error_message =
+                  "assigned WebAssembly.Function has to be a subtype of the "
+                  "expected type";
               return {};
             }
+            return WasmInternalFunction::FromExternal(value, isolate);
+          } else if (WasmCapiFunction::IsWasmCapiFunction(*value)) {
+            // Since a WasmCapiFunction cannot refer to indexed types
+            // (definable only in a module), we do not need full function
+            // subtyping.
+            // TODO(7748): Change this if wasm types can be exported.
+            AccountingAllocator allocator;
+            Zone zone(&allocator, ZONE_NAME);
+            // Since a WasmJSFunction cannot refer to indexed types (definable
+            // only in a module), we do not need full function subtyping.
+            // TODO(7748): Change this if wasm types can be exported.
+            const FunctionSig* real_sig =
+                WasmCapiFunction::cast(*value).GetSignature(&zone);
+            uint32_t real_canonical_index =
+                type_canonicalizer->AddRecursiveGroup(real_sig);
+            if (real_canonical_index != expected_canonical.ref_index()) {
+              *error_message =
+                  "assigned C API function has to be a subtype of the expected "
+                  "type";
+              return {};
+            }
+            return WasmInternalFunction::FromExternal(value, isolate);
+          } else if (value->IsWasmStruct() || value->IsWasmArray()) {
             auto wasm_obj = Handle<WasmObject>::cast(value);
             WasmTypeInfo type_info = wasm_obj->map().wasm_type_info();
-            uint32_t actual_idx = type_info.type_index();
-            const WasmModule* actual_module = type_info.instance().module();
-            if (!IsHeapSubtypeOf(HeapType(actual_idx), expected.heap_type(),
-                                 actual_module, module)) {
-              *error_message = "object is not a subtype of element type";
+            uint32_t real_idx = type_info.type_index();
+            const WasmModule* real_module = type_info.instance().module();
+            uint32_t real_canonical_index =
+                real_module->isorecursive_canonical_type_ids[real_idx];
+            if (!type_canonicalizer->IsCanonicalSubtype(
+                    real_canonical_index, expected_canonical.ref_index())) {
+              *error_message = "object is not a subtype of expected type";
               return {};
             }
             return value;
+          } else {
+            *error_message = "JS object does not match expected wasm type";
+            return {};
           }
+        }
       }
     }
     case kRtt:
@@ -2429,6 +2447,20 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, const WasmModule* module,
     case kBottom:
       UNREACHABLE();
   }
+}
+
+// Utility which canonicalizes {expected} in addition.
+MaybeHandle<Object> JSToWasmObject(Isolate* isolate, const WasmModule* module,
+                                   Handle<Object> value, ValueType expected,
+                                   const char** error_message) {
+  ValueType expected_canonical = expected;
+  if (expected_canonical.has_index()) {
+    uint32_t canonical_index =
+        module->isorecursive_canonical_type_ids[expected_canonical.ref_index()];
+    expected_canonical = ValueType::RefMaybeNull(
+        canonical_index, expected_canonical.nullability());
+  }
+  return JSToWasmObject(isolate, value, expected_canonical, error_message);
 }
 
 }  // namespace wasm

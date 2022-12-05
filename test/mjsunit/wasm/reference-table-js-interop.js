@@ -42,7 +42,6 @@ for (let [typeName, type] of Object.entries(tableTypes)) {
 for (let [typeName, type] of Object.entries(tableTypes)) {
   print("TestImportedTable_" + typeName);
   let builder = new WasmModuleBuilder();
-  builder.startRecGroup();
 
   const size = 10;
   const maxSize = 20;
@@ -139,8 +138,6 @@ for (let [typeName, type] of Object.entries(tableTypes)) {
     ])
     .exportFunc();
   }
-
-  builder.endRecGroup();
 
   let instance = builder.instantiate({ imports: { table } });
   let wasm = instance.exports;

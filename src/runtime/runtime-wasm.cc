@@ -126,25 +126,20 @@ RUNTIME_FUNCTION(Runtime_WasmJSToWasmObject) {
   bool thread_in_wasm = trap_handler::IsThreadInWasm();
   if (thread_in_wasm) trap_handler::ClearThreadInWasm();
   HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
+  DCHECK_EQ(2, args.length());
   // 'raw_instance' can be either a WasmInstanceObject or undefined.
-  Object raw_instance = args[0];
-  Handle<Object> value(args[1], isolate);
+  Handle<Object> value(args[0], isolate);
   // Make sure ValueType fits properly in a Smi.
   static_assert(wasm::ValueType::kLastUsedBit + 1 <= kSmiValueSize);
-  int raw_type = args.smi_value_at(2);
+  int raw_type = args.smi_value_at(1);
 
-  const wasm::WasmModule* module =
-      raw_instance.IsWasmInstanceObject()
-          ? WasmInstanceObject::cast(raw_instance).module()
-          : nullptr;
-
-  wasm::ValueType type = wasm::ValueType::FromRawBitField(raw_type);
+  wasm::ValueType expected_canonical =
+      wasm::ValueType::FromRawBitField(raw_type);
   const char* error_message;
 
   Handle<Object> result;
-  bool success = internal::wasm::JSToWasmObject(isolate, module, value, type,
-                                                &error_message)
+  bool success = internal::wasm::JSToWasmObject(
+                     isolate, value, expected_canonical, &error_message)
                      .ToHandle(&result);
   Object ret = success ? *result
                        : isolate->Throw(*isolate->factory()->NewTypeError(

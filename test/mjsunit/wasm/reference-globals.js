@@ -67,7 +67,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
                                 false);
       builder.instantiate({imports: { global: 42 }})},
     WebAssembly.LinkError,
-    /function-typed object must be null \(if nullable\) or a Wasm function object/
+    /JS object does not match expected wasm type/
   );
 
   // Mistyped function import.

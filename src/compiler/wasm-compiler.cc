@@ -1032,10 +1032,10 @@ Node* WasmGraphBuilder::Unop(wasm::WasmOpcode opcode, Node* input,
     case wasm::kExprExternInternalize: {
       // TODO(7748): Either add fast path for non-numbers, or implement
       // entirely in TF.
-      Node* parameters[] = {GetInstance(), input,
-                            mcgraph()->IntPtrConstant(IntToSmi(static_cast<int>(
-                                wasm::kWasmAnyRef.raw_bit_field())))};
-      return BuildCallToRuntime(Runtime::kWasmJSToWasmObject, parameters, 3);
+      Node* parameters[] = {
+          input, mcgraph()->IntPtrConstant(IntToSmi(
+                     static_cast<int>(wasm::kWasmAnyRef.raw_bit_field())))};
+      return BuildCallToRuntime(Runtime::kWasmJSToWasmObject, parameters, 2);
     }
     case wasm::kExprExternExternalize:
       return gasm_->WasmExternExternalize(input);
@@ -6638,7 +6638,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   }
 
   Node* FromJS(Node* input, Node* js_context, wasm::ValueType type,
-               Node* frame_state = nullptr) {
+               const wasm::WasmModule* module, Node* frame_state = nullptr) {
     switch (type.kind()) {
       case wasm::kRef:
       case wasm::kRefNull: {
@@ -6665,12 +6665,20 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
             // The instance node is always defined: if an instance is not
             // available, it is the undefined value.
-            Node* inputs[] = {GetInstance(), input,
-                              mcgraph()->IntPtrConstant(IntToSmi(
-                                  static_cast<int>(type.raw_bit_field())))};
+            if (type.has_index()) {
+              DCHECK_NOT_NULL(module);
+              uint32_t canonical_index =
+                  module->isorecursive_canonical_type_ids[type.ref_index()];
+              type = wasm::ValueType::RefMaybeNull(canonical_index,
+                                                   type.nullability());
+            }
+
+            Node* inputs[] = {
+                input, mcgraph()->IntPtrConstant(
+                           IntToSmi(static_cast<int>(type.raw_bit_field())))};
 
             return BuildCallToRuntimeWithContext(Runtime::kWasmJSToWasmObject,
-                                                 js_context, inputs, 3);
+                                                 js_context, inputs, 2);
           }
         }
       }
@@ -6966,7 +6974,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     }
   }
 
-  void BuildJSToWasmWrapper(bool is_import, bool do_conversion = true,
+  void BuildJSToWasmWrapper(const wasm::WasmModule* module, bool is_import,
+                            bool do_conversion = true,
                             Node* frame_state = nullptr) {
     const int wasm_param_count = static_cast<int>(sig_->parameter_count());
 
@@ -7029,8 +7038,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     base::SmallVector<Node*, 16> args(args_count);
     for (int i = 0; i < wasm_param_count; ++i) {
       if (do_conversion) {
-        args[i + 1] =
-            FromJS(params[i + 1], js_context, sig_->GetParam(i), frame_state);
+        args[i + 1] = FromJS(params[i + 1], js_context, sig_->GetParam(i),
+                             module, frame_state);
       } else {
         Node* wasm_param = params[i + 1];
 
@@ -7275,9 +7284,10 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
     // Convert the return value(s) back.
     if (sig_->return_count() <= 1) {
-      Node* val = sig_->return_count() == 0
-                      ? Int32Constant(0)
-                      : FromJS(call, native_context, sig_->GetReturn());
+      Node* val =
+          sig_->return_count() == 0
+              ? Int32Constant(0)
+              : FromJS(call, native_context, sig_->GetReturn(), nullptr);
       BuildModifyThreadInWasmFlag(true);
       Return(val);
     } else {
@@ -7286,7 +7296,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       base::SmallVector<Node*, 8> wasm_values(sig_->return_count());
       for (unsigned i = 0; i < sig_->return_count(); ++i) {
         wasm_values[i] = FromJS(gasm_->LoadFixedArrayElementAny(fixed_array, i),
-                                native_context, sig_->GetReturn(i));
+                                native_context, sig_->GetReturn(i), nullptr);
       }
       BuildModifyThreadInWasmFlag(true);
       Return(base::VectorOf(wasm_values));
@@ -7565,7 +7575,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
           Node* call = gasm_->Call(call_descriptor, pos, args.begin());
           return sig_->return_count() == 0
                      ? Int32Constant(0)
-                     : FromJS(call, native_context, sig_->GetReturn());
+                     : FromJS(call, native_context, sig_->GetReturn(), nullptr);
         });
 
     BuildModifyThreadInWasmFlag(true);
@@ -7620,7 +7630,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     // Convert parameter JS values to wasm numbers and back to JS values.
     for (int i = 0; i < wasm_count; ++i) {
       Node* param = Param(i + 1);  // Start from index 1 to skip receiver.
-      args[pos++] = ToJS(FromJS(param, context, sig_->GetParam(i)),
+      args[pos++] = ToJS(FromJS(param, context, sig_->GetParam(i), nullptr),
                          sig_->GetParam(i), context);
     }
 
@@ -7636,8 +7646,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     if (sig_->return_count() == 0) {
       jsval = UndefinedValue();
     } else if (sig_->return_count() == 1) {
-      jsval = ToJS(FromJS(call, context, sig_->GetReturn()), sig_->GetReturn(),
-                   context);
+      jsval = ToJS(FromJS(call, context, sig_->GetReturn(), nullptr),
+                   sig_->GetReturn(), context);
     } else {
       Node* fixed_array =
           BuildMultiReturnFixedArrayFromIterable(sig_, call, context);
@@ -7648,7 +7658,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       for (unsigned i = 0; i < sig_->return_count(); ++i) {
         const auto& type = sig_->GetReturn(i);
         Node* elem = gasm_->LoadFixedArrayElementAny(fixed_array, i);
-        Node* cast = ToJS(FromJS(elem, context, type), type, context);
+        Node* cast = ToJS(FromJS(elem, context, type, nullptr), type, context);
         gasm_->StoreFixedArrayElementAny(result_fixed_array, i, cast);
       }
     }
@@ -7762,7 +7772,7 @@ void BuildInlinedJSToWasmWrapper(
   WasmWrapperGraphBuilder builder(zone, mcgraph, signature, module,
                                   WasmGraphBuilder::kNoSpecialParameterMode,
                                   isolate, spt, stub_mode, features);
-  builder.BuildJSToWasmWrapper(false, false, frame_state);
+  builder.BuildJSToWasmWrapper(module, false, false, frame_state);
 }
 
 std::unique_ptr<TurbofanCompilationJob> NewJSToWasmCompilationJob(
@@ -7786,7 +7796,7 @@ std::unique_ptr<TurbofanCompilationJob> NewJSToWasmCompilationJob(
       zone.get(), mcgraph, sig, module,
       WasmGraphBuilder::kNoSpecialParameterMode, isolate, nullptr,
       StubCallMode::kCallBuiltinPointer, enabled_features);
-  builder.BuildJSToWasmWrapper(is_import);
+  builder.BuildJSToWasmWrapper(module, is_import);
 
   //----------------------------------------------------------------------------
   // Create the compilation job.
