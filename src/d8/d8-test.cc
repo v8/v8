@@ -1141,15 +1141,23 @@ class FastCApiObject {
     void* pointer_a;
     if (value_a->IsNull()) {
       pointer_a = nullptr;
-    } else {
+    } else if (value_a->IsExternal()) {
       pointer_a = value_a.As<External>()->Value();
+    } else {
+      args.GetIsolate()->ThrowError(
+          "Did not get an external as first parameter.");
+      return;
     }
 
     void* pointer_b;
     if (value_b->IsNull()) {
       pointer_b = nullptr;
-    } else {
+    } else if (value_b->IsExternal()) {
       pointer_b = value_b.As<External>()->Value();
+    } else {
+      args.GetIsolate()->ThrowError(
+          "Did not get an external as second parameter.");
+      return;
     }
 
     args.GetReturnValue().Set(pointer_a == pointer_b);

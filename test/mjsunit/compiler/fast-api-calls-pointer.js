@@ -134,3 +134,7 @@ assertTrue(compare_pointers(external_a_slow, external_a_fast), true);
 assertTrue(compare_pointers(external_b_slow, external_b_slow), true);
 assertTrue(compare_pointers(external_b_slow, external_b_fast), true);
 assertTrue(compare_pointers(external_b_slow, external_b_fast_passed), true);
+
+// Assert that the ComparePointers call can safely be called with non-Externals
+// and that it will throw an error instead of crashing.
+assertThrows(() => compare_pointers(123, "foo"));
