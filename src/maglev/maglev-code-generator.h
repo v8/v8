@@ -40,14 +40,7 @@ class MaglevCodeGenerator final {
 
   int stack_slot_count() const { return code_gen_state_.stack_slots(); }
   int stack_slot_count_with_fixed_frame() const {
-    // TODO(victorgomes): Find a better solution for this instead of ifdeffing
-    // the arch.
-#ifdef V8_TARGET_ARCH_ARM64
-    return RoundUp(stack_slot_count() + StandardFrameConstants::kFixedSlotCount,
-                   2);
-#else
     return stack_slot_count() + StandardFrameConstants::kFixedSlotCount;
-#endif
   }
 
   MaglevAssembler* masm() { return &masm_; }

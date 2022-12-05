@@ -171,8 +171,18 @@ StraightForwardRegisterAllocator::StraightForwardRegisterAllocator(
     : compilation_info_(compilation_info), graph_(graph) {
   ComputePostDominatingHoles();
   AllocateRegisters();
-  graph_->set_tagged_stack_slots(tagged_.top);
-  graph_->set_untagged_stack_slots(untagged_.top);
+  uint32_t tagged_stack_slots = tagged_.top;
+  uint32_t untagged_stack_slots = untagged_.top;
+#ifdef V8_TARGET_ARCH_ARM64
+  // Due to alignment constraints, we add one untagged slot if
+  // stack_slots + fixed_slot_count is odd.
+  static_assert(StandardFrameConstants::kFixedSlotCount % 2 == 1);
+  if ((tagged_stack_slots + untagged_stack_slots) % 2 == 0) {
+    untagged_stack_slots++;
+  }
+#endif  // V8_TARGET_ARCH_ARM64
+  graph_->set_tagged_stack_slots(tagged_stack_slots);
+  graph_->set_untagged_stack_slots(untagged_stack_slots);
 }
 
 StraightForwardRegisterAllocator::~StraightForwardRegisterAllocator() = default;

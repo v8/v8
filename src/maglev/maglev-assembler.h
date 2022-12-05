@@ -213,7 +213,13 @@ class SaveRegisterStateForCall {
       }
       pushed_reg_index++;
     }
+#ifdef V8_TARGET_ARCH_ARM64
+    pushed_reg_index = RoundUp<2>(pushed_reg_index);
+#endif
     int num_pushed_double_reg = snapshot_.live_double_registers.Count();
+#ifdef V8_TARGET_ARCH_ARM64
+    num_pushed_double_reg = RoundUp<2>(num_pushed_double_reg);
+#endif
     safepoint.SetNumPushedRegisters(pushed_reg_index + num_pushed_double_reg);
     return safepoint;
   }

@@ -64,10 +64,10 @@ void MaglevAssembler::Prologue(Graph* graph) {
   // that could clobber these registers.
   // Push the context and the JSFunction.
   Push(kContextRegister, kJSFunctionRegister);
-  // Push the actual argument count a _possible_ stack slot.
+  // Push the actual argument count and a _possible_ stack slot.
   Push(kJavaScriptCallArgCountRegister, xzr);
   int remaining_stack_slots = code_gen_state()->stack_slots() - 1;
-
+  DCHECK_GE(remaining_stack_slots, 0);
   {
     ASM_CODE_COMMENT_STRING(this, " Stack/interrupt check");
     // Stack check. This folds the checks for both the interrupt stack limit
@@ -103,8 +103,7 @@ void MaglevAssembler::Prologue(Graph* graph) {
           __ PopAll(RegisterInput::kAllowedRegisters);
           __ B(*done);
         },
-        deferred_call_stack_guard_return,
-        remaining_stack_slots > 0 ? remaining_stack_slots : 0);
+        deferred_call_stack_guard_return, remaining_stack_slots);
     bind(*deferred_call_stack_guard_return);
   }
 
