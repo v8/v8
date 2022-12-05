@@ -144,8 +144,8 @@ trybot_pair(
 trybot_pair(
     name = "v8_linux64_minor_mc_dbg",
     cq_properties = CQ.on_files(
-        ".+/[+]/test/cctest/heap/.+",
-        ".+/[+]/test/unittests/heap/.+",
+        "test/cctest/heap/.+",
+        "test/unittests/heap/.+",
     ),
     cq_branch_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
@@ -252,8 +252,8 @@ trybot_pair(
 trybot_pair(
     name = "v8_linux64_single_generation_dbg",
     cq_properties = CQ.on_files(
-        ".+/[+]/test/cctest/heap/.+",
-        ".+/[+]/test/unittests/heap/.+",
+        "test/cctest/heap/.+",
+        "test/unittests/heap/.+",
     ),
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
@@ -307,8 +307,8 @@ trybot_pair(
 trybot_pair(
     name = "v8_linux64_tsan_no_cm_rel",
     cq_properties = CQ.on_files(
-        ".+/[+]/src/compiler/js-heap-broker.(h|cc)",
-        ".+/[+]/src/compiler/heap-refs.(h|cc)",
+        "src/compiler/js-heap-broker.(h|cc)",
+        "src/compiler/heap-refs.(h|cc)",
     ),
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
@@ -412,7 +412,7 @@ trybot_pair(
 
 trybot_pair(
     name = "v8_linux_noi18n_rel",
-    cq_properties = CQ.on_files(".+/[+]/.*intl.*", ".+/[+]/.*test262.*"),
+    cq_properties = CQ.on_files(".*intl.*", ".*test262.*"),
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
@@ -429,11 +429,11 @@ trybot_pair(
 trybot_pair(
     name = "v8_linux_optional_rel",
     cq_properties = CQ.on_files(
-        ".+/[+]/src/codegen/shared-ia32-x64/macro-assembler-shared-ia32-x64.(h|cc)",
-        ".+/[+]/src/codegen/x64/(macro-)?assembler-x64.(h|cc)",
-        ".+/[+]/src/codegen/x64/sse-instr.h",
-        ".+/[+]/src/compiler/backend/x64/code-generator-x64.cc",
-        ".+/[+]/src/wasm/baseline/x64/liftoff-assembler-x64.h",
+        "src/codegen/shared-ia32-x64/macro-assembler-shared-ia32-x64.(h|cc)",
+        "src/codegen/x64/(macro-)?assembler-x64.(h|cc)",
+        "src/codegen/x64/sse-instr.h",
+        "src/compiler/backend/x64/code-generator-x64.cc",
+        "src/wasm/baseline/x64/liftoff-assembler-x64.h",
     ),
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,

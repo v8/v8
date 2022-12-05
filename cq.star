@@ -47,25 +47,25 @@ luci.cq_group(
     verifiers = [
         luci.cq_tryjob_verifier(
             "chromium:try/linux-blink-rel",
-            location_regexp = [
-                ".+/[+]/include/cppgc/.+",
-                ".+/[+]/src/inspector/.+",
-                ".+/[+]/src/wasm/wasm-feature-flags\\.h",
-                ".+/[+]/src/wasm/wasm-js\\.cc",
-                ".+/[+]/src/wasm/wasm-js\\.h",
-                ".+/[+]/test/inspector/.+",
-                ".+/[+]/test/mjsunit/wasm/js-api\\.js",
-                ".+/[+]/test/wasm-js/.+",
+            location_filters = [
+                cq.location_filter(path_regexp = "include/cppgc/.+"),
+                cq.location_filter(path_regexp = "src/inspector/.+"),
+                cq.location_filter(path_regexp = "src/wasm/wasm-feature-flags\\.h"),
+                cq.location_filter(path_regexp = "src/wasm/wasm-js\\.cc"),
+                cq.location_filter(path_regexp = "src/wasm/wasm-js\\.h"),
+                cq.location_filter(path_regexp = "test/inspector/.+"),
+                cq.location_filter(path_regexp = "test/mjsunit/wasm/js-api\\.js"),
+                cq.location_filter(path_regexp = "test/wasm-js/.+"),
             ],
         ),
         luci.cq_tryjob_verifier(
             "chromium:try/linux-rel",
-            location_regexp = [
-                ".+/[+]/include/.+\\.h",
-                ".+/[+]/src/api/api\\.cc",
-                ".+/[+]/src/inspector/.+",
-                ".+/[+]/src/common/message-template\\.h",
-                ".+/[+]/test/inspector/.+",
+            location_filters = [
+                cq.location_filter(path_regexp = "include/.+\\.h"),
+                cq.location_filter(path_regexp = "src/api/api\\.cc"),
+                cq.location_filter(path_regexp = "src/inspector/.+"),
+                cq.location_filter(path_regexp = "src/common/message-template\\.h"),
+                cq.location_filter(path_regexp = "test/inspector/.+"),
             ],
         ),
         luci.cq_tryjob_verifier(

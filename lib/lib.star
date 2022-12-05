@@ -103,7 +103,8 @@ NAMING_CONVENTION_EXCLUDED_BUILDERS = [
 ]
 
 def cq_on_files(*regexp_list):
-    return {"location_regexp": list(regexp_list), "cancel_stale": False}
+    filters = [cq.location_filter(path_regexp = p) for p in regexp_list]
+    return {"location_filters": filters, "cancel_stale": False}
 
 CQ = struct(
     BLOCK = {"cancel_stale": False},
