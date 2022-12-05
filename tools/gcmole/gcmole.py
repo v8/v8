@@ -6,12 +6,15 @@
 # This is main driver for gcmole tool. See README for more details.
 # Usage: CLANG_BIN=clang-bin-dir python tools/gcmole/gcmole.py [arm|arm64|ia32|x64]
 
+from contextlib import contextmanager
+from contextlib import redirect_stderr
 from multiprocessing import cpu_count
 from pathlib import Path
 
 import argparse
 import collections
 import difflib
+import io
 import json
 import os
 import re
@@ -221,7 +224,7 @@ def invoke_clang_plugin_for_each_file(filenames, plugin, plugin_args, options):
 # -----------------------------------------------------------------------------
 
 
-def build_file_list(options, for_test):
+def build_file_list(options):
   """Calculates the list of source files to be checked with gcmole.
 
   The list comprises all files from marked source sections in the
@@ -236,7 +239,7 @@ def build_file_list(options, for_test):
 
   Returns: List of file paths (of type Path).
   """
-  if for_test:
+  if options.test_run:
     return [options.v8_root_dir / "tools/gcmole/gcmole-test.cc"]
   result = []
   gn_files = [
@@ -431,8 +434,8 @@ def write_gcmole_results(collector, options, dst):
 # Analysis
 
 
-def check_correctness_for_arch(options, for_test):
-  files = build_file_list(options, for_test)
+def check_correctness_for_arch(options):
+  files = build_file_list(options)
 
   if not options.reuse_gcsuspects:
     generate_gc_suspects(files, options)
@@ -441,7 +444,6 @@ def check_correctness_for_arch(options, for_test):
 
   processed_files = 0
   errors_found = False
-  output = ""
 
   log("Searching for evaluation order problems " +
       (' and dead variables' if options.dead_vars else '') + "for" +
@@ -459,26 +461,29 @@ def check_correctness_for_arch(options, for_test):
     if not errors_found:
       errors_found = re.search("^[^:]+:\d+:\d+: (warning|error)", stderr,
                                re.MULTILINE) is not None
-    if for_test:
-      output = output + stderr
-    else:
-      sys.stdout.write(stderr)
+    sys.stderr.write(stderr)
 
   log("Done processing {} files.", processed_files)
   log("Errors found" if errors_found else "No errors found")
 
-  return errors_found, output
+  return errors_found
 
 
-def test_run(options):
+def has_unexpected_errors(options, errors_found, file_io):
+  """Returns True if error state isn't as expected, False otherwise.
+
+  In test-run mode, we expect certain errors and return False if expectations
+  are met.
+  """
   if not options.test_run:
-    return True
+    return errors_found
+
   log("Test Run")
-  errors_found, output = check_correctness_for_arch(options, True)
+  output = file_io.getvalue()
   if not errors_found:
     log("Test file should produce errors, but none were found. Output:")
     print(output)
-    return False
+    return True
 
   new_file = options.out_dir / "test-expectations-gen.txt"
   with open(new_file, "w") as f:
@@ -494,9 +499,9 @@ def test_run(options):
     print("#" * 79)
     log("Output mismatch from running tests.")
     log("Please run gcmole manually with --test-run --verbose.")
-    log("Expected: " + expected_file)
-    log("New:      " + new_file)
-    log("*Diff:*   " + diff_file)
+    log(f"Expected: {expected_file}")
+    log(f"New:      {new_file}")
+    log(f"*Diff:*   {diff_file}")
     print("#" * 79)
     for line in difflib.unified_diff(
         expectations.splitlines(),
@@ -509,17 +514,17 @@ def test_run(options):
 
     print("#" * 79)
     log("Full output")
-    log("Expected: " + expected_file)
-    log("Diff:     " + diff_file)
-    log("*New:*    " + new_file)
+    log(f"Expected: {expected_file}")
+    log(f"Diff:     {diff_file}")
+    log(f"*New*:    {new_file}")
     print("#" * 79)
     print(output)
     print("#" * 79)
 
-    return False
+    return True
 
   log("Tests ran successfully")
-  return True
+  return False
 
 
 # =============================================================================
@@ -637,15 +642,17 @@ def main(argv):
   options.func(options)
 
 
-def full_run(options):
-  any_errors_found = False
-  if not test_run(options):
-    any_errors_found = True
-  else:
-    errors_found, output = check_correctness_for_arch(options, False)
-    any_errors_found = any_errors_found or errors_found
+@contextmanager
+def maybe_redirect_stderr(options):
+  file_io = io.StringIO() if options.test_run else sys.stderr
+  with redirect_stderr(file_io) as f:
+    yield f
 
-  sys.exit(1 if any_errors_found else 0)
+
+def full_run(options):
+  with maybe_redirect_stderr(options) as file_io:
+    errors_found = check_correctness_for_arch(options)
+  sys.exit(has_unexpected_errors(options, errors_found, file_io))
 
 
 def verify_and_convert_dirs(parser, options, default_tools_gcmole_dir,

@@ -17,7 +17,8 @@ import gcmole
 TESTDATA_PATH = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), 'testdata', 'v8')
 
-Options = collections.namedtuple('Options', ['v8_root_dir', 'v8_target_cpu'])
+Options = collections.namedtuple(
+    'Options', ['v8_root_dir', 'v8_target_cpu', 'test_run'])
 
 
 def abs_test_file(f):
@@ -27,13 +28,13 @@ def abs_test_file(f):
 class FilesTest(unittest.TestCase):
 
   def testFileList_for_testing(self):
-    options = Options(Path(TESTDATA_PATH), 'x64')
+    options = Options(Path(TESTDATA_PATH), 'x64', True)
     self.assertEqual(
-        gcmole.build_file_list(options, True),
+        gcmole.build_file_list(options),
         list(map(abs_test_file, ['tools/gcmole/gcmole-test.cc'])))
 
   def testFileList_x64(self):
-    options = Options(Path(TESTDATA_PATH), 'x64')
+    options = Options(Path(TESTDATA_PATH), 'x64', False)
     expected = [
         'file1.cc',
         'file2.cc',
@@ -45,11 +46,11 @@ class FilesTest(unittest.TestCase):
         'test/cctest/test-x64-file2.cc',
     ]
     self.assertEqual(
-        gcmole.build_file_list(options, False),
+        gcmole.build_file_list(options),
         list(map(abs_test_file, expected)))
 
   def testFileList_arm(self):
-    options = Options(Path(TESTDATA_PATH), 'arm')
+    options = Options(Path(TESTDATA_PATH), 'arm', False)
     expected = [
         'file1.cc',
         'file2.cc',
@@ -59,7 +60,7 @@ class FilesTest(unittest.TestCase):
         'arm/file2.cc',
     ]
     self.assertEqual(
-        gcmole.build_file_list(options, False),
+        gcmole.build_file_list(options),
         list(map(abs_test_file, expected)))
 
 
