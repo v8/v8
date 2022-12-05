@@ -97,8 +97,7 @@ void MaglevAssembler::Prologue(Graph* graph) {
           // TODO(leszeks): Only push those that are used by the graph.
           __ PushAll(RegisterInput::kAllowedRegisters);
           // Push the frame size
-          __ Mov(ip0,
-                 Immediate(Smi::FromInt(stack_slots * kSystemPointerSize)));
+          __ Mov(ip0, Smi::FromInt(stack_slots * kSystemPointerSize));
           __ PushArgument(ip0);
           __ CallRuntime(Runtime::kStackGuardWithGap, 1);
           __ PopAll(RegisterInput::kAllowedRegisters);
@@ -134,7 +133,7 @@ void MaglevAssembler::Prologue(Graph* graph) {
       for (int i = 0; i < first_slots; ++i) {
         Push(xzr, xzr);
       }
-      Move(count, Immediate(tagged_two_slots_count / kLoopUnrollSize));
+      Move(count, tagged_two_slots_count / kLoopUnrollSize);
       // We enter the loop unconditionally, so make sure we need to loop at
       // least once.
       DCHECK_GT(tagged_two_slots_count / kLoopUnrollSize, 0);

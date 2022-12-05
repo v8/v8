@@ -144,7 +144,7 @@ class MaglevAssembler : public MacroAssembler {
   inline void Move(Register dst, Smi src);
   inline void Move(Register dst, Register src);
   inline void Move(Register dst, TaggedIndex i);
-  inline void Move(Register dst, Immediate i);
+  inline void Move(Register dst, int32_t i);
   inline void Move(DoubleRegister dst, double n);
   inline void Move(Register dst, Handle<HeapObject> obj);
 
@@ -444,6 +444,25 @@ inline void MaglevAssembler::EmitEagerDeoptIf(Condition cond,
   RegisterEagerDeopt(node->eager_deopt_info(), reason);
   RecordComment("-- Jump to eager deopt");
   JumpIf(cond, node->eager_deopt_info()->deopt_entry_label());
+}
+
+inline void MaglevAssembler::DefineLazyDeoptPoint(LazyDeoptInfo* info) {
+  info->set_deopting_call_return_pc(pc_offset_for_safepoint());
+  code_gen_state()->PushLazyDeopt(info);
+  safepoint_table_builder()->DefineSafepoint(this);
+}
+
+inline void MaglevAssembler::DefineExceptionHandlerPoint(NodeBase* node) {
+  ExceptionHandlerInfo* info = node->exception_handler_info();
+  if (!info->HasExceptionHandler()) return;
+  info->pc_offset = pc_offset_for_safepoint();
+  code_gen_state()->PushHandlerInfo(node);
+}
+
+inline void MaglevAssembler::DefineExceptionHandlerAndLazyDeoptPoint(
+    NodeBase* node) {
+  DefineExceptionHandlerPoint(node);
+  DefineLazyDeoptPoint(node->lazy_deopt_info());
 }
 
 }  // namespace maglev

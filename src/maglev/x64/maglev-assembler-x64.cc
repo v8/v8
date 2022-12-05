@@ -54,8 +54,7 @@ void MaglevAssembler::Allocate(RegisterSnapshot& register_snapshot,
         {
           SaveRegisterStateForCall save_register_state(masm, register_snapshot);
           using D = AllocateDescriptor;
-          __ Move(D::GetRegisterParameter(D::kRequestedSize),
-                  Immediate(size_in_bytes));
+          __ Move(D::GetRegisterParameter(D::kRequestedSize), size_in_bytes);
           __ CallBuiltin(builtin);
           save_register_state.DefineSafepoint();
           __ Move(object, kReturnRegister0);
@@ -469,7 +468,7 @@ void MaglevAssembler::Prologue(Graph* graph) {
   if (graph->tagged_stack_slots() > 0) {
     ASM_CODE_COMMENT_STRING(this, "Initializing stack slots");
     // TODO(leszeks): Consider filling with xmm + movdqa instead.
-    Move(rax, Immediate(0));
+    Move(rax, 0);
 
     // Magic value. Experimentally, an unroll size of 8 doesn't seem any
     // worse than fully unrolled pushes.
@@ -487,7 +486,7 @@ void MaglevAssembler::Prologue(Graph* graph) {
       for (int i = 0; i < first_slots; ++i) {
         pushq(rax);
       }
-      Move(rbx, Immediate(tagged_slots / kLoopUnrollSize));
+      Move(rbx, tagged_slots / kLoopUnrollSize);
       // We enter the loop unconditionally, so make sure we need to loop at
       // least once.
       DCHECK_GT(tagged_slots / kLoopUnrollSize, 0);

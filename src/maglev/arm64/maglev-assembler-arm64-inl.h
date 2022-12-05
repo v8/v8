@@ -74,7 +74,12 @@ inline void MaglevAssembler::Move(Register dst, Smi src) {
 inline void MaglevAssembler::Move(Register dst, Register src) {
   MacroAssembler::Move(dst, src);
 }
-inline void MaglevAssembler::Move(Register dst, Immediate i) { Mov(dst, i); }
+inline void MaglevAssembler::Move(Register dst, TaggedIndex i) {
+  Mov(dst, i.ptr());
+}
+inline void MaglevAssembler::Move(Register dst, int32_t i) {
+  Mov(dst, Immediate(i));
+}
 inline void MaglevAssembler::Move(DoubleRegister dst, double n) {
   // TODO(v8:7700): Implement!
   UNREACHABLE();

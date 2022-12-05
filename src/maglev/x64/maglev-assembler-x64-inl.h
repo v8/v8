@@ -86,25 +86,6 @@ inline MemOperand MaglevAssembler::ToMemOperand(const ValueLocation& location) {
   return ToMemOperand(location.operand());
 }
 
-inline void MaglevAssembler::DefineLazyDeoptPoint(LazyDeoptInfo* info) {
-  info->set_deopting_call_return_pc(pc_offset_for_safepoint());
-  code_gen_state()->PushLazyDeopt(info);
-  safepoint_table_builder()->DefineSafepoint(this);
-}
-
-inline void MaglevAssembler::DefineExceptionHandlerPoint(NodeBase* node) {
-  ExceptionHandlerInfo* info = node->exception_handler_info();
-  if (!info->HasExceptionHandler()) return;
-  info->pc_offset = pc_offset_for_safepoint();
-  code_gen_state()->PushHandlerInfo(node);
-}
-
-inline void MaglevAssembler::DefineExceptionHandlerAndLazyDeoptPoint(
-    NodeBase* node) {
-  DefineExceptionHandlerPoint(node);
-  DefineLazyDeoptPoint(node->lazy_deopt_info());
-}
-
 inline void MaglevAssembler::LoadBoundedSizeFromObject(Register result,
                                                        Register object,
                                                        int offset) {
@@ -223,8 +204,8 @@ inline void MaglevAssembler::Move(Register dst, Register src) {
   MacroAssembler::Move(dst, src);
 }
 
-inline void MaglevAssembler::Move(Register dst, Immediate i) {
-  MacroAssembler::Move(dst, i);
+inline void MaglevAssembler::Move(Register dst, int32_t i) {
+  MacroAssembler::Move(dst, Immediate(i));
 }
 
 inline void MaglevAssembler::Move(DoubleRegister dst, double n) {
