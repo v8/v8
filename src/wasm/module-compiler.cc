@@ -2856,6 +2856,16 @@ void AsyncStreamingProcessor::OnFinishedStream(
 
   std::shared_ptr<WasmModule> module = std::move(module_result).value();
 
+  // At this point we identified the module as valid (except maybe for function
+  // bodies, if lazy validation is enabled).
+  // This DCHECK could be considered slow, but it only happens once per async
+  // module compilation, and we only re-decode the module structure, without
+  // validation function bodies. Overall this does not add a lot of overhead.
+  DCHECK(DecodeWasmModule(job_->enabled_features_,
+                          job_->bytes_copy_.as_vector(),
+                          /* validate functions */ false, kWasmOrigin)
+             .ok());
+
   DCHECK_EQ(NativeModuleCache::PrefixHash(job_->wire_bytes_.module_bytes()),
             prefix_hash_);
   if (prefix_cache_hit_) {
