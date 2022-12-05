@@ -87,13 +87,6 @@ UNIMPLEMENTED_NODE(Int32SubtractWithOverflow)
 UNIMPLEMENTED_NODE(Int32MultiplyWithOverflow)
 UNIMPLEMENTED_NODE(Int32DivideWithOverflow)
 UNIMPLEMENTED_NODE(Int32ModulusWithOverflow)
-UNIMPLEMENTED_NODE(Int32BitwiseAnd)
-UNIMPLEMENTED_NODE(Int32BitwiseOr)
-UNIMPLEMENTED_NODE(Int32BitwiseXor)
-UNIMPLEMENTED_NODE(Int32ShiftLeft)
-UNIMPLEMENTED_NODE(Int32ShiftRight)
-UNIMPLEMENTED_NODE(Int32ShiftRightLogical)
-UNIMPLEMENTED_NODE(Int32BitwiseNot)
 UNIMPLEMENTED_NODE(Int32NegateWithOverflow)
 UNIMPLEMENTED_NODE(Int32IncrementWithOverflow)
 UNIMPLEMENTED_NODE(Int32DecrementWithOverflow)
@@ -168,7 +161,6 @@ UNIMPLEMENTED_NODE_WITH_CALL(DefineKeyedOwnGeneric)
 UNIMPLEMENTED_NODE(Phi)
 UNIMPLEMENTED_NODE(RegisterInput)
 UNIMPLEMENTED_NODE(CheckedSmiTagUint32)
-UNIMPLEMENTED_NODE(UnsafeSmiTag)
 UNIMPLEMENTED_NODE(CheckedInternalizedString, check_type_)
 UNIMPLEMENTED_NODE_WITH_CALL(CheckedObjectToIndex)
 UNIMPLEMENTED_NODE(CheckedTruncateNumberToInt32)
@@ -202,7 +194,6 @@ UNIMPLEMENTED_NODE_WITH_CALL(ToObject)
 UNIMPLEMENTED_NODE_WITH_CALL(ToString)
 UNIMPLEMENTED_NODE(AssertInt32, condition_, reason_)
 UNIMPLEMENTED_NODE(CheckDynamicValue)
-UNIMPLEMENTED_NODE(CheckInt32IsSmi)
 UNIMPLEMENTED_NODE(CheckUint32IsSmi)
 UNIMPLEMENTED_NODE(CheckHeapObject)
 UNIMPLEMENTED_NODE(CheckInt32Condition, condition_, reason_)
@@ -262,6 +253,52 @@ void Int32AddWithOverflow::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(vs, DeoptimizeReason::kOverflow, this);
 }
 
+#define DEF_BITWISE_BINOP(Instruction, opcode)                   \
+  void Instruction::SetValueLocationConstraints() {              \
+    UseRegister(left_input());                                   \
+    UseRegister(right_input());                                  \
+    DefineAsRegister(this);                                      \
+  }                                                              \
+                                                                 \
+  void Instruction::GenerateCode(MaglevAssembler* masm,          \
+                                 const ProcessingState& state) { \
+    Register left = ToRegister(left_input()).W();                \
+    Register right = ToRegister(right_input()).W();              \
+    Register out = ToRegister(result()).W();                     \
+    __ opcode(out, left, right);                                 \
+  }
+DEF_BITWISE_BINOP(Int32BitwiseAnd, and_)
+DEF_BITWISE_BINOP(Int32BitwiseOr, orr)
+DEF_BITWISE_BINOP(Int32BitwiseXor, eor)
+DEF_BITWISE_BINOP(Int32ShiftLeft, lslv)
+DEF_BITWISE_BINOP(Int32ShiftRight, asrv)
+DEF_BITWISE_BINOP(Int32ShiftRightLogical, lsrv)
+#undef DEF_BITWISE_BINOP
+
+void Int32BitwiseNot::SetValueLocationConstraints() {
+  UseRegister(value_input());
+  DefineAsRegister(this);
+}
+
+void Int32BitwiseNot::GenerateCode(MaglevAssembler* masm,
+                                   const ProcessingState& state) {
+  Register value = ToRegister(value_input()).W();
+  Register out = ToRegister(result()).W();
+  __ mvn(out, value);
+}
+
+void CheckInt32IsSmi::SetValueLocationConstraints() { UseRegister(input()); }
+void CheckInt32IsSmi::GenerateCode(MaglevAssembler* masm,
+                                   const ProcessingState& state) {
+  // TODO(leszeks): This basically does a SmiTag and throws the result away.
+  // Don't throw the result away if we want to actually use it.
+  Register reg = ToRegister(input());
+  __ Add(kScratchRegister, reg, reg);
+  DCHECK_REGLIST_EMPTY(RegList{reg} &
+                       GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
+  __ EmitEagerDeoptIf(vs, DeoptimizeReason::kNotASmi, this);
+}
+
 void CheckedSmiTagInt32::SetValueLocationConstraints() {
   UseRegister(input());
   DefineAsRegister(this);
@@ -276,6 +313,27 @@ void CheckedSmiTagInt32::GenerateCode(MaglevAssembler* masm,
   DCHECK_REGLIST_EMPTY(RegList{out} &
                        GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
   __ EmitEagerDeoptIf(vs, DeoptimizeReason::kOverflow, this);
+}
+
+void UnsafeSmiTag::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineAsRegister(this);
+}
+void UnsafeSmiTag::GenerateCode(MaglevAssembler* masm,
+                                const ProcessingState& state) {
+  Register reg = ToRegister(input()).W();
+  Register out = ToRegister(result()).W();
+  if (v8_flags.debug_code) {
+    if (input().node()->properties().value_representation() ==
+        ValueRepresentation::kUint32) {
+      __ cmp(reg, Immediate(Smi::kMaxValue));
+      __ Check(ls, AbortReason::kInputDoesNotFitSmi);
+    }
+  }
+  __ Add(out, reg, reg);
+  if (v8_flags.debug_code) {
+    __ Check(vc, AbortReason::kInputDoesNotFitSmi);
+  }
 }
 
 void IncreaseInterruptBudget::SetValueLocationConstraints() {}
