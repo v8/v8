@@ -1235,19 +1235,6 @@ void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
         GetGCTypeFromGarbageCollector(collector), current_gc_callback_flags_);
   });
 
-  if (isolate()->is_shared_heap_isolate()) {
-    isolate()->global_safepoint()->IterateClientIsolates(
-        [this, collector](Isolate* client) {
-          if (client->is_shared_heap_isolate()) return;
-          client->heap()->safepoint()->IterateLocalHeaps(
-              [this, collector](LocalHeap* local_heap) {
-                local_heap->InvokeGCEpilogueCallbacksInSafepoint(
-                    GetGCTypeFromGarbageCollector(collector),
-                    current_gc_callback_flags_);
-              });
-        });
-  }
-
 #define UPDATE_COUNTERS_FOR_SPACE(space)                \
   isolate_->counters()->space##_bytes_available()->Set( \
       static_cast<int>(space()->Available()));          \
