@@ -2097,6 +2097,86 @@ void AsyncCompileJob::Abort() {
   GetWasmEngine()->RemoveCompileJob(this);
 }
 
+// {ValidateFunctionsStreamingJobData} holds information that is shared between
+// the {AsyncStreamingProcessor} and the {ValidateFunctionsStreamingJob}. It
+// lives in the {AsyncStreamingProcessor} and is updated from both classes.
+struct ValidateFunctionsStreamingJobData {
+  struct Unit {
+    // {func_index == -1} represents an "invalid" unit.
+    int func_index = -1;
+    base::Vector<const uint8_t> code;
+
+    // Check whether the unit is valid.
+    operator bool() const {
+      DCHECK_LE(-1, func_index);
+      return func_index >= 0;
+    }
+  };
+
+  void AddUnit(int func_index, base::Vector<const uint8_t> code) {
+    base::MutexGuard guard(&mutex);
+    if (found_error) return;
+    units.push_back({func_index, code});
+  }
+
+  size_t NumUnits() const {
+    base::MutexGuard guard{&mutex};
+    DCHECK_IMPLIES(found_error, units.empty());
+    return units.size();
+  }
+
+  Unit GetUnit() {
+    base::MutexGuard guard(&mutex);
+    if (units.empty()) return {};
+    Unit unit = units.back();
+    units.pop_back();
+    return unit;
+  }
+
+  // TODO(clemensb): Use a more scalable data structure for work distribution.
+  mutable base::Mutex mutex;
+  std::vector<Unit> units;
+  bool found_error = false;
+};
+
+class ValidateFunctionsStreamingJob final : public JobTask {
+  using Unit = ValidateFunctionsStreamingJobData::Unit;
+
+ public:
+  ValidateFunctionsStreamingJob(const WasmModule* module,
+                                WasmFeatures enabled_features,
+                                ValidateFunctionsStreamingJobData* data)
+      : module_(module), enabled_features_(enabled_features), data_(data) {}
+
+  void Run(JobDelegate* delegate) override {
+    TRACE_EVENT0("v8.wasm", "wasm.ValidateFunctionsStreaming");
+    AccountingAllocator* allocator = GetWasmEngine()->allocator();
+    while (Unit unit = data_->GetUnit()) {
+      DecodeResult result = ValidateSingleFunction(
+          module_, unit.func_index, unit.code, allocator, enabled_features_);
+
+      if (result.failed()) {
+        WasmError new_error = std::move(result).error();
+        base::MutexGuard guard{&data_->mutex};
+        data_->found_error = true;
+        data_->units.clear();
+        break;
+      }
+      // After validating one function, check if we should yield.
+      if (delegate->ShouldYield()) break;
+    }
+  }
+
+  size_t GetMaxConcurrency(size_t worker_count) const override {
+    return worker_count + data_->NumUnits();
+  }
+
+ private:
+  const WasmModule* const module_;
+  const WasmFeatures enabled_features_;
+  ValidateFunctionsStreamingJobData* data_;
+};
+
 class AsyncStreamingProcessor final : public StreamingProcessor {
  public:
   explicit AsyncStreamingProcessor(AsyncCompileJob* job);
@@ -2136,6 +2216,8 @@ class AsyncStreamingProcessor final : public StreamingProcessor {
   int num_functions_ = 0;
   bool prefix_cache_hit_ = false;
   bool before_code_section_ = true;
+  ValidateFunctionsStreamingJobData validate_functions_job_data_;
+  std::unique_ptr<JobHandle> validate_functions_job_handle_;
 
   // Running hash of the wire bytes up to code section size, but excluding the
   // code section itself. Used by the {NativeModuleCache} to detect potential
@@ -2801,12 +2883,17 @@ bool AsyncStreamingProcessor::ProcessFunctionBody(
       (strategy == CompileStrategy::kLazy ||
        strategy == CompileStrategy::kLazyBaselineEagerTopTier);
   if (validate_lazily_compiled_function) {
-    // The native module does not own the wire bytes until {SetWireBytes} is
-    // called in {OnFinishedStream}. Validation must use {bytes} parameter.
-    DecodeResult result = ValidateSingleFunction(
-        module, func_index, bytes, module->allocator(), enabled_features);
-
-    if (result.failed()) return false;
+    // {bytes} is part of a section buffer owned by the streaming decoder. The
+    // streaming decoder is held alive by the {AsyncCompileJob}, so we can just
+    // use the {bytes} vector as long as the {AsyncCompileJob} is still running.
+    if (!validate_functions_job_handle_) {
+      validate_functions_job_handle_ = V8::GetCurrentPlatform()->CreateJob(
+          TaskPriority::kUserVisible,
+          std::make_unique<ValidateFunctionsStreamingJob>(
+              module, enabled_features, &validate_functions_job_data_));
+    }
+    validate_functions_job_data_.AddUnit(func_index, bytes);
+    validate_functions_job_handle_->NotifyConcurrencyIncrease();
   }
 
   auto* compilation_state = Impl(job_->native_module_->compilation_state());
@@ -2831,6 +2918,16 @@ void AsyncStreamingProcessor::OnFinishedStream(
   TRACE_STREAMING("Finish stream...\n");
   ModuleResult module_result = decoder_.FinishDecoding();
   if (module_result.failed()) after_error = true;
+
+  if (validate_functions_job_handle_) {
+    // Wait for background validation to finish, then check if a validation
+    // error was found.
+    // TODO(13447): Do not block here; register validation as another finisher
+    // instead.
+    validate_functions_job_handle_->Join();
+    validate_functions_job_handle_.reset();
+    if (validate_functions_job_data_.found_error) after_error = true;
+  }
 
   job_->wire_bytes_ = ModuleWireBytes(bytes.as_vector());
   job_->bytes_copy_ = std::move(bytes);
@@ -2929,6 +3026,10 @@ void AsyncStreamingProcessor::OnFinishedStream(
 
 void AsyncStreamingProcessor::OnAbort() {
   TRACE_STREAMING("Abort stream...\n");
+  if (validate_functions_job_handle_) {
+    validate_functions_job_handle_->Cancel();
+    validate_functions_job_handle_.reset();
+  }
   if (job_->native_module_ && job_->native_module_->wire_bytes().empty()) {
     // Clean up the temporary cache entry.
     GetWasmEngine()->StreamingCompilationFailed(prefix_hash_);
