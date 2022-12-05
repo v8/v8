@@ -31,11 +31,20 @@ if [ "$VERSION" == "--auto" -o "$VERSION" == "auto" ]; then
   AVAILABLE_PACKAGES_URL="https://packages.microsoft.com/repos/vscode/dists/stable/main/binary-amd64/Packages.gz"
   VERSION=$(curl "$AVAILABLE_PACKAGES_URL" --silent \
             | gunzip \
-            | grep -A1 "Package: code$" \
-            | grep "^Version: " \
+            | gawk '
+              BEGIN { engaged = 0 }
+              # Look at blocks starting with "Package: code".
+              /^Package: code$/ { engaged = 1 }
+              # Stop looking at the empty line indicating the end of a block.
+              /^$/ { engaged = 0 }
+              # In interesting blocks, print the relevant part of the
+              # "Version: " line.
+              match($0, /^Version: ([0-9.]*)/, groups) {
+                if (engaged == 1) print groups[1]
+              }
+              ' - \
             | sort -rV \
-            | head -1 \
-            | sed 's/[^0-9]*\([0-9.]*\).*/\1/')
+            | head -1)
   if [ -z "$VERSION" ]; then
     die "Detecting latest version failed, please specify it manually."
   else
