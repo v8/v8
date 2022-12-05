@@ -61,11 +61,10 @@ export class SchedulePhase extends Phase {
       const blockIdStrings = blockIdsString.split(",");
       predecessors = blockIdStrings.map(n => Number.parseInt(n, 10));
     }
-    const blockRpo = Number.parseInt(match.groups.rpo, 10);
     const blockId = Number.parseInt(match.groups.id, 10);
-    const block = new ScheduleBlock(blockRpo, blockId,match.groups.deferred !== undefined,
+    const block = new ScheduleBlock(blockId, match.groups.deferred !== undefined,
       predecessors.sort());
-    this.data.blocks_rpo[block.rpo] = block;
+    this.data.blocks[block.id] = block;
   }
 
   private setGotoSuccessor = match => {
@@ -83,7 +82,7 @@ export class SchedulePhase extends Phase {
       process: this.createNode
     },
     {
-      lineRegexps: [/^\s*---\s*BLOCK\ B(?<rpo>\d+)\ id(?<id>\d+)\s*(?<deferred>\(deferred\))?(\ <-\ )?(?<in>[^-]*)?\ ---$/],
+      lineRegexps: [/^\s*---\s*BLOCK\ B(?<id>\d+)\s*(?<deferred>\(deferred\))?(\ <-\ )?(?<in>[^-]*)?\ ---$/],
       process: this.createBlock
     },
     {
@@ -110,15 +109,13 @@ export class ScheduleNode {
 }
 
 export class ScheduleBlock {
-  rpo: number;
   id: number;
   deferred: boolean;
   predecessors: Array<number>;
   successors: Array<number>;
   nodes: Array<ScheduleNode>;
 
-  constructor(rpo: number, id: number, deferred: boolean, predecessors: Array<number>) {
-    this.rpo = rpo;
+  constructor(id: number, deferred: boolean, predecessors: Array<number>) {
     this.id = id;
     this.deferred = deferred;
     this.predecessors = predecessors;
@@ -129,15 +126,15 @@ export class ScheduleBlock {
 
 export class ScheduleData {
   nodes: Array<ScheduleNode>;
-  blocks_rpo: Array<ScheduleBlock>;
+  blocks: Array<ScheduleBlock>;
 
   constructor() {
     this.nodes = new Array<ScheduleNode>();
-    this.blocks_rpo = new Array<ScheduleBlock>();
+    this.blocks = new Array<ScheduleBlock>();
   }
 
   public lastBlock(): ScheduleBlock {
-    if (this.blocks_rpo.length == 0) return null;
-    return this.blocks_rpo[this.blocks_rpo.length - 1];
+    if (this.blocks.length == 0) return null;
+    return this.blocks[this.blocks.length - 1];
   }
 }

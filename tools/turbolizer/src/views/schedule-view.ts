@@ -28,7 +28,7 @@ export class ScheduleView extends TextView {
   public initializeContent(schedule: SchedulePhase, rememberedSelection: SelectionStorage): void {
     this.divNode.innerHTML = "";
     this.schedule = schedule;
-    this.addBlocks(schedule.data.blocks_rpo);
+    this.addBlocks(schedule.data.blocks);
     this.show();
     if (rememberedSelection) {
       const adaptedSelection = this.adaptSelection(rememberedSelection);
@@ -85,15 +85,15 @@ export class ScheduleView extends TextView {
     scheduleBlock.classList.toggle("deferred", block.deferred);
 
     const [start, end] = this.sourceResolver.instructionsPhase
-      .getInstructionRangeForBlock(block.rpo);
+      .getInstructionRangeForBlock(block.id);
     const instrMarker = this.createElement("div", "instr-marker com", "&#8857;");
     instrMarker.setAttribute("title", `Instructions range for this block is [${start}, ${end})`);
-    instrMarker.onclick = this.mkBlockLinkHandler(block.rpo);
+    instrMarker.onclick = this.mkBlockLinkHandler(block.id);
     scheduleBlock.appendChild(instrMarker);
 
-    const blockRpo_Id = this.createElement("div", "block-id com clickable", String(block.rpo) + " Id:" + String(block.id));
-    blockRpo_Id.onclick = this.mkBlockLinkHandler(block.rpo);
-    scheduleBlock.appendChild(blockRpo_Id);
+    const blockId = this.createElement("div", "block-id com clickable", String(block.id));
+    blockId.onclick = this.mkBlockLinkHandler(block.id);
+    scheduleBlock.appendChild(blockId);
     const blockPred = this.createElement("div", "predecessor-list block-list comma-sep-list");
     for (const pred of block.predecessors) {
       const predEl = this.createElement("div", "block-id com clickable", String(pred));
