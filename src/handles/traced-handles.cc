@@ -512,8 +512,6 @@ class TracedHandlesImpl final {
   void DeleteEmptyBlocks();
 
   void ResetDeadNodes(WeakSlotCallbackWithHeap should_reset_handle);
-  void CheckNodeMarkingStateIsConsistent(
-      bool may_find_marked_nodes, WeakSlotCallbackWithHeap should_reset_handle);
 
   void ComputeWeaknessForYoungObjects(WeakSlotCallback is_unmodified);
   void ProcessYoungObjects(RootVisitor* visitor,
@@ -847,45 +845,6 @@ void TracedHandlesImpl::ResetDeadNodes(
   }
 }
 
-void TracedHandlesImpl::CheckNodeMarkingStateIsConsistent(
-    bool may_find_marked_nodes, WeakSlotCallbackWithHeap should_reset_handle) {
-  CHECK(isolate_->heap()->concurrent_marking()->IsStopped());
-  auto consistency_check = [this](bool may_find_marked_nodes,
-                                  WeakSlotCallbackWithHeap should_reset_handle,
-                                  TracedNode* node) {
-    CHECK_IMPLIES(!node->is_in_use(), !node->markbit());
-    if (!node->is_in_use()) {
-      return;
-    }
-    if (is_marking_) {
-      // During marking, all nodes are considered roots, so there should be no
-      // nodes pointing into from space, as we only call this method after
-      // page flips and roots processing.
-      Object object = node->object();
-      if (object.IsHeapObject()) {
-        auto* chunk =
-            BasicMemoryChunk::FromHeapObject(HeapObject::cast(object));
-        // Non-LO pages must not be in from space.
-        CHECK_IMPLIES(!chunk->IsLargePage(),
-                      !chunk->IsFlagSet(BasicMemoryChunk::FROM_PAGE));
-        // LO pages may be in from space depending on where this method was
-        // called.
-      }
-    }
-    CHECK_IMPLIES(node->markbit(), may_find_marked_nodes);
-    CHECK_IMPLIES(node->markbit(),
-                  !should_reset_handle(isolate_->heap(), node->location()));
-  };
-  for (TracedNode* node : young_nodes_) {
-    consistency_check(may_find_marked_nodes, should_reset_handle, node);
-  }
-  for (const auto block : blocks_) {
-    for (const auto node : *block) {
-      consistency_check(may_find_marked_nodes, should_reset_handle, node);
-    }
-  }
-}
-
 void TracedHandlesImpl::ComputeWeaknessForYoungObjects(
     WeakSlotCallback is_unmodified) {
   if (!v8_flags.reclaim_unmodified_wrappers) return;
@@ -1015,12 +974,6 @@ void TracedHandles::DeleteEmptyBlocks() { impl_->DeleteEmptyBlocks(); }
 void TracedHandles::ResetDeadNodes(
     WeakSlotCallbackWithHeap should_reset_handle) {
   impl_->ResetDeadNodes(should_reset_handle);
-}
-
-void TracedHandles::CheckNodeMarkingStateIsConsistent(
-    bool may_find_marked_nodes, WeakSlotCallbackWithHeap should_reset_handle) {
-  impl_->CheckNodeMarkingStateIsConsistent(may_find_marked_nodes,
-                                           should_reset_handle);
 }
 
 void TracedHandles::ComputeWeaknessForYoungObjects(

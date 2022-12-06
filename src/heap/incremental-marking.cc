@@ -308,10 +308,6 @@ void IncrementalMarking::StartMarkingMajor() {
 
   heap_->InvokeIncrementalMarkingPrologueCallbacks();
 
-  // Temporary checks for diagnosing https://crbug.com/1380114.
-  isolate()->traced_handles()->CheckNodeMarkingStateIsConsistent(
-      false, &MarkCompactCollector::IsUnmarkedHeapObject);
-
   is_compacting_ = major_collector_->StartCompaction(
       MarkCompactCollector::StartCompactionMode::kIncremental);
 
