@@ -108,7 +108,7 @@ struct WasmModuleDecoded {
         function_count(function_count),
         wall_clock_duration_in_us(wall_clock_duration_in_us) {}
 
-  V8_DEPRECATE_SOON("Use the version without cpu_duration_in_us")
+  V8_DEPRECATED("Use the version without cpu_duration_in_us")
   WasmModuleDecoded(bool async, bool streamed, bool success,
                     size_t module_size_in_bytes, size_t function_count,
                     int64_t wall_clock_duration_in_us,
@@ -134,7 +134,7 @@ struct WasmModuleDecoded {
   size_t module_size_in_bytes = 0;
   size_t function_count = 0;
   int64_t wall_clock_duration_in_us = -1;
-  V8_DEPRECATE_SOON("We do not collect cpu times any more")
+  V8_DEPRECATED("We do not collect cpu times any more")
   int64_t cpu_duration_in_us = -1;
 };
 
@@ -155,7 +155,7 @@ struct WasmModuleCompiled {
         liftoff_bailout_count(liftoff_bailout_count),
         wall_clock_duration_in_us(wall_clock_duration_in_us) {}
 
-  V8_DEPRECATE_SOON("Use the version without cpu_duration_in_us")
+  V8_DEPRECATED("Use the version without cpu_duration_in_us")
   WasmModuleCompiled(bool async, bool streamed, bool cached, bool deserialized,
                      bool lazy, bool success, size_t code_size_in_bytes,
                      size_t liftoff_bailout_count,
@@ -188,7 +188,7 @@ struct WasmModuleCompiled {
   size_t code_size_in_bytes = 0;
   size_t liftoff_bailout_count = 0;
   int64_t wall_clock_duration_in_us = -1;
-  V8_DEPRECATE_SOON("We do not collect cpu times any more")
+  V8_DEPRECATED("We do not collect cpu times any more")
   int64_t cpu_duration_in_us = -1;
 };
 
