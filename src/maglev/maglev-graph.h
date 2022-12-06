@@ -52,6 +52,7 @@ class Graph final : public ZoneObject {
   uint32_t tagged_stack_slots() const { return tagged_stack_slots_; }
   uint32_t untagged_stack_slots() const { return untagged_stack_slots_; }
   uint32_t max_call_stack_args() const { return max_call_stack_args_; }
+  uint32_t max_deopted_stack_size() const { return max_deopted_stack_size_; }
   void set_tagged_stack_slots(uint32_t stack_slots) {
     DCHECK_EQ(kMaxUInt32, tagged_stack_slots_);
     DCHECK_NE(kMaxUInt32, stack_slots);
@@ -66,6 +67,11 @@ class Graph final : public ZoneObject {
     DCHECK_EQ(kMaxUInt32, max_call_stack_args_);
     DCHECK_NE(kMaxUInt32, stack_slots);
     max_call_stack_args_ = stack_slots;
+  }
+  void set_max_deopted_stack_size(uint32_t size) {
+    DCHECK_EQ(kMaxUInt32, max_deopted_stack_size_);
+    DCHECK_NE(kMaxUInt32, size);
+    max_deopted_stack_size_ = size;
   }
 
   ZoneMap<RootIndex, RootConstant*>& root() { return root_; }
@@ -86,6 +92,7 @@ class Graph final : public ZoneObject {
   uint32_t tagged_stack_slots_ = kMaxUInt32;
   uint32_t untagged_stack_slots_ = kMaxUInt32;
   uint32_t max_call_stack_args_ = kMaxUInt32;
+  uint32_t max_deopted_stack_size_ = kMaxUInt32;
   ZoneVector<BasicBlock*> blocks_;
   ZoneMap<RootIndex, RootConstant*> root_;
   ZoneMap<int, SmiConstant*> smi_;

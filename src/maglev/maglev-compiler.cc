@@ -13,6 +13,7 @@
 #include "src/base/threaded-list.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/machine-type.h"
+#include "src/codegen/register-configuration.h"
 #include "src/codegen/register.h"
 #include "src/codegen/reglist.h"
 #include "src/common/globals.h"
@@ -67,6 +68,7 @@ class MaxCallDepthProcessor {
   void PreProcessGraph(Graph* graph) {}
   void PostProcessGraph(Graph* graph) {
     graph->set_max_call_stack_args(max_call_stack_args_);
+    graph->set_max_deopted_stack_size(max_deopted_stack_size_);
   }
   void PreProcessBasicBlock(BasicBlock* block) {}
 
@@ -83,10 +85,55 @@ class MaxCallDepthProcessor {
       }
       max_call_stack_args_ = std::max(max_call_stack_args_, node_stack_args);
     }
+    if constexpr (NodeT::kProperties.can_eager_deopt()) {
+      UpdateMaxDeoptedStackSize(node->eager_deopt_info());
+    }
+    if constexpr (NodeT::kProperties.can_lazy_deopt()) {
+      UpdateMaxDeoptedStackSize(node->lazy_deopt_info());
+    }
   }
 
  private:
+  void UpdateMaxDeoptedStackSize(DeoptInfo* deopt_info) {
+    const DeoptFrame* deopt_frame = &deopt_info->top_frame();
+    if (deopt_frame->type() == DeoptFrame::FrameType::kInterpretedFrame) {
+      if (&deopt_frame->as_interpreted().unit() == last_seen_unit_) return;
+      last_seen_unit_ = &deopt_frame->as_interpreted().unit();
+    }
+
+    int frame_size = 0;
+    do {
+      frame_size += ConservativeFrameSize(deopt_frame);
+      deopt_frame = deopt_frame->parent();
+    } while (deopt_frame != nullptr);
+    max_deopted_stack_size_ = std::max(frame_size, max_deopted_stack_size_);
+  }
+  int ConservativeFrameSize(const DeoptFrame* deopt_frame) {
+    switch (deopt_frame->type()) {
+      case DeoptFrame::FrameType::kInterpretedFrame: {
+        auto info = UnoptimizedFrameInfo::Conservative(
+            deopt_frame->as_interpreted().unit().parameter_count(),
+            deopt_frame->as_interpreted().unit().register_count());
+        return info.frame_size_in_bytes();
+      }
+      case DeoptFrame::FrameType::kBuiltinContinuationFrame: {
+        // PC + FP + Closure + Params + Context
+        const RegisterConfiguration* config = RegisterConfiguration::Default();
+        auto info = BuiltinContinuationFrameInfo::Conservative(
+            deopt_frame->as_builtin_continuation().parameters().length(),
+            Builtins::CallInterfaceDescriptorFor(
+                deopt_frame->as_builtin_continuation().builtin_id()),
+            config);
+        return info.frame_size_in_bytes();
+      }
+    }
+  }
+
   int max_call_stack_args_ = 0;
+  int max_deopted_stack_size_ = 0;
+  // Optimize UpdateMaxDeoptedStackSize to not re-calculate if it sees the same
+  // compilation unit multiple times in a row.
+  const MaglevCompilationUnit* last_seen_unit_ = nullptr;
 };
 
 class UseMarkingProcessor {

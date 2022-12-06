@@ -83,27 +83,29 @@ void MaglevAssembler::Prologue(Graph* graph) {
     // padded by their respective uses.
     const int max_stack_slots_used = RoundUp<2>(remaining_stack_slots) +
                                      RoundUp<2>(graph->max_call_stack_args());
-    Sub(stack_slots_size, stack_slots_size,
-        Immediate(max_stack_slots_used * kSystemPointerSize));
+    const int max_stack_size =
+        std::max(static_cast<int>(graph->max_deopted_stack_size()),
+                 max_stack_slots_used * kSystemPointerSize);
+    Sub(stack_slots_size, stack_slots_size, Immediate(max_stack_size));
     LoadStackLimit(interrupt_stack_limit, StackLimitKind::kInterruptStackLimit);
     Cmp(stack_slots_size, interrupt_stack_limit);
 
     ZoneLabelRef deferred_call_stack_guard_return(this);
     JumpToDeferredIf(
         lo,
-        [](MaglevAssembler* masm, ZoneLabelRef done, int stack_slots) {
+        [](MaglevAssembler* masm, ZoneLabelRef done, int max_stack_size) {
           ASM_CODE_COMMENT_STRING(masm, "Stack/interrupt call");
           // Save any registers that can be referenced by RegisterInput.
           // TODO(leszeks): Only push those that are used by the graph.
           __ PushAll(RegisterInput::kAllowedRegisters);
           // Push the frame size
-          __ Mov(ip0, Smi::FromInt(stack_slots * kSystemPointerSize));
+          __ Mov(ip0, Smi::FromInt(max_stack_size * kSystemPointerSize));
           __ PushArgument(ip0);
           __ CallRuntime(Runtime::kStackGuardWithGap, 1);
           __ PopAll(RegisterInput::kAllowedRegisters);
           __ B(*done);
         },
-        deferred_call_stack_guard_return, remaining_stack_slots);
+        deferred_call_stack_guard_return, max_stack_size);
     bind(*deferred_call_stack_guard_return);
   }
 
