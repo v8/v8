@@ -189,6 +189,18 @@
       {'name': 'gcmole_v3', 'variant': 'x64', 'shards': 4},
       {'name': 'gcmole_v3', 'variant': 'arm', 'shards': 4},
       {'name': 'gcmole_v3', 'variant': 'arm64', 'shards': 4},
+      {
+        'name': 'gcmole_v2',
+        'variant': 'x64',
+        'suffix': 'test single host',
+        'test_args': ['--test-run'],
+      },
+      {
+        'name': 'gcmole_v3',
+        'variant': 'x64',
+        'suffix': 'test multi host',
+        'test_args': ['--test-run'],
+      },
     ],
   },
   'v8_linux_optional_rel': {
@@ -1086,6 +1098,18 @@
       {'name': 'gcmole_v3', 'variant': 'x64', 'shards': 4},
       {'name': 'gcmole_v3', 'variant': 'arm', 'shards': 4},
       {'name': 'gcmole_v3', 'variant': 'arm64', 'shards': 4},
+      {
+        'name': 'gcmole_v2',
+        'variant': 'x64',
+        'suffix': 'test single host',
+        'test_args': ['--test-run'],
+      },
+      {
+        'name': 'gcmole_v3',
+        'variant': 'x64',
+        'suffix': 'test multi host',
+        'test_args': ['--test-run'],
+      },
     ],
   },
   'V8 Linux - arm64 - sim - CFI': {
