@@ -15,6 +15,7 @@ namespace internal {
 namespace maglev {
 
 constexpr Register kScratchRegister = x16;
+constexpr Register kScratchRegisterW = w16;
 constexpr DoubleRegister kScratchDoubleReg = d30;
 
 namespace detail {

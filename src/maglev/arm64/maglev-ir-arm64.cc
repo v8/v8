@@ -65,9 +65,55 @@ UNIMPLEMENTED_NODE(Int32SubtractWithOverflow)
 UNIMPLEMENTED_NODE(Int32MultiplyWithOverflow)
 UNIMPLEMENTED_NODE(Int32DivideWithOverflow)
 UNIMPLEMENTED_NODE(Int32ModulusWithOverflow)
-UNIMPLEMENTED_NODE(Int32NegateWithOverflow)
-UNIMPLEMENTED_NODE(Int32IncrementWithOverflow)
-UNIMPLEMENTED_NODE(Int32DecrementWithOverflow)
+
+void Int32NegateWithOverflow::SetValueLocationConstraints() {
+  UseRegister(value_input());
+  DefineAsRegister(this);
+}
+
+void Int32NegateWithOverflow::GenerateCode(MaglevAssembler* masm,
+                                           const ProcessingState& state) {
+  Register value = ToRegister(value_input()).W();
+  Register out = ToRegister(result()).W();
+  __ negs(out, value);
+  // Output register must not be a register input into the eager deopt info.
+  DCHECK_REGLIST_EMPTY(RegList{out} &
+                       GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
+  __ EmitEagerDeoptIf(vs, DeoptimizeReason::kOverflow, this);
+}
+
+void Int32IncrementWithOverflow::SetValueLocationConstraints() {
+  UseRegister(value_input());
+  DefineAsRegister(this);
+}
+
+void Int32IncrementWithOverflow::GenerateCode(MaglevAssembler* masm,
+                                              const ProcessingState& state) {
+  Register value = ToRegister(value_input()).W();
+  Register out = ToRegister(result()).W();
+  __ Adds(out, value, Immediate(1));
+  // Output register must not be a register input into the eager deopt info.
+  DCHECK_REGLIST_EMPTY(RegList{out} &
+                       GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
+  __ EmitEagerDeoptIf(vs, DeoptimizeReason::kOverflow, this);
+}
+
+void Int32DecrementWithOverflow::SetValueLocationConstraints() {
+  UseRegister(value_input());
+  DefineAsRegister(this);
+}
+
+void Int32DecrementWithOverflow::GenerateCode(MaglevAssembler* masm,
+                                              const ProcessingState& state) {
+  Register value = ToRegister(value_input());
+  Register out = ToRegister(result()).W();
+  __ Subs(out, value, Immediate(1));
+  // Output register must not be a register input into the eager deopt info.
+  DCHECK_REGLIST_EMPTY(RegList{out} &
+                       GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
+  __ EmitEagerDeoptIf(vs, DeoptimizeReason::kOverflow, this);
+}
+
 UNIMPLEMENTED_NODE(Float64Add)
 UNIMPLEMENTED_NODE(Float64Subtract)
 UNIMPLEMENTED_NODE(Float64Multiply)
@@ -192,7 +238,7 @@ void Int32AddWithOverflow::GenerateCode(MaglevAssembler* masm,
   Register left = ToRegister(left_input()).W();
   Register right = ToRegister(right_input()).W();
   Register out = ToRegister(result()).W();
-  __ Add(out, left, right);
+  __ Adds(out, left, right);
   // None of the mutated input registers should be a register input into the
   // eager deopt info.
   DCHECK_REGLIST_EMPTY(RegList{out} &
@@ -304,8 +350,8 @@ void CheckInt32IsSmi::GenerateCode(MaglevAssembler* masm,
                                    const ProcessingState& state) {
   // TODO(leszeks): This basically does a SmiTag and throws the result away.
   // Don't throw the result away if we want to actually use it.
-  Register reg = ToRegister(input());
-  __ Add(kScratchRegister, reg, reg);
+  Register reg = ToRegister(input()).W();
+  __ Adds(wzr, reg, reg);
   DCHECK_REGLIST_EMPTY(RegList{reg} &
                        GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
   __ EmitEagerDeoptIf(vs, DeoptimizeReason::kNotASmi, this);
@@ -319,7 +365,7 @@ void CheckedSmiTagInt32::GenerateCode(MaglevAssembler* masm,
                                       const ProcessingState& state) {
   Register reg = ToRegister(input()).W();
   Register out = ToRegister(result()).W();
-  __ Add(out, reg, reg);
+  __ Adds(out, reg, reg);
   // None of the mutated input registers should be a register input into the
   // eager deopt info.
   DCHECK_REGLIST_EMPTY(RegList{out} &
@@ -342,7 +388,7 @@ void UnsafeSmiTag::GenerateCode(MaglevAssembler* masm,
       __ Check(ls, AbortReason::kInputDoesNotFitSmi);
     }
   }
-  __ Add(out, reg, reg);
+  __ Adds(out, reg, reg);
   if (v8_flags.debug_code) {
     __ Check(vc, AbortReason::kInputDoesNotFitSmi);
   }
