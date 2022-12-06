@@ -2301,6 +2301,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   V(I32x4ExtMulHighI16x8S)              \
   V(I32x4ExtMulLowI16x8U)               \
   V(I32x4ExtMulHighI16x8U)              \
+  V(I32x4DotI16x8S)                     \
   V(I16x8Ne)                            \
   V(I16x8GeS)                           \
   V(I16x8GeU)                           \
@@ -2698,12 +2699,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kPPC_I8x16BitMask: {
       __ I8x16BitMask(i.OutputRegister(), i.InputSimd128Register(0), r0, ip,
                       kScratchSimd128Reg);
-      break;
-    }
-    case kPPC_I32x4DotI16x8S: {
-      __ vxor(kScratchSimd128Reg, kScratchSimd128Reg, kScratchSimd128Reg);
-      __ vmsumshm(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                  i.InputSimd128Register(1), kScratchSimd128Reg);
       break;
     }
 #define ASSEMBLE_LOAD_TRANSFORM(scratch, load_instr) \

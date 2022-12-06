@@ -1897,6 +1897,7 @@ SIMD_BINOP_LIST(EMIT_SIMD_BINOP)
   V(i32x4_extmul_low_i16x8_u, I32x4ExtMulLowI16x8U)   \
   V(i32x4_extmul_high_i16x8_s, I32x4ExtMulHighI16x8S) \
   V(i32x4_extmul_high_i16x8_u, I32x4ExtMulHighI16x8U) \
+  V(i32x4_dot_i16x8_s, I32x4DotI16x8S)                \
   V(i16x8_ne, I16x8Ne)                                \
   V(i16x8_ge_s, I16x8GeS)                             \
   V(i16x8_ge_u, I16x8GeU)                             \
@@ -2326,12 +2327,6 @@ void LiftoffAssembler::emit_i64x2_uconvert_i32x4_high(LiftoffRegister dst,
 void LiftoffAssembler::emit_i32x4_bitmask(LiftoffRegister dst,
                                           LiftoffRegister src) {
   I32x4BitMask(dst.gp(), src.fp().toSimd(), r0, kScratchSimd128Reg);
-}
-
-void LiftoffAssembler::emit_i32x4_dot_i16x8_s(LiftoffRegister dst,
-                                              LiftoffRegister lhs,
-                                              LiftoffRegister rhs) {
-  bailout(kRelaxedSimd, "i32x4_dot_i16x8_s");
 }
 
 void LiftoffAssembler::emit_i32x4_extadd_pairwise_i16x8_s(LiftoffRegister dst,
