@@ -1905,6 +1905,7 @@ SIMD_BINOP_LIST(EMIT_SIMD_BINOP)
   V(i16x8_extmul_low_i8x16_u, I16x8ExtMulLowI8x16U)   \
   V(i16x8_extmul_high_i8x16_s, I16x8ExtMulHighI8x16S) \
   V(i16x8_extmul_high_i8x16_u, I16x8ExtMulHighI8x16U) \
+  V(i16x8_q15mulr_sat_s, I16x8Q15MulRSatS)            \
   V(i8x16_ne, I8x16Ne)                                \
   V(i8x16_ge_s, I8x16GeS)                             \
   V(i8x16_ge_u, I8x16GeU)
@@ -2352,12 +2353,6 @@ void LiftoffAssembler::emit_i16x8_extadd_pairwise_i8x16_s(LiftoffRegister dst,
 void LiftoffAssembler::emit_i16x8_extadd_pairwise_i8x16_u(LiftoffRegister dst,
                                                           LiftoffRegister src) {
   bailout(kSimd, "i16x8.extadd_pairwise_i8x16_u");
-}
-
-void LiftoffAssembler::emit_i16x8_q15mulr_sat_s(LiftoffRegister dst,
-                                                LiftoffRegister src1,
-                                                LiftoffRegister src2) {
-  bailout(kSimd, "i16x8_q15mulr_sat_s");
 }
 
 void LiftoffAssembler::emit_i16x8_relaxed_q15mulr_s(LiftoffRegister dst,

@@ -2309,6 +2309,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   V(I16x8ExtMulHighI8x16S)              \
   V(I16x8ExtMulLowI8x16U)               \
   V(I16x8ExtMulHighI8x16U)              \
+  V(I16x8Q15MulRSatS)                   \
   V(I8x16Ne)                            \
   V(I8x16GeS)                           \
   V(I8x16GeU)
@@ -2951,12 +2952,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
 #undef EXT_ADD_PAIRWISE
-    case kPPC_I16x8Q15MulRSatS: {
-      __ vxor(kScratchSimd128Reg, kScratchSimd128Reg, kScratchSimd128Reg);
-      __ vmhraddshs(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                    i.InputSimd128Register(1), kScratchSimd128Reg);
-      break;
-    }
     case kPPC_F64x2PromoteLowF32x4: {
       constexpr int lane_number = 8;
       Simd128Register src = i.InputSimd128Register(0);

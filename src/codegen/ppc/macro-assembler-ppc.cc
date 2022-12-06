@@ -4507,6 +4507,13 @@ void TurboAssembler::I32x4DotI16x8S(Simd128Register dst, Simd128Register src1,
   vmsumshm(dst, src1, src2, scratch);
 }
 
+void TurboAssembler::I16x8Q15MulRSatS(Simd128Register dst, Simd128Register src1,
+                                      Simd128Register src2,
+                                      Simd128Register scratch) {
+  vxor(scratch, scratch, scratch);
+  vmhraddshs(dst, src1, src2, scratch);
+}
+
 void TurboAssembler::V128AnyTrue(Register dst, Simd128Register src,
                                  Register scratch1, Register scratch2,
                                  Simd128Register scratch3) {
