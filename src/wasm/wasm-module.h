@@ -480,6 +480,7 @@ struct WasmTable;
 
 // Static representation of a module.
 struct V8_EXPORT_PRIVATE WasmModule {
+  // ================ Fields ===================================================
   std::unique_ptr<Zone> signature_zone;
   uint32_t initial_pages = 0;      // initial size of the memory in 64k pages
   uint32_t maximum_pages = 0;      // maximum size of the memory in 64k pages
@@ -510,6 +511,45 @@ struct V8_EXPORT_PRIVATE WasmModule {
   // ID and length).
   WireBytesRef name_section = {0, 0};
 
+  std::vector<TypeDefinition> types;  // by type index
+  // Maps each type index to its global (cross-module) canonical index as per
+  // isorecursive type canonicalization.
+  std::vector<uint32_t> isorecursive_canonical_type_ids;
+  std::vector<WasmFunction> functions;
+  std::vector<WasmGlobal> globals;
+  std::vector<WasmDataSegment> data_segments;
+  std::vector<WasmTable> tables;
+  std::vector<WasmImport> import_table;
+  std::vector<WasmExport> export_table;
+  std::vector<WasmTag> tags;
+  std::vector<WasmStringRefLiteral> stringref_literals;
+  std::vector<WasmElemSegment> elem_segments;
+  std::vector<WasmCompilationHint> compilation_hints;
+  BranchHintInfo branch_hints;
+  // Pairs of module offsets and mark id.
+  std::vector<std::pair<uint32_t, uint32_t>> inst_traces;
+  mutable TypeFeedbackStorage type_feedback;
+
+  ModuleOrigin origin = kWasmOrigin;  // origin of the module
+  mutable LazilyGeneratedNames lazily_generated_names;
+  WasmDebugSymbols debug_symbols;
+
+  // Asm.js source position information. Only available for modules compiled
+  // from asm.js.
+  std::unique_ptr<AsmJsOffsetInformation> asm_js_offset_information;
+
+  // {validated_functions} is atomically updated when functions get validated
+  // (during compilation, streaming decoding, or via explicit validation).
+  static_assert(sizeof(std::atomic<uint8_t>) == 1);
+  static_assert(alignof(std::atomic<uint8_t>) == 1);
+  mutable std::unique_ptr<std::atomic<uint8_t>[]> validated_functions;
+
+  // ================ Constructors =============================================
+  explicit WasmModule(std::unique_ptr<Zone> signature_zone = nullptr);
+  WasmModule(const WasmModule&) = delete;
+  WasmModule& operator=(const WasmModule&) = delete;
+
+  // ================ Accessors ================================================
   void add_type(TypeDefinition type) {
     types.push_back(type);
     // Isorecursive canonical type will be computed later.
@@ -599,43 +639,6 @@ struct V8_EXPORT_PRIVATE WasmModule {
   base::Vector<const WasmFunction> declared_functions() const {
     return base::VectorOf(functions) + num_imported_functions;
   }
-
-  std::vector<TypeDefinition> types;  // by type index
-  // Maps each type index to its global (cross-module) canonical index as per
-  // isorecursive type canonicalization.
-  std::vector<uint32_t> isorecursive_canonical_type_ids;
-  std::vector<WasmFunction> functions;
-  std::vector<WasmGlobal> globals;
-  std::vector<WasmDataSegment> data_segments;
-  std::vector<WasmTable> tables;
-  std::vector<WasmImport> import_table;
-  std::vector<WasmExport> export_table;
-  std::vector<WasmTag> tags;
-  std::vector<WasmStringRefLiteral> stringref_literals;
-  std::vector<WasmElemSegment> elem_segments;
-  std::vector<WasmCompilationHint> compilation_hints;
-  BranchHintInfo branch_hints;
-  // Pairs of module offsets and mark id.
-  std::vector<std::pair<uint32_t, uint32_t>> inst_traces;
-  mutable TypeFeedbackStorage type_feedback;
-
-  ModuleOrigin origin = kWasmOrigin;  // origin of the module
-  mutable LazilyGeneratedNames lazily_generated_names;
-  WasmDebugSymbols debug_symbols;
-
-  // Asm.js source position information. Only available for modules compiled
-  // from asm.js.
-  std::unique_ptr<AsmJsOffsetInformation> asm_js_offset_information;
-
-  // {validated_functions} is atomically updated when functions get validated
-  // (during compilation, streaming decoding, or via explicit validation).
-  static_assert(sizeof(std::atomic<uint8_t>) == 1);
-  static_assert(alignof(std::atomic<uint8_t>) == 1);
-  mutable std::unique_ptr<std::atomic<uint8_t>[]> validated_functions;
-
-  explicit WasmModule(std::unique_ptr<Zone> signature_zone = nullptr);
-  WasmModule(const WasmModule&) = delete;
-  WasmModule& operator=(const WasmModule&) = delete;
 };
 
 // Static representation of a wasm indirect call table.
