@@ -16,9 +16,11 @@
 namespace v8::internal::wasm::fuzzer {
 
 // A default value for {max_executed_instructions} in {ExecuteAgainstReference}.
-// Executing 1M wasm instructions should be pretty fast, even in simulator
-// builds.
-constexpr int kDefaultMaxFuzzerExecutedInstructions = 1e6;
+#ifdef USE_SIMULATOR
+constexpr int kDefaultMaxFuzzerExecutedInstructions = 16'000;
+#else
+constexpr int kDefaultMaxFuzzerExecutedInstructions = 1'000'000;
+#endif
 
 // First creates a reference module fully compiled with Liftoff, with
 // instrumentation to stop after a given number of steps and to record any
