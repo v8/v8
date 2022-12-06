@@ -4830,6 +4830,7 @@ void Heap::IterateRootsIncludingClients(RootVisitor* v,
     options.Add(SkipRoot::kConservativeStack);
     isolate()->global_safepoint()->IterateClientIsolates(
         [v = &client_root_visitor, options](Isolate* client) {
+          if (client->is_shared_heap_isolate()) return;
           client->heap()->IterateRoots(v, options);
         });
   }

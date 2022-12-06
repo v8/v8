@@ -488,7 +488,8 @@ void IncrementalMarking::UpdateMarkingWorklistAfterYoungGenGC() {
       HeapObject dest = map_word.ToForwardingAddress(obj);
       USE(this);
       DCHECK_IMPLIES(marking_state->IsWhite(obj), obj.IsFreeSpaceOrFiller());
-      if (dest.InSharedHeap()) {
+      if (dest.InSharedWritableHeap() &&
+          !isolate()->is_shared_space_isolate()) {
         // Object got promoted into the shared heap. Drop it from the client
         // heap marking worklist.
         return false;
