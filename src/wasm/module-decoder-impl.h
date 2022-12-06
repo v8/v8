@@ -314,8 +314,6 @@ class ModuleDecoderTemplate : public Decoder {
                         ModuleOrigin origin, Tracer& tracer)
       : Decoder(wire_bytes),
         enabled_features_(enabled_features),
-        module_(std::make_shared<WasmModule>(std::make_unique<Zone>(
-            GetWasmEngine()->allocator(), "signatures"))),
         module_start_(wire_bytes.begin()),
         module_end_(wire_bytes.end()),
         tracer_(tracer) {
@@ -583,15 +581,15 @@ class ModuleDecoderTemplate : public Decoder {
     tracer_.Description(TypeKindName(kind));
     switch (kind) {
       case kWasmFunctionTypeCode: {
-        const FunctionSig* sig = consume_sig(module_->signature_zone.get());
+        const FunctionSig* sig = consume_sig(&module_->signature_zone);
         return {sig, kNoSuperType};
       }
       case kWasmStructTypeCode: {
-        const StructType* type = consume_struct(module_->signature_zone.get());
+        const StructType* type = consume_struct(&module_->signature_zone);
         return {type, kNoSuperType};
       }
       case kWasmArrayTypeCode: {
-        const ArrayType* type = consume_array(module_->signature_zone.get());
+        const ArrayType* type = consume_array(&module_->signature_zone);
         return {type, kNoSuperType};
       }
       default:
@@ -645,7 +643,7 @@ class ModuleDecoderTemplate : public Decoder {
         switch (opcode) {
           case kWasmFunctionTypeCode: {
             consume_bytes(1, "function");
-            const FunctionSig* sig = consume_sig(module_->signature_zone.get());
+            const FunctionSig* sig = consume_sig(&module_->signature_zone);
             if (!ok()) break;
             module_->types[i] = {sig, kNoSuperType};
             type_canon->AddRecursiveGroup(module_.get(), 1, i);
@@ -1690,7 +1688,7 @@ class ModuleDecoderTemplate : public Decoder {
 
  private:
   const WasmFeatures enabled_features_;
-  std::shared_ptr<WasmModule> module_;
+  const std::shared_ptr<WasmModule> module_ = std::make_shared<WasmModule>();
   const byte* module_start_ = nullptr;
   const byte* module_end_ = nullptr;
   Tracer& tracer_;

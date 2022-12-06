@@ -481,7 +481,7 @@ struct WasmTable;
 // Static representation of a module.
 struct V8_EXPORT_PRIVATE WasmModule {
   // ================ Fields ===================================================
-  std::unique_ptr<Zone> signature_zone;
+  Zone signature_zone;
   uint32_t initial_pages = 0;      // initial size of the memory in 64k pages
   uint32_t maximum_pages = 0;      // maximum size of the memory in 64k pages
   bool has_shared_memory = false;  // true if memory is a SharedArrayBuffer
@@ -545,7 +545,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
   mutable std::unique_ptr<std::atomic<uint8_t>[]> validated_functions;
 
   // ================ Constructors =============================================
-  explicit WasmModule(std::unique_ptr<Zone> signature_zone = nullptr);
+  WasmModule();
   WasmModule(const WasmModule&) = delete;
   WasmModule& operator=(const WasmModule&) = delete;
 

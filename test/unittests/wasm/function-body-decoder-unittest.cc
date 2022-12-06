@@ -75,8 +75,7 @@ enum MemoryType { kMemory32, kMemory64 };
 // globals, or memories.
 class TestModuleBuilder {
  public:
-  explicit TestModuleBuilder(ModuleOrigin origin = kWasmOrigin)
-      : allocator(), mod(std::make_unique<Zone>(&allocator, ZONE_NAME)) {
+  explicit TestModuleBuilder(ModuleOrigin origin = kWasmOrigin) {
     mod.origin = origin;
   }
   byte AddGlobal(ValueType type, bool mutability = true) {
@@ -124,7 +123,7 @@ class TestModuleBuilder {
 
   byte AddStruct(std::initializer_list<F> fields,
                  uint32_t supertype = kNoSuperType) {
-    StructType::Builder type_builder(mod.signature_zone.get(),
+    StructType::Builder type_builder(&mod.signature_zone,
                                      static_cast<uint32_t>(fields.size()));
     for (F field : fields) {
       type_builder.AddField(field.first, field.second);
@@ -135,7 +134,7 @@ class TestModuleBuilder {
   }
 
   byte AddArray(ValueType type, bool mutability) {
-    ArrayType* array = mod.signature_zone->New<ArrayType>(type, mutability);
+    ArrayType* array = mod.signature_zone.New<ArrayType>(type, mutability);
     mod.add_array_type(array, kNoSuperType);
     GetTypeCanonicalizer()->AddRecursiveGroup(module(), 1);
     return static_cast<byte>(mod.types.size() - 1);
@@ -191,7 +190,6 @@ class TestModuleBuilder {
     return static_cast<byte>(mod.functions.size() - 1);
   }
 
-  AccountingAllocator allocator;
   WasmModule mod;
 };
 
@@ -5033,7 +5031,6 @@ TEST_F(TypeReaderTest, HeapTypeDecodingTest) {
 
 class LocalDeclDecoderTest : public TestWithZone {
  public:
-  v8::internal::AccountingAllocator allocator;
   WasmFeatures enabled_features_;
 
   size_t ExpectRun(ValueType* local_types, size_t pos, ValueType expected,

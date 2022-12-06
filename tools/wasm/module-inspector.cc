@@ -381,7 +381,6 @@ class HexDumpModuleDis {
         module_(module),
         names_(names),
         wire_bytes_(wire_bytes),
-        allocator_(allocator),
         zone_(allocator, "disassembler") {}
 
   // Public entrypoint.
@@ -394,8 +393,7 @@ class HexDumpModuleDis {
     std::unique_ptr<WasmModule> fake_module;
     std::unique_ptr<NamesProvider> names_provider;
     if (!names_) {
-      fake_module.reset(
-          new WasmModule(std::make_unique<Zone>(allocator_, "fake module")));
+      fake_module.reset(new WasmModule());
       names_provider.reset(
           new NamesProvider(fake_module.get(), wire_bytes_.module_bytes()));
       names_ = names_provider.get();
@@ -701,7 +699,6 @@ class HexDumpModuleDis {
   const WasmModule* module_;
   NamesProvider* names_;
   const ModuleWireBytes wire_bytes_;
-  AccountingAllocator* allocator_;
   Zone zone_;
 
   StringBuilder description_;
