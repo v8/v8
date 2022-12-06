@@ -288,6 +288,7 @@ namespace compiler {
   V(X64I32x4Abs)                                     \
   V(X64I32x4BitMask)                                 \
   V(X64I32x4DotI16x8S)                               \
+  V(X64I32x4DotI8x16I7x16AddS)                       \
   V(X64I32x4ExtMulLowI16x8S)                         \
   V(X64I32x4ExtMulHighI16x8S)                        \
   V(X64I32x4ExtMulLowI16x8U)                         \

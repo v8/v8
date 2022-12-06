@@ -744,6 +744,30 @@ void SharedTurboAssembler::I16x8DotI8x16I7x16S(XMMRegister dst,
   }
 }
 
+void SharedTurboAssembler::I32x4DotI8x16I7x16AddS(
+    XMMRegister dst, XMMRegister src1, XMMRegister src2, XMMRegister src3,
+    XMMRegister scratch, XMMRegister splat_reg) {
+  ASM_CODE_COMMENT(this);
+  // k = i16x8.splat(1)
+  Pcmpeqd(splat_reg, splat_reg);
+  Psrlw(splat_reg, splat_reg, byte{15});
+
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vpmaddubsw(scratch, src2, src1);
+  } else {
+    movdqa(scratch, src2);
+    pmaddubsw(scratch, src1);
+  }
+  Pmaddwd(scratch, splat_reg);
+  if (dst == src3) {
+    Paddd(dst, scratch);
+  } else {
+    Movdqa(dst, src3);
+    Paddd(dst, scratch);
+  }
+}
+
 void SharedTurboAssembler::I32x4ExtAddPairwiseI16x8U(XMMRegister dst,
                                                      XMMRegister src,
                                                      XMMRegister tmp) {
