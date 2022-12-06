@@ -517,6 +517,21 @@ void RegisterInput::GenerateCode(MaglevAssembler* masm,
   // Nothing to be done, the value is already in the register.
 }
 
+void Phi::SetValueLocationConstraints() {
+  for (Input& input : *this) {
+    UseAny(input);
+  }
+
+  // We have to pass a policy for the result, but it is ignored during register
+  // allocation. See StraightForwardRegisterAllocator::AllocateRegisters which
+  // has special handling for Phis.
+  static const compiler::UnallocatedOperand::ExtendedPolicy kIgnoredPolicy =
+      compiler::UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT;
+
+  result().SetUnallocated(kIgnoredPolicy, kNoVreg);
+}
+void Phi::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {}
+
 namespace {
 
 constexpr Builtin BuiltinFor(Operation operation) {

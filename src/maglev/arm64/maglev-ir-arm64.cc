@@ -110,8 +110,6 @@ UNIMPLEMENTED_NODE(LoadSignedIntTypedArrayElement, elements_kind_)
 UNIMPLEMENTED_NODE(LoadUnsignedIntTypedArrayElement, elements_kind_)
 UNIMPLEMENTED_NODE(LoadDoubleTypedArrayElement, elements_kind_)
 UNIMPLEMENTED_NODE(LoadDoubleElement)
-UNIMPLEMENTED_NODE(Phi)
-void Phi::SetValueLocationConstraintsInPostProcess() {}
 UNIMPLEMENTED_NODE(CheckedSmiTagUint32)
 UNIMPLEMENTED_NODE(CheckedInternalizedString, check_type_)
 UNIMPLEMENTED_NODE_WITH_CALL(CheckedObjectToIndex)

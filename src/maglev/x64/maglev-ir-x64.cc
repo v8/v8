@@ -2969,21 +2969,6 @@ void TruncateFloat64ToInt32::GenerateCode(MaglevAssembler* masm,
   __ TruncateDoubleToInt32(ToRegister(result()), ToDoubleRegister(input()));
 }
 
-void Phi::SetValueLocationConstraints() {
-  for (Input& input : *this) {
-    UseAny(input);
-  }
-
-  // We have to pass a policy for the result, but it is ignored during register
-  // allocation. See StraightForwardRegisterAllocator::AllocateRegisters which
-  // has special handling for Phis.
-  static const compiler::UnallocatedOperand::ExtendedPolicy kIgnoredPolicy =
-      compiler::UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT;
-
-  result().SetUnallocated(kIgnoredPolicy, kNoVreg);
-}
-void Phi::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {}
-
 int Call::MaxCallStackArgs() const { return num_args(); }
 void Call::SetValueLocationConstraints() {
   // TODO(leszeks): Consider splitting Call into with- and without-feedback

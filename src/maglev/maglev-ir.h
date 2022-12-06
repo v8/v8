@@ -4783,7 +4783,6 @@ class Phi : public ValueNodeT<Phi> {
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
-  void SetValueLocationConstraintsInPostProcess();
 
  private:
   Phi** next() { return &next_; }
