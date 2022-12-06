@@ -944,6 +944,7 @@ enum class OptimizationStatus {
   kTopmostFrameIsInterpreted = 1 << 16,
   kTopmostFrameIsBaseline = 1 << 17,
   kIsLazy = 1 << 18,
+  kTopmostFrameIsMaglev = 1 << 19,
 };
 
 }  // namespace internal
