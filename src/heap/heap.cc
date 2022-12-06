@@ -3642,9 +3642,9 @@ void Heap::UnmarkSharedLinearAllocationAreas() {
     shared_space_allocator_->UnmarkLinearAllocationArea();
   }
   safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
-    local_heap->MarkSharedLinearAllocationAreaBlack();
+    local_heap->UnmarkSharedLinearAllocationArea();
   });
-  main_thread_local_heap()->MarkSharedLinearAllocationAreaBlack();
+  main_thread_local_heap()->UnmarkSharedLinearAllocationArea();
 }
 
 namespace {
