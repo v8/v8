@@ -32,19 +32,19 @@ namespace Debugger {
 namespace API {
 class SearchMatch;
 }
-}
+}  // namespace Debugger
 namespace Runtime {
 namespace API {
 class RemoteObject;
 class StackTrace;
 class StackTraceId;
-}
-}
+}  // namespace API
+}  // namespace Runtime
 namespace Schema {
 namespace API {
 class Domain;
 }
-}
+}  // namespace Schema
 }  // namespace protocol
 
 class V8_EXPORT StringView {
@@ -134,6 +134,13 @@ class V8_EXPORT V8DebuggerId {
   int64_t m_second = 0;
 };
 
+struct V8_EXPORT V8StackFrame {
+  StringView sourceURL;
+  StringView functionName;
+  int lineNumber;
+  int columnNumber;
+};
+
 class V8_EXPORT V8StackTrace {
  public:
   virtual StringView firstNonEmptySourceURL() const = 0;
@@ -151,6 +158,8 @@ class V8_EXPORT V8StackTrace {
 
   // Safe to pass between threads, drops async chain.
   virtual std::unique_ptr<V8StackTrace> clone() = 0;
+
+  virtual std::vector<V8StackFrame> frames() const = 0;
 };
 
 class V8_EXPORT V8InspectorSession {
