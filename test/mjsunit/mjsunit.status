@@ -1821,6 +1821,7 @@
 ['no_js_shared_memory', {
   'shared-memory/*': [SKIP],
   'regress/regress-crbug-1394741': [SKIP],
+  'regress/regress-crbug-1395117': [SKIP],
 }],  # 'no_js_shared_memory'
 
 ##############################################################################
