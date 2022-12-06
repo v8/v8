@@ -216,6 +216,9 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=12209
   'intl402/Intl/supportedValuesOf/collations-accepted-by-Collator': [FAIL],
 
+  # https://github.com/tc39/test262/pull/3732
+  'intl402/NumberFormat/constructor-roundingIncrement': [FAIL],
+
   # https://github.com/tc39/test262/issues/3711
   'intl402/DateTimeFormat/prototype/formatRange/en-US': [FAIL],
   'intl402/DateTimeFormat/prototype/formatRange/fractionalSecondDigits': [FAIL],
