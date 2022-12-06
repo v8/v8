@@ -19,6 +19,27 @@ namespace v8 {
 namespace internal {
 namespace maglev {
 
+namespace detail {
+template <typename... Args>
+struct PushAllHelper;
+template <>
+struct PushAllHelper<> {
+  static void Push(MaglevAssembler* masm) {}
+};
+template <typename Arg, typename... Args>
+struct PushAllHelper<Arg, Args...> {
+  static void Push(MaglevAssembler* masm, Arg arg, Args... args) {
+    masm->MacroAssembler::Push(arg);
+    PushAllHelper<Args...>::Push(masm, args...);
+  }
+};
+}  // namespace detail
+
+template <typename... T>
+void MaglevAssembler::Push(T... vals) {
+  detail::PushAllHelper<T...>::Push(this, vals...);
+}
+
 void MaglevAssembler::Branch(Condition condition, BasicBlock* if_true,
                              BasicBlock* if_false, BasicBlock* next_block) {
   // We don't have any branch probability information, so try to jump
@@ -221,8 +242,6 @@ inline void MaglevAssembler::Jump(Label* target) { jmp(target); }
 inline void MaglevAssembler::JumpIf(Condition cond, Label* target) {
   j(cond, target);
 }
-
-inline void MaglevAssembler::Push(Register src) { MacroAssembler::Push(src); }
 
 inline void MaglevAssembler::Pop(Register dst) { MacroAssembler::Pop(dst); }
 

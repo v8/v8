@@ -17,6 +17,51 @@ namespace maglev {
 constexpr Register kScratchRegister = x16;
 constexpr DoubleRegister kScratchDoubleReg = d30;
 
+namespace detail {
+template <typename Arg>
+inline Register ToRegister(MaglevAssembler* masm, Register reg, Arg arg) {
+  masm->Move(reg, arg);
+  return reg;
+}
+inline Register ToRegister(MaglevAssembler* masm, Register scratch,
+                           Register reg) {
+  return reg;
+}
+template <typename... Args>
+struct PushAllHelper;
+template <typename... Args>
+inline void PushAll(MaglevAssembler* basm, Args... args) {
+  PushAllHelper<Args...>::Push(basm, args...);
+}
+template <>
+struct PushAllHelper<> {
+  static void Push(MaglevAssembler* basm) {}
+};
+template <typename Arg>
+struct PushAllHelper<Arg> {
+  static void Push(MaglevAssembler* basm, Arg) { FATAL("Unaligned push"); }
+};
+template <typename Arg1, typename Arg2, typename... Args>
+struct PushAllHelper<Arg1, Arg2, Args...> {
+  static void Push(MaglevAssembler* masm, Arg1 arg1, Arg2 arg2, Args... args) {
+    {
+      masm->MacroAssembler::Push(ToRegister(masm, ip0, arg1),
+                                 ToRegister(masm, ip1, arg2));
+    }
+    PushAll(masm, args...);
+  }
+};
+}  // namespace detail
+
+template <typename... T>
+void MaglevAssembler::Push(T... vals) {
+  if (sizeof...(vals) % 2 == 0) {
+    detail::PushAll(this, vals...);
+  } else {
+    detail::PushAll(this, padreg, vals...);
+  }
+}
+
 inline MemOperand MaglevAssembler::StackSlotOperand(StackSlot slot) {
   return MemOperand(fp, slot.index);
 }
@@ -94,8 +139,6 @@ inline void MaglevAssembler::JumpIf(Condition cond, Label* target) {
   b(target, cond);
 }
 
-// TODO(victorgomes): We should avoid dong a single push in arm64!
-inline void MaglevAssembler::Push(Register src) { Push(src, padreg); }
 inline void MaglevAssembler::Pop(Register dst) { Pop(padreg, dst); }
 
 inline void MaglevAssembler::AssertStackSizeCorrect() {

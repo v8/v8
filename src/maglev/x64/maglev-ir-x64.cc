@@ -198,36 +198,6 @@ void GeneratorRestoreRegister::GenerateCode(MaglevAssembler* masm,
   }
 }
 
-int ForInNext::MaxCallStackArgs() const {
-  using D = CallInterfaceDescriptorFor<Builtin::kForInNext>::type;
-  return D::GetStackParameterCount();
-}
-void ForInNext::SetValueLocationConstraints() {
-  using D = CallInterfaceDescriptorFor<Builtin::kForInNext>::type;
-  UseFixed(context(), kContextRegister);
-  UseFixed(receiver(), D::GetRegisterParameter(D::kReceiver));
-  UseFixed(cache_array(), D::GetRegisterParameter(D::kCacheArray));
-  UseFixed(cache_type(), D::GetRegisterParameter(D::kCacheType));
-  UseFixed(cache_index(), D::GetRegisterParameter(D::kCacheIndex));
-  DefineAsFixed(this, kReturnRegister0);
-}
-void ForInNext::GenerateCode(MaglevAssembler* masm,
-                             const ProcessingState& state) {
-  using D = CallInterfaceDescriptorFor<Builtin::kForInNext>::type;
-  DCHECK_EQ(ToRegister(context()), kContextRegister);
-  DCHECK_EQ(ToRegister(receiver()), D::GetRegisterParameter(D::kReceiver));
-  DCHECK_EQ(ToRegister(cache_array()), D::GetRegisterParameter(D::kCacheArray));
-  DCHECK_EQ(ToRegister(cache_type()), D::GetRegisterParameter(D::kCacheType));
-  DCHECK_EQ(ToRegister(cache_index()), D::GetRegisterParameter(D::kCacheIndex));
-  __ Move(D::GetRegisterParameter(D::kSlot), feedback().index());
-  // Feedback vector is pushed into the stack.
-  static_assert(D::GetStackParameterIndex(D::kFeedbackVector) == 0);
-  static_assert(D::GetStackParameterCount() == 1);
-  __ Push(feedback().vector);
-  __ CallBuiltin(Builtin::kForInNext);
-  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
-}
-
 void GetSecondReturnedValue::SetValueLocationConstraints() {
   DefineAsFixed(this, kReturnRegister1);
 }
@@ -248,42 +218,6 @@ void GetSecondReturnedValue::GenerateCode(MaglevAssembler* masm,
   DCHECK_NE(previous, nullptr);
   DCHECK(previous->properties().is_call());
 #endif  // DEBUG
-}
-
-int CreateArrayLiteral::MaxCallStackArgs() const {
-  DCHECK_EQ(Runtime::FunctionForId(Runtime::kCreateArrayLiteral)->nargs, 4);
-  return 4;
-}
-void CreateArrayLiteral::SetValueLocationConstraints() {
-  DefineAsFixed(this, kReturnRegister0);
-}
-void CreateArrayLiteral::GenerateCode(MaglevAssembler* masm,
-                                      const ProcessingState& state) {
-  __ Move(kContextRegister, masm->native_context().object());
-  __ Push(feedback().vector);
-  __ Push(TaggedIndex::FromIntptr(feedback().index()));
-  __ Push(constant_elements().object());
-  __ Push(Smi::FromInt(flags()));
-  __ CallRuntime(Runtime::kCreateArrayLiteral, 4);
-  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
-}
-
-int CreateObjectLiteral::MaxCallStackArgs() const {
-  DCHECK_EQ(Runtime::FunctionForId(Runtime::kCreateObjectLiteral)->nargs, 4);
-  return 4;
-}
-void CreateObjectLiteral::SetValueLocationConstraints() {
-  DefineAsFixed(this, kReturnRegister0);
-}
-void CreateObjectLiteral::GenerateCode(MaglevAssembler* masm,
-                                       const ProcessingState& state) {
-  __ Move(kContextRegister, masm->native_context().object());
-  __ Push(feedback().vector);
-  __ Push(TaggedIndex::FromIntptr(feedback().index()));
-  __ Push(boilerplate_descriptor().object());
-  __ Push(Smi::FromInt(flags()));
-  __ CallRuntime(Runtime::kCreateObjectLiteral, 4);
-  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
 int CreateEmptyObjectLiteral::MaxCallStackArgs() const {
@@ -385,26 +319,6 @@ void FastCreateClosure::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
-int CreateClosure::MaxCallStackArgs() const {
-  DCHECK_EQ(Runtime::FunctionForId(pretenured() ? Runtime::kNewClosure_Tenured
-                                                : Runtime::kNewClosure)
-                ->nargs,
-            2);
-  return 2;
-}
-void CreateClosure::SetValueLocationConstraints() {
-  UseFixed(context(), kContextRegister);
-  DefineAsFixed(this, kReturnRegister0);
-}
-void CreateClosure::GenerateCode(MaglevAssembler* masm,
-                                 const ProcessingState& state) {
-  Runtime::FunctionId function_id =
-      pretenured() ? Runtime::kNewClosure_Tenured : Runtime::kNewClosure;
-  __ Push(shared_function_info().object());
-  __ Push(feedback_cell().object());
-  __ CallRuntime(function_id);
-}
-
 int CreateRegExpLiteral::MaxCallStackArgs() const {
   using D = CallInterfaceDescriptorFor<Builtin::kCreateRegExpLiteral>::type;
   return D::GetStackParameterCount();
@@ -442,17 +356,6 @@ void GetTemplateObject::GenerateCode(MaglevAssembler* masm,
   __ Move(D::GetRegisterParameter(D::kShared), shared_function_info_.object());
   __ CallBuiltin(Builtin::kGetTemplateObject);
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
-}
-
-int Abort::MaxCallStackArgs() const {
-  DCHECK_EQ(Runtime::FunctionForId(Runtime::kAbort)->nargs, 1);
-  return 1;
-}
-void Abort::SetValueLocationConstraints() {}
-void Abort::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
-  __ Push(Smi::FromInt(static_cast<int>(reason())));
-  __ CallRuntime(Runtime::kAbort, 1);
-  __ Trap();
 }
 
 namespace {

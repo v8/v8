@@ -151,11 +151,12 @@ class MaglevAssembler : public MacroAssembler {
   inline void Jump(Label* target);
   inline void JumpIf(Condition cond, Label* target);
 
-  // TODO(victorgomes): Import baseline Push(T...) methods.
-  inline void Push(Register src);
-  using MacroAssembler::Push;
+  // TODO(victorgomes): Import baseline Pop(T...) methods.
   inline void Pop(Register dst);
   using MacroAssembler::Pop;
+
+  template <typename... T>
+  inline void Push(T... vals);
 
   void Prologue(Graph* graph);
 
