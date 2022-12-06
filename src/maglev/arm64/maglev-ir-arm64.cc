@@ -68,12 +68,6 @@ UNIMPLEMENTED_NODE(Int32ModulusWithOverflow)
 UNIMPLEMENTED_NODE(Int32NegateWithOverflow)
 UNIMPLEMENTED_NODE(Int32IncrementWithOverflow)
 UNIMPLEMENTED_NODE(Int32DecrementWithOverflow)
-UNIMPLEMENTED_NODE(Int32Equal)
-UNIMPLEMENTED_NODE(Int32StrictEqual)
-UNIMPLEMENTED_NODE(Int32LessThan)
-UNIMPLEMENTED_NODE(Int32LessThanOrEqual)
-UNIMPLEMENTED_NODE(Int32GreaterThan)
-UNIMPLEMENTED_NODE(Int32GreaterThanOrEqual)
 UNIMPLEMENTED_NODE(Float64Add)
 UNIMPLEMENTED_NODE(Float64Subtract)
 UNIMPLEMENTED_NODE(Float64Multiply)
@@ -246,6 +240,71 @@ void Int32BitwiseNot::GenerateCode(MaglevAssembler* masm,
   Register out = ToRegister(result()).W();
   __ mvn(out, value);
 }
+
+namespace {
+
+constexpr Condition ConditionFor(Operation operation) {
+  switch (operation) {
+    case Operation::kEqual:
+    case Operation::kStrictEqual:
+      return eq;
+    case Operation::kLessThan:
+      return lt;
+    case Operation::kLessThanOrEqual:
+      return le;
+    case Operation::kGreaterThan:
+      return gt;
+    case Operation::kGreaterThanOrEqual:
+      return ge;
+    default:
+      UNREACHABLE();
+  }
+}
+
+}  // namespace
+
+template <class Derived, Operation kOperation>
+void Int32CompareNode<Derived, kOperation>::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsRegister(this);
+}
+
+template <class Derived, Operation kOperation>
+void Int32CompareNode<Derived, kOperation>::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
+  Register left = ToRegister(left_input()).W();
+  Register right = ToRegister(right_input()).W();
+  Register result = ToRegister(this->result());
+  Label is_true, end;
+  // TODO(leszeks): Investigate using cmov here.
+  __ CompareAndBranch(left, right, ConditionFor(kOperation), &is_true);
+  // TODO(leszeks): Investigate loading existing materialisations of roots here,
+  // if available.
+  __ LoadRoot(result, RootIndex::kFalseValue);
+  __ Jump(&end);
+  {
+    __ bind(&is_true);
+    __ LoadRoot(result, RootIndex::kTrueValue);
+  }
+  __ bind(&end);
+}
+
+#define DEF_OPERATION(Name)                               \
+  void Name::SetValueLocationConstraints() {              \
+    Base::SetValueLocationConstraints();                  \
+  }                                                       \
+  void Name::GenerateCode(MaglevAssembler* masm,          \
+                          const ProcessingState& state) { \
+    Base::GenerateCode(masm, state);                      \
+  }
+DEF_OPERATION(Int32Equal)
+DEF_OPERATION(Int32StrictEqual)
+DEF_OPERATION(Int32LessThan)
+DEF_OPERATION(Int32LessThanOrEqual)
+DEF_OPERATION(Int32GreaterThan)
+DEF_OPERATION(Int32GreaterThanOrEqual)
+#undef DEF_OPERATION
 
 void CheckInt32IsSmi::SetValueLocationConstraints() { UseRegister(input()); }
 void CheckInt32IsSmi::GenerateCode(MaglevAssembler* masm,
