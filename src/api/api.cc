@@ -8260,7 +8260,7 @@ void v8::ArrayBuffer::SetDetachKey(v8::Local<v8::Value> key) {
 
 size_t v8::ArrayBuffer::ByteLength() const {
   i::Handle<i::JSArrayBuffer> obj = Utils::OpenHandle(this);
-  return obj->byte_length();
+  return obj->GetByteLength();
 }
 
 Local<ArrayBuffer> v8::ArrayBuffer::New(Isolate* v8_isolate,
@@ -8386,13 +8386,21 @@ size_t v8::ArrayBufferView::ByteOffset() {
 }
 
 size_t v8::ArrayBufferView::ByteLength() {
-  i::Handle<i::JSArrayBufferView> obj = Utils::OpenHandle(this);
-  return obj->WasDetached() ? 0 : obj->byte_length();
+  i::DisallowGarbageCollection no_gc;
+  i::JSArrayBufferView obj = *Utils::OpenHandle(this);
+  if (obj.WasDetached()) {
+    return 0;
+  }
+  if (obj.IsJSTypedArray()) {
+    return i::JSTypedArray::cast(obj).GetByteLength();
+  }
+  return i::JSDataView::cast(obj).GetByteLength();
 }
 
 size_t v8::TypedArray::Length() {
-  i::Handle<i::JSTypedArray> obj = Utils::OpenHandle(this);
-  return obj->WasDetached() ? 0 : obj->length();
+  i::DisallowGarbageCollection no_gc;
+  i::JSTypedArray obj = *Utils::OpenHandle(this);
+  return obj.WasDetached() ? 0 : obj.GetLength();
 }
 
 static_assert(
@@ -8467,7 +8475,7 @@ Local<DataView> DataView::New(Local<SharedArrayBuffer> shared_array_buffer,
 
 size_t v8::SharedArrayBuffer::ByteLength() const {
   i::Handle<i::JSArrayBuffer> obj = Utils::OpenHandle(this);
-  return obj->byte_length();
+  return obj->GetByteLength();
 }
 
 Local<SharedArrayBuffer> v8::SharedArrayBuffer::New(Isolate* v8_isolate,

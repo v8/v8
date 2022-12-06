@@ -1597,6 +1597,8 @@ void JSDataView::JSDataViewPrint(std::ostream& os) {
   os << "\n - buffer =" << Brief(buffer());
   os << "\n - byte_offset: " << byte_offset();
   os << "\n - byte_length: " << byte_length();
+  if (is_length_tracking()) os << "\n - length-tracking";
+  if (is_backed_by_rab()) os << "\n - backed-by-rab";
   if (!buffer().IsJSArrayBuffer()) {
     os << "\n <invalid buffer>";
     return;
