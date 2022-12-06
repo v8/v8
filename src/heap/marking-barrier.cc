@@ -87,6 +87,8 @@ void MarkingBarrier::Write(Code host, RelocInfo* reloc_info, HeapObject value) {
 void MarkingBarrier::Write(JSArrayBuffer host,
                            ArrayBufferExtension* extension) {
   DCHECK(IsCurrentMarkingBarrier(host));
+  DCHECK(!host.InSharedWritableHeap());
+
   if (is_minor()) {
     if (Heap::InYoungGeneration(host)) {
       extension->YoungMark();
@@ -116,13 +118,29 @@ void MarkingBarrier::Write(DescriptorArray descriptor_array,
               descriptor_array.GetDescriptorSlot(0));
   }
 
+  int16_t old_marked = 0;
+
   // Concurrent MinorMC always marks the full young generation DescriptorArray.
   // We cannot use epoch like MajorMC does because only the lower 2 bits are
   // used, and with many MinorMC cycles this could lead to correctness issues.
-  const int16_t old_marked =
-      is_minor() ? 0
-                 : descriptor_array.UpdateNumberOfMarkedDescriptors(
-                       major_collector_->epoch(), number_of_own_descriptors);
+  if (!is_minor()) {
+    int gc_epoch;
+
+    if (uses_shared_heap_ && !is_shared_space_isolate_ &&
+        descriptor_array.InSharedWritableHeap()) {
+      gc_epoch = isolate()
+                     ->shared_heap_isolate()
+                     ->heap()
+                     ->mark_compact_collector()
+                     ->epoch();
+    } else {
+      gc_epoch = major_collector_->epoch();
+    }
+
+    old_marked = descriptor_array.UpdateNumberOfMarkedDescriptors(
+        gc_epoch, number_of_own_descriptors);
+  }
+
   if (old_marked < number_of_own_descriptors) {
     // This marks the range from [old_marked, number_of_own_descriptors) instead
     // of registering weak slots which may temporarily hold alive more objects
