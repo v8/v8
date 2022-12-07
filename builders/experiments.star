@@ -19,6 +19,7 @@ def experiment_builder(**kwargs):
         properties["builder_group"] = "client.v8"
     experiments = kwargs.pop("experiments", {})
     experiments["luci.buildbucket.omit_python2"] = 100
+    experiments["v8.resultdb"] = 100
     return v8_builder(
         bucket = bucket,
         properties = properties,
@@ -160,7 +161,6 @@ in_category(
         use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["sheriffs on new failure", "blamelist"],
-        experiments = {"v8.resultdb": 100},
     ),
 )
 

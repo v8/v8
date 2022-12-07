@@ -4,8 +4,14 @@
 
 load("//lib/lib.star", "GCLIENT_VARS", "GOMA", "RECLIENT", "ci_pair_factory", "greedy_batching_of_1", "in_branch_console", "multibranch_builder")
 
+def port_builder(*args, **kwargs):
+    experiments = kwargs.pop("experiments", {})
+    experiments["v8.resultdb"] = 100
+    kwargs["experiments"] = experiments
+    return multibranch_builder(*args, **kwargs)
+
 in_category = in_branch_console("ports")
-multibranch_builder_pair = ci_pair_factory(multibranch_builder)
+multibranch_builder_pair = ci_pair_factory(port_builder)
 
 in_category(
     "Arm",

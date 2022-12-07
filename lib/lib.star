@@ -403,6 +403,9 @@ def v8_basic_builder(defaults, **kwargs):
                 resultdb.export_test_results(
                     bq_table = "v8-resultdb.resultdb." + resultdb_bq_table_prefix + "_test_results",
                 ),
+                resultdb.export_text_artifacts(
+                    bq_table = "v8-resultdb.resultdb." + resultdb_bq_table_prefix + "_text_artifacts",
+                ),
             ],
         )
     luci.builder(**kwargs)
