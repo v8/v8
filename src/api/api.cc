@@ -4195,6 +4195,10 @@ bool v8::BackingStore::IsShared() const {
   return reinterpret_cast<const i::BackingStore*>(this)->is_shared();
 }
 
+bool v8::BackingStore::IsResizableByUserJavaScript() const {
+  return reinterpret_cast<const i::BackingStore*>(this)->is_resizable_by_js();
+}
+
 // static
 std::unique_ptr<v8::BackingStore> v8::BackingStore::Reallocate(
     v8::Isolate* v8_isolate, std::unique_ptr<v8::BackingStore> backing_store,
@@ -8263,6 +8267,11 @@ size_t v8::ArrayBuffer::ByteLength() const {
   return obj->GetByteLength();
 }
 
+size_t v8::ArrayBuffer::MaxByteLength() const {
+  i::Handle<i::JSArrayBuffer> obj = Utils::OpenHandle(this);
+  return obj->max_byte_length();
+}
+
 Local<ArrayBuffer> v8::ArrayBuffer::New(Isolate* v8_isolate,
                                         size_t byte_length) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
@@ -8476,6 +8485,11 @@ Local<DataView> DataView::New(Local<SharedArrayBuffer> shared_array_buffer,
 size_t v8::SharedArrayBuffer::ByteLength() const {
   i::Handle<i::JSArrayBuffer> obj = Utils::OpenHandle(this);
   return obj->GetByteLength();
+}
+
+size_t v8::SharedArrayBuffer::MaxByteLength() const {
+  i::Handle<i::JSArrayBuffer> obj = Utils::OpenHandle(this);
+  return obj->max_byte_length();
 }
 
 Local<SharedArrayBuffer> v8::SharedArrayBuffer::New(Isolate* v8_isolate,

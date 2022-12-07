@@ -60,6 +60,13 @@ class V8_EXPORT BackingStore : public v8::internal::BackingStoreBase {
   bool IsShared() const;
 
   /**
+   * Indicates whether the backing store was created for a resizable ArrayBuffer
+   * or a growable SharedArrayBuffer, and thus may be resized by user JavaScript
+   * code.
+   */
+  bool IsResizableByUserJavaScript() const;
+
+  /**
    * Prevent implicit instantiation of operator delete with size_t argument.
    * The size_t argument would be incorrect because ptr points to the
    * internal BackingStore object.
@@ -188,6 +195,11 @@ class V8_EXPORT ArrayBuffer : public Object {
    * Data length in bytes.
    */
   size_t ByteLength() const;
+
+  /**
+   * Maximum length in bytes.
+   */
+  size_t MaxByteLength() const;
 
   /**
    * Create a new ArrayBuffer. Allocate |byte_length| bytes.
@@ -391,6 +403,11 @@ class V8_EXPORT SharedArrayBuffer : public Object {
    * Data length in bytes.
    */
   size_t ByteLength() const;
+
+  /**
+   * Maximum length in bytes.
+   */
+  size_t MaxByteLength() const;
 
   /**
    * Create a new SharedArrayBuffer. Allocate |byte_length| bytes.
