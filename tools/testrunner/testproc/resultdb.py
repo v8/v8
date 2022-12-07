@@ -34,7 +34,7 @@ class ResultDBIndicator(ProgressIndicator):
     test_should_pass = not test.is_fail
     run_passed = (result_expected == test_should_pass)
     rdb_result = {
-        'testId': strip_ascii_control_characters(test.full_name),
+        'testId': strip_ascii_control_characters(test.rdb_test_id),
         'status': 'PASS' if run_passed else 'FAIL',
         'expected': result_expected,
     }
@@ -55,6 +55,11 @@ class ResultDBIndicator(ProgressIndicator):
       rdb_result.update(summary_html=summary)
 
     record = base_test_record(test, result, run)
+    record.update(
+        processor=test.processor_name,
+        subtest_id=test.subtest_id,
+        path=test.path)
+
     rdb_result.update(tags=extract_tags(record))
 
     self.rpc.send(rdb_result)
@@ -69,6 +74,8 @@ def write_artifact(value):
 def extract_tags(record):
   tags = []
   for k, v in record.items():
+    if not v:
+      continue
     if type(v) == list:
       tags += [sanitized_kv_dict(k, e) for e in v]
     else:

@@ -267,6 +267,9 @@ class TestSuite(object):
   def status_file(self):
     return "%s/%s.status" % (self.root, self.name)
 
+  def statusfile_outcomes(self, test_name, variant):
+    return self.statusfile.get_outcomes(test_name, variant)
+
   @property
   def _test_loader_class(self):
     raise NotImplementedError
