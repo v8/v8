@@ -321,6 +321,7 @@ class MarkCompactCollector final : public CollectorBase {
   using MarkingVisitor = MainMarkingVisitor<MarkingState>;
 
   class CustomRootBodyMarkingVisitor;
+  class ClientCustomRootBodyMarkingVisitor;
   class SharedHeapObjectVisitor;
   class RootMarkingVisitor;
 
@@ -491,8 +492,7 @@ class MarkCompactCollector final : public CollectorBase {
   V8_INLINE void MarkRootObject(Root root, HeapObject obj);
 
   // Mark the heap roots and all objects reachable from them.
-  void MarkRoots(RootVisitor* root_visitor,
-                 ObjectVisitor* custom_root_body_visitor);
+  void MarkRoots(RootVisitor* root_visitor);
 
   // Mark the stack roots and all objects reachable from them.
   void MarkRootsFromStack(RootVisitor* root_visitor);

@@ -1206,6 +1206,61 @@ class MarkCompactCollector::CustomRootBodyMarkingVisitor final
   MarkCompactCollector* const collector_;
 };
 
+class MarkCompactCollector::ClientCustomRootBodyMarkingVisitor final
+    : public ObjectVisitorWithCageBases {
+ public:
+  explicit ClientCustomRootBodyMarkingVisitor(MarkCompactCollector* collector)
+      : ObjectVisitorWithCageBases(collector->isolate()),
+        collector_(collector) {}
+
+  void VisitPointer(HeapObject host, ObjectSlot p) final {
+    MarkObject(host, p.load(cage_base()));
+  }
+
+  void VisitMapPointer(HeapObject host) final {
+    MarkObject(host, host.map(cage_base()));
+  }
+
+  void VisitPointers(HeapObject host, ObjectSlot start, ObjectSlot end) final {
+    for (ObjectSlot p = start; p < end; ++p) {
+      // The map slot should be handled in VisitMapPointer.
+      DCHECK_NE(host.map_slot(), p);
+      DCHECK(!HasWeakHeapObjectTag(p.load(cage_base())));
+      MarkObject(host, p.load(cage_base()));
+    }
+  }
+
+  void VisitCodePointer(HeapObject host, CodeObjectSlot slot) override {
+    CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+    MarkObject(host, slot.load(code_cage_base()));
+  }
+
+  void VisitPointers(HeapObject host, MaybeObjectSlot start,
+                     MaybeObjectSlot end) final {
+    // At the moment, custom roots cannot contain weak pointers.
+    UNREACHABLE();
+  }
+
+  void VisitCodeTarget(Code host, RelocInfo* rinfo) override {
+    Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+    MarkObject(host, target);
+  }
+
+  void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
+    MarkObject(host, rinfo->target_object(cage_base()));
+  }
+
+ private:
+  V8_INLINE void MarkObject(HeapObject host, Object object) {
+    if (!object.IsHeapObject()) return;
+    HeapObject heap_object = HeapObject::cast(object);
+    if (!heap_object.InSharedWritableHeap()) return;
+    collector_->MarkObject(host, heap_object);
+  }
+
+  MarkCompactCollector* const collector_;
+};
+
 class MarkCompactCollector::SharedHeapObjectVisitor final
     : public ObjectVisitorWithCageBases {
  public:
@@ -2041,20 +2096,21 @@ bool MarkCompactCollector::IsUnmarkedSharedHeapObject(Heap* heap,
   return collector->non_atomic_marking_state()->IsWhite(heap_object);
 }
 
-void MarkCompactCollector::MarkRoots(RootVisitor* root_visitor,
-                                     ObjectVisitor* custom_root_body_visitor) {
+void MarkCompactCollector::MarkRoots(RootVisitor* root_visitor) {
   // Mark the heap roots including global variables, stack variables,
   // etc., and all objects reachable from them.
   heap()->IterateRootsIncludingClients(
       root_visitor, base::EnumSet<SkipRoot>{SkipRoot::kWeak, SkipRoot::kStack});
 
   // Custom marking for top optimized frame.
-  ProcessTopOptimizedFrame(custom_root_body_visitor, isolate());
+  CustomRootBodyMarkingVisitor custom_root_body_visitor(this);
+  ProcessTopOptimizedFrame(&custom_root_body_visitor, isolate());
 
   if (isolate()->is_shared_heap_isolate()) {
+    ClientCustomRootBodyMarkingVisitor client_custom_root_body_visitor(this);
     isolate()->global_safepoint()->IterateClientIsolates(
-        [this, custom_root_body_visitor](Isolate* client) {
-          ProcessTopOptimizedFrame(custom_root_body_visitor, client);
+        [this, &client_custom_root_body_visitor](Isolate* client) {
+          ProcessTopOptimizedFrame(&client_custom_root_body_visitor, client);
         });
   }
 
@@ -2751,8 +2807,7 @@ void MarkCompactCollector::MarkLiveObjects() {
 
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_ROOTS);
-    CustomRootBodyMarkingVisitor custom_root_body_visitor(this);
-    MarkRoots(&root_visitor, &custom_root_body_visitor);
+    MarkRoots(&root_visitor);
   }
 
   {
