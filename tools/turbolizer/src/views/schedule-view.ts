@@ -28,7 +28,7 @@ export class ScheduleView extends TextView {
   public initializeContent(schedule: SchedulePhase, rememberedSelection: SelectionStorage): void {
     this.divNode.innerHTML = "";
     this.schedule = schedule;
-    this.addBlocks(schedule.data.blocks_rpo);
+    this.addBlocks(schedule.data.blocksRpo);
     this.show();
     if (rememberedSelection) {
       const adaptedSelection = this.adaptSelection(rememberedSelection);
@@ -91,9 +91,9 @@ export class ScheduleView extends TextView {
     instrMarker.onclick = this.mkBlockLinkHandler(block.rpo);
     scheduleBlock.appendChild(instrMarker);
 
-    const blockRpo_Id = this.createElement("div", "block-id com clickable", String(block.rpo) + " Id:" + String(block.id));
-    blockRpo_Id.onclick = this.mkBlockLinkHandler(block.rpo);
-    scheduleBlock.appendChild(blockRpo_Id);
+    const blocksRpoId = this.createElement("div", "block-id com clickable", String(block.rpo) + " Id:" + String(block.id));
+    blocksRpoId.onclick = this.mkBlockLinkHandler(block.rpo);
+    scheduleBlock.appendChild(blocksRpoId);
     const blockPred = this.createElement("div", "predecessor-list block-list comma-sep-list");
     for (const pred of block.predecessors) {
       const predEl = this.createElement("div", "block-id com clickable", String(pred));

@@ -65,7 +65,7 @@ export class SchedulePhase extends Phase {
     const blockId = Number.parseInt(match.groups.id, 10);
     const block = new ScheduleBlock(blockRpo, blockId, match.groups.deferred !== undefined,
       predecessors.sort());
-    this.data.blocks_rpo[block.rpo] = block;
+    this.data.blocksRpo[block.rpo] = block;
   }
 
   private setGotoSuccessor = match => {
@@ -132,15 +132,15 @@ export class ScheduleBlock {
 
 export class ScheduleData {
   nodes: Array<ScheduleNode>;
-  blocks_rpo: Array<ScheduleBlock>;
+  blocksRpo: Array<ScheduleBlock>;
 
   constructor() {
     this.nodes = new Array<ScheduleNode>();
-    this.blocks_rpo = new Array<ScheduleBlock>();
+    this.blocksRpo = new Array<ScheduleBlock>();
   }
 
   public lastBlock(): ScheduleBlock {
-    if (this.blocks_rpo.length == 0) return null;
-    return this.blocks_rpo[this.blocks_rpo.length - 1];
+    if (this.blocksRpo.length == 0) return null;
+    return this.blocksRpo[this.blocksRpo.length - 1];
   }
 }
