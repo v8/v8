@@ -4514,6 +4514,38 @@ void TurboAssembler::I16x8Q15MulRSatS(Simd128Register dst, Simd128Register src1,
   vmhraddshs(dst, src1, src2, scratch);
 }
 
+void TurboAssembler::F64x2Qfma(Simd128Register dst, Simd128Register src1,
+                               Simd128Register src2, Simd128Register src3,
+                               Simd128Register scratch) {
+  vor(scratch, src2, src2);
+  xvmaddmdp(scratch, src3, src1);
+  vor(dst, scratch, scratch);
+}
+
+void TurboAssembler::F64x2Qfms(Simd128Register dst, Simd128Register src1,
+                               Simd128Register src2, Simd128Register src3,
+                               Simd128Register scratch) {
+  vor(scratch, src2, src2);
+  xvnmsubmdp(scratch, src3, src1);
+  vor(dst, scratch, scratch);
+}
+
+void TurboAssembler::F32x4Qfma(Simd128Register dst, Simd128Register src1,
+                               Simd128Register src2, Simd128Register src3,
+                               Simd128Register scratch) {
+  vor(scratch, src2, src2);
+  xvmaddmsp(scratch, src3, src1);
+  vor(dst, scratch, scratch);
+}
+
+void TurboAssembler::F32x4Qfms(Simd128Register dst, Simd128Register src1,
+                               Simd128Register src2, Simd128Register src3,
+                               Simd128Register scratch) {
+  vor(scratch, src2, src2);
+  xvnmsubmsp(scratch, src3, src1);
+  vor(dst, scratch, scratch);
+}
+
 void TurboAssembler::V128AnyTrue(Register dst, Simd128Register src,
                                  Register scratch1, Register scratch2,
                                  Simd128Register scratch3) {

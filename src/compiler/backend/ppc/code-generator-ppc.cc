@@ -2419,6 +2419,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #undef EMIT_SIMD_ALL_TRUE
 #undef SIMD_ALL_TRUE_LIST
 
+#define SIMD_QFM_LIST(V) \
+  V(F64x2Qfma)           \
+  V(F64x2Qfms)           \
+  V(F32x4Qfma)           \
+  V(F32x4Qfms)
+#define EMIT_SIMD_QFM(name)                                       \
+  case kPPC_##name: {                                             \
+    __ name(i.OutputSimd128Register(), i.InputSimd128Register(0), \
+            i.InputSimd128Register(1), i.InputSimd128Register(2), \
+            kScratchSimd128Reg);                                  \
+    break;                                                        \
+  }
+      SIMD_QFM_LIST(EMIT_SIMD_QFM)
+#undef EMIT_SIMD_QFM
+#undef SIMD_QFM_LIST
+
     case kPPC_F64x2Splat: {
       __ F64x2Splat(i.OutputSimd128Register(), i.InputDoubleRegister(0),
                     kScratchReg);
@@ -2640,46 +2656,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ xxbrq(dst, src0);
       __ vxor(kSimd128RegZero, kSimd128RegZero, kSimd128RegZero);
       __ vperm(dst, dst, kSimd128RegZero, kScratchSimd128Reg);
-      break;
-    }
-    case kPPC_F64x2Qfma: {
-      Simd128Register src0 = i.InputSimd128Register(0);
-      Simd128Register src1 = i.InputSimd128Register(1);
-      Simd128Register src2 = i.InputSimd128Register(2);
-      Simd128Register dst = i.OutputSimd128Register();
-      __ vor(kScratchSimd128Reg, src1, src1);
-      __ xvmaddmdp(kScratchSimd128Reg, src2, src0);
-      __ vor(dst, kScratchSimd128Reg, kScratchSimd128Reg);
-      break;
-    }
-    case kPPC_F64x2Qfms: {
-      Simd128Register src0 = i.InputSimd128Register(0);
-      Simd128Register src1 = i.InputSimd128Register(1);
-      Simd128Register src2 = i.InputSimd128Register(2);
-      Simd128Register dst = i.OutputSimd128Register();
-      __ vor(kScratchSimd128Reg, src1, src1);
-      __ xvnmsubmdp(kScratchSimd128Reg, src2, src0);
-      __ vor(dst, kScratchSimd128Reg, kScratchSimd128Reg);
-      break;
-    }
-    case kPPC_F32x4Qfma: {
-      Simd128Register src0 = i.InputSimd128Register(0);
-      Simd128Register src1 = i.InputSimd128Register(1);
-      Simd128Register src2 = i.InputSimd128Register(2);
-      Simd128Register dst = i.OutputSimd128Register();
-      __ vor(kScratchSimd128Reg, src1, src1);
-      __ xvmaddmsp(kScratchSimd128Reg, src2, src0);
-      __ vor(dst, kScratchSimd128Reg, kScratchSimd128Reg);
-      break;
-    }
-    case kPPC_F32x4Qfms: {
-      Simd128Register src0 = i.InputSimd128Register(0);
-      Simd128Register src1 = i.InputSimd128Register(1);
-      Simd128Register src2 = i.InputSimd128Register(2);
-      Simd128Register dst = i.OutputSimd128Register();
-      __ vor(kScratchSimd128Reg, src1, src1);
-      __ xvnmsubmsp(kScratchSimd128Reg, src2, src0);
-      __ vor(dst, kScratchSimd128Reg, kScratchSimd128Reg);
       break;
     }
     case kPPC_I64x2BitMask: {
