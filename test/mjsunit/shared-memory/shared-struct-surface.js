@@ -102,3 +102,34 @@ let S = new SharedStructType(['field']);
   const EmptyStruct = new SharedStructType([]);
   let s = new EmptyStruct();
 })();
+
+(function TestUsedAsPrototype() {
+  const OnPrototypeStruct = new SharedStructType(['prop']);
+  let ps = new OnPrototypeStruct();
+  ps.prop = "on proto";
+
+  function assertProtoIsStruct(obj, proto) {
+    // __proto__ is on Object.prototype, and obj here no longer has
+    // Object.prototype as its [[Prototype]].
+    assertSame(undefined, obj.__proto__);
+    assertSame(proto, Object.getPrototypeOf(obj));
+    assertEquals("on proto", obj.prop);
+  }
+
+  {
+    let pojo = { __proto__: ps };
+    assertProtoIsStruct(pojo, ps);
+  }
+
+  {
+    let pojo = {};
+    Object.setPrototypeOf(pojo, ps);
+    assertProtoIsStruct(pojo, ps);
+  }
+
+  {
+    let pojo = {};
+    pojo.__proto__ = ps;
+    assertProtoIsStruct(pojo, ps);
+  }
+})();

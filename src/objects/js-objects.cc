@@ -4810,8 +4810,12 @@ static bool PrototypeBenefitsFromNormalization(Handle<JSObject> object) {
 // static
 void JSObject::OptimizeAsPrototype(Handle<JSObject> object,
                                    bool enable_setup_mode) {
-  Isolate* isolate = object->GetIsolate();
   if (object->IsJSGlobalObject()) return;
+  // Do not optimize objects in the shared heap because it is not
+  // threadsafe. Objects in the shared heap have fixed layouts and their maps
+  // never change.
+  if (object->InSharedWritableHeap()) return;
+  Isolate* isolate = object->GetIsolate();
   if (object->map(isolate).is_prototype_map()) {
     if (enable_setup_mode && PrototypeBenefitsFromNormalization(object)) {
       // This is the only way PrototypeBenefitsFromNormalization can be true:
