@@ -1032,8 +1032,13 @@ class Heap {
   // garbage collection and is usually only performed as part of
   // (de)serialization or heap verification.
 
+  // In the case of shared GC, kLocal is used for the main isolate and kShared
+  // for the (other) client isolates.
+  enum class IterateRootsMode { kLocal, kShared };
+
   // Iterates over the strong roots and the weak roots.
-  void IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options);
+  void IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options,
+                    IterateRootsMode mode = IterateRootsMode::kLocal);
   void IterateRootsIncludingClients(RootVisitor* v,
                                     base::EnumSet<SkipRoot> options);
   void IterateRootsFromStackIncludingClients(RootVisitor* v,
@@ -1046,7 +1051,8 @@ class Heap {
   void IterateWeakRoots(RootVisitor* v, base::EnumSet<SkipRoot> options);
   void IterateWeakGlobalHandles(RootVisitor* v);
   void IterateBuiltins(RootVisitor* v);
-  void IterateStackRoots(RootVisitor* v, StackState stack_state);
+  void IterateStackRoots(RootVisitor* v, StackState stack_state,
+                         IterateRootsMode mode = IterateRootsMode::kLocal);
 
   // ===========================================================================
   // Remembered set API. =======================================================
@@ -2702,7 +2708,7 @@ class V8_NODISCARD DisableConservativeStackScanningScopeForTesting {
     heap_->disable_conservative_stack_scanning_for_testing_ = old_value_;
   }
 
- protected:
+ private:
   Heap* heap_;
   bool old_value_;
 };
