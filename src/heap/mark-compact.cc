@@ -5701,19 +5701,16 @@ std::pair<size_t, size_t> MinorMarkCompactCollector::ProcessMarkingWorklist(
 
 void MinorMarkCompactCollector::CleanupPromotedPages() {
   for (Page* p : promoted_pages_) {
-    p->ClearFlag(Page::PAGE_NEW_NEW_PROMOTION);
+    DCHECK(!p->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION));
+    DCHECK(p->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION));
     p->ClearFlag(Page::PAGE_NEW_OLD_PROMOTION);
-    non_atomic_marking_state()->ClearLiveness(p);
   }
   promoted_pages_.clear();
 
   for (LargePage* p : promoted_large_pages_) {
     DCHECK(p->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION));
     p->ClearFlag(Page::PAGE_NEW_OLD_PROMOTION);
-    HeapObject object = p->GetObject();
-    Marking::MarkWhite(non_atomic_marking_state()->MarkBitFrom(object));
     p->ProgressBar().ResetIfEnabled();
-    non_atomic_marking_state()->SetLiveBytes(p, 0);
   }
   promoted_large_pages_.clear();
 }
@@ -5992,7 +5989,11 @@ void MinorMarkCompactCollector::Finish() {
   local_marking_worklists_.reset();
   main_marking_visitor_.reset();
 
+  CleanupPromotedPages();
+
   sweeper()->StartSweeperTasks();
+
+  SweepArrayBufferExtensions();
 }
 
 void MinorMarkCompactCollector::CollectGarbage() {
@@ -6000,8 +6001,7 @@ void MinorMarkCompactCollector::CollectGarbage() {
   DCHECK_NOT_NULL(heap()->new_space());
   // Minor MC does not support processing the ephemeron remembered set.
   DCHECK(heap()->ephemeron_remembered_set_.empty());
-
-  heap()->array_buffer_sweeper()->EnsureFinished();
+  DCHECK(!heap()->array_buffer_sweeper()->sweeping_in_progress());
 
   MarkLiveObjects();
   ClearNonLiveReferences();
@@ -6025,10 +6025,6 @@ void MinorMarkCompactCollector::CollectGarbage() {
   }
 #endif  // VERIFY_HEAP
 
-  CleanupPromotedPages();
-
-  SweepArrayBufferExtensions();
-
   auto* isolate = heap()->isolate();
   isolate->global_handles()->UpdateListOfYoungNodes();
   isolate->traced_handles()->UpdateListOfYoungNodes();
@@ -6049,9 +6045,9 @@ void MinorMarkCompactCollector::MakeIterable(
     if (free_end != free_start) {
       CHECK_GT(free_end, free_start);
       size_t size = static_cast<size_t>(free_end - free_start);
-      heap()->non_atomic_marking_state()->bitmap(p)->ClearRange(
+      DCHECK(heap_->non_atomic_marking_state()->bitmap(p)->AllBitsClearInRange(
           p->AddressToMarkbitIndex(free_start),
-          p->AddressToMarkbitIndex(free_end));
+          p->AddressToMarkbitIndex(free_end)));
       if (free_space_mode == FreeSpaceTreatmentMode::kZapFreeSpace) {
         ZapCode(free_start, size);
       }
@@ -6066,9 +6062,9 @@ void MinorMarkCompactCollector::MakeIterable(
   if (free_start != p->area_end()) {
     CHECK_GT(p->area_end(), free_start);
     size_t size = static_cast<size_t>(p->area_end() - free_start);
-    heap()->non_atomic_marking_state()->bitmap(p)->ClearRange(
+    DCHECK(heap_->non_atomic_marking_state()->bitmap(p)->AllBitsClearInRange(
         p->AddressToMarkbitIndex(free_start),
-        p->AddressToMarkbitIndex(p->area_end()));
+        p->AddressToMarkbitIndex(p->area_end())));
     if (free_space_mode == FreeSpaceTreatmentMode::kZapFreeSpace) {
       ZapCode(free_start, size);
     }
@@ -6563,7 +6559,7 @@ class YoungGenerationEvacuator : public Evacuator {
         record_visitor_(heap_),
         local_allocator_(
             heap_, CompactionSpaceKind::kCompactionSpaceForMinorMarkCompact),
-        collector_(heap_->minor_mark_compact_collector()) {}
+        sweeper_(heap->sweeper()) {}
 
   GCTracer::Scope::ScopeId GetBackgroundTracingScope() override {
     return GCTracer::Scope::MINOR_MC_BACKGROUND_EVACUATE_COPY;
@@ -6578,7 +6574,7 @@ class YoungGenerationEvacuator : public Evacuator {
 
   YoungGenerationRecordMigratedSlotVisitor record_visitor_;
   EvacuationAllocator local_allocator_;
-  MinorMarkCompactCollector* collector_;
+  Sweeper* const sweeper_;
 };
 
 bool YoungGenerationEvacuator::RawEvacuatePage(MemoryChunk* chunk,
@@ -6588,23 +6584,9 @@ bool YoungGenerationEvacuator::RawEvacuatePage(MemoryChunk* chunk,
   NonAtomicMarkingState* marking_state = heap_->non_atomic_marking_state();
   *live_bytes = marking_state->live_bytes(chunk);
   DCHECK_EQ(kPageNewToOld, ComputeEvacuationMode(chunk));
-  LiveObjectVisitor::VisitBlackObjectsNoFail(chunk, marking_state,
-                                             &new_to_old_page_visitor_);
+  sweeper_->AddPromotedPageForIteration(chunk);
   new_to_old_page_visitor_.account_moved_bytes(
       marking_state->live_bytes(chunk));
-  if (!chunk->IsLargePage()) {
-    if (heap()->ShouldZapGarbage()) {
-      collector_->MakeIterable(static_cast<Page*>(chunk),
-                               FreeSpaceTreatmentMode::kZapFreeSpace);
-    } else if (heap()->incremental_marking()->IsMarking()) {
-      // When incremental marking is on, we need to clear the mark bits
-      // of the full collector. We cannot yet discard the young
-      // generation mark bits as they are still relevant for pointers
-      // updating.
-      collector_->MakeIterable(static_cast<Page*>(chunk),
-                               FreeSpaceTreatmentMode::kIgnoreFreeSpace);
-    }
-  }
 
   return true;
 }

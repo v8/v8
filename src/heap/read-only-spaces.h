@@ -11,6 +11,7 @@
 #include "include/v8-platform.h"
 #include "src/base/macros.h"
 #include "src/common/globals.h"
+#include "src/heap/allocation-result.h"
 #include "src/heap/allocation-stats.h"
 #include "src/heap/base-space.h"
 #include "src/heap/basic-memory-chunk.h"

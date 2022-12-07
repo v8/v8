@@ -24,7 +24,7 @@ void PretenturingHandler::UpdateAllocationSite(
   DCHECK_IMPLIES(chunk->IsToPage(),
                  v8_flags.minor_mc ||
                      chunk->IsFlagSet(MemoryChunk::PAGE_NEW_NEW_PROMOTION));
-  DCHECK_IMPLIES(!chunk->InYoungGeneration(),
+  DCHECK_IMPLIES(!v8_flags.minor_mc && !chunk->InYoungGeneration(),
                  chunk->IsFlagSet(MemoryChunk::PAGE_NEW_OLD_PROMOTION));
 #endif
   if (!v8_flags.allocation_site_pretenuring ||

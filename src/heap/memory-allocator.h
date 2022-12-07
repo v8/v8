@@ -7,9 +7,9 @@
 
 #include <atomic>
 #include <memory>
-#include <unordered_map>
+#include <set>
 #include <unordered_set>
-#include <vector>
+#include <utility>
 
 #include "include/v8-platform.h"
 #include "src/base/bounded-page-allocator.h"
@@ -28,6 +28,10 @@
 namespace v8 {
 namespace internal {
 
+namespace heap {
+class TestMemoryAllocatorScope;
+}  // namespace heap
+
 class Heap;
 class Isolate;
 class ReadOnlyPage;
@@ -38,6 +42,9 @@ class ReadOnlyPage;
 // pages for large object space.
 class MemoryAllocator {
  public:
+  using NormalPagesSet = std::unordered_set<const Page*>;
+  using LargePagesSet = std::set<const LargePage*>;
+
   // Unmapper takes care of concurrently unmapping and uncommitting memory
   // chunks.
   class Unmapper {
@@ -265,6 +272,9 @@ class MemoryAllocator {
 
   // Return the normal or large page that contains this address, if it is owned
   // by this heap, otherwise a nullptr.
+  V8_EXPORT_PRIVATE static const MemoryChunk* LookupChunkContainingAddress(
+      const NormalPagesSet& normal_pages, const LargePagesSet& large_page,
+      Address addr);
   V8_EXPORT_PRIVATE const MemoryChunk* LookupChunkContainingAddress(
       Address addr) const;
 
@@ -273,6 +283,13 @@ class MemoryAllocator {
   void RecordNormalPageDestroyed(const Page& page);
   void RecordLargePageCreated(const LargePage& page);
   void RecordLargePageDestroyed(const LargePage& page);
+
+  std::pair<const NormalPagesSet, const LargePagesSet> SnapshotPageSets()
+      const {
+    // No need for a mutex as this is only called during GC atomic pause (which
+    // is in a safepoint).
+    return std::make_pair(normal_pages_, large_pages_);
+  }
 
  private:
   // Used to store all data about MemoryChunk allocation, e.g. in
@@ -424,8 +441,8 @@ class MemoryAllocator {
 
   // Allocated normal and large pages are stored here, to be used during
   // conservative stack scanning.
-  std::unordered_set<const Page*> normal_pages_;
-  std::set<const LargePage*> large_pages_;
+  NormalPagesSet normal_pages_;
+  LargePagesSet large_pages_;
   mutable base::Mutex pages_mutex_;
 
   V8_EXPORT_PRIVATE static size_t commit_page_size_;

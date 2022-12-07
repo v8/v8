@@ -1902,6 +1902,8 @@ void Heap::StartIncrementalMarking(int gc_flags,
 }
 
 void Heap::CompleteSweepingFull() {
+  EnsureSweepingCompleted(SweepingForcedFinalizationMode::kUnifiedHeap);
+
   if (array_buffer_sweeper()->sweeping_in_progress()) {
     GCTracer::Scope::ScopeId scope_id;
 
@@ -1919,7 +1921,6 @@ void Heap::CompleteSweepingFull() {
     TRACE_GC_EPOCH(tracer(), scope_id, ThreadKind::kMain);
     array_buffer_sweeper()->EnsureFinished();
   }
-  EnsureSweepingCompleted(SweepingForcedFinalizationMode::kUnifiedHeap);
 
   DCHECK(!sweeping_in_progress());
   DCHECK_IMPLIES(cpp_heap(),
@@ -2194,6 +2195,8 @@ size_t Heap::PerformGarbageCollection(GarbageCollector collector,
                            GCTracer::MarkingType::kAtomic);
     }
   }
+  DCHECK_IMPLIES(!v8_flags.minor_mc,
+                 !pretenuring_handler_.HasPretenuringFeedback());
   if (v8_flags.minor_mc) pretenuring_handler_.ProcessPretenuringFeedback();
 
   tracer()->StartAtomicPause();
@@ -2253,6 +2256,8 @@ size_t Heap::PerformGarbageCollection(GarbageCollector collector,
     Scavenge();
   }
 
+  DCHECK_IMPLIES(collector == GarbageCollector::MINOR_MARK_COMPACTOR,
+                 !pretenuring_handler_.HasPretenuringFeedback());
   pretenuring_handler_.ProcessPretenuringFeedback();
 
   UpdateSurvivalStatistics(static_cast<int>(start_young_generation_size));
@@ -2400,6 +2405,15 @@ void Heap::PerformSharedGarbageCollection(Isolate* initiator,
 }
 
 void Heap::CompleteSweepingYoung() {
+  // If sweeping is in progress and there are no sweeper tasks running, finish
+  // the sweeping here, to avoid having to pause and resume during the young
+  // generation GC.
+  FinishSweepingIfOutOfWork();
+
+  if (v8_flags.minor_mc && sweeping_in_progress()) {
+    PauseSweepingAndEnsureYoungSweepingCompleted();
+  }
+
   if (array_buffer_sweeper()->sweeping_in_progress()) {
     GCTracer::Scope::ScopeId scope_id;
 
@@ -2416,15 +2430,6 @@ void Heap::CompleteSweepingYoung() {
 
     TRACE_GC_EPOCH(tracer(), scope_id, ThreadKind::kMain);
     array_buffer_sweeper()->EnsureFinished();
-  }
-
-  // If sweeping is in progress and there are no sweeper tasks running, finish
-  // the sweeping here, to avoid having to pause and resume during the young
-  // generation GC.
-  FinishSweepingIfOutOfWork();
-
-  if (v8_flags.minor_mc && sweeping_in_progress()) {
-    PauseSweepingAndEnsureYoungSweepingCompleted();
   }
 
 #if defined(CPPGC_YOUNG_GENERATION)
@@ -6301,29 +6306,6 @@ PagedSpace* PagedSpaceIterator::Next() {
     if (space) return space;
   }
   return nullptr;
-}
-
-SpaceIterator::SpaceIterator(Heap* heap)
-    : heap_(heap), current_space_(FIRST_MUTABLE_SPACE) {}
-
-SpaceIterator::~SpaceIterator() = default;
-
-bool SpaceIterator::HasNext() {
-  while (current_space_ <= LAST_MUTABLE_SPACE) {
-    Space* space = heap_->space(current_space_);
-    if (space) return true;
-    ++current_space_;
-  }
-
-  // No more spaces left.
-  return false;
-}
-
-Space* SpaceIterator::Next() {
-  DCHECK_LE(current_space_, LAST_MUTABLE_SPACE);
-  Space* space = heap_->space(current_space_++);
-  DCHECK_NOT_NULL(space);
-  return space;
 }
 
 class HeapObjectsFilter {
