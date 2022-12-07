@@ -534,7 +534,7 @@ void Context::VerifyExtensionSlot(HeapObject extension) {
 void Context::set_extension(HeapObject object, WriteBarrierMode mode) {
   DCHECK(scope_info().HasContextExtensionSlot());
 #ifdef VERIFY_HEAP
-  VerifyExtensionSlot(object);
+  if (v8_flags.verify_heap) VerifyExtensionSlot(object);
 #endif
   set(EXTENSION_INDEX, object, mode);
 }

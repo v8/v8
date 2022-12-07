@@ -2256,6 +2256,7 @@ void TranslatedState::UpdateFromPreviouslyMaterializedObjects() {
 
 void TranslatedState::VerifyMaterializedObjects() {
 #if VERIFY_HEAP
+  if (!v8_flags.verify_heap) return;
   int length = static_cast<int>(object_positions_.size());
   for (int i = 0; i < length; i++) {
     TranslatedValue* slot = GetValueByObjectIndex(i);

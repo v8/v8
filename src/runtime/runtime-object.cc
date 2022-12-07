@@ -219,8 +219,10 @@ bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
   // Finally, perform the map rollback.
   receiver->set_map(*parent_map, kReleaseStore);
 #if VERIFY_HEAP
-  receiver->HeapObjectVerify(isolate);
-  receiver->property_array().PropertyArrayVerify(isolate);
+  if (v8_flags.verify_heap) {
+    receiver->HeapObjectVerify(isolate);
+    receiver->property_array().PropertyArrayVerify(isolate);
+  }
 #endif
 
   // If the {descriptor} was "const" so far, we need to update the

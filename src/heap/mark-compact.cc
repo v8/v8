@@ -962,17 +962,13 @@ void MarkCompactCollector::VerifyMarking() {
   if (v8_flags.verify_heap) {
     FullMarkingVerifier verifier(heap());
     verifier.Run();
-  }
-#endif
-#ifdef VERIFY_HEAP
-  if (v8_flags.verify_heap) {
     heap()->old_space()->VerifyLiveBytes();
     heap()->code_space()->VerifyLiveBytes();
     if (heap()->shared_space()) heap()->shared_space()->VerifyLiveBytes();
     if (v8_flags.minor_mc && heap()->paged_new_space())
       heap()->paged_new_space()->paged_space()->VerifyLiveBytes();
   }
-#endif
+#endif  // VERIFY_HEAP
 }
 
 namespace {
@@ -3614,7 +3610,7 @@ void MarkCompactCollector::ClearWeakCollections() {
                   non_atomic_marking_state()->IsBlackOrGrey(heap_object));
         }
       }
-#endif
+#endif  // VERIFY_HEAP
       if (!ShouldMarkObject(key)) continue;
       if (!non_atomic_marking_state()->IsBlackOrGrey(key)) {
         table.RemoveEntry(i);
@@ -4817,7 +4813,7 @@ void MarkCompactCollector::Evacuate() {
     FullEvacuationVerifier verifier(heap());
     verifier.Run();
   }
-#endif
+#endif  // VERIFY_HEAP
 }
 
 class UpdatingItem : public ParallelWorkItem {
@@ -6021,8 +6017,10 @@ void MinorMarkCompactCollector::StartMarking() {
       heap()->isolate(), marking_state(), local_marking_worklists());
 
 #ifdef VERIFY_HEAP
-  for (Page* page : *heap()->new_space()) {
-    CHECK(page->marking_bitmap<AccessMode::NON_ATOMIC>()->IsClean());
+  if (v8_flags.verify_heap) {
+    for (Page* page : *heap()->new_space()) {
+      CHECK(page->marking_bitmap<AccessMode::NON_ATOMIC>()->IsClean());
+    }
   }
 #endif  // VERIFY_HEAP
 }
