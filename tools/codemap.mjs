@@ -65,12 +65,6 @@ export class CodeMap {
    */
   pages_ = new Set();
 
-  constructor(useBigInt=false) {
-    this.useBigInt = useBigInt;
-    this.kPageSize = useBigInt ? BigInt(kPageSize) : kPageSize;
-    this.kOne = useBigInt ? 1n : 1;
-    this.kZero = useBigInt ? 0n : 0;
-  }
 
   /**
    * Adds a code entry that might overlap with static code (e.g. for builtins).
@@ -79,7 +73,7 @@ export class CodeMap {
    * @param {CodeEntry} codeEntry Code entry object.
    */
   addAnyCode(start, codeEntry) {
-    const pageAddr = (start / this.kPageSize) | this.kZero;
+    const pageAddr = (start / kPageSize) | 0;
     if (!this.pages_.has(pageAddr)) return this.addCode(start, codeEntry);
     // We might have loaded static code (builtins, bytecode handlers)
     // and we get more information later in v8.log with code-creation events.
@@ -153,8 +147,8 @@ export class CodeMap {
    * @private
    */
   markPages_(start, end) {
-    for (let addr = start; addr <= end; addr += this.kPageSize) {
-      this.pages_.add((addr / this.kPageSize) | this.kZero);
+    for (let addr = start; addr <= end; addr += kPageSize) {
+      this.pages_.add((addr / kPageSize) | 0);
     }
   }
 
@@ -163,13 +157,13 @@ export class CodeMap {
    */
   deleteAllCoveredNodes_(tree, start, end) {
     const to_delete = [];
-    let addr = end - this.kOne;
+    let addr = end - 1;
     while (addr >= start) {
       const node = tree.findGreatestLessThan(addr);
       if (node === null) break;
       const start2 = node.key, end2 = start2 + node.value.size;
       if (start2 < end && start < end2) to_delete.push(start2);
-      addr = start2 - this.kOne;
+      addr = start2 - 1;
     }
     for (let i = 0, l = to_delete.length; i < l; ++i) tree.remove(to_delete[i]);
   }
@@ -197,7 +191,7 @@ export class CodeMap {
    * @param {number} addr Address.
    */
   findAddress(addr) {
-    const pageAddr = (addr / this.kPageSize) | this.kZero;
+    const pageAddr = (addr / kPageSize) | 0;
     if (this.pages_.has(pageAddr)) {
       // Static code entries can contain "holes" of unnamed code.
       // In this case, the whole library is assigned to this address.

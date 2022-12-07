@@ -35,16 +35,6 @@
 export function parseString(field) { return field };
 export const parseVarArgs = 'parse-var-args';
 
-// Checks fields for numbers that are not safe integers. Returns true if any are
-// found.
-function containsUnsafeInts(fields) {
-  for (let i = 0; i < fields.length; i++) {
-    let field = fields[i];
-    if ('number' == typeof(field) && !Number.isSafeInteger(field)) return true;
-  }
-  return false;
-}
-
 /**
  * Base class for processing log files.
  *
@@ -54,7 +44,7 @@ function containsUnsafeInts(fields) {
  * @constructor
  */
 export class LogReader {
-  constructor(timedRange=false, pairwiseTimedRange=false, useBigInt=false) {
+  constructor(timedRange=false, pairwiseTimedRange=false) {
     this.dispatchTable_ = new Map();
     this.timedRange_ = timedRange;
     this.pairwiseTimedRange_ = pairwiseTimedRange;
@@ -64,11 +54,6 @@ export class LogReader {
     // Variables for tracking of 'current-time' log entries:
     this.hasSeenTimerMarker_ = false;
     this.logLinesSinceLastTimerMarker_ = [];
-    // Flag to parse all numeric fields as BigInt to avoid arithmetic errors
-    // caused by memory addresses being greater than MAX_SAFE_INTEGER
-    this.useBigInt = useBigInt;
-    this.parseFrame = useBigInt ? BigInt : parseInt;
-    this.hasSeenUnsafeIntegers = false;
   }
 
 /**
@@ -195,11 +180,11 @@ export class LogReader {
       const firstChar = frame[0];
       if (firstChar === '+' || firstChar === '-') {
         // An offset from the previous frame.
-        prevFrame += this.parseFrame(frame);
+        prevFrame += parseInt(frame, 16);
         fullStack.push(prevFrame);
       // Filter out possible 'overflow' string.
       } else if (firstChar !== 'o') {
-        fullStack.push(this.parseFrame(frame));
+        fullStack.push(parseInt(frame, 16));
       } else {
         console.error(`Dropping unknown tick frame: ${frame}`);
       }
@@ -229,12 +214,6 @@ export class LogReader {
         break;
       } else {
         parsedFields[i] = parser(fields[1 + i]);
-      }
-    }
-    if (!this.useBigInt) {
-      if (!this.hasSeenUnsafeIntegers && containsUnsafeInts(parsedFields)) {
-        console.warn(`Log line containts unsafe integers: ${fields}`);
-        this.hasSeenUnsafeIntegers = true;
       }
     }
     // Run the processor.

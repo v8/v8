@@ -47,6 +47,7 @@ class AsyncConsumer {
 }
 
 export class Processor extends LogReader {
+  _profile = new Profile();
   _codeTimeline = new Timeline();
   _deoptTimeline = new Timeline();
   _icTimeline = new Timeline();
@@ -69,16 +70,12 @@ export class Processor extends LogReader {
 
   MAJOR_VERSION = 7;
   MINOR_VERSION = 6;
-  constructor(useBigInt = false) {
-    super(false, false, useBigInt);
-    this.useBigInt = useBigInt;
-    this.kZero = useBigInt ? 0n : 0;
-    this.parseAddress = useBigInt ? BigInt : parseInt;
+  constructor() {
+    super();
     this._chunkConsumer =
         new AsyncConsumer((chunk) => this._processChunk(chunk));
-    this._profile = new Profile(useBigInt);
     const propertyICParser = [
-      this.parseAddress, parseInt, parseInt, parseInt, parseString, parseString,
+      parseInt, parseInt, parseInt, parseInt, parseString, parseString,
       parseString, parseString, parseString, parseString
     ];
     this.setDispatchTable({
@@ -91,14 +88,14 @@ export class Processor extends LogReader {
         processor: this.processV8Version,
       },
       'shared-library': {
-        parsers: [parseString, this.parseAddress, this.parseAddress, parseInt],
+        parsers: [parseString, parseInt, parseInt, parseInt],
         processor: this.processSharedLibrary.bind(this),
         isAsync: true,
       },
       'code-creation': {
         parsers: [
-          parseString, parseInt, parseInt, this.parseAddress, this.parseAddress,
-          parseString, parseVarArgs
+          parseString, parseInt, parseInt, parseInt, parseInt, parseString,
+          parseVarArgs
         ],
         processor: this.processCodeCreation
       },
@@ -114,13 +111,17 @@ export class Processor extends LogReader {
       'code-delete': {parsers: [parseInt], processor: this.processCodeDelete},
       'code-source-info': {
         parsers: [
-          this.parseAddress, parseInt, parseInt, parseInt, parseString,
-          parseString, parseString
+          parseInt, parseInt, parseInt, parseInt, parseString, parseString,
+          parseString
         ],
         processor: this.processCodeSourceInfo
       },
       'code-disassemble': {
-        parsers: [this.parseAddress, parseString, parseString],
+        parsers: [
+          parseInt,
+          parseString,
+          parseString,
+        ],
         processor: this.processCodeDisassemble
       },
       'feedback-vector': {
@@ -137,10 +138,8 @@ export class Processor extends LogReader {
       'sfi-move':
           {parsers: [parseInt, parseInt], processor: this.processFunctionMove},
       'tick': {
-        parsers: [
-          this.parseAddress, parseInt, parseInt, this.parseAddress, parseInt,
-          parseVarArgs
-        ],
+        parsers:
+            [parseInt, parseInt, parseInt, parseInt, parseInt, parseVarArgs],
         processor: this.processTick
       },
       'active-runtime-timer': undefined,
@@ -158,8 +157,8 @@ export class Processor extends LogReader {
           {parsers: [parseInt, parseString], processor: this.processMapCreate},
       'map': {
         parsers: [
-          parseString, parseInt, parseString, parseString, this.parseAddress,
-          parseInt, parseInt, parseString, parseString
+          parseString, parseInt, parseString, parseString, parseInt, parseInt,
+          parseInt, parseString, parseString
         ],
         processor: this.processMap
       },
@@ -311,9 +310,11 @@ export class Processor extends LogReader {
     // Many events rely on having a script around, creating fake entries for
     // shared libraries.
     this._profile.addScriptSource(-1, name, '');
+
     if (this._cppEntriesProvider == undefined) {
       await this._setupCppEntriesProvider();
     }
+
     await this._cppEntriesProvider.parseVmSymbols(
         name, startAddr, endAddr, aslrSlide, (fName, fStart, fEnd) => {
           const entry = this._profile.addStaticCode(fName, fStart, fEnd);
@@ -351,7 +352,7 @@ export class Processor extends LogReader {
     let profilerEntry;
     let stateName = '';
     if (maybe_func.length) {
-      const funcAddr = this.parseAddress(maybe_func[0]);
+      const funcAddr = parseInt(maybe_func[0]);
       stateName = maybe_func[1] ?? '';
       const state = Profile.parseState(maybe_func[1]);
       profilerEntry = this._profile.addFuncCode(
@@ -438,13 +439,13 @@ export class Processor extends LogReader {
       // that a callback calls itself. Instead we use tos_or_external_callback,
       // as simply resetting PC will produce unaccounted ticks.
       pc = tos_or_external_callback;
-      tos_or_external_callback = this.kZero;
+      tos_or_external_callback = 0;
     } else if (tos_or_external_callback) {
       // Find out, if top of stack was pointing inside a JS function
       // meaning that we have encountered a frameless invocation.
       const funcEntry = this._profile.findEntry(tos_or_external_callback);
       if (!funcEntry?.isJSFunction?.()) {
-        tos_or_external_callback = this.kZero;
+        tos_or_external_callback = 0;
       }
     }
     const entryStack = this._profile.recordTick(

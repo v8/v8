@@ -305,17 +305,13 @@ const kProfileOperationTick = 2;
  * @constructor
  */
 export class Profile {
+  codeMap_ = new CodeMap();
   topDownTree_ = new CallTree();
   bottomUpTree_ = new CallTree();
   c_entries_ = {__proto__:null};
   scripts_ = [];
   urlToScript_ = new Map();
   warnings = new Set();
-
-  constructor(useBigInt=false) {
-    this.useBigInt = useBigInt;
-    this.codeMap_ = new CodeMap(useBigInt);
-  }
 
   serializeVMSymbols() {
     let result = this.codeMap_.getAllStaticEntriesWithAddresses();
@@ -517,7 +513,7 @@ export class Profile {
     // it is safe to put them in a single code map.
     let func = this.codeMap_.findDynamicEntryByStartAddress(funcAddr);
     if (func === null) {
-      func = new FunctionEntry(name, this.useBigInt);
+      func = new FunctionEntry(name);
       this.codeMap_.addCode(funcAddr, func);
     } else if (func.name !== name) {
       // Function object has been overwritten with a new one.
@@ -965,8 +961,8 @@ class FunctionEntry extends CodeEntry {
   /** @type {Set<DynamicCodeEntry>} */
   _codeEntries = new Set();
 
-  constructor(name, useBigInt=false) {
-    super(useBigInt ? 0n : 0, name);
+  constructor(name) {
+    super(0, name);
     const index = name.lastIndexOf(' ');
     this.functionName = 1 <= index ? name.substring(0, index) : '<anonymous>';
   }
