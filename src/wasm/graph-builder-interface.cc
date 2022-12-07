@@ -1261,12 +1261,14 @@ class WasmGraphBuildingInterface {
       TFNode**)>
   void BrOnCastAbs(FullDecoder* decoder, const Value& object, const Value& rtt,
                    Value* forwarding_value, uint32_t br_depth,
-                   bool branch_on_match) {
-    // TODO(mliedtke): Add generic br_on_cast instructions where null succeeds.
-    WasmTypeCheckConfig config = {object.type,
-                                  !rtt.type.is_bottom()
-                                      ? ValueType::Ref(rtt.type.ref_index())
-                                      : kWasmBottom};
+                   bool branch_on_match, bool null_succeeds) {
+    // If the type is bottom (used for abstract types), set HeapType to None.
+    // The heap type is not read but the null information is needed for the
+    // cast.
+    ValueType to_type = ValueType::RefMaybeNull(
+        !rtt.type.is_bottom() ? rtt.type.ref_index() : HeapType::kNone,
+        null_succeeds ? kNullable : kNonNullable);
+    WasmTypeCheckConfig config = {object.type, to_type};
     SsaEnv* branch_env = Split(decoder->zone(), ssa_env_);
     SsaEnv* no_branch_env = Steal(decoder->zone(), ssa_env_);
     no_branch_env->SetNotMerged();
@@ -1286,34 +1288,46 @@ class WasmGraphBuildingInterface {
   }
 
   void BrOnCast(FullDecoder* decoder, const Value& object, const Value& rtt,
-                Value* value_on_branch, uint32_t br_depth) {
+                Value* value_on_branch, uint32_t br_depth, bool null_succeeds) {
     BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnCast>(
-        decoder, object, rtt, value_on_branch, br_depth, true);
+        decoder, object, rtt, value_on_branch, br_depth, true, null_succeeds);
   }
 
   void BrOnCastFail(FullDecoder* decoder, const Value& object, const Value& rtt,
                     Value* value_on_fallthrough, uint32_t br_depth) {
+    bool null_succeeds = false;
     BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnCast>(
-        decoder, object, rtt, value_on_fallthrough, br_depth, false);
+        decoder, object, rtt, value_on_fallthrough, br_depth, false,
+        null_succeeds);
   }
 
   void BrOnCastAbstract(FullDecoder* decoder, const Value& object,
                         HeapType type, Value* value_on_branch,
-                        uint32_t br_depth) {
+                        uint32_t br_depth, bool null_succeeds) {
     switch (type.representation()) {
       case HeapType::kEq:
-        return BrOnEq(decoder, object, value_on_branch, br_depth);
+        return BrOnEq(decoder, object, value_on_branch, br_depth,
+                      null_succeeds);
       case HeapType::kI31:
-        return BrOnI31(decoder, object, value_on_branch, br_depth);
+        return BrOnI31(decoder, object, value_on_branch, br_depth,
+                       null_succeeds);
       case HeapType::kStruct:
-        return BrOnStruct(decoder, object, value_on_branch, br_depth);
+        return BrOnStruct(decoder, object, value_on_branch, br_depth,
+                          null_succeeds);
       case HeapType::kArray:
-        return BrOnArray(decoder, object, value_on_branch, br_depth);
+        return BrOnArray(decoder, object, value_on_branch, br_depth,
+                         null_succeeds);
       case HeapType::kNone:
       case HeapType::kNoExtern:
       case HeapType::kNoFunc:
-        // TODO(mliedtke): This becomes reachable for `br_on_cast null`.
-        UNREACHABLE();
+        DCHECK(null_succeeds);
+        // This is needed for BrOnNull. {value_on_branch} is on the value stack
+        // and BrOnNull interacts with the values on the stack.
+        // TODO(7748): The compiler shouldn't have to access the stack used by
+        // the decoder ideally.
+        SetAndTypeNode(value_on_branch,
+                       builder_->TypeGuard(object.node, value_on_branch->type));
+        return BrOnNull(decoder, object, br_depth, true, value_on_branch);
       case HeapType::kAny:
         // Any may never need a cast as it is either implicitly convertible or
         // never convertible for any given type.
@@ -1330,10 +1344,10 @@ class WasmGraphBuildingInterface {
   }
 
   void BrOnEq(FullDecoder* decoder, const Value& object, Value* value_on_branch,
-              uint32_t br_depth) {
+              uint32_t br_depth, bool null_succeeds) {
     BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnEq>(
         decoder, object, Value{nullptr, kWasmBottom}, value_on_branch, br_depth,
-        true);
+        true, null_succeeds);
   }
 
   void RefIsStruct(FullDecoder* decoder, const Value& object, Value* result) {
@@ -1353,17 +1367,19 @@ class WasmGraphBuildingInterface {
   }
 
   void BrOnStruct(FullDecoder* decoder, const Value& object,
-                  Value* value_on_branch, uint32_t br_depth) {
+                  Value* value_on_branch, uint32_t br_depth,
+                  bool null_succeeds) {
     BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnStruct>(
         decoder, object, Value{nullptr, kWasmBottom}, value_on_branch, br_depth,
-        true);
+        true, null_succeeds);
   }
 
   void BrOnNonStruct(FullDecoder* decoder, const Value& object,
                      Value* value_on_fallthrough, uint32_t br_depth) {
+    bool null_succeeds = false;
     BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnStruct>(
         decoder, object, Value{nullptr, kWasmBottom}, value_on_fallthrough,
-        br_depth, false);
+        br_depth, false, null_succeeds);
   }
 
   void RefIsArray(FullDecoder* decoder, const Value& object, Value* result) {
@@ -1383,17 +1399,19 @@ class WasmGraphBuildingInterface {
   }
 
   void BrOnArray(FullDecoder* decoder, const Value& object,
-                 Value* value_on_branch, uint32_t br_depth) {
+                 Value* value_on_branch, uint32_t br_depth,
+                 bool null_succeeds) {
     BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnArray>(
         decoder, object, Value{nullptr, kWasmBottom}, value_on_branch, br_depth,
-        true);
+        true, null_succeeds);
   }
 
   void BrOnNonArray(FullDecoder* decoder, const Value& object,
                     Value* value_on_fallthrough, uint32_t br_depth) {
+    bool null_succeeds = false;
     BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnArray>(
         decoder, object, Value{nullptr, kWasmBottom}, value_on_fallthrough,
-        br_depth, false);
+        br_depth, false, null_succeeds);
   }
 
   void RefIsI31(FullDecoder* decoder, const Value& object, Value* result) {
@@ -1410,17 +1428,18 @@ class WasmGraphBuildingInterface {
   }
 
   void BrOnI31(FullDecoder* decoder, const Value& object,
-               Value* value_on_branch, uint32_t br_depth) {
+               Value* value_on_branch, uint32_t br_depth, bool null_succeeds) {
     BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnI31>(
         decoder, object, Value{nullptr, kWasmBottom}, value_on_branch, br_depth,
-        true);
+        true, null_succeeds);
   }
 
   void BrOnNonI31(FullDecoder* decoder, const Value& object,
                   Value* value_on_fallthrough, uint32_t br_depth) {
+    bool null_succeeds = false;
     BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnI31>(
         decoder, object, Value{nullptr, kWasmBottom}, value_on_fallthrough,
-        br_depth, false);
+        br_depth, false, null_succeeds);
   }
 
   void StringNewWtf8(FullDecoder* decoder, const MemoryIndexImmediate& memory,

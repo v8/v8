@@ -592,6 +592,29 @@ WASM_COMPILED_EXEC_TEST(BrOnCast) {
        WASM_GC_OP(kExprStructGet), type_index, 0, WASM_LOCAL_GET(0),
        kExprI32Add, kExprEnd});
 
+  const byte kTestStructStaticNull = tester.DefineFunction(
+      tester.sigs.i_v(), {kWasmI32, kWasmStructRef},
+      {WASM_BLOCK_R(
+           ValueType::RefNull(type_index), WASM_LOCAL_SET(0, WASM_I32V(111)),
+           // Pipe a struct through a local so it's statically typed as
+           // structref.
+           WASM_LOCAL_SET(1, WASM_STRUCT_NEW(other_type_index, WASM_F32(1.0))),
+           WASM_LOCAL_GET(1),
+           // The type check fails, so this branch isn't taken.
+           WASM_BR_ON_CAST(0, type_index), WASM_DROP,
+
+           WASM_LOCAL_SET(0, WASM_I32V(221)),  // (Final result) - 1
+           WASM_LOCAL_SET(1, WASM_STRUCT_NEW(type_index, WASM_I32V(1))),
+           WASM_LOCAL_GET(1),
+           // This branch is taken.
+           WASM_BR_ON_CAST_NULL(0, type_index), WASM_GC_OP(kExprRefCast),
+           type_index,
+
+           // Not executed due to the branch.
+           WASM_LOCAL_SET(0, WASM_I32V(333))),
+       WASM_GC_OP(kExprStructGet), type_index, 0, WASM_LOCAL_GET(0),
+       kExprI32Add, kExprEnd});
+
   const byte kTestNullDeprecated = tester.DefineFunction(
       tester.sigs.i_v(), {kWasmI32, kWasmStructRef},
       {WASM_BLOCK_R(ValueType::RefNull(type_index),
@@ -614,6 +637,17 @@ WASM_COMPILED_EXEC_TEST(BrOnCast) {
                     type_index),  // Traps
        WASM_DROP, WASM_LOCAL_GET(0), kExprEnd});
 
+  // "br_on_cast null" also branches on null, treating it as a successful cast.
+  const byte kTestNullNull = tester.DefineFunction(
+      tester.sigs.i_v(), {kWasmI32, kWasmStructRef},
+      {WASM_BLOCK_R(ValueType::RefNull(type_index),
+                    WASM_LOCAL_SET(0, WASM_I32V(111)),
+                    WASM_LOCAL_GET(1),  // Put a nullref onto the value stack.
+                    // Taken for nullref with br_on_cast null.
+                    WASM_BR_ON_CAST_NULL(0, type_index),
+                    WASM_GC_OP(kExprRefCast), type_index),
+       WASM_DROP, WASM_LOCAL_GET(0), kExprEnd});
+
   const byte kTypedAfterBranch = tester.DefineFunction(
       tester.sigs.i_v(), {kWasmI32, kWasmStructRef},
       {WASM_LOCAL_SET(1, WASM_STRUCT_NEW(type_index, WASM_I32V(42))),
@@ -631,8 +665,10 @@ WASM_COMPILED_EXEC_TEST(BrOnCast) {
 
   tester.CompileModule();
   tester.CheckResult(kTestStructStatic, 222);
+  tester.CheckResult(kTestStructStaticNull, 222);
   tester.CheckResult(kTestNullDeprecated, 222);
   tester.CheckHasThrown(kTestNull);
+  tester.CheckResult(kTestNullNull, 111);
   tester.CheckResult(kTypedAfterBranch, 42);
 }
 

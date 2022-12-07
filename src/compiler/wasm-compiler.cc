@@ -5703,7 +5703,13 @@ void WasmGraphBuilder::BrOnEq(Node* object, Node* /*rtt*/,
   BrOnCastAbs(match_control, match_effect, no_match_control, no_match_effect,
               [=](Callbacks callbacks) -> void {
                 if (config.from.is_nullable()) {
-                  callbacks.fail_if(gasm_->IsNull(object), BranchHint::kFalse);
+                  if (config.to.is_nullable()) {
+                    callbacks.succeed_if(gasm_->IsNull(object),
+                                         BranchHint::kFalse);
+                  } else {
+                    callbacks.fail_if(gasm_->IsNull(object),
+                                      BranchHint::kFalse);
+                  }
                 }
                 callbacks.succeed_if(gasm_->IsI31(object), BranchHint::kFalse);
                 Node* map = gasm_->LoadMap(object);
@@ -5747,7 +5753,7 @@ void WasmGraphBuilder::BrOnStruct(Node* object, Node* /*rtt*/,
                                   Node** match_control, Node** match_effect,
                                   Node** no_match_control,
                                   Node** no_match_effect) {
-  bool null_succeeds = false;
+  bool null_succeeds = config.to.is_nullable();
   BrOnCastAbs(match_control, match_effect, no_match_control, no_match_effect,
               [=](Callbacks callbacks) -> void {
                 if (!v8_flags.wasm_gc_structref_as_dataref) {
@@ -5787,7 +5793,7 @@ void WasmGraphBuilder::BrOnArray(Node* object, Node* /*rtt*/,
                                  Node** match_control, Node** match_effect,
                                  Node** no_match_control,
                                  Node** no_match_effect) {
-  bool null_succeeds = false;
+  bool null_succeeds = config.to.is_nullable();
   BrOnCastAbs(match_control, match_effect, no_match_control, no_match_effect,
               [=](Callbacks callbacks) -> void {
                 return ManagedObjectInstanceCheck(
@@ -5823,15 +5829,21 @@ Node* WasmGraphBuilder::RefAsI31(Node* object, wasm::WasmCodePosition position,
 }
 
 void WasmGraphBuilder::BrOnI31(Node* object, Node* /* rtt */,
-                               WasmTypeCheckConfig /* config */,
-                               Node** match_control, Node** match_effect,
-                               Node** no_match_control,
+                               WasmTypeCheckConfig config, Node** match_control,
+                               Node** match_effect, Node** no_match_control,
                                Node** no_match_effect) {
-  gasm_->Branch(gasm_->IsI31(object), match_control, no_match_control,
-                BranchHint::kTrue);
-  SetControl(*no_match_control);
-  *match_effect = effect();
-  *no_match_effect = effect();
+  BrOnCastAbs(
+      match_control, match_effect, no_match_control, no_match_effect,
+      [=](Callbacks callbacks) -> void {
+        if (config.from.is_nullable()) {
+          if (config.to.is_nullable()) {
+            callbacks.succeed_if(gasm_->IsNull(object), BranchHint::kFalse);
+          } else {
+            callbacks.fail_if(gasm_->IsNull(object), BranchHint::kFalse);
+          }
+        }
+        callbacks.fail_if_not(gasm_->IsI31(object), BranchHint::kTrue);
+      });
 }
 
 Node* WasmGraphBuilder::TypeGuard(Node* value, wasm::ValueType type) {
