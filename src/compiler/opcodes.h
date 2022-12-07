@@ -133,6 +133,8 @@
   V(JSToName)                      \
   V(JSToNumber)                    \
   V(JSToNumberConvertBigInt)       \
+  V(JSToBigInt)                    \
+  V(JSToBigIntConvertNumber)       \
   V(JSToNumeric)                   \
   V(JSToObject)                    \
   V(JSToString)                    \
@@ -409,6 +411,7 @@
   V(NumberToString)                    \
   V(NumberToUint32)                    \
   V(NumberToUint8Clamped)              \
+  V(Integral32OrMinusZeroToBigInt)     \
   V(NumberSilenceNaN)
 
 #define SIMPLIFIED_BIGINT_UNOP_LIST(V) \

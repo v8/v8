@@ -7960,6 +7960,28 @@ TNode<BigInt> CodeStubAssembler::ToBigInt(TNode<Context> context,
   return var_result.value();
 }
 
+TNode<BigInt> CodeStubAssembler::ToBigIntConvertNumber(TNode<Context> context,
+                                                       TNode<Object> input) {
+  TVARIABLE(BigInt, var_result);
+  Label if_bigint(this), if_not_bigint(this), done(this);
+
+  GotoIf(TaggedIsSmi(input), &if_not_bigint);
+  GotoIf(IsBigInt(CAST(input)), &if_bigint);
+  Goto(&if_not_bigint);
+
+  BIND(&if_bigint);
+  var_result = CAST(input);
+  Goto(&done);
+
+  BIND(&if_not_bigint);
+  var_result =
+      CAST(CallRuntime(Runtime::kToBigIntConvertNumber, context, input));
+  Goto(&done);
+
+  BIND(&done);
+  return var_result.value();
+}
+
 void CodeStubAssembler::TaggedToBigIntWithFeedback(
     TNode<Context> context, TNode<Object> value, Label* if_not_bigint,
     Label* if_bigint, Label* if_bigint64, TVariable<BigInt>* var_bigint,

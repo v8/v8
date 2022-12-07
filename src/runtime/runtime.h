@@ -80,7 +80,8 @@ namespace internal {
   F(BigIntToBoolean, 1, 1)              \
   F(BigIntToNumber, 1, 1)               \
   F(BigIntUnaryOp, 2, 1)                \
-  F(ToBigInt, 1, 1)
+  F(ToBigInt, 1, 1)                     \
+  F(ToBigIntConvertNumber, 1, 1)
 
 #define FOR_EACH_INTRINSIC_CLASSES(F, I)    \
   F(DefineClass, -1 /* >= 3 */, 1)          \

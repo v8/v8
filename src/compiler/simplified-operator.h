@@ -779,6 +779,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* NumberToString();
   const Operator* NumberToUint32();
   const Operator* NumberToUint8Clamped();
+  const Operator* Integral32OrMinusZeroToBigInt();
 
   const Operator* NumberSilenceNaN();
 

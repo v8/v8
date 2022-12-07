@@ -4892,6 +4892,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       return ReduceDateNow(node);
     case Builtin::kNumberConstructor:
       return ReduceNumberConstructor(node);
+    case Builtin::kBigIntConstructor:
+      return ReduceBigIntConstructor(node);
     case Builtin::kBigIntAsIntN:
     case Builtin::kBigIntAsUintN:
       return ReduceBigIntAsN(node, builtin);
@@ -8324,6 +8326,39 @@ Reduction JSCallReducer::ReduceNumberConstructor(Node* node) {
   // Convert the {value} to a Number.
   NodeProperties::ReplaceValueInputs(node, value);
   NodeProperties::ChangeOp(node, javascript()->ToNumberConvertBigInt());
+  NodeProperties::ReplaceFrameStateInput(node, continuation_frame_state);
+  return Changed(node);
+}
+
+// ES section #sec-bigint-constructor
+Reduction JSCallReducer::ReduceBigIntConstructor(Node* node) {
+  if (!jsgraph()->machine()->Is64()) return NoChange();
+
+  JSCallNode n(node);
+  if (n.ArgumentCount() < 1) {
+    return NoChange();
+  }
+
+  Node* target = n.target();
+  Node* receiver = n.receiver();
+  Node* value = n.Argument(0);
+  Node* context = n.context();
+  FrameState frame_state = n.frame_state();
+
+  // Create the artificial frame state in the middle of the BigInt constructor.
+  SharedFunctionInfoRef shared_info =
+      native_context().bigint_function().shared();
+  Node* stack_parameters[] = {receiver};
+  int stack_parameter_count = arraysize(stack_parameters);
+  Node* continuation_frame_state =
+      CreateJavaScriptBuiltinContinuationFrameState(
+          jsgraph(), shared_info, Builtin::kGenericLazyDeoptContinuation,
+          target, context, stack_parameters, stack_parameter_count, frame_state,
+          ContinuationFrameStateMode::LAZY);
+
+  // Convert the {value} to a BigInt.
+  NodeProperties::ReplaceValueInputs(node, value);
+  NodeProperties::ChangeOp(node, javascript()->ToBigIntConvertNumber());
   NodeProperties::ReplaceFrameStateInput(node, continuation_frame_state);
   return Changed(node);
 }

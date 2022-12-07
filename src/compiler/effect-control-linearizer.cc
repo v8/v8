@@ -3144,7 +3144,7 @@ Node* EffectControlLinearizer::LowerChangeInt64ToBigInt(Node* node) {
   Node* bitfield =
       __ Word32Or(__ Int32Constant(BigInt::LengthBits::encode(1)), sign);
 
-  // We use (value XOR (value >>> 63)) - (value >>> 63) to compute the
+  // We use (value XOR (value >> 63)) - (value >> 63) to compute the
   // absolute value, in a branchless fashion.
   Node* sign_mask = __ Word64Sar(value, __ Int64Constant(63));
   Node* absolute_value = __ Int64Sub(__ Word64Xor(value, sign_mask), sign_mask);

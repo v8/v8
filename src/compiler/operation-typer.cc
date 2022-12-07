@@ -310,6 +310,27 @@ Type OperationTyper::ToNumberConvertBigInt(Type type) {
   return maybe_bigint ? Type::Union(type, cache_->kInteger, zone()) : type;
 }
 
+Type OperationTyper::ToBigInt(Type type) {
+  if (type.Is(Type::BigInt())) {
+    return type;
+  }
+
+  return Type::BigInt();
+}
+
+Type OperationTyper::ToBigIntConvertNumber(Type type) {
+  if (type.Is(Type::Signed32OrMinusZero())) {
+    return Type::SignedBigInt64();
+  } else if (type.Is(Type::Unsigned32OrMinusZero())) {
+    return Type::UnsignedBigInt63();
+  }
+
+  bool maybe_number =
+      type.Maybe(Type::Number()) || type.Maybe(Type::Receiver());
+  type = ToBigInt(Type::Intersect(type, Type::NonNumber(), zone()));
+  return maybe_number ? Type::Union(type, Type::BigInt(), zone()) : type;
+}
+
 Type OperationTyper::ToNumeric(Type type) {
   // If the {type} includes any receivers, then the callbacks
   // might actually produce BigInt primitive values here.
@@ -564,6 +585,18 @@ Type OperationTyper::NumberToUint8Clamped(Type type) {
 
   if (type.Is(cache_->kUint8)) return type;
   return cache_->kUint8;
+}
+
+Type OperationTyper::Integral32OrMinusZeroToBigInt(Type type) {
+  DCHECK(type.Is(Type::Number()));
+
+  if (type.Is(Type::Signed32())) {
+    return Type::SignedBigInt64();
+  }
+  if (type.Is(Type::Unsigned32())) {
+    return Type::UnsignedBigInt63();
+  }
+  return Type::BigInt();
 }
 
 Type OperationTyper::NumberSilenceNaN(Type type) {

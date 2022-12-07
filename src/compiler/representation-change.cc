@@ -1252,7 +1252,10 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
                                              use_node, use_info);
     op = simplified()->TruncateBigIntToWord64();
   } else if (CanBeTaggedPointer(output_rep)) {
-    if (output_type.Is(cache_->kDoubleRepresentableInt64)) {
+    if (output_type.Is(cache_->kDoubleRepresentableInt64) ||
+        (output_type.Is(Type::MinusZero()) &&
+         use_info.minus_zero_check() ==
+             CheckForMinusZeroMode::kDontCheckForMinusZero)) {
       op = simplified()->ChangeTaggedToInt64();
     } else if (use_info.type_check() == TypeCheckKind::kSigned64) {
       op = simplified()->CheckedTaggedToInt64(

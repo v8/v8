@@ -674,6 +674,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kJSToNumberConvertBigInt:
       CheckTypeIs(node, Type::Number());
       break;
+    case IrOpcode::kJSToBigInt:
+    case IrOpcode::kJSToBigIntConvertNumber:
+      CheckTypeIs(node, Type::BigInt());
+      break;
     case IrOpcode::kJSToNumeric:
       CheckTypeIs(node, Type::Numeric());
       break;
@@ -1120,6 +1124,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kNumberToUint8Clamped:
       CheckValueInputIs(node, 0, Type::Number());
       CheckTypeIs(node, Type::Unsigned32());
+      break;
+    case IrOpcode::kIntegral32OrMinusZeroToBigInt:
+      CheckValueInputIs(node, 0, Type::Integral32OrMinusZero());
+      CheckTypeIs(node, Type::BigInt());
       break;
     case IrOpcode::kUnsigned32Divide:
       CheckValueInputIs(node, 0, Type::Unsigned32());

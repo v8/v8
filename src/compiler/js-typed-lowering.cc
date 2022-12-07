@@ -1044,6 +1044,37 @@ Reduction JSTypedLowering::ReduceJSToNumber(Node* node) {
   return NoChange();
 }
 
+Reduction JSTypedLowering::ReduceJSToBigInt(Node* node) {
+  // TODO(panq): Reduce constant inputs.
+  Node* const input = node->InputAt(0);
+  Type const input_type = NodeProperties::GetType(input);
+  if (input_type.Is(Type::BigInt())) {
+    ReplaceWithValue(node, input);
+    return Changed(input);
+  }
+  return NoChange();
+}
+
+Reduction JSTypedLowering::ReduceJSToBigIntConvertNumber(Node* node) {
+  // TODO(panq): Reduce constant inputs.
+  Node* const input = node->InputAt(0);
+  Type const input_type = NodeProperties::GetType(input);
+  if (input_type.Is(Type::BigInt())) {
+    ReplaceWithValue(node, input);
+    return Changed(input);
+  } else if (input_type.Is(Type::Integral32OrMinusZero())) {
+    RelaxEffectsAndControls(node);
+    node->TrimInputCount(1);
+    Type node_type = NodeProperties::GetType(node);
+    NodeProperties::SetType(
+        node, Type::Intersect(node_type, Type::BigInt(), graph()->zone()));
+    NodeProperties::ChangeOp(node,
+                             simplified()->Integral32OrMinusZeroToBigInt());
+    return Changed(node);
+  }
+  return NoChange();
+}
+
 Reduction JSTypedLowering::ReduceJSToNumeric(Node* node) {
   Node* const input = NodeProperties::GetValueInput(node, 0);
   Type const input_type = NodeProperties::GetType(input);
@@ -2395,6 +2426,10 @@ Reduction JSTypedLowering::Reduce(Node* node) {
     case IrOpcode::kJSToNumber:
     case IrOpcode::kJSToNumberConvertBigInt:
       return ReduceJSToNumber(node);
+    case IrOpcode::kJSToBigInt:
+      return ReduceJSToBigInt(node);
+    case IrOpcode::kJSToBigIntConvertNumber:
+      return ReduceJSToBigIntConvertNumber(node);
     case IrOpcode::kJSToNumeric:
       return ReduceJSToNumeric(node);
     case IrOpcode::kJSToString:

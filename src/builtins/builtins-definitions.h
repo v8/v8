@@ -257,10 +257,12 @@ namespace internal {
                                                                                \
   /* Type conversions */                                                       \
   TFC(ToNumber, TypeConversion)                                                \
+  TFC(ToBigInt, TypeConversion)                                                \
   TFC(ToNumber_Baseline, TypeConversion_Baseline)                              \
   TFC(ToNumeric_Baseline, TypeConversion_Baseline)                             \
   TFC(PlainPrimitiveToNumber, TypeConversionNoContext)                         \
   TFC(ToNumberConvertBigInt, TypeConversion)                                   \
+  TFC(ToBigIntConvertNumber, TypeConversion)                                   \
   TFC(Typeof, Typeof)                                                          \
   TFC(BigIntToI64, BigIntToI64)                                                \
   TFC(BigIntToI32Pair, BigIntToI32Pair)                                        \
