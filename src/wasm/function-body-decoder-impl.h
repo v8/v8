@@ -4885,10 +4885,10 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                       obj.type.is_bottom())) {
           this->DecodeError(
               obj.pc(),
-              "Invalid types for ref.cast: %s of type %s has to "
+              "Invalid types for %s: %s of type %s has to "
               "be in the same reference type hierarchy as (ref %s)",
-              SafeOpcodeNameAt(obj.pc()), obj.type.name().c_str(),
-              target_type.name().c_str());
+              WasmOpcodes::OpcodeName(opcode), SafeOpcodeNameAt(obj.pc()),
+              obj.type.name().c_str(), target_type.name().c_str());
           return 0;
         }
 
@@ -4967,10 +4967,10 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                       obj.type.is_bottom())) {
           this->DecodeError(
               obj.pc(),
-              "Invalid types for ref.test: %s of type %s has to "
+              "Invalid types for %s: %s of type %s has to "
               "be in the same reference type hierarchy as (ref %s)",
-              SafeOpcodeNameAt(obj.pc()), obj.type.name().c_str(),
-              target_type.name().c_str());
+              WasmOpcodes::OpcodeName(opcode), SafeOpcodeNameAt(obj.pc()),
+              obj.type.name().c_str(), target_type.name().c_str());
           return 0;
         }
         bool null_succeeds = opcode == kExprRefTestNull;
@@ -5180,17 +5180,17 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                       obj.type.is_bottom())) {
           this->DecodeError(
               obj.pc(),
-              "Invalid types for br_on_cast: %s of type %s has to "
+              "Invalid types for %s: %s of type %s has to "
               "be in the same reference type hierarchy as (ref %s)",
-              SafeOpcodeNameAt(obj.pc()), obj.type.name().c_str(),
-              target_type.name().c_str());
+              WasmOpcodes::OpcodeName(opcode), SafeOpcodeNameAt(obj.pc()),
+              obj.type.name().c_str(), target_type.name().c_str());
           return 0;
         }
 
         Control* c = control_at(branch_depth.depth);
         if (c->br_merge()->arity == 0) {
-          this->DecodeError(
-              "br_on_cast must target a branch of arity at least 1");
+          this->DecodeError("%s must target a branch of arity at least 1",
+                            WasmOpcodes::OpcodeName(opcode));
           return 0;
         }
         // Attention: contrary to most other instructions, we modify the

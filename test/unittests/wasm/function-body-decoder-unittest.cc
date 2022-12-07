@@ -4359,6 +4359,10 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
                                                 WASM_HEAP_TYPE(to_heap))});
       ExpectValidates(&cast_sig, {WASM_REF_CAST(WASM_LOCAL_GET(0),
                                                 WASM_HEAP_TYPE(to_heap))});
+      ExpectValidates(&test_sig, {WASM_REF_TEST_NULL(WASM_LOCAL_GET(0),
+                                                     WASM_HEAP_TYPE(to_heap))});
+      ExpectValidates(&cast_sig, {WASM_REF_CAST_NULL(WASM_LOCAL_GET(0),
+                                                     WASM_HEAP_TYPE(to_heap))});
     } else {
       std::string error_message =
           "local.get of type " + cast_reps[1].name() +
@@ -4372,6 +4376,16 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
                     {WASM_REF_CAST(WASM_LOCAL_GET(0), WASM_HEAP_TYPE(to_heap))},
                     kAppendEnd,
                     ("Invalid types for ref.cast: " + error_message).c_str());
+      ExpectFailure(
+          &test_sig,
+          {WASM_REF_TEST_NULL(WASM_LOCAL_GET(0), WASM_HEAP_TYPE(to_heap))},
+          kAppendEnd,
+          ("Invalid types for ref.test null: " + error_message).c_str());
+      ExpectFailure(
+          &cast_sig,
+          {WASM_REF_CAST_NULL(WASM_LOCAL_GET(0), WASM_HEAP_TYPE(to_heap))},
+          kAppendEnd,
+          ("Invalid types for ref.cast null: " + error_message).c_str());
     }
   }
 
@@ -4450,6 +4464,13 @@ TEST_F(FunctionBodyDecoderTest, BrOnCastOrCastFail) {
                 kAppendEnd,
                 "Invalid types for br_on_cast: local.get of type externref has "
                 "to be in the same reference type hierarchy as (ref 1)");
+  ExpectFailure(
+      FunctionSig::Build(this->zone(), {subtype}, {kWasmExternRef}),
+      {WASM_LOCAL_GET(0), WASM_BR_ON_CAST_NULL(0, sub_struct),
+       WASM_GC_OP(kExprRefCast), sub_struct},
+      kAppendEnd,
+      "Invalid types for br_on_cast null: local.get of type externref has "
+      "to be in the same reference type hierarchy as (ref 1)");
   ExpectFailure(
       FunctionSig::Build(this->zone(), {supertype}, {kWasmExternRef}),
       {WASM_LOCAL_GET(0), WASM_BR_ON_CAST_FAIL(0, sub_struct)}, kAppendEnd,
