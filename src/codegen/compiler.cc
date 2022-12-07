@@ -1911,6 +1911,7 @@ class ConstantPoolPointerForwarder {
       : cage_base_(cage_base), local_heap_(local_heap) {}
 
   void AddBytecodeArray(BytecodeArray bytecode_array) {
+    CHECK(bytecode_array.IsBytecodeArray());
     bytecode_arrays_to_update_.push_back(handle(bytecode_array, local_heap_));
   }
 
@@ -2045,8 +2046,8 @@ void BackgroundMergeTask::BeginMergeInBackground(LocalIsolate* isolate,
         SharedFunctionInfo old_sfi =
             SharedFunctionInfo::cast(maybe_old_sfi.GetHeapObjectAssumeWeak());
         forwarder.Forward(new_sfi, old_sfi);
-        if (new_sfi.is_compiled()) {
-          if (old_sfi.is_compiled()) {
+        if (new_sfi.HasBytecodeArray()) {
+          if (old_sfi.HasBytecodeArray()) {
             // Reset the old SFI's bytecode age so that it won't likely get
             // flushed right away. This operation might be racing against
             // concurrent modification by another thread, but such a race is not
@@ -2066,7 +2067,7 @@ void BackgroundMergeTask::BeginMergeInBackground(LocalIsolate* isolate,
         DCHECK_EQ(i, new_sfi.function_literal_id());
         new_sfi.set_script(*old_script);
         used_new_sfis_.push_back(local_heap->NewPersistentHandle(new_sfi));
-        if (new_sfi.is_compiled()) {
+        if (new_sfi.HasBytecodeArray()) {
           forwarder.AddBytecodeArray(new_sfi.GetBytecodeArray(isolate));
         }
       }
