@@ -395,6 +395,22 @@ bool Sweeper::AreSweeperTasksRunning() {
   return job_handle_ && job_handle_->IsValid() && job_handle_->IsActive();
 }
 
+namespace {
+// Atomically zap the specified area.
+V8_INLINE void AtomicZapBlock(Address addr, size_t size_in_bytes) {
+  static_assert(sizeof(Tagged_t) == kTaggedSize);
+  static constexpr Tagged_t kZapTagged = static_cast<Tagged_t>(kZapValue);
+  DCHECK(IsAligned(addr, kTaggedSize));
+  DCHECK(IsAligned(size_in_bytes, kTaggedSize));
+  const size_t size_in_tagged = size_in_bytes / kTaggedSize;
+  Tagged_t* current_addr = reinterpret_cast<Tagged_t*>(addr);
+  for (size_t i = 0; i < size_in_tagged; ++i) {
+    base::AsAtomicPtr(current_addr++)
+        ->store(kZapTagged, std::memory_order_relaxed);
+  }
+}
+}  // namespace
+
 V8_INLINE size_t Sweeper::FreeAndProcessFreedMemory(
     Address free_start, Address free_end, Page* page, Space* space,
     FreeSpaceTreatmentMode free_space_treatment_mode) {
@@ -402,7 +418,7 @@ V8_INLINE size_t Sweeper::FreeAndProcessFreedMemory(
   size_t freed_bytes = 0;
   size_t size = static_cast<size_t>(free_end - free_start);
   if (free_space_treatment_mode == FreeSpaceTreatmentMode::kZapFreeSpace) {
-    ZapCode(free_start, size);
+    AtomicZapBlock(free_start, size);
   }
   page->heap()->CreateFillerObjectAtSweeper(free_start, static_cast<int>(size));
   freed_bytes = reinterpret_cast<PagedSpaceBase*>(space)->UnaccountedFree(
@@ -799,7 +815,7 @@ void Sweeper::RawIteratePromotedPageForRememberedSets(
                 ->bitmap(chunk)
                 ->AllBitsClearInRange(chunk->AddressToMarkbitIndex(free_start),
                                       chunk->AddressToMarkbitIndex(free_end)));
-        ZapCode(free_start, size);
+        AtomicZapBlock(free_start, size);
         heap_->CreateFillerObjectAtSweeper(free_start, static_cast<int>(size));
       }
       Map map = object.map(cage_base, kAcquireLoad);
@@ -813,7 +829,7 @@ void Sweeper::RawIteratePromotedPageForRememberedSets(
           heap_->non_atomic_marking_state()->bitmap(chunk)->AllBitsClearInRange(
               chunk->AddressToMarkbitIndex(free_start),
               chunk->AddressToMarkbitIndex(chunk->area_end())));
-      ZapCode(free_start, size);
+      AtomicZapBlock(free_start, size);
       heap_->CreateFillerObjectAtSweeper(free_start, static_cast<int>(size));
     }
   }
