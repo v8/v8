@@ -2223,7 +2223,13 @@ Address MarkCompactCollector::FindBasePtrForMarking(Address maybe_inner_ptr) {
   if (chunk == nullptr) return kNullAddress;
   DCHECK(chunk->Contains(maybe_inner_ptr));
   // If it is contained in a large page, we want to mark the only object on it.
-  if (chunk->IsLargePage()) return chunk->area_start();
+  if (chunk->IsLargePage()) {
+    // This could be simplified if we could guarantee that there are no free
+    // space or filler objects in large pages. A few cctests violate this now.
+    HeapObject obj(static_cast<const LargePage*>(chunk)->GetObject());
+    PtrComprCageBase cage_base{chunk->heap()->isolate()};
+    return obj.IsFreeSpaceOrFiller(cage_base) ? kNullAddress : obj.address();
+  }
   // Otherwise, we have a pointer inside a normal page.
   const Page* page = static_cast<const Page*>(chunk);
   // If it is in the young generation "from" semispace, it is not used and we
