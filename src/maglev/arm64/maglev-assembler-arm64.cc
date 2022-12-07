@@ -3,6 +3,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/codegen/interface-descriptors-inl.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/maglev/arm64/maglev-assembler-arm64-inl.h"
 #include "src/maglev/maglev-graph.h"
@@ -12,6 +13,71 @@ namespace internal {
 namespace maglev {
 
 #define __ masm->
+
+void MaglevAssembler::Allocate(RegisterSnapshot& register_snapshot,
+                               Register object, int size_in_bytes,
+                               AllocationType alloc_type,
+                               AllocationAlignment alignment) {
+  // TODO(victorgomes): Call the runtime for large object allocation.
+  // TODO(victorgomes): Support double alignment.
+  DCHECK_EQ(alignment, kTaggedAligned);
+  size_in_bytes = ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes);
+  if (v8_flags.single_generation) {
+    alloc_type = AllocationType::kOld;
+  }
+  bool in_new_space = alloc_type == AllocationType::kYoung;
+  ExternalReference top =
+      in_new_space
+          ? ExternalReference::new_space_allocation_top_address(isolate_)
+          : ExternalReference::old_space_allocation_top_address(isolate_);
+  ExternalReference limit =
+      in_new_space
+          ? ExternalReference::new_space_allocation_limit_address(isolate_)
+          : ExternalReference::old_space_allocation_limit_address(isolate_);
+
+  ZoneLabelRef done(this);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.AcquireX();
+  // We are a bit short on registers, so we use the same register for {object}
+  // and {new_top}. Once we have defined {new_top}, we don't use {object} until
+  // {new_top} is used for the last time. And there (at the end of this
+  // function), we recover the original {object} from {new_top} by subtracting
+  // {size_in_bytes}.
+  Register new_top = object;
+  // Check if there is enough space.
+  Ldr(object, ExternalReferenceAsOperand(top, scratch));
+  Add(new_top, object, size_in_bytes);
+  Ldr(scratch, ExternalReferenceAsOperand(limit, scratch));
+  Cmp(new_top, scratch);
+  // Otherwise call runtime.
+  JumpToDeferredIf(
+      ge,
+      [](MaglevAssembler* masm, RegisterSnapshot register_snapshot,
+         Register object, Builtin builtin, int size_in_bytes,
+         ZoneLabelRef done) {
+        // Remove {object} from snapshot, since it is the returned allocated
+        // HeapObject.
+        register_snapshot.live_registers.clear(object);
+        register_snapshot.live_tagged_registers.clear(object);
+        {
+          SaveRegisterStateForCall save_register_state(masm, register_snapshot);
+          using D = AllocateDescriptor;
+          __ Move(D::GetRegisterParameter(D::kRequestedSize), size_in_bytes);
+          __ CallBuiltin(builtin);
+          save_register_state.DefineSafepoint();
+          __ Move(object, kReturnRegister0);
+        }
+        __ jmp(*done);
+      },
+      register_snapshot, object,
+      in_new_space ? Builtin::kAllocateRegularInYoungGeneration
+                   : Builtin::kAllocateRegularInOldGeneration,
+      size_in_bytes, done);
+  // Store new top and tag object.
+  Move(ExternalReferenceAsOperand(top, scratch), new_top);
+  Add(object, object, kHeapObjectTag - size_in_bytes);
+  bind(*done);
+}
 
 void MaglevAssembler::Prologue(Graph* graph) {
   if (v8_flags.maglev_ool_prologue) {

@@ -4,6 +4,7 @@
 
 #include "src/codegen/arm64/assembler-arm64-inl.h"
 #include "src/codegen/arm64/register-arm64.h"
+#include "src/codegen/interface-descriptors-inl.h"
 #include "src/maglev/arm64/maglev-assembler-arm64-inl.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-graph.h"
@@ -140,7 +141,6 @@ UNIMPLEMENTED_NODE_WITH_CALL(Construct)
 UNIMPLEMENTED_NODE_WITH_CALL(ConstructWithSpread)
 UNIMPLEMENTED_NODE_WITH_CALL(ConvertReceiver, mode_)
 UNIMPLEMENTED_NODE(ConvertHoleToUndefined)
-UNIMPLEMENTED_NODE_WITH_CALL(CreateEmptyObjectLiteral)
 UNIMPLEMENTED_NODE_WITH_CALL(CreateFunctionContext)
 UNIMPLEMENTED_NODE_WITH_CALL(FastCreateClosure)
 UNIMPLEMENTED_NODE_WITH_CALL(CreateRegExpLiteral)
@@ -226,6 +226,33 @@ UNIMPLEMENTED_NODE(BranchIfUndefinedOrNull)
 UNIMPLEMENTED_NODE(BranchIfJSReceiver)
 UNIMPLEMENTED_NODE(Switch)
 UNIMPLEMENTED_NODE(Deopt)
+
+int CreateEmptyObjectLiteral::MaxCallStackArgs() const {
+  return AllocateDescriptor::GetStackParameterCount();
+}
+void CreateEmptyObjectLiteral::SetValueLocationConstraints() {
+  DefineAsRegister(this);
+}
+void CreateEmptyObjectLiteral::GenerateCode(MaglevAssembler* masm,
+                                            const ProcessingState& state) {
+  Register object = ToRegister(result());
+  RegisterSnapshot save_registers = register_snapshot();
+  __ Allocate(save_registers, object, map().instance_size());
+  UseScratchRegisterScope temps(masm);
+  Register scratch = temps.AcquireX();
+  __ Move(scratch, map().object());
+  __ StoreTaggedField(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
+  __ LoadRoot(scratch, RootIndex::kEmptyFixedArray);
+  __ StoreTaggedField(
+      scratch, FieldMemOperand(object, JSObject::kPropertiesOrHashOffset));
+  __ StoreTaggedField(scratch,
+                      FieldMemOperand(object, JSObject::kElementsOffset));
+  __ LoadRoot(scratch, RootIndex::kUndefinedValue);
+  for (int i = 0; i < map().GetInObjectProperties(); i++) {
+    int offset = map().GetInObjectPropertyOffset(i);
+    __ StoreTaggedField(scratch, FieldMemOperand(object, offset));
+  }
+}
 
 void Int32AddWithOverflow::SetValueLocationConstraints() {
   UseRegister(left_input());
