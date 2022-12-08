@@ -1259,29 +1259,45 @@ void FeedbackVector::FeedbackSlotPrint(std::ostream& os, FeedbackSlot slot) {
 }
 
 void FeedbackNexus::Print(std::ostream& os) {
-  switch (kind()) {
+  auto slot_kind = kind();
+  switch (slot_kind) {
     case FeedbackSlotKind::kCall:
     case FeedbackSlotKind::kCloneObject:
     case FeedbackSlotKind::kDefineKeyedOwn:
     case FeedbackSlotKind::kHasKeyed:
     case FeedbackSlotKind::kInstanceOf:
     case FeedbackSlotKind::kDefineKeyedOwnPropertyInLiteral:
-    case FeedbackSlotKind::kStoreGlobalSloppy:
-    case FeedbackSlotKind::kStoreGlobalStrict:
     case FeedbackSlotKind::kStoreInArrayLiteral:
     case FeedbackSlotKind::kDefineNamedOwn: {
       os << InlineCacheState2String(ic_state());
       break;
     }
     case FeedbackSlotKind::kLoadGlobalInsideTypeof:
-    case FeedbackSlotKind::kLoadGlobalNotInsideTypeof: {
+    case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
+    case FeedbackSlotKind::kStoreGlobalSloppy:
+    case FeedbackSlotKind::kStoreGlobalStrict: {
       os << InlineCacheState2String(ic_state());
       if (ic_state() == InlineCacheState::MONOMORPHIC) {
         os << "\n   ";
-        if (GetFeedback().GetHeapObjectOrSmi().IsPropertyCell()) {
+        if (GetFeedback().IsCleared()) {
+          // Handler mode: feedback is the cleared value, extra is the handler.
+          if (IsLoadGlobalICKind(slot_kind)) {
+            LoadHandler::PrintHandler(GetFeedbackExtra().GetHeapObjectOrSmi(),
+                                      os);
+          } else {
+            StoreHandler::PrintHandler(GetFeedbackExtra().GetHeapObjectOrSmi(),
+                                       os);
+          }
+        } else if (GetFeedback().GetHeapObjectOrSmi().IsPropertyCell()) {
           os << Brief(GetFeedback());
         } else {
-          LoadHandler::PrintHandler(GetFeedback().GetHeapObjectOrSmi(), os);
+          // Lexical variable mode: the variable location is encoded in the SMI.
+          int handler = GetFeedback().GetHeapObjectOrSmi().ToSmi().value();
+          os << (IsLoadGlobalICKind(slot_kind) ? "Load" : "Store");
+          os << "Handler(Lexical variable mode)(context ix = "
+             << FeedbackNexus::ContextIndexBits::decode(handler)
+             << ", slot ix = " << FeedbackNexus::SlotIndexBits::decode(handler)
+             << ")";
         }
       }
       break;
