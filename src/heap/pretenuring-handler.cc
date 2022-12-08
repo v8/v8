@@ -12,12 +12,12 @@
 namespace v8 {
 namespace internal {
 
-PretenturingHandler::PretenturingHandler(Heap* heap)
+PretenuringHandler::PretenuringHandler(Heap* heap)
     : heap_(heap), global_pretenuring_feedback_(kInitialFeedbackCapacity) {}
 
-PretenturingHandler::~PretenturingHandler() = default;
+PretenuringHandler::~PretenuringHandler() = default;
 
-void PretenturingHandler::MergeAllocationSitePretenuringFeedback(
+void PretenuringHandler::MergeAllocationSitePretenuringFeedback(
     const PretenuringFeedbackMap& local_pretenuring_feedback) {
   PtrComprCageBase cage_base(heap_->isolate());
   AllocationSite site;
@@ -42,7 +42,7 @@ void PretenturingHandler::MergeAllocationSitePretenuringFeedback(
   }
 }
 
-bool PretenturingHandler::DeoptMaybeTenuredAllocationSites() const {
+bool PretenuringHandler::DeoptMaybeTenuredAllocationSites() const {
   NewSpace* new_space = heap_->new_space();
   return new_space && new_space->IsAtMaximumCapacity() &&
          !heap_->MaximumSizeMinorGC();
@@ -139,12 +139,12 @@ bool PretenureAllocationSiteManually(Isolate* isolate, AllocationSite site) {
 
 }  // namespace
 
-void PretenturingHandler::RemoveAllocationSitePretenuringFeedback(
+void PretenuringHandler::RemoveAllocationSitePretenuringFeedback(
     AllocationSite site) {
   global_pretenuring_feedback_.erase(site);
 }
 
-void PretenturingHandler::ProcessPretenuringFeedback() {
+void PretenuringHandler::ProcessPretenuringFeedback() {
   bool trigger_deoptimization = false;
   if (v8_flags.allocation_site_pretenuring) {
     int tenure_decisions = 0;
@@ -229,7 +229,7 @@ void PretenturingHandler::ProcessPretenuringFeedback() {
   }
 }
 
-void PretenturingHandler::PretenureAllocationSiteOnNextCollection(
+void PretenuringHandler::PretenureAllocationSiteOnNextCollection(
     AllocationSite site) {
   if (!allocation_sites_to_pretenure_) {
     allocation_sites_to_pretenure_.reset(
@@ -238,7 +238,7 @@ void PretenturingHandler::PretenureAllocationSiteOnNextCollection(
   allocation_sites_to_pretenure_->Push(site);
 }
 
-void PretenturingHandler::reset() { allocation_sites_to_pretenure_.reset(); }
+void PretenuringHandler::reset() { allocation_sites_to_pretenure_.reset(); }
 
 }  // namespace internal
 }  // namespace v8

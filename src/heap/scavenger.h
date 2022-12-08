@@ -202,8 +202,8 @@ class Scavenger {
   PromotionList::Local promotion_list_local_;
   CopiedList::Local copied_list_local_;
   EphemeronTableList::Local ephemeron_table_list_local_;
-  PretenturingHandler* const pretenuring_handler_;
-  PretenturingHandler::PretenuringFeedbackMap local_pretenuring_feedback_;
+  PretenuringHandler* const pretenuring_handler_;
+  PretenuringHandler::PretenuringFeedbackMap local_pretenuring_feedback_;
   size_t copied_size_;
   size_t promoted_size_;
   EvacuationAllocator allocator_;

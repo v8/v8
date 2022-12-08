@@ -5339,10 +5339,10 @@ bool JSObject::UpdateAllocationSite(Handle<JSObject> object,
     DisallowGarbageCollection no_gc;
 
     Heap* heap = object->GetHeap();
-    PretenturingHandler* pretunring_handler = heap->pretenuring_handler();
+    PretenuringHandler* pretunring_handler = heap->pretenuring_handler();
     AllocationMemento memento =
         pretunring_handler
-            ->FindAllocationMemento<PretenturingHandler::kForRuntime>(
+            ->FindAllocationMemento<PretenuringHandler::kForRuntime>(
                 object->map(), *object);
     if (memento.is_null()) return false;
 
