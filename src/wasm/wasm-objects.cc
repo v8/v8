@@ -1609,7 +1609,7 @@ Handle<WasmTagObject> WasmTagObject::New(Isolate* isolate,
   return tag_wrapper;
 }
 
-// TODO(9495): Update this if function type variance is introduced.
+// TODO(7748): Integrate this with type canonicalization.
 bool WasmTagObject::MatchesSignature(const wasm::FunctionSig* sig) {
   DCHECK_EQ(0, sig->return_count());
   DCHECK_LE(sig->parameter_count(), std::numeric_limits<int>::max());
@@ -1623,10 +1623,11 @@ bool WasmTagObject::MatchesSignature(const wasm::FunctionSig* sig) {
   return true;
 }
 
-const wasm::FunctionSig* WasmCapiFunction::GetSignature(Zone* zone) {
+const wasm::FunctionSig* WasmCapiFunction::GetSignature(Zone* zone) const {
   WasmCapiFunctionData function_data = shared().wasm_capi_function_data();
-  auto serialized_sig = function_data.serialized_signature();
-  auto sig_size = serialized_sig.Size() - 1;
+  PodArray<wasm::ValueType> serialized_sig =
+      function_data.serialized_signature();
+  int sig_size = serialized_sig.length() - 1;
   wasm::ValueType* types = zone->NewArray<wasm::ValueType>(sig_size);
   int returns_size = 0;
   int index = 0;
@@ -1634,7 +1635,7 @@ const wasm::FunctionSig* WasmCapiFunction::GetSignature(Zone* zone) {
     types[index] = serialized_sig.get(index);
     index++;
   }
-  returns_size = index - 1;
+  returns_size = index;
   while (index < sig_size) {
     types[index] = serialized_sig.get(index + 1);
     index++;
@@ -1644,25 +1645,19 @@ const wasm::FunctionSig* WasmCapiFunction::GetSignature(Zone* zone) {
                                       types);
 }
 
-bool WasmCapiFunction::MatchesSignature(const wasm::FunctionSig* sig) const {
-  // TODO(jkummerow): Unify with "SignatureHelper" in c-api.cc.
-  int param_count = static_cast<int>(sig->parameter_count());
-  int result_count = static_cast<int>(sig->return_count());
-  PodArray<wasm::ValueType> serialized_sig =
-      shared().wasm_capi_function_data().serialized_signature();
-  if (param_count + result_count + 1 != serialized_sig.length()) return false;
-  int serialized_index = 0;
-  for (int i = 0; i < result_count; i++, serialized_index++) {
-    if (sig->GetReturn(i) != serialized_sig.get(serialized_index)) {
-      return false;
-    }
-  }
-  if (serialized_sig.get(serialized_index) != wasm::kWasmVoid) return false;
-  serialized_index++;
-  for (int i = 0; i < param_count; i++, serialized_index++) {
-    if (sig->GetParam(i) != serialized_sig.get(serialized_index)) return false;
-  }
-  return true;
+bool WasmCapiFunction::MatchesSignature(
+    uint32_t other_canonical_sig_index) const {
+  AccountingAllocator allocator;
+  Zone zone(&allocator, ZONE_NAME);
+  const wasm::FunctionSig* sig = GetSignature(&zone);
+#if DEBUG
+  // TODO(7748): Change this if indexed types are allowed.
+  for (wasm::ValueType type : sig->all()) CHECK(!type.has_index());
+#endif
+  // TODO(7748): Check for subtyping instead if C API functions can define
+  // signature supertype.
+  return wasm::GetWasmEngine()->type_canonicalizer()->AddRecursiveGroup(sig) ==
+         other_canonical_sig_index;
 }
 
 // static
@@ -2136,7 +2131,7 @@ wasm::Suspend WasmJSFunction::GetSuspend() const {
           .suspend());
 }
 
-const wasm::FunctionSig* WasmJSFunction::GetSignature(Zone* zone) {
+const wasm::FunctionSig* WasmJSFunction::GetSignature(Zone* zone) const {
   WasmJSFunctionData function_data = shared().wasm_js_function_data();
   int sig_size = function_data.serialized_signature().length();
   wasm::ValueType* types = zone->NewArray<wasm::ValueType>(sig_size);
@@ -2148,21 +2143,19 @@ const wasm::FunctionSig* WasmJSFunction::GetSignature(Zone* zone) {
   return zone->New<wasm::FunctionSig>(return_count, parameter_count, types);
 }
 
-// TODO(9495): Update this if function type variance is introduced.
-bool WasmJSFunction::MatchesSignature(const wasm::FunctionSig* sig) {
-  DCHECK_LE(sig->all().size(), kMaxInt);
-  int sig_size = static_cast<int>(sig->all().size());
-  int return_count = static_cast<int>(sig->return_count());
-  int parameter_count = static_cast<int>(sig->parameter_count());
-  DisallowHeapAllocation no_alloc;
-  WasmJSFunctionData function_data = shared().wasm_js_function_data();
-  if (return_count != function_data.serialized_return_count() ||
-      parameter_count != function_data.serialized_parameter_count()) {
-    return false;
-  }
-  if (sig_size == 0) return true;  // Prevent undefined behavior.
-  const wasm::ValueType* expected = sig->all().begin();
-  return function_data.serialized_signature().matches(expected, sig_size);
+bool WasmJSFunction::MatchesSignature(
+    uint32_t other_canonical_sig_index) const {
+  AccountingAllocator allocator;
+  Zone zone(&allocator, ZONE_NAME);
+  const wasm::FunctionSig* sig = GetSignature(&zone);
+#if DEBUG
+  // TODO(7748): Change this if indexed types are allowed.
+  for (wasm::ValueType type : sig->all()) CHECK(!type.has_index());
+#endif
+  // TODO(7748): Check for subtyping instead if WebAssembly.Function can define
+  // signature supertype.
+  return wasm::GetWasmEngine()->type_canonicalizer()->AddRecursiveGroup(sig) ==
+         other_canonical_sig_index;
 }
 
 PodArray<wasm::ValueType> WasmCapiFunction::GetSerializedSignature() const {
@@ -2378,16 +2371,8 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
             }
             return WasmInternalFunction::FromExternal(value, isolate);
           } else if (WasmJSFunction::IsWasmJSFunction(*value)) {
-            AccountingAllocator allocator;
-            Zone zone(&allocator, ZONE_NAME);
-            // Since a WasmJSFunction cannot refer to indexed types (definable
-            // only in a module), we do not need full function subtyping.
-            // TODO(7748): Change this if wasm types can be exported.
-            const FunctionSig* real_sig =
-                WasmJSFunction::cast(*value).GetSignature(&zone);
-            uint32_t real_canonical_index =
-                type_canonicalizer->AddRecursiveGroup(real_sig);
-            if (real_canonical_index != expected_canonical.ref_index()) {
+            if (!Handle<WasmJSFunction>::cast(value)->MatchesSignature(
+                    expected_canonical.ref_index())) {
               *error_message =
                   "assigned WebAssembly.Function has to be a subtype of the "
                   "expected type";
@@ -2395,20 +2380,8 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
             }
             return WasmInternalFunction::FromExternal(value, isolate);
           } else if (WasmCapiFunction::IsWasmCapiFunction(*value)) {
-            // Since a WasmCapiFunction cannot refer to indexed types
-            // (definable only in a module), we do not need full function
-            // subtyping.
-            // TODO(7748): Change this if wasm types can be exported.
-            AccountingAllocator allocator;
-            Zone zone(&allocator, ZONE_NAME);
-            // Since a WasmJSFunction cannot refer to indexed types (definable
-            // only in a module), we do not need full function subtyping.
-            // TODO(7748): Change this if wasm types can be exported.
-            const FunctionSig* real_sig =
-                WasmCapiFunction::cast(*value).GetSignature(&zone);
-            uint32_t real_canonical_index =
-                type_canonicalizer->AddRecursiveGroup(real_sig);
-            if (real_canonical_index != expected_canonical.ref_index()) {
+            if (!Handle<WasmCapiFunction>::cast(value)->MatchesSignature(
+                    expected_canonical.ref_index())) {
               *error_message =
                   "assigned C API function has to be a subtype of the expected "
                   "type";

@@ -157,18 +157,61 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     return builder.instantiate({});
   })();
 
-  var instance = (function () {
+  var builder = new WasmModuleBuilder();
+  // These should canonicalize to the same types as the exporting instance.
+  let super_struct = builder.addStruct([makeField(kWasmI32, true)]);
+  let sub_struct = builder.addStruct(
+    [makeField(kWasmI32, true), makeField(kWasmI64, true)], super_struct);
+  let super_sig = builder.addType(makeSig([wasmRefNullType(sub_struct)],
+                                          [kWasmI32]))
+  builder.addImport("m", "f", super_sig);
+
+  // Import is a function of the declared type.
+  return builder.instantiate({m: {f:
+      exporting_instance.exports.exported_function}});
+})();
+
+(function TestJSFunctionCanonicallyDifferent() {
+  print(arguments.callee.name);
+
+  let imp = new WebAssembly.Function({parameters: ["i32"], results: ["i32"]},
+                                     x => x + 1);
+
+  (function () {
     var builder = new WasmModuleBuilder();
-    // These should canonicalize to the same types as the exporting instance.
-    let super_struct = builder.addStruct([makeField(kWasmI32, true)]);
-    let sub_struct = builder.addStruct(
-      [makeField(kWasmI32, true), makeField(kWasmI64, true)], super_struct);
-    let super_sig = builder.addType(makeSig([wasmRefNullType(sub_struct)],
-                                            [kWasmI32]))
-    builder.addImport("m", "f", super_sig);
+    let sig = builder.addType(kSig_i_i);
+
+    builder.addImport("m", "f", sig);
+
+    // This succeeds
+    builder.instantiate({m: {f: imp}});
+  })();
+
+  (function () {
+    var builder = new WasmModuleBuilder();
+    let sig = builder.addType(kSig_i_i);
+    let sig_sub = builder.addType(kSig_i_i, sig);
+
+    builder.addImport("m", "f", sig_sub);
 
     // Import is a function of the declared type.
-    return builder.instantiate({m: {f:
-      exporting_instance.exports.exported_function}});
+    assertThrows(() => builder.instantiate({m: {f: imp}}),
+                 WebAssembly.LinkError,
+                 /imported function does not match the expected type/);
+  })();
+
+  (function () {
+    var builder = new WasmModuleBuilder();
+    builder.startRecGroup();
+    let sig_in_group = builder.addType(kSig_i_i);
+    builder.addType(kSig_i_v);
+    builder.endRecGroup();
+
+    builder.addImport("m", "f", sig_in_group);
+
+    // Import is a function of the declared type.
+    assertThrows(() => builder.instantiate({m: {f: imp}}),
+                 WebAssembly.LinkError,
+                 /imported function does not match the expected type/);
   })();
 })();

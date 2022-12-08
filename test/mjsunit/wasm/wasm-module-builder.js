@@ -1340,8 +1340,9 @@ class WasmModuleBuilder {
   addType(type, supertype_idx = kNoSuperType) {
     var pl = type.params.length;   // should have params
     var rl = type.results.length;  // should have results
-    type.supertype = supertype_idx;
-    this.types.push(type);
+    var type_copy = {params: type.params, results: type.results,
+                     supertype: supertype_idx};
+    this.types.push(type_copy);
     return this.types.length - 1;
   }
 

@@ -643,8 +643,8 @@ class WasmJSFunction : public JSFunction {
   wasm::Suspend GetSuspend() const;
   // Deserializes the signature of this function using the provided zone. Note
   // that lifetime of the signature is hence directly coupled to the zone.
-  const wasm::FunctionSig* GetSignature(Zone* zone);
-  bool MatchesSignature(const wasm::FunctionSig* sig);
+  const wasm::FunctionSig* GetSignature(Zone* zone) const;
+  bool MatchesSignature(uint32_t other_canonical_sig_index) const;
 
   DECL_CAST(WasmJSFunction)
   OBJECT_CONSTRUCTORS(WasmJSFunction, JSFunction);
@@ -662,8 +662,8 @@ class WasmCapiFunction : public JSFunction {
   PodArray<wasm::ValueType> GetSerializedSignature() const;
   // Checks whether the given {sig} has the same parameter types as the
   // serialized signature stored within this C-API function object.
-  bool MatchesSignature(const wasm::FunctionSig* sig) const;
-  const wasm::FunctionSig* GetSignature(Zone* zone);
+  bool MatchesSignature(uint32_t other_canonical_sig_index) const;
+  const wasm::FunctionSig* GetSignature(Zone* zone) const;
 
   DECL_CAST(WasmCapiFunction)
   OBJECT_CONSTRUCTORS(WasmCapiFunction, JSFunction);

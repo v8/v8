@@ -2031,7 +2031,10 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& args) {
   bool is_wasm_js_function = i::WasmJSFunction::IsWasmJSFunction(*callable);
 
   if (is_wasm_exported_function && !suspend && !promise) {
-    if (*i::Handle<i::WasmExportedFunction>::cast(callable)->sig() == *sig) {
+    uint32_t canonical_sig_index =
+        i::wasm::GetWasmEngine()->type_canonicalizer()->AddRecursiveGroup(sig);
+    if (i::Handle<i::WasmExportedFunction>::cast(callable)->MatchesSignature(
+            canonical_sig_index)) {
       args.GetReturnValue().Set(Utils::ToLocal(callable));
       return;
     }
@@ -2043,7 +2046,10 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   if (is_wasm_js_function && !suspend && !promise) {
-    if (i::Handle<i::WasmJSFunction>::cast(callable)->MatchesSignature(sig)) {
+    uint32_t canonical_sig_index =
+        i::wasm::GetWasmEngine()->type_canonicalizer()->AddRecursiveGroup(sig);
+    if (i::Handle<i::WasmJSFunction>::cast(callable)->MatchesSignature(
+            canonical_sig_index)) {
       args.GetReturnValue().Set(Utils::ToLocal(callable));
       return;
     }
