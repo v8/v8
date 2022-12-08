@@ -4178,7 +4178,8 @@ namespace {
 ConcurrentAllocator* CreateSharedOldAllocator(Heap* heap) {
   if (v8_flags.shared_string_table && heap->isolate()->has_shared_heap() &&
       !heap->isolate()->is_shared_heap_isolate()) {
-    return new ConcurrentAllocator(nullptr, heap->shared_allocation_space());
+    return new ConcurrentAllocator(nullptr, heap->shared_allocation_space(),
+                                   ConcurrentAllocator::Context::kGC);
   }
 
   return nullptr;

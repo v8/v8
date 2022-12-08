@@ -5698,7 +5698,8 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
     Heap* heap = isolate()->shared_space_isolate()->heap();
 
     shared_space_allocator_ = std::make_unique<ConcurrentAllocator>(
-        main_thread_local_heap(), heap->shared_space_);
+        main_thread_local_heap(), heap->shared_space_,
+        ConcurrentAllocator::Context::kNotGC);
 
     shared_allocation_space_ = heap->shared_space_;
     shared_lo_allocation_space_ = heap->shared_lo_space_;
@@ -5707,7 +5708,8 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
     Heap* shared_heap = isolate()->shared_isolate()->heap();
 
     shared_space_allocator_ = std::make_unique<ConcurrentAllocator>(
-        main_thread_local_heap(), shared_heap->old_space());
+        main_thread_local_heap(), shared_heap->old_space(),
+        ConcurrentAllocator::Context::kNotGC);
 
     shared_allocation_space_ = shared_heap->old_space();
     shared_lo_allocation_space_ = shared_heap->lo_space();

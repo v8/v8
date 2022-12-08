@@ -125,17 +125,18 @@ void LocalHeap::SetUpMainThread() {
 
 void LocalHeap::SetUp() {
   DCHECK_NULL(old_space_allocator_);
-  old_space_allocator_ =
-      std::make_unique<ConcurrentAllocator>(this, heap_->old_space());
+  old_space_allocator_ = std::make_unique<ConcurrentAllocator>(
+      this, heap_->old_space(), ConcurrentAllocator::Context::kNotGC);
 
   DCHECK_NULL(code_space_allocator_);
-  code_space_allocator_ =
-      std::make_unique<ConcurrentAllocator>(this, heap_->code_space());
+  code_space_allocator_ = std::make_unique<ConcurrentAllocator>(
+      this, heap_->code_space(), ConcurrentAllocator::Context::kNotGC);
 
   DCHECK_NULL(shared_old_space_allocator_);
   if (heap_->isolate()->has_shared_heap()) {
     shared_old_space_allocator_ = std::make_unique<ConcurrentAllocator>(
-        this, heap_->shared_allocation_space());
+        this, heap_->shared_allocation_space(),
+        ConcurrentAllocator::Context::kNotGC);
   }
 
   DCHECK_NULL(marking_barrier_);
