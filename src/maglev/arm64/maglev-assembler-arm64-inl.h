@@ -100,19 +100,16 @@ inline void MaglevAssembler::Move(MemOperand dst, Register src) {
   Str(src, dst);
 }
 inline void MaglevAssembler::Move(MemOperand dst, DoubleRegister src) {
-  // TODO(v8:7700): Implement!
-  UNREACHABLE();
+  Str(src, dst);
 }
 inline void MaglevAssembler::Move(Register dst, MemOperand src) {
   Ldr(dst, src);
 }
 inline void MaglevAssembler::Move(DoubleRegister dst, MemOperand src) {
-  // TODO(v8:7700): Implement!
-  UNREACHABLE();
+  Ldr(dst, src);
 }
 inline void MaglevAssembler::Move(DoubleRegister dst, DoubleRegister src) {
-  // TODO(v8:7700): Implement!
-  UNREACHABLE();
+  fmov(dst, src);
 }
 inline void MaglevAssembler::Move(Register dst, Smi src) {
   MacroAssembler::Move(dst, src);
@@ -127,8 +124,7 @@ inline void MaglevAssembler::Move(Register dst, int32_t i) {
   Mov(dst, Immediate(i));
 }
 inline void MaglevAssembler::Move(DoubleRegister dst, double n) {
-  // TODO(v8:7700): Implement!
-  UNREACHABLE();
+  Fmov(dst, n);
 }
 inline void MaglevAssembler::Move(Register dst, Handle<HeapObject> obj) {
   Mov(dst, Operand(obj));

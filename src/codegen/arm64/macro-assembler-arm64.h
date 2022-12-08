@@ -561,6 +561,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   inline void SmiTag(Register smi);
 
   inline void SmiToInt32(Register smi);
+  inline void SmiToInt32(Register dst, Register smi);
 
   // Calls Abort(msg) if the condition cond is not satisfied.
   // Use --debug_code to enable.
@@ -1821,7 +1822,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
       DCHECK(!registers.has(fp_zero));
       registers.set(fp_zero);
     }
-    PushQRegList(registers);
+    PushDRegList(registers);
   }
   inline void PopAll(DoubleRegList registers,
                      int stack_slot_size = kDoubleSize) {
@@ -1829,7 +1830,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
       DCHECK(!registers.has(fp_zero));
       registers.set(fp_zero);
     }
-    PopQRegList(registers);
+    PopDRegList(registers);
   }
 
   // Push the specified register 'count' times.

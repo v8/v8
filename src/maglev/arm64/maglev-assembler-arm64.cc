@@ -79,6 +79,23 @@ void MaglevAssembler::Allocate(RegisterSnapshot& register_snapshot,
   bind(*done);
 }
 
+void MaglevAssembler::AllocateHeapNumber(RegisterSnapshot register_snapshot,
+                                         Register result,
+                                         DoubleRegister value) {
+  // In the case we need to call the runtime, we should spill the value
+  // register. Even if it is not live in the next node, otherwise the
+  // allocation call might trash it.
+  register_snapshot.live_double_registers.set(value);
+  Allocate(register_snapshot, result, HeapNumber::kSize);
+  // `Allocate` needs 2 scratch registers, so it's important to `AcquireX` after
+  // `Allocate` is done and not before.
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.AcquireX();
+  LoadRoot(scratch, RootIndex::kHeapNumberMap);
+  StoreTaggedField(scratch, FieldMemOperand(result, HeapObject::kMapOffset));
+  Str(value, FieldMemOperand(result, HeapNumber::kValueOffset));
+}
+
 void MaglevAssembler::Prologue(Graph* graph) {
   if (v8_flags.maglev_ool_prologue) {
     // TODO(v8:7700): Implement!

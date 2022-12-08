@@ -115,13 +115,6 @@ void Int32DecrementWithOverflow::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(vs, DeoptimizeReason::kOverflow, this);
 }
 
-UNIMPLEMENTED_NODE(Float64Add)
-UNIMPLEMENTED_NODE(Float64Subtract)
-UNIMPLEMENTED_NODE(Float64Multiply)
-UNIMPLEMENTED_NODE(Float64Divide)
-UNIMPLEMENTED_NODE_WITH_CALL(Float64Exponentiate)
-UNIMPLEMENTED_NODE(Float64Modulus)
-UNIMPLEMENTED_NODE(Float64Negate)
 UNIMPLEMENTED_NODE(Float64Equal)
 UNIMPLEMENTED_NODE(Float64StrictEqual)
 UNIMPLEMENTED_NODE(Float64LessThan)
@@ -170,9 +163,7 @@ UNIMPLEMENTED_NODE(TruncateUint32ToInt32)
 UNIMPLEMENTED_NODE(TruncateFloat64ToInt32)
 UNIMPLEMENTED_NODE(Int32ToNumber)
 UNIMPLEMENTED_NODE(Uint32ToNumber)
-UNIMPLEMENTED_NODE(Float64Box)
 UNIMPLEMENTED_NODE(HoleyFloat64Box)
-UNIMPLEMENTED_NODE(CheckedFloat64Unbox)
 UNIMPLEMENTED_NODE(LogicalNot)
 UNIMPLEMENTED_NODE(SetPendingMessage)
 UNIMPLEMENTED_NODE_WITH_CALL(StringAt)
@@ -372,6 +363,97 @@ DEF_OPERATION(Int32GreaterThan)
 DEF_OPERATION(Int32GreaterThanOrEqual)
 #undef DEF_OPERATION
 
+void Float64Add::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsRegister(this);
+}
+
+void Float64Add::GenerateCode(MaglevAssembler* masm,
+                              const ProcessingState& state) {
+  DoubleRegister left = ToDoubleRegister(left_input());
+  DoubleRegister right = ToDoubleRegister(right_input());
+  DoubleRegister out = ToDoubleRegister(result());
+  __ Fadd(out, left, right);
+}
+
+void Float64Subtract::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsRegister(this);
+}
+
+void Float64Subtract::GenerateCode(MaglevAssembler* masm,
+                                   const ProcessingState& state) {
+  DoubleRegister left = ToDoubleRegister(left_input());
+  DoubleRegister right = ToDoubleRegister(right_input());
+  DoubleRegister out = ToDoubleRegister(result());
+  __ Fsub(out, left, right);
+}
+
+void Float64Multiply::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsRegister(this);
+}
+
+void Float64Multiply::GenerateCode(MaglevAssembler* masm,
+                                   const ProcessingState& state) {
+  DoubleRegister left = ToDoubleRegister(left_input());
+  DoubleRegister right = ToDoubleRegister(right_input());
+  DoubleRegister out = ToDoubleRegister(result());
+  __ Fmul(out, left, right);
+}
+
+void Float64Divide::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsRegister(this);
+}
+
+void Float64Divide::GenerateCode(MaglevAssembler* masm,
+                                 const ProcessingState& state) {
+  DoubleRegister left = ToDoubleRegister(left_input());
+  DoubleRegister right = ToDoubleRegister(right_input());
+  DoubleRegister out = ToDoubleRegister(result());
+  __ Fdiv(out, left, right);
+}
+
+int Float64Modulus::MaxCallStackArgs() const { return 0; }
+void Float64Modulus::SetValueLocationConstraints() {
+  UseFixed(left_input(), v0);
+  UseFixed(right_input(), v1);
+  DefineSameAsFirst(this);
+}
+void Float64Modulus::GenerateCode(MaglevAssembler* masm,
+                                  const ProcessingState& state) {
+  AllowExternalCallThatCantCauseGC scope(masm);
+  __ CallCFunction(ExternalReference::mod_two_doubles_operation(), 0, 2);
+}
+
+void Float64Negate::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineAsRegister(this);
+}
+void Float64Negate::GenerateCode(MaglevAssembler* masm,
+                                 const ProcessingState& state) {
+  DoubleRegister value = ToDoubleRegister(input());
+  DoubleRegister out = ToDoubleRegister(result());
+  __ Fneg(out, value);
+}
+
+int Float64Exponentiate::MaxCallStackArgs() const { return 0; }
+void Float64Exponentiate::SetValueLocationConstraints() {
+  UseFixed(left_input(), v0);
+  UseFixed(right_input(), v1);
+  DefineSameAsFirst(this);
+}
+void Float64Exponentiate::GenerateCode(MaglevAssembler* masm,
+                                       const ProcessingState& state) {
+  AllowExternalCallThatCantCauseGC scope(masm);
+  __ CallCFunction(ExternalReference::ieee754_pow_function(), 2);
+}
+
 void CheckInt32IsSmi::SetValueLocationConstraints() { UseRegister(input()); }
 void CheckInt32IsSmi::GenerateCode(MaglevAssembler* masm,
                                    const ProcessingState& state) {
@@ -419,6 +501,44 @@ void UnsafeSmiTag::GenerateCode(MaglevAssembler* masm,
   if (v8_flags.debug_code) {
     __ Check(vc, AbortReason::kInputDoesNotFitSmi);
   }
+}
+
+void Float64Box::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineAsRegister(this);
+}
+void Float64Box::GenerateCode(MaglevAssembler* masm,
+                              const ProcessingState& state) {
+  DoubleRegister value = ToDoubleRegister(input());
+  Register object = ToRegister(result());
+  __ AllocateHeapNumber(register_snapshot(), object, value);
+}
+
+void CheckedFloat64Unbox::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineAsRegister(this);
+}
+void CheckedFloat64Unbox::GenerateCode(MaglevAssembler* masm,
+                                       const ProcessingState& state) {
+  Register value = ToRegister(input());
+  Label is_not_smi, done;
+  // Check if Smi.
+  __ JumpIfNotSmi(value, &is_not_smi);
+  // If Smi, convert to Float64.
+  UseScratchRegisterScope temps(masm);
+  Register temp = temps.AcquireX();
+  __ SmiToInt32(temp, value);
+  __ sxtw(temp, temp.W());
+  __ scvtf(ToDoubleRegister(result()), temp);
+  __ Jump(&done);
+  __ bind(&is_not_smi);
+  // Check if HeapNumber, deopt otherwise.
+  __ Move(temp, FieldMemOperand(value, HeapObject::kMapOffset));
+  __ CompareRoot(temp, RootIndex::kHeapNumberMap);
+  __ EmitEagerDeoptIf(ne, DeoptimizeReason::kNotANumber, this);
+  __ Move(temp, FieldMemOperand(value, HeapNumber::kValueOffset));
+  __ fmov(ToDoubleRegister(result()), temp);
+  __ bind(&done);
 }
 
 void IncreaseInterruptBudget::SetValueLocationConstraints() {}

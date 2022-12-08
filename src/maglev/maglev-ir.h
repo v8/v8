@@ -1900,21 +1900,23 @@ class Float64BinaryNode : public FixedInputValueNodeT<2, Derived> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
-#define DEF_FLOAT64_BINARY_NODE(Name) \
-  DEF_OPERATION_NODE(Float64##Name, Float64BinaryNode, Name)
-DEF_FLOAT64_BINARY_NODE(Add)
-DEF_FLOAT64_BINARY_NODE(Subtract)
-DEF_FLOAT64_BINARY_NODE(Multiply)
-DEF_FLOAT64_BINARY_NODE(Divide)
-DEF_FLOAT64_BINARY_NODE(Modulus)
-#undef DEF_FLOAT64_BINARY_NODE
+#define DEF_OPERATION_NODE_WITH_CALL(Name, Super, OpName)          \
+  class Name : public Super<Name, Operation::k##OpName> {          \
+    using Base = Super<Name, Operation::k##OpName>;                \
+                                                                   \
+   public:                                                         \
+    explicit Name(uint64_t bitfield) : Base(bitfield) {}           \
+    int MaxCallStackArgs() const;                                  \
+    void SetValueLocationConstraints();                            \
+    void GenerateCode(MaglevAssembler*, const ProcessingState&);   \
+    void PrintParams(std::ostream&, MaglevGraphLabeller*) const {} \
+  };
 
-class Float64Exponentiate
-    : public FixedInputValueNodeT<2, Float64Exponentiate> {
-  using Base = FixedInputValueNodeT<2, Float64Exponentiate>;
+template <class Derived, Operation kOperation>
+class Float64BinaryNodeWithCall : public FixedInputValueNodeT<2, Derived> {
+  using Base = FixedInputValueNodeT<2, Derived>;
 
  public:
-  explicit Float64Exponentiate(uint64_t bitfield) : Base(bitfield) {}
   static constexpr OpProperties kProperties =
       OpProperties::Float64() | OpProperties::Call();
   static constexpr typename Base::InputTypes kInputTypes{
@@ -1925,11 +1927,30 @@ class Float64Exponentiate
   Input& left_input() { return Node::input(kLeftIndex); }
   Input& right_input() { return Node::input(kRightIndex); }
 
-  int MaxCallStackArgs() const;
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+ protected:
+  explicit Float64BinaryNodeWithCall(uint64_t bitfield) : Base(bitfield) {}
+
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
+
+#define DEF_FLOAT64_BINARY_NODE(Name) \
+  DEF_OPERATION_NODE(Float64##Name, Float64BinaryNode, Name)
+#define DEF_FLOAT64_BINARY_NODE_WITH_CALL(Name) \
+  DEF_OPERATION_NODE_WITH_CALL(Float64##Name, Float64BinaryNodeWithCall, Name)
+DEF_FLOAT64_BINARY_NODE(Add)
+DEF_FLOAT64_BINARY_NODE(Subtract)
+DEF_FLOAT64_BINARY_NODE(Multiply)
+DEF_FLOAT64_BINARY_NODE(Divide)
+#ifdef V8_TARGET_ARCH_ARM64
+// On Arm64, floating point modulus is implemented with a call to a C++
+// function, while on x64, it's implemented natively without call.
+DEF_FLOAT64_BINARY_NODE_WITH_CALL(Modulus)
+#else
+DEF_FLOAT64_BINARY_NODE(Modulus)
+#endif
+DEF_FLOAT64_BINARY_NODE_WITH_CALL(Exponentiate)
+#undef DEF_FLOAT64_BINARY_NODE
+#undef DEF_FLOAT64_BINARY_NODE_WITH_CALL
 
 template <class Derived, Operation kOperation>
 class Float64CompareNode : public FixedInputValueNodeT<2, Derived> {
@@ -1963,6 +1984,7 @@ DEF_FLOAT64_COMPARE_NODE(GreaterThanOrEqual)
 #undef DEF_FLOAT64_COMPARE_NODE
 
 #undef DEF_OPERATION_NODE
+#undef DEF_OPERATION_NODE_WITH_CALL
 
 class Float64Negate : public FixedInputValueNodeT<1, Float64Negate> {
   using Base = FixedInputValueNodeT<1, Float64Negate>;
