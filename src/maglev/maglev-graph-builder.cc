@@ -4566,6 +4566,11 @@ void MaglevGraphBuilder::VisitForInPrepare() {
   compiler::FeedbackSource feedback_source{feedback(), slot};
   // TODO(v8:7700): Use feedback and create fast path.
   ValueNode* context = GetContext();
+  interpreter::Register cache_type = iterator_.GetRegisterOperand(0);
+  // This move needs to happen before ForInPrepare to avoid lazy deopt extending
+  // the lifetime of the {cache_type} register.
+  MoveNodeBetweenRegisters(interpreter::Register::virtual_accumulator(),
+                           cache_type);
   ForInPrepare* result =
       AddNewNode<ForInPrepare>({context, enumerator}, feedback_source);
   // No need to set the accumulator.
@@ -4573,11 +4578,10 @@ void MaglevGraphBuilder::VisitForInPrepare() {
   // The result is output in registers |cache_info_triple| to
   // |cache_info_triple + 2|, with the registers holding cache_type,
   // cache_array, and cache_length respectively.
-  interpreter::Register first = iterator_.GetRegisterOperand(0);
-  auto array_and_length =
-      std::make_pair(interpreter::Register{first.index() + 1},
-                     interpreter::Register{first.index() + 2});
-  StoreRegisterPair(array_and_length, result);
+  auto cache_array_and_length =
+      std::make_pair(interpreter::Register{cache_type.index() + 1},
+                     interpreter::Register{cache_type.index() + 2});
+  StoreRegisterPair(cache_array_and_length, result);
 }
 
 void MaglevGraphBuilder::VisitForInContinue() {
