@@ -255,12 +255,12 @@ inline void MaglevAssembler::MaterialiseValueNode(Register dst,
       } else {
         movq_heap_number(dst, int_value);
       }
-      break;
+      return;
     }
     case Opcode::kFloat64Constant: {
       double double_value = value->Cast<Float64Constant>()->value();
       movq_heap_number(dst, double_value);
-      break;
+      return;
     }
     default:
       break;
