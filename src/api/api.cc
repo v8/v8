@@ -546,7 +546,7 @@ struct SnapshotCreatorData {
 
 SnapshotCreator::SnapshotCreator(Isolate* v8_isolate,
                                  const intptr_t* external_references,
-                                 StartupData* existing_snapshot) {
+                                 const StartupData* existing_snapshot) {
   SnapshotCreatorData* data = new SnapshotCreatorData(v8_isolate);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   i_isolate->set_array_buffer_allocator(&data->allocator_);
@@ -568,7 +568,7 @@ SnapshotCreator::SnapshotCreator(Isolate* v8_isolate,
 }
 
 SnapshotCreator::SnapshotCreator(const intptr_t* external_references,
-                                 StartupData* existing_snapshot)
+                                 const StartupData* existing_snapshot)
     : SnapshotCreator(Isolate::Allocate(), external_references,
                       existing_snapshot) {}
 
