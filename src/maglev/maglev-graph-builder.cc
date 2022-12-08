@@ -3309,7 +3309,8 @@ ValueNode* MaglevGraphBuilder::ReduceFunctionPrototypeApplyCallWithReceiver(
   } else if (args.count() == 1 || IsNullValue(args[1]) ||
              IsUndefinedValue(args[1])) {
     // No need for spread. We have only the new receiver.
-    CallArguments new_args(ConvertReceiverMode::kAny, {args[0]});
+    CallArguments new_args(ConvertReceiverMode::kAny,
+                           {GetTaggedValue(args[0])});
     call = ReduceCall(receiver, new_args, feedback_source, speculation_mode);
   } else {
     // FunctionPrototypeApply only consider two arguments: the new receiver and
@@ -3320,7 +3321,8 @@ ValueNode* MaglevGraphBuilder::ReduceFunctionPrototypeApplyCallWithReceiver(
       // array like.
       // TODO(victorgomes): Consider checking if arguments_list is an array-like
       // constant and unfold the arguments.
-      CallArguments new_args(ConvertReceiverMode::kAny, {args[0], args[1]},
+      CallArguments new_args(ConvertReceiverMode::kAny,
+                             {GetTaggedValue(args[0]), GetTaggedValue(args[1])},
                              CallArguments::kWithArrayLike);
       call = ReduceCall(receiver, new_args, feedback_source, speculation_mode);
     } else {
