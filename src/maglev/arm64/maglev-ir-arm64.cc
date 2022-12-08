@@ -115,12 +115,6 @@ void Int32DecrementWithOverflow::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(vs, DeoptimizeReason::kOverflow, this);
 }
 
-UNIMPLEMENTED_NODE(Float64Equal)
-UNIMPLEMENTED_NODE(Float64StrictEqual)
-UNIMPLEMENTED_NODE(Float64LessThan)
-UNIMPLEMENTED_NODE(Float64LessThanOrEqual)
-UNIMPLEMENTED_NODE(Float64GreaterThan)
-UNIMPLEMENTED_NODE(Float64GreaterThanOrEqual)
 UNIMPLEMENTED_NODE_WITH_CALL(Float64Ieee754Unary)
 UNIMPLEMENTED_NODE_WITH_CALL(BuiltinStringFromCharCode)
 UNIMPLEMENTED_NODE_WITH_CALL(BuiltinStringPrototypeCharCodeAt)
@@ -449,6 +443,51 @@ void Float64Exponentiate::GenerateCode(MaglevAssembler* masm,
   AllowExternalCallThatCantCauseGC scope(masm);
   __ CallCFunction(ExternalReference::ieee754_pow_function(), 2);
 }
+
+template <class Derived, Operation kOperation>
+void Float64CompareNode<Derived, kOperation>::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsRegister(this);
+}
+
+template <class Derived, Operation kOperation>
+void Float64CompareNode<Derived, kOperation>::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
+  DoubleRegister left = ToDoubleRegister(left_input());
+  DoubleRegister right = ToDoubleRegister(right_input());
+  Register result = ToRegister(this->result());
+  Label is_false, end;
+  __ Fcmp(left, right);
+  // Check for NaN first.
+  __ JumpIf(vs, &is_false);
+  __ JumpIf(NegateCondition(ConditionFor(kOperation)), &is_false);
+  // TODO(leszeks): Investigate loading existing materialisations of roots here,
+  // if available.
+  __ LoadRoot(result, RootIndex::kTrueValue);
+  __ Jump(&end);
+  {
+    __ bind(&is_false);
+    __ LoadRoot(result, RootIndex::kFalseValue);
+  }
+  __ bind(&end);
+}
+
+#define DEF_OPERATION(Name)                               \
+  void Name::SetValueLocationConstraints() {              \
+    Base::SetValueLocationConstraints();                  \
+  }                                                       \
+  void Name::GenerateCode(MaglevAssembler* masm,          \
+                          const ProcessingState& state) { \
+    Base::GenerateCode(masm, state);                      \
+  }
+DEF_OPERATION(Float64Equal)
+DEF_OPERATION(Float64StrictEqual)
+DEF_OPERATION(Float64LessThan)
+DEF_OPERATION(Float64LessThanOrEqual)
+DEF_OPERATION(Float64GreaterThan)
+DEF_OPERATION(Float64GreaterThanOrEqual)
+#undef DEF_OPERATION
 
 void CheckInt32IsSmi::SetValueLocationConstraints() { UseRegister(input()); }
 void CheckInt32IsSmi::GenerateCode(MaglevAssembler* masm,
