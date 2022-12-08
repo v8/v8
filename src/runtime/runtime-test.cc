@@ -624,14 +624,15 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
                                                               *function);
   }
 
-  if (function->HasAvailableOptimizedCode()) {
+  if (function->HasAvailableOptimizedCode() &&
+      !function->code().is_maglevved()) {
     DCHECK(function->HasAttachedOptimizedCode() ||
            function->ChecksTieringState());
     // If function is already optimized, return.
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
-  if (!it.frame()->is_unoptimized()) {
+  if (!it.frame()->is_unoptimized() && !it.frame()->is_maglev()) {
     // Nothing to be done.
     return ReadOnlyRoots(isolate).undefined_value();
   }
