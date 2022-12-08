@@ -2258,7 +2258,8 @@ size_t Heap::PerformGarbageCollection(GarbageCollector collector,
 
   DCHECK_IMPLIES(collector == GarbageCollector::MINOR_MARK_COMPACTOR,
                  !pretenuring_handler_.HasPretenuringFeedback());
-  pretenuring_handler_.ProcessPretenuringFeedback();
+  if (collector != GarbageCollector::MINOR_MARK_COMPACTOR)
+    pretenuring_handler_.ProcessPretenuringFeedback();
 
   UpdateSurvivalStatistics(static_cast<int>(start_young_generation_size));
   ConfigureInitialOldGenerationSize();
