@@ -31,14 +31,15 @@ class TestCaseTest(unittest.TestCase):
     self.assertEqual(test.keep_output, False)
 
     subtest = test.create_subtest(FakeProcessor(), 0, keep_output=True)
-    self.assertEqual(subtest.rdb_test_id, 'fakeSuite/parent/fakep/0')
+    self.assertEqual(subtest.rdb_test_id, 'fakeSuite/parent//fakep/0')
     # provide by FakeProcessor
     self.assertEqual(subtest.processor.name, 'fake_processor1')
     self.assertEqual(subtest.procid, 'fakeSuite/parent.fake_processor1-0')
     self.assertEqual(subtest.keep_output, True)
 
     subsubtest = subtest.create_subtest(FakeProcessor(), 1)
-    self.assertEqual(subsubtest.rdb_test_id, 'fakeSuite/parent/fakep/0/fakep/1')
+    self.assertEqual(subsubtest.rdb_test_id,
+                     'fakeSuite/parent//fakep/0/fakep/1')
     # provide by FakeProcessor
     self.assertEqual(subsubtest.processor.name, 'fake_processor2')
     self.assertEqual(subsubtest.procid,
@@ -68,7 +69,7 @@ class FakeProcessor:
     return f'fake_processor{self.idx}'
 
   def test_suffix(self, test):
-    return f'/fakep/{test.subtest_id}'
+    return f'fakep/{test.subtest_id}'
 
 
 if __name__ == '__main__':

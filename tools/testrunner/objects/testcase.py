@@ -460,11 +460,18 @@ class TestCase(object):
   def __str__(self):
     return self.full_name
 
+  def test_suffixes(self):
+    suffixes = self.origin.test_suffixes() if self.origin else []
+    current_suffix = self.processor.test_suffix(self)
+    if current_suffix:
+      suffixes.append(str(current_suffix))
+    return suffixes
+
   @property
   def rdb_test_id(self):
-    rdb_id = self.origin.rdb_test_id if self.origin else self.full_name
-    rdb_id += self.processor.test_suffix(self)
-    return rdb_id
+    suffixes = '/'.join(self.test_suffixes())
+    full_suffix = ('//' + suffixes) if suffixes else ''
+    return self.full_name + full_suffix
 
   @property
   def processor_name(self):
@@ -475,7 +482,7 @@ class DuckProcessor:
   """Dummy default processor for original tests implemented by duck-typing."""
 
   def test_suffix(self, test):
-    return ''
+    return None
 
   @property
   def name(self):

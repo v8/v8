@@ -173,7 +173,7 @@ class FuzzerProc(base.TestProcProducer):
     self._gens = {}
 
   def test_suffix(self, test):
-    return '/' + test.subtest_id
+    return test.subtest_id
 
   def _next_test(self, test):
     if self.is_stopped:

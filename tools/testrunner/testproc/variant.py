@@ -29,7 +29,7 @@ class VariantProc(base.TestProcProducer):
     self._variants = variants
 
   def test_suffix(self, test):
-    return f'/{test.variant}'
+    return test.variant
 
   def _next_test(self, test):
     gen = self._variants_gen(test)
