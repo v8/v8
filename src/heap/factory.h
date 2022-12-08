@@ -696,6 +696,11 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       size_t byte_length, InitializedFlag initialized,
       AllocationType allocation = AllocationType::kYoung);
 
+  MaybeHandle<JSArrayBuffer> NewJSArrayBufferAndBackingStore(
+      size_t byte_length, size_t max_byte_length, InitializedFlag initialized,
+      ResizableFlag resizable = ResizableFlag::kNotResizable,
+      AllocationType allocation = AllocationType::kYoung);
+
   Handle<JSArrayBuffer> NewJSSharedArrayBuffer(
       std::shared_ptr<BackingStore> backing_store);
 

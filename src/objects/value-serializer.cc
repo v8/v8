@@ -157,6 +157,8 @@ enum class SerializationTag : uint8_t {
   kEndJSSet = ',',
   // Array buffer. byteLength:uint32_t, then raw data.
   kArrayBuffer = 'B',
+  // Resizable ArrayBuffer.
+  kResizableArrayBuffer = '~',
   // Array buffer (transferred). transferID:uint32_t
   kArrayBufferTransfer = 't',
   // View into an array buffer.
@@ -933,14 +935,25 @@ Maybe<bool> ValueSerializer::WriteJSArrayBuffer(
     return ThrowDataCloneError(
         MessageTemplate::kDataCloneErrorDetachedArrayBuffer);
   }
-  double byte_length = array_buffer->byte_length();
+  size_t byte_length = array_buffer->byte_length();
   if (byte_length > std::numeric_limits<uint32_t>::max()) {
     return ThrowDataCloneError(MessageTemplate::kDataCloneError, array_buffer);
   }
-  // TODO(v8:11111): Support RAB / GSAB. The wire version will need to be
-  // bumped.
+  if (array_buffer->is_resizable_by_js()) {
+    size_t max_byte_length = array_buffer->max_byte_length();
+    if (max_byte_length > std::numeric_limits<uint32_t>::max()) {
+      return ThrowDataCloneError(MessageTemplate::kDataCloneError,
+                                 array_buffer);
+    }
+
+    WriteTag(SerializationTag::kResizableArrayBuffer);
+    WriteVarint<uint32_t>(static_cast<uint32_t>(byte_length));
+    WriteVarint<uint32_t>(static_cast<uint32_t>(max_byte_length));
+    WriteRawBytes(array_buffer->backing_store(), byte_length);
+    return ThrowIfOutOfMemory();
+  }
   WriteTag(SerializationTag::kArrayBuffer);
-  WriteVarint<uint32_t>(byte_length);
+  WriteVarint<uint32_t>(static_cast<uint32_t>(byte_length));
   WriteRawBytes(array_buffer->backing_store(), byte_length);
   return ThrowIfOutOfMemory();
 }
@@ -1558,15 +1571,22 @@ MaybeHandle<Object> ValueDeserializer::ReadObjectInternal() {
     case SerializationTag::kBeginJSSet:
       return ReadJSSet();
     case SerializationTag::kArrayBuffer: {
-      const bool is_shared = false;
-      return ReadJSArrayBuffer(is_shared);
+      constexpr bool is_shared = false;
+      constexpr bool is_resizable = false;
+      return ReadJSArrayBuffer(is_shared, is_resizable);
+    }
+    case SerializationTag::kResizableArrayBuffer: {
+      constexpr bool is_shared = false;
+      constexpr bool is_resizable = true;
+      return ReadJSArrayBuffer(is_shared, is_resizable);
     }
     case SerializationTag::kArrayBufferTransfer: {
       return ReadTransferredJSArrayBuffer();
     }
     case SerializationTag::kSharedArrayBuffer: {
-      const bool is_shared = true;
-      return ReadJSArrayBuffer(is_shared);
+      constexpr bool is_shared = true;
+      constexpr bool is_resizable = false;
+      return ReadJSArrayBuffer(is_shared, is_resizable);
     }
     case SerializationTag::kError:
       return ReadJSError();
@@ -1992,7 +2012,7 @@ MaybeHandle<JSSet> ValueDeserializer::ReadJSSet() {
 }
 
 MaybeHandle<JSArrayBuffer> ValueDeserializer::ReadJSArrayBuffer(
-    bool is_shared) {
+    bool is_shared, bool is_resizable) {
   uint32_t id = next_id_++;
   if (is_shared) {
     uint32_t clone_id;
@@ -2015,9 +2035,28 @@ MaybeHandle<JSArrayBuffer> ValueDeserializer::ReadJSArrayBuffer(
       byte_length > static_cast<size_t>(end_ - position_)) {
     return MaybeHandle<JSArrayBuffer>();
   }
+  uint32_t max_byte_length = byte_length;
+  if (is_resizable) {
+    if (!ReadVarint<uint32_t>().To(&max_byte_length)) {
+      return MaybeHandle<JSArrayBuffer>();
+    }
+    if (byte_length > max_byte_length) {
+      return MaybeHandle<JSArrayBuffer>();
+    }
+    if (!v8_flags.harmony_rab_gsab) {
+      // Disable resizability. This ensures that no resizable buffers are
+      // created in a version which has the harmony_rab_gsab turned off, even if
+      // such a version is reading data containing resizable buffers from disk.
+      is_resizable = false;
+      max_byte_length = byte_length;
+    }
+  }
   MaybeHandle<JSArrayBuffer> result =
       isolate_->factory()->NewJSArrayBufferAndBackingStore(
-          byte_length, InitializedFlag::kUninitialized);
+          byte_length, max_byte_length, InitializedFlag::kUninitialized,
+          is_resizable ? ResizableFlag::kResizable
+                       : ResizableFlag::kNotResizable);
+
   Handle<JSArrayBuffer> array_buffer;
   if (!result.ToHandle(&array_buffer)) return result;
 
@@ -2252,9 +2291,10 @@ MaybeHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {
     return MaybeHandle<WasmMemoryObject>();
   }
 
-  const bool is_shared = true;
+  constexpr bool is_shared = true;
+  constexpr bool is_resizable = false;
   Handle<JSArrayBuffer> buffer;
-  if (!ReadJSArrayBuffer(is_shared).ToHandle(&buffer)) {
+  if (!ReadJSArrayBuffer(is_shared, is_resizable).ToHandle(&buffer)) {
     return MaybeHandle<WasmMemoryObject>();
   }
 

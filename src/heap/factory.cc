@@ -3052,18 +3052,42 @@ Handle<JSArrayBuffer> Factory::NewJSArrayBuffer(
 MaybeHandle<JSArrayBuffer> Factory::NewJSArrayBufferAndBackingStore(
     size_t byte_length, InitializedFlag initialized,
     AllocationType allocation) {
+  return NewJSArrayBufferAndBackingStore(byte_length, byte_length, initialized,
+                                         ResizableFlag::kNotResizable,
+                                         allocation);
+}
+
+MaybeHandle<JSArrayBuffer> Factory::NewJSArrayBufferAndBackingStore(
+    size_t byte_length, size_t max_byte_length, InitializedFlag initialized,
+    ResizableFlag resizable, AllocationType allocation) {
+  DCHECK_LE(byte_length, max_byte_length);
   std::unique_ptr<BackingStore> backing_store = nullptr;
 
-  if (byte_length > 0) {
-    backing_store = BackingStore::Allocate(isolate(), byte_length,
-                                           SharedFlag::kNotShared, initialized);
+  if (resizable == ResizableFlag::kResizable) {
+    size_t page_size, initial_pages, max_pages;
+    if (JSArrayBuffer::GetResizableBackingStorePageConfiguration(
+            isolate(), byte_length, max_byte_length, kDontThrow, &page_size,
+            &initial_pages, &max_pages)
+            .IsNothing()) {
+      return MaybeHandle<JSArrayBuffer>();
+    }
+
+    backing_store = BackingStore::TryAllocateAndPartiallyCommitMemory(
+        isolate(), byte_length, max_byte_length, page_size, initial_pages,
+        max_pages, WasmMemoryFlag::kNotWasm, SharedFlag::kNotShared);
     if (!backing_store) return MaybeHandle<JSArrayBuffer>();
+  } else {
+    if (byte_length > 0) {
+      backing_store = BackingStore::Allocate(
+          isolate(), byte_length, SharedFlag::kNotShared, initialized);
+      if (!backing_store) return MaybeHandle<JSArrayBuffer>();
+    }
   }
   Handle<Map> map(isolate()->native_context()->array_buffer_fun().initial_map(),
                   isolate());
   auto array_buffer =
       Handle<JSArrayBuffer>::cast(NewJSObjectFromMap(map, allocation));
-  array_buffer->Setup(SharedFlag::kNotShared, ResizableFlag::kNotResizable,
+  array_buffer->Setup(SharedFlag::kNotShared, resizable,
                       std::move(backing_store), isolate());
   return array_buffer;
 }
