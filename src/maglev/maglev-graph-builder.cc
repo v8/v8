@@ -3088,6 +3088,13 @@ ValueNode* MaglevGraphBuilder::TryReduceMathPow(compiler::JSFunctionRef target,
   if (args.count() < 2) {
     return GetRootConstant(RootIndex::kNanValue);
   }
+  // If both arguments are tagged, it is cheaper to call Math.Pow builtin,
+  // instead of Float64Exponentiate, since we are still making a call and we
+  // don't need to unbox both inputs. See https://crbug.com/1393643.
+  if (args[0]->properties().is_tagged() && args[1]->properties().is_tagged()) {
+    // The Math.pow call will be created in CallKnownJSFunction reduction.
+    return nullptr;
+  }
   ValueNode* left = GetFloat64(args[0]);
   ValueNode* right = GetFloat64(args[1]);
   return AddNewNode<Float64Exponentiate>({left, right});

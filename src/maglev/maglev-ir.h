@@ -548,6 +548,9 @@ class OpProperties {
   constexpr ValueRepresentation value_representation() const {
     return kValueRepresentationBits::decode(bitfield_);
   }
+  constexpr bool is_tagged() const {
+    return value_representation() == ValueRepresentation::kTagged;
+  }
   constexpr bool is_conversion() const {
     return kIsConversionBit::decode(bitfield_);
   }
