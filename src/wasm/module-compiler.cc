@@ -1133,10 +1133,6 @@ bool CompileLazy(Isolate* isolate, WasmInstanceObject instance,
 
   TRACE_LAZY("Compiling wasm-function#%d.\n", func_index);
 
-  base::ThreadTicks thread_ticks = base::ThreadTicks::IsSupported()
-                                       ? base::ThreadTicks::Now()
-                                       : base::ThreadTicks();
-
   CompilationStateImpl* compilation_state =
       Impl(native_module->compilation_state());
   ExecutionTierPair tiers = GetLazyCompilationTiers(native_module, func_index);
@@ -1153,11 +1149,6 @@ bool CompileLazy(Isolate* isolate, WasmInstanceObject instance,
       &env, compilation_state->GetWireBytesStorage().get(), counters,
       assembler_buffer_cache, &detected_features);
   compilation_state->OnCompilationStopped(detected_features);
-  if (!thread_ticks.IsNull()) {
-    native_module->UpdateCPUDuration(
-        (base::ThreadTicks::Now() - thread_ticks).InMicroseconds(),
-        tiers.baseline_tier);
-  }
 
   // During lazy compilation, we can only get compilation errors when
   // {--wasm-lazy-validation} is enabled. Otherwise, the module was fully
@@ -1543,10 +1534,6 @@ CompilationExecutionResult ExecuteCompilationUnits(
 
   WasmFeatures detected_features = WasmFeatures::None();
 
-  base::ThreadTicks thread_ticks = base::ThreadTicks::IsSupported()
-                                       ? base::ThreadTicks::Now()
-                                       : base::ThreadTicks();
-
   // Preparation (synchronized): Initialize the fields above and get the first
   // compilation unit.
   {
@@ -1607,11 +1594,6 @@ CompilationExecutionResult ExecuteCompilationUnits(
       if (yield ||
           !(unit = compile_scope.compilation_state()->GetNextCompilationUnit(
                 queue, baseline_only))) {
-        if (!thread_ticks.IsNull()) {
-          compile_scope.native_module()->UpdateCPUDuration(
-              (base::ThreadTicks::Now() - thread_ticks).InMicroseconds(),
-              current_tier);
-        }
         std::vector<std::unique_ptr<WasmCode>> unpublished_code =
             compile_scope.native_module()->AddCompiledCode(
                 base::VectorOf(std::move(results_to_publish)));
@@ -1633,12 +1615,6 @@ CompilationExecutionResult ExecuteCompilationUnits(
       bool liftoff_finished = unit->tier() != current_tier &&
                               unit->tier() == ExecutionTier::kTurbofan;
       if (batch_full || liftoff_finished) {
-        if (!thread_ticks.IsNull()) {
-          base::ThreadTicks thread_ticks_now = base::ThreadTicks::Now();
-          compile_scope.native_module()->UpdateCPUDuration(
-              (thread_ticks_now - thread_ticks).InMicroseconds(), current_tier);
-          thread_ticks = thread_ticks_now;
-        }
         std::vector<std::unique_ptr<WasmCode>> unpublished_code =
             compile_scope.native_module()->AddCompiledCode(
                 base::VectorOf(std::move(results_to_publish)));
@@ -1801,9 +1777,7 @@ class CompilationTimeCallback : public CompilationEventCallback {
           true,                                    // success
           native_module->liftoff_code_size(),      // code_size_in_bytes
           native_module->liftoff_bailout_count(),  // liftoff_bailout_count
-          duration.InMicroseconds(),               // wall_clock_duration_in_us
-          static_cast<int64_t>(                    // cpu_time_duration_in_us
-              native_module->baseline_compilation_cpu_duration())};
+          duration.InMicroseconds()};              // wall_clock_duration_in_us
       metrics_recorder_->DelayMainThreadEvent(event, context_id_);
     }
     if (compilation_event == CompilationEvent::kFailedCompilation) {
@@ -1816,9 +1790,7 @@ class CompilationTimeCallback : public CompilationEventCallback {
           false,                                   // success
           native_module->liftoff_code_size(),      // code_size_in_bytes
           native_module->liftoff_bailout_count(),  // liftoff_bailout_count
-          duration.InMicroseconds(),               // wall_clock_duration_in_us
-          static_cast<int64_t>(                    // cpu_time_duration_in_us
-              native_module->baseline_compilation_cpu_duration())};
+          duration.InMicroseconds()};              // wall_clock_duration_in_us
       metrics_recorder_->DelayMainThreadEvent(event, context_id_);
     }
   }
@@ -2325,9 +2297,7 @@ void AsyncCompileJob::FinishCompile(bool is_after_cache_hit) {
           !compilation_state->failed(),             // success
           native_module_->turbofan_code_size(),     // code_size_in_bytes
           native_module_->liftoff_bailout_count(),  // liftoff_bailout_count
-          duration.InMicroseconds(),                // wall_clock_duration_in_us
-          static_cast<int64_t>(                     // cpu_time_duration_in_us
-              native_module_->baseline_compilation_cpu_duration())};
+          duration.InMicroseconds()};               // wall_clock_duration_in_us
       isolate_->metrics_recorder()->DelayMainThreadEvent(event, context_id_);
     }
   }

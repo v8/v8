@@ -1722,15 +1722,6 @@ void NativeModule::SetWireBytes(base::OwnedVector<const uint8_t> wire_bytes) {
   }
 }
 
-void NativeModule::UpdateCPUDuration(size_t cpu_duration, ExecutionTier tier) {
-  if (!compilation_state_->baseline_compilation_finished()) {
-    baseline_compilation_cpu_duration_.fetch_add(cpu_duration,
-                                                 std::memory_order_relaxed);
-  } else if (tier == ExecutionTier::kTurbofan) {
-    tier_up_cpu_duration_.fetch_add(cpu_duration, std::memory_order_relaxed);
-  }
-}
-
 void NativeModule::AddLazyCompilationTimeSample(int64_t sample_in_micro_sec) {
   num_lazy_compilations_.fetch_add(1, std::memory_order_relaxed);
   sum_lazy_compilation_time_in_micro_sec_.fetch_add(sample_in_micro_sec,

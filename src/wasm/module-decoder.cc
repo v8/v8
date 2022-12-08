@@ -104,9 +104,6 @@ ModuleResult DecodeWasmModule(
   v8::metrics::WasmModuleDecoded metrics_event;
   base::ElapsedTimer timer;
   timer.Start();
-  base::ThreadTicks thread_ticks = base::ThreadTicks::IsSupported()
-                                       ? base::ThreadTicks::Now()
-                                       : base::ThreadTicks();
   ModuleResult result = DecodeWasmModule(enabled_features, wire_bytes,
                                          validate_functions, origin);
   if (counters && result.ok()) {
@@ -119,10 +116,6 @@ ModuleResult DecodeWasmModule(
   // Record event metrics.
   metrics_event.wall_clock_duration_in_us = timer.Elapsed().InMicroseconds();
   timer.Stop();
-  if (!thread_ticks.IsNull()) {
-    metrics_event.cpu_duration_in_us =
-        (base::ThreadTicks::Now() - thread_ticks).InMicroseconds();
-  }
   metrics_event.success = result.ok();
   metrics_event.async = decoding_method == DecodingMethod::kAsync ||
                         decoding_method == DecodingMethod::kAsyncStream;

@@ -767,12 +767,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   size_t turbofan_code_size() const {
     return turbofan_code_size_.load(std::memory_order_relaxed);
   }
-  size_t baseline_compilation_cpu_duration() const {
-    return baseline_compilation_cpu_duration_.load();
-  }
-  size_t tier_up_cpu_duration() const {
-    return tier_up_cpu_duration_.load(std::memory_order_relaxed);
-  }
 
   void AddLazyCompilationTimeSample(int64_t sample);
 
@@ -805,7 +799,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   }
   void SetWireBytes(base::OwnedVector<const uint8_t> wire_bytes);
 
-  void UpdateCPUDuration(size_t cpu_duration, ExecutionTier tier);
   void AddLiftoffBailout() {
     liftoff_bailout_count_.fetch_add(1, std::memory_order_relaxed);
   }
@@ -1035,8 +1028,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   std::atomic<size_t> liftoff_bailout_count_{0};
   std::atomic<size_t> liftoff_code_size_{0};
   std::atomic<size_t> turbofan_code_size_{0};
-  std::atomic<size_t> baseline_compilation_cpu_duration_{0};
-  std::atomic<size_t> tier_up_cpu_duration_{0};
 
   // Metrics for lazy compilation.
   std::atomic<int> num_lazy_compilations_{0};
