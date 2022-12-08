@@ -2312,7 +2312,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   V(I16x8Q15MulRSatS)                   \
   V(I8x16Ne)                            \
   V(I8x16GeS)                           \
-  V(I8x16GeU)
+  V(I8x16GeU)                           \
+  V(I8x16Swizzle)
 
 #define EMIT_SIMD_BINOP_WITH_SCRATCH(name)                        \
   case kPPC_##name: {                                             \
@@ -2642,20 +2643,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ mov(ip, Operand(high));
       __ mtvsrdd(kScratchSimd128Reg, ip, r0);
       __ vperm(dst, src0, src1, kScratchSimd128Reg);
-      break;
-    }
-    case kPPC_I8x16Swizzle: {
-      Simd128Register dst = i.OutputSimd128Register(),
-                      src0 = i.InputSimd128Register(0),
-                      src1 = i.InputSimd128Register(1);
-      // Saturate the indices to 5 bits. Input indices more than 31 should
-      // return 0.
-      __ xxspltib(kScratchSimd128Reg, Operand(31));
-      __ vminub(kScratchSimd128Reg, src1, kScratchSimd128Reg);
-      //  input needs to be reversed.
-      __ xxbrq(dst, src0);
-      __ vxor(kSimd128RegZero, kSimd128RegZero, kSimd128RegZero);
-      __ vperm(dst, dst, kSimd128RegZero, kScratchSimd128Reg);
       break;
     }
     case kPPC_I64x2BitMask: {

@@ -4546,6 +4546,19 @@ void TurboAssembler::F32x4Qfms(Simd128Register dst, Simd128Register src1,
   vor(dst, scratch, scratch);
 }
 
+void TurboAssembler::I8x16Swizzle(Simd128Register dst, Simd128Register src1,
+                                  Simd128Register src2,
+                                  Simd128Register scratch) {
+  // Saturate the indices to 5 bits. Input indices more than 31 should
+  // return 0.
+  xxspltib(scratch, Operand(31));
+  vminub(scratch, src2, scratch);
+  // Input needs to be reversed.
+  xxbrq(dst, src1);
+  vxor(kSimd128RegZero, kSimd128RegZero, kSimd128RegZero);
+  vperm(dst, dst, kSimd128RegZero, scratch);
+}
+
 void TurboAssembler::V128AnyTrue(Register dst, Simd128Register src,
                                  Register scratch1, Register scratch2,
                                  Simd128Register scratch3) {

@@ -1186,7 +1186,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   V(I16x8Q15MulRSatS)                   \
   V(I8x16Ne)                            \
   V(I8x16GeS)                           \
-  V(I8x16GeU)
+  V(I8x16GeU)                           \
+  V(I8x16Swizzle)
 
 #define PROTOTYPE_SIMD_BINOP_WITH_SCRATCH(name)                              \
   void name(Simd128Register dst, Simd128Register src1, Simd128Register src2, \

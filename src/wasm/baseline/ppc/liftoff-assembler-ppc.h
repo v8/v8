@@ -1908,7 +1908,8 @@ SIMD_BINOP_LIST(EMIT_SIMD_BINOP)
   V(i16x8_q15mulr_sat_s, I16x8Q15MulRSatS)            \
   V(i8x16_ne, I8x16Ne)                                \
   V(i8x16_ge_s, I8x16GeS)                             \
-  V(i8x16_ge_u, I8x16GeU)
+  V(i8x16_ge_u, I8x16GeU)                             \
+  V(i8x16_swizzle, I8x16Swizzle)
 
 #define EMIT_SIMD_BINOP_WITH_SCRATCH(name, op)                                 \
   void LiftoffAssembler::emit_##name(LiftoffRegister dst, LiftoffRegister lhs, \
@@ -2249,12 +2250,6 @@ void LiftoffAssembler::StoreLane(Register dst, Register offset,
                                  StoreType type, uint8_t lane,
                                  uint32_t* protected_store_pc) {
   bailout(kSimd, "store lane");
-}
-
-void LiftoffAssembler::emit_i8x16_swizzle(LiftoffRegister dst,
-                                          LiftoffRegister lhs,
-                                          LiftoffRegister rhs) {
-  bailout(kUnsupportedArchitecture, "emit_i8x16_swizzle");
 }
 
 void LiftoffAssembler::emit_i8x16_relaxed_swizzle(LiftoffRegister dst,
