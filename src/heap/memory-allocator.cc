@@ -811,6 +811,8 @@ void MemoryAllocator::RecordNormalPageCreated(const Page& page) {
 
 void MemoryAllocator::RecordNormalPageDestroyed(const Page& page) {
   base::MutexGuard guard(&pages_mutex_);
+  DCHECK_IMPLIES(v8_flags.minor_mc && isolate_->heap()->sweeping_in_progress(),
+                 isolate_->heap()->tracer()->IsInAtomicPause());
   auto size = normal_pages_.erase(&page);
   USE(size);
   DCHECK_EQ(1u, size);
@@ -825,6 +827,8 @@ void MemoryAllocator::RecordLargePageCreated(const LargePage& page) {
 
 void MemoryAllocator::RecordLargePageDestroyed(const LargePage& page) {
   base::MutexGuard guard(&pages_mutex_);
+  DCHECK_IMPLIES(v8_flags.minor_mc && isolate_->heap()->sweeping_in_progress(),
+                 isolate_->heap()->tracer()->IsInAtomicPause());
   auto size = large_pages_.erase(&page);
   USE(size);
   DCHECK_EQ(1u, size);
