@@ -4474,8 +4474,8 @@ TEST_F(FunctionBodyDecoderTest, BrOnCastOrCastFail) {
   ExpectFailure(
       FunctionSig::Build(this->zone(), {supertype}, {kWasmExternRef}),
       {WASM_LOCAL_GET(0), WASM_BR_ON_CAST_FAIL(0, sub_struct)}, kAppendEnd,
-      "br_on_cast_fail[0] expected subtype of (ref null func), (ref null "
-      "struct) or (ref null array), found local.get of type externref");
+      "Invalid types for br_on_cast_fail: local.get of type externref has to "
+      "be in the same reference type hierarchy as (ref 1)");
 
   // Cast between types of different type hierarchies is invalid.
   ExpectFailure(

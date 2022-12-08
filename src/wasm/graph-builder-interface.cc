@@ -1336,6 +1336,30 @@ class WasmGraphBuildingInterface {
     }
   }
 
+  void BrOnCastFailAbstract(FullDecoder* decoder, const Value& object,
+                            HeapType type, Value* value_on_branch,
+                            uint32_t br_depth) {
+    switch (type.representation()) {
+      case HeapType::kEq:
+        return BrOnNonEq(decoder, object, value_on_branch, br_depth);
+      case HeapType::kI31:
+        return BrOnNonI31(decoder, object, value_on_branch, br_depth);
+      case HeapType::kStruct:
+        return BrOnNonStruct(decoder, object, value_on_branch, br_depth);
+      case HeapType::kArray:
+        return BrOnNonArray(decoder, object, value_on_branch, br_depth);
+      case HeapType::kNone:
+      case HeapType::kNoExtern:
+      case HeapType::kNoFunc:
+        // TODO(mliedtke): Implement for br_on_cast_fail null.
+      case HeapType::kAny:
+        // Any may never need a cast as it is either implicitly convertible or
+        // never convertible for any given type.
+      default:
+        UNREACHABLE();
+    }
+  }
+
   void RefIsEq(FullDecoder* decoder, const Value& object, Value* result) {
     bool null_succeeds = false;
     SetAndTypeNode(result,
@@ -1348,6 +1372,17 @@ class WasmGraphBuildingInterface {
     BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnEq>(
         decoder, object, Value{nullptr, kWasmBottom}, value_on_branch, br_depth,
         true, null_succeeds);
+  }
+
+  void BrOnNonEq(FullDecoder* decoder, const Value& object,
+                 Value* value_on_fallthrough, uint32_t br_depth) {
+    bool null_succeeds = false;
+    // TODO(7748): Merge BrOn* and BrOnNon* instructions as their only
+    // difference is a boolean flag passed to BrOnCastAbs. This could also be
+    // leveraged to merge BrOnCastFailAbstract and BrOnCastAbstract.
+    BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnEq>(
+        decoder, object, Value{nullptr, kWasmBottom}, value_on_fallthrough,
+        br_depth, false, null_succeeds);
   }
 
   void RefIsStruct(FullDecoder* decoder, const Value& object, Value* result) {

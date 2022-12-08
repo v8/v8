@@ -6159,6 +6159,31 @@ class LiftoffCompiler {
     }
   }
 
+  void BrOnCastFailAbstract(FullDecoder* decoder, const Value& obj,
+                            HeapType type, Value* result_on_fallthrough,
+                            uint32_t depth) {
+    switch (type.representation()) {
+      case HeapType::kEq:
+        return BrOnNonEq(decoder, obj, result_on_fallthrough, depth);
+      case HeapType::kI31:
+        return BrOnNonI31(decoder, obj, result_on_fallthrough, depth);
+      case HeapType::kStruct:
+        return BrOnNonStruct(decoder, obj, result_on_fallthrough, depth);
+      case HeapType::kArray:
+        return BrOnNonArray(decoder, obj, result_on_fallthrough, depth);
+      case HeapType::kNone:
+      case HeapType::kNoExtern:
+      case HeapType::kNoFunc:
+        // TODO(mliedtke): This becomes reachable for `br_on_cast_fail null`.
+        UNREACHABLE();
+      case HeapType::kAny:
+        // Any may never need a cast as it is either implicitly convertible or
+        // never convertible for any given type.
+      default:
+        UNREACHABLE();
+    }
+  }
+
   struct TypeCheck {
     Register obj_reg = no_reg;
     ValueType obj_type;
@@ -6433,6 +6458,11 @@ class LiftoffCompiler {
                     Value* /* value_on_branch */, uint32_t br_depth) {
     BrOnNonAbstractType<&LiftoffCompiler::ArrayCheck>(object, decoder,
                                                       br_depth);
+  }
+
+  void BrOnNonEq(FullDecoder* decoder, const Value& object,
+                 Value* /* value_on_branch */, uint32_t br_depth) {
+    BrOnNonAbstractType<&LiftoffCompiler::EqCheck>(object, decoder, br_depth);
   }
 
   void StringNewWtf8(FullDecoder* decoder, const MemoryIndexImmediate& imm,
