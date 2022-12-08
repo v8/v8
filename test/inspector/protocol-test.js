@@ -160,6 +160,10 @@ InspectorTest.ContextGroup = class {
     utils.cancelPauseOnNextStatement(this.id);
   }
 
+  stop() {
+    utils.stop(this.id);
+  }
+
   addScript(string, lineOffset, columnOffset, url) {
     utils.compileAndRunWithOrigin(this.id, string, url || '', lineOffset || 0, columnOffset || 0, false);
   }

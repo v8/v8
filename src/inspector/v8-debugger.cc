@@ -545,11 +545,11 @@ void V8Debugger::ScriptCompiled(v8::Local<v8::debug::Script> script,
       });
 }
 
-V8Debugger::PauseAfterInstrumentation V8Debugger::BreakOnInstrumentation(
+V8Debugger::ActionAfterInstrumentation V8Debugger::BreakOnInstrumentation(
     v8::Local<v8::Context> pausedContext,
     v8::debug::BreakpointId instrumentationId) {
   // Don't allow nested breaks.
-  if (isPaused()) return kNoPauseAfterInstrumentationRequested;
+  if (isPaused()) return ActionAfterInstrumentation::kPauseIfBreakpointsHit;
 
   int contextGroupId = m_inspector->contextGroupId(pausedContext);
   bool hasAgents = false;
@@ -558,7 +558,7 @@ V8Debugger::PauseAfterInstrumentation V8Debugger::BreakOnInstrumentation(
         if (session->debuggerAgent()->acceptsPause(false /* isOOMBreak */))
           hasAgents = true;
       });
-  if (!hasAgents) return kNoPauseAfterInstrumentationRequested;
+  if (!hasAgents) return ActionAfterInstrumentation::kPauseIfBreakpointsHit;
 
   m_pausedContextGroupId = contextGroupId;
   m_instrumentationPause = true;
@@ -580,14 +580,21 @@ V8Debugger::PauseAfterInstrumentation V8Debugger::BreakOnInstrumentation(
   m_pausedContextGroupId = 0;
   m_instrumentationPause = false;
 
-  m_inspector->forEachSession(contextGroupId,
-                              [](V8InspectorSessionImpl* session) {
-                                if (session->debuggerAgent()->enabled())
-                                  session->debuggerAgent()->didContinue();
-                              });
-  return requestedPauseAfterInstrumentation
-             ? kPauseAfterInstrumentationRequested
-             : kNoPauseAfterInstrumentationRequested;
+  hasAgents = false;
+  m_inspector->forEachSession(
+      contextGroupId, [&hasAgents](V8InspectorSessionImpl* session) {
+        if (session->debuggerAgent()->enabled())
+          session->debuggerAgent()->didContinue();
+        if (session->debuggerAgent()->acceptsPause(false /* isOOMBreak */))
+          hasAgents = true;
+      });
+  if (!hasAgents) {
+    return ActionAfterInstrumentation::kContinue;
+  } else if (requestedPauseAfterInstrumentation) {
+    return ActionAfterInstrumentation::kPause;
+  } else {
+    return ActionAfterInstrumentation::kPauseIfBreakpointsHit;
+  }
 }
 
 void V8Debugger::BreakProgramRequested(

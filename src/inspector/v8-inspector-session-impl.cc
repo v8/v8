@@ -511,4 +511,6 @@ void V8InspectorSessionImpl::triggerPreciseCoverageDeltaUpdate(
   m_profilerAgent->triggerPreciseCoverageDeltaUpdate(toString16(occasion));
 }
 
+void V8InspectorSessionImpl::stop() { m_debuggerAgent->stop(); }
+
 }  // namespace v8_inspector

@@ -194,7 +194,7 @@ class V8Debugger : public v8::debug::DebugDelegate,
       v8::Local<v8::Context> paused_context,
       const std::vector<v8::debug::BreakpointId>& break_points_hit,
       v8::debug::BreakReasons break_reasons) override;
-  PauseAfterInstrumentation BreakOnInstrumentation(
+  ActionAfterInstrumentation BreakOnInstrumentation(
       v8::Local<v8::Context> paused_context, v8::debug::BreakpointId) override;
   void ExceptionThrown(v8::Local<v8::Context> paused_context,
                        v8::Local<v8::Value> exception,

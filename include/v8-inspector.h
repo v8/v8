@@ -212,6 +212,9 @@ class V8_EXPORT V8InspectorSession {
                             std::unique_ptr<StringBuffer>* objectGroup) = 0;
   virtual void releaseObjectGroup(StringView) = 0;
   virtual void triggerPreciseCoverageDeltaUpdate(StringView occasion) = 0;
+
+  // Prepare for shutdown (disables debugger pausing, etc.).
+  virtual void stop() = 0;
 };
 
 class V8_EXPORT WebDriverValue {

@@ -480,11 +480,12 @@ void Debug::Unload() {
   debug_delegate_ = nullptr;
 }
 
-debug::DebugDelegate::PauseAfterInstrumentation
+debug::DebugDelegate::ActionAfterInstrumentation
 Debug::OnInstrumentationBreak() {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   if (!debug_delegate_) {
-    return debug::DebugDelegate::kNoPauseAfterInstrumentationRequested;
+    return debug::DebugDelegate::ActionAfterInstrumentation::
+        kPauseIfBreakpointsHit;
   }
   DCHECK(in_debug_scope());
   HandleScope scope(isolate_);
@@ -517,11 +518,19 @@ void Debug::Break(JavaScriptFrame* frame, Handle<JSFunction> break_target) {
       IsBreakOnInstrumentation(debug_info, location);
   bool shouldPauseAfterInstrumentation = false;
   if (hitInstrumentationBreak) {
-    debug::DebugDelegate::PauseAfterInstrumentation pauseDuringInstrumentation =
+    debug::DebugDelegate::ActionAfterInstrumentation action =
         OnInstrumentationBreak();
-    shouldPauseAfterInstrumentation =
-        pauseDuringInstrumentation ==
-        debug::DebugDelegate::kPauseAfterInstrumentationRequested;
+    switch (action) {
+      case debug::DebugDelegate::ActionAfterInstrumentation::kPause:
+        shouldPauseAfterInstrumentation = true;
+        break;
+      case debug::DebugDelegate::ActionAfterInstrumentation::
+          kPauseIfBreakpointsHit:
+        shouldPauseAfterInstrumentation = false;
+        break;
+      case debug::DebugDelegate::ActionAfterInstrumentation::kContinue:
+        return;
+    }
   }
 
   // Find actual break points, if any, and trigger debug break event.

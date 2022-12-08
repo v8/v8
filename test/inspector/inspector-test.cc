@@ -73,6 +73,8 @@ class UtilsExtension : public InspectorIsolateData::SetupGlobalTask {
     utils->Set(isolate, "cancelPauseOnNextStatement",
                v8::FunctionTemplate::New(
                    isolate, &UtilsExtension::CancelPauseOnNextStatement));
+    utils->Set(isolate, "stop",
+               v8::FunctionTemplate::New(isolate, &UtilsExtension::Stop));
     utils->Set(isolate, "setLogConsoleApiMessageCalls",
                v8::FunctionTemplate::New(
                    isolate, &UtilsExtension::SetLogConsoleApiMessageCalls));
@@ -272,6 +274,17 @@ class UtilsExtension : public InspectorIsolateData::SetupGlobalTask {
     RunSyncTask(backend_runner_,
                 [&context_group_id](InspectorIsolateData* data) {
                   data->CancelPauseOnNextStatement(context_group_id);
+                });
+  }
+
+  static void Stop(const v8::FunctionCallbackInfo<v8::Value>& args) {
+    if (args.Length() != 1 || !args[0]->IsInt32()) {
+      FATAL("Internal error: stop(context_group_id).");
+    }
+    int context_group_id = args[0].As<v8::Int32>()->Value();
+    RunSyncTask(backend_runner_,
+                [&context_group_id](InspectorIsolateData* data) {
+                  data->Stop(context_group_id);
                 });
   }
 

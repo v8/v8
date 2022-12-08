@@ -371,7 +371,7 @@ V8DebuggerAgentImpl::V8DebuggerAgentImpl(
     : m_inspector(session->inspector()),
       m_debugger(m_inspector->debugger()),
       m_session(session),
-      m_enabled(false),
+      m_enableState(kDisabled),
       m_state(state),
       m_frontend(frontendChannel),
       m_isolate(m_inspector->isolate()) {}
@@ -379,7 +379,7 @@ V8DebuggerAgentImpl::V8DebuggerAgentImpl(
 V8DebuggerAgentImpl::~V8DebuggerAgentImpl() = default;
 
 void V8DebuggerAgentImpl::enableImpl() {
-  m_enabled = true;
+  m_enableState = kEnabled;
   m_state->setBoolean(DebuggerAgentState::debuggerEnabled, true);
   m_debugger->enable();
 
@@ -401,6 +401,8 @@ void V8DebuggerAgentImpl::enableImpl() {
 
 Response V8DebuggerAgentImpl::enable(Maybe<double> maxScriptsCacheSize,
                                      String16* outDebuggerId) {
+  if (m_enableState == kStopping)
+    return Response::ServerError("Debugger is stopping");
   m_maxScriptCacheSize = v8::base::saturated_cast<size_t>(
       maxScriptsCacheSize.fromMaybe(std::numeric_limits<double>::max()));
   *outDebuggerId =
@@ -449,14 +451,14 @@ Response V8DebuggerAgentImpl::disable() {
   m_skipAllPauses = false;
   m_state->setBoolean(DebuggerAgentState::skipAllPauses, false);
   m_state->remove(DebuggerAgentState::blackboxPattern);
-  m_enabled = false;
+  m_enableState = kDisabled;
   m_state->setBoolean(DebuggerAgentState::debuggerEnabled, false);
   m_debugger->disable();
   return Response::Success();
 }
 
 void V8DebuggerAgentImpl::restore() {
-  DCHECK(!m_enabled);
+  DCHECK(m_enableState == kDisabled);
   if (!m_state->booleanProperty(DebuggerAgentState::debuggerEnabled, false))
     return;
   if (!m_inspector->client()->canExecuteScripts(m_session->contextGroupId()))
@@ -2196,5 +2198,10 @@ Response V8DebuggerAgentImpl::processSkipList(
 
   m_skipList = std::move(skipListInit);
   return Response::Success();
+}
+
+void V8DebuggerAgentImpl::stop() {
+  disable();
+  m_enableState = kStopping;
 }
 }  // namespace v8_inspector

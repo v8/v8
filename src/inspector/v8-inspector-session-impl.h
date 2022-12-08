@@ -100,6 +100,8 @@ class V8InspectorSessionImpl : public V8InspectorSession,
   static const unsigned kInspectedObjectBufferSize = 5;
 
   void triggerPreciseCoverageDeltaUpdate(StringView occasion) override;
+  void stop() override;
+
   V8Inspector::ClientTrustLevel clientTrustLevel() {
     return m_clientTrustLevel;
   }

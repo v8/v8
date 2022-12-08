@@ -201,6 +201,14 @@ void InspectorIsolateData::BreakProgram(
   }
 }
 
+void InspectorIsolateData::Stop(int context_group_id) {
+  v8::SealHandleScope seal_handle_scope(isolate());
+  for (int session_id : GetSessionIds(context_group_id)) {
+    auto it = sessions_.find(session_id);
+    if (it != sessions_.end()) it->second->stop();
+  }
+}
+
 void InspectorIsolateData::SchedulePauseOnNextStatement(
     int context_group_id, const v8_inspector::StringView& reason,
     const v8_inspector::StringView& details) {
