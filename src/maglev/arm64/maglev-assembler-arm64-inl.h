@@ -143,7 +143,16 @@ inline void MaglevAssembler::JumpIf(Condition cond, Label* target) {
 inline void MaglevAssembler::Pop(Register dst) { Pop(padreg, dst); }
 
 inline void MaglevAssembler::AssertStackSizeCorrect() {
-  // TODO(v8:7700): Implement!
+  if (v8_flags.debug_code) {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.AcquireX();
+    Add(scratch, sp,
+        RoundUp<2 * kSystemPointerSize>(
+            code_gen_state()->stack_slots() * kSystemPointerSize +
+            StandardFrameConstants::kFixedFrameSizeFromFp));
+    Cmp(scratch, fp);
+    Assert(eq, AbortReason::kStackAccessBelowStackPointer);
+  }
 }
 
 inline void MaglevAssembler::FinishCode() {
