@@ -57,6 +57,7 @@ namespace internal {
   V(OutOfBounds, "out of bounds")                                              \
   V(Overflow, "overflow")                                                      \
   V(Smi, "Smi")                                                                \
+  V(StoreToConstant, "Storing to a constant field")                            \
   V(SuspendGeneratorIsDead, "SuspendGenerator is in a dead branch")            \
   V(TransitionedToMonomorphicIC, "IC transitioned to monomorphic")             \
   V(TransitionedToMegamorphicIC, "IC transitioned to megamorphic")             \

@@ -1588,7 +1588,6 @@
   'regress/regress-11519': [SKIP],
   'regress/regress-4121': [SKIP],
   'packed-elements': [SKIP],
-  'const-dict-tracking': [SKIP],
   'compiler/native-context-specialization-hole-check': [SKIP],
   'compiler/test-literal-map-migration': [SKIP],
   'compiler/deopt-pretenure': [SKIP],
@@ -1612,8 +1611,6 @@
 
 ################################################################################
 ['third_party_heap', {
-  # Requires local heaps
-  'const-field-tracking': [SKIP],
   # Requires --concurrent_inlining / --finalize_streaming_on_background:
   'regress/regress-1220974': [SKIP],
   'regress-1146106': [SKIP],
@@ -1775,7 +1772,6 @@
 
   # TODO(b/201757247):
   'array-constructor-feedback': [FAIL],
-  'const-dict-tracking': [FAIL],
   'compiler/deopt-pretenure': [FAIL],
   'compiler/fast-api-sequences-x64': [FAIL],
   'compiler/native-context-specialization-hole-check': [FAIL],

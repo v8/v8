@@ -1833,22 +1833,9 @@ bool MaglevGraphBuilder::TryBuildStoreField(
     if (original_map.UnusedPropertyFields() == 0) {
       return false;
     }
-  } else if (access_info.IsFastDataConstant() &&
-             access_mode != compiler::AccessMode::kStoreInLiteral) {
-    // For object literals we want to just store, similar to StoreInLiteral, but
-    // Define is also used for classes so we can't. Bail out for now.
-    if (access_mode == compiler::AccessMode::kDefine) return false;
-    // TODO(verwaest): Support doubles.
-    if (field_representation.IsDouble()) return false;
-    ValueNode* value = GetAccumulatorTagged();
-    ValueNode* expected = BuildLoadField(access_info, receiver);
-    if (Constant* constant = expected->TryCast<Constant>()) {
-      BuildCheckValue(value, constant->ref());
-    } else {
-      AddNewNode<CheckDynamicValue>({value, expected});
-    }
-
-    return true;
+  } else if (access_info.IsFastDataConstant()) {
+    // TODO(verwaest): Deoptimize instead.
+    return false;
   }
 
   ValueNode* store_target;
