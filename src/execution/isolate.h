@@ -2023,6 +2023,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
 #ifdef V8_ENABLE_WEBASSEMBLY
   wasm::StackMemory*& wasm_stacks() { return wasm_stacks_; }
+  // Update the thread local's Stack object so that it is aware of the new stack
+  // start and the inactive stacks.
+  void RecordStackSwitchForScanning();
 #endif
 
   // Access to the global "locals block list cache". Caches outer-stack

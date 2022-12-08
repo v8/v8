@@ -23,6 +23,9 @@ class StackVisitor {
 // - ASAN/MSAN;
 // - SafeStack: https://releases.llvm.org/10.0.0/tools/clang/docs/SafeStack.html
 //
+// Stacks grow down, so throughout this class "start" refers the highest
+// address of the stack, and top/marker the lowest.
+//
 // TODO(chromium:1056170): Consider adding a component that keeps track
 // of relevant GC stack regions where interesting pointers can be found.
 class V8_EXPORT_PRIVATE Stack final {
@@ -44,7 +47,7 @@ class V8_EXPORT_PRIVATE Stack final {
 
   // Word-aligned iteration of the stack and the saved registers.
   // Slot values are passed on to `visitor`.
-  V8_NOINLINE void IteratePointers(StackVisitor* visitor) const;
+  void IteratePointers(StackVisitor* visitor) const;
 
   // Saves and clears the stack context, i.e., it sets the stack marker and
   // saves the registers.
@@ -53,6 +56,9 @@ class V8_EXPORT_PRIVATE Stack final {
   // saving becomes compatible with stack switching.
   void SaveContext(bool check_invariant = true);
   void ClearContext(bool check_invariant = true);
+
+  void AddStackSegment(const void* start, const void* top);
+  void ClearStackSegments();
 
  private:
   struct Context {
@@ -111,6 +117,14 @@ class V8_EXPORT_PRIVATE Stack final {
 
   const void* stack_start_;
   std::unique_ptr<Context> context_;
+
+  // Stack segments that may also contain pointers and should be
+  // scanned.
+  struct StackSegments {
+    const void* start;
+    const void* top;
+  };
+  std::vector<StackSegments> inactive_stacks_;
 };
 
 }  // namespace heap::base

@@ -3054,6 +3054,30 @@ void Isolate::AddSharedWasmMemory(Handle<WasmMemoryObject> memory_object) {
       this, shared_wasm_memories, MaybeObjectHandle::Weak(memory_object));
   heap()->set_shared_wasm_memories(*shared_wasm_memories);
 }
+
+void Isolate::RecordStackSwitchForScanning() {
+  Object current = root(RootIndex::kActiveContinuation);
+  DCHECK(!current.IsUndefined());
+  thread_local_top()->stack_.ClearStackSegments();
+  wasm::StackMemory* stack = Managed<wasm::StackMemory>::cast(
+                                 WasmContinuationObject::cast(current).stack())
+                                 .get()
+                                 .get();
+  current = WasmContinuationObject::cast(current).parent();
+  thread_local_top()->stack_.SetStackStart(
+      reinterpret_cast<void*>(stack->base()));
+  // We don't need to add all inactive stacks. Only the ones in the active chain
+  // may contain cpp heap pointers.
+  while (!current.IsUndefined()) {
+    auto cont = WasmContinuationObject::cast(current);
+    auto* stack = Managed<wasm::StackMemory>::cast(cont.stack()).get().get();
+    thread_local_top()->stack_.AddStackSegment(
+        reinterpret_cast<const void*>(stack->base()),
+        reinterpret_cast<const void*>(stack->jmpbuf()->sp));
+    current = cont.parent();
+  }
+}
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 Isolate::PerIsolateThreadData::~PerIsolateThreadData() {

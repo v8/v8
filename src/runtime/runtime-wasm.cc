@@ -828,6 +828,7 @@ void SyncStackLimit(Isolate* isolate) {
   }
   uintptr_t limit = reinterpret_cast<uintptr_t>(stack->jmpbuf()->stack_limit);
   isolate->stack_guard()->SetStackLimit(limit);
+  isolate->RecordStackSwitchForScanning();
 }
 }  // namespace
 

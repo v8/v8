@@ -15,6 +15,7 @@ namespace heap::base {
 Stack::Stack(const void* stack_start) : stack_start_(stack_start) {}
 
 void Stack::SetStackStart(const void* stack_start) {
+  DCHECK(!context_);
   stack_start_ = stack_start;
 }
 
@@ -61,29 +62,33 @@ void IterateAsanFakeFrameIfNecessary(StackVisitor* visitor,
   // native frame. In case |addr| points to a fake frame of the current stack
   // iterate the fake frame. Frame layout see
   // https://github.com/google/sanitizers/wiki/AddressSanitizerUseAfterReturn
-  if (asan_fake_stack) {
-    void* fake_frame_begin;
-    void* fake_frame_end;
-    void* real_stack_frame = __asan_addr_is_in_fake_stack(
-        const_cast<void*>(asan_fake_stack), const_cast<void*>(address),
-        &fake_frame_begin, &fake_frame_end);
-    if (real_stack_frame) {
-      // |address| points to a fake frame. Check that the fake frame is part
-      // of this stack.
-      if (stack_start >= real_stack_frame && real_stack_frame >= stack_end) {
-        // Iterate the fake frame.
-        for (const void* const* current =
-                 reinterpret_cast<const void* const*>(fake_frame_begin);
-             current < fake_frame_end; ++current) {
-          const void* address = *current;
-          if (address == nullptr) continue;
-          visitor->VisitPointer(address);
-        }
+  if (!asan_fake_stack) return;
+  void* fake_frame_begin;
+  void* fake_frame_end;
+  void* real_stack_frame = __asan_addr_is_in_fake_stack(
+      const_cast<void*>(asan_fake_stack), const_cast<void*>(address),
+      &fake_frame_begin, &fake_frame_end);
+  if (real_stack_frame) {
+    // |address| points to a fake frame. Check that the fake frame is part
+    // of this stack.
+    if (stack_start >= real_stack_frame && real_stack_frame >= stack_end) {
+      // Iterate the fake frame.
+      for (const void* const* current =
+               reinterpret_cast<const void* const*>(fake_frame_begin);
+           current < fake_frame_end; ++current) {
+        const void* address = *current;
+        if (address == nullptr) continue;
+        visitor->VisitPointer(address);
       }
     }
   }
 }
-
+#else
+void IterateAsanFakeFrameIfNecessary(StackVisitor* visitor,
+                                     const void* asan_fake_stack,
+                                     const void* stack_start,
+                                     const void* stack_end,
+                                     const void* address) {}
 #endif  // V8_USE_ADDRESS_SANITIZER
 
 void IterateUnsafeStackIfNecessary(StackVisitor* visitor) {
@@ -110,8 +115,6 @@ void IterateUnsafeStackIfNecessary(StackVisitor* visitor) {
 #endif  // defined(__has_feature)
 }
 
-}  // namespace
-
 // This method should never be inlined to ensure that a possible redzone cannot
 // contain any data that needs to be scanned.
 V8_NOINLINE
@@ -121,6 +124,23 @@ DISABLE_ASAN
 // thread, e.g., for interrupt handling. Atomic reads are not enough as the
 // other thread may use a lock to synchronize the access.
 DISABLE_TSAN
+void IteratePointersInStack(StackVisitor* visitor, const void* top,
+                            const void* start, const void* asan_fake_stack) {
+  for (const void* const* current = reinterpret_cast<const void* const*>(top);
+       current < start; ++current) {
+    // MSAN: Instead of unpoisoning the whole stack, the slot's value is copied
+    // into a local which is unpoisoned.
+    const void* address = *current;
+    MSAN_MEMORY_IS_INITIALIZED(&address, sizeof(address));
+    if (address == nullptr) continue;
+    visitor->VisitPointer(address);
+    IterateAsanFakeFrameIfNecessary(visitor, asan_fake_stack, start, top,
+                                    address);
+  }
+}
+
+}  // namespace
+
 void Stack::IteratePointers(StackVisitor* visitor) const {
   DCHECK_NOT_NULL(stack_start_);
   DCHECK(context_);
@@ -128,6 +148,8 @@ void Stack::IteratePointers(StackVisitor* visitor) const {
 
 #ifdef V8_USE_ADDRESS_SANITIZER
   const void* asan_fake_stack = __asan_get_current_fake_stack();
+#else
+  const void* asan_fake_stack = nullptr;
 #endif  // V8_USE_ADDRESS_SANITIZER
 
   // Iterate through the registers.
@@ -136,10 +158,8 @@ void Stack::IteratePointers(StackVisitor* visitor) const {
     MSAN_MEMORY_IS_INITIALIZED(&address, sizeof(address));
     if (address == nullptr) continue;
     visitor->VisitPointer(address);
-#ifdef V8_USE_ADDRESS_SANITIZER
     IterateAsanFakeFrameIfNecessary(visitor, asan_fake_stack, stack_start_,
                                     context_->stack_marker, address);
-#endif  // V8_USE_ADDRESS_SANITIZER
   }
 
   // Iterate through the stack.
@@ -148,19 +168,12 @@ void Stack::IteratePointers(StackVisitor* visitor) const {
   constexpr size_t kMinStackAlignment = sizeof(void*);
   CHECK_EQ(0u, reinterpret_cast<uintptr_t>(context_->stack_marker) &
                    (kMinStackAlignment - 1));
-  for (const void* const* current =
-           reinterpret_cast<const void* const*>(context_->stack_marker);
-       current < stack_start_; ++current) {
-    // MSAN: Instead of unpoisoning the whole stack, the slot's value is copied
-    // into a local which is unpoisoned.
-    const void* address = *current;
-    MSAN_MEMORY_IS_INITIALIZED(&address, sizeof(address));
-    if (address == nullptr) continue;
-    visitor->VisitPointer(address);
-#ifdef V8_USE_ADDRESS_SANITIZER
-    IterateAsanFakeFrameIfNecessary(visitor, asan_fake_stack, stack_start_,
-                                    context_->stack_marker, address);
-#endif  // V8_USE_ADDRESS_SANITIZER
+  IteratePointersInStack(
+      visitor, reinterpret_cast<const void* const*>(context_->stack_marker),
+      stack_start_, asan_fake_stack);
+
+  for (const auto& stack : inactive_stacks_) {
+    IteratePointersInStack(visitor, stack.top, stack.start, asan_fake_stack);
   }
 
   IterateUnsafeStackIfNecessary(visitor);
@@ -218,5 +231,12 @@ void Stack::ClearContext(bool check_invariant) {
   }
   context_.reset();
 }
+
+void Stack::AddStackSegment(const void* start, const void* top) {
+  DCHECK_LE(top, start);
+  inactive_stacks_.push_back({start, top});
+}
+
+void Stack::ClearStackSegments() { inactive_stacks_.clear(); }
 
 }  // namespace heap::base
