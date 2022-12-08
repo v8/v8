@@ -44,6 +44,12 @@ using MachineOptimizationReducerSignallingNanImpossible =
 // operations that can be performed on-the-fly, without requiring type analysis
 // or analyzing uses. It largely corresponds to MachineOperatorReducer in
 // sea-of-nodes Turbofan.
+//
+// Additional optimizations include some of the control-flow reductions that
+// were previously done in CommonOperatorReducer, including:
+//    1- Reducing Phis, whose all inputs are the same, replace
+//      them with their input.
+
 template <bool signalling_nan_possible, class Next>
 class MachineOptimizationReducer : public Next {
  public:
@@ -52,6 +58,9 @@ class MachineOptimizationReducer : public Next {
   template <class... Args>
   explicit MachineOptimizationReducer(const std::tuple<Args...>& args)
       : Next(args) {}
+
+  // TODO(mslekova): Implement ReduceSelect and ReducePhi,
+  // by reducing `(f > 0) ? f : -f` to `fabs(f)`.
 
   OpIndex ReduceChange(OpIndex input, ChangeOp::Kind kind,
                        ChangeOp::Assumption assumption,
@@ -1653,6 +1662,17 @@ class MachineOptimizationReducer : public Next {
     }
     return Next::ReduceLoad(base, index, kind, loaded_rep, result_rep, offset,
                             element_scale);
+  }
+
+  OpIndex ReducePhi(base::Vector<const OpIndex> inputs,
+                    RegisterRepresentation rep) {
+    LABEL_BLOCK(no_change) { return Next::ReducePhi(inputs, rep); }
+    if (inputs.size() == 0) goto no_change;
+    OpIndex first = inputs.first();
+    for (const OpIndex& input : inputs) {
+      if (input != first) goto no_change;
+    }
+    return first;
   }
 
  private:

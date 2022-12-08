@@ -260,6 +260,12 @@ class GraphVisitor {
     return result;
   }
 
+  Block* MapToNewGraph(BlockIndex old_index) const {
+    Block* result = block_mapping_[old_index.id()];
+    DCHECK_NOT_NULL(result);
+    return result;
+  }
+
  private:
   template <bool trace_reduction>
   void VisitAllBlocks() {
@@ -333,8 +339,15 @@ class GraphVisitor {
     OpIndex new_index;
     if (input_block->IsLoop() && op.Is<PhiOp>()) {
       const PhiOp& phi = op.Cast<PhiOp>();
-      new_index = assembler().PendingLoopPhi(MapToNewGraph(phi.inputs()[0]),
-                                             phi.rep, phi.inputs()[1]);
+      if (index == phi.input(PhiOp::kLoopPhiBackEdgeIndex)) {
+        // Avoid emitting a Loop Phi which points to itself, instead
+        // emit it's 0'th input.
+        new_index = MapToNewGraph(phi.input(0));
+      } else {
+        new_index =
+            assembler().PendingLoopPhi(MapToNewGraph(phi.input(0)), phi.rep,
+                                       phi.input(PhiOp::kLoopPhiBackEdgeIndex));
+      }
       CreateOldToNewMapping(index, new_index);
       if constexpr (trace_reduction) {
         TraceReductionResult(current_block, first_output_index, new_index);
@@ -709,12 +722,6 @@ class GraphVisitor {
       return;
     }
     op_mapping_[old_index.id()] = new_index;
-  }
-
-  Block* MapToNewGraph(BlockIndex old_index) const {
-    Block* result = block_mapping_[old_index.id()];
-    DCHECK_NOT_NULL(result);
-    return result;
   }
 
   template <bool can_be_invalid = false>

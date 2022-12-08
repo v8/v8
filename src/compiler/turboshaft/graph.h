@@ -359,6 +359,8 @@ class Block : public RandomAccessStackDominatorNode<Block> {
     return end_;
   }
 
+  // Might return nullptr if the first operation is invalid.
+  const Operation& FirstOperation(const Graph& graph) const;
   const Operation& LastOperation(const Graph& graph) const;
 
   bool EndsWithBranchingOp(const Graph& graph) const {
@@ -371,6 +373,8 @@ class Block : public RandomAccessStackDominatorNode<Block> {
         return false;
     }
   }
+
+  bool HasPhis(const Graph& graph) const;
 
   // Computes the dominators of the this block, assuming that the dominators of
   // its predecessors are already computed. Returns the depth of the current
@@ -748,6 +752,10 @@ class Graph {
 #endif  // DEBUG
   }
 
+#ifdef DEBUG
+  size_t generation() const { return generation_; }
+#endif  // DEBUG
+
  private:
   bool InputsValid(const Operation& op) const {
     for (OpIndex i : op.inputs()) {
@@ -819,8 +827,47 @@ V8_INLINE OperationStorageSlot* AllocateOpStorage(Graph* graph,
   return graph->Allocate(slot_count);
 }
 
+V8_INLINE const Operation& Block::FirstOperation(const Graph& graph) const {
+  DCHECK_EQ(graph_generation_, graph.generation());
+  DCHECK(begin_.valid());
+  DCHECK(end_.valid());
+  return graph.Get(begin_);
+}
+
 V8_INLINE const Operation& Block::LastOperation(const Graph& graph) const {
+  DCHECK_EQ(graph_generation_, graph.generation());
   return graph.Get(graph.PreviousIndex(end()));
+}
+
+V8_INLINE bool Block::HasPhis(const Graph& graph) const {
+  DCHECK_EQ(graph_generation_, graph.generation());
+#ifdef DEBUG
+  // Verify that only Phis/FrameStates are found, then all other Phis/
+  // FrameStateOps in the block come consecutively.
+  bool starts_with_phi = false;
+  bool finished_phis = false;
+  for (const auto& op : graph.operations(*this)) {
+    if (op.Is<PhiOp>()) {
+      DCHECK(!finished_phis);
+      starts_with_phi = true;
+    }
+    if (!op.Is<PhiOp>() && !op.Is<FrameStateOp>()) {
+      finished_phis = true;
+    }
+  }
+  return starts_with_phi;
+#else   // DEBUG
+  for (const auto& op : graph.operations(*this)) {
+    if (op.Is<PhiOp>()) {
+      return true;
+    } else if (op.Is<FrameStateOp>()) {
+      continue;
+    } else {
+      return false;
+    }
+  }
+  return false;
+#endif  // DEBUG
 }
 
 struct PrintAsBlockHeader {
