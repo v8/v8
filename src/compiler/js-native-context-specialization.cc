@@ -2902,11 +2902,10 @@ JSNativeContextSpecialization::BuildPropertyStore(
     if (access_info.IsFastDataConstant() && access_mode == AccessMode::kStore &&
         !access_info.HasTransitionMap()) {
       Node* deoptimize = graph()->NewNode(
-          common()->DeoptimizeIf(DeoptimizeReason::kStoreToConstant,
-                                 FeedbackSource()),
-          jsgraph()->TrueConstant(), frame_state, effect, control);
+          simplified()->CheckIf(DeoptimizeReason::kStoreToConstant),
+          jsgraph()->FalseConstant(), effect, control);
       return ValueEffectControl(jsgraph()->UndefinedConstant(), deoptimize,
-                                deoptimize);
+                                control);
     }
     FieldAccess field_access = {
         kTaggedBase,
