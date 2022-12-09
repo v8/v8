@@ -432,6 +432,7 @@ var prettyPrinted;
         return false;
       }
       for (var i = 0; i < a.length; i++) {
+        if ((i in a) !== (i in b)) return false;
         if (!deepEquals(a[i], b[i])) return false;
       }
       return true;
