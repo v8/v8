@@ -62,7 +62,10 @@ int32_t TranslationArrayIterator::NextOperand() {
   if (V8_UNLIKELY(v8_flags.turbo_compress_translation_arrays)) {
     return uncompressed_contents_[index_++];
   } else if (remaining_ops_to_use_from_previous_translation_) {
-    return previous_translation_->NextOperand();
+    int32_t value =
+        base::VLQDecode(buffer_.GetDataStartAddress(), &previous_index_);
+    DCHECK_LT(previous_index_, index_);
+    return value;
   } else {
     int32_t value = base::VLQDecode(buffer_.GetDataStartAddress(), &index_);
     DCHECK_LE(index_, buffer_.length());
@@ -70,11 +73,27 @@ int32_t TranslationArrayIterator::NextOperand() {
   }
 }
 
+TranslationOpcode TranslationArrayIterator::NextOpcodeAtPreviousIndex() {
+  TranslationOpcode opcode =
+      static_cast<TranslationOpcode>(buffer_.get(previous_index_++));
+  DCHECK_LT(static_cast<uint32_t>(opcode), kNumTranslationOpcodes);
+  DCHECK_NE(opcode, TranslationOpcode::MATCH_PREVIOUS_TRANSLATION);
+  DCHECK_LT(previous_index_, index_);
+  return opcode;
+}
+
+uint32_t TranslationArrayIterator::NextUnsignedOperandAtPreviousIndex() {
+  uint32_t value =
+      base::VLQDecodeUnsigned(buffer_.GetDataStartAddress(), &previous_index_);
+  DCHECK_LT(previous_index_, index_);
+  return value;
+}
+
 uint32_t TranslationArrayIterator::NextOperandUnsigned() {
   if (V8_UNLIKELY(v8_flags.turbo_compress_translation_arrays)) {
     return uncompressed_contents_[index_++];
   } else if (remaining_ops_to_use_from_previous_translation_) {
-    return previous_translation_->NextOperandUnsigned();
+    return NextUnsignedOperandAtPreviousIndex();
   } else {
     uint32_t value =
         base::VLQDecodeUnsigned(buffer_.GetDataStartAddress(), &index_);
@@ -91,10 +110,11 @@ TranslationOpcode TranslationArrayIterator::NextOpcode() {
     --remaining_ops_to_use_from_previous_translation_;
   }
   if (remaining_ops_to_use_from_previous_translation_) {
-    return previous_translation_->NextOpcode();
+    return NextOpcodeAtPreviousIndex();
   }
   TranslationOpcode opcode =
-      static_cast<TranslationOpcode>(NextOperandUnsigned());
+      static_cast<TranslationOpcode>(buffer_.get(index_++));
+  DCHECK_LE(index_, buffer_.length());
   DCHECK_LT(static_cast<uint32_t>(opcode), kNumTranslationOpcodes);
   if (opcode == TranslationOpcode::BEGIN) {
     int temp_index = index_;
@@ -104,21 +124,23 @@ TranslationOpcode TranslationArrayIterator::NextOpcode() {
     uint32_t lookback_distance =
         base::VLQDecodeUnsigned(buffer_.GetDataStartAddress(), &temp_index);
     if (lookback_distance) {
-      previous_translation_ = std::make_unique<TranslationArrayIterator>(
-          buffer_, index_ - 1 - lookback_distance);
-    } else {
-      previous_translation_ = nullptr;
+      previous_index_ = index_ - 1 - lookback_distance;
+      DCHECK_EQ(buffer_.get(previous_index_),
+                static_cast<byte>(TranslationOpcode::BEGIN));
+      // The previous BEGIN should specify zero as its lookback distance,
+      // meaning it won't use MATCH_PREVIOUS_TRANSLATION.
+      DCHECK_EQ(buffer_.get(previous_index_ + 1), 0);
     }
-    ops_since_previous_iterator_was_updated_ = 1;
+    ops_since_previous_index_was_updated_ = 1;
   } else if (opcode == TranslationOpcode::MATCH_PREVIOUS_TRANSLATION) {
     remaining_ops_to_use_from_previous_translation_ = NextOperandUnsigned();
-    for (int i = 0; i < ops_since_previous_iterator_was_updated_; ++i) {
-      previous_translation_->SkipOpcodeAndItsOperands();
+    for (int i = 0; i < ops_since_previous_index_was_updated_; ++i) {
+      SkipOpcodeAndItsOperandsAtPreviousIndex();
     }
-    ops_since_previous_iterator_was_updated_ = 0;
-    opcode = previous_translation_->NextOpcode();
+    ops_since_previous_index_was_updated_ = 0;
+    opcode = NextOpcodeAtPreviousIndex();
   } else {
-    ++ops_since_previous_iterator_was_updated_;
+    ++ops_since_previous_index_was_updated_;
   }
   return opcode;
 }
@@ -132,9 +154,11 @@ bool TranslationArrayIterator::HasNextOpcode() const {
   }
 }
 
-void TranslationArrayIterator::SkipOpcodeAndItsOperands() {
-  TranslationOpcode opcode = NextOpcode();
-  SkipOperands(TranslationOpcodeOperandCount(opcode));
+void TranslationArrayIterator::SkipOpcodeAndItsOperandsAtPreviousIndex() {
+  TranslationOpcode opcode = NextOpcodeAtPreviousIndex();
+  for (int count = TranslationOpcodeOperandCount(opcode); count != 0; --count) {
+    NextUnsignedOperandAtPreviousIndex();
+  }
 }
 
 int TranslationArrayBuilder::BeginTranslation(int frame_count,
@@ -145,16 +169,30 @@ int TranslationArrayBuilder::BeginTranslation(int frame_count,
   auto opcode = TranslationOpcode::BEGIN;
   int distance_from_last_start = 0;
 
-  if (translations_til_reset_ == 0) {
-    translations_til_reset_ = kMaxLookback;
-    recent_instructions_.clear();
+  // We should reuse an existing basis translation if:
+  // - we just finished writing the basis translation
+  //   (match_previous_allowed_ is false), or
+  // - the translation we just finished was moderately successful at reusing
+  //   instructions from the basis translation. We'll define "moderately
+  //   successful" as reusing more than 3/4 of the basis instructions.
+  // Otherwise we should reset and write a new basis translation. At the
+  // beginning, match_previous_allowed_ is initialized to true so that this
+  // logic decides to start a new basis translation.
+  if (!match_previous_allowed_ ||
+      total_matching_instructions_in_current_translation_ >
+          instruction_index_within_translation_ / 4 * 3) {
+    // Use the existing basis translation.
+    distance_from_last_start = start_index - index_of_basis_translation_start_;
+    match_previous_allowed_ = true;
   } else {
-    --translations_til_reset_;
-    distance_from_last_start = start_index - index_of_last_translation_start_;
-    recent_instructions_.resize(instruction_index_within_translation_);
+    // Abandon the existing basis translation and write a new one.
+    basis_instructions_.clear();
+    index_of_basis_translation_start_ = start_index;
+    match_previous_allowed_ = false;
   }
+
+  total_matching_instructions_in_current_translation_ = 0;
   instruction_index_within_translation_ = 0;
-  index_of_last_translation_start_ = start_index;
 
   // BEGIN instructions can't be replaced by MATCH_PREVIOUS_TRANSLATION, so
   // write the data directly rather than calling Add().
@@ -164,6 +202,18 @@ int TranslationArrayBuilder::BeginTranslation(int frame_count,
   AddRawSigned(jsframe_count);
   AddRawSigned(update_feedback_count);
   DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 4);
+#ifdef ENABLE_SLOW_DCHECKS
+  if (v8_flags.enable_slow_asserts) {
+    Instruction instruction;
+    instruction.opcode = opcode;
+    instruction.operands[0] = distance_from_last_start;
+    instruction.operands[1] = base::VLQConvertToUnsigned(frame_count);
+    instruction.operands[2] = base::VLQConvertToUnsigned(jsframe_count);
+    instruction.operands[3] = base::VLQConvertToUnsigned(update_feedback_count);
+    instruction.operands[4] = 0;
+    all_instructions_.push_back(instruction);
+  }
+#endif
   return start_index;
 }
 
@@ -185,6 +235,8 @@ void TranslationArrayBuilder::AddRawUnsigned(uint32_t value) {
 
 void TranslationArrayBuilder::FinishPendingInstructionIfNeeded() {
   if (matching_instructions_count_) {
+    total_matching_instructions_in_current_translation_ +=
+        matching_instructions_count_;
     contents_.push_back(
         static_cast<byte>(TranslationOpcode::MATCH_PREVIOUS_TRANSLATION));
     base::VLQEncodeUnsigned(
@@ -203,11 +255,15 @@ void TranslationArrayBuilder::Add(
     }
     return;
   }
-  bool within_array =
-      instruction_index_within_translation_ < recent_instructions_.size();
-  if (within_array &&
+#ifdef ENABLE_SLOW_DCHECKS
+  if (v8_flags.enable_slow_asserts) {
+    all_instructions_.push_back(instruction);
+  }
+#endif
+  if (match_previous_allowed_ &&
+      instruction_index_within_translation_ < basis_instructions_.size() &&
       instruction ==
-          recent_instructions_[instruction_index_within_translation_]) {
+          basis_instructions_[instruction_index_within_translation_]) {
     ++matching_instructions_count_;
   } else {
     FinishPendingInstructionIfNeeded();
@@ -215,10 +271,10 @@ void TranslationArrayBuilder::Add(
     for (int i = 0; i < value_count; ++i) {
       AddRawUnsigned(instruction.operands[i]);
     }
-    if (within_array) {
-      recent_instructions_[instruction_index_within_translation_] = instruction;
-    } else {
-      recent_instructions_.push_back(instruction);
+    if (!match_previous_allowed_) {
+      DCHECK_EQ(basis_instructions_.size(),
+                instruction_index_within_translation_);
+      basis_instructions_.push_back(instruction);
     }
   }
   ++instruction_index_within_translation_;
@@ -307,15 +363,13 @@ Handle<TranslationArray> TranslationArrayBuilder::ToTranslationArray(
       factory->NewByteArray(SizeInBytes(), AllocationType::kOld);
   memcpy(result->GetDataStartAddress(), contents_.data(),
          contents_.size() * sizeof(uint8_t));
+#ifdef ENABLE_SLOW_DCHECKS
   if (v8_flags.enable_slow_asserts) {
-    // Check that the last translation has the stuff we intended.
-    recent_instructions_.resize(instruction_index_within_translation_);
-    TranslationArrayIterator it(*result, index_of_last_translation_start_);
-    CHECK_EQ(it.NextOpcode(), TranslationOpcode::BEGIN);
-    it.SkipOperands(4);
-    for (size_t i = 0; i < recent_instructions_.size(); ++i) {
+    // Check that we can read back all of the same content we intended to write.
+    TranslationArrayIterator it(*result, 0);
+    for (size_t i = 0; i < all_instructions_.size(); ++i) {
       CHECK(it.HasNextOpcode());
-      const Instruction& instruction = recent_instructions_[i];
+      const Instruction& instruction = all_instructions_[i];
       CHECK_EQ(instruction.opcode, it.NextOpcode());
       for (int j = 0; j < TranslationOpcodeOperandCount(instruction.opcode);
            ++j) {
@@ -323,6 +377,7 @@ Handle<TranslationArray> TranslationArrayBuilder::ToTranslationArray(
       }
     }
   }
+#endif
   return result;
 }
 

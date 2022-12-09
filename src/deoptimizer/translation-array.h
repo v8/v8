@@ -43,7 +43,9 @@ class TranslationArrayIterator {
   }
 
  private:
-  void SkipOpcodeAndItsOperands();
+  TranslationOpcode NextOpcodeAtPreviousIndex();
+  uint32_t NextUnsignedOperandAtPreviousIndex();
+  void SkipOpcodeAndItsOperandsAtPreviousIndex();
 
   std::vector<int32_t> uncompressed_contents_;
   TranslationArray buffer_;
@@ -53,13 +55,13 @@ class TranslationArrayIterator {
   // from the previous translation before continuing to move the index forward.
   int remaining_ops_to_use_from_previous_translation_ = 0;
 
-  // An iterator for operations starting at the previous BEGIN, which can be
-  // used to read operations referred to by MATCH_PREVIOUS_TRANSLATION.
-  std::unique_ptr<TranslationArrayIterator> previous_translation_;
+  // An index into buffer_ for operations starting at a previous BEGIN, which
+  // can be used to read operations referred to by MATCH_PREVIOUS_TRANSLATION.
+  int previous_index_ = 0;
 
   // When starting a new MATCH_PREVIOUS_TRANSLATION operation, we'll need to
-  // advance the previous_translation_ iterator by this many steps.
-  int ops_since_previous_iterator_was_updated_ = 0;
+  // advance the previous_index_ by this many steps.
+  int ops_since_previous_index_was_updated_ = 0;
 };
 
 class TranslationArrayBuilder {
@@ -67,7 +69,7 @@ class TranslationArrayBuilder {
   explicit TranslationArrayBuilder(Zone* zone)
       : contents_(zone),
         contents_for_compression_(zone),
-        recent_instructions_(zone),
+        basis_instructions_(zone),
         zone_(zone) {}
 
   Handle<TranslationArray> ToTranslationArray(Factory* factory);
@@ -120,11 +122,6 @@ class TranslationArrayBuilder {
   void StoreJSFrameFunction();
 
  private:
-  // How many translations in a row can use MATCH_PREVIOUS_TRANSLATION opcodes
-  // before a translation needs to redefine all instructions. This puts a limit
-  // on the recursion depth required when decoding.
-  static constexpr int kMaxLookback = 10;
-
   struct Instruction {
     Instruction() = default;
     bool operator==(const Instruction& other) const {
@@ -182,24 +179,31 @@ class TranslationArrayBuilder {
 
   ZoneVector<uint8_t> contents_;
   ZoneVector<int32_t> contents_for_compression_;
-  // Entries from 0 to instruction_index_within_translation_ are instructions
-  // added since the last BEGIN. Entries after that are instructions from the
-  // previous translation (before the last BEGIN). This allows Add() to easily
-  // check whether a newly added instruction matches the corresponding one from
-  // the previous translation.
-  ZoneVector<Instruction> recent_instructions_;
-  Zone* const zone_;
-  // How many instructions we've skipped writing because they match the previous
+  // If match_previous_allowed_ is false, then this vector contains the
+  // instructions written so far in the current translation (since the last
+  // BEGIN). If match_previous_allowed_ is true, then this vector contains the
+  // instructions from the basis translation (the one written with
+  // !match_previous_allowed_). This allows Add() to easily check whether a
+  // newly added instruction matches the corresponding one from the basis
   // translation.
+  ZoneVector<Instruction> basis_instructions_;
+#ifdef ENABLE_SLOW_DCHECKS
+  std::vector<Instruction> all_instructions_;
+#endif
+  Zone* const zone_;
+  // How many consecutive instructions we've skipped writing because they match
+  // the basis translation.
   size_t matching_instructions_count_ = 0;
-  // The current index within recent_instructions_.
+  size_t total_matching_instructions_in_current_translation_ = 0;
+  // The current index within basis_instructions_.
   size_t instruction_index_within_translation_ = 0;
-  // The byte index within the contents_ array of the most recent BEGIN
-  // instruction.
-  int index_of_last_translation_start_ = 0;
-  // How many more translations can be started before recent_instructions_ must
-  // be cleared.
-  int translations_til_reset_ = 0;
+  // The byte index within the contents_ array of the BEGIN instruction for the
+  // basis translation (the most recent translation which was fully written out,
+  // not using MATCH_PREVIOUS_TRANSLATION instructions).
+  int index_of_basis_translation_start_ = 0;
+  // Whether the builder can use MATCH_PREVIOUS_TRANSLATION in the current
+  // translation.
+  bool match_previous_allowed_ = true;
 };
 
 }  // namespace internal
