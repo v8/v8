@@ -661,7 +661,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   bool InitializeCounters();  // Returns false if already initialized.
 
   bool InitWithoutSnapshot();
-  bool InitWithReadOnlySnapshot(SnapshotData* read_only_snapshot_data);
   bool InitWithSnapshot(SnapshotData* startup_snapshot_data,
                         SnapshotData* read_only_snapshot_data,
                         SnapshotData* shared_heap_snapshot_data,

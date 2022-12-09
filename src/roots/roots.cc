@@ -56,17 +56,5 @@ READ_ONLY_ROOT_LIST(ROOT_TYPE_CHECK)
 #undef ROOT_TYPE_CHECK
 #endif
 
-Handle<HeapNumber> ReadOnlyRoots::FindHeapNumber(double value) {
-  auto bits = base::bit_cast<uint64_t>(value);
-  for (auto pos = RootIndex::kFirstHeapNumberRoot;
-       pos <= RootIndex::kLastHeapNumberRoot; ++pos) {
-    auto root = HeapNumber::cast(Object(at(pos)));
-    if (base::bit_cast<uint64_t>(root.value()) == bits) {
-      return Handle<HeapNumber>(GetLocation(pos));
-    }
-  }
-  return Handle<HeapNumber>();
-}
-
 }  // namespace internal
 }  // namespace v8

@@ -125,17 +125,6 @@ class TestSerializer {
     return v8_isolate;
   }
 
-  static v8::Isolate* NewIsolateFromReadOnlySnapshot(
-      SnapshotData* read_only_snapshot) {
-    const bool kEnableSerializer = false;
-    const bool kIsShared = false;
-    v8::Isolate* v8_isolate = NewIsolate(kEnableSerializer, kIsShared);
-    v8::Isolate::Scope isolate_scope(v8_isolate);
-    i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-    isolate->InitWithReadOnlySnapshot(read_only_snapshot);
-    return v8_isolate;
-  }
-
   static void InitializeProcessWideSharedIsolateFromBlob(
       const StartupBlobs& blobs) {
     base::MutexGuard guard(
@@ -5306,53 +5295,6 @@ UNINITIALIZED_TEST(BreakPointAccessorContextSnapshot) {
   delete[] blob.data;
   FreeCurrentEmbeddedBlob();
 }
-
-#if V8_EXTERNAL_CODE_SPACE_BOOL
-UNINITIALIZED_TEST(CreateIsolateFromReadOnlySnapshot) {
-  auto working_builtins = [](v8::Isolate* isolate) {
-    v8::Isolate::Scope i_scope(isolate);
-    v8::HandleScope h_scope(isolate);
-    v8::Local<v8::Context> context = v8::Context::New(isolate);
-    v8::Context::Scope c_scope(context);
-    v8::Maybe<int32_t> result = CompileRun("(function(x){return +x+40})(\"2\")")
-                                    ->Int32Value(isolate->GetCurrentContext());
-    CHECK_EQ(42, result.FromJust());
-  };
-
-  v8::Isolate* isolate1 = TestSerializer::NewIsolateInitialized();
-  StartupBlobs blobs1 = Serialize(isolate1);
-  auto ro1 = SnapshotData(blobs1.read_only);
-  isolate1->Dispose();
-
-  v8::Isolate* isolate2 = TestSerializer::NewIsolateFromReadOnlySnapshot(&ro1);
-  auto blobs2 = Serialize(isolate2);
-  auto ro2 = SnapshotData(blobs2.read_only);
-  isolate2->Dispose();
-
-  v8::Isolate* isolate3 = TestSerializer::NewIsolateFromReadOnlySnapshot(&ro2);
-  auto blobs3 = Serialize(isolate3);
-  auto ro3 = SnapshotData(blobs3.read_only);
-  isolate3->Dispose();
-
-  v8::Isolate* isolate4 = TestSerializer::NewIsolateFromBlob(blobs2);
-  working_builtins(isolate4);
-  isolate4->Dispose();
-  v8::Isolate* isolate5 = TestSerializer::NewIsolateFromBlob(blobs3);
-  working_builtins(isolate5);
-  isolate5->Dispose();
-
-  // The first snapshot is not stable since the serializer does not preserve the
-  // order of objects in the read only heap.
-  CHECK_EQ(blobs2.startup, blobs3.startup);
-  CHECK_EQ(blobs2.shared_space, blobs3.shared_space);
-  CHECK_EQ(blobs2.read_only, blobs3.read_only);
-
-  blobs1.Dispose();
-  blobs2.Dispose();
-  blobs3.Dispose();
-  FreeCurrentEmbeddedBlob();
-}
-#endif  // V8_EXTERNAL_CODE_SPACE_BOOL
 
 }  // namespace internal
 }  // namespace v8

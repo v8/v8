@@ -4026,13 +4026,6 @@ bool Isolate::InitWithoutSnapshot() {
   return Init(nullptr, nullptr, nullptr, false);
 }
 
-bool Isolate::InitWithReadOnlySnapshot(SnapshotData* read_only_snapshot_data) {
-  DCHECK_NOT_NULL(read_only_snapshot_data);
-  // Without external code space builtin code objects are alocated in ro space
-  DCHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-  return Init(nullptr, read_only_snapshot_data, nullptr, false);
-}
-
 bool Isolate::InitWithSnapshot(SnapshotData* startup_snapshot_data,
                                SnapshotData* read_only_snapshot_data,
                                SnapshotData* shared_heap_snapshot_data,
@@ -4145,13 +4138,10 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   CHECK_EQ(V8HeapCompressionScheme::base(), cage_base());
 #endif  // V8_COMPRESS_POINTERS_IN_SHARED_CAGE
 
-  const bool create_heap_objects = (shared_heap_snapshot_data == nullptr);
-  const bool setup_up_existing_read_only_roots =
-      create_heap_objects && (read_only_snapshot_data != nullptr);
-  // We either have both or none.
+  const bool create_heap_objects = (read_only_snapshot_data == nullptr);
+  // We either have all or none.
   DCHECK_EQ(create_heap_objects, startup_snapshot_data == nullptr);
-  DCHECK_IMPLIES(setup_up_existing_read_only_roots,
-                 startup_snapshot_data == nullptr);
+  DCHECK_EQ(create_heap_objects, shared_heap_snapshot_data == nullptr);
 
   // Code space setup requires the permissions to be set to default state.
   RwxMemoryWriteScope::SetDefaultPermissionsForNewThread();
@@ -4304,28 +4294,6 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     string_forwarding_table_ = shared_heap_isolate()->string_forwarding_table_;
   }
 
-  // If we create an isolate from scratch, but based on existing read only
-  // roots, then we need to populate the string cache with its strings.
-  if (setup_up_existing_read_only_roots) {
-    HandleScope scope(this);
-    ReadOnlyHeapObjectIterator iterator(read_only_heap());
-    for (HeapObject object = iterator.Next(); !object.is_null();
-         object = iterator.Next()) {
-      if (object.IsInternalizedString()) {
-        auto s = String::cast(object);
-        Handle<String> str(s, this);
-        StringTableInsertionKey key(
-            this, str, DeserializingUserCodeOption::kNotDeserializingUserCode);
-        auto result = string_table()->LookupKey(this, &key);
-        // Since this is startup, there should be no duplicate entries in the
-        // string table, and the lookup should unconditionally add the given
-        // string.
-        DCHECK_EQ(*result, *str);
-        USE(result);
-      }
-    }
-  }
-
   if (V8_SHORT_BUILTIN_CALLS_BOOL && v8_flags.short_builtin_calls) {
 #if defined(V8_OS_ANDROID)
     // On Android, the check is not operative to detect memory, and re-embedded
@@ -4470,9 +4438,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     CodePageCollectionMemoryModificationScope modification_scope(heap());
 
     if (create_heap_objects) {
-      if (!setup_up_existing_read_only_roots) {
-        read_only_heap_->OnCreateHeapObjectsComplete(this);
-      }
+      read_only_heap_->OnCreateHeapObjectsComplete(this);
     } else {
       SharedHeapDeserializer shared_heap_deserializer(
           this, shared_heap_snapshot_data, can_rehash);
