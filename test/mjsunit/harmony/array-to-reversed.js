@@ -35,7 +35,9 @@ assertEquals("toReversed", Array.prototype.toReversed.name);
   let a = [1,,3,4];
   let r = a.toReversed();
   assertEquals([1,,3,4], a);
-  assertEquals([4,3,,1], r);
+  assertEquals([4,3,undefined,1], r);
+  assertFalse(a.hasOwnProperty(1));
+  assertTrue(r.hasOwnProperty(2));
   assertFalse(a === r);
 })();
 
@@ -43,7 +45,9 @@ assertEquals("toReversed", Array.prototype.toReversed.name);
   let a = [1.1,,3.3,4.4];
   let r = a.toReversed();
   assertEquals([1.1,,3.3,4.4], a);
-  assertEquals([4.4,3.3,,1.1], r);
+  assertEquals([4.4,3.3,undefined,1.1], r);
+  assertFalse(a.hasOwnProperty(1));
+  assertTrue(r.hasOwnProperty(2));
   assertFalse(a === r);
 })();
 
@@ -51,7 +55,9 @@ assertEquals("toReversed", Array.prototype.toReversed.name);
   let a = [true,false,,1,42.42];
   let r = a.toReversed();
   assertEquals([true,false,,1,42.42], a);
-  assertEquals([42.42,1,,false,true], r);
+  assertEquals([42.42,1,undefined,false,true], r);
+  assertFalse(a.hasOwnProperty(2));
+  assertTrue(r.hasOwnProperty(2));
   assertFalse(a === r);
 })();
 
