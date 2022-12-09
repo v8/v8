@@ -1368,11 +1368,11 @@ RUNTIME_FUNCTION(Runtime_PretenureAllocationSite) {
     return ReturnFuzzSafe(ReadOnlyRoots(isolate).false_value(), isolate);
   }
 
-  PretenuringHandler* pretenuring_handler = heap->pretenuring_handler();
+  PretenturingHandler* pretenuring_handler = heap->pretenuring_handler();
   AllocationMemento memento =
       pretenuring_handler
-          ->FindAllocationMemento<PretenuringHandler::kForRuntime>(object.map(),
-                                                                   object);
+          ->FindAllocationMemento<PretenturingHandler::kForRuntime>(
+              object.map(), object);
   if (memento.is_null())
     return ReturnFuzzSafe(ReadOnlyRoots(isolate).false_value(), isolate);
   AllocationSite site = memento.GetAllocationSite();

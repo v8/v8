@@ -1670,7 +1670,7 @@ class Heap {
 
   AtomicMarkingState* atomic_marking_state() { return &atomic_marking_state_; }
 
-  PretenuringHandler* pretenuring_handler() { return &pretenuring_handler_; }
+  PretenturingHandler* pretenuring_handler() { return &pretenuring_handler_; }
 
  private:
   class AllocationTrackerForDebugging;
@@ -2417,7 +2417,7 @@ class Heap {
   NonAtomicMarkingState non_atomic_marking_state_;
   AtomicMarkingState atomic_marking_state_;
 
-  PretenuringHandler pretenuring_handler_;
+  PretenturingHandler pretenuring_handler_;
 
   // This field is used only when not running with MinorMC.
   ResizeNewSpaceMode resize_new_space_mode_ = ResizeNewSpaceMode::kNone;
@@ -2457,7 +2457,7 @@ class Heap {
   friend class ObjectStatsCollector;
   friend class Page;
   friend class PagedSpaceBase;
-  friend class PretenuringHandler;
+  friend class PretenturingHandler;
   friend class ReadOnlyRoots;
   friend class DisableConservativeStackScanningScopeForTesting;
   friend class Scavenger;

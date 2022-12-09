@@ -16,7 +16,7 @@
 namespace v8 {
 namespace internal {
 
-void PretenuringHandler::UpdateAllocationSite(
+void PretenturingHandler::UpdateAllocationSite(
     Map map, HeapObject object, PretenuringFeedbackMap* pretenuring_feedback) {
   DCHECK_NE(pretenuring_feedback, &global_pretenuring_feedback_);
 #ifdef DEBUG
@@ -42,9 +42,9 @@ void PretenuringHandler::UpdateAllocationSite(
   (*pretenuring_feedback)[AllocationSite::unchecked_cast(Object(key))]++;
 }
 
-template <PretenuringHandler::FindMementoMode mode>
-AllocationMemento PretenuringHandler::FindAllocationMemento(Map map,
-                                                            HeapObject object) {
+template <PretenturingHandler::FindMementoMode mode>
+AllocationMemento PretenturingHandler::FindAllocationMemento(
+    Map map, HeapObject object) {
   Address object_address = object.address();
   Address memento_address =
       object_address + ALIGN_TO_ALLOCATION_ALIGNMENT(object.SizeFromMap(map));

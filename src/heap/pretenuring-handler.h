@@ -18,15 +18,15 @@ template <typename T>
 class GlobalHandleVector;
 class Heap;
 
-class PretenuringHandler final {
+class PretenturingHandler final {
  public:
   static const int kInitialFeedbackCapacity = 256;
   using PretenuringFeedbackMap =
       std::unordered_map<AllocationSite, size_t, Object::Hasher>;
   enum FindMementoMode { kForRuntime, kForGC };
 
-  explicit PretenuringHandler(Heap* heap);
-  ~PretenuringHandler();
+  explicit PretenturingHandler(Heap* heap);
+  ~PretenturingHandler();
 
   void reset();
 

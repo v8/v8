@@ -99,7 +99,7 @@ class Sweeper {
                          int required_freed_bytes, int max_pages = 0);
   int ParallelSweepPage(
       Page* page, AllocationSpace identity,
-      PretenuringHandler::PretenuringFeedbackMap* local_pretenuring_feedback,
+      PretenturingHandler::PretenuringFeedbackMap* local_pretenuring_feedback,
       SweepingMode sweeping_mode);
 
   void EnsurePageIsSwept(Page* page);
@@ -107,16 +107,16 @@ class Sweeper {
   int RawSweep(
       Page* p, FreeSpaceTreatmentMode free_space_treatment_mode,
       SweepingMode sweeping_mode, const base::MutexGuard& page_guard,
-      PretenuringHandler::PretenuringFeedbackMap* local_pretenuring_feedback);
+      PretenturingHandler::PretenuringFeedbackMap* local_pretenuring_feedback);
 
   void ParallelIteratePromotedPagesForRememberedSets();
   void ParallelIteratePromotedPageForRememberedSets(
       MemoryChunk* chunk,
-      PretenuringHandler::PretenuringFeedbackMap* local_pretenuring_feedback,
+      PretenturingHandler::PretenuringFeedbackMap* local_pretenuring_feedback,
       CachedOldToNewRememberedSets* snapshot_old_to_new_remembered_sets);
   void RawIteratePromotedPageForRememberedSets(
       MemoryChunk* chunk,
-      PretenuringHandler::PretenuringFeedbackMap* local_pretenuring_feedback,
+      PretenturingHandler::PretenuringFeedbackMap* local_pretenuring_feedback,
       CachedOldToNewRememberedSets* snapshot_old_to_new_remembered_sets);
 
   // After calling this function sweeping is considered to be in progress
@@ -234,8 +234,8 @@ class Sweeper {
   std::atomic<bool> sweeping_in_progress_;
   bool should_reduce_memory_;
   bool should_sweep_non_new_spaces_ = false;
-  PretenuringHandler* const pretenuring_handler_;
-  PretenuringHandler::PretenuringFeedbackMap local_pretenuring_feedback_;
+  PretenturingHandler* const pretenuring_handler_;
+  PretenturingHandler::PretenuringFeedbackMap local_pretenuring_feedback_;
   base::Optional<GarbageCollector> current_new_space_collector_;
   CachedOldToNewRememberedSets snapshot_old_to_new_remembered_sets_;
 
