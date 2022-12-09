@@ -34,6 +34,18 @@ class RootVisitor;
 class String;
 class Symbol;
 
+#define STRONG_READ_ONLY_HEAP_NUMBER_ROOT_LIST(V)         \
+  /* Special numbers */                                   \
+  V(HeapNumber, nan_value, NanValue)                      \
+  V(HeapNumber, hole_nan_value, HoleNanValue)             \
+  V(HeapNumber, infinity_value, InfinityValue)            \
+  V(HeapNumber, minus_zero_value, MinusZeroValue)         \
+  V(HeapNumber, minus_infinity_value, MinusInfinityValue) \
+  V(HeapNumber, max_safe_integer, MaxSafeInteger)         \
+  V(HeapNumber, max_uint_32, MaxUInt32)                   \
+  V(HeapNumber, smi_min_value, SmiMinValue)               \
+  V(HeapNumber, smi_max_value_plus_one, SmiMaxValuePlusOne)
+
 // Defines all the read-only roots in Heap.
 #define STRONG_READ_ONLY_ROOT_LIST(V)                                          \
   /* Cluster the most popular ones in a few cache lines here at the top.    */ \
@@ -199,12 +211,7 @@ class Symbol;
   V(WeakFixedArray, empty_weak_fixed_array, EmptyWeakFixedArray)               \
   V(WeakArrayList, empty_weak_array_list, EmptyWeakArrayList)                  \
   V(Cell, invalid_prototype_validity_cell, InvalidPrototypeValidityCell)       \
-  /* Special numbers */                                                        \
-  V(HeapNumber, nan_value, NanValue)                                           \
-  V(HeapNumber, hole_nan_value, HoleNanValue)                                  \
-  V(HeapNumber, infinity_value, InfinityValue)                                 \
-  V(HeapNumber, minus_zero_value, MinusZeroValue)                              \
-  V(HeapNumber, minus_infinity_value, MinusInfinityValue)                      \
+  STRONG_READ_ONLY_HEAP_NUMBER_ROOT_LIST(V)                                    \
   /* Table of strings of one-byte single characters */                         \
   V(FixedArray, single_character_string_table, SingleCharacterStringTable)     \
   /* Marker for self-references during code-generation */                      \
@@ -222,6 +229,7 @@ class Symbol;
   V(ScopeInfo, global_this_binding_scope_info, GlobalThisBindingScopeInfo)     \
   V(ScopeInfo, empty_function_scope_info, EmptyFunctionScopeInfo)              \
   V(ScopeInfo, native_scope_info, NativeScopeInfo)                             \
+  V(RegisteredSymbolTable, empty_symbol_table, EmptySymbolTable)               \
   /* Hash seed */                                                              \
   V(ByteArray, hash_seed, HashSeed)
 
@@ -431,6 +439,9 @@ enum class RootIndex : uint16_t {
   kFirstReadOnlyRoot = kFirstRoot,
   kLastReadOnlyRoot = kFirstReadOnlyRoot + kReadOnlyRootsCount - 1,
 
+  kFirstHeapNumberRoot = kNanValue,
+  kLastHeapNumberRoot = kSmiMaxValuePlusOne,
+
   // Use for fast protector update checks
   kFirstNameForProtector = kconstructor_string,
   kNameForProtectorCount = 0 NAME_FOR_PROTECTOR_ROOT_LIST(COUNT_ROOT),
@@ -514,6 +525,12 @@ class RootsTable {
                   0);
     return static_cast<unsigned>(root_index) <=
            static_cast<unsigned>(RootIndex::kLastImmortalImmovableRoot);
+  }
+
+  static constexpr bool IsReadOnly(RootIndex root_index) {
+    static_assert(static_cast<int>(RootIndex::kFirstReadOnlyRoot) == 0);
+    return static_cast<unsigned>(root_index) <=
+           static_cast<unsigned>(RootIndex::kLastReadOnlyRoot);
   }
 
  private:
@@ -613,6 +630,10 @@ class ReadOnlyRoots {
 #ifdef DEBUG
   void VerifyNameForProtectors();
 #endif
+
+  // Returns heap number with identical value if it already exists or the empty
+  // handle otherwise.
+  Handle<HeapNumber> FindHeapNumber(double value);
 
   // Get the address of a given read-only root index, without type checks.
   V8_INLINE Address at(RootIndex root_index) const;

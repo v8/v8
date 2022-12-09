@@ -667,7 +667,8 @@ class Heap {
   // Support for the API.
   //
 
-  void CreateApiObjects();
+  void CreateReadOnlyApiObjects();
+  void CreateMutableApiObjects();
 
   // Implements the corresponding V8 API function.
   bool IdleNotification(double deadline_in_seconds);
@@ -810,7 +811,8 @@ class Heap {
 
   // Bootstraps the object heap with the core set of objects required to run.
   // Returns whether it succeeded.
-  bool CreateHeapObjects();
+  bool CreateReadOnlyHeapObjects();
+  bool CreateMutableHeapObjects();
 
   // Create ObjectStats if live_object_stats_ or dead_object_stats_ are nullptr.
   void CreateObjectStats();
@@ -1810,9 +1812,10 @@ class Heap {
 
   inline void UpdateOldSpaceLimits();
 
-  bool CreateInitialMaps();
+  bool CreateInitialReadOnlyMaps();
   void CreateInternalAccessorInfoObjects();
-  void CreateInitialObjects();
+  void CreateInitialMutableObjects();
+  void CreateInitialReadOnlyObjects();
 
   // Zaps the memory of a code object.
   V8_EXPORT_PRIVATE void ZapCodeObject(Address start_address,
@@ -2046,7 +2049,8 @@ class Heap {
 
   // Allocates a JS Map in the heap.
   V8_WARN_UNUSED_RESULT AllocationResult
-  AllocateMap(InstanceType instance_type, int instance_size,
+  AllocateMap(AllocationType allocation_type, InstanceType instance_type,
+              int instance_size,
               ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
               int inobject_properties = 0);
 
