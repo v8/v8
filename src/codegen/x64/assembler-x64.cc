@@ -584,6 +584,12 @@ void Assembler::GrowBuffer() {
 }
 
 void Assembler::emit_operand(int code, Operand adr) {
+  // Redirect to {emit_label_operand} if {adr} contains a label.
+  if (adr.data().is_label_operand) {
+    emit_label_operand(code, adr.data().label, adr.data().addend);
+    return;
+  }
+
   DCHECK(is_uint3(code));
   const unsigned length = adr.data().len;
   DCHECK_GT(length, 0);
@@ -591,29 +597,27 @@ void Assembler::emit_operand(int code, Operand adr) {
   // Emit updated ModR/M byte containing the given register.
   DCHECK_EQ(adr.data().buf[0] & 0x38, 0);
   *pc_++ = adr.data().buf[0] | code << 3;
+  // Emit the rest of the encoded operand.
+  for (unsigned i = 1; i < length; i++) *pc_++ = adr.data().buf[i];
+}
 
-  // Recognize RIP relative addressing.
-  if (adr.data().buf[0] == 5) {
-    DCHECK_EQ(9u, length);
-    Label* label = ReadUnalignedValue<Label*>(
-        reinterpret_cast<Address>(&adr.data().buf[1]));
-    if (label->is_bound()) {
-      int offset =
-          label->pos() - pc_offset() - sizeof(int32_t) + adr.data().addend;
-      DCHECK_GE(0, offset);
-      emitl(offset);
-    } else if (label->is_linked()) {
-      emitl(label->pos());
-      label->link_to(pc_offset() - sizeof(int32_t));
-    } else {
-      DCHECK(label->is_unused());
-      int32_t current = pc_offset();
-      emitl(current);
-      label->link_to(current);
-    }
+void Assembler::emit_label_operand(int code, Label* label, int addend) {
+  DCHECK(addend == 0 || (is_int8(addend) && label->is_bound()));
+  V8_ASSUME(0 <= code && code <= 7);
+
+  *pc_++ = 5 | (code << 3);
+  if (label->is_bound()) {
+    int offset = label->pos() - pc_offset() - sizeof(int32_t) + addend;
+    DCHECK_GE(0, offset);
+    emitl(offset);
+  } else if (label->is_linked()) {
+    emitl(label->pos());
+    label->link_to(pc_offset() - sizeof(int32_t));
   } else {
-    // Emit the rest of the encoded operand.
-    for (unsigned i = 1; i < length; i++) *pc_++ = adr.data().buf[i];
+    DCHECK(label->is_unused());
+    int32_t current = pc_offset();
+    emitl(current);
+    label->link_to(current);
   }
 }
 
