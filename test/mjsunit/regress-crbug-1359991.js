@@ -13,7 +13,7 @@ class MyFloat64Array extends Float64Array {
     super(rab);
     if (callSlice) {
       callSlice = false;  // Prevent recursion
-      assertThrows(() => { super.slice(); }, TypeError);
+      super.slice();
     }
   }
 };

@@ -478,9 +478,16 @@ transitioning macro TypedArraySpeciesCreateByLength(implicit context: Context)(
   const typedArray: JSTypedArray = TypedArraySpeciesCreate(
       methodName, numArgs, exemplar, Convert<Number>(length), Undefined,
       Undefined);
-  if (LoadJSTypedArrayLength(typedArray) < length) deferred {
-      ThrowTypeError(MessageTemplate::kTypedArrayTooShort);
-    }
+  try {
+    const createdArrayLength =
+        LoadJSTypedArrayLengthAndCheckDetached(typedArray)
+        otherwise DetachedOrOutOfBounds;
+    if (createdArrayLength < length) deferred {
+        ThrowTypeError(MessageTemplate::kTypedArrayTooShort);
+      }
+  } label DetachedOrOutOfBounds {
+    ThrowTypeError(MessageTemplate::kTypedArrayTooShort);
+  }
   return typedArray;
 }
 
