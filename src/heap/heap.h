@@ -1587,9 +1587,7 @@ class Heap {
   // Sweeping. =================================================================
   // ===========================================================================
 
-  bool sweeping_in_progress() const {
-    return sweeper_ && sweeper_->sweeping_in_progress();
-  }
+  bool sweeping_in_progress() const { return sweeper_->sweeping_in_progress(); }
 
   void FinishSweepingIfOutOfWork();
 

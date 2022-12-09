@@ -4,7 +4,6 @@
 
 #include "src/heap/sweeper.h"
 
-#include <algorithm>
 #include <memory>
 #include <vector>
 
@@ -231,8 +230,8 @@ void Sweeper::StartSweeping(GarbageCollector collector) {
   });
   DCHECK(snapshot_normal_pages_set_.empty());
   DCHECK(snapshot_large_pages_set_.empty());
-  if (v8_flags.minor_mc && (current_new_space_collector_ ==
-                            GarbageCollector::MINOR_MARK_COMPACTOR)) {
+  if (v8_flags.minor_mc &&
+      (collector == GarbageCollector::MINOR_MARK_COMPACTOR)) {
     std::tie(snapshot_normal_pages_set_, snapshot_large_pages_set_) =
         heap_->memory_allocator()->SnapshotPageSets();
   }
@@ -247,34 +246,6 @@ int Sweeper::NumberOfConcurrentSweepers() const {
 void Sweeper::StartSweeperTasks() {
   DCHECK(current_new_space_collector_.has_value());
   DCHECK(!job_handle_ || !job_handle_->IsValid());
-  if (v8_flags.minor_mc && (current_new_space_collector_ ==
-                            GarbageCollector::MINOR_MARK_COMPACTOR)) {
-    // Some large pages may have been freed since starting sweeping.
-#if DEBUG
-    MemoryAllocator::NormalPagesSet old_snapshot_normal_pages_set =
-        std::move(snapshot_normal_pages_set_);
-    MemoryAllocator::LargePagesSet old_snapshot_large_pages_set =
-        std::move(snapshot_large_pages_set_);
-#endif  // DEBUG
-    std::tie(snapshot_normal_pages_set_, snapshot_large_pages_set_) =
-        heap_->memory_allocator()->SnapshotPageSets();
-#if DEBUG
-    // Normal pages may only have been added.
-    DCHECK(std::all_of(old_snapshot_normal_pages_set.begin(),
-                       old_snapshot_normal_pages_set.end(),
-                       [this](const Page* page) {
-                         return snapshot_normal_pages_set_.find(page) !=
-                                snapshot_normal_pages_set_.end();
-                       }));
-    // Large pages may only have been removed.
-    DCHECK(std::all_of(snapshot_large_pages_set_.begin(),
-                       snapshot_large_pages_set_.end(),
-                       [old_snapshot_large_pages_set](const LargePage* page) {
-                         return old_snapshot_large_pages_set.find(page) !=
-                                old_snapshot_large_pages_set.end();
-                       }));
-#endif  // DEBUG
-  }
   if (v8_flags.concurrent_sweeping && sweeping_in_progress_ &&
       !heap_->delay_sweeper_tasks_for_testing_) {
     if (concurrent_sweepers_.empty()) {
