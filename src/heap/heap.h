@@ -1946,10 +1946,7 @@ class Heap {
 
   void UpdateTotalGCTime(double duration);
 
-  bool MaximumSizeMinorGC() const { return maximum_size_minor_gcs_ > 0; }
-  bool IsFirstMaximumSizeMinorGC() const {
-    return maximum_size_minor_gcs_ == 1;
-  }
+  bool MaximumSizeMinorGC() { return maximum_size_minor_gcs_ > 0; }
 
   bool IsIneffectiveMarkCompact(size_t old_generation_size,
                                 double mutator_utilization);
