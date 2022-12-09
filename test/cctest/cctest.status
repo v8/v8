@@ -125,6 +125,9 @@
 ['mode == debug', {
   # BUG(v8:10996): Flaky on Linux64 - debug
   'test-cpu-profiler/StartProfilingAfterOsr': [SKIP],
+
+  'test-concurrent-allocation/ConcurrentAllocationWhileMainThreadParksAndUnparks': [PASS, SLOW],
+  'test-concurrent-allocation/ConcurrentAllocationInLargeSpace': [PASS, SLOW],
 }],
 
 ##############################################################################
