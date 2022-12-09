@@ -7,6 +7,7 @@
 #include "src/utils/ostreams.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/function-body-decoder-impl.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-module.h"
@@ -69,12 +70,11 @@ BytecodeIterator::BytecodeIterator(const byte* start, const byte* end,
   if (pc_ > end_) pc_ = end_;
 }
 
-DecodeResult ValidateFunctionBody(AccountingAllocator* allocator,
-                                  const WasmFeatures& enabled,
+DecodeResult ValidateFunctionBody(const WasmFeatures& enabled,
                                   const WasmModule* module,
                                   WasmFeatures* detected,
                                   const FunctionBody& body) {
-  Zone zone(allocator, ZONE_NAME);
+  Zone zone(GetWasmEngine()->allocator(), ZONE_NAME);
   WasmFullDecoder<Decoder::FullValidationTag, EmptyInterface> decoder(
       &zone, module, enabled, detected, body);
   decoder.Decode();

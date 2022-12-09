@@ -1659,13 +1659,11 @@ class ModuleDecoderTemplate : public Decoder {
 
     if (!ok()) return FunctionResult{std::move(error_)};
 
-    AccountingAllocator* allocator = zone->allocator();
-
     FunctionBody body{function.sig, off(pc_), pc_, end_};
 
     WasmFeatures unused_detected_features;
-    DecodeResult result = ValidateFunctionBody(
-        allocator, enabled_features_, module, &unused_detected_features, body);
+    DecodeResult result = ValidateFunctionBody(enabled_features_, module,
+                                               &unused_detected_features, body);
 
     if (result.failed()) return FunctionResult{std::move(result).error()};
 

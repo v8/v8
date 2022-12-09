@@ -414,7 +414,6 @@ class ValidateFunctionsTask : public JobTask {
   }
 
   void Run(JobDelegate* delegate) override {
-    AccountingAllocator* allocator = GetWasmEngine()->allocator();
     do {
       // Get the index of the next function to validate.
       // {fetch_add} might overrun {after_last_function_} by a bit. Since the
@@ -429,7 +428,7 @@ class ValidateFunctionsTask : public JobTask {
       } while ((filter_ && !filter_(func_index)) ||
                module_->function_was_validated(func_index));
 
-      if (!ValidateFunction(allocator, func_index)) {
+      if (!ValidateFunction(func_index)) {
         // No need to validate any more functions.
         next_function_.store(after_last_function_, std::memory_order_relaxed);
         return;
@@ -443,14 +442,14 @@ class ValidateFunctionsTask : public JobTask {
   }
 
  private:
-  bool ValidateFunction(AccountingAllocator* allocator, int func_index) {
+  bool ValidateFunction(int func_index) {
     WasmFeatures unused_detected_features;
     const WasmFunction& function = module_->functions[func_index];
     FunctionBody body{function.sig, function.code.offset(),
                       wire_bytes_.begin() + function.code.offset(),
                       wire_bytes_.begin() + function.code.end_offset()};
     DecodeResult validation_result = ValidateFunctionBody(
-        allocator, enabled_features_, module_, &unused_detected_features, body);
+        enabled_features_, module_, &unused_detected_features, body);
     if (V8_UNLIKELY(validation_result.failed())) {
       SetError(func_index, std::move(validation_result).error());
       return false;

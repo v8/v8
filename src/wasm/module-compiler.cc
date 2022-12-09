@@ -1074,13 +1074,12 @@ class CompilationUnitBuilder {
 
 DecodeResult ValidateSingleFunction(const WasmModule* module, int func_index,
                                     base::Vector<const uint8_t> code,
-                                    AccountingAllocator* allocator,
                                     WasmFeatures enabled_features) {
   const WasmFunction* func = &module->functions[func_index];
   FunctionBody body{func->sig, func->code.offset(), code.begin(), code.end()};
   WasmFeatures detected_features;
-  return ValidateFunctionBody(allocator, enabled_features, module,
-                              &detected_features, body);
+  return ValidateFunctionBody(enabled_features, module, &detected_features,
+                              body);
 }
 
 enum OnlyLazyFunctions : bool {
@@ -1199,10 +1198,9 @@ void ThrowLazyCompilationError(Isolate* isolate,
   base::Vector<const uint8_t> code =
       compilation_state->GetWireBytesStorage()->GetCode(func->code);
 
-  WasmEngine* engine = GetWasmEngine();
   auto enabled_features = native_module->enabled_features();
-  DecodeResult decode_result = ValidateSingleFunction(
-      module, func_index, code, engine->allocator(), enabled_features);
+  DecodeResult decode_result =
+      ValidateSingleFunction(module, func_index, code, enabled_features);
 
   CHECK(decode_result.failed());
   wasm::ErrorThrower thrower(isolate, nullptr);
@@ -2122,10 +2120,9 @@ class ValidateFunctionsStreamingJob final : public JobTask {
 
   void Run(JobDelegate* delegate) override {
     TRACE_EVENT0("v8.wasm", "wasm.ValidateFunctionsStreaming");
-    AccountingAllocator* allocator = GetWasmEngine()->allocator();
     while (Unit unit = data_->GetUnit()) {
       DecodeResult result = ValidateSingleFunction(
-          module_, unit.func_index, unit.code, allocator, enabled_features_);
+          module_, unit.func_index, unit.code, enabled_features_);
 
       if (result.failed()) {
         WasmError new_error = std::move(result).error();

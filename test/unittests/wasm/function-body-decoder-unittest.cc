@@ -258,9 +258,8 @@ class FunctionBodyDecoderTestBase : public WithZoneMixin<BaseTest> {
     // Validate the code.
     FunctionBody body(sig, 0, code.begin(), code.end());
     WasmFeatures unused_detected_features = WasmFeatures::None();
-    DecodeResult result =
-        ValidateFunctionBody(this->zone()->allocator(), enabled_features_,
-                             module, &unused_detected_features, body);
+    DecodeResult result = ValidateFunctionBody(enabled_features_, module,
+                                               &unused_detected_features, body);
 
     std::ostringstream str;
     if (result.failed()) {
@@ -3287,9 +3286,8 @@ TEST_F(FunctionBodyDecoderTest, Regression709741) {
   for (size_t i = 0; i < arraysize(code); ++i) {
     FunctionBody body(sigs.v_v(), 0, code, code + i);
     WasmFeatures unused_detected_features;
-    DecodeResult result =
-        ValidateFunctionBody(this->zone()->allocator(), WasmFeatures::All(),
-                             nullptr, &unused_detected_features, body);
+    DecodeResult result = ValidateFunctionBody(WasmFeatures::All(), nullptr,
+                                               &unused_detected_features, body);
     if (result.ok()) {
       std::ostringstream str;
       str << "Expected verification to fail";
