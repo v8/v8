@@ -6,7 +6,6 @@
 #define V8_HEAP_SWEEPER_H_
 
 #include <map>
-#include <unordered_map>
 #include <vector>
 
 #include "src/base/optional.h"
@@ -15,7 +14,6 @@
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/heap/gc-tracer.h"
-#include "src/heap/memory-allocator.h"
 #include "src/heap/pretenuring-handler.h"
 #include "src/heap/slot-set.h"
 #include "src/tasks/cancelable-task.h"
@@ -24,10 +22,8 @@ namespace v8 {
 namespace internal {
 
 class InvalidatedSlotsCleanup;
-class MemoryChunk;
 class NonAtomicMarkingState;
 class Page;
-class LargePage;
 class PagedSpaceBase;
 class Space;
 
@@ -37,8 +33,6 @@ class Sweeper {
  public:
   using SweepingList = std::vector<Page*>;
   using SweptList = std::vector<Page*>;
-  using CachedOldToNewRememberedSets =
-      std::unordered_map<MemoryChunk*, SlotSet*>;
 
   // Pauses the sweeper tasks.
   class V8_NODISCARD PauseScope final {
@@ -84,7 +78,7 @@ class Sweeper {
   enum AddPageMode { REGULAR, READD_TEMPORARY_REMOVED_PAGE };
   enum class SweepingMode { kEagerDuringGC, kLazyOrConcurrent };
 
-  explicit Sweeper(Heap* heap);
+  Sweeper(Heap* heap);
   ~Sweeper();
 
   bool sweeping_in_progress() const { return sweeping_in_progress_; }
@@ -93,7 +87,6 @@ class Sweeper {
 
   void AddPage(AllocationSpace space, Page* page, AddPageMode mode);
   void AddNewSpacePage(Page* page);
-  void AddPromotedPageForIteration(MemoryChunk* chunk);
 
   int ParallelSweepSpace(AllocationSpace identity, SweepingMode sweeping_mode,
                          int required_freed_bytes, int max_pages = 0);
@@ -108,16 +101,6 @@ class Sweeper {
       Page* p, FreeSpaceTreatmentMode free_space_treatment_mode,
       SweepingMode sweeping_mode, const base::MutexGuard& page_guard,
       PretenturingHandler::PretenuringFeedbackMap* local_pretenuring_feedback);
-
-  void ParallelIteratePromotedPagesForRememberedSets();
-  void ParallelIteratePromotedPageForRememberedSets(
-      MemoryChunk* chunk,
-      PretenturingHandler::PretenuringFeedbackMap* local_pretenuring_feedback,
-      CachedOldToNewRememberedSets* snapshot_old_to_new_remembered_sets);
-  void RawIteratePromotedPageForRememberedSets(
-      MemoryChunk* chunk,
-      PretenturingHandler::PretenuringFeedbackMap* local_pretenuring_feedback,
-      CachedOldToNewRememberedSets* snapshot_old_to_new_remembered_sets);
 
   // After calling this function sweeping is considered to be in progress
   // and the main thread can sweep lazily, but the background sweeper tasks
@@ -137,14 +120,10 @@ class Sweeper {
                                            bool is_joining_thread);
   GCTracer::Scope::ScopeId GetTracingScopeForCompleteYoungSweep();
 
-  void WaitForPromotedPagesIteration();
-
  private:
   NonAtomicMarkingState* marking_state() const { return marking_state_; }
 
   void AddPageImpl(AllocationSpace space, Page* page, AddPageMode mode);
-
-  void MergePretenuringFeedbackAndRememberedSets();
 
   class ConcurrentSweeper;
   class SweeperJob;
@@ -201,7 +180,6 @@ class Sweeper {
   size_t ConcurrentSweepingPageCount();
 
   Page* GetSweepingPageSafe(AllocationSpace space);
-  MemoryChunk* GetPromotedPageForIterationSafe();
   bool TryRemoveSweepingPageSafe(AllocationSpace space, Page* page);
 
   void PrepareToBeSweptPage(AllocationSpace space, Page* page);
@@ -217,17 +195,13 @@ class Sweeper {
 
   int NumberOfConcurrentSweepers() const;
 
-  void NotifyPromotedPagesIterationFinished();
-
   Heap* const heap_;
   NonAtomicMarkingState* const marking_state_;
   std::unique_ptr<JobHandle> job_handle_;
   base::Mutex mutex_;
-  base::Mutex promoted_pages_iteration_mutex_;
   base::ConditionVariable cv_page_swept_;
   SweptList swept_list_[kNumberOfSweepingSpaces];
   SweepingList sweeping_list_[kNumberOfSweepingSpaces];
-  std::vector<MemoryChunk*> sweeping_list_for_promoted_page_iteration_;
   std::vector<ConcurrentSweeper> concurrent_sweepers_;
   // Main thread can finalize sweeping, while background threads allocation slow
   // path checks this flag to see whether it could support concurrent sweeping.
@@ -237,16 +211,6 @@ class Sweeper {
   PretenturingHandler* const pretenuring_handler_;
   PretenturingHandler::PretenuringFeedbackMap local_pretenuring_feedback_;
   base::Optional<GarbageCollector> current_new_space_collector_;
-  CachedOldToNewRememberedSets snapshot_old_to_new_remembered_sets_;
-
-  // The following fields are used for maintaining an order between iterating
-  // promoted pages and sweeping array buffer extensions.
-  size_t promoted_pages_for_iteration_count_ = 0;
-  std::atomic<size_t> iterated_promoted_pages_count_{0};
-  base::Mutex promoted_pages_iteration_notification_mutex_;
-  base::ConditionVariable promoted_pages_iteration_notification_variable_;
-  MemoryAllocator::NormalPagesSet snapshot_normal_pages_set_;
-  MemoryAllocator::LargePagesSet snapshot_large_pages_set_;
 };
 
 }  // namespace internal

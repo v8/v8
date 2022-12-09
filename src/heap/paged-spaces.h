@@ -19,7 +19,6 @@
 #include "src/heap/allocation-observer.h"
 #include "src/heap/allocation-stats.h"
 #include "src/heap/heap-verifier.h"
-#include "src/heap/heap.h"
 #include "src/heap/memory-chunk-layout.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/spaces.h"

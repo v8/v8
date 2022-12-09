@@ -1372,8 +1372,6 @@ DEFINE_INT(ephemeron_fixpoint_iterations, 10,
            "ephemeron algorithm")
 DEFINE_BOOL(trace_concurrent_marking, false, "trace concurrent marking")
 DEFINE_BOOL(concurrent_sweeping, true, "use concurrent sweeping")
-DEFINE_NEG_NEG_IMPLICATION(concurrent_sweeping,
-                           concurrent_array_buffer_sweeping)
 DEFINE_BOOL(parallel_compaction, true, "use parallel compaction")
 DEFINE_BOOL(parallel_pointer_update, true,
             "use parallel pointer update during compaction")
