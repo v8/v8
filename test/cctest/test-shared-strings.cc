@@ -1842,14 +1842,8 @@ class WorkerIsolateThread : public v8::base::Thread {
       gh_shared_string.SetWeak();
     }
 
-    {
-      // Disable CSS for the shared heap and all clients.
-      DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-          i_client->shared_heap_isolate()->heap());
-      i_client->heap()->CollectGarbageShared(i_client->main_thread_local_heap(),
-                                             GarbageCollectionReason::kTesting);
-    }
-
+    i_client->heap()->CollectGarbageShared(i_client->main_thread_local_heap(),
+                                           GarbageCollectionReason::kTesting);
     CHECK(gh_shared_string.IsEmpty());
     client->Dispose();
 
