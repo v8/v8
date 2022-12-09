@@ -883,6 +883,16 @@ struct ComparisonOp : FixedArityOperationT<2, ComparisonOp> {
   }
   auto options() const { return std::tuple{kind, rep}; }
 
+  static bool IsLessThan(Kind kind) {
+    switch (kind) {
+      case Kind::kSignedLessThan:
+      case Kind::kUnsignedLessThan:
+        return true;
+      case Kind::kSignedLessThanOrEqual:
+      case Kind::kUnsignedLessThanOrEqual:
+        return false;
+    }
+  }
   static bool IsSigned(Kind kind) {
     switch (kind) {
       case Kind::kSignedLessThan:

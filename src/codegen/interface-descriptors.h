@@ -2120,6 +2120,40 @@ class UnaryOp_BaselineDescriptor
   DECLARE_DESCRIPTOR(UnaryOp_BaselineDescriptor)
 };
 
+class CheckTurboshaftFloat32TypeDescriptor
+    : public StaticCallInterfaceDescriptor<
+          CheckTurboshaftFloat32TypeDescriptor> {
+ public:
+  DEFINE_RESULT_AND_PARAMETERS(1, kValue, kExpectedType, kNodeId)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::TaggedPointer(),
+                                    MachineTypeOf<Float32T>::value,
+                                    MachineType::TaggedPointer(),
+                                    MachineType::TaggedSigned())
+  DECLARE_DEFAULT_DESCRIPTOR(CheckTurboshaftFloat32TypeDescriptor)
+
+#if V8_TARGET_ARCH_IA32
+  // We need a custom descriptor on ia32 to avoid using xmm0.
+  static constexpr inline auto registers();
+#endif
+};
+
+class CheckTurboshaftFloat64TypeDescriptor
+    : public StaticCallInterfaceDescriptor<
+          CheckTurboshaftFloat64TypeDescriptor> {
+ public:
+  DEFINE_RESULT_AND_PARAMETERS(1, kValue, kExpectedType, kNodeId)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::TaggedPointer(),
+                                    MachineTypeOf<Float64T>::value,
+                                    MachineType::TaggedPointer(),
+                                    MachineType::TaggedSigned())
+  DECLARE_DEFAULT_DESCRIPTOR(CheckTurboshaftFloat64TypeDescriptor)
+
+#if V8_TARGET_ARCH_IA32
+  // We need a custom descriptor on ia32 to avoid using xmm0.
+  static constexpr inline auto registers();
+#endif
+};
+
 #define DEFINE_TFS_BUILTIN_DESCRIPTOR(Name, ...)                 \
   class Name##Descriptor                                         \
       : public StaticCallInterfaceDescriptor<Name##Descriptor> { \

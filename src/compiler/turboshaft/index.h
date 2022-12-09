@@ -77,7 +77,7 @@ std::ostream& operator<<(std::ostream& os, OpIndex idx);
 
 template <>
 struct fast_hash<OpIndex> {
-  V8_INLINE size_t operator()(OpIndex op) { return op.id(); }
+  V8_INLINE size_t operator()(OpIndex op) const { return op.id(); }
 };
 
 V8_INLINE size_t hash_value(OpIndex op) { return base::hash_value(op.id()); }
@@ -108,7 +108,7 @@ class BlockIndex {
 
 template <>
 struct fast_hash<BlockIndex> {
-  V8_INLINE size_t operator()(BlockIndex op) { return op.id(); }
+  V8_INLINE size_t operator()(BlockIndex op) const { return op.id(); }
 };
 
 V8_INLINE size_t hash_value(BlockIndex op) { return base::hash_value(op.id()); }

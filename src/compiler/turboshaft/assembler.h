@@ -15,6 +15,7 @@
 #include "src/base/macros.h"
 #include "src/base/small-vector.h"
 #include "src/base/template-utils.h"
+#include "src/codegen/callable.h"
 #include "src/codegen/reloc-info.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/turboshaft/graph.h"
@@ -56,6 +57,16 @@ class ReducerStack<Assembler> {
   using AssemblerType = Assembler;
   Assembler& Asm() { return *static_cast<Assembler*>(this); }
 };
+
+template <typename Next>
+class ReducerBase;
+
+template <typename Next>
+struct next_is_bottom_of_assembler_stack
+    : public std::integral_constant<bool, false> {};
+template <typename A>
+struct next_is_bottom_of_assembler_stack<ReducerStack<A, ReducerBase>>
+    : public std::integral_constant<bool, true> {};
 
 // LABEL_BLOCK is used in Reducers to have a single call forwarding to the next
 // reducer without change. A typical use would be:
@@ -970,6 +981,26 @@ class AssemblerOpInterface {
     Block* if_true = stack().NewBlock();
     stack().Branch(condition, if_true, if_false, hint);
     return stack().Bind(if_true);
+  }
+
+  OpIndex CallBuiltin(Builtin builtin, OpIndex frame_state,
+                      const base::Vector<OpIndex>& arguments,
+                      Isolate* isolate) {
+    Callable const callable = Builtins::CallableFor(isolate, builtin);
+    Zone* graph_zone = stack().output_graph().graph_zone();
+
+    const CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
+        graph_zone, callable.descriptor(),
+        callable.descriptor().GetStackParameterCount(),
+        CallDescriptor::kNoFlags, Operator::kNoThrow | Operator::kNoDeopt);
+    DCHECK_EQ(call_descriptor->NeedsFrameState(), frame_state.valid());
+
+    const TSCallDescriptor* ts_call_descriptor =
+        TSCallDescriptor::Create(call_descriptor, graph_zone);
+
+    OpIndex callee = stack().HeapConstant(callable.code());
+
+    return stack().Call(callee, frame_state, arguments, ts_call_descriptor);
   }
 
  private:

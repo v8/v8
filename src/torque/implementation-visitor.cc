@@ -3579,43 +3579,47 @@ void ImplementationVisitor::GenerateBuiltinDefinitionsAndInterfaceDescriptors(
       if (builtin->IsStub()) {
         builtin_definitions << "TFC(" << builtin->ExternalName() << ", "
                             << builtin->ExternalName();
-        std::string descriptor_name = builtin->ExternalName() + "Descriptor";
-        bool has_context_parameter = builtin->signature().HasContextParameter();
-        size_t kFirstNonContextParameter = has_context_parameter ? 1 : 0;
-        TypeVector return_types = LowerType(builtin->signature().return_type);
+        if (!builtin->HasCustomInterfaceDescriptor()) {
+          std::string descriptor_name = builtin->ExternalName() + "Descriptor";
+          bool has_context_parameter =
+              builtin->signature().HasContextParameter();
+          size_t kFirstNonContextParameter = has_context_parameter ? 1 : 0;
+          TypeVector return_types = LowerType(builtin->signature().return_type);
 
-        interface_descriptors << "class " << descriptor_name
-                              << " : public StaticCallInterfaceDescriptor<"
-                              << descriptor_name << "> {\n";
+          interface_descriptors << "class " << descriptor_name
+                                << " : public StaticCallInterfaceDescriptor<"
+                                << descriptor_name << "> {\n";
 
-        interface_descriptors << " public:\n";
+          interface_descriptors << " public:\n";
 
-        if (has_context_parameter) {
-          interface_descriptors << "  DEFINE_RESULT_AND_PARAMETERS(";
-        } else {
-          interface_descriptors << "  DEFINE_RESULT_AND_PARAMETERS_NO_CONTEXT(";
+          if (has_context_parameter) {
+            interface_descriptors << "  DEFINE_RESULT_AND_PARAMETERS(";
+          } else {
+            interface_descriptors
+                << "  DEFINE_RESULT_AND_PARAMETERS_NO_CONTEXT(";
+          }
+          interface_descriptors << return_types.size();
+          for (size_t i = kFirstNonContextParameter;
+               i < builtin->parameter_names().size(); ++i) {
+            Identifier* parameter = builtin->parameter_names()[i];
+            interface_descriptors << ", k" << CamelifyString(parameter->value);
+          }
+          interface_descriptors << ")\n";
+
+          interface_descriptors << "  DEFINE_RESULT_AND_PARAMETER_TYPES(";
+          PrintCommaSeparatedList(interface_descriptors, return_types,
+                                  MachineTypeString);
+          for (size_t i = kFirstNonContextParameter;
+               i < builtin->parameter_names().size(); ++i) {
+            const Type* type = builtin->signature().parameter_types.types[i];
+            interface_descriptors << ", " << MachineTypeString(type);
+          }
+          interface_descriptors << ")\n";
+
+          interface_descriptors << "  DECLARE_DEFAULT_DESCRIPTOR("
+                                << descriptor_name << ")\n";
+          interface_descriptors << "};\n\n";
         }
-        interface_descriptors << return_types.size();
-        for (size_t i = kFirstNonContextParameter;
-             i < builtin->parameter_names().size(); ++i) {
-          Identifier* parameter = builtin->parameter_names()[i];
-          interface_descriptors << ", k" << CamelifyString(parameter->value);
-        }
-        interface_descriptors << ")\n";
-
-        interface_descriptors << "  DEFINE_RESULT_AND_PARAMETER_TYPES(";
-        PrintCommaSeparatedList(interface_descriptors, return_types,
-                                MachineTypeString);
-        for (size_t i = kFirstNonContextParameter;
-             i < builtin->parameter_names().size(); ++i) {
-          const Type* type = builtin->signature().parameter_types.types[i];
-          interface_descriptors << ", " << MachineTypeString(type);
-        }
-        interface_descriptors << ")\n";
-
-        interface_descriptors << "  DECLARE_DEFAULT_DESCRIPTOR("
-                              << descriptor_name << ")\n";
-        interface_descriptors << "};\n\n";
       } else {
         builtin_definitions << "TFJ(" << builtin->ExternalName();
         if (builtin->IsVarArgsJavaScript()) {

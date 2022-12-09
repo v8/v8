@@ -126,15 +126,20 @@ INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE = {
 # The conflicts might be directly contradictory flags or be caused by the
 # implications defined in flag-definitions.h.
 INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG = {
-  "--concurrent-recompilation": ["--predictable", "--assert-types"],
-  "--parallel-compile-tasks-for-eager-toplevel": ["--predictable"],
-  "--parallel-compile-tasks-for-lazy": ["--predictable"],
-  "--gc-interval=*": ["--gc-interval=*"],
-  "--optimize-for-size": ["--max-semi-space-size=*"],
-  "--stress_concurrent_allocation":
+    "--concurrent-recompilation": [
+        "--predictable", "--assert-types", "--turboshaft-assert-types"
+    ],
+    "--parallel-compile-tasks-for-eager-toplevel": ["--predictable"],
+    "--parallel-compile-tasks-for-lazy": ["--predictable"],
+    "--gc-interval=*": ["--gc-interval=*"],
+    "--optimize-for-size": ["--max-semi-space-size=*"],
+    "--stress_concurrent_allocation":
         INCOMPATIBLE_FLAGS_PER_VARIANT["stress_concurrent_allocation"],
-  "--stress-concurrent-inlining":
+    "--stress-concurrent-inlining":
         INCOMPATIBLE_FLAGS_PER_VARIANT["stress_concurrent_inlining"],
+    "--turboshaft-assert-types": [
+        "--concurrent-recompilation", "--stress-concurrent-inlining"
+    ],
 }
 
 SLOW_VARIANTS = set([

@@ -547,6 +547,10 @@ DEFINE_BOOL(assert_types, false,
             "generate runtime type assertions to test the typer")
 // TODO(tebbi): Support allocating types from background thread.
 DEFINE_NEG_IMPLICATION(assert_types, concurrent_recompilation)
+DEFINE_BOOL(
+    turboshaft_assert_types, false,
+    "generate runtime type assertions to test the turboshaft type system")
+DEFINE_NEG_IMPLICATION(turboshaft_assert_types, concurrent_recompilation)
 
 // Enable verification of SimplifiedLowering in debug builds.
 DEFINE_BOOL(verify_simplified_lowering, DEBUG_BOOL,

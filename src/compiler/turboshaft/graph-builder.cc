@@ -941,10 +941,10 @@ OpIndex GraphBuilder::Process(
       OpIndex value = Map(node->InputAt(1));
       FieldAccess const& access = FieldAccessOf(node->op());
       // External pointer must never be stored by optimized code.
-      DCHECK(!access.type.Is(Type::ExternalPointer()) ||
+      DCHECK(!access.type.Is(compiler::Type::ExternalPointer()) ||
              !V8_ENABLE_SANDBOX_BOOL);
       // SandboxedPointers are not currently stored by optimized code.
-      DCHECK(!access.type.Is(Type::SandboxedPointer()));
+      DCHECK(!access.type.Is(compiler::Type::SandboxedPointer()));
 
 #ifdef V8_ENABLE_SANDBOX
       if (access.is_bounded_size_access) {
@@ -991,7 +991,8 @@ OpIndex GraphBuilder::Process(
       MemoryRepresentation rep =
           MemoryRepresentation::FromMachineType(machine_type);
 #ifdef V8_ENABLE_SANDBOX
-      bool is_sandboxed_external = access.type.Is(Type::ExternalPointer());
+      bool is_sandboxed_external =
+          access.type.Is(compiler::Type::ExternalPointer());
       if (is_sandboxed_external) {
         // Fields for sandboxed external pointer contain a 32-bit handle, not a
         // 64-bit raw pointer.
@@ -1032,9 +1033,9 @@ OpIndex GraphBuilder::Process(
 
 }  // namespace
 
-base::Optional<BailoutReason> BuildGraph(Schedule* schedule, Zone* graph_zone,
-                                         Zone* phase_zone, Graph* graph,
-                                         Linkage* linkage,
+base::Optional<BailoutReason> BuildGraph(Schedule* schedule, Isolate* isolate,
+                                         Zone* graph_zone, Zone* phase_zone,
+                                         Graph* graph, Linkage* linkage,
                                          SourcePositionTable* source_positions,
                                          NodeOriginTable* origins) {
   GraphBuilder builder{

@@ -44,6 +44,7 @@
 #include "src/objects/template-objects-inl.h"
 #include "src/objects/torque-defined-classes-inl.h"
 #include "src/objects/turbofan-types.h"
+#include "src/objects/turboshaft-types.h"
 #include "src/regexp/regexp.h"
 
 #if V8_ENABLE_WEBASSEMBLY

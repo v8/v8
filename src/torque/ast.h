@@ -1080,10 +1080,13 @@ struct TorqueBuiltinDeclaration : BuiltinDeclaration {
                            bool javascript_linkage, Identifier* name,
                            ParameterList parameters,
                            TypeExpression* return_type,
+                           bool has_custom_interface_descriptor,
                            base::Optional<Statement*> body)
       : BuiltinDeclaration(kKind, pos, javascript_linkage, transitioning, name,
                            std::move(parameters), return_type),
+        has_custom_interface_descriptor(has_custom_interface_descriptor),
         body(body) {}
+  bool has_custom_interface_descriptor;
   base::Optional<Statement*> body;
 };
 

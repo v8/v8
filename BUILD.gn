@@ -1876,6 +1876,7 @@ torque_files = [
   "src/objects/templates.tq",
   "src/objects/torque-defined-classes.tq",
   "src/objects/turbofan-types.tq",
+  "src/objects/turboshaft-types.tq",
   "test/torque/test-torque.tq",
   "third_party/v8/builtins/array-sort.tq",
 ]
@@ -2951,6 +2952,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/state-values-utils.h",
     "src/compiler/store-store-elimination.h",
     "src/compiler/turboshaft/assembler.h",
+    "src/compiler/turboshaft/assert-types-reducer.h",
     "src/compiler/turboshaft/branch-elimination-reducer.h",
     "src/compiler/turboshaft/decompression-optimization.h",
     "src/compiler/turboshaft/deopt-data.h",
@@ -2972,6 +2974,8 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/sidetable.h",
     "src/compiler/turboshaft/simplify-tf-loops.h",
     "src/compiler/turboshaft/snapshot-table.h",
+    "src/compiler/turboshaft/type-inference-reducer.h",
+    "src/compiler/turboshaft/types.h",
     "src/compiler/turboshaft/utils.h",
     "src/compiler/turboshaft/value-numbering-reducer.h",
     "src/compiler/turboshaft/variable-reducer.h",
@@ -3435,6 +3439,8 @@ v8_header_set("v8_internal_headers") {
     "src/objects/transitions.h",
     "src/objects/turbofan-types-inl.h",
     "src/objects/turbofan-types.h",
+    "src/objects/turboshaft-types-inl.h",
+    "src/objects/turboshaft-types.h",
     "src/objects/type-hints.h",
     "src/objects/value-serializer.h",
     "src/objects/visitors-inl.h",
@@ -4302,6 +4308,7 @@ v8_source_set("v8_turboshaft") {
     "src/compiler/turboshaft/recreate-schedule.cc",
     "src/compiler/turboshaft/representations.cc",
     "src/compiler/turboshaft/simplify-tf-loops.cc",
+    "src/compiler/turboshaft/types.cc",
     "src/compiler/turboshaft/utils.cc",
   ]
 
@@ -5697,14 +5704,12 @@ if (v8_use_libm_trig_functions) {
       "third_party/glibc/src/sysdeps/ieee754/dbl-64/dla.h",
       "third_party/glibc/src/sysdeps/ieee754/dbl-64/endian.h",
       "third_party/glibc/src/sysdeps/ieee754/dbl-64/mydefs.h",
-      "third_party/glibc/src/sysdeps/ieee754/dbl-64/sincostab.c",
       "third_party/glibc/src/sysdeps/ieee754/dbl-64/s_sin.c",
+      "third_party/glibc/src/sysdeps/ieee754/dbl-64/sincostab.c",
       "third_party/glibc/src/sysdeps/ieee754/dbl-64/trig.h",
       "third_party/glibc/src/sysdeps/ieee754/dbl-64/usncs.h",
     ]
-    configs += [
-      "//build/config/compiler:no_chromium_code",
-    ]
+    configs += [ "//build/config/compiler:no_chromium_code" ]
     configs -= [ "//build/config/compiler:chromium_code" ]
     if (!is_debug) {
       # Build code using -O3, see: crbug.com/1084371.
