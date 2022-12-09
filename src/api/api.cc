@@ -4191,6 +4191,10 @@ size_t v8::BackingStore::ByteLength() const {
   return reinterpret_cast<const i::BackingStore*>(this)->byte_length();
 }
 
+size_t v8::BackingStore::MaxByteLength() const {
+  return reinterpret_cast<const i::BackingStore*>(this)->max_byte_length();
+}
+
 bool v8::BackingStore::IsShared() const {
   return reinterpret_cast<const i::BackingStore*>(this)->is_shared();
 }

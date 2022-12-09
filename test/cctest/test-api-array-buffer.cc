@@ -833,6 +833,7 @@ TEST(ArrayBuffer_Resizable) {
   CHECK(gsab->GetBackingStore()->IsResizableByUserJavaScript());
   CHECK_EQ(32, gsab->ByteLength());
   CHECK_EQ(1024, gsab->MaxByteLength());
+  CHECK_EQ(gsab->MaxByteLength(), gsab->GetBackingStore()->MaxByteLength());
 }
 
 TEST(ArrayBuffer_FixedLength) {
@@ -848,9 +849,11 @@ TEST(ArrayBuffer_FixedLength) {
   CHECK(!ab->GetBackingStore()->IsResizableByUserJavaScript());
   CHECK_EQ(32, ab->ByteLength());
   CHECK_EQ(32, ab->MaxByteLength());
+  CHECK_EQ(ab->MaxByteLength(), ab->GetBackingStore()->MaxByteLength());
   v8::Local<v8::SharedArrayBuffer> sab =
       CompileRun("new SharedArrayBuffer(32);").As<v8::SharedArrayBuffer>();
   CHECK(!sab->GetBackingStore()->IsResizableByUserJavaScript());
   CHECK_EQ(32, sab->ByteLength());
   CHECK_EQ(32, sab->MaxByteLength());
+  CHECK_EQ(sab->MaxByteLength(), sab->GetBackingStore()->MaxByteLength());
 }
