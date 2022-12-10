@@ -103,6 +103,11 @@ let S = new SharedStructType(['field']);
   let s = new EmptyStruct();
 })();
 
+(function TestSymbolsDisallowed() {
+  // This may be relaxed in the future.
+  assertThrows(() => new SharedStructType([Symbol()]));
+})();
+
 (function TestUsedAsPrototype() {
   const OnPrototypeStruct = new SharedStructType(['prop']);
   let ps = new OnPrototypeStruct();

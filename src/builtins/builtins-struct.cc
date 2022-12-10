@@ -77,6 +77,12 @@ BUILTIN(SharedStructTypeConstructor) {
           isolate, field_name, Object::ToName(isolate, raw_field_name));
       field_name = factory->InternalizeName(field_name);
 
+      // TOOD(v8:12547): Support Symbols?
+      if (field_name->IsSymbol()) {
+        THROW_NEW_ERROR_RETURN_FAILURE(
+            isolate, NewTypeError(MessageTemplate::kSymbolToString));
+      }
+
       // Check that there are no duplicates.
       const bool is_duplicate = !all_field_names.insert(field_name).second;
       if (is_duplicate) {
