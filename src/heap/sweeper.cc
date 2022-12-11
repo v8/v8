@@ -33,7 +33,7 @@ class Sweeper::ConcurrentSweeper final {
   explicit ConcurrentSweeper(Sweeper* sweeper)
       : sweeper_(sweeper),
         local_pretenuring_feedback_(
-            PretenturingHandler::kInitialFeedbackCapacity) {}
+            PretenuringHandler::kInitialFeedbackCapacity) {}
 
   bool ConcurrentSweepSpace(AllocationSpace identity, JobDelegate* delegate) {
     DCHECK(IsValidSweepingSpace(identity));
@@ -46,13 +46,13 @@ class Sweeper::ConcurrentSweeper final {
     return false;
   }
 
-  PretenturingHandler::PretenuringFeedbackMap* local_pretenuring_feedback() {
+  PretenuringHandler::PretenuringFeedbackMap* local_pretenuring_feedback() {
     return &local_pretenuring_feedback_;
   }
 
  private:
   Sweeper* const sweeper_;
-  PretenturingHandler::PretenuringFeedbackMap local_pretenuring_feedback_;
+  PretenuringHandler::PretenuringFeedbackMap local_pretenuring_feedback_;
 };
 
 class Sweeper::SweeperJob final : public JobTask {
@@ -134,7 +134,7 @@ Sweeper::Sweeper(Heap* heap)
       should_reduce_memory_(false),
       pretenuring_handler_(heap_->pretenuring_handler()),
       local_pretenuring_feedback_(
-          PretenturingHandler::kInitialFeedbackCapacity) {}
+          PretenuringHandler::kInitialFeedbackCapacity) {}
 
 Sweeper::~Sweeper() {
   DCHECK(concurrent_sweepers_.empty());
@@ -418,7 +418,7 @@ void Sweeper::ClearMarkBitsAndHandleLivenessStatistics(Page* page,
 int Sweeper::RawSweep(
     Page* p, FreeSpaceTreatmentMode free_space_treatment_mode,
     SweepingMode sweeping_mode, const base::MutexGuard& page_guard,
-    PretenturingHandler::PretenuringFeedbackMap* local_pretenuring_feedback) {
+    PretenuringHandler::PretenuringFeedbackMap* local_pretenuring_feedback) {
   Space* space = p->owner();
   DCHECK_NOT_NULL(space);
   DCHECK(space->identity() == OLD_SPACE || space->identity() == CODE_SPACE ||
@@ -587,7 +587,7 @@ int Sweeper::ParallelSweepSpace(AllocationSpace identity,
 
 int Sweeper::ParallelSweepPage(
     Page* page, AllocationSpace identity,
-    PretenturingHandler::PretenuringFeedbackMap* local_pretenuring_feedback,
+    PretenuringHandler::PretenuringFeedbackMap* local_pretenuring_feedback,
     SweepingMode sweeping_mode) {
   DCHECK(IsValidSweepingSpace(identity));
 
