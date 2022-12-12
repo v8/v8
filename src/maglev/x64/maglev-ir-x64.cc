@@ -1014,17 +1014,6 @@ void BuiltinStringPrototypeCharCodeAt::GenerateCode(
   __ bind(*done);
 }
 
-void LoadTaggedField::SetValueLocationConstraints() {
-  UseRegister(object_input());
-  DefineAsRegister(this);
-}
-void LoadTaggedField::GenerateCode(MaglevAssembler* masm,
-                                   const ProcessingState& state) {
-  Register object = ToRegister(object_input());
-  __ AssertNotSmi(object);
-  __ DecompressAnyTagged(ToRegister(result()), FieldOperand(object, offset()));
-}
-
 void LoadDoubleField::SetValueLocationConstraints() {
   UseRegister(object_input());
   DefineAsRegister(this);

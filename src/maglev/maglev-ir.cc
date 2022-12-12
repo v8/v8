@@ -809,6 +809,18 @@ void GetIterator::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
+void LoadTaggedField::SetValueLocationConstraints() {
+  UseRegister(object_input());
+  DefineAsRegister(this);
+}
+void LoadTaggedField::GenerateCode(MaglevAssembler* masm,
+                                   const ProcessingState& state) {
+  Register object = ToRegister(object_input());
+  __ AssertNotSmi(object);
+  __ DecompressAnyTagged(ToRegister(result()),
+                         FieldMemOperand(object, offset()));
+}
+
 int LoadGlobal::MaxCallStackArgs() const {
   if (typeof_mode() == TypeofMode::kNotInside) {
     using D = CallInterfaceDescriptorFor<Builtin::kLoadGlobalIC>::type;

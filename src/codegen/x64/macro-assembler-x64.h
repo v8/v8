@@ -968,6 +968,11 @@ inline Operand FieldOperand(Register object, int offset) {
   return Operand(object, offset - kHeapObjectTag);
 }
 
+// For compatibility with platform-independent code.
+inline MemOperand FieldMemOperand(Register object, int offset) {
+  return MemOperand(object, offset - kHeapObjectTag);
+}
+
 // Generate an Operand for loading a field from an object. Object pointer is a
 // compressed pointer when pointer compression is enabled.
 inline Operand FieldOperand(TaggedRegister object, int offset) {

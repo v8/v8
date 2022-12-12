@@ -140,15 +140,11 @@ UNIMPLEMENTED_NODE_WITH_CALL(CreateRegExpLiteral)
 UNIMPLEMENTED_NODE(GeneratorRestoreRegister)
 UNIMPLEMENTED_NODE(GetSecondReturnedValue)
 UNIMPLEMENTED_NODE_WITH_CALL(GetTemplateObject)
-UNIMPLEMENTED_NODE(LoadTaggedField)
-UNIMPLEMENTED_NODE(LoadDoubleField)
-UNIMPLEMENTED_NODE(LoadTaggedElement)
 UNIMPLEMENTED_NODE(LoadSignedIntDataViewElement, type_)
 UNIMPLEMENTED_NODE(LoadDoubleDataViewElement)
 UNIMPLEMENTED_NODE(LoadSignedIntTypedArrayElement, elements_kind_)
 UNIMPLEMENTED_NODE(LoadUnsignedIntTypedArrayElement, elements_kind_)
 UNIMPLEMENTED_NODE(LoadDoubleTypedArrayElement, elements_kind_)
-UNIMPLEMENTED_NODE(LoadDoubleElement)
 UNIMPLEMENTED_NODE(CheckedSmiTagUint32)
 UNIMPLEMENTED_NODE(CheckedInternalizedString, check_type_)
 UNIMPLEMENTED_NODE_WITH_CALL(CheckedObjectToIndex)
@@ -603,6 +599,79 @@ void ReduceInterruptBudget::GenerateCode(MaglevAssembler* masm,
       },
       done, this);
   __ bind(*done);
+}
+
+void LoadDoubleField::SetValueLocationConstraints() {
+  UseRegister(object_input());
+  DefineAsRegister(this);
+}
+void LoadDoubleField::GenerateCode(MaglevAssembler* masm,
+                                   const ProcessingState& state) {
+  UseScratchRegisterScope temps(masm);
+  Register tmp = temps.AcquireX();
+  Register object = ToRegister(object_input());
+  __ AssertNotSmi(object);
+  __ DecompressAnyTagged(tmp, FieldMemOperand(object, offset()));
+  __ AssertNotSmi(tmp);
+  __ Ldr(ToDoubleRegister(result()),
+         FieldMemOperand(tmp, HeapNumber::kValueOffset));
+}
+
+void LoadTaggedElement::SetValueLocationConstraints() {
+  UseRegister(object_input());
+  UseRegister(index_input());
+  DefineAsRegister(this);
+}
+void LoadTaggedElement::GenerateCode(MaglevAssembler* masm,
+                                     const ProcessingState& state) {
+  Register object = ToRegister(object_input());
+  Register index = ToRegister(index_input());
+  UseScratchRegisterScope temps(masm);
+  Register scratch = temps.AcquireX();
+  Register elements = temps.AcquireX();
+  __ AssertNotSmi(object);
+  if (v8_flags.debug_code) {
+    __ CompareObjectType(object, scratch, scratch, JS_OBJECT_TYPE);
+    __ Assert(hs, AbortReason::kUnexpectedValue);
+  }
+  __ DecompressAnyTagged(elements,
+                         FieldMemOperand(object, JSObject::kElementsOffset));
+  if (v8_flags.debug_code) {
+    __ CompareObjectType(elements, scratch, scratch, FIXED_ARRAY_TYPE);
+    __ Assert(eq, AbortReason::kUnexpectedValue);
+  }
+
+  __ Add(elements, elements, Operand(index, LSL, kTaggedSizeLog2));
+  __ DecompressAnyTagged(ToRegister(result()),
+                         FieldMemOperand(elements, FixedArray::kHeaderSize));
+}
+
+void LoadDoubleElement::SetValueLocationConstraints() {
+  UseRegister(object_input());
+  UseRegister(index_input());
+  DefineAsRegister(this);
+}
+void LoadDoubleElement::GenerateCode(MaglevAssembler* masm,
+                                     const ProcessingState& state) {
+  Register object = ToRegister(object_input());
+  Register index = ToRegister(index_input());
+  UseScratchRegisterScope temps(masm);
+  Register scratch = temps.AcquireX();
+  Register elements = temps.AcquireX();
+  __ AssertNotSmi(object);
+  if (v8_flags.debug_code) {
+    __ CompareObjectType(object, scratch, scratch, JS_OBJECT_TYPE);
+    __ Assert(hs, AbortReason::kUnexpectedValue);
+  }
+  __ DecompressAnyTagged(elements,
+                         FieldMemOperand(object, JSObject::kElementsOffset));
+  if (v8_flags.debug_code) {
+    __ CompareObjectType(elements, scratch, scratch, FIXED_DOUBLE_ARRAY_TYPE);
+    __ Assert(eq, AbortReason::kUnexpectedValue);
+  }
+  __ Add(elements, elements, Operand(index, LSL, kDoubleSizeLog2));
+  __ Ldr(ToDoubleRegister(result()),
+         FieldMemOperand(elements, FixedArray::kHeaderSize));
 }
 
 // ---
