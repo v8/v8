@@ -989,7 +989,6 @@ DEFINE_FLOAT(script_delay_fraction, 0.0,
              "run's duration")
 
 DEFINE_BOOL(turboshaft, false, "enable TurboFan's Turboshaft phases for JS")
-DEFINE_WEAK_IMPLICATION(future, turboshaft)
 DEFINE_BOOL(turboshaft_trace_reduction, false,
             "trace individual Turboshaft reduction steps")
 DEFINE_BOOL(turboshaft_wasm, false,
