@@ -1685,33 +1685,6 @@ class ModuleDecoderTemplate : public Decoder {
   const std::shared_ptr<WasmModule>& shared_module() const { return module_; }
 
  private:
-  const WasmFeatures enabled_features_;
-  const std::shared_ptr<WasmModule> module_ = std::make_shared<WasmModule>();
-  const byte* module_start_ = nullptr;
-  const byte* module_end_ = nullptr;
-  Tracer& tracer_;
-  // The type section is the first section in a module.
-  uint8_t next_ordered_section_ = kFirstSectionInModule;
-  // We store next_ordered_section_ as uint8_t instead of SectionCode so that
-  // we can increment it. This static_assert should make sure that SectionCode
-  // does not get bigger than uint8_t accidentally.
-  static_assert(sizeof(ModuleDecoderTemplate::next_ordered_section_) ==
-                    sizeof(SectionCode),
-                "type mismatch");
-  uint32_t seen_unordered_sections_ = 0;
-  static_assert(
-      kBitsPerByte * sizeof(ModuleDecoderTemplate::seen_unordered_sections_) >
-          kLastKnownModuleSection,
-      "not enough bits");
-  AccountingAllocator allocator_;
-  Zone init_expr_zone_{&allocator_, "constant expr. zone"};
-
-  // Instruction traces are decoded in DecodeInstTraceSection as a 3-tuple
-  // of the function index, function offset, and mark_id. In DecodeCodeSection,
-  // after the functions have been decoded this is translated to pairs of module
-  // offsets and mark ids.
-  std::vector<std::tuple<uint32_t, uint32_t, uint32_t>> inst_traces_;
-
   bool has_seen_unordered_section(SectionCode section_code) {
     return seen_unordered_sections_ & (1 << section_code);
   }
@@ -2359,6 +2332,33 @@ class ModuleDecoderTemplate : public Decoder {
     func->declared = true;
     return index;
   }
+
+  const WasmFeatures enabled_features_;
+  const std::shared_ptr<WasmModule> module_ = std::make_shared<WasmModule>();
+  const byte* module_start_ = nullptr;
+  const byte* module_end_ = nullptr;
+  Tracer& tracer_;
+  // The type section is the first section in a module.
+  uint8_t next_ordered_section_ = kFirstSectionInModule;
+  // We store next_ordered_section_ as uint8_t instead of SectionCode so that
+  // we can increment it. This static_assert should make sure that SectionCode
+  // does not get bigger than uint8_t accidentally.
+  static_assert(sizeof(ModuleDecoderTemplate::next_ordered_section_) ==
+                    sizeof(SectionCode),
+                "type mismatch");
+  uint32_t seen_unordered_sections_ = 0;
+  static_assert(
+      kBitsPerByte * sizeof(ModuleDecoderTemplate::seen_unordered_sections_) >
+          kLastKnownModuleSection,
+      "not enough bits");
+  AccountingAllocator allocator_;
+  Zone init_expr_zone_{&allocator_, "constant expr. zone"};
+
+  // Instruction traces are decoded in DecodeInstTraceSection as a 3-tuple
+  // of the function index, function offset, and mark_id. In DecodeCodeSection,
+  // after the functions have been decoded this is translated to pairs of module
+  // offsets and mark ids.
+  std::vector<std::tuple<uint32_t, uint32_t, uint32_t>> inst_traces_;
 };
 
 }  // namespace v8::internal::wasm
