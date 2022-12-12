@@ -141,7 +141,6 @@ UNIMPLEMENTED_NODE(LoadSignedIntTypedArrayElement, elements_kind_)
 UNIMPLEMENTED_NODE(LoadUnsignedIntTypedArrayElement, elements_kind_)
 UNIMPLEMENTED_NODE(LoadDoubleTypedArrayElement, elements_kind_)
 UNIMPLEMENTED_NODE(CheckedSmiTagUint32)
-UNIMPLEMENTED_NODE(CheckedInternalizedString, check_type_)
 UNIMPLEMENTED_NODE_WITH_CALL(CheckedObjectToIndex)
 UNIMPLEMENTED_NODE(CheckedTruncateNumberToInt32)
 UNIMPLEMENTED_NODE(CheckedInt32ToUint32)
@@ -507,6 +506,60 @@ void CheckedSmiTagInt32::GenerateCode(MaglevAssembler* masm,
   DCHECK_REGLIST_EMPTY(RegList{out} &
                        GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
   __ EmitEagerDeoptIf(vs, DeoptimizeReason::kOverflow, this);
+}
+
+void CheckedInternalizedString::SetValueLocationConstraints() {
+  UseRegister(object_input());
+  DefineSameAsFirst(this);
+}
+void CheckedInternalizedString::GenerateCode(MaglevAssembler* masm,
+                                             const ProcessingState& state) {
+  UseScratchRegisterScope temps(masm);
+  Register scratch = temps.AcquireX();
+  Register object = ToRegister(object_input());
+
+  if (check_type_ == CheckType::kOmitHeapObjectCheck) {
+    __ AssertNotSmi(object);
+  } else {
+    Condition is_smi = __ CheckSmi(object);
+    __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kWrongMap, this);
+  }
+
+  __ LoadMap(scratch, object);
+  __ RecordComment("Test IsInternalizedString");
+  // Go to the slow path if this is a non-string, or a non-internalised string.
+  __ Ldrh(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
+  __ Tst(scratch, Immediate(kIsNotStringMask | kIsNotInternalizedMask));
+  static_assert((kStringTag | kInternalizedTag) == 0);
+  ZoneLabelRef done(masm);
+  __ JumpToDeferredIf(
+      ne,
+      [](MaglevAssembler* masm, ZoneLabelRef done, Register object,
+         CheckedInternalizedString* node, EagerDeoptInfo* deopt_info,
+         Register instance_type) {
+        __ RecordComment("Deferred Test IsThinString");
+        static_assert(kThinStringTagBit > 0);
+        // Deopt if this isn't a string.
+        __ Tst(instance_type, Immediate(kIsNotStringMask));
+        __ JumpIf(ne, deopt_info->deopt_entry_label());
+        // Deopt if this isn't a thin string.
+        __ Tst(instance_type, Immediate(kThinStringTagBit));
+        __ JumpIf(eq, deopt_info->deopt_entry_label());
+        __ LoadTaggedPointerField(
+            object, FieldMemOperand(object, ThinString::kActualOffset));
+        if (v8_flags.debug_code) {
+          __ RecordComment("DCHECK IsInternalizedString");
+          Register scratch = instance_type;
+          __ LoadMap(scratch, object);
+          __ Ldrh(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
+          __ Tst(scratch, Immediate(kIsNotStringMask | kIsNotInternalizedMask));
+          static_assert((kStringTag | kInternalizedTag) == 0);
+          __ Check(eq, AbortReason::kUnexpectedValue);
+        }
+        __ jmp(*done);
+      },
+      done, object, this, eager_deopt_info(), scratch);
+  __ bind(*done);
 }
 
 void UnsafeSmiTag::SetValueLocationConstraints() {
