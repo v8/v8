@@ -38,6 +38,24 @@ namespace maglev {
 
 #define __ masm->
 
+constexpr Condition ConditionForFloat64(Operation operation) {
+  switch (operation) {
+    case Operation::kEqual:
+    case Operation::kStrictEqual:
+      return equal;
+    case Operation::kLessThan:
+      return below;
+    case Operation::kLessThanOrEqual:
+      return below_equal;
+    case Operation::kGreaterThan:
+      return above;
+    case Operation::kGreaterThanOrEqual:
+      return above_equal;
+    default:
+      UNREACHABLE();
+  }
+}
+
 // ---
 // Nodes
 // ---
@@ -1989,46 +2007,6 @@ void Int32BitwiseNot::GenerateCode(MaglevAssembler* masm,
   __ notl(value);
 }
 
-namespace {
-
-constexpr Condition ConditionFor(Operation operation) {
-  switch (operation) {
-    case Operation::kEqual:
-    case Operation::kStrictEqual:
-      return equal;
-    case Operation::kLessThan:
-      return less;
-    case Operation::kLessThanOrEqual:
-      return less_equal;
-    case Operation::kGreaterThan:
-      return greater;
-    case Operation::kGreaterThanOrEqual:
-      return greater_equal;
-    default:
-      UNREACHABLE();
-  }
-}
-
-constexpr Condition ConditionForFloat64(Operation operation) {
-  switch (operation) {
-    case Operation::kEqual:
-    case Operation::kStrictEqual:
-      return equal;
-    case Operation::kLessThan:
-      return below;
-    case Operation::kLessThanOrEqual:
-      return below_equal;
-    case Operation::kGreaterThan:
-      return above;
-    case Operation::kGreaterThanOrEqual:
-      return above_equal;
-    default:
-      UNREACHABLE();
-  }
-}
-
-}  // namespace
-
 template <class Derived, Operation kOperation>
 void Int32CompareNode<Derived, kOperation>::SetValueLocationConstraints() {
   UseRegister(left_input());
@@ -3761,15 +3739,6 @@ void JumpLoopPrologue::GenerateCode(MaglevAssembler* masm,
   __ bind(*no_code_for_osr);
 }
 
-void BranchIfRootConstant::SetValueLocationConstraints() {
-  UseRegister(condition_input());
-}
-void BranchIfRootConstant::GenerateCode(MaglevAssembler* masm,
-                                        const ProcessingState& state) {
-  __ CompareRoot(ToRegister(condition_input()), root_index());
-  __ Branch(equal, if_true(), if_false(), state.next_block());
-}
-
 void BranchIfUndefinedOrNull::SetValueLocationConstraints() {
   UseRegister(condition_input());
 }
@@ -3796,19 +3765,6 @@ void BranchIfJSReceiver::GenerateCode(MaglevAssembler* masm,
   __ Branch(above_equal, if_true(), if_false(), state.next_block());
 }
 
-void BranchIfInt32Compare::SetValueLocationConstraints() {
-  UseRegister(left_input());
-  UseRegister(right_input());
-}
-void BranchIfInt32Compare::GenerateCode(MaglevAssembler* masm,
-                                        const ProcessingState& state) {
-  Register left = ToRegister(left_input());
-  Register right = ToRegister(right_input());
-  __ cmpl(left, right);
-  __ Branch(ConditionFor(operation_), if_true(), if_false(),
-            state.next_block());
-}
-
 void BranchIfFloat64Compare::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());
@@ -3821,35 +3777,6 @@ void BranchIfFloat64Compare::GenerateCode(MaglevAssembler* masm,
   __ j(parity_even, if_false()->label());
   __ Branch(ConditionForFloat64(operation_), if_true(), if_false(),
             state.next_block());
-}
-
-void BranchIfReferenceCompare::SetValueLocationConstraints() {
-  UseRegister(left_input());
-  UseRegister(right_input());
-}
-void BranchIfReferenceCompare::GenerateCode(MaglevAssembler* masm,
-                                            const ProcessingState& state) {
-  Register left = ToRegister(left_input());
-  Register right = ToRegister(right_input());
-  __ cmp_tagged(left, right);
-  __ Branch(ConditionFor(operation_), if_true(), if_false(),
-            state.next_block());
-}
-
-void BranchIfToBooleanTrue::SetValueLocationConstraints() {
-  // TODO(victorgomes): consider using any input instead.
-  UseRegister(condition_input());
-}
-void BranchIfToBooleanTrue::GenerateCode(MaglevAssembler* masm,
-                                         const ProcessingState& state) {
-  // BasicBlocks are zone allocated and so safe to be casted to ZoneLabelRef.
-  ZoneLabelRef true_label =
-      ZoneLabelRef::UnsafeFromLabelPointer(if_true()->label());
-  ZoneLabelRef false_label =
-      ZoneLabelRef::UnsafeFromLabelPointer(if_false()->label());
-  bool fallthrough_when_true = (if_true() == state.next_block());
-  __ ToBoolean(ToRegister(condition_input()), true_label, false_label,
-               fallthrough_when_true);
 }
 
 }  // namespace maglev

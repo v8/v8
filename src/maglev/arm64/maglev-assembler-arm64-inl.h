@@ -18,6 +18,24 @@ constexpr Register kScratchRegister = x16;
 constexpr Register kScratchRegisterW = w16;
 constexpr DoubleRegister kScratchDoubleReg = d30;
 
+constexpr Condition ConditionFor(Operation operation) {
+  switch (operation) {
+    case Operation::kEqual:
+    case Operation::kStrictEqual:
+      return eq;
+    case Operation::kLessThan:
+      return lt;
+    case Operation::kLessThanOrEqual:
+      return le;
+    case Operation::kGreaterThan:
+      return gt;
+    case Operation::kGreaterThanOrEqual:
+      return ge;
+    default:
+      UNREACHABLE();
+  }
+}
+
 namespace detail {
 template <typename Arg>
 inline Register ToRegister(MaglevAssembler* masm, Register reg, Arg arg) {
@@ -60,6 +78,23 @@ void MaglevAssembler::Push(T... vals) {
     detail::PushAll(this, vals...);
   } else {
     detail::PushAll(this, padreg, vals...);
+  }
+}
+
+void MaglevAssembler::Branch(Condition condition, BasicBlock* if_true,
+                             BasicBlock* if_false, BasicBlock* next_block) {
+  // We don't have any branch probability information, so try to jump
+  // over whatever the next block emitted is.
+  if (if_false == next_block) {
+    // Jump over the false block if true, otherwise fall through into it.
+    JumpIf(condition, if_true->label());
+  } else {
+    // Jump to the false block if true.
+    JumpIf(NegateCondition(condition), if_false->label());
+    // Jump to the true block if it's not the next block.
+    if (if_true != next_block) {
+      Jump(if_true->label());
+    }
   }
 }
 
@@ -131,6 +166,10 @@ inline void MaglevAssembler::Move(DoubleRegister dst, double n) {
 }
 inline void MaglevAssembler::Move(Register dst, Handle<HeapObject> obj) {
   Mov(dst, Operand(obj));
+}
+
+inline void MaglevAssembler::CompareInt32(Register src1, Register src2) {
+  Cmp(src1.W(), src2.W());
 }
 
 inline void MaglevAssembler::Jump(Label* target) { B(target); }

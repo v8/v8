@@ -19,6 +19,24 @@ namespace v8 {
 namespace internal {
 namespace maglev {
 
+constexpr Condition ConditionFor(Operation operation) {
+  switch (operation) {
+    case Operation::kEqual:
+    case Operation::kStrictEqual:
+      return equal;
+    case Operation::kLessThan:
+      return less;
+    case Operation::kLessThanOrEqual:
+      return less_equal;
+    case Operation::kGreaterThan:
+      return greater;
+    case Operation::kGreaterThanOrEqual:
+      return greater_equal;
+    default:
+      UNREACHABLE();
+  }
+}
+
 namespace detail {
 template <typename... Args>
 struct PushAllHelper;
@@ -239,6 +257,10 @@ inline void MaglevAssembler::Move(DoubleRegister dst, double n) {
 
 inline void MaglevAssembler::Move(Register dst, Handle<HeapObject> obj) {
   MacroAssembler::Move(dst, obj);
+}
+
+inline void MaglevAssembler::CompareInt32(Register src1, Register src2) {
+  cmpl(src1, src2);
 }
 
 inline void MaglevAssembler::Jump(Label* target) { jmp(target); }

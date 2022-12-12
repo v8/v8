@@ -1,4 +1,3 @@
-
 // Copyright 2022 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
@@ -94,6 +93,80 @@ void MaglevAssembler::AllocateHeapNumber(RegisterSnapshot register_snapshot,
   LoadRoot(scratch, RootIndex::kHeapNumberMap);
   StoreTaggedField(scratch, FieldMemOperand(result, HeapObject::kMapOffset));
   Str(value, FieldMemOperand(result, HeapNumber::kValueOffset));
+}
+
+void MaglevAssembler::ToBoolean(Register value, ZoneLabelRef is_true,
+                                ZoneLabelRef is_false,
+                                bool fallthrough_when_true) {
+  UseScratchRegisterScope temps(this);
+  Register map = temps.AcquireX();
+
+  // Check if {{value}} is Smi.
+  CheckSmi(value);
+  JumpToDeferredIf(
+      eq,
+      [](MaglevAssembler* masm, Register value, ZoneLabelRef is_true,
+         ZoneLabelRef is_false) {
+        // Check if {value} is not zero.
+        __ Cmp(value, Smi::FromInt(0));
+        __ JumpIf(eq, *is_false);
+        __ Jump(*is_true);
+      },
+      value, is_true, is_false);
+
+  // Check if {{value}} is false.
+  CompareRoot(value, RootIndex::kFalseValue);
+  JumpIf(eq, *is_false);
+
+  // Check if {{value}} is empty string.
+  CompareRoot(value, RootIndex::kempty_string);
+  JumpIf(eq, *is_false);
+
+  // Check if {{value}} is undetectable.
+  LoadMap(map, value);
+  {
+    UseScratchRegisterScope scope(this);
+    Register tmp = scope.AcquireW();
+    Move(tmp, FieldMemOperand(map, Map::kBitFieldOffset));
+    Tst(tmp, Immediate(Map::Bits1::IsUndetectableBit::kMask));
+    JumpIf(ne, *is_false);
+  }
+
+  // Check if {{value}} is a HeapNumber.
+  CompareRoot(map, RootIndex::kHeapNumberMap);
+  JumpToDeferredIf(
+      eq,
+      [](MaglevAssembler* masm, Register value, ZoneLabelRef is_true,
+         ZoneLabelRef is_false) {
+        UseScratchRegisterScope scope(masm);
+        DoubleRegister value_double = scope.AcquireD();
+        __ Ldr(value_double, FieldMemOperand(value, HeapNumber::kValueOffset));
+        __ Fcmp(value_double, 0.0);
+        __ JumpIf(eq, *is_false);
+        __ JumpIf(vs, *is_false);  // NaN check
+        __ Jump(*is_true);
+      },
+      value, is_true, is_false);
+
+  // Check if {{value}} is a BigInt.
+  CompareRoot(map, RootIndex::kBigIntMap);
+  JumpToDeferredIf(
+      eq,
+      [](MaglevAssembler* masm, Register value, ZoneLabelRef is_true,
+         ZoneLabelRef is_false) {
+        UseScratchRegisterScope scope(masm);
+        Register tmp = scope.AcquireW();
+        __ Ldr(tmp, FieldMemOperand(value, BigInt::kBitfieldOffset));
+        __ Tst(tmp, Immediate(BigInt::LengthBits::kMask));
+        __ JumpIf(eq, *is_false);
+        __ Jump(*is_true);
+      },
+      value, is_true, is_false);
+
+  // Otherwise true.
+  if (!fallthrough_when_true) {
+    Jump(*is_true);
+  }
 }
 
 void MaglevAssembler::Prologue(Graph* graph) {

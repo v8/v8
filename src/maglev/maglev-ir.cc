@@ -1268,6 +1268,58 @@ void JumpLoop::GenerateCode(MaglevAssembler* masm,
   __ Jump(target()->label());
 }
 
+void BranchIfRootConstant::SetValueLocationConstraints() {
+  UseRegister(condition_input());
+}
+void BranchIfRootConstant::GenerateCode(MaglevAssembler* masm,
+                                        const ProcessingState& state) {
+  __ CompareRoot(ToRegister(condition_input()), root_index());
+  __ Branch(ConditionFor(Operation::kEqual), if_true(), if_false(),
+            state.next_block());
+}
+
+void BranchIfToBooleanTrue::SetValueLocationConstraints() {
+  // TODO(victorgomes): consider using any input instead.
+  UseRegister(condition_input());
+}
+void BranchIfToBooleanTrue::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  // BasicBlocks are zone allocated and so safe to be casted to ZoneLabelRef.
+  ZoneLabelRef true_label =
+      ZoneLabelRef::UnsafeFromLabelPointer(if_true()->label());
+  ZoneLabelRef false_label =
+      ZoneLabelRef::UnsafeFromLabelPointer(if_false()->label());
+  bool fallthrough_when_true = (if_true() == state.next_block());
+  __ ToBoolean(ToRegister(condition_input()), true_label, false_label,
+               fallthrough_when_true);
+}
+
+void BranchIfReferenceCompare::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+}
+void BranchIfReferenceCompare::GenerateCode(MaglevAssembler* masm,
+                                            const ProcessingState& state) {
+  Register left = ToRegister(left_input());
+  Register right = ToRegister(right_input());
+  __ CmpTagged(left, right);
+  __ Branch(ConditionFor(operation_), if_true(), if_false(),
+            state.next_block());
+}
+
+void BranchIfInt32Compare::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+}
+void BranchIfInt32Compare::GenerateCode(MaglevAssembler* masm,
+                                        const ProcessingState& state) {
+  Register left = ToRegister(left_input());
+  Register right = ToRegister(right_input());
+  __ CompareInt32(left, right);
+  __ Branch(ConditionFor(operation_), if_true(), if_false(),
+            state.next_block());
+}
+
 // ---
 // Print params
 // ---

@@ -31,6 +31,9 @@
 
 namespace v8 {
 namespace internal {
+
+enum Condition : uint8_t;
+
 namespace maglev {
 
 class BasicBlock;
@@ -394,6 +397,8 @@ enum class ValueRepresentation : uint8_t {
   kFloat64,
   kWord64
 };
+
+constexpr Condition ConditionFor(Operation cond);
 
 inline std::ostream& operator<<(std::ostream& os,
                                 const ValueRepresentation& repr) {

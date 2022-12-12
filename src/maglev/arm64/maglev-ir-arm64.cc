@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/base/logging.h"
 #include "src/codegen/arm64/assembler-arm64-inl.h"
 #include "src/codegen/arm64/register-arm64.h"
 #include "src/codegen/interface-descriptors-inl.h"
@@ -182,7 +183,6 @@ UNIMPLEMENTED_NODE_WITH_CALL(CheckMapsWithMigration, check_type_)
 UNIMPLEMENTED_NODE(CheckNumber)
 UNIMPLEMENTED_NODE(CheckSmi)
 UNIMPLEMENTED_NODE(CheckString, check_type_)
-UNIMPLEMENTED_NODE(CheckSymbol, check_type_)
 UNIMPLEMENTED_NODE(CheckValue)
 UNIMPLEMENTED_NODE(CheckInstanceType, check_type_)
 UNIMPLEMENTED_NODE(DebugBreak)
@@ -198,11 +198,7 @@ UNIMPLEMENTED_NODE_WITH_CALL(ThrowReferenceErrorIfHole)
 UNIMPLEMENTED_NODE_WITH_CALL(ThrowSuperNotCalledIfHole)
 UNIMPLEMENTED_NODE_WITH_CALL(ThrowSuperAlreadyCalledIfNotHole)
 UNIMPLEMENTED_NODE_WITH_CALL(ThrowIfNotSuperConstructor)
-UNIMPLEMENTED_NODE(BranchIfRootConstant)
-UNIMPLEMENTED_NODE(BranchIfToBooleanTrue)
-UNIMPLEMENTED_NODE(BranchIfReferenceCompare, operation_)
-UNIMPLEMENTED_NODE(BranchIfInt32Compare, operation_)
-UNIMPLEMENTED_NODE(BranchIfFloat64Compare, operation_)
+
 UNIMPLEMENTED_NODE(BranchIfUndefinedOrNull)
 UNIMPLEMENTED_NODE(BranchIfJSReceiver)
 UNIMPLEMENTED_NODE(Switch)
@@ -233,6 +229,24 @@ void CreateEmptyObjectLiteral::GenerateCode(MaglevAssembler* masm,
     int offset = map().GetInObjectPropertyOffset(i);
     __ StoreTaggedField(scratch, FieldMemOperand(object, offset));
   }
+}
+
+void CheckSymbol::SetValueLocationConstraints() {
+  UseRegister(receiver_input());
+}
+void CheckSymbol::GenerateCode(MaglevAssembler* masm,
+                               const ProcessingState& state) {
+  Register object = ToRegister(receiver_input());
+  if (check_type_ == CheckType::kOmitHeapObjectCheck) {
+    __ AssertNotSmi(object);
+  } else {
+    Condition is_smi = __ CheckSmi(object);
+    __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kNotASymbol, this);
+  }
+  UseScratchRegisterScope temps(masm);
+  Register scratch = temps.AcquireX();
+  __ CmpObjectType(object, SYMBOL_TYPE, scratch);
+  __ EmitEagerDeoptIf(ne, DeoptimizeReason::kNotASymbol, this);
 }
 
 void Int32AddWithOverflow::SetValueLocationConstraints() {
@@ -287,28 +301,6 @@ void Int32BitwiseNot::GenerateCode(MaglevAssembler* masm,
   Register out = ToRegister(result()).W();
   __ mvn(out, value);
 }
-
-namespace {
-
-constexpr Condition ConditionFor(Operation operation) {
-  switch (operation) {
-    case Operation::kEqual:
-    case Operation::kStrictEqual:
-      return eq;
-    case Operation::kLessThan:
-      return lt;
-    case Operation::kLessThanOrEqual:
-      return le;
-    case Operation::kGreaterThan:
-      return gt;
-    case Operation::kGreaterThanOrEqual:
-      return ge;
-    default:
-      UNREACHABLE();
-  }
-}
-
-}  // namespace
 
 template <class Derived, Operation kOperation>
 void Int32CompareNode<Derived, kOperation>::SetValueLocationConstraints() {
@@ -754,6 +746,20 @@ void Return::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   // Drop receiver + arguments according to dynamic arguments size.
   __ DropArguments(params_size, TurboAssembler::kCountIncludesReceiver);
   __ Ret();
+}
+
+void BranchIfFloat64Compare::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+}
+void BranchIfFloat64Compare::GenerateCode(MaglevAssembler* masm,
+                                          const ProcessingState& state) {
+  DoubleRegister left = ToDoubleRegister(left_input());
+  DoubleRegister right = ToDoubleRegister(right_input());
+  __ Fcmp(left, right);
+  __ JumpIf(vs, if_false()->label());  // NaN check
+  __ Branch(ConditionFor(operation_), if_true(), if_false(),
+            state.next_block());
 }
 
 }  // namespace maglev
