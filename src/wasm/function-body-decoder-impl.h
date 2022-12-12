@@ -4898,9 +4898,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
         bool null_succeeds = opcode == kExprRefCastNull;
         Value value = CreateValue(ValueType::RefMaybeNull(
-            imm.type, (obj.type.is_bottom() || !null_succeeds)
-                          ? kNonNullable
-                          : obj.type.nullability()));
+            target_type, null_succeeds ? kNullable : kNonNullable));
         if (current_code_reachable_and_ok_) {
           // This logic ensures that code generation can assume that functions
           // can only be cast to function types, and data objects to data types.
