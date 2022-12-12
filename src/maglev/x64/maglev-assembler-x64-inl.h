@@ -213,6 +213,10 @@ inline void MaglevAssembler::Move(Register dst, Smi src) {
   MacroAssembler::Move(dst, src);
 }
 
+inline void MaglevAssembler::Move(Register dst, ExternalReference src) {
+  MacroAssembler::Move(dst, src);
+}
+
 inline void MaglevAssembler::Move(Register dst, MemOperand src) {
   MacroAssembler::Move(dst, src);
 }
@@ -309,6 +313,7 @@ inline void MaglevAssembler::MaterialiseValueNode(Register dst,
       CallBuiltin(Builtin::kNewHeapNumber);
       Move(dst, kReturnRegister0);
       break;
+    case ValueRepresentation::kWord64:
     case ValueRepresentation::kTagged:
       UNREACHABLE();
   }

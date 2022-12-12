@@ -330,6 +330,11 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
     USE(value);
   }
 
+  for (const auto& [address, constant] : graph_->external_references()) {
+    constant->SetConstantLocation();
+    USE(address);
+  }
+
   for (block_it_ = graph_->begin(); block_it_ != graph_->end(); ++block_it_) {
     BasicBlock* block = *block_it_;
     current_node_ = nullptr;

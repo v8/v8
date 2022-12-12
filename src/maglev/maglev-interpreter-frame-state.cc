@@ -337,6 +337,7 @@ ValueNode* NonTaggedToTagged(MaglevCompilationUnit& compilation_unit,
                              NodeType node_type, ValueNode* value,
                              BasicBlock* predecessor) {
   switch (value->properties().value_representation()) {
+    case ValueRepresentation::kWord64:
     case ValueRepresentation::kTagged:
       UNREACHABLE();
     case ValueRepresentation::kInt32:

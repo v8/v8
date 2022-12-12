@@ -15711,14 +15711,14 @@ void CodeStubAssembler::PerformStackCheck(TNode<Context> context) {
 }
 
 TNode<Object> CodeStubAssembler::CallApiCallback(
-    TNode<Object> context, TNode<RawPtrT> callback, TNode<IntPtrT> argc,
+    TNode<Object> context, TNode<RawPtrT> callback, TNode<Int32T> argc,
     TNode<Object> data, TNode<Object> holder, TNode<Object> receiver) {
   Callable callable = CodeFactory::CallApiCallback(isolate());
   return CallStub(callable, context, callback, argc, data, holder, receiver);
 }
 
 TNode<Object> CodeStubAssembler::CallApiCallback(
-    TNode<Object> context, TNode<RawPtrT> callback, TNode<IntPtrT> argc,
+    TNode<Object> context, TNode<RawPtrT> callback, TNode<Int32T> argc,
     TNode<Object> data, TNode<Object> holder, TNode<Object> receiver,
     TNode<Object> value) {
   Callable callable = CodeFactory::CallApiCallback(isolate());

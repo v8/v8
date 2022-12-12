@@ -187,7 +187,7 @@ void AccessorAssembler::TryMegaDOMCase(TNode<Object> lookup_start_object,
   // we should miss to the runtime.
   exit_point->Return(
       CallBuiltin(Builtin::kCallFunctionTemplate_CheckCompatibleReceiver,
-                  context, getter, IntPtrConstant(0), lookup_start_object));
+                  context, getter, IntPtrConstant(1), lookup_start_object));
 }
 
 void AccessorAssembler::HandleLoadICHandlerCase(
@@ -291,7 +291,7 @@ void AccessorAssembler::HandleLoadAccessor(
   Goto(&load);
 
   BIND(&load);
-  TNode<IntPtrT> argc = IntPtrConstant(0);
+  TNode<Int32T> argc = Int32Constant(0);
   exit_point->Return(CallApiCallback(context, callback, argc, data,
                                      api_holder.value(), p->receiver()));
 }
@@ -1946,7 +1946,7 @@ void AccessorAssembler::HandleStoreICProtoHandler(
       BIND(&store);
       {
         GotoIf(IsSideEffectFreeDebuggingActive(), &if_slow);
-        TNode<IntPtrT> argc = IntPtrConstant(1);
+        TNode<Int32T> argc = Int32Constant(1);
         Return(CallApiCallback(context, callback, argc, data,
                                api_holder.value(), p->receiver(), p->value()));
       }

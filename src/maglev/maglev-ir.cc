@@ -221,6 +221,8 @@ ValueRepresentation ToValueRepresentation(MachineType type) {
       return ValueRepresentation::kTagged;
     case MachineRepresentation::kFloat64:
       return ValueRepresentation::kFloat64;
+    case MachineRepresentation::kWord64:
+      return ValueRepresentation::kWord64;
     default:
       return ValueRepresentation::kInt32;
   }
@@ -367,6 +369,10 @@ Handle<Object> ValueNode::Reify(LocalIsolate* isolate) {
   }
 }
 
+Handle<Object> ExternalConstant::DoReify(LocalIsolate* isolate) {
+  UNREACHABLE();
+}
+
 Handle<Object> SmiConstant::DoReify(LocalIsolate* isolate) {
   return handle(value_, isolate);
 }
@@ -450,6 +456,10 @@ void ValueNode::DoLoadToRegister(MaglevAssembler* masm, DoubleRegister reg) {
           masm->GetStackSlot(compiler::AllocatedOperand::cast(spill_slot())));
 }
 
+void ExternalConstant::DoLoadToRegister(MaglevAssembler* masm, Register reg) {
+  __ Move(reg, reference());
+}
+
 void SmiConstant::DoLoadToRegister(MaglevAssembler* masm, Register reg) {
   __ Move(reg, value());
 }
@@ -474,6 +484,10 @@ void RootConstant::DoLoadToRegister(MaglevAssembler* masm, Register reg) {
 // ---
 // Arch agnostic nodes
 // ---
+
+void ExternalConstant::SetValueLocationConstraints() { DefineAsConstant(this); }
+void ExternalConstant::GenerateCode(MaglevAssembler* masm,
+                                    const ProcessingState& state) {}
 
 void SmiConstant::SetValueLocationConstraints() { DefineAsConstant(this); }
 void SmiConstant::GenerateCode(MaglevAssembler* masm,
@@ -1245,6 +1259,11 @@ void JumpLoop::GenerateCode(MaglevAssembler* masm,
 // ---
 // Print params
 // ---
+
+void ExternalConstant::PrintParams(std::ostream& os,
+                                   MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << reference() << ")";
+}
 
 void SmiConstant::PrintParams(std::ostream& os,
                               MaglevGraphLabeller* graph_labeller) const {

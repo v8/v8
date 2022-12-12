@@ -1747,11 +1747,24 @@ bool MaglevGraphBuilder::TryBuildPropertyGetterCall(
             : ConvertReceiverMode::kAny;
     CallArguments args(receiver_mode, {receiver});
     SetAccumulator(ReduceCall(constant.AsJSFunction(), args));
-    return true;
-  } else {
-    // TODO(victorgomes): API calls.
+  } else if (receiver != lookup_start_object) {
     return false;
+  } else {
+    ValueNode* api_holder = access_info.api_holder().has_value()
+                                ? GetConstant(access_info.api_holder().value())
+                                : receiver;
+    compiler::FunctionTemplateInfoRef templ = constant.AsFunctionTemplateInfo();
+    if (!templ.call_code().has_value()) return false;
+
+    compiler::CallHandlerInfoRef call_handler_info = templ.call_code().value();
+    ApiFunction function(call_handler_info.callback());
+    ExternalReference reference = ExternalReference::Create(
+        &function, ExternalReference::DIRECT_API_CALL);
+    SetAccumulator(BuildCallBuiltin<Builtin::kCallApiCallback>(
+        {GetExternalConstant(reference), GetInt32Constant(0),
+         GetConstant(call_handler_info.data()), api_holder, receiver}));
   }
+  return true;
 }
 
 bool MaglevGraphBuilder::TryBuildPropertySetterCall(
@@ -2070,6 +2083,8 @@ bool MaglevGraphBuilder::TryBuildNamedAccess(
 
 ValueNode* MaglevGraphBuilder::GetInt32ElementIndex(ValueNode* object) {
   switch (object->properties().value_representation()) {
+    case ValueRepresentation::kWord64:
+      UNREACHABLE();
     case ValueRepresentation::kTagged:
       if (SmiConstant* constant = object->TryCast<SmiConstant>()) {
         return GetInt32Constant(constant->value().value());
@@ -2097,6 +2112,8 @@ ValueNode* MaglevGraphBuilder::GetInt32ElementIndex(ValueNode* object) {
 // uint32_alternative in node_info.
 ValueNode* MaglevGraphBuilder::GetUint32ElementIndex(ValueNode* object) {
   switch (object->properties().value_representation()) {
+    case ValueRepresentation::kWord64:
+      UNREACHABLE();
     case ValueRepresentation::kTagged:
       // TODO(victorgomes): Consider create Uint32Constants and
       // CheckedObjectToUnsignedIndex.

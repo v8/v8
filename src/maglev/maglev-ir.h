@@ -11,6 +11,7 @@
 #include "src/base/small-vector.h"
 #include "src/base/threaded-list.h"
 #include "src/codegen/label.h"
+#include "src/codegen/machine-type.h"
 #include "src/codegen/reglist.h"
 #include "src/codegen/source-position.h"
 #include "src/common/globals.h"
@@ -113,6 +114,7 @@ class CompactInterpreterFrameState;
 
 #define CONSTANT_VALUE_NODE_LIST(V) \
   V(Constant)                       \
+  V(ExternalConstant)               \
   V(Float64Constant)                \
   V(Int32Constant)                  \
   V(RootConstant)                   \
@@ -385,7 +387,13 @@ class UnconditionalControlNode;
 class TerminalControlNode;
 class ValueNode;
 
-enum class ValueRepresentation : uint8_t { kTagged, kInt32, kUint32, kFloat64 };
+enum class ValueRepresentation : uint8_t {
+  kTagged,
+  kInt32,
+  kUint32,
+  kFloat64,
+  kWord64
+};
 
 inline std::ostream& operator<<(std::ostream& os,
                                 const ValueRepresentation& repr) {
@@ -402,6 +410,8 @@ inline std::ostream& operator<<(std::ostream& os,
     case ValueRepresentation::kFloat64:
       os << "Float64";
       break;
+    case ValueRepresentation::kWord64:
+      os << "Word64";
   }
   return os;
 }
@@ -581,6 +591,10 @@ class OpProperties {
     return OpProperties(
         kValueRepresentationBits::encode(ValueRepresentation::kTagged));
   }
+  static constexpr OpProperties ExternalReference() {
+    return OpProperties(
+        kValueRepresentationBits::encode(ValueRepresentation::kWord64));
+  }
   static constexpr OpProperties Int32() {
     return OpProperties(
         kValueRepresentationBits::encode(ValueRepresentation::kInt32));
@@ -632,7 +646,7 @@ class OpProperties {
   using kCanWriteBit = kCanReadBit::Next<bool, 1>;
   using kNonMemorySideEffectsBit = kCanWriteBit::Next<bool, 1>;
   using kValueRepresentationBits =
-      kNonMemorySideEffectsBit::Next<ValueRepresentation, 2>;
+      kNonMemorySideEffectsBit::Next<ValueRepresentation, 3>;
   using kIsConversionBit = kValueRepresentationBits::Next<bool, 1>;
   using kNeedsRegisterSnapshotBit = kIsConversionBit::Next<bool, 1>;
 
@@ -964,7 +978,7 @@ class NodeBase : public ZoneObject {
   using NumDoubleTemporariesNeededField =
       NumTemporariesNeededField::Next<uint8_t, 1>;
   // Align input count to 32-bit.
-  using UnusedField = NumDoubleTemporariesNeededField::Next<uint8_t, 2>;
+  using UnusedField = NumDoubleTemporariesNeededField::Next<uint8_t, 1>;
   using InputCountField = UnusedField::Next<size_t, 17>;
   static_assert(InputCountField::kShift == 32);
 
@@ -1421,6 +1435,8 @@ class ValueNode : public Node {
       case ValueRepresentation::kInt32:
       case ValueRepresentation::kUint32:
         return MachineRepresentation::kWord32;
+      case ValueRepresentation::kWord64:
+        return MachineRepresentation::kWord64;
       case ValueRepresentation::kFloat64:
         return MachineRepresentation::kFloat64;
     }
@@ -3016,6 +3032,34 @@ class SmiConstant : public FixedInputValueNodeT<0, SmiConstant> {
 
  private:
   const Smi value_;
+};
+
+class ExternalConstant : public FixedInputValueNodeT<0, ExternalConstant> {
+  using Base = FixedInputValueNodeT<0, ExternalConstant>;
+
+ public:
+  using OutputRegister = Register;
+
+  explicit ExternalConstant(uint64_t bitfield,
+                            const ExternalReference& reference)
+      : Base(bitfield), reference_(reference) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::Pure() | OpProperties::ExternalReference();
+
+  ExternalReference reference() const { return reference_; }
+
+  bool ToBoolean(LocalIsolate* local_isolate) const { UNREACHABLE(); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+  void DoLoadToRegister(MaglevAssembler*, OutputRegister);
+  Handle<Object> DoReify(LocalIsolate* isolate);
+
+ private:
+  const ExternalReference reference_;
 };
 
 class Constant : public FixedInputValueNodeT<0, Constant> {

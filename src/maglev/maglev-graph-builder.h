@@ -590,6 +590,17 @@ class MaglevGraphBuilder {
     return it->second;
   }
 
+  ExternalConstant* GetExternalConstant(ExternalReference reference) {
+    auto it = graph_->external_references().find(reference.address());
+    if (it == graph_->external_references().end()) {
+      ExternalConstant* node = CreateNewNode<ExternalConstant>(0, reference);
+      if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
+      graph_->external_references().emplace(reference.address(), node);
+      return node;
+    }
+    return it->second;
+  }
+
   RootConstant* GetRootConstant(RootIndex index) {
     auto it = graph_->root().find(index);
     if (it == graph_->root().end()) {
@@ -678,6 +689,8 @@ class MaglevGraphBuilder {
 
   ValueNode* GetTaggedValue(ValueNode* value) {
     switch (value->properties().value_representation()) {
+      case ValueRepresentation::kWord64:
+        UNREACHABLE();
       case ValueRepresentation::kTagged:
         return value;
       case ValueRepresentation::kInt32: {
@@ -744,6 +757,8 @@ class MaglevGraphBuilder {
 
   ValueNode* GetTruncatedInt32FromNumber(ValueNode* value) {
     switch (value->properties().value_representation()) {
+      case ValueRepresentation::kWord64:
+        UNREACHABLE();
       case ValueRepresentation::kTagged: {
         if (SmiConstant* constant = value->TryCast<SmiConstant>()) {
           return GetInt32Constant(constant->value().value());
@@ -777,6 +792,8 @@ class MaglevGraphBuilder {
 
   ValueNode* GetTruncatedInt32(ValueNode* value) {
     switch (value->properties().value_representation()) {
+      case ValueRepresentation::kWord64:
+        UNREACHABLE();
       case ValueRepresentation::kTagged:
       case ValueRepresentation::kFloat64:
         return GetInt32(value);
@@ -795,6 +812,8 @@ class MaglevGraphBuilder {
 
   ValueNode* GetInt32(ValueNode* value) {
     switch (value->properties().value_representation()) {
+      case ValueRepresentation::kWord64:
+        UNREACHABLE();
       case ValueRepresentation::kTagged: {
         if (SmiConstant* constant = value->TryCast<SmiConstant>()) {
           return GetInt32Constant(constant->value().value());
@@ -839,6 +858,8 @@ class MaglevGraphBuilder {
 
   ValueNode* GetFloat64(ValueNode* value) {
     switch (value->properties().value_representation()) {
+      case ValueRepresentation::kWord64:
+        UNREACHABLE();
       case ValueRepresentation::kTagged: {
         NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
         if (node_info->float64_alternative == nullptr) {
