@@ -10,6 +10,7 @@
 #include <cinttypes>
 #include <cstdio>
 
+#include "src/base/platform/memory.h"
 #include "src/base/platform/wrappers.h"
 #include "src/utils/utils.h"
 #include "src/zone/type-stats.h"
