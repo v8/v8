@@ -637,9 +637,8 @@ void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
               // Make sure the return value is preserved across the live
               // register restoring pop all.
               return_val = kReturnRegister0;
-              if (node->register_snapshot().live_registers.has(return_val)) {
-                DCHECK(!node->register_snapshot().live_registers.has(
-                    kScratchRegister));
+              if (register_snapshot.live_registers.has(return_val)) {
+                DCHECK(!register_snapshot.live_registers.has(kScratchRegister));
                 __ movq(kScratchRegister, return_val);
                 return_val = kScratchRegister;
               }
