@@ -323,7 +323,7 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
 #ifdef V8_CODE_COMMENTS
   class CodeComment {
    public:
-    explicit CodeComment(Assembler* assembler, const std::string& comment)
+    V8_NODISCARD CodeComment(Assembler* assembler, const std::string& comment)
         : assembler_(assembler) {
       if (v8_flags.code_comments) Open(comment);
     }
@@ -340,7 +340,7 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   };
 #else  // V8_CODE_COMMENTS
   class CodeComment {
-    explicit CodeComment(Assembler* assembler, std::string comment) {}
+    V8_NODISCARD CodeComment(Assembler*, const std::string&) {}
   };
 #endif
 

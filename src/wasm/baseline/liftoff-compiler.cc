@@ -34,9 +34,7 @@
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-opcodes-inl.h"
 
-namespace v8 {
-namespace internal {
-namespace wasm {
+namespace v8::internal::wasm {
 
 constexpr auto kRegister = LiftoffAssembler::VarState::kRegister;
 constexpr auto kIntConst = LiftoffAssembler::VarState::kIntConst;
@@ -86,12 +84,12 @@ struct assert_field_size {
                                    WASM_INSTANCE_OBJECT_FIELD_OFFSET(name));
 
 #ifdef V8_CODE_COMMENTS
-#define CODE_COMMENT(str)  \
-  do {                     \
-    __ RecordComment(str); \
-  } while (false)
+#define CODE_COMMENT(str) __ RecordComment(str)
+#define SCOPED_CODE_COMMENT(str) \
+  AssemblerBase::CodeComment scoped_comment_##__LINE__(&asm_, str)
 #else
 #define CODE_COMMENT(str) ((void)0)
+#define SCOPED_CODE_COMMENT(str) ((void)0)
 #endif
 
 constexpr LoadType::LoadTypeValue kPointerLoadType =
@@ -340,7 +338,6 @@ void CheckBailoutAllowed(LiftoffBailoutReason reason, const char* detail,
 class LiftoffCompiler {
  public:
   using ValidationTag = Decoder::BooleanValidationTag;
-
   using Value = ValueBase<ValidationTag>;
 
   struct ElseState {
@@ -3140,6 +3137,7 @@ class LiftoffCompiler {
   Register GetMemoryStart(LiftoffRegList pinned) {
     Register memory_start = __ cache_state()->cached_mem_start;
     if (memory_start == no_reg) {
+      SCOPED_CODE_COMMENT("load memory start");
       memory_start = __ GetUnusedRegister(kGpReg, pinned).gp();
       LOAD_INSTANCE_FIELD(memory_start, MemoryStart, kSystemPointerSize,
                           pinned);
@@ -3170,7 +3168,7 @@ class LiftoffCompiler {
     bool i64_offset = index_slot.kind() == kI64;
     if (IndexStaticallyInBounds(index_slot, type.size(), &offset)) {
       __ cache_state()->stack_state.pop_back();
-      CODE_COMMENT("load from memory (constant offset)");
+      SCOPED_CODE_COMMENT("load from memory (constant offset)");
       LiftoffRegList pinned;
       Register mem = pinned.set(GetMemoryStart(pinned));
       LiftoffRegister value = pinned.set(__ GetUnusedRegister(rc, pinned));
@@ -3182,7 +3180,7 @@ class LiftoffCompiler {
                              kDontForceCheck);
       if (index == no_reg) return;
 
-      CODE_COMMENT("load from memory");
+      SCOPED_CODE_COMMENT("load from memory");
       LiftoffRegList pinned{index};
 
       // Load the memory start address only now to reduce register pressure
@@ -3306,7 +3304,7 @@ class LiftoffCompiler {
     bool i64_offset = index_slot.kind() == kI64;
     if (IndexStaticallyInBounds(index_slot, type.size(), &offset)) {
       __ cache_state()->stack_state.pop_back();
-      CODE_COMMENT("store to memory (constant offset)");
+      SCOPED_CODE_COMMENT("store to memory (constant offset)");
       Register mem = pinned.set(GetMemoryStart(pinned));
       __ Store(mem, no_reg, offset, value, type, pinned, nullptr, true,
                i64_offset);
@@ -3317,7 +3315,7 @@ class LiftoffCompiler {
       if (index == no_reg) return;
 
       pinned.set(index);
-      CODE_COMMENT("store to memory");
+      SCOPED_CODE_COMMENT("store to memory");
       uint32_t protected_store_pc = 0;
       // Load the memory start address only now to reduce register pressure
       // (important on ia32).
@@ -7771,6 +7769,7 @@ class LiftoffCompiler {
   Register LoadInstanceIntoRegister(LiftoffRegList pinned, Register fallback) {
     Register instance = __ cache_state()->cached_instance;
     if (instance == no_reg) {
+      SCOPED_CODE_COMMENT("load instance");
       instance = __ cache_state()->TrySetCachedInstanceRegister(
           pinned | LiftoffRegList{fallback});
       if (instance == no_reg) instance = fallback;
@@ -7991,14 +7990,4 @@ std::unique_ptr<DebugSideTable> GenerateLiftoffDebugSideTable(
   return debug_sidetable_builder.GenerateDebugSideTable();
 }
 
-#undef __
-#undef TRACE
-#undef WASM_INSTANCE_OBJECT_FIELD_OFFSET
-#undef WASM_INSTANCE_OBJECT_FIELD_SIZE
-#undef LOAD_INSTANCE_FIELD
-#undef LOAD_TAGGED_PTR_INSTANCE_FIELD
-#undef CODE_COMMENT
-
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::wasm
