@@ -3409,7 +3409,6 @@ void ConvertReceiver::GenerateCode(MaglevAssembler* masm,
   // ToObject needs to be ran with the target context installed.
   __ Move(kContextRegister, target_.context().object());
   __ CallBuiltin(Builtin::kToObject);
-  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
   __ bind(&done);
 }
 
