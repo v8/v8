@@ -728,6 +728,11 @@ DEFINE_BOOL(trace_baseline_concurrent_compilation, false,
 // Internalize into a shared string table in the shared isolate
 DEFINE_BOOL(shared_string_table, false, "internalize strings into shared table")
 DEFINE_IMPLICATION(harmony_struct, shared_string_table)
+DEFINE_BOOL(shared_string_table_using_shared_space, false,
+            "internalize strings into shared table")
+DEFINE_IMPLICATION(shared_string_table_using_shared_space, shared_string_table)
+DEFINE_IMPLICATION(shared_string_table_using_shared_space, shared_space)
+DEFINE_IMPLICATION(harmony_struct, shared_string_table)
 DEFINE_BOOL(
     always_use_string_forwarding_table, false,
     "use string forwarding table instead of thin strings for all strings")
