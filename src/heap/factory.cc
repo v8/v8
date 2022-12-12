@@ -2382,9 +2382,13 @@ Handle<FixedDoubleArray> Factory::CopyFixedDoubleArray(
 }
 
 Handle<HeapNumber> Factory::NewHeapNumberForCodeAssembler(double value) {
-  return CanAllocateInReadOnlySpace()
-             ? NewHeapNumber<AllocationType::kReadOnly>(value)
-             : NewHeapNumber<AllocationType::kOld>(value);
+  ReadOnlyRoots roots(isolate());
+  auto num = roots.FindHeapNumber(value);
+  if (!num.is_null()) return num;
+  // Add known HeapNumber constants to the read only roots. This ensures
+  // r/o snapshots to be deterministic.
+  DCHECK(!CanAllocateInReadOnlySpace());
+  return NewHeapNumber<AllocationType::kOld>(value);
 }
 
 Handle<JSObject> Factory::NewError(Handle<JSFunction> constructor,
