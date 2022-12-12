@@ -571,11 +571,11 @@ void Serializer::ObjectSerializer::SerializeJSArrayBuffer() {
       uint32_t ref =
           SerializeBackingStore(backing_store, byte_length, max_byte_length);
       buffer.SetBackingStoreRefForSerialization(ref);
-
-      // Ensure deterministic output by setting extension to null during
-      // serialization.
-      buffer.set_extension(nullptr);
     }
+
+    // Ensure deterministic output by setting extension to null during
+    // serialization.
+    buffer.set_extension(nullptr);
   }
   SerializeObject();
   {
