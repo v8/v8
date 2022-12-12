@@ -261,8 +261,9 @@ def _CheckHeadersHaveIncludeGuards(input_api, output_api):
       files_to_check=(file_inclusion_pattern, ),
       files_to_skip=files_to_skip)
 
-  leading_src_pattern = input_api.re.compile(r'^src/')
-  dash_dot_slash_pattern = input_api.re.compile(r'[-./]')
+  leading_src_pattern = input_api.re.compile(r'^src[\\\/]')
+  dash_dot_slash_pattern = input_api.re.compile(r'[-.\\\/]')
+
   def PathToGuardMacro(path):
     """Guards should be of the form V8_PATH_TO_FILE_WITHOUT_SRC_H_."""
     x = input_api.re.sub(leading_src_pattern, 'v8_', path)
