@@ -487,11 +487,7 @@ DEFINE_BOOL(maglev_function_context_specialization, true,
 DEFINE_BOOL(maglev_ool_prologue, false, "use the Maglev out of line prologue")
 
 #if ENABLE_SPARKPLUG
-DEFINE_WEAK_IMPLICATION(future, sparkplug)
 DEFINE_WEAK_IMPLICATION(future, flush_baseline_code)
-#endif
-#if V8_SHORT_BUILTIN_CALLS
-DEFINE_WEAK_IMPLICATION(future, short_builtin_calls)
 #endif
 DEFINE_WEAK_NEG_IMPLICATION(future, write_protect_code_memory)
 
@@ -895,7 +891,6 @@ DEFINE_BOOL(turbo_inline_array_builtins, true,
             "inline array builtins in TurboFan code")
 DEFINE_BOOL(use_osr, true, "use on-stack replacement")
 DEFINE_BOOL(concurrent_osr, true, "enable concurrent OSR")
-DEFINE_WEAK_IMPLICATION(future, concurrent_osr)
 
 DEFINE_BOOL(trace_osr, false, "trace on-stack replacement")
 DEFINE_BOOL(log_or_trace_osr, false,
