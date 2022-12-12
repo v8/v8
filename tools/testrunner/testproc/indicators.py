@@ -11,6 +11,7 @@ import time
 
 from . import base
 from . import util
+from .stack_utils import stack_analyzer_util
 
 
 def print_failure_header(test, is_flaky=False):
@@ -344,26 +345,6 @@ class MonochromeProgressIndicator(CompactProgressIndicator):
     print(("\r" + (" " * last_length) + "\r"), end='')
 
 
-class CrashInfo:
-  """Parsed crash information."""
-
-  def __init__(self):
-    self.crash_stacktrace = ''
-    self.crash_type = 'Dummy Type'
-    self.crash_state = 'Dummy State'
-
-
-class StackParser:
-  """Stack parser."""
-
-  def parse(self, stacktrace: str) -> CrashInfo:
-    """Parse a stacktrace."""
-    state = CrashInfo()
-    state.crash_stacktrace = stacktrace
-
-    return state
-
-
 class JsonTestProgressIndicator(ProgressIndicator):
 
   def __init__(self, context, options, test_count):
@@ -380,6 +361,7 @@ class JsonTestProgressIndicator(ProgressIndicator):
     self.results = []
     self.duration_sum = 0
     self.test_count = 0
+    self.stack_parser = stack_analyzer_util.create_stack_parser()
 
   def on_test_result(self, test, result):
     self.process_results(test, result.as_list)
@@ -405,12 +387,7 @@ class JsonTestProgressIndicator(ProgressIndicator):
           "error_details": result.error_details,
       })
 
-      stack_parser = StackParser()
-      stderr_analysis = stack_parser.parse(output.stderr)
-      record.update({
-          "crash_state": stderr_analysis.crash_state,
-          "crash_type": stderr_analysis.crash_type,
-      })
+      record.update(self.stack_parser.analyze_crash(output.stderr))
 
       self.results.append(record)
 

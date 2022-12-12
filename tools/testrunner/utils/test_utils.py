@@ -84,7 +84,7 @@ def clean_json_output(json_path, basedir):
   if not json_path:
     return None
   if not os.path.exists(json_path):
-    return None
+    return '--file-does-not-exists--'
   with open(json_path) as f:
     json_output = json.load(f)
 

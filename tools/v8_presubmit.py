@@ -790,8 +790,7 @@ def PyTests(workspace):
   result = True
   for script in FindTests(workspace):
     print('Running ' + script)
-    result &= subprocess.call(
-        [sys.executable, script], stdout=subprocess.PIPE) == 0
+    result &= subprocess.call(['vpython3', script], stdout=subprocess.PIPE) == 0
 
   return result
 
