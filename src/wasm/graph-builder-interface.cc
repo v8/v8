@@ -1279,12 +1279,20 @@ class WasmGraphBuildingInterface {
                                  &no_match_env->control, &no_match_env->effect);
     builder_->SetControl(no_branch_env->control);
     SetEnv(branch_env);
-    SetAndTypeNode(forwarding_value,
-                   builder_->TypeGuard(object.node, forwarding_value->type));
+    if (branch_on_match) {
+      // Narrow type for the successful cast target branch.
+      SetAndTypeNode(forwarding_value,
+                     builder_->TypeGuard(object.node, forwarding_value->type));
+    }
     // Currently, br_on_* instructions modify the value stack before calling
     // the interface function, so we don't need to drop any values here.
     BrOrRet(decoder, br_depth, 0);
     SetEnv(no_branch_env);
+    if (!branch_on_match) {
+      // Narrow type for the successful cast fallthrough branch.
+      SetAndTypeNode(forwarding_value,
+                     builder_->TypeGuard(object.node, forwarding_value->type));
+    }
   }
 
   void BrOnCast(FullDecoder* decoder, const Value& object, const Value& rtt,
