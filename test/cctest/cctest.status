@@ -99,6 +99,7 @@
   'test-jump-table-assembler/JumpTablePatchingStress': [PASS, SLOW],
   'test-strings/StringOOM*': [PASS, ['mode == debug', SKIP]],
   'test-serialize/CustomSnapshotDataBlobImmortalImmovableRoots': [PASS, ['mode == debug', SKIP]],
+  'test-serialize/CreateIsolateFromReadOnlySnapshot': [PASS, SLOW],
 
   # Tests that need to run sequentially (e.g. due to memory consumption).
   'test-accessors/HandleScopePop': [PASS, HEAVY],
@@ -301,6 +302,9 @@
   'test-serialize/StartupSerializerOnceRunScript': [SKIP],
   'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
   'test-serialize/StartupSerializerTwice': [SKIP],
+
+  # Test too slow with ASan
+  'test-serialize/CreateIsolateFromReadOnlySnapshot': [SKIP],
 }],  # 'system == windows and arch == x64 and mode == debug'
 
 ##############################################################################
