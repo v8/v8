@@ -205,7 +205,9 @@ class BranchEliminationReducer : public Next {
       if (const BranchOp* branch = op.TryCast<BranchOp>()) {
         DCHECK_EQ(new_block, any_of(branch->if_true, branch->if_false));
         bool condition_value = branch->if_true == new_block;
-        known_conditions_.InsertNewKey(branch->condition(), condition_value);
+        if (!known_conditions_.Contains(branch->condition())) {
+          known_conditions_.InsertNewKey(branch->condition(), condition_value);
+        }
       }
     }
   }
