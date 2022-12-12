@@ -319,10 +319,10 @@ Type OperationTyper::ToBigInt(Type type) {
 }
 
 Type OperationTyper::ToBigIntConvertNumber(Type type) {
-  if (type.Is(Type::Signed32OrMinusZero())) {
-    return Type::SignedBigInt64();
-  } else if (type.Is(Type::Unsigned32OrMinusZero())) {
+  if (type.Is(Type::Unsigned32OrMinusZero())) {
     return Type::UnsignedBigInt63();
+  } else if (type.Is(Type::Signed32OrMinusZero())) {
+    return Type::SignedBigInt64();
   }
 
   bool maybe_number =
@@ -590,11 +590,11 @@ Type OperationTyper::NumberToUint8Clamped(Type type) {
 Type OperationTyper::Integral32OrMinusZeroToBigInt(Type type) {
   DCHECK(type.Is(Type::Number()));
 
-  if (type.Is(Type::Signed32())) {
-    return Type::SignedBigInt64();
-  }
-  if (type.Is(Type::Unsigned32())) {
+  if (type.Is(Type::Unsigned32OrMinusZero())) {
     return Type::UnsignedBigInt63();
+  }
+  if (type.Is(Type::Signed32OrMinusZero())) {
+    return Type::SignedBigInt64();
   }
   return Type::BigInt();
 }

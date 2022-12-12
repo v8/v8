@@ -1253,7 +1253,7 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
     op = simplified()->TruncateBigIntToWord64();
   } else if (CanBeTaggedPointer(output_rep)) {
     if (output_type.Is(cache_->kDoubleRepresentableInt64) ||
-        (output_type.Is(Type::MinusZero()) &&
+        (output_type.Is(cache_->kDoubleRepresentableInt64OrMinusZero) &&
          use_info.minus_zero_check() ==
              CheckForMinusZeroMode::kDontCheckForMinusZero)) {
       op = simplified()->ChangeTaggedToInt64();
