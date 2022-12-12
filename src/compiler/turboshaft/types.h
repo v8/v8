@@ -52,7 +52,17 @@ struct TypeForBits<64> {
       std::numeric_limits<float_type>::quiet_NaN();
 };
 
-struct Payload_Empty {};
+// gcc versions < 9 may produce the following compilation error:
+// > '<anonymous>' is used uninitialized in this function
+// if Payload_Empty is initialized without any data, link to a relevant bug:
+// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=86465
+// A workaround is to add a dummy value which is zero initialized by default.
+// More information as well as a sample reproducible code can be found at the
+// comment section of this CL crrev.com/c/4057111
+// TODO: Remove dummy once all platforms are using gcc >= 9.
+struct Payload_Empty {
+  uint8_t dummy = 0;
+};
 
 template <typename T>
 struct Payload_Range {
