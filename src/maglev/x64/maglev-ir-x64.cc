@@ -3641,7 +3641,8 @@ void AttemptOnStackReplacement(MaglevAssembler* masm,
   //
   // 1) Presence of cached OSR Turbofan code.
   // 2) The OSR urgency exceeds the current loop depth - in that case, trigger
-  //    a Turbofan OSR compilation.
+  //    a Turbofan OSR compilation if in concurrent mode.
+  //    Otherwise trigger an eager deopt and delegate OSR to Ignition.
   //
   // See also: InterpreterAssembler::OnStackReplacement.
 
