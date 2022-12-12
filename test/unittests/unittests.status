@@ -32,6 +32,10 @@
 
   # Slow tests.
   'ParsingTest.ObjectRestNegativeTestSlow': [PASS, ['mode == debug', SKIP]],
+
+  # https://crbug.com/v8/13580: Flaky test.
+  'TyperTest.Monotonicity_Operation_Integral32OrMinusZeroToBigInt': [SKIP]
+
 }],  # ALWAYS
 
 ##############################################################################
