@@ -34,6 +34,7 @@
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/flush-instruction-cache.h"
 #include "src/common/assert-scope.h"
+#include "src/common/globals.h"
 #include "src/common/ptr-compr-inl.h"
 #include "src/compiler-dispatcher/lazy-compile-dispatcher.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
@@ -99,6 +100,7 @@
 #include "src/profiler/heap-profiler.h"
 #include "src/profiler/tracing-cpu-profiler.h"
 #include "src/regexp/regexp-stack.h"
+#include "src/roots/static-roots.h"
 #include "src/snapshot/embedded/embedded-data-inl.h"
 #include "src/snapshot/embedded/embedded-file-writer-interface.h"
 #include "src/snapshot/read-only-deserializer.h"
@@ -422,6 +424,20 @@ size_t Isolate::HashIsolateForEmbeddedBlob() {
 
   static constexpr size_t kSeed = 0;
   size_t hash = kSeed;
+
+  // Hash static entries of the roots table.
+  hash = base::hash_combine(hash, V8_STATIC_ROOTS_BOOL);
+#if V8_STATIC_ROOTS_BOOL
+  hash = base::hash_combine(hash,
+                            static_cast<int>(RootIndex::kReadOnlyRootsCount));
+  RootIndex i = RootIndex::kFirstReadOnlyRoot;
+  for (auto ptr : StaticReadOnlyRootsPointerTable) {
+    hash = base::hash_combine(ptr, hash);
+    hash = base::hash_combine(std::hash<std::string>{}(roots_table().name(i)),
+                              hash);
+    ++i;
+  }
+#endif  // V8_STATIC_ROOTS_BOOL
 
   // Hash data sections of builtin code objects.
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
@@ -4136,6 +4152,30 @@ VirtualMemoryCage* Isolate::GetPtrComprCodeCageForTesting() {
   return V8_EXTERNAL_CODE_SPACE_BOOL ? heap_.code_range() : GetPtrComprCage();
 }
 
+// If this check fails mksnapshot needs to be built without static roots and
+// then called with --static-roots to re-regenerate the static-roots.h file.
+void Isolate::VerifyStaticRoots() {
+#if V8_STATIC_ROOTS_BOOL
+  auto& roots = roots_table();
+  CHECK_EQ(static_cast<int>(RootIndex::kReadOnlyRootsCount),
+           StaticReadOnlyRootsPointerTable.size());
+  RootIndex idx = RootIndex::kFirstReadOnlyRoot;
+  ReadOnlyPage* first_page = read_only_heap()->read_only_space()->pages()[0];
+  for (Tagged_t cmp_ptr : StaticReadOnlyRootsPointerTable) {
+    Address the_root = roots[idx];
+    Address ptr =
+        V8HeapCompressionScheme::DecompressTaggedPointer(cage_base(), cmp_ptr);
+    CHECK_EQ(the_root, ptr);
+    // All roots must fit on first page, since only this page is guaranteed to
+    // have a stable offset from the cage base. If this ever changes we need
+    // to load more pages with predictable offset at
+    // ReadOnlySpace::InitFromMemoryDump.
+    CHECK(first_page->Contains(the_root));
+    ++idx;
+  }
+#endif  // V8_STATIC_ROOTS_BOOL
+}
+
 bool Isolate::Init(SnapshotData* startup_snapshot_data,
                    SnapshotData* read_only_snapshot_data,
                    SnapshotData* shared_heap_snapshot_data, bool can_rehash) {
@@ -4482,6 +4522,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
                                                can_rehash);
       startup_deserializer.DeserializeIntoIsolate();
     }
+    if (DEBUG_BOOL) VerifyStaticRoots();
     load_stub_cache_->Initialize();
     store_stub_cache_->Initialize();
     interpreter_->Initialize();

@@ -728,6 +728,20 @@ void Heap::CreateInitialReadOnlyObjects() {
   Factory* factory = isolate()->factory();
   ReadOnlyRoots roots(this);
 
+  // For static roots we need the r/o space to have identical layout on all
+  // compile targets. Varying objects are padded to their biggest size.
+  auto StaticRootsEnsureAllocatedSize = [&](HeapObject obj, int required) {
+#ifdef V8_STATIC_ROOTS_BOOL
+    if (required == obj.Size()) return;
+    CHECK_LT(obj.Size(), required);
+    int filler_size = required - obj.Size();
+    auto filler = factory->NewFillerObject(filler_size,
+                                           AllocationAlignment::kTaggedAligned,
+                                           AllocationType::kReadOnly);
+    CHECK_EQ(filler->address() + filler->Size(), obj.address() + required);
+#endif
+  };
+
   // The -0 value must be set before NewNumber works.
   set_minus_zero_value(
       *factory->NewHeapNumber<AllocationType::kReadOnly>(-0.0));
@@ -939,6 +953,8 @@ void Heap::CreateInitialReadOnlyObjects() {
   Handle<SwissNameDictionary> empty_swiss_property_dictionary =
       factory->CreateCanonicalEmptySwissNameDictionary();
   set_empty_swiss_property_dictionary(*empty_swiss_property_dictionary);
+  StaticRootsEnsureAllocatedSize(*empty_swiss_property_dictionary,
+                                 8 * kTaggedSize);
 
   // Allocate the empty FeedbackMetadata.
   Handle<FeedbackMetadata> empty_feedback_metadata =
@@ -959,8 +975,9 @@ void Heap::CreateInitialReadOnlyObjects() {
   set_native_scope_info(*native_scope_info);
 
   // Canonical off-heap trampoline data
-  set_off_heap_trampoline_relocation_info(
-      *Builtins::GenerateOffHeapTrampolineRelocInfo(isolate_));
+  auto reloc_info = Builtins::GenerateOffHeapTrampolineRelocInfo(isolate_);
+  set_off_heap_trampoline_relocation_info(*reloc_info);
+  StaticRootsEnsureAllocatedSize(*reloc_info, 4 * kTaggedSize);
 
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {
     // These roots will not be used.

@@ -21,6 +21,7 @@
 #include "src/heap/read-only-heap.h"
 #include "src/objects/objects-inl.h"
 #include "src/snapshot/snapshot-data.h"
+#include "src/snapshot/snapshot-source-sink.h"
 #include "src/snapshot/snapshot-utils.h"
 
 namespace v8 {
@@ -752,6 +753,47 @@ SharedReadOnlySpace::SharedReadOnlySpace(Heap* heap,
   DCHECK(!COMPRESS_POINTERS_IN_ISOLATE_CAGE_BOOL);
   accounting_stats_ = artifacts->accounting_stats();
   pages_ = artifacts->pages();
+}
+
+void ReadOnlySpace::InitFromMemoryDump(Isolate* isolate,
+                                       SnapshotByteSource* in) {
+  size_t num_pages = in->GetInt();
+  auto cage = isolate->GetPtrComprCage();
+
+  CHECK_LT(num_pages, 10);
+
+  auto first_page = cage->base() + in->GetInt();
+
+  for (size_t i = 0; i < num_pages; ++i) {
+    int size = in->GetInt();
+    ReadOnlyPage* chunk;
+    if (i == 0) {
+      chunk =
+          heap()->memory_allocator()->AllocateReadOnlyPage(this, first_page);
+      // If this fails we probably allocated r/o space too late.
+      CHECK_EQ(reinterpret_cast<void*>(first_page), chunk);
+    } else {
+      chunk = heap()->memory_allocator()->AllocateReadOnlyPage(this);
+    }
+
+    capacity_ += AreaSize();
+
+    AccountCommitted(chunk->size());
+    CHECK_NOT_NULL(chunk);
+
+    CHECK_LE(chunk->area_start() + size, chunk->area_end());
+    in->CopyRaw(reinterpret_cast<void*>(chunk->area_start()), size);
+    chunk->IncreaseAllocatedBytes(size);
+    chunk->high_water_mark_ = (chunk->area_start() - chunk->address()) + size;
+
+    DCHECK_NE(chunk->allocated_bytes(), 0);
+    accounting_stats_.IncreaseCapacity(chunk->area_size());
+    accounting_stats_.IncreaseAllocatedBytes(chunk->allocated_bytes(), chunk);
+    pages_.push_back(chunk);
+
+    top_ = chunk->area_start() + size;
+    limit_ = chunk->area_end();
+  }
 }
 
 }  // namespace internal

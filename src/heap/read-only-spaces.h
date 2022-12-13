@@ -23,7 +23,7 @@ namespace internal {
 
 class MemoryAllocator;
 class ReadOnlyHeap;
-class SnapshotData;
+class SnapshotByteSource;
 
 class ReadOnlyPage : public BasicMemoryChunk {
  public:
@@ -234,6 +234,8 @@ class ReadOnlySpace : public BaseSpace {
   int AreaSize() const { return static_cast<int>(area_size_); }
 
   Address FirstPageAddress() const { return pages_.front()->address(); }
+
+  void InitFromMemoryDump(Isolate* isolate, SnapshotByteSource* source);
 
  protected:
   friend class SingleCopyReadOnlyArtifacts;

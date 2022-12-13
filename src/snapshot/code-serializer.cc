@@ -108,28 +108,6 @@ AlignedCachedData* CodeSerializer::SerializeSharedFunctionInfo(
   return data.GetScriptData();
 }
 
-bool CodeSerializer::SerializeReadOnlyObject(
-    HeapObject obj, const DisallowGarbageCollection& no_gc) {
-  if (!ReadOnlyHeap::Contains(obj)) return false;
-
-  // For objects on the read-only heap, never serialize the object, but instead
-  // create a back reference that encodes the page number as the chunk_index and
-  // the offset within the page as the chunk_offset.
-  Address address = obj.address();
-  BasicMemoryChunk* chunk = BasicMemoryChunk::FromAddress(address);
-  uint32_t chunk_index = 0;
-  ReadOnlySpace* const read_only_space = isolate()->heap()->read_only_space();
-  for (ReadOnlyPage* page : read_only_space->pages()) {
-    if (chunk == page) break;
-    ++chunk_index;
-  }
-  uint32_t chunk_offset = static_cast<uint32_t>(chunk->Offset(address));
-  sink_.Put(kReadOnlyHeapRef, "ReadOnlyHeapRef");
-  sink_.PutInt(chunk_index, "ReadOnlyHeapRefChunkIndex");
-  sink_.PutInt(chunk_offset, "ReadOnlyHeapRefChunkOffset");
-  return true;
-}
-
 void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
   ReadOnlyRoots roots(isolate());
   InstanceType instance_type;
@@ -139,7 +117,7 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
     if (SerializeHotObject(raw)) return;
     if (SerializeRoot(raw)) return;
     if (SerializeBackReference(raw)) return;
-    if (SerializeReadOnlyObject(raw, no_gc)) return;
+    if (SerializeReadOnlyObjectReference(raw, &sink_)) return;
 
     instance_type = raw.map().instance_type();
     CHECK(!InstanceTypeChecker::IsCode(instance_type));

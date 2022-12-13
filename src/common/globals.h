@@ -122,6 +122,17 @@ namespace internal {
 #define V8_CAN_CREATE_SHARED_HEAP_BOOL false
 #endif
 
+// Disabling WASM or INTL invalidates the contents of static-roots.h
+#if defined(V8_SHARED_RO_HEAP) && defined(V8_COMPRESS_POINTERS) &&           \
+    defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE) && V8_ENABLE_WEBASSEMBLY && \
+    defined(V8_INTL_SUPPORT)
+// TODO(olivf, v8:13466): Add build infra to conveniently re-regenerate the
+// static roots table and then enable it.
+#define V8_STATIC_ROOTS_BOOL false
+#else
+#define V8_STATIC_ROOTS_BOOL false
+#endif
+
 #ifdef V8_ENABLE_SANDBOX
 #define V8_ENABLE_SANDBOX_BOOL true
 #else

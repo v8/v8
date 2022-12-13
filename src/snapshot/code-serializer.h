@@ -111,9 +111,6 @@ class CodeSerializer : public Serializer {
  private:
   void SerializeObjectImpl(Handle<HeapObject> o) override;
 
-  bool SerializeReadOnlyObject(HeapObject obj,
-                               const DisallowGarbageCollection& no_gc);
-
   DISALLOW_GARBAGE_COLLECTION(no_gc_)
   uint32_t source_hash_;
 };

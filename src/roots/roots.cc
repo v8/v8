@@ -4,9 +4,11 @@
 
 #include "src/roots/roots.h"
 
+#include "src/common/globals.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/visitors.h"
+#include "src/roots/static-roots.h"
 
 namespace v8 {
 namespace internal {
@@ -66,6 +68,20 @@ Handle<HeapNumber> ReadOnlyRoots::FindHeapNumber(double value) {
     }
   }
   return Handle<HeapNumber>();
+}
+
+void ReadOnlyRoots::InitFromStaticRootsTable(Address cage_base) {
+  CHECK(V8_STATIC_ROOTS_BOOL);
+#if V8_STATIC_ROOTS_BOOL
+  RootIndex pos = RootIndex::kFirstReadOnlyRoot;
+  for (auto element : StaticReadOnlyRootsPointerTable) {
+    auto ptr =
+        V8HeapCompressionScheme::DecompressTaggedPointer(cage_base, element);
+    *GetLocation(pos) = ptr;
+    ++pos;
+  }
+  DCHECK_EQ(static_cast<int>(pos) - 1, RootIndex::kLastReadOnlyRoot);
+#endif  // V8_STATIC_ROOTS_BOOL
 }
 
 }  // namespace internal
