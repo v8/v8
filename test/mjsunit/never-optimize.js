@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --allow-natives-syntax --turbofan --no-always-turbofan --no-use-osr
-// Flags: --interrupt-budget=1024 --nomaglev
+// Flags: --interrupt-budget=1024
 
 function o1() { }
 %PrepareFunctionForOptimization(o1);

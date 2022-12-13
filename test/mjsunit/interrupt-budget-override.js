@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --turbofan --interrupt-budget=100 --interrupt-budget-for-feedback-allocation=10 --allow-natives-syntax --nomaglev
+// Flags: --turbofan --interrupt-budget=100 --interrupt-budget-for-feedback-allocation=10 --allow-natives-syntax
 
 function f() {
   let s = 0;
