@@ -269,6 +269,12 @@ inline void MaglevAssembler::JumpIf(Condition cond, Label* target) {
   j(cond, target);
 }
 
+inline void MaglevAssembler::JumpIfTaggedEqual(Register r1, Register r2,
+                                               Label* target) {
+  cmp_tagged(r1, r2);
+  j(equal, target);
+}
+
 inline void MaglevAssembler::Pop(Register dst) { MacroAssembler::Pop(dst); }
 
 inline void MaglevAssembler::MaterialiseValueNode(Register dst,

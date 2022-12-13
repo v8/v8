@@ -1367,6 +1367,38 @@ void GetKeyedGeneric::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
+void TaggedEqual::SetValueLocationConstraints() {
+  UseRegister(lhs());
+  UseRegister(rhs());
+  DefineAsRegister(this);
+}
+void TaggedEqual::GenerateCode(MaglevAssembler* masm,
+                               const ProcessingState& state) {
+  Label done, if_equal;
+  __ JumpIfTaggedEqual(ToRegister(lhs()), ToRegister(rhs()), &if_equal);
+  __ LoadRoot(ToRegister(result()), RootIndex::kFalseValue);
+  __ Jump(&done);
+  __ bind(&if_equal);
+  __ LoadRoot(ToRegister(result()), RootIndex::kTrueValue);
+  __ bind(&done);
+}
+
+void TaggedNotEqual::SetValueLocationConstraints() {
+  UseRegister(lhs());
+  UseRegister(rhs());
+  DefineAsRegister(this);
+}
+void TaggedNotEqual::GenerateCode(MaglevAssembler* masm,
+                                  const ProcessingState& state) {
+  Label done, if_equal;
+  __ JumpIfTaggedEqual(ToRegister(lhs()), ToRegister(rhs()), &if_equal);
+  __ LoadRoot(ToRegister(result()), RootIndex::kTrueValue);
+  __ Jump(&done);
+  __ bind(&if_equal);
+  __ LoadRoot(ToRegister(result()), RootIndex::kFalseValue);
+  __ bind(&done);
+}
+
 int TestInstanceOf::MaxCallStackArgs() const {
   using D = CallInterfaceDescriptorFor<Builtin::kInstanceOf_WithFeedback>::type;
   return D::GetStackParameterCount();

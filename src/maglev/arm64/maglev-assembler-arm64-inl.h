@@ -178,6 +178,12 @@ inline void MaglevAssembler::JumpIf(Condition cond, Label* target) {
   b(target, cond);
 }
 
+inline void MaglevAssembler::JumpIfTaggedEqual(Register r1, Register r2,
+                                               Label* target) {
+  CmpTagged(r1, r2);
+  b(target, eq);
+}
+
 inline void MaglevAssembler::Pop(Register dst) { Pop(padreg, dst); }
 
 inline void MaglevAssembler::AssertStackSizeCorrect() {

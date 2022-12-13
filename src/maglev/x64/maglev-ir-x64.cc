@@ -2363,40 +2363,6 @@ void SetPendingMessage::GenerateCode(MaglevAssembler* masm,
   }
 }
 
-void TaggedEqual::SetValueLocationConstraints() {
-  UseRegister(lhs());
-  UseRegister(rhs());
-  DefineAsRegister(this);
-}
-void TaggedEqual::GenerateCode(MaglevAssembler* masm,
-                               const ProcessingState& state) {
-  Label done, if_equal;
-  __ cmp_tagged(ToRegister(lhs()), ToRegister(rhs()));
-  __ j(equal, &if_equal, Label::kNear);
-  __ LoadRoot(ToRegister(result()), RootIndex::kFalseValue);
-  __ jmp(&done, Label::kNear);
-  __ bind(&if_equal);
-  __ LoadRoot(ToRegister(result()), RootIndex::kTrueValue);
-  __ bind(&done);
-}
-
-void TaggedNotEqual::SetValueLocationConstraints() {
-  UseRegister(lhs());
-  UseRegister(rhs());
-  DefineAsRegister(this);
-}
-void TaggedNotEqual::GenerateCode(MaglevAssembler* masm,
-                                  const ProcessingState& state) {
-  Label done, if_equal;
-  __ cmp_tagged(ToRegister(lhs()), ToRegister(rhs()));
-  __ j(equal, &if_equal, Label::kNear);
-  __ LoadRoot(ToRegister(result()), RootIndex::kTrueValue);
-  __ jmp(&done, Label::kNear);
-  __ bind(&if_equal);
-  __ LoadRoot(ToRegister(result()), RootIndex::kFalseValue);
-  __ bind(&done);
-}
-
 void TestUndetectable::SetValueLocationConstraints() {
   UseRegister(value());
   set_temporaries_needed(1);

@@ -153,6 +153,7 @@ class MaglevAssembler : public MacroAssembler {
 
   inline void Jump(Label* target);
   inline void JumpIf(Condition cond, Label* target);
+  inline void JumpIfTaggedEqual(Register r1, Register r2, Label* target);
 
   // TODO(victorgomes): Import baseline Pop(T...) methods.
   inline void Pop(Register dst);
