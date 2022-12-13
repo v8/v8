@@ -549,12 +549,11 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
 
     // Properties from here are treated as weak references by the full GC.
     // Scavenge treats them as strong references.
-    OPTIMIZED_CODE_LIST,  // Weak.
-    NEXT_CONTEXT_LINK,    // Weak.
+    NEXT_CONTEXT_LINK,  // Weak.
 
     // Total number of slots.
     NATIVE_CONTEXT_SLOTS,
-    FIRST_WEAK_SLOT = OPTIMIZED_CODE_LIST,
+    FIRST_WEAK_SLOT = NEXT_CONTEXT_LINK,
     FIRST_JS_ARRAY_MAP_SLOT = JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX,
 
     // TODO(shell): Remove, once it becomes zero
@@ -778,12 +777,6 @@ class NativeContext : public Context {
 #undef NATIVE_CONTEXT_FIELDS_DEF
 
   class BodyDescriptor;
-
-  // The native context stores a list of all optimized code and a list of all
-  // deoptimized code, which are needed by the deoptimizer.
-  V8_EXPORT_PRIVATE void AddOptimizedCode(CodeT code);
-  inline void SetOptimizedCodeListHead(Object head);
-  inline Object OptimizedCodeListHead();
 
   void ResetErrorsThrown();
   void IncrementErrorsThrown();

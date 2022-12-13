@@ -303,14 +303,6 @@ Map NativeContext::TypedArrayElementsKindToRabGsabCtorMap(
   return map;
 }
 
-void NativeContext::SetOptimizedCodeListHead(Object head) {
-  set(OPTIMIZED_CODE_LIST, head, UPDATE_WRITE_BARRIER, kReleaseStore);
-}
-
-Object NativeContext::OptimizedCodeListHead() {
-  return get(OPTIMIZED_CODE_LIST);
-}
-
 OBJECT_CONSTRUCTORS_IMPL(NativeContext, Context)
 
 }  // namespace internal

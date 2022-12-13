@@ -1538,29 +1538,11 @@ void Debug::DiscardAllBaselineCode() {
 
 void Debug::DeoptimizeFunction(Handle<SharedFunctionInfo> shared) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
-  // Deoptimize all code compiled from this shared function info including
-  // inlining.
-  isolate_->AbortConcurrentOptimization(BlockingBehavior::kBlock);
 
   if (shared->HasBaselineCode()) {
     DiscardBaselineCode(*shared);
   }
-
-  bool found_something = false;
-  Code::OptimizedCodeIterator iterator(isolate_);
-  do {
-    Code code = iterator.Next();
-    if (code.is_null()) break;
-    if (code.Inlines(*shared)) {
-      code.set_marked_for_deoptimization(true);
-      found_something = true;
-    }
-  } while (true);
-
-  if (found_something) {
-    // Only go through with the deoptimization if something was found.
-    Deoptimizer::DeoptimizeMarkedCode(isolate_);
-  }
+  Deoptimizer::DeoptimizeAllOptimizedCodeWithFunction(shared);
 }
 
 void Debug::PrepareFunctionForDebugExecution(

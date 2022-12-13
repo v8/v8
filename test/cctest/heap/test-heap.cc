@@ -4489,96 +4489,6 @@ TEST(ObjectsInEagerlyDeoptimizedCodeAreWeak) {
   CHECK(code->embedded_objects_cleared());
 }
 
-static Handle<JSFunction> OptimizeDummyFunction(v8::Isolate* isolate,
-                                                const char* name) {
-  base::EmbeddedVector<char, 256> source;
-  base::SNPrintF(source,
-                 "function %s() { return 0; }"
-                 "%%PrepareFunctionForOptimization(%s);"
-                 "%s(); %s();"
-                 "%%OptimizeFunctionOnNextCall(%s);"
-                 "%s();",
-                 name, name, name, name, name, name);
-  CompileRun(source.begin());
-  i::Handle<JSFunction> fun = Handle<JSFunction>::cast(
-      v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
-          CcTest::global()
-              ->Get(isolate->GetCurrentContext(), v8_str(name))
-              .ToLocalChecked())));
-  return fun;
-}
-
-static int GetCodeChainLength(Code code) {
-  int result = 0;
-  while (code.next_code_link().IsCodeT()) {
-    result++;
-    code = FromCodeT(CodeT::cast(code.next_code_link()));
-  }
-  return result;
-}
-
-
-TEST(NextCodeLinkIsWeak) {
-  v8_flags.always_turbofan = false;
-  v8_flags.allow_natives_syntax = true;
-  v8_flags.stress_concurrent_inlining =
-      false;  // Test needs deterministic timing.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  v8::internal::Heap* heap = CcTest::heap();
-
-  if (!isolate->use_optimizer()) return;
-  HandleScope outer_scope(heap->isolate());
-  Handle<Code> code;
-  CcTest::CollectAllAvailableGarbage();
-  int code_chain_length_before, code_chain_length_after;
-  {
-    HandleScope scope(heap->isolate());
-    Handle<JSFunction> mortal =
-        OptimizeDummyFunction(CcTest::isolate(), "mortal");
-    Handle<JSFunction> immortal =
-        OptimizeDummyFunction(CcTest::isolate(), "immortal");
-    CHECK_EQ(immortal->code().next_code_link(), mortal->code());
-    code_chain_length_before = GetCodeChainLength(FromCodeT(immortal->code()));
-    // Keep the immortal code and let the mortal code die.
-    code = handle(FromCodeT(immortal->code()), isolate);
-    code = scope.CloseAndEscape(code);
-    CompileRun("mortal = null; immortal = null;");
-  }
-  CcTest::CollectAllAvailableGarbage();
-  // Now mortal code should be dead.
-  code_chain_length_after = GetCodeChainLength(*code);
-  CHECK_EQ(code_chain_length_before - 1, code_chain_length_after);
-}
-
-TEST(NextCodeLinkInCodeDataContainerIsCleared) {
-  v8_flags.always_turbofan = false;
-  v8_flags.allow_natives_syntax = true;
-  v8_flags.stress_concurrent_inlining =
-      false;  // Test needs deterministic timing.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  v8::internal::Heap* heap = CcTest::heap();
-
-  if (!isolate->use_optimizer()) return;
-  HandleScope outer_scope(heap->isolate());
-  Handle<CodeDataContainer> code_data_container;
-  {
-    HandleScope scope(heap->isolate());
-    Handle<JSFunction> mortal1 =
-        OptimizeDummyFunction(CcTest::isolate(), "mortal1");
-    Handle<JSFunction> mortal2 =
-        OptimizeDummyFunction(CcTest::isolate(), "mortal2");
-    CHECK_EQ(mortal2->code().next_code_link(), mortal1->code());
-    code_data_container =
-        handle(CodeDataContainerFromCodeT(mortal2->code()), isolate);
-    code_data_container = scope.CloseAndEscape(code_data_container);
-    CompileRun("mortal1 = null; mortal2 = null;");
-  }
-  CcTest::CollectAllAvailableGarbage();
-  CHECK(code_data_container->next_code_link().IsUndefined(isolate));
-}
-
 static Handle<Code> DummyOptimizedCode(Isolate* isolate) {
   i::byte buffer[i::Assembler::kDefaultBufferSize];
   MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,
@@ -4601,37 +4511,6 @@ static Handle<Code> DummyOptimizedCode(Isolate* isolate) {
   CHECK(code->IsCode());
   return code;
 }
-
-
-TEST(NextCodeLinkIsWeak2) {
-  v8_flags.allow_natives_syntax = true;
-  v8_flags.stress_concurrent_inlining =
-      false;  // Test needs deterministic timing.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  v8::internal::Heap* heap = CcTest::heap();
-
-  if (!isolate->use_optimizer()) return;
-  HandleScope outer_scope(heap->isolate());
-  CcTest::CollectAllAvailableGarbage();
-  Handle<NativeContext> context(
-      NativeContext::cast(heap->native_contexts_list()), isolate);
-  Handle<Code> new_head;
-  Handle<Object> old_head(context->get(Context::OPTIMIZED_CODE_LIST), isolate);
-  {
-    HandleScope scope(heap->isolate());
-    Handle<Code> immortal = DummyOptimizedCode(isolate);
-    Handle<Code> mortal = DummyOptimizedCode(isolate);
-    mortal->set_next_code_link(*old_head);
-    immortal->set_next_code_link(ToCodeT(*mortal));
-    context->SetOptimizedCodeListHead(ToCodeT(*immortal));
-    new_head = scope.CloseAndEscape(immortal);
-  }
-  CcTest::CollectAllAvailableGarbage();
-  // Now mortal code should be dead.
-  CHECK_EQ(*old_head, new_head->next_code_link());
-}
-
 
 static bool weak_ic_cleared = false;
 

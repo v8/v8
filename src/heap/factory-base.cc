@@ -82,8 +82,6 @@ Handle<CodeDataContainer> FactoryBase<Impl>::NewCodeDataContainer(
   CodeDataContainer data_container = CodeDataContainer::cast(
       AllocateRawWithImmortalMap(size, allocation, map));
   DisallowGarbageCollection no_gc;
-  data_container.set_next_code_link(read_only_roots().undefined_value(),
-                                    SKIP_WRITE_BARRIER);
   data_container.set_kind_specific_flags(flags, kRelaxedStore);
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {
     Isolate* isolate_for_sandbox = impl()->isolate_for_sandbox();

@@ -597,14 +597,6 @@ ByteArray Code::SourcePositionTable(PtrComprCageBase cage_base,
   return source_position_table(cage_base);
 }
 
-Object Code::next_code_link() const {
-  return code_data_container(kAcquireLoad).next_code_link();
-}
-
-void Code::set_next_code_link(Object value) {
-  code_data_container(kAcquireLoad).set_next_code_link(value);
-}
-
 Address Code::raw_body_start() const { return raw_instruction_start(); }
 
 Address Code::raw_body_end() const {
@@ -1476,8 +1468,6 @@ Object CodeDataContainer::raw_code(PtrComprCageBase cage_base,
   UNREACHABLE();
 #endif  // V8_EXTERNAL_CODE_SPACE
 }
-
-ACCESSORS(CodeDataContainer, next_code_link, Object, kNextCodeLinkOffset)
 
 PtrComprCageBase CodeDataContainer::code_cage_base() const {
 #ifdef V8_EXTERNAL_CODE_SPACE

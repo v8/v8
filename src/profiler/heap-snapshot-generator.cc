@@ -1394,14 +1394,8 @@ void V8HeapExplorer::ExtractContextReferences(HeapEntry* entry,
                            FixedArray::OffsetOfElementAt(index));
     }
 
-    SetWeakReference(entry, "optimized_code_list",
-                     context.get(Context::OPTIMIZED_CODE_LIST),
-                     Context::OffsetOfElementAt(Context::OPTIMIZED_CODE_LIST),
-                     HeapEntry::kCustomWeakPointer);
-    static_assert(Context::OPTIMIZED_CODE_LIST == Context::FIRST_WEAK_SLOT);
-    static_assert(Context::NEXT_CONTEXT_LINK + 1 ==
-                  Context::NATIVE_CONTEXT_SLOTS);
-    static_assert(Context::FIRST_WEAK_SLOT + 2 ==
+    static_assert(Context::NEXT_CONTEXT_LINK == Context::FIRST_WEAK_SLOT);
+    static_assert(Context::FIRST_WEAK_SLOT + 1 ==
                   Context::NATIVE_CONTEXT_SLOTS);
   }
 }
@@ -2150,9 +2144,6 @@ bool V8HeapExplorer::IsEssentialHiddenReference(Object parent,
                                                 int field_offset) {
   if (parent.IsAllocationSite() &&
       field_offset == AllocationSite::kWeakNextOffset)
-    return false;
-  if (parent.IsCodeDataContainer() &&
-      field_offset == CodeDataContainer::kNextCodeLinkOffset)
     return false;
   if (parent.IsContext() &&
       field_offset == Context::OffsetOfElementAt(Context::NEXT_CONTEXT_LINK))

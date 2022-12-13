@@ -229,10 +229,8 @@ DeoptimizedFrameInfo* Deoptimizer::DebuggerInspectableFrame(
 namespace {
 class ActivationsFinder : public ThreadVisitor {
  public:
-  explicit ActivationsFinder(std::set<CodeT>* codes,
-                             CodeT topmost_optimized_code,
-                             bool safe_to_deopt_topmost_optimized_code)
-      : codes_(codes) {
+  ActivationsFinder(CodeT topmost_optimized_code,
+                    bool safe_to_deopt_topmost_optimized_code) {
 #ifdef DEBUG
     topmost_ = topmost_optimized_code;
     safe_to_deopt_ = safe_to_deopt_topmost_optimized_code;
@@ -248,7 +246,6 @@ class ActivationsFinder : public ThreadVisitor {
         CodeT code = it.frame()->LookupCodeT().ToCodeT();
         if (CodeKindCanDeoptimize(code.kind()) &&
             code.marked_for_deoptimization()) {
-          codes_->erase(code);
           // Obtain the trampoline to the deoptimizer call.
           int trampoline_pc;
           if (code.is_maglevved()) {
@@ -274,8 +271,6 @@ class ActivationsFinder : public ThreadVisitor {
   }
 
  private:
-  std::set<CodeT>* codes_;
-
 #ifdef DEBUG
   CodeT topmost_;
   bool safe_to_deopt_;
@@ -283,13 +278,11 @@ class ActivationsFinder : public ThreadVisitor {
 };
 }  // namespace
 
-// Move marked code out of the optimized code list, and replace pc on the stack
-// for codes marked for deoptimization.
+// Replace pc on the stack for codes marked for deoptimization.
 // static
-void Deoptimizer::DeoptimizeMarkedCodeForContext(NativeContext native_context) {
+void Deoptimizer::DeoptimizeMarkedCode(Isolate* isolate) {
   DisallowGarbageCollection no_gc;
 
-  Isolate* isolate = native_context.GetIsolate();
   CodeT topmost_optimized_code;
   bool safe_to_deopt_topmost_optimized_code = false;
 #ifdef DEBUG
@@ -326,41 +319,7 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(NativeContext native_context) {
   }
 #endif
 
-  // We will use this set to mark those Code objects that are marked for
-  // deoptimization and have not been found in stack frames.
-  std::set<CodeT> codes;
-
-  // Move marked code out of the optimized code list. Walk over all optimized
-  // code objects in this native context.
-  CodeT prev;
-  Object element = native_context.OptimizedCodeListHead();
-  while (!element.IsUndefined(isolate)) {
-    CodeT code = CodeT::cast(element);
-    CHECK(CodeKindCanDeoptimize(code.kind()));
-    Object next = code.next_code_link();
-
-    if (code.marked_for_deoptimization()) {
-      codes.insert(code);
-
-      CodeTPageHeaderModificationScope rwx_write_scope(
-          "Storing a CodeT object triggers marking barrier which requires "
-          "write access to the CodeT page header");
-      if (!prev.is_null()) {
-        // Skip this code in the optimized code list.
-        prev.set_next_code_link(next);
-      } else {
-        // There was no previous node, the next node is the new head.
-        native_context.SetOptimizedCodeListHead(next);
-      }
-      code.set_next_code_link(ReadOnlyRoots(isolate).undefined_value());
-    } else {
-      // Not marked; preserve this element.
-      prev = code;
-    }
-    element = next;
-  }
-
-  ActivationsFinder visitor(&codes, topmost_optimized_code,
+  ActivationsFinder visitor(topmost_optimized_code,
                             safe_to_deopt_topmost_optimized_code);
   // Iterate over the stack of this thread.
   visitor.VisitThread(isolate, isolate->thread_local_top());
@@ -368,13 +327,6 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(NativeContext native_context) {
   // need to consider all the other threads as they may also use
   // the code currently beings deoptimized.
   isolate->thread_manager()->IterateArchivedThreads(&visitor);
-
-  // If there's no activation of a code in any stack then we can remove its
-  // deoptimization data. We do this to ensure that code objects that are
-  // unlinked don't transitively keep objects alive unnecessarily.
-  for (CodeT code : codes) {
-    isolate->heap()->InvalidateCodeDeoptimizationData(FromCodeT(code));
-  }
 }
 
 void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
@@ -383,41 +335,16 @@ void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
   TRACE_EVENT0("v8", "V8.DeoptimizeCode");
   TraceDeoptAll(isolate);
   isolate->AbortConcurrentOptimization(BlockingBehavior::kBlock);
-  DisallowGarbageCollection no_gc;
-  // For all contexts, mark all code, then deoptimize.
-  Object context = isolate->heap()->native_contexts_list();
-  while (!context.IsUndefined(isolate)) {
-    NativeContext native_context = NativeContext::cast(context);
-    MarkAllCodeForContext(native_context);
-    DeoptimizeMarkedCodeForContext(native_context);
-    context = native_context.next_context_link();
-  }
-}
 
-void Deoptimizer::DeoptimizeMarkedCode(Isolate* isolate) {
-  RCS_SCOPE(isolate, RuntimeCallCounterId::kDeoptimizeCode);
-  TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
-  TRACE_EVENT0("v8", "V8.DeoptimizeCode");
-  TraceDeoptMarked(isolate);
-  DisallowGarbageCollection no_gc;
-  // For all contexts, deoptimize code already marked.
-  Object context = isolate->heap()->native_contexts_list();
-  while (!context.IsUndefined(isolate)) {
-    NativeContext native_context = NativeContext::cast(context);
-    DeoptimizeMarkedCodeForContext(native_context);
-    context = native_context.next_context_link();
+  // Mark all code, then deoptimize.
+  {
+    Code::OptimizedCodeIterator it(isolate);
+    for (Code code = it.Next(); !code.is_null(); code = it.Next()) {
+      code.set_marked_for_deoptimization(true);
+    }
   }
-}
 
-void Deoptimizer::MarkAllCodeForContext(NativeContext native_context) {
-  Object element = native_context.OptimizedCodeListHead();
-  Isolate* isolate = native_context.GetIsolate();
-  while (!element.IsUndefined(isolate)) {
-    CodeT code = CodeT::cast(element);
-    CHECK(CodeKindCanDeoptimize(code.kind()));
-    code.set_marked_for_deoptimization(true);
-    element = code.next_code_link();
-  }
+  DeoptimizeMarkedCode(isolate);
 }
 
 void Deoptimizer::DeoptimizeFunction(JSFunction function, CodeT code) {
@@ -437,7 +364,34 @@ void Deoptimizer::DeoptimizeFunction(JSFunction function, CodeT code) {
     // be different from the code on the function - evict it if necessary.
     function.feedback_vector().EvictOptimizedCodeMarkedForDeoptimization(
         function.shared(), "unlinking code marked for deopt");
-    DeoptimizeMarkedCodeForContext(function.native_context());
+
+    DeoptimizeMarkedCode(isolate);
+  }
+}
+
+void Deoptimizer::DeoptimizeAllOptimizedCodeWithFunction(
+    Handle<SharedFunctionInfo> function) {
+  Isolate* isolate = function->GetIsolate();
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kDeoptimizeCode);
+  TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
+  TRACE_EVENT0("v8", "V8.DeoptimizeAllOptimizedCodeWithFunction");
+
+  // Make sure no new code is compiled with the function.
+  isolate->AbortConcurrentOptimization(BlockingBehavior::kBlock);
+
+  // Mark all code that inlines this function, then deoptimize.
+  bool any_marked = false;
+  {
+    Code::OptimizedCodeIterator it(isolate);
+    for (Code code = it.Next(); !code.is_null(); code = it.Next()) {
+      if (code.Inlines(*function)) {
+        code.set_marked_for_deoptimization(true);
+        any_marked = true;
+      }
+    }
+  }
+  if (any_marked) {
+    DeoptimizeMarkedCode(isolate);
   }
 }
 

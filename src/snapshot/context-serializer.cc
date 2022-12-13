@@ -25,9 +25,7 @@ class V8_NODISCARD SanitizeNativeContextScope final {
   SanitizeNativeContextScope(Isolate* isolate, NativeContext native_context,
                              bool allow_active_isolate_for_testing,
                              const DisallowGarbageCollection& no_gc)
-      : native_context_(native_context),
-        optimized_code_list_(native_context.OptimizedCodeListHead()),
-        no_gc_(no_gc) {
+      : native_context_(native_context), no_gc_(no_gc) {
 #ifdef DEBUG
     if (!allow_active_isolate_for_testing) {
       // Microtasks.
@@ -36,21 +34,16 @@ class V8_NODISCARD SanitizeNativeContextScope final {
       DCHECK(!microtask_queue->HasMicrotasksSuppressions());
       DCHECK_EQ(0, microtask_queue->GetMicrotasksScopeDepth());
       DCHECK(microtask_queue->DebugMicrotasksScopeDepthIsZero());
-      // Code lists.
-      DCHECK(optimized_code_list_.IsUndefined(isolate));
     }
 #endif
     microtask_queue_external_pointer_ =
         native_context
             .RawExternalPointerField(NativeContext::kMicrotaskQueueOffset)
             .GetAndClearContentForSerialization(no_gc);
-    Object undefined = ReadOnlyRoots(isolate).undefined_value();
-    native_context.SetOptimizedCodeListHead(undefined);
   }
 
   ~SanitizeNativeContextScope() {
     // Restore saved fields.
-    native_context_.SetOptimizedCodeListHead(optimized_code_list_);
     native_context_
         .RawExternalPointerField(NativeContext::kMicrotaskQueueOffset)
         .RestoreContentAfterSerialization(microtask_queue_external_pointer_,
@@ -60,7 +53,6 @@ class V8_NODISCARD SanitizeNativeContextScope final {
  private:
   NativeContext native_context_;
   ExternalPointerSlot::RawContent microtask_queue_external_pointer_;
-  const Object optimized_code_list_;
   const DisallowGarbageCollection& no_gc_;
 };
 
