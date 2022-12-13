@@ -393,7 +393,7 @@ class HexDumpModuleDis {
     std::unique_ptr<WasmModule> fake_module;
     std::unique_ptr<NamesProvider> names_provider;
     if (!names_) {
-      fake_module.reset(new WasmModule());
+      fake_module.reset(new WasmModule(kWasmOrigin));
       names_provider.reset(
           new NamesProvider(fake_module.get(), wire_bytes_.module_bytes()));
       names_ = names_provider.get();

@@ -530,7 +530,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
   std::vector<std::pair<uint32_t, uint32_t>> inst_traces;
   mutable TypeFeedbackStorage type_feedback;
 
-  ModuleOrigin origin = kWasmOrigin;  // origin of the module
+  const ModuleOrigin origin;
   mutable LazilyGeneratedNames lazily_generated_names;
   WasmDebugSymbols debug_symbols;
 
@@ -545,7 +545,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
   mutable std::unique_ptr<std::atomic<uint8_t>[]> validated_functions;
 
   // ================ Constructors =============================================
-  WasmModule();
+  explicit WasmModule(ModuleOrigin = kWasmOrigin);
   WasmModule(const WasmModule&) = delete;
   WasmModule& operator=(const WasmModule&) = delete;
 
@@ -618,10 +618,12 @@ struct V8_EXPORT_PRIVATE WasmModule {
     DCHECK_LE(pos, num_declared_functions);
     uint8_t byte =
         validated_functions[pos >> 3].load(std::memory_order_relaxed);
+    DCHECK_IMPLIES(origin != kWasmOrigin, byte == 0xff);
     return byte & (1 << (pos & 7));
   }
 
   void set_function_validated(int func_index) const {
+    DCHECK_EQ(kWasmOrigin, origin);
     DCHECK_NOT_NULL(validated_functions);
     DCHECK_LE(num_imported_functions, func_index);
     int pos = func_index - num_imported_functions;

@@ -75,8 +75,11 @@ enum MemoryType { kMemory32, kMemory64 };
 // globals, or memories.
 class TestModuleBuilder {
  public:
-  explicit TestModuleBuilder(ModuleOrigin origin = kWasmOrigin) {
-    mod.origin = origin;
+  explicit TestModuleBuilder(ModuleOrigin origin = kWasmOrigin) : mod(origin) {
+    mod.num_declared_functions = 1;
+    mod.validated_functions = std::make_unique<std::atomic<uint8_t>[]>(1);
+    // Asm.js functions are valid by design.
+    if (is_asmjs_module(&mod)) mod.validated_functions[0] = 0xff;
   }
   byte AddGlobal(ValueType type, bool mutability = true) {
     mod.globals.push_back({type, mutability, {}, {0}, false, false});
@@ -2351,97 +2354,6 @@ TEST_F(FunctionBodyDecoderTest, WasmMemoryGrow) {
   ExpectFailure(sigs.i_d(), code);
 }
 
-TEST_F(FunctionBodyDecoderTest, AsmJsBinOpsCheckOrigin) {
-  ValueType float32int32float32[] = {kWasmF32, kWasmI32, kWasmF32};
-  FunctionSig sig_f_if(1, 2, float32int32float32);
-  ValueType float64int32float64[] = {kWasmF64, kWasmI32, kWasmF64};
-  FunctionSig sig_d_id(1, 2, float64int32float64);
-  struct {
-    WasmOpcode op;
-    const FunctionSig* sig;
-  } AsmJsBinOps[] = {
-      {kExprF64Atan2, sigs.d_dd()},
-      {kExprF64Pow, sigs.d_dd()},
-      {kExprF64Mod, sigs.d_dd()},
-      {kExprI32AsmjsDivS, sigs.i_ii()},
-      {kExprI32AsmjsDivU, sigs.i_ii()},
-      {kExprI32AsmjsRemS, sigs.i_ii()},
-      {kExprI32AsmjsRemU, sigs.i_ii()},
-      {kExprI32AsmjsStoreMem8, sigs.i_ii()},
-      {kExprI32AsmjsStoreMem16, sigs.i_ii()},
-      {kExprI32AsmjsStoreMem, sigs.i_ii()},
-      {kExprF32AsmjsStoreMem, &sig_f_if},
-      {kExprF64AsmjsStoreMem, &sig_d_id},
-  };
-
-  {
-    TestModuleBuilder builder(kAsmJsSloppyOrigin);
-    module = builder.module();
-    builder.InitializeMemory();
-    for (size_t i = 0; i < arraysize(AsmJsBinOps); i++) {
-      TestBinop(AsmJsBinOps[i].op, AsmJsBinOps[i].sig);
-    }
-  }
-
-  {
-    TestModuleBuilder builder;
-    module = builder.module();
-    builder.InitializeMemory();
-    for (size_t i = 0; i < arraysize(AsmJsBinOps); i++) {
-      ExpectFailure(AsmJsBinOps[i].sig,
-                    {WASM_BINOP(AsmJsBinOps[i].op, WASM_LOCAL_GET(0),
-                                WASM_LOCAL_GET(1))});
-    }
-  }
-}
-
-TEST_F(FunctionBodyDecoderTest, AsmJsUnOpsCheckOrigin) {
-  ValueType float32int32[] = {kWasmF32, kWasmI32};
-  FunctionSig sig_f_i(1, 1, float32int32);
-  ValueType float64int32[] = {kWasmF64, kWasmI32};
-  FunctionSig sig_d_i(1, 1, float64int32);
-  struct {
-    WasmOpcode op;
-    const FunctionSig* sig;
-  } AsmJsUnOps[] = {{kExprF64Acos, sigs.d_d()},
-                    {kExprF64Asin, sigs.d_d()},
-                    {kExprF64Atan, sigs.d_d()},
-                    {kExprF64Cos, sigs.d_d()},
-                    {kExprF64Sin, sigs.d_d()},
-                    {kExprF64Tan, sigs.d_d()},
-                    {kExprF64Exp, sigs.d_d()},
-                    {kExprF64Log, sigs.d_d()},
-                    {kExprI32AsmjsLoadMem8S, sigs.i_i()},
-                    {kExprI32AsmjsLoadMem8U, sigs.i_i()},
-                    {kExprI32AsmjsLoadMem16S, sigs.i_i()},
-                    {kExprI32AsmjsLoadMem16U, sigs.i_i()},
-                    {kExprI32AsmjsLoadMem, sigs.i_i()},
-                    {kExprF32AsmjsLoadMem, &sig_f_i},
-                    {kExprF64AsmjsLoadMem, &sig_d_i},
-                    {kExprI32AsmjsSConvertF32, sigs.i_f()},
-                    {kExprI32AsmjsUConvertF32, sigs.i_f()},
-                    {kExprI32AsmjsSConvertF64, sigs.i_d()},
-                    {kExprI32AsmjsUConvertF64, sigs.i_d()}};
-  {
-    TestModuleBuilder builder(kAsmJsSloppyOrigin);
-    module = builder.module();
-    builder.InitializeMemory();
-    for (size_t i = 0; i < arraysize(AsmJsUnOps); i++) {
-      TestUnop(AsmJsUnOps[i].op, AsmJsUnOps[i].sig);
-    }
-  }
-
-  {
-    TestModuleBuilder builder;
-    module = builder.module();
-    builder.InitializeMemory();
-    for (size_t i = 0; i < arraysize(AsmJsUnOps); i++) {
-      ExpectFailure(AsmJsUnOps[i].sig,
-                    {WASM_UNOP(AsmJsUnOps[i].op, WASM_LOCAL_GET(0))});
-    }
-  }
-}
-
 TEST_F(FunctionBodyDecoderTest, BreakEnd) {
   ExpectValidates(
       sigs.i_i(),
@@ -3286,7 +3198,7 @@ TEST_F(FunctionBodyDecoderTest, Regression709741) {
   for (size_t i = 0; i < arraysize(code); ++i) {
     FunctionBody body(sigs.v_v(), 0, code, code + i);
     WasmFeatures unused_detected_features;
-    DecodeResult result = ValidateFunctionBody(WasmFeatures::All(), nullptr,
+    DecodeResult result = ValidateFunctionBody(WasmFeatures::All(), module,
                                                &unused_detected_features, body);
     if (result.ok()) {
       std::ostringstream str;

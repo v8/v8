@@ -314,11 +314,10 @@ class ModuleDecoderTemplate : public Decoder {
                         ModuleOrigin origin, Tracer& tracer)
       : Decoder(wire_bytes),
         enabled_features_(enabled_features),
+        module_(std::make_shared<WasmModule>(origin)),
         module_start_(wire_bytes.begin()),
         module_end_(wire_bytes.end()),
-        tracer_(tracer) {
-    module_->origin = origin;
-  }
+        tracer_(tracer) {}
 
   void onFirstError() override {
     pc_ = end_;  // On error, terminate section decoding loop.
@@ -843,9 +842,18 @@ class ModuleDecoderTemplate : public Decoder {
         module_->num_imported_functions + functions_count;
     module_->functions.resize(total_function_count);
     module_->num_declared_functions = functions_count;
+    // Also initialize the {validated_functions} bitset here, now that we know
+    // the number of declared functions.
     DCHECK_NULL(module_->validated_functions);
     module_->validated_functions =
         std::make_unique<std::atomic<uint8_t>[]>((functions_count + 7) / 8);
+    if (is_asmjs_module(module_.get())) {
+      // Mark all asm.js functions as valid by design (it's faster to do this
+      // here than to check this in {WasmModule::function_was_validated}).
+      std::fill_n(module_->validated_functions.get(), (functions_count + 7) / 8,
+                  0xff);
+    }
+
     for (uint32_t func_index = module_->num_imported_functions;
          func_index < total_function_count; ++func_index) {
       WasmFunction* function = &module_->functions[func_index];
@@ -2334,7 +2342,7 @@ class ModuleDecoderTemplate : public Decoder {
   }
 
   const WasmFeatures enabled_features_;
-  const std::shared_ptr<WasmModule> module_ = std::make_shared<WasmModule>();
+  const std::shared_ptr<WasmModule> module_;
   const byte* module_start_ = nullptr;
   const byte* module_end_ = nullptr;
   Tracer& tracer_;

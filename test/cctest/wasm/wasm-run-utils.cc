@@ -44,10 +44,10 @@ bool IsSameNan(double expected, double actual) {
 }
 
 TestingModuleBuilder::TestingModuleBuilder(
-    Zone* zone, ManuallyImportedJSFunction* maybe_import,
+    Zone* zone, ModuleOrigin origin, ManuallyImportedJSFunction* maybe_import,
     TestExecutionTier tier, RuntimeExceptionSupport exception_support,
     TestingModuleMemoryType mem_type, Isolate* isolate)
-    : test_module_(std::make_shared<WasmModule>()),
+    : test_module_(std::make_shared<WasmModule>(origin)),
       isolate_(isolate ? isolate : CcTest::InitIsolateOnce()),
       enabled_features_(WasmFeatures::FromIsolate(isolate_)),
       execution_tier_(tier),
@@ -155,6 +155,11 @@ uint32_t TestingModuleBuilder::AddFunction(const FunctionSig* sig,
     DCHECK_NULL(test_module_->validated_functions);
     test_module_->validated_functions =
         std::make_unique<std::atomic<uint8_t>[]>((kMaxFunctions + 7) / 8);
+    if (is_asmjs_module(test_module_.get())) {
+      // All asm.js functions are valid by design.
+      std::fill_n(test_module_->validated_functions.get(),
+                  (kMaxFunctions + 7) / 8, 0xff);
+    }
   }
   uint32_t index = static_cast<uint32_t>(test_module_->functions.size());
   test_module_->functions.push_back({sig,      // sig

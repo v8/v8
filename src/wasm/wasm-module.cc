@@ -214,8 +214,9 @@ std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name) {
   return os;
 }
 
-WasmModule::WasmModule()
-    : signature_zone(GetWasmEngine()->allocator(), "signature zone") {}
+WasmModule::WasmModule(ModuleOrigin origin)
+    : signature_zone(GetWasmEngine()->allocator(), "signature zone"),
+      origin(origin) {}
 
 bool IsWasmCodegenAllowed(Isolate* isolate, Handle<Context> context) {
   // TODO(wasm): Once wasm has its own CSP policy, we should introduce a
