@@ -590,15 +590,40 @@ void Assembler::emit_operand(int code, Operand adr) {
     return;
   }
 
-  DCHECK(is_uint3(code));
   const unsigned length = adr.data().len;
-  DCHECK_GT(length, 0);
+  V8_ASSUME(1 <= length && length <= 6);
 
-  // Emit updated ModR/M byte containing the given register.
-  DCHECK_EQ(adr.data().buf[0] & 0x38, 0);
-  *pc_++ = adr.data().buf[0] | code << 3;
-  // Emit the rest of the encoded operand.
-  for (unsigned i = 1; i < length; i++) *pc_++ = adr.data().buf[i];
+  // Compute the opcode extension to be encoded in the ModR/M byte.
+  V8_ASSUME(0 <= code && code <= 7);
+  DCHECK((adr.data().buf[0] & 0x38) == 0);
+  uint8_t opcode_extension = code << 3;
+
+  // Use an optimized routine for copying the 1-6 bytes into the assembler
+  // buffer. We execute up to two read and write instructions, while also
+  // minimizing the number of branches.
+  Address src = reinterpret_cast<Address>(adr.data().buf);
+  Address dst = reinterpret_cast<Address>(pc_);
+  if (length > 4) {
+    // Length is 5 or 6.
+    // Copy range [0, 3] and [len-2, len-1] (might overlap).
+    uint32_t lower_four_bytes = ReadUnalignedValue<uint32_t>(src);
+    lower_four_bytes |= opcode_extension;
+    uint16_t upper_two_bytes = ReadUnalignedValue<uint16_t>(src + length - 2);
+    WriteUnalignedValue<uint16_t>(dst + length - 2, upper_two_bytes);
+    WriteUnalignedValue<uint32_t>(dst, lower_four_bytes);
+  } else {
+    // Length is in [1, 3].
+    uint8_t first_byte = ReadUnalignedValue<uint8_t>(src);
+    first_byte |= opcode_extension;
+    if (length != 1) {
+      // Copy bytes [len-2, len-1].
+      uint16_t upper_two_bytes = ReadUnalignedValue<uint16_t>(src + length - 2);
+      WriteUnalignedValue<uint16_t>(dst + length - 2, upper_two_bytes);
+    }
+    WriteUnalignedValue<uint8_t>(dst, first_byte);
+  }
+
+  pc_ += length;
 }
 
 void Assembler::emit_label_operand(int code, Label* label, int addend) {
