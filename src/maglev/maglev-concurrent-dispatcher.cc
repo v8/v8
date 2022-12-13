@@ -130,6 +130,23 @@ bool MaglevCompilationJob::specialize_to_function_context() const {
   return info_->specialize_to_function_context();
 }
 
+void MaglevCompilationJob::RecordCompilationStats(Isolate* isolate) const {
+  // Don't record samples from machines without high-resolution timers,
+  // as that can cause serious reporting issues. See the thread at
+  // http://g/chrome-metrics-team/NwwJEyL8odU/discussion for more details.
+  if (base::TimeTicks::IsHighResolution()) {
+    Counters* const counters = isolate->counters();
+    counters->maglev_optimize_prepare()->AddSample(
+        static_cast<int>(time_taken_to_prepare_.InMicroseconds()));
+    counters->maglev_optimize_execute()->AddSample(
+        static_cast<int>(time_taken_to_execute_.InMicroseconds()));
+    counters->maglev_optimize_finalize()->AddSample(
+        static_cast<int>(time_taken_to_finalize_.InMicroseconds()));
+    counters->maglev_optimize_total_time()->AddSample(
+        static_cast<int>(ElapsedTime().InMicroseconds()));
+  }
+}
+
 // The JobTask is posted to V8::GetCurrentPlatform(). It's responsible for
 // processing the incoming queue on a worker thread.
 class MaglevConcurrentDispatcher::JobTask final : public v8::JobTask {

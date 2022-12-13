@@ -3997,6 +3997,7 @@ void Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
     ResetProfilerTicks(*function, osr_offset);
 
     RecordMaglevFunctionCompilation(isolate, function);
+    job->RecordCompilationStats(isolate);
     double ms_prepare = job->time_taken_to_prepare().InMillisecondsF();
     double ms_optimize = job->time_taken_to_execute().InMillisecondsF();
     double ms_codegen = job->time_taken_to_finalize().InMillisecondsF();

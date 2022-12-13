@@ -168,6 +168,12 @@ namespace internal {
   HT(gc_time_to_safepoint, V8.GC.TimeToSafepoint, 10000000, MICROSECOND)       \
   HT(gc_time_to_collection_on_background, V8.GC.TimeToCollectionOnBackground,  \
      10000000, MICROSECOND)                                                    \
+  /* Maglev timers. */                                                         \
+  HT(maglev_optimize_prepare, V8.MaglevOptimizePrepare, 100000, MICROSECOND)   \
+  HT(maglev_optimize_execute, V8.MaglevOptimizeExecute, 100000, MICROSECOND)   \
+  HT(maglev_optimize_finalize, V8.MaglevOptimizeFinalize, 100000, MICROSECOND) \
+  HT(maglev_optimize_total_time, V8.MaglevOptimizeTotalTime, 1000000,          \
+     MICROSECOND)                                                              \
   /* TurboFan timers. */                                                       \
   HT(turbofan_optimize_prepare, V8.TurboFanOptimizePrepare, 1000000,           \
      MICROSECOND)                                                              \
