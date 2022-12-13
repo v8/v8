@@ -63,11 +63,6 @@ bool MaglevGraphHasUnimplementedNode(Graph* graph) {
   return processor.node_processor().has_unimplemented_node();
 }
 
-UNIMPLEMENTED_NODE(Int32SubtractWithOverflow)
-UNIMPLEMENTED_NODE(Int32MultiplyWithOverflow)
-UNIMPLEMENTED_NODE(Int32DivideWithOverflow)
-UNIMPLEMENTED_NODE(Int32ModulusWithOverflow)
-
 void Int32NegateWithOverflow::SetValueLocationConstraints() {
   UseRegister(value_input());
   DefineAsRegister(this);
@@ -245,11 +240,240 @@ void Int32AddWithOverflow::GenerateCode(MaglevAssembler* masm,
   Register right = ToRegister(right_input()).W();
   Register out = ToRegister(result()).W();
   __ Adds(out, left, right);
-  // None of the mutated input registers should be a register input into the
-  // eager deopt info.
+  // The output register shouldn't be a register input into the eager deopt
+  // info.
   DCHECK_REGLIST_EMPTY(RegList{out} &
                        GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
   __ EmitEagerDeoptIf(vs, DeoptimizeReason::kOverflow, this);
+}
+
+// UNIMPLEMENTED_NODE(Int32SubtractWithOverflow)
+void Int32SubtractWithOverflow::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsRegister(this);
+}
+void Int32SubtractWithOverflow::GenerateCode(MaglevAssembler* masm,
+                                             const ProcessingState& state) {
+  Register left = ToRegister(left_input()).W();
+  Register right = ToRegister(right_input()).W();
+  Register out = ToRegister(result()).W();
+  __ Subs(out, left, right);
+  // The output register shouldn't be a register input into the eager deopt
+  // info.
+  DCHECK_REGLIST_EMPTY(RegList{out} &
+                       GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
+  __ EmitEagerDeoptIf(vs, DeoptimizeReason::kOverflow, this);
+}
+
+void Int32MultiplyWithOverflow::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsRegister(this);
+}
+void Int32MultiplyWithOverflow::GenerateCode(MaglevAssembler* masm,
+                                             const ProcessingState& state) {
+  Register left = ToRegister(left_input()).W();
+  Register right = ToRegister(right_input()).W();
+  Register out = ToRegister(result()).W();
+
+  // TODO(leszeks): peephole optimise multiplication by a constant.
+
+  UseScratchRegisterScope temps(masm);
+  bool out_alias_input = out == left || out == right;
+  Register res = out.X();
+  if (out_alias_input) {
+    res = temps.AcquireX();
+  }
+
+  __ Smull(res, left, right);
+
+  // if res != (res[0:31] sign extended to 64 bits), then the multiplication
+  // result is too large for 32 bits.
+  __ Cmp(res, Operand(res.W(), SXTW));
+  __ EmitEagerDeoptIf(ne, DeoptimizeReason::kOverflow, this);
+
+  // If the result is zero, check if either lhs or rhs is negative.
+  Label end;
+  __ CompareAndBranch(res, Immediate(0), ne, &end);
+  {
+    UseScratchRegisterScope temps(masm);
+    Register temp = temps.AcquireW();
+    __ orr(temp, left, right);
+    __ cmp(temp, Immediate(0));
+    // If one of them is negative, we must have a -0 result, which is non-int32,
+    // so deopt.
+    // TODO(leszeks): Consider splitting these deopts to have distinct deopt
+    // reasons. Otherwise, the reason has to match the above.
+    __ EmitEagerDeoptIf(lt, DeoptimizeReason::kOverflow, this);
+  }
+  __ bind(&end);
+  if (out_alias_input) {
+    __ Move(out, res.W());
+  }
+}
+
+void Int32DivideWithOverflow::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsRegister(this);
+}
+void Int32DivideWithOverflow::GenerateCode(MaglevAssembler* masm,
+                                           const ProcessingState& state) {
+  Register left = ToRegister(left_input()).W();
+  Register right = ToRegister(right_input()).W();
+  Register out = ToRegister(result()).W();
+
+  // TODO(leszeks): peephole optimise division by a constant.
+
+  // Pre-check for overflow, since idiv throws a division exception on overflow
+  // rather than setting the overflow flag. Logic copied from
+  // effect-control-linearizer.cc
+
+  // Check if {right} is positive (and not zero).
+  __ Cmp(right, Immediate(0));
+  ZoneLabelRef done(masm);
+  __ JumpToDeferredIf(
+      le,
+      [](MaglevAssembler* masm, ZoneLabelRef done, Register left,
+         Register right, Int32DivideWithOverflow* node) {
+        // {right} is negative or zero.
+
+        // Check if {right} is zero.
+        // We've already done the compare and flags won't be cleared yet.
+        // TODO(leszeks): Using kNotInt32 here, but kDivisionByZero would be
+        // better. Right now all eager deopts in a node have to be the same --
+        // we should allow a node to emit multiple eager deopts with different
+        // reasons.
+        __ EmitEagerDeoptIf(eq, DeoptimizeReason::kNotInt32, node);
+
+        // Check if {left} is zero, as that would produce minus zero.
+        __ Cmp(left, Immediate(0));
+        // TODO(leszeks): Better DeoptimizeReason = kMinusZero.
+        __ EmitEagerDeoptIf(eq, DeoptimizeReason::kNotInt32, node);
+
+        // Check if {left} is kMinInt and {right} is -1, in which case we'd have
+        // to return -kMinInt, which is not representable as Int32.
+        __ Cmp(left, Immediate(kMinInt));
+        __ JumpIf(ne, *done);
+        __ Cmp(right, Immediate(-1));
+        __ JumpIf(ne, *done);
+        // TODO(leszeks): Better DeoptimizeReason = kOverflow, but
+        // eager_deopt_info is already configured as kNotInt32.
+        __ EmitEagerDeopt(node, DeoptimizeReason::kNotInt32);
+      },
+      done, left, right, this);
+  __ bind(*done);
+
+  // Perform the actual integer division.
+  UseScratchRegisterScope temps(masm);
+  bool out_alias_input = out == left || out == right;
+  Register res = out;
+  if (out_alias_input) {
+    res = temps.AcquireW();
+  }
+  __ sdiv(res, left, right);
+
+  // Check that the remainder is zero.
+  Register temp = temps.AcquireW();
+  __ Msub(temp, res, right, left);
+  __ Cmp(temp, Immediate(0));
+  __ EmitEagerDeoptIf(ne, DeoptimizeReason::kNotInt32, this);
+
+  __ Move(out, res);
+}
+
+void Int32ModulusWithOverflow::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsRegister(this);
+  set_temporaries_needed(1);
+}
+void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
+                                            const ProcessingState& state) {
+  // Using same algorithm as in EffectControlLinearizer:
+  //   if rhs <= 0 then
+  //     rhs = -rhs
+  //     deopt if rhs == 0
+  //   if lhs < 0 then
+  //     let lhs_abs = -lsh in
+  //     let res = lhs_abs % rhs in
+  //     deopt if res == 0
+  //     -res
+  //   else
+  //     let msk = rhs - 1 in
+  //     if rhs & msk == 0 then
+  //       lhs & msk
+  //     else
+  //       lhs % rhs
+
+  Register left = ToRegister(left_input()).W();
+  Register right_maybe_neg = ToRegister(right_input()).W();
+  Register out = ToRegister(result()).W();
+
+  ZoneLabelRef done(masm);
+  ZoneLabelRef rhs_checked(masm);
+
+  UseScratchRegisterScope temps(masm);
+  Register right = temps.AcquireW();
+  __ Move(right, right_maybe_neg);
+
+  __ Cmp(right, Immediate(0));
+  __ JumpToDeferredIf(
+      le,
+      [](MaglevAssembler* masm, ZoneLabelRef rhs_checked, Register right,
+         Int32ModulusWithOverflow* node) {
+        __ Negs(right, right);
+        __ EmitEagerDeoptIf(eq, DeoptimizeReason::kDivisionByZero, node);
+        __ Jump(*rhs_checked);
+      },
+      rhs_checked, right, this);
+  __ bind(*rhs_checked);
+
+  __ Cmp(left, Immediate(0));
+  {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.AcquireW();
+    __ JumpToDeferredIf(
+        lt,
+        [](MaglevAssembler* masm, ZoneLabelRef done, Register left_neg,
+           Register right, Register out, Register scratch,
+           Int32ModulusWithOverflow* node) {
+          Register left = scratch;
+          Register res = node->general_temporaries().first().W();
+          __ neg(left, left_neg);
+          __ udiv(res, left, right);
+          __ msub(out, res, right, left);
+          __ cmp(out, Immediate(0));
+          // TODO(victorgomes): This ideally should be kMinusZero, but Maglev
+          // only allows one deopt reason per IR.
+          __ EmitEagerDeoptIf(eq, DeoptimizeReason::kDivisionByZero, node);
+          __ neg(out, out);
+          __ b(*done);
+        },
+        done, left, right, out, scratch, this);
+  }
+
+  Label right_not_power_of_2;
+  Register mask = temps.AcquireW();
+  __ Add(mask, right, Immediate(-1));
+  __ Tst(mask, right);
+  __ JumpIf(ne, &right_not_power_of_2);
+
+  // {right} is power of 2.
+  __ And(out, mask, left);
+  __ Jump(*done);
+
+  __ bind(&right_not_power_of_2);
+
+  // We store the result of the Udiv in a temporary register in case {out} is
+  // the same as {left} or {right}: we'll still need those 2 registers intact to
+  // get the remainder.
+  Register res = mask;
+  __ Udiv(res, left, right);
+  __ Msub(out, res, right, left);
+
+  __ bind(*done);
 }
 
 #define DEF_BITWISE_BINOP(Instruction, opcode)                   \

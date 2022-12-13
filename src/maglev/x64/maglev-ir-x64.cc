@@ -1615,8 +1615,7 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
       [](MaglevAssembler* masm, ZoneLabelRef rhs_checked, Register right,
          Int32ModulusWithOverflow* node) {
         __ negl(right);
-        __ testl(right, right);
-        __ EmitEagerDeoptIf(equal, DeoptimizeReason::kDivisionByZero, node);
+        __ EmitEagerDeoptIf(zero, DeoptimizeReason::kDivisionByZero, node);
         __ jmp(*rhs_checked);
       },
       rhs_checked, right, this);
