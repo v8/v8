@@ -538,6 +538,8 @@ TEST(WeakGlobalHandlesMark) {
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   GlobalHandles* global_handles = isolate->global_handles();
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
 
   WeakPointerCleared = false;
 
@@ -579,6 +581,8 @@ TEST(DeleteWeakGlobalHandle) {
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   GlobalHandles* global_handles = isolate->global_handles();
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
 
   WeakPointerCleared = false;
   Handle<Object> h;
@@ -1089,6 +1093,8 @@ TEST(TestBytecodeFlushing) {
   v8::Isolate* isolate = CcTest::isolate();
   Isolate* i_isolate = CcTest::i_isolate();
   Factory* factory = i_isolate->factory();
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
 
   {
     v8::HandleScope scope(isolate);
@@ -1156,6 +1162,8 @@ static void TestMultiReferencedBytecodeFlushing(bool sparkplug_compile) {
   v8::Isolate* isolate = CcTest::isolate();
   Isolate* i_isolate = CcTest::i_isolate();
   Factory* factory = i_isolate->factory();
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
 
   {
     v8::HandleScope scope(isolate);
@@ -1413,6 +1421,8 @@ TEST(TestOptimizeAfterBytecodeFlushingCandidate) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
   v8::HandleScope outer_scope(CcTest::isolate());
   const char* source =
       "function foo() {"
@@ -1538,6 +1548,8 @@ void CompilationCacheCachingBehavior(bool retain_script) {
   Factory* factory = isolate->factory();
   CompilationCache* compilation_cache = isolate->compilation_cache();
   LanguageMode language_mode = LanguageMode::kSloppy;
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
 
   v8::HandleScope outer_scope(CcTest::isolate());
   const char* raw_source = retain_script ? "function foo() {"
@@ -1644,6 +1656,8 @@ void CompilationCacheRegeneration(bool retain_root_sfi, bool flush_root_sfi,
 
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
 
   const char* source =
       "({"
@@ -1878,6 +1892,8 @@ TEST(TestInternalWeakLists) {
   HandleScope scope(isolate);
   v8::Local<v8::Context> ctx[kNumTestContexts];
   if (!isolate->use_optimizer()) return;
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
 
   CHECK_EQ(0, CountNativeContexts());
 
@@ -2017,6 +2033,8 @@ HEAP_TEST(TestSizeOfObjects) {
   v8_flags.stress_concurrent_allocation = false;
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = CcTest::heap();
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
   // Disable LAB, such that calculations with SizeOfObjects() and object size
   // are correct.
   heap->DisableInlineAllocation();
@@ -4129,6 +4147,8 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
   Isolate* isolate = CcTest::i_isolate();
   v8::internal::Heap* heap = CcTest::heap();
   GlobalHandles* global_handles = isolate->global_handles();
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
 
   if (!isolate->use_optimizer()) return;
 
@@ -4340,6 +4360,8 @@ TEST(ObjectsInOptimizedCodeAreWeak) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   v8::internal::Heap* heap = CcTest::heap();
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
 
   if (!isolate->use_optimizer()) return;
   HandleScope outer_scope(heap->isolate());
@@ -4385,6 +4407,8 @@ TEST(NewSpaceObjectsInOptimizedCode) {
   v8_flags.allow_natives_syntax = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
 
   if (!isolate->use_optimizer()) return;
   HandleScope outer_scope(isolate);
@@ -4448,6 +4472,8 @@ TEST(ObjectsInEagerlyDeoptimizedCodeAreWeak) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   v8::internal::Heap* heap = CcTest::heap();
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
 
   if (!isolate->use_optimizer()) return;
   HandleScope outer_scope(heap->isolate());
@@ -5148,6 +5174,8 @@ TEST(Regress3877) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
   HandleScope scope(isolate);
   CompileRun("function cls() { this.x = 10; }");
   Handle<WeakFixedArray> weak_prototype_holder = factory->NewWeakFixedArray(1);
@@ -5195,6 +5223,8 @@ void CheckMapRetainingFor(int n) {
   v8_flags.retain_maps_for_n_gc = n;
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
   v8::Local<v8::Context> ctx = v8::Context::New(CcTest::isolate());
   Handle<Context> context = Utils::OpenHandle(*ctx);
   CHECK(context->IsNativeContext());

@@ -187,39 +187,25 @@ class WithIsolateScopeMixin : public TMixin {
   }
 
   // By default, the GC methods do not scan the stack conservatively.
-  void CollectGarbage(i::AllocationSpace space, i::Isolate* isolate = nullptr,
-                      StackState stack_state = StackState::kNoHeapPointers) {
+  void CollectGarbage(i::AllocationSpace space, i::Isolate* isolate = nullptr) {
     i::Isolate* iso = isolate ? isolate : i_isolate();
-    base::Optional<i::DisableConservativeStackScanningScopeForTesting> scope;
-    if (stack_state == StackState::kNoHeapPointers) scope.emplace(iso->heap());
     iso->heap()->CollectGarbage(space, i::GarbageCollectionReason::kTesting);
   }
 
-  void CollectAllGarbage(i::Isolate* isolate = nullptr,
-                         StackState stack_state = StackState::kNoHeapPointers) {
+  void CollectAllGarbage(i::Isolate* isolate = nullptr) {
     i::Isolate* iso = isolate ? isolate : i_isolate();
-    base::Optional<i::DisableConservativeStackScanningScopeForTesting> scope;
-    if (stack_state == StackState::kNoHeapPointers) scope.emplace(iso->heap());
     iso->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
                                    i::GarbageCollectionReason::kTesting);
   }
 
-  void CollectAllAvailableGarbage(
-      i::Isolate* isolate = nullptr,
-      StackState stack_state = StackState::kNoHeapPointers) {
+  void CollectAllAvailableGarbage(i::Isolate* isolate = nullptr) {
     i::Isolate* iso = isolate ? isolate : i_isolate();
-    base::Optional<i::DisableConservativeStackScanningScopeForTesting> scope;
-    if (stack_state == StackState::kNoHeapPointers) scope.emplace(iso->heap());
     iso->heap()->CollectAllAvailableGarbage(
         i::GarbageCollectionReason::kTesting);
   }
 
-  void PreciseCollectAllGarbage(
-      i::Isolate* isolate = nullptr,
-      StackState stack_state = StackState::kNoHeapPointers) {
+  void PreciseCollectAllGarbage(i::Isolate* isolate = nullptr) {
     i::Isolate* iso = isolate ? isolate : i_isolate();
-    base::Optional<i::DisableConservativeStackScanningScopeForTesting> scope;
-    if (stack_state == StackState::kNoHeapPointers) scope.emplace(iso->heap());
     iso->heap()->PreciseCollectAllGarbage(i::Heap::kNoGCFlags,
                                           i::GarbageCollectionReason::kTesting);
   }

@@ -292,7 +292,6 @@ void SimulateIncrementalMarking(i::Heap* heap, bool force_completion) {
     // If minor incremental marking is running, we need to finalize it first
     // because of the AdvanceForTesting call in this function which is currently
     // only possible for MajorMC.
-    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
     heap->CollectGarbage(NEW_SPACE, GarbageCollectionReason::kFinalizeMinorMC);
   }
 
@@ -334,7 +333,6 @@ void AbandonCurrentlyFreeMemory(PagedSpace* space) {
 }
 
 void GcAndSweep(Heap* heap, AllocationSpace space) {
-  DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
   heap->CollectGarbage(space, GarbageCollectionReason::kTesting);
   if (heap->sweeping_in_progress()) {
     IsolateSafepointScope scope(heap);

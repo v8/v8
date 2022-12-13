@@ -197,50 +197,30 @@ void CcTest::AddGlobalFunction(v8::Local<v8::Context> env, const char* name,
   env->Global()->Set(env, v8_str(name), func).FromJust();
 }
 
-void CcTest::CollectGarbage(i::AllocationSpace space, i::Isolate* isolate,
-                            v8::StackState stack_state) {
+void CcTest::CollectGarbage(i::AllocationSpace space, i::Isolate* isolate) {
   i::Isolate* iso = isolate ? isolate : i_isolate();
-  v8::base::Optional<i::DisableConservativeStackScanningScopeForTesting> scope;
-  if (stack_state == v8::StackState::kNoHeapPointers)
-    scope.emplace(iso->heap());
   iso->heap()->CollectGarbage(space, i::GarbageCollectionReason::kTesting);
 }
 
-void CcTest::CollectAllGarbage(i::Isolate* isolate,
-                               v8::StackState stack_state) {
+void CcTest::CollectAllGarbage(i::Isolate* isolate) {
   i::Isolate* iso = isolate ? isolate : i_isolate();
-  v8::base::Optional<i::DisableConservativeStackScanningScopeForTesting> scope;
-  if (stack_state == v8::StackState::kNoHeapPointers)
-    scope.emplace(iso->heap());
   iso->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
                                  i::GarbageCollectionReason::kTesting);
 }
 
-void CcTest::CollectAllAvailableGarbage(i::Isolate* isolate,
-                                        v8::StackState stack_state) {
+void CcTest::CollectAllAvailableGarbage(i::Isolate* isolate) {
   i::Isolate* iso = isolate ? isolate : i_isolate();
-  v8::base::Optional<i::DisableConservativeStackScanningScopeForTesting> scope;
-  if (stack_state == v8::StackState::kNoHeapPointers)
-    scope.emplace(iso->heap());
   iso->heap()->CollectAllAvailableGarbage(i::GarbageCollectionReason::kTesting);
 }
 
-void CcTest::PreciseCollectAllGarbage(i::Isolate* isolate,
-                                      v8::StackState stack_state) {
+void CcTest::PreciseCollectAllGarbage(i::Isolate* isolate) {
   i::Isolate* iso = isolate ? isolate : i_isolate();
-  v8::base::Optional<i::DisableConservativeStackScanningScopeForTesting> scope;
-  if (stack_state == v8::StackState::kNoHeapPointers)
-    scope.emplace(iso->heap());
   iso->heap()->PreciseCollectAllGarbage(i::Heap::kNoGCFlags,
                                         i::GarbageCollectionReason::kTesting);
 }
 
-void CcTest::CollectSharedGarbage(i::Isolate* isolate,
-                                  v8::StackState stack_state) {
+void CcTest::CollectSharedGarbage(i::Isolate* isolate) {
   i::Isolate* iso = isolate ? isolate : i_isolate();
-  v8::base::Optional<i::DisableConservativeStackScanningScopeForTesting> scope;
-  if (stack_state == v8::StackState::kNoHeapPointers)
-    scope.emplace(iso->heap());
   iso->heap()->CollectGarbageShared(iso->main_thread_local_heap(),
                                     i::GarbageCollectionReason::kTesting);
 }
