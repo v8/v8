@@ -1012,8 +1012,9 @@ static int64_t RunInt64AddShift(bool is_left, int64_t add_left,
                                 int64_t add_right, int64_t shift_left,
                                 int64_t shift_right) {
   RawMachineAssemblerTester<int64_t> m;
-  Node* shift = m.Word64Shl(m.Int64Constant(4), m.Int64Constant(2));
-  Node* add = m.Int64Add(m.Int64Constant(20), m.Int64Constant(22));
+  Node* shift =
+      m.Word64Shl(m.Int64Constant(shift_left), m.Int64Constant(shift_right));
+  Node* add = m.Int64Add(m.Int64Constant(add_left), m.Int64Constant(add_right));
   Node* dlsa = is_left ? m.Int64Add(shift, add) : m.Int64Add(add, shift);
   m.Return(dlsa);
   return m.Call();
@@ -1034,10 +1035,12 @@ TEST(RunInt64AddShift) {
   const size_t tc_size = sizeof(tc) / sizeof(Test_case);
 
   for (size_t i = 0; i < tc_size; ++i) {
-    CHECK_EQ(58, RunInt64AddShift(false, tc[i].add_left, tc[i].add_right,
-                                  tc[i].shift_left, tc[i].shift_right));
-    CHECK_EQ(58, RunInt64AddShift(true, tc[i].add_left, tc[i].add_right,
-                                  tc[i].shift_left, tc[i].shift_right));
+    CHECK_EQ(tc[i].expected,
+             RunInt64AddShift(false, tc[i].add_left, tc[i].add_right,
+                              tc[i].shift_left, tc[i].shift_right));
+    CHECK_EQ(tc[i].expected,
+             RunInt64AddShift(true, tc[i].add_left, tc[i].add_right,
+                              tc[i].shift_left, tc[i].shift_right));
   }
 }
 
