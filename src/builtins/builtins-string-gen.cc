@@ -124,17 +124,15 @@ TNode<IntPtrT> StringBuiltinsAssembler::SearchOneByteInOneByteString(
 }
 
 void StringBuiltinsAssembler::GenerateStringEqual(TNode<String> left,
-                                                  TNode<String> right) {
+                                                  TNode<String> right,
+                                                  TNode<IntPtrT> length) {
   TVARIABLE(String, var_left, left);
   TVARIABLE(String, var_right, right);
   Label if_equal(this), if_notequal(this), if_indirect(this, Label::kDeferred),
       restart(this, {&var_left, &var_right});
 
-  TNode<IntPtrT> lhs_length = LoadStringLengthAsWord(left);
-  TNode<IntPtrT> rhs_length = LoadStringLengthAsWord(right);
-
-  // Strings with different lengths cannot be equal.
-  GotoIf(WordNotEqual(lhs_length, rhs_length), &if_notequal);
+  CSA_DCHECK(this, IntPtrEqual(LoadStringLengthAsWord(left), length));
+  CSA_DCHECK(this, IntPtrEqual(LoadStringLengthAsWord(right), length));
 
   Goto(&restart);
   BIND(&restart);
@@ -144,7 +142,7 @@ void StringBuiltinsAssembler::GenerateStringEqual(TNode<String> left,
   TNode<Uint16T> lhs_instance_type = LoadInstanceType(lhs);
   TNode<Uint16T> rhs_instance_type = LoadInstanceType(rhs);
 
-  StringEqual_Core(lhs, lhs_instance_type, rhs, rhs_instance_type, lhs_length,
+  StringEqual_Core(lhs, lhs_instance_type, rhs, rhs_instance_type, length,
                    &if_equal, &if_notequal, &if_indirect);
 
   BIND(&if_indirect);
@@ -716,7 +714,8 @@ void StringBuiltinsAssembler::GenerateStringRelationalComparison(
 TF_BUILTIN(StringEqual, StringBuiltinsAssembler) {
   auto left = Parameter<String>(Descriptor::kLeft);
   auto right = Parameter<String>(Descriptor::kRight);
-  GenerateStringEqual(left, right);
+  auto length = UncheckedParameter<IntPtrT>(Descriptor::kLength);
+  GenerateStringEqual(left, right, length);
 }
 
 TF_BUILTIN(StringLessThan, StringBuiltinsAssembler) {

@@ -104,7 +104,8 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
                                      const TNode<IntPtrT> search_length,
                                      const TNode<IntPtrT> start_position);
 
-  void GenerateStringEqual(TNode<String> left, TNode<String> right);
+  void GenerateStringEqual(TNode<String> left, TNode<String> right,
+                           TNode<IntPtrT> length);
   void GenerateStringRelationalComparison(TNode<String> left,
                                           TNode<String> right, Operation op);
 

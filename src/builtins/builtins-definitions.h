@@ -160,7 +160,7 @@ namespace internal {
                                                                                \
   /* String helpers */                                                         \
   TFC(StringFromCodePointAt, StringAtAsString)                                 \
-  TFC(StringEqual, Compare)                                                    \
+  TFC(StringEqual, StringEqual)                                                \
   TFC(StringGreaterThan, Compare)                                              \
   TFC(StringGreaterThanOrEqual, Compare)                                       \
   TFC(StringLessThan, Compare)                                                 \

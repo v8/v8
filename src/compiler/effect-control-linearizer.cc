@@ -4495,6 +4495,33 @@ Node* EffectControlLinearizer::LowerStringLength(Node* node) {
   return __ LoadField(AccessBuilder::ForStringLength(), subject);
 }
 
+Node* EffectControlLinearizer::LowerStringEqual(Node* node) {
+  Callable callable = Builtins::CallableFor(isolate(), Builtin::kStringEqual);
+  Node* lhs = node->InputAt(0);
+  Node* rhs = node->InputAt(1);
+  Node* lhs_length = __ LoadField(AccessBuilder::ForStringLength(), lhs);
+  Node* rhs_length = __ LoadField(AccessBuilder::ForStringLength(), rhs);
+
+  auto if_length_equal = __ MakeLabel();
+  auto done = __ MakeLabel(MachineRepresentation::kTagged);
+
+  __ GotoIf(__ Word32Equal(lhs_length, rhs_length), &if_length_equal);
+  __ Goto(&done, __ FalseConstant());
+
+  __ Bind(&if_length_equal);
+  Operator::Properties properties = Operator::kEliminatable;
+  CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      graph()->zone(), callable.descriptor(),
+      callable.descriptor().GetStackParameterCount(), flags, properties);
+  Node* result = __ Call(call_descriptor, __ HeapConstant(callable.code()), lhs,
+                         rhs, lhs_length, __ NoContextConstant());
+  __ Goto(&done, result);
+
+  __ Bind(&done);
+  return done.PhiAt(0);
+}
+
 Node* EffectControlLinearizer::LowerStringComparison(Callable const& callable,
                                                      Node* node) {
   Node* lhs = node->InputAt(0);
@@ -4523,11 +4550,6 @@ Node* EffectControlLinearizer::LowerStringSubstring(Node* node) {
       callable.descriptor().GetStackParameterCount(), flags, properties);
   return __ Call(call_descriptor, __ HeapConstant(callable.code()), receiver,
                  start, end, __ NoContextConstant());
-}
-
-Node* EffectControlLinearizer::LowerStringEqual(Node* node) {
-  return LowerStringComparison(
-      Builtins::CallableFor(isolate(), Builtin::kStringEqual), node);
 }
 
 Node* EffectControlLinearizer::LowerStringLessThan(Node* node) {
