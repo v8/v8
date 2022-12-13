@@ -2031,8 +2031,7 @@ MaybeHandle<JSArrayBuffer> ValueDeserializer::ReadJSArrayBuffer(
     return array_buffer;
   }
   uint32_t byte_length;
-  if (!ReadVarint<uint32_t>().To(&byte_length) ||
-      byte_length > static_cast<size_t>(end_ - position_)) {
+  if (!ReadVarint<uint32_t>().To(&byte_length)) {
     return MaybeHandle<JSArrayBuffer>();
   }
   uint32_t max_byte_length = byte_length;
@@ -2050,6 +2049,9 @@ MaybeHandle<JSArrayBuffer> ValueDeserializer::ReadJSArrayBuffer(
       is_resizable = false;
       max_byte_length = byte_length;
     }
+  }
+  if (byte_length > static_cast<size_t>(end_ - position_)) {
+    return MaybeHandle<JSArrayBuffer>();
   }
   MaybeHandle<JSArrayBuffer> result =
       isolate_->factory()->NewJSArrayBufferAndBackingStore(

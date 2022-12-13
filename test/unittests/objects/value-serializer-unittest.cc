@@ -1952,6 +1952,13 @@ TEST_F(ValueSerializerTest, DecodeInvalidArrayBuffer) {
   InvalidDecodeTest({0xFF, 0x09, 0x42, 0xFF, 0xFF, 0x00});
 }
 
+TEST_F(ValueSerializerTest, DecodeInvalidResizableArrayBuffer) {
+  FLAG_SCOPE(harmony_rab_gsab);
+  // Enough bytes available after reading the length, but not anymore when
+  // reading the max byte length.
+  InvalidDecodeTest({0xFF, 0x09, 0x7E, 0x2, 0x10, 0x00});
+}
+
 // An array buffer allocator that never has available memory.
 class OOMArrayBufferAllocator : public ArrayBuffer::Allocator {
  public:
