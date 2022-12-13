@@ -800,6 +800,10 @@
   # https://github.com/tc39/proposal-intl-duration-format/issues/114
   'intl402/DurationFormat/prototype/format/style-options-en': [FAIL],
 
+  # https://github.com/tc39/test262/pull/3752
+  'intl402/DurationFormat/prototype/format/invalid-arguments-throws': [FAIL],
+  'intl402/DurationFormat/prototype/formatToParts/invalid-arguments-throws': [FAIL],
+
   # https://bugs.chromium.org/p/v8/issues/detail?id=12763
   'language/expressions/class/decorator/syntax/class-valid/decorator-member-expr-private-identifier': [FAIL],
   'language/expressions/class/decorator/syntax/valid/decorator-call-expr-identifier-reference': [FAIL],
