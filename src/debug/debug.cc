@@ -204,7 +204,10 @@ int BreakLocation::BreakIndexFromCodeOffset(Handle<DebugInfo> debug_info,
 bool BreakLocation::HasBreakPoint(Isolate* isolate,
                                   Handle<DebugInfo> debug_info) const {
   // First check whether there is a break point with the same source position.
-  if (!debug_info->HasBreakPoint(isolate, position_)) return false;
+  if (!debug_info->HasBreakInfo() ||
+      !debug_info->HasBreakPoint(isolate, position_)) {
+    return false;
+  }
   if (debug_info->CanBreakAtEntry()) {
     DCHECK_EQ(Debug::kBreakAtEntryPosition, position_);
     return debug_info->BreakAtEntry();
