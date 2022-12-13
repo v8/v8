@@ -261,6 +261,7 @@ class MemoryAllocator {
   Unmapper* unmapper() { return &unmapper_; }
 
   void UnregisterReadOnlyPage(ReadOnlyPage* page);
+  void TakeOverLargePage(LargePage* page, MemoryAllocator* current_owner);
 
   Address HandleAllocationFailure(Executability executable);
 
