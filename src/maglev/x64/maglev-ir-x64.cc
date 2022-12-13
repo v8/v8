@@ -216,28 +216,6 @@ void GeneratorRestoreRegister::GenerateCode(MaglevAssembler* masm,
   }
 }
 
-void GetSecondReturnedValue::SetValueLocationConstraints() {
-  DefineAsFixed(this, kReturnRegister1);
-}
-void GetSecondReturnedValue::GenerateCode(MaglevAssembler* masm,
-                                          const ProcessingState& state) {
-  // No-op. This is just a hack that binds kReturnRegister1 to a value node.
-  // kReturnRegister1 is guaranteed to be free in the register allocator, since
-  // previous node in the basic block is a call.
-#ifdef DEBUG
-  // Check if the previous node is call.
-  Node* previous = nullptr;
-  for (Node* node : state.block()->nodes()) {
-    if (node == this) {
-      break;
-    }
-    previous = node;
-  }
-  DCHECK_NE(previous, nullptr);
-  DCHECK(previous->properties().is_call());
-#endif  // DEBUG
-}
-
 int CreateEmptyObjectLiteral::MaxCallStackArgs() const {
   return AllocateDescriptor::GetStackParameterCount();
 }
@@ -262,118 +240,6 @@ void CreateEmptyObjectLiteral::GenerateCode(MaglevAssembler* masm,
     int offset = map().GetInObjectPropertyOffset(i);
     __ StoreTaggedField(FieldOperand(object, offset), kScratchRegister);
   }
-}
-
-int CreateFunctionContext::MaxCallStackArgs() const {
-  if (scope_type() == FUNCTION_SCOPE) {
-    using D = CallInterfaceDescriptorFor<
-        Builtin::kFastNewFunctionContextFunction>::type;
-    return D::GetStackParameterCount();
-  } else {
-    using D =
-        CallInterfaceDescriptorFor<Builtin::kFastNewFunctionContextEval>::type;
-    return D::GetStackParameterCount();
-  }
-}
-void CreateFunctionContext::SetValueLocationConstraints() {
-  DCHECK_LE(slot_count(),
-            static_cast<uint32_t>(
-                ConstructorBuiltins::MaximumFunctionContextSlots()));
-  if (scope_type() == FUNCTION_SCOPE) {
-    using D = CallInterfaceDescriptorFor<
-        Builtin::kFastNewFunctionContextFunction>::type;
-    static_assert(D::HasContextParameter());
-    UseFixed(context(), D::ContextRegister());
-  } else {
-    DCHECK_EQ(scope_type(), ScopeType::EVAL_SCOPE);
-    using D =
-        CallInterfaceDescriptorFor<Builtin::kFastNewFunctionContextEval>::type;
-    static_assert(D::HasContextParameter());
-    UseFixed(context(), D::ContextRegister());
-  }
-  DefineAsFixed(this, kReturnRegister0);
-}
-void CreateFunctionContext::GenerateCode(MaglevAssembler* masm,
-                                         const ProcessingState& state) {
-  if (scope_type() == FUNCTION_SCOPE) {
-    using D = CallInterfaceDescriptorFor<
-        Builtin::kFastNewFunctionContextFunction>::type;
-    DCHECK_EQ(ToRegister(context()), D::ContextRegister());
-    __ Move(D::GetRegisterParameter(D::kScopeInfo), scope_info().object());
-    __ Move(D::GetRegisterParameter(D::kSlots), slot_count());
-    // TODO(leszeks): Consider inlining this allocation.
-    __ CallBuiltin(Builtin::kFastNewFunctionContextFunction);
-  } else {
-    DCHECK_EQ(scope_type(), ScopeType::EVAL_SCOPE);
-    using D =
-        CallInterfaceDescriptorFor<Builtin::kFastNewFunctionContextEval>::type;
-    DCHECK_EQ(ToRegister(context()), D::ContextRegister());
-    __ Move(D::GetRegisterParameter(D::kScopeInfo), scope_info().object());
-    __ Move(D::GetRegisterParameter(D::kSlots), slot_count());
-    __ CallBuiltin(Builtin::kFastNewFunctionContextEval);
-  }
-  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
-}
-
-int FastCreateClosure::MaxCallStackArgs() const {
-  using D = CallInterfaceDescriptorFor<Builtin::kFastNewClosure>::type;
-  return D::GetStackParameterCount();
-}
-void FastCreateClosure::SetValueLocationConstraints() {
-  using D = CallInterfaceDescriptorFor<Builtin::kFastNewClosure>::type;
-  static_assert(D::HasContextParameter());
-  UseFixed(context(), D::ContextRegister());
-  DefineAsFixed(this, kReturnRegister0);
-}
-void FastCreateClosure::GenerateCode(MaglevAssembler* masm,
-                                     const ProcessingState& state) {
-  using D = CallInterfaceDescriptorFor<Builtin::kFastNewClosure>::type;
-
-  DCHECK_EQ(ToRegister(context()), D::ContextRegister());
-  __ Move(D::GetRegisterParameter(D::kSharedFunctionInfo),
-          shared_function_info().object());
-  __ Move(D::GetRegisterParameter(D::kFeedbackCell), feedback_cell().object());
-  __ CallBuiltin(Builtin::kFastNewClosure);
-  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
-}
-
-int CreateRegExpLiteral::MaxCallStackArgs() const {
-  using D = CallInterfaceDescriptorFor<Builtin::kCreateRegExpLiteral>::type;
-  return D::GetStackParameterCount();
-}
-void CreateRegExpLiteral::SetValueLocationConstraints() {
-  DefineAsFixed(this, kReturnRegister0);
-}
-void CreateRegExpLiteral::GenerateCode(MaglevAssembler* masm,
-                                       const ProcessingState& state) {
-  using D = CreateRegExpLiteralDescriptor;
-  __ Move(D::ContextRegister(), masm->native_context().object());
-  __ Move(D::GetRegisterParameter(D::kMaybeFeedbackVector), feedback().vector);
-  __ Move(D::GetRegisterParameter(D::kSlot),
-          TaggedIndex::FromIntptr(feedback().index()));
-  __ Move(D::GetRegisterParameter(D::kPattern), pattern().object());
-  __ Move(D::GetRegisterParameter(D::kFlags), Smi::FromInt(flags()));
-  __ CallBuiltin(Builtin::kCreateRegExpLiteral);
-}
-
-int GetTemplateObject::MaxCallStackArgs() const {
-  using D = CallInterfaceDescriptorFor<Builtin::kGetTemplateObject>::type;
-  return D::GetStackParameterCount();
-}
-void GetTemplateObject::SetValueLocationConstraints() {
-  using D = GetTemplateObjectDescriptor;
-  UseFixed(description(), D::GetRegisterParameter(D::kDescription));
-  DefineAsFixed(this, kReturnRegister0);
-}
-void GetTemplateObject::GenerateCode(MaglevAssembler* masm,
-                                     const ProcessingState& state) {
-  using D = GetTemplateObjectDescriptor;
-  __ Move(D::ContextRegister(), masm->native_context().object());
-  __ Move(D::GetRegisterParameter(D::kMaybeFeedbackVector), feedback().vector);
-  __ Move(D::GetRegisterParameter(D::kSlot), feedback().slot.ToInt());
-  __ Move(D::GetRegisterParameter(D::kShared), shared_function_info_.object());
-  __ CallBuiltin(Builtin::kGetTemplateObject);
-  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
 namespace {
@@ -833,12 +699,6 @@ void CheckInt32Condition::GenerateCode(MaglevAssembler* masm,
                                        const ProcessingState& state) {
   __ cmpq(ToRegister(left_input()), ToRegister(right_input()));
   __ EmitEagerDeoptIf(NegateCondition(ToCondition(condition_)), reason_, this);
-}
-
-void DebugBreak::SetValueLocationConstraints() {}
-void DebugBreak::GenerateCode(MaglevAssembler* masm,
-                              const ProcessingState& state) {
-  __ int3();
 }
 
 void CheckedInternalizedString::SetValueLocationConstraints() {
@@ -2503,46 +2363,6 @@ void SetPendingMessage::GenerateCode(MaglevAssembler* masm,
   }
 }
 
-void ToBoolean::SetValueLocationConstraints() {
-  UseRegister(value());
-  DefineAsRegister(this);
-}
-void ToBoolean::GenerateCode(MaglevAssembler* masm,
-                             const ProcessingState& state) {
-  Register object = ToRegister(value());
-  Register return_value = ToRegister(result());
-  Label done;
-  ZoneLabelRef object_is_true(masm), object_is_false(masm);
-  // TODO(leszeks): We're likely to be calling this on an existing boolean --
-  // maybe that's a case we should fast-path here and re-use that boolean value?
-  __ ToBoolean(object, object_is_true, object_is_false, true);
-  __ bind(*object_is_true);
-  __ LoadRoot(return_value, RootIndex::kTrueValue);
-  __ jmp(&done, Label::kNear);
-  __ bind(*object_is_false);
-  __ LoadRoot(return_value, RootIndex::kFalseValue);
-  __ bind(&done);
-}
-
-void ToBooleanLogicalNot::SetValueLocationConstraints() {
-  UseRegister(value());
-  DefineAsRegister(this);
-}
-void ToBooleanLogicalNot::GenerateCode(MaglevAssembler* masm,
-                                       const ProcessingState& state) {
-  Register object = ToRegister(value());
-  Register return_value = ToRegister(result());
-  Label done;
-  ZoneLabelRef object_is_true(masm), object_is_false(masm);
-  __ ToBoolean(object, object_is_true, object_is_false, true);
-  __ bind(*object_is_true);
-  __ LoadRoot(return_value, RootIndex::kFalseValue);
-  __ jmp(&done, Label::kNear);
-  __ bind(*object_is_false);
-  __ LoadRoot(return_value, RootIndex::kTrueValue);
-  __ bind(&done);
-}
-
 void TaggedEqual::SetValueLocationConstraints() {
   UseRegister(lhs());
   UseRegister(rhs());
@@ -2695,48 +2515,6 @@ void TestTypeOf::GenerateCode(MaglevAssembler* masm,
   __ bind(&is_false);
   __ LoadRoot(ToRegister(result()), RootIndex::kFalseValue);
   __ bind(&done);
-}
-
-int ToName::MaxCallStackArgs() const {
-  using D = CallInterfaceDescriptorFor<Builtin::kToName>::type;
-  return D::GetStackParameterCount();
-}
-void ToName::SetValueLocationConstraints() {
-  using D = CallInterfaceDescriptorFor<Builtin::kToName>::type;
-  UseFixed(context(), kContextRegister);
-  UseFixed(value_input(), D::GetRegisterParameter(D::kInput));
-  DefineAsFixed(this, kReturnRegister0);
-}
-void ToName::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
-#ifdef DEBUG
-  using D = CallInterfaceDescriptorFor<Builtin::kToName>::type;
-  DCHECK_EQ(ToRegister(context()), kContextRegister);
-  DCHECK_EQ(ToRegister(value_input()), D::GetRegisterParameter(D::kInput));
-#endif  // DEBUG
-  __ CallBuiltin(Builtin::kToName);
-  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
-}
-
-int ToNumberOrNumeric::MaxCallStackArgs() const {
-  return TypeConversionDescriptor::GetStackParameterCount();
-}
-void ToNumberOrNumeric::SetValueLocationConstraints() {
-  using D = TypeConversionDescriptor;
-  UseFixed(context(), kContextRegister);
-  UseFixed(value_input(), D::GetRegisterParameter(D::kArgument));
-  DefineAsFixed(this, kReturnRegister0);
-}
-void ToNumberOrNumeric::GenerateCode(MaglevAssembler* masm,
-                                     const ProcessingState& state) {
-  switch (mode()) {
-    case Object::Conversion::kToNumber:
-      __ CallBuiltin(Builtin::kToNumber);
-      break;
-    case Object::Conversion::kToNumeric:
-      __ CallBuiltin(Builtin::kToNumeric);
-      break;
-  }
-  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
 int ToObject::MaxCallStackArgs() const {
@@ -3412,20 +3190,6 @@ void ConvertReceiver::GenerateCode(MaglevAssembler* masm,
   __ bind(&done);
 }
 
-void ConvertHoleToUndefined::SetValueLocationConstraints() {
-  UseRegister(object_input());
-  DefineSameAsFirst(this);
-}
-void ConvertHoleToUndefined::GenerateCode(MaglevAssembler* masm,
-                                          const ProcessingState& state) {
-  Label done;
-  DCHECK_EQ(ToRegister(object_input()), ToRegister(result()));
-  __ JumpIfNotRoot(ToRegister(object_input()), RootIndex::kTheHoleValue, &done,
-                   Label::kNear);
-  __ LoadRoot(ToRegister(result()), RootIndex::kUndefinedValue);
-  __ bind(&done);
-}
-
 void IncreaseInterruptBudget::SetValueLocationConstraints() {
   set_temporaries_needed(1);
 }
@@ -3606,11 +3370,6 @@ void Return::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   __ DropArguments(actual_params_size, r9, TurboAssembler::kCountIsInteger,
                    TurboAssembler::kCountIncludesReceiver);
   __ Ret();
-}
-
-void Deopt::SetValueLocationConstraints() {}
-void Deopt::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
-  __ EmitEagerDeopt(this, reason());
 }
 
 void Switch::SetValueLocationConstraints() { UseRegister(value()); }
