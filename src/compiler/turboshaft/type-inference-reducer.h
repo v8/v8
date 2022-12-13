@@ -64,6 +64,7 @@ struct WordOperationTyper {
   using word_t = uint_type<Bits>;
   using type_t = WordType<Bits>;
   using ElementsVector = base::SmallVector<word_t, type_t::kMaxSetSize * 2>;
+  static constexpr word_t max = std::numeric_limits<word_t>::max();
 
   static type_t FromElements(ElementsVector elements, Zone* zone) {
     base::sort(elements);
@@ -92,8 +93,7 @@ struct WordOperationTyper {
       const base::Vector<const word_t>& elements) {
     DCHECK(!elements.empty());
     DCHECK(detail::is_unique_and_sorted(elements));
-    if (elements[elements.size() - 1] - elements[0] <=
-        std::numeric_limits<word_t>::max() / 2) {
+    if (elements[elements.size() - 1] - elements[0] <= max / 2) {
       // Construct a non-wrapping range.
       return {elements[0], elements[elements.size() - 1]};
     }
@@ -112,8 +112,7 @@ struct WordOperationTyper {
   }
 
   static word_t distance(const std::pair<word_t, word_t>& range) {
-    return is_wrapping(range) ? (std::numeric_limits<word_t>::max() -
-                                 range.first + range.second)
+    return is_wrapping(range) ? (max - range.first + range.second)
                               : range.second - range.first;
   }
 
@@ -143,7 +142,7 @@ struct WordOperationTyper {
     // Check: (lhs.to + rhs.to + 1) - (lhs.from + rhs.from + 1) < max
     // =====> (lhs.to - lhs.from) + (rhs.to - rhs.from) < max
     // =====> (lhs.to - lhs.from) < max - (rhs.to - rhs.from)
-    if (distance(x) < std::numeric_limits<word_t>::max() - distance(y)) {
+    if (distance(x) < max - distance(y)) {
       return type_t::Range(x.first + y.first, x.second + y.second, zone);
     }
 
@@ -175,6 +174,72 @@ struct WordOperationTyper {
     // TODO(nicohartmann@): Improve the wrapping cases.
     return type_t::Any();
   }
+
+  // Computes the ranges to which the sides of the unsigned comparison (lhs <
+  // rhs) can be restricted when the comparison is true. When the comparison is
+  // true, we learn: lhs cannot be >= rhs.max and rhs cannot be <= lhs.min.
+  static std::pair<Type, Type> RestrictionForUnsignedLessThan_True(
+      const type_t& lhs, const type_t& rhs, Zone* zone) {
+    Type restrict_lhs;
+    if (rhs.unsigned_max() == 0) {
+      // There is no value for lhs that could make (lhs < 0) true.
+      restrict_lhs = Type::None();
+    } else {
+      restrict_lhs = type_t::Range(0, next_smaller(rhs.unsigned_max()), zone);
+    }
+
+    Type restrict_rhs;
+    if (lhs.unsigned_min() == max) {
+      // There is no value for rhs that could make (max < rhs) true.
+      restrict_rhs = Type::None();
+    } else {
+      restrict_rhs = type_t::Range(next_larger(lhs.unsigned_min()), max, zone);
+    }
+
+    return {restrict_lhs, restrict_rhs};
+  }
+
+  // Computes the ranges to which the sides of the unsigned comparison (lhs <
+  // rhs) can be restricted when the comparison is false. When the comparison is
+  // false, we learn: lhs cannot be < rhs.min and rhs cannot be > lhs.max.
+  static std::pair<Type, Type> RestrictionForUnsignedLessThan_False(
+      const type_t& lhs, const type_t& rhs, Zone* zone) {
+    return {type_t::Range(rhs.unsigned_min(), max, zone),
+            type_t::Range(0, lhs.unsigned_max(), zone)};
+  }
+
+  // Computes the ranges to which the sides of the unsigned comparison (lhs <=
+  // rhs) can be restricted when the comparison is true. When the comparison is
+  // true, we learn: lhs cannot be > rhs.max and rhs cannot be < lhs.min.
+  static std::pair<Type, Type> RestrictionForUnsignedLessThanOrEqual_True(
+      const type_t& lhs, const type_t& rhs, Zone* zone) {
+    return {type_t::Range(0, rhs.unsigned_max(), zone),
+            type_t::Range(lhs.unsigned_min(), max, zone)};
+  }
+
+  // Computes the ranges to which the sides of the unsigned comparison (lhs <=
+  // rhs) can be restricted when the comparison is false. When the comparison is
+  // false, we learn: lhs cannot be <= rhs.min and rhs cannot be >= lhs.max.
+  static std::pair<Type, Type> RestrictionForUnsignedLessThanOrEqual_False(
+      const type_t& lhs, const type_t& rhs, Zone* zone) {
+    Type restrict_lhs;
+    if (rhs.unsigned_min() == max) {
+      // There is no value for lhs that could make (lhs <= max) false.
+      restrict_lhs = Type::None();
+    } else {
+      restrict_lhs = type_t::Range(next_larger(rhs.unsigned_min()), max, zone);
+    }
+
+    Type restrict_rhs;
+    if (lhs.unsigned_max() == 0) {
+      // There is no value for rhs that could make (0 <= rhs) false.
+      restrict_rhs = Type::None();
+    } else {
+      restrict_rhs = type_t::Range(0, next_smaller(lhs.unsigned_max()), zone);
+    }
+
+    return {restrict_lhs, restrict_rhs};
+  }
 };
 
 template <size_t Bits>
@@ -182,6 +247,7 @@ struct FloatOperationTyper {
   static_assert(Bits == 32 || Bits == 64);
   using float_t = std::conditional_t<Bits == 32, float, double>;
   using type_t = FloatType<Bits>;
+  static constexpr float_t inf = std::numeric_limits<float_t>::infinity();
   static constexpr int kSetThreshold = type_t::kMaxSetSize;
 
   static type_t Range(float_t min, float_t max, bool maybe_nan, Zone* zone) {
@@ -296,6 +362,78 @@ struct FloatOperationTyper {
     const float_t result_min = array_min(results);
     const float_t result_max = array_max(results);
     return Range(result_min, result_max, maybe_nan, zone);
+  }
+
+  // Computes the ranges to which the sides of the comparison (lhs < rhs) can be
+  // restricted when the comparison is true. When the comparison is true, we
+  // learn: lhs cannot be >= rhs.max and rhs cannot be <= lhs.min and neither
+  // can be NaN.
+  static std::pair<Type, Type> RestrictionForLessThan_True(const type_t& lhs,
+                                                           const type_t& rhs,
+                                                           Zone* zone) {
+    Type restrict_lhs;
+    if (rhs.max() == -inf) {
+      // There is no value for lhs that could make (lhs < -inf) true.
+      restrict_lhs = Type::None();
+    } else {
+      restrict_lhs = type_t::Range(-inf, next_smaller(rhs.max()), zone);
+    }
+
+    Type restrict_rhs;
+    if (lhs.min() == inf) {
+      // There is no value for rhs that could make (inf < rhs) true.
+      restrict_rhs = Type::None();
+    } else {
+      restrict_rhs = type_t::Range(next_larger(lhs.min()), inf, zone);
+    }
+
+    return {restrict_lhs, restrict_rhs};
+  }
+
+  // Computes the ranges to which the sides of the comparison (lhs < rhs) can be
+  // restricted when the comparison is false. When the comparison is false, we
+  // learn: lhs cannot be < rhs.min and rhs cannot be > lhs.max.
+  static std::pair<Type, Type> RestrictionForLessThan_False(const type_t& lhs,
+                                                            const type_t& rhs,
+                                                            Zone* zone) {
+    return {type_t::Range(rhs.min(), inf, type_t::kNaN, zone),
+            type_t::Range(-inf, lhs.max(), type_t::kNaN, zone)};
+  }
+
+  // Computes the ranges to which the sides of the comparison (lhs <= rhs) can
+  // be restricted when the comparison is true. When the comparison is true, we
+  // learn: lhs cannot be > rhs.max and rhs cannot be < lhs.min and neither can
+  // be NaN.
+  static std::pair<Type, Type> RestrictionForLessThanOrEqual_True(
+      const type_t& lhs, const type_t& rhs, Zone* zone) {
+    return {type_t::Range(-inf, rhs.max(), zone),
+            type_t::Range(lhs.min(), inf, zone)};
+  }
+
+  // Computes the ranges to which the sides of the comparison (lhs <= rhs) can
+  // be restricted when the comparison is false. When the comparison is false,
+  // we learn: lhs cannot be <= rhs.min and rhs cannot be >= lhs.max.
+  static std::pair<Type, Type> RestrictionForLessThanOrEqual_False(
+      const type_t& lhs, const type_t& rhs, Zone* zone) {
+    Type restrict_lhs;
+    if (rhs.min() == inf) {
+      // The only value for lhs that could make (lhs <= inf) false is NaN.
+      restrict_lhs = type_t::NaN();
+    } else {
+      restrict_lhs =
+          type_t::Range(next_larger(rhs.min()), inf, type_t::kNaN, zone);
+    }
+
+    Type restrict_rhs;
+    if (lhs.max() == -inf) {
+      // The only value for rhs that could make (-inf <= rhs) false is NaN.
+      restrict_rhs = type_t::NaN();
+    } else {
+      restrict_rhs =
+          type_t::Range(-inf, next_smaller(lhs.max()), type_t::kNaN, zone);
+    }
+
+    return {restrict_lhs, restrict_rhs};
   }
 };
 
@@ -580,6 +718,30 @@ class TypeInferenceReducer : public Next {
     current_block_ = new_block;
   }
 
+  template <bool allow_implicit_word64_truncation>
+  Type RefineWord32Type(const Type& type, const Type& refinement, Zone* zone) {
+    // If refinement is Type::None(), the operation/branch is unreachable.
+    if (refinement.IsNone()) return Type::None();
+    DCHECK(refinement.IsWord32());
+    if constexpr (allow_implicit_word64_truncation) {
+      // Turboshaft allows implicit trunction of Word64 values to Word32. When
+      // an operation on Word32 representation computes a refinement type, this
+      // is going to be a Type::Word32() even if the actual {type} was Word64
+      // before truncation. To correctly refine this type, we need to extend the
+      // {refinement} to Word64 such that it reflects the corresponding values
+      // in the original type (before truncation) before we intersect.
+      if (type.IsWord64()) {
+        return Word64Type::Intersect(
+            type.AsWord64(),
+            Typer::ExtendWord32ToWord64(refinement.AsWord32(), zone),
+            Type::ResolutionMode::kOverApproximate, zone);
+      }
+    }
+    // We limit the values of {type} to those in {refinement}.
+    return Word32Type::Intersect(type.AsWord32(), refinement.AsWord32(),
+                                 Type::ResolutionMode::kOverApproximate, zone);
+  }
+
   void RefineTypesAfterBranch(const BranchOp* branch, bool then_branch) {
     Zone* zone = Asm().graph_zone();
     // Inspect branch condition.
@@ -609,80 +771,53 @@ class TypeInferenceReducer : public Next {
           }
           Word32Type l = Typer::TruncateWord32Input(lhs, true, zone).AsWord32();
           Word32Type r = Typer::TruncateWord32Input(rhs, true, zone).AsWord32();
-          uint32_t l_min, l_max, r_min, r_max;
-          if (then_branch) {
-            l_min = 0;
-            l_max = r.unsigned_max();
-            r_min = l.unsigned_min();
-            r_max = std::numeric_limits<uint32_t>::max();
-            if (is_less_than) {
-              l_max = next_smaller(l_max);
-              r_min = next_larger(r_min);
-            }
+          Type l_restrict, r_restrict;
+          using OpTyper = WordOperationTyper<32>;
+          if (is_less_than) {
+            std::tie(l_restrict, r_restrict) =
+                then_branch
+                    ? OpTyper::RestrictionForUnsignedLessThan_True(l, r, zone)
+                    : OpTyper ::RestrictionForUnsignedLessThan_False(l, r,
+                                                                     zone);
           } else {
-            l_min = r.unsigned_min();
-            l_max = std::numeric_limits<uint32_t>::max();
-            r_min = 0;
-            r_max = l.unsigned_max();
-            if (!is_less_than) {
-              l_min = next_larger(l_min);
-              r_max = next_smaller(r_max);
-            }
+            std::tie(l_restrict, r_restrict) =
+                then_branch
+                    ? OpTyper::RestrictionForUnsignedLessThanOrEqual_True(l, r,
+                                                                          zone)
+                    : OpTyper::RestrictionForUnsignedLessThanOrEqual_False(
+                          l, r, zone);
           }
-          auto l_restrict = Word32Type::Range(l_min, l_max, zone);
-          auto r_restrict = Word32Type::Range(r_min, r_max, zone);
-          if (l_restrict.IsWord32() && lhs.IsWord64()) {
-            l_refined = Word64Type::Intersect(
-                lhs.AsWord64(),
-                Typer::ExtendWord32ToWord64(l_restrict.AsWord32(), zone),
-                Type::ResolutionMode::kOverApproximate, zone);
-          } else {
-            l_refined = Word32Type::Intersect(
-                l, l_restrict, Type::ResolutionMode::kOverApproximate, zone);
-          }
-          if (r_restrict.IsWord32() && rhs.IsWord64()) {
-            r_refined = Word64Type::Intersect(
-                rhs.AsWord64(),
-                Typer::ExtendWord32ToWord64(r_restrict.AsWord32(), zone),
-                Type::ResolutionMode::kOverApproximate, zone);
-          } else {
-            r_refined = Word32Type::Intersect(
-                r, r_restrict, Type::ResolutionMode::kOverApproximate, zone);
-          }
+
+          // Special handling for word32 restriction, because the inputs might
+          // have been truncated from word64 implicitly.
+          l_refined = RefineWord32Type<true>(lhs, l_restrict, zone);
+          r_refined = RefineWord32Type<true>(rhs, r_restrict, zone);
           break;
         }
         case RegisterRepresentation::Float64(): {
-          constexpr double infty = std::numeric_limits<double>::infinity();
           Float64Type l = lhs.AsFloat64();
           Float64Type r = rhs.AsFloat64();
-          double l_min, l_max, r_min, r_max;
-          uint32_t special_values = Float64Type::kNoSpecialValues;
-          if (then_branch) {
-            l_min = -infty;
-            l_max = r.max();
-            r_min = l.min();
-            r_max = infty;
-            if (is_less_than) {
-              l_max = next_smaller(l_max);
-              r_min = next_larger(r_min);
-            }
+          Type l_restrict, r_restrict;
+          using OpTyper = FloatOperationTyper<64>;
+          if (is_less_than) {
+            std::tie(l_restrict, r_restrict) =
+                then_branch ? OpTyper::RestrictionForLessThan_True(l, r, zone)
+                            : OpTyper::RestrictionForLessThan_False(l, r, zone);
           } else {
-            l_min = r.min();
-            l_max = infty;
-            r_min = -infty;
-            r_max = l.max();
-            special_values = Float64Type::kNaN;
-            if (!is_less_than) {
-              l_min = next_larger(l_min);
-              r_max = next_smaller(r_max);
-            }
+            std::tie(l_restrict, r_restrict) =
+                then_branch
+                    ? OpTyper::RestrictionForLessThanOrEqual_True(l, r, zone)
+                    : OpTyper::RestrictionForLessThanOrEqual_False(l, r, zone);
           }
-          auto l_restrict =
-              Float64Type::Range(l_min, l_max, special_values, zone);
-          auto r_restrict =
-              Float64Type::Range(r_min, r_max, special_values, zone);
-          l_refined = Float64Type::Intersect(l, l_restrict, zone);
-          r_refined = Float64Type::Intersect(r, r_restrict, zone);
+
+          l_refined =
+              l_restrict.IsNone()
+                  ? Type::None()
+                  : Float64Type::Intersect(l, l_restrict.AsFloat64(), zone);
+          r_refined =
+              l_restrict.IsNone()
+                  ? Type::None()
+                  : Float64Type::Intersect(r, r_restrict.AsFloat64(), zone);
           break;
         }
         default:
