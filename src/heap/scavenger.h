@@ -286,6 +286,7 @@ class ScavengerCollector {
   void ClearYoungEphemerons(EphemeronTableList* ephemeron_table_list);
   void ClearOldEphemerons();
   void HandleSurvivingNewLargeObjects();
+  void PreprocessNewLargeObjects();
 
   void SweepArrayBufferExtensions();
 

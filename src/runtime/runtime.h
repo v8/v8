@@ -544,6 +544,7 @@ namespace internal {
   F(HeapObjectVerify, 1, 1)                   \
   F(ICsAreEnabled, 0, 1)                      \
   F(InLargeObjectSpace, 1, 1)                 \
+  F(InSharedHeap, 1, 1)                       \
   F(InYoungGeneration, 1, 1)                  \
   F(Is64Bit, 0, 1)                            \
   F(IsAtomicsWaitAllowed, 0, 1)               \

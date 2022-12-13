@@ -346,6 +346,13 @@ void HeapVerification::VerifyPage(const BasicMemoryChunk* chunk) {
   CHECK(!current_chunk_.has_value());
   CHECK(!chunk->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION));
   CHECK(!chunk->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION));
+  CHECK(!chunk->IsFlagSet(Page::SHARED_HEAP_PROMOTION));
+  if (chunk->InReadOnlySpace()) {
+    CHECK_NULL(chunk->owner());
+  } else {
+    CHECK_EQ(chunk->heap(), heap());
+    CHECK_EQ(chunk->owner()->identity(), current_space_identity());
+  }
   current_chunk_ = chunk;
 }
 
