@@ -4,7 +4,7 @@
 
 #ifdef V8_ENABLE_PRECISE_ZONE_STATS
 
-#if defined(__clang__) || defined(__GLIBCXX__)
+#if (defined(__clang__) || defined(__GLIBCXX__)) && !defined(_MSC_VER)
 #include <cxxabi.h>
 #endif  // __GLIBCXX__
 #include <cinttypes>
@@ -33,7 +33,7 @@ class Demangler {
   }
 
   const char* demangle(std::type_index type_id) {
-#if defined(__clang__) || defined(__GLIBCXX__)
+#if (defined(__clang__) || defined(__GLIBCXX__)) && !defined(_MSC_VER)
     int status = -1;
     char* result =
         abi::__cxa_demangle(type_id.name(), buffer_, &buffer_len_, &status);
