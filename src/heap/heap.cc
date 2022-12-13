@@ -1230,22 +1230,26 @@ void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
 
   TRACE_GC(tracer(), GCTracer::Scope::HEAP_EPILOGUE_SAFEPOINT);
 
-  safepoint()->IterateLocalHeaps([this, collector](LocalHeap* local_heap) {
-    local_heap->InvokeGCEpilogueCallbacksInSafepoint(
-        GetGCTypeFromGarbageCollector(collector), current_gc_callback_flags_);
-  });
+  {
+    // Allows handle derefs for all threads/isolates from this thread.
+    AllowHandleDereferenceAllThreads allow_all_handle_derefs;
+    safepoint()->IterateLocalHeaps([this, collector](LocalHeap* local_heap) {
+      local_heap->InvokeGCEpilogueCallbacksInSafepoint(
+          GetGCTypeFromGarbageCollector(collector), current_gc_callback_flags_);
+    });
 
-  if (isolate()->is_shared_heap_isolate()) {
-    isolate()->global_safepoint()->IterateClientIsolates(
-        [this, collector](Isolate* client) {
-          if (client->is_shared_heap_isolate()) return;
-          client->heap()->safepoint()->IterateLocalHeaps(
-              [this, collector](LocalHeap* local_heap) {
-                local_heap->InvokeGCEpilogueCallbacksInSafepoint(
-                    GetGCTypeFromGarbageCollector(collector),
-                    current_gc_callback_flags_);
-              });
-        });
+    if (isolate()->is_shared_heap_isolate()) {
+      isolate()->global_safepoint()->IterateClientIsolates(
+          [this, collector](Isolate* client) {
+            if (client->is_shared_heap_isolate()) return;
+            client->heap()->safepoint()->IterateLocalHeaps(
+                [this, collector](LocalHeap* local_heap) {
+                  local_heap->InvokeGCEpilogueCallbacksInSafepoint(
+                      GetGCTypeFromGarbageCollector(collector),
+                      current_gc_callback_flags_);
+                });
+          });
+    }
   }
 
 #define UPDATE_COUNTERS_FOR_SPACE(space)                \
