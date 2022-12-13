@@ -122,6 +122,20 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
       kExprI32Const, 1,
       kExprReturn,
     ]).exportFunc();
+    builder.addFunction(`brOnCastFailNull${typeName}`,
+                        makeSig([kWasmExternRef], [kWasmI32]))
+    .addBody([
+      kExprBlock, kAnyRefCode,
+        kExprLocalGet, 0,
+        kGCPrefix, kExprExternInternalize,
+        kGCPrefix, kExprBrOnCastFailNull, 0, typeCode,
+        kExprI32Const, 0,
+        kExprReturn,
+      kExprEnd,
+      kExprDrop,
+      kExprI32Const, 1,
+      kExprReturn,
+    ]).exportFunc();
   });
 
   var instance = builder.instantiate();
@@ -623,4 +637,86 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(1, wasm.brOnCastFailNone(funcObj));
   assertEquals(1, wasm.brOnCastFailNone(1));
   assertEquals(1, wasm.brOnCastFailNone(jsObj));
+
+  // br_on_cast_fail null
+  assertEquals(0, wasm.brOnCastFailNullStructSuper(null));
+  assertEquals(1, wasm.brOnCastFailNullStructSuper(undefined));
+  assertEquals(0, wasm.brOnCastFailNullStructSuper(structSuperObj));
+  assertEquals(0, wasm.brOnCastFailNullStructSuper(structSubObj));
+  assertEquals(1, wasm.brOnCastFailNullStructSuper(arrayObj));
+  assertEquals(1, wasm.brOnCastFailNullStructSuper(funcObj));
+  assertEquals(1, wasm.brOnCastFailNullStructSuper(1));
+  assertEquals(1, wasm.brOnCastFailNullStructSuper(jsObj));
+
+  assertEquals(0, wasm.brOnCastFailNullStructSub(null));
+  assertEquals(1, wasm.brOnCastFailNullStructSub(undefined));
+  assertEquals(1, wasm.brOnCastFailNullStructSub(structSuperObj));
+  assertEquals(0, wasm.brOnCastFailNullStructSub(structSubObj));
+  assertEquals(1, wasm.brOnCastFailNullStructSub(arrayObj));
+  assertEquals(1, wasm.brOnCastFailNullStructSub(funcObj));
+  assertEquals(1, wasm.brOnCastFailNullStructSub(1));
+  assertEquals(1, wasm.brOnCastFailNullStructSub(jsObj));
+
+  assertEquals(0, wasm.brOnCastFailNullArray(null));
+  assertEquals(1, wasm.brOnCastFailNullArray(undefined));
+  assertEquals(1, wasm.brOnCastFailNullArray(structSuperObj));
+  assertEquals(1, wasm.brOnCastFailNullArray(structSubObj));
+  assertEquals(0, wasm.brOnCastFailNullArray(arrayObj));
+  assertEquals(1, wasm.brOnCastFailNullArray(funcObj));
+  assertEquals(1, wasm.brOnCastFailNullArray(1));
+  assertEquals(1, wasm.brOnCastFailNullArray(jsObj));
+
+  assertEquals(0, wasm.brOnCastFailNullI31(null));
+  assertEquals(1, wasm.brOnCastFailNullI31(undefined));
+  assertEquals(1, wasm.brOnCastFailNullI31(structSuperObj));
+  assertEquals(1, wasm.brOnCastFailNullI31(structSubObj));
+  assertEquals(1, wasm.brOnCastFailNullI31(arrayObj));
+  assertEquals(1, wasm.brOnCastFailNullI31(funcObj));
+  assertEquals(0, wasm.brOnCastFailNullI31(1));
+  assertEquals(1, wasm.brOnCastFailNullI31(jsObj));
+
+  assertEquals(0, wasm.brOnCastFailNullAnyArray(null));
+  assertEquals(1, wasm.brOnCastFailNullAnyArray(undefined));
+  assertEquals(1, wasm.brOnCastFailNullAnyArray(structSuperObj));
+  assertEquals(1, wasm.brOnCastFailNullAnyArray(structSubObj));
+  assertEquals(0, wasm.brOnCastFailNullAnyArray(arrayObj));
+  assertEquals(1, wasm.brOnCastFailNullAnyArray(funcObj));
+  assertEquals(1, wasm.brOnCastFailNullAnyArray(1));
+  assertEquals(1, wasm.brOnCastFailNullAnyArray(jsObj));
+
+  assertEquals(0, wasm.brOnCastFailNullStruct(null));
+  assertEquals(1, wasm.brOnCastFailNullStruct(undefined));
+  assertEquals(0, wasm.brOnCastFailNullStruct(structSuperObj));
+  assertEquals(0, wasm.brOnCastFailNullStruct(structSubObj));
+  assertEquals(1, wasm.brOnCastFailNullStruct(arrayObj));
+  assertEquals(1, wasm.brOnCastFailNullStruct(funcObj));
+  assertEquals(1, wasm.brOnCastFailNullStruct(1));
+  assertEquals(1, wasm.brOnCastFailNullStruct(jsObj));
+
+  assertEquals(0, wasm.brOnCastFailNullEq(null));
+  assertEquals(1, wasm.brOnCastFailNullEq(undefined));
+  assertEquals(0, wasm.brOnCastFailNullEq(structSuperObj));
+  assertEquals(0, wasm.brOnCastFailNullEq(structSubObj));
+  assertEquals(0, wasm.brOnCastFailNullEq(arrayObj));
+  assertEquals(1, wasm.brOnCastFailNullEq(funcObj));
+  assertEquals(0, wasm.brOnCastFailNullEq(1));
+  assertEquals(1, wasm.brOnCastFailNullEq(jsObj));
+
+  assertEquals(0, wasm.brOnCastFailNullAny(null));
+  assertEquals(0, wasm.brOnCastFailNullAny(undefined));
+  assertEquals(0, wasm.brOnCastFailNullAny(structSuperObj));
+  assertEquals(0, wasm.brOnCastFailNullAny(structSubObj));
+  assertEquals(0, wasm.brOnCastFailNullAny(arrayObj));
+  assertEquals(0, wasm.brOnCastFailNullAny(funcObj));
+  assertEquals(0, wasm.brOnCastFailNullAny(1));
+  assertEquals(0, wasm.brOnCastFailNullAny(jsObj));
+
+  assertEquals(0, wasm.brOnCastFailNullNone(null));
+  assertEquals(1, wasm.brOnCastFailNullNone(undefined));
+  assertEquals(1, wasm.brOnCastFailNullNone(structSuperObj));
+  assertEquals(1, wasm.brOnCastFailNullNone(structSubObj));
+  assertEquals(1, wasm.brOnCastFailNullNone(arrayObj));
+  assertEquals(1, wasm.brOnCastFailNullNone(funcObj));
+  assertEquals(1, wasm.brOnCastFailNullNone(1));
+  assertEquals(1, wasm.brOnCastFailNullNone(jsObj));
 })();

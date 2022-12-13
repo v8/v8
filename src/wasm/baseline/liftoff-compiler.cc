@@ -6107,7 +6107,8 @@ class LiftoffCompiler {
   }
 
   void BrOnCastFail(FullDecoder* decoder, const Value& obj, const Value& rtt,
-                    Value* /* result_on_fallthrough */, uint32_t depth) {
+                    Value* /* result_on_fallthrough */, uint32_t depth,
+                    bool null_succeeds) {
     // Avoid having sequences of branches do duplicate work.
     if (depth != decoder->control_depth() - 1) {
       __ PrepareForBranch(decoder->control_at(depth)->br_merge()->arity, {});
@@ -6123,8 +6124,9 @@ class LiftoffCompiler {
     if (obj.type.is_nullable()) LoadNullValue(scratch_null, pinned);
     FREEZE_STATE(frozen);
 
+    NullSucceeds null_handling = null_succeeds ? kNullSucceeds : kNullFails;
     SubtypeCheck(decoder->module_, obj_reg.gp(), obj.type, rtt_reg.gp(),
-                 rtt.type, scratch_null, scratch2, &cont_branch, kNullFails,
+                 rtt.type, scratch_null, scratch2, &cont_branch, null_handling,
                  frozen);
     __ emit_jump(&fallthrough);
 
@@ -6161,21 +6163,25 @@ class LiftoffCompiler {
 
   void BrOnCastFailAbstract(FullDecoder* decoder, const Value& obj,
                             HeapType type, Value* result_on_fallthrough,
-                            uint32_t depth) {
+                            uint32_t depth, bool null_succeeds) {
     switch (type.representation()) {
       case HeapType::kEq:
-        return BrOnNonEq(decoder, obj, result_on_fallthrough, depth);
+        return BrOnNonEq(decoder, obj, result_on_fallthrough, depth,
+                         null_succeeds);
       case HeapType::kI31:
-        return BrOnNonI31(decoder, obj, result_on_fallthrough, depth);
+        return BrOnNonI31(decoder, obj, result_on_fallthrough, depth,
+                          null_succeeds);
       case HeapType::kStruct:
-        return BrOnNonStruct(decoder, obj, result_on_fallthrough, depth);
+        return BrOnNonStruct(decoder, obj, result_on_fallthrough, depth,
+                             null_succeeds);
       case HeapType::kArray:
-        return BrOnNonArray(decoder, obj, result_on_fallthrough, depth);
+        return BrOnNonArray(decoder, obj, result_on_fallthrough, depth,
+                            null_succeeds);
       case HeapType::kNone:
       case HeapType::kNoExtern:
       case HeapType::kNoFunc:
-        // TODO(mliedtke): This becomes reachable for `br_on_cast_fail null`.
-        UNREACHABLE();
+        DCHECK(null_succeeds);
+        return BrOnNonNull(decoder, obj, nullptr, depth, true);
       case HeapType::kAny:
         // Any may never need a cast as it is either implicitly convertible or
         // never convertible for any given type.
@@ -6394,8 +6400,7 @@ class LiftoffCompiler {
 
   template <TypeChecker type_checker>
   void BrOnNonAbstractType(const Value& object, FullDecoder* decoder,
-                           uint32_t br_depth) {
-    bool null_succeeds = false;  // TODO(mliedtke): Use parameter.
+                           uint32_t br_depth, bool null_succeeds) {
     // Avoid having sequences of branches do duplicate work.
     if (br_depth != decoder->control_depth() - 1) {
       __ PrepareForBranch(decoder->control_at(br_depth)->br_merge()->arity, {});
@@ -6405,6 +6410,11 @@ class LiftoffCompiler {
     TypeCheck check(object.type, &no_match, null_succeeds);
     Initialize(check, kPeek);
     FREEZE_STATE(frozen);
+
+    if (null_succeeds && check.obj_type.is_nullable()) {
+      __ emit_cond_jump(kEqual, &end, kRefNull, check.obj_reg, check.null_reg(),
+                        frozen);
+    }
 
     (this->*type_checker)(check, frozen);
     __ emit_jump(&end);
@@ -6444,25 +6454,31 @@ class LiftoffCompiler {
   }
 
   void BrOnNonStruct(FullDecoder* decoder, const Value& object,
-                     Value* /* value_on_branch */, uint32_t br_depth) {
+                     Value* /* value_on_branch */, uint32_t br_depth,
+                     bool null_succeeds) {
     BrOnNonAbstractType<&LiftoffCompiler::StructCheck>(object, decoder,
-                                                       br_depth);
+                                                       br_depth, null_succeeds);
   }
 
   void BrOnNonI31(FullDecoder* decoder, const Value& object,
-                  Value* /* value_on_branch */, uint32_t br_depth) {
-    BrOnNonAbstractType<&LiftoffCompiler::I31Check>(object, decoder, br_depth);
+                  Value* /* value_on_branch */, uint32_t br_depth,
+                  bool null_succeeds) {
+    BrOnNonAbstractType<&LiftoffCompiler::I31Check>(object, decoder, br_depth,
+                                                    null_succeeds);
   }
 
   void BrOnNonArray(FullDecoder* decoder, const Value& object,
-                    Value* /* value_on_branch */, uint32_t br_depth) {
-    BrOnNonAbstractType<&LiftoffCompiler::ArrayCheck>(object, decoder,
-                                                      br_depth);
+                    Value* /* value_on_branch */, uint32_t br_depth,
+                    bool null_succeeds) {
+    BrOnNonAbstractType<&LiftoffCompiler::ArrayCheck>(object, decoder, br_depth,
+                                                      null_succeeds);
   }
 
   void BrOnNonEq(FullDecoder* decoder, const Value& object,
-                 Value* /* value_on_branch */, uint32_t br_depth) {
-    BrOnNonAbstractType<&LiftoffCompiler::EqCheck>(object, decoder, br_depth);
+                 Value* /* value_on_branch */, uint32_t br_depth,
+                 bool null_succeeds) {
+    BrOnNonAbstractType<&LiftoffCompiler::EqCheck>(object, decoder, br_depth,
+                                                   null_succeeds);
   }
 
   void StringNewWtf8(FullDecoder* decoder, const MemoryIndexImmediate& imm,

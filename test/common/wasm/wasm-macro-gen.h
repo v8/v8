@@ -547,6 +547,9 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
 #define WASM_BR_ON_CAST_FAIL(depth, typeidx)               \
   WASM_GC_OP(kExprBrOnCastFail), static_cast<byte>(depth), \
       static_cast<byte>(typeidx)
+#define WASM_BR_ON_CAST_FAIL_NULL(depth, typeidx)              \
+  WASM_GC_OP(kExprBrOnCastFailNull), static_cast<byte>(depth), \
+      static_cast<byte>(typeidx)
 #define WASM_BR_ON_CAST_FAIL_DEPRECATED(depth, typeidx)              \
   WASM_GC_OP(kExprBrOnCastFailDeprecated), static_cast<byte>(depth), \
       static_cast<byte>(typeidx)
