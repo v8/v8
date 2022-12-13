@@ -132,6 +132,8 @@ v8_flag(name = "v8_enable_snapshot_code_comments")
 
 v8_flag(name = "v8_enable_snapshot_native_code_counters")
 
+v8_flag(name = "v8_enable_static_roots")
+
 v8_flag(name = "v8_enable_trace_maps")
 
 v8_flag(name = "v8_enable_v8_checks")
@@ -316,6 +318,7 @@ v8_config(
         "v8_enable_slow_dchecks": "ENABLE_SLOW_DCHECKS",
         "v8_enable_runtime_call_stats": "V8_RUNTIME_CALL_STATS",
         "v8_enable_snapshot_native_code_counters": "V8_SNAPSHOT_NATIVE_CODE_COUNTERS",
+        "v8_enable_static_roots": "V8_STATIC_ROOTS",
         "v8_enable_trace_maps": "V8_TRACE_MAPS",
         "v8_enable_v8_checks": "V8_ENABLE_CHECKS",
         "v8_enable_verify_csa": "ENABLE_VERIFY_CSA",

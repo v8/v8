@@ -558,6 +558,11 @@ void ReadOnlySpace::FreeLinearAllocationArea() {
   limit_ = kNullAddress;
 }
 
+void ReadOnlySpace::EnsurePage() {
+  if (pages_.empty()) EnsureSpaceForAllocation(1);
+  CHECK(!pages_.empty());
+}
+
 void ReadOnlySpace::EnsureSpaceForAllocation(int size_in_bytes) {
   if (top_ + size_in_bytes <= limit_) {
     return;

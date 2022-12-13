@@ -4156,16 +4156,22 @@ VirtualMemoryCage* Isolate::GetPtrComprCodeCageForTesting() {
 // then called with --static-roots to re-regenerate the static-roots.h file.
 void Isolate::VerifyStaticRoots() {
 #if V8_STATIC_ROOTS_BOOL
+  static_assert(ReadOnlyHeap::IsReadOnlySpaceShared(),
+                "Static read only roots are only supported when there is one "
+                "shared read only space per cage");
+#define STATIC_ROOTS_FAILED_MSG \
+  "Run `tools/dev/gen-static-roots.py` to update static-roots.h."
+  static_assert(static_cast<int>(RootIndex::kReadOnlyRootsCount) ==
+                    StaticReadOnlyRootsPointerTable.size(),
+                STATIC_ROOTS_FAILED_MSG);
   auto& roots = roots_table();
-  CHECK_EQ(static_cast<int>(RootIndex::kReadOnlyRootsCount),
-           StaticReadOnlyRootsPointerTable.size());
   RootIndex idx = RootIndex::kFirstReadOnlyRoot;
   ReadOnlyPage* first_page = read_only_heap()->read_only_space()->pages()[0];
   for (Tagged_t cmp_ptr : StaticReadOnlyRootsPointerTable) {
     Address the_root = roots[idx];
     Address ptr =
         V8HeapCompressionScheme::DecompressTaggedPointer(cage_base(), cmp_ptr);
-    CHECK_EQ(the_root, ptr);
+    CHECK_WITH_MSG(the_root == ptr, STATIC_ROOTS_FAILED_MSG);
     // All roots must fit on first page, since only this page is guaranteed to
     // have a stable offset from the cage base. If this ever changes we need
     // to load more pages with predictable offset at
@@ -4173,6 +4179,7 @@ void Isolate::VerifyStaticRoots() {
     CHECK(first_page->Contains(the_root));
     ++idx;
   }
+#undef STATIC_ROOTS_FAILED_MSG
 #endif  // V8_STATIC_ROOTS_BOOL
 }
 
@@ -4522,7 +4529,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
                                                can_rehash);
       startup_deserializer.DeserializeIntoIsolate();
     }
-    if (DEBUG_BOOL) VerifyStaticRoots();
+    if (DEBUG_BOOL || create_heap_objects) VerifyStaticRoots();
     load_stub_cache_->Initialize();
     store_stub_cache_->Initialize();
     interpreter_->Initialize();

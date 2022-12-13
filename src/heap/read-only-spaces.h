@@ -237,6 +237,9 @@ class ReadOnlySpace : public BaseSpace {
 
   void InitFromMemoryDump(Isolate* isolate, SnapshotByteSource* source);
 
+  // Ensure the read only space has at least one allocated page
+  void EnsurePage();
+
  protected:
   friend class SingleCopyReadOnlyArtifacts;
 

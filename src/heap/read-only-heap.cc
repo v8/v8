@@ -99,6 +99,9 @@ void ReadOnlyHeap::SetUp(Isolate* isolate,
       artifacts = InitializeSharedReadOnlyArtifacts();
 
       ro_heap = CreateInitalHeapForBootstrapping(isolate, artifacts);
+
+      // Ensure the first read-only page ends up first in the cage.
+      ro_heap->read_only_space()->EnsurePage();
       artifacts->VerifyChecksum(read_only_snapshot_data, true);
     }
   } else {

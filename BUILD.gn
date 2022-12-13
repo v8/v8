@@ -120,6 +120,9 @@ declare_args() {
   # as per the --native-code-counters flag.
   v8_enable_snapshot_native_code_counters = ""
 
+  # Use pre-generated static root pointer values from static-roots.h.
+  v8_enable_static_roots = false
+
   # Enable code-generation-time checking of types in the CodeStubAssembler.
   v8_enable_verify_csa = false
 
@@ -534,6 +537,22 @@ if (v8_enable_sandbox == "") {
   v8_enable_sandbox = v8_enable_pointer_compression_shared_cage &&
                       v8_enable_external_code_space && target_os != "fuchsia"
 }
+
+if (v8_enable_static_roots == "") {
+  # Static roots are only valid for builds with pointer compression and a
+  # shared ro heap. Also, non-wasm and non-i18n builds have fewer read-only
+  # roots.
+  v8_enable_static_roots =
+      v8_enable_pointer_compression && v8_enable_shared_ro_heap &&
+      v8_enable_pointer_compression_shared_cage && v8_enable_webassembly &&
+      v8_enable_i18n_support
+}
+
+assert(!v8_enable_static_roots ||
+           (v8_enable_pointer_compression && v8_enable_shared_ro_heap &&
+                v8_enable_pointer_compression_shared_cage &&
+                v8_enable_webassembly && v8_enable_i18n_support),
+       "Trying to enable static roots in a configuration that is not supported")
 
 assert(!v8_disable_write_barriers || v8_enable_single_generation,
        "Disabling write barriers works only with single generation")
@@ -1059,6 +1078,9 @@ config("features") {
   }
   if (v8_enable_pointer_compression_8gb) {
     defines += [ "V8_COMPRESS_POINTERS_8GB" ]
+  }
+  if (v8_enable_static_roots) {
+    defines += [ "V8_STATIC_ROOTS" ]
   }
   if (v8_use_zlib) {
     defines += [ "V8_USE_ZLIB" ]
