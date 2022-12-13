@@ -999,6 +999,9 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
 #undef SPECULATIVE_BIGINT_BINOP
       CheckTypeIs(node, Type::BigInt());
       break;
+    case IrOpcode::kSpeculativeBigIntEqual:
+      CheckTypeIs(node, Type::Boolean());
+      break;
     case IrOpcode::kSpeculativeBigIntNegate:
       CheckTypeIs(node, Type::BigInt());
       break;
@@ -1013,6 +1016,11 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckValueInputIs(node, 0, Type::BigInt());
       CheckValueInputIs(node, 1, Type::BigInt());
       CheckTypeIs(node, Type::BigInt());
+      break;
+    case IrOpcode::kBigIntEqual:
+      CheckValueInputIs(node, 0, Type::BigInt());
+      CheckValueInputIs(node, 1, Type::BigInt());
+      CheckTypeIs(node, Type::Boolean());
       break;
     case IrOpcode::kBigIntNegate:
       CheckValueInputIs(node, 0, Type::BigInt());

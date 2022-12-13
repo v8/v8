@@ -778,6 +778,26 @@ builtin BigIntShiftRight(implicit context: Context)(
   }
 }
 
+builtin BigIntEqual(implicit context: Context)(x: BigInt, y: BigInt): Boolean {
+  if (ReadBigIntSign(x) != ReadBigIntSign(y)) {
+    return False;
+  }
+
+  const xlength = ReadBigIntLength(x);
+  const ylength = ReadBigIntLength(y);
+  if (xlength != ylength) {
+    return False;
+  }
+
+  for (let i: intptr = 0; i < xlength; ++i) {
+    if (LoadBigIntDigit(x, i) != LoadBigIntDigit(y, i)) {
+      return False;
+    }
+  }
+
+  return True;
+}
+
 builtin BigIntUnaryMinus(implicit context: Context)(bigint: BigInt): BigInt {
   const length = ReadBigIntLength(bigint);
 

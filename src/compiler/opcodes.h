@@ -329,7 +329,9 @@
   V(NumberSameValue)                     \
   V(StringEqual)                         \
   V(StringLessThan)                      \
-  V(StringLessThanOrEqual)
+  V(StringLessThanOrEqual)               \
+  V(BigIntEqual)                         \
+  V(SpeculativeBigIntEqual)
 
 #define SIMPLIFIED_NUMBER_BINOP_LIST(V) \
   V(NumberAdd)                          \

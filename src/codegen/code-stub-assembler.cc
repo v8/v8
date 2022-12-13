@@ -13287,9 +13287,30 @@ TNode<Oddball> CodeStubAssembler::Equal(TNode<Object> left, TNode<Object> right,
 
         BIND(&if_right_bigint);
         {
-          // We already have BigInt feedback.
-          result = CAST(CallRuntime(Runtime::kBigIntEqualToBigInt,
-                                    NoContextConstant(), left, right));
+          if (Is64()) {
+            Label if_both_bigint(this);
+
+            GotoIfLargeBigInt(CAST(left), &if_both_bigint);
+            GotoIfLargeBigInt(CAST(right), &if_both_bigint);
+
+            OverwriteFeedback(var_type_feedback,
+                              CompareOperationFeedback::kBigInt64);
+
+            TVARIABLE(UintPtrT, left_raw);
+            TVARIABLE(UintPtrT, right_raw);
+            BigIntToRawBytes(CAST(left), &left_raw, &left_raw);
+            BigIntToRawBytes(CAST(right), &right_raw, &right_raw);
+
+            Branch(WordEqual(UncheckedCast<WordT>(left_raw.value()),
+                             UncheckedCast<WordT>(right_raw.value())),
+                   &if_equal, &if_notequal);
+
+            BIND(&if_both_bigint);
+          }
+
+          CombineFeedback(var_type_feedback, CompareOperationFeedback::kBigInt);
+          result = CAST(CallBuiltin(Builtin::kBigIntEqual, NoContextConstant(),
+                                    left, right));
           Goto(&end);
         }
 
@@ -13709,9 +13730,30 @@ TNode<Oddball> CodeStubAssembler::StrictEqual(
 
               BIND(&if_rhsisbigint);
               {
+                if (Is64()) {
+                  Label if_both_bigint(this);
+
+                  GotoIfLargeBigInt(CAST(lhs), &if_both_bigint);
+                  GotoIfLargeBigInt(CAST(rhs), &if_both_bigint);
+
+                  OverwriteFeedback(var_type_feedback,
+                                    CompareOperationFeedback::kBigInt64);
+
+                  TVARIABLE(UintPtrT, lhs_raw);
+                  TVARIABLE(UintPtrT, rhs_raw);
+                  BigIntToRawBytes(CAST(lhs), &lhs_raw, &lhs_raw);
+                  BigIntToRawBytes(CAST(rhs), &rhs_raw, &rhs_raw);
+
+                  Branch(WordEqual(UncheckedCast<WordT>(lhs_raw.value()),
+                                   UncheckedCast<WordT>(rhs_raw.value())),
+                         &if_equal, &if_notequal);
+
+                  BIND(&if_both_bigint);
+                }
+
                 CombineFeedback(var_type_feedback,
                                 CompareOperationFeedback::kBigInt);
-                result = CAST(CallRuntime(Runtime::kBigIntEqualToBigInt,
+                result = CAST(CallBuiltin(Builtin::kBigIntEqual,
                                           NoContextConstant(), lhs, rhs));
                 Goto(&end);
               }

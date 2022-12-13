@@ -3472,6 +3472,35 @@ class RepresentationSelector {
           }
         }
       }
+      case IrOpcode::kSpeculativeBigIntEqual: {
+        // Loose equality can throw a TypeError when failing to cast an object
+        // operand to primitive.
+        if (truncation.IsUnused() && BothInputsAre(node, Type::BigInt())) {
+          VisitUnused<T>(node);
+          return;
+        }
+        BigIntOperationHint hint = BigIntOperationHintOf(node->op());
+        switch (hint) {
+          case BigIntOperationHint::kBigInt64: {
+            VisitBinop<T>(node,
+                          UseInfo::CheckedBigInt64AsWord64(FeedbackSource{}),
+                          MachineRepresentation::kBit);
+            if (lower<T>()) {
+              ChangeToPureOp(node, Int64Op(node));
+            }
+            return;
+          }
+          case BigIntOperationHint::kBigInt: {
+            VisitBinop<T>(
+                node, UseInfo::CheckedBigIntAsTaggedPointer(FeedbackSource{}),
+                MachineRepresentation::kTaggedPointer);
+            if (lower<T>()) {
+              ChangeToPureOp(node, BigIntOp(node));
+            }
+            return;
+          }
+        }
+      }
       case IrOpcode::kSpeculativeBigIntNegate: {
         if (truncation.IsUnused()) {
           VisitUnused<T>(node);

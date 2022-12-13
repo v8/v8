@@ -58,12 +58,38 @@ class JSBinopReduction final {
       case CompareOperationHint::kString:
       case CompareOperationHint::kSymbol:
       case CompareOperationHint::kBigInt:
+      case CompareOperationHint::kBigInt64:
       case CompareOperationHint::kReceiver:
       case CompareOperationHint::kReceiverOrNullOrUndefined:
       case CompareOperationHint::kInternalizedString:
         break;
     }
     return false;
+  }
+
+  bool GetCompareBigIntOperationHint(BigIntOperationHint* hint) {
+    DCHECK_EQ(1, node_->op()->EffectOutputCount());
+    switch (GetCompareOperationHint(node_)) {
+      case CompareOperationHint::kSignedSmall:
+      case CompareOperationHint::kNumber:
+      case CompareOperationHint::kNumberOrBoolean:
+      case CompareOperationHint::kNumberOrOddball:
+      case CompareOperationHint::kAny:
+      case CompareOperationHint::kNone:
+      case CompareOperationHint::kString:
+      case CompareOperationHint::kSymbol:
+      case CompareOperationHint::kReceiver:
+      case CompareOperationHint::kReceiverOrNullOrUndefined:
+      case CompareOperationHint::kInternalizedString:
+        return false;
+      case CompareOperationHint::kBigInt:
+        *hint = BigIntOperationHint::kBigInt;
+        return true;
+      case CompareOperationHint::kBigInt64:
+        *hint = BigIntOperationHint::kBigInt64;
+        return true;
+    }
+    UNREACHABLE();
   }
 
   bool IsInternalizedStringCompareOperation() {
@@ -911,6 +937,7 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node) {
   }
 
   NumberOperationHint hint;
+  BigIntOperationHint hint_bigint;
   if (r.BothInputsAre(Type::Signed32()) ||
       r.BothInputsAre(Type::Unsigned32())) {
     return r.ChangeToPureOperator(simplified()->NumberEqual());
@@ -926,6 +953,11 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node) {
         simplified()->SpeculativeNumberEqual(hint), Type::Boolean());
   } else if (r.BothInputsAre(Type::Number())) {
     return r.ChangeToPureOperator(simplified()->NumberEqual());
+  } else if (r.GetCompareBigIntOperationHint(&hint_bigint)) {
+    DCHECK(hint_bigint == BigIntOperationHint::kBigInt ||
+           hint_bigint == BigIntOperationHint::kBigInt64);
+    return r.ChangeToSpeculativeOperator(
+        simplified()->SpeculativeBigIntEqual(hint_bigint), Type::Boolean());
   } else if (r.IsReceiverCompareOperation()) {
     // For strict equality, it's enough to know that one input is a Receiver,
     // as a strict equality comparison with a Receiver can only yield true if

@@ -1742,9 +1742,10 @@ class CompareOperationFeedback {
     kInternalizedStringFlag = 1 << 4,
     kOtherStringFlag = 1 << 5,
     kSymbolFlag = 1 << 6,
-    kBigIntFlag = 1 << 7,
-    kReceiverFlag = 1 << 8,
-    kAnyMask = 0x1FF,
+    kBigInt64Flag = 1 << 7,
+    kOtherBigIntFlag = 1 << 8,
+    kReceiverFlag = 1 << 9,
+    kAnyMask = 0x3FF,
   };
 
  public:
@@ -1766,7 +1767,8 @@ class CompareOperationFeedback {
     kReceiver = kReceiverFlag,
     kReceiverOrNullOrUndefined = kReceiver | kNullOrUndefined,
 
-    kBigInt = kBigIntFlag,
+    kBigInt64 = kBigInt64Flag,
+    kBigInt = kBigInt64Flag | kOtherBigIntFlag,
     kSymbol = kSymbolFlag,
 
     kAny = kAnyMask,

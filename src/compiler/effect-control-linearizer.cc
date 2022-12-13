@@ -190,6 +190,7 @@ class EffectControlLinearizer {
   Node* LowerBigIntBitwiseXor(Node* node, Node* frame_state);
   Node* LowerBigIntShiftLeft(Node* node, Node* frame_state);
   Node* LowerBigIntShiftRight(Node* node, Node* frame_state);
+  Node* LowerBigIntEqual(Node* node);
   Node* LowerBigIntNegate(Node* node);
   Node* LowerCheckFloat64Hole(Node* node, Node* frame_state);
   Node* LowerCheckNotTaggedHole(Node* node, Node* frame_state);
@@ -1301,6 +1302,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kBigIntShiftRight:
       result = LowerBigIntShiftRight(node, frame_state);
+      break;
+    case IrOpcode::kBigIntEqual:
+      result = LowerBigIntEqual(node);
       break;
     case IrOpcode::kBigIntNegate:
       result = LowerBigIntNegate(node);
@@ -4798,6 +4802,22 @@ Node* EffectControlLinearizer::LowerBigIntShiftRight(Node* node,
   // Check for exception sentinel: Smi is returned to signal BigIntTooBig.
   __ DeoptimizeIf(DeoptimizeReason::kBigIntTooBig, FeedbackSource{},
                   ObjectIsSmi(value), frame_state);
+
+  return value;
+}
+
+Node* EffectControlLinearizer::LowerBigIntEqual(Node* node) {
+  Node* lhs = node->InputAt(0);
+  Node* rhs = node->InputAt(1);
+
+  Callable const callable =
+      Builtins::CallableFor(isolate(), Builtin::kBigIntEqual);
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      graph()->zone(), callable.descriptor(),
+      callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,
+      Operator::kFoldable | Operator::kNoThrow);
+  Node* value = __ Call(call_descriptor, __ HeapConstant(callable.code()), lhs,
+                        rhs, __ NoContextConstant());
 
   return value;
 }

@@ -417,6 +417,7 @@ class Typer::Visitor : public Reducer {
   static Type NumberEqualTyper(Type, Type, Typer*);
   static Type NumberLessThanTyper(Type, Type, Typer*);
   static Type NumberLessThanOrEqualTyper(Type, Type, Typer*);
+  static Type BigIntEqualTyper(Type, Type, Typer*);
   static Type ReferenceEqualTyper(Type, Type, Typer*);
   static Type SameValueTyper(Type, Type, Typer*);
   static Type SameValueNumbersOnlyTyper(Type, Type, Typer*);
@@ -2138,6 +2139,14 @@ Type Typer::Visitor::NumberLessThanOrEqualTyper(Type lhs, Type rhs, Typer* t) {
       Invert(JSCompareTyper(ToNumber(rhs, t), ToNumber(lhs, t), t), t), t);
 }
 
+// static
+Type Typer::Visitor::BigIntEqualTyper(Type lhs, Type rhs, Typer* t) {
+  if (lhs.IsNone() || rhs.IsNone()) {
+    return Type::None();
+  }
+  return Type::Boolean();
+}
+
 Type Typer::Visitor::TypeNumberEqual(Node* node) {
   return TypeBinaryOp(node, NumberEqualTyper);
 }
@@ -2160,6 +2169,14 @@ Type Typer::Visitor::TypeSpeculativeNumberLessThan(Node* node) {
 
 Type Typer::Visitor::TypeSpeculativeNumberLessThanOrEqual(Node* node) {
   return TypeBinaryOp(node, NumberLessThanOrEqualTyper);
+}
+
+Type Typer::Visitor::TypeBigIntEqual(Node* node) {
+  return TypeBinaryOp(node, BigIntEqualTyper);
+}
+
+Type Typer::Visitor::TypeSpeculativeBigIntEqual(Node* node) {
+  return TypeBinaryOp(node, BigIntEqualTyper);
 }
 
 Type Typer::Visitor::TypeStringConcat(Node* node) { return Type::String(); }

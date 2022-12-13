@@ -553,7 +553,8 @@ BigIntOperationHint BigIntOperationHintOf(const Operator* op) {
          op->opcode() == IrOpcode::kSpeculativeBigIntBitwiseOr ||
          op->opcode() == IrOpcode::kSpeculativeBigIntBitwiseXor ||
          op->opcode() == IrOpcode::kSpeculativeBigIntShiftLeft ||
-         op->opcode() == IrOpcode::kSpeculativeBigIntShiftRight);
+         op->opcode() == IrOpcode::kSpeculativeBigIntShiftRight ||
+         op->opcode() == IrOpcode::kSpeculativeBigIntEqual);
   return OpParameter<BigIntOperationHint>(op);
 }
 
@@ -739,6 +740,7 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(NumberToUint8Clamped, Operator::kNoProperties, 1, 0)          \
   V(Integral32OrMinusZeroToBigInt, Operator::kNoProperties, 1, 0) \
   V(NumberSilenceNaN, Operator::kNoProperties, 1, 0)              \
+  V(BigIntEqual, Operator::kNoProperties, 2, 0)                   \
   V(BigIntNegate, Operator::kNoProperties, 1, 0)                  \
   V(StringConcat, Operator::kNoProperties, 3, 0)                  \
   V(StringToNumber, Operator::kNoProperties, 1, 0)                \
@@ -1949,6 +1951,15 @@ const Operator* SimplifiedOperatorBuilder::SpeculativeNumberEqual(
       return &cache_.kSpeculativeNumberEqualNumberOrOddballOperator;
   }
   UNREACHABLE();
+}
+
+const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntEqual(
+    BigIntOperationHint hint) {
+  // TODO(panq): Cache speculative bigint operators.
+  return zone()->New<Operator1<BigIntOperationHint>>(
+      IrOpcode::kSpeculativeBigIntEqual,
+      Operator::kFoldable | Operator::kNoThrow, "SpeculativeBigIntEqual", 2, 1,
+      1, 1, 1, 0, hint);
 }
 
 #define ACCESS_OP_LIST(V)                                                  \

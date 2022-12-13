@@ -1177,6 +1177,7 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtin caller,
     case Builtin::kStringEqual:
     case Builtin::kStringIndexOf:
     case Builtin::kStringRepeat:
+    case Builtin::kBigIntEqual:
     case Builtin::kToInteger:
     case Builtin::kToLength:
     case Builtin::kToName:

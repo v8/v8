@@ -1382,6 +1382,8 @@ const Operator* RepresentationChanger::Int64OperatorFor(
       return machine()->Word64Or();
     case IrOpcode::kSpeculativeBigIntBitwiseXor:
       return machine()->Word64Xor();
+    case IrOpcode::kSpeculativeBigIntEqual:
+      return machine()->Word64Equal();
     default:
       UNREACHABLE();
   }
@@ -1428,6 +1430,8 @@ const Operator* RepresentationChanger::BigIntOperatorFor(
       return simplified()->BigIntShiftLeft();
     case IrOpcode::kSpeculativeBigIntShiftRight:
       return simplified()->BigIntShiftRight();
+    case IrOpcode::kSpeculativeBigIntEqual:
+      return simplified()->BigIntEqual();
     default:
       UNREACHABLE();
   }
