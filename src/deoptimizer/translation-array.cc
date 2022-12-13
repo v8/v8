@@ -161,12 +161,89 @@ void TranslationArrayIterator::SkipOpcodeAndItsOperandsAtPreviousIndex() {
   }
 }
 
+namespace {
+
+class OperandBase {
+ public:
+  explicit OperandBase(uint32_t value) : value_(value) {}
+  uint32_t value() const { return value_; }
+
+ private:
+  uint32_t value_;
+};
+
+class SmallUnsignedOperand : public OperandBase {
+ public:
+  explicit SmallUnsignedOperand(uint32_t value) : OperandBase(value) {
+    DCHECK_LE(value, base::kDataMask);
+  }
+  void WriteVLQ(ZoneVector<uint8_t>* buffer) { buffer->push_back(value()); }
+  bool IsSigned() const { return false; }
+};
+
+class UnsignedOperand : public OperandBase {
+ public:
+  explicit UnsignedOperand(uint32_t value) : OperandBase(value) {}
+  void WriteVLQ(ZoneVector<uint8_t>* buffer) {
+    base::VLQEncodeUnsigned(buffer, value());
+  }
+  bool IsSigned() const { return false; }
+};
+
+class SignedOperand : public OperandBase {
+ public:
+  explicit SignedOperand(int32_t value) : OperandBase(value) {}
+  void WriteVLQ(ZoneVector<uint8_t>* buffer) {
+    base::VLQEncode(buffer, value());
+  }
+  bool IsSigned() const { return true; }
+};
+
+template <typename... T>
+inline bool OperandsEqual(uint32_t* expected_operands, T... operands) {
+  return (... && (*(expected_operands++) == operands.value()));
+}
+
+}  // namespace
+
+template <typename... T>
+void TranslationArrayBuilder::AddRawToContents(TranslationOpcode opcode,
+                                               T... operands) {
+  DCHECK_EQ(sizeof...(T), TranslationOpcodeOperandCount(opcode));
+  DCHECK(!v8_flags.turbo_compress_translation_arrays);
+  contents_.push_back(static_cast<byte>(opcode));
+  (..., operands.WriteVLQ(&contents_));
+}
+
+template <typename... T>
+void TranslationArrayBuilder::AddRawToContentsForCompression(
+    TranslationOpcode opcode, T... operands) {
+  DCHECK_EQ(sizeof...(T), TranslationOpcodeOperandCount(opcode));
+  DCHECK(v8_flags.turbo_compress_translation_arrays);
+  contents_for_compression_.push_back(static_cast<byte>(opcode));
+  (..., contents_for_compression_.push_back(operands.value()));
+}
+
+template <typename... T>
+void TranslationArrayBuilder::AddRawBegin(T... operands) {
+  auto opcode = TranslationOpcode::BEGIN;
+  if (V8_UNLIKELY(v8_flags.turbo_compress_translation_arrays)) {
+    AddRawToContentsForCompression(opcode, operands...);
+  } else {
+    AddRawToContents(opcode, operands...);
+#ifdef ENABLE_SLOW_DCHECKS
+    if (v8_flags.enable_slow_asserts) {
+      all_instructions_.emplace_back(opcode, operands...);
+    }
+#endif
+  }
+}
+
 int TranslationArrayBuilder::BeginTranslation(int frame_count,
                                               int jsframe_count,
                                               int update_feedback_count) {
   FinishPendingInstructionIfNeeded();
   int start_index = Size();
-  auto opcode = TranslationOpcode::BEGIN;
   int distance_from_last_start = 0;
 
   // We should reuse an existing basis translation if:
@@ -195,138 +272,56 @@ int TranslationArrayBuilder::BeginTranslation(int frame_count,
   instruction_index_within_translation_ = 0;
 
   // BEGIN instructions can't be replaced by MATCH_PREVIOUS_TRANSLATION, so
-  // write the data directly rather than calling Add().
-  AddRawUnsigned(static_cast<uint32_t>(opcode));
-  AddRawUnsigned(distance_from_last_start);
-  AddRawSigned(frame_count);
-  AddRawSigned(jsframe_count);
-  AddRawSigned(update_feedback_count);
-  DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 4);
-#ifdef ENABLE_SLOW_DCHECKS
-  if (v8_flags.enable_slow_asserts) {
-    Instruction instruction;
-    instruction.opcode = opcode;
-    instruction.operands[0] = distance_from_last_start;
-    instruction.operands[1] = base::VLQConvertToUnsigned(frame_count);
-    instruction.operands[2] = base::VLQConvertToUnsigned(jsframe_count);
-    instruction.operands[3] = base::VLQConvertToUnsigned(update_feedback_count);
-    instruction.operands[4] = 0;
-    all_instructions_.push_back(instruction);
-  }
-#endif
+  // use a special helper function rather than calling Add().
+  AddRawBegin(UnsignedOperand(distance_from_last_start),
+              SignedOperand(frame_count), SignedOperand(jsframe_count),
+              SignedOperand(update_feedback_count));
   return start_index;
-}
-
-void TranslationArrayBuilder::AddRawSigned(int32_t value) {
-  if (V8_UNLIKELY(v8_flags.turbo_compress_translation_arrays)) {
-    contents_for_compression_.push_back(value);
-  } else {
-    base::VLQEncode(&contents_, value);
-  }
-}
-
-void TranslationArrayBuilder::AddRawUnsigned(uint32_t value) {
-  if (V8_UNLIKELY(v8_flags.turbo_compress_translation_arrays)) {
-    contents_for_compression_.push_back(value);
-  } else {
-    base::VLQEncodeUnsigned(&contents_, value);
-  }
 }
 
 void TranslationArrayBuilder::FinishPendingInstructionIfNeeded() {
   if (matching_instructions_count_) {
     total_matching_instructions_in_current_translation_ +=
         matching_instructions_count_;
-    contents_.push_back(
-        static_cast<byte>(TranslationOpcode::MATCH_PREVIOUS_TRANSLATION));
-    base::VLQEncodeUnsigned(
-        &contents_, static_cast<uint32_t>(matching_instructions_count_));
+    AddRawToContents(
+        TranslationOpcode::MATCH_PREVIOUS_TRANSLATION,
+        UnsignedOperand(static_cast<uint32_t>(matching_instructions_count_)));
     matching_instructions_count_ = 0;
   }
 }
 
-void TranslationArrayBuilder::Add(
-    const TranslationArrayBuilder::Instruction& instruction, int value_count) {
-  DCHECK_EQ(value_count, TranslationOpcodeOperandCount(instruction.opcode));
+template <typename... T>
+void TranslationArrayBuilder::Add(TranslationOpcode opcode, T... operands) {
+  DCHECK_EQ(sizeof...(T), TranslationOpcodeOperandCount(opcode));
   if (V8_UNLIKELY(v8_flags.turbo_compress_translation_arrays)) {
-    AddRawUnsigned(static_cast<byte>(instruction.opcode));
-    for (int i = 0; i < value_count; ++i) {
-      AddRawUnsigned(instruction.operands[i]);
-    }
+    AddRawToContentsForCompression(opcode, operands...);
     return;
   }
 #ifdef ENABLE_SLOW_DCHECKS
   if (v8_flags.enable_slow_asserts) {
-    all_instructions_.push_back(instruction);
+    all_instructions_.emplace_back(opcode, operands...);
   }
 #endif
   if (match_previous_allowed_ &&
       instruction_index_within_translation_ < basis_instructions_.size() &&
-      instruction ==
-          basis_instructions_[instruction_index_within_translation_]) {
+      opcode ==
+          basis_instructions_[instruction_index_within_translation_].opcode &&
+      OperandsEqual(
+          basis_instructions_[instruction_index_within_translation_].operands,
+          operands...)) {
     ++matching_instructions_count_;
   } else {
     FinishPendingInstructionIfNeeded();
-    AddRawUnsigned(static_cast<byte>(instruction.opcode));
-    for (int i = 0; i < value_count; ++i) {
-      AddRawUnsigned(instruction.operands[i]);
-    }
+    AddRawToContents(opcode, operands...);
     if (!match_previous_allowed_) {
+      // Include this instruction in basis_instructions_ so that future
+      // translations can check whether they match with it.
       DCHECK_EQ(basis_instructions_.size(),
                 instruction_index_within_translation_);
-      basis_instructions_.push_back(instruction);
+      basis_instructions_.emplace_back(opcode, operands...);
     }
   }
   ++instruction_index_within_translation_;
-}
-
-void TranslationArrayBuilder::AddWithNoOperands(TranslationOpcode opcode) {
-  AddWithUnsignedOperands(0, opcode);
-}
-
-void TranslationArrayBuilder::AddWithSignedOperand(TranslationOpcode opcode,
-                                                   int32_t operand) {
-  if (V8_UNLIKELY(v8_flags.turbo_compress_translation_arrays)) {
-    AddWithUnsignedOperand(opcode, operand);
-  } else {
-    AddWithUnsignedOperand(opcode, base::VLQConvertToUnsigned(operand));
-  }
-}
-
-void TranslationArrayBuilder::AddWithSignedOperands(
-    int operand_count, TranslationOpcode opcode, int32_t operand_1,
-    int32_t operand_2, int32_t operand_3, int32_t operand_4,
-    int32_t operand_5) {
-  if (V8_UNLIKELY(v8_flags.turbo_compress_translation_arrays)) {
-    AddWithUnsignedOperands(operand_count, opcode, operand_1, operand_2,
-                            operand_3, operand_4, operand_5);
-  } else {
-    AddWithUnsignedOperands(operand_count, opcode,
-                            base::VLQConvertToUnsigned(operand_1),
-                            base::VLQConvertToUnsigned(operand_2),
-                            base::VLQConvertToUnsigned(operand_3),
-                            base::VLQConvertToUnsigned(operand_4),
-                            base::VLQConvertToUnsigned(operand_5));
-  }
-}
-
-void TranslationArrayBuilder::AddWithUnsignedOperand(TranslationOpcode opcode,
-                                                     uint32_t operand) {
-  AddWithUnsignedOperands(1, opcode, operand);
-}
-
-void TranslationArrayBuilder::AddWithUnsignedOperands(
-    int operand_count, TranslationOpcode opcode, uint32_t operand_1,
-    uint32_t operand_2, uint32_t operand_3, uint32_t operand_4,
-    uint32_t operand_5) {
-  Instruction instruction;
-  instruction.opcode = opcode;
-  instruction.operands[0] = operand_1;
-  instruction.operands[1] = operand_2;
-  instruction.operands[2] = operand_3;
-  instruction.operands[3] = operand_4;
-  instruction.operands[4] = operand_5;
-  Add(instruction, operand_count);
 }
 
 Handle<TranslationArray> TranslationArrayBuilder::ToTranslationArray(
@@ -373,7 +368,10 @@ Handle<TranslationArray> TranslationArrayBuilder::ToTranslationArray(
       CHECK_EQ(instruction.opcode, it.NextOpcode());
       for (int j = 0; j < TranslationOpcodeOperandCount(instruction.opcode);
            ++j) {
-        CHECK_EQ(instruction.operands[j], it.NextOperandUnsigned());
+        uint32_t operand = instruction.is_operand_signed[j]
+                               ? it.NextOperand()
+                               : it.NextOperandUnsigned();
+        CHECK_EQ(instruction.operands[j], operand);
       }
     }
   }
@@ -384,7 +382,8 @@ Handle<TranslationArray> TranslationArrayBuilder::ToTranslationArray(
 void TranslationArrayBuilder::BeginBuiltinContinuationFrame(
     BytecodeOffset bytecode_offset, int literal_id, unsigned height) {
   auto opcode = TranslationOpcode::BUILTIN_CONTINUATION_FRAME;
-  AddWithSignedOperands(3, opcode, bytecode_offset.ToInt(), literal_id, height);
+  Add(opcode, SignedOperand(bytecode_offset.ToInt()), SignedOperand(literal_id),
+      SignedOperand(height));
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -392,175 +391,182 @@ void TranslationArrayBuilder::BeginJSToWasmBuiltinContinuationFrame(
     BytecodeOffset bytecode_offset, int literal_id, unsigned height,
     base::Optional<wasm::ValueKind> return_kind) {
   auto opcode = TranslationOpcode::JS_TO_WASM_BUILTIN_CONTINUATION_FRAME;
-  AddWithSignedOperands(
-      4, opcode, bytecode_offset.ToInt(), literal_id, height,
-      return_kind ? static_cast<int>(return_kind.value()) : kNoWasmReturnKind);
+  Add(opcode, SignedOperand(bytecode_offset.ToInt()), SignedOperand(literal_id),
+      SignedOperand(height),
+      SignedOperand(return_kind ? static_cast<int>(return_kind.value())
+                                : kNoWasmReturnKind));
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 void TranslationArrayBuilder::BeginJavaScriptBuiltinContinuationFrame(
     BytecodeOffset bytecode_offset, int literal_id, unsigned height) {
   auto opcode = TranslationOpcode::JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME;
-  AddWithSignedOperands(3, opcode, bytecode_offset.ToInt(), literal_id, height);
+  Add(opcode, SignedOperand(bytecode_offset.ToInt()), SignedOperand(literal_id),
+      SignedOperand(height));
 }
 
 void TranslationArrayBuilder::BeginJavaScriptBuiltinContinuationWithCatchFrame(
     BytecodeOffset bytecode_offset, int literal_id, unsigned height) {
   auto opcode =
       TranslationOpcode::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME;
-  AddWithSignedOperands(3, opcode, bytecode_offset.ToInt(), literal_id, height);
+  Add(opcode, SignedOperand(bytecode_offset.ToInt()), SignedOperand(literal_id),
+      SignedOperand(height));
 }
 
 void TranslationArrayBuilder::BeginConstructStubFrame(
     BytecodeOffset bytecode_offset, int literal_id, unsigned height) {
   auto opcode = TranslationOpcode::CONSTRUCT_STUB_FRAME;
-  AddWithSignedOperands(3, opcode, bytecode_offset.ToInt(), literal_id, height);
+  Add(opcode, SignedOperand(bytecode_offset.ToInt()), SignedOperand(literal_id),
+      SignedOperand(height));
 }
 
 void TranslationArrayBuilder::BeginInlinedExtraArguments(int literal_id,
                                                          unsigned height) {
   auto opcode = TranslationOpcode::INLINED_EXTRA_ARGUMENTS;
-  AddWithSignedOperands(2, opcode, literal_id, height);
+  Add(opcode, SignedOperand(literal_id), SignedOperand(height));
 }
 
 void TranslationArrayBuilder::BeginInterpretedFrame(
     BytecodeOffset bytecode_offset, int literal_id, unsigned height,
     int return_value_offset, int return_value_count) {
   auto opcode = TranslationOpcode::INTERPRETED_FRAME;
-  AddWithSignedOperands(5, opcode, bytecode_offset.ToInt(), literal_id, height,
-                        return_value_offset, return_value_count);
+  Add(opcode, SignedOperand(bytecode_offset.ToInt()), SignedOperand(literal_id),
+      SignedOperand(height), SignedOperand(return_value_offset),
+      SignedOperand(return_value_count));
 }
 
 void TranslationArrayBuilder::ArgumentsElements(CreateArgumentsType type) {
   auto opcode = TranslationOpcode::ARGUMENTS_ELEMENTS;
-  AddWithSignedOperand(opcode, static_cast<uint8_t>(type));
+  Add(opcode, SignedOperand(static_cast<uint8_t>(type)));
 }
 
 void TranslationArrayBuilder::ArgumentsLength() {
   auto opcode = TranslationOpcode::ARGUMENTS_LENGTH;
-  AddWithNoOperands(opcode);
+  Add(opcode);
 }
 
 void TranslationArrayBuilder::BeginCapturedObject(int length) {
   auto opcode = TranslationOpcode::CAPTURED_OBJECT;
-  AddWithSignedOperand(opcode, length);
+  Add(opcode, SignedOperand(length));
 }
 
 void TranslationArrayBuilder::DuplicateObject(int object_index) {
   auto opcode = TranslationOpcode::DUPLICATED_OBJECT;
-  AddWithSignedOperand(opcode, object_index);
+  Add(opcode, SignedOperand(object_index));
 }
 
-static uint32_t RegisterToUint32(Register reg) {
+void TranslationArrayBuilder::StoreRegister(TranslationOpcode opcode,
+                                            Register reg) {
   static_assert(Register::kNumRegisters - 1 <= base::kDataMask);
-  return static_cast<byte>(reg.code());
+  Add(opcode, SmallUnsignedOperand(static_cast<byte>(reg.code())));
 }
 
 void TranslationArrayBuilder::StoreRegister(Register reg) {
   auto opcode = TranslationOpcode::REGISTER;
-  AddWithUnsignedOperand(opcode, RegisterToUint32(reg));
+  StoreRegister(opcode, reg);
 }
 
 void TranslationArrayBuilder::StoreInt32Register(Register reg) {
   auto opcode = TranslationOpcode::INT32_REGISTER;
-  AddWithUnsignedOperand(opcode, RegisterToUint32(reg));
+  StoreRegister(opcode, reg);
 }
 
 void TranslationArrayBuilder::StoreInt64Register(Register reg) {
   auto opcode = TranslationOpcode::INT64_REGISTER;
-  AddWithUnsignedOperand(opcode, RegisterToUint32(reg));
+  StoreRegister(opcode, reg);
 }
 
 void TranslationArrayBuilder::StoreSignedBigInt64Register(Register reg) {
   auto opcode = TranslationOpcode::SIGNED_BIGINT64_REGISTER;
-  AddWithUnsignedOperand(opcode, RegisterToUint32(reg));
+  StoreRegister(opcode, reg);
 }
 
 void TranslationArrayBuilder::StoreUnsignedBigInt64Register(Register reg) {
   auto opcode = TranslationOpcode::UNSIGNED_BIGINT64_REGISTER;
-  AddWithUnsignedOperand(opcode, RegisterToUint32(reg));
+  StoreRegister(opcode, reg);
 }
 
 void TranslationArrayBuilder::StoreUint32Register(Register reg) {
   auto opcode = TranslationOpcode::UINT32_REGISTER;
-  AddWithUnsignedOperand(opcode, RegisterToUint32(reg));
+  StoreRegister(opcode, reg);
 }
 
 void TranslationArrayBuilder::StoreBoolRegister(Register reg) {
   auto opcode = TranslationOpcode::BOOL_REGISTER;
-  AddWithUnsignedOperand(opcode, RegisterToUint32(reg));
+  StoreRegister(opcode, reg);
 }
 
 void TranslationArrayBuilder::StoreFloatRegister(FloatRegister reg) {
   static_assert(FloatRegister::kNumRegisters - 1 <= base::kDataMask);
   auto opcode = TranslationOpcode::FLOAT_REGISTER;
-  AddWithUnsignedOperand(opcode, static_cast<byte>(reg.code()));
+  Add(opcode, SmallUnsignedOperand(static_cast<byte>(reg.code())));
 }
 
 void TranslationArrayBuilder::StoreDoubleRegister(DoubleRegister reg) {
   static_assert(DoubleRegister::kNumRegisters - 1 <= base::kDataMask);
   auto opcode = TranslationOpcode::DOUBLE_REGISTER;
-  AddWithUnsignedOperand(opcode, static_cast<byte>(reg.code()));
+  Add(opcode, SmallUnsignedOperand(static_cast<byte>(reg.code())));
 }
 
 void TranslationArrayBuilder::StoreStackSlot(int index) {
   auto opcode = TranslationOpcode::STACK_SLOT;
-  AddWithSignedOperand(opcode, index);
+  Add(opcode, SignedOperand(index));
 }
 
 void TranslationArrayBuilder::StoreInt32StackSlot(int index) {
   auto opcode = TranslationOpcode::INT32_STACK_SLOT;
-  AddWithSignedOperand(opcode, index);
+  Add(opcode, SignedOperand(index));
 }
 
 void TranslationArrayBuilder::StoreInt64StackSlot(int index) {
   auto opcode = TranslationOpcode::INT64_STACK_SLOT;
-  AddWithSignedOperand(opcode, index);
+  Add(opcode, SignedOperand(index));
 }
 
 void TranslationArrayBuilder::StoreSignedBigInt64StackSlot(int index) {
   auto opcode = TranslationOpcode::SIGNED_BIGINT64_STACK_SLOT;
-  AddWithSignedOperand(opcode, index);
+  Add(opcode, SignedOperand(index));
 }
 
 void TranslationArrayBuilder::StoreUnsignedBigInt64StackSlot(int index) {
   auto opcode = TranslationOpcode::UNSIGNED_BIGINT64_STACK_SLOT;
-  AddWithSignedOperand(opcode, index);
+  Add(opcode, SignedOperand(index));
 }
 
 void TranslationArrayBuilder::StoreUint32StackSlot(int index) {
   auto opcode = TranslationOpcode::UINT32_STACK_SLOT;
-  AddWithSignedOperand(opcode, index);
+  Add(opcode, SignedOperand(index));
 }
 
 void TranslationArrayBuilder::StoreBoolStackSlot(int index) {
   auto opcode = TranslationOpcode::BOOL_STACK_SLOT;
-  AddWithSignedOperand(opcode, index);
+  Add(opcode, SignedOperand(index));
 }
 
 void TranslationArrayBuilder::StoreFloatStackSlot(int index) {
   auto opcode = TranslationOpcode::FLOAT_STACK_SLOT;
-  AddWithSignedOperand(opcode, index);
+  Add(opcode, SignedOperand(index));
 }
 
 void TranslationArrayBuilder::StoreDoubleStackSlot(int index) {
   auto opcode = TranslationOpcode::DOUBLE_STACK_SLOT;
-  AddWithSignedOperand(opcode, index);
+  Add(opcode, SignedOperand(index));
 }
 
 void TranslationArrayBuilder::StoreLiteral(int literal_id) {
   auto opcode = TranslationOpcode::LITERAL;
-  AddWithSignedOperand(opcode, literal_id);
+  DCHECK_GE(literal_id, 0);
+  Add(opcode, SignedOperand(literal_id));
 }
 
 void TranslationArrayBuilder::StoreOptimizedOut() {
   auto opcode = TranslationOpcode::OPTIMIZED_OUT;
-  AddWithNoOperands(opcode);
+  Add(opcode);
 }
 
 void TranslationArrayBuilder::AddUpdateFeedback(int vector_literal, int slot) {
   auto opcode = TranslationOpcode::UPDATE_FEEDBACK;
-  AddWithSignedOperands(2, opcode, vector_literal, slot);
+  Add(opcode, SignedOperand(vector_literal), SignedOperand(slot));
 }
 
 void TranslationArrayBuilder::StoreJSFrameFunction() {

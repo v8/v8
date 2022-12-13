@@ -99,6 +99,7 @@ class TranslationArrayBuilder {
   void BeginCapturedObject(int length);
   void AddUpdateFeedback(int vector_literal, int slot);
   void DuplicateObject(int object_index);
+  void StoreRegister(TranslationOpcode opcode, Register reg);
   void StoreRegister(Register reg);
   void StoreInt32Register(Register reg);
   void StoreInt64Register(Register reg);
@@ -123,44 +124,45 @@ class TranslationArrayBuilder {
 
  private:
   struct Instruction {
-    Instruction() = default;
-    bool operator==(const Instruction& other) const {
-      static_assert(kMaxTranslationOperandCount == 5);
-      return opcode == other.opcode && operands[0] == other.operands[0] &&
-             operands[1] == other.operands[1] &&
-             operands[2] == other.operands[2] &&
-             operands[3] == other.operands[3] &&
-             operands[4] == other.operands[4];
+    template <typename... T>
+    Instruction(TranslationOpcode opcode, T... operands)
+        : opcode(opcode),
+          operands{operands.value()...}
+#ifdef ENABLE_SLOW_DCHECKS
+          ,
+          is_operand_signed{operands.IsSigned()...}
+#endif
+    {
     }
     TranslationOpcode opcode;
-    // The operands for the instruction. If turbo_compress_translation_arrays is
-    // set, then signed values were static_casted to unsigned. Otherwise, signed
-    // values have been encoded by base::VLQConvertToUnsigned. Operands not used
-    // by this instruction are zero.
+    // The operands for the instruction. Signed values were static_casted to
+    // unsigned.
     uint32_t operands[kMaxTranslationOperandCount];
+#ifdef ENABLE_SLOW_DCHECKS
+    bool is_operand_signed[kMaxTranslationOperandCount];
+#endif
   };
 
   // Either adds the instruction or increments matching_instructions_count_,
   // depending on whether the instruction matches the corresponding instruction
   // from the previous translation.
-  void Add(const Instruction& instruction, int value_count);
+  template <typename... T>
+  void Add(TranslationOpcode opcode, T... operands);
 
-  void AddRawSigned(int32_t value);
-  void AddRawUnsigned(uint32_t value);
+  // Adds the instruction to contents_, without performing the other steps of
+  // Add(). Requires !v8_flags.turbo_compress_translation_arrays.
+  template <typename... T>
+  void AddRawToContents(TranslationOpcode opcode, T... operands);
 
-  // Convenience methods which wrap calls to Add(). Unsigned versions are
-  // generally preferable if the data is known to be unsigned.
-  void AddWithNoOperands(TranslationOpcode opcode);
-  void AddWithSignedOperand(TranslationOpcode opcode, int32_t operand);
-  void AddWithSignedOperands(int operand_count, TranslationOpcode opcode,
-                             int32_t operand_1, int32_t operand_2,
-                             int32_t operand_3 = 0, int32_t operand_4 = 0,
-                             int32_t operand_5 = 0);
-  void AddWithUnsignedOperand(TranslationOpcode opcode, uint32_t operand);
-  void AddWithUnsignedOperands(int operand_count, TranslationOpcode opcode,
-                               uint32_t operand_1 = 0, uint32_t operand_2 = 0,
-                               uint32_t operand_3 = 0, uint32_t operand_4 = 0,
-                               uint32_t operand_5 = 0);
+  // Adds the instruction to contents_for_compression_, without performing the
+  // other steps of Add(). Requires v8_flags.turbo_compress_translation_arrays.
+  template <typename... T>
+  void AddRawToContentsForCompression(TranslationOpcode opcode, T... operands);
+
+  // Adds a BEGIN instruction to contents_ or contents_for_compression_, but
+  // does not update other state. Used by BeginTranslation.
+  template <typename... T>
+  void AddRawBegin(T... operands);
 
   int Size() const {
     return V8_UNLIKELY(v8_flags.turbo_compress_translation_arrays)
