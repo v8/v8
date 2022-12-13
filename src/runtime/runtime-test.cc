@@ -1712,13 +1712,6 @@ RUNTIME_FUNCTION(Runtime_IsSharedString) {
                                     Handle<String>::cast(obj)->IsShared());
 }
 
-RUNTIME_FUNCTION(Runtime_InSharedHeap) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  Handle<HeapObject> obj = args.at<HeapObject>(0);
-  return isolate->heap()->ToBoolean(obj->InSharedWritableHeap());
-}
-
 RUNTIME_FUNCTION(Runtime_IsInPlaceInternalizableString) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());

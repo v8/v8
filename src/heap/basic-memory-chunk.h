@@ -110,10 +110,6 @@ class BasicMemoryChunk {
 
     // A Page with code objects.
     IS_EXECUTABLE = 1u << 21,
-
-    // Page will be promoted directly from the new space to the shared heap in a
-    // minor GC.
-    SHARED_HEAP_PROMOTION = 1u << 22,
   };
 
   using MainThreadFlags = base::Flags<Flag, uintptr_t>;
@@ -190,11 +186,6 @@ class BasicMemoryChunk {
   Heap* heap() const {
     DCHECK_NOT_NULL(heap_);
     return heap_;
-  }
-
-  void set_heap(Heap* heap) {
-    DCHECK_NOT_NULL(heap);
-    heap_ = heap;
   }
 
   // Gets the chunk's owner or null if the space has been detached.

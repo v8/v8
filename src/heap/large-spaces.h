@@ -140,8 +140,6 @@ class V8_EXPORT_PRIVATE LargeObjectSpace : public Space {
 
   void set_objects_size(size_t objects_size) { objects_size_ = objects_size; }
 
-  void PromoteNewLargeObject(LargePage* page);
-
  protected:
   LargeObjectSpace(Heap* heap, AllocationSpace id);
 
@@ -182,6 +180,8 @@ class OldLargeObjectSpace : public LargeObjectSpace {
 
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT AllocationResult
   AllocateRawBackground(LocalHeap* local_heap, int object_size);
+
+  void PromoteNewLargeObject(LargePage* page);
 
  protected:
   explicit OldLargeObjectSpace(Heap* heap, AllocationSpace id);
