@@ -1979,6 +1979,12 @@ DEFINE_BOOL(
     "Fuzzers use this flag to signal that they are ... fuzzing. This causes "
     "intrinsics to fail silently (e.g. return undefined) on invalid usage.")
 
+// When fuzzing, always compile functions twice and ensure that the generated
+// bytecode is the same. This can help find bugs such as crbug.com/1394403 as it
+// avoids the need for bytecode aging to kick in to trigger the recomplication.
+DEFINE_WEAK_NEG_IMPLICATION(fuzzing, lazy)
+DEFINE_WEAK_IMPLICATION(fuzzing, stress_lazy_source_positions)
+
 #if defined(V8_OS_AIX) && defined(COMPONENT_BUILD)
 // FreezeFlags relies on mprotect() method, which does not work by default on
 // shared mem: https://www.ibm.com/docs/en/aix/7.2?topic=m-mprotect-subroutine
