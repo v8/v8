@@ -78,7 +78,7 @@ class InspectorIsolateData : public v8_inspector::V8InspectorClient {
   void BreakProgram(int context_group_id,
                     const v8_inspector::StringView& reason,
                     const v8_inspector::StringView& details);
-  void Stop(int context_group_id);
+  void Stop(int session_id);
   void SchedulePauseOnNextStatement(int context_group_id,
                                     const v8_inspector::StringView& reason,
                                     const v8_inspector::StringView& details);

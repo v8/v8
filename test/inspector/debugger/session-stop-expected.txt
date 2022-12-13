@@ -13,3 +13,8 @@ Pause error(?): Debugger agent is not enabled
 Running test: testSessionStopDisallowsReenabling
 Pause error(?) after stop: Debugger agent is not enabled
 Pause error(?) after re-enable: Debugger agent is not enabled
+
+Running test: testSessionStopDoesNotDisableOtherSessions
+Session 1 pause error after stop: Debugger agent is not enabled
+Session 2 paused: other
+Session 2 evaluation: 42

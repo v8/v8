@@ -201,12 +201,10 @@ void InspectorIsolateData::BreakProgram(
   }
 }
 
-void InspectorIsolateData::Stop(int context_group_id) {
+void InspectorIsolateData::Stop(int session_id) {
   v8::SealHandleScope seal_handle_scope(isolate());
-  for (int session_id : GetSessionIds(context_group_id)) {
-    auto it = sessions_.find(session_id);
-    if (it != sessions_.end()) it->second->stop();
-  }
+  auto it = sessions_.find(session_id);
+  if (it != sessions_.end()) it->second->stop();
 }
 
 void InspectorIsolateData::SchedulePauseOnNextStatement(

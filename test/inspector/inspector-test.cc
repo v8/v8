@@ -279,13 +279,12 @@ class UtilsExtension : public InspectorIsolateData::SetupGlobalTask {
 
   static void Stop(const v8::FunctionCallbackInfo<v8::Value>& args) {
     if (args.Length() != 1 || !args[0]->IsInt32()) {
-      FATAL("Internal error: stop(context_group_id).");
+      FATAL("Internal error: stop(session_id).");
     }
-    int context_group_id = args[0].As<v8::Int32>()->Value();
-    RunSyncTask(backend_runner_,
-                [&context_group_id](InspectorIsolateData* data) {
-                  data->Stop(context_group_id);
-                });
+    int session_id = args[0].As<v8::Int32>()->Value();
+    RunSyncTask(backend_runner_, [&session_id](InspectorIsolateData* data) {
+      data->Stop(session_id);
+    });
   }
 
   static void SetLogConsoleApiMessageCalls(
