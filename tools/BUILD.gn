@@ -60,6 +60,7 @@ group("v8_testrunner") {
     "predictable_wrapper.py",
     "run-num-fuzzer.py",
     "run-tests.py",
+    ".vpython3",
     "testrunner/",
   ]
 
