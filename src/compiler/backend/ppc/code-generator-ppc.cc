@@ -2634,15 +2634,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kPPC_I8x16Shuffle: {
-      Simd128Register dst = i.OutputSimd128Register(),
-                      src0 = i.InputSimd128Register(0),
-                      src1 = i.InputSimd128Register(1);
       uint64_t low = make_uint64(i.InputUint32(3), i.InputUint32(2));
       uint64_t high = make_uint64(i.InputUint32(5), i.InputUint32(4));
-      __ mov(r0, Operand(low));
-      __ mov(ip, Operand(high));
-      __ mtvsrdd(kScratchSimd128Reg, ip, r0);
-      __ vperm(dst, src0, src1, kScratchSimd128Reg);
+      __ I8x16Shuffle(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                      i.InputSimd128Register(1), high, low, r0, ip,
+                      kScratchSimd128Reg);
       break;
     }
     case kPPC_I64x2BitMask: {

@@ -2391,7 +2391,26 @@ void LiftoffAssembler::emit_i8x16_shuffle(LiftoffRegister dst,
                                           LiftoffRegister rhs,
                                           const uint8_t shuffle[16],
                                           bool is_swizzle) {
-  bailout(kSimd, "i8x16_shuffle");
+  // Remap the shuffle indices to match IBM lane numbering.
+  // TODO(miladfarca): Put this in a function and share it with the instruction
+  // selector.
+  int max_index = 15;
+  int total_lane_count = 2 * kSimd128Size;
+  uint8_t shuffle_remapped[kSimd128Size];
+  for (int i = 0; i < kSimd128Size; i++) {
+    uint8_t current_index = shuffle[i];
+    shuffle_remapped[i] = (current_index <= max_index
+                               ? max_index - current_index
+                               : total_lane_count - current_index + max_index);
+  }
+  uint64_t vals[2];
+  memcpy(vals, shuffle_remapped, sizeof(shuffle_remapped));
+#ifdef V8_TARGET_BIG_ENDIAN
+  vals[0] = ByteReverse(vals[0]);
+  vals[1] = ByteReverse(vals[1]);
+#endif
+  I8x16Shuffle(dst.fp().toSimd(), lhs.fp().toSimd(), rhs.fp().toSimd(), vals[1],
+               vals[0], r0, ip, kScratchSimd128Reg);
 }
 
 void LiftoffAssembler::emit_v128_anytrue(LiftoffRegister dst,

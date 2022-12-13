@@ -4559,6 +4559,16 @@ void TurboAssembler::I8x16Swizzle(Simd128Register dst, Simd128Register src1,
   vperm(dst, dst, kSimd128RegZero, scratch);
 }
 
+void TurboAssembler::I8x16Shuffle(Simd128Register dst, Simd128Register src1,
+                                  Simd128Register src2, uint64_t high,
+                                  uint64_t low, Register scratch1,
+                                  Register scratch2, Simd128Register scratch3) {
+  mov(scratch1, Operand(low));
+  mov(scratch2, Operand(high));
+  mtvsrdd(scratch3, scratch2, scratch1);
+  vperm(dst, src1, src2, scratch3);
+}
+
 void TurboAssembler::V128AnyTrue(Register dst, Simd128Register src,
                                  Register scratch1, Register scratch2,
                                  Simd128Register scratch3) {
