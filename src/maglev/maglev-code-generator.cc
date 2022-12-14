@@ -150,8 +150,7 @@ class ParallelMoveResolver {
   // node in the move graph.
   struct GapMoveTargets {
     RegListBase<RegisterT> registers;
-    base::SmallVector<uint32_t, 1> stack_slots =
-        base::SmallVector<uint32_t, 1>{};
+    base::SmallVector<int32_t, 1> stack_slots = base::SmallVector<int32_t, 1>{};
 
     GapMoveTargets() = default;
     GapMoveTargets(GapMoveTargets&&) V8_NOEXCEPT = default;
@@ -185,11 +184,11 @@ class ParallelMoveResolver {
     }
   }
 
-  void CheckNoExistingMoveToStackSlot(uint32_t target_slot) {
+  void CheckNoExistingMoveToStackSlot(int32_t target_slot) {
     for (Register reg : kAllocatableRegistersT) {
       auto& stack_slots = moves_from_register_[reg.code()].stack_slots;
       if (std::any_of(stack_slots.begin(), stack_slots.end(),
-                      [&](uint32_t slot) { return slot == target_slot; })) {
+                      [&](int32_t slot) { return slot == target_slot; })) {
         FATAL("Existing move from %s to stack slot %d", RegisterName(reg),
               target_slot);
       }
@@ -197,7 +196,7 @@ class ParallelMoveResolver {
     for (auto& [stack_slot, targets] : moves_from_stack_slot_) {
       auto& stack_slots = targets.stack_slots;
       if (std::any_of(stack_slots.begin(), stack_slots.end(),
-                      [&](uint32_t slot) { return slot == target_slot; })) {
+                      [&](int32_t slot) { return slot == target_slot; })) {
         FATAL("Existing move from stack slot %d to stack slot %d", stack_slot,
               target_slot);
       }
@@ -211,7 +210,7 @@ class ParallelMoveResolver {
   }
 #else
   void CheckNoExistingMoveToRegister(RegisterT target_reg) {}
-  void CheckNoExistingMoveToStackSlot(uint32_t target_slot) {}
+  void CheckNoExistingMoveToStackSlot(int32_t target_slot) {}
 #endif
 
   void RecordMoveToRegister(ValueNode* node,
@@ -226,7 +225,7 @@ class ParallelMoveResolver {
         moves_from_register_[source_reg.code()].registers.set(target_reg);
       }
     } else if (source.IsAnyStackSlot()) {
-      uint32_t source_slot = masm_->GetFramePointerOffsetForStackSlot(
+      int32_t source_slot = masm_->GetFramePointerOffsetForStackSlot(
           compiler::AllocatedOperand::cast(source));
       moves_from_stack_slot_[source_slot].registers.set(target_reg);
     } else {
@@ -238,7 +237,7 @@ class ParallelMoveResolver {
 
   void RecordMoveToStackSlot(ValueNode* node,
                              compiler::InstructionOperand source,
-                             uint32_t target_slot) {
+                             int32_t target_slot) {
     // There shouldn't have been another move to this stack slot already.
     CheckNoExistingMoveToStackSlot(target_slot);
 
@@ -247,7 +246,7 @@ class ParallelMoveResolver {
       moves_from_register_[source_reg.code()].stack_slots.push_back(
           target_slot);
     } else if (source.IsAnyStackSlot()) {
-      uint32_t source_slot = masm_->GetFramePointerOffsetForStackSlot(
+      int32_t source_slot = masm_->GetFramePointerOffsetForStackSlot(
           compiler::AllocatedOperand::cast(source));
       if (source_slot != target_slot) {
         moves_from_stack_slot_[source_slot].stack_slots.push_back(target_slot);
@@ -265,7 +264,7 @@ class ParallelMoveResolver {
     return std::exchange(moves_from_register_[source_reg.code()],
                          GapMoveTargets{});
   }
-  GapMoveTargets PopTargets(uint32_t source_slot) {
+  GapMoveTargets PopTargets(int32_t source_slot) {
     auto handle = moves_from_stack_slot_.extract(source_slot);
     if (handle.empty()) return {};
     DCHECK(!handle.mapped().is_empty());
@@ -313,7 +312,7 @@ class ParallelMoveResolver {
       if (chain_start == source) {
         __ RecordComment("--   * Cycle");
         DCHECK(!scratch_has_cycle_start_);
-        if constexpr (std::is_same_v<ChainStartT, uint32_t>) {
+        if constexpr (std::is_same_v<ChainStartT, int32_t>) {
           __ Move(kScratchRegT, StackSlot{chain_start});
         } else {
           __ Move(kScratchRegT, chain_start);
@@ -345,7 +344,7 @@ class ParallelMoveResolver {
     for (auto target : targets.registers) {
       has_cycle |= ContinueEmitMoveChain(chain_start, target);
     }
-    for (uint32_t target_slot : targets.stack_slots) {
+    for (int32_t target_slot : targets.stack_slots) {
       has_cycle |= ContinueEmitMoveChain(chain_start, target_slot);
     }
     return has_cycle;
@@ -357,14 +356,14 @@ class ParallelMoveResolver {
       DCHECK(moves_from_register_[target_reg.code()].is_empty());
       __ Move(target_reg, source_reg);
     }
-    for (uint32_t target_slot : targets.stack_slots) {
+    for (int32_t target_slot : targets.stack_slots) {
       DCHECK_EQ(moves_from_stack_slot_.find(target_slot),
                 moves_from_stack_slot_.end());
       __ Move(StackSlot{target_slot}, source_reg);
     }
   }
 
-  void EmitMovesFromSource(uint32_t source_slot, GapMoveTargets&& targets) {
+  void EmitMovesFromSource(int32_t source_slot, GapMoveTargets&& targets) {
     DCHECK_EQ(moves_from_stack_slot_.find(source_slot),
               moves_from_stack_slot_.end());
 
@@ -410,16 +409,16 @@ class ParallelMoveResolver {
   std::array<GapMoveTargets, RegisterT::kNumRegisters> moves_from_register_ =
       {};
 
-  // TODO(victorgomes): Use MaglevAssembler::StackSlot instead of uint32_t.
+  // TODO(victorgomes): Use MaglevAssembler::StackSlot instead of int32_t.
   // moves_from_stack_slot_[source] = target.
-  std::unordered_map<uint32_t, GapMoveTargets> moves_from_stack_slot_;
+  std::unordered_map<int32_t, GapMoveTargets> moves_from_stack_slot_;
 
   // materializing_register_moves[target] = node.
   std::array<ValueNode*, RegisterT::kNumRegisters>
       materializing_register_moves_ = {};
 
   // materializing_stack_slot_moves = {(node,target), ... }.
-  std::vector<std::pair<uint32_t, ValueNode*>> materializing_stack_slot_moves_;
+  std::vector<std::pair<int32_t, ValueNode*>> materializing_stack_slot_moves_;
 
   bool scratch_has_cycle_start_ = false;
 };

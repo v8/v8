@@ -38,7 +38,7 @@ class ZoneLabelRef {
 
 // The slot index is the offset from the frame pointer.
 struct StackSlot {
-  uint32_t index;
+  int32_t index;
 };
 
 class MaglevAssembler : public MacroAssembler {
