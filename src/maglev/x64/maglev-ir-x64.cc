@@ -242,33 +242,6 @@ void CreateEmptyObjectLiteral::GenerateCode(MaglevAssembler* masm,
   }
 }
 
-namespace {
-Condition ToCondition(AssertCondition cond) {
-  switch (cond) {
-    case AssertCondition::kLess:
-      return less;
-    case AssertCondition::kLessOrEqual:
-      return less_equal;
-    case AssertCondition::kGreater:
-      return greater;
-    case AssertCondition::kGeaterOrEqual:
-      return greater_equal;
-    case AssertCondition::kBelow:
-      return below;
-    case AssertCondition::kBelowOrEqual:
-      return below_equal;
-    case AssertCondition::kAbove:
-      return above;
-    case AssertCondition::kAboveOrEqual:
-      return above_equal;
-    case AssertCondition::kEqual:
-      return equal;
-    case AssertCondition::kNotEqual:
-      return not_equal;
-  }
-}
-}  // namespace
-
 void AssertInt32::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());
@@ -689,16 +662,6 @@ void CheckJSObjectElementsBounds::GenerateCode(MaglevAssembler* masm,
                    FieldOperand(kScratchRegister, FixedArray::kLengthOffset));
   __ cmpl(index, kScratchRegister);
   __ EmitEagerDeoptIf(above_equal, DeoptimizeReason::kOutOfBounds, this);
-}
-
-void CheckInt32Condition::SetValueLocationConstraints() {
-  UseRegister(left_input());
-  UseRegister(right_input());
-}
-void CheckInt32Condition::GenerateCode(MaglevAssembler* masm,
-                                       const ProcessingState& state) {
-  __ cmpq(ToRegister(left_input()), ToRegister(right_input()));
-  __ EmitEagerDeoptIf(NegateCondition(ToCondition(condition_)), reason_, this);
 }
 
 void CheckedInternalizedString::SetValueLocationConstraints() {

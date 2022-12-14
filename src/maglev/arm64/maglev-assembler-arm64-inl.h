@@ -401,6 +401,31 @@ inline void MaglevAssembler::MoveRepr(MachineRepresentation repr,
   }
 }
 
+inline Condition ToCondition(AssertCondition cond) {
+  switch (cond) {
+    case AssertCondition::kLess:
+      return lt;
+    case AssertCondition::kLessOrEqual:
+      return le;
+    case AssertCondition::kGreater:
+      return gt;
+    case AssertCondition::kGeaterOrEqual:
+      return ge;
+    case AssertCondition::kBelow:
+      return lo;
+    case AssertCondition::kBelowOrEqual:
+      return ls;
+    case AssertCondition::kAbove:
+      return hi;
+    case AssertCondition::kAboveOrEqual:
+      return hs;
+    case AssertCondition::kEqual:
+      return eq;
+    case AssertCondition::kNotEqual:
+      return ne;
+  }
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8

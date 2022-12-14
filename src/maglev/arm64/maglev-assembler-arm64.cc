@@ -338,6 +338,146 @@ void MaglevAssembler::MaybeEmitDeoptBuiltinsCall(size_t eager_deopt_count,
   }
 }
 
+void MaglevAssembler::StringCharCodeAt(RegisterSnapshot& register_snapshot,
+                                       Register result, Register string,
+                                       Register index, Register not_used,
+                                       Label* result_fits_one_byte) {
+  DCHECK(!not_used.is_valid());
+
+  ZoneLabelRef done(this);
+  Label seq_string;
+  Label cons_string;
+  Label sliced_string;
+
+  DeferredCodeInfo* deferred_runtime_call = PushDeferredCode(
+      [](MaglevAssembler* masm, RegisterSnapshot register_snapshot,
+         ZoneLabelRef done, Register result, Register string, Register index) {
+        DCHECK(!register_snapshot.live_registers.has(result));
+        DCHECK(!register_snapshot.live_registers.has(string));
+        DCHECK(!register_snapshot.live_registers.has(index));
+        {
+          SaveRegisterStateForCall save_register_state(masm, register_snapshot);
+          __ SmiTag(index);
+          __ Push(string, index);
+          __ Move(kContextRegister, masm->native_context().object());
+          // This call does not throw nor can deopt.
+          __ CallRuntime(Runtime::kStringCharCodeAt);
+          save_register_state.DefineSafepoint();
+          __ SmiUntag(kReturnRegister0);
+          __ Move(result, kReturnRegister0);
+        }
+        __ jmp(*done);
+      },
+      register_snapshot, done, result, string, index);
+
+  UseScratchRegisterScope temps(this);
+  Register instance_type = temps.AcquireX();
+
+  // We might need to try more than one time for ConsString, SlicedString and
+  // ThinString.
+  Label loop;
+  bind(&loop);
+
+  if (v8_flags.debug_code) {
+    Register scratch = instance_type;
+
+    // Check if {string} is a string.
+    AssertNotSmi(string);
+    LoadMap(scratch, string);
+    CompareInstanceTypeRange(scratch, scratch, FIRST_STRING_TYPE,
+                             LAST_STRING_TYPE);
+    Check(ls, AbortReason::kUnexpectedValue);
+
+    Ldr(scratch.W(), FieldMemOperand(string, String::kLengthOffset));
+    Cmp(index.W(), scratch.W());
+    Check(lo, AbortReason::kUnexpectedValue);
+  }
+
+  // Get instance type.
+  LoadMap(instance_type, string);
+  Ldr(instance_type.W(),
+      FieldMemOperand(instance_type, Map::kInstanceTypeOffset));
+
+  {
+    UseScratchRegisterScope temps(this);
+    Register representation = temps.AcquireW();
+
+    // TODO(victorgomes): Add fast path for external strings.
+    And(representation, instance_type.W(),
+        Immediate(kStringRepresentationMask));
+    Cmp(representation, Immediate(kSeqStringTag));
+    B(&seq_string, eq);
+    Cmp(representation, Immediate(kConsStringTag));
+    B(&cons_string, eq);
+    Cmp(representation, Immediate(kSlicedStringTag));
+    B(&sliced_string, eq);
+    Cmp(representation, Immediate(kThinStringTag));
+    B(&deferred_runtime_call->deferred_code_label, ne);
+    // Fallthrough to thin string.
+  }
+
+  // Is a thin string.
+  {
+    DecompressAnyTagged(string,
+                        FieldMemOperand(string, ThinString::kActualOffset));
+    B(&loop);
+  }
+
+  bind(&sliced_string);
+  {
+    UseScratchRegisterScope temps(this);
+    Register offset = temps.AcquireX();
+
+    Ldr(offset.W(), FieldMemOperand(string, SlicedString::kOffsetOffset));
+    SmiUntag(offset);
+    DecompressAnyTagged(string,
+                        FieldMemOperand(string, SlicedString::kParentOffset));
+    Add(index, index, offset);
+    B(&loop);
+  }
+
+  bind(&cons_string);
+  {
+    // Reuse {instance_type} register here, since CompareRoot requires a scratch
+    // register as well.
+    Register second_string = instance_type;
+    Ldr(second_string, FieldMemOperand(string, ConsString::kSecondOffset));
+    CompareRoot(second_string, RootIndex::kempty_string);
+    B(&deferred_runtime_call->deferred_code_label, ne);
+    DecompressAnyTagged(string,
+                        FieldMemOperand(string, ConsString::kFirstOffset));
+    B(&loop);  // Try again with first string.
+  }
+
+  bind(&seq_string);
+  {
+    Label two_byte_string;
+    TestAndBranchIfAllClear(instance_type, kOneByteStringTag, &two_byte_string);
+    Add(index, index, SeqOneByteString::kHeaderSize - kHeapObjectTag);
+    Ldrb(result, MemOperand(string, index));
+    B(result_fits_one_byte);
+
+    bind(&two_byte_string);
+    Lsl(index, index, 2);
+    Add(index, index, SeqTwoByteString::kHeaderSize - kHeapObjectTag);
+    Ldrh(result, MemOperand(string, index));
+    // Fallthrough.
+  }
+
+  bind(*done);
+
+  if (v8_flags.debug_code) {
+    // We make sure that the user of this macro is not relying in string and
+    // index to not be clobbered.
+    if (result != string) {
+      Mov(string, Immediate(0xdeadbeef));
+    }
+    if (result != index) {
+      Mov(index, Immediate(0xdeadbeef));
+    }
+  }
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8

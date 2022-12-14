@@ -113,7 +113,6 @@ void Int32DecrementWithOverflow::GenerateCode(MaglevAssembler* masm,
 
 UNIMPLEMENTED_NODE_WITH_CALL(Float64Ieee754Unary)
 UNIMPLEMENTED_NODE_WITH_CALL(BuiltinStringFromCharCode)
-UNIMPLEMENTED_NODE_WITH_CALL(BuiltinStringPrototypeCharCodeAt)
 UNIMPLEMENTED_NODE_WITH_CALL(CallBuiltin)
 UNIMPLEMENTED_NODE_WITH_CALL(CallRuntime)
 UNIMPLEMENTED_NODE_WITH_CALL(CallWithArrayLike)
@@ -138,13 +137,10 @@ UNIMPLEMENTED_NODE(CheckedTruncateFloat64ToInt32)
 UNIMPLEMENTED_NODE(CheckedTruncateFloat64ToUint32)
 UNIMPLEMENTED_NODE(TruncateUint32ToInt32)
 UNIMPLEMENTED_NODE(TruncateFloat64ToInt32)
-UNIMPLEMENTED_NODE(Int32ToNumber)
-UNIMPLEMENTED_NODE(Uint32ToNumber)
 UNIMPLEMENTED_NODE(HoleyFloat64Box)
 UNIMPLEMENTED_NODE(LogicalNot)
 UNIMPLEMENTED_NODE(SetPendingMessage)
 UNIMPLEMENTED_NODE_WITH_CALL(StringAt)
-UNIMPLEMENTED_NODE(StringLength)
 UNIMPLEMENTED_NODE(TestUndetectable)
 UNIMPLEMENTED_NODE(TestTypeOf, literal_)
 UNIMPLEMENTED_NODE_WITH_CALL(ToObject)
@@ -153,7 +149,6 @@ UNIMPLEMENTED_NODE(AssertInt32, condition_, reason_)
 UNIMPLEMENTED_NODE(CheckDynamicValue)
 UNIMPLEMENTED_NODE(CheckUint32IsSmi)
 UNIMPLEMENTED_NODE(CheckHeapObject)
-UNIMPLEMENTED_NODE(CheckInt32Condition, condition_, reason_)
 UNIMPLEMENTED_NODE(CheckJSArrayBounds)
 UNIMPLEMENTED_NODE(CheckJSDataViewBounds, element_type_)
 UNIMPLEMENTED_NODE(CheckJSObjectElementsBounds)
@@ -180,6 +175,25 @@ UNIMPLEMENTED_NODE_WITH_CALL(ThrowIfNotSuperConstructor)
 UNIMPLEMENTED_NODE(BranchIfUndefinedOrNull)
 UNIMPLEMENTED_NODE(BranchIfJSReceiver)
 UNIMPLEMENTED_NODE(Switch)
+
+int BuiltinStringPrototypeCharCodeAt::MaxCallStackArgs() const {
+  DCHECK_EQ(Runtime::FunctionForId(Runtime::kStringCharCodeAt)->nargs, 2);
+  return 2;
+}
+void BuiltinStringPrototypeCharCodeAt::SetValueLocationConstraints() {
+  UseAndClobberRegister(string_input());
+  UseAndClobberRegister(index_input());
+  DefineAsRegister(this);
+}
+void BuiltinStringPrototypeCharCodeAt::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
+  Label done;
+  RegisterSnapshot save_registers = register_snapshot();
+  __ StringCharCodeAt(save_registers, ToRegister(result()),
+                      ToRegister(string_input()), ToRegister(index_input()),
+                      Register::no_reg(), &done);
+  __ bind(&done);
+}
 
 int CreateEmptyObjectLiteral::MaxCallStackArgs() const {
   return AllocateDescriptor::GetStackParameterCount();
@@ -224,6 +238,56 @@ void CheckSymbol::GenerateCode(MaglevAssembler* masm,
   Register scratch = temps.AcquireX();
   __ CmpObjectType(object, SYMBOL_TYPE, scratch);
   __ EmitEagerDeoptIf(ne, DeoptimizeReason::kNotASymbol, this);
+}
+
+void Int32ToNumber::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineAsRegister(this);
+}
+void Int32ToNumber::GenerateCode(MaglevAssembler* masm,
+                                 const ProcessingState& state) {
+  ZoneLabelRef done(masm);
+  Register object = ToRegister(result());
+  Register value = ToRegister(input());
+  UseScratchRegisterScope temps(masm);
+  Register scratch = temps.AcquireW();
+  __ Adds(scratch, value.W(), value.W());
+  __ JumpToDeferredIf(
+      vs,
+      [](MaglevAssembler* masm, Register object, Register value,
+         ZoneLabelRef done, Int32ToNumber* node) {
+        DoubleRegister double_value = kScratchDoubleReg;
+        __ Scvtf(double_value, value.W());
+        __ AllocateHeapNumber(node->register_snapshot(), object, double_value);
+        __ B(*done);
+      },
+      object, value, done, this);
+  __ Mov(object.W(), scratch);
+  __ bind(*done);
+}
+
+void Uint32ToNumber::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineAsRegister(this);
+}
+void Uint32ToNumber::GenerateCode(MaglevAssembler* masm,
+                                  const ProcessingState& state) {
+  ZoneLabelRef done(masm);
+  Register value = ToRegister(input());
+  Register object = ToRegister(result());
+  __ Cmp(value.W(), Immediate(Smi::kMaxValue));
+  __ JumpToDeferredIf(
+      hi,
+      [](MaglevAssembler* masm, Register object, Register value,
+         ZoneLabelRef done, Uint32ToNumber* node) {
+        DoubleRegister double_value = kScratchDoubleReg;
+        __ Ucvtf(double_value, value.W());
+        __ AllocateHeapNumber(node->register_snapshot(), object, double_value);
+        __ B(*done);
+      },
+      object, value, done, this);
+  __ Add(object, value, value);
+  __ bind(*done);
 }
 
 void Int32AddWithOverflow::SetValueLocationConstraints() {
@@ -963,6 +1027,27 @@ void LoadDoubleElement::GenerateCode(MaglevAssembler* masm,
   __ Add(elements, elements, Operand(index, LSL, kDoubleSizeLog2));
   __ Ldr(ToDoubleRegister(result()),
          FieldMemOperand(elements, FixedArray::kHeaderSize));
+}
+
+void StringLength::SetValueLocationConstraints() {
+  UseRegister(object_input());
+  DefineAsRegister(this);
+}
+void StringLength::GenerateCode(MaglevAssembler* masm,
+                                const ProcessingState& state) {
+  Register object = ToRegister(object_input());
+  if (v8_flags.debug_code) {
+    // Check if {object} is a string.
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.AcquireX();
+    __ AssertNotSmi(object);
+    __ LoadMap(scratch, object);
+    __ CompareInstanceTypeRange(scratch, scratch, FIRST_STRING_TYPE,
+                                LAST_STRING_TYPE);
+    __ Check(ls, AbortReason::kUnexpectedValue);
+  }
+  __ Ldr(ToRegister(result()).W(),
+         FieldMemOperand(object, String::kLengthOffset));
 }
 
 // ---

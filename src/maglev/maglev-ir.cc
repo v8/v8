@@ -915,6 +915,16 @@ void StoreGlobal::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
+void CheckInt32Condition::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+}
+void CheckInt32Condition::GenerateCode(MaglevAssembler* masm,
+                                       const ProcessingState& state) {
+  __ CompareInt32(ToRegister(left_input()), ToRegister(right_input()));
+  __ EmitEagerDeoptIf(NegateCondition(ToCondition(condition_)), reason_, this);
+}
+
 void ConvertHoleToUndefined::SetValueLocationConstraints() {
   UseRegister(object_input());
   DefineSameAsFirst(this);
