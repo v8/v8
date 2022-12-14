@@ -540,6 +540,10 @@ RUNTIME_FUNCTION(Runtime_CompileOptimizedOSRFromMaglev) {
   DCHECK_EQ(frame->LookupCodeT().kind(), CodeKind::MAGLEV);
   Handle<JSFunction> function = handle(frame->function(), isolate);
 
+  if (V8_UNLIKELY(function->ActiveTierIsTurbofan())) {
+    return function->code();
+  }
+
   if (V8_LIKELY(isolate->concurrent_recompilation_enabled() &&
                 v8_flags.concurrent_osr && v8_flags.turbofan)) {
     return CompileOptimizedOSR(isolate, function, osr_offset);
