@@ -40,6 +40,7 @@ void MarkingBarrier::Write(HeapObject host, HeapObjectSlot slot,
                            HeapObject value) {
   DCHECK(IsCurrentMarkingBarrier(host));
   DCHECK(is_activated_ || shared_heap_worklist_.has_value());
+  DCHECK(MemoryChunk::FromHeapObject(host)->IsMarking());
   MarkValue(host, value);
 
   if (slot.address()) {
@@ -71,6 +72,7 @@ void MarkingBarrier::Write(Code host, RelocInfo* reloc_info, HeapObject value) {
   DCHECK(IsCurrentMarkingBarrier(host));
   DCHECK(!host.InSharedWritableHeap());
   DCHECK(is_activated_ || shared_heap_worklist_.has_value());
+  DCHECK(MemoryChunk::FromHeapObject(host)->IsMarking());
   MarkValue(host, value);
   if (is_compacting_) {
     DCHECK(is_major());
@@ -88,6 +90,7 @@ void MarkingBarrier::Write(JSArrayBuffer host,
                            ArrayBufferExtension* extension) {
   DCHECK(IsCurrentMarkingBarrier(host));
   DCHECK(!host.InSharedWritableHeap());
+  DCHECK(MemoryChunk::FromHeapObject(host)->IsMarking());
 
   if (is_minor()) {
     if (Heap::InYoungGeneration(host)) {
@@ -102,8 +105,7 @@ void MarkingBarrier::Write(DescriptorArray descriptor_array,
                            int number_of_own_descriptors) {
   DCHECK(IsCurrentMarkingBarrier(descriptor_array));
   DCHECK(IsReadOnlyHeapObject(descriptor_array.map()));
-
-  if (is_minor() && !heap_->InYoungGeneration(descriptor_array)) return;
+  DCHECK(MemoryChunk::FromHeapObject(descriptor_array)->IsMarking());
 
   // The DescriptorArray needs to be marked black here to ensure that slots are
   // recorded by the Scavenger in case the DescriptorArray is promoted while
@@ -119,26 +121,29 @@ void MarkingBarrier::Write(DescriptorArray descriptor_array,
   }
 
   int16_t old_marked = 0;
+  base::Optional<unsigned> gc_epoch;
 
-  // Concurrent MinorMC always marks the full young generation DescriptorArray.
-  // We cannot use epoch like MajorMC does because only the lower 2 bits are
-  // used, and with many MinorMC cycles this could lead to correctness issues.
-  if (!is_minor()) {
-    int gc_epoch;
-
-    if (uses_shared_heap_ && !is_shared_space_isolate_ &&
-        descriptor_array.InSharedWritableHeap()) {
+  if (V8_UNLIKELY(uses_shared_heap_) &&
+      descriptor_array.InSharedWritableHeap()) {
+    if (is_shared_space_isolate_) {
+      gc_epoch = major_collector_->epoch();
+    } else {
       gc_epoch = isolate()
                      ->shared_heap_isolate()
                      ->heap()
                      ->mark_compact_collector()
                      ->epoch();
-    } else {
-      gc_epoch = major_collector_->epoch();
     }
+  } else if (is_major()) {
+    gc_epoch = major_collector_->epoch();
+  }
 
+  // Concurrent MinorMC always marks the full young generation DescriptorArray.
+  // We cannot use epoch like MajorMC does because only the lower 2 bits are
+  // used, and with many MinorMC cycles this could lead to correctness issues.
+  if (gc_epoch.has_value()) {
     old_marked = descriptor_array.UpdateNumberOfMarkedDescriptors(
-        gc_epoch, number_of_own_descriptors);
+        *gc_epoch, number_of_own_descriptors);
   }
 
   if (old_marked < number_of_own_descriptors) {

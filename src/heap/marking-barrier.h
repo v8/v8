@@ -96,7 +96,7 @@ class MarkingBarrier {
   const bool is_main_thread_barrier_;
   const bool uses_shared_heap_;
   const bool is_shared_space_isolate_;
-  MarkingBarrierType marking_barrier_type_;
+  MarkingBarrierType marking_barrier_type_ = MarkingBarrierType::kMajor;
 };
 
 }  // namespace internal

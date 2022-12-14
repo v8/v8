@@ -31,8 +31,7 @@ void MarkingBarrier::MarkValue(HeapObject host, HeapObject value) {
   // isolate (= main isolate) also shared objects are considered local.
   if (V8_UNLIKELY(uses_shared_heap_) && !is_shared_space_isolate_) {
     // Check whether incremental marking is enabled for that object's space.
-    if (!MemoryChunk::FromHeapObject(host)->IsFlagSet(
-            BasicMemoryChunk::Flag::INCREMENTAL_MARKING)) {
+    if (!MemoryChunk::FromHeapObject(host)->IsMarking()) {
       return;
     }
 

@@ -253,6 +253,7 @@ class BasicMemoryChunk {
     return IsFlagSet(IS_EXECUTABLE) ? EXECUTABLE : NOT_EXECUTABLE;
   }
 
+  bool IsMarking() const { return IsFlagSet(INCREMENTAL_MARKING); }
   bool IsFromPage() const { return IsFlagSet(FROM_PAGE); }
   bool IsToPage() const { return IsFlagSet(TO_PAGE); }
   bool IsLargePage() const { return IsFlagSet(LARGE_PAGE); }
