@@ -326,6 +326,7 @@ void InspectorIsolateData::MessageHandler(v8::Local<v8::Message> message,
 // static
 void InspectorIsolateData::PromiseRejectHandler(v8::PromiseRejectMessage data) {
   v8::Isolate* isolate = data.GetPromise()->GetIsolate();
+  if (isolate->IsExecutionTerminating()) return;
   v8::Local<v8::Context> context = isolate->GetEnteredOrMicrotaskContext();
   if (context.IsEmpty()) return;
   v8::Local<v8::Promise> promise = data.GetPromise();
