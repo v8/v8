@@ -306,9 +306,9 @@ void MaglevAssembler::Prologue(Graph* graph) {
   if (remaining_stack_slots > 0) {
     // Round up.
     remaining_stack_slots += (remaining_stack_slots % 2);
-    // Extend rsp by the size of the remaining untagged part of the frame,
+    // Extend sp by the size of the remaining untagged part of the frame,
     // no need to initialise these.
-    sub(fp, fp, Immediate(remaining_stack_slots * kSystemPointerSize));
+    sub(sp, sp, Immediate(remaining_stack_slots * kSystemPointerSize));
   }
 }
 
