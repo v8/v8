@@ -1329,7 +1329,6 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
       static_cast<DynamicImportData*>(import_data);
 
   Isolate* isolate(import_data_->isolate);
-  if (isolate->IsExecutionTerminating()) return;
   HandleScope handle_scope(isolate);
 
   Local<Context> realm = import_data_->context.Get(isolate);
