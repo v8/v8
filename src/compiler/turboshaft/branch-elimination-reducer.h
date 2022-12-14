@@ -324,7 +324,9 @@ class BranchEliminationReducer : public Next {
       // The destination block in the old graph ends with a Return
       // and the old destination is a merge block, so we can directly
       // inline the destination block in place of the Goto.
-      Asm().CloneAndInlineBlock(old_dst);
+      // We pass `false` to `direct_input` here, as we're looking one
+      // block ahead of the current one.
+      Asm().CloneAndInlineBlock(old_dst, false);
       return OpIndex::Invalid();
     }
 

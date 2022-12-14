@@ -208,12 +208,17 @@ class GraphVisitor {
   Graph& modifiable_input_graph() const { return input_graph_; }
 
   // Visits and emits {input_block} right now (ie, in the current block).
-  void CloneAndInlineBlock(const Block* input_block) {
+  void CloneAndInlineBlock(const Block* input_block, bool direct_input = true) {
     // Computing which input of Phi operations to use when visiting
     // {input_block} (since {input_block} doesn't really have predecessors
     // anymore).
-    added_block_phi_input_ =
-        input_block->GetPredecessorIndex(assembler().current_block()->Origin());
+    if (direct_input) {
+      added_block_phi_input_ = input_block->GetPredecessorIndex(
+          assembler().current_block()->Origin());
+    } else {
+      added_block_phi_input_ = input_block->GetAnyPredecessorIndex(
+          assembler().current_block()->Origin(), phase_zone_);
+    }
 
     // There is no guarantees that {input_block} will be entirely removed just
     // because it's cloned/inlined, since it's possible that it has predecessors
