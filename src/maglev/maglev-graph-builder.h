@@ -480,7 +480,7 @@ class MaglevGraphBuilder {
   template <Builtin kBuiltin>
   CallBuiltin* BuildCallBuiltin(
       std::initializer_list<ValueNode*> inputs,
-      compiler::FeedbackSource& feedback,
+      compiler::FeedbackSource const& feedback,
       CallBuiltin::FeedbackSlotType slot_type = CallBuiltin::kTaggedIndex) {
     CallBuiltin* call_builtin = BuildCallBuiltin<kBuiltin>(inputs);
     call_builtin->set_feedback(feedback, slot_type);
@@ -1301,9 +1301,11 @@ class MaglevGraphBuilder {
 
   bool TryBuildNamedAccess(ValueNode* receiver, ValueNode* lookup_start_object,
                            compiler::NamedAccessFeedback const& feedback,
+                           compiler::FeedbackSource const& feedback_source,
                            compiler::AccessMode access_mode);
   bool TryBuildElementAccess(ValueNode* object, ValueNode* index,
-                             compiler::ElementAccessFeedback const& feedback);
+                             compiler::ElementAccessFeedback const& feedback,
+                             compiler::FeedbackSource const& feedback_source);
 
   // Load elimination -- when loading or storing a simple property without
   // side effects, record its value, and allow that value to be re-used on

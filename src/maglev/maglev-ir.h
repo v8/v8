@@ -5007,7 +5007,7 @@ class CallBuiltin : public ValueNodeT<CallBuiltin> {
     DCHECK(has_feedback());
     return slot_type_;
   }
-  void set_feedback(compiler::FeedbackSource& feedback,
+  void set_feedback(compiler::FeedbackSource const& feedback,
                     FeedbackSlotType slot_type) {
     feedback_ = feedback;
     slot_type_ = slot_type;

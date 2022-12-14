@@ -8,6 +8,7 @@
 #include "src/base/v8-fallthrough.h"
 #include "src/base/vector.h"
 #include "src/builtins/builtins-constructor.h"
+#include "src/builtins/builtins.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/common/globals.h"
 #include "src/compiler/access-info.h"
@@ -2027,7 +2028,22 @@ bool HasOnlyNumberMaps(base::Vector<const compiler::MapRef> maps) {
 bool MaglevGraphBuilder::TryBuildNamedAccess(
     ValueNode* receiver, ValueNode* lookup_start_object,
     compiler::NamedAccessFeedback const& feedback,
+    compiler::FeedbackSource const& feedback_source,
     compiler::AccessMode access_mode) {
+  // Check for the megamorphic case.
+  if (feedback.maps().empty()) {
+    // We don't have a builtin to fast path megamorphic stores.
+    // TODO(leszeks): Maybe we should?
+    if (access_mode != compiler::AccessMode::kLoad) return false;
+    // We can't do megamorphic loads for lookups where the lookup start isn't
+    // the receiver (e.g. load from super).
+    if (receiver != lookup_start_object) return false;
+
+    SetAccumulator(BuildCallBuiltin<Builtin::kLoadIC_Megamorphic>(
+        {receiver, GetConstant(feedback.name())}, feedback_source));
+    return true;
+  }
+
   ZoneVector<compiler::PropertyAccessInfo> access_infos(zone());
   {
     ZoneVector<compiler::PropertyAccessInfo> access_infos_for_feedback(zone());
@@ -2152,10 +2168,18 @@ bool MaglevGraphBuilder::TryBuildElementAccessOnString(
 
 bool MaglevGraphBuilder::TryBuildElementAccess(
     ValueNode* object, ValueNode* index_object,
-    compiler::ElementAccessFeedback const& feedback) {
+    compiler::ElementAccessFeedback const& feedback,
+    compiler::FeedbackSource const& feedback_source) {
   // TODO(victorgomes): Implement other access modes.
   if (feedback.keyed_mode().access_mode() != compiler::AccessMode::kLoad) {
     return false;
+  }
+
+  // Check for the megamorphic case.
+  if (feedback.transition_groups().empty()) {
+    SetAccumulator(BuildCallBuiltin<Builtin::kKeyedLoadIC_Megamorphic>(
+        {object, GetTaggedValue(index_object)}, feedback_source));
+    return true;
   }
 
   // TODO(leszeks): Add non-deopting bounds check (has to support undefined
@@ -2166,8 +2190,7 @@ bool MaglevGraphBuilder::TryBuildElementAccess(
 
   // TODO(victorgomes): Add fast path for loading from HeapConstant.
 
-  if (!feedback.transition_groups().empty() &&
-      feedback.HasOnlyStringMaps(broker())) {
+  if (feedback.HasOnlyStringMaps(broker())) {
     return TryBuildElementAccessOnString(object, index_object,
                                          feedback.keyed_mode());
   }
@@ -2333,7 +2356,7 @@ void MaglevGraphBuilder::VisitGetNamedProperty() {
       if (TryReuseKnownPropertyLoad(object, name)) return;
       if (TryBuildNamedAccess(object, object,
                               processed_feedback.AsNamedAccess(),
-                              compiler::AccessMode::kLoad)) {
+                              feedback_source, compiler::AccessMode::kLoad)) {
         return;
       }
       break;
@@ -2375,7 +2398,7 @@ void MaglevGraphBuilder::VisitGetNamedPropertyFromSuper() {
       if (TryReuseKnownPropertyLoad(lookup_start_object, name)) return;
       if (TryBuildNamedAccess(receiver, lookup_start_object,
                               processed_feedback.AsNamedAccess(),
-                              compiler::AccessMode::kLoad)) {
+                              feedback_source, compiler::AccessMode::kLoad)) {
         return;
       }
       break;
@@ -2413,7 +2436,8 @@ void MaglevGraphBuilder::VisitGetKeyedProperty() {
       // will try to pick the best representation.
       ValueNode* index = current_interpreter_frame_.accumulator();
       if (TryBuildElementAccess(object, index,
-                                processed_feedback.AsElementAccess())) {
+                                processed_feedback.AsElementAccess(),
+                                feedback_source)) {
         return;
       }
       break;
@@ -2426,7 +2450,7 @@ void MaglevGraphBuilder::VisitGetKeyedProperty() {
       if (TryReuseKnownPropertyLoad(object, name)) return;
       if (TryBuildNamedAccess(object, object,
                               processed_feedback.AsNamedAccess(),
-                              compiler::AccessMode::kLoad)) {
+                              feedback_source, compiler::AccessMode::kLoad)) {
         return;
       }
       break;
@@ -2567,7 +2591,7 @@ void MaglevGraphBuilder::VisitSetNamedProperty() {
     case compiler::ProcessedFeedback::kNamedAccess:
       if (TryBuildNamedAccess(object, object,
                               processed_feedback.AsNamedAccess(),
-                              compiler::AccessMode::kStore)) {
+                              feedback_source, compiler::AccessMode::kStore)) {
         return;
       }
       break;
@@ -2602,7 +2626,7 @@ void MaglevGraphBuilder::VisitDefineNamedOwnProperty() {
     case compiler::ProcessedFeedback::kNamedAccess:
       if (TryBuildNamedAccess(object, object,
                               processed_feedback.AsNamedAccess(),
-                              compiler::AccessMode::kDefine)) {
+                              feedback_source, compiler::AccessMode::kDefine)) {
         return;
       }
       break;
