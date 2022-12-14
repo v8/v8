@@ -1507,6 +1507,144 @@ void ToNumberOrNumeric::GenerateCode(MaglevAssembler* masm,
 }
 
 // ---
+// Arch agnostic call nodes
+// ---
+
+int Call::MaxCallStackArgs() const { return num_args(); }
+void Call::SetValueLocationConstraints() {
+  // TODO(leszeks): Consider splitting Call into with- and without-feedback
+  // opcodes, rather than checking for feedback validity.
+  if (feedback_.IsValid()) {
+    using D = CallTrampoline_WithFeedbackDescriptor;
+    UseFixed(function(), D::GetRegisterParameter(D::kFunction));
+    UseFixed(arg(0), D::GetRegisterParameter(D::kReceiver));
+  } else {
+    using D = CallTrampolineDescriptor;
+    UseFixed(function(), D::GetRegisterParameter(D::kFunction));
+    UseAny(arg(0));
+  }
+  for (int i = 1; i < num_args(); i++) {
+    UseAny(arg(i));
+  }
+  UseFixed(context(), kContextRegister);
+  DefineAsFixed(this, kReturnRegister0);
+}
+
+void Call::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
+  // TODO(leszeks): Port the nice Sparkplug CallBuiltin helper.
+#ifdef DEBUG
+  if (feedback_.IsValid()) {
+    using D = CallTrampoline_WithFeedbackDescriptor;
+    DCHECK_EQ(ToRegister(function()), D::GetRegisterParameter(D::kFunction));
+    DCHECK_EQ(ToRegister(arg(0)), D::GetRegisterParameter(D::kReceiver));
+  } else {
+    using D = CallTrampolineDescriptor;
+    DCHECK_EQ(ToRegister(function()), D::GetRegisterParameter(D::kFunction));
+  }
+#endif
+  DCHECK_EQ(ToRegister(context()), kContextRegister);
+
+  __ PushReverse(base::make_iterator_range(args_begin(), args_end()));
+
+  uint32_t arg_count = num_args();
+  if (feedback_.IsValid()) {
+    DCHECK_EQ(TargetType::kAny, target_type_);
+    using D = CallTrampoline_WithFeedbackDescriptor;
+    __ Move(D::GetRegisterParameter(D::kActualArgumentsCount), arg_count);
+    __ Move(D::GetRegisterParameter(D::kFeedbackVector), feedback().vector);
+    __ Move(D::GetRegisterParameter(D::kSlot), feedback().index());
+
+    switch (receiver_mode_) {
+      case ConvertReceiverMode::kNullOrUndefined:
+        __ CallBuiltin(Builtin::kCall_ReceiverIsNullOrUndefined_WithFeedback);
+        break;
+      case ConvertReceiverMode::kNotNullOrUndefined:
+        __ CallBuiltin(
+            Builtin::kCall_ReceiverIsNotNullOrUndefined_WithFeedback);
+        break;
+      case ConvertReceiverMode::kAny:
+        __ CallBuiltin(Builtin::kCall_ReceiverIsAny_WithFeedback);
+        break;
+    }
+  } else if (target_type_ == TargetType::kAny) {
+    using D = CallTrampolineDescriptor;
+    __ Move(D::GetRegisterParameter(D::kActualArgumentsCount), arg_count);
+
+    switch (receiver_mode_) {
+      case ConvertReceiverMode::kNullOrUndefined:
+        __ CallBuiltin(Builtin::kCall_ReceiverIsNullOrUndefined);
+        break;
+      case ConvertReceiverMode::kNotNullOrUndefined:
+        __ CallBuiltin(Builtin::kCall_ReceiverIsNotNullOrUndefined);
+        break;
+      case ConvertReceiverMode::kAny:
+        __ CallBuiltin(Builtin::kCall_ReceiverIsAny);
+        break;
+    }
+  } else {
+    DCHECK_EQ(TargetType::kJSFunction, target_type_);
+    using D = CallTrampolineDescriptor;
+    __ Move(D::GetRegisterParameter(D::kActualArgumentsCount), arg_count);
+
+    switch (receiver_mode_) {
+      case ConvertReceiverMode::kNullOrUndefined:
+        __ CallBuiltin(Builtin::kCallFunction_ReceiverIsNullOrUndefined);
+        break;
+      case ConvertReceiverMode::kNotNullOrUndefined:
+        __ CallBuiltin(Builtin::kCallFunction_ReceiverIsNotNullOrUndefined);
+        break;
+      case ConvertReceiverMode::kAny:
+        __ CallBuiltin(Builtin::kCallFunction_ReceiverIsAny);
+        break;
+    }
+  }
+
+  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
+}
+
+int CallKnownJSFunction::MaxCallStackArgs() const {
+  int actual_parameter_count = num_args() + 1;
+  return std::max(expected_parameter_count_, actual_parameter_count);
+}
+void CallKnownJSFunction::SetValueLocationConstraints() {
+  UseAny(receiver());
+  for (int i = 0; i < num_args(); i++) {
+    UseAny(arg(i));
+  }
+  DefineAsFixed(this, kReturnRegister0);
+}
+
+void CallKnownJSFunction::GenerateCode(MaglevAssembler* masm,
+                                       const ProcessingState& state) {
+  int actual_parameter_count = num_args() + 1;
+  if (actual_parameter_count < expected_parameter_count_) {
+    int number_of_undefineds =
+        expected_parameter_count_ - actual_parameter_count;
+    __ LoadRoot(kScratchRegister, RootIndex::kUndefinedValue);
+    __ PushReverse(receiver(),
+                   base::make_iterator_range(args_begin(), args_end()),
+                   RepeatValue(kScratchRegister, number_of_undefineds));
+  } else {
+    __ PushReverse(receiver(),
+                   base::make_iterator_range(args_begin(), args_end()));
+  }
+  __ Move(kContextRegister, function_.context().object());
+  __ Move(kJavaScriptCallTargetRegister, function_.object());
+  __ LoadRoot(kJavaScriptCallNewTargetRegister, RootIndex::kUndefinedValue);
+  __ Move(kJavaScriptCallArgCountRegister, actual_parameter_count);
+  if (shared_function_info().HasBuiltinId()) {
+    __ CallBuiltin(shared_function_info().builtin_id());
+  } else {
+    __ AssertCallableFunction(kJavaScriptCallTargetRegister);
+    __ LoadTaggedPointerField(kJavaScriptCallCodeStartRegister,
+                              FieldMemOperand(kJavaScriptCallTargetRegister,
+                                              JSFunction::kCodeOffset));
+    __ CallCodeTObject(kJavaScriptCallCodeStartRegister);
+  }
+  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
+}
+
+// ---
 // Arch agnostic control nodes
 // ---
 

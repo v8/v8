@@ -38,24 +38,95 @@ constexpr Condition ConditionFor(Operation operation) {
 }
 
 namespace detail {
+
 template <typename... Args>
 struct PushAllHelper;
+
 template <>
 struct PushAllHelper<> {
   static void Push(MaglevAssembler* masm) {}
+  static void PushReverse(MaglevAssembler* masm) {}
+};
+
+inline void PushInput(MaglevAssembler* masm, const Input& input) {
+  if (input.operand().IsConstant()) {
+    input.node()->LoadToRegister(masm, kScratchRegister);
+    masm->Push(kScratchRegister);
+  } else {
+    // TODO(leszeks): Consider special casing the value. (Toon: could possibly
+    // be done through Input directly?)
+    const compiler::AllocatedOperand& operand =
+        compiler::AllocatedOperand::cast(input.operand());
+
+    if (operand.IsRegister()) {
+      masm->Push(operand.GetRegister());
+    } else {
+      DCHECK(operand.IsStackSlot());
+      masm->Push(masm->GetStackSlot(operand));
+    }
+  }
+}
+
+template <typename T, typename... Args>
+inline void PushIterator(MaglevAssembler* masm, base::iterator_range<T> range,
+                         Args... args) {
+  for (auto iter = range.begin(), end = range.end(); iter != end; ++iter) {
+    masm->Push(*iter);
+  }
+  PushAllHelper<Args...>::Push(masm, args...);
+}
+
+template <typename T, typename... Args>
+inline void PushIteratorReverse(MaglevAssembler* masm,
+                                base::iterator_range<T> range, Args... args) {
+  PushAllHelper<Args...>::PushReverse(masm, args...);
+  for (auto iter = range.rbegin(), end = range.rend(); iter != end; ++iter) {
+    masm->Push(*iter);
+  }
+}
+
+template <typename... Args>
+struct PushAllHelper<Input, Args...> {
+  static void Push(MaglevAssembler* masm, const Input& arg, Args... args) {
+    PushInput(masm, arg);
+    PushAllHelper<Args...>::Push(masm, args...);
+  }
+  static void PushReverse(MaglevAssembler* masm, const Input& arg,
+                          Args... args) {
+    PushAllHelper<Args...>::PushReverse(masm, args...);
+    PushInput(masm, arg);
+  }
 };
 template <typename Arg, typename... Args>
 struct PushAllHelper<Arg, Args...> {
   static void Push(MaglevAssembler* masm, Arg arg, Args... args) {
-    masm->MacroAssembler::Push(arg);
-    PushAllHelper<Args...>::Push(masm, args...);
+    if constexpr (is_iterator_range<Arg>::value) {
+      PushIterator(masm, arg, args...);
+    } else {
+      masm->MacroAssembler::Push(arg);
+      PushAllHelper<Args...>::Push(masm, args...);
+    }
+  }
+  static void PushReverse(MaglevAssembler* masm, Arg arg, Args... args) {
+    if constexpr (is_iterator_range<Arg>::value) {
+      PushIteratorReverse(masm, arg, args...);
+    } else {
+      PushAllHelper<Args...>::PushReverse(masm, args...);
+      masm->Push(arg);
+    }
   }
 };
+
 }  // namespace detail
 
 template <typename... T>
 void MaglevAssembler::Push(T... vals) {
   detail::PushAllHelper<T...>::Push(this, vals...);
+}
+
+template <typename... T>
+void MaglevAssembler::PushReverse(T... vals) {
+  detail::PushAllHelper<T...>::PushReverse(this, vals...);
 }
 
 void MaglevAssembler::Branch(Condition condition, BasicBlock* if_true,
@@ -71,25 +142,6 @@ void MaglevAssembler::Branch(Condition condition, BasicBlock* if_true,
     // Jump to the true block if it's not the next block.
     if (if_true != next_block) {
       jmp(if_true->label());
-    }
-  }
-}
-
-void MaglevAssembler::PushInput(const Input& input) {
-  if (input.operand().IsConstant()) {
-    input.node()->LoadToRegister(this, kScratchRegister);
-    Push(kScratchRegister);
-  } else {
-    // TODO(leszeks): Consider special casing the value. (Toon: could possibly
-    // be done through Input directly?)
-    const compiler::AllocatedOperand& operand =
-        compiler::AllocatedOperand::cast(input.operand());
-
-    if (operand.IsRegister()) {
-      Push(operand.GetRegister());
-    } else {
-      DCHECK(operand.IsStackSlot());
-      Push(GetStackSlot(operand));
     }
   }
 }

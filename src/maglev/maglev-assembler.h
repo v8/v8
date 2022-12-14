@@ -80,7 +80,6 @@ class MaglevAssembler : public MacroAssembler {
 
   inline void Branch(Condition condition, BasicBlock* if_true,
                      BasicBlock* if_false, BasicBlock* next_block);
-  inline void PushInput(const Input& input);
   inline Register FromAnyToRegister(const Input& input, Register scratch);
 
   inline void LoadBoundedSizeFromObject(Register result, Register object,
@@ -161,6 +160,8 @@ class MaglevAssembler : public MacroAssembler {
 
   template <typename... T>
   inline void Push(T... vals);
+  template <typename... T>
+  inline void PushReverse(T... vals);
 
   void Prologue(Graph* graph);
 
@@ -475,6 +476,62 @@ inline void MaglevAssembler::DefineExceptionHandlerAndLazyDeoptPoint(
   DefineExceptionHandlerPoint(node);
   DefineLazyDeoptPoint(node->lazy_deopt_info());
 }
+
+// Helpers for pushing arguments.
+template <typename T>
+class RepeatIterator {
+ public:
+  // Although we pretend to be a random access iterator, only methods that are
+  // required for Push() are implemented right now.
+  typedef std::random_access_iterator_tag iterator_category;
+  typedef T value_type;
+  typedef int difference_type;
+  typedef T* pointer;
+  typedef T reference;
+  RepeatIterator(T val, int count) : val_(val), count_(count) {}
+  reference operator*() const { return val_; }
+  pointer operator->() { return &val_; }
+  RepeatIterator& operator++() {
+    ++count_;
+    return *this;
+  }
+  RepeatIterator& operator--() {
+    --count_;
+    return *this;
+  }
+  RepeatIterator& operator+=(difference_type diff) {
+    count_ += diff;
+    return *this;
+  }
+  bool operator!=(const RepeatIterator<T>& that) const {
+    return count_ != that.count_;
+  }
+  bool operator==(const RepeatIterator<T>& that) const {
+    return count_ == that.count_;
+  }
+  difference_type operator-(const RepeatIterator<T>& it) const {
+    return count_ - it.count_;
+  }
+
+ private:
+  T val_;
+  int count_;
+};
+
+template <typename T>
+auto RepeatValue(T val, int count) {
+  return base::make_iterator_range(RepeatIterator<T>(val, 0),
+                                   RepeatIterator<T>(val, count));
+}
+
+namespace detail {
+
+template <class T>
+struct is_iterator_range : std::false_type {};
+template <typename T>
+struct is_iterator_range<base::iterator_range<T>> : std::true_type {};
+
+}  // namespace detail
 
 }  // namespace maglev
 }  // namespace internal
