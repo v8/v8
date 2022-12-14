@@ -449,9 +449,27 @@ THREADED_TEST(ArrayBuffer_NewBackingStore) {
   std::shared_ptr<v8::BackingStore> backing_store =
       v8::ArrayBuffer::NewBackingStore(isolate, 100);
   CHECK(!backing_store->IsShared());
+  CHECK(!backing_store->IsResizableByUserJavaScript());
   Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, backing_store);
   CHECK_EQ(backing_store.get(), ab->GetBackingStore().get());
   CHECK_EQ(backing_store->Data(), ab->Data());
+}
+
+THREADED_TEST(ArrayBuffer_NewResizableBackingStore) {
+  FLAG_SCOPE(harmony_rab_gsab);
+
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+  std::shared_ptr<v8::BackingStore> backing_store =
+      v8::ArrayBuffer::NewResizableBackingStore(32, 1024);
+  CHECK(!backing_store->IsShared());
+  CHECK(backing_store->IsResizableByUserJavaScript());
+  CHECK_EQ(1024, backing_store->MaxByteLength());
+  Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, backing_store);
+  CHECK_EQ(backing_store.get(), ab->GetBackingStore().get());
+  CHECK_EQ(backing_store->Data(), ab->Data());
+  CHECK_EQ(backing_store->MaxByteLength(), ab->MaxByteLength());
 }
 
 THREADED_TEST(SharedArrayBuffer_NewBackingStore) {
@@ -461,6 +479,7 @@ THREADED_TEST(SharedArrayBuffer_NewBackingStore) {
   std::shared_ptr<v8::BackingStore> backing_store =
       v8::SharedArrayBuffer::NewBackingStore(isolate, 100);
   CHECK(backing_store->IsShared());
+  CHECK(!backing_store->IsResizableByUserJavaScript());
   Local<v8::SharedArrayBuffer> ab =
       v8::SharedArrayBuffer::New(isolate, backing_store);
   CHECK_EQ(backing_store.get(), ab->GetBackingStore().get());
@@ -819,7 +838,6 @@ TEST(ArrayBuffer_Resizable) {
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope handle_scope(isolate);
 
-  // TODO(v8:11111): Expose ability to create resizable buffers to API?
   const char rab_source[] = "new ArrayBuffer(32, { maxByteLength: 1024 });";
   v8::Local<v8::ArrayBuffer> rab = CompileRun(rab_source).As<v8::ArrayBuffer>();
   CHECK(rab->GetBackingStore()->IsResizableByUserJavaScript());

@@ -8350,6 +8350,41 @@ std::unique_ptr<v8::BackingStore> v8::ArrayBuffer::NewBackingStore(
       static_cast<v8::BackingStore*>(backing_store.release()));
 }
 
+// static
+std::unique_ptr<BackingStore> v8::ArrayBuffer::NewResizableBackingStore(
+    size_t byte_length, size_t max_byte_length) {
+  Utils::ApiCheck(i::v8_flags.harmony_rab_gsab,
+                  "v8::ArrayBuffer::NewResizableBackingStore",
+                  "Constructing resizable ArrayBuffers is not supported");
+  Utils::ApiCheck(byte_length <= max_byte_length,
+                  "v8::ArrayBuffer::NewResizableBackingStore",
+                  "Cannot construct resizable ArrayBuffer, byte_length must be "
+                  "<= max_byte_length");
+  Utils::ApiCheck(
+      byte_length <= i::JSArrayBuffer::kMaxByteLength,
+      "v8::ArrayBuffer::NewResizableBackingStore",
+      "Cannot construct resizable ArrayBuffer, requested length is too big");
+
+  size_t page_size, initial_pages, max_pages;
+  if (i::JSArrayBuffer::GetResizableBackingStorePageConfiguration(
+          nullptr, byte_length, max_byte_length, i::kDontThrow, &page_size,
+          &initial_pages, &max_pages)
+          .IsNothing()) {
+    i::V8::FatalProcessOutOfMemory(nullptr,
+                                   "v8::ArrayBuffer::NewResizableBackingStore");
+  }
+  std::unique_ptr<i::BackingStoreBase> backing_store =
+      i::BackingStore::TryAllocateAndPartiallyCommitMemory(
+          nullptr, byte_length, max_byte_length, page_size, initial_pages,
+          max_pages, i::WasmMemoryFlag::kNotWasm, i::SharedFlag::kNotShared);
+  if (!backing_store) {
+    i::V8::FatalProcessOutOfMemory(nullptr,
+                                   "v8::ArrayBuffer::NewResizableBackingStore");
+  }
+  return std::unique_ptr<v8::BackingStore>(
+      static_cast<v8::BackingStore*>(backing_store.release()));
+}
+
 Local<ArrayBuffer> v8::ArrayBufferView::Buffer() {
   i::Handle<i::JSArrayBufferView> obj = Utils::OpenHandle(this);
   i::Handle<i::JSArrayBuffer> buffer;

@@ -257,6 +257,21 @@ class V8_EXPORT ArrayBuffer : public Object {
       void* deleter_data);
 
   /**
+   * Returns a new resizable standalone BackingStore that is allocated using the
+   * array buffer allocator of the isolate. The result can be later passed to
+   * ArrayBuffer::New.
+   *
+   * |byte_length| must be <= |max_byte_length|.
+   *
+   * This function is usable without an isolate. Unlike |NewBackingStore| calls
+   * with an isolate, GCs cannot be triggered, and there are no
+   * retries. Allocation failure will cause the function to crash with an
+   * out-of-memory error.
+   */
+  static std::unique_ptr<BackingStore> NewResizableBackingStore(
+      size_t byte_length, size_t max_byte_length);
+
+  /**
    * Returns true if this ArrayBuffer may be detached.
    */
   bool IsDetachable() const;
