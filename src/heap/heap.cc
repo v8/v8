@@ -2553,8 +2553,8 @@ void Heap::MarkCompact() {
   // Disable soft allocation limits in the shared heap, if one exists, as
   // promotions into the shared heap should always succeed.
   OptionalAlwaysAllocateScope always_allocate_shared_heap(
-      isolate()->shared_isolate() ? isolate()->shared_isolate()->heap()
-                                  : nullptr);
+      isolate()->has_shared_heap() ? isolate()->shared_heap_isolate()->heap()
+                                   : nullptr);
 
   UpdateOldGenerationAllocationCounter();
   uint64_t size_of_objects_before_gc = SizeOfObjects();
@@ -2597,8 +2597,8 @@ void Heap::MinorMarkCompact() {
   // Disable soft allocation limits in the shared heap, if one exists, as
   // promotions into the shared heap should always succeed.
   OptionalAlwaysAllocateScope always_allocate_shared_heap(
-      isolate()->shared_isolate() ? isolate()->shared_isolate()->heap()
-                                  : nullptr);
+      isolate()->has_shared_heap() ? isolate()->shared_heap_isolate()->heap()
+                                   : nullptr);
 
   minor_mark_compact_collector_->Prepare();
   minor_mark_compact_collector_->CollectGarbage();
@@ -2651,8 +2651,8 @@ void Heap::Scavenge() {
   // Disable soft allocation limits in the shared heap, if one exists, as
   // promotions into the shared heap should always succeed.
   OptionalAlwaysAllocateScope always_allocate_shared_heap(
-      isolate()->shared_isolate() ? isolate()->shared_isolate()->heap()
-                                  : nullptr);
+      isolate()->has_shared_heap() ? isolate()->shared_heap_isolate()->heap()
+                                   : nullptr);
 
   // Bump-pointer allocations done during scavenge are not real allocations.
   // Pause the inline allocation steps.
