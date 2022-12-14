@@ -891,7 +891,7 @@ void Scavenger::CheckOldToNewSlotForSharedTyped(MemoryChunk* chunk,
                                                 MaybeObject new_target) {
   HeapObject heap_object;
 
-  if (!new_target.GetHeapObject(&heap_object) &&
+  if (new_target.GetHeapObject(&heap_object) &&
       RecordOldToSharedSlot(heap_object)) {
     const uintptr_t offset = slot_address - chunk->address();
     DCHECK_LT(offset, static_cast<uintptr_t>(TypedSlotSet::kMaxOffset));
