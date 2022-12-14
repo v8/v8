@@ -613,6 +613,9 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::FinishOffThreadDeserialize(
 
   FinalizeDeserialization(isolate, result, timer);
 
+  DCHECK(!background_merge_task ||
+         !background_merge_task->HasPendingForegroundWork());
+
   return scope.CloseAndEscape(result);
 }
 

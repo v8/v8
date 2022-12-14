@@ -1963,10 +1963,6 @@ class ConstantPoolPointerForwarder {
   std::unordered_map<int, Handle<SharedFunctionInfo>> forwarding_table_;
 };
 
-BackgroundMergeTask::~BackgroundMergeTask() {
-  DCHECK(!HasPendingForegroundWork());
-}
-
 void BackgroundMergeTask::SetUpOnMainThread(Isolate* isolate,
                                             Handle<String> source_text,
                                             const ScriptDetails& script_details,
