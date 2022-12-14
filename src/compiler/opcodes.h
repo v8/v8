@@ -543,7 +543,8 @@
 #define SIMPLIFIED_SPECULATIVE_BIGINT_UNOP_LIST(V) \
   V(SpeculativeBigIntAsIntN)                       \
   V(SpeculativeBigIntAsUintN)                      \
-  V(SpeculativeBigIntNegate)
+  V(SpeculativeBigIntNegate)                       \
+  V(SpeculativeToBigInt)
 
 #define SIMPLIFIED_WASM_OP_LIST(V) \
   V(AssertNotNull)                 \

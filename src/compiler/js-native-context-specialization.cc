@@ -3306,12 +3306,21 @@ JSNativeContextSpecialization::BuildElementAccess(
       case AccessMode::kDefine:
         UNREACHABLE();
       case AccessMode::kStore: {
-        // Ensure that the {value} is actually a Number or an Oddball,
-        // and truncate it to a Number appropriately.
-        value = effect = graph()->NewNode(
-            simplified()->SpeculativeToNumber(
-                NumberOperationHint::kNumberOrOddball, FeedbackSource()),
-            value, effect, control);
+        if (external_array_type == kExternalBigInt64Array ||
+            external_array_type == kExternalBigUint64Array) {
+          value = effect = graph()->NewNode(
+              simplified()->SpeculativeToBigInt(BigIntOperationHint::kBigInt,
+                                                FeedbackSource()),
+              value, effect, control);
+        } else {
+          // Ensure that the {value} is actually a Number or an Oddball,
+          // and truncate it to a Number appropriately.
+          // TODO(panq): Eliminate the deopt loop introduced by the speculation.
+          value = effect = graph()->NewNode(
+              simplified()->SpeculativeToNumber(
+                  NumberOperationHint::kNumberOrOddball, FeedbackSource()),
+              value, effect, control);
+        }
 
         // Introduce the appropriate truncation for {value}. Currently we
         // only need to do this for ClamedUint8Array {receiver}s, as the

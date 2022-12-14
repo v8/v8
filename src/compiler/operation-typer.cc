@@ -1200,6 +1200,10 @@ Type OperationTyper::SpeculativeBigIntNegate(Type type) {
   return Type::BigInt();
 }
 
+Type OperationTyper::SpeculativeToBigInt(Type type) {
+  return ToBigInt(Type::Intersect(type, Type::BigInt(), zone()));
+}
+
 Type OperationTyper::SpeculativeToNumber(Type type) {
   return ToNumber(Type::Intersect(type, Type::NumberOrOddball(), zone()));
 }

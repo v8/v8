@@ -578,6 +578,26 @@ NumberOperationParameters const& NumberOperationParametersOf(
   return OpParameter<NumberOperationParameters>(op);
 }
 
+bool operator==(BigIntOperationParameters const& lhs,
+                BigIntOperationParameters const& rhs) {
+  return lhs.hint() == rhs.hint() && lhs.feedback() == rhs.feedback();
+}
+
+size_t hash_value(BigIntOperationParameters const& p) {
+  FeedbackSource::Hash feedback_hash;
+  return base::hash_combine(p.hint(), feedback_hash(p.feedback()));
+}
+
+std::ostream& operator<<(std::ostream& os, BigIntOperationParameters const& p) {
+  return os << p.hint() << ", " << p.feedback();
+}
+
+BigIntOperationParameters const& BigIntOperationParametersOf(
+    Operator const* op) {
+  DCHECK_EQ(IrOpcode::kSpeculativeToBigInt, op->opcode());
+  return OpParameter<BigIntOperationParameters>(op);
+}
+
 bool operator==(SpeculativeBigIntAsNParameters const& lhs,
                 SpeculativeBigIntAsNParameters const& rhs) {
   return lhs.bits() == rhs.bits() && lhs.feedback() == rhs.feedback();
@@ -1251,6 +1271,21 @@ struct SimplifiedOperatorGlobalCache final {
       kSpeculativeToNumberNumberOperator;
   SpeculativeToNumberOperator<NumberOperationHint::kNumberOrOddball>
       kSpeculativeToNumberNumberOrOddballOperator;
+
+  template <BigIntOperationHint kHint>
+  struct SpeculativeToBigIntOperator final
+      : public Operator1<BigIntOperationParameters> {
+    SpeculativeToBigIntOperator()
+        : Operator1<BigIntOperationParameters>(
+              IrOpcode::kSpeculativeToBigInt,
+              Operator::kFoldable | Operator::kNoThrow, "SpeculativeToBigInt",
+              1, 1, 1, 1, 1, 0,
+              BigIntOperationParameters(kHint, FeedbackSource())) {}
+  };
+  SpeculativeToBigIntOperator<BigIntOperationHint::kBigInt64>
+      kSpeculativeToBigIntBigInt64Operator;
+  SpeculativeToBigIntOperator<BigIntOperationHint::kBigInt>
+      kSpeculativeToBigIntBigIntOperator;
 };
 
 namespace {
@@ -1660,6 +1695,22 @@ const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntNegate(
       IrOpcode::kSpeculativeBigIntNegate,
       Operator::kFoldable | Operator::kNoThrow, "SpeculativeBigIntNegate", 1, 1,
       1, 1, 1, 0, hint);
+}
+
+const Operator* SimplifiedOperatorBuilder::SpeculativeToBigInt(
+    BigIntOperationHint hint, const FeedbackSource& feedback) {
+  if (!feedback.IsValid()) {
+    switch (hint) {
+      case BigIntOperationHint::kBigInt64:
+        return &cache_.kSpeculativeToBigIntBigInt64Operator;
+      case BigIntOperationHint::kBigInt:
+        return &cache_.kSpeculativeToBigIntBigIntOperator;
+    }
+  }
+  return zone()->New<Operator1<BigIntOperationParameters>>(
+      IrOpcode::kSpeculativeToBigInt, Operator::kFoldable | Operator::kNoThrow,
+      "SpeculativeToBigInt", 1, 1, 1, 1, 1, 0,
+      BigIntOperationParameters(hint, feedback));
 }
 
 const Operator* SimplifiedOperatorBuilder::CheckClosure(

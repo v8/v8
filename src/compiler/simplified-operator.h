@@ -563,6 +563,28 @@ bool operator==(NumberOperationParameters const&,
 const NumberOperationParameters& NumberOperationParametersOf(const Operator* op)
     V8_WARN_UNUSED_RESULT;
 
+class BigIntOperationParameters {
+ public:
+  BigIntOperationParameters(BigIntOperationHint hint,
+                            const FeedbackSource& feedback)
+      : hint_(hint), feedback_(feedback) {}
+
+  BigIntOperationHint hint() const { return hint_; }
+  const FeedbackSource& feedback() const { return feedback_; }
+
+ private:
+  BigIntOperationHint hint_;
+  FeedbackSource feedback_;
+};
+
+size_t hash_value(BigIntOperationParameters const&);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
+                                           const BigIntOperationParameters&);
+bool operator==(BigIntOperationParameters const&,
+                BigIntOperationParameters const&);
+const BigIntOperationParameters& BigIntOperationParametersOf(const Operator* op)
+    V8_WARN_UNUSED_RESULT;
+
 class SpeculativeBigIntAsNParameters {
  public:
   SpeculativeBigIntAsNParameters(int bits, const FeedbackSource& feedback)
@@ -862,6 +884,9 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* FindOrderedCollectionEntry(CollectionKind collection_kind);
 
   const Operator* SpeculativeToNumber(NumberOperationHint hint,
+                                      const FeedbackSource& feedback);
+
+  const Operator* SpeculativeToBigInt(BigIntOperationHint hint,
                                       const FeedbackSource& feedback);
 
   const Operator* StringToNumber();

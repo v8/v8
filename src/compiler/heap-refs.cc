@@ -75,6 +75,8 @@ bool IsReadOnlyHeapObjectForCompiler(PtrComprCageBase cage_base,
          ReadOnlyHeap::Contains(object);
 }
 
+bool Is64() { return kSystemPointerSize == 8; }
+
 }  // namespace
 
 class ObjectData : public ZoneObject {
@@ -1084,8 +1086,8 @@ bool MapRef::CanInlineElementAccess() const {
   ElementsKind kind = elements_kind();
   if (IsFastElementsKind(kind)) return true;
   if (IsSharedArrayElementsKind(kind)) return true;
-  if (IsTypedArrayElementsKind(kind) && kind != BIGUINT64_ELEMENTS &&
-      kind != BIGINT64_ELEMENTS) {
+  if (IsTypedArrayElementsKind(kind) &&
+      (Is64() || (kind != BIGINT64_ELEMENTS && kind != BIGUINT64_ELEMENTS))) {
     return true;
   }
   if (v8_flags.turbo_rab_gsab && IsRabGsabTypedArrayElementsKind(kind) &&
