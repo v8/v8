@@ -3877,7 +3877,9 @@ void Shell::WriteLcovData(v8::Isolate* isolate, const char* file) {
 
 void Shell::OnExit(v8::Isolate* isolate, bool dispose) {
   platform::NotifyIsolateShutdown(g_default_platform, isolate);
-  isolate->Dispose();
+  if (dispose) {
+    isolate->Dispose();
+  }
 
   // Simulate errors before disposing V8, as that resets flags (via
   // FlagList::ResetAllFlags()), but error simulation reads the random seed.
