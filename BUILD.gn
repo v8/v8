@@ -121,7 +121,7 @@ declare_args() {
   v8_enable_snapshot_native_code_counters = ""
 
   # Use pre-generated static root pointer values from static-roots.h.
-  v8_enable_static_roots = ""
+  v8_enable_static_roots = false
 
   # Enable code-generation-time checking of types in the CodeStubAssembler.
   v8_enable_verify_csa = false
