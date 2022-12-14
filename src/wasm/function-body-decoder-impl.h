@@ -1181,6 +1181,11 @@ const std::pair<uint32_t, uint32_t> invalid_instruction_trace = {0, 0};
 template <typename T>
 class FastZoneVector {
  public:
+  FastZoneVector() = default;
+  explicit FastZoneVector(int initial_size, Zone* zone) {
+    Grow(initial_size, zone);
+  }
+
 #ifdef DEBUG
   ~FastZoneVector() {
     // Check that {Reset} was called on this vector.
@@ -2591,7 +2596,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       : WasmDecoder<ValidationTag, decoding_mode>(
             zone, module, enabled, detected, body.sig, body.start, body.end,
             body.offset),
-        interface_(std::forward<InterfaceArgs>(interface_args)...) {}
+        interface_(std::forward<InterfaceArgs>(interface_args)...),
+        stack_(16, zone),
+        control_(16, zone) {}
 
   ~WasmFullDecoder() {
     control_.Reset(this->compilation_zone_);
