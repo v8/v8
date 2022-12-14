@@ -211,6 +211,8 @@ class V8Debugger : public v8::debug::DebugDelegate,
 
   bool hasScheduledBreakOnNextFunctionCall() const;
 
+  void quitMessageLoopIfAgentsFinishedInstrumentation();
+
   v8::Isolate* m_isolate;
   V8InspectorImpl* m_inspector;
   int m_enableCount;

@@ -452,6 +452,7 @@ Response V8DebuggerAgentImpl::disable() {
   m_state->setBoolean(DebuggerAgentState::skipAllPauses, false);
   m_state->remove(DebuggerAgentState::blackboxPattern);
   m_enableState = kDisabled;
+  m_instrumentationFinished = true;
   m_state->setBoolean(DebuggerAgentState::debuggerEnabled, false);
   m_debugger->disable();
   return Response::Success();
@@ -1352,6 +1353,8 @@ Response V8DebuggerAgentImpl::pause() {
 Response V8DebuggerAgentImpl::resume(Maybe<bool> terminateOnResume) {
   if (!isPaused()) return Response::ServerError(kDebuggerNotPaused);
   m_session->releaseObjectGroup(kBacktraceObjectGroup);
+
+  m_instrumentationFinished = true;
   m_debugger->continueProgram(m_session->contextGroupId(),
                               terminateOnResume.fromMaybe(false));
   return Response::Success();
@@ -1946,6 +1949,7 @@ void V8DebuggerAgentImpl::didPauseOnInstrumentation(
       m_debuggerBreakpointIdToBreakpointId.end()) {
     DCHECK_GT(protocolCallFrames->size(), 0);
     if (protocolCallFrames->size() > 0) {
+      m_instrumentationFinished = false;
       breakReason = protocol::Debugger::Paused::ReasonEnum::Instrumentation;
       const String16 scriptId =
           protocolCallFrames->at(0)->getLocation()->getScriptId();

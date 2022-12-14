@@ -161,6 +161,7 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
 
   void reset();
 
+  bool instrumentationFinished() { return m_instrumentationFinished; }
   // Interface for V8InspectorImpl
   void didPauseOnInstrumentation(v8::debug::BreakpointId instrumentationId);
 
@@ -268,6 +269,7 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
 
   bool m_skipAllPauses = false;
   bool m_breakpointsActive = false;
+  bool m_instrumentationFinished = true;
 
   std::unique_ptr<V8Regex> m_blackboxPattern;
   std::unordered_map<String16, std::vector<std::pair<int, int>>>

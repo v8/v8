@@ -110,14 +110,20 @@ void V8Debugger::disable() {
   if (isPaused()) {
     bool scheduledOOMBreak = m_scheduledOOMBreak;
     bool hasAgentAcceptsPause = false;
-    m_inspector->forEachSession(
-        m_pausedContextGroupId, [&scheduledOOMBreak, &hasAgentAcceptsPause](
-                                    V8InspectorSessionImpl* session) {
-          if (session->debuggerAgent()->acceptsPause(scheduledOOMBreak)) {
-            hasAgentAcceptsPause = true;
-          }
-        });
-    if (!hasAgentAcceptsPause) m_inspector->client()->quitMessageLoopOnPause();
+
+    if (m_instrumentationPause) {
+      quitMessageLoopIfAgentsFinishedInstrumentation();
+    } else {
+      m_inspector->forEachSession(
+          m_pausedContextGroupId, [&scheduledOOMBreak, &hasAgentAcceptsPause](
+                                      V8InspectorSessionImpl* session) {
+            if (session->debuggerAgent()->acceptsPause(scheduledOOMBreak)) {
+              hasAgentAcceptsPause = true;
+            }
+          });
+      if (!hasAgentAcceptsPause)
+        m_inspector->client()->quitMessageLoopOnPause();
+    }
   }
   if (--m_enableCount) return;
   clearContinueToLocation();
@@ -239,14 +245,32 @@ void V8Debugger::requestPauseAfterInstrumentation() {
   m_requestedPauseAfterInstrumentation = true;
 }
 
+void V8Debugger::quitMessageLoopIfAgentsFinishedInstrumentation() {
+  bool allAgentsFinishedInstrumentation = true;
+  m_inspector->forEachSession(
+      m_pausedContextGroupId,
+      [&allAgentsFinishedInstrumentation](V8InspectorSessionImpl* session) {
+        if (!session->debuggerAgent()->instrumentationFinished()) {
+          allAgentsFinishedInstrumentation = false;
+        }
+      });
+  if (allAgentsFinishedInstrumentation) {
+    m_inspector->client()->quitMessageLoopOnPause();
+  }
+}
+
 void V8Debugger::continueProgram(int targetContextGroupId,
                                  bool terminateOnResume) {
   if (m_pausedContextGroupId != targetContextGroupId) return;
   if (isPaused()) {
-    if (terminateOnResume) {
+    if (m_instrumentationPause) {
+      quitMessageLoopIfAgentsFinishedInstrumentation();
+    } else if (terminateOnResume) {
       v8::debug::SetTerminateOnResume(m_isolate);
+      m_inspector->client()->quitMessageLoopOnPause();
+    } else {
+      m_inspector->client()->quitMessageLoopOnPause();
     }
-    m_inspector->client()->quitMessageLoopOnPause();
   }
 }
 
