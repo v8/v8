@@ -2436,6 +2436,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #undef EMIT_SIMD_QFM
 #undef SIMD_QFM_LIST
 
+#define SIMD_EXT_ADD_PAIRWISE_LIST(V) \
+  V(I32x4ExtAddPairwiseI16x8S)        \
+  V(I32x4ExtAddPairwiseI16x8U)        \
+  V(I16x8ExtAddPairwiseI8x16S)        \
+  V(I16x8ExtAddPairwiseI8x16U)
+#define EMIT_SIMD_EXT_ADD_PAIRWISE(name)                          \
+  case kPPC_##name: {                                             \
+    __ name(i.OutputSimd128Register(), i.InputSimd128Register(0), \
+            kScratchSimd128Reg, kScratchSimd128Reg2);             \
+    break;                                                        \
+  }
+      SIMD_EXT_ADD_PAIRWISE_LIST(EMIT_SIMD_EXT_ADD_PAIRWISE)
+#undef EMIT_SIMD_EXT_ADD_PAIRWISE
+#undef SIMD_EXT_ADD_PAIRWISE_LIST
+
     case kPPC_F64x2Splat: {
       __ F64x2Splat(i.OutputSimd128Register(), i.InputDoubleRegister(0),
                     kScratchReg);
@@ -2878,39 +2893,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
 #undef MAYBE_REVERSE_BYTES
-#define EXT_ADD_PAIRWISE(mul_even, mul_odd, add)             \
-  __ mul_even(kScratchSimd128Reg2, src, kScratchSimd128Reg); \
-  __ mul_odd(kScratchSimd128Reg, src, kScratchSimd128Reg);   \
-  __ add(dst, kScratchSimd128Reg2, kScratchSimd128Reg);
-    case kPPC_I32x4ExtAddPairwiseI16x8S: {
-      Simd128Register src = i.InputSimd128Register(0);
-      Simd128Register dst = i.OutputSimd128Register();
-      __ vspltish(kScratchSimd128Reg, Operand(1));
-      EXT_ADD_PAIRWISE(vmulesh, vmulosh, vadduwm)
-      break;
-    }
-    case kPPC_I32x4ExtAddPairwiseI16x8U: {
-      Simd128Register src = i.InputSimd128Register(0);
-      Simd128Register dst = i.OutputSimd128Register();
-      __ vspltish(kScratchSimd128Reg, Operand(1));
-      EXT_ADD_PAIRWISE(vmuleuh, vmulouh, vadduwm)
-      break;
-    }
-    case kPPC_I16x8ExtAddPairwiseI8x16S: {
-      Simd128Register src = i.InputSimd128Register(0);
-      Simd128Register dst = i.OutputSimd128Register();
-      __ xxspltib(kScratchSimd128Reg, Operand(1));
-      EXT_ADD_PAIRWISE(vmulesb, vmulosb, vadduhm)
-      break;
-    }
-    case kPPC_I16x8ExtAddPairwiseI8x16U: {
-      Simd128Register src = i.InputSimd128Register(0);
-      Simd128Register dst = i.OutputSimd128Register();
-      __ xxspltib(kScratchSimd128Reg, Operand(1));
-      EXT_ADD_PAIRWISE(vmuleub, vmuloub, vadduhm)
-      break;
-    }
-#undef EXT_ADD_PAIRWISE
     case kPPC_F64x2PromoteLowF32x4: {
       constexpr int lane_number = 8;
       Simd128Register src = i.InputSimd128Register(0);

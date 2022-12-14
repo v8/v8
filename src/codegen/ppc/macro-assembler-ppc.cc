@@ -4569,6 +4569,37 @@ void TurboAssembler::I8x16Shuffle(Simd128Register dst, Simd128Register src1,
   vperm(dst, src1, src2, scratch3);
 }
 
+#define EXT_ADD_PAIRWISE(splat, mul_even, mul_odd, add) \
+  splat(scratch1, Operand(1));                          \
+  mul_even(scratch2, src, scratch1);                    \
+  mul_odd(scratch1, src, scratch1);                     \
+  add(dst, scratch2, scratch1);
+void TurboAssembler::I32x4ExtAddPairwiseI16x8S(Simd128Register dst,
+                                               Simd128Register src,
+                                               Simd128Register scratch1,
+                                               Simd128Register scratch2) {
+  EXT_ADD_PAIRWISE(vspltish, vmulesh, vmulosh, vadduwm)
+}
+void TurboAssembler::I32x4ExtAddPairwiseI16x8U(Simd128Register dst,
+                                               Simd128Register src,
+                                               Simd128Register scratch1,
+                                               Simd128Register scratch2) {
+  EXT_ADD_PAIRWISE(vspltish, vmuleuh, vmulouh, vadduwm)
+}
+void TurboAssembler::I16x8ExtAddPairwiseI8x16S(Simd128Register dst,
+                                               Simd128Register src,
+                                               Simd128Register scratch1,
+                                               Simd128Register scratch2) {
+  EXT_ADD_PAIRWISE(xxspltib, vmulesb, vmulosb, vadduhm)
+}
+void TurboAssembler::I16x8ExtAddPairwiseI8x16U(Simd128Register dst,
+                                               Simd128Register src,
+                                               Simd128Register scratch1,
+                                               Simd128Register scratch2) {
+  EXT_ADD_PAIRWISE(xxspltib, vmuleub, vmuloub, vadduhm)
+}
+#undef EXT_ADD_PAIRWISE
+
 void TurboAssembler::V128AnyTrue(Register dst, Simd128Register src,
                                  Register scratch1, Register scratch2,
                                  Simd128Register scratch3) {

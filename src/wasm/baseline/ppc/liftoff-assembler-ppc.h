@@ -2056,6 +2056,21 @@ SIMD_QFM_LIST(EMIT_SIMD_QFM)
 #undef EMIT_SIMD_QFM
 #undef SIMD_QFM_LIST
 
+#define SIMD_EXT_ADD_PAIRWISE_LIST(V)                         \
+  V(i32x4_extadd_pairwise_i16x8_s, I32x4ExtAddPairwiseI16x8S) \
+  V(i32x4_extadd_pairwise_i16x8_u, I32x4ExtAddPairwiseI16x8U) \
+  V(i16x8_extadd_pairwise_i8x16_s, I16x8ExtAddPairwiseI8x16S) \
+  V(i16x8_extadd_pairwise_i8x16_u, I16x8ExtAddPairwiseI8x16U)
+#define EMIT_SIMD_EXT_ADD_PAIRWISE(name, op)                     \
+  void LiftoffAssembler::emit_##name(LiftoffRegister dst,        \
+                                     LiftoffRegister src) {      \
+    op(dst.fp().toSimd(), src.fp().toSimd(), kScratchSimd128Reg, \
+       kScratchSimd128Reg2);                                     \
+  }
+SIMD_EXT_ADD_PAIRWISE_LIST(EMIT_SIMD_EXT_ADD_PAIRWISE)
+#undef EMIT_SIMD_EXT_ADD_PAIRWISE
+#undef SIMD_EXT_ADD_PAIRWISE_LIST
+
 void LiftoffAssembler::emit_f64x2_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   F64x2Splat(dst.fp().toSimd(), src.fp(), r0);
@@ -2342,29 +2357,9 @@ void LiftoffAssembler::emit_i32x4_bitmask(LiftoffRegister dst,
   I32x4BitMask(dst.gp(), src.fp().toSimd(), r0, kScratchSimd128Reg);
 }
 
-void LiftoffAssembler::emit_i32x4_extadd_pairwise_i16x8_s(LiftoffRegister dst,
-                                                          LiftoffRegister src) {
-  bailout(kSimd, "i32x4.extadd_pairwise_i16x8_s");
-}
-
-void LiftoffAssembler::emit_i32x4_extadd_pairwise_i16x8_u(LiftoffRegister dst,
-                                                          LiftoffRegister src) {
-  bailout(kSimd, "i32x4.extadd_pairwise_i16x8_u");
-}
-
 void LiftoffAssembler::emit_i16x8_bitmask(LiftoffRegister dst,
                                           LiftoffRegister src) {
   I16x8BitMask(dst.gp(), src.fp().toSimd(), r0, kScratchSimd128Reg);
-}
-
-void LiftoffAssembler::emit_i16x8_extadd_pairwise_i8x16_s(LiftoffRegister dst,
-                                                          LiftoffRegister src) {
-  bailout(kSimd, "i16x8.extadd_pairwise_i8x16_s");
-}
-
-void LiftoffAssembler::emit_i16x8_extadd_pairwise_i8x16_u(LiftoffRegister dst,
-                                                          LiftoffRegister src) {
-  bailout(kSimd, "i16x8.extadd_pairwise_i8x16_u");
 }
 
 void LiftoffAssembler::emit_i16x8_relaxed_q15mulr_s(LiftoffRegister dst,
