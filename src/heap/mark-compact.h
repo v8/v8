@@ -711,6 +711,8 @@ class MinorMarkCompactCollector final : public CollectorBase {
   // Perform Wrapper Tracing if in use.
   void PerformWrapperTracing();
 
+  static bool IsUnmarkedYoungHeapObject(Heap* heap, FullObjectSlot p);
+
  private:
   class RootMarkingVisitor;
 

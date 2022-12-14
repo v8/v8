@@ -12,11 +12,15 @@ namespace internal {
 
 ConservativeTracedHandlesMarkingVisitor::
     ConservativeTracedHandlesMarkingVisitor(
-        Heap& heap, MarkingWorklists::Local& local_marking_worklist)
+        Heap& heap, MarkingWorklists::Local& local_marking_worklist,
+        cppgc::internal::CollectionType collection_type)
     : heap_(heap),
       marking_state_(*heap_.marking_state()),
       local_marking_worklist_(local_marking_worklist),
-      traced_node_bounds_(heap.isolate()->traced_handles()->GetNodeBounds()) {}
+      traced_node_bounds_(heap.isolate()->traced_handles()->GetNodeBounds()),
+      mark_mode_(collection_type == cppgc::internal::CollectionType::kMinor
+                     ? TracedHandles::MarkMode::kOnlyYoung
+                     : TracedHandles::MarkMode::kAll) {}
 
 void ConservativeTracedHandlesMarkingVisitor::VisitPointer(
     const void* address) {
@@ -30,7 +34,8 @@ void ConservativeTracedHandlesMarkingVisitor::VisitPointer(
   if (address < bounds->second) {
     auto object = TracedHandles::MarkConservatively(
         const_cast<Address*>(reinterpret_cast<const Address*>(address)),
-        const_cast<Address*>(reinterpret_cast<const Address*>(bounds->first)));
+        const_cast<Address*>(reinterpret_cast<const Address*>(bounds->first)),
+        mark_mode_);
     if (!object.IsHeapObject()) {
       // The embedder is not aware of whether numbers are materialized as heap
       // objects are just passed around as Smis. This branch also filters out

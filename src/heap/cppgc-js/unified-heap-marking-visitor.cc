@@ -80,12 +80,12 @@ MutatorUnifiedHeapMarkingVisitor::MutatorUnifiedHeapMarkingVisitor(
 ConcurrentUnifiedHeapMarkingVisitor::ConcurrentUnifiedHeapMarkingVisitor(
     HeapBase& heap, Heap* v8_heap,
     cppgc::internal::ConcurrentMarkingState& marking_state,
-    CppHeap::CollectionType collectione_type)
+    CppHeap::CollectionType collection_type)
     : UnifiedHeapMarkingVisitorBase(heap, marking_state,
                                     concurrent_unified_heap_marking_state_),
-      local_marking_worklist_(GetV8MarkingWorklists(v8_heap, collectione_type)),
-      concurrent_unified_heap_marking_state_(v8_heap,
-                                             local_marking_worklist_.get()) {}
+      local_marking_worklist_(GetV8MarkingWorklists(v8_heap, collection_type)),
+      concurrent_unified_heap_marking_state_(
+          v8_heap, local_marking_worklist_.get(), collection_type) {}
 
 ConcurrentUnifiedHeapMarkingVisitor::~ConcurrentUnifiedHeapMarkingVisitor() {
   if (local_marking_worklist_) {

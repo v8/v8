@@ -5856,8 +5856,7 @@ void Heap::SetStackStart(void* stack_start) {
 }
 
 void Heap::RegisterExternallyReferencedObject(Address* location) {
-  TracedHandles::Mark(location);
-  Object object(*location);
+  Object object = TracedHandles::Mark(location, TracedHandles::MarkMode::kAll);
   if (!object.IsHeapObject()) {
     // The embedder is not aware of whether numbers are materialized as heap
     // objects are just passed around as Smis.

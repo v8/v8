@@ -102,7 +102,8 @@ class ExpectCppGCToV8GenerationalBarrierToFire {
       : isolate_(reinterpret_cast<Isolate&>(isolate)),
         expected_wrappers_(expected_wrappers) {
     YoungWrapperCollector visitor;
-    isolate_.traced_handles()->IterateYoung(&visitor);
+    isolate_.traced_handles()->IterateYoungRootsWithOldHostsForTesting(
+        &visitor);
     young_wrappers_before_ = visitor.get_wrappers();
 
     std::vector<Address> diff;
@@ -115,7 +116,8 @@ class ExpectCppGCToV8GenerationalBarrierToFire {
 
   ~ExpectCppGCToV8GenerationalBarrierToFire() {
     YoungWrapperCollector visitor;
-    isolate_.traced_handles()->IterateYoung(&visitor);
+    isolate_.traced_handles()->IterateYoungRootsWithOldHostsForTesting(
+        &visitor);
     const auto young_wrappers_after = visitor.get_wrappers();
     EXPECT_GE(young_wrappers_after.size(), young_wrappers_before_.size());
 
@@ -137,13 +139,15 @@ class ExpectCppGCToV8NoGenerationalBarrier {
   explicit ExpectCppGCToV8NoGenerationalBarrier(v8::Isolate& isolate)
       : isolate_(reinterpret_cast<Isolate&>(isolate)) {
     YoungWrapperCollector visitor;
-    isolate_.traced_handles()->IterateYoung(&visitor);
+    isolate_.traced_handles()->IterateYoungRootsWithOldHostsForTesting(
+        &visitor);
     young_wrappers_before_ = visitor.get_wrappers();
   }
 
   ~ExpectCppGCToV8NoGenerationalBarrier() {
     YoungWrapperCollector visitor;
-    isolate_.traced_handles()->IterateYoung(&visitor);
+    isolate_.traced_handles()->IterateYoungRootsWithOldHostsForTesting(
+        &visitor);
     const auto young_wrappers_after = visitor.get_wrappers();
     EXPECT_EQ(young_wrappers_before_, young_wrappers_after);
   }

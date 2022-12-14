@@ -307,7 +307,8 @@ UnifiedHeapMarker::UnifiedHeapMarker(Heap* v8_heap,
                                      cppgc::Platform* platform,
                                      cppgc::internal::MarkingConfig config)
     : cppgc::internal::MarkerBase(heap, platform, config),
-      mutator_unified_heap_marking_state_(v8_heap, nullptr),
+      mutator_unified_heap_marking_state_(v8_heap, nullptr,
+                                          config.collection_type),
       marking_visitor_(std::make_unique<MutatorUnifiedHeapMarkingVisitor>(
           heap, mutator_marking_state_, mutator_unified_heap_marking_state_)),
       conservative_marking_visitor_(heap, mutator_marking_state_,
@@ -749,7 +750,8 @@ void CppHeap::EnterFinalPause(cppgc::EmbedderStackState stack_state) {
     auto& heap = *isolate()->heap();
     marker.conservative_visitor().SetConservativeTracedHandlesMarkingVisitor(
         std::make_unique<ConservativeTracedHandlesMarkingVisitor>(
-            heap, *GetV8MarkingWorklists(isolate_, *collection_type_)));
+            heap, *GetV8MarkingWorklists(isolate_, *collection_type_),
+            *collection_type_));
   }
   marker.EnterAtomicPause(stack_state);
   compactor_.CancelIfShouldNotCompact(MarkingType::kAtomic, stack_state);

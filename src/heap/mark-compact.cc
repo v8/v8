@@ -2122,7 +2122,8 @@ void MarkCompactCollector::MarkRoots(RootVisitor* root_visitor) {
     if (heap_->local_embedder_heap_tracer()->embedder_stack_state() ==
         cppgc::EmbedderStackState::kMayContainHeapPointers) {
       ConservativeTracedHandlesMarkingVisitor conservative_marker(
-          *heap_, *local_marking_worklists_);
+          *heap_, *local_marking_worklists_,
+          cppgc::internal::CollectionType::kMajor);
       stack.IteratePointers(&conservative_marker);
     }
   }
@@ -5810,6 +5811,17 @@ void MinorMarkCompactCollector::PerformWrapperTracing() {
       std::numeric_limits<double>::infinity());
 }
 
+// static
+bool MinorMarkCompactCollector::IsUnmarkedYoungHeapObject(Heap* heap,
+                                                          FullObjectSlot p) {
+  Object o = *p;
+  if (!o.IsHeapObject()) return false;
+  HeapObject heap_object = HeapObject::cast(o);
+  MinorMarkCompactCollector* collector = heap->minor_mark_compact_collector();
+  return ObjectInYoungGeneration(o) &&
+         collector->non_atomic_marking_state()->IsWhite(heap_object);
+}
+
 class YoungGenerationMigrationObserver final : public MigrationObserver {
  public:
   YoungGenerationMigrationObserver(Heap* heap,
@@ -6194,6 +6206,13 @@ void MinorMarkCompactCollector::ClearNonLiveReferences() {
     heap()->external_string_table_.IterateYoung(&external_visitor);
     heap()->external_string_table_.CleanUpYoung();
   }
+  if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap());
+      cpp_heap && cpp_heap->generational_gc_supported()) {
+    TRACE_GC(heap()->tracer(),
+             GCTracer::Scope::MINOR_MC_CLEAR_WEAK_GLOBAL_HANDLES);
+    isolate()->traced_handles()->ResetYoungDeadNodes(
+        &MinorMarkCompactCollector::IsUnmarkedYoungHeapObject);
+  }
 }
 
 void MinorMarkCompactCollector::EvacuatePrologue() {
@@ -6421,11 +6440,18 @@ void MinorMarkCompactCollector::MarkRootSetInParallel(
                                                  SkipRoot::kOldGeneration});
     isolate()->global_handles()->IterateYoungStrongAndDependentRoots(
         root_visitor);
-    isolate()->traced_handles()->IterateYoungRoots(root_visitor);
-    if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap())) {
+    if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap());
+        cpp_heap && cpp_heap->generational_gc_supported()) {
+      // Visit the Oilpan-to-V8 remembered set.
+      isolate()->traced_handles()->IterateAndMarkYoungRootsWithOldHosts(
+          root_visitor);
+      // Visit the V8-to-Oilpan remembered set.
       cpp_heap->VisitCrossHeapRememberedSetIfNeeded([this](JSObject obj) {
         VisitObjectWithEmbedderFields(obj, *local_marking_worklists());
       });
+    } else {
+      // Otherwise, visit all young roots.
+      isolate()->traced_handles()->IterateYoungRoots(root_visitor);
     }
 
     if (!was_marked_incrementally) {
