@@ -7528,7 +7528,7 @@ class LiftoffCompiler {
 
       LiftoffRegister null_address = temp;
       __ LoadConstant(null_address, WasmValue::ForUintPtr(0));
-      __ emit_cond_jump(kUnequal, &perform_call, kRef, target.gp(),
+      __ emit_cond_jump(kUnequal, &perform_call, kIntPtrKind, target.gp(),
                         null_address.gp(), frozen);
       // The cached target can only be null for WasmJSFunctions.
       __ LoadTaggedPointer(
