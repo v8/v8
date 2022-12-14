@@ -632,7 +632,8 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
-  if (!it.frame()->is_unoptimized() && !it.frame()->is_maglev()) {
+  DCHECK(it.frame()->is_java_script());
+  if (it.frame()->is_turbofan()) {
     // Nothing to be done.
     return ReadOnlyRoots(isolate).undefined_value();
   }
@@ -652,7 +653,9 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   // If not (e.g. because we enter a nested loop first), the next JumpLoop will
   // see the cached OSR code with a mismatched offset, and trigger
   // non-concurrent OSR compilation and installation.
-  if (isolate->concurrent_recompilation_enabled() && v8_flags.concurrent_osr) {
+  // TODO(v8:7700): Support spawning a concurrent job when OSRing from Maglev.
+  if (it.frame()->is_unoptimized() &&
+      isolate->concurrent_recompilation_enabled() && v8_flags.concurrent_osr) {
     const BytecodeOffset osr_offset =
         OffsetOfNextJumpLoop(isolate, UnoptimizedFrame::cast(it.frame()));
     if (osr_offset.IsNone()) {
