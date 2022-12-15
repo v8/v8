@@ -2623,7 +2623,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     // Cannot use CALL_INTERFACE_* macros because control is empty.
     interface().StartFunction(this);
     DecodeFunctionBody();
-    if (!VALIDATE(this->ok())) return TraceFailed();
+    // Decoding can fail even without validation, e.g. due to missing Liftoff
+    // support.
+    if (this->failed()) return TraceFailed();
 
     if (!VALIDATE(control_.empty())) {
       if (control_.size() > 1) {
@@ -2636,14 +2638,13 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     }
     // Cannot use CALL_INTERFACE_* macros because control is empty.
     interface().FinishFunction(this);
-    if (!VALIDATE(this->ok())) return TraceFailed();
+    if (this->failed()) return TraceFailed();
 
     TRACE("wasm-decode ok\n\n");
     return true;
   }
 
   bool TraceFailed() {
-    if constexpr (!ValidationTag::validate) UNREACHABLE();
     if (this->error_.offset()) {
       TRACE("wasm-error module+%-6d func+%d: %s\n\n", this->error_.offset(),
             this->GetBufferRelativeOffset(this->error_.offset()),
@@ -2840,7 +2841,10 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       }
     }
 
-    if (!VALIDATE(this->pc_ == this->end_)) {
+    // Even without validation, compilation could fail because of unsupported
+    // Liftoff operations. In that case, {pc_} did not necessarily advance until
+    // {end_}. Thus do not wrap the next check in {VALIDATE}.
+    if (this->pc_ != this->end_) {
       this->DecodeError("Beyond end of code");
     }
   }
@@ -3003,6 +3007,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       return 0;
     }
     CALL_INTERFACE_IF_OK_AND_REACHABLE(NopForTestingUnsupportedInLiftoff);
+    // Return {0} if we failed, to not advance the pc past the end.
+    if (this->failed()) {
+      DCHECK_EQ(this->pc_, this->end_);
+      return 0;
+    }
     return 1;
   }
 

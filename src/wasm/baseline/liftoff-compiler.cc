@@ -337,7 +337,7 @@ void CheckBailoutAllowed(LiftoffBailoutReason reason, const char* detail,
 
 class LiftoffCompiler {
  public:
-  using ValidationTag = Decoder::BooleanValidationTag;
+  using ValidationTag = Decoder::NoValidationTag;
   using Value = ValueBase<ValidationTag>;
 
   struct ElseState {
@@ -7895,7 +7895,7 @@ WasmCompilationResult ExecuteLiftoffCompilation(
                  compiler_options.for_debugging == kForDebugging);
   WasmFeatures unused_detected_features;
 
-  WasmFullDecoder<Decoder::BooleanValidationTag, LiftoffCompiler> decoder(
+  WasmFullDecoder<Decoder::NoValidationTag, LiftoffCompiler> decoder(
       &zone, env->module, env->enabled_features,
       compiler_options.detected_features ? compiler_options.detected_features
                                          : &unused_detected_features,
@@ -7975,7 +7975,7 @@ std::unique_ptr<DebugSideTable> GenerateLiftoffDebugSideTable(
       code->for_debugging() == kForStepping
           ? base::ArrayVector(kSteppingBreakpoints)
           : base::Vector<const int>{};
-  WasmFullDecoder<Decoder::BooleanValidationTag, LiftoffCompiler> decoder(
+  WasmFullDecoder<Decoder::NoValidationTag, LiftoffCompiler> decoder(
       &zone, native_module->module(), env.enabled_features, &detected,
       func_body, call_descriptor, &env, &zone,
       NewAssemblerBuffer(AssemblerBase::kDefaultBufferSize),

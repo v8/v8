@@ -79,6 +79,24 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
     wasm_compile_function_time_scope.emplace(timed_histogram);
   }
 
+  // Before executing compilation, make sure that the function was validated.
+  // Both Liftoff and TurboFan compilation do not perform validation, so can
+  // only run on valid functions.
+  if (V8_UNLIKELY(!env->module->function_was_validated(func_index_))) {
+    // This code path can only be reached in
+    // - eager compilation mode,
+    // - with lazy validation,
+    // - with PGO (which compiles some functions eagerly), or
+    // - with compilation hints (which also compiles some functions eagerly).
+    // TODO(clemensb): Add a proper check.
+    if (ValidateFunctionBody(env->enabled_features, env->module, detected,
+                             func_body)
+            .failed()) {
+      return {};
+    }
+    env->module->set_function_validated(func_index_);
+  }
+
   if (v8_flags.trace_wasm_compiler) {
     PrintF("Compiling wasm function %d with %s\n", func_index_,
            ExecutionTierToString(tier_));
@@ -129,16 +147,6 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
       V8_FALLTHROUGH;
 
     case ExecutionTier::kTurbofan:
-      // Before executing TurboFan compilation, make sure that the function was
-      // validated (because TurboFan compilation assumes valid input).
-      if (V8_UNLIKELY(!env->module->function_was_validated(func_index_))) {
-        if (ValidateFunctionBody(env->enabled_features, env->module, detected,
-                                 func_body)
-                .failed()) {
-          return {};
-        }
-        env->module->set_function_validated(func_index_);
-      }
       result = compiler::ExecuteTurbofanWasmCompilation(
           env, wire_bytes_storage, func_body, func_index_, counters,
           buffer_cache, detected);
