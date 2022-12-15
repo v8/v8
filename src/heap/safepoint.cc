@@ -367,7 +367,7 @@ void GlobalSafepoint::EnterGlobalSafepointScope(Isolate* initiator) {
 
   // Try to initiate safepoint for all clients. Fail immediately when the
   // local_heaps_mutex_ can't be locked without blocking.
-  IterateFullClientIsolatesList([&clients, initiator](Isolate* client) {
+  IterateClientIsolates([&clients, initiator](Isolate* client) {
     clients.emplace_back(client);
     client->heap()->safepoint()->TryInitiateGlobalSafepointScope(
         initiator, &clients.back());
@@ -413,7 +413,7 @@ void GlobalSafepoint::LeaveGlobalSafepointScope(Isolate* initiator) {
       shared_heap_isolate_->heap()->safepoint()->local_heaps_mutex_.Unlock();
     }
 
-    IterateFullClientIsolatesList([initiator](Isolate* client) {
+    IterateClientIsolates([initiator](Isolate* client) {
       Heap* client_heap = client->heap();
       client_heap->safepoint()->LeaveGlobalSafepointScope(initiator);
     });
