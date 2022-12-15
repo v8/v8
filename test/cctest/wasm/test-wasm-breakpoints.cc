@@ -140,7 +140,7 @@ class BreakHandler : public debug::DebugDelegate {
 Handle<BreakPoint> SetBreakpoint(WasmRunnerBase* runner, int function_index,
                                  int byte_offset,
                                  int expected_set_byte_offset = -1) {
-  runner->TierDown();
+  runner->SwitchToDebug();
   int func_offset =
       runner->builder().GetFunctionAt(function_index)->code.offset();
   int code_offset = func_offset + byte_offset;
@@ -370,7 +370,7 @@ WASM_COMPILED_EXEC_TEST(WasmSimpleStepping) {
 
 WASM_COMPILED_EXEC_TEST(WasmStepInAndOut) {
   WasmRunner<int, int> runner(execution_tier);
-  runner.TierDown();
+  runner.SwitchToDebug();
   WasmFunctionCompiler& f2 = runner.NewFunction<void>();
   f2.AllocateLocal(kWasmI32);
 

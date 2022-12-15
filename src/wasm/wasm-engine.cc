@@ -390,8 +390,8 @@ struct WasmEngine::IsolateInfo {
 
   const std::shared_ptr<Counters> async_counters;
 
-  // Keep new modules in tiered down state.
-  bool keep_tiered_down = false;
+  // Keep new modules in debug state.
+  bool keep_in_debug_state = false;
 
   // Keep track whether we already added a sample for PKU support (we only want
   // one sample per Isolate).
@@ -714,22 +714,30 @@ void WasmEngine::CompileFunction(Isolate* isolate, NativeModule* native_module,
       &native_module->module()->functions[function_index], tier);
 }
 
-void WasmEngine::TierDownAllModulesPerIsolate(Isolate* isolate) {
-  std::vector<std::shared_ptr<NativeModule>> native_modules;
+void WasmEngine::EnterDebuggingForIsolate(Isolate* isolate) {
+  std::vector<std::pair<std::shared_ptr<NativeModule>, DebugState>>
+      native_modules;
+  // {mutex_} gets taken both here and in {RemoveAllCompiledCode} in
+  // {AddPotentiallyDeadCode}. Therefore {RemoveAllCompiledCode} has to be
+  // called outside the lock.
   {
     base::MutexGuard lock(&mutex_);
-    if (isolates_[isolate]->keep_tiered_down) return;
-    isolates_[isolate]->keep_tiered_down = true;
+    if (isolates_[isolate]->keep_in_debug_state) return;
+    isolates_[isolate]->keep_in_debug_state = true;
     for (auto* native_module : isolates_[isolate]->native_modules) {
-      native_module->SetTieringState(kTieredDown);
       DCHECK_EQ(1, native_modules_.count(native_module));
       if (auto shared_ptr = native_modules_[native_module]->weak_ptr.lock()) {
-        native_modules.emplace_back(std::move(shared_ptr));
+        native_modules.emplace_back(std::make_pair(
+            std::move(shared_ptr), native_module->IsInDebugState()));
       }
+      native_module->SetDebugState(kDebugging);
     }
   }
-  for (auto& native_module : native_modules) {
-    native_module->RecompileForTiering();
+  for (auto& pair : native_modules) {
+    DebugState is_in_debug_state = pair.second;
+    if (!is_in_debug_state) {
+      pair.first->RemoveAllCompiledCode();
+    }
   }
 }
 
@@ -740,12 +748,12 @@ void WasmEngine::LeaveDebuggingForIsolate(Isolate* isolate) {
   std::vector<std::pair<std::shared_ptr<NativeModule>, bool>> native_modules;
   {
     base::MutexGuard lock(&mutex_);
-    isolates_[isolate]->keep_tiered_down = false;
+    isolates_[isolate]->keep_in_debug_state = false;
     auto can_remove_debug_code = [this](NativeModule* native_module) {
       DCHECK_EQ(1, native_modules_.count(native_module));
       for (auto* isolate : native_modules_[native_module]->isolates) {
         DCHECK_EQ(1, isolates_.count(isolate));
-        if (isolates_[isolate]->keep_tiered_down) return false;
+        if (isolates_[isolate]->keep_in_debug_state) return false;
       }
       return true;
     };
@@ -753,11 +761,11 @@ void WasmEngine::LeaveDebuggingForIsolate(Isolate* isolate) {
       DCHECK_EQ(1, native_modules_.count(native_module));
       auto shared_ptr = native_modules_[native_module]->weak_ptr.lock();
       if (!shared_ptr) continue;  // The module is not used any more.
-      if (!native_module->IsTieredDown()) continue;
+      if (!native_module->IsInDebugState()) continue;
       // Only start tier-up if no other isolate needs this module in tiered
       // down state.
       bool remove_debug_code = can_remove_debug_code(native_module);
-      if (remove_debug_code) native_module->SetTieringState(kTieredUp);
+      if (remove_debug_code) native_module->SetDebugState(kNotDebugging);
       native_modules.emplace_back(std::move(shared_ptr), remove_debug_code);
     }
   }
@@ -768,7 +776,9 @@ void WasmEngine::LeaveDebuggingForIsolate(Isolate* isolate) {
     if (native_module->HasDebugInfo()) {
       native_module->GetDebugInfo()->RemoveIsolate(isolate);
     }
-    if (remove_debug_code) native_module->RemoveAllCompiledCode();
+    if (remove_debug_code) {
+      native_module->RemoveAllCompiledCode();
+    }
   }
 }
 
@@ -1205,8 +1215,8 @@ std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
   pair.first->second.get()->isolates.insert(isolate);
   auto* isolate_info = isolates_[isolate].get();
   isolate_info->native_modules.insert(native_module.get());
-  if (isolate_info->keep_tiered_down) {
-    native_module->SetTieringState(kTieredDown);
+  if (isolate_info->keep_in_debug_state) {
+    native_module->SetDebugState(kDebugging);
   }
 
   // Record memory protection key support.
@@ -1232,7 +1242,7 @@ std::shared_ptr<NativeModule> WasmEngine::MaybeGetNativeModule(
                wire_bytes.size());
   std::shared_ptr<NativeModule> native_module =
       native_module_cache_.MaybeGetNativeModule(origin, wire_bytes);
-  bool recompile_module = false;
+  bool remove_all_code = false;
   if (native_module) {
     TRACE_EVENT0("v8.wasm", "CacheHit");
     base::MutexGuard guard(&mutex_);
@@ -1242,13 +1252,15 @@ std::shared_ptr<NativeModule> WasmEngine::MaybeGetNativeModule(
     }
     native_module_info->isolates.insert(isolate);
     isolates_[isolate]->native_modules.insert(native_module.get());
-    if (isolates_[isolate]->keep_tiered_down) {
-      native_module->SetTieringState(kTieredDown);
-      recompile_module = true;
+    if (isolates_[isolate]->keep_in_debug_state &&
+        !native_module->IsInDebugState()) {
+      remove_all_code = true;
+      native_module->SetDebugState(kDebugging);
     }
   }
-  // Potentially recompile the module for tier down, after releasing the mutex.
-  if (recompile_module) native_module->RecompileForTiering();
+  if (remove_all_code) {
+    native_module->RemoveAllCompiledCode();
+  }
   return native_module;
 }
 
@@ -1261,21 +1273,22 @@ std::shared_ptr<NativeModule> WasmEngine::UpdateNativeModuleCache(
   native_module =
       native_module_cache_.Update(std::move(native_module), has_error);
   if (prev == native_module.get()) return native_module;
-
-  bool recompile_module = false;
+  bool remove_all_code = false;
   {
     base::MutexGuard guard(&mutex_);
     DCHECK_EQ(1, native_modules_.count(native_module.get()));
     native_modules_[native_module.get()]->isolates.insert(isolate);
     DCHECK_EQ(1, isolates_.count(isolate));
     isolates_[isolate]->native_modules.insert(native_module.get());
-    if (isolates_[isolate]->keep_tiered_down) {
-      native_module->SetTieringState(kTieredDown);
-      recompile_module = true;
+    if (isolates_[isolate]->keep_in_debug_state &&
+        !native_module->IsInDebugState()) {
+      remove_all_code = true;
+      native_module->SetDebugState(kDebugging);
     }
   }
-  // Potentially recompile the module for tier down, after releasing the mutex.
-  if (recompile_module) native_module->RecompileForTiering();
+  if (remove_all_code) {
+    native_module->RemoveAllCompiledCode();
+  }
   return native_module;
 }
 

@@ -124,7 +124,6 @@ enum class CompilationEvent : uint8_t {
   kFinishedExportWrappers,
   kFinishedCompilationChunk,
   kFailedCompilation,
-  kFinishedRecompilation
 };
 
 class V8_EXPORT_PRIVATE CompilationEventCallback {
@@ -175,7 +174,6 @@ class V8_EXPORT_PRIVATE CompilationState {
 
   bool failed() const;
   bool baseline_compilation_finished() const;
-  bool recompilation_finished() const;
 
   void set_compilation_id(int compilation_id);
 

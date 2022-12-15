@@ -1338,7 +1338,7 @@
   'wasm/liftoff': [SKIP],
   'wasm/liftoff-debug': [SKIP],
   'wasm/tier-up-testing-flag': [SKIP],
-  'wasm/tier-down-to-liftoff': [SKIP],
+  'wasm/enter-debug-state': [SKIP],
   'wasm/wasm-dynamic-tiering': [SKIP],
   'wasm/test-partial-serialization': [SKIP],
   'regress/wasm/regress-1248024': [SKIP],

@@ -8285,7 +8285,7 @@ wasm::WasmCode* CompileWasmCapiCallWrapper(wasm::NativeModule* native_module,
         result.tagged_parameter_slots,
         result.protected_instructions_data.as_vector(),
         result.source_positions.as_vector(), wasm::WasmCode::kWasmToCapiWrapper,
-        wasm::ExecutionTier::kNone, wasm::kNoDebugging);
+        wasm::ExecutionTier::kNone, wasm::kNotForDebugging);
     published_code = native_module->PublishCode(std::move(wasm_code));
   }
   return published_code;
@@ -8338,7 +8338,7 @@ wasm::WasmCode* CompileWasmJSFastCallWrapper(wasm::NativeModule* native_module,
         result.tagged_parameter_slots,
         result.protected_instructions_data.as_vector(),
         result.source_positions.as_vector(), wasm::WasmCode::kWasmToJsWrapper,
-        wasm::ExecutionTier::kNone, wasm::kNoDebugging);
+        wasm::ExecutionTier::kNone, wasm::kNotForDebugging);
     return native_module->PublishCode(std::move(wasm_code));
   }
 }

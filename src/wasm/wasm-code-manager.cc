@@ -1144,7 +1144,7 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
                    source_pos.as_vector(),   // source positions
                    WasmCode::kWasmFunction,  // kind
                    ExecutionTier::kNone,     // tier
-                   kNoDebugging}};           // for_debugging
+                   kNotForDebugging}};       // for_debugging
   new_code->MaybePrint();
   new_code->Validate();
 
@@ -1344,20 +1344,10 @@ WasmCode* NativeModule::PublishCodeLocked(
   // code table of jump table). Otherwise, install code if it was compiled
   // with a higher tier.
   static_assert(
-      kForDebugging > kNoDebugging && kWithBreakpoints > kForDebugging,
+      kForDebugging > kNotForDebugging && kWithBreakpoints > kForDebugging,
       "for_debugging is ordered");
-  const bool update_code_table =
-      // Never install stepping code.
-      code->for_debugging() != kForStepping &&
-      (!prior_code ||
-       (tiering_state_ == kTieredDown
-            // Tiered down: Install breakpoints over normal debug code.
-            ? prior_code->for_debugging() <= code->for_debugging()
-            // Tiered up: Install if the tier is higher than before or we
-            // replace debugging code with non-debugging code.
-            : (prior_code->tier() < code->tier() ||
-               (prior_code->for_debugging() && !code->for_debugging()))));
-  if (update_code_table) {
+
+  if (should_update_code_table(code, prior_code)) {
     code_table_[slot_idx] = code;
     if (prior_code) {
       WasmCodeRefScope::AddRef(prior_code);
@@ -1377,6 +1367,32 @@ WasmCode* NativeModule::PublishCodeLocked(
   return code;
 }
 
+bool NativeModule::should_update_code_table(WasmCode* new_code,
+                                            WasmCode* prior_code) const {
+  if (new_code->for_debugging() == kForStepping) {
+    // Never install stepping code.
+    return false;
+  }
+  if (debug_state_ == kDebugging) {
+    if (new_code->for_debugging() == kNotForDebugging) {
+      // In debug state, only install debug code.
+      return false;
+    }
+    if (prior_code && prior_code->for_debugging() > new_code->for_debugging()) {
+      // In debug state, install breakpoints over normal debug code.
+      return false;
+    }
+  }
+  // In kNoDebugging:
+  // Install if the tier is higher than before or we replace debugging code with
+  // non-debugging code.
+  if (prior_code && !prior_code->for_debugging() &&
+      prior_code->tier() > new_code->tier()) {
+    return false;
+  }
+  return true;
+}
+
 void NativeModule::ReinstallDebugCode(WasmCode* code) {
   base::RecursiveMutexGuard lock(&allocation_mutex_);
 
@@ -1387,7 +1403,7 @@ void NativeModule::ReinstallDebugCode(WasmCode* code) {
   DCHECK_LT(code->index(), num_functions());
 
   // If the module is tiered up by now, do not reinstall debug code.
-  if (tiering_state_ != kTieredDown) return;
+  if (debug_state_ != kDebugging) return;
 
   uint32_t slot_idx = declared_function_index(module(), code->index());
   if (WasmCode* prior_code = code_table_[slot_idx]) {
@@ -1422,13 +1438,13 @@ std::unique_ptr<WasmCode> NativeModule::AddDeserializedCode(
     base::Vector<const byte> reloc_info,
     base::Vector<const byte> source_position_table, WasmCode::Kind kind,
     ExecutionTier tier) {
-  UpdateCodeSize(instructions.size(), tier, kNoDebugging);
+  UpdateCodeSize(instructions.size(), tier, kNotForDebugging);
 
   return std::unique_ptr<WasmCode>{new WasmCode{
       this, index, instructions, stack_slots, tagged_parameter_slots,
       safepoint_table_offset, handler_table_offset, constant_pool_offset,
       code_comments_offset, unpadded_binary_size, protected_instructions_data,
-      reloc_info, source_position_table, kind, tier, kNoDebugging}};
+      reloc_info, source_position_table, kind, tier, kNotForDebugging}};
 }
 
 std::vector<WasmCode*> NativeModule::SnapshotCodeTable() const {
@@ -1506,7 +1522,7 @@ WasmCode* NativeModule::CreateEmptyJumpTableInRegionLocked(
   base::Vector<uint8_t> code_space =
       code_allocator_.AllocateForCodeInRegion(this, jump_table_size, region);
   DCHECK(!code_space.empty());
-  UpdateCodeSize(jump_table_size, ExecutionTier::kNone, kNoDebugging);
+  UpdateCodeSize(jump_table_size, ExecutionTier::kNone, kNotForDebugging);
   ZapCode(reinterpret_cast<Address>(code_space.begin()), code_space.size());
   std::unique_ptr<WasmCode> code{
       new WasmCode{this,                  // native_module
@@ -1524,13 +1540,13 @@ WasmCode* NativeModule::CreateEmptyJumpTableInRegionLocked(
                    {},                    // source_pos
                    WasmCode::kJumpTable,  // kind
                    ExecutionTier::kNone,  // tier
-                   kNoDebugging}};        // for_debugging
+                   kNotForDebugging}};    // for_debugging
   return PublishCodeLocked(std::move(code));
 }
 
 void NativeModule::UpdateCodeSize(size_t size, ExecutionTier tier,
                                   ForDebugging for_debugging) {
-  if (for_debugging != kNoDebugging) return;
+  if (for_debugging != kNotForDebugging) return;
   // Count jump tables (ExecutionTier::kNone) for both Liftoff and TurboFan as
   // this is shared code.
   if (tier != ExecutionTier::kTurbofan) liftoff_code_size_.fetch_add(size);
@@ -2401,17 +2417,12 @@ std::vector<std::unique_ptr<WasmCode>> NativeModule::AddCompiledCode(
   return generated_code;
 }
 
-void NativeModule::SetTieringState(TieringState new_tiering_state) {
+void NativeModule::SetDebugState(DebugState new_debug_state) {
   // Do not tier down asm.js (just never change the tiering state).
   if (module()->origin != kWasmOrigin) return;
 
   base::RecursiveMutexGuard lock(&allocation_mutex_);
-  tiering_state_ = new_tiering_state;
-}
-
-bool NativeModule::IsTieredDown() {
-  base::RecursiveMutexGuard lock(&allocation_mutex_);
-  return tiering_state_ == kTieredDown;
+  debug_state_ = new_debug_state;
 }
 
 void NativeModule::RemoveAllCompiledCode() {
@@ -2424,75 +2435,6 @@ void NativeModule::RemoveAllCompiledCode() {
     ResetCode(func_index);
     UseLazyStub(func_index);
   }
-}
-
-void NativeModule::RecompileForTiering() {
-  // If baseline compilation is not finished yet, we do not tier down now. This
-  // would be tricky because not all code is guaranteed to be available yet.
-  // Instead, we tier down after streaming compilation finished.
-  if (!compilation_state_->baseline_compilation_finished()) return;
-
-  // Read the tiering state under the lock, then trigger recompilation after
-  // releasing the lock. If the tiering state was changed when the triggered
-  // compilation units finish, code installation will handle that correctly.
-  TieringState current_state;
-  {
-    base::RecursiveMutexGuard lock(&allocation_mutex_);
-    current_state = tiering_state_;
-
-    // Initialize {cached_code_} to signal that this cache should get filled
-    // from now on.
-    if (!cached_code_) {
-      cached_code_ = std::make_unique<
-          std::map<std::pair<ExecutionTier, int>, WasmCode*>>();
-      // Fill with existing code.
-      for (auto& code_entry : owned_code_) {
-        InsertToCodeCache(code_entry.second.get());
-      }
-    }
-  }
-  RecompileNativeModule(this, current_state);
-}
-
-std::vector<int> NativeModule::FindFunctionsToRecompile(
-    TieringState new_tiering_state) {
-  WasmCodeRefScope code_ref_scope;
-  base::RecursiveMutexGuard guard(&allocation_mutex_);
-  // Get writable permission already here (and not inside the loop in
-  // {PatchJumpTablesLocked}), to avoid switching for each slot individually.
-  CodeSpaceWriteScope code_space_write_scope(this);
-  std::vector<int> function_indexes;
-  int imported = module()->num_imported_functions;
-  int declared = module()->num_declared_functions;
-  const bool tier_down = new_tiering_state == kTieredDown;
-  for (int slot_index = 0; slot_index < declared; ++slot_index) {
-    int function_index = imported + slot_index;
-    WasmCode* old_code = code_table_[slot_index];
-    bool code_is_good =
-        tier_down ? old_code && old_code->for_debugging()
-                  : old_code && old_code->tier() == ExecutionTier::kTurbofan;
-    if (code_is_good) continue;
-    DCHECK_NOT_NULL(cached_code_);
-    auto cache_it = cached_code_->find(std::make_pair(
-        tier_down ? ExecutionTier::kLiftoff : ExecutionTier::kTurbofan,
-        function_index));
-    if (cache_it != cached_code_->end()) {
-      WasmCode* cached_code = cache_it->second;
-      if (old_code) {
-        WasmCodeRefScope::AddRef(old_code);
-        // The code is added to the current {WasmCodeRefScope}, hence the ref
-        // count cannot drop to zero here.
-        old_code->DecRefOnLiveCode();
-      }
-      code_table_[slot_index] = cached_code;
-      PatchJumpTablesLocked(slot_index, cached_code->instruction_start());
-      cached_code->IncRef();
-      continue;
-    }
-    // Otherwise add the function to the set of functions to recompile.
-    function_indexes.push_back(function_index);
-  }
-  return function_indexes;
 }
 
 void NativeModule::FreeCode(base::Vector<WasmCode* const> codes) {
