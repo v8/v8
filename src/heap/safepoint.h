@@ -172,10 +172,12 @@ class GlobalSafepoint final {
 
   template <typename Callback>
   void IterateClientIsolates(Callback callback) {
-    for (Isolate* current = clients_head_; current;
-         current = current->global_safepoint_next_client_isolate_) {
-      callback(current);
-    }
+    IterateFullClientIsolatesList([&callback](Isolate* client) {
+      // We can ignore isolates that tear down since they only participate in
+      // the safepointing protocol to remove themselves from this client list.
+      if (client->heap()->gc_state() == Heap::TEAR_DOWN) return;
+      callback(client);
+    });
   }
 
   void AssertNoClientsOnTearDown();
@@ -185,6 +187,15 @@ class GlobalSafepoint final {
  private:
   void EnterGlobalSafepointScope(Isolate* initiator);
   void LeaveGlobalSafepointScope(Isolate* initiator);
+
+  template <typename Callback>
+  void IterateFullClientIsolatesList(Callback callback) {
+    clients_mutex_.AssertHeld();
+    for (Isolate* current = clients_head_; current;
+         current = current->global_safepoint_next_client_isolate_) {
+      callback(current);
+    }
+  }
 
   Isolate* const shared_heap_isolate_;
   // RecursiveMutex is needed since we need to support nested

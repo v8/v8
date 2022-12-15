@@ -191,15 +191,6 @@ TEST_F(SharedHeapTest, ConcurrentAllocationInSharedMapSpace) {
   }
 }
 
-TEST_F(SharedHeapNoClientsTest, SharedCollectionWithoutClients) {
-  if (!v8_flags.shared_space) {
-    DCHECK_NULL(i_shared_heap_isolate()->heap()->new_space());
-    DCHECK_NULL(i_shared_heap_isolate()->heap()->new_lo_space());
-  }
-
-  ::v8::internal::CollectGarbage(OLD_SPACE, shared_heap_isolate());
-}
-
 void AllocateInSharedHeap(int iterations = 100) {
   SetupClientIsolateAndRunCallback([iterations](v8::Isolate* client_isolate,
                                                 Isolate* i_client_isolate) {
