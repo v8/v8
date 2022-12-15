@@ -4303,7 +4303,7 @@ void InstructionSelector::VisitI64x2RelaxedLaneSelect(Node* node) {
 #define VISIT_SIMD_QFMOP(op)                                               \
   void InstructionSelector::Visit##op(Node* node) {                        \
     Arm64OperandGenerator g(this);                                         \
-    Emit(kArm64##op, g.DefineSameAsFirst(node),                            \
+    Emit(kArm64##op, g.DefineSameAsInput(node, 2),                         \
          g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)), \
          g.UseRegister(node->InputAt(2)));                                 \
   }

@@ -2865,18 +2865,19 @@ class WasmInterpreterInternals {
         REDUCTION_CASE(I16x8AllTrue, i16x8, int8, 8, &)
         REDUCTION_CASE(I8x16AllTrue, i8x16, int16, 16, &)
 #undef REDUCTION_CASE
-#define QFM_CASE(op, name, stype, count, operation)                           \
-  case kExpr##op: {                                                           \
-    stype c = Pop().to_s128().to_##name();                                    \
-    stype b = Pop().to_s128().to_##name();                                    \
-    stype a = Pop().to_s128().to_##name();                                    \
-    stype res;                                                                \
-    for (size_t i = 0; i < count; i++) {                                      \
-      res.val[LANE(i, res)] =                                                 \
-          a.val[LANE(i, a)] operation(b.val[LANE(i, b)] * c.val[LANE(i, c)]); \
-    }                                                                         \
-    Push(WasmValue(Simd128(res)));                                            \
-    return true;                                                              \
+#define QFM_CASE(op, name, stype, count, operation)          \
+  case kExpr##op: {                                          \
+    stype c = Pop().to_s128().to_##name();                   \
+    stype b = Pop().to_s128().to_##name();                   \
+    stype a = Pop().to_s128().to_##name();                   \
+    stype res;                                               \
+    for (size_t i = 0; i < count; i++) {                     \
+      res.val[LANE(i, res)] =                                \
+          operation(a.val[LANE(i, a)] * b.val[LANE(i, b)]) + \
+          c.val[LANE(i, c)];                                 \
+    }                                                        \
+    Push(WasmValue(Simd128(res)));                           \
+    return true;                                             \
   }
         QFM_CASE(F32x4Qfma, f32x4, float4, 4, +)
         QFM_CASE(F32x4Qfms, f32x4, float4, 4, -)

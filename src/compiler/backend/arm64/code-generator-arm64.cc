@@ -2158,6 +2158,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
              i.InputSimd128Register(2).Format(f));                     \
     break;                                                             \
   }
+#define SIMD_DESTRUCTIVE_RELAXED_FUSED_CASE(Op, Instr, FORMAT) \
+  case Op: {                                                   \
+    VRegister dst = i.OutputSimd128Register().V##FORMAT();     \
+    DCHECK_EQ(dst, i.InputSimd128Register(2).V##FORMAT());     \
+    __ Instr(dst, i.InputSimd128Register(0).V##FORMAT(),       \
+             i.InputSimd128Register(1).V##FORMAT());           \
+    break;                                                     \
+  }
       SIMD_BINOP_LANE_SIZE_CASE(kArm64FMin, Fmin);
       SIMD_BINOP_LANE_SIZE_CASE(kArm64FMax, Fmax);
       SIMD_UNOP_LANE_SIZE_CASE(kArm64FAbs, Fabs);
@@ -2273,8 +2281,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SIMD_FCM_L_CASE(kArm64FLe, le, ge);
       SIMD_FCM_G_CASE(kArm64FGt, gt);
       SIMD_FCM_G_CASE(kArm64FGe, ge);
-      SIMD_DESTRUCTIVE_BINOP_CASE(kArm64F64x2Qfma, Fmla, 2D);
-      SIMD_DESTRUCTIVE_BINOP_CASE(kArm64F64x2Qfms, Fmls, 2D);
+      SIMD_DESTRUCTIVE_RELAXED_FUSED_CASE(kArm64F64x2Qfma, Fmla, 2D);
+      SIMD_DESTRUCTIVE_RELAXED_FUSED_CASE(kArm64F64x2Qfms, Fmls, 2D);
     case kArm64F64x2Pmin: {
       VRegister dst = i.OutputSimd128Register().V2D();
       VRegister lhs = i.InputSimd128Register(0).V2D();
@@ -2307,8 +2315,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputSimd128Register(1).Format(s_f), i.InputInt8(2));
       break;
     }
-      SIMD_DESTRUCTIVE_BINOP_CASE(kArm64F32x4Qfma, Fmla, 4S);
-      SIMD_DESTRUCTIVE_BINOP_CASE(kArm64F32x4Qfms, Fmls, 4S);
+      SIMD_DESTRUCTIVE_RELAXED_FUSED_CASE(kArm64F32x4Qfma, Fmla, 4S);
+      SIMD_DESTRUCTIVE_RELAXED_FUSED_CASE(kArm64F32x4Qfms, Fmls, 4S);
     case kArm64F32x4Pmin: {
       VRegister dst = i.OutputSimd128Register().V4S();
       VRegister lhs = i.InputSimd128Register(0).V4S();
@@ -2895,6 +2903,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #undef SIMD_BINOP_LANE_SIZE_CASE
 #undef SIMD_DESTRUCTIVE_BINOP_CASE
 #undef SIMD_DESTRUCTIVE_BINOP_LANE_SIZE_CASE
+#undef SIMD_DESTRUCTIVE_RELAXED_FUSED_CASE
 #undef SIMD_REDUCE_OP_CASE
 #undef ASSEMBLE_SIMD_SHIFT_LEFT
 #undef ASSEMBLE_SIMD_SHIFT_RIGHT

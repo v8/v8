@@ -66,23 +66,23 @@ constexpr double large_n<double> = 1e200;
 template <>
 constexpr float large_n<float> = 1e20;
 
-// Fused Multiply-Add performs a + b * c.
+// Fused Multiply-Add performs a * b + c.
 template <typename T>
 static constexpr FMOperation<T> qfma_array[] = {
-    {1.0f, 2.0f, 3.0f, 7.0f, 7.0f},
-    // fused: a + b * c = -inf + (positive overflow) = -inf
-    // unfused: a + b * c = -inf + inf = NaN
-    {-std::numeric_limits<T>::infinity(), large_n<T>, large_n<T>,
+    {2.0f, 3.0f, 1.0f, 7.0f, 7.0f},
+    // fused: a * b + c = (positive overflow) + -inf = -inf
+    // unfused: a * b + c = inf + -inf = NaN
+    {large_n<T>, large_n<T>, -std::numeric_limits<T>::infinity(),
      -std::numeric_limits<T>::infinity(), std::numeric_limits<T>::quiet_NaN()},
-    // fused: a + b * c = inf + (negative overflow) = inf
-    // unfused: a + b * c = inf + -inf = NaN
-    {std::numeric_limits<T>::infinity(), -large_n<T>, large_n<T>,
+    // fused: a * b + c = (negative overflow) + inf = inf
+    // unfused: a * b + c = -inf + inf = NaN
+    {-large_n<T>, large_n<T>, std::numeric_limits<T>::infinity(),
      std::numeric_limits<T>::infinity(), std::numeric_limits<T>::quiet_NaN()},
     // NaN
-    {std::numeric_limits<T>::quiet_NaN(), 2.0f, 3.0f,
+    {2.0f, 3.0f, std::numeric_limits<T>::quiet_NaN(),
      std::numeric_limits<T>::quiet_NaN(), std::numeric_limits<T>::quiet_NaN()},
     // -NaN
-    {-std::numeric_limits<T>::quiet_NaN(), 2.0f, 3.0f,
+    {2.0f, 3.0f, -std::numeric_limits<T>::quiet_NaN(),
      std::numeric_limits<T>::quiet_NaN(), std::numeric_limits<T>::quiet_NaN()}};
 
 template <typename T>
@@ -90,23 +90,23 @@ static constexpr base::Vector<const FMOperation<T>> qfma_vector() {
   return base::ArrayVector(qfma_array<T>);
 }
 
-// Fused Multiply-Subtract performs a - b * c.
+// Fused Multiply-Subtract performs -(a * b) + c.
 template <typename T>
 static constexpr FMOperation<T> qfms_array[]{
-    {1.0f, 2.0f, 3.0f, -5.0f, -5.0f},
-    // fused: a - b * c = inf - (positive overflow) = inf
-    // unfused: a - b * c = inf - inf = NaN
-    {std::numeric_limits<T>::infinity(), large_n<T>, large_n<T>,
+    {2.0f, 3.0f, 1.0f, -5.0f, -5.0f},
+    // fused: -(a * b) + c = - (positive overflow) + inf = inf
+    // unfused: -(a * b) + c = - inf + inf = NaN
+    {large_n<T>, large_n<T>, std::numeric_limits<T>::infinity(),
      std::numeric_limits<T>::infinity(), std::numeric_limits<T>::quiet_NaN()},
-    // fused: a - b * c = -inf - (negative overflow) = -inf
-    // unfused: a - b * c = -inf - -inf = NaN
-    {-std::numeric_limits<T>::infinity(), -large_n<T>, large_n<T>,
+    // fused: -(a * b) + c = (negative overflow) + -inf = -inf
+    // unfused: -(a * b) + c = -inf - -inf = NaN
+    {-large_n<T>, large_n<T>, -std::numeric_limits<T>::infinity(),
      -std::numeric_limits<T>::infinity(), std::numeric_limits<T>::quiet_NaN()},
     // NaN
-    {std::numeric_limits<T>::quiet_NaN(), 2.0f, 3.0f,
+    {2.0f, 3.0f, std::numeric_limits<T>::quiet_NaN(),
      std::numeric_limits<T>::quiet_NaN(), std::numeric_limits<T>::quiet_NaN()},
     // -NaN
-    {-std::numeric_limits<T>::quiet_NaN(), 2.0f, 3.0f,
+    {2.0f, 3.0f, -std::numeric_limits<T>::quiet_NaN(),
      std::numeric_limits<T>::quiet_NaN(), std::numeric_limits<T>::quiet_NaN()}};
 
 template <typename T>
