@@ -351,7 +351,7 @@ void HeapVerification::VerifyPage(const BasicMemoryChunk* chunk) {
   CHECK(!chunk->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION));
   CHECK(!chunk->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION));
   CHECK(!chunk->IsFlagSet(Page::SHARED_HEAP_PROMOTION));
-  if (chunk->InReadOnlySpace()) {
+  if (V8_SHARED_RO_HEAP_BOOL && chunk->InReadOnlySpace()) {
     CHECK_NULL(chunk->owner());
   } else {
     CHECK_EQ(chunk->heap(), heap());
