@@ -2380,6 +2380,10 @@ DEFINE_NEG_IMPLICATION(single_threaded_gc, cppheap_concurrent_marking)
 DEFINE_BOOL(experimental_web_snapshots, false, "enable Web Snapshots")
 DEFINE_NEG_IMPLICATION(experimental_web_snapshots, script_streaming)
 
+#if defined(V8_USE_LIBM_TRIG_FUNCTIONS)
+DEFINE_BOOL(use_libm_trig_functions, true, "use libm trig functions")
+#endif
+
 #undef FLAG
 
 #ifdef VERIFY_PREDICTABLE
@@ -2393,10 +2397,6 @@ DEFINE_BOOL(verify_predictable, false,
 DEFINE_IMPLICATION(verify_predictable, predictable)
 DEFINE_INT(dump_allocations_digest_at_alloc, -1,
            "dump allocations digest each n-th allocation")
-
-#if defined(V8_USE_LIBM_TRIG_FUNCTIONS)
-DEFINE_BOOL(use_libm_trig_functions, true, "use libm trig functions")
-#endif
 
 // Cleanup...
 #undef FLAG_FULL
