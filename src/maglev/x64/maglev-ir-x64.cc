@@ -2789,25 +2789,6 @@ void CallBuiltin::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
-int CallRuntime::MaxCallStackArgs() const { return num_args(); }
-void CallRuntime::SetValueLocationConstraints() {
-  UseFixed(context(), kContextRegister);
-  for (int i = 0; i < num_args(); i++) {
-    UseAny(arg(i));
-  }
-  DefineAsFixed(this, kReturnRegister0);
-}
-void CallRuntime::GenerateCode(MaglevAssembler* masm,
-                               const ProcessingState& state) {
-  DCHECK_EQ(ToRegister(context()), kContextRegister);
-  for (int i = 0; i < num_args(); i++) {
-    __ Push(arg(i));
-  }
-  __ CallRuntime(function_id(), num_args());
-  // TODO(victorgomes): Not sure if this is needed for all runtime calls.
-  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
-}
-
 int ConstructWithSpread::MaxCallStackArgs() const {
   int argc_no_spread = num_args() - 1;
   using D = CallInterfaceDescriptorFor<
