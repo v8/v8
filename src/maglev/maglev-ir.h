@@ -5132,14 +5132,24 @@ class CallWithSpread : public ValueNodeT<CallWithSpread> {
   Input& context() { return input(kContextIndex); }
   const Input& context() const { return input(kContextIndex); }
   int num_args() const { return input_count() - kFixedInputCount; }
+  int num_args_no_spread() const {
+    DCHECK_GT(num_args(), 0);
+    return num_args() - 1;
+  }
   Input& arg(int i) { return input(i + kFixedInputCount); }
   void set_arg(int i, ValueNode* node) {
     set_input(i + kFixedInputCount, node);
   }
+  auto args_no_spread_begin() { return std::make_reverse_iterator(&arg(-1)); }
+  auto args_no_spread_end() {
+    return std::make_reverse_iterator(&arg(num_args_no_spread() - 1));
+  }
   Input& spread() {
     // Spread is the last argument/input.
-    return input(input_count() - 1);
+    DCHECK_GT(num_args(), 0);
+    return arg(num_args() - 1);
   }
+  Input& receiver() { return arg(0); }
   compiler::FeedbackSource feedback() const { return feedback_; }
 
   void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;

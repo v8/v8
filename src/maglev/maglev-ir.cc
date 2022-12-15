@@ -1654,6 +1654,100 @@ void CallKnownJSFunction::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
+int CallWithSpread::MaxCallStackArgs() const {
+  int argc_no_spread = num_args() - 1;
+  if (feedback_.IsValid()) {
+    using D =
+        CallInterfaceDescriptorFor<Builtin::kCallWithSpread_WithFeedback>::type;
+    return argc_no_spread + D::GetStackParameterCount();
+  } else {
+    using D = CallInterfaceDescriptorFor<Builtin::kCallWithSpread>::type;
+    return argc_no_spread + D::GetStackParameterCount();
+  }
+}
+void CallWithSpread::SetValueLocationConstraints() {
+  if (feedback_.IsValid()) {
+    using D =
+        CallInterfaceDescriptorFor<Builtin::kCallWithSpread_WithFeedback>::type;
+    UseFixed(function(), D::GetRegisterParameter(D::kTarget));
+    UseFixed(spread(), D::GetRegisterParameter(D::kSpread));
+  } else {
+    using D = CallInterfaceDescriptorFor<Builtin::kCallWithSpread>::type;
+    UseFixed(function(), D::GetRegisterParameter(D::kTarget));
+    UseFixed(spread(), D::GetRegisterParameter(D::kSpread));
+  }
+  UseFixed(context(), kContextRegister);
+  for (int i = 0; i < num_args() - 1; i++) {
+    UseAny(arg(i));
+  }
+  DefineAsFixed(this, kReturnRegister0);
+}
+void CallWithSpread::GenerateCode(MaglevAssembler* masm,
+                                  const ProcessingState& state) {
+#ifdef DEBUG
+  if (feedback_.IsValid()) {
+    using D =
+        CallInterfaceDescriptorFor<Builtin::kCallWithSpread_WithFeedback>::type;
+    DCHECK_EQ(ToRegister(function()), D::GetRegisterParameter(D::kTarget));
+    DCHECK_EQ(ToRegister(spread()), D::GetRegisterParameter(D::kSpread));
+  } else {
+    using D = CallInterfaceDescriptorFor<Builtin::kCallWithSpread>::type;
+    DCHECK_EQ(ToRegister(function()), D::GetRegisterParameter(D::kTarget));
+    DCHECK_EQ(ToRegister(spread()), D::GetRegisterParameter(D::kSpread));
+  }
+  DCHECK_EQ(ToRegister(context()), kContextRegister);
+#endif
+
+  if (feedback_.IsValid()) {
+    using D =
+        CallInterfaceDescriptorFor<Builtin::kCallWithSpread_WithFeedback>::type;
+    static_assert(D::GetStackParameterIndex(D::kReceiver) == 0);
+    static_assert(D::GetStackParameterCount() == 1);
+    // Push the receiver twice, as we need it for CallCollectFeedback() and the
+    // actual call.
+    __ PushReverse(receiver(), base::make_iterator_range(args_no_spread_begin(),
+                                                         args_no_spread_end()));
+    __ Move(D::GetRegisterParameter(D::kArgumentsCount), num_args_no_spread());
+    __ Move(D::GetRegisterParameter(D::kFeedbackVector), feedback().vector);
+    __ Move(D::GetRegisterParameter(D::kSlot), feedback().index());
+    __ CallBuiltin(Builtin::kCallWithSpread_WithFeedback);
+  } else {
+    using D = CallInterfaceDescriptorFor<Builtin::kCallWithSpread>::type;
+    __ PushReverse(base::make_iterator_range(args_no_spread_begin(),
+                                             args_no_spread_end()));
+    __ Move(D::GetRegisterParameter(D::kArgumentsCount), num_args_no_spread());
+    __ CallBuiltin(Builtin::kCallWithSpread);
+  }
+
+  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
+}
+
+int CallWithArrayLike::MaxCallStackArgs() const {
+  using D = CallInterfaceDescriptorFor<Builtin::kCallWithArrayLike>::type;
+  return D::GetStackParameterCount();
+}
+void CallWithArrayLike::SetValueLocationConstraints() {
+  using D = CallInterfaceDescriptorFor<Builtin::kCallWithArrayLike>::type;
+  UseFixed(function(), D::GetRegisterParameter(D::kTarget));
+  UseAny(receiver());
+  UseFixed(arguments_list(), D::GetRegisterParameter(D::kArgumentsList));
+  UseFixed(context(), kContextRegister);
+  DefineAsFixed(this, kReturnRegister0);
+}
+void CallWithArrayLike::GenerateCode(MaglevAssembler* masm,
+                                     const ProcessingState& state) {
+#ifdef DEBUG
+  using D = CallInterfaceDescriptorFor<Builtin::kCallWithArrayLike>::type;
+  DCHECK_EQ(ToRegister(function()), D::GetRegisterParameter(D::kTarget));
+  DCHECK_EQ(ToRegister(arguments_list()),
+            D::GetRegisterParameter(D::kArgumentsList));
+  DCHECK_EQ(ToRegister(context()), kContextRegister);
+#endif  // DEBUG
+  __ Push(receiver());
+  __ CallBuiltin(Builtin::kCallWithArrayLike);
+  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
+}
+
 // ---
 // Arch agnostic control nodes
 // ---
