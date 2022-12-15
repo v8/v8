@@ -17,6 +17,7 @@
 
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
+#include "src/compiler/wasm-call-descriptors.h"
 #include "src/tasks/cancelable-task.h"
 #include "src/tasks/operations-barrier.h"
 #include "src/wasm/canonical-types.h"
@@ -362,6 +363,10 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   TypeCanonicalizer* type_canonicalizer() { return &type_canonicalizer_; }
 
+  compiler::WasmCallDescriptors* call_descriptors() {
+    return &call_descriptors_;
+  }
+
   // Returns either the compressed tagged pointer representing a null value or
   // 0 if pointer compression is not available.
   Tagged_t compressed_null_value_or_zero() const {
@@ -407,6 +412,8 @@ class V8_EXPORT_PRIVATE WasmEngine {
   std::atomic<Tagged_t> null_tagged_compressed_{0};
 
   TypeCanonicalizer type_canonicalizer_;
+
+  compiler::WasmCallDescriptors call_descriptors_;
 
   // This mutex protects all information which is mutated concurrently or
   // fields that are initialized lazily on the first access.

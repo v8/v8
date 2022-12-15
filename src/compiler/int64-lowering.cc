@@ -13,29 +13,31 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
+#include "src/compiler/wasm-call-descriptors.h"
 #include "src/compiler/wasm-compiler.h"
+#include "src/wasm/wasm-engine.h"
 // TODO(wasm): Remove this include.
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-subtyping.h"
 #include "src/zone/zone.h"
 
+#if V8_TARGET_ARCH_32_BIT
+
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-Int64Lowering::Int64Lowering(
-    Graph* graph, MachineOperatorBuilder* machine,
-    CommonOperatorBuilder* common, SimplifiedOperatorBuilder* simplified,
-    Zone* zone, const wasm::WasmModule* module,
-    Signature<MachineRepresentation>* signature,
-    std::unique_ptr<Int64LoweringSpecialCase> special_case)
+Int64Lowering::Int64Lowering(Graph* graph, MachineOperatorBuilder* machine,
+                             CommonOperatorBuilder* common,
+                             SimplifiedOperatorBuilder* simplified, Zone* zone,
+                             const wasm::WasmModule* module,
+                             Signature<MachineRepresentation>* signature)
     : graph_(graph),
       machine_(machine),
       common_(common),
       simplified_(simplified),
       zone_(zone),
       signature_(signature),
-      special_case_(std::move(special_case)),
       state_(graph->NodeCount(), State::kUnvisited),
       stack_(zone),
       replacements_(nullptr),
@@ -49,9 +51,6 @@ Int64Lowering::Int64Lowering(
 }
 
 void Int64Lowering::LowerGraph() {
-  if (!machine()->Is32()) {
-    return;
-  }
   stack_.push_back({graph()->end(), 0});
   state_[graph()->end()->id()] = State::kOnStack;
 
@@ -1089,12 +1088,10 @@ bool Int64Lowering::DefaultLowering(Node* node, bool low_word_only) {
 
 const CallDescriptor* Int64Lowering::LowerCallDescriptor(
     const CallDescriptor* call_descriptor) {
-  if (special_case_) {
-    auto replacement = special_case_->replacements.find(call_descriptor);
-    if (replacement != special_case_->replacements.end()) {
-      return replacement->second;
-    }
-  }
+  CallDescriptor* maybe_special_replacement =
+      wasm::GetWasmEngine()->call_descriptors()->GetLoweredCallDescriptor(
+          call_descriptor);
+  if (maybe_special_replacement) return maybe_special_replacement;
   return GetI32WasmCallDescriptor(zone(), call_descriptor);
 }
 
@@ -1176,3 +1173,5 @@ void Int64Lowering::LowerMemoryBaseAndIndex(Node* node) {
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_TARGET_ARCH_32_BIT

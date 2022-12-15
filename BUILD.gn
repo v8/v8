@@ -3669,6 +3669,7 @@ v8_header_set("v8_internal_headers") {
       "src/asmjs/asm-scanner.h",
       "src/asmjs/asm-types.h",
       "src/compiler/int64-lowering.h",
+      "src/compiler/wasm-call-descriptors.h",
       "src/compiler/wasm-compiler-definitions.h",
       "src/compiler/wasm-compiler.h",
       "src/compiler/wasm-escape-analysis.h",
@@ -4244,6 +4245,7 @@ v8_compiler_sources = [
 if (v8_enable_webassembly) {
   v8_compiler_sources += [
     "src/compiler/int64-lowering.cc",
+    "src/compiler/wasm-call-descriptors.cc",
     "src/compiler/wasm-compiler.cc",
     "src/compiler/wasm-escape-analysis.cc",
     "src/compiler/wasm-gc-lowering.cc",

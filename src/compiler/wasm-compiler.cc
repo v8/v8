@@ -31,6 +31,7 @@
 #include "src/compiler/node-origin-table.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/pipeline.h"
+#include "src/compiler/wasm-call-descriptors.h"
 #include "src/compiler/wasm-compiler-definitions.h"
 #include "src/compiler/wasm-graph-assembler.h"
 #include "src/execution/simulator-base.h"
@@ -3975,42 +3976,16 @@ Signature<MachineRepresentation>* CreateMachineSignature(
 
 }  // namespace
 
-void WasmGraphBuilder::AddInt64LoweringReplacement(
-    CallDescriptor* original, CallDescriptor* replacement) {
-  if (!lowering_special_case_) {
-    lowering_special_case_ = std::make_unique<Int64LoweringSpecialCase>();
-  }
-  lowering_special_case_->replacements.insert({original, replacement});
-}
-
 void WasmGraphBuilder::LowerInt64(Signature<MachineRepresentation>* sig) {
   if (mcgraph()->machine()->Is64()) return;
   Int64Lowering r(mcgraph()->graph(), mcgraph()->machine(), mcgraph()->common(),
                   gasm_->simplified(), mcgraph()->zone(),
-                  env_ != nullptr ? env_->module : nullptr, sig,
-                  std::move(lowering_special_case_));
+                  env_ != nullptr ? env_->module : nullptr, sig);
   r.LowerGraph();
 }
 
 void WasmGraphBuilder::LowerInt64(CallOrigin origin) {
   LowerInt64(CreateMachineSignature(mcgraph()->zone(), sig_, origin));
-}
-
-CallDescriptor* WasmGraphBuilder::GetI64ToBigIntCallDescriptor(
-    StubCallMode stub_mode) {
-  CallDescriptor** i64_to_bigint_descriptor =
-      stub_mode == StubCallMode::kCallCodeObject
-          ? &i64_to_bigint_stub_descriptor_
-          : &i64_to_bigint_builtin_descriptor_;
-  if (*i64_to_bigint_descriptor) return *i64_to_bigint_descriptor;
-
-  *i64_to_bigint_descriptor =
-      GetBuiltinCallDescriptor(Builtin::kI64ToBigInt, zone_, stub_mode);
-
-  AddInt64LoweringReplacement(
-      *i64_to_bigint_descriptor,
-      GetBuiltinCallDescriptor(Builtin::kI32PairToBigInt, zone_, stub_mode));
-  return *i64_to_bigint_descriptor;
 }
 
 Node* WasmGraphBuilder::BuildChangeInt64ToBigInt(Node* input,
@@ -4032,7 +4007,10 @@ Node* WasmGraphBuilder::BuildChangeInt64ToBigInt(Node* input,
                   wasm::WasmCode::kI32PairToBigInt, RelocInfo::WASM_STUB_CALL)
             : gasm_->GetBuiltinPointerTarget(Builtin::kI32PairToBigInt);
   }
-  return gasm_->Call(GetI64ToBigIntCallDescriptor(stub_mode), target, input);
+  CallDescriptor* descriptor =
+      wasm::GetWasmEngine()->call_descriptors()->GetI64ToBigIntDescriptor(
+          stub_mode);
+  return gasm_->Call(descriptor, target, input);
 }
 
 void WasmGraphBuilder::SetSourcePosition(Node* node,
@@ -6375,15 +6353,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         enabled_features_(features) {}
 
   CallDescriptor* GetBigIntToI64CallDescriptor(bool needs_frame_state) {
-    if (bigint_to_i64_descriptor_) return bigint_to_i64_descriptor_;
-
-    bigint_to_i64_descriptor_ = GetBuiltinCallDescriptor(
-        Builtin::kBigIntToI64, zone_, stub_mode_, needs_frame_state);
-
-    AddInt64LoweringReplacement(
-        bigint_to_i64_descriptor_,
-        GetBuiltinCallDescriptor(Builtin::kBigIntToI32Pair, zone_, stub_mode_));
-    return bigint_to_i64_descriptor_;
+    return wasm::GetWasmEngine()->call_descriptors()->GetBigIntToI64Descriptor(
+        stub_mode_, needs_frame_state);
   }
 
   Node* GetTargetForBuiltinCall(wasm::WasmCode::RuntimeStubId wasm_stub,
@@ -7744,9 +7715,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Return(mcgraph()->IntPtrConstant(0));
 
     if (mcgraph()->machine()->Is32() && ContainsInt64(sig_)) {
-      // No special lowering should be requested in the C entry.
-      DCHECK_NULL(lowering_special_case_);
-
       MachineRepresentation sig_reps[] = {
           MachineType::PointerRepresentation(),  // return value
           MachineType::PointerRepresentation(),  // target
@@ -7771,19 +7739,21 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   SetOncePointer<const Operator> float64_to_number_operator_;
   SetOncePointer<const Operator> tagged_to_float64_operator_;
   wasm::WasmFeatures enabled_features_;
-  CallDescriptor* bigint_to_i64_descriptor_ = nullptr;
 };
 
 }  // namespace
 
-void BuildInlinedJSToWasmWrapper(
-    Zone* zone, MachineGraph* mcgraph, const wasm::FunctionSig* signature,
-    const wasm::WasmModule* module, Isolate* isolate,
-    compiler::SourcePositionTable* spt, StubCallMode stub_mode,
-    wasm::WasmFeatures features, Node* frame_state) {
+void BuildInlinedJSToWasmWrapper(Zone* zone, MachineGraph* mcgraph,
+                                 const wasm::FunctionSig* signature,
+                                 const wasm::WasmModule* module,
+                                 Isolate* isolate,
+                                 compiler::SourcePositionTable* spt,
+                                 wasm::WasmFeatures features,
+                                 Node* frame_state) {
   WasmWrapperGraphBuilder builder(zone, mcgraph, signature, module,
                                   WasmGraphBuilder::kNoSpecialParameterMode,
-                                  isolate, spt, stub_mode, features);
+                                  isolate, spt,
+                                  StubCallMode::kCallBuiltinPointer, features);
   builder.BuildJSToWasmWrapper(module, false, false, frame_state);
 }
 

@@ -2955,6 +2955,8 @@ filegroup(
         ":is_v8_enable_webassembly": [
             "src/compiler/int64-lowering.cc",
             "src/compiler/int64-lowering.h",
+            "src/compiler/wasm-call-descriptors.cc",
+            "src/compiler/wasm-call-descriptors.h",
             "src/compiler/wasm-compiler-definitions.h",
             "src/compiler/wasm-compiler.cc",
             "src/compiler/wasm-compiler.h",

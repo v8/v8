@@ -837,12 +837,7 @@ class WasmGraphBuilder {
                                       Node** parameters, int parameter_count);
   TrapId GetTrapIdForTrap(wasm::TrapReason reason);
 
-  void AddInt64LoweringReplacement(CallDescriptor* original,
-                                   CallDescriptor* replacement);
-
   Node* BuildChangeInt64ToBigInt(Node* input, StubCallMode stub_mode);
-
-  CallDescriptor* GetI64ToBigIntCallDescriptor(StubCallMode stub_mode);
 
   Node* StoreArgsInStackSlot(
       std::initializer_list<std::pair<MachineRepresentation, Node*>> args);
@@ -870,10 +865,6 @@ class WasmGraphBuilder {
   Parameter0Mode parameter_mode_;
   Isolate* const isolate_;
   SetOncePointer<Node> instance_node_;
-
-  std::unique_ptr<Int64LoweringSpecialCase> lowering_special_case_;
-  CallDescriptor* i64_to_bigint_builtin_descriptor_ = nullptr;
-  CallDescriptor* i64_to_bigint_stub_descriptor_ = nullptr;
 };
 
 enum WasmCallKind { kWasmFunction, kWasmImportWrapper, kWasmCapiFunction };
@@ -881,8 +872,8 @@ enum WasmCallKind { kWasmFunction, kWasmImportWrapper, kWasmCapiFunction };
 V8_EXPORT_PRIVATE void BuildInlinedJSToWasmWrapper(
     Zone* zone, MachineGraph* mcgraph, const wasm::FunctionSig* signature,
     const wasm::WasmModule* module, Isolate* isolate,
-    compiler::SourcePositionTable* spt, StubCallMode stub_mode,
-    wasm::WasmFeatures features, Node* frame_state);
+    compiler::SourcePositionTable* spt, wasm::WasmFeatures features,
+    Node* frame_state);
 
 V8_EXPORT_PRIVATE CallDescriptor* GetWasmCallDescriptor(
     Zone* zone, const wasm::FunctionSig* signature,
