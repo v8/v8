@@ -2292,7 +2292,7 @@ void AsyncCompileJob::FinishCompile(bool is_after_cache_hit) {
 
 void AsyncCompileJob::Failed() {
   // {job} keeps the {this} pointer alive.
-  std::shared_ptr<AsyncCompileJob> job =
+  std::unique_ptr<AsyncCompileJob> job =
       GetWasmEngine()->RemoveCompileJob(this);
 
   // Revalidate the whole module to produce a deterministic error message.
@@ -2837,6 +2837,9 @@ void AsyncStreamingProcessor::OnFinishedStream(
     if (validate_functions_job_data_.found_error) after_error = true;
   }
 
+  // Check that we did not abort or finish the job before.
+  CHECK(job_);
+
   job_->wire_bytes_ = ModuleWireBytes(bytes.as_vector());
   job_->bytes_copy_ = std::move(bytes);
 
@@ -2856,6 +2859,7 @@ void AsyncStreamingProcessor::OnFinishedStream(
       GetWasmEngine()->StreamingCompilationFailed(prefix_hash_);
     }
     job_->Failed();
+    job_ = nullptr;
     return;
   }
 
@@ -2929,6 +2933,9 @@ void AsyncStreamingProcessor::OnFinishedStream(
     } else {
       job_->FinishCompile(cache_hit);
     }
+    // Calling either {Failed} or {FinishCompile} will invalidate the
+    // {AsyncCompileJob}.
+    job_ = nullptr;
   }
 }
 
@@ -2942,7 +2949,9 @@ void AsyncStreamingProcessor::OnAbort() {
     // Clean up the temporary cache entry.
     GetWasmEngine()->StreamingCompilationFailed(prefix_hash_);
   }
+  // {Abort} invalidates the {AsyncCompileJob}.
   job_->Abort();
+  job_ = nullptr;
 }
 
 bool AsyncStreamingProcessor::Deserialize(
@@ -2970,6 +2979,8 @@ bool AsyncStreamingProcessor::Deserialize(
   job_->native_module_ = job_->module_object_->shared_native_module();
   job_->wire_bytes_ = ModuleWireBytes(job_->native_module_->wire_bytes());
   job_->FinishCompile(false);
+  // Calling {FinishCompile} invalidates the {AsyncCompileJob}.
+  job_ = nullptr;
   return true;
 }
 

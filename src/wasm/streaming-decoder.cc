@@ -256,7 +256,7 @@ size_t AsyncStreamingDecoder::DecodingState::ReadBytes(
 
 void AsyncStreamingDecoder::Finish(bool can_use_compiled_module) {
   TRACE_STREAMING("Finish\n");
-  DCHECK(!stream_finished_);
+  CHECK(!stream_finished_);
   stream_finished_ = true;
   if (ok() && deserializing()) {
     // Try to deserialize the module from wire bytes and module bytes.
