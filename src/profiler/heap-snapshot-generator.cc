@@ -2323,7 +2323,8 @@ void V8HeapExplorer::SetGcSubrootReference(Root root, const char* description,
   }
   HeapEntry* child_entry = GetEntry(child_obj);
   if (child_entry == nullptr) return;
-  const char* name = GetStrongGcSubrootName(child_obj);
+  auto child_heap_obj = HeapObject::cast(child_obj);
+  const char* name = GetStrongGcSubrootName(child_heap_obj);
   HeapGraphEdge::Type edge_type =
       is_weak ? HeapGraphEdge::kWeak : HeapGraphEdge::kInternal;
   if (name != nullptr) {
@@ -2341,9 +2342,9 @@ void V8HeapExplorer::SetGcSubrootReference(Root root, const char* description,
   // Add a shortcut to JS global object reference at snapshot root.
   // That allows the user to easily find global objects. They are
   // also used as starting points in distance calculations.
-  if (is_weak || !child_obj.IsNativeContext()) return;
+  if (is_weak || !child_heap_obj.IsNativeContext()) return;
 
-  JSGlobalObject global = Context::cast(child_obj).global_object();
+  JSGlobalObject global = Context::cast(child_heap_obj).global_object();
   if (!global.IsJSGlobalObject()) return;
 
   if (!user_roots_.insert(global).second) return;
@@ -2351,13 +2352,15 @@ void V8HeapExplorer::SetGcSubrootReference(Root root, const char* description,
   SetUserGlobalReference(global);
 }
 
-const char* V8HeapExplorer::GetStrongGcSubrootName(Object object) {
+const char* V8HeapExplorer::GetStrongGcSubrootName(HeapObject object) {
   if (strong_gc_subroot_names_.empty()) {
     Isolate* isolate = Isolate::FromHeap(heap_);
     for (RootIndex root_index = RootIndex::kFirstStrongOrReadOnlyRoot;
          root_index <= RootIndex::kLastStrongOrReadOnlyRoot; ++root_index) {
       const char* name = RootsTable::name(root_index);
-      strong_gc_subroot_names_.emplace(isolate->root(root_index), name);
+      Object root = isolate->root(root_index);
+      CHECK(!root.IsSmi());
+      strong_gc_subroot_names_.emplace(HeapObject::cast(root), name);
     }
     CHECK(!strong_gc_subroot_names_.empty());
   }

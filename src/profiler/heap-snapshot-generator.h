@@ -500,7 +500,7 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
   void SetGcRootsReference(Root root);
   void SetGcSubrootReference(Root root, const char* description, bool is_weak,
                              Object child);
-  const char* GetStrongGcSubrootName(Object object);
+  const char* GetStrongGcSubrootName(HeapObject object);
   void TagObject(Object obj, const char* tag,
                  base::Optional<HeapEntry::Type> type = {});
   void RecursivelyTagConstantPool(Object obj, const char* tag,
@@ -518,8 +518,7 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
       global_object_tag_pairs_;
   std::unordered_map<JSGlobalObject, const char*, Object::Hasher>
       global_object_tag_map_;
-  std::unordered_map<Object, const char*, Object::Hasher>
-      strong_gc_subroot_names_;
+  UnorderedHeapObjectMap<const char*> strong_gc_subroot_names_;
   std::unordered_set<JSGlobalObject, Object::Hasher> user_roots_;
   v8::HeapProfiler::ObjectNameResolver* global_object_name_resolver_;
 
