@@ -485,6 +485,10 @@ void MemoryAllocator::TakeOverLargePage(LargePage* page,
 
   size_ += page->size();
   RecordLargePageCreated(*page);
+
+  const size_t area_end_page_aligned =
+      ::RoundUp(page->area_end(), GetCommitPageSize());
+  UpdateAllocatedSpaceLimits(page->address(), area_end_page_aligned);
 }
 
 void MemoryAllocator::FreeReadOnlyPage(ReadOnlyPage* chunk) {
