@@ -494,12 +494,13 @@ constexpr int kPushedStackSpace = kNumCalleeSaved * kPointerSize -
                                   kPointerSize /* FP */ +
                                   kNumDoubleCalleeSaved * kDoubleSize +
                                   5 * kPointerSize /* r5, r6, r7, fp, lr */ +
-                                  EntryFrameConstants::kCallerFPOffset;
+                                  EntryFrameConstants::kNextExitFrameFPOffset;
 
 // Assert that the EntryFrameConstants are in sync with the builtin.
-static_assert(kPushedStackSpace == EntryFrameConstants::kDirectCallerSPOffset +
-                                       3 * kPointerSize /* r5, r6, r7*/ +
-                                       EntryFrameConstants::kCallerFPOffset,
+static_assert(kPushedStackSpace ==
+                  EntryFrameConstants::kDirectCallerSPOffset +
+                      3 * kPointerSize /* r5, r6, r7*/ +
+                      EntryFrameConstants::kNextExitFrameFPOffset,
               "Pushed stack space and frame constants do not match. See "
               "frame-constants-arm.h");
 
@@ -529,7 +530,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   const RegList kCalleeSavedWithoutFp = kCalleeSaved - fp;
 
   // Update |pushed_stack_space| when we manipulate the stack.
-  int pushed_stack_space = EntryFrameConstants::kCallerFPOffset;
+  int pushed_stack_space = EntryFrameConstants::kNextExitFrameFPOffset;
   {
     NoRootArrayScope no_root_array(masm);
 
@@ -573,7 +574,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   Register scratch = r6;
 
   // Set up frame pointer for the frame to be pushed.
-  __ add(fp, sp, Operand(-EntryFrameConstants::kCallerFPOffset));
+  __ add(fp, sp, Operand(-EntryFrameConstants::kNextExitFrameFPOffset));
 
   // If this is the outermost JS call, set js_entry_sp value.
   Label non_outermost_js;
@@ -658,7 +659,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
 
   // Reset the stack to the callee saved registers.
   __ add(sp, sp,
-         Operand(-EntryFrameConstants::kCallerFPOffset -
+         Operand(-EntryFrameConstants::kNextExitFrameFPOffset -
                  kSystemPointerSize /* already popped one */));
 
   __ ldm(ia_w, sp, {fp, lr});

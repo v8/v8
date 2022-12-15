@@ -868,7 +868,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
 
   Register scratch = r9;
   // Set up frame pointer for the frame to be pushed.
-  __ addi(fp, sp, Operand(-EntryFrameConstants::kCallerFPOffset));
+  __ addi(fp, sp, Operand(-EntryFrameConstants::kNextExitFrameFPOffset));
 
   // If this is the outermost JS call, set js_entry_sp value.
   Label non_outermost_js;
@@ -956,7 +956,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ StoreU64(r6, MemOperand(scratch));
 
   // Reset the stack to the callee saved registers.
-  __ addi(sp, sp, Operand(-EntryFrameConstants::kCallerFPOffset));
+  __ addi(sp, sp, Operand(-EntryFrameConstants::kNextExitFrameFPOffset));
 
   // Restore callee-saved double registers.
   __ MultiPopDoubles(kCalleeSavedDoubles);

@@ -559,7 +559,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ St_d(zero_reg, MemOperand(s5, 0));
 
   // Set up frame pointer for the frame to be pushed.
-  __ addi_d(fp, sp, -EntryFrameConstants::kCallerFPOffset);
+  __ addi_d(fp, sp, -EntryFrameConstants::kNextExitFrameFPOffset);
 
   // Registers:
   //  either
@@ -672,7 +672,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ St_d(a5, MemOperand(a4, 0));
 
   // Reset the stack to the callee saved registers.
-  __ addi_d(sp, sp, -EntryFrameConstants::kCallerFPOffset);
+  __ addi_d(sp, sp, -EntryFrameConstants::kNextExitFrameFPOffset);
 
   // Restore callee-saved fpu registers.
   __ MultiPopFPU(kCalleeSavedFPU);

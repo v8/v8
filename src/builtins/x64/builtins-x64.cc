@@ -338,7 +338,14 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
 
   {
     NoRootArrayScope uninitialized_root_register(masm);
-    // Set up frame.
+
+    // Set up the frame.
+    //
+    // Note: at this point we are entering V8-generated code from C++ and thus
+    // rbp can be an arbitrary value (-fomit-frame-pointer). Since V8 still
+    // needs to know where the next interesting frame is for the purpose of
+    // stack walks, we instead push the stored EXIT frame fp
+    // (IsolateAddressId::kCEntryFPAddress) below to a dedicated slot.
     __ pushq(rbp);
     __ movq(rbp, rsp);
 
@@ -392,6 +399,16 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   ExternalReference c_entry_fp = ExternalReference::Create(
       IsolateAddressId::kCEntryFPAddress, masm->isolate());
   {
+    // Keep this static_assert to preserve a link between the offset constant
+    // and the code location it refers to.
+#ifdef V8_TARGET_OS_WIN
+    static_assert(EntryFrameConstants::kNextExitFrameFPOffset ==
+                  -3 * kSystemPointerSize + -7 * kSystemPointerSize -
+                      EntryFrameConstants::kXMMRegistersBlockSize);
+#else
+    static_assert(EntryFrameConstants::kNextExitFrameFPOffset ==
+                  -3 * kSystemPointerSize + -5 * kSystemPointerSize);
+#endif  // V8_TARGET_OS_WIN
     Operand c_entry_fp_operand = masm->ExternalReferenceAsOperand(c_entry_fp);
     __ Push(c_entry_fp_operand);
 

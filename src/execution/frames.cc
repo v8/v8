@@ -502,9 +502,9 @@ bool SafeStackFrameIterator::IsValidCaller(StackFrame* frame) {
     // See EntryFrame::GetCallerState. It computes the caller FP address
     // and calls ExitFrame::GetStateForFramePointer on it. We need to be
     // sure that caller FP address is valid.
-    Address caller_fp =
-        Memory<Address>(frame->fp() + EntryFrameConstants::kCallerFPOffset);
-    if (!IsValidExitFrame(caller_fp)) return false;
+    Address next_exit_frame_fp = Memory<Address>(
+        frame->fp() + EntryFrameConstants::kNextExitFrameFPOffset);
+    if (!IsValidExitFrame(next_exit_frame_fp)) return false;
   }
   frame->ComputeCallerState(&state);
   return IsValidStackAddress(state.sp) && IsValidStackAddress(state.fp) &&
@@ -818,9 +818,9 @@ void EntryFrame::ComputeCallerState(State* state) const {
 }
 
 StackFrame::Type EntryFrame::GetCallerState(State* state) const {
-  const int offset = EntryFrameConstants::kCallerFPOffset;
-  Address fp = Memory<Address>(this->fp() + offset);
-  return ExitFrame::GetStateForFramePointer(fp, state);
+  Address next_exit_frame_fp =
+      Memory<Address>(fp() + EntryFrameConstants::kNextExitFrameFPOffset);
+  return ExitFrame::GetStateForFramePointer(next_exit_frame_fp, state);
 }
 
 #if V8_ENABLE_WEBASSEMBLY

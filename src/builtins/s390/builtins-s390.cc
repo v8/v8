@@ -772,7 +772,7 @@ namespace {
 constexpr int kPushedStackSpace =
     (kNumCalleeSaved + 2) * kSystemPointerSize +
     kNumCalleeSavedDoubles * kDoubleSize + 5 * kSystemPointerSize +
-    EntryFrameConstants::kCallerFPOffset - kSystemPointerSize;
+    EntryFrameConstants::kNextExitFrameFPOffset - kSystemPointerSize;
 
 // Called with the native C calling convention. The corresponding function
 // signature is either:
@@ -871,10 +871,10 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   // Set up frame pointer for the frame to be pushed.
   // Need to add kSystemPointerSize, because sp has one extra
   // frame already for the frame type being pushed later.
-  __ lay(fp, MemOperand(sp, -EntryFrameConstants::kCallerFPOffset +
+  __ lay(fp, MemOperand(sp, -EntryFrameConstants::kNextExitFrameFPOffset +
                                 kSystemPointerSize));
   pushed_stack_space +=
-      EntryFrameConstants::kCallerFPOffset - kSystemPointerSize;
+      EntryFrameConstants::kNextExitFrameFPOffset - kSystemPointerSize;
 
   // restore r6
   __ mov(r6, r0);
@@ -961,7 +961,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ StoreU64(r5, MemOperand(scrach));
 
   // Reset the stack to the callee saved registers.
-  __ lay(sp, MemOperand(sp, -EntryFrameConstants::kCallerFPOffset));
+  __ lay(sp, MemOperand(sp, -EntryFrameConstants::kNextExitFrameFPOffset));
 
   // Reload callee-saved preserved regs, return address reg (r14) and sp
   __ LoadMultipleP(r6, sp, MemOperand(sp, 0));
