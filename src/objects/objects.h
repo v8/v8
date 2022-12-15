@@ -653,7 +653,9 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   static void VerifyAnyTagged(Isolate* isolate, Object p);
 #endif
 
-  inline void VerifyApiCallResultType();
+#ifdef DEBUG
+  inline bool IsApiCallResultType() const;
+#endif  // DEBUG
 
   // Prints this object without details.
   V8_EXPORT_PRIVATE void ShortPrint(FILE* out = stdout) const;
