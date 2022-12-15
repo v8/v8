@@ -2550,12 +2550,6 @@ void Heap::MarkCompact() {
   PROFILE(isolate_, CodeMovingGCEvent());
   CodeSpaceMemoryModificationScope code_modification(this);
 
-  // Disable soft allocation limits in the shared heap, if one exists, as
-  // promotions into the shared heap should always succeed.
-  OptionalAlwaysAllocateScope always_allocate_shared_heap(
-      isolate()->has_shared_heap() ? isolate()->shared_heap_isolate()->heap()
-                                   : nullptr);
-
   UpdateOldGenerationAllocationCounter();
   uint64_t size_of_objects_before_gc = SizeOfObjects();
 
@@ -2594,11 +2588,6 @@ void Heap::MinorMarkCompact() {
 
   TRACE_GC(tracer(), GCTracer::Scope::MINOR_MC);
   AlwaysAllocateScope always_allocate(this);
-  // Disable soft allocation limits in the shared heap, if one exists, as
-  // promotions into the shared heap should always succeed.
-  OptionalAlwaysAllocateScope always_allocate_shared_heap(
-      isolate()->has_shared_heap() ? isolate()->shared_heap_isolate()->heap()
-                                   : nullptr);
 
   minor_mark_compact_collector_->Prepare();
   minor_mark_compact_collector_->CollectGarbage();
@@ -2647,12 +2636,6 @@ void Heap::Scavenge() {
   // sweep collection by failing allocations. There is no sense in trying to
   // trigger one during scavenge: scavenges allocation should always succeed.
   AlwaysAllocateScope scope(this);
-
-  // Disable soft allocation limits in the shared heap, if one exists, as
-  // promotions into the shared heap should always succeed.
-  OptionalAlwaysAllocateScope always_allocate_shared_heap(
-      isolate()->has_shared_heap() ? isolate()->shared_heap_isolate()->heap()
-                                   : nullptr);
 
   // Bump-pointer allocations done during scavenge are not real allocations.
   // Pause the inline allocation steps.
@@ -5196,9 +5179,13 @@ bool Heap::ShouldOptimizeForLoadTime() {
 // major GC. It happens when the old generation allocation limit is reached and
 // - either we need to optimize for memory usage,
 // - or the incremental marking is not in progress and we cannot start it.
-bool Heap::ShouldExpandOldGenerationOnSlowAllocation(LocalHeap* local_heap) {
+bool Heap::ShouldExpandOldGenerationOnSlowAllocation(LocalHeap* local_heap,
+                                                     AllocationOrigin origin) {
   if (always_allocate() || OldGenerationSpaceAvailable() > 0) return true;
   // We reached the old generation allocation limit.
+
+  // Allocations in the GC should always succeed if possible.
+  if (origin == AllocationOrigin::kGC) return true;
 
   // Background threads need to be allowed to allocate without GC after teardown
   // was initiated.

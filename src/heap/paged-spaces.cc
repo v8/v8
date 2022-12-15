@@ -936,7 +936,7 @@ bool PagedSpaceBase::RawRefillLabMain(int size_in_bytes,
 
   if (identity() != NEW_SPACE &&
       heap()->ShouldExpandOldGenerationOnSlowAllocation(
-          heap()->main_thread_local_heap()) &&
+          heap()->main_thread_local_heap(), origin) &&
       heap()->CanExpandOldGeneration(AreaSize())) {
     if (TryExpand(size_in_bytes, origin)) {
       return true;

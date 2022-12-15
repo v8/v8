@@ -2001,8 +2001,8 @@ class Heap {
   V8_EXPORT_PRIVATE bool CanExpandOldGenerationBackground(LocalHeap* local_heap,
                                                           size_t size);
 
-  bool ShouldExpandOldGenerationOnSlowAllocation(
-      LocalHeap* local_heap = nullptr);
+  bool ShouldExpandOldGenerationOnSlowAllocation(LocalHeap* local_heap,
+                                                 AllocationOrigin origin);
   bool IsRetryOfFailedAllocation(LocalHeap* local_heap);
   bool IsMainThreadParked(LocalHeap* local_heap);
   bool IsMajorMarkingComplete(LocalHeap* local_heap);
@@ -2451,7 +2451,6 @@ class Heap {
   friend class LocalHeap;
   friend class MarkingBarrier;
   friend class OldLargeObjectSpace;
-  friend class OptionalAlwaysAllocateScope;
   template <typename ConcreteVisitor, typename MarkingState>
   friend class MarkingVisitorBase;
   friend class MarkCompactCollector;
@@ -2551,24 +2550,6 @@ class V8_NODISCARD GCCallbacksScope final {
 
  private:
   Heap* const heap_;
-};
-
-// Like AlwaysAllocateScope if the heap argument to the constructor is
-// non-null. No-op otherwise.
-//
-// This class exists because AlwaysAllocateScope doesn't compose with
-// base::Optional, since supporting that composition requires making
-// base::Optional a friend class, defeating the purpose of hiding its
-// constructor.
-class V8_NODISCARD OptionalAlwaysAllocateScope {
- public:
-  inline ~OptionalAlwaysAllocateScope();
-
- private:
-  friend class Heap;
-
-  explicit inline OptionalAlwaysAllocateScope(Heap* heap);
-  Heap* heap_;
 };
 
 class V8_NODISCARD AlwaysAllocateScopeForTesting {

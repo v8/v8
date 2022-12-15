@@ -229,7 +229,8 @@ ConcurrentAllocator::AllocateFromSpaceFreeList(size_t min_size_in_bytes,
     }
   }
 
-  if (owning_heap()->ShouldExpandOldGenerationOnSlowAllocation(local_heap_) &&
+  if (owning_heap()->ShouldExpandOldGenerationOnSlowAllocation(local_heap_,
+                                                               origin) &&
       owning_heap()->CanExpandOldGenerationBackground(local_heap_,
                                                       space_->AreaSize())) {
     result = space_->TryExpandBackground(max_size_in_bytes);

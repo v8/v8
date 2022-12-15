@@ -508,15 +508,6 @@ AlwaysAllocateScope::~AlwaysAllocateScope() {
   heap_->always_allocate_scope_count_--;
 }
 
-OptionalAlwaysAllocateScope::OptionalAlwaysAllocateScope(Heap* heap)
-    : heap_(heap) {
-  if (heap_) heap_->always_allocate_scope_count_++;
-}
-
-OptionalAlwaysAllocateScope::~OptionalAlwaysAllocateScope() {
-  if (heap_) heap_->always_allocate_scope_count_--;
-}
-
 AlwaysAllocateScopeForTesting::AlwaysAllocateScopeForTesting(Heap* heap)
     : scope_(heap) {}
 

@@ -149,7 +149,7 @@ AllocationResult OldLargeObjectSpace::AllocateRaw(int object_size,
   // If so, fail the allocation.
   if (!heap()->CanExpandOldGeneration(object_size) ||
       !heap()->ShouldExpandOldGenerationOnSlowAllocation(
-          heap()->main_thread_local_heap())) {
+          heap()->main_thread_local_heap(), AllocationOrigin::kRuntime)) {
     return AllocationResult::Failure();
   }
 
@@ -185,7 +185,8 @@ AllocationResult OldLargeObjectSpace::AllocateRawBackground(
   // Check if we want to force a GC before growing the old space further.
   // If so, fail the allocation.
   if (!heap()->CanExpandOldGenerationBackground(local_heap, object_size) ||
-      !heap()->ShouldExpandOldGenerationOnSlowAllocation(local_heap)) {
+      !heap()->ShouldExpandOldGenerationOnSlowAllocation(
+          local_heap, AllocationOrigin::kRuntime)) {
     return AllocationResult::Failure();
   }
 
