@@ -1094,7 +1094,8 @@ Reduction JSTypedLowering::ReduceJSToBigIntConvertNumber(Node* node) {
   if (input_type.Is(Type::BigInt())) {
     ReplaceWithValue(node, input);
     return Changed(input);
-  } else if (input_type.Is(Type::Integral32OrMinusZero())) {
+  } else if (input_type.Is(Type::Signed32OrMinusZero()) ||
+             input_type.Is(Type::Unsigned32OrMinusZero())) {
     RelaxEffectsAndControls(node);
     node->TrimInputCount(1);
     Type node_type = NodeProperties::GetType(node);
