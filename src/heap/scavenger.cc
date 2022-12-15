@@ -34,6 +34,14 @@
 namespace v8 {
 namespace internal {
 
+namespace {
+bool RecordOldToSharedSlot(HeapObject heap_object) {
+  BasicMemoryChunk* chunk = BasicMemoryChunk::FromHeapObject(heap_object);
+  return chunk->InSharedHeap() ||
+         chunk->IsFlagSet(MemoryChunk::SHARED_HEAP_PROMOTION);
+}
+}  // anonymous namespace
+
 class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
  public:
   IterateAndScavengePromotedObjectsVisitor(Scavenger* scavenger,
@@ -154,7 +162,7 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
           MemoryChunk::FromHeapObject(host), slot.address());
     }
 
-    if (target.InSharedWritableHeap()) {
+    if (RecordOldToSharedSlot(target)) {
       DCHECK(!scavenger_->heap()->IsShared());
       MemoryChunk* chunk = MemoryChunk::FromHeapObject(host);
       RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(chunk,
@@ -863,14 +871,6 @@ void Scavenger::Publish() {
 void Scavenger::AddEphemeronHashTable(EphemeronHashTable table) {
   ephemeron_table_list_local_.Push(table);
 }
-
-namespace {
-bool RecordOldToSharedSlot(HeapObject heap_object) {
-  BasicMemoryChunk* chunk = BasicMemoryChunk::FromHeapObject(heap_object);
-  return chunk->InSharedHeap() ||
-         chunk->IsFlagSet(MemoryChunk::SHARED_HEAP_PROMOTION);
-}
-}  // anonymous namespace
 
 template <typename TSlot>
 void Scavenger::CheckOldToNewSlotForSharedUntyped(MemoryChunk* chunk,
