@@ -107,10 +107,8 @@ namespace {
 int32_t __ieee754_rem_pio2(double x, double* y) V8_WARN_UNUSED_RESULT;
 int __kernel_rem_pio2(double* x, double* y, int e0, int nx, int prec,
                       const int32_t* ipio2) V8_WARN_UNUSED_RESULT;
-#if !defined(V8_USE_LIBM_TRIG_FUNCTIONS)
 double __kernel_cos(double x, double y) V8_WARN_UNUSED_RESULT;
 double __kernel_sin(double x, double y, int iy) V8_WARN_UNUSED_RESULT;
-#endif
 
 /* __ieee754_rem_pio2(x,y)
  *
@@ -271,7 +269,6 @@ int32_t __ieee754_rem_pio2(double x, double *y) {
   return n;
 }
 
-#if !defined(V8_USE_LIBM_TRIG_FUNCTIONS)
 /* __kernel_cos( x,  y )
  * kernel cos function on [-pi/4, pi/4], pi/4 ~ 0.785398164
  * Input x is assumed to be bounded by ~pi/4 in magnitude.
@@ -337,7 +334,6 @@ V8_INLINE double __kernel_cos(double x, double y) {
     return a - (iz - (z * r - x * y));
   }
 }
-#endif
 
 /* __kernel_rem_pio2(x,y,e0,nx,prec,ipio2)
  * double x[],y[]; int e0,nx,prec; int ipio2[];
@@ -647,7 +643,6 @@ recompute:
   return n & 7;
 }
 
-#if !defined(V8_USE_LIBM_TRIG_FUNCTIONS)
 /* __kernel_sin( x, y, iy)
  * kernel sin function on [-pi/4, pi/4], pi/4 ~ 0.7854
  * Input x is assumed to be bounded by ~pi/4 in magnitude.
@@ -701,7 +696,6 @@ V8_INLINE double __kernel_sin(double x, double y, int iy) {
     return x - ((z * (half * y - v * r) - y) - v * S1);
   }
 }
-#endif
 
 /* __kernel_tan( x, y, k )
  * kernel tan function on [-pi/4, pi/4], pi/4 ~ 0.7854
@@ -1324,7 +1318,6 @@ double atan2(double y, double x) {
   }
 }
 
-#if !defined(V8_USE_LIBM_TRIG_FUNCTIONS)
 /* cos(x)
  * Return cosine function of x.
  *
@@ -1355,7 +1348,11 @@ double atan2(double y, double x) {
  * Accuracy:
  *      TRIG(x) returns trig(x) nearly rounded
  */
+#if defined(V8_USE_LIBM_TRIG_FUNCTIONS)
+double fdlibm_cos(double x) {
+#else
 double cos(double x) {
+#endif
   double y[2], z = 0.0;
   int32_t n, ix;
 
@@ -1384,7 +1381,6 @@ double cos(double x) {
     }
   }
 }
-#endif
 
 /* exp(x)
  * Returns the exponential of x.
@@ -2418,7 +2414,6 @@ double cbrt(double x) {
   return (t);
 }
 
-#if !defined(V8_USE_LIBM_TRIG_FUNCTIONS)
 /* sin(x)
  * Return sine function of x.
  *
@@ -2449,7 +2444,11 @@ double cbrt(double x) {
  * Accuracy:
  *      TRIG(x) returns trig(x) nearly rounded
  */
+#if defined(V8_USE_LIBM_TRIG_FUNCTIONS)
+double fdlibm_sin(double x) {
+#else
 double sin(double x) {
+#endif
   double y[2], z = 0.0;
   int32_t n, ix;
 
@@ -2478,7 +2477,6 @@ double sin(double x) {
     }
   }
 }
-#endif
 
 /* tan(x)
  * Return tangent function of x.
@@ -3026,12 +3024,8 @@ double tanh(double x) {
 #undef SET_LOW_WORD
 
 #if defined(V8_USE_LIBM_TRIG_FUNCTIONS) && defined(BUILDING_V8_BASE_SHARED)
-double sin(double x) {
-  return glibc_sin(x);
-}
-double cos(double x) {
-  return glibc_cos(x);
-}
+double libm_sin(double x) { return glibc_sin(x); }
+double libm_cos(double x) { return glibc_cos(x); }
 #endif
 
 }  // namespace ieee754

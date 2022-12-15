@@ -37,15 +37,23 @@ V8_BASE_EXPORT double atan(double x);
 // the two arguments to determine the quadrant of the result.
 V8_BASE_EXPORT double atan2(double y, double x);
 
-// Returns the cosine of |x|, where |x| is given in radians.
-#if defined(V8_USE_LIBM_TRIG_FUNCTIONS) && \
-    !defined(BUILDING_V8_BASE_SHARED) && \
-    !defined(USING_V8_BASE_SHARED)
-inline double cos(double x) {
-  return glibc_cos(x);
-}
+#if defined(V8_USE_LIBM_TRIG_FUNCTIONS)
+// To ensure there aren't problems with libm's sin/cos, both implementations
+// are shipped. The plan is to transition to libm once we ensure there are no
+// compatibility or performance issues.
+V8_BASE_EXPORT double fdlibm_sin(double x);
+V8_BASE_EXPORT double fdlibm_cos(double x);
+
+#if !defined(BUILDING_V8_BASE_SHARED) && !defined(USING_V8_BASE_SHARED)
+inline double libm_sin(double x) { return glibc_sin(x); }
+inline double libm_cos(double x) { return glibc_cos(x); }
+#else
+V8_BASE_EXPORT double libm_sin(double x);
+V8_BASE_EXPORT double libm_cos(double x);
+#endif
 #else
 V8_BASE_EXPORT double cos(double x);
+V8_BASE_EXPORT double sin(double x);
 #endif
 
 // Returns the base-e exponential of |x|.
@@ -79,17 +87,6 @@ V8_BASE_EXPORT double expm1(double x);
 // later versions of IEEE 754-2008 specified 1. The historical ECMAScript
 // behaviour is preserved for compatibility reasons.
 V8_BASE_EXPORT double pow(double x, double y);
-
-#if defined(V8_USE_LIBM_TRIG_FUNCTIONS) && \
-    !defined(BUILDING_V8_BASE_SHARED) && \
-    !defined(USING_V8_BASE_SHARED)
-inline double sin(double x) {
-  return glibc_sin(x);
-}
-#else
-// Returns the sine of |x|, where |x| is given in radians.
-V8_BASE_EXPORT double sin(double x);
-#endif
 
 // Returns the tangent of |x|, where |x| is given in radians.
 V8_BASE_EXPORT double tan(double x);

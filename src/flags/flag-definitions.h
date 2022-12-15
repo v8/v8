@@ -2394,6 +2394,10 @@ DEFINE_IMPLICATION(verify_predictable, predictable)
 DEFINE_INT(dump_allocations_digest_at_alloc, -1,
            "dump allocations digest each n-th allocation")
 
+#if defined(V8_USE_LIBM_TRIG_FUNCTIONS)
+DEFINE_BOOL(use_libm_trig_functions, true, "use libm trig functions")
+#endif
+
 // Cleanup...
 #undef FLAG_FULL
 #undef FLAG_READONLY

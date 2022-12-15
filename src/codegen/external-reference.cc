@@ -880,8 +880,6 @@ FUNCTION_REFERENCE_WITH_TYPE(ieee754_atan2_function, base::ieee754::atan2,
                              BUILTIN_FP_FP_CALL)
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_cbrt_function, base::ieee754::cbrt,
                              BUILTIN_FP_CALL)
-FUNCTION_REFERENCE_WITH_TYPE(ieee754_cos_function, base::ieee754::cos,
-                             BUILTIN_FP_CALL)
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_cosh_function, base::ieee754::cosh,
                              BUILTIN_FP_CALL)
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_exp_function, base::ieee754::exp,
@@ -896,8 +894,6 @@ FUNCTION_REFERENCE_WITH_TYPE(ieee754_log10_function, base::ieee754::log10,
                              BUILTIN_FP_CALL)
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_log2_function, base::ieee754::log2,
                              BUILTIN_FP_CALL)
-FUNCTION_REFERENCE_WITH_TYPE(ieee754_sin_function, base::ieee754::sin,
-                             BUILTIN_FP_CALL)
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_sinh_function, base::ieee754::sinh,
                              BUILTIN_FP_CALL)
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_tan_function, base::ieee754::tan,
@@ -906,6 +902,32 @@ FUNCTION_REFERENCE_WITH_TYPE(ieee754_tanh_function, base::ieee754::tanh,
                              BUILTIN_FP_CALL)
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_pow_function, base::ieee754::pow,
                              BUILTIN_FP_FP_CALL)
+
+#if defined(V8_USE_LIBM_TRIG_FUNCTIONS)
+ExternalReference ExternalReference::ieee754_sin_function() {
+  static_assert(
+      IsValidExternalReferenceType<decltype(&base::ieee754::libm_sin)>::value);
+  static_assert(IsValidExternalReferenceType<
+                decltype(&base::ieee754::fdlibm_sin)>::value);
+  auto* f = v8_flags.use_libm_trig_functions ? base::ieee754::libm_sin
+                                             : base::ieee754::fdlibm_sin;
+  return ExternalReference(Redirect(FUNCTION_ADDR(f), BUILTIN_FP_CALL));
+}
+ExternalReference ExternalReference::ieee754_cos_function() {
+  static_assert(
+      IsValidExternalReferenceType<decltype(&base::ieee754::libm_cos)>::value);
+  static_assert(IsValidExternalReferenceType<
+                decltype(&base::ieee754::fdlibm_cos)>::value);
+  auto* f = v8_flags.use_libm_trig_functions ? base::ieee754::libm_cos
+                                             : base::ieee754::fdlibm_cos;
+  return ExternalReference(Redirect(FUNCTION_ADDR(f), BUILTIN_FP_CALL));
+}
+#else
+FUNCTION_REFERENCE_WITH_TYPE(ieee754_sin_function, base::ieee754::sin,
+                             BUILTIN_FP_CALL)
+FUNCTION_REFERENCE_WITH_TYPE(ieee754_cos_function, base::ieee754::cos,
+                             BUILTIN_FP_CALL)
+#endif
 
 void* libc_memchr(void* string, int character, size_t search_length) {
   return memchr(string, character, search_length);

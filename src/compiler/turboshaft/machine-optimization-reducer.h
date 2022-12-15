@@ -20,6 +20,7 @@
 #include "src/base/overflowing-math.h"
 #include "src/base/template-utils.h"
 #include "src/base/vector.h"
+#include "src/builtins/builtins.h"
 #include "src/codegen/machine-type.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/machine-operator-reducer.h"
@@ -250,9 +251,9 @@ class MachineOptimizationReducer : public Next {
         case FloatUnaryOp::Kind::kExpm1:
           return Asm().Float32Constant(base::ieee754::expm1(k));
         case FloatUnaryOp::Kind::kSin:
-          return Asm().Float32Constant(base::ieee754::sin(k));
+          return Asm().Float32Constant(SIN_IMPL(k));
         case FloatUnaryOp::Kind::kCos:
-          return Asm().Float32Constant(base::ieee754::cos(k));
+          return Asm().Float32Constant(COS_IMPL(k));
         case FloatUnaryOp::Kind::kSinh:
           return Asm().Float32Constant(base::ieee754::sinh(k));
         case FloatUnaryOp::Kind::kCosh:
@@ -314,9 +315,9 @@ class MachineOptimizationReducer : public Next {
         case FloatUnaryOp::Kind::kExpm1:
           return Asm().Float64Constant(base::ieee754::expm1(k));
         case FloatUnaryOp::Kind::kSin:
-          return Asm().Float64Constant(base::ieee754::sin(k));
+          return Asm().Float64Constant(SIN_IMPL(k));
         case FloatUnaryOp::Kind::kCos:
-          return Asm().Float64Constant(base::ieee754::cos(k));
+          return Asm().Float64Constant(COS_IMPL(k));
         case FloatUnaryOp::Kind::kSinh:
           return Asm().Float64Constant(base::ieee754::sinh(k));
         case FloatUnaryOp::Kind::kCosh:
