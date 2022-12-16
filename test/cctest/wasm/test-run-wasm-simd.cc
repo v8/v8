@@ -3185,6 +3185,48 @@ WASM_EXEC_TEST(SimdF32x4SetGlobal) {
   CHECK_EQ(GetScalar(global, 3), 65.0f);
 }
 
+WASM_EXEC_TEST(F32x4AddRevec) {
+  WasmRunner<float, int32_t, int32_t> r(execution_tier);
+  float* memory =
+      r.builder().AddMemoryElems<float>(kWasmPageSize / sizeof(float));
+  byte param1 = 0;
+  byte param2 = 1;
+  byte temp1 = r.AllocateLocal(kWasmS128);
+  byte temp2 = r.AllocateLocal(kWasmS128);
+  byte temp3 = r.AllocateLocal(kWasmS128);
+  byte temp4 = r.AllocateLocal(kWasmS128);
+  byte temp5 = r.AllocateLocal(kWasmF32);
+  byte temp6 = r.AllocateLocal(kWasmF32);
+  constexpr byte offset = 16;
+
+  // Multiple a vector of F32x8 with a constant and store the result to another
+  // array
+  BUILD(
+      r, WASM_LOCAL_SET(temp1, WASM_SIMD_F32x4_SPLAT(WASM_F32(10.0f))),
+      WASM_LOCAL_SET(temp2, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1))),
+      WASM_LOCAL_SET(temp3,
+                     WASM_SIMD_BINOP(kExprF32x4Add, WASM_LOCAL_GET(temp1),
+                                     WASM_LOCAL_GET(temp2))),
+      WASM_LOCAL_SET(temp2,
+                     WASM_SIMD_LOAD_MEM_OFFSET(offset, WASM_LOCAL_GET(param1))),
+      WASM_LOCAL_SET(temp4,
+                     WASM_SIMD_BINOP(kExprF32x4Add, WASM_LOCAL_GET(temp1),
+                                     WASM_LOCAL_GET(temp2))),
+      WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param2), WASM_LOCAL_GET(temp3)),
+      WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param2),
+                                 WASM_LOCAL_GET(temp4)),
+      WASM_LOCAL_SET(temp5, WASM_SIMD_F32x4_EXTRACT_LANE(
+                                1, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param2)))),
+      WASM_LOCAL_SET(temp6, WASM_SIMD_F32x4_EXTRACT_LANE(
+                                2, WASM_SIMD_LOAD_MEM_OFFSET(
+                                       offset, WASM_LOCAL_GET(param2)))),
+      WASM_BINOP(kExprF32Add, WASM_LOCAL_GET(temp5), WASM_LOCAL_GET(temp6)));
+
+  r.builder().WriteMemory(&memory[1], 1.0f);
+  r.builder().WriteMemory(&memory[6], 2.0f);
+  CHECK_EQ(23.0f, r.Call(0, 32));
+}
+
 WASM_EXEC_TEST(SimdLoadStoreLoad) {
   {
     WasmRunner<int32_t> r(execution_tier);
