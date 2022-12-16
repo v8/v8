@@ -58,6 +58,10 @@ input.range-toggle-setting {
   vertical-align: middle;
 }
 
+.range-toggle-form {
+  display: inline;
+}
+
 .range-header-label-x {
   text-align: center;
   margin-left: 13ch;
@@ -181,11 +185,10 @@ input.range-toggle-setting {
   display: inline-block;
   text-align: center;
   z-index: 1;
-  color: transparent;
 }
 
-#ranges.flipped .range-position {
-  color: inherit;
+#ranges.not_flipped .range-position {
+  color: transparent;
 }
 
 .range-transparent,
@@ -224,7 +227,7 @@ input.range-toggle-setting {
   display: grid;
   grid-gap: 0;
   writing-mode: vertical-lr;
-  grid-template-rows: repeat(3, calc(3.5ch + (2 * var(--range-position-border))));
+  grid-template-rows: repeat(3, calc(5.5ch + (2 * var(--range-position-border))));
   border-bottom: 2px solid white;
 }
 
