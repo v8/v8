@@ -5214,9 +5214,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         Drop(obj);
         bool null_succeeds = opcode == kExprBrOnCastNull;
         Push(CreateValue(ValueType::RefMaybeNull(
-            imm.type, (obj.type.is_bottom() || !null_succeeds)
-                          ? kNonNullable
-                          : obj.type.nullability())));
+            target_type, null_succeeds ? kNullable : kNonNullable)));
         // The {value_on_branch} parameter we pass to the interface must
         // be pointer-identical to the object on the stack.
         Value* value_on_branch = stack_value(1);
@@ -5258,6 +5256,17 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
         Drop(1);    // value_on_branch
         Push(obj);  // Restore stack state on fallthrough.
+        if (current_code_reachable_and_ok_ && null_succeeds) {
+          // As null branches, the type on fallthrough will be the non-null
+          // variant of the input type.
+          // Note that this is handled differently for br_on_cast_fail for which
+          // the Forward is handled by TurboFan.
+          // TODO(mliedtke): This currently deviates from the spec and is
+          // discussed at
+          // https://github.com/WebAssembly/gc/issues/342#issuecomment-1354505307.
+          stack_value(1)->type = obj.type.AsNonNull();
+          CALL_INTERFACE(Forward, obj, stack_value(1));
+        }
         return pc_offset;
       }
       case kExprBrOnCastDeprecated: {
@@ -5380,9 +5389,19 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           return 0;
         }
 
-        if (!VALIDATE(TypeCheckBranch<true>(c, 0))) return 0;
         bool null_succeeds = opcode == kExprBrOnCastFailNull;
-        Value result_on_fallthrough = CreateValue(ValueType::Ref(target_type));
+        if (null_succeeds) {
+          // If null is treated as a successful cast, then the branch type is
+          // guaranteed to be non-null.
+          Drop(obj);
+          Push(CreateValue(obj.type.AsNonNull()));
+        }
+        if (!VALIDATE(TypeCheckBranch<true>(c, 0))) return 0;
+
+        Value result_on_fallthrough = CreateValue(ValueType::RefMaybeNull(
+            target_type, (obj.type.is_bottom() || !null_succeeds)
+                             ? kNonNullable
+                             : obj.type.nullability()));
         if (V8_LIKELY(current_code_reachable_and_ok_)) {
           // This logic ensures that code generation can assume that functions
           // can only be cast between compatible types.
@@ -5393,6 +5412,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
             }
             // The types are incompatible (i.e. neither of the two types is a
             // subtype of the other). Always branch.
+            CALL_INTERFACE(Forward, obj, stack_value(1));
             CALL_INTERFACE(BrOrRet, branch_depth.depth, 0);
             // We know that the following code is not reachable, but according
             // to the spec it technically is. Set it to spec-only reachable.

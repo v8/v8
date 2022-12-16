@@ -263,7 +263,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
     builder.addFunction(`brOnCastFailNull_${name}`,
       makeSig([kWasmFuncRef], [kWasmI32]))
     .addBody([
-      kExprBlock, kFuncRefCode,
+      kExprBlock, kWasmRef, kFuncRefCode,
         kExprLocalGet, 0,
         kGCPrefix, kExprBrOnCastFailNull, 0, typeCode,
         kExprI32Const, 0,
@@ -542,7 +542,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   builder.addFunction('castFailNullToExternRef',
     makeSig([kWasmExternRef], [kWasmI32]))
   .addBody([
-    kExprBlock, kWasmRefNull, kExternRefCode,
+    kExprBlock, kWasmRef, kExternRefCode,
       kExprLocalGet, 0,
       kGCPrefix, kExprBrOnCastFailNull, 0, kExternRefCode,
       kExprI32Const, 0,
@@ -556,7 +556,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   builder.addFunction('castFailNullToNullExternRef',
     makeSig([kWasmExternRef], [kWasmI32]))
   .addBody([
-    kExprBlock, kWasmRefNull, kExternRefCode,
+    kExprBlock, kWasmRef, kExternRefCode,
       kExprLocalGet, 0,
       kGCPrefix, kExprBrOnCastFailNull, 0, kNullExternRefCode,
       kExprI32Const, 0,
@@ -629,6 +629,11 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   let structSub = builder.addStruct([makeField(kWasmI32, true)], structSuper);
   let array = builder.addArray(kWasmI32);
 
+  // Helpers to be able to instantiate a true externref value from wasm.
+  let createExternSig = builder.addType(makeSig([], [kWasmExternRef]));
+  let createExternIdx = builder.addImport('import', 'createExtern', createExternSig);
+  let createExtern = () => undefined;
+
   let types = {
     any: kWasmAnyRef,
     eq: kWasmEqRef,
@@ -646,6 +651,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
     structSuper: [kExprI32Const, 42, kGCPrefix, kExprStructNew, structSuper],
     structSub: [kExprI32Const, 42, kGCPrefix, kExprStructNew, structSub],
     array: [kExprI32Const, 42, kGCPrefix, kExprArrayNewFixed, array, 1],
+    any: [kExprCallFunction, createExternIdx, kGCPrefix, kExprExternInternalize],
   };
 
   // Each Test lists the following:
@@ -657,9 +663,9 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   let tests = [
     {
       source: 'any',
-      values: ['nullref', 'i31ref', 'structSuper', 'structSub', 'array'],
+      values: ['nullref', 'i31ref', 'structSuper', 'structSub', 'array', 'any'],
       targets: {
-        any: ['i31ref', 'structSuper', 'structSub', 'array'],
+        any: ['i31ref', 'structSuper', 'structSub', 'array', 'any'],
         eq: ['i31ref', 'structSuper', 'structSub', 'array'],
         struct: ['structSuper', 'structSub'],
         anyArray: ['array'],
@@ -825,7 +831,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
       builder.addFunction(`brOnCastFailNull_${test.source}_to_${target}`,
                           makeSig([wasmRefType(creatorType)], [kWasmI32]))
       .addBody([
-        kExprBlock, kWasmRefNull, sourceHeapType,
+        kExprBlock, kWasmRef, sourceHeapType,
           kExprLocalGet, 0,
           kExprCallRef, ...wasmUnsignedLeb(creatorType),
           kGCPrefix, kExprBrOnCastFailNull, 0, heapType,
@@ -840,7 +846,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
     }
   }
 
-  let instance = builder.instantiate();
+  let instance = builder.instantiate({import: {createExtern}});
   let wasm = instance.exports;
 
   for (let test of tests) {

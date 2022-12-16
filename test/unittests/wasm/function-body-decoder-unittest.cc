@@ -4360,12 +4360,11 @@ TEST_F(FunctionBodyDecoderTest, BrOnCastOrCastFail) {
       {WASM_I32V(42), WASM_LOCAL_GET(0), WASM_BR_ON_CAST_FAIL(0, sub_struct)},
       kAppendEnd,
       "type error in branch[0] (expected (ref null 1), got (ref null 0))");
-  ExpectFailure(
-      FunctionSig::Build(this->zone(), {subtype}, {supertype}),
-      {WASM_I32V(42), WASM_LOCAL_GET(0),
-       WASM_BR_ON_CAST_FAIL_NULL(0, sub_struct)},
-      kAppendEnd,
-      "type error in branch[0] (expected (ref null 1), got (ref null 0))");
+  ExpectFailure(FunctionSig::Build(this->zone(), {subtype}, {supertype}),
+                {WASM_I32V(42), WASM_LOCAL_GET(0),
+                 WASM_BR_ON_CAST_FAIL_NULL(0, sub_struct)},
+                kAppendEnd,
+                "type error in branch[0] (expected (ref null 1), got (ref 0))");
 
   // Wrong fallthrough type.
   ExpectFailure(
@@ -4380,7 +4379,7 @@ TEST_F(FunctionBodyDecoderTest, BrOnCastOrCastFail) {
                 {WASM_BLOCK_I(WASM_LOCAL_GET(0),
                               WASM_BR_ON_CAST_FAIL_NULL(0, sub_struct))},
                 kAppendEnd,
-                "type error in branch[0] (expected i32, got (ref null 0))");
+                "type error in branch[0] (expected i32, got (ref 0))");
 
   // Argument type error.
   ExpectFailure(FunctionSig::Build(this->zone(), {subtype}, {kWasmExternRef}),
