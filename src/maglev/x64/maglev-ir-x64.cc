@@ -320,16 +320,6 @@ void CheckNumber::GenerateCode(MaglevAssembler* masm,
   __ bind(&done);
 }
 
-void CheckHeapObject::SetValueLocationConstraints() {
-  UseRegister(receiver_input());
-}
-void CheckHeapObject::GenerateCode(MaglevAssembler* masm,
-                                   const ProcessingState& state) {
-  Register object = ToRegister(receiver_input());
-  Condition is_smi = __ CheckSmi(object);
-  __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kSmi, this);
-}
-
 void CheckSymbol::SetValueLocationConstraints() {
   UseRegister(receiver_input());
 }
@@ -1401,34 +1391,6 @@ void StringLength::GenerateCode(MaglevAssembler* masm,
     __ Pop(tmp);
   }
   __ movl(ToRegister(result()), FieldOperand(object, String::kLengthOffset));
-}
-
-int StringAt::MaxCallStackArgs() const {
-  DCHECK_EQ(Runtime::FunctionForId(Runtime::kStringCharCodeAt)->nargs, 2);
-  return std::max(2, AllocateDescriptor::GetStackParameterCount());
-}
-void StringAt::SetValueLocationConstraints() {
-  UseAndClobberRegister(string_input());
-  UseAndClobberRegister(index_input());
-  DefineAsRegister(this);
-  set_temporaries_needed(1);
-}
-void StringAt::GenerateCode(MaglevAssembler* masm,
-                            const ProcessingState& state) {
-  Register result_string = ToRegister(result());
-  Register string = ToRegister(string_input());
-  Register index = ToRegister(index_input());
-  Register scratch = general_temporaries().PopFirst();
-  Register char_code = string;
-
-  ZoneLabelRef done(masm);
-  Label cached_one_byte_string;
-
-  RegisterSnapshot save_registers = register_snapshot();
-  __ StringCharCodeAt(save_registers, char_code, string, index, scratch,
-                      &cached_one_byte_string);
-  __ StringFromCharCode(save_registers, &cached_one_byte_string, result_string,
-                        char_code, scratch);
 }
 
 void Int32AddWithOverflow::SetValueLocationConstraints() {

@@ -406,10 +406,8 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
 
 void MaglevAssembler::StringCharCodeAt(RegisterSnapshot& register_snapshot,
                                        Register result, Register string,
-                                       Register index, Register not_used,
+                                       Register index, Register instance_type,
                                        Label* result_fits_one_byte) {
-  DCHECK(!not_used.is_valid());
-
   ZoneLabelRef done(this);
   Label seq_string;
   Label cons_string;
@@ -435,9 +433,6 @@ void MaglevAssembler::StringCharCodeAt(RegisterSnapshot& register_snapshot,
         __ jmp(*done);
       },
       register_snapshot, done, result, string, index);
-
-  UseScratchRegisterScope temps(this);
-  Register instance_type = temps.AcquireX();
 
   // We might need to try more than one time for ConsString, SlicedString and
   // ThinString.

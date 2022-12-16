@@ -123,7 +123,6 @@ UNIMPLEMENTED_NODE(LoadSignedIntTypedArrayElement, elements_kind_)
 UNIMPLEMENTED_NODE(LoadUnsignedIntTypedArrayElement, elements_kind_)
 UNIMPLEMENTED_NODE(LoadDoubleTypedArrayElement, elements_kind_)
 UNIMPLEMENTED_NODE(CheckedSmiTagUint32)
-UNIMPLEMENTED_NODE_WITH_CALL(CheckedObjectToIndex)
 UNIMPLEMENTED_NODE(CheckedInt32ToUint32)
 UNIMPLEMENTED_NODE(CheckedUint32ToInt32)
 UNIMPLEMENTED_NODE(ChangeInt32ToFloat64)
@@ -135,23 +134,18 @@ UNIMPLEMENTED_NODE(TruncateFloat64ToInt32)
 UNIMPLEMENTED_NODE(HoleyFloat64Box)
 UNIMPLEMENTED_NODE(LogicalNot)
 UNIMPLEMENTED_NODE(SetPendingMessage)
-UNIMPLEMENTED_NODE_WITH_CALL(StringAt)
 UNIMPLEMENTED_NODE(TestUndetectable)
 UNIMPLEMENTED_NODE(TestTypeOf, literal_)
 UNIMPLEMENTED_NODE_WITH_CALL(ToObject)
 UNIMPLEMENTED_NODE_WITH_CALL(ToString)
 UNIMPLEMENTED_NODE(AssertInt32, condition_, reason_)
 UNIMPLEMENTED_NODE(CheckUint32IsSmi)
-UNIMPLEMENTED_NODE(CheckHeapObject)
 UNIMPLEMENTED_NODE(CheckJSArrayBounds)
 UNIMPLEMENTED_NODE(CheckJSDataViewBounds, element_type_)
 UNIMPLEMENTED_NODE(CheckJSObjectElementsBounds)
 UNIMPLEMENTED_NODE(CheckJSTypedArrayBounds, elements_kind_)
 UNIMPLEMENTED_NODE(CheckMaps, check_type_)
 UNIMPLEMENTED_NODE_WITH_CALL(CheckMapsWithMigration, check_type_)
-UNIMPLEMENTED_NODE(CheckNumber)
-UNIMPLEMENTED_NODE(CheckString, check_type_)
-UNIMPLEMENTED_NODE(CheckInstanceType, check_type_)
 UNIMPLEMENTED_NODE_WITH_CALL(GeneratorStore)
 UNIMPLEMENTED_NODE_WITH_CALL(JumpLoopPrologue, loop_depth_, unit_)
 UNIMPLEMENTED_NODE_WITH_CALL(StoreMap)
@@ -212,10 +206,12 @@ void BuiltinStringPrototypeCharCodeAt::SetValueLocationConstraints() {
 void BuiltinStringPrototypeCharCodeAt::GenerateCode(
     MaglevAssembler* masm, const ProcessingState& state) {
   Label done;
+  UseScratchRegisterScope temps(masm);
+  Register scratch = temps.AcquireX();
   RegisterSnapshot save_registers = register_snapshot();
   __ StringCharCodeAt(save_registers, ToRegister(result()),
                       ToRegister(string_input()), ToRegister(index_input()),
-                      Register::no_reg(), &done);
+                      scratch, &done);
   __ bind(&done);
 }
 
@@ -273,6 +269,33 @@ void CheckedTruncateNumberToInt32::GenerateCode(MaglevAssembler* masm,
   __ bind(&done);
 }
 
+void CheckNumber::SetValueLocationConstraints() {
+  UseRegister(receiver_input());
+}
+void CheckNumber::GenerateCode(MaglevAssembler* masm,
+                               const ProcessingState& state) {
+  Label done;
+  UseScratchRegisterScope temps(masm);
+  Register scratch = temps.AcquireX();
+  Register value = ToRegister(receiver_input());
+  // If {value} is a Smi or a HeapNumber, we're done.
+  __ JumpIfSmi(value, &done);
+  if (mode() == Object::Conversion::kToNumeric) {
+    __ LoadMap(scratch, value);
+    __ CompareRoot(scratch.W(), RootIndex::kHeapNumberMap);
+    // Jump to done if it is a HeapNumber.
+    __ B(&done, eq);
+    // Check if it is a BigInt.
+    __ Ldrh(scratch.W(), FieldMemOperand(scratch, Map::kInstanceTypeOffset));
+    __ Cmp(scratch, Immediate(BIGINT_TYPE));
+  } else {
+    __ Ldr(scratch.W(), FieldMemOperand(value, HeapObject::kMapOffset));
+    __ CompareRoot(scratch, RootIndex::kHeapNumberMap);
+  }
+  __ EmitEagerDeoptIf(ne, DeoptimizeReason::kNotANumber, this);
+  __ bind(&done);
+}
+
 void CheckSymbol::SetValueLocationConstraints() {
   UseRegister(receiver_input());
 }
@@ -289,6 +312,121 @@ void CheckSymbol::GenerateCode(MaglevAssembler* masm,
   Register scratch = temps.AcquireX();
   __ CmpObjectType(object, SYMBOL_TYPE, scratch);
   __ EmitEagerDeoptIf(ne, DeoptimizeReason::kNotASymbol, this);
+}
+
+void CheckInstanceType::SetValueLocationConstraints() {
+  UseRegister(receiver_input());
+}
+void CheckInstanceType::GenerateCode(MaglevAssembler* masm,
+                                     const ProcessingState& state) {
+  UseScratchRegisterScope temps(masm);
+  Register scratch = temps.AcquireX();
+  Register object = ToRegister(receiver_input());
+  if (check_type_ == CheckType::kOmitHeapObjectCheck) {
+    __ AssertNotSmi(object);
+  } else {
+    Condition is_smi = __ CheckSmi(object);
+    __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kWrongInstanceType, this);
+  }
+  __ LoadMap(scratch, object);
+  __ CompareInstanceType(scratch, scratch, instance_type());
+  __ EmitEagerDeoptIf(ne, DeoptimizeReason::kWrongInstanceType, this);
+}
+
+void CheckString::SetValueLocationConstraints() {
+  UseRegister(receiver_input());
+}
+void CheckString::GenerateCode(MaglevAssembler* masm,
+                               const ProcessingState& state) {
+  UseScratchRegisterScope temps(masm);
+  Register scratch = temps.AcquireX();
+  Register object = ToRegister(receiver_input());
+  if (check_type_ == CheckType::kOmitHeapObjectCheck) {
+    __ AssertNotSmi(object);
+  } else {
+    Condition is_smi = __ CheckSmi(object);
+    __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kNotAString, this);
+  }
+  __ LoadMap(scratch, object);
+  __ CompareInstanceTypeRange(scratch, scratch, FIRST_STRING_TYPE,
+                              LAST_STRING_TYPE);
+  __ EmitEagerDeoptIf(hi, DeoptimizeReason::kNotAString, this);
+}
+
+int CheckedObjectToIndex::MaxCallStackArgs() const { return 0; }
+void CheckedObjectToIndex::SetValueLocationConstraints() {
+  UseRegister(object_input());
+  DefineAsRegister(this);
+}
+void CheckedObjectToIndex::GenerateCode(MaglevAssembler* masm,
+                                        const ProcessingState& state) {
+  Register object = ToRegister(object_input());
+  Register result_reg = ToRegister(result());
+
+  ZoneLabelRef done(masm);
+  Condition is_smi = __ CheckSmi(object);
+  __ JumpToDeferredIf(
+      NegateCondition(is_smi),
+      [](MaglevAssembler* masm, Register object, Register result_reg,
+         ZoneLabelRef done, CheckedObjectToIndex* node) {
+        Label is_string;
+        UseScratchRegisterScope temps(masm);
+        Register scratch = temps.AcquireX();
+        __ LoadMap(scratch, object);
+        __ CompareInstanceTypeRange(scratch, scratch, FIRST_STRING_TYPE,
+                                    LAST_STRING_TYPE);
+        __ b(&is_string, ls);
+
+        __ Cmp(scratch, Immediate(HEAP_NUMBER_TYPE));
+        // The IC will go generic if it encounters something other than a
+        // Number or String key.
+        __ EmitEagerDeoptIf(ne, DeoptimizeReason::kNotInt32, node);
+
+        // Heap Number.
+        {
+          DoubleRegister number_value = temps.AcquireD();
+          DoubleRegister converted_back = temps.AcquireD();
+          // Convert the input float64 value to int32.
+          __ TruncateDoubleToInt32(result_reg, number_value);
+          // Convert that int32 value back to float64.
+          __ Scvtf(converted_back, result_reg);
+          // Check that the result of the float64->int32->float64 is equal to
+          // the input (i.e. that the conversion didn't truncate.
+          __ Fcmp(number_value, converted_back);
+          __ B(*done, eq);
+          __ EmitEagerDeopt(node, DeoptimizeReason::kNotInt32);
+        }
+
+        // String.
+        __ bind(&is_string);
+        {
+          RegisterSnapshot snapshot = node->register_snapshot();
+          snapshot.live_registers.clear(result_reg);
+          DCHECK(!snapshot.live_tagged_registers.has(result_reg));
+          {
+            SaveRegisterStateForCall save_register_state(masm, snapshot);
+            AllowExternalCallThatCantCauseGC scope(masm);
+            __ Move(x0, object);
+            __ CallCFunction(
+                ExternalReference::string_to_array_index_function(), 1);
+            // No need for safepoint since this is a fast C call.
+            __ Move(result_reg, kReturnRegister0);
+          }
+          __ Cmp(result_reg, Immediate(0));
+          __ B(*done, ge);
+          __ EmitEagerDeopt(node, DeoptimizeReason::kNotInt32);
+        }
+      },
+      object, result_reg, done, this);
+
+  // If we didn't enter the deferred block, we're a Smi.
+  if (result_reg == object) {
+    __ SmiUntag(object);
+  } else {
+    __ SmiUntag(result_reg, object);
+  }
+
+  __ bind(*done);
 }
 
 void Int32ToNumber::SetValueLocationConstraints() {
