@@ -116,7 +116,8 @@ class BasicMarkingState : public MarkingStateBase {
 
   inline void RegisterWeakReferenceIfNeeded(const void*, TraceDescriptor,
                                             WeakCallback, const void*);
-  inline void RegisterWeakCallback(WeakCallback, const void*);
+  inline void RegisterWeakContainerCallback(WeakCallback, const void*);
+  inline void RegisterWeakCustomCallback(WeakCallback, const void*);
 
   void RegisterMovableReference(const void** slot) {
     if (!movable_slots_worklist_) return;
@@ -143,12 +144,17 @@ class BasicMarkingState : public MarkingStateBase {
   previously_not_fully_constructed_worklist() {
     return previously_not_fully_constructed_worklist_;
   }
-  MarkingWorklists::WeakCallbackWorklist::Local& weak_callback_worklist() {
-    return weak_callback_worklist_;
+  MarkingWorklists::WeakCallbackWorklist::Local&
+  weak_container_callback_worklist() {
+    return weak_container_callback_worklist_;
   }
   MarkingWorklists::WeakCallbackWorklist::Local&
   parallel_weak_callback_worklist() {
     return parallel_weak_callback_worklist_;
+  }
+  MarkingWorklists::WeakCustomCallbackWorklist::Local&
+  weak_custom_callback_worklist() {
+    return weak_custom_callback_worklist_;
   }
   MarkingWorklists::WriteBarrierWorklist::Local& write_barrier_worklist() {
     return write_barrier_worklist_;
@@ -189,9 +195,12 @@ class BasicMarkingState : public MarkingStateBase {
 
   MarkingWorklists::PreviouslyNotFullyConstructedWorklist::Local
       previously_not_fully_constructed_worklist_;
-  MarkingWorklists::WeakCallbackWorklist::Local weak_callback_worklist_;
+  MarkingWorklists::WeakCallbackWorklist::Local
+      weak_container_callback_worklist_;
   MarkingWorklists::WeakCallbackWorklist::Local
       parallel_weak_callback_worklist_;
+  MarkingWorklists::WeakCustomCallbackWorklist::Local
+      weak_custom_callback_worklist_;
   MarkingWorklists::WriteBarrierWorklist::Local write_barrier_worklist_;
   MarkingWorklists::ConcurrentMarkingBailoutWorklist::Local
       concurrent_marking_bailout_worklist_;
@@ -225,10 +234,16 @@ void BasicMarkingState::RegisterWeakReferenceIfNeeded(
   parallel_weak_callback_worklist_.Push({weak_callback, parameter});
 }
 
-void BasicMarkingState::RegisterWeakCallback(WeakCallback callback,
-                                             const void* object) {
+void BasicMarkingState::RegisterWeakContainerCallback(WeakCallback callback,
+                                                      const void* object) {
   DCHECK_NOT_NULL(callback);
-  weak_callback_worklist_.Push({callback, object});
+  weak_container_callback_worklist_.Push({callback, object});
+}
+
+void BasicMarkingState::RegisterWeakCustomCallback(WeakCallback callback,
+                                                   const void* object) {
+  DCHECK_NOT_NULL(callback);
+  weak_custom_callback_worklist_.Push({callback, object});
 }
 
 void BasicMarkingState::RegisterWeakContainer(HeapObjectHeader& header) {
@@ -256,7 +271,7 @@ void BasicMarkingState::ProcessWeakContainer(const void* object,
   if (!MarkNoPush(header)) return;
 
   // Register final weak processing of the backing store.
-  RegisterWeakCallback(callback, data);
+  RegisterWeakContainerCallback(callback, data);
 
   // Weak containers might not require tracing. In such cases the callback in
   // the TraceDescriptor will be nullptr. For ephemerons the callback will be

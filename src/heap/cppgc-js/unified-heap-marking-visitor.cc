@@ -60,7 +60,7 @@ void UnifiedHeapMarkingVisitorBase::VisitWeakContainer(
 
 void UnifiedHeapMarkingVisitorBase::RegisterWeakCallback(WeakCallback callback,
                                                          const void* object) {
-  marking_state_.RegisterWeakCallback(callback, object);
+  marking_state_.RegisterWeakCustomCallback(callback, object);
 }
 
 void UnifiedHeapMarkingVisitorBase::HandleMovableReference(const void** slot) {

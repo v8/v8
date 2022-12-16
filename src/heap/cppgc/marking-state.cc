@@ -20,9 +20,12 @@ BasicMarkingState::BasicMarkingState(HeapBase& heap,
     : MarkingStateBase(heap, marking_worklists),
       previously_not_fully_constructed_worklist_(
           *marking_worklists.previously_not_fully_constructed_worklist()),
-      weak_callback_worklist_(*marking_worklists.weak_callback_worklist()),
+      weak_container_callback_worklist_(
+          *marking_worklists.weak_container_callback_worklist()),
       parallel_weak_callback_worklist_(
           *marking_worklists.parallel_weak_callback_worklist()),
+      weak_custom_callback_worklist_(
+          *marking_worklists.weak_custom_callback_worklist()),
       write_barrier_worklist_(*marking_worklists.write_barrier_worklist()),
       concurrent_marking_bailout_worklist_(
           *marking_worklists.concurrent_marking_bailout_worklist()),
@@ -41,8 +44,9 @@ BasicMarkingState::BasicMarkingState(HeapBase& heap,
 void BasicMarkingState::Publish() {
   MarkingStateBase::Publish();
   previously_not_fully_constructed_worklist_.Publish();
-  weak_callback_worklist_.Publish();
+  weak_container_callback_worklist_.Publish();
   parallel_weak_callback_worklist_.Publish();
+  weak_custom_callback_worklist_.Publish();
   write_barrier_worklist_.Publish();
   concurrent_marking_bailout_worklist_.Publish();
   discovered_ephemeron_pairs_worklist_.Publish();

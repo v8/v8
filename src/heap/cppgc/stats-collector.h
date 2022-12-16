@@ -53,6 +53,8 @@ namespace internal {
   V(MarkVisitCrossThreadPersistents)        \
   V(MarkVisitStack)                         \
   V(MarkVisitRememberedSets)                \
+  V(WeakContainerCallbacksProcessing)       \
+  V(CustomCallbacksProcessing)              \
   V(SweepFinishIfOutOfWork)                 \
   V(SweepInvokePreFinalizers)               \
   V(SweepInTask)                            \
