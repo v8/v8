@@ -361,6 +361,12 @@ inline void MaglevAssembler::FinishCode() {
   ForceConstantPoolEmissionWithoutJump();
 }
 
+template <typename NodeT>
+inline void MaglevAssembler::EmitEagerDeoptIfNotEqual(DeoptimizeReason reason,
+                                                      NodeT* node) {
+  EmitEagerDeoptIf(ne, reason, node);
+}
+
 inline void MaglevAssembler::MaterialiseValueNode(Register dst,
                                                   ValueNode* value) {
   // TODO(v8:7700): Implement!

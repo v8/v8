@@ -915,6 +915,35 @@ void StoreGlobal::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
+void CheckValue::SetValueLocationConstraints() { UseRegister(target_input()); }
+void CheckValue::GenerateCode(MaglevAssembler* masm,
+                              const ProcessingState& state) {
+  Register target = ToRegister(target_input());
+  __ Cmp(target, value().object());
+  __ EmitEagerDeoptIfNotEqual(DeoptimizeReason::kWrongValue, this);
+}
+
+void CheckDynamicValue::SetValueLocationConstraints() {
+  UseRegister(first_input());
+  UseRegister(second_input());
+}
+void CheckDynamicValue::GenerateCode(MaglevAssembler* masm,
+                                     const ProcessingState& state) {
+  Register first = ToRegister(first_input());
+  Register second = ToRegister(second_input());
+  __ CompareInt32(first, second);
+  __ EmitEagerDeoptIfNotEqual(DeoptimizeReason::kWrongValue, this);
+}
+
+void CheckSmi::SetValueLocationConstraints() { UseRegister(receiver_input()); }
+void CheckSmi::GenerateCode(MaglevAssembler* masm,
+                            const ProcessingState& state) {
+  Register object = ToRegister(receiver_input());
+  Condition is_smi = __ CheckSmi(object);
+  __ EmitEagerDeoptIf(NegateCondition(is_smi), DeoptimizeReason::kNotASmi,
+                      this);
+}
+
 void CheckInt32Condition::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());

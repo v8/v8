@@ -98,16 +98,6 @@ void MaglevAssembler::AllocateTwoByteString(RegisterSnapshot register_snapshot,
 }
 
 void MaglevAssembler::LoadSingleCharacterString(Register result,
-                                                int char_code) {
-  DCHECK_GE(char_code, 0);
-  DCHECK_LT(char_code, String::kMaxOneByteCharCode);
-  Register table = result;
-  LoadRoot(table, RootIndex::kSingleCharacterStringTable);
-  DecompressAnyTagged(result, FieldOperand(table, FixedArray::kHeaderSize +
-                                                      char_code * kTaggedSize));
-}
-
-void MaglevAssembler::LoadSingleCharacterString(Register result,
                                                 Register char_code,
                                                 Register scratch) {
   // Make sure char_code is zero extended.

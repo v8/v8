@@ -127,6 +127,8 @@ class MaglevAssembler : public MacroAssembler {
   template <typename NodeT>
   inline void EmitEagerDeoptIf(Condition cond, DeoptimizeReason reason,
                                NodeT* node);
+  template <typename NodeT>
+  inline void EmitEagerDeoptIfNotEqual(DeoptimizeReason reason, NodeT* node);
 
   inline void MaterialiseValueNode(Register dst, ValueNode* value);
 

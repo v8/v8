@@ -112,7 +112,6 @@ void Int32DecrementWithOverflow::GenerateCode(MaglevAssembler* masm,
 }
 
 UNIMPLEMENTED_NODE_WITH_CALL(Float64Ieee754Unary)
-UNIMPLEMENTED_NODE_WITH_CALL(BuiltinStringFromCharCode)
 UNIMPLEMENTED_NODE_WITH_CALL(CallBuiltin)
 UNIMPLEMENTED_NODE_WITH_CALL(Construct)
 UNIMPLEMENTED_NODE_WITH_CALL(ConstructWithSpread)
@@ -125,7 +124,6 @@ UNIMPLEMENTED_NODE(LoadUnsignedIntTypedArrayElement, elements_kind_)
 UNIMPLEMENTED_NODE(LoadDoubleTypedArrayElement, elements_kind_)
 UNIMPLEMENTED_NODE(CheckedSmiTagUint32)
 UNIMPLEMENTED_NODE_WITH_CALL(CheckedObjectToIndex)
-UNIMPLEMENTED_NODE(CheckedTruncateNumberToInt32)
 UNIMPLEMENTED_NODE(CheckedInt32ToUint32)
 UNIMPLEMENTED_NODE(CheckedUint32ToInt32)
 UNIMPLEMENTED_NODE(ChangeInt32ToFloat64)
@@ -143,7 +141,6 @@ UNIMPLEMENTED_NODE(TestTypeOf, literal_)
 UNIMPLEMENTED_NODE_WITH_CALL(ToObject)
 UNIMPLEMENTED_NODE_WITH_CALL(ToString)
 UNIMPLEMENTED_NODE(AssertInt32, condition_, reason_)
-UNIMPLEMENTED_NODE(CheckDynamicValue)
 UNIMPLEMENTED_NODE(CheckUint32IsSmi)
 UNIMPLEMENTED_NODE(CheckHeapObject)
 UNIMPLEMENTED_NODE(CheckJSArrayBounds)
@@ -153,9 +150,7 @@ UNIMPLEMENTED_NODE(CheckJSTypedArrayBounds, elements_kind_)
 UNIMPLEMENTED_NODE(CheckMaps, check_type_)
 UNIMPLEMENTED_NODE_WITH_CALL(CheckMapsWithMigration, check_type_)
 UNIMPLEMENTED_NODE(CheckNumber)
-UNIMPLEMENTED_NODE(CheckSmi)
 UNIMPLEMENTED_NODE(CheckString, check_type_)
-UNIMPLEMENTED_NODE(CheckValue)
 UNIMPLEMENTED_NODE(CheckInstanceType, check_type_)
 UNIMPLEMENTED_NODE_WITH_CALL(GeneratorStore)
 UNIMPLEMENTED_NODE_WITH_CALL(JumpLoopPrologue, loop_depth_, unit_)
@@ -172,6 +167,38 @@ UNIMPLEMENTED_NODE_WITH_CALL(ThrowIfNotSuperConstructor)
 UNIMPLEMENTED_NODE(BranchIfUndefinedOrNull)
 UNIMPLEMENTED_NODE(BranchIfJSReceiver)
 UNIMPLEMENTED_NODE(Switch)
+
+int BuiltinStringFromCharCode::MaxCallStackArgs() const {
+  return AllocateDescriptor::GetStackParameterCount();
+}
+void BuiltinStringFromCharCode::SetValueLocationConstraints() {
+  if (code_input().node()->Is<Int32Constant>()) {
+    UseAny(code_input());
+  } else {
+    UseRegister(code_input());
+    set_temporaries_needed(1);
+  }
+  DefineAsRegister(this);
+}
+void BuiltinStringFromCharCode::GenerateCode(MaglevAssembler* masm,
+                                             const ProcessingState& state) {
+  Register scratch = general_temporaries().PopFirst();
+  Register result_string = ToRegister(result());
+  if (Int32Constant* constant = code_input().node()->TryCast<Int32Constant>()) {
+    int32_t char_code = constant->value();
+    if (0 <= char_code && char_code < String::kMaxOneByteCharCode) {
+      __ LoadSingleCharacterString(result_string, char_code);
+    } else {
+      __ AllocateTwoByteString(register_snapshot(), result_string, 1);
+      __ Move(scratch, char_code & 0xFFFF);
+      __ Strh(scratch.W(),
+              FieldMemOperand(result_string, SeqTwoByteString::kHeaderSize));
+    }
+  } else {
+    __ StringFromCharCode(register_snapshot(), nullptr, result_string,
+                          ToRegister(code_input()), scratch);
+  }
+}
 
 int BuiltinStringPrototypeCharCodeAt::MaxCallStackArgs() const {
   DCHECK_EQ(Runtime::FunctionForId(Runtime::kStringCharCodeAt)->nargs, 2);
@@ -217,6 +244,33 @@ void CreateEmptyObjectLiteral::GenerateCode(MaglevAssembler* masm,
     int offset = map().GetInObjectPropertyOffset(i);
     __ StoreTaggedField(scratch, FieldMemOperand(object, offset));
   }
+}
+
+void CheckedTruncateNumberToInt32::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineAsRegister(this);
+}
+void CheckedTruncateNumberToInt32::GenerateCode(MaglevAssembler* masm,
+                                                const ProcessingState& state) {
+  Register value = ToRegister(input());
+  Register result_reg = ToRegister(result());
+  Label is_not_smi, done;
+  // Check if Smi.
+  __ JumpIfNotSmi(value, &is_not_smi);
+  // If Smi, convert to Int32.
+  __ SmiToInt32(result_reg, value);
+  __ B(&done);
+  __ bind(&is_not_smi);
+  // Check if HeapNumber, deopt otherwise.
+  UseScratchRegisterScope temps(masm);
+  Register scratch = temps.AcquireW();
+  __ Ldr(scratch, FieldMemOperand(value, HeapObject::kMapOffset));
+  __ CompareRoot(scratch, RootIndex::kHeapNumberMap);
+  __ EmitEagerDeoptIf(ne, DeoptimizeReason::kNotANumber, this);
+  DoubleRegister double_value = temps.AcquireD();
+  __ Ldr(double_value, FieldMemOperand(value, HeapNumber::kValueOffset));
+  __ TruncateDoubleToInt32(result_reg, double_value);
+  __ bind(&done);
 }
 
 void CheckSymbol::SetValueLocationConstraints() {

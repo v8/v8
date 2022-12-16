@@ -329,6 +329,12 @@ inline void MaglevAssembler::JumpIfTaggedEqual(Register r1, Register r2,
 
 inline void MaglevAssembler::Pop(Register dst) { MacroAssembler::Pop(dst); }
 
+template <typename NodeT>
+inline void MaglevAssembler::EmitEagerDeoptIfNotEqual(DeoptimizeReason reason,
+                                                      NodeT* node) {
+  EmitEagerDeoptIf(not_equal, reason, node);
+}
+
 inline void MaglevAssembler::MaterialiseValueNode(Register dst,
                                                   ValueNode* value) {
   switch (value->opcode()) {

@@ -338,6 +338,70 @@ void MaglevAssembler::MaybeEmitDeoptBuiltinsCall(size_t eager_deopt_count,
   }
 }
 
+void MaglevAssembler::AllocateTwoByteString(RegisterSnapshot register_snapshot,
+                                            Register result, int length) {
+  Allocate(register_snapshot, result, SeqTwoByteString::SizeFor(length));
+  UseScratchRegisterScope scope(this);
+  Register scratch = scope.AcquireX();
+  LoadRoot(scratch, RootIndex::kStringMap);
+  StoreTaggedField(scratch, FieldMemOperand(result, HeapObject::kMapOffset));
+  Move(scratch, Name::kEmptyHashField);
+  StoreTaggedField(scratch, FieldMemOperand(result, Name::kRawHashFieldOffset));
+  Move(scratch, length);
+  StoreTaggedField(scratch, FieldMemOperand(result, String::kLengthOffset));
+}
+
+void MaglevAssembler::LoadSingleCharacterString(Register result,
+                                                Register char_code,
+                                                Register scratch) {
+  DCHECK_NE(char_code, scratch);
+  if (v8_flags.debug_code) {
+    Cmp(char_code, Immediate(String::kMaxOneByteCharCode));
+    Assert(ls, AbortReason::kUnexpectedValue);
+  }
+  Register table = scratch;
+  LoadRoot(table, RootIndex::kSingleCharacterStringTable);
+  Add(table, table, Operand(char_code, LSL, kTaggedSizeLog2));
+  DecompressAnyTagged(result, FieldMemOperand(table, FixedArray::kHeaderSize));
+}
+
+void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
+                                         Label* char_code_fits_one_byte,
+                                         Register result, Register char_code,
+                                         Register scratch) {
+  DCHECK_NE(char_code, scratch);
+  ZoneLabelRef done(this);
+  Cmp(char_code, Immediate(String::kMaxOneByteCharCode));
+  JumpToDeferredIf(
+      hi,
+      [](MaglevAssembler* masm, RegisterSnapshot register_snapshot,
+         ZoneLabelRef done, Register result, Register char_code,
+         Register scratch) {
+        // Be sure to save {char_code}. If it aliases with {result}, use
+        // the scratch register.
+        if (char_code == result) {
+          // This is guaranteed to be true since we've already checked
+          // char_code != scratch.
+          DCHECK_NE(scratch, result);
+          __ Move(scratch, char_code);
+          char_code = scratch;
+        }
+        DCHECK(!register_snapshot.live_tagged_registers.has(char_code));
+        register_snapshot.live_registers.set(char_code);
+        __ AllocateTwoByteString(register_snapshot, result, 1);
+        __ And(scratch, char_code, Immediate(0xFFFF));
+        __ Strh(scratch.W(),
+                FieldMemOperand(result, SeqTwoByteString::kHeaderSize));
+        __ B(*done);
+      },
+      register_snapshot, done, result, char_code, scratch);
+  if (char_code_fits_one_byte != nullptr) {
+    bind(char_code_fits_one_byte);
+  }
+  LoadSingleCharacterString(result, char_code, scratch);
+  bind(*done);
+}
+
 void MaglevAssembler::StringCharCodeAt(RegisterSnapshot& register_snapshot,
                                        Register result, Register string,
                                        Register index, Register not_used,
@@ -476,6 +540,47 @@ void MaglevAssembler::StringCharCodeAt(RegisterSnapshot& register_snapshot,
       Mov(index, Immediate(0xdeadbeef));
     }
   }
+}
+
+void MaglevAssembler::TruncateDoubleToInt32(Register dst, DoubleRegister src) {
+  if (CpuFeatures::IsSupported(JSCVT)) {
+    Fjcvtzs(dst.W(), src);
+    return;
+  }
+
+  ZoneLabelRef done(this);
+  // Try to convert with an FPU convert instruction. It's trivial to compute
+  // the modulo operation on an integer register so we convert to a 64-bit
+  // integer.
+  //
+  // Fcvtzs will saturate to INT64_MIN (0x800...00) or INT64_MAX (0x7FF...FF)
+  // when the double is out of range. NaNs and infinities will be converted to 0
+  // (as ECMA-262 requires).
+  Fcvtzs(dst.X(), src);
+
+  // The values INT64_MIN (0x800...00) or INT64_MAX (0x7FF...FF) are not
+  // representable using a double, so if the result is one of those then we know
+  // that saturation occurred, and we need to manually handle the conversion.
+  //
+  // It is easy to detect INT64_MIN and INT64_MAX because adding or subtracting
+  // 1 will cause signed overflow.
+  Cmp(dst.X(), 1);
+  Ccmp(dst.X(), -1, VFlag, vc);
+
+  JumpToDeferredIf(
+      vs,
+      [](MaglevAssembler* masm, DoubleRegister src, Register dst,
+         ZoneLabelRef done) {
+        __ MacroAssembler::Push(xzr, src);
+        __ CallBuiltin(Builtin::kDoubleToI);
+        __ Ldr(dst.W(), MemOperand(sp, 0));
+        DCHECK_EQ(xzr.SizeInBytes(), src.SizeInBytes());
+        __ Drop(2);
+        __ B(*done);
+      },
+      src, dst, done);
+
+  Bind(*done);
 }
 
 }  // namespace maglev
