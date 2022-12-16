@@ -475,6 +475,7 @@ class RuntimeCallTimer final {
   V(OptimizeFinalizePipelineJob)               \
   V(OptimizeHeapBrokerInitialization)          \
   V(OptimizeNonConcurrent)                     \
+  V(OptimizeRevectorizer)                      \
   V(OptimizeSerialization)                     \
   V(OptimizeSerializeMetadata)                 \
   V(ParseEval)                                 \

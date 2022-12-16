@@ -3804,15 +3804,23 @@ void WasmGraphBuilder::StoreMem(MachineRepresentation mem_rep, Node* index,
       gasm_->StoreUnaligned(UnalignedStoreRepresentation{mem_rep},
                             MemBuffer(capped_offset), index, val);
       break;
-    case MemoryAccessKind::kProtected:
-      SetSourcePosition(
-          gasm_->ProtectedStore(mem_rep, MemBuffer(capped_offset), index, val),
-          position);
+    case MemoryAccessKind::kProtected: {
+      Node* store =
+          gasm_->ProtectedStore(mem_rep, MemBuffer(capped_offset), index, val);
+      SetSourcePosition(store, position);
+      if (mem_rep == MachineRepresentation::kSimd128) {
+        graph()->RecordSimdStore(store);
+      }
       break;
-    case MemoryAccessKind::kNormal:
-      gasm_->Store(StoreRepresentation{mem_rep, kNoWriteBarrier},
-                   MemBuffer(capped_offset), index, val);
+    }
+    case MemoryAccessKind::kNormal: {
+      Node* store = gasm_->Store(StoreRepresentation{mem_rep, kNoWriteBarrier},
+                                 MemBuffer(capped_offset), index, val);
+      if (mem_rep == MachineRepresentation::kSimd128) {
+        graph()->RecordSimdStore(store);
+      }
       break;
+    }
   }
 
   if (v8_flags.trace_wasm_memory) {
@@ -8497,6 +8505,12 @@ bool BuildGraphForWasmFunction(wasm::CompilationEnv* env,
   auto sig = CreateMachineSignature(mcgraph->zone(), func_body.sig,
                                     WasmGraphBuilder::kCalledFromWasm);
   builder.LowerInt64(sig);
+
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+  if (v8_flags.experimental_wasm_revectorize && builder.has_simd()) {
+    mcgraph->graph()->SetSimd(true);
+  }
+#endif
 
   return true;
 }

@@ -554,6 +554,10 @@ assert(!v8_enable_static_roots ||
                 v8_enable_webassembly && v8_enable_i18n_support),
        "Trying to enable static roots in a configuration that is not supported")
 
+if (v8_enable_webassembly && !target_is_simulator && v8_current_cpu == "x64") {
+  v8_enable_wasm_simd256_revec = true
+}
+
 assert(!v8_disable_write_barriers || v8_enable_single_generation,
        "Disabling write barriers works only with single generation")
 
@@ -1090,6 +1094,9 @@ config("features") {
   }
   if (v8_value_deserializer_hard_fail) {
     defines += [ "V8_VALUE_DESERIALIZER_HARD_FAIL" ]
+  }
+  if (v8_enable_wasm_simd256_revec) {
+    defines += [ "V8_ENABLE_WASM_SIMD256_REVEC" ]
   }
 }
 
@@ -3746,7 +3753,10 @@ v8_header_set("v8_internal_headers") {
   }
 
   if (v8_enable_wasm_simd256_revec) {
-    sources += [ "src/compiler/linear-scheduler.h" ]
+    sources += [
+      "src/compiler/linear-scheduler.h",
+      "src/compiler/revectorizer.h",
+    ]
   }
 
   if (!v8_enable_third_party_heap) {
@@ -4258,7 +4268,10 @@ if (v8_enable_webassembly) {
 }
 
 if (v8_enable_wasm_simd256_revec) {
-  v8_compiler_sources += [ "src/compiler/linear-scheduler.cc" ]
+  v8_compiler_sources += [
+    "src/compiler/linear-scheduler.cc",
+    "src/compiler/revectorizer.cc",
+  ]
 }
 
 # The src/compiler files with optimizations.
