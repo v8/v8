@@ -231,6 +231,10 @@ try_builder(
     execution_timeout = 600,
     properties = {"runhooks": True},
     priority = 25,
+
+    # TODO(https://crbug.com/1401307): Remove this exception once bug is
+    # resolved.
+    experiments = {"luci.buildbucket.omit_python2": 0},
 )
 
 try_builder(
