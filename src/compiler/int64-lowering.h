@@ -27,7 +27,6 @@ class Int64Lowering {
   Int64Lowering(Graph* graph, MachineOperatorBuilder* machine,
                 CommonOperatorBuilder* common,
                 SimplifiedOperatorBuilder* simplified_, Zone* zone,
-                const wasm::WasmModule* module,
                 Signature<MachineRepresentation>* signature) {}
 
   void LowerGraph() {}
@@ -39,7 +38,6 @@ class V8_EXPORT_PRIVATE Int64Lowering {
   Int64Lowering(Graph* graph, MachineOperatorBuilder* machine,
                 CommonOperatorBuilder* common,
                 SimplifiedOperatorBuilder* simplified_, Zone* zone,
-                const wasm::WasmModule* module,
                 Signature<MachineRepresentation>* signature);
 
   void LowerGraph();
@@ -76,8 +74,6 @@ class V8_EXPORT_PRIVATE Int64Lowering {
 
   const CallDescriptor* LowerCallDescriptor(
       const CallDescriptor* call_descriptor);
-  Node* SetInt32Type(Node* node);
-  Node* SetFloat64Type(Node* node);
 
   void ReplaceNode(Node* old, Node* new_low, Node* new_high);
   bool HasReplacementLow(Node* node);
@@ -104,9 +100,6 @@ class V8_EXPORT_PRIVATE Int64Lowering {
   ZoneDeque<NodeState> stack_;
   Replacement* replacements_;
   Node* placeholder_;
-  // Caches for node types, so we do not waste memory.
-  Type int32_type_;
-  Type float64_type_;
 };
 
 #endif  // V8_TARGET_ARCH_32_BIT

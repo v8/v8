@@ -550,7 +550,7 @@ Handle<Code> WasmFunctionWrapper::GetWrapperCode(Isolate* isolate) {
         rep_builder.AddParam(MachineRepresentation::kWord32);
       }
       compiler::Int64Lowering r(graph(), machine(), common(), simplified(),
-                                zone(), nullptr, rep_builder.Build());
+                                zone(), rep_builder.Build());
       r.LowerGraph();
     }
 

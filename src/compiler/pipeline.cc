@@ -117,6 +117,7 @@
 #include "src/utils/utils.h"
 
 #if V8_ENABLE_WEBASSEMBLY
+#include "src/compiler/int64-lowering.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/compiler/wasm-escape-analysis.h"
 #include "src/compiler/wasm-gc-lowering.h"
@@ -377,6 +378,7 @@ class PipelineData {
   SourcePositionTable* source_positions() const { return source_positions_; }
   NodeOriginTable* node_origins() const { return node_origins_; }
   MachineOperatorBuilder* machine() const { return machine_; }
+  SimplifiedOperatorBuilder* simplified() const { return simplified_; }
   CommonOperatorBuilder* common() const { return common_; }
   JSOperatorBuilder* javascript() const { return javascript_; }
   JSGraph* jsgraph() const { return jsgraph_; }
@@ -3448,6 +3450,30 @@ wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
   return result;
 }
 
+namespace {
+
+void LowerInt64(const wasm::FunctionSig* sig, MachineGraph* mcgraph,
+                SimplifiedOperatorBuilder* simplified, PipelineImpl& pipeline) {
+  if (mcgraph->machine()->Is64()) return;
+
+  Signature<MachineRepresentation>::Builder builder(
+      mcgraph->zone(), sig->return_count(), sig->parameter_count());
+  for (auto ret : sig->returns()) {
+    builder.AddReturn(ret.machine_representation());
+  }
+  for (auto param : sig->parameters()) {
+    builder.AddParam(param.machine_representation());
+  }
+  Signature<MachineRepresentation>* signature = builder.Build();
+
+  Int64Lowering r(mcgraph->graph(), mcgraph->machine(), mcgraph->common(),
+                  simplified, mcgraph->zone(), signature);
+  r.LowerGraph();
+  pipeline.RunPrintAndVerify("V8.Int64Lowering", true);
+}
+
+}  // namespace
+
 // static
 void Pipeline::GenerateCodeForWasmFunction(
     OptimizedCompilationInfo* info, wasm::CompilationEnv* env,
@@ -3523,6 +3549,12 @@ void Pipeline::GenerateCodeForWasmFunction(
     pipeline.Run<WasmGCLoweringPhase>(module);
     pipeline.RunPrintAndVerify(WasmGCLoweringPhase::phase_name(), true);
   }
+
+  // Int64Lowering must happen after inlining (otherwise inlining would have
+  // to invoke it separately for the inlined function body).
+  // It must also happen after WasmGCLowering, otherwise it would have to
+  // add type annotations to nodes it creates.
+  LowerInt64(function_body.sig, mcgraph, data.simplified(), pipeline);
 
   if (v8_flags.wasm_opt || is_asm_js) {
     pipeline.Run<WasmOptimizationPhase>(signalling_nan_propagation);

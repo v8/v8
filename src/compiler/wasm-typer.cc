@@ -26,7 +26,6 @@ WasmTyper::WasmTyper(Editor* editor, MachineGraph* mcgraph,
                      uint32_t function_index)
     : AdvancedReducer(editor),
       function_index_(function_index),
-      mcgraph_(mcgraph),
       graph_zone_(mcgraph->graph()->zone()) {}
 
 namespace {
@@ -41,24 +40,13 @@ bool AllInputsTyped(Node* node) {
 
 // Traverse the fields of a struct until we find one at offset equal to
 // {offset}, and return its type.
-// If we are in a 32-bit platform, the code has undergone int64 lowering:
-// loads from i64 fields have been transformed into a pair of i32 loads. The
-// first load has the offset of the original field, and the second one has
-// an offset which is greater by size of i32.
-// TODO(manoskouk): Improve this.
 wasm::ValueType StructFieldFromOffset(const wasm::StructType* type,
-                                      uint32_t offset, bool is_32) {
+                                      uint32_t offset) {
   for (uint32_t index = 0; index < type->field_count(); index++) {
     uint32_t field_offset = wasm::ObjectAccess::ToTagged(
         WasmStruct::kHeaderSize + type->field_offset(index));
-    if (is_32 && type->field(index) == wasm::kWasmI64 &&
-        field_offset + wasm::kWasmI32.value_kind_size() == offset) {
-      return wasm::kWasmI32;
-    }
     if (field_offset == offset) {
-      wasm::ValueType field_type = type->field(index);
-      return is_32 && field_type == wasm::kWasmI64 ? wasm::kWasmI32
-                                                   : field_type.Unpacked();
+      return type->field(index).Unpacked();
     }
   }
   return wasm::kWasmBottom;
@@ -226,8 +214,7 @@ Reduction WasmTyper::Reduce(Node* node) {
           return NoChange();
         case wasm::TypeDefinition::kStruct: {
           wasm::ValueType field_type = StructFieldFromOffset(
-              type_def.struct_type, static_cast<uint32_t>(m.ResolvedValue()),
-              mcgraph_->machine()->Is32());
+              type_def.struct_type, static_cast<uint32_t>(m.ResolvedValue()));
           if (field_type.is_bottom()) {
             FATAL(
                 "Error - Bottom struct field. function: %d, node %d:%s, "
@@ -244,14 +231,8 @@ Reduction WasmTyper::Reduce(Node* node) {
           if (m.Is(wasm::ObjectAccess::ToTagged(WasmArray::kLengthOffset))) {
             return NoChange();
           }
-          wasm::ValueType element_type = type_def.array_type->element_type();
-          // We have to consider that, after int64 lowering in 32-bit platforms,
-          // loads from i64 arrays get transformed into pairs of i32 loads.
-          computed_type = {
-              mcgraph_->machine()->Is32() && element_type == wasm::kWasmI64
-                  ? wasm::kWasmI32
-                  : element_type.Unpacked(),
-              object_type.module};
+          computed_type = {type_def.array_type->element_type().Unpacked(),
+                           object_type.module};
           break;
         }
       }

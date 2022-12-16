@@ -4035,8 +4035,7 @@ Signature<MachineRepresentation>* CreateMachineSignature(
 void WasmGraphBuilder::LowerInt64(Signature<MachineRepresentation>* sig) {
   if (mcgraph()->machine()->Is64()) return;
   Int64Lowering r(mcgraph()->graph(), mcgraph()->machine(), mcgraph()->common(),
-                  gasm_->simplified(), mcgraph()->zone(),
-                  env_ != nullptr ? env_->module : nullptr, sig);
+                  gasm_->simplified(), mcgraph()->zone(), sig);
   r.LowerGraph();
 }
 
@@ -7771,6 +7770,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Return(mcgraph()->IntPtrConstant(0));
 
     if (mcgraph()->machine()->Is32() && ContainsInt64(sig_)) {
+      // These correspond to {sig_types[]} in {CompileCWasmEntry}.
       MachineRepresentation sig_reps[] = {
           MachineType::PointerRepresentation(),  // return value
           MachineType::PointerRepresentation(),  // target
@@ -7781,7 +7781,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       Signature<MachineRepresentation> c_entry_sig(1, 4, sig_reps);
       Int64Lowering r(mcgraph()->graph(), mcgraph()->machine(),
                       mcgraph()->common(), gasm_->simplified(),
-                      mcgraph()->zone(), module_, &c_entry_sig);
+                      mcgraph()->zone(), &c_entry_sig);
       r.LowerGraph();
     }
   }
@@ -8549,10 +8549,6 @@ bool BuildGraphForWasmFunction(wasm::CompilationEnv* env,
     }
     return false;
   }
-
-  auto sig = CreateMachineSignature(mcgraph->zone(), func_body.sig,
-                                    WasmGraphBuilder::kCalledFromWasm);
-  builder.LowerInt64(sig);
 
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
   if (v8_flags.experimental_wasm_revectorize && builder.has_simd()) {
