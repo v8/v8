@@ -122,15 +122,6 @@ UNIMPLEMENTED_NODE(LoadDoubleDataViewElement)
 UNIMPLEMENTED_NODE(LoadSignedIntTypedArrayElement, elements_kind_)
 UNIMPLEMENTED_NODE(LoadUnsignedIntTypedArrayElement, elements_kind_)
 UNIMPLEMENTED_NODE(LoadDoubleTypedArrayElement, elements_kind_)
-UNIMPLEMENTED_NODE(CheckedSmiTagUint32)
-UNIMPLEMENTED_NODE(CheckedInt32ToUint32)
-UNIMPLEMENTED_NODE(CheckedUint32ToInt32)
-UNIMPLEMENTED_NODE(ChangeInt32ToFloat64)
-UNIMPLEMENTED_NODE(ChangeUint32ToFloat64)
-UNIMPLEMENTED_NODE(CheckedTruncateFloat64ToInt32)
-UNIMPLEMENTED_NODE(CheckedTruncateFloat64ToUint32)
-UNIMPLEMENTED_NODE(TruncateUint32ToInt32)
-UNIMPLEMENTED_NODE(TruncateFloat64ToInt32)
 UNIMPLEMENTED_NODE(HoleyFloat64Box)
 UNIMPLEMENTED_NODE(LogicalNot)
 UNIMPLEMENTED_NODE(SetPendingMessage)
@@ -240,6 +231,120 @@ void CreateEmptyObjectLiteral::GenerateCode(MaglevAssembler* masm,
     int offset = map().GetInObjectPropertyOffset(i);
     __ StoreTaggedField(scratch, FieldMemOperand(object, offset));
   }
+}
+
+void CheckedInt32ToUint32::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineSameAsFirst(this);
+}
+void CheckedInt32ToUint32::GenerateCode(MaglevAssembler* masm,
+                                        const ProcessingState& state) {
+  Register input_reg = ToRegister(input()).W();
+  __ Tst(input_reg, input_reg);
+  __ EmitEagerDeoptIf(mi, DeoptimizeReason::kNotUint32, this);
+}
+
+void CheckedUint32ToInt32::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineSameAsFirst(this);
+}
+void CheckedUint32ToInt32::GenerateCode(MaglevAssembler* masm,
+                                        const ProcessingState& state) {
+  Register input_reg = ToRegister(input()).W();
+  // Check if the top bit is set -- if it is, then this is not a valid int32,
+  // otherwise it is.
+  // TODO(victorgomes): I am manually creating an eager deopt here, if this is a
+  // common pattern, maybe abstract to a helper function.
+  static_assert(CheckedUint32ToInt32::kProperties.can_eager_deopt());
+  __ RegisterEagerDeopt(eager_deopt_info(), DeoptimizeReason::kNotInt32);
+  __ RecordComment("-- Jump to eager deopt");
+  __ Tbnz(input_reg, 31, eager_deopt_info()->deopt_entry_label());
+}
+
+void ChangeInt32ToFloat64::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineAsRegister(this);
+}
+void ChangeInt32ToFloat64::GenerateCode(MaglevAssembler* masm,
+                                        const ProcessingState& state) {
+  __ Scvtf(ToDoubleRegister(result()), ToRegister(input()).W());
+}
+
+void ChangeUint32ToFloat64::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineAsRegister(this);
+}
+void ChangeUint32ToFloat64::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  __ Ucvtf(ToDoubleRegister(result()), ToRegister(input()).W());
+}
+
+void CheckedTruncateFloat64ToInt32::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineAsRegister(this);
+}
+void CheckedTruncateFloat64ToInt32::GenerateCode(MaglevAssembler* masm,
+                                                 const ProcessingState& state) {
+  DoubleRegister input_reg = ToDoubleRegister(input());
+  Register result_reg = ToRegister(result()).W();
+  DoubleRegister converted_back = kScratchDoubleReg;
+
+  // Convert the input float64 value to int32.
+  __ Fcvtzs(result_reg, input_reg);
+  // Convert that int32 value back to float64.
+  __ Scvtf(converted_back, result_reg);
+  // Check that the result of the float64->int32->float64 is equal to the input
+  // (i.e. that the conversion didn't truncate.
+  __ Fcmp(input_reg, converted_back);
+  __ EmitEagerDeoptIf(ne, DeoptimizeReason::kNotInt32, this);
+
+  // Check if {input} is -0.
+  Label check_done;
+  __ Cmp(result_reg, wzr);
+  __ B(&check_done, ne);
+
+  // In case of 0, we need to check the high bits for the IEEE -0 pattern.
+  UseScratchRegisterScope temps(masm);
+  Register high_word32_of_input = temps.AcquireW();
+  __ Umov(high_word32_of_input, input_reg.V2S(), 1);
+  __ Cmp(high_word32_of_input, wzr);
+  __ EmitEagerDeoptIf(lt, DeoptimizeReason::kNotInt32, this);
+
+  __ bind(&check_done);
+}
+
+void CheckedTruncateFloat64ToUint32::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineAsRegister(this);
+}
+void CheckedTruncateFloat64ToUint32::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
+  DoubleRegister input_reg = ToDoubleRegister(input());
+  Register result_reg = ToRegister(result()).W();
+  DoubleRegister converted_back = kScratchDoubleReg;
+
+  // Convert the input float64 value to uint32.
+  __ Fcvtzu(result_reg, input_reg);
+  // Convert that uint32 value back to float64.
+  __ Ucvtf(converted_back, result_reg);
+  // Check that the result of the float64->uint32->float64 is equal to the input
+  // (i.e. that the conversion didn't truncate.
+  __ Fcmp(input_reg, converted_back);
+  __ EmitEagerDeoptIf(ne, DeoptimizeReason::kNotUint32, this);
+
+  // Check if {input} is -0.
+  Label check_done;
+  __ Cmp(result_reg, wzr);
+  __ B(&check_done, ne);
+
+  // In case of 0, we need to check the high bits for the IEEE -0 pattern.
+  UseScratchRegisterScope temps(masm);
+  Register high_word32_of_input = temps.AcquireW();
+  __ Umov(high_word32_of_input, input_reg.V2S(), 1);
+  __ Cmp(high_word32_of_input, wzr);
+  __ EmitEagerDeoptIf(lt, DeoptimizeReason::kNotUint32, this);
+
+  __ bind(&check_done);
 }
 
 void CheckedTruncateNumberToInt32::SetValueLocationConstraints() {
@@ -957,6 +1062,21 @@ void CheckedSmiTagInt32::GenerateCode(MaglevAssembler* masm,
   DCHECK_REGLIST_EMPTY(RegList{out} &
                        GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
   __ EmitEagerDeoptIf(vs, DeoptimizeReason::kOverflow, this);
+}
+
+void CheckedSmiTagUint32::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineAsRegister(this);
+}
+void CheckedSmiTagUint32::GenerateCode(MaglevAssembler* masm,
+                                       const ProcessingState& state) {
+  Register reg = ToRegister(input()).W();
+  Register result_reg = ToRegister(result()).W();
+  // Perform an unsigned comparison against Smi::kMaxValue.
+  __ Cmp(reg, Immediate(Smi::kMaxValue));
+  __ EmitEagerDeoptIf(hi, DeoptimizeReason::kOverflow, this);
+  __ Adds(result_reg, reg, reg);
+  __ Assert(vc, AbortReason::kInputDoesNotFitSmi);
 }
 
 void CheckedInternalizedString::SetValueLocationConstraints() {

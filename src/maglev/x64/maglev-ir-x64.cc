@@ -2553,25 +2553,6 @@ void CheckedTruncateFloat64ToUint32::GenerateCode(
   __ bind(&check_done);
 }
 
-void TruncateUint32ToInt32::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineSameAsFirst(this);
-}
-void TruncateUint32ToInt32::GenerateCode(MaglevAssembler* masm,
-                                         const ProcessingState& state) {
-  // No code emitted -- as far as the machine is concerned, int32 is uint32.
-  DCHECK_EQ(ToRegister(input()), ToRegister(result()));
-}
-
-void TruncateFloat64ToInt32::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineAsRegister(this);
-}
-void TruncateFloat64ToInt32::GenerateCode(MaglevAssembler* masm,
-                                          const ProcessingState& state) {
-  __ TruncateDoubleToInt32(ToRegister(result()), ToDoubleRegister(input()));
-}
-
 int Construct::MaxCallStackArgs() const {
   using D = Construct_WithFeedbackDescriptor;
   return num_args() + D::GetStackParameterCount();
