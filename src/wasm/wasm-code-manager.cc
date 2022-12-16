@@ -1152,7 +1152,8 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
   return PublishCodeLocked(std::move(new_code));
 }
 
-void NativeModule::UseLazyStub(uint32_t func_index) {
+void NativeModule::UseLazyStubLocked(uint32_t func_index) {
+  allocation_mutex_.AssertHeld();
   DCHECK_LE(module_->num_imported_functions, func_index);
   DCHECK_LT(func_index,
             module_->num_imported_functions + module_->num_declared_functions);
@@ -1160,7 +1161,6 @@ void NativeModule::UseLazyStub(uint32_t func_index) {
   // scope instead.
   DCHECK(CodeSpaceWriteScope::IsInScope());
 
-  base::RecursiveMutexGuard guard(&allocation_mutex_);
   if (!lazy_compile_table_) {
     uint32_t num_slots = module_->num_declared_functions;
     WasmCodeRefScope code_ref_scope;
@@ -1471,13 +1471,18 @@ std::vector<WasmCode*> NativeModule::SnapshotAllOwnedCode() const {
 
 WasmCode* NativeModule::GetCode(uint32_t index) const {
   base::RecursiveMutexGuard guard(&allocation_mutex_);
+  return GetCodeLocked(index);
+}
+
+WasmCode* NativeModule::GetCodeLocked(uint32_t index) const {
+  allocation_mutex_.AssertHeld();
   WasmCode* code = code_table_[declared_function_index(module(), index)];
   if (code) WasmCodeRefScope::AddRef(code);
   return code;
 }
 
-void NativeModule::ResetCode(uint32_t index) const {
-  base::RecursiveMutexGuard guard(&allocation_mutex_);
+void NativeModule::ResetCodeLocked(uint32_t index) const {
+  allocation_mutex_.AssertHeld();
   int declared_index = declared_function_index(module(), index);
   WasmCode* code = code_table_[declared_index];
   if (!code) return;
@@ -1684,6 +1689,12 @@ void NativeModule::AddCodeSpaceLocked(base::AddressRegion region) {
   }
 
   code_space_data_.push_back(CodeSpaceData{region, jump_table, far_jump_table});
+
+  if (is_first_code_space) {
+    for (uint32_t i = 0; i < num_wasm_functions; ++i) {
+      UseLazyStubLocked(module_->num_imported_functions + i);
+    }
+  }
 
   if (jump_table && !is_first_code_space) {
     // Patch the new jump table(s) with existing functions. If this is the first
@@ -2426,15 +2437,34 @@ void NativeModule::SetDebugState(DebugState new_debug_state) {
   debug_state_ = new_debug_state;
 }
 
-void NativeModule::RemoveAllCompiledCode() {
+namespace {
+bool ShouldRemoveCode(WasmCode* code, NativeModule::RemoveFilter filter) {
+  if (!code) return false;
+  if (filter == NativeModule::RemoveFilter::kRemoveDebugCode &&
+      !code->for_debugging()) {
+    return false;
+  }
+  if (filter == NativeModule::RemoveFilter::kRemoveNonDebugCode &&
+      code->for_debugging()) {
+    return false;
+  }
+  return true;
+}
+}  // namespace
+
+void NativeModule::RemoveCompiledCode(RemoveFilter filter) {
   const uint32_t num_imports = module_->num_imported_functions;
   const uint32_t num_functions = module_->num_declared_functions;
   WasmCodeRefScope ref_scope;
   CodeSpaceWriteScope write_scope(this);
+  base::RecursiveMutexGuard guard(&allocation_mutex_);
   for (uint32_t i = 0; i < num_functions; i++) {
     uint32_t func_index = i + num_imports;
-    ResetCode(func_index);
-    UseLazyStub(func_index);
+    WasmCode* code = GetCodeLocked(func_index);
+    if (ShouldRemoveCode(code, filter)) {
+      ResetCodeLocked(func_index);
+      UseLazyStubLocked(func_index);
+    }
   }
 }
 

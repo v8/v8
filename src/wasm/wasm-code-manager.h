@@ -663,10 +663,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Adds anonymous code for testing purposes.
   WasmCode* AddCodeForTesting(Handle<Code> code);
 
-  // Use {UseLazyStub} to setup lazy compilation per function. It will use the
-  // existing {WasmCode::kWasmCompileLazy} runtime stub and populate the jump
-  // table with trampolines accordingly.
-  void UseLazyStub(uint32_t func_index);
+  // Use {UseLazyStubLocked} to setup lazy compilation per function. It will use
+  // the existing {WasmCode::kWasmCompileLazy} runtime stub and populate the
+  // jump table with trampolines accordingly.
+  void UseLazyStubLocked(uint32_t func_index);
 
   // Creates a snapshot of the current state of the code table. This is useful
   // to get a consistent view of the table (e.g. used by the serializer).
@@ -676,9 +676,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
   std::vector<WasmCode*> SnapshotAllOwnedCode() const;
 
   WasmCode* GetCode(uint32_t index) const;
+  WasmCode* GetCodeLocked(uint32_t index) const;
   bool HasCode(uint32_t index) const;
   bool HasCodeWithTier(uint32_t index, ExecutionTier tier) const;
-  void ResetCode(uint32_t index) const;
+  void ResetCodeLocked(uint32_t index) const;
 
   void SetWasmSourceMap(std::unique_ptr<WasmModuleSourceMap> source_map);
   WasmModuleSourceMap* GetWasmSourceMap() const;
@@ -833,9 +834,14 @@ class V8_EXPORT_PRIVATE NativeModule final {
     return debug_state_;
   }
 
+  enum class RemoveFilter {
+    kRemoveDebugCode,
+    kRemoveNonDebugCode,
+    kRemoveAllCode,
+  };
   // Remove all compiled code from the {NativeModule} and replace it with
   // {CompileLazy} builtins.
-  void RemoveAllCompiledCode();
+  void RemoveCompiledCode(RemoveFilter filter);
 
   // Free a set of functions of this module. Uncommits whole pages if possible.
   // The given vector must be ordered by the instruction start address, and all

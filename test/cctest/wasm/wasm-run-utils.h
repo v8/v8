@@ -249,7 +249,8 @@ class TestingModuleBuilder {
 
   void SwitchToDebug() {
     SetDebugState();
-    native_module_->RemoveAllCompiledCode();
+    native_module_->RemoveCompiledCode(
+        NativeModule::RemoveFilter::kRemoveNonDebugCode);
   }
 
   CompilationEnv CreateCompilationEnv();

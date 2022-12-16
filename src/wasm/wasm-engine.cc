@@ -715,10 +715,9 @@ void WasmEngine::CompileFunction(Isolate* isolate, NativeModule* native_module,
 }
 
 void WasmEngine::EnterDebuggingForIsolate(Isolate* isolate) {
-  std::vector<std::pair<std::shared_ptr<NativeModule>, DebugState>>
-      native_modules;
-  // {mutex_} gets taken both here and in {RemoveAllCompiledCode} in
-  // {AddPotentiallyDeadCode}. Therefore {RemoveAllCompiledCode} has to be
+  std::vector<std::shared_ptr<NativeModule>> native_modules;
+  // {mutex_} gets taken both here and in {RemoveCompiledCode} in
+  // {AddPotentiallyDeadCode}. Therefore {RemoveCompiledCode} has to be
   // called outside the lock.
   {
     base::MutexGuard lock(&mutex_);
@@ -727,17 +726,14 @@ void WasmEngine::EnterDebuggingForIsolate(Isolate* isolate) {
     for (auto* native_module : isolates_[isolate]->native_modules) {
       DCHECK_EQ(1, native_modules_.count(native_module));
       if (auto shared_ptr = native_modules_[native_module]->weak_ptr.lock()) {
-        native_modules.emplace_back(std::make_pair(
-            std::move(shared_ptr), native_module->IsInDebugState()));
+        native_modules.emplace_back(std::move(shared_ptr));
       }
       native_module->SetDebugState(kDebugging);
     }
   }
-  for (auto& pair : native_modules) {
-    DebugState is_in_debug_state = pair.second;
-    if (!is_in_debug_state) {
-      pair.first->RemoveAllCompiledCode();
-    }
+  for (auto& native_module : native_modules) {
+    native_module->RemoveCompiledCode(
+        NativeModule::RemoveFilter::kRemoveNonDebugCode);
   }
 }
 
@@ -777,7 +773,8 @@ void WasmEngine::LeaveDebuggingForIsolate(Isolate* isolate) {
       native_module->GetDebugInfo()->RemoveIsolate(isolate);
     }
     if (remove_debug_code) {
-      native_module->RemoveAllCompiledCode();
+      native_module->RemoveCompiledCode(
+          NativeModule::RemoveFilter::kRemoveDebugCode);
     }
   }
 }
@@ -1259,7 +1256,8 @@ std::shared_ptr<NativeModule> WasmEngine::MaybeGetNativeModule(
     }
   }
   if (remove_all_code) {
-    native_module->RemoveAllCompiledCode();
+    native_module->RemoveCompiledCode(
+        NativeModule::RemoveFilter::kRemoveNonDebugCode);
   }
   return native_module;
 }
@@ -1287,7 +1285,8 @@ std::shared_ptr<NativeModule> WasmEngine::UpdateNativeModuleCache(
     }
   }
   if (remove_all_code) {
-    native_module->RemoveAllCompiledCode();
+    native_module->RemoveCompiledCode(
+        NativeModule::RemoveFilter::kRemoveNonDebugCode);
   }
   return native_module;
 }

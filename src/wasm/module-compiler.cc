@@ -1663,32 +1663,9 @@ int AddImportWrapperUnits(NativeModule* native_module,
   return static_cast<int>(keys.size());
 }
 
-void InitializeLazyCompilation(NativeModule* native_module) {
-  const bool lazy_module = IsLazyModule(native_module->module());
-  auto* module = native_module->module();
-
-  uint32_t start = module->num_imported_functions;
-  uint32_t end = start + module->num_declared_functions;
-  base::Optional<CodeSpaceWriteScope> lazy_code_space_write_scope;
-  for (uint32_t func_index = start; func_index < end; func_index++) {
-    CompileStrategy strategy = GetCompileStrategy(
-        module, native_module->enabled_features(), func_index, lazy_module);
-    if (strategy == CompileStrategy::kLazy ||
-        strategy == CompileStrategy::kLazyBaselineEagerTopTier) {
-      // Open a single scope for all following calls to {UseLazyStub()}, instead
-      // of flipping page permissions for each {func_index} individually.
-      if (!lazy_code_space_write_scope.has_value()) {
-        lazy_code_space_write_scope.emplace(native_module);
-      }
-      native_module->UseLazyStub(func_index);
-    }
-  }
-}
-
 std::unique_ptr<CompilationUnitBuilder> InitializeCompilation(
     Isolate* isolate, NativeModule* native_module,
     ProfileInformation* pgo_info) {
-  InitializeLazyCompilation(native_module);
   CompilationStateImpl* compilation_state =
       Impl(native_module->compilation_state());
   auto builder = std::make_unique<CompilationUnitBuilder>(native_module);
@@ -2280,7 +2257,8 @@ void AsyncCompileJob::FinishCompile(bool is_after_cache_hit) {
   // streaming is tricky, we just remove all code which may have been generated,
   // and compile debug code lazily.
   if (native_module_->IsInDebugState()) {
-    native_module_->RemoveAllCompiledCode();
+    native_module_->RemoveCompiledCode(
+        NativeModule::RemoveFilter::kRemoveNonDebugCode);
   }
 
   // Finally, log all generated code (it does not matter if this happens
@@ -3279,8 +3257,6 @@ void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization(
         RequiredTopTierField::encode(ExecutionTier::kNone) |
         ReachedTierField::encode(ExecutionTier::kNone);
     for (auto func_index : lazy_functions) {
-      native_module_->UseLazyStub(func_index);
-
       compilation_progress_[declared_function_index(module, func_index)] =
           kProgressForLazyFunctions;
     }
