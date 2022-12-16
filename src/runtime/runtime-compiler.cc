@@ -441,6 +441,14 @@ RUNTIME_FUNCTION(Runtime_VerifyType) {
   return *obj;
 }
 
+RUNTIME_FUNCTION(Runtime_CheckTurboshaftTypeOf) {
+  // %CheckTurboshaftTypeOf has no effect in the interpreter.
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  Handle<Object> obj = args.at(0);
+  return *obj;
+}
+
 namespace {
 
 void GetOsrOffsetAndFunctionForOSR(Isolate* isolate, BytecodeOffset* osr_offset,

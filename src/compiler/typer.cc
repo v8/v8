@@ -2576,6 +2576,10 @@ Type Typer::Visitor::TypeVerifyType(Node* node) {
   return TypeOrNone(node->InputAt(0));
 }
 
+Type Typer::Visitor::TypeCheckTurboshaftTypeOf(Node* node) {
+  return TypeOrNone(node->InputAt(0));
+}
+
 // Heap constants.
 
 Type Typer::Visitor::TypeConstant(Handle<Object> value) {

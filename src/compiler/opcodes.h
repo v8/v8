@@ -445,6 +445,7 @@
   V(CheckSmi)                           \
   V(CheckString)                        \
   V(CheckSymbol)                        \
+  V(CheckTurboshaftTypeOf)              \
   V(CompareMaps)                        \
   V(ConvertReceiver)                    \
   V(ConvertTaggedHoleToUndefined)       \

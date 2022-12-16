@@ -119,7 +119,8 @@ namespace internal {
   F(NotifyDeoptimized, 0, 1)              \
   F(ObserveNode, 1, 1)                    \
   F(ResolvePossiblyDirectEval, 6, 1)      \
-  F(VerifyType, 1, 1)
+  F(VerifyType, 1, 1)                     \
+  F(CheckTurboshaftTypeOf, 2, 1)
 
 #define FOR_EACH_INTRINSIC_DATE(F, I) F(DateCurrentTime, 0, 1)
 

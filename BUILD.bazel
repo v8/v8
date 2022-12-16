@@ -2927,6 +2927,8 @@ filegroup(
         "src/compiler/turboshaft/simplify-tf-loops.h",
         "src/compiler/turboshaft/snapshot-table.h",
         "src/compiler/turboshaft/type-inference-reducer.h",
+        "src/compiler/turboshaft/type-parser.cc",
+        "src/compiler/turboshaft/type-parser.h",
         "src/compiler/turboshaft/types.cc",
         "src/compiler/turboshaft/types.h",
         "src/compiler/turboshaft/utils.cc",

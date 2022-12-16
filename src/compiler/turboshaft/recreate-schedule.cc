@@ -1085,6 +1085,15 @@ Node* ScheduleBuilder::ProcessOperation(const StaticAssertOp& op) {
       "Expected Turbofan static assert to hold, but got non-true input:\n  %s",
       op.source);
 }
+Node* ScheduleBuilder::ProcessOperation(const CheckTurboshaftTypeOfOp& op) {
+  if (op.successful) return GetNode(op.input());
+
+  UnparkedScopeIfNeeded scope(broker);
+  AllowHandleDereference allow_handle_dereference;
+  FATAL("Checking type %s of operation %d:%s failed!",
+        op.type.ToString().c_str(), op.input().id(),
+        input_graph.Get(op.input()).ToString().c_str());
+}
 
 std::pair<Node*, MachineType> ScheduleBuilder::BuildDeoptInput(
     FrameStateData::Iterator* it) {

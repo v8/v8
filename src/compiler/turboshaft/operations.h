@@ -28,6 +28,7 @@
 #include "src/compiler/turboshaft/fast-hash.h"
 #include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/representations.h"
+#include "src/compiler/turboshaft/types.h"
 #include "src/compiler/turboshaft/utils.h"
 #include "src/compiler/write-barrier-kind.h"
 
@@ -109,7 +110,8 @@ class Graph;
   V(Switch)                          \
   V(Tuple)                           \
   V(Projection)                      \
-  V(StaticAssert)
+  V(StaticAssert)                    \
+  V(CheckTurboshaftTypeOf)
 
 enum class Opcode : uint8_t {
 #define ENUM_CONSTANT(Name) k##Name,
@@ -2091,6 +2093,25 @@ struct ProjectionOp : FixedArityOperationT<1, ProjectionOp> {
   ProjectionOp(OpIndex input, uint16_t index, RegisterRepresentation rep)
       : Base(input), index(index), rep(rep) {}
   auto options() const { return std::tuple{index}; }
+};
+
+struct CheckTurboshaftTypeOfOp
+    : FixedArityOperationT<1, CheckTurboshaftTypeOfOp> {
+  RegisterRepresentation rep;
+  Type type;
+  bool successful;
+
+  static constexpr OpProperties properties = OpProperties::AnySideEffects();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return base::VectorOf(&rep, 1);
+  }
+
+  OpIndex input() const { return Base::input(0); }
+
+  CheckTurboshaftTypeOfOp(OpIndex input, RegisterRepresentation rep, Type type,
+                          bool successful)
+      : Base(input), rep(rep), type(std::move(type)), successful(successful) {}
+  auto options() const { return std::tuple{rep, type, successful}; }
 };
 
 #define OPERATION_PROPERTIES_CASE(Name) Name##Op::PropertiesIfStatic(),

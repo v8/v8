@@ -1362,6 +1362,7 @@ struct GraphBuilderPhase {
       flags |= BytecodeGraphBuilderFlag::kBailoutOnUninitialized;
     }
 
+    UnparkedScopeIfNeeded scope(data->broker());
     JSFunctionRef closure = MakeRef(data->broker(), data->info()->closure());
     CallFrequency frequency(1.0f);
     BuildGraphFromBytecode(data->broker(), temp_zone, closure.shared(),
@@ -2086,10 +2087,13 @@ struct BuildTurboshaftPhase {
     Schedule* schedule = data->schedule();
     data->reset_schedule();
     data->CreateTurboshaftGraph();
+
+    UnparkedScopeIfNeeded scope(data->broker());
+
     if (auto bailout = turboshaft::BuildGraph(
-            schedule, data->isolate(), data->graph_zone(), temp_zone,
-            &data->turboshaft_graph(), linkage, data->source_positions(),
-            data->node_origins())) {
+            data->broker(), schedule, data->isolate(), data->graph_zone(),
+            temp_zone, &data->turboshaft_graph(), linkage,
+            data->source_positions(), data->node_origins())) {
       return bailout;
     }
     return {};

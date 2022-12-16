@@ -9,9 +9,11 @@
 #include <limits>
 
 #include "src/base/container-utils.h"
+#include "src/base/export-template.h"
 #include "src/base/logging.h"
 #include "src/base/small-vector.h"
 #include "src/common/globals.h"
+#include "src/compiler/turboshaft/fast-hash.h"
 #include "src/objects/turboshaft-types.h"
 #include "src/utils/ostreams.h"
 #include "src/zone/zone-containers.h"
@@ -59,7 +61,7 @@ struct TypeForBits<64> {
 // A workaround is to add a dummy value which is zero initialized by default.
 // More information as well as a sample reproducible code can be found at the
 // comment section of this CL crrev.com/c/4057111
-// TODO: Remove dummy once all platforms are using gcc >= 9.
+// TODO(nicohartmann@): Remove dummy once all platforms are using gcc >= 9.
 struct Payload_Empty {
   uint8_t dummy = 0;
 };
@@ -189,6 +191,7 @@ class V8_EXPORT_PRIVATE Type {
 
   // Comparison
   bool Equals(const Type& other) const;
+  bool IsSubtypeOf(const Type& other) const;
 
   // Printing
   void PrintTo(std::ostream& stream) const;
@@ -200,6 +203,8 @@ class V8_EXPORT_PRIVATE Type {
   }
 
   // Other functions
+  static base::Optional<Type> ParseFromString(const std::string_view& str,
+                                              Zone* zone);
   Handle<TurboshaftType> AllocateOnHeap(Factory* factory) const;
 
  protected:
@@ -225,16 +230,23 @@ class V8_EXPORT_PRIVATE Type {
     return *reinterpret_cast<const Payload*>(&payload_[0]);
   }
 
-  Kind kind_;
-  uint8_t sub_kind_;
-  uint8_t set_size_;
-  uint8_t reserved_;
-  uint32_t bitfield_;
+  union {
+    struct {
+      Kind kind_;
+      uint8_t sub_kind_;
+      uint8_t set_size_;
+      uint8_t reserved_;
+      uint32_t bitfield_;
+    };
+    // {header_} can be  used for faster hashing or comparison.
+    uint64_t header_;
+  };
 
  private:
   // Access through payload<>().
   uint64_t payload_[2];  // Type specific data
 
+  friend struct fast_hash<Type>;
   explicit Type(Kind kind) : Type(kind, 0, 0, 0, 0, detail::Payload_Empty{}) {
     DCHECK(kind == Kind::kInvalid || kind == Kind::kNone || kind == Kind::kAny);
   }
@@ -242,7 +254,7 @@ class V8_EXPORT_PRIVATE Type {
 static_assert(sizeof(Type) == 24);
 
 template <size_t Bits>
-class WordType : public Type {
+class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) WordType : public Type {
   static_assert(Bits == 32 || Bits == 64);
   friend class Type;
   static constexpr int kMaxInlineSetSize = 2;
@@ -397,7 +409,8 @@ class WordType : public Type {
 
   // Misc
   bool Contains(word_t value) const;
-  bool Equals(const WordType<Bits>& other) const;
+  bool Equals(const WordType& other) const;
+  bool IsSubtypeOf(const WordType& other) const;
   static WordType LeastUpperBound(const WordType& lhs, const WordType& rhs,
                                   Zone* zone);
   static Type Intersect(const WordType& lhs, const WordType& rhs,
@@ -418,7 +431,7 @@ class WordType : public Type {
 };
 
 template <size_t Bits>
-class FloatType : public Type {
+class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FloatType : public Type {
   static_assert(Bits == 32 || Bits == 64);
   friend class Type;
   static constexpr int kMaxInlineSetSize = 2;
@@ -598,6 +611,7 @@ class FloatType : public Type {
   // Misc
   bool Contains(float_t value) const;
   bool Equals(const FloatType& other) const;
+  bool IsSubtypeOf(const FloatType& other) const;
   static FloatType LeastUpperBound(const FloatType& lhs, const FloatType& rhs,
                                    Zone* zone);
   static Type Intersect(const FloatType& lhs, const FloatType& rhs, Zone* zone);
@@ -648,6 +662,39 @@ inline std::ostream& operator<<(std::ostream& stream, const Type& type) {
 inline bool operator==(const Type& lhs, const Type& rhs) {
   return lhs.Equals(rhs);
 }
+
+template <>
+struct fast_hash<Type> {
+  size_t operator()(const Type& v) const {
+    return fast_hash_combine(v.header_, v.payload_[0], v.payload_[1]);
+  }
+};
+
+// The below exports of the explicitly instantiated template instances produce
+// build errors on v8_linux64_gcc_light_compile_dbg build with
+//
+// error: type attributes ignored after type is already defined
+// [-Werror=attributes] extern template class
+// EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) WordType<32>;
+//
+// No combination of export macros seems to be able to resolve this issue
+// although they seem to work for other classes. A temporary workaround is to
+// disable this warning here locally.
+// TODO(nicohartmann@): Ideally, we would find a better solution than to disable
+// the warning.
+#if V8_CC_GNU
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wattributes"
+#endif  // V8_CC_GNU
+
+extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) WordType<32>;
+extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) WordType<64>;
+extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FloatType<32>;
+extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FloatType<64>;
+
+#if V8_CC_GNU
+#pragma GCC diagnostic pop
+#endif  // V8_CC_GNU
 
 }  // namespace v8::internal::compiler::turboshaft
 

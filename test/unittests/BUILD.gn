@@ -378,6 +378,7 @@ v8_source_set("unittests_sources") {
     "compiler/sloppy-equality-unittest.cc",
     "compiler/state-values-utils-unittest.cc",
     "compiler/turboshaft/snapshot-table-unittest.cc",
+    "compiler/turboshaft/turboshaft-types-unittest.cc",
     "compiler/typed-optimization-unittest.cc",
     "compiler/typer-unittest.cc",
     "compiler/types-unittest.cc",

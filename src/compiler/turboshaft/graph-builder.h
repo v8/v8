@@ -14,7 +14,8 @@ class Schedule;
 class SourcePositionTable;
 }
 namespace v8::internal::compiler::turboshaft {
-base::Optional<BailoutReason> BuildGraph(Schedule* schedule, Isolate* isolate,
+base::Optional<BailoutReason> BuildGraph(JSHeapBroker* broker,
+                                         Schedule* schedule, Isolate* isolate,
                                          Zone* graph_zone, Zone* phase_zone,
                                          Graph* graph, Linkage* linkage,
                                          SourcePositionTable* source_positions,

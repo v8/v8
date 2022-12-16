@@ -6,6 +6,7 @@
 
 #include <limits>
 #include <numeric>
+#include <string_view>
 
 #include "src/base/logging.h"
 #include "src/base/optional.h"
@@ -16,8 +17,10 @@
 #include "src/codegen/machine-type.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/compiler-source-position-table.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-aux-data.h"
+#include "src/compiler/node-matchers.h"
 #include "src/compiler/node-origin-table.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/opcodes.h"
@@ -37,6 +40,7 @@ namespace v8::internal::compiler::turboshaft {
 namespace {
 
 struct GraphBuilder {
+  JSHeapBroker* broker;
   Zone* graph_zone;
   Zone* phase_zone;
   Schedule& schedule;
@@ -1023,6 +1027,32 @@ OpIndex GraphBuilder::Process(
       return assembler.Load(Map(object), Map(index), kind, rep,
                             access.header_size, rep.SizeInBytesLog2());
     }
+    case IrOpcode::kCheckTurboshaftTypeOf: {
+      Node* input = node->InputAt(0);
+      Node* type_description = node->InputAt(1);
+
+      HeapObjectMatcher m(type_description);
+      CHECK(m.HasResolvedValue() && m.Ref(broker).IsString() &&
+            m.Ref(broker).AsString().IsContentAccessible());
+      StringRef type_string = m.Ref(broker).AsString();
+      Handle<String> pattern_string = *type_string.ObjectIfContentAccessible();
+      std::unique_ptr<char[]> pattern = pattern_string->ToCString();
+
+      auto type_opt =
+          Type::ParseFromString(std::string_view{pattern.get()}, graph_zone);
+      if (type_opt == base::nullopt) {
+        FATAL(
+            "String '%s' (of %d:CheckTurboshaftTypeOf) is not a valid type "
+            "description!",
+            pattern.get(), node->id());
+      }
+
+      OpIndex input_index = Map(input);
+      RegisterRepresentation rep =
+          assembler.output_graph().Get(input_index).outputs_rep()[0];
+      return assembler.CheckTurboshaftTypeOf(input_index, rep, *type_opt,
+                                             false);
+    }
 
     default:
       std::cerr << "unsupported node type: " << *node->op() << "\n";
@@ -1033,12 +1063,14 @@ OpIndex GraphBuilder::Process(
 
 }  // namespace
 
-base::Optional<BailoutReason> BuildGraph(Schedule* schedule, Isolate* isolate,
+base::Optional<BailoutReason> BuildGraph(JSHeapBroker* broker,
+                                         Schedule* schedule, Isolate* isolate,
                                          Zone* graph_zone, Zone* phase_zone,
                                          Graph* graph, Linkage* linkage,
                                          SourcePositionTable* source_positions,
                                          NodeOriginTable* origins) {
   GraphBuilder builder{
+      broker,
       graph_zone,
       phase_zone,
       *schedule,

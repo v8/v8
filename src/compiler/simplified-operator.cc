@@ -1386,6 +1386,12 @@ const Operator* SimplifiedOperatorBuilder::VerifyType() {
                                "VerifyType", 1, 0, 0, 1, 0, 0);
 }
 
+const Operator* SimplifiedOperatorBuilder::CheckTurboshaftTypeOf() {
+  return zone()->New<Operator>(IrOpcode::kCheckTurboshaftTypeOf,
+                               Operator::kNoThrow | Operator::kNoDeopt,
+                               "CheckTurboshaftTypeOf", 2, 1, 1, 1, 1, 0);
+}
+
 #if V8_ENABLE_WEBASSEMBLY
 const Operator* SimplifiedOperatorBuilder::WasmTypeCheck(
     WasmTypeCheckConfig config) {

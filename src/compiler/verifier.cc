@@ -1569,6 +1569,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kCheckedInt64Mod:
     case IrOpcode::kAssertType:
     case IrOpcode::kVerifyType:
+    case IrOpcode::kCheckTurboshaftTypeOf:
       break;
     case IrOpcode::kDoubleArrayMin:
     case IrOpcode::kDoubleArrayMax:

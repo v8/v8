@@ -1087,6 +1087,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   // Abort if the value does not match the node's computed type after
   // SimplifiedLowering.
   const Operator* VerifyType();
+  const Operator* CheckTurboshaftTypeOf();
 
 #if V8_ENABLE_WEBASSEMBLY
   const Operator* AssertNotNull(TrapId trap_id);

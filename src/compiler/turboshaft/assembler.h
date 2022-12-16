@@ -965,6 +965,11 @@ class AssemblerOpInterface {
                      RegisterRepresentation rep) {
     return stack().ReduceProjection(tuple, index, rep);
   }
+  OpIndex CheckTurboshaftTypeOf(OpIndex input, RegisterRepresentation rep,
+                                Type expected_type, bool successful) {
+    return stack().ReduceCheckTurboshaftTypeOf(input, rep, expected_type,
+                                               successful);
+  }
 
   OpIndex LoadException() { return stack().ReduceLoadException(); }
 

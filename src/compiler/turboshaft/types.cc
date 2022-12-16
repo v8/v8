@@ -5,10 +5,10 @@
 #include "src/compiler/turboshaft/types.h"
 
 #include <sstream>
+#include <string_view>
 
 #include "src/base/logging.h"
-#include "src/compiler/access-builder.h"
-#include "src/compiler/representation-change.h"
+#include "src/compiler/turboshaft/type-parser.h"
 #include "src/heap/factory.h"
 #include "src/objects/turboshaft-types-inl.h"
 
@@ -42,6 +42,30 @@ bool Type::Equals(const Type& other) const {
       return AsFloat64().Equals(other.AsFloat64());
     case Kind::kAny:
       return true;
+  }
+}
+
+bool Type::IsSubtypeOf(const Type& other) const {
+  DCHECK(!IsInvalid());
+  DCHECK(!other.IsInvalid());
+
+  if (other.IsAny() || IsNone()) return true;
+  if (kind_ != other.kind_) return false;
+
+  switch (kind_) {
+    case Kind::kInvalid:
+    case Kind::kNone:
+      UNREACHABLE();
+    case Kind::kWord32:
+      return AsWord32().IsSubtypeOf(other.AsWord32());
+    case Kind::kWord64:
+      return AsWord64().IsSubtypeOf(other.AsWord64());
+    case Kind::kFloat32:
+      return AsFloat32().IsSubtypeOf(other.AsFloat32());
+    case Kind::kFloat64:
+      return AsFloat64().IsSubtypeOf(other.AsFloat64());
+    case Kind::kAny:
+      UNREACHABLE();
   }
 }
 
@@ -79,6 +103,12 @@ void Type::Print() const {
   StdoutStream os;
   PrintTo(os);
   os << std::endl;
+}
+
+base::Optional<Type> Type::ParseFromString(const std::string_view& str,
+                                           Zone* zone) {
+  TypeParser parser(str, zone);
+  return parser.Parse();
 }
 
 Handle<TurboshaftType> Type::AllocateOnHeap(Factory* factory) const {
@@ -129,6 +159,30 @@ bool WordType<Bits>::Equals(const WordType<Bits>& other) const {
       if (set_size() != other.set_size()) return false;
       for (int i = 0; i < set_size(); ++i) {
         if (set_element(i) != other.set_element(i)) return false;
+      }
+      return true;
+    }
+  }
+}
+
+template <size_t Bits>
+bool WordType<Bits>::IsSubtypeOf(const WordType<Bits>& other) const {
+  if (other.is_any()) return true;
+  switch (sub_kind()) {
+    case SubKind::kRange: {
+      if (other.is_set()) return false;
+      DCHECK(other.is_range());
+      if (is_wrapping() == other.is_wrapping()) {
+        return range_from() >= other.range_from() &&
+               range_to() <= other.range_to();
+      }
+      return !is_wrapping() && (range_to() <= other.range_to() ||
+                                range_from() >= other.range_from());
+    }
+    case SubKind::kSet: {
+      if (other.is_set() && set_size() > other.set_size()) return false;
+      for (int i = 0; i < set_size(); ++i) {
+        if (!other.Contains(set_element(i))) return false;
       }
       return true;
     }
@@ -411,6 +465,37 @@ bool FloatType<Bits>::Equals(const FloatType<Bits>& other) const {
 }
 
 template <size_t Bits>
+bool FloatType<Bits>::IsSubtypeOf(const FloatType<Bits>& other) const {
+  if (has_nan() && !other.has_nan()) return false;
+  switch (sub_kind()) {
+    case SubKind::kOnlyNan:
+      DCHECK(other.has_nan());
+      return true;
+    case SubKind::kRange:
+      if (!other.is_range()) {
+        // This relies on the fact that we don't have singleton ranges.
+        DCHECK_NE(range_min(), range_max());
+        return false;
+      }
+      return other.range_min() <= range_min() &&
+             range_max() <= other.range_max();
+    case SubKind::kSet: {
+      switch (other.sub_kind()) {
+        case SubKind::kOnlyNan:
+          return false;
+        case SubKind::kRange:
+          return other.range_min() <= min() && max() <= other.range_max();
+        case SubKind::kSet:
+          for (int i = 0; i < set_size(); ++i) {
+            if (!other.Contains(set_element(i))) return false;
+          }
+          return true;
+      }
+    }
+  }
+}
+
+template <size_t Bits>
 // static
 FloatType<Bits> FloatType<Bits>::LeastUpperBound(const FloatType<Bits>& lhs,
                                                  const FloatType<Bits>& rhs,
@@ -540,9 +625,9 @@ Handle<TurboshaftType> FloatType<Bits>::AllocateOnHeap(Factory* factory) const {
   }
 }
 
-template class WordType<32>;
-template class WordType<64>;
-template class FloatType<32>;
-template class FloatType<64>;
+template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) WordType<32>;
+template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) WordType<64>;
+template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) FloatType<32>;
+template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) FloatType<64>;
 
 }  // namespace v8::internal::compiler::turboshaft

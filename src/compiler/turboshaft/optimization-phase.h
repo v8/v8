@@ -709,6 +709,10 @@ class GraphVisitor {
   OpIndex VisitStaticAssert(const StaticAssertOp& op) {
     return assembler().ReduceStaticAssert(op.condition(), op.source);
   }
+  OpIndex VisitCheckTurboshaftTypeOf(const CheckTurboshaftTypeOfOp& op) {
+    return assembler().ReduceCheckTurboshaftTypeOf(
+        MapToNewGraph(op.input()), op.rep, op.type, op.successful);
+  }
 
   void CreateOldToNewMapping(OpIndex old_index, OpIndex new_index) {
     if (visiting_cloned_block_ || current_block_needs_variables_) {

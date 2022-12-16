@@ -22,8 +22,6 @@
 
 namespace v8::internal::compiler::turboshaft {
 
-namespace {
-
 // Returns the array's least element, ignoring NaN.
 // There must be at least one non-NaN element.
 // Any -0 is converted to 0.
@@ -55,8 +53,6 @@ T array_max(const std::array<T, N>& a) {
   DCHECK(!std::isnan(x));
   return x == T{0} ? T{0} : x;  // -0 -> 0
 }
-
-}  // namespace
 
 template <size_t Bits>
 struct WordOperationTyper {
@@ -987,6 +983,37 @@ class TypeInferenceReducer : public Next {
     }
 
     SetType(index, result_type);
+    return index;
+  }
+
+  OpIndex ReduceCheckTurboshaftTypeOf(OpIndex input, RegisterRepresentation rep,
+                                      Type type, bool successful) {
+    Type input_type = GetType(input);
+    if (input_type.IsSubtypeOf(type)) {
+      OpIndex index = Next::ReduceCheckTurboshaftTypeOf(input, rep, type, true);
+      TRACE_TYPING(
+          "\033[32mCTOF %3d:%-40s\n  P: %3d:%-40s ~~> %s\033[0m\n", index.id(),
+          Asm().output_graph().Get(index).ToString().substr(0, 40).c_str(),
+          input.id(),
+          Asm().output_graph().Get(input).ToString().substr(0, 40).c_str(),
+          input_type.ToString().c_str());
+      return index;
+    }
+    if (successful) {
+      FATAL(
+          "Checking type %s of operation %d:%s failed after it passed in a "
+          "previous phase",
+          type.ToString().c_str(), input.id(),
+          Asm().output_graph().Get(input).ToString().c_str());
+    }
+    OpIndex index =
+        Next::ReduceCheckTurboshaftTypeOf(input, rep, type, successful);
+    TRACE_TYPING(
+        "\033[31mCTOF %3d:%-40s\n  F: %3d:%-40s ~~> %s\033[0m\n", index.id(),
+        Asm().output_graph().Get(index).ToString().substr(0, 40).c_str(),
+        input.id(),
+        Asm().output_graph().Get(input).ToString().substr(0, 40).c_str(),
+        input_type.ToString().c_str());
     return index;
   }
 
