@@ -497,10 +497,9 @@ void Int32DivideWithOverflow::GenerateCode(MaglevAssembler* masm,
 }
 
 void Int32ModulusWithOverflow::SetValueLocationConstraints() {
-  UseRegister(left_input());
-  UseRegister(right_input());
+  UseAndClobberRegister(left_input());
+  UseAndClobberRegister(right_input());
   DefineAsRegister(this);
-  set_temporaries_needed(1);
 }
 void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
                                             const ProcessingState& state) {
@@ -521,16 +520,11 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
   //       lhs % rhs
 
   Register left = ToRegister(left_input()).W();
-  Register right_maybe_neg = ToRegister(right_input()).W();
+  Register right = ToRegister(right_input()).W();
   Register out = ToRegister(result()).W();
 
   ZoneLabelRef done(masm);
   ZoneLabelRef rhs_checked(masm);
-
-  UseScratchRegisterScope temps(masm);
-  Register right = temps.AcquireW();
-  __ Move(right, right_maybe_neg);
-
   __ Cmp(right, Immediate(0));
   __ JumpToDeferredIf(
       le,
@@ -544,30 +538,26 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
   __ bind(*rhs_checked);
 
   __ Cmp(left, Immediate(0));
-  {
-    UseScratchRegisterScope temps(masm);
-    Register scratch = temps.AcquireW();
-    __ JumpToDeferredIf(
-        lt,
-        [](MaglevAssembler* masm, ZoneLabelRef done, Register left_neg,
-           Register right, Register out, Register scratch,
-           Int32ModulusWithOverflow* node) {
-          Register left = scratch;
-          Register res = node->general_temporaries().first().W();
-          __ neg(left, left_neg);
-          __ udiv(res, left, right);
-          __ msub(out, res, right, left);
-          __ cmp(out, Immediate(0));
-          // TODO(victorgomes): This ideally should be kMinusZero, but Maglev
-          // only allows one deopt reason per IR.
-          __ EmitEagerDeoptIf(eq, DeoptimizeReason::kDivisionByZero, node);
-          __ neg(out, out);
-          __ b(*done);
-        },
-        done, left, right, out, scratch, this);
-  }
+  __ JumpToDeferredIf(
+      lt,
+      [](MaglevAssembler* masm, ZoneLabelRef done, Register left,
+         Register right, Register out, Int32ModulusWithOverflow* node) {
+        UseScratchRegisterScope temps(masm);
+        Register res = temps.AcquireW();
+        __ neg(left, left);
+        __ udiv(res, left, right);
+        __ msub(out, res, right, left);
+        __ cmp(out, Immediate(0));
+        // TODO(victorgomes): This ideally should be kMinusZero, but Maglev
+        // only allows one deopt reason per IR.
+        __ EmitEagerDeoptIf(eq, DeoptimizeReason::kDivisionByZero, node);
+        __ neg(out, out);
+        __ b(*done);
+      },
+      done, left, right, out, this);
 
   Label right_not_power_of_2;
+  UseScratchRegisterScope temps(masm);
   Register mask = temps.AcquireW();
   __ Add(mask, right, Immediate(-1));
   __ Tst(mask, right);
@@ -817,6 +807,7 @@ void CheckInt32IsSmi::GenerateCode(MaglevAssembler* masm,
 void CheckedSmiTagInt32::SetValueLocationConstraints() {
   UseRegister(input());
   DefineAsRegister(this);
+  set_temporaries_needed(1);
 }
 void CheckedSmiTagInt32::GenerateCode(MaglevAssembler* masm,
                                       const ProcessingState& state) {
@@ -833,11 +824,11 @@ void CheckedSmiTagInt32::GenerateCode(MaglevAssembler* masm,
 void CheckedInternalizedString::SetValueLocationConstraints() {
   UseRegister(object_input());
   DefineSameAsFirst(this);
+  set_temporaries_needed(1);
 }
 void CheckedInternalizedString::GenerateCode(MaglevAssembler* masm,
                                              const ProcessingState& state) {
-  UseScratchRegisterScope temps(masm);
-  Register scratch = temps.AcquireX();
+  Register scratch = general_temporaries().PopFirst();
   Register object = ToRegister(object_input());
 
   if (check_type_ == CheckType::kOmitHeapObjectCheck) {
@@ -850,7 +841,7 @@ void CheckedInternalizedString::GenerateCode(MaglevAssembler* masm,
   __ LoadMap(scratch, object);
   __ RecordComment("Test IsInternalizedString");
   // Go to the slow path if this is a non-string, or a non-internalised string.
-  __ Ldrh(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
+  __ Ldr(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
   __ Tst(scratch, Immediate(kIsNotStringMask | kIsNotInternalizedMask));
   static_assert((kStringTag | kInternalizedTag) == 0);
   ZoneLabelRef done(masm);

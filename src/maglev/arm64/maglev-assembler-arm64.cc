@@ -199,14 +199,16 @@ void MaglevAssembler::Prologue(Graph* graph) {
     AssertFeedbackVector(feedback_vector, flags);
 
     DeferredCodeInfo* deferred_flags_need_processing = PushDeferredCode(
-        [](MaglevAssembler* masm, Register flags, Register feedback_vector) {
+        [](MaglevAssembler* masm, Register feedback_vector) {
           ASM_CODE_COMMENT_STRING(masm, "Optimized marker check");
           // TODO(leszeks): This could definitely be a builtin that we
           // tail-call.
+          UseScratchRegisterScope temps(masm);
+          Register flags = temps.AcquireX();
           __ OptimizeCodeOrTailCallOptimizedCodeSlot(flags, feedback_vector);
           __ Trap();
         },
-        flags, feedback_vector);
+        feedback_vector);
 
     LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
         flags, feedback_vector, CodeKind::MAGLEV,

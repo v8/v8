@@ -271,6 +271,15 @@ struct CopyForDeferredByValue {
   }
 };
 
+#ifdef V8_TARGET_ARCH_ARM64
+#define LIST_REG(V) V,
+static constexpr RegList kScratchGeneralRegisters = {
+    MAGLEV_SCRATCH_GENERAL_REGISTERS(LIST_REG) Register::no_reg()};
+static constexpr DoubleRegList kScratchDoubleRegisters = {
+    MAGLEV_SCRATCH_DOUBLE_REGISTERS(LIST_REG) DoubleRegister::no_reg()};
+#undef LIST_REG
+#endif  // V8_TARGET_ARCH_ARM64
+
 // Node pointers are copied by value.
 template <typename T>
 struct CopyForDeferredHelper<
@@ -291,11 +300,24 @@ struct CopyForDeferredHelper<MaglevCompilationInfo*>
     : public CopyForDeferredByValue<MaglevCompilationInfo*> {};
 // Machine registers are copied by value.
 template <>
-struct CopyForDeferredHelper<Register>
-    : public CopyForDeferredByValue<Register> {};
+struct CopyForDeferredHelper<Register> {
+  static Register Copy(MaglevCompilationInfo* compilation_info, Register reg) {
+#ifdef V8_TARGET_ARCH_ARM64
+    DCHECK(!kScratchGeneralRegisters.has(reg));
+#endif  // V8_TARGET_ARCH_ARM64
+    return reg;
+  }
+};
 template <>
-struct CopyForDeferredHelper<DoubleRegister>
-    : public CopyForDeferredByValue<DoubleRegister> {};
+struct CopyForDeferredHelper<DoubleRegister> {
+  static DoubleRegister Copy(MaglevCompilationInfo* compilation_info,
+                             DoubleRegister reg) {
+#ifdef V8_TARGET_ARCH_ARM64
+    DCHECK(!kScratchDoubleRegisters.has(reg));
+#endif  // V8_TARGET_ARCH_ARM64
+    return reg;
+  }
+};
 // Bytecode offsets are copied by value.
 template <>
 struct CopyForDeferredHelper<BytecodeOffset>
