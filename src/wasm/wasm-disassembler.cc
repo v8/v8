@@ -313,8 +313,21 @@ class ImmediatesPrinter {
     owner_->out_->PatchLabel(label_info, out_.start() + label_start_position);
   }
 
+  void PrintSignature(uint32_t sig_index) {
+    if (owner_->module_->has_signature(sig_index)) {
+      const FunctionSig* sig = owner_->module_->signature(sig_index);
+      PrintSignatureOneLine(out_, sig, 0 /* ignored */, names(), false);
+    } else {
+      out_ << " (signature: " << sig_index << " INVALID)";
+    }
+  }
+
   void BlockType(BlockTypeImmediate& imm) {
-    PrintSignatureOneLine(out_, &imm.sig, 0 /* ignored */, names(), false);
+    if (imm.sig.all().begin() == nullptr) {
+      PrintSignature(imm.sig_index);
+    } else {
+      PrintSignatureOneLine(out_, &imm.sig, 0 /* ignored */, names(), false);
+    }
   }
 
   void HeapType(HeapTypeImmediate& imm) {
@@ -336,8 +349,7 @@ class ImmediatesPrinter {
   }
 
   void CallIndirect(CallIndirectImmediate& imm) {
-    const FunctionSig* sig = owner_->module_->signature(imm.sig_imm.index);
-    PrintSignatureOneLine(out_, sig, 0 /* ignored */, names(), false);
+    PrintSignature(imm.sig_imm.index);
     if (imm.table_imm.index != 0) TableIndex(imm.table_imm);
   }
 
