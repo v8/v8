@@ -489,7 +489,6 @@ DEFINE_BOOL(maglev_ool_prologue, false, "use the Maglev out of line prologue")
 #if ENABLE_SPARKPLUG
 DEFINE_WEAK_IMPLICATION(future, flush_baseline_code)
 #endif
-DEFINE_WEAK_NEG_IMPLICATION(future, write_protect_code_memory)
 
 DEFINE_BOOL_READONLY(dict_property_const_tracking,
                      V8_DICT_PROPERTY_CONST_TRACKING_BOOL,
