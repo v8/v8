@@ -4,6 +4,7 @@
 
 #include "src/heap/embedder-tracing.h"
 
+#include "include/v8-embedder-heap.h"
 #include "include/v8-function.h"
 #include "include/v8-template.h"
 #include "src/handles/global-handles.h"
@@ -831,38 +832,20 @@ TEST_F(EmbedderTracingTest, BasicTracedReference) {
 
 namespace {
 
-START_ALLOW_USE_DEPRECATED()
-
-class EmptyEmbedderHeapTracer : public v8::EmbedderHeapTracer {
- public:
-  void RegisterV8References(
-      const std::vector<std::pair<void*, void*>>& embedder_fields) final {}
-
-  bool AdvanceTracing(double deadline_in_ms) final { return true; }
-  bool IsTracingDone() final { return true; }
-  void TracePrologue(EmbedderHeapTracer::TraceFlags) final {}
-  void TraceEpilogue(TraceSummary*) final {}
-  void EnterFinalPause(EmbedderStackState) final {}
-};
-
-END_ALLOW_USE_DEPRECATED()
-
-// EmbedderHeapTracer that can optimize Scavenger handling when used with
+// EmbedderRootsHandler that can optimize Scavenger handling when used with
 // TracedReference.
 class EmbedderHeapTracerNoDestructorNonTracingClearing final
-    : public EmptyEmbedderHeapTracer {
+    : public v8::EmbedderRootsHandler {
  public:
   explicit EmbedderHeapTracerNoDestructorNonTracingClearing(
       uint16_t class_id_to_optimize)
       : class_id_to_optimize_(class_id_to_optimize) {}
 
-  bool IsRootForNonTracingGC(
-      const v8::TracedReference<v8::Value>& handle) final {
+  bool IsRoot(const v8::TracedReference<v8::Value>& handle) final {
     return handle.WrapperClassId() != class_id_to_optimize_;
   }
 
-  void ResetHandleInNonTracingGC(
-      const v8::TracedReference<v8::Value>& handle) final {
+  void ResetRoot(const v8::TracedReference<v8::Value>& handle) final {
     if (handle.WrapperClassId() != class_id_to_optimize_) return;
 
     // Convention (for test): Objects that are optimized have their first field
@@ -875,7 +858,7 @@ class EmbedderHeapTracerNoDestructorNonTracingClearing final
   }
 
  private:
-  uint16_t class_id_to_optimize_;
+  const uint16_t class_id_to_optimize_;
 };
 
 template <typename T>
@@ -906,10 +889,11 @@ TEST_F(EmbedderTracingTest, TracedReferenceNoDestructorReclaimedOnScavenge) {
   ManualGCScope manual_gc(i_isolate());
   v8::HandleScope scope(v8_isolate());
   constexpr uint16_t kClassIdToOptimize = 23;
-  EmbedderHeapTracerNoDestructorNonTracingClearing tracer(kClassIdToOptimize);
-  heap::TemporaryEmbedderHeapTracerScope tracer_scope(v8_isolate(), &tracer);
-  auto* traced_handles = i_isolate()->traced_handles();
 
+  EmbedderHeapTracerNoDestructorNonTracingClearing handler(kClassIdToOptimize);
+  v8_isolate()->SetEmbedderRootsHandler(&handler);
+
+  auto* traced_handles = i_isolate()->traced_handles();
   const size_t initial_count = traced_handles->used_node_count();
   auto* optimized_handle = new v8::TracedReference<v8::Value>();
   auto* non_optimized_handle = new v8::TracedReference<v8::Value>();
@@ -924,6 +908,8 @@ TEST_F(EmbedderTracingTest, TracedReferenceNoDestructorReclaimedOnScavenge) {
   non_optimized_handle->Reset();
   delete non_optimized_handle;
   EXPECT_EQ(initial_count, traced_handles->used_node_count());
+
+  v8_isolate()->SetEmbedderRootsHandler(nullptr);
 }
 
 namespace {
