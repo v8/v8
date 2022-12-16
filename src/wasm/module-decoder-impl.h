@@ -2133,7 +2133,10 @@ class ModuleDecoderTemplate : public Decoder {
     }
     if (failed()) return nullptr;
     uint32_t* offsets = zone->NewArray<uint32_t>(field_count);
-    return zone->New<StructType>(field_count, offsets, fields, mutabilities);
+    StructType* result =
+        zone->New<StructType>(field_count, offsets, fields, mutabilities);
+    result->InitializeOffsets();
+    return result;
   }
 
   const ArrayType* consume_array(Zone* zone) {

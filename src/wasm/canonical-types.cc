@@ -159,9 +159,13 @@ TypeCanonicalizer::CanonicalType TypeCanonicalizer::CanonicalizeTypeDef(
       for (uint32_t i = 0; i < original_type->field_count(); i++) {
         builder.AddField(CanonicalizeValueType(module, original_type->field(i),
                                                recursive_group_start),
-                         original_type->mutability(i));
+                         original_type->mutability(i),
+                         original_type->field_offset(i));
       }
-      result = TypeDefinition(builder.Build(), canonical_supertype);
+      builder.set_total_fields_size(original_type->total_fields_size());
+      result = TypeDefinition(
+          builder.Build(StructType::Builder::kUseProvidedOffsets),
+          canonical_supertype);
       break;
     }
     case TypeDefinition::kArray: {
