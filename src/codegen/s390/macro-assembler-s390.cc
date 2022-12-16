@@ -5685,7 +5685,7 @@ SIMD_ALL_TRUE_LIST(EMIT_SIMD_ALL_TRUE)
 #define EMIT_SIMD_QFM(name, op, c1)                                       \
   void TurboAssembler::name(Simd128Register dst, Simd128Register src1,    \
                             Simd128Register src2, Simd128Register src3) { \
-    op(dst, src2, src3, src1, Condition(c1), Condition(0));               \
+    op(dst, src1, src2, src3, Condition(c1), Condition(0));               \
   }
 SIMD_QFM_LIST(EMIT_SIMD_QFM)
 #undef EMIT_SIMD_QFM
