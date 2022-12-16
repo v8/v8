@@ -361,6 +361,10 @@ class VirtualMemoryCage {
   Address base() const { return base_; }
   size_t size() const { return size_; }
 
+  base::AddressRegion region() const {
+    return base::AddressRegion{base_, size_};
+  }
+
   base::BoundedPageAllocator* page_allocator() const {
     return page_allocator_.get();
   }

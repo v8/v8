@@ -138,6 +138,9 @@ class CodeRange final : public VirtualMemoryCage {
   V8_EXPORT_PRIVATE static CodeRange* GetProcessWideCodeRange();
 
  private:
+  static base::AddressRegion GetPreferredRegion(size_t radius_in_megabytes,
+                                                size_t allocate_page_size);
+
   // Used when short builtin calls are enabled, where embedded builtins are
   // copied into the CodeRange so calls can be nearer.
   std::atomic<uint8_t*> embedded_blob_code_copy_{nullptr};

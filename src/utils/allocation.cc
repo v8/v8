@@ -310,8 +310,12 @@ VirtualMemoryCage::VirtualMemoryCage(VirtualMemoryCage&& other) V8_NOEXCEPT {
 
 VirtualMemoryCage& VirtualMemoryCage::operator=(VirtualMemoryCage&& other)
     V8_NOEXCEPT {
+  base_ = other.base_;
+  size_ = other.size_;
   page_allocator_ = std::move(other.page_allocator_);
   reservation_ = std::move(other.reservation_);
+  other.base_ = kNullAddress;
+  other.size_ = 0;
   return *this;
 }
 
