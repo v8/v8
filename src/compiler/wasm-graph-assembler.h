@@ -211,6 +211,9 @@ class WasmGraphAssembler : public GraphAssembler {
         ObjectAccess(MachineType::AnyTagged(), kFullWriteBarrier));
   }
 
+  Node* LoadWeakArrayListElement(Node* fixed_array, Node* index_intptr,
+                                 MachineType type = MachineType::AnyTagged());
+
   // Functions, SharedFunctionInfos, FunctionData.
 
   Node* LoadSharedFunctionInfo(Node* js_function);

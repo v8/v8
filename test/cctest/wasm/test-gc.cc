@@ -97,7 +97,7 @@ class WasmGCTester {
   }
 
   byte DefineSignature(FunctionSig* sig, uint32_t supertype = kNoSuperType) {
-    return builder_.AddSignature(sig, supertype);
+    return builder_.ForceAddSignature(sig, supertype);
   }
 
   byte DefineTable(ValueType type, uint32_t min_size, uint32_t max_size) {
@@ -1986,6 +1986,7 @@ WASM_COMPILED_EXEC_TEST(GlobalInitReferencingGlobal) {
 WASM_COMPILED_EXEC_TEST(GCTables) {
   WasmGCTester tester(execution_tier);
 
+  tester.builder()->StartRecursiveTypeGroup();
   byte super_struct = tester.DefineStruct({F(kWasmI32, false)});
   byte sub_struct = tester.DefineStruct({F(kWasmI32, false), F(kWasmI32, true)},
                                         super_struct);
@@ -1995,6 +1996,8 @@ WASM_COMPILED_EXEC_TEST(GCTables) {
   FunctionSig* sub_sig =
       FunctionSig::Build(tester.zone(), {kWasmI32}, {refNull(super_struct)});
   byte sub_sig_index = tester.DefineSignature(sub_sig, super_sig_index);
+  byte unrelated_sig_index = tester.DefineSignature(sub_sig, super_sig_index);
+  tester.builder()->EndRecursiveTypeGroup();
 
   tester.DefineTable(refNull(super_sig_index), 10, 10);
 
@@ -2012,8 +2015,8 @@ WASM_COMPILED_EXEC_TEST(GCTables) {
       tester.sigs.i_v(), {},
       {WASM_TABLE_SET(0, WASM_I32V(0), WASM_REF_NULL(super_sig_index)),
        WASM_TABLE_SET(0, WASM_I32V(1), WASM_REF_FUNC(super_func)),
-       WASM_TABLE_SET(0, WASM_I32V(2), WASM_REF_FUNC(sub_func)), WASM_I32V(0),
-       WASM_END});
+       WASM_TABLE_SET(0, WASM_I32V(2), WASM_REF_FUNC(sub_func)),  // --
+       WASM_I32V(0), WASM_END});
 
   byte super_struct_producer = tester.DefineFunction(
       FunctionSig::Build(tester.zone(), {ref(super_struct)}, {}), {},
@@ -2045,12 +2048,20 @@ WASM_COMPILED_EXEC_TEST(GCTables) {
                           WASM_CALL_FUNCTION0(super_struct_producer),
                           WASM_I32V(2)),
        WASM_END});
+  // Calling with a signature that is a subtype of the type of the table should
+  // work, provided the entry has a subtype of the declared signature.
+  byte call_table_subtype_entry_subtype = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_CALL_INDIRECT(super_sig_index,
+                          WASM_CALL_FUNCTION0(sub_struct_producer),
+                          WASM_I32V(2)),
+       WASM_END});
   // Calling with a signature that is mismatched to that of the entry should
   // trap.
   byte call_type_mismatch = tester.DefineFunction(
       tester.sigs.i_v(), {},
-      {WASM_CALL_INDIRECT(super_sig_index,
-                          WASM_CALL_FUNCTION0(sub_struct_producer),
+      {WASM_CALL_INDIRECT(unrelated_sig_index,
+                          WASM_CALL_FUNCTION0(super_struct_producer),
                           WASM_I32V(2)),
        WASM_END});
   // Getting a table element and then calling it with call_ref should work.
@@ -2072,6 +2083,7 @@ WASM_COMPILED_EXEC_TEST(GCTables) {
   tester.CheckHasThrown(call_null);
   tester.CheckResult(call_same_type, 18);
   tester.CheckResult(call_subtype, -5);
+  tester.CheckResult(call_table_subtype_entry_subtype, 7);
   tester.CheckHasThrown(call_type_mismatch);
   tester.CheckResult(table_get_and_call_ref, 7);
 }

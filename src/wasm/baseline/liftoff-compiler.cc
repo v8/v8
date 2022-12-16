@@ -7342,122 +7342,189 @@ class LiftoffCompiler {
 
     LiftoffRegList pinned{index};
     // Get all temporary registers unconditionally up front.
-    Register table = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-    Register tmp_const = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-    Register scratch = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+    // We do not use temporary registers directly; instead we rename them as
+    // appropriate in each scope they are used.
+    Register tmp1 = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+    Register tmp2 = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+    Register tmp3 = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     Register indirect_function_table = no_reg;
-    if (imm.table_imm.index != 0) {
-      Register indirect_function_tables =
+    if (imm.table_imm.index > 0) {
+      indirect_function_table =
           pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-      LOAD_TAGGED_PTR_INSTANCE_FIELD(indirect_function_tables,
+      LOAD_TAGGED_PTR_INSTANCE_FIELD(indirect_function_table,
                                      IndirectFunctionTables, pinned);
-
-      indirect_function_table = indirect_function_tables;
       __ LoadTaggedPointer(
-          indirect_function_table, indirect_function_tables, no_reg,
+          indirect_function_table, indirect_function_table, no_reg,
           ObjectAccess::ElementOffsetInTaggedFixedArray(imm.table_imm.index));
     }
+    {
+      CODE_COMMENT("Check index is in-bounds");
+      Register table_size = tmp1;
+      if (imm.table_imm.index == 0) {
+        LOAD_INSTANCE_FIELD(table_size, IndirectFunctionTableSize, kUInt32Size,
+                            pinned);
+      } else {
+        __ Load(LiftoffRegister(table_size), indirect_function_table, no_reg,
+                wasm::ObjectAccess::ToTagged(
+                    WasmIndirectFunctionTable::kSizeOffset),
+                LoadType::kI32Load);
+      }
 
-    // Bounds check against the table size.
-    Label* invalid_func_label =
-        AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapTableOutOfBounds);
-
-    // Compare against table size stored in
-    // {instance->indirect_function_table_size}.
-    if (imm.table_imm.index == 0) {
-      LOAD_INSTANCE_FIELD(tmp_const, IndirectFunctionTableSize, kUInt32Size,
-                          pinned);
-    } else {
-      __ Load(
-          LiftoffRegister(tmp_const), indirect_function_table, no_reg,
-          wasm::ObjectAccess::ToTagged(WasmIndirectFunctionTable::kSizeOffset),
-          LoadType::kI32Load);
+      // Bounds check against the table size: Compare against table size stored
+      // in {instance->indirect_function_table_size}.
+      Label* out_of_bounds_label =
+          AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapTableOutOfBounds);
+      {
+        FREEZE_STATE(trapping);
+        __ emit_cond_jump(kUnsignedGreaterEqual, out_of_bounds_label, kI32,
+                          index, table_size, trapping);
+      }
     }
     {
-      FREEZE_STATE(trapping);
-      __ emit_cond_jump(kUnsignedGreaterEqual, invalid_func_label, kI32, index,
-                        tmp_const, trapping);
-    }
+      CODE_COMMENT("Check indirect call signature");
+      Register real_sig_id = tmp1;
+      Register formal_sig_id = tmp2;
 
-    CODE_COMMENT("Check indirect call signature");
-    // Load the signature from {instance->ift_sig_ids[key]}
-    if (imm.table_imm.index == 0) {
-      LOAD_INSTANCE_FIELD(table, IndirectFunctionTableSigIds,
+      // Load the signature from {instance->ift_sig_ids[key]}
+      if (imm.table_imm.index == 0) {
+        LOAD_INSTANCE_FIELD(real_sig_id, IndirectFunctionTableSigIds,
+                            kSystemPointerSize, pinned);
+      } else {
+        __ Load(LiftoffRegister(real_sig_id), indirect_function_table, no_reg,
+                wasm::ObjectAccess::ToTagged(
+                    WasmIndirectFunctionTable::kSigIdsOffset),
+                kPointerLoadType);
+      }
+      static_assert((1 << 2) == kInt32Size);
+      __ Load(LiftoffRegister(real_sig_id), real_sig_id, index, 0,
+              LoadType::kI32Load, nullptr, false, false, true);
+
+      // Compare against expected signature.
+      LOAD_INSTANCE_FIELD(formal_sig_id, IsorecursiveCanonicalTypes,
                           kSystemPointerSize, pinned);
-    } else {
-      __ Load(LiftoffRegister(table), indirect_function_table, no_reg,
-              wasm::ObjectAccess::ToTagged(
-                  WasmIndirectFunctionTable::kSigIdsOffset),
-              kPointerLoadType);
+      __ Load(LiftoffRegister(formal_sig_id), formal_sig_id, no_reg,
+              imm.sig_imm.index * kInt32Size, LoadType::kI32Load);
+
+      Label* sig_mismatch_label =
+          AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapFuncSigMismatch);
+      __ DropValues(1);
+
+      if (v8_flags.experimental_wasm_gc) {
+        Label success_label;
+        FREEZE_STATE(frozen);
+        __ emit_cond_jump(kEqual, &success_label, kI32, real_sig_id,
+                          formal_sig_id, frozen);
+        __ emit_i32_cond_jumpi(kEqual, sig_mismatch_label, real_sig_id, -1,
+                               frozen);
+        Register real_rtt = tmp3;
+        LOAD_INSTANCE_FIELD(real_rtt, IsolateRoot, kSystemPointerSize, pinned);
+        __ LoadFullPointer(
+            real_rtt, real_rtt,
+            IsolateData::root_slot_offset(RootIndex::kWasmCanonicalRtts));
+        __ LoadTaggedPointer(real_rtt, real_rtt, real_sig_id,
+                             ObjectAccess::ToTagged(WeakArrayList::kHeaderSize),
+                             true);
+        // Remove the weak reference tag.
+        if (kSystemPointerSize == 4) {
+          __ emit_i32_andi(real_rtt, real_rtt,
+                           static_cast<int32_t>(~kWeakHeapObjectMask));
+        } else {
+          __ emit_i64_andi(LiftoffRegister(real_rtt), LiftoffRegister(real_rtt),
+                           static_cast<int64_t>(~kWeakHeapObjectMask));
+        }
+        // Constant-time subtyping check: load exactly one candidate RTT from
+        // the supertypes list.
+        // Step 1: load the WasmTypeInfo.
+        constexpr int kTypeInfoOffset = wasm::ObjectAccess::ToTagged(
+            Map::kConstructorOrBackPointerOrNativeContextOffset);
+        Register type_info = real_rtt;
+        __ LoadTaggedPointer(type_info, real_rtt, no_reg, kTypeInfoOffset);
+        // Step 2: check the list's length if needed.
+        uint32_t rtt_depth =
+            GetSubtypingDepth(decoder->module_, imm.sig_imm.index);
+        if (rtt_depth >= kMinimumSupertypeArraySize) {
+          LiftoffRegister list_length(formal_sig_id);
+          int offset =
+              ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesLengthOffset);
+          __ LoadSmiAsInt32(list_length, type_info, offset);
+          __ emit_i32_cond_jumpi(kUnsignedLessEqual, sig_mismatch_label,
+                                 list_length.gp(), rtt_depth, frozen);
+        }
+        // Step 3: load the candidate list slot, and compare it.
+        Register maybe_match = type_info;
+        __ LoadTaggedPointer(
+            maybe_match, type_info, no_reg,
+            ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesOffset +
+                                   rtt_depth * kTaggedSize));
+        Register formal_rtt = formal_sig_id;
+        LOAD_TAGGED_PTR_INSTANCE_FIELD(formal_rtt, ManagedObjectMaps, pinned);
+        __ LoadTaggedPointer(
+            formal_rtt, formal_rtt, no_reg,
+            wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(
+                imm.sig_imm.index));
+        __ emit_cond_jump(kUnequal, sig_mismatch_label, kRtt, formal_rtt,
+                          maybe_match, frozen);
+
+        __ bind(&success_label);
+      } else {
+        FREEZE_STATE(trapping);
+        __ emit_cond_jump(kUnequal, sig_mismatch_label, kI32, real_sig_id,
+                          formal_sig_id, trapping);
+      }
     }
-    static_assert((1 << 2) == kInt32Size);
-    __ Load(LiftoffRegister(scratch), table, index, 0, LoadType::kI32Load,
-            nullptr, false, false, true);
-
-    // Compare against expected signature.
-    LOAD_INSTANCE_FIELD(tmp_const, IsorecursiveCanonicalTypes,
-                        kSystemPointerSize, pinned);
-    __ Load(LiftoffRegister(tmp_const), tmp_const, no_reg,
-            imm.sig_imm.index * kInt32Size, LoadType::kI32Load);
-
-    Label* sig_mismatch_label =
-        AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapFuncSigMismatch);
-    __ DropValues(1);
     {
-      FREEZE_STATE(trapping);
-      __ emit_cond_jump(kUnequal, sig_mismatch_label, kIntPtrKind, scratch,
-                        tmp_const, trapping);
-    }
+      CODE_COMMENT("Execute indirect call");
 
-    CODE_COMMENT("Execute indirect call");
-    // At this point {index} has already been multiplied by kTaggedSize.
+      Register function_instance = tmp1;
+      Register function_target = tmp2;
 
-    // Load the instance from {instance->ift_instances[key]}
-    if (imm.table_imm.index == 0) {
-      LOAD_TAGGED_PTR_INSTANCE_FIELD(table, IndirectFunctionTableRefs, pinned);
-    } else {
-      __ LoadTaggedPointer(
-          table, indirect_function_table, no_reg,
-          wasm::ObjectAccess::ToTagged(WasmIndirectFunctionTable::kRefsOffset));
-    }
-    __ LoadTaggedPointer(tmp_const, table, index,
-                         ObjectAccess::ElementOffsetInTaggedFixedArray(0),
-                         true);
+      // Load the instance from {instance->ift_instances[key]}
+      if (imm.table_imm.index == 0) {
+        LOAD_TAGGED_PTR_INSTANCE_FIELD(function_instance,
+                                       IndirectFunctionTableRefs, pinned);
+      } else {
+        __ LoadTaggedPointer(function_instance, indirect_function_table, no_reg,
+                             wasm::ObjectAccess::ToTagged(
+                                 WasmIndirectFunctionTable::kRefsOffset));
+      }
+      __ LoadTaggedPointer(function_instance, function_instance, index,
+                           ObjectAccess::ElementOffsetInTaggedFixedArray(0),
+                           true);
 
-    Register* explicit_instance = &tmp_const;
+      // Load the target from {instance->ift_targets[key]}
+      if (imm.table_imm.index == 0) {
+        LOAD_INSTANCE_FIELD(function_target, IndirectFunctionTableTargets,
+                            kSystemPointerSize, pinned);
+      } else {
+        __ Load(LiftoffRegister(function_target), indirect_function_table,
+                no_reg,
+                wasm::ObjectAccess::ToTagged(
+                    WasmIndirectFunctionTable::kTargetsOffset),
+                kPointerLoadType);
+      }
+      __ Load(LiftoffRegister(function_target), function_target, index, 0,
+              kPointerLoadType, nullptr, false, false, true);
 
-    // Load the target from {instance->ift_targets[key]}
-    if (imm.table_imm.index == 0) {
-      LOAD_INSTANCE_FIELD(table, IndirectFunctionTableTargets,
-                          kSystemPointerSize, pinned);
-    } else {
-      __ Load(LiftoffRegister(table), indirect_function_table, no_reg,
-              wasm::ObjectAccess::ToTagged(
-                  WasmIndirectFunctionTable::kTargetsOffset),
-              kPointerLoadType);
-    }
-    __ Load(LiftoffRegister(scratch), table, index, 0, kPointerLoadType,
-            nullptr, false, false, true);
+      auto call_descriptor =
+          compiler::GetWasmCallDescriptor(compilation_zone_, imm.sig);
+      call_descriptor =
+          GetLoweredCallDescriptor(compilation_zone_, call_descriptor);
 
-    auto call_descriptor =
-        compiler::GetWasmCallDescriptor(compilation_zone_, imm.sig);
-    call_descriptor =
-        GetLoweredCallDescriptor(compilation_zone_, call_descriptor);
+      __ PrepareCall(&sig, call_descriptor, &function_target,
+                     &function_instance);
+      if (tail_call) {
+        __ PrepareTailCall(
+            static_cast<int>(call_descriptor->ParameterSlotCount()),
+            static_cast<int>(
+                call_descriptor->GetStackParameterDelta(descriptor_)));
+        __ TailCallIndirect(function_target);
+      } else {
+        source_position_table_builder_.AddPosition(
+            __ pc_offset(), SourcePosition(decoder->position()), true);
+        __ CallIndirect(&sig, call_descriptor, function_target);
 
-    Register target = scratch;
-    __ PrepareCall(&sig, call_descriptor, &target, explicit_instance);
-    if (tail_call) {
-      __ PrepareTailCall(
-          static_cast<int>(call_descriptor->ParameterSlotCount()),
-          static_cast<int>(
-              call_descriptor->GetStackParameterDelta(descriptor_)));
-      __ TailCallIndirect(target);
-    } else {
-      source_position_table_builder_.AddPosition(
-          __ pc_offset(), SourcePosition(decoder->position()), true);
-      __ CallIndirect(&sig, call_descriptor, target);
-
-      FinishCall(decoder, &sig, call_descriptor);
+        FinishCall(decoder, &sig, call_descriptor);
+      }
     }
   }
 
