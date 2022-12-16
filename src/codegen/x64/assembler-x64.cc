@@ -291,29 +291,35 @@ bool ConstPool::IsMoveRipRelative(Address instr) {
 void ConstPool::Clear() { entries_.clear(); }
 
 void ConstPool::PatchEntries() {
-  for (EntryMap::iterator iter = entries_.begin(); iter != entries_.end();
-       iter = entries_.upper_bound(iter->first)) {
-    std::pair<EntryMap::iterator, EntryMap::iterator> range =
-        entries_.equal_range(iter->first);
-    int constant_entry_offset = 0;
-    for (EntryMap::iterator it = range.first; it != range.second; it++) {
-      if (it == range.first) {
-        constant_entry_offset = it->second;
-        continue;
-      }
+  auto iter = entries_.begin();
+  if (iter == entries_.end()) return;
 
-      DCHECK_GT(constant_entry_offset, 0);
-      DCHECK_LT(constant_entry_offset, it->second);
-      int32_t disp32 =
-          constant_entry_offset - (it->second + kRipRelativeDispSize);
-      Address disp_addr = assm_->addr_at(it->second);
-
-      // Check if the instruction is actually a rip-relative move.
-      DCHECK(IsMoveRipRelative(disp_addr - kMoveRipRelativeDispOffset));
-      // The displacement of the rip-relative move should be 0 before patching.
-      DCHECK(ReadUnalignedValue<uint32_t>(disp_addr) == 0);
-      WriteUnalignedValue(disp_addr, disp32);
+  // Read off the first value/offset pair before starting the loop proper.
+  std::pair<uint64_t, int> first_entry_of_range = *iter;
+  while (++iter != entries_.end()) {
+    // Check if we've entered a new set of values.
+    if (first_entry_of_range.first != iter->first) {
+      // Make sure that this iterator is both the (exclusive) end of the
+      // previous value's equal range, and the start of this value's equal
+      // range.
+      DCHECK_EQ(entries_.equal_range(first_entry_of_range.first).second, iter);
+      DCHECK_EQ(entries_.equal_range(iter->first).first, iter);
+      first_entry_of_range = *iter;
+      continue;
     }
+    int constant_entry_offset = first_entry_of_range.second;
+
+    DCHECK_GT(constant_entry_offset, 0);
+    DCHECK_LT(constant_entry_offset, iter->second);
+    int32_t disp32 =
+        constant_entry_offset - (iter->second + kRipRelativeDispSize);
+    Address disp_addr = assm_->addr_at(iter->second);
+
+    // Check if the instruction is actually a rip-relative move.
+    DCHECK(IsMoveRipRelative(disp_addr - kMoveRipRelativeDispOffset));
+    // The displacement of the rip-relative move should be 0 before patching.
+    DCHECK(ReadUnalignedValue<uint32_t>(disp_addr) == 0);
+    WriteUnalignedValue(disp_addr, disp32);
   }
   Clear();
 }
