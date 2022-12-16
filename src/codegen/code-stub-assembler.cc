@@ -13016,6 +13016,14 @@ void CodeStubAssembler::GenerateEqual_Same(TNode<Object> value, Label* if_equal,
     BIND(&if_bigint);
     {
       CSA_DCHECK(this, IsBigInt(value_heapobject));
+
+      if (Is64()) {
+        Label if_large_bigint(this);
+        GotoIfLargeBigInt(CAST(value_heapobject), &if_large_bigint);
+        CombineFeedback(var_type_feedback, CompareOperationFeedback::kBigInt64);
+        Goto(if_equal);
+        BIND(&if_large_bigint);
+      }
       CombineFeedback(var_type_feedback, CompareOperationFeedback::kBigInt);
       Goto(if_equal);
     }

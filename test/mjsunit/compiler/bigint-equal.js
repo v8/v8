@@ -4,6 +4,8 @@
 
 // Flags: --allow-natives-syntax --turbofan --no-always-turbofan
 
+const bi = 42n;
+
 function Equal(x, y) {
   return x == y;
 }
@@ -16,6 +18,7 @@ function Test(f, large) {
   assertEquals(false, f(1n, 2n));
   assertEquals(false, f(1n, -1n));
   assertEquals(true, f(-1n, -1n));
+  assertEquals(true, f(bi, bi));
   assertEquals(false, f(2n ** 63n - 1n, -(2n ** 63n) + 1n));
   if (large) {
     assertEquals(false, f(2n ** 63n, -(2n ** 63n)));
