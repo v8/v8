@@ -177,6 +177,7 @@ class V8_EXPORT_PRIVATE Operand {
   };
   // {Data::len} is 8-byte aligned, which makes it fast to access.
   static_assert(offsetof(Data, len) % kSystemPointerSize == 0);
+  static_assert(sizeof(Data) == 2 * kSystemPointerSize);
 
   // [base + disp/r]
   V8_INLINE constexpr Operand(Register base, int32_t disp) {
@@ -2092,12 +2093,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Check if there is less than kGap bytes available in the buffer.
   // If this is the case, we need to grow the buffer before emitting
   // an instruction or relocation information.
-  inline bool buffer_overflow() const {
-    return pc_ >= reloc_info_writer.pos() - kGap;
-  }
+  bool buffer_overflow() const { return available_space() < kGap; }
 
   // Get the number of bytes available in the buffer.
-  inline int available_space() const {
+  int available_space() const {
+    DCHECK_GE(reloc_info_writer.pos(), pc_);
+    DCHECK_GE(kMaxInt, reloc_info_writer.pos() - pc_);
     return static_cast<int>(reloc_info_writer.pos() - pc_);
   }
 
@@ -2130,15 +2131,29 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     WriteUnalignedValue(addr_at(pos), x);
   }
 
-  // code emission
+  // Code emission.
   void GrowBuffer();
 
-  void emit(byte x) { *pc_++ = x; }
-  inline void emitl(uint32_t x);
-  inline void emitq(uint64_t x);
-  inline void emitw(uint16_t x);
-  inline void emit(Immediate x);
-  inline void emit(Immediate64 x);
+  template <typename T>
+  static uint8_t* emit(uint8_t* __restrict pc, T t) {
+    WriteUnalignedValue(reinterpret_cast<Address>(pc), t);
+    return pc + sizeof(T);
+  }
+
+  void emit(uint8_t x) { pc_ = emit(pc_, x); }
+  void emitw(uint16_t x) { pc_ = emit(pc_, x); }
+  void emitl(uint32_t x) { pc_ = emit(pc_, x); }
+  void emitq(uint64_t x) { pc_ = emit(pc_, x); }
+
+  void emit(Immediate x) {
+    if (!RelocInfo::IsNoInfo(x.rmode_)) RecordRelocInfo(x.rmode_);
+    emitl(x.value_);
+  }
+
+  void emit(Immediate64 x) {
+    if (!RelocInfo::IsNoInfo(x.rmode_)) RecordRelocInfo(x.rmode_);
+    emitq(static_cast<uint64_t>(x.value_));
+  }
 
   // Emits a REX prefix that encodes a 64-bit operand size and
   // the top bit of both register codes.

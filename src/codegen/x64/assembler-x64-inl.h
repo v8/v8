@@ -20,35 +20,6 @@ bool CpuFeatures::SupportsOptimizer() { return true; }
 // -----------------------------------------------------------------------------
 // Implementation of Assembler
 
-void Assembler::emitl(uint32_t x) {
-  WriteUnalignedValue(reinterpret_cast<Address>(pc_), x);
-  pc_ += sizeof(uint32_t);
-}
-
-void Assembler::emitq(uint64_t x) {
-  WriteUnalignedValue(reinterpret_cast<Address>(pc_), x);
-  pc_ += sizeof(uint64_t);
-}
-
-void Assembler::emitw(uint16_t x) {
-  WriteUnalignedValue(reinterpret_cast<Address>(pc_), x);
-  pc_ += sizeof(uint16_t);
-}
-
-void Assembler::emit(Immediate x) {
-  if (!RelocInfo::IsNoInfo(x.rmode_)) {
-    RecordRelocInfo(x.rmode_);
-  }
-  emitl(x.value_);
-}
-
-void Assembler::emit(Immediate64 x) {
-  if (!RelocInfo::IsNoInfo(x.rmode_)) {
-    RecordRelocInfo(x.rmode_);
-  }
-  emitq(static_cast<uint64_t>(x.value_));
-}
-
 void Assembler::emit_rex_64(Register reg, Register rm_reg) {
   emit(0x48 | reg.high_bit() << 2 | rm_reg.high_bit());
 }
