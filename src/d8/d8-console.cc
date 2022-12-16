@@ -79,12 +79,16 @@ D8Console::D8Console(Isolate* isolate) : isolate_(isolate) {
   default_timer_ = base::TimeTicks::Now();
 }
 
-D8Console::~D8Console() {
+D8Console::~D8Console() { DCHECK_NULL(profiler_); }
+
+void D8Console::DisposeProfiler() {
   if (profiler_) {
     if (profiler_active_) {
       profiler_->StopProfiling(String::Empty(isolate_));
+      profiler_active_ = false;
     }
     profiler_->Dispose();
+    profiler_ = nullptr;
   }
 }
 

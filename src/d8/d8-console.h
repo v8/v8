@@ -21,6 +21,8 @@ class D8Console : public debug::ConsoleDelegate {
 
   CpuProfiler* profiler() const { return profiler_; }
 
+  void DisposeProfiler();
+
  private:
   void Assert(const debug::ConsoleCallArguments& args,
               const v8::debug::ConsoleContext&) override;

@@ -2530,6 +2530,13 @@ bool Shell::HasOnProfileEndListener(Isolate* isolate) {
 
 void Shell::ResetOnProfileEndListener(Isolate* isolate) {
   profiler_end_callback_.erase(isolate);
+
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  D8Console* console =
+      reinterpret_cast<D8Console*>(i_isolate->console_delegate());
+  if (console) {
+    console->DisposeProfiler();
+  }
 }
 
 void Shell::ProfilerTriggerSample(
@@ -2538,7 +2545,9 @@ void Shell::ProfilerTriggerSample(
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   D8Console* console =
       reinterpret_cast<D8Console*>(i_isolate->console_delegate());
-  if (console->profiler()) console->profiler()->CollectSample(isolate);
+  if (console && console->profiler()) {
+    console->profiler()->CollectSample(isolate);
+  }
 }
 
 void Shell::TriggerOnProfileEndListener(Isolate* isolate, std::string profile) {
@@ -5924,8 +5933,8 @@ int Shell::Main(int argc, char* argv[]) {
             PerIsolateData data2(isolate2);
 
             result = RunMain(isolate2, false);
+            ResetOnProfileEndListener(isolate2);
           }
-          ResetOnProfileEndListener(isolate2);
           isolate2->Dispose();
         }
 
