@@ -7982,15 +7982,6 @@ TNode<BigInt> CodeStubAssembler::ToBigIntConvertNumber(TNode<Context> context,
   return var_result.value();
 }
 
-void CodeStubAssembler::TaggedToBigIntWithFeedback(
-    TNode<Context> context, TNode<Object> value, Label* if_not_bigint,
-    Label* if_bigint, Label* if_bigint64, TVariable<BigInt>* var_bigint,
-    TVariable<Smi>* var_feedback) {
-  DCHECK_NOT_NULL(var_feedback);
-  TaggedToBigInt(context, value, if_not_bigint, if_bigint, if_bigint64,
-                 var_bigint, var_feedback);
-}
-
 void CodeStubAssembler::TaggedToBigInt(TNode<Context> context,
                                        TNode<Object> value,
                                        Label* if_not_bigint, Label* if_bigint,

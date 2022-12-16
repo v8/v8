@@ -2504,11 +2504,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<Int32T> ChangeBoolToInt32(TNode<BoolT> b);
 
-  void TaggedToBigIntWithFeedback(TNode<Context> context, TNode<Object> value,
-                                  Label* if_not_bigint, Label* if_bigint,
-                                  Label* if_bigint64,
-                                  TVariable<BigInt>* var_bigint,
-                                  TVariable<Smi>* var_feedback);
+  void TaggedToBigInt(TNode<Context> context, TNode<Object> value,
+                      Label* if_not_bigint, Label* if_bigint,
+                      Label* if_bigint64, TVariable<BigInt>* var_bigint,
+                      TVariable<Smi>* var_feedback);
 
   // Ensures that {var_shared_value} is shareable across Isolates, and throws if
   // not.
@@ -4319,11 +4318,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Numeric> NonNumberToNumberOrNumeric(
       TNode<Context> context, TNode<HeapObject> input, Object::Conversion mode,
       BigIntHandling bigint_handling = BigIntHandling::kThrow);
-
-  void TaggedToBigInt(TNode<Context> context, TNode<Object> value,
-                      Label* if_not_bigint, Label* if_bigint,
-                      Label* if_bigint64, TVariable<BigInt>* var_bigint,
-                      TVariable<Smi>* var_feedback);
 
   enum IsKnownTaggedPointer { kNo, kYes };
   template <Object::Conversion conversion>

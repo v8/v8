@@ -840,15 +840,14 @@ TNode<Object> BinaryOpAssembler::Generate_BitwiseBinaryOpWithOptionalFeedback(
     Label if_bigint_mix(this, Label::kDeferred);
 
     BIND(&if_left_bigint);
-    TaggedToBigIntWithFeedback(context(), right, &if_bigint_mix,
-                               &if_both_bigint, nullptr, &var_right_bigint,
-                               &var_right_feedback);
+    TaggedToBigInt(context(), right, &if_bigint_mix, &if_both_bigint, nullptr,
+                   &var_right_bigint, slot ? &var_right_feedback : nullptr);
 
     if (IsBigInt64OpSupported(this, bitwise_op)) {
       BIND(&if_left_bigint64);
-      TaggedToBigIntWithFeedback(context(), right, &if_bigint_mix,
-                                 &if_both_bigint, &if_both_bigint64,
-                                 &var_right_bigint, &var_right_feedback);
+      TaggedToBigInt(context(), right, &if_bigint_mix, &if_both_bigint,
+                     &if_both_bigint64, &var_right_bigint,
+                     slot ? &var_right_feedback : nullptr);
 
       BIND(&if_both_bigint64);
       if (slot) {
@@ -907,10 +906,12 @@ TNode<Object> BinaryOpAssembler::Generate_BitwiseBinaryOpWithOptionalFeedback(
           // Check for sentinel that signals BigIntTooBig exception.
           GotoIfNot(TaggedIsSmi(result.value()), &done);
 
-          // Update feedback to prevent deopt loop.
-          UpdateFeedback(SmiConstant(BinaryOperationFeedback::kAny),
-                         (*maybe_feedback_vector)(), *slot,
-                         update_feedback_mode);
+          if (slot) {
+            // Update feedback to prevent deopt loop.
+            UpdateFeedback(SmiConstant(BinaryOperationFeedback::kAny),
+                           (*maybe_feedback_vector)(), *slot,
+                           update_feedback_mode);
+          }
           ThrowRangeError(context(), MessageTemplate::kBigIntTooBig);
           break;
         }
@@ -921,10 +922,12 @@ TNode<Object> BinaryOpAssembler::Generate_BitwiseBinaryOpWithOptionalFeedback(
           // Check for sentinel that signals BigIntTooBig exception.
           GotoIfNot(TaggedIsSmi(result.value()), &done);
 
-          // Update feedback to prevent deopt loop.
-          UpdateFeedback(SmiConstant(BinaryOperationFeedback::kAny),
-                         (*maybe_feedback_vector)(), *slot,
-                         update_feedback_mode);
+          if (slot) {
+            // Update feedback to prevent deopt loop.
+            UpdateFeedback(SmiConstant(BinaryOperationFeedback::kAny),
+                           (*maybe_feedback_vector)(), *slot,
+                           update_feedback_mode);
+          }
           ThrowRangeError(context(), MessageTemplate::kBigIntTooBig);
           break;
         }
@@ -935,10 +938,12 @@ TNode<Object> BinaryOpAssembler::Generate_BitwiseBinaryOpWithOptionalFeedback(
           // Check for sentinel that signals BigIntTooBig exception.
           GotoIfNot(TaggedIsSmi(result.value()), &done);
 
-          // Update feedback to prevent deopt loop.
-          UpdateFeedback(SmiConstant(BinaryOperationFeedback::kAny),
-                         (*maybe_feedback_vector)(), *slot,
-                         update_feedback_mode);
+          if (slot) {
+            // Update feedback to prevent deopt loop.
+            UpdateFeedback(SmiConstant(BinaryOperationFeedback::kAny),
+                           (*maybe_feedback_vector)(), *slot,
+                           update_feedback_mode);
+          }
           ThrowRangeError(context(), MessageTemplate::kBigIntTooBig);
           break;
         }
