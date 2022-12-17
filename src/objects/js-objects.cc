@@ -4782,7 +4782,7 @@ void JSObject::MakePrototypesFast(Handle<Object> receiver,
                               where_to_start);
        !iter.IsAtEnd(); iter.Advance()) {
     Handle<Object> current = PrototypeIterator::GetCurrent(iter);
-    if (!current->IsJSObject()) return;
+    if (!current->IsJSObjectThatCanBeTrackedAsPrototype()) return;
     Handle<JSObject> current_obj = Handle<JSObject>::cast(current);
     Map current_map = current_obj->map();
     if (current_map.is_prototype_map()) {
@@ -4810,11 +4810,8 @@ static bool PrototypeBenefitsFromNormalization(Handle<JSObject> object) {
 // static
 void JSObject::OptimizeAsPrototype(Handle<JSObject> object,
                                    bool enable_setup_mode) {
+  DCHECK(object->IsJSObjectThatCanBeTrackedAsPrototype());
   if (object->IsJSGlobalObject()) return;
-  // Do not optimize objects in the shared heap because it is not
-  // threadsafe. Objects in the shared heap have fixed layouts and their maps
-  // never change.
-  if (object->InSharedWritableHeap()) return;
   Isolate* isolate = object->GetIsolate();
   if (object->map(isolate).is_prototype_map()) {
     if (enable_setup_mode && PrototypeBenefitsFromNormalization(object)) {
@@ -4919,9 +4916,16 @@ void JSObject::LazyRegisterPrototypeUser(Handle<Map> user, Isolate* isolate) {
       break;
     }
     Handle<Object> maybe_proto = PrototypeIterator::GetCurrent(iter);
+    // This checks for both proxies and shared objects.
+    //
     // Proxies on the prototype chain are not supported. They make it
     // impossible to make any assumptions about the prototype chain anyway.
-    if (maybe_proto->IsJSProxy()) return;
+    //
+    // Objects in the shared heap have fixed layouts and their maps never
+    // change, so they don't need to be tracked as prototypes
+    // anyway. Additionally, registering users of shared objects is not
+    // threadsafe.
+    if (!maybe_proto->IsJSObjectThatCanBeTrackedAsPrototype()) continue;
     Handle<JSObject> proto = Handle<JSObject>::cast(maybe_proto);
     Handle<PrototypeInfo> proto_info =
         Map::GetOrCreatePrototypeInfo(proto, isolate);

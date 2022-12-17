@@ -861,7 +861,7 @@ Handle<Map> Map::GetObjectCreateMap(Isolate* isolate,
   if (prototype->IsNull(isolate)) {
     return isolate->slow_object_with_null_prototype_map();
   }
-  if (prototype->IsJSObject()) {
+  if (prototype->IsJSObjectThatCanBeTrackedAsPrototype()) {
     Handle<JSObject> js_prototype = Handle<JSObject>::cast(prototype);
     if (!js_prototype->map().is_prototype_map()) {
       JSObject::OptimizeAsPrototype(js_prototype);
@@ -2209,6 +2209,7 @@ void Map::SetInstanceDescriptors(Isolate* isolate, DescriptorArray descriptors,
 // static
 Handle<PrototypeInfo> Map::GetOrCreatePrototypeInfo(Handle<JSObject> prototype,
                                                     Isolate* isolate) {
+  DCHECK(prototype->IsJSObjectThatCanBeTrackedAsPrototype());
   Object maybe_proto_info = prototype->map().prototype_info();
   if (maybe_proto_info.IsPrototypeInfo()) {
     return handle(PrototypeInfo::cast(maybe_proto_info), isolate);
@@ -2253,10 +2254,7 @@ Handle<Object> Map::GetOrCreatePrototypeChainValidityCell(Handle<Map> map,
     maybe_prototype =
         handle(map->GetPrototypeChainRootMap(isolate).prototype(), isolate);
   }
-  if (!maybe_prototype->IsJSObject() ||
-      maybe_prototype->InSharedWritableHeap()) {
-    // Objects in the shared heap have fixed layouts and their maps
-    // never change.
+  if (!maybe_prototype->IsJSObjectThatCanBeTrackedAsPrototype()) {
     return handle(Smi::FromInt(Map::kPrototypeChainValid), isolate);
   }
   Handle<JSObject> prototype = Handle<JSObject>::cast(maybe_prototype);
@@ -2297,12 +2295,12 @@ void Map::SetPrototype(Isolate* isolate, Handle<Map> map,
                        bool enable_prototype_setup_mode) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kMap_SetPrototype);
 
-  if (prototype->IsJSObject()) {
+  if (prototype->IsJSObjectThatCanBeTrackedAsPrototype()) {
     Handle<JSObject> prototype_jsobj = Handle<JSObject>::cast(prototype);
     JSObject::OptimizeAsPrototype(prototype_jsobj, enable_prototype_setup_mode);
   } else {
     DCHECK(prototype->IsNull(isolate) || prototype->IsJSProxy() ||
-           prototype->IsWasmObject());
+           prototype->IsWasmObject() || prototype->InSharedWritableHeap());
   }
 
   WriteBarrierMode wb_mode =

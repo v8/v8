@@ -84,6 +84,11 @@ bool Object::InSharedWritableHeap() const {
   return IsHeapObject() && HeapObject::cast(*this).InSharedWritableHeap();
 }
 
+bool Object::IsJSObjectThatCanBeTrackedAsPrototype() const {
+  return IsHeapObject() &&
+         HeapObject::cast(*this).IsJSObjectThatCanBeTrackedAsPrototype();
+}
+
 #define IS_TYPE_FUNCTION_DEF(type_)                                        \
   bool Object::Is##type_() const {                                         \
     return IsHeapObject() && HeapObject::cast(*this).Is##type_();          \
@@ -188,6 +193,13 @@ bool HeapObject::InSharedHeap() const {
 
 bool HeapObject::InSharedWritableHeap() const {
   return BasicMemoryChunk::FromHeapObject(*this)->InSharedHeap();
+}
+
+bool HeapObject::IsJSObjectThatCanBeTrackedAsPrototype() const {
+  // Do not optimize objects in the shared heap because it is not
+  // threadsafe. Objects in the shared heap have fixed layouts and their maps
+  // never change.
+  return IsJSObject() && !InSharedWritableHeap();
 }
 
 bool HeapObject::IsNullOrUndefined(Isolate* isolate) const {

@@ -341,6 +341,8 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   bool IsWasmObject(Isolate* = nullptr) const { return false; }
 #endif
 
+  V8_INLINE bool IsJSObjectThatCanBeTrackedAsPrototype() const;
+
   enum class Conversion { kToNumber, kToNumeric };
 
 #define DECL_STRUCT_PREDICATE(NAME, Name, name) \

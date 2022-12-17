@@ -119,6 +119,8 @@ class HeapObject : public Object {
   STRUCT_LIST(DECL_STRUCT_PREDICATE)
 #undef DECL_STRUCT_PREDICATE
 
+  V8_INLINE bool IsJSObjectThatCanBeTrackedAsPrototype() const;
+
   // Converts an address to a HeapObject pointer.
   static inline HeapObject FromAddress(Address address) {
     DCHECK_TAG_ALIGNED(address);

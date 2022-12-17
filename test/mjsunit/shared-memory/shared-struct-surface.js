@@ -137,4 +137,19 @@ let S = new SharedStructType(['field']);
     pojo.__proto__ = ps;
     assertProtoIsStruct(pojo, ps);
   }
+
+  {
+    const old = globalThis.__proto__;
+    globalThis.__proto__ = ps;
+    globalThis.__proto__ = old;
+  }
+
+  {
+    Object.create(ps);
+  }
+
+  {
+    function Ctor() {}
+    Ctor.prototype = ps;
+  }
 })();
