@@ -3264,16 +3264,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kRiscvF64x2Qfma: {
       __ VU.set(kScratchReg, E64, m1);
-      __ vfmadd_vv(i.InputSimd128Register(1), i.InputSimd128Register(2),
-                   i.InputSimd128Register(0));
-      __ vmv_vv(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ vfmadd_vv(i.InputSimd128Register(0), i.InputSimd128Register(1),
+                   i.InputSimd128Register(2));
+      __ vmv_vv(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
     case kRiscvF64x2Qfms: {
       __ VU.set(kScratchReg, E64, m1);
-      __ vfnmsub_vv(i.InputSimd128Register(1), i.InputSimd128Register(2),
-                    i.InputSimd128Register(0));
-      __ vmv_vv(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ vfnmsub_vv(i.InputSimd128Register(0), i.InputSimd128Register(1),
+                    i.InputSimd128Register(2));
+      __ vmv_vv(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
     case kRiscvF32x4ExtractLane: {
@@ -3452,16 +3452,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kRiscvF32x4Qfma: {
       __ VU.set(kScratchReg, E32, m1);
-      __ vfmadd_vv(i.InputSimd128Register(1), i.InputSimd128Register(2),
-                   i.InputSimd128Register(0));
-      __ vmv_vv(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ vfmadd_vv(i.InputSimd128Register(0), i.InputSimd128Register(1),
+                   i.InputSimd128Register(2));
+      __ vmv_vv(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
     case kRiscvF32x4Qfms: {
       __ VU.set(kScratchReg, E32, m1);
-      __ vfnmsub_vv(i.InputSimd128Register(1), i.InputSimd128Register(2),
-                    i.InputSimd128Register(0));
-      __ vmv_vv(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ vfnmsub_vv(i.InputSimd128Register(0), i.InputSimd128Register(1),
+                    i.InputSimd128Register(2));
+      __ vmv_vv(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
     case kRiscvI64x2SConvertI32x4Low: {
