@@ -34,14 +34,6 @@
 namespace v8 {
 namespace internal {
 
-namespace {
-bool RecordOldToSharedSlot(HeapObject heap_object) {
-  BasicMemoryChunk* chunk = BasicMemoryChunk::FromHeapObject(heap_object);
-  return chunk->InSharedHeap() ||
-         chunk->IsFlagSet(MemoryChunk::SHARED_HEAP_PROMOTION);
-}
-}  // anonymous namespace
-
 class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
  public:
   IterateAndScavengePromotedObjectsVisitor(Scavenger* scavenger,
@@ -162,7 +154,7 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
           MemoryChunk::FromHeapObject(host), slot.address());
     }
 
-    if (RecordOldToSharedSlot(target)) {
+    if (target.InSharedWritableHeap()) {
       DCHECK(!scavenger_->heap()->IsShared());
       MemoryChunk* chunk = MemoryChunk::FromHeapObject(host);
       RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(chunk,
@@ -365,8 +357,6 @@ void ScavengerCollector::CollectGarbage() {
           memory_chunks.emplace_back(ParallelWorkItem{}, chunk);
         });
 
-    PreprocessNewLargeObjects();
-
     RootScavengeVisitor root_scavenge_visitor(scavengers[kMainThreadId].get());
 
     {
@@ -552,19 +542,6 @@ void ScavengerCollector::SweepArrayBufferExtensions() {
       ArrayBufferSweeper::SweepingType::kYoung);
 }
 
-void ScavengerCollector::PreprocessNewLargeObjects() {
-  if (!heap_->isolate()->has_shared_heap() || !v8_flags.shared_string_table) {
-    return;
-  }
-
-  for (LargePage* page : *heap_->new_lo_space()) {
-    HeapObject object = page->GetObject();
-    if (String::IsInPlaceInternalizable(object.map().instance_type())) {
-      page->SetFlag(MemoryChunk::SHARED_HEAP_PROMOTION);
-    }
-  }
-}
-
 void ScavengerCollector::HandleSurvivingNewLargeObjects() {
   const bool is_compacting = heap_->incremental_marking()->IsCompacting();
   AtomicMarkingState* marking_state = heap_->atomic_marking_state();
@@ -572,25 +549,18 @@ void ScavengerCollector::HandleSurvivingNewLargeObjects() {
   for (SurvivingNewLargeObjectMapEntry update_info :
        surviving_new_large_objects_) {
     HeapObject object = update_info.first;
-    LargePage* page = LargePage::FromHeapObject(object);
     Map map = update_info.second;
     // Order is important here. We have to re-install the map to have access
     // to meta-data like size during page promotion.
     object.set_map_word(map, kRelaxedStore);
 
-    if (page->IsFlagSet(MemoryChunk::SHARED_HEAP_PROMOTION)) {
-      DCHECK(ReadOnlyHeap::Contains(map));
-      DCHECK(StringShape(String::cast(object), heap_->isolate()).IsDirect());
-      page->ClearFlag(MemoryChunk::SHARED_HEAP_PROMOTION);
-      heap_->shared_lo_allocation_space()->PromoteNewLargeObject(page);
-    } else {
-      if (is_compacting && marking_state->IsBlack(object) &&
-          MarkCompactCollector::IsOnEvacuationCandidate(map)) {
-        RememberedSet<OLD_TO_OLD>::Insert<AccessMode::ATOMIC>(
-            page, object.map_slot().address());
-      }
-      heap_->lo_space()->PromoteNewLargeObject(page);
+    if (is_compacting && marking_state->IsBlack(object) &&
+        MarkCompactCollector::IsOnEvacuationCandidate(map)) {
+      RememberedSet<OLD_TO_OLD>::Insert<AccessMode::ATOMIC>(
+          MemoryChunk::FromHeapObject(object), object.map_slot().address());
     }
+    LargePage* page = LargePage::FromHeapObject(object);
+    heap_->lo_space()->PromoteNewLargeObject(page);
   }
   surviving_new_large_objects_.clear();
   heap_->new_lo_space()->set_objects_size(0);
@@ -879,7 +849,7 @@ void Scavenger::CheckOldToNewSlotForSharedUntyped(MemoryChunk* chunk,
   HeapObject heap_object;
 
   if (object.GetHeapObject(&heap_object) &&
-      RecordOldToSharedSlot(heap_object)) {
+      heap_object.InSharedWritableHeap()) {
     RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(chunk,
                                                              slot.address());
   }
@@ -892,7 +862,7 @@ void Scavenger::CheckOldToNewSlotForSharedTyped(MemoryChunk* chunk,
   HeapObject heap_object;
 
   if (new_target.GetHeapObject(&heap_object) &&
-      RecordOldToSharedSlot(heap_object)) {
+      heap_object.InSharedWritableHeap()) {
     const uintptr_t offset = slot_address - chunk->address();
     DCHECK_LT(offset, static_cast<uintptr_t>(TypedSlotSet::kMaxOffset));
 

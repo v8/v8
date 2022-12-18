@@ -476,21 +476,6 @@ void MemoryAllocator::UnregisterReadOnlyPage(ReadOnlyPage* page) {
   UnregisterBasicMemoryChunk(page, NOT_EXECUTABLE);
 }
 
-void MemoryAllocator::TakeOverLargePage(LargePage* page,
-                                        MemoryAllocator* current_owner) {
-  DCHECK_EQ(page->executable(), NOT_EXECUTABLE);
-  if (this == current_owner) return;
-  current_owner->size_ -= page->size();
-  current_owner->RecordLargePageDestroyed(*page);
-
-  size_ += page->size();
-  RecordLargePageCreated(*page);
-
-  const size_t area_end_page_aligned =
-      ::RoundUp(page->area_end(), GetCommitPageSize());
-  UpdateAllocatedSpaceLimits(page->address(), area_end_page_aligned);
-}
-
 void MemoryAllocator::FreeReadOnlyPage(ReadOnlyPage* chunk) {
   DCHECK(!chunk->IsFlagSet(MemoryChunk::PRE_FREED));
   LOG(isolate_, DeleteEvent("MemoryChunk", chunk));

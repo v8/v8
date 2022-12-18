@@ -260,27 +260,14 @@ void CodeLargeObjectSpace::RemoveChunkMapEntries(LargePage* page) {
   }
 }
 
-void LargeObjectSpace::PromoteNewLargeObject(LargePage* page) {
+void OldLargeObjectSpace::PromoteNewLargeObject(LargePage* page) {
   DCHECK_EQ(page->owner_identity(), NEW_LO_SPACE);
-  DCHECK(identity() == LO_SPACE || identity() == SHARED_LO_SPACE);
   DCHECK(page->IsLargePage());
   DCHECK(page->IsFlagSet(MemoryChunk::FROM_PAGE));
   DCHECK(!page->IsFlagSet(MemoryChunk::TO_PAGE));
-  const bool promotion_into_shared_heap =
-      identity() == SHARED_LO_SPACE || heap()->isolate()->is_shared();
   PtrComprCageBase cage_base(heap()->isolate());
   static_cast<LargeObjectSpace*>(page->owner())->RemovePage(page);
   page->ClearFlag(MemoryChunk::FROM_PAGE);
-
-  if (promotion_into_shared_heap) {
-    page->SetFlag(MemoryChunk::IN_SHARED_HEAP);
-
-    MemoryAllocator* current_allocator = page->heap()->memory_allocator();
-    heap()->memory_allocator()->TakeOverLargePage(page, current_allocator);
-    page->set_heap(heap());
-  }
-
-  base::RecursiveMutexGuard guard(&allocation_mutex_);
   AddPage(page, static_cast<size_t>(page->GetObject().Size(cage_base)));
 }
 
