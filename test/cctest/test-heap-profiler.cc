@@ -1609,8 +1609,6 @@ class EmbedderGraphBuilder : public v8::PersistentHandleVisitor {
         graph->AddNode(std::unique_ptr<Group>(new Group("ccc-group")));
   }
 
-  START_ALLOW_USE_DEPRECATED()
-
   static void BuildEmbedderGraph(v8::Isolate* isolate, v8::EmbedderGraph* graph,
                                  void* data) {
     EmbedderGraphBuilder builder(isolate, graph);
@@ -1618,8 +1616,6 @@ class EmbedderGraphBuilder : public v8::PersistentHandleVisitor {
         ->global_handles()
         ->IterateAllRootsForTesting(&builder);
   }
-
-  END_ALLOW_USE_DEPRECATED()
 
   void VisitPersistentHandle(v8::Persistent<v8::Value>* value,
                              uint16_t class_id) override {
