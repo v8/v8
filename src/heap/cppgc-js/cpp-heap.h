@@ -130,10 +130,6 @@ class V8_EXPORT_PRIVATE CppHeap final
 
   void Terminate();
 
-  void EnableDetachedGarbageCollectionsForTesting();
-
-  void CollectGarbageForTesting(CollectionType, StackState);
-
   void CollectCustomSpaceStatisticsAtLastGC(
       std::vector<cppgc::CustomSpaceIndex>,
       std::unique_ptr<CustomSpaceStatisticsReceiver>);
@@ -179,8 +175,13 @@ class V8_EXPORT_PRIVATE CppHeap final
   inline void VisitCrossHeapRememberedSetIfNeeded(F f);
   void ResetCrossHeapRememberedSet();
 
+  // Testing-only APIs.
+  void EnableDetachedGarbageCollectionsForTesting();
+  void CollectGarbageForTesting(CollectionType, StackState);
+  void ReduceGCCapabilitiesFromFlagsForTesting();
+
  private:
-  void ReduceGCCapabilititesFromFlags();
+  void ReduceGCCapabilitiesFromFlags();
 
   void FinalizeIncrementalGarbageCollectionIfNeeded(
       cppgc::Heap::StackState) final {
