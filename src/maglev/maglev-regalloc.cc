@@ -141,6 +141,10 @@ bool IsLiveAtTarget(ValueNode* node, ControlNode* source, BasicBlock* target) {
     // Gap moves may already be inserted in the target, so skip over those.
     return node->id() < target->FirstNonGapMoveId();
   }
+
+  // Drop all values on resumable loop headers.
+  if (target->has_state() && target->state()->is_resumable_loop()) return false;
+
   // TODO(verwaest): This should be true but isn't because we don't yet
   // eliminate dead code.
   // DCHECK_GT(node->next_use, source->id());
