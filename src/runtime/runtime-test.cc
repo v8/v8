@@ -554,10 +554,9 @@ void FinalizeOptimization(Isolate* isolate) {
 #endif  // V8_ENABLE_MAGLEV
 }
 
-BytecodeOffset OffsetOfNextJumpLoop(Isolate* isolate, UnoptimizedFrame* frame) {
-  Handle<BytecodeArray> bytecode_array(frame->GetBytecodeArray(), isolate);
-  const int current_offset = frame->GetBytecodeOffset();
-
+BytecodeOffset OffsetOfNextJumpLoop(Isolate* isolate,
+                                    Handle<BytecodeArray> bytecode_array,
+                                    int current_offset) {
   interpreter::BytecodeArrayIterator it(bytecode_array, current_offset);
 
   // First, look for a loop that contains the current bytecode offset.
@@ -632,8 +631,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
-  DCHECK(it.frame()->is_java_script());
-  if (it.frame()->is_turbofan()) {
+  if (!it.frame()->is_unoptimized() && !it.frame()->is_maglev()) {
     // Nothing to be done.
     return ReadOnlyRoots(isolate).undefined_value();
   }
@@ -653,11 +651,23 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   // If not (e.g. because we enter a nested loop first), the next JumpLoop will
   // see the cached OSR code with a mismatched offset, and trigger
   // non-concurrent OSR compilation and installation.
-  // TODO(v8:7700): Support spawning a concurrent job when OSRing from Maglev.
-  if (it.frame()->is_unoptimized() &&
-      isolate->concurrent_recompilation_enabled() && v8_flags.concurrent_osr) {
-    const BytecodeOffset osr_offset =
-        OffsetOfNextJumpLoop(isolate, UnoptimizedFrame::cast(it.frame()));
+  if (isolate->concurrent_recompilation_enabled() && v8_flags.concurrent_osr) {
+    BytecodeOffset osr_offset = BytecodeOffset::None();
+    if (it.frame()->is_unoptimized()) {
+      UnoptimizedFrame* frame = UnoptimizedFrame::cast(it.frame());
+      Handle<BytecodeArray> bytecode_array(frame->GetBytecodeArray(), isolate);
+      const int current_offset = frame->GetBytecodeOffset();
+      osr_offset =
+          OffsetOfNextJumpLoop(isolate, bytecode_array, current_offset);
+    } else {
+      MaglevFrame* frame = MaglevFrame::cast(it.frame());
+      Handle<BytecodeArray> bytecode_array(
+          frame->function().shared().GetBytecodeArray(isolate), isolate);
+      const int current_offset = frame->GetBytecodeOffsetForOSR().ToInt();
+      osr_offset =
+          OffsetOfNextJumpLoop(isolate, bytecode_array, current_offset);
+    }
+
     if (osr_offset.IsNone()) {
       // The loop may have been elided by bytecode generation (e.g. for
       // patterns such as `do { ... } while (false);`.
