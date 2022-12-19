@@ -1797,6 +1797,8 @@ const char* Header(ScopeType scope_type, FunctionKind function_kind,
     case CLASS_SCOPE:
       return "class";
     case WITH_SCOPE: return "with";
+    case SHADOW_REALM_SCOPE:
+      return "shadowrealm";
   }
   UNREACHABLE();
 }

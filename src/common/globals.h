@@ -1414,14 +1414,15 @@ inline std::ostream& operator<<(std::ostream& os, CreateArgumentsType type) {
 constexpr int kScopeInfoMaxInlinedLocalNamesSize = 75;
 
 enum ScopeType : uint8_t {
-  CLASS_SCOPE,     // The scope introduced by a class.
-  EVAL_SCOPE,      // The top-level scope for an eval source.
-  FUNCTION_SCOPE,  // The top-level scope for a function.
-  MODULE_SCOPE,    // The scope introduced by a module literal
-  SCRIPT_SCOPE,    // The top-level scope for a script or a top-level eval.
-  CATCH_SCOPE,     // The scope introduced by catch.
-  BLOCK_SCOPE,     // The scope introduced by a new block.
-  WITH_SCOPE       // The scope introduced by with.
+  CLASS_SCOPE,        // The scope introduced by a class.
+  EVAL_SCOPE,         // The top-level scope for an eval source.
+  FUNCTION_SCOPE,     // The top-level scope for a function.
+  MODULE_SCOPE,       // The scope introduced by a module literal
+  SCRIPT_SCOPE,       // The top-level scope for a script or a top-level eval.
+  CATCH_SCOPE,        // The scope introduced by catch.
+  BLOCK_SCOPE,        // The scope introduced by a new block.
+  WITH_SCOPE,         // The scope introduced by with.
+  SHADOW_REALM_SCOPE  // Synthetic scope for ShadowRealm NativeContexts.
 };
 
 inline std::ostream& operator<<(std::ostream& os, ScopeType type) {
@@ -1442,6 +1443,8 @@ inline std::ostream& operator<<(std::ostream& os, ScopeType type) {
       return os << "CLASS_SCOPE";
     case ScopeType::WITH_SCOPE:
       return os << "WITH_SCOPE";
+    case ScopeType::SHADOW_REALM_SCOPE:
+      return os << "SHADOW_REALM_SCOPE";
   }
   UNREACHABLE();
 }

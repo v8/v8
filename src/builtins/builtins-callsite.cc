@@ -66,8 +66,17 @@ BUILTIN(CallSitePrototypeGetFileName) {
 }
 
 BUILTIN(CallSitePrototypeGetFunction) {
+  static const char method_name[] = "getFunction";
   HandleScope scope(isolate);
-  CHECK_CALLSITE(frame, "getFunction");
+  CHECK_CALLSITE(frame, method_name);
+  if (isolate->raw_native_context().scope_info().scope_type() ==
+      SHADOW_REALM_SCOPE) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate,
+        NewTypeError(
+            MessageTemplate::kCallSiteMethodUnsupportedInShadowRealm,
+            isolate->factory()->NewStringFromAsciiChecked(method_name)));
+  }
   if (frame->IsStrict() ||
       (frame->function().IsJSFunction() &&
        JSFunction::cast(frame->function()).shared().is_toplevel())) {
@@ -124,8 +133,17 @@ BUILTIN(CallSitePrototypeGetScriptNameOrSourceURL) {
 }
 
 BUILTIN(CallSitePrototypeGetThis) {
+  static const char method_name[] = "getThis";
   HandleScope scope(isolate);
-  CHECK_CALLSITE(frame, "getThis");
+  CHECK_CALLSITE(frame, method_name);
+  if (isolate->raw_native_context().scope_info().scope_type() ==
+      SHADOW_REALM_SCOPE) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate,
+        NewTypeError(
+            MessageTemplate::kCallSiteMethodUnsupportedInShadowRealm,
+            isolate->factory()->NewStringFromAsciiChecked(method_name)));
+  }
   if (frame->IsStrict()) return ReadOnlyRoots(isolate).undefined_value();
   isolate->CountUsage(v8::Isolate::kCallSiteAPIGetThisSloppyCall);
 #if V8_ENABLE_WEBASSEMBLY

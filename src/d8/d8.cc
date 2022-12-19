@@ -1319,6 +1319,10 @@ MaybeLocal<Context> Shell::HostCreateShadowRealmContext(
       InitializeModuleEmbedderData(context);
   std::shared_ptr<ModuleEmbedderData> initiator_data =
       GetModuleDataFromContext(initiator_context);
+
+  // ShadowRealms are synchronously accessible and are always in the same origin
+  // as the initiator context.
+  context->SetSecurityToken(initiator_context->GetSecurityToken());
   shadow_realm_data->origin = initiator_data->origin;
 
   return context;

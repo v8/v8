@@ -5310,6 +5310,8 @@ MaybeHandle<NativeContext> Isolate::RunHostCreateShadowRealmContextCallback() {
   Handle<Context> shadow_realm_context_handle =
       v8::Utils::OpenHandle(*shadow_realm_context);
   DCHECK(shadow_realm_context_handle->IsNativeContext());
+  shadow_realm_context_handle->set_scope_info(
+      ReadOnlyRoots(this).shadow_realm_scope_info());
   return Handle<NativeContext>::cast(shadow_realm_context_handle);
 }
 

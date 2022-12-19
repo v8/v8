@@ -229,6 +229,7 @@ class Symbol;
   V(ScopeInfo, global_this_binding_scope_info, GlobalThisBindingScopeInfo)     \
   V(ScopeInfo, empty_function_scope_info, EmptyFunctionScopeInfo)              \
   V(ScopeInfo, native_scope_info, NativeScopeInfo)                             \
+  V(ScopeInfo, shadow_realm_scope_info, ShadowRealmScopeInfo)                  \
   V(RegisteredSymbolTable, empty_symbol_table, EmptySymbolTable)               \
   /* Hash seed */                                                              \
   V(ByteArray, hash_seed, HashSeed)

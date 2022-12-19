@@ -66,6 +66,8 @@ namespace internal {
     "CallSite expects wasm object as first or function as second argument, "   \
     "got <%, %>")                                                              \
   T(CallSiteMethod, "CallSite method % expects CallSite as receiver")          \
+  T(CallSiteMethodUnsupportedInShadowRealm,                                    \
+    "CallSite method % is unsupported inside ShadowRealms")                    \
   T(CannotBeShared, "% cannot be shared")                                      \
   T(CannotConvertToPrimitive, "Cannot convert object to primitive value")      \
   T(CannotPreventExt, "Cannot prevent extensions")                             \

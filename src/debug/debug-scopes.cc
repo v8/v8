@@ -529,6 +529,10 @@ ScopeIterator::ScopeType ScopeIterator::Type() const {
       case EVAL_SCOPE:
         DCHECK_IMPLIES(NeedsContext(), context_->IsEvalContext());
         return ScopeTypeEval;
+      case SHADOW_REALM_SCOPE:
+        DCHECK_IMPLIES(NeedsContext(), context_->IsNativeContext());
+        // TODO(v8:11989): New ScopeType for ShadowRealms?
+        return ScopeTypeScript;
     }
     UNREACHABLE();
   }
