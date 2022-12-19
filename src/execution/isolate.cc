@@ -3554,7 +3554,7 @@ void Isolate::UpdateLogObjectRelocation() {
 
 void Isolate::Deinit() {
   TRACE_ISOLATE(deinit);
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection disallow_gc;
 
   tracing_cpu_profiler_.reset();
   if (v8_flags.stress_sampling_allocation_profiler > 0) {
@@ -3612,11 +3612,7 @@ void Isolate::Deinit() {
 
   // Stop concurrent tasks before destroying resources since they might still
   // use those.
-  {
-    IgnoreLocalGCRequests ignore_gc_requests(heap());
-    ParkedScope parked_scope(main_thread_local_heap());
-    cancelable_task_manager()->CancelAndWait();
-  }
+  cancelable_task_manager()->CancelAndWait();
 
   // Cancel all compiler tasks.
   delete baseline_batch_compiler_;

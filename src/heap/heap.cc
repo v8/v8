@@ -5880,20 +5880,6 @@ void Heap::StartTearDown() {
   main_thread_local_heap()->FreeLinearAllocationArea();
 
   FreeMainThreadSharedLinearAllocationAreas();
-
-  // {StartTearDown} is called fairly early during Isolate teardown, so it's
-  // a good time to run heap verification (if requested), before starting to
-  // tear down parts of the Isolate.
-  if (v8_flags.verify_heap) {
-    HeapVerifier::VerifyHeap(this);
-
-    // If this is a client Isolate of a shared Isolate, verify that there are no
-    // shared-to-local pointers before tearing down the client Isolate and
-    // creating dangling pointers.
-    if (Isolate* shared_isolate = isolate()->shared_isolate()) {
-      HeapVerifier::VerifySharedHeap(shared_isolate->heap(), isolate());
-    }
-  }
 }
 
 void Heap::TearDownWithSharedHeap() {
@@ -5902,6 +5888,10 @@ void Heap::TearDownWithSharedHeap() {
   // Assert that there are no background threads left and no executable memory
   // chunks are unprotected.
   safepoint()->AssertMainThreadIsOnlyThread();
+
+  // Now that all threads are stopped, verify the heap before tearing down the
+  // heap/isolate.
+  HeapVerifier::VerifyHeapIfEnabled(this);
 
   // Might use the external pointer which might be in the shared heap.
   external_string_table_.TearDown();
