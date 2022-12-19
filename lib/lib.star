@@ -395,7 +395,7 @@ def v8_basic_builder(defaults, **kwargs):
 
     experiments = kwargs.get("experiments", {})
     rdb_experiment = experiments.get("v8.resultdb", 0)
-    if rdb_experiment:
+    if rdb_experiment or kwargs["bucket"].startswith("ci"):
         resultdb_bq_table_prefix = defaults.get("resultdb_bq_table_prefix")
         kwargs["resultdb_settings"] = resultdb.settings(
             enable = True,
