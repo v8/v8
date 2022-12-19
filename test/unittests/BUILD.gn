@@ -405,6 +405,7 @@ v8_source_set("unittests_sources") {
     "heap/bitmap-test-utils.h",
     "heap/bitmap-unittest.cc",
     "heap/code-object-registry-unittest.cc",
+    "heap/cppgc-js/embedder-roots-handler-unittest.cc",
     "heap/cppgc-js/traced-reference-unittest.cc",
     "heap/cppgc-js/unified-heap-snapshot-unittest.cc",
     "heap/cppgc-js/unified-heap-unittest.cc",

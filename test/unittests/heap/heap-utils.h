@@ -162,6 +162,8 @@ bool IsNewObjectInCorrectGeneration(v8::Isolate* isolate,
   return IsNewObjectInCorrectGeneration(*v8::Utils::OpenHandle(*tmp));
 }
 
+void FinalizeGCIfRunning(Isolate* isolate);
+
 }  // namespace internal
 }  // namespace v8
 

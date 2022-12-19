@@ -5818,6 +5818,7 @@ EmbedderRootsHandler* Heap::GetEmbedderRootsHandler() const {
 }
 
 void Heap::AttachCppHeap(v8::CppHeap* cpp_heap) {
+  CHECK(!incremental_marking()->IsMarking());
   CppHeap::From(cpp_heap)->AttachIsolate(isolate());
   cpp_heap_ = cpp_heap;
   local_embedder_heap_tracer()->SetCppHeap(CppHeap::From(cpp_heap));

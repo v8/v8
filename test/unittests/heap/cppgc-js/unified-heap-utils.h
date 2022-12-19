@@ -18,7 +18,7 @@ namespace internal {
 
 class CppHeap;
 
-class UnifiedHeapTest : public TestWithHeapInternals {
+class UnifiedHeapTest : public TestWithHeapInternalsAndContext {
  public:
   UnifiedHeapTest();
   explicit UnifiedHeapTest(

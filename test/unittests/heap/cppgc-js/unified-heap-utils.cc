@@ -11,6 +11,7 @@
 #include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/heap/heap.h"
 #include "src/objects/objects-inl.h"
+#include "test/unittests/heap/heap-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -24,6 +25,9 @@ UnifiedHeapTest::UnifiedHeapTest(
           V8::GetCurrentPlatform(),
           CppHeapCreateParams{std::move(custom_spaces),
                               WrapperHelper::DefaultWrapperDescriptor()})) {
+  // --stress-incremental-marking may have started an incremental GC at this
+  // point already.
+  FinalizeGCIfRunning(isolate());
   isolate()->heap()->AttachCppHeap(cpp_heap_.get());
 }
 
