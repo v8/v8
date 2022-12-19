@@ -1078,6 +1078,19 @@ TEST_F(WasmModuleVerifyTest, SuperTypeDeclarationWith0Supertypes) {
   EXPECT_VERIFIES(zero_supertypes);
 }
 
+TEST_F(WasmModuleVerifyTest, NoSupertypeSupertype) {
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(gc);
+  static const byte no_supertype[] = {
+      SECTION(Type, ENTRY_COUNT(1),          // --
+              kWasmSubtypeCode, 1,           // supertype count
+              0xff, 0xff, 0xff, 0xff, 0x0f,  // supertype = "kNoSuperType"
+              kWasmArrayTypeCode, kI32Code, 0)};
+
+  EXPECT_FAILURE_WITH_MSG(
+      no_supertype, "is greater than the maximum number of type definitions");
+}
+
 TEST_F(WasmModuleVerifyTest, ZeroExceptions) {
   static const byte data[] = {SECTION(Tag, ENTRY_COUNT(0))};
   ModuleResult result = DecodeModule(base::ArrayVector(data));

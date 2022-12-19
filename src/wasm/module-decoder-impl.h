@@ -606,10 +606,16 @@ class ModuleDecoderTemplate : public Decoder {
       constexpr uint32_t kMaximumSupertypes = 1;
       uint32_t supertype_count =
           consume_count("supertype count", kMaximumSupertypes);
-      uint32_t supertype = supertype_count == 1
-                               ? consume_u32v("supertype", tracer_)
-                               : kNoSuperType;
+      uint32_t supertype = kNoSuperType;
       if (supertype_count == 1) {
+        supertype = consume_u32v("supertype", tracer_);
+        if (supertype >= kV8MaxWasmTypes) {
+          errorf(
+              "supertype %u is greater than the maximum number of type "
+              "definitions %zu supported by V8",
+              supertype, kV8MaxWasmTypes);
+          return {};
+        }
         tracer_.Description(supertype);
         tracer_.NextLine();
       }
