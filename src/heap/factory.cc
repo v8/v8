@@ -1039,8 +1039,8 @@ template Handle<ExternalTwoByteString>
 StringTransitionStrategy Factory::ComputeSharingStrategyForString(
     Handle<String> string, MaybeHandle<Map>* shared_map) {
   DCHECK(v8_flags.shared_string_table);
-  // Do not share young strings in-place: there is no shared young space.
-  if (Heap::InYoungGeneration(*string)) {
+  // TODO(pthier): Avoid copying LO-space strings. Update page flags instead.
+  if (!string->InSharedHeap()) {
     return StringTransitionStrategy::kCopy;
   }
   DCHECK_NOT_NULL(shared_map);
