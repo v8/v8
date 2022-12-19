@@ -70,7 +70,9 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
     ],
     "nooptimization": ["--always-turbofan"],
     "slow_path": ["--no-force-slow-path"],
-    "stress_concurrent_allocation": ["--single-threaded-gc", "--predictable"],
+    "stress_concurrent_allocation": [
+        "--single-threaded", "--single-threaded-gc", "--predictable"
+    ],
     "stress_concurrent_inlining": [
         "--single-threaded", "--predictable", "--lazy-feedback-allocation",
         "--assert-types", "--no-concurrent-recompilation"
@@ -127,7 +129,8 @@ INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE = {
 # implications defined in flag-definitions.h.
 INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG = {
     "--concurrent-recompilation": [
-        "--predictable", "--assert-types", "--turboshaft-assert-types"
+        "--predictable", "--assert-types", "--turboshaft-assert-types",
+        "--single-threaded"
     ],
     "--parallel-compile-tasks-for-eager-toplevel": ["--predictable"],
     "--parallel-compile-tasks-for-lazy": ["--predictable"],
