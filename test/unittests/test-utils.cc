@@ -10,7 +10,6 @@
 #include "src/base/platform/time.h"
 #include "src/execution/isolate.h"
 #include "src/flags/flags.h"
-#include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
 
@@ -106,13 +105,6 @@ ManualGCScope::ManualGCScope(i::Isolate* isolate) {
   // Parallel marking has a dependency on concurrent marking.
   i::v8_flags.parallel_marking = false;
   i::v8_flags.detect_ineffective_gcs_near_heap_limit = false;
-  // CppHeap concurrent marking has a dependency on concurrent marking.
-  i::v8_flags.cppheap_concurrent_marking = false;
-
-  if (isolate && isolate->heap()->cpp_heap()) {
-    CppHeap::From(isolate->heap()->cpp_heap())
-        ->ReduceGCCapabilitiesFromFlagsForTesting();
-  }
 }
 
 }  // namespace internal

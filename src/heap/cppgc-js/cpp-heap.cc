@@ -536,7 +536,7 @@ void CppHeap::AttachIsolate(Isolate* isolate) {
   }
   SetMetricRecorder(std::make_unique<MetricRecorderAdapter>(*this));
   oom_handler().SetCustomHandler(&FatalOutOfMemoryHandlerImpl);
-  ReduceGCCapabilitiesFromFlags();
+  ReduceGCCapabilititesFromFlags();
   sweeping_on_mutator_thread_observer_ =
       std::make_unique<SweepingOnMutatorThreadForGlobalHandlesObserver>(
           *this, *isolate_->traced_handles());
@@ -607,7 +607,7 @@ CppHeap::SweepingType CppHeap::SelectSweepingType() const {
   return sweeping_support();
 }
 
-void CppHeap::ReduceGCCapabilitiesFromFlags() {
+void CppHeap::ReduceGCCapabilititesFromFlags() {
   CHECK_IMPLIES(v8_flags.cppheap_concurrent_marking,
                 v8_flags.cppheap_incremental_marking);
   if (v8_flags.cppheap_concurrent_marking) {
@@ -1079,10 +1079,6 @@ void CppHeap::ResetCrossHeapRememberedSet() {
   }
   DCHECK(isolate_);
   cross_heap_remembered_set_.Reset(*isolate_);
-}
-
-void CppHeap::ReduceGCCapabilitiesFromFlagsForTesting() {
-  ReduceGCCapabilitiesFromFlags();
 }
 
 }  // namespace internal
