@@ -1248,7 +1248,12 @@ void MaglevCodeGenerator::EmitDeopts() {
     local_isolate_->heap()->Safepoint();
     translation_builder.BuildEagerDeopt(deopt_info);
 
-    if (masm_.compilation_info()->collect_source_positions()) {
+    if (masm_.compilation_info()->collect_source_positions() ||
+        IsDeoptimizationWithoutCodeInvalidation(deopt_info->reason())) {
+      // Note: Maglev uses the deopt_reason to tell the deoptimizer not to
+      // discard optimized code on deopt during ML-TF OSR. This is why we
+      // unconditionally emit the deopt_reason when
+      // IsDeoptimizationWithoutCodeInvalidation is true.
       __ RecordDeoptReason(deopt_info->reason(), 0,
                            GetSourcePosition(deopt_info->top_frame()),
                            deopt_index);
