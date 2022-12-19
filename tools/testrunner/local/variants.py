@@ -70,7 +70,9 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
     ],
     "nooptimization": ["--always-turbofan"],
     "slow_path": ["--no-force-slow-path"],
-    "stress_concurrent_allocation": ["--single-threaded-gc", "--predictable"],
+    "stress_concurrent_allocation": [
+        "--single-threaded", "--single-threaded-gc", "--predictable"
+    ],
     "stress_concurrent_inlining": [
         "--single-threaded", "--predictable", "--lazy-feedback-allocation",
         "--assert-types", "--no-concurrent-recompilation"

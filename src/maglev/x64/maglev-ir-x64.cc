@@ -3048,9 +3048,10 @@ void AttemptOnStackReplacement(MaglevAssembler* masm,
   // Two cases may cause us to attempt OSR, in the following order:
   //
   // 1) Presence of cached OSR Turbofan code.
-  // 2) The OSR urgency exceeds the current loop depth - in that case, trigger
-  //    a Turbofan OSR compilation if in concurrent mode.
-  //    Otherwise trigger an eager deopt and delegate OSR to Ignition.
+  // 2) The OSR urgency exceeds the current loop depth - in that case, call
+  //    into runtime to trigger a Turbofan OSR compilation. A non-zero return
+  //    value means we should deopt into Ignition which will handle all further
+  //    necessary steps (rewriting the stack frame, jumping to OSR'd code).
   //
   // See also: InterpreterAssembler::OnStackReplacement.
 
