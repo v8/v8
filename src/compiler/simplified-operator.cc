@@ -554,7 +554,9 @@ BigIntOperationHint BigIntOperationHintOf(const Operator* op) {
          op->opcode() == IrOpcode::kSpeculativeBigIntBitwiseXor ||
          op->opcode() == IrOpcode::kSpeculativeBigIntShiftLeft ||
          op->opcode() == IrOpcode::kSpeculativeBigIntShiftRight ||
-         op->opcode() == IrOpcode::kSpeculativeBigIntEqual);
+         op->opcode() == IrOpcode::kSpeculativeBigIntEqual ||
+         op->opcode() == IrOpcode::kSpeculativeBigIntLessThan ||
+         op->opcode() == IrOpcode::kSpeculativeBigIntLessThanOrEqual);
   return OpParameter<BigIntOperationHint>(op);
 }
 
@@ -761,6 +763,8 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(Integral32OrMinusZeroToBigInt, Operator::kNoProperties, 1, 0) \
   V(NumberSilenceNaN, Operator::kNoProperties, 1, 0)              \
   V(BigIntEqual, Operator::kNoProperties, 2, 0)                   \
+  V(BigIntLessThan, Operator::kNoProperties, 2, 0)                \
+  V(BigIntLessThanOrEqual, Operator::kNoProperties, 2, 0)         \
   V(BigIntNegate, Operator::kNoProperties, 1, 0)                  \
   V(StringConcat, Operator::kNoProperties, 3, 0)                  \
   V(StringToNumber, Operator::kNoProperties, 1, 0)                \
@@ -1680,6 +1684,7 @@ const Operator* SimplifiedOperatorBuilder::CheckFloat64Hole(
       CheckFloat64HoleParameters(mode, feedback));
 }
 
+// TODO(panq): Cache speculative bigint operators.
 #define SPECULATIVE_BIGINT_BINOP(Name)                                         \
   const Operator* SimplifiedOperatorBuilder::Name(BigIntOperationHint hint) {  \
     return zone()->New<Operator1<BigIntOperationHint>>(                        \
@@ -1687,6 +1692,9 @@ const Operator* SimplifiedOperatorBuilder::CheckFloat64Hole(
         1, 1, 1, 1, 0, hint);                                                  \
   }
 SIMPLIFIED_SPECULATIVE_BIGINT_BINOP_LIST(SPECULATIVE_BIGINT_BINOP)
+SPECULATIVE_BIGINT_BINOP(SpeculativeBigIntEqual)
+SPECULATIVE_BIGINT_BINOP(SpeculativeBigIntLessThan)
+SPECULATIVE_BIGINT_BINOP(SpeculativeBigIntLessThanOrEqual)
 #undef SPECULATIVE_BIGINT_BINOP
 
 const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntNegate(
@@ -2008,15 +2016,6 @@ const Operator* SimplifiedOperatorBuilder::SpeculativeNumberEqual(
       return &cache_.kSpeculativeNumberEqualNumberOrOddballOperator;
   }
   UNREACHABLE();
-}
-
-const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntEqual(
-    BigIntOperationHint hint) {
-  // TODO(panq): Cache speculative bigint operators.
-  return zone()->New<Operator1<BigIntOperationHint>>(
-      IrOpcode::kSpeculativeBigIntEqual,
-      Operator::kFoldable | Operator::kNoThrow, "SpeculativeBigIntEqual", 2, 1,
-      1, 1, 1, 0, hint);
 }
 
 #define ACCESS_OP_LIST(V)                                                  \

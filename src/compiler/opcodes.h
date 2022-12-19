@@ -331,7 +331,11 @@
   V(StringLessThan)                      \
   V(StringLessThanOrEqual)               \
   V(BigIntEqual)                         \
-  V(SpeculativeBigIntEqual)
+  V(BigIntLessThan)                      \
+  V(BigIntLessThanOrEqual)               \
+  V(SpeculativeBigIntEqual)              \
+  V(SpeculativeBigIntLessThan)           \
+  V(SpeculativeBigIntLessThanOrEqual)
 
 #define SIMPLIFIED_NUMBER_BINOP_LIST(V) \
   V(NumberAdd)                          \

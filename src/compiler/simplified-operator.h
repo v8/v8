@@ -818,6 +818,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* BigIntNegate();
 
   const Operator* BigIntEqual();
+  const Operator* BigIntLessThan();
+  const Operator* BigIntLessThanOrEqual();
 
   const Operator* SpeculativeSafeIntegerAdd(NumberOperationHint hint);
   const Operator* SpeculativeSafeIntegerSubtract(NumberOperationHint hint);
@@ -856,6 +858,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
                                            const FeedbackSource& feedback);
 
   const Operator* SpeculativeBigIntEqual(BigIntOperationHint hint);
+  const Operator* SpeculativeBigIntLessThan(BigIntOperationHint hint);
+  const Operator* SpeculativeBigIntLessThanOrEqual(BigIntOperationHint hint);
 
   const Operator* ReferenceEqual();
   const Operator* SameValue();

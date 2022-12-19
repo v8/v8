@@ -4256,6 +4256,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
  private:
   friend class CodeStubArguments;
 
+  void BigInt64Comparison(Operation op, TNode<Object>& left,
+                          TNode<Object>& right, Label* return_true,
+                          Label* return_false);
+
   void HandleBreakOnNode();
 
   TNode<HeapObject> AllocateRawDoubleAligned(TNode<IntPtrT> size_in_bytes,

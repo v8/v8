@@ -8,6 +8,8 @@ namespace bigint {
 
 const kPositiveSign: uint32 = 0;
 const kNegativeSign: uint32 = 1;
+const kGreaterThan: intptr = 1;
+const kLessThan: intptr = -1;
 
 const kMustRoundDownBitShift: uint32 = 30;
 
@@ -796,6 +798,61 @@ builtin BigIntEqual(implicit context: Context)(x: BigInt, y: BigInt): Boolean {
   }
 
   return True;
+}
+
+// Returns r such that r < 0 if |x| < |y|; r > 0 if |x| > |y|;
+// r == 0 if |x| == |y|.
+macro BigIntCompareAbsolute(implicit context: Context)(
+    x: BigInt, y: BigInt): intptr {
+  const xlength = ReadBigIntLength(x);
+  const ylength = ReadBigIntLength(y);
+  const diff = xlength - ylength;
+  if (diff != 0) {
+    return diff;
+  }
+
+  // case: {xlength} == {ylength}
+  for (let i: intptr = xlength - 1; i >= 0; --i) {
+    const xdigit = LoadBigIntDigit(x, i);
+    const ydigit = LoadBigIntDigit(y, i);
+    if (xdigit != ydigit) {
+      return (xdigit > ydigit) ? kGreaterThan : kLessThan;
+    }
+  }
+  return 0;
+}
+
+// Returns r such that r < 0 if x < y; r > 0 if x > y; r == 0 if x == y.
+macro BigIntCompare(implicit context: Context)(x: BigInt, y: BigInt): intptr {
+  const xsign = ReadBigIntSign(x);
+  const ysign = ReadBigIntSign(y);
+  if (xsign != ysign) {
+    return xsign == kPositiveSign ? kGreaterThan : kLessThan;
+  }
+
+  // case: {xsign} == {ysign}
+  const diff = BigIntCompareAbsolute(x, y);
+  return xsign == kPositiveSign ? diff : 0 - diff;
+}
+
+builtin BigIntLessThan(implicit context: Context)(
+    x: BigInt, y: BigInt): Boolean {
+  return BigIntCompare(x, y) < 0 ? True : False;
+}
+
+builtin BigIntGreaterThan(implicit context: Context)(
+    x: BigInt, y: BigInt): Boolean {
+  return BigIntCompare(x, y) > 0 ? True : False;
+}
+
+builtin BigIntLessThanOrEqual(implicit context: Context)(
+    x: BigInt, y: BigInt): Boolean {
+  return BigIntCompare(x, y) <= 0 ? True : False;
+}
+
+builtin BigIntGreaterThanOrEqual(implicit context: Context)(
+    x: BigInt, y: BigInt): Boolean {
+  return BigIntCompare(x, y) >= 0 ? True : False;
 }
 
 builtin BigIntUnaryMinus(implicit context: Context)(bigint: BigInt): BigInt {

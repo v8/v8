@@ -3472,7 +3472,9 @@ class RepresentationSelector {
           }
         }
       }
-      case IrOpcode::kSpeculativeBigIntEqual: {
+      case IrOpcode::kSpeculativeBigIntEqual:
+      case IrOpcode::kSpeculativeBigIntLessThan:
+      case IrOpcode::kSpeculativeBigIntLessThanOrEqual: {
         // Loose equality can throw a TypeError when failing to cast an object
         // operand to primitive.
         if (truncation.IsUnused() && BothInputsAre(node, Type::BigInt())) {

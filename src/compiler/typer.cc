@@ -418,7 +418,7 @@ class Typer::Visitor : public Reducer {
   static Type NumberEqualTyper(Type, Type, Typer*);
   static Type NumberLessThanTyper(Type, Type, Typer*);
   static Type NumberLessThanOrEqualTyper(Type, Type, Typer*);
-  static Type BigIntEqualTyper(Type, Type, Typer*);
+  static Type BigIntCompareTyper(Type, Type, Typer*);
   static Type ReferenceEqualTyper(Type, Type, Typer*);
   static Type SameValueTyper(Type, Type, Typer*);
   static Type SameValueNumbersOnlyTyper(Type, Type, Typer*);
@@ -2141,7 +2141,7 @@ Type Typer::Visitor::NumberLessThanOrEqualTyper(Type lhs, Type rhs, Typer* t) {
 }
 
 // static
-Type Typer::Visitor::BigIntEqualTyper(Type lhs, Type rhs, Typer* t) {
+Type Typer::Visitor::BigIntCompareTyper(Type lhs, Type rhs, Typer* t) {
   if (lhs.IsNone() || rhs.IsNone()) {
     return Type::None();
   }
@@ -2172,13 +2172,17 @@ Type Typer::Visitor::TypeSpeculativeNumberLessThanOrEqual(Node* node) {
   return TypeBinaryOp(node, NumberLessThanOrEqualTyper);
 }
 
-Type Typer::Visitor::TypeBigIntEqual(Node* node) {
-  return TypeBinaryOp(node, BigIntEqualTyper);
-}
-
-Type Typer::Visitor::TypeSpeculativeBigIntEqual(Node* node) {
-  return TypeBinaryOp(node, BigIntEqualTyper);
-}
+#define BIGINT_COMPARISON_BINOP(Name)              \
+  Type Typer::Visitor::Type##Name(Node* node) {    \
+    return TypeBinaryOp(node, BigIntCompareTyper); \
+  }
+BIGINT_COMPARISON_BINOP(BigIntEqual)
+BIGINT_COMPARISON_BINOP(BigIntLessThan)
+BIGINT_COMPARISON_BINOP(BigIntLessThanOrEqual)
+BIGINT_COMPARISON_BINOP(SpeculativeBigIntEqual)
+BIGINT_COMPARISON_BINOP(SpeculativeBigIntLessThan)
+BIGINT_COMPARISON_BINOP(SpeculativeBigIntLessThanOrEqual)
+#undef BIGINT_COMPARISON_BINOP
 
 Type Typer::Visitor::TypeStringConcat(Node* node) { return Type::String(); }
 

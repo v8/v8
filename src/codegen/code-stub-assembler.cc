@@ -36,6 +36,25 @@
 namespace v8 {
 namespace internal {
 
+namespace {
+
+Builtin BigIntComparisonBuiltinOf(Operation const& op) {
+  switch (op) {
+    case Operation::kLessThan:
+      return Builtin::kBigIntLessThan;
+    case Operation::kGreaterThan:
+      return Builtin::kBigIntGreaterThan;
+    case Operation::kLessThanOrEqual:
+      return Builtin::kBigIntLessThanOrEqual;
+    case Operation::kGreaterThanOrEqual:
+      return Builtin::kBigIntGreaterThanOrEqual;
+    default:
+      UNREACHABLE();
+  }
+}
+
+}  // namespace
+
 CodeStubAssembler::CodeStubAssembler(compiler::CodeAssemblerState* state)
     : compiler::CodeAssembler(state),
       TorqueGeneratedExportedMacrosAssembler(state) {
@@ -12531,6 +12550,41 @@ TNode<Context> CodeStubAssembler::GotoIfHasContextExtensionUpToDepth(
   return cur_context.value();
 }
 
+void CodeStubAssembler::BigInt64Comparison(Operation op, TNode<Object>& left,
+                                           TNode<Object>& right,
+                                           Label* return_true,
+                                           Label* return_false) {
+  TVARIABLE(UintPtrT, left_raw);
+  TVARIABLE(UintPtrT, right_raw);
+  BigIntToRawBytes(CAST(left), &left_raw, &left_raw);
+  BigIntToRawBytes(CAST(right), &right_raw, &right_raw);
+  TNode<WordT> left_raw_value = left_raw.value();
+  TNode<WordT> right_raw_value = right_raw.value();
+
+  TNode<BoolT> condition;
+  switch (op) {
+    case Operation::kEqual:
+    case Operation::kStrictEqual:
+      condition = WordEqual(left_raw_value, right_raw_value);
+      break;
+    case Operation::kLessThan:
+      condition = IntPtrLessThan(left_raw_value, right_raw_value);
+      break;
+    case Operation::kLessThanOrEqual:
+      condition = IntPtrLessThanOrEqual(left_raw_value, right_raw_value);
+      break;
+    case Operation::kGreaterThan:
+      condition = IntPtrGreaterThan(left_raw_value, right_raw_value);
+      break;
+    case Operation::kGreaterThanOrEqual:
+      condition = IntPtrGreaterThanOrEqual(left_raw_value, right_raw_value);
+      break;
+    default:
+      UNREACHABLE();
+  }
+  Branch(condition, return_true, return_false);
+}
+
 TNode<Oddball> CodeStubAssembler::RelationalComparison(
     Operation op, TNode<Object> left, TNode<Object> right,
     const LazyNode<Context>& context, TVariable<Smi>* var_type_feedback) {
@@ -12753,11 +12807,21 @@ TNode<Oddball> CodeStubAssembler::RelationalComparison(
 
           BIND(&if_right_bigint);
           {
+            if (Is64()) {
+              Label if_both_bigint(this);
+              GotoIfLargeBigInt(CAST(left), &if_both_bigint);
+              GotoIfLargeBigInt(CAST(right), &if_both_bigint);
+
+              CombineFeedback(var_type_feedback,
+                              CompareOperationFeedback::kBigInt64);
+              BigInt64Comparison(op, left, right, &return_true, &return_false);
+              BIND(&if_both_bigint);
+            }
+
             CombineFeedback(var_type_feedback,
                             CompareOperationFeedback::kBigInt);
-            var_result = CAST(CallRuntime(Runtime::kBigIntCompareToBigInt,
-                                          NoContextConstant(), SmiConstant(op),
-                                          left, right));
+            var_result = CAST(CallBuiltin(BigIntComparisonBuiltinOf(op),
+                                          NoContextConstant(), left, right));
             Goto(&end);
           }
 
@@ -13288,22 +13352,13 @@ TNode<Oddball> CodeStubAssembler::Equal(TNode<Object> left, TNode<Object> right,
         {
           if (Is64()) {
             Label if_both_bigint(this);
-
             GotoIfLargeBigInt(CAST(left), &if_both_bigint);
             GotoIfLargeBigInt(CAST(right), &if_both_bigint);
 
             OverwriteFeedback(var_type_feedback,
                               CompareOperationFeedback::kBigInt64);
-
-            TVARIABLE(UintPtrT, left_raw);
-            TVARIABLE(UintPtrT, right_raw);
-            BigIntToRawBytes(CAST(left), &left_raw, &left_raw);
-            BigIntToRawBytes(CAST(right), &right_raw, &right_raw);
-
-            Branch(WordEqual(UncheckedCast<WordT>(left_raw.value()),
-                             UncheckedCast<WordT>(right_raw.value())),
-                   &if_equal, &if_notequal);
-
+            BigInt64Comparison(Operation::kEqual, left, right, &if_equal,
+                               &if_notequal);
             BIND(&if_both_bigint);
           }
 
@@ -13731,22 +13786,13 @@ TNode<Oddball> CodeStubAssembler::StrictEqual(
               {
                 if (Is64()) {
                   Label if_both_bigint(this);
-
                   GotoIfLargeBigInt(CAST(lhs), &if_both_bigint);
                   GotoIfLargeBigInt(CAST(rhs), &if_both_bigint);
 
                   OverwriteFeedback(var_type_feedback,
                                     CompareOperationFeedback::kBigInt64);
-
-                  TVARIABLE(UintPtrT, lhs_raw);
-                  TVARIABLE(UintPtrT, rhs_raw);
-                  BigIntToRawBytes(CAST(lhs), &lhs_raw, &lhs_raw);
-                  BigIntToRawBytes(CAST(rhs), &rhs_raw, &rhs_raw);
-
-                  Branch(WordEqual(UncheckedCast<WordT>(lhs_raw.value()),
-                                   UncheckedCast<WordT>(rhs_raw.value())),
-                         &if_equal, &if_notequal);
-
+                  BigInt64Comparison(Operation::kStrictEqual, lhs, rhs,
+                                     &if_equal, &if_notequal);
                   BIND(&if_both_bigint);
                 }
 

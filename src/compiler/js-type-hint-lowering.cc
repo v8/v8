@@ -231,6 +231,16 @@ class JSSpeculativeBinopBuilder final {
     switch (op_->opcode()) {
       case IrOpcode::kJSEqual:
         return simplified()->SpeculativeBigIntEqual(hint);
+      case IrOpcode::kJSLessThan:
+        return simplified()->SpeculativeBigIntLessThan(hint);
+      case IrOpcode::kJSGreaterThan:
+        std::swap(left_, right_);
+        return simplified()->SpeculativeBigIntLessThan(hint);
+      case IrOpcode::kJSLessThanOrEqual:
+        return simplified()->SpeculativeBigIntLessThanOrEqual(hint);
+      case IrOpcode::kJSGreaterThanOrEqual:
+        std::swap(left_, right_);
+        return simplified()->SpeculativeBigIntLessThanOrEqual(hint);
       default:
         break;
     }
@@ -433,10 +443,8 @@ JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceBinaryOperation(
       if (Node* node = b.TryBuildNumberCompare()) {
         return LoweringResult::SideEffectFree(node, node, control);
       }
-      if (op->opcode() == IrOpcode::kJSEqual) {
-        if (Node* node = b.TryBuildBigIntCompare()) {
-          return LoweringResult::SideEffectFree(node, node, control);
-        }
+      if (Node* node = b.TryBuildBigIntCompare()) {
+        return LoweringResult::SideEffectFree(node, node, control);
       }
       break;
     }
