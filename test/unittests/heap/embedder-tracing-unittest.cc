@@ -484,12 +484,6 @@ TEST_F(EmbedderTracingTest, TracedReferenceHandlesMarking) {
       // Disable scanning, assuming the slots are overwritten.
       DisableConservativeStackScanningScopeForTesting no_stack_scanning(
           i_isolate()->heap());
-      EmbedderStackStateScope scope =
-          EmbedderStackStateScope::ExplicitScopeForTesting(
-              reinterpret_cast<i::Isolate*>(v8_isolate())
-                  ->heap()
-                  ->local_embedder_heap_tracer(),
-              EmbedderHeapTracer::EmbedderStackState::kNoHeapPointers);
       FullGC();
     }
     const size_t final_count = traced_handles->used_node_count();
@@ -590,12 +584,6 @@ TEST_F(EmbedderTracingTest, BasicTracedReference) {
     // Disable scanning, assuming the slots are overwritten.
     DisableConservativeStackScanningScopeForTesting no_stack_scanning(
         i_isolate()->heap());
-    EmbedderStackStateScope scope =
-        EmbedderStackStateScope::ExplicitScopeForTesting(
-            reinterpret_cast<i::Isolate*>(v8_isolate())
-                ->heap()
-                ->local_embedder_heap_tracer(),
-            EmbedderHeapTracer::EmbedderStackState::kNoHeapPointers);
     FullGC();
   }
   EXPECT_EQ(initial_count, traced_handles->used_node_count());

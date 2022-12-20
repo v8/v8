@@ -2409,7 +2409,6 @@ class Heap {
   bool force_oom_ = false;
   bool force_gc_on_next_allocation_ = false;
   bool delay_sweeper_tasks_for_testing_ = false;
-  bool disable_conservative_stack_scanning_for_testing_ = false;
 
   UnorderedHeapObjectMap<HeapObject> retainer_;
   UnorderedHeapObjectMap<Root> retaining_root_;
@@ -2686,23 +2685,6 @@ class V8_EXPORT_PRIVATE V8_NODISCARD SaveStackContextScope {
   ::heap::base::Stack* stack_;
 };
 
-class V8_NODISCARD DisableConservativeStackScanningScopeForTesting {
- public:
-  explicit inline DisableConservativeStackScanningScopeForTesting(Heap* heap)
-      : heap_(heap),
-        old_value_(heap_->disable_conservative_stack_scanning_for_testing_) {
-    heap_->disable_conservative_stack_scanning_for_testing_ = true;
-  }
-
-  inline ~DisableConservativeStackScanningScopeForTesting() {
-    heap_->disable_conservative_stack_scanning_for_testing_ = old_value_;
-  }
-
- private:
-  Heap* heap_;
-  bool old_value_;
-};
-
 // Space iterator for iterating over all the paged spaces of the heap: Map
 // space, old space and code space. Returns each space in turn, and null when it
 // is done.
@@ -2856,6 +2838,17 @@ class V8_EXPORT_PRIVATE V8_NODISCARD EmbedderStackStateScope final {
 
   LocalEmbedderHeapTracer* const local_tracer_;
   const StackState old_stack_state_;
+};
+
+class V8_NODISCARD DisableConservativeStackScanningScopeForTesting {
+ public:
+  explicit inline DisableConservativeStackScanningScopeForTesting(Heap* heap)
+      : embedder_scope_(EmbedderStackStateScope::ExplicitScopeForTesting(
+            heap->local_embedder_heap_tracer(),
+            cppgc::EmbedderStackState::kNoHeapPointers)) {}
+
+ private:
+  EmbedderStackStateScope embedder_scope_;
 };
 
 class V8_NODISCARD CppClassNamesAsHeapObjectNameScope final {
