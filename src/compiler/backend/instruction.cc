@@ -224,6 +224,11 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperand& op) {
       } else if (op.IsFloatRegister()) {
         os << "[" << FloatRegister::from_code(allocated.register_code())
            << "|R";
+#if V8_TARGET_ARCH_X64
+      } else if (op.IsSimd256Register()) {
+        os << "[" << Simd256Register::from_code(allocated.register_code())
+           << "|R";
+#endif  // V8_TARGET_ARCH_X64
       } else {
         DCHECK(op.IsSimd128Register());
         os << "[" << Simd128Register::from_code(allocated.register_code())

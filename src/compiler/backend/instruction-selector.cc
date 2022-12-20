@@ -1473,7 +1473,13 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitLoad(node);
     }
     case IrOpcode::kLoadTransform: {
-      MarkAsRepresentation(MachineRepresentation::kSimd128, node);
+      LoadTransformParameters params = LoadTransformParametersOf(node->op());
+      if (params.transformation == LoadTransformation::kS256Load32Splat ||
+          params.transformation == LoadTransformation::kS256Load64Splat) {
+        MarkAsRepresentation(MachineRepresentation::kSimd256, node);
+      } else {
+        MarkAsRepresentation(MachineRepresentation::kSimd128, node);
+      }
       return VisitLoadTransform(node);
     }
     case IrOpcode::kLoadLane: {
@@ -2378,6 +2384,14 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI16x8DotI8x16I7x16S(node);
     case IrOpcode::kI32x4DotI8x16I7x16AddS:
       return MarkAsSimd128(node), VisitI32x4DotI8x16I7x16AddS(node);
+
+      // SIMD256
+#if V8_TARGET_ARCH_X64
+    case IrOpcode::kF32x8Add:
+      return MarkAsSimd256(node), VisitF32x8Add(node);
+    case IrOpcode::kF32x8Sub:
+      return MarkAsSimd256(node), VisitF32x8Sub(node);
+#endif  //  V8_TARGET_ARCH_X64
     default:
       FATAL("Unexpected operator #%d:%s @ node #%d", node->opcode(),
             node->op()->mnemonic(), node->id());
