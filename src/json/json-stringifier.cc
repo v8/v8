@@ -591,6 +591,11 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
                      JSRawJson::kRawJsonIndex),
                  isolate_)));
       return SUCCESS;
+#if V8_ENABLE_WEBASSEMBLY
+    case WASM_STRUCT_TYPE:
+    case WASM_ARRAY_TYPE:
+      return UNCHANGED;
+#endif
     default:
       if (InstanceTypeChecker::IsString(instance_type)) {
         if (deferred_string_key) SerializeDeferredKey(comma, key);
