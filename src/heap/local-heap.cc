@@ -239,7 +239,9 @@ void LocalHeap::ParkSlowPath() {
 
       if (current_state.IsCollectionRequested()) {
         if (!heap()->ignore_local_gc_requests()) {
+          ClearStackContext();
           heap_->CollectGarbageForBackground(this);
+          SaveStackContext();
           continue;
         }
 
@@ -294,7 +296,9 @@ void LocalHeap::UnparkSlowPath() {
           continue;
 
         if (!heap()->ignore_local_gc_requests()) {
+          ClearStackContext();
           heap_->CollectGarbageForBackground(this);
+          SaveStackContext();
         }
 
         return;
@@ -365,14 +369,19 @@ void LocalHeap::SleepInSafepoint() {
 
   TRACE_GC1(heap_->tracer(), scope_id, thread_kind);
 
-  // Parking the running thread here is an optimization. We do not need to
-  // wake this thread up to reach the next safepoint.
-  ThreadState old_state = state_.SetParked();
-  CHECK(old_state.IsRunning());
-  CHECK(old_state.IsSafepointRequested());
-  CHECK_IMPLIES(old_state.IsCollectionRequested(), is_main_thread());
+  {
+    base::Optional<SaveStackContextScope> stack_context_scope;
+    if (is_main_thread()) stack_context_scope.emplace(&heap_->stack());
 
-  heap_->safepoint()->WaitInSafepoint();
+    // Parking the running thread here is an optimization. We do not need to
+    // wake this thread up to reach the next safepoint.
+    ThreadState old_state = state_.SetParked();
+    CHECK(old_state.IsRunning());
+    CHECK(old_state.IsSafepointRequested());
+    CHECK_IMPLIES(old_state.IsCollectionRequested(), is_main_thread());
+
+    heap_->safepoint()->WaitInSafepoint();
+  }
 
   base::Optional<IgnoreLocalGCRequests> ignore_gc_requests;
   if (is_main_thread()) ignore_gc_requests.emplace(heap());
