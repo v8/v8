@@ -1349,7 +1349,7 @@ int TurboAssembler::LeaveFrame(StackFrame::Type type, int stack_adjustment) {
 // in the fp register (r31)
 // Then - we buy a new frame
 
-void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
+void MacroAssembler::EnterExitFrame(int stack_space,
                                     StackFrame::Type frame_type) {
   DCHECK(frame_type == StackFrame::EXIT ||
          frame_type == StackFrame::BUILTIN_EXIT);
@@ -1384,15 +1384,6 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
   Move(r8,
        ExternalReference::Create(IsolateAddressId::kContextAddress, isolate()));
   StoreU64(cp, MemOperand(r8));
-
-  // Optionally save all volatile double registers.
-  if (save_doubles) {
-    MultiPushDoubles(kCallerSavedDoubles);
-    // Note that d0 will be accessible at
-    //   fp - ExitFrameConstants::kFrameSize -
-    //   kNumCallerSavedDoubles * kDoubleSize,
-    // since the sp slot and code slot were pushed after the fp.
-  }
 
   AddS64(sp, sp, Operand(-stack_space * kSystemPointerSize));
 
@@ -1431,18 +1422,9 @@ int TurboAssembler::ActivationFrameAlignment() {
 #endif
 }
 
-void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
+void MacroAssembler::LeaveExitFrame(Register argument_count,
                                     bool argument_count_is_length) {
   ConstantPoolUnavailableScope constant_pool_unavailable(this);
-  // Optionally restore all double registers.
-  if (save_doubles) {
-    // Calculate the stack location of the saved doubles and restore them.
-    const int kNumRegs = kNumCallerSavedDoubles;
-    const int offset =
-        (ExitFrameConstants::kFixedFrameSizeFromFp + kNumRegs * kDoubleSize);
-    AddS64(r6, fp, Operand(-offset), r0);
-    MultiPopDoubles(kCallerSavedDoubles, r6);
-  }
 
   // Clear top frame.
   li(r6, Operand::Zero());
@@ -2168,8 +2150,8 @@ void MacroAssembler::OptimizeCodeOrTailCallOptimizedCodeSlot(
   TailCallOptimizedCodeSlot(this, optimized_code_entry, r9);
 }
 
-void MacroAssembler::CallRuntime(const Runtime::Function* f, int num_arguments,
-                                 SaveFPRegsMode save_doubles) {
+void MacroAssembler::CallRuntime(const Runtime::Function* f,
+                                 int num_arguments) {
   // All parameters are on the stack.  r3 has the return value after call.
 
   // If the expected number of arguments of the runtime function is
@@ -2184,10 +2166,9 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f, int num_arguments,
   mov(r3, Operand(num_arguments));
   Move(r4, ExternalReference::Create(f));
 #if V8_TARGET_ARCH_PPC64
-  Handle<Code> code =
-      CodeFactory::CEntry(isolate(), f->result_size, save_doubles);
+  Handle<Code> code = CodeFactory::CEntry(isolate(), f->result_size);
 #else
-  Handle<Code> code = CodeFactory::CEntry(isolate(), 1, save_doubles);
+  Handle<Code> code = CodeFactory::CEntry(isolate(), 1);
 #endif
   Call(code, RelocInfo::CODE_TARGET);
 }
@@ -2204,8 +2185,8 @@ void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid) {
 void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
                                              bool builtin_exit_frame) {
   Move(r4, builtin);
-  Handle<Code> code = CodeFactory::CEntry(isolate(), 1, SaveFPRegsMode::kIgnore,
-                                          ArgvMode::kStack, builtin_exit_frame);
+  Handle<Code> code =
+      CodeFactory::CEntry(isolate(), 1, ArgvMode::kStack, builtin_exit_frame);
   Jump(code, RelocInfo::CODE_TARGET);
 }
 
