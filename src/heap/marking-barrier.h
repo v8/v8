@@ -73,6 +73,8 @@ class MarkingBarrier {
   template <typename TSlot>
   inline void MarkRange(HeapObject value, TSlot start, TSlot end);
 
+  inline bool IsCompacting(HeapObject object) const;
+
   bool is_major() const {
     return marking_barrier_type_ == MarkingBarrierType::kMajor;
   }

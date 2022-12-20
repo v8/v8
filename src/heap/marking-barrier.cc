@@ -43,12 +43,8 @@ void MarkingBarrier::Write(HeapObject host, HeapObjectSlot slot,
   DCHECK(MemoryChunk::FromHeapObject(host)->IsMarking());
   MarkValue(host, value);
 
-  if (slot.address()) {
-    if (is_compacting_ ||
-        (shared_heap_worklist_.has_value() && host.InSharedWritableHeap())) {
-      DCHECK_IMPLIES(is_compacting_, is_major());
-      MarkCompactCollector::RecordSlot(host, slot, value);
-    }
+  if (slot.address() && IsCompacting(host)) {
+    MarkCompactCollector::RecordSlot(host, slot, value);
   }
 }
 

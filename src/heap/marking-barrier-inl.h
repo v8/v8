@@ -86,19 +86,29 @@ void MarkingBarrier::MarkValueLocal(HeapObject value) {
 template <typename TSlot>
 inline void MarkingBarrier::MarkRange(HeapObject host, TSlot start, TSlot end) {
   auto* isolate = heap_->isolate();
-  const bool is_compacting = is_compacting_;
+  const bool record_slots =
+      IsCompacting(host) &&
+      !MemoryChunk::FromHeapObject(host)->ShouldSkipEvacuationSlotRecording();
   for (TSlot slot = start; slot < end; ++slot) {
     typename TSlot::TObject object = slot.Relaxed_Load();
     HeapObject heap_object;
     // Mark both, weak and strong edges.
     if (object.GetHeapObject(isolate, &heap_object)) {
       MarkValue(host, heap_object);
-      if (is_compacting) {
-        DCHECK(is_major());
+      if (record_slots) {
         major_collector_->RecordSlot(host, HeapObjectSlot(slot), heap_object);
       }
     }
   }
+}
+
+bool MarkingBarrier::IsCompacting(HeapObject object) const {
+  if (is_compacting_) {
+    DCHECK(is_major());
+    return true;
+  }
+
+  return shared_heap_worklist_.has_value() && object.InSharedWritableHeap();
 }
 
 bool MarkingBarrier::WhiteToGreyAndPush(HeapObject obj) {
