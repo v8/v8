@@ -202,13 +202,13 @@ class CompilerTracer : public AllStatic {
 
   static void TraceFinishMaglevCompile(Isolate* isolate,
                                        Handle<JSFunction> function,
-                                       double ms_prepare, double ms_optimize,
-                                       double ms_codegen) {
+                                       double ms_prepare, double ms_execute,
+                                       double ms_finalize) {
     if (!v8_flags.trace_opt) return;
     CodeTracer::Scope scope(isolate->GetCodeTracer());
     PrintTracePrefix(scope, "completed compiling", function, CodeKind::MAGLEV);
     PrintF(scope.file(), " - took %0.3f, %0.3f, %0.3f ms", ms_prepare,
-           ms_optimize, ms_codegen);
+           ms_execute, ms_finalize);
     PrintTraceSuffix(scope);
   }
 
@@ -231,14 +231,17 @@ class CompilerTracer : public AllStatic {
     PrintTraceSuffix(scope);
   }
 
-  static void TraceAbortedJob(Isolate* isolate,
-                              OptimizedCompilationInfo* info) {
+  static void TraceAbortedJob(Isolate* isolate, OptimizedCompilationInfo* info,
+                              double ms_prepare, double ms_execute,
+                              double ms_finalize) {
     if (!v8_flags.trace_opt) return;
     CodeTracer::Scope scope(isolate->GetCodeTracer());
     PrintTracePrefix(scope, "aborted optimizing", info);
     if (info->is_osr()) PrintF(scope.file(), " OSR");
     PrintF(scope.file(), " because: %s",
            GetBailoutReason(info->bailout_reason()));
+    PrintF(scope.file(), " - took %0.3f, %0.3f, %0.3f ms", ms_prepare,
+           ms_execute, ms_finalize);
     PrintTraceSuffix(scope);
   }
 
@@ -1018,7 +1021,9 @@ bool CompileTurbofan_NotConcurrent(Isolate* isolate,
 
   if (!PrepareJobWithHandleScope(job, isolate, compilation_info,
                                  ConcurrencyMode::kSynchronous)) {
-    CompilerTracer::TraceAbortedJob(isolate, compilation_info);
+    CompilerTracer::TraceAbortedJob(isolate, compilation_info,
+                                    job->prepare_in_ms(), job->execute_in_ms(),
+                                    job->finalize_in_ms());
     return false;
   }
 
@@ -1028,13 +1033,17 @@ bool CompileTurbofan_NotConcurrent(Isolate* isolate,
     if (job->ExecuteJob(isolate->counters()->runtime_call_stats(),
                         isolate->main_thread_local_isolate())) {
       UnparkedScope unparked_scope(isolate->main_thread_local_isolate());
-      CompilerTracer::TraceAbortedJob(isolate, compilation_info);
+      CompilerTracer::TraceAbortedJob(
+          isolate, compilation_info, job->prepare_in_ms(), job->execute_in_ms(),
+          job->finalize_in_ms());
       return false;
     }
   }
 
   if (job->FinalizeJob(isolate) != CompilationJob::SUCCEEDED) {
-    CompilerTracer::TraceAbortedJob(isolate, compilation_info);
+    CompilerTracer::TraceAbortedJob(isolate, compilation_info,
+                                    job->prepare_in_ms(), job->execute_in_ms(),
+                                    job->finalize_in_ms());
     return false;
   }
 
@@ -3948,7 +3957,9 @@ void Compiler::FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
   }
 
   DCHECK_EQ(job->state(), CompilationJob::State::kFailed);
-  CompilerTracer::TraceAbortedJob(isolate, compilation_info);
+  CompilerTracer::TraceAbortedJob(isolate, compilation_info,
+                                  job->prepare_in_ms(), job->execute_in_ms(),
+                                  job->finalize_in_ms());
   if (V8_LIKELY(use_result)) {
     ResetTieringState(*function, osr_offset);
     if (!IsOSR(osr_offset)) {
@@ -3994,11 +4005,9 @@ void Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
 
     RecordMaglevFunctionCompilation(isolate, function);
     job->RecordCompilationStats(isolate);
-    double ms_prepare = job->time_taken_to_prepare().InMillisecondsF();
-    double ms_optimize = job->time_taken_to_execute().InMillisecondsF();
-    double ms_codegen = job->time_taken_to_finalize().InMillisecondsF();
-    CompilerTracer::TraceFinishMaglevCompile(isolate, function, ms_prepare,
-                                             ms_optimize, ms_codegen);
+    CompilerTracer::TraceFinishMaglevCompile(
+        isolate, function, job->prepare_in_ms(), job->execute_in_ms(),
+        job->finalize_in_ms());
   }
 #endif
 }

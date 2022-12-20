@@ -384,6 +384,16 @@ class OptimizedCompilationJob : public CompilationJob {
 
   const char* compiler_name() const { return compiler_name_; }
 
+  double prepare_in_ms() const {
+    return time_taken_to_prepare_.InMillisecondsF();
+  }
+  double execute_in_ms() const {
+    return time_taken_to_execute_.InMillisecondsF();
+  }
+  double finalize_in_ms() const {
+    return time_taken_to_finalize_.InMillisecondsF();
+  }
+
  protected:
   // Overridden by the actual implementation.
   virtual Status PrepareJobImpl(Isolate* isolate) = 0;
