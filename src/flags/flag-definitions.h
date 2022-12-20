@@ -1271,7 +1271,7 @@ DEFINE_BOOL(separate_gc_phases, false,
 DEFINE_BOOL(global_gc_scheduling, true,
             "enable GC scheduling based on global memory")
 DEFINE_BOOL(gc_global, false, "always perform global GCs")
-DEFINE_BOOL(shared_space, false,
+DEFINE_BOOL(shared_space, true,
             "Implement shared heap as shared space on a main isolate.")
 
 // TODO(12950): The next two flags only have an effect if
