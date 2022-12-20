@@ -25,25 +25,25 @@ FieldInit mut(ValueType type) { return FieldInit(type, true); }
 FieldInit immut(ValueType type) { return FieldInit(type, false); }
 
 void DefineStruct(WasmModule* module, std::initializer_list<FieldInit> fields,
-                  uint32_t supertype = kNoSuperType,
+                  uint32_t supertype = kNoSuperType, bool is_final = false,
                   bool in_singleton_rec_group = true) {
   StructType::Builder builder(&module->signature_zone,
                               static_cast<uint32_t>(fields.size()));
   for (FieldInit field : fields) {
     builder.AddField(field.first, field.second);
   }
-  module->add_struct_type(builder.Build(), supertype);
+  module->add_struct_type(builder.Build(), supertype, is_final);
   if (in_singleton_rec_group) {
     GetTypeCanonicalizer()->AddRecursiveGroup(module, 1);
   }
 }
 
 void DefineArray(WasmModule* module, FieldInit element_type,
-                 uint32_t supertype = kNoSuperType,
+                 uint32_t supertype = kNoSuperType, bool is_final = false,
                  bool in_singleton_rec_group = true) {
   module->add_array_type(module->signature_zone.New<ArrayType>(
                              element_type.first, element_type.second),
-                         supertype);
+                         supertype, is_final);
   if (in_singleton_rec_group) {
     GetTypeCanonicalizer()->AddRecursiveGroup(module, 1);
   }
@@ -52,10 +52,11 @@ void DefineArray(WasmModule* module, FieldInit element_type,
 void DefineSignature(WasmModule* module,
                      std::initializer_list<ValueType> params,
                      std::initializer_list<ValueType> returns,
-                     uint32_t supertype = kNoSuperType,
+                     uint32_t supertype = kNoSuperType, bool is_final = false,
                      bool in_singleton_rec_group = true) {
   module->add_signature(
-      FunctionSig::Build(&module->signature_zone, returns, params), supertype);
+      FunctionSig::Build(&module->signature_zone, returns, params), supertype,
+      is_final);
   if (in_singleton_rec_group) {
     GetTypeCanonicalizer()->AddRecursiveGroup(module, 1);
   }
@@ -96,34 +97,43 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     // Rec. group.
     /* 18 */ DefineStruct(module, {mut(kWasmI32), immut(refNull(17))}, 17,
                           false);
-    /* 19 */ DefineArray(module, {mut(refNull(21))}, kNoSuperType, false);
+    /* 19 */ DefineArray(module, {mut(refNull(21))}, kNoSuperType, false,
+                         false);
     /* 20 */ DefineSignature(module, {kWasmI32}, {kWasmI32}, kNoSuperType,
-                             false);
-    /* 21 */ DefineSignature(module, {kWasmI32}, {kWasmI32}, 20, false);
+                             false, false);
+    /* 21 */ DefineSignature(module, {kWasmI32}, {kWasmI32}, 20, false, false);
     GetTypeCanonicalizer()->AddRecursiveGroup(module, 4);
 
     // Identical rec. group.
     /* 22 */ DefineStruct(module, {mut(kWasmI32), immut(refNull(17))}, 17,
-                          false);
-    /* 23 */ DefineArray(module, {mut(refNull(25))}, kNoSuperType, false);
+                          false, false);
+    /* 23 */ DefineArray(module, {mut(refNull(25))}, kNoSuperType, false,
+                         false);
     /* 24 */ DefineSignature(module, {kWasmI32}, {kWasmI32}, kNoSuperType,
-                             false);
-    /* 25 */ DefineSignature(module, {kWasmI32}, {kWasmI32}, 24, false);
+                             false, false);
+    /* 25 */ DefineSignature(module, {kWasmI32}, {kWasmI32}, 24, false, false);
     GetTypeCanonicalizer()->AddRecursiveGroup(module, 4);
 
     // Nonidentical rec. group: the last function extends a type outside the
     // recursive group.
     /* 26 */ DefineStruct(module, {mut(kWasmI32), immut(refNull(17))}, 17,
-                          false);
-    /* 27 */ DefineArray(module, {mut(refNull(29))}, kNoSuperType, false);
+                          false, false);
+    /* 27 */ DefineArray(module, {mut(refNull(29))}, kNoSuperType, false,
+                         false);
     /* 28 */ DefineSignature(module, {kWasmI32}, {kWasmI32}, kNoSuperType,
-                             false);
-    /* 29 */ DefineSignature(module, {kWasmI32}, {kWasmI32}, 20, false);
+                             false, false);
+    /* 29 */ DefineSignature(module, {kWasmI32}, {kWasmI32}, 20, false, false);
     GetTypeCanonicalizer()->AddRecursiveGroup(module, 4);
 
     /* 30 */ DefineStruct(module, {mut(kWasmI32), immut(refNull(18))}, 18);
     /* 31 */ DefineStruct(
         module, {mut(ref(2)), immut(refNull(2)), immut(kWasmS128)}, 1);
+
+    // Final types
+    /* 32 */ DefineStruct(module, {mut(kWasmI32)}, kNoSuperType, true);
+    /* 33 */ DefineStruct(module, {mut(kWasmI32), mut(kWasmI64)}, 32, true);
+    /* 34 */ DefineStruct(module, {mut(kWasmI32)}, kNoSuperType, true);
+    /* 35 */ DefineStruct(module, {mut(kWasmI32)}, kNoSuperType, false);
   }
 
   constexpr ValueType numeric_types[] = {kWasmI32, kWasmI64, kWasmF32, kWasmF64,
@@ -305,32 +315,38 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     VALID_SUBTYPE(ref(10), ref(10));
     VALID_SUBTYPE(ref(11), ref(11));
 
-    {
-      // Canonicalization tests.
+    // Canonicalization tests.
 
-      // Groups should only be canonicalized to identical groups.
-      IDENTICAL(18, 22);
-      IDENTICAL(19, 23);
-      IDENTICAL(20, 24);
-      IDENTICAL(21, 25);
+    // Groups should only be canonicalized to identical groups.
+    IDENTICAL(18, 22);
+    IDENTICAL(19, 23);
+    IDENTICAL(20, 24);
+    IDENTICAL(21, 25);
 
-      DISTINCT(18, 26);
-      DISTINCT(19, 27);
-      DISTINCT(20, 28);
-      DISTINCT(21, 29);
+    DISTINCT(18, 26);
+    DISTINCT(19, 27);
+    DISTINCT(20, 28);
+    DISTINCT(21, 29);
 
-      // A type should not be canonicalized to an identical one with a different
-      // group structure.
-      DISTINCT(18, 17);
+    // A type should not be canonicalized to an identical one with a different
+    // group structure.
+    DISTINCT(18, 17);
 
-      // A subtype should also be subtype of an equivalent type.
-      VALID_SUBTYPE(ref(30), ref(18));
-      VALID_SUBTYPE(ref(30), ref(22));
-      NOT_SUBTYPE(ref(30), ref(26));
+    // A subtype should also be subtype of an equivalent type.
+    VALID_SUBTYPE(ref(30), ref(18));
+    VALID_SUBTYPE(ref(30), ref(22));
+    NOT_SUBTYPE(ref(30), ref(26));
 
-      // Rtts of identical types are subtype-related.
-      SUBTYPE(ValueType::Rtt(8), ValueType::Rtt(17));
-    }
+    // Final types
+
+    // A type is not a valid subtype of a final type.
+    NOT_VALID_SUBTYPE(ref(33), ref(32));
+    IDENTICAL(32, 34);
+    // A final and a non-final
+    DISTINCT(32, 35);
+
+    // Rtts of identical types are subtype-related.
+    SUBTYPE(ValueType::Rtt(8), ValueType::Rtt(17));
 
     // Unions and intersections.
 

@@ -2849,8 +2849,6 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
   LoadIndirectFunctionTable(table_index, &ift_size, &ift_sig_ids, &ift_targets,
                             &ift_instances);
 
-  const wasm::FunctionSig* sig = env_->module->signature(sig_index);
-
   Node* key = args[0];
 
   // Bounds check against the table size.
@@ -2869,7 +2867,8 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
                                            int32_scaled_key);
   Node* sig_match = gasm_->Word32Equal(loaded_sig, expected_sig_id);
 
-  if (v8_flags.experimental_wasm_gc) {
+  if (v8_flags.experimental_wasm_gc &&
+      !env_->module->types[sig_index].is_final) {
     // Do a full subtyping check.
     // TODO(7748): Optimize for non-nullable tables.
     // TODO(7748): Optimize if type annotation matches table type.
@@ -2937,6 +2936,8 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
                                        intptr_scaled_key);
 
   args[0] = target;
+
+  const wasm::FunctionSig* sig = env_->module->signature(sig_index);
 
   switch (continuation) {
     case kCallContinues:

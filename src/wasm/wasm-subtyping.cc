@@ -141,10 +141,11 @@ bool IsNullSentinel(HeapType type) {
 bool ValidSubtypeDefinition(uint32_t subtype_index, uint32_t supertype_index,
                             const WasmModule* sub_module,
                             const WasmModule* super_module) {
-  TypeDefinition::Kind sub_kind = sub_module->types[subtype_index].kind;
-  TypeDefinition::Kind super_kind = super_module->types[supertype_index].kind;
-  if (sub_kind != super_kind) return false;
-  switch (sub_kind) {
+  const TypeDefinition& subtype = sub_module->types[subtype_index];
+  const TypeDefinition& supertype = super_module->types[supertype_index];
+  if (subtype.kind != supertype.kind) return false;
+  if (supertype.is_final) return false;
+  switch (subtype.kind) {
     case TypeDefinition::kFunction:
       return ValidFunctionSubtypeDefinition(subtype_index, supertype_index,
                                             sub_module, super_module);

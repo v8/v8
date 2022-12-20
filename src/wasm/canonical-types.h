@@ -83,6 +83,8 @@ class TypeCanonicalizer {
     // TODO(manoskouk): Improve this.
     size_t hash_value() const {
       return base::hash_combine(base::hash_value(type_def.kind),
+                                base::hash_value(type_def.supertype),
+                                base::hash_value(type_def.is_final),
                                 base::hash_value(is_relative_supertype));
     }
   };

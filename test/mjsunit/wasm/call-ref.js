@@ -32,7 +32,6 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     var imported_wasm_function_index =
       builder.addImport("imports", "wasm_add", sig_index);
 
-
     var locally_defined_function =
       builder.addFunction("sub", sig_index)
         .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprI32Sub])
@@ -146,7 +145,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     let sub_struct = builder.addStruct(
       [makeField(kWasmI32, true), makeField(kWasmI64, true)], super_struct);
     let super_sig = builder.addType(makeSig([wasmRefNullType(sub_struct)],
-                                            [kWasmI32]))
+                                            [kWasmI32]), kNoSuperType, false)
     let sub_sig = builder.addType(makeSig([wasmRefNullType(super_struct)],
                                           [kWasmI32]), super_sig)
 
@@ -162,8 +161,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let super_struct = builder.addStruct([makeField(kWasmI32, true)]);
   let sub_struct = builder.addStruct(
     [makeField(kWasmI32, true), makeField(kWasmI64, true)], super_struct);
-  let super_sig = builder.addType(makeSig([wasmRefNullType(sub_struct)],
-                                          [kWasmI32]))
+  let super_sig = builder.addType(
+    makeSig([wasmRefNullType(sub_struct)], [kWasmI32]), kNoSuperType, false);
   builder.addImport("m", "f", super_sig);
 
   // Import is a function of the declared type.
@@ -189,7 +188,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   (function () {
     var builder = new WasmModuleBuilder();
-    let sig = builder.addType(kSig_i_i);
+    let sig = builder.addType(kSig_i_i, kNoSuperType, false);
     let sig_sub = builder.addType(kSig_i_i, sig);
 
     builder.addImport("m", "f", sig_sub);

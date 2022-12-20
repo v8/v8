@@ -1058,8 +1058,9 @@ TEST_F(WasmModuleVerifyTest, InvalidSupertypeInRecGroup) {
   static const byte invalid_supertype[] = {
       SECTION(Type, ENTRY_COUNT(1),                         // --
               kWasmRecursiveTypeGroupCode, ENTRY_COUNT(2),  // --
-              kWasmArrayTypeCode, kI32Code, 0,              // --
-              kWasmSubtypeCode, 1, 0,  // supertype count, supertype
+              kWasmSubtypeCode, 0,              // 0 supertypes, non-final
+              kWasmArrayTypeCode, kI32Code, 0,  // --
+              kWasmSubtypeCode, 1, 0,           // supertype count, supertype
               kWasmArrayTypeCode, kI64Code, 0)};
 
   EXPECT_FAILURE_WITH_MSG(invalid_supertype,
@@ -1089,6 +1090,31 @@ TEST_F(WasmModuleVerifyTest, NoSupertypeSupertype) {
 
   EXPECT_FAILURE_WITH_MSG(
       no_supertype, "is greater than the maximum number of type definitions");
+}
+
+TEST_F(WasmModuleVerifyTest, NonSpecifiedFinalType) {
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(gc);
+  FLAG_SCOPE(wasm_final_types);
+  static const byte final_supertype[] = {
+      SECTION(Type, ENTRY_COUNT(2),                 // --
+              kWasmStructTypeCode, 1, kI32Code, 1,  // --
+              kWasmSubtypeCode, 1, 0,               // --
+              kWasmStructTypeCode, 2, kI32Code, 1, kI32Code, 1)};
+  EXPECT_FAILURE_WITH_MSG(final_supertype, "type 1 extends final type 0");
+}
+
+TEST_F(WasmModuleVerifyTest, SpecifiedFinalType) {
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(gc);
+  FLAG_SCOPE(wasm_final_types);
+  static const byte final_supertype[] = {
+      SECTION(Type, ENTRY_COUNT(2),                 // --
+              kWasmSubtypeFinalCode, 0,             // --
+              kWasmStructTypeCode, 1, kI32Code, 1,  // --
+              kWasmSubtypeCode, 1, 0,               // --
+              kWasmStructTypeCode, 2, kI32Code, 1, kI32Code, 1)};
+  EXPECT_FAILURE_WITH_MSG(final_supertype, "type 1 extends final type 0");
 }
 
 TEST_F(WasmModuleVerifyTest, ZeroExceptions) {

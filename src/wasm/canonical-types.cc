@@ -68,7 +68,8 @@ uint32_t TypeCanonicalizer::AddRecursiveGroup(const FunctionSig* sig) {
 #endif
   CanonicalGroup group;
   group.types.resize(1);
-  group.types[0].type_def = TypeDefinition(sig, kNoSuperType);
+  group.types[0].type_def =
+      TypeDefinition(sig, kNoSuperType, v8_flags.wasm_final_types);
   group.types[0].is_relative_supertype = false;
   int canonical_index = FindCanonicalGroup(group);
   if (canonical_index < 0) {
@@ -80,7 +81,8 @@ uint32_t TypeCanonicalizer::AddRecursiveGroup(const FunctionSig* sig) {
     for (auto type : sig->returns()) builder.AddReturn(type);
     for (auto type : sig->parameters()) builder.AddParam(type);
     const FunctionSig* allocated_sig = builder.Build();
-    group.types[0].type_def = TypeDefinition(allocated_sig, kNoSuperType);
+    group.types[0].type_def =
+        TypeDefinition(allocated_sig, kNoSuperType, v8_flags.wasm_final_types);
     group.types[0].is_relative_supertype = false;
     canonical_groups_.emplace(group, canonical_index);
     canonical_supertypes_.emplace_back(kNoSuperType);
@@ -150,7 +152,8 @@ TypeCanonicalizer::CanonicalType TypeCanonicalizer::CanonicalizeTypeDef(
         builder.AddParam(
             CanonicalizeValueType(module, param, recursive_group_start));
       }
-      result = TypeDefinition(builder.Build(), canonical_supertype);
+      result =
+          TypeDefinition(builder.Build(), canonical_supertype, type.is_final);
       break;
     }
     case TypeDefinition::kStruct: {
@@ -165,7 +168,7 @@ TypeCanonicalizer::CanonicalType TypeCanonicalizer::CanonicalizeTypeDef(
       builder.set_total_fields_size(original_type->total_fields_size());
       result = TypeDefinition(
           builder.Build(StructType::Builder::kUseProvidedOffsets),
-          canonical_supertype);
+          canonical_supertype, type.is_final);
       break;
     }
     case TypeDefinition::kArray: {
@@ -173,7 +176,7 @@ TypeCanonicalizer::CanonicalType TypeCanonicalizer::CanonicalizeTypeDef(
           module, type.array_type->element_type(), recursive_group_start);
       result = TypeDefinition(
           zone_.New<ArrayType>(element_type, type.array_type->mutability()),
-          canonical_supertype);
+          canonical_supertype, type.is_final);
       break;
     }
   }

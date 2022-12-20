@@ -121,40 +121,44 @@ Reduction WasmGCLowering::ReduceWasmTypeCheck(Node* node) {
 
   Node* map = gasm_.LoadMap(object);
 
-  // First, check if types happen to be equal. This has been shown to give large
-  // speedups.
-  gasm_.GotoIf(gasm_.TaggedEqual(map, rtt), &end_label, BranchHint::kTrue,
-               gasm_.Int32Constant(1));
+  if (module_->types[config.to.ref_index()].is_final) {
+    gasm_.Goto(&end_label, gasm_.TaggedEqual(map, rtt));
+  } else {
+    // First, check if types happen to be equal. This has been shown to give
+    // large speedups.
+    gasm_.GotoIf(gasm_.TaggedEqual(map, rtt), &end_label, BranchHint::kTrue,
+                 gasm_.Int32Constant(1));
 
-  // Check if map instance type identifies a wasm object.
-  if (is_cast_from_any) {
-    Node* is_wasm_obj = gasm_.IsDataRefMap(map);
-    gasm_.GotoIfNot(is_wasm_obj, &end_label, BranchHint::kTrue,
-                    gasm_.Int32Constant(0));
+    // Check if map instance type identifies a wasm object.
+    if (is_cast_from_any) {
+      Node* is_wasm_obj = gasm_.IsDataRefMap(map);
+      gasm_.GotoIfNot(is_wasm_obj, &end_label, BranchHint::kTrue,
+                      gasm_.Int32Constant(0));
+    }
+
+    Node* type_info = gasm_.LoadWasmTypeInfo(map);
+    DCHECK_GE(rtt_depth, 0);
+    // If the depth of the rtt is known to be less that the minimum supertype
+    // array length, we can access the supertype without bounds-checking the
+    // supertype array.
+    if (static_cast<uint32_t>(rtt_depth) >= wasm::kMinimumSupertypeArraySize) {
+      Node* supertypes_length =
+          gasm_.BuildChangeSmiToIntPtr(gasm_.LoadImmutableFromObject(
+              MachineType::TaggedSigned(), type_info,
+              wasm::ObjectAccess::ToTagged(
+                  WasmTypeInfo::kSupertypesLengthOffset)));
+      gasm_.GotoIfNot(gasm_.UintLessThan(gasm_.IntPtrConstant(rtt_depth),
+                                         supertypes_length),
+                      &end_label, BranchHint::kTrue, gasm_.Int32Constant(0));
+    }
+
+    Node* maybe_match = gasm_.LoadImmutableFromObject(
+        MachineType::TaggedPointer(), type_info,
+        wasm::ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesOffset +
+                                     kTaggedSize * rtt_depth));
+
+    gasm_.Goto(&end_label, gasm_.TaggedEqual(maybe_match, rtt));
   }
-
-  Node* type_info = gasm_.LoadWasmTypeInfo(map);
-  DCHECK_GE(rtt_depth, 0);
-  // If the depth of the rtt is known to be less that the minimum supertype
-  // array length, we can access the supertype without bounds-checking the
-  // supertype array.
-  if (static_cast<uint32_t>(rtt_depth) >= wasm::kMinimumSupertypeArraySize) {
-    Node* supertypes_length =
-        gasm_.BuildChangeSmiToIntPtr(gasm_.LoadImmutableFromObject(
-            MachineType::TaggedSigned(), type_info,
-            wasm::ObjectAccess::ToTagged(
-                WasmTypeInfo::kSupertypesLengthOffset)));
-    gasm_.GotoIfNot(
-        gasm_.UintLessThan(gasm_.IntPtrConstant(rtt_depth), supertypes_length),
-        &end_label, BranchHint::kTrue, gasm_.Int32Constant(0));
-  }
-
-  Node* maybe_match = gasm_.LoadImmutableFromObject(
-      MachineType::TaggedPointer(), type_info,
-      wasm::ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesOffset +
-                                   kTaggedSize * rtt_depth));
-
-  gasm_.Goto(&end_label, gasm_.TaggedEqual(maybe_match, rtt));
 
   gasm_.Bind(&end_label);
 
@@ -199,40 +203,45 @@ Reduction WasmGCLowering::ReduceWasmTypeCast(Node* node) {
 
   Node* map = gasm_.LoadMap(object);
 
-  // First, check if types happen to be equal. This has been shown to give large
-  // speedups.
-  gasm_.GotoIf(gasm_.TaggedEqual(map, rtt), &end_label, BranchHint::kTrue);
+  if (module_->types[config.to.ref_index()].is_final) {
+    gasm_.TrapUnless(gasm_.TaggedEqual(map, rtt), TrapId::kTrapIllegalCast);
+    gasm_.Goto(&end_label);
+  } else {
+    // First, check if types happen to be equal. This has been shown to give
+    // large speedups.
+    gasm_.GotoIf(gasm_.TaggedEqual(map, rtt), &end_label, BranchHint::kTrue);
 
-  // Check if map instance type identifies a wasm object.
-  if (is_cast_from_any) {
-    Node* is_wasm_obj = gasm_.IsDataRefMap(map);
-    gasm_.TrapUnless(is_wasm_obj, TrapId::kTrapIllegalCast);
+    // Check if map instance type identifies a wasm object.
+    if (is_cast_from_any) {
+      Node* is_wasm_obj = gasm_.IsDataRefMap(map);
+      gasm_.TrapUnless(is_wasm_obj, TrapId::kTrapIllegalCast);
+    }
+
+    Node* type_info = gasm_.LoadWasmTypeInfo(map);
+    DCHECK_GE(rtt_depth, 0);
+    // If the depth of the rtt is known to be less that the minimum supertype
+    // array length, we can access the supertype without bounds-checking the
+    // supertype array.
+    if (static_cast<uint32_t>(rtt_depth) >= wasm::kMinimumSupertypeArraySize) {
+      Node* supertypes_length =
+          gasm_.BuildChangeSmiToIntPtr(gasm_.LoadImmutableFromObject(
+              MachineType::TaggedSigned(), type_info,
+              wasm::ObjectAccess::ToTagged(
+                  WasmTypeInfo::kSupertypesLengthOffset)));
+      gasm_.TrapUnless(gasm_.UintLessThan(gasm_.IntPtrConstant(rtt_depth),
+                                          supertypes_length),
+                       TrapId::kTrapIllegalCast);
+    }
+
+    Node* maybe_match = gasm_.LoadImmutableFromObject(
+        MachineType::TaggedPointer(), type_info,
+        wasm::ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesOffset +
+                                     kTaggedSize * rtt_depth));
+
+    gasm_.TrapUnless(gasm_.TaggedEqual(maybe_match, rtt),
+                     TrapId::kTrapIllegalCast);
+    gasm_.Goto(&end_label);
   }
-
-  Node* type_info = gasm_.LoadWasmTypeInfo(map);
-  DCHECK_GE(rtt_depth, 0);
-  // If the depth of the rtt is known to be less that the minimum supertype
-  // array length, we can access the supertype without bounds-checking the
-  // supertype array.
-  if (static_cast<uint32_t>(rtt_depth) >= wasm::kMinimumSupertypeArraySize) {
-    Node* supertypes_length =
-        gasm_.BuildChangeSmiToIntPtr(gasm_.LoadImmutableFromObject(
-            MachineType::TaggedSigned(), type_info,
-            wasm::ObjectAccess::ToTagged(
-                WasmTypeInfo::kSupertypesLengthOffset)));
-    gasm_.TrapUnless(
-        gasm_.UintLessThan(gasm_.IntPtrConstant(rtt_depth), supertypes_length),
-        TrapId::kTrapIllegalCast);
-  }
-
-  Node* maybe_match = gasm_.LoadImmutableFromObject(
-      MachineType::TaggedPointer(), type_info,
-      wasm::ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesOffset +
-                                   kTaggedSize * rtt_depth));
-
-  gasm_.TrapUnless(gasm_.TaggedEqual(maybe_match, rtt),
-                   TrapId::kTrapIllegalCast);
-  gasm_.Goto(&end_label);
 
   gasm_.Bind(&end_label);
 

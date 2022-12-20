@@ -84,7 +84,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 (function RefTestFuncRef() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let sigSuper = builder.addType(makeSig([kWasmI32], []));
+  let sigSuper = builder.addType(makeSig([kWasmI32], []), kNoSuperType, false);
   let sigSub = builder.addType(makeSig([kWasmI32], []), sigSuper);
 
   builder.addFunction('fctSuper', sigSuper).addBody([]).exportFunc();
@@ -125,7 +125,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 (function RefCastFuncRef() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let sigSuper = builder.addType(makeSig([kWasmI32], []));
+  let sigSuper = builder.addType(makeSig([kWasmI32], []), kNoSuperType, false);
   let sigSub = builder.addType(makeSig([kWasmI32], []), sigSuper);
 
   builder.addFunction('fctSuper', sigSuper).addBody([]).exportFunc();
@@ -206,7 +206,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 (function BrOnCastFuncRef() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let sigSuper = builder.addType(makeSig([kWasmI32], []));
+  let sigSuper = builder.addType(makeSig([kWasmI32], []), kNoSuperType, false);
   let sigSub = builder.addType(makeSig([kWasmI32], []), sigSuper);
 
   builder.addFunction('fctSuper', sigSuper).addBody([]).exportFunc();

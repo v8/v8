@@ -192,7 +192,8 @@ class WasmGenerator {
         builder.AddReturn(type);
       }
       FunctionSig* sig = builder.Build();
-      int sig_id = gen->builder_->builder()->AddSignature(sig);
+      int sig_id = gen->builder_->builder()->AddSignature(
+          sig, v8_flags.wasm_final_types);
       gen->builder_->EmitI32V(sig_id);
     }
 
@@ -2428,7 +2429,7 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
         struct_builder.AddField(type, mutability);
       }
       StructType* struct_fuz = struct_builder.Build();
-      builder.AddStructType(struct_fuz);
+      builder.AddStructType(struct_fuz, false);
     }
 
       for (int array_index = 0; array_index < num_arrays; array_index++) {
@@ -2436,18 +2437,20 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
             &range, builder.NumTypes(), builder.NumTypes(), kAllowNonNullables,
             kIncludePackedTypes, kIncludeGenerics);
         ArrayType* array_fuz = zone->New<ArrayType>(type, true);
-        builder.AddArrayType(array_fuz);
+        builder.AddArrayType(array_fuz, false);
       }
 
     // We keep the signature for the first (main) function constant.
-    function_signatures.push_back(builder.ForceAddSignature(sigs.i_iii()));
+      function_signatures.push_back(
+          builder.ForceAddSignature(sigs.i_iii(), v8_flags.wasm_final_types));
 
-    for (uint8_t i = 1; i < num_functions; i++) {
-      FunctionSig* sig =
-          GenerateSig(zone, &range, kFunctionSig, builder.NumTypes());
-      uint32_t signature_index = builder.ForceAddSignature(sig);
-      function_signatures.push_back(signature_index);
-    }
+      for (uint8_t i = 1; i < num_functions; i++) {
+        FunctionSig* sig =
+            GenerateSig(zone, &range, kFunctionSig, builder.NumTypes());
+        uint32_t signature_index =
+            builder.ForceAddSignature(sig, v8_flags.wasm_final_types);
+        function_signatures.push_back(signature_index);
+      }
 
     int num_exceptions = 1 + (range.get<uint8_t>() % kMaxExceptions);
     for (int i = 0; i < num_exceptions; ++i) {

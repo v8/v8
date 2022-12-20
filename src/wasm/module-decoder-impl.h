@@ -581,15 +581,15 @@ class ModuleDecoderTemplate : public Decoder {
     switch (kind) {
       case kWasmFunctionTypeCode: {
         const FunctionSig* sig = consume_sig(&module_->signature_zone);
-        return {sig, kNoSuperType};
+        return {sig, kNoSuperType, v8_flags.wasm_final_types};
       }
       case kWasmStructTypeCode: {
         const StructType* type = consume_struct(&module_->signature_zone);
-        return {type, kNoSuperType};
+        return {type, kNoSuperType, v8_flags.wasm_final_types};
       }
       case kWasmArrayTypeCode: {
         const ArrayType* type = consume_array(&module_->signature_zone);
-        return {type, kNoSuperType};
+        return {type, kNoSuperType, v8_flags.wasm_final_types};
       }
       default:
         tracer_.NextLine();
@@ -601,8 +601,11 @@ class ModuleDecoderTemplate : public Decoder {
   TypeDefinition consume_subtype_definition() {
     DCHECK(enabled_features_.has_gc());
     uint8_t kind = read_u8<Decoder::FullValidationTag>(pc(), "type kind");
-    if (kind == kWasmSubtypeCode) {
-      consume_bytes(1, " subtype, ", tracer_);
+    if (kind == kWasmSubtypeCode || kind == kWasmSubtypeFinalCode) {
+      bool is_final =
+          v8_flags.wasm_final_types && kind == kWasmSubtypeFinalCode;
+      consume_bytes(1, is_final ? " subtype final, " : " subtype extensible, ",
+                    tracer_);
       constexpr uint32_t kMaximumSupertypes = 1;
       uint32_t supertype_count =
           consume_count("supertype count", kMaximumSupertypes);
@@ -621,6 +624,7 @@ class ModuleDecoderTemplate : public Decoder {
       }
       TypeDefinition type = consume_base_type_definition();
       type.supertype = supertype;
+      type.is_final = is_final;
       return type;
     } else {
       return consume_base_type_definition();
@@ -650,13 +654,14 @@ class ModuleDecoderTemplate : public Decoder {
             consume_bytes(1, "function");
             const FunctionSig* sig = consume_sig(&module_->signature_zone);
             if (!ok()) break;
-            module_->types[i] = {sig, kNoSuperType};
+            module_->types[i] = {sig, kNoSuperType, v8_flags.wasm_final_types};
             type_canon->AddRecursiveGroup(module_.get(), 1, i);
             break;
           }
           case kWasmArrayTypeCode:
           case kWasmStructTypeCode:
           case kWasmSubtypeCode:
+          case kWasmSubtypeFinalCode:
           case kWasmRecursiveTypeGroupCode:
             errorf(
                 "Unknown type code 0x%02x, enable with --experimental-wasm-gc",
@@ -724,6 +729,12 @@ class ModuleDecoderTemplate : public Decoder {
       DCHECK_GE(depth, 0);
       if (depth > static_cast<int>(kV8MaxRttSubtypingDepth)) {
         errorf("type %u: subtyping depth is greater than allowed", i);
+        continue;
+      }
+      // This check is technically redundant; we include for the improved error
+      // message.
+      if (module->types[explicit_super].is_final) {
+        errorf("type %u extends final type %u", i, explicit_super);
         continue;
       }
       if (!ValidSubtypeDefinition(i, explicit_super, module, module)) {

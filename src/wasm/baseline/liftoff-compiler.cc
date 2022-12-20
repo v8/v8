@@ -7409,7 +7409,8 @@ class LiftoffCompiler {
           AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapFuncSigMismatch);
       __ DropValues(1);
 
-      if (v8_flags.experimental_wasm_gc) {
+      if (v8_flags.experimental_wasm_gc &&
+          !decoder->module_->types[imm.sig_imm.index].is_final) {
         Label success_label;
         FREEZE_STATE(frozen);
         __ emit_cond_jump(kEqual, &success_label, kI32, real_sig_id,

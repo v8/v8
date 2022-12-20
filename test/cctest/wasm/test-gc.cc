@@ -81,23 +81,24 @@ class WasmGCTester {
   }
 
   byte DefineStruct(std::initializer_list<F> fields,
-                    uint32_t supertype = kNoSuperType) {
+                    uint32_t supertype = kNoSuperType, bool is_final = false) {
     StructType::Builder type_builder(&zone_,
                                      static_cast<uint32_t>(fields.size()));
     for (F field : fields) {
       type_builder.AddField(field.first, field.second);
     }
-    return builder_.AddStructType(type_builder.Build(), supertype);
+    return builder_.AddStructType(type_builder.Build(), is_final, supertype);
   }
 
   byte DefineArray(ValueType element_type, bool mutability,
-                   uint32_t supertype = kNoSuperType) {
+                   uint32_t supertype = kNoSuperType, bool is_final = false) {
     return builder_.AddArrayType(zone_.New<ArrayType>(element_type, mutability),
-                                 supertype);
+                                 is_final, supertype);
   }
 
-  byte DefineSignature(FunctionSig* sig, uint32_t supertype = kNoSuperType) {
-    return builder_.ForceAddSignature(sig, supertype);
+  byte DefineSignature(FunctionSig* sig, uint32_t supertype = kNoSuperType,
+                       bool is_final = false) {
+    return builder_.ForceAddSignature(sig, is_final, supertype);
   }
 
   byte DefineTable(ValueType type, uint32_t min_size, uint32_t max_size) {

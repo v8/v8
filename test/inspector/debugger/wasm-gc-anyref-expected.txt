@@ -8,14 +8,14 @@ Module instantiated.
 Tables populated.
 Setting breakpoint
 {
-    columnNumber : 260
+    columnNumber : 264
     lineNumber : 0
     scriptId : <scriptId>
 }
 Paused:
-Script wasm://wasm/8fd0ec76 byte offset 260: Wasm opcode 0x01 (kExprNop)
+Script wasm://wasm/19fa3802 byte offset 264: Wasm opcode 0x01 (kExprNop)
 Scope:
-at $main (0:260):
+at $main (0:264):
  - scope (wasm-expression-stack):
    stack:
  - scope (local):
