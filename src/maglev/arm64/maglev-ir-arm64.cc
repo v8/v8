@@ -161,8 +161,8 @@ void BuiltinStringFromCharCode::SetValueLocationConstraints() {
     UseAny(code_input());
   } else {
     UseRegister(code_input());
-    set_temporaries_needed(1);
   }
+  set_temporaries_needed(1);
   DefineAsRegister(this);
 }
 void BuiltinStringFromCharCode::GenerateCode(MaglevAssembler* masm,
@@ -350,6 +350,7 @@ void CheckedTruncateFloat64ToUint32::GenerateCode(
 void CheckedTruncateNumberToInt32::SetValueLocationConstraints() {
   UseRegister(input());
   DefineAsRegister(this);
+  set_double_temporaries_needed(1);
 }
 void CheckedTruncateNumberToInt32::GenerateCode(MaglevAssembler* masm,
                                                 const ProcessingState& state) {
@@ -368,7 +369,7 @@ void CheckedTruncateNumberToInt32::GenerateCode(MaglevAssembler* masm,
   __ Ldr(scratch, FieldMemOperand(value, HeapObject::kMapOffset));
   __ CompareRoot(scratch, RootIndex::kHeapNumberMap);
   __ EmitEagerDeoptIf(ne, DeoptimizeReason::kNotANumber, this);
-  DoubleRegister double_value = temps.AcquireD();
+  DoubleRegister double_value = double_temporaries().PopFirst();
   __ Ldr(double_value, FieldMemOperand(value, HeapNumber::kValueOffset));
   __ TruncateDoubleToInt32(result_reg, double_value);
   __ bind(&done);
@@ -462,6 +463,7 @@ int CheckedObjectToIndex::MaxCallStackArgs() const { return 0; }
 void CheckedObjectToIndex::SetValueLocationConstraints() {
   UseRegister(object_input());
   DefineAsRegister(this);
+  set_double_temporaries_needed(1);
 }
 void CheckedObjectToIndex::GenerateCode(MaglevAssembler* masm,
                                         const ProcessingState& state) {
@@ -489,7 +491,7 @@ void CheckedObjectToIndex::GenerateCode(MaglevAssembler* masm,
 
         // Heap Number.
         {
-          DoubleRegister number_value = temps.AcquireD();
+          DoubleRegister number_value = node->double_temporaries().first();
           DoubleRegister converted_back = temps.AcquireD();
           // Convert the input float64 value to int32.
           __ TruncateDoubleToInt32(result_reg, number_value);
