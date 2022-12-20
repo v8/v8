@@ -735,10 +735,15 @@ void Heap::CreateInitialReadOnlyObjects() {
     if (required == obj.Size()) return;
     CHECK_LT(obj.Size(), required);
     int filler_size = required - obj.Size();
-    auto filler = factory->NewFillerObject(filler_size,
-                                           AllocationAlignment::kTaggedAligned,
-                                           AllocationType::kReadOnly);
-    CHECK_EQ(filler->address() + filler->Size(), obj.address() + required);
+
+    HeapObject filler =
+        allocator()->AllocateRawWith<HeapAllocator::kRetryOrFail>(
+            filler_size, AllocationType::kReadOnly, AllocationOrigin::kRuntime,
+            AllocationAlignment::kTaggedAligned);
+    CreateFillerObjectAt(filler.address(), filler_size,
+                         ClearFreedMemoryMode::kClearFreedMemory);
+
+    CHECK_EQ(filler.address() + filler.Size(), obj.address() + required);
 #endif
   };
 

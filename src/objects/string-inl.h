@@ -1476,6 +1476,26 @@ SubStringRange::iterator SubStringRange::end() {
   return SubStringRange::iterator(string_, first_ + length_, no_gc_);
 }
 
+void SeqOneByteString::clear_padding() {
+  const int data_size = SeqString::kHeaderSize + length() * kOneByteSize;
+  const int padding_size = SizeFor(length()) - data_size;
+  DCHECK_EQ((DataAndPaddingSizes{data_size, padding_size}),
+            GetDataAndPaddingSizes());
+  DCHECK_EQ(address() + data_size + padding_size, address() + Size());
+  if (padding_size == 0) return;
+  memset(reinterpret_cast<void*>(address() + data_size), 0, padding_size);
+}
+
+void SeqTwoByteString::clear_padding() {
+  const int data_size = SeqString::kHeaderSize + length() * base::kUC16Size;
+  const int padding_size = SizeFor(length()) - data_size;
+  DCHECK_EQ((DataAndPaddingSizes{data_size, padding_size}),
+            GetDataAndPaddingSizes());
+  DCHECK_EQ(address() + data_size + padding_size, address() + Size());
+  if (padding_size == 0) return;
+  memset(reinterpret_cast<void*>(address() + data_size), 0, padding_size);
+}
+
 // static
 bool String::IsInPlaceInternalizable(String string) {
   return IsInPlaceInternalizable(string.map().instance_type());

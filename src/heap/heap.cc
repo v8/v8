@@ -3214,9 +3214,9 @@ void Heap::CreateFillerObjectAtSweeper(Address addr, int size) {
                           ClearRecordedSlots::kNo, VerifyNoSlotsRecorded::kNo);
 }
 
-void Heap::CreateFillerObjectAt(Address addr, int size) {
-  CreateFillerObjectAtRaw(addr, size,
-                          ClearFreedMemoryMode::kDontClearFreedMemory,
+void Heap::CreateFillerObjectAt(Address addr, int size,
+                                ClearFreedMemoryMode clear_memory_mode) {
+  CreateFillerObjectAtRaw(addr, size, clear_memory_mode,
                           ClearRecordedSlots::kNo, VerifyNoSlotsRecorded::kYes);
 }
 

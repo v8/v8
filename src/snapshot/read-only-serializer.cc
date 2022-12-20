@@ -95,10 +95,16 @@ void ReadOnlySerializer::FinalizeSerialization() {
         reinterpret_cast<Address>(space->pages()[0]));
     sink_.PutInt(pos, "first page offset");
     for (auto p : space->pages()) {
-      size_t page_size = p->area_size();
-      sink_.PutInt(page_size, "page size");
+      // Pages are shrunk, but memory at the end of the area is still
+      // uninitialized and we do not want to include it in the snapshot.
+      size_t page_content_bytes = p->HighWaterMark() - p->area_start();
+      sink_.PutInt(page_content_bytes, "page content bytes");
+#ifdef MEMORY_SANITIZER
+      __msan_check_mem_is_initialized(reinterpret_cast<void*>(p->area_start()),
+                                      static_cast<int>(page_content_bytes));
+#endif
       sink_.PutRaw(reinterpret_cast<const byte*>(p->area_start()),
-                   static_cast<int>(p->area_size()), "page");
+                   static_cast<int>(page_content_bytes), "page");
     }
   } else {
     // This comes right after serialization of the other snapshots, where we
@@ -108,7 +114,6 @@ void ReadOnlySerializer::FinalizeSerialization() {
     VisitRootPointer(Root::kReadOnlyObjectCache, nullptr,
                      FullObjectSlot(&undefined));
     SerializeDeferredObjects();
-    Pad();
 
 #ifdef DEBUG
     // Check that every object on read-only heap is reachable (and was
@@ -124,6 +129,7 @@ void ReadOnlySerializer::FinalizeSerialization() {
     }
 #endif  // DEBUG
   }
+  Pad();
 }
 
 bool ReadOnlySerializer::MustBeDeferred(HeapObject object) {

@@ -677,6 +677,7 @@ MaybeHandle<SeqStringT> FactoryBase<Impl>::NewRawStringWithMap(
   string.set_length(length);
   string.set_raw_hash_field(String::kEmptyHashField);
   DCHECK_EQ(size, string.Size());
+  string.clear_padding();
   return handle(string, isolate());
 }
 
@@ -1057,6 +1058,7 @@ FactoryBase<Impl>::AllocateRawOneByteInternalizedString(
   answer.set_length(length);
   answer.set_raw_hash_field(raw_hash_field);
   DCHECK_EQ(size, answer.Size());
+  answer.clear_padding();
   return handle(answer, isolate());
 }
 
@@ -1078,6 +1080,7 @@ FactoryBase<Impl>::AllocateRawTwoByteInternalizedString(
   answer.set_length(length);
   answer.set_raw_hash_field(raw_hash_field);
   DCHECK_EQ(size, answer.Size());
+  answer.clear_padding();
   return handle(answer, isolate());
 }
 

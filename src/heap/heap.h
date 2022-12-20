@@ -521,7 +521,10 @@ class Heap {
   // Initialize a filler object to keep the ability to iterate over the heap
   // when introducing gaps within pages. This method will verify that no slots
   // are recorded in this free memory.
-  V8_EXPORT_PRIVATE void CreateFillerObjectAt(Address addr, int size);
+  V8_EXPORT_PRIVATE void CreateFillerObjectAt(
+      Address addr, int size,
+      ClearFreedMemoryMode clear_memory_mode =
+          ClearFreedMemoryMode::kDontClearFreedMemory);
 
   // Initialize a filler object at a specific address. Unlike
   // `CreateFillerObjectAt` this method will not perform slot verification since
