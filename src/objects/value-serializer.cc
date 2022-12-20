@@ -2162,16 +2162,28 @@ bool ValueDeserializer::ValidateJSArrayBufferViewFlags(
   // TODO(marja): When the version number is bumped the next time, check that
   // serialized_flags doesn't contain spurious 1-bits.
 
+  if (!v8_flags.harmony_rab_gsab) {
+    // Disable resizability. This ensures that no resizable buffers are
+    // created in a version which has the harmony_rab_gsab turned off, even if
+    // such a version is reading data containing resizable buffers from disk.
+    is_length_tracking = false;
+    is_backed_by_rab = false;
+    // The resizability of the buffer was already disabled.
+    CHECK(!buffer.is_resizable_by_js());
+  }
+
   if (is_backed_by_rab || is_length_tracking) {
-    if (!v8_flags.harmony_rab_gsab) {
-      return false;
-    }
     if (!buffer.is_resizable_by_js()) {
       return false;
     }
     if (is_backed_by_rab && buffer.is_shared()) {
       return false;
     }
+  }
+  // The RAB-ness of the buffer and the TA's "is_backed_by_rab" need to be in
+  // sync.
+  if (buffer.is_resizable_by_js() && !buffer.is_shared() && !is_backed_by_rab) {
+    return false;
   }
   return true;
 }
