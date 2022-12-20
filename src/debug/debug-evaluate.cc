@@ -1133,16 +1133,12 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtin caller,
     case Builtin::kCall_ReceiverIsNotNullOrUndefined:
     case Builtin::kCall_ReceiverIsNullOrUndefined:
     case Builtin::kCallWithArrayLike:
-    case Builtin::kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit:
-    case Builtin::kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_BuiltinExit:
-    case Builtin::kCEntry_Return1_DontSaveFPRegs_ArgvInRegister_NoBuiltinExit:
-    case Builtin::kCEntry_Return1_SaveFPRegs_ArgvOnStack_NoBuiltinExit:
-    case Builtin::kCEntry_Return1_SaveFPRegs_ArgvOnStack_BuiltinExit:
-    case Builtin::kCEntry_Return2_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit:
-    case Builtin::kCEntry_Return2_DontSaveFPRegs_ArgvOnStack_BuiltinExit:
-    case Builtin::kCEntry_Return2_DontSaveFPRegs_ArgvInRegister_NoBuiltinExit:
-    case Builtin::kCEntry_Return2_SaveFPRegs_ArgvOnStack_NoBuiltinExit:
-    case Builtin::kCEntry_Return2_SaveFPRegs_ArgvOnStack_BuiltinExit:
+    case Builtin::kCEntry_Return1_ArgvOnStack_NoBuiltinExit:
+    case Builtin::kCEntry_Return1_ArgvOnStack_BuiltinExit:
+    case Builtin::kCEntry_Return1_ArgvInRegister_NoBuiltinExit:
+    case Builtin::kCEntry_Return2_ArgvOnStack_NoBuiltinExit:
+    case Builtin::kCEntry_Return2_ArgvOnStack_BuiltinExit:
+    case Builtin::kCEntry_Return2_ArgvInRegister_NoBuiltinExit:
     case Builtin::kCloneFastJSArray:
     case Builtin::kConstruct:
     case Builtin::kConvertToLocaleString:

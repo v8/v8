@@ -1467,7 +1467,7 @@ void TurboAssembler::AllocateStackSpace(int bytes) {
 }
 #endif
 
-void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
+void MacroAssembler::EnterExitFrame(int stack_space,
                                     StackFrame::Type frame_type) {
   ASM_CODE_COMMENT(this);
   DCHECK(frame_type == StackFrame::EXIT ||
@@ -1495,15 +1495,6 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
   Move(scratch,
        ExternalReference::Create(IsolateAddressId::kContextAddress, isolate()));
   str(cp, MemOperand(scratch));
-
-  // Optionally save all double registers.
-  if (save_doubles) {
-    SaveFPRegs(sp, scratch);
-    // Note that d0 will be accessible at
-    //   fp - ExitFrameConstants::kFrameSize -
-    //   DwVfpRegister::kNumRegisters * kDoubleSize,
-    // since the sp slot and code slot were pushed after the fp.
-  }
 
   // Reserve place for the return address and stack space and align the frame
   // preparing for calling the runtime function.
@@ -1536,20 +1527,12 @@ int TurboAssembler::ActivationFrameAlignment() {
 #endif  // V8_HOST_ARCH_ARM
 }
 
-void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
+void MacroAssembler::LeaveExitFrame(Register argument_count,
                                     bool argument_count_is_length) {
   ASM_CODE_COMMENT(this);
   ConstantPoolUnavailableScope constant_pool_unavailable(this);
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
-
-  // Optionally restore all double registers.
-  if (save_doubles) {
-    // Calculate the stack location of the saved doubles and restore them.
-    const int offset = ExitFrameConstants::kFixedFrameSizeFromFp;
-    sub(r3, fp, Operand(offset + DwVfpRegister::kNumRegisters * kDoubleSize));
-    RestoreFPRegs(r3, scratch);
-  }
 
   // Clear top frame.
   mov(r3, Operand::Zero());
@@ -2094,8 +2077,8 @@ void MacroAssembler::OptimizeCodeOrTailCallOptimizedCodeSlot(
   TailCallOptimizedCodeSlot(this, optimized_code_entry, r6);
 }
 
-void MacroAssembler::CallRuntime(const Runtime::Function* f, int num_arguments,
-                                 SaveFPRegsMode save_doubles) {
+void MacroAssembler::CallRuntime(const Runtime::Function* f,
+                                 int num_arguments) {
   ASM_CODE_COMMENT(this);
   // All parameters are on the stack.  r0 has the return value after call.
 
@@ -2110,8 +2093,7 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f, int num_arguments,
   // smarter.
   mov(r0, Operand(num_arguments));
   Move(r1, ExternalReference::Create(f));
-  Handle<Code> code =
-      CodeFactory::CEntry(isolate(), f->result_size, save_doubles);
+  Handle<Code> code = CodeFactory::CEntry(isolate(), f->result_size);
   Call(code, RelocInfo::CODE_TARGET);
 }
 
@@ -2136,8 +2118,8 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
   DCHECK_EQ(builtin.address() & 1, 1);
 #endif
   Move(r1, builtin);
-  Handle<Code> code = CodeFactory::CEntry(isolate(), 1, SaveFPRegsMode::kIgnore,
-                                          ArgvMode::kStack, builtin_exit_frame);
+  Handle<Code> code =
+      CodeFactory::CEntry(isolate(), 1, ArgvMode::kStack, builtin_exit_frame);
   Jump(code, RelocInfo::CODE_TARGET);
 }
 

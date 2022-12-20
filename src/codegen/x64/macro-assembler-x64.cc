@@ -734,8 +734,8 @@ void TurboAssembler::Abort(AbortReason reason) {
   int3();
 }
 
-void MacroAssembler::CallRuntime(const Runtime::Function* f, int num_arguments,
-                                 SaveFPRegsMode save_doubles) {
+void MacroAssembler::CallRuntime(const Runtime::Function* f,
+                                 int num_arguments) {
   ASM_CODE_COMMENT(this);
   // If the expected number of arguments of the runtime function is
   // constant, we check that the actual number of arguments match the
@@ -748,8 +748,7 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f, int num_arguments,
   // smarter.
   Move(rax, num_arguments);
   LoadAddress(rbx, ExternalReference::Create(f));
-  Handle<CodeT> code =
-      CodeFactory::CEntry(isolate(), f->result_size, save_doubles);
+  Handle<CodeT> code = CodeFactory::CEntry(isolate(), f->result_size);
   Call(code, RelocInfo::CODE_TARGET);
 }
 
@@ -778,8 +777,7 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& ext,
   // Set the entry point and jump to the C entry runtime stub.
   LoadAddress(rbx, ext);
   Handle<CodeT> code =
-      CodeFactory::CEntry(isolate(), 1, SaveFPRegsMode::kIgnore,
-                          ArgvMode::kStack, builtin_exit_frame);
+      CodeFactory::CEntry(isolate(), 1, ArgvMode::kStack, builtin_exit_frame);
   Jump(code, RelocInfo::CODE_TARGET);
 }
 
@@ -3208,27 +3206,14 @@ static const int kRegisterPassedArguments = 4;
 static const int kRegisterPassedArguments = 6;
 #endif
 
-void MacroAssembler::EnterExitFrameEpilogue(int arg_stack_space,
-                                            bool save_doubles) {
+void MacroAssembler::EnterExitFrameEpilogue(int arg_stack_space) {
   ASM_CODE_COMMENT(this);
+
 #ifdef V8_TARGET_OS_WIN
   arg_stack_space += kRegisterPassedArguments;
 #endif
-  // Optionally save all XMM registers.
-  if (save_doubles) {
-    int space = XMMRegister::kNumRegisters * kDoubleSize +
-                arg_stack_space * kSystemPointerSize;
-    AllocateStackSpace(space);
-    int offset = -ExitFrameConstants::kFixedFrameSizeFromFp;
-    const RegisterConfiguration* config = RegisterConfiguration::Default();
-    for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
-      DoubleRegister reg =
-          DoubleRegister::from_code(config->GetAllocatableDoubleCode(i));
-      Movsd(Operand(rbp, offset - ((i + 1) * kDoubleSize)), reg);
-    }
-  } else if (arg_stack_space > 0) {
-    AllocateStackSpace(arg_stack_space * kSystemPointerSize);
-  }
+
+  AllocateStackSpace(arg_stack_space * kSystemPointerSize);
 
   // Get the required frame alignment for the OS.
   const int kFrameAlignment = base::OS::ActivationFrameAlignment();
@@ -3242,7 +3227,7 @@ void MacroAssembler::EnterExitFrameEpilogue(int arg_stack_space,
   movq(Operand(rbp, ExitFrameConstants::kSPOffset), rsp);
 }
 
-void MacroAssembler::EnterExitFrame(int arg_stack_space, bool save_doubles,
+void MacroAssembler::EnterExitFrame(int arg_stack_space,
                                     StackFrame::Type frame_type) {
   ASM_CODE_COMMENT(this);
   Register saved_rax_reg = r12;
@@ -3253,29 +3238,19 @@ void MacroAssembler::EnterExitFrame(int arg_stack_space, bool save_doubles,
   int offset = StandardFrameConstants::kCallerSPOffset - kSystemPointerSize;
   leaq(r15, Operand(rbp, saved_rax_reg, times_system_pointer_size, offset));
 
-  EnterExitFrameEpilogue(arg_stack_space, save_doubles);
+  EnterExitFrameEpilogue(arg_stack_space);
 }
 
 void MacroAssembler::EnterApiExitFrame(int arg_stack_space) {
   ASM_CODE_COMMENT(this);
   EnterExitFramePrologue(no_reg, StackFrame::EXIT);
-  EnterExitFrameEpilogue(arg_stack_space, false);
+  EnterExitFrameEpilogue(arg_stack_space);
 }
 
-void MacroAssembler::LeaveExitFrame(bool save_doubles, bool pop_arguments) {
+void MacroAssembler::LeaveExitFrame(bool pop_arguments) {
   ASM_CODE_COMMENT(this);
   // Registers:
   // r15 : argv
-  if (save_doubles) {
-    int offset = -ExitFrameConstants::kFixedFrameSizeFromFp;
-    const RegisterConfiguration* config = RegisterConfiguration::Default();
-    for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
-      DoubleRegister reg =
-          DoubleRegister::from_code(config->GetAllocatableDoubleCode(i));
-      Movsd(reg, Operand(rbp, offset - ((i + 1) * kDoubleSize)));
-    }
-  }
-
   if (pop_arguments) {
     // Get the return address from the stack and restore the frame pointer.
     movq(rcx, Operand(rbp, kFPOnStackSize));

@@ -1604,8 +1604,8 @@ void ReduceBuiltin(JSGraph* jsgraph, Node* node, Builtin builtin, int arity,
   DCHECK(Builtins::IsCpp(builtin));
   const bool has_builtin_exit_frame = true;
 
-  Node* stub = jsgraph->CEntryStubConstant(
-      1, SaveFPRegsMode::kIgnore, ArgvMode::kStack, has_builtin_exit_frame);
+  Node* stub =
+      jsgraph->CEntryStubConstant(1, ArgvMode::kStack, has_builtin_exit_frame);
   node->ReplaceInput(0, stub);
 
   const int argc = arity + BuiltinArguments::kNumExtraArgsWithReceiver;

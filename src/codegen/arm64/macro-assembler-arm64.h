@@ -1908,47 +1908,47 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
                     AbortReason reason = AbortReason::kOperandIsASmi)
       NOOP_UNLESS_DEBUG_CODE
 
-  // Abort execution if argument is not a CodeT, enabled via --debug-code.
-  void AssertCodeT(Register object) NOOP_UNLESS_DEBUG_CODE
+      // Abort execution if argument is not a CodeT, enabled via --debug-code.
+      void AssertCodeT(Register object) NOOP_UNLESS_DEBUG_CODE
 
-  // Abort execution if argument is not a Constructor, enabled via --debug-code.
-  void AssertConstructor(Register object) NOOP_UNLESS_DEBUG_CODE
+      // Abort execution if argument is not a Constructor, enabled via
+      // --debug-code.
+      void AssertConstructor(Register object) NOOP_UNLESS_DEBUG_CODE
 
-  // Abort execution if argument is not a JSFunction, enabled via --debug-code.
-  void AssertFunction(Register object) NOOP_UNLESS_DEBUG_CODE
+      // Abort execution if argument is not a JSFunction, enabled via
+      // --debug-code.
+      void AssertFunction(Register object) NOOP_UNLESS_DEBUG_CODE
 
-  // Abort execution if argument is not a callable JSFunction, enabled via
-  // --debug-code.
-  void AssertCallableFunction(Register object) NOOP_UNLESS_DEBUG_CODE
+      // Abort execution if argument is not a callable JSFunction, enabled via
+      // --debug-code.
+      void AssertCallableFunction(Register object) NOOP_UNLESS_DEBUG_CODE
 
-  // Abort execution if argument is not a JSGeneratorObject (or subclass),
-  // enabled via --debug-code.
-  void AssertGeneratorObject(Register object) NOOP_UNLESS_DEBUG_CODE
+      // Abort execution if argument is not a JSGeneratorObject (or subclass),
+      // enabled via --debug-code.
+      void AssertGeneratorObject(Register object) NOOP_UNLESS_DEBUG_CODE
 
-  // Abort execution if argument is not a JSBoundFunction,
-  // enabled via --debug-code.
-  void AssertBoundFunction(Register object) NOOP_UNLESS_DEBUG_CODE
+      // Abort execution if argument is not a JSBoundFunction,
+      // enabled via --debug-code.
+      void AssertBoundFunction(Register object) NOOP_UNLESS_DEBUG_CODE
 
-  // Abort execution if argument is not undefined or an AllocationSite, enabled
-  // via --debug-code.
-  void AssertUndefinedOrAllocationSite(Register object) NOOP_UNLESS_DEBUG_CODE
+      // Abort execution if argument is not undefined or an AllocationSite,
+      // enabled via --debug-code.
+      void AssertUndefinedOrAllocationSite(Register object)
+          NOOP_UNLESS_DEBUG_CODE
 
-  // ---- Calling / Jumping helpers ----
+      // ---- Calling / Jumping helpers ----
 
-  void CallRuntime(const Runtime::Function* f, int num_arguments,
-                   SaveFPRegsMode save_doubles = SaveFPRegsMode::kIgnore);
+      void CallRuntime(const Runtime::Function* f, int num_arguments);
 
   // Convenience function: Same as above, but takes the fid instead.
-  void CallRuntime(Runtime::FunctionId fid, int num_arguments,
-                   SaveFPRegsMode save_doubles = SaveFPRegsMode::kIgnore) {
-    CallRuntime(Runtime::FunctionForId(fid), num_arguments, save_doubles);
+  void CallRuntime(Runtime::FunctionId fid, int num_arguments) {
+    CallRuntime(Runtime::FunctionForId(fid), num_arguments);
   }
 
   // Convenience function: Same as above, but takes the fid instead.
-  void CallRuntime(Runtime::FunctionId fid,
-                   SaveFPRegsMode save_doubles = SaveFPRegsMode::kIgnore) {
+  void CallRuntime(Runtime::FunctionId fid) {
     const Runtime::Function* function = Runtime::FunctionForId(fid);
-    CallRuntime(function, function->nargs, save_doubles);
+    CallRuntime(function, function->nargs);
   }
 
   void TailCallRuntime(Runtime::FunctionId fid);
@@ -2051,9 +2051,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // ---------------------------------------------------------------------------
   // Frames.
 
-  void ExitFramePreserveFPRegs();
-  void ExitFrameRestoreFPRegs();
-
   // Enter exit frame. Exit frames are used when calling C code from generated
   // (JavaScript) code.
   //
@@ -2076,19 +2073,16 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   //
   // This function also stores the new frame information in the top frame, so
   // that the new frame becomes the current frame.
-  void EnterExitFrame(bool save_doubles, const Register& scratch,
-                      int extra_space = 0,
-                      StackFrame::Type frame_type = StackFrame::EXIT);
+  void EnterExitFrame(const Register& scratch, int extra_space,
+                      StackFrame::Type frame_type);
 
   // Leave the current exit frame, after a C function has returned to generated
   // (JavaScript) code.
   //
   // This effectively unwinds the operation of EnterExitFrame:
-  //  * Preserved doubles are restored (if restore_doubles is true).
   //  * The frame information is removed from the top frame.
   //  * The exit frame is dropped.
-  void LeaveExitFrame(bool save_doubles, const Register& scratch,
-                      const Register& scratch2);
+  void LeaveExitFrame(const Register& scratch, const Register& scratch2);
 
   // Load the global proxy from the current context.
   void LoadGlobalProxy(Register dst);

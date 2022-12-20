@@ -466,14 +466,14 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // arguments in register eax and sets up the number of arguments in
   // register edi and the pointer to the first argument in register
   // esi.
-  void EnterExitFrame(int argc, bool save_doubles, StackFrame::Type frame_type);
+  void EnterExitFrame(int argc, StackFrame::Type frame_type);
 
   void EnterApiExitFrame(int argc, Register scratch);
 
   // Leave the current exit frame. Expects the return value in
   // register eax:edx (untouched) and the pointer to the first
   // argument in register esi (if pop_arguments == true).
-  void LeaveExitFrame(bool save_doubles, bool pop_arguments = true);
+  void LeaveExitFrame(bool pop_arguments);
 
   // Leave the current exit frame. Expects the return value in
   // register eax (untouched).
@@ -610,20 +610,17 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // Runtime calls
 
   // Call a runtime routine.
-  void CallRuntime(const Runtime::Function* f, int num_arguments,
-                   SaveFPRegsMode save_doubles = SaveFPRegsMode::kIgnore);
+  void CallRuntime(const Runtime::Function* f, int num_arguments);
 
   // Convenience function: Same as above, but takes the fid instead.
-  void CallRuntime(Runtime::FunctionId fid,
-                   SaveFPRegsMode save_doubles = SaveFPRegsMode::kIgnore) {
+  void CallRuntime(Runtime::FunctionId fid) {
     const Runtime::Function* function = Runtime::FunctionForId(fid);
-    CallRuntime(function, function->nargs, save_doubles);
+    CallRuntime(function, function->nargs);
   }
 
   // Convenience function: Same as above, but takes the fid instead.
-  void CallRuntime(Runtime::FunctionId fid, int num_arguments,
-                   SaveFPRegsMode save_doubles = SaveFPRegsMode::kIgnore) {
-    CallRuntime(Runtime::FunctionForId(fid), num_arguments, save_doubles);
+  void CallRuntime(Runtime::FunctionId fid, int num_arguments) {
+    CallRuntime(Runtime::FunctionForId(fid), num_arguments);
   }
 
   // Convenience function: tail call a runtime routine (jump).
@@ -674,7 +671,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
                       InvokeType type);
 
   void EnterExitFramePrologue(StackFrame::Type frame_type, Register scratch);
-  void EnterExitFrameEpilogue(int argc, bool save_doubles);
+  void EnterExitFrameEpilogue(int argc);
 
   void LeaveExitFrameEpilogue();
 

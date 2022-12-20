@@ -570,7 +570,7 @@ bool Builtins::CodeObjectIsExecutable(Builtin builtin) {
 
     // TODO(delphick): Remove this when calls to it have the trampoline inlined
     // or are converted to use kCallBuiltinPointer.
-    case Builtin::kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit:
+    case Builtin::kCEntry_Return1_ArgvOnStack_NoBuiltinExit:
       return true;
     default:
 #if V8_TARGET_ARCH_MIPS64

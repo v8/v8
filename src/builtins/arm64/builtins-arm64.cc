@@ -4751,8 +4751,7 @@ void Builtins::Generate_WasmOnStackReplace(MacroAssembler* masm) {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
-                               SaveFPRegsMode save_doubles, ArgvMode argv_mode,
-                               bool builtin_exit_frame) {
+                               ArgvMode argv_mode, bool builtin_exit_frame) {
   // The Abort mechanism relies on CallRuntime, which in turn relies on
   // CEntry, so until this stub has been generated, we have to use a
   // fall-back Abort mechanism.
@@ -4808,7 +4807,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // Enter the exit frame.
   FrameScope scope(masm, StackFrame::MANUAL);
   __ EnterExitFrame(
-      save_doubles == SaveFPRegsMode::kSave, x10, extra_stack_space,
+      x10, extra_stack_space,
       builtin_exit_frame ? StackFrame::BUILTIN_EXIT : StackFrame::EXIT);
 
   // Poke callee-saved registers into reserved space.
@@ -4889,7 +4888,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   __ Peek(argc, 2 * kSystemPointerSize);
   __ Peek(target, 3 * kSystemPointerSize);
 
-  __ LeaveExitFrame(save_doubles == SaveFPRegsMode::kSave, x10, x9);
+  __ LeaveExitFrame(x10, x9);
   if (argv_mode == ArgvMode::kStack) {
     // Drop the remaining stack slots and return from the stub.
     __ DropArguments(x11);
@@ -5137,7 +5136,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
     __ Ldr(x19, *stack_space_operand);
   }
 
-  __ LeaveExitFrame(false, x1, x5);
+  __ LeaveExitFrame(x1, x5);
 
   // Check if the function scheduled an exception.
   __ Mov(x5, ExternalReference::scheduled_exception_address(isolate));
@@ -5249,11 +5248,10 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
   // Allocate the v8::Arguments structure in the arguments' space, since it's
   // not controlled by GC.
   static constexpr int kApiStackSpace = 4;
-  static constexpr bool kDontSaveDoubles = false;
 
   FrameScope frame_scope(masm, StackFrame::MANUAL);
-  __ EnterExitFrame(kDontSaveDoubles, x10,
-                    kApiStackSpace + kCallApiFunctionSpillSpace);
+  __ EnterExitFrame(x10, kApiStackSpace + kCallApiFunctionSpillSpace,
+                    StackFrame::EXIT);
 
   // FunctionCallbackInfo::implicit_args_ (points at kHolder as set up above).
   // Arguments are after the return address (pushed by EnterExitFrame()).
@@ -5349,7 +5347,8 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   const int kApiStackSpace = 1;
 
   FrameScope frame_scope(masm, StackFrame::MANUAL);
-  __ EnterExitFrame(false, x10, kApiStackSpace + kCallApiFunctionSpillSpace);
+  __ EnterExitFrame(x10, kApiStackSpace + kCallApiFunctionSpillSpace,
+                    StackFrame::EXIT);
 
   // Create v8::PropertyCallbackInfo object on the stack and initialize
   // it's args_ field.

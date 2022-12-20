@@ -1230,9 +1230,8 @@ TF_BUILTIN(AdaptorWithBuiltinExitFrame, CodeStubAssembler) {
       Int32Constant(BuiltinExitFrameConstants::kNumExtraArgsWithoutReceiver));
 
   const bool builtin_exit_frame = true;
-  TNode<CodeT> code =
-      HeapConstant(CodeFactory::CEntry(isolate(), 1, SaveFPRegsMode::kIgnore,
-                                       ArgvMode::kStack, builtin_exit_frame));
+  TNode<CodeT> code = HeapConstant(
+      CodeFactory::CEntry(isolate(), 1, ArgvMode::kStack, builtin_exit_frame));
 
   // Unconditionally push argc, target and new target as extra stack arguments.
   // They will be used by stack frame iterators when constructing stack trace.
@@ -1304,56 +1303,34 @@ TF_BUILTIN(AbortCSADcheck, CodeStubAssembler) {
   TailCallRuntime(Runtime::kAbortCSADcheck, NoContextConstant(), message);
 }
 
-void Builtins::Generate_CEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit(
+void Builtins::Generate_CEntry_Return1_ArgvOnStack_NoBuiltinExit(
     MacroAssembler* masm) {
-  Generate_CEntry(masm, 1, SaveFPRegsMode::kIgnore, ArgvMode::kStack, false);
+  Generate_CEntry(masm, 1, ArgvMode::kStack, false);
 }
 
-void Builtins::Generate_CEntry_Return1_DontSaveFPRegs_ArgvOnStack_BuiltinExit(
+void Builtins::Generate_CEntry_Return1_ArgvOnStack_BuiltinExit(
     MacroAssembler* masm) {
-  Generate_CEntry(masm, 1, SaveFPRegsMode::kIgnore, ArgvMode::kStack, true);
+  Generate_CEntry(masm, 1, ArgvMode::kStack, true);
 }
 
-void Builtins::
-    Generate_CEntry_Return1_DontSaveFPRegs_ArgvInRegister_NoBuiltinExit(
-        MacroAssembler* masm) {
-  Generate_CEntry(masm, 1, SaveFPRegsMode::kIgnore, ArgvMode::kRegister, false);
-}
-
-void Builtins::Generate_CEntry_Return1_SaveFPRegs_ArgvOnStack_NoBuiltinExit(
+void Builtins::Generate_CEntry_Return1_ArgvInRegister_NoBuiltinExit(
     MacroAssembler* masm) {
-  Generate_CEntry(masm, 1, SaveFPRegsMode::kSave, ArgvMode::kStack, false);
+  Generate_CEntry(masm, 1, ArgvMode::kRegister, false);
 }
 
-void Builtins::Generate_CEntry_Return1_SaveFPRegs_ArgvOnStack_BuiltinExit(
+void Builtins::Generate_CEntry_Return2_ArgvOnStack_NoBuiltinExit(
     MacroAssembler* masm) {
-  Generate_CEntry(masm, 1, SaveFPRegsMode::kSave, ArgvMode::kStack, true);
+  Generate_CEntry(masm, 2, ArgvMode::kStack, false);
 }
 
-void Builtins::Generate_CEntry_Return2_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit(
+void Builtins::Generate_CEntry_Return2_ArgvOnStack_BuiltinExit(
     MacroAssembler* masm) {
-  Generate_CEntry(masm, 2, SaveFPRegsMode::kIgnore, ArgvMode::kStack, false);
+  Generate_CEntry(masm, 2, ArgvMode::kStack, true);
 }
 
-void Builtins::Generate_CEntry_Return2_DontSaveFPRegs_ArgvOnStack_BuiltinExit(
+void Builtins::Generate_CEntry_Return2_ArgvInRegister_NoBuiltinExit(
     MacroAssembler* masm) {
-  Generate_CEntry(masm, 2, SaveFPRegsMode::kIgnore, ArgvMode::kStack, true);
-}
-
-void Builtins::
-    Generate_CEntry_Return2_DontSaveFPRegs_ArgvInRegister_NoBuiltinExit(
-        MacroAssembler* masm) {
-  Generate_CEntry(masm, 2, SaveFPRegsMode::kIgnore, ArgvMode::kRegister, false);
-}
-
-void Builtins::Generate_CEntry_Return2_SaveFPRegs_ArgvOnStack_NoBuiltinExit(
-    MacroAssembler* masm) {
-  Generate_CEntry(masm, 2, SaveFPRegsMode::kSave, ArgvMode::kStack, false);
-}
-
-void Builtins::Generate_CEntry_Return2_SaveFPRegs_ArgvOnStack_BuiltinExit(
-    MacroAssembler* masm) {
-  Generate_CEntry(masm, 2, SaveFPRegsMode::kSave, ArgvMode::kStack, true);
+  Generate_CEntry(masm, 2, ArgvMode::kRegister, false);
 }
 
 #if !defined(V8_TARGET_ARCH_ARM)

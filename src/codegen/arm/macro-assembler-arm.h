@@ -661,14 +661,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   // Enter exit frame.
   // stack_space - extra stack space, used for alignment before call to C.
-  void EnterExitFrame(bool save_doubles, int stack_space = 0,
-                      StackFrame::Type frame_type = StackFrame::EXIT);
+  void EnterExitFrame(int stack_space, StackFrame::Type frame_type);
 
   // Leave the current exit frame. Expects the return value in r0.
   // Expect the number of values, pushed prior to the exit frame, to
   // remove in a register (or no_reg, if there is nothing to remove).
-  void LeaveExitFrame(bool save_doubles, Register argument_count,
-                      bool argument_count_is_length = false);
+  void LeaveExitFrame(Register argument_count, bool argument_count_is_length);
 
   // Load the global proxy from the current context.
   void LoadGlobalProxy(Register dst);
@@ -786,20 +784,17 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // Runtime calls
 
   // Call a runtime routine.
-  void CallRuntime(const Runtime::Function* f, int num_arguments,
-                   SaveFPRegsMode save_doubles = SaveFPRegsMode::kIgnore);
+  void CallRuntime(const Runtime::Function* f, int num_arguments);
 
   // Convenience function: Same as above, but takes the fid instead.
-  void CallRuntime(Runtime::FunctionId fid,
-                   SaveFPRegsMode save_doubles = SaveFPRegsMode::kIgnore) {
+  void CallRuntime(Runtime::FunctionId fid) {
     const Runtime::Function* function = Runtime::FunctionForId(fid);
-    CallRuntime(function, function->nargs, save_doubles);
+    CallRuntime(function, function->nargs);
   }
 
   // Convenience function: Same as above, but takes the fid instead.
-  void CallRuntime(Runtime::FunctionId fid, int num_arguments,
-                   SaveFPRegsMode save_doubles = SaveFPRegsMode::kIgnore) {
-    CallRuntime(Runtime::FunctionForId(fid), num_arguments, save_doubles);
+  void CallRuntime(Runtime::FunctionId fid, int num_arguments) {
+    CallRuntime(Runtime::FunctionForId(fid), num_arguments);
   }
 
   // Convenience function: tail call a runtime routine (jump).

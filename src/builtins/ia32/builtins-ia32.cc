@@ -3004,8 +3004,7 @@ void Builtins::Generate_WasmOnStackReplace(MacroAssembler* masm) {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
-                               SaveFPRegsMode save_doubles, ArgvMode argv_mode,
-                               bool builtin_exit_frame) {
+                               ArgvMode argv_mode, bool builtin_exit_frame) {
   // eax: number of arguments including receiver
   // edx: pointer to C function
   // ebp: frame pointer  (restored after C call)
@@ -3034,7 +3033,6 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
 
   // Enter the exit frame that transitions from JavaScript to C++.
   if (argv_mode == ArgvMode::kRegister) {
-    DCHECK(save_doubles == SaveFPRegsMode::kIgnore);
     DCHECK(!builtin_exit_frame);
     __ EnterApiExitFrame(arg_stack_space, edi);
 
@@ -3042,9 +3040,9 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     __ mov(esi, ecx);
     __ mov(edi, eax);
   } else {
-    __ EnterExitFrame(
-        arg_stack_space, save_doubles == SaveFPRegsMode::kSave,
-        builtin_exit_frame ? StackFrame::BUILTIN_EXIT : StackFrame::EXIT);
+    __ EnterExitFrame(arg_stack_space, builtin_exit_frame
+                                           ? StackFrame::BUILTIN_EXIT
+                                           : StackFrame::EXIT);
   }
 
   // edx: pointer to C function
@@ -3090,8 +3088,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   }
 
   // Exit the JavaScript to C++ exit frame.
-  __ LeaveExitFrame(save_doubles == SaveFPRegsMode::kSave,
-                    argv_mode == ArgvMode::kStack);
+  __ LeaveExitFrame(argv_mode == ArgvMode::kStack);
   __ ret(0);
 
   // Handling of exception.

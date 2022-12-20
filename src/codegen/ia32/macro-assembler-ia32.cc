@@ -1163,21 +1163,10 @@ void MacroAssembler::EnterExitFramePrologue(StackFrame::Type frame_type,
   mov(ExternalReferenceAsOperand(c_function_address, scratch), edx);
 }
 
-void MacroAssembler::EnterExitFrameEpilogue(int argc, bool save_doubles) {
+void MacroAssembler::EnterExitFrameEpilogue(int argc) {
   ASM_CODE_COMMENT(this);
-  // Optionally save all XMM registers.
-  if (save_doubles) {
-    int space =
-        XMMRegister::kNumRegisters * kDoubleSize + argc * kSystemPointerSize;
-    AllocateStackSpace(space);
-    const int offset = -ExitFrameConstants::kFixedFrameSizeFromFp;
-    for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
-      XMMRegister reg = XMMRegister::from_code(i);
-      movsd(Operand(ebp, offset - ((i + 1) * kDoubleSize)), reg);
-    }
-  } else {
-    AllocateStackSpace(argc * kSystemPointerSize);
-  }
+
+  AllocateStackSpace(argc * kSystemPointerSize);
 
   // Get the required frame alignment for the OS.
   const int kFrameAlignment = base::OS::ActivationFrameAlignment();
@@ -1190,8 +1179,7 @@ void MacroAssembler::EnterExitFrameEpilogue(int argc, bool save_doubles) {
   mov(Operand(ebp, ExitFrameConstants::kSPOffset), esp);
 }
 
-void MacroAssembler::EnterExitFrame(int argc, bool save_doubles,
-                                    StackFrame::Type frame_type) {
+void MacroAssembler::EnterExitFrame(int argc, StackFrame::Type frame_type) {
   ASM_CODE_COMMENT(this);
   EnterExitFramePrologue(frame_type, edi);
 
@@ -1201,25 +1189,16 @@ void MacroAssembler::EnterExitFrame(int argc, bool save_doubles,
   lea(esi, Operand(ebp, eax, times_system_pointer_size, offset));
 
   // Reserve space for argc, argv and isolate.
-  EnterExitFrameEpilogue(argc, save_doubles);
+  EnterExitFrameEpilogue(argc);
 }
 
 void MacroAssembler::EnterApiExitFrame(int argc, Register scratch) {
   EnterExitFramePrologue(StackFrame::EXIT, scratch);
-  EnterExitFrameEpilogue(argc, false);
+  EnterExitFrameEpilogue(argc);
 }
 
-void MacroAssembler::LeaveExitFrame(bool save_doubles, bool pop_arguments) {
+void MacroAssembler::LeaveExitFrame(bool pop_arguments) {
   ASM_CODE_COMMENT(this);
-  // Optionally restore all XMM registers.
-  if (save_doubles) {
-    const int offset = -ExitFrameConstants::kFixedFrameSizeFromFp;
-    for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
-      XMMRegister reg = XMMRegister::from_code(i);
-      movsd(reg, Operand(ebp, offset - ((i + 1) * kDoubleSize)));
-    }
-  }
-
   if (pop_arguments) {
     // Get the return address from the stack and restore the frame pointer.
     mov(ecx, Operand(ebp, 1 * kSystemPointerSize));
@@ -1291,8 +1270,8 @@ void MacroAssembler::PopStackHandler(Register scratch) {
   add(esp, Immediate(StackHandlerConstants::kSize - kSystemPointerSize));
 }
 
-void MacroAssembler::CallRuntime(const Runtime::Function* f, int num_arguments,
-                                 SaveFPRegsMode save_doubles) {
+void MacroAssembler::CallRuntime(const Runtime::Function* f,
+                                 int num_arguments) {
   ASM_CODE_COMMENT(this);
   // If the expected number of arguments of the runtime function is
   // constant, we check that the actual number of arguments match the
@@ -1305,8 +1284,7 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f, int num_arguments,
   // smarter.
   Move(kRuntimeCallArgCountRegister, Immediate(num_arguments));
   Move(kRuntimeCallFunctionRegister, Immediate(ExternalReference::Create(f)));
-  Handle<Code> code =
-      CodeFactory::CEntry(isolate(), f->result_size, save_doubles);
+  Handle<Code> code = CodeFactory::CEntry(isolate(), f->result_size);
   Call(code, RelocInfo::CODE_TARGET);
 }
 
@@ -1338,8 +1316,8 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& ext,
   ASM_CODE_COMMENT(this);
   // Set the entry point and jump to the C entry runtime stub.
   Move(kRuntimeCallFunctionRegister, Immediate(ext));
-  Handle<Code> code = CodeFactory::CEntry(isolate(), 1, SaveFPRegsMode::kIgnore,
-                                          ArgvMode::kStack, builtin_exit_frame);
+  Handle<Code> code =
+      CodeFactory::CEntry(isolate(), 1, ArgvMode::kStack, builtin_exit_frame);
   Jump(code, RelocInfo::CODE_TARGET);
 }
 

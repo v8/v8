@@ -1815,8 +1815,8 @@ void TurboAssembler::Swap(VRegister lhs, VRegister rhs) {
   Mov(lhs, temp);
 }
 
-void MacroAssembler::CallRuntime(const Runtime::Function* f, int num_arguments,
-                                 SaveFPRegsMode save_doubles) {
+void MacroAssembler::CallRuntime(const Runtime::Function* f,
+                                 int num_arguments) {
   ASM_CODE_COMMENT(this);
   // All arguments must be on the stack before this function is called.
   // x0 holds the return value after the call.
@@ -1829,8 +1829,7 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f, int num_arguments,
   Mov(x0, num_arguments);
   Mov(x1, ExternalReference::Create(f));
 
-  Handle<CodeT> code =
-      CodeFactory::CEntry(isolate(), f->result_size, save_doubles);
+  Handle<CodeT> code = CodeFactory::CEntry(isolate(), f->result_size);
   Call(code, RelocInfo::CODE_TARGET);
 }
 
@@ -1839,8 +1838,7 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
   ASM_CODE_COMMENT(this);
   Mov(x1, builtin);
   Handle<CodeT> code =
-      CodeFactory::CEntry(isolate(), 1, SaveFPRegsMode::kIgnore,
-                          ArgvMode::kStack, builtin_exit_frame);
+      CodeFactory::CEntry(isolate(), 1, ArgvMode::kStack, builtin_exit_frame);
   Jump(code, RelocInfo::CODE_TARGET);
 }
 
@@ -2904,30 +2902,7 @@ void TurboAssembler::LeaveFrame(StackFrame::Type type) {
   Pop<TurboAssembler::kAuthLR>(fp, lr);
 }
 
-void MacroAssembler::ExitFramePreserveFPRegs() {
-  ASM_CODE_COMMENT(this);
-  DCHECK_EQ(kCallerSavedV.Count() % 2, 0);
-  PushCPURegList(kCallerSavedV);
-}
-
-void MacroAssembler::ExitFrameRestoreFPRegs() {
-  // Read the registers from the stack without popping them. The stack pointer
-  // will be reset as part of the unwinding process.
-  ASM_CODE_COMMENT(this);
-  CPURegList saved_fp_regs = kCallerSavedV;
-  DCHECK_EQ(saved_fp_regs.Count() % 2, 0);
-
-  int offset = ExitFrameConstants::kLastExitFrameField;
-  while (!saved_fp_regs.IsEmpty()) {
-    const CPURegister& dst0 = saved_fp_regs.PopHighestIndex();
-    const CPURegister& dst1 = saved_fp_regs.PopHighestIndex();
-    offset -= 2 * kDRegSize;
-    Ldp(dst1, dst0, MemOperand(fp, offset));
-  }
-}
-
-void MacroAssembler::EnterExitFrame(bool save_doubles, const Register& scratch,
-                                    int extra_space,
+void MacroAssembler::EnterExitFrame(const Register& scratch, int extra_space,
                                     StackFrame::Type frame_type) {
   ASM_CODE_COMMENT(this);
   DCHECK(frame_type == StackFrame::EXIT ||
@@ -2960,9 +2935,6 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, const Register& scratch,
 
   static_assert((-2 * kSystemPointerSize) ==
                 ExitFrameConstants::kLastExitFrameField);
-  if (save_doubles) {
-    ExitFramePreserveFPRegs();
-  }
 
   // Round the number of space we need to claim to a multiple of two.
   int slots_to_claim = RoundUp(extra_space + 1, 2);
@@ -2975,7 +2947,6 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, const Register& scratch,
   //   fp -> fp[0]: CallerFP (old fp)
   //         fp[-8]: STUB marker
   //         fp[-16]: Space reserved for SPOffset.
-  //         fp[-16 - fp_size]: Saved doubles (if save_doubles is true).
   //         sp[8]: Extra space reserved for caller (if extra_space != 0).
   //   sp -> sp[0]: Space reserved for the return address.
 
@@ -2988,13 +2959,9 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, const Register& scratch,
 }
 
 // Leave the current exit frame.
-void MacroAssembler::LeaveExitFrame(bool restore_doubles,
-                                    const Register& scratch,
+void MacroAssembler::LeaveExitFrame(const Register& scratch,
                                     const Register& scratch2) {
   ASM_CODE_COMMENT(this);
-  if (restore_doubles) {
-    ExitFrameRestoreFPRegs();
-  }
 
   // Restore the context pointer from the top frame.
   Mov(scratch,

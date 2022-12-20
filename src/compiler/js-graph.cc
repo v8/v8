@@ -16,10 +16,9 @@ namespace compiler {
 #define DEFINE_GETTER(name, expr) \
   Node* JSGraph::name() { return GET_CACHED_FIELD(&name##_, expr); }
 
-Node* JSGraph::CEntryStubConstant(int result_size, SaveFPRegsMode save_doubles,
-                                  ArgvMode argv_mode, bool builtin_exit_frame) {
-  if (save_doubles == SaveFPRegsMode::kIgnore &&
-      argv_mode == ArgvMode::kStack) {
+Node* JSGraph::CEntryStubConstant(int result_size, ArgvMode argv_mode,
+                                  bool builtin_exit_frame) {
+  if (argv_mode == ArgvMode::kStack) {
     DCHECK(result_size >= 1 && result_size <= 3);
     if (!builtin_exit_frame) {
       Node** ptr = nullptr;
@@ -31,18 +30,18 @@ Node* JSGraph::CEntryStubConstant(int result_size, SaveFPRegsMode save_doubles,
         DCHECK_EQ(3, result_size);
         ptr = &CEntryStub3Constant_;
       }
-      return GET_CACHED_FIELD(ptr, HeapConstant(CodeFactory::CEntry(
-                                       isolate(), result_size, save_doubles,
-                                       argv_mode, builtin_exit_frame)));
+      return GET_CACHED_FIELD(
+          ptr, HeapConstant(CodeFactory::CEntry(
+                   isolate(), result_size, argv_mode, builtin_exit_frame)));
     }
     Node** ptr = builtin_exit_frame ? &CEntryStub1WithBuiltinExitFrameConstant_
                                     : &CEntryStub1Constant_;
-    return GET_CACHED_FIELD(ptr, HeapConstant(CodeFactory::CEntry(
-                                     isolate(), result_size, save_doubles,
-                                     argv_mode, builtin_exit_frame)));
+    return GET_CACHED_FIELD(
+        ptr, HeapConstant(CodeFactory::CEntry(isolate(), result_size, argv_mode,
+                                              builtin_exit_frame)));
   }
-  return HeapConstant(CodeFactory::CEntry(isolate(), result_size, save_doubles,
-                                          argv_mode, builtin_exit_frame));
+  return HeapConstant(CodeFactory::CEntry(isolate(), result_size, argv_mode,
+                                          builtin_exit_frame));
 }
 
 Node* JSGraph::Constant(const ObjectRef& ref) {

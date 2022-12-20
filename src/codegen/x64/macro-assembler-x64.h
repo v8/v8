@@ -737,8 +737,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   //
   // Allocates arg_stack_space * kSystemPointerSize memory (not GCed) on the
   // stack accessible via StackSpaceOperand.
-  void EnterExitFrame(int arg_stack_space = 0, bool save_doubles = false,
-                      StackFrame::Type frame_type = StackFrame::EXIT);
+  void EnterExitFrame(int arg_stack_space, StackFrame::Type frame_type);
 
   // Enter specific kind of exit frame. Allocates
   // (arg_stack_space * kSystemPointerSize) memory (not GCed) on the stack
@@ -748,7 +747,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // Leave the current exit frame. Expects/provides the return value in
   // register rax:rdx (untouched) and the pointer to the first
   // argument in register rsi (if pop_arguments == true).
-  void LeaveExitFrame(bool save_doubles = false, bool pop_arguments = true);
+  void LeaveExitFrame(bool pop_arguments);
 
   // Leave the current exit frame. Expects/provides the return value in
   // register rax (untouched).
@@ -900,20 +899,17 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // Runtime calls
 
   // Call a runtime routine.
-  void CallRuntime(const Runtime::Function* f, int num_arguments,
-                   SaveFPRegsMode save_doubles = SaveFPRegsMode::kIgnore);
+  void CallRuntime(const Runtime::Function* f, int num_arguments);
 
   // Convenience function: Same as above, but takes the fid instead.
-  void CallRuntime(Runtime::FunctionId fid,
-                   SaveFPRegsMode save_doubles = SaveFPRegsMode::kIgnore) {
+  void CallRuntime(Runtime::FunctionId fid) {
     const Runtime::Function* function = Runtime::FunctionForId(fid);
-    CallRuntime(function, function->nargs, save_doubles);
+    CallRuntime(function, function->nargs);
   }
 
   // Convenience function: Same as above, but takes the fid instead.
-  void CallRuntime(Runtime::FunctionId fid, int num_arguments,
-                   SaveFPRegsMode save_doubles = SaveFPRegsMode::kIgnore) {
-    CallRuntime(Runtime::FunctionForId(fid), num_arguments, save_doubles);
+  void CallRuntime(Runtime::FunctionId fid, int num_arguments) {
+    CallRuntime(Runtime::FunctionForId(fid), num_arguments);
   }
 
   // Convenience function: tail call a runtime routine (jump)
@@ -957,7 +953,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   // Allocates arg_stack_space * kSystemPointerSize memory (not GCed) on the
   // stack accessible via StackSpaceOperand.
-  void EnterExitFrameEpilogue(int arg_stack_space, bool save_doubles);
+  void EnterExitFrameEpilogue(int arg_stack_space);
 
   void LeaveExitFrameEpilogue();
 

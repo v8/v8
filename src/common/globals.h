@@ -675,8 +675,11 @@ enum class StoreOrigin { kMaybeKeyed, kNamed };
 
 enum class TypeofMode { kInside, kNotInside };
 
-// Enums used by CEntry.
+// Whether floating point registers should be saved (and restored).
 enum class SaveFPRegsMode { kIgnore, kSave };
+
+// Whether arguments are passed on a known stack location or through a
+// register.
 enum class ArgvMode { kStack, kRegister };
 
 // This constant is used as an undefined value when passing source positions.
