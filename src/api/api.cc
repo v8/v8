@@ -38,6 +38,7 @@
 #include "src/baseline/baseline-batch-compiler.h"
 #include "src/builtins/accessors.h"
 #include "src/builtins/builtins-utils.h"
+#include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/cpu-features.h"
 #include "src/codegen/script-details.h"
@@ -9651,6 +9652,7 @@ void Isolate::ClearCachesForTesting() {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   i_isolate->AbortConcurrentOptimization(i::BlockingBehavior::kBlock);
   i_isolate->ClearSerializerData();
+  i_isolate->compilation_cache()->Clear();
 }
 
 void Isolate::EnableMemorySavingsMode() {
