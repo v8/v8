@@ -448,7 +448,8 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_SHADOW_REALM(F, I) \
   F(ShadowRealmWrappedFunctionCreate, 2, 1)   \
-  F(ShadowRealmImportValue, 1, 1)
+  F(ShadowRealmImportValue, 1, 1)             \
+  F(ShadowRealmThrow, 2, 1)
 
 #define FOR_EACH_INTRINSIC_STRINGS(F, I)  \
   F(FlattenString, 1, 1)                  \

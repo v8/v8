@@ -896,7 +896,8 @@ namespace internal {
       kSpecifier, kExportName)                                                 \
   TFJ(ShadowRealmImportValueFulfilled, kJSArgcReceiverSlots + 1, kReceiver,    \
       kExports)                                                                \
-  TFJ(ShadowRealmImportValueRejected, kDontAdaptArgumentsSentinel)             \
+  TFJ(ShadowRealmImportValueRejected, kJSArgcReceiverSlots + 1, kReceiver,     \
+      kException)                                                              \
                                                                                \
   /* SharedArrayBuffer */                                                      \
   CPP(SharedArrayBufferPrototypeGetByteLength)                                 \
