@@ -1508,6 +1508,16 @@
 }],  # variant == maglev
 
 ##############################################################################
+['variant == future', {
+  # Because future implies maglev, tests that fail under maglev now also fail
+  # under future. Thus this section likely supercedes the maglev section above.
+  # TODO(adamk): Remove the maglev section in preference to this one?
+
+  # https://crbug.com/v8/13612
+  'md5': [SKIP],
+}],  # variant == future
+
+##############################################################################
 ['no_simd_hardware == True', {
   'wasm/exceptions-simd': [SKIP],
   'wasm/liftoff-simd-params': [SKIP],
