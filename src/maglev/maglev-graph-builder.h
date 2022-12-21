@@ -493,8 +493,6 @@ class MaglevGraphBuilder {
     // TODO(victorgomes): Rename all kFeedbackVector parameters in the builtins
     // to kVector.
     DCHECK_EQ(vector_index, Descriptor::kVector);
-    // Also check that the builtin does not allow var args.
-    DCHECK_EQ(Descriptor::kAllowVarArgs, false);
 #endif  // DEBUG
     return call_builtin;
   }

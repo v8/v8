@@ -1740,6 +1740,106 @@ void CallKnownJSFunction::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
+int CallBuiltin::MaxCallStackArgs() const {
+  auto descriptor = Builtins::CallInterfaceDescriptorFor(builtin());
+  if (!descriptor.AllowVarArgs()) {
+    return descriptor.GetStackParameterCount();
+  } else {
+    int all_input_count = InputCountWithoutContext() + (has_feedback() ? 2 : 0);
+    DCHECK_GE(all_input_count, descriptor.GetRegisterParameterCount());
+    return all_input_count - descriptor.GetRegisterParameterCount();
+  }
+}
+
+void CallBuiltin::SetValueLocationConstraints() {
+  auto descriptor = Builtins::CallInterfaceDescriptorFor(builtin());
+  bool has_context = descriptor.HasContextParameter();
+  int i = 0;
+  for (; i < InputsInRegisterCount(); i++) {
+    UseFixed(input(i), descriptor.GetRegisterParameter(i));
+  }
+  for (; i < InputCountWithoutContext(); i++) {
+    UseAny(input(i));
+  }
+  if (has_context) {
+    UseFixed(input(i), kContextRegister);
+  }
+  DefineAsFixed(this, kReturnRegister0);
+}
+
+template <typename... Args>
+void CallBuiltin::PushArguments(MaglevAssembler* masm, Args... extra_args) {
+  auto descriptor = Builtins::CallInterfaceDescriptorFor(builtin());
+  if (descriptor.GetStackArgumentOrder() == StackArgumentOrder::kDefault) {
+    // In Default order we cannot have extra args (feedback).
+    DCHECK_EQ(sizeof...(extra_args), 0);
+    __ Push(base::make_iterator_range(stack_args_begin(), stack_args_end()));
+  } else {
+    DCHECK_EQ(descriptor.GetStackArgumentOrder(), StackArgumentOrder::kJS);
+    __ PushReverse(extra_args..., base::make_iterator_range(stack_args_begin(),
+                                                            stack_args_end()));
+  }
+}
+
+void CallBuiltin::PassFeedbackSlotInRegister(MaglevAssembler* masm) {
+  DCHECK(has_feedback());
+  auto descriptor = Builtins::CallInterfaceDescriptorFor(builtin());
+  int slot_index = InputCountWithoutContext();
+  switch (slot_type()) {
+    case kTaggedIndex:
+      __ Move(descriptor.GetRegisterParameter(slot_index),
+              TaggedIndex::FromIntptr(feedback().index()));
+      break;
+    case kSmi:
+      __ Move(descriptor.GetRegisterParameter(slot_index),
+              Smi::FromInt(feedback().index()));
+      break;
+  }
+}
+
+void CallBuiltin::PushFeedbackAndArguments(MaglevAssembler* masm) {
+  DCHECK(has_feedback());
+
+  auto descriptor = Builtins::CallInterfaceDescriptorFor(builtin());
+  int slot_index = InputCountWithoutContext();
+  int vector_index = slot_index + 1;
+
+  // There are three possibilities:
+  // 1. Feedback slot and vector are in register.
+  // 2. Feedback slot is in register and vector is on stack.
+  // 3. Feedback slot and vector are on stack.
+  if (vector_index < descriptor.GetRegisterParameterCount()) {
+    PassFeedbackSlotInRegister(masm);
+    __ Move(descriptor.GetRegisterParameter(vector_index), feedback().vector);
+    PushArguments(masm);
+  } else if (vector_index == descriptor.GetRegisterParameterCount()) {
+    PassFeedbackSlotInRegister(masm);
+    PushArguments(masm, feedback().vector);
+  } else {
+    int slot = feedback().index();
+    Handle<FeedbackVector> vector = feedback().vector;
+    switch (slot_type()) {
+      case kTaggedIndex:
+        PushArguments(masm, TaggedIndex::FromIntptr(slot), vector);
+        break;
+      case kSmi:
+        PushArguments(masm, Smi::FromInt(slot), vector);
+        break;
+    }
+  }
+}
+
+void CallBuiltin::GenerateCode(MaglevAssembler* masm,
+                               const ProcessingState& state) {
+  if (has_feedback()) {
+    PushFeedbackAndArguments(masm);
+  } else {
+    PushArguments(masm);
+  }
+  __ CallBuiltin(builtin());
+  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
+}
+
 int CallRuntime::MaxCallStackArgs() const { return num_args(); }
 void CallRuntime::SetValueLocationConstraints() {
   UseFixed(context(), kContextRegister);

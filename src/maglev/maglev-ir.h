@@ -5043,6 +5043,13 @@ class CallBuiltin : public ValueNodeT<CallBuiltin> {
     return descriptor.GetRegisterParameterCount();
   }
 
+  auto stack_args_begin() {
+    return std::make_reverse_iterator(&input(InputsInRegisterCount() - 1));
+  }
+  auto stack_args_end() {
+    return std::make_reverse_iterator(&input(InputCountWithoutContext() - 1));
+  }
+
   void set_arg(int i, ValueNode* node) { set_input(i, node); }
 
   int ReturnCount() const {
@@ -5056,9 +5063,10 @@ class CallBuiltin : public ValueNodeT<CallBuiltin> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
  private:
-  void PassFeedbackSlotOnStack(MaglevAssembler*);
+  template <typename... Args>
+  void PushArguments(MaglevAssembler* masm, Args... extra_args);
   void PassFeedbackSlotInRegister(MaglevAssembler*);
-  void PushFeedback(MaglevAssembler*);
+  void PushFeedbackAndArguments(MaglevAssembler*);
 
   Builtin builtin_;
   base::Optional<compiler::FeedbackSource> feedback_;
