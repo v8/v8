@@ -158,7 +158,6 @@ class MaglevConcurrentDispatcher::JobTask final : public v8::JobTask {
     LocalIsolate local_isolate(isolate(), ThreadKind::kBackground);
     DCHECK(local_isolate.heap()->IsParked());
 
-    bool job_was_executed = false;
     while (!incoming_queue()->IsEmpty() && !delegate->ShouldYield()) {
       std::unique_ptr<MaglevCompilationJob> job;
       if (!incoming_queue()->Dequeue(&job)) break;
@@ -169,32 +168,20 @@ class MaglevConcurrentDispatcher::JobTask final : public v8::JobTask {
       RuntimeCallStats* rcs = nullptr;  // TODO(v8:7700): Implement.
       CompilationJob::Status status = job->ExecuteJob(rcs, &local_isolate);
       if (status == CompilationJob::SUCCEEDED) {
-        job_was_executed = true;
         outgoing_queue()->Enqueue(std::move(job));
       }
     }
-    if (job_was_executed) {
-      isolate()->stack_guard()->RequestInstallMaglevCode();
-    }
-    // Maglev jobs aren't cheap to destruct, so destroy them here in the
-    // background thread rather than on the main thread.
-    while (!destruction_queue()->IsEmpty() && !delegate->ShouldYield()) {
-      std::unique_ptr<MaglevCompilationJob> job;
-      if (!destruction_queue()->Dequeue(&job)) break;
-      DCHECK_NOT_NULL(job);
-      job.reset();
-    }
+    isolate()->stack_guard()->RequestInstallMaglevCode();
   }
 
   size_t GetMaxConcurrency(size_t) const override {
-    return incoming_queue()->size() + destruction_queue()->size();
+    return incoming_queue()->size();
   }
 
  private:
   Isolate* isolate() const { return dispatcher_->isolate_; }
   QueueT* incoming_queue() const { return &dispatcher_->incoming_queue_; }
   QueueT* outgoing_queue() const { return &dispatcher_->outgoing_queue_; }
-  QueueT* destruction_queue() const { return &dispatcher_->destruction_queue_; }
 
   MaglevConcurrentDispatcher* const dispatcher_;
   const Handle<JSFunction> function_;
@@ -237,9 +224,6 @@ void MaglevConcurrentDispatcher::FinalizeFinishedJobs() {
                            "V8.MaglevConcurrentFinalize", job.get(),
                            TRACE_EVENT_FLAG_FLOW_IN);
     Compiler::FinalizeMaglevCompilationJob(job.get(), isolate_);
-    // Maglev jobs aren't cheap to destruct, so re-enqueue them for destruction
-    // on a background thread.
-    destruction_queue_.Enqueue(std::move(job));
   }
 }
 

@@ -100,7 +100,6 @@ class MaglevConcurrentDispatcher final {
   std::unique_ptr<JobHandle> job_handle_;
   QueueT incoming_queue_;
   QueueT outgoing_queue_;
-  QueueT destruction_queue_;
 };
 
 }  // namespace maglev
