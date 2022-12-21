@@ -455,6 +455,7 @@ DEFINE_BOOL(lower_tier_as_toptier, false,
 #ifdef V8_ENABLE_MAGLEV
 #define V8_ENABLE_MAGLEV_BOOL true
 DEFINE_BOOL(maglev, false, "enable the maglev optimizing compiler")
+DEFINE_WEAK_IMPLICATION(future, maglev)
 DEFINE_BOOL(maglev_inlining, false,
             "enable inlining in the maglev optimizing compiler")
 DEFINE_BOOL(maglev_reuse_stack_slots, true,
