@@ -5326,8 +5326,8 @@ void TurboAssembler::MulOverflow32(Register dst, Register left,
 }
 #endif
 
-void MacroAssembler::CallRuntime(const Runtime::Function* f, int num_arguments,
-                                 SaveFPRegsMode save_doubles) {
+void MacroAssembler::CallRuntime(const Runtime::Function* f,
+                                 int num_arguments) {
   ASM_CODE_COMMENT(this);
   // All parameters are on the stack. a0 has the return value after call.
 
@@ -5342,8 +5342,7 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f, int num_arguments,
   // smarter.
   PrepareCEntryArgs(num_arguments);
   PrepareCEntryFunction(ExternalReference::Create(f));
-  Handle<Code> code =
-      CodeFactory::CEntry(isolate(), f->result_size, save_doubles);
+  Handle<Code> code = CodeFactory::CEntry(isolate(), f->result_size);
   Call(code, RelocInfo::CODE_TARGET);
 }
 
@@ -5361,8 +5360,8 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
                                              bool builtin_exit_frame) {
   ASM_CODE_COMMENT(this);
   PrepareCEntryFunction(builtin);
-  Handle<Code> code = CodeFactory::CEntry(isolate(), 1, SaveFPRegsMode::kIgnore,
-                                          ArgvMode::kStack, builtin_exit_frame);
+  Handle<Code> code =
+      CodeFactory::CEntry(isolate(), 1, ArgvMode::kStack, builtin_exit_frame);
   Jump(code, RelocInfo::CODE_TARGET, al, zero_reg, Operand(zero_reg));
 }
 
@@ -5547,7 +5546,7 @@ void TurboAssembler::LeaveFrame(StackFrame::Type type) {
   LoadWord(fp, MemOperand(fp, 0 * kSystemPointerSize));
 }
 
-void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
+void MacroAssembler::EnterExitFrame(int stack_space,
                                     StackFrame::Type frame_type) {
   ASM_CODE_COMMENT(this);
   DCHECK(frame_type == StackFrame::EXIT ||
@@ -5600,19 +5599,6 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
   }
 
   const int frame_alignment = MacroAssembler::ActivationFrameAlignment();
-  if (save_doubles) {
-    // The stack is already aligned to 0 modulo 8 for stores with sdc1.
-    int space = kNumCallerSavedFPU * kDoubleSize;
-    SubWord(sp, sp, Operand(space));
-    int count = 0;
-    for (int i = 0; i < kNumFPURegisters; i++) {
-      if (kCallerSavedFPU.bits() & (1 << i)) {
-        FPURegister reg = FPURegister::from_code(i);
-        StoreDouble(reg, MemOperand(sp, count * kDoubleSize));
-        count++;
-      }
-    }
-  }
 
   // Reserve place for the return address, stack space and an optional slot
   // (used by DirectCEntry to hold the return value if a struct is
@@ -5632,28 +5618,12 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
   StoreWord(scratch, MemOperand(fp, ExitFrameConstants::kSPOffset));
 }
 
-void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
-                                    bool do_return,
+void MacroAssembler::LeaveExitFrame(Register argument_count, bool do_return,
                                     bool argument_count_is_length) {
   ASM_CODE_COMMENT(this);
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  // Optionally restore all double registers.
-  if (save_doubles) {
-    // Remember: we only need to restore kCallerSavedFPU.
-    SubWord(scratch, fp,
-            Operand(ExitFrameConstants::kFixedFrameSizeFromFp +
-                    kNumCallerSavedFPU * kDoubleSize));
-    int cout = 0;
-    for (int i = 0; i < kNumFPURegisters; i++) {
-      if (kCalleeSavedFPU.bits() & (1 << i)) {
-        FPURegister reg = FPURegister::from_code(i);
-        LoadDouble(reg, MemOperand(scratch, cout * kDoubleSize));
-        cout++;
-      }
-    }
-  }
 
   // Clear top frame.
   li(scratch,
