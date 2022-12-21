@@ -381,7 +381,6 @@ def v8_basic_builder(defaults, **kwargs):
     properties["__wip__"] = kwargs.pop("work_in_progress", False)
 
     kwargs["properties"] = properties
-    kwargs.setdefault("resultdb_settings", resultdb.settings(enable = True))
     kwargs = fix_args(defaults, **kwargs)
 
     description = kwargs.pop("description", None)
@@ -392,12 +391,6 @@ def v8_basic_builder(defaults, **kwargs):
             description,
         )
 
-    # Making sure the recipe receives the experiment settings
-    experiments = kwargs.get("experiments", {})
-    experiments["v8.resultdb"] = 100
-    kwargs["experiments"] = experiments
-
-    defaults = defaults_dict[kwargs["bucket"]]
     resultdb_bq_table_prefix = defaults.get("resultdb_bq_table_prefix")
     kwargs["resultdb_settings"] = resultdb.settings(
         enable = True,
