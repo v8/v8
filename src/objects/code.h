@@ -29,7 +29,7 @@ class BytecodeArray;
 class CodeDataContainer;
 class CodeDesc;
 class ObjectIterator;
-class IsolateSafepointScope;
+class SafepointScope;
 
 class LocalFactory;
 template <typename Impl>
@@ -993,7 +993,7 @@ class Code::OptimizedCodeIterator {
 
  private:
   Isolate* isolate_;
-  std::unique_ptr<IsolateSafepointScope> safepoint_scope_;
+  std::unique_ptr<SafepointScope> safepoint_scope_;
   std::unique_ptr<ObjectIterator> object_iterator_;
   enum { kIteratingCodeSpace, kIteratingCodeLOSpace, kDone } state_;
 

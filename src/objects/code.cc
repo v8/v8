@@ -420,8 +420,10 @@ bool Code::Inlines(SharedFunctionInfo sfi) {
 
 Code::OptimizedCodeIterator::OptimizedCodeIterator(Isolate* isolate)
     : isolate_(isolate),
-      safepoint_scope_(
-          std::make_unique<IsolateSafepointScope>(isolate->heap())),
+      safepoint_scope_(std::make_unique<SafepointScope>(
+          isolate, isolate->is_shared_heap_isolate()
+                       ? SafepointKind::kGlobal
+                       : SafepointKind::kIsolate)),
       object_iterator_(
           isolate->heap()->code_space()->GetObjectIterator(isolate->heap())),
       state_(kIteratingCodeSpace) {}
