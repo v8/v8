@@ -1238,6 +1238,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   V(F64x2Ceil)              \
   V(F64x2Floor)             \
   V(F64x2Trunc)             \
+  V(F64x2PromoteLowF32x4)   \
   V(F32x4Abs)               \
   V(F32x4Neg)               \
   V(F32x4Sqrt)              \
@@ -1266,6 +1267,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 #undef SIMD_UNOP_LIST
 
 #define SIMD_UNOP_WITH_SCRATCH_LIST(V) \
+  V(F32x4DemoteF64x2Zero)              \
   V(I64x2Abs)                          \
   V(I32x4Abs)                          \
   V(I32x4SConvertF32x4)                \

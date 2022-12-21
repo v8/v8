@@ -2356,6 +2356,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   V(F64x2Ceil)              \
   V(F64x2Floor)             \
   V(F64x2Trunc)             \
+  V(F64x2PromoteLowF32x4)   \
   V(F32x4Abs)               \
   V(F32x4Neg)               \
   V(F32x4SConvertI32x4)     \
@@ -2387,6 +2388,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #undef SIMD_UNOP_LIST
 
 #define SIMD_UNOP_WITH_SCRATCH_LIST(V) \
+  V(F32x4DemoteF64x2Zero)              \
   V(I64x2Abs)                          \
   V(I32x4Abs)                          \
   V(I32x4SConvertF32x4)                \
@@ -2893,26 +2895,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
 #undef MAYBE_REVERSE_BYTES
-    case kPPC_F64x2PromoteLowF32x4: {
-      constexpr int lane_number = 8;
-      Simd128Register src = i.InputSimd128Register(0);
-      Simd128Register dst = i.OutputSimd128Register();
-      __ vextractd(kScratchSimd128Reg, src, Operand(lane_number));
-      __ vinsertw(kScratchSimd128Reg, kScratchSimd128Reg, Operand(lane_number));
-      __ xvcvspdp(dst, kScratchSimd128Reg);
-      break;
-    }
-    case kPPC_F32x4DemoteF64x2Zero: {
-      constexpr int lane_number = 8;
-      Simd128Register src = i.InputSimd128Register(0);
-      Simd128Register dst = i.OutputSimd128Register();
-      __ xvcvdpsp(kScratchSimd128Reg, src);
-      __ vextractuw(dst, kScratchSimd128Reg, Operand(lane_number));
-      __ vinsertw(kScratchSimd128Reg, dst, Operand(4));
-      __ vxor(dst, dst, dst);
-      __ vinsertd(dst, kScratchSimd128Reg, Operand(lane_number));
-      break;
-    }
     case kPPC_I32x4TruncSatF64x2SZero: {
       constexpr int lane_number = 8;
       Simd128Register src = i.InputSimd128Register(0);

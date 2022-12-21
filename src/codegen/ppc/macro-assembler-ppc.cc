@@ -4573,6 +4573,25 @@ void TurboAssembler::I16x8ExtAddPairwiseI8x16U(Simd128Register dst,
 }
 #undef EXT_ADD_PAIRWISE
 
+void TurboAssembler::F64x2PromoteLowF32x4(Simd128Register dst,
+                                          Simd128Register src) {
+  constexpr int lane_number = 8;
+  vextractd(dst, src, Operand(lane_number));
+  vinsertw(dst, dst, Operand(lane_number));
+  xvcvspdp(dst, dst);
+}
+
+void TurboAssembler::F32x4DemoteF64x2Zero(Simd128Register dst,
+                                          Simd128Register src,
+                                          Simd128Register scratch) {
+  constexpr int lane_number = 8;
+  xvcvdpsp(scratch, src);
+  vextractuw(dst, scratch, Operand(lane_number));
+  vinsertw(scratch, dst, Operand(4));
+  vxor(dst, dst, dst);
+  vinsertd(dst, scratch, Operand(lane_number));
+}
+
 void TurboAssembler::V128AnyTrue(Register dst, Simd128Register src,
                                  Register scratch1, Register scratch2,
                                  Simd128Register scratch3) {
