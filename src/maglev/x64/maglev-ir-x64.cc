@@ -2156,37 +2156,6 @@ void CheckedTruncateNumberToInt32::GenerateCode(MaglevAssembler* masm,
   __ bind(&done);
 }
 
-void LogicalNot::SetValueLocationConstraints() {
-  UseRegister(value());
-  DefineAsRegister(this);
-}
-void LogicalNot::GenerateCode(MaglevAssembler* masm,
-                              const ProcessingState& state) {
-  Register object = ToRegister(value());
-  Register return_value = ToRegister(result());
-
-  if (v8_flags.debug_code) {
-    // LogicalNot expects either TrueValue or FalseValue.
-    Label next;
-    __ CompareRoot(object, RootIndex::kFalseValue);
-    __ j(equal, &next);
-    __ CompareRoot(object, RootIndex::kTrueValue);
-    __ Check(equal, AbortReason::kUnexpectedValue);
-    __ bind(&next);
-  }
-
-  Label return_false, done;
-  __ CompareRoot(object, RootIndex::kTrueValue);
-  __ j(equal, &return_false, Label::kNear);
-  __ LoadRoot(return_value, RootIndex::kTrueValue);
-  __ jmp(&done, Label::kNear);
-
-  __ bind(&return_false);
-  __ LoadRoot(return_value, RootIndex::kFalseValue);
-
-  __ bind(&done);
-}
-
 void SetPendingMessage::SetValueLocationConstraints() {
   UseRegister(value());
   set_temporaries_needed(1);

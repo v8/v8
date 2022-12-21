@@ -1216,6 +1216,32 @@ void Abort::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   __ Trap();
 }
 
+void LogicalNot::SetValueLocationConstraints() {
+  UseAny(value());
+  DefineAsRegister(this);
+}
+void LogicalNot::GenerateCode(MaglevAssembler* masm,
+                              const ProcessingState& state) {
+  if (v8_flags.debug_code) {
+    // LogicalNot expects either TrueValue or FalseValue.
+    Label next;
+    __ JumpIf(__ IsRootConstant(value(), RootIndex::kFalseValue), &next);
+    __ JumpIf(__ IsRootConstant(value(), RootIndex::kTrueValue), &next);
+    __ Abort(AbortReason::kUnexpectedValue);
+    __ bind(&next);
+  }
+
+  Label return_false, done;
+  __ JumpIf(__ IsRootConstant(value(), RootIndex::kTrueValue), &return_false);
+  __ LoadRoot(ToRegister(result()), RootIndex::kTrueValue);
+  __ Jump(&done);
+
+  __ bind(&return_false);
+  __ LoadRoot(ToRegister(result()), RootIndex::kFalseValue);
+
+  __ bind(&done);
+}
+
 int LoadNamedGeneric::MaxCallStackArgs() const {
   return LoadWithVectorDescriptor::GetStackParameterCount();
 }
