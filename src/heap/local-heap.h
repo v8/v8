@@ -282,7 +282,6 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
   void Park() {
     DCHECK(AllowSafepoints::IsAllowed());
-    SaveStackContextIfMainThread();
     ThreadState expected = ThreadState::Running();
     if (!state_.CompareExchangeWeak(expected, ThreadState::Parked())) {
       ParkSlowPath();
@@ -295,7 +294,6 @@ class V8_EXPORT_PRIVATE LocalHeap {
     if (!state_.CompareExchangeWeak(expected, ThreadState::Running())) {
       UnparkSlowPath();
     }
-    ClearStackContextIfMainThread();
   }
 
   void ParkSlowPath();
@@ -313,21 +311,6 @@ class V8_EXPORT_PRIVATE LocalHeap {
   void SetUpMainThread();
   void SetUp();
   void SetUpSharedMarking();
-
-  void SaveStackContext() {
-    DCHECK(!stack_context_scope_.has_value());
-    stack_context_scope_.emplace(&heap_->stack());
-  }
-
-  void SaveStackContextIfMainThread() {
-    if (is_main_thread()) SaveStackContext();
-  }
-
-  void ClearStackContext() { stack_context_scope_.reset(); }
-
-  void ClearStackContextIfMainThread() {
-    if (is_main_thread()) ClearStackContext();
-  }
 
   Heap* heap_;
   bool is_main_thread_;
@@ -354,8 +337,6 @@ class V8_EXPORT_PRIVATE LocalHeap {
   std::unique_ptr<ConcurrentAllocator> shared_old_space_allocator_;
 
   MarkingBarrier* saved_marking_barrier_ = nullptr;
-
-  base::Optional<SaveStackContextScope> stack_context_scope_;
 
   friend class CollectionBarrier;
   friend class ConcurrentAllocator;
