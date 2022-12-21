@@ -2385,8 +2385,6 @@ void Heap::PerformSharedGarbageCollection(Isolate* initiator,
   DCHECK_NOT_NULL(isolate()->global_safepoint());
 
   SaveStackContextScope stack_context_scope(&stack());
-  SaveStackContextScope initiator_stack_context_scope(
-      &initiator->thread_local_top()->stack_);
 
   isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
     client->heap()->FreeSharedLinearAllocationAreas();
@@ -4623,8 +4621,7 @@ class ClearStaleLeftTrimmedHandlesVisitor : public RootVisitor {
 #endif  // V8_COMPRESS_POINTERS
 };
 
-void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options,
-                        IterateRootsMode mode) {
+void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options) {
   v->VisitRootPointers(Root::kStrongRootList, nullptr,
                        roots_table().strong_roots_begin(),
                        roots_table().strong_roots_end());
@@ -4694,7 +4691,7 @@ void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options,
       StackState stack_state = options.contains(SkipRoot::kConservativeStack)
                                    ? StackState::kNoHeapPointers
                                    : StackState::kMayContainHeapPointers;
-      IterateStackRoots(v, stack_state, mode);
+      IterateStackRoots(v, stack_state);
       v->Synchronize(VisitorSynchronization::kStackRoots);
     }
 
@@ -4815,13 +4812,13 @@ void Heap::IterateRootsIncludingClients(RootVisitor* v,
 
   if (isolate()->is_shared_heap_isolate()) {
     ClientRootVisitor client_root_visitor(v);
-    // When iterating roots of clients, we assume it will be necessary to scan
-    // their stacks conservatively regardless of the main isolate's stack state.
-    options.Remove(SkipRoot::kConservativeStack);
+    // TODO(v8:13257): We cannot run CSS on client isolates now, as the
+    // stack markers will not be correct.
+    options.Add(SkipRoot::kConservativeStack);
     isolate()->global_safepoint()->IterateClientIsolates(
         [v = &client_root_visitor, options](Isolate* client) {
           if (client->is_shared_heap_isolate()) return;
-          client->heap()->IterateRoots(v, options, IterateRootsMode::kShared);
+          client->heap()->IterateRoots(v, options);
         });
   }
 }
@@ -4834,12 +4831,9 @@ void Heap::IterateRootsFromStackIncludingClients(RootVisitor* v,
     ClientRootVisitor client_root_visitor(v);
     isolate()->global_safepoint()->IterateClientIsolates(
         [v = &client_root_visitor](Isolate* client) {
-          if (client->is_shared_heap_isolate()) return;
-          // When iterating stack roots of clients, we assume they may contain
-          // heap pointers regardless of the main isolate's stack state.
-          client->heap()->IterateStackRoots(v,
-                                            StackState::kMayContainHeapPointers,
-                                            IterateRootsMode::kShared);
+          // TODO(v8:13257): We cannot run CSS on client isolates now, as the
+          // stack markers will not be correct.
+          client->heap()->IterateStackRoots(v, StackState::kNoHeapPointers);
         });
   }
 }
@@ -4867,24 +4861,15 @@ void Heap::IterateBuiltins(RootVisitor* v) {
   static_assert(Builtins::AllBuiltinsAreIsolateIndependent());
 }
 
-void Heap::IterateStackRoots(RootVisitor* v, StackState stack_state,
-                             IterateRootsMode mode) {
-  isolate()->Iterate(v);
+void Heap::IterateStackRoots(RootVisitor* v, StackState stack_state) {
+  isolate_->Iterate(v);
 
 #ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-  if (stack_state == StackState::kNoHeapPointers ||
-      disable_conservative_stack_scanning_for_testing_)
-    return;
-
-  // In case of a shared GC, we're interested in the main isolate for CSS.
-  Isolate* main_isolate = mode == IterateRootsMode::kShared
-                              ? isolate()->shared_heap_isolate()
-                              : isolate();
-  if (main_isolate->heap()->disable_conservative_stack_scanning_for_testing_)
-    return;
-
-  ConservativeStackVisitor stack_visitor(main_isolate, v);
-  stack().IteratePointers(&stack_visitor);
+  if (stack_state == StackState::kMayContainHeapPointers &&
+      !disable_conservative_stack_scanning_for_testing_) {
+    ConservativeStackVisitor stack_visitor(isolate(), v);
+    stack().IteratePointers(&stack_visitor);
+  }
 #endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
 }
 

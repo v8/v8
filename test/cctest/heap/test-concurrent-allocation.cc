@@ -182,7 +182,7 @@ UNINITIALIZED_TEST(ConcurrentAllocationWhileMainThreadParksAndUnparks) {
       threads.push_back(std::move(thread));
     }
 
-    for (int i = 0; i < 30'000; i++) {
+    for (int i = 0; i < 300'000; i++) {
       ParkedScope scope(i_isolate->main_thread_local_isolate());
     }
 
