@@ -169,6 +169,7 @@ defaults_triggered = {
     "service_account": "v8-try-builder@chops-service-accounts.iam.gserviceaccount.com",
     "execution_timeout": 4500,
     "properties": {"builder_group": "tryserver.v8"},
+    "resultdb_bq_table_prefix": "try",
     "caches": [
         swarming.cache(
             path = "builder",
@@ -391,27 +392,24 @@ def v8_basic_builder(defaults, **kwargs):
             description,
         )
 
-    defaults = defaults_dict[kwargs["bucket"]]
-
+    # Making sure the recipe receives the experiment settings
     experiments = kwargs.get("experiments", {})
-    rdb_experiment = experiments.get("v8.resultdb", 0)
-    if rdb_experiment or kwargs["bucket"].startswith("ci"):
-        # Making sure the recipe receives the experiment settings
-        experiments["v8.resultdb"] = 100
-        kwargs["experiments"] = experiments
+    experiments["v8.resultdb"] = 100
+    kwargs["experiments"] = experiments
 
-        resultdb_bq_table_prefix = defaults.get("resultdb_bq_table_prefix")
-        kwargs["resultdb_settings"] = resultdb.settings(
-            enable = True,
-            bq_exports = [
-                resultdb.export_test_results(
-                    bq_table = "v8-resultdb.resultdb." + resultdb_bq_table_prefix + "_test_results",
-                ),
-                resultdb.export_text_artifacts(
-                    bq_table = "v8-resultdb.resultdb." + resultdb_bq_table_prefix + "_text_artifacts",
-                ),
-            ],
-        )
+    defaults = defaults_dict[kwargs["bucket"]]
+    resultdb_bq_table_prefix = defaults.get("resultdb_bq_table_prefix")
+    kwargs["resultdb_settings"] = resultdb.settings(
+        enable = True,
+        bq_exports = [
+            resultdb.export_test_results(
+                bq_table = "v8-resultdb.resultdb." + resultdb_bq_table_prefix + "_test_results",
+            ),
+            resultdb.export_text_artifacts(
+                bq_table = "v8-resultdb.resultdb." + resultdb_bq_table_prefix + "_text_artifacts",
+            ),
+        ],
+    )
     luci.builder(**kwargs)
 
 def multibranch_builder(**kwargs):
