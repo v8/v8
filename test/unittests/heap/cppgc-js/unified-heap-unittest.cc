@@ -517,6 +517,12 @@ V8_NOINLINE void StackToHeapTest(v8::Isolate* v8_isolate, Operation op,
     // Disable scanning, assuming the slots are overwritten.
     DisableConservativeStackScanningScopeForTesting no_stack_scanning(
         reinterpret_cast<i::Isolate*>(v8_isolate)->heap());
+    EmbedderStackStateScope scope =
+        EmbedderStackStateScope::ExplicitScopeForTesting(
+            reinterpret_cast<i::Isolate*>(v8_isolate)
+                ->heap()
+                ->local_embedder_heap_tracer(),
+            cppgc::EmbedderStackState::kNoHeapPointers);
     FullGC(v8_isolate);
   }
   ASSERT_TRUE(observer.IsEmpty());
@@ -559,13 +565,7 @@ V8_NOINLINE void HeapToStackTest(v8::Isolate* v8_isolate, Operation op,
   FullGC(v8_isolate);
   EXPECT_FALSE(observer.IsEmpty());
   stack_handle.Reset();
-  {
-    // Conservative scanning may find stale pointers to on-stack handles.
-    // Disable scanning, assuming the slots are overwritten.
-    DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-        reinterpret_cast<i::Isolate*>(v8_isolate)->heap());
-    FullGC(v8_isolate);
-  }
+  FullGC(v8_isolate);
   EXPECT_TRUE(observer.IsEmpty());
 }
 
@@ -603,13 +603,7 @@ V8_NOINLINE void StackToStackTest(v8::Isolate* v8_isolate, Operation op,
   FullGC(v8_isolate);
   EXPECT_FALSE(observer.IsEmpty());
   stack_handle2.Reset();
-  {
-    // Conservative scanning may find stale pointers to on-stack handles.
-    // Disable scanning, assuming the slots are overwritten.
-    DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-        reinterpret_cast<i::Isolate*>(v8_isolate)->heap());
-    FullGC(v8_isolate);
-  }
+  FullGC(v8_isolate);
   EXPECT_TRUE(observer.IsEmpty());
 }
 

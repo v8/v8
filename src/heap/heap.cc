@@ -4872,16 +4872,16 @@ void Heap::IterateStackRoots(RootVisitor* v, StackState stack_state,
   isolate()->Iterate(v);
 
 #ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-  if (stack_state == StackState::kNoHeapPointers || !IsGCWithStack()) return;
+  if (stack_state == StackState::kNoHeapPointers ||
+      disable_conservative_stack_scanning_for_testing_)
+    return;
 
   // In case of a shared GC, we're interested in the main isolate for CSS.
-  Isolate* main_isolate;
-  if (mode == IterateRootsMode::kShared) {
-    main_isolate = isolate()->shared_heap_isolate();
-    if (!main_isolate->heap()->IsGCWithStack()) return;
-  } else {
-    main_isolate = isolate();
-  }
+  Isolate* main_isolate = mode == IterateRootsMode::kShared
+                              ? isolate()->shared_heap_isolate()
+                              : isolate();
+  if (main_isolate->heap()->disable_conservative_stack_scanning_for_testing_)
+    return;
 
   ConservativeStackVisitor stack_visitor(main_isolate, v);
   stack().IteratePointers(&stack_visitor);
