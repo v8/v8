@@ -186,36 +186,6 @@ void GeneratorStore::GenerateCode(MaglevAssembler* masm,
       Smi::FromInt(bytecode_offset()));
 }
 
-void GeneratorRestoreRegister::SetValueLocationConstraints() {
-  UseRegister(array_input());
-  DefineAsRegister(this);
-  set_temporaries_needed(1);
-}
-void GeneratorRestoreRegister::GenerateCode(MaglevAssembler* masm,
-                                            const ProcessingState& state) {
-  Register array = ToRegister(array_input());
-  Register result_reg = ToRegister(result());
-  Register temp = general_temporaries().PopFirst();
-
-  // The input and the output can alias, if that happen we use a temporary
-  // register and a move at the end.
-  Register value = (array == result_reg ? temp : result_reg);
-
-  // Loads the current value in the generator register file.
-  __ DecompressAnyTagged(
-      value, FieldOperand(array, FixedArray::OffsetOfElementAt(index())));
-
-  // And trashs it with StaleRegisterConstant.
-  __ LoadRoot(kScratchRegister, RootIndex::kStaleRegister);
-  __ StoreTaggedField(
-      FieldOperand(array, FixedArray::OffsetOfElementAt(index())),
-      kScratchRegister);
-
-  if (value != result_reg) {
-    __ Move(result_reg, value);
-  }
-}
-
 int CreateEmptyObjectLiteral::MaxCallStackArgs() const {
   return AllocateDescriptor::GetStackParameterCount();
 }
@@ -1242,19 +1212,6 @@ void StoreDoubleField::GenerateCode(MaglevAssembler* masm,
   __ DecompressAnyTagged(tmp, FieldOperand(object, offset()));
   __ AssertNotSmi(tmp);
   __ Movsd(FieldOperand(tmp, HeapNumber::kValueOffset), value);
-}
-
-void StoreTaggedFieldNoWriteBarrier::SetValueLocationConstraints() {
-  UseRegister(object_input());
-  UseRegister(value_input());
-}
-void StoreTaggedFieldNoWriteBarrier::GenerateCode(
-    MaglevAssembler* masm, const ProcessingState& state) {
-  Register object = ToRegister(object_input());
-  Register value = ToRegister(value_input());
-
-  __ AssertNotSmi(object);
-  __ StoreTaggedField(FieldOperand(object, offset()), value);
 }
 
 int StoreMap::MaxCallStackArgs() const {
@@ -2781,21 +2738,6 @@ void Return::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   __ DropArguments(actual_params_size, r9, TurboAssembler::kCountIsInteger,
                    TurboAssembler::kCountIncludesReceiver);
   __ Ret();
-}
-
-void Switch::SetValueLocationConstraints() { UseAndClobberRegister(value()); }
-void Switch::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
-  std::unique_ptr<Label*[]> labels = std::make_unique<Label*[]>(size());
-  for (int i = 0; i < size(); i++) {
-    labels[i] = (targets())[i].block_ptr()->label();
-  }
-  __ Switch(kScratchRegister, ToRegister(value()), value_base(), labels.get(),
-            size());
-  if (has_fallthrough()) {
-    DCHECK_EQ(fallthrough(), state.next_block());
-  } else {
-    __ Trap();
-  }
 }
 
 namespace {

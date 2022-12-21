@@ -1112,6 +1112,28 @@ void TurboAssembler::Abs(const Register& rd, const Register& rm,
   }
 }
 
+void TurboAssembler::Switch(Register scratch, Register value,
+                            int case_value_base, Label** labels,
+                            int num_labels) {
+  Register table = scratch;
+  Label fallthrough, jump_table;
+  if (case_value_base != 0) {
+    Sub(value, value, case_value_base);
+  }
+  Cmp(value, Immediate(num_labels));
+  B(&fallthrough, hs);
+  Adr(table, &jump_table);
+  Ldr(table, MemOperand(table, value, LSL, kSystemPointerSizeLog2));
+  Br(table);
+  // Emit the jump table inline, under the assumption that it's not too big.
+  Align(kSystemPointerSize);
+  bind(&jump_table);
+  for (int i = 0; i < num_labels; ++i) {
+    dcptr(labels[i]);
+  }
+  bind(&fallthrough);
+}
+
 // Abstracted stack operations.
 
 void TurboAssembler::Push(const CPURegister& src0, const CPURegister& src1,

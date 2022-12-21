@@ -129,6 +129,10 @@ void MaglevAssembler::PushReverse(T... vals) {
   detail::PushAllHelper<T...>::PushReverse(this, vals...);
 }
 
+inline void MaglevAssembler::BindBlock(BasicBlock* block) {
+  bind(block->label());
+}
+
 inline Condition MaglevAssembler::IsRootConstant(Input input,
                                                  RootIndex root_index) {
   if (input.operand().IsRegister()) {
@@ -154,23 +158,6 @@ void MaglevAssembler::Branch(Condition condition, BasicBlock* if_true,
     if (if_true != next_block) {
       jmp(if_true->label());
     }
-  }
-}
-
-Register MaglevAssembler::FromAnyToRegister(const Input& input,
-                                            Register scratch) {
-  if (input.operand().IsConstant()) {
-    input.node()->LoadToRegister(this, scratch);
-    return scratch;
-  }
-  const compiler::AllocatedOperand& operand =
-      compiler::AllocatedOperand::cast(input.operand());
-  if (operand.IsRegister()) {
-    return ToRegister(input);
-  } else {
-    DCHECK(operand.IsStackSlot());
-    movq(scratch, ToMemOperand(input));
-    return scratch;
   }
 }
 

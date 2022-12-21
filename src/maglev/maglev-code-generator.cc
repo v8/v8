@@ -618,8 +618,7 @@ class MaglevCodeGeneratingNodeProcessor {
       ss << "-- Block b" << graph_labeller()->BlockId(block);
       __ RecordComment(ss.str());
     }
-
-    __ bind(block->label());
+    __ BindBlock(block);
   }
 
   template <typename NodeT>

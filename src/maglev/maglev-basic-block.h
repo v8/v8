@@ -73,6 +73,13 @@ class BasicBlock {
     edge_split_block_register_state_ = nullptr;
   }
 
+  bool is_start_block_of_switch_case() const {
+    return is_start_block_of_switch_case_;
+  }
+  void set_start_block_of_switch_case(bool value) {
+    is_start_block_of_switch_case_ = value;
+  }
+
   Phi::List* phis() const {
     DCHECK(has_phi());
     return state_->phis();
@@ -103,6 +110,7 @@ class BasicBlock {
 
  private:
   bool is_edge_split_block_ = false;
+  bool is_start_block_of_switch_case_ = false;
   Node::List nodes_;
   ControlNode* control_node_;
   union {

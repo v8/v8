@@ -115,7 +115,6 @@ UNIMPLEMENTED_NODE_WITH_CALL(Float64Ieee754Unary)
 UNIMPLEMENTED_NODE_WITH_CALL(Construct)
 UNIMPLEMENTED_NODE_WITH_CALL(ConstructWithSpread)
 UNIMPLEMENTED_NODE_WITH_CALL(ConvertReceiver, mode_)
-UNIMPLEMENTED_NODE(GeneratorRestoreRegister)
 UNIMPLEMENTED_NODE(LoadSignedIntDataViewElement, type_)
 UNIMPLEMENTED_NODE(LoadDoubleDataViewElement)
 UNIMPLEMENTED_NODE(LoadSignedIntTypedArrayElement, elements_kind_)
@@ -136,15 +135,12 @@ UNIMPLEMENTED_NODE(CheckJSObjectElementsBounds)
 UNIMPLEMENTED_NODE(CheckJSTypedArrayBounds, elements_kind_)
 UNIMPLEMENTED_NODE(CheckMaps, check_type_)
 UNIMPLEMENTED_NODE_WITH_CALL(CheckMapsWithMigration, check_type_)
-UNIMPLEMENTED_NODE_WITH_CALL(GeneratorStore)
 UNIMPLEMENTED_NODE_WITH_CALL(JumpLoopPrologue, loop_depth_, unit_)
 UNIMPLEMENTED_NODE_WITH_CALL(StoreMap)
 UNIMPLEMENTED_NODE(StoreDoubleField)
 UNIMPLEMENTED_NODE(StoreSignedIntDataViewElement, type_)
 UNIMPLEMENTED_NODE(StoreDoubleDataViewElement)
-UNIMPLEMENTED_NODE(StoreTaggedFieldNoWriteBarrier)
 UNIMPLEMENTED_NODE_WITH_CALL(StoreTaggedFieldWithWriteBarrier)
-UNIMPLEMENTED_NODE(Switch)
 
 int BuiltinStringFromCharCode::MaxCallStackArgs() const {
   return AllocateDescriptor::GetStackParameterCount();
@@ -1185,6 +1181,127 @@ void CheckedFloat64Unbox::GenerateCode(MaglevAssembler* masm,
   __ Move(temp, FieldMemOperand(value, HeapNumber::kValueOffset));
   __ fmov(ToDoubleRegister(result()), temp);
   __ bind(&done);
+}
+
+int GeneratorStore::MaxCallStackArgs() const {
+  return WriteBarrierDescriptor::GetStackParameterCount();
+}
+void GeneratorStore::SetValueLocationConstraints() {
+  UseAny(context_input());
+  UseRegister(generator_input());
+  for (int i = 0; i < num_parameters_and_registers(); i++) {
+    UseAny(parameters_and_registers(i));
+  }
+  RequireSpecificTemporary(WriteBarrierDescriptor::ObjectRegister());
+  RequireSpecificTemporary(WriteBarrierDescriptor::SlotAddressRegister());
+}
+void GeneratorStore::GenerateCode(MaglevAssembler* masm,
+                                  const ProcessingState& state) {
+  Register generator = ToRegister(generator_input());
+  Register array = WriteBarrierDescriptor::ObjectRegister();
+  __ LoadTaggedPointerField(
+      array, FieldMemOperand(generator,
+                             JSGeneratorObject::kParametersAndRegistersOffset));
+
+  for (int i = 0; i < num_parameters_and_registers(); i++) {
+    // Use WriteBarrierDescriptor::SlotAddressRegister() as the scratch
+    // register since it's a known temporary, and the write barrier slow path
+    // generates better code when value == scratch.
+    Register value =
+        __ FromAnyToRegister(parameters_and_registers(i),
+                             WriteBarrierDescriptor::SlotAddressRegister());
+
+    ZoneLabelRef done(masm);
+    DeferredCodeInfo* deferred_write_barrier = __ PushDeferredCode(
+        [](MaglevAssembler* masm, ZoneLabelRef done, Register value,
+           Register array, GeneratorStore* node, int32_t offset) {
+          ASM_CODE_COMMENT_STRING(masm, "Write barrier slow path");
+          __ CheckPageFlag(
+              value,
+              MemoryChunk::kPointersToHereAreInterestingOrInSharedHeapMask, eq,
+              *done);
+
+          Register slot_reg = WriteBarrierDescriptor::SlotAddressRegister();
+          __ Add(slot_reg, array, offset - kHeapObjectTag);
+
+          // TODO(leszeks): Add an interface for flushing all double registers
+          // before this Node, to avoid needing to save them here.
+          SaveFPRegsMode const save_fp_mode =
+              !node->register_snapshot().live_double_registers.is_empty()
+                  ? SaveFPRegsMode::kSave
+                  : SaveFPRegsMode::kIgnore;
+
+          __ CallRecordWriteStub(array, slot_reg, save_fp_mode);
+
+          __ B(*done);
+        },
+        done, value, array, this, FixedArray::OffsetOfElementAt(i));
+
+    __ StoreTaggedField(
+        value, FieldMemOperand(array, FixedArray::OffsetOfElementAt(i)));
+    __ JumpIfSmi(value, *done);
+    // TODO(leszeks): This will stay either false or true throughout this loop.
+    // Consider hoisting the check out of the loop and duplicating the loop into
+    // with and without write barrier.
+    __ CheckPageFlag(array, MemoryChunk::kPointersFromHereAreInterestingMask,
+                     ne, &deferred_write_barrier->deferred_code_label);
+
+    __ bind(*done);
+  }
+
+  // Use WriteBarrierDescriptor::SlotAddressRegister() as the scratch
+  // register, see comment above.
+  Register context = __ FromAnyToRegister(
+      context_input(), WriteBarrierDescriptor::SlotAddressRegister());
+
+  ZoneLabelRef done(masm);
+  DeferredCodeInfo* deferred_context_write_barrier = __ PushDeferredCode(
+      [](MaglevAssembler* masm, ZoneLabelRef done, Register context,
+         Register generator, GeneratorStore* node) {
+        ASM_CODE_COMMENT_STRING(masm, "Write barrier slow path");
+        // TODO(leszeks): The context is almost always going to be in
+        // old-space, consider moving this check to the fast path, maybe even
+        // as the first bailout.
+        __ CheckPageFlag(context,
+                         MemoryChunk::kPointersFromHereAreInterestingMask, eq,
+                         *done);
+
+        __ Move(WriteBarrierDescriptor::ObjectRegister(), generator);
+        generator = WriteBarrierDescriptor::ObjectRegister();
+
+        Register slot_reg = WriteBarrierDescriptor::SlotAddressRegister();
+        __ Add(slot_reg, generator,
+               JSGeneratorObject::kContextOffset - kHeapObjectTag);
+
+        // TODO(leszeks): Add an interface for flushing all double registers
+        // before this Node, to avoid needing to save them here.
+        SaveFPRegsMode const save_fp_mode =
+            !node->register_snapshot().live_double_registers.is_empty()
+                ? SaveFPRegsMode::kSave
+                : SaveFPRegsMode::kIgnore;
+
+        __ CallRecordWriteStub(generator, slot_reg, save_fp_mode);
+
+        __ B(*done);
+      },
+      done, context, generator, this);
+  __ StoreTaggedField(
+      context, FieldMemOperand(generator, JSGeneratorObject::kContextOffset));
+  __ AssertNotSmi(context);
+  __ CheckPageFlag(generator, MemoryChunk::kPointersFromHereAreInterestingMask,
+                   ne, &deferred_context_write_barrier->deferred_code_label);
+  __ bind(*done);
+
+  UseScratchRegisterScope temps(masm);
+  Register scratch = temps.AcquireX();
+  __ Mov(scratch, Smi::FromInt(suspend_id()));
+  __ StoreTaggedField(
+      scratch,
+      FieldMemOperand(generator, JSGeneratorObject::kContinuationOffset));
+  __ Mov(scratch, Smi::FromInt(bytecode_offset()));
+  __ StoreTaggedField(
+      scratch,
+      FieldMemOperand(generator, JSGeneratorObject::kInputOrDebugPosOffset));
 }
 
 void IncreaseInterruptBudget::SetValueLocationConstraints() {}

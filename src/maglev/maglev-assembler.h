@@ -78,11 +78,13 @@ class MaglevAssembler : public MacroAssembler {
   void LoadSingleCharacterString(Register result, Register char_code,
                                  Register scratch);
 
+  inline void BindBlock(BasicBlock* block);
+
   inline Condition IsRootConstant(Input input, RootIndex root_index);
 
   inline void Branch(Condition condition, BasicBlock* if_true,
                      BasicBlock* if_false, BasicBlock* next_block);
-  inline Register FromAnyToRegister(const Input& input, Register scratch);
+  Register FromAnyToRegister(const Input& input, Register scratch);
 
   inline void LoadBoundedSizeFromObject(Register result, Register object,
                                         int offset);

@@ -1392,6 +1392,37 @@ void StoreInArrayLiteralGeneric::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
+void GeneratorRestoreRegister::SetValueLocationConstraints() {
+  UseRegister(array_input());
+  DefineAsRegister(this);
+  // TODO(victorgomes): Create a arch-agnostic scratch register scope.
+  set_temporaries_needed(2);
+}
+void GeneratorRestoreRegister::GenerateCode(MaglevAssembler* masm,
+                                            const ProcessingState& state) {
+  Register array = ToRegister(array_input());
+  Register result_reg = ToRegister(result());
+  Register temp = general_temporaries().PopFirst();
+
+  // The input and the output can alias, if that happen we use a temporary
+  // register and a move at the end.
+  Register value = (array == result_reg ? temp : result_reg);
+
+  // Loads the current value in the generator register file.
+  __ DecompressAnyTagged(
+      value, FieldMemOperand(array, FixedArray::OffsetOfElementAt(index())));
+
+  // And trashs it with StaleRegisterConstant.
+  Register scratch = general_temporaries().PopFirst();
+  __ LoadRoot(scratch, RootIndex::kStaleRegister);
+  __ StoreTaggedField(
+      FieldMemOperand(array, FixedArray::OffsetOfElementAt(index())), scratch);
+
+  if (value != result_reg) {
+    __ Move(result_reg, value);
+  }
+}
+
 int GetKeyedGeneric::MaxCallStackArgs() const {
   using D = CallInterfaceDescriptorFor<Builtin::kKeyedLoadIC>::type;
   return D::GetStackParameterCount();
@@ -1414,6 +1445,19 @@ void GetKeyedGeneric::GenerateCode(MaglevAssembler* masm,
   __ Move(D::GetRegisterParameter(D::kVector), feedback().vector);
   __ CallBuiltin(Builtin::kKeyedLoadIC);
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
+}
+
+void StoreTaggedFieldNoWriteBarrier::SetValueLocationConstraints() {
+  UseRegister(object_input());
+  UseRegister(value_input());
+}
+void StoreTaggedFieldNoWriteBarrier::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
+  Register object = ToRegister(object_input());
+  Register value = ToRegister(value_input());
+
+  __ AssertNotSmi(object);
+  __ StoreTaggedField(FieldMemOperand(object, offset()), value);
 }
 
 int StringAt::MaxCallStackArgs() const {
@@ -2101,6 +2145,27 @@ void BranchIfUndefinedOrNull::GenerateCode(MaglevAssembler* masm,
   auto* next_block = state.next_block();
   if (if_false() != next_block) {
     __ Jump(if_false()->label());
+  }
+}
+
+void Switch::SetValueLocationConstraints() {
+  UseAndClobberRegister(value());
+  // TODO(victorgomes): Create a arch-agnostic scratch register scope.
+  set_temporaries_needed(1);
+}
+void Switch::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
+  Register scratch = general_temporaries().PopFirst();
+  std::unique_ptr<Label*[]> labels = std::make_unique<Label*[]>(size());
+  for (int i = 0; i < size(); i++) {
+    BasicBlock* block = (targets())[i].block_ptr();
+    block->set_start_block_of_switch_case(true);
+    labels[i] = block->label();
+  }
+  __ Switch(scratch, ToRegister(value()), value_base(), labels.get(), size());
+  if (has_fallthrough()) {
+    DCHECK_EQ(fallthrough(), state.next_block());
+  } else {
+    __ Trap();
   }
 }
 

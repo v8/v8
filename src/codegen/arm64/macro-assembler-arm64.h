@@ -791,6 +791,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   LS_MACRO_LIST(DECLARE_FUNCTION)
 #undef DECLARE_FUNCTION
 
+  void Switch(Register scratch, Register value, int case_value_base,
+              Label** labels, int num_labels);
+
   // Push or pop up to 4 registers of the same width to or from the stack.
   //
   // If an argument register is 'NoReg', all further arguments are also assumed
@@ -1415,6 +1418,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Compresses and stores tagged value to given on-heap location.
   void StoreTaggedField(const Register& value,
                         const MemOperand& dst_field_operand);
+
+  // For compatibility with platform-independent code.
+  void StoreTaggedField(const MemOperand& dst_field_operand,
+                        const Register& value) {
+    StoreTaggedField(value, dst_field_operand);
+  }
 
   void AtomicStoreTaggedField(const Register& value, const Register& dst_base,
                               const Register& dst_index, const Register& temp);
