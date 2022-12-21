@@ -322,6 +322,41 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(1, instance.exports.null_getter(2));
 })();
 
+(function TestI31RefTable() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+
+  let table = builder.addTable(kWasmI31Ref, 4, 4);
+  builder.addActiveElementSegment(
+    table, wasmI32Const(0),
+    [[...wasmI32Const(10), kGCPrefix, kExprI31New],
+     [...wasmI32Const(-42), kGCPrefix, kExprI31New],
+     [kExprRefNull, kI31RefCode]],
+     kWasmI31Ref);
+
+  builder.addFunction("i31GetI32", kSig_i_i)
+    .addBody([
+      kExprLocalGet, 0, kExprTableGet, 0,
+      kGCPrefix, kExprI31GetS])
+    .exportFunc();
+
+  builder.addFunction("i31GetNull", kSig_i_i)
+    .addBody([kExprLocalGet, 0, kExprTableGet, 0, kExprRefIsNull])
+    .exportFunc();
+
+  let instance = builder.instantiate({});
+  assertTrue(!!instance);
+
+  assertEquals(0, instance.exports.i31GetNull(0));
+  assertEquals(0, instance.exports.i31GetNull(1));
+  assertEquals(1, instance.exports.i31GetNull(2));
+  assertEquals(1, instance.exports.i31GetNull(3));
+  assertEquals(10, instance.exports.i31GetI32(0));
+  assertEquals(-42, instance.exports.i31GetI32(1));
+  assertTraps(kTrapNullDereference, () => instance.exports.i31GetI32(2));
+  assertTraps(kTrapNullDereference, () => instance.exports.i31GetI32(3));
+})();
+
 (function TestArrayRefTable() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();

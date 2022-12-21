@@ -70,13 +70,15 @@ async function instantiateWasm() {
   let struct_type = builder.addStruct([makeField(kWasmI32, false)]);
   let array_type = builder.addArray(kWasmI32);
   let imported_ref_table =
-      builder.addImportedTable('import', 'any_table', 3, 3, kWasmAnyRef);
+      builder.addImportedTable('import', 'any_table', 4, 4, kWasmAnyRef);
   let imported_func_table =
       builder.addImportedTable('import', 'func_table', 3, 3, kWasmFuncRef);
   let ref_table = builder.addTable(kWasmAnyRef, 4)
                          .exportAs('exported_ref_table');
   let func_table = builder.addTable(kWasmFuncRef, 3)
                          .exportAs('exported_func_table');
+  let i31ref_table = builder.addTable(kWasmI31Ref, 3)
+                         .exportAs('exported_i31_table');
 
   let func = builder.addFunction('my_func', kSig_v_v).addBody([kExprNop]);
   // Make the function "declared".
@@ -97,6 +99,10 @@ async function instantiateWasm() {
       ...wasmI32Const(123), kGCPrefix, kExprStructNew, struct_type,
       kExprTableSet, imported_ref_table,
 
+      ...wasmI32Const(1),
+      ...wasmI32Const(321), kGCPrefix, kExprI31New,
+      kExprTableSet, imported_ref_table,
+
       // Fill imported func table.
       ...wasmI32Const(1),
       kExprRefFunc, func.index,
@@ -106,6 +112,15 @@ async function instantiateWasm() {
       ...wasmI32Const(1),
       kExprRefFunc, func.index,
       kExprTableSet, func_table.index,
+
+      // Fill i31 table.
+      ...wasmI32Const(0),
+      ...wasmI32Const(123456), kGCPrefix, kExprI31New,
+      kExprTableSet, i31ref_table.index,
+
+      ...wasmI32Const(1),
+      ...wasmI32Const(-123), kGCPrefix, kExprI31New,
+      kExprTableSet, i31ref_table.index,
     ]).exportFunc();
 
   let body = [
@@ -137,7 +152,7 @@ async function instantiateWasm() {
   let imports = `{'import' : {
       'any_table': (() => {
         let js_table =
-            new WebAssembly.Table({element: 'anyref', initial: 3, maximum: 3});
+            new WebAssembly.Table({element: 'anyref', initial: 4, maximum: 4});
         js_table.set(0, ['JavaScript', 'value']);
         return js_table;
       })(),

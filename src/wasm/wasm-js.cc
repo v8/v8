@@ -1179,8 +1179,10 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
     } else if (enabled_features.has_gc() &&
                string->StringEquals(v8_str(isolate, "arrayref"))) {
       type = i::wasm::kWasmArrayRef;
+    } else if (enabled_features.has_gc() &&
+               string->StringEquals(v8_str(isolate, "i31ref"))) {
+      type = i::wasm::kWasmI31Ref;
     } else {
-      // TODO(7748): Add "i31ref".
       thrower.TypeError(
           "Descriptor property 'element' must be a WebAssembly reference type");
       return;
