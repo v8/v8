@@ -2350,6 +2350,8 @@ action("v8_dump_build_config") {
     "v8_control_flow_integrity=$v8_control_flow_integrity",
     "v8_target_cpu=\"$v8_target_cpu\"",
     "v8_enable_cet_shadow_stack=$v8_enable_cet_shadow_stack",
+    "v8_enable_verify_heap=$v8_enable_verify_heap",
+    "v8_enable_slow_dchecks=$v8_enable_slow_dchecks",
   ]
 
   if (v8_current_cpu == "mips64" || v8_current_cpu == "mips64el") {
