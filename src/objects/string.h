@@ -714,8 +714,8 @@ class SeqString : public TorqueGeneratedSeqString<SeqString, String> {
   };
   DataAndPaddingSizes GetDataAndPaddingSizes() const;
 
-  // Zero out the padding bytes of this string.
-  void clear_padding();
+  // Zero out only the padding bytes of this string.
+  void ClearPadding();
 
   TQ_OBJECT_CONSTRUCTORS(SeqString)
 };
@@ -761,8 +761,8 @@ class SeqOneByteString
 
   DataAndPaddingSizes GetDataAndPaddingSizes() const;
 
-  // Zero out the padding bytes of this string.
-  inline void clear_padding();
+  // Initializes padding bytes. Potentially zeros tail of the payload too!
+  inline void clear_padding_destructively(int length);
 
   // Maximal memory usage for a single sequential one-byte string.
   static const int kMaxCharsSize = kMaxLength;
@@ -808,8 +808,8 @@ class SeqTwoByteString
 
   DataAndPaddingSizes GetDataAndPaddingSizes() const;
 
-  // Zero out the padding bytes of this string.
-  inline void clear_padding();
+  // Initializes padding bytes. Potentially zeros tail of the payload too!
+  inline void clear_padding_destructively(int length);
 
   // Maximal memory usage for a single sequential two-byte string.
   static const int kMaxCharsSize = kMaxLength * 2;

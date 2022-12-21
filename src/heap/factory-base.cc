@@ -674,10 +674,10 @@ MaybeHandle<SeqStringT> FactoryBase<Impl>::NewRawStringWithMap(
   SeqStringT string =
       SeqStringT::cast(AllocateRawWithImmortalMap(size, allocation, map));
   DisallowGarbageCollection no_gc;
+  string.clear_padding_destructively(length);
   string.set_length(length);
   string.set_raw_hash_field(String::kEmptyHashField);
   DCHECK_EQ(size, string.Size());
-  string.clear_padding();
   return handle(string, isolate());
 }
 
@@ -1055,10 +1055,10 @@ FactoryBase<Impl>::AllocateRawOneByteInternalizedString(
       map);
   SeqOneByteString answer = SeqOneByteString::cast(result);
   DisallowGarbageCollection no_gc;
+  answer.clear_padding_destructively(length);
   answer.set_length(length);
   answer.set_raw_hash_field(raw_hash_field);
   DCHECK_EQ(size, answer.Size());
-  answer.clear_padding();
   return handle(answer, isolate());
 }
 
@@ -1077,10 +1077,10 @@ FactoryBase<Impl>::AllocateRawTwoByteInternalizedString(
                                                          map),
       map));
   DisallowGarbageCollection no_gc;
+  answer.clear_padding_destructively(length);
   answer.set_length(length);
   answer.set_raw_hash_field(raw_hash_field);
   DCHECK_EQ(size, answer.Size());
-  answer.clear_padding();
   return handle(answer, isolate());
 }
 

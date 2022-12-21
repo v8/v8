@@ -1476,24 +1476,20 @@ SubStringRange::iterator SubStringRange::end() {
   return SubStringRange::iterator(string_, first_ + length_, no_gc_);
 }
 
-void SeqOneByteString::clear_padding() {
-  const int data_size = SeqString::kHeaderSize + length() * kOneByteSize;
-  const int padding_size = SizeFor(length()) - data_size;
-  DCHECK_EQ((DataAndPaddingSizes{data_size, padding_size}),
-            GetDataAndPaddingSizes());
-  DCHECK_EQ(address() + data_size + padding_size, address() + Size());
-  if (padding_size == 0) return;
-  memset(reinterpret_cast<void*>(address() + data_size), 0, padding_size);
+void SeqOneByteString::clear_padding_destructively(int length) {
+  // Ensure we are not killing the map word, which is already set at this point
+  static_assert(SizeFor(0) >= kObjectAlignment + kTaggedSize);
+  memset(
+      reinterpret_cast<void*>(address() + SizeFor(length) - kObjectAlignment),
+      0, kObjectAlignment);
 }
 
-void SeqTwoByteString::clear_padding() {
-  const int data_size = SeqString::kHeaderSize + length() * base::kUC16Size;
-  const int padding_size = SizeFor(length()) - data_size;
-  DCHECK_EQ((DataAndPaddingSizes{data_size, padding_size}),
-            GetDataAndPaddingSizes());
-  DCHECK_EQ(address() + data_size + padding_size, address() + Size());
-  if (padding_size == 0) return;
-  memset(reinterpret_cast<void*>(address() + data_size), 0, padding_size);
+void SeqTwoByteString::clear_padding_destructively(int length) {
+  // Ensure we are not killing the map word, which is already set at this point
+  static_assert(SizeFor(0) >= kObjectAlignment + kTaggedSize);
+  memset(
+      reinterpret_cast<void*>(address() + SizeFor(length) - kObjectAlignment),
+      0, kObjectAlignment);
 }
 
 // static
