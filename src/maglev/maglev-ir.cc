@@ -2038,6 +2038,20 @@ void BranchIfInt32Compare::GenerateCode(MaglevAssembler* masm,
             state.next_block());
 }
 
+void BranchIfUndefinedOrNull::SetValueLocationConstraints() {
+  UseRegister(condition_input());
+}
+void BranchIfUndefinedOrNull::GenerateCode(MaglevAssembler* masm,
+                                           const ProcessingState& state) {
+  Register value = ToRegister(condition_input());
+  __ JumpIfRoot(value, RootIndex::kUndefinedValue, if_true()->label());
+  __ JumpIfRoot(value, RootIndex::kNullValue, if_true()->label());
+  auto* next_block = state.next_block();
+  if (if_false() != next_block) {
+    __ Jump(if_false()->label());
+  }
+}
+
 // ---
 // Print params
 // ---

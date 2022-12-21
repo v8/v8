@@ -148,8 +148,6 @@ UNIMPLEMENTED_NODE_WITH_CALL(ThrowReferenceErrorIfHole)
 UNIMPLEMENTED_NODE_WITH_CALL(ThrowSuperNotCalledIfHole)
 UNIMPLEMENTED_NODE_WITH_CALL(ThrowSuperAlreadyCalledIfNotHole)
 UNIMPLEMENTED_NODE_WITH_CALL(ThrowIfNotSuperConstructor)
-UNIMPLEMENTED_NODE(BranchIfUndefinedOrNull)
-UNIMPLEMENTED_NODE(BranchIfJSReceiver)
 UNIMPLEMENTED_NODE(Switch)
 
 int BuiltinStringFromCharCode::MaxCallStackArgs() const {
@@ -1392,6 +1390,20 @@ void Return::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   // Drop receiver + arguments according to dynamic arguments size.
   __ DropArguments(params_size, TurboAssembler::kCountIncludesReceiver);
   __ Ret();
+}
+
+void BranchIfJSReceiver::SetValueLocationConstraints() {
+  UseRegister(condition_input());
+}
+void BranchIfJSReceiver::GenerateCode(MaglevAssembler* masm,
+                                      const ProcessingState& state) {
+  UseScratchRegisterScope temps(masm);
+  Register scratch = temps.AcquireX();
+  Register value = ToRegister(condition_input());
+  __ JumpIfSmi(value, if_false()->label());
+  __ LoadMap(scratch, value);
+  __ CompareInstanceType(scratch, scratch, FIRST_JS_RECEIVER_TYPE);
+  __ Branch(hs, if_true(), if_false(), state.next_block());
 }
 
 void BranchIfFloat64Compare::SetValueLocationConstraints() {
