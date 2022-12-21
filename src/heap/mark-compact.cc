@@ -2115,7 +2115,8 @@ void MarkCompactCollector::MarkRoots(RootVisitor* root_visitor) {
     // v8::TracedReference alive from the stack. This is only needed when using
     // `EmbedderHeapTracer` and not using `CppHeap`.
     auto& stack = heap()->stack();
-    if (heap_->IsGCWithStack()) {
+    if (heap_->local_embedder_heap_tracer()->embedder_stack_state() ==
+        cppgc::EmbedderStackState::kMayContainHeapPointers) {
       ConservativeTracedHandlesMarkingVisitor conservative_marker(
           *heap_, *local_marking_worklists_,
           cppgc::internal::CollectionType::kMajor);
