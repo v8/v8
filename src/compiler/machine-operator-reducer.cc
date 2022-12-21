@@ -5,6 +5,7 @@
 #include "src/compiler/machine-operator-reducer.h"
 
 #include <cmath>
+#include <cstdint>
 #include <limits>
 
 #include "src/base/bits.h"
@@ -2551,6 +2552,20 @@ Reduction MachineOperatorReducer::ReduceWord32Equal(Node* node) {
       node->ReplaceInput(1, Uint32Constant(replacements->second));
       return Changed(node);
     }
+
+    // Simplifying (x+k1)==k2 into x==k2-k1.
+    if (m.left().IsInt32Add() && m.right().IsInt32Constant()) {
+      Int32AddMatcher m_add(m.left().node());
+      if (m_add.right().IsInt32Constant()) {
+        int32_t lte_right = m.right().ResolvedValue();
+        int32_t add_right = m_add.right().ResolvedValue();
+        // No need to consider overflow in this condition (==).
+        node->ReplaceInput(0, m_add.left().node());
+        node->ReplaceInput(1, Int32Constant(static_cast<uint32_t>(lte_right) -
+                                            static_cast<uint32_t>(add_right)));
+        return Changed(node);
+      }
+    }
   }
 
   return NoChange();
@@ -2577,6 +2592,20 @@ Reduction MachineOperatorReducer::ReduceWord64Equal(Node* node) {
       node->ReplaceInput(0, replacements->first);
       node->ReplaceInput(1, Uint64Constant(replacements->second));
       return Changed(node);
+    }
+
+    // Simplifying (x+k1)==k2 into x==k2-k1.
+    if (m.left().IsInt64Add() && m.right().IsInt64Constant()) {
+      Int64AddMatcher m_add(m.left().node());
+      if (m_add.right().IsInt64Constant()) {
+        int64_t lte_right = m.right().ResolvedValue();
+        int64_t add_right = m_add.right().ResolvedValue();
+        // No need to consider overflow in this condition (==).
+        node->ReplaceInput(0, m_add.left().node());
+        node->ReplaceInput(1, Int64Constant(static_cast<uint64_t>(lte_right) -
+                                            static_cast<uint64_t>(add_right)));
+        return Changed(node);
+      }
     }
 
     /*

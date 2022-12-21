@@ -4,6 +4,7 @@
 
 #include "src/compiler/machine-operator-reducer.h"
 
+#include <cstdint>
 #include <limits>
 
 #include "src/base/bits.h"
@@ -11,6 +12,7 @@
 #include "src/base/ieee754.h"
 #include "src/base/overflowing-math.h"
 #include "src/builtins/builtins.h"
+#include "src/common/globals.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/machine-operator.h"
 #include "src/numbers/conversions-inl.h"
@@ -1398,6 +1400,21 @@ TEST_F(MachineOperatorReducerTest,
   }
 }
 
+TEST_F(MachineOperatorReducerTest, Word32EqualWithAddAndConstant) {
+  // (x+k1)==k2 => x==(k2-k1)
+  Node* const p0 = Parameter(0);
+  TRACED_FOREACH(int32_t, k1, kInt32Values) {
+    TRACED_FOREACH(int32_t, k2, kInt32Values) {
+      Node* node = graph()->NewNode(
+          machine()->Word32Equal(),
+          graph()->NewNode(machine()->Int32Add(), p0, Int32Constant(k1)),
+          Int32Constant(k2));
+      Reduction r = Reduce(node);
+      ASSERT_TRUE(r.Changed());
+    }
+  }
+}
+
 // -----------------------------------------------------------------------------
 // Word64Equal
 
@@ -1432,6 +1449,21 @@ TEST_F(MachineOperatorReducerTest,
           ASSERT_FALSE(r.Changed());
         }
       }
+    }
+  }
+}
+
+TEST_F(MachineOperatorReducerTest, Word64EqualWithAddAndConstant) {
+  // (x+k1)==k2 => x==(k2-k1)
+  Node* const p0 = Parameter(0);
+  TRACED_FOREACH(int64_t, k1, kInt64Values) {
+    TRACED_FOREACH(int64_t, k2, kInt64Values) {
+      Node* node = graph()->NewNode(
+          machine()->Word64Equal(),
+          graph()->NewNode(machine()->Int64Add(), p0, Int64Constant(k1)),
+          Int64Constant(k2));
+      Reduction r = Reduce(node);
+      ASSERT_TRUE(r.Changed());
     }
   }
 }
@@ -2580,6 +2612,49 @@ TEST_F(MachineOperatorReducerTest, Uint64LessThanWithUint32Reduction) {
       EXPECT_THAT(r.replacement(),
                   IsUint32LessThan(
                       p, IsInt32Constant(static_cast<int32_t>(rhs << shift))));
+    }
+  }
+}
+
+TEST_F(MachineOperatorReducerTest, Uint64LessThanWithInt64AddDontReduce) {
+  Node* const p0 = Parameter(0);
+
+  TRACED_FOREACH(uint64_t, k1, kUint64Values) {
+    TRACED_FOREACH(uint64_t, k2, kUint64Values) {
+      Node* node = graph()->NewNode(
+          machine()->Uint64LessThan(),
+          graph()->NewNode(machine()->Int64Add(), p0, Int64Constant(k1)),
+          Int64Constant(k2));
+      Reduction r = Reduce(node);
+      // Don't reduce because of potential overflow
+      ASSERT_FALSE(r.Changed());
+    }
+  }
+}
+
+TEST_F(MachineOperatorReducerTest,
+       Uint64LessThanOrEqualWithInt64AddDontReduce) {
+  Node* const p0 = Parameter(0);
+
+  TRACED_FOREACH(uint64_t, k1, kUint64Values) {
+    TRACED_FOREACH(uint64_t, k2, kUint64Values) {
+      uint64_t k1 = 0;
+      uint64_t k2 = 18446744073709551615u;
+      Node* node = graph()->NewNode(
+          machine()->Uint64LessThanOrEqual(),
+          graph()->NewNode(machine()->Int64Add(), p0, Int64Constant(k1)),
+          Int64Constant(k2));
+      Reduction r = Reduce(node);
+      if (k2 == 0) {
+        // x <= 0  =>  x == 0
+        ASSERT_TRUE(r.Changed());
+      } else if (k2 == std::numeric_limits<uint64_t>::max()) {
+        // x <= Max  =>  true
+        ASSERT_TRUE(r.Changed());
+      } else {
+        // Don't reduce because of potential overflow
+        ASSERT_FALSE(r.Changed());
+      }
     }
   }
 }
