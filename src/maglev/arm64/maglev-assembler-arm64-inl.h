@@ -241,6 +241,20 @@ void MaglevAssembler::PushReverse(T... vals) {
   detail::PushAllReverse(this, vals...);
 }
 
+inline Condition MaglevAssembler::IsRootConstant(Input input,
+                                                 RootIndex root_index) {
+  if (input.operand().IsRegister()) {
+    CompareRoot(ToRegister(input), root_index);
+  } else {
+    DCHECK(input.operand().IsStackSlot());
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.AcquireX();
+    Ldr(scratch, ToMemOperand(input));
+    CompareRoot(scratch, root_index);
+  }
+  return eq;
+}
+
 void MaglevAssembler::Branch(Condition condition, BasicBlock* if_true,
                              BasicBlock* if_false, BasicBlock* next_block) {
   // We don't have any branch probability information, so try to jump

@@ -144,10 +144,6 @@ UNIMPLEMENTED_NODE(StoreSignedIntDataViewElement, type_)
 UNIMPLEMENTED_NODE(StoreDoubleDataViewElement)
 UNIMPLEMENTED_NODE(StoreTaggedFieldNoWriteBarrier)
 UNIMPLEMENTED_NODE_WITH_CALL(StoreTaggedFieldWithWriteBarrier)
-UNIMPLEMENTED_NODE_WITH_CALL(ThrowReferenceErrorIfHole)
-UNIMPLEMENTED_NODE_WITH_CALL(ThrowSuperNotCalledIfHole)
-UNIMPLEMENTED_NODE_WITH_CALL(ThrowSuperAlreadyCalledIfNotHole)
-UNIMPLEMENTED_NODE_WITH_CALL(ThrowIfNotSuperConstructor)
 UNIMPLEMENTED_NODE(Switch)
 
 int BuiltinStringFromCharCode::MaxCallStackArgs() const {
@@ -1347,6 +1343,30 @@ void StringLength::GenerateCode(MaglevAssembler* masm,
   }
   __ Ldr(ToRegister(result()).W(),
          FieldMemOperand(object, String::kLengthOffset));
+}
+
+int ThrowIfNotSuperConstructor::MaxCallStackArgs() const { return 2; }
+void ThrowIfNotSuperConstructor::SetValueLocationConstraints() {
+  UseRegister(constructor());
+  UseRegister(function());
+}
+void ThrowIfNotSuperConstructor::GenerateCode(MaglevAssembler* masm,
+                                              const ProcessingState& state) {
+  DeferredCodeInfo* deferred_abort = __ PushDeferredCode(
+      [](MaglevAssembler* masm, ThrowIfNotSuperConstructor* node) {
+        __ Push(ToRegister(node->constructor()), ToRegister(node->function()));
+        __ Move(kContextRegister, masm->native_context().object());
+        __ CallRuntime(Runtime::kThrowNotSuperConstructor, 2);
+        masm->DefineExceptionHandlerAndLazyDeoptPoint(node);
+        __ Abort(AbortReason::kUnexpectedReturnFromThrow);
+      },
+      this);
+  UseScratchRegisterScope temps(masm);
+  Register scratch = temps.AcquireX();
+  __ LoadMap(scratch, ToRegister(constructor()));
+  __ Ldr(scratch, FieldMemOperand(scratch, Map::kBitFieldOffset));
+  __ TestAndBranchIfAllClear(scratch, Map::Bits1::IsConstructorBit::kMask,
+                             &deferred_abort->deferred_code_label);
 }
 
 // ---

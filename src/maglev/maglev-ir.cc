@@ -1583,6 +1583,58 @@ void ToNumberOrNumeric::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
+int ThrowReferenceErrorIfHole::MaxCallStackArgs() const { return 1; }
+void ThrowReferenceErrorIfHole::SetValueLocationConstraints() {
+  UseAny(value());
+}
+void ThrowReferenceErrorIfHole::GenerateCode(MaglevAssembler* masm,
+                                             const ProcessingState& state) {
+  __ JumpToDeferredIf(
+      __ IsRootConstant(value(), RootIndex::kTheHoleValue),
+      [](MaglevAssembler* masm, ThrowReferenceErrorIfHole* node) {
+        __ Move(kContextRegister, masm->native_context().object());
+        __ Push(node->name().object());
+        __ CallRuntime(Runtime::kThrowAccessedUninitializedVariable, 1);
+        masm->DefineExceptionHandlerAndLazyDeoptPoint(node);
+        __ Abort(AbortReason::kUnexpectedReturnFromThrow);
+      },
+      this);
+}
+
+int ThrowSuperNotCalledIfHole::MaxCallStackArgs() const { return 0; }
+void ThrowSuperNotCalledIfHole::SetValueLocationConstraints() {
+  UseAny(value());
+}
+void ThrowSuperNotCalledIfHole::GenerateCode(MaglevAssembler* masm,
+                                             const ProcessingState& state) {
+  __ JumpToDeferredIf(
+      __ IsRootConstant(value(), RootIndex::kTheHoleValue),
+      [](MaglevAssembler* masm, ThrowSuperNotCalledIfHole* node) {
+        __ Move(kContextRegister, masm->native_context().object());
+        __ CallRuntime(Runtime::kThrowSuperNotCalled, 0);
+        masm->DefineExceptionHandlerAndLazyDeoptPoint(node);
+        __ Abort(AbortReason::kUnexpectedReturnFromThrow);
+      },
+      this);
+}
+
+int ThrowSuperAlreadyCalledIfNotHole::MaxCallStackArgs() const { return 0; }
+void ThrowSuperAlreadyCalledIfNotHole::SetValueLocationConstraints() {
+  UseAny(value());
+}
+void ThrowSuperAlreadyCalledIfNotHole::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
+  __ JumpToDeferredIf(
+      NegateCondition(__ IsRootConstant(value(), RootIndex::kTheHoleValue)),
+      [](MaglevAssembler* masm, ThrowSuperAlreadyCalledIfNotHole* node) {
+        __ Move(kContextRegister, masm->native_context().object());
+        __ CallRuntime(Runtime::kThrowSuperAlreadyCalledError, 0);
+        masm->DefineExceptionHandlerAndLazyDeoptPoint(node);
+        __ Abort(AbortReason::kUnexpectedReturnFromThrow);
+      },
+      this);
+}
+
 void TruncateUint32ToInt32::SetValueLocationConstraints() {
   UseRegister(input());
   DefineSameAsFirst(this);
