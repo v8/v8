@@ -2965,7 +2965,7 @@ void Return::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   __ Ret();
 }
 
-void Switch::SetValueLocationConstraints() { UseRegister(value()); }
+void Switch::SetValueLocationConstraints() { UseAndClobberRegister(value()); }
 void Switch::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   std::unique_ptr<Label*[]> labels = std::make_unique<Label*[]>(size());
   for (int i = 0; i < size(); i++) {
