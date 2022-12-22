@@ -7169,7 +7169,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
   // For wasm-to-js wrappers, parameter 0 is a WasmApiFunctionRef.
   bool BuildWasmToJSWrapper(WasmImportCallKind kind, int expected_arity,
-                            wasm::Suspend suspend) {
+                            wasm::Suspend suspend,
+                            const wasm::WasmModule* module) {
     int wasm_count = static_cast<int>(sig_->parameter_count());
 
     // Build the start and the parameter nodes.
@@ -7322,10 +7323,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
     // Convert the return value(s) back.
     if (sig_->return_count() <= 1) {
-      Node* val =
-          sig_->return_count() == 0
-              ? Int32Constant(0)
-              : FromJS(call, native_context, sig_->GetReturn(), nullptr);
+      Node* val = sig_->return_count() == 0
+                      ? Int32Constant(0)
+                      : FromJS(call, native_context, sig_->GetReturn(), module);
       BuildModifyThreadInWasmFlag(true);
       Return(val);
     } else {
@@ -7334,7 +7334,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       base::SmallVector<Node*, 8> wasm_values(sig_->return_count());
       for (unsigned i = 0; i < sig_->return_count(); ++i) {
         wasm_values[i] = FromJS(gasm_->LoadFixedArrayElementAny(fixed_array, i),
-                                native_context, sig_->GetReturn(i), nullptr);
+                                native_context, sig_->GetReturn(i), module);
       }
       BuildModifyThreadInWasmFlag(true);
       Return(base::VectorOf(wasm_values));
@@ -8238,7 +8238,7 @@ wasm::WasmCompilationResult CompileWasmImportCallWrapper(
       &zone, mcgraph, sig, env->module,
       WasmGraphBuilder::kWasmApiFunctionRefMode, nullptr, source_position_table,
       StubCallMode::kCallWasmRuntimeStub, env->enabled_features);
-  builder.BuildWasmToJSWrapper(kind, expected_arity, suspend);
+  builder.BuildWasmToJSWrapper(kind, expected_arity, suspend, env->module);
 
   // Build a name in the form "wasm-to-js-<kind>-<signature>".
   constexpr size_t kMaxNameLen = 128;
@@ -8391,7 +8391,7 @@ MaybeHandle<Code> CompileWasmToJSWrapper(Isolate* isolate,
                                   nullptr, nullptr,
                                   StubCallMode::kCallBuiltinPointer,
                                   wasm::WasmFeatures::FromIsolate(isolate));
-  builder.BuildWasmToJSWrapper(kind, expected_arity, suspend);
+  builder.BuildWasmToJSWrapper(kind, expected_arity, suspend, nullptr);
 
   // Build a name in the form "wasm-to-js-<kind>-<signature>".
   constexpr size_t kMaxNameLen = 128;
