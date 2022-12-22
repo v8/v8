@@ -3554,7 +3554,20 @@ void Isolate::UpdateLogObjectRelocation() {
 
 void Isolate::Deinit() {
   TRACE_ISOLATE(deinit);
-  DisallowGarbageCollection disallow_gc;
+
+  // All client isolates should already be detached when the shared heap isolate
+  // tears down.
+  if (is_shared_heap_isolate()) {
+    global_safepoint()->AssertNoClientsOnTearDown();
+  }
+
+  if (has_shared_heap()) {
+    IgnoreLocalGCRequests ignore_gc_requests(heap());
+    ParkedScope parked_scope(main_thread_local_heap());
+    shared_heap_isolate()->global_safepoint()->clients_mutex_.Lock();
+  }
+
+  DisallowGarbageCollection no_gc;
 
   tracing_cpu_profiler_.reset();
   if (v8_flags.stress_sampling_allocation_profiler > 0) {
@@ -3588,11 +3601,6 @@ void Isolate::Deinit() {
     optimizing_compile_dispatcher_->Stop();
     delete optimizing_compile_dispatcher_;
     optimizing_compile_dispatcher_ = nullptr;
-  }
-
-  // All client isolates should already be detached.
-  if (is_shared()) {
-    global_safepoint()->AssertNoClientsOnTearDown();
   }
 
   if (v8_flags.print_deopt_stress) {
@@ -3631,20 +3639,15 @@ void Isolate::Deinit() {
   // At this point there are no more background threads left in this isolate.
   heap_.safepoint()->AssertMainThreadIsOnlyThread();
 
-  // Tear down data using the shared heap before detaching.
+  // Tear down data that requires the shared heap before detaching.
   heap_.TearDownWithSharedHeap();
 
-  {
-    // This isolate might have to park for a shared GC initiated by another
-    // client isolate before it can actually detach from the shared isolate.
-    AllowGarbageCollection allow_shared_gc;
+  // Detach from the shared heap isolate and then unlock the mutex.
+  if (has_shared_heap()) {
+    Isolate* shared_heap_isolate = this->shared_heap_isolate();
     DetachFromSharedIsolate();
     DetachFromSharedSpaceIsolate();
-  }
-
-  // All client isolates should already be detached.
-  if (is_shared_space_isolate()) {
-    global_safepoint()->AssertNoClientsOnTearDown();
+    shared_heap_isolate->global_safepoint()->clients_mutex_.Unlock();
   }
 
   // Since there are no other threads left, we can lock this mutex without any

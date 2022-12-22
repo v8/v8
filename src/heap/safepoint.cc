@@ -312,12 +312,7 @@ void GlobalSafepoint::AppendClient(Isolate* client) {
 
 void GlobalSafepoint::RemoveClient(Isolate* client) {
   DCHECK_EQ(client->heap()->gc_state(), Heap::TEAR_DOWN);
-
-  // A shared heap may have already acquired the client mutex to perform a
-  // shared GC. We need to park the Isolate here to allow for a shared GC.
-  IgnoreLocalGCRequests ignore_gc_requests(client->heap());
-  ParkedRecursiveMutexGuard guard(client->main_thread_local_heap(),
-                                  &clients_mutex_);
+  AssertActive();
 
   if (client->global_safepoint_next_client_isolate_) {
     client->global_safepoint_next_client_isolate_
@@ -338,12 +333,18 @@ void GlobalSafepoint::RemoveClient(Isolate* client) {
 }
 
 void GlobalSafepoint::AssertNoClientsOnTearDown() {
-  DCHECK_WITH_MSG(
-      clients_head_ == nullptr,
-      "Shared heap must not have clients at teardown. The first isolate that "
-      "is created (in a process that has no isolates) owns the lifetime of the "
-      "shared heap and is considered the main isolate. The main isolate must "
-      "outlive all other isolates.");
+  if (v8_flags.shared_space) {
+    DCHECK_EQ(clients_head_, shared_heap_isolate_);
+    DCHECK_NULL(shared_heap_isolate_->global_safepoint_prev_client_isolate_);
+    DCHECK_NULL(shared_heap_isolate_->global_safepoint_next_client_isolate_);
+  } else {
+    DCHECK_WITH_MSG(
+        clients_head_ == nullptr,
+        "Shared heap must not have clients at teardown. The first isolate that "
+        "is created (in a process that has no isolates) owns the lifetime of "
+        "the shared heap and is considered the main isolate. The main isolate "
+        "must outlive all other isolates.");
+  }
 }
 
 void GlobalSafepoint::EnterGlobalSafepointScope(Isolate* initiator) {
