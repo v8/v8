@@ -1492,6 +1492,61 @@ TNode<Int32T> StringBuiltinsAssembler::LoadSurrogatePairAt(
   return var_result.value();
 }
 
+TNode<BoolT> StringBuiltinsAssembler::HasUnpairedSurrogate(TNode<String> string,
+                                                           Label* if_indirect) {
+  TNode<Uint16T> instance_type = LoadInstanceType(string);
+  CSA_DCHECK(this, Word32Equal(Word32And(instance_type,
+                                         Int32Constant(kStringEncodingMask)),
+                               Int32Constant(kTwoByteStringTag)));
+  GotoIfNot(Word32Equal(Word32And(instance_type,
+                                  Int32Constant(kIsIndirectStringMask |
+                                                kUncachedExternalStringMask)),
+                        Int32Constant(0)),
+            if_indirect);
+
+  TNode<RawPtrT> string_data = DirectStringData(string, instance_type);
+  TNode<IntPtrT> length = LoadStringLengthAsWord(string);
+
+  const TNode<ExternalReference> has_unpaired_surrogate =
+      ExternalConstant(ExternalReference::has_unpaired_surrogate());
+  return UncheckedCast<BoolT>(
+      CallCFunction(has_unpaired_surrogate, MachineType::Uint32(),
+                    std::make_pair(MachineType::Pointer(), string_data),
+                    std::make_pair(MachineType::IntPtr(), length)));
+}
+
+void StringBuiltinsAssembler::ReplaceUnpairedSurrogates(TNode<String> source,
+                                                        TNode<String> dest,
+                                                        Label* if_indirect) {
+  TNode<Uint16T> source_instance_type = LoadInstanceType(source);
+  CSA_DCHECK(this, Word32Equal(Word32And(source_instance_type,
+                                         Int32Constant(kStringEncodingMask)),
+                               Int32Constant(kTwoByteStringTag)));
+  GotoIfNot(Word32Equal(Word32And(source_instance_type,
+                                  Int32Constant(kIsIndirectStringMask |
+                                                kUncachedExternalStringMask)),
+                        Int32Constant(0)),
+            if_indirect);
+
+  TNode<RawPtrT> source_data = DirectStringData(source, source_instance_type);
+  // The destination string is a freshly allocated SeqString, and so is always
+  // direct.
+  TNode<Uint16T> dest_instance_type = LoadInstanceType(dest);
+  CSA_DCHECK(this, Word32Equal(Word32And(dest_instance_type,
+                                         Int32Constant(kStringEncodingMask)),
+                               Int32Constant(kTwoByteStringTag)));
+  TNode<RawPtrT> dest_data = DirectStringData(dest, dest_instance_type);
+  TNode<IntPtrT> length = LoadStringLengthAsWord(source);
+  CSA_DCHECK(this, IntPtrEqual(length, LoadStringLengthAsWord(dest)));
+
+  const TNode<ExternalReference> replace_unpaired_surrogates =
+      ExternalConstant(ExternalReference::replace_unpaired_surrogates());
+  CallCFunction(replace_unpaired_surrogates, MachineType::Pointer(),
+                std::make_pair(MachineType::Pointer(), source_data),
+                std::make_pair(MachineType::Pointer(), dest_data),
+                std::make_pair(MachineType::IntPtr(), length));
+}
+
 void StringBuiltinsAssembler::BranchIfStringPrimitiveWithNoCustomIteration(
     TNode<Object> object, TNode<Context> context, Label* if_true,
     Label* if_false) {

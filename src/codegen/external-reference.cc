@@ -36,6 +36,7 @@
 #include "src/regexp/regexp-macro-assembler-arch.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/strings/string-search.h"
+#include "src/strings/unicode-inl.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-external-refs.h"
@@ -1152,6 +1153,24 @@ static Address LexicographicCompareWrapper(Isolate* isolate, Address smi_x,
 
 FUNCTION_REFERENCE(smi_lexicographic_compare_function,
                    LexicographicCompareWrapper)
+
+uint32_t HasUnpairedSurrogate(const uint16_t* code_units, size_t length) {
+  // Use uint32_t to avoid complexity around bool return types.
+  static constexpr uint32_t kTrue = 1;
+  static constexpr uint32_t kFalse = 0;
+  return unibrow::Utf16::HasUnpairedSurrogate(code_units, length) ? kTrue
+                                                                  : kFalse;
+}
+
+FUNCTION_REFERENCE(has_unpaired_surrogate, HasUnpairedSurrogate)
+
+void ReplaceUnpairedSurrogates(const uint16_t* source_code_units,
+                               uint16_t* dest_code_units, size_t length) {
+  return unibrow::Utf16::ReplaceUnpairedSurrogates(source_code_units,
+                                                   dest_code_units, length);
+}
+
+FUNCTION_REFERENCE(replace_unpaired_surrogates, ReplaceUnpairedSurrogates)
 
 FUNCTION_REFERENCE(mutable_big_int_absolute_add_and_canonicalize_function,
                    MutableBigInt_AbsoluteAddAndCanonicalize)

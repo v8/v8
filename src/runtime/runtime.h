@@ -462,13 +462,15 @@ namespace internal {
   F(StringEscapeQuotes, 1, 1)             \
   F(StringGreaterThan, 2, 1)              \
   F(StringGreaterThanOrEqual, 2, 1)       \
+  F(StringIsWellFormed, 1, 1)             \
   F(StringLastIndexOf, 2, 1)              \
   F(StringLessThan, 2, 1)                 \
   F(StringLessThanOrEqual, 2, 1)          \
   F(StringMaxLength, 0, 1)                \
   F(StringReplaceOneCharWithString, 3, 1) \
   F(StringSubstring, 3, 1)                \
-  F(StringToArray, 2, 1)
+  F(StringToArray, 2, 1)                  \
+  F(StringToWellFormed, 1, 1)
 
 #define FOR_EACH_INTRINSIC_SYMBOL(F, I)    \
   F(CreatePrivateNameSymbol, 1, 1)         \

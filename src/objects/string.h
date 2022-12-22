@@ -526,6 +526,10 @@ class String : public TorqueGeneratedString<String, Name> {
                           PtrComprCageBase cage_base,
                           const SharedStringAccessGuardIfNeeded&);
 
+  // Returns true if this string has no unpaired surrogates and false otherwise.
+  static inline bool IsWellFormedUnicode(Isolate* isolate,
+                                         Handle<String> string);
+
   static inline bool IsAscii(const char* chars, int length) {
     return IsAscii(reinterpret_cast<const uint8_t*>(chars), length);
   }

@@ -33,6 +33,10 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
   TNode<Int32T> LoadSurrogatePairAt(TNode<String> string, TNode<IntPtrT> length,
                                     TNode<IntPtrT> index,
                                     UnicodeEncoding encoding);
+  TNode<BoolT> HasUnpairedSurrogate(TNode<String> string, Label* if_indirect);
+
+  void ReplaceUnpairedSurrogates(TNode<String> source, TNode<String> dest,
+                                 Label* if_indirect);
 
   TNode<String> StringFromSingleUTF16EncodedCodePoint(TNode<Int32T> codepoint);
 

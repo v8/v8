@@ -121,7 +121,7 @@ class Utf16 {
   // 4 bytes and the 3 bytes that were used to encode the lead surrogate
   // can be reclaimed.
   static const int kMaxExtraUtf8BytesForOneUtf16CodeUnit = 3;
-  // One UTF-16 surrogate is endoded (illegally) as 3 UTF-8 bytes.
+  // One UTF-16 surrogate is encoded (illegally) as 3 UTF-8 bytes.
   // The illegality stems from the surrogate not being part of a pair.
   static const int kUtf8BytesToCodeASurrogate = 3;
   static inline uint16_t LeadSurrogate(uint32_t char_code) {
@@ -132,6 +132,10 @@ class Utf16 {
   }
   static inline bool HasUnpairedSurrogate(const uint16_t* code_units,
                                           size_t length);
+
+  static void ReplaceUnpairedSurrogates(const uint16_t* source_code_units,
+                                        uint16_t* dest_code_units,
+                                        size_t length);
 };
 
 class Latin1 {

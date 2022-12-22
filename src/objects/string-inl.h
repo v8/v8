@@ -18,6 +18,7 @@
 #include "src/sandbox/external-pointer-inl.h"
 #include "src/sandbox/external-pointer.h"
 #include "src/strings/string-hasher-inl.h"
+#include "src/strings/unicode-inl.h"
 #include "src/utils/utils.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -954,6 +955,21 @@ ConsString String::VisitFlat(
         UNREACHABLE();
     }
   }
+}
+
+bool String::IsWellFormedUnicode(Isolate* isolate, Handle<String> string) {
+  // One-byte strings are definitionally well formed and cannot have unpaired
+  // surrogates.
+  if (string->IsOneByteRepresentation()) return true;
+
+  // TODO(v8:13557): The two-byte case can be optimized by extending the
+  // InstanceType. See
+  // https://docs.google.com/document/d/15f-1c_Ysw3lvjy_Gx0SmmD9qeO8UuXuAbWIpWCnTDO8/
+  string = Flatten(isolate, string);
+  DCHECK(string->IsTwoByteRepresentation());
+  DisallowGarbageCollection no_gc;
+  const uint16_t* data = string->template GetChars<uint16_t>(isolate, no_gc);
+  return !unibrow::Utf16::HasUnpairedSurrogate(data, string->length());
 }
 
 template <>

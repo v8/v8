@@ -56,6 +56,8 @@ FEATURE_FLAGS = {
     'array-grouping': '--harmony-array-grouping',
     'change-array-by-copy': '--harmony-change-array-by-copy',
     'symbols-as-weakmap-keys': '--harmony-symbol-as-weakmap-key',
+    'String.prototype.isWellFormed': '--harmony-string-is-well-formed',
+    'String.prototype.toWellFormed': '--harmony-string-is-well-formed',
 }
 
 SKIPPED_FEATURES = set([])

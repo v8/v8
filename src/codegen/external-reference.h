@@ -231,6 +231,8 @@ class StatsCounter;
   V(array_indexof_includes_smi_or_object,                                      \
     "array_indexof_includes_smi_or_object")                                    \
   V(array_indexof_includes_double, "array_indexof_includes_double")            \
+  V(has_unpaired_surrogate, "Utf16::HasUnpairedSurrogate")                     \
+  V(replace_unpaired_surrogates, "Utf16::ReplaceUnpairedSurrogates")           \
   V(try_string_to_index_or_lookup_existing,                                    \
     "try_string_to_index_or_lookup_existing")                                  \
   V(string_from_forward_table, "string_from_forward_table")                    \

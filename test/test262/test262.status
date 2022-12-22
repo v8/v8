@@ -994,20 +994,6 @@
   'language/statements/class/decorator/syntax/valid/class-element-decorator-member-expr-identifier-reference': [FAIL],
   'language/statements/class/decorator/syntax/valid/class-element-decorator-parenthesized-expr-identifier-reference': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=13557
-  'built-ins/String/prototype/isWellFormed/length': [FAIL],
-  'built-ins/String/prototype/isWellFormed/name': [FAIL],
-  'built-ins/String/prototype/isWellFormed/prop-desc': [FAIL],
-  'built-ins/String/prototype/isWellFormed/return-abrupt-from-this': [FAIL],
-  'built-ins/String/prototype/isWellFormed/returns-boolean': [FAIL],
-  'built-ins/String/prototype/isWellFormed/to-string': [FAIL],
-  'built-ins/String/prototype/toWellFormed/length': [FAIL],
-  'built-ins/String/prototype/toWellFormed/name': [FAIL],
-  'built-ins/String/prototype/toWellFormed/prop-desc': [FAIL],
-  'built-ins/String/prototype/toWellFormed/return-abrupt-from-this': [FAIL],
-  'built-ins/String/prototype/toWellFormed/returns-well-formed-string': [FAIL],
-  'built-ins/String/prototype/toWellFormed/to-string': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=11660
   # https://github.com/tc39/proposal-intl-duration-format/issues/114
   'intl402/DurationFormat/prototype/format/style-options-en': [FAIL],

@@ -4892,6 +4892,18 @@ void Genesis::InitializeGlobal_harmony_rab_gsab() {
                         Builtin::kSharedArrayBufferPrototypeGrow, 1, true);
 }
 
+void Genesis::InitializeGlobal_harmony_string_is_well_formed() {
+  if (!v8_flags.harmony_string_is_well_formed) return;
+  Handle<JSFunction> string_function(native_context()->string_function(),
+                                     isolate());
+  Handle<JSObject> string_prototype(
+      JSObject::cast(string_function->initial_map().prototype()), isolate());
+  SimpleInstallFunction(isolate(), string_prototype, "isWellFormed",
+                        Builtin::kStringPrototypeIsWellFormed, 0, false);
+  SimpleInstallFunction(isolate(), string_prototype, "toWellFormed",
+                        Builtin::kStringPrototypeToWellFormed, 0, false);
+}
+
 void Genesis::InitializeGlobal_harmony_temporal() {
   if (!v8_flags.harmony_temporal) return;
   // -- T e m p o r a l

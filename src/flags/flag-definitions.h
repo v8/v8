@@ -235,7 +235,8 @@ DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
   V(harmony_rab_gsab,                                           \
     "harmony ResizableArrayBuffer / GrowableSharedArrayBuffer") \
   V(harmony_rab_gsab_transfer, "harmony ArrayBuffer.transfer")  \
-  V(harmony_array_grouping, "harmony array grouping")
+  V(harmony_array_grouping, "harmony array grouping")           \
+  V(harmony_string_is_well_formed, "harmony String#{is,to}WellFormed")
 
 DEFINE_IMPLICATION(harmony_rab_gsab_transfer, harmony_rab_gsab)
 

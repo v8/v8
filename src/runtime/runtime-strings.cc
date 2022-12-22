@@ -10,6 +10,7 @@
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"
 #include "src/strings/string-builder-inl.h"
+#include "src/strings/unicode-inl.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 // TODO(chromium:1236668): Drop this when the "SaveAndClearThreadInWasmFlag"
@@ -469,6 +470,31 @@ RUNTIME_FUNCTION(Runtime_StringEscapeQuotes) {
   }
 
   return *builder.ToString().ToHandleChecked();
+}
+
+RUNTIME_FUNCTION(Runtime_StringIsWellFormed) {
+  HandleScope handle_scope(isolate);
+  DCHECK_EQ(1, args.length());
+  Handle<String> string = args.at<String>(0);
+  return isolate->heap()->ToBoolean(
+      String::IsWellFormedUnicode(isolate, string));
+}
+
+RUNTIME_FUNCTION(Runtime_StringToWellFormed) {
+  HandleScope handle_scope(isolate);
+  DCHECK_EQ(1, args.length());
+  Handle<String> source = args.at<String>(0);
+  if (String::IsWellFormedUnicode(isolate, source)) return *source;
+  source = String::Flatten(isolate, source);
+  const int length = source->length();
+  Handle<SeqTwoByteString> dest =
+      isolate->factory()->NewRawTwoByteString(length).ToHandleChecked();
+  DisallowGarbageCollection no_gc;
+  const uint16_t* source_data =
+      source->template GetChars<uint16_t>(isolate, no_gc);
+  uint16_t* dest_data = dest->GetChars(no_gc);
+  unibrow::Utf16::ReplaceUnpairedSurrogates(source_data, dest_data, length);
+  return *dest;
 }
 
 }  // namespace internal
