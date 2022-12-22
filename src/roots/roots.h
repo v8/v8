@@ -639,6 +639,10 @@ class ReadOnlyRoots {
   // Get the address of a given read-only root index, without type checks.
   V8_INLINE Address at(RootIndex root_index) const;
 
+  // Check if a slot is initialized yet. Should only be neccessary for code
+  // running during snapshot creation.
+  V8_INLINE bool is_initialized(RootIndex root_index) const;
+
   // Iterate over all the read-only roots. This is not necessary for garbage
   // collection and is usually only performed as part of (de)serialization or
   // heap verification.

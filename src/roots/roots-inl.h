@@ -94,7 +94,12 @@ READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
 Address* ReadOnlyRoots::GetLocation(RootIndex root_index) const {
   size_t index = static_cast<size_t>(root_index);
   DCHECK_LT(index, kEntriesCount);
-  return &read_only_roots_[index];
+  Address* location = &read_only_roots_[index];
+  // Filler objects must be created before the free space map is initialized.
+  // Bootstrapping is able to handle kNullAddress being returned here.
+  DCHECK_IMPLIES(*location == kNullAddress,
+                 root_index == RootIndex::kFreeSpaceMap);
+  return location;
 }
 
 Address ReadOnlyRoots::first_name_for_protector() const {
@@ -119,6 +124,12 @@ void ReadOnlyRoots::VerifyNameForProtectorsPages() const {
 
 Address ReadOnlyRoots::at(RootIndex root_index) const {
   return *GetLocation(root_index);
+}
+
+bool ReadOnlyRoots::is_initialized(RootIndex root_index) const {
+  size_t index = static_cast<size_t>(root_index);
+  DCHECK_LT(index, kEntriesCount);
+  return read_only_roots_[index] != kNullAddress;
 }
 
 }  // namespace internal

@@ -3157,6 +3157,8 @@ void CreateFillerObjectAtImpl(Heap* heap, Address addr, int size,
   if (size == kTaggedSize) {
     filler.set_map_after_allocation(roots.unchecked_one_pointer_filler_map(),
                                     SKIP_WRITE_BARRIER);
+    // Ensure the filler map is properly initialized.
+    DCHECK(filler.map(heap->isolate()).IsMap());
   } else if (size == 2 * kTaggedSize) {
     filler.set_map_after_allocation(roots.unchecked_two_pointer_filler_map(),
                                     SKIP_WRITE_BARRIER);
@@ -3164,6 +3166,8 @@ void CreateFillerObjectAtImpl(Heap* heap, Address addr, int size,
       AtomicSlot slot(ObjectSlot(addr) + 1);
       *slot = static_cast<Tagged_t>(kClearedFreeMemoryValue);
     }
+    // Ensure the filler map is properly initialized.
+    DCHECK(filler.map(heap->isolate()).IsMap());
   } else {
     DCHECK_GT(size, 2 * kTaggedSize);
     filler.set_map_after_allocation(roots.unchecked_free_space_map(),
@@ -3173,13 +3177,13 @@ void CreateFillerObjectAtImpl(Heap* heap, Address addr, int size,
       MemsetTagged(ObjectSlot(addr) + 2, Object(kClearedFreeMemoryValue),
                    (size / kTaggedSize) - 2);
     }
-  }
 
-  // At this point, we may be deserializing the heap from a snapshot, and
-  // none of the maps have been created yet and are nullptr.
-  DCHECK((filler.map_slot().contains_map_value(kNullAddress) &&
-          !heap->deserialization_complete()) ||
-         filler.map(heap->isolate()).IsMap());
+    // During bootstrapping we need to create a free space object before its
+    // map is initialized. In this case we cannot access the map yet, as it
+    // might be null, or not set up properly yet.
+    DCHECK_IMPLIES(roots.is_initialized(RootIndex::kFreeSpaceMap),
+                   filler.map(heap->isolate()).IsMap());
+  }
 }
 
 #ifdef DEBUG

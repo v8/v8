@@ -641,8 +641,8 @@ Handle<PropertyDescriptorObject> Factory::NewPropertyDescriptorObject() {
 Handle<SwissNameDictionary> Factory::CreateCanonicalEmptySwissNameDictionary() {
   // This function is only supposed to be used to create the canonical empty
   // version and should not be used afterwards.
-  DCHECK_EQ(kNullAddress, ReadOnlyRoots(isolate()).at(
-                              RootIndex::kEmptySwissPropertyDictionary));
+  DCHECK(!ReadOnlyRoots(isolate()).is_initialized(
+      RootIndex::kEmptySwissPropertyDictionary));
 
   ReadOnlyRoots roots(isolate());
 
