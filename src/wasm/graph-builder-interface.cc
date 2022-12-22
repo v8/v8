@@ -4,6 +4,7 @@
 
 #include "src/wasm/graph-builder-interface.h"
 
+#include "src/base/vector.h"
 #include "src/compiler/wasm-compiler-definitions.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/flags/flags.h"
@@ -25,11 +26,54 @@ namespace {
 
 // Expose {compiler::Node} opaquely as {wasm::TFNode}.
 using TFNode = compiler::Node;
+using LocalsAllocator = RecyclingZoneAllocator<TFNode*>;
+
+class LocalsVector {
+ public:
+  LocalsVector(LocalsAllocator* allocator, size_t size)
+      : allocator_(allocator), data_(allocator->allocate(size), size) {
+    std::fill(data_.begin(), data_.end(), nullptr);
+  }
+  LocalsVector(const LocalsVector& other) V8_NOEXCEPT
+      : allocator_(other.allocator_),
+        data_(allocator_->allocate(other.size()), other.size()) {
+    data_.OverwriteWith(other.data_);
+  }
+  LocalsVector(LocalsVector&& other) V8_NOEXCEPT
+      : allocator_(other.allocator_),
+        data_(other.data_.begin(), other.size()) {
+    other.data_.Truncate(0);
+  }
+  ~LocalsVector() { Clear(); }
+
+  LocalsVector& operator=(const LocalsVector& other) V8_NOEXCEPT {
+    allocator_ = other.allocator_;
+    if (!data_.size()) {
+      data_ = base::Vector<TFNode*>(allocator_->allocate(other.size()),
+                                    other.size());
+    }
+    data_.OverwriteWith(other.data_);
+    return *this;
+  }
+  TFNode*& operator[](size_t index) { return data_[index]; }
+  size_t size() const { return data_.size(); }
+
+  void Clear() {
+    if (size()) allocator_->deallocate(data_.begin(), size());
+    data_.Truncate(0);
+  }
+
+ private:
+  LocalsAllocator* allocator_ = nullptr;
+  base::Vector<TFNode*> data_;
+};
 
 // An SsaEnv environment carries the current local variable renaming
 // as well as the current effect and control dependency in the TF graph.
 // It maintains a control state that tracks whether the environment
 // is reachable, has reached a control end, or has been merged.
+// It's encouraged to manage lifetime of SsaEnv by `ScopedSsaEnv` or
+// `Control` (`block_env`, `false_env`, or `try_info->catch_env`).
 struct SsaEnv : public ZoneObject {
   enum State { kUnreachable, kReached, kMerged };
 
@@ -37,14 +81,14 @@ struct SsaEnv : public ZoneObject {
   TFNode* control;
   TFNode* effect;
   compiler::WasmInstanceCacheNodes instance_cache;
-  ZoneVector<TFNode*> locals;
+  LocalsVector locals;
 
-  SsaEnv(Zone* zone, State state, TFNode* control, TFNode* effect,
+  SsaEnv(LocalsAllocator* alloc, State state, TFNode* control, TFNode* effect,
          uint32_t locals_size)
       : state(state),
         control(control),
         effect(effect),
-        locals(locals_size, zone) {}
+        locals(alloc, locals_size) {}
 
   SsaEnv(const SsaEnv& other) V8_NOEXCEPT = default;
   SsaEnv(SsaEnv&& other) V8_NOEXCEPT : state(other.state),
@@ -57,12 +101,10 @@ struct SsaEnv : public ZoneObject {
 
   void Kill() {
     state = kUnreachable;
-    for (TFNode*& local : locals) {
-      local = nullptr;
-    }
     control = nullptr;
     effect = nullptr;
     instance_cache = {};
+    locals.Clear();
   }
   void SetNotMerged() {
     if (state == kMerged) state = kReached;
@@ -100,20 +142,44 @@ class WasmGraphBuildingInterface {
   struct Control : public ControlBase<Value, ValidationTag> {
     SsaEnv* merge_env = nullptr;  // merge environment for the construct.
     SsaEnv* false_env = nullptr;  // false environment (only for if).
+    SsaEnv* block_env = nullptr;  // environment that dies with this block.
     TryInfo* try_info = nullptr;  // information about try statements.
     int32_t previous_catch = -1;  // previous Control with a catch.
     BitVector* loop_assignments = nullptr;  // locals assigned in this loop.
     TFNode* loop_node = nullptr;            // loop header of this loop.
-    MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(Control);
+    DISALLOW_IMPLICIT_CONSTRUCTORS(Control);
 
     template <typename... Args>
     explicit Control(Args&&... args) V8_NOEXCEPT
         : ControlBase(std::forward<Args>(args)...) {}
+    Control(Control&& other) V8_NOEXCEPT
+        : ControlBase(std::move(other)),
+          merge_env(other.merge_env),
+          false_env(other.false_env),
+          block_env(other.block_env),
+          try_info(other.try_info),
+          previous_catch(other.previous_catch),
+          loop_assignments(other.loop_assignments),
+          loop_node(other.loop_node) {
+      // The `control_` vector in WasmFullDecoder calls destructor of this when
+      // growing capacity. Nullify these pointers to avoid destroying
+      // environments before used.
+      other.false_env = nullptr;
+      other.block_env = nullptr;
+      other.try_info = nullptr;
+    }
+    ~Control() {
+      if (false_env) false_env->Kill();
+      if (block_env) block_env->Kill();
+      if (try_info) try_info->catch_env->Kill();
+    }
   };
 
   WasmGraphBuildingInterface(compiler::WasmGraphBuilder* builder,
-                             int func_index, InlinedStatus inlined_status)
-      : builder_(builder),
+                             int func_index, InlinedStatus inlined_status,
+                             Zone* zone)
+      : locals_allocator_(zone),
+        builder_(builder),
         func_index_(func_index),
         inlined_status_(inlined_status) {}
 
@@ -148,7 +214,7 @@ class WasmGraphBuildingInterface {
     builder_->Start(static_cast<int>(decoder->sig_->parameter_count() + 1 + 1));
     uint32_t num_locals = decoder->num_locals();
     SsaEnv* ssa_env = decoder->zone()->New<SsaEnv>(
-        decoder->zone(), SsaEnv::kReached, effect(), control(), num_locals);
+        &locals_allocator_, SsaEnv::kReached, effect(), control(), num_locals);
     SetEnv(ssa_env);
 
     // Initialize local variables. Parameters are shifted by 1 because of the
@@ -213,12 +279,13 @@ class WasmGraphBuildingInterface {
     // The branch environment is the outer environment.
     block->merge_env = ssa_env_;
     SetEnv(Steal(decoder->zone(), ssa_env_));
+    block->block_env = ssa_env_;
   }
 
   void Loop(FullDecoder* decoder, Control* block) {
     // This is the merge environment at the beginning of the loop.
     SsaEnv* merge_env = Steal(decoder->zone(), ssa_env_);
-    block->merge_env = merge_env;
+    block->merge_env = block->block_env = merge_env;
     SetEnv(merge_env);
 
     ssa_env_->state = SsaEnv::kMerged;
@@ -279,6 +346,7 @@ class WasmGraphBuildingInterface {
     }
 
     // Now we setup a new environment for the inside of the loop.
+    // TODO(choongwoo): Clear locals of the following SsaEnv after use.
     SetEnv(Split(decoder->zone(), ssa_env_));
     builder_->StackCheck(decoder->module_->has_shared_memory
                              ? &ssa_env_->instance_cache
@@ -296,15 +364,15 @@ class WasmGraphBuildingInterface {
 
   void Try(FullDecoder* decoder, Control* block) {
     SsaEnv* outer_env = ssa_env_;
-    SsaEnv* catch_env = Split(decoder->zone(), outer_env);
-    // Mark catch environment as unreachable, since only accessable
-    // through catch unwinding (i.e. landing pads).
-    catch_env->state = SsaEnv::kUnreachable;
-    SsaEnv* try_env = Steal(decoder->zone(), outer_env);
+    SsaEnv* catch_env = Steal(decoder->zone(), outer_env);
+    // Steal catch_env to make catch_env unreachable and clear locals.
+    // The unreachable catch_env will create and copy locals in `Goto`.
+    SsaEnv* try_env = Steal(decoder->zone(), catch_env);
     SetEnv(try_env);
     TryInfo* try_info = decoder->zone()->New<TryInfo>(catch_env);
     block->merge_env = outer_env;
     block->try_info = try_info;
+    block->block_env = try_env;
   }
 
   void If(FullDecoder* decoder, const Value& cond, Control* if_block) {
@@ -332,6 +400,7 @@ class WasmGraphBuildingInterface {
     true_env->control = if_true;
     if_block->merge_env = merge_env;
     if_block->false_env = false_env;
+    if_block->block_env = true_env;
     SetEnv(true_env);
   }
 
@@ -506,8 +575,9 @@ class WasmGraphBuildingInterface {
     uint32_t ret_count = static_cast<uint32_t>(decoder->sig_->return_count());
     NodeVector values(ret_count);
     SsaEnv* internal_env = ssa_env_;
+    SsaEnv* exit_env = nullptr;
     if (emit_loop_exits()) {
-      SsaEnv* exit_env = Split(decoder->zone(), ssa_env_);
+      exit_env = Split(decoder->zone(), ssa_env_);
       SetEnv(exit_env);
       auto stack_values = CopyStackValues(decoder, ret_count, drop_values);
       BuildNestedLoopExits(decoder, decoder->control_depth() - 1, false,
@@ -523,6 +593,7 @@ class WasmGraphBuildingInterface {
       builder_->TraceFunctionExit(base::VectorOf(values), decoder->position());
     }
     builder_->Return(base::VectorOf(values));
+    if (exit_env) exit_env->Kill();
     SetEnv(internal_env);
   }
 
@@ -532,15 +603,12 @@ class WasmGraphBuildingInterface {
     } else {
       Control* target = decoder->control_at(depth);
       if (emit_loop_exits()) {
-        SsaEnv* internal_env = ssa_env_;
-        SsaEnv* exit_env = Split(decoder->zone(), ssa_env_);
-        SetEnv(exit_env);
+        ScopedSsaEnv exit_env(this, Split(decoder->zone(), ssa_env_));
         uint32_t value_count = target->br_merge()->arity;
         auto stack_values = CopyStackValues(decoder, value_count, drop_values);
         BuildNestedLoopExits(decoder, depth, true, stack_values);
         MergeValuesInto(decoder, target, target->br_merge(),
                         stack_values.data());
-        SetEnv(internal_env);
       } else {
         MergeValuesInto(decoder, target, target->br_merge(), drop_values);
       }
@@ -567,9 +635,8 @@ class WasmGraphBuildingInterface {
         break;
     }
     builder_->SetControl(fenv->control);
-    SetEnv(tenv);
+    ScopedSsaEnv scoped_env(this, tenv);
     BrOrRet(decoder, depth, 1);
-    SetEnv(fenv);
   }
 
   void BrTable(FullDecoder* decoder, const BranchTableImmediate& imm,
@@ -581,23 +648,19 @@ class WasmGraphBuildingInterface {
       return;
     }
 
-    SsaEnv* branch_env = ssa_env_;
     // Build branches to the various blocks based on the table.
     TFNode* sw = builder_->Switch(imm.table_count + 1, key.node);
 
-    SsaEnv* copy = Steal(decoder->zone(), branch_env);
-    SetEnv(copy);
     BranchTableIterator<ValidationTag> iterator(decoder, imm);
     while (iterator.has_next()) {
       uint32_t i = iterator.cur_index();
       uint32_t target = iterator.next();
-      SetEnv(Split(decoder->zone(), copy));
+      ScopedSsaEnv env(this, Split(decoder->zone(), ssa_env_));
       builder_->SetControl(i == imm.table_count ? builder_->IfDefault(sw)
                                                 : builder_->IfValue(i, sw));
       BrOrRet(decoder, target, 1);
     }
     DCHECK(decoder->ok());
-    SetEnv(branch_env);
   }
 
   void Else(FullDecoder* decoder, Control* if_block) {
@@ -857,9 +920,10 @@ class WasmGraphBuildingInterface {
     builder_->BrOnNull(ref_object.node, &true_env->control,
                        &false_env->control);
     builder_->SetControl(false_env->control);
-    SetEnv(true_env);
-    BrOrRet(decoder, depth, pass_null_along_branch ? 0 : 1);
-    SetEnv(false_env);
+    {
+      ScopedSsaEnv scoped_env(this, true_env);
+      BrOrRet(decoder, depth, pass_null_along_branch ? 0 : 1);
+    }
     SetAndTypeNode(
         result_on_fallthrough,
         builder_->TypeGuard(ref_object.node, result_on_fallthrough->type));
@@ -875,9 +939,8 @@ class WasmGraphBuildingInterface {
     builder_->BrOnNull(ref_object.node, &false_env->control,
                        &true_env->control);
     builder_->SetControl(false_env->control);
-    SetEnv(true_env);
+    ScopedSsaEnv scoped_env(this, true_env);
     BrOrRet(decoder, depth, 0);
-    SetEnv(false_env);
   }
 
   void SimdOp(FullDecoder* decoder, WasmOpcode opcode, base::Vector<Value> args,
@@ -957,6 +1020,7 @@ class WasmGraphBuildingInterface {
     SsaEnv* if_catch_env = Steal(decoder->zone(), ssa_env_);
     if_catch_env->control = if_catch;
     block->try_info->catch_env = if_no_catch_env;
+    block->block_env = if_catch_env;
 
     // If the tags match we extract the values from the exception object and
     // push them onto the operand stack using the passed {values} vector.
@@ -1270,6 +1334,7 @@ class WasmGraphBuildingInterface {
         null_succeeds ? kNullable : kNonNullable);
     WasmTypeCheckConfig config = {object.type, to_type};
     SsaEnv* branch_env = Split(decoder->zone(), ssa_env_);
+    // TODO(choongwoo): Clear locals of `no_branch_env` after use.
     SsaEnv* no_branch_env = Steal(decoder->zone(), ssa_env_);
     no_branch_env->SetNotMerged();
     SsaEnv* match_env = branch_on_match ? branch_env : no_branch_env;
@@ -1280,27 +1345,26 @@ class WasmGraphBuildingInterface {
     builder_->SetControl(no_branch_env->control);
 
     if (branch_on_match) {
-      SetEnv(branch_env);
+      ScopedSsaEnv scoped_env(this, branch_env, no_branch_env);
       // Narrow type for the successful cast target branch.
       Forward(decoder, object, forwarding_value);
       // Currently, br_on_* instructions modify the value stack before calling
       // the interface function, so we don't need to drop any values here.
       BrOrRet(decoder, br_depth, 0);
-
-      SetEnv(no_branch_env);
       // Note: Differently to below for !{branch_on_match}, we do not Forward
       // the value here to perform a TypeGuard. It can't be done here due to
       // asymmetric decoder code. A Forward here would be poped from the stack
       // and ignored by the decoder. Therefore the decoder has to call Forward
       // itself.
     } else {
-      SetEnv(branch_env);
-      // It is necessary in case of {null_succeeds} to forward the value.
-      // This will add a TypeGuard to the non-null type (as in this case the
-      // object is non-nullable).
-      Forward(decoder, object, decoder->stack_value(1));
-      BrOrRet(decoder, br_depth, 0);
-      SetEnv(no_branch_env);
+      {
+        ScopedSsaEnv scoped_env(this, branch_env, no_branch_env);
+        // It is necessary in case of {null_succeeds} to forward the value.
+        // This will add a TypeGuard to the non-null type (as in this case the
+        // object is non-nullable).
+        Forward(decoder, object, decoder->stack_value(1));
+        BrOrRet(decoder, br_depth, 0);
+      }
       // Narrow type for the successful cast fallthrough branch.
       Forward(decoder, object, forwarding_value);
     }
@@ -1738,6 +1802,7 @@ class WasmGraphBuildingInterface {
   DanglingExceptions& dangling_exceptions() { return dangling_exceptions_; }
 
  private:
+  LocalsAllocator locals_allocator_;
   SsaEnv* ssa_env_ = nullptr;
   compiler::WasmGraphBuilder* builder_;
   int func_index_;
@@ -1752,6 +1817,24 @@ class WasmGraphBuildingInterface {
   // consuming instructions (currently only calls).
   int feedback_instruction_index_ = 0;
   std::vector<CallSiteFeedback> type_feedback_;
+
+  class V8_NODISCARD ScopedSsaEnv {
+   public:
+    ScopedSsaEnv(WasmGraphBuildingInterface* interface, SsaEnv* env,
+                 SsaEnv* next_env = nullptr)
+        : interface_(interface),
+          next_env_(next_env ? next_env : interface->ssa_env_) {
+      interface_->SetEnv(env);
+    }
+    ~ScopedSsaEnv() {
+      interface_->ssa_env_->Kill();
+      interface_->SetEnv(next_env_);
+    }
+
+   private:
+    WasmGraphBuildingInterface* interface_;
+    SsaEnv* next_env_;
+  };
 
   TFNode* effect() { return builder_->effect(); }
 
@@ -1841,13 +1924,15 @@ class WasmGraphBuildingInterface {
       return node;
     }
 
+    // TODO(choongwoo): Clear locals of `success_env` after use.
     SsaEnv* success_env = Steal(decoder->zone(), ssa_env_);
     success_env->control = if_success;
 
     SsaEnv* exception_env = Split(decoder->zone(), success_env);
     exception_env->control = if_exception;
     exception_env->effect = if_exception;
-    SetEnv(exception_env);
+
+    ScopedSsaEnv scoped_env(this, exception_env, success_env);
 
     // If the exceptional operation could have modified memory size, we need to
     // reload the memory context into the exceptional control path.
@@ -1885,8 +1970,6 @@ class WasmGraphBuildingInterface {
       // generating a LoopExit if needed in the inlining code.
       dangling_exceptions_.Add(if_exception, effect(), control());
     }
-
-    SetEnv(success_env);
     return node;
   }
 
@@ -2011,8 +2094,6 @@ class WasmGraphBuildingInterface {
       ssa_env_->effect = effect();
     }
     SsaEnv* result = zone->New<SsaEnv>(std::move(*from));
-    // Restore the length of {from->locals} after applying move-constructor.
-    from->locals.resize(result->locals.size());
     result->state = SsaEnv::kReached;
     return result;
   }
@@ -2269,7 +2350,7 @@ DecodeResult BuildTFGraph(AccountingAllocator* allocator,
   Zone zone(allocator, ZONE_NAME);
   WasmFullDecoder<Decoder::NoValidationTag, WasmGraphBuildingInterface> decoder(
       &zone, module, enabled, detected, body, builder, func_index,
-      inlined_status);
+      inlined_status, &zone);
   if (node_origins) {
     builder->AddBytecodePositionDecorator(node_origins, &decoder);
   }
