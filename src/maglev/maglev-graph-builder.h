@@ -106,7 +106,6 @@ class MaglevGraphBuilder {
   class CallSpeculationScope;
 
   bool CheckType(ValueNode* node, NodeType type);
-  NodeInfo* CreateInfoIfNot(ValueNode* node, NodeType type);
   bool EnsureType(ValueNode* node, NodeType type, NodeType* old = nullptr);
   bool is_toptier() {
     return v8_flags.lower_tier_as_toptier && !v8_flags.turbofan;

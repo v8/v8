@@ -1416,13 +1416,18 @@ NodeType StaticTypeForNode(ValueNode* node) {
 }
 }  // namespace
 
-NodeInfo* MaglevGraphBuilder::CreateInfoIfNot(ValueNode* node, NodeType type) {
+bool MaglevGraphBuilder::EnsureType(ValueNode* node, NodeType type,
+                                    NodeType* old_type) {
   NodeType static_type = StaticTypeForNode(node);
-  if (NodeTypeIs(static_type, type)) return nullptr;
+  if (NodeTypeIs(static_type, type)) {
+    if (old_type) *old_type = static_type;
+    return true;
+  }
   NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(node);
-  if (NodeTypeIs(known_info->type, type)) return nullptr;
+  if (old_type) *old_type = known_info->type;
+  if (NodeTypeIs(known_info->type, type)) return true;
   known_info->type = CombineType(known_info->type, static_type);
-  return known_info;
+  return false;
 }
 
 bool MaglevGraphBuilder::CheckType(ValueNode* node, NodeType type) {
@@ -1430,15 +1435,6 @@ bool MaglevGraphBuilder::CheckType(ValueNode* node, NodeType type) {
   auto it = known_node_aspects().FindInfo(node);
   if (!known_node_aspects().IsValid(it)) return false;
   return NodeTypeIs(it->second.type, type);
-}
-
-bool MaglevGraphBuilder::EnsureType(ValueNode* node, NodeType type,
-                                    NodeType* old) {
-  NodeInfo* known_info = CreateInfoIfNot(node, type);
-  if (known_info == nullptr) return true;
-  if (old != nullptr) *old = known_info->type;
-  known_info->type = CombineType(known_info->type, type);
-  return false;
 }
 
 ValueNode* MaglevGraphBuilder::BuildSmiUntag(ValueNode* node) {
