@@ -561,6 +561,13 @@ struct is_iterator_range<base::iterator_range<T>> : std::true_type {};
 
 }  // namespace detail
 
+// General helpers.
+
+inline bool AnyMapIsHeapNumber(const ZoneHandleSet<Map>& maps) {
+  return std::any_of(maps.begin(), maps.end(),
+                     [](Handle<Map> map) { return map->IsHeapNumberMap(); });
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8

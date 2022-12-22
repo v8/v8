@@ -130,8 +130,6 @@ UNIMPLEMENTED_NODE(CheckJSArrayBounds)
 UNIMPLEMENTED_NODE(CheckJSDataViewBounds, element_type_)
 UNIMPLEMENTED_NODE(CheckJSObjectElementsBounds)
 UNIMPLEMENTED_NODE(CheckJSTypedArrayBounds, elements_kind_)
-UNIMPLEMENTED_NODE(CheckMaps, check_type_)
-UNIMPLEMENTED_NODE_WITH_CALL(CheckMapsWithMigration, check_type_)
 UNIMPLEMENTED_NODE_WITH_CALL(JumpLoopPrologue, loop_depth_, unit_)
 UNIMPLEMENTED_NODE_WITH_CALL(StoreMap)
 UNIMPLEMENTED_NODE(StoreDoubleField)
@@ -359,6 +357,180 @@ void CheckedTruncateNumberToInt32::GenerateCode(MaglevAssembler* masm,
   __ Ldr(double_value, FieldMemOperand(value, HeapNumber::kValueOffset));
   __ TruncateDoubleToInt32(result_reg, double_value);
   __ bind(&done);
+}
+
+void CheckMaps::SetValueLocationConstraints() { UseRegister(receiver_input()); }
+void CheckMaps::GenerateCode(MaglevAssembler* masm,
+                             const ProcessingState& state) {
+  Register object = ToRegister(receiver_input());
+
+  // TODO(victorgomes): This can happen, because we do not emit an unconditional
+  // deopt when we intersect the map sets.
+  if (maps().is_empty()) {
+    __ RegisterEagerDeopt(eager_deopt_info(), DeoptimizeReason::kWrongMap);
+    __ B(eager_deopt_info()->deopt_entry_label());
+    return;
+  }
+
+  bool maps_include_heap_number = AnyMapIsHeapNumber(maps());
+
+  Label done;
+  if (check_type_ == CheckType::kOmitHeapObjectCheck) {
+    __ AssertNotSmi(object);
+  } else {
+    Condition is_smi = __ CheckSmi(object);
+    if (maps_include_heap_number) {
+      // Smis count as matching the HeapNumber map, so we're done.
+      __ B(&done);
+    } else {
+      __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kWrongMap, this);
+    }
+  }
+
+  UseScratchRegisterScope temps(masm);
+  Register object_map = temps.AcquireX();
+  Register map = temps.AcquireX();
+  __ LoadMap(object_map, object);
+  size_t map_count = maps().size();
+  for (size_t i = 0; i < map_count - 1; ++i) {
+    Handle<Map> map_handle = maps().at(i);
+    __ Move(map, map_handle);
+    __ CmpTagged(object_map, map);
+    __ B(&done, eq);
+  }
+  Handle<Map> last_map_handle = maps().at(map_count - 1);
+  __ Move(map, last_map_handle);
+  __ CmpTagged(object_map, map);
+  __ EmitEagerDeoptIf(ne, DeoptimizeReason::kWrongMap, this);
+  __ bind(&done);
+}
+
+int CheckMapsWithMigration::MaxCallStackArgs() const {
+  DCHECK_EQ(Runtime::FunctionForId(Runtime::kTryMigrateInstance)->nargs, 1);
+  return 1;
+}
+void CheckMapsWithMigration::SetValueLocationConstraints() {
+  UseRegister(receiver_input());
+  set_temporaries_needed(1);
+}
+void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
+                                          const ProcessingState& state) {
+  __ RegisterEagerDeopt(eager_deopt_info(), DeoptimizeReason::kWrongMap);
+
+  // TODO(victorgomes): This can happen, because we do not emit an unconditional
+  // deopt when we intersect the map sets.
+  if (maps().is_empty()) {
+    __ B(eager_deopt_info()->deopt_entry_label());
+    return;
+  }
+
+  Register object = ToRegister(receiver_input());
+
+  bool maps_include_heap_number = AnyMapIsHeapNumber(maps());
+
+  ZoneLabelRef done(masm);
+  if (check_type_ == CheckType::kOmitHeapObjectCheck) {
+    __ AssertNotSmi(object);
+  } else {
+    Condition is_smi = __ CheckSmi(object);
+    if (maps_include_heap_number) {
+      // Smis count as matching the HeapNumber map, so we're done.
+      __ B(*done);
+    } else {
+      __ B(eager_deopt_info()->deopt_entry_label(), is_smi);
+    }
+  }
+
+  // Use general temporaries to be able to send to deferred code.
+  Register object_map = general_temporaries().PopFirst();
+  __ LoadMap(object_map, object);
+
+  size_t map_count = maps().size();
+  for (size_t i = 0; i < map_count; ++i) {
+    ZoneLabelRef continue_label(masm);
+    Handle<Map> map_handle = maps().at(i);
+    {
+      UseScratchRegisterScope temps(masm);
+      Register map = temps.AcquireX();
+      __ Move(map, map_handle);
+      __ CmpTagged(object_map, map);
+    }
+    bool last_map = (i == map_count - 1);
+    if (map_handle->is_migration_target()) {
+      __ JumpToDeferredIf(
+          ne,
+          [](MaglevAssembler* masm, ZoneLabelRef continue_label,
+             ZoneLabelRef done, Register object, Register object_map,
+             int map_index, CheckMapsWithMigration* node) {
+            UseScratchRegisterScope temps(masm);
+            Register scratch = temps.AcquireX();
+            // If the map is not deprecated, we fail the map check, continue to
+            // the next one.
+            __ Ldr(scratch.W(),
+                   FieldMemOperand(object_map, Map::kBitField3Offset));
+            __ TestAndBranchIfAllClear(scratch.W(),
+                                       Map::Bits3::IsDeprecatedBit::kMask,
+                                       *continue_label);
+
+            // Otherwise, try migrating the object. If the migration
+            // returns Smi zero, then it failed the migration.
+            Register return_val = Register::no_reg();
+            {
+              RegisterSnapshot register_snapshot = node->register_snapshot();
+              // We can eager deopt after the snapshot, so make sure the nodes
+              // used by the deopt are included in it.
+              // TODO(leszeks): This is a bit of a footgun -- we likely want the
+              // snapshot to always include eager deopt input registers.
+              AddDeoptRegistersToSnapshot(&register_snapshot,
+                                          node->eager_deopt_info());
+              SaveRegisterStateForCall save_register_state(masm,
+                                                           register_snapshot);
+
+              __ Push(object);
+              __ Move(kContextRegister, masm->native_context().object());
+              __ CallRuntime(Runtime::kTryMigrateInstance);
+              save_register_state.DefineSafepoint();
+
+              // Make sure the return value is preserved across the live
+              // register restoring pop all.
+              return_val = kReturnRegister0;
+              if (register_snapshot.live_registers.has(return_val)) {
+                DCHECK(!register_snapshot.live_registers.has(scratch));
+                __ Mov(scratch, return_val);
+                return_val = scratch;
+              }
+            }
+
+            // On failure, the returned value is zero
+            __ Cbz(return_val, *continue_label);
+
+            // The migrated object is returned on success, retry the map check.
+            __ Move(object, return_val);
+            __ Move(scratch, node->maps().at(map_index));
+            __ CmpTagged(object_map, scratch);
+            __ B(*done, eq);
+            __ B(*continue_label);
+          },
+          // If this is the last map to check, we should deopt if we fail.
+          // This is safe to do, since {eager_deopt_info} is ZoneAllocated.
+          (last_map ? ZoneLabelRef::UnsafeFromLabelPointer(
+                          eager_deopt_info()->deopt_entry_label())
+                    : continue_label),
+          done, object, object_map, i, this);
+    } else if (last_map) {
+      // If it is the last map and it is not a migration target, we should deopt
+      // if the check fails.
+      __ B(eager_deopt_info()->deopt_entry_label(), ne);
+    }
+
+    if (!last_map) {
+      // We don't need to bind the label for the last map.
+      __ B(*done, eq);
+      __ bind(*continue_label);
+    }
+  }
+
+  __ bind(*done);
 }
 
 void CheckNumber::SetValueLocationConstraints() {

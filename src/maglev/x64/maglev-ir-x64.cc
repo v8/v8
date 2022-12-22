@@ -222,11 +222,6 @@ void AssertInt32::GenerateCode(MaglevAssembler* masm,
   __ Check(ToCondition(condition_), reason_);
 }
 
-bool AnyMapIsHeapNumber(const ZoneHandleSet<Map>& maps) {
-  return std::any_of(maps.begin(), maps.end(),
-                     [](Handle<Map> map) { return map->IsHeapNumberMap(); });
-}
-
 void CheckMaps::SetValueLocationConstraints() { UseRegister(receiver_input()); }
 void CheckMaps::GenerateCode(MaglevAssembler* masm,
                              const ProcessingState& state) {
