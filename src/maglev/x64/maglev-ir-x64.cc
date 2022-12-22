@@ -1697,6 +1697,10 @@ void Int32NegateWithOverflow::SetValueLocationConstraints() {
 void Int32NegateWithOverflow::GenerateCode(MaglevAssembler* masm,
                                            const ProcessingState& state) {
   Register value = ToRegister(value_input());
+  // Deopt when the result would be -0.
+  __ testl(value, value);
+  __ EmitEagerDeoptIf(zero, DeoptimizeReason::kOverflow, this);
+
   __ negl(value);
   __ EmitEagerDeoptIf(overflow, DeoptimizeReason::kOverflow, this);
 }

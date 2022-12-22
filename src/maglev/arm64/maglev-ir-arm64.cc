@@ -72,6 +72,13 @@ void Int32NegateWithOverflow::GenerateCode(MaglevAssembler* masm,
                                            const ProcessingState& state) {
   Register value = ToRegister(value_input()).W();
   Register out = ToRegister(result()).W();
+
+  // Deopt when result would be -0.
+  static_assert(Int32NegateWithOverflow::kProperties.can_eager_deopt());
+  __ RegisterEagerDeopt(eager_deopt_info(), DeoptimizeReason::kOverflow);
+  __ RecordComment("-- Jump to eager deopt");
+  __ Cbz(value, eager_deopt_info()->deopt_entry_label());
+
   __ negs(out, value);
   // Output register must not be a register input into the eager deopt info.
   DCHECK_REGLIST_EMPTY(RegList{out} &
