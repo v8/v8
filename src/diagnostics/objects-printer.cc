@@ -2156,6 +2156,7 @@ void WasmApiFunctionRef::WasmApiFunctionRefPrint(std::ostream& os) {
   os << "\n - isolate_root: " << reinterpret_cast<void*>(isolate_root());
   os << "\n - native_context: " << Brief(native_context());
   os << "\n - callable: " << Brief(callable());
+  os << "\n - instance: " << Brief(instance());
   os << "\n - suspend: " << suspend();
   os << "\n";
 }

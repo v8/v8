@@ -3224,6 +3224,9 @@ void CodeGenerator::AssembleConstructFrame() {
         Register scratch = temps.AcquireX();
         __ Mov(scratch,
                StackFrame::TypeToMarker(info()->GetOutputStackFrameType()));
+        // This stack slot is only used for printing stack traces in V8. Also,
+        // it holds a WasmApiFunctionRef instead of the instance itself, which
+        // is taken care of in the frames accessors.
         __ Push(scratch, kWasmInstanceRegister);
         int extra_slots =
             call_descriptor->kind() == CallDescriptor::kCallWasmImportWrapper
