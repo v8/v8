@@ -122,8 +122,6 @@ UNIMPLEMENTED_NODE(LoadUnsignedIntTypedArrayElement, elements_kind_)
 UNIMPLEMENTED_NODE(LoadDoubleTypedArrayElement, elements_kind_)
 UNIMPLEMENTED_NODE(HoleyFloat64Box)
 UNIMPLEMENTED_NODE(SetPendingMessage)
-UNIMPLEMENTED_NODE(TestUndetectable)
-UNIMPLEMENTED_NODE(TestTypeOf, literal_)
 UNIMPLEMENTED_NODE_WITH_CALL(ToObject)
 UNIMPLEMENTED_NODE_WITH_CALL(ToString)
 UNIMPLEMENTED_NODE(AssertInt32, condition_, reason_)
@@ -1459,6 +1457,131 @@ void StringLength::GenerateCode(MaglevAssembler* masm,
   }
   __ Ldr(ToRegister(result()).W(),
          FieldMemOperand(object, String::kLengthOffset));
+}
+
+void TestUndetectable::SetValueLocationConstraints() {
+  UseRegister(value());
+  DefineAsRegister(this);
+}
+void TestUndetectable::GenerateCode(MaglevAssembler* masm,
+                                    const ProcessingState& state) {
+  Register object = ToRegister(value());
+  Register return_value = ToRegister(result());
+
+  Label return_false, done;
+  __ JumpIfSmi(object, &return_false);
+  {
+    // For heap objects, check the map's undetectable bit.
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.AcquireX();
+    __ LoadMap(scratch, object);
+    __ Ldr(scratch.W(), FieldMemOperand(scratch, Map::kBitFieldOffset));
+    __ TestAndBranchIfAllClear(
+        scratch.W(), Map::Bits1::IsUndetectableBit::kMask, &return_false);
+  }
+
+  __ LoadRoot(return_value, RootIndex::kTrueValue);
+  __ B(&done);
+
+  __ bind(&return_false);
+  __ LoadRoot(return_value, RootIndex::kFalseValue);
+
+  __ bind(&done);
+}
+
+void TestTypeOf::SetValueLocationConstraints() {
+  UseRegister(value());
+  DefineAsRegister(this);
+}
+void TestTypeOf::GenerateCode(MaglevAssembler* masm,
+                              const ProcessingState& state) {
+  using LiteralFlag = interpreter::TestTypeOfFlags::LiteralFlag;
+  Register object = ToRegister(value());
+  // Use return register as temporary if needed.
+  Register scratch = ToRegister(result());
+  Label is_true, is_false, done;
+  switch (literal_) {
+    case LiteralFlag::kNumber:
+      __ JumpIfSmi(object, &is_true);
+      __ Ldr(scratch.W(), FieldMemOperand(object, HeapObject::kMapOffset));
+      __ CompareRoot(scratch.W(), RootIndex::kHeapNumberMap);
+      __ B(ne, &is_false);
+      break;
+    case LiteralFlag::kString:
+      __ JumpIfSmi(object, &is_false);
+      __ LoadMap(scratch, object);
+      __ CompareInstanceTypeRange(scratch, scratch, FIRST_STRING_TYPE,
+                                  LAST_STRING_TYPE);
+      __ B(hi, &is_false);
+      break;
+    case LiteralFlag::kSymbol:
+      __ JumpIfSmi(object, &is_false);
+      __ LoadMap(scratch, object);
+      __ CompareInstanceType(scratch, scratch, SYMBOL_TYPE);
+      __ B(ne, &is_false);
+      break;
+    case LiteralFlag::kBoolean:
+      __ CompareRoot(object, RootIndex::kTrueValue);
+      __ B(eq, &is_true);
+      __ CompareRoot(object, RootIndex::kFalseValue);
+      __ B(ne, &is_false);
+      break;
+    case LiteralFlag::kBigInt:
+      __ JumpIfSmi(object, &is_false);
+      __ LoadMap(scratch, object);
+      __ CompareInstanceType(scratch, scratch, BIGINT_TYPE);
+      __ B(ne, &is_false);
+      break;
+    case LiteralFlag::kUndefined:
+      __ JumpIfSmi(object, &is_false);
+      // Check it has the undetectable bit set and it is not null.
+      __ LoadMap(scratch, object);
+      __ Ldr(scratch.W(), FieldMemOperand(scratch, Map::kBitFieldOffset));
+      __ TestAndBranchIfAllClear(
+          scratch.W(), Map::Bits1::IsUndetectableBit::kMask, &is_false);
+      __ CompareRoot(object, RootIndex::kNullValue);
+      __ B(eq, &is_false);
+      break;
+    case LiteralFlag::kFunction:
+      __ JumpIfSmi(object, &is_false);
+      // Check if callable bit is set and not undetectable.
+      __ LoadMap(scratch, object);
+      __ Ldr(scratch.W(), FieldMemOperand(scratch, Map::kBitFieldOffset));
+      __ And(scratch.W(), scratch.W(),
+             Map::Bits1::IsUndetectableBit::kMask |
+                 Map::Bits1::IsCallableBit::kMask);
+      __ Cmp(scratch.W(), Map::Bits1::IsCallableBit::kMask);
+      __ B(ne, &is_false);
+      break;
+    case LiteralFlag::kObject:
+      __ JumpIfSmi(object, &is_false);
+      // If the object is null then return true.
+      __ CompareRoot(object, RootIndex::kNullValue);
+      __ B(eq, &is_true);
+      // Check if the object is a receiver type,
+      __ LoadMap(scratch, object);
+      {
+        UseScratchRegisterScope temps(masm);
+        __ CompareInstanceType(scratch, temps.AcquireX(),
+                               FIRST_JS_RECEIVER_TYPE);
+      }
+      __ B(lt, &is_false);
+      // ... and is not undefined (undetectable) nor callable.
+      __ Ldr(scratch.W(), FieldMemOperand(scratch, Map::kBitFieldOffset));
+      __ TestAndBranchIfAnySet(scratch.W(),
+                               Map::Bits1::IsUndetectableBit::kMask |
+                                   Map::Bits1::IsCallableBit::kMask,
+                               &is_false);
+      break;
+    case LiteralFlag::kOther:
+      UNREACHABLE();
+  }
+  __ bind(&is_true);
+  __ LoadRoot(ToRegister(result()), RootIndex::kTrueValue);
+  __ B(&done);
+  __ bind(&is_false);
+  __ LoadRoot(ToRegister(result()), RootIndex::kFalseValue);
+  __ bind(&done);
 }
 
 int ThrowIfNotSuperConstructor::MaxCallStackArgs() const { return 2; }
