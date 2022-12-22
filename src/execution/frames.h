@@ -1035,7 +1035,7 @@ class WasmFrame : public TypedFrame {
   void Iterate(RootVisitor* v) const override;
 
   // Accessors.
-  V8_EXPORT_PRIVATE WasmInstanceObject wasm_instance() const;
+  virtual V8_EXPORT_PRIVATE WasmInstanceObject wasm_instance() const;
   V8_EXPORT_PRIVATE wasm::NativeModule* native_module() const;
   wasm::WasmCode* wasm_code() const;
   int function_index() const;
@@ -1100,6 +1100,9 @@ class WasmDebugBreakFrame final : public TypedFrame {
 class WasmToJsFrame : public WasmFrame {
  public:
   Type type() const override { return WASM_TO_JS; }
+
+  int position() const override { return 0; }
+  WasmInstanceObject wasm_instance() const override;
 
  protected:
   inline explicit WasmToJsFrame(StackFrameIteratorBase* iterator);

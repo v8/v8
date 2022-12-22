@@ -4859,10 +4859,10 @@ void CodeGenerator::AssembleConstructFrame() {
       if (call_descriptor->IsWasmFunctionCall() ||
           call_descriptor->IsWasmImportWrapper() ||
           call_descriptor->IsWasmCapiFunction()) {
-        // We do not use this stack value in import wrappers and capi functions.
-        // We push it anyway to satisfy legacy assumptions about these frames'
-        // size and order.
-        // TODO(manoskouk): Consider fixing this.
+        // For import wrappers and C-API functions, this stack slot is only used
+        // for printing stack traces in V8. Also, it holds a WasmApiFunctionRef
+        // instead of the instance itself, which is taken care of in the frames
+        // accessors.
         __ pushq(kWasmInstanceRegister);
       }
       if (call_descriptor->IsWasmCapiFunction()) {
