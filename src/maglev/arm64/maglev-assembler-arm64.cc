@@ -102,13 +102,13 @@ void MaglevAssembler::ToBoolean(Register value, ZoneLabelRef is_true,
   Register map = temps.AcquireX();
 
   // Check if {{value}} is Smi.
-  CheckSmi(value);
+  Condition is_smi = CheckSmi(value);
   JumpToDeferredIf(
-      eq,
+      is_smi,
       [](MaglevAssembler* masm, Register value, ZoneLabelRef is_true,
          ZoneLabelRef is_false) {
         // Check if {value} is not zero.
-        __ Cmp(value, Smi::FromInt(0));
+        __ CmpTagged(value, Smi::FromInt(0));
         __ JumpIf(eq, *is_false);
         __ Jump(*is_true);
       },
