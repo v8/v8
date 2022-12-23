@@ -1936,7 +1936,13 @@ void CallBuiltin::PushFeedbackAndArguments(MaglevAssembler* masm) {
     PushArguments(masm);
   } else if (vector_index == descriptor.GetRegisterParameterCount()) {
     PassFeedbackSlotInRegister(masm);
-    PushArguments(masm, feedback().vector);
+    DCHECK_EQ(descriptor.GetStackArgumentOrder(), StackArgumentOrder::kJS);
+    // Ensure that the builtin only expects the feedback vector on the stack and
+    // potentional additional var args are passed through to another builtin.
+    // This is required to align the stack correctly (e.g. on arm64).
+    DCHECK_EQ(descriptor.GetStackParameterCount(), 1);
+    PushArguments(masm);
+    __ Push(feedback().vector);
   } else {
     int slot = feedback().index();
     Handle<FeedbackVector> vector = feedback().vector;
@@ -2026,12 +2032,15 @@ void CallWithSpread::GenerateCode(MaglevAssembler* masm,
   if (feedback_.IsValid()) {
     using D =
         CallInterfaceDescriptorFor<Builtin::kCallWithSpread_WithFeedback>::type;
+    __ PushReverse(base::make_iterator_range(args_no_spread_begin(),
+                                             args_no_spread_end()));
+    // Receiver needs to be pushed (aligned) separately as it is consumed by
+    // CallWithSpread_WithFeedback directly while the other arguments on the
+    // stack are passed through to CallWithSpread.
     static_assert(D::GetStackParameterIndex(D::kReceiver) == 0);
     static_assert(D::GetStackParameterCount() == 1);
-    // Push the receiver twice, as we need it for CallCollectFeedback() and the
-    // actual call.
-    __ PushReverse(receiver(), base::make_iterator_range(args_no_spread_begin(),
-                                                         args_no_spread_end()));
+    __ Push(receiver());
+
     __ Move(D::GetRegisterParameter(D::kArgumentsCount), num_args_no_spread());
     __ Move(D::GetRegisterParameter(D::kFeedbackVector), feedback().vector);
     __ Move(D::GetRegisterParameter(D::kSlot), feedback().index());
