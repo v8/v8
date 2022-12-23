@@ -1423,7 +1423,7 @@ void Int32MultiplyWithOverflow::GenerateCode(MaglevAssembler* masm,
 
 void Int32ModulusWithOverflow::SetValueLocationConstraints() {
   UseRegister(left_input());
-  UseRegister(right_input());
+  UseAndClobberRegister(right_input());
   DefineAsFixed(this, rdx);
   // rax,rdx are clobbered by div.
   RequireSpecificTemporary(rax);
@@ -1473,8 +1473,8 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
       less,
       [](MaglevAssembler* masm, ZoneLabelRef done, Register left,
          Register right, Int32ModulusWithOverflow* node) {
-        __ negl(left);
         __ movl(rax, left);
+        __ negl(rax);
         __ xorl(rdx, rdx);
         __ divl(right);
         __ testl(rdx, rdx);
