@@ -1894,6 +1894,25 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
       return;
     }
 
+    if (node != nullptr && !node->is_loadable() && !node->has_register()) {
+      // If we have a node already, but can't load it here, we must be in a
+      // liveness hole for it, so nuke the merge state.
+      // This can only happen for conversion nodes, as they can split and take
+      // over the liveness of the node they are converting.
+      // TODO(v8:7700): Overeager DCHECK.
+      // DCHECK(node->properties().is_conversion());
+      if (v8_flags.trace_maglev_regalloc) {
+        printing_visitor_->os() << "  " << reg << " - can't load "
+                                << PrintNodeLabel(graph_labeller(), node)
+                                << ", dropping the merge\n";
+      }
+      // We always need to be able to restore values on JumpLoop since the value
+      // is definitely live at the loop header.
+      CHECK(!control->Is<JumpLoop>());
+      state = {nullptr, initialized_node};
+      return;
+    }
+
     if (merge) {
       // The register is already occupied with a different node. Figure out
       // where that node is allocated on the incoming branch.
@@ -1926,27 +1945,8 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
       if (v8_flags.trace_maglev_regalloc) {
         printing_visitor_->os()
             << "  " << reg << " - can't load incoming "
-            << PrintNodeLabel(graph_labeller(), node) << ", bailing out\n";
+            << PrintNodeLabel(graph_labeller(), incoming) << ", bailing out\n";
       }
-      return;
-    }
-
-    if (node != nullptr && !node->is_loadable() && !node->has_register()) {
-      // If we have a node already, but can't load it here, we must be in a
-      // liveness hole for it, so nuke the merge state.
-      // This can only happen for conversion nodes, as they can split and take
-      // over the liveness of the node they are converting.
-      // TODO(v8:7700): Overeager DCHECK.
-      // DCHECK(node->properties().is_conversion());
-      if (v8_flags.trace_maglev_regalloc) {
-        printing_visitor_->os() << "  " << reg << " - can't load "
-                                << PrintNodeLabel(graph_labeller(), node)
-                                << ", dropping the merge\n";
-      }
-      // We always need to be able to restore values on JumpLoop since the value
-      // is definitely live at the loop header.
-      CHECK(!control->Is<JumpLoop>());
-      state = {nullptr, initialized_node};
       return;
     }
 
