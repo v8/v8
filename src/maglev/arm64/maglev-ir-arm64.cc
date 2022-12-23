@@ -119,8 +119,6 @@ void Int32DecrementWithOverflow::GenerateCode(MaglevAssembler* masm,
 }
 
 UNIMPLEMENTED_NODE_WITH_CALL(Float64Ieee754Unary)
-UNIMPLEMENTED_NODE_WITH_CALL(Construct)
-UNIMPLEMENTED_NODE_WITH_CALL(ConstructWithSpread)
 UNIMPLEMENTED_NODE_WITH_CALL(ConvertReceiver, mode_)
 UNIMPLEMENTED_NODE(LoadSignedIntDataViewElement, type_)
 UNIMPLEMENTED_NODE(LoadDoubleDataViewElement)

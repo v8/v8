@@ -2083,6 +2083,88 @@ void CallWithArrayLike::GenerateCode(MaglevAssembler* masm,
 }
 
 // ---
+// Arch agnostic construct nodes
+// ---
+
+int Construct::MaxCallStackArgs() const {
+  using D = Construct_WithFeedbackDescriptor;
+  return num_args() + D::GetStackParameterCount();
+}
+void Construct::SetValueLocationConstraints() {
+  using D = Construct_WithFeedbackDescriptor;
+  UseFixed(function(), D::GetRegisterParameter(D::kTarget));
+  UseFixed(new_target(), D::GetRegisterParameter(D::kNewTarget));
+  UseFixed(context(), kContextRegister);
+  for (int i = 0; i < num_args(); i++) {
+    UseAny(arg(i));
+  }
+  DefineAsFixed(this, kReturnRegister0);
+}
+void Construct::GenerateCode(MaglevAssembler* masm,
+                             const ProcessingState& state) {
+  using D = Construct_WithFeedbackDescriptor;
+  DCHECK_EQ(ToRegister(function()), D::GetRegisterParameter(D::kTarget));
+  DCHECK_EQ(ToRegister(new_target()), D::GetRegisterParameter(D::kNewTarget));
+  DCHECK_EQ(ToRegister(context()), kContextRegister);
+
+  __ PushReverse(base::make_iterator_range(args_begin(), args_end()));
+  // Feedback needs to be pushed (aligned) separately as it is consumed by
+  // Construct_WithFeedback directly while the other arguments on the stack
+  // are passed through to Construct.
+  static_assert(D::GetStackParameterIndex(D::kFeedbackVector) == 0);
+  static_assert(D::GetStackParameterCount() == 1);
+  __ Push(feedback().vector);
+
+  __ Move(D::GetRegisterParameter(D::kActualArgumentsCount), num_args());
+  __ Move(D::GetRegisterParameter(D::kSlot), feedback().index());
+
+  __ CallBuiltin(Builtin::kConstruct_WithFeedback);
+  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
+}
+
+int ConstructWithSpread::MaxCallStackArgs() const {
+  int argc_no_spread = num_args() - 1;
+  using D = CallInterfaceDescriptorFor<
+      Builtin::kConstructWithSpread_WithFeedback>::type;
+  return argc_no_spread + D::GetStackParameterCount();
+}
+void ConstructWithSpread::SetValueLocationConstraints() {
+  using D = CallInterfaceDescriptorFor<
+      Builtin::kConstructWithSpread_WithFeedback>::type;
+  UseFixed(function(), D::GetRegisterParameter(D::kTarget));
+  UseFixed(new_target(), D::GetRegisterParameter(D::kNewTarget));
+  UseFixed(context(), kContextRegister);
+  for (int i = 0; i < num_args() - 1; i++) {
+    UseAny(arg(i));
+  }
+  UseFixed(spread(), D::GetRegisterParameter(D::kSpread));
+  DefineAsFixed(this, kReturnRegister0);
+}
+void ConstructWithSpread::GenerateCode(MaglevAssembler* masm,
+                                       const ProcessingState& state) {
+  using D = CallInterfaceDescriptorFor<
+      Builtin::kConstructWithSpread_WithFeedback>::type;
+  DCHECK_EQ(ToRegister(function()), D::GetRegisterParameter(D::kTarget));
+  DCHECK_EQ(ToRegister(new_target()), D::GetRegisterParameter(D::kNewTarget));
+  DCHECK_EQ(ToRegister(context()), kContextRegister);
+  __ PushReverse(
+      base::make_iterator_range(args_no_spread_begin(), args_no_spread_end()));
+
+  // Feedback needs to be pushed (aligned) separately as it is consumed by
+  // Construct_WithFeedback directly while the other arguments on the stack
+  // are passed through to Construct.
+  static_assert(D::GetStackParameterIndex(D::kFeedbackVector) == 0);
+  static_assert(D::GetStackParameterCount() == 1);
+  __ Push(feedback().vector);
+
+  __ Move(D::GetRegisterParameter(D::kActualArgumentsCount),
+          num_args_no_spread());
+  __ Move(D::GetRegisterParameter(D::kSlot), feedback().index());
+  __ CallBuiltin(Builtin::kConstructWithSpread_WithFeedback);
+  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
+}
+
+// ---
 // Arch agnostic control nodes
 // ---
 
