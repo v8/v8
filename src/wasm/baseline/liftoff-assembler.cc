@@ -1036,8 +1036,6 @@ void LiftoffAssembler::PrepareCall(const ValueKindSig* sig,
                                    Register* target,
                                    Register* target_instance) {
   uint32_t num_params = static_cast<uint32_t>(sig->parameter_count());
-  // Input 0 is the call target.
-  constexpr size_t kInputShift = 1;
 
   // Spill all cache slots which are not being used as parameters.
   cache_state_.ClearAllCacheRegisters();
@@ -1056,10 +1054,12 @@ void LiftoffAssembler::PrepareCall(const ValueKindSig* sig,
   LiftoffRegList param_regs;
 
   // Move the target instance (if supplied) into the correct instance register.
-  compiler::LinkageLocation instance_loc =
-      call_descriptor->GetInputLocation(kInputShift);
-  DCHECK(instance_loc.IsRegister() && !instance_loc.IsAnyRegister());
-  Register instance_reg = Register::from_code(instance_loc.AsRegister());
+  Register instance_reg = wasm::kGpParamRegisters[0];
+  // Check that the call descriptor agrees. Input 0 is the call target, 1 is the
+  // instance.
+  DCHECK_EQ(
+      instance_reg,
+      Register::from_code(call_descriptor->GetInputLocation(1).AsRegister()));
   param_regs.set(instance_reg);
   if (target_instance && *target_instance != instance_reg) {
     stack_transfers.MoveRegister(LiftoffRegister(instance_reg),
