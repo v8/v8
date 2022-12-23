@@ -1471,27 +1471,9 @@ std::vector<WasmCode*> NativeModule::SnapshotAllOwnedCode() const {
 
 WasmCode* NativeModule::GetCode(uint32_t index) const {
   base::RecursiveMutexGuard guard(&allocation_mutex_);
-  return GetCodeLocked(index);
-}
-
-WasmCode* NativeModule::GetCodeLocked(uint32_t index) const {
-  allocation_mutex_.AssertHeld();
   WasmCode* code = code_table_[declared_function_index(module(), index)];
   if (code) WasmCodeRefScope::AddRef(code);
   return code;
-}
-
-void NativeModule::ResetCodeLocked(uint32_t index) const {
-  allocation_mutex_.AssertHeld();
-  int declared_index = declared_function_index(module(), index);
-  WasmCode* code = code_table_[declared_index];
-  if (!code) return;
-
-  WasmCodeRefScope::AddRef(code);
-  code_table_[declared_index] = nullptr;
-  // The code is added to the current {WasmCodeRefScope}, hence the ref
-  // count cannot drop to zero here.
-  code->DecRefOnLiveCode();
 }
 
 bool NativeModule::HasCode(uint32_t index) const {
@@ -2439,7 +2421,6 @@ void NativeModule::SetDebugState(DebugState new_debug_state) {
 
 namespace {
 bool ShouldRemoveCode(WasmCode* code, NativeModule::RemoveFilter filter) {
-  if (!code) return false;
   if (filter == NativeModule::RemoveFilter::kRemoveDebugCode &&
       !code->for_debugging()) {
     return false;
@@ -2459,10 +2440,14 @@ void NativeModule::RemoveCompiledCode(RemoveFilter filter) {
   CodeSpaceWriteScope write_scope(this);
   base::RecursiveMutexGuard guard(&allocation_mutex_);
   for (uint32_t i = 0; i < num_functions; i++) {
-    uint32_t func_index = i + num_imports;
-    WasmCode* code = GetCodeLocked(func_index);
-    if (ShouldRemoveCode(code, filter)) {
-      ResetCodeLocked(func_index);
+    WasmCode* code = code_table_[i];
+    if (code && ShouldRemoveCode(code, filter)) {
+      code_table_[i] = nullptr;
+      // Add the code to the {WasmCodeRefScope}, so the ref count cannot drop to
+      // zero here. It might in the {WasmCodeRefScope} destructor, though.
+      WasmCodeRefScope::AddRef(code);
+      code->DecRefOnLiveCode();
+      uint32_t func_index = i + num_imports;
       UseLazyStubLocked(func_index);
     }
   }

@@ -676,10 +676,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
   std::vector<WasmCode*> SnapshotAllOwnedCode() const;
 
   WasmCode* GetCode(uint32_t index) const;
-  WasmCode* GetCodeLocked(uint32_t index) const;
   bool HasCode(uint32_t index) const;
   bool HasCodeWithTier(uint32_t index, ExecutionTier tier) const;
-  void ResetCodeLocked(uint32_t index) const;
 
   void SetWasmSourceMap(std::unique_ptr<WasmModuleSourceMap> source_map);
   WasmModuleSourceMap* GetWasmSourceMap() const;
@@ -688,12 +686,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
     return main_jump_table_ ? main_jump_table_->instruction_start()
                             : kNullAddress;
   }
-
-  // Finds the jump tables that should be used for given code region. This
-  // information is then passed to {GetNearCallTargetForFunction} and
-  // {GetNearRuntimeStubEntry} to avoid the overhead of looking this information
-  // up there. Return an empty struct if no suitable jump tables exist.
-  JumpTablesRef FindJumpTablesForRegionLocked(base::AddressRegion) const;
 
   // Get the call target in the jump table previously looked up via
   // {FindJumpTablesForRegionLocked}.
@@ -897,6 +889,12 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   WasmCode* CreateEmptyJumpTableInRegionLocked(int jump_table_size,
                                                base::AddressRegion);
+
+  // Finds the jump tables that should be used for given code region. This
+  // information is then passed to {GetNearCallTargetForFunction} and
+  // {GetNearRuntimeStubEntry} to avoid the overhead of looking this information
+  // up there. Return an empty struct if no suitable jump tables exist.
+  JumpTablesRef FindJumpTablesForRegionLocked(base::AddressRegion) const;
 
   void UpdateCodeSize(size_t, ExecutionTier, ForDebugging);
 
