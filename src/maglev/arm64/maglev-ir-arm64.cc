@@ -109,7 +109,7 @@ void Int32DecrementWithOverflow::SetValueLocationConstraints() {
 
 void Int32DecrementWithOverflow::GenerateCode(MaglevAssembler* masm,
                                               const ProcessingState& state) {
-  Register value = ToRegister(value_input());
+  Register value = ToRegister(value_input()).W();
   Register out = ToRegister(result()).W();
   __ Subs(out, value, Immediate(1));
   // Output register must not be a register input into the eager deopt info.
