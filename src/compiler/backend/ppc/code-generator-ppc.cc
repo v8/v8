@@ -2392,6 +2392,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   V(I64x2Abs)                          \
   V(I32x4Abs)                          \
   V(I32x4SConvertF32x4)                \
+  V(I32x4TruncSatF64x2SZero)           \
+  V(I32x4TruncSatF64x2UZero)           \
   V(I16x8Abs)                          \
   V(I16x8Neg)                          \
   V(I8x16Abs)                          \
@@ -2895,32 +2897,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
 #undef MAYBE_REVERSE_BYTES
-    case kPPC_I32x4TruncSatF64x2SZero: {
-      constexpr int lane_number = 8;
-      Simd128Register src = i.InputSimd128Register(0);
-      Simd128Register dst = i.OutputSimd128Register();
-      // NaN to 0.
-      __ vor(kScratchSimd128Reg, src, src);
-      __ xvcmpeqdp(kScratchSimd128Reg, kScratchSimd128Reg, kScratchSimd128Reg);
-      __ vand(kScratchSimd128Reg, src, kScratchSimd128Reg);
-      __ xvcvdpsxws(kScratchSimd128Reg, kScratchSimd128Reg);
-      __ vextractuw(dst, kScratchSimd128Reg, Operand(lane_number));
-      __ vinsertw(kScratchSimd128Reg, dst, Operand(4));
-      __ vxor(dst, dst, dst);
-      __ vinsertd(dst, kScratchSimd128Reg, Operand(lane_number));
-      break;
-    }
-    case kPPC_I32x4TruncSatF64x2UZero: {
-      constexpr int lane_number = 8;
-      Simd128Register src = i.InputSimd128Register(0);
-      Simd128Register dst = i.OutputSimd128Register();
-      __ xvcvdpuxws(kScratchSimd128Reg, src);
-      __ vextractuw(dst, kScratchSimd128Reg, Operand(lane_number));
-      __ vinsertw(kScratchSimd128Reg, dst, Operand(4));
-      __ vxor(dst, dst, dst);
-      __ vinsertd(dst, kScratchSimd128Reg, Operand(lane_number));
-      break;
-    }
     case kPPC_StoreCompressTagged: {
       size_t index = 0;
       AddressingMode mode = kMode_None;

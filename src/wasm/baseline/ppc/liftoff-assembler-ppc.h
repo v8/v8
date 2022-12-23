@@ -2007,14 +2007,16 @@ SIMD_UNOP_LIST(EMIT_SIMD_UNOP)
 #undef EMIT_SIMD_UNOP
 #undef SIMD_UNOP_LIST
 
-#define SIMD_UNOP_WITH_SCRATCH_LIST(V)                     \
-  V(f32x4_demote_f64x2_zero, F32x4DemoteF64x2Zero, , void) \
-  V(i64x2_abs, I64x2Abs, , void)                           \
-  V(i32x4_abs, I32x4Abs, , void)                           \
-  V(i32x4_sconvert_f32x4, I32x4SConvertF32x4, , void)      \
-  V(i16x8_abs, I16x8Abs, , void)                           \
-  V(i16x8_neg, I16x8Neg, , void)                           \
-  V(i8x16_abs, I8x16Abs, , void)                           \
+#define SIMD_UNOP_WITH_SCRATCH_LIST(V)                             \
+  V(f32x4_demote_f64x2_zero, F32x4DemoteF64x2Zero, , void)         \
+  V(i64x2_abs, I64x2Abs, , void)                                   \
+  V(i32x4_abs, I32x4Abs, , void)                                   \
+  V(i32x4_sconvert_f32x4, I32x4SConvertF32x4, , void)              \
+  V(i32x4_trunc_sat_f64x2_s_zero, I32x4TruncSatF64x2SZero, , void) \
+  V(i32x4_trunc_sat_f64x2_u_zero, I32x4TruncSatF64x2UZero, , void) \
+  V(i16x8_abs, I16x8Abs, , void)                                   \
+  V(i16x8_neg, I16x8Neg, , void)                                   \
+  V(i8x16_abs, I8x16Abs, , void)                                   \
   V(i8x16_neg, I8x16Neg, , void)
 
 #define EMIT_SIMD_UNOP_WITH_SCRATCH(name, op, return_val, return_type) \
@@ -2456,16 +2458,6 @@ void LiftoffAssembler::emit_i32x4_uconvert_i16x8_high(LiftoffRegister dst,
                                                       LiftoffRegister src) {
   I32x4UConvertI16x8High(dst.fp().toSimd(), src.fp().toSimd(), r0,
                          kScratchSimd128Reg);
-}
-
-void LiftoffAssembler::emit_i32x4_trunc_sat_f64x2_s_zero(LiftoffRegister dst,
-                                                         LiftoffRegister src) {
-  bailout(kSimd, "i32x4.trunc_sat_f64x2_s_zero");
-}
-
-void LiftoffAssembler::emit_i32x4_trunc_sat_f64x2_u_zero(LiftoffRegister dst,
-                                                         LiftoffRegister src) {
-  bailout(kSimd, "i32x4.trunc_sat_f64x2_u_zero");
 }
 
 void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {

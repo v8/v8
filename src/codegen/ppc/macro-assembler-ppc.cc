@@ -4592,6 +4592,31 @@ void TurboAssembler::F32x4DemoteF64x2Zero(Simd128Register dst,
   vinsertd(dst, scratch, Operand(lane_number));
 }
 
+void TurboAssembler::I32x4TruncSatF64x2SZero(Simd128Register dst,
+                                             Simd128Register src,
+                                             Simd128Register scratch) {
+  constexpr int lane_number = 8;
+  // NaN to 0.
+  xvcmpeqdp(scratch, src, src);
+  vand(scratch, src, scratch);
+  xvcvdpsxws(scratch, scratch);
+  vextractuw(dst, scratch, Operand(lane_number));
+  vinsertw(scratch, dst, Operand(4));
+  vxor(dst, dst, dst);
+  vinsertd(dst, scratch, Operand(lane_number));
+}
+
+void TurboAssembler::I32x4TruncSatF64x2UZero(Simd128Register dst,
+                                             Simd128Register src,
+                                             Simd128Register scratch) {
+  constexpr int lane_number = 8;
+  xvcvdpuxws(scratch, src);
+  vextractuw(dst, scratch, Operand(lane_number));
+  vinsertw(scratch, dst, Operand(4));
+  vxor(dst, dst, dst);
+  vinsertd(dst, scratch, Operand(lane_number));
+}
+
 void TurboAssembler::V128AnyTrue(Register dst, Simd128Register src,
                                  Register scratch1, Register scratch2,
                                  Simd128Register scratch3) {
