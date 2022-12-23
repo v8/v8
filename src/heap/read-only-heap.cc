@@ -120,7 +120,15 @@ void ReadOnlyHeap::DeserializeIntoIsolate(Isolate* isolate,
   DCHECK_NOT_NULL(read_only_snapshot_data);
   ReadOnlyDeserializer des(isolate, read_only_snapshot_data, can_rehash);
   des.DeserializeIntoIsolate();
+  OnCreateRootsComplete(isolate);
   InitFromIsolate(isolate);
+}
+
+void ReadOnlyHeap::OnCreateRootsComplete(Isolate* isolate) {
+  DCHECK_NOT_NULL(isolate);
+  DCHECK(!roots_init_complete_);
+  if (IsReadOnlySpaceShared()) InitializeFromIsolateRoots(isolate);
+  roots_init_complete_ = true;
 }
 
 void ReadOnlyHeap::OnCreateHeapObjectsComplete(Isolate* isolate) {
@@ -173,10 +181,9 @@ void SoleReadOnlyHeap::InitializeFromIsolateRoots(Isolate* isolate) {
 }
 
 void ReadOnlyHeap::InitFromIsolate(Isolate* isolate) {
-  DCHECK(!init_complete_);
+  DCHECK(roots_init_complete_);
   read_only_space_->ShrinkPages();
   if (IsReadOnlySpaceShared()) {
-    InitializeFromIsolateRoots(isolate);
     std::shared_ptr<ReadOnlyArtifacts> artifacts(
         *read_only_artifacts_.Pointer());
 
@@ -191,7 +198,6 @@ void ReadOnlyHeap::InitFromIsolate(Isolate* isolate) {
   } else {
     read_only_space_->Seal(ReadOnlySpace::SealMode::kDoNotDetachFromHeap);
   }
-  init_complete_ = true;
 }
 
 void ReadOnlyHeap::OnHeapTearDown(Heap* heap) {

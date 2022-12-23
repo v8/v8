@@ -84,7 +84,7 @@ bool FixedArray::is_the_hole(Isolate* isolate, int index) {
 }
 
 void FixedArray::set(int index, Smi value) {
-  DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
+  DCHECK_NE(map(), EarlyGetReadOnlyRoots().unchecked_fixed_cow_array_map());
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
   DCHECK(Object(value).IsSmi());
   int offset = OffsetOfElementAt(index);
@@ -92,7 +92,7 @@ void FixedArray::set(int index, Smi value) {
 }
 
 void FixedArray::set(int index, Object value) {
-  DCHECK_NE(GetReadOnlyRoots().fixed_cow_array_map(), map());
+  DCHECK_NE(EarlyGetReadOnlyRoots().unchecked_fixed_cow_array_map(), map());
   DCHECK(IsFixedArray());
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
   int offset = OffsetOfElementAt(index);

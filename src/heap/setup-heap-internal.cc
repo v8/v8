@@ -89,8 +89,9 @@ bool IsMutableMap(InstanceType instance_type, ElementsKind elements_kind) {
 
 bool SetupIsolateDelegate::SetupHeapInternal(Isolate* isolate) {
   auto heap = isolate->heap();
-  if (!isolate->read_only_heap()->init_complete()) {
+  if (!isolate->read_only_heap()->roots_init_complete()) {
     if (!heap->CreateReadOnlyHeapObjects()) return false;
+    isolate->read_only_heap()->OnCreateRootsComplete(isolate);
   }
 #ifdef DEBUG
   auto ro_size = heap->read_only_space()->Size();
@@ -249,8 +250,7 @@ void Heap::FinalizePartialMap(Map map) {
   map.set_dependent_code(DependentCode::empty_dependent_code(roots));
   map.set_raw_transitions(MaybeObject::FromSmi(Smi::zero()));
   map.SetInstanceDescriptors(isolate(), roots.empty_descriptor_array(), 0);
-  map.set_prototype(roots.null_value());
-  map.set_constructor_or_back_pointer(roots.null_value());
+  map.init_prototype_and_constructor_or_back_pointer(roots);
 }
 
 AllocationResult Heap::Allocate(Handle<Map> map,
@@ -599,10 +599,11 @@ bool Heap::CreateInitialReadOnlyMaps() {
         ArrayList::SizeFor(ArrayList::kFirstIndex), AllocationType::kReadOnly);
     if (!alloc.To(&obj)) return false;
     obj.set_map_after_allocation(roots.array_list_map(), SKIP_WRITE_BARRIER);
-    ArrayList::cast(obj).set_length(ArrayList::kFirstIndex);
-    ArrayList::cast(obj).SetLength(0);
+    // Unchecked to skip failing checks since required roots are uninitialized.
+    ArrayList::unchecked_cast(obj).set_length(ArrayList::kFirstIndex);
+    ArrayList::unchecked_cast(obj).SetLength(0);
   }
-  set_empty_array_list(ArrayList::cast(obj));
+  set_empty_array_list(ArrayList::unchecked_cast(obj));
 
   {
     AllocationResult alloc =
@@ -861,19 +862,19 @@ void Heap::CreateInitialReadOnlyObjects() {
 
   {
     HandleScope handle_scope(isolate());
-#define PUBLIC_SYMBOL_INIT(_, name, description)                         \
-  Handle<Symbol> name = factory->NewSymbol(AllocationType::kReadOnly);   \
-  Handle<String> name##d = factory->InternalizeUtf8String(#description); \
-  name->set_description(*name##d);                                       \
+#define PUBLIC_SYMBOL_INIT(_, name, description)                           \
+  Handle<Symbol> name = factory->NewSymbol(AllocationType::kReadOnly);     \
+  Handle<String> name##d = factory->InternalizeUtf8String(#description);   \
+  TaggedField<Object>::store(*name, Symbol::kDescriptionOffset, *name##d); \
   roots_table()[RootIndex::k##name] = name->ptr();
 
     PUBLIC_SYMBOL_LIST_GENERATOR(PUBLIC_SYMBOL_INIT, /* not used */)
 
-#define WELL_KNOWN_SYMBOL_INIT(_, name, description)                     \
-  Handle<Symbol> name = factory->NewSymbol(AllocationType::kReadOnly);   \
-  Handle<String> name##d = factory->InternalizeUtf8String(#description); \
-  name->set_is_well_known_symbol(true);                                  \
-  name->set_description(*name##d);                                       \
+#define WELL_KNOWN_SYMBOL_INIT(_, name, description)                       \
+  Handle<Symbol> name = factory->NewSymbol(AllocationType::kReadOnly);     \
+  Handle<String> name##d = factory->InternalizeUtf8String(#description);   \
+  name->set_is_well_known_symbol(true);                                    \
+  TaggedField<Object>::store(*name, Symbol::kDescriptionOffset, *name##d); \
   roots_table()[RootIndex::k##name] = name->ptr();
 
     WELL_KNOWN_SYMBOL_LIST_GENERATOR(WELL_KNOWN_SYMBOL_INIT, /* not used */)
@@ -1023,7 +1024,8 @@ void Heap::CreateInitialMutableObjects() {
   set_number_string_cache(*factory->NewFixedArray(
       kInitialNumberStringCacheSize * 2, AllocationType::kOld));
 
-  set_basic_block_profiling_data(roots.empty_array_list());
+  // Unchecked to skip failing checks since required roots are uninitialized.
+  set_basic_block_profiling_data(roots.unchecked_empty_array_list());
 
   // Allocate cache for string split and regexp-multiple.
   set_string_split_cache(*factory->NewFixedArray(

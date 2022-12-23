@@ -66,6 +66,14 @@ DEF_GETTER(Map, prototype_info, Object) {
 RELEASE_ACQUIRE_ACCESSORS(Map, prototype_info, Object,
                           kTransitionsOrPrototypeInfoOffset)
 
+void Map::init_prototype_and_constructor_or_back_pointer(ReadOnlyRoots roots) {
+  HeapObject null = roots.null_value();
+  TaggedField<HeapObject,
+              kConstructorOrBackPointerOrNativeContextOffset>::store(*this,
+                                                                     null);
+  TaggedField<HeapObject, kPrototypeOffset>::store(*this, null);
+}
+
 // |bit_field| fields.
 // Concurrent access to |has_prototype_slot| and |has_non_instance_prototype|
 // is explicitly allowlisted here. The former is never modified after the map

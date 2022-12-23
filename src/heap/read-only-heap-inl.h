@@ -19,14 +19,16 @@ ReadOnlyRoots ReadOnlyHeap::GetReadOnlyRoots(HeapObject object) {
       Isolate::FromRootAddress(GetIsolateRootAddress(object.ptr())));
 #else
 #ifdef V8_SHARED_RO_HEAP
-  // This fails if we are creating heap objects and the roots haven't yet been
-  // copied into the read-only heap.
   auto* shared_ro_heap = SoleReadOnlyHeap::shared_ro_heap_;
-  if (shared_ro_heap != nullptr && shared_ro_heap->init_complete_) {
-    return ReadOnlyRoots(shared_ro_heap->read_only_roots_);
-  }
-#endif  // V8_SHARED_RO_HEAP
+  // If this check fails in code that runs during initialization make sure to
+  // load the ReadOnlyRoots from an isolate instead.
+  // TODO(olivf, v8:13466): Relax this to a DCHECK once we are sure we got it
+  // right everywhere.
+  CHECK(shared_ro_heap && shared_ro_heap->roots_init_complete());
+  return ReadOnlyRoots(shared_ro_heap->read_only_roots_);
+#else
   return ReadOnlyRoots(GetHeapFromWritableObject(object));
+#endif  // V8_SHARED_RO_HEAP
 #endif  // V8_COMPRESS_POINTERS
 }
 

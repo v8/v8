@@ -1230,8 +1230,15 @@ Symbol Factory::NewSymbolInternal(AllocationType allocation) {
   int hash = isolate()->GenerateIdentityHash(Name::HashBits::kMax);
   symbol.set_raw_hash_field(
       Name::CreateHashFieldValue(hash, Name::HashFieldType::kHash));
-  symbol.set_description(read_only_roots().undefined_value(),
-                         SKIP_WRITE_BARRIER);
+  if (isolate()->read_only_heap()->roots_init_complete()) {
+    symbol.set_description(read_only_roots().undefined_value(),
+                           SKIP_WRITE_BARRIER);
+  } else {
+    // Can't use setter during bootstrapping as its typecheck tries to access
+    // the roots table before it is initialized.
+    TaggedField<Object>::store(symbol, Symbol::kDescriptionOffset,
+                               read_only_roots().undefined_value());
+  }
   symbol.set_flags(0);
   DCHECK(!symbol.is_private());
   return symbol;
@@ -2075,9 +2082,7 @@ Map Factory::InitializeMap(Map map, InstanceType type, int instance_size,
   map.set_bit_field3(bit_field3);
   map.set_instance_type(type);
   ReadOnlyRoots ro_roots(roots);
-  HeapObject raw_null_value = ro_roots.null_value();
-  map.set_prototype(raw_null_value, SKIP_WRITE_BARRIER);
-  map.set_constructor_or_back_pointer(raw_null_value, SKIP_WRITE_BARRIER);
+  map.init_prototype_and_constructor_or_back_pointer(ro_roots);
   map.set_instance_size(instance_size);
   if (map.IsJSObjectMap()) {
     DCHECK(!ReadOnlyHeap::Contains(map));

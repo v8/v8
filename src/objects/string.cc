@@ -1705,7 +1705,7 @@ uint32_t String::ComputeAndSetRawHash(
   DCHECK_IMPLIES(!v8_flags.shared_string_table, !HasHashCode());
 
   // Store the hash code in the object.
-  uint64_t seed = HashSeed(GetReadOnlyRoots());
+  uint64_t seed = HashSeed(EarlyGetReadOnlyRoots());
   size_t start = 0;
   String string = *this;
   PtrComprCageBase cage_base = GetPtrComprCageBase(string);

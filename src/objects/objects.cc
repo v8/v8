@@ -5872,7 +5872,7 @@ template <typename Derived, typename Shape>
 void HashTable<Derived, Shape>::Rehash(PtrComprCageBase cage_base) {
   DisallowGarbageCollection no_gc;
   WriteBarrierMode mode = GetWriteBarrierMode(no_gc);
-  ReadOnlyRoots roots = GetReadOnlyRoots(cage_base);
+  ReadOnlyRoots roots = EarlyGetReadOnlyRoots();
   uint32_t capacity = Capacity();
   bool done = false;
   for (int probe = 1; !done; probe++) {

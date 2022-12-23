@@ -86,6 +86,10 @@ class HeapObject : public Object {
   // This version is intended to be used for the isolate values produced by
   // i::GetPtrComprCageBase(HeapObject) function which may return nullptr.
   inline ReadOnlyRoots GetReadOnlyRoots(PtrComprCageBase cage_base) const;
+  // This is slower, but safe to call during bootstrapping. On shared read only
+  // heap configurations it returns the current isolates roots table as opposed
+  // to the shared one.
+  inline ReadOnlyRoots EarlyGetReadOnlyRoots() const;
 
   // Whether the object is in the RO heap and the RO heap is shared, or in the
   // writable shared heap.
