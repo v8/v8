@@ -1938,7 +1938,7 @@ bool MaglevGraphBuilder::TryBuildPropertyLoad(
       SetAccumulator(BuildLoadField(access_info, lookup_start_object));
       RecordKnownProperty(lookup_start_object, name,
                           current_interpreter_frame_.accumulator(),
-                          access_info.IsFastDataConstant());
+                          access_info);
       return true;
     case compiler::PropertyAccessInfo::kDictionaryProtoDataConstant:
       return TryFoldLoadDictPrototypeConstant(access_info);
@@ -1955,7 +1955,8 @@ bool MaglevGraphBuilder::TryBuildPropertyLoad(
       DCHECK_EQ(receiver, lookup_start_object);
       SetAccumulator(AddNewNode<StringLength>({receiver}));
       RecordKnownProperty(lookup_start_object, name,
-                          current_interpreter_frame_.accumulator(), true);
+                          current_interpreter_frame_.accumulator(),
+                          access_info);
       return true;
   }
 }
@@ -1978,7 +1979,7 @@ bool MaglevGraphBuilder::TryBuildPropertyStore(
     if (TryBuildStoreField(access_info, receiver, access_mode)) {
       RecordKnownProperty(receiver, name,
                           current_interpreter_frame_.accumulator(),
-                          access_info.IsFastDataConstant());
+                          access_info);
       return true;
     }
     return false;
@@ -2295,9 +2296,26 @@ bool MaglevGraphBuilder::TryBuildElementAccess(
   }
 }
 
-void MaglevGraphBuilder::RecordKnownProperty(ValueNode* lookup_start_object,
-                                             compiler::NameRef name,
-                                             ValueNode* value, bool is_const) {
+void MaglevGraphBuilder::RecordKnownProperty(
+    ValueNode* lookup_start_object, compiler::NameRef name, ValueNode* value,
+    compiler::PropertyAccessInfo const& access_info) {
+  bool is_const;
+  if (access_info.IsFastDataConstant() || access_info.IsStringLength()) {
+    is_const = true;
+    // Even if we have a constant load, if the map is not stable, we cannot
+    // guarantee that the load is preserved across side-effecting calls.
+    // TODO(v8:7700): It might be possible to track it as const if we know that
+    // we're still on the main transition tree; and if we add a dependency on
+    // the stable end-maps of the entire tree.
+    for (auto& map : access_info.lookup_start_object_maps()) {
+      if (!map.is_stable()) {
+        is_const = false;
+        break;
+      }
+    }
+  } else {
+    is_const = false;
+  }
   auto& loaded_properties =
       is_const ? known_node_aspects().loaded_constant_properties
                : known_node_aspects().loaded_properties;

@@ -1309,7 +1309,7 @@ class MaglevGraphBuilder {
   // subsequent loads.
   void RecordKnownProperty(ValueNode* lookup_start_object,
                            compiler::NameRef name, ValueNode* value,
-                           bool is_const);
+                           compiler::PropertyAccessInfo const& access_info);
   bool TryReuseKnownPropertyLoad(ValueNode* lookup_start_object,
                                  compiler::NameRef name);
 
