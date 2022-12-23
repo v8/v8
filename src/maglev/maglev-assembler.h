@@ -124,8 +124,8 @@ class MaglevAssembler : public MacroAssembler {
   inline void JumpToDeferredIf(Condition cond, Function&& deferred_code_gen,
                                Args&&... args);
 
-  inline void RegisterEagerDeopt(EagerDeoptInfo* deopt_info,
-                                 DeoptimizeReason reason);
+  template <typename NodeT>
+  inline Label* GetDeoptLabel(NodeT* node, DeoptimizeReason reason);
   template <typename NodeT>
   inline void EmitEagerDeopt(NodeT* node, DeoptimizeReason reason);
   template <typename NodeT>
@@ -456,8 +456,11 @@ inline void MaglevAssembler::JumpToDeferredIf(Condition cond,
 // Deopt
 // ---
 
-inline void MaglevAssembler::RegisterEagerDeopt(EagerDeoptInfo* deopt_info,
-                                                DeoptimizeReason reason) {
+template <typename NodeT>
+inline Label* MaglevAssembler::GetDeoptLabel(NodeT* node,
+                                             DeoptimizeReason reason) {
+  static_assert(NodeT::kProperties.can_eager_deopt());
+  EagerDeoptInfo* deopt_info = node->eager_deopt_info();
   if (deopt_info->reason() != DeoptimizeReason::kUnknown) {
     DCHECK_EQ(deopt_info->reason(), reason);
   }
@@ -465,25 +468,22 @@ inline void MaglevAssembler::RegisterEagerDeopt(EagerDeoptInfo* deopt_info,
     code_gen_state()->PushEagerDeopt(deopt_info);
     deopt_info->set_reason(reason);
   }
+  return node->eager_deopt_info()->deopt_entry_label();
 }
 
 template <typename NodeT>
 inline void MaglevAssembler::EmitEagerDeopt(NodeT* node,
                                             DeoptimizeReason reason) {
-  static_assert(NodeT::kProperties.can_eager_deopt());
-  RegisterEagerDeopt(node->eager_deopt_info(), reason);
   RecordComment("-- Jump to eager deopt");
-  Jump(node->eager_deopt_info()->deopt_entry_label());
+  Jump(GetDeoptLabel(node, reason));
 }
 
 template <typename NodeT>
 inline void MaglevAssembler::EmitEagerDeoptIf(Condition cond,
                                               DeoptimizeReason reason,
                                               NodeT* node) {
-  static_assert(NodeT::kProperties.can_eager_deopt());
-  RegisterEagerDeopt(node->eager_deopt_info(), reason);
   RecordComment("-- Jump to eager deopt");
-  JumpIf(cond, node->eager_deopt_info()->deopt_entry_label());
+  JumpIf(cond, GetDeoptLabel(node, reason));
 }
 
 inline void MaglevAssembler::DefineLazyDeoptPoint(LazyDeoptInfo* info) {

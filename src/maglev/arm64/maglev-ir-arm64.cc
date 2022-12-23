@@ -75,9 +75,9 @@ void Int32NegateWithOverflow::GenerateCode(MaglevAssembler* masm,
 
   // Deopt when result would be -0.
   static_assert(Int32NegateWithOverflow::kProperties.can_eager_deopt());
-  __ RegisterEagerDeopt(eager_deopt_info(), DeoptimizeReason::kOverflow);
+  Label* fail = __ GetDeoptLabel(this, DeoptimizeReason::kOverflow);
   __ RecordComment("-- Jump to eager deopt");
-  __ Cbz(value, eager_deopt_info()->deopt_entry_label());
+  __ Cbz(value, fail);
 
   __ negs(out, value);
   // Output register must not be a register input into the eager deopt info.
@@ -242,12 +242,10 @@ void CheckedUint32ToInt32::GenerateCode(MaglevAssembler* masm,
   Register input_reg = ToRegister(input()).W();
   // Check if the top bit is set -- if it is, then this is not a valid int32,
   // otherwise it is.
-  // TODO(victorgomes): I am manually creating an eager deopt here, if this is a
-  // common pattern, maybe abstract to a helper function.
   static_assert(CheckedUint32ToInt32::kProperties.can_eager_deopt());
-  __ RegisterEagerDeopt(eager_deopt_info(), DeoptimizeReason::kNotInt32);
+  Label* fail = __ GetDeoptLabel(this, DeoptimizeReason::kNotInt32);
   __ RecordComment("-- Jump to eager deopt");
-  __ Tbnz(input_reg, 31, eager_deopt_info()->deopt_entry_label());
+  __ Tbnz(input_reg, 31, fail);
 }
 
 void ChangeInt32ToFloat64::SetValueLocationConstraints() {
@@ -372,8 +370,7 @@ void CheckMaps::GenerateCode(MaglevAssembler* masm,
   // TODO(victorgomes): This can happen, because we do not emit an unconditional
   // deopt when we intersect the map sets.
   if (maps().is_empty()) {
-    __ RegisterEagerDeopt(eager_deopt_info(), DeoptimizeReason::kWrongMap);
-    __ B(eager_deopt_info()->deopt_entry_label());
+    __ EmitEagerDeopt(this, DeoptimizeReason::kWrongMap);
     return;
   }
 
@@ -386,7 +383,7 @@ void CheckMaps::GenerateCode(MaglevAssembler* masm,
     Condition is_smi = __ CheckSmi(object);
     if (maps_include_heap_number) {
       // Smis count as matching the HeapNumber map, so we're done.
-      __ B(&done);
+      __ B(&done, is_smi);
     } else {
       __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kWrongMap, this);
     }
@@ -420,12 +417,10 @@ void CheckMapsWithMigration::SetValueLocationConstraints() {
 }
 void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
                                           const ProcessingState& state) {
-  __ RegisterEagerDeopt(eager_deopt_info(), DeoptimizeReason::kWrongMap);
-
   // TODO(victorgomes): This can happen, because we do not emit an unconditional
   // deopt when we intersect the map sets.
   if (maps().is_empty()) {
-    __ B(eager_deopt_info()->deopt_entry_label());
+    __ EmitEagerDeopt(this, DeoptimizeReason::kWrongMap);
     return;
   }
 
@@ -440,9 +435,9 @@ void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
     Condition is_smi = __ CheckSmi(object);
     if (maps_include_heap_number) {
       // Smis count as matching the HeapNumber map, so we're done.
-      __ B(*done);
+      __ B(*done, is_smi);
     } else {
-      __ B(eager_deopt_info()->deopt_entry_label(), is_smi);
+      __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kWrongMap, this);
     }
   }
 
@@ -518,14 +513,14 @@ void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
           },
           // If this is the last map to check, we should deopt if we fail.
           // This is safe to do, since {eager_deopt_info} is ZoneAllocated.
-          (last_map ? ZoneLabelRef::UnsafeFromLabelPointer(
-                          eager_deopt_info()->deopt_entry_label())
+          (last_map ? ZoneLabelRef::UnsafeFromLabelPointer(masm->GetDeoptLabel(
+                          this, DeoptimizeReason::kWrongMap))
                     : continue_label),
           done, object, object_map, i, this);
     } else if (last_map) {
       // If it is the last map and it is not a migration target, we should deopt
       // if the check fails.
-      __ B(eager_deopt_info()->deopt_entry_label(), ne);
+      __ EmitDeoptIf(ne, DeoptimizeReason::kWrongMap, this);
     }
 
     if (!last_map) {
@@ -1277,10 +1272,10 @@ void CheckedInternalizedString::GenerateCode(MaglevAssembler* masm,
         static_assert(kThinStringTagBit > 0);
         // Deopt if this isn't a string.
         __ Tst(instance_type, Immediate(kIsNotStringMask));
-        __ JumpIf(ne, deopt_info->deopt_entry_label());
+        __ EmitEagerDeoptIf(ne, DeoptimizeReason::kWrongMap, node);
         // Deopt if this isn't a thin string.
         __ Tst(instance_type, Immediate(kThinStringTagBit));
-        __ JumpIf(eq, deopt_info->deopt_entry_label());
+        __ EmitEagerDeoptIf(eq, DeoptimizeReason::kWrongMap, node);
         __ LoadTaggedPointerField(
             object, FieldMemOperand(object, ThinString::kActualOffset));
         if (v8_flags.debug_code) {

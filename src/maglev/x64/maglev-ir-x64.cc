@@ -230,8 +230,7 @@ void CheckMaps::GenerateCode(MaglevAssembler* masm,
   // TODO(victorgomes): This can happen, because we do not emit an unconditional
   // deopt when we intersect the map sets.
   if (maps().is_empty()) {
-    __ RegisterEagerDeopt(eager_deopt_info(), DeoptimizeReason::kWrongMap);
-    __ jmp(eager_deopt_info()->deopt_entry_label());
+    __ EmitEagerDeopt(this, DeoptimizeReason::kWrongMap);
     return;
   }
 
@@ -244,7 +243,7 @@ void CheckMaps::GenerateCode(MaglevAssembler* masm,
     Condition is_smi = __ CheckSmi(object);
     if (maps_include_heap_number) {
       // Smis count as matching the HeapNumber map, so we're done.
-      __ jmp(&done);
+      __ j(is_smi, &done);
     } else {
       __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kWrongMap, this);
     }
@@ -346,12 +345,10 @@ void CheckMapsWithMigration::SetValueLocationConstraints() {
 }
 void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
                                           const ProcessingState& state) {
-  __ RegisterEagerDeopt(eager_deopt_info(), DeoptimizeReason::kWrongMap);
-
   // TODO(victorgomes): This can happen, because we do not emit an unconditional
   // deopt when we intersect the map sets.
   if (maps().is_empty()) {
-    __ jmp(eager_deopt_info()->deopt_entry_label());
+    __ EmitEagerDeopt(this, DeoptimizeReason::kWrongMap);
     return;
   }
 
@@ -366,9 +363,9 @@ void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
     Condition is_smi = __ CheckSmi(object);
     if (maps_include_heap_number) {
       // Smis count as matching the HeapNumber map, so we're done.
-      __ jmp(*done);
+      __ j(is_smi, *done);
     } else {
-      __ j(is_smi, eager_deopt_info()->deopt_entry_label());
+      __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kWrongMap, this);
     }
   }
 
@@ -439,14 +436,14 @@ void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
           },
           // If this is the last map to check, we should deopt if we fail.
           // This is safe to do, since {eager_deopt_info} is ZoneAllocated.
-          (last_map ? ZoneLabelRef::UnsafeFromLabelPointer(
-                          eager_deopt_info()->deopt_entry_label())
+          (last_map ? ZoneLabelRef::UnsafeFromLabelPointer(masm->GetDeoptLabel(
+                          this, DeoptimizeReason::kWrongMap))
                     : continue_label),
           done, object, i, this);
     } else if (last_map) {
       // If it is the last map and it is not a migration target, we should deopt
       // if the check fails.
-      __ j(not_equal, eager_deopt_info()->deopt_entry_label());
+      __ EmitEagerDeoptIf(not_equal, DeoptimizeReason::kWrongMap, this);
     }
 
     if (!last_map) {
@@ -623,10 +620,10 @@ void CheckedInternalizedString::GenerateCode(MaglevAssembler* masm,
         static_assert(kThinStringTagBit > 0);
         // Deopt if this isn't a string.
         __ testw(map_tmp, Immediate(kIsNotStringMask));
-        __ j(not_zero, deopt_info->deopt_entry_label());
+        __ EmitEagerDeoptIf(not_zero, DeoptimizeReason::kWrongMap, node);
         // Deopt if this isn't a thin string.
         __ testb(map_tmp, Immediate(kThinStringTagBit));
-        __ j(zero, deopt_info->deopt_entry_label());
+        __ EmitEagerDeoptIf(zero, DeoptimizeReason::kWrongMap, node);
         __ LoadTaggedPointerField(
             object, FieldOperand(object, ThinString::kActualOffset));
         if (v8_flags.debug_code) {
@@ -668,7 +665,7 @@ void CheckedObjectToIndex::GenerateCode(MaglevAssembler* masm,
                                 FIRST_STRING_TYPE, LAST_STRING_TYPE);
         __ j(below_equal, &is_string);
 
-        __ cmpl(kScratchRegister, Immediate(HEAP_NUMBER_TYPE));
+        __ cmpw(kScratchRegister, Immediate(HEAP_NUMBER_TYPE));
         // The IC will go generic if it encounters something other than a
         // Number or String key.
         __ EmitEagerDeoptIf(not_equal, DeoptimizeReason::kNotInt32, node);
@@ -677,6 +674,9 @@ void CheckedObjectToIndex::GenerateCode(MaglevAssembler* masm,
         {
           DoubleRegister number_value = node->double_temporaries().first();
           DoubleRegister converted_back = kScratchDoubleReg;
+          // Load the heap number value into a double register.
+          __ Movsd(number_value,
+                   FieldOperand(object, HeapNumber::kValueOffset));
           // Convert the input float64 value to int32.
           __ Cvttsd2si(result_reg, number_value);
           // Convert that int32 value back to float64.
@@ -684,6 +684,7 @@ void CheckedObjectToIndex::GenerateCode(MaglevAssembler* masm,
           // Check that the result of the float64->int32->float64 is equal to
           // the input (i.e. that the conversion didn't truncate.
           __ Ucomisd(number_value, converted_back);
+          __ EmitEagerDeoptIf(parity_even, DeoptimizeReason::kNotInt32, node);
           __ j(equal, *done);
           __ EmitEagerDeopt(node, DeoptimizeReason::kNotInt32);
         }
@@ -2425,6 +2426,7 @@ void CheckedTruncateFloat64ToInt32::GenerateCode(MaglevAssembler* masm,
   // Check that the result of the float64->int32->float64 is equal to the input
   // (i.e. that the conversion didn't truncate.
   __ Ucomisd(input_reg, converted_back);
+  __ EmitEagerDeoptIf(parity_even, DeoptimizeReason::kNotInt32, this);
   __ EmitEagerDeoptIf(not_equal, DeoptimizeReason::kNotInt32, this);
 
   // Check if {input} is -0.
@@ -2451,14 +2453,15 @@ void CheckedTruncateFloat64ToUint32::GenerateCode(
   Register result_reg = ToRegister(result());
   DoubleRegister converted_back = kScratchDoubleReg;
 
-  Label fail;
   // Convert the input float64 value to uint32.
-  __ Cvttsd2ui(result_reg, input_reg, &fail);
+  Label* deopt = __ GetDeoptLabel(this, DeoptimizeReason::kNotUint32);
+  __ Cvttsd2ui(result_reg, input_reg, deopt);
   // Convert that uint32 value back to float64.
   __ Cvtlui2sd(converted_back, result_reg);
   // Check that the result of the float64->uint32->float64 is equal to the input
   // (i.e. that the conversion didn't truncate.
   __ Ucomisd(input_reg, converted_back);
+  __ EmitEagerDeoptIf(parity_even, DeoptimizeReason::kNotUint32, this);
   __ EmitEagerDeoptIf(not_equal, DeoptimizeReason::kNotUint32, this);
 
   // Check if {input} is -0.
@@ -2471,9 +2474,6 @@ void CheckedTruncateFloat64ToUint32::GenerateCode(
   __ Pextrd(high_word32_of_input, input_reg, 1);
   __ cmpl(high_word32_of_input, Immediate(0));
   __ EmitEagerDeoptIf(less, DeoptimizeReason::kNotUint32, this);
-
-  __ bind(&fail);
-  __ EmitEagerDeopt(this, DeoptimizeReason::kNotUint32);
 
   __ bind(&check_done);
 }
