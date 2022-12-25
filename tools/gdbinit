@@ -235,6 +235,10 @@ def add_debug_file_directory(dir):
       "set debug-file-directory %s" % ":".join(current_dirs), to_string=True)
 
 
+def escape_space(dir):
+    return dir.replace(' ', '\\ ')
+
+
 def newobj_handler(event):
   global compile_dirs
   compile_dir = os.path.dirname(event.new_objfile.filename)
@@ -245,7 +249,7 @@ def newobj_handler(event):
   compile_dirs.add(compile_dir)
 
   # Add source path
-  gdb.execute("dir %s" % compile_dir)
+  gdb.execute("dir %s" % escape_space(compile_dir))
 
   # Need to tell the location of .dwo files.
   # https://sourceware.org/gdb/onlinedocs/gdb/Separate-Debug-Files.html
