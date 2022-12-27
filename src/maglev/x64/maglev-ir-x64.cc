@@ -2688,8 +2688,8 @@ void AttemptOnStackReplacement(MaglevAssembler* masm,
       __ Move(maybe_target_code, kReturnRegister0);
     }
 
-    // A `0` return value means there is no OSR code available yet. Fall
-    // through for now, OSR code will be picked up once it exists and is
+    // A `0` return value means there is no OSR code available yet. Continue
+    // execution in Maglev, OSR code will be picked up once it exists and is
     // cached on the feedback vector.
     __ Cmp(maybe_target_code, 0);
     __ j(equal, *no_code_for_osr, Label::kNear);
@@ -2704,10 +2704,11 @@ void AttemptOnStackReplacement(MaglevAssembler* masm,
         GetGeneralRegistersUsedAsInputs(node->eager_deopt_info()));
     __ EmitEagerDeopt(node, DeoptimizeReason::kPrepareForOnStackReplacement);
   } else {
-    // Fall through. With TF disabled we cannot OSR and thus it doesn't make
-    // sense to start the process. We do still perform all remaining
-    // bookkeeping above though, to keep Maglev code behavior roughly the same
-    // in both configurations.
+    // Continue execution in Maglev. With TF disabled we cannot OSR and thus it
+    // doesn't make sense to start the process. We do still perform all
+    // remaining bookkeeping above though, to keep Maglev code behavior roughly
+    // the same in both configurations.
+    __ jmp(*no_code_for_osr, Label::kNear);
   }
 }
 
