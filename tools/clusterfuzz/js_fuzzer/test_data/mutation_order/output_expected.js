@@ -11,8 +11,8 @@
 // Original: mutation_order/input.js
 try {
   var __v_0 =
-  /* NumberMutator: Replaced 1 with 17 */
-  17;
+  /* NumberMutator: Replaced 1 with -10 */
+  -10;
 } catch (e) {}
 
 try {
@@ -25,10 +25,10 @@ try {
 
 try {
   var __v_3 = {
-    /* NumberMutator: Replaced 0 with 5 */
-    5:
-    /* NumberMutator: Replaced 1 with 13 */
-    13
+    /* NumberMutator: Replaced 0 with 8 */
+    8:
+    /* NumberMutator: Replaced 1 with 3 */
+    3
   };
 } catch (e) {}
 
@@ -42,14 +42,14 @@ try {
 
 try {
   __f_0(__v_0,
-  /* NumberMutator: Replaced 3 with -77 */
-  -77);
+  /* NumberMutator: Replaced 3 with 5 */
+  5);
 } catch (e) {}
 
 try {
   __f_0(__v_0,
-  /* NumberMutator: Replaced 3 with 12 */
-  12);
+  /* NumberMutator: Replaced 3 with NaN */
+  NaN);
 } catch (e) {}
 
 try {
@@ -59,8 +59,8 @@ try {
 try {
   /* FunctionCallMutator: Optimizing __f_0 */
   __f_0(__v_0,
-  /* NumberMutator: Replaced 3 with -7 */
-  -7);
+  /* NumberMutator: Replaced 3 with 2 */
+  2);
 } catch (e) {}
 
 function __f_1(__v_6) {
@@ -71,7 +71,23 @@ function __f_1(__v_6) {
 }
 
 try {
-  /* FunctionCallMutator: Replaced __f_0 with __f_0 */
+  %PrepareFunctionForOptimization(__f_0);
+} catch (e) {}
+
+try {
+  __f_0('foo', __v_1);
+} catch (e) {}
+
+try {
+  __f_0('foo', __v_1);
+} catch (e) {}
+
+try {
+  %OptimizeFunctionOnNextCall(__f_0);
+} catch (e) {}
+
+try {
+  /* FunctionCallMutator: Optimizing __f_0 */
   __f_0('foo', __v_1);
 } catch (e) {}
 
@@ -82,18 +98,22 @@ try {
 
 try {
   __f_1(
-  /* NumberMutator: Replaced 2 with -13 */
-  -13, __f_0(__v_0, __v_1));
+  /* NumberMutator: Replaced 2 with -10 */
+  -10, __f_0(__v_0, __v_1));
 } catch (e) {}
 
 try {
-  /* FunctionCallMutator: Replaced __f_0 with __f_1 */
-  __f_1(__v_0, __v_1);
+  /* FunctionCallMutator: Deoptimizing __f_0 */
+  __f_0(__v_0, __v_1);
+} catch (e) {}
+
+try {
+  %DeoptimizeFunction(__f_0);
 } catch (e) {}
 
 try {
   /* FunctionCallMutator: Replaced __f_1 with __f_1 */
   __f_1(__v_1,
-  /* NumberMutator: Replaced 3 with 7 */
-  7);
+  /* NumberMutator: Replaced 3 with 16 */
+  16);
 } catch (e) {}
