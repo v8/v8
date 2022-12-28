@@ -221,7 +221,6 @@
   'intl402/DateTimeFormat/prototype/formatRangeToParts/temporal-objects-resolved-time-zone': [FAIL],
   'intl402/DateTimeFormat/prototype/format/temporal-objects-resolved-time-zone': [FAIL],
   'intl402/DateTimeFormat/prototype/formatToParts/temporal-objects-resolved-time-zone': [FAIL],
-  'staging/Intl402/Temporal/old/time-toLocaleString': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7831
   'language/statements/generators/generator-created-after-decl-inst': [FAIL],
@@ -309,6 +308,13 @@
   'built-ins/RegExp/prototype/Symbol.replace/flags-tostring-error': [FAIL],
   'built-ins/RegExp/prototype/Symbol.replace/get-flags-err': [FAIL],
   'built-ins/RegExp/prototype/Symbol.replace/get-unicode-error': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=13321
+  'built-ins/Array/fromAsync/builtin': [FAIL],
+  'built-ins/Array/fromAsync/length': [FAIL],
+  'built-ins/Array/fromAsync/name': [FAIL],
+  'built-ins/Array/fromAsync/not-a-constructor': [FAIL],
+  'built-ins/Array/fromAsync/prop-desc': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=11544
   'built-ins/Temporal/Duration/prototype/total/balance-negative-result': [FAIL],
@@ -982,6 +988,14 @@
   'intl402/Temporal/Calendar/prototype/eraYear/argument-string-date-with-utc-offset': [FAIL],
   'intl402/Temporal/Calendar/prototype/yearOfWeek/infinity-throws-rangeerror': [FAIL],
 
+  'built-ins/Temporal/Calendar/prototype/yearOfWeek/not-a-constructor': [FAIL],
+  'built-ins/Temporal/Duration/prototype/add/relativeto-zoneddatetime-nanoseconds-to-days-range-errors': [FAIL],
+  'built-ins/Temporal/Duration/prototype/round/relativeto-zoneddatetime-nanoseconds-to-days-range-errors': [FAIL],
+  'built-ins/Temporal/Duration/prototype/subtract/relativeto-zoneddatetime-nanoseconds-to-days-range-errors': [FAIL],
+  'built-ins/Temporal/ZonedDateTime/prototype/since/nanoseconds-to-days-range-errors': [FAIL],
+  'built-ins/Temporal/ZonedDateTime/prototype/until/nanoseconds-to-days-range-errors': [FAIL],
+
+
   # https://bugs.chromium.org/p/v8/issues/detail?id=13584
   'intl402/Array/prototype/toLocaleString/invoke-element-tolocalestring': [FAIL],
 
@@ -997,10 +1011,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=11660
   # https://github.com/tc39/proposal-intl-duration-format/issues/114
   'intl402/DurationFormat/prototype/format/style-options-en': [FAIL],
-
-  # https://github.com/tc39/test262/pull/3752
-  'intl402/DurationFormat/prototype/format/invalid-arguments-throws': [FAIL],
-  'intl402/DurationFormat/prototype/formatToParts/invalid-arguments-throws': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=12763
   'language/expressions/class/decorator/syntax/class-valid/decorator-member-expr-private-identifier': [FAIL],
