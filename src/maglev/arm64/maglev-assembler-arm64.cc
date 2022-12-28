@@ -235,7 +235,6 @@ void MaglevAssembler::Prologue(Graph* graph) {
     // after building the frame we can quickly precheck both at once.
     UseScratchRegisterScope temps(this);
     Register stack_slots_size = temps.AcquireX();
-    Register interrupt_stack_limit = temps.AcquireX();
     Mov(stack_slots_size, fp);
     // Round up the stack slots and max call args separately, since both will be
     // padded by their respective uses.
@@ -245,6 +244,7 @@ void MaglevAssembler::Prologue(Graph* graph) {
         std::max(static_cast<int>(graph->max_deopted_stack_size()),
                  max_stack_slots_used * kSystemPointerSize);
     Sub(stack_slots_size, stack_slots_size, Immediate(max_stack_size));
+    Register interrupt_stack_limit = temps.AcquireX();
     LoadStackLimit(interrupt_stack_limit, StackLimitKind::kInterruptStackLimit);
     Cmp(stack_slots_size, interrupt_stack_limit);
 
