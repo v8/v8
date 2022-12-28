@@ -520,7 +520,7 @@ void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
     } else if (last_map) {
       // If it is the last map and it is not a migration target, we should deopt
       // if the check fails.
-      __ EmitDeoptIf(ne, DeoptimizeReason::kWrongMap, this);
+      __ EmitEagerDeoptIf(ne, DeoptimizeReason::kWrongMap, this);
     }
 
     if (!last_map) {
