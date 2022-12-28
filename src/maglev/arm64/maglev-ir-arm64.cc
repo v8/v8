@@ -118,7 +118,6 @@ void Int32DecrementWithOverflow::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(vs, DeoptimizeReason::kOverflow, this);
 }
 
-UNIMPLEMENTED_NODE_WITH_CALL(Float64Ieee754Unary)
 UNIMPLEMENTED_NODE_WITH_CALL(ConvertReceiver, mode_)
 UNIMPLEMENTED_NODE(LoadSignedIntDataViewElement, type_)
 UNIMPLEMENTED_NODE(LoadDoubleDataViewElement)
@@ -1168,6 +1167,17 @@ void Float64Exponentiate::GenerateCode(MaglevAssembler* masm,
                                        const ProcessingState& state) {
   AllowExternalCallThatCantCauseGC scope(masm);
   __ CallCFunction(ExternalReference::ieee754_pow_function(), 2);
+}
+
+int Float64Ieee754Unary::MaxCallStackArgs() const { return 0; }
+void Float64Ieee754Unary::SetValueLocationConstraints() {
+  UseFixed(input(), v0);
+  DefineSameAsFirst(this);
+}
+void Float64Ieee754Unary::GenerateCode(MaglevAssembler* masm,
+                                       const ProcessingState& state) {
+  AllowExternalCallThatCantCauseGC scope(masm);
+  __ CallCFunction(ieee_function_, 1);
 }
 
 template <class Derived, Operation kOperation>
