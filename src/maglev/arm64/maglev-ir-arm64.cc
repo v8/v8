@@ -1387,7 +1387,7 @@ void GeneratorStore::GenerateCode(MaglevAssembler* masm,
           ASM_CODE_COMMENT_STRING(masm, "Write barrier slow path");
           __ CheckPageFlag(
               value,
-              MemoryChunk::kPointersToHereAreInterestingOrInSharedHeapMask, eq,
+              MemoryChunk::kPointersToHereAreInterestingOrInSharedHeapMask, ne,
               *done);
 
           Register slot_reg = WriteBarrierDescriptor::SlotAddressRegister();
@@ -1413,7 +1413,7 @@ void GeneratorStore::GenerateCode(MaglevAssembler* masm,
     // Consider hoisting the check out of the loop and duplicating the loop into
     // with and without write barrier.
     __ CheckPageFlag(array, MemoryChunk::kPointersFromHereAreInterestingMask,
-                     ne, &deferred_write_barrier->deferred_code_label);
+                     eq, &deferred_write_barrier->deferred_code_label);
 
     __ bind(*done);
   }
@@ -1431,9 +1431,10 @@ void GeneratorStore::GenerateCode(MaglevAssembler* masm,
         // TODO(leszeks): The context is almost always going to be in
         // old-space, consider moving this check to the fast path, maybe even
         // as the first bailout.
-        __ CheckPageFlag(context,
-                         MemoryChunk::kPointersFromHereAreInterestingMask, eq,
-                         *done);
+        __ CheckPageFlag(
+            context,
+            MemoryChunk::kPointersToHereAreInterestingOrInSharedHeapMask, ne,
+            *done);
 
         __ Move(WriteBarrierDescriptor::ObjectRegister(), generator);
         generator = WriteBarrierDescriptor::ObjectRegister();
@@ -1458,7 +1459,7 @@ void GeneratorStore::GenerateCode(MaglevAssembler* masm,
       context, FieldMemOperand(generator, JSGeneratorObject::kContextOffset));
   __ AssertNotSmi(context);
   __ CheckPageFlag(generator, MemoryChunk::kPointersFromHereAreInterestingMask,
-                   ne, &deferred_context_write_barrier->deferred_code_label);
+                   eq, &deferred_context_write_barrier->deferred_code_label);
   __ bind(*done);
 
   UseScratchRegisterScope temps(masm);
