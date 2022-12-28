@@ -485,6 +485,20 @@ bool EnforceUint32(T argument_name, Local<v8::Value> v, Local<Context> context,
   *res = static_cast<uint32_t>(double_number);
   return true;
 }
+
+// The enum values need to match "WasmCompilationMethod" in
+// tools/metrics/histograms/enums.xml.
+enum CompilationMethod {
+  kSyncCompilation = 0,
+  kAsyncCompilation = 1,
+  kStreamingCompilation = 2,
+  kAsyncInstantiation = 3,
+  kStreamingInstantiation = 4,
+};
+
+void RecordCompilationMethod(i::Isolate* isolate, CompilationMethod method) {
+  isolate->counters()->wasm_compilation_method()->AddSample(method);
+}
 }  // namespace
 
 // WebAssembly.compile(bytes) -> Promise
@@ -492,6 +506,7 @@ void WebAssemblyCompile(const v8::FunctionCallbackInfo<v8::Value>& args) {
   constexpr const char* kAPIMethodName = "WebAssembly.compile()";
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  RecordCompilationMethod(i_isolate, kAsyncCompilation);
 
   HandleScope scope(isolate);
   ScheduledErrorThrower thrower(i_isolate, kAPIMethodName);
@@ -561,6 +576,7 @@ void WebAssemblyCompileStreaming(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  RecordCompilationMethod(i_isolate, kStreamingCompilation);
   HandleScope scope(isolate);
   const char* const kAPIMethodName = "WebAssembly.compileStreaming()";
   ScheduledErrorThrower thrower(i_isolate, kAPIMethodName);
@@ -680,6 +696,7 @@ void WebAssemblyModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   if (i_isolate->wasm_module_callback()(args)) return;
+  RecordCompilationMethod(i_isolate, kSyncCompilation);
 
   HandleScope scope(isolate);
   ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Module()");
@@ -795,6 +812,7 @@ void WebAssemblyModuleCustomSections(
 void WebAssemblyInstance(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  RecordCompilationMethod(i_isolate, kAsyncInstantiation);
   i_isolate->CountUsage(
       v8::Isolate::UseCounterFeature::kWebAssemblyInstantiation);
 
@@ -856,6 +874,7 @@ void WebAssemblyInstantiateStreaming(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  RecordCompilationMethod(i_isolate, kStreamingInstantiation);
   i_isolate->CountUsage(
       v8::Isolate::UseCounterFeature::kWebAssemblyInstantiation);
 
