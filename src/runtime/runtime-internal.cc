@@ -410,6 +410,10 @@ RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterrupt_Sparkplug) {
   return BytecodeBudgetInterrupt(isolate, args, CodeKind::BASELINE);
 }
 
+RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterrupt_Maglev) {
+  return BytecodeBudgetInterrupt(isolate, args, CodeKind::MAGLEV);
+}
+
 RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterruptWithStackCheck_Maglev) {
   return BytecodeBudgetInterruptWithStackCheck(isolate, args, CodeKind::MAGLEV);
 }

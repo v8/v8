@@ -1899,6 +1899,12 @@ enum class TieringState : int32_t {
       kLastTieringState = kRequestTurbofan_Concurrent,
 };
 
+// The state kInProgress (= an optimization request for this function is
+// currently being serviced) currently means that no other tiering action can
+// happen. Define this constant so we can static_assert it at related code
+// sites.
+static constexpr bool kTieringStateInProgressBlocksTierup = true;
+
 // To efficiently check whether a marker is kNone or kInProgress using a single
 // mask, we expect the kNone to be 0 and kInProgress to be 1 so that we can
 // mask off the lsb for checking.
