@@ -797,7 +797,7 @@ void HeapObject::VerifySmiField(int offset) {
 #endif
 
 ReadOnlyRoots HeapObject::EarlyGetReadOnlyRoots() const {
-  return ReadOnlyRoots(GetHeapFromWritableObject(*this));
+  return ReadOnlyHeap::EarlyGetReadOnlyRoots(*this);
 }
 
 ReadOnlyRoots HeapObject::GetReadOnlyRoots() const {

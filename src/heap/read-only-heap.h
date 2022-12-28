@@ -77,6 +77,10 @@ class ReadOnlyHeap {
   // specific roots table.
   V8_EXPORT_PRIVATE inline static ReadOnlyRoots GetReadOnlyRoots(
       HeapObject object);
+  // Returns the current isolates roots table during initialization as opposed
+  // to the shared one in case the latter is not initialized yet.
+  V8_EXPORT_PRIVATE inline static ReadOnlyRoots EarlyGetReadOnlyRoots(
+      HeapObject object);
 
   // Extends the read-only object cache with new zero smi and returns a
   // reference to it.
