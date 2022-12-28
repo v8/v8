@@ -1024,11 +1024,8 @@ DEFINE_INT(wasm_num_compilation_tasks, 128,
 DEFINE_VALUE_IMPLICATION(single_threaded, wasm_num_compilation_tasks, 0)
 DEFINE_DEBUG_BOOL(trace_wasm_native_heap, false,
                   "trace wasm native heap events")
-DEFINE_BOOL(wasm_write_protect_code_memory, false,
-            "write protect code memory on the wasm native heap with mprotect")
 DEFINE_BOOL(wasm_memory_protection_keys, true,
-            "protect wasm code memory with PKU if available (takes precedence "
-            "over --wasm-write-protect-code-memory)")
+            "protect wasm code memory with PKU if available")
 DEFINE_DEBUG_BOOL(trace_wasm_serialization, false,
                   "trace serialization/deserialization")
 DEFINE_BOOL(wasm_async_compilation, true,
@@ -2247,9 +2244,6 @@ DEFINE_PERF_PROF_BOOL(
 DEFINE_NEG_IMPLICATION(perf_prof, compact_code_space)
 // TODO(v8:8462) Remove implication once perf supports remapping.
 DEFINE_NEG_IMPLICATION(perf_prof, write_protect_code_memory)
-#if V8_ENABLE_WEBASSEMBLY
-DEFINE_NEG_IMPLICATION(perf_prof, wasm_write_protect_code_memory)
-#endif  // V8_ENABLE_WEBASSEMBLY
 
 // --perf-prof-unwinding-info is available only on selected architectures.
 #if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_X64 && \

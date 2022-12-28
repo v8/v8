@@ -546,20 +546,6 @@ class WasmCodeAllocator {
   base::Vector<byte> AllocateForCodeInRegion(NativeModule*, size_t size,
                                              base::AddressRegion);
 
-  // Increases or decreases the {writers_count_} field. While there is at least
-  // one writer, it is allowed to call {MakeWritable} to make regions writable.
-  // When the last writer is removed, all code is switched back to
-  // write-protected.
-  // Hold the {NativeModule}'s {allocation_mutex_} when calling one of these
-  // methods. The methods should only be called via {CodeSpaceWriteScope}.
-  V8_EXPORT_PRIVATE void AddWriter();
-  V8_EXPORT_PRIVATE void RemoveWriter();
-
-  // Make a code region writable. Only allowed if there is at lease one writer
-  // (see above).
-  // Hold the {NativeModule}'s {allocation_mutex_} when calling this method.
-  V8_EXPORT_PRIVATE void MakeWritable(base::AddressRegion);
-
   // Free memory pages of all given code objects. Used for wasm code GC.
   // Hold the {NativeModule}'s {allocation_mutex_} when calling this method.
   void FreeCode(base::Vector<WasmCode* const>);
@@ -571,9 +557,6 @@ class WasmCodeAllocator {
   Counters* counters() const { return async_counters_.get(); }
 
  private:
-  void InsertIntoWritableRegions(base::AddressRegion region,
-                                 bool switch_to_writable);
-
   //////////////////////////////////////////////////////////////////////////////
   // These fields are protected by the mutex in {NativeModule}.
 
@@ -585,18 +568,9 @@ class WasmCodeAllocator {
   DisjointAllocationPool freed_code_space_;
   std::vector<VirtualMemory> owned_code_space_;
 
-  // The following two fields are only used if {protect_code_memory_} is true.
-  int writers_count_{0};
-  std::set<base::AddressRegion, base::AddressRegion::StartAddressLess>
-      writable_memory_;
-
   // End of fields protected by {mutex_}.
   //////////////////////////////////////////////////////////////////////////////
 
-  // {protect_code_memory_} is true if traditional memory permission switching
-  // is used to protect code space. It is false if {MAP_JIT} on Mac or PKU is
-  // being used, or protection is completely disabled.
-  const bool protect_code_memory_;
   std::atomic<size_t> committed_code_space_{0};
   std::atomic<size_t> generated_code_size_{0};
   std::atomic<size_t> freed_code_size_{0};
@@ -700,21 +674,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Reverse lookup from a given call target (which must be a jump table slot)
   // to a function index.
   uint32_t GetFunctionIndexFromJumpTableSlot(Address slot_address) const;
-
-  void AddWriter() {
-    base::RecursiveMutexGuard guard{&allocation_mutex_};
-    code_allocator_.AddWriter();
-  }
-
-  void RemoveWriter() {
-    base::RecursiveMutexGuard guard{&allocation_mutex_};
-    code_allocator_.RemoveWriter();
-  }
-
-  void MakeWritable(base::AddressRegion region) {
-    base::RecursiveMutexGuard guard{&allocation_mutex_};
-    code_allocator_.MakeWritable(region);
-  }
 
   // For cctests, where we build both WasmModule and the runtime objects
   // on the fly, and bypass the instance builder pipeline.
