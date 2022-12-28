@@ -367,7 +367,6 @@ Object BytecodeBudgetInterruptWithStackCheck(Isolate* isolate,
     // We ideally wouldn't actually get StackOverflows here, since we stack
     // check on bytecode entry, but it's possible that this check fires due to
     // the runtime function call being what overflows the stack.
-    // if our function entry
     return isolate->StackOverflow();
   } else if (check.InterruptRequested()) {
     Object return_value = isolate->stack_guard()->HandleInterrupts();

@@ -2635,34 +2635,33 @@ class StackLimitCheck {
   }
   static bool HasOverflowed(LocalIsolate* local_isolate);
 
+  // Use this to check for stack-overflow when entering runtime from JS code.
+  bool JsHasOverflowed(uintptr_t gap = 0) const;
+
   // Use this to check for interrupt request in C++ code.
   V8_INLINE bool InterruptRequested() {
     StackGuard* stack_guard = isolate_->stack_guard();
     return GetCurrentStackPosition() < stack_guard->climit();
   }
 
-  // Handle interripts if InterruptRequested was true.
+  // Precondition: InterruptRequested == true.
   // Returns true if any interrupt (overflow or termination) was handled, in
-  // which case the caller should prevent further JS execution.
-  V8_EXPORT_PRIVATE bool HandleInterrupt(Isolate* isolate);
-
-  // Use this to check for stack-overflow when entering runtime from JS code.
-  bool JsHasOverflowed(uintptr_t gap = 0) const;
+  // which case the caller must prevent further JS execution.
+  V8_EXPORT_PRIVATE bool HandleStackOverflowAndTerminationRequest();
 
  private:
-  Isolate* isolate_;
+  Isolate* const isolate_;
 };
 
 // This macro may be used in context that disallows JS execution.
 // That is why it checks only for a stack overflow and termination.
-#define STACK_CHECK(isolate, result_value)        \
-  do {                                            \
-    StackLimitCheck stack_check(isolate);         \
-    if (stack_check.InterruptRequested()) {       \
-      if (stack_check.HandleInterrupt(isolate)) { \
-        return result_value;                      \
-      }                                           \
-    }                                             \
+#define STACK_CHECK(isolate, result_value)                                     \
+  do {                                                                         \
+    StackLimitCheck stack_check(isolate);                                      \
+    if (V8_UNLIKELY(stack_check.InterruptRequested()) &&                       \
+        V8_UNLIKELY(stack_check.HandleStackOverflowAndTerminationRequest())) { \
+      return result_value;                                                     \
+    }                                                                          \
   } while (false)
 
 class StackTraceFailureMessage {
