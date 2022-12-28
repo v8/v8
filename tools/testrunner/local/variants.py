@@ -53,7 +53,6 @@ ALL_VARIANT_FLAGS = {
     "instruction_scheduling": [["--turbo-instruction-scheduling"]],
     "stress_instruction_scheduling": [["--turbo-stress-instruction-scheduling"]
                                      ],
-    "wasm_write_protect_code": [["--wasm-write-protect-code-memory"]],
     # Google3 variants.
     "google3_icu": [[]],
     "google3_noicu": [[]],
@@ -95,9 +94,6 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
         "--cache=after-execute", "--cache=full-code-cache", "--cache=none"
     ],
     "experimental_regexp": ["--no-enable-experimental-regexp-engine"],
-    # There is a negative implication: --perf-prof disables
-    # --wasm-write-protect-code-memory.
-    "wasm_write_protect_code": ["--perf-prof"],
     "assert_types": [
         "--concurrent-recompilation", "--stress_concurrent_inlining",
         "--no-assert-types"

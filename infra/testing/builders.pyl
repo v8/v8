@@ -481,8 +481,6 @@
       {'name': 'mjsunit', 'variant': 'stress_maglev'},
       # Experimental regexp engine.
       {'name': 'mjsunit', 'variant': 'experimental_regexp'},
-      # Wasm write protect code space.
-      {'name': 'mjsunit', 'variant': 'wasm_write_protect_code'},
     ],
   },
   'v8_linux64_gc_stress_custom_snapshot_dbg': {
@@ -1475,8 +1473,6 @@
       {'name': 'mjsunit', 'variant': 'stress_maglev'},
       # Experimental regexp engine.
       {'name': 'mjsunit', 'variant': 'experimental_regexp'},
-      # Wasm write protect code space.
-      {'name': 'mjsunit', 'variant': 'wasm_write_protect_code'},
     ],
   },
   'V8 Linux64 - cppgc-non-default - debug': {
@@ -1541,8 +1537,6 @@
       {'name': 'mjsunit', 'variant': 'stress_maglev'},
       # Experimental regexp engine.
       {'name': 'mjsunit', 'variant': 'experimental_regexp'},
-      # Wasm write protect code space.
-      {'name': 'mjsunit', 'variant': 'wasm_write_protect_code'},
     ],
   },
   'V8 Linux64 gcc': {
