@@ -2020,8 +2020,9 @@ DEFINE_STRING(embedded_src, nullptr,
 DEFINE_STRING(
     embedded_variant, nullptr,
     "Label to disambiguate symbols in embedded data file. (mksnapshot only)")
-DEFINE_STRING(static_roots, nullptr,
-              "Path for writing static-roots.h. (mksnapshot only)")
+DEFINE_STRING(static_roots_src, nullptr,
+              "Path for writing a fresh static-roots.h. (mksnapshot only, "
+              "build without static roots only)")
 DEFINE_STRING(startup_src, nullptr,
               "Write V8 startup as C++ src. (mksnapshot only)")
 DEFINE_STRING(startup_blob, nullptr,

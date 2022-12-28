@@ -4148,15 +4148,14 @@ VirtualMemoryCage* Isolate::GetPtrComprCodeCageForTesting() {
   return V8_EXTERNAL_CODE_SPACE_BOOL ? heap_.code_range() : GetPtrComprCage();
 }
 
-// If this check fails mksnapshot needs to be built without static roots and
-// then called with --static-roots to re-regenerate the static-roots.h file.
 void Isolate::VerifyStaticRoots() {
 #if V8_STATIC_ROOTS_BOOL
   static_assert(ReadOnlyHeap::IsReadOnlySpaceShared(),
                 "Static read only roots are only supported when there is one "
                 "shared read only space per cage");
-#define STATIC_ROOTS_FAILED_MSG \
-  "Run `tools/dev/gen-static-roots.py` to update static-roots.h."
+#define STATIC_ROOTS_FAILED_MSG                                            \
+  "Read-only heap layout changed. Run `tools/dev/gen-static-roots.py` to " \
+  "update static-roots.h."
   static_assert(static_cast<int>(RootIndex::kReadOnlyRootsCount) ==
                     StaticReadOnlyRootsPointerTable.size(),
                 STATIC_ROOTS_FAILED_MSG);

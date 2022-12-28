@@ -116,7 +116,7 @@ for target in [args.configuration]:
   gn_args = config["gn_args"]
   build_path = build(build_dir, gn_args)
   out_file = Path(tempfile.gettempdir()) / f"static-roots-{target}.h"
-  run([build_path / "mksnapshot", "--static-roots", out_file])
+  run([build_path / "mksnapshot", "--static-roots-src", out_file])
   target_file = v8_path / config["target"]
   if not filecmp.cmp(out_file, target_file):
     shutil.move(out_file, target_file)
