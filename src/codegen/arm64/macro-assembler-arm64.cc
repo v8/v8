@@ -3252,10 +3252,10 @@ void TurboAssembler::CheckPageFlag(const Register& object, int mask,
   Register scratch = temps.AcquireX();
   And(scratch, object, ~kPageAlignmentMask);
   Ldr(scratch, MemOperand(scratch, BasicMemoryChunk::kFlagsOffset));
-  if (cc == eq) {
+  if (cc == ne) {
     TestAndBranchIfAnySet(scratch, mask, condition_met);
   } else {
-    DCHECK_EQ(cc, ne);
+    DCHECK_EQ(cc, eq);
     TestAndBranchIfAllClear(scratch, mask, condition_met);
   }
 }
@@ -3509,9 +3509,9 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
   }
   CheckPageFlag(value,
                 MemoryChunk::kPointersToHereAreInterestingOrInSharedHeapMask,
-                ne, &done);
+                eq, &done);
 
-  CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask, ne,
+  CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask, eq,
                 &done);
 
   // Record the actual write.

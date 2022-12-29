@@ -521,7 +521,7 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   // The write barrier.
   Label write_barrier;
   Label exit;
-  CheckPageFlag(dst_addr, MemoryChunk::kPointersFromHereAreInterestingMask, eq,
+  CheckPageFlag(dst_addr, MemoryChunk::kPointersFromHereAreInterestingMask, ne,
                 &write_barrier);
   b(&exit);
   bind(&write_barrier);
@@ -531,7 +531,7 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   }
   CheckPageFlag(src.gp(),
                 MemoryChunk::kPointersToHereAreInterestingOrInSharedHeapMask,
-                ne, &exit);
+                eq, &exit);
   CallRecordWriteStubSaveRegisters(dst_addr, offset_op, SaveFPRegsMode::kSave,
                                    StubCallMode::kCallWasmRuntimeStub);
   bind(&exit);

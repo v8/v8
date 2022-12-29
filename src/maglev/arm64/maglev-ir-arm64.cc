@@ -1407,7 +1407,7 @@ void GeneratorStore::GenerateCode(MaglevAssembler* masm,
           ASM_CODE_COMMENT_STRING(masm, "Write barrier slow path");
           __ CheckPageFlag(
               value,
-              MemoryChunk::kPointersToHereAreInterestingOrInSharedHeapMask, ne,
+              MemoryChunk::kPointersToHereAreInterestingOrInSharedHeapMask, eq,
               *done);
 
           Register slot_reg = WriteBarrierDescriptor::SlotAddressRegister();
@@ -1433,7 +1433,7 @@ void GeneratorStore::GenerateCode(MaglevAssembler* masm,
     // Consider hoisting the check out of the loop and duplicating the loop into
     // with and without write barrier.
     __ CheckPageFlag(array, MemoryChunk::kPointersFromHereAreInterestingMask,
-                     eq, &deferred_write_barrier->deferred_code_label);
+                     ne, &deferred_write_barrier->deferred_code_label);
 
     __ bind(*done);
   }
@@ -1453,7 +1453,7 @@ void GeneratorStore::GenerateCode(MaglevAssembler* masm,
         // as the first bailout.
         __ CheckPageFlag(
             context,
-            MemoryChunk::kPointersToHereAreInterestingOrInSharedHeapMask, ne,
+            MemoryChunk::kPointersToHereAreInterestingOrInSharedHeapMask, eq,
             *done);
 
         __ Move(WriteBarrierDescriptor::ObjectRegister(), generator);
@@ -1479,7 +1479,7 @@ void GeneratorStore::GenerateCode(MaglevAssembler* masm,
       context, FieldMemOperand(generator, JSGeneratorObject::kContextOffset));
   __ AssertNotSmi(context);
   __ CheckPageFlag(generator, MemoryChunk::kPointersFromHereAreInterestingMask,
-                   eq, &deferred_context_write_barrier->deferred_code_label);
+                   ne, &deferred_context_write_barrier->deferred_code_label);
   __ bind(*done);
 
   UseScratchRegisterScope temps(masm);

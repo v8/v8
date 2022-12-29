@@ -287,7 +287,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     }
     __ CheckPageFlag(
         value_, MemoryChunk::kPointersToHereAreInterestingOrInSharedHeapMask,
-        ne, exit());
+        eq, exit());
     SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
                                             ? SaveFPRegsMode::kSave
                                             : SaveFPRegsMode::kIgnore;
@@ -956,7 +956,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ JumpIfSmi(value, ool->exit());
       }
       __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask,
-                       eq, ool->entry());
+                       ne, ool->entry());
       __ Bind(ool->exit());
       break;
     }
@@ -975,7 +975,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ JumpIfSmi(value, ool->exit());
       }
       __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask,
-                       eq, ool->entry());
+                       ne, ool->entry());
       __ Bind(ool->exit());
       break;
     }
