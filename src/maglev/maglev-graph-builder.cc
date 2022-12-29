@@ -516,9 +516,11 @@ ValueNode* MaglevGraphBuilder::TryFoldInt32BinaryOperation(ValueNode* left,
                                                            ValueNode* right) {
   switch (kOperation) {
     case Operation::kModulus:
-      // x % x = 0
-      if (right == left) return GetInt32Constant(0);
-      break;
+      // Note the `x % x = 0` fold is invalid since for negative x values the
+      // result is -0.0.
+      // TODO(v8:7700): Consider re-enabling this fold if the result is used
+      // only in contexts where -0.0 is semantically equivalent to 0.0, or if x
+      // is known to be non-negative.
     default:
       // TODO(victorgomes): Implement more folds.
       break;
@@ -531,13 +533,14 @@ ValueNode* MaglevGraphBuilder::TryFoldInt32BinaryOperation(ValueNode* left,
                                                            int right) {
   switch (kOperation) {
     case Operation::kModulus:
-      // x % 1 = 0
-      // x % -1 = 0
-      if (right == 1 || right == -1) return GetInt32Constant(0);
+      // Note the `x % 1 = 0` and `x % -1 = 0` folds are invalid since for
+      // negative x values the result is -0.0.
+      // TODO(v8:7700): Consider re-enabling this fold if the result is used
+      // only in contexts where -0.0 is semantically equivalent to 0.0, or if x
+      // is known to be non-negative.
       // TODO(victorgomes): We can emit faster mod operation if {right} is power
       // of 2, unfortunately we need to know if {left} is negative or not.
       // Maybe emit a Int32ModulusRightIsPowerOf2?
-      break;
     default:
       // TODO(victorgomes): Implement more folds.
       break;

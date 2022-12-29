@@ -1432,12 +1432,16 @@ void Int32ModulusWithOverflow::SetValueLocationConstraints() {
 
 void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
                                             const ProcessingState& state) {
-  // Using same algorithm as in EffectControlLinearizer:
+  // If AreAliased(lhs, rhs):
+  //   deopt if lhs < 0  // Minus zero.
+  //   0
+  //
+  // Otherwise, use the same algorithm as in EffectControlLinearizer:
   //   if rhs <= 0 then
   //     rhs = -rhs
   //     deopt if rhs == 0
   //   if lhs < 0 then
-  //     let lhs_abs = -lsh in
+  //     let lhs_abs = -lhs in
   //     let res = lhs_abs % rhs in
   //     deopt if res == 0
   //     -res
@@ -1450,57 +1454,77 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
 
   DCHECK(general_temporaries().has(rax));
   DCHECK(general_temporaries().has(rdx));
-  Register left = ToRegister(left_input());
-  Register right = ToRegister(right_input());
+  Register lhs = ToRegister(left_input());
+  Register rhs = ToRegister(right_input());
+
+  static constexpr DeoptimizeReason deopt_reason =
+      DeoptimizeReason::kDivisionByZero;
+
+  if (lhs == rhs) {
+    // For the modulus algorithm described above, lhs and rhs must not alias
+    // each other.
+    __ testl(lhs, lhs);
+    // TODO(victorgomes): This ideally should be kMinusZero, but Maglev only
+    // allows one deopt reason per IR.
+    __ EmitEagerDeoptIf(negative, deopt_reason, this);
+    __ Move(ToRegister(result()), 0);
+    return;
+  }
+
+  DCHECK(!AreAliased(lhs, rhs, rax, rdx));
 
   ZoneLabelRef done(masm);
   ZoneLabelRef rhs_checked(masm);
 
-  __ cmpl(right, Immediate(0));
+  __ cmpl(rhs, Immediate(0));
   __ JumpToDeferredIf(
       less_equal,
-      [](MaglevAssembler* masm, ZoneLabelRef rhs_checked, Register right,
+      [](MaglevAssembler* masm, ZoneLabelRef rhs_checked, Register rhs,
          Int32ModulusWithOverflow* node) {
-        __ negl(right);
-        __ EmitEagerDeoptIf(zero, DeoptimizeReason::kDivisionByZero, node);
+        __ negl(rhs);
+        __ EmitEagerDeoptIf(zero, deopt_reason, node);
         __ jmp(*rhs_checked);
       },
-      rhs_checked, right, this);
+      rhs_checked, rhs, this);
   __ bind(*rhs_checked);
 
-  __ cmpl(left, Immediate(0));
+  __ cmpl(lhs, Immediate(0));
   __ JumpToDeferredIf(
       less,
-      [](MaglevAssembler* masm, ZoneLabelRef done, Register left,
-         Register right, Int32ModulusWithOverflow* node) {
-        __ movl(rax, left);
+      [](MaglevAssembler* masm, ZoneLabelRef done, Register lhs, Register rhs,
+         Int32ModulusWithOverflow* node) {
+        // `divl(divisor)` divides rdx:rax by the divisor and stores the
+        // quotient in rax, the remainder in rdx.
+        __ movl(rax, lhs);
         __ negl(rax);
         __ xorl(rdx, rdx);
-        __ divl(right);
+        __ divl(rhs);
         __ testl(rdx, rdx);
         // TODO(victorgomes): This ideally should be kMinusZero, but Maglev only
         // allows one deopt reason per IR.
-        __ EmitEagerDeoptIf(equal, DeoptimizeReason::kDivisionByZero, node);
+        __ EmitEagerDeoptIf(equal, deopt_reason, node);
         __ negl(rdx);
         __ jmp(*done);
       },
-      done, left, right, this);
+      done, lhs, rhs, this);
 
-  Label right_not_power_of_2;
+  Label rhs_not_power_of_2;
   Register mask = rax;
-  __ leal(mask, Operand(right, -1));
-  __ testl(right, mask);
-  __ j(not_zero, &right_not_power_of_2, Label::kNear);
+  __ leal(mask, Operand(rhs, -1));
+  __ testl(rhs, mask);
+  __ j(not_zero, &rhs_not_power_of_2, Label::kNear);
 
-  // {right} is power of 2.
-  __ andl(mask, left);
+  // {rhs} is power of 2.
+  __ andl(mask, lhs);
   __ movl(ToRegister(result()), mask);
   __ jmp(*done, Label::kNear);
 
-  __ bind(&right_not_power_of_2);
-  __ movl(rax, left);
+  __ bind(&rhs_not_power_of_2);
+  // `divl(divisor)` divides rdx:rax by the divisor and stores the
+  // quotient in rax, the remainder in rdx.
+  __ movl(rax, lhs);
   __ xorl(rdx, rdx);
-  __ divl(right);
+  __ divl(rhs);
   // Result is implicitly written to rdx.
   DCHECK_EQ(ToRegister(result()), rdx);
 

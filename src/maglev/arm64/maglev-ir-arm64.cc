@@ -906,6 +906,10 @@ void Int32ModulusWithOverflow::SetValueLocationConstraints() {
 }
 void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
                                             const ProcessingState& state) {
+  // If AreAliased(lhs, rhs):
+  //   deopt if lhs < 0  // Minus zero.
+  //   0
+  //
   // Using same algorithm as in EffectControlLinearizer:
   //   if rhs <= 0 then
   //     rhs = -rhs
@@ -922,62 +926,78 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
   //     else
   //       lhs % rhs
 
-  Register left = ToRegister(left_input()).W();
-  Register right = ToRegister(right_input()).W();
+  Register lhs = ToRegister(left_input()).W();
+  Register rhs = ToRegister(right_input()).W();
   Register out = ToRegister(result()).W();
+
+  static constexpr DeoptimizeReason deopt_reason =
+      DeoptimizeReason::kDivisionByZero;
+
+  if (lhs == rhs) {
+    // For the modulus algorithm described above, lhs and rhs must not alias
+    // each other.
+    __ Tst(lhs, lhs);
+    // TODO(victorgomes): This ideally should be kMinusZero, but Maglev only
+    // allows one deopt reason per IR.
+    __ EmitEagerDeoptIf(mi, deopt_reason, this);
+    __ Move(ToRegister(result()), 0);
+    return;
+  }
+
+  DCHECK(!AreAliased(lhs, rhs));
 
   ZoneLabelRef done(masm);
   ZoneLabelRef rhs_checked(masm);
-  __ Cmp(right, Immediate(0));
+  __ Cmp(rhs, Immediate(0));
   __ JumpToDeferredIf(
       le,
-      [](MaglevAssembler* masm, ZoneLabelRef rhs_checked, Register right,
+      [](MaglevAssembler* masm, ZoneLabelRef rhs_checked, Register rhs,
          Int32ModulusWithOverflow* node) {
-        __ Negs(right, right);
-        __ EmitEagerDeoptIf(eq, DeoptimizeReason::kDivisionByZero, node);
+        __ Negs(rhs, rhs);
+        __ EmitEagerDeoptIf(eq, deopt_reason, node);
         __ Jump(*rhs_checked);
       },
-      rhs_checked, right, this);
+      rhs_checked, rhs, this);
   __ bind(*rhs_checked);
 
-  __ Cmp(left, Immediate(0));
+  __ Cmp(lhs, Immediate(0));
   __ JumpToDeferredIf(
       lt,
-      [](MaglevAssembler* masm, ZoneLabelRef done, Register left,
-         Register right, Register out, Int32ModulusWithOverflow* node) {
+      [](MaglevAssembler* masm, ZoneLabelRef done, Register lhs, Register rhs,
+         Register out, Int32ModulusWithOverflow* node) {
         UseScratchRegisterScope temps(masm);
         Register res = temps.AcquireW();
-        __ neg(left, left);
-        __ udiv(res, left, right);
-        __ msub(out, res, right, left);
+        __ neg(lhs, lhs);
+        __ udiv(res, lhs, rhs);
+        __ msub(out, res, rhs, lhs);
         __ cmp(out, Immediate(0));
         // TODO(victorgomes): This ideally should be kMinusZero, but Maglev
         // only allows one deopt reason per IR.
-        __ EmitEagerDeoptIf(eq, DeoptimizeReason::kDivisionByZero, node);
+        __ EmitEagerDeoptIf(eq, deopt_reason, node);
         __ neg(out, out);
         __ b(*done);
       },
-      done, left, right, out, this);
+      done, lhs, rhs, out, this);
 
-  Label right_not_power_of_2;
+  Label rhs_not_power_of_2;
   UseScratchRegisterScope temps(masm);
   Register mask = temps.AcquireW();
-  __ Add(mask, right, Immediate(-1));
-  __ Tst(mask, right);
-  __ JumpIf(ne, &right_not_power_of_2);
+  __ Add(mask, rhs, Immediate(-1));
+  __ Tst(mask, rhs);
+  __ JumpIf(ne, &rhs_not_power_of_2);
 
-  // {right} is power of 2.
-  __ And(out, mask, left);
+  // {rhs} is power of 2.
+  __ And(out, mask, lhs);
   __ Jump(*done);
 
-  __ bind(&right_not_power_of_2);
+  __ bind(&rhs_not_power_of_2);
 
   // We store the result of the Udiv in a temporary register in case {out} is
-  // the same as {left} or {right}: we'll still need those 2 registers intact to
+  // the same as {lhs} or {rhs}: we'll still need those 2 registers intact to
   // get the remainder.
   Register res = mask;
-  __ Udiv(res, left, right);
-  __ Msub(out, res, right, left);
+  __ Udiv(res, lhs, rhs);
+  __ Msub(out, res, rhs, lhs);
 
   __ bind(*done);
 }
