@@ -309,6 +309,10 @@ inline void MaglevAssembler::Move(Register dst, Handle<HeapObject> obj) {
   MacroAssembler::Move(dst, obj);
 }
 
+inline void MaglevAssembler::SignExtend32To64Bits(Register dst, Register src) {
+  movsxlq(dst, src);
+}
+
 inline void MaglevAssembler::CompareInt32(Register src1, Register src2) {
   cmpl(src1, src2);
 }

@@ -154,6 +154,8 @@ class MaglevAssembler : public MacroAssembler {
   inline void Move(DoubleRegister dst, double n);
   inline void Move(Register dst, Handle<HeapObject> obj);
 
+  inline void SignExtend32To64Bits(Register dst, Register src);
+
   inline void CompareInt32(Register src1, Register src2);
 
   inline void Jump(Label* target);

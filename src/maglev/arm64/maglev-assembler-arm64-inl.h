@@ -348,6 +348,10 @@ inline void MaglevAssembler::Move(Register dst, Handle<HeapObject> obj) {
   Mov(dst, Operand(obj));
 }
 
+inline void MaglevAssembler::SignExtend32To64Bits(Register dst, Register src) {
+  Mov(dst, Operand(src.W(), SXTW));
+}
+
 inline void MaglevAssembler::CompareInt32(Register src1, Register src2) {
   Cmp(src1.W(), src2.W());
 }

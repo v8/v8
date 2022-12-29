@@ -788,9 +788,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
 #define DECLARE_FUNCTION(FN, REGTYPE, REG, OP) \
   inline void FN(const REGTYPE REG, const MemOperand& addr);
-  LS_MACRO_LIST(DECLARE_FUNCTION)
+      LS_MACRO_LIST(DECLARE_FUNCTION)
 #undef DECLARE_FUNCTION
 
+  // Caution: if {value} is a 32-bit negative int, it should be sign-extended
+  // to 64-bit before calling this function.
   void Switch(Register scratch, Register value, int case_value_base,
               Label** labels, int num_labels);
 

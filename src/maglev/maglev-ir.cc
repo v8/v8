@@ -2278,7 +2278,12 @@ void Switch::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
     block->set_start_block_of_switch_case(true);
     labels[i] = block->label();
   }
-  __ Switch(scratch, ToRegister(value()), value_base(), labels.get(), size());
+  Register val = ToRegister(value());
+  // Switch requires {val} (the switch's condition) to be 64-bit, but maglev
+  // usually manipulates/creates 32-bit integers. We thus sign-extend {val} to
+  // 64-bit to have the correct value for negative numbers.
+  __ SignExtend32To64Bits(val, val);
+  __ Switch(scratch, val, value_base(), labels.get(), size());
   if (has_fallthrough()) {
     DCHECK_EQ(fallthrough(), state.next_block());
   } else {
