@@ -2661,9 +2661,13 @@ void HeapNumber::HeapNumberShortPrint(std::ostream& os) {
   static constexpr int64_t kMaxSafeInteger = -(kMinSafeInteger + 1);
 
   double val = value();
-  if (val == DoubleToInteger(val) &&
-      val >= static_cast<double>(kMinSafeInteger) &&
-      val <= static_cast<double>(kMaxSafeInteger)) {
+  if (i::IsMinusZero(val)) {
+    os << "-0.0";
+  } else if (val == DoubleToInteger(val) &&
+             val >= static_cast<double>(kMinSafeInteger) &&
+             val <= static_cast<double>(kMaxSafeInteger)) {
+    // Print integer HeapNumbers in safe integer range with max precision: as
+    // 9007199254740991.0 instead of 9.0072e+15
     int64_t i = static_cast<int64_t>(val);
     os << i << ".0";
   } else {
