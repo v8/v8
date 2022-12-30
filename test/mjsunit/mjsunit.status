@@ -1114,6 +1114,10 @@
 
   # BUG(v8:13379) maglev-inlining flag isn't stable enough for fuzzing.
   'maglev/eager-deopt-in-inline': [SKIP],
+
+  # BUG(v8:13545) Skipped until issue is fixed to reduce noise on alerts.
+  'wasm/log-code-after-post-message': [SKIP],
+  'asm/regress-1395401': [SKIP],
 }], # gc_fuzzer or deopt_fuzzer or interrupt_fuzzer
 
 ##############################################################################
