@@ -2115,8 +2115,7 @@ void MarkCompactCollector::MarkRoots(RootVisitor* root_visitor) {
     //
     // TODO(v8:v8:13207): Remove as this is not required when using `CppHeap`.
     auto& stack = heap()->stack();
-    if (heap_->local_embedder_heap_tracer()->embedder_stack_state() ==
-        cppgc::EmbedderStackState::kMayContainHeapPointers) {
+    if (heap_->IsGCWithStack()) {
       ConservativeTracedHandlesMarkingVisitor conservative_marker(
           *heap_, *local_marking_worklists_,
           cppgc::internal::CollectionType::kMajor);

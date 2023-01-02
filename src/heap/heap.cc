@@ -4869,11 +4869,10 @@ void Heap::IterateStackRoots(RootVisitor* v, StackState stack_state) {
   isolate_->Iterate(v);
 
 #ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-  if (stack_state == StackState::kMayContainHeapPointers &&
-      !disable_conservative_stack_scanning_for_testing_) {
-    ConservativeStackVisitor stack_visitor(isolate(), v);
-    stack().IteratePointers(&stack_visitor);
-  }
+  if (stack_state == StackState::kNoHeapPointers || !IsGCWithStack()) return;
+
+  ConservativeStackVisitor stack_visitor(isolate_, v);
+  stack().IteratePointers(&stack_visitor);
 #endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
 }
 
