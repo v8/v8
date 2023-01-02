@@ -533,6 +533,7 @@ def build_config_content(cpu, icu):
         ("v8_enable_single_generation", "false"),
         ("v8_enable_sandbox", "false"),
         ("v8_enable_shared_ro_heap", "false"),
+        ("v8_disable_write_barriers", "false"),
         ("v8_target_cpu", cpu),
     ])
 
