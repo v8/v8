@@ -138,18 +138,53 @@ size_t GetInputLocationsArraySize(const DeoptFrame& top_frame) {
   return size;
 }
 
-}  // namespace
-
-bool RootConstant::ToBoolean(LocalIsolate* local_isolate) const {
-  switch (index_) {
+bool RootToBoolean(RootIndex index) {
+  switch (index) {
     case RootIndex::kFalseValue:
     case RootIndex::kNullValue:
     case RootIndex::kUndefinedValue:
+    case RootIndex::kNanValue:
+    case RootIndex::kHoleNanValue:
+    case RootIndex::kMinusZeroValue:
     case RootIndex::kempty_string:
       return false;
     default:
       return true;
   }
+}
+
+#ifdef DEBUG
+// For all RO roots, check that RootToBoolean returns the same value as
+// BooleanValue on that root.
+bool CheckToBooleanOnAllRoots(LocalIsolate* local_isolate) {
+  ReadOnlyRoots roots(local_isolate);
+  // Use the READ_ONLY_ROOT_LIST macro list rather than a for loop to get nicer
+  // error messages if there is a failure.
+#define DO_CHECK(type, name, CamelName)                                   \
+  /* Ignore 'undefined' roots that are not the undefined value itself. */ \
+  if (roots.name() != roots.undefined_value() ||                          \
+      RootIndex::k##CamelName == RootIndex::kUndefinedValue) {            \
+    DCHECK_EQ(roots.name().BooleanValue(local_isolate),                   \
+              RootToBoolean(RootIndex::k##CamelName));                    \
+  }
+  READ_ONLY_ROOT_LIST(DO_CHECK)
+#undef DO_CHECK
+  return true;
+}
+#endif
+
+}  // namespace
+
+bool RootConstant::ToBoolean(LocalIsolate* local_isolate) const {
+#ifdef DEBUG
+  // (Ab)use static locals to call CheckToBooleanOnAllRoots once, on first
+  // call to this function.
+  static bool check_once = CheckToBooleanOnAllRoots(local_isolate);
+  DCHECK(check_once);
+#endif
+  // ToBoolean is only supported for RO roots.
+  DCHECK(RootsTable::IsReadOnly(index_));
+  return RootToBoolean(index_);
 }
 
 DeoptInfo::DeoptInfo(Zone* zone, DeoptFrame top_frame,
