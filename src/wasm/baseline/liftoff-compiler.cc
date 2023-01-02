@@ -5943,44 +5943,50 @@ class LiftoffCompiler {
     __ LoadMap(tmp1, obj_reg);
     // {tmp1} now holds the object's map.
 
-    // Check for rtt equality, and if not, check if the rtt is a struct/array
-    // rtt.
-    __ emit_cond_jump(kEqual, &match, rtt_type.kind(), tmp1, rtt_reg, frozen);
+    if (module->types[rtt_type.ref_index()].is_final) {
+      // In this case, simply check for map equality.
+      __ emit_cond_jump(kUnequal, no_match, rtt_type.kind(), tmp1, rtt_reg,
+                        frozen);
+    } else {
+      // Check for rtt equality, and if not, check if the rtt is a struct/array
+      // rtt.
+      __ emit_cond_jump(kEqual, &match, rtt_type.kind(), tmp1, rtt_reg, frozen);
 
-    if (is_cast_from_any) {
-      // Check for map being a map for a wasm object (struct, array, func).
-      __ Load(LiftoffRegister(scratch2), tmp1, no_reg,
-              wasm::ObjectAccess::ToTagged(Map::kInstanceTypeOffset),
-              LoadType::kI32Load16U);
-      __ emit_i32_subi(scratch2, scratch2, FIRST_WASM_OBJECT_TYPE);
-      __ emit_i32_cond_jumpi(kUnsignedGreaterThan, no_match, scratch2,
-                             LAST_WASM_OBJECT_TYPE - FIRST_WASM_OBJECT_TYPE,
-                             frozen);
-    }
+      if (is_cast_from_any) {
+        // Check for map being a map for a wasm object (struct, array, func).
+        __ Load(LiftoffRegister(scratch2), tmp1, no_reg,
+                wasm::ObjectAccess::ToTagged(Map::kInstanceTypeOffset),
+                LoadType::kI32Load16U);
+        __ emit_i32_subi(scratch2, scratch2, FIRST_WASM_OBJECT_TYPE);
+        __ emit_i32_cond_jumpi(kUnsignedGreaterThan, no_match, scratch2,
+                               LAST_WASM_OBJECT_TYPE - FIRST_WASM_OBJECT_TYPE,
+                               frozen);
+      }
 
-    // Constant-time subtyping check: load exactly one candidate RTT from the
-    // supertypes list.
-    // Step 1: load the WasmTypeInfo into {tmp1}.
-    constexpr int kTypeInfoOffset = wasm::ObjectAccess::ToTagged(
-        Map::kConstructorOrBackPointerOrNativeContextOffset);
-    __ LoadTaggedPointer(tmp1, tmp1, no_reg, kTypeInfoOffset);
-    // Step 2: check the list's length if needed.
-    uint32_t rtt_depth = GetSubtypingDepth(module, rtt_type.ref_index());
-    if (rtt_depth >= kMinimumSupertypeArraySize) {
-      LiftoffRegister list_length(scratch2);
-      int offset =
-          ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesLengthOffset);
-      __ LoadSmiAsInt32(list_length, tmp1, offset);
-      __ emit_i32_cond_jumpi(kUnsignedLessEqual, no_match, list_length.gp(),
-                             rtt_depth, frozen);
+      // Constant-time subtyping check: load exactly one candidate RTT from the
+      // supertypes list.
+      // Step 1: load the WasmTypeInfo into {tmp1}.
+      constexpr int kTypeInfoOffset = wasm::ObjectAccess::ToTagged(
+          Map::kConstructorOrBackPointerOrNativeContextOffset);
+      __ LoadTaggedPointer(tmp1, tmp1, no_reg, kTypeInfoOffset);
+      // Step 2: check the list's length if needed.
+      uint32_t rtt_depth = GetSubtypingDepth(module, rtt_type.ref_index());
+      if (rtt_depth >= kMinimumSupertypeArraySize) {
+        LiftoffRegister list_length(scratch2);
+        int offset =
+            ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesLengthOffset);
+        __ LoadSmiAsInt32(list_length, tmp1, offset);
+        __ emit_i32_cond_jumpi(kUnsignedLessEqual, no_match, list_length.gp(),
+                               rtt_depth, frozen);
+      }
+      // Step 3: load the candidate list slot into {tmp1}, and compare it.
+      __ LoadTaggedPointer(
+          tmp1, tmp1, no_reg,
+          ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesOffset +
+                                 rtt_depth * kTaggedSize));
+      __ emit_cond_jump(kUnequal, no_match, rtt_type.kind(), tmp1, rtt_reg,
+                        frozen);
     }
-    // Step 3: load the candidate list slot into {tmp1}, and compare it.
-    __ LoadTaggedPointer(
-        tmp1, tmp1, no_reg,
-        ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesOffset +
-                               rtt_depth * kTaggedSize));
-    __ emit_cond_jump(kUnequal, no_match, rtt_type.kind(), tmp1, rtt_reg,
-                      frozen);
 
     // Fall through to {match}.
     __ bind(&match);
