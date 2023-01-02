@@ -172,6 +172,8 @@ class V8_EXPORT_PRIVATE CompilationState {
   // Set a higher priority for the compilation job.
   void SetHighPriority();
 
+  void TierUpAllFunctions();
+
   bool failed() const;
   bool baseline_compilation_finished() const;
 

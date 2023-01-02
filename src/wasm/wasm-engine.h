@@ -202,7 +202,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // Compiles the function with the given index at a specific compilation tier.
   // Errors are stored internally in the CompilationState.
   // This is mostly used for testing to force a function into a specific tier.
-  void CompileFunction(Isolate* isolate, NativeModule* native_module,
+  void CompileFunction(Counters* counters, NativeModule* native_module,
                        uint32_t function_index, ExecutionTier tier);
 
   void EnterDebuggingForIsolate(Isolate* isolate);
