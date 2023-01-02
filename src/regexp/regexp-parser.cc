@@ -20,6 +20,7 @@
 #include "unicode/uniset.h"
 #include "unicode/unistr.h"
 #include "unicode/usetiter.h"
+#include "unicode/utf16.h"  // For U16_NEXT
 #endif  // V8_INTL_SUPPORT
 
 namespace v8 {
