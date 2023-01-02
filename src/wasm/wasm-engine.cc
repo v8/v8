@@ -705,13 +705,12 @@ std::shared_ptr<StreamingDecoder> WasmEngine::StartStreamingCompilation(
       isolate, enabled, context, api_method_name, std::move(resolver));
 }
 
-void WasmEngine::CompileFunction(Counters* counters,
-                                 NativeModule* native_module,
+void WasmEngine::CompileFunction(Isolate* isolate, NativeModule* native_module,
                                  uint32_t function_index, ExecutionTier tier) {
   // Note we assume that "one-off" compilations can discard detected features.
   WasmFeatures detected = WasmFeatures::None();
   WasmCompilationUnit::CompileWasmFunction(
-      counters, native_module, &detected,
+      isolate, native_module, &detected,
       &native_module->module()->functions[function_index], tier);
 }
 

@@ -301,7 +301,7 @@ TEST(SharedEngineRunThreadedTierUp) {
     Handle<WasmInstanceObject> instance = isolate->ImportInstance(module);
     WasmFeatures detected = WasmFeatures::None();
     WasmCompilationUnit::CompileWasmFunction(
-        isolate->isolate()->counters(), module.get(), &detected,
+        isolate->isolate(), module.get(), &detected,
         &module->module()->functions[0], ExecutionTier::kTurbofan);
     CHECK_EQ(23, isolate->Run(instance));
   });
