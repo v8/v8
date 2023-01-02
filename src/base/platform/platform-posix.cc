@@ -582,9 +582,14 @@ bool OS::DecommitPages(void* address, size_t size) {
   // shall be removed, as if by an appropriate call to munmap(), before the new
   // mapping is established." As a consequence, the memory will be
   // zero-initialized on next access.
-  void* ptr = mmap(address, size, PROT_NONE,
+  void* ret = mmap(address, size, PROT_NONE,
                    MAP_FIXED | MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
-  return ptr == address;
+  if (V8_UNLIKELY(ret == MAP_FAILED)) {
+    CHECK_EQ(ENOMEM, errno);
+    return false;
+  }
+  CHECK_EQ(ret, address);
+  return true;
 }
 #endif  // !defined(_AIX)
 

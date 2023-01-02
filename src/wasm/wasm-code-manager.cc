@@ -2010,8 +2010,14 @@ void WasmCodeManager::Decommit(base::AddressRegion region) {
   USE(old_committed);
   TRACE_HEAP("Decommitting system pages 0x%" PRIxPTR ":0x%" PRIxPTR "\n",
              region.begin(), region.end());
-  CHECK(allocator->DecommitPages(reinterpret_cast<void*>(region.begin()),
-                                 region.size()));
+  if (V8_UNLIKELY(!allocator->DecommitPages(
+          reinterpret_cast<void*>(region.begin()), region.size()))) {
+    // Decommit can fail in near-OOM situations.
+    auto oom_detail = base::FormattedString{} << "region size: "
+                                              << region.size();
+    V8::FatalProcessOutOfMemory(nullptr, "Decommit Wasm code space",
+                                oom_detail.PrintToArray().data());
+  }
 }
 
 void WasmCodeManager::AssignRange(base::AddressRegion region,
