@@ -1179,13 +1179,13 @@ auto Module::exports() const -> ownvec<ExportType> {
   return ExportsImpl(impl(this)->v8_object());
 }
 
-// We serialize the state of the module when calling this method; an arbitrary
-// number of functions can be tiered up to TurboFan, and only those will be
-// serialized.
-// The caller is responsible for "warming up" the module before serializing.
+// We tier up all functions to TurboFan, and then serialize all TurboFan code.
+// If no TurboFan code existed before calling this function, then the call to
+// {serialize} may take a long time.
 auto Module::serialize() const -> vec<byte_t> {
   i::wasm::NativeModule* native_module =
       impl(this)->v8_object()->native_module();
+  native_module->compilation_state()->TierUpAllFunctions();
   v8::base::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
   size_t binary_size = wire_bytes.size();
   i::wasm::WasmSerializer serializer(native_module);
@@ -1200,8 +1200,10 @@ auto Module::serialize() const -> vec<byte_t> {
   ptr += binary_size;
   if (!serializer.SerializeNativeModule(
           {reinterpret_cast<uint8_t*>(ptr), serial_size})) {
-    // Serialization failed, because no TurboFan code is present yet. In this
-    // case, the serialized module just contains the wire bytes.
+    // Serialization fails if no TurboFan code is present. This may happen
+    // because the module does not have any functions, or because another thread
+    // modifies the {NativeModule} concurrently. In this case, the serialized
+    // module just contains the wire bytes.
     buffer = vec<byte_t>::make_uninitialized(size_size + binary_size);
     byte_t* ptr = buffer.get();
     i::wasm::LEBHelper::write_u64v(reinterpret_cast<uint8_t**>(&ptr),

@@ -631,6 +631,8 @@ class CompilationStateImpl {
     compile_job_->UpdatePriority(TaskPriority::kUserBlocking);
   }
 
+  void TierUpAllFunctions();
+
   bool failed() const {
     return compile_failed_.load(std::memory_order_relaxed);
   }
@@ -835,6 +837,10 @@ void CompilationState::AddCallback(
 }
 
 void CompilationState::SetHighPriority() { Impl(this)->SetHighPriority(); }
+
+void CompilationState::TierUpAllFunctions() {
+  Impl(this)->TierUpAllFunctions();
+}
 
 void CompilationState::InitializeAfterDeserialization(
     base::Vector<const int> lazy_functions,
@@ -1410,7 +1416,8 @@ void TierUpNowForTesting(Isolate* isolate, WasmInstanceObject instance,
     TransitiveTypeFeedbackProcessor::Process(instance, func_index);
   }
   auto* native_module = instance.module_object().native_module();
-  wasm::GetWasmEngine()->CompileFunction(isolate, native_module, func_index,
+  wasm::GetWasmEngine()->CompileFunction(isolate->counters(), native_module,
+                                         func_index,
                                          wasm::ExecutionTier::kTurbofan);
   CHECK(!native_module->compilation_state()->failed());
 }
@@ -3696,6 +3703,45 @@ void CompilationStateImpl::WaitForCompilationEvent(
   ExecuteCompilationUnits(native_module_weak_, async_counters_.get(), &delegate,
                           kBaselineOnly);
   semaphore->Wait();
+}
+
+void CompilationStateImpl::TierUpAllFunctions() {
+  const WasmModule* module = native_module_->module();
+  uint32_t num_wasm_functions = module->num_declared_functions;
+  WasmCodeRefScope code_ref_scope;
+  CompilationUnitBuilder builder(native_module_);
+  for (uint32_t i = 0; i < num_wasm_functions; ++i) {
+    int func_index = module->num_imported_functions + i;
+    WasmCode* code = native_module_->GetCode(func_index);
+    if (!code || !code->is_turbofan()) {
+      builder.AddTopTierUnit(func_index, ExecutionTier::kTurbofan);
+    }
+  }
+  builder.Commit();
+
+  // Join the compilation, until no compilation units are left anymore.
+  class DummyDelegate final : public JobDelegate {
+    bool ShouldYield() override { return false; }
+    bool IsJoiningThread() const override { return true; }
+    void NotifyConcurrencyIncrease() override { UNIMPLEMENTED(); }
+    uint8_t GetTaskId() override { return kMainTaskId; }
+  };
+
+  DummyDelegate delegate;
+  ExecuteCompilationUnits(native_module_weak_, async_counters_.get(), &delegate,
+                          kBaselineOrTopTier);
+
+  // We cannot wait for other compilation threads to finish, so we explicitly
+  // compile all functions which are not yet available as TurboFan code.
+  for (uint32_t i = 0; i < num_wasm_functions; ++i) {
+    uint32_t func_index = module->num_imported_functions + i;
+    WasmCode* code = native_module_->GetCode(func_index);
+    if (!code || !code->is_turbofan()) {
+      wasm::GetWasmEngine()->CompileFunction(async_counters_.get(),
+                                             native_module_, func_index,
+                                             wasm::ExecutionTier::kTurbofan);
+    }
+  }
 }
 
 namespace {

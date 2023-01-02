@@ -158,7 +158,7 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
 }
 
 // static
-void WasmCompilationUnit::CompileWasmFunction(Isolate* isolate,
+void WasmCompilationUnit::CompileWasmFunction(Counters* counters,
                                               NativeModule* native_module,
                                               WasmFeatures* detected,
                                               const WasmFunction* function,
@@ -174,7 +174,7 @@ void WasmCompilationUnit::CompileWasmFunction(Isolate* isolate,
   CompilationEnv env = native_module->CreateCompilationEnv();
   WasmCompilationResult result = unit.ExecuteCompilation(
       &env, native_module->compilation_state()->GetWireBytesStorage().get(),
-      isolate->counters(), nullptr, detected);
+      counters, nullptr, detected);
   if (result.succeeded()) {
     WasmCodeRefScope code_ref_scope;
     native_module->PublishCode(
