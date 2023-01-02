@@ -139,7 +139,6 @@ UNIMPLEMENTED_NODE_WITH_CALL(StoreMap)
 UNIMPLEMENTED_NODE(StoreDoubleField)
 UNIMPLEMENTED_NODE(StoreSignedIntDataViewElement, type_)
 UNIMPLEMENTED_NODE(StoreDoubleDataViewElement)
-UNIMPLEMENTED_NODE_WITH_CALL(StoreTaggedFieldWithWriteBarrier)
 
 int BuiltinStringFromCharCode::MaxCallStackArgs() const {
   return AllocateDescriptor::GetStackParameterCount();
@@ -1639,6 +1638,62 @@ void LoadDoubleElement::GenerateCode(MaglevAssembler* masm,
   __ Add(elements, elements, Operand(index, LSL, kDoubleSizeLog2));
   __ Ldr(ToDoubleRegister(result()),
          FieldMemOperand(elements, FixedArray::kHeaderSize));
+}
+
+int StoreTaggedFieldWithWriteBarrier::MaxCallStackArgs() const {
+  return WriteBarrierDescriptor::GetStackParameterCount();
+}
+void StoreTaggedFieldWithWriteBarrier::SetValueLocationConstraints() {
+  UseFixed(object_input(), WriteBarrierDescriptor::ObjectRegister());
+  UseRegister(value_input());
+}
+void StoreTaggedFieldWithWriteBarrier::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
+  // TODO(leszeks): Consider making this an arbitrary register and push/popping
+  // in the deferred path.
+  Register object = WriteBarrierDescriptor::ObjectRegister();
+  DCHECK_EQ(object, ToRegister(object_input()));
+
+  Register value = ToRegister(value_input());
+
+  __ AssertNotSmi(object);
+  __ StoreTaggedField(FieldMemOperand(object, offset()), value);
+
+  ZoneLabelRef done(masm);
+  DeferredCodeInfo* deferred_write_barrier = __ PushDeferredCode(
+      [](MaglevAssembler* masm, ZoneLabelRef done, Register value,
+         Register object, StoreTaggedFieldWithWriteBarrier* node) {
+        ASM_CODE_COMMENT_STRING(masm, "Write barrier slow path");
+        __ CheckPageFlag(
+            value, MemoryChunk::kPointersToHereAreInterestingOrInSharedHeapMask,
+            eq, *done);
+
+        Register slot_reg = WriteBarrierDescriptor::SlotAddressRegister();
+        RegList saved;
+        if (node->register_snapshot().live_registers.has(slot_reg)) {
+          saved.set(slot_reg);
+        }
+
+        __ PushAll(saved);
+        __ Add(slot_reg, object, node->offset() - kHeapObjectTag);
+
+        SaveFPRegsMode const save_fp_mode =
+            !node->register_snapshot().live_double_registers.is_empty()
+                ? SaveFPRegsMode::kSave
+                : SaveFPRegsMode::kIgnore;
+
+        __ CallRecordWriteStub(object, slot_reg, save_fp_mode);
+
+        __ PopAll(saved);
+        __ B(*done);
+      },
+      done, value, object, this);
+
+  __ JumpIfSmi(value, *done);
+  __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask, ne,
+                   &deferred_write_barrier->deferred_code_label);
+
+  __ bind(*done);
 }
 
 void StringLength::SetValueLocationConstraints() {
