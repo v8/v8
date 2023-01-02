@@ -135,8 +135,6 @@ UNIMPLEMENTED_NODE(CheckJSDataViewBounds, element_type_)
 UNIMPLEMENTED_NODE(CheckJSObjectElementsBounds)
 UNIMPLEMENTED_NODE(CheckJSTypedArrayBounds, elements_kind_)
 UNIMPLEMENTED_NODE_WITH_CALL(JumpLoopPrologue, loop_depth_, unit_)
-UNIMPLEMENTED_NODE_WITH_CALL(StoreMap)
-UNIMPLEMENTED_NODE(StoreDoubleField)
 UNIMPLEMENTED_NODE(StoreSignedIntDataViewElement, type_)
 UNIMPLEMENTED_NODE(StoreDoubleDataViewElement)
 
@@ -1239,7 +1237,6 @@ void CheckInt32IsSmi::GenerateCode(MaglevAssembler* masm,
 void CheckedSmiTagInt32::SetValueLocationConstraints() {
   UseRegister(input());
   DefineAsRegister(this);
-  set_temporaries_needed(1);
 }
 void CheckedSmiTagInt32::GenerateCode(MaglevAssembler* masm,
                                       const ProcessingState& state) {
@@ -1638,6 +1635,81 @@ void LoadDoubleElement::GenerateCode(MaglevAssembler* masm,
   __ Add(elements, elements, Operand(index, LSL, kDoubleSizeLog2));
   __ Ldr(ToDoubleRegister(result()),
          FieldMemOperand(elements, FixedArray::kHeaderSize));
+}
+
+void StoreDoubleField::SetValueLocationConstraints() {
+  UseRegister(object_input());
+  UseRegister(value_input());
+}
+void StoreDoubleField::GenerateCode(MaglevAssembler* masm,
+                                    const ProcessingState& state) {
+  Register object = ToRegister(object_input());
+  DoubleRegister value = ToDoubleRegister(value_input());
+
+  UseScratchRegisterScope temps(masm);
+  Register tmp = temps.AcquireX();
+
+  __ AssertNotSmi(object);
+  __ DecompressAnyTagged(tmp, FieldMemOperand(object, offset()));
+  __ AssertNotSmi(tmp);
+  __ Move(FieldMemOperand(tmp, HeapNumber::kValueOffset), value);
+}
+
+int StoreMap::MaxCallStackArgs() const {
+  return WriteBarrierDescriptor::GetStackParameterCount();
+}
+void StoreMap::SetValueLocationConstraints() {
+  UseFixed(object_input(), WriteBarrierDescriptor::ObjectRegister());
+  set_temporaries_needed(1);
+}
+void StoreMap::GenerateCode(MaglevAssembler* masm,
+                            const ProcessingState& state) {
+  // TODO(leszeks): Consider making this an arbitrary register and push/popping
+  // in the deferred path.
+  Register object = WriteBarrierDescriptor::ObjectRegister();
+  DCHECK_EQ(object, ToRegister(object_input()));
+
+  __ AssertNotSmi(object);
+  // Since {value} will be passed to deferred code, we have to use a general
+  // temporary for it, rather than the regular scratch registers.
+  Register value = general_temporaries().PopFirst();
+  __ Move(value, map_.object());
+  __ StoreTaggedField(value, FieldMemOperand(object, HeapObject::kMapOffset));
+
+  ZoneLabelRef done(masm);
+  DeferredCodeInfo* deferred_write_barrier = __ PushDeferredCode(
+      [](MaglevAssembler* masm, ZoneLabelRef done, Register value,
+         Register object, StoreMap* node) {
+        ASM_CODE_COMMENT_STRING(masm, "Write barrier slow path");
+        __ CheckPageFlag(
+            value, MemoryChunk::kPointersToHereAreInterestingOrInSharedHeapMask,
+            eq, *done);
+
+        Register slot_reg = WriteBarrierDescriptor::SlotAddressRegister();
+        RegList saved;
+        if (node->register_snapshot().live_registers.has(slot_reg)) {
+          saved.set(slot_reg);
+        }
+
+        __ PushAll(saved);
+        __ Add(slot_reg, object, HeapObject::kMapOffset - kHeapObjectTag);
+
+        SaveFPRegsMode const save_fp_mode =
+            !node->register_snapshot().live_double_registers.is_empty()
+                ? SaveFPRegsMode::kSave
+                : SaveFPRegsMode::kIgnore;
+
+        __ CallRecordWriteStub(object, slot_reg, save_fp_mode);
+
+        __ PopAll(saved);
+        __ B(*done);
+      },
+      done, value, object, this);
+
+  __ JumpIfSmi(value, *done);
+  __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask, ne,
+                   &deferred_write_barrier->deferred_code_label);
+  __ bind(*done);
 }
 
 int StoreTaggedFieldWithWriteBarrier::MaxCallStackArgs() const {
