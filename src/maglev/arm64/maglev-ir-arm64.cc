@@ -118,7 +118,48 @@ void Int32DecrementWithOverflow::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(vs, DeoptimizeReason::kOverflow, this);
 }
 
-UNIMPLEMENTED_NODE_WITH_CALL(ConvertReceiver, mode_)
+int ConvertReceiver::MaxCallStackArgs() const {
+  using D = CallInterfaceDescriptorFor<Builtin::kToObject>::type;
+  return D::GetStackParameterCount();
+}
+void ConvertReceiver::SetValueLocationConstraints() {
+  using D = CallInterfaceDescriptorFor<Builtin::kToObject>::type;
+  UseFixed(receiver_input(), D::GetRegisterParameter(D::kInput));
+  DefineAsFixed(this, kReturnRegister0);
+}
+void ConvertReceiver::GenerateCode(MaglevAssembler* masm,
+                                   const ProcessingState& state) {
+  Label convert_to_object, done;
+  Register receiver = ToRegister(receiver_input());
+  __ JumpIfSmi(receiver, &convert_to_object);
+  static_assert(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
+  {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.AcquireX();
+    __ JumpIfObjectType(receiver, scratch, scratch, FIRST_JS_RECEIVER_TYPE,
+                        &done, hs);
+  }
+
+  if (mode_ != ConvertReceiverMode::kNotNullOrUndefined) {
+    Label convert_global_proxy;
+    __ JumpIfRoot(receiver, RootIndex::kUndefinedValue, &convert_global_proxy);
+    __ JumpIfNotRoot(receiver, RootIndex::kNullValue, &convert_to_object);
+    __ bind(&convert_global_proxy);
+    {
+      // Patch receiver to global proxy.
+      __ Move(ToRegister(result()),
+              target_.native_context().global_proxy_object().object());
+    }
+    __ jmp(&done);
+  }
+
+  __ bind(&convert_to_object);
+  // ToObject needs to be ran with the target context installed.
+  __ Move(kContextRegister, target_.context().object());
+  __ CallBuiltin(Builtin::kToObject);
+  __ bind(&done);
+}
+
 UNIMPLEMENTED_NODE(LoadSignedIntDataViewElement, type_)
 UNIMPLEMENTED_NODE(LoadDoubleDataViewElement)
 UNIMPLEMENTED_NODE(LoadSignedIntTypedArrayElement, elements_kind_)
@@ -126,8 +167,75 @@ UNIMPLEMENTED_NODE(LoadUnsignedIntTypedArrayElement, elements_kind_)
 UNIMPLEMENTED_NODE(LoadDoubleTypedArrayElement, elements_kind_)
 UNIMPLEMENTED_NODE(HoleyFloat64Box)
 UNIMPLEMENTED_NODE(SetPendingMessage)
-UNIMPLEMENTED_NODE_WITH_CALL(ToObject)
-UNIMPLEMENTED_NODE_WITH_CALL(ToString)
+
+int ToObject::MaxCallStackArgs() const {
+  using D = CallInterfaceDescriptorFor<Builtin::kToObject>::type;
+  return D::GetStackParameterCount();
+}
+void ToObject::SetValueLocationConstraints() {
+  using D = CallInterfaceDescriptorFor<Builtin::kToObject>::type;
+  UseFixed(context(), kContextRegister);
+  UseFixed(value_input(), D::GetRegisterParameter(D::kInput));
+  DefineAsFixed(this, kReturnRegister0);
+}
+void ToObject::GenerateCode(MaglevAssembler* masm,
+                            const ProcessingState& state) {
+#ifdef DEBUG
+  using D = CallInterfaceDescriptorFor<Builtin::kToObject>::type;
+  DCHECK_EQ(ToRegister(context()), kContextRegister);
+  DCHECK_EQ(ToRegister(value_input()), D::GetRegisterParameter(D::kInput));
+#endif  // DEBUG
+  Register value = ToRegister(value_input());
+  Label call_builtin, done;
+  // Avoid the builtin call if {value} is a JSReceiver.
+  __ JumpIfSmi(value, &call_builtin);
+  {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.AcquireX();
+    __ LoadMap(scratch, value);
+    __ CompareInstanceType(scratch, scratch.W(), FIRST_JS_RECEIVER_TYPE);
+    __ B(&done, hs);
+  }
+  __ bind(&call_builtin);
+  __ CallBuiltin(Builtin::kToObject);
+  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
+  __ bind(&done);
+}
+
+int ToString::MaxCallStackArgs() const {
+  using D = CallInterfaceDescriptorFor<Builtin::kToString>::type;
+  return D::GetStackParameterCount();
+}
+void ToString::SetValueLocationConstraints() {
+  using D = CallInterfaceDescriptorFor<Builtin::kToString>::type;
+  UseFixed(context(), kContextRegister);
+  UseFixed(value_input(), D::GetRegisterParameter(D::kO));
+  DefineAsFixed(this, kReturnRegister0);
+}
+void ToString::GenerateCode(MaglevAssembler* masm,
+                            const ProcessingState& state) {
+#ifdef DEBUG
+  using D = CallInterfaceDescriptorFor<Builtin::kToString>::type;
+  DCHECK_EQ(ToRegister(context()), kContextRegister);
+  DCHECK_EQ(ToRegister(value_input()), D::GetRegisterParameter(D::kO));
+#endif  // DEBUG
+  Register value = ToRegister(value_input());
+  Label call_builtin, done;
+  // Avoid the builtin call if {value} is a string.
+  __ JumpIfSmi(value, &call_builtin);
+  {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.AcquireX();
+    __ LoadMap(scratch, value);
+    __ CompareInstanceType(scratch, scratch.W(), FIRST_NONSTRING_TYPE);
+    __ B(&done, lo);
+  }
+  __ bind(&call_builtin);
+  __ CallBuiltin(Builtin::kToString);
+  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
+  __ bind(&done);
+}
+
 UNIMPLEMENTED_NODE(AssertInt32, condition_, reason_)
 UNIMPLEMENTED_NODE(CheckUint32IsSmi)
 UNIMPLEMENTED_NODE(CheckJSArrayBounds)
