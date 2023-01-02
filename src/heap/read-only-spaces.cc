@@ -561,10 +561,6 @@ void ReadOnlySpace::FreeLinearAllocationArea() {
 void ReadOnlySpace::EnsurePage() {
   if (pages_.empty()) EnsureSpaceForAllocation(1);
   CHECK(!pages_.empty());
-  // For all configurations where static roots are supported the read only roots
-  // are currently allocated in the first page of the cage.
-  CHECK_IMPLIES(V8_STATIC_ROOTS_BOOL,
-                heap_->isolate()->cage_base() == pages_.back()->address());
 }
 
 void ReadOnlySpace::EnsureSpaceForAllocation(int size_in_bytes) {
