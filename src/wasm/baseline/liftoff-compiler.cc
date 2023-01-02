@@ -901,6 +901,12 @@ class LiftoffCompiler {
 
     if (for_debugging_) __ ResetOSRTarget();
 
+    if (V8_UNLIKELY(max_steps_)) {
+      // Subtract 16 steps for the function call itself (including the function
+      // prologue), plus 1 for each local (including parameters).
+      CheckMaxSteps(decoder, 16 + __ num_locals());
+    }
+
     if (num_params) {
       CODE_COMMENT("process parameters");
       ParameterProcessor processor(this, num_params);
@@ -1099,6 +1105,31 @@ class LiftoffCompiler {
     asm_.AbortCompilation();
   }
 
+  void CheckMaxSteps(FullDecoder* decoder, int steps_done = 1) {
+    DCHECK_LE(1, steps_done);
+    CODE_COMMENT("check max steps");
+    LiftoffRegList pinned;
+    LiftoffRegister max_steps = pinned.set(__ GetUnusedRegister(kGpReg, {}));
+    LiftoffRegister max_steps_addr =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    {
+      FREEZE_STATE(frozen);
+      __ LoadConstant(
+          max_steps_addr,
+          WasmValue::ForUintPtr(reinterpret_cast<uintptr_t>(max_steps_)));
+      __ Load(max_steps, max_steps_addr.gp(), no_reg, 0, LoadType::kI32Load);
+      Label cont;
+      __ emit_i32_cond_jumpi(kSignedGreaterEqual, &cont, max_steps.gp(),
+                             steps_done, frozen);
+      // Abort.
+      Trap(decoder, kTrapUnreachable);
+      __ bind(&cont);
+    }
+    __ emit_i32_subi(max_steps.gp(), max_steps.gp(), steps_done);
+    __ Store(max_steps_addr.gp(), no_reg, 0, max_steps, StoreType::kI32Store,
+             pinned);
+  }
+
   V8_NOINLINE void EmitDebuggingInfo(FullDecoder* decoder, WasmOpcode opcode) {
     DCHECK(for_debugging_);
     if (!WasmOpcodes::IsBreakable(opcode)) return;
@@ -1162,27 +1193,7 @@ class LiftoffCompiler {
       __ bind(&cont);
     }
     if (V8_UNLIKELY(max_steps_ != nullptr)) {
-      CODE_COMMENT("check max steps");
-      LiftoffRegList pinned;
-      LiftoffRegister max_steps = __ GetUnusedRegister(kGpReg, {});
-      pinned.set(max_steps);
-      LiftoffRegister max_steps_addr = __ GetUnusedRegister(kGpReg, pinned);
-      pinned.set(max_steps_addr);
-      {
-        FREEZE_STATE(frozen);
-        __ LoadConstant(
-            max_steps_addr,
-            WasmValue::ForUintPtr(reinterpret_cast<uintptr_t>(max_steps_)));
-        __ Load(max_steps, max_steps_addr.gp(), no_reg, 0, LoadType::kI32Load);
-        Label cont;
-        __ emit_i32_cond_jumpi(kUnequal, &cont, max_steps.gp(), 0, frozen);
-        // Abort.
-        Trap(decoder, kTrapUnreachable);
-        __ bind(&cont);
-      }
-      __ emit_i32_subi(max_steps.gp(), max_steps.gp(), 1);
-      __ Store(max_steps_addr.gp(), no_reg, 0, max_steps, StoreType::kI32Store,
-               pinned);
+      CheckMaxSteps(decoder);
     }
   }
 
