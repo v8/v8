@@ -76,14 +76,6 @@ class V8_EXPORT_PRIVATE TracedHandles final {
   void IterateAndMarkYoungRootsWithOldHosts(RootVisitor*);
   void IterateYoungRootsWithOldHostsForTesting(RootVisitor*);
 
-  START_ALLOW_USE_DEPRECATED()
-
-  // Iterates over all traces handles represented by
-  // `v8::TracedReferenceBase`.
-  void Iterate(v8::EmbedderHeapTracer::TracedGlobalHandleVisitor* visitor);
-
-  END_ALLOW_USE_DEPRECATED()
-
   size_t used_node_count() const;
   size_t total_size_bytes() const;
   size_t used_size_bytes() const;

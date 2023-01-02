@@ -1163,16 +1163,6 @@ class Heap {
     return local_embedder_heap_tracer_.get();
   }
 
-  START_ALLOW_USE_DEPRECATED()
-
-  V8_EXPORT_PRIVATE void SetEmbedderHeapTracer(EmbedderHeapTracer* tracer);
-  EmbedderHeapTracer* GetEmbedderHeapTracer() const;
-  EmbedderHeapTracer::TraceFlags flags_for_embedder_tracer() const;
-
-  END_ALLOW_USE_DEPRECATED()
-
-  void RegisterExternallyReferencedObject(Address* location);
-
   // ===========================================================================
   // Unified heap (C++) support. ===============================================
   // ===========================================================================

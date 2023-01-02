@@ -315,14 +315,13 @@ void IncrementalMarking::StartMarkingMajor() {
   isolate()->external_pointer_table().StartCompactingIfNeeded();
 #endif  // V8_COMPRESS_POINTERS
 
-  auto embedder_flags = heap_->flags_for_embedder_tracer();
   {
     TRACE_GC(heap()->tracer(),
              GCTracer::Scope::MC_INCREMENTAL_EMBEDDER_PROLOGUE);
     // PrepareForTrace should be called before visitor initialization in
     // StartMarking. It is only used with CppHeap.
     heap_->local_embedder_heap_tracer()->PrepareForTrace(
-        embedder_flags, LocalEmbedderHeapTracer::CollectionType::kMajor);
+        LocalEmbedderHeapTracer::CollectionType::kMajor);
   }
 
   major_collector_->StartMarking();
@@ -358,7 +357,7 @@ void IncrementalMarking::StartMarkingMajor() {
     // marking (including write barriers) is fully set up.
     TRACE_GC(heap()->tracer(),
              GCTracer::Scope::MC_INCREMENTAL_EMBEDDER_PROLOGUE);
-    heap_->local_embedder_heap_tracer()->TracePrologue(embedder_flags);
+    heap_->local_embedder_heap_tracer()->TracePrologue();
   }
 
   heap_->InvokeIncrementalMarkingEpilogueCallbacks();
@@ -555,8 +554,6 @@ void IncrementalMarking::EmbedderStep(double expected_duration_ms,
     return;
   }
 
-  constexpr size_t kObjectsToProcessBeforeDeadlineCheck = 500;
-
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_INCREMENTAL_EMBEDDER_TRACING);
   LocalEmbedderHeapTracer* local_tracer = heap_->local_embedder_heap_tracer();
   const double start = heap_->MonotonicallyIncreasingTimeInMs();
@@ -564,21 +561,6 @@ void IncrementalMarking::EmbedderStep(double expected_duration_ms,
   bool empty_worklist = true;
   if (local_marking_worklists()->PublishWrapper()) {
     DCHECK(local_marking_worklists()->IsWrapperEmpty());
-  } else {
-    // Cannot directly publish wrapper objects.
-    LocalEmbedderHeapTracer::ProcessingScope scope(local_tracer);
-    HeapObject object;
-    size_t cnt = 0;
-    while (local_marking_worklists()->PopWrapper(&object)) {
-      scope.TracePossibleWrapper(JSObject::cast(object));
-      if (++cnt == kObjectsToProcessBeforeDeadlineCheck) {
-        if (deadline <= heap_->MonotonicallyIncreasingTimeInMs()) {
-          empty_worklist = false;
-          break;
-        }
-        cnt = 0;
-      }
-    }
   }
   // |deadline - heap_->MonotonicallyIncreasingTimeInMs()| could be negative,
   // which means |local_tracer| won't do any actual tracing, so there is no

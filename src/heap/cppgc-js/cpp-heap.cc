@@ -548,8 +548,7 @@ void CppHeap::DetachIsolate() {
   // CHECK across all relevant embedders and setups.
   if (!isolate_) return;
 
-  // Delegate to existing EmbedderHeapTracer API to finish any ongoing garbage
-  // collection.
+  // Finish any ongoing garbage collection.
   if (isolate_->heap()->incremental_marking()->IsMarking()) {
     isolate_->heap()->FinalizeIncrementalMarkingAtomically(
         i::GarbageCollectionReason::kExternalFinalize);

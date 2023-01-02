@@ -8,8 +8,6 @@
 #include <atomic>
 
 #include "include/v8-cppgc.h"
-#include "include/v8-embedder-heap.h"
-#include "include/v8-traced-handle.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/flags/flags.h"
@@ -21,21 +19,6 @@ namespace internal {
 class Heap;
 class JSObject;
 
-START_ALLOW_USE_DEPRECATED()
-
-class V8_EXPORT_PRIVATE DefaultEmbedderRootsHandler final
-    : public EmbedderRootsHandler {
- public:
-  bool IsRoot(const v8::TracedReference<v8::Value>& handle) final;
-
-  void ResetRoot(const v8::TracedReference<v8::Value>& handle) final;
-
-  void SetTracer(EmbedderHeapTracer* tracer) { tracer_ = tracer; }
-
- private:
-  EmbedderHeapTracer* tracer_ = nullptr;
-};
-
 class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
  public:
   enum class CollectionType : uint8_t {
@@ -43,7 +26,6 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
     kMajor,
   };
   using WrapperInfo = std::pair<void*, void*>;
-  using WrapperCache = std::vector<WrapperInfo>;
 
   // WrapperInfo is passed over the API. Use VerboseWrapperInfo to access pair
   // internals in a named way. See ProcessingScope::TracePossibleJSWrapper()
@@ -63,25 +45,6 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
     const WrapperInfo& raw_info;
   };
 
-  class V8_EXPORT_PRIVATE V8_NODISCARD ProcessingScope {
-   public:
-    explicit ProcessingScope(LocalEmbedderHeapTracer* tracer);
-    ~ProcessingScope();
-
-    void TracePossibleWrapper(JSObject js_object);
-
-    void AddWrapperInfoForTesting(WrapperInfo info);
-
-   private:
-    static constexpr size_t kWrapperCacheSize = 1000;
-
-    void FlushWrapperCacheIfFull();
-
-    LocalEmbedderHeapTracer* const tracer_;
-    const WrapperDescriptor wrapper_descriptor_;
-    WrapperCache wrapper_cache_;
-  };
-
   static V8_INLINE bool ExtractWrappableInfo(Isolate*, JSObject,
                                              const WrapperDescriptor&,
                                              WrapperInfo*);
@@ -92,23 +55,15 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
   explicit LocalEmbedderHeapTracer(Isolate* isolate) : isolate_(isolate) {}
 
   ~LocalEmbedderHeapTracer() {
-    if (remote_tracer_) remote_tracer_->v8_isolate_ = nullptr;
     // CppHeap is not detached from Isolate here. Detaching is done explicitly
     // on Isolate/Heap/CppHeap destruction.
   }
 
-  bool InUse() const { return cpp_heap_ || (remote_tracer_ != nullptr); }
-  // This method doesn't take CppHeap into account.
-  EmbedderHeapTracer* remote_tracer() const {
-    DCHECK_NULL(cpp_heap_);
-    return remote_tracer_;
-  }
+  bool InUse() const { return cpp_heap_; }
 
-  void SetRemoteTracer(EmbedderHeapTracer* tracer);
   void SetCppHeap(CppHeap* cpp_heap);
-  void PrepareForTrace(EmbedderHeapTracer::TraceFlags flags,
-                       CollectionType type);
-  void TracePrologue(EmbedderHeapTracer::TraceFlags flags);
+  void PrepareForTrace(CollectionType type);
+  void TracePrologue();
   void TraceEpilogue();
   void EnterFinalPause();
   bool Trace(double deadline);
@@ -125,8 +80,7 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
   bool SupportsIncrementalEmbedderSteps() const {
     if (!InUse()) return false;
 
-    return cpp_heap_ ? v8_flags.cppheap_incremental_marking
-                     : v8_flags.incremental_marking_wrappers;
+    return v8_flags.cppheap_incremental_marking;
   }
 
   void SetEmbedderWorklistEmpty(bool is_empty) {
@@ -158,18 +112,9 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
 
   WrapperInfo ExtractWrapperInfo(Isolate* isolate, JSObject js_object);
 
-  void SetWrapperDescriptor(const WrapperDescriptor& wrapper_descriptor) {
-    DCHECK_NULL(cpp_heap_);
-    wrapper_descriptor_ = wrapper_descriptor;
-  }
-
   void UpdateRemoteStats(size_t, double);
 
-  DefaultEmbedderRootsHandler& default_embedder_roots_handler() {
-    return default_embedder_roots_handler_;
-  }
-
-  EmbedderHeapTracer::EmbedderStackState embedder_stack_state() const {
+  cppgc::EmbedderStackState embedder_stack_state() const {
     return embedder_stack_state_;
   }
 
@@ -178,39 +123,21 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
  private:
   static constexpr size_t kEmbedderAllocatedThreshold = 128 * KB;
 
-  static constexpr WrapperDescriptor::InternalFieldIndex
-      kDefaultWrapperTypeEmbedderIndex = 0;
-  static constexpr WrapperDescriptor::InternalFieldIndex
-      kDefaultWrapperInstanceEmbedderIndex = 1;
-
-  static constexpr WrapperDescriptor GetDefaultWrapperDescriptor() {
-    // The default descriptor assumes the indices that known embedders use.
-    return WrapperDescriptor(kDefaultWrapperTypeEmbedderIndex,
-                             kDefaultWrapperInstanceEmbedderIndex,
-                             WrapperDescriptor::kUnknownEmbedderId);
-  }
-
   CppHeap* cpp_heap() {
     DCHECK_NOT_NULL(cpp_heap_);
-    DCHECK_NULL(remote_tracer_);
     DCHECK_IMPLIES(isolate_, cpp_heap_ == isolate_->heap()->cpp_heap());
     return cpp_heap_;
   }
 
   WrapperDescriptor wrapper_descriptor() {
-    if (cpp_heap_)
-      return cpp_heap()->wrapper_descriptor();
-    else
-      return wrapper_descriptor_;
+    return cpp_heap()->wrapper_descriptor();
   }
 
   Isolate* const isolate_;
-  EmbedderHeapTracer* remote_tracer_ = nullptr;
   CppHeap* cpp_heap_ = nullptr;
-  DefaultEmbedderRootsHandler default_embedder_roots_handler_;
 
-  EmbedderHeapTracer::EmbedderStackState embedder_stack_state_ =
-      EmbedderHeapTracer::EmbedderStackState::kMayContainHeapPointers;
+  cppgc::EmbedderStackState embedder_stack_state_ =
+      cppgc::EmbedderStackState::kMayContainHeapPointers;
   // Indicates whether the embedder worklist was observed empty on the main
   // thread. This is opportunistic as concurrent marking tasks may hold local
   // segments of potential embedder fields to move to the main thread.
@@ -229,15 +156,8 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
     size_t allocated_size_limit_for_check = 0;
   } remote_stats_;
 
-  // Default descriptor only used when the embedder is using EmbedderHeapTracer.
-  // The value is overriden by CppHeap with values that the embedder provided
-  // upon initialization.
-  WrapperDescriptor wrapper_descriptor_ = GetDefaultWrapperDescriptor();
-
   friend class EmbedderStackStateScope;
 };
-
-END_ALLOW_USE_DEPRECATED()
 
 }  // namespace internal
 }  // namespace v8

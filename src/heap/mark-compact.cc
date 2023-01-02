@@ -910,13 +910,12 @@ void MarkCompactCollector::Prepare() {
   DCHECK(!heap_->memory_allocator()->unmapper()->IsRunning());
 
   if (!heap()->incremental_marking()->IsMarking()) {
-    const auto embedder_flags = heap_->flags_for_embedder_tracer();
     {
       TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_EMBEDDER_PROLOGUE);
       // PrepareForTrace should be called before visitor initialization in
       // StartMarking.
       heap_->local_embedder_heap_tracer()->PrepareForTrace(
-          embedder_flags, LocalEmbedderHeapTracer::CollectionType::kMajor);
+          LocalEmbedderHeapTracer::CollectionType::kMajor);
     }
     StartCompaction(StartCompactionMode::kAtomic);
     StartMarking();
@@ -924,7 +923,7 @@ void MarkCompactCollector::Prepare() {
       TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_EMBEDDER_PROLOGUE);
       // TracePrologue immediately starts marking which requires V8 worklists to
       // be set up.
-      heap_->local_embedder_heap_tracer()->TracePrologue(embedder_flags);
+      heap_->local_embedder_heap_tracer()->TracePrologue();
     }
 #ifdef V8_COMPRESS_POINTERS
     heap_->isolate()->external_pointer_table().StartCompactingIfNeeded();
@@ -2112,8 +2111,9 @@ void MarkCompactCollector::MarkRoots(RootVisitor* root_visitor) {
 
   if (!heap_->cpp_heap() && heap_->local_embedder_heap_tracer()->InUse()) {
     // Conservative global handle scanning is necessary for keeping
-    // v8::TracedReference alive from the stack. This is only needed when using
-    // `EmbedderHeapTracer` and not using `CppHeap`.
+    // v8::TracedReference alive from the stack.
+    //
+    // TODO(v8:v8:13207): Remove as this is not required when using `CppHeap`.
     auto& stack = heap()->stack();
     if (heap_->local_embedder_heap_tracer()->embedder_stack_state() ==
         cppgc::EmbedderStackState::kMayContainHeapPointers) {
@@ -2551,14 +2551,6 @@ void MarkCompactCollector::PerformWrapperTracing() {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_EMBEDDER_TRACING);
     if (local_marking_worklists()->PublishWrapper()) {
       DCHECK(local_marking_worklists()->IsWrapperEmpty());
-    } else {
-      // Cannot directly publish wrapper objects.
-      LocalEmbedderHeapTracer::ProcessingScope scope(
-          heap_->local_embedder_heap_tracer());
-      HeapObject object;
-      while (local_marking_worklists()->PopWrapper(&object)) {
-        scope.TracePossibleWrapper(JSObject::cast(object));
-      }
     }
     heap_->local_embedder_heap_tracer()->Trace(
         std::numeric_limits<double>::infinity());
@@ -5790,8 +5782,8 @@ void MinorMarkCompactCollector::SweepArrayBufferExtensions() {
 
 void MinorMarkCompactCollector::PerformWrapperTracing() {
   if (!heap_->local_embedder_heap_tracer()->InUse()) return;
-  // TODO(v8:13475): DCHECK instead of bailing out once EmbedderHeapTracer is
-  // removed.
+  // TODO(v8:v8:13207): DCHECK instead of bailing out as only CppHeap is
+  // supported.
   if (!local_marking_worklists()->PublishWrapper()) return;
   DCHECK_NOT_NULL(CppHeap::From(heap_->cpp_heap()));
   DCHECK(CppHeap::From(heap_->cpp_heap())->generational_gc_supported());
@@ -5986,21 +5978,20 @@ void MinorMarkCompactCollector::Prepare() {
 
   // Probably requires more.
   if (!heap()->incremental_marking()->IsMarking()) {
-    const auto embedder_flags = heap_->flags_for_embedder_tracer();
     {
       TRACE_GC(heap()->tracer(),
                GCTracer::Scope::MINOR_MC_MARK_EMBEDDER_PROLOGUE);
       // PrepareForTrace should be called before visitor initialization in
       // StartMarking.
       heap_->local_embedder_heap_tracer()->PrepareForTrace(
-          embedder_flags, LocalEmbedderHeapTracer::CollectionType::kMinor);
+          LocalEmbedderHeapTracer::CollectionType::kMinor);
     }
     StartMarking();
     {
       TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_EMBEDDER_PROLOGUE);
       // TracePrologue immediately starts marking which requires V8 worklists to
       // be set up.
-      heap_->local_embedder_heap_tracer()->TracePrologue(embedder_flags);
+      heap_->local_embedder_heap_tracer()->TracePrologue();
     }
   }
 

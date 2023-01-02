@@ -539,12 +539,6 @@ class TracedHandlesImpl final {
   size_t used_size_bytes() const { return sizeof(TracedNode) * used_nodes_; }
   size_t total_size_bytes() const { return block_size_bytes_; }
 
-  START_ALLOW_USE_DEPRECATED()
-
-  void Iterate(v8::EmbedderHeapTracer::TracedGlobalHandleVisitor* visitor);
-
-  END_ALLOW_USE_DEPRECATED()
-
  private:
   TracedNode* AllocateNode();
   void FreeNode(TracedNode*);
@@ -894,6 +888,8 @@ void TracedHandlesImpl::ComputeWeaknessForYoungObjects(
   if (is_marking_) return;
 
   auto* const handler = isolate_->heap()->GetEmbedderRootsHandler();
+  if (!handler) return;
+
   for (TracedNode* node : young_nodes_) {
     if (node->is_in_use()) {
       DCHECK(node->is_root());
@@ -912,6 +908,8 @@ void TracedHandlesImpl::ProcessYoungObjects(
   if (!v8_flags.reclaim_unmodified_wrappers) return;
 
   auto* const handler = isolate_->heap()->GetEmbedderRootsHandler();
+  if (!handler) return;
+
   for (TracedNode* node : young_nodes_) {
     if (!node->is_in_use()) continue;
 
@@ -996,23 +994,6 @@ void TracedHandlesImpl::IterateYoungRootsWithOldHostsForTesting(
   }
 }
 
-START_ALLOW_USE_DEPRECATED()
-
-void TracedHandlesImpl::Iterate(
-    v8::EmbedderHeapTracer::TracedGlobalHandleVisitor* visitor) {
-  for (auto* block : blocks_) {
-    for (auto* node : *block) {
-      if (node->is_in_use()) {
-        v8::Value* value = ToApi<v8::Value>(node->handle());
-        visitor->VisitTracedReference(
-            *reinterpret_cast<v8::TracedReference<v8::Value>*>(&value));
-      }
-    }
-  }
-}
-
-END_ALLOW_USE_DEPRECATED()
-
 TracedHandles::TracedHandles(Isolate* isolate)
     : impl_(std::make_unique<TracedHandlesImpl>(isolate)) {}
 
@@ -1091,15 +1072,6 @@ size_t TracedHandles::total_size_bytes() const {
 size_t TracedHandles::used_size_bytes() const {
   return impl_->used_size_bytes();
 }
-
-START_ALLOW_USE_DEPRECATED()
-
-void TracedHandles::Iterate(
-    v8::EmbedderHeapTracer::TracedGlobalHandleVisitor* visitor) {
-  impl_->Iterate(visitor);
-}
-
-END_ALLOW_USE_DEPRECATED()
 
 // static
 void TracedHandles::Destroy(Address* location) {

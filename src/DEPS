@@ -76,6 +76,7 @@ include_rules = [
   "+starboard",
   # Using cppgc inside v8 is not (yet) allowed.
   "-include/cppgc",
+  "+include/cppgc/common.h",
   "+include/cppgc/platform.h",
   "+include/cppgc/source-location.h",
 ]

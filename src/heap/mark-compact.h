@@ -452,9 +452,6 @@ class MarkCompactCollector final : public CollectorBase {
   explicit MarkCompactCollector(Heap* heap);
   ~MarkCompactCollector() final;
 
-  // Used by wrapper tracing.
-  V8_INLINE void MarkExternallyReferencedObject(HeapObject obj);
-
   std::unique_ptr<UpdatingItem> CreateRememberedSetUpdatingItem(
       MemoryChunk* chunk);
 

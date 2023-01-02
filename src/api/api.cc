@@ -8874,21 +8874,6 @@ void Isolate::RemoveGCEpilogueCallback(GCCallback callback) {
   RemoveGCEpilogueCallback(CallGCCallbackWithoutData, data);
 }
 
-START_ALLOW_USE_DEPRECATED()
-
-void Isolate::SetEmbedderHeapTracer(EmbedderHeapTracer* tracer) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
-  CHECK_NULL(i_isolate->heap()->cpp_heap());
-  i_isolate->heap()->SetEmbedderHeapTracer(tracer);
-}
-
-EmbedderHeapTracer* Isolate::GetEmbedderHeapTracer() {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
-  return i_isolate->heap()->GetEmbedderHeapTracer();
-}
-
-END_ALLOW_USE_DEPRECATED()
-
 void Isolate::SetEmbedderRootsHandler(EmbedderRootsHandler* handler) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   i_isolate->heap()->SetEmbedderRootsHandler(handler);
@@ -8896,7 +8881,6 @@ void Isolate::SetEmbedderRootsHandler(EmbedderRootsHandler* handler) {
 
 void Isolate::AttachCppHeap(CppHeap* cpp_heap) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
-  CHECK_NULL(GetEmbedderHeapTracer());
   i_isolate->heap()->AttachCppHeap(cpp_heap);
 }
 
@@ -10703,71 +10687,6 @@ void HeapProfiler::SetGetDetachednessCallback(GetDetachednessCallback callback,
                                               void* data) {
   reinterpret_cast<i::HeapProfiler*>(this)->SetGetDetachednessCallback(callback,
                                                                        data);
-}
-
-void EmbedderHeapTracer::SetStackStart(void* stack_start) {
-  CHECK(v8_isolate_);
-  reinterpret_cast<i::Isolate*>(v8_isolate_)
-      ->heap()
-      ->SetStackStart(stack_start);
-}
-
-void EmbedderHeapTracer::FinalizeTracing() {
-  if (v8_isolate_) {
-    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate_);
-    if (i_isolate->heap()->incremental_marking()->IsMarking()) {
-      i_isolate->heap()->FinalizeIncrementalMarkingAtomically(
-          i::GarbageCollectionReason::kExternalFinalize);
-    }
-  }
-}
-
-void EmbedderHeapTracer::IncreaseAllocatedSize(size_t bytes) {
-  if (v8_isolate_) {
-    i::LocalEmbedderHeapTracer* const tracer =
-        reinterpret_cast<i::Isolate*>(v8_isolate_)
-            ->heap()
-            ->local_embedder_heap_tracer();
-    DCHECK_NOT_NULL(tracer);
-    tracer->IncreaseAllocatedSize(bytes);
-  }
-}
-
-void EmbedderHeapTracer::DecreaseAllocatedSize(size_t bytes) {
-  if (v8_isolate_) {
-    i::LocalEmbedderHeapTracer* const tracer =
-        reinterpret_cast<i::Isolate*>(v8_isolate_)
-            ->heap()
-            ->local_embedder_heap_tracer();
-    DCHECK_NOT_NULL(tracer);
-    tracer->DecreaseAllocatedSize(bytes);
-  }
-}
-
-void EmbedderHeapTracer::RegisterEmbedderReference(
-    const BasicTracedReference<v8::Data>& ref) {
-  if (ref.IsEmpty()) return;
-
-  i::Heap* const heap = reinterpret_cast<i::Isolate*>(v8_isolate_)->heap();
-  heap->RegisterExternallyReferencedObject(
-      reinterpret_cast<i::Address*>(ref.val_));
-}
-
-void EmbedderHeapTracer::IterateTracedGlobalHandles(
-    TracedGlobalHandleVisitor* visitor) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate_);
-  i::DisallowGarbageCollection no_gc;
-  i_isolate->traced_handles()->Iterate(visitor);
-}
-
-bool EmbedderHeapTracer::IsRootForNonTracingGC(
-    const v8::TracedReference<v8::Value>& handle) {
-  return true;
-}
-
-void EmbedderHeapTracer::ResetHandleInNonTracingGC(
-    const v8::TracedReference<v8::Value>& handle) {
-  UNREACHABLE();
 }
 
 EmbedderStateScope::EmbedderStateScope(Isolate* v8_isolate,

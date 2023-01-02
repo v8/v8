@@ -51,16 +51,6 @@ void MinorMarkCompactCollector::MarkRootObject(HeapObject obj) {
   }
 }
 
-void MarkCompactCollector::MarkExternallyReferencedObject(HeapObject obj) {
-  DCHECK(ReadOnlyHeap::Contains(obj) || heap()->Contains(obj));
-  if (marking_state()->WhiteToGrey(obj)) {
-    local_marking_worklists()->Push(obj);
-    if (V8_UNLIKELY(v8_flags.track_retaining_path)) {
-      heap_->AddRetainingRoot(Root::kWrapperTracing, obj);
-    }
-  }
-}
-
 // static
 void MarkCompactCollector::RecordSlot(HeapObject object, ObjectSlot slot,
                                       HeapObject target) {

@@ -5612,8 +5612,6 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
     dead_object_stats_.reset(new ObjectStats(this));
   }
   local_embedder_heap_tracer_.reset(new LocalEmbedderHeapTracer(isolate()));
-  embedder_roots_handler_ =
-      &local_embedder_heap_tracer()->default_embedder_roots_handler();
   if (Heap::AllocationTrackerForDebugging::IsNeeded()) {
     allocation_tracker_for_debugging_ =
         std::make_unique<Heap::AllocationTrackerForDebugging>(this);
@@ -5789,30 +5787,6 @@ void Heap::NotifyOldGenerationExpansion(AllocationSpace space,
   }
 }
 
-START_ALLOW_USE_DEPRECATED()
-
-void Heap::SetEmbedderHeapTracer(EmbedderHeapTracer* tracer) {
-  DCHECK_EQ(gc_state(), HeapState::NOT_IN_GC);
-  // Setting a tracer is only supported when CppHeap is not used.
-  DCHECK_IMPLIES(tracer, !cpp_heap_);
-  local_embedder_heap_tracer()->SetRemoteTracer(tracer);
-}
-
-EmbedderHeapTracer* Heap::GetEmbedderHeapTracer() const {
-  return local_embedder_heap_tracer()->remote_tracer();
-}
-
-EmbedderHeapTracer::TraceFlags Heap::flags_for_embedder_tracer() const {
-  if (is_current_gc_forced()) {
-    return EmbedderHeapTracer::TraceFlags::kForced;
-  } else if (ShouldReduceMemory()) {
-    return EmbedderHeapTracer::TraceFlags::kReduceMemory;
-  }
-  return EmbedderHeapTracer::TraceFlags::kNoFlags;
-}
-
-END_ALLOW_USE_DEPRECATED()
-
 void Heap::SetEmbedderRootsHandler(EmbedderRootsHandler* handler) {
   embedder_roots_handler_ = handler;
 }
@@ -5845,20 +5819,6 @@ void Heap::SetStackStart(void* stack_start) {
 
 ::heap::base::Stack& Heap::stack() {
   return isolate_->thread_local_top()->stack_;
-}
-
-void Heap::RegisterExternallyReferencedObject(Address* location) {
-  Object object = TracedHandles::Mark(location, TracedHandles::MarkMode::kAll);
-  if (!object.IsHeapObject()) {
-    // The embedder is not aware of whether numbers are materialized as heap
-    // objects are just passed around as Smis.
-    return;
-  }
-  HeapObject heap_object = HeapObject::cast(object);
-  DCHECK(IsValidHeapObject(this, heap_object));
-  DCHECK(incremental_marking()->IsMarking() ||
-         mark_compact_collector()->in_use());
-  mark_compact_collector()->MarkExternallyReferencedObject(heap_object);
 }
 
 void Heap::StartTearDown() {

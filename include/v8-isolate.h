@@ -924,27 +924,10 @@ class V8_EXPORT Isolate {
   void RemoveGCPrologueCallback(GCCallbackWithData, void* data = nullptr);
   void RemoveGCPrologueCallback(GCCallback callback);
 
-  START_ALLOW_USE_DEPRECATED()
-  /**
-   * Sets the embedder heap tracer for the isolate.
-   * SetEmbedderHeapTracer cannot be used simultaneously with AttachCppHeap.
-   */
-  void SetEmbedderHeapTracer(EmbedderHeapTracer* tracer);
-
-  /*
-   * Gets the currently active heap tracer for the isolate that was set with
-   * SetEmbedderHeapTracer.
-   */
-  EmbedderHeapTracer* GetEmbedderHeapTracer();
-  END_ALLOW_USE_DEPRECATED()
-
   /**
    * Sets an embedder roots handle that V8 should consider when performing
-   * non-unified heap garbage collections.
-   *
-   * Using only EmbedderHeapTracer automatically sets up a default handler.
-   * The intended use case is for setting a custom handler after invoking
-   * `AttachCppHeap()`.
+   * non-unified heap garbage collections. The intended use case is for setting
+   * a custom handler after invoking `AttachCppHeap()`.
    *
    * V8 does not take ownership of the handler.
    */
@@ -954,8 +937,6 @@ class V8_EXPORT Isolate {
    * Attaches a managed C++ heap as an extension to the JavaScript heap. The
    * embedder maintains ownership of the CppHeap. At most one C++ heap can be
    * attached to V8.
-   *
-   * AttachCppHeap cannot be used simultaneously with SetEmbedderHeapTracer.
    *
    * Multi-threaded use requires the use of v8::Locker/v8::Unlocker, see
    * CppHeap.
