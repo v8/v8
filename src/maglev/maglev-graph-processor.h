@@ -90,7 +90,9 @@ class GraphProcessor {
       node_processor_.Process(constant, GetCurrentState());
       USE(index);
     }
-
+    if (graph_->nan()) {
+      node_processor_.Process(graph_->nan(), GetCurrentState());
+    }
     for (const auto& [address, constant] : graph->external_references()) {
       node_processor_.Process(constant, GetCurrentState());
       USE(address);

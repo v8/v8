@@ -628,7 +628,7 @@ class MaglevGraphBuilder {
   }
 
   Float64Constant* GetFloat64Constant(double constant) {
-    if (constant != constant) {
+    if (std::isnan(constant)) {
       if (graph_->nan() == nullptr) {
         graph_->set_nan(CreateNewNode<Float64Constant>(0, constant));
       }

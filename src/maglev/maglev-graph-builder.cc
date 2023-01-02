@@ -3106,7 +3106,9 @@ ValueNode* MaglevGraphBuilder::TryReduceDataViewPrototypeSetFloat64(
     compiler::JSFunctionRef target, CallArguments& args) {
   return TryBuildStoreDataView<StoreDoubleDataViewElement>(
       args, ExternalArrayType::kExternalFloat64Array, [&](ValueNode* value) {
-        return value ? GetFloat64(value) : GetFloat64Constant(0);
+        return value ? GetFloat64(value)
+                     : GetFloat64Constant(
+                           std::numeric_limits<double>::quiet_NaN());
       });
 }
 
