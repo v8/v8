@@ -16,6 +16,9 @@ lucicfg.enable_experiment("crbug.com/1182002")
 
 V8_TRY_ACCOUNT = "v8-try-builder@chops-service-accounts.iam.gserviceaccount.com"
 V8_CI_ACCOUNT = "v8-ci-builder@chops-service-accounts.iam.gserviceaccount.com"
+V8_PGO_ACCOUNT = "v8-ci-pgo-builder@chops-service-accounts.iam.gserviceaccount.com"
+
+V8_SERVICE_ACCOUNTS = [V8_TRY_ACCOUNT, V8_CI_ACCOUNT, V8_PGO_ACCOUNT]
 
 luci.builder.defaults.experiments.set(
     {
@@ -130,7 +133,7 @@ def led_users(*, pool_realm, builder_realms, groups):
         bindings = [luci.binding(
             roles = "role/swarming.poolUser",
             groups = groups,
-            users = [V8_TRY_ACCOUNT, V8_CI_ACCOUNT],
+            users = V8_SERVICE_ACCOUNTS,
         )],
     )
     for br in builder_realms:
@@ -138,7 +141,7 @@ def led_users(*, pool_realm, builder_realms, groups):
             realm = br,
             roles = "role/swarming.taskTriggerer",
             groups = groups,
-            users = [V8_TRY_ACCOUNT, V8_CI_ACCOUNT],
+            users = V8_SERVICE_ACCOUNTS,
         )
 
 led_users(
@@ -174,7 +177,7 @@ def grantInvocationCreator(realms, users):
         ])
 
 grantInvocationCreator(["try", "try.triggered"], [V8_TRY_ACCOUNT])
-grantInvocationCreator(["ci"], [V8_CI_ACCOUNT])
+grantInvocationCreator(["ci"], [V8_CI_ACCOUNT, V8_PGO_ACCOUNT])
 
 luci.logdog(gs_bucket = "chromium-luci-logdog")
 
