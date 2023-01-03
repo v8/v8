@@ -164,6 +164,7 @@ in_category(
     ),
     experiment_builder_pair(
         name = "V8 Linux64 TSAN - debug",
+        triggered_by = ["v8-trigger"],
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.DEFAULT,
