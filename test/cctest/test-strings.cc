@@ -1398,16 +1398,17 @@ TEST(Regress1402187) {
   i::Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   // This won't leak; the external string mechanism will call Dispose() on it.
-  const char ext_string_content[] = "prop-1234567";
-  OneByteVectorResource* resource = new OneByteVectorResource(
-      v8::base::Vector<const char>(ext_string_content, 12));
+  const char ext_string_content[] = "prop-1234567890asdf";
+  OneByteVectorResource* resource =
+      new OneByteVectorResource(v8::base::Vector<const char>(
+          ext_string_content, strlen(ext_string_content)));
   const uint32_t fake_hash =
       String::CreateHashFieldValue(4711, String::HashFieldType::kHash);
   {
     v8::HandleScope scope(CcTest::isolate());
     // Internalize a string with the same hash to ensure collision.
     Handle<String> intern = isolate->factory()->NewStringFromAsciiChecked(
-        "internalized", AllocationType::kOld);
+        "internalized1234567", AllocationType::kOld);
     intern->set_raw_hash_field(fake_hash);
     factory->InternalizeName(intern);
     CHECK(intern->IsInternalizedString());
@@ -1418,6 +1419,7 @@ TEST(Regress1402187) {
     Handle<String> string = v8::Utils::OpenHandle(*ext_string);
     string->set_raw_hash_field(fake_hash);
     CHECK(string->IsExternalString());
+    CHECK(!StringShape(*string).IsUncachedExternal());
     CHECK(!string->IsInternalizedString());
     CHECK(!String::Equals(isolate, string, intern));
     CHECK_EQ(string->hash(), intern->hash());
