@@ -1487,6 +1487,12 @@ void MacroAssembler::OptimizeCodeOrTailCallOptimizedCodeSlot(
   TailCallOptimizedCodeSlot(this, optimized_code_entry, x4);
 }
 
+Condition TurboAssembler::CheckSmi(Register object) {
+  static_assert(kSmiTag == 0);
+  Tst(object, kSmiTagMask);
+  return eq;
+}
+
 #ifdef V8_ENABLE_DEBUG_CODE
 void TurboAssembler::AssertSpAligned() {
   if (!v8_flags.debug_code) return;
@@ -1523,12 +1529,6 @@ void TurboAssembler::AssertFPCRState(Register fpcr) {
   Abort(AbortReason::kUnexpectedFPCRMode);
 
   Bind(&done);
-}
-
-Condition TurboAssembler::CheckSmi(Register object) {
-  static_assert(kSmiTag == 0);
-  Tst(object, kSmiTagMask);
-  return eq;
 }
 
 void TurboAssembler::AssertSmi(Register object, AbortReason reason) {
