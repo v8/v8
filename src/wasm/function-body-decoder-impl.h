@@ -1422,7 +1422,8 @@ class WasmDecoder : public Decoder {
   // position at the end of the vector represents possible assignments to
   // the instance cache.
   static BitVector* AnalyzeLoopAssignment(WasmDecoder* decoder, const byte* pc,
-                                          uint32_t locals_count, Zone* zone) {
+                                          uint32_t locals_count, Zone* zone,
+                                          bool* loop_is_innermost = nullptr) {
     if (pc >= decoder->end()) return nullptr;
     if (*pc != kExprLoop) return nullptr;
     // The number of locals_count is augmented by 1 so that the 'locals_count'
@@ -1430,11 +1431,14 @@ class WasmDecoder : public Decoder {
     BitVector* assigned = zone->New<BitVector>(locals_count + 1, zone);
     int depth = -1;  // We will increment the depth to 0 when we decode the
                      // starting 'loop' opcode.
+    if (loop_is_innermost) *loop_is_innermost = true;
     // Iteratively process all AST nodes nested inside the loop.
     while (pc < decoder->end() && VALIDATE(decoder->ok())) {
       WasmOpcode opcode = static_cast<WasmOpcode>(*pc);
       switch (opcode) {
         case kExprLoop:
+          if (loop_is_innermost && depth >= 0) *loop_is_innermost = false;
+          V8_FALLTHROUGH;
         case kExprIf:
         case kExprBlock:
         case kExprTry:

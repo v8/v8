@@ -325,12 +325,13 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
 }
 
 BitVector* AnalyzeLoopAssignmentForTesting(Zone* zone, uint32_t num_locals,
-                                           const byte* start, const byte* end) {
+                                           const byte* start, const byte* end,
+                                           bool* loop_is_innermost) {
   WasmFeatures no_features = WasmFeatures::None();
   WasmDecoder<Decoder::FullValidationTag> decoder(
       zone, nullptr, no_features, &no_features, nullptr, start, end, 0);
   return WasmDecoder<Decoder::FullValidationTag>::AnalyzeLoopAssignment(
-      &decoder, start, num_locals, zone);
+      &decoder, start, num_locals, zone, loop_is_innermost);
 }
 
 }  // namespace wasm

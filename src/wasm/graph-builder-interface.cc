@@ -145,9 +145,9 @@ class WasmGraphBuildingInterface {
     SsaEnv* block_env = nullptr;  // environment that dies with this block.
     TryInfo* try_info = nullptr;  // information about try statements.
     int32_t previous_catch = -1;  // previous Control with a catch.
+    bool loop_innermost = false;  // whether this loop can be innermost.
     BitVector* loop_assignments = nullptr;  // locals assigned in this loop.
     TFNode* loop_node = nullptr;            // loop header of this loop.
-    DISALLOW_IMPLICIT_CONSTRUCTORS(Control);
 
     template <typename... Args>
     explicit Control(Args&&... args) V8_NOEXCEPT
@@ -159,6 +159,7 @@ class WasmGraphBuildingInterface {
           block_env(other.block_env),
           try_info(other.try_info),
           previous_catch(other.previous_catch),
+          loop_innermost(other.loop_innermost),
           loop_assignments(other.loop_assignments),
           loop_node(other.loop_node) {
       // The `control_` vector in WasmFullDecoder calls destructor of this when
@@ -173,6 +174,7 @@ class WasmGraphBuildingInterface {
       if (block_env) block_env->Kill();
       if (try_info) try_info->catch_env->Kill();
     }
+    DISALLOW_IMPLICIT_CONSTRUCTORS(Control);
   };
 
   WasmGraphBuildingInterface(compiler::WasmGraphBuilder* builder,
@@ -292,25 +294,6 @@ class WasmGraphBuildingInterface {
 
     TFNode* loop_node = builder_->Loop(control());
 
-    if (emit_loop_exits()) {
-      uint32_t nesting_depth = 0;
-      for (uint32_t depth = 1; depth < decoder->control_depth(); depth++) {
-        if (decoder->control_at(depth)->is_loop()) {
-          nesting_depth++;
-        }
-      }
-      // If this loop is nested, the parent loop's can_be_innermost field needs
-      // to be false. If the last loop in loop_infos_ has less depth, it has to
-      // be the parent loop. If it does not, it means another loop has been
-      // found within the parent loop, and that loop will have set the parent's
-      // can_be_innermost to false, so we do not need to do anything.
-      if (nesting_depth > 0 &&
-          loop_infos_.back().nesting_depth < nesting_depth) {
-        loop_infos_.back().can_be_innermost = false;
-      }
-      loop_infos_.emplace_back(loop_node, nesting_depth, true);
-    }
-
     builder_->SetControl(loop_node);
     decoder->control_at(0)->loop_node = loop_node;
 
@@ -319,8 +302,10 @@ class WasmGraphBuildingInterface {
     builder_->TerminateLoop(effect(), control());
     // Doing a preprocessing pass to analyze loop assignments seems to pay off
     // compared to reallocating Nodes when rearranging Phis in Goto.
+    bool can_be_innermost = false;
     BitVector* assigned = WasmDecoder<ValidationTag>::AnalyzeLoopAssignment(
-        decoder, decoder->pc(), decoder->num_locals(), decoder->zone());
+        decoder, decoder->pc(), decoder->num_locals(), decoder->zone(),
+        &can_be_innermost);
     if (decoder->failed()) return;
     int instance_cache_index = decoder->num_locals();
     // If the module has shared memory, the stack guard might reallocate the
@@ -330,6 +315,19 @@ class WasmGraphBuildingInterface {
     }
     DCHECK_NOT_NULL(assigned);
     decoder->control_at(0)->loop_assignments = assigned;
+
+    if (emit_loop_exits()) {
+      uint32_t nesting_depth = 0;
+      for (uint32_t depth = 1; depth < decoder->control_depth(); depth++) {
+        if (decoder->control_at(depth)->is_loop()) {
+          nesting_depth++;
+        }
+      }
+      loop_infos_.emplace_back(loop_node, nesting_depth, can_be_innermost);
+      // Only innermost loops can be unrolled. We can avoid allocating
+      // unnecessary nodes if this loop can not be innermost.
+      decoder->control_at(0)->loop_innermost = can_be_innermost;
+    }
 
     // Only introduce phis for variables assigned in this loop.
     for (int i = decoder->num_locals() - 1; i >= 0; i--) {
@@ -414,7 +412,7 @@ class WasmGraphBuildingInterface {
     // However, if loop unrolling is enabled, we must create a loop exit and
     // wrap the fallthru values on the stack.
     if (block->is_loop()) {
-      if (emit_loop_exits() && block->reachable()) {
+      if (emit_loop_exits() && block->reachable() && block->loop_innermost) {
         BuildLoopExits(decoder, block);
         WrapLocalsAtLoopExit(decoder, block);
         uint32_t arity = block->end_merge.arity;
@@ -2304,7 +2302,7 @@ class WasmGraphBuildingInterface {
         break;
       }
     }
-    if (control != nullptr) {
+    if (control != nullptr && control->loop_innermost) {
       BuildLoopExits(decoder, control);
       for (Value& value : stack_values) {
         if (value.node != nullptr) {
