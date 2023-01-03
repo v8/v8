@@ -483,13 +483,13 @@ class ExceptionHandlerTrampolineBuilder {
     RecordMoves(lazy_frame.unit(), catch_block, lazy_frame.frame_state(),
                 &direct_moves, &materialising_moves, &save_accumulator);
 
-    __ bind(&handler_info->trampoline_entry);
+    __ BindJumpTarget(&handler_info->trampoline_entry);
     __ RecordComment("-- Exception handler trampoline START");
     EmitMaterialisationsAndPushResults(materialising_moves, save_accumulator);
     __ RecordComment("EmitMoves");
     direct_moves.EmitMoves();
     EmitPopMaterialisedResults(materialising_moves, save_accumulator);
-    __ jmp(catch_block->label());
+    __ Jump(catch_block->label());
     __ RecordComment("-- Exception handler trampoline END");
   }
 

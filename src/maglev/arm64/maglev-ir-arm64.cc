@@ -163,7 +163,6 @@ void ConvertReceiver::GenerateCode(MaglevAssembler* masm,
 UNIMPLEMENTED_NODE(LoadSignedIntTypedArrayElement, elements_kind_)
 UNIMPLEMENTED_NODE(LoadUnsignedIntTypedArrayElement, elements_kind_)
 UNIMPLEMENTED_NODE(LoadDoubleTypedArrayElement, elements_kind_)
-UNIMPLEMENTED_NODE(SetPendingMessage)
 
 int ToObject::MaxCallStackArgs() const {
   using D = CallInterfaceDescriptorFor<Builtin::kToObject>::type;
@@ -2155,6 +2154,32 @@ void StoreTaggedFieldWithWriteBarrier::GenerateCode(
                    &deferred_write_barrier->deferred_code_label);
 
   __ bind(*done);
+}
+
+void SetPendingMessage::SetValueLocationConstraints() {
+  UseRegister(value());
+  DefineAsRegister(this);
+}
+
+void SetPendingMessage::GenerateCode(MaglevAssembler* masm,
+                                     const ProcessingState& state) {
+  Register new_message = ToRegister(value());
+  Register return_value = ToRegister(result());
+
+  UseScratchRegisterScope temps(masm);
+  Register scratch0 = temps.AcquireX();
+  MemOperand pending_message_operand = __ ExternalReferenceAsOperand(
+      ExternalReference::address_of_pending_message(masm->isolate()), scratch0);
+
+  if (new_message != return_value) {
+    __ Ldr(return_value, pending_message_operand);
+    __ Str(new_message, pending_message_operand);
+  } else {
+    Register scratch1 = temps.AcquireX();
+    __ Ldr(scratch1, pending_message_operand);
+    __ Str(new_message, pending_message_operand);
+    __ Move(return_value, scratch1);
+  }
 }
 
 void StringLength::SetValueLocationConstraints() {

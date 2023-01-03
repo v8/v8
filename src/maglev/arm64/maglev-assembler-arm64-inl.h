@@ -241,6 +241,10 @@ void MaglevAssembler::PushReverse(T... vals) {
   detail::PushAllReverse(this, vals...);
 }
 
+inline void MaglevAssembler::BindJumpTarget(Label* label) {
+  MacroAssembler::BindJumpTarget(label);
+}
+
 inline void MaglevAssembler::BindBlock(BasicBlock* block) {
   if (block->is_start_block_of_switch_case()) {
     BindJumpTarget(block->label());

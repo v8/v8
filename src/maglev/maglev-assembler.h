@@ -78,6 +78,7 @@ class MaglevAssembler : public MacroAssembler {
   void LoadSingleCharacterString(Register result, Register char_code,
                                  Register scratch);
 
+  inline void BindJumpTarget(Label* label);
   inline void BindBlock(BasicBlock* block);
 
   inline Condition IsInt64Constant(Register reg, int64_t constant);

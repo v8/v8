@@ -129,6 +129,8 @@ void MaglevAssembler::PushReverse(T... vals) {
   detail::PushAllHelper<T...>::PushReverse(this, vals...);
 }
 
+inline void MaglevAssembler::BindJumpTarget(Label* label) { bind(label); }
+
 inline void MaglevAssembler::BindBlock(BasicBlock* block) {
   bind(block->label());
 }
