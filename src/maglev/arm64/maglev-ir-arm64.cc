@@ -938,7 +938,7 @@ void Int32MultiplyWithOverflow::GenerateCode(MaglevAssembler* masm,
     UseScratchRegisterScope temps(masm);
     Register temp = temps.AcquireW();
     __ orr(temp, left, right);
-    __ cmp(temp, Immediate(0));
+    __ Cmp(temp, Immediate(0));
     // If one of them is negative, we must have a -0 result, which is non-int32,
     // so deopt.
     // TODO(leszeks): Consider splitting these deopts to have distinct deopt
@@ -1092,7 +1092,7 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
         __ neg(lhs, lhs);
         __ udiv(res, lhs, rhs);
         __ msub(out, res, rhs, lhs);
-        __ cmp(out, Immediate(0));
+        __ Cmp(out, Immediate(0));
         // TODO(victorgomes): This ideally should be kMinusZero, but Maglev
         // only allows one deopt reason per IR.
         __ EmitEagerDeoptIf(eq, deopt_reason, node);
@@ -1520,7 +1520,7 @@ void UnsafeSmiTag::GenerateCode(MaglevAssembler* masm,
   if (v8_flags.debug_code) {
     if (input().node()->properties().value_representation() ==
         ValueRepresentation::kUint32) {
-      __ cmp(reg, Immediate(Smi::kMaxValue));
+      __ Cmp(reg, Immediate(Smi::kMaxValue));
       __ Check(ls, AbortReason::kInputDoesNotFitSmi);
     }
   }
