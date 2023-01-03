@@ -305,6 +305,13 @@ trybot_pair(
 )
 
 trybot_pair(
+    name = "v8_linux64_tsan_dbg",
+    cq_properties = CQ.OPTIONAL,
+    dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+    use_goma = GOMA.DEFAULT,
+)
+
+trybot_pair(
     name = "v8_linux64_tsan_no_cm_rel",
     cq_properties = CQ.on_files(
         "src/compiler/js-heap-broker.(h|cc)",

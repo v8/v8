@@ -76,6 +76,15 @@ luci.notifier(
 )
 
 luci.notifier(
+    name = "TSAN debug failures",
+    on_occurrence = ["FAILURE"],
+    notify_emails = [
+        "omerkatz@chromium.org",
+        "almuthanna@chromium.org",
+    ],
+)
+
+luci.notifier(
     name = "NumFuzz maintainer",
     on_occurrence = ["FAILURE"],
     failed_step_regexp_exclude = [
