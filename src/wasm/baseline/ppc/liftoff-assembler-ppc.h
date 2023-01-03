@@ -2692,7 +2692,11 @@ void LiftoffStackSlots::Construct(int param_slots) {
             break;
           }
           case kS128: {
-            asm_->bailout(kSimd, "LiftoffStackSlots::Construct");
+            asm_->AllocateStackSpace(stack_decrement - kSimd128Size);
+            asm_->LoadSimd128(kScratchSimd128Reg,
+                              liftoff::GetStackSlot(slot.src_offset_), r0);
+            asm_->AddS64(sp, sp, Operand(-kSimd128Size));
+            asm_->StoreSimd128(kScratchSimd128Reg, MemOperand(sp), r0);
             break;
           }
           default:
@@ -2720,7 +2724,8 @@ void LiftoffStackSlots::Construct(int param_slots) {
             asm_->StoreF64(src.reg().fp(), MemOperand(sp), r0);
             break;
           case kS128: {
-            asm_->bailout(kSimd, "LiftoffStackSlots::Construct");
+            asm_->AddS64(sp, sp, Operand(-kSimd128Size), r0);
+            asm_->StoreSimd128(src.reg().fp().toSimd(), MemOperand(sp), r0);
             break;
           }
           default:
