@@ -235,8 +235,16 @@ void ToString::GenerateCode(MaglevAssembler* masm,
   __ bind(&done);
 }
 
-UNIMPLEMENTED_NODE(AssertInt32, condition_, reason_)
-UNIMPLEMENTED_NODE(CheckUint32IsSmi)
+void AssertInt32::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+}
+void AssertInt32::GenerateCode(MaglevAssembler* masm,
+                               const ProcessingState& state) {
+  __ Cmp(ToRegister(left_input()).W(), ToRegister(right_input()).W());
+  __ Check(ToCondition(condition_), reason_);
+}
+
 UNIMPLEMENTED_NODE(CheckJSDataViewBounds, element_type_)
 UNIMPLEMENTED_NODE(CheckJSObjectElementsBounds)
 UNIMPLEMENTED_NODE(CheckJSTypedArrayBounds, elements_kind_)

@@ -744,6 +744,16 @@ void GapMove::GenerateCode(MaglevAssembler* masm,
   }
 }
 
+void CheckUint32IsSmi::SetValueLocationConstraints() { UseRegister(input()); }
+void CheckUint32IsSmi::GenerateCode(MaglevAssembler* masm,
+                                    const ProcessingState& state) {
+  Register reg = ToRegister(input());
+  // Perform an unsigned comparison against Smi::kMaxValue.
+  __ Cmp(reg, Smi::kMaxValue);
+  __ EmitEagerDeoptIf(ToCondition(AssertCondition::kAbove),
+                      DeoptimizeReason::kNotASmi, this);
+}
+
 void CheckedSmiUntag::SetValueLocationConstraints() {
   UseRegister(input());
   DefineSameAsFirst(this);
