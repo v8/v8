@@ -249,6 +249,20 @@ inline void MaglevAssembler::BindBlock(BasicBlock* block) {
   }
 }
 
+inline void MaglevAssembler::DoubleToInt64Repr(Register dst,
+                                               DoubleRegister src) {
+  Mov(dst, src, 0);
+}
+
+inline Condition MaglevAssembler::IsInt64Constant(Register reg,
+                                                  int64_t constant) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.AcquireX();
+  Mov(scratch, kHoleNanInt64);
+  Cmp(reg, scratch);
+  return eq;
+}
+
 inline Condition MaglevAssembler::IsRootConstant(Input input,
                                                  RootIndex root_index) {
   if (input.operand().IsRegister()) {

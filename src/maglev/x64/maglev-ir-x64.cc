@@ -2090,40 +2090,6 @@ void Uint32ToNumber::GenerateCode(MaglevAssembler* masm,
   __ bind(*done);
 }
 
-void Float64Box::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineAsRegister(this);
-}
-void Float64Box::GenerateCode(MaglevAssembler* masm,
-                              const ProcessingState& state) {
-  DoubleRegister value = ToDoubleRegister(input());
-  Register object = ToRegister(result());
-  __ AllocateHeapNumber(register_snapshot(), object, value);
-}
-
-void HoleyFloat64Box::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineAsRegister(this);
-}
-void HoleyFloat64Box::GenerateCode(MaglevAssembler* masm,
-                                   const ProcessingState& state) {
-  ZoneLabelRef done(masm);
-  DoubleRegister value = ToDoubleRegister(input());
-  Register object = ToRegister(result());
-  __ movq(object, value);
-  __ movq(kScratchRegister, kHoleNanInt64);
-  __ cmpq(object, kScratchRegister);
-  __ JumpToDeferredIf(
-      equal,
-      [](MaglevAssembler* masm, Register object, ZoneLabelRef done) {
-        __ LoadRoot(object, RootIndex::kUndefinedValue);
-        __ jmp(*done);
-      },
-      object, done);
-  __ AllocateHeapNumber(register_snapshot(), object, value);
-  __ bind(*done);
-}
-
 void CheckedFloat64Unbox::SetValueLocationConstraints() {
   UseRegister(input());
   DefineAsRegister(this);

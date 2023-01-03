@@ -80,6 +80,7 @@ class MaglevAssembler : public MacroAssembler {
 
   inline void BindBlock(BasicBlock* block);
 
+  inline Condition IsInt64Constant(Register reg, int64_t constant);
   inline Condition IsRootConstant(Input input, RootIndex root_index);
 
   inline void Branch(Condition condition, BasicBlock* if_true,
@@ -111,6 +112,7 @@ class MaglevAssembler : public MacroAssembler {
   void ToBoolean(Register value, ZoneLabelRef is_true, ZoneLabelRef is_false,
                  bool fallthrough_when_true);
 
+  inline void DoubleToInt64Repr(Register dst, DoubleRegister src);
   void TruncateDoubleToInt32(Register dst, DoubleRegister src);
 
   inline void DefineLazyDeoptPoint(LazyDeoptInfo* info);

@@ -133,6 +133,18 @@ inline void MaglevAssembler::BindBlock(BasicBlock* block) {
   bind(block->label());
 }
 
+inline void MaglevAssembler::DoubleToInt64Repr(Register dst,
+                                               DoubleRegister src) {
+  Movq(dst, src);
+}
+
+inline Condition MaglevAssembler::IsInt64Constant(Register reg,
+                                                  int64_t constant) {
+  movq(kScratchRegister, kHoleNanInt64);
+  cmpq(reg, kScratchRegister);
+  return equal;
+}
+
 inline Condition MaglevAssembler::IsRootConstant(Input input,
                                                  RootIndex root_index) {
   if (input.operand().IsRegister()) {

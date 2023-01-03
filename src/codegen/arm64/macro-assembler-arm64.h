@@ -2011,11 +2011,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // other registers.
   void CompareObjectType(Register heap_object, Register map, Register type_reg,
                          InstanceType type);
-  // A version of CompareObjectType which does not set the {type_reg} and has
-  // the same signatureas the x64 version of CmpObjectType.
-  void CmpObjectType(Register heap_object, InstanceType type, Register map) {
-    CompareObjectType(heap_object, map, xzr, type);
-  }
 
   // Compare object type for heap object, and branch if equal (or not.)
   // heap_object contains a non-Smi whose object type should be compared with

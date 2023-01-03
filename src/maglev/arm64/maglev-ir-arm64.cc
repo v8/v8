@@ -165,7 +165,6 @@ UNIMPLEMENTED_NODE(LoadDoubleDataViewElement)
 UNIMPLEMENTED_NODE(LoadSignedIntTypedArrayElement, elements_kind_)
 UNIMPLEMENTED_NODE(LoadUnsignedIntTypedArrayElement, elements_kind_)
 UNIMPLEMENTED_NODE(LoadDoubleTypedArrayElement, elements_kind_)
-UNIMPLEMENTED_NODE(HoleyFloat64Box)
 UNIMPLEMENTED_NODE(SetPendingMessage)
 
 int ToObject::MaxCallStackArgs() const {
@@ -238,7 +237,6 @@ void ToString::GenerateCode(MaglevAssembler* masm,
 
 UNIMPLEMENTED_NODE(AssertInt32, condition_, reason_)
 UNIMPLEMENTED_NODE(CheckUint32IsSmi)
-UNIMPLEMENTED_NODE(CheckJSArrayBounds)
 UNIMPLEMENTED_NODE(CheckJSDataViewBounds, element_type_)
 UNIMPLEMENTED_NODE(CheckJSObjectElementsBounds)
 UNIMPLEMENTED_NODE(CheckJSTypedArrayBounds, elements_kind_)
@@ -350,6 +348,29 @@ void CheckedUint32ToInt32::GenerateCode(MaglevAssembler* masm,
   Label* fail = __ GetDeoptLabel(this, DeoptimizeReason::kNotInt32);
   __ RecordComment("-- Jump to eager deopt");
   __ Tbnz(input_reg, 31, fail);
+}
+
+void CheckJSArrayBounds::SetValueLocationConstraints() {
+  UseRegister(receiver_input());
+  UseRegister(index_input());
+}
+void CheckJSArrayBounds::GenerateCode(MaglevAssembler* masm,
+                                      const ProcessingState& state) {
+  Register object = ToRegister(receiver_input());
+  Register index = ToRegister(index_input());
+  __ AssertNotSmi(object);
+
+  UseScratchRegisterScope temps(masm);
+  Register scratch = temps.AcquireX();
+
+  if (v8_flags.debug_code) {
+    __ CompareObjectType(object, scratch, scratch, JS_ARRAY_TYPE);
+    __ Assert(eq, AbortReason::kUnexpectedValue);
+  }
+
+  __ SmiUntagField(scratch, FieldMemOperand(object, JSArray::kLengthOffset));
+  __ Cmp(index, scratch);
+  __ EmitEagerDeoptIf(hs, DeoptimizeReason::kOutOfBounds, this);
 }
 
 void ChangeInt32ToFloat64::SetValueLocationConstraints() {
@@ -678,7 +699,7 @@ void CheckSymbol::GenerateCode(MaglevAssembler* masm,
   }
   UseScratchRegisterScope temps(masm);
   Register scratch = temps.AcquireX();
-  __ CmpObjectType(object, SYMBOL_TYPE, scratch);
+  __ CompareObjectType(object, scratch, scratch, SYMBOL_TYPE);
   __ EmitEagerDeoptIf(ne, DeoptimizeReason::kNotASymbol, this);
 }
 
@@ -1446,17 +1467,6 @@ void UnsafeSmiTag::GenerateCode(MaglevAssembler* masm,
   if (v8_flags.debug_code) {
     __ Check(vc, AbortReason::kInputDoesNotFitSmi);
   }
-}
-
-void Float64Box::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineAsRegister(this);
-}
-void Float64Box::GenerateCode(MaglevAssembler* masm,
-                              const ProcessingState& state) {
-  DoubleRegister value = ToDoubleRegister(input());
-  Register object = ToRegister(result());
-  __ AllocateHeapNumber(register_snapshot(), object, value);
 }
 
 void CheckedFloat64Unbox::SetValueLocationConstraints() {
