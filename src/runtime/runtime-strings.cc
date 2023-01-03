@@ -490,8 +490,9 @@ RUNTIME_FUNCTION(Runtime_StringToWellFormed) {
   Handle<SeqTwoByteString> dest =
       isolate->factory()->NewRawTwoByteString(length).ToHandleChecked();
   DisallowGarbageCollection no_gc;
-  const uint16_t* source_data =
-      source->template GetChars<uint16_t>(isolate, no_gc);
+  String::FlatContent source_contents = source->GetFlatContent(no_gc);
+  DCHECK(source_contents.IsFlat());
+  const uint16_t* source_data = source_contents.ToUC16Vector().begin();
   uint16_t* dest_data = dest->GetChars(no_gc);
   unibrow::Utf16::ReplaceUnpairedSurrogates(source_data, dest_data, length);
   return *dest;

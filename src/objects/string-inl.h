@@ -966,9 +966,10 @@ bool String::IsWellFormedUnicode(Isolate* isolate, Handle<String> string) {
   // InstanceType. See
   // https://docs.google.com/document/d/15f-1c_Ysw3lvjy_Gx0SmmD9qeO8UuXuAbWIpWCnTDO8/
   string = Flatten(isolate, string);
-  DCHECK(string->IsTwoByteRepresentation());
   DisallowGarbageCollection no_gc;
-  const uint16_t* data = string->template GetChars<uint16_t>(isolate, no_gc);
+  String::FlatContent flat = string->GetFlatContent(no_gc);
+  DCHECK(flat.IsFlat());
+  const uint16_t* data = flat.ToUC16Vector().begin();
   return !unibrow::Utf16::HasUnpairedSurrogate(data, string->length());
 }
 
