@@ -158,6 +158,11 @@ class V8_EXPORT_PRIVATE CppHeap final
 
   Isolate* isolate() const { return isolate_; }
 
+  size_t used_size() const {
+    return used_size_.load(std::memory_order_relaxed);
+  }
+  size_t allocated_size() const { return allocated_size_; }
+
   ::heap::base::Stack* stack() final;
 
   std::unique_ptr<CppMarkingState> CreateCppMarkingState();
@@ -222,6 +227,15 @@ class V8_EXPORT_PRIVATE CppHeap final
   bool in_detached_testing_mode_ = false;
   bool force_incremental_marking_for_testing_ = false;
   bool is_in_v8_marking_step_ = false;
+
+  // Used size of objects. Reported to V8's regular heap growing strategy.
+  std::atomic<size_t> used_size_{0};
+  // Total bytes allocated since the last GC. Monotonically increasing value.
+  // Used to approximate allocation rate.
+  size_t allocated_size_ = 0;
+  // Limit for |allocated_size| in bytes to avoid checking for starting a GC
+  // on each increment.
+  size_t allocated_size_limit_for_check_ = 0;
 
   friend class MetricRecorderAdapter;
 };

@@ -87,32 +87,7 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
     embedder_worklist_empty_ = is_empty;
   }
 
-  void IncreaseAllocatedSize(size_t bytes) {
-    remote_stats_.used_size.fetch_add(bytes, std::memory_order_relaxed);
-    remote_stats_.allocated_size += bytes;
-    if (remote_stats_.allocated_size >
-        remote_stats_.allocated_size_limit_for_check) {
-      StartIncrementalMarkingIfNeeded();
-      remote_stats_.allocated_size_limit_for_check =
-          remote_stats_.allocated_size + kEmbedderAllocatedThreshold;
-    }
-  }
-
-  void DecreaseAllocatedSize(size_t bytes) {
-    DCHECK_GE(remote_stats_.used_size.load(std::memory_order_relaxed), bytes);
-    remote_stats_.used_size.fetch_sub(bytes, std::memory_order_relaxed);
-  }
-
-  void StartIncrementalMarkingIfNeeded();
-
-  size_t used_size() const {
-    return remote_stats_.used_size.load(std::memory_order_relaxed);
-  }
-  size_t allocated_size() const { return remote_stats_.allocated_size; }
-
   WrapperInfo ExtractWrapperInfo(Isolate* isolate, JSObject js_object);
-
-  void UpdateRemoteStats(size_t, double);
 
   cppgc::EmbedderStackState embedder_stack_state() const {
     return embedder_stack_state_;
@@ -121,8 +96,6 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
   void EmbedderWriteBarrier(Heap*, JSObject);
 
  private:
-  static constexpr size_t kEmbedderAllocatedThreshold = 128 * KB;
-
   CppHeap* cpp_heap() {
     DCHECK_NOT_NULL(cpp_heap_);
     DCHECK_IMPLIES(isolate_, cpp_heap_ == isolate_->heap()->cpp_heap());
@@ -142,19 +115,6 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
   // thread. This is opportunistic as concurrent marking tasks may hold local
   // segments of potential embedder fields to move to the main thread.
   bool embedder_worklist_empty_ = false;
-
-  struct RemoteStatistics {
-    // Used size of objects in bytes reported by the embedder. Updated via
-    // TraceSummary at the end of tracing and incrementally when the GC is not
-    // in progress.
-    std::atomic<size_t> used_size{0};
-    // Totally bytes allocated by the embedder. Monotonically
-    // increasing value. Used to approximate allocation rate.
-    size_t allocated_size = 0;
-    // Limit for |allocated_size| in bytes to avoid checking for starting a GC
-    // on each increment.
-    size_t allocated_size_limit_for_check = 0;
-  } remote_stats_;
 
   friend class EmbedderStackStateScope;
 };

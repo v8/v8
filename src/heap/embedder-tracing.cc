@@ -56,18 +56,6 @@ void LocalEmbedderHeapTracer::TraceEpilogue() {
   cpp_heap()->TraceEpilogue();
 }
 
-void LocalEmbedderHeapTracer::UpdateRemoteStats(size_t allocated_size,
-                                                double time) {
-  remote_stats_.used_size = allocated_size;
-  // Force a check next time increased memory is reported. This allows for
-  // setting limits close to actual heap sizes.
-  remote_stats_.allocated_size_limit_for_check = 0;
-  constexpr double kMinReportingTimeMs = 0.5;
-  if (time > kMinReportingTimeMs) {
-    isolate_->heap()->tracer()->RecordEmbedderSpeed(allocated_size, time);
-  }
-}
-
 void LocalEmbedderHeapTracer::EnterFinalPause() {
   if (!InUse()) return;
 
@@ -91,19 +79,6 @@ LocalEmbedderHeapTracer::ExtractWrapperInfo(Isolate* isolate,
     return info;
   }
   return {nullptr, nullptr};
-}
-
-void LocalEmbedderHeapTracer::StartIncrementalMarkingIfNeeded() {
-  if (!v8_flags.global_gc_scheduling || !v8_flags.incremental_marking) return;
-
-  Heap* heap = isolate_->heap();
-  heap->StartIncrementalMarkingIfAllocationLimitIsReached(
-      heap->GCFlagsForIncrementalMarking(),
-      kGCCallbackScheduleIdleGarbageCollection);
-  if (heap->AllocationLimitOvershotByLargeMargin()) {
-    heap->FinalizeIncrementalMarkingAtomically(
-        i::GarbageCollectionReason::kExternalFinalize);
-  }
 }
 
 void LocalEmbedderHeapTracer::EmbedderWriteBarrier(Heap* heap,
