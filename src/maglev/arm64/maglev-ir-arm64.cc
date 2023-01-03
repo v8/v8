@@ -160,10 +160,6 @@ void ConvertReceiver::GenerateCode(MaglevAssembler* masm,
   __ bind(&done);
 }
 
-UNIMPLEMENTED_NODE(LoadSignedIntTypedArrayElement, elements_kind_)
-UNIMPLEMENTED_NODE(LoadUnsignedIntTypedArrayElement, elements_kind_)
-UNIMPLEMENTED_NODE(LoadDoubleTypedArrayElement, elements_kind_)
-
 int ToObject::MaxCallStackArgs() const {
   using D = CallInterfaceDescriptorFor<Builtin::kToObject>::type;
   return D::GetStackParameterCount();
@@ -243,7 +239,6 @@ void AssertInt32::GenerateCode(MaglevAssembler* masm,
 }
 
 UNIMPLEMENTED_NODE(CheckJSObjectElementsBounds)
-UNIMPLEMENTED_NODE(CheckJSTypedArrayBounds, elements_kind_)
 UNIMPLEMENTED_NODE_WITH_CALL(JumpLoopPrologue, loop_depth_, unit_)
 
 int BuiltinStringFromCharCode::MaxCallStackArgs() const {
@@ -1396,6 +1391,43 @@ void CheckedSmiTagUint32::GenerateCode(MaglevAssembler* masm,
   __ Assert(vc, AbortReason::kInputDoesNotFitSmi);
 }
 
+void CheckJSTypedArrayBounds::SetValueLocationConstraints() {
+  UseRegister(receiver_input());
+  if (ElementsKindSize(elements_kind_) == 1) {
+    UseRegister(index_input());
+  } else {
+    UseAndClobberRegister(index_input());
+  }
+}
+void CheckJSTypedArrayBounds::GenerateCode(MaglevAssembler* masm,
+                                           const ProcessingState& state) {
+  Register object = ToRegister(receiver_input());
+  Register index = ToRegister(index_input());
+
+  if (v8_flags.debug_code) {
+    __ AssertNotSmi(object);
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.AcquireX();
+    __ CompareObjectType(object, scratch, scratch, JS_TYPED_ARRAY_TYPE);
+    __ Assert(eq, AbortReason::kUnexpectedValue);
+  }
+
+  UseScratchRegisterScope temps(masm);
+  Register byte_length = temps.AcquireX();
+  __ LoadBoundedSizeFromObject(byte_length, object,
+                               JSTypedArray::kRawByteLengthOffset);
+  int element_size = ElementsKindSize(elements_kind_);
+  if (element_size > 1) {
+    DCHECK(element_size == 2 || element_size == 4);
+    __ Cmp(byte_length, Operand(index, LSL, element_size / 2));
+  } else {
+    __ Cmp(byte_length, index);
+  }
+  // We use {lo} which does an unsigned comparison to handle negative
+  // indices as well.
+  __ EmitEagerDeoptIf(lo, DeoptimizeReason::kOutOfBounds, this);
+}
+
 void CheckJSDataViewBounds::SetValueLocationConstraints() {
   UseRegister(receiver_input());
   UseRegister(index_input());
@@ -1709,6 +1741,97 @@ void ReduceInterruptBudget::GenerateCode(MaglevAssembler* masm,
       },
       done, this);
   __ bind(*done);
+}
+
+void LoadSignedIntTypedArrayElement::SetValueLocationConstraints() {
+  UseRegister(object_input());
+  UseRegister(index_input());
+  DefineAsRegister(this);
+}
+void LoadSignedIntTypedArrayElement::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
+  Register object = ToRegister(object_input());
+  Register index = ToRegister(index_input());
+  Register result_reg = ToRegister(result());
+  Register data_pointer = result_reg;
+  __ AssertNotSmi(object);
+  if (v8_flags.debug_code) {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.AcquireX();
+    __ CompareObjectType(object, scratch, scratch, JS_TYPED_ARRAY_TYPE);
+    __ Assert(eq, AbortReason::kUnexpectedValue);
+  }
+  int element_size = ElementsKindSize(elements_kind_);
+  __ LoadExternalPointerField(
+      data_pointer,
+      FieldMemOperand(object, JSTypedArray::kExternalPointerOffset));
+  __ Add(data_pointer, data_pointer, Operand(index, LSL, element_size / 2));
+  __ LoadSignedField(result_reg.W(), MemOperand(data_pointer), element_size);
+}
+
+void LoadUnsignedIntTypedArrayElement::SetValueLocationConstraints() {
+  UseRegister(object_input());
+  UseRegister(index_input());
+  DefineAsRegister(this);
+}
+void LoadUnsignedIntTypedArrayElement::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
+  Register object = ToRegister(object_input());
+  Register index = ToRegister(index_input());
+  Register result_reg = ToRegister(result());
+  Register data_pointer = result_reg;
+  __ AssertNotSmi(object);
+  if (v8_flags.debug_code) {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.AcquireX();
+    __ CompareObjectType(object, scratch, scratch, JS_TYPED_ARRAY_TYPE);
+    __ Assert(eq, AbortReason::kUnexpectedValue);
+  }
+  int element_size = ElementsKindSize(elements_kind_);
+  __ LoadExternalPointerField(
+      data_pointer,
+      FieldMemOperand(object, JSTypedArray::kExternalPointerOffset));
+  __ Add(data_pointer, data_pointer, Operand(index, LSL, element_size / 2));
+  __ LoadUnsignedField(result_reg.W(), MemOperand(data_pointer), element_size);
+}
+
+void LoadDoubleTypedArrayElement::SetValueLocationConstraints() {
+  UseRegister(object_input());
+  UseRegister(index_input());
+  DefineAsRegister(this);
+}
+void LoadDoubleTypedArrayElement::GenerateCode(MaglevAssembler* masm,
+                                               const ProcessingState& state) {
+  Register object = ToRegister(object_input());
+  Register index = ToRegister(index_input());
+  DoubleRegister result_reg = ToDoubleRegister(result());
+
+  __ AssertNotSmi(object);
+  if (v8_flags.debug_code) {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.AcquireX();
+    __ CompareObjectType(object, scratch, scratch, JS_TYPED_ARRAY_TYPE);
+    __ Assert(eq, AbortReason::kUnexpectedValue);
+  }
+
+  UseScratchRegisterScope temps(masm);
+  Register data_pointer = temps.AcquireX();
+  __ LoadExternalPointerField(
+      data_pointer,
+      FieldMemOperand(object, JSTypedArray::kExternalPointerOffset));
+  switch (elements_kind_) {
+    case FLOAT32_ELEMENTS:
+      __ Add(data_pointer, data_pointer, Operand(index, LSL, 2));
+      __ Ldr(result_reg.S(), Operand(data_pointer));
+      __ Fcvt(result_reg, result_reg.S());
+      break;
+    case FLOAT64_ELEMENTS:
+      __ Add(data_pointer, data_pointer, Operand(index, LSL, 3));
+      __ Ldr(result_reg, Operand(data_pointer));
+      break;
+    default:
+      UNREACHABLE();
+  }
 }
 
 void LoadDoubleField::SetValueLocationConstraints() {

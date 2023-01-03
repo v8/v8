@@ -476,21 +476,6 @@ void CheckJSArrayBounds::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(above_equal, DeoptimizeReason::kOutOfBounds, this);
 }
 
-namespace {
-int ElementsKindSize(ElementsKind element_kind) {
-  switch (element_kind) {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
-  case TYPE##_ELEMENTS:                           \
-    DCHECK_LE(sizeof(ctype), 8);                  \
-    return sizeof(ctype);
-    TYPED_ARRAYS(TYPED_ARRAY_CASE)
-    default:
-      UNREACHABLE();
-#undef TYPED_ARRAY_CASE
-  }
-}
-}  // namespace
-
 void CheckJSTypedArrayBounds::SetValueLocationConstraints() {
   UseRegister(receiver_input());
   if (ElementsKindSize(elements_kind_) == 1) {
