@@ -214,4 +214,13 @@ tools/gcmole/gcmole-test.cc:345:3: note: Call might cause unexpected GC.
 tools/gcmole/gcmole-test.cc:27:1: note: GC call here.
 Object CauseGCRaw(Object obj, Isolate* isolate) {
 ^
-24 warnings generated.
+tools/gcmole/gcmole-test.cc:359:3: warning: Possibly stale variable due to GCs.
+  raw_obj.Print();
+  ^
+tools/gcmole/gcmole-test.cc:355:3: note: Call might cause unexpected GC.
+  Safepoint();
+  ^
+tools/gcmole/gcmole-test.cc:19:1: note: GC call here.
+void Safepoint() { LocalHeap::Current()->Safepoint(); }
+^
+25 warnings generated.
