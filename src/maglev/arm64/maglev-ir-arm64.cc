@@ -160,8 +160,6 @@ void ConvertReceiver::GenerateCode(MaglevAssembler* masm,
   __ bind(&done);
 }
 
-UNIMPLEMENTED_NODE(LoadSignedIntDataViewElement, type_)
-UNIMPLEMENTED_NODE(LoadDoubleDataViewElement)
 UNIMPLEMENTED_NODE(LoadSignedIntTypedArrayElement, elements_kind_)
 UNIMPLEMENTED_NODE(LoadUnsignedIntTypedArrayElement, elements_kind_)
 UNIMPLEMENTED_NODE(LoadDoubleTypedArrayElement, elements_kind_)
@@ -245,12 +243,9 @@ void AssertInt32::GenerateCode(MaglevAssembler* masm,
   __ Check(ToCondition(condition_), reason_);
 }
 
-UNIMPLEMENTED_NODE(CheckJSDataViewBounds, element_type_)
 UNIMPLEMENTED_NODE(CheckJSObjectElementsBounds)
 UNIMPLEMENTED_NODE(CheckJSTypedArrayBounds, elements_kind_)
 UNIMPLEMENTED_NODE_WITH_CALL(JumpLoopPrologue, loop_depth_, unit_)
-UNIMPLEMENTED_NODE(StoreSignedIntDataViewElement, type_)
-UNIMPLEMENTED_NODE(StoreDoubleDataViewElement)
 
 int BuiltinStringFromCharCode::MaxCallStackArgs() const {
   return AllocateDescriptor::GetStackParameterCount();
@@ -1402,6 +1397,33 @@ void CheckedSmiTagUint32::GenerateCode(MaglevAssembler* masm,
   __ Assert(vc, AbortReason::kInputDoesNotFitSmi);
 }
 
+void CheckJSDataViewBounds::SetValueLocationConstraints() {
+  UseRegister(receiver_input());
+  UseRegister(index_input());
+}
+void CheckJSDataViewBounds::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  Register object = ToRegister(receiver_input());
+  Register index = ToRegister(index_input());
+  Register byte_length = kScratchRegister;
+  if (v8_flags.debug_code) {
+    __ AssertNotSmi(object);
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.AcquireX();
+    __ CompareObjectType(object, scratch, scratch, JS_DATA_VIEW_TYPE);
+    __ Assert(eq, AbortReason::kUnexpectedValue);
+  }
+  __ LoadBoundedSizeFromObject(byte_length, object,
+                               JSDataView::kRawByteLengthOffset);
+  int element_size = ExternalArrayElementSize(element_type_);
+  if (element_size > 1) {
+    __ Cmp(byte_length, Immediate(element_size - 1));
+    __ EmitEagerDeoptIf(mi, DeoptimizeReason::kOutOfBounds, this);
+  }
+  __ Cmp(index, byte_length);
+  __ EmitEagerDeoptIf(hs, DeoptimizeReason::kOutOfBounds, this);
+}
+
 void CheckedInternalizedString::SetValueLocationConstraints() {
   UseRegister(object_input());
   DefineSameAsFirst(this);
@@ -1836,6 +1858,247 @@ void StoreMap::GenerateCode(MaglevAssembler* masm,
   __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask, ne,
                    &deferred_write_barrier->deferred_code_label);
   __ bind(*done);
+}
+
+void LoadSignedIntDataViewElement::SetValueLocationConstraints() {
+  UseRegister(object_input());
+  UseRegister(index_input());
+  if (is_little_endian_constant() ||
+      type_ == ExternalArrayType::kExternalInt8Array) {
+    UseAny(is_little_endian_input());
+  } else {
+    UseRegister(is_little_endian_input());
+  }
+  DefineAsRegister(this);
+}
+void LoadSignedIntDataViewElement::GenerateCode(MaglevAssembler* masm,
+                                                const ProcessingState& state) {
+  Register object = ToRegister(object_input());
+  Register index = ToRegister(index_input());
+  Register result_reg = ToRegister(result());
+
+  __ AssertNotSmi(object);
+  if (v8_flags.debug_code) {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.AcquireX();
+    __ CompareObjectType(object, scratch, scratch, JS_DATA_VIEW_TYPE);
+    __ Assert(hs, AbortReason::kUnexpectedValue);
+  }
+
+  int element_size = ExternalArrayElementSize(type_);
+
+  // Load data pointer.
+  {
+    UseScratchRegisterScope temps(masm);
+    Register data_pointer = temps.AcquireX();
+    __ LoadExternalPointerField(
+        data_pointer, FieldMemOperand(object, JSDataView::kDataPointerOffset));
+
+    __ LoadSignedField(result_reg.W(), MemOperand(data_pointer, index),
+                       element_size);
+  }
+
+  // We ignore little endian argument if type is a byte size.
+  if (type_ != ExternalArrayType::kExternalInt8Array) {
+    if (is_little_endian_constant()) {
+      if (!FromConstantToBool(masm, is_little_endian_input().node())) {
+        __ ReverseByteOrder(result_reg, element_size);
+      }
+    } else {
+      ZoneLabelRef is_little_endian(masm), is_big_endian(masm);
+      __ ToBoolean(ToRegister(is_little_endian_input()), is_little_endian,
+                   is_big_endian, false);
+      __ bind(*is_big_endian);
+      __ ReverseByteOrder(result_reg, element_size);
+      __ bind(*is_little_endian);
+      // arm64 is little endian.
+      static_assert(V8_TARGET_LITTLE_ENDIAN == 1);
+    }
+  }
+}
+
+void StoreSignedIntDataViewElement::SetValueLocationConstraints() {
+  UseRegister(object_input());
+  UseRegister(index_input());
+  if (ExternalArrayElementSize(type_) > 1) {
+    UseAndClobberRegister(value_input());
+  } else {
+    UseRegister(value_input());
+  }
+  if (is_little_endian_constant() ||
+      type_ == ExternalArrayType::kExternalInt8Array) {
+    UseAny(is_little_endian_input());
+  } else {
+    UseRegister(is_little_endian_input());
+  }
+}
+void StoreSignedIntDataViewElement::GenerateCode(MaglevAssembler* masm,
+                                                 const ProcessingState& state) {
+  Register object = ToRegister(object_input());
+  Register index = ToRegister(index_input());
+  Register value = ToRegister(value_input());
+
+  __ AssertNotSmi(object);
+  if (v8_flags.debug_code) {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.AcquireX();
+    __ CompareObjectType(object, scratch, scratch, JS_DATA_VIEW_TYPE);
+    __ Assert(hs, AbortReason::kUnexpectedValue);
+  }
+
+  int element_size = ExternalArrayElementSize(type_);
+
+  // We ignore little endian argument if type is a byte size.
+  if (element_size > 1) {
+    if (is_little_endian_constant()) {
+      if (!FromConstantToBool(masm, is_little_endian_input().node())) {
+        __ ReverseByteOrder(value, element_size);
+      }
+    } else {
+      ZoneLabelRef is_little_endian(masm), is_big_endian(masm);
+      __ ToBoolean(ToRegister(is_little_endian_input()), is_little_endian,
+                   is_big_endian, false);
+      __ bind(*is_big_endian);
+      __ ReverseByteOrder(value, element_size);
+      __ bind(*is_little_endian);
+      // arm64 is little endian.
+      static_assert(V8_TARGET_LITTLE_ENDIAN == 1);
+    }
+  }
+
+  UseScratchRegisterScope temps(masm);
+  Register data_pointer = temps.AcquireX();
+  __ LoadExternalPointerField(
+      data_pointer, FieldMemOperand(object, JSDataView::kDataPointerOffset));
+  __ StoreField(MemOperand(data_pointer, index), value.W(), element_size);
+}
+
+void LoadDoubleDataViewElement::SetValueLocationConstraints() {
+  UseRegister(object_input());
+  UseRegister(index_input());
+  if (is_little_endian_constant()) {
+    UseAny(is_little_endian_input());
+  } else {
+    UseRegister(is_little_endian_input());
+  }
+  set_temporaries_needed(1);
+  DefineAsRegister(this);
+}
+void LoadDoubleDataViewElement::GenerateCode(MaglevAssembler* masm,
+                                             const ProcessingState& state) {
+  Register object = ToRegister(object_input());
+  Register index = ToRegister(index_input());
+  DoubleRegister result_reg = ToDoubleRegister(result());
+  Register data_pointer = general_temporaries().PopFirst();
+
+  __ AssertNotSmi(object);
+  if (v8_flags.debug_code) {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.AcquireX();
+    __ CompareObjectType(object, scratch, scratch, JS_DATA_VIEW_TYPE);
+    __ Assert(hs, AbortReason::kUnexpectedValue);
+  }
+
+  // Load data pointer.
+  __ LoadExternalPointerField(
+      data_pointer, FieldMemOperand(object, JSDataView::kDataPointerOffset));
+
+  if (is_little_endian_constant()) {
+    if (FromConstantToBool(masm, is_little_endian_input().node())) {
+      __ Move(result_reg, MemOperand(data_pointer, index));
+    } else {
+      UseScratchRegisterScope temps(masm);
+      Register scratch = temps.AcquireX();
+      __ Move(scratch, MemOperand(data_pointer, index));
+      __ Rev(scratch, scratch);
+      __ Fmov(result_reg, scratch);
+    }
+  } else {
+    Label done;
+    ZoneLabelRef is_little_endian(masm), is_big_endian(masm);
+    // TODO(leszeks): We're likely to be calling this on an existing boolean --
+    // maybe that's a case we should fast-path here and re-use that boolean
+    // value?
+    __ ToBoolean(ToRegister(is_little_endian_input()), is_little_endian,
+                 is_big_endian, true);
+    // arm64 is little endian.
+    static_assert(V8_TARGET_LITTLE_ENDIAN == 1);
+    __ bind(*is_little_endian);
+    __ Move(result_reg, MemOperand(data_pointer, index));
+    __ jmp(&done);
+    // We should swap the bytes if big endian.
+    __ bind(*is_big_endian);
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.AcquireX();
+    __ Move(scratch, MemOperand(data_pointer, index));
+    __ Rev(scratch, scratch);
+    __ Fmov(result_reg, scratch);
+    __ bind(&done);
+  }
+}
+
+void StoreDoubleDataViewElement::SetValueLocationConstraints() {
+  UseRegister(object_input());
+  UseRegister(index_input());
+  UseRegister(value_input());
+  if (is_little_endian_constant()) {
+    UseAny(is_little_endian_input());
+  } else {
+    UseRegister(is_little_endian_input());
+  }
+  set_temporaries_needed(1);
+}
+void StoreDoubleDataViewElement::GenerateCode(MaglevAssembler* masm,
+                                              const ProcessingState& state) {
+  Register object = ToRegister(object_input());
+  Register index = ToRegister(index_input());
+  DoubleRegister value = ToDoubleRegister(value_input());
+  Register data_pointer = general_temporaries().PopFirst();
+
+  __ AssertNotSmi(object);
+  if (v8_flags.debug_code) {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.AcquireX();
+    __ CompareObjectType(object, scratch, scratch, JS_DATA_VIEW_TYPE);
+    __ Assert(hs, AbortReason::kUnexpectedValue);
+  }
+
+  // Load data pointer.
+  __ LoadExternalPointerField(
+      data_pointer, FieldMemOperand(object, JSDataView::kDataPointerOffset));
+
+  if (is_little_endian_constant()) {
+    if (FromConstantToBool(masm, is_little_endian_input().node())) {
+      __ Str(value, MemOperand(data_pointer, index));
+    } else {
+      UseScratchRegisterScope temps(masm);
+      Register scratch = temps.AcquireX();
+      __ Fmov(scratch, value);
+      __ Rev(scratch, scratch);
+      __ Str(scratch, MemOperand(data_pointer, index));
+    }
+  } else {
+    Label done;
+    ZoneLabelRef is_little_endian(masm), is_big_endian(masm);
+    // TODO(leszeks): We're likely to be calling this on an existing boolean --
+    // maybe that's a case we should fast-path here and re-use that boolean
+    // value?
+    __ ToBoolean(ToRegister(is_little_endian_input()), is_little_endian,
+                 is_big_endian, true);
+    // arm64 is little endian.
+    static_assert(V8_TARGET_LITTLE_ENDIAN == 1);
+    __ bind(*is_little_endian);
+    __ Str(value, MemOperand(data_pointer, index));
+    __ jmp(&done);
+    // We should swap the bytes if big endian.
+    __ bind(*is_big_endian);
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.AcquireX();
+    __ Fmov(scratch, value);
+    __ Rev(scratch, scratch);
+    __ Str(scratch, MemOperand(data_pointer, index));
+    __ bind(&done);
+  }
 }
 
 int StoreTaggedFieldWithWriteBarrier::MaxCallStackArgs() const {

@@ -313,6 +313,61 @@ inline MemOperand MaglevAssembler::ToMemOperand(const ValueLocation& location) {
   return ToMemOperand(location.operand());
 }
 
+inline void MaglevAssembler::LoadBoundedSizeFromObject(Register result,
+                                                       Register object,
+                                                       int offset) {
+  Move(result, FieldMemOperand(object, offset));
+#ifdef V8_ENABLE_SANDBOX
+  Lsl(result, result, kBoundedSizeShift);
+#endif  // V8_ENABLE_SANDBOX
+}
+
+inline void MaglevAssembler::LoadExternalPointerField(Register result,
+                                                      MemOperand operand) {
+#ifdef V8_ENABLE_SANDBOX
+  LoadSandboxedPointerField(result, operand);
+#else
+  Move(result, operand);
+#endif
+}
+
+inline void MaglevAssembler::LoadSignedField(Register result,
+                                             MemOperand operand, int size) {
+  if (size == 1) {
+    ldrsb(result, operand);
+  } else if (size == 2) {
+    ldrsh(result, operand);
+  } else {
+    DCHECK_EQ(size, 4);
+    DCHECK(result.IsW());
+    ldr(result, operand);
+  }
+}
+
+inline void MaglevAssembler::StoreField(MemOperand operand, Register value,
+                                        int size) {
+  DCHECK(size == 1 || size == 2 || size == 4);
+  if (size == 1) {
+    strb(value, operand);
+  } else if (size == 2) {
+    strh(value, operand);
+  } else {
+    DCHECK_EQ(size, 4);
+    DCHECK(value.IsW());
+    str(value, operand);
+  }
+}
+
+inline void MaglevAssembler::ReverseByteOrder(Register value, int size) {
+  if (size == 2) {
+    Rev16(value, value);
+  } else if (size == 4) {
+    Rev32(value, value);
+  } else {
+    DCHECK_EQ(size, 1);
+  }
+}
+
 inline void MaglevAssembler::Move(StackSlot dst, Register src) {
   Str(src, StackSlotOperand(dst));
 }

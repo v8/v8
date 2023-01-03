@@ -187,6 +187,21 @@ bool RootConstant::ToBoolean(LocalIsolate* local_isolate) const {
   return RootToBoolean(index_);
 }
 
+bool FromConstantToBool(MaglevAssembler* masm, ValueNode* node) {
+  DCHECK(IsConstantNode(node->opcode()));
+  LocalIsolate* local_isolate = masm->isolate()->AsLocalIsolate();
+  switch (node->opcode()) {
+#define CASE(Name)                                       \
+  case Opcode::k##Name: {                                \
+    return node->Cast<Name>()->ToBoolean(local_isolate); \
+  }
+    CONSTANT_VALUE_NODE_LIST(CASE)
+#undef CASE
+    default:
+      UNREACHABLE();
+  }
+}
+
 DeoptInfo::DeoptInfo(Zone* zone, DeoptFrame top_frame,
                      compiler::FeedbackSource feedback_to_update)
     : top_frame_(top_frame),

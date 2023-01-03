@@ -489,19 +489,6 @@ int ElementsKindSize(ElementsKind element_kind) {
 #undef TYPED_ARRAY_CASE
   }
 }
-
-int ExternalArrayElementSize(const ExternalArrayType element_type) {
-  switch (element_type) {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
-  case kExternal##Type##Array:                    \
-    DCHECK_LE(sizeof(ctype), 8);                  \
-    return sizeof(ctype);
-    TYPED_ARRAYS(TYPED_ARRAY_CASE)
-    default:
-      UNREACHABLE();
-#undef TYPED_ARRAY_CASE
-  }
-}
 }  // namespace
 
 void CheckJSTypedArrayBounds::SetValueLocationConstraints() {
@@ -853,23 +840,6 @@ void LoadDoubleElement::GenerateCode(MaglevAssembler* masm,
   __ Movsd(result_reg, FieldOperand(kScratchRegister, index, times_8,
                                     FixedDoubleArray::kHeaderSize));
 }
-
-namespace {
-bool FromConstantToBool(MaglevAssembler* masm, ValueNode* node) {
-  DCHECK(IsConstantNode(node->opcode()));
-  LocalIsolate* local_isolate = masm->isolate()->AsLocalIsolate();
-  switch (node->opcode()) {
-#define CASE(Name)                                       \
-  case Opcode::k##Name: {                                \
-    return node->Cast<Name>()->ToBoolean(local_isolate); \
-  }
-    CONSTANT_VALUE_NODE_LIST(CASE)
-#undef CASE
-    default:
-      UNREACHABLE();
-  }
-}
-}  // namespace
 
 void LoadSignedIntDataViewElement::SetValueLocationConstraints() {
   UseRegister(object_input());
