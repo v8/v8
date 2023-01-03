@@ -519,7 +519,7 @@ void MaglevAssembler::StringCharCodeAt(RegisterSnapshot& register_snapshot,
     B(result_fits_one_byte);
 
     bind(&two_byte_string);
-    Lsl(index, index, 2);
+    Lsl(index, index, 1);
     Add(index, index, SeqTwoByteString::kHeaderSize - kHeapObjectTag);
     Ldrh(result, MemOperand(string, index));
     // Fallthrough.
