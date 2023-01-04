@@ -885,9 +885,11 @@ void CppHeap::ReportBufferedAllocationSizeIfPossible() {
 
   if (bytes_to_report < 0) {
     DCHECK_GE(used_size_.load(std::memory_order_relaxed), bytes_to_report);
-    used_size_.fetch_sub(bytes_to_report, std::memory_order_relaxed);
+    used_size_.fetch_sub(static_cast<size_t>(-bytes_to_report),
+                         std::memory_order_relaxed);
   } else {
-    used_size_.fetch_add(bytes_to_report, std::memory_order_relaxed);
+    used_size_.fetch_add(static_cast<size_t>(bytes_to_report),
+                         std::memory_order_relaxed);
     allocated_size_ += bytes_to_report;
 
     if (v8_flags.global_gc_scheduling && v8_flags.incremental_marking) {
