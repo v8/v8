@@ -535,6 +535,14 @@ def build_config_content(cpu, icu):
         ("v8_enable_shared_ro_heap", "false"),
         ("v8_disable_write_barriers", "false"),
         ("v8_target_cpu", cpu),
+        ("v8_code_comments", "false"),
+        ("v8_enable_debug_code", "false"),
+        ("v8_enable_verify_heap", "false"),
+        ("v8_enable_slow_dchecks", "false"),
+        ("v8_enable_maglev", "false"),
+        ("v8_enable_disassembler", "false"),
+        ("is_DEBUG_defined", "false"),
+        ("v8_enable_gdbjit", "false"),
     ])
 
 # TODO(victorgomes): Create a rule (instead of a macro), that can

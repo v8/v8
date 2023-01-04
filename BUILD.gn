@@ -516,6 +516,10 @@ assert(!v8_enable_trace_ignition || v8_enable_trace_unoptimized,
        "Ignition tracing requires unoptimized tracing to be enabled.")
 assert(!v8_enable_trace_baseline_exec || v8_enable_trace_unoptimized,
        "Baseline tracing requires unoptimized tracing to be enabled.")
+assert(
+    v8_enable_debugging_features == true || dcheck_always_on ||
+        !v8_enable_slow_dchecks,
+    "v8_enable_slow_dchecks requires v8_enable_debugging_features or dcheck_always_on.")
 
 if (v8_enable_short_builtin_calls &&
     (!v8_enable_pointer_compression && v8_current_cpu != "x64")) {
@@ -1294,13 +1298,12 @@ config("toolchain") {
     if ((is_linux || is_chromeos) && v8_enable_backtrace) {
       ldflags += [ "-rdynamic" ]
     }
-
+  }
+  if (v8_enable_debugging_features || dcheck_always_on) {
     defines += [ "DEBUG" ]
     if (v8_enable_slow_dchecks) {
       defines += [ "ENABLE_SLOW_DCHECKS" ]
     }
-  } else if (dcheck_always_on) {
-    defines += [ "DEBUG" ]
   }
 
   if (v8_enable_verify_csa) {
@@ -2309,6 +2312,7 @@ action("v8_dump_build_config") {
   script = "tools/testrunner/utils/dump_build_config.py"
   outputs = [ "$root_out_dir/v8_build_config.json" ]
   is_gcov_coverage = v8_code_coverage && !is_clang
+  is_DEBUG_defined = v8_enable_debugging_features || dcheck_always_on
   is_full_debug = v8_enable_debugging_features && !v8_optimized_debug
   args = [
     rebase_path("$root_out_dir/v8_build_config.json", root_build_dir),
@@ -2320,38 +2324,44 @@ action("v8_dump_build_config") {
     "is_clang=$is_clang",
     "is_component_build=$is_component_build",
     "is_debug=$v8_enable_debugging_features",
+    "is_DEBUG_defined=$is_DEBUG_defined",
     "is_full_debug=$is_full_debug",
     "is_gcov_coverage=$is_gcov_coverage",
     "is_msan=$is_msan",
     "is_tsan=$is_tsan",
     "is_ubsan_vptr=$is_ubsan_vptr",
     "target_cpu=\"$target_cpu\"",
+    "v8_code_comments=$v8_code_comments",
+    "v8_control_flow_integrity=$v8_control_flow_integrity",
     "v8_current_cpu=\"$v8_current_cpu\"",
+    "v8_dict_property_const_tracking=$v8_dict_property_const_tracking",
+    "v8_disable_write_barriers=$v8_disable_write_barriers",
     "v8_enable_atomic_object_field_writes=" +
         "$v8_enable_atomic_object_field_writes",
+    "v8_enable_cet_shadow_stack=$v8_enable_cet_shadow_stack",
+    "v8_enable_concurrent_marking=$v8_enable_concurrent_marking",
     "v8_enable_conservative_stack_scanning=" +
         "$v8_enable_conservative_stack_scanning",
-    "v8_enable_concurrent_marking=$v8_enable_concurrent_marking",
-    "v8_enable_single_generation=$v8_enable_single_generation",
+    "v8_enable_debug_code=$v8_enable_debug_code",
+    "v8_enable_disassembler=$v8_enable_disassembler",
+    "v8_enable_gdbjit=$v8_enable_gdbjit",
     "v8_enable_i18n_support=$v8_enable_i18n_support",
-    "v8_enable_verify_predictable=$v8_enable_verify_predictable",
-    "v8_enable_verify_csa=$v8_enable_verify_csa",
     "v8_enable_lite_mode=$v8_enable_lite_mode",
-    "v8_enable_runtime_call_stats=$v8_enable_runtime_call_stats",
+    "v8_enable_maglev=$v8_enable_maglev",
     "v8_enable_pointer_compression=$v8_enable_pointer_compression",
     "v8_enable_pointer_compression_shared_cage=" +
         "$v8_enable_pointer_compression_shared_cage",
+    "v8_enable_runtime_call_stats=$v8_enable_runtime_call_stats",
     "v8_enable_sandbox=$v8_enable_sandbox",
     "v8_enable_shared_ro_heap=$v8_enable_shared_ro_heap",
-    "v8_disable_write_barriers=$v8_disable_write_barriers",
-    "v8_enable_third_party_heap=$v8_enable_third_party_heap",
-    "v8_enable_webassembly=$v8_enable_webassembly",
-    "v8_dict_property_const_tracking=$v8_dict_property_const_tracking",
-    "v8_control_flow_integrity=$v8_control_flow_integrity",
-    "v8_target_cpu=\"$v8_target_cpu\"",
-    "v8_enable_cet_shadow_stack=$v8_enable_cet_shadow_stack",
-    "v8_enable_verify_heap=$v8_enable_verify_heap",
+    "v8_enable_single_generation=$v8_enable_single_generation",
     "v8_enable_slow_dchecks=$v8_enable_slow_dchecks",
+    "v8_enable_third_party_heap=$v8_enable_third_party_heap",
+    "v8_enable_verify_csa=$v8_enable_verify_csa",
+    "v8_enable_verify_heap=$v8_enable_verify_heap",
+    "v8_enable_verify_predictable=$v8_enable_verify_predictable",
+    "v8_enable_webassembly=$v8_enable_webassembly",
+    "v8_target_cpu=\"$v8_target_cpu\"",
   ]
 
   if (v8_current_cpu == "mips64" || v8_current_cpu == "mips64el") {
