@@ -901,12 +901,6 @@ class LiftoffCompiler {
 
     if (for_debugging_) __ ResetOSRTarget();
 
-    if (V8_UNLIKELY(max_steps_)) {
-      // Subtract 16 steps for the function call itself (including the function
-      // prologue), plus 1 for each local (including parameters).
-      CheckMaxSteps(decoder, 16 + __ num_locals());
-    }
-
     if (num_params) {
       CODE_COMMENT("process parameters");
       ParameterProcessor processor(this, num_params);
@@ -959,6 +953,14 @@ class LiftoffCompiler {
     // The function-prologue stack check is associated with position 0, which
     // is never a position of any instruction in the function.
     StackCheck(decoder, 0);
+
+    if (V8_UNLIKELY(max_steps_)) {
+      // Subtract 16 steps for the function call itself (including the function
+      // prologue), plus 1 for each local (including parameters).
+      // Do this only *after* setting up the frame completely, even though we
+      // already executed the work then.
+      CheckMaxSteps(decoder, 16 + __ num_locals());
+    }
 
     if (v8_flags.trace_wasm) TraceFunctionEntry(decoder);
   }
