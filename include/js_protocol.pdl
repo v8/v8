@@ -1741,7 +1741,9 @@ domain Runtime
   event executionContextDestroyed
     parameters
       # Id of the destroyed context
-      ExecutionContextId executionContextId
+      deprecated ExecutionContextId executionContextId
+      # Unique Id of the destroyed context
+      experimental string executionContextUniqueId
 
   # Issued when all executionContexts were cleared in browser
   event executionContextsCleared

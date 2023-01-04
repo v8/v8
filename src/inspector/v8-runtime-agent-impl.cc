@@ -997,7 +997,8 @@ void V8RuntimeAgentImpl::reportExecutionContextDestroyed(
     InspectedContext* context) {
   if (m_enabled && context->isReported(m_session->sessionId())) {
     context->setReported(m_session->sessionId(), false);
-    m_frontend.executionContextDestroyed(context->contextId());
+    m_frontend.executionContextDestroyed(context->contextId(),
+                                         context->uniqueId().toString());
   }
 }
 
