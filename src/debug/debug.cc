@@ -119,6 +119,11 @@ BreakLocation BreakLocation::FromFrame(Handle<DebugInfo> debug_info,
   return it.GetBreakLocation();
 }
 
+bool BreakLocation::IsPausedInJsFunctionEntry(JavaScriptFrame* frame) {
+  auto summary = FrameSummary::GetTop(frame);
+  return summary.code_offset() == kFunctionEntryBytecodeOffset;
+}
+
 MaybeHandle<FixedArray> Debug::CheckBreakPointsForLocations(
     Handle<DebugInfo> debug_info, std::vector<BreakLocation>& break_locations,
     bool* has_break_points) {
@@ -545,8 +550,6 @@ void Debug::Break(JavaScriptFrame* frame, Handle<JSFunction> break_target) {
   if (!break_points_hit.is_null() || break_on_next_function_call() ||
       scheduled_break) {
     StepAction lastStepAction = last_step_action();
-    DCHECK_IMPLIES(scheduled_break_on_function_call(),
-                   lastStepAction == StepNone);
     debug::BreakReasons break_reasons;
     if (scheduled_break) {
       break_reasons.Add(debug::BreakReason::kScheduled);
@@ -2580,8 +2583,8 @@ void Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode,
       // it's context. Instead, we step into the function and pause at the
       // first official breakable position.
       // This behavior mirrors "BreakOnNextFunctionCall".
-      if (break_reasons.contains(v8::debug::BreakReason::kScheduled)) {
-        CHECK_EQ(last_step_action(), StepAction::StepNone);
+      if (break_reasons.contains(v8::debug::BreakReason::kScheduled) &&
+          BreakLocation::IsPausedInJsFunctionEntry(frame)) {
         thread_local_.scheduled_break_on_next_function_call_ = true;
         PrepareStepIn(function);
         return;

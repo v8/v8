@@ -255,8 +255,9 @@ class DebugEventBreak : public v8::debug::DebugDelegate {
   }
 };
 
+v8::debug::BreakReasons break_right_now_reasons = {};
 static void BreakRightNow(v8::Isolate* isolate, void*) {
-  v8::debug::BreakRightNow(isolate);
+  v8::debug::BreakRightNow(isolate, break_right_now_reasons);
 }
 
 // Debug event handler which re-issues a debug break until a limit has been
@@ -3829,6 +3830,12 @@ void DebugBreakLoop(const char* loop_header, const char** loop_bodies,
       "function h() { }");
 
   TestDebugBreakInLoop(loop_header, loop_bodies, loop_footer);
+
+  // Also test with "Scheduled" break reason.
+  break_right_now_reasons =
+      v8::debug::BreakReasons{v8::debug::BreakReason::kScheduled};
+  TestDebugBreakInLoop(loop_header, loop_bodies, loop_footer);
+  break_right_now_reasons = v8::debug::BreakReasons{};
 
   // Get rid of the debug event listener.
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
