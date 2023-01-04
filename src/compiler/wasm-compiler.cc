@@ -2855,73 +2855,91 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
   Node* in_bounds = gasm_->Uint32LessThan(key, ift_size);
   TrapIfFalse(wasm::kTrapTableOutOfBounds, in_bounds, position);
 
-  Node* isorecursive_canonical_types =
-      LOAD_INSTANCE_FIELD(IsorecursiveCanonicalTypes, MachineType::Pointer());
-  Node* expected_sig_id =
-      gasm_->LoadImmutable(MachineType::Uint32(), isorecursive_canonical_types,
-                           gasm_->IntPtrConstant(sig_index * kInt32Size));
+  wasm::ValueType table_type = env_->module->tables[table_index].type;
 
-  Node* int32_scaled_key = gasm_->BuildChangeUint32ToUintPtr(
-      gasm_->Word32Shl(key, Int32Constant(2)));
-  Node* loaded_sig = gasm_->LoadFromObject(MachineType::Int32(), ift_sig_ids,
-                                           int32_scaled_key);
-  Node* sig_match = gasm_->Word32Equal(loaded_sig, expected_sig_id);
+  bool needs_type_check = !wasm::EquivalentTypes(
+      table_type.AsNonNull(), wasm::ValueType::Ref(sig_index), env_->module,
+      env_->module);
+  bool needs_null_check = table_type.is_nullable();
 
-  if (v8_flags.experimental_wasm_gc &&
-      !env_->module->types[sig_index].is_final) {
-    // Do a full subtyping check.
-    // TODO(7748): Optimize for non-nullable tables.
-    // TODO(7748): Optimize if type annotation matches table type.
-    auto end_label = gasm_->MakeLabel();
-    gasm_->GotoIf(sig_match, &end_label);
+  // Skip check if table type matches declared signature.
+  if (needs_type_check) {
+    Node* isorecursive_canonical_types =
+        LOAD_INSTANCE_FIELD(IsorecursiveCanonicalTypes, MachineType::Pointer());
+    Node* expected_sig_id = gasm_->LoadImmutable(
+        MachineType::Uint32(), isorecursive_canonical_types,
+        gasm_->IntPtrConstant(sig_index * kInt32Size));
 
-    // Trap on null element.
+    Node* int32_scaled_key = gasm_->BuildChangeUint32ToUintPtr(
+        gasm_->Word32Shl(key, Int32Constant(2)));
+    Node* loaded_sig = gasm_->LoadFromObject(MachineType::Int32(), ift_sig_ids,
+                                             int32_scaled_key);
+    Node* sig_match = gasm_->Word32Equal(loaded_sig, expected_sig_id);
+
+    if (v8_flags.experimental_wasm_gc &&
+        !env_->module->types[sig_index].is_final) {
+      // Do a full subtyping check.
+      auto end_label = gasm_->MakeLabel();
+      gasm_->GotoIf(sig_match, &end_label);
+
+      // Trap on null element.
+      if (needs_null_check) {
+        TrapIfTrue(wasm::kTrapFuncSigMismatch,
+                   gasm_->Word32Equal(loaded_sig, Int32Constant(-1)), position);
+      }
+
+      Node* formal_rtt = RttCanon(sig_index);
+      int rtt_depth = wasm::GetSubtypingDepth(env_->module, sig_index);
+      DCHECK_GE(rtt_depth, 0);
+
+      // Since we have the canonical index of the real rtt, we have to load it
+      // from the isolate rtt-array (which is canonically indexed). Since this
+      // reference is weak, we have to promote it to a strong reference.
+      // Note: The reference cannot have been cleared: Since the loaded_sig
+      // corresponds to a function of the same canonical type, that function
+      // will have kept the type alive.
+      Node* rtts = LOAD_ROOT(WasmCanonicalRtts, wasm_canonical_rtts);
+      Node* real_rtt =
+          gasm_->WordAnd(gasm_->LoadWeakArrayListElement(rtts, loaded_sig),
+                         gasm_->IntPtrConstant(~kWeakHeapObjectMask));
+      Node* type_info = gasm_->LoadWasmTypeInfo(real_rtt);
+
+      // If the depth of the rtt is known to be less than the minimum supertype
+      // array length, we can access the supertype without bounds-checking the
+      // supertype array.
+      if (static_cast<uint32_t>(rtt_depth) >=
+          wasm::kMinimumSupertypeArraySize) {
+        Node* supertypes_length =
+            gasm_->BuildChangeSmiToIntPtr(gasm_->LoadImmutableFromObject(
+                MachineType::TaggedSigned(), type_info,
+                wasm::ObjectAccess::ToTagged(
+                    WasmTypeInfo::kSupertypesLengthOffset)));
+        TrapIfFalse(wasm::kTrapFuncSigMismatch,
+                    gasm_->UintLessThan(gasm_->IntPtrConstant(rtt_depth),
+                                        supertypes_length),
+                    position);
+      }
+
+      Node* maybe_match = gasm_->LoadImmutableFromObject(
+          MachineType::TaggedPointer(), type_info,
+          wasm::ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesOffset +
+                                       kTaggedSize * rtt_depth));
+      TrapIfFalse(wasm::kTrapFuncSigMismatch,
+                  gasm_->TaggedEqual(maybe_match, formal_rtt), position);
+      gasm_->Goto(&end_label);
+
+      gasm_->Bind(&end_label);
+    } else {
+      // In absence of subtyping, we just need to check for type equality.
+      TrapIfFalse(wasm::kTrapFuncSigMismatch, sig_match, position);
+    }
+  } else if (needs_null_check) {
+    Node* int32_scaled_key = gasm_->BuildChangeUint32ToUintPtr(
+        gasm_->Word32Shl(key, Int32Constant(2)));
+    Node* loaded_sig = gasm_->LoadFromObject(MachineType::Int32(), ift_sig_ids,
+                                             int32_scaled_key);
     TrapIfTrue(wasm::kTrapFuncSigMismatch,
                gasm_->Word32Equal(loaded_sig, Int32Constant(-1)), position);
-
-    Node* formal_rtt = RttCanon(sig_index);
-    int rtt_depth = wasm::GetSubtypingDepth(env_->module, sig_index);
-    DCHECK_GE(rtt_depth, 0);
-
-    // Since we have the canonical index of the real rtt, we have to load it
-    // from the isolate rtt-array (which is canonically indexed). Since this
-    // reference is weak, we have to promote it to a strong reference.
-    // Note: The reference cannot have been cleared: Since the loaded_sig
-    // corresponds to a function of the same canonical type, that function will
-    // have kept the type alive.
-    Node* rtts = LOAD_ROOT(WasmCanonicalRtts, wasm_canonical_rtts);
-    Node* real_rtt =
-        gasm_->WordAnd(gasm_->LoadWeakArrayListElement(rtts, loaded_sig),
-                       gasm_->IntPtrConstant(~kWeakHeapObjectMask));
-    Node* type_info = gasm_->LoadWasmTypeInfo(real_rtt);
-
-    // If the depth of the rtt is known to be less than the minimum supertype
-    // array length, we can access the supertype without bounds-checking the
-    // supertype array.
-    if (static_cast<uint32_t>(rtt_depth) >= wasm::kMinimumSupertypeArraySize) {
-      Node* supertypes_length =
-          gasm_->BuildChangeSmiToIntPtr(gasm_->LoadImmutableFromObject(
-              MachineType::TaggedSigned(), type_info,
-              wasm::ObjectAccess::ToTagged(
-                  WasmTypeInfo::kSupertypesLengthOffset)));
-      TrapIfFalse(wasm::kTrapFuncSigMismatch,
-                  gasm_->UintLessThan(gasm_->IntPtrConstant(rtt_depth),
-                                      supertypes_length),
-                  position);
-    }
-
-    Node* maybe_match = gasm_->LoadImmutableFromObject(
-        MachineType::TaggedPointer(), type_info,
-        wasm::ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesOffset +
-                                     kTaggedSize * rtt_depth));
-    TrapIfFalse(wasm::kTrapFuncSigMismatch,
-                gasm_->TaggedEqual(maybe_match, formal_rtt), position);
-    gasm_->Goto(&end_label);
-
-    gasm_->Bind(&end_label);
-  } else {
-    // In absence of subtyping, we just need to check for type equality.
-    TrapIfFalse(wasm::kTrapFuncSigMismatch, sig_match, position);
   }
 
   Node* key_intptr = gasm_->BuildChangeUint32ToUintPtr(key);

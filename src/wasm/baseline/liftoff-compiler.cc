@@ -7399,7 +7399,14 @@ class LiftoffCompiler {
                           index, table_size, trapping);
       }
     }
-    {
+
+    ValueType table_type = decoder->module_->tables[imm.table_imm.index].type;
+    bool needs_type_check = !EquivalentTypes(
+        table_type.AsNonNull(), ValueType::Ref(imm.sig_imm.index),
+        decoder->module_, decoder->module_);
+    bool needs_null_check = table_type.is_nullable();
+
+    if (needs_type_check) {
       CODE_COMMENT("Check indirect call signature");
       Register real_sig_id = tmp1;
       Register formal_sig_id = tmp2;
@@ -7434,8 +7441,10 @@ class LiftoffCompiler {
         FREEZE_STATE(frozen);
         __ emit_cond_jump(kEqual, &success_label, kI32, real_sig_id,
                           formal_sig_id, frozen);
-        __ emit_i32_cond_jumpi(kEqual, sig_mismatch_label, real_sig_id, -1,
-                               frozen);
+        if (needs_null_check) {
+          __ emit_i32_cond_jumpi(kEqual, sig_mismatch_label, real_sig_id, -1,
+                                 frozen);
+        }
         Register real_rtt = tmp3;
         LOAD_INSTANCE_FIELD(real_rtt, IsolateRoot, kSystemPointerSize, pinned);
         __ LoadFullPointer(
@@ -7491,6 +7500,33 @@ class LiftoffCompiler {
         __ emit_cond_jump(kUnequal, sig_mismatch_label, kI32, real_sig_id,
                           formal_sig_id, trapping);
       }
+    } else if (needs_null_check) {
+      CODE_COMMENT("Check indirect call element for nullity");
+      Register real_sig_id = tmp1;
+
+      // Load the signature from {instance->ift_sig_ids[key]}
+      if (imm.table_imm.index == 0) {
+        LOAD_INSTANCE_FIELD(real_sig_id, IndirectFunctionTableSigIds,
+                            kSystemPointerSize, pinned);
+      } else {
+        __ Load(LiftoffRegister(real_sig_id), indirect_function_table, no_reg,
+                wasm::ObjectAccess::ToTagged(
+                    WasmIndirectFunctionTable::kSigIdsOffset),
+                kPointerLoadType);
+      }
+      static_assert((1 << 2) == kInt32Size);
+      __ Load(LiftoffRegister(real_sig_id), real_sig_id, index, 0,
+              LoadType::kI32Load, nullptr, false, false, true);
+
+      Label* sig_mismatch_label =
+          AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapFuncSigMismatch);
+      __ DropValues(1);
+
+      FREEZE_STATE(frozen);
+      __ emit_i32_cond_jumpi(kEqual, sig_mismatch_label, real_sig_id, -1,
+                             frozen);
+    } else {
+      __ DropValues(1);
     }
     {
       CODE_COMMENT("Execute indirect call");

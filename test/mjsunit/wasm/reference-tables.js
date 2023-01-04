@@ -575,3 +575,56 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   wasmTable.set(2, instance.exports.create_struct(333));
   assertEquals(333, instance.exports.struct_getter(2));
 })();
+
+(function TestTypedTableCallIndirect() {
+  print(arguments.callee.name);
+
+  let builder = new WasmModuleBuilder();
+
+  let super_struct = builder.addStruct([makeField(kWasmI32, false)]);
+  let sub_struct = builder.addStruct(
+    [makeField(kWasmI32, false), makeField(kWasmI32, false)], super_struct);
+  let super_sig = builder.addType(
+    makeSig([kWasmI32], [wasmRefType(super_struct)]));
+  let sub_sig = builder.addType(
+    makeSig([kWasmI32], [wasmRefType(sub_struct)]), super_sig);
+
+  let super_func = builder.addFunction("super_func", super_sig)
+    .addBody([kExprLocalGet, 0, kGCPrefix, kExprStructNew, super_struct]);
+  let sub_func = builder.addFunction("super_func", sub_sig)
+    .addBody([kExprLocalGet, 0, kExprI32Const, 1, kExprI32Add,
+              kExprLocalGet, 0, kExprI32Const, 2, kExprI32Add,
+              kGCPrefix, kExprStructNew, sub_struct]);
+
+  let table = builder.addTable(wasmRefNullType(super_sig), 10, 10);
+  builder.addActiveElementSegment(
+    table.index, wasmI32Const(0),
+    [[kExprRefFunc, super_func.index], [kExprRefFunc, sub_func.index]],
+    wasmRefType(super_sig));
+
+  // Parameters: index, value.
+  builder.addFunction("call_indirect_super", kSig_i_ii)
+    .addBody([kExprLocalGet, 1, kExprLocalGet, 0,
+              kExprCallIndirect, super_sig, table.index,
+              kGCPrefix, kExprStructGet, super_struct, 0])
+    .exportFunc();
+  builder.addFunction("call_indirect_sub", kSig_i_ii)
+    .addBody([kExprLocalGet, 1, kExprLocalGet, 0,
+              kExprCallIndirect, sub_sig, table.index,
+              kGCPrefix, kExprStructGet, sub_struct, 0])
+    .exportFunc();
+
+  let instance = builder.instantiate();
+
+  // No type check needed, null check needed.
+  assertEquals(10, instance.exports.call_indirect_super(0, 10));
+  assertEquals(11, instance.exports.call_indirect_super(1, 10));
+  assertTraps(kTrapFuncSigMismatch,
+              () => instance.exports.call_indirect_super(2, 10));
+  // Type check and null check needed.
+  assertEquals(11, instance.exports.call_indirect_sub(1, 10));
+  assertTraps(kTrapFuncSigMismatch,
+              () => instance.exports.call_indirect_sub(0, 10));
+  assertTraps(kTrapFuncSigMismatch,
+              () => instance.exports.call_indirect_sub(2, 10));
+})();
