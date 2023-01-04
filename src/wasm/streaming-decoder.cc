@@ -28,16 +28,18 @@ class V8_EXPORT_PRIVATE AsyncStreamingDecoder : public StreamingDecoder {
   AsyncStreamingDecoder(const AsyncStreamingDecoder&) = delete;
   AsyncStreamingDecoder& operator=(const AsyncStreamingDecoder&) = delete;
 
-  // The buffer passed into OnBytesReceived is owned by the caller.
   void OnBytesReceived(base::Vector<const uint8_t> bytes) override;
 
   void Finish(bool can_use_compiled_module) override;
 
   void Abort() override;
 
-  // Notify the StreamingDecoder that compilation ended and the
-  // StreamingProcessor should not be called anymore.
-  void NotifyCompilationEnded() override { Fail(); }
+  void NotifyCompilationDiscarded() override {
+    auto& active_processor = processor_ ? processor_ : failed_processor_;
+    active_processor.reset();
+    DCHECK_NULL(processor_);
+    DCHECK_NULL(failed_processor_);
+  }
 
   void NotifyNativeModuleCreated(
       const std::shared_ptr<NativeModule>& native_module) override;
@@ -194,6 +196,8 @@ class V8_EXPORT_PRIVATE AsyncStreamingDecoder : public StreamingDecoder {
   }
 
   void Fail() {
+    // {Fail} cannot be called after {Finish}, {Abort}, {Fail}, or
+    // {NotifyCompilationDiscarded}.
     DCHECK_EQ(processor_ == nullptr, failed_processor_ != nullptr);
     if (processor_ != nullptr) failed_processor_ = std::move(processor_);
     DCHECK_NULL(processor_);
@@ -209,14 +213,14 @@ class V8_EXPORT_PRIVATE AsyncStreamingDecoder : public StreamingDecoder {
 
   // As long as we did not detect an invalid module, {processor_} will be set.
   // On failure, the pointer is transferred to {failed_processor_} and will only
-  // be used for a final callback once all bytes have arrived.
+  // be used for a final callback once all bytes have arrived. Finally, both
+  // {processor_} and {failed_processor_} will be null.
   std::unique_ptr<StreamingProcessor> processor_;
-  std::unique_ptr<StreamingProcessor> failed_processor_{nullptr};
+  std::unique_ptr<StreamingProcessor> failed_processor_;
   std::unique_ptr<DecodingState> state_;
   std::vector<std::shared_ptr<SectionBuffer>> section_buffers_;
   bool code_section_processed_ = false;
   uint32_t module_offset_ = 0;
-  bool stream_finished_ = false;
 
   // TODO(clemensb): Avoid holding the wire bytes live twice (here and in the
   // section buffers).
@@ -256,8 +260,9 @@ size_t AsyncStreamingDecoder::DecodingState::ReadBytes(
 
 void AsyncStreamingDecoder::Finish(bool can_use_compiled_module) {
   TRACE_STREAMING("Finish\n");
-  CHECK(!stream_finished_);
-  stream_finished_ = true;
+  // {Finish} cannot be called after {Finish}, {Abort}, {Fail}, or
+  // {NotifyCompilationDiscarded}.
+  CHECK_EQ(processor_ == nullptr, failed_processor_ != nullptr);
   if (ok() && deserializing()) {
     // Try to deserialize the module from wire bytes and module bytes.
     if (can_use_compiled_module &&
@@ -284,19 +289,22 @@ void AsyncStreamingDecoder::Finish(bool can_use_compiled_module) {
   base::OwnedVector<const uint8_t> bytes_copy =
       base::OwnedVector<uint8_t>::Of(full_wire_bytes_);
 
-  if (ok()) {
-    processor_->OnFinishedStream(std::move(bytes_copy), false);
-  } else {
-    failed_processor_->OnFinishedStream(std::move(bytes_copy), true);
-  }
+  // Calling {OnFinishedStream} calls out to JS. Avoid further callbacks (by
+  // aborting the stream) by resetting the processor field before calling
+  // {OnFinishedStream}.
+  const bool failed = !ok();
+  std::unique_ptr<StreamingProcessor> processor =
+      failed ? std::move(failed_processor_) : std::move(processor_);
+  processor->OnFinishedStream(std::move(bytes_copy), failed);
 }
 
 void AsyncStreamingDecoder::Abort() {
   TRACE_STREAMING("Abort\n");
-  if (stream_finished_) return;
-  stream_finished_ = true;
+  // Ignore {Abort} after {Finish}.
+  if (!processor_ && !failed_processor_) return;
   Fail();
   failed_processor_->OnAbort();
+  failed_processor_.reset();
 }
 
 namespace {

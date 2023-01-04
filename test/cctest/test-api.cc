@@ -80,6 +80,7 @@
 #include "test/common/flag-utils.h"
 
 #if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-engine.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
@@ -22993,8 +22994,7 @@ void SourceURLHelper(v8::Isolate* isolate, const char* source_text,
                             Local<Value>(),       // source map URL
                             false,                // is opaque
                             false,                // is WASM
-                            true                  // is ES Module
-    );
+                            true);                // is ES Module
     v8::ScriptCompiler::Source source(source_str, origin, nullptr);
 
     Local<v8::Module> module =
@@ -29500,3 +29500,37 @@ UNINITIALIZED_TEST(OOMDetailsAreMovableAndCopyable) {
 UNINITIALIZED_TEST(JitCodeEventIsMovableAndCopyable) {
   TestCopyAndMoveConstructionAndAssignment<v8::JitCodeEvent>();
 }
+
+#if V8_ENABLE_WEBASSEMBLY
+TEST(WasmAbortStreamingAfterContextDisposal) {
+  // This is a regression test for https://crbug.com/1403531.
+
+  class Resolver final : public i::wasm::CompilationResultResolver {
+   public:
+    void OnCompilationSucceeded(
+        i::Handle<i::WasmModuleObject> result) override {
+      UNREACHABLE();
+    }
+    void OnCompilationFailed(i::Handle<i::Object> error_reason) override {
+      UNREACHABLE();
+    }
+  };
+
+  auto resolver = std::make_shared<Resolver>();
+
+  std::unique_ptr<v8::WasmStreaming> wasm_streaming;
+  v8::Isolate* isolate = CcTest::isolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  {
+    v8::HandleScope scope(isolate);
+    LocalContext context;
+
+    wasm_streaming =
+        i::wasm::StartStreamingForTesting(i_isolate, std::move(resolver));
+    isolate->ContextDisposedNotification(false);
+  }
+
+  wasm_streaming->Abort({});
+  wasm_streaming.reset();
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
