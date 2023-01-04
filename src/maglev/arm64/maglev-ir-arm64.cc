@@ -1679,11 +1679,13 @@ void GeneratorStore::GenerateCode(MaglevAssembler* masm,
       FieldMemOperand(generator, JSGeneratorObject::kInputOrDebugPosOffset));
 }
 
-void IncreaseInterruptBudget::SetValueLocationConstraints() {}
+void IncreaseInterruptBudget::SetValueLocationConstraints() {
+  set_temporaries_needed(1);
+}
 void IncreaseInterruptBudget::GenerateCode(MaglevAssembler* masm,
                                            const ProcessingState& state) {
   UseScratchRegisterScope temps(masm);
-  Register feedback_cell = temps.AcquireX();
+  Register feedback_cell = general_temporaries().PopFirst();
   Register budget = temps.AcquireW();
   __ Ldr(feedback_cell,
          MemOperand(fp, StandardFrameConstants::kFunctionOffset));
@@ -1698,12 +1700,14 @@ void IncreaseInterruptBudget::GenerateCode(MaglevAssembler* masm,
 }
 
 int ReduceInterruptBudget::MaxCallStackArgs() const { return 1; }
-void ReduceInterruptBudget::SetValueLocationConstraints() {}
+void ReduceInterruptBudget::SetValueLocationConstraints() {
+  set_temporaries_needed(1);
+}
 void ReduceInterruptBudget::GenerateCode(MaglevAssembler* masm,
                                          const ProcessingState& state) {
   {
     UseScratchRegisterScope temps(masm);
-    Register feedback_cell = temps.AcquireX();
+    Register feedback_cell = general_temporaries().PopFirst();
     Register budget = temps.AcquireW();
     __ Ldr(feedback_cell,
            MemOperand(fp, StandardFrameConstants::kFunctionOffset));
