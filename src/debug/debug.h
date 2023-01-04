@@ -577,6 +577,9 @@ class V8_EXPORT_PRIVATE Debug {
     // Source statement position from last step next action.
     int last_statement_position_;
 
+    // Bytecode offset from last step next action.
+    int last_bytecode_offset_;
+
     // Frame pointer from last step next or step frame action.
     int last_frame_count_;
 
