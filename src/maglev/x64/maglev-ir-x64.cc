@@ -2159,7 +2159,9 @@ void TestTypeOf::GenerateCode(MaglevAssembler* masm,
                               const ProcessingState& state) {
   using LiteralFlag = interpreter::TestTypeOfFlags::LiteralFlag;
   Register object = ToRegister(value());
-  // Use return register as temporary if needed.
+  // Use return register as temporary if needed. Be careful: {object} and {tmp}
+  // could alias (which means that {object} should be considered dead once {tmp}
+  // has been written to).
   Register tmp = ToRegister(result());
   Label is_true, is_false, done;
   switch (literal_) {
@@ -2199,8 +2201,8 @@ void TestTypeOf::GenerateCode(MaglevAssembler* masm,
     case LiteralFlag::kUndefined:
       __ JumpIfSmi(object, &is_false, Label::kNear);
       // Check it has the undetectable bit set and it is not null.
-      __ LoadMap(tmp, object);
-      __ testl(FieldOperand(tmp, Map::kBitFieldOffset),
+      __ LoadMap(kScratchRegister, object);
+      __ testl(FieldOperand(kScratchRegister, Map::kBitFieldOffset),
                Immediate(Map::Bits1::IsUndetectableBit::kMask));
       __ j(zero, &is_false, Label::kNear);
       __ CompareRoot(object, RootIndex::kNullValue);

@@ -885,7 +885,6 @@ void Int32AddWithOverflow::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(vs, DeoptimizeReason::kOverflow, this);
 }
 
-// UNIMPLEMENTED_NODE(Int32SubtractWithOverflow)
 void Int32SubtractWithOverflow::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());
@@ -2368,7 +2367,9 @@ void TestTypeOf::GenerateCode(MaglevAssembler* masm,
                               const ProcessingState& state) {
   using LiteralFlag = interpreter::TestTypeOfFlags::LiteralFlag;
   Register object = ToRegister(value());
-  // Use return register as temporary if needed.
+  // Use return register as temporary if needed. Be careful: {object} and
+  // {scratch} could alias (which means that {object} should be considered dead
+  // once {scratch} has been written to).
   Register scratch = ToRegister(result());
   Label is_true, is_false, done;
   switch (literal_) {
@@ -2403,16 +2404,19 @@ void TestTypeOf::GenerateCode(MaglevAssembler* masm,
       __ CompareInstanceType(scratch, scratch, BIGINT_TYPE);
       __ B(ne, &is_false);
       break;
-    case LiteralFlag::kUndefined:
+    case LiteralFlag::kUndefined: {
+      UseScratchRegisterScope temps(masm);
+      Register map = temps.AcquireX();
       __ JumpIfSmi(object, &is_false);
       // Check it has the undetectable bit set and it is not null.
-      __ LoadMap(scratch, object);
-      __ Ldr(scratch.W(), FieldMemOperand(scratch, Map::kBitFieldOffset));
-      __ TestAndBranchIfAllClear(
-          scratch.W(), Map::Bits1::IsUndetectableBit::kMask, &is_false);
+      __ LoadMap(map, object);
+      __ Ldr(map.W(), FieldMemOperand(map, Map::kBitFieldOffset));
+      __ TestAndBranchIfAllClear(map.W(), Map::Bits1::IsUndetectableBit::kMask,
+                                 &is_false);
       __ CompareRoot(object, RootIndex::kNullValue);
       __ B(eq, &is_false);
       break;
+    }
     case LiteralFlag::kFunction:
       __ JumpIfSmi(object, &is_false);
       // Check if callable bit is set and not undetectable.
