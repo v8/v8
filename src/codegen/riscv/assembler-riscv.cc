@@ -782,10 +782,6 @@ int32_t Assembler::branch_long_offset(Label* L) {
       L->link_to(pc_offset());
     } else {
       L->link_to(pc_offset());
-      if (!trampoline_emitted_) {
-        unbound_labels_count_++;
-        next_buffer_check_ -= kTrampolineSlotsSize;
-      }
       DEBUG_PRINTF("\tstarted link\n");
       return kEndOfJumpChain;
     }
