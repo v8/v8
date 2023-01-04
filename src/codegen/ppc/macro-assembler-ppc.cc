@@ -685,7 +685,7 @@ void TurboAssembler::DecompressTaggedPointer(Register destination,
                                              Register source) {
   RecordComment("[ DecompressTaggedPointer");
   ZeroExtWord32(destination, source);
-  add(destination, destination, kRootRegister);
+  add(destination, destination, kPtrComprCageBaseRegister);
   RecordComment("]");
 }
 
@@ -693,7 +693,7 @@ void TurboAssembler::DecompressTaggedPointer(Register destination,
                                              MemOperand field_operand) {
   RecordComment("[ DecompressTaggedPointer");
   LoadU32(destination, field_operand, r0);
-  add(destination, destination, kRootRegister);
+  add(destination, destination, kPtrComprCageBaseRegister);
   RecordComment("]");
 }
 
@@ -701,7 +701,7 @@ void TurboAssembler::DecompressAnyTagged(Register destination,
                                          MemOperand field_operand) {
   RecordComment("[ DecompressAnyTagged");
   LoadU32(destination, field_operand, r0);
-  add(destination, destination, kRootRegister);
+  add(destination, destination, kPtrComprCageBaseRegister);
   RecordComment("]");
 }
 
@@ -709,7 +709,7 @@ void TurboAssembler::DecompressAnyTagged(Register destination,
                                          Register source) {
   RecordComment("[ DecompressAnyTagged");
   ZeroExtWord32(destination, source);
-  add(destination, destination, kRootRegister);
+  add(destination, destination, kPtrComprCageBaseRegister);
   RecordComment("]");
 }
 

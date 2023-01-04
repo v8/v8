@@ -2917,13 +2917,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kPPC_LoadDecompressTaggedPointer: {
       CHECK(instr->HasOutput());
       ASSEMBLE_LOAD_INTEGER(lwz, plwz, lwzx, false);
-      __ add(i.OutputRegister(), i.OutputRegister(), kRootRegister);
+      __ add(i.OutputRegister(), i.OutputRegister(), kPtrComprCageBaseRegister);
       break;
     }
     case kPPC_LoadDecompressAnyTagged: {
       CHECK(instr->HasOutput());
       ASSEMBLE_LOAD_INTEGER(lwz, plwz, lwzx, false);
-      __ add(i.OutputRegister(), i.OutputRegister(), kRootRegister);
+      __ add(i.OutputRegister(), i.OutputRegister(), kPtrComprCageBaseRegister);
       break;
     }
     default:
