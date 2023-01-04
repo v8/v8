@@ -97,6 +97,48 @@ void TurboAssembler::PopCPURegList(CPURegList registers) {
   }
 }
 
+void MacroAssembler::PushAll(RegList reglist) {
+  if (reglist.Count() % 2 != 0) {
+    DCHECK(!reglist.has(xzr));
+    reglist.set(xzr);
+  }
+
+  CPURegList registers(kXRegSizeInBits, reglist);
+  int size = registers.RegisterSizeInBytes();
+  DCHECK_EQ(0, (size * registers.Count()) % 16);
+
+  // If LR was stored here, we would need to sign it if
+  // V8_ENABLE_CONTROL_FLOW_INTEGRITY is on.
+  DCHECK(!registers.IncludesAliasOf(lr));
+
+  while (!registers.IsEmpty()) {
+    const CPURegister& src0 = registers.PopLowestIndex();
+    const CPURegister& src1 = registers.PopLowestIndex();
+    stp(src1, src0, MemOperand(sp, -2 * size, PreIndex));
+  }
+}
+
+void MacroAssembler::PopAll(RegList reglist) {
+  if (reglist.Count() % 2 != 0) {
+    DCHECK(!reglist.has(xzr));
+    reglist.set(xzr);
+  }
+
+  CPURegList registers(kXRegSizeInBits, reglist);
+  int size = registers.RegisterSizeInBytes();
+  DCHECK_EQ(0, (size * registers.Count()) % 16);
+
+  // If LR was loaded here, we would need to authenticate it if
+  // V8_ENABLE_CONTROL_FLOW_INTEGRITY is on.
+  DCHECK(!registers.IncludesAliasOf(lr));
+
+  while (!registers.IsEmpty()) {
+    const CPURegister& dst0 = registers.PopHighestIndex();
+    const CPURegister& dst1 = registers.PopHighestIndex();
+    ldp(dst0, dst1, MemOperand(sp, 2 * size, PostIndex));
+  }
+}
+
 int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
                                                     Register exclusion) const {
   auto list = kCallerSaved;

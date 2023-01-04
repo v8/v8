@@ -1813,20 +1813,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
     PopSizeRegList(regs, kSRegSizeInBits);
   }
 
-  inline void PushAll(RegList registers) {
-    if (registers.Count() % 2 != 0) {
-      DCHECK(!registers.has(xzr));
-      registers.set(xzr);
-    }
-    PushXRegList(registers);
-  }
-  inline void PopAll(RegList registers) {
-    if (registers.Count() % 2 != 0) {
-      DCHECK(!registers.has(xzr));
-      registers.set(xzr);
-    }
-    PopXRegList(registers);
-  }
+  // These PushAll/PopAll respect the order of the registers in the stack from
+  // low index to high.
+  void PushAll(RegList registers);
+  void PopAll(RegList registers);
+
   inline void PushAll(DoubleRegList registers,
                       int stack_slot_size = kDoubleSize) {
     if (registers.Count() % 2 != 0) {
