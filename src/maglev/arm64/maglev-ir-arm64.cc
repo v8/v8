@@ -1757,7 +1757,7 @@ void LoadSignedIntTypedArrayElement::GenerateCode(
   Register object = ToRegister(object_input());
   Register index = ToRegister(index_input());
   Register result_reg = ToRegister(result());
-  Register data_pointer = result_reg;
+
   __ AssertNotSmi(object);
   if (v8_flags.debug_code) {
     UseScratchRegisterScope temps(masm);
@@ -1765,10 +1765,11 @@ void LoadSignedIntTypedArrayElement::GenerateCode(
     __ CompareObjectType(object, scratch, scratch, JS_TYPED_ARRAY_TYPE);
     __ Assert(eq, AbortReason::kUnexpectedValue);
   }
+
+  UseScratchRegisterScope temps(masm);
+  Register data_pointer = temps.AcquireX();
   int element_size = ElementsKindSize(elements_kind_);
-  __ LoadExternalPointerField(
-      data_pointer,
-      FieldMemOperand(object, JSTypedArray::kExternalPointerOffset));
+  __ BuildTypedArrayDataPointer(data_pointer, object);
   __ Add(data_pointer, data_pointer, Operand(index, LSL, element_size / 2));
   __ LoadSignedField(result_reg.W(), MemOperand(data_pointer), element_size);
 }
@@ -1783,7 +1784,7 @@ void LoadUnsignedIntTypedArrayElement::GenerateCode(
   Register object = ToRegister(object_input());
   Register index = ToRegister(index_input());
   Register result_reg = ToRegister(result());
-  Register data_pointer = result_reg;
+
   __ AssertNotSmi(object);
   if (v8_flags.debug_code) {
     UseScratchRegisterScope temps(masm);
@@ -1791,10 +1792,11 @@ void LoadUnsignedIntTypedArrayElement::GenerateCode(
     __ CompareObjectType(object, scratch, scratch, JS_TYPED_ARRAY_TYPE);
     __ Assert(eq, AbortReason::kUnexpectedValue);
   }
+
+  UseScratchRegisterScope temps(masm);
+  Register data_pointer = temps.AcquireX();
   int element_size = ElementsKindSize(elements_kind_);
-  __ LoadExternalPointerField(
-      data_pointer,
-      FieldMemOperand(object, JSTypedArray::kExternalPointerOffset));
+  __ BuildTypedArrayDataPointer(data_pointer, object);
   __ Add(data_pointer, data_pointer, Operand(index, LSL, element_size / 2));
   __ LoadUnsignedField(result_reg.W(), MemOperand(data_pointer), element_size);
 }
@@ -1820,9 +1822,7 @@ void LoadDoubleTypedArrayElement::GenerateCode(MaglevAssembler* masm,
 
   UseScratchRegisterScope temps(masm);
   Register data_pointer = temps.AcquireX();
-  __ LoadExternalPointerField(
-      data_pointer,
-      FieldMemOperand(object, JSTypedArray::kExternalPointerOffset));
+  __ BuildTypedArrayDataPointer(data_pointer, object);
   switch (elements_kind_) {
     case FLOAT32_ELEMENTS:
       __ Add(data_pointer, data_pointer, Operand(index, LSL, 2));

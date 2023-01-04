@@ -2213,11 +2213,6 @@ bool MaglevGraphBuilder::TryBuildElementAccess(
     // TODO(victorgomes): Support more elements kind.
     ElementsKind elements_kind = access_info.elements_kind();
     if (IsTypedArrayElementsKind(elements_kind)) {
-      if (JSTypedArray::kMaxSizeInHeap != 0) {
-        // TODO(victorgomes): Support typed array in heap.
-        // Note that the common config is equal to 0 (for Chrome and Node).
-        return false;
-      }
       if (elements_kind == BIGUINT64_ELEMENTS ||
           elements_kind == BIGINT64_ELEMENTS) {
         return false;

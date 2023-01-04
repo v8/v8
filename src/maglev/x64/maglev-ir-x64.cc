@@ -1071,21 +1071,23 @@ void LoadSignedIntTypedArrayElement::SetValueLocationConstraints() {
   UseRegister(object_input());
   UseRegister(index_input());
   DefineAsRegister(this);
+  set_temporaries_needed(1);
 }
 void LoadSignedIntTypedArrayElement::GenerateCode(
     MaglevAssembler* masm, const ProcessingState& state) {
   Register object = ToRegister(object_input());
   Register index = ToRegister(index_input());
   Register result_reg = ToRegister(result());
-  Register data_pointer = result_reg;
+
   __ AssertNotSmi(object);
   if (v8_flags.debug_code) {
     __ CmpObjectType(object, JS_TYPED_ARRAY_TYPE, kScratchRegister);
     __ Assert(equal, AbortReason::kUnexpectedValue);
   }
+
+  Register data_pointer = general_temporaries().PopFirst();
+  __ BuildTypedArrayDataPointer(data_pointer, object);
   int element_size = ElementsKindSize(elements_kind_);
-  __ LoadExternalPointerField(
-      data_pointer, FieldOperand(object, JSTypedArray::kExternalPointerOffset));
   __ LoadSignedField(
       result_reg,
       Operand(data_pointer, index, ScaleFactorFromInt(element_size), 0),
@@ -1096,21 +1098,23 @@ void LoadUnsignedIntTypedArrayElement::SetValueLocationConstraints() {
   UseRegister(object_input());
   UseRegister(index_input());
   DefineAsRegister(this);
+  set_temporaries_needed(1);
 }
 void LoadUnsignedIntTypedArrayElement::GenerateCode(
     MaglevAssembler* masm, const ProcessingState& state) {
   Register object = ToRegister(object_input());
   Register index = ToRegister(index_input());
   Register result_reg = ToRegister(result());
-  Register data_pointer = result_reg;
+
   __ AssertNotSmi(object);
   if (v8_flags.debug_code) {
     __ CmpObjectType(object, JS_TYPED_ARRAY_TYPE, kScratchRegister);
     __ Assert(equal, AbortReason::kUnexpectedValue);
   }
+
+  Register data_pointer = general_temporaries().PopFirst();
   int element_size = ElementsKindSize(elements_kind_);
-  __ LoadExternalPointerField(
-      data_pointer, FieldOperand(object, JSTypedArray::kExternalPointerOffset));
+  __ BuildTypedArrayDataPointer(data_pointer, object);
   __ LoadUnsignedField(
       result_reg,
       Operand(data_pointer, index, ScaleFactorFromInt(element_size), 0),
@@ -1121,20 +1125,21 @@ void LoadDoubleTypedArrayElement::SetValueLocationConstraints() {
   UseRegister(object_input());
   UseRegister(index_input());
   DefineAsRegister(this);
+  set_temporaries_needed(1);
 }
 void LoadDoubleTypedArrayElement::GenerateCode(MaglevAssembler* masm,
                                                const ProcessingState& state) {
   Register object = ToRegister(object_input());
   Register index = ToRegister(index_input());
   DoubleRegister result_reg = ToDoubleRegister(result());
-  Register data_pointer = kScratchRegister;
   __ AssertNotSmi(object);
   if (v8_flags.debug_code) {
     __ CmpObjectType(object, JS_TYPED_ARRAY_TYPE, kScratchRegister);
     __ Assert(equal, AbortReason::kUnexpectedValue);
   }
-  __ LoadExternalPointerField(
-      data_pointer, FieldOperand(object, JSTypedArray::kExternalPointerOffset));
+
+  Register data_pointer = general_temporaries().PopFirst();
+  __ BuildTypedArrayDataPointer(data_pointer, object);
   switch (elements_kind_) {
     case FLOAT32_ELEMENTS:
       __ Movss(result_reg, Operand(data_pointer, index, times_4, 0));

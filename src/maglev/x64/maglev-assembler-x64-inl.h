@@ -189,6 +189,18 @@ inline MemOperand MaglevAssembler::ToMemOperand(const ValueLocation& location) {
   return ToMemOperand(location.operand());
 }
 
+inline void MaglevAssembler::BuildTypedArrayDataPointer(Register data_pointer,
+                                                        Register object) {
+  DCHECK_NE(data_pointer, object);
+  LoadExternalPointerField(
+      data_pointer, FieldOperand(object, JSTypedArray::kExternalPointerOffset));
+  if (JSTypedArray::kMaxSizeInHeap == 0) return;
+
+  Register base = kScratchRegister;
+  movl(base, FieldOperand(object, JSTypedArray::kBasePointerOffset));
+  addq(data_pointer, base);
+}
+
 inline void MaglevAssembler::LoadBoundedSizeFromObject(Register result,
                                                        Register object,
                                                        int offset) {

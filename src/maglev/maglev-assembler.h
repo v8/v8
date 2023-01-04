@@ -99,6 +99,8 @@ class MaglevAssembler : public MacroAssembler {
   inline void StoreField(MemOperand operand, Register value, int element_size);
   inline void ReverseByteOrder(Register value, int element_size);
 
+  void BuildTypedArrayDataPointer(Register data_pointer, Register object);
+
   // Warning: Input registers {string} and {index} will be scratched.
   // {result} is allowed to alias with one the other 3 input registers.
   // {result} is an int32.
