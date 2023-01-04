@@ -213,6 +213,12 @@
   # Needs deterministic test helpers for concurrent maglev tiering.
   # TODO(jgruber,v8:7700): Implement ASAP.
   'maglev/18': [SKIP],
+
+  # --perf-prof is only available on Linux, and --perf-prof-unwinding-info only
+  # on selected architectures.
+  'regress/wasm/regress-1032753': [PASS, ['system != linux', SKIP]],
+  'regress/regress-913844': [PASS,
+    ['system != linux or arch not in (arm, arm64, x64, s390x, ppc64)', SKIP]],
 }],  # ALWAYS
 
 ##############################################################################
@@ -1324,11 +1330,9 @@
 }], # no_harness
 
 ##############################################################################
-['arch != x64 or not pointer_compression or variant in (nooptimization, jitless)', {
-  # Maglev is x64-only for now.
-  # TODO(v8:7700): Update as we extend support.
+['not has_maglev', {
   'maglev/*': [SKIP],
-}], # arch != x64 or not pointer_compression or variant in (nooptimization, jitless)
+}], # not has_maglev
 
 ##############################################################################
 ['arch != x64 or deopt_fuzzer', {

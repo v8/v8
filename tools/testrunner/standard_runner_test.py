@@ -231,18 +231,16 @@ class StandardRunnerTest(TestRunnerTest):
           v8_enable_sandbox=False
         )
     )
-    expect_text = (
-        '>>> Autodetected:\n'
-        'asan\n'
-        'cfi_vptr\n'
-        'dcheck_always_on\n'
-        'msan\n'
-        'no_i18n\n'
-        'tsan\n'
-        'ubsan_vptr\n'
-        'webassembly\n'
-        '>>> Running tests for ia32.release')
-    result.stdout_includes(expect_text)
+    result.stdout_includes('>>> Autodetected:')
+    result.stdout_includes('asan')
+    result.stdout_includes('cfi_vptr')
+    result.stdout_includes('dcheck_always_on')
+    result.stdout_includes('msan')
+    result.stdout_includes('no_i18n')
+    result.stdout_includes('tsan')
+    result.stdout_includes('ubsan_vptr')
+    result.stdout_includes('webassembly')
+    result.stdout_includes('>>> Running tests for ia32.release')
     result.has_returncode(0)
     # TODO(machenbach): Test some more implications of the auto-detected
     # options, e.g. that the right env variables are set.

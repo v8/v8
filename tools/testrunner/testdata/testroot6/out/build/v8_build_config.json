@@ -32,5 +32,13 @@
   "v8_enable_single_generation": false,
   "v8_enable_third_party_heap": false,
   "v8_enable_webassembly": true,
-  "v8_dict_property_const_tracking": false
+  "v8_dict_property_const_tracking": false,
+  "v8_code_comments": false,
+  "v8_enable_debug_code": false,
+  "v8_enable_verify_heap": false,
+  "v8_enable_slow_dchecks": false,
+  "v8_enable_maglev": false,
+  "v8_enable_disassembler": false,
+  "is_DEBUG_defined": false,
+  "v8_enable_gdbjit": false
 }
