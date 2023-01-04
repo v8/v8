@@ -763,14 +763,14 @@ MaybeHandle<String> FactoryBase<Impl>::NewConsString(
       uint8_t* dest = result->GetChars(no_gc, access_guard);
       // Copy left part.
       {
-        const uint8_t* src =
-            left->template GetChars<uint8_t>(isolate(), no_gc, access_guard);
+        const uint8_t* src = left->template GetDirectStringChars<uint8_t>(
+            isolate(), no_gc, access_guard);
         CopyChars(dest, src, left_length);
       }
       // Copy right part.
       {
-        const uint8_t* src =
-            right->template GetChars<uint8_t>(isolate(), no_gc, access_guard);
+        const uint8_t* src = right->template GetDirectStringChars<uint8_t>(
+            isolate(), no_gc, access_guard);
         CopyChars(dest + left_length, src, right_length);
       }
       return result;

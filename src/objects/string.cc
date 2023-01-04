@@ -1680,7 +1680,8 @@ uint32_t HashString(String string, size_t start, int length, uint64_t seed,
                         access_guard);
     chars = buffer.get();
   } else {
-    chars = string.GetChars<Char>(cage_base, no_gc, access_guard) + start;
+    chars = string.GetDirectStringChars<Char>(cage_base, no_gc, access_guard) +
+            start;
   }
 
   return StringHasher::HashSequentialString<Char>(chars, length, seed);

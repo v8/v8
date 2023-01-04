@@ -621,18 +621,20 @@ bool String::IsOneByteEqualTo(base::Vector<const char> str) {
 }
 
 template <typename Char>
-const Char* String::GetChars(PtrComprCageBase cage_base,
-                             const DisallowGarbageCollection& no_gc) const {
+const Char* String::GetDirectStringChars(
+    PtrComprCageBase cage_base, const DisallowGarbageCollection& no_gc) const {
   DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(*this));
+  DCHECK(StringShape(*this).IsDirect());
   return StringShape(*this, cage_base).IsExternal()
              ? CharTraits<Char>::ExternalString::cast(*this).GetChars(cage_base)
              : CharTraits<Char>::String::cast(*this).GetChars(no_gc);
 }
 
 template <typename Char>
-const Char* String::GetChars(
+const Char* String::GetDirectStringChars(
     PtrComprCageBase cage_base, const DisallowGarbageCollection& no_gc,
     const SharedStringAccessGuardIfNeeded& access_guard) const {
+  DCHECK(StringShape(*this).IsDirect());
   return StringShape(*this, cage_base).IsExternal()
              ? CharTraits<Char>::ExternalString::cast(*this).GetChars(cage_base)
              : CharTraits<Char>::String::cast(*this).GetChars(no_gc,

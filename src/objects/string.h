@@ -207,12 +207,12 @@ class String : public TorqueGeneratedString<String, Name> {
   // SharedStringAccessGuard is not needed (i.e. on the main thread or on
   // read-only strings).
   template <typename Char>
-  inline const Char* GetChars(PtrComprCageBase cage_base,
-                              const DisallowGarbageCollection& no_gc) const;
+  inline const Char* GetDirectStringChars(
+      PtrComprCageBase cage_base, const DisallowGarbageCollection& no_gc) const;
 
   // Get chars from sequential or external strings.
   template <typename Char>
-  inline const Char* GetChars(
+  inline const Char* GetDirectStringChars(
       PtrComprCageBase cage_base, const DisallowGarbageCollection& no_gc,
       const SharedStringAccessGuardIfNeeded& access_guard) const;
 

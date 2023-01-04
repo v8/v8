@@ -740,7 +740,8 @@ Address StringTable::Data::TryStringToIndexOrLookupExisting(Isolate* isolate,
     String::WriteToFlat(source, buffer.get(), 0, length, isolate, access_guard);
     chars = buffer.get();
   } else {
-    chars = source.GetChars<Char>(isolate, no_gc, access_guard) + start;
+    chars =
+        source.GetDirectStringChars<Char>(isolate, no_gc, access_guard) + start;
   }
 
   if (!Name::IsHashFieldComputed(raw_hash_field) || !is_source_hash_usable) {
