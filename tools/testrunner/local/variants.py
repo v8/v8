@@ -105,6 +105,11 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
 # in _get_statusfile_variables in base_runner.py.
 # The conflicts might be directly contradictory flags or be caused by the
 # implications defined in flag-definitions.h.
+# The keys of the following map support negation through '!', e.g. rule
+#
+#   "!code_comments": [...]
+#
+# applies when the code_comments build variable is NOT set.
 INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE = {
   "lite_mode": ["--no-lazy-feedback-allocation", "--max-semi-space-size=*",
                 "--stress-concurrent-inlining"]

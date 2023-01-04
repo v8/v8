@@ -251,10 +251,17 @@ class TestCase(object):
       # Contradiction: flags specified through the "Flags:" annotation are
       # incompatible with the build.
       for variable, incompatible_flags in INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE.items():
-        if self.suite.statusfile.variables[variable]:
-          check_flags(
-              incompatible_flags, file_specific_flags,
-              "INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE[\"" + variable + "\"]")
+        if variable.startswith("!"):
+          # `variable` is negated, apply the rule if the build variable is NOT set.
+          if not self.suite.statusfile.variables[variable[1:]]:
+            check_flags(
+                incompatible_flags, file_specific_flags,
+                "INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE[\"" + variable + "\"]")
+        else:
+          if self.suite.statusfile.variables[variable]:
+            check_flags(
+                incompatible_flags, file_specific_flags,
+                "INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE[\"" + variable + "\"]")
 
       # Contradiction: flags passed through --extra-flags are incompatible.
       for extra_flag, incompatible_flags in INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG.items():
