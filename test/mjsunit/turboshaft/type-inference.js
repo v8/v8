@@ -33,7 +33,43 @@ function add2(x) {
   return %CheckTurboshaftTypeOf(result, "Float64{5.0}");
 }
 
-let targets = [ add1, add2 ];
+function mul2(x) {
+  let a = x ? 3.5 : 7.0;
+  let r = -1.0;
+  if (a < 5.0) r = a * 5.0;
+  else r = a * 2.5;
+  let result = r - 0.5;
+  return result;
+}
+
+function div2(x) {
+  let a = x ? 3.3 : 6.6;
+  let r = -1.0;
+  if (a < 5.0) r = a / 1.1;
+  else r = a / 2.2;
+  let result = r - 0.5;
+  return %CheckTypeOf(result, "Float64[2.49999,2.50001]");
+}
+
+//function min2(x) {
+//  let a = x ? 3.3 : 6.6;
+//  let r = -1.0;
+//  if (a < 5.0) r = Math.min(a, 6.6);
+//  else r = Math.min(3.3, a);
+//  let result = r - 0.3;
+//  return %CheckTypeOf(result, "Float64{3}");
+//}
+//
+//function max2(x) {
+//  let a = x ? 3.3 : 6.6;
+//  let r = -1.0;
+//  if (a < 5.0) r = Math.max(a, 6.6);
+//  else r = Math.max(3.3, a);
+//  let result = r - 0.6;
+//  return %CheckTypeOf(result, "Float64{6}");
+//}
+
+let targets = [ constants, add1, add2, mul2, div2, min2, max2 ];
 for(let f of targets) {
   %PrepareFunctionForOptimization(f);
   f(true);

@@ -264,6 +264,25 @@ struct FloatOperationTyper {
         elements, maybe_nan ? type_t::kNaN : type_t::kNoSpecialValues, zone);
   }
 
+  static bool IsIntegerSet(const type_t& t) {
+    if (!t.is_set()) return false;
+    int size = t.set_size();
+    DCHECK_LT(0, size);
+
+    float_t unused_ipart;
+    float_t min = t.set_element(0);
+    if (std::modf(min, &unused_ipart) != 0.0) return false;
+    if (min == -std::numeric_limits<float_t>::infinity()) return false;
+    float_t max = t.set_element(size - 1);
+    if (std::modf(max, &unused_ipart) != 0.0) return false;
+    if (max == std::numeric_limits<float_t>::infinity()) return false;
+
+    for (int i = 1; i < size - 1; ++i) {
+      if (std::modf(t.set_element(i), &unused_ipart) != 0.0) return false;
+    }
+    return true;
+  }
+
   // Tries to construct the product of two sets where values are generated using
   // {combine}. Returns Type::Invalid() if a set cannot be constructed (e.g.
   // because the result exceeds the maximal number of set elements).
@@ -358,6 +377,206 @@ struct FloatOperationTyper {
     const float_t result_min = array_min(results);
     const float_t result_max = array_max(results);
     return Range(result_min, result_max, maybe_nan, zone);
+  }
+
+  static Type Multiply(const type_t& l, const type_t& r, Zone* zone) {
+    if (l.is_only_nan() || r.is_only_nan()) return type_t::NaN();
+    bool maybe_nan = l.has_nan() || r.has_nan();
+
+    // If both sides are decently small sets, we produce the product set.
+    auto combine = [](float_t a, float_t b) { return a * b; };
+    if (l.is_set() && r.is_set()) {
+      auto result = ProductSet(l, r, maybe_nan, zone, combine);
+      if (!result.IsInvalid()) return result;
+    }
+
+    // Otherwise just construct a range.
+    auto [l_min, l_max] = l.minmax();
+    auto [r_min, r_max] = r.minmax();
+
+    std::array<float_t, 4> results;
+    results[0] = l_min * r_min;
+    results[1] = l_min * r_max;
+    results[2] = l_max * r_min;
+    results[3] = l_max * r_max;
+
+    for (int i = 0; i < 4; ++i) {
+      if (std::isnan(results[i])) {
+        return type_t::Any();
+      }
+    }
+
+    if (((l_min == -inf || l_max == inf) && (r_min <= 0.0 && 0.0 <= r_max)) ||
+        ((r_min == -inf || r_max == inf) && (l_min <= 0.0 && 0.0 <= l_max))) {
+      maybe_nan = true;
+    }
+
+    const float_t result_min = array_min(results);
+    const float_t result_max = array_max(results);
+    type_t type = Range(result_min, result_max, maybe_nan, zone);
+    DCHECK_IMPLIES(
+        result_min <= 0.0 && 0.0 <= result_max && (l_min < 0.0 || r_min < 0.0),
+        type.Contains(-0.0));
+    return type;
+  }
+
+  static Type Divide(const type_t& l, const type_t& r, Zone* zone) {
+    if (l.is_only_nan() || r.is_only_nan()) return type_t::NaN();
+    bool maybe_nan = l.has_nan() || r.has_nan();
+
+    // If both sides are decently small sets, we produce the product set.
+    auto combine = [](float_t a, float_t b) {
+      if (b == 0) return nan_v<Bits>;
+      return a / b;
+    };
+    if (l.is_set() && r.is_set()) {
+      auto result = ProductSet(l, r, maybe_nan, zone, combine);
+      if (!result.IsInvalid()) return result;
+    }
+
+    // Otherwise try to construct a range.
+    auto [l_min, l_max] = l.minmax();
+    auto [r_min, r_max] = r.minmax();
+
+    maybe_nan =
+        maybe_nan || (l.Contains(0) && r.Contains(0)) ||
+        ((l_min == -inf || l_max == inf) && (r_min == -inf || r_max == inf));
+
+    // If the divisor spans across 0, we give up on a precise type.
+    if (std::signbit(r_min) != std::signbit(r_max)) {
+      return type_t::Any(maybe_nan ? type_t::kNaN : type_t::kNoSpecialValues);
+    }
+
+    // If divisor includes 0, we can try to at least infer sign of the result.
+    if (r.Contains(0)) {
+      DCHECK_EQ(r_min, 0);
+      if (l_max < 0) {
+        // All values are negative.
+        return Range(-inf, next_smaller(float_t{0}),
+                     maybe_nan ? type_t::kNaN : type_t::kNoSpecialValues, zone);
+      }
+      if (r_min >= 0) {
+        // All values are positive.
+        return Range(0, inf,
+                     maybe_nan ? type_t::kNaN : type_t::kNoSpecialValues, zone);
+      }
+      return type_t::Any(maybe_nan ? type_t::kNaN : type_t::kNoSpecialValues);
+    }
+
+    std::array<float_t, 4> results;
+    results[0] = l_min / r_min;
+    results[1] = l_min / r_max;
+    results[2] = l_max / r_min;
+    results[3] = l_max / r_max;
+
+    const float_t result_min = array_min(results);
+    const float_t result_max = array_max(results);
+    return Range(result_min, result_max,
+                 maybe_nan ? type_t::kNaN : type_t::kNoSpecialValues, zone);
+  }
+
+  static Type Modulus(const type_t& l, const type_t& r, Zone* zone) {
+    if (l.is_only_nan() || r.is_only_nan()) return type_t::NaN();
+
+    bool maybe_nan =
+        l.has_nan() || r.has_nan() || l.Contains(-inf) || l.Contains(inf);
+    if (r.Contains(0)) {
+      if (r.IsSubtypeOf(type_t::Set({0}, type_t::kNaN, zone))) {
+        // If rhs contains nothing but 0 and NaN, the result will always be NaN.
+        return type_t::NaN();
+      }
+      maybe_nan = true;
+    }
+
+    // For integer inputs {l} and {r} we can infer a precise type.
+    if (IsIntegerSet(l) && IsIntegerSet(r)) {
+      auto [l_min, l_max] = l.minmax();
+      auto [r_min, r_max] = r.minmax();
+      auto l_abs = std::max(std::abs(l_min), std::abs(l_max));
+      auto r_abs = std::max(std::abs(r_min), std::abs(r_max)) - 1;
+      auto abs = std::min(l_abs, r_abs);
+      float_t min = 0.0, max = 0.0;
+      if (l_min >= 0.0) {
+        // {l} positive.
+        max = abs;
+      } else if (l_max <= 0.0) {
+        // {l} negative.
+        min = 0.0 - abs;
+      } else {
+        // {l} positive or negative.
+        min = 0.0 - abs;
+        max = abs;
+      }
+      if (min == max) return Set({min}, maybe_nan, zone);
+      return Range(min, max, maybe_nan, zone);
+    }
+
+    return type_t::Any(maybe_nan ? type_t::kNaN : type_t::kNoSpecialValues);
+  }
+
+  static Type Min(const type_t& l, const type_t& r, Zone* zone) {
+    if (l.is_only_nan() || r.is_only_nan()) return type_t::NaN();
+    bool maybe_nan = l.has_nan() || r.has_nan();
+
+    // If both sides are decently small sets, we produce the product set.
+    auto combine = [](float_t a, float_t b) { return std::min(a, b); };
+    if (l.is_set() && r.is_set()) {
+      // TODO(nicohartmann@): There is a faster way to compute this set.
+      auto result = ProductSet(l, r, maybe_nan, zone, combine);
+      if (!result.IsInvalid()) return result;
+    }
+
+    // Otherwise just construct a range.
+    auto [l_min, l_max] = l.minmax();
+    auto [r_min, r_max] = r.minmax();
+
+    auto min = std::min(l_min, r_min);
+    auto max = std::min(l_max, r_max);
+    return Range(min, max, maybe_nan, zone);
+  }
+
+  static Type Max(const type_t& l, const type_t& r, Zone* zone) {
+    if (l.is_only_nan() || r.is_only_nan()) return type_t::NaN();
+    bool maybe_nan = l.has_nan() || r.has_nan();
+
+    // If both sides are decently small sets, we produce the product set.
+    auto combine = [](float_t a, float_t b) { return std::max(a, b); };
+    if (l.is_set() && r.is_set()) {
+      // TODO(nicohartmann@): There is a faster way to compute this set.
+      auto result = ProductSet(l, r, maybe_nan, zone, combine);
+      if (!result.IsInvalid()) return result;
+    }
+
+    // Otherwise just construct a range.
+    auto [l_min, l_max] = l.minmax();
+    auto [r_min, r_max] = r.minmax();
+
+    auto min = std::max(l_min, r_min);
+    auto max = std::max(l_max, r_max);
+    return Range(min, max, maybe_nan, zone);
+  }
+
+  static Type Power(const type_t& l, const type_t& r, Zone* zone) {
+    if (l.is_only_nan() || r.is_only_nan()) return type_t::NaN();
+    bool maybe_nan = l.has_nan() || r.has_nan();
+
+    // If both sides are decently small sets, we produce the product set.
+    auto combine = [](float_t a, float_t b) { return std::pow(a, b); };
+    if (l.is_set() && r.is_set()) {
+      auto result = ProductSet(l, r, maybe_nan, zone, combine);
+      if (!result.IsInvalid()) return result;
+    }
+
+    // a ** b produces NaN if a < 0 && b is fraction
+    if (l.min() <= 0.0 && !IsIntegerSet(r)) maybe_nan = true;
+
+    // TODO(nicohartmann@): Maybe we can produce a more precise range here.
+    return type_t::Any(maybe_nan ? type_t::kNaN : 0);
+  }
+
+  static Type Atan2(const type_t& l, const type_t& r, Zone* zone) {
+    // TODO(nicohartmann@): Maybe we can produce a more precise range her.e
+    return type_t::Any(type_t::kNaN);
   }
 
   // Computes the ranges to which the sides of the comparison (lhs < rhs) can be
@@ -523,53 +742,40 @@ class Typer {
     return WordOperationTyper<64>::Subtract(l, r, zone);
   }
 
-  static Type TypeFloat32Add(const Type& lhs, const Type& rhs, Zone* zone) {
-    if (lhs.IsNone() || rhs.IsNone()) return Type::None();
-    if (!InputIs(lhs, Type::Kind::kFloat32) ||
-        !InputIs(rhs, Type::Kind::kFloat32)) {
-      return Float32Type::Any();
-    }
-    const auto& l = lhs.AsFloat32();
-    const auto& r = rhs.AsFloat32();
-
-    return FloatOperationTyper<32>::Add(l, r, zone);
+#define FLOAT_BINOP(op, bits, float_typer_handler)                     \
+  static Type TypeFloat##bits##op(const Type& lhs, const Type& rhs,    \
+                                  Zone* zone) {                        \
+    if (lhs.IsNone() || rhs.IsNone()) return Type::None();             \
+    if (!InputIs(lhs, Type::Kind::kFloat##bits) ||                     \
+        !InputIs(rhs, Type::Kind::kFloat##bits)) {                     \
+      return Float##bits##Type::Any();                                 \
+    }                                                                  \
+    const auto& l = lhs.AsFloat##bits();                               \
+    const auto& r = rhs.AsFloat##bits();                               \
+    return FloatOperationTyper<bits>::float_typer_handler(l, r, zone); \
   }
 
-  static Type TypeFloat32Sub(const Type& lhs, const Type& rhs, Zone* zone) {
-    if (lhs.IsNone() || rhs.IsNone()) return Type::None();
-    if (!InputIs(lhs, Type::Kind::kFloat32) ||
-        !InputIs(rhs, Type::Kind::kFloat32)) {
-      return Float32Type::Any();
-    }
-    const auto& l = lhs.AsFloat32();
-    const auto& r = rhs.AsFloat32();
-
-    return FloatOperationTyper<32>::Subtract(l, r, zone);
-  }
-
-  static Type TypeFloat64Add(const Type& lhs, const Type& rhs, Zone* zone) {
-    if (lhs.IsNone() || rhs.IsNone()) return Type::None();
-    if (!InputIs(lhs, Type::Kind::kFloat64) ||
-        !InputIs(rhs, Type::Kind::kFloat64)) {
-      return Float64Type::Any();
-    }
-    const auto& l = lhs.AsFloat64();
-    const auto& r = rhs.AsFloat64();
-
-    return FloatOperationTyper<64>::Add(l, r, zone);
-  }
-
-  static Type TypeFloat64Sub(const Type& lhs, const Type& rhs, Zone* zone) {
-    if (lhs.IsNone() || rhs.IsNone()) return Type::None();
-    if (!InputIs(lhs, Type::Kind::kFloat64) ||
-        !InputIs(rhs, Type::Kind::kFloat64)) {
-      return Float64Type::Any();
-    }
-    const auto& l = lhs.AsFloat64();
-    const auto& r = rhs.AsFloat64();
-
-    return FloatOperationTyper<64>::Subtract(l, r, zone);
-  }
+  // Float32 operations
+  FLOAT_BINOP(Add, 32, Add)
+  FLOAT_BINOP(Sub, 32, Subtract)
+  FLOAT_BINOP(Mul, 32, Multiply)
+  FLOAT_BINOP(Div, 32, Divide)
+  FLOAT_BINOP(Mod, 32, Modulus)
+  FLOAT_BINOP(Min, 32, Min)
+  FLOAT_BINOP(Max, 32, Max)
+  FLOAT_BINOP(Power, 32, Power)
+  FLOAT_BINOP(Atan2, 32, Atan2)
+  // Float64 operations
+  FLOAT_BINOP(Add, 64, Add)
+  FLOAT_BINOP(Sub, 64, Subtract)
+  FLOAT_BINOP(Mul, 64, Multiply)
+  FLOAT_BINOP(Div, 64, Divide)
+  FLOAT_BINOP(Mod, 64, Modulus)
+  FLOAT_BINOP(Min, 64, Min)
+  FLOAT_BINOP(Max, 64, Max)
+  FLOAT_BINOP(Power, 64, Power)
+  FLOAT_BINOP(Atan2, 64, Atan2)
+#undef FLOAT_BINOP
 
   static Word64Type ExtendWord32ToWord64(const Word32Type& t, Zone* zone) {
     // We cannot infer much, but the lower bound of the word32 is also the lower
@@ -948,38 +1154,40 @@ class TypeInferenceReducer : public Next {
     Type result_type = Type::Invalid();
     Type left_type = GetType(left);
     Type right_type = GetType(right);
+    Zone* zone = Asm().graph_zone();
 
     if (!left_type.IsInvalid() && !right_type.IsInvalid()) {
+#define CASE(op, bits)                                                     \
+  case FloatBinopOp::Kind::k##op:                                          \
+    result_type = Typer::TypeFloat##bits##op(left_type, right_type, zone); \
+    break;
       if (rep == FloatRepresentation::Float32()) {
         switch (kind) {
-          case FloatBinopOp::Kind::kAdd:
-            result_type = Typer::TypeFloat32Add(left_type, right_type,
-                                                Asm().graph_zone());
-            break;
-          case FloatBinopOp::Kind::kSub:
-            result_type = Typer::TypeFloat32Sub(left_type, right_type,
-                                                Asm().graph_zone());
-            break;
-          default:
-            // TODO(nicohartmann@): Support remaining {kind}s.
-            break;
+          CASE(Add, 32)
+          CASE(Sub, 32)
+          CASE(Mul, 32)
+          CASE(Div, 32)
+          CASE(Mod, 32)
+          CASE(Min, 32)
+          CASE(Max, 32)
+          CASE(Power, 32)
+          CASE(Atan2, 32)
         }
       } else {
         DCHECK_EQ(rep, FloatRepresentation::Float64());
         switch (kind) {
-          case FloatBinopOp::Kind::kAdd:
-            result_type = Typer::TypeFloat64Add(left_type, right_type,
-                                                Asm().graph_zone());
-            break;
-          case FloatBinopOp::Kind::kSub:
-            result_type = Typer::TypeFloat64Sub(left_type, right_type,
-                                                Asm().graph_zone());
-            break;
-          default:
-            // TODO(nicohartmann@): Support remaining {kind}s.
-            break;
+          CASE(Add, 64)
+          CASE(Sub, 64)
+          CASE(Mul, 64)
+          CASE(Div, 64)
+          CASE(Mod, 64)
+          CASE(Min, 64)
+          CASE(Max, 64)
+          CASE(Power, 64)
+          CASE(Atan2, 64)
         }
       }
+#undef CASE
     }
 
     SetType(index, result_type);

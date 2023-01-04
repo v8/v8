@@ -60,6 +60,7 @@ class AssertTypesReducer : public Next {
     Type type = TypeOf(index);
     if (type.IsInvalid()) return index;
     // For now allow Type::Any().
+    // TODO(nicohartmann@): Remove this once all operations are supported.
     if (type.IsAny()) return index;
 
     DetectReentranceScope reentrance_scope(&emitting_asserts_);
