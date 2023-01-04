@@ -25,32 +25,6 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
     kMinor,
     kMajor,
   };
-  using WrapperInfo = std::pair<void*, void*>;
-
-  // WrapperInfo is passed over the API. Use VerboseWrapperInfo to access pair
-  // internals in a named way. See ProcessingScope::TracePossibleJSWrapper()
-  // below on how a V8 object is parsed to gather the information.
-  struct VerboseWrapperInfo {
-    constexpr explicit VerboseWrapperInfo(const WrapperInfo& raw_info)
-        : raw_info(raw_info) {}
-
-    // Information describing the type pointed to via instance().
-    void* type_info() const { return raw_info.first; }
-    // Direct pointer to an instance described by type_info().
-    void* instance() const { return raw_info.second; }
-    // Returns whether the info is empty and thus does not keep a C++ object
-    // alive.
-    bool is_empty() const { return !type_info() || !instance(); }
-
-    const WrapperInfo& raw_info;
-  };
-
-  static V8_INLINE bool ExtractWrappableInfo(Isolate*, JSObject,
-                                             const WrapperDescriptor&,
-                                             WrapperInfo*);
-  static V8_INLINE bool ExtractWrappableInfo(
-      Isolate*, const WrapperDescriptor&, const EmbedderDataSlot& type_slot,
-      const EmbedderDataSlot& instance_slot, WrapperInfo*);
 
   explicit LocalEmbedderHeapTracer(Isolate* isolate) : isolate_(isolate) {}
 
@@ -87,23 +61,15 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
     embedder_worklist_empty_ = is_empty;
   }
 
-  WrapperInfo ExtractWrapperInfo(Isolate* isolate, JSObject js_object);
-
   cppgc::EmbedderStackState embedder_stack_state() const {
     return embedder_stack_state_;
   }
-
-  void EmbedderWriteBarrier(Heap*, JSObject);
 
  private:
   CppHeap* cpp_heap() {
     DCHECK_NOT_NULL(cpp_heap_);
     DCHECK_IMPLIES(isolate_, cpp_heap_ == isolate_->heap()->cpp_heap());
     return cpp_heap_;
-  }
-
-  WrapperDescriptor wrapper_descriptor() {
-    return cpp_heap()->wrapper_descriptor();
   }
 
   Isolate* const isolate_;

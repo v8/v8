@@ -7,14 +7,9 @@
 #include "include/cppgc/common.h"
 #include "include/v8-cppgc.h"
 #include "src/base/logging.h"
-#include "src/handles/global-handles.h"
-#include "src/heap/embedder-tracing-inl.h"
-#include "src/heap/gc-tracer.h"
 #include "src/heap/marking-worklist-inl.h"
 
 namespace v8::internal {
-
-START_ALLOW_USE_DEPRECATED()
 
 void LocalEmbedderHeapTracer::SetCppHeap(CppHeap* cpp_heap) {
   cpp_heap_ = cpp_heap;
@@ -69,34 +64,5 @@ bool LocalEmbedderHeapTracer::Trace(double max_duration) {
 bool LocalEmbedderHeapTracer::IsRemoteTracingDone() {
   return !InUse() || cpp_heap()->IsTracingDone();
 }
-
-LocalEmbedderHeapTracer::WrapperInfo
-LocalEmbedderHeapTracer::ExtractWrapperInfo(Isolate* isolate,
-                                            JSObject js_object) {
-  DCHECK(InUse());
-  WrapperInfo info;
-  if (ExtractWrappableInfo(isolate, js_object, wrapper_descriptor(), &info)) {
-    return info;
-  }
-  return {nullptr, nullptr};
-}
-
-void LocalEmbedderHeapTracer::EmbedderWriteBarrier(Heap* heap,
-                                                   JSObject js_object) {
-  DCHECK(InUse());
-  DCHECK(js_object.MayHaveEmbedderFields());
-  DCHECK_NOT_NULL(heap->mark_compact_collector());
-  auto descriptor = wrapper_descriptor();
-  const EmbedderDataSlot type_slot(js_object, descriptor.wrappable_type_index);
-  const EmbedderDataSlot instance_slot(js_object,
-                                       descriptor.wrappable_instance_index);
-  heap->mark_compact_collector()
-      ->local_marking_worklists()
-      ->cpp_marking_state()
-      ->MarkAndPush(type_slot, instance_slot);
-  return;
-}
-
-END_ALLOW_USE_DEPRECATED()
 
 }  // namespace v8::internal

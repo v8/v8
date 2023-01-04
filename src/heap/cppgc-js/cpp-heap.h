@@ -144,6 +144,7 @@ class V8_EXPORT_PRIVATE CppHeap final
   void TraceEpilogue();
   void EnterFinalPause(cppgc::EmbedderStackState stack_state);
   bool FinishConcurrentMarkingIfNeeded();
+  void WriteBarrier(JSObject);
 
   // StatsCollector::AllocationObserver interface.
   void AllocatedObjectSizeIncreased(size_t) final;

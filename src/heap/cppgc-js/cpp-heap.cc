@@ -43,7 +43,6 @@
 #include "src/heap/cppgc/sweeper.h"
 #include "src/heap/cppgc/unmarker.h"
 #include "src/heap/cppgc/visitor.h"
-#include "src/heap/embedder-tracing-inl.h"
 #include "src/heap/embedder-tracing.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap.h"
@@ -761,6 +760,21 @@ void CppHeap::EnterFinalPause(cppgc::EmbedderStackState stack_state) {
 bool CppHeap::FinishConcurrentMarkingIfNeeded() {
   if (!TracingInitialized()) return true;
   return marker_->JoinConcurrentMarkingIfNeeded();
+}
+
+void CppHeap::WriteBarrier(JSObject js_object) {
+  DCHECK(js_object.MayHaveEmbedderFields());
+  DCHECK_NOT_NULL(isolate()->heap()->mark_compact_collector());
+  auto descriptor = wrapper_descriptor();
+  const EmbedderDataSlot type_slot(js_object, descriptor.wrappable_type_index);
+  const EmbedderDataSlot instance_slot(js_object,
+                                       descriptor.wrappable_instance_index);
+  isolate()
+      ->heap()
+      ->mark_compact_collector()
+      ->local_marking_worklists()
+      ->cpp_marking_state()
+      ->MarkAndPush(type_slot, instance_slot);
 }
 
 namespace {
