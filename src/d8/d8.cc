@@ -2533,6 +2533,9 @@ bool Shell::HasOnProfileEndListener(Isolate* isolate) {
 }
 
 void Shell::ResetOnProfileEndListener(Isolate* isolate) {
+  // If the inspector is enabled, then the installed console is not the
+  // D8Console.
+  if (options.enable_inspector) return;
   profiler_end_callback_.erase(isolate);
 
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -2970,6 +2973,7 @@ void Shell::QuitOnce(v8::FunctionCallbackInfo<v8::Value>* args) {
                       ->Int32Value(args->GetIsolate()->GetCurrentContext())
                       .FromMaybe(0);
   Isolate* isolate = args->GetIsolate();
+  ResetOnProfileEndListener(isolate);
   isolate->Exit();
 
   // As we exit the process anyway, we do not dispose the platform and other
