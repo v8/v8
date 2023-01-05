@@ -3362,8 +3362,8 @@ ValueNode* MaglevGraphBuilder::ReduceFunctionPrototypeApplyCallWithReceiver(
   } else if (args.count() == 1 || IsNullValue(args[1]) ||
              IsUndefinedValue(args[1])) {
     // No need for spread. We have only the new receiver.
-    CallArguments new_args(ConvertReceiverMode::kAny,
-                           {GetTaggedValue(args[0])});
+    CallArguments new_args(ConvertReceiverMode::kAny, {GetTaggedValue(args[0])},
+                           args.mode());
     call = ReduceCall(receiver, new_args, feedback_source, speculation_mode);
   } else {
     // FunctionPrototypeApply only consider two arguments: the new receiver and
