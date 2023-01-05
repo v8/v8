@@ -433,8 +433,6 @@ size_t Isolate::HashIsolateForEmbeddedBlob() {
   RootIndex i = RootIndex::kFirstReadOnlyRoot;
   for (auto ptr : StaticReadOnlyRootsPointerTable) {
     hash = base::hash_combine(ptr, hash);
-    hash = base::hash_combine(std::hash<std::string>{}(roots_table().name(i)),
-                              hash);
     ++i;
   }
 #endif  // V8_STATIC_ROOTS_BOOL
