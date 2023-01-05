@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Adding a listener so that {profileEnd} does not create a file on the disk.
+d8.profiler.setOnProfileEndListener(() =>{});
+
 console.profile();
 console.profileEnd();
 console.profileEnd();
