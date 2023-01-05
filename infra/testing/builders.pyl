@@ -180,11 +180,6 @@
         ],
         'shards': 4,
       },
-      {'name': 'gcmole_v2', 'variant': 'ia32'},
-      {'name': 'gcmole_v2', 'variant': 'x64'},
-      {'name': 'gcmole_v2', 'variant': 'arm'},
-      {'name': 'gcmole_v2', 'variant': 'arm64'},
-      # TODO(https://crbug.com/v8/12660): Remove v2 above after testing.
       {'name': 'gcmole_v3', 'variant': 'ia32', 'shards': 4},
       {'name': 'gcmole_v3', 'variant': 'x64', 'shards': 4},
       {'name': 'gcmole_v3', 'variant': 'arm', 'shards': 4},
@@ -1099,11 +1094,6 @@
         'test_args': ['--extra-flags', '--noenable-avx'],
         'shards': 2
       },
-      {'name': 'gcmole_v2', 'variant': 'ia32'},
-      {'name': 'gcmole_v2', 'variant': 'x64'},
-      {'name': 'gcmole_v2', 'variant': 'arm'},
-      {'name': 'gcmole_v2', 'variant': 'arm64'},
-      # TODO(https://crbug.com/v8/12660): Remove v2 above after testing.
       {'name': 'gcmole_v3', 'variant': 'ia32', 'shards': 4},
       {'name': 'gcmole_v3', 'variant': 'x64', 'shards': 4},
       {'name': 'gcmole_v3', 'variant': 'arm', 'shards': 4},
