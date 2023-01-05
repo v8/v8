@@ -109,39 +109,25 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
           ? local_isolate_->factory()->NewByteArray(code_desc_.reloc_size,
                                                     AllocationType::kOld)
           : factory->NewByteArray(code_desc_.reloc_size, AllocationType::kOld);
-  Handle<CodeDataContainer> data_container;
 
-  // Use a canonical off-heap trampoline CodeDataContainer if possible.
-  const int32_t promise_rejection_flag =
-      Code::IsPromiseRejectionField::encode(true);
-  if (read_only_data_container_ &&
-      (kind_specific_flags_ == 0 ||
-       kind_specific_flags_ == promise_rejection_flag)) {
-    const ReadOnlyRoots roots(isolate_);
-    const auto canonical_code_data_container = Handle<CodeDataContainer>::cast(
-        kind_specific_flags_ == 0
-            ? roots.trampoline_trivial_code_data_container_handle()
-            : roots.trampoline_promise_rejection_code_data_container_handle());
-    DCHECK_EQ(canonical_code_data_container->kind_specific_flags(kRelaxedLoad),
-              kind_specific_flags_);
-    data_container = canonical_code_data_container;
+  Handle<CodeDataContainer> data_container;
+  if (CompiledWithConcurrentBaseline()) {
+    data_container = local_isolate_->factory()->NewCodeDataContainer(
+        0, AllocationType::kOld);
   } else {
-    if (CompiledWithConcurrentBaseline()) {
-      data_container = local_isolate_->factory()->NewCodeDataContainer(
-          0, AllocationType::kOld);
-    } else {
-      data_container = factory->NewCodeDataContainer(
-          0, read_only_data_container_ ? AllocationType::kReadOnly
-                                       : AllocationType::kOld);
-    }
-    if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-      const bool set_is_off_heap_trampoline = read_only_data_container_;
-      data_container->initialize_flags(kind_, builtin_, is_turbofanned_,
-                                       set_is_off_heap_trampoline);
-    }
-    data_container->set_kind_specific_flags(kind_specific_flags_,
-                                            kRelaxedStore);
+    AllocationType allocation_type =
+        V8_EXTERNAL_CODE_SPACE_BOOL || is_executable_
+            ? AllocationType::kOld
+            : AllocationType::kReadOnly;
+    data_container = factory->NewCodeDataContainer(0, allocation_type);
   }
+
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+    static constexpr bool kIsNotOffHeapTrampoline = false;
+    data_container->initialize_flags(kind_, builtin_, is_turbofanned_,
+                                     kIsNotOffHeapTrampoline);
+  }
+  data_container->set_kind_specific_flags(kind_specific_flags_, kRelaxedStore);
 
   // Basic block profiling data for builtins is stored in the JS heap rather
   // than in separately-allocated C++ objects. Allocate that data now if
@@ -2528,9 +2514,6 @@ Handle<CodeT> Factory::NewOffHeapTrampolineFor(Handle<CodeT> code,
   // Trampolines may not contain any metadata since all metadata offsets,
   // stored on the Code object, refer to the off-heap metadata area.
   CHECK_EQ(result->raw_metadata_size(), 0);
-
-  // The CodeDataContainer should not be modified beyond this point since it's
-  // now possibly canonicalized.
 
   // The trampoline code object must inherit specific flags from the original
   // builtin (e.g. the safepoint-table offset). We set them manually here.
