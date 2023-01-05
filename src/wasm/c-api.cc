@@ -889,6 +889,7 @@ class RefImpl {
     RefImpl* self = new (std::nothrow) RefImpl();
     if (!self) return nullptr;
     i::Isolate* isolate = store->i_isolate();
+    v8::Isolate::Scope isolate_scope(store->isolate());
     self->val_ = isolate->global_handles()->Create(*obj);
     return make_own(seal<Ref>(self));
   }
@@ -1215,6 +1216,7 @@ auto Module::deserialize(Store* store_abs, const vec<byte_t>& serialized)
     -> own<Module> {
   StoreImpl* store = impl(store_abs);
   i::Isolate* isolate = store->i_isolate();
+  v8::Isolate::Scope isolate_scope(store->isolate());
   i::HandleScope handle_scope(isolate);
   const byte_t* ptr = serialized.get();
   uint64_t binary_size = ReadLebU64(&ptr);
@@ -1725,6 +1727,7 @@ i::Address FuncData::v8_callback(i::Address host_data_foreign,
       i::Managed<FuncData>::cast(i::Object(host_data_foreign)).raw();
   StoreImpl* store = impl(self->store);
   i::Isolate* isolate = store->i_isolate();
+  v8::Isolate::Scope isolate_scope(store->isolate());
   i::HandleScope scope(isolate);
 
   isolate->set_context(*v8::Utils::OpenHandle(*store->context()));
@@ -1872,6 +1875,7 @@ auto Global::get() const -> Val {
       // TODO(7748): Handle types other than funcref and externref if needed.
       StoreImpl* store = impl(this)->store();
       i::HandleScope scope(store->i_isolate());
+      v8::Isolate::Scope isolate_scope(store->isolate());
       i::Handle<i::Object> result = v8_global->GetRef();
       if (result->IsWasmInternalFunction()) {
         result =
