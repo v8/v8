@@ -570,9 +570,11 @@ bool String::IsEqualToImpl(
       case kConsStringTag | kTwoByteStringTag: {
         // The ConsString path is more complex and rare, so call out to an
         // out-of-line handler.
-        return IsConsStringEqualToImpl<Char>(ConsString::cast(string),
-                                             slice_offset, str, cage_base,
-                                             access_guard);
+        // Slices cannot refer to ConsStrings, so there cannot be a non-zero
+        // slice offset here.
+        DCHECK_EQ(slice_offset, 0);
+        return IsConsStringEqualToImpl<Char>(ConsString::cast(string), str,
+                                             cage_base, access_guard);
       }
 
       case kThinStringTag | kOneByteStringTag:
@@ -589,17 +591,20 @@ bool String::IsEqualToImpl(
 // static
 template <typename Char>
 bool String::IsConsStringEqualToImpl(
-    ConsString string, int slice_offset, base::Vector<const Char> str,
-    PtrComprCageBase cage_base,
+    ConsString string, base::Vector<const Char> str, PtrComprCageBase cage_base,
     const SharedStringAccessGuardIfNeeded& access_guard) {
   // Already checked the len in IsEqualToImpl. Check GE rather than EQ in case
   // this is a prefix check.
   DCHECK_GE(string.length(), str.size());
 
-  ConsStringIterator iter(ConsString::cast(string), slice_offset);
+  ConsStringIterator iter(ConsString::cast(string));
   base::Vector<const Char> remaining_str = str;
-  for (String segment = iter.Next(&slice_offset); !segment.is_null();
-       segment = iter.Next(&slice_offset)) {
+  int offset;
+  for (String segment = iter.Next(&offset); !segment.is_null();
+       segment = iter.Next(&offset)) {
+    // We create the iterator without an offset, so we should never have a
+    // per-segment offset.
+    DCHECK_EQ(offset, 0);
     // Compare the individual segment against the appropriate subvector of the
     // remaining string.
     size_t len = std::min<size_t>(segment.length(), remaining_str.size());

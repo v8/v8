@@ -627,7 +627,7 @@ class String : public TorqueGeneratedString<String, Name> {
   // Out-of-line IsEqualToImpl for ConsString.
   template <typename Char>
   V8_NOINLINE static bool IsConsStringEqualToImpl(
-      ConsString string, int slice_offset, base::Vector<const Char> str,
+      ConsString string, base::Vector<const Char> str,
       PtrComprCageBase cage_base,
       const SharedStringAccessGuardIfNeeded& access_guard);
 
@@ -1090,7 +1090,11 @@ class ConsStringIterator {
     if (cons_string.is_null()) return;
     Initialize(cons_string, offset);
   }
-  // Returns nullptr when complete.
+  // Returns nullptr when complete. The offset_out parameter will be set to the
+  // offset within the returned segment that the user should start looking at,
+  // to match the offset passed into the constructor or Reset -- this will only
+  // be non-zero immediately after construction or Reset, and only if those had
+  // a non-zero offset.
   inline String Next(int* offset_out) {
     *offset_out = 0;
     if (depth_ == 0) return String();
