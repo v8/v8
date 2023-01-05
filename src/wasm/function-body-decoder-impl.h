@@ -16,6 +16,7 @@
 
 #include <optional>
 
+#include "src/base/call_cold.h"
 #include "src/base/small-vector.h"
 #include "src/base/strings.h"
 #include "src/base/v8-fallthrough.h"
@@ -1256,7 +1257,9 @@ class FastZoneVector {
 
   V8_INLINE void EnsureMoreCapacity(int slots_needed, Zone* zone) {
     if (V8_LIKELY(capacity_end_ - end_ >= slots_needed)) return;
-    Grow(slots_needed, zone);
+    base::call_cold([](FastZoneVector* vec, int slots_needed,
+                       Zone* zone) { vec->Grow(slots_needed, zone); },
+                    this, slots_needed, zone);
   }
 
  private:

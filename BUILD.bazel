@@ -595,6 +595,8 @@ filegroup(
         "src/base/bounded-page-allocator.h",
         "src/base/bounds.h",
         "src/base/build_config.h",
+        "src/base/call_cold.cc",
+        "src/base/call_cold.h",
         "src/base/compiler-specific.h",
         "src/base/container-utils.h",
         "src/base/cpu.cc",
