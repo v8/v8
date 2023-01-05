@@ -505,6 +505,16 @@ def check_correctness_for_arch(files, options):
   return errors_found
 
 
+def clean_test_output(output):
+  """Substitute line number patterns for files except gcmole-test.cc, as
+  otherwise unrelated code changes require a rebaseline of test expectations.
+  """
+  return re.sub(
+      r'(?<!gcmole-test\.cc):\d*:\d*:',
+      ':<number>:<number>:',
+      output)
+
+
 def has_unexpected_errors(options, errors_found, file_io):
   """Returns True if error state isn't as expected, False otherwise.
 
@@ -515,7 +525,7 @@ def has_unexpected_errors(options, errors_found, file_io):
     return errors_found
 
   log("Test Run")
-  output = file_io.getvalue()
+  output = clean_test_output(file_io.getvalue())
   if not errors_found:
     log("Test file should produce errors, but none were found. Output:")
     print(output)
