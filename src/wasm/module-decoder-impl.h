@@ -839,8 +839,8 @@ class ModuleDecoderTemplate : public Decoder {
           module_->num_imported_tags++;
           const WasmTagSig* tag_sig = nullptr;
           consume_exception_attribute();  // Attribute ignored for now.
-          consume_tag_sig_index(module_.get(), &tag_sig);
-          module_->tags.emplace_back(tag_sig);
+          uint32_t sig_index = consume_tag_sig_index(module_.get(), &tag_sig);
+          module_->tags.emplace_back(tag_sig, sig_index);
           break;
         }
         default:
@@ -1559,8 +1559,8 @@ class ModuleDecoderTemplate : public Decoder {
       tracer_.TagOffset(pc_offset());
       const WasmTagSig* tag_sig = nullptr;
       consume_exception_attribute();  // Attribute ignored for now.
-      consume_tag_sig_index(module_.get(), &tag_sig);
-      module_->tags.emplace_back(tag_sig);
+      uint32_t sig_index = consume_tag_sig_index(module_.get(), &tag_sig);
+      module_->tags.emplace_back(tag_sig, sig_index);
     }
   }
 
@@ -1771,8 +1771,9 @@ class ModuleDecoderTemplate : public Decoder {
     uint32_t sig_index = consume_u32v("signature index");
     tracer_.Bytes(pos, static_cast<uint32_t>(pc_ - pos));
     if (!module->has_signature(sig_index)) {
-      errorf(pos, "signature index %u out of bounds (%d signatures)", sig_index,
-             static_cast<int>(module->types.size()));
+      errorf(pos, "no signature at index %u (%d %s)", sig_index,
+             static_cast<int>(module->types.size()),
+             enabled_features_.has_gc() ? "types" : "signatures");
       *sig = nullptr;
       return 0;
     }

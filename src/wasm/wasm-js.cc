@@ -1669,8 +1669,12 @@ void WebAssemblyTag(const v8::FunctionCallbackInfo<v8::Value>& args) {
   // Set the tag index to 0. It is only used for debugging purposes, and has no
   // meaningful value when declared outside of a wasm module.
   auto tag = i::WasmExceptionTag::New(i_isolate, 0);
+
+  uint32_t canonical_type_index =
+      i::wasm::GetWasmEngine()->type_canonicalizer()->AddRecursiveGroup(&sig);
+
   i::Handle<i::JSObject> tag_object =
-      i::WasmTagObject::New(i_isolate, &sig, tag);
+      i::WasmTagObject::New(i_isolate, &sig, canonical_type_index, tag);
   args.GetReturnValue().Set(Utils::ToLocal(tag_object));
 }
 
@@ -1709,8 +1713,7 @@ uint32_t GetEncodedSize(i::Handle<i::WasmTagObject> tag_object) {
   i::wasm::WasmTagSig sig{0, static_cast<size_t>(serialized_sig.length()),
                           reinterpret_cast<i::wasm::ValueType*>(
                               serialized_sig.GetDataStartAddress())};
-  i::wasm::WasmTag tag(&sig);
-  return i::WasmExceptionPackage::GetEncodedSize(&tag);
+  return i::WasmExceptionPackage::GetEncodedSize(&sig);
 }
 
 void EncodeExceptionValues(v8::Isolate* isolate,

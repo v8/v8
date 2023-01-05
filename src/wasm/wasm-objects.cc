@@ -1585,6 +1585,7 @@ void WasmArray::SetTaggedElement(uint32_t index, Handle<Object> value,
 // static
 Handle<WasmTagObject> WasmTagObject::New(Isolate* isolate,
                                          const wasm::FunctionSig* sig,
+                                         uint32_t canonical_type_index,
                                          Handle<HeapObject> tag) {
   Handle<JSFunction> tag_cons(isolate->native_context()->wasm_tag_constructor(),
                               isolate);
@@ -1604,23 +1605,16 @@ Handle<WasmTagObject> WasmTagObject::New(Isolate* isolate,
       isolate->factory()->NewJSObject(tag_cons, AllocationType::kOld);
   Handle<WasmTagObject> tag_wrapper = Handle<WasmTagObject>::cast(tag_object);
   tag_wrapper->set_serialized_signature(*serialized_sig);
+  tag_wrapper->set_canonical_type_index(canonical_type_index);
   tag_wrapper->set_tag(*tag);
 
   return tag_wrapper;
 }
 
 // TODO(7748): Integrate this with type canonicalization.
-bool WasmTagObject::MatchesSignature(const wasm::FunctionSig* sig) {
-  DCHECK_EQ(0, sig->return_count());
-  DCHECK_LE(sig->parameter_count(), std::numeric_limits<int>::max());
-  int sig_size = static_cast<int>(sig->parameter_count());
-  if (sig_size != serialized_signature().length()) return false;
-  for (int index = 0; index < sig_size; ++index) {
-    if (sig->GetParam(index) != serialized_signature().get(index)) {
-      return false;
-    }
-  }
-  return true;
+bool WasmTagObject::MatchesSignature(uint32_t expected_canonical_type_index) {
+  return wasm::GetWasmEngine()->type_canonicalizer()->IsCanonicalSubtype(
+      this->canonical_type_index(), expected_canonical_type_index);
 }
 
 const wasm::FunctionSig* WasmCapiFunction::GetSignature(Zone* zone) const {
@@ -1826,7 +1820,11 @@ size_t ComputeEncodedElementSize(wasm::ValueType type) {
 
 // static
 uint32_t WasmExceptionPackage::GetEncodedSize(const wasm::WasmTag* tag) {
-  const wasm::WasmTagSig* sig = tag->sig;
+  return GetEncodedSize(tag->sig);
+}
+
+// static
+uint32_t WasmExceptionPackage::GetEncodedSize(const wasm::WasmTagSig* sig) {
   uint32_t encoded_size = 0;
   for (size_t i = 0; i < sig->parameter_count(); ++i) {
     switch (sig->GetParam(i).kind()) {

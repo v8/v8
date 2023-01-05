@@ -90,10 +90,12 @@ using WasmTagSig = FunctionSig;
 
 // Static representation of a wasm tag type.
 struct WasmTag {
-  explicit WasmTag(const WasmTagSig* sig) : sig(sig) {}
+  explicit WasmTag(const WasmTagSig* sig, uint32_t sig_index)
+      : sig(sig), sig_index(sig_index) {}
   const FunctionSig* ToFunctionSig() const { return sig; }
 
   const WasmTagSig* sig;  // type signature of the tag.
+  uint32_t sig_index;
 };
 
 // Static representation of a wasm literal stringref.

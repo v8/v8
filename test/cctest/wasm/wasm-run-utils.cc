@@ -292,7 +292,7 @@ uint32_t TestingModuleBuilder::AddBytes(base::Vector<const byte> bytes) {
 uint32_t TestingModuleBuilder::AddException(const FunctionSig* sig) {
   DCHECK_EQ(0, sig->return_count());
   uint32_t index = static_cast<uint32_t>(test_module_->tags.size());
-  test_module_->tags.push_back(WasmTag{sig});
+  test_module_->tags.emplace_back(sig, AddSignature(sig));
   Handle<WasmExceptionTag> tag = WasmExceptionTag::New(isolate_, index);
   Handle<FixedArray> table(instance_object_->tags_table(), isolate_);
   table = isolate_->factory()->CopyFixedArrayAndGrow(table, 1);

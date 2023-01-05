@@ -1165,7 +1165,7 @@ TEST_F(WasmModuleVerifyTest, Exception_invalid_sig_index) {
                   SIG_INDEX(23)))};  // except[0] (sig#23 [out-of-bounds])
   // Should fail decoding exception section.
   ModuleResult result = DecodeModule(base::ArrayVector(data));
-  EXPECT_NOT_OK(result, "signature index 23 out of bounds");
+  EXPECT_NOT_OK(result, "no signature at index 23 (1 signatures)");
 }
 
 TEST_F(WasmModuleVerifyTest, Exception_invalid_sig_return) {

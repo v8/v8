@@ -107,7 +107,7 @@ class TestModuleBuilder {
     return result;
   }
   byte AddException(WasmTagSig* sig) {
-    mod.tags.emplace_back(sig);
+    mod.tags.emplace_back(sig, AddSignature(sig));
     CHECK_LE(mod.types.size(), kMaxByteSizedLeb128);
     return static_cast<byte>(mod.tags.size() - 1);
   }
