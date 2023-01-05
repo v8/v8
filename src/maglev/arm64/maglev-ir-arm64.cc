@@ -1417,8 +1417,9 @@ void CheckJSTypedArrayBounds::GenerateCode(MaglevAssembler* masm,
                                JSTypedArray::kRawByteLengthOffset);
   int element_size = ElementsKindSize(elements_kind_);
   if (element_size > 1) {
-    DCHECK(element_size == 2 || element_size == 4);
-    __ Cmp(byte_length, Operand(index, LSL, element_size / 2));
+    DCHECK(element_size == 2 || element_size == 4 || element_size == 8);
+    __ Cmp(byte_length,
+           Operand(index, LSL, base::bits::CountTrailingZeros(element_size)));
   } else {
     __ Cmp(byte_length, index);
   }

@@ -498,8 +498,8 @@ void CheckJSTypedArrayBounds::GenerateCode(MaglevAssembler* masm,
                                JSTypedArray::kRawByteLengthOffset);
   int element_size = ElementsKindSize(elements_kind_);
   if (element_size > 1) {
-    DCHECK(element_size == 2 || element_size == 4);
-    __ shlq(index, Immediate(element_size / 2));
+    DCHECK(element_size == 2 || element_size == 4 || element_size == 8);
+    __ shlq(index, Immediate(base::bits::CountTrailingZeros(element_size)));
   }
   __ cmpq(index, byte_length);
   // We use {above_equal} which does an unsigned comparison to handle negative
