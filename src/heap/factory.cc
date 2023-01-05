@@ -2504,23 +2504,20 @@ Handle<CodeT> Factory::NewOffHeapTrampolineFor(Handle<CodeT> code,
   CHECK(Builtins::IsIsolateIndependentBuiltin(*code));
 
 #ifdef V8_EXTERNAL_CODE_SPACE
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    const int no_flags = 0;
-    Handle<CodeDataContainer> code_data_container =
-        NewCodeDataContainer(no_flags, AllocationType::kOld);
+  const int no_flags = 0;
+  Handle<CodeDataContainer> code_data_container =
+      NewCodeDataContainer(no_flags, AllocationType::kOld);
 
-    const bool set_is_off_heap_trampoline = true;
-    code_data_container->initialize_flags(code->kind(), code->builtin_id(),
-                                          code->is_turbofanned(),
-                                          set_is_off_heap_trampoline);
-    code_data_container->set_kind_specific_flags(
-        code->kind_specific_flags(kRelaxedLoad), kRelaxedStore);
-    code_data_container->set_code_entry_point(isolate(),
-                                              code->code_entry_point());
-    return Handle<CodeT>::cast(code_data_container);
-  }
-#endif  // V8_EXTERNAL_CODE_SPACE
-
+  const bool set_is_off_heap_trampoline = true;
+  code_data_container->initialize_flags(code->kind(), code->builtin_id(),
+                                        code->is_turbofanned(),
+                                        set_is_off_heap_trampoline);
+  code_data_container->set_kind_specific_flags(
+      code->kind_specific_flags(kRelaxedLoad), kRelaxedStore);
+  code_data_container->set_code_entry_point(isolate(),
+                                            code->code_entry_point());
+  return Handle<CodeT>::cast(code_data_container);
+#else
   bool generate_jump_to_instruction_stream =
       Builtins::CodeObjectIsExecutable(code->builtin_id());
   Handle<Code> result = Builtins::GenerateOffHeapTrampolineFor(
@@ -2569,20 +2566,10 @@ Handle<CodeT> Factory::NewOffHeapTrampolineFor(Handle<CodeT> code,
     }
 #endif
     raw_result.set_relocation_info(canonical_reloc_info);
-    if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-      CodeDataContainer code_data_container =
-          raw_result.code_data_container(kAcquireLoad);
-      // Updating flags (in particular is_off_heap_trampoline one) might change
-      // the value of the instruction start, so update it here.
-      code_data_container.UpdateCodeEntryPoint(isolate(), raw_result);
-      // Also update flag values cached on the code data container.
-      code_data_container.initialize_flags(
-          raw_code.kind(), raw_code.builtin_id(), raw_code.is_turbofanned(),
-          set_is_off_heap_trampoline);
-    }
   }
 
   return ToCodeT(result, isolate());
+#endif  // V8_EXTERNAL_CODE_SPACE
 }
 
 Handle<BytecodeArray> Factory::CopyBytecodeArray(Handle<BytecodeArray> source) {
