@@ -238,7 +238,33 @@ void AssertInt32::GenerateCode(MaglevAssembler* masm,
   __ Check(ToCondition(condition_), reason_);
 }
 
-UNIMPLEMENTED_NODE(CheckJSObjectElementsBounds)
+void CheckJSObjectElementsBounds::SetValueLocationConstraints() {
+  UseRegister(receiver_input());
+  set_temporaries_needed(1);
+  UseRegister(index_input());
+}
+void CheckJSObjectElementsBounds::GenerateCode(MaglevAssembler* masm,
+                                               const ProcessingState& state) {
+  Register object = ToRegister(receiver_input());
+  Register index = ToRegister(index_input()).W();
+  Register scratch = general_temporaries().PopFirst();
+  __ AssertNotSmi(object);
+
+  if (v8_flags.debug_code) {
+    __ CompareObjectType(object, scratch, scratch, FIRST_JS_OBJECT_TYPE);
+    __ Assert(ge, AbortReason::kUnexpectedValue);
+  }
+  __ LoadAnyTaggedField(scratch,
+                        FieldMemOperand(object, JSObject::kElementsOffset));
+  if (v8_flags.debug_code) {
+    __ AssertNotSmi(scratch);
+  }
+  __ SmiUntagField(scratch,
+                   FieldMemOperand(scratch, FixedArray::kLengthOffset));
+  __ Cmp(index, scratch.W());
+  __ EmitEagerDeoptIf(hs, DeoptimizeReason::kOutOfBounds, this);
+}
+
 UNIMPLEMENTED_NODE_WITH_CALL(JumpLoopPrologue, loop_depth_, unit_)
 
 int BuiltinStringFromCharCode::MaxCallStackArgs() const {
