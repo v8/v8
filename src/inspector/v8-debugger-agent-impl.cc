@@ -14,6 +14,7 @@
 #include "include/v8-microtask-queue.h"
 #include "src/base/safe_conversions.h"
 #include "src/debug/debug-interface.h"
+#include "src/inspector/crc32.h"
 #include "src/inspector/injected-script.h"
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/protocol/Debugger.h"
@@ -55,6 +56,9 @@ static const char breakpointsByRegex[] = "breakpointsByRegex";
 static const char breakpointsByUrl[] = "breakpointsByUrl";
 static const char breakpointsByScriptHash[] = "breakpointsByScriptHash";
 static const char breakpointHints[] = "breakpointHints";
+static const char breakpointHintText[] = "text";
+static const char breakpointHintPrefixHash[] = "prefixHash";
+static const char breakpointHintPrefixLength[] = "prefixLen";
 static const char instrumentationBreakpoints[] = "instrumentationBreakpoints";
 
 }  // namespace DebuggerAgentState
@@ -179,23 +183,46 @@ bool positionComparator(const std::pair<int, int>& a,
   return a.second < b.second;
 }
 
-String16 breakpointHint(const V8DebuggerScript& script, int lineNumber,
-                        int columnNumber) {
-  int offset;
-  if (!script.offset(lineNumber, columnNumber).To(&offset)) return String16();
+std::unique_ptr<protocol::DictionaryValue> breakpointHint(
+    const V8DebuggerScript& script, int breakpointLineNumber,
+    int breakpointColumnNumber, int actualLineNumber, int actualColumnNumber) {
+  int actualOffset;
+  int breakpointOffset;
+  if (!script.offset(actualLineNumber, actualColumnNumber).To(&actualOffset) ||
+      !script.offset(breakpointLineNumber, breakpointColumnNumber)
+           .To(&breakpointOffset)) {
+    return {};
+  }
+
+  auto hintObject = protocol::DictionaryValue::create();
   String16 hint =
-      script.source(offset, kBreakpointHintMaxLength).stripWhiteSpace();
+      script.source(actualOffset, kBreakpointHintMaxLength).stripWhiteSpace();
   for (size_t i = 0; i < hint.length(); ++i) {
     if (hint[i] == '\r' || hint[i] == '\n' || hint[i] == ';') {
-      return hint.substring(0, i);
+      hint = hint.substring(0, i);
+      break;
     }
   }
-  return hint;
+  hintObject->setString(DebuggerAgentState::breakpointHintText, hint);
+
+  // Also store the hash of the text between the requested breakpoint location
+  // and the actual breakpoint location. If we see the same prefix text next
+  // time, we will keep the breakpoint at the same location (so that
+  // breakpoints do not slide around on reloads without any edits).
+  if (breakpointOffset <= actualOffset) {
+    size_t length = actualOffset - breakpointOffset;
+    String16 prefix = script.source(breakpointOffset, length);
+    int crc32 = computeCrc32(prefix);
+    hintObject->setInteger(DebuggerAgentState::breakpointHintPrefixHash, crc32);
+    hintObject->setInteger(DebuggerAgentState::breakpointHintPrefixLength,
+                           v8::base::checked_cast<int32_t>(length));
+  }
+  return hintObject;
 }
 
 void adjustBreakpointLocation(const V8DebuggerScript& script,
-                              const String16& hint, int* lineNumber,
-                              int* columnNumber) {
+                              const protocol::DictionaryValue* hintObject,
+                              int* lineNumber, int* columnNumber) {
   if (*lineNumber < script.startLine() || *lineNumber > script.endLine())
     return;
   if (*lineNumber == script.startLine() &&
@@ -206,15 +233,41 @@ void adjustBreakpointLocation(const V8DebuggerScript& script,
     return;
   }
 
-  if (hint.isEmpty()) return;
   int sourceOffset;
   if (!script.offset(*lineNumber, *columnNumber).To(&sourceOffset)) return;
+
+  int prefixLength = 0;
+  hintObject->getInteger(DebuggerAgentState::breakpointHintPrefixLength,
+                         &prefixLength);
+  String16 hint;
+  if (!hintObject->getString(DebuggerAgentState::breakpointHintText, &hint) ||
+      hint.isEmpty())
+    return;
 
   intptr_t searchRegionOffset = std::max(
       sourceOffset - kBreakpointHintMaxSearchOffset, static_cast<intptr_t>(0));
   size_t offset = sourceOffset - searchRegionOffset;
-  String16 searchArea = script.source(searchRegionOffset,
-                                      offset + kBreakpointHintMaxSearchOffset);
+  size_t searchRegionSize =
+      offset + std::max(kBreakpointHintMaxSearchOffset,
+                        static_cast<intptr_t>(prefixLength + hint.length()));
+
+  String16 searchArea = script.source(searchRegionOffset, searchRegionSize);
+
+  // Let us see if the breakpoint hint text appears at the same location
+  // as before, with the same prefix text in between. If yes, then we just use
+  // that position.
+  int prefixHash;
+  if (hintObject->getInteger(DebuggerAgentState::breakpointHintPrefixHash,
+                             &prefixHash) &&
+      offset + prefixLength + hint.length() <= searchArea.length() &&
+      searchArea.substring(offset + prefixLength, hint.length()) == hint &&
+      computeCrc32(searchArea.substring(offset, prefixLength)) == prefixHash) {
+    v8::debug::Location hintPosition =
+        script.location(static_cast<int>(offset + prefixLength));
+    *lineNumber = hintPosition.GetLineNumber();
+    *columnNumber = hintPosition.GetColumnNumber();
+    return;
+  }
 
   size_t nextMatch = searchArea.find(hint, offset);
   size_t prevMatch = searchArea.reverseFind(hint, offset);
@@ -222,7 +275,8 @@ void adjustBreakpointLocation(const V8DebuggerScript& script,
     return;
   }
   size_t bestMatch;
-  if (nextMatch == String16::kNotFound) {
+  if (nextMatch == String16::kNotFound ||
+      nextMatch > kBreakpointHintMaxSearchOffset) {
     bestMatch = prevMatch;
   } else if (prevMatch == String16::kNotFound) {
     bestMatch = nextMatch;
@@ -588,26 +642,30 @@ Response V8DebuggerAgentImpl::setBreakpointByUrl(
         "Breakpoint at specified location already exists.");
   }
 
-  String16 hint;
+  std::unique_ptr<protocol::DictionaryValue> hint;
   for (const auto& script : m_scripts) {
     if (!matches(m_inspector, *script.second, type, selector)) continue;
-    if (!hint.isEmpty()) {
-      adjustBreakpointLocation(*script.second, hint, &lineNumber,
-                               &columnNumber);
+    int adjustedLineNumber = lineNumber;
+    int adjustedColumnNumber = columnNumber;
+    if (hint) {
+      adjustBreakpointLocation(*script.second, hint.get(), &adjustedLineNumber,
+                               &adjustedColumnNumber);
     }
-    std::unique_ptr<protocol::Debugger::Location> location = setBreakpointImpl(
-        breakpointId, script.first, condition, lineNumber, columnNumber);
+    std::unique_ptr<protocol::Debugger::Location> location =
+        setBreakpointImpl(breakpointId, script.first, condition,
+                          adjustedLineNumber, adjustedColumnNumber);
     if (location && type != BreakpointType::kByUrlRegex) {
-      hint = breakpointHint(*script.second, location->getLineNumber(),
-                            location->getColumnNumber(columnNumber));
+      hint = breakpointHint(*script.second, lineNumber, columnNumber,
+                            location->getLineNumber(),
+                            location->getColumnNumber(adjustedColumnNumber));
     }
     if (location) (*locations)->emplace_back(std::move(location));
   }
   breakpoints->setString(breakpointId, condition);
-  if (!hint.isEmpty()) {
+  if (hint) {
     protocol::DictionaryValue* breakpointHints =
         getOrCreateObject(m_state, DebuggerAgentState::breakpointHints);
-    breakpointHints->setString(breakpointId, hint);
+    breakpointHints->setObject(breakpointId, std::move(hint));
   }
   *outBreakpointId = breakpointId;
   return Response::Success();
@@ -1892,10 +1950,9 @@ void V8DebuggerAgentImpl::didParseSource(
       if (!matches(m_inspector, *scriptRef, type, selector)) continue;
       String16 condition;
       breakpointWithCondition.second->asString(&condition);
-      String16 hint;
-      bool hasHint =
-          breakpointHints && breakpointHints->getString(breakpointId, &hint);
-      if (hasHint) {
+      protocol::DictionaryValue* hint =
+          breakpointHints ? breakpointHints->getObject(breakpointId) : nullptr;
+      if (hint) {
         adjustBreakpointLocation(*scriptRef, hint, &lineNumber, &columnNumber);
       }
       std::unique_ptr<protocol::Debugger::Location> location =

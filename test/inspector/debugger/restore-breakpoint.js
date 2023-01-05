@@ -12,6 +12,23 @@ InspectorTest.runTestSuite([
     test(source, source, { lineNumber: 1, columnNumber: 0 }, next);
   },
 
+  function testSameSourceDuplicateLines(next) {
+    var source = 'function foo() {\nboo();\n// something\nboo();\n}';
+    test(source, source, { lineNumber: 2, columnNumber: 0 }, next);
+  },
+
+  function testSameSourceDuplicateLinesLongLineBetween(next) {
+    var longComment = '/'.repeat(1e4);
+    var source = `function foo() {\nboo();\n${longComment}\nboo();\n}`;
+    test(source, source, { lineNumber: 2, columnNumber: 0 }, next);
+  },
+
+  function testSameSourceDuplicateLinesDifferentPrefix(next) {
+    var source = 'function foo() {\nboo();\n// something\nboo();\n}';
+    var newSource = 'function foo() {\nboo();\n// somethinX\nboo();\n}';
+    test(source, newSource, { lineNumber: 2, columnNumber: 0 }, next);
+  },
+
   function testOneLineOffset(next) {
     var source = 'function foo() {\nboo();\n}';
     var newSource = 'function foo() {\nboo();\nboo();\n}';

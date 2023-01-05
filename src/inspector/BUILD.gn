@@ -102,6 +102,8 @@ v8_source_set("inspector") {
     "../../include/v8-inspector.h",
   ]
   sources += [
+    "crc32.cc",
+    "crc32.h",
     "custom-preview.cc",
     "custom-preview.h",
     "injected-script.cc",

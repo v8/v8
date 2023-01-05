@@ -3255,6 +3255,8 @@ filegroup(
 filegroup(
     name = "v8_inspector_files",
     srcs = [
+        "src/inspector/crc32.cc",
+        "src/inspector/crc32.h",
         "src/inspector/custom-preview.cc",
         "src/inspector/custom-preview.h",
         "src/inspector/injected-script.cc",

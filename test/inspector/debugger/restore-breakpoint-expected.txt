@@ -8,6 +8,42 @@ function foo() {
 #boo();
 }
 
+Running test: testSameSourceDuplicateLines
+function foo() {
+boo();
+// something
+#boo();
+}
+function foo() {
+boo();
+// something
+#boo();
+}
+
+Running test: testSameSourceDuplicateLinesLongLineBetween
+function foo() {
+boo();
+/////////////////////////////////////////////////////////////////////////////...
+#boo();
+}
+function foo() {
+boo();
+/////////////////////////////////////////////////////////////////////////////...
+#boo();
+}
+
+Running test: testSameSourceDuplicateLinesDifferentPrefix
+function foo() {
+boo();
+// something
+#boo();
+}
+function foo() {
+#boo();
+// somethinX
+boo();
+}
+
 Running test: testOneLineOffset
 function foo() {
 #boo();
