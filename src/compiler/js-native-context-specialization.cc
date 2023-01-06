@@ -1515,9 +1515,10 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     for (const MapRef& map : inferred_maps) {
       if (map.is_deprecated()) continue;
 
-      // TODO(v8:12547): Support writing to shared structs, which needs a write
-      // barrier that calls Object::Share to ensure the RHS is shared.
-      if (InstanceTypeChecker::IsJSSharedStruct(map.instance_type()) &&
+      // TODO(v8:12547): Support writing to objects in shared space, which need
+      // a write barrier that calls Object::Share to ensure the RHS is shared.
+      if (InstanceTypeChecker::IsAlwaysSharedSpaceJSObject(
+              map.instance_type()) &&
           access_mode == AccessMode::kStore) {
         return NoChange();
       }
@@ -2178,9 +2179,10 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
           return NoChange();
         }
 
-        // TODO(v8:12547): Support writing to shared structs, which needs a
-        // write barrier that calls Object::Share to ensure the RHS is shared.
-        if (InstanceTypeChecker::IsJSSharedStruct(
+        // TODO(v8:12547): Support writing to objects in shared space, which
+        // need a write barrier that calls Object::Share to ensure the RHS is
+        // shared.
+        if (InstanceTypeChecker::IsAlwaysSharedSpaceJSObject(
                 receiver_map.instance_type())) {
           return NoChange();
         }
