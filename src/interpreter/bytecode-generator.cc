@@ -5992,9 +5992,15 @@ void BytecodeGenerator::VisitDelete(UnaryOperation* unary) {
     // and strict modes.
     Property* property = expr->AsProperty();
     DCHECK(!property->IsPrivateReference());
-    Register object = VisitForRegisterValue(property->obj());
-    VisitForAccumulatorValue(property->key());
-    builder()->Delete(object, language_mode());
+    if (property->IsSuperAccess()) {
+      // Delete of super access is not allowed.
+      VisitForEffect(property->key());
+      builder()->CallRuntime(Runtime::kThrowUnsupportedSuperError);
+    } else {
+      Register object = VisitForRegisterValue(property->obj());
+      VisitForAccumulatorValue(property->key());
+      builder()->Delete(object, language_mode());
+    }
   } else if (expr->IsOptionalChain()) {
     Expression* expr_inner = expr->AsOptionalChain()->expression();
     if (expr_inner->IsProperty()) {
@@ -6682,7 +6688,9 @@ void BytecodeGenerator::VisitSuperCallReference(SuperCallReference* expr) {
 
 void BytecodeGenerator::VisitSuperPropertyReference(
     SuperPropertyReference* expr) {
-  builder()->CallRuntime(Runtime::kThrowUnsupportedSuperError);
+  // Handled by VisitAssignment(), VisitCall(), VisitDelete() and
+  // VisitPropertyLoad().
+  UNREACHABLE();
 }
 
 void BytecodeGenerator::VisitCommaExpression(BinaryOperation* binop) {
