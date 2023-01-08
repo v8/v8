@@ -42,7 +42,6 @@
 #include <memory>
 #include <vector>
 
-#include "src/base/call_cold.h"
 #include "src/base/export-template.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/cpu-features.h"
@@ -2641,10 +2640,7 @@ void Assembler::vinstr(byte op, YMMRegister dst, XMMRegister src1,
 class EnsureSpace {
  public:
   explicit V8_INLINE EnsureSpace(Assembler* assembler) : assembler_(assembler) {
-    if (V8_UNLIKELY(assembler_->buffer_overflow())) {
-      base::call_cold([](Assembler* assembler) { assembler->GrowBuffer(); },
-                      assembler_);
-    }
+    if (V8_UNLIKELY(assembler_->buffer_overflow())) assembler_->GrowBuffer();
 #ifdef DEBUG
     space_before_ = assembler_->available_space();
 #endif
