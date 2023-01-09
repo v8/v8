@@ -4765,7 +4765,7 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
 
 AllocatedOperand CodeGenerator::Push(InstructionOperand* source) {
   auto rep = LocationOperand::cast(source)->representation();
-  int new_slots = RoundUp<2>(ElementSizeInPointers(rep));
+  int new_slots = ElementSizeInPointers(rep);
   RiscvOperandConverter g(this, nullptr);
   int last_frame_slot_id =
       frame_access_state_->frame()->GetTotalFrameSlotCount() - 1;
@@ -4793,7 +4793,7 @@ AllocatedOperand CodeGenerator::Push(InstructionOperand* source) {
 }
 
 void CodeGenerator::Pop(InstructionOperand* dest, MachineRepresentation rep) {
-  int new_slots = RoundUp<2>(ElementSizeInPointers(rep));
+  int new_slots = ElementSizeInPointers(rep);
   frame_access_state()->IncreaseSPDelta(-new_slots);
   RiscvOperandConverter g(this, nullptr);
   if (dest->IsRegister()) {
