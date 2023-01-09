@@ -6,6 +6,7 @@
 #define V8_OBJECTS_JS_SHARED_ARRAY_H_
 
 #include "src/objects/js-objects.h"
+#include "src/objects/js-struct.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -16,7 +17,8 @@ namespace internal {
 #include "torque-generated/src/objects/js-shared-array-tq.inc"
 
 class JSSharedArray
-    : public TorqueGeneratedJSSharedArray<JSSharedArray, JSObject> {
+    : public TorqueGeneratedJSSharedArray<JSSharedArray,
+                                          AlwaysSharedSpaceJSObject> {
  public:
   DECL_CAST(JSSharedArray)
   DECL_PRINTER(JSSharedArray)

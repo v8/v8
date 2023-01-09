@@ -78,6 +78,7 @@ class ZoneForwardList;
   V(AccessCheckNeeded)                          \
   V(AccessorInfo)                               \
   V(AllocationSite)                             \
+  V(AlwaysSharedSpaceJSObject)                  \
   V(ArrayList)                                  \
   V(BigInt)                                     \
   V(BigIntBase)                                 \
