@@ -371,6 +371,7 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
                                          Label* char_code_fits_one_byte,
                                          Register result, Register char_code,
                                          Register scratch) {
+  AssertZeroExtended(char_code);
   DCHECK_NE(char_code, scratch);
   ZoneLabelRef done(this);
   Cmp(char_code, Immediate(String::kMaxOneByteCharCode));
@@ -578,6 +579,8 @@ void MaglevAssembler::TruncateDoubleToInt32(Register dst, DoubleRegister src) {
       src, dst, done);
 
   Bind(*done);
+  // Zero extend the converted value to complete the truncation.
+  Mov(dst, Operand(dst.W(), UXTW));
 }
 
 }  // namespace maglev

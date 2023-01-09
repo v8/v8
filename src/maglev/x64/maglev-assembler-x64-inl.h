@@ -325,7 +325,8 @@ inline void MaglevAssembler::Move(Register dst, Register src) {
 }
 
 inline void MaglevAssembler::Move(Register dst, int32_t i) {
-  MacroAssembler::Move(dst, Immediate(i));
+  // Move as a uint32 to avoid sign extension.
+  MacroAssembler::Move(dst, static_cast<uint32_t>(i));
 }
 
 inline void MaglevAssembler::Move(DoubleRegister dst, double n) {

@@ -7,7 +7,9 @@
 
 #include "src/codegen/machine-type.h"
 #include "src/codegen/macro-assembler.h"
+#include "src/flags/flags.h"
 #include "src/maglev/maglev-code-gen-state.h"
+#include "src/maglev/maglev-ir.h"
 
 namespace v8 {
 namespace internal {
