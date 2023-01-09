@@ -551,6 +551,14 @@ inline void MaglevAssembler::MoveRepr(MachineRepresentation repr,
       UNREACHABLE();
   }
 }
+template <>
+inline void MaglevAssembler::MoveRepr(MachineRepresentation repr,
+                                      MemOperand dst, MemOperand src) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.AcquireX();
+  MoveRepr(repr, scratch, src);
+  MoveRepr(repr, dst, scratch);
+}
 
 inline Condition ToCondition(AssertCondition cond) {
   switch (cond) {
