@@ -66,7 +66,6 @@ struct alignas(kMinimumOSPageSize) FlagValues {
 
 #define FLAG_MODE_DECLARE
 #include "src/flags/flag-definitions.h"  // NOLINT(build/include)
-#undef FLAG_MODE_DECLARE
 };
 
 V8_EXPORT_PRIVATE extern FlagValues v8_flags;

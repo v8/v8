@@ -42,18 +42,12 @@
 #elif defined(FLAG_MODE_DEFINE_DEFAULTS)
 #define FLAG_FULL(ftype, ctype, nam, def, cmt) \
   static constexpr ctype FLAGDEFAULT_##nam{def};
-#define FLAG_READONLY(ftype, ctype, nam, def, cmt) \
-  static constexpr ctype FLAGDEFAULT_##nam{def};
 
 // We want to write entries into our meta data table, for internal parsing and
-// printing / etc in the flag parser code.
+// printing / etc in the flag parser code.  We only do this for writable flags.
 #elif defined(FLAG_MODE_META)
 #define FLAG_FULL(ftype, ctype, nam, def, cmt) \
   {Flag::TYPE_##ftype, #nam, &v8_flags.nam, &FLAGDEFAULT_##nam, cmt, false},
-// Readonly flags don't pass the value pointer since the struct expects a
-// mutable value. That's okay since the value always equals the default.
-#define FLAG_READONLY(ftype, ctype, nam, def, cmt) \
-  {Flag::TYPE_##ftype, #nam, nullptr, &FLAGDEFAULT_##nam, cmt, false},
 #define FLAG_ALIAS(ftype, ctype, alias, nam)                       \
   {Flag::TYPE_##ftype,  #alias, &v8_flags.nam, &FLAGDEFAULT_##nam, \
    "alias for --" #nam, false},  // NOLINT(whitespace/indent)
@@ -62,20 +56,20 @@
 #elif defined(FLAG_MODE_DEFINE_IMPLICATIONS)
 #define DEFINE_VALUE_IMPLICATION(whenflag, thenflag, value)   \
   changed |= TriggerImplication(v8_flags.whenflag, #whenflag, \
-                                &v8_flags.thenflag, #thenflag, value, false);
+                                &v8_flags.thenflag, value, false);
 
 // A weak implication will be overwritten by a normal implication or by an
 // explicit flag.
 #define DEFINE_WEAK_VALUE_IMPLICATION(whenflag, thenflag, value) \
   changed |= TriggerImplication(v8_flags.whenflag, #whenflag,    \
-                                &v8_flags.thenflag, #thenflag, value, true);
+                                &v8_flags.thenflag, value, true);
 
 #define DEFINE_GENERIC_IMPLICATION(whenflag, statement) \
   if (v8_flags.whenflag) statement;
 
 #define DEFINE_NEG_VALUE_IMPLICATION(whenflag, thenflag, value)    \
   changed |= TriggerImplication(!v8_flags.whenflag, "!" #whenflag, \
-                                &v8_flags.thenflag, #thenflag, value, false);
+                                &v8_flags.thenflag, value, false);
 
 // We apply a generic macro to the flags.
 #elif defined(FLAG_MODE_APPLY)
@@ -778,7 +772,6 @@ DEFINE_BOOL(
     stress_concurrent_inlining, false,
     "create additional concurrent optimization jobs but throw away result")
 DEFINE_IMPLICATION(stress_concurrent_inlining, concurrent_recompilation)
-DEFINE_IMPLICATION(stress_concurrent_inlining, turbofan)
 DEFINE_NEG_IMPLICATION(stress_concurrent_inlining, lazy_feedback_allocation)
 DEFINE_WEAK_VALUE_IMPLICATION(stress_concurrent_inlining, interrupt_budget,
                               15 * KB)
@@ -2253,17 +2246,18 @@ DEFINE_NEG_IMPLICATION(perf_prof, compact_code_space)
 DEFINE_NEG_IMPLICATION(perf_prof, write_protect_code_memory)
 
 // --perf-prof-unwinding-info is available only on selected architectures.
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 || \
-    V8_TARGET_ARCH_S390X || V8_TARGET_ARCH_PPC64
+#if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_X64 && \
+    !V8_TARGET_ARCH_S390X && !V8_TARGET_ARCH_PPC64
+#undef DEFINE_PERF_PROF_BOOL
+#define DEFINE_PERF_PROF_BOOL(nam, cmt) DEFINE_BOOL_READONLY(nam, false, cmt)
+#undef DEFINE_PERF_PROF_IMPLICATION
+#define DEFINE_PERF_PROF_IMPLICATION(...)
+#endif
+
 DEFINE_PERF_PROF_BOOL(
     perf_prof_unwinding_info,
     "Enable unwinding info for perf linux profiler (experimental).")
 DEFINE_PERF_PROF_IMPLICATION(perf_prof, perf_prof_unwinding_info)
-#else
-DEFINE_BOOL_READONLY(
-    perf_prof_unwinding_info, false,
-    "Enable unwinding info for perf linux profiler (experimental).")
-#endif
 
 #undef DEFINE_PERF_PROF_BOOL
 #undef DEFINE_PERF_PROF_IMPLICATION

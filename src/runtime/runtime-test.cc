@@ -265,8 +265,7 @@ bool CanOptimizeFunction(CodeKind target_kind, Handle<JSFunction> function,
     return CrashUnlessFuzzingReturnFalse(isolate);
   }
 
-  if (target_kind == CodeKind::TURBOFAN && !v8_flags.turbofan) return false;
-  if (target_kind == CodeKind::MAGLEV && !v8_flags.maglev) return false;
+  if (!v8_flags.turbofan) return false;
 
   if (function->shared().optimization_disabled() &&
       function->shared().disabled_optimization_reason() ==

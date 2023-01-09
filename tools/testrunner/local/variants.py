@@ -58,35 +58,23 @@ ALL_VARIANT_FLAGS = {
     "google3_noicu": [[]],
 }
 
-# Note these are specifically for the case when Turbofan is either fully
-# disabled (i.e. not part of the binary), or when all codegen is disallowed (in
-# jitless mode).
-kIncompatibleFlagsForNoTurbofan = [
-    "--turbofan", "--always-turbofan", "--liftoff", "--validate-asm",
-    "--maglev", "--stress-concurrent-inlining"
-]
-
 # Flags that lead to a contradiction with the flags provided by the respective
 # variant. This depends on the flags specified in ALL_VARIANT_FLAGS and on the
 # implications defined in flag-definitions.h.
 INCOMPATIBLE_FLAGS_PER_VARIANT = {
-    "jitless":
-        kIncompatibleFlagsForNoTurbofan + [
-            "--track-field-types", "--sparkplug", "--concurrent-sparkplug",
-            "--always-sparkplug", "--regexp-tier-up",
-            "--no-regexp-interpret-all"
-        ],
-    "nooptimization": [
-        "--turbofan", "--always-turbofan", "--stress-concurrent-inlining"
+    "jitless": [
+        "--turbofan", "--always-turbofan", "--liftoff", "--track-field-types",
+        "--validate-asm", "--sparkplug", "--concurrent-sparkplug", "--maglev",
+        "--always-sparkplug", "--regexp-tier-up", "--no-regexp-interpret-all"
     ],
+    "nooptimization": ["--always-turbofan"],
     "slow_path": ["--no-force-slow-path"],
     "stress_concurrent_allocation": [
         "--single-threaded", "--single-threaded-gc", "--predictable"
     ],
     "stress_concurrent_inlining": [
         "--single-threaded", "--predictable", "--lazy-feedback-allocation",
-        "--assert-types", "--no-concurrent-recompilation", "--no-turbofan",
-        "--jitless"
+        "--assert-types", "--no-concurrent-recompilation"
     ],
     # The fast API tests initialize an embedder object that never needs to be
     # serialized to the snapshot, so we don't have a
@@ -123,55 +111,16 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
 #
 # applies when the code_comments build variable is NOT set.
 INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE = {
-    "!code_comments": ["--code-comments"],
-    "!is_DEBUG_defined": [
-        "--check_handle_count",
-        "--code_stats",
-        "--dump_wasm_module",
-        "--enable_testing_opcode_in_wasm",
-        "--gc_verbose",
-        "--print_ast",
-        "--print_break_location",
-        "--print_global_handles",
-        "--print_handles",
-        "--print_scopes",
-        "--regexp_possessive_quantifier",
-        "--trace_backing_store",
-        "--trace_contexts",
-        "--trace_isolates",
-        "--trace_lazy",
-        "--trace_liftoff",
-        "--trace_module_status",
-        "--trace_normalization",
-        "--trace_turbo_escape",
-        "--trace_wasm_compiler",
-        "--trace_wasm_decoder",
-        "--trace_wasm_instances",
-        "--trace_wasm_interpreter",
-        "--trace_wasm_lazy_compilation",
-        "--trace_wasm_native_heap",
-        "--trace_wasm_serialization",
-        "--trace_wasm_stack_switching",
-        "--trace_wasm_streaming",
-        "--trap_on_abort",
-    ],
-    "!verify_heap": ["--verify-heap"],
-    "!debug_code": ["--debug-code"],
-    "!disassembler": [
-        "--print_all_code", "--print_code", "--print_opt_code",
-        "--print_code_verbose", "--print_builtin_code", "--print_regexp_code"
-    ],
-    "!slow_dchecks": ["--enable-slow-asserts"],
-    "!gdbjit": ["--gdbjit", "--gdbjit_full", "--gdbjit_dump"],
-    "!maglev": ["--maglev"],
-    "lite_mode": ["--no-lazy-feedback-allocation", "--max-semi-space-size=*"] +
-                 INCOMPATIBLE_FLAGS_PER_VARIANT["jitless"],
-    "predictable": [
-        "--parallel-compile-tasks-for-eager-toplevel",
-        "--parallel-compile-tasks-for-lazy", "--concurrent-recompilation",
-        "--stress-concurrent-allocation", "--stress-concurrent-inlining"
-    ],
-    "dict_property_const_tracking": ["--stress-concurrent-inlining"],
+  "lite_mode": ["--no-lazy-feedback-allocation", "--max-semi-space-size=*",
+                "--stress-concurrent-inlining"]
+               + INCOMPATIBLE_FLAGS_PER_VARIANT["jitless"],
+  "predictable": ["--parallel-compile-tasks-for-eager-toplevel",
+                  "--parallel-compile-tasks-for-lazy",
+                  "--concurrent-recompilation",
+                  "--stress-concurrent-allocation",
+                  "--stress-concurrent-inlining"],
+  "dict_property_const_tracking": [
+                  "--stress-concurrent-inlining"],
 }
 
 # Flags that lead to a contradiction when a certain extra-flag is present.
