@@ -110,6 +110,7 @@ class V8_EXPORT_PRIVATE Zone final {
   // associated with the T type.
   template <typename T, typename... Args>
   T* New(Args&&... args) {
+    static_assert(alignof(T) <= kAlignmentInBytes);
     void* memory = Allocate<T>(sizeof(T));
     return new (memory) T(std::forward<Args>(args)...);
   }
@@ -122,6 +123,7 @@ class V8_EXPORT_PRIVATE Zone final {
   // distinguishable between each other.
   template <typename T, typename TypeTag = T[]>
   T* NewArray(size_t length) {
+    static_assert(alignof(T) <= kAlignmentInBytes);
     DCHECK_IMPLIES(is_compressed_pointer<T>::value, supports_compression());
     DCHECK_LT(length, std::numeric_limits<size_t>::max() / sizeof(T));
     return static_cast<T*>(Allocate<TypeTag>(length * sizeof(T)));
