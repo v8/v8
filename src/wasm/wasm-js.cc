@@ -3160,6 +3160,19 @@ void WasmJs::InstallConditionalFeatures(Isolate* isolate,
                                         Handle<Context> context) {
   // This space left blank for future origin trials.
 }
+
+namespace wasm {
+// static
+std::unique_ptr<WasmStreaming> StartStreamingForTesting(
+    Isolate* isolate,
+    std::shared_ptr<wasm::CompilationResultResolver> resolver) {
+  return std::make_unique<WasmStreaming>(
+      std::make_unique<WasmStreaming::WasmStreamingImpl>(
+          reinterpret_cast<v8::Isolate*>(isolate), "StartStreamingForTesting",
+          resolver));
+}
+}  // namespace wasm
+
 #undef ASSIGN
 #undef EXTRACT_THIS
 

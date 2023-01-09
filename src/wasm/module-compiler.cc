@@ -2211,9 +2211,7 @@ AsyncCompileJob::~AsyncCompileJob() {
   }
   // Tell the streaming decoder that the AsyncCompileJob is not available
   // anymore.
-  // TODO(ahaas): Is this notification really necessary? Check
-  // https://crbug.com/888170.
-  if (stream_) stream_->NotifyCompilationEnded();
+  if (stream_) stream_->NotifyCompilationDiscarded();
   CancelPendingForegroundTask();
   isolate_->global_handles()->Destroy(native_context_.location());
   isolate_->global_handles()->Destroy(incumbent_context_.location());
@@ -2914,6 +2912,7 @@ void AsyncStreamingProcessor::OnFinishedStream(
       // Clean up the temporary cache entry.
       GetWasmEngine()->StreamingCompilationFailed(prefix_hash_);
     }
+    // Calling {Failed} will invalidate the {AsyncCompileJob} and delete {this}.
     job_->Failed();
     return;
   }
@@ -2983,6 +2982,8 @@ void AsyncStreamingProcessor::OnFinishedStream(
           failed, std::move(job_->native_module_), job_->isolate_);
       cache_hit = prev_native_module != job_->native_module_.get();
     }
+    // We finally call {Failed} or {FinishCompile}, which will invalidate the
+    // {AsyncCompileJob} and delete {this}.
     if (failed) {
       job_->Failed();
     } else {
@@ -3001,6 +3002,7 @@ void AsyncStreamingProcessor::OnAbort() {
     // Clean up the temporary cache entry.
     GetWasmEngine()->StreamingCompilationFailed(prefix_hash_);
   }
+  // {Abort} invalidates the {AsyncCompileJob}, which in turn deletes {this}.
   job_->Abort();
 }
 
@@ -3028,6 +3030,7 @@ bool AsyncStreamingProcessor::Deserialize(
       job_->isolate_->global_handles()->Create(*result.ToHandleChecked());
   job_->native_module_ = job_->module_object_->shared_native_module();
   job_->wire_bytes_ = ModuleWireBytes(job_->native_module_->wire_bytes());
+  // Calling {FinishCompile} deletes the {AsyncCompileJob} and {this}.
   job_->FinishCompile(false);
   return true;
 }
