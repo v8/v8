@@ -257,7 +257,7 @@ block_hint,KeyedLoadIC_PolymorphicName,133,134,1
 block_hint,KeyedLoadIC_PolymorphicName,298,299,1
 block_hint,KeyedLoadIC_PolymorphicName,330,331,1
 block_hint,KeyedLoadIC_PolymorphicName,98,99,0
-block_hint,KeyedLoadIC_PolymorphicName,100,101,0
+block_hint,KeyedLoadIC_PolymorphicName,279,280,1
 block_hint,KeyedLoadIC_PolymorphicName,22,23,1
 block_hint,KeyedLoadIC_PolymorphicName,165,166,0
 block_hint,KeyedLoadIC_PolymorphicName,122,123,1
@@ -637,7 +637,6 @@ block_hint,StoreFastElementIC_Standard,981,982,1
 block_hint,StoreFastElementIC_Standard,832,833,0
 block_hint,StoreFastElementIC_Standard,308,309,1
 block_hint,StoreFastElementIC_Standard,642,643,0
-block_hint,StoreFastElementIC_Standard,1139,1140,0
 block_hint,StoreFastElementIC_Standard,979,980,1
 block_hint,StoreFastElementIC_Standard,834,835,0
 block_hint,StoreFastElementIC_Standard,310,311,1
@@ -776,7 +775,7 @@ block_hint,KeyedHasIC_PolymorphicName,55,56,1
 block_hint,KeyedHasIC_PolymorphicName,89,90,1
 block_hint,KeyedHasIC_PolymorphicName,93,94,1
 block_hint,KeyedHasIC_PolymorphicName,30,31,0
-block_hint,KeyedHasIC_PolymorphicName,32,33,0
+block_hint,KeyedHasIC_PolymorphicName,78,79,1
 block_hint,KeyedHasIC_PolymorphicName,14,15,1
 block_hint,KeyedHasIC_PolymorphicName,16,17,1
 block_hint,EnqueueMicrotask,4,5,0
@@ -817,7 +816,6 @@ block_hint,HasProperty,65,66,0
 block_hint,HasProperty,222,223,1
 block_hint,HasProperty,245,246,1
 block_hint,HasProperty,48,49,0
-block_hint,HasProperty,50,51,0
 block_hint,HasProperty,279,280,0
 block_hint,HasProperty,234,235,0
 block_hint,HasProperty,38,39,0
@@ -880,7 +878,6 @@ block_hint,SetDataProperties,226,227,1
 block_hint,SetDataProperties,93,94,1
 block_hint,SetDataProperties,496,497,0
 block_hint,SetDataProperties,95,96,1
-block_hint,SetDataProperties,97,98,1
 block_hint,SetDataProperties,583,584,0
 block_hint,SetDataProperties,498,499,1
 block_hint,SetDataProperties,500,501,0
@@ -905,6 +902,7 @@ block_hint,SetDataProperties,294,295,1
 block_hint,SetDataProperties,441,442,0
 block_hint,SetDataProperties,350,351,0
 block_hint,SetDataProperties,241,242,0
+block_hint,SetDataProperties,129,130,0
 block_hint,SetDataProperties,279,280,1
 block_hint,SetDataProperties,204,205,0
 block_hint,SetDataProperties,61,62,0
@@ -1038,6 +1036,7 @@ block_hint,ArrayPrototypePush,79,80,1
 block_hint,ArrayPrototypePush,94,95,0
 block_hint,ArrayPrototypePush,19,20,1
 block_hint,ArrayPrototypePush,99,100,0
+block_hint,ArrayPrototypePush,117,118,0
 block_hint,ArrayPrototypePush,104,105,0
 block_hint,ArrayPrototypePush,68,69,0
 block_hint,ArrayPrototypePush,113,114,1
@@ -1299,6 +1298,7 @@ block_hint,LoadIC_Megamorphic,132,133,0
 block_hint,LoadIC_Megamorphic,282,283,1
 block_hint,LoadIC_Megamorphic,328,329,1
 block_hint,LoadIC_Megamorphic,95,96,0
+block_hint,LoadIC_Megamorphic,97,98,0
 block_hint,LoadIC_Megamorphic,20,21,1
 block_hint,LoadIC_Megamorphic,162,163,0
 block_hint,LoadIC_Megamorphic,287,288,0
@@ -1457,6 +1457,7 @@ block_hint,KeyedLoadIC_Megamorphic,841,842,0
 block_hint,KeyedLoadIC_Megamorphic,996,997,1
 block_hint,KeyedLoadIC_Megamorphic,256,257,0
 block_hint,KeyedLoadIC_Megamorphic,656,657,0
+block_hint,KeyedLoadIC_Megamorphic,258,259,1
 block_hint,KeyedLoadIC_Megamorphic,1086,1087,0
 block_hint,KeyedLoadIC_Megamorphic,1191,1192,0
 block_hint,KeyedLoadIC_Megamorphic,1231,1232,1
@@ -1549,6 +1550,7 @@ block_hint,StoreIC,205,206,0
 block_hint,StoreIC,207,208,1
 block_hint,StoreIC,396,397,1
 block_hint,StoreIC,387,388,0
+block_hint,StoreIC,370,371,1
 block_hint,StoreIC,237,238,1
 block_hint,StoreIC,239,240,1
 block_hint,StoreIC,75,76,1
@@ -1558,7 +1560,6 @@ block_hint,StoreIC,36,37,0
 block_hint,StoreIC,315,316,1
 block_hint,StoreIC,93,94,0
 block_hint,StoreIC,143,144,0
-block_hint,StoreIC,95,96,1
 block_hint,StoreIC,147,148,0
 block_hint,StoreIC,15,16,1
 block_hint,StoreIC,97,98,0
@@ -1587,7 +1588,6 @@ block_hint,StoreIC,163,164,1
 block_hint,StoreIC,290,291,1
 block_hint,StoreIC,309,310,1
 block_hint,StoreIC,77,78,0
-block_hint,StoreIC,243,244,0
 block_hint,StoreIC,173,174,0
 block_hint,StoreIC,44,45,1
 block_hint,StoreIC,109,110,0
@@ -1666,6 +1666,7 @@ block_hint,KeyedStoreIC,170,171,0
 block_hint,KeyedStoreIC,166,167,0
 block_hint,KeyedStoreIC,236,237,0
 block_hint,KeyedStoreIC,168,169,1
+block_hint,KeyedStoreIC,84,85,1
 block_hint,KeyedStoreIC,88,89,1
 block_hint,KeyedStoreIC,397,398,1
 block_hint,KeyedStoreIC,110,111,0
@@ -2051,6 +2052,7 @@ block_hint,BitwiseOr_Baseline,79,80,1
 block_hint,BitwiseOr_Baseline,102,103,1
 block_hint,BitwiseOr_Baseline,21,22,1
 block_hint,BitwiseOrSmi_Baseline,5,6,0
+block_hint,BitwiseOrSmi_Baseline,22,23,1
 block_hint,BitwiseOrSmi_Baseline,18,19,0
 block_hint,BitwiseOrSmi_Baseline,16,17,0
 block_hint,BitwiseOrSmi_Baseline,28,29,1
@@ -2080,13 +2082,14 @@ block_hint,ShiftRight_Baseline,14,15,0
 block_hint,ShiftRight_Baseline,63,64,0
 block_hint,ShiftRight_Baseline,40,41,0
 block_hint,ShiftRight_Baseline,18,19,1
-block_hint,ShiftRightSmi_Baseline,5,6,0
 block_hint,ShiftRightSmi_Baseline,22,23,1
 block_hint,ShiftRightSmi_Baseline,26,27,0
 block_hint,ShiftRightSmi_Baseline,20,21,0
 block_hint,ShiftRightSmi_Baseline,9,10,1
 block_hint,ShiftRightLogical_Baseline,32,33,1
 block_hint,ShiftRightLogical_Baseline,12,13,0
+block_hint,ShiftRightLogical_Baseline,61,62,0
+block_hint,ShiftRightLogical_Baseline,38,39,0
 block_hint,ShiftRightLogical_Baseline,16,17,1
 block_hint,ShiftRightLogicalSmi_Baseline,35,36,1
 block_hint,ShiftRightLogicalSmi_Baseline,25,26,1
@@ -2214,6 +2217,7 @@ block_hint,Equal_WithFeedback,66,67,0
 block_hint,Equal_WithFeedback,117,118,0
 block_hint,Equal_WithFeedback,64,65,0
 block_hint,Equal_WithFeedback,6,7,1
+block_hint,StrictEqual_WithFeedback,84,85,1
 block_hint,StrictEqual_WithFeedback,38,39,0
 block_hint,StrictEqual_WithFeedback,82,83,0
 block_hint,StrictEqual_WithFeedback,57,58,1
@@ -2859,6 +2863,8 @@ block_hint,GetPropertyWithReceiver,183,184,0
 block_hint,GetPropertyWithReceiver,34,35,0
 block_hint,GetPropertyWithReceiver,233,234,1
 block_hint,GetPropertyWithReceiver,205,206,0
+block_hint,GetPropertyWithReceiver,181,182,1
+block_hint,GetPropertyWithReceiver,108,109,1
 block_hint,SetProperty,363,364,1
 block_hint,SetProperty,365,366,0
 block_hint,SetProperty,1170,1171,0
@@ -3522,7 +3528,6 @@ block_hint,ArrayPrototypeSplice,178,179,1
 block_hint,ArrayPrototypeSplice,330,331,0
 block_hint,ArrayPrototypeSplice,428,429,1
 block_hint,ArrayPrototypeSplice,264,265,1
-block_hint,ArrayPrototypeSplice,111,112,1
 block_hint,ArrayPrototypeSplice,430,431,1
 block_hint,ArrayPrototypeSplice,266,267,0
 block_hint,ArrayPrototypeSplice,113,114,1
@@ -4021,9 +4026,13 @@ block_hint,ParseInt,10,11,0
 block_hint,NumberParseInt,3,4,1
 block_hint,Add,66,67,1
 block_hint,Add,24,25,0
+block_hint,Add,52,53,1
 block_hint,Add,68,69,0
 block_hint,Add,35,36,0
 block_hint,Add,40,41,0
+block_hint,Add,70,71,1
+block_hint,Add,26,27,0
+block_hint,Add,29,30,1
 block_hint,Subtract,24,25,0
 block_hint,Subtract,9,10,0
 block_hint,Subtract,22,23,0
@@ -4134,7 +4143,6 @@ block_hint,ProxyGetProperty,215,216,1
 block_hint,ProxyGetProperty,205,206,0
 block_hint,ProxyGetProperty,154,155,1
 block_hint,ProxyGetProperty,28,29,0
-block_hint,ProxyGetProperty,30,31,0
 block_hint,ProxyGetProperty,172,173,0
 block_hint,ProxyGetProperty,194,195,1
 block_hint,ProxyGetProperty,136,137,1
@@ -5223,9 +5231,6 @@ block_hint,LdaLookupGlobalSlotHandler,125,126,0
 block_hint,LdaLookupGlobalSlotHandler,15,16,1
 block_hint,LdaLookupGlobalSlotHandler,17,18,1
 block_hint,LdaLookupGlobalSlotHandler,63,64,0
-block_hint,LdaLookupGlobalSlotHandler,129,130,1
-block_hint,LdaLookupGlobalSlotHandler,127,128,0
-block_hint,LdaLookupGlobalSlotHandler,19,20,0
 block_hint,GetNamedPropertyHandler,372,373,1
 block_hint,GetNamedPropertyHandler,216,217,0
 block_hint,GetNamedPropertyHandler,77,78,0
@@ -5236,6 +5241,8 @@ block_hint,GetNamedPropertyHandler,218,219,1
 block_hint,GetNamedPropertyHandler,290,291,0
 block_hint,GetNamedPropertyHandler,220,221,0
 block_hint,GetNamedPropertyHandler,294,295,1
+block_hint,GetNamedPropertyHandler,118,119,1
+block_hint,GetNamedPropertyHandler,37,38,0
 block_hint,GetNamedPropertyHandler,39,40,0
 block_hint,GetNamedPropertyHandler,98,99,1
 block_hint,GetNamedPropertyHandler,242,243,0
@@ -5335,6 +5342,7 @@ block_hint,MulSmiHandler,22,23,0
 block_hint,MulSmiHandler,13,14,1
 block_hint,MulSmiHandler,28,29,1
 block_hint,MulSmiHandler,9,10,1
+block_hint,DivSmiHandler,54,55,1
 block_hint,DivSmiHandler,45,46,0
 block_hint,DivSmiHandler,52,53,0
 block_hint,DivSmiHandler,40,41,0
@@ -5376,7 +5384,6 @@ block_hint,DecHandler,23,24,0
 block_hint,DecHandler,18,19,1
 block_hint,NegateHandler,26,27,1
 block_hint,NegateHandler,24,25,1
-block_hint,NegateHandler,14,15,1
 block_hint,ToBooleanLogicalNotHandler,15,16,0
 block_hint,ToBooleanLogicalNotHandler,21,22,0
 block_hint,ToBooleanLogicalNotHandler,7,8,0
@@ -5619,8 +5626,9 @@ block_hint,LdaImmutableContextSlotWideHandler,3,4,1
 block_hint,LdaImmutableContextSlotWideHandler,9,10,0
 block_hint,LdaImmutableContextSlotWideHandler,5,6,1
 block_hint,LdaImmutableCurrentContextSlotWideHandler,2,3,1
-block_hint,LdaGlobalWideHandler,262,263,0
-block_hint,LdaGlobalWideHandler,110,111,1
+block_hint,LdaGlobalWideHandler,14,15,1
+block_hint,LdaGlobalWideHandler,16,17,1
+block_hint,LdaGlobalWideHandler,18,19,1
 block_hint,LdaGlobalWideHandler,12,13,0
 block_hint,StaCurrentContextSlotWideHandler,2,3,1
 block_hint,GetNamedPropertyWideHandler,369,370,1
@@ -5632,6 +5640,7 @@ block_hint,GetNamedPropertyWideHandler,207,208,1
 block_hint,GetNamedPropertyWideHandler,68,69,1
 block_hint,GetNamedPropertyWideHandler,233,234,0
 block_hint,GetNamedPropertyWideHandler,92,93,0
+block_hint,GetNamedPropertyWideHandler,292,293,1
 block_hint,SetNamedPropertyWideHandler,3,4,0
 block_hint,DefineNamedOwnPropertyWideHandler,3,4,0
 block_hint,DefineKeyedOwnPropertyWideHandler,3,4,0
@@ -5683,6 +5692,8 @@ block_hint,IncWideHandler,19,20,0
 block_hint,IncWideHandler,14,15,1
 block_hint,CallProperty1WideHandler,68,69,0
 block_hint,CallProperty1WideHandler,19,20,0
+block_hint,CallUndefinedReceiverWideHandler,68,69,0
+block_hint,CallUndefinedReceiverWideHandler,19,20,0
 block_hint,CallUndefinedReceiver0WideHandler,68,69,0
 block_hint,CallUndefinedReceiver0WideHandler,19,20,0
 block_hint,CallUndefinedReceiver1WideHandler,68,69,0
