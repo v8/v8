@@ -8717,20 +8717,16 @@ class LinkageLocationAllocator {
   int slot_offset_;
 };
 
-const MachineSignature* FunctionSigToMachineSig(Zone* zone,
-                                                const wasm::FunctionSig* fsig) {
-  MachineSignature::Builder builder(zone, fsig->return_count(),
-                                    fsig->parameter_count());
-  for (wasm::ValueType ret : fsig->returns()) {
-    builder.AddReturn(ret.machine_type());
-  }
-  for (wasm::ValueType param : fsig->parameters()) {
-    builder.AddParam(param.machine_type());
-  }
-  return builder.Get();
+MachineRepresentation GetMachineRepresentation(wasm::ValueType type) {
+  return type.machine_representation();
 }
 
-LocationSignature* BuildLocations(Zone* zone, const MachineSignature* sig,
+MachineRepresentation GetMachineRepresentation(MachineType type) {
+  return type.representation();
+}
+
+template <typename T>
+LocationSignature* BuildLocations(Zone* zone, const Signature<T>* sig,
                                   bool extra_callable_param,
                                   int* parameter_slots, int* return_slots) {
   int extra_params = extra_callable_param ? 2 : 1;
@@ -8750,7 +8746,7 @@ LocationSignature* BuildLocations(Zone* zone, const MachineSignature* sig,
   // during frame iteration.
   const size_t parameter_count = sig->parameter_count();
   for (size_t i = 0; i < parameter_count; i++) {
-    MachineRepresentation param = sig->GetParam(i).representation();
+    MachineRepresentation param = GetMachineRepresentation(sig->GetParam(i));
     // Skip tagged parameters (e.g. any-ref).
     if (IsAnyTagged(param)) continue;
     auto l = params.Next(param);
@@ -8761,7 +8757,7 @@ LocationSignature* BuildLocations(Zone* zone, const MachineSignature* sig,
   params.EndSlotArea();
 
   for (size_t i = 0; i < parameter_count; i++) {
-    MachineRepresentation param = sig->GetParam(i).representation();
+    MachineRepresentation param = GetMachineRepresentation(sig->GetParam(i));
     // Skip untagged parameters.
     if (!IsAnyTagged(param)) continue;
     auto l = params.Next(param);
@@ -8783,20 +8779,13 @@ LocationSignature* BuildLocations(Zone* zone, const MachineSignature* sig,
 
   const size_t return_count = locations.return_count_;
   for (size_t i = 0; i < return_count; i++) {
-    MachineRepresentation ret = sig->GetReturn(i).representation();
+    MachineRepresentation ret = GetMachineRepresentation(sig->GetReturn(i));
     locations.AddReturn(rets.Next(ret));
   }
 
   *return_slots = rets.NumStackSlots();
 
   return locations.Get();
-}
-
-LocationSignature* BuildLocations(Zone* zone, const wasm::FunctionSig* fsig,
-                                  bool extra_callable_param,
-                                  int* parameter_slots, int* return_slots) {
-  return BuildLocations(zone, FunctionSigToMachineSig(zone, fsig),
-                        extra_callable_param, parameter_slots, return_slots);
 }
 }  // namespace
 
