@@ -4027,7 +4027,7 @@ Signature<MachineRepresentation>* CreateMachineSignature(
       builder.AddParam(param.machine_representation());
     }
   }
-  return builder.Build();
+  return builder.Get();
 }
 
 }  // namespace
@@ -8727,7 +8727,7 @@ const MachineSignature* FunctionSigToMachineSig(Zone* zone,
   for (wasm::ValueType param : fsig->parameters()) {
     builder.AddParam(param.machine_type());
   }
-  return builder.Build();
+  return builder.Get();
 }
 
 LocationSignature* BuildLocations(Zone* zone, const MachineSignature* sig,
@@ -8789,7 +8789,7 @@ LocationSignature* BuildLocations(Zone* zone, const MachineSignature* sig,
 
   *return_slots = rets.NumStackSlots();
 
-  return locations.Build();
+  return locations.Get();
 }
 
 LocationSignature* BuildLocations(Zone* zone, const wasm::FunctionSig* fsig,
