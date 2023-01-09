@@ -346,6 +346,14 @@ path. Add it with -I<path> to the command line
 # define V8_HAS_ATTRIBUTE_NONNULL (__has_attribute(nonnull))
 # define V8_HAS_ATTRIBUTE_NOINLINE (__has_attribute(noinline))
 # define V8_HAS_ATTRIBUTE_UNUSED (__has_attribute(unused))
+// Support for the "preserve_most" attribute is incomplete on 32-bit, and we see
+// failures in component builds. Thus only use it in 64-bit non-component builds
+// for now.
+#if (defined(_M_X64) || defined(__x86_64__) || defined(__AARCH64EL__) || \
+     defined(_M_ARM64)) /* x64 or arm64 */ \
+     && !defined(BUILDING_V8_SHARED) && !defined(USING_V8_SHARED)
+# define V8_HAS_ATTRIBUTE_PRESERVE_MOST (__has_attribute(preserve_most))
+#endif
 # define V8_HAS_ATTRIBUTE_VISIBILITY (__has_attribute(visibility))
 # define V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT \
     (__has_attribute(warn_unused_result))
@@ -501,6 +509,21 @@ path. Add it with -I<path> to the command line
 # define V8_NOINLINE __declspec(noinline)
 #else
 # define V8_NOINLINE /* NOT SUPPORTED */
+#endif
+
+
+// A macro used to change the calling conventions to preserve all registers (no
+// caller-saved registers). Use this for cold functions called from hot
+// functions.
+// Note: The attribute is considered experimental, so apply with care. Also,
+// "preserve_most" is currently not handling the return value correctly, so only
+// use it for functions returning void (see https://reviews.llvm.org/D141020).
+// Use like:
+//   V8_NOINLINE V8_PRESERVE_MOST void UnlikelyMethod();
+#if V8_HAS_ATTRIBUTE_PRESERVE_MOST
+# define V8_PRESERVE_MOST __attribute__((preserve_most))
+#else
+# define V8_PRESERVE_MOST /* NOT SUPPORTED */
 #endif
 
 
