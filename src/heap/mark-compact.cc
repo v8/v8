@@ -2970,7 +2970,7 @@ class StringForwardingTableCleaner final {
       if (!forward.IsHeapObject()) return;
       marking_state_->WhiteToBlack(HeapObject::cast(forward));
     } else {
-      record->DisposeUnusedExternalResource(original_string);
+      DisposeExternalResource(record);
       record->set_original_string(StringForwardingTable::deleted_element());
     }
   }
@@ -2990,7 +2990,7 @@ class StringForwardingTableCleaner final {
       TryInternalize(original_string, record);
       original_string.set_raw_hash_field(record->raw_hash(isolate_));
     } else {
-      record->DisposeExternalResource();
+      DisposeExternalResource(record);
     }
   }
 
@@ -3038,10 +3038,25 @@ class StringForwardingTableCleaner final {
         ThinString::cast(original_string).RawField(ThinString::kActualOffset);
     MarkCompactCollector::RecordSlot(original_string, slot, forward_string);
   }
+
+  // Dispose external resource, if it wasn't disposed already.
+  // We can have multiple entries of the same external resource in the string
+  // forwarding table (i.e. concurrent externalization of a string with the same
+  // resource), therefore we keep track of already disposed resources to not
+  // dispose a resource more than once.
+  void DisposeExternalResource(StringForwardingTable::Record* record) {
+    Address resource = record->ExternalResourceAddress();
+    if (resource != kNullAddress && disposed_resources_.count(resource) == 0) {
+      record->DisposeExternalResource();
+      disposed_resources_.insert(resource);
+    }
+  }
+
   Heap* const heap_;
   Isolate* const isolate_;
   NonAtomicMarkingState* const marking_state_;
   bool transition_strings_;
+  std::unordered_set<Address> disposed_resources_;
 };
 
 }  // namespace

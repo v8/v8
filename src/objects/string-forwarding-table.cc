@@ -320,7 +320,16 @@ StringForwardingTable::GetExternalResource(int index, bool* is_one_byte) const {
 }
 
 void StringForwardingTable::TearDown() {
-  IterateElements([](Record* record) { record->DisposeExternalResource(); });
+  std::unordered_set<Address> disposed_resources;
+  IterateElements([this, &disposed_resources](Record* record) {
+    if (record->OriginalStringObject(isolate_) != deleted_element()) {
+      Address resource = record->ExternalResourceAddress();
+      if (resource != kNullAddress && disposed_resources.count(resource) == 0) {
+        record->DisposeExternalResource();
+        disposed_resources.insert(resource);
+      }
+    }
+  });
   Reset();
 }
 
