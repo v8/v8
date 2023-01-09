@@ -661,8 +661,6 @@ class Heap {
     return ignore_local_gc_requests_depth_ > 0;
   }
 
-  inline bool IsInGCPostProcessing() { return gc_post_processing_depth_ > 0; }
-
   bool IsGCWithStack() const;
 
   // Performs GC after background allocation failure.
@@ -2205,8 +2203,6 @@ class Heap {
   uintptr_t code_space_memory_modification_scope_depth_ = 0;
 
   std::atomic<HeapState> gc_state_{NOT_IN_GC};
-
-  int gc_post_processing_depth_ = 0;
 
   // Returns the amount of external memory registered since last global gc.
   V8_EXPORT_PRIVATE uint64_t AllocatedExternalMemorySinceMarkCompact();

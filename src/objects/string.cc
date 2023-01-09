@@ -620,8 +620,7 @@ bool String::SupportsExternalization() {
   DCHECK_LE(ExternalString::kUncachedSize, this->Size());
 #endif
 
-  Isolate* isolate = GetIsolateFromWritableObject(*this);
-  return !isolate->heap()->IsInGCPostProcessing();
+  return true;
 }
 
 const char* String::PrefixForDebugPrint() const {

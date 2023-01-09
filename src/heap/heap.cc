@@ -1777,14 +1777,12 @@ bool Heap::CollectGarbage(AllocationSpace space,
 
   {
     TRACE_GC(tracer(), GCTracer::Scope::HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES);
-    gc_post_processing_depth_++;
     {
       AllowGarbageCollection allow_gc;
       AllowJavascriptExecution allow_js(isolate());
       isolate_->global_handles()->PostGarbageCollectionProcessing(
           collector, gc_callback_flags);
     }
-    gc_post_processing_depth_--;
   }
 
   {
