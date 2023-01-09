@@ -79,6 +79,8 @@ class FixedSidetable {
   static_assert(std::is_same_v<Key, OpIndex> ||
                 std::is_same_v<Key, BlockIndex>);
   explicit FixedSidetable(size_t size, Zone* zone) : table_(size, zone) {}
+  FixedSidetable(size_t size, const T& default_value, Zone* zone)
+      : table_(size, default_value, zone) {}
 
   T& operator[](Key op) {
     DCHECK_LT(op.id(), table_.size());

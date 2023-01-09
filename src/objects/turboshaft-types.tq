@@ -4,6 +4,12 @@
 
 #include "src/objects/turboshaft-types.h"
 
+bitfield struct TurboshaftFloatSpecialValues extends uint32 {
+  nan: bool: 1 bit;
+  minus_zero: bool: 1 bit;
+  _unused: uint32: 30 bit;
+}
+
 @abstract
 extern class TurboshaftType extends HeapObject {
 }
@@ -59,7 +65,7 @@ extern class TurboshaftWord64SetType extends TurboshaftWord64Type {
 @generateUniqueMap
 @generateFactoryFunction
 extern class TurboshaftFloat64Type extends TurboshaftType {
-  has_nan: uint32;
+  special_values: TurboshaftFloatSpecialValues;
 }
 
 @generateBodyDescriptor
@@ -145,7 +151,8 @@ macro TestTurboshaftWord64Type(
 
 macro TestTurboshaftFloat64Type(
     value: float64, expected: TurboshaftFloat64Type): bool {
-  if (Float64IsNaN(value)) return expected.has_nan != 0;
+  if (Float64IsNaN(value)) return expected.special_values.nan;
+  if (IsMinusZero(value)) return expected.special_values.minus_zero;
   typeswitch (expected) {
     case (range: TurboshaftFloat64RangeType): {
       return range.min <= value && value <= range.max;

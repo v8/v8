@@ -116,6 +116,15 @@ class ReducerBase : public ReducerBaseForwarder<Next> {
 
   void Analyze() {}
 
+  bool ShouldEliminateOperation(OpIndex index, const Operation& op) {
+    return op.saturated_use_count == 0;
+  }
+
+  bool ShouldEliminateBranch(OpIndex index, const BranchOp& op,
+                             BlockIndex& goto_block) {
+    return false;
+  }
+
   // Get, GetPredecessorValue, Set and NewFreshVariable should be overwritten by
   // the VariableReducer. If the reducer stack has no VariableReducer, then
   // those methods should not be called.

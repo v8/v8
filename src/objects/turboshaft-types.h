@@ -16,6 +16,11 @@ namespace v8::internal {
 
 #include "torque-generated/src/objects/turboshaft-types-tq.inc"
 
+class TurboshaftFloatSpecialValues {
+ public:
+  DEFINE_TORQUE_GENERATED_TURBOSHAFT_FLOAT_SPECIAL_VALUES()
+};
+
 class TurboshaftType
     : public TorqueGeneratedTurboshaftType<TurboshaftType, HeapObject> {
  public:

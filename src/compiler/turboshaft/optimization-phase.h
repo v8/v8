@@ -17,6 +17,7 @@
 #include "src/base/vector.h"
 #include "src/compiler/node-origin-table.h"
 #include "src/compiler/turboshaft/graph.h"
+#include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/snapshot-table.h"
 
@@ -55,66 +56,6 @@ struct AnalyzerBase {
 V8_INLINE bool ShouldSkipOperation(const Operation& op) {
   return op.saturated_use_count == 0;
 }
-
-// TODO(dmercadier, tebbi): transform this analyzer into a reducer, and plug in
-// into some reducer stacks.
-struct LivenessAnalyzer : AnalyzerBase {
-  using Base = AnalyzerBase;
-  // Using `uint8_t` instead of `bool` prevents `std::vector` from using a
-  // bitvector, which has worse performance.
-  std::vector<uint8_t> op_used;
-
-  LivenessAnalyzer(const Graph& graph, Zone* phase_zone)
-      : AnalyzerBase(graph, phase_zone), op_used(graph.op_id_count(), false) {}
-
-  bool OpIsUsed(OpIndex i) { return op_used[i.id()]; }
-
-  void Run() {
-    for (uint32_t unprocessed_count = graph.block_count();
-         unprocessed_count > 0;) {
-      BlockIndex block_index = static_cast<BlockIndex>(unprocessed_count - 1);
-      --unprocessed_count;
-      const Block& block = graph.Get(block_index);
-      if (V8_UNLIKELY(block.IsLoop())) {
-        ProcessBlock<true>(block, &unprocessed_count);
-      } else {
-        ProcessBlock<false>(block, &unprocessed_count);
-      }
-    }
-  }
-
-  template <bool is_loop>
-  void ProcessBlock(const Block& block, uint32_t* unprocessed_count) {
-    auto op_range = graph.OperationIndices(block);
-    for (auto it = op_range.end(); it != op_range.begin();) {
-      --it;
-      OpIndex index = *it;
-      const Operation& op = graph.Get(index);
-      if (op.Properties().is_required_when_unused) {
-        op_used[index.id()] = true;
-      } else if (!OpIsUsed(index)) {
-        continue;
-      }
-      if constexpr (is_loop) {
-        if (op.Is<PhiOp>()) {
-          const PhiOp& phi = op.Cast<PhiOp>();
-          // Mark the loop backedge as used. Trigger a revisit if it wasn't
-          // marked as used already.
-          if (!OpIsUsed(phi.inputs()[PhiOp::kLoopPhiBackEdgeIndex])) {
-            Block* backedge = block.LastPredecessor();
-            // Revisit the loop by increasing the `unprocessed_count` to include
-            // all blocks of the loop.
-            *unprocessed_count =
-                std::max(*unprocessed_count, backedge->index().id() + 1);
-          }
-        }
-      }
-      for (OpIndex input : op.inputs()) {
-        op_used[input.id()] = true;
-      }
-    }
-  }
-};
 
 template <template <class> class... Reducers>
 class OptimizationPhase {
@@ -337,7 +278,9 @@ class GraphVisitor {
     USE(first_output_index);
     const Operation& op = input_graph().Get(index);
     if constexpr (trace_reduction) TraceReductionStart(index);
-    if (ShouldSkipOperation(op)) {
+    if (!op.Is<BranchOp>() && assembler().ShouldEliminateOperation(index, op)) {
+      // Branch should never be eliminated. They must be reduced to
+      // Goto operations. See VisitGoto and ShouldEliminateBranch.
       if constexpr (trace_reduction) TraceOperationSkipped();
       return true;
     }
@@ -430,6 +373,12 @@ class GraphVisitor {
     return OpIndex::Invalid();
   }
   V8_INLINE OpIndex VisitBranch(const BranchOp& op) {
+    BlockIndex goto_block_index;
+    if (assembler().ShouldEliminateBranch(input_graph().Index(op), op,
+                                          goto_block_index)) {
+      DCHECK(goto_block_index.valid());
+      return assembler().ReduceGoto(MapToNewGraph(goto_block_index));
+    }
     Block* if_true = MapToNewGraph(op.if_true->index());
     Block* if_false = MapToNewGraph(op.if_false->index());
     return assembler().ReduceBranch(MapToNewGraph(op.condition()), if_true,

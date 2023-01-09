@@ -13,6 +13,13 @@
 function use() {}
 %NeverOptimizeFunction(use);
 
+function constants() {
+  use(%CheckTypeOf(3, "Word64{6}")); // smi-tagged value 3 in 64 bit register
+  // Cannot check this currently, because NumberConstants are not yet supported
+  // in the typer.
+  // use(%CheckTypeOf(5.5, "Float64{5.5}"));
+}
+
 function add1(x) {
   let a = x ? 3 : 7;
   let r = -1;
@@ -50,6 +57,7 @@ function div2(x) {
   let result = r - 0.5;
   return %CheckTypeOf(result, "Float64[2.49999,2.50001]");
 }
+*/
 
 //function min2(x) {
 //  let a = x ? 3.3 : 6.6;
@@ -69,7 +77,38 @@ function div2(x) {
 //  return %CheckTypeOf(result, "Float64{6}");
 //}
 
-let targets = [ constants, add1, add2, mul2, div2, min2, max2 ];
+function add_dce(x) {
+  let a = x ? 3 : 7;
+  let r = -1;
+  if (a < 5) r = a + 2;
+  else r = a - 2;
+  let result = r + 1;
+  return result;
+}
+
+function loop_dce(x) {
+  let limit = x ? 50 : 100;
+  let sum = 0;
+  for(let i = 1; i <= limit; ++i) {
+    sum += i;
+  }
+
+  let a = sum > 5000 ? 3 : 7;
+  let r = -1;
+  if(a < 5) r = a + 2;
+  else r = a - 2;
+  let result = r + 1;
+  return result;
+  // TODO(nicohartmann@): DCE should support merging identical return blocks.
+//  if(sum > 5000) {
+//    return true;
+//  } else {
+//    return true;
+//  }
+}
+
+//let targets = [ constants, add1, add2, mul2, div2, /*min2, max2*/ ];
+let targets = [ add_dce, loop_dce ];
 for(let f of targets) {
   %PrepareFunctionForOptimization(f);
   f(true);
@@ -77,4 +116,3 @@ for(let f of targets) {
   %OptimizeFunctionOnNextCall(f);
   f(true);
 }
-*/

@@ -271,15 +271,16 @@ TEST_F(TurboshaftTypesTest, Float32) {
       std::numeric_limits<Float32Type::float_t>::max() * 0.99f;
   const auto inf = std::numeric_limits<Float32Type::float_t>::infinity();
   const auto kNaN = Float32Type::kNaN;
+  const auto kMinusZero = Float32Type::kMinusZero;
   const auto kNoSpecialValues = Float32Type::kNoSpecialValues;
 
   // Complete range (with NaN)
   for (bool with_nan : {false, true}) {
-    uint32_t sv = with_nan ? kNaN : kNoSpecialValues;
-    Float32Type t = Float32Type::Any(kNaN);
+    uint32_t sv = kMinusZero | (with_nan ? kNaN : kNoSpecialValues);
+    Float32Type t = Float32Type::Any(kNaN | kMinusZero);
     EXPECT_TRUE(Float32Type::NaN().IsSubtypeOf(t));
     EXPECT_TRUE(Float32Type::Constant(0.0f).IsSubtypeOf(t));
-    EXPECT_TRUE(Float32Type::Constant(-0.0f).IsSubtypeOf(t));
+    EXPECT_TRUE(Float32Type::MinusZero().IsSubtypeOf(t));
     EXPECT_TRUE(Float32Type::Constant(391.113f).IsSubtypeOf(t));
     EXPECT_TRUE(Float32Type::Set({0.13f, 91.0f}, sv, zone()).IsSubtypeOf(t));
     EXPECT_TRUE(
@@ -294,11 +295,11 @@ TEST_F(TurboshaftTypesTest, Float32) {
 
   // Complete range (without NaN)
   for (bool with_nan : {false, true}) {
-    uint32_t sv = with_nan ? kNaN : kNoSpecialValues;
-    Float32Type t = Float32Type::Any(kNoSpecialValues);
+    uint32_t sv = kMinusZero | (with_nan ? kNaN : kNoSpecialValues);
+    Float32Type t = Float32Type::Any(kMinusZero);
     EXPECT_TRUE(!Float32Type::NaN().IsSubtypeOf(t));
     EXPECT_TRUE(Float32Type::Constant(0.0f).IsSubtypeOf(t));
-    EXPECT_TRUE(Float32Type::Constant(-0.0f).IsSubtypeOf(t));
+    EXPECT_TRUE(Float32Type::MinusZero().IsSubtypeOf(t));
     EXPECT_TRUE(Float32Type::Constant(391.113f).IsSubtypeOf(t));
     EXPECT_EQ(!with_nan,
               Float32Type::Set({0.13f, 91.0f}, sv, zone()).IsSubtypeOf(t));
@@ -319,18 +320,19 @@ TEST_F(TurboshaftTypesTest, Float32) {
 
   // Range (with NaN)
   for (bool with_nan : {false, true}) {
-    uint32_t sv = with_nan ? kNaN : kNoSpecialValues;
-    Float32Type t = Float32Type::Range(-1.0f, 3.14159f, kNaN, zone());
+    uint32_t sv = kMinusZero | (with_nan ? kNaN : kNoSpecialValues);
+    Float32Type t =
+        Float32Type::Range(-1.0f, 3.14159f, kNaN | kMinusZero, zone());
     EXPECT_TRUE(Float32Type::NaN().IsSubtypeOf(t));
     EXPECT_TRUE(!Float32Type::Constant(-100.0f).IsSubtypeOf(t));
     EXPECT_TRUE(!Float32Type::Constant(-1.01f).IsSubtypeOf(t));
     EXPECT_TRUE(Float32Type::Constant(-1.0f).IsSubtypeOf(t));
     EXPECT_TRUE(Float32Type::Constant(-0.99f).IsSubtypeOf(t));
-    EXPECT_TRUE(Float32Type::Constant(-0.0f).IsSubtypeOf(t));
+    EXPECT_TRUE(Float32Type::MinusZero().IsSubtypeOf(t));
     EXPECT_TRUE(Float32Type::Constant(0.0f).IsSubtypeOf(t));
     EXPECT_TRUE(Float32Type::Constant(3.14159f).IsSubtypeOf(t));
     EXPECT_TRUE(!Float32Type::Constant(3.15f).IsSubtypeOf(t));
-    EXPECT_TRUE(Float32Type::Set({-0.5f, -0.0f}, sv, zone()).IsSubtypeOf(t));
+    EXPECT_TRUE(Float32Type::Set({-0.5f}, sv, zone()).IsSubtypeOf(t));
     EXPECT_TRUE(!Float32Type::Set({-1.1f, 1.5f}, sv, zone()).IsSubtypeOf(t));
     EXPECT_TRUE(Float32Type::Set({-0.9f, 1.88f}, sv, zone()).IsSubtypeOf(t));
     EXPECT_TRUE(!Float32Type::Set({0.0f, 3.142f}, sv, zone()).IsSubtypeOf(t));
@@ -347,20 +349,18 @@ TEST_F(TurboshaftTypesTest, Float32) {
 
   // Range (without NaN)
   for (bool with_nan : {false, true}) {
-    uint32_t sv = with_nan ? kNaN : kNoSpecialValues;
-    Float32Type t =
-        Float32Type::Range(-1.0f, 3.14159f, kNoSpecialValues, zone());
+    uint32_t sv = kMinusZero | (with_nan ? kNaN : kNoSpecialValues);
+    Float32Type t = Float32Type::Range(-1.0f, 3.14159f, kMinusZero, zone());
     EXPECT_TRUE(!Float32Type::NaN().IsSubtypeOf(t));
     EXPECT_TRUE(!Float32Type::Constant(-100.0f).IsSubtypeOf(t));
     EXPECT_TRUE(!Float32Type::Constant(-1.01f).IsSubtypeOf(t));
     EXPECT_TRUE(Float32Type::Constant(-1.0f).IsSubtypeOf(t));
     EXPECT_TRUE(Float32Type::Constant(-0.99f).IsSubtypeOf(t));
-    EXPECT_TRUE(Float32Type::Constant(-0.0f).IsSubtypeOf(t));
+    EXPECT_TRUE(Float32Type::MinusZero().IsSubtypeOf(t));
     EXPECT_TRUE(Float32Type::Constant(0.0f).IsSubtypeOf(t));
     EXPECT_TRUE(Float32Type::Constant(3.14159f).IsSubtypeOf(t));
     EXPECT_TRUE(!Float32Type::Constant(3.15f).IsSubtypeOf(t));
-    EXPECT_EQ(!with_nan,
-              Float32Type::Set({-0.5f, -0.0f}, sv, zone()).IsSubtypeOf(t));
+    EXPECT_EQ(!with_nan, Float32Type::Set({-0.5f}, sv, zone()).IsSubtypeOf(t));
     EXPECT_TRUE(!Float32Type::Set({-1.1f, 1.5f}, sv, zone()).IsSubtypeOf(t));
     EXPECT_EQ(!with_nan,
               Float32Type::Set({-0.9f, 1.88f}, sv, zone()).IsSubtypeOf(t));
@@ -434,14 +434,15 @@ TEST_F(TurboshaftTypesTest, Float32) {
 
   // -0.0f corner cases
   {
-    EXPECT_TRUE(Float32Type::Constant(-0.0f).IsSubtypeOf(
+    EXPECT_TRUE(!Float32Type::MinusZero().IsSubtypeOf(
         Float32Type::Set({0.0f, 1.0f}, zone())));
     EXPECT_TRUE(
-        Float32Type::Constant(0.0f).IsSubtypeOf(Float32Type::Constant(-0.0f)));
-    EXPECT_TRUE(Float32Type::Set({-0.0f, 3.2f}, zone())
-                    .IsSubtypeOf(Float32Type::Range(0.0f, 4.0f, zone())));
-    EXPECT_TRUE(Float32Type::Set({-1.0f, 0.0f}, zone())
-                    .IsSubtypeOf(Float32Type::Range(-inf, -0.0f, zone())));
+        !Float32Type::Constant(0.0f).IsSubtypeOf(Float32Type::MinusZero()));
+    EXPECT_TRUE(
+        Float32Type::Set({3.2f}, kMinusZero, zone())
+            .IsSubtypeOf(Float32Type::Range(0.0f, 4.0f, kMinusZero, zone())));
+    EXPECT_TRUE(!Float32Type::Set({-1.0f, 0.0f}, kMinusZero, zone())
+                     .IsSubtypeOf(Float32Type::Range(-inf, 0.0f, zone())));
   }
 }
 
@@ -450,15 +451,16 @@ TEST_F(TurboshaftTypesTest, Float64) {
       std::numeric_limits<Float64Type::float_t>::max() * 0.99;
   const auto inf = std::numeric_limits<Float64Type::float_t>::infinity();
   const auto kNaN = Float64Type::kNaN;
+  const auto kMinusZero = Float64Type::kMinusZero;
   const auto kNoSpecialValues = Float64Type::kNoSpecialValues;
 
   // Complete range (with NaN)
   for (bool with_nan : {false, true}) {
-    uint32_t sv = with_nan ? kNaN : kNoSpecialValues;
-    Float64Type t = Float64Type::Any(kNaN);
+    uint32_t sv = kMinusZero | (with_nan ? kNaN : kNoSpecialValues);
+    Float64Type t = Float64Type::Any(kNaN | kMinusZero);
     EXPECT_TRUE(Float64Type::NaN().IsSubtypeOf(t));
     EXPECT_TRUE(Float64Type::Constant(0.0).IsSubtypeOf(t));
-    EXPECT_TRUE(Float64Type::Constant(-0.0).IsSubtypeOf(t));
+    EXPECT_TRUE(Float64Type::MinusZero().IsSubtypeOf(t));
     EXPECT_TRUE(Float64Type::Constant(391.113).IsSubtypeOf(t));
     EXPECT_TRUE(Float64Type::Set({0.13, 91.0}, sv, zone()).IsSubtypeOf(t));
     EXPECT_TRUE(
@@ -473,11 +475,11 @@ TEST_F(TurboshaftTypesTest, Float64) {
 
   // Complete range (without NaN)
   for (bool with_nan : {false, true}) {
-    uint32_t sv = with_nan ? kNaN : kNoSpecialValues;
-    Float64Type t = Float64Type::Any(kNoSpecialValues);
+    uint32_t sv = kMinusZero | (with_nan ? kNaN : kNoSpecialValues);
+    Float64Type t = Float64Type::Any(kMinusZero);
     EXPECT_TRUE(!Float64Type::NaN().IsSubtypeOf(t));
     EXPECT_TRUE(Float64Type::Constant(0.0).IsSubtypeOf(t));
-    EXPECT_TRUE(Float64Type::Constant(-0.0).IsSubtypeOf(t));
+    EXPECT_TRUE(Float64Type::MinusZero().IsSubtypeOf(t));
     EXPECT_TRUE(Float64Type::Constant(391.113).IsSubtypeOf(t));
     EXPECT_EQ(!with_nan,
               Float64Type::Set({0.13, 91.0}, sv, zone()).IsSubtypeOf(t));
@@ -498,18 +500,19 @@ TEST_F(TurboshaftTypesTest, Float64) {
 
   // Range (with NaN)
   for (bool with_nan : {false, true}) {
-    uint32_t sv = with_nan ? kNaN : kNoSpecialValues;
-    Float64Type t = Float64Type::Range(-1.0, 3.14159, kNaN, zone());
+    uint32_t sv = kMinusZero | (with_nan ? kNaN : kNoSpecialValues);
+    Float64Type t =
+        Float64Type::Range(-1.0, 3.14159, kNaN | kMinusZero, zone());
     EXPECT_TRUE(Float64Type::NaN().IsSubtypeOf(t));
     EXPECT_TRUE(!Float64Type::Constant(-100.0).IsSubtypeOf(t));
     EXPECT_TRUE(!Float64Type::Constant(-1.01).IsSubtypeOf(t));
     EXPECT_TRUE(Float64Type::Constant(-1.0).IsSubtypeOf(t));
     EXPECT_TRUE(Float64Type::Constant(-0.99).IsSubtypeOf(t));
-    EXPECT_TRUE(Float64Type::Constant(-0.0).IsSubtypeOf(t));
+    EXPECT_TRUE(Float64Type::MinusZero().IsSubtypeOf(t));
     EXPECT_TRUE(Float64Type::Constant(0.0).IsSubtypeOf(t));
     EXPECT_TRUE(Float64Type::Constant(3.14159).IsSubtypeOf(t));
     EXPECT_TRUE(!Float64Type::Constant(3.15).IsSubtypeOf(t));
-    EXPECT_TRUE(Float64Type::Set({-0.5, -0.0}, sv, zone()).IsSubtypeOf(t));
+    EXPECT_TRUE(Float64Type::Set({-0.5}, sv, zone()).IsSubtypeOf(t));
     EXPECT_TRUE(!Float64Type::Set({-1.1, 1.5}, sv, zone()).IsSubtypeOf(t));
     EXPECT_TRUE(Float64Type::Set({-0.9, 1.88}, sv, zone()).IsSubtypeOf(t));
     EXPECT_TRUE(!Float64Type::Set({0.0, 3.142}, sv, zone()).IsSubtypeOf(t));
@@ -526,19 +529,18 @@ TEST_F(TurboshaftTypesTest, Float64) {
 
   // Range (without NaN)
   for (bool with_nan : {false, true}) {
-    uint32_t sv = with_nan ? kNaN : kNoSpecialValues;
-    Float64Type t = Float64Type::Range(-1.0, 3.14159, kNoSpecialValues, zone());
+    uint32_t sv = kMinusZero | (with_nan ? kNaN : kNoSpecialValues);
+    Float64Type t = Float64Type::Range(-1.0, 3.14159, kMinusZero, zone());
     EXPECT_TRUE(!Float64Type::NaN().IsSubtypeOf(t));
     EXPECT_TRUE(!Float64Type::Constant(-100.0).IsSubtypeOf(t));
     EXPECT_TRUE(!Float64Type::Constant(-1.01).IsSubtypeOf(t));
     EXPECT_TRUE(Float64Type::Constant(-1.0).IsSubtypeOf(t));
     EXPECT_TRUE(Float64Type::Constant(-0.99).IsSubtypeOf(t));
-    EXPECT_TRUE(Float64Type::Constant(-0.0).IsSubtypeOf(t));
+    EXPECT_TRUE(Float64Type::MinusZero().IsSubtypeOf(t));
     EXPECT_TRUE(Float64Type::Constant(0.0).IsSubtypeOf(t));
     EXPECT_TRUE(Float64Type::Constant(3.14159).IsSubtypeOf(t));
     EXPECT_TRUE(!Float64Type::Constant(3.15).IsSubtypeOf(t));
-    EXPECT_EQ(!with_nan,
-              Float64Type::Set({-0.5, -0.0}, sv, zone()).IsSubtypeOf(t));
+    EXPECT_EQ(!with_nan, Float64Type::Set({-0.5}, sv, zone()).IsSubtypeOf(t));
     EXPECT_TRUE(!Float64Type::Set({-1.1, 1.5}, sv, zone()).IsSubtypeOf(t));
     EXPECT_EQ(!with_nan,
               Float64Type::Set({-0.9, 1.88}, sv, zone()).IsSubtypeOf(t));
@@ -607,16 +609,18 @@ TEST_F(TurboshaftTypesTest, Float64) {
     EXPECT_TRUE(t.IsSubtypeOf(t));
   }
 
-  // -0.0f corner cases
+  // -0.0 corner cases
   {
-    EXPECT_TRUE(Float64Type::Constant(-0.0).IsSubtypeOf(
+    EXPECT_TRUE(!Float64Type::MinusZero().IsSubtypeOf(
         Float64Type::Set({0.0, 1.0}, zone())));
     EXPECT_TRUE(
-        Float64Type::Constant(0.0).IsSubtypeOf(Float64Type::Constant(-0.0)));
-    EXPECT_TRUE(Float64Type::Set({-0.0, 3.2}, zone())
-                    .IsSubtypeOf(Float64Type::Range(0.0, 4.0, zone())));
-    EXPECT_TRUE(Float64Type::Set({-1.0, 0.0}, zone())
-                    .IsSubtypeOf(Float64Type::Range(-inf, -0.0, zone())));
+        !Float64Type::Constant(0.0).IsSubtypeOf(Float64Type::MinusZero()));
+    EXPECT_TRUE(
+        Float64Type::Set({3.2}, kMinusZero, zone())
+            .IsSubtypeOf(Float64Type::Range(0.0, 4.0, kMinusZero, zone())));
+    EXPECT_TRUE(
+        Float64Type::Set({0.0}, kMinusZero, zone())
+            .IsSubtypeOf(Float64Type::Range(-inf, 0.0, kMinusZero, zone())));
   }
 }
 

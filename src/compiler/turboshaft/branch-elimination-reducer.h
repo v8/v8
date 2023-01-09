@@ -326,8 +326,11 @@ class BranchEliminationReducer : public Next {
       // inline the destination block in place of the Goto.
       // We pass `false` to `direct_input` here, as we're looking one
       // block ahead of the current one.
-      Asm().CloneAndInlineBlock(old_dst, false);
-      return OpIndex::Invalid();
+      // TODO(nicohartmann@): Temporarily disable this "optimization" because it
+      // prevents dead code elimination in some cases. Reevaluate this and
+      // reenable if phases have been reordered properly.
+      // Asm().CloneAndInlineBlock(old_dst, false);
+      // return OpIndex::Invalid();
     }
 
     goto no_change;

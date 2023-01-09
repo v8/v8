@@ -14,6 +14,7 @@
 #include "src/base/small-vector.h"
 #include "src/common/globals.h"
 #include "src/compiler/turboshaft/fast-hash.h"
+#include "src/numbers/conversions.h"
 #include "src/objects/turboshaft-types.h"
 #include "src/utils/ostreams.h"
 #include "src/zone/zone-containers.h"
@@ -35,6 +36,11 @@ inline bool is_unique_and_sorted(const T& container) {
     if (!(*cur < *next)) return false;
   }
   return true;
+}
+
+template <typename T>
+inline bool is_float_special_value(T value) {
+  return std::isnan(value) || IsMinusZero(value);
 }
 
 template <size_t Bits>
@@ -439,7 +445,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FloatType : public Type {
   enum class SubKind : uint8_t {
     kRange,
     kSet,
-    kOnlyNan,
+    kOnlySpecialValues,
   };
 
  public:
@@ -450,13 +456,25 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FloatType : public Type {
   enum Special : uint32_t {
     kNoSpecialValues = 0x0,
     kNaN = 0x1,
+    kMinusZero = 0x2,
   };
 
   // Constructors
-  static FloatType NaN() {
-    return FloatType{SubKind::kOnlyNan, 0, Special::kNaN, Payload_OnlyNan{}};
+  static FloatType OnlySpecialValues(uint32_t special_values) {
+    DCHECK_NE(0, special_values);
+    return FloatType{SubKind::kOnlySpecialValues, 0, special_values,
+                     Payload_OnlySpecial{}};
   }
-  static FloatType Any(uint32_t special_values = Special::kNaN) {
+  static FloatType NaN() {
+    return FloatType{SubKind::kOnlySpecialValues, 0, Special::kNaN,
+                     Payload_OnlySpecial{}};
+  }
+  static FloatType MinusZero() {
+    return FloatType{SubKind::kOnlySpecialValues, 0, Special::kMinusZero,
+                     Payload_OnlySpecial{}};
+  }
+  static FloatType Any(uint32_t special_values = Special::kNaN |
+                                                 Special::kMinusZero) {
     return FloatType::Range(-std::numeric_limits<float_t>::infinity(),
                             std::numeric_limits<float_t>::infinity(),
                             special_values, nullptr);
@@ -466,8 +484,8 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FloatType : public Type {
   }
   static FloatType Range(float_t min, float_t max, uint32_t special_values,
                          Zone* zone) {
-    DCHECK(!std::isnan(min));
-    DCHECK(!std::isnan(max));
+    DCHECK(!detail::is_float_special_value(min));
+    DCHECK(!detail::is_float_special_value(max));
     DCHECK_LE(min, max);
     if (min == max) return Set({min}, zone);
     return FloatType{SubKind::kRange, 0, special_values,
@@ -501,7 +519,8 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FloatType : public Type {
                        uint32_t special_values, Zone* zone) {
     DCHECK(detail::is_unique_and_sorted(elements));
     // NaN should be passed via {special_values} rather than {elements}.
-    DCHECK(base::none_of(elements, [](float_t f) { return std::isnan(f); }));
+    DCHECK(base::none_of(
+        elements, [](float_t f) { return detail::is_float_special_value(f); }));
     DCHECK_IMPLIES(elements.size() > kMaxInlineSetSize, zone != nullptr);
     DCHECK_GT(elements.size(), 0);
     DCHECK_LE(elements.size(), kMaxSetSize);
@@ -529,9 +548,12 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FloatType : public Type {
   }
 
   // Checks
-  bool is_only_nan() const {
-    DCHECK_IMPLIES(sub_kind() == SubKind::kOnlyNan, has_nan());
-    return sub_kind() == SubKind::kOnlyNan;
+  bool is_only_special_values() const {
+    return sub_kind() == SubKind::kOnlySpecialValues;
+  }
+  bool is_only_nan() const { return is_only_special_values() && has_nan(); }
+  bool is_only_minus_zero() const {
+    return is_only_special_values() && has_minus_zero();
   }
   bool is_range() const { return sub_kind() == SubKind::kRange; }
   bool is_set() const { return sub_kind() == SubKind::kSet; }
@@ -542,10 +564,14 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FloatType : public Type {
   }
   bool is_constant() const {
     DCHECK_EQ(set_size_ > 0, is_set());
-    return set_size_ == 1 && !has_nan();
+    return set_size_ == 1 && !has_special_values();
   }
   uint32_t special_values() const { return bitfield_; }
+  bool has_special_values() const { return special_values() != 0; }
   bool has_nan() const { return (special_values() & Special::kNaN) != 0; }
+  bool has_minus_zero() const {
+    return (special_values() & Special::kMinusZero) != 0;
+  }
 
   // Accessors
   float_t range_min() const {
@@ -582,7 +608,9 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FloatType : public Type {
   }
   float_t min() const {
     switch (sub_kind()) {
-      case SubKind::kOnlyNan:
+      case SubKind::kOnlySpecialValues:
+        if (has_minus_zero()) return float_t{-0.0};
+        DCHECK(is_only_nan());
         return nan_v<Bits>;
       case SubKind::kRange:
         return range_min();
@@ -592,7 +620,9 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FloatType : public Type {
   }
   float_t max() const {
     switch (sub_kind()) {
-      case SubKind::kOnlyNan:
+      case SubKind::kOnlySpecialValues:
+        if (has_minus_zero()) return float_t{-0.0};
+        DCHECK(is_only_nan());
         return nan_v<Bits>;
       case SubKind::kRange:
         return range_max();
@@ -624,14 +654,14 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FloatType : public Type {
   using Payload_Range = detail::Payload_Range<float_t>;
   using Payload_InlineSet = detail::Payload_InlineSet<float_t>;
   using Payload_OutlineSet = detail::Payload_OutlineSet<float_t>;
-  using Payload_OnlyNan = detail::Payload_Empty;
+  using Payload_OnlySpecial = detail::Payload_Empty;
 
   template <typename Payload>
   FloatType(SubKind sub_kind, uint8_t set_size, uint32_t special_values,
             const Payload& payload)
       : Type(KIND, static_cast<uint8_t>(sub_kind), set_size, special_values, 0,
              payload) {
-    DCHECK_EQ(special_values & ~Special::kNaN, 0);
+    DCHECK_EQ(special_values & ~(Special::kNaN | Special::kMinusZero), 0);
   }
 };
 
