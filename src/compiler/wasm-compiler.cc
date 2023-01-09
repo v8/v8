@@ -8703,10 +8703,14 @@ LocationSignature* BuildLocations(Zone* zone, const Signature<T>* sig,
   // tagged parameters). This allows for easy iteration of tagged parameters
   // during frame iteration.
   const size_t parameter_count = sig->parameter_count();
+  bool has_tagged_param = false;
   for (size_t i = 0; i < parameter_count; i++) {
     MachineRepresentation param = GetMachineRepresentation(sig->GetParam(i));
     // Skip tagged parameters (e.g. any-ref).
-    if (IsAnyTagged(param)) continue;
+    if (IsAnyTagged(param)) {
+      has_tagged_param = true;
+      continue;
+    }
     auto l = params.Next(param);
     locations.AddParamAt(i + param_offset, l);
   }
@@ -8714,12 +8718,14 @@ LocationSignature* BuildLocations(Zone* zone, const Signature<T>* sig,
   // End the untagged area, so tagged slots come after.
   params.EndSlotArea();
 
-  for (size_t i = 0; i < parameter_count; i++) {
-    MachineRepresentation param = GetMachineRepresentation(sig->GetParam(i));
-    // Skip untagged parameters.
-    if (!IsAnyTagged(param)) continue;
-    auto l = params.Next(param);
-    locations.AddParamAt(i + param_offset, l);
+  if (has_tagged_param) {
+    for (size_t i = 0; i < parameter_count; i++) {
+      MachineRepresentation param = GetMachineRepresentation(sig->GetParam(i));
+      // Skip untagged parameters.
+      if (!IsAnyTagged(param)) continue;
+      auto l = params.Next(param);
+      locations.AddParamAt(i + param_offset, l);
+    }
   }
 
   // Import call wrappers have an additional (implicit) parameter, the callable.
