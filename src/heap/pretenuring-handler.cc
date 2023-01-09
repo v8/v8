@@ -4,7 +4,9 @@
 
 #include "src/heap/pretenuring-handler.h"
 
+#include "src/common/globals.h"
 #include "src/execution/isolate.h"
+#include "src/flags/flags.h"
 #include "src/handles/global-handles-inl.h"
 #include "src/heap/new-spaces.h"
 #include "src/objects/allocation-site-inl.h"
@@ -44,6 +46,12 @@ void PretenuringHandler::MergeAllocationSitePretenuringFeedback(
 
 bool PretenuringHandler::DeoptMaybeTenuredAllocationSites() const {
   NewSpace* new_space = heap_->new_space();
+  if (heap_->tracer()->GetCurrentCollector() ==
+      GarbageCollector::MINOR_MARK_COMPACTOR) {
+    DCHECK(v8_flags.minor_mc);
+    DCHECK_NOT_NULL(new_space);
+    return heap_->IsFirstMaximumSizeMinorGC();
+  }
   return new_space && new_space->IsAtMaximumCapacity() &&
          !heap_->MaximumSizeMinorGC();
 }
