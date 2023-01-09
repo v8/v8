@@ -480,12 +480,6 @@ inline void MaglevAssembler::MoveRepr(MachineRepresentation repr, Dest dst,
       UNREACHABLE();
   }
 }
-template <>
-inline void MaglevAssembler::MoveRepr(MachineRepresentation repr,
-                                      MemOperand dst, MemOperand src) {
-  MoveRepr(repr, kScratchRegister, src);
-  MoveRepr(repr, dst, kScratchRegister);
-}
 
 inline Condition ToCondition(AssertCondition cond) {
   switch (cond) {

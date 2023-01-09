@@ -753,7 +753,8 @@ void GapMove::GenerateCode(MaglevAssembler* masm,
       __ Move(ToDoubleRegister(target()), source_op);
     } else {
       DCHECK(target().IsAnyStackSlot());
-      __ MoveRepr(repr, masm->ToMemOperand(target()), source_op);
+      __ MoveRepr(repr, kScratchRegister, source_op);
+      __ MoveRepr(repr, masm->ToMemOperand(target()), kScratchRegister);
     }
   }
 }
@@ -1923,20 +1924,18 @@ void CallKnownJSFunction::SetValueLocationConstraints() {
     UseAny(arg(i));
   }
   DefineAsFixed(this, kReturnRegister0);
-  set_temporaries_needed(1);
 }
 
 void CallKnownJSFunction::GenerateCode(MaglevAssembler* masm,
                                        const ProcessingState& state) {
-  Register scratch = general_temporaries().PopFirst();
   int actual_parameter_count = num_args() + 1;
   if (actual_parameter_count < expected_parameter_count_) {
     int number_of_undefineds =
         expected_parameter_count_ - actual_parameter_count;
-    __ LoadRoot(scratch, RootIndex::kUndefinedValue);
+    __ LoadRoot(kScratchRegister, RootIndex::kUndefinedValue);
     __ PushReverse(receiver(),
                    base::make_iterator_range(args_begin(), args_end()),
-                   RepeatValue(scratch, number_of_undefineds));
+                   RepeatValue(kScratchRegister, number_of_undefineds));
   } else {
     __ PushReverse(receiver(),
                    base::make_iterator_range(args_begin(), args_end()));
