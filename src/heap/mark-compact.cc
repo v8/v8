@@ -2546,14 +2546,11 @@ void MarkCompactCollector::MarkTransitiveClosureLinear() {
 }
 
 void MarkCompactCollector::PerformWrapperTracing() {
-  if (heap_->local_embedder_heap_tracer()->InUse()) {
-    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_EMBEDDER_TRACING);
-    if (local_marking_worklists()->PublishWrapper()) {
-      DCHECK(local_marking_worklists()->IsWrapperEmpty());
-    }
-    heap_->local_embedder_heap_tracer()->Trace(
-        std::numeric_limits<double>::infinity());
-  }
+  auto* cpp_heap = CppHeap::From(heap_->cpp_heap());
+  if (!cpp_heap) return;
+
+  TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_EMBEDDER_TRACING);
+  cpp_heap->AdvanceTracing(std::numeric_limits<double>::infinity());
 }
 
 std::pair<size_t, size_t> MarkCompactCollector::ProcessMarkingWorklist(
@@ -5795,15 +5792,12 @@ void MinorMarkCompactCollector::SweepArrayBufferExtensions() {
 }
 
 void MinorMarkCompactCollector::PerformWrapperTracing() {
-  if (!heap_->local_embedder_heap_tracer()->InUse()) return;
-  // TODO(v8:v8:13207): DCHECK instead of bailing out as only CppHeap is
-  // supported.
-  if (!local_marking_worklists()->PublishWrapper()) return;
-  DCHECK_NOT_NULL(CppHeap::From(heap_->cpp_heap()));
+  auto* cpp_heap = CppHeap::From(heap_->cpp_heap());
+  if (!cpp_heap) return;
+
   DCHECK(CppHeap::From(heap_->cpp_heap())->generational_gc_supported());
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_EMBEDDER_TRACING);
-  heap_->local_embedder_heap_tracer()->Trace(
-      std::numeric_limits<double>::infinity());
+  cpp_heap->AdvanceTracing(std::numeric_limits<double>::infinity());
 }
 
 // static

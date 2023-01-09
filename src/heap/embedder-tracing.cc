@@ -36,8 +36,6 @@ void LocalEmbedderHeapTracer::PrepareForTrace(CollectionType type) {
 void LocalEmbedderHeapTracer::TracePrologue() {
   if (!InUse()) return;
 
-  embedder_worklist_empty_ = false;
-
   cpp_heap()->StartTracing();
 }
 
@@ -55,10 +53,6 @@ void LocalEmbedderHeapTracer::EnterFinalPause() {
   if (!InUse()) return;
 
   cpp_heap()->EnterFinalPause(embedder_stack_state_);
-}
-
-bool LocalEmbedderHeapTracer::Trace(double max_duration) {
-  return !InUse() || cpp_heap()->AdvanceTracing(max_duration);
 }
 
 bool LocalEmbedderHeapTracer::IsRemoteTracingDone() {

@@ -198,6 +198,10 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   MarkingType marking_support() const { return marking_support_; }
   SweepingType sweeping_support() const { return sweeping_support_; }
 
+  bool incremental_marking_supported() const {
+    return marking_support_ != MarkingType::kAtomic;
+  }
+
   bool generational_gc_supported() const {
     const bool supported = is_young_generation_enabled();
 #if defined(CPPGC_YOUNG_GENERATION)
