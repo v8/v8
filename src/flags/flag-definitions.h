@@ -250,7 +250,6 @@ DEFINE_IMPLICATION(harmony_rab_gsab_transfer, harmony_rab_gsab)
 #define HARMONY_SHIPPING_BASE(V)                                      \
   V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")           \
   V(harmony_atomics, "harmony atomics")                               \
-  V(harmony_class_static_blocks, "harmony static initializer blocks") \
   V(harmony_array_find_last, "harmony array find last helpers")       \
   V(harmony_import_assertions, "harmony import assertions")           \
   V(harmony_symbol_as_weakmap_key, "harmony symbols as weakmap keys") \
