@@ -1078,6 +1078,7 @@ void LoadSignedIntTypedArrayElement::GenerateCode(
   Register object = ToRegister(object_input());
   Register index = ToRegister(index_input());
   Register result_reg = ToRegister(result());
+  Register scratch = general_temporaries().PopFirst();
 
   __ AssertNotSmi(object);
   if (v8_flags.debug_code) {
@@ -1085,7 +1086,9 @@ void LoadSignedIntTypedArrayElement::GenerateCode(
     __ Assert(equal, AbortReason::kUnexpectedValue);
   }
 
-  Register data_pointer = general_temporaries().PopFirst();
+  __ DeoptIfBufferDetached(object, scratch, this);
+
+  Register data_pointer = scratch;
   __ BuildTypedArrayDataPointer(data_pointer, object);
   int element_size = ElementsKindSize(elements_kind_);
   __ LoadSignedField(
@@ -1105,6 +1108,7 @@ void LoadUnsignedIntTypedArrayElement::GenerateCode(
   Register object = ToRegister(object_input());
   Register index = ToRegister(index_input());
   Register result_reg = ToRegister(result());
+  Register scratch = general_temporaries().PopFirst();
 
   __ AssertNotSmi(object);
   if (v8_flags.debug_code) {
@@ -1112,7 +1116,9 @@ void LoadUnsignedIntTypedArrayElement::GenerateCode(
     __ Assert(equal, AbortReason::kUnexpectedValue);
   }
 
-  Register data_pointer = general_temporaries().PopFirst();
+  __ DeoptIfBufferDetached(object, scratch, this);
+
+  Register data_pointer = scratch;
   int element_size = ElementsKindSize(elements_kind_);
   __ BuildTypedArrayDataPointer(data_pointer, object);
   __ LoadUnsignedField(
@@ -1132,13 +1138,17 @@ void LoadDoubleTypedArrayElement::GenerateCode(MaglevAssembler* masm,
   Register object = ToRegister(object_input());
   Register index = ToRegister(index_input());
   DoubleRegister result_reg = ToDoubleRegister(result());
+  Register scratch = general_temporaries().PopFirst();
+
   __ AssertNotSmi(object);
   if (v8_flags.debug_code) {
     __ CmpObjectType(object, JS_TYPED_ARRAY_TYPE, kScratchRegister);
     __ Assert(equal, AbortReason::kUnexpectedValue);
   }
 
-  Register data_pointer = general_temporaries().PopFirst();
+  __ DeoptIfBufferDetached(object, scratch, this);
+
+  Register data_pointer = scratch;
   __ BuildTypedArrayDataPointer(data_pointer, object);
   switch (elements_kind_) {
     case FLOAT32_ELEMENTS:

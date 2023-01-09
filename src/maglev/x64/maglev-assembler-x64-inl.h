@@ -11,6 +11,7 @@
 
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/macro-assembler-inl.h"
+#include "src/compiler/compilation-dependencies.h"
 #include "src/maglev/maglev-assembler.h"
 #include "src/maglev/maglev-basic-block.h"
 #include "src/maglev/maglev-code-gen-state.h"
@@ -337,6 +338,25 @@ inline void MaglevAssembler::Move(Register dst, Handle<HeapObject> obj) {
 
 inline void MaglevAssembler::SignExtend32To64Bits(Register dst, Register src) {
   movsxlq(dst, src);
+}
+
+template <typename NodeT>
+inline void MaglevAssembler::DeoptIfBufferDetached(Register array,
+                                                   Register scratch,
+                                                   NodeT* node) {
+  if (!code_gen_state()
+           ->broker()
+           ->dependencies()
+           ->DependOnArrayBufferDetachingProtector()) {
+    // A detached buffer leads to megamorphic feedback, so we won't have a deopt
+    // loop if we deopt here.
+    LoadTaggedPointerField(
+        scratch, FieldOperand(array, JSArrayBufferView::kBufferOffset));
+    LoadTaggedPointerField(
+        scratch, FieldOperand(scratch, JSArrayBuffer::kBitFieldOffset));
+    testl(scratch, Immediate(JSArrayBuffer::WasDetachedBit::kMask));
+    EmitEagerDeoptIf(not_zero, DeoptimizeReason::kArrayBufferWasDetached, node);
+  }
 }
 
 inline void MaglevAssembler::CompareInt32(Register src1, Register src2) {

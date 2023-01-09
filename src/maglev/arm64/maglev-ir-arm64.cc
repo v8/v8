@@ -1793,7 +1793,10 @@ void LoadSignedIntTypedArrayElement::GenerateCode(
   }
 
   UseScratchRegisterScope temps(masm);
-  Register data_pointer = temps.AcquireX();
+  Register scratch = temps.AcquireX();
+  __ DeoptIfBufferDetached(object, scratch, this);
+
+  Register data_pointer = scratch;
   int element_size = ElementsKindSize(elements_kind_);
   __ BuildTypedArrayDataPointer(data_pointer, object);
   __ Add(data_pointer, data_pointer, Operand(index, LSL, element_size / 2));
@@ -1820,7 +1823,10 @@ void LoadUnsignedIntTypedArrayElement::GenerateCode(
   }
 
   UseScratchRegisterScope temps(masm);
-  Register data_pointer = temps.AcquireX();
+  Register scratch = temps.AcquireX();
+  __ DeoptIfBufferDetached(object, scratch, this);
+
+  Register data_pointer = scratch;
   int element_size = ElementsKindSize(elements_kind_);
   __ BuildTypedArrayDataPointer(data_pointer, object);
   __ Add(data_pointer, data_pointer, Operand(index, LSL, element_size / 2));
@@ -1847,7 +1853,10 @@ void LoadDoubleTypedArrayElement::GenerateCode(MaglevAssembler* masm,
   }
 
   UseScratchRegisterScope temps(masm);
-  Register data_pointer = temps.AcquireX();
+  Register scratch = temps.AcquireX();
+  __ DeoptIfBufferDetached(object, scratch, this);
+
+  Register data_pointer = scratch;
   __ BuildTypedArrayDataPointer(data_pointer, object);
   switch (elements_kind_) {
     case FLOAT32_ELEMENTS:

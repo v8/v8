@@ -4182,8 +4182,12 @@ class LoadSignedIntTypedArrayElement
            elements_kind == INT32_ELEMENTS);
   }
 
-  static constexpr OpProperties kProperties =
-      OpProperties::Reading() | OpProperties::Int32();
+  // TODO(dmercadier): We should have 2 version of this Node: one that never
+  // deopts because it's emitted behind a DependOnArrayBufferDetachingProtector
+  // check, and one that can deopt.
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt() |
+                                              OpProperties::Reading() |
+                                              OpProperties::Int32();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kUint32};
 
@@ -4215,8 +4219,12 @@ class LoadUnsignedIntTypedArrayElement
            elements_kind == UINT32_ELEMENTS);
   }
 
-  static constexpr OpProperties kProperties =
-      OpProperties::Reading() | OpProperties::Uint32();
+  // TODO(dmercadier): We should have 2 version of this Node: one that never
+  // deopts because it's emitted behind a DependOnArrayBufferDetachingProtector
+  // check, and one that can deopt.
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt() |
+                                              OpProperties::Reading() |
+                                              OpProperties::Uint32();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kUint32};
 
@@ -4245,8 +4253,12 @@ class LoadDoubleTypedArrayElement
            elements_kind == FLOAT64_ELEMENTS);
   }
 
-  static constexpr OpProperties kProperties =
-      OpProperties::Reading() | OpProperties::Float64();
+  // TODO(dmercadier): We should have 2 version of this Node: one that never
+  // deopts because it's emitted behind a DependOnArrayBufferDetachingProtector
+  // check, and one that can deopt.
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt() |
+                                              OpProperties::Reading() |
+                                              OpProperties::Float64();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kUint32};
 

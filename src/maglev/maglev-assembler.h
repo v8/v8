@@ -161,6 +161,10 @@ class MaglevAssembler : public MacroAssembler {
 
   inline void SignExtend32To64Bits(Register dst, Register src);
 
+  template <typename NodeT>
+  inline void DeoptIfBufferDetached(Register array, Register scratch,
+                                    NodeT* node);
+
   inline void CompareInt32(Register src1, Register src2);
 
   inline void Jump(Label* target);

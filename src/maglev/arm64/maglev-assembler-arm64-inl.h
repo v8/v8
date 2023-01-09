@@ -6,6 +6,7 @@
 #define V8_MAGLEV_ARM64_MAGLEV_ASSEMBLER_ARM64_INL_H_
 
 #include "src/codegen/macro-assembler-inl.h"
+#include "src/compiler/compilation-dependencies.h"
 #include "src/maglev/maglev-assembler.h"
 #include "src/maglev/maglev-basic-block.h"
 #include "src/maglev/maglev-code-gen-state.h"
@@ -335,7 +336,7 @@ inline void MaglevAssembler::LoadBoundedSizeFromObject(Register result,
                                                        int offset) {
   Move(result, FieldMemOperand(object, offset));
 #ifdef V8_ENABLE_SANDBOX
-  Lsl(result, result, kBoundedSizeShift);
+  Lsr(result, result, kBoundedSizeShift);
 #endif  // V8_ENABLE_SANDBOX
 }
 
@@ -449,6 +450,25 @@ inline void MaglevAssembler::Move(Register dst, Handle<HeapObject> obj) {
 
 inline void MaglevAssembler::SignExtend32To64Bits(Register dst, Register src) {
   Mov(dst, Operand(src.W(), SXTW));
+}
+
+template <typename NodeT>
+inline void MaglevAssembler::DeoptIfBufferDetached(Register array,
+                                                   Register scratch,
+                                                   NodeT* node) {
+  if (!code_gen_state()
+           ->broker()
+           ->dependencies()
+           ->DependOnArrayBufferDetachingProtector()) {
+    // A detached buffer leads to megamorphic feedback, so we won't have a deopt
+    // loop if we deopt here.
+    LoadTaggedPointerField(
+        scratch, FieldMemOperand(array, JSArrayBufferView::kBufferOffset));
+    LoadTaggedPointerField(
+        scratch, FieldMemOperand(scratch, JSArrayBuffer::kBitFieldOffset));
+    Tst(scratch.W(), Immediate(JSArrayBuffer::WasDetachedBit::kMask));
+    EmitEagerDeoptIf(ne, DeoptimizeReason::kArrayBufferWasDetached, node);
+  }
 }
 
 inline void MaglevAssembler::CompareInt32(Register src1, Register src2) {
