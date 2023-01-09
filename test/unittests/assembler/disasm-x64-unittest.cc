@@ -568,6 +568,8 @@ TEST_F(DisasmX64Test, DisasmX64CheckOutput) {
   COMPARE("4885948b10270000     REX.W testq rdx,[rbx+rcx*4+0x2710]",
           testq(Operand(rbx, rcx, times_4, 10000), rdx));
 
+  COMPARE("48f7ac8b10270000     REX.W imulq [rbx+rcx*4+0x2710]",
+          imulq(Operand(rbx, rcx, times_4, 10000)));
   COMPARE("486bd10c             REX.W imulq rdx,rcx,0xc",
           imulq(rdx, rcx, Immediate(12)));
   COMPARE("4869d1e8030000       REX.W imulq rdx,rcx,0x3e8",
