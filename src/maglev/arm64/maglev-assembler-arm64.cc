@@ -342,9 +342,12 @@ void MaglevAssembler::MaybeEmitDeoptBuiltinsCall(size_t eager_deopt_count,
 
 void MaglevAssembler::AllocateTwoByteString(RegisterSnapshot register_snapshot,
                                             Register result, int length) {
-  Allocate(register_snapshot, result, SeqTwoByteString::SizeFor(length));
+  int size = SeqTwoByteString::SizeFor(length);
+  Allocate(register_snapshot, result, size);
   UseScratchRegisterScope scope(this);
   Register scratch = scope.AcquireX();
+  Move(scratch, 0);
+  StoreTaggedField(scratch, FieldMemOperand(result, size - kObjectAlignment));
   LoadRoot(scratch, RootIndex::kStringMap);
   StoreTaggedField(scratch, FieldMemOperand(result, HeapObject::kMapOffset));
   Move(scratch, Name::kEmptyHashField);

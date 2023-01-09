@@ -4305,6 +4305,11 @@ Node* EffectControlLinearizer::LowerStringFromSingleCharCode(Node* node) {
     Node* vfalse1 =
         __ Allocate(AllocationType::kYoung,
                     __ IntPtrConstant(SeqTwoByteString::SizeFor(1)));
+    __ Store(StoreRepresentation(MachineRepresentation::kTaggedSigned,
+                                 kNoWriteBarrier),
+             vfalse1,
+             SeqTwoByteString::SizeFor(1) - kObjectAlignment - kHeapObjectTag,
+             __ SmiConstant(0));
     __ StoreField(AccessBuilder::ForMap(), vfalse1,
                   __ HeapConstant(factory()->string_map()));
     __ StoreField(AccessBuilder::ForNameRawHashField(), vfalse1,
@@ -4401,6 +4406,11 @@ Node* EffectControlLinearizer::LowerStringFromSingleCodePoint(Node* node) {
       Node* vfalse1 =
           __ Allocate(AllocationType::kYoung,
                       __ IntPtrConstant(SeqTwoByteString::SizeFor(1)));
+      __ Store(StoreRepresentation(MachineRepresentation::kTaggedSigned,
+                                   kNoWriteBarrier),
+               vfalse1,
+               SeqTwoByteString::SizeFor(1) - kObjectAlignment - kHeapObjectTag,
+               __ SmiConstant(0));
       __ StoreField(AccessBuilder::ForMap(), vfalse1,
                     __ HeapConstant(factory()->string_map()));
       __ StoreField(AccessBuilder::ForNameRawHashField(), vfalse1,
@@ -4441,6 +4451,11 @@ Node* EffectControlLinearizer::LowerStringFromSingleCodePoint(Node* node) {
     Node* vfalse0 =
         __ Allocate(AllocationType::kYoung,
                     __ IntPtrConstant(SeqTwoByteString::SizeFor(2)));
+    __ Store(StoreRepresentation(MachineRepresentation::kTaggedSigned,
+                                 kNoWriteBarrier),
+             vfalse0,
+             SeqTwoByteString::SizeFor(2) - kObjectAlignment - kHeapObjectTag,
+             __ SmiConstant(0));
     __ StoreField(AccessBuilder::ForMap(), vfalse0,
                   __ HeapConstant(factory()->string_map()));
     __ StoreField(AccessBuilder::ForNameRawHashField(), vfalse0,

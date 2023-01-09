@@ -87,8 +87,10 @@ void MaglevAssembler::AllocateHeapNumber(RegisterSnapshot register_snapshot,
 
 void MaglevAssembler::AllocateTwoByteString(RegisterSnapshot register_snapshot,
                                             Register result, int length) {
-  Allocate(register_snapshot, result, SeqTwoByteString::SizeFor(length));
+  int size = SeqTwoByteString::SizeFor(length);
+  Allocate(register_snapshot, result, size);
   LoadRoot(kScratchRegister, RootIndex::kStringMap);
+  StoreTaggedField(FieldOperand(result, size - kObjectAlignment), Immediate(0));
   StoreTaggedField(FieldOperand(result, HeapObject::kMapOffset),
                    kScratchRegister);
   StoreTaggedField(FieldOperand(result, Name::kRawHashFieldOffset),

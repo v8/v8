@@ -1691,6 +1691,8 @@ VisitResult ImplementationVisitor::Visit(NewExpression* expr) {
   allocate_arguments.parameters.push_back(object_map);
   allocate_arguments.parameters.push_back(
       GenerateBoolConstant(expr->pretenured));
+  allocate_arguments.parameters.push_back(
+      GenerateBoolConstant(expr->clear_padding));
   VisitResult allocate_result = GenerateCall(
       QualifiedName({TORQUE_INTERNAL_NAMESPACE_STRING}, "AllocateFromNew"),
       allocate_arguments, {class_type}, false);

@@ -488,6 +488,8 @@ const kFixedDoubleArrayMaxLength:
     constexpr int31 generates 'FixedDoubleArray::kMaxLength';
 const kObjectAlignmentMask: constexpr intptr
     generates 'kObjectAlignmentMask';
+const kObjectAlignment: constexpr intptr
+    generates 'kObjectAlignment';
 const kMinAddedElementsCapacity:
     constexpr int31 generates 'JSObject::kMinAddedElementsCapacity';
 const kMaxFastArrayLength:

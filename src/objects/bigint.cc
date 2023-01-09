@@ -969,6 +969,7 @@ MaybeHandle<String> BigInt::ToString(Isolate* isolate, Handle<BigInt> bigint,
       // out whether all characters were used.
       chars_written = chars_allocated - static_cast<int>(out - start);
       std::memmove(start, out, chars_written);
+      memset(start + chars_written, 0, chars_allocated - chars_written);
     }
   } else {
     // Generic path, handles anything.

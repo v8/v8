@@ -3725,6 +3725,10 @@ TNode<String> CodeStubAssembler::AllocateSeqOneByteString(
     return EmptyStringConstant();
   }
   TNode<HeapObject> result = Allocate(SeqOneByteString::SizeFor(length), flags);
+  StoreNoWriteBarrier(MachineRepresentation::kTaggedSigned, result,
+                      IntPtrConstant(SeqOneByteString::SizeFor(length) -
+                                     kObjectAlignment - kHeapObjectTag),
+                      SmiConstant(0));
   DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kOneByteStringMap));
   StoreMapNoWriteBarrier(result, RootIndex::kOneByteStringMap);
   StoreObjectFieldNoWriteBarrier(result, SeqOneByteString::kLengthOffset,
@@ -3747,6 +3751,10 @@ TNode<String> CodeStubAssembler::AllocateSeqTwoByteString(
     return EmptyStringConstant();
   }
   TNode<HeapObject> result = Allocate(SeqTwoByteString::SizeFor(length), flags);
+  StoreNoWriteBarrier(MachineRepresentation::kTaggedSigned, result,
+                      IntPtrConstant(SeqTwoByteString::SizeFor(length) -
+                                     kObjectAlignment - kHeapObjectTag),
+                      SmiConstant(0));
   DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kStringMap));
   StoreMapNoWriteBarrier(result, RootIndex::kStringMap);
   StoreObjectFieldNoWriteBarrier(result, SeqTwoByteString::kLengthOffset,

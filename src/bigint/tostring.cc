@@ -575,6 +575,7 @@ void ProcessorImpl::ToStringImpl(char* out, int* out_length, Digits X,
   }
   int excess = formatter.Finish();
   *out_length -= excess;
+  memset(out + *out_length, 0, excess);
 }
 
 Status Processor::ToString(char* out, int* out_length, Digits X, int radix,
