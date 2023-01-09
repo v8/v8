@@ -1454,24 +1454,51 @@ void CheckJSTypedArrayBounds::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(lo, DeoptimizeReason::kOutOfBounds, this);
 }
 
+int CheckJSDataViewBounds::MaxCallStackArgs() const { return 1; }
 void CheckJSDataViewBounds::SetValueLocationConstraints() {
   UseRegister(receiver_input());
   UseRegister(index_input());
+  set_temporaries_needed(1);
 }
 void CheckJSDataViewBounds::GenerateCode(MaglevAssembler* masm,
                                          const ProcessingState& state) {
   Register object = ToRegister(receiver_input());
   Register index = ToRegister(index_input());
-  Register byte_length = kScratchRegister;
+  Register scratch = general_temporaries().PopFirst();
+  Register byte_length = scratch;
   if (v8_flags.debug_code) {
     __ AssertNotSmi(object);
-    UseScratchRegisterScope temps(masm);
-    Register scratch = temps.AcquireX();
     __ CompareObjectType(object, scratch, scratch, JS_DATA_VIEW_TYPE);
     __ Assert(eq, AbortReason::kUnexpectedValue);
   }
+
+  ZoneLabelRef done_byte_length(masm);
+  DeferredCodeInfo* deferred_get_byte_length = __ PushDeferredCode(
+      [](MaglevAssembler* masm, CheckJSDataViewBounds* node, ZoneLabelRef done,
+         Register object, Register index, Register byte_length) {
+        RegisterSnapshot snapshot = node->register_snapshot();
+        snapshot.live_registers.set(index);  // Make sure index is saved.
+        {
+          // TODO(v8:7700): Inline DataViewPrototypeGetByteLength or create a
+          // different builtin that does not re-check the DataView object.
+          SaveRegisterStateForCall save_register_state(masm, snapshot);
+          __ Mov(kContextRegister, masm->native_context().object());
+          __ Mov(kJavaScriptCallArgCountRegister, 1);
+          __ Push(object);
+          __ CallBuiltin(Builtin::kDataViewPrototypeGetByteLength);
+        }
+        __ SmiUntag(byte_length, kReturnRegister0);
+        __ B(*done);
+      },
+      this, done_byte_length, object, index, byte_length);
+  __ Ldr(scratch.W(), FieldMemOperand(object, JSDataView::kBitFieldOffset));
+  __ Cbnz(scratch.W(), &deferred_get_byte_length->deferred_code_label);
+
+  // Normal DataView (backed by AB / SAB) or non-length tracking backed by GSAB.
   __ LoadBoundedSizeFromObject(byte_length, object,
                                JSDataView::kRawByteLengthOffset);
+  __ bind(*done_byte_length);
+
   int element_size = ExternalArrayElementSize(element_type_);
   if (element_size > 1) {
     __ Cmp(byte_length, Immediate(element_size - 1));

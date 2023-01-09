@@ -507,6 +507,7 @@ void CheckJSTypedArrayBounds::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(above_equal, DeoptimizeReason::kOutOfBounds, this);
 }
 
+int CheckJSDataViewBounds::MaxCallStackArgs() const { return 1; }
 void CheckJSDataViewBounds::SetValueLocationConstraints() {
   UseRegister(receiver_input());
   UseRegister(index_input());
@@ -521,8 +522,35 @@ void CheckJSDataViewBounds::GenerateCode(MaglevAssembler* masm,
     __ CmpObjectType(object, JS_DATA_VIEW_TYPE, kScratchRegister);
     __ Assert(equal, AbortReason::kUnexpectedValue);
   }
+
+  ZoneLabelRef done_byte_length(masm);
+  __ movl(kScratchRegister, FieldOperand(object, JSDataView::kBitFieldOffset));
+  __ testb(kScratchRegister, kScratchRegister);
+  __ JumpToDeferredIf(
+      not_zero,
+      [](MaglevAssembler* masm, CheckJSDataViewBounds* node, ZoneLabelRef done,
+         Register object, Register index, Register byte_length) {
+        RegisterSnapshot snapshot = node->register_snapshot();
+        snapshot.live_registers.set(index);  // Make sure index is saved.
+        {
+          // TODO(v8:7700): Inline DataViewPrototypeGetByteLength or create a
+          // different builtin that does not re-check the DataView object.
+          SaveRegisterStateForCall save_register_state(masm, snapshot);
+          __ Move(kContextRegister, masm->native_context().object());
+          __ Move(kJavaScriptCallArgCountRegister, 1);
+          __ Push(object);
+          __ CallBuiltin(Builtin::kDataViewPrototypeGetByteLength);
+        }
+        __ SmiUntag(byte_length, kReturnRegister0);
+        __ jmp(*done);
+      },
+      this, done_byte_length, object, index, byte_length);
+
+  // Normal DataView (backed by AB / SAB) or non-length tracking backed by GSAB.
   __ LoadBoundedSizeFromObject(byte_length, object,
                                JSDataView::kRawByteLengthOffset);
+  __ bind(*done_byte_length);
+
   int element_size = ExternalArrayElementSize(element_type_);
   if (element_size > 1) {
     __ subq(byte_length, Immediate(element_size - 1));

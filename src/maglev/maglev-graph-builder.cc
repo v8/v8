@@ -2212,6 +2212,10 @@ bool MaglevGraphBuilder::TryBuildElementAccess(
 
     // TODO(victorgomes): Support more elements kind.
     ElementsKind elements_kind = access_info.elements_kind();
+    if (IsRabGsabTypedArrayElementsKind(elements_kind)) {
+      // TODO(victorgomes): Support RAB/GSAB backed typed arrays.
+      return false;
+    }
     if (IsTypedArrayElementsKind(elements_kind)) {
       if (JSTypedArray::kMaxSizeInHeap != 0) {
         // TODO(dmercadier): re-enable support for in-heap Typed Arrays.
