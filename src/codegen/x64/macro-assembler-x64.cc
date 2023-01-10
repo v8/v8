@@ -163,7 +163,20 @@ Operand TurboAssembler::RootAsOperand(RootIndex index) {
   return Operand(kRootRegister, RootRegisterOffsetForRootIndex(index));
 }
 
+void TurboAssembler::LoadTaggedRoot(Register destination, RootIndex index) {
+  if (V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index)) {
+    mov_tagged(destination, Immediate(ReadOnlyRootPtr(index)));
+    return;
+  }
+  DCHECK(root_array_available_);
+  movq(destination, RootAsOperand(index));
+}
+
 void TurboAssembler::LoadRoot(Register destination, RootIndex index) {
+  if (V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index)) {
+    DecompressTaggedPointer(destination, ReadOnlyRootPtr(index));
+    return;
+  }
   DCHECK(root_array_available_);
   movq(destination, RootAsOperand(index));
 }
@@ -174,6 +187,10 @@ void MacroAssembler::PushRoot(RootIndex index) {
 }
 
 void TurboAssembler::CompareRoot(Register with, RootIndex index) {
+  if (V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index)) {
+    cmp_tagged(with, Immediate(ReadOnlyRootPtr(index)));
+    return;
+  }
   DCHECK(root_array_available_);
   if (base::IsInRange(index, RootIndex::kFirstStrongOrReadOnlyRoot,
                       RootIndex::kLastStrongOrReadOnlyRoot)) {
@@ -185,6 +202,10 @@ void TurboAssembler::CompareRoot(Register with, RootIndex index) {
 }
 
 void TurboAssembler::CompareRoot(Operand with, RootIndex index) {
+  if (V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index)) {
+    cmp_tagged(with, Immediate(ReadOnlyRootPtr(index)));
+    return;
+  }
   DCHECK(root_array_available_);
   DCHECK(!with.AddressUsesRegister(kScratchRegister));
   if (base::IsInRange(index, RootIndex::kFirstStrongOrReadOnlyRoot,
@@ -355,6 +376,13 @@ void TurboAssembler::DecompressAnyTagged(Register destination,
   ASM_CODE_COMMENT(this);
   movl(destination, field_operand);
   addq(destination, kPtrComprCageBaseRegister);
+}
+
+void TurboAssembler::DecompressTaggedPointer(Register destination,
+                                             Tagged_t immediate) {
+  ASM_CODE_COMMENT(this);
+  leaq(destination,
+       Operand(kPtrComprCageBaseRegister, static_cast<int32_t>(immediate)));
 }
 
 void MacroAssembler::RecordWriteField(Register object, int offset,

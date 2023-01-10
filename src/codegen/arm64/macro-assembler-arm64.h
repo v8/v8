@@ -1335,6 +1335,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Load an object from the root table.
   void LoadRoot(Register destination, RootIndex index) final;
+  void LoadTaggedRoot(Register destination, RootIndex index);
   void PushRoot(RootIndex index);
 
   inline void Ret(const Register& xn = lr);
@@ -1445,6 +1446,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                                const MemOperand& field_operand);
   void DecompressTaggedPointer(const Register& destination,
                                const Register& source);
+  void DecompressTaggedPointer(const Register& destination, Tagged_t immediate);
   void DecompressAnyTagged(const Register& destination,
                            const MemOperand& field_operand);
 

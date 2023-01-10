@@ -3587,7 +3587,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       Handle<HeapObject> src_object = src.ToHeapObject();
       RootIndex index;
       if (IsMaterializableFromRoot(src_object, &index)) {
-        __ LoadRoot(dst, index);
+        __ LoadTaggedRoot(dst, index);
       } else {
         // TODO(v8:8977): Even though this mov happens on 32 bits (Note the
         // .W()) and we are passing along the RelocInfo, we still haven't made

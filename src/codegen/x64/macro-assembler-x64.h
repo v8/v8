@@ -76,6 +76,7 @@ class V8_EXPORT_PRIVATE TurboAssembler
 
   // Operations on roots in the root-array.
   Operand RootAsOperand(RootIndex index);
+  void LoadTaggedRoot(Register destination, RootIndex index);
   void LoadRoot(Register destination, RootIndex index) final;
   void LoadRoot(Operand destination, RootIndex index) {
     LoadRoot(kScratchRegister, index);
@@ -628,6 +629,7 @@ class V8_EXPORT_PRIVATE TurboAssembler
   void DecompressTaggedSigned(Register destination, Operand field_operand);
   void DecompressTaggedPointer(Register destination, Operand field_operand);
   void DecompressTaggedPointer(Register destination, Register source);
+  void DecompressTaggedPointer(Register destination, Tagged_t immediate);
   void DecompressAnyTagged(Register destination, Operand field_operand);
 
   // ---------------------------------------------------------------------------

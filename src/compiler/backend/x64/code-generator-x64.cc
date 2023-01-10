@@ -5263,7 +5263,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         Handle<HeapObject> src_object = src.ToHeapObject();
         RootIndex index;
         if (IsMaterializableFromRoot(src_object, &index)) {
-          __ LoadRoot(dst, index);
+          __ LoadTaggedRoot(dst, index);
         } else {
           __ Move(dst, src_object, RelocInfo::COMPRESSED_EMBEDDED_OBJECT);
         }
