@@ -439,7 +439,7 @@ inline void MaglevAssembler::Move(Register dst, TaggedIndex i) {
   Mov(dst, i.ptr());
 }
 inline void MaglevAssembler::Move(Register dst, int32_t i) {
-  Mov(dst, Immediate(i));
+  Mov(dst.W(), Immediate(i));
 }
 inline void MaglevAssembler::Move(DoubleRegister dst, double n) {
   Fmov(dst, n);

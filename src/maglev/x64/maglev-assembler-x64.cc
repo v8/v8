@@ -100,8 +100,7 @@ void MaglevAssembler::AllocateTwoByteString(RegisterSnapshot register_snapshot,
 void MaglevAssembler::LoadSingleCharacterString(Register result,
                                                 Register char_code,
                                                 Register scratch) {
-  // Make sure char_code is zero extended.
-  movl(char_code, char_code);
+  AssertZeroExtended(char_code);
   if (v8_flags.debug_code) {
     cmpq(char_code, Immediate(String::kMaxOneByteCharCode));
     Assert(below_equal, AbortReason::kUnexpectedValue);
@@ -365,6 +364,8 @@ void MaglevAssembler::TruncateDoubleToInt32(Register dst, DoubleRegister src) {
       },
       src, dst, done);
   bind(*done);
+  // Zero extend the converted value to complete the truncation.
+  movl(dst, dst);
 }
 
 void MaglevAssembler::Prologue(Graph* graph) {

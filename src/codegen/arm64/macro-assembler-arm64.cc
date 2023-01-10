@@ -1581,12 +1581,19 @@ void TurboAssembler::AssertSmi(Register object, AbortReason reason) {
   Check(eq, reason);
 }
 
-void MacroAssembler::AssertNotSmi(Register object, AbortReason reason) {
+void TurboAssembler::AssertNotSmi(Register object, AbortReason reason) {
   if (!v8_flags.debug_code) return;
   ASM_CODE_COMMENT(this);
   static_assert(kSmiTag == 0);
   Tst(object, kSmiTagMask);
   Check(ne, reason);
+}
+
+void TurboAssembler::AssertZeroExtended(Register int32_register) {
+  if (!v8_flags.debug_code) return;
+  ASM_CODE_COMMENT(this);
+  Tst(int32_register.X(), kMaxUInt32);
+  Check(ls, AbortReason::k32BitValueInRegisterIsNotZeroExtended);
 }
 
 void MacroAssembler::AssertCodeT(Register object) {

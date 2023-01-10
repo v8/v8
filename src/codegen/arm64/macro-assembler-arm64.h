@@ -567,16 +567,25 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Use --debug_code to enable.
   void Assert(Condition cond, AbortReason reason) NOOP_UNLESS_DEBUG_CODE
 
-  // Like Assert(), but without condition.
-  // Use --debug_code to enable.
-  void AssertUnreachable(AbortReason reason) NOOP_UNLESS_DEBUG_CODE
+      // Like Assert(), but without condition.
+      // Use --debug_code to enable.
+      void AssertUnreachable(AbortReason reason) NOOP_UNLESS_DEBUG_CODE
 
-  void AssertSmi(Register object,
-                 AbortReason reason = AbortReason::kOperandIsNotASmi)
-      NOOP_UNLESS_DEBUG_CODE
+      void AssertSmi(Register object,
+                     AbortReason reason = AbortReason::kOperandIsNotASmi)
+          NOOP_UNLESS_DEBUG_CODE
 
-  // Like Assert(), but always enabled.
-  void Check(Condition cond, AbortReason reason);
+      // Abort execution if argument is a smi, enabled via --debug-code.
+      void AssertNotSmi(Register object,
+                        AbortReason reason = AbortReason::kOperandIsASmi)
+          NOOP_UNLESS_DEBUG_CODE
+
+      // Abort execution if a 64 bit register containing a 32 bit payload does
+      // not have zeros in the top 32 bits, enabled via --debug-code.
+      void AssertZeroExtended(Register int32_register) NOOP_UNLESS_DEBUG_CODE
+
+      // Like Assert(), but always enabled.
+      void Check(Condition cond, AbortReason reason);
 
   // Functions performing a check on a known or potential smi. Returns
   // a condition that is satisfied if the check is successful.
@@ -1905,13 +1914,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   inline void JumpIfNotSmi(Register value, Label* not_smi_label);
 
-  // Abort execution if argument is a smi, enabled via --debug-code.
-  void AssertNotSmi(Register object,
-                    AbortReason reason = AbortReason::kOperandIsASmi)
-      NOOP_UNLESS_DEBUG_CODE
-
-      // Abort execution if argument is not a CodeT, enabled via --debug-code.
-      void AssertCodeT(Register object) NOOP_UNLESS_DEBUG_CODE
+  // Abort execution if argument is not a CodeT, enabled via --debug-code.
+  void AssertCodeT(Register object) NOOP_UNLESS_DEBUG_CODE
 
       // Abort execution if argument is not a Constructor, enabled via
       // --debug-code.

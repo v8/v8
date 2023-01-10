@@ -820,6 +820,10 @@ void LoadTaggedElement::GenerateCode(MaglevAssembler* masm,
     __ DecompressAnyTagged(kScratchRegister,
                            FieldOperand(object, JSObject::kElementsOffset));
   }
+  if (v8_flags.debug_code) {
+    __ cmpq(index, Immediate(0));
+    __ Assert(above_equal, AbortReason::kUnexpectedNegativeValue);
+  }
   __ DecompressAnyTagged(
       result_reg, FieldOperand(kScratchRegister, index, times_tagged_size,
                                FixedArray::kHeaderSize));
@@ -849,6 +853,10 @@ void LoadDoubleElement::GenerateCode(MaglevAssembler* masm,
     // Reload since CmpObjectType clobbered the scratch register.
     __ DecompressAnyTagged(kScratchRegister,
                            FieldOperand(object, JSObject::kElementsOffset));
+  }
+  if (v8_flags.debug_code) {
+    __ cmpq(index, Immediate(0));
+    __ Assert(above_equal, AbortReason::kUnexpectedNegativeValue);
   }
   __ Movsd(result_reg, FieldOperand(kScratchRegister, index, times_8,
                                     FixedDoubleArray::kHeaderSize));
