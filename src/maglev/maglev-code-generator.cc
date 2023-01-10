@@ -638,22 +638,6 @@ class MaglevCodeGeneratingNodeProcessor {
                            state);
     }
 
-    if (v8_flags.debug_code) {
-      // Check that all int32/uint32 inputs are zero extended
-      for (Input& input : *node) {
-        ValueRepresentation rep =
-            input.node()->properties().value_representation();
-        if (rep == ValueRepresentation::kInt32 ||
-            rep == ValueRepresentation::kUint32) {
-          // TODO(leszeks): Ideally we'd check non-register inputs too, but
-          // AssertZeroExtended needs the scratch register, so we'd have to do
-          // some manual push/pop here to free up another register.
-          if (input.IsGeneralRegister()) {
-            __ AssertZeroExtended(ToRegister(input));
-          }
-        }
-      }
-    }
     node->GenerateCode(masm(), state);
 
     if (std::is_base_of<ValueNode, NodeT>::value) {

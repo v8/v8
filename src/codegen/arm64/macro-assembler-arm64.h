@@ -1910,10 +1910,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
                     AbortReason reason = AbortReason::kOperandIsASmi)
       NOOP_UNLESS_DEBUG_CODE
 
-      // Abort execution if a 64 bit register containing a 32 bit payload does
-      // not have zeros in the top 32 bits, enabled via --debug-code.
-      void AssertZeroExtended(Register int32_register) NOOP_UNLESS_DEBUG_CODE
-
       // Abort execution if argument is not a CodeT, enabled via --debug-code.
       void AssertCodeT(Register object) NOOP_UNLESS_DEBUG_CODE
 
