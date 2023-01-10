@@ -187,7 +187,8 @@ uint32_t GetWasmCalleeTag(RelocInfo* rinfo) {
 #endif
 }
 
-constexpr size_t kHeaderSize = sizeof(size_t);  // total code size
+constexpr size_t kHeaderSize = sizeof(size_t) +  // total code size
+                               sizeof(bool);     // all functions validated
 
 constexpr size_t kCodeHeaderSize = sizeof(uint8_t) +  // code kind
                                    sizeof(int) +      // offset of constant pool
@@ -331,6 +332,20 @@ void NativeModuleSerializer::WriteHeader(Writer* writer,
   // handler was used or not when serializing.
 
   writer->Write(total_code_size);
+
+  // We do not ship lazy validation, so in most cases all functions will be
+  // validated. Thus only write out a single bit instead of serializing the
+  // information per function.
+  const bool fully_validated = !v8_flags.wasm_lazy_validation;
+  writer->Write(fully_validated);
+#ifdef DEBUG
+  if (fully_validated) {
+    const WasmModule* module = native_module_->module();
+    for (auto& function : module->declared_functions()) {
+      DCHECK(module->function_was_validated(function.func_index));
+    }
+  }
+#endif
 }
 
 void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
@@ -583,6 +598,7 @@ class V8_EXPORT_PRIVATE NativeModuleDeserializer {
 
   // Updated in {ReadCode}.
   size_t remaining_code_size_ = 0;
+  bool all_functions_validated_ = false;
   base::Vector<byte> current_code_space_;
   NativeModule::JumpTablesRef current_jump_tables_;
   std::vector<int> lazy_functions_;
@@ -665,6 +681,10 @@ bool NativeModuleDeserializer::Read(Reader* reader) {
   uint32_t total_fns = native_module_->num_functions();
   uint32_t first_wasm_fn = native_module_->num_imported_functions();
 
+  if (all_functions_validated_) {
+    native_module_->module()->set_all_functions_validated();
+  }
+
   WasmCodeRefScope wasm_code_ref_scope;
 
   DeserializationQueue reloc_queue;
@@ -718,6 +738,7 @@ bool NativeModuleDeserializer::Read(Reader* reader) {
 
 void NativeModuleDeserializer::ReadHeader(Reader* reader) {
   remaining_code_size_ = reader->Read<size_t>();
+  all_functions_validated_ = reader->Read<bool>();
 }
 
 DeserializationUnit NativeModuleDeserializer::ReadCode(int fn_index,

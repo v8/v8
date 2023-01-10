@@ -656,6 +656,15 @@ struct V8_EXPORT_PRIVATE WasmModule {
     }
   }
 
+  void set_all_functions_validated() const {
+    DCHECK_EQ(kWasmOrigin, origin);
+    DCHECK_NOT_NULL(validated_functions);
+    size_t num_words = (num_declared_functions + 7) / 8;
+    for (size_t i = 0; i < num_words; ++i) {
+      validated_functions[i].store(0xff, std::memory_order_relaxed);
+    }
+  }
+
   base::Vector<const WasmFunction> declared_functions() const {
     return base::VectorOf(functions) + num_imported_functions;
   }
