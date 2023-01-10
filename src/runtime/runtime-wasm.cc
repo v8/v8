@@ -361,7 +361,12 @@ RUNTIME_FUNCTION(Runtime_WasmTriggerTierUp) {
 
   // We're reusing this interrupt mechanism to interrupt long-running loops.
   StackLimitCheck check(isolate);
-  DCHECK(!check.JsHasOverflowed());
+  // We don't need to handle stack overflows here, because the function that
+  // performed this runtime call did its own stack check at its beginning.
+  // However, we can't DCHECK(!check.JsHasOverflowed()) here, because the
+  // additional stack space used by the CEntryStub and this runtime function
+  // itself might have pushed us above the limit where a stack check would
+  // fail.
   if (check.InterruptRequested()) {
     Object result = isolate->stack_guard()->HandleInterrupts();
     if (result.IsException()) return result;
