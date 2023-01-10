@@ -1801,6 +1801,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           1, false);
     SimpleInstallFunction(isolate_, proto, "findIndex",
                           Builtin::kArrayPrototypeFindIndex, 1, false);
+    SimpleInstallFunction(isolate_, proto, "findLast",
+                          Builtin::kArrayPrototypeFindLast, 1, false);
+    SimpleInstallFunction(isolate_, proto, "findLastIndex",
+                          Builtin::kArrayPrototypeFindLastIndex, 1, false);
     SimpleInstallFunction(isolate_, proto, "lastIndexOf",
                           Builtin::kArrayPrototypeLastIndexOf, 1, false);
     SimpleInstallFunction(isolate_, proto, "pop", Builtin::kArrayPrototypePop,
@@ -1873,6 +1877,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     InstallTrueValuedProperty(isolate_, unscopables, "fill");
     InstallTrueValuedProperty(isolate_, unscopables, "find");
     InstallTrueValuedProperty(isolate_, unscopables, "findIndex");
+    InstallTrueValuedProperty(isolate_, unscopables, "findLast");
+    InstallTrueValuedProperty(isolate_, unscopables, "findLastIndex");
     InstallTrueValuedProperty(isolate_, unscopables, "flat");
     InstallTrueValuedProperty(isolate_, unscopables, "flatMap");
     InstallTrueValuedProperty(isolate_, unscopables, "includes");
@@ -3393,6 +3399,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtin::kTypedArrayPrototypeFind, 1, false);
     SimpleInstallFunction(isolate_, prototype, "findIndex",
                           Builtin::kTypedArrayPrototypeFindIndex, 1, false);
+    SimpleInstallFunction(isolate_, prototype, "findLast",
+                          Builtin::kTypedArrayPrototypeFindLast, 1, false);
+    SimpleInstallFunction(isolate_, prototype, "findLastIndex",
+                          Builtin::kTypedArrayPrototypeFindLastIndex, 1, false);
     SimpleInstallFunction(isolate_, prototype, "forEach",
                           Builtin::kTypedArrayPrototypeForEach, 1, false);
     SimpleInstallFunction(isolate_, prototype, "includes",
@@ -4752,39 +4762,6 @@ void Genesis::InitializeGlobal_harmony_struct() {
                           Builtin::kAtomicsConditionWait, 2, false);
     SimpleInstallFunction(isolate(), condition_fun, "notify",
                           Builtin::kAtomicsConditionNotify, 2, false);
-  }
-}
-
-void Genesis::InitializeGlobal_harmony_array_find_last() {
-  if (!v8_flags.harmony_array_find_last) return;
-
-  {
-    Handle<JSFunction> array_function(native_context()->array_function(),
-                                      isolate());
-    Handle<JSObject> array_prototype(
-        JSObject::cast(array_function->instance_prototype()), isolate());
-
-    SimpleInstallFunction(isolate_, array_prototype, "findLast",
-                          Builtin::kArrayPrototypeFindLast, 1, false);
-    SimpleInstallFunction(isolate_, array_prototype, "findLastIndex",
-                          Builtin::kArrayPrototypeFindLastIndex, 1, false);
-
-    Handle<JSObject> unscopables = Handle<JSObject>::cast(
-        JSObject::GetProperty(isolate(), array_prototype,
-                              isolate()->factory()->unscopables_symbol())
-            .ToHandleChecked());
-
-    InstallTrueValuedProperty(isolate_, unscopables, "findLast");
-    InstallTrueValuedProperty(isolate_, unscopables, "findLastIndex");
-  }
-
-  {
-    Handle<JSObject> prototype(native_context()->typed_array_prototype(),
-                               isolate());
-    SimpleInstallFunction(isolate_, prototype, "findLast",
-                          Builtin::kTypedArrayPrototypeFindLast, 1, false);
-    SimpleInstallFunction(isolate_, prototype, "findLastIndex",
-                          Builtin::kTypedArrayPrototypeFindLastIndex, 1, false);
   }
 }
 
