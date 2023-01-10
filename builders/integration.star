@@ -4,14 +4,11 @@
 
 load("//lib/lib.star", "GOMA", "RECLIENT", "in_console", "v8_builder")
 
-def integration_builder(**kwargs):
-    return v8_builder(disable_resultdb_exports = True, **kwargs)
-
 in_category = in_console("integration")
 
 in_category(
     "Layout",
-    integration_builder(
+    v8_builder(
         name = "V8 Blink Win",
         bucket = "ci",
         triggered_by = ["v8-trigger"],
@@ -23,7 +20,7 @@ in_category(
         use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["sheriffs"],
     ),
-    integration_builder(
+    v8_builder(
         name = "V8 Blink Mac",
         bucket = "ci",
         triggered_by = ["v8-trigger"],
@@ -35,7 +32,7 @@ in_category(
         use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["sheriffs"],
     ),
-    integration_builder(
+    v8_builder(
         name = "V8 Blink Linux",
         bucket = "ci",
         triggered_by = ["v8-trigger"],
@@ -51,7 +48,7 @@ in_category(
         use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["sheriffs"],
     ),
-    integration_builder(
+    v8_builder(
         name = "V8 Blink Linux Debug",
         bucket = "ci",
         triggered_by = ["v8-trigger"],
@@ -67,7 +64,7 @@ in_category(
         notifies = ["sheriffs"],
         experiments = {"luci.buildbucket.omit_python2": 100},
     ),
-    integration_builder(
+    v8_builder(
         name = "V8 Blink Linux Future",
         bucket = "ci",
         triggered_by = ["v8-trigger"],
@@ -82,7 +79,7 @@ in_category(
 
 in_category(
     "Nonlayout",
-    integration_builder(
+    v8_builder(
         name = "Linux Debug Builder",
         bucket = "ci",
         triggered_by = ["v8-trigger"],
@@ -93,7 +90,7 @@ in_category(
         use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["v8-infra-cc"],
     ),
-    integration_builder(
+    v8_builder(
         name = "V8 Linux GN",
         bucket = "ci",
         triggered_by = ["v8-trigger"],
@@ -104,7 +101,7 @@ in_category(
         use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["sheriffs"],
     ),
-    integration_builder(
+    v8_builder(
         name = "V8 Android GN (dbg)",
         bucket = "ci",
         triggered_by = ["v8-trigger"],
@@ -116,7 +113,7 @@ in_category(
         notifies = ["sheriffs"],
         experiments = {"luci.buildbucket.omit_python2": 100},
     ),
-    integration_builder(
+    v8_builder(
         name = "Linux ASAN Builder",
         bucket = "ci",
         triggered_by = ["v8-trigger"],
@@ -132,7 +129,7 @@ in_category(
 
 in_category(
     "GPU",
-    integration_builder(
+    v8_builder(
         name = "Win V8 FYI Release (NVIDIA)",
         bucket = "ci",
         triggered_by = ["v8-trigger"],
@@ -144,7 +141,7 @@ in_category(
         use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["v8-infra-cc"],
     ),
-    integration_builder(
+    v8_builder(
         name = "Mac V8 FYI Release (Intel)",
         bucket = "ci",
         triggered_by = ["v8-trigger"],
@@ -156,7 +153,7 @@ in_category(
         use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["v8-infra-cc"],
     ),
-    integration_builder(
+    v8_builder(
         name = "Linux V8 FYI Release (NVIDIA)",
         bucket = "ci",
         triggered_by = ["v8-trigger"],
@@ -168,7 +165,7 @@ in_category(
         use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["v8-infra-cc"],
     ),
-    integration_builder(
+    v8_builder(
         name = "Linux V8 FYI Release - pointer compression (NVIDIA)",
         bucket = "ci",
         triggered_by = ["v8-trigger"],
@@ -180,7 +177,7 @@ in_category(
         use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["v8-infra-cc"],
     ),
-    integration_builder(
+    v8_builder(
         name = "Android V8 FYI Release (Nexus 5X)",
         bucket = "ci",
         triggered_by = ["v8-trigger"],
@@ -197,7 +194,7 @@ in_category(
 
 in_category(
     "Node.js",
-    integration_builder(
+    v8_builder(
         name = "V8 Linux64 - node.js integration ng",
         bucket = "ci",
         triggered_by = ["v8-trigger"],
