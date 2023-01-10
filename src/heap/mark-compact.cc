@@ -5850,12 +5850,6 @@ class YoungGenerationRecordMigratedSlotVisitor final
   }
 
  private:
-  // Only record slots for host objects that are considered as live by the
-  // full collector.
-  inline bool IsLive(HeapObject object) {
-    return heap_->non_atomic_marking_state()->IsBlack(object);
-  }
-
   inline void RecordMigratedSlot(HeapObject host, MaybeObject value,
                                  Address slot) final {
     if (value->IsStrongOrWeak()) {
@@ -5868,15 +5862,6 @@ class YoungGenerationRecordMigratedSlotVisitor final
         MemoryChunk* chunk = MemoryChunk::FromHeapObject(host);
         DCHECK(chunk->SweepingDone());
         RememberedSet<OLD_TO_NEW>::Insert<AccessMode::NON_ATOMIC>(chunk, slot);
-      } else if (p->IsEvacuationCandidate() && IsLive(host)) {
-        if (V8_EXTERNAL_CODE_SPACE_BOOL &&
-            p->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
-          RememberedSet<OLD_TO_CODE>::Insert<AccessMode::NON_ATOMIC>(
-              MemoryChunk::FromHeapObject(host), slot);
-        } else {
-          RememberedSet<OLD_TO_OLD>::Insert<AccessMode::NON_ATOMIC>(
-              MemoryChunk::FromHeapObject(host), slot);
-        }
       } else if (p->InSharedHeap()) {
         DCHECK(!host.InSharedWritableHeap());
         RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::NON_ATOMIC>(
