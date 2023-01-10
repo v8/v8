@@ -3567,7 +3567,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           Handle<HeapObject> src_object = src.ToHeapObject();
           RootIndex index;
           if (IsMaterializableFromRoot(src_object, &index)) {
-            __ LoadRoot(dst, index);
+            __ LoadTaggedRoot(dst, index);
           } else {
             // TODO(v8:7703, jyan@ca.ibm.com): Turn into a
             // COMPRESSED_EMBEDDED_OBJECT when the constant pool entry size is

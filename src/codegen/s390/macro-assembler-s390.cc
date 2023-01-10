@@ -854,8 +854,21 @@ void TurboAssembler::MultiPopF64OrV128(DoubleRegList dregs, Register scratch,
 #endif
 }
 
+void TurboAssembler::LoadTaggedRoot(Register destination, RootIndex index) {
+  ASM_CODE_COMMENT(this);
+  if (V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index)) {
+    mov(destination, Operand(ReadOnlyRootPtr(index), RelocInfo::Mode::NO_INFO));
+    return;
+  }
+  LoadRoot(destination, index);
+}
+
 void TurboAssembler::LoadRoot(Register destination, RootIndex index,
                               Condition) {
+  if (V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index)) {
+    DecompressTaggedPointer(destination, ReadOnlyRootPtr(index));
+    return;
+  }
   LoadU64(destination,
           MemOperand(kRootRegister, RootRegisterOffsetForRootIndex(index)), r0);
 }
@@ -933,6 +946,13 @@ void TurboAssembler::DecompressTaggedPointer(Register destination,
   llgf(destination, field_operand);
   agr(destination, kRootRegister);
   RecordComment("]");
+}
+
+void TurboAssembler::DecompressTaggedPointer(const Register& destination,
+                                             Tagged_t immediate) {
+  ASM_CODE_COMMENT(this);
+  mov(destination, Operand(immediate, RelocInfo::NO_INFO));
+  agr(destination, kRootRegister);
 }
 
 void TurboAssembler::DecompressAnyTagged(Register destination,
@@ -1943,6 +1963,10 @@ void MacroAssembler::CompareInstanceTypeRange(Register map, Register type_reg,
 }
 
 void MacroAssembler::CompareRoot(Register obj, RootIndex index) {
+  if (V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index)) {
+    CompareTagged(obj, Operand(ReadOnlyRootPtr(index)));
+    return;
+  }
   int32_t offset = RootRegisterOffsetForRootIndex(index);
 #ifdef V8_TARGET_BIG_ENDIAN
   offset += (COMPRESS_POINTERS_BOOL ? kTaggedSize : 0);
