@@ -2945,6 +2945,9 @@ void Isolate::SetAbortOnUncaughtExceptionCallback(
 
 void Isolate::InstallConditionalFeatures(Handle<Context> context) {
   Handle<JSGlobalObject> global = handle(context->global_object(), this);
+  // If some fuzzer decided to make the global object non-extensible, then
+  // we can't install any features (and would CHECK-fail if we tried).
+  if (!global->map().is_extensible()) return;
   Handle<String> sab_name = factory()->SharedArrayBuffer_string();
   if (IsSharedArrayBufferConstructorEnabled(context)) {
     if (!JSObject::HasRealNamedProperty(this, global, sab_name)
