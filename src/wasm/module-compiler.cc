@@ -1058,11 +1058,14 @@ class CompilationUnitBuilder {
 DecodeResult ValidateSingleFunction(const WasmModule* module, int func_index,
                                     base::Vector<const uint8_t> code,
                                     WasmFeatures enabled_features) {
+  DCHECK(!module->function_was_validated(func_index));
   const WasmFunction* func = &module->functions[func_index];
   FunctionBody body{func->sig, func->code.offset(), code.begin(), code.end()};
   WasmFeatures detected_features;
-  return ValidateFunctionBody(enabled_features, module, &detected_features,
-                              body);
+  DecodeResult result =
+      ValidateFunctionBody(enabled_features, module, &detected_features, body);
+  if (result.ok()) module->set_function_validated(func_index);
+  return result;
 }
 
 enum OnlyLazyFunctions : bool {
