@@ -81,6 +81,7 @@ class Operand {
   inline Operand(Register reg, Extend extend, unsigned shift_amount = 0);
 
   static Operand EmbeddedNumber(double number);  // Smi or HeapNumber.
+  static Operand EmbeddedHeapNumber(double number);
 
   inline bool IsHeapNumberRequest() const;
   inline HeapNumberRequest heap_number_request() const;

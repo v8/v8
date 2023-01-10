@@ -864,6 +864,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
       Register object, Register slot_address, SaveFPRegsMode fp_mode,
       StubCallMode mode = StubCallMode::kCallBuiltinPointer);
 
+  inline void MoveHeapNumber(Register dst, double value);
+
   // For a given |object| and |offset|:
   //   - Move |object| to |dst_object|.
   //   - Compute the address of the slot pointed to by |offset| in |object| and

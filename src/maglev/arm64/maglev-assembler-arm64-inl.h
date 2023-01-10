@@ -5,6 +5,7 @@
 #ifndef V8_MAGLEV_ARM64_MAGLEV_ASSEMBLER_ARM64_INL_H_
 #define V8_MAGLEV_ARM64_MAGLEV_ASSEMBLER_ARM64_INL_H_
 
+#include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/maglev/maglev-assembler.h"
@@ -487,7 +488,7 @@ inline void MaglevAssembler::JumpIfTaggedEqual(Register r1, Register r2,
   b(target, eq);
 }
 
-inline void MaglevAssembler::Pop(Register dst) { Pop(padreg, dst); }
+inline void MaglevAssembler::Pop(Register dst) { Pop(dst, padreg); }
 
 inline void MaglevAssembler::AssertStackSizeCorrect() {
   if (v8_flags.debug_code) {
@@ -514,8 +515,71 @@ inline void MaglevAssembler::EmitEagerDeoptIfNotEqual(DeoptimizeReason reason,
 
 inline void MaglevAssembler::MaterialiseValueNode(Register dst,
                                                   ValueNode* value) {
-  // TODO(v8:7700): Implement!
-  UNREACHABLE();
+  switch (value->opcode()) {
+    case Opcode::kInt32Constant: {
+      int32_t int_value = value->Cast<Int32Constant>()->value();
+      if (Smi::IsValid(int_value)) {
+        Move(dst, Smi::FromInt(int_value));
+      } else {
+        MoveHeapNumber(dst, int_value);
+      }
+      return;
+    }
+    case Opcode::kFloat64Constant: {
+      double double_value = value->Cast<Float64Constant>()->value();
+      MoveHeapNumber(dst, double_value);
+      return;
+    }
+    default:
+      break;
+  }
+
+  DCHECK(!value->allocation().IsConstant());
+  DCHECK(value->allocation().IsAnyStackSlot());
+  using D = NewHeapNumberDescriptor;
+  MemOperand src = ToMemOperand(value->allocation());
+  switch (value->properties().value_representation()) {
+    case ValueRepresentation::kInt32: {
+      Label done;
+      UseScratchRegisterScope temps(this);
+      Register scratch = temps.AcquireW();
+      Ldr(scratch, src);
+      Adds(dst.W(), scratch, scratch);
+      B(&done, vc);
+      // If we overflow, instead of bailing out (deopting), we change
+      // representation to a HeapNumber.
+      Scvtf(D::GetDoubleRegisterParameter(D::kValue), scratch);
+      CallBuiltin(Builtin::kNewHeapNumber);
+      Move(dst, kReturnRegister0);
+      bind(&done);
+      break;
+    }
+    case ValueRepresentation::kUint32: {
+      Label done, tag_smi;
+      Ldr(dst.W(), src);
+      // Unsigned comparison against Smi::kMaxValue.
+      Cmp(dst.W(), Immediate(Smi::kMaxValue));
+      B(&tag_smi, ls);
+      // If we don't fit in a Smi, instead of bailing out (deopting), we
+      // change representation to a HeapNumber.
+      Ucvtf(D::GetDoubleRegisterParameter(D::kValue), dst.W());
+      CallBuiltin(Builtin::kNewHeapNumber);
+      Move(dst, kReturnRegister0);
+      B(&done);
+      bind(&tag_smi);
+      SmiTag(dst);
+      bind(&done);
+      break;
+    }
+    case ValueRepresentation::kFloat64:
+      Ldr(D::GetDoubleRegisterParameter(D::kValue), src);
+      CallBuiltin(Builtin::kNewHeapNumber);
+      Move(dst, kReturnRegister0);
+      break;
+    case ValueRepresentation::kWord64:
+    case ValueRepresentation::kTagged:
+      UNREACHABLE();
+  }
 }
 
 template <>

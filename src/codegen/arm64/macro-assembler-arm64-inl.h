@@ -1423,6 +1423,10 @@ void TurboAssembler::TestAndBranchIfAllClear(const Register& reg,
   }
 }
 
+void TurboAssembler::MoveHeapNumber(Register dst, double value) {
+  Mov(dst, Operand::EmbeddedHeapNumber(value));
+}
+
 }  // namespace internal
 }  // namespace v8
 

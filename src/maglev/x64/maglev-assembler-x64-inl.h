@@ -434,7 +434,7 @@ inline void MaglevAssembler::MaterialiseValueNode(Register dst,
       // The value was loaded with movl, so is zero extended in 64-bit.
       // Therefore, we can do an unsigned 32-bit converstion to double with a
       // 64-bit signed conversion (Cvt_q_si2sd instead of Cvt_l_si2sd).
-      Cvtqsi2sd(D::GetDoubleRegisterParameter(D::kValue), src);
+      Cvtqsi2sd(D::GetDoubleRegisterParameter(D::kValue), dst);
       CallBuiltin(Builtin::kNewHeapNumber);
       Move(dst, kReturnRegister0);
       jmp(&done, Label::kNear);

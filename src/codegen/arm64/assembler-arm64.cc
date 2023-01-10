@@ -1316,6 +1316,10 @@ Operand Operand::EmbeddedNumber(double number) {
   if (DoubleToSmiInteger(number, &smi)) {
     return Operand(Immediate(Smi::FromInt(smi)));
   }
+  return EmbeddedHeapNumber(number);
+}
+
+Operand Operand::EmbeddedHeapNumber(double number) {
   Operand result(0, RelocInfo::FULL_EMBEDDED_OBJECT);
   result.heap_number_request_.emplace(number);
   DCHECK(result.IsHeapNumberRequest());
