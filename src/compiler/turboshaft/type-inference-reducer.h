@@ -985,10 +985,6 @@ class Typer {
   static bool allow_invalid_inputs() { return true; }
 };
 
-struct TypeInferenceReducerArgs {
-  Isolate* isolate;
-};
-
 template <class Next>
 class TypeInferenceReducer : public Next {
   static_assert(next_is_bottom_of_assembler_stack<Next>::value);
@@ -1200,7 +1196,9 @@ class TypeInferenceReducer : public Next {
                  Asm().output_graph().Get(op).ToString().substr(0, 40).c_str(),
                  type.ToString().c_str());
 
-    SetType(op, type);
+    auto key_opt = op_to_key_mapping_[op];
+    DCHECK(key_opt.has_value());
+    table_.Set(*key_opt, type);
 
     // TODO(nicohartmann@): One could push the refined type deeper into the
     // operations.
@@ -1383,6 +1381,11 @@ class TypeInferenceReducer : public Next {
     if (!result_type.IsInvalid()) {
       if (auto key_opt = op_to_key_mapping_[index]) {
         table_.Set(*key_opt, result_type);
+        // The new type we see might be unrelated to the existing type because
+        // of value numbering. It may run the typer multiple times on the same
+        // index if the last operation gets removed and the index reused.
+        DCHECK(result_type.IsSubtypeOf(types_[index]));
+        types_[index] = result_type;
         DCHECK(!types_[index].IsInvalid());
       } else {
         auto key = table_.NewKey(Type::None());
@@ -1397,6 +1400,63 @@ class TypeInferenceReducer : public Next {
         (result_type.IsInvalid() ? "31" : "32"), index.id(),
         Asm().output_graph().Get(index).ToString().substr(0, 40).c_str(),
         (result_type.IsInvalid() ? "" : result_type.ToString().c_str()));
+  }
+
+#ifdef DEBUG
+  void Verify(OpIndex input_index, OpIndex output_index) {
+    DCHECK(input_index.valid());
+    DCHECK(output_index.valid());
+
+    const auto& input_type = Asm().input_graph().operation_types()[input_index];
+    const auto& output_type = types_[output_index];
+
+    if (input_type.IsInvalid()) return;
+    DCHECK(!output_type.IsInvalid());
+
+    const bool is_okay = output_type.IsSubtypeOf(input_type);
+
+    TRACE_TYPING(
+        "\033[%s %3d:%-40s %-40s\n     %3d:%-40s %-40s\033[0m\n",
+        is_okay ? "32mOK  " : "31mFAIL", input_index.id(),
+        Asm().input_graph().Get(input_index).ToString().substr(0, 40).c_str(),
+        input_type.ToString().substr(0, 40).c_str(), output_index.id(),
+        Asm().output_graph().Get(output_index).ToString().substr(0, 40).c_str(),
+        output_type.ToString().substr(0, 40).c_str());
+
+    if (V8_UNLIKELY(!is_okay)) {
+      FATAL(
+          "\033[%s %3d:%-40s %-40s\n     %3d:%-40s %-40s\033[0m\n",
+          is_okay ? "32mOK  " : "31mFAIL", input_index.id(),
+          Asm().input_graph().Get(input_index).ToString().substr(0, 40).c_str(),
+          input_type.ToString().substr(0, 40).c_str(), output_index.id(),
+          Asm()
+              .output_graph()
+              .Get(output_index)
+              .ToString()
+              .substr(0, 40)
+              .c_str(),
+          output_type.ToString().substr(0, 40).c_str());
+    }
+  }
+#endif
+
+  void RemoveLast(OpIndex index_of_last_operation) {
+    if (auto key_opt = op_to_key_mapping_[index_of_last_operation]) {
+      op_to_key_mapping_[index_of_last_operation] = base::nullopt;
+      TRACE_TYPING(
+          "\033[32mREM  %3d:%-40s %-40s\033[0m\n", index_of_last_operation.id(),
+          Asm()
+              .output_graph()
+              .Get(index_of_last_operation)
+              .ToString()
+              .substr(0, 40)
+              .c_str(),
+          types_[index_of_last_operation].ToString().substr(0, 40).c_str());
+      types_[index_of_last_operation] = Type::Invalid();
+    } else {
+      DCHECK(types_[index_of_last_operation].IsInvalid());
+    }
+    Next::RemoveLast(index_of_last_operation);
   }
 
  private:

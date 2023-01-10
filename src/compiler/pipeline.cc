@@ -1985,7 +1985,8 @@ struct LateOptimizationPhase {
           turboshaft::VariableReducer, turboshaft::BranchEliminationReducer,
           turboshaft::SelectLoweringReducer,
           turboshaft::MachineOptimizationReducerSignallingNanImpossible,
-          turboshaft::ValueNumberingReducer>::Run(&data->turboshaft_graph(),
+          turboshaft::ValueNumberingReducer>::Run(data->isolate(),
+                                                  &data->turboshaft_graph(),
                                                   temp_zone,
                                                   data->node_origins());
     } else {
@@ -2117,7 +2118,8 @@ struct OptimizeTurboshaftPhase {
         turboshaft::MemoryOptimizationReducer, turboshaft::VariableReducer,
         turboshaft::MachineOptimizationReducerSignallingNanImpossible,
         turboshaft::ValueNumberingReducer>::
-        Run(&data->turboshaft_graph(), temp_zone, data->node_origins(),
+        Run(data->isolate(), &data->turboshaft_graph(), temp_zone,
+            data->node_origins(),
             std::tuple{
                 turboshaft::MemoryOptimizationReducerArgs{data->isolate()}});
   }
@@ -2130,7 +2132,8 @@ struct TurboshaftTypedOptimizationsPhase {
     DCHECK(data->HasTurboshaftGraph());
     turboshaft::OptimizationPhase<turboshaft::TypedOptimizationsReducer,
                                   turboshaft::TypeInferenceReducer>::
-        Run(&data->turboshaft_graph(), temp_zone, data->node_origins(),
+        Run(data->isolate(), &data->turboshaft_graph(), temp_zone,
+            data->node_origins(),
             std::tuple{turboshaft::TypeInferenceReducerArgs{data->isolate()}});
   }
 };
@@ -2145,7 +2148,8 @@ struct TurboshaftTypeAssertionsPhase {
     turboshaft::OptimizationPhase<turboshaft::AssertTypesReducer,
                                   turboshaft::ValueNumberingReducer,
                                   turboshaft::TypeInferenceReducer>::
-        Run(&data->turboshaft_graph(), temp_zone, data->node_origins(),
+        Run(data->isolate(), &data->turboshaft_graph(), temp_zone,
+            data->node_origins(),
             std::tuple{turboshaft::TypeInferenceReducerArgs{data->isolate()},
                        turboshaft::AssertTypesReducerArgs{data->isolate()}});
   }
@@ -2158,8 +2162,8 @@ struct TurboshaftDeadCodeEliminationPhase {
     DCHECK(data->HasTurboshaftGraph());
 
     turboshaft::OptimizationPhase<turboshaft::DeadCodeEliminationReducer>::Run(
-        &data->turboshaft_graph(), temp_zone, data->node_origins(),
-        std::tuple{});
+        data->isolate(), &data->turboshaft_graph(), temp_zone,
+        data->node_origins());
   }
 };
 

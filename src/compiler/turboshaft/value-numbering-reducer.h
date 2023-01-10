@@ -160,7 +160,7 @@ class ValueNumberingReducer : public Next {
             (!same_block_only ||
              entry.block == Asm().current_block()->index()) &&
             entry_op.Cast<Op>() == op) {
-          Asm().output_graph().RemoveLast();
+          Next::RemoveLast(op_idx);
           return entry.value;
         }
       }

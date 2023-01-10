@@ -22,6 +22,7 @@
 #include "src/compiler/turboshaft/operation-matching.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/optimization-phase.h"
+#include "src/compiler/turboshaft/reducer-traits.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/compiler/turboshaft/sidetable.h"
 #include "src/compiler/turboshaft/snapshot-table.h"
@@ -60,13 +61,6 @@ class ReducerStack<Assembler> {
 
 template <typename Next>
 class ReducerBase;
-
-template <typename Next>
-struct next_is_bottom_of_assembler_stack
-    : public std::integral_constant<bool, false> {};
-template <typename A>
-struct next_is_bottom_of_assembler_stack<ReducerStack<A, ReducerBase>>
-    : public std::integral_constant<bool, true> {};
 
 // LABEL_BLOCK is used in Reducers to have a single call forwarding to the next
 // reducer without change. A typical use would be:
@@ -115,6 +109,14 @@ class ReducerBase : public ReducerBaseForwarder<Next> {
   void Bind(Block*, const Block*) {}
 
   void Analyze() {}
+
+#ifdef DEBUG
+  void Verify(OpIndex old_index, OpIndex new_index) {}
+#endif  // DEBUG
+
+  void RemoveLast(OpIndex index_of_last_operation) {
+    Asm().output_graph().RemoveLast();
+  }
 
   bool ShouldEliminateOperation(OpIndex index, const Operation& op) {
     return op.saturated_use_count == 0;

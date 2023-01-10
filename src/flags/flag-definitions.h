@@ -1008,6 +1008,9 @@ DEFINE_UINT64(turboshaft_opt_bisect_limit, std::numeric_limits<uint64_t>::max(),
 DEFINE_UINT64(turboshaft_opt_bisect_break, std::numeric_limits<uint64_t>::max(),
               "abort after a specified number of steps, useful for bisecting "
               "optimization bugs")
+DEFINE_BOOL(turboshaft_verify_reductions, false,
+            "check that turboshaft reductions are correct with respect to "
+            "inferred types")
 #endif  // DEBUG
 
 // Favor memory over execution speed.

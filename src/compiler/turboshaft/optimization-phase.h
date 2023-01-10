@@ -19,9 +19,16 @@
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/turboshaft/reducer-traits.h"
 #include "src/compiler/turboshaft/snapshot-table.h"
 
 namespace v8::internal::compiler::turboshaft {
+
+template <typename>
+class TypeInferenceReducer;
+struct TypeInferenceReducerArgs {
+  Isolate* isolate;
+};
 
 using Variable =
     SnapshotTable<OpIndex, base::Optional<RegisterRepresentation>>::Key;
@@ -58,9 +65,8 @@ V8_INLINE bool ShouldSkipOperation(const Operation& op) {
 }
 
 template <template <class> class... Reducers>
-class OptimizationPhase {
+class OptimizationPhaseImpl {
  public:
-  template <class... ReducerArgs>
   static void Run(Graph* input, Zone* phase_zone, NodeOriginTable* origins,
                   const typename Assembler<Reducers...>::ArgT& reducer_args =
                       std::tuple<>{}) {
@@ -72,10 +78,61 @@ class OptimizationPhase {
       phase.template VisitGraph<false>();
     }
   }
-  static void RunWithoutTracing(Graph* input, Zone* phase_zone) {
-    Assembler<Reducers...> phase(input, input->GetOrCreateCompanion(),
-                                 phase_zone, nullptr);
-    phase->template VisitGraph<false>();
+};
+
+template <template <typename> typename... Reducers>
+class OptimizationPhase {
+  using impl_t = OptimizationPhaseImpl<Reducers...>;
+#ifdef DEBUG
+  // In Debug builds we provide two different versions of the reducer stack:
+  //
+  //   1. As specified by the pipeline (see impl_t).
+  //   2. With an additional TypeInferenceReducer added that computes and
+  //      verifies the types of the output graph with respect to the input
+  //      graph (see impl_with_verification_t). If the stack for a particular
+  //      phase already contains a TypeInferenceReducer, we don't add another
+  //      one and impl_t and impl_with_verification_t are identical.
+  //
+
+  // Check if the reducer stack already contains a TypeInferenceReducer.
+  static constexpr bool has_type_inference =
+      reducer_list_contains<reducer_list<Reducers...>,
+                            TypeInferenceReducer>::value;
+  // If it does not, add a TypeInferenceReducer at the bottom of the stack.
+  // Otherwise just use the stack (impl_t) for the verification.
+  using impl_with_verification_t = std::conditional_t<
+      has_type_inference, impl_t,
+      OptimizationPhaseImpl<Reducers..., TypeInferenceReducer>>;
+  // If the stack (impl_t) did not yet contain a TypeInferenceReducer and we
+  // added one, we also have to add the appropriate arguments to the tuple.
+  template <typename... Args>
+  static auto AdaptArgsForVerification(std::tuple<Args...> args,
+                                       Isolate* isolate) {
+    if constexpr (has_type_inference) {
+      return args;
+    } else {
+      return std::tuple_cat(std::make_tuple(TypeInferenceReducerArgs{isolate}),
+                            args);
+    }
+  }
+#endif
+
+ public:
+  static void Run(Isolate* isolate, Graph* input, Zone* phase_zone,
+                  NodeOriginTable* origins,
+                  const typename Assembler<Reducers...>::ArgT& reducer_args =
+                      std::tuple<>{}) {
+#ifdef DEBUG
+    if (v8_flags.turboshaft_verify_reductions) {
+      impl_with_verification_t::Run(
+          input, phase_zone, origins,
+          AdaptArgsForVerification(reducer_args, isolate));
+    } else {
+#endif  // DEBUG
+      impl_t::Run(input, phase_zone, origins, reducer_args);
+#ifdef DEBUG
+    }
+#endif  // DEBUG
   }
 };
 
@@ -316,6 +373,13 @@ class GraphVisitor {
         TraceReductionResult(current_block, first_output_index, new_index);
       }
     }
+#ifdef DEBUG
+    if (V8_UNLIKELY(v8_flags.turboshaft_verify_reductions)) {
+      if (new_index.valid()) {
+        assembler().Verify(index, new_index);
+      }
+    }
+#endif  // DEBUG
     return true;
   }
 
