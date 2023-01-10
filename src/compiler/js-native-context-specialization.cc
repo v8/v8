@@ -3124,8 +3124,8 @@ JSNativeContextSpecialization::BuildElementAccess(
   if (IsTypedArrayElementsKind(elements_kind) ||
       IsRabGsabTypedArrayElementsKind(elements_kind)) {
     return BuildElementAccessForTypedArrayOrRabGsabTypedArray(
-        elements_kind, receiver, index, value, effect, control, context,
-        access_info, keyed_mode);
+        receiver, index, value, effect, control, context, elements_kind,
+        keyed_mode);
   }
 
   // Load the elements for the {receiver}.
@@ -3477,9 +3477,8 @@ JSNativeContextSpecialization::BuildElementAccess(
 JSNativeContextSpecialization::ValueEffectControl
 JSNativeContextSpecialization::
     BuildElementAccessForTypedArrayOrRabGsabTypedArray(
-        ElementsKind elements_kind, Node* receiver, Node* index, Node* value,
-        Node* effect, Node* control, Node* context,
-        ElementAccessInfo const& access_info,
+        Node* receiver, Node* index, Node* value, Node* effect, Node* control,
+        Node* context, ElementsKind elements_kind,
         KeyedAccessMode const& keyed_mode) {
   DCHECK(IsTypedArrayElementsKind(elements_kind) ||
          IsRabGsabTypedArrayElementsKind(elements_kind));
@@ -3579,8 +3578,9 @@ JSNativeContextSpecialization::
     buffer_or_receiver = buffer;
   }
 
-  enum Situation { kBoundsCheckDone, kHandleOOB_SmiCheckDone };
+  enum Situation { kBoundsCheckDone, kHandleOOB_SmiAndRangeCheckComputed };
   Situation situation;
+  TNode<BoolT> check;
   if ((keyed_mode.IsLoad() &&
        keyed_mode.load_mode() == LOAD_IGNORE_OUT_OF_BOUNDS) ||
       (keyed_mode.IsStore() &&
@@ -3590,12 +3590,24 @@ JSNativeContextSpecialization::
     // bounds for the {receiver}.
     index = effect = graph()->NewNode(simplified()->CheckSmi(FeedbackSource()),
                                       index, effect, control);
+    TNode<Boolean> compare_length = TNode<Boolean>::UncheckedCast(
+        graph()->NewNode(simplified()->NumberLessThan(), index, length));
 
-    // Cast the {index} to Unsigned32 range, so that the bounds checks
-    // below are performed on unsigned values, which means that all the
-    // Negative32 values are treated as out-of-bounds.
-    index = graph()->NewNode(simplified()->NumberToUint32(), index);
-    situation = kHandleOOB_SmiCheckDone;
+    JSGraphAssembler assembler(jsgraph_, zone(), BranchSemantics::kJS,
+                               [this](Node* n) { this->Revisit(n); });
+    assembler.InitializeEffectControl(effect, control);
+    TNode<BoolT> check_less_than_length =
+        assembler.EnterMachineGraph<BoolT>(compare_length, UseInfo::Bool());
+    TNode<Int32T> index_int32 = assembler.EnterMachineGraph<Int32T>(
+        TNode<Smi>::UncheckedCast(index), UseInfo::TruncatingWord32());
+    TNode<BoolT> check_non_negative =
+        assembler.Int32LessThanOrEqual(assembler.Int32Constant(0), index_int32);
+    check = TNode<BoolT>::UncheckedCast(
+        assembler.Word32And(check_less_than_length, check_non_negative));
+    std::tie(effect, control) =
+        ReleaseEffectAndControlFromAssembler(&assembler);
+
+    situation = kHandleOOB_SmiAndRangeCheckComputed;
   } else {
     // Check that the {index} is in the valid range for the {receiver}.
     index = effect = graph()->NewNode(
@@ -3611,11 +3623,11 @@ JSNativeContextSpecialization::
   switch (keyed_mode.access_mode()) {
     case AccessMode::kLoad: {
       // Check if we can return undefined for out-of-bounds loads.
-      if (situation == kHandleOOB_SmiCheckDone) {
-        Node* check =
-            graph()->NewNode(simplified()->NumberLessThan(), index, length);
-        Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
-                                        check, control);
+      if (situation == kHandleOOB_SmiAndRangeCheckComputed) {
+        DCHECK_NE(check, nullptr);
+        Node* branch = graph()->NewNode(
+            common()->Branch(BranchHint::kTrue, BranchSemantics::kMachine),
+            check, control);
 
         Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
         Node* etrue = effect;
@@ -3690,13 +3702,13 @@ JSNativeContextSpecialization::
         value = graph()->NewNode(simplified()->NumberToUint8Clamped(), value);
       }
 
-      if (situation == kHandleOOB_SmiCheckDone) {
+      if (situation == kHandleOOB_SmiAndRangeCheckComputed) {
         // We have to detect OOB stores and handle them without deopt (by
         // simply not performing them).
-        Node* check =
-            graph()->NewNode(simplified()->NumberLessThan(), index, length);
-        Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
-                                        check, control);
+        DCHECK_NE(check, nullptr);
+        Node* branch = graph()->NewNode(
+            common()->Branch(BranchHint::kTrue, BranchSemantics::kMachine),
+            check, control);
 
         Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
         Node* etrue = effect;
@@ -3738,11 +3750,18 @@ JSNativeContextSpecialization::
       break;
     }
     case AccessMode::kHas:
-      if (situation == kHandleOOB_SmiCheckDone) {
-        value = effect =
-            graph()->NewNode(simplified()->SpeculativeNumberLessThan(
-                                 NumberOperationHint::kSignedSmall),
-                             index, length, effect, control);
+      if (situation == kHandleOOB_SmiAndRangeCheckComputed) {
+        DCHECK_NE(check, nullptr);
+        JSGraphAssembler assembler(jsgraph_, zone(), BranchSemantics::kJS,
+                                   [this](Node* n) { this->Revisit(n); });
+        assembler.InitializeEffectControl(effect, control);
+        value = assembler.MachineSelectIf<Boolean>(check)
+                    .Then([&]() { return assembler.TrueConstant(); })
+                    .Else([&]() { return assembler.FalseConstant(); })
+                    .ExpectTrue()
+                    .Value();
+        std::tie(effect, control) =
+            ReleaseEffectAndControlFromAssembler(&assembler);
       } else {
         DCHECK_EQ(kBoundsCheckDone, situation);
         // For has-property on a typed array, all we need is a bounds check.

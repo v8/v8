@@ -79,7 +79,7 @@ class Reducer;
   V(Float64Sub)                                     \
   V(Int32Add)                                       \
   V(Int32LessThan)                                  \
-  V(Int32LessThanOrEqual)                           \
+  T(Int32LessThanOrEqual, BoolT, Int32T, Int32T)    \
   V(Int32Mul)                                       \
   V(Int32Sub)                                       \
   V(Int64Add)                                       \
@@ -88,7 +88,7 @@ class Reducer;
   V(IntLessThan)                                    \
   V(IntMul)                                         \
   V(IntSub)                                         \
-  V(Uint32LessThan)                                 \
+  T(Uint32LessThan, BoolT, Uint32T, Uint32T)        \
   T(Uint32LessThanOrEqual, BoolT, Uint32T, Uint32T) \
   V(Uint64LessThan)                                 \
   T(Uint64LessThanOrEqual, BoolT, Uint64T, Uint64T) \

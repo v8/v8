@@ -4486,6 +4486,7 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kInt32Add:
+      case IrOpcode::kInt32LessThanOrEqual:
       case IrOpcode::kInt32Sub:
       case IrOpcode::kUint32LessThan:
       case IrOpcode::kUint32LessThanOrEqual:
