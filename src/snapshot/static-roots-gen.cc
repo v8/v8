@@ -53,19 +53,29 @@ void StaticRootsTableGen::write(Isolate* isolate, const char* file) {
       << "namespace v8 {\n"
       << "namespace internal {\n"
       << "\n"
-      << "constexpr static std::array<Tagged_t, " << size
-      << "> StaticReadOnlyRootsPointerTable = {\n";
-  auto pos = RootIndex::kFirstReadOnlyRoot;
+      << "struct kStaticReadOnlyRoot {\n";
+  RootIndex pos = RootIndex::kFirstReadOnlyRoot;
   for (; pos <= RootIndex::kLastReadOnlyRoot; ++pos) {
     auto el = roots[pos];
     auto n = roots.name(pos);
     el = V8HeapCompressionScheme::CompressTagged(el);
-    out << "    " << reinterpret_cast<void*>(el) << ",  // " << n << "\n";
+    out << "  static constexpr Tagged_t " << n << " =";
+    if (strlen(n) + 38 > 80) out << "\n     ";
+    out << " " << reinterpret_cast<void*>(el) << ";\n";
   }
-  CHECK_EQ(static_cast<int>(pos), size);
   out << "};\n"
-      << "\n"
-      << "}  // namespace internal\n"
+      << "\nstatic constexpr std::array<Tagged_t, " << size
+      << "> StaticReadOnlyRootsPointerTable = {\n";
+  pos = RootIndex::kFirstReadOnlyRoot;
+  for (; pos <= RootIndex::kLastReadOnlyRoot; ++pos) {
+    auto el = roots[pos];
+    auto n = roots.name(pos);
+    el = V8HeapCompressionScheme::CompressTagged(el);
+    out << "    kStaticReadOnlyRoot::" << n << ",\n";
+  }
+  out << "};\n";
+  CHECK_EQ(static_cast<int>(pos), size);
+  out << "\n}  // namespace internal\n"
       << "}  // namespace v8\n"
       << "#endif  // V8_STATIC_ROOTS_BOOL\n"
       << "#endif  // V8_ROOTS_STATIC_ROOTS_H_\n";

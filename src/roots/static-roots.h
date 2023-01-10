@@ -21,746 +21,1495 @@ static_assert(V8_INTL_SUPPORT);
 namespace v8 {
 namespace internal {
 
-constexpr static std::array<Tagged_t, 739> StaticReadOnlyRootsPointerTable = {
-    0x3235,  // free_space_map
-    0x38a5,  // one_pointer_filler_map
-    0x38cd,  // two_pointer_filler_map
-    0x7b19,  // uninitialized_value
-    0x22e1,  // undefined_value
-    0x22fd,  // the_hole_value
-    0x22c5,  // null_value
-    0x3f41,  // true_value
-    0x3f5d,  // false_value
-    0x543d,  // empty_string
-    0x2141,  // meta_map
-    0x31e5,  // byte_array_map
-    0x2169,  // fixed_array_map
-    0x21e1,  // fixed_cow_array_map
-    0x3995,  // hash_table_map
-    0x2b7d,  // symbol_map
-    0x2dad,  // one_byte_string_map
-    0x2f3d,  // one_byte_internalized_string_map
-    0x2ab5,  // scope_info_map
-    0x3d05,  // shared_function_info_map
-    0x3825,  // code_map
-    0x384d,  // cell_map
-    0x387d,  // global_property_cell_map
-    0x2ba5,  // foreign_map
-    0x2b55,  // heap_number_map
-    0x396d,  // transition_array_map
-    0x302d,  // thin_one_byte_string_map
-    0x2b2d,  // feedback_vector_map
-    0x3f19,  // empty_scope_info
-    0x22a9,  // empty_fixed_array
-    0x2aa5,  // empty_descriptor_array
-    0x7b51,  // arguments_marker
-    0x7bc9,  // exception
-    0x7b89,  // termination_exception
-    0x7be5,  // optimized_out
-    0x7c1d,  // stale_register
-    0x3bc5,  // script_context_table_map
-    0x2b05,  // closure_feedback_cell_array_map
-    0x31bd,  // feedback_metadata_map
-    0x3b9d,  // array_list_map
-    0x2d5d,  // bigint_map
-    0x3bed,  // object_boilerplate_description_map
-    0x320d,  // bytecode_array_map
-    0x3d7d,  // code_data_container_map
-    0x3c15,  // coverage_info_map
-    0x3195,  // fixed_double_array_map
-    0x3a85,  // global_dictionary_map
-    0x3945,  // many_closures_cell_map
-    0x2bcd,  // mega_dom_handler_map
-    0x2add,  // module_info_map
-    0x3a35,  // name_dictionary_map
-    0x38f5,  // no_closures_cell_map
-    0x3aad,  // number_dictionary_map
-    0x391d,  // one_closure_cell_map
-    0x39bd,  // ordered_hash_map_map
-    0x39e5,  // ordered_hash_set_map
-    0x3afd,  // name_to_index_hash_table_map
-    0x3b25,  // registered_symbol_table_map
-    0x3a0d,  // ordered_name_dictionary_map
-    0x3cdd,  // preparse_data_map
-    0x325d,  // property_array_map
-    0x3c3d,  // accessor_info_map
-    0x3c65,  // side_effect_call_handler_info_map
-    0x3c8d,  // side_effect_free_call_handler_info_map
-    0x3cb5,  // next_call_side_effect_free_call_handler_info_map
-    0x3ad5,  // simple_number_dictionary_map
-    0x3285,  // small_ordered_hash_map_map
-    0x32ad,  // small_ordered_hash_set_map
-    0x32d5,  // small_ordered_name_dictionary_map
-    0x3d2d,  // source_text_module_map
-    0x3a5d,  // swiss_name_dictionary_map
-    0x3d55,  // synthetic_module_map
-    0x3da5,  // wasm_api_function_ref_map
-    0x3dcd,  // wasm_capi_function_data_map
-    0x3df5,  // wasm_exported_function_data_map
-    0x3e1d,  // wasm_internal_function_map
-    0x3e45,  // wasm_js_function_data_map
-    0x3e6d,  // wasm_resume_data_map
-    0x3e95,  // wasm_type_info_map
-    0x3ebd,  // wasm_continuation_object_map
-    0x2191,  // weak_fixed_array_map
-    0x21b9,  // weak_array_list_map
-    0x3b75,  // ephemeron_hash_table_map
-    0x3b4d,  // embedder_data_array_map
-    0x3ee5,  // weak_cell_map
-    0x2d85,  // string_map
-    0x2dfd,  // cons_one_byte_string_map
-    0x2dd5,  // cons_string_map
-    0x3005,  // thin_string_map
-    0x2e25,  // sliced_string_map
-    0x2e4d,  // sliced_one_byte_string_map
-    0x2e75,  // external_string_map
-    0x2e9d,  // external_one_byte_string_map
-    0x2ec5,  // uncached_external_string_map
-    0x2f15,  // internalized_string_map
-    0x2f65,  // external_internalized_string_map
-    0x2f8d,  // external_one_byte_internalized_string_map
-    0x2fb5,  // uncached_external_internalized_string_map
-    0x2fdd,  // uncached_external_one_byte_internalized_string_map
-    0x2eed,  // uncached_external_one_byte_string_map
-    0x307d,  // shared_one_byte_string_map
-    0x3055,  // shared_string_map
-    0x30cd,  // shared_external_one_byte_string_map
-    0x30a5,  // shared_external_string_map
-    0x311d,  // shared_uncached_external_one_byte_string_map
-    0x30f5,  // shared_uncached_external_string_map
-    0x316d,  // shared_thin_one_byte_string_map
-    0x3145,  // shared_thin_string_map
-    0x2231,  // undefined_map
-    0x2281,  // the_hole_map
-    0x2259,  // null_map
-    0x2bf5,  // boolean_map
-    0x2c1d,  // uninitialized_map
-    0x2c45,  // arguments_marker_map
-    0x2c6d,  // exception_map
-    0x2c95,  // termination_exception_map
-    0x2cbd,  // optimized_out_map
-    0x2ce5,  // stale_register_map
-    0x2d0d,  // self_reference_marker_map
-    0x2d35,  // basic_block_counters_marker_map
-    0x2a99,  // empty_enum_cache
-    0x3f81,  // empty_property_array
-    0x3f79,  // empty_byte_array
-    0x3f29,  // empty_object_boilerplate_description
-    0x3f35,  // empty_array_boilerplate_description
-    0x3f89,  // empty_closure_feedback_cell_array
-    0x820d,  // empty_slow_element_dictionary
-    0x8231,  // empty_ordered_hash_map
-    0x8245,  // empty_ordered_hash_set
-    0x829d,  // empty_feedback_metadata
-    0x81c9,  // empty_property_dictionary
-    0x8259,  // empty_ordered_property_dictionary
-    0x827d,  // empty_swiss_property_dictionary
-    0x3f91,  // noop_interceptor_info
-    0x3f0d,  // empty_array_list
-    0x22b1,  // empty_weak_fixed_array
-    0x22b9,  // empty_weak_array_list
-    0x3875,  // invalid_prototype_validity_cell
-    0x3fc5,  // nan_value
-    0x3fd1,  // hole_nan_value
-    0x3fdd,  // infinity_value
-    0x3fb9,  // minus_zero_value
-    0x3fe9,  // minus_infinity_value
-    0x3ff5,  // max_safe_integer
-    0x4001,  // max_uint_32
-    0x400d,  // smi_min_value
-    0x4019,  // smi_max_value_plus_one
-    0x4035,  // single_character_string_table
-    0x7c55,  // self_reference_marker
-    0x7c95,  // basic_block_counters_marker
-    0x831d,  // off_heap_trampoline_relocation_info
-    0x22e1,  // trampoline_trivial_code_data_container
-    0x22e1,  // trampoline_promise_rejection_code_data_container
-    0x82a9,  // global_this_binding_scope_info
-    0x82c9,  // empty_function_scope_info
-    0x82ed,  // native_scope_info
-    0x8305,  // shadow_realm_scope_info
-    0x81f1,  // empty_symbol_table
-    0x4025,  // hash_seed
-    0x5449,  // adoptText_string
-    0x5461,  // approximatelySign_string
-    0x5481,  // baseName_string
-    0x5495,  // accounting_string
-    0x54ad,  // breakType_string
-    0x54c5,  // calendars_string
-    0x54dd,  // cardinal_string
-    0x54f1,  // caseFirst_string
-    0x5509,  // ceil_string
-    0x5519,  // compare_string
-    0x552d,  // collation_string
-    0x5545,  // collations_string
-    0x555d,  // compact_string
-    0x5571,  // compactDisplay_string
-    0x558d,  // currency_string
-    0x55a1,  // currencyDisplay_string
-    0x55bd,  // currencySign_string
-    0x55d5,  // dateStyle_string
-    0x55ed,  // dateTimeField_string
-    0x5609,  // dayPeriod_string
-    0x5621,  // daysDisplay_string
-    0x5639,  // decimal_string
-    0x564d,  // dialect_string
-    0x5661,  // digital_string
-    0x5675,  // direction_string
-    0x568d,  // endRange_string
-    0x56a1,  // engineering_string
-    0x56b9,  // exceptZero_string
-    0x56d1,  // expand_string
-    0x56e5,  // exponentInteger_string
-    0x5701,  // exponentMinusSign_string
-    0x5721,  // exponentSeparator_string
-    0x5741,  // fallback_string
-    0x5755,  // first_string
-    0x5769,  // firstDay_string
-    0x577d,  // floor_string
-    0x5791,  // format_string
-    0x57a5,  // fraction_string
-    0x57b9,  // fractionalDigits_string
-    0x57d5,  // fractionalSecond_string
-    0x57f1,  // full_string
-    0x5801,  // granularity_string
-    0x5819,  // grapheme_string
-    0x582d,  // group_string
-    0x5841,  // h11_string
-    0x5851,  // h12_string
-    0x5861,  // h23_string
-    0x5871,  // h24_string
-    0x5881,  // halfCeil_string
-    0x5895,  // halfEven_string
-    0x58a9,  // halfExpand_string
-    0x58c1,  // halfFloor_string
-    0x58d9,  // halfTrunc_string
-    0x58f1,  // hour12_string
-    0x5905,  // hourCycle_string
-    0x591d,  // hourCycles_string
-    0x5935,  // hoursDisplay_string
-    0x594d,  // ideo_string
-    0x595d,  // ignorePunctuation_string
-    0x597d,  // Invalid_Date_string
-    0x5995,  // integer_string
-    0x59a9,  // isWordLike_string
-    0x59c1,  // kana_string
-    0x59d1,  // language_string
-    0x59e5,  // languageDisplay_string
-    0x5a01,  // lessPrecision_string
-    0x5a1d,  // letter_string
-    0x5a31,  // list_string
-    0x5a41,  // literal_string
-    0x5a55,  // locale_string
-    0x5a69,  // loose_string
-    0x5a7d,  // lower_string
-    0x5a91,  // ltr_string
-    0x5aa1,  // maximumFractionDigits_string
-    0x5ac5,  // maximumSignificantDigits_string
-    0x5ae9,  // microsecondsDisplay_string
-    0x5b09,  // millisecondsDisplay_string
-    0x5b29,  // min2_string
-    0x5b39,  // minimalDays_string
-    0x5b51,  // minimumFractionDigits_string
-    0x5b75,  // minimumIntegerDigits_string
-    0x5b95,  // minimumSignificantDigits_string
-    0x5bb9,  // minus_0
-    0x5bc9,  // minusSign_string
-    0x5be1,  // minutesDisplay_string
-    0x5bfd,  // monthsDisplay_string
-    0x5c19,  // morePrecision_string
-    0x5c35,  // nan_string
-    0x5c45,  // nanosecondsDisplay_string
-    0x5c65,  // narrowSymbol_string
-    0x5c7d,  // negative_string
-    0x5c91,  // never_string
-    0x5ca5,  // none_string
-    0x5cb5,  // notation_string
-    0x5cc9,  // normal_string
-    0x5cdd,  // numberingSystem_string
-    0x5cf9,  // numberingSystems_string
-    0x5d15,  // numeric_string
-    0x5d29,  // ordinal_string
-    0x5d3d,  // percentSign_string
-    0x5d55,  // plusSign_string
-    0x5d69,  // quarter_string
-    0x5d7d,  // region_string
-    0x5d91,  // relatedYear_string
-    0x5da9,  // roundingMode_string
-    0x5dc1,  // roundingPriority_string
-    0x5ddd,  // rtl_string
-    0x5ded,  // scientific_string
-    0x5e05,  // secondsDisplay_string
-    0x5e21,  // segment_string
-    0x5e35,  // SegmentIterator_string
-    0x5e51,  // Segments_string
-    0x5e65,  // sensitivity_string
-    0x5e7d,  // sep_string
-    0x5e8d,  // shared_string
-    0x5ea1,  // signDisplay_string
-    0x5eb9,  // standard_string
-    0x5ecd,  // startRange_string
-    0x5ee5,  // strict_string
-    0x5ef9,  // stripIfInteger_string
-    0x5f15,  // style_string
-    0x5f29,  // term_string
-    0x5f39,  // textInfo_string
-    0x5f4d,  // timeStyle_string
-    0x5f65,  // timeZones_string
-    0x5f7d,  // timeZoneName_string
-    0x5f95,  // trailingZeroDisplay_string
-    0x5fb5,  // trunc_string
-    0x5fc9,  // two_digit_string
-    0x5fdd,  // type_string
-    0x5fed,  // unknown_string
-    0x6001,  // upper_string
-    0x6015,  // usage_string
-    0x6029,  // useGrouping_string
-    0x6041,  // unitDisplay_string
-    0x6059,  // weekday_string
-    0x606d,  // weekend_string
-    0x6081,  // weeksDisplay_string
-    0x6099,  // weekInfo_string
-    0x60ad,  // yearName_string
-    0x60c1,  // yearsDisplay_string
-    0x60d9,  // add_string
-    0x60e9,  // AggregateError_string
-    0x6105,  // always_string
-    0x6119,  // anonymous_function_string
-    0x6139,  // anonymous_string
-    0x6151,  // apply_string
-    0x6165,  // Arguments_string
-    0x617d,  // arguments_string
-    0x6195,  // arguments_to_string
-    0x61b5,  // Array_string
-    0x61c9,  // array_to_string
-    0x61e5,  // ArrayBuffer_string
-    0x61fd,  // ArrayIterator_string
-    0x6219,  // as_string
-    0x6229,  // assert_string
-    0x623d,  // async_string
-    0x6251,  // AtomicsCondition_string
-    0x6271,  // AtomicsMutex_string
-    0x628d,  // auto_string
-    0x629d,  // await_string
-    0x62b1,  // BigInt_string
-    0x62c5,  // bigint_string
-    0x62d9,  // BigInt64Array_string
-    0x62f5,  // BigUint64Array_string
-    0x6311,  // bind_string
-    0x6321,  // blank_string
-    0x6335,  // Boolean_string
-    0x6349,  // boolean_string
-    0x635d,  // boolean_to_string
-    0x6379,  // bound__string
-    0x638d,  // buffer_string
-    0x63a1,  // byte_length_string
-    0x63b9,  // byte_offset_string
-    0x63d1,  // CompileError_string
-    0x63e9,  // calendar_string
-    0x63fd,  // callee_string
-    0x6411,  // caller_string
-    0x6425,  // cause_string
-    0x6439,  // character_string
-    0x6451,  // closure_string
-    0x6469,  // code_string
-    0x6479,  // column_string
-    0x648d,  // computed_string
-    0x64a5,  // configurable_string
-    0x64bd,  // conjunction_string
-    0x64d5,  // console_string
-    0x64e9,  // constrain_string
-    0x6501,  // construct_string
-    0x6519,  // current_string
-    0x652d,  // Date_string
-    0x653d,  // date_to_string
-    0x6559,  // dateAdd_string
-    0x656d,  // dateFromFields_string
-    0x6589,  // dateUntil_string
-    0x65a1,  // day_string
-    0x65b1,  // dayOfWeek_string
-    0x65c9,  // dayOfYear_string
-    0x65e1,  // days_string
-    0x65f1,  // daysInMonth_string
-    0x6609,  // daysInWeek_string
-    0x6621,  // daysInYear_string
-    0x6639,  // default_string
-    0x664d,  // defineProperty_string
-    0x6669,  // deleteProperty_string
-    0x6685,  // disjunction_string
-    0x669d,  // done_string
-    0x66ad,  // dot_brand_string
-    0x66c1,  // dot_catch_string
-    0x66d5,  // dot_default_string
-    0x66e9,  // dot_for_string
-    0x66f9,  // dot_generator_object_string
-    0x6719,  // dot_home_object_string
-    0x6731,  // dot_new_target_string
-    0x6749,  // dot_result_string
-    0x675d,  // dot_repl_result_string
-    0x6775,  // dot_static_home_object_string
-    0x471d,  // dot_string
-    0x6795,  // dot_switch_tag_string
-    0x67ad,  // dotAll_string
-    0x67c1,  // Error_string
-    0x67d5,  // EvalError_string
-    0x67ed,  // enumerable_string
-    0x6805,  // element_string
-    0x6819,  // epochMicroseconds_string
-    0x6839,  // epochMilliseconds_string
-    0x6859,  // epochNanoseconds_string
-    0x6875,  // epochSeconds_string
-    0x688d,  // era_string
-    0x689d,  // eraYear_string
-    0x68b1,  // errors_string
-    0x68c5,  // error_to_string
-    0x68e1,  // eval_string
-    0x68f1,  // exception_string
-    0x6909,  // exec_string
-    0x6919,  // false_string
-    0x692d,  // fields_string
-    0x6941,  // FinalizationRegistry_string
-    0x6961,  // flags_string
-    0x6975,  // Float32Array_string
-    0x698d,  // Float64Array_string
-    0x69a5,  // fractionalSecondDigits_string
-    0x69c9,  // from_string
-    0x69d9,  // Function_string
-    0x69ed,  // function_native_code_string
-    0x6a19,  // function_string
-    0x6a2d,  // function_to_string
-    0x6a4d,  // Generator_string
-    0x6a65,  // get_space_string
-    0x6a75,  // get_string
-    0x6a85,  // getOffsetNanosecondsFor_string
-    0x6aa9,  // getOwnPropertyDescriptor_string
-    0x6acd,  // getPossibleInstantsFor_string
-    0x6af1,  // getPrototypeOf_string
-    0x6b0d,  // global_string
-    0x6b21,  // globalThis_string
-    0x6b39,  // groups_string
-    0x6b4d,  // growable_string
-    0x6b61,  // has_string
-    0x6b71,  // hasIndices_string
-    0x6b89,  // hour_string
-    0x6b99,  // hours_string
-    0x6bad,  // hoursInDay_string
-    0x6bc5,  // ignoreCase_string
-    0x6bdd,  // id_string
-    0x6bed,  // illegal_access_string
-    0x6c09,  // illegal_argument_string
-    0x6c25,  // inLeapYear_string
-    0x6c3d,  // index_string
-    0x6c51,  // indices_string
-    0x6c65,  // Infinity_string
-    0x6c79,  // infinity_string
-    0x6c8d,  // input_string
-    0x6ca1,  // Int16Array_string
-    0x6cb9,  // Int32Array_string
-    0x6cd1,  // Int8Array_string
-    0x6ce9,  // isExtensible_string
-    0x6d01,  // iso8601_string
-    0x6d15,  // isoDay_string
-    0x6d29,  // isoHour_string
-    0x6d3d,  // isoMicrosecond_string
-    0x6d59,  // isoMillisecond_string
-    0x6d75,  // isoMinute_string
-    0x6d8d,  // isoMonth_string
-    0x6da1,  // isoNanosecond_string
-    0x6dbd,  // isoSecond_string
-    0x6dd5,  // isoYear_string
-    0x6de9,  // jsMemoryEstimate_string
-    0x6e05,  // jsMemoryRange_string
-    0x6e21,  // keys_string
-    0x6e31,  // largestUnit_string
-    0x6e49,  // lastIndex_string
-    0x6e61,  // length_string
-    0x6e75,  // let_string
-    0x6e85,  // line_string
-    0x6e95,  // linear_string
-    0x6ea9,  // LinkError_string
-    0x6ec1,  // long_string
-    0x6ed1,  // Map_string
-    0x6ee1,  // MapIterator_string
-    0x6ef9,  // max_byte_length_string
-    0x6f15,  // medium_string
-    0x6f29,  // mergeFields_string
-    0x6f41,  // message_string
-    0x6f55,  // meta_string
-    0x6f65,  // minus_Infinity_string
-    0x6f7d,  // microsecond_string
-    0x6f95,  // microseconds_string
-    0x6fad,  // millisecond_string
-    0x6fc5,  // milliseconds_string
-    0x6fdd,  // minute_string
-    0x6ff1,  // minutes_string
-    0x7005,  // Module_string
-    0x7019,  // month_string
-    0x702d,  // monthDayFromFields_string
-    0x704d,  // months_string
-    0x7061,  // monthsInYear_string
-    0x7079,  // monthCode_string
-    0x7091,  // multiline_string
-    0x70a9,  // name_string
-    0x70b9,  // NaN_string
-    0x70c9,  // nanosecond_string
-    0x70e1,  // nanoseconds_string
-    0x70f9,  // narrow_string
-    0x710d,  // native_string
-    0x6731,  // new_target_string
-    0x7121,  // NFC_string
-    0x7131,  // NFD_string
-    0x7141,  // NFKC_string
-    0x7151,  // NFKD_string
-    0x7161,  // not_equal_string
-    0x7179,  // null_string
-    0x7189,  // null_to_string
-    0x71a5,  // Number_string
-    0x71b9,  // number_string
-    0x71cd,  // number_to_string
-    0x71e9,  // Object_string
-    0x71fd,  // object_string
-    0x7211,  // object_to_string
-    0x722d,  // of_string
-    0x723d,  // offset_string
-    0x7251,  // offsetNanoseconds_string
-    0x7271,  // ok_string
-    0x474d,  // one_string
-    0x7281,  // other_string
-    0x7295,  // overflow_string
-    0x72a9,  // ownKeys_string
-    0x72bd,  // percent_string
-    0x72d1,  // plainDate_string
-    0x72e9,  // plainTime_string
-    0x7301,  // position_string
-    0x7315,  // preventExtensions_string
-    0x7335,  // private_constructor_string
-    0x734d,  // Promise_string
-    0x7361,  // proto_string
-    0x7379,  // prototype_string
-    0x7391,  // proxy_string
-    0x73a5,  // Proxy_string
-    0x73b9,  // query_colon_string
-    0x73c9,  // RangeError_string
-    0x73e1,  // raw_json_string
-    0x73f5,  // raw_string
-    0x7405,  // ReferenceError_string
-    0x7421,  // ReflectGet_string
-    0x7439,  // ReflectHas_string
-    0x7451,  // RegExp_string
-    0x7465,  // regexp_to_string
-    0x7481,  // reject_string
-    0x7495,  // relativeTo_string
-    0x74ad,  // resizable_string
-    0x74c5,  // ResizableArrayBuffer_string
-    0x74e5,  // return_string
-    0x74f9,  // revoke_string
-    0x750d,  // roundingIncrement_string
-    0x752d,  // RuntimeError_string
-    0x7545,  // WebAssemblyException_string
-    0x7569,  // Script_string
-    0x757d,  // script_string
-    0x7591,  // second_string
-    0x75a5,  // seconds_string
-    0x75b9,  // short_string
-    0x75cd,  // Set_string
-    0x75dd,  // sentence_string
-    0x75f1,  // set_space_string
-    0x7601,  // set_string
-    0x7611,  // SetIterator_string
-    0x7629,  // setPrototypeOf_string
-    0x7645,  // ShadowRealm_string
-    0x765d,  // SharedArray_string
-    0x7675,  // SharedArrayBuffer_string
-    0x7695,  // SharedStruct_string
-    0x76ad,  // sign_string
-    0x76bd,  // smallestUnit_string
-    0x76d5,  // source_string
-    0x76e9,  // sourceText_string
-    0x7701,  // stack_string
-    0x7715,  // stackTraceLimit_string
-    0x7731,  // sticky_string
-    0x7745,  // String_string
-    0x7759,  // string_string
-    0x776d,  // string_to_string
-    0x7789,  // Symbol_iterator_string
-    0x77a5,  // symbol_species_string
-    0x77c1,  // Symbol_species_string
-    0x77dd,  // Symbol_string
-    0x77f1,  // symbol_string
-    0x7805,  // SyntaxError_string
-    0x781d,  // target_string
-    0x7831,  // this_function_string
-    0x784d,  // this_string
-    0x785d,  // throw_string
-    0x7871,  // timed_out_string
-    0x7889,  // timeZone_string
-    0x789d,  // toJSON_string
-    0x78b1,  // toString_string
-    0x78c5,  // true_string
-    0x78d5,  // total_string
-    0x78e9,  // TypeError_string
-    0x7901,  // Uint16Array_string
-    0x7919,  // Uint32Array_string
-    0x7931,  // Uint8Array_string
-    0x7949,  // Uint8ClampedArray_string
-    0x7969,  // undefined_string
-    0x7981,  // undefined_to_string
-    0x79a1,  // unicode_string
-    0x79b5,  // unicodeSets_string
-    0x79cd,  // unit_string
-    0x79dd,  // URIError_string
-    0x79f1,  // UTC_string
-    0x7a01,  // value_string
-    0x7a15,  // valueOf_string
-    0x7a29,  // WeakMap_string
-    0x7a3d,  // WeakRef_string
-    0x7a51,  // WeakSet_string
-    0x7a65,  // week_string
-    0x7a75,  // weeks_string
-    0x7a89,  // weekOfYear_string
-    0x7aa1,  // word_string
-    0x7ab1,  // writable_string
-    0x7ac5,  // yearMonthFromFields_string
-    0x7ae5,  // year_string
-    0x7af5,  // years_string
-    0x473d,  // zero_string
-    0x7cd9,  // array_buffer_wasm_memory_symbol
-    0x7ce9,  // call_site_info_symbol
-    0x7cf9,  // console_context_id_symbol
-    0x7d09,  // console_context_name_symbol
-    0x7d19,  // class_fields_symbol
-    0x7d29,  // class_positions_symbol
-    0x7d39,  // elements_transition_symbol
-    0x7d49,  // error_end_pos_symbol
-    0x7d59,  // error_script_symbol
-    0x7d69,  // error_stack_symbol
-    0x7d79,  // error_start_pos_symbol
-    0x7d89,  // frozen_symbol
-    0x7d99,  // interpreter_trampoline_symbol
-    0x7da9,  // mega_dom_symbol
-    0x7db9,  // megamorphic_symbol
-    0x7dc9,  // native_context_index_symbol
-    0x7dd9,  // nonextensible_symbol
-    0x7de9,  // not_mapped_symbol
-    0x7df9,  // promise_debug_marker_symbol
-    0x7e09,  // promise_debug_message_symbol
-    0x7e19,  // promise_forwarding_handler_symbol
-    0x7e29,  // promise_handled_by_symbol
-    0x7e39,  // promise_awaited_by_symbol
-    0x7e49,  // regexp_result_names_symbol
-    0x7e59,  // regexp_result_regexp_input_symbol
-    0x7e69,  // regexp_result_regexp_last_index_symbol
-    0x7e79,  // sealed_symbol
-    0x7e89,  // strict_function_transition_symbol
-    0x7e99,  // template_literal_function_literal_id_symbol
-    0x7ea9,  // template_literal_slot_id_symbol
-    0x7eb9,  // wasm_exception_tag_symbol
-    0x7ec9,  // wasm_exception_values_symbol
-    0x7ed9,  // wasm_uncatchable_symbol
-    0x7ee9,  // wasm_wrapped_object_symbol
-    0x7ef9,  // wasm_debug_proxy_cache_symbol
-    0x7f09,  // wasm_debug_proxy_names_symbol
-    0x7f19,  // uninitialized_symbol
-    0x7f29,  // async_iterator_symbol
-    0x7f59,  // intl_fallback_symbol
-    0x7f91,  // match_all_symbol
-    0x7fbd,  // match_symbol
-    0x7fe5,  // replace_symbol
-    0x8011,  // search_symbol
-    0x803d,  // split_symbol
-    0x8065,  // to_primitive_symbol
-    0x8095,  // unscopables_symbol
-    0x80c5,  // has_instance_symbol
-    0x80f5,  // to_string_tag_symbol
-    0x2319,  // promise_fulfill_reaction_job_task_map
-    0x2341,  // promise_reject_reaction_job_task_map
-    0x2369,  // callable_task_map
-    0x2391,  // callback_task_map
-    0x23b9,  // promise_resolve_thenable_job_task_map
-    0x23e1,  // function_template_info_map
-    0x2409,  // object_template_info_map
-    0x2431,  // access_check_info_map
-    0x2459,  // accessor_pair_map
-    0x2481,  // aliased_arguments_entry_map
-    0x24a9,  // allocation_memento_map
-    0x24d1,  // array_boilerplate_description_map
-    0x24f9,  // asm_wasm_data_map
-    0x2521,  // async_generator_request_map
-    0x2549,  // break_point_map
-    0x2571,  // break_point_info_map
-    0x2599,  // call_site_info_map
-    0x25c1,  // class_positions_map
-    0x25e9,  // debug_info_map
-    0x2611,  // enum_cache_map
-    0x2639,  // error_stack_data_map
-    0x2661,  // function_template_rare_data_map
-    0x2689,  // interceptor_info_map
-    0x26b1,  // interpreter_data_map
-    0x26d9,  // module_request_map
-    0x2701,  // promise_capability_map
-    0x2729,  // promise_on_stack_map
-    0x2751,  // promise_reaction_map
-    0x2779,  // property_descriptor_object_map
-    0x27a1,  // prototype_info_map
-    0x27c9,  // regexp_boilerplate_description_map
-    0x27f1,  // script_map
-    0x2819,  // script_or_module_map
-    0x2841,  // module_info_entry_map
-    0x2869,  // stack_frame_info_map
-    0x2891,  // template_object_description_map
-    0x28b9,  // tuple2_map
-    0x28e1,  // wasm_exception_tag_map
-    0x2909,  // wasm_indirect_function_table_map
-    0x370d,  // sloppy_arguments_elements_map
-    0x2209,  // descriptor_array_map
-    0x3735,  // strong_descriptor_array_map
-    0x32fd,  // uncompiled_data_without_preparse_data_map
-    0x3325,  // uncompiled_data_with_preparse_data_map
-    0x334d,  // uncompiled_data_without_preparse_data_with_job_map
-    0x3375,  // uncompiled_data_with_preparse_data_and_job_map
-    0x339d,  // on_heap_basic_block_profiler_data_map
-    0x33c5,  // turbofan_bitset_type_map
-    0x33ed,  // turbofan_union_type_map
-    0x3415,  // turbofan_range_type_map
-    0x343d,  // turbofan_heap_constant_type_map
-    0x3465,  // turbofan_other_number_constant_type_map
-    0x348d,  // turboshaft_word32type_map
-    0x34b5,  // turboshaft_word32range_type_map
-    0x375d,  // turboshaft_word32set_type_map
-    0x34dd,  // turboshaft_word64type_map
-    0x3505,  // turboshaft_word64range_type_map
-    0x3785,  // turboshaft_word64set_type_map
-    0x352d,  // turboshaft_float64type_map
-    0x3555,  // turboshaft_float64range_type_map
-    0x37ad,  // turboshaft_float64set_type_map
-    0x357d,  // internal_class_map
-    0x35a5,  // smi_pair_map
-    0x35cd,  // smi_box_map
-    0x35f5,  // exported_sub_class_base_map
-    0x361d,  // exported_sub_class_map
-    0x3645,  // abstract_internal_class_subclass1_map
-    0x366d,  // abstract_internal_class_subclass2_map
-    0x37d5,  // internal_class_with_smi_elements_map
-    0x37fd,  // internal_class_with_struct_elements_map
-    0x3695,  // exported_sub_class2_map
-    0x36bd,  // sort_state_map
-    0x36e5,  // wasm_string_view_iter_map
-    0x2931,  // allocation_site_map
-    0x2959,  // allocation_site_without_weaknext_map
-    0x814d,  // constructor_string
-    0x8165,  // next_string
-    0x8175,  // resolve_string
-    0x8189,  // then_string
-    0x8199,  // iterator_symbol
-    0x81a9,  // species_symbol
-    0x81b9,  // is_concat_spreadable_symbol
-    0x2981,  // load_handler1_map
-    0x29a9,  // load_handler2_map
-    0x29d1,  // load_handler3_map
-    0x29f9,  // store_handler0_map
-    0x2a21,  // store_handler1_map
-    0x2a49,  // store_handler2_map
-    0x2a71,  // store_handler3_map
+struct kStaticReadOnlyRoot {
+  static constexpr Tagged_t free_space_map = 0x3235;
+  static constexpr Tagged_t one_pointer_filler_map = 0x38a5;
+  static constexpr Tagged_t two_pointer_filler_map = 0x38cd;
+  static constexpr Tagged_t uninitialized_value = 0x7b19;
+  static constexpr Tagged_t undefined_value = 0x22e1;
+  static constexpr Tagged_t the_hole_value = 0x22fd;
+  static constexpr Tagged_t null_value = 0x22c5;
+  static constexpr Tagged_t true_value = 0x3f41;
+  static constexpr Tagged_t false_value = 0x3f5d;
+  static constexpr Tagged_t empty_string = 0x543d;
+  static constexpr Tagged_t meta_map = 0x2141;
+  static constexpr Tagged_t byte_array_map = 0x31e5;
+  static constexpr Tagged_t fixed_array_map = 0x2169;
+  static constexpr Tagged_t fixed_cow_array_map = 0x21e1;
+  static constexpr Tagged_t hash_table_map = 0x3995;
+  static constexpr Tagged_t symbol_map = 0x2b7d;
+  static constexpr Tagged_t one_byte_string_map = 0x2dad;
+  static constexpr Tagged_t one_byte_internalized_string_map = 0x2f3d;
+  static constexpr Tagged_t scope_info_map = 0x2ab5;
+  static constexpr Tagged_t shared_function_info_map = 0x3d05;
+  static constexpr Tagged_t code_map = 0x3825;
+  static constexpr Tagged_t cell_map = 0x384d;
+  static constexpr Tagged_t global_property_cell_map = 0x387d;
+  static constexpr Tagged_t foreign_map = 0x2ba5;
+  static constexpr Tagged_t heap_number_map = 0x2b55;
+  static constexpr Tagged_t transition_array_map = 0x396d;
+  static constexpr Tagged_t thin_one_byte_string_map = 0x302d;
+  static constexpr Tagged_t feedback_vector_map = 0x2b2d;
+  static constexpr Tagged_t empty_scope_info = 0x3f19;
+  static constexpr Tagged_t empty_fixed_array = 0x22a9;
+  static constexpr Tagged_t empty_descriptor_array = 0x2aa5;
+  static constexpr Tagged_t arguments_marker = 0x7b51;
+  static constexpr Tagged_t exception = 0x7bc9;
+  static constexpr Tagged_t termination_exception = 0x7b89;
+  static constexpr Tagged_t optimized_out = 0x7be5;
+  static constexpr Tagged_t stale_register = 0x7c1d;
+  static constexpr Tagged_t script_context_table_map = 0x3bc5;
+  static constexpr Tagged_t closure_feedback_cell_array_map = 0x2b05;
+  static constexpr Tagged_t feedback_metadata_map = 0x31bd;
+  static constexpr Tagged_t array_list_map = 0x3b9d;
+  static constexpr Tagged_t bigint_map = 0x2d5d;
+  static constexpr Tagged_t object_boilerplate_description_map = 0x3bed;
+  static constexpr Tagged_t bytecode_array_map = 0x320d;
+  static constexpr Tagged_t code_data_container_map = 0x3d7d;
+  static constexpr Tagged_t coverage_info_map = 0x3c15;
+  static constexpr Tagged_t fixed_double_array_map = 0x3195;
+  static constexpr Tagged_t global_dictionary_map = 0x3a85;
+  static constexpr Tagged_t many_closures_cell_map = 0x3945;
+  static constexpr Tagged_t mega_dom_handler_map = 0x2bcd;
+  static constexpr Tagged_t module_info_map = 0x2add;
+  static constexpr Tagged_t name_dictionary_map = 0x3a35;
+  static constexpr Tagged_t no_closures_cell_map = 0x38f5;
+  static constexpr Tagged_t number_dictionary_map = 0x3aad;
+  static constexpr Tagged_t one_closure_cell_map = 0x391d;
+  static constexpr Tagged_t ordered_hash_map_map = 0x39bd;
+  static constexpr Tagged_t ordered_hash_set_map = 0x39e5;
+  static constexpr Tagged_t name_to_index_hash_table_map = 0x3afd;
+  static constexpr Tagged_t registered_symbol_table_map = 0x3b25;
+  static constexpr Tagged_t ordered_name_dictionary_map = 0x3a0d;
+  static constexpr Tagged_t preparse_data_map = 0x3cdd;
+  static constexpr Tagged_t property_array_map = 0x325d;
+  static constexpr Tagged_t accessor_info_map = 0x3c3d;
+  static constexpr Tagged_t side_effect_call_handler_info_map = 0x3c65;
+  static constexpr Tagged_t side_effect_free_call_handler_info_map = 0x3c8d;
+  static constexpr Tagged_t next_call_side_effect_free_call_handler_info_map =
+      0x3cb5;
+  static constexpr Tagged_t simple_number_dictionary_map = 0x3ad5;
+  static constexpr Tagged_t small_ordered_hash_map_map = 0x3285;
+  static constexpr Tagged_t small_ordered_hash_set_map = 0x32ad;
+  static constexpr Tagged_t small_ordered_name_dictionary_map = 0x32d5;
+  static constexpr Tagged_t source_text_module_map = 0x3d2d;
+  static constexpr Tagged_t swiss_name_dictionary_map = 0x3a5d;
+  static constexpr Tagged_t synthetic_module_map = 0x3d55;
+  static constexpr Tagged_t wasm_api_function_ref_map = 0x3da5;
+  static constexpr Tagged_t wasm_capi_function_data_map = 0x3dcd;
+  static constexpr Tagged_t wasm_exported_function_data_map = 0x3df5;
+  static constexpr Tagged_t wasm_internal_function_map = 0x3e1d;
+  static constexpr Tagged_t wasm_js_function_data_map = 0x3e45;
+  static constexpr Tagged_t wasm_resume_data_map = 0x3e6d;
+  static constexpr Tagged_t wasm_type_info_map = 0x3e95;
+  static constexpr Tagged_t wasm_continuation_object_map = 0x3ebd;
+  static constexpr Tagged_t weak_fixed_array_map = 0x2191;
+  static constexpr Tagged_t weak_array_list_map = 0x21b9;
+  static constexpr Tagged_t ephemeron_hash_table_map = 0x3b75;
+  static constexpr Tagged_t embedder_data_array_map = 0x3b4d;
+  static constexpr Tagged_t weak_cell_map = 0x3ee5;
+  static constexpr Tagged_t string_map = 0x2d85;
+  static constexpr Tagged_t cons_one_byte_string_map = 0x2dfd;
+  static constexpr Tagged_t cons_string_map = 0x2dd5;
+  static constexpr Tagged_t thin_string_map = 0x3005;
+  static constexpr Tagged_t sliced_string_map = 0x2e25;
+  static constexpr Tagged_t sliced_one_byte_string_map = 0x2e4d;
+  static constexpr Tagged_t external_string_map = 0x2e75;
+  static constexpr Tagged_t external_one_byte_string_map = 0x2e9d;
+  static constexpr Tagged_t uncached_external_string_map = 0x2ec5;
+  static constexpr Tagged_t internalized_string_map = 0x2f15;
+  static constexpr Tagged_t external_internalized_string_map = 0x2f65;
+  static constexpr Tagged_t external_one_byte_internalized_string_map = 0x2f8d;
+  static constexpr Tagged_t uncached_external_internalized_string_map = 0x2fb5;
+  static constexpr Tagged_t uncached_external_one_byte_internalized_string_map =
+      0x2fdd;
+  static constexpr Tagged_t uncached_external_one_byte_string_map = 0x2eed;
+  static constexpr Tagged_t shared_one_byte_string_map = 0x307d;
+  static constexpr Tagged_t shared_string_map = 0x3055;
+  static constexpr Tagged_t shared_external_one_byte_string_map = 0x30cd;
+  static constexpr Tagged_t shared_external_string_map = 0x30a5;
+  static constexpr Tagged_t shared_uncached_external_one_byte_string_map =
+      0x311d;
+  static constexpr Tagged_t shared_uncached_external_string_map = 0x30f5;
+  static constexpr Tagged_t shared_thin_one_byte_string_map = 0x316d;
+  static constexpr Tagged_t shared_thin_string_map = 0x3145;
+  static constexpr Tagged_t undefined_map = 0x2231;
+  static constexpr Tagged_t the_hole_map = 0x2281;
+  static constexpr Tagged_t null_map = 0x2259;
+  static constexpr Tagged_t boolean_map = 0x2bf5;
+  static constexpr Tagged_t uninitialized_map = 0x2c1d;
+  static constexpr Tagged_t arguments_marker_map = 0x2c45;
+  static constexpr Tagged_t exception_map = 0x2c6d;
+  static constexpr Tagged_t termination_exception_map = 0x2c95;
+  static constexpr Tagged_t optimized_out_map = 0x2cbd;
+  static constexpr Tagged_t stale_register_map = 0x2ce5;
+  static constexpr Tagged_t self_reference_marker_map = 0x2d0d;
+  static constexpr Tagged_t basic_block_counters_marker_map = 0x2d35;
+  static constexpr Tagged_t empty_enum_cache = 0x2a99;
+  static constexpr Tagged_t empty_property_array = 0x3f81;
+  static constexpr Tagged_t empty_byte_array = 0x3f79;
+  static constexpr Tagged_t empty_object_boilerplate_description = 0x3f29;
+  static constexpr Tagged_t empty_array_boilerplate_description = 0x3f35;
+  static constexpr Tagged_t empty_closure_feedback_cell_array = 0x3f89;
+  static constexpr Tagged_t empty_slow_element_dictionary = 0x820d;
+  static constexpr Tagged_t empty_ordered_hash_map = 0x8231;
+  static constexpr Tagged_t empty_ordered_hash_set = 0x8245;
+  static constexpr Tagged_t empty_feedback_metadata = 0x829d;
+  static constexpr Tagged_t empty_property_dictionary = 0x81c9;
+  static constexpr Tagged_t empty_ordered_property_dictionary = 0x8259;
+  static constexpr Tagged_t empty_swiss_property_dictionary = 0x827d;
+  static constexpr Tagged_t noop_interceptor_info = 0x3f91;
+  static constexpr Tagged_t empty_array_list = 0x3f0d;
+  static constexpr Tagged_t empty_weak_fixed_array = 0x22b1;
+  static constexpr Tagged_t empty_weak_array_list = 0x22b9;
+  static constexpr Tagged_t invalid_prototype_validity_cell = 0x3875;
+  static constexpr Tagged_t nan_value = 0x3fc5;
+  static constexpr Tagged_t hole_nan_value = 0x3fd1;
+  static constexpr Tagged_t infinity_value = 0x3fdd;
+  static constexpr Tagged_t minus_zero_value = 0x3fb9;
+  static constexpr Tagged_t minus_infinity_value = 0x3fe9;
+  static constexpr Tagged_t max_safe_integer = 0x3ff5;
+  static constexpr Tagged_t max_uint_32 = 0x4001;
+  static constexpr Tagged_t smi_min_value = 0x400d;
+  static constexpr Tagged_t smi_max_value_plus_one = 0x4019;
+  static constexpr Tagged_t single_character_string_table = 0x4035;
+  static constexpr Tagged_t self_reference_marker = 0x7c55;
+  static constexpr Tagged_t basic_block_counters_marker = 0x7c95;
+  static constexpr Tagged_t off_heap_trampoline_relocation_info = 0x831d;
+  static constexpr Tagged_t trampoline_trivial_code_data_container = 0x22e1;
+  static constexpr Tagged_t trampoline_promise_rejection_code_data_container =
+      0x22e1;
+  static constexpr Tagged_t global_this_binding_scope_info = 0x82a9;
+  static constexpr Tagged_t empty_function_scope_info = 0x82c9;
+  static constexpr Tagged_t native_scope_info = 0x82ed;
+  static constexpr Tagged_t shadow_realm_scope_info = 0x8305;
+  static constexpr Tagged_t empty_symbol_table = 0x81f1;
+  static constexpr Tagged_t hash_seed = 0x4025;
+  static constexpr Tagged_t adoptText_string = 0x5449;
+  static constexpr Tagged_t approximatelySign_string = 0x5461;
+  static constexpr Tagged_t baseName_string = 0x5481;
+  static constexpr Tagged_t accounting_string = 0x5495;
+  static constexpr Tagged_t breakType_string = 0x54ad;
+  static constexpr Tagged_t calendars_string = 0x54c5;
+  static constexpr Tagged_t cardinal_string = 0x54dd;
+  static constexpr Tagged_t caseFirst_string = 0x54f1;
+  static constexpr Tagged_t ceil_string = 0x5509;
+  static constexpr Tagged_t compare_string = 0x5519;
+  static constexpr Tagged_t collation_string = 0x552d;
+  static constexpr Tagged_t collations_string = 0x5545;
+  static constexpr Tagged_t compact_string = 0x555d;
+  static constexpr Tagged_t compactDisplay_string = 0x5571;
+  static constexpr Tagged_t currency_string = 0x558d;
+  static constexpr Tagged_t currencyDisplay_string = 0x55a1;
+  static constexpr Tagged_t currencySign_string = 0x55bd;
+  static constexpr Tagged_t dateStyle_string = 0x55d5;
+  static constexpr Tagged_t dateTimeField_string = 0x55ed;
+  static constexpr Tagged_t dayPeriod_string = 0x5609;
+  static constexpr Tagged_t daysDisplay_string = 0x5621;
+  static constexpr Tagged_t decimal_string = 0x5639;
+  static constexpr Tagged_t dialect_string = 0x564d;
+  static constexpr Tagged_t digital_string = 0x5661;
+  static constexpr Tagged_t direction_string = 0x5675;
+  static constexpr Tagged_t endRange_string = 0x568d;
+  static constexpr Tagged_t engineering_string = 0x56a1;
+  static constexpr Tagged_t exceptZero_string = 0x56b9;
+  static constexpr Tagged_t expand_string = 0x56d1;
+  static constexpr Tagged_t exponentInteger_string = 0x56e5;
+  static constexpr Tagged_t exponentMinusSign_string = 0x5701;
+  static constexpr Tagged_t exponentSeparator_string = 0x5721;
+  static constexpr Tagged_t fallback_string = 0x5741;
+  static constexpr Tagged_t first_string = 0x5755;
+  static constexpr Tagged_t firstDay_string = 0x5769;
+  static constexpr Tagged_t floor_string = 0x577d;
+  static constexpr Tagged_t format_string = 0x5791;
+  static constexpr Tagged_t fraction_string = 0x57a5;
+  static constexpr Tagged_t fractionalDigits_string = 0x57b9;
+  static constexpr Tagged_t fractionalSecond_string = 0x57d5;
+  static constexpr Tagged_t full_string = 0x57f1;
+  static constexpr Tagged_t granularity_string = 0x5801;
+  static constexpr Tagged_t grapheme_string = 0x5819;
+  static constexpr Tagged_t group_string = 0x582d;
+  static constexpr Tagged_t h11_string = 0x5841;
+  static constexpr Tagged_t h12_string = 0x5851;
+  static constexpr Tagged_t h23_string = 0x5861;
+  static constexpr Tagged_t h24_string = 0x5871;
+  static constexpr Tagged_t halfCeil_string = 0x5881;
+  static constexpr Tagged_t halfEven_string = 0x5895;
+  static constexpr Tagged_t halfExpand_string = 0x58a9;
+  static constexpr Tagged_t halfFloor_string = 0x58c1;
+  static constexpr Tagged_t halfTrunc_string = 0x58d9;
+  static constexpr Tagged_t hour12_string = 0x58f1;
+  static constexpr Tagged_t hourCycle_string = 0x5905;
+  static constexpr Tagged_t hourCycles_string = 0x591d;
+  static constexpr Tagged_t hoursDisplay_string = 0x5935;
+  static constexpr Tagged_t ideo_string = 0x594d;
+  static constexpr Tagged_t ignorePunctuation_string = 0x595d;
+  static constexpr Tagged_t Invalid_Date_string = 0x597d;
+  static constexpr Tagged_t integer_string = 0x5995;
+  static constexpr Tagged_t isWordLike_string = 0x59a9;
+  static constexpr Tagged_t kana_string = 0x59c1;
+  static constexpr Tagged_t language_string = 0x59d1;
+  static constexpr Tagged_t languageDisplay_string = 0x59e5;
+  static constexpr Tagged_t lessPrecision_string = 0x5a01;
+  static constexpr Tagged_t letter_string = 0x5a1d;
+  static constexpr Tagged_t list_string = 0x5a31;
+  static constexpr Tagged_t literal_string = 0x5a41;
+  static constexpr Tagged_t locale_string = 0x5a55;
+  static constexpr Tagged_t loose_string = 0x5a69;
+  static constexpr Tagged_t lower_string = 0x5a7d;
+  static constexpr Tagged_t ltr_string = 0x5a91;
+  static constexpr Tagged_t maximumFractionDigits_string = 0x5aa1;
+  static constexpr Tagged_t maximumSignificantDigits_string = 0x5ac5;
+  static constexpr Tagged_t microsecondsDisplay_string = 0x5ae9;
+  static constexpr Tagged_t millisecondsDisplay_string = 0x5b09;
+  static constexpr Tagged_t min2_string = 0x5b29;
+  static constexpr Tagged_t minimalDays_string = 0x5b39;
+  static constexpr Tagged_t minimumFractionDigits_string = 0x5b51;
+  static constexpr Tagged_t minimumIntegerDigits_string = 0x5b75;
+  static constexpr Tagged_t minimumSignificantDigits_string = 0x5b95;
+  static constexpr Tagged_t minus_0 = 0x5bb9;
+  static constexpr Tagged_t minusSign_string = 0x5bc9;
+  static constexpr Tagged_t minutesDisplay_string = 0x5be1;
+  static constexpr Tagged_t monthsDisplay_string = 0x5bfd;
+  static constexpr Tagged_t morePrecision_string = 0x5c19;
+  static constexpr Tagged_t nan_string = 0x5c35;
+  static constexpr Tagged_t nanosecondsDisplay_string = 0x5c45;
+  static constexpr Tagged_t narrowSymbol_string = 0x5c65;
+  static constexpr Tagged_t negative_string = 0x5c7d;
+  static constexpr Tagged_t never_string = 0x5c91;
+  static constexpr Tagged_t none_string = 0x5ca5;
+  static constexpr Tagged_t notation_string = 0x5cb5;
+  static constexpr Tagged_t normal_string = 0x5cc9;
+  static constexpr Tagged_t numberingSystem_string = 0x5cdd;
+  static constexpr Tagged_t numberingSystems_string = 0x5cf9;
+  static constexpr Tagged_t numeric_string = 0x5d15;
+  static constexpr Tagged_t ordinal_string = 0x5d29;
+  static constexpr Tagged_t percentSign_string = 0x5d3d;
+  static constexpr Tagged_t plusSign_string = 0x5d55;
+  static constexpr Tagged_t quarter_string = 0x5d69;
+  static constexpr Tagged_t region_string = 0x5d7d;
+  static constexpr Tagged_t relatedYear_string = 0x5d91;
+  static constexpr Tagged_t roundingMode_string = 0x5da9;
+  static constexpr Tagged_t roundingPriority_string = 0x5dc1;
+  static constexpr Tagged_t rtl_string = 0x5ddd;
+  static constexpr Tagged_t scientific_string = 0x5ded;
+  static constexpr Tagged_t secondsDisplay_string = 0x5e05;
+  static constexpr Tagged_t segment_string = 0x5e21;
+  static constexpr Tagged_t SegmentIterator_string = 0x5e35;
+  static constexpr Tagged_t Segments_string = 0x5e51;
+  static constexpr Tagged_t sensitivity_string = 0x5e65;
+  static constexpr Tagged_t sep_string = 0x5e7d;
+  static constexpr Tagged_t shared_string = 0x5e8d;
+  static constexpr Tagged_t signDisplay_string = 0x5ea1;
+  static constexpr Tagged_t standard_string = 0x5eb9;
+  static constexpr Tagged_t startRange_string = 0x5ecd;
+  static constexpr Tagged_t strict_string = 0x5ee5;
+  static constexpr Tagged_t stripIfInteger_string = 0x5ef9;
+  static constexpr Tagged_t style_string = 0x5f15;
+  static constexpr Tagged_t term_string = 0x5f29;
+  static constexpr Tagged_t textInfo_string = 0x5f39;
+  static constexpr Tagged_t timeStyle_string = 0x5f4d;
+  static constexpr Tagged_t timeZones_string = 0x5f65;
+  static constexpr Tagged_t timeZoneName_string = 0x5f7d;
+  static constexpr Tagged_t trailingZeroDisplay_string = 0x5f95;
+  static constexpr Tagged_t trunc_string = 0x5fb5;
+  static constexpr Tagged_t two_digit_string = 0x5fc9;
+  static constexpr Tagged_t type_string = 0x5fdd;
+  static constexpr Tagged_t unknown_string = 0x5fed;
+  static constexpr Tagged_t upper_string = 0x6001;
+  static constexpr Tagged_t usage_string = 0x6015;
+  static constexpr Tagged_t useGrouping_string = 0x6029;
+  static constexpr Tagged_t unitDisplay_string = 0x6041;
+  static constexpr Tagged_t weekday_string = 0x6059;
+  static constexpr Tagged_t weekend_string = 0x606d;
+  static constexpr Tagged_t weeksDisplay_string = 0x6081;
+  static constexpr Tagged_t weekInfo_string = 0x6099;
+  static constexpr Tagged_t yearName_string = 0x60ad;
+  static constexpr Tagged_t yearsDisplay_string = 0x60c1;
+  static constexpr Tagged_t add_string = 0x60d9;
+  static constexpr Tagged_t AggregateError_string = 0x60e9;
+  static constexpr Tagged_t always_string = 0x6105;
+  static constexpr Tagged_t anonymous_function_string = 0x6119;
+  static constexpr Tagged_t anonymous_string = 0x6139;
+  static constexpr Tagged_t apply_string = 0x6151;
+  static constexpr Tagged_t Arguments_string = 0x6165;
+  static constexpr Tagged_t arguments_string = 0x617d;
+  static constexpr Tagged_t arguments_to_string = 0x6195;
+  static constexpr Tagged_t Array_string = 0x61b5;
+  static constexpr Tagged_t array_to_string = 0x61c9;
+  static constexpr Tagged_t ArrayBuffer_string = 0x61e5;
+  static constexpr Tagged_t ArrayIterator_string = 0x61fd;
+  static constexpr Tagged_t as_string = 0x6219;
+  static constexpr Tagged_t assert_string = 0x6229;
+  static constexpr Tagged_t async_string = 0x623d;
+  static constexpr Tagged_t AtomicsCondition_string = 0x6251;
+  static constexpr Tagged_t AtomicsMutex_string = 0x6271;
+  static constexpr Tagged_t auto_string = 0x628d;
+  static constexpr Tagged_t await_string = 0x629d;
+  static constexpr Tagged_t BigInt_string = 0x62b1;
+  static constexpr Tagged_t bigint_string = 0x62c5;
+  static constexpr Tagged_t BigInt64Array_string = 0x62d9;
+  static constexpr Tagged_t BigUint64Array_string = 0x62f5;
+  static constexpr Tagged_t bind_string = 0x6311;
+  static constexpr Tagged_t blank_string = 0x6321;
+  static constexpr Tagged_t Boolean_string = 0x6335;
+  static constexpr Tagged_t boolean_string = 0x6349;
+  static constexpr Tagged_t boolean_to_string = 0x635d;
+  static constexpr Tagged_t bound__string = 0x6379;
+  static constexpr Tagged_t buffer_string = 0x638d;
+  static constexpr Tagged_t byte_length_string = 0x63a1;
+  static constexpr Tagged_t byte_offset_string = 0x63b9;
+  static constexpr Tagged_t CompileError_string = 0x63d1;
+  static constexpr Tagged_t calendar_string = 0x63e9;
+  static constexpr Tagged_t callee_string = 0x63fd;
+  static constexpr Tagged_t caller_string = 0x6411;
+  static constexpr Tagged_t cause_string = 0x6425;
+  static constexpr Tagged_t character_string = 0x6439;
+  static constexpr Tagged_t closure_string = 0x6451;
+  static constexpr Tagged_t code_string = 0x6469;
+  static constexpr Tagged_t column_string = 0x6479;
+  static constexpr Tagged_t computed_string = 0x648d;
+  static constexpr Tagged_t configurable_string = 0x64a5;
+  static constexpr Tagged_t conjunction_string = 0x64bd;
+  static constexpr Tagged_t console_string = 0x64d5;
+  static constexpr Tagged_t constrain_string = 0x64e9;
+  static constexpr Tagged_t construct_string = 0x6501;
+  static constexpr Tagged_t current_string = 0x6519;
+  static constexpr Tagged_t Date_string = 0x652d;
+  static constexpr Tagged_t date_to_string = 0x653d;
+  static constexpr Tagged_t dateAdd_string = 0x6559;
+  static constexpr Tagged_t dateFromFields_string = 0x656d;
+  static constexpr Tagged_t dateUntil_string = 0x6589;
+  static constexpr Tagged_t day_string = 0x65a1;
+  static constexpr Tagged_t dayOfWeek_string = 0x65b1;
+  static constexpr Tagged_t dayOfYear_string = 0x65c9;
+  static constexpr Tagged_t days_string = 0x65e1;
+  static constexpr Tagged_t daysInMonth_string = 0x65f1;
+  static constexpr Tagged_t daysInWeek_string = 0x6609;
+  static constexpr Tagged_t daysInYear_string = 0x6621;
+  static constexpr Tagged_t default_string = 0x6639;
+  static constexpr Tagged_t defineProperty_string = 0x664d;
+  static constexpr Tagged_t deleteProperty_string = 0x6669;
+  static constexpr Tagged_t disjunction_string = 0x6685;
+  static constexpr Tagged_t done_string = 0x669d;
+  static constexpr Tagged_t dot_brand_string = 0x66ad;
+  static constexpr Tagged_t dot_catch_string = 0x66c1;
+  static constexpr Tagged_t dot_default_string = 0x66d5;
+  static constexpr Tagged_t dot_for_string = 0x66e9;
+  static constexpr Tagged_t dot_generator_object_string = 0x66f9;
+  static constexpr Tagged_t dot_home_object_string = 0x6719;
+  static constexpr Tagged_t dot_new_target_string = 0x6731;
+  static constexpr Tagged_t dot_result_string = 0x6749;
+  static constexpr Tagged_t dot_repl_result_string = 0x675d;
+  static constexpr Tagged_t dot_static_home_object_string = 0x6775;
+  static constexpr Tagged_t dot_string = 0x471d;
+  static constexpr Tagged_t dot_switch_tag_string = 0x6795;
+  static constexpr Tagged_t dotAll_string = 0x67ad;
+  static constexpr Tagged_t Error_string = 0x67c1;
+  static constexpr Tagged_t EvalError_string = 0x67d5;
+  static constexpr Tagged_t enumerable_string = 0x67ed;
+  static constexpr Tagged_t element_string = 0x6805;
+  static constexpr Tagged_t epochMicroseconds_string = 0x6819;
+  static constexpr Tagged_t epochMilliseconds_string = 0x6839;
+  static constexpr Tagged_t epochNanoseconds_string = 0x6859;
+  static constexpr Tagged_t epochSeconds_string = 0x6875;
+  static constexpr Tagged_t era_string = 0x688d;
+  static constexpr Tagged_t eraYear_string = 0x689d;
+  static constexpr Tagged_t errors_string = 0x68b1;
+  static constexpr Tagged_t error_to_string = 0x68c5;
+  static constexpr Tagged_t eval_string = 0x68e1;
+  static constexpr Tagged_t exception_string = 0x68f1;
+  static constexpr Tagged_t exec_string = 0x6909;
+  static constexpr Tagged_t false_string = 0x6919;
+  static constexpr Tagged_t fields_string = 0x692d;
+  static constexpr Tagged_t FinalizationRegistry_string = 0x6941;
+  static constexpr Tagged_t flags_string = 0x6961;
+  static constexpr Tagged_t Float32Array_string = 0x6975;
+  static constexpr Tagged_t Float64Array_string = 0x698d;
+  static constexpr Tagged_t fractionalSecondDigits_string = 0x69a5;
+  static constexpr Tagged_t from_string = 0x69c9;
+  static constexpr Tagged_t Function_string = 0x69d9;
+  static constexpr Tagged_t function_native_code_string = 0x69ed;
+  static constexpr Tagged_t function_string = 0x6a19;
+  static constexpr Tagged_t function_to_string = 0x6a2d;
+  static constexpr Tagged_t Generator_string = 0x6a4d;
+  static constexpr Tagged_t get_space_string = 0x6a65;
+  static constexpr Tagged_t get_string = 0x6a75;
+  static constexpr Tagged_t getOffsetNanosecondsFor_string = 0x6a85;
+  static constexpr Tagged_t getOwnPropertyDescriptor_string = 0x6aa9;
+  static constexpr Tagged_t getPossibleInstantsFor_string = 0x6acd;
+  static constexpr Tagged_t getPrototypeOf_string = 0x6af1;
+  static constexpr Tagged_t global_string = 0x6b0d;
+  static constexpr Tagged_t globalThis_string = 0x6b21;
+  static constexpr Tagged_t groups_string = 0x6b39;
+  static constexpr Tagged_t growable_string = 0x6b4d;
+  static constexpr Tagged_t has_string = 0x6b61;
+  static constexpr Tagged_t hasIndices_string = 0x6b71;
+  static constexpr Tagged_t hour_string = 0x6b89;
+  static constexpr Tagged_t hours_string = 0x6b99;
+  static constexpr Tagged_t hoursInDay_string = 0x6bad;
+  static constexpr Tagged_t ignoreCase_string = 0x6bc5;
+  static constexpr Tagged_t id_string = 0x6bdd;
+  static constexpr Tagged_t illegal_access_string = 0x6bed;
+  static constexpr Tagged_t illegal_argument_string = 0x6c09;
+  static constexpr Tagged_t inLeapYear_string = 0x6c25;
+  static constexpr Tagged_t index_string = 0x6c3d;
+  static constexpr Tagged_t indices_string = 0x6c51;
+  static constexpr Tagged_t Infinity_string = 0x6c65;
+  static constexpr Tagged_t infinity_string = 0x6c79;
+  static constexpr Tagged_t input_string = 0x6c8d;
+  static constexpr Tagged_t Int16Array_string = 0x6ca1;
+  static constexpr Tagged_t Int32Array_string = 0x6cb9;
+  static constexpr Tagged_t Int8Array_string = 0x6cd1;
+  static constexpr Tagged_t isExtensible_string = 0x6ce9;
+  static constexpr Tagged_t iso8601_string = 0x6d01;
+  static constexpr Tagged_t isoDay_string = 0x6d15;
+  static constexpr Tagged_t isoHour_string = 0x6d29;
+  static constexpr Tagged_t isoMicrosecond_string = 0x6d3d;
+  static constexpr Tagged_t isoMillisecond_string = 0x6d59;
+  static constexpr Tagged_t isoMinute_string = 0x6d75;
+  static constexpr Tagged_t isoMonth_string = 0x6d8d;
+  static constexpr Tagged_t isoNanosecond_string = 0x6da1;
+  static constexpr Tagged_t isoSecond_string = 0x6dbd;
+  static constexpr Tagged_t isoYear_string = 0x6dd5;
+  static constexpr Tagged_t jsMemoryEstimate_string = 0x6de9;
+  static constexpr Tagged_t jsMemoryRange_string = 0x6e05;
+  static constexpr Tagged_t keys_string = 0x6e21;
+  static constexpr Tagged_t largestUnit_string = 0x6e31;
+  static constexpr Tagged_t lastIndex_string = 0x6e49;
+  static constexpr Tagged_t length_string = 0x6e61;
+  static constexpr Tagged_t let_string = 0x6e75;
+  static constexpr Tagged_t line_string = 0x6e85;
+  static constexpr Tagged_t linear_string = 0x6e95;
+  static constexpr Tagged_t LinkError_string = 0x6ea9;
+  static constexpr Tagged_t long_string = 0x6ec1;
+  static constexpr Tagged_t Map_string = 0x6ed1;
+  static constexpr Tagged_t MapIterator_string = 0x6ee1;
+  static constexpr Tagged_t max_byte_length_string = 0x6ef9;
+  static constexpr Tagged_t medium_string = 0x6f15;
+  static constexpr Tagged_t mergeFields_string = 0x6f29;
+  static constexpr Tagged_t message_string = 0x6f41;
+  static constexpr Tagged_t meta_string = 0x6f55;
+  static constexpr Tagged_t minus_Infinity_string = 0x6f65;
+  static constexpr Tagged_t microsecond_string = 0x6f7d;
+  static constexpr Tagged_t microseconds_string = 0x6f95;
+  static constexpr Tagged_t millisecond_string = 0x6fad;
+  static constexpr Tagged_t milliseconds_string = 0x6fc5;
+  static constexpr Tagged_t minute_string = 0x6fdd;
+  static constexpr Tagged_t minutes_string = 0x6ff1;
+  static constexpr Tagged_t Module_string = 0x7005;
+  static constexpr Tagged_t month_string = 0x7019;
+  static constexpr Tagged_t monthDayFromFields_string = 0x702d;
+  static constexpr Tagged_t months_string = 0x704d;
+  static constexpr Tagged_t monthsInYear_string = 0x7061;
+  static constexpr Tagged_t monthCode_string = 0x7079;
+  static constexpr Tagged_t multiline_string = 0x7091;
+  static constexpr Tagged_t name_string = 0x70a9;
+  static constexpr Tagged_t NaN_string = 0x70b9;
+  static constexpr Tagged_t nanosecond_string = 0x70c9;
+  static constexpr Tagged_t nanoseconds_string = 0x70e1;
+  static constexpr Tagged_t narrow_string = 0x70f9;
+  static constexpr Tagged_t native_string = 0x710d;
+  static constexpr Tagged_t new_target_string = 0x6731;
+  static constexpr Tagged_t NFC_string = 0x7121;
+  static constexpr Tagged_t NFD_string = 0x7131;
+  static constexpr Tagged_t NFKC_string = 0x7141;
+  static constexpr Tagged_t NFKD_string = 0x7151;
+  static constexpr Tagged_t not_equal_string = 0x7161;
+  static constexpr Tagged_t null_string = 0x7179;
+  static constexpr Tagged_t null_to_string = 0x7189;
+  static constexpr Tagged_t Number_string = 0x71a5;
+  static constexpr Tagged_t number_string = 0x71b9;
+  static constexpr Tagged_t number_to_string = 0x71cd;
+  static constexpr Tagged_t Object_string = 0x71e9;
+  static constexpr Tagged_t object_string = 0x71fd;
+  static constexpr Tagged_t object_to_string = 0x7211;
+  static constexpr Tagged_t of_string = 0x722d;
+  static constexpr Tagged_t offset_string = 0x723d;
+  static constexpr Tagged_t offsetNanoseconds_string = 0x7251;
+  static constexpr Tagged_t ok_string = 0x7271;
+  static constexpr Tagged_t one_string = 0x474d;
+  static constexpr Tagged_t other_string = 0x7281;
+  static constexpr Tagged_t overflow_string = 0x7295;
+  static constexpr Tagged_t ownKeys_string = 0x72a9;
+  static constexpr Tagged_t percent_string = 0x72bd;
+  static constexpr Tagged_t plainDate_string = 0x72d1;
+  static constexpr Tagged_t plainTime_string = 0x72e9;
+  static constexpr Tagged_t position_string = 0x7301;
+  static constexpr Tagged_t preventExtensions_string = 0x7315;
+  static constexpr Tagged_t private_constructor_string = 0x7335;
+  static constexpr Tagged_t Promise_string = 0x734d;
+  static constexpr Tagged_t proto_string = 0x7361;
+  static constexpr Tagged_t prototype_string = 0x7379;
+  static constexpr Tagged_t proxy_string = 0x7391;
+  static constexpr Tagged_t Proxy_string = 0x73a5;
+  static constexpr Tagged_t query_colon_string = 0x73b9;
+  static constexpr Tagged_t RangeError_string = 0x73c9;
+  static constexpr Tagged_t raw_json_string = 0x73e1;
+  static constexpr Tagged_t raw_string = 0x73f5;
+  static constexpr Tagged_t ReferenceError_string = 0x7405;
+  static constexpr Tagged_t ReflectGet_string = 0x7421;
+  static constexpr Tagged_t ReflectHas_string = 0x7439;
+  static constexpr Tagged_t RegExp_string = 0x7451;
+  static constexpr Tagged_t regexp_to_string = 0x7465;
+  static constexpr Tagged_t reject_string = 0x7481;
+  static constexpr Tagged_t relativeTo_string = 0x7495;
+  static constexpr Tagged_t resizable_string = 0x74ad;
+  static constexpr Tagged_t ResizableArrayBuffer_string = 0x74c5;
+  static constexpr Tagged_t return_string = 0x74e5;
+  static constexpr Tagged_t revoke_string = 0x74f9;
+  static constexpr Tagged_t roundingIncrement_string = 0x750d;
+  static constexpr Tagged_t RuntimeError_string = 0x752d;
+  static constexpr Tagged_t WebAssemblyException_string = 0x7545;
+  static constexpr Tagged_t Script_string = 0x7569;
+  static constexpr Tagged_t script_string = 0x757d;
+  static constexpr Tagged_t second_string = 0x7591;
+  static constexpr Tagged_t seconds_string = 0x75a5;
+  static constexpr Tagged_t short_string = 0x75b9;
+  static constexpr Tagged_t Set_string = 0x75cd;
+  static constexpr Tagged_t sentence_string = 0x75dd;
+  static constexpr Tagged_t set_space_string = 0x75f1;
+  static constexpr Tagged_t set_string = 0x7601;
+  static constexpr Tagged_t SetIterator_string = 0x7611;
+  static constexpr Tagged_t setPrototypeOf_string = 0x7629;
+  static constexpr Tagged_t ShadowRealm_string = 0x7645;
+  static constexpr Tagged_t SharedArray_string = 0x765d;
+  static constexpr Tagged_t SharedArrayBuffer_string = 0x7675;
+  static constexpr Tagged_t SharedStruct_string = 0x7695;
+  static constexpr Tagged_t sign_string = 0x76ad;
+  static constexpr Tagged_t smallestUnit_string = 0x76bd;
+  static constexpr Tagged_t source_string = 0x76d5;
+  static constexpr Tagged_t sourceText_string = 0x76e9;
+  static constexpr Tagged_t stack_string = 0x7701;
+  static constexpr Tagged_t stackTraceLimit_string = 0x7715;
+  static constexpr Tagged_t sticky_string = 0x7731;
+  static constexpr Tagged_t String_string = 0x7745;
+  static constexpr Tagged_t string_string = 0x7759;
+  static constexpr Tagged_t string_to_string = 0x776d;
+  static constexpr Tagged_t Symbol_iterator_string = 0x7789;
+  static constexpr Tagged_t symbol_species_string = 0x77a5;
+  static constexpr Tagged_t Symbol_species_string = 0x77c1;
+  static constexpr Tagged_t Symbol_string = 0x77dd;
+  static constexpr Tagged_t symbol_string = 0x77f1;
+  static constexpr Tagged_t SyntaxError_string = 0x7805;
+  static constexpr Tagged_t target_string = 0x781d;
+  static constexpr Tagged_t this_function_string = 0x7831;
+  static constexpr Tagged_t this_string = 0x784d;
+  static constexpr Tagged_t throw_string = 0x785d;
+  static constexpr Tagged_t timed_out_string = 0x7871;
+  static constexpr Tagged_t timeZone_string = 0x7889;
+  static constexpr Tagged_t toJSON_string = 0x789d;
+  static constexpr Tagged_t toString_string = 0x78b1;
+  static constexpr Tagged_t true_string = 0x78c5;
+  static constexpr Tagged_t total_string = 0x78d5;
+  static constexpr Tagged_t TypeError_string = 0x78e9;
+  static constexpr Tagged_t Uint16Array_string = 0x7901;
+  static constexpr Tagged_t Uint32Array_string = 0x7919;
+  static constexpr Tagged_t Uint8Array_string = 0x7931;
+  static constexpr Tagged_t Uint8ClampedArray_string = 0x7949;
+  static constexpr Tagged_t undefined_string = 0x7969;
+  static constexpr Tagged_t undefined_to_string = 0x7981;
+  static constexpr Tagged_t unicode_string = 0x79a1;
+  static constexpr Tagged_t unicodeSets_string = 0x79b5;
+  static constexpr Tagged_t unit_string = 0x79cd;
+  static constexpr Tagged_t URIError_string = 0x79dd;
+  static constexpr Tagged_t UTC_string = 0x79f1;
+  static constexpr Tagged_t value_string = 0x7a01;
+  static constexpr Tagged_t valueOf_string = 0x7a15;
+  static constexpr Tagged_t WeakMap_string = 0x7a29;
+  static constexpr Tagged_t WeakRef_string = 0x7a3d;
+  static constexpr Tagged_t WeakSet_string = 0x7a51;
+  static constexpr Tagged_t week_string = 0x7a65;
+  static constexpr Tagged_t weeks_string = 0x7a75;
+  static constexpr Tagged_t weekOfYear_string = 0x7a89;
+  static constexpr Tagged_t word_string = 0x7aa1;
+  static constexpr Tagged_t writable_string = 0x7ab1;
+  static constexpr Tagged_t yearMonthFromFields_string = 0x7ac5;
+  static constexpr Tagged_t year_string = 0x7ae5;
+  static constexpr Tagged_t years_string = 0x7af5;
+  static constexpr Tagged_t zero_string = 0x473d;
+  static constexpr Tagged_t array_buffer_wasm_memory_symbol = 0x7cd9;
+  static constexpr Tagged_t call_site_info_symbol = 0x7ce9;
+  static constexpr Tagged_t console_context_id_symbol = 0x7cf9;
+  static constexpr Tagged_t console_context_name_symbol = 0x7d09;
+  static constexpr Tagged_t class_fields_symbol = 0x7d19;
+  static constexpr Tagged_t class_positions_symbol = 0x7d29;
+  static constexpr Tagged_t elements_transition_symbol = 0x7d39;
+  static constexpr Tagged_t error_end_pos_symbol = 0x7d49;
+  static constexpr Tagged_t error_script_symbol = 0x7d59;
+  static constexpr Tagged_t error_stack_symbol = 0x7d69;
+  static constexpr Tagged_t error_start_pos_symbol = 0x7d79;
+  static constexpr Tagged_t frozen_symbol = 0x7d89;
+  static constexpr Tagged_t interpreter_trampoline_symbol = 0x7d99;
+  static constexpr Tagged_t mega_dom_symbol = 0x7da9;
+  static constexpr Tagged_t megamorphic_symbol = 0x7db9;
+  static constexpr Tagged_t native_context_index_symbol = 0x7dc9;
+  static constexpr Tagged_t nonextensible_symbol = 0x7dd9;
+  static constexpr Tagged_t not_mapped_symbol = 0x7de9;
+  static constexpr Tagged_t promise_debug_marker_symbol = 0x7df9;
+  static constexpr Tagged_t promise_debug_message_symbol = 0x7e09;
+  static constexpr Tagged_t promise_forwarding_handler_symbol = 0x7e19;
+  static constexpr Tagged_t promise_handled_by_symbol = 0x7e29;
+  static constexpr Tagged_t promise_awaited_by_symbol = 0x7e39;
+  static constexpr Tagged_t regexp_result_names_symbol = 0x7e49;
+  static constexpr Tagged_t regexp_result_regexp_input_symbol = 0x7e59;
+  static constexpr Tagged_t regexp_result_regexp_last_index_symbol = 0x7e69;
+  static constexpr Tagged_t sealed_symbol = 0x7e79;
+  static constexpr Tagged_t strict_function_transition_symbol = 0x7e89;
+  static constexpr Tagged_t template_literal_function_literal_id_symbol =
+      0x7e99;
+  static constexpr Tagged_t template_literal_slot_id_symbol = 0x7ea9;
+  static constexpr Tagged_t wasm_exception_tag_symbol = 0x7eb9;
+  static constexpr Tagged_t wasm_exception_values_symbol = 0x7ec9;
+  static constexpr Tagged_t wasm_uncatchable_symbol = 0x7ed9;
+  static constexpr Tagged_t wasm_wrapped_object_symbol = 0x7ee9;
+  static constexpr Tagged_t wasm_debug_proxy_cache_symbol = 0x7ef9;
+  static constexpr Tagged_t wasm_debug_proxy_names_symbol = 0x7f09;
+  static constexpr Tagged_t uninitialized_symbol = 0x7f19;
+  static constexpr Tagged_t async_iterator_symbol = 0x7f29;
+  static constexpr Tagged_t intl_fallback_symbol = 0x7f59;
+  static constexpr Tagged_t match_all_symbol = 0x7f91;
+  static constexpr Tagged_t match_symbol = 0x7fbd;
+  static constexpr Tagged_t replace_symbol = 0x7fe5;
+  static constexpr Tagged_t search_symbol = 0x8011;
+  static constexpr Tagged_t split_symbol = 0x803d;
+  static constexpr Tagged_t to_primitive_symbol = 0x8065;
+  static constexpr Tagged_t unscopables_symbol = 0x8095;
+  static constexpr Tagged_t has_instance_symbol = 0x80c5;
+  static constexpr Tagged_t to_string_tag_symbol = 0x80f5;
+  static constexpr Tagged_t promise_fulfill_reaction_job_task_map = 0x2319;
+  static constexpr Tagged_t promise_reject_reaction_job_task_map = 0x2341;
+  static constexpr Tagged_t callable_task_map = 0x2369;
+  static constexpr Tagged_t callback_task_map = 0x2391;
+  static constexpr Tagged_t promise_resolve_thenable_job_task_map = 0x23b9;
+  static constexpr Tagged_t function_template_info_map = 0x23e1;
+  static constexpr Tagged_t object_template_info_map = 0x2409;
+  static constexpr Tagged_t access_check_info_map = 0x2431;
+  static constexpr Tagged_t accessor_pair_map = 0x2459;
+  static constexpr Tagged_t aliased_arguments_entry_map = 0x2481;
+  static constexpr Tagged_t allocation_memento_map = 0x24a9;
+  static constexpr Tagged_t array_boilerplate_description_map = 0x24d1;
+  static constexpr Tagged_t asm_wasm_data_map = 0x24f9;
+  static constexpr Tagged_t async_generator_request_map = 0x2521;
+  static constexpr Tagged_t break_point_map = 0x2549;
+  static constexpr Tagged_t break_point_info_map = 0x2571;
+  static constexpr Tagged_t call_site_info_map = 0x2599;
+  static constexpr Tagged_t class_positions_map = 0x25c1;
+  static constexpr Tagged_t debug_info_map = 0x25e9;
+  static constexpr Tagged_t enum_cache_map = 0x2611;
+  static constexpr Tagged_t error_stack_data_map = 0x2639;
+  static constexpr Tagged_t function_template_rare_data_map = 0x2661;
+  static constexpr Tagged_t interceptor_info_map = 0x2689;
+  static constexpr Tagged_t interpreter_data_map = 0x26b1;
+  static constexpr Tagged_t module_request_map = 0x26d9;
+  static constexpr Tagged_t promise_capability_map = 0x2701;
+  static constexpr Tagged_t promise_on_stack_map = 0x2729;
+  static constexpr Tagged_t promise_reaction_map = 0x2751;
+  static constexpr Tagged_t property_descriptor_object_map = 0x2779;
+  static constexpr Tagged_t prototype_info_map = 0x27a1;
+  static constexpr Tagged_t regexp_boilerplate_description_map = 0x27c9;
+  static constexpr Tagged_t script_map = 0x27f1;
+  static constexpr Tagged_t script_or_module_map = 0x2819;
+  static constexpr Tagged_t module_info_entry_map = 0x2841;
+  static constexpr Tagged_t stack_frame_info_map = 0x2869;
+  static constexpr Tagged_t template_object_description_map = 0x2891;
+  static constexpr Tagged_t tuple2_map = 0x28b9;
+  static constexpr Tagged_t wasm_exception_tag_map = 0x28e1;
+  static constexpr Tagged_t wasm_indirect_function_table_map = 0x2909;
+  static constexpr Tagged_t sloppy_arguments_elements_map = 0x370d;
+  static constexpr Tagged_t descriptor_array_map = 0x2209;
+  static constexpr Tagged_t strong_descriptor_array_map = 0x3735;
+  static constexpr Tagged_t uncompiled_data_without_preparse_data_map = 0x32fd;
+  static constexpr Tagged_t uncompiled_data_with_preparse_data_map = 0x3325;
+  static constexpr Tagged_t uncompiled_data_without_preparse_data_with_job_map =
+      0x334d;
+  static constexpr Tagged_t uncompiled_data_with_preparse_data_and_job_map =
+      0x3375;
+  static constexpr Tagged_t on_heap_basic_block_profiler_data_map = 0x339d;
+  static constexpr Tagged_t turbofan_bitset_type_map = 0x33c5;
+  static constexpr Tagged_t turbofan_union_type_map = 0x33ed;
+  static constexpr Tagged_t turbofan_range_type_map = 0x3415;
+  static constexpr Tagged_t turbofan_heap_constant_type_map = 0x343d;
+  static constexpr Tagged_t turbofan_other_number_constant_type_map = 0x3465;
+  static constexpr Tagged_t turboshaft_word32type_map = 0x348d;
+  static constexpr Tagged_t turboshaft_word32range_type_map = 0x34b5;
+  static constexpr Tagged_t turboshaft_word32set_type_map = 0x375d;
+  static constexpr Tagged_t turboshaft_word64type_map = 0x34dd;
+  static constexpr Tagged_t turboshaft_word64range_type_map = 0x3505;
+  static constexpr Tagged_t turboshaft_word64set_type_map = 0x3785;
+  static constexpr Tagged_t turboshaft_float64type_map = 0x352d;
+  static constexpr Tagged_t turboshaft_float64range_type_map = 0x3555;
+  static constexpr Tagged_t turboshaft_float64set_type_map = 0x37ad;
+  static constexpr Tagged_t internal_class_map = 0x357d;
+  static constexpr Tagged_t smi_pair_map = 0x35a5;
+  static constexpr Tagged_t smi_box_map = 0x35cd;
+  static constexpr Tagged_t exported_sub_class_base_map = 0x35f5;
+  static constexpr Tagged_t exported_sub_class_map = 0x361d;
+  static constexpr Tagged_t abstract_internal_class_subclass1_map = 0x3645;
+  static constexpr Tagged_t abstract_internal_class_subclass2_map = 0x366d;
+  static constexpr Tagged_t internal_class_with_smi_elements_map = 0x37d5;
+  static constexpr Tagged_t internal_class_with_struct_elements_map = 0x37fd;
+  static constexpr Tagged_t exported_sub_class2_map = 0x3695;
+  static constexpr Tagged_t sort_state_map = 0x36bd;
+  static constexpr Tagged_t wasm_string_view_iter_map = 0x36e5;
+  static constexpr Tagged_t allocation_site_map = 0x2931;
+  static constexpr Tagged_t allocation_site_without_weaknext_map = 0x2959;
+  static constexpr Tagged_t constructor_string = 0x814d;
+  static constexpr Tagged_t next_string = 0x8165;
+  static constexpr Tagged_t resolve_string = 0x8175;
+  static constexpr Tagged_t then_string = 0x8189;
+  static constexpr Tagged_t iterator_symbol = 0x8199;
+  static constexpr Tagged_t species_symbol = 0x81a9;
+  static constexpr Tagged_t is_concat_spreadable_symbol = 0x81b9;
+  static constexpr Tagged_t load_handler1_map = 0x2981;
+  static constexpr Tagged_t load_handler2_map = 0x29a9;
+  static constexpr Tagged_t load_handler3_map = 0x29d1;
+  static constexpr Tagged_t store_handler0_map = 0x29f9;
+  static constexpr Tagged_t store_handler1_map = 0x2a21;
+  static constexpr Tagged_t store_handler2_map = 0x2a49;
+  static constexpr Tagged_t store_handler3_map = 0x2a71;
+};
+
+static constexpr std::array<Tagged_t, 739> StaticReadOnlyRootsPointerTable = {
+    kStaticReadOnlyRoot::free_space_map,
+    kStaticReadOnlyRoot::one_pointer_filler_map,
+    kStaticReadOnlyRoot::two_pointer_filler_map,
+    kStaticReadOnlyRoot::uninitialized_value,
+    kStaticReadOnlyRoot::undefined_value,
+    kStaticReadOnlyRoot::the_hole_value,
+    kStaticReadOnlyRoot::null_value,
+    kStaticReadOnlyRoot::true_value,
+    kStaticReadOnlyRoot::false_value,
+    kStaticReadOnlyRoot::empty_string,
+    kStaticReadOnlyRoot::meta_map,
+    kStaticReadOnlyRoot::byte_array_map,
+    kStaticReadOnlyRoot::fixed_array_map,
+    kStaticReadOnlyRoot::fixed_cow_array_map,
+    kStaticReadOnlyRoot::hash_table_map,
+    kStaticReadOnlyRoot::symbol_map,
+    kStaticReadOnlyRoot::one_byte_string_map,
+    kStaticReadOnlyRoot::one_byte_internalized_string_map,
+    kStaticReadOnlyRoot::scope_info_map,
+    kStaticReadOnlyRoot::shared_function_info_map,
+    kStaticReadOnlyRoot::code_map,
+    kStaticReadOnlyRoot::cell_map,
+    kStaticReadOnlyRoot::global_property_cell_map,
+    kStaticReadOnlyRoot::foreign_map,
+    kStaticReadOnlyRoot::heap_number_map,
+    kStaticReadOnlyRoot::transition_array_map,
+    kStaticReadOnlyRoot::thin_one_byte_string_map,
+    kStaticReadOnlyRoot::feedback_vector_map,
+    kStaticReadOnlyRoot::empty_scope_info,
+    kStaticReadOnlyRoot::empty_fixed_array,
+    kStaticReadOnlyRoot::empty_descriptor_array,
+    kStaticReadOnlyRoot::arguments_marker,
+    kStaticReadOnlyRoot::exception,
+    kStaticReadOnlyRoot::termination_exception,
+    kStaticReadOnlyRoot::optimized_out,
+    kStaticReadOnlyRoot::stale_register,
+    kStaticReadOnlyRoot::script_context_table_map,
+    kStaticReadOnlyRoot::closure_feedback_cell_array_map,
+    kStaticReadOnlyRoot::feedback_metadata_map,
+    kStaticReadOnlyRoot::array_list_map,
+    kStaticReadOnlyRoot::bigint_map,
+    kStaticReadOnlyRoot::object_boilerplate_description_map,
+    kStaticReadOnlyRoot::bytecode_array_map,
+    kStaticReadOnlyRoot::code_data_container_map,
+    kStaticReadOnlyRoot::coverage_info_map,
+    kStaticReadOnlyRoot::fixed_double_array_map,
+    kStaticReadOnlyRoot::global_dictionary_map,
+    kStaticReadOnlyRoot::many_closures_cell_map,
+    kStaticReadOnlyRoot::mega_dom_handler_map,
+    kStaticReadOnlyRoot::module_info_map,
+    kStaticReadOnlyRoot::name_dictionary_map,
+    kStaticReadOnlyRoot::no_closures_cell_map,
+    kStaticReadOnlyRoot::number_dictionary_map,
+    kStaticReadOnlyRoot::one_closure_cell_map,
+    kStaticReadOnlyRoot::ordered_hash_map_map,
+    kStaticReadOnlyRoot::ordered_hash_set_map,
+    kStaticReadOnlyRoot::name_to_index_hash_table_map,
+    kStaticReadOnlyRoot::registered_symbol_table_map,
+    kStaticReadOnlyRoot::ordered_name_dictionary_map,
+    kStaticReadOnlyRoot::preparse_data_map,
+    kStaticReadOnlyRoot::property_array_map,
+    kStaticReadOnlyRoot::accessor_info_map,
+    kStaticReadOnlyRoot::side_effect_call_handler_info_map,
+    kStaticReadOnlyRoot::side_effect_free_call_handler_info_map,
+    kStaticReadOnlyRoot::next_call_side_effect_free_call_handler_info_map,
+    kStaticReadOnlyRoot::simple_number_dictionary_map,
+    kStaticReadOnlyRoot::small_ordered_hash_map_map,
+    kStaticReadOnlyRoot::small_ordered_hash_set_map,
+    kStaticReadOnlyRoot::small_ordered_name_dictionary_map,
+    kStaticReadOnlyRoot::source_text_module_map,
+    kStaticReadOnlyRoot::swiss_name_dictionary_map,
+    kStaticReadOnlyRoot::synthetic_module_map,
+    kStaticReadOnlyRoot::wasm_api_function_ref_map,
+    kStaticReadOnlyRoot::wasm_capi_function_data_map,
+    kStaticReadOnlyRoot::wasm_exported_function_data_map,
+    kStaticReadOnlyRoot::wasm_internal_function_map,
+    kStaticReadOnlyRoot::wasm_js_function_data_map,
+    kStaticReadOnlyRoot::wasm_resume_data_map,
+    kStaticReadOnlyRoot::wasm_type_info_map,
+    kStaticReadOnlyRoot::wasm_continuation_object_map,
+    kStaticReadOnlyRoot::weak_fixed_array_map,
+    kStaticReadOnlyRoot::weak_array_list_map,
+    kStaticReadOnlyRoot::ephemeron_hash_table_map,
+    kStaticReadOnlyRoot::embedder_data_array_map,
+    kStaticReadOnlyRoot::weak_cell_map,
+    kStaticReadOnlyRoot::string_map,
+    kStaticReadOnlyRoot::cons_one_byte_string_map,
+    kStaticReadOnlyRoot::cons_string_map,
+    kStaticReadOnlyRoot::thin_string_map,
+    kStaticReadOnlyRoot::sliced_string_map,
+    kStaticReadOnlyRoot::sliced_one_byte_string_map,
+    kStaticReadOnlyRoot::external_string_map,
+    kStaticReadOnlyRoot::external_one_byte_string_map,
+    kStaticReadOnlyRoot::uncached_external_string_map,
+    kStaticReadOnlyRoot::internalized_string_map,
+    kStaticReadOnlyRoot::external_internalized_string_map,
+    kStaticReadOnlyRoot::external_one_byte_internalized_string_map,
+    kStaticReadOnlyRoot::uncached_external_internalized_string_map,
+    kStaticReadOnlyRoot::uncached_external_one_byte_internalized_string_map,
+    kStaticReadOnlyRoot::uncached_external_one_byte_string_map,
+    kStaticReadOnlyRoot::shared_one_byte_string_map,
+    kStaticReadOnlyRoot::shared_string_map,
+    kStaticReadOnlyRoot::shared_external_one_byte_string_map,
+    kStaticReadOnlyRoot::shared_external_string_map,
+    kStaticReadOnlyRoot::shared_uncached_external_one_byte_string_map,
+    kStaticReadOnlyRoot::shared_uncached_external_string_map,
+    kStaticReadOnlyRoot::shared_thin_one_byte_string_map,
+    kStaticReadOnlyRoot::shared_thin_string_map,
+    kStaticReadOnlyRoot::undefined_map,
+    kStaticReadOnlyRoot::the_hole_map,
+    kStaticReadOnlyRoot::null_map,
+    kStaticReadOnlyRoot::boolean_map,
+    kStaticReadOnlyRoot::uninitialized_map,
+    kStaticReadOnlyRoot::arguments_marker_map,
+    kStaticReadOnlyRoot::exception_map,
+    kStaticReadOnlyRoot::termination_exception_map,
+    kStaticReadOnlyRoot::optimized_out_map,
+    kStaticReadOnlyRoot::stale_register_map,
+    kStaticReadOnlyRoot::self_reference_marker_map,
+    kStaticReadOnlyRoot::basic_block_counters_marker_map,
+    kStaticReadOnlyRoot::empty_enum_cache,
+    kStaticReadOnlyRoot::empty_property_array,
+    kStaticReadOnlyRoot::empty_byte_array,
+    kStaticReadOnlyRoot::empty_object_boilerplate_description,
+    kStaticReadOnlyRoot::empty_array_boilerplate_description,
+    kStaticReadOnlyRoot::empty_closure_feedback_cell_array,
+    kStaticReadOnlyRoot::empty_slow_element_dictionary,
+    kStaticReadOnlyRoot::empty_ordered_hash_map,
+    kStaticReadOnlyRoot::empty_ordered_hash_set,
+    kStaticReadOnlyRoot::empty_feedback_metadata,
+    kStaticReadOnlyRoot::empty_property_dictionary,
+    kStaticReadOnlyRoot::empty_ordered_property_dictionary,
+    kStaticReadOnlyRoot::empty_swiss_property_dictionary,
+    kStaticReadOnlyRoot::noop_interceptor_info,
+    kStaticReadOnlyRoot::empty_array_list,
+    kStaticReadOnlyRoot::empty_weak_fixed_array,
+    kStaticReadOnlyRoot::empty_weak_array_list,
+    kStaticReadOnlyRoot::invalid_prototype_validity_cell,
+    kStaticReadOnlyRoot::nan_value,
+    kStaticReadOnlyRoot::hole_nan_value,
+    kStaticReadOnlyRoot::infinity_value,
+    kStaticReadOnlyRoot::minus_zero_value,
+    kStaticReadOnlyRoot::minus_infinity_value,
+    kStaticReadOnlyRoot::max_safe_integer,
+    kStaticReadOnlyRoot::max_uint_32,
+    kStaticReadOnlyRoot::smi_min_value,
+    kStaticReadOnlyRoot::smi_max_value_plus_one,
+    kStaticReadOnlyRoot::single_character_string_table,
+    kStaticReadOnlyRoot::self_reference_marker,
+    kStaticReadOnlyRoot::basic_block_counters_marker,
+    kStaticReadOnlyRoot::off_heap_trampoline_relocation_info,
+    kStaticReadOnlyRoot::trampoline_trivial_code_data_container,
+    kStaticReadOnlyRoot::trampoline_promise_rejection_code_data_container,
+    kStaticReadOnlyRoot::global_this_binding_scope_info,
+    kStaticReadOnlyRoot::empty_function_scope_info,
+    kStaticReadOnlyRoot::native_scope_info,
+    kStaticReadOnlyRoot::shadow_realm_scope_info,
+    kStaticReadOnlyRoot::empty_symbol_table,
+    kStaticReadOnlyRoot::hash_seed,
+    kStaticReadOnlyRoot::adoptText_string,
+    kStaticReadOnlyRoot::approximatelySign_string,
+    kStaticReadOnlyRoot::baseName_string,
+    kStaticReadOnlyRoot::accounting_string,
+    kStaticReadOnlyRoot::breakType_string,
+    kStaticReadOnlyRoot::calendars_string,
+    kStaticReadOnlyRoot::cardinal_string,
+    kStaticReadOnlyRoot::caseFirst_string,
+    kStaticReadOnlyRoot::ceil_string,
+    kStaticReadOnlyRoot::compare_string,
+    kStaticReadOnlyRoot::collation_string,
+    kStaticReadOnlyRoot::collations_string,
+    kStaticReadOnlyRoot::compact_string,
+    kStaticReadOnlyRoot::compactDisplay_string,
+    kStaticReadOnlyRoot::currency_string,
+    kStaticReadOnlyRoot::currencyDisplay_string,
+    kStaticReadOnlyRoot::currencySign_string,
+    kStaticReadOnlyRoot::dateStyle_string,
+    kStaticReadOnlyRoot::dateTimeField_string,
+    kStaticReadOnlyRoot::dayPeriod_string,
+    kStaticReadOnlyRoot::daysDisplay_string,
+    kStaticReadOnlyRoot::decimal_string,
+    kStaticReadOnlyRoot::dialect_string,
+    kStaticReadOnlyRoot::digital_string,
+    kStaticReadOnlyRoot::direction_string,
+    kStaticReadOnlyRoot::endRange_string,
+    kStaticReadOnlyRoot::engineering_string,
+    kStaticReadOnlyRoot::exceptZero_string,
+    kStaticReadOnlyRoot::expand_string,
+    kStaticReadOnlyRoot::exponentInteger_string,
+    kStaticReadOnlyRoot::exponentMinusSign_string,
+    kStaticReadOnlyRoot::exponentSeparator_string,
+    kStaticReadOnlyRoot::fallback_string,
+    kStaticReadOnlyRoot::first_string,
+    kStaticReadOnlyRoot::firstDay_string,
+    kStaticReadOnlyRoot::floor_string,
+    kStaticReadOnlyRoot::format_string,
+    kStaticReadOnlyRoot::fraction_string,
+    kStaticReadOnlyRoot::fractionalDigits_string,
+    kStaticReadOnlyRoot::fractionalSecond_string,
+    kStaticReadOnlyRoot::full_string,
+    kStaticReadOnlyRoot::granularity_string,
+    kStaticReadOnlyRoot::grapheme_string,
+    kStaticReadOnlyRoot::group_string,
+    kStaticReadOnlyRoot::h11_string,
+    kStaticReadOnlyRoot::h12_string,
+    kStaticReadOnlyRoot::h23_string,
+    kStaticReadOnlyRoot::h24_string,
+    kStaticReadOnlyRoot::halfCeil_string,
+    kStaticReadOnlyRoot::halfEven_string,
+    kStaticReadOnlyRoot::halfExpand_string,
+    kStaticReadOnlyRoot::halfFloor_string,
+    kStaticReadOnlyRoot::halfTrunc_string,
+    kStaticReadOnlyRoot::hour12_string,
+    kStaticReadOnlyRoot::hourCycle_string,
+    kStaticReadOnlyRoot::hourCycles_string,
+    kStaticReadOnlyRoot::hoursDisplay_string,
+    kStaticReadOnlyRoot::ideo_string,
+    kStaticReadOnlyRoot::ignorePunctuation_string,
+    kStaticReadOnlyRoot::Invalid_Date_string,
+    kStaticReadOnlyRoot::integer_string,
+    kStaticReadOnlyRoot::isWordLike_string,
+    kStaticReadOnlyRoot::kana_string,
+    kStaticReadOnlyRoot::language_string,
+    kStaticReadOnlyRoot::languageDisplay_string,
+    kStaticReadOnlyRoot::lessPrecision_string,
+    kStaticReadOnlyRoot::letter_string,
+    kStaticReadOnlyRoot::list_string,
+    kStaticReadOnlyRoot::literal_string,
+    kStaticReadOnlyRoot::locale_string,
+    kStaticReadOnlyRoot::loose_string,
+    kStaticReadOnlyRoot::lower_string,
+    kStaticReadOnlyRoot::ltr_string,
+    kStaticReadOnlyRoot::maximumFractionDigits_string,
+    kStaticReadOnlyRoot::maximumSignificantDigits_string,
+    kStaticReadOnlyRoot::microsecondsDisplay_string,
+    kStaticReadOnlyRoot::millisecondsDisplay_string,
+    kStaticReadOnlyRoot::min2_string,
+    kStaticReadOnlyRoot::minimalDays_string,
+    kStaticReadOnlyRoot::minimumFractionDigits_string,
+    kStaticReadOnlyRoot::minimumIntegerDigits_string,
+    kStaticReadOnlyRoot::minimumSignificantDigits_string,
+    kStaticReadOnlyRoot::minus_0,
+    kStaticReadOnlyRoot::minusSign_string,
+    kStaticReadOnlyRoot::minutesDisplay_string,
+    kStaticReadOnlyRoot::monthsDisplay_string,
+    kStaticReadOnlyRoot::morePrecision_string,
+    kStaticReadOnlyRoot::nan_string,
+    kStaticReadOnlyRoot::nanosecondsDisplay_string,
+    kStaticReadOnlyRoot::narrowSymbol_string,
+    kStaticReadOnlyRoot::negative_string,
+    kStaticReadOnlyRoot::never_string,
+    kStaticReadOnlyRoot::none_string,
+    kStaticReadOnlyRoot::notation_string,
+    kStaticReadOnlyRoot::normal_string,
+    kStaticReadOnlyRoot::numberingSystem_string,
+    kStaticReadOnlyRoot::numberingSystems_string,
+    kStaticReadOnlyRoot::numeric_string,
+    kStaticReadOnlyRoot::ordinal_string,
+    kStaticReadOnlyRoot::percentSign_string,
+    kStaticReadOnlyRoot::plusSign_string,
+    kStaticReadOnlyRoot::quarter_string,
+    kStaticReadOnlyRoot::region_string,
+    kStaticReadOnlyRoot::relatedYear_string,
+    kStaticReadOnlyRoot::roundingMode_string,
+    kStaticReadOnlyRoot::roundingPriority_string,
+    kStaticReadOnlyRoot::rtl_string,
+    kStaticReadOnlyRoot::scientific_string,
+    kStaticReadOnlyRoot::secondsDisplay_string,
+    kStaticReadOnlyRoot::segment_string,
+    kStaticReadOnlyRoot::SegmentIterator_string,
+    kStaticReadOnlyRoot::Segments_string,
+    kStaticReadOnlyRoot::sensitivity_string,
+    kStaticReadOnlyRoot::sep_string,
+    kStaticReadOnlyRoot::shared_string,
+    kStaticReadOnlyRoot::signDisplay_string,
+    kStaticReadOnlyRoot::standard_string,
+    kStaticReadOnlyRoot::startRange_string,
+    kStaticReadOnlyRoot::strict_string,
+    kStaticReadOnlyRoot::stripIfInteger_string,
+    kStaticReadOnlyRoot::style_string,
+    kStaticReadOnlyRoot::term_string,
+    kStaticReadOnlyRoot::textInfo_string,
+    kStaticReadOnlyRoot::timeStyle_string,
+    kStaticReadOnlyRoot::timeZones_string,
+    kStaticReadOnlyRoot::timeZoneName_string,
+    kStaticReadOnlyRoot::trailingZeroDisplay_string,
+    kStaticReadOnlyRoot::trunc_string,
+    kStaticReadOnlyRoot::two_digit_string,
+    kStaticReadOnlyRoot::type_string,
+    kStaticReadOnlyRoot::unknown_string,
+    kStaticReadOnlyRoot::upper_string,
+    kStaticReadOnlyRoot::usage_string,
+    kStaticReadOnlyRoot::useGrouping_string,
+    kStaticReadOnlyRoot::unitDisplay_string,
+    kStaticReadOnlyRoot::weekday_string,
+    kStaticReadOnlyRoot::weekend_string,
+    kStaticReadOnlyRoot::weeksDisplay_string,
+    kStaticReadOnlyRoot::weekInfo_string,
+    kStaticReadOnlyRoot::yearName_string,
+    kStaticReadOnlyRoot::yearsDisplay_string,
+    kStaticReadOnlyRoot::add_string,
+    kStaticReadOnlyRoot::AggregateError_string,
+    kStaticReadOnlyRoot::always_string,
+    kStaticReadOnlyRoot::anonymous_function_string,
+    kStaticReadOnlyRoot::anonymous_string,
+    kStaticReadOnlyRoot::apply_string,
+    kStaticReadOnlyRoot::Arguments_string,
+    kStaticReadOnlyRoot::arguments_string,
+    kStaticReadOnlyRoot::arguments_to_string,
+    kStaticReadOnlyRoot::Array_string,
+    kStaticReadOnlyRoot::array_to_string,
+    kStaticReadOnlyRoot::ArrayBuffer_string,
+    kStaticReadOnlyRoot::ArrayIterator_string,
+    kStaticReadOnlyRoot::as_string,
+    kStaticReadOnlyRoot::assert_string,
+    kStaticReadOnlyRoot::async_string,
+    kStaticReadOnlyRoot::AtomicsCondition_string,
+    kStaticReadOnlyRoot::AtomicsMutex_string,
+    kStaticReadOnlyRoot::auto_string,
+    kStaticReadOnlyRoot::await_string,
+    kStaticReadOnlyRoot::BigInt_string,
+    kStaticReadOnlyRoot::bigint_string,
+    kStaticReadOnlyRoot::BigInt64Array_string,
+    kStaticReadOnlyRoot::BigUint64Array_string,
+    kStaticReadOnlyRoot::bind_string,
+    kStaticReadOnlyRoot::blank_string,
+    kStaticReadOnlyRoot::Boolean_string,
+    kStaticReadOnlyRoot::boolean_string,
+    kStaticReadOnlyRoot::boolean_to_string,
+    kStaticReadOnlyRoot::bound__string,
+    kStaticReadOnlyRoot::buffer_string,
+    kStaticReadOnlyRoot::byte_length_string,
+    kStaticReadOnlyRoot::byte_offset_string,
+    kStaticReadOnlyRoot::CompileError_string,
+    kStaticReadOnlyRoot::calendar_string,
+    kStaticReadOnlyRoot::callee_string,
+    kStaticReadOnlyRoot::caller_string,
+    kStaticReadOnlyRoot::cause_string,
+    kStaticReadOnlyRoot::character_string,
+    kStaticReadOnlyRoot::closure_string,
+    kStaticReadOnlyRoot::code_string,
+    kStaticReadOnlyRoot::column_string,
+    kStaticReadOnlyRoot::computed_string,
+    kStaticReadOnlyRoot::configurable_string,
+    kStaticReadOnlyRoot::conjunction_string,
+    kStaticReadOnlyRoot::console_string,
+    kStaticReadOnlyRoot::constrain_string,
+    kStaticReadOnlyRoot::construct_string,
+    kStaticReadOnlyRoot::current_string,
+    kStaticReadOnlyRoot::Date_string,
+    kStaticReadOnlyRoot::date_to_string,
+    kStaticReadOnlyRoot::dateAdd_string,
+    kStaticReadOnlyRoot::dateFromFields_string,
+    kStaticReadOnlyRoot::dateUntil_string,
+    kStaticReadOnlyRoot::day_string,
+    kStaticReadOnlyRoot::dayOfWeek_string,
+    kStaticReadOnlyRoot::dayOfYear_string,
+    kStaticReadOnlyRoot::days_string,
+    kStaticReadOnlyRoot::daysInMonth_string,
+    kStaticReadOnlyRoot::daysInWeek_string,
+    kStaticReadOnlyRoot::daysInYear_string,
+    kStaticReadOnlyRoot::default_string,
+    kStaticReadOnlyRoot::defineProperty_string,
+    kStaticReadOnlyRoot::deleteProperty_string,
+    kStaticReadOnlyRoot::disjunction_string,
+    kStaticReadOnlyRoot::done_string,
+    kStaticReadOnlyRoot::dot_brand_string,
+    kStaticReadOnlyRoot::dot_catch_string,
+    kStaticReadOnlyRoot::dot_default_string,
+    kStaticReadOnlyRoot::dot_for_string,
+    kStaticReadOnlyRoot::dot_generator_object_string,
+    kStaticReadOnlyRoot::dot_home_object_string,
+    kStaticReadOnlyRoot::dot_new_target_string,
+    kStaticReadOnlyRoot::dot_result_string,
+    kStaticReadOnlyRoot::dot_repl_result_string,
+    kStaticReadOnlyRoot::dot_static_home_object_string,
+    kStaticReadOnlyRoot::dot_string,
+    kStaticReadOnlyRoot::dot_switch_tag_string,
+    kStaticReadOnlyRoot::dotAll_string,
+    kStaticReadOnlyRoot::Error_string,
+    kStaticReadOnlyRoot::EvalError_string,
+    kStaticReadOnlyRoot::enumerable_string,
+    kStaticReadOnlyRoot::element_string,
+    kStaticReadOnlyRoot::epochMicroseconds_string,
+    kStaticReadOnlyRoot::epochMilliseconds_string,
+    kStaticReadOnlyRoot::epochNanoseconds_string,
+    kStaticReadOnlyRoot::epochSeconds_string,
+    kStaticReadOnlyRoot::era_string,
+    kStaticReadOnlyRoot::eraYear_string,
+    kStaticReadOnlyRoot::errors_string,
+    kStaticReadOnlyRoot::error_to_string,
+    kStaticReadOnlyRoot::eval_string,
+    kStaticReadOnlyRoot::exception_string,
+    kStaticReadOnlyRoot::exec_string,
+    kStaticReadOnlyRoot::false_string,
+    kStaticReadOnlyRoot::fields_string,
+    kStaticReadOnlyRoot::FinalizationRegistry_string,
+    kStaticReadOnlyRoot::flags_string,
+    kStaticReadOnlyRoot::Float32Array_string,
+    kStaticReadOnlyRoot::Float64Array_string,
+    kStaticReadOnlyRoot::fractionalSecondDigits_string,
+    kStaticReadOnlyRoot::from_string,
+    kStaticReadOnlyRoot::Function_string,
+    kStaticReadOnlyRoot::function_native_code_string,
+    kStaticReadOnlyRoot::function_string,
+    kStaticReadOnlyRoot::function_to_string,
+    kStaticReadOnlyRoot::Generator_string,
+    kStaticReadOnlyRoot::get_space_string,
+    kStaticReadOnlyRoot::get_string,
+    kStaticReadOnlyRoot::getOffsetNanosecondsFor_string,
+    kStaticReadOnlyRoot::getOwnPropertyDescriptor_string,
+    kStaticReadOnlyRoot::getPossibleInstantsFor_string,
+    kStaticReadOnlyRoot::getPrototypeOf_string,
+    kStaticReadOnlyRoot::global_string,
+    kStaticReadOnlyRoot::globalThis_string,
+    kStaticReadOnlyRoot::groups_string,
+    kStaticReadOnlyRoot::growable_string,
+    kStaticReadOnlyRoot::has_string,
+    kStaticReadOnlyRoot::hasIndices_string,
+    kStaticReadOnlyRoot::hour_string,
+    kStaticReadOnlyRoot::hours_string,
+    kStaticReadOnlyRoot::hoursInDay_string,
+    kStaticReadOnlyRoot::ignoreCase_string,
+    kStaticReadOnlyRoot::id_string,
+    kStaticReadOnlyRoot::illegal_access_string,
+    kStaticReadOnlyRoot::illegal_argument_string,
+    kStaticReadOnlyRoot::inLeapYear_string,
+    kStaticReadOnlyRoot::index_string,
+    kStaticReadOnlyRoot::indices_string,
+    kStaticReadOnlyRoot::Infinity_string,
+    kStaticReadOnlyRoot::infinity_string,
+    kStaticReadOnlyRoot::input_string,
+    kStaticReadOnlyRoot::Int16Array_string,
+    kStaticReadOnlyRoot::Int32Array_string,
+    kStaticReadOnlyRoot::Int8Array_string,
+    kStaticReadOnlyRoot::isExtensible_string,
+    kStaticReadOnlyRoot::iso8601_string,
+    kStaticReadOnlyRoot::isoDay_string,
+    kStaticReadOnlyRoot::isoHour_string,
+    kStaticReadOnlyRoot::isoMicrosecond_string,
+    kStaticReadOnlyRoot::isoMillisecond_string,
+    kStaticReadOnlyRoot::isoMinute_string,
+    kStaticReadOnlyRoot::isoMonth_string,
+    kStaticReadOnlyRoot::isoNanosecond_string,
+    kStaticReadOnlyRoot::isoSecond_string,
+    kStaticReadOnlyRoot::isoYear_string,
+    kStaticReadOnlyRoot::jsMemoryEstimate_string,
+    kStaticReadOnlyRoot::jsMemoryRange_string,
+    kStaticReadOnlyRoot::keys_string,
+    kStaticReadOnlyRoot::largestUnit_string,
+    kStaticReadOnlyRoot::lastIndex_string,
+    kStaticReadOnlyRoot::length_string,
+    kStaticReadOnlyRoot::let_string,
+    kStaticReadOnlyRoot::line_string,
+    kStaticReadOnlyRoot::linear_string,
+    kStaticReadOnlyRoot::LinkError_string,
+    kStaticReadOnlyRoot::long_string,
+    kStaticReadOnlyRoot::Map_string,
+    kStaticReadOnlyRoot::MapIterator_string,
+    kStaticReadOnlyRoot::max_byte_length_string,
+    kStaticReadOnlyRoot::medium_string,
+    kStaticReadOnlyRoot::mergeFields_string,
+    kStaticReadOnlyRoot::message_string,
+    kStaticReadOnlyRoot::meta_string,
+    kStaticReadOnlyRoot::minus_Infinity_string,
+    kStaticReadOnlyRoot::microsecond_string,
+    kStaticReadOnlyRoot::microseconds_string,
+    kStaticReadOnlyRoot::millisecond_string,
+    kStaticReadOnlyRoot::milliseconds_string,
+    kStaticReadOnlyRoot::minute_string,
+    kStaticReadOnlyRoot::minutes_string,
+    kStaticReadOnlyRoot::Module_string,
+    kStaticReadOnlyRoot::month_string,
+    kStaticReadOnlyRoot::monthDayFromFields_string,
+    kStaticReadOnlyRoot::months_string,
+    kStaticReadOnlyRoot::monthsInYear_string,
+    kStaticReadOnlyRoot::monthCode_string,
+    kStaticReadOnlyRoot::multiline_string,
+    kStaticReadOnlyRoot::name_string,
+    kStaticReadOnlyRoot::NaN_string,
+    kStaticReadOnlyRoot::nanosecond_string,
+    kStaticReadOnlyRoot::nanoseconds_string,
+    kStaticReadOnlyRoot::narrow_string,
+    kStaticReadOnlyRoot::native_string,
+    kStaticReadOnlyRoot::new_target_string,
+    kStaticReadOnlyRoot::NFC_string,
+    kStaticReadOnlyRoot::NFD_string,
+    kStaticReadOnlyRoot::NFKC_string,
+    kStaticReadOnlyRoot::NFKD_string,
+    kStaticReadOnlyRoot::not_equal_string,
+    kStaticReadOnlyRoot::null_string,
+    kStaticReadOnlyRoot::null_to_string,
+    kStaticReadOnlyRoot::Number_string,
+    kStaticReadOnlyRoot::number_string,
+    kStaticReadOnlyRoot::number_to_string,
+    kStaticReadOnlyRoot::Object_string,
+    kStaticReadOnlyRoot::object_string,
+    kStaticReadOnlyRoot::object_to_string,
+    kStaticReadOnlyRoot::of_string,
+    kStaticReadOnlyRoot::offset_string,
+    kStaticReadOnlyRoot::offsetNanoseconds_string,
+    kStaticReadOnlyRoot::ok_string,
+    kStaticReadOnlyRoot::one_string,
+    kStaticReadOnlyRoot::other_string,
+    kStaticReadOnlyRoot::overflow_string,
+    kStaticReadOnlyRoot::ownKeys_string,
+    kStaticReadOnlyRoot::percent_string,
+    kStaticReadOnlyRoot::plainDate_string,
+    kStaticReadOnlyRoot::plainTime_string,
+    kStaticReadOnlyRoot::position_string,
+    kStaticReadOnlyRoot::preventExtensions_string,
+    kStaticReadOnlyRoot::private_constructor_string,
+    kStaticReadOnlyRoot::Promise_string,
+    kStaticReadOnlyRoot::proto_string,
+    kStaticReadOnlyRoot::prototype_string,
+    kStaticReadOnlyRoot::proxy_string,
+    kStaticReadOnlyRoot::Proxy_string,
+    kStaticReadOnlyRoot::query_colon_string,
+    kStaticReadOnlyRoot::RangeError_string,
+    kStaticReadOnlyRoot::raw_json_string,
+    kStaticReadOnlyRoot::raw_string,
+    kStaticReadOnlyRoot::ReferenceError_string,
+    kStaticReadOnlyRoot::ReflectGet_string,
+    kStaticReadOnlyRoot::ReflectHas_string,
+    kStaticReadOnlyRoot::RegExp_string,
+    kStaticReadOnlyRoot::regexp_to_string,
+    kStaticReadOnlyRoot::reject_string,
+    kStaticReadOnlyRoot::relativeTo_string,
+    kStaticReadOnlyRoot::resizable_string,
+    kStaticReadOnlyRoot::ResizableArrayBuffer_string,
+    kStaticReadOnlyRoot::return_string,
+    kStaticReadOnlyRoot::revoke_string,
+    kStaticReadOnlyRoot::roundingIncrement_string,
+    kStaticReadOnlyRoot::RuntimeError_string,
+    kStaticReadOnlyRoot::WebAssemblyException_string,
+    kStaticReadOnlyRoot::Script_string,
+    kStaticReadOnlyRoot::script_string,
+    kStaticReadOnlyRoot::second_string,
+    kStaticReadOnlyRoot::seconds_string,
+    kStaticReadOnlyRoot::short_string,
+    kStaticReadOnlyRoot::Set_string,
+    kStaticReadOnlyRoot::sentence_string,
+    kStaticReadOnlyRoot::set_space_string,
+    kStaticReadOnlyRoot::set_string,
+    kStaticReadOnlyRoot::SetIterator_string,
+    kStaticReadOnlyRoot::setPrototypeOf_string,
+    kStaticReadOnlyRoot::ShadowRealm_string,
+    kStaticReadOnlyRoot::SharedArray_string,
+    kStaticReadOnlyRoot::SharedArrayBuffer_string,
+    kStaticReadOnlyRoot::SharedStruct_string,
+    kStaticReadOnlyRoot::sign_string,
+    kStaticReadOnlyRoot::smallestUnit_string,
+    kStaticReadOnlyRoot::source_string,
+    kStaticReadOnlyRoot::sourceText_string,
+    kStaticReadOnlyRoot::stack_string,
+    kStaticReadOnlyRoot::stackTraceLimit_string,
+    kStaticReadOnlyRoot::sticky_string,
+    kStaticReadOnlyRoot::String_string,
+    kStaticReadOnlyRoot::string_string,
+    kStaticReadOnlyRoot::string_to_string,
+    kStaticReadOnlyRoot::Symbol_iterator_string,
+    kStaticReadOnlyRoot::symbol_species_string,
+    kStaticReadOnlyRoot::Symbol_species_string,
+    kStaticReadOnlyRoot::Symbol_string,
+    kStaticReadOnlyRoot::symbol_string,
+    kStaticReadOnlyRoot::SyntaxError_string,
+    kStaticReadOnlyRoot::target_string,
+    kStaticReadOnlyRoot::this_function_string,
+    kStaticReadOnlyRoot::this_string,
+    kStaticReadOnlyRoot::throw_string,
+    kStaticReadOnlyRoot::timed_out_string,
+    kStaticReadOnlyRoot::timeZone_string,
+    kStaticReadOnlyRoot::toJSON_string,
+    kStaticReadOnlyRoot::toString_string,
+    kStaticReadOnlyRoot::true_string,
+    kStaticReadOnlyRoot::total_string,
+    kStaticReadOnlyRoot::TypeError_string,
+    kStaticReadOnlyRoot::Uint16Array_string,
+    kStaticReadOnlyRoot::Uint32Array_string,
+    kStaticReadOnlyRoot::Uint8Array_string,
+    kStaticReadOnlyRoot::Uint8ClampedArray_string,
+    kStaticReadOnlyRoot::undefined_string,
+    kStaticReadOnlyRoot::undefined_to_string,
+    kStaticReadOnlyRoot::unicode_string,
+    kStaticReadOnlyRoot::unicodeSets_string,
+    kStaticReadOnlyRoot::unit_string,
+    kStaticReadOnlyRoot::URIError_string,
+    kStaticReadOnlyRoot::UTC_string,
+    kStaticReadOnlyRoot::value_string,
+    kStaticReadOnlyRoot::valueOf_string,
+    kStaticReadOnlyRoot::WeakMap_string,
+    kStaticReadOnlyRoot::WeakRef_string,
+    kStaticReadOnlyRoot::WeakSet_string,
+    kStaticReadOnlyRoot::week_string,
+    kStaticReadOnlyRoot::weeks_string,
+    kStaticReadOnlyRoot::weekOfYear_string,
+    kStaticReadOnlyRoot::word_string,
+    kStaticReadOnlyRoot::writable_string,
+    kStaticReadOnlyRoot::yearMonthFromFields_string,
+    kStaticReadOnlyRoot::year_string,
+    kStaticReadOnlyRoot::years_string,
+    kStaticReadOnlyRoot::zero_string,
+    kStaticReadOnlyRoot::array_buffer_wasm_memory_symbol,
+    kStaticReadOnlyRoot::call_site_info_symbol,
+    kStaticReadOnlyRoot::console_context_id_symbol,
+    kStaticReadOnlyRoot::console_context_name_symbol,
+    kStaticReadOnlyRoot::class_fields_symbol,
+    kStaticReadOnlyRoot::class_positions_symbol,
+    kStaticReadOnlyRoot::elements_transition_symbol,
+    kStaticReadOnlyRoot::error_end_pos_symbol,
+    kStaticReadOnlyRoot::error_script_symbol,
+    kStaticReadOnlyRoot::error_stack_symbol,
+    kStaticReadOnlyRoot::error_start_pos_symbol,
+    kStaticReadOnlyRoot::frozen_symbol,
+    kStaticReadOnlyRoot::interpreter_trampoline_symbol,
+    kStaticReadOnlyRoot::mega_dom_symbol,
+    kStaticReadOnlyRoot::megamorphic_symbol,
+    kStaticReadOnlyRoot::native_context_index_symbol,
+    kStaticReadOnlyRoot::nonextensible_symbol,
+    kStaticReadOnlyRoot::not_mapped_symbol,
+    kStaticReadOnlyRoot::promise_debug_marker_symbol,
+    kStaticReadOnlyRoot::promise_debug_message_symbol,
+    kStaticReadOnlyRoot::promise_forwarding_handler_symbol,
+    kStaticReadOnlyRoot::promise_handled_by_symbol,
+    kStaticReadOnlyRoot::promise_awaited_by_symbol,
+    kStaticReadOnlyRoot::regexp_result_names_symbol,
+    kStaticReadOnlyRoot::regexp_result_regexp_input_symbol,
+    kStaticReadOnlyRoot::regexp_result_regexp_last_index_symbol,
+    kStaticReadOnlyRoot::sealed_symbol,
+    kStaticReadOnlyRoot::strict_function_transition_symbol,
+    kStaticReadOnlyRoot::template_literal_function_literal_id_symbol,
+    kStaticReadOnlyRoot::template_literal_slot_id_symbol,
+    kStaticReadOnlyRoot::wasm_exception_tag_symbol,
+    kStaticReadOnlyRoot::wasm_exception_values_symbol,
+    kStaticReadOnlyRoot::wasm_uncatchable_symbol,
+    kStaticReadOnlyRoot::wasm_wrapped_object_symbol,
+    kStaticReadOnlyRoot::wasm_debug_proxy_cache_symbol,
+    kStaticReadOnlyRoot::wasm_debug_proxy_names_symbol,
+    kStaticReadOnlyRoot::uninitialized_symbol,
+    kStaticReadOnlyRoot::async_iterator_symbol,
+    kStaticReadOnlyRoot::intl_fallback_symbol,
+    kStaticReadOnlyRoot::match_all_symbol,
+    kStaticReadOnlyRoot::match_symbol,
+    kStaticReadOnlyRoot::replace_symbol,
+    kStaticReadOnlyRoot::search_symbol,
+    kStaticReadOnlyRoot::split_symbol,
+    kStaticReadOnlyRoot::to_primitive_symbol,
+    kStaticReadOnlyRoot::unscopables_symbol,
+    kStaticReadOnlyRoot::has_instance_symbol,
+    kStaticReadOnlyRoot::to_string_tag_symbol,
+    kStaticReadOnlyRoot::promise_fulfill_reaction_job_task_map,
+    kStaticReadOnlyRoot::promise_reject_reaction_job_task_map,
+    kStaticReadOnlyRoot::callable_task_map,
+    kStaticReadOnlyRoot::callback_task_map,
+    kStaticReadOnlyRoot::promise_resolve_thenable_job_task_map,
+    kStaticReadOnlyRoot::function_template_info_map,
+    kStaticReadOnlyRoot::object_template_info_map,
+    kStaticReadOnlyRoot::access_check_info_map,
+    kStaticReadOnlyRoot::accessor_pair_map,
+    kStaticReadOnlyRoot::aliased_arguments_entry_map,
+    kStaticReadOnlyRoot::allocation_memento_map,
+    kStaticReadOnlyRoot::array_boilerplate_description_map,
+    kStaticReadOnlyRoot::asm_wasm_data_map,
+    kStaticReadOnlyRoot::async_generator_request_map,
+    kStaticReadOnlyRoot::break_point_map,
+    kStaticReadOnlyRoot::break_point_info_map,
+    kStaticReadOnlyRoot::call_site_info_map,
+    kStaticReadOnlyRoot::class_positions_map,
+    kStaticReadOnlyRoot::debug_info_map,
+    kStaticReadOnlyRoot::enum_cache_map,
+    kStaticReadOnlyRoot::error_stack_data_map,
+    kStaticReadOnlyRoot::function_template_rare_data_map,
+    kStaticReadOnlyRoot::interceptor_info_map,
+    kStaticReadOnlyRoot::interpreter_data_map,
+    kStaticReadOnlyRoot::module_request_map,
+    kStaticReadOnlyRoot::promise_capability_map,
+    kStaticReadOnlyRoot::promise_on_stack_map,
+    kStaticReadOnlyRoot::promise_reaction_map,
+    kStaticReadOnlyRoot::property_descriptor_object_map,
+    kStaticReadOnlyRoot::prototype_info_map,
+    kStaticReadOnlyRoot::regexp_boilerplate_description_map,
+    kStaticReadOnlyRoot::script_map,
+    kStaticReadOnlyRoot::script_or_module_map,
+    kStaticReadOnlyRoot::module_info_entry_map,
+    kStaticReadOnlyRoot::stack_frame_info_map,
+    kStaticReadOnlyRoot::template_object_description_map,
+    kStaticReadOnlyRoot::tuple2_map,
+    kStaticReadOnlyRoot::wasm_exception_tag_map,
+    kStaticReadOnlyRoot::wasm_indirect_function_table_map,
+    kStaticReadOnlyRoot::sloppy_arguments_elements_map,
+    kStaticReadOnlyRoot::descriptor_array_map,
+    kStaticReadOnlyRoot::strong_descriptor_array_map,
+    kStaticReadOnlyRoot::uncompiled_data_without_preparse_data_map,
+    kStaticReadOnlyRoot::uncompiled_data_with_preparse_data_map,
+    kStaticReadOnlyRoot::uncompiled_data_without_preparse_data_with_job_map,
+    kStaticReadOnlyRoot::uncompiled_data_with_preparse_data_and_job_map,
+    kStaticReadOnlyRoot::on_heap_basic_block_profiler_data_map,
+    kStaticReadOnlyRoot::turbofan_bitset_type_map,
+    kStaticReadOnlyRoot::turbofan_union_type_map,
+    kStaticReadOnlyRoot::turbofan_range_type_map,
+    kStaticReadOnlyRoot::turbofan_heap_constant_type_map,
+    kStaticReadOnlyRoot::turbofan_other_number_constant_type_map,
+    kStaticReadOnlyRoot::turboshaft_word32type_map,
+    kStaticReadOnlyRoot::turboshaft_word32range_type_map,
+    kStaticReadOnlyRoot::turboshaft_word32set_type_map,
+    kStaticReadOnlyRoot::turboshaft_word64type_map,
+    kStaticReadOnlyRoot::turboshaft_word64range_type_map,
+    kStaticReadOnlyRoot::turboshaft_word64set_type_map,
+    kStaticReadOnlyRoot::turboshaft_float64type_map,
+    kStaticReadOnlyRoot::turboshaft_float64range_type_map,
+    kStaticReadOnlyRoot::turboshaft_float64set_type_map,
+    kStaticReadOnlyRoot::internal_class_map,
+    kStaticReadOnlyRoot::smi_pair_map,
+    kStaticReadOnlyRoot::smi_box_map,
+    kStaticReadOnlyRoot::exported_sub_class_base_map,
+    kStaticReadOnlyRoot::exported_sub_class_map,
+    kStaticReadOnlyRoot::abstract_internal_class_subclass1_map,
+    kStaticReadOnlyRoot::abstract_internal_class_subclass2_map,
+    kStaticReadOnlyRoot::internal_class_with_smi_elements_map,
+    kStaticReadOnlyRoot::internal_class_with_struct_elements_map,
+    kStaticReadOnlyRoot::exported_sub_class2_map,
+    kStaticReadOnlyRoot::sort_state_map,
+    kStaticReadOnlyRoot::wasm_string_view_iter_map,
+    kStaticReadOnlyRoot::allocation_site_map,
+    kStaticReadOnlyRoot::allocation_site_without_weaknext_map,
+    kStaticReadOnlyRoot::constructor_string,
+    kStaticReadOnlyRoot::next_string,
+    kStaticReadOnlyRoot::resolve_string,
+    kStaticReadOnlyRoot::then_string,
+    kStaticReadOnlyRoot::iterator_symbol,
+    kStaticReadOnlyRoot::species_symbol,
+    kStaticReadOnlyRoot::is_concat_spreadable_symbol,
+    kStaticReadOnlyRoot::load_handler1_map,
+    kStaticReadOnlyRoot::load_handler2_map,
+    kStaticReadOnlyRoot::load_handler3_map,
+    kStaticReadOnlyRoot::store_handler0_map,
+    kStaticReadOnlyRoot::store_handler1_map,
+    kStaticReadOnlyRoot::store_handler2_map,
+    kStaticReadOnlyRoot::store_handler3_map,
 };
 
 }  // namespace internal
