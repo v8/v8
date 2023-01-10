@@ -132,7 +132,7 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
         RememberedSet<OLD_TO_NEW>::Insert<AccessMode::ATOMIC>(chunk,
                                                               slot.address());
       }
-      SLOW_DCHECK(!MarkCompactCollector::IsOnEvacuationCandidate(target));
+      DCHECK(!MarkCompactCollector::IsOnEvacuationCandidate(target));
     } else if (record_slots_ &&
                MarkCompactCollector::IsOnEvacuationCandidate(target)) {
       // We should never try to record off-heap slots.
