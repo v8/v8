@@ -154,7 +154,7 @@ class CallArguments {
   ConvertReceiverMode receiver_mode() const { return receiver_mode_; }
 
   void Truncate(size_t new_args_count) {
-    DCHECK_LE(new_args_count, count());
+    if (new_args_count >= count()) return;
     size_t args_to_pop = count() - new_args_count;
     for (size_t i = 0; i < args_to_pop; i++) {
       args_.pop_back();
@@ -3363,8 +3363,9 @@ ValueNode* MaglevGraphBuilder::ReduceFunctionPrototypeApplyCallWithReceiver(
     // No need for spread.
     CallArguments empty_args(ConvertReceiverMode::kNullOrUndefined);
     call = ReduceCall(receiver, empty_args, feedback_source, speculation_mode);
-  } else if (args.count() == 1 || IsNullValue(args[1]) ||
-             IsUndefinedValue(args[1])) {
+  } else if ((args.count() == 1 || IsNullValue(args[1]) ||
+              IsUndefinedValue(args[1])) &&
+             args.mode() == CallArguments::kDefault) {
     // No need for spread. We have only the new receiver.
     CallArguments new_args(ConvertReceiverMode::kAny, {GetTaggedValue(args[0])},
                            args.mode());
@@ -3372,7 +3373,7 @@ ValueNode* MaglevGraphBuilder::ReduceFunctionPrototypeApplyCallWithReceiver(
   } else {
     // FunctionPrototypeApply only consider two arguments: the new receiver and
     // an array-like arguments_list. All others shall be ignored.
-    if (IsConstantNode(args[1]->opcode())) {
+    if (args.count() > 1 && IsConstantNode(args[1]->opcode())) {
       DCHECK(!IsNullValue(args[1]) && !IsUndefinedValue(args[1]));
       // The arguments_list is not null, nor undefined, we can do a call with
       // array like.
