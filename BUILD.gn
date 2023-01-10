@@ -2391,6 +2391,7 @@ v8_source_set("v8_snapshot") {
   deps = [
     ":v8_internal_headers",
     ":v8_libbase",
+    ":v8_tracing",
   ]
   public_deps = [
     # This should be public so downstream targets can declare the snapshot
