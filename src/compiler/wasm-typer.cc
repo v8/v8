@@ -126,14 +126,20 @@ Reduction WasmTyper::Reduce(Node* node) {
               node->id(), computed_type.type.name().c_str());
         break;
       }
-      computed_type =
+
+      computed_type = {
+          wasm::kWasmBottom,
           NodeProperties::GetType(NodeProperties::GetValueInput(node, 0))
-              .AsWasm();
-      for (int i = 1; i < node->op()->ValueInputCount(); i++) {
+              .AsWasm()
+              .module};
+      for (int i = 0; i < node->op()->ValueInputCount(); i++) {
         Node* input = NodeProperties::GetValueInput(node, i);
         TypeInModule input_type = NodeProperties::GetType(input).AsWasm();
-        // We do not want union of types from unreachable branches.
-        if (!input_type.type.is_bottom()) {
+        if (computed_type.type.is_bottom()) {
+          // We have not found a non-bottom branch yet.
+          computed_type = input_type;
+        } else if (!input_type.type.is_bottom()) {
+          // We do not want union of types from unreachable branches.
           computed_type = wasm::Union(computed_type, input_type);
         }
       }
