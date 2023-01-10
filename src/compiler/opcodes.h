@@ -559,7 +559,13 @@
   V(WasmTypeCast)                  \
   V(WasmTypeCheck)                 \
   V(WasmExternInternalize)         \
-  V(WasmExternExternalize)
+  V(WasmExternExternalize)         \
+  V(WasmStructGet)                 \
+  V(WasmStructSet)                 \
+  V(WasmArrayGet)                  \
+  V(WasmArraySet)                  \
+  V(WasmArrayLength)               \
+  V(WasmArrayInitializeLength)
 
 #define SIMPLIFIED_OP_LIST(V)                 \
   SIMPLIFIED_CHANGE_OP_LIST(V)                \

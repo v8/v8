@@ -9,6 +9,7 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/opcodes.h"
+#include "src/compiler/simplified-operator.h"
 #include "src/compiler/wasm-compiler-definitions.h"
 #include "src/utils/utils.h"
 #include "src/wasm/object-access.h"
@@ -37,21 +38,6 @@ bool AllInputsTyped(Node* node) {
   }
   return true;
 }
-
-// Traverse the fields of a struct until we find one at offset equal to
-// {offset}, and return its type.
-wasm::ValueType StructFieldFromOffset(const wasm::StructType* type,
-                                      uint32_t offset) {
-  for (uint32_t index = 0; index < type->field_count(); index++) {
-    uint32_t field_offset = wasm::ObjectAccess::ToTagged(
-        WasmStruct::kHeaderSize + type->field_offset(index));
-    if (field_offset == offset) {
-      return type->field(index).Unpacked();
-    }
-  }
-  return wasm::kWasmBottom;
-}
-
 }  // namespace
 
 Reduction WasmTyper::Reduce(Node* node) {
@@ -170,10 +156,8 @@ Reduction WasmTyper::Reduce(Node* node) {
           computed_type.type.name().c_str());
       break;
     }
-    case IrOpcode::kLoadFromObject:
-    case IrOpcode::kLoadImmutableFromObject: {
+    case IrOpcode::kWasmArrayGet: {
       Node* object = NodeProperties::GetValueInput(node, 0);
-      Node* offset = NodeProperties::GetValueInput(node, 1);
       // This can happen either because the object has not been typed yet, or
       // because it is an internal VM object (e.g. the instance).
       if (!NodeProperties::IsTyped(object)) return NoChange();
@@ -183,59 +167,36 @@ Reduction WasmTyper::Reduce(Node* node) {
         computed_type = {wasm::kWasmBottom, object_type.module};
         break;
       }
-      if (object_type.type.is_rtt()) return NoChange();
-
-      DCHECK(object_type.type.is_object_reference());
-
-      IntPtrMatcher m(offset);
-      // Do not modify if we are getting the map.
-      if (m.Is(wasm::ObjectAccess::ToTagged(HeapObject::kMapOffset))) {
-        return NoChange();
-      }
-      // Do not modify if we are retrieving the array length.
-      if (object_type.type.is_reference_to(wasm::HeapType::kArray) &&
-          m.Is(wasm::ObjectAccess::ToTagged(WasmArray::kLengthOffset))) {
-        return NoChange();
-      }
-      // Do not modify if we are retrieving anything from a string or a view on
-      // a string.
-      if (object_type.type.is_reference_to(wasm::HeapType::kString) ||
-          object_type.type.is_reference_to(wasm::HeapType::kStringViewWtf8) ||
-          object_type.type.is_reference_to(wasm::HeapType::kStringViewWtf16) ||
-          object_type.type.is_reference_to(wasm::HeapType::kStringViewIter)) {
-        return NoChange();
-      }
       uint32_t ref_index = object_type.type.ref_index();
-      DCHECK(object_type.module->has_type(ref_index));
-      wasm::TypeDefinition type_def = object_type.module->types[ref_index];
-      switch (type_def.kind) {
-        case wasm::TypeDefinition::kFunction:
-          // This can happen for internal structures only.
-          return NoChange();
-        case wasm::TypeDefinition::kStruct: {
-          wasm::ValueType field_type = StructFieldFromOffset(
-              type_def.struct_type, static_cast<uint32_t>(m.ResolvedValue()));
-          if (field_type.is_bottom()) {
-            FATAL(
-                "Error - Bottom struct field. function: %d, node %d:%s, "
-                "input0: %d, type: %s, offset %d\n",
-                function_index_, node->id(), node->op()->mnemonic(),
-                node->InputAt(0)->id(), object_type.type.name().c_str(),
-                static_cast<int>(m.ResolvedValue()));
-          }
-          computed_type = {field_type, object_type.module};
-          break;
-        }
-        case wasm::TypeDefinition::kArray: {
-          // Do not modify if we are retrieving the array length.
-          if (m.Is(wasm::ObjectAccess::ToTagged(WasmArray::kLengthOffset))) {
-            return NoChange();
-          }
-          computed_type = {type_def.array_type->element_type().Unpacked(),
-                           object_type.module};
-          break;
-        }
+      DCHECK(object_type.module->has_array(ref_index));
+      const wasm::ArrayType* type_from_object =
+          object_type.module->types[ref_index].array_type;
+      computed_type = {type_from_object->element_type().Unpacked(),
+                       object_type.module};
+      break;
+    }
+    case IrOpcode::kWasmStructGet: {
+      Node* object = NodeProperties::GetValueInput(node, 0);
+      // This can happen either because the object has not been typed yet.
+      if (!NodeProperties::IsTyped(object)) return NoChange();
+      TypeInModule object_type = NodeProperties::GetType(object).AsWasm();
+      // This can happen in unreachable branches.
+      if (object_type.type.is_bottom() || object_type.type.is_uninhabited()) {
+        computed_type = {wasm::kWasmBottom, object_type.module};
+        break;
       }
+      WasmFieldInfo info = OpParameter<WasmFieldInfo>(node->op());
+
+      uint32_t ref_index = object_type.type.ref_index();
+
+      DCHECK(object_type.module->has_struct(ref_index));
+
+      const wasm::StructType* struct_type_from_object =
+          object_type.module->types[ref_index].struct_type;
+
+      computed_type = {
+          struct_type_from_object->field(info.field_index).Unpacked(),
+          object_type.module};
       break;
     }
     default:

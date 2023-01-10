@@ -1725,6 +1725,12 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kAssertNotNull:
     case IrOpcode::kWasmExternInternalize:
     case IrOpcode::kWasmExternExternalize:
+    case IrOpcode::kWasmStructGet:
+    case IrOpcode::kWasmStructSet:
+    case IrOpcode::kWasmArrayGet:
+    case IrOpcode::kWasmArraySet:
+    case IrOpcode::kWasmArrayLength:
+    case IrOpcode::kWasmArrayInitializeLength:
       // TODO(manoskouk): What are the constraints here?
       break;
 #endif  // V8_ENABLE_WEBASSEMBLY

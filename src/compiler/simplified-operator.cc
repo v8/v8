@@ -153,6 +153,40 @@ std::ostream& operator<<(std::ostream& os, ObjectAccess const& access) {
   return os;
 }
 
+#if V8_ENABLE_WEBASSEMBLY
+
+V8_EXPORT_PRIVATE bool operator==(WasmFieldInfo const& lhs,
+                                  WasmFieldInfo const& rhs) {
+  return lhs.field_index == rhs.field_index && lhs.type == rhs.type &&
+         lhs.is_signed == rhs.is_signed;
+}
+
+size_t hash_value(WasmFieldInfo const& info) {
+  return base::hash_combine(info.field_index, info.type, info.is_signed);
+}
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           WasmFieldInfo const& info) {
+  return os << info.field_index << ", "
+            << (info.is_signed ? "signed" : "unsigned");
+}
+
+V8_EXPORT_PRIVATE bool operator==(WasmElementInfo const& lhs,
+                                  WasmElementInfo const& rhs) {
+  return lhs.type == rhs.type && lhs.is_signed == rhs.is_signed;
+}
+
+size_t hash_value(WasmElementInfo const& info) {
+  return base::hash_combine(info.type, info.is_signed);
+}
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           WasmElementInfo const& info) {
+  return os << (info.is_signed ? "signed" : "unsigned");
+}
+
+#endif
+
 const FieldAccess& FieldAccessOf(const Operator* op) {
   DCHECK_NOT_NULL(op);
   DCHECK(op->opcode() == IrOpcode::kLoadField ||
@@ -1237,6 +1271,21 @@ struct SimplifiedOperatorGlobalCache final {
   AssertNotNullOperator kAssertNotNullIllegalCast{TrapId::kTrapIllegalCast};
   AssertNotNullOperator kAssertNotNullNullDereference{
       TrapId::kTrapNullDereference};
+
+  struct WasmArrayLengthOperator final : public Operator {
+    WasmArrayLengthOperator()
+        : Operator(IrOpcode::kWasmArrayLength, Operator::kEliminatable,
+                   "WasmArrayLength", 1, 1, 1, 1, 1, 0) {}
+  };
+  WasmArrayLengthOperator kWasmArrayLength;
+
+  struct WasmArrayInitializeLengthOperator final : public Operator {
+    WasmArrayInitializeLengthOperator()
+        : Operator(IrOpcode::kWasmArrayInitializeLength,
+                   Operator::kNoThrow | Operator::kNoRead | Operator::kNoDeopt,
+                   "WasmArrayInitializeLength", 2, 1, 1, 0, 1, 0) {}
+  };
+  WasmArrayInitializeLengthOperator kWasmArrayInitializeLength;
 #endif
 
 #define SPECULATIVE_NUMBER_BINOP(Name)                                      \
@@ -1481,6 +1530,46 @@ const Operator* SimplifiedOperatorBuilder::WasmExternExternalize() {
                                Operator::kEliminatable, "WasmExternExternalize",
                                1, 1, 1, 1, 1, 1);
 }
+
+const Operator* SimplifiedOperatorBuilder::WasmStructGet(
+    const wasm::StructType* type, int field_index, bool is_signed) {
+  return zone()->New<Operator1<WasmFieldInfo>>(
+      IrOpcode::kWasmStructGet, Operator::kEliminatable, "WasmStructGet", 1, 1,
+      1, 1, 1, 0, WasmFieldInfo{type, field_index, is_signed});
+}
+
+const Operator* SimplifiedOperatorBuilder::WasmStructSet(
+    const wasm::StructType* type, int field_index) {
+  return zone()->New<Operator1<WasmFieldInfo>>(
+      IrOpcode::kWasmStructSet,
+      Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoRead,
+      "WasmStructSet", 2, 1, 1, 0, 1, 0,
+      WasmFieldInfo{type, field_index, true /* unused */});
+}
+
+const Operator* SimplifiedOperatorBuilder::WasmArrayGet(
+    const wasm::ArrayType* type, bool is_signed) {
+  return zone()->New<Operator1<WasmElementInfo>>(
+      IrOpcode::kWasmArrayGet, Operator::kEliminatable, "WasmArrayGet", 2, 1, 1,
+      1, 1, 0, WasmElementInfo{type, is_signed});
+}
+
+const Operator* SimplifiedOperatorBuilder::WasmArraySet(
+    const wasm::ArrayType* type) {
+  return zone()->New<Operator1<const wasm::ArrayType*>>(
+      IrOpcode::kWasmArraySet,
+      Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoRead,
+      "WasmArraySet", 3, 1, 1, 0, 1, 0, type);
+}
+
+const Operator* SimplifiedOperatorBuilder::WasmArrayLength() {
+  return &cache_.kWasmArrayLength;
+}
+
+const Operator* SimplifiedOperatorBuilder::WasmArrayInitializeLength() {
+  return &cache_.kWasmArrayInitializeLength;
+}
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 const Operator* SimplifiedOperatorBuilder::CheckIf(

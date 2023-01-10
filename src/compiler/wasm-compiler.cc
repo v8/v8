@@ -5291,7 +5291,7 @@ Node* WasmGraphBuilder::StructNew(uint32_t struct_index,
       wasm::ObjectAccess::ToTagged(JSReceiver::kPropertiesOrHashOffset),
       LOAD_ROOT(EmptyFixedArray, empty_fixed_array));
   for (uint32_t i = 0; i < type->field_count(); i++) {
-    gasm_->StoreStructField(s, type, i, fields[i]);
+    gasm_->StructSet(s, fields[i], type, i);
   }
   // If this assert fails then initialization of padding field might be
   // necessary.
@@ -5329,9 +5329,7 @@ Node* WasmGraphBuilder::ArrayNew(uint32_t array_index,
       ObjectAccess(MachineType::TaggedPointer(), kNoWriteBarrier), a,
       wasm::ObjectAccess::ToTagged(JSReceiver::kPropertiesOrHashOffset),
       LOAD_ROOT(EmptyFixedArray, empty_fixed_array));
-  gasm_->InitializeImmutableInObject(
-      ObjectAccess(MachineType::Uint32(), kNoWriteBarrier), a,
-      wasm::ObjectAccess::ToTagged(WasmArray::kLengthOffset), length);
+  gasm_->ArrayInitializeLength(a, length);
 
   // Initialize the array. Use an external function for large arrays with
   // null/number initializer. Use a loop for small arrays and reference arrays
@@ -5341,8 +5339,6 @@ Node* WasmGraphBuilder::ArrayNew(uint32_t array_index,
   // ArrayNew() in graph-builder-interface.cc to not mark the current
   // loop as non-innermost.
   auto loop = gasm_->MakeLoopLabel(MachineRepresentation::kWord32);
-  Node* start_offset = gasm_->IntPtrConstant(
-      wasm::ObjectAccess::ToTagged(WasmArray::kHeaderSize));
 
   if ((initial_value == nullptr && (element_type.kind() == wasm::kRefNull ||
                                     element_type.kind() == wasm::kS128)) ||
@@ -5350,7 +5346,7 @@ Node* WasmGraphBuilder::ArrayNew(uint32_t array_index,
     constexpr uint32_t kArrayNewMinimumSizeForMemSet = 16;
     gasm_->GotoIf(gasm_->Uint32LessThan(
                       length, Int32Constant(kArrayNewMinimumSizeForMemSet)),
-                  &loop, BranchHint::kNone, start_offset);
+                  &loop, BranchHint::kNone, Int32Constant(0));
     Node* function = gasm_->ExternalConstant(
         ExternalReference::wasm_array_fill_with_number_or_null());
 
@@ -5405,29 +5401,17 @@ Node* WasmGraphBuilder::ArrayNew(uint32_t array_index,
                Int32Constant(element_type.raw_bit_field()), stack_slot);
     gasm_->Goto(&done);
   } else {
-    gasm_->Goto(&loop, start_offset);
+    gasm_->Goto(&loop, Int32Constant(0));
   }
   gasm_->Bind(&loop);
-  auto object_access = ObjectAccessForGCStores(element_type);
-  if (initial_value == nullptr) {
-    initial_value = DefaultValue(element_type);
-    object_access.write_barrier_kind = kNoWriteBarrier;
-  }
-  Node* element_size = gasm_->IntPtrConstant(element_type.value_kind_size());
-  Node* end_offset =
-      gasm_->IntAdd(start_offset, gasm_->IntMul(element_size, length));
+  if (initial_value == nullptr) initial_value = DefaultValue(element_type);
   {
-    Node* offset = loop.PhiAt(0);
-    Node* check = gasm_->UintLessThan(offset, end_offset);
+    Node* index = loop.PhiAt(0);
+    Node* check = gasm_->UintLessThan(index, length);
     gasm_->GotoIfNot(check, &done);
-    if (type->mutability()) {
-      gasm_->StoreToObject(object_access, a, offset, initial_value);
-    } else {
-      gasm_->InitializeImmutableInObject(object_access, a, offset,
-                                         initial_value);
-    }
-    offset = gasm_->IntAdd(offset, element_size);
-    gasm_->Goto(&loop, offset);
+    gasm_->ArraySet(a, index, initial_value, type);
+    index = gasm_->IntAdd(index, Int32Constant(1));
+    gasm_->Goto(&loop, index);
   }
   gasm_->Bind(&done);
   return a;
@@ -5445,20 +5429,10 @@ Node* WasmGraphBuilder::ArrayNewFixed(const wasm::ArrayType* type, Node* rtt,
       ObjectAccess(MachineType::TaggedPointer(), kNoWriteBarrier), array,
       wasm::ObjectAccess::ToTagged(JSReceiver::kPropertiesOrHashOffset),
       LOAD_ROOT(EmptyFixedArray, empty_fixed_array));
-  gasm_->InitializeImmutableInObject(
-      ObjectAccess(MachineType::Uint32(), kNoWriteBarrier), array,
-      wasm::ObjectAccess::ToTagged(WasmArray::kLengthOffset),
-      Int32Constant(static_cast<int>(elements.size())));
+  gasm_->ArrayInitializeLength(
+      array, Int32Constant(static_cast<int>(elements.size())));
   for (int i = 0; i < static_cast<int>(elements.size()); i++) {
-    Node* offset =
-        gasm_->WasmArrayElementOffset(Int32Constant(i), element_type);
-    if (type->mutability()) {
-      gasm_->StoreToObject(ObjectAccessForGCStores(element_type), array, offset,
-                           elements[i]);
-    } else {
-      gasm_->InitializeImmutableInObject(ObjectAccessForGCStores(element_type),
-                                         array, offset, elements[i]);
-    }
+    gasm_->ArraySet(array, gasm_->Int32Constant(i), elements[i], type);
   }
   return array;
 }
@@ -5894,15 +5868,7 @@ Node* WasmGraphBuilder::StructGet(Node* struct_object,
   if (null_check == kWithNullCheck) {
     struct_object = AssertNotNull(struct_object, position);
   }
-  // It is not enough to invoke ValueType::machine_type(), because the
-  // signedness has to be determined by {is_signed}.
-  MachineType machine_type = MachineType::TypeForRepresentation(
-      struct_type->field(field_index).machine_representation(), is_signed);
-  Node* offset = gasm_->FieldOffset(struct_type, field_index);
-  return struct_type->mutability(field_index)
-             ? gasm_->LoadFromObject(machine_type, struct_object, offset)
-             : gasm_->LoadImmutableFromObject(machine_type, struct_object,
-                                              offset);
+  return gasm_->StructGet(struct_object, struct_type, field_index, is_signed);
 }
 
 void WasmGraphBuilder::StructSet(Node* struct_object,
@@ -5913,13 +5879,13 @@ void WasmGraphBuilder::StructSet(Node* struct_object,
   if (null_check == kWithNullCheck) {
     struct_object = AssertNotNull(struct_object, position);
   }
-  gasm_->StoreStructField(struct_object, struct_type, field_index, field_value);
+  gasm_->StructSet(struct_object, field_value, struct_type, field_index);
 }
 
 void WasmGraphBuilder::BoundsCheckArray(Node* array, Node* index,
                                         wasm::WasmCodePosition position) {
   if (V8_UNLIKELY(v8_flags.experimental_wasm_skip_bounds_checks)) return;
-  Node* length = gasm_->LoadWasmArrayLength(array);
+  Node* length = gasm_->ArrayLength(array);
   TrapIfFalse(wasm::kTrapArrayOutOfBounds, gasm_->Uint32LessThan(index, length),
               position);
 }
@@ -5928,7 +5894,7 @@ void WasmGraphBuilder::BoundsCheckArrayCopy(Node* array, Node* index,
                                             Node* length,
                                             wasm::WasmCodePosition position) {
   if (V8_UNLIKELY(v8_flags.experimental_wasm_skip_bounds_checks)) return;
-  Node* array_length = gasm_->LoadWasmArrayLength(array);
+  Node* array_length = gasm_->ArrayLength(array);
   Node* range_end = gasm_->Int32Add(index, length);
   Node* range_valid = gasm_->Word32And(
       gasm_->Uint32LessThanOrEqual(range_end, array_length),
@@ -5944,13 +5910,7 @@ Node* WasmGraphBuilder::ArrayGet(Node* array_object,
     array_object = AssertNotNull(array_object, position);
   }
   BoundsCheckArray(array_object, index, position);
-  MachineType machine_type = MachineType::TypeForRepresentation(
-      type->element_type().machine_representation(), is_signed);
-  Node* offset = gasm_->WasmArrayElementOffset(index, type->element_type());
-  return type->mutability()
-             ? gasm_->LoadFromObject(machine_type, array_object, offset)
-             : gasm_->LoadImmutableFromObject(machine_type, array_object,
-                                              offset);
+  return gasm_->ArrayGet(array_object, index, type, is_signed);
 }
 
 void WasmGraphBuilder::ArraySet(Node* array_object, const wasm::ArrayType* type,
@@ -5961,9 +5921,7 @@ void WasmGraphBuilder::ArraySet(Node* array_object, const wasm::ArrayType* type,
     array_object = AssertNotNull(array_object, position);
   }
   BoundsCheckArray(array_object, index, position);
-  Node* offset = gasm_->WasmArrayElementOffset(index, type->element_type());
-  gasm_->StoreToObject(ObjectAccessForGCStores(type->element_type()),
-                       array_object, offset, value);
+  gasm_->ArraySet(array_object, index, value, type);
 }
 
 Node* WasmGraphBuilder::ArrayLen(Node* array_object, CheckForNull null_check,
@@ -5971,7 +5929,7 @@ Node* WasmGraphBuilder::ArrayLen(Node* array_object, CheckForNull null_check,
   if (null_check == kWithNullCheck) {
     array_object = AssertNotNull(array_object, position);
   }
-  return gasm_->LoadWasmArrayLength(array_object);
+  return gasm_->ArrayLength(array_object);
 }
 
 // TODO(7748): Add an option to copy in a loop for small array sizes. To find

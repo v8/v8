@@ -313,18 +313,6 @@ Node* WasmGraphAssembler::FieldOffset(const wasm::StructType* type,
       WasmStruct::kHeaderSize + type->field_offset(field_index)));
 }
 
-Node* WasmGraphAssembler::StoreStructField(Node* struct_object,
-                                           const wasm::StructType* type,
-                                           uint32_t field_index, Node* value) {
-  ObjectAccess access = ObjectAccessForGCStores(type->field(field_index));
-  return type->mutability(field_index)
-             ? StoreToObject(access, struct_object,
-                             FieldOffset(type, field_index), value)
-             : InitializeImmutableInObject(access, struct_object,
-                                           FieldOffset(type, field_index),
-                                           value);
-}
-
 Node* WasmGraphAssembler::WasmArrayElementOffset(Node* index,
                                                  wasm::ValueType element_type) {
   Node* index_intptr =
@@ -332,12 +320,6 @@ Node* WasmGraphAssembler::WasmArrayElementOffset(Node* index,
   return IntAdd(
       IntPtrConstant(wasm::ObjectAccess::ToTagged(WasmArray::kHeaderSize)),
       IntMul(index_intptr, IntPtrConstant(element_type.value_kind_size())));
-}
-
-Node* WasmGraphAssembler::LoadWasmArrayLength(Node* array) {
-  return LoadImmutableFromObject(
-      MachineType::Uint32(), array,
-      wasm::ObjectAccess::ToTagged(WasmArray::kLengthOffset));
 }
 
 Node* WasmGraphAssembler::IsDataRefMap(Node* map) {
@@ -388,6 +370,43 @@ Node* WasmGraphAssembler::WasmExternInternalize(Node* object) {
 Node* WasmGraphAssembler::WasmExternExternalize(Node* object) {
   return AddNode(graph()->NewNode(simplified_.WasmExternExternalize(), object,
                                   effect(), control()));
+}
+
+Node* WasmGraphAssembler::StructGet(Node* object, const wasm::StructType* type,
+                                    int field_index, bool is_signed) {
+  return AddNode(
+      graph()->NewNode(simplified_.WasmStructGet(type, field_index, is_signed),
+                       object, effect(), control()));
+}
+
+void WasmGraphAssembler::StructSet(Node* object, Node* value,
+                                   const wasm::StructType* type,
+                                   int field_index) {
+  AddNode(graph()->NewNode(simplified_.WasmStructSet(type, field_index), object,
+                           value, effect(), control()));
+}
+
+Node* WasmGraphAssembler::ArrayGet(Node* array, Node* index,
+                                   const wasm::ArrayType* type,
+                                   bool is_signed) {
+  return AddNode(graph()->NewNode(simplified_.WasmArrayGet(type, is_signed),
+                                  array, index, effect(), control()));
+}
+
+void WasmGraphAssembler::ArraySet(Node* array, Node* index, Node* value,
+                                  const wasm::ArrayType* type) {
+  AddNode(graph()->NewNode(simplified_.WasmArraySet(type), array, index, value,
+                           effect(), control()));
+}
+
+Node* WasmGraphAssembler::ArrayLength(Node* array) {
+  return AddNode(graph()->NewNode(simplified_.WasmArrayLength(), array,
+                                  effect(), control()));
+}
+
+void WasmGraphAssembler::ArrayInitializeLength(Node* array, Node* length) {
+  AddNode(graph()->NewNode(simplified_.WasmArrayInitializeLength(), array,
+                           length, effect(), control()));
 }
 
 // Generic HeapObject helpers.

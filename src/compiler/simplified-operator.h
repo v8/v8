@@ -66,6 +66,33 @@ size_t hash_value(ConstFieldInfo const&);
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
                                            ConstFieldInfo const&);
 
+#if V8_ENABLE_WEBASSEMBLY
+struct WasmFieldInfo {
+  const wasm::StructType* type;
+  int field_index;
+  bool is_signed;
+};
+
+V8_EXPORT_PRIVATE bool operator==(WasmFieldInfo const&, WasmFieldInfo const&);
+
+size_t hash_value(WasmFieldInfo const&);
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, WasmFieldInfo const&);
+
+struct WasmElementInfo {
+  const wasm::ArrayType* type;
+  bool is_signed;
+};
+
+V8_EXPORT_PRIVATE bool operator==(WasmElementInfo const&,
+                                  WasmElementInfo const&);
+
+size_t hash_value(WasmElementInfo const&);
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
+                                           WasmElementInfo const&);
+#endif
+
 // An access descriptor for loads/stores of fixed structures like field
 // accesses of heap objects. Accesses from either tagged or untagged base
 // pointers are supported; untagging is done automatically during lowering.
@@ -1128,6 +1155,13 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* WasmTypeCast(WasmTypeCheckConfig config);
   const Operator* WasmExternInternalize();
   const Operator* WasmExternExternalize();
+  const Operator* WasmStructGet(const wasm::StructType* type, int field_index,
+                                bool is_signed);
+  const Operator* WasmStructSet(const wasm::StructType* type, int field_index);
+  const Operator* WasmArrayGet(const wasm::ArrayType* type, bool is_signed);
+  const Operator* WasmArraySet(const wasm::ArrayType* type);
+  const Operator* WasmArrayLength();
+  const Operator* WasmArrayInitializeLength();
 #endif
 
   const Operator* DateNow();
