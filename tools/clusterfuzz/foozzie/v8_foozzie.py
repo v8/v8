@@ -35,6 +35,7 @@ CONFIGS = dict(
         '--no-sparkplug',
         '--liftoff',
         '--no-wasm-tier-up',
+        '--no-maglev',
     ],
     ignition_asm=[
         '--turbo-filter=~',
@@ -42,6 +43,7 @@ CONFIGS = dict(
         '--no-sparkplug',
         '--validate-asm',
         '--stress-validate-asm',
+        '--no-maglev',
     ],
     ignition_eager=[
         '--turbo-filter=~',
@@ -49,6 +51,7 @@ CONFIGS = dict(
         '--no-sparkplug',
         '--no-lazy',
         '--no-lazy-inner-functions',
+        '--no-maglev',
     ],
     ignition_no_ic=[
         '--turbo-filter=~',
@@ -58,6 +61,7 @@ CONFIGS = dict(
         '--no-wasm-tier-up',
         '--no-use-ic',
         '--no-lazy-feedback-allocation',
+        '--no-maglev',
     ],
     ignition_turbo=[],
     ignition_turbo_no_ic=[
@@ -71,6 +75,11 @@ CONFIGS = dict(
         '--always-turbofan',
         '--no-lazy',
         '--no-lazy-inner-functions',
+    ],
+    ignition_maglev=[
+        '--maglev',
+        '--turbo-filter=~',
+        '--no-turbofan',
     ],
     jitless=[
         '--jitless',
