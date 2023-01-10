@@ -6222,11 +6222,12 @@ class DefaultWasmAsyncResolvePromiseTask : public v8::Task {
     v8::Local<v8::Promise::Resolver> resolver = resolver_.Get(isolate_);
     v8::Local<v8::Value> result = result_.Get(isolate_);
 
-    if (success_ == WasmAsyncSuccess::kSuccess) {
-      CHECK(resolver->Resolve(context, result).FromJust());
-    } else {
-      CHECK(resolver->Reject(context, result).FromJust());
-    }
+    Maybe<bool> ret = success_ == WasmAsyncSuccess::kSuccess
+                          ? resolver->Resolve(context, result)
+                          : resolver->Reject(context, result);
+    // It's guaranteed that no exceptions will be thrown by these
+    // operations, but execution might be terminating.
+    CHECK(ret.IsJust() ? ret.FromJust() : isolate_->IsExecutionTerminating());
   }
 
  private:
