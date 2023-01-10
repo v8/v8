@@ -262,8 +262,8 @@ void adjustBreakpointLocation(const V8DebuggerScript& script,
       offset + prefixLength + hint.length() <= searchArea.length() &&
       searchArea.substring(offset + prefixLength, hint.length()) == hint &&
       computeCrc32(searchArea.substring(offset, prefixLength)) == prefixHash) {
-    v8::debug::Location hintPosition =
-        script.location(static_cast<int>(offset + prefixLength));
+    v8::debug::Location hintPosition = script.location(
+        static_cast<int>(searchRegionOffset + offset + prefixLength));
     *lineNumber = hintPosition.GetLineNumber();
     *columnNumber = hintPosition.GetColumnNumber();
     return;

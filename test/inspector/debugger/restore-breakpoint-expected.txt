@@ -32,6 +32,18 @@ boo();
 #boo();
 }
 
+Running test: testSameSourceLongCommentBefore
+/////////////////////////////////////////////////////////////////////////////...
+function foo() {
+bad();
+#boo();
+}
+/////////////////////////////////////////////////////////////////////////////...
+function foo() {
+bad();
+#boo();
+}
+
 Running test: testSameSourceDuplicateLinesDifferentPrefix
 function foo() {
 boo();
