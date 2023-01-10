@@ -1528,8 +1528,8 @@ void CheckedInternalizedString::GenerateCode(MaglevAssembler* masm,
   __ LoadMap(scratch, object);
   __ RecordComment("Test IsInternalizedString");
   // Go to the slow path if this is a non-string, or a non-internalised string.
-  __ Ldr(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
-  __ Tst(scratch, Immediate(kIsNotStringMask | kIsNotInternalizedMask));
+  __ Ldrh(scratch.W(), FieldMemOperand(scratch, Map::kInstanceTypeOffset));
+  __ Tst(scratch.W(), Immediate(kIsNotStringMask | kIsNotInternalizedMask));
   static_assert((kStringTag | kInternalizedTag) == 0);
   ZoneLabelRef done(masm);
   __ JumpToDeferredIf(
@@ -1540,10 +1540,10 @@ void CheckedInternalizedString::GenerateCode(MaglevAssembler* masm,
         __ RecordComment("Deferred Test IsThinString");
         static_assert(kThinStringTagBit > 0);
         // Deopt if this isn't a string.
-        __ Tst(instance_type, Immediate(kIsNotStringMask));
+        __ Tst(instance_type.W(), Immediate(kIsNotStringMask));
         __ EmitEagerDeoptIf(ne, DeoptimizeReason::kWrongMap, node);
         // Deopt if this isn't a thin string.
-        __ Tst(instance_type, Immediate(kThinStringTagBit));
+        __ Tst(instance_type.W(), Immediate(kThinStringTagBit));
         __ EmitEagerDeoptIf(eq, DeoptimizeReason::kWrongMap, node);
         __ LoadTaggedPointerField(
             object, FieldMemOperand(object, ThinString::kActualOffset));
@@ -1551,8 +1551,10 @@ void CheckedInternalizedString::GenerateCode(MaglevAssembler* masm,
           __ RecordComment("DCHECK IsInternalizedString");
           Register scratch = instance_type;
           __ LoadMap(scratch, object);
-          __ Ldrh(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
-          __ Tst(scratch, Immediate(kIsNotStringMask | kIsNotInternalizedMask));
+          __ Ldrh(scratch.W(),
+                  FieldMemOperand(scratch, Map::kInstanceTypeOffset));
+          __ Tst(scratch.W(),
+                 Immediate(kIsNotStringMask | kIsNotInternalizedMask));
           static_assert((kStringTag | kInternalizedTag) == 0);
           __ Check(eq, AbortReason::kUnexpectedValue);
         }
