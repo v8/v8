@@ -65,7 +65,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:11.20230108.3.1',
+  'fuchsia_version': 'version:11.20230109.2.2',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -105,9 +105,9 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '68e6038b5350cba18c341cc7c572170af5c5b20c',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '7ab406c5da3e95de16989ec4f81c95e5b656e1c3',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'fc82049836b9fdad731bb3b2db2b28c62299c631',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'cf8d11e41138ca777f3eaa09df41bf968c8be6ba',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'f017c8f06d00ef261f090be0e61b4ebc3d1a999d',
   'buildtools/clang_format/script':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/clang/tools/clang-format.git' + '@' + '8b525d2747f2584fc35d8c7e612e66f377858df7',
   'buildtools/linux64': {
@@ -209,7 +209,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '163b42131719ee189bcf1398d35e43f43fd2b0b5',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'c470a55b729bcbc5201d4a27a32a923c3196da2b',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -217,7 +217,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '6f905470df9197880d645cfade6310b1cf1fb238',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'dcb79c7080ff71f93bd8c422dd61e22e00e1bbbc',
   'third_party/fuchsia-sdk/sdk': {
     'packages': [
         {
@@ -272,7 +272,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'fa5dc4750029333c2486efa38eec7d13890108ed',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'e8c31f937f2872dc18d4bd9a74f3a8d6a4c78ade',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '341ed9bf44ba6bf0456f3e5af5398afe49757aff',
   'tools/luci-go': {
       'packages': [
         {
