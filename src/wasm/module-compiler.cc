@@ -1017,11 +1017,6 @@ class CompilationUnitBuilder {
     tiering_units_.emplace_back(func_index, tier, kNotForDebugging);
   }
 
-  void AddDebugUnit(int func_index) {
-    baseline_units_.emplace_back(func_index, ExecutionTier::kLiftoff,
-                                 kForDebugging);
-  }
-
   bool Commit() {
     if (baseline_units_.empty() && tiering_units_.empty() &&
         js_to_wasm_wrapper_units_.empty()) {
@@ -3152,12 +3147,7 @@ void CompilationStateImpl::AddCompilationUnitInternal(
 void CompilationStateImpl::InitializeCompilationUnits(
     std::unique_ptr<CompilationUnitBuilder> builder) {
   int offset = native_module_->module()->num_imported_functions;
-  if (native_module_->IsInDebugState()) {
-    for (size_t i = 0; i < compilation_progress_.size(); ++i) {
-      int func_index = offset + static_cast<int>(i);
-      builder->AddDebugUnit(func_index);
-    }
-  } else {
+  {
     base::MutexGuard guard(&callbacks_mutex_);
 
     for (size_t i = 0, e = compilation_progress_.size(); i < e; ++i) {
