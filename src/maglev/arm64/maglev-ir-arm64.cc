@@ -799,6 +799,8 @@ void CheckedObjectToIndex::GenerateCode(MaglevAssembler* masm,
         {
           DoubleRegister number_value = node->double_temporaries().first();
           DoubleRegister converted_back = temps.AcquireD();
+          __ Ldr(number_value,
+                 FieldMemOperand(object, HeapNumber::kValueOffset));
           // Convert the input float64 value to int32.
           __ TruncateDoubleToInt32(result_reg, number_value);
           // Convert that int32 value back to float64.
