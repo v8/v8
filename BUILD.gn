@@ -840,6 +840,7 @@ config("v8_header_features") {
 external_cppgc_defines = [
   "CPPGC_SUPPORTS_OBJECT_NAMES",
   "CPPGC_CAGED_HEAP",
+  "CPPGC_SLIM_WRITE_BARRIER",
   "CPPGC_YOUNG_GENERATION",
   "CPPGC_POINTER_COMPRESSION",
 ]
@@ -868,6 +869,9 @@ if (cppgc_enable_pointer_compression) {
 }
 if (cppgc_enable_2gb_cage) {
   enabled_external_cppgc_defines += [ "CPPGC_2GB_CAGE" ]
+}
+if (cppgc_enable_slim_write_barrier) {
+  enabled_external_cppgc_defines += [ "CPPGC_SLIM_WRITE_BARRIER" ]
 }
 
 disabled_external_cppgc_defines =

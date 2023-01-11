@@ -106,6 +106,12 @@ declare_args() {
   # Enable young generation in cppgc.
   cppgc_enable_young_generation = false
 
+  # Enables a slim write barrier that only performs a single check in the fast
+  # path and delegates all further checks to a slow path call. This is fast
+  # in a setting with few slow-path checks, i.e., with disabled young generation
+  # GC.
+  cppgc_enable_slim_write_barrier = true
+
   # Enable pointer compression in cppgc.
   cppgc_enable_pointer_compression = false
 
