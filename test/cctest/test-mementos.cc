@@ -53,9 +53,9 @@ static void SetUpNewSpaceWithPoisonedMementoAtTop() {
       Object(new_space->top() + kHeapObjectTag));
   memento.set_map_after_allocation(ReadOnlyRoots(heap).allocation_memento_map(),
                                    SKIP_WRITE_BARRIER);
-  memento.set_allocation_site(
-      AllocationSite::unchecked_cast(Object(kHeapObjectTag)),
-      SKIP_WRITE_BARRIER);
+
+  TaggedField<MaybeObject, AllocationMemento::kAllocationSiteOffset>::store(
+      memento, MaybeObject(kHeapObjectTag));
 }
 
 

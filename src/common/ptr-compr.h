@@ -25,6 +25,8 @@ class V8HeapCompressionScheme {
   // Compresses full-pointer representation of a tagged value to on-heap
   // representation.
   V8_INLINE static Tagged_t CompressTagged(Address tagged);
+  // Compress a potentially invalid pointer.
+  V8_INLINE static Tagged_t CompressAny(Address tagged);
 
   // Decompresses smi value.
   V8_INLINE static Address DecompressTaggedSigned(Tagged_t raw_value);
@@ -78,6 +80,8 @@ class ExternalCodeCompressionScheme {
   // Compresses full-pointer representation of a tagged value to on-heap
   // representation.
   V8_INLINE static Tagged_t CompressTagged(Address tagged);
+  // Compress a potentially invalid pointer.
+  V8_INLINE static Tagged_t CompressAny(Address tagged);
 
   // Decompresses smi value.
   V8_INLINE static Address DecompressTaggedSigned(Tagged_t raw_value);
