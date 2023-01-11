@@ -10,10 +10,6 @@ import("//build/config/mips.gni")
 import("//build/config/sanitizers/sanitizers.gni")
 import("//build_overrides/build.gni")
 
-if (is_android) {
-  import("//build/config/android/rules.gni")
-}
-
 import("gni/snapshot_toolchain.gni")
 import("gni/v8.gni")
 
@@ -1611,21 +1607,6 @@ template("asm_to_inline_asm") {
       rebase_path("$target_gen_dir/embedded${suffix}.S", root_build_dir),
       rebase_path("$target_gen_dir/embedded${suffix}.cc", root_build_dir),
     ]
-  }
-}
-
-if (is_android && enable_java_templates) {
-  android_assets("v8_external_startup_data_assets") {
-    if (v8_use_external_startup_data) {
-      deps = [ ":run_mksnapshot_default" ]
-      renaming_sources = [ "$root_out_dir/snapshot_blob.bin" ]
-      if (current_cpu == "arm" || current_cpu == "x86") {
-        renaming_destinations = [ "snapshot_blob_32.bin" ]
-      } else {
-        renaming_destinations = [ "snapshot_blob_64.bin" ]
-      }
-      disable_compression = true
-    }
   }
 }
 
