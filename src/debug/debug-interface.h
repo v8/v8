@@ -679,8 +679,6 @@ AccessorPair* AccessorPair::Cast(v8::Value* value) {
 
 MaybeLocal<Message> GetMessageFromPromise(Local<Promise> promise);
 
-bool isExperimentalRemoveInternalScopesPropertyEnabled();
-
 void RecordAsyncStackTaggingCreateTaskCall(v8::Isolate* isolate);
 
 void NotifyDebuggerPausedEventSent(v8::Isolate* isolate);

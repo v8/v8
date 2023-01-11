@@ -1389,10 +1389,6 @@ MaybeLocal<Message> GetMessageFromPromise(Local<Promise> p) {
       i::Handle<i::JSMessageObject>::cast(maybeMessage));
 }
 
-bool isExperimentalRemoveInternalScopesPropertyEnabled() {
-  return i::v8_flags.experimental_remove_internal_scopes_property;
-}
-
 void RecordAsyncStackTaggingCreateTaskCall(v8::Isolate* v8_isolate) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   isolate->CountUsage(v8::Isolate::kAsyncStackTaggingCreateTaskCall);

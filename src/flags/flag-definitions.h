@@ -1755,9 +1755,6 @@ DEFINE_NEG_IMPLICATION(fuzzing, hard_abort)
 DEFINE_BOOL(experimental_value_unavailable, false,
             "enable experimental <value unavailable> in scopes")
 
-DEFINE_BOOL(experimental_remove_internal_scopes_property, false,
-            "don't report the artificial [[Scopes]] property for functions")
-
 // disassembler
 DEFINE_BOOL(log_colour, ENABLE_LOG_COLOUR,
             "When logging, try to use coloured output.")

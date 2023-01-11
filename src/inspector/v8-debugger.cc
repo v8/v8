@@ -862,10 +862,6 @@ v8::MaybeLocal<v8::Array> V8Debugger::internalProperties(
     createDataProperty(context, properties, properties->Length(), entries);
   }
 
-  if (v8::debug::isExperimentalRemoveInternalScopesPropertyEnabled()) {
-    return properties;
-  }
-
   if (value->IsGeneratorObject()) {
     v8::Local<v8::Value> scopes;
     if (generatorScopes(context, value).ToLocal(&scopes)) {
