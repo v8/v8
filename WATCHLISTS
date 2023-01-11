@@ -105,7 +105,6 @@
 
   'WATCHLISTS': {
     'maglev': [
-      'jgruber+watch@chromium.org',
       'leszeks+watch@chromium.org',
       'verwaest+watch@chromium.org',
       'victorgomes+watch@chromium.org',
