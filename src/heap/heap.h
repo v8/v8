@@ -148,8 +148,6 @@ enum class InvalidateRecordedSlots { kYes, kNo };
 
 enum class ClearFreedMemoryMode { kClearFreedMemory, kDontClearFreedMemory };
 
-enum ExternalBackingStoreType { kArrayBuffer, kExternalString, kNumTypes };
-
 enum class RetainingPathOption { kDefault, kTrackEphemeronPath };
 
 enum class YoungGenerationHandling {
@@ -1582,7 +1580,9 @@ class Heap {
   // Sweeping. =================================================================
   // ===========================================================================
 
-  bool sweeping_in_progress() const { return sweeper_->sweeping_in_progress(); }
+  bool sweeping_in_progress() const {
+    return sweeper_ && sweeper_->sweeping_in_progress();
+  }
 
   void FinishSweepingIfOutOfWork();
 
@@ -2680,19 +2680,6 @@ class V8_EXPORT_PRIVATE PagedSpaceIterator {
  private:
   Heap* heap_;
   int counter_;
-};
-
-class V8_EXPORT_PRIVATE SpaceIterator : public Malloced {
- public:
-  explicit SpaceIterator(Heap* heap);
-  virtual ~SpaceIterator();
-
-  bool HasNext();
-  Space* Next();
-
- private:
-  Heap* heap_;
-  int current_space_;  // from enum AllocationSpace.
 };
 
 // A HeapObjectIterator provides iteration over the entire non-read-only heap.

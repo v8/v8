@@ -398,6 +398,7 @@ TEST_F(HeapTest, RememberedSet_InsertOnPromotingObjectToOld) {
   // Promote 'arr' into old, its element is still in new, the old to new
   // refs are inserted into the remembered sets during GC.
   CollectGarbage(i::NEW_SPACE);
+  heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only);
 
   CHECK(heap->InOldSpace(*arr));
   CHECK(heap->InYoungGeneration(arr->get(0)));

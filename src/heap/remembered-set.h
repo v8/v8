@@ -102,6 +102,19 @@ class RememberedSet : public AllStatic {
     RememberedSetOperations::Insert<access_mode>(slot_set, chunk, slot_addr);
   }
 
+  // Given a page and a slot set, this function merges the slot set to the set
+  // of the page. |other_slot_set| should not be used after calling this method.
+  static void MergeAndDelete(MemoryChunk* chunk, SlotSet* other_slot_set) {
+    static_assert(type == RememberedSetType::OLD_TO_NEW);
+    SlotSet* slot_set = chunk->slot_set<type, AccessMode::NON_ATOMIC>();
+    if (slot_set == nullptr) {
+      chunk->set_slot_set<RememberedSetType::OLD_TO_NEW>(other_slot_set);
+      return;
+    }
+    slot_set->Merge(other_slot_set, chunk->buckets());
+    SlotSet::Delete(other_slot_set, chunk->buckets());
+  }
+
   // Given a page and a slot in that page, this function returns true if
   // the remembered set contains the slot.
   static bool Contains(MemoryChunk* chunk, Address slot_addr) {

@@ -1904,6 +1904,8 @@ void Heap::StartIncrementalMarking(int gc_flags,
 }
 
 void Heap::CompleteSweepingFull() {
+  EnsureSweepingCompleted(SweepingForcedFinalizationMode::kUnifiedHeap);
+
   if (array_buffer_sweeper()->sweeping_in_progress()) {
     GCTracer::Scope::ScopeId scope_id;
 
@@ -1921,7 +1923,6 @@ void Heap::CompleteSweepingFull() {
     TRACE_GC_EPOCH(tracer(), scope_id, ThreadKind::kMain);
     array_buffer_sweeper()->EnsureFinished();
   }
-  EnsureSweepingCompleted(SweepingForcedFinalizationMode::kUnifiedHeap);
 
   DCHECK(!sweeping_in_progress());
   DCHECK_IMPLIES(cpp_heap(),
@@ -2224,16 +2225,22 @@ size_t Heap::PerformGarbageCollection(GarbageCollector collector,
   HeapVerifier::VerifyHeapIfEnabled(this);
 
   if (isolate()->is_shared_heap_isolate()) {
-    isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
-      if (client->is_shared_heap_isolate()) return;
-      CHECK(client->heap()->deserialization_complete());
+    isolate()->global_safepoint()->IterateClientIsolates(
+        [collector](Isolate* client) {
+          if (client->is_shared_heap_isolate()) return;
+          CHECK(client->heap()->deserialization_complete());
 
-      if (v8_flags.concurrent_marking) {
-        client->heap()->concurrent_marking()->Pause();
-      }
+          if (v8_flags.concurrent_marking) {
+            client->heap()->concurrent_marking()->Pause();
+          }
 
-      HeapVerifier::VerifyHeapIfEnabled(client->heap());
-    });
+          if (collector == GarbageCollector::MARK_COMPACTOR) {
+            Sweeper* const client_sweeper = client->heap()->sweeper();
+            client_sweeper->ParallelIteratePromotedPagesForRememberedSets();
+            client_sweeper->WaitForPromotedPagesIteration();
+          }
+          HeapVerifier::VerifyHeapIfEnabled(client->heap());
+        });
   }
 
   tracer()->StartInSafepoint();
@@ -2254,6 +2261,8 @@ size_t Heap::PerformGarbageCollection(GarbageCollector collector,
     Scavenge();
   }
 
+  DCHECK_IMPLIES(collector == GarbageCollector::MINOR_MARK_COMPACTOR,
+                 !pretenuring_handler_.HasPretenuringFeedback());
   if (collector != GarbageCollector::MINOR_MARK_COMPACTOR)
     pretenuring_handler_.ProcessPretenuringFeedback();
 
@@ -2402,6 +2411,15 @@ void Heap::PerformSharedGarbageCollection(Isolate* initiator,
 }
 
 void Heap::CompleteSweepingYoung() {
+  // If sweeping is in progress and there are no sweeper tasks running, finish
+  // the sweeping here, to avoid having to pause and resume during the young
+  // generation GC.
+  FinishSweepingIfOutOfWork();
+
+  if (v8_flags.minor_mc && sweeping_in_progress()) {
+    PauseSweepingAndEnsureYoungSweepingCompleted();
+  }
+
   if (array_buffer_sweeper()->sweeping_in_progress()) {
     GCTracer::Scope::ScopeId scope_id;
 
@@ -2418,15 +2436,6 @@ void Heap::CompleteSweepingYoung() {
 
     TRACE_GC_EPOCH(tracer(), scope_id, ThreadKind::kMain);
     array_buffer_sweeper()->EnsureFinished();
-  }
-
-  // If sweeping is in progress and there are no sweeper tasks running, finish
-  // the sweeping here, to avoid having to pause and resume during the young
-  // generation GC.
-  FinishSweepingIfOutOfWork();
-
-  if (v8_flags.minor_mc && sweeping_in_progress()) {
-    PauseSweepingAndEnsureYoungSweepingCompleted();
   }
 
 #if defined(CPPGC_YOUNG_GENERATION)
@@ -6243,29 +6252,6 @@ PagedSpace* PagedSpaceIterator::Next() {
     if (space) return space;
   }
   return nullptr;
-}
-
-SpaceIterator::SpaceIterator(Heap* heap)
-    : heap_(heap), current_space_(FIRST_MUTABLE_SPACE) {}
-
-SpaceIterator::~SpaceIterator() = default;
-
-bool SpaceIterator::HasNext() {
-  while (current_space_ <= LAST_MUTABLE_SPACE) {
-    Space* space = heap_->space(current_space_);
-    if (space) return true;
-    ++current_space_;
-  }
-
-  // No more spaces left.
-  return false;
-}
-
-Space* SpaceIterator::Next() {
-  DCHECK_LE(current_space_, LAST_MUTABLE_SPACE);
-  Space* space = heap_->space(current_space_++);
-  DCHECK_NOT_NULL(space);
-  return space;
 }
 
 class HeapObjectsFilter {

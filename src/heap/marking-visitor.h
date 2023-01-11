@@ -6,6 +6,7 @@
 #define V8_HEAP_MARKING_VISITOR_H_
 
 #include "src/common/globals.h"
+#include "src/execution/isolate.h"
 #include "src/heap/marking-state.h"
 #include "src/heap/marking-worklist.h"
 #include "src/heap/objects-visiting.h"

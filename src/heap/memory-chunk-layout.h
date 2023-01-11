@@ -5,8 +5,8 @@
 #ifndef V8_HEAP_MEMORY_CHUNK_LAYOUT_H_
 #define V8_HEAP_MEMORY_CHUNK_LAYOUT_H_
 
+#include "src/common/globals.h"
 #include "src/heap/base/active-system-pages.h"
-#include "src/heap/heap.h"
 #include "src/heap/list.h"
 #include "src/heap/progress-bar.h"
 #include "src/heap/slot-set.h"
