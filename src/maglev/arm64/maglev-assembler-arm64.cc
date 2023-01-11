@@ -301,7 +301,7 @@ void MaglevAssembler::Prologue(Graph* graph) {
       for (int i = 0; i < kLoopUnrollSize; ++i) {
         Push(xzr, xzr);
       }
-      sub(count, count, Immediate(1));
+      Subs(count, count, Immediate(1));
       b(&loop, gt);
     }
   }
