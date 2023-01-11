@@ -694,7 +694,6 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(ArrayGetS, 0xfb14, _, "array.get_s")                                       \
   V(ArrayGetU, 0xfb15, _, "array.get_u")                                       \
   V(ArraySet, 0xfb16, _, "array.set")                                          \
-  V(ArrayLenDeprecated, 0xfb17, _, "array.len")                                \
   V(ArrayCopy, 0xfb18, _,                                                      \
     "array.copy") /* not standardized - V8 experimental */                     \
   V(ArrayLen, 0xfb19, _, "array.len")                                          \

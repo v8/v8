@@ -2150,8 +2150,7 @@ class WasmDecoder : public Decoder {
           case kExprArrayGet:
           case kExprArrayGetS:
           case kExprArrayGetU:
-          case kExprArraySet:
-          case kExprArrayLenDeprecated: {
+          case kExprArraySet: {
             ArrayIndexImmediate imm(decoder, pc + length, validate);
             (ios.TypeIndex(imm), ...);
             return length + imm.length;
@@ -2436,7 +2435,6 @@ class WasmDecoder : public Decoder {
           case kExprI31GetS:
           case kExprI31GetU:
           case kExprArrayNewDefault:
-          case kExprArrayLenDeprecated:
           case kExprArrayLen:
           case kExprRefTest:
           case kExprRefTestNull:
@@ -4763,18 +4761,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         Drop(array_obj);
         Push(value);
         return opcode_length;
-      }
-      case kExprArrayLenDeprecated: {
-        NON_CONST_ONLY
-        // Read but ignore an immediate array type index.
-        // TODO(7748): Remove this once we are ready to make breaking changes.
-        ArrayIndexImmediate imm(this, this->pc_ + opcode_length, validate);
-        Value array_obj = Peek(0, 0, kWasmArrayRef);
-        Value value = CreateValue(kWasmI32);
-        CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayLen, array_obj, &value);
-        Drop(array_obj);
-        Push(value);
-        return opcode_length + imm.length;
       }
       case kExprArrayCopy: {
         NON_CONST_ONLY

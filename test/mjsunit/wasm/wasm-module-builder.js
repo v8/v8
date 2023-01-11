@@ -499,7 +499,6 @@ let kExprArrayGet = 0x13;
 let kExprArrayGetS = 0x14;
 let kExprArrayGetU = 0x15;
 let kExprArraySet = 0x16;
-let kExprArrayLenDeprecated = 0x17;
 let kExprArrayCopy = 0x18;
 let kExprArrayLen = 0x19;
 let kExprArrayNewFixed = 0x1a;
