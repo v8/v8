@@ -5953,8 +5953,6 @@ class ScopeListener : public v8::debug::DebugDelegate {
 }  // namespace
 
 TEST(ScopeIteratorDoesNotCreateBlocklistForScriptScope) {
-  i::v8_flags.experimental_reuse_locals_blocklists = true;
-
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -5996,8 +5994,6 @@ class DebugEvaluateListener : public v8::debug::DebugDelegate {
 // scope nested inside an eval scope with the exact same source positions.
 // This can confuse the blocklist mechanism if not handled correctly.
 TEST(DebugEvaluateInWrappedScript) {
-  i::v8_flags.experimental_reuse_locals_blocklists = true;
-
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);

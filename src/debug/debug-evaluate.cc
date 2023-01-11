@@ -211,9 +211,7 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
     : isolate_(isolate),
       frame_inspector_(frame, inlined_jsframe_index, isolate),
       scope_iterator_(isolate, &frame_inspector_,
-                      v8_flags.experimental_reuse_locals_blocklists
-                          ? ScopeIterator::ReparseStrategy::kScriptIfNeeded
-                          : ScopeIterator::ReparseStrategy::kScript) {
+                      ScopeIterator::ReparseStrategy::kScriptIfNeeded) {
   Handle<Context> outer_context(frame_inspector_.GetFunction()->context(),
                                 isolate);
   evaluation_context_ = outer_context;
@@ -226,39 +224,30 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
   //  - To make stack-allocated variables visible, we materialize them and
   //    use a debug-evaluate context to wrap both the materialized object and
   //    the original context.
-  //  - We also wrap all contexts on the chain between the original context
-  //    and the function context.
+  //  - Each scope from the break position up to the function scope is wrapped
+  //    in a debug-evaluate context.
   //  - Between the function scope and the native context, we only resolve
   //    variable names that are guaranteed to not be shadowed by stack-allocated
-  //    variables. Contexts between the function context and the original
+  //    variables. ScopeInfos between the function scope and the native
   //    context have a blocklist attached to implement that.
+  //  - The various block lists are calculated by the ScopeIterator during
+  //    iteration.
   // Context::Lookup has special handling for debug-evaluate contexts:
   //  - Look up in the materialized stack variables.
-  //  - Check the blocklist to find out whether to abort further lookup.
   //  - Look up in the original context.
-  for (; !scope_iterator_.Done(); scope_iterator_.Next()) {
+  //  - Once we have seen a debug-evaluate context we start to take the
+  //    block lists into account before moving up the context chain.
+  for (; scope_iterator_.InInnerScope(); scope_iterator_.Next()) {
     ScopeIterator::ScopeType scope_type = scope_iterator_.Type();
     if (scope_type == ScopeIterator::ScopeTypeScript) break;
     ContextChainElement context_chain_element;
-    if (scope_iterator_.InInnerScope() &&
-        (scope_type == ScopeIterator::ScopeTypeLocal ||
-         scope_iterator_.DeclaresLocals(ScopeIterator::Mode::STACK))) {
+    if (scope_type == ScopeIterator::ScopeTypeLocal ||
+        scope_iterator_.DeclaresLocals(ScopeIterator::Mode::STACK)) {
       context_chain_element.materialized_object =
           scope_iterator_.ScopeObject(ScopeIterator::Mode::STACK);
     }
     if (scope_iterator_.HasContext()) {
       context_chain_element.wrapped_context = scope_iterator_.CurrentContext();
-    }
-    if (v8_flags.experimental_reuse_locals_blocklists) {
-      // With the re-use experiment we only need `DebugEvaluateContexts` up
-      // to (and including) the paused function scope so the evaluated
-      // expression can access the materialized stack locals.
-      if (!scope_iterator_.InInnerScope()) break;
-    } else {
-      CHECK(!v8_flags.experimental_reuse_locals_blocklists);
-      if (!scope_iterator_.InInnerScope()) {
-        context_chain_element.blocklist = scope_iterator_.GetLocals();
-      }
     }
     context_chain_.push_back(context_chain_element);
   }
@@ -273,29 +262,23 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
     scope_info = ScopeInfo::CreateForWithScope(isolate, scope_info);
     scope_info->SetIsDebugEvaluateScope();
 
-    if (v8_flags.experimental_reuse_locals_blocklists) {
-      // In the case where the "paused function scope" is the script scope
-      // itself, we don't need (and don't have) a blocklist.
-      const bool paused_scope_is_script_scope =
-          scope_iterator_.Done() || scope_iterator_.InInnerScope();
-      if (rit == context_chain_.rbegin() && !paused_scope_is_script_scope) {
-        // The DebugEvaluateContext we create for the closure scope is the only
-        // DebugEvaluateContext with a block list. This means we'll retrieve
-        // the existing block list from the paused function scope
-        // and also associate the temporary scope_info we create here with that
-        // blocklist.
-        Handle<ScopeInfo> function_scope_info = handle(
-            frame_inspector_.GetFunction()->shared().scope_info(), isolate_);
-        Handle<Object> block_list = handle(
-            isolate_->LocalsBlockListCacheGet(function_scope_info), isolate_);
-        CHECK(block_list->IsStringSet());
-        isolate_->LocalsBlockListCacheSet(scope_info, Handle<ScopeInfo>::null(),
-                                          Handle<StringSet>::cast(block_list));
-      }
-    } else if (!element.blocklist.is_null()) {
-      CHECK(!v8_flags.experimental_reuse_locals_blocklists);
-      scope_info = ScopeInfo::RecreateWithBlockList(isolate, scope_info,
-                                                    element.blocklist);
+    // In the case where the "paused function scope" is the script scope
+    // itself, we don't need (and don't have) a blocklist.
+    const bool paused_scope_is_script_scope =
+        scope_iterator_.Done() || scope_iterator_.InInnerScope();
+    if (rit == context_chain_.rbegin() && !paused_scope_is_script_scope) {
+      // The DebugEvaluateContext we create for the closure scope is the only
+      // DebugEvaluateContext with a block list. This means we'll retrieve
+      // the existing block list from the paused function scope
+      // and also associate the temporary scope_info we create here with that
+      // blocklist.
+      Handle<ScopeInfo> function_scope_info = handle(
+          frame_inspector_.GetFunction()->shared().scope_info(), isolate_);
+      Handle<Object> block_list = handle(
+          isolate_->LocalsBlockListCacheGet(function_scope_info), isolate_);
+      CHECK(block_list->IsStringSet());
+      isolate_->LocalsBlockListCacheSet(scope_info, Handle<ScopeInfo>::null(),
+                                        Handle<StringSet>::cast(block_list));
     }
 
     evaluation_context_ = factory->NewDebugEvaluateContext(

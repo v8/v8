@@ -1754,8 +1754,6 @@ DEFINE_NEG_IMPLICATION(fuzzing, hard_abort)
 
 DEFINE_BOOL(experimental_value_unavailable, false,
             "enable experimental <value unavailable> in scopes")
-DEFINE_BOOL(experimental_reuse_locals_blocklists, true,
-            "enable reuse of local blocklists across multiple debug-evaluates")
 
 DEFINE_BOOL(experimental_remove_internal_scopes_property, false,
             "don't report the artificial [[Scopes]] property for functions")
