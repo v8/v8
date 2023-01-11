@@ -150,8 +150,9 @@ if (v8_enable_webassembly == "") {
 assert(!(v8_enable_webassembly && v8_enable_lite_mode),
        "Webassembly is not available in lite mode.")
 
+# Turbofan is enabled by default, except in lite mode.
 if (v8_enable_turbofan == "") {
-  v8_enable_turbofan = true
+  v8_enable_turbofan = !v8_enable_lite_mode
 }
 assert(v8_enable_turbofan || !v8_enable_webassembly,
        "Webassembly is not available when Turbofan is disabled.")
