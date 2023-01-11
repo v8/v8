@@ -2196,6 +2196,7 @@ size_t Heap::PerformGarbageCollection(GarbageCollector collector,
                            GCTracer::MarkingType::kAtomic);
     }
   }
+  if (v8_flags.minor_mc) pretenuring_handler_.ProcessPretenuringFeedback();
 
   tracer()->StartAtomicPause();
   if (!Heap::IsYoungGenerationCollector(collector) &&
@@ -2254,8 +2255,7 @@ size_t Heap::PerformGarbageCollection(GarbageCollector collector,
     Scavenge();
   }
 
-  if (collector != GarbageCollector::MINOR_MARK_COMPACTOR)
-    pretenuring_handler_.ProcessPretenuringFeedback();
+  pretenuring_handler_.ProcessPretenuringFeedback();
 
   UpdateSurvivalStatistics(static_cast<int>(start_young_generation_size));
   ConfigureInitialOldGenerationSize();
@@ -7279,8 +7279,6 @@ void Heap::FinishSweepingIfOutOfWork() {
 
 void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
   if (sweeper()->sweeping_in_progress()) {
-    GarbageCollector collector = tracer_->GetCurrentCollector();
-
     sweeper()->EnsureCompleted();
 
     {
@@ -7312,15 +7310,6 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
       verifier.Run();
     }
 #endif
-
-    DCHECK_IMPLIES(pretenuring_handler_.HasPretenuringFeedback(),
-                   collector == GarbageCollector::MINOR_MARK_COMPACTOR);
-    DCHECK_IMPLIES(collector != GarbageCollector::MINOR_MARK_COMPACTOR,
-                   !pretenuring_handler_.HasPretenuringFeedback());
-    if (collector == GarbageCollector::MINOR_MARK_COMPACTOR) {
-      DCHECK(v8_flags.minor_mc);
-      pretenuring_handler_.ProcessPretenuringFeedback();
-    }
   }
 
   if (mode == SweepingForcedFinalizationMode::kUnifiedHeap && cpp_heap()) {
@@ -7337,8 +7326,6 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
 
 void Heap::PauseSweepingAndEnsureYoungSweepingCompleted() {
   if (sweeper()->sweeping_in_progress()) {
-    GarbageCollector collector = tracer_->GetCurrentCollector();
-
     TRACE_GC_EPOCH(tracer(), sweeper()->GetTracingScopeForCompleteYoungSweep(),
                    ThreadKind::kMain);
 
@@ -7353,15 +7340,6 @@ void Heap::PauseSweepingAndEnsureYoungSweepingCompleted() {
       verifier.Run();
     }
 #endif
-
-    DCHECK_IMPLIES(pretenuring_handler_.HasPretenuringFeedback(),
-                   collector == GarbageCollector::MINOR_MARK_COMPACTOR);
-    DCHECK_IMPLIES(collector != GarbageCollector::MINOR_MARK_COMPACTOR,
-                   !pretenuring_handler_.HasPretenuringFeedback());
-    if (collector == GarbageCollector::MINOR_MARK_COMPACTOR) {
-      DCHECK(v8_flags.minor_mc);
-      pretenuring_handler_.ProcessPretenuringFeedback();
-    }
   }
 }
 
