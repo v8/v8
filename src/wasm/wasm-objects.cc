@@ -1421,11 +1421,8 @@ void WasmInstanceObject::ImportWasmJSFunctionIntoTable(
   if (sig_in_module != module_canonical_ids.end()) {
     wasm::NativeModule* native_module =
         instance->module_object().native_module();
-    // TODO(wasm): Cache and reuse wrapper code, to avoid repeated compilation
-    // and permissions switching.
-    const wasm::WasmFeatures enabled = native_module->enabled_features();
-    auto resolved = compiler::ResolveWasmImportCall(
-        callable, sig, canonical_sig_index, instance->module(), enabled);
+    auto resolved =
+        compiler::ResolveWasmImportCall(callable, sig, canonical_sig_index);
     compiler::WasmImportCallKind kind = resolved.kind;
     callable = resolved.callable;  // Update to ultimate target.
     DCHECK_NE(compiler::WasmImportCallKind::kLinkError, kind);
@@ -2351,6 +2348,12 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
         case HeapType::kStringViewIter:
           *error_message = "stringview_iter has no JS representation";
           return {};
+        case HeapType::kNoFunc:
+        case HeapType::kNoExtern:
+        case HeapType::kNone: {
+          *error_message = "only null allowed for null types";
+          return {};
+        }
         default: {
           auto type_canonicalizer = GetWasmEngine()->type_canonicalizer();
 

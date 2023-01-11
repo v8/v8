@@ -118,10 +118,9 @@ struct WasmImportData {
 // suspender object if applicable. Note that some callables (e.g. a
 // {WasmExportedFunction} or {WasmJSFunction}) just wrap another target, which
 // is why the ultimate target is returned as well.
-V8_EXPORT_PRIVATE WasmImportData ResolveWasmImportCall(
-    Handle<JSReceiver> callable, const wasm::FunctionSig* sig,
-    uint32_t expected_canonical_type_index, const wasm::WasmModule* module,
-    const wasm::WasmFeatures& enabled_features);
+V8_EXPORT_PRIVATE WasmImportData
+ResolveWasmImportCall(Handle<JSReceiver> callable, const wasm::FunctionSig* sig,
+                      uint32_t expected_canonical_type_index);
 
 // Compiles an import call wrapper, which allows Wasm to call imports.
 V8_EXPORT_PRIVATE wasm::WasmCompilationResult CompileWasmImportCallWrapper(

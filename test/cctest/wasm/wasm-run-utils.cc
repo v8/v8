@@ -78,8 +78,7 @@ TestingModuleBuilder::TestingModuleBuilder(
     uint32_t canonical_type_index =
         GetTypeCanonicalizer()->AddRecursiveGroup(maybe_import->sig);
     auto resolved = compiler::ResolveWasmImportCall(
-        maybe_import->js_function, maybe_import->sig, canonical_type_index,
-        instance_object_->module(), enabled_features_);
+        maybe_import->js_function, maybe_import->sig, canonical_type_index);
     compiler::WasmImportCallKind kind = resolved.kind;
     Handle<JSReceiver> callable = resolved.callable;
     WasmImportWrapperCache::ModificationScope cache_scope(

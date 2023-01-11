@@ -1651,10 +1651,7 @@ int AddImportWrapperUnits(NativeModule* native_module,
   for (int func_index = 0; func_index < num_imported_functions; func_index++) {
     const WasmFunction& function =
         native_module->module()->functions[func_index];
-    if (!IsJSCompatibleSignature(function.sig, native_module->module(),
-                                 native_module->enabled_features())) {
-      continue;
-    }
+    if (!IsJSCompatibleSignature(function.sig)) continue;
     uint32_t canonical_type_index =
         native_module->module()
             ->isorecursive_canonical_type_ids[function.sig_index];
