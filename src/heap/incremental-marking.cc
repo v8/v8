@@ -4,7 +4,6 @@
 
 #include "src/heap/incremental-marking.h"
 
-#include "src/base/platform/time.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/handles/global-handles.h"
@@ -549,17 +548,27 @@ void IncrementalMarking::UpdateMarkedBytesAfterScavenge(
 void IncrementalMarking::EmbedderStep(double expected_duration_ms,
                                       double* duration_ms) {
   DCHECK(IsMarking());
-  auto* cpp_heap = CppHeap::From(heap_->cpp_heap());
-  if (!cpp_heap || !cpp_heap->incremental_marking_supported()) {
+  if (!heap_->local_embedder_heap_tracer()
+           ->SupportsIncrementalEmbedderSteps()) {
     *duration_ms = 0.0;
     return;
   }
 
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_INCREMENTAL_EMBEDDER_TRACING);
-  const auto start = base::TimeTicks::Now();
-  cpp_heap->AdvanceTracing(expected_duration_ms);
-  *duration_ms =
-      std::max((base::TimeTicks::Now() - start).InMillisecondsF(), 0.0);
+  LocalEmbedderHeapTracer* local_tracer = heap_->local_embedder_heap_tracer();
+  const double start = heap_->MonotonicallyIncreasingTimeInMs();
+  const double deadline = start + expected_duration_ms;
+  bool empty_worklist = true;
+  if (local_marking_worklists()->PublishWrapper()) {
+    DCHECK(local_marking_worklists()->IsWrapperEmpty());
+  }
+  // |deadline - heap_->MonotonicallyIncreasingTimeInMs()| could be negative,
+  // which means |local_tracer| won't do any actual tracing, so there is no
+  // need to check for |deadline <= heap_->MonotonicallyIncreasingTimeInMs()|.
+  local_tracer->Trace(deadline - heap_->MonotonicallyIncreasingTimeInMs());
+  double current = heap_->MonotonicallyIncreasingTimeInMs();
+  local_tracer->SetEmbedderWorklistEmpty(empty_worklist);
+  *duration_ms = current - start;
 }
 
 bool IncrementalMarking::Stop() {
@@ -790,12 +799,13 @@ void IncrementalMarking::AdvanceOnAllocation() {
 bool IncrementalMarking::ShouldFinalize() const {
   DCHECK(IsMarking());
 
-  const auto* cpp_heap = CppHeap::From(heap_->cpp_heap());
   return heap()
              ->mark_compact_collector()
              ->local_marking_worklists()
              ->IsEmpty() &&
-         (!cpp_heap || cpp_heap->ShouldFinalizeIncrementalMarking());
+         heap()
+             ->local_embedder_heap_tracer()
+             ->ShouldFinalizeIncrementalMarking();
 }
 
 size_t IncrementalMarking::StepSizeToKeepUpWithAllocations() {
