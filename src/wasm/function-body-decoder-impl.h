@@ -1454,7 +1454,6 @@ class WasmDecoder : public Decoder {
         case kExprMemoryGrow:
         case kExprCallFunction:
         case kExprCallIndirect:
-        case kExprCallRefDeprecated:
         case kExprCallRef:
           // Add instance cache to the assigned set.
           assigned->Add(locals_count);
@@ -1900,7 +1899,6 @@ class WasmDecoder : public Decoder {
         (ios.CallIndirect(imm), ...);
         return 1 + imm.length;
       }
-      case kExprCallRefDeprecated:  // TODO(7748): Drop after grace period.
       case kExprCallRef:
       case kExprReturnCallRef: {
         SigIndexImmediate imm(decoder, pc + 1, validate);
@@ -3776,22 +3774,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     return 1 + imm.length;
   }
 
-  // TODO(7748): After a certain grace period, drop this in favor of "CallRef".
-  DECODE(CallRefDeprecated) {
-    CHECK_PROTOTYPE_OPCODE(typed_funcref);
-    SigIndexImmediate imm(this, this->pc_ + 1, validate);
-    if (!this->Validate(this->pc_ + 1, imm)) return 0;
-    Value func_ref = Peek(0, 0, ValueType::RefNull(imm.index));
-    ArgVector args = PeekArgs(imm.sig, 1);
-    ReturnVector returns = CreateReturnValues(imm.sig);
-    CALL_INTERFACE_IF_OK_AND_REACHABLE(CallRef, func_ref, imm.sig, imm.index,
-                                       args.begin(), returns.begin());
-    Drop(func_ref);
-    DropArgs(imm.sig);
-    PushReturns(returns);
-    return 1 + imm.length;
-  }
-
   DECODE(CallRef) {
     CHECK_PROTOTYPE_OPCODE(typed_funcref);
     SigIndexImmediate imm(this, this->pc_ + 1, validate);
@@ -3979,7 +3961,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     DECODE_IMPL(CallIndirect);
     DECODE_IMPL(ReturnCall);
     DECODE_IMPL(ReturnCallIndirect);
-    DECODE_IMPL(CallRefDeprecated);
     DECODE_IMPL(CallRef);
     DECODE_IMPL(ReturnCallRef);
     DECODE_IMPL2(kNumericPrefix, Numeric);
