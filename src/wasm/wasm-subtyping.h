@@ -48,20 +48,18 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool EquivalentTypes(ValueType type1,
 // - rtt1 <: rtt2 iff rtt1 ~ rtt2.
 // For heap types, the following subtyping rules hold:
 // - The abstract heap types form the following type hierarchies:
-//   TODO(7748): abstract ref.data should become ref.struct.
 //
-//           any              func         extern
-//            |                |             |
-//           eq              nofunc       noextern
-//          /  \
-//        i31   data
-//         |     |
-//         |   array
-//          \   /
-//          none
+//             any              func         extern
+//              |                |             |
+//             eq              nofunc       noextern
+//          /   |   \
+//       i31  array  struct
+//          \   |   /
+//           \  |  /
+//            none
 //
 // - All functions are subtypes of func.
-// - All structs are subtypes of data.
+// - All structs are subtypes of struct.
 // - All arrays are subtypes of array.
 // - An indexed heap type h1 is a subtype of indexed heap type h2 if h2 is
 //   transitively an explicit canonical supertype of h1.

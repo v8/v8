@@ -5533,22 +5533,6 @@ WasmGraphBuilder::Callbacks WasmGraphBuilder::BranchCallbacks(
       }};
 }
 
-void WasmGraphBuilder::DataCheck(Node* object, bool object_can_be_null,
-                                 Callbacks callbacks, bool null_succeeds) {
-  // TODO(7748): Only used for backwards compatibility in combination with
-  // v8_flags.wasm_gc_structref_as_dataref. Remove.
-  if (object_can_be_null) {
-    if (null_succeeds) {
-      callbacks.succeed_if(IsNull(object), BranchHint::kFalse);
-    } else {
-      callbacks.fail_if(IsNull(object), BranchHint::kFalse);
-    }
-  }
-  callbacks.fail_if(gasm_->IsI31(object), BranchHint::kFalse);
-  Node* map = gasm_->LoadMap(object);
-  callbacks.fail_if_not(gasm_->IsDataRefMap(map), BranchHint::kTrue);
-}
-
 void WasmGraphBuilder::EqCheck(Node* object, bool object_can_be_null,
                                Callbacks callbacks, bool null_succeeds) {
   // TODO(7748): Is the extra null check actually beneficial for performance?
@@ -5746,12 +5730,8 @@ void WasmGraphBuilder::BrOnEq(Node* object, Node* /*rtt*/,
 Node* WasmGraphBuilder::RefIsStruct(Node* object, bool object_can_be_null,
                                     bool null_succeeds) {
   auto done = gasm_->MakeLabel(MachineRepresentation::kWord32);
-  if (!v8_flags.wasm_gc_structref_as_dataref) {
-    ManagedObjectInstanceCheck(object, object_can_be_null, WASM_STRUCT_TYPE,
-                               TestCallbacks(&done), null_succeeds);
-  } else {
-    DataCheck(object, object_can_be_null, TestCallbacks(&done), null_succeeds);
-  }
+  ManagedObjectInstanceCheck(object, object_can_be_null, WASM_STRUCT_TYPE,
+                             TestCallbacks(&done), null_succeeds);
   gasm_->Goto(&done, Int32Constant(1));
   gasm_->Bind(&done);
   return done.PhiAt(0);
@@ -5761,13 +5741,8 @@ Node* WasmGraphBuilder::RefAsStruct(Node* object, bool object_can_be_null,
                                     wasm::WasmCodePosition position,
                                     bool null_succeeds) {
   auto done = gasm_->MakeLabel();
-  if (!v8_flags.wasm_gc_structref_as_dataref) {
-    ManagedObjectInstanceCheck(object, object_can_be_null, WASM_STRUCT_TYPE,
-                               CastCallbacks(&done, position), null_succeeds);
-  } else {
-    DataCheck(object, object_can_be_null, CastCallbacks(&done, position),
-              null_succeeds);
-  }
+  ManagedObjectInstanceCheck(object, object_can_be_null, WASM_STRUCT_TYPE,
+                             CastCallbacks(&done, position), null_succeeds);
   gasm_->Goto(&done);
   gasm_->Bind(&done);
   return object;
@@ -5781,14 +5756,9 @@ void WasmGraphBuilder::BrOnStruct(Node* object, Node* /*rtt*/,
   bool null_succeeds = config.to.is_nullable();
   BrOnCastAbs(match_control, match_effect, no_match_control, no_match_effect,
               [=](Callbacks callbacks) -> void {
-                if (!v8_flags.wasm_gc_structref_as_dataref) {
-                  return ManagedObjectInstanceCheck(
-                      object, config.from.is_nullable(), WASM_STRUCT_TYPE,
-                      callbacks, null_succeeds);
-                } else {
-                  return DataCheck(object, config.from.is_nullable(), callbacks,
-                                   null_succeeds);
-                }
+                return ManagedObjectInstanceCheck(
+                    object, config.from.is_nullable(), WASM_STRUCT_TYPE,
+                    callbacks, null_succeeds);
               });
 }
 

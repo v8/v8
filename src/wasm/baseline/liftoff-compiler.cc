@@ -6260,16 +6260,8 @@ class LiftoffCompiler {
   void StructCheck(TypeCheck& check, const FreezeCacheState& frozen) {
     LoadInstanceType(check, frozen, check.no_match);
     LiftoffRegister instance_type(check.instance_type());
-    if (!v8_flags.wasm_gc_structref_as_dataref) {
-      __ emit_i32_cond_jumpi(kUnequal, check.no_match, check.instance_type(),
-                             WASM_STRUCT_TYPE, frozen);
-    } else {
-      Register tmp = check.instance_type();
-      __ emit_i32_subi(tmp, tmp, FIRST_WASM_OBJECT_TYPE);
-      __ emit_i32_cond_jumpi(kUnsignedGreaterThan, check.no_match, tmp,
-                             LAST_WASM_OBJECT_TYPE - FIRST_WASM_OBJECT_TYPE,
-                             frozen);
-    }
+    __ emit_i32_cond_jumpi(kUnequal, check.no_match, check.instance_type(),
+                           WASM_STRUCT_TYPE, frozen);
   }
 
   void ArrayCheck(TypeCheck& check, const FreezeCacheState& frozen) {

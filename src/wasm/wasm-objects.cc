@@ -2295,8 +2295,7 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
           return {};
         }
         case HeapType::kStruct: {
-          if (value->IsWasmStruct() ||
-              (value->IsWasmArray() && v8_flags.wasm_gc_structref_as_dataref)) {
+          if (value->IsWasmStruct()) {
             return value;
           }
           *error_message =

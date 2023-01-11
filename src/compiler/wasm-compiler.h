@@ -774,8 +774,6 @@ class WasmGraphBuilder {
                             SmallNodeVector& match_controls,
                             SmallNodeVector& match_effects);
 
-  void DataCheck(Node* object, bool object_can_be_null, Callbacks callbacks,
-                 bool null_succeeds);
   void EqCheck(Node* object, bool object_can_be_null, Callbacks callbacks,
                bool null_succeeds);
   void ManagedObjectInstanceCheck(Node* object, bool object_can_be_null,
