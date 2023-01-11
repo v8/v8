@@ -3272,8 +3272,17 @@ void TurboAssembler::DecompressTaggedPointer(const Register& destination,
 void TurboAssembler::DecompressTaggedPointer(const Register& destination,
                                              Tagged_t immediate) {
   ASM_CODE_COMMENT(this);
-  Add(destination, kPtrComprCageBaseRegister,
-      Immediate(immediate, RelocInfo::Mode::NO_INFO));
+  if (IsImmAddSub(immediate)) {
+    Add(destination, kPtrComprCageBaseRegister,
+        Immediate(immediate, RelocInfo::Mode::NO_INFO));
+  } else {
+    // Immediate is larger than 12 bit and therefore can't be encoded directly.
+    // Use destination as a temporary to not acquire a scratch register.
+    DCHECK_NE(destination, sp);
+    Operand imm_operand =
+        MoveImmediateForShiftedOp(destination, immediate, kAnyShift);
+    Add(destination, kPtrComprCageBaseRegister, imm_operand);
+  }
 }
 
 void TurboAssembler::DecompressAnyTagged(const Register& destination,
