@@ -4,8 +4,11 @@
 
 #include "include/v8-initialization.h"
 #include "src/api/api-inl.h"
+#include "src/api/api.h"
 #include "src/base/strings.h"
+#include "src/common/assert-scope.h"
 #include "src/common/globals.h"
+#include "src/flags/flags.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/memory-chunk-layout.h"
@@ -13,10 +16,13 @@
 #include "src/heap/parked-scope.h"
 #include "src/heap/remembered-set.h"
 #include "src/objects/fixed-array.h"
+#include "src/objects/heap-object.h"
+#include "src/objects/js-weak-refs.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/string-forwarding-table-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
+#include "v8-persistent-handle.h"
 
 namespace v8 {
 namespace internal {
@@ -2033,6 +2039,333 @@ UNINITIALIZED_TEST(SharedStringInClientGlobalHandle) {
   std::atomic<bool> done = false;
   WorkerIsolateThread thread("worker", &test, &done);
   CHECK(thread.Start());
+
+  while (!done) {
+    v8::platform::PumpMessageLoop(
+        i::V8::GetCurrentPlatform(), test.main_isolate(),
+        v8::platform::MessageLoopBehavior::kWaitForWork);
+  }
+
+  thread.Join();
+}
+
+class ClientIsolateThreadForPagePromotions : public v8::base::Thread {
+ public:
+  ClientIsolateThreadForPagePromotions(const char* name,
+                                       MultiClientIsolateTest* test,
+                                       std::atomic<bool>* done,
+                                       Handle<String>* shared_string)
+      : v8::base::Thread(base::Thread::Options(name)),
+        test_(test),
+        done_(done),
+        shared_string_(shared_string) {}
+
+  void Run() override {
+    CHECK(v8_flags.minor_mc);
+    v8::Isolate* client = test_->NewClientIsolate();
+    Isolate* i_client = reinterpret_cast<Isolate*>(client);
+    Factory* factory = i_client->factory();
+    Heap* heap = i_client->heap();
+
+    {
+      HandleScope scope(i_client);
+
+      Handle<FixedArray> young_object =
+          factory->NewFixedArray(1, AllocationType::kYoung);
+      CHECK(Heap::InYoungGeneration(*young_object));
+      Address young_object_address = young_object->address();
+
+      std::vector<Handle<FixedArray>> handles;
+      // Make the whole page transition from new->old, getting the buffers
+      // processed in the sweeper (relying on marking information) instead of
+      // processing during newspace evacuation.
+      heap::FillCurrentPage(heap->new_space(), &handles);
+
+      CHECK(!heap->Contains(**shared_string_));
+      CHECK(heap->SharedHeapContains(**shared_string_));
+      young_object->set(0, **shared_string_);
+
+      CcTest::CollectGarbage(NEW_SPACE, i_client);
+      heap->CompleteSweepingFull();
+
+      // Object should get promoted using page promotion, so address should
+      // remain the same.
+      CHECK(!Heap::InYoungGeneration(*young_object));
+      CHECK(heap->Contains(*young_object));
+      CHECK_EQ(young_object_address, young_object->address());
+
+      // Since the GC promoted that string into shared heap, it also needs to
+      // create an OLD_TO_SHARED slot.
+      ObjectSlot slot = young_object->GetFirstElementAddress();
+      CHECK(RememberedSet<OLD_TO_SHARED>::Contains(
+          MemoryChunk::FromHeapObject(*young_object), slot.address()));
+    }
+
+    client->Dispose();
+
+    *done_ = true;
+
+    V8::GetCurrentPlatform()
+        ->GetForegroundTaskRunner(test_->main_isolate())
+        ->PostTask(std::make_unique<WakeupTask>(test_->i_main_isolate()));
+  }
+
+ private:
+  MultiClientIsolateTest* test_;
+  std::atomic<bool>* done_;
+  Handle<String>* shared_string_;
+};
+
+UNINITIALIZED_TEST(RegisterOldToSharedForPromotedPageFromClient) {
+  if (v8_flags.single_generation) return;
+  if (!v8_flags.minor_mc) return;
+  if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
+
+  v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
+  v8_flags.shared_string_table = true;
+  v8_flags.manual_evacuation_candidates_selection = true;
+
+  MultiClientIsolateTest test;
+  std::atomic<bool> done = false;
+
+  Isolate* i_isolate = test.i_main_isolate();
+  Isolate* shared_isolate = i_isolate->shared_heap_isolate();
+  Heap* shared_heap = shared_isolate->heap();
+
+  HandleScope scope(i_isolate);
+
+  const char raw_one_byte[] = "foo";
+  Handle<String> shared_string =
+      i_isolate->factory()->NewStringFromAsciiChecked(
+          raw_one_byte, AllocationType::kSharedOld);
+  CHECK(shared_heap->Contains(*shared_string));
+
+  ClientIsolateThreadForPagePromotions thread("worker", &test, &done,
+                                              &shared_string);
+  CHECK(thread.Start());
+
+  while (!done) {
+    v8::platform::PumpMessageLoop(
+        i::V8::GetCurrentPlatform(), test.main_isolate(),
+        v8::platform::MessageLoopBehavior::kWaitForWork);
+  }
+
+  thread.Join();
+}
+
+UNINITIALIZED_TEST(
+    RegisterOldToSharedForPromotedPageFromClientDuringIncrementalMarking) {
+  if (v8_flags.single_generation) return;
+  if (!v8_flags.minor_mc) return;
+  if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
+
+  v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
+  v8_flags.shared_string_table = true;
+  v8_flags.manual_evacuation_candidates_selection = true;
+  v8_flags.incremental_marking_task =
+      false;  // Prevent the incremental GC from finishing and finalizing in a
+              // task.
+
+  MultiClientIsolateTest test;
+  std::atomic<bool> done = false;
+
+  Isolate* i_isolate = test.i_main_isolate();
+  Isolate* shared_isolate = i_isolate->shared_heap_isolate();
+  Heap* shared_heap = shared_isolate->heap();
+
+  HandleScope scope(i_isolate);
+
+  const char raw_one_byte[] = "foo";
+  Handle<String> shared_string =
+      i_isolate->factory()->NewStringFromAsciiChecked(
+          raw_one_byte, AllocationType::kSharedOld);
+  CHECK(shared_heap->Contains(*shared_string));
+
+  // Start an incremental shared GC such that shared_string resides on an
+  // evacuation candidate.
+  ManualGCScope manual_gc_scope(shared_isolate);
+  heap::ForceEvacuationCandidate(Page::FromHeapObject(*shared_string));
+  i::IncrementalMarking* marking = shared_heap->incremental_marking();
+  CHECK(marking->IsStopped());
+  {
+    IsolateSafepointScope safepoint_scope(shared_heap);
+    shared_heap->tracer()->StartCycle(
+        GarbageCollector::MARK_COMPACTOR, GarbageCollectionReason::kTesting,
+        "collector cctest", GCTracer::MarkingType::kIncremental);
+    marking->Start(GarbageCollector::MARK_COMPACTOR,
+                   i::GarbageCollectionReason::kTesting);
+  }
+
+  ClientIsolateThreadForPagePromotions thread("worker", &test, &done,
+                                              &shared_string);
+  CHECK(thread.Start());
+
+  while (!done) {
+    v8::platform::PumpMessageLoop(
+        i::V8::GetCurrentPlatform(), test.main_isolate(),
+        v8::platform::MessageLoopBehavior::kWaitForWork);
+  }
+
+  thread.Join();
+}
+
+class ClientIsolateThreadForRetainingByRememberedSet : public v8::base::Thread {
+ public:
+  ClientIsolateThreadForRetainingByRememberedSet(
+      const char* name, MultiClientIsolateTest* test, std::atomic<bool>* done,
+      Persistent<v8::String>* weak_ref)
+      : v8::base::Thread(base::Thread::Options(name)),
+        test_(test),
+        done_(done),
+        weak_ref_(weak_ref) {}
+
+  void Run() override {
+    CHECK(v8_flags.minor_mc);
+    client_isolate_ = test_->NewClientIsolate();
+    Isolate* i_client = reinterpret_cast<Isolate*>(client_isolate_);
+    Factory* factory = i_client->factory();
+    Heap* heap = i_client->heap();
+    ManualGCScope manual_gc_scope(i_client);
+
+    {
+      HandleScope scope(i_client);
+
+      Handle<FixedArray> young_object =
+          factory->NewFixedArray(1, AllocationType::kYoung);
+      CHECK(Heap::InYoungGeneration(*young_object));
+      Address young_object_address = young_object->address();
+
+      std::vector<Handle<FixedArray>> handles;
+      // Make the whole page transition from new->old, getting the buffers
+      // processed in the sweeper (relying on marking information) instead of
+      // processing during newspace evacuation.
+      heap::FillCurrentPage(heap->new_space(), &handles);
+
+      // Create a new to shared reference.
+      CHECK(!weak_ref_->IsEmpty());
+      Handle<String> shared_string = Utils::OpenHandle<v8::String, String>(
+          weak_ref_->Get(client_isolate_));
+      CHECK(!heap->Contains(*shared_string));
+      CHECK(heap->SharedHeapContains(*shared_string));
+      young_object->set(0, *shared_string);
+
+      CcTest::CollectGarbage(NEW_SPACE, i_client);
+
+      // Object should get promoted using page promotion, so address should
+      // remain the same.
+      CHECK(!Heap::InYoungGeneration(*young_object));
+      CHECK(heap->Contains(*young_object));
+      CHECK_EQ(young_object_address, young_object->address());
+
+      // GC should still be in progress (unless heap verification is enabled).
+      CHECK_IMPLIES(!v8_flags.verify_heap, heap->sweeping_in_progress());
+
+      // Inform main thread that the client is set up and is doing a GC.
+      *done_ = true;
+      V8::GetCurrentPlatform()
+          ->GetForegroundTaskRunner(test_->main_isolate())
+          ->PostTask(std::make_unique<WakeupTask>(test_->i_main_isolate()));
+
+      // Wait for main thread to do a shared GC.
+      while (*done_) {
+        v8::platform::PumpMessageLoop(
+            i::V8::GetCurrentPlatform(), isolate(),
+            v8::platform::MessageLoopBehavior::kWaitForWork);
+      }
+
+      // Since the GC promoted that string into shared heap, it also needs to
+      // create an OLD_TO_SHARED slot.
+      ObjectSlot slot = young_object->GetFirstElementAddress();
+      CHECK(RememberedSet<OLD_TO_SHARED>::Contains(
+          MemoryChunk::FromHeapObject(*young_object), slot.address()));
+    }
+
+    client_isolate_->Dispose();
+
+    // Inform main thread that client is finished.
+    *done_ = true;
+    V8::GetCurrentPlatform()
+        ->GetForegroundTaskRunner(test_->main_isolate())
+        ->PostTask(std::make_unique<WakeupTask>(test_->i_main_isolate()));
+  }
+
+  v8::Isolate* isolate() const {
+    DCHECK_NOT_NULL(client_isolate_);
+    return client_isolate_;
+  }
+
+ private:
+  MultiClientIsolateTest* test_;
+  std::atomic<bool>* done_;
+  Persistent<v8::String>* weak_ref_;
+  v8::Isolate* client_isolate_;
+};
+
+UNINITIALIZED_TEST(SharedObjectRetainedByClientRememberedSet) {
+  if (v8_flags.single_generation) return;
+  if (!v8_flags.minor_mc) return;
+  if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
+
+  v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
+  v8_flags.shared_string_table = true;
+  v8_flags.manual_evacuation_candidates_selection = true;
+
+  MultiClientIsolateTest test;
+  std::atomic<bool> done = false;
+
+  v8::Isolate* isolate = test.main_isolate();
+  Isolate* i_isolate = test.i_main_isolate();
+  Isolate* shared_isolate = i_isolate->shared_heap_isolate();
+  Heap* shared_heap = shared_isolate->heap();
+
+  // Create two weak references to Strings. One should die, the other should be
+  // kept alive by the client isolate.
+  Persistent<v8::String> live_weak_ref;
+  Persistent<v8::String> dead_weak_ref;
+  {
+    HandleScope scope(i_isolate);
+    const char raw_one_byte[] = "foo";
+
+    Handle<String> live_shared_string =
+        i_isolate->factory()->NewStringFromAsciiChecked(
+            raw_one_byte, AllocationType::kSharedOld);
+    CHECK(shared_heap->Contains(*live_shared_string));
+    live_weak_ref.Reset(isolate, Utils::ToLocal(live_shared_string));
+    live_weak_ref.SetWeak();
+
+    Handle<String> dead_shared_string =
+        i_isolate->factory()->NewStringFromAsciiChecked(
+            raw_one_byte, AllocationType::kSharedOld);
+    CHECK(shared_heap->Contains(*dead_shared_string));
+    dead_weak_ref.Reset(isolate, Utils::ToLocal(dead_shared_string));
+    dead_weak_ref.SetWeak();
+  }
+
+  ClientIsolateThreadForRetainingByRememberedSet thread("worker", &test, &done,
+                                                        &live_weak_ref);
+  CHECK(thread.Start());
+
+  // Wait for client isolate to allocate objects and start a GC.
+  while (!done) {
+    v8::platform::PumpMessageLoop(
+        i::V8::GetCurrentPlatform(), test.main_isolate(),
+        v8::platform::MessageLoopBehavior::kWaitForWork);
+  }
+
+  // Do shared GC. The live weak ref should be kept alive via a OLD_TO_SHARED
+  // slot in the client isolate.
+  CHECK(!live_weak_ref.IsEmpty());
+  CHECK(!dead_weak_ref.IsEmpty());
+  CcTest::CollectSharedGarbage(i_isolate);
+  CHECK(!live_weak_ref.IsEmpty());
+  CHECK(dead_weak_ref.IsEmpty());
+
+  // Inform client that shared GC is finished.
+  done = false;
+  V8::GetCurrentPlatform()
+      ->GetForegroundTaskRunner(thread.isolate())
+      ->PostTask(std::make_unique<WakeupTask>(
+          reinterpret_cast<Isolate*>(thread.isolate())));
 
   while (!done) {
     v8::platform::PumpMessageLoop(
