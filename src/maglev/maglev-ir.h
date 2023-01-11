@@ -19,6 +19,10 @@
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/feedback-source.h"
 #include "src/compiler/heap-refs.h"
+// TODO(dmercadier): move the Turboshaft utils functions to shared code (in
+// particular, any_of, which is the reason we're including this Turboshaft
+// header)
+#include "src/compiler/turboshaft/utils.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/interpreter/bytecode-flags.h"
 #include "src/interpreter/bytecode-register.h"
@@ -127,96 +131,99 @@ class CompactInterpreterFrameState;
   V(BuiltinStringFromCharCode)      \
   V(BuiltinStringPrototypeCharCodeAt)
 
-#define VALUE_NODE_LIST(V)            \
-  V(Call)                             \
-  V(CallBuiltin)                      \
-  V(CallRuntime)                      \
-  V(CallWithArrayLike)                \
-  V(CallWithSpread)                   \
-  V(CallKnownJSFunction)              \
-  V(Construct)                        \
-  V(ConstructWithSpread)              \
-  V(ConvertReceiver)                  \
-  V(ConvertHoleToUndefined)           \
-  V(CreateEmptyArrayLiteral)          \
-  V(CreateArrayLiteral)               \
-  V(CreateShallowArrayLiteral)        \
-  V(CreateObjectLiteral)              \
-  V(CreateEmptyObjectLiteral)         \
-  V(CreateShallowObjectLiteral)       \
-  V(CreateFunctionContext)            \
-  V(CreateClosure)                    \
-  V(FastCreateClosure)                \
-  V(CreateRegExpLiteral)              \
-  V(DeleteProperty)                   \
-  V(ForInPrepare)                     \
-  V(ForInNext)                        \
-  V(GeneratorRestoreRegister)         \
-  V(GetIterator)                      \
-  V(GetSecondReturnedValue)           \
-  V(GetTemplateObject)                \
-  V(InitialValue)                     \
-  V(LoadTaggedField)                  \
-  V(LoadDoubleField)                  \
-  V(LoadTaggedElement)                \
-  V(LoadSignedIntDataViewElement)     \
-  V(LoadDoubleDataViewElement)        \
-  V(LoadSignedIntTypedArrayElement)   \
-  V(LoadUnsignedIntTypedArrayElement) \
-  V(LoadDoubleTypedArrayElement)      \
-  V(LoadDoubleElement)                \
-  V(LoadGlobal)                       \
-  V(LoadNamedGeneric)                 \
-  V(LoadNamedFromSuperGeneric)        \
-  V(SetNamedGeneric)                  \
-  V(DefineNamedOwnGeneric)            \
-  V(StoreInArrayLiteralGeneric)       \
-  V(StoreGlobal)                      \
-  V(GetKeyedGeneric)                  \
-  V(SetKeyedGeneric)                  \
-  V(DefineKeyedOwnGeneric)            \
-  V(Phi)                              \
-  V(RegisterInput)                    \
-  V(CheckedSmiTagInt32)               \
-  V(CheckedSmiTagUint32)              \
-  V(UnsafeSmiTag)                     \
-  V(CheckedSmiUntag)                  \
-  V(UnsafeSmiUntag)                   \
-  V(CheckedInternalizedString)        \
-  V(CheckedObjectToIndex)             \
-  V(CheckedTruncateNumberToInt32)     \
-  V(CheckedInt32ToUint32)             \
-  V(CheckedUint32ToInt32)             \
-  V(ChangeInt32ToFloat64)             \
-  V(ChangeUint32ToFloat64)            \
-  V(CheckedTruncateFloat64ToInt32)    \
-  V(CheckedTruncateFloat64ToUint32)   \
-  V(TruncateUint32ToInt32)            \
-  V(TruncateFloat64ToInt32)           \
-  V(Int32ToNumber)                    \
-  V(Uint32ToNumber)                   \
-  V(Float64Box)                       \
-  V(HoleyFloat64Box)                  \
-  V(CheckedFloat64Unbox)              \
-  V(LogicalNot)                       \
-  V(SetPendingMessage)                \
-  V(StringAt)                         \
-  V(StringLength)                     \
-  V(ToBoolean)                        \
-  V(ToBooleanLogicalNot)              \
-  V(TaggedEqual)                      \
-  V(TaggedNotEqual)                   \
-  V(TestInstanceOf)                   \
-  V(TestUndetectable)                 \
-  V(TestTypeOf)                       \
-  V(ToName)                           \
-  V(ToNumberOrNumeric)                \
-  V(ToObject)                         \
-  V(ToString)                         \
-  CONSTANT_VALUE_NODE_LIST(V)         \
-  INT32_OPERATIONS_NODE_LIST(V)       \
-  FLOAT64_OPERATIONS_NODE_LIST(V)     \
-  GENERIC_OPERATIONS_NODE_LIST(V)     \
+#define VALUE_NODE_LIST(V)                   \
+  V(Call)                                    \
+  V(CallBuiltin)                             \
+  V(CallRuntime)                             \
+  V(CallWithArrayLike)                       \
+  V(CallWithSpread)                          \
+  V(CallKnownJSFunction)                     \
+  V(Construct)                               \
+  V(ConstructWithSpread)                     \
+  V(ConvertReceiver)                         \
+  V(ConvertHoleToUndefined)                  \
+  V(CreateEmptyArrayLiteral)                 \
+  V(CreateArrayLiteral)                      \
+  V(CreateShallowArrayLiteral)               \
+  V(CreateObjectLiteral)                     \
+  V(CreateEmptyObjectLiteral)                \
+  V(CreateShallowObjectLiteral)              \
+  V(CreateFunctionContext)                   \
+  V(CreateClosure)                           \
+  V(FastCreateClosure)                       \
+  V(CreateRegExpLiteral)                     \
+  V(DeleteProperty)                          \
+  V(ForInPrepare)                            \
+  V(ForInNext)                               \
+  V(GeneratorRestoreRegister)                \
+  V(GetIterator)                             \
+  V(GetSecondReturnedValue)                  \
+  V(GetTemplateObject)                       \
+  V(InitialValue)                            \
+  V(LoadTaggedField)                         \
+  V(LoadDoubleField)                         \
+  V(LoadTaggedElement)                       \
+  V(LoadSignedIntDataViewElement)            \
+  V(LoadDoubleDataViewElement)               \
+  V(LoadSignedIntTypedArrayElement)          \
+  V(LoadSignedIntTypedArrayElementNoDeopt)   \
+  V(LoadUnsignedIntTypedArrayElement)        \
+  V(LoadUnsignedIntTypedArrayElementNoDeopt) \
+  V(LoadDoubleTypedArrayElement)             \
+  V(LoadDoubleTypedArrayElementNoDeopt)      \
+  V(LoadDoubleElement)                       \
+  V(LoadGlobal)                              \
+  V(LoadNamedGeneric)                        \
+  V(LoadNamedFromSuperGeneric)               \
+  V(SetNamedGeneric)                         \
+  V(DefineNamedOwnGeneric)                   \
+  V(StoreInArrayLiteralGeneric)              \
+  V(StoreGlobal)                             \
+  V(GetKeyedGeneric)                         \
+  V(SetKeyedGeneric)                         \
+  V(DefineKeyedOwnGeneric)                   \
+  V(Phi)                                     \
+  V(RegisterInput)                           \
+  V(CheckedSmiTagInt32)                      \
+  V(CheckedSmiTagUint32)                     \
+  V(UnsafeSmiTag)                            \
+  V(CheckedSmiUntag)                         \
+  V(UnsafeSmiUntag)                          \
+  V(CheckedInternalizedString)               \
+  V(CheckedObjectToIndex)                    \
+  V(CheckedTruncateNumberToInt32)            \
+  V(CheckedInt32ToUint32)                    \
+  V(CheckedUint32ToInt32)                    \
+  V(ChangeInt32ToFloat64)                    \
+  V(ChangeUint32ToFloat64)                   \
+  V(CheckedTruncateFloat64ToInt32)           \
+  V(CheckedTruncateFloat64ToUint32)          \
+  V(TruncateUint32ToInt32)                   \
+  V(TruncateFloat64ToInt32)                  \
+  V(Int32ToNumber)                           \
+  V(Uint32ToNumber)                          \
+  V(Float64Box)                              \
+  V(HoleyFloat64Box)                         \
+  V(CheckedFloat64Unbox)                     \
+  V(LogicalNot)                              \
+  V(SetPendingMessage)                       \
+  V(StringAt)                                \
+  V(StringLength)                            \
+  V(ToBoolean)                               \
+  V(ToBooleanLogicalNot)                     \
+  V(TaggedEqual)                             \
+  V(TaggedNotEqual)                          \
+  V(TestInstanceOf)                          \
+  V(TestUndetectable)                        \
+  V(TestTypeOf)                              \
+  V(ToName)                                  \
+  V(ToNumberOrNumeric)                       \
+  V(ToObject)                                \
+  V(ToString)                                \
+  CONSTANT_VALUE_NODE_LIST(V)                \
+  INT32_OPERATIONS_NODE_LIST(V)              \
+  FLOAT64_OPERATIONS_NODE_LIST(V)            \
+  GENERIC_OPERATIONS_NODE_LIST(V)            \
   INLINE_BUILTIN_NODE_LIST(V)
 
 #define GAP_MOVE_NODE_LIST(V) \
@@ -4172,110 +4179,63 @@ class LoadDoubleDataViewElement
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
-class LoadSignedIntTypedArrayElement
-    : public FixedInputValueNodeT<2, LoadSignedIntTypedArrayElement> {
-  using Base = FixedInputValueNodeT<2, LoadSignedIntTypedArrayElement>;
+#define LOAD_TYPED_ARRAY(name, properties, ...)                        \
+  class name : public FixedInputValueNodeT<2, name> {                  \
+    using Base = FixedInputValueNodeT<2, name>;                        \
+                                                                       \
+   public:                                                             \
+    explicit name(uint64_t bitfield, ElementsKind elements_kind)       \
+        : Base(bitfield), elements_kind_(elements_kind) {              \
+      DCHECK(elements_kind ==                                          \
+             v8::internal::compiler::turboshaft::any_of(__VA_ARGS__)); \
+    }                                                                  \
+                                                                       \
+    static constexpr OpProperties kProperties =                        \
+        OpProperties::Reading() | properties;                          \
+    static constexpr typename Base::InputTypes kInputTypes{            \
+        ValueRepresentation::kTagged, ValueRepresentation::kUint32};   \
+                                                                       \
+    static constexpr int kObjectIndex = 0;                             \
+    static constexpr int kIndexIndex = 1;                              \
+    Input& object_input() { return input(kObjectIndex); }              \
+    Input& index_input() { return input(kIndexIndex); }                \
+                                                                       \
+    void SetValueLocationConstraints();                                \
+    void GenerateCode(MaglevAssembler*, const ProcessingState&);       \
+    void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}     \
+                                                                       \
+   private:                                                            \
+    ElementsKind elements_kind_;                                       \
+  };
 
- public:
-  explicit LoadSignedIntTypedArrayElement(uint64_t bitfield,
-                                          ElementsKind elements_kind)
-      : Base(bitfield), elements_kind_(elements_kind) {
-    DCHECK(elements_kind == INT8_ELEMENTS || elements_kind == INT16_ELEMENTS ||
-           elements_kind == INT32_ELEMENTS);
-  }
+// Nodes that can deopt are larger, since they contain the DeoptInfo. Thus, to
+// have better performance, we split the LoadxxxTypedArrayElement nodes in two:
+// those who can deopt and those who can't. Deoptimization in a
+// LoadxxxTypedArrayElement node is always because of a detached array buffer.
+// The NoDeopt versions of the nodes rely on the ArrayBufferDetachingProtector,
+// while the deopting versions have a runtime check that triggers a deopt if the
+// buffer is detached.
+LOAD_TYPED_ARRAY(LoadSignedIntTypedArrayElement,
+                 OpProperties::EagerDeopt() | OpProperties::Int32(),
+                 INT8_ELEMENTS, INT16_ELEMENTS, INT32_ELEMENTS)
+LOAD_TYPED_ARRAY(LoadSignedIntTypedArrayElementNoDeopt, OpProperties::Int32(),
+                 INT8_ELEMENTS, INT16_ELEMENTS, INT32_ELEMENTS)
 
-  // TODO(dmercadier): We should have 2 version of this Node: one that never
-  // deopts because it's emitted behind a DependOnArrayBufferDetachingProtector
-  // check, and one that can deopt.
-  static constexpr OpProperties kProperties = OpProperties::EagerDeopt() |
-                                              OpProperties::Reading() |
-                                              OpProperties::Int32();
-  static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kTagged, ValueRepresentation::kUint32};
+LOAD_TYPED_ARRAY(LoadUnsignedIntTypedArrayElement,
+                 OpProperties::EagerDeopt() | OpProperties::Uint32(),
+                 UINT8_ELEMENTS, UINT8_CLAMPED_ELEMENTS, UINT16_ELEMENTS,
+                 UINT16_ELEMENTS, UINT32_ELEMENTS)
+LOAD_TYPED_ARRAY(LoadUnsignedIntTypedArrayElementNoDeopt,
+                 OpProperties::Uint32(), UINT8_ELEMENTS, UINT8_CLAMPED_ELEMENTS,
+                 UINT16_ELEMENTS, UINT16_ELEMENTS, UINT32_ELEMENTS)
 
-  static constexpr int kObjectIndex = 0;
-  static constexpr int kIndexIndex = 1;
-  Input& object_input() { return input(kObjectIndex); }
-  Input& index_input() { return input(kIndexIndex); }
+LOAD_TYPED_ARRAY(LoadDoubleTypedArrayElement,
+                 OpProperties::EagerDeopt() | OpProperties::Float64(),
+                 FLOAT32_ELEMENTS, FLOAT64_ELEMENTS)
+LOAD_TYPED_ARRAY(LoadDoubleTypedArrayElementNoDeopt, OpProperties::Float64(),
+                 FLOAT32_ELEMENTS, FLOAT64_ELEMENTS)
 
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
-
- private:
-  ElementsKind elements_kind_;
-};
-
-class LoadUnsignedIntTypedArrayElement
-    : public FixedInputValueNodeT<2, LoadUnsignedIntTypedArrayElement> {
-  using Base = FixedInputValueNodeT<2, LoadUnsignedIntTypedArrayElement>;
-
- public:
-  explicit LoadUnsignedIntTypedArrayElement(uint64_t bitfield,
-                                            ElementsKind elements_kind)
-      : Base(bitfield), elements_kind_(elements_kind) {
-    DCHECK(elements_kind == UINT8_ELEMENTS ||
-           elements_kind == UINT8_CLAMPED_ELEMENTS ||
-           elements_kind == UINT16_ELEMENTS ||
-           elements_kind == UINT16_ELEMENTS ||
-           elements_kind == UINT32_ELEMENTS);
-  }
-
-  // TODO(dmercadier): We should have 2 version of this Node: one that never
-  // deopts because it's emitted behind a DependOnArrayBufferDetachingProtector
-  // check, and one that can deopt.
-  static constexpr OpProperties kProperties = OpProperties::EagerDeopt() |
-                                              OpProperties::Reading() |
-                                              OpProperties::Uint32();
-  static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kTagged, ValueRepresentation::kUint32};
-
-  static constexpr int kObjectIndex = 0;
-  static constexpr int kIndexIndex = 1;
-  Input& object_input() { return input(kObjectIndex); }
-  Input& index_input() { return input(kIndexIndex); }
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
-
- private:
-  ElementsKind elements_kind_;
-};
-
-class LoadDoubleTypedArrayElement
-    : public FixedInputValueNodeT<2, LoadDoubleTypedArrayElement> {
-  using Base = FixedInputValueNodeT<2, LoadDoubleTypedArrayElement>;
-
- public:
-  explicit LoadDoubleTypedArrayElement(uint64_t bitfield,
-                                       ElementsKind elements_kind)
-      : Base(bitfield), elements_kind_(elements_kind) {
-    DCHECK(elements_kind == FLOAT32_ELEMENTS ||
-           elements_kind == FLOAT64_ELEMENTS);
-  }
-
-  // TODO(dmercadier): We should have 2 version of this Node: one that never
-  // deopts because it's emitted behind a DependOnArrayBufferDetachingProtector
-  // check, and one that can deopt.
-  static constexpr OpProperties kProperties = OpProperties::EagerDeopt() |
-                                              OpProperties::Reading() |
-                                              OpProperties::Float64();
-  static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kTagged, ValueRepresentation::kUint32};
-
-  static constexpr int kObjectIndex = 0;
-  static constexpr int kIndexIndex = 1;
-  Input& object_input() { return input(kObjectIndex); }
-  Input& index_input() { return input(kIndexIndex); }
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
-
- private:
-  ElementsKind elements_kind_;
-};
+#undef LOAD_TYPED_ARRAY
 
 class StoreSignedIntDataViewElement
     : public FixedInputNodeT<4, StoreSignedIntDataViewElement> {

@@ -4,9 +4,6 @@
 //
 // Flags: --allow-natives-syntax --harmony --no-always-turbofan --maglev
 
-// TODO(dmercadier): re-enable this test once on-heap Typed Arrays are
-// re-supported by Maglev.
-/*
 function assertMaglevved(f) {
   assertTrue(isMaglevved(f));
 }
@@ -52,4 +49,3 @@ assertMaglevved(f);
 // The runtime check will call a deopt since {buff2} has been detached.
 assertEquals(undefined, f(arr2));
 assertUnoptimized(f);
-*/

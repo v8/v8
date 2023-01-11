@@ -28,6 +28,7 @@
 #include "src/maglev/maglev-ir-inl.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/x64/maglev-assembler-x64-inl.h"
+#include "src/objects/elements-kind.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/js-array-buffer.h"
 
@@ -1100,103 +1101,93 @@ ScaleFactor ScaleFactorFromInt(int n) {
   }
 }
 
+template <bool check_detached, typename ResultReg, typename NodeT>
+void GenerateTypedArrayLoad(MaglevAssembler* masm, NodeT* node, Register object,
+                            Register index, ResultReg result_reg,
+                            Register scratch, ElementsKind kind) {
+  __ AssertNotSmi(object);
+  if (v8_flags.debug_code) {
+    __ CmpObjectType(object, JS_TYPED_ARRAY_TYPE, kScratchRegister);
+    __ Assert(equal, AbortReason::kUnexpectedValue);
+  }
+
+  if constexpr (check_detached) {
+    __ DeoptIfBufferDetached(object, scratch, node);
+  }
+
+  Register data_pointer = scratch;
+  __ BuildTypedArrayDataPointer(data_pointer, object);
+
+  if constexpr (std::is_same_v<ResultReg, Register>) {
+    if (IsSignedIntTypedArrayElementsKind(kind)) {
+      int element_size = ElementsKindSize(kind);
+      __ LoadSignedField(
+          result_reg,
+          Operand(data_pointer, index, ScaleFactorFromInt(element_size), 0),
+          element_size);
+    } else {
+      DCHECK(IsUnsignedIntTypedArrayElementsKind(kind));
+      int element_size = ElementsKindSize(kind);
+      __ LoadUnsignedField(
+          result_reg,
+          Operand(data_pointer, index, ScaleFactorFromInt(element_size), 0),
+          element_size);
+    }
+  } else {
+#ifdef DEBUG
+    bool result_reg_is_double = std::is_same_v<ResultReg, DoubleRegister>;
+    DCHECK(result_reg_is_double);
+    DCHECK(IsFloatTypedArrayElementsKind(kind));
+#endif
+    switch (kind) {
+      case FLOAT32_ELEMENTS:
+        __ Movss(result_reg, Operand(data_pointer, index, times_4, 0));
+        __ Cvtss2sd(result_reg, result_reg);
+        break;
+      case FLOAT64_ELEMENTS:
+        __ Movsd(result_reg, Operand(data_pointer, index, times_8, 0));
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
+}
+
 }  // namespace
 
-void LoadSignedIntTypedArrayElement::SetValueLocationConstraints() {
-  UseRegister(object_input());
-  UseRegister(index_input());
-  DefineAsRegister(this);
-  set_temporaries_needed(1);
-}
-void LoadSignedIntTypedArrayElement::GenerateCode(
-    MaglevAssembler* masm, const ProcessingState& state) {
-  Register object = ToRegister(object_input());
-  Register index = ToRegister(index_input());
-  Register result_reg = ToRegister(result());
-  Register scratch = general_temporaries().PopFirst();
-
-  __ AssertNotSmi(object);
-  if (v8_flags.debug_code) {
-    __ CmpObjectType(object, JS_TYPED_ARRAY_TYPE, kScratchRegister);
-    __ Assert(equal, AbortReason::kUnexpectedValue);
+#define DEF_OPERATION(Name, ResultReg, ToResultReg, check_detached)      \
+  void Name::SetValueLocationConstraints() {                             \
+    UseRegister(object_input());                                         \
+    UseRegister(index_input());                                          \
+    DefineAsRegister(this);                                              \
+    set_temporaries_needed(1);                                           \
+  }                                                                      \
+  void Name::GenerateCode(MaglevAssembler* masm,                         \
+                          const ProcessingState& state) {                \
+    Register object = ToRegister(object_input());                        \
+    Register index = ToRegister(index_input());                          \
+    ResultReg result_reg = ToResultReg(result());                        \
+    Register scratch = general_temporaries().PopFirst();                 \
+                                                                         \
+    GenerateTypedArrayLoad<check_detached>(                              \
+        masm, this, object, index, result_reg, scratch, elements_kind_); \
   }
 
-  __ DeoptIfBufferDetached(object, scratch, this);
+DEF_OPERATION(LoadSignedIntTypedArrayElement, Register, ToRegister,
+              /*check_detached*/ true)
+DEF_OPERATION(LoadSignedIntTypedArrayElementNoDeopt, Register, ToRegister,
+              /*check_detached*/ false)
 
-  Register data_pointer = scratch;
-  __ BuildTypedArrayDataPointer(data_pointer, object);
-  int element_size = ElementsKindSize(elements_kind_);
-  __ LoadSignedField(
-      result_reg,
-      Operand(data_pointer, index, ScaleFactorFromInt(element_size), 0),
-      element_size);
-}
+DEF_OPERATION(LoadUnsignedIntTypedArrayElement, Register, ToRegister,
+              /*check_detached*/ true)
+DEF_OPERATION(LoadUnsignedIntTypedArrayElementNoDeopt, Register, ToRegister,
+              /*check_detached*/ false)
 
-void LoadUnsignedIntTypedArrayElement::SetValueLocationConstraints() {
-  UseRegister(object_input());
-  UseRegister(index_input());
-  DefineAsRegister(this);
-  set_temporaries_needed(1);
-}
-void LoadUnsignedIntTypedArrayElement::GenerateCode(
-    MaglevAssembler* masm, const ProcessingState& state) {
-  Register object = ToRegister(object_input());
-  Register index = ToRegister(index_input());
-  Register result_reg = ToRegister(result());
-  Register scratch = general_temporaries().PopFirst();
-
-  __ AssertNotSmi(object);
-  if (v8_flags.debug_code) {
-    __ CmpObjectType(object, JS_TYPED_ARRAY_TYPE, kScratchRegister);
-    __ Assert(equal, AbortReason::kUnexpectedValue);
-  }
-
-  __ DeoptIfBufferDetached(object, scratch, this);
-
-  Register data_pointer = scratch;
-  int element_size = ElementsKindSize(elements_kind_);
-  __ BuildTypedArrayDataPointer(data_pointer, object);
-  __ LoadUnsignedField(
-      result_reg,
-      Operand(data_pointer, index, ScaleFactorFromInt(element_size), 0),
-      element_size);
-}
-
-void LoadDoubleTypedArrayElement::SetValueLocationConstraints() {
-  UseRegister(object_input());
-  UseRegister(index_input());
-  DefineAsRegister(this);
-  set_temporaries_needed(1);
-}
-void LoadDoubleTypedArrayElement::GenerateCode(MaglevAssembler* masm,
-                                               const ProcessingState& state) {
-  Register object = ToRegister(object_input());
-  Register index = ToRegister(index_input());
-  DoubleRegister result_reg = ToDoubleRegister(result());
-  Register scratch = general_temporaries().PopFirst();
-
-  __ AssertNotSmi(object);
-  if (v8_flags.debug_code) {
-    __ CmpObjectType(object, JS_TYPED_ARRAY_TYPE, kScratchRegister);
-    __ Assert(equal, AbortReason::kUnexpectedValue);
-  }
-
-  __ DeoptIfBufferDetached(object, scratch, this);
-
-  Register data_pointer = scratch;
-  __ BuildTypedArrayDataPointer(data_pointer, object);
-  switch (elements_kind_) {
-    case FLOAT32_ELEMENTS:
-      __ Movss(result_reg, Operand(data_pointer, index, times_4, 0));
-      __ Cvtss2sd(result_reg, result_reg);
-      break;
-    case FLOAT64_ELEMENTS:
-      __ Movsd(result_reg, Operand(data_pointer, index, times_8, 0));
-      break;
-    default:
-      UNREACHABLE();
-  }
-}
+DEF_OPERATION(LoadDoubleTypedArrayElement, DoubleRegister, ToDoubleRegister,
+              /*check_detached*/ true)
+DEF_OPERATION(LoadDoubleTypedArrayElementNoDeopt, DoubleRegister,
+              ToDoubleRegister, /*check_detached*/ false)
+#undef DEF_OPERATION
 
 void StoreDoubleField::SetValueLocationConstraints() {
   UseRegister(object_input());

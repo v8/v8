@@ -2217,10 +2217,6 @@ bool MaglevGraphBuilder::TryBuildElementAccess(
       return false;
     }
     if (IsTypedArrayElementsKind(elements_kind)) {
-      if (JSTypedArray::kMaxSizeInHeap != 0) {
-        // TODO(dmercadier): re-enable support for in-heap Typed Arrays.
-        return false;
-      }
       if (elements_kind == BIGUINT64_ELEMENTS ||
           elements_kind == BIGINT64_ELEMENTS) {
         return false;
@@ -2265,24 +2261,41 @@ bool MaglevGraphBuilder::TryBuildElementAccess(
             {current_interpreter_frame_.accumulator()}));
       }
     } else if (IsTypedArrayElementsKind(elements_kind)) {
+      bool depend_on_detaching_protector =
+          broker()->dependencies()->DependOnArrayBufferDetachingProtector();
       switch (elements_kind) {
         case INT8_ELEMENTS:
         case INT16_ELEMENTS:
         case INT32_ELEMENTS:
-          SetAccumulator(AddNewNode<LoadSignedIntTypedArrayElement>(
-              {object, index}, elements_kind));
+          if (depend_on_detaching_protector) {
+            SetAccumulator(AddNewNode<LoadSignedIntTypedArrayElementNoDeopt>(
+                {object, index}, elements_kind));
+          } else {
+            SetAccumulator(AddNewNode<LoadSignedIntTypedArrayElement>(
+                {object, index}, elements_kind));
+          }
           break;
         case UINT8_CLAMPED_ELEMENTS:
         case UINT8_ELEMENTS:
         case UINT16_ELEMENTS:
         case UINT32_ELEMENTS:
-          SetAccumulator(AddNewNode<LoadUnsignedIntTypedArrayElement>(
-              {object, index}, elements_kind));
+          if (depend_on_detaching_protector) {
+            SetAccumulator(AddNewNode<LoadUnsignedIntTypedArrayElementNoDeopt>(
+                {object, index}, elements_kind));
+          } else {
+            SetAccumulator(AddNewNode<LoadUnsignedIntTypedArrayElement>(
+                {object, index}, elements_kind));
+          }
           break;
         case FLOAT32_ELEMENTS:
         case FLOAT64_ELEMENTS:
-          SetAccumulator(AddNewNode<LoadDoubleTypedArrayElement>(
-              {object, index}, elements_kind));
+          if (depend_on_detaching_protector) {
+            SetAccumulator(AddNewNode<LoadDoubleTypedArrayElementNoDeopt>(
+                {object, index}, elements_kind));
+          } else {
+            SetAccumulator(AddNewNode<LoadDoubleTypedArrayElement>(
+                {object, index}, elements_kind));
+          }
           break;
         default:
           UNREACHABLE();
