@@ -732,12 +732,9 @@ bool CppHeap::AdvanceTracing(double max_duration) {
   return marking_done_;
 }
 
-bool CppHeap::IsTracingDone() const {
-  return !TracingInitialized() || marking_done_;
-}
-
-bool CppHeap::ShouldFinalizeIncrementalMarking() const {
-  return !incremental_marking_supported() || IsTracingDone();
+bool CppHeap::IsTracingDone() {
+  if (!TracingInitialized()) return true;
+  return marking_done_;
 }
 
 void CppHeap::EnterFinalPause(cppgc::EmbedderStackState stack_state) {
