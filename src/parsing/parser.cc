@@ -3325,16 +3325,32 @@ void Parser::InsertShadowingVarBindingInitializers(Block* inner_block) {
   Scope* function_scope = inner_scope->outer_scope();
   DCHECK(function_scope->is_function_scope());
   BlockState block_state(&scope_, inner_scope);
+  // According to https://tc39.es/ecma262/#sec-functiondeclarationinstantiation
+  // If a variable's name conflicts with the names of both parameters and
+  // functions, no bindings should be created for it. A set is used here
+  // to record such variables.
+  std::set<Variable*> hoisted_func_vars;
+  std::vector<std::pair<Variable*, Variable*>> var_param_bindings;
   for (Declaration* decl : *inner_scope->declarations()) {
-    if (decl->var()->mode() != VariableMode::kVar ||
-        !decl->IsVariableDeclaration()) {
+    if (!decl->IsVariableDeclaration()) {
+      hoisted_func_vars.insert(decl->var());
+      continue;
+    } else if (decl->var()->mode() != VariableMode::kVar) {
       continue;
     }
     const AstRawString* name = decl->var()->raw_name();
     Variable* parameter = function_scope->LookupLocal(name);
     if (parameter == nullptr) continue;
+    var_param_bindings.push_back(std::pair(decl->var(), parameter));
+  }
+
+  for (auto decl : var_param_bindings) {
+    if (hoisted_func_vars.find(decl.first) != hoisted_func_vars.end()) {
+      continue;
+    }
+    const AstRawString* name = decl.first->raw_name();
     VariableProxy* to = NewUnresolved(name);
-    VariableProxy* from = factory()->NewVariableProxy(parameter);
+    VariableProxy* from = factory()->NewVariableProxy(decl.second);
     Expression* assignment =
         factory()->NewAssignment(Token::ASSIGN, to, from, kNoSourcePosition);
     Statement* statement =
