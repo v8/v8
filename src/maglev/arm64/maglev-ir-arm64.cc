@@ -265,8 +265,6 @@ void CheckJSObjectElementsBounds::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(hs, DeoptimizeReason::kOutOfBounds, this);
 }
 
-UNIMPLEMENTED_NODE_WITH_CALL(JumpLoopPrologue, loop_depth_, unit_)
-
 int BuiltinStringFromCharCode::MaxCallStackArgs() const {
   return AllocateDescriptor::GetStackParameterCount();
 }

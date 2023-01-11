@@ -1148,6 +1148,12 @@ void MacroAssembler::JumpIfNotSmi(Register value, Label* not_smi_label) {
   JumpIfSmi(value, nullptr, not_smi_label);
 }
 
+inline void MacroAssembler::AssertFeedbackVector(Register object) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.AcquireX();
+  AssertFeedbackVector(object, scratch);
+}
+
 void TurboAssembler::jmp(Label* L) { B(L); }
 
 template <TurboAssembler::StoreLRMode lr_mode>

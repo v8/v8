@@ -4,7 +4,6 @@
 
 #include "src/base/bits.h"
 #include "src/base/logging.h"
-#include "src/baseline/baseline-assembler-inl.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/interface-descriptors.h"
@@ -2698,119 +2697,6 @@ void Return::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   __ DropArguments(actual_params_size, r9, TurboAssembler::kCountIsInteger,
                    TurboAssembler::kCountIncludesReceiver);
   __ Ret();
-}
-
-namespace {
-
-void AttemptOnStackReplacement(MaglevAssembler* masm,
-                               ZoneLabelRef no_code_for_osr,
-                               JumpLoopPrologue* node, Register scratch0,
-                               Register scratch1, int32_t loop_depth,
-                               FeedbackSlot feedback_slot,
-                               BytecodeOffset osr_offset) {
-  // Two cases may cause us to attempt OSR, in the following order:
-  //
-  // 1) Presence of cached OSR Turbofan code.
-  // 2) The OSR urgency exceeds the current loop depth - in that case, call
-  //    into runtime to trigger a Turbofan OSR compilation. A non-zero return
-  //    value means we should deopt into Ignition which will handle all further
-  //    necessary steps (rewriting the stack frame, jumping to OSR'd code).
-  //
-  // See also: InterpreterAssembler::OnStackReplacement.
-
-  baseline::BaselineAssembler basm(masm);
-  __ AssertFeedbackVector(scratch0);
-
-  // Case 1).
-  Label deopt;
-  Register maybe_target_code = scratch1;
-  {
-    basm.TryLoadOptimizedOsrCode(maybe_target_code, scratch0, feedback_slot,
-                                 &deopt, Label::kFar);
-  }
-
-  // Case 2).
-  {
-    __ movb(scratch0, FieldOperand(scratch0, FeedbackVector::kOsrStateOffset));
-    __ DecodeField<FeedbackVector::OsrUrgencyBits>(scratch0);
-    basm.JumpIfByte(baseline::Condition::kUnsignedLessThanEqual, scratch0,
-                    loop_depth, *no_code_for_osr, Label::kNear);
-
-    // The osr_urgency exceeds the current loop_depth, signaling an OSR
-    // request. Call into runtime to compile.
-    {
-      // At this point we need a custom register snapshot since additional
-      // registers may be live at the eager deopt below (the normal
-      // register_snapshot only contains live registers *after this
-      // node*).
-      // TODO(v8:7700): Consider making the snapshot location
-      // configurable.
-      RegisterSnapshot snapshot = node->register_snapshot();
-      AddDeoptRegistersToSnapshot(&snapshot, node->eager_deopt_info());
-      DCHECK(!snapshot.live_registers.has(maybe_target_code));
-      SaveRegisterStateForCall save_register_state(masm, snapshot);
-      __ Move(kContextRegister, masm->native_context().object());
-      __ Push(Smi::FromInt(osr_offset.ToInt()));
-      __ CallRuntime(Runtime::kCompileOptimizedOSRFromMaglev, 1);
-      save_register_state.DefineSafepoint();
-      __ Move(maybe_target_code, kReturnRegister0);
-    }
-
-    // A `0` return value means there is no OSR code available yet. Continue
-    // execution in Maglev, OSR code will be picked up once it exists and is
-    // cached on the feedback vector.
-    __ Cmp(maybe_target_code, 0);
-    __ j(equal, *no_code_for_osr, Label::kNear);
-  }
-
-  __ bind(&deopt);
-  if (V8_LIKELY(v8_flags.turbofan)) {
-    // None of the mutated input registers should be a register input into the
-    // eager deopt info.
-    DCHECK_REGLIST_EMPTY(
-        RegList{scratch0, scratch1} &
-        GetGeneralRegistersUsedAsInputs(node->eager_deopt_info()));
-    __ EmitEagerDeopt(node, DeoptimizeReason::kPrepareForOnStackReplacement);
-  } else {
-    // Continue execution in Maglev. With TF disabled we cannot OSR and thus it
-    // doesn't make sense to start the process. We do still perform all
-    // remaining bookkeeping above though, to keep Maglev code behavior roughly
-    // the same in both configurations.
-    __ jmp(*no_code_for_osr, Label::kNear);
-  }
-}
-
-}  // namespace
-
-int JumpLoopPrologue::MaxCallStackArgs() const {
-  // For the kCompileOptimizedOSRFromMaglev call.
-  return 1;
-}
-void JumpLoopPrologue::SetValueLocationConstraints() {
-  if (!v8_flags.use_osr) return;
-  set_temporaries_needed(2);
-}
-void JumpLoopPrologue::GenerateCode(MaglevAssembler* masm,
-                                    const ProcessingState& state) {
-  if (!v8_flags.use_osr) return;
-  Register scratch0 = general_temporaries().PopFirst();
-  Register scratch1 = general_temporaries().PopFirst();
-
-  const Register osr_state = scratch1;
-  __ Move(scratch0, unit_->feedback().object());
-  __ AssertFeedbackVector(scratch0);
-  __ movb(osr_state, FieldOperand(scratch0, FeedbackVector::kOsrStateOffset));
-
-  // The quick initial OSR check. If it passes, we proceed on to more
-  // expensive OSR logic.
-  static_assert(FeedbackVector::MaybeHasOptimizedOsrCodeBit::encode(true) >
-                FeedbackVector::kMaxOsrUrgency);
-  __ cmpl(osr_state, Immediate(loop_depth_));
-  ZoneLabelRef no_code_for_osr(masm);
-  __ JumpToDeferredIf(above, AttemptOnStackReplacement, no_code_for_osr, this,
-                      scratch0, scratch1, loop_depth_, feedback_slot_,
-                      osr_offset_);
-  __ bind(*no_code_for_osr);
 }
 
 void BranchIfJSReceiver::SetValueLocationConstraints() {

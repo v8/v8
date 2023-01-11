@@ -1883,6 +1883,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void PopCalleeSavedRegisters();
 
   // Tiering support.
+  inline void AssertFeedbackVector(Register object);
   void AssertFeedbackVector(Register object,
                             Register scratch) NOOP_UNLESS_DEBUG_CODE
   void ReplaceClosureCodeWithOptimizedCode(Register optimized_code,
