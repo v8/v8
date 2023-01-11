@@ -2637,11 +2637,11 @@ TEST(AllocationSitesAreVisible) {
   const v8::HeapGraphNode* vector = GetProperty(
       env->GetIsolate(), feedback_cell, v8::HeapGraphEdge::kInternal, "value");
   CHECK_EQ(v8::HeapGraphNode::kCode, vector->GetType());
-  CHECK_EQ(4, vector->GetChildrenCount());
+  CHECK_EQ(5, vector->GetChildrenCount());
 
   // The last value in the feedback vector should be the boilerplate,
   // found in AllocationSite.transition_info.
-  const v8::HeapGraphEdge* prop = vector->GetChild(3);
+  const v8::HeapGraphEdge* prop = vector->GetChild(4);
   const v8::HeapGraphNode* allocation_site = prop->GetToNode();
   v8::String::Utf8Value name(env->GetIsolate(), allocation_site->GetName());
   CHECK_EQ(0, strcmp("system / AllocationSite", *name));
@@ -4094,8 +4094,9 @@ TEST(WeakReference) {
                                        i_isolate);
   i::Handle<i::ClosureFeedbackCellArray> feedback_cell_array =
       i::ClosureFeedbackCellArray::New(i_isolate, shared_function);
-  i::Handle<i::FeedbackVector> fv =
-      factory->NewFeedbackVector(shared_function, feedback_cell_array);
+  i::Handle<i::FeedbackVector> fv = factory->NewFeedbackVector(
+      shared_function, feedback_cell_array,
+      handle(i::JSFunction::cast(*obj).raw_feedback_cell(), i_isolate));
 
   // Create a Code.
   i::Assembler assm(i::AssemblerOptions{});

@@ -632,6 +632,11 @@ DEFINE_INT(bytecode_size_allowance_per_tick, 150,
 DEFINE_INT(
     max_bytecode_size_for_early_opt, 81,
     "Maximum bytecode length for a function to be optimized on the first tick")
+DEFINE_BOOL(global_ic_updated_flag, true,
+            "Track, globally, whether any IC changed, and use this in tierup "
+            "heuristics.")
+DEFINE_BOOL(reset_interrupt_on_ic_update, false,
+            "On IC change, reset the interrupt budget for just that function.")
 
 // Flags for inline caching and feedback vectors.
 DEFINE_BOOL(use_ic, true, "use inline caching")

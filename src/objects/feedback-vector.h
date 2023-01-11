@@ -25,6 +25,7 @@ namespace v8 {
 namespace internal {
 
 class IsCompiledScope;
+class FeedbackVectorSpec;
 
 enum class UpdateFeedbackMode { kOptionalFeedback, kGuaranteedFeedback };
 
@@ -319,8 +320,11 @@ class FeedbackVector
   V8_EXPORT_PRIVATE static Handle<FeedbackVector> New(
       Isolate* isolate, Handle<SharedFunctionInfo> shared,
       Handle<ClosureFeedbackCellArray> closure_feedback_cell_array,
+      Handle<FeedbackCell> parent_feedback_cell,
       IsCompiledScope* is_compiled_scope);
 
+  V8_EXPORT_PRIVATE static Handle<FeedbackVector> NewForTesting(
+      Isolate* isolate, const FeedbackVectorSpec* spec);
   V8_EXPORT_PRIVATE static Handle<FeedbackVector>
   NewWithOneBinarySlotForTesting(Zone* zone, Isolate* isolate);
   V8_EXPORT_PRIVATE static Handle<FeedbackVector>

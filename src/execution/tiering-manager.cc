@@ -15,6 +15,7 @@
 #include "src/diagnostics/code-tracer.h"
 #include "src/execution/execution.h"
 #include "src/execution/frames-inl.h"
+#include "src/flags/flags.h"
 #include "src/handles/global-handles.h"
 #include "src/init/bootstrapper.h"
 #include "src/interpreter/interpreter.h"
@@ -344,6 +345,7 @@ OptimizationDecision TieringManager::ShouldOptimize(
   if (TiersUpToMaglev(calling_code_kind) &&
       function.shared().PassesFilter(v8_flags.maglev_filter) &&
       !function.shared(isolate_).maglev_compilation_failed()) {
+    if (any_ic_changed_) return OptimizationDecision::DoNotOptimize();
     return OptimizationDecision::Maglev();
   } else if (calling_code_kind == CodeKind::TURBOFAN) {
     // Already in the top tier.
@@ -383,6 +385,22 @@ OptimizationDecision TieringManager::ShouldOptimize(
   }
 
   return OptimizationDecision::DoNotOptimize();
+}
+
+void TieringManager::NotifyICChanged(FeedbackVector vector) {
+  if (v8_flags.global_ic_updated_flag) {
+    any_ic_changed_ = true;
+  }
+  if (v8_flags.reset_interrupt_on_ic_update) {
+    CodeKind code_kind = vector.has_optimized_code()
+                             ? vector.optimized_code().kind()
+                         : vector.shared_function_info().HasBaselineCode()
+                             ? CodeKind::BASELINE
+                             : CodeKind::INTERPRETED_FUNCTION;
+    int interrupt_budget =
+        ::i::InterruptBudgetFor(code_kind, vector.tiering_state());
+    vector.parent_feedback_cell().set_interrupt_budget(interrupt_budget);
+  }
 }
 
 TieringManager::OnInterruptTickScope::OnInterruptTickScope(

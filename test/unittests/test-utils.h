@@ -574,18 +574,7 @@ class FeedbackVectorHelper {
 
 template <typename Spec>
 Handle<FeedbackVector> NewFeedbackVector(Isolate* isolate, Spec* spec) {
-  Handle<FeedbackMetadata> metadata = FeedbackMetadata::New(isolate, spec);
-  Handle<SharedFunctionInfo> shared =
-      isolate->factory()->NewSharedFunctionInfoForBuiltin(
-          isolate->factory()->empty_string(), Builtin::kIllegal);
-  // Set the raw feedback metadata to circumvent checks that we are not
-  // overwriting existing metadata.
-  shared->set_raw_outer_scope_info_or_feedback_metadata(*metadata);
-  Handle<ClosureFeedbackCellArray> closure_feedback_cell_array =
-      ClosureFeedbackCellArray::New(isolate, shared);
-  IsCompiledScope is_compiled_scope(shared->is_compiled_scope(isolate));
-  return FeedbackVector::New(isolate, shared, closure_feedback_cell_array,
-                             &is_compiled_scope);
+  return FeedbackVector::NewForTesting(isolate, spec);
 }
 
 class ParkingThread : public v8::base::Thread {

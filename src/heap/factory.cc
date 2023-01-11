@@ -495,7 +495,8 @@ Handle<ClosureFeedbackCellArray> Factory::NewClosureFeedbackCellArray(
 
 Handle<FeedbackVector> Factory::NewFeedbackVector(
     Handle<SharedFunctionInfo> shared,
-    Handle<ClosureFeedbackCellArray> closure_feedback_cell_array) {
+    Handle<ClosureFeedbackCellArray> closure_feedback_cell_array,
+    Handle<FeedbackCell> parent_feedback_cell) {
   int length = shared->feedback_metadata().slot_count();
   DCHECK_LE(0, length);
   int size = FeedbackVector::SizeFor(length);
@@ -514,6 +515,7 @@ Handle<FeedbackVector> Factory::NewFeedbackVector(
   vector.reset_flags();
   vector.set_log_next_execution(v8_flags.log_function_events);
   vector.set_closure_feedback_cell_array(*closure_feedback_cell_array);
+  vector.set_parent_feedback_cell(*parent_feedback_cell);
 
   // TODO(leszeks): Initialize based on the feedback metadata.
   MemsetTagged(ObjectSlot(vector.slots_start()), *undefined_value(), length);

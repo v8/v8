@@ -148,7 +148,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // values.
   Handle<FeedbackVector> NewFeedbackVector(
       Handle<SharedFunctionInfo> shared,
-      Handle<ClosureFeedbackCellArray> closure_feedback_cell_array);
+      Handle<ClosureFeedbackCellArray> closure_feedback_cell_array,
+      Handle<FeedbackCell> parent_feedback_cell);
 
   // Allocates a clean embedder data array with given capacity.
   Handle<EmbedderDataArray> NewEmbedderDataArray(int length);
