@@ -83,7 +83,8 @@ class V8_EXPORT WriteBarrier final {
   // A write barrier that combines `GenerationalBarrier()` and
   // `DijkstraMarkingBarrier()`. We only pass a single parameter here to clobber
   // as few registers as possible.
-  static V8_NOINLINE void CombinedWriteBarrierSlow(const void* slot);
+  static V8_NOINLINE void V8_PRESERVE_MOST
+  CombinedWriteBarrierSlow(const void* slot);
 #endif  // CPPGC_SLIM_WRITE_BARRIER
 
   static V8_INLINE void DijkstraMarkingBarrier(const Params& params,
