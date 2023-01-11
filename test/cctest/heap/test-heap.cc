@@ -1078,11 +1078,11 @@ TEST(Iteration) {
 }
 
 TEST(TestBytecodeFlushing) {
-#ifndef V8_LITE_MODE
+#if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
   v8_flags.turbofan = false;
   v8_flags.always_turbofan = false;
   i::v8_flags.optimize_for_size = false;
-#endif  // V8_LITE_MODE
+#endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
 #if ENABLE_SPARKPLUG
   v8_flags.always_sparkplug = false;
 #endif  // ENABLE_SPARKPLUG
@@ -1144,11 +1144,11 @@ TEST(TestBytecodeFlushing) {
 }
 
 static void TestMultiReferencedBytecodeFlushing(bool sparkplug_compile) {
-#ifndef V8_LITE_MODE
+#if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
   v8_flags.turbofan = false;
   v8_flags.always_turbofan = false;
   i::v8_flags.optimize_for_size = false;
-#endif  // V8_LITE_MODE
+#endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
 #if ENABLE_SPARKPLUG
   v8_flags.always_sparkplug = false;
   v8_flags.flush_baseline_code = true;
@@ -1233,8 +1233,10 @@ HEAP_TEST(Regress10560) {
   i::v8_flags.flush_bytecode = true;
   i::v8_flags.allow_natives_syntax = true;
   // Disable flags that allocate a feedback vector eagerly.
+#if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
   i::v8_flags.turbofan = false;
   i::v8_flags.always_turbofan = false;
+#endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
 #if ENABLE_SPARKPLUG
   v8_flags.always_sparkplug = false;
 #endif  // ENABLE_SPARKPLUG
@@ -1403,8 +1405,7 @@ UNINITIALIZED_TEST(Regress12777) {
   isolate->Dispose();
 }
 
-#ifndef V8_LITE_MODE
-
+#if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
 TEST(TestOptimizeAfterBytecodeFlushingCandidate) {
   if (v8_flags.single_generation) return;
   v8_flags.turbofan = true;
@@ -1489,8 +1490,7 @@ TEST(TestOptimizeAfterBytecodeFlushingCandidate) {
   CHECK(function->shared().is_compiled());
   CHECK(function->is_compiled());
 }
-
-#endif  // V8_LITE_MODE
+#endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
 
 TEST(TestUseOfIncrementalBarrierOnCompileLazy) {
   if (!v8_flags.incremental_marking) return;
@@ -3311,10 +3311,10 @@ TEST(ReleaseOverReservedPages) {
   if (!v8_flags.compact) return;
   v8_flags.trace_gc = true;
   // The optimizer can allocate stuff, messing up the test.
-#ifndef V8_LITE_MODE
+#if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
   v8_flags.turbofan = false;
   v8_flags.always_turbofan = false;
-#endif  // V8_LITE_MODE
+#endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
   // - Parallel compaction increases fragmentation, depending on how existing
   //   memory is distributed. Since this is non-deterministic because of
   //   concurrent sweeping, we disable it for this test.
@@ -3848,9 +3848,9 @@ TEST(DetailedErrorStackTraceBuiltinExit) {
 
 TEST(Regress169928) {
   v8_flags.allow_natives_syntax = true;
-#ifndef V8_LITE_MODE
+#if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
   v8_flags.turbofan = false;
-#endif  // V8_LITE_MODE
+#endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   LocalContext env;

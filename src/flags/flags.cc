@@ -909,7 +909,9 @@ class ImplicationProcessor {
     return true;
   }
 
-  // Called from {DEFINE_*_IMPLICATION} in flag-definitions.h.
+  // Called from {DEFINE_*_IMPLICATION} in flag-definitions.h, when the
+  // conclusion flag is read-only (note this is the const overload of the
+  // function just above).
   template <class T>
   bool TriggerImplication(bool premise, const char* premise_name,
                           const FlagValue<T>* conclusion_value,

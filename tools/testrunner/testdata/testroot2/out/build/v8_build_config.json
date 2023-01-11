@@ -40,5 +40,6 @@
   "v8_enable_maglev": false,
   "v8_enable_disassembler": false,
   "is_DEBUG_defined": false,
+  "v8_enable_turbofan": false,
   "v8_enable_gdbjit": false
 }

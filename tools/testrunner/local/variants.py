@@ -163,7 +163,9 @@ INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE = {
     ],
     "!slow_dchecks": ["--enable-slow-asserts"],
     "!gdbjit": ["--gdbjit", "--gdbjit_full", "--gdbjit_dump"],
-    "!maglev": ["--maglev"],
+    "!has_maglev": ["--maglev"],
+    "!has_turbofan":
+        kIncompatibleFlagsForNoTurbofan,
     "lite_mode": ["--no-lazy-feedback-allocation", "--max-semi-space-size=*"] +
                  INCOMPATIBLE_FLAGS_PER_VARIANT["jitless"],
     "predictable": [

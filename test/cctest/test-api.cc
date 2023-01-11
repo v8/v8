@@ -24698,7 +24698,7 @@ TEST(StringConcatOverflow) {
 }
 
 TEST(TurboAsmDisablesDetach) {
-#ifndef V8_LITE_MODE
+#if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
   i::v8_flags.turbofan = true;
   i::v8_flags.allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
@@ -24732,7 +24732,7 @@ TEST(TurboAsmDisablesDetach) {
 
   result = CompileRun(store).As<v8::ArrayBuffer>();
   CHECK(!result->IsDetachable());
-#endif  // V8_LITE_MODE
+#endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
 }
 
 TEST(ClassPrototypeCreationContext) {
@@ -27596,7 +27596,7 @@ UNINITIALIZED_TEST(NestedIsolates) {
 
 #undef THREADED_PROFILED_TEST
 
-#ifndef V8_LITE_MODE
+#if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
 namespace {
 
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
@@ -28306,10 +28306,10 @@ void CheckDynamicTypeInfo() {
   CHECK_EQ(c_func.ReturnInfo().GetType(), v8::CTypeInfo::Type::kVoid);
 }
 }  // namespace
-#endif  // V8_LITE_MODE
+#endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
 
 TEST(FastApiStackSlot) {
-#ifndef V8_LITE_MODE
+#if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
   if (i::v8_flags.jitless) return;
 
   i::v8_flags.turbofan = true;
@@ -28357,11 +28357,11 @@ TEST(FastApiStackSlot) {
   int32_t slow_value_typed = checker.slow_value_.ToChecked();
   CHECK_EQ(slow_value_typed, test_value);
   CHECK_EQ(checker.fast_value_, test_value);
-#endif
+#endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
 }
 
 TEST(FastApiCalls) {
-#ifndef V8_LITE_MODE
+#if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
   if (i::v8_flags.jitless) return;
 
   i::v8_flags.turbofan = true;
@@ -28828,10 +28828,10 @@ TEST(FastApiCalls) {
   // TODO(mslekova): Restructure the tests so that the fast optimized calls
   // are compared against the slow optimized calls.
   // TODO(mslekova): Add tests for FTI that requires access check.
-#endif  // V8_LITE_MODE
+#endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
 }
 
-#ifndef V8_LITE_MODE
+#if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
 namespace {
 static Trivial* UnwrapTrivialObject(Local<Object> object) {
   i::Address addr = *reinterpret_cast<i::Address*>(*object);
@@ -28908,10 +28908,10 @@ void SequenceSlowCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
   return;
 }
 }  // namespace
-#endif  // V8_LITE_MODE
+#endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
 
 TEST(FastApiSequenceOverloads) {
-#ifndef V8_LITE_MODE
+#if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
   if (i::v8_flags.jitless) return;
 
   i::v8_flags.turbofan = true;
@@ -28965,11 +28965,11 @@ TEST(FastApiSequenceOverloads) {
       CompileRun("const ta = new Int32Array([1, 2, 3, 4]);"
                  "func(4, ta);"));
   CHECK_EQ(4, rcv->x());
-#endif  // V8_LITE_MODE
+#endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
 }
 
 TEST(FastApiOverloadResolution) {
-#ifndef V8_LITE_MODE
+#if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
   if (i::v8_flags.jitless) return;
 
   i::v8_flags.turbofan = true;
@@ -29013,7 +29013,7 @@ TEST(FastApiOverloadResolution) {
   CHECK_EQ(v8::CFunction::OverloadResolution::kAtCompileTime,
            typed_array_callback.GetOverloadResolution(&diff_arity_callback));
 
-#endif  // V8_LITE_MODE
+#endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
 }
 
 THREADED_TEST(Recorder_GetContext) {

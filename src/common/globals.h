@@ -2090,6 +2090,11 @@ inline constexpr int JSParameterCount(int param_count_without_receiver) {
   return param_count_without_receiver + kJSArgcReceiverSlots;
 }
 
+// A special {Parameter} index for JSCalls that represents the closure.
+// The constant is defined here for accessibility (without having to include TF
+// internals), even though it is mostly relevant to Turbofan.
+constexpr int kJSCallClosureParameterIndex = -1;
+
 // Opaque data type for identifying stack frames. Used extensively
 // by the debugger.
 // ID_MIN_VALUE and ID_MAX_VALUE are specified to ensure that enumeration type

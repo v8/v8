@@ -1236,13 +1236,13 @@ TEST(BoundFunctionCall) {
 
 // This tests checks distribution of the samples through the source lines.
 static void TickLines(bool optimize) {
-#ifndef V8_LITE_MODE
+#if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
   v8_flags.turbofan = optimize;
 #ifdef V8_ENABLE_MAGLEV
   // TODO(v8:7700): Also test maglev here.
   v8_flags.maglev = false;
 #endif  // V8_ENABLE_MAGLEV
-#endif  // V8_LITE_MODE
+#endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
   CcTest::InitializeVM();
   LocalContext env;
   i::v8_flags.allow_natives_syntax = true;
@@ -4463,7 +4463,8 @@ TEST(CanStartStopProfilerWithTitlesAndIds) {
 }
 
 TEST(FastApiCPUProfiler) {
-#if !defined(V8_LITE_MODE) && !defined(USE_SIMULATOR)
+#if !defined(V8_LITE_MODE) && !defined(USE_SIMULATOR) && \
+    defined(V8_ENABLE_TURBOFAN)
   // None of the following configurations include JSCallReducer.
   if (i::v8_flags.jitless) return;
 
@@ -4559,15 +4560,16 @@ TEST(FastApiCPUProfiler) {
   CHECK_GE(api_func_ticks, 800);
 
   profile->Delete();
-#endif
+#endif  // !defined(V8_LITE_MODE) && !defined(USE_SIMULATOR) &&
+        // defined(V8_ENABLE_TURBOFAN)
 }
 
 TEST(BytecodeFlushEventsEagerLogging) {
-#ifndef V8_LITE_MODE
+#if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
   v8_flags.turbofan = false;
   v8_flags.always_turbofan = false;
   v8_flags.optimize_for_size = false;
-#endif  // V8_LITE_MODE
+#endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
 #if ENABLE_SPARKPLUG
   v8_flags.always_sparkplug = false;
 #endif  // ENABLE_SPARKPLUG

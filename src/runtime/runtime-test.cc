@@ -747,9 +747,9 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   DCHECK_EQ(args.length(), 1);
 
   int status = 0;
-  if (v8_flags.lite_mode || v8_flags.jitless) {
-    // Both jitless and lite modes cannot optimize. Unit tests should handle
-    // these the same way. In the future, the two flags may become synonyms.
+  if (v8_flags.lite_mode || v8_flags.jitless || !V8_ENABLE_TURBOFAN_BOOL) {
+    // These modes cannot optimize. Unit tests should handle these the same
+    // way.
     status |= static_cast<int>(OptimizationStatus::kLiteMode);
   }
   if (!isolate->use_optimizer()) {

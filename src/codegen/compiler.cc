@@ -26,7 +26,7 @@
 #include "src/common/message-template.h"
 #include "src/compiler-dispatcher/lazy-compile-dispatcher.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
-#include "src/compiler/pipeline.h"
+#include "src/compiler/turbofan.h"
 #include "src/debug/debug.h"
 #include "src/debug/liveedit.h"
 #include "src/diagnostics/code-tracer.h"
@@ -1141,13 +1141,15 @@ MaybeHandle<CodeT> CompileTurbofan(Isolate* isolate,
 
   DCHECK(!isolate->has_pending_exception());
   PostponeInterruptsScope postpone(isolate);
-  bool has_script = shared->script().IsScript();
+  const compiler::IsScriptAvailable has_script =
+      shared->script().IsScript() ? compiler::IsScriptAvailable::kYes
+                                  : compiler::IsScriptAvailable::kNo;
   // BUG(5946): This DCHECK is necessary to make certain that we won't
   // tolerate the lack of a script without bytecode.
-  DCHECK_IMPLIES(!has_script, shared->HasBytecodeArray());
+  DCHECK_IMPLIES(has_script == compiler::IsScriptAvailable::kNo,
+                 shared->HasBytecodeArray());
   std::unique_ptr<TurbofanCompilationJob> job(
-      compiler::Pipeline::NewCompilationJob(
-          isolate, function, CodeKind::TURBOFAN, has_script, osr_offset));
+      compiler::NewCompilationJob(isolate, function, has_script, osr_offset));
 
   if (result_behavior == CompileResultBehavior::kDiscardForTesting) {
     job->compilation_info()->set_discard_result_for_testing();

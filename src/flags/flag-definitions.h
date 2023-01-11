@@ -507,7 +507,9 @@ DEFINE_UINT(max_opt, 999,
             "> 3 == any, 0 == ignition/interpreter, 1 == sparkplug/baseline, "
             "2 == maglev, 3 == turbofan")
 
+#ifdef V8_ENABLE_TURBOFAN
 DEFINE_WEAK_VALUE_IMPLICATION(max_opt < 3, turbofan, false)
+#endif  // V8_ENABLE_TURBOFAN
 #ifdef V8_ENABLE_MAGLEV
 DEFINE_WEAK_VALUE_IMPLICATION(max_opt < 2, maglev, false)
 #endif  // V8_ENABLE_MAGLEV
@@ -811,10 +813,17 @@ DEFINE_INT(deopt_every_n_times, 0,
 DEFINE_BOOL(print_deopt_stress, false, "print number of possible deopt points")
 
 // Flags for TurboFan.
+#ifdef V8_ENABLE_TURBOFAN
+#define V8_ENABLE_TURBOFAN_BOOL true
 DEFINE_BOOL(turbofan, true, "use the Turbofan optimizing compiler")
 // TODO(leszeks): Temporary alias until we make sure all our infra is passing
 // --turbofan instead of --opt.
 DEFINE_ALIAS_BOOL(opt, turbofan)
+#else
+#define V8_ENABLE_TURBOFAN_BOOL false
+DEFINE_BOOL_READONLY(turbofan, false, "use the Turbofan optimizing compiler")
+DEFINE_BOOL_READONLY(opt, false, "use the Turbofan optimizing compiler")
+#endif  // V8_ENABLE_TURBOFAN
 
 DEFINE_BOOL(turbo_sp_frame_access, false,
             "use stack pointer-relative access to frame wherever possible")

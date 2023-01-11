@@ -583,7 +583,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     return UncheckedCast<UintPtrT>(x);
   }
 
-  static constexpr int kTargetParameterIndex = -1;
+  static constexpr int kTargetParameterIndex = kJSCallClosureParameterIndex;
+  static_assert(kTargetParameterIndex == -1);
 
   template <class T>
   TNode<T> Parameter(

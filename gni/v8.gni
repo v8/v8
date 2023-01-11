@@ -63,10 +63,19 @@ declare_args() {
   # Sets -DV8_LITE_MODE.
   v8_enable_lite_mode = false
 
+  # Enable the Turbofan compiler.
+  # Sets -dV8_ENABLE_TURBOFAN.
+  v8_enable_turbofan = ""
+
+  # Enable the Maglev compiler.
+  # Sets -dV8_ENABLE_MAGLEV
+  v8_enable_maglev = ""
+
   # Include support for WebAssembly. If disabled, the 'WebAssembly' global
   # will not be available, and embedder APIs to generate WebAssembly modules
   # will fail. Also, asm.js will not be translated to WebAssembly and will be
   # executed as standard JavaScript instead.
+  # Sets -dV8_ENABLE_WEBASSEMBLY.
   v8_enable_webassembly = ""
 
   # Enable 256-bit long vector re-vectorization pass in WASM compilation pipeline.
@@ -134,6 +143,12 @@ if (v8_enable_webassembly == "") {
 }
 assert(!(v8_enable_webassembly && v8_enable_lite_mode),
        "Webassembly is not available in lite mode.")
+
+if (v8_enable_turbofan == "") {
+  v8_enable_turbofan = true
+}
+assert(v8_enable_turbofan || !v8_enable_webassembly,
+       "Webassembly is not available when Turbofan is disabled.")
 
 # Points to // in v8 stand-alone or to //v8/ in chromium. We need absolute
 # paths for all configs in templates as they are shared in different

@@ -540,6 +540,7 @@ def build_config_content(cpu, icu):
         ("v8_enable_verify_heap", "false"),
         ("v8_enable_slow_dchecks", "false"),
         ("v8_enable_maglev", "false"),
+        ("v8_enable_turbofan", "true"),
         ("v8_enable_disassembler", "false"),
         ("is_DEBUG_defined", "false"),
         ("v8_enable_gdbjit", "false"),

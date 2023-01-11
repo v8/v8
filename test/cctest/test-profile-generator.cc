@@ -900,7 +900,7 @@ TEST(LineNumber) {
 }
 
 TEST(BailoutReason) {
-#ifndef V8_LITE_MODE
+#if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
   i::v8_flags.allow_natives_syntax = true;
   i::v8_flags.always_turbofan = false;
   i::v8_flags.turbofan = true;
@@ -944,7 +944,7 @@ TEST(BailoutReason) {
   CHECK(const_cast<v8::CpuProfileNode*>(current));
   CHECK(
       !strcmp("Optimization is always disabled", current->GetBailoutReason()));
-#endif  // V8_LITE_MODE
+#endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
 }
 
 TEST(NodeSourceTypes) {

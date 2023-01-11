@@ -57,6 +57,7 @@ class BuildConfig(object):
     self.slow_dchecks = build_config['v8_enable_slow_dchecks']
     self.third_party_heap = build_config['v8_enable_third_party_heap']
     self.tsan = build_config['is_tsan']
+    self.turbofan = build_config['v8_enable_turbofan']
     # TODO(machenbach): We only have ubsan not ubsan_vptr.
     self.ubsan_vptr = build_config['is_ubsan_vptr']
     self.verify_csa = build_config['v8_enable_verify_csa']
@@ -165,6 +166,7 @@ class BuildConfig(object):
         'slow_dchecks',
         'third_party_heap',
         'tsan',
+        'turbofan',
         'ubsan_vptr',
         'verify_csa',
         'verify_heap',

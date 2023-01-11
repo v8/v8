@@ -587,6 +587,8 @@ class BaseTestRunner(object):
         # statusfile.py (this really shouldn't be needed).
         "has_maglev":
             self.build_config.maglev,
+        "has_turbofan":
+            self.build_config.turbofan,
         "has_webassembly":
             self.build_config.webassembly,
         "isolates":

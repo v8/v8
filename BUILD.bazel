@@ -146,6 +146,8 @@ v8_flag(name = "v8_enable_verify_predictable")
 
 v8_flag(name = "v8_enable_test_features")
 
+v8_flag(name = "v8_enable_turbofan")
+
 v8_flag(
     name = "v8_enable_webassembly",
     default = True,
@@ -320,6 +322,7 @@ v8_config(
         "v8_enable_snapshot_native_code_counters": "V8_SNAPSHOT_NATIVE_CODE_COUNTERS",
         "v8_enable_static_roots": "V8_STATIC_ROOTS",
         "v8_enable_trace_maps": "V8_TRACE_MAPS",
+        "v8_enable_turbofan": "V8_ENABLE_TURBOFAN",
         "v8_enable_v8_checks": "V8_ENABLE_CHECKS",
         "v8_enable_verify_csa": "ENABLE_VERIFY_CSA",
         "v8_enable_verify_heap": "VERIFY_HEAP",
@@ -2894,6 +2897,8 @@ filegroup(
         "src/compiler/state-values-utils.h",
         "src/compiler/store-store-elimination.cc",
         "src/compiler/store-store-elimination.h",
+        "src/compiler/turbofan-enabled.cc",
+        "src/compiler/turbofan.h",
         "src/compiler/turboshaft/assembler.cc",
         "src/compiler/turboshaft/assembler.h",
         "src/compiler/turboshaft/assert-types-reducer.h",
