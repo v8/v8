@@ -19,50 +19,6 @@ namespace maglev {
 
 #define __ masm->
 
-// TODO(v8:7700): Remove this logic when all nodes are implemented.
-class MaglevUnimplementedIRNode {
- public:
-  MaglevUnimplementedIRNode() {}
-  void PreProcessGraph(Graph* graph) {}
-  void PostProcessGraph(Graph* graph) {}
-  void PreProcessBasicBlock(BasicBlock* block) {}
-  template <typename NodeT>
-  void Process(NodeT* node, const ProcessingState& state);
-  bool has_unimplemented_node() const { return has_unimplemented_node_; }
-
- private:
-  bool has_unimplemented_node_ = false;
-};
-
-#define UNIMPLEMENTED_NODE(Node, ...)                                     \
-  void Node::SetValueLocationConstraints() {}                             \
-                                                                          \
-  void Node::GenerateCode(MaglevAssembler* masm,                          \
-                          const ProcessingState& state) {                 \
-    USE(__VA_ARGS__);                                                     \
-  }                                                                       \
-  template <>                                                             \
-  void MaglevUnimplementedIRNode::Process(Node* node,                     \
-                                          const ProcessingState& state) { \
-    std::cerr << "Unimplemented Maglev IR Node: " #Node << std::endl;     \
-    has_unimplemented_node_ = true;                                       \
-  }
-
-#define UNIMPLEMENTED_NODE_WITH_CALL(Node, ...)    \
-  int Node::MaxCallStackArgs() const { return 0; } \
-  UNIMPLEMENTED_NODE(Node, __VA_ARGS__)
-
-// If we don't have a specialization, it means we have implemented the node.
-template <typename NodeT>
-void MaglevUnimplementedIRNode::Process(NodeT* node,
-                                        const ProcessingState& state) {}
-
-bool MaglevGraphHasUnimplementedNode(Graph* graph) {
-  GraphProcessor<MaglevUnimplementedIRNode> processor;
-  processor.ProcessGraph(graph);
-  return processor.node_processor().has_unimplemented_node();
-}
-
 void Int32NegateWithOverflow::SetValueLocationConstraints() {
   UseRegister(value_input());
   DefineAsRegister(this);
