@@ -250,6 +250,8 @@ class StraightForwardRegisterAllocator {
   void InitializeRegisterValues(MergePointRegisterState& target_state);
 #ifdef DEBUG
   bool IsInRegister(MergePointRegisterState& target_state, ValueNode* incoming);
+  bool IsForwardReachable(BasicBlock* start_block, NodeIdT first_id,
+                          NodeIdT last_id);
 #endif
 
   void InitializeBranchTargetRegisterValues(ControlNode* source,
