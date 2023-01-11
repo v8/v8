@@ -140,13 +140,11 @@ class V8_EXPORT_PRIVATE CppHeap final
   void InitializeTracing(CollectionType, GarbageCollectionFlags);
   void StartTracing();
   bool AdvanceTracing(double max_duration);
-  bool IsTracingDone() const;
+  bool IsTracingDone();
   void TraceEpilogue();
   void EnterFinalPause(cppgc::EmbedderStackState stack_state);
   bool FinishConcurrentMarkingIfNeeded();
   void WriteBarrier(JSObject);
-
-  bool ShouldFinalizeIncrementalMarking() const;
 
   // StatsCollector::AllocationObserver interface.
   void AllocatedObjectSizeIncreased(size_t) final;
