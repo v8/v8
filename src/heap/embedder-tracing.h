@@ -8,7 +8,9 @@
 #include <atomic>
 
 #include "include/v8-cppgc.h"
+#include "src/common/globals.h"
 #include "src/execution/isolate.h"
+#include "src/flags/flags.h"
 #include "src/heap/cppgc-js/cpp-heap.h"
 
 namespace v8 {
@@ -38,7 +40,26 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
   void TracePrologue();
   void TraceEpilogue();
   void EnterFinalPause();
+  bool Trace(double deadline);
   bool IsRemoteTracingDone();
+
+  bool ShouldFinalizeIncrementalMarking() {
+    // Covers cases where no remote tracer is in use or the flags for
+    // incremental marking have been disabled.
+    if (!SupportsIncrementalEmbedderSteps()) return true;
+
+    return IsRemoteTracingDone() && embedder_worklist_empty_;
+  }
+
+  bool SupportsIncrementalEmbedderSteps() const {
+    if (!InUse()) return false;
+
+    return v8_flags.cppheap_incremental_marking;
+  }
+
+  void SetEmbedderWorklistEmpty(bool is_empty) {
+    embedder_worklist_empty_ = is_empty;
+  }
 
   cppgc::EmbedderStackState embedder_stack_state() const {
     return embedder_stack_state_;
@@ -56,6 +77,10 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
 
   cppgc::EmbedderStackState embedder_stack_state_ =
       cppgc::EmbedderStackState::kMayContainHeapPointers;
+  // Indicates whether the embedder worklist was observed empty on the main
+  // thread. This is opportunistic as concurrent marking tasks may hold local
+  // segments of potential embedder fields to move to the main thread.
+  bool embedder_worklist_empty_ = false;
 
   friend class EmbedderStackStateScope;
 };
