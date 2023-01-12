@@ -1792,20 +1792,25 @@ void HandleInterruptsAndTiering(MaglevAssembler* masm, ZoneLabelRef done,
     __ B(*done);
 
     __ Bind(&update_profiler_ticks_and_interrupt_budget);
-    // We are skipping the call to Runtime::kBytecodeBudgetInterrupt_Maglev
-    // since the tiering state is kInProgress. Perform bookkeeping that would
-    // have been done in the runtime function:
-    __ AssertFeedbackVector(scratch0);
-    // FeedbackVector::SaturatingIncrementProfilerTicks.
-    // TODO(jgruber): This isn't saturating and thus we may theoretically
-    // exceed Smi::kMaxValue. But, 1) this is very unlikely since it'd take
-    // quite some time to exhaust the budget that many times; and 2) even an
-    // overflow doesn't hurt us at all.
-    __ Ldr(scratch0.W(),
-           FieldMemOperand(scratch0, FeedbackVector::kProfilerTicksOffset));
-    __ Add(scratch0.W(), scratch0.W(), Immediate(1));
-    __ Str(scratch0.W(),
-           FieldMemOperand(scratch0, FeedbackVector::kProfilerTicksOffset));
+    {
+      UseScratchRegisterScope temps(masm);
+      Register feedback_vector = scratch0;
+      Register ticks = temps.AcquireW();
+      // We are skipping the call to Runtime::kBytecodeBudgetInterrupt_Maglev
+      // since the tiering state is kInProgress. Perform bookkeeping that would
+      // have been done in the runtime function:
+      __ AssertFeedbackVector(feedback_vector);
+      // FeedbackVector::SaturatingIncrementProfilerTicks.
+      // TODO(jgruber): This isn't saturating and thus we may theoretically
+      // exceed Smi::kMaxValue. But, 1) this is very unlikely since it'd take
+      // quite some time to exhaust the budget that many times; and 2) even an
+      // overflow doesn't hurt us at all.
+      __ Ldr(ticks, FieldMemOperand(feedback_vector,
+                                    FeedbackVector::kProfilerTicksOffset));
+      __ Add(ticks, ticks, Immediate(1));
+      __ Str(ticks, FieldMemOperand(feedback_vector,
+                                    FeedbackVector::kProfilerTicksOffset));
+    }
 
     // JSFunction::SetInterruptBudget.
     {
