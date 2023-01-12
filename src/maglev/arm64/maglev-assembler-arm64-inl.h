@@ -327,9 +327,9 @@ inline void MaglevAssembler::BuildTypedArrayDataPointer(Register data_pointer,
       FieldMemOperand(object, JSTypedArray::kExternalPointerOffset));
   if (JSTypedArray::kMaxSizeInHeap == 0) return;
   UseScratchRegisterScope scope(this);
-  Register base = scope.AcquireW();
-  ldr(base, FieldMemOperand(object, JSTypedArray::kBasePointerOffset));
-  add(data_pointer, data_pointer, base);
+  Register base = scope.AcquireX();
+  Ldr(base.W(), FieldMemOperand(object, JSTypedArray::kBasePointerOffset));
+  Add(data_pointer, data_pointer, base);
 }
 
 inline void MaglevAssembler::LoadBoundedSizeFromObject(Register result,

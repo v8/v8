@@ -1898,12 +1898,12 @@ void GenerateTypedArrayLoad(MaglevAssembler* masm, NodeT* node, Register object,
     switch (kind) {
       case FLOAT32_ELEMENTS:
         __ Add(data_pointer, data_pointer, Operand(index, LSL, 2));
-        __ Ldr(result_reg.S(), Operand(data_pointer));
+        __ Ldr(result_reg.S(), MemOperand(data_pointer));
         __ Fcvt(result_reg, result_reg.S());
         break;
       case FLOAT64_ELEMENTS:
         __ Add(data_pointer, data_pointer, Operand(index, LSL, 3));
-        __ Ldr(result_reg, Operand(data_pointer));
+        __ Ldr(result_reg, MemOperand(data_pointer));
         break;
       default:
         UNREACHABLE();
