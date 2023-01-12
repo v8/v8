@@ -140,7 +140,7 @@ class V8_EXPORT_PRIVATE CppHeap final
   void InitializeTracing(CollectionType, GarbageCollectionFlags);
   void StartTracing();
   bool AdvanceTracing(double max_duration);
-  bool IsTracingDone();
+  bool IsTracingDone() const;
   void TraceEpilogue();
   void EnterFinalPause(cppgc::EmbedderStackState stack_state);
   bool FinishConcurrentMarkingIfNeeded();

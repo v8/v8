@@ -4,7 +4,6 @@
 
 #include "src/heap/heap-write-barrier.h"
 
-#include "src/heap/embedder-tracing.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/marking-barrier.h"
 #include "src/heap/remembered-set.h"

@@ -6,7 +6,6 @@
 #define V8_HEAP_OBJECTS_VISITING_INL_H_
 
 #include "src/base/logging.h"
-#include "src/heap/embedder-tracing.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/objects-visiting.h"
 #include "src/objects/arguments.h"

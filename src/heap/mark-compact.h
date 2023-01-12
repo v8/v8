@@ -191,11 +191,11 @@ class MainMarkingVisitor final
                      WeakObjects::Local* local_weak_objects, Heap* heap,
                      unsigned mark_compact_epoch,
                      base::EnumSet<CodeFlushMode> code_flush_mode,
-                     bool embedder_tracing_enabled,
+                     bool trace_embedder_fields,
                      bool should_keep_ages_unchanged)
       : MarkingVisitorBase<MainMarkingVisitor<MarkingState>, MarkingState>(
             local_marking_worklists, local_weak_objects, heap,
-            mark_compact_epoch, code_flush_mode, embedder_tracing_enabled,
+            mark_compact_epoch, code_flush_mode, trace_embedder_fields,
             should_keep_ages_unchanged),
         marking_state_(marking_state) {}
 
@@ -263,7 +263,7 @@ class CollectorBase {
 
   MarkingWorklists* marking_worklists() { return &marking_worklists_; }
 
-  MarkingWorklists::Local* local_marking_worklists() {
+  MarkingWorklists::Local* local_marking_worklists() const {
     return local_marking_worklists_.get();
   }
 

@@ -43,7 +43,7 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
                      WeakObjects::Local* local_weak_objects, Heap* heap,
                      unsigned mark_compact_epoch,
                      base::EnumSet<CodeFlushMode> code_flush_mode,
-                     bool is_embedder_tracing_enabled,
+                     bool trace_embedder_fields,
                      bool should_keep_ages_unchanged)
       : HeapVisitor<int, ConcreteVisitor>(heap),
         local_marking_worklists_(local_marking_worklists),
@@ -51,7 +51,7 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
         heap_(heap),
         mark_compact_epoch_(mark_compact_epoch),
         code_flush_mode_(code_flush_mode),
-        is_embedder_tracing_enabled_(is_embedder_tracing_enabled),
+        trace_embedder_fields_(trace_embedder_fields),
         should_keep_ages_unchanged_(should_keep_ages_unchanged),
         should_mark_shared_heap_(heap->ShouldMarkSharedHeap())
 #ifdef V8_ENABLE_SANDBOX
@@ -189,7 +189,7 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
   Heap* const heap_;
   const unsigned mark_compact_epoch_;
   const base::EnumSet<CodeFlushMode> code_flush_mode_;
-  const bool is_embedder_tracing_enabled_;
+  const bool trace_embedder_fields_;
   const bool should_keep_ages_unchanged_;
   const bool should_mark_shared_heap_;
 #ifdef V8_ENABLE_SANDBOX

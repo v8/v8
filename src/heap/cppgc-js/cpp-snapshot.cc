@@ -19,7 +19,6 @@
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-visitor.h"
 #include "src/heap/cppgc/visitor.h"
-#include "src/heap/embedder-tracing.h"
 #include "src/heap/mark-compact.h"
 #include "src/objects/js-objects.h"
 #include "src/profiler/heap-profiler.h"
@@ -356,8 +355,6 @@ class StateStorage final {
 
 void* ExtractEmbedderDataBackref(Isolate* isolate, CppHeap& cpp_heap,
                                  v8::Local<v8::Value> v8_value) {
-  // See LocalEmbedderHeapTracer::VerboseWrapperTypeInfo for details on how
-  // wrapper objects are set up.
   if (!v8_value->IsObject()) return nullptr;
 
   Handle<Object> v8_object = Utils::OpenHandle(*v8_value);

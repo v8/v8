@@ -312,7 +312,7 @@ int MarkingVisitorBase<ConcreteVisitor,
                        MarkingState>::VisitEmbedderTracingSubclass(Map map,
                                                                    T object) {
   DCHECK(object.MayHaveEmbedderFields());
-  if (V8_LIKELY(is_embedder_tracing_enabled_)) {
+  if (V8_LIKELY(trace_embedder_fields_)) {
     return VisitEmbedderTracingSubClassWithEmbedderTracing(map, object);
   }
   return VisitEmbedderTracingSubClassNoEmbedderTracing(map, object);

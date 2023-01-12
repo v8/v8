@@ -43,7 +43,6 @@
 #include "src/heap/cppgc/sweeper.h"
 #include "src/heap/cppgc/unmarker.h"
 #include "src/heap/cppgc/visitor.h"
-#include "src/heap/embedder-tracing.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap.h"
 #include "src/heap/marking-worklist.h"
@@ -732,9 +731,8 @@ bool CppHeap::AdvanceTracing(double max_duration) {
   return marking_done_;
 }
 
-bool CppHeap::IsTracingDone() {
-  if (!TracingInitialized()) return true;
-  return marking_done_;
+bool CppHeap::IsTracingDone() const {
+  return !TracingInitialized() || marking_done_;
 }
 
 void CppHeap::EnterFinalPause(cppgc::EmbedderStackState stack_state) {
