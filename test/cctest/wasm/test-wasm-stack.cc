@@ -133,11 +133,11 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
   WasmRunner<void> r(execution_tier, kWasmOrigin, &import);
 
   // Add a nop such that we don't always get position 1.
-  r.Build({WASM_NOP, WASM_CALL_FUNCTION0(js_throwing_index)});
+  BUILD(r, WASM_NOP, WASM_CALL_FUNCTION0(js_throwing_index));
   uint32_t wasm_index_1 = r.function()->func_index;
 
   WasmFunctionCompiler& f2 = r.NewFunction<void>("call_main");
-  f2.Build({WASM_CALL_FUNCTION0(wasm_index_1)});
+  BUILD(f2, WASM_CALL_FUNCTION0(wasm_index_1));
   uint32_t wasm_index_2 = f2.function_index();
 
   Handle<JSFunction> js_wasm_wrapper = r.builder().WrapCode(wasm_index_2);
@@ -178,7 +178,7 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmUrl) {
   r.Build(trap_code.data(), trap_code.data() + trap_code.size());
 
   WasmFunctionCompiler& f = r.NewFunction<int>("call_main");
-  f.Build({WASM_CALL_FUNCTION0(0)});
+  BUILD(f, WASM_CALL_FUNCTION0(0));
   uint32_t wasm_index = f.function_index();
 
   Handle<JSFunction> js_wasm_wrapper = r.builder().WrapCode(wasm_index);
@@ -243,7 +243,7 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmError) {
     uint32_t wasm_index_1 = r.function()->func_index;
 
     WasmFunctionCompiler& f2 = r.NewFunction<int>("call_main");
-    f2.Build({WASM_CALL_FUNCTION0(0)});
+    BUILD(f2, WASM_CALL_FUNCTION0(0));
     uint32_t wasm_index_2 = f2.function_index();
 
     Handle<JSFunction> js_wasm_wrapper = r.builder().WrapCode(wasm_index_2);

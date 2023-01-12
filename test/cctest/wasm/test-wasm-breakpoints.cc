@@ -284,7 +284,7 @@ int GetIntReturnValue(MaybeHandle<Object> retval) {
 WASM_COMPILED_EXEC_TEST(WasmCollectPossibleBreakpoints) {
   WasmRunner<int> runner(execution_tier);
 
-  runner.Build({WASM_NOP, WASM_I32_ADD(WASM_ZERO, WASM_ONE)});
+  BUILD(runner, WASM_NOP, WASM_I32_ADD(WASM_ZERO, WASM_ONE));
 
   WasmInstanceObject instance = *runner.builder().instance_object();
   NativeModule* native_module = instance.module_object().native_module();
@@ -312,7 +312,7 @@ WASM_COMPILED_EXEC_TEST(WasmSimpleBreak) {
   WasmRunner<int> runner(execution_tier);
   Isolate* isolate = runner.main_isolate();
 
-  runner.Build({WASM_NOP, WASM_I32_ADD(WASM_I32V_1(11), WASM_I32V_1(3))});
+  BUILD(runner, WASM_NOP, WASM_I32_ADD(WASM_I32V_1(11), WASM_I32V_1(3)));
 
   Handle<JSFunction> main_fun_wrapper =
       runner.builder().WrapCode(runner.function_index());
@@ -330,7 +330,7 @@ WASM_COMPILED_EXEC_TEST(WasmNonBreakablePosition) {
   WasmRunner<int> runner(execution_tier);
   Isolate* isolate = runner.main_isolate();
 
-  runner.Build({WASM_RETURN(WASM_I32V_2(1024))});
+  BUILD(runner, WASM_RETURN(WASM_I32V_2(1024)));
 
   Handle<JSFunction> main_fun_wrapper =
       runner.builder().WrapCode(runner.function_index());
@@ -346,7 +346,7 @@ WASM_COMPILED_EXEC_TEST(WasmNonBreakablePosition) {
 
 WASM_COMPILED_EXEC_TEST(WasmSimpleStepping) {
   WasmRunner<int> runner(execution_tier);
-  runner.Build({WASM_I32_ADD(WASM_I32V_1(11), WASM_I32V_1(3))});
+  BUILD(runner, WASM_I32_ADD(WASM_I32V_1(11), WASM_I32V_1(3)));
 
   Isolate* isolate = runner.main_isolate();
   Handle<JSFunction> main_fun_wrapper =
@@ -379,14 +379,15 @@ WASM_COMPILED_EXEC_TEST(WasmStepInAndOut) {
   // functions in the code section matches the function indexes.
 
   // return arg0
-  runner.Build({WASM_RETURN(WASM_LOCAL_GET(0))});
+  BUILD(runner, WASM_RETURN(WASM_LOCAL_GET(0)));
   // for (int i = 0; i < 10; ++i) { f2(i); }
-  f2.Build({WASM_LOOP(
-      WASM_BR_IF(0,
-                 WASM_BINOP(kExprI32GeU, WASM_LOCAL_GET(0), WASM_I32V_1(10))),
-      WASM_LOCAL_SET(0, WASM_BINOP(kExprI32Sub, WASM_LOCAL_GET(0), WASM_ONE)),
-      WASM_CALL_FUNCTION(runner.function_index(), WASM_LOCAL_GET(0)), WASM_DROP,
-      WASM_BR(1))});
+  BUILD(f2, WASM_LOOP(
+                WASM_BR_IF(0, WASM_BINOP(kExprI32GeU, WASM_LOCAL_GET(0),
+                                         WASM_I32V_1(10))),
+                WASM_LOCAL_SET(
+                    0, WASM_BINOP(kExprI32Sub, WASM_LOCAL_GET(0), WASM_ONE)),
+                WASM_CALL_FUNCTION(runner.function_index(), WASM_LOCAL_GET(0)),
+                WASM_DROP, WASM_BR(1)));
 
   Isolate* isolate = runner.main_isolate();
   Handle<JSFunction> main_fun_wrapper =
@@ -414,14 +415,14 @@ WASM_COMPILED_EXEC_TEST(WasmGetLocalsAndStack) {
   runner.AllocateLocal(kWasmF32);
   runner.AllocateLocal(kWasmF64);
 
-  runner.Build(
-      {// set [1] to 17
-       WASM_LOCAL_SET(1, WASM_I64V_1(17)),
-       // set [2] to <arg0> = 7
-       WASM_LOCAL_SET(2, WASM_F32_SCONVERT_I32(WASM_LOCAL_GET(0))),
-       // set [3] to <arg1>/2 = 8.5
-       WASM_LOCAL_SET(3, WASM_F64_DIV(WASM_F64_SCONVERT_I64(WASM_LOCAL_GET(1)),
-                                      WASM_F64(2)))});
+  BUILD(runner,
+        // set [1] to 17
+        WASM_LOCAL_SET(1, WASM_I64V_1(17)),
+        // set [2] to <arg0> = 7
+        WASM_LOCAL_SET(2, WASM_F32_SCONVERT_I32(WASM_LOCAL_GET(0))),
+        // set [3] to <arg1>/2 = 8.5
+        WASM_LOCAL_SET(3, WASM_F64_DIV(WASM_F64_SCONVERT_I64(WASM_LOCAL_GET(1)),
+                                       WASM_F64(2))));
 
   Isolate* isolate = runner.main_isolate();
   Handle<JSFunction> main_fun_wrapper =
@@ -457,8 +458,8 @@ WASM_COMPILED_EXEC_TEST(WasmRemoveBreakPoint) {
   WasmRunner<int> runner(execution_tier);
   Isolate* isolate = runner.main_isolate();
 
-  runner.Build(
-      {WASM_NOP, WASM_NOP, WASM_NOP, WASM_NOP, WASM_NOP, WASM_I32V_1(14)});
+  BUILD(runner, WASM_NOP, WASM_NOP, WASM_NOP, WASM_NOP, WASM_NOP,
+        WASM_I32V_1(14));
 
   Handle<JSFunction> main_fun_wrapper =
       runner.builder().WrapCode(runner.function_index());
@@ -488,8 +489,8 @@ WASM_COMPILED_EXEC_TEST(WasmRemoveLastBreakPoint) {
   WasmRunner<int> runner(execution_tier);
   Isolate* isolate = runner.main_isolate();
 
-  runner.Build(
-      {WASM_NOP, WASM_NOP, WASM_NOP, WASM_NOP, WASM_NOP, WASM_I32V_1(14)});
+  BUILD(runner, WASM_NOP, WASM_NOP, WASM_NOP, WASM_NOP, WASM_NOP,
+        WASM_I32V_1(14));
 
   Handle<JSFunction> main_fun_wrapper =
       runner.builder().WrapCode(runner.function_index());
@@ -516,8 +517,8 @@ WASM_COMPILED_EXEC_TEST(WasmRemoveAllBreakPoint) {
   WasmRunner<int> runner(execution_tier);
   Isolate* isolate = runner.main_isolate();
 
-  runner.Build(
-      {WASM_NOP, WASM_NOP, WASM_NOP, WASM_NOP, WASM_NOP, WASM_I32V_1(14)});
+  BUILD(runner, WASM_NOP, WASM_NOP, WASM_NOP, WASM_NOP, WASM_NOP,
+        WASM_I32V_1(14));
 
   Handle<JSFunction> main_fun_wrapper =
       runner.builder().WrapCode(runner.function_index());
@@ -557,9 +558,9 @@ WASM_COMPILED_EXEC_TEST(WasmBreakInPostMVP) {
 
   constexpr int kReturn = 13;
   constexpr int kIgnored = 23;
-  runner.Build(
-      {WASM_BLOCK_X(sig_idx, WASM_I32V_1(kReturn), WASM_I32V_1(kIgnored)),
-       WASM_DROP});
+  BUILD(runner,
+        WASM_BLOCK_X(sig_idx, WASM_I32V_1(kReturn), WASM_I32V_1(kIgnored)),
+        WASM_DROP);
 
   Handle<JSFunction> main_fun_wrapper =
       runner.builder().WrapCode(runner.function_index());
@@ -577,7 +578,7 @@ WASM_COMPILED_EXEC_TEST(WasmBreakInPostMVP) {
 WASM_COMPILED_EXEC_TEST(Regress10889) {
   FLAG_SCOPE(print_wasm_code);
   WasmRunner<int> runner(execution_tier);
-  runner.Build({WASM_I32V_1(0)});
+  BUILD(runner, WASM_I32V_1(0));
   SetBreakpoint(&runner, runner.function_index(), 1, 1);
 }
 

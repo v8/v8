@@ -72,7 +72,7 @@ WASM_COMPILED_EXEC_TEST(Unreachable) {
                      kRuntimeExceptionSupport);
   TestSignatures sigs;
 
-  r.Build({WASM_UNREACHABLE});
+  BUILD(r, WASM_UNREACHABLE);
   uint32_t wasm_index = r.function()->func_index;
 
   Handle<JSFunction> js_wasm_wrapper = r.builder().WrapCode(wasm_index);
@@ -108,14 +108,14 @@ WASM_COMPILED_EXEC_TEST(IllegalLoad) {
 
   r.builder().AddMemory(0L);
 
-  r.Build({WASM_IF(
-      WASM_ONE, WASM_SEQ(WASM_LOAD_MEM(MachineType::Int32(), WASM_I32V_1(-3)),
-                         WASM_DROP))});
+  BUILD(r, WASM_IF(WASM_ONE, WASM_SEQ(WASM_LOAD_MEM(MachineType::Int32(),
+                                                    WASM_I32V_1(-3)),
+                                      WASM_DROP)));
   uint32_t wasm_index_1 = r.function()->func_index;
 
   WasmFunctionCompiler& f2 = r.NewFunction<void>("call_main");
   // Insert a NOP such that the position of the call is not one.
-  f2.Build({WASM_NOP, WASM_CALL_FUNCTION0(wasm_index_1)});
+  BUILD(f2, WASM_NOP, WASM_CALL_FUNCTION0(wasm_index_1));
   uint32_t wasm_index_2 = f2.function_index();
 
   Handle<JSFunction> js_wasm_wrapper = r.builder().WrapCode(wasm_index_2);

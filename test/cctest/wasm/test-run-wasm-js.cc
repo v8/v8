@@ -68,7 +68,7 @@ ManuallyImportedJSFunction CreateJSSelector(FunctionSig* sig, int which) {
 
 WASM_COMPILED_EXEC_TEST(Run_Int32Sub_jswrapped) {
   WasmRunner<int, int, int> r(execution_tier);
-  r.Build({WASM_I32_SUB(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))});
+  BUILD(r, WASM_I32_SUB(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)));
 
   r.CheckCallViaJS(33, 44, 11);
   r.CheckCallViaJS(-8723487, -8000000, 723487);
@@ -76,7 +76,7 @@ WASM_COMPILED_EXEC_TEST(Run_Int32Sub_jswrapped) {
 
 WASM_COMPILED_EXEC_TEST(Run_Float32Div_jswrapped) {
   WasmRunner<float, float, float> r(execution_tier);
-  r.Build({WASM_F32_DIV(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))});
+  BUILD(r, WASM_F32_DIV(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)));
 
   r.CheckCallViaJS(92, 46, 0.5);
   r.CheckCallViaJS(64, -16, -0.25);
@@ -84,7 +84,7 @@ WASM_COMPILED_EXEC_TEST(Run_Float32Div_jswrapped) {
 
 WASM_COMPILED_EXEC_TEST(Run_Float64Add_jswrapped) {
   WasmRunner<double, double, double> r(execution_tier);
-  r.Build({WASM_F64_ADD(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))});
+  BUILD(r, WASM_F64_ADD(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)));
 
   r.CheckCallViaJS(3, 2, 1);
   r.CheckCallViaJS(-5.5, -5.25, -0.25);
@@ -92,7 +92,7 @@ WASM_COMPILED_EXEC_TEST(Run_Float64Add_jswrapped) {
 
 WASM_COMPILED_EXEC_TEST(Run_I32Popcount_jswrapped) {
   WasmRunner<int, int> r(execution_tier);
-  r.Build({WASM_I32_POPCNT(WASM_LOCAL_GET(0))});
+  BUILD(r, WASM_I32_POPCNT(WASM_LOCAL_GET(0)));
 
   r.CheckCallViaJS(2, 9);
   r.CheckCallViaJS(3, 11);
@@ -109,7 +109,7 @@ WASM_COMPILED_EXEC_TEST(Run_CallJS_Add_jswrapped) {
   ManuallyImportedJSFunction import = {sigs.i_i(), js_function};
   WasmRunner<int, int> r(execution_tier, kWasmOrigin, &import);
   uint32_t js_index = 0;
-  r.Build({WASM_CALL_FUNCTION(js_index, WASM_LOCAL_GET(0))});
+  BUILD(r, WASM_CALL_FUNCTION(js_index, WASM_LOCAL_GET(0)));
 
   r.CheckCallViaJS(101, 2);
   r.CheckCallViaJS(199, 100);
@@ -143,7 +143,7 @@ void RunJSSelectTest(TestExecutionTier tier, int which) {
 
       size_t end = code.size();
       code.push_back(0);
-      t.Build(base::VectorOf(code.data(), end));
+      t.Build(&code[0], &code[end]);
     }
 
     double expected = inputs.arg_d(which);
@@ -203,7 +203,7 @@ void RunWASMSelectTest(TestExecutionTier tier, int which) {
 
     WasmRunner<void> r(tier);
     WasmFunctionCompiler& t = r.NewFunction(&sig);
-    t.Build({WASM_LOCAL_GET(which)});
+    BUILD(t, WASM_LOCAL_GET(which));
 
     Handle<Object> args[] = {
         isolate->factory()->NewNumber(inputs.arg_d(0)),
@@ -275,7 +275,7 @@ void RunWASMSelectAlignTest(TestExecutionTier tier, int num_args,
   for (int which = 0; which < num_params; which++) {
     WasmRunner<void> r(tier);
     WasmFunctionCompiler& t = r.NewFunction(&sig);
-    t.Build({WASM_LOCAL_GET(which)});
+    BUILD(t, WASM_LOCAL_GET(which));
 
     Handle<Object> args[] = {isolate->factory()->NewNumber(inputs.arg_d(0)),
                              isolate->factory()->NewNumber(inputs.arg_d(1)),
@@ -389,7 +389,7 @@ void RunJSSelectAlignTest(TestExecutionTier tier, int num_args,
     ManuallyImportedJSFunction import = CreateJSSelector(&sig, which);
     WasmRunner<void> r(tier, kWasmOrigin, &import);
     WasmFunctionCompiler& t = r.NewFunction(&sig);
-    t.Build(base::VectorOf(code.data(), end));
+    t.Build(&code[0], &code[end]);
 
     Handle<Object> args[] = {
         factory->NewNumber(inputs.arg_d(0)),
@@ -505,12 +505,13 @@ void RunPickerTest(TestExecutionTier tier, bool indirect) {
     r.builder().AddIndirectFunctionTable(indirect_function_table,
                                          arraysize(indirect_function_table));
 
-    rc_fn.Build(
-        {WASM_RETURN_CALL_INDIRECT(sig_index, WASM_I32V(left), WASM_I32V(right),
-                                   WASM_LOCAL_GET(0), WASM_I32V(js_index))});
+    BUILD(rc_fn, WASM_RETURN_CALL_INDIRECT(sig_index, WASM_I32V(left),
+                                           WASM_I32V(right), WASM_LOCAL_GET(0),
+                                           WASM_I32V(js_index)));
   } else {
-    rc_fn.Build({WASM_RETURN_CALL_FUNCTION(
-        js_index, WASM_I32V(left), WASM_I32V(right), WASM_LOCAL_GET(0))});
+    BUILD(rc_fn,
+          WASM_RETURN_CALL_FUNCTION(js_index, WASM_I32V(left), WASM_I32V(right),
+                                    WASM_LOCAL_GET(0)));
   }
 
   Handle<Object> args_left[] = {isolate->factory()->NewNumber(1)};

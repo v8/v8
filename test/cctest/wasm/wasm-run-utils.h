@@ -82,6 +82,12 @@ using compiler::Node;
 
 #define WASM_WRAPPER_RETURN_VALUE 8754
 
+#define BUILD(r, ...)                            \
+  do {                                           \
+    byte __code[] = {__VA_ARGS__};               \
+    r.Build(__code, __code + arraysize(__code)); \
+  } while (false)
+
 #define ADD_CODE(vec, ...)                           \
   do {                                               \
     byte __buf[] = {__VA_ARGS__};                    \
@@ -368,10 +374,7 @@ class WasmFunctionCompiler : public compiler::GraphAndBuilders {
   uint32_t function_index() { return function_->func_index; }
   uint32_t sig_index() { return function_->sig_index; }
 
-  void Build(std::initializer_list<const uint8_t> bytes) {
-    Build(base::VectorOf(bytes));
-  }
-  void Build(base::Vector<const uint8_t> bytes);
+  void Build(const byte* start, const byte* end);
 
   byte AllocateLocal(ValueType type) {
     uint32_t index = local_decls.AddLocals(1, type);
@@ -427,16 +430,10 @@ class WasmRunnerBase : public InitializedHandleScope {
   // Builds a graph from the given Wasm code and generates the machine
   // code and call wrapper for that graph. This method must not be called
   // more than once.
-  void Build(const uint8_t* start, const uint8_t* end) {
-    Build(base::VectorOf(start, end - start));
-  }
-  void Build(std::initializer_list<const uint8_t> bytes) {
-    Build(base::VectorOf(bytes));
-  }
-  void Build(base::Vector<const uint8_t> bytes) {
+  void Build(const byte* start, const byte* end) {
     CHECK(!compiled_);
     compiled_ = true;
-    functions_[0]->Build(bytes);
+    functions_[0]->Build(start, end);
   }
 
   // Resets the state for building the next function.

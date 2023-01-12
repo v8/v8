@@ -577,26 +577,28 @@ Handle<Code> WasmFunctionWrapper::GetWrapperCode(Isolate* isolate) {
 // This struct is just a type tag for Zone::NewArray<T>(size_t) call.
 struct WasmFunctionCompilerBuffer {};
 
-void WasmFunctionCompiler::Build(base::Vector<const uint8_t> bytes) {
+void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
   size_t locals_size = local_decls.Size();
-  size_t total_size = bytes.size() + locals_size + 1;
+  size_t total_size = end - start + locals_size + 1;
   byte* buffer = zone()->NewArray<byte, WasmFunctionCompilerBuffer>(total_size);
   // Prepend the local decls to the code.
   local_decls.Emit(buffer);
   // Emit the code.
-  memcpy(buffer + locals_size, bytes.begin(), bytes.size());
+  memcpy(buffer + locals_size, start, end - start);
   // Append an extra end opcode.
   buffer[total_size - 1] = kExprEnd;
 
-  bytes = base::VectorOf(buffer, total_size);
+  start = buffer;
+  end = buffer + total_size;
 
-  function_->code = {builder_->AddBytes(bytes),
-                     static_cast<uint32_t>(bytes.size())};
+  CHECK_GE(kMaxInt, end - start);
+  int len = static_cast<int>(end - start);
+  function_->code = {builder_->AddBytes(base::Vector<const byte>(start, len)),
+                     static_cast<uint32_t>(len)};
 
   if (interpreter_) {
     // Add the code to the interpreter; do not generate compiled code.
-    interpreter_->SetFunctionCodeForTesting(function_, bytes.begin(),
-                                            bytes.end());
+    interpreter_->SetFunctionCodeForTesting(function_, start, end);
     return;
   }
 

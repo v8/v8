@@ -51,9 +51,10 @@ WASM_EXEC_TEST(MemoryInit) {
   r.builder().AddMemory(kWasmPageSize);
   const byte data[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
   r.builder().AddPassiveDataSegment(base::ArrayVector(data));
-  r.Build({WASM_MEMORY_INIT(0, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
-                            WASM_LOCAL_GET(2)),
-           kExprI32Const, 0});
+  BUILD(r,
+        WASM_MEMORY_INIT(0, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
+                         WASM_LOCAL_GET(2)),
+        kExprI32Const, 0);
 
   // All zeroes.
   CheckMemoryEqualsZero(&r.builder(), 0, kWasmPageSize);
@@ -86,9 +87,10 @@ WASM_EXEC_TEST(MemoryInitOutOfBoundsData) {
   r.builder().AddMemory(kWasmPageSize);
   const byte data[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
   r.builder().AddPassiveDataSegment(base::ArrayVector(data));
-  r.Build({WASM_MEMORY_INIT(0, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
-                            WASM_LOCAL_GET(2)),
-           kExprI32Const, 0});
+  BUILD(r,
+        WASM_MEMORY_INIT(0, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
+                         WASM_LOCAL_GET(2)),
+        kExprI32Const, 0);
 
   const uint32_t last_5_bytes = kWasmPageSize - 5;
 
@@ -106,9 +108,10 @@ WASM_EXEC_TEST(MemoryInitOutOfBounds) {
   r.builder().AddMemory(kWasmPageSize);
   const byte data[kWasmPageSize] = {};
   r.builder().AddPassiveDataSegment(base::ArrayVector(data));
-  r.Build({WASM_MEMORY_INIT(0, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
-                            WASM_LOCAL_GET(2)),
-           kExprI32Const, 0});
+  BUILD(r,
+        WASM_MEMORY_INIT(0, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
+                         WASM_LOCAL_GET(2)),
+        kExprI32Const, 0);
 
   // OK, copy the full data segment to memory.
   r.Call(0, 0, kWasmPageSize);
@@ -134,9 +137,10 @@ WASM_EXEC_TEST(MemoryInitOutOfBounds) {
 WASM_EXEC_TEST(MemoryCopy) {
   WasmRunner<uint32_t, uint32_t, uint32_t, uint32_t> r(execution_tier);
   byte* mem = r.builder().AddMemory(kWasmPageSize);
-  r.Build({WASM_MEMORY_COPY(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
-                            WASM_LOCAL_GET(2)),
-           kExprI32Const, 0});
+  BUILD(
+      r,
+      WASM_MEMORY_COPY(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1), WASM_LOCAL_GET(2)),
+      kExprI32Const, 0);
 
   const byte initial[] = {0, 11, 22, 33, 44, 55, 66, 77};
   memcpy(mem, initial, sizeof(initial));
@@ -161,9 +165,10 @@ WASM_EXEC_TEST(MemoryCopy) {
 WASM_EXEC_TEST(MemoryCopyOverlapping) {
   WasmRunner<uint32_t, uint32_t, uint32_t, uint32_t> r(execution_tier);
   byte* mem = r.builder().AddMemory(kWasmPageSize);
-  r.Build({WASM_MEMORY_COPY(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
-                            WASM_LOCAL_GET(2)),
-           kExprI32Const, 0});
+  BUILD(
+      r,
+      WASM_MEMORY_COPY(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1), WASM_LOCAL_GET(2)),
+      kExprI32Const, 0);
 
   const byte initial[] = {10, 20, 30};
   memcpy(mem, initial, sizeof(initial));
@@ -182,9 +187,10 @@ WASM_EXEC_TEST(MemoryCopyOverlapping) {
 WASM_EXEC_TEST(MemoryCopyOutOfBoundsData) {
   WasmRunner<uint32_t, uint32_t, uint32_t, uint32_t> r(execution_tier);
   byte* mem = r.builder().AddMemory(kWasmPageSize);
-  r.Build({WASM_MEMORY_COPY(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
-                            WASM_LOCAL_GET(2)),
-           kExprI32Const, 0});
+  BUILD(
+      r,
+      WASM_MEMORY_COPY(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1), WASM_LOCAL_GET(2)),
+      kExprI32Const, 0);
 
   const byte data[] = {11, 22, 33, 44, 55, 66, 77, 88};
   memcpy(mem, data, sizeof(data));
@@ -209,9 +215,10 @@ WASM_EXEC_TEST(MemoryCopyOutOfBoundsData) {
 WASM_EXEC_TEST(MemoryCopyOutOfBounds) {
   WasmRunner<uint32_t, uint32_t, uint32_t, uint32_t> r(execution_tier);
   r.builder().AddMemory(kWasmPageSize);
-  r.Build({WASM_MEMORY_COPY(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
-                            WASM_LOCAL_GET(2)),
-           kExprI32Const, 0});
+  BUILD(
+      r,
+      WASM_MEMORY_COPY(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1), WASM_LOCAL_GET(2)),
+      kExprI32Const, 0);
 
   // Copy full range is OK.
   CHECK_EQ(0, r.Call(0, 0, kWasmPageSize));
@@ -237,9 +244,10 @@ WASM_EXEC_TEST(MemoryCopyOutOfBounds) {
 WASM_EXEC_TEST(MemoryFill) {
   WasmRunner<uint32_t, uint32_t, uint32_t, uint32_t> r(execution_tier);
   r.builder().AddMemory(kWasmPageSize);
-  r.Build({WASM_MEMORY_FILL(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
-                            WASM_LOCAL_GET(2)),
-           kExprI32Const, 0});
+  BUILD(
+      r,
+      WASM_MEMORY_FILL(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1), WASM_LOCAL_GET(2)),
+      kExprI32Const, 0);
   CHECK_EQ(0, r.Call(1, 33, 5));
   CheckMemoryEqualsFollowedByZeroes(&r.builder(), {0, 33, 33, 33, 33, 33});
 
@@ -259,9 +267,10 @@ WASM_EXEC_TEST(MemoryFill) {
 WASM_EXEC_TEST(MemoryFillValueWrapsToByte) {
   WasmRunner<uint32_t, uint32_t, uint32_t, uint32_t> r(execution_tier);
   r.builder().AddMemory(kWasmPageSize);
-  r.Build({WASM_MEMORY_FILL(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
-                            WASM_LOCAL_GET(2)),
-           kExprI32Const, 0});
+  BUILD(
+      r,
+      WASM_MEMORY_FILL(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1), WASM_LOCAL_GET(2)),
+      kExprI32Const, 0);
   CHECK_EQ(0, r.Call(0, 1000, 3));
   const byte expected = 1000 & 255;
   CheckMemoryEqualsFollowedByZeroes(&r.builder(),
@@ -271,9 +280,10 @@ WASM_EXEC_TEST(MemoryFillValueWrapsToByte) {
 WASM_EXEC_TEST(MemoryFillOutOfBoundsData) {
   WasmRunner<uint32_t, uint32_t, uint32_t, uint32_t> r(execution_tier);
   r.builder().AddMemory(kWasmPageSize);
-  r.Build({WASM_MEMORY_FILL(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
-                            WASM_LOCAL_GET(2)),
-           kExprI32Const, 0});
+  BUILD(
+      r,
+      WASM_MEMORY_FILL(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1), WASM_LOCAL_GET(2)),
+      kExprI32Const, 0);
   const byte v = 123;
   CHECK_EQ(0xDEADBEEF, r.Call(kWasmPageSize - 5, v, 999));
   CheckMemoryEquals(&r.builder(), kWasmPageSize - 6, {0, 0, 0, 0, 0, 0});
@@ -282,9 +292,10 @@ WASM_EXEC_TEST(MemoryFillOutOfBoundsData) {
 WASM_EXEC_TEST(MemoryFillOutOfBounds) {
   WasmRunner<uint32_t, uint32_t, uint32_t, uint32_t> r(execution_tier);
   r.builder().AddMemory(kWasmPageSize);
-  r.Build({WASM_MEMORY_FILL(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
-                            WASM_LOCAL_GET(2)),
-           kExprI32Const, 0});
+  BUILD(
+      r,
+      WASM_MEMORY_FILL(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1), WASM_LOCAL_GET(2)),
+      kExprI32Const, 0);
 
   const byte v = 123;
 
@@ -305,7 +316,7 @@ WASM_EXEC_TEST(DataDropTwice) {
   r.builder().AddMemory(kWasmPageSize);
   const byte data[] = {0};
   r.builder().AddPassiveDataSegment(base::ArrayVector(data));
-  r.Build({WASM_DATA_DROP(0), kExprI32Const, 0});
+  BUILD(r, WASM_DATA_DROP(0), kExprI32Const, 0);
 
   CHECK_EQ(0, r.Call());
   CHECK_EQ(0, r.Call());
@@ -316,9 +327,9 @@ WASM_EXEC_TEST(DataDropThenMemoryInit) {
   r.builder().AddMemory(kWasmPageSize);
   const byte data[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
   r.builder().AddPassiveDataSegment(base::ArrayVector(data));
-  r.Build({WASM_DATA_DROP(0),
-           WASM_MEMORY_INIT(0, WASM_I32V_1(0), WASM_I32V_1(1), WASM_I32V_1(2)),
-           kExprI32Const, 0});
+  BUILD(r, WASM_DATA_DROP(0),
+        WASM_MEMORY_INIT(0, WASM_I32V_1(0), WASM_I32V_1(1), WASM_I32V_1(2)),
+        kExprI32Const, 0);
 
   CHECK_EQ(0xDEADBEEF, r.Call());
 }
@@ -331,9 +342,10 @@ void TestTableCopyInbounds(TestExecutionTier execution_tier, int table_dst,
   for (int i = 0; i < 10; ++i) {
     r.builder().AddIndirectFunctionTable(nullptr, kTableSize);
   }
-  r.Build({WASM_TABLE_COPY(table_dst, table_src, WASM_LOCAL_GET(0),
-                           WASM_LOCAL_GET(1), WASM_LOCAL_GET(2)),
-           kExprI32Const, 0});
+  BUILD(r,
+        WASM_TABLE_COPY(table_dst, table_src, WASM_LOCAL_GET(0),
+                        WASM_LOCAL_GET(1), WASM_LOCAL_GET(2)),
+        kExprI32Const, 0);
 
   for (uint32_t i = 0; i <= kTableSize; ++i) {
     r.CheckCallViaJS(0, 0, 0, i);  // nop
@@ -393,7 +405,7 @@ void TestTableInitElems(TestExecutionTier execution_tier, int table_index) {
 
   for (uint32_t i = 0; i < kTableSize; ++i) {
     WasmFunctionCompiler& fn = r.NewFunction(sigs.i_v(), "f");
-    fn.Build({WASM_I32V_1(i)});
+    BUILD(fn, WASM_I32V_1(i));
     fn.SetSigIndex(sig_index);
     function_indexes.push_back(fn.function_index());
   }
@@ -406,13 +418,14 @@ void TestTableInitElems(TestExecutionTier execution_tier, int table_index) {
   r.builder().AddPassiveElementSegment(function_indexes);
 
   WasmFunctionCompiler& call = r.NewFunction(sigs.i_i(), "call");
-  call.Build(
-      {WASM_CALL_INDIRECT_TABLE(table_index, sig_index, WASM_LOCAL_GET(0))});
+  BUILD(call,
+        WASM_CALL_INDIRECT_TABLE(table_index, sig_index, WASM_LOCAL_GET(0)));
   const uint32_t call_index = call.function_index();
 
-  r.Build({WASM_TABLE_INIT(table_index, 0, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
-                           WASM_LOCAL_GET(2)),
-           kExprI32Const, 0});
+  BUILD(r,
+        WASM_TABLE_INIT(table_index, 0, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
+                        WASM_LOCAL_GET(2)),
+        kExprI32Const, 0);
 
   auto table =
       handle(WasmTableObject::cast(
@@ -465,7 +478,7 @@ void TestTableInitOob(TestExecutionTier execution_tier, int table_index) {
 
   for (uint32_t i = 0; i < kTableSize; ++i) {
     WasmFunctionCompiler& fn = r.NewFunction(sigs.i_v(), "f");
-    fn.Build({WASM_I32V_1(i)});
+    BUILD(fn, WASM_I32V_1(i));
     fn.SetSigIndex(sig_index);
     function_indexes.push_back(fn.function_index());
   }
@@ -476,13 +489,14 @@ void TestTableInitOob(TestExecutionTier execution_tier, int table_index) {
   r.builder().AddPassiveElementSegment(function_indexes);
 
   WasmFunctionCompiler& call = r.NewFunction(sigs.i_i(), "call");
-  call.Build(
-      {WASM_CALL_INDIRECT_TABLE(table_index, sig_index, WASM_LOCAL_GET(0))});
+  BUILD(call,
+        WASM_CALL_INDIRECT_TABLE(table_index, sig_index, WASM_LOCAL_GET(0)));
   const uint32_t call_index = call.function_index();
 
-  r.Build({WASM_TABLE_INIT(table_index, 0, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
-                           WASM_LOCAL_GET(2)),
-           kExprI32Const, 0});
+  BUILD(r,
+        WASM_TABLE_INIT(table_index, 0, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
+                        WASM_LOCAL_GET(2)),
+        kExprI32Const, 0);
 
   auto table =
       handle(WasmTableObject::cast(
@@ -537,7 +551,7 @@ void TestTableCopyElems(TestExecutionTier execution_tier, int table_dst,
 
   for (uint32_t i = 0; i < kTableSize; ++i) {
     WasmFunctionCompiler& fn = r.NewFunction(sigs.i_v(), "f");
-    fn.Build({WASM_I32V_1(i)});
+    BUILD(fn, WASM_I32V_1(i));
     fn.SetSigIndex(sig_index);
     function_indexes[i] = fn.function_index();
   }
@@ -546,9 +560,10 @@ void TestTableCopyElems(TestExecutionTier execution_tier, int table_dst,
     r.builder().AddIndirectFunctionTable(function_indexes, kTableSize);
   }
 
-  r.Build({WASM_TABLE_COPY(table_dst, table_src, WASM_LOCAL_GET(0),
-                           WASM_LOCAL_GET(1), WASM_LOCAL_GET(2)),
-           kExprI32Const, 0});
+  BUILD(r,
+        WASM_TABLE_COPY(table_dst, table_src, WASM_LOCAL_GET(0),
+                        WASM_LOCAL_GET(1), WASM_LOCAL_GET(2)),
+        kExprI32Const, 0);
 
   r.builder().InitializeWrapperCache();
 
@@ -614,7 +629,7 @@ void TestTableCopyCalls(TestExecutionTier execution_tier, int table_dst,
 
   for (uint32_t i = 0; i < kTableSize; ++i) {
     WasmFunctionCompiler& fn = r.NewFunction(sigs.i_v(), "f");
-    fn.Build({WASM_I32V_1(i)});
+    BUILD(fn, WASM_I32V_1(i));
     fn.SetSigIndex(sig_index);
     function_indexes[i] = fn.function_index();
   }
@@ -624,13 +639,14 @@ void TestTableCopyCalls(TestExecutionTier execution_tier, int table_dst,
   }
 
   WasmFunctionCompiler& call = r.NewFunction(sigs.i_i(), "call");
-  call.Build(
-      {WASM_CALL_INDIRECT_TABLE(table_dst, sig_index, WASM_LOCAL_GET(0))});
+  BUILD(call,
+        WASM_CALL_INDIRECT_TABLE(table_dst, sig_index, WASM_LOCAL_GET(0)));
   const uint32_t call_index = call.function_index();
 
-  r.Build({WASM_TABLE_COPY(table_dst, table_src, WASM_LOCAL_GET(0),
-                           WASM_LOCAL_GET(1), WASM_LOCAL_GET(2)),
-           kExprI32Const, 0});
+  BUILD(r,
+        WASM_TABLE_COPY(table_dst, table_src, WASM_LOCAL_GET(0),
+                        WASM_LOCAL_GET(1), WASM_LOCAL_GET(2)),
+        kExprI32Const, 0);
 
   auto table =
       handle(WasmTableObject::cast(
@@ -684,7 +700,7 @@ void TestTableCopyOobWrites(TestExecutionTier execution_tier, int table_dst,
 
   for (uint32_t i = 0; i < kTableSize; ++i) {
     WasmFunctionCompiler& fn = r.NewFunction(sigs.i_v(), "f");
-    fn.Build({WASM_I32V_1(i)});
+    BUILD(fn, WASM_I32V_1(i));
     fn.SetSigIndex(sig_index);
     function_indexes[i] = fn.function_index();
   }
@@ -693,9 +709,10 @@ void TestTableCopyOobWrites(TestExecutionTier execution_tier, int table_dst,
     r.builder().AddIndirectFunctionTable(function_indexes, kTableSize);
   }
 
-  r.Build({WASM_TABLE_COPY(table_dst, table_src, WASM_LOCAL_GET(0),
-                           WASM_LOCAL_GET(1), WASM_LOCAL_GET(2)),
-           kExprI32Const, 0});
+  BUILD(r,
+        WASM_TABLE_COPY(table_dst, table_src, WASM_LOCAL_GET(0),
+                        WASM_LOCAL_GET(1), WASM_LOCAL_GET(2)),
+        kExprI32Const, 0);
 
   r.builder().InitializeWrapperCache();
 
@@ -752,9 +769,10 @@ void TestTableCopyOob1(TestExecutionTier execution_tier, int table_dst,
     r.builder().AddIndirectFunctionTable(nullptr, kTableSize);
   }
 
-  r.Build({WASM_TABLE_COPY(table_dst, table_src, WASM_LOCAL_GET(0),
-                           WASM_LOCAL_GET(1), WASM_LOCAL_GET(2)),
-           kExprI32Const, 0});
+  BUILD(r,
+        WASM_TABLE_COPY(table_dst, table_src, WASM_LOCAL_GET(0),
+                        WASM_LOCAL_GET(1), WASM_LOCAL_GET(2)),
+        kExprI32Const, 0);
 
   r.CheckCallViaJS(0, 0, 0, 1);           // nop
   r.CheckCallViaJS(0, 0, 0, kTableSize);  // nop
@@ -801,7 +819,7 @@ WASM_COMPILED_EXEC_TEST(ElemDropTwice) {
   WasmRunner<uint32_t> r(execution_tier);
   r.builder().AddIndirectFunctionTable(nullptr, 1);
   r.builder().AddPassiveElementSegment({});
-  r.Build({WASM_ELEM_DROP(0), kExprI32Const, 0});
+  BUILD(r, WASM_ELEM_DROP(0), kExprI32Const, 0);
 
   r.CheckCallViaJS(0);
   r.CheckCallViaJS(0);
@@ -811,10 +829,10 @@ WASM_COMPILED_EXEC_TEST(ElemDropThenTableInit) {
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
   r.builder().AddIndirectFunctionTable(nullptr, 1);
   r.builder().AddPassiveElementSegment({});
-  r.Build(
-      {WASM_ELEM_DROP(0),
-       WASM_TABLE_INIT(0, 0, WASM_I32V_1(0), WASM_I32V_1(0), WASM_LOCAL_GET(0)),
-       kExprI32Const, 0});
+  BUILD(
+      r, WASM_ELEM_DROP(0),
+      WASM_TABLE_INIT(0, 0, WASM_I32V_1(0), WASM_I32V_1(0), WASM_LOCAL_GET(0)),
+      kExprI32Const, 0);
 
   r.CheckCallViaJS(0, 0);
   r.CheckCallViaJS(0xDEADBEEF, 1);

@@ -32,7 +32,7 @@ WASM_EXEC_TEST(Load) {
   uint32_t* memory =
       r.builder().AddMemoryElems<uint32_t>(kWasmPageSize / sizeof(int32_t));
 
-  r.Build({WASM_LOAD_MEM(MachineType::Int32(), WASM_LOCAL_GET(0))});
+  BUILD(r, WASM_LOAD_MEM(MachineType::Int32(), WASM_LOCAL_GET(0)));
 
   CHECK_EQ(0, r.Call(0));
 
@@ -94,7 +94,7 @@ WASM_EXEC_TEST(MemorySize) {
   constexpr int kNumPages = 13;
   r.builder().AddMemoryElems<uint8_t>(kNumPages * kWasmPageSize);
 
-  r.Build({WASM_MEMORY_SIZE});
+  BUILD(r, WASM_MEMORY_SIZE);
 
   CHECK_EQ(kNumPages, r.Call());
 }
@@ -107,7 +107,7 @@ WASM_EXEC_TEST(MemoryGrow) {
   r.builder().SetMaxMemPages(13);
   r.builder().AddMemory(kWasmPageSize);
 
-  r.Build({WASM_MEMORY_GROW(WASM_LOCAL_GET(0))});
+  BUILD(r, WASM_MEMORY_GROW(WASM_LOCAL_GET(0)));
   CHECK_EQ(1, r.Call(6));
   CHECK_EQ(7, r.Call(1));
   CHECK_EQ(-1, r.Call(-1));
