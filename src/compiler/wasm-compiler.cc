@@ -5448,7 +5448,8 @@ Node* WasmGraphBuilder::ArrayNewFixed(const wasm::ArrayType* type, Node* rtt,
       wasm::ObjectAccess::ToTagged(JSReceiver::kPropertiesOrHashOffset),
       LOAD_ROOT(EmptyFixedArray, empty_fixed_array));
   gasm_->ArrayInitializeLength(
-      array, Int32Constant(static_cast<int>(elements.size())));
+      array, SetType(Int32Constant(static_cast<int>(elements.size())),
+                     wasm::kWasmI32));
   for (int i = 0; i < static_cast<int>(elements.size()); i++) {
     gasm_->ArraySet(array, gasm_->Int32Constant(i), elements[i], type);
   }

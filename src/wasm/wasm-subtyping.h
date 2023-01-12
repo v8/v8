@@ -80,6 +80,13 @@ V8_INLINE bool IsSubtypeOf(ValueType subtype, ValueType supertype,
   return IsSubtypeOfImpl(subtype, supertype, module, module);
 }
 
+V8_INLINE bool TypesUnrelated(ValueType type1, ValueType type2,
+                              const WasmModule* module1,
+                              const WasmModule* module2) {
+  return !IsSubtypeOf(type1, type2, module1, module2) &&
+         !IsSubtypeOf(type2, type1, module2, module1);
+}
+
 V8_INLINE bool IsHeapSubtypeOf(HeapType subtype, HeapType supertype,
                                const WasmModule* sub_module,
                                const WasmModule* super_module) {

@@ -544,8 +544,6 @@ WASM_COMPILED_EXEC_TEST(RefCastNoChecks) {
   const byte supertype_index = tester.DefineStruct({F(kWasmI32, true)});
   const byte subtype1_index = tester.DefineStruct(
       {F(kWasmI32, true), F(kWasmF32, true)}, supertype_index);
-  const byte subtype2_index = tester.DefineStruct(
-      {F(kWasmI32, true), F(kWasmI64, false)}, supertype_index);
 
   const byte kTestSuccessful = tester.DefineFunction(
       tester.sigs.i_v(), {ValueType::RefNull(supertype_index)},
@@ -554,16 +552,8 @@ WASM_COMPILED_EXEC_TEST(RefCastNoChecks) {
                        WASM_REF_CAST(WASM_LOCAL_GET(0), subtype1_index)),
        WASM_END});
 
-  const byte kTestFailed = tester.DefineFunction(
-      tester.sigs.i_v(), {ValueType::RefNull(supertype_index)},
-      {WASM_LOCAL_SET(0, WASM_STRUCT_NEW_DEFAULT(subtype1_index)),
-       WASM_STRUCT_GET(subtype2_index, 0,
-                       WASM_REF_CAST(WASM_LOCAL_GET(0), subtype2_index)),
-       WASM_END});
-
   tester.CompileModule();
   tester.CheckResult(kTestSuccessful, 0);
-  tester.CheckResult(kTestFailed, 0);
 }
 
 WASM_COMPILED_EXEC_TEST(BrOnCast) {
@@ -576,7 +566,7 @@ WASM_COMPILED_EXEC_TEST(BrOnCast) {
       {WASM_BLOCK_R(
            ValueType::RefNull(type_index), WASM_LOCAL_SET(0, WASM_I32V(111)),
            // Pipe a struct through a local so it's statically typed
-           // as dataref.
+           // as structref.
            WASM_LOCAL_SET(1, WASM_STRUCT_NEW(other_type_index, WASM_F32(1.0))),
            WASM_LOCAL_GET(1),
            // The type check fails, so this branch isn't taken.

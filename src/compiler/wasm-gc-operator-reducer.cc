@@ -227,16 +227,20 @@ Reduction WasmGCOperatorReducer::ReduceCheckNull(Node* node) {
 
   // Optimize the check away if the argument is known to be non-null.
   if (object_type.type.is_non_nullable()) {
-    ReplaceWithValue(
-        node, gasm_.Int32Constant(node->opcode() == IrOpcode::kIsNull ? 0 : 1));
+    ReplaceWithValue(node,
+                     SetType(gasm_.Int32Constant(
+                                 node->opcode() == IrOpcode::kIsNull ? 0 : 1),
+                             wasm::kWasmI32));
     node->Kill();
     return Replace(object);  // Irrelevant replacement.
   }
 
   // Optimize the check away if the argument is known to be null.
   if (object->opcode() == IrOpcode::kNull) {
-    ReplaceWithValue(
-        node, gasm_.Int32Constant(node->opcode() == IrOpcode::kIsNull ? 1 : 0));
+    ReplaceWithValue(node,
+                     SetType(gasm_.Int32Constant(
+                                 node->opcode() == IrOpcode::kIsNull ? 1 : 0),
+                             wasm::kWasmI32));
     node->Kill();
     return Replace(object);  // Irrelevant replacement.
   }

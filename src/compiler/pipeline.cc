@@ -127,6 +127,7 @@
 #include "src/compiler/wasm-gc-lowering.h"
 #include "src/compiler/wasm-gc-operator-reducer.h"
 #include "src/compiler/wasm-inlining.h"
+#include "src/compiler/wasm-load-elimination.h"
 #include "src/compiler/wasm-loop-peeling.h"
 #include "src/compiler/wasm-typer.h"
 #include "src/wasm/function-body-decoder.h"
@@ -2202,8 +2203,11 @@ struct WasmGCOptimizationPhase {
     GraphReducer graph_reducer(
         temp_zone, data->graph(), &data->info()->tick_counter(), data->broker(),
         data->jsgraph()->Dead(), data->observe_node_manager());
+    WasmLoadElimination load_elimination(&graph_reducer, data->jsgraph(),
+                                         temp_zone);
     WasmGCOperatorReducer wasm_gc(&graph_reducer, temp_zone, data->mcgraph(),
                                   module);
+    AddReducer(data, &graph_reducer, &load_elimination);
     AddReducer(data, &graph_reducer, &wasm_gc);
     graph_reducer.ReduceGraph();
   }
@@ -3597,7 +3601,7 @@ void Pipeline::GenerateCodeForWasmFunction(
   // Int64Lowering must happen after inlining (otherwise inlining would have
   // to invoke it separately for the inlined function body).
   // It must also happen after WasmGCLowering, otherwise it would have to
-  // add type annotations to nodes it creates.
+  // add type annotations to nodes it creates, and handle wasm-gc nodes.
   LowerInt64(function_body.sig, mcgraph, data.simplified(), pipeline);
 
   if (v8_flags.wasm_opt || is_asm_js) {
