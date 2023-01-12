@@ -1580,6 +1580,12 @@ void TurboAssembler::SmiToInt32(Register reg) {
   }
 }
 
+void TurboAssembler::SmiToInt32(Register dst, Register src) {
+  DCHECK(dst != src);
+  mov_tagged(dst, src);
+  SmiToInt32(dst);
+}
+
 void TurboAssembler::SmiCompare(Register smi1, Register smi2) {
   AssertSmi(smi1);
   AssertSmi(smi2);

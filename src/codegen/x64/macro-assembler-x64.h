@@ -367,6 +367,7 @@ class V8_EXPORT_PRIVATE TurboAssembler
 
   // Convert smi to 32-bit value.
   void SmiToInt32(Register reg);
+  void SmiToInt32(Register dst, Register src);
 
   // Loads the address of the external reference into the destination
   // register.

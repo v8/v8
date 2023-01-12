@@ -714,9 +714,9 @@ void CheckedObjectToIndex::GenerateCode(MaglevAssembler* masm,
 
   // If we didn't enter the deferred block, we're a Smi.
   if (result_reg == object) {
-    __ SmiUntag(object);
+    __ SmiToInt32(result_reg);
   } else {
-    __ SmiUntag(result_reg, object);
+    __ SmiToInt32(result_reg, object);
   }
 
   __ bind(*done);
