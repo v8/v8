@@ -3937,8 +3937,8 @@ void Heap::NotifyObjectSizeChange(
 void Heap::UpdateInvalidatedObjectSize(HeapObject object, int new_size) {
   if (!MayContainRecordedSlots(object)) return;
 
-  // Updating invalidated_slots is unsychronized and thus needs to happen on the
-  // main thread.
+  // Updating invalidated_slots is unsynchronized and thus needs to happen on
+  // the main thread.
   DCHECK_NULL(LocalHeap::Current());
   DCHECK_EQ(isolate()->thread_id(), ThreadId::Current());
 

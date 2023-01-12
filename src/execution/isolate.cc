@@ -693,7 +693,7 @@ StackTraceFailureMessage::StackTraceFailureMessage(
     FixedStringAllocator fixed(&js_stack_trace_[0], buffer_length - 1);
     StringStream accumulator(&fixed, StringStream::kPrintObjectConcise);
     isolate->PrintStack(&accumulator, Isolate::kPrintStackVerbose);
-    // Keeping a reference to the last code objects to increase likelyhood that
+    // Keeping a reference to the last code objects to increase likelihood that
     // they get included in the minidump.
     const size_t code_objects_length = arraysize(code_objects_);
     size_t i = 0;
@@ -4069,13 +4069,13 @@ void Isolate::AddCrashKeysForIsolateAndHeapPointers() {
   }
   const v8::StartupData* data = Snapshot::DefaultSnapshotBlob();
   // TODO(cbruni): Implement strategy to infrequently collect this.
-  const uint32_t v8_snapshot_checkum_calculated = 0;
+  const uint32_t v8_snapshot_checksum_calculated = 0;
   add_crash_key_callback_(v8::CrashKeyId::kSnapshotChecksumCalculated,
-                          ToHexString(v8_snapshot_checkum_calculated));
-  const uint32_t v8_snapshot_checkum_expected =
+                          ToHexString(v8_snapshot_checksum_calculated));
+  const uint32_t v8_snapshot_checksum_expected =
       Snapshot::GetExpectedChecksum(data);
   add_crash_key_callback_(v8::CrashKeyId::kSnapshotChecksumExpected,
-                          ToHexString(v8_snapshot_checkum_expected));
+                          ToHexString(v8_snapshot_checksum_expected));
 }
 
 void Isolate::InitializeCodeRanges() {
@@ -4614,7 +4614,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
                                 nullptr);
 
   // Isolate initialization allocates long living objects that should be
-  // pretentured to old space.
+  // pretenured to old space.
   DCHECK_IMPLIES(heap()->new_space(), (heap()->new_space()->Size() == 0) &&
                                           (heap()->gc_count() == 0));
 
@@ -5132,7 +5132,7 @@ MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
             ToApiHandle<v8::FixedArray>(import_assertions_array)),
         MaybeHandle<JSPromise>());
   } else {
-    // TODO(cbruni, v8:12302): Avoid creating tempory ScriptOrModule objects.
+    // TODO(cbruni, v8:12302): Avoid creating temporary ScriptOrModule objects.
     auto script_or_module = i::Handle<i::ScriptOrModule>::cast(
         this->factory()->NewStruct(i::SCRIPT_OR_MODULE_TYPE));
     script_or_module->set_resource_name(*resource_name);

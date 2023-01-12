@@ -553,7 +553,7 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
   inline type name() const { return thread_local_top()->name##_; }
 
 #define THREAD_LOCAL_TOP_ADDRESS(type, name) \
-  type* name##_address() { return &thread_local_top()->name##_; }
+  inline type* name##_address() { return &thread_local_top()->name##_; }
 
 // HiddenFactory exists so Isolate can privately inherit from it without making
 // Factory's members available to Isolate directly.
@@ -681,7 +681,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // at the same time, this should be prevented using external locking.
   void Enter();
 
-  // Exits the current thread. The previosuly entered Isolate is restored
+  // Exits the current thread. The previously entered Isolate is restored
   // for the thread.
   // Not thread-safe. Multiple threads should not Enter/Exit the same isolate
   // at the same time, this should be prevented using external locking.
@@ -1519,7 +1519,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     DCHECK_NOT_NULL(optimizing_compile_dispatcher_);
     return optimizing_compile_dispatcher_;
   }
-  // Flushes all pending concurrent optimzation jobs from the optimizing
+  // Flushes all pending concurrent optimization jobs from the optimizing
   // compile dispatcher's queue.
   void AbortConcurrentOptimization(BlockingBehavior blocking_behavior);
 
@@ -1728,7 +1728,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   const uint8_t* embedded_blob_data() const;
   uint32_t embedded_blob_data_size() const;
 
-  // Returns true if short bultin calls optimization is enabled for the Isolate.
+  // Returns true if short builtin calls optimization is enabled for the
+  // Isolate.
   bool is_short_builtin_calls_enabled() const {
     return V8_SHORT_BUILTIN_CALLS_BOOL && is_short_builtin_calls_enabled_;
   }
@@ -2297,7 +2298,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // True if this isolate was initialized from a snapshot.
   bool initialized_from_snapshot_ = false;
 
-  // True if short bultin calls optimization is enabled.
+  // True if short builtin calls optimization is enabled.
   bool is_short_builtin_calls_enabled_ = false;
 
   // True if the isolate is in background. This flag is used
@@ -2555,6 +2556,7 @@ extern thread_local Isolate* g_current_isolate_ V8_CONSTINIT;
 
 #undef FIELD_ACCESSOR
 #undef THREAD_LOCAL_TOP_ACCESSOR
+#undef THREAD_LOCAL_TOP_ADDRESS
 
 // SaveContext scopes save the current context on the Isolate on creation, and
 // restore it on destruction.
