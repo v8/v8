@@ -3034,6 +3034,13 @@ void Shell::QuitOnce(v8::FunctionCallbackInfo<v8::Value>* args) {
     i_isolate->thread_manager()->Unlock();
   }
 
+  // When disposing the shared space isolate, the workers (client isolates) need
+  // to be terminated first.
+  if (i_isolate->is_shared_space_isolate()) {
+    i::ParkedScope parked(i_isolate->main_thread_local_isolate());
+    WaitForRunningWorkers(parked);
+  }
+
   OnExit(isolate, false);
   base::OS::ExitProcess(exit_code);
 }
