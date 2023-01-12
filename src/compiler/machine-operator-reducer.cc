@@ -1053,7 +1053,8 @@ Reduction MachineOperatorReducer::ReduceTruncateInt64ToInt32(Node* node) {
   Int64Matcher m(node->InputAt(0));
   if (m.HasResolvedValue())
     return ReplaceInt32(static_cast<int32_t>(m.ResolvedValue()));
-  if (m.IsChangeInt32ToInt64()) return Replace(m.node()->InputAt(0));
+  if (m.IsChangeInt32ToInt64() || m.IsChangeUint32ToUint64())
+    return Replace(m.node()->InputAt(0));
   // TruncateInt64ToInt32(BitcastTaggedToWordForTagAndSmiBits(Load(x))) =>
   // Load(x)
   // where the new Load uses Int32 rather than the tagged representation.

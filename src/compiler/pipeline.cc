@@ -2487,8 +2487,8 @@ struct InstructionSelectionPhase {
 struct BitcastElisionPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(BitcastElision)
 
-  void Run(PipelineData* data, Zone* temp_zone) {
-    BitcastElider bitcast_optimizer(temp_zone, data->graph());
+  void Run(PipelineData* data, Zone* temp_zone, bool is_builtin) {
+    BitcastElider bitcast_optimizer(temp_zone, data->graph(), is_builtin);
     bitcast_optimizer.Reduce();
   }
 };
@@ -3930,9 +3930,7 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
                               data->debug_name(), &temp_zone);
   }
 
-  if (Builtins::IsBuiltinId(data->info()->builtin())) {
-    Run<BitcastElisionPhase>();
-  }
+  Run<BitcastElisionPhase>(Builtins::IsBuiltinId(data->info()->builtin()));
 
   data->InitializeInstructionSequence(call_descriptor);
 
