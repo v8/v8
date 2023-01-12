@@ -4736,8 +4736,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
     if (Check(Token::SEMICOLON)) continue;
 
     // Either we're parsing a `static { }` initialization block or a property.
-    if (v8_flags.harmony_class_static_blocks && peek() == Token::STATIC &&
-        PeekAhead() == Token::LBRACE) {
+    if (peek() == Token::STATIC && PeekAhead() == Token::LBRACE) {
       BlockT static_block = ParseClassStaticBlock(&class_info);
       impl()->AddClassStaticBlock(static_block, &class_info);
       continue;
