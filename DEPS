@@ -39,6 +39,9 @@ vars = {
   # Fetch clang-tidy into the same bin/ directory as our clang binary.
   'checkout_clang_tidy': False,
 
+  # Fetch and build V8 builtins with PGO profiles
+  'checkout_v8_builtins_pgo_profiles': False,
+
   'chromium_url': 'https://chromium.googlesource.com',
   'android_url': 'https://android.googlesource.com',
   'download_gcmole': False,
@@ -619,6 +622,16 @@ hooks = [
     'action': [
       'python3',
       'tools/generate-header-include-checks.py',
+    ],
+  },
+  {
+    'name': 'checkout_v8_builtins_pgo_profiles',
+    'pattern': '.',
+    'condition': 'checkout_v8_builtins_pgo_profiles',
+    'action': [
+      'python3',
+      'tools/builtins-pgo/download_profiles.py',
+      'download',
     ],
   },
   {
