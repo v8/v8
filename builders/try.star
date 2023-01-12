@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "CQ", "GCLIENT_VARS", "GOMA", "GOMA_JOBS", "v8_builder")
+load("//lib/lib.star", "CQ", "GCLIENT_VARS", "GOMA", "GOMA_JOBS", "RECLIENT", "v8_builder")
 
 def try_builder(
         name,
@@ -29,7 +29,8 @@ try_builder(
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     properties = {"target_platform": "android", "target_arch": "arm"},
-    use_goma = GOMA.DEFAULT,
+    use_goma = GOMA.NO,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 try_builder(
