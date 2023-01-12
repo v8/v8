@@ -150,6 +150,22 @@ inline void PushIteratorReverse(MaglevAssembler* masm,
   }
 }
 
+template <typename Arg1, typename Arg2>
+inline void PushAligned(MaglevAssembler* masm, Arg1 arg1, Arg2 arg2) {
+  {
+    // Push the first argument together with padding to ensure alignment.
+    // The second argument is not pushed together with the first so we can
+    // re-use any scratch registers used to materialise the first argument for
+    // the second one.
+    UseScratchRegisterScope temps(masm);
+    masm->MacroAssembler::Push(ToRegister(masm, &temps, arg1), padreg);
+  }
+  {
+    UseScratchRegisterScope temps(masm);
+    masm->MacroAssembler::str(ToRegister(masm, &temps, arg2), MemOperand(sp));
+  }
+}
+
 template <typename Arg>
 struct PushAllHelper<Arg> {
   static void Push(MaglevAssembler* masm, Arg arg) {
@@ -176,11 +192,7 @@ struct PushAllHelper<Arg1, Arg2, Args...> {
     } else if constexpr (is_iterator_range<Arg2>::value) {
       if (arg2.begin() != arg2.end()) {
         auto val = *arg2.begin();
-        {
-          UseScratchRegisterScope temps(masm);
-          masm->MacroAssembler::Push(ToRegister(masm, &temps, arg1),
-                                     ToRegister(masm, &temps, val));
-        }
+        PushAligned(masm, arg1, val);
         PushAll(masm,
                 base::make_iterator_range(std::next(arg2.begin()), arg2.end()),
                 args...);
@@ -188,11 +200,7 @@ struct PushAllHelper<Arg1, Arg2, Args...> {
         PushAll(masm, arg1, args...);
       }
     } else {
-      {
-        UseScratchRegisterScope temps(masm);
-        masm->MacroAssembler::Push(ToRegister(masm, &temps, arg1),
-                                   ToRegister(masm, &temps, arg2));
-      }
+      PushAligned(masm, arg1, arg2);
       PushAll(masm, args...);
     }
   }
@@ -207,21 +215,13 @@ struct PushAllHelper<Arg1, Arg2, Args...> {
             masm,
             base::make_iterator_range(std::next(arg2.begin()), arg2.end()),
             args...);
-        {
-          UseScratchRegisterScope temps(masm);
-          masm->MacroAssembler::Push(ToRegister(masm, &temps, val),
-                                     ToRegister(masm, &temps, arg1));
-        }
+        PushAligned(masm, val, arg1);
       } else {
         PushAllReverse(masm, arg1, args...);
       }
     } else {
       PushAllReverse(masm, args...);
-      {
-        UseScratchRegisterScope temps(masm);
-        masm->MacroAssembler::Push(ToRegister(masm, &temps, arg2),
-                                   ToRegister(masm, &temps, arg1));
-      }
+      PushAligned(masm, arg2, arg1);
     }
   }
 };
