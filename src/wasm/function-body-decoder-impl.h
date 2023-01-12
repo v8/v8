@@ -1261,7 +1261,7 @@ class FastZoneVector {
   }
 
  private:
-  V8_NOINLINE void Grow(int slots_needed, Zone* zone) {
+  V8_NOINLINE V8_PRESERVE_MOST void Grow(int slots_needed, Zone* zone) {
     size_t new_capacity = std::max(
         size_t{8}, base::bits::RoundUpToPowerOfTwo(size() + slots_needed));
     CHECK_GE(kMaxUInt32, new_capacity);
