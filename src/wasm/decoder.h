@@ -480,23 +480,32 @@ class Decoder {
       }
       return result;
     }
-    return read_leb_slowpath<IntType, ValidationTag, trace, size_in_bits>(
-        pc, length, name);
+    IntType result;
+    read_leb_slowpath<IntType, ValidationTag, trace, size_in_bits>(
+        pc, length, name, &result);
+    return result;
   }
 
+  // {read_leb_slowpath} returns the result via an output parameter, because the
+  // "preserve_most" attribute currently does not support return values (see
+  // https://reviews.llvm.org/D141020).
+  // TODO(clemensb): Fix this once our clang version is new enough.
   template <typename IntType, typename ValidationTag, TraceFlag trace,
             size_t size_in_bits = 8 * sizeof(IntType)>
-  V8_NOINLINE IntType read_leb_slowpath(const byte* pc, uint32_t* length,
-                                        Name<ValidationTag> name) {
+  V8_NOINLINE V8_PRESERVE_MOST void read_leb_slowpath(const byte* pc,
+                                                      uint32_t* length,
+                                                      Name<ValidationTag> name,
+                                                      IntType* result) {
     // Create an unrolled LEB decoding function per integer type.
-    return read_leb_tail<IntType, ValidationTag, trace, size_in_bits, 0>(
-        pc, length, name, 0);
+    *result = 0;
+    read_leb_tail<IntType, ValidationTag, trace, size_in_bits, 0>(pc, length,
+                                                                  name, result);
   }
 
   template <typename IntType, typename ValidationTag, TraceFlag trace,
             size_t size_in_bits, int byte_index>
-  V8_INLINE IntType read_leb_tail(const byte* pc, uint32_t* length,
-                                  Name<ValidationTag> name, IntType result) {
+  V8_INLINE void read_leb_tail(const byte* pc, uint32_t* length,
+                               Name<ValidationTag> name, IntType* result) {
     constexpr bool is_signed = std::is_signed<IntType>::value;
     constexpr int kMaxLength = (size_in_bits + 6) / 7;
     static_assert(byte_index < kMaxLength, "invalid template instantiation");
@@ -509,16 +518,17 @@ class Decoder {
       b = *pc;
       TRACE_IF(trace, "%02x ", b);
       using Unsigned = typename std::make_unsigned<IntType>::type;
-      result = result |
-               (static_cast<Unsigned>(static_cast<IntType>(b) & 0x7f) << shift);
+      *result = *result | (static_cast<Unsigned>(static_cast<IntType>(b) & 0x7f)
+                           << shift);
     }
     if (!is_last_byte && (b & 0x80)) {
       // Make sure that we only instantiate the template for valid byte indexes.
       // Compilers are not smart enough to figure out statically that the
       // following call is unreachable if is_last_byte is false.
       constexpr int next_byte_index = byte_index + (is_last_byte ? 0 : 1);
-      return read_leb_tail<IntType, ValidationTag, trace, size_in_bits,
-                           next_byte_index>(pc + 1, length, name, result);
+      read_leb_tail<IntType, ValidationTag, trace, size_in_bits,
+                    next_byte_index>(pc + 1, length, name, result);
+      return;
     }
     *length = byte_index + (at_end ? 0 : 1);
     if (ValidationTag::validate && V8_UNLIKELY(at_end || (b & 0x80))) {
@@ -528,7 +538,7 @@ class Decoder {
       } else {
         MarkError();
       }
-      result = 0;
+      *result = 0;
       *length = 0;
     }
     if constexpr (is_last_byte) {
@@ -553,20 +563,19 @@ class Decoder {
         } else {
           MarkError();
         }
-        result = 0;
+        *result = 0;
         *length = 0;
       }
     }
     constexpr int sign_ext_shift =
         is_signed ? std::max(0, int{8 * sizeof(IntType)} - shift - 7) : 0;
     // Perform sign extension.
-    result = (result << sign_ext_shift) >> sign_ext_shift;
+    *result = (*result << sign_ext_shift) >> sign_ext_shift;
     if (trace && is_signed) {
-      TRACE("= %" PRIi64 "\n", static_cast<int64_t>(result));
+      TRACE("= %" PRIi64 "\n", static_cast<int64_t>(*result));
     } else if (trace) {
-      TRACE("= %" PRIu64 "\n", static_cast<uint64_t>(result));
+      TRACE("= %" PRIu64 "\n", static_cast<uint64_t>(*result));
     }
-    return result;
   }
 };
 
