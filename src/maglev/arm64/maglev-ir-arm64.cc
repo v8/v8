@@ -1710,51 +1710,145 @@ void IncreaseInterruptBudget::GenerateCode(MaglevAssembler* masm,
          FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
 }
 
+namespace {
+
+void HandleInterruptsAndTiering(MaglevAssembler* masm, ZoneLabelRef done,
+                                ReduceInterruptBudget* node,
+                                Register scratch0) {
+  // First, check for interrupts.
+  {
+    Label next;
+    // Here, we only care about interrupts since we've already guarded against
+    // real stack overflows on function entry.
+    {
+      Register stack_limit = scratch0;
+      __ LoadStackLimit(stack_limit, StackLimitKind::kInterruptStackLimit);
+      __ Cmp(sp, stack_limit);
+      __ B(&next, hi);
+    }
+
+    // An interrupt has been requested and we must call into runtime to handle
+    // it; since we already pay the call cost, combine with the TieringManager
+    // call.
+    {
+      SaveRegisterStateForCall save_register_state(masm,
+                                                   node->register_snapshot());
+      Register function = scratch0;
+      __ Move(kContextRegister, masm->native_context().object());
+      __ Ldr(function, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
+      __ Push(function);
+      __ CallRuntime(Runtime::kBytecodeBudgetInterruptWithStackCheck_Maglev, 1);
+      save_register_state.DefineSafepointWithLazyDeopt(node->lazy_deopt_info());
+    }
+    __ B(*done);  // All done, continue.
+    __ Bind(&next);
+  }
+
+  // No pending interrupts. Call into the TieringManager if needed.
+  {
+    // Skip the runtime call if the tiering state is kInProgress. The runtime
+    // only performs simple bookkeeping in this case, which we can easily
+    // replicate here in generated code.
+    // TODO(jgruber): Use the correct feedback vector once Maglev inlining is
+    // enabled.
+    Label update_profiler_ticks_and_interrupt_budget;
+    {
+      UseScratchRegisterScope temps(masm);
+      Register scratch1 = temps.AcquireX();
+      static_assert(kTieringStateInProgressBlocksTierup);
+      __ Move(scratch0, masm->compilation_info()
+                            ->toplevel_compilation_unit()
+                            ->feedback()
+                            .object());
+
+      // If tiering_state is kInProgress, skip the runtime call.
+      __ Ldrh(scratch1.W(),
+              FieldMemOperand(scratch0, FeedbackVector::kFlagsOffset));
+      __ DecodeField<FeedbackVector::TieringStateBits>(scratch1);
+      __ Cmp(scratch1.W(),
+             Immediate(static_cast<int>(TieringState::kInProgress)));
+      __ B(&update_profiler_ticks_and_interrupt_budget, eq);
+
+      // If osr_tiering_state is kInProgress, skip the runtime call.
+      __ Ldrh(scratch1.W(),
+              FieldMemOperand(scratch0, FeedbackVector::kFlagsOffset));
+      __ DecodeField<FeedbackVector::OsrTieringStateBit>(scratch1);
+      __ Cmp(scratch1.W(),
+             Immediate(static_cast<int>(TieringState::kInProgress)));
+      __ B(&update_profiler_ticks_and_interrupt_budget, eq);
+    }
+
+    {
+      SaveRegisterStateForCall save_register_state(masm,
+                                                   node->register_snapshot());
+      Register function = scratch0;
+      __ Move(kContextRegister, masm->native_context().object());
+      __ Ldr(function, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
+      __ Push(function);
+      // Note: must not cause a lazy deopt!
+      __ CallRuntime(Runtime::kBytecodeBudgetInterrupt_Maglev, 1);
+      save_register_state.DefineSafepoint();
+    }
+    __ B(*done);
+
+    __ Bind(&update_profiler_ticks_and_interrupt_budget);
+    // We are skipping the call to Runtime::kBytecodeBudgetInterrupt_Maglev
+    // since the tiering state is kInProgress. Perform bookkeeping that would
+    // have been done in the runtime function:
+    __ AssertFeedbackVector(scratch0);
+    // FeedbackVector::SaturatingIncrementProfilerTicks.
+    // TODO(jgruber): This isn't saturating and thus we may theoretically
+    // exceed Smi::kMaxValue. But, 1) this is very unlikely since it'd take
+    // quite some time to exhaust the budget that many times; and 2) even an
+    // overflow doesn't hurt us at all.
+    __ Ldr(scratch0.W(),
+           FieldMemOperand(scratch0, FeedbackVector::kProfilerTicksOffset));
+    __ Add(scratch0.W(), scratch0.W(), Immediate(1));
+    __ Str(scratch0.W(),
+           FieldMemOperand(scratch0, FeedbackVector::kProfilerTicksOffset));
+
+    // JSFunction::SetInterruptBudget.
+    {
+      UseScratchRegisterScope temps(masm);
+      Register feedback_cell = scratch0;
+      Register budget = temps.AcquireW();
+      __ Ldr(feedback_cell,
+             MemOperand(fp, StandardFrameConstants::kFunctionOffset));
+      __ LoadTaggedPointerField(
+          feedback_cell,
+          FieldMemOperand(feedback_cell, JSFunction::kFeedbackCellOffset));
+      __ Move(budget, v8_flags.interrupt_budget);
+      __ Str(budget, FieldMemOperand(feedback_cell,
+                                     FeedbackCell::kInterruptBudgetOffset));
+    }
+    __ B(*done);
+  }
+}
+
+}  // namespace
+
 int ReduceInterruptBudget::MaxCallStackArgs() const { return 1; }
 void ReduceInterruptBudget::SetValueLocationConstraints() {
   set_temporaries_needed(1);
 }
 void ReduceInterruptBudget::GenerateCode(MaglevAssembler* masm,
                                          const ProcessingState& state) {
-  {
-    UseScratchRegisterScope temps(masm);
-    Register feedback_cell = general_temporaries().PopFirst();
-    Register budget = temps.AcquireW();
-    __ Ldr(feedback_cell,
-           MemOperand(fp, StandardFrameConstants::kFunctionOffset));
-    __ LoadTaggedPointerField(
-        feedback_cell,
-        FieldMemOperand(feedback_cell, JSFunction::kFeedbackCellOffset));
-    __ Ldr(budget, FieldMemOperand(feedback_cell,
-                                   FeedbackCell::kInterruptBudgetOffset));
-    __ Sub(budget, budget, Immediate(amount()));
-    __ Str(budget, FieldMemOperand(feedback_cell,
-                                   FeedbackCell::kInterruptBudgetOffset));
-  }
-
+  UseScratchRegisterScope temps(masm);
+  Register scratch = general_temporaries().PopFirst();
+  Register feedback_cell = scratch;
+  Register budget = temps.AcquireW();
+  __ Ldr(feedback_cell,
+         MemOperand(fp, StandardFrameConstants::kFunctionOffset));
+  __ LoadTaggedPointerField(
+      feedback_cell,
+      FieldMemOperand(feedback_cell, JSFunction::kFeedbackCellOffset));
+  __ Ldr(budget,
+         FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
+  __ Subs(budget, budget, Immediate(amount()));
+  __ Str(budget,
+         FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
   ZoneLabelRef done(masm);
-  __ JumpToDeferredIf(
-      lt,
-      [](MaglevAssembler* masm, ZoneLabelRef done,
-         ReduceInterruptBudget* node) {
-        {
-          SaveRegisterStateForCall save_register_state(
-              masm, node->register_snapshot());
-          UseScratchRegisterScope temps(masm);
-          Register function = temps.AcquireX();
-          __ Move(kContextRegister, static_cast<Handle<HeapObject>>(
-                                        masm->native_context().object()));
-          __ Ldr(function,
-                 MemOperand(fp, StandardFrameConstants::kFunctionOffset));
-          __ PushArgument(function);
-          __ CallRuntime(Runtime::kBytecodeBudgetInterruptWithStackCheck_Maglev,
-                         1);
-          save_register_state.DefineSafepointWithLazyDeopt(
-              node->lazy_deopt_info());
-        }
-        __ B(*done);
-      },
-      done, this);
+  __ JumpToDeferredIf(lt, HandleInterruptsAndTiering, done, this, scratch);
   __ bind(*done);
 }
 

@@ -361,7 +361,7 @@ inline void MaglevAssembler::DeoptIfBufferDetached(Register array,
 }
 
 inline void MaglevAssembler::LoadByte(Register dst, MemOperand src) {
-  movb(dst, src);
+  movzxbl(dst, src);
 }
 
 inline void MaglevAssembler::CompareInt32(Register reg, int32_t imm) {
