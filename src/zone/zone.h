@@ -235,7 +235,7 @@ class V8_EXPORT_PRIVATE Zone final {
 
   // Expand the Zone to hold at least 'size' more bytes.
   // Should only be called if there is not enough room in the Zone already.
-  V8_NOINLINE V8_PRESERVE_MOST void Expand(size_t size);
+  V8_NOINLINE void Expand(size_t size);
 
   // The free region in the current (front) segment is represented as
   // the half-open interval [position, limit). The 'position' variable
