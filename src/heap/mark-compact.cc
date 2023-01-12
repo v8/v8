@@ -2613,6 +2613,15 @@ std::pair<size_t, size_t> MarkCompactCollector::ProcessMarkingWorklist(
 }
 
 bool MarkCompactCollector::ProcessEphemeron(HeapObject key, HeapObject value) {
+  // Objects in the shared heap are prohibited from being used as keys in
+  // WeakMaps and WeakSets and therefore cannot be ephemeron keys, because that
+  // would enable thread local -> shared heap edges.
+  DCHECK(!key.InSharedWritableHeap());
+  // Usually values that should not be marked are not added to the ephemeron
+  // worklist. However, minor collection during incremental marking may promote
+  // strings from the younger generation into the shared heap. This
+  // ShouldMarkObject call catches those cases.
+  if (!ShouldMarkObject(value)) return false;
   if (marking_state()->IsBlackOrGrey(key)) {
     if (marking_state()->WhiteToGrey(value)) {
       local_marking_worklists()->Push(value);

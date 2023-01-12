@@ -365,8 +365,11 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitEphemeronHashTable(
     ObjectSlot value_slot =
         table.RawFieldOfElementAt(EphemeronHashTable::EntryToValueIndex(i));
 
-    if (!ShouldMarkObject(key) ||
-        concrete_visitor()->marking_state()->IsBlackOrGrey(key)) {
+    // Objects in the shared heap are prohibited from being used as keys in
+    // WeakMaps and WeakSets and therefore cannot be ephemeron keys. See also
+    // MarkCompactCollector::ProcessEphemeron.
+    DCHECK(!key.InSharedWritableHeap());
+    if (concrete_visitor()->marking_state()->IsBlackOrGrey(key)) {
       VisitPointer(table, value_slot);
     } else {
       Object value_obj = table.ValueAt(i);
