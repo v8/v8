@@ -2351,56 +2351,7 @@ void TurboAssembler::TailCallBuiltin(Builtin builtin, Condition cond) {
 void TurboAssembler::LoadCodeObjectEntry(Register destination,
                                          Register code_object) {
   ASM_CODE_COMMENT(this);
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    LoadCodeDataContainerEntry(destination, code_object);
-    return;
-  }
-
-  // Code objects are called differently depending on whether we are generating
-  // builtin code (which will later be embedded into the binary) or compiling
-  // user JS code at runtime.
-  // * Builtin code runs in --jitless mode and thus must not call into on-heap
-  //   Code targets. Instead, we dispatch through the builtins entry table.
-  // * Codegen at runtime does not have this restriction and we can use the
-  //   shorter, branchless instruction sequence. The assumption here is that
-  //   targets are usually generated code and not builtin Code objects.
-
-  if (options().isolate_independent_code) {
-    DCHECK(root_array_available());
-    Label if_code_is_off_heap, out;
-
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.AcquireX();
-
-    DCHECK(!AreAliased(destination, scratch));
-    DCHECK(!AreAliased(code_object, scratch));
-
-    // Check whether the Code object is an off-heap trampoline. If so, call its
-    // (off-heap) entry point directly without going through the (on-heap)
-    // trampoline.  Otherwise, just call the Code object as always.
-
-    Ldr(scratch.W(), FieldMemOperand(code_object, Code::kFlagsOffset));
-    TestAndBranchIfAnySet(scratch.W(), Code::IsOffHeapTrampoline::kMask,
-                          &if_code_is_off_heap);
-
-    // Not an off-heap trampoline object, the entry point is at
-    // Code::raw_instruction_start().
-    Add(destination, code_object, Code::kHeaderSize - kHeapObjectTag);
-    B(&out);
-
-    // An off-heap trampoline, the entry point is loaded from the builtin entry
-    // table.
-    bind(&if_code_is_off_heap);
-    Ldrsw(scratch, FieldMemOperand(code_object, Code::kBuiltinIndexOffset));
-    Add(destination, kRootRegister,
-        Operand(scratch, LSL, kSystemPointerSizeLog2));
-    Ldr(destination,
-        MemOperand(destination, IsolateData::builtin_entry_table_offset()));
-
-    bind(&out);
-  } else {
-    Add(destination, code_object, Code::kHeaderSize - kHeapObjectTag);
-  }
+  LoadCodeDataContainerEntry(destination, code_object);
 }
 
 void TurboAssembler::CallCodeObject(Register code_object) {
@@ -2425,8 +2376,6 @@ void TurboAssembler::JumpCodeObject(Register code_object, JumpMode jump_mode) {
 void TurboAssembler::LoadCodeDataContainerEntry(
     Register destination, Register code_data_container_object) {
   ASM_CODE_COMMENT(this);
-  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-
   Ldr(destination, FieldMemOperand(code_data_container_object,
                                    CodeDataContainer::kCodeEntryPointOffset));
 }
@@ -2434,7 +2383,6 @@ void TurboAssembler::LoadCodeDataContainerEntry(
 void TurboAssembler::LoadCodeDataContainerCodeNonBuiltin(
     Register destination, Register code_data_container_object) {
   ASM_CODE_COMMENT(this);
-  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
   // Compute the Code object pointer from the code entry point.
   Ldr(destination, FieldMemOperand(code_data_container_object,
                                    CodeDataContainer::kCodeEntryPointOffset));
@@ -2465,27 +2413,15 @@ void TurboAssembler::JumpCodeDataContainerObject(
 
 void TurboAssembler::LoadCodeTEntry(Register destination, Register code) {
   ASM_CODE_COMMENT(this);
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    LoadCodeDataContainerEntry(destination, code);
-  } else {
-    Add(destination, code, Operand(Code::kHeaderSize - kHeapObjectTag));
-  }
+  LoadCodeDataContainerEntry(destination, code);
 }
 
 void TurboAssembler::CallCodeTObject(Register code) {
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    CallCodeDataContainerObject(code);
-  } else {
-    CallCodeObject(code);
-  }
+  CallCodeDataContainerObject(code);
 }
 
 void TurboAssembler::JumpCodeTObject(Register code, JumpMode jump_mode) {
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    JumpCodeDataContainerObject(code, jump_mode);
-  } else {
-    JumpCodeObject(code, jump_mode);
-  }
+  JumpCodeDataContainerObject(code, jump_mode);
 }
 
 void TurboAssembler::StoreReturnAddressAndCall(Register target) {
@@ -2784,20 +2720,10 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
 
 void MacroAssembler::JumpIfCodeTIsMarkedForDeoptimization(
     Register codet, Register scratch, Label* if_marked_for_deoptimization) {
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    Ldr(scratch.W(),
-        FieldMemOperand(codet, CodeDataContainer::kKindSpecificFlagsOffset));
-    Tbnz(scratch.W(), Code::kMarkedForDeoptimizationBit,
-         if_marked_for_deoptimization);
-
-  } else {
-    LoadTaggedPointerField(
-        scratch, FieldMemOperand(codet, Code::kCodeDataContainerOffset));
-    Ldr(scratch.W(),
-        FieldMemOperand(scratch, CodeDataContainer::kKindSpecificFlagsOffset));
-    Tbnz(scratch.W(), Code::kMarkedForDeoptimizationBit,
-         if_marked_for_deoptimization);
-  }
+  Ldr(scratch.W(),
+      FieldMemOperand(codet, CodeDataContainer::kKindSpecificFlagsOffset));
+  Tbnz(scratch.W(), Code::kMarkedForDeoptimizationBit,
+       if_marked_for_deoptimization);
 }
 
 Operand MacroAssembler::ClearedValue() const {

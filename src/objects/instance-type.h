@@ -192,11 +192,7 @@ enum InstanceType : uint16_t {
   LAST_TYPE = LAST_HEAP_OBJECT_TYPE,
   BIGINT_TYPE = BIG_INT_BASE_TYPE,
 
-#ifdef V8_EXTERNAL_CODE_SPACE
   CODET_TYPE = CODE_DATA_CONTAINER_TYPE,
-#else
-  CODET_TYPE = CODE_TYPE,
-#endif
 };
 
 // This constant is defined outside of the InstanceType enum because the

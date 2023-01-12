@@ -71,8 +71,7 @@ void MarkCompactCollector::RecordSlot(MemoryChunk* source_page,
                                       HeapObjectSlot slot, HeapObject target) {
   BasicMemoryChunk* target_page = BasicMemoryChunk::FromHeapObject(target);
   if (target_page->IsEvacuationCandidate()) {
-    if (V8_EXTERNAL_CODE_SPACE_BOOL &&
-        target_page->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
+    if (target_page->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
       RememberedSet<OLD_TO_CODE>::Insert<AccessMode::ATOMIC>(source_page,
                                                              slot.address());
     } else {

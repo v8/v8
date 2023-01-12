@@ -208,13 +208,8 @@ class TinyRef {
 HEAP_BROKER_OBJECT_LIST(V)
 #undef V
 
-#ifdef V8_EXTERNAL_CODE_SPACE
 using CodeTRef = CodeDataContainerRef;
 using CodeTTinyRef = CodeDataContainerTinyRef;
-#else
-using CodeTRef = CodeRef;
-using CodeTTinyRef = CodeTinyRef;
-#endif
 
 class V8_EXPORT_PRIVATE ObjectRef {
  public:
@@ -1035,8 +1030,6 @@ class CodeRef : public HeapObjectRef {
   unsigned GetInlinedBytecodeSize() const;
 };
 
-// CodeDataContainerRef doesn't appear to be used directly, but it is used via
-// CodeTRef when V8_EXTERNAL_CODE_SPACE is enabled.
 class CodeDataContainerRef : public HeapObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(CodeDataContainer, HeapObjectRef)

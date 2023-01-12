@@ -117,15 +117,10 @@ inline void CombinedWriteBarrierInternal(HeapObject host, HeapObjectSlot slot,
 
   // Marking barrier: mark value & record slots when marking is on.
   if (V8_UNLIKELY(is_marking)) {
-#ifdef V8_EXTERNAL_CODE_SPACE
     // CodePageHeaderModificationScope is not required because the only case
     // when a Code value is stored somewhere is during creation of a new Code
     // object which is then stored to CodeDataContainer's code field and this
     // case is already guarded by CodePageMemoryModificationScope.
-#else
-    CodePageHeaderModificationScope rwx_write_scope(
-        "Marking a Code object requires write access to the Code page header");
-#endif
     WriteBarrier::MarkingSlow(host, HeapObjectSlot(slot), value);
   }
 }
@@ -275,15 +270,10 @@ void WriteBarrier::Marking(HeapObject host, MaybeObjectSlot slot,
                            MaybeObject value) {
   HeapObject value_heap_object;
   if (!value->GetHeapObject(&value_heap_object)) return;
-#ifdef V8_EXTERNAL_CODE_SPACE
   // This barrier is called from generated code and from C++ code.
   // There must be no stores of Code values from generated code and all stores
   // of Code values in C++ must be handled by CombinedWriteBarrierInternal().
   DCHECK(!IsCodeSpaceObject(value_heap_object));
-#else
-  CodePageHeaderModificationScope rwx_write_scope(
-      "Marking a Code object requires write access to the Code page header");
-#endif
   Marking(host, HeapObjectSlot(slot), value_heap_object);
 }
 

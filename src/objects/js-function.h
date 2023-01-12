@@ -120,12 +120,10 @@ class JSFunction : public TorqueGeneratedJSFunction<
   // are fully initialized.
   DECL_ACCESSORS(code, CodeT)
   DECL_RELEASE_ACQUIRE_ACCESSORS(code, CodeT)
-#ifdef V8_EXTERNAL_CODE_SPACE
   // Convenient overloads to avoid unnecessary Code <-> CodeT conversions.
   // TODO(v8:11880): remove once |code| accessors are migrated to CodeT.
   inline void set_code(Code code, ReleaseStoreTag,
                        WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-#endif
 
   // Returns the address of the function code's instruction start.
   inline Address code_entry_point() const;

@@ -7644,12 +7644,7 @@ class LiftoffCompiler {
       __ LoadTaggedPointer(
           target.gp(), func_ref.gp(), no_reg,
           wasm::ObjectAccess::ToTagged(WasmInternalFunction::kCodeOffset));
-#ifdef V8_EXTERNAL_CODE_SPACE
       __ LoadCodeDataContainerEntry(target.gp(), target.gp());
-#else
-      __ emit_ptrsize_addi(target.gp(), target.gp(),
-                           wasm::ObjectAccess::ToTagged(Code::kHeaderSize));
-#endif
       // Fall through to {perform_call}.
 
       __ bind(&perform_call);

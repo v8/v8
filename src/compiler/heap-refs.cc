@@ -1048,21 +1048,9 @@ ObjectData* JSHeapBroker::TryGetOrCreateData(Handle<Object> object,
 HEAP_BROKER_OBJECT_LIST(DEFINE_IS_AND_AS)
 #undef DEFINE_IS_AND_AS
 
-bool ObjectRef::IsCodeT() const {
-#ifdef V8_EXTERNAL_CODE_SPACE
-  return IsCodeDataContainer();
-#else
-  return IsCode();
-#endif
-}
+bool ObjectRef::IsCodeT() const { return IsCodeDataContainer(); }
 
-CodeTRef ObjectRef::AsCodeT() const {
-#ifdef V8_EXTERNAL_CODE_SPACE
-  return AsCodeDataContainer();
-#else
-  return AsCode();
-#endif
-}
+CodeTRef ObjectRef::AsCodeT() const { return AsCodeDataContainer(); }
 
 bool ObjectRef::IsSmi() const { return data()->is_smi(); }
 
@@ -2319,7 +2307,6 @@ unsigned CodeRef::GetInlinedBytecodeSize() const {
 }
 
 unsigned CodeDataContainerRef::GetInlinedBytecodeSize() const {
-#ifdef V8_EXTERNAL_CODE_SPACE
   CodeDataContainer codet = *object();
   if (codet.is_off_heap_trampoline()) {
     return 0;
@@ -2329,9 +2316,6 @@ unsigned CodeDataContainerRef::GetInlinedBytecodeSize() const {
   // modified only by GC and the CodeT was acquire-loaded.
   Code code = codet.code(kRelaxedLoad);
   return GetInlinedBytecodeSizeImpl(code);
-#else
-  UNREACHABLE();
-#endif  // V8_EXTERNAL_CODE_SPACE
 }
 
 #undef BIMODAL_ACCESSOR

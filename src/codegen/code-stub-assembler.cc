@@ -15600,15 +15600,9 @@ TNode<CodeT> CodeStubAssembler::GetSharedFunctionInfoCode(
 }
 
 TNode<RawPtrT> CodeStubAssembler::GetCodeEntry(TNode<CodeT> code) {
-#ifdef V8_EXTERNAL_CODE_SPACE
   TNode<CodeDataContainer> cdc = CodeDataContainerFromCodeT(code);
   return LoadObjectField<RawPtrT>(
       cdc, IntPtrConstant(CodeDataContainer::kCodeEntryPointOffset));
-#else
-  TNode<IntPtrT> object = BitcastTaggedToWord(code);
-  return ReinterpretCast<RawPtrT>(
-      IntPtrAdd(object, IntPtrConstant(Code::kHeaderSize - kHeapObjectTag)));
-#endif
 }
 
 TNode<BoolT> CodeStubAssembler::IsMarkedForDeoptimization(TNode<CodeT> codet) {

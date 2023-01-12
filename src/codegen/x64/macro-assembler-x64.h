@@ -405,7 +405,7 @@ class V8_EXPORT_PRIVATE TurboAssembler
   void JumpCodeObject(Register code_object,
                       JumpMode jump_mode = JumpMode::kJump);
 
-  // Load code entry point from the CodeDataContainer object.
+  // Load the code entry point from the CodeDataContainer object.
   void LoadCodeDataContainerEntry(Register destination,
                                   Register code_data_container_object);
   // Load code entry point from the CodeDataContainer object and compute
@@ -481,6 +481,13 @@ class V8_EXPORT_PRIVATE TurboAssembler
 
   // Like Assert(), but always enabled.
   void Check(Condition cc, AbortReason reason);
+
+  // Compare instance type for map.
+  // Always use unsigned comparisons: above and below, not less and greater.
+  void CmpInstanceType(Register map, InstanceType type);
+
+  // Abort execution if argument is not a CodeT, enabled via --debug-code.
+  void AssertCodeT(Register object) NOOP_UNLESS_DEBUG_CODE
 
   // Print a message to stdout and abort execution.
   void Abort(AbortReason msg);
@@ -819,10 +826,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // They may be the same register, and may be kScratchRegister.
   void CmpObjectType(Register heap_object, InstanceType type, Register map);
 
-  // Compare instance type for map.
-  // Always use unsigned comparisons: above and below, not less and greater.
-  void CmpInstanceType(Register map, InstanceType type);
-
   // Compare instance type ranges for a map (low and high inclusive)
   // Always use unsigned comparisons: below_equal for a positive result.
   void CmpInstanceTypeRange(Register map, Register instance_type_out,
@@ -838,7 +841,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
     andq(reg, Immediate(mask));
   }
 
-  void TestCodeTIsMarkedForDeoptimization(Register codet, Register scratch);
+  void TestCodeTIsMarkedForDeoptimization(Register codet);
   Immediate ClearedValue() const;
 
   // Tiering support.
@@ -854,9 +857,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void OptimizeCodeOrTailCallOptimizedCodeSlot(
       Register flags, Register feedback_vector, Register closure,
       JumpMode jump_mode = JumpMode::kJump);
-
-  // Abort execution if argument is not a CodeT, enabled via --debug-code.
-  void AssertCodeT(Register object) NOOP_UNLESS_DEBUG_CODE
 
   // Abort execution if argument is not a Constructor, enabled via --debug-code.
   void AssertConstructor(Register object) NOOP_UNLESS_DEBUG_CODE

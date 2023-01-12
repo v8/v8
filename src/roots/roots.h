@@ -221,10 +221,6 @@ class Symbol;
   /* Canonical off-heap trampoline data */                                     \
   V(ByteArray, off_heap_trampoline_relocation_info,                            \
     OffHeapTrampolineRelocationInfo)                                           \
-  V(HeapObject, trampoline_trivial_code_data_container,                        \
-    TrampolineTrivialCodeDataContainer)                                        \
-  V(HeapObject, trampoline_promise_rejection_code_data_container,              \
-    TrampolinePromiseRejectionCodeDataContainer)                               \
   /* Canonical scope infos */                                                  \
   V(ScopeInfo, global_this_binding_scope_info, GlobalThisBindingScopeInfo)     \
   V(ScopeInfo, empty_function_scope_info, EmptyFunctionScopeInfo)              \

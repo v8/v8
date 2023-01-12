@@ -2615,17 +2615,9 @@ using CodePageHeaderModificationScope = NopRwxMemoryWriteScope;
 
 // The CodeTPageHeaderModificationScope enables write access to CodeT objects
 // page headers.
-#if V8_EXTERNAL_CODE_SPACE
-// When V8_EXTERNAL_CODE_SPACE is enabled this scope is no-op because CodeT
-// objects are data objects and thus the page header is always in writable
-// state.
+// This scope is no-op because CodeT objects are data objects and thus the page
+// header is always in writable state.
 using CodeTPageHeaderModificationScope = NopRwxMemoryWriteScope;
-#else
-// When V8_EXTERNAL_CODE_SPACE is disabled this scope is an alias to
-// CodePageHeaderModificationScope because in CodeT is a Code object and thus
-// write access to the page headers might be required.
-using CodeTPageHeaderModificationScope = CodePageHeaderModificationScope;
-#endif  // V8_EXTERNAL_CODE_SPACE
 
 // The CodePageMemoryModificationScope does not check if transitions to
 // writeable and back to executable are actually allowed, i.e. the MemoryChunk

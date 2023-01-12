@@ -80,18 +80,12 @@ void JSFunction::set_code(CodeT value, ReleaseStoreTag, WriteBarrierMode mode) {
 }
 RELEASE_ACQUIRE_ACCESSORS(JSFunction, context, Context, kContextOffset)
 
-#ifdef V8_EXTERNAL_CODE_SPACE
 void JSFunction::set_code(Code code, ReleaseStoreTag, WriteBarrierMode mode) {
   set_code(ToCodeT(code), kReleaseStore, mode);
 }
-#endif
 
 Address JSFunction::code_entry_point() const {
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    return CodeDataContainer::cast(code()).code_entry_point();
-  } else {
-    return code().InstructionStart();
-  }
+  return CodeDataContainer::cast(code()).code_entry_point();
 }
 
 // TODO(ishell): Why relaxed read but release store?

@@ -3030,17 +3030,9 @@ Node* WasmGraphBuilder::BuildCallRef(const wasm::FunctionSig* sig,
     Node* wrapper_code = gasm_->LoadImmutableFromObject(
         MachineType::TaggedPointer(), function,
         wasm::ObjectAccess::ToTagged(WasmInternalFunction::kCodeOffset));
-    Node* call_target;
-    if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-      call_target =
-          gasm_->LoadFromObject(MachineType::Pointer(), wrapper_code,
-                                wasm::ObjectAccess::ToTagged(
-                                    CodeDataContainer::kCodeEntryPointOffset));
-    } else {
-      call_target = gasm_->IntAdd(
-          wrapper_code, gasm_->IntPtrConstant(
-                            wasm::ObjectAccess::ToTagged(Code::kHeaderSize)));
-    }
+    Node* call_target = gasm_->LoadFromObject(
+        MachineType::Pointer(), wrapper_code,
+        wasm::ObjectAccess::ToTagged(CodeDataContainer::kCodeEntryPointOffset));
     gasm_->Goto(&end_label, call_target);
   }
 

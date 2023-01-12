@@ -194,10 +194,9 @@ bool ContextSerializer::ShouldBeInTheStartupObjectCache(HeapObject o) {
   // contain a unique ID, and deserializing several context snapshots containing
   // script would cause dupes.
   return o.IsName() || o.IsScript() || o.IsSharedFunctionInfo() ||
-         o.IsHeapNumber() ||
-         (V8_EXTERNAL_CODE_SPACE_BOOL && o.IsCodeDataContainer()) ||
-         o.IsCode() || o.IsScopeInfo() || o.IsAccessorInfo() ||
-         o.IsTemplateInfo() || o.IsClassPositions() ||
+         o.IsHeapNumber() || o.IsCodeDataContainer() || o.IsCode() ||
+         o.IsScopeInfo() || o.IsAccessorInfo() || o.IsTemplateInfo() ||
+         o.IsClassPositions() ||
          o.map() == ReadOnlyRoots(isolate()).fixed_cow_array_map();
 }
 

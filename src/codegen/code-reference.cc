@@ -99,7 +99,6 @@ struct CodeDescOps {
       case Kind::CODE:                                        \
         return CodeOps{code_}.method();                       \
       case Kind::CODET:                                       \
-        CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);                   \
         return CodeTOps{codet_}.method();                     \
       case Kind::WASM_CODE:                                   \
         HANDLE_WASM(return WasmCodeOps{wasm_code_}.method()); \

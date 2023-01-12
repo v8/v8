@@ -99,7 +99,6 @@ void VerifyPointersVisitor::VisitPointers(HeapObject host,
 
 void VerifyPointersVisitor::VisitCodePointer(HeapObject host,
                                              CodeObjectSlot slot) {
-  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
   Object maybe_code = slot.load(code_cage_base());
   HeapObject code;
   // The slot might contain smi during CodeDataContainer creation.
@@ -134,7 +133,6 @@ void VerifyPointersVisitor::VerifyHeapObjectImpl(HeapObject heap_object) {
 }
 
 void VerifyPointersVisitor::VerifyCodeObjectImpl(HeapObject heap_object) {
-  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
   CHECK(IsValidCodeObject(heap_, heap_object));
   CHECK(heap_object.map(cage_base()).IsMap());
   CHECK(heap_object.map(cage_base()).instance_type() == CODE_TYPE);
@@ -485,7 +483,6 @@ class SlotVerifyingVisitor : public ObjectVisitorWithCageBases {
   }
 
   void VisitCodePointer(HeapObject host, CodeObjectSlot slot) override {
-    CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
     if (ShouldHaveBeenRecorded(
             host, MaybeObject::FromObject(slot.load(code_cage_base())))) {
       CHECK_GT(untyped_->count(slot.address()), 0);

@@ -414,7 +414,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
 
   // Invoke the function by calling through JS entry trampoline builtin and
   // pop the faked function when we return.
-  Handle<Code> trampoline_code =
+  Handle<CodeT> trampoline_code =
       masm->isolate()->builtins()->code_handle(entry_trampoline);
   __ Call(trampoline_code, RelocInfo::CODE_TARGET);
 
@@ -513,9 +513,9 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ mov(edi, Operand(scratch2, EntryFrameConstants::kFunctionArgOffset));
 
     // Invoke the code.
-    Handle<Code> builtin = is_construct
-                               ? BUILTIN_CODE(masm->isolate(), Construct)
-                               : masm->isolate()->builtins()->Call();
+    Handle<CodeT> builtin = is_construct
+                                ? BUILTIN_CODE(masm->isolate(), Construct)
+                                : masm->isolate()->builtins()->Call();
     __ Call(builtin, RelocInfo::CODE_TARGET);
 
     // Exit the internal frame. Notice that this also removes the empty.
@@ -555,12 +555,12 @@ static void GetSharedFunctionInfoBytecode(MacroAssembler* masm,
   __ bind(&done);
 }
 
-static void AssertCodeIsBaseline(MacroAssembler* masm, Register code,
-                                 Register scratch) {
+static void AssertCodeTIsBaseline(MacroAssembler* masm, Register code,
+                                  Register scratch) {
   DCHECK(!AreAliased(code, scratch));
   // Verify that the code kind is baseline code via the CodeKind.
-  __ mov(scratch, FieldOperand(code, Code::kFlagsOffset));
-  __ DecodeField<Code::KindField>(scratch);
+  __ mov(scratch, FieldOperand(code, CodeT::kFlagsOffset));
+  __ DecodeField<CodeT::KindField>(scratch);
   __ cmp(scratch, Immediate(static_cast<int>(CodeKind::BASELINE)));
   __ Assert(equal, AbortReason::kExpectedBaselineData);
 }
@@ -577,7 +577,7 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
   if (v8_flags.debug_code) {
     Label not_baseline;
     __ j(not_equal, &not_baseline);
-    AssertCodeIsBaseline(masm, sfi_data, scratch1);
+    AssertCodeTIsBaseline(masm, sfi_data, scratch1);
     __ j(equal, is_baseline);
     __ bind(&not_baseline);
   } else {
@@ -706,7 +706,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     // undefined because generator functions are non-constructable.
     static_assert(kJavaScriptCallCodeStartRegister == ecx, "ABI mismatch");
     __ mov(ecx, FieldOperand(edi, JSFunction::kCodeOffset));
-    __ JumpCodeObject(ecx);
+    __ JumpCodeDataContainerObject(ecx);
   }
 
   __ bind(&prepare_step_in_if_stepping);
@@ -1148,7 +1148,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
     __ pop(eax);  // Restore the argument count.
     __ pop(ecx);
     __ pop(edx);
-    __ JumpCodeObject(ecx);
+    __ JumpCodeDataContainerObject(ecx);
 
     __ bind(&install_baseline_code);
     __ movd(eax, xmm0);  // Recover argument count.
@@ -1419,7 +1419,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
 
   __ mov(scratch,
          FieldOperand(scratch, InterpreterData::kInterpreterTrampolineOffset));
-  __ add(scratch, Immediate(Code::kHeaderSize - kHeapObjectTag));
+  __ LoadCodeDataContainerEntry(scratch, scratch);
   __ jmp(&trampoline_loaded, Label::kNear);
 
   __ bind(&builtin_trampoline);
@@ -2054,7 +2054,7 @@ void Generate_AllocateSpaceAndShiftExistingArguments(
 // static
 // TODO(v8:11615): Observe Code::kMaxArguments in CallOrConstructVarargs
 void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
-                                               Handle<Code> code) {
+                                               Handle<CodeT> code) {
   // ----------- S t a t e -------------
   //  -- edi    : target
   //  -- esi    : context for the Call / Construct builtin
@@ -2149,7 +2149,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
 // static
 void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
                                                       CallOrConstructMode mode,
-                                                      Handle<Code> code) {
+                                                      Handle<CodeT> code) {
   // ----------- S t a t e -------------
   //  -- eax : the number of arguments
   //  -- edi : the target to call (can be any Object)
@@ -2726,6 +2726,8 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
     // JavaScript frame. This is the case then OSR is triggered from bytecode.
     __ leave();
   }
+
+  __ LoadCodeDataContainerCodeNonBuiltin(eax, eax);
 
   // Load deoptimization data from the code object.
   __ mov(ecx, Operand(eax, Code::kDeoptimizationDataOrInterpreterDataOffset -
@@ -4224,8 +4226,9 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   }
 
   if (v8_flags.debug_code) {
-    AssertCodeIsBaseline(masm, code_obj, ecx);
+    AssertCodeTIsBaseline(masm, code_obj, ecx);
   }
+  __ LoadCodeDataContainerCodeNonBuiltin(code_obj, code_obj);
 
   // Load the feedback vector.
   Register feedback_vector = ecx;

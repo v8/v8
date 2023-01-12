@@ -984,27 +984,10 @@ void Heap::CreateInitialReadOnlyObjects() {
       ScopeInfo::CreateForShadowRealmNativeContext(isolate());
   set_shadow_realm_scope_info(*shadow_realm_scope_info);
 
-  // Canonical off-heap trampoline data
+  // Canonical off-heap trampoline data.
   auto reloc_info = Builtins::GenerateOffHeapTrampolineRelocInfo(isolate_);
   set_off_heap_trampoline_relocation_info(*reloc_info);
   StaticRootsEnsureAllocatedSize(*reloc_info, 4 * kTaggedSize);
-
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    // These roots will not be used.
-    HeapObject no_container = *isolate()->factory()->undefined_value();
-    set_trampoline_trivial_code_data_container(no_container);
-    set_trampoline_promise_rejection_code_data_container(no_container);
-
-  } else {
-    set_trampoline_trivial_code_data_container(
-        *isolate()->factory()->NewCodeDataContainer(0,
-                                                    AllocationType::kReadOnly));
-
-    set_trampoline_promise_rejection_code_data_container(
-        *isolate()->factory()->NewCodeDataContainer(
-            Code::IsPromiseRejectionField::encode(true),
-            AllocationType::kReadOnly));
-  }
 }
 
 void Heap::CreateInitialMutableObjects() {

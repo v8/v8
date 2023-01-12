@@ -210,7 +210,6 @@ class ConcurrentMarkingVisitorUtility {
     }
 
     void VisitCodePointer(HeapObject host, CodeObjectSlot slot) override {
-      CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
       Object code = slot.Relaxed_Load(code_cage_base());
       slot_snapshot_->add(ObjectSlot(slot.address()), code);
     }

@@ -930,7 +930,6 @@ void Serializer::ObjectSerializer::VisitPointers(HeapObject host,
 
 void Serializer::ObjectSerializer::VisitCodePointer(HeapObject host,
                                                     CodeObjectSlot slot) {
-  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
   // A version of VisitPointers() customized for CodeObjectSlot.
   HandleScope scope(isolate());
   DisallowGarbageCollection no_gc;
@@ -1118,8 +1117,7 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
         (InstanceTypeChecker::IsJSObject(instance_type) &&
          JSObject::cast(host).GetEmbedderFieldCount() > 0) ||
         // See ObjectSerializer::OutputRawData().
-        (V8_EXTERNAL_CODE_SPACE_BOOL &&
-         InstanceTypeChecker::IsCodeDataContainer(instance_type)));
+        InstanceTypeChecker::IsCodeDataContainer(instance_type));
   }
 }
 
@@ -1217,8 +1215,7 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
           sink_, object_start, base, bytes_to_output,
           DescriptorArray::kRawNumberOfMarkedDescriptorsOffset,
           sizeof(field_value), field_value);
-    } else if (V8_EXTERNAL_CODE_SPACE_BOOL &&
-               object_->IsCodeDataContainer(cage_base)) {
+    } else if (object_->IsCodeDataContainer(cage_base)) {
       // code_entry_point field contains a raw value that will be recomputed
       // after deserialization, so write zeros to keep the snapshot
       // deterministic.

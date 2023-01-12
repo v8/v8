@@ -231,15 +231,14 @@ const size_t kShortBuiltinCallsOldSpaceSizeThreshold = size_t{2} * GB;
 
 #ifdef V8_EXTERNAL_CODE_SPACE
 #define V8_EXTERNAL_CODE_SPACE_BOOL true
-// This flag enables the mode when V8 does not create trampoline Code objects
-// for builtins. It should be enough to have only CodeDataContainer objects.
-class CodeDataContainer;
-using CodeT = CodeDataContainer;
 #else
 #define V8_EXTERNAL_CODE_SPACE_BOOL false
-class Code;
-using CodeT = Code;
 #endif
+
+// TODO(jgruber): Remove the CodeT alias, rename CodeDataContainer to Code and
+// Code to CodeInstructions (or similar).
+class CodeDataContainer;
+using CodeT = CodeDataContainer;
 
 // V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT controls how V8 sets permissions for
 // executable pages.

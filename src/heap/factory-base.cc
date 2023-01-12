@@ -83,11 +83,9 @@ Handle<CodeDataContainer> FactoryBase<Impl>::NewCodeDataContainer(
       AllocateRawWithImmortalMap(size, allocation, map));
   DisallowGarbageCollection no_gc;
   data_container.set_kind_specific_flags(flags, kRelaxedStore);
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    Isolate* isolate_for_sandbox = impl()->isolate_for_sandbox();
-    data_container.set_raw_code(Smi::zero(), SKIP_WRITE_BARRIER);
-    data_container.init_code_entry_point(isolate_for_sandbox, kNullAddress);
-  }
+  Isolate* isolate_for_sandbox = impl()->isolate_for_sandbox();
+  data_container.set_raw_code(Smi::zero(), SKIP_WRITE_BARRIER);
+  data_container.init_code_entry_point(isolate_for_sandbox, kNullAddress);
   data_container.clear_padding();
   return handle(data_container, isolate());
 }

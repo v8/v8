@@ -45,8 +45,21 @@ FunctionTester::FunctionTester(Handle<Code> code, int param_count)
                 NewFunction(BuildFunction(param_count).c_str()))),
       flags_(0) {
   CHECK(!code.is_null());
+  CHECK(code->IsCode());
   Compile(function);
   function->set_code(ToCodeT(*code), kReleaseStore);
+}
+
+FunctionTester::FunctionTester(Handle<CodeT> code, int param_count)
+    : isolate(main_isolate()),
+      canonical(isolate),
+      function((v8_flags.allow_natives_syntax = true,
+                NewFunction(BuildFunction(param_count).c_str()))),
+      flags_(0) {
+  CHECK(!code.is_null());
+  CHECK(code->IsCodeT());
+  Compile(function);
+  function->set_code(*code, kReleaseStore);
 }
 
 FunctionTester::FunctionTester(Handle<Code> code) : FunctionTester(code, 0) {}

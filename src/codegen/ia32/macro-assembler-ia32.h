@@ -149,7 +149,7 @@ class V8_EXPORT_PRIVATE TurboAssembler
   void Call(Register reg) { call(reg); }
   void Call(Operand op) { call(op); }
   void Call(Label* target) { call(target); }
-  void Call(Handle<Code> code_object, RelocInfo::Mode rmode);
+  void Call(Handle<CodeT> code_object, RelocInfo::Mode rmode);
 
   // Load the builtin given by the Smi in |builtin_index| into the same
   // register.
@@ -162,9 +162,22 @@ class V8_EXPORT_PRIVATE TurboAssembler
   void CallCodeObject(Register code_object);
   void JumpCodeObject(Register code_object,
                       JumpMode jump_mode = JumpMode::kJump);
-  void Jump(const ExternalReference& reference);
 
-  void Jump(Handle<Code> code_object, RelocInfo::Mode rmode);
+  // Load the code entry point from the CodeDataContainer object.
+  void LoadCodeDataContainerEntry(Register destination,
+                                  Register code_data_container_object);
+  // Load code entry point from the CodeDataContainer object and compute
+  // Code object pointer out of it. Must not be used for CodeDataContainers
+  // corresponding to builtins, because their entry points values point to
+  // the embedded instruction stream in .text section.
+  void LoadCodeDataContainerCodeNonBuiltin(Register destination,
+                                           Register code_data_container_object);
+  void CallCodeDataContainerObject(Register code_data_container_object);
+  void JumpCodeDataContainerObject(Register code_data_container_object,
+                                   JumpMode jump_mode = JumpMode::kJump);
+
+  void Jump(const ExternalReference& reference);
+  void Jump(Handle<CodeT> code_object, RelocInfo::Mode rmode);
 
   void LoadMap(Register destination, Register object);
 
@@ -551,7 +564,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
     and_(reg, Immediate(mask));
   }
 
-  void TestCodeTIsMarkedForDeoptimization(Register codet, Register scratch);
+  void TestCodeTIsMarkedForDeoptimization(Register codet);
   Immediate ClearedValue() const;
 
   // Tiering support.

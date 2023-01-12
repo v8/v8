@@ -48,44 +48,7 @@ TNode<IntPtrT> RegExpBuiltinsAssembler::IntPtrZero() {
 // If code is a builtin, return the address to the (possibly embedded) builtin
 // code entry, otherwise return the entry of the code object itself.
 TNode<RawPtrT> RegExpBuiltinsAssembler::LoadCodeObjectEntry(TNode<CodeT> code) {
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    // When external code space is enabled we can load the entry point directly
-    // from the CodeT object.
-    return GetCodeEntry(code);
-  }
-
-  TVARIABLE(RawPtrT, var_result);
-
-  Label if_code_is_off_heap(this), out(this);
-  TNode<Int32T> builtin_index =
-      LoadObjectField<Int32T>(code, Code::kBuiltinIndexOffset);
-  {
-    GotoIfNot(
-        Word32Equal(builtin_index,
-                    Int32Constant(static_cast<int>(Builtin::kNoBuiltinId))),
-        &if_code_is_off_heap);
-    var_result = ReinterpretCast<RawPtrT>(
-        IntPtrAdd(BitcastTaggedToWord(code),
-                  IntPtrConstant(Code::kHeaderSize - kHeapObjectTag)));
-    Goto(&out);
-  }
-
-  BIND(&if_code_is_off_heap);
-  {
-    TNode<IntPtrT> builtin_entry_offset_from_isolate_root =
-        IntPtrAdd(IntPtrConstant(IsolateData::builtin_entry_table_offset()),
-                  ChangeInt32ToIntPtr(Word32Shl(
-                      builtin_index, Int32Constant(kSystemPointerSizeLog2))));
-
-    var_result = ReinterpretCast<RawPtrT>(
-        Load(MachineType::Pointer(),
-             ExternalConstant(ExternalReference::isolate_root(isolate())),
-             builtin_entry_offset_from_isolate_root));
-    Goto(&out);
-  }
-
-  BIND(&out);
-  return var_result.value();
+  return GetCodeEntry(code);
 }
 
 // -----------------------------------------------------------------------------

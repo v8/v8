@@ -27,7 +27,6 @@ void EvacuationVerifier::VisitPointers(HeapObject host, MaybeObjectSlot start,
 
 void EvacuationVerifier::VisitCodePointer(HeapObject host,
                                           CodeObjectSlot slot) {
-  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
   VerifyCodePointer(slot);
 }
 
@@ -106,7 +105,6 @@ void FullEvacuationVerifier::VerifyPointers(MaybeObjectSlot start,
   VerifyPointersImpl(start, end);
 }
 void FullEvacuationVerifier::VerifyCodePointer(CodeObjectSlot slot) {
-  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
   Object maybe_code = slot.load(code_cage_base());
   HeapObject code;
   // The slot might contain smi during CodeDataContainer creation, so skip it.
@@ -150,7 +148,6 @@ void YoungGenerationEvacuationVerifier::VerifyPointers(MaybeObjectSlot start,
   VerifyPointersImpl(start, end);
 }
 void YoungGenerationEvacuationVerifier::VerifyCodePointer(CodeObjectSlot slot) {
-  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
   Object maybe_code = slot.load(code_cage_base());
   HeapObject code;
   // The slot might contain smi during CodeDataContainer creation, so skip it.

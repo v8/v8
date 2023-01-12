@@ -122,11 +122,9 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     data_container = factory->NewCodeDataContainer(0, allocation_type);
   }
 
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    static constexpr bool kIsNotOffHeapTrampoline = false;
-    data_container->initialize_flags(kind_, builtin_, is_turbofanned_,
-                                     kIsNotOffHeapTrampoline);
-  }
+  static constexpr bool kIsNotOffHeapTrampoline = false;
+  data_container->initialize_flags(kind_, builtin_, is_turbofanned_,
+                                   kIsNotOffHeapTrampoline);
   data_container->set_kind_specific_flags(kind_specific_flags_, kRelaxedStore);
 
   // Basic block profiling data for builtins is stored in the JS heap rather
@@ -161,7 +159,6 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
 
   {
     Code raw_code = *code;
-    constexpr bool kIsNotOffHeapTrampoline = false;
     DisallowGarbageCollection no_gc;
 
     raw_code.set_raw_instruction_size(code_desc_.instruction_size());
@@ -227,8 +224,8 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
 
     if (V8_EXTERNAL_CODE_SPACE_BOOL) {
       raw_code.set_main_cage_base(isolate_->cage_base(), kRelaxedStore);
-      data_container->SetCodeAndEntryPoint(isolate_, raw_code);
     }
+    data_container->SetCodeAndEntryPoint(isolate_, raw_code);
 #ifdef VERIFY_HEAP
     if (v8_flags.verify_heap) HeapObject::VerifyCodePointer(isolate_, raw_code);
 #endif
@@ -1722,12 +1719,10 @@ Handle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
   result.init_sig(isolate(), sig);
   result.set_canonical_type_index(canonical_type_index);
   result.set_wrapper_budget(wrapper_budget);
-  // We can't skip the write barrier when V8_EXTERNAL_CODE_SPACE is enabled
-  // because in this case the CodeT (CodeDataContainer) objects are not
-  // immovable.
-  result.set_c_wrapper_code(
-      *BUILTIN_CODE(isolate(), Illegal),
-      V8_EXTERNAL_CODE_SPACE_BOOL ? UPDATE_WRITE_BARRIER : SKIP_WRITE_BARRIER);
+  // We can't skip the write barrier because the CodeT (CodeDataContainer)
+  // objects are not immovable.
+  result.set_c_wrapper_code(*BUILTIN_CODE(isolate(), Illegal),
+                            UPDATE_WRITE_BARRIER);
   result.set_packed_args_size(0);
   result.set_js_promise_flags(
       WasmFunctionData::SuspendField::encode(wasm::kNoSuspend) |
@@ -2491,7 +2486,6 @@ Handle<CodeT> Factory::NewOffHeapTrampolineFor(Handle<CodeT> code,
   CHECK_NE(0, isolate()->embedded_blob_code_size());
   CHECK(Builtins::IsIsolateIndependentBuiltin(*code));
 
-#ifdef V8_EXTERNAL_CODE_SPACE
   const int no_flags = 0;
   Handle<CodeDataContainer> code_data_container =
       NewCodeDataContainer(no_flags, AllocationType::kOld);
@@ -2505,56 +2499,6 @@ Handle<CodeT> Factory::NewOffHeapTrampolineFor(Handle<CodeT> code,
   code_data_container->set_code_entry_point(isolate(),
                                             code->code_entry_point());
   return Handle<CodeT>::cast(code_data_container);
-#else
-  bool generate_jump_to_instruction_stream =
-      Builtins::CodeObjectIsExecutable(code->builtin_id());
-  Handle<Code> result = Builtins::GenerateOffHeapTrampolineFor(
-      isolate(), off_heap_entry,
-      CodeDataContainerFromCodeT(*code).kind_specific_flags(kRelaxedLoad),
-      generate_jump_to_instruction_stream);
-
-  // Trampolines may not contain any metadata since all metadata offsets,
-  // stored on the Code object, refer to the off-heap metadata area.
-  CHECK_EQ(result->raw_metadata_size(), 0);
-
-  // The trampoline code object must inherit specific flags from the original
-  // builtin (e.g. the safepoint-table offset). We set them manually here.
-  {
-    DisallowGarbageCollection no_gc;
-    CodePageMemoryModificationScope code_allocation(*result);
-    Code raw_code = FromCodeT(*code);
-    Code raw_result = *result;
-
-    const bool set_is_off_heap_trampoline = true;
-    raw_result.initialize_flags(raw_code.kind(), raw_code.is_turbofanned(),
-                                raw_code.stack_slots(),
-                                set_is_off_heap_trampoline);
-    raw_result.set_builtin_id(raw_code.builtin_id());
-    raw_result.set_handler_table_offset(raw_code.handler_table_offset());
-    raw_result.set_constant_pool_offset(raw_code.constant_pool_offset());
-    raw_result.set_code_comments_offset(raw_code.code_comments_offset());
-    raw_result.set_unwinding_info_offset(raw_code.unwinding_info_offset());
-
-    // Replace the newly generated trampoline's RelocInfo ByteArray with the
-    // canonical one stored in the roots to avoid duplicating it for every
-    // single builtin.
-    ByteArray canonical_reloc_info =
-        generate_jump_to_instruction_stream
-            ? read_only_roots().off_heap_trampoline_relocation_info()
-            : read_only_roots().empty_byte_array();
-#ifdef DEBUG
-    // Verify that the contents are the same.
-    ByteArray reloc_info = raw_result.relocation_info();
-    DCHECK_EQ(reloc_info.length(), canonical_reloc_info.length());
-    for (int i = 0; i < reloc_info.length(); ++i) {
-      DCHECK_EQ(reloc_info.get(i), canonical_reloc_info.get(i));
-    }
-#endif
-    raw_result.set_relocation_info(canonical_reloc_info);
-  }
-
-  return ToCodeT(result, isolate());
-#endif  // V8_EXTERNAL_CODE_SPACE
 }
 
 Handle<BytecodeArray> Factory::CopyBytecodeArray(Handle<BytecodeArray> source) {

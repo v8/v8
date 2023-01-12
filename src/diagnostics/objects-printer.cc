@@ -1807,7 +1807,6 @@ void Code::CodePrint(std::ostream& os) {
 
 void CodeDataContainer::CodeDataContainerPrint(std::ostream& os) {
   PrintHeader(os, "CodeDataContainer");
-#ifdef V8_EXTERNAL_CODE_SPACE
   os << "\n - kind: " << CodeKindToString(kind());
   if (is_builtin()) {
     os << "\n - builtin: " << Builtins::name(builtin_id());
@@ -1816,7 +1815,6 @@ void CodeDataContainer::CodeDataContainerPrint(std::ostream& os) {
   os << "\n - code: " << Brief(raw_code());
   os << "\n - code_entry_point: "
      << reinterpret_cast<void*>(code_entry_point());
-#endif  // V8_EXTERNAL_CODE_SPACE
   os << "\n - kind_specific_flags: " << kind_specific_flags(kRelaxedLoad);
   os << "\n";
 }

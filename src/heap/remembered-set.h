@@ -296,9 +296,7 @@ class RememberedSet : public AllStatic {
     MemoryChunk* chunk;
     while ((chunk = it.next()) != nullptr) {
       chunk->ReleaseSlotSet<OLD_TO_OLD>();
-      if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-        chunk->ReleaseSlotSet<OLD_TO_CODE>();
-      }
+      chunk->ReleaseSlotSet<OLD_TO_CODE>();
       chunk->ReleaseTypedSlotSet<OLD_TO_OLD>();
       chunk->ReleaseInvalidatedSlots<OLD_TO_OLD>();
     }

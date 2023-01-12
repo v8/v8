@@ -153,7 +153,7 @@ MaybeHandle<JSRegExp> JSRegExp::New(Isolate* isolate, Handle<String> pattern,
 Object JSRegExp::code(bool is_latin1) const {
   DCHECK_EQ(type_tag(), JSRegExp::IRREGEXP);
   Object value = DataAt(code_index(is_latin1));
-  DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, value.IsSmi() || value.IsCodeT());
+  DCHECK(value.IsSmi() || value.IsCodeT());
   return value;
 }
 

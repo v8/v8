@@ -68,7 +68,6 @@ class CodeDataContainer : public HeapObject {
   inline HandlerTable::CatchPrediction GetBuiltinCatchPrediction() const;
 
   // Back-reference to the Code object.
-  // Available only when V8_EXTERNAL_CODE_SPACE is defined.
   DECL_GETTER(code, Code)
   DECL_RELAXED_GETTER(code, Code)
 
@@ -82,7 +81,6 @@ class CodeDataContainer : public HeapObject {
   inline PtrComprCageBase code_cage_base() const;
 
   // Cached value of code().InstructionStart().
-  // Available only when V8_EXTERNAL_CODE_SPACE is defined.
   DECL_GETTER(code_entry_point, Address)
 
   inline void SetCodeAndEntryPoint(
@@ -96,7 +94,6 @@ class CodeDataContainer : public HeapObject {
 
   // Initializes internal flags field which stores cached values of some
   // properties of the respective Code object.
-  // Available only when V8_EXTERNAL_CODE_SPACE is enabled.
   inline void initialize_flags(CodeKind kind, Builtin builtin_id,
                                bool is_turbofanned,
                                bool is_off_heap_trampoline);
@@ -110,7 +107,6 @@ class CodeDataContainer : public HeapObject {
   // Alias for code_entry_point to make it API compatible with Code.
   inline Address entry() const;
 
-#ifdef V8_EXTERNAL_CODE_SPACE
   //
   // A collection of getters and predicates that forward queries to associated
   // Code object.
@@ -230,8 +226,6 @@ class CodeDataContainer : public HeapObject {
                                      Address current_pc = kNullAddress);
 #endif  // ENABLE_DISASSEMBLER
 
-#endif  // V8_EXTERNAL_CODE_SPACE
-
   DECL_CAST(CodeDataContainer)
 
   // Dispatched behavior.
@@ -239,20 +233,19 @@ class CodeDataContainer : public HeapObject {
   DECL_VERIFIER(CodeDataContainer)
 
 // Layout description.
-#define CODE_DATA_FIELDS(V)                                         \
-  /* Strong pointer fields. */                                      \
-  V(kPointerFieldsStrongEndOffset, 0)                               \
-  /* Strong Code pointer fields. */                                 \
-  V(kCodeOffset, V8_EXTERNAL_CODE_SPACE_BOOL ? kTaggedSize : 0)     \
-  V(kCodePointerFieldsStrongEndOffset, 0)                           \
-  /* Raw data fields. */                                            \
-  V(kCodeEntryPointOffset,                                          \
-    V8_EXTERNAL_CODE_SPACE_BOOL ? kSystemPointerSize : 0)           \
-  V(kFlagsOffset, V8_EXTERNAL_CODE_SPACE_BOOL ? kUInt16Size : 0)    \
-  V(kBuiltinIdOffset, V8_EXTERNAL_CODE_SPACE_BOOL ? kInt16Size : 0) \
-  V(kKindSpecificFlagsOffset, kInt32Size)                           \
-  V(kUnalignedSize, OBJECT_POINTER_PADDING(kUnalignedSize))         \
-  /* Total size. */                                                 \
+#define CODE_DATA_FIELDS(V)                                 \
+  /* Strong pointer fields. */                              \
+  V(kPointerFieldsStrongEndOffset, 0)                       \
+  /* Strong Code pointer fields. */                         \
+  V(kCodeOffset, kTaggedSize)                               \
+  V(kCodePointerFieldsStrongEndOffset, 0)                   \
+  /* Raw data fields. */                                    \
+  V(kCodeEntryPointOffset, kSystemPointerSize)              \
+  V(kFlagsOffset, kUInt16Size)                              \
+  V(kBuiltinIdOffset, kInt16Size)                           \
+  V(kKindSpecificFlagsOffset, kInt32Size)                   \
+  V(kUnalignedSize, OBJECT_POINTER_PADDING(kUnalignedSize)) \
+  /* Total size. */                                         \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, CODE_DATA_FIELDS)
@@ -262,7 +255,10 @@ class CodeDataContainer : public HeapObject {
   template <typename T>
   using ExternalCodeField =
       TaggedField<T, kCodeOffset, ExternalCodeCompressionScheme>;
-#endif
+#else
+  template <typename T>
+  using ExternalCodeField = TaggedField<T, kCodeOffset>;
+#endif  // V8_EXTERNAL_CODE_SPACE
 
   class BodyDescriptor;
 
@@ -276,9 +272,8 @@ class CodeDataContainer : public HeapObject {
   DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)
 #undef FLAGS_BIT_FIELDS
   static_assert(FLAGS_BIT_FIELDS_Ranges::kBitsCount == 6);
-  static_assert(!V8_EXTERNAL_CODE_SPACE_BOOL ||
-                (FLAGS_BIT_FIELDS_Ranges::kBitsCount <=
-                 FIELD_SIZE(CodeDataContainer::kFlagsOffset) * kBitsPerByte));
+  static_assert(FLAGS_BIT_FIELDS_Ranges::kBitsCount <=
+                FIELD_SIZE(CodeDataContainer::kFlagsOffset) * kBitsPerByte);
 
  private:
   DECL_ACCESSORS(raw_code, Object)
@@ -287,8 +282,8 @@ class CodeDataContainer : public HeapObject {
   inline void init_code_entry_point(Isolate* isolate, Address initial_value);
   inline void set_code_entry_point(Isolate* isolate, Address value);
 
-  // When V8_EXTERNAL_CODE_SPACE is enabled the flags field contains cached
-  // values of some flags of the from the respective Code object.
+  // Contains cached values of some flags of the from the respective Code
+  // object.
   DECL_RELAXED_UINT16_ACCESSORS(flags)
   inline void set_is_off_heap_trampoline_for_hash(bool value);
 
@@ -880,11 +875,9 @@ class CodeLookupResult {
   // Code object was found.
   explicit CodeLookupResult(Code code) : code_(code) {}
 
-#ifdef V8_EXTERNAL_CODE_SPACE
   // Embedded builtin was found.
   explicit CodeLookupResult(CodeDataContainer code_data_container)
       : code_data_container_(code_data_container) {}
-#endif
 
   // Returns true if the lookup was successful.
   bool IsFound() const { return IsCode() || IsCodeDataContainer(); }
@@ -894,13 +887,7 @@ class CodeLookupResult {
 
   // Returns true if V8_EXTERNAL_CODE_SPACE is enabled and the lookup found
   // an embedded builtin.
-  bool IsCodeDataContainer() const {
-#ifdef V8_EXTERNAL_CODE_SPACE
-    return !code_data_container_.is_null();
-#else
-    return false;
-#endif
-  }
+  bool IsCodeDataContainer() const { return !code_data_container_.is_null(); }
 
   // Returns the Code object containing the address in question.
   Code code() const {
@@ -912,24 +899,14 @@ class CodeLookupResult {
   // containing the address in question.
   // Can be used only when V8_EXTERNAL_CODE_SPACE is enabled.
   CodeDataContainer code_data_container() const {
-#ifdef V8_EXTERNAL_CODE_SPACE
     DCHECK(IsCodeDataContainer());
     return code_data_container_;
-#else
-    UNREACHABLE();
-#endif
   }
 
   // Returns the CodeT object corresponding to the result in question.
   // The method doesn't try to convert Code result to CodeT, one should use
   // ToCodeT() instead if the conversion logic is required.
-  CodeT codet() const {
-#ifdef V8_EXTERNAL_CODE_SPACE
-    return code_data_container();
-#else
-    return code();
-#endif
-  }
+  CodeT codet() const { return code_data_container(); }
 
   // Helper methods, in case of successful lookup return the result of
   // respective accessor of the Code/CodeDataContainer object found.
@@ -967,11 +944,8 @@ class CodeLookupResult {
   inline CodeT ToCodeT() const;
 
   bool operator==(const CodeLookupResult& other) const {
-    return code_ == other.code_
-#ifdef V8_EXTERNAL_CODE_SPACE
-           && code_data_container_ == other.code_data_container_
-#endif
-        ;  // NOLINT(whitespace/semicolon)
+    return code_ == other.code_ &&
+           code_data_container_ == other.code_data_container_;
   }
   bool operator!=(const CodeLookupResult& other) const {
     return !operator==(other);
@@ -979,9 +953,7 @@ class CodeLookupResult {
 
  private:
   Code code_;
-#ifdef V8_EXTERNAL_CODE_SPACE
   CodeDataContainer code_data_container_;
-#endif
 };
 
 class Code::OptimizedCodeIterator {
@@ -1013,9 +985,8 @@ inline Handle<AbstractCode> ToAbstractCode(Handle<CodeT> code,
                                            Isolate* isolate);
 inline CodeDataContainer CodeDataContainerFromCodeT(CodeT code);
 
-// AbsractCode is a helper wrapper around {Code|CodeDataContainer|BytecodeArray}
-// when V8_EXTERNAL_CODE_SPACE is enabled or {Code|BytecodeArray} otherwise.
-// Note that when V8_EXTERNAL_CODE_SPACE is enabled then the same abstract code
+// AbstractCode is a helper wrapper around
+// {Code|CodeDataContainer|BytecodeArray}.  Note that the same abstract code
 // can be represented either by Code object or by respective CodeDataContainer
 // object.
 class AbstractCode : public HeapObject {
@@ -1082,8 +1053,8 @@ class AbstractCode : public HeapObject {
   inline BytecodeArray GetBytecodeArray();
 
   // AbstractCode might be represented by both Code and non-Code objects and
-  // thus regular comparison of tagged values might not be correct when
-  // V8_EXTERNAL_CODE_SPACE is enabled. SafeEquals() must be used instead.
+  // thus regular comparison of tagged values might not be correct.
+  // SafeEquals() must be used instead.
   constexpr bool operator==(AbstractCode other) const {
     return SafeEquals(other);
   }

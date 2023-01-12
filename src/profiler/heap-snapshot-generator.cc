@@ -1051,7 +1051,6 @@ class IndexedReferencesExtractor : public ObjectVisitorWithCageBases {
   }
 
   void VisitCodePointer(HeapObject host, CodeObjectSlot slot) override {
-    CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
     VisitSlotImpl(code_cage_base(), slot);
   }
 
@@ -1472,9 +1471,7 @@ void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
   CodeT code = shared.GetCode();
   // Don't try to get the Code object from Code-less embedded builtin.
   HeapObject maybe_code_obj =
-      V8_EXTERNAL_CODE_SPACE_BOOL && code.is_off_heap_trampoline()
-          ? HeapObject::cast(code)
-          : FromCodeT(code);
+      code.is_off_heap_trampoline() ? HeapObject::cast(code) : FromCodeT(code);
   if (name[0] != '\0') {
     TagObject(maybe_code_obj,
               names_->GetFormatted("(code for %s)", name.get()));
@@ -1546,10 +1543,8 @@ void V8HeapExplorer::ExtractWeakCellReferences(HeapEntry* entry,
 }
 
 void V8HeapExplorer::TagBuiltinCodeObject(CodeT code, const char* name) {
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    TagObject(code, names_->GetFormatted("(%s builtin handle)", name));
-  }
-  if (!V8_EXTERNAL_CODE_SPACE_BOOL || !code.is_off_heap_trampoline()) {
+  TagObject(code, names_->GetFormatted("(%s builtin handle)", name));
+  if (!code.is_off_heap_trampoline()) {
     TagObject(FromCodeT(code), names_->GetFormatted("(%s builtin)", name));
   }
 }
@@ -2007,7 +2002,7 @@ class RootsReferencesExtractor : public RootVisitor {
     // MarkCompactCollector::RootMarkingVisitor::VisitRunningCode, which treats
     // deoptimization literals in running code as stack roots.
     HeapObject value = HeapObject::cast(*p);
-    if (V8_EXTERNAL_CODE_SPACE_BOOL && !IsCodeSpaceObject(value)) {
+    if (!IsCodeSpaceObject(value)) {
       // When external code space is enabled, the slot might contain a CodeT
       // object representing an embedded builtin, which doesn't require
       // additional processing.
@@ -2122,8 +2117,7 @@ bool V8HeapExplorer::IterateAndExtractReferences(
 bool V8HeapExplorer::IsEssentialObject(Object object) {
   if (!object.IsHeapObject()) return false;
   // Avoid comparing Code objects with non-Code objects below.
-  if (V8_EXTERNAL_CODE_SPACE_BOOL &&
-      IsCodeSpaceObject(HeapObject::cast(object))) {
+  if (IsCodeSpaceObject(HeapObject::cast(object))) {
     return true;
   }
   Isolate* isolate = heap_->isolate();

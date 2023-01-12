@@ -214,10 +214,7 @@ bool HeapObject::IsNullOrUndefined() const {
   return IsNullOrUndefined(GetReadOnlyRoots());
 }
 
-DEF_GETTER(HeapObject, IsCodeT, bool) {
-  return V8_EXTERNAL_CODE_SPACE_BOOL ? IsCodeDataContainer(cage_base)
-                                     : IsCode(cage_base);
-}
+DEF_GETTER(HeapObject, IsCodeT, bool) { return IsCodeDataContainer(cage_base); }
 
 DEF_GETTER(HeapObject, IsUniqueName, bool) {
   return IsInternalizedString(cage_base) || IsSymbol(cage_base);

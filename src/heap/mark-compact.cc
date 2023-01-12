@@ -130,7 +130,6 @@ class MarkingVerifier : public ObjectVisitorWithCageBases, public RootVisitor {
   }
 
   void VisitCodePointer(HeapObject host, CodeObjectSlot slot) override {
-    CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
     VerifyCodePointer(slot);
   }
 
@@ -260,7 +259,6 @@ class FullMarkingVerifier : public MarkingVerifier {
   }
 
   void VerifyCodePointer(CodeObjectSlot slot) override {
-    CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
     Object maybe_code = slot.load(code_cage_base());
     HeapObject code;
     // The slot might contain smi during CodeDataContainer creation, so skip it.
@@ -885,9 +883,7 @@ void MarkCompactCollector::AbortCompaction() {
         "Changing Code page flags and remembered sets require write access "
         "to the page header");
     RememberedSet<OLD_TO_OLD>::ClearAll(heap());
-    if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-      RememberedSet<OLD_TO_CODE>::ClearAll(heap());
-    }
+    RememberedSet<OLD_TO_CODE>::ClearAll(heap());
     for (Page* p : evacuation_candidates_) {
       p->ClearEvacuationCandidate();
     }
@@ -1095,10 +1091,9 @@ class MarkCompactCollector::RootMarkingVisitor final : public RootVisitor {
     // Must match behavior in RootsReferencesExtractor::VisitRunningCode, so
     // that heap snapshots accurately describe the roots.
     HeapObject value = HeapObject::cast(*p);
-    if (V8_EXTERNAL_CODE_SPACE_BOOL && !IsCodeSpaceObject(value)) {
-      // When external code space is enabled, the slot might contain a CodeT
-      // object representing an embedded builtin, which doesn't require
-      // additional processing.
+    if (!IsCodeSpaceObject(value)) {
+      // The slot might contain a CodeT object representing an embedded
+      // builtin, which doesn't require additional processing.
       DCHECK(CodeT::cast(value).is_off_heap_trampoline());
     } else {
       Code code = Code::cast(value);
@@ -1171,7 +1166,6 @@ class MarkCompactCollector::CustomRootBodyMarkingVisitor final
   }
 
   void VisitCodePointer(HeapObject host, CodeObjectSlot slot) override {
-    CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
     MarkObject(host, slot.load(code_cage_base()));
   }
 
@@ -1226,7 +1220,6 @@ class MarkCompactCollector::ClientCustomRootBodyMarkingVisitor final
   }
 
   void VisitCodePointer(HeapObject host, CodeObjectSlot slot) override {
-    CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
     MarkObject(host, slot.load(code_cage_base()));
   }
 
@@ -1532,7 +1525,6 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
   }
 
   inline void VisitCodePointer(HeapObject host, CodeObjectSlot slot) final {
-    CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
     // This code is similar to the implementation of VisitPointer() modulo
     // new kind of slot.
     DCHECK(!HasWeakHeapObjectTag(slot.load(code_cage_base())));
@@ -1600,8 +1592,7 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
         DCHECK(chunk->SweepingDone());
         RememberedSet<OLD_TO_NEW>::Insert<AccessMode::NON_ATOMIC>(chunk, slot);
       } else if (p->IsEvacuationCandidate()) {
-        if (V8_EXTERNAL_CODE_SPACE_BOOL &&
-            p->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
+        if (p->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
           RememberedSet<OLD_TO_CODE>::Insert<AccessMode::NON_ATOMIC>(
               MemoryChunk::FromHeapObject(host), slot);
         } else {
@@ -1986,7 +1977,7 @@ class EvacuateNewSpacePageVisitor final : public HeapObjectVisitor {
         pretenuring_handler_->UpdateAllocationSite(object.map(), object,
                                                    local_pretenuring_feedback_);
       }
-      DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !IsCodeSpaceObject(object));
+      DCHECK(!IsCodeSpaceObject(object));
       PtrComprCageBase cage_base = GetPtrComprCageBase(object);
       object.IterateFast(cage_base, record_visitor_);
       if (V8_UNLIKELY(v8_flags.minor_mc)) {
@@ -4003,7 +3994,6 @@ class PointersUpdatingVisitor final : public ObjectVisitorWithCageBases,
   }
 
   void VisitCodePointer(HeapObject host, CodeObjectSlot slot) override {
-    CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
     UpdateStrongCodeSlot<AccessMode::NON_ATOMIC>(host, cage_base(),
                                                  code_cage_base(), slot);
   }
@@ -5163,8 +5153,6 @@ class RememberedSetUpdatingItem : public UpdatingItem {
   }
 
   void UpdateUntypedOldToCodePointers() {
-    if (!V8_EXTERNAL_CODE_SPACE_BOOL) return;
-
     if (chunk_->slot_set<OLD_TO_CODE, AccessMode::NON_ATOMIC>()) {
       const PtrComprCageBase cage_base = heap_->isolate();
 #ifdef V8_EXTERNAL_CODE_SPACE
@@ -5662,7 +5650,6 @@ class YoungGenerationMarkingVerifier : public MarkingVerifier {
     VerifyPointersImpl(start, end);
   }
   void VerifyCodePointer(CodeObjectSlot slot) override {
-    CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
     // Code slots never appear in new space because CodeDataContainers, the
     // only object that can contain code pointers, are always allocated in
     // the old space.

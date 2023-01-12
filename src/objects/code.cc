@@ -230,14 +230,12 @@ SafepointEntry Code::GetSafepointEntry(Isolate* isolate, Address pc) {
   return table.FindEntry(pc);
 }
 
-#ifdef V8_EXTERNAL_CODE_SPACE
 SafepointEntry CodeDataContainer::GetSafepointEntry(Isolate* isolate,
                                                     Address pc) {
   DCHECK(!is_maglevved());
   SafepointTable table(isolate, pc, *this);
   return table.FindEntry(pc);
 }
-#endif  // V8_EXTERNAL_CODE_SPACE
 
 MaglevSafepointEntry Code::GetMaglevSafepointEntry(Isolate* isolate,
                                                    Address pc) {
@@ -246,14 +244,12 @@ MaglevSafepointEntry Code::GetMaglevSafepointEntry(Isolate* isolate,
   return table.FindEntry(pc);
 }
 
-#ifdef V8_EXTERNAL_CODE_SPACE
 MaglevSafepointEntry CodeDataContainer::GetMaglevSafepointEntry(
     Isolate* isolate, Address pc) {
   DCHECK(is_maglevved());
   MaglevSafepointTable table(isolate, pc, *this);
   return table.FindEntry(pc);
 }
-#endif  // V8_EXTERNAL_CODE_SPACE
 
 Address Code::OffHeapInstructionStart(Isolate* isolate, Address pc) const {
   DCHECK(is_off_heap_trampoline());
@@ -261,14 +257,12 @@ Address Code::OffHeapInstructionStart(Isolate* isolate, Address pc) const {
   return d.InstructionStartOfBuiltin(builtin_id());
 }
 
-#ifdef V8_EXTERNAL_CODE_SPACE
 Address CodeDataContainer::OffHeapInstructionStart(Isolate* isolate,
                                                    Address pc) const {
   DCHECK(is_off_heap_trampoline());
   EmbeddedData d = EmbeddedData::GetEmbeddedDataForPC(isolate, pc);
   return d.InstructionStartOfBuiltin(builtin_id());
 }
-#endif
 
 Address Code::OffHeapInstructionEnd(Isolate* isolate, Address pc) const {
   DCHECK(is_off_heap_trampoline());
@@ -276,14 +270,12 @@ Address Code::OffHeapInstructionEnd(Isolate* isolate, Address pc) const {
   return d.InstructionEndOf(builtin_id());
 }
 
-#ifdef V8_EXTERNAL_CODE_SPACE
 Address CodeDataContainer::OffHeapInstructionEnd(Isolate* isolate,
                                                  Address pc) const {
   DCHECK(is_off_heap_trampoline());
   EmbeddedData d = EmbeddedData::GetEmbeddedDataForPC(isolate, pc);
   return d.InstructionEndOf(builtin_id());
 }
-#endif  // V8_EXTERNAL_CODE_SPACE
 
 bool Code::OffHeapBuiltinContains(Isolate* isolate, Address pc) const {
   DCHECK(is_off_heap_trampoline());
@@ -291,14 +283,12 @@ bool Code::OffHeapBuiltinContains(Isolate* isolate, Address pc) const {
   return d.BuiltinContains(builtin_id(), pc);
 }
 
-#ifdef V8_EXTERNAL_CODE_SPACE
 bool CodeDataContainer::OffHeapBuiltinContains(Isolate* isolate,
                                                Address pc) const {
   DCHECK(is_off_heap_trampoline());
   EmbeddedData d = EmbeddedData::GetEmbeddedDataForPC(isolate, pc);
   return d.BuiltinContains(builtin_id(), pc);
 }
-#endif  // V8_EXTERNAL_CODE_SPACE
 
 // TODO(cbruni): Move to BytecodeArray
 int AbstractCode::SourcePosition(PtrComprCageBase cage_base, int offset) {
@@ -691,12 +681,10 @@ void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
   i::Disassemble(name, os, isolate, *this, current_pc);
 }
 
-#ifdef V8_EXTERNAL_CODE_SPACE
 void CodeDataContainer::Disassemble(const char* name, std::ostream& os,
                                     Isolate* isolate, Address current_pc) {
   i::Disassemble(name, os, isolate, *this, current_pc);
 }
-#endif  // V8_EXTERNAL_CODE_SPACE
 
 #endif  // ENABLE_DISASSEMBLER
 
@@ -1039,12 +1027,10 @@ void Code::SetMarkedForDeoptimization(const char* reason) {
   Deoptimizer::TraceMarkForDeoptimization(*this, reason);
 }
 
-#ifdef V8_EXTERNAL_CODE_SPACE
 void CodeDataContainer::SetMarkedForDeoptimization(const char* reason) {
   set_marked_for_deoptimization(true);
   Deoptimizer::TraceMarkForDeoptimization(FromCodeT(*this), reason);
 }
-#endif
 
 const char* DependentCode::DependencyGroupName(DependencyGroup group) {
   switch (group) {

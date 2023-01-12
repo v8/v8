@@ -81,7 +81,7 @@ V8_INLINE constexpr bool IsThinString(InstanceType instance_type) {
 
 V8_INLINE constexpr bool IsAbstractCode(InstanceType instance_type) {
   return IsBytecodeArray(instance_type) || IsCode(instance_type) ||
-         (V8_EXTERNAL_CODE_SPACE_BOOL && IsCodeDataContainer(instance_type));
+         IsCodeDataContainer(instance_type);
 }
 
 V8_INLINE constexpr bool IsFreeSpaceOrFiller(InstanceType instance_type) {

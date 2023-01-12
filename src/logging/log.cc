@@ -1372,8 +1372,7 @@ void V8FileLogger::LogCodeDisassemble(Handle<AbstractCode> code) {
 #ifdef ENABLE_DISASSEMBLER
       Code::cast(*code).Disassemble(nullptr, stream, isolate_);
 #endif
-    } else if (V8_EXTERNAL_CODE_SPACE_BOOL &&
-               code->IsCodeDataContainer(cage_base)) {
+    } else if (code->IsCodeDataContainer(cage_base)) {
 #ifdef ENABLE_DISASSEMBLER
       CodeT::cast(*code).Disassemble(nullptr, stream, isolate_);
 #endif
@@ -2335,20 +2334,12 @@ void ExistingCodeLogger::LogCodeObjects() {
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
     InstanceType instance_type = obj.map(cage_base).instance_type();
-    if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-      // In this case AbstactCode is Code|CodeDataContainer|BytecodeArray but
-      // we want to log code objects only once, thus we ignore Code objects
-      // which will be logged via corresponding CodeDataContainer.
-      if (InstanceTypeChecker::IsCodeT(instance_type) ||
-          InstanceTypeChecker::IsBytecodeArray(instance_type)) {
-        LogCodeObject(AbstractCode::cast(obj));
-      }
-    } else {
-      // In this case AbstactCode is Code|BytecodeArray.
-      if (InstanceTypeChecker::IsCode(instance_type) ||
-          InstanceTypeChecker::IsBytecodeArray(instance_type)) {
-        LogCodeObject(AbstractCode::cast(obj));
-      }
+    // AbstactCode is Code|CodeDataContainer|BytecodeArray but we want to log
+    // code objects only once, thus we ignore Code objects which will be logged
+    // via corresponding CodeDataContainer.
+    if (InstanceTypeChecker::IsCodeT(instance_type) ||
+        InstanceTypeChecker::IsBytecodeArray(instance_type)) {
+      LogCodeObject(AbstractCode::cast(obj));
     }
   }
 }
@@ -2393,9 +2384,10 @@ void ExistingCodeLogger::LogCompiledFunctions(
     }
     // Can't use .is_identical_to() because AbstractCode might be both Code and
     // non-Code object and regular tagged comparison or compressed values might
-    // not be correct when V8_EXTERNAL_CODE_SPACE is enabled.
-    if (*pair.second == ToAbstractCode(*BUILTIN_CODE(isolate_, CompileLazy)))
+    // not be correct.
+    if (*pair.second == ToAbstractCode(*BUILTIN_CODE(isolate_, CompileLazy))) {
       continue;
+    }
     LogExistingFunction(pair.first, pair.second);
   }
 

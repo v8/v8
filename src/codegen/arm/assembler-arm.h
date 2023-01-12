@@ -1190,7 +1190,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void Move32BitImmediate(Register rd, const Operand& x, Condition cond = al);
 
   // Get the code target object for a pc-relative call or jump.
-  V8_INLINE Handle<Code> relative_code_target_object_handle_at(
+  V8_INLINE Handle<CodeT> relative_code_target_object_handle_at(
       Address pc_) const;
 
  protected:

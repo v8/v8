@@ -2733,11 +2733,7 @@ TEST(CheckCodeNames) {
   const char* builtin_path1[] = {
       "::(GC roots)",
       "::(Builtins)",
-#ifdef V8_EXTERNAL_CODE_SPACE
       "::(KeyedLoadIC_PolymorphicName builtin handle)",
-#else
-      "::(KeyedLoadIC_PolymorphicName builtin)",
-#endif
   };
   const v8::HeapGraphNode* node = GetNodeByPath(
       env->GetIsolate(), snapshot, builtin_path1, arraysize(builtin_path1));
@@ -2746,21 +2742,13 @@ TEST(CheckCodeNames) {
   const char* builtin_path2[] = {
       "::(GC roots)",
       "::(Builtins)",
-#ifdef V8_EXTERNAL_CODE_SPACE
       "::(CompileLazy builtin handle)",
-#else
-      "::(CompileLazy builtin)",
-#endif
   };
   node = GetNodeByPath(env->GetIsolate(), snapshot, builtin_path2,
                        arraysize(builtin_path2));
   CHECK(node);
   v8::String::Utf8Value node_name(env->GetIsolate(), node->GetName());
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    CHECK_EQ(0, strcmp("(CompileLazy builtin handle)", *node_name));
-  } else {
-    CHECK_EQ(0, strcmp("(CompileLazy builtin)", *node_name));
-  }
+  CHECK_EQ(0, strcmp("(CompileLazy builtin handle)", *node_name));
 }
 
 

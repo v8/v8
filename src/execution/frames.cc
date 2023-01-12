@@ -575,11 +575,9 @@ CodeLookupResult StackFrame::LookupCodeT() const {
       CHECK_GE(pc(), code.InstructionStart(isolate(), pc()));
       CHECK_LT(pc(), code.InstructionEnd(isolate(), pc()));
     } else {
-#ifdef V8_EXTERNAL_CODE_SPACE
       CodeDataContainer code = result.code_data_container();
       CHECK_GE(pc(), code.InstructionStart(isolate(), pc()));
       CHECK_LT(pc(), code.InstructionEnd(isolate(), pc()));
-#endif
     }
   }
   return result;
@@ -589,7 +587,7 @@ void StackFrame::IteratePc(RootVisitor* v, Address* pc_address,
                            Address* constant_pool_address,
                            CodeLookupResult lookup_result) const {
   if (lookup_result.IsCodeDataContainer()) {
-    // The embeded builtins are immovable, so there's no need to update PCs on
+    // The embedded builtins are immovable, so there's no need to update PCs on
     // the stack, just visit the CodeT object.
     Object code = lookup_result.code_data_container();
     v->VisitRunningCode(FullObjectSlot(&code));

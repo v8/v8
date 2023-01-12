@@ -835,8 +835,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void FastCheck(TNode<BoolT> condition);
 
   TNode<BoolT> IsCodeTMap(TNode<Map> map) {
-    return V8_EXTERNAL_CODE_SPACE_BOOL ? IsCodeDataContainerMap(map)
-                                       : IsCodeMap(map);
+    return IsCodeDataContainerMap(map);
   }
   TNode<BoolT> IsCodeT(TNode<HeapObject> object) {
     return IsCodeTMap(LoadMap(object));
@@ -845,7 +844,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // TODO(v8:11880): remove once Code::bytecode_or_interpreter_data field
   // is cached in or moved to CodeT.
   TNode<Code> FromCodeTNonBuiltin(TNode<CodeT> code) {
-#ifdef V8_EXTERNAL_CODE_SPACE
     // Compute the Code object pointer from the code entry point.
     TNode<RawPtrT> code_entry = Load<RawPtrT>(
         code, IntPtrConstant(CodeDataContainer::kCodeEntryPointOffset -
@@ -853,36 +851,20 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     TNode<Object> o = BitcastWordToTagged(IntPtrSub(
         code_entry, IntPtrConstant(Code::kHeaderSize - kHeapObjectTag)));
     return CAST(o);
-#else
-    return code;
-#endif
   }
 
   TNode<CodeDataContainer> CodeDataContainerFromCodeT(TNode<CodeT> code) {
-#ifdef V8_EXTERNAL_CODE_SPACE
     return code;
-#else
-    return LoadObjectField<CodeDataContainer>(code,
-                                              Code::kCodeDataContainerOffset);
-#endif
   }
 
   TNode<CodeT> ToCodeT(TNode<Code> code) {
-#ifdef V8_EXTERNAL_CODE_SPACE
     return LoadObjectField<CodeDataContainer>(code,
                                               Code::kCodeDataContainerOffset);
-#else
-    return code;
-#endif
   }
 
   TNode<CodeT> ToCodeT(TNode<Code> code,
                        TNode<CodeDataContainer> code_data_container) {
-#ifdef V8_EXTERNAL_CODE_SPACE
     return code_data_container;
-#else
-    return code;
-#endif
   }
 
   TNode<RawPtrT> GetCodeEntry(TNode<CodeT> code);

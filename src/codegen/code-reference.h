@@ -28,10 +28,8 @@ class CodeReference {
   explicit CodeReference(const CodeDesc* code_desc)
       : kind_(Kind::CODE_DESC), code_desc_(code_desc) {}
   explicit CodeReference(Handle<Code> code) : kind_(Kind::CODE), code_(code) {}
-#ifdef V8_EXTERNAL_CODE_SPACE
   explicit CodeReference(Handle<CodeT> codet)
       : kind_(Kind::CODET), codet_(codet) {}
-#endif  // V8_EXTERNAL_CODE_SPACE
 
   Address constant_pool() const;
   Address instruction_start() const;
@@ -53,12 +51,10 @@ class CodeReference {
     return code_;
   }
 
-#ifdef V8_EXTERNAL_CODE_SPACE
   Handle<CodeT> as_codet() const {
     DCHECK_EQ(Kind::CODET, kind_);
     return codet_;
   }
-#endif  // V8_EXTERNAL_CODE_SPACE
 
   const wasm::WasmCode* as_wasm_code() const {
     DCHECK_EQ(Kind::WASM_CODE, kind_);

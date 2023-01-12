@@ -835,7 +835,7 @@ void TailCallOptimizedCodeSlot(MacroAssembler* masm,
   // Check if the optimized code is marked for deopt. If it is, call the
   // runtime to clear it.
   __ AssertCodeT(optimized_code_entry);
-  __ TestCodeTIsMarkedForDeoptimization(optimized_code_entry, scratch1);
+  __ TestCodeTIsMarkedForDeoptimization(optimized_code_entry);
   __ j(not_zero, &heal_optimized_code_slot);
 
   // Optimized code is good, get it into the closure and link the closure into
@@ -2295,52 +2295,8 @@ void TurboAssembler::TailCallBuiltin(Builtin builtin, Condition cc) {
 
 void TurboAssembler::LoadCodeObjectEntry(Register destination,
                                          Register code_object) {
-  ASM_CODE_COMMENT(this);
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    movq(destination,
-         FieldOperand(code_object, CodeDataContainer::kCodeEntryPointOffset));
-    return;
-  }
-
-  // Code objects are called differently depending on whether we are generating
-  // builtin code (which will later be embedded into the binary) or compiling
-  // user JS code at runtime.
-  // * Builtin code runs in --jitless mode and thus must not call into on-heap
-  //   Code targets. Instead, we dispatch through the builtins entry table.
-  // * Codegen at runtime does not have this restriction and we can use the
-  //   shorter, branchless instruction sequence. The assumption here is that
-  //   targets are usually generated code and not builtin Code objects.
-
-  if (options().isolate_independent_code) {
-    DCHECK(root_array_available());
-    Label if_code_is_off_heap, out;
-
-    // Check whether the Code object is an off-heap trampoline. If so, call its
-    // (off-heap) entry point directly without going through the (on-heap)
-    // trampoline.  Otherwise, just call the Code object as always.
-    testl(FieldOperand(code_object, Code::kFlagsOffset),
-          Immediate(Code::IsOffHeapTrampoline::kMask));
-    j(not_equal, &if_code_is_off_heap);
-
-    // Not an off-heap trampoline, the entry point is at
-    // Code::raw_instruction_start().
-    Move(destination, code_object);
-    addq(destination, Immediate(Code::kHeaderSize - kHeapObjectTag));
-    jmp(&out);
-
-    // An off-heap trampoline, the entry point is loaded from the builtin entry
-    // table.
-    bind(&if_code_is_off_heap);
-    movl(destination, FieldOperand(code_object, Code::kBuiltinIndexOffset));
-    movq(destination,
-         Operand(kRootRegister, destination, times_system_pointer_size,
-                 IsolateData::builtin_entry_table_offset()));
-
-    bind(&out);
-  } else {
-    Move(destination, code_object);
-    addq(destination, Immediate(Code::kHeaderSize - kHeapObjectTag));
-  }
+  // TODO(jgruber): Remove this method and similar methods below.
+  LoadCodeDataContainerEntry(destination, code_object);
 }
 
 void TurboAssembler::CallCodeObject(Register code_object) {
@@ -2364,7 +2320,6 @@ void TurboAssembler::JumpCodeObject(Register code_object, JumpMode jump_mode) {
 void TurboAssembler::LoadCodeDataContainerEntry(
     Register destination, Register code_data_container_object) {
   ASM_CODE_COMMENT(this);
-  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
   movq(destination, FieldOperand(code_data_container_object,
                                  CodeDataContainer::kCodeEntryPointOffset));
 }
@@ -2372,7 +2327,6 @@ void TurboAssembler::LoadCodeDataContainerEntry(
 void TurboAssembler::LoadCodeDataContainerCodeNonBuiltin(
     Register destination, Register code_data_container_object) {
   ASM_CODE_COMMENT(this);
-  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
   // Compute the Code object pointer from the code entry point.
   movq(destination, FieldOperand(code_data_container_object,
                                  CodeDataContainer::kCodeEntryPointOffset));
@@ -2403,37 +2357,24 @@ void TurboAssembler::JumpCodeDataContainerObject(
 
 void TurboAssembler::LoadCodeTEntry(Register destination, Register code) {
   ASM_CODE_COMMENT(this);
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    LoadCodeDataContainerEntry(destination, code);
-  } else {
-    leaq(destination, Operand(code, Code::kHeaderSize - kHeapObjectTag));
-  }
+  AssertCodeT(code);
+  LoadCodeDataContainerEntry(destination, code);
 }
 
 void TurboAssembler::CallCodeTObject(Register code) {
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    CallCodeDataContainerObject(code);
-  } else {
-    CallCodeObject(code);
-  }
+  AssertCodeT(code);
+  CallCodeDataContainerObject(code);
 }
 
 void TurboAssembler::JumpCodeTObject(Register code, JumpMode jump_mode) {
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    JumpCodeDataContainerObject(code, jump_mode);
-  } else {
-    JumpCodeObject(code, jump_mode);
-  }
+  AssertCodeT(code);
+  JumpCodeDataContainerObject(code, jump_mode);
 }
 
 void TurboAssembler::CodeDataContainerFromCodeT(Register destination,
                                                 Register codet) {
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    Move(destination, codet);
-  } else {
-    LoadTaggedPointerField(destination,
-                           FieldOperand(codet, Code::kCodeDataContainerOffset));
-  }
+  AssertCodeT(codet);
+  Move(destination, codet);
 }
 
 void TurboAssembler::PextrdPreSse41(Register dst, XMMRegister src,
@@ -2690,7 +2631,7 @@ void MacroAssembler::CmpObjectType(Register heap_object, InstanceType type,
   CmpInstanceType(map, type);
 }
 
-void MacroAssembler::CmpInstanceType(Register map, InstanceType type) {
+void TurboAssembler::CmpInstanceType(Register map, InstanceType type) {
   cmpw(FieldOperand(map, Map::kInstanceTypeOffset), Immediate(type));
 }
 
@@ -2703,17 +2644,9 @@ void MacroAssembler::CmpInstanceTypeRange(Register map,
   CompareRange(instance_type_out, lower_limit, higher_limit);
 }
 
-void MacroAssembler::TestCodeTIsMarkedForDeoptimization(Register codet,
-                                                        Register scratch) {
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    testl(FieldOperand(codet, CodeDataContainer::kKindSpecificFlagsOffset),
-          Immediate(1 << Code::kMarkedForDeoptimizationBit));
-  } else {
-    LoadTaggedPointerField(scratch,
-                           FieldOperand(codet, Code::kCodeDataContainerOffset));
-    testl(FieldOperand(scratch, CodeDataContainer::kKindSpecificFlagsOffset),
-          Immediate(1 << Code::kMarkedForDeoptimizationBit));
-  }
+void MacroAssembler::TestCodeTIsMarkedForDeoptimization(Register codet) {
+  testl(FieldOperand(codet, CodeDataContainer::kKindSpecificFlagsOffset),
+        Immediate(1 << Code::kMarkedForDeoptimizationBit));
 }
 
 Immediate MacroAssembler::ClearedValue() const {
@@ -2760,7 +2693,7 @@ void TurboAssembler::AssertSignedBitOfSmiIsZero(Register smi_register) {
   Check(zero, AbortReason::kSignedBitOfSmiIsNotZero);
 }
 
-void MacroAssembler::AssertCodeT(Register object) {
+void TurboAssembler::AssertCodeT(Register object) {
   if (!v8_flags.debug_code) return;
   ASM_CODE_COMMENT(this);
   testb(object, Immediate(kSmiTagMask));
@@ -2768,7 +2701,7 @@ void MacroAssembler::AssertCodeT(Register object) {
   Push(object);
   LoadMap(object, object);
   CmpInstanceType(object, CODET_TYPE);
-  Pop(object);
+  popq(object);
   Check(equal, AbortReason::kOperandIsNotACodeT);
 }
 
@@ -2939,6 +2872,8 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
   DCHECK_IMPLIES(type == InvokeType::kCall, has_frame());
   DCHECK_EQ(function, rdi);
   DCHECK_IMPLIES(new_target.is_valid(), new_target == rdx);
+
+  AssertFunction(function);
 
   // On function call, call into the debugger if necessary.
   Label debug_hook, continue_after_hook;

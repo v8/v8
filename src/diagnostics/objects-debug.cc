@@ -1091,52 +1091,43 @@ void PropertyCell::PropertyCellVerify(Isolate* isolate) {
 
 void CodeDataContainer::CodeDataContainerVerify(Isolate* isolate) {
   CHECK(IsCodeDataContainer());
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    if (raw_code() != Smi::zero()) {
-      Code code = this->code();
-#ifdef V8_EXTERNAL_CODE_SPACE
-      // kind() and builtin_id() getters are not available on CodeDataContainer
-      // when external code space is not enabled.
-      CHECK_EQ(code.kind(), kind());
-      CHECK_EQ(code.builtin_id(), builtin_id());
-      if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-        // When v8_flags.interpreted_frames_native_stack is enabled each
-        // interpreted function gets its own copy of the
-        // InterpreterEntryTrampoline. Thus, there could be Code'ful builtins.
-        CHECK_IMPLIES(isolate->embedded_blob_code() && is_off_heap_trampoline(),
-                      builtin_id() == Builtin::kInterpreterEntryTrampoline);
-      }
-#endif  // V8_EXTERNAL_CODE_SPACE
-      CHECK_EQ(code.code_data_container(kAcquireLoad), *this);
+  if (raw_code() != Smi::zero()) {
+    Code code = this->code();
+    CHECK_EQ(code.kind(), kind());
+    CHECK_EQ(code.builtin_id(), builtin_id());
+    // When v8_flags.interpreted_frames_native_stack is enabled each
+    // interpreted function gets its own copy of the
+    // InterpreterEntryTrampoline. Thus, there could be Code'ful builtins.
+    CHECK_IMPLIES(isolate->embedded_blob_code() && is_off_heap_trampoline(),
+                  builtin_id() == Builtin::kInterpreterEntryTrampoline);
+    CHECK_EQ(code.code_data_container(kAcquireLoad), *this);
 
-      // Ensure the cached code entry point corresponds to the Code object
-      // associated with this CodeDataContainer.
+    // Ensure the cached code entry point corresponds to the Code object
+    // associated with this CodeDataContainer.
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
-      if (V8_SHORT_BUILTIN_CALLS_BOOL) {
-        if (code.InstructionStart() == code_entry_point()) {
-          // Most common case, all good.
-        } else {
-          // When shared pointer compression cage is enabled and it has the
-          // embedded code blob copy then the Code::InstructionStart() might
-          // return address of the remapped builtin regardless of whether the
-          // builtins copy exsisted when the code_entry_point value was cached
-          // in the CodeDataContainer (see Code::OffHeapInstructionStart()).
-          // So, do a reverse Code object lookup via code_entry_point value to
-          // ensure it corresponds to the same Code object associated with this
-          // CodeDataContainer.
-          CodeLookupResult lookup_result =
-              isolate->heap()->GcSafeFindCodeForInnerPointer(
-                  code_entry_point());
-          CHECK(lookup_result.IsFound());
-          CHECK_EQ(lookup_result.ToCode(), code);
-        }
+    if (V8_SHORT_BUILTIN_CALLS_BOOL) {
+      if (code.InstructionStart() == code_entry_point()) {
+        // Most common case, all good.
       } else {
-        CHECK_EQ(code.InstructionStart(), code_entry_point());
+        // When shared pointer compression cage is enabled and it has the
+        // embedded code blob copy then the Code::InstructionStart() might
+        // return the address of the remapped builtin regardless of whether
+        // the builtins copy existed when the code_entry_point value was
+        // cached in the CodeDataContainer (see
+        // Code::OffHeapInstructionStart()).  So, do a reverse Code object
+        // lookup via code_entry_point value to ensure it corresponds to the
+        // same Code object associated with this CodeDataContainer.
+        CodeLookupResult lookup_result =
+            isolate->heap()->GcSafeFindCodeForInnerPointer(code_entry_point());
+        CHECK(lookup_result.IsFound());
+        CHECK_EQ(lookup_result.ToCode(), code);
       }
-#else
+    } else {
       CHECK_EQ(code.InstructionStart(), code_entry_point());
-#endif  // V8_COMPRESS_POINTERS_IN_SHARED_CAGE
     }
+#else
+    CHECK_EQ(code.InstructionStart(), code_entry_point());
+#endif  // V8_COMPRESS_POINTERS_IN_SHARED_CAGE
   }
 }
 
@@ -1156,9 +1147,7 @@ void Code::CodeVerify(Isolate* isolate) {
 #endif  // !defined(_MSC_VER) || defined(__clang__)
   CHECK_IMPLIES(!ReadOnlyHeap::Contains(*this),
                 IsAligned(raw_instruction_start(), kCodeAlignment));
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    CHECK_EQ(*this, code_data_container(kAcquireLoad).code());
-  }
+  CHECK_EQ(*this, code_data_container(kAcquireLoad).code());
   // TODO(delphick): Refactor Factory::CodeBuilder::BuildInternal, so that the
   // following CHECK works builtin trampolines. It currently fails because
   // CodeVerify is called halfway through constructing the trampoline and so not

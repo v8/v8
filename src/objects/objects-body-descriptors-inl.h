@@ -1063,9 +1063,7 @@ class CodeDataContainer::BodyDescriptor final : public BodyDescriptorBase {
         static_cast<int>(HeapObject::kHeaderSize) ==
         static_cast<int>(CodeDataContainer::kPointerFieldsStrongEndOffset));
 
-    if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-      v->VisitCodePointer(obj, obj.RawCodeField(kCodeOffset));
-    }
+    v->VisitCodePointer(obj, obj.RawCodeField(kCodeOffset));
   }
 
   static inline int SizeOf(Map map, HeapObject object) {
