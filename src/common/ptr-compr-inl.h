@@ -46,11 +46,8 @@ void V8HeapCompressionScheme::InitBase(Address base) {
   base_ = base;
 }
 
-constexpr Address kPtrComprCageBaseMask = ~(kPtrComprCageBaseAlignment - 1);
-
 // static
 V8_CONST Address V8HeapCompressionScheme::base() {
-  V8_ASSUME((base_ & kPtrComprCageBaseMask) == base_);
   return reinterpret_cast<Address>(V8_ASSUME_ALIGNED(
       reinterpret_cast<void*>(base_), kPtrComprCageBaseAlignment));
 }
@@ -58,12 +55,6 @@ V8_CONST Address V8HeapCompressionScheme::base() {
 
 // static
 Tagged_t V8HeapCompressionScheme::CompressTagged(Address tagged) {
-  V8_ASSUME(HAS_SMI_TAG(tagged) || (tagged & kPtrComprCageBaseMask) == base_);
-  return static_cast<Tagged_t>(static_cast<uint32_t>(tagged));
-}
-
-// static
-Tagged_t V8HeapCompressionScheme::CompressAny(Address tagged) {
   return static_cast<Tagged_t>(static_cast<uint32_t>(tagged));
 }
 
@@ -141,7 +132,6 @@ void ExternalCodeCompressionScheme::InitBase(Address base) {
 
 // static
 V8_CONST Address ExternalCodeCompressionScheme::base() {
-  V8_ASSUME((base_ & kPtrComprCageBaseMask) == base_);
   return reinterpret_cast<Address>(V8_ASSUME_ALIGNED(
       reinterpret_cast<void*>(base_), kPtrComprCageBaseAlignment));
 }
@@ -149,12 +139,6 @@ V8_CONST Address ExternalCodeCompressionScheme::base() {
 
 // static
 Tagged_t ExternalCodeCompressionScheme::CompressTagged(Address tagged) {
-  V8_ASSUME(HAS_SMI_TAG(tagged) || (tagged & kPtrComprCageBaseMask) == base_);
-  return static_cast<Tagged_t>(static_cast<uint32_t>(tagged));
-}
-
-// static
-Tagged_t ExternalCodeCompressionScheme::CompressAny(Address tagged) {
   return static_cast<Tagged_t>(static_cast<uint32_t>(tagged));
 }
 
@@ -213,9 +197,6 @@ Address V8HeapCompressionScheme::GetPtrComprCageBaseAddress(
 Tagged_t V8HeapCompressionScheme::CompressTagged(Address tagged) {
   UNREACHABLE();
 }
-
-// static
-Tagged_t V8HeapCompressionScheme::CompressAny(Address tagged) { UNREACHABLE(); }
 
 // static
 Address V8HeapCompressionScheme::DecompressTaggedSigned(Tagged_t raw_value) {
