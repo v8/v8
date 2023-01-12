@@ -2569,10 +2569,11 @@ void Shell::TriggerOnProfileEndListener(Isolate* isolate, std::string profile) {
   USE(callback->Call(context, Undefined(isolate), 1, argv));
 }
 
-void WriteToFile(FILE* file, const v8::FunctionCallbackInfo<v8::Value>& args) {
-  for (int i = 0; i < args.Length(); i++) {
+void WriteToFile(FILE* file, const v8::FunctionCallbackInfo<v8::Value>& args,
+                 int first_arg_index = 0) {
+  for (int i = first_arg_index; i < args.Length(); i++) {
     HandleScope handle_scope(args.GetIsolate());
-    if (i != 0) {
+    if (i != first_arg_index) {
       fprintf(file, " ");
     }
 
@@ -2616,6 +2617,55 @@ void Shell::PrintErr(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 void Shell::WriteStdout(const v8::FunctionCallbackInfo<v8::Value>& args) {
   WriteToFile(stdout, args);
+}
+
+// There are two overloads of writeFile().
+//
+// The first parameter is always the filename.
+//
+// If there are exactly 2 arguments, and the second argument is an ArrayBuffer
+// or an ArrayBufferView, write the binary contents into the file.
+//
+// Otherwise, convert arguments to UTF-8 strings, and write them to the file,
+// separated by space.
+void Shell::WriteFile(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  String::Utf8Value file_name(args.GetIsolate(), args[0]);
+  if (*file_name == nullptr) {
+    args.GetIsolate()->ThrowError("Error converting filename to string");
+    return;
+  }
+  FILE* file;
+  if (args.Length() == 2 &&
+      (args[1]->IsArrayBuffer() || args[1]->IsArrayBufferView())) {
+    file = base::Fopen(*file_name, "wb");
+    if (file == nullptr) {
+      args.GetIsolate()->ThrowError("Error opening file");
+      return;
+    }
+
+    void* data;
+    size_t length;
+    if (args[1]->IsArrayBuffer()) {
+      Local<v8::ArrayBuffer> buffer = Local<v8::ArrayBuffer>::Cast(args[1]);
+      length = buffer->ByteLength();
+      data = buffer->Data();
+    } else {
+      Local<v8::ArrayBufferView> buffer_view =
+          Local<v8::ArrayBufferView>::Cast(args[1]);
+      length = buffer_view->ByteLength();
+      data = static_cast<uint8_t*>(buffer_view->Buffer()->Data()) +
+             buffer_view->ByteOffset();
+    }
+    fwrite(data, 1, length, file);
+  } else {
+    file = base::Fopen(*file_name, "w");
+    if (file == nullptr) {
+      args.GetIsolate()->ThrowError("Error opening file");
+      return;
+    }
+    WriteToFile(file, args, 1);
+  }
+  base::Fclose(file);
 }
 
 void Shell::ReadFile(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -3334,6 +3384,10 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
                        FunctionTemplate::New(isolate, PrintErr));
   global_template->Set(isolate, "write",
                        FunctionTemplate::New(isolate, WriteStdout));
+  if (!i::v8_flags.fuzzing) {
+    global_template->Set(isolate, "writeFile",
+                         FunctionTemplate::New(isolate, WriteFile));
+  }
   global_template->Set(isolate, "read",
                        FunctionTemplate::New(isolate, ReadFile));
   global_template->Set(isolate, "readbuffer",

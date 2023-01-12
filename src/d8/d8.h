@@ -618,6 +618,7 @@ class Shell : public i::AllStatic {
   static void QuitOnce(v8::FunctionCallbackInfo<v8::Value>* args);
   static void Quit(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Version(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void WriteFile(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ReadFile(const v8::FunctionCallbackInfo<v8::Value>& args);
   static char* ReadChars(const char* name, int* size_out);
   static MaybeLocal<PrimitiveArray> ReadLines(Isolate* isolate,
