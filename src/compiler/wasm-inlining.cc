@@ -326,6 +326,8 @@ void WasmInliner::InlineCall(Node* call, Node* callee_start, Node* callee_end,
         return_inputs.push_back(graph()->NewNode(common()->Int32Constant(0)));
         if (return_arity == 1) {
           // Tail calls are untyped; we have to type the node here.
+          // TODO(manoskouk): Try to compute a more precise type from the callee
+          // node.
           NodeProperties::SetType(
               input, Type::Wasm({inlinee_sig->GetReturn(0), module()},
                                 graph()->zone()));

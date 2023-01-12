@@ -2266,7 +2266,6 @@ void WasmObjectToJSReturnValue(v8::ReturnValue<v8::Value>& return_value,
   switch (repr) {
     case i::wasm::HeapType::kExtern:
     case i::wasm::HeapType::kString:
-    // TODO(7748): Make sure i31ref is compatible with Smi, or transform here.
     case i::wasm::HeapType::kI31:
       return_value.Set(Utils::ToLocal(value));
       return;

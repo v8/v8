@@ -2238,187 +2238,168 @@ namespace wasm {
 MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
                                    ValueType expected_canonical,
                                    const char** error_message) {
-  DCHECK(expected_canonical.is_reference());
-  switch (expected_canonical.kind()) {
-    case kRefNull:
-      if (value->IsNull(isolate)) {
-        HeapType::Representation repr =
-            expected_canonical.heap_representation();
-        switch (repr) {
-          case HeapType::kStringViewWtf8:
-            *error_message = "stringview_wtf8 has no JS representation";
-            return {};
-          case HeapType::kStringViewWtf16:
-            *error_message = "stringview_wtf16 has no JS representation";
-            return {};
-          case HeapType::kStringViewIter:
-            *error_message = "stringview_iter has no JS representation";
-            return {};
-          default:
-            return value;
-        }
-      }
-      V8_FALLTHROUGH;
-    case kRef: {
-      // TODO(7748): Streamline interaction of undefined and (ref any).
-      HeapType::Representation repr = expected_canonical.heap_representation();
-      switch (repr) {
-        case HeapType::kFunc: {
-          if (!(WasmExternalFunction::IsWasmExternalFunction(*value) ||
-                WasmCapiFunction::IsWasmCapiFunction(*value))) {
-            *error_message =
-                "function-typed object must be null (if nullable) or a Wasm "
-                "function object";
-            return {};
-          }
-          return MaybeHandle<Object>(Handle<JSFunction>::cast(value)
-                                         ->shared()
-                                         .wasm_function_data()
-                                         .internal(),
-                                     isolate);
-        }
-        case HeapType::kExtern: {
-          if (!value->IsNull(isolate)) return value;
-          *error_message = "null is not allowed for (ref extern)";
-          return {};
-        }
-        case HeapType::kAny: {
-          if (value->IsSmi()) return CanonicalizeSmi(value, isolate);
-          if (value->IsHeapNumber()) {
-            return CanonicalizeHeapNumber(value, isolate);
-          }
-          if (!value->IsNull(isolate)) return value;
-          *error_message = "null is not allowed for (ref any)";
-          return {};
-        }
-        case HeapType::kStruct: {
-          if (value->IsWasmStruct()) {
-            return value;
-          }
-          *error_message =
-              "structref object must be null (if nullable) or a wasm struct";
-          return {};
-        }
-        case HeapType::kArray: {
-          if (value->IsWasmArray()) {
-            return value;
-          }
-          *error_message =
-              "arrayref object must be null (if nullable) or a wasm array";
-          return {};
-        }
-        case HeapType::kEq: {
-          if (value->IsSmi()) {
-            Handle<Object> truncated = CanonicalizeSmi(value, isolate);
-            if (truncated->IsSmi()) return truncated;
-          } else if (value->IsHeapNumber()) {
-            Handle<Object> truncated = CanonicalizeHeapNumber(value, isolate);
-            if (truncated->IsSmi()) return truncated;
-          } else if (value->IsWasmStruct() || value->IsWasmArray()) {
-            return value;
-          }
-          *error_message =
-              "eqref object must be null (if nullable), or a wasm "
-              "struct/array, or a Number that fits in i31ref range";
-          return {};
-        }
-        case HeapType::kI31: {
-          if (value->IsSmi()) {
-            Handle<Object> truncated = CanonicalizeSmi(value, isolate);
-            if (truncated->IsSmi()) return truncated;
-          } else if (value->IsHeapNumber()) {
-            Handle<Object> truncated = CanonicalizeHeapNumber(value, isolate);
-            if (truncated->IsSmi()) return truncated;
-          }
-          *error_message =
-              "i31ref object must be null (if nullable) or a Number that fits "
-              "in i31ref range";
-          return {};
-        }
-        case HeapType::kString:
-          if (value->IsString()) return value;
-          *error_message = "wrong type (expected a string)";
-          return {};
-        case HeapType::kStringViewWtf8:
-          *error_message = "stringview_wtf8 has no JS representation";
-          return {};
-        case HeapType::kStringViewWtf16:
-          *error_message = "stringview_wtf16 has no JS representation";
-          return {};
-        case HeapType::kStringViewIter:
-          *error_message = "stringview_iter has no JS representation";
-          return {};
-        case HeapType::kNoFunc:
-        case HeapType::kNoExtern:
-        case HeapType::kNone: {
-          *error_message = "only null allowed for null types";
-          return {};
-        }
-        default: {
-          auto type_canonicalizer = GetWasmEngine()->type_canonicalizer();
+  DCHECK(expected_canonical.is_object_reference());
+  if (expected_canonical.kind() == kRefNull && value->IsNull(isolate)) {
+    switch (expected_canonical.heap_representation()) {
+      case HeapType::kStringViewWtf8:
+        *error_message = "stringview_wtf8 has no JS representation";
+        return {};
+      case HeapType::kStringViewWtf16:
+        *error_message = "stringview_wtf16 has no JS representation";
+        return {};
+      case HeapType::kStringViewIter:
+        *error_message = "stringview_iter has no JS representation";
+        return {};
+      default:
+        return value;
+    }
+  }
 
-          if (WasmExportedFunction::IsWasmExportedFunction(*value)) {
-            WasmExportedFunction function = WasmExportedFunction::cast(*value);
-            uint32_t real_type_index = function.shared()
-                                           .wasm_exported_function_data()
-                                           .canonical_type_index();
-            if (!type_canonicalizer->IsCanonicalSubtype(
-                    real_type_index, expected_canonical.ref_index())) {
-              *error_message =
-                  "assigned exported function has to be a subtype of the "
-                  "expected type";
-              return {};
-            }
-            return WasmInternalFunction::FromExternal(value, isolate);
-          } else if (WasmJSFunction::IsWasmJSFunction(*value)) {
-            if (!Handle<WasmJSFunction>::cast(value)->MatchesSignature(
-                    expected_canonical.ref_index())) {
-              *error_message =
-                  "assigned WebAssembly.Function has to be a subtype of the "
-                  "expected type";
-              return {};
-            }
-            return WasmInternalFunction::FromExternal(value, isolate);
-          } else if (WasmCapiFunction::IsWasmCapiFunction(*value)) {
-            if (!Handle<WasmCapiFunction>::cast(value)->MatchesSignature(
-                    expected_canonical.ref_index())) {
-              *error_message =
-                  "assigned C API function has to be a subtype of the expected "
-                  "type";
-              return {};
-            }
-            return WasmInternalFunction::FromExternal(value, isolate);
-          } else if (value->IsWasmStruct() || value->IsWasmArray()) {
-            auto wasm_obj = Handle<WasmObject>::cast(value);
-            WasmTypeInfo type_info = wasm_obj->map().wasm_type_info();
-            uint32_t real_idx = type_info.type_index();
-            const WasmModule* real_module = type_info.instance().module();
-            uint32_t real_canonical_index =
-                real_module->isorecursive_canonical_type_ids[real_idx];
-            if (!type_canonicalizer->IsCanonicalSubtype(
-                    real_canonical_index, expected_canonical.ref_index())) {
-              *error_message = "object is not a subtype of expected type";
-              return {};
-            }
-            return value;
-          } else {
-            *error_message = "JS object does not match expected wasm type";
-            return {};
-          }
+  // TODO(7748): Streamline interaction of undefined and (ref any).
+  switch (expected_canonical.heap_representation()) {
+    case HeapType::kFunc: {
+      if (!(WasmExternalFunction::IsWasmExternalFunction(*value) ||
+            WasmCapiFunction::IsWasmCapiFunction(*value))) {
+        *error_message =
+            "function-typed object must be null (if nullable) or a Wasm "
+            "function object";
+        return {};
+      }
+      return MaybeHandle<Object>(Handle<JSFunction>::cast(value)
+                                     ->shared()
+                                     .wasm_function_data()
+                                     .internal(),
+                                 isolate);
+    }
+    case HeapType::kExtern: {
+      if (!value->IsNull(isolate)) return value;
+      *error_message = "null is not allowed for (ref extern)";
+      return {};
+    }
+    case HeapType::kAny: {
+      if (value->IsSmi()) return CanonicalizeSmi(value, isolate);
+      if (value->IsHeapNumber()) {
+        return CanonicalizeHeapNumber(value, isolate);
+      }
+      if (!value->IsNull(isolate)) return value;
+      *error_message = "null is not allowed for (ref any)";
+      return {};
+    }
+    case HeapType::kStruct: {
+      if (value->IsWasmStruct()) {
+        return value;
+      }
+      *error_message =
+          "structref object must be null (if nullable) or a wasm struct";
+      return {};
+    }
+    case HeapType::kArray: {
+      if (value->IsWasmArray()) {
+        return value;
+      }
+      *error_message =
+          "arrayref object must be null (if nullable) or a wasm array";
+      return {};
+    }
+    case HeapType::kEq: {
+      if (value->IsSmi()) {
+        Handle<Object> truncated = CanonicalizeSmi(value, isolate);
+        if (truncated->IsSmi()) return truncated;
+      } else if (value->IsHeapNumber()) {
+        Handle<Object> truncated = CanonicalizeHeapNumber(value, isolate);
+        if (truncated->IsSmi()) return truncated;
+      } else if (value->IsWasmStruct() || value->IsWasmArray()) {
+        return value;
+      }
+      *error_message =
+          "eqref object must be null (if nullable), or a wasm "
+          "struct/array, or a Number that fits in i31ref range";
+      return {};
+    }
+    case HeapType::kI31: {
+      if (value->IsSmi()) {
+        Handle<Object> truncated = CanonicalizeSmi(value, isolate);
+        if (truncated->IsSmi()) return truncated;
+      } else if (value->IsHeapNumber()) {
+        Handle<Object> truncated = CanonicalizeHeapNumber(value, isolate);
+        if (truncated->IsSmi()) return truncated;
+      }
+      *error_message =
+          "i31ref object must be null (if nullable) or a Number that fits "
+          "in i31ref range";
+      return {};
+    }
+    case HeapType::kString:
+      if (value->IsString()) return value;
+      *error_message = "wrong type (expected a string)";
+      return {};
+    case HeapType::kStringViewWtf8:
+      *error_message = "stringview_wtf8 has no JS representation";
+      return {};
+    case HeapType::kStringViewWtf16:
+      *error_message = "stringview_wtf16 has no JS representation";
+      return {};
+    case HeapType::kStringViewIter:
+      *error_message = "stringview_iter has no JS representation";
+      return {};
+    case HeapType::kNoFunc:
+    case HeapType::kNoExtern:
+    case HeapType::kNone: {
+      *error_message = "only null allowed for null types";
+      return {};
+    }
+    default: {
+      auto type_canonicalizer = GetWasmEngine()->type_canonicalizer();
+
+      if (WasmExportedFunction::IsWasmExportedFunction(*value)) {
+        WasmExportedFunction function = WasmExportedFunction::cast(*value);
+        uint32_t real_type_index = function.shared()
+                                       .wasm_exported_function_data()
+                                       .canonical_type_index();
+        if (!type_canonicalizer->IsCanonicalSubtype(
+                real_type_index, expected_canonical.ref_index())) {
+          *error_message =
+              "assigned exported function has to be a subtype of the "
+              "expected type";
+          return {};
         }
+        return WasmInternalFunction::FromExternal(value, isolate);
+      } else if (WasmJSFunction::IsWasmJSFunction(*value)) {
+        if (!WasmJSFunction::cast(*value).MatchesSignature(
+                expected_canonical.ref_index())) {
+          *error_message =
+              "assigned WebAssembly.Function has to be a subtype of the "
+              "expected type";
+          return {};
+        }
+        return WasmInternalFunction::FromExternal(value, isolate);
+      } else if (WasmCapiFunction::IsWasmCapiFunction(*value)) {
+        if (!WasmCapiFunction::cast(*value).MatchesSignature(
+                expected_canonical.ref_index())) {
+          *error_message =
+              "assigned C API function has to be a subtype of the expected "
+              "type";
+          return {};
+        }
+        return WasmInternalFunction::FromExternal(value, isolate);
+      } else if (value->IsWasmStruct() || value->IsWasmArray()) {
+        auto wasm_obj = Handle<WasmObject>::cast(value);
+        WasmTypeInfo type_info = wasm_obj->map().wasm_type_info();
+        uint32_t real_idx = type_info.type_index();
+        const WasmModule* real_module = type_info.instance().module();
+        uint32_t real_canonical_index =
+            real_module->isorecursive_canonical_type_ids[real_idx];
+        if (!type_canonicalizer->IsCanonicalSubtype(
+                real_canonical_index, expected_canonical.ref_index())) {
+          *error_message = "object is not a subtype of expected type";
+          return {};
+        }
+        return value;
+      } else {
+        *error_message = "JS object does not match expected wasm type";
+        return {};
       }
     }
-    case kRtt:
-    case kI8:
-    case kI16:
-    case kI32:
-    case kI64:
-    case kF32:
-    case kF64:
-    case kS128:
-    case kVoid:
-    case kBottom:
-      UNREACHABLE();
   }
 }
 

@@ -5414,13 +5414,15 @@ Node* WasmGraphBuilder::ArrayNew(uint32_t array_index,
     gasm_->Goto(&loop, Int32Constant(0));
   }
   gasm_->Bind(&loop);
-  if (initial_value == nullptr) initial_value = DefaultValue(element_type);
   {
     Node* index = loop.PhiAt(0);
     Node* check = gasm_->UintLessThan(index, length);
     gasm_->GotoIfNot(check, &done);
-    gasm_->ArraySet(a, index, initial_value, type);
-    index = gasm_->IntAdd(index, Int32Constant(1));
+    gasm_->ArraySet(
+        a, index,
+        initial_value != nullptr ? initial_value : DefaultValue(element_type),
+        type);
+    index = gasm_->Int32Add(index, Int32Constant(1));
     gasm_->Goto(&loop, index);
   }
   gasm_->Bind(&done);
@@ -6581,11 +6583,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     }
   }
 
-  enum UnwrapExternalFunctions : bool {
-    kUnwrapWasmExternalFunctions = true,
-    kLeaveFunctionsAlone = false
-  };
-
   Node* BuildChangeBigIntToInt64(Node* input, Node* context,
                                  Node* frame_state) {
     Node* target;
@@ -6651,8 +6648,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
             // Make sure ValueType fits in a Smi.
             static_assert(wasm::ValueType::kLastUsedBit + 1 <= kSmiValueSize);
 
-            // The instance node is always defined: if an instance is not
-            // available, it is the undefined value.
             if (type.has_index()) {
               DCHECK_NOT_NULL(module);
               uint32_t canonical_index =
