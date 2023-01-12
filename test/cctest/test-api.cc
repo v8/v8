@@ -16557,11 +16557,13 @@ TEST(TestMemorySavingsMode) {
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  START_ALLOW_USE_DEPRECATED();
   CHECK(!i_isolate->IsMemorySavingsModeActive());
   isolate->EnableMemorySavingsMode();
   CHECK(i_isolate->IsMemorySavingsModeActive());
   isolate->DisableMemorySavingsMode();
   CHECK(!i_isolate->IsMemorySavingsModeActive());
+  END_ALLOW_USE_DEPRECATED();
 }
 
 TEST(Regress2333) {

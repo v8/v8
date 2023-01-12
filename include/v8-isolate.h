@@ -1327,11 +1327,13 @@ class V8_EXPORT Isolate {
    * V8 uses this notification to guide heuristics which may result in a
    * smaller memory footprint at the cost of reduced runtime performance.
    */
+  V8_DEPRECATED("Use IsolateInBackgroundNotification() instead")
   void EnableMemorySavingsMode();
 
   /**
    * Optional notification which will disable the memory savings mode.
    */
+  V8_DEPRECATED("Use IsolateInBackgroundNotification() instead")
   void DisableMemorySavingsMode();
 
   /**
