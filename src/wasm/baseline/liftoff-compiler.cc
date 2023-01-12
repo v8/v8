@@ -2962,9 +2962,9 @@ class LiftoffCompiler {
   Register BoundsCheckMem(FullDecoder* decoder, uint32_t access_size,
                           uint64_t offset, LiftoffRegister index,
                           LiftoffRegList pinned, ForceCheck force_check) {
-    const bool statically_oob =
-        !base::IsInBounds<uintptr_t>(offset, access_size,
-                                     env_->max_memory_size);
+    // This is ensured by the decoder.
+    DCHECK(base::IsInBounds<uintptr_t>(offset, access_size,
+                                       env_->module->max_memory_size));
 
     // After bounds checking, we know that the index must be ptrsize, hence only
     // look at the lower word on 32-bit systems (the high word is bounds-checked
@@ -2980,8 +2980,7 @@ class LiftoffCompiler {
     // Early return for trap handler.
     DCHECK_IMPLIES(env_->module->is_memory64,
                    env_->bounds_checks == kExplicitBoundsChecks);
-    if (!force_check && !statically_oob &&
-        env_->bounds_checks == kTrapHandler) {
+    if (!force_check && env_->bounds_checks == kTrapHandler) {
       // With trap handlers we should not have a register pair as input (we
       // would only return the lower half).
       DCHECK(index.is_gp());
@@ -2995,18 +2994,12 @@ class LiftoffCompiler {
     Label* trap_label =
         AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapMemOutOfBounds, 0);
 
-    if (V8_UNLIKELY(statically_oob)) {
-      __ emit_jump(trap_label);
-      decoder->SetSucceedingCodeDynamicallyUnreachable();
-      return no_reg;
-    }
-
     // Convert the index to ptrsize, bounds-checking the high word on 32-bit
     // systems for memory64.
     if (!env_->module->is_memory64) {
       __ emit_u32_to_uintptr(index_ptrsize, index_ptrsize);
     } else if (kSystemPointerSize == kInt32Size) {
-      DCHECK_GE(kMaxUInt32, env_->max_memory_size);
+      DCHECK_GE(kMaxUInt32, env_->module->max_memory_size);
       FREEZE_STATE(trapping);
       __ emit_cond_jump(kNotEqualZero, trap_label, kI32, index.high_gp(),
                         no_reg, trapping);
@@ -3026,7 +3019,7 @@ class LiftoffCompiler {
     // If the end offset is larger than the smallest memory, dynamically check
     // the end offset against the actual memory size, which is not known at
     // compile time. Otherwise, only one check is required (see below).
-    if (end_offset > env_->min_memory_size) {
+    if (end_offset > env_->module->min_memory_size) {
       __ emit_cond_jump(kUnsignedGreaterEqual, trap_label, kIntPtrKind,
                         end_offset_reg.gp(), mem_size.gp(), trapping);
     }
@@ -3139,7 +3132,7 @@ class LiftoffCompiler {
 
     if (effective_offset < index  // overflow
         || !base::IsInBounds<uintptr_t>(effective_offset, access_size,
-                                        env_->min_memory_size)) {
+                                        env_->module->min_memory_size)) {
       return false;
     }
 
@@ -3191,7 +3184,6 @@ class LiftoffCompiler {
       LiftoffRegister full_index = __ PopToRegister();
       index = BoundsCheckMem(decoder, type.size(), offset, full_index, {},
                              kDontForceCheck);
-      if (index == no_reg) return;
 
       SCOPED_CODE_COMMENT("load from memory");
       LiftoffRegList pinned{index};
@@ -3235,7 +3227,6 @@ class LiftoffCompiler {
         transform == LoadTransformationKind::kExtend ? 8 : type.size();
     Register index = BoundsCheckMem(decoder, access_size, imm.offset,
                                     full_index, {}, kDontForceCheck);
-    if (index == no_reg) return;
 
     uintptr_t offset = imm.offset;
     LiftoffRegList pinned{index};
@@ -3274,7 +3265,6 @@ class LiftoffCompiler {
     LiftoffRegister full_index = __ PopToRegister();
     Register index = BoundsCheckMem(decoder, type.size(), imm.offset,
                                     full_index, pinned, kDontForceCheck);
-    if (index == no_reg) return;
 
     uintptr_t offset = imm.offset;
     pinned.set(index);
@@ -3325,7 +3315,6 @@ class LiftoffCompiler {
       LiftoffRegister full_index = __ PopToRegister(pinned);
       index = BoundsCheckMem(decoder, type.size(), imm.offset, full_index,
                              pinned, kDontForceCheck);
-      if (index == no_reg) return;
 
       pinned.set(index);
       SCOPED_CODE_COMMENT("store to memory");
@@ -3358,7 +3347,6 @@ class LiftoffCompiler {
     LiftoffRegister full_index = __ PopToRegister(pinned);
     Register index = BoundsCheckMem(decoder, type.size(), imm.offset,
                                     full_index, pinned, kDontForceCheck);
-    if (index == no_reg) return;
 
     uintptr_t offset = imm.offset;
     pinned.set(index);
@@ -4756,7 +4744,6 @@ class LiftoffCompiler {
     LiftoffRegister full_index = __ PopToRegister(pinned);
     Register index = BoundsCheckMem(decoder, type.size(), imm.offset,
                                     full_index, pinned, kDoForceCheck);
-    if (index == no_reg) return;
 
     pinned.set(index);
     AlignmentCheckMem(decoder, type.size(), imm.offset, index, pinned);
@@ -4778,7 +4765,6 @@ class LiftoffCompiler {
     LiftoffRegister full_index = __ PopToRegister();
     Register index = BoundsCheckMem(decoder, type.size(), imm.offset,
                                     full_index, {}, kDoForceCheck);
-    if (index == no_reg) return;
 
     LiftoffRegList pinned{index};
     AlignmentCheckMem(decoder, type.size(), imm.offset, index, pinned);
@@ -4824,7 +4810,6 @@ class LiftoffCompiler {
     LiftoffRegister full_index = __ PopToRegister(pinned);
     Register index = BoundsCheckMem(decoder, type.size(), imm.offset,
                                     full_index, pinned, kDoForceCheck);
-    if (index == no_reg) return;
 
     pinned.set(index);
     AlignmentCheckMem(decoder, type.size(), imm.offset, index, pinned);
@@ -4848,7 +4833,6 @@ class LiftoffCompiler {
     LiftoffRegister full_index = __ PeekToRegister(2, {});
     Register index = BoundsCheckMem(decoder, type.size(), imm.offset,
                                     full_index, {}, kDoForceCheck);
-    if (index == no_reg) return;
     LiftoffRegList pinned{index};
     AlignmentCheckMem(decoder, type.size(), imm.offset, index, pinned);
 
@@ -4883,7 +4867,6 @@ class LiftoffCompiler {
     LiftoffRegister full_index = __ PopToRegister(pinned);
     Register index = BoundsCheckMem(decoder, type.size(), imm.offset,
                                     full_index, pinned, kDoForceCheck);
-    if (index == no_reg) return;
     pinned.set(index);
     AlignmentCheckMem(decoder, type.size(), imm.offset, index, pinned);
 
@@ -4930,7 +4913,6 @@ class LiftoffCompiler {
       Register index_reg =
           BoundsCheckMem(decoder, value_kind_size(kind), imm.offset, full_index,
                          pinned, kDoForceCheck);
-      if (index_reg == no_reg) return;
       pinned.set(index_reg);
       AlignmentCheckMem(decoder, value_kind_size(kind), imm.offset, index_reg,
                         pinned);
@@ -5011,7 +4993,6 @@ class LiftoffCompiler {
     LiftoffRegister full_index = __ PeekToRegister(1, {});
     Register index_reg = BoundsCheckMem(decoder, kInt32Size, imm.offset,
                                         full_index, {}, kDoForceCheck);
-    if (index_reg == no_reg) return;
     LiftoffRegList pinned{index_reg};
     AlignmentCheckMem(decoder, kInt32Size, imm.offset, index_reg, pinned);
 
@@ -5194,7 +5175,7 @@ class LiftoffCompiler {
     // For memory64 on 32-bit systems, combine all high words for a zero-check
     // and only use the low words afterwards. This keeps the register pressure
     // managable.
-    DCHECK_GE(kMaxUInt32, env_->max_memory_size);
+    DCHECK_GE(kMaxUInt32, env_->module->max_memory_size);
     pinned->set(reg.low());
     if (*high_word == no_reg) {
       // Choose a register to hold the (combination of) high word(s). It cannot

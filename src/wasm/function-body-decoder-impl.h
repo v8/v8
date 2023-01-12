@@ -16,6 +16,7 @@
 
 #include <optional>
 
+#include "src/base/bounds.h"
 #include "src/base/small-vector.h"
 #include "src/base/strings.h"
 #include "src/base/v8-fallthrough.h"
@@ -4155,7 +4156,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     ValueType index_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
     Value index = Peek(0, 0, index_type);
     Value result = CreateValue(type.value_type());
-    CALL_INTERFACE_IF_OK_AND_REACHABLE(LoadMem, type, imm, index, &result);
+    if (V8_LIKELY(!CheckStaticallyOutOfBounds(type.size(), imm.offset))) {
+      CALL_INTERFACE_IF_OK_AND_REACHABLE(LoadMem, type, imm, index, &result);
+    }
     Drop(index);
     Push(result);
     return prefix_len + imm.length;
@@ -4172,8 +4175,10 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     ValueType index_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
     Value index = Peek(0, 0, index_type);
     Value result = CreateValue(kWasmS128);
-    CALL_INTERFACE_IF_OK_AND_REACHABLE(LoadTransform, type, transform, imm,
-                                       index, &result);
+    if (V8_LIKELY(!CheckStaticallyOutOfBounds(type.size(), imm.offset))) {
+      CALL_INTERFACE_IF_OK_AND_REACHABLE(LoadTransform, type, transform, imm,
+                                         index, &result);
+    }
     Drop(index);
     Push(result);
     return opcode_length + imm.length;
@@ -4190,8 +4195,10 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     Value index = Peek(1, 0, kWasmI32);
 
     Value result = CreateValue(kWasmS128);
-    CALL_INTERFACE_IF_OK_AND_REACHABLE(LoadLane, type, v128, index, mem_imm,
-                                       lane_imm.lane, &result);
+    if (V8_LIKELY(!CheckStaticallyOutOfBounds(type.size(), mem_imm.offset))) {
+      CALL_INTERFACE_IF_OK_AND_REACHABLE(LoadLane, type, v128, index, mem_imm,
+                                         lane_imm.lane, &result);
+    }
     Drop(2);
     Push(result);
     return opcode_length + mem_imm.length + lane_imm.length;
@@ -4208,10 +4215,22 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     Value v128 = Peek(0, 1, kWasmS128);
     Value index = Peek(1, 0, kWasmI32);
 
-    CALL_INTERFACE_IF_OK_AND_REACHABLE(StoreLane, type, mem_imm, index, v128,
-                                       lane_imm.lane);
+    if (V8_LIKELY(!CheckStaticallyOutOfBounds(type.size(), mem_imm.offset))) {
+      CALL_INTERFACE_IF_OK_AND_REACHABLE(StoreLane, type, mem_imm, index, v128,
+                                         lane_imm.lane);
+    }
     Drop(2);
     return opcode_length + mem_imm.length + lane_imm.length;
+  }
+
+  bool CheckStaticallyOutOfBounds(uintptr_t size, uintptr_t offset) {
+    const bool statically_oob = !base::IsInBounds<uintptr_t>(
+        offset, size, this->module_->max_memory_size);
+    if (statically_oob) {
+      CALL_INTERFACE_IF_OK_AND_REACHABLE(Trap, TrapReason::kTrapMemOutOfBounds);
+      SetSucceedingCodeDynamicallyUnreachable();
+    }
+    return statically_oob;
   }
 
   int DecodeStoreMem(StoreType store, int prefix_len = 1) {
@@ -4221,7 +4240,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     Value value = Peek(0, 1, store.value_type());
     ValueType index_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
     Value index = Peek(1, 0, index_type);
-    CALL_INTERFACE_IF_OK_AND_REACHABLE(StoreMem, store, imm, index, value);
+    if (V8_LIKELY(!CheckStaticallyOutOfBounds(store.size(), imm.offset))) {
+      CALL_INTERFACE_IF_OK_AND_REACHABLE(StoreMem, store, imm, index, value);
+    }
     Drop(2);
     return prefix_len + imm.length;
   }
@@ -6148,14 +6169,20 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     CHECK(!this->module_->is_memory64);
     ArgVector args = PeekArgs(sig);
     if (sig->return_count() == 0) {
-      CALL_INTERFACE_IF_OK_AND_REACHABLE(AtomicOp, opcode, base::VectorOf(args),
-                                         imm, nullptr);
+      if (V8_LIKELY(
+              !CheckStaticallyOutOfBounds(memtype.MemSize(), imm.offset))) {
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(AtomicOp, opcode,
+                                           base::VectorOf(args), imm, nullptr);
+      }
       DropArgs(sig);
     } else {
       DCHECK_EQ(1, sig->return_count());
       Value result = CreateValue(sig->GetReturn());
-      CALL_INTERFACE_IF_OK_AND_REACHABLE(AtomicOp, opcode, base::VectorOf(args),
-                                         imm, &result);
+      if (V8_LIKELY(
+              !CheckStaticallyOutOfBounds(memtype.MemSize(), imm.offset))) {
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(AtomicOp, opcode,
+                                           base::VectorOf(args), imm, &result);
+      }
       DropArgs(sig);
       Push(result);
     }

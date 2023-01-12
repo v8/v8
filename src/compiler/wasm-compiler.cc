@@ -3478,9 +3478,9 @@ WasmGraphBuilder::BoundsCheckMem(uint8_t access_size, Node* index,
   // machine.
   if (offset > std::numeric_limits<uintptr_t>::max() ||
       !base::IsInBounds<uintptr_t>(offset, access_size,
-                                   env_->max_memory_size)) {
+                                   env_->module->max_memory_size)) {
     // The access will be out of bounds, even for the largest memory.
-    TrapIfEq32(wasm::kTrapMemOutOfBounds, Int32Constant(0), 0, position);
+    Trap(wasm::TrapReason::kTrapMemOutOfBounds, position);
     return {gasm_->UintPtrConstant(0), kOutOfBounds};
   }
 
@@ -3516,8 +3516,8 @@ WasmGraphBuilder::BoundsCheckMem(uint8_t access_size, Node* index,
   uintptr_t end_offset = offset + access_size - 1u;
 
   UintPtrMatcher match(index);
-  if (match.HasResolvedValue() && end_offset <= env_->min_memory_size &&
-      match.ResolvedValue() < env_->min_memory_size - end_offset) {
+  if (match.HasResolvedValue() && end_offset <= env_->module->min_memory_size &&
+      match.ResolvedValue() < env_->module->min_memory_size - end_offset) {
     // The input index is a constant and everything is statically within
     // bounds of the smallest possible memory.
     return {index, kInBounds};
@@ -3530,7 +3530,7 @@ WasmGraphBuilder::BoundsCheckMem(uint8_t access_size, Node* index,
 
   Node* mem_size = instance_cache_->mem_size;
   Node* end_offset_node = mcgraph_->UintPtrConstant(end_offset);
-  if (end_offset > env_->min_memory_size) {
+  if (end_offset > env_->module->min_memory_size) {
     // The end offset is larger than the smallest memory.
     // Dynamically check the end offset against the dynamic memory size.
     Node* cond = gasm_->UintLessThan(end_offset_node, mem_size);

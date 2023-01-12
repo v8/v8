@@ -125,6 +125,8 @@ byte* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared) {
                                ? test_module_->maximum_pages
                                : initial_pages;
   test_module_->has_memory = true;
+  test_module_->min_memory_size = initial_pages * kWasmPageSize;
+  test_module_->max_memory_size = maximum_pages * kWasmPageSize;
 
   // Create the WasmMemoryObject.
   Handle<WasmMemoryObject> memory_object =

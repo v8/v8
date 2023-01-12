@@ -848,6 +848,7 @@ class ModuleDecoderTemplate : public Decoder {
           break;
       }
     }
+    UpdateMemorySizes();
     tracer_.ImportsDone();
   }
 
@@ -939,6 +940,20 @@ class ModuleDecoderTemplate : public Decoder {
           module_->has_maximum_pages, max_pages, &module_->maximum_pages,
           module_->is_memory64 ? k64BitLimits : k32BitLimits);
     }
+    UpdateMemorySizes();
+  }
+
+  void UpdateMemorySizes() {
+    // Set min and max memory size.
+    const uintptr_t platform_max_pages = module_->is_memory64
+                                             ? kV8MaxWasmMemory64Pages
+                                             : kV8MaxWasmMemory32Pages;
+    module_->min_memory_size =
+        std::min(platform_max_pages, uintptr_t{module_->initial_pages}) *
+        kWasmPageSize;
+    module_->max_memory_size =
+        std::min(platform_max_pages, uintptr_t{module_->maximum_pages}) *
+        kWasmPageSize;
   }
 
   void DecodeGlobalSection() {
