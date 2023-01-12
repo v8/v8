@@ -531,11 +531,11 @@ char* ToStringFormatter::ProcessLevel(RecursionLevel* level, Digits chunk,
 
   // Step 5: Recurse.
   char* end_of_right_part = ProcessLevel(level->next_, right, out, false);
+  if (processor_->should_terminate()) return out;
   // The recursive calls are required and hence designed to write exactly as
   // many characters as their level is responsible for.
   DCHECK(end_of_right_part == out - level->char_count_);
   USE(end_of_right_part);
-  if (processor_->should_terminate()) return out;
   // We intentionally don't use {end_of_right_part} here to be prepared for
   // potential future multi-threaded execution.
   return ProcessLevel(level->next_, left, out - level->char_count_,
