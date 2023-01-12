@@ -1073,8 +1073,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     basr(r14, r1);
   }
 
-  void call(Handle<Code> target, RelocInfo::Mode rmode);
-  void jump(Handle<Code> target, RelocInfo::Mode rmode, Condition cond);
+  void call(Handle<CodeT> target, RelocInfo::Mode rmode);
+  void jump(Handle<CodeT> target, RelocInfo::Mode rmode, Condition cond);
 
 // S390 instruction generation
 #define DECLARE_VRR_A_INSTRUCTIONS(name, opcode_name, opcode_value)           \

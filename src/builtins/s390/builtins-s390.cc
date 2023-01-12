@@ -36,12 +36,12 @@ namespace internal {
 
 namespace {
 
-static void AssertCodeIsBaseline(MacroAssembler* masm, Register code,
-                                 Register scratch) {
+static void AssertCodeTIsBaseline(MacroAssembler* masm, Register code,
+                                  Register scratch) {
   DCHECK(!AreAliased(code, scratch));
   // Verify that the code kind is baseline code via the CodeKind.
-  __ LoadU32(scratch, FieldMemOperand(code, Code::kFlagsOffset));
-  __ DecodeField<Code::KindField>(scratch);
+  __ LoadU32(scratch, FieldMemOperand(code, CodeDataContainer::kFlagsOffset));
+  __ DecodeField<CodeDataContainer::KindField>(scratch);
   __ CmpS64(scratch, Operand(static_cast<int>(CodeKind::BASELINE)));
   __ Assert(eq, AbortReason::kExpectedBaselineData);
 }
@@ -57,7 +57,7 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
   if (v8_flags.debug_code) {
     Label not_baseline;
     __ b(ne, &not_baseline);
-    AssertCodeIsBaseline(masm, sfi_data, scratch1);
+    AssertCodeTIsBaseline(masm, sfi_data, scratch1);
     __ beq(is_baseline);
     __ bind(&not_baseline);
   } else {
@@ -149,8 +149,9 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   }
 
   if (v8_flags.debug_code) {
-    AssertCodeIsBaseline(masm, code_obj, r5);
+    AssertCodeTIsBaseline(masm, code_obj, r5);
   }
+  __ LoadCodeDataContainerCodeNonBuiltin(code_obj, code_obj);
 
   // Load the feedback vector.
   Register feedback_vector = r4;
@@ -312,6 +313,8 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
     // JavaScript frame. This is the case then OSR is triggered from bytecode.
     __ LeaveFrame(StackFrame::STUB);
   }
+
+  __ LoadCodeDataContainerCodeNonBuiltin(r2, r2);
 
   // Load deoptimization data from the code object.
   // <deopt_data> = <code>[#deoptimization_data_offset]
@@ -725,7 +728,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ mov(r3, r6);
     static_assert(kJavaScriptCallCodeStartRegister == r4, "ABI mismatch");
     __ LoadTaggedPointerField(r4, FieldMemOperand(r3, JSFunction::kCodeOffset));
-    __ JumpCodeObject(r4);
+    __ JumpCodeDataContainerObject(r4);
   }
 
   __ bind(&prepare_step_in_if_stepping);
@@ -934,7 +937,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
 
   // Invoke the function by calling through JS entry trampoline builtin and
   // pop the faked function when we return.
-  Handle<Code> trampoline_code =
+  Handle<CodeT> trampoline_code =
       masm->isolate()->builtins()->code_handle(entry_trampoline);
   USE(pushed_stack_space);
   DCHECK_EQ(kPushedStackSpace, pushed_stack_space);
@@ -1084,9 +1087,9 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ mov(r9, r6);
 
     // Invoke the code.
-    Handle<Code> builtin = is_construct
-                               ? BUILTIN_CODE(masm->isolate(), Construct)
-                               : masm->isolate()->builtins()->Call();
+    Handle<CodeT> builtin = is_construct
+                                ? BUILTIN_CODE(masm->isolate(), Construct)
+                                : masm->isolate()->builtins()->Call();
     __ Call(builtin, RelocInfo::CODE_TARGET);
 
     // Exit the JS frame and remove the parameters (except function), and
@@ -1628,7 +1631,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
     __ mov(r4, kInterpreterBytecodeArrayRegister);
     static_assert(kJavaScriptCallCodeStartRegister == r4, "ABI mismatch");
     __ ReplaceClosureCodeWithOptimizedCode(r4, closure, ip, r1);
-    __ JumpCodeObject(r4);
+    __ JumpCodeDataContainerObject(r4);
 
     __ bind(&install_baseline_code);
     __ GenerateTailCallToReturnedCode(Runtime::kInstallBaselineCode);
@@ -1753,7 +1756,7 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
 
     // Tail call to the array construct stub (still in the caller
     // context at this point).
-    Handle<Code> code = BUILTIN_CODE(masm->isolate(), ArrayConstructorImpl);
+    Handle<CodeT> code = BUILTIN_CODE(masm->isolate(), ArrayConstructorImpl);
     __ Jump(code, RelocInfo::CODE_TARGET);
   } else if (mode == InterpreterPushArgsMode::kWithFinalSpread) {
     // Call the constructor with r2, r3, and r5 unmodified.
@@ -1797,7 +1800,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
 
   __ LoadTaggedPointerField(
       r4, FieldMemOperand(r4, InterpreterData::kInterpreterTrampolineOffset));
-  __ AddS64(r4, r4, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ LoadCodeDataContainerEntry(r4, r4);
   __ b(&trampoline_loaded);
 
   __ bind(&builtin_trampoline);
@@ -2218,7 +2221,7 @@ void Generate_AllocateSpaceAndShiftExistingArguments(
 // static
 // TODO(v8:11615): Observe Code::kMaxArguments in CallOrConstructVarargs
 void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
-                                               Handle<Code> code) {
+                                               Handle<CodeT> code) {
   // ----------- S t a t e -------------
   //  -- r3 : target
   //  -- r2 : number of parameters on the stack
@@ -2292,7 +2295,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
 // static
 void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
                                                       CallOrConstructMode mode,
-                                                      Handle<Code> code) {
+                                                      Handle<CodeT> code) {
   // ----------- S t a t e -------------
   //  -- r2 : the number of arguments
   //  -- r5 : the new.target (for [[Construct]] calls)

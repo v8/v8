@@ -689,7 +689,7 @@ void Assembler::EnsureSpaceFor(int space_needed) {
   }
 }
 
-void Assembler::call(Handle<Code> target, RelocInfo::Mode rmode) {
+void Assembler::call(Handle<CodeT> target, RelocInfo::Mode rmode) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
   EnsureSpace ensure_space(this);
 
@@ -698,7 +698,7 @@ void Assembler::call(Handle<Code> target, RelocInfo::Mode rmode) {
   brasl(r14, Operand(target_index));
 }
 
-void Assembler::jump(Handle<Code> target, RelocInfo::Mode rmode,
+void Assembler::jump(Handle<CodeT> target, RelocInfo::Mode rmode,
                      Condition cond) {
   DCHECK(RelocInfo::IsRelativeCodeTarget(rmode));
   EnsureSpace ensure_space(this);
