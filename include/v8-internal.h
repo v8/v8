@@ -247,7 +247,7 @@ static_assert(1ULL << (64 - kBoundedSizeShift) ==
 // size allows omitting bounds checks on table accesses if the indices are
 // guaranteed (e.g. through shifting) to be below the maximum index. This
 // value must be a power of two.
-static const size_t kExternalPointerTableReservationSize = 512 * MB;
+static const size_t kExternalPointerTableReservationSize = 1024 * MB;
 
 // The maximum number of entries in an external pointer table.
 static const size_t kMaxExternalPointers =
@@ -256,7 +256,7 @@ static const size_t kMaxExternalPointers =
 // The external pointer table indices stored in HeapObjects as external
 // pointers are shifted to the left by this amount to guarantee that they are
 // smaller than the maximum table size.
-static const uint32_t kExternalPointerIndexShift = 6;
+static const uint32_t kExternalPointerIndexShift = 5;
 static_assert((1 << (32 - kExternalPointerIndexShift)) == kMaxExternalPointers,
               "kExternalPointerTableReservationSize and "
               "kExternalPointerIndexShift don't match");
