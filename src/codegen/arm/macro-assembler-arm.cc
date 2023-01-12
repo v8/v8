@@ -339,12 +339,6 @@ void TurboAssembler::TailCallBuiltin(Builtin builtin, Condition cond) {
   }
 }
 
-void TurboAssembler::LoadCodeObjectEntry(Register destination,
-                                         Register code_object) {
-  // TODO(jgruber): Remove this method and similar methods below.
-  LoadCodeDataContainerEntry(destination, code_object);
-}
-
 void TurboAssembler::LoadCodeDataContainerEntry(
     Register destination, Register code_data_container_object) {
   ASM_CODE_COMMENT(this);
@@ -376,19 +370,6 @@ void TurboAssembler::JumpCodeDataContainerObject(
   LoadCodeDataContainerEntry(code_data_container_object,
                              code_data_container_object);
   Jump(code_data_container_object);
-}
-
-void TurboAssembler::CallCodeObject(Register code_object) {
-  ASM_CODE_COMMENT(this);
-  LoadCodeObjectEntry(code_object, code_object);
-  Call(code_object);
-}
-
-void TurboAssembler::JumpCodeObject(Register code_object, JumpMode jump_mode) {
-  ASM_CODE_COMMENT(this);
-  DCHECK_EQ(JumpMode::kJump, jump_mode);
-  LoadCodeObjectEntry(code_object, code_object);
-  Jump(code_object);
 }
 
 void TurboAssembler::StoreReturnAddressAndCall(Register target) {

@@ -400,11 +400,6 @@ class V8_EXPORT_PRIVATE TurboAssembler
   void TailCallBuiltin(Builtin builtin);
   void TailCallBuiltin(Builtin builtin, Condition cc);
 
-  void LoadCodeObjectEntry(Register destination, Register code_object);
-  void CallCodeObject(Register code_object);
-  void JumpCodeObject(Register code_object,
-                      JumpMode jump_mode = JumpMode::kJump);
-
   // Load the code entry point from the CodeDataContainer object.
   void LoadCodeDataContainerEntry(Register destination,
                                   Register code_data_container_object);
@@ -417,14 +412,6 @@ class V8_EXPORT_PRIVATE TurboAssembler
   void CallCodeDataContainerObject(Register code_data_container_object);
   void JumpCodeDataContainerObject(Register code_data_container_object,
                                    JumpMode jump_mode = JumpMode::kJump);
-
-  // Helper functions that dispatch either to Call/JumpCodeObject or to
-  // Call/JumpCodeDataContainerObject.
-  // TODO(v8:11880): remove since CodeT targets are now default.
-  void LoadCodeTEntry(Register destination, Register code);
-  void CallCodeTObject(Register code);
-  void JumpCodeTObject(Register code, JumpMode jump_mode = JumpMode::kJump);
-  void CodeDataContainerFromCodeT(Register destination, Register codet);
 
   void Jump(Address destination, RelocInfo::Mode rmode);
   void Jump(Address destination, RelocInfo::Mode rmode, Condition cc);

@@ -844,7 +844,7 @@ void TailCallOptimizedCodeSlot(MacroAssembler* masm,
                                          scratch1, scratch2);
   static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
   __ Move(rcx, optimized_code_entry);
-  __ JumpCodeTObject(rcx, jump_mode);
+  __ JumpCodeDataContainerObject(rcx, jump_mode);
 
   // Optimized code slot contains deoptimized code or code is cleared and
   // optimized code marker isn't updated. Evict the code, update the marker
@@ -893,7 +893,7 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
     Pop(kJavaScriptCallTargetRegister);
   }
   static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
-  JumpCodeTObject(rcx, jump_mode);
+  JumpCodeDataContainerObject(rcx, jump_mode);
 }
 
 void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
@@ -2293,30 +2293,6 @@ void TurboAssembler::TailCallBuiltin(Builtin builtin, Condition cc) {
   }
 }
 
-void TurboAssembler::LoadCodeObjectEntry(Register destination,
-                                         Register code_object) {
-  // TODO(jgruber): Remove this method and similar methods below.
-  LoadCodeDataContainerEntry(destination, code_object);
-}
-
-void TurboAssembler::CallCodeObject(Register code_object) {
-  LoadCodeObjectEntry(code_object, code_object);
-  call(code_object);
-}
-
-void TurboAssembler::JumpCodeObject(Register code_object, JumpMode jump_mode) {
-  LoadCodeObjectEntry(code_object, code_object);
-  switch (jump_mode) {
-    case JumpMode::kJump:
-      jmp(code_object);
-      return;
-    case JumpMode::kPushAndReturn:
-      pushq(code_object);
-      Ret();
-      return;
-  }
-}
-
 void TurboAssembler::LoadCodeDataContainerEntry(
     Register destination, Register code_data_container_object) {
   ASM_CODE_COMMENT(this);
@@ -2353,28 +2329,6 @@ void TurboAssembler::JumpCodeDataContainerObject(
       Ret();
       return;
   }
-}
-
-void TurboAssembler::LoadCodeTEntry(Register destination, Register code) {
-  ASM_CODE_COMMENT(this);
-  AssertCodeT(code);
-  LoadCodeDataContainerEntry(destination, code);
-}
-
-void TurboAssembler::CallCodeTObject(Register code) {
-  AssertCodeT(code);
-  CallCodeDataContainerObject(code);
-}
-
-void TurboAssembler::JumpCodeTObject(Register code, JumpMode jump_mode) {
-  AssertCodeT(code);
-  JumpCodeDataContainerObject(code, jump_mode);
-}
-
-void TurboAssembler::CodeDataContainerFromCodeT(Register destination,
-                                                Register codet) {
-  AssertCodeT(codet);
-  Move(destination, codet);
 }
 
 void TurboAssembler::PextrdPreSse41(Register dst, XMMRegister src,
@@ -2901,10 +2855,10 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
   LoadTaggedPointerField(rcx, FieldOperand(function, JSFunction::kCodeOffset));
   switch (type) {
     case InvokeType::kCall:
-      CallCodeTObject(rcx);
+      CallCodeDataContainerObject(rcx);
       break;
     case InvokeType::kJump:
-      JumpCodeTObject(rcx);
+      JumpCodeDataContainerObject(rcx);
       break;
   }
   jmp(&done, Label::kNear);

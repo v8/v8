@@ -1953,7 +1953,7 @@ void CallKnownJSFunction::GenerateCode(MaglevAssembler* masm,
     __ LoadTaggedPointerField(kJavaScriptCallCodeStartRegister,
                               FieldMemOperand(kJavaScriptCallTargetRegister,
                                               JSFunction::kCodeOffset));
-    __ CallCodeTObject(kJavaScriptCallCodeStartRegister);
+    __ CallCodeDataContainerObject(kJavaScriptCallCodeStartRegister);
   }
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }

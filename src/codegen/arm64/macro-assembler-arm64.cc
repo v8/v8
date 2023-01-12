@@ -1422,7 +1422,7 @@ void TailCallOptimizedCodeSlot(MacroAssembler* masm,
   __ ReplaceClosureCodeWithOptimizedCode(optimized_code_entry, closure);
   static_assert(kJavaScriptCallCodeStartRegister == x2, "ABI mismatch");
   __ Move(x2, optimized_code_entry);
-  __ JumpCodeTObject(x2);
+  __ JumpCodeDataContainerObject(x2);
 
   // Optimized code slot contains deoptimized code or code is cleared and
   // optimized code marker isn't updated. Evict the code, update the marker
@@ -1483,7 +1483,7 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
   }
 
   static_assert(kJavaScriptCallCodeStartRegister == x2, "ABI mismatch");
-  JumpCodeTObject(x2);
+  JumpCodeDataContainerObject(x2);
 }
 
 // Read off the flags in the feedback vector and check if there
@@ -2348,31 +2348,6 @@ void TurboAssembler::TailCallBuiltin(Builtin builtin, Condition cond) {
   }
 }
 
-void TurboAssembler::LoadCodeObjectEntry(Register destination,
-                                         Register code_object) {
-  ASM_CODE_COMMENT(this);
-  LoadCodeDataContainerEntry(destination, code_object);
-}
-
-void TurboAssembler::CallCodeObject(Register code_object) {
-  ASM_CODE_COMMENT(this);
-  LoadCodeObjectEntry(code_object, code_object);
-  Call(code_object);
-}
-
-void TurboAssembler::JumpCodeObject(Register code_object, JumpMode jump_mode) {
-  ASM_CODE_COMMENT(this);
-  DCHECK_EQ(JumpMode::kJump, jump_mode);
-  LoadCodeObjectEntry(code_object, code_object);
-
-  UseScratchRegisterScope temps(this);
-  if (code_object != x17) {
-    temps.Exclude(x17);
-    Mov(x17, code_object);
-  }
-  Jump(x17);
-}
-
 void TurboAssembler::LoadCodeDataContainerEntry(
     Register destination, Register code_data_container_object) {
   ASM_CODE_COMMENT(this);
@@ -2409,19 +2384,6 @@ void TurboAssembler::JumpCodeDataContainerObject(
     Mov(x17, code_data_container_object);
   }
   Jump(x17);
-}
-
-void TurboAssembler::LoadCodeTEntry(Register destination, Register code) {
-  ASM_CODE_COMMENT(this);
-  LoadCodeDataContainerEntry(destination, code);
-}
-
-void TurboAssembler::CallCodeTObject(Register code) {
-  CallCodeDataContainerObject(code);
-}
-
-void TurboAssembler::JumpCodeTObject(Register code, JumpMode jump_mode) {
-  JumpCodeDataContainerObject(code, jump_mode);
 }
 
 void TurboAssembler::StoreReturnAddressAndCall(Register target) {
@@ -2699,10 +2661,10 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
                          FieldMemOperand(function, JSFunction::kCodeOffset));
   switch (type) {
     case InvokeType::kCall:
-      CallCodeTObject(code);
+      CallCodeDataContainerObject(code);
       break;
     case InvokeType::kJump:
-      JumpCodeTObject(code);
+      JumpCodeDataContainerObject(code);
       break;
   }
   B(&done);

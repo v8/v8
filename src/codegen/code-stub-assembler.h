@@ -853,10 +853,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return CAST(o);
   }
 
-  TNode<CodeDataContainer> CodeDataContainerFromCodeT(TNode<CodeT> code) {
-    return code;
-  }
-
   TNode<CodeT> ToCodeT(TNode<Code> code) {
     return LoadObjectField<CodeDataContainer>(code,
                                               Code::kCodeDataContainerOffset);

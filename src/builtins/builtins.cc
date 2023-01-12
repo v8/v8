@@ -468,12 +468,8 @@ Handle<Code> Builtins::CreateInterpreterEntryTrampolineForProfiling(
 
   CodeDesc::Verify(&desc);
 
-  int kind_specific_flags;
-  {
-    CodeT code = isolate->builtins()->code(builtin);
-    kind_specific_flags =
-        CodeDataContainerFromCodeT(code).kind_specific_flags(kRelaxedLoad);
-  }
+  const int kind_specific_flags =
+      isolate->builtins()->code(builtin).kind_specific_flags(kRelaxedLoad);
 
   return Factory::CodeBuilder(isolate, desc, CodeKind::BUILTIN)
       .set_kind_specific_flags(kind_specific_flags)

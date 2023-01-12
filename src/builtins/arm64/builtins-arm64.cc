@@ -550,7 +550,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ Mov(x1, x4);
     static_assert(kJavaScriptCallCodeStartRegister == x2, "ABI mismatch");
     __ LoadTaggedPointerField(x2, FieldMemOperand(x1, JSFunction::kCodeOffset));
-    __ JumpCodeTObject(x2);
+    __ JumpCodeDataContainerObject(x2);
   }
 
   __ Bind(&prepare_step_in_if_stepping);
@@ -1503,7 +1503,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
     __ Move(x2, kInterpreterBytecodeArrayRegister);
     static_assert(kJavaScriptCallCodeStartRegister == x2, "ABI mismatch");
     __ ReplaceClosureCodeWithOptimizedCode(x2, closure);
-    __ JumpCodeTObject(x2);
+    __ JumpCodeDataContainerObject(x2);
 
     __ bind(&install_baseline_code);
     __ GenerateTailCallToReturnedCode(Runtime::kInstallBaselineCode);
@@ -1743,7 +1743,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
 
   __ LoadTaggedPointerField(
       x1, FieldMemOperand(x1, InterpreterData::kInterpreterTrampolineOffset));
-  __ LoadCodeTEntry(x1, x1);
+  __ LoadCodeDataContainerEntry(x1, x1);
   __ B(&trampoline_loaded);
 
   __ Bind(&builtin_trampoline);

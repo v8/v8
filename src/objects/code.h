@@ -851,53 +851,37 @@ V8_EXPORT_PRIVATE int OffHeapUnwindingInfoSize(HeapObject code,
                                                Builtin builtin);
 V8_EXPORT_PRIVATE int OffHeapStackSlots(HeapObject code, Builtin builtin);
 
-// Represents result of the code by inner address (or pc) lookup.
-// When V8_EXTERNAL_CODE_SPACE is disabled there might be two variants:
-//  - the pc does not correspond to any known code and IsFound() will return
-//    false,
-//  - the pc corresponds to existing Code object or embedded builtin (in which
-//    case the code() will return the respective Code object or the trampoline
-//    Code object that corresponds to the builtin).
+// Represents result of the code by inner address (or pc) lookup. There are
+// three possible result cases:
 //
-// When V8_EXTERNAL_CODE_SPACE is enabled there might be three variants:
 //  - the pc does not correspond to any known code (in which case IsFound()
 //    will return false),
-//  - the pc corresponds to existing Code object (in which case the code() will
+//  - the pc corresponds to an existing Code object (in which case code() will
 //    return the respective Code object),
 //  - the pc corresponds to an embedded builtin (in which case the
-//    code_data_container() will return CodeDataContainer object corresponding
-//    to the builtin).
+//    code_data_container() will return the CodeDataContainer object
+//    corresponding to the builtin).
 class CodeLookupResult {
  public:
   // Not found.
   CodeLookupResult() = default;
 
-  // Code object was found.
+  // A Code object was found.
   explicit CodeLookupResult(Code code) : code_(code) {}
 
-  // Embedded builtin was found.
+  // An embedded builtin was found.
   explicit CodeLookupResult(CodeDataContainer code_data_container)
       : code_data_container_(code_data_container) {}
 
-  // Returns true if the lookup was successful.
   bool IsFound() const { return IsCode() || IsCodeDataContainer(); }
-
-  // Returns true if the lookup found a Code object.
   bool IsCode() const { return !code_.is_null(); }
-
-  // Returns true if V8_EXTERNAL_CODE_SPACE is enabled and the lookup found
-  // an embedded builtin.
   bool IsCodeDataContainer() const { return !code_data_container_.is_null(); }
 
-  // Returns the Code object containing the address in question.
   Code code() const {
     DCHECK(IsCode());
     return code_;
   }
 
-  // Returns the CodeDataContainer object corresponding to an embedded builtin
-  // containing the address in question.
-  // Can be used only when V8_EXTERNAL_CODE_SPACE is enabled.
   CodeDataContainer code_data_container() const {
     DCHECK(IsCodeDataContainer());
     return code_data_container_;
@@ -930,17 +914,18 @@ class CodeLookupResult {
   inline MaglevSafepointEntry GetMaglevSafepointEntry(Isolate* isolate,
                                                       Address pc) const;
 
-  // Helper method, coverts the successful lookup result to AbstractCode object.
+  // Helper method, converts the successful lookup result to an AbstractCode
+  // object.
   inline AbstractCode ToAbstractCode() const;
 
-  // Helper method, coverts the successful lookup result to Code object.
-  // It's not safe to be used from GC because conversion to Code might perform
-  // a map check.
+  // Helper method, converts the successful lookup result to a Code object.
+  // It's not safe to be used from GC because conversion might perform a map
+  // check.
   inline Code ToCode() const;
 
-  // Helper method, coverts the successful lookup result to CodeT object.
-  // It's not safe to be used from GC because conversion to CodeT might perform
-  // a map check.
+  // Helper method, converts the successful lookup result to CodeT object.
+  // It's not safe to be used from GC because conversion might perform a map
+  // check.
   inline CodeT ToCodeT() const;
 
   bool operator==(const CodeLookupResult& other) const {
@@ -983,7 +968,6 @@ inline Handle<Code> FromCodeT(Handle<CodeT> code, Isolate* isolate);
 inline AbstractCode ToAbstractCode(CodeT code);
 inline Handle<AbstractCode> ToAbstractCode(Handle<CodeT> code,
                                            Isolate* isolate);
-inline CodeDataContainer CodeDataContainerFromCodeT(CodeT code);
 
 // AbstractCode is a helper wrapper around
 // {Code|CodeDataContainer|BytecodeArray}.  Note that the same abstract code

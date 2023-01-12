@@ -417,8 +417,6 @@ inline Handle<AbstractCode> ToAbstractCode(Handle<CodeT> code,
   return Handle<AbstractCode>::cast(code);
 }
 
-inline CodeDataContainer CodeDataContainerFromCodeT(CodeT code) { return code; }
-
 #define CODE_LOOKUP_RESULT_FWD_ACCESSOR(name, Type)                 \
   Type CodeLookupResult::name() const {                             \
     DCHECK(IsFound());                                              \

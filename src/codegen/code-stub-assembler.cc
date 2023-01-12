@@ -15600,14 +15600,13 @@ TNode<CodeT> CodeStubAssembler::GetSharedFunctionInfoCode(
 }
 
 TNode<RawPtrT> CodeStubAssembler::GetCodeEntry(TNode<CodeT> code) {
-  TNode<CodeDataContainer> cdc = CodeDataContainerFromCodeT(code);
   return LoadObjectField<RawPtrT>(
-      cdc, IntPtrConstant(CodeDataContainer::kCodeEntryPointOffset));
+      code, IntPtrConstant(CodeDataContainer::kCodeEntryPointOffset));
 }
 
 TNode<BoolT> CodeStubAssembler::IsMarkedForDeoptimization(TNode<CodeT> codet) {
   return IsSetWord32<Code::MarkedForDeoptimizationField>(
-      LoadObjectField<Int32T>(CodeDataContainerFromCodeT(codet),
+      LoadObjectField<Int32T>(codet,
                               CodeDataContainer::kKindSpecificFlagsOffset));
 }
 

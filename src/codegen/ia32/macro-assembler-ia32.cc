@@ -2045,33 +2045,6 @@ Operand TurboAssembler::EntryFromBuiltinAsOperand(Builtin builtin) {
   return Operand(kRootRegister, IsolateData::BuiltinEntrySlotOffset(builtin));
 }
 
-void TurboAssembler::LoadCodeObjectEntry(Register destination,
-                                         Register code_object) {
-  ASM_CODE_COMMENT(this);
-  mov(destination,
-      FieldOperand(code_object, CodeDataContainer::kCodeEntryPointOffset));
-}
-
-void TurboAssembler::CallCodeObject(Register code_object) {
-  ASM_CODE_COMMENT(this);
-  LoadCodeObjectEntry(code_object, code_object);
-  call(code_object);
-}
-
-void TurboAssembler::JumpCodeObject(Register code_object, JumpMode jump_mode) {
-  ASM_CODE_COMMENT(this);
-  LoadCodeObjectEntry(code_object, code_object);
-  switch (jump_mode) {
-    case JumpMode::kJump:
-      jmp(code_object);
-      return;
-    case JumpMode::kPushAndReturn:
-      push(code_object);
-      ret(0);
-      return;
-  }
-}
-
 void TurboAssembler::LoadCodeDataContainerEntry(
     Register destination, Register code_data_container_object) {
   ASM_CODE_COMMENT(this);

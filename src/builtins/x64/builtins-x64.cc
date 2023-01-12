@@ -825,7 +825,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     // undefined because generator functions are non-constructable.
     static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
     __ LoadTaggedPointerField(rcx, FieldOperand(rdi, JSFunction::kCodeOffset));
-    __ JumpCodeTObject(rcx);
+    __ JumpCodeDataContainerObject(rcx);
   }
 
   __ bind(&prepare_step_in_if_stepping);
@@ -1242,7 +1242,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
     __ ReplaceClosureCodeWithOptimizedCode(
         rcx, closure, kInterpreterBytecodeArrayRegister,
         WriteBarrierDescriptor::SlotAddressRegister());
-    __ JumpCodeTObject(rcx);
+    __ JumpCodeDataContainerObject(rcx);
 
     __ bind(&install_baseline_code);
     __ GenerateTailCallToReturnedCode(Runtime::kInstallBaselineCode);
@@ -1428,7 +1428,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
 
   __ LoadTaggedPointerField(
       rbx, FieldOperand(rbx, InterpreterData::kInterpreterTrampolineOffset));
-  __ LoadCodeTEntry(rbx, rbx);
+  __ LoadCodeDataContainerEntry(rbx, rbx);
   __ jmp(&trampoline_loaded, Label::kNear);
 
   __ bind(&builtin_trampoline);
@@ -2877,7 +2877,7 @@ void Builtins::Generate_MaglevOutOfLinePrologue(MacroAssembler* masm) {
     __ Drop(kStackParameterCount + kReturnAddressCount);
     __ Move(scratch0,
             BUILTIN_CODE(masm->isolate(), CompileLazyDeoptimizedCode));
-    __ LoadCodeObjectEntry(scratch0, scratch0);
+    __ LoadCodeDataContainerEntry(scratch0, scratch0);
     __ PushReturnAddressFrom(scratch0);
     __ ret(0);
   }
