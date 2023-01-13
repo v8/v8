@@ -608,6 +608,7 @@ void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
 
             // The migrated object is returned on success, retry the map check.
             __ Move(object, return_val);
+            __ LoadMap(object_map, object);
             __ Move(scratch, node->maps().at(map_index));
             __ CmpTagged(object_map, scratch);
             __ B(*done, eq);
