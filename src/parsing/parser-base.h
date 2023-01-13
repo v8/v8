@@ -4316,6 +4316,8 @@ void ParserBase<Impl>::ParseFunctionBody(
     StatementListT* body, IdentifierT function_name, int pos,
     const FormalParametersT& parameters, FunctionKind kind,
     FunctionSyntaxKind function_syntax_kind, FunctionBodyType body_type) {
+  CheckStackOverflow();
+
   if (IsResumableFunction(kind)) impl()->PrepareGeneratorVariables();
 
   DeclarationScope* function_scope = parameters.scope;
