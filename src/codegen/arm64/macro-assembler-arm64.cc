@@ -1831,10 +1831,11 @@ void TurboAssembler::LoadTaggedRoot(Register destination, RootIndex index) {
 
 void TurboAssembler::LoadRoot(Register destination, RootIndex index) {
   ASM_CODE_COMMENT(this);
-  if (V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index)) {
-    DecompressTaggedPointer(destination, ReadOnlyRootPtr(index));
-    return;
-  }
+  // TODO(v8:13466, olivf): With static roots we could use
+  // DecompressTaggedPointer here. However, currently all roots have addresses
+  // that are too large to fit into addition immediate operands. Evidence
+  // suggests that the extra instruction for decompression costs us more than
+  // the load.
   Ldr(destination,
       MemOperand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
 }
