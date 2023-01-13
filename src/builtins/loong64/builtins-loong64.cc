@@ -299,12 +299,12 @@ void Builtins::Generate_JSBuiltinsConstructStub(MacroAssembler* masm) {
   Generate_JSBuiltinsConstructStubHelper(masm);
 }
 
-static void AssertCodeIsBaseline(MacroAssembler* masm, Register code,
-                                 Register scratch) {
+static void AssertCodeTIsBaseline(MacroAssembler* masm, Register code,
+                                  Register scratch) {
   DCHECK(!AreAliased(code, scratch));
   // Verify that the code kind is baseline code via the CodeKind.
-  __ Ld_d(scratch, FieldMemOperand(code, Code::kFlagsOffset));
-  __ DecodeField<Code::KindField>(scratch);
+  __ Ld_d(scratch, FieldMemOperand(code, CodeT::kFlagsOffset));
+  __ DecodeField<CodeT::KindField>(scratch);
   __ Assert(eq, AbortReason::kExpectedBaselineData, scratch,
             Operand(static_cast<int>(CodeKind::BASELINE)));
 }
@@ -321,7 +321,7 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
   if (v8_flags.debug_code) {
     Label not_baseline;
     __ Branch(&not_baseline, ne, scratch1, Operand(CODET_TYPE));
-    AssertCodeIsBaseline(masm, sfi_data, scratch1);
+    AssertCodeTIsBaseline(masm, sfi_data, scratch1);
     __ Branch(is_baseline);
     __ bind(&not_baseline);
   } else {
@@ -433,7 +433,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ Move(a1, a4);
     static_assert(kJavaScriptCallCodeStartRegister == a2, "ABI mismatch");
     __ Ld_d(a2, FieldMemOperand(a1, JSFunction::kCodeOffset));
-    __ JumpCodeObject(a2);
+    __ JumpCodeDataContainerObject(a2);
   }
 
   __ bind(&prepare_step_in_if_stepping);
@@ -648,7 +648,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   // Invoke the function by calling through JS entry trampoline builtin and
   // pop the faked function when we return.
 
-  Handle<Code> trampoline_code =
+  Handle<CodeT> trampoline_code =
       masm->isolate()->builtins()->code_handle(entry_trampoline);
   __ Call(trampoline_code, RelocInfo::CODE_TARGET);
 
@@ -754,9 +754,9 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // s7 is cp. Do not init.
 
     // Invoke the code.
-    Handle<Code> builtin = is_construct
-                               ? BUILTIN_CODE(masm->isolate(), Construct)
-                               : masm->isolate()->builtins()->Call();
+    Handle<CodeT> builtin = is_construct
+                                ? BUILTIN_CODE(masm->isolate(), Construct)
+                                : masm->isolate()->builtins()->Call();
     __ Call(builtin, RelocInfo::CODE_TARGET);
 
     // Leave internal frame.
@@ -1301,7 +1301,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
     __ Move(a2, kInterpreterBytecodeArrayRegister);
     static_assert(kJavaScriptCallCodeStartRegister == a2, "ABI mismatch");
     __ ReplaceClosureCodeWithOptimizedCode(a2, closure);
-    __ JumpCodeObject(a2);
+    __ JumpCodeDataContainerObject(a2);
 
     __ bind(&install_baseline_code);
     __ GenerateTailCallToReturnedCode(Runtime::kInstallBaselineCode);
@@ -1471,7 +1471,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
 
   __ Ld_d(t0,
           FieldMemOperand(t0, InterpreterData::kInterpreterTrampolineOffset));
-  __ Add_d(t0, t0, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ LoadCodeDataContainerEntry(t0, t0);
   __ Branch(&trampoline_loaded);
 
   __ bind(&builtin_trampoline);
@@ -1721,6 +1721,8 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
     // JavaScript frame. This is the case then OSR is triggered from bytecode.
     __ LeaveFrame(StackFrame::STUB);
   }
+
+  __ LoadCodeDataContainerCodeNonBuiltin(a0, a0);
 
   // Load deoptimization data from the code object.
   // <deopt_data> = <code>[#deoptimization_data_offset]
@@ -2010,7 +2012,7 @@ void Generate_AllocateSpaceAndShiftExistingArguments(
 
 // static
 void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
-                                               Handle<Code> code) {
+                                               Handle<CodeT> code) {
   // ----------- S t a t e -------------
   //  -- a1 : target
   //  -- a0 : number of parameters on the stack
@@ -2081,7 +2083,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
 // static
 void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
                                                       CallOrConstructMode mode,
-                                                      Handle<Code> code) {
+                                                      Handle<CodeT> code) {
   // ----------- S t a t e -------------
   //  -- a0 : the number of arguments
   //  -- a3 : the new.target (for [[Construct]] calls)
@@ -3601,8 +3603,10 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   }
 
   if (v8_flags.debug_code) {
-    AssertCodeIsBaseline(masm, code_obj, t2);
+    AssertCodeTIsBaseline(masm, code_obj, t2);
   }
+
+  __ LoadCodeDataContainerCodeNonBuiltin(code_obj, code_obj);
 
   // Replace BytecodeOffset with the feedback vector.
   Register feedback_vector = a2;

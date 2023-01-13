@@ -575,8 +575,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         DCHECK_IMPLIES(
             instr->HasCallDescriptorFlag(CallDescriptor::kFixedTargetRegister),
             reg == kJavaScriptCallCodeStartRegister);
-        __ daddiu(reg, reg, Code::kHeaderSize - kHeapObjectTag);
-        __ Call(reg);
+        __ CallCodeDataContainerObject(reg);
       }
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
@@ -626,8 +625,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         DCHECK_IMPLIES(
             instr->HasCallDescriptorFlag(CallDescriptor::kFixedTargetRegister),
             reg == kJavaScriptCallCodeStartRegister);
-        __ daddiu(reg, reg, Code::kHeaderSize - kHeapObjectTag);
-        __ Jump(reg);
+        __ JumpCodeDataContainerObject(reg);
       }
       frame_access_state()->ClearSPDelta();
       frame_access_state()->SetFrameAccessToDefault();
@@ -654,8 +652,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       static_assert(kJavaScriptCallCodeStartRegister == a2, "ABI mismatch");
       __ Ld(a2, FieldMemOperand(func, JSFunction::kCodeOffset));
-      __ Daddu(a2, a2, Operand(Code::kHeaderSize - kHeapObjectTag));
-      __ Call(a2);
+      __ CallCodeDataContainerObject(a2);
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
       break;
