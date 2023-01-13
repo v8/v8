@@ -606,11 +606,18 @@ void BaselineAssembler::Switch(Register reg, int case_value_base,
   int entry_size_log2 = 2;
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
   ++entry_size_log2;  // Account for BTI.
+  constexpr int instructions_per_jump_target = 1;
+#else
+  constexpr int instructions_per_jump_target = 0;
 #endif
+  constexpr int instructions_per_label = 1 + instructions_per_jump_target;
   __ Add(temp, temp, Operand(reg, UXTW, entry_size_log2));
   __ Br(temp);
   {
-    TurboAssembler::BlockPoolsScope block_pools(masm_, num_labels * kInstrSize);
+    const int instruction_count =
+        num_labels * instructions_per_label + instructions_per_jump_target;
+    TurboAssembler::BlockPoolsScope block_pools(masm_,
+                                                instruction_count * kInstrSize);
     __ Bind(&table);
     for (int i = 0; i < num_labels; ++i) {
       __ JumpTarget();

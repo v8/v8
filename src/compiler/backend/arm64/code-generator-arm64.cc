@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/codegen/arm64/assembler-arm64-inl.h"
+#include "src/codegen/arm64/constants-arm64.h"
 #include "src/codegen/arm64/macro-assembler-arm64-inl.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/optimized-compilation-info.h"
@@ -3047,12 +3048,18 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
   int entry_size_log2 = 2;
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
   ++entry_size_log2;  // Account for BTI.
+  constexpr int instructions_per_jump_target = 1;
+#else
+  constexpr int instructions_per_jump_target = 0;
 #endif
+  constexpr int instructions_per_case = 1 + instructions_per_jump_target;
   __ Add(temp, temp, Operand(input, UXTW, entry_size_log2));
   __ Br(temp);
   {
+    const size_t instruction_count =
+        case_count * instructions_per_case + instructions_per_jump_target;
     TurboAssembler::BlockPoolsScope block_pools(tasm(),
-                                                case_count * kInstrSize);
+                                                instruction_count * kInstrSize);
     __ Bind(&table);
     for (size_t index = 0; index < case_count; ++index) {
       __ JumpTarget();
