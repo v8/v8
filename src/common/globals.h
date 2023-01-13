@@ -1851,6 +1851,13 @@ using DefineKeyedOwnPropertyInLiteralFlags =
     base::Flags<DefineKeyedOwnPropertyInLiteralFlag>;
 DEFINE_OPERATORS_FOR_FLAGS(DefineKeyedOwnPropertyInLiteralFlags)
 
+enum class DefineKeyedOwnPropertyFlag {
+  kNoFlags = 0,
+  kSetFunctionName = 1 << 0
+};
+using DefineKeyedOwnPropertyFlags = base::Flags<DefineKeyedOwnPropertyFlag>;
+DEFINE_OPERATORS_FOR_FLAGS(DefineKeyedOwnPropertyFlags)
+
 enum ExternalArrayType {
   kExternalInt8Array = 1,
   kExternalUint8Array,

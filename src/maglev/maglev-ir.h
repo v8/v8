@@ -4797,8 +4797,8 @@ class SetKeyedGeneric : public FixedInputValueNodeT<4, SetKeyedGeneric> {
 };
 
 class DefineKeyedOwnGeneric
-    : public FixedInputValueNodeT<4, DefineKeyedOwnGeneric> {
-  using Base = FixedInputValueNodeT<4, DefineKeyedOwnGeneric>;
+    : public FixedInputValueNodeT<5, DefineKeyedOwnGeneric> {
+  using Base = FixedInputValueNodeT<5, DefineKeyedOwnGeneric>;
 
  public:
   explicit DefineKeyedOwnGeneric(uint64_t bitfield,
@@ -4809,7 +4809,8 @@ class DefineKeyedOwnGeneric
   static constexpr OpProperties kProperties = OpProperties::JSCall();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kTagged,
-      ValueRepresentation::kTagged, ValueRepresentation::kTagged};
+      ValueRepresentation::kTagged, ValueRepresentation::kTagged,
+      ValueRepresentation::kTagged};
 
   compiler::FeedbackSource feedback() const { return feedback_; }
 
@@ -4817,10 +4818,12 @@ class DefineKeyedOwnGeneric
   static constexpr int kObjectIndex = 1;
   static constexpr int kKeyIndex = 2;
   static constexpr int kValueIndex = 3;
+  static constexpr int kFlagsIndex = 4;
   Input& context() { return input(kContextIndex); }
   Input& object_input() { return input(kObjectIndex); }
   Input& key_input() { return input(kKeyIndex); }
   Input& value_input() { return input(kValueIndex); }
+  Input& flags_input() { return input(kFlagsIndex); }
 
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();

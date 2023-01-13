@@ -96,6 +96,9 @@ constexpr Register StoreWithVectorDescriptor::VectorRegister() {
 }
 
 // static
+constexpr Register DefineKeyedOwnDescriptor::FlagsRegister() { return no_reg; }
+
+// static
 constexpr Register StoreTransitionDescriptor::MapRegister() { return edi; }
 
 // static

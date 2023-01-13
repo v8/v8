@@ -427,14 +427,14 @@ void JSGenericLowering::LowerJSDefineKeyedOwnProperty(Node* node) {
   const PropertyAccess& p = n.Parameters();
   FrameState frame_state = n.frame_state();
   Node* outer_state = frame_state.outer_frame_state();
-  static_assert(n.FeedbackVectorIndex() == 3);
+  static_assert(n.FeedbackVectorIndex() == 4);
   if (outer_state->opcode() != IrOpcode::kFrameState) {
     n->RemoveInput(n.FeedbackVectorIndex());
-    node->InsertInput(zone(), 3,
+    node->InsertInput(zone(), 4,
                       jsgraph()->TaggedIndexConstant(p.feedback().index()));
     ReplaceWithBuiltinCall(node, Builtin::kDefineKeyedOwnICTrampoline);
   } else {
-    node->InsertInput(zone(), 3,
+    node->InsertInput(zone(), 4,
                       jsgraph()->TaggedIndexConstant(p.feedback().index()));
     ReplaceWithBuiltinCall(node, Builtin::kDefineKeyedOwnIC);
   }

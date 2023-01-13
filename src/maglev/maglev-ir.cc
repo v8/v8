@@ -1438,11 +1438,12 @@ int DefineKeyedOwnGeneric::MaxCallStackArgs() const {
   return D::GetStackParameterCount();
 }
 void DefineKeyedOwnGeneric::SetValueLocationConstraints() {
-  using D = CallInterfaceDescriptorFor<Builtin::kKeyedStoreIC>::type;
+  using D = CallInterfaceDescriptorFor<Builtin::kDefineKeyedOwnIC>::type;
   UseFixed(context(), kContextRegister);
   UseFixed(object_input(), D::GetRegisterParameter(D::kReceiver));
   UseFixed(key_input(), D::GetRegisterParameter(D::kName));
   UseFixed(value_input(), D::GetRegisterParameter(D::kValue));
+  UseFixed(flags_input(), D::GetRegisterParameter(D::kFlags));
   DefineAsFixed(this, kReturnRegister0);
 }
 void DefineKeyedOwnGeneric::GenerateCode(MaglevAssembler* masm,
@@ -1452,9 +1453,10 @@ void DefineKeyedOwnGeneric::GenerateCode(MaglevAssembler* masm,
   DCHECK_EQ(ToRegister(object_input()), D::GetRegisterParameter(D::kReceiver));
   DCHECK_EQ(ToRegister(key_input()), D::GetRegisterParameter(D::kName));
   DCHECK_EQ(ToRegister(value_input()), D::GetRegisterParameter(D::kValue));
+  DCHECK_EQ(ToRegister(flags_input()), D::GetRegisterParameter(D::kFlags));
   __ Move(D::GetRegisterParameter(D::kSlot),
           TaggedIndex::FromIntptr(feedback().index()));
-  __ Move(D::GetRegisterParameter(D::kVector), feedback().vector);
+  __ Push(feedback().vector);
   __ CallBuiltin(Builtin::kDefineKeyedOwnIC);
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }

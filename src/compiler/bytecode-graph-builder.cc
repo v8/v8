@@ -2135,8 +2135,9 @@ void BytecodeGraphBuilder::VisitDefineKeyedOwnProperty() {
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
   Node* key =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(1));
+  int flags = bytecode_iterator().GetFlag8Operand(2);
   FeedbackSource source =
-      CreateFeedbackSource(bytecode_iterator().GetIndexOperand(2));
+      CreateFeedbackSource(bytecode_iterator().GetIndexOperand(3));
   LanguageMode language_mode =
       GetLanguageModeFromSlotKind(broker()->GetFeedbackSlotKind(source));
 
@@ -2155,9 +2156,11 @@ void BytecodeGraphBuilder::VisitDefineKeyedOwnProperty() {
     static_assert(JSDefineKeyedOwnPropertyNode::ObjectIndex() == 0);
     static_assert(JSDefineKeyedOwnPropertyNode::KeyIndex() == 1);
     static_assert(JSDefineKeyedOwnPropertyNode::ValueIndex() == 2);
-    static_assert(JSDefineKeyedOwnPropertyNode::FeedbackVectorIndex() == 3);
+    static_assert(JSDefineKeyedOwnPropertyNode::FlagsIndex() == 3);
+    static_assert(JSDefineKeyedOwnPropertyNode::FeedbackVectorIndex() == 4);
     DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
-    node = NewNode(op, object, key, value, feedback_vector_node());
+    node = NewNode(op, object, key, value, jsgraph()->Constant(flags),
+                   feedback_vector_node());
   }
 
   environment()->RecordAfterState(node, Environment::kAttachFrameState);

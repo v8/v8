@@ -2747,13 +2747,11 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
   }
 
   if (expr->instance_members_initializer_function() != nullptr) {
-    Register initializer =
-        VisitForRegisterValue(expr->instance_members_initializer_function());
+    VisitForAccumulatorValue(expr->instance_members_initializer_function());
 
     FeedbackSlot slot = feedback_spec()->AddStoreICSlot(language_mode());
     builder()
-        ->LoadAccumulatorWithRegister(initializer)
-        .StoreClassFieldsInitializer(class_constructor, feedback_index(slot))
+        ->StoreClassFieldsInitializer(class_constructor, feedback_index(slot))
         .LoadAccumulatorWithRegister(class_constructor);
   }
 
@@ -2762,23 +2760,18 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
     // class boilerplate in the future. The name argument can be
     // passed to the DefineClass runtime function and have it set
     // there.
+    // TODO(v8:13451): Alternatively, port SetFunctionName to an ic so that we
+    // can replace the runtime call to a dedicate bytecode here.
     if (name.is_valid()) {
-      Register key = register_allocator()->NewRegister();
+      RegisterAllocationScope inner_register_scope(this);
+      RegisterList args = register_allocator()->NewRegisterList(2);
       builder()
-          ->LoadLiteral(ast_string_constants()->name_string())
-          .StoreAccumulatorInRegister(key);
-
-      DefineKeyedOwnPropertyInLiteralFlags data_property_flags =
-          DefineKeyedOwnPropertyInLiteralFlag::kNoFlags;
-      FeedbackSlot slot =
-          feedback_spec()->AddDefineKeyedOwnPropertyInLiteralICSlot();
-      builder()
-          ->LoadAccumulatorWithRegister(name)
-          .DefineKeyedOwnPropertyInLiteral(class_constructor, key,
-                                           data_property_flags,
-                                           feedback_index(slot));
+          ->MoveRegister(class_constructor, args[0])
+          .MoveRegister(name, args[1])
+          .CallRuntime(Runtime::kSetFunctionName, args);
     }
 
+    RegisterAllocationScope inner_register_scope(this);
     RegisterList args = register_allocator()->NewRegisterList(1);
     Register initializer = VisitForRegisterValue(expr->static_initializer());
 
@@ -2855,17 +2848,33 @@ void BytecodeGenerator::BuildClassProperty(ClassLiteral::Property* property) {
   }
 
   builder()->SetExpressionAsStatementPosition(property->value());
-  VisitForAccumulatorValue(property->value());
 
   if (is_literal_store) {
+    VisitForAccumulatorValue(property->value());
     FeedbackSlot slot = feedback_spec()->AddDefineNamedOwnICSlot();
     builder()->DefineNamedOwnProperty(
         builder()->Receiver(),
         property->key()->AsLiteral()->AsRawPropertyName(),
         feedback_index(slot));
   } else {
+    DefineKeyedOwnPropertyFlags flags = DefineKeyedOwnPropertyFlag::kNoFlags;
+    if (property->NeedsSetFunctionName()) {
+      // Static class fields require the name property to be set on
+      // the class, meaning we can't wait until the
+      // DefineKeyedOwnProperty call later to set the name.
+      if (property->value()->IsClassLiteral() &&
+          property->value()->AsClassLiteral()->static_initializer() !=
+              nullptr) {
+        VisitClassLiteral(property->value()->AsClassLiteral(), key);
+      } else {
+        VisitForAccumulatorValue(property->value());
+        flags |= DefineKeyedOwnPropertyFlag::kSetFunctionName;
+      }
+    } else {
+      VisitForAccumulatorValue(property->value());
+    }
     FeedbackSlot slot = feedback_spec()->AddDefineKeyedOwnICSlot();
-    builder()->DefineKeyedOwnProperty(builder()->Receiver(), key,
+    builder()->DefineKeyedOwnProperty(builder()->Receiver(), key, flags,
                                       feedback_index(slot));
   }
 }
@@ -2917,7 +2926,9 @@ void BytecodeGenerator::BuildPrivateBrandInitialization(Register receiver,
     builder()
         ->StoreAccumulatorInRegister(brand_reg)
         .LoadAccumulatorWithRegister(class_context->reg())
-        .DefineKeyedOwnProperty(receiver, brand_reg, feedback_index(slot));
+        .DefineKeyedOwnProperty(receiver, brand_reg,
+                                DefineKeyedOwnPropertyFlag::kNoFlags,
+                                feedback_index(slot));
   } else {
     // We are in the slow case where super() is called from a nested
     // arrow function or a eval(), so the class scope context isn't
@@ -3135,8 +3146,9 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
                                               feedback_index(slot));
           } else {
             FeedbackSlot slot = feedback_spec()->AddDefineKeyedOwnICSlot();
-            builder()->DefineKeyedOwnProperty(literal, key_reg,
-                                              feedback_index(slot));
+            builder()->DefineKeyedOwnProperty(
+                literal, key_reg, DefineKeyedOwnPropertyFlag::kNoFlags,
+                feedback_index(slot));
           }
         } else {
           VisitForEffect(property->value());
@@ -3233,34 +3245,30 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         object_literal_context_scope.SetEnteredIf(
             should_be_in_object_literal_scope);
         builder()->SetExpressionPosition(property->value());
-        Register value;
-
-        // Static class fields require the name property to be set on
-        // the class, meaning we can't wait until the
-        // DefineKeyedOwnPropertyInLiteral call later to set the name.
-        if (property->value()->IsClassLiteral() &&
-            property->value()->AsClassLiteral()->static_initializer() !=
-                nullptr) {
-          value = register_allocator()->NewRegister();
-          VisitClassLiteral(property->value()->AsClassLiteral(), key);
-          builder()->StoreAccumulatorInRegister(value);
-        } else {
-          value = VisitForRegisterValue(property->value());
-        }
 
         DefineKeyedOwnPropertyInLiteralFlags data_property_flags =
             DefineKeyedOwnPropertyInLiteralFlag::kNoFlags;
         if (property->NeedsSetFunctionName()) {
-          data_property_flags |=
-              DefineKeyedOwnPropertyInLiteralFlag::kSetFunctionName;
+          // Static class fields require the name property to be set on
+          // the class, meaning we can't wait until the
+          // DefineKeyedOwnPropertyInLiteral call later to set the name.
+          if (property->value()->IsClassLiteral() &&
+              property->value()->AsClassLiteral()->static_initializer() !=
+                  nullptr) {
+            VisitClassLiteral(property->value()->AsClassLiteral(), key);
+          } else {
+            data_property_flags |=
+                DefineKeyedOwnPropertyInLiteralFlag::kSetFunctionName;
+            VisitForAccumulatorValue(property->value());
+          }
+        } else {
+          VisitForAccumulatorValue(property->value());
         }
 
         FeedbackSlot slot =
             feedback_spec()->AddDefineKeyedOwnPropertyInLiteralICSlot();
-        builder()
-            ->LoadAccumulatorWithRegister(value)
-            .DefineKeyedOwnPropertyInLiteral(literal, key, data_property_flags,
-                                             feedback_index(slot));
+        builder()->DefineKeyedOwnPropertyInLiteral(
+            literal, key, data_property_flags, feedback_index(slot));
         break;
       }
       case ObjectLiteral::Property::GETTER:

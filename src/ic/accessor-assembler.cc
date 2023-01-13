@@ -3799,11 +3799,12 @@ void AccessorAssembler::StoreGlobalIC(const StoreICParameters* pp) {
       GotoIf(TaggedEqual(handler, UninitializedSymbolConstant()), &miss);
 
       DCHECK(pp->receiver_is_null());
+      DCHECK(pp->flags_is_null());
       TNode<NativeContext> native_context = LoadNativeContext(pp->context());
       StoreICParameters p(
           pp->context(),
           LoadContextElement(native_context, Context::GLOBAL_PROXY_INDEX),
-          pp->name(), pp->value(), pp->slot(), pp->vector(),
+          pp->name(), pp->value(), base::nullopt, pp->slot(), pp->vector(),
           StoreICMode::kDefault);
 
       HandleStoreICHandlerCase(&p, handler, &miss, ICMode::kGlobalIC);
@@ -3982,6 +3983,25 @@ void AccessorAssembler::KeyedStoreIC(const StoreICParameters* p) {
 void AccessorAssembler::DefineKeyedOwnIC(const StoreICParameters* p) {
   Label miss(this, Label::kDeferred);
   {
+    {
+      // TODO(v8:13451): Port SetFunctionName to an ic so that we can remove
+      // the runtime call here. Potentially we may also remove the
+      // StoreICParameters flags and have builtins:kDefineKeyedOwnIC reusing
+      // StoreWithVectorDescriptor again.
+      Label did_set_function_name_if_needed(this);
+      TNode<Int32T> needs_set_function_name = Word32And(
+          SmiToInt32(p->flags()),
+          Int32Constant(
+              static_cast<int>(DefineKeyedOwnPropertyFlag::kSetFunctionName)));
+      GotoIfNot(needs_set_function_name, &did_set_function_name_if_needed);
+
+      Comment("DefineKeyedOwnIC_set_function_name");
+      CallRuntime(Runtime::kSetFunctionName, p->context(), p->value(),
+                  p->name());
+
+      Goto(&did_set_function_name_if_needed);
+      BIND(&did_set_function_name_if_needed);
+    }
     TVARIABLE(MaybeObject, var_handler);
 
     Label if_handler(this, &var_handler),
@@ -4552,10 +4572,11 @@ void AccessorAssembler::GenerateStoreGlobalIC() {
   auto name = Parameter<Object>(Descriptor::kName);
   auto value = Parameter<Object>(Descriptor::kValue);
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
+  auto flags = base::nullopt;
   auto vector = Parameter<HeapObject>(Descriptor::kVector);
   auto context = Parameter<Context>(Descriptor::kContext);
 
-  StoreICParameters p(context, base::nullopt, name, value, slot, vector,
+  StoreICParameters p(context, base::nullopt, name, value, flags, slot, vector,
                       StoreICMode::kDefault);
   StoreGlobalIC(&p);
 }
@@ -4590,11 +4611,12 @@ void AccessorAssembler::GenerateStoreIC() {
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto value = Parameter<Object>(Descriptor::kValue);
+  auto flags = base::nullopt;
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
   auto vector = Parameter<HeapObject>(Descriptor::kVector);
   auto context = Parameter<Context>(Descriptor::kContext);
 
-  StoreICParameters p(context, receiver, name, value, slot, vector,
+  StoreICParameters p(context, receiver, name, value, flags, slot, vector,
                       StoreICMode::kDefault);
   StoreIC(&p);
 }
@@ -4633,11 +4655,12 @@ void AccessorAssembler::GenerateDefineNamedOwnIC() {
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto value = Parameter<Object>(Descriptor::kValue);
+  auto flags = base::nullopt;
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
   auto vector = Parameter<HeapObject>(Descriptor::kVector);
   auto context = Parameter<Context>(Descriptor::kContext);
 
-  StoreICParameters p(context, receiver, name, value, slot, vector,
+  StoreICParameters p(context, receiver, name, value, flags, slot, vector,
                       StoreICMode::kDefineNamedOwn);
   // StoreIC is a generic helper than handle both set and define own
   // named stores.
@@ -4678,11 +4701,12 @@ void AccessorAssembler::GenerateKeyedStoreIC() {
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto value = Parameter<Object>(Descriptor::kValue);
+  auto flags = base::nullopt;
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
   auto vector = Parameter<HeapObject>(Descriptor::kVector);
   auto context = Parameter<Context>(Descriptor::kContext);
 
-  StoreICParameters p(context, receiver, name, value, slot, vector,
+  StoreICParameters p(context, receiver, name, value, flags, slot, vector,
                       StoreICMode::kDefault);
   KeyedStoreIC(&p);
 }
@@ -4716,46 +4740,49 @@ void AccessorAssembler::GenerateKeyedStoreICBaseline() {
 }
 
 void AccessorAssembler::GenerateDefineKeyedOwnIC() {
-  using Descriptor = StoreWithVectorDescriptor;
+  using Descriptor = DefineKeyedOwnWithVectorDescriptor;
 
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto value = Parameter<Object>(Descriptor::kValue);
+  auto flags = Parameter<Smi>(Descriptor::kFlags);
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
   auto vector = Parameter<HeapObject>(Descriptor::kVector);
   auto context = Parameter<Context>(Descriptor::kContext);
 
-  StoreICParameters p(context, receiver, name, value, slot, vector,
+  StoreICParameters p(context, receiver, name, value, flags, slot, vector,
                       StoreICMode::kDefineKeyedOwn);
   DefineKeyedOwnIC(&p);
 }
 
 void AccessorAssembler::GenerateDefineKeyedOwnICTrampoline() {
-  using Descriptor = StoreDescriptor;
+  using Descriptor = DefineKeyedOwnDescriptor;
 
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto value = Parameter<Object>(Descriptor::kValue);
+  auto flags = Parameter<Smi>(Descriptor::kFlags);
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
   auto context = Parameter<Context>(Descriptor::kContext);
   TNode<FeedbackVector> vector = LoadFeedbackVectorForStub();
 
   TailCallBuiltin(Builtin::kDefineKeyedOwnIC, context, receiver, name, value,
-                  slot, vector);
+                  flags, slot, vector);
 }
 
 void AccessorAssembler::GenerateDefineKeyedOwnICBaseline() {
-  using Descriptor = StoreBaselineDescriptor;
+  using Descriptor = DefineKeyedOwnBaselineDescriptor;
 
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto value = Parameter<Object>(Descriptor::kValue);
+  auto flags = Parameter<Smi>(Descriptor::kFlags);
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
   TNode<FeedbackVector> vector = LoadFeedbackVectorFromBaseline();
   TNode<Context> context = LoadContextFromBaseline();
 
   TailCallBuiltin(Builtin::kDefineKeyedOwnIC, context, receiver, name, value,
-                  slot, vector);
+                  flags, slot, vector);
 }
 
 void AccessorAssembler::GenerateStoreInArrayLiteralIC() {
@@ -4764,11 +4791,12 @@ void AccessorAssembler::GenerateStoreInArrayLiteralIC() {
   auto array = Parameter<Object>(Descriptor::kReceiver);
   auto index = Parameter<Object>(Descriptor::kName);
   auto value = Parameter<Object>(Descriptor::kValue);
+  auto flags = base::nullopt;
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
   auto vector = Parameter<HeapObject>(Descriptor::kVector);
   auto context = Parameter<Context>(Descriptor::kContext);
 
-  StoreICParameters p(context, array, index, value, slot, vector,
+  StoreICParameters p(context, array, index, value, flags, slot, vector,
                       StoreICMode::kDefault);
   StoreInArrayLiteralIC(&p);
 }

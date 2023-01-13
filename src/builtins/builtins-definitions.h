@@ -656,9 +656,9 @@ namespace internal {
   TFH(KeyedStoreIC, StoreWithVector)                                           \
   TFH(KeyedStoreICTrampoline, Store)                                           \
   TFH(KeyedStoreICBaseline, StoreBaseline)                                     \
-  TFH(DefineKeyedOwnIC, StoreWithVector)                                       \
-  TFH(DefineKeyedOwnICTrampoline, Store)                                       \
-  TFH(DefineKeyedOwnICBaseline, StoreBaseline)                                 \
+  TFH(DefineKeyedOwnIC, DefineKeyedOwnWithVector)                              \
+  TFH(DefineKeyedOwnICTrampoline, DefineKeyedOwn)                              \
+  TFH(DefineKeyedOwnICBaseline, DefineKeyedOwnBaseline)                        \
   TFH(StoreInArrayLiteralIC, StoreWithVector)                                  \
   TFH(StoreInArrayLiteralICBaseline, StoreBaseline)                            \
   TFH(LookupContextTrampoline, LookupTrampoline)                               \

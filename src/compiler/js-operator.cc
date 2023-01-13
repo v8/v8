@@ -1133,7 +1133,7 @@ const Operator* JSOperatorBuilder::DefineKeyedOwnProperty(
   return zone()->New<Operator1<PropertyAccess>>(                     // --
       IrOpcode::kJSDefineKeyedOwnProperty, Operator::kNoProperties,  // opcode
       "JSDefineKeyedOwnProperty",                                    // name
-      4, 1, 1, 0, 1, 2,                                              // counts
+      5, 1, 1, 0, 1, 2,                                              // counts
       access);  // parameter
 }
 

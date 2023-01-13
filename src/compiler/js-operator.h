@@ -1341,7 +1341,8 @@ class JSDefineKeyedOwnPropertyNode final : public JSNodeWrapperBase {
   V(Object, object, 0, Object) \
   V(Key, key, 1, Object)       \
   V(Value, value, 2, Object)   \
-  V(FeedbackVector, feedback_vector, 3, HeapObject)
+  V(Flags, flags, 3, Object)   \
+  V(FeedbackVector, feedback_vector, 4, HeapObject)
   INPUTS(DEFINE_INPUT_ACCESSORS)
 #undef INPUTS
 };

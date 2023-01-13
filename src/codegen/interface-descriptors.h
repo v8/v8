@@ -73,6 +73,9 @@ namespace internal {
   V(CopyDataPropertiesWithExcludedPropertiesOnStack) \
   V(CppBuiltinAdaptor)                               \
   V(DataViewGetVariableLength)                       \
+  V(DefineKeyedOwn)                                  \
+  V(DefineKeyedOwnBaseline)                          \
+  V(DefineKeyedOwnWithVector)                        \
   V(FastNewObject)                                   \
   V(FindNonDefaultConstructorOrConstruct)            \
   V(ForInPrepare)                                    \
@@ -963,6 +966,54 @@ class StoreGlobalWithVectorDescriptor
                          MachineType::TaggedSigned(),  // kSlot
                          MachineType::AnyTagged())     // kVector
   DECLARE_DESCRIPTOR(StoreGlobalWithVectorDescriptor)
+
+  static constexpr auto registers();
+};
+
+class DefineKeyedOwnDescriptor
+    : public StaticCallInterfaceDescriptor<DefineKeyedOwnDescriptor> {
+ public:
+  DEFINE_PARAMETERS(kReceiver, kName, kValue, kFlags, kSlot)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
+                         MachineType::AnyTagged(),     // kName
+                         MachineType::AnyTagged(),     // kValue
+                         MachineType::TaggedSigned(),  // kFlags
+                         MachineType::TaggedSigned())  // kSlot
+  DECLARE_DESCRIPTOR(DefineKeyedOwnDescriptor)
+
+  static constexpr inline Register FlagsRegister();
+
+  static constexpr auto registers();
+};
+
+class DefineKeyedOwnBaselineDescriptor
+    : public StaticCallInterfaceDescriptor<DefineKeyedOwnBaselineDescriptor> {
+ public:
+  DEFINE_PARAMETERS_NO_CONTEXT(kReceiver, kName, kValue, kFlags, kSlot)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
+                         MachineType::AnyTagged(),     // kName
+                         MachineType::AnyTagged(),     // kValue
+                         MachineType::TaggedSigned(),  // kFlags
+                         MachineType::TaggedSigned())  // kSlot
+  DECLARE_DESCRIPTOR(DefineKeyedOwnBaselineDescriptor)
+
+  static constexpr auto registers();
+};
+
+class DefineKeyedOwnWithVectorDescriptor
+    : public StaticCallInterfaceDescriptor<DefineKeyedOwnWithVectorDescriptor> {
+ public:
+  DEFINE_PARAMETERS(kReceiver, kName, kValue, kFlags,
+                    kSlot,   // register argument
+                    kVector  // stack argument
+  )
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
+                         MachineType::AnyTagged(),     // kName
+                         MachineType::AnyTagged(),     // kValue
+                         MachineType::TaggedSigned(),  // kFlags
+                         MachineType::TaggedSigned(),  // kSlot
+                         MachineType::AnyTagged())     // kVector
+  DECLARE_DESCRIPTOR(DefineKeyedOwnWithVectorDescriptor)
 
   static constexpr auto registers();
 };

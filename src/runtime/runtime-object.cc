@@ -1115,6 +1115,25 @@ RUNTIME_FUNCTION(Runtime_DefineAccessorPropertyUnchecked) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_SetFunctionName) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  Handle<Object> value = args.at(0);
+  Handle<Name> name = args.at<Name>(1);
+  DCHECK(value->IsJSFunction());
+  Handle<JSFunction> function = Handle<JSFunction>::cast(value);
+  DCHECK(!function->shared().HasSharedName());
+  Handle<Map> function_map(function->map(), isolate);
+  if (!JSFunction::SetName(function, name,
+                           isolate->factory()->empty_string())) {
+    return ReadOnlyRoots(isolate).exception();
+  }
+  // Class constructors do not reserve in-object space for name field.
+  DCHECK_IMPLIES(!IsClassConstructor(function->shared().kind()),
+                 *function_map == function->map());
+  return *value;
+}
+
 RUNTIME_FUNCTION(Runtime_DefineKeyedOwnPropertyInLiteral) {
   HandleScope scope(isolate);
   DCHECK_EQ(6, args.length());
@@ -1159,17 +1178,20 @@ RUNTIME_FUNCTION(Runtime_DefineKeyedOwnPropertyInLiteral) {
       return ReadOnlyRoots(isolate).exception();
     }
     // Class constructors do not reserve in-object space for name field.
-    CHECK_IMPLIES(!IsClassConstructor(function->shared().kind()),
-                  *function_map == function->map());
+    DCHECK_IMPLIES(!IsClassConstructor(function->shared().kind()),
+                   *function_map == function->map());
   }
 
   PropertyKey key(isolate, name);
   LookupIterator it(isolate, object, key, object, LookupIterator::OWN);
+
+  Maybe<bool> result = JSObject::DefineOwnPropertyIgnoreAttributes(
+      &it, value, attrs, Just(kDontThrow));
   // Cannot fail since this should only be called when
   // creating an object literal.
-  CHECK(JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, attrs,
-                                                    Just(kDontThrow))
-            .IsJust());
+  RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
+  DCHECK(result.IsJust());
+  USE(result);
 
   // Return the value so that
   // BaselineCompiler::VisitDefineKeyedOwnPropertyInLiteral doesn't have to

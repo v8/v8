@@ -2697,10 +2697,11 @@ void MaglevGraphBuilder::VisitSetKeyedProperty() {
 }
 
 void MaglevGraphBuilder::VisitDefineKeyedOwnProperty() {
-  // DefineKeyedOwnProperty <object> <key> <slot>
+  // DefineKeyedOwnProperty <object> <key> <flags> <slot>
   ValueNode* object = LoadRegisterTagged(0);
   ValueNode* key = LoadRegisterTagged(1);
-  FeedbackSlot slot = GetSlotOperand(2);
+  ValueNode* flags = GetSmiConstant(GetFlag8Operand(2));
+  FeedbackSlot slot = GetSlotOperand(3);
   compiler::FeedbackSource feedback_source{feedback(), slot};
 
   // TODO(victorgomes): Add monomorphic fast path.
@@ -2709,7 +2710,7 @@ void MaglevGraphBuilder::VisitDefineKeyedOwnProperty() {
   ValueNode* context = GetContext();
   ValueNode* value = GetAccumulatorTagged();
   SetAccumulator(AddNewNode<DefineKeyedOwnGeneric>(
-      {context, object, key, value}, feedback_source));
+      {context, object, key, value, flags}, feedback_source));
 }
 
 void MaglevGraphBuilder::VisitStaInArrayLiteral() {
