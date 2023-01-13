@@ -113,6 +113,9 @@ Reduction WasmInliner::ReduceCall(Node* call) {
 }
 
 bool SmallEnoughToInline(size_t current_graph_size, uint32_t candidate_size) {
+  if (candidate_size > v8_flags.wasm_inlining_max_size) {
+    return false;
+  }
   if (WasmInliner::graph_size_allows_inlining(current_graph_size +
                                               candidate_size)) {
     return true;
