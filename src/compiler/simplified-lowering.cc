@@ -2182,13 +2182,15 @@ class RepresentationSelector {
         DCHECK_EQ(0, node->InputCount());
         SetOutput<T>(node, MachineRepresentation::kWord32);
         DCHECK(NodeProperties::GetType(node).Is(Type::Machine()));
-        if (verification_enabled()) {
+        if (V8_UNLIKELY(verification_enabled())) {
           // During lowering, SimplifiedLowering generates Int32Constants which
           // need to be treated differently by the verifier than the
           // Int32Constants introduced explicitly in machine graphs. To be able
           // to distinguish them, we record those that are being visited here
           // because they were generated before SimplifiedLowering.
-          verifier_->RecordMachineUsesOfConstant(node, node->uses());
+          if (propagate<T>()) {
+            verifier_->RecordMachineUsesOfConstant(node, node->uses());
+          }
         }
         return;
       case IrOpcode::kInt64Constant:
@@ -4486,6 +4488,7 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kInt32Add:
+      case IrOpcode::kInt32LessThanOrEqual:
       case IrOpcode::kInt32Sub:
       case IrOpcode::kUint32LessThan:
       case IrOpcode::kUint32LessThanOrEqual:

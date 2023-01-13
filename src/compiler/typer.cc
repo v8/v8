@@ -159,7 +159,6 @@ class Typer::Visitor : public Reducer {
       DECLARE_IMPOSSIBLE_CASE(Uint64MulHigh)
       DECLARE_IMPOSSIBLE_CASE(Word64Equal)
       DECLARE_IMPOSSIBLE_CASE(Int32LessThan)
-      DECLARE_IMPOSSIBLE_CASE(Int32LessThanOrEqual)
       DECLARE_IMPOSSIBLE_CASE(Int64LessThan)
       DECLARE_IMPOSSIBLE_CASE(Int64LessThanOrEqual)
       DECLARE_IMPOSSIBLE_CASE(Uint64LessThan)
