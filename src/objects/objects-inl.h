@@ -109,9 +109,6 @@ IS_TYPE_FUNCTION_DEF(CodeT)
   bool Object::Is##Type(LocalIsolate* isolate) const {           \
     return Is##Type(ReadOnlyRoots(isolate));                     \
   }                                                              \
-  bool Object::Is##Type(ReadOnlyRoots roots) const {             \
-    return (*this) == roots.Value();                             \
-  }                                                              \
   bool Object::Is##Type() const {                                \
     return IsHeapObject() && HeapObject::cast(*this).Is##Type(); \
   }                                                              \
@@ -125,6 +122,22 @@ IS_TYPE_FUNCTION_DEF(CodeT)
     return Object::Is##Type(roots);                              \
   }                                                              \
   bool HeapObject::Is##Type() const { return Is##Type(GetReadOnlyRoots()); }
+ODDBALL_LIST(IS_TYPE_FUNCTION_DEF)
+#undef IS_TYPE_FUNCTION_DEF
+
+#if V8_STATIC_ROOTS_BOOL
+#define IS_TYPE_FUNCTION_DEF(Type, Value)                                  \
+  bool Object::Is##Type(ReadOnlyRoots roots) const {                       \
+    SLOW_DCHECK(CheckObjectComparisonAllowed(ptr(), roots.Value().ptr())); \
+    return V8HeapCompressionScheme::CompressTagged(ptr()) ==               \
+           kStaticReadOnlyRoot::Value;                                     \
+  }
+#else
+#define IS_TYPE_FUNCTION_DEF(Type, Value)            \
+  bool Object::Is##Type(ReadOnlyRoots roots) const { \
+    return (*this) == roots.Value();                 \
+  }
+#endif
 ODDBALL_LIST(IS_TYPE_FUNCTION_DEF)
 #undef IS_TYPE_FUNCTION_DEF
 

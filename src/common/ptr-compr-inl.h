@@ -73,11 +73,15 @@ Address V8HeapCompressionScheme::DecompressTaggedPointer(
     TOnHeapAddress on_heap_addr, Tagged_t raw_value) {
 #if defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE) && \
     !defined(V8_COMPRESS_POINTERS_DONT_USE_GLOBAL_BASE)
-  Address cage_base = base();
+  byte* cage_base = reinterpret_cast<byte*>(V8_ASSUME_ALIGNED(
+      reinterpret_cast<void*>(base_), kPtrComprCageBaseAlignment));
+  // For V8_ASSUME_ALIGNED to be considered for optimizations the following
+  // addition has to happen on a pointer type.
+  return reinterpret_cast<Address>(cage_base + raw_value);
 #else
   Address cage_base = GetPtrComprCageBaseAddress(on_heap_addr);
-#endif
   return cage_base + static_cast<Address>(raw_value);
+#endif
 }
 
 // static
@@ -159,11 +163,15 @@ Address ExternalCodeCompressionScheme::DecompressTaggedPointer(
     TOnHeapAddress on_heap_addr, Tagged_t raw_value) {
 #if defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE) && \
     !defined(V8_COMPRESS_POINTERS_DONT_USE_GLOBAL_BASE)
-  Address cage_base = base();
+  byte* cage_base = reinterpret_cast<byte*>(V8_ASSUME_ALIGNED(
+      reinterpret_cast<void*>(base_), kPtrComprCageBaseAlignment));
+  // For V8_ASSUME_ALIGNED to be considered for optimizations the following
+  // addition has to happen on a pointer type.
+  return reinterpret_cast<Address>(cage_base + raw_value);
 #else
   Address cage_base = GetPtrComprCageBaseAddress(on_heap_addr);
-#endif
   return cage_base + static_cast<Address>(raw_value);
+#endif
 }
 
 // static

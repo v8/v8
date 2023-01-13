@@ -72,9 +72,8 @@ class ReadOnlyHeap {
   V8_EXPORT_PRIVATE static bool Contains(Address address);
   // Returns whether the object resides in the read-only space.
   V8_EXPORT_PRIVATE static bool Contains(HeapObject object);
-  // Gets read-only roots from an appropriate root list: shared read-only root
-  // list if the shared read-only heap has been initialized or the isolate
-  // specific roots table.
+  // Gets read-only roots from an appropriate root list. Shared read only root
+  // must be initialized
   V8_EXPORT_PRIVATE inline static ReadOnlyRoots GetReadOnlyRoots(
       HeapObject object);
   // Returns the current isolates roots table during initialization as opposed
