@@ -244,19 +244,18 @@ class UseMarkingProcessor {
     BasicBlock* target = node->target();
     uint32_t use = node->id();
 
-    if (target->has_phi()) {
-      // Phis are potential users of nodes outside this loop, but only on
-      // initial loop entry, not on actual looping, so we don't need to record
-      // their other inputs for lifetime extension.
-      for (Phi* phi : *target->phis()) {
-        ValueNode* input = phi->input(i).node();
-        input->mark_use(use, &phi->input(i));
-      }
-    }
-
     DCHECK(!loop_used_nodes_.empty());
     LoopUsedNodes loop_used_nodes = std::move(loop_used_nodes_.back());
     loop_used_nodes_.pop_back();
+
+    LoopUsedNodes* outer_loop_used_nodes = GetCurrentLoopUsedNodes();
+
+    if (target->has_phi()) {
+      for (Phi* phi : *target->phis()) {
+        ValueNode* input = phi->input(i).node();
+        MarkUse(input, use, &phi->input(i), outer_loop_used_nodes);
+      }
+    }
 
     DCHECK_EQ(loop_used_nodes.header, target);
     if (!loop_used_nodes.used_nodes.empty()) {
@@ -264,7 +263,6 @@ class UseMarkingProcessor {
       // that they're lifetime is extended there too.
       // TODO(leszeks): We only need to extend the lifetime in one outermost
       // loop, allow nodes to be "moved" between lifetime extensions.
-      LoopUsedNodes* outer_loop_used_nodes = GetCurrentLoopUsedNodes();
       base::Vector<Input> used_node_inputs =
           compilation_info_->zone()->NewVector<Input>(
               loop_used_nodes.used_nodes.size());
