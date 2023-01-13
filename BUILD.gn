@@ -2461,6 +2461,7 @@ v8_source_set("v8_initializers") {
     "src/builtins/builtins-constructor-gen.h",
     "src/builtins/builtins-constructor.h",
     "src/builtins/builtins-conversion-gen.cc",
+    "src/builtins/builtins-data-view-gen.cc",
     "src/builtins/builtins-data-view-gen.h",
     "src/builtins/builtins-date-gen.cc",
     "src/builtins/builtins-generator-gen.cc",

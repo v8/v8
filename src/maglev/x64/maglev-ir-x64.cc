@@ -531,17 +531,22 @@ void CheckJSDataViewBounds::GenerateCode(MaglevAssembler* masm,
       [](MaglevAssembler* masm, CheckJSDataViewBounds* node, ZoneLabelRef done,
          Register object, Register index, Register byte_length) {
         RegisterSnapshot snapshot = node->register_snapshot();
+        AddDeoptRegistersToSnapshot(&snapshot, node->eager_deopt_info());
         snapshot.live_registers.set(index);  // Make sure index is saved.
+        DCHECK(!snapshot.live_registers.has(byte_length));
         {
-          // TODO(v8:7700): Inline DataViewPrototypeGetByteLength or create a
-          // different builtin that does not re-check the DataView object.
+          using D = CallInterfaceDescriptorFor<
+              Builtin::kDataViewGetVariableLength>::type;
           SaveRegisterStateForCall save_register_state(masm, snapshot);
-          __ PushReverse(object);
+          __ Move(D::GetRegisterParameter(D::kDataView), object);
           __ Move(kContextRegister, masm->native_context().object());
-          __ Move(kJavaScriptCallArgCountRegister, 1);
-          __ CallBuiltin(Builtin::kDataViewPrototypeGetByteLength);
+          __ CallBuiltin(Builtin::kDataViewGetVariableLength);
+          __ Move(byte_length, kReturnRegister0);
         }
-        __ SmiUntag(byte_length, kReturnRegister0);
+        __ cmpq(byte_length, Immediate(0));
+        // The reason might not be OOB, but because array was detached.
+        // Unfortunately we can only add one reason type in Maglev.
+        __ EmitEagerDeoptIf(less, DeoptimizeReason::kOutOfBounds, node);
         __ jmp(*done);
       },
       this, done_byte_length, object, index, byte_length);

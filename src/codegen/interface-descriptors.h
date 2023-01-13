@@ -72,6 +72,7 @@ namespace internal {
   V(CopyDataPropertiesWithExcludedProperties)        \
   V(CopyDataPropertiesWithExcludedPropertiesOnStack) \
   V(CppBuiltinAdaptor)                               \
+  V(DataViewGetVariableLength)                       \
   V(FastNewObject)                                   \
   V(FindNonDefaultConstructorOrConstruct)            \
   V(ForInPrepare)                                    \
@@ -1637,6 +1638,16 @@ class CppBuiltinAdaptorDescriptor
   DEFINE_JS_PARAMETERS(kCFunction)
   DEFINE_JS_PARAMETER_TYPES(MachineType::Pointer())
   DECLARE_JS_COMPATIBLE_DESCRIPTOR(CppBuiltinAdaptorDescriptor)
+};
+
+class DataViewGetVariableLengthDescriptor
+    : public StaticCallInterfaceDescriptor<
+          DataViewGetVariableLengthDescriptor> {
+ public:
+  DEFINE_PARAMETERS(kDataView)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::IntPtr(),     // Byte Length
+                                    MachineType::AnyTagged())  // kDataView
+  DECLARE_DESCRIPTOR(DataViewGetVariableLengthDescriptor)
 };
 
 class CEntry1ArgvOnStackDescriptor

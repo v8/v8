@@ -3017,6 +3017,7 @@ filegroup(
         "src/builtins/builtins-constructor.h",
         "src/builtins/builtins-conversion-gen.cc",
         "src/builtins/builtins-data-view-gen.h",
+        "src/builtins/builtins-data-view-gen.cc",
         "src/builtins/builtins-date-gen.cc",
         "src/builtins/builtins-generator-gen.cc",
         "src/builtins/builtins-global-gen.cc",
