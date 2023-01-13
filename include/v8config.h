@@ -351,7 +351,7 @@ path. Add it with -I<path> to the command line
 // for now.
 #if (defined(_M_X64) || defined(__x86_64__) || defined(__AARCH64EL__) || \
      defined(_M_ARM64)) /* x64 or arm64 */ \
-     && !defined(BUILDING_V8_SHARED) && !defined(USING_V8_SHARED)
+     && !defined(COMPONENT_BUILD)
 # define V8_HAS_ATTRIBUTE_PRESERVE_MOST (__has_attribute(preserve_most))
 #endif
 # define V8_HAS_ATTRIBUTE_VISIBILITY (__has_attribute(visibility))
