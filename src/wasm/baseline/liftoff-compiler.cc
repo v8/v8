@@ -1120,16 +1120,20 @@ class LiftoffCompiler {
           max_steps_addr,
           WasmValue::ForUintPtr(reinterpret_cast<uintptr_t>(max_steps_)));
       __ Load(max_steps, max_steps_addr.gp(), no_reg, 0, LoadType::kI32Load);
+      // Subtract first (and store the result), so the caller sees that
+      // max_steps ran negative. Since we never subtract too much at once, we
+      // cannot underflow.
+      DCHECK_GE(kMaxInt / 16, steps_done);  // An arbitrary limit.
+      __ emit_i32_subi(max_steps.gp(), max_steps.gp(), steps_done);
+      __ Store(max_steps_addr.gp(), no_reg, 0, max_steps, StoreType::kI32Store,
+               pinned);
       Label cont;
-      __ emit_i32_cond_jumpi(kSignedGreaterEqual, &cont, max_steps.gp(),
-                             steps_done, frozen);
+      __ emit_i32_cond_jumpi(kSignedGreaterEqual, &cont, max_steps.gp(), 0,
+                             frozen);
       // Abort.
       Trap(decoder, kTrapUnreachable);
       __ bind(&cont);
     }
-    __ emit_i32_subi(max_steps.gp(), max_steps.gp(), steps_done);
-    __ Store(max_steps_addr.gp(), no_reg, 0, max_steps, StoreType::kI32Store,
-             pinned);
   }
 
   V8_NOINLINE void EmitDebuggingInfo(FullDecoder* decoder, WasmOpcode opcode) {

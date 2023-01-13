@@ -125,7 +125,7 @@ void ExecuteAgainstReference(Isolate* isolate,
       compiled_args.begin(), &exception_ref);
   // Reached max steps, do not try to execute the test module as it might
   // never terminate.
-  if (max_steps == 0) return;
+  if (max_steps < 0) return;
   // If there is nondeterminism, we cannot guarantee the behavior of the test
   // module, and in particular it may not terminate.
   if (nondeterminism != 0) return;
