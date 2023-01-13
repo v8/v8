@@ -2089,6 +2089,8 @@ void MarkCompactCollector::MarkRoots(RootVisitor* root_visitor) {
   heap()->IterateRootsIncludingClients(
       root_visitor, base::EnumSet<SkipRoot>{SkipRoot::kWeak, SkipRoot::kStack});
 
+  MarkWaiterQueueNode(isolate());
+
   // Custom marking for top optimized frame.
   CustomRootBodyMarkingVisitor custom_root_body_visitor(this);
   ProcessTopOptimizedFrame(&custom_root_body_visitor, isolate());
@@ -2334,30 +2336,35 @@ void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
         });
   }
 
-#ifdef V8_COMPRESS_POINTERS
-  DCHECK(IsSharedExternalPointerType(kWaiterQueueNodeTag));
-  // Custom marking for the external pointer table entry used to hold
-  // client Isolates' WaiterQueueNode, which is used by JS mutexes and
-  // condition variables.
-  ExternalPointerHandle* handle_location =
-      client->GetWaiterQueueNodeExternalPointerHandleLocation();
-  ExternalPointerTable& shared_table = client->shared_external_pointer_table();
-  ExternalPointerHandle handle =
-      base::AsAtomic32::Relaxed_Load(handle_location);
-  if (handle) {
-    shared_table.Mark(handle, reinterpret_cast<Address>(handle_location));
-  }
-#endif  // V8_COMPRESS_POINTERS
+  MarkWaiterQueueNode(client);
 
 #ifdef V8_ENABLE_SANDBOX
   DCHECK(IsSharedExternalPointerType(kExternalStringResourceTag));
   DCHECK(IsSharedExternalPointerType(kExternalStringResourceDataTag));
   // All ExternalString resources are stored in the shared external pointer
   // table. Mark entries from client heaps.
+  ExternalPointerTable& shared_table = client->shared_external_pointer_table();
   MarkExternalPointerFromExternalStringTable external_string_visitor(
       &shared_table);
   heap->external_string_table_.IterateAll(&external_string_visitor);
 #endif  // V8_ENABLE_SANDBOX
+}
+
+void MarkCompactCollector::MarkWaiterQueueNode(Isolate* isolate) {
+#ifdef V8_COMPRESS_POINTERS
+  DCHECK(IsSharedExternalPointerType(kWaiterQueueNodeTag));
+  // Custom marking for the external pointer table entry used to hold the
+  // isolates' WaiterQueueNode, which is used by JS mutexes and condition
+  // variables.
+  ExternalPointerHandle* handle_location =
+      isolate->GetWaiterQueueNodeExternalPointerHandleLocation();
+  ExternalPointerTable& shared_table = isolate->shared_external_pointer_table();
+  ExternalPointerHandle handle =
+      base::AsAtomic32::Relaxed_Load(handle_location);
+  if (handle) {
+    shared_table.Mark(handle, reinterpret_cast<Address>(handle_location));
+  }
+#endif  // V8_COMPRESS_POINTERS
 }
 
 void MarkCompactCollector::VisitObject(HeapObject obj) {
