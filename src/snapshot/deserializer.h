@@ -169,6 +169,55 @@ class Deserializer : public SerializerDeserializer {
   template <typename SlotAccessor>
   int ReadSingleBytecodeData(byte data, SlotAccessor slot_accessor);
 
+  template <typename SlotAccessor>
+  int ReadNewObject(byte data, SlotAccessor slot_accessor);
+  template <typename SlotAccessor>
+  int ReadBackref(byte data, SlotAccessor slot_accessor);
+  template <typename SlotAccessor>
+  int ReadReadOnlyHeapRef(byte data, SlotAccessor slot_accessor);
+  template <typename SlotAccessor>
+  int ReadRootArray(byte data, SlotAccessor slot_accessor);
+  template <typename SlotAccessor>
+  int ReadStartupObjectCache(byte data, SlotAccessor slot_accessor);
+  template <typename SlotAccessor>
+  int ReadReadOnlyObjectCache(byte data, SlotAccessor slot_accessor);
+  template <typename SlotAccessor>
+  int ReadSharedHeapObjectCache(byte data, SlotAccessor slot_accessor);
+  template <typename SlotAccessor>
+  int ReadNewMetaMap(byte data, SlotAccessor slot_accessor);
+  template <typename SlotAccessor>
+  int ReadExternalReference(byte data, SlotAccessor slot_accessor);
+  template <typename SlotAccessor>
+  int ReadRawExternalReference(byte data, SlotAccessor slot_accessor);
+  template <typename SlotAccessor>
+  int ReadAttachedReference(byte data, SlotAccessor slot_accessor);
+  template <typename SlotAccessor>
+  int ReadRegisterPendingForwardRef(byte data, SlotAccessor slot_accessor);
+  template <typename SlotAccessor>
+  int ReadResolvePendingForwardRef(byte data, SlotAccessor slot_accessor);
+  template <typename SlotAccessor>
+  int ReadVariableRawData(byte data, SlotAccessor slot_accessor);
+  template <typename SlotAccessor>
+  int ReadCodeBody(byte data, SlotAccessor slot_accessor);
+  template <typename SlotAccessor>
+  int ReadVariableRepeat(byte data, SlotAccessor slot_accessor);
+  template <typename SlotAccessor>
+  int ReadOffHeapBackingStore(byte data, SlotAccessor slot_accessor);
+  template <typename SlotAccessor>
+  int ReadApiReference(byte data, SlotAccessor slot_accessor);
+  template <typename SlotAccessor>
+  int ReadClearedWeakReference(byte data, SlotAccessor slot_accessor);
+  template <typename SlotAccessor>
+  int ReadWeakPrefix(byte data, SlotAccessor slot_accessor);
+  template <typename SlotAccessor>
+  int ReadRootArrayConstants(byte data, SlotAccessor slot_accessor);
+  template <typename SlotAccessor>
+  int ReadHotObject(byte data, SlotAccessor slot_accessor);
+  template <typename SlotAccessor>
+  int ReadFixedRawData(byte data, SlotAccessor slot_accessor);
+  template <typename SlotAccessor>
+  int ReadFixedRepeat(byte data, SlotAccessor slot_accessor);
+
   // A helper function for ReadData for reading external references.
   inline Address ReadExternalReferenceCase();
 
