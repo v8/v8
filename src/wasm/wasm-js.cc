@@ -1411,9 +1411,11 @@ bool GetValueType(Isolate* isolate, MaybeLocal<Value> maybe,
   } else if (enabled_features.has_gc() &&
              string->StringEquals(v8_str(isolate, "arrayref"))) {
     *type = i::wasm::kWasmArrayRef;
+  } else if (enabled_features.has_gc() &&
+             string->StringEquals(v8_str(isolate, "i31ref"))) {
+    *type = i::wasm::kWasmI31Ref;
   } else {
     // Unrecognized type.
-    // TODO(7748): Add "i31ref".
     *type = i::wasm::kWasmVoid;
   }
   return true;
