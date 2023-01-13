@@ -1998,7 +1998,8 @@ void Heap::MoveRange(HeapObject dst_object, const ObjectSlot dst_slot,
   DCHECK(dst_slot < dst_end);
   DCHECK(src_slot < src_slot + len);
 
-  if (v8_flags.concurrent_marking && incremental_marking()->IsMarking()) {
+  if ((v8_flags.concurrent_marking && incremental_marking()->IsMarking()) ||
+      (v8_flags.minor_mc && sweeper()->IsIteratingPromotedPages())) {
     if (dst_slot < src_slot) {
       // Copy tagged values forward using relaxed load/stores that do not
       // involve value decompression.
@@ -2049,7 +2050,8 @@ void Heap::CopyRange(HeapObject dst_object, const TSlot dst_slot,
   // Ensure ranges do not overlap.
   DCHECK(dst_end <= src_slot || (src_slot + len) <= dst_slot);
 
-  if (v8_flags.concurrent_marking && incremental_marking()->IsMarking()) {
+  if ((v8_flags.concurrent_marking && incremental_marking()->IsMarking()) ||
+      (v8_flags.minor_mc && sweeper()->IsIteratingPromotedPages())) {
     // Copy tagged values using relaxed load/stores that do not involve value
     // decompression.
     const AtomicSlot atomic_dst_end(dst_end);

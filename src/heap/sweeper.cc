@@ -5,6 +5,7 @@
 #include "src/heap/sweeper.h"
 
 #include <algorithm>
+#include <atomic>
 #include <memory>
 #include <vector>
 
@@ -283,6 +284,9 @@ void Sweeper::StartSweeperTasks() {
                                 old_snapshot_large_pages_set.end();
                        }));
 #endif  // DEBUG
+  }
+  if (promoted_pages_for_iteration_count_ > 0) {
+    promoted_page_iteation_in_progress_.store(true, std::memory_order_relaxed);
   }
   if (v8_flags.concurrent_sweeping && sweeping_in_progress_ &&
       !heap_->delay_sweeper_tasks_for_testing_) {
@@ -868,18 +872,16 @@ void Sweeper::RawIteratePromotedPageForRememberedSets(
   chunk->set_concurrent_sweeping_state(Page::ConcurrentSweepingState::kDone);
 }
 
+bool Sweeper::IsIteratingPromotedPages() const {
+  return promoted_page_iteation_in_progress_.load(std::memory_order_relaxed);
+}
+
 void Sweeper::WaitForPromotedPagesIteration() {
   if (!sweeping_in_progress()) return;
-  if (iterated_promoted_pages_count_ ==
-      base::AsAtomicPtr(&promoted_pages_for_iteration_count_)
-          ->load(std::memory_order_relaxed))
-    return;
+  if (!IsIteratingPromotedPages()) return;
   base::MutexGuard guard(&promoted_pages_iteration_notification_mutex_);
   // Check again that iteration is not yet finished.
-  if (iterated_promoted_pages_count_ ==
-      base::AsAtomicPtr(&promoted_pages_for_iteration_count_)
-          ->load(std::memory_order_relaxed))
-    return;
+  if (!IsIteratingPromotedPages()) return;
   promoted_pages_iteration_notification_variable_.Wait(
       &promoted_pages_iteration_notification_mutex_);
 }
@@ -888,6 +890,7 @@ void Sweeper::NotifyPromotedPagesIterationFinished() {
   DCHECK_EQ(iterated_promoted_pages_count_,
             promoted_pages_for_iteration_count_);
   base::MutexGuard guard(&promoted_pages_iteration_notification_mutex_);
+  promoted_page_iteation_in_progress_.store(false, std::memory_order_relaxed);
   promoted_pages_iteration_notification_variable_.NotifyAll();
 }
 
