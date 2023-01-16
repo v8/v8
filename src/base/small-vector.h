@@ -142,10 +142,10 @@ class SmallVector {
 
   template <typename... Args>
   void emplace_back(Args&&... args) {
-    T* end = end_;
-    if (V8_UNLIKELY(end == end_of_storage_)) end = Grow();
-    new (end) T(std::forward<Args>(args)...);
-    end_ = end + 1;
+    if (V8_UNLIKELY(end_ == end_of_storage_)) Grow();
+    void* storage = end_;
+    end_ += 1;
+    new (storage) T(std::forward<Args>(args)...);
   }
 
   void push_back(T x) { emplace_back(std::move(x)); }
@@ -200,10 +200,10 @@ class SmallVector {
 
   // Grows the backing store by a factor of two. Returns the new end of the used
   // storage (this reduces binary size).
-  V8_NOINLINE T* Grow() { return Grow(0); }
+  V8_NOINLINE V8_PRESERVE_MOST void Grow() { Grow(0); }
 
   // Grows the backing store by a factor of two, and at least to {min_capacity}.
-  V8_NOINLINE T* Grow(size_t min_capacity) {
+  V8_NOINLINE V8_PRESERVE_MOST void Grow(size_t min_capacity) {
     size_t in_use = end_ - begin_;
     size_t new_capacity =
         base::bits::RoundUpToPowerOfTwo(std::max(min_capacity, 2 * capacity()));
@@ -220,14 +220,13 @@ class SmallVector {
     begin_ = new_storage;
     end_ = new_storage + in_use;
     end_of_storage_ = new_storage + new_capacity;
-    return end_;
   }
 
   T* AllocateDynamicStorage(size_t number_of_elements) {
     return allocator_.allocate(number_of_elements);
   }
 
-  void FreeDynamicStorage() {
+  V8_NOINLINE V8_PRESERVE_MOST void FreeDynamicStorage() {
     DCHECK(is_big());
     allocator_.deallocate(begin_, end_of_storage_ - begin_);
   }
