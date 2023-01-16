@@ -43,10 +43,6 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
   bool Trace(double deadline);
   bool IsRemoteTracingDone();
 
-  void SetEmbedderWorklistEmpty(bool is_empty) {
-    embedder_worklist_empty_ = is_empty;
-  }
-
   cppgc::EmbedderStackState embedder_stack_state() const {
     return embedder_stack_state_;
   }
@@ -63,10 +59,6 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
 
   cppgc::EmbedderStackState embedder_stack_state_ =
       cppgc::EmbedderStackState::kMayContainHeapPointers;
-  // Indicates whether the embedder worklist was observed empty on the main
-  // thread. This is opportunistic as concurrent marking tasks may hold local
-  // segments of potential embedder fields to move to the main thread.
-  bool embedder_worklist_empty_ = false;
 
   friend class EmbedderStackStateScope;
 };

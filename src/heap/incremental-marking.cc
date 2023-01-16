@@ -557,20 +557,9 @@ void IncrementalMarking::EmbedderStep(double expected_duration_ms,
   }
 
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_INCREMENTAL_EMBEDDER_TRACING);
-  LocalEmbedderHeapTracer* local_tracer = heap_->local_embedder_heap_tracer();
   const double start = heap_->MonotonicallyIncreasingTimeInMs();
-  const double deadline = start + expected_duration_ms;
-  bool empty_worklist = true;
-  if (local_marking_worklists()->PublishWrapper()) {
-    DCHECK(local_marking_worklists()->IsWrapperEmpty());
-  }
-  // |deadline - heap_->MonotonicallyIncreasingTimeInMs()| could be negative,
-  // which means |local_tracer| won't do any actual tracing, so there is no
-  // need to check for |deadline <= heap_->MonotonicallyIncreasingTimeInMs()|.
-  local_tracer->Trace(deadline - heap_->MonotonicallyIncreasingTimeInMs());
-  double current = heap_->MonotonicallyIncreasingTimeInMs();
-  local_tracer->SetEmbedderWorklistEmpty(empty_worklist);
-  *duration_ms = current - start;
+  cpp_heap->AdvanceTracing(expected_duration_ms);
+  *duration_ms = heap_->MonotonicallyIncreasingTimeInMs() - start;
 }
 
 bool IncrementalMarking::Stop() {

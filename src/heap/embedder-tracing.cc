@@ -36,8 +36,6 @@ void LocalEmbedderHeapTracer::PrepareForTrace(CollectionType type) {
 void LocalEmbedderHeapTracer::TracePrologue() {
   if (!InUse()) return;
 
-  embedder_worklist_empty_ = false;
-
   cpp_heap()->StartTracing();
 }
 
