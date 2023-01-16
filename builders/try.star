@@ -86,7 +86,8 @@ try_builder(
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     properties = {"enable_swarming": False, "gclient_vars": {"checkout_clang_coverage_tools": "True"}},
     execution_timeout = 7200,
-    use_goma = GOMA.DEFAULT,
+    use_goma = GOMA.NO,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 try_builder(
@@ -186,7 +187,8 @@ try_builder(
     bucket = "try",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-    use_goma = GOMA.DEFAULT,
+    use_goma = GOMA.NO,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 try_builder(
@@ -203,7 +205,8 @@ try_builder(
     bucket = "try",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-    use_goma = GOMA.DEFAULT,
+    use_goma = GOMA.NO,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 try_builder(
@@ -212,7 +215,8 @@ try_builder(
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     properties = {"default_targets": ["compare_torque_runs"]},
-    use_goma = GOMA.DEFAULT,
+    use_goma = GOMA.NO,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 try_builder(
@@ -221,7 +225,8 @@ try_builder(
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     gclient_vars = [GCLIENT_VARS.ITTAPI],
-    use_goma = GOMA.DEFAULT,
+    use_goma = GOMA.NO,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 try_builder(
