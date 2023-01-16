@@ -7970,6 +7970,8 @@ WasmCompilationResult ExecuteLiftoffCompilation(
     CompilationEnv* env, const FunctionBody& func_body,
     const LiftoffOptions& compiler_options) {
   DCHECK(compiler_options.is_initialized());
+  // Liftoff does not validate the code, so that should have run before.
+  DCHECK(env->module->function_was_validated(compiler_options.func_index));
   base::TimeTicks start_time;
   if (V8_UNLIKELY(v8_flags.trace_wasm_compilation_times)) {
     start_time = base::TimeTicks::Now();
@@ -8043,7 +8045,6 @@ WasmCompilationResult ExecuteLiftoffCompilation(
   }
 
   DCHECK(result.succeeded());
-  env->module->set_function_validated(compiler_options.func_index);
 
   return result;
 }

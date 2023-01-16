@@ -660,6 +660,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
 
   void set_all_functions_validated() const {
     DCHECK_EQ(kWasmOrigin, origin);
+    if (num_declared_functions == 0) return;
     DCHECK_NOT_NULL(validated_functions);
     size_t num_words = (num_declared_functions + 7) / 8;
     for (size_t i = 0; i < num_words; ++i) {

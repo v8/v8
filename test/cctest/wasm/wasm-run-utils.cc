@@ -618,6 +618,18 @@ void WasmFunctionCompiler::Build(base::Vector<const uint8_t> bytes) {
   ForDebugging for_debugging =
       native_module->IsInDebugState() ? kForDebugging : kNotForDebugging;
 
+  WasmFeatures unused_detected_features;
+  // Validate Wasm modules; asm.js is assumed to be always valid.
+  if (env.module->origin == kWasmOrigin) {
+    DecodeResult validation_result = ValidateFunctionBody(
+        env.enabled_features, env.module, &unused_detected_features, func_body);
+    if (validation_result.failed()) {
+      FATAL("Validation failed: %s",
+            validation_result.error().message().c_str());
+    }
+    env.module->set_function_validated(function_->func_index);
+  }
+
   base::Optional<WasmCompilationResult> result;
   if (builder_->test_execution_tier() ==
       TestExecutionTier::kLiftoffForFuzzing) {
@@ -631,11 +643,11 @@ void WasmFunctionCompiler::Build(base::Vector<const uint8_t> bytes) {
   } else {
     WasmCompilationUnit unit(function_->func_index, builder_->execution_tier(),
                              for_debugging);
-    WasmFeatures unused_detected_features;
     result.emplace(unit.ExecuteCompilation(
         &env, native_module->compilation_state()->GetWireBytesStorage().get(),
         nullptr, nullptr, &unused_detected_features));
   }
+  CHECK(result->succeeded());
   WasmCode* code = native_module->PublishCode(
       native_module->AddCompiledCode(std::move(*result)));
   DCHECK_NOT_NULL(code);

@@ -48,6 +48,9 @@ Handle<WasmModuleObject> CompileReferenceModule(
   native_module =
       GetWasmEngine()->NewNativeModule(isolate, enabled_features, module, 0);
   native_module->SetWireBytes(base::OwnedVector<uint8_t>::Of(wire_bytes));
+  // The module is known to be valid as this point (it was compiled by the
+  // caller before).
+  module->set_all_functions_validated();
 
   // Compile all functions with Liftoff.
   WasmCodeRefScope code_ref_scope;
