@@ -939,11 +939,11 @@ ExecutionTierPair GetDefaultTiersPerModule(NativeModule* native_module,
   if (is_asmjs_module(module)) {
     return {ExecutionTier::kTurbofan, ExecutionTier::kTurbofan};
   }
-  if (is_in_debug_state) {
-    return {ExecutionTier::kLiftoff, ExecutionTier::kLiftoff};
-  }
   if (lazy_module) {
     return {ExecutionTier::kNone, ExecutionTier::kNone};
+  }
+  if (is_in_debug_state) {
+    return {ExecutionTier::kLiftoff, ExecutionTier::kLiftoff};
   }
   ExecutionTier baseline_tier =
       v8_flags.liftoff ? ExecutionTier::kLiftoff : ExecutionTier::kTurbofan;
