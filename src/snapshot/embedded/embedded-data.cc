@@ -219,7 +219,7 @@ void FinalizeEmbeddedCodeTargets(Isolate* isolate, EmbeddedData* blob) {
   static_assert(Builtins::kAllBuiltinsAreIsolateIndependent);
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
-    Code code = FromCodeT(isolate->builtins()->code(builtin));
+    Code code = FromCodeDataContainer(isolate->builtins()->code(builtin));
     RelocIterator on_heap_it(code, kRelocMask);
     RelocIterator off_heap_it(blob, code, kRelocMask);
 
@@ -257,8 +257,8 @@ void FinalizeEmbeddedCodeTargets(Isolate* isolate, EmbeddedData* blob) {
   }
 }
 
-void EnsureRelocatable(CodeT codet) {
-  Code code = FromCodeT(codet);
+void EnsureRelocatable(CodeDataContainer code_data_container) {
+  Code code = FromCodeDataContainer(code_data_container);
   if (code.relocation_size() == 0) return;
 
   // On some architectures (arm) the builtin might have a non-empty reloc
@@ -286,7 +286,7 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
   static_assert(Builtins::kAllBuiltinsAreIsolateIndependent);
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
-    Code code = FromCodeT(builtins->code(builtin));
+    Code code = FromCodeDataContainer(builtins->code(builtin));
 
     // Sanity-check that the given builtin is isolate-independent and does not
     // use the trampoline register in its calling convention.
@@ -371,7 +371,7 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
   static_assert(Builtins::kAllBuiltinsAreIsolateIndependent);
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
-    Code code = FromCodeT(builtins->code(builtin));
+    Code code = FromCodeDataContainer(builtins->code(builtin));
     uint32_t offset =
         layout_descriptions[static_cast<int>(builtin)].metadata_offset;
     uint8_t* dst = raw_metadata_start + offset;
@@ -389,7 +389,7 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
   static_assert(Builtins::kAllBuiltinsAreIsolateIndependent);
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
-    Code code = FromCodeT(builtins->code(builtin));
+    Code code = FromCodeDataContainer(builtins->code(builtin));
     uint32_t offset =
         layout_descriptions[static_cast<int>(builtin)].instruction_offset;
     uint8_t* dst = raw_code_start + offset;
@@ -425,7 +425,7 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
   if (DEBUG_BOOL) {
     for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
          ++builtin) {
-      Code code = FromCodeT(builtins->code(builtin));
+      Code code = FromCodeDataContainer(builtins->code(builtin));
 
       CHECK_EQ(d.InstructionSizeOfBuiltin(builtin), code.InstructionSize());
       CHECK_EQ(d.MetadataSizeOfBuiltin(builtin), code.MetadataSize());

@@ -7535,10 +7535,10 @@ TEST(RunComputedCodeObject) {
   RawMachineLabel merge;
   r.Branch(r.Parameter(0), &tlabel, &flabel);
   r.Bind(&tlabel);
-  Node* fa = r.HeapConstant(a.GetCodeT());
+  Node* fa = r.HeapConstant(a.GetCodeDataContainer());
   r.Goto(&merge);
   r.Bind(&flabel);
-  Node* fb = r.HeapConstant(b.GetCodeT());
+  Node* fb = r.HeapConstant(b.GetCodeDataContainer());
   r.Goto(&merge);
   r.Bind(&merge);
   Node* phi = r.Phi(MachineRepresentation::kWord32, fa, fb);

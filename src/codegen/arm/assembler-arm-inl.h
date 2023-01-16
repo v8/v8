@@ -156,7 +156,7 @@ void RelocInfo::WipeOut() {
   }
 }
 
-Handle<CodeT> Assembler::relative_code_target_object_handle_at(
+Handle<CodeDataContainer> Assembler::relative_code_target_object_handle_at(
     Address pc) const {
   Instruction* branch = Instruction::At(pc);
   int code_target_index = branch->GetBranchOffset() / kInstrSize;

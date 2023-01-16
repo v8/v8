@@ -74,8 +74,9 @@ class CodeAssemblerTester {
     return scope_.CloseAndEscape(GenerateCode());
   }
 
-  Handle<CodeT> GenerateCodeTCloseAndEscape() {
-    return scope_.CloseAndEscape(ToCodeT(GenerateCode(), scope_.isolate()));
+  Handle<CodeDataContainer> GenerateCodeDataContainerCloseAndEscape() {
+    return scope_.CloseAndEscape(
+        ToCodeDataContainer(GenerateCode(), scope_.isolate()));
   }
 
  private:

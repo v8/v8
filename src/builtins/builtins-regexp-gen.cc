@@ -45,12 +45,6 @@ TNode<IntPtrT> RegExpBuiltinsAssembler::IntPtrZero() {
   return IntPtrConstant(0);
 }
 
-// If code is a builtin, return the address to the (possibly embedded) builtin
-// code entry, otherwise return the entry of the code object itself.
-TNode<RawPtrT> RegExpBuiltinsAssembler::LoadCodeObjectEntry(TNode<CodeT> code) {
-  return GetCodeEntry(code);
-}
-
 // -----------------------------------------------------------------------------
 // ES6 section 21.2 RegExp Objects
 
@@ -522,7 +516,7 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
 #endif
 
   GotoIf(TaggedIsSmi(var_code.value()), &runtime);
-  TNode<CodeT> code = CAST(var_code.value());
+  TNode<CodeDataContainer> code = CAST(var_code.value());
 
   Label if_success(this), if_exception(this, Label::kDeferred);
   {
@@ -586,7 +580,7 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
     MachineType arg8_type = type_tagged;
     TNode<JSRegExp> arg8 = regexp;
 
-    TNode<RawPtrT> code_entry = LoadCodeObjectEntry(code);
+    TNode<RawPtrT> code_entry = GetCodeEntry(code);
 
     // AIX uses function descriptors on CFunction calls. code_entry in this case
     // may also point to a Regex interpreter entry trampoline which does not

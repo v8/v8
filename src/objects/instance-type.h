@@ -191,8 +191,6 @@ enum InstanceType : uint16_t {
   FIRST_TYPE = FIRST_HEAP_OBJECT_TYPE,
   LAST_TYPE = LAST_HEAP_OBJECT_TYPE,
   BIGINT_TYPE = BIG_INT_BASE_TYPE,
-
-  CODET_TYPE = CODE_DATA_CONTAINER_TYPE,
 };
 
 // This constant is defined outside of the InstanceType enum because the
@@ -291,8 +289,6 @@ namespace InstanceTypeChecker {
   V8_INLINE constexpr bool Is##Type(InstanceType instance_type);
 
 INSTANCE_TYPE_CHECKERS(IS_TYPE_FUNCTION_DECL)
-
-IS_TYPE_FUNCTION_DECL(CodeT)
 
 #undef IS_TYPE_FUNCTION_DECL
 }  // namespace InstanceTypeChecker

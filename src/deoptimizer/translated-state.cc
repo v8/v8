@@ -2216,8 +2216,9 @@ void TranslatedState::StoreMaterializedValuesAndDeopt(JavaScriptFrame* frame) {
                             previously_materialized_objects);
     CHECK_EQ(frames_[0].kind(), TranslatedFrame::kUnoptimizedFunction);
     CHECK_EQ(frame->function(), frames_[0].front().GetRawValue());
-    Deoptimizer::DeoptimizeFunction(frame->function(),
-                                    frame->LookupCodeT().ToCodeT());
+    Deoptimizer::DeoptimizeFunction(
+        frame->function(),
+        frame->LookupCodeDataContainer().ToCodeDataContainer());
   }
 }
 

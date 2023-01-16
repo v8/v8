@@ -352,7 +352,7 @@ void FeedbackVector::SaturatingIncrementProfilerTicks() {
   if (ticks < Smi::kMaxValue) set_profiler_ticks(ticks + 1);
 }
 
-void FeedbackVector::SetOptimizedCode(CodeT code) {
+void FeedbackVector::SetOptimizedCode(CodeDataContainer code) {
   DCHECK(CodeKindIsOptimizedJSFunction(code.kind()));
   // We should set optimized code only when there is no valid optimized code.
   DCHECK(!has_optimized_code() ||
@@ -390,7 +390,8 @@ void FeedbackVector::ClearOptimizedCode() {
   set_maybe_has_turbofan_code(false);
 }
 
-void FeedbackVector::SetOptimizedOsrCode(FeedbackSlot slot, CodeT code) {
+void FeedbackVector::SetOptimizedOsrCode(FeedbackSlot slot,
+                                         CodeDataContainer code) {
   DCHECK(CodeKindIsOptimizedJSFunction(code.kind()));
   DCHECK(!slot.IsInvalid());
   Set(slot, HeapObjectReference::Weak(code));
@@ -438,7 +439,7 @@ void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(
     return;
   }
 
-  CodeT code = CodeT::cast(slot->GetHeapObject());
+  CodeDataContainer code = CodeDataContainer::cast(slot->GetHeapObject());
   if (code.marked_for_deoptimization()) {
     Deoptimizer::TraceEvictFromOptimizedCodeCache(shared, reason);
     ClearOptimizedCode();
@@ -1224,7 +1225,8 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
         if (mode != STANDARD_STORE) return mode;
         continue;
       } else {
-        CodeT code = CodeT::cast(data_handler->smi_handler());
+        CodeDataContainer code =
+            CodeDataContainer::cast(data_handler->smi_handler());
         builtin_handler = code.builtin_id();
       }
 
@@ -1243,7 +1245,8 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
       continue;
     } else {
       // Element store without prototype chain check.
-      CodeT code = CodeT::cast(*maybe_code_handler.object());
+      CodeDataContainer code =
+          CodeDataContainer::cast(*maybe_code_handler.object());
       builtin_handler = code.builtin_id();
     }
 

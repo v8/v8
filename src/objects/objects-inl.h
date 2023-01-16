@@ -99,7 +99,6 @@ bool Object::IsJSObjectThatCanBeTrackedAsPrototype() const {
 HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DEF)
 IS_TYPE_FUNCTION_DEF(HashTableBase)
 IS_TYPE_FUNCTION_DEF(SmallOrderedHashTable)
-IS_TYPE_FUNCTION_DEF(CodeT)
 #undef IS_TYPE_FUNCTION_DEF
 
 #define IS_TYPE_FUNCTION_DEF(Type, Value)                        \
@@ -226,8 +225,6 @@ bool HeapObject::IsNullOrUndefined(ReadOnlyRoots roots) const {
 bool HeapObject::IsNullOrUndefined() const {
   return IsNullOrUndefined(GetReadOnlyRoots());
 }
-
-DEF_GETTER(HeapObject, IsCodeT, bool) { return IsCodeDataContainer(cage_base); }
 
 DEF_GETTER(HeapObject, IsUniqueName, bool) {
   return IsInternalizedString(cage_base) || IsSymbol(cage_base);

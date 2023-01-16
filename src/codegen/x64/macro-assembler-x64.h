@@ -388,7 +388,7 @@ class V8_EXPORT_PRIVATE TurboAssembler
 
   void Call(Register reg) { call(reg); }
   void Call(Operand op);
-  void Call(Handle<CodeT> code_object, RelocInfo::Mode rmode);
+  void Call(Handle<CodeDataContainer> code_object, RelocInfo::Mode rmode);
   void Call(Address destination, RelocInfo::Mode rmode);
   void Call(ExternalReference ext);
   void Call(Label* target) { call(target); }
@@ -418,8 +418,9 @@ class V8_EXPORT_PRIVATE TurboAssembler
   void Jump(const ExternalReference& reference);
   void Jump(Operand op);
   void Jump(Operand op, Condition cc);
-  void Jump(Handle<CodeT> code_object, RelocInfo::Mode rmode);
-  void Jump(Handle<CodeT> code_object, RelocInfo::Mode rmode, Condition cc);
+  void Jump(Handle<CodeDataContainer> code_object, RelocInfo::Mode rmode);
+  void Jump(Handle<CodeDataContainer> code_object, RelocInfo::Mode rmode,
+            Condition cc);
 
   void BailoutIfDeoptimized(Register scratch);
   void CallForDeoptimization(Builtin target, int deopt_id, Label* exit,
@@ -473,11 +474,12 @@ class V8_EXPORT_PRIVATE TurboAssembler
   // Always use unsigned comparisons: above and below, not less and greater.
   void CmpInstanceType(Register map, InstanceType type);
 
-  // Abort execution if argument is not a CodeT, enabled via --debug-code.
-  void AssertCodeT(Register object) NOOP_UNLESS_DEBUG_CODE
+  // Abort execution if argument is not a CodeDataContainer, enabled via
+  // --debug-code.
+  void AssertCodeDataContainer(Register object) NOOP_UNLESS_DEBUG_CODE
 
-  // Print a message to stdout and abort execution.
-  void Abort(AbortReason msg);
+      // Print a message to stdout and abort execution.
+      void Abort(AbortReason msg);
 
   // Check that the stack is aligned.
   void CheckStackAlignment();
@@ -828,7 +830,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
     andq(reg, Immediate(mask));
   }
 
-  void TestCodeTIsMarkedForDeoptimization(Register codet);
+  void TestCodeDataContainerIsMarkedForDeoptimization(
+      Register code_data_container);
   Immediate ClearedValue() const;
 
   // Tiering support.

@@ -209,11 +209,13 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitSharedFunctionInfo(
     // If bytecode flushing is disabled but baseline code flushing is enabled
     // then we have to visit the bytecode but not the baseline code.
     DCHECK(IsBaselineCodeFlushingEnabled(code_flush_mode_));
-    CodeT baseline_codet = CodeT::cast(shared_info.function_data(kAcquireLoad));
-    // Safe to do a relaxed load here since the CodeT was acquire-loaded.
-    Code baseline_code =
-        FromCodeT(baseline_codet, ObjectVisitorWithCageBases::code_cage_base(),
-                  kRelaxedLoad);
+    CodeDataContainer baseline_code_data_container =
+        CodeDataContainer::cast(shared_info.function_data(kAcquireLoad));
+    // Safe to do a relaxed load here since the CodeDataContainer was
+    // acquire-loaded.
+    Code baseline_code = FromCodeDataContainer(
+        baseline_code_data_container,
+        ObjectVisitorWithCageBases::code_cage_base(), kRelaxedLoad);
     // Visit the bytecode hanging off baseline code.
     VisitPointer(baseline_code,
                  baseline_code.RawField(

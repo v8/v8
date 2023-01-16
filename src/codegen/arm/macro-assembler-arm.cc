@@ -161,7 +161,7 @@ void TurboAssembler::Jump(Address target, RelocInfo::Mode rmode,
   Jump(static_cast<intptr_t>(target), rmode, cond);
 }
 
-void TurboAssembler::Jump(Handle<CodeT> code, RelocInfo::Mode rmode,
+void TurboAssembler::Jump(Handle<CodeDataContainer> code, RelocInfo::Mode rmode,
                           Condition cond) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
   DCHECK_IMPLIES(options().isolate_independent_code,
@@ -225,7 +225,7 @@ void TurboAssembler::Call(Address target, RelocInfo::Mode rmode, Condition cond,
   }
 }
 
-void TurboAssembler::Call(Handle<CodeT> code, RelocInfo::Mode rmode,
+void TurboAssembler::Call(Handle<CodeDataContainer> code, RelocInfo::Mode rmode,
                           Condition cond, TargetAddressStorageMode mode,
                           bool check_constant_pool) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
@@ -294,7 +294,8 @@ void TurboAssembler::CallBuiltin(Builtin builtin, Condition cond) {
       break;
     case BuiltinCallJumpMode::kForMksnapshot: {
       if (options().use_pc_relative_calls_and_jumps_for_mksnapshot) {
-        Handle<CodeT> code = isolate()->builtins()->code_handle(builtin);
+        Handle<CodeDataContainer> code =
+            isolate()->builtins()->code_handle(builtin);
         int32_t code_target_index = AddCodeTarget(code);
         bl(code_target_index * kInstrSize, cond,
            RelocInfo::RELATIVE_CODE_TARGET);
@@ -326,7 +327,8 @@ void TurboAssembler::TailCallBuiltin(Builtin builtin, Condition cond) {
       break;
     case BuiltinCallJumpMode::kForMksnapshot: {
       if (options().use_pc_relative_calls_and_jumps_for_mksnapshot) {
-        Handle<CodeT> code = isolate()->builtins()->code_handle(builtin);
+        Handle<CodeDataContainer> code =
+            isolate()->builtins()->code_handle(builtin);
         int32_t code_target_index = AddCodeTarget(code);
         b(code_target_index * kInstrSize, cond,
           RelocInfo::RELATIVE_CODE_TARGET);
@@ -402,10 +404,10 @@ void TurboAssembler::Drop(Register count, Condition cond) {
   add(sp, sp, Operand(count, LSL, kPointerSizeLog2), LeaveCC, cond);
 }
 
-void MacroAssembler::TestCodeTIsMarkedForDeoptimization(Register codet,
-                                                        Register scratch) {
-  ldr(scratch,
-      FieldMemOperand(codet, CodeDataContainer::kKindSpecificFlagsOffset));
+void MacroAssembler::TestCodeDataContainerIsMarkedForDeoptimization(
+    Register code_data_container, Register scratch) {
+  ldr(scratch, FieldMemOperand(code_data_container,
+                               CodeDataContainer::kKindSpecificFlagsOffset));
   tst(scratch, Operand(1 << Code::kMarkedForDeoptimizationBit));
 }
 
@@ -1930,8 +1932,8 @@ void TailCallOptimizedCodeSlot(MacroAssembler* masm,
   // runtime to clear it.
   {
     UseScratchRegisterScope temps(masm);
-    __ TestCodeTIsMarkedForDeoptimization(optimized_code_entry,
-                                          temps.Acquire());
+    __ TestCodeDataContainerIsMarkedForDeoptimization(optimized_code_entry,
+                                                      temps.Acquire());
     __ b(ne, &heal_optimized_code_slot);
   }
 
@@ -2059,7 +2061,8 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   // smarter.
   mov(r0, Operand(num_arguments));
   Move(r1, ExternalReference::Create(f));
-  Handle<CodeT> code = CodeFactory::CEntry(isolate(), f->result_size);
+  Handle<CodeDataContainer> code =
+      CodeFactory::CEntry(isolate(), f->result_size);
   Call(code, RelocInfo::CODE_TARGET);
 }
 
@@ -2084,7 +2087,7 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
   DCHECK_EQ(builtin.address() & 1, 1);
 #endif
   Move(r1, builtin);
-  Handle<CodeT> code =
+  Handle<CodeDataContainer> code =
       CodeFactory::CEntry(isolate(), 1, ArgvMode::kStack, builtin_exit_frame);
   Jump(code, RelocInfo::CODE_TARGET);
 }

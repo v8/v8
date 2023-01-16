@@ -834,16 +834,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   void FastCheck(TNode<BoolT> condition);
 
-  TNode<BoolT> IsCodeTMap(TNode<Map> map) {
-    return IsCodeDataContainerMap(map);
-  }
-  TNode<BoolT> IsCodeT(TNode<HeapObject> object) {
-    return IsCodeTMap(LoadMap(object));
-  }
-
   // TODO(v8:11880): remove once Code::bytecode_or_interpreter_data field
-  // is cached in or moved to CodeT.
-  TNode<Code> FromCodeTNonBuiltin(TNode<CodeT> code) {
+  // is cached in or moved to CodeDataContainer.
+  TNode<Code> FromCodeDataContainerNonBuiltin(TNode<CodeDataContainer> code) {
     // Compute the Code object pointer from the code entry point.
     TNode<RawPtrT> code_entry = Load<RawPtrT>(
         code, IntPtrConstant(CodeDataContainer::kCodeEntryPointOffset -
@@ -853,18 +846,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return CAST(o);
   }
 
-  TNode<CodeT> ToCodeT(TNode<Code> code) {
+  TNode<CodeDataContainer> ToCodeDataContainer(TNode<Code> code) {
     return LoadObjectField<CodeDataContainer>(code,
                                               Code::kCodeDataContainerOffset);
   }
 
-  TNode<CodeT> ToCodeT(TNode<Code> code,
-                       TNode<CodeDataContainer> code_data_container) {
-    return code_data_container;
-  }
-
-  TNode<RawPtrT> GetCodeEntry(TNode<CodeT> code);
-  TNode<BoolT> IsMarkedForDeoptimization(TNode<CodeT> codet);
+  TNode<RawPtrT> GetCodeEntry(TNode<CodeDataContainer> code);
+  TNode<BoolT> IsMarkedForDeoptimization(
+      TNode<CodeDataContainer> code_data_container);
 
   // The following Call wrappers call an object according to the semantics that
   // one finds in the EcmaScript spec, operating on an Callable (e.g. a
@@ -3862,7 +3851,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                 ElementsKind kind = HOLEY_ELEMENTS);
 
   // Load a builtin's code from the builtin array in the isolate.
-  TNode<CodeT> LoadBuiltin(TNode<Smi> builtin_id);
+  TNode<CodeDataContainer> LoadBuiltin(TNode<Smi> builtin_id);
 
   // Figure out the SFI's code object using its data field.
   // If |data_type_out| is provided, the instance type of the function data will
@@ -3870,7 +3859,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // data_type_out will be set to 0.
   // If |if_compile_lazy| is provided then the execution will go to the given
   // label in case of an CompileLazy code object.
-  TNode<CodeT> GetSharedFunctionInfoCode(
+  TNode<CodeDataContainer> GetSharedFunctionInfoCode(
       TNode<SharedFunctionInfo> shared_info,
       TVariable<Uint16T>* data_type_out = nullptr,
       Label* if_compile_lazy = nullptr);

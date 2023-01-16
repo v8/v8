@@ -1413,9 +1413,9 @@ void TailCallOptimizedCodeSlot(MacroAssembler* masm,
 
   // Check if the optimized code is marked for deopt. If it is, call the
   // runtime to clear it.
-  __ AssertCodeT(optimized_code_entry);
-  __ JumpIfCodeTIsMarkedForDeoptimization(optimized_code_entry, scratch,
-                                          &heal_optimized_code_slot);
+  __ AssertCodeDataContainer(optimized_code_entry);
+  __ JumpIfCodeDataContainerIsMarkedForDeoptimization(
+      optimized_code_entry, scratch, &heal_optimized_code_slot);
 
   // Optimized code is good, get it into the closure and link the closure into
   // the optimized functions list, then tail call the optimized code.
@@ -1447,7 +1447,7 @@ void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
   ASM_CODE_COMMENT(this);
   DCHECK(!AreAliased(optimized_code, closure));
   // Store code entry in the closure.
-  AssertCodeT(optimized_code);
+  AssertCodeDataContainer(optimized_code);
   StoreTaggedField(optimized_code,
                    FieldMemOperand(closure, JSFunction::kCodeOffset));
   RecordWriteField(closure, JSFunction::kCodeOffset, optimized_code,
@@ -1596,16 +1596,16 @@ void TurboAssembler::AssertZeroExtended(Register int32_register) {
   Check(ls, AbortReason::k32BitValueInRegisterIsNotZeroExtended);
 }
 
-void MacroAssembler::AssertCodeT(Register object) {
+void MacroAssembler::AssertCodeDataContainer(Register object) {
   if (!v8_flags.debug_code) return;
   ASM_CODE_COMMENT(this);
-  AssertNotSmi(object, AbortReason::kOperandIsNotACodeT);
+  AssertNotSmi(object, AbortReason::kOperandIsNotACodeDataContainer);
 
   UseScratchRegisterScope temps(this);
   Register temp = temps.AcquireX();
 
-  CompareObjectType(object, temp, temp, CODET_TYPE);
-  Check(eq, AbortReason::kOperandIsNotACodeT);
+  CompareObjectType(object, temp, temp, CODE_DATA_CONTAINER_TYPE);
+  Check(eq, AbortReason::kOperandIsNotACodeDataContainer);
 }
 
 void MacroAssembler::AssertConstructor(Register object) {
@@ -1913,7 +1913,8 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   Mov(x0, num_arguments);
   Mov(x1, ExternalReference::Create(f));
 
-  Handle<CodeT> code = CodeFactory::CEntry(isolate(), f->result_size);
+  Handle<CodeDataContainer> code =
+      CodeFactory::CEntry(isolate(), f->result_size);
   Call(code, RelocInfo::CODE_TARGET);
 }
 
@@ -1921,7 +1922,7 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
                                              bool builtin_exit_frame) {
   ASM_CODE_COMMENT(this);
   Mov(x1, builtin);
-  Handle<CodeT> code =
+  Handle<CodeDataContainer> code =
       CodeFactory::CEntry(isolate(), 1, ArgvMode::kStack, builtin_exit_frame);
   Jump(code, RelocInfo::CODE_TARGET);
 }
@@ -2146,7 +2147,7 @@ void TurboAssembler::Jump(Address target, RelocInfo::Mode rmode,
   JumpHelper(offset, rmode, cond);
 }
 
-void TurboAssembler::Jump(Handle<CodeT> code, RelocInfo::Mode rmode,
+void TurboAssembler::Jump(Handle<CodeDataContainer> code, RelocInfo::Mode rmode,
                           Condition cond) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
   DCHECK_IMPLIES(options().isolate_independent_code,
@@ -2190,7 +2191,8 @@ void TurboAssembler::Call(Address target, RelocInfo::Mode rmode) {
   }
 }
 
-void TurboAssembler::Call(Handle<CodeT> code, RelocInfo::Mode rmode) {
+void TurboAssembler::Call(Handle<CodeDataContainer> code,
+                          RelocInfo::Mode rmode) {
   DCHECK_IMPLIES(options().isolate_independent_code,
                  Builtins::IsIsolateIndependentBuiltin(*code));
   BlockPoolsScope scope(this);
@@ -2201,7 +2203,7 @@ void TurboAssembler::Call(Handle<CodeT> code, RelocInfo::Mode rmode) {
     return;
   }
 
-  DCHECK(FromCodeT(*code).IsExecutable());
+  DCHECK(FromCodeDataContainer(*code).IsExecutable());
   DCHECK(RelocInfo::IsCodeTarget(rmode));
 
   if (CanUseNearCallOrJump(rmode)) {
@@ -2283,7 +2285,8 @@ void TurboAssembler::CallBuiltin(Builtin builtin) {
     }
     case BuiltinCallJumpMode::kForMksnapshot: {
       if (options().use_pc_relative_calls_and_jumps_for_mksnapshot) {
-        Handle<CodeT> code = isolate()->builtins()->code_handle(builtin);
+        Handle<CodeDataContainer> code =
+            isolate()->builtins()->code_handle(builtin);
         EmbeddedObjectIndex index = AddEmbeddedObject(code);
         DCHECK(is_int32(index));
         near_call(static_cast<int32_t>(index), RelocInfo::CODE_TARGET);
@@ -2336,7 +2339,8 @@ void TurboAssembler::TailCallBuiltin(Builtin builtin, Condition cond) {
     }
     case BuiltinCallJumpMode::kForMksnapshot: {
       if (options().use_pc_relative_calls_and_jumps_for_mksnapshot) {
-        Handle<CodeT> code = isolate()->builtins()->code_handle(builtin);
+        Handle<CodeDataContainer> code =
+            isolate()->builtins()->code_handle(builtin);
         EmbeddedObjectIndex index = AddEmbeddedObject(code);
         DCHECK(is_int32(index));
         JumpHelper(static_cast<int64_t>(index), RelocInfo::CODE_TARGET, cond);
@@ -2681,10 +2685,12 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
   Bind(&done);
 }
 
-void MacroAssembler::JumpIfCodeTIsMarkedForDeoptimization(
-    Register codet, Register scratch, Label* if_marked_for_deoptimization) {
+void MacroAssembler::JumpIfCodeDataContainerIsMarkedForDeoptimization(
+    Register code_data_container, Register scratch,
+    Label* if_marked_for_deoptimization) {
   Ldr(scratch.W(),
-      FieldMemOperand(codet, CodeDataContainer::kKindSpecificFlagsOffset));
+      FieldMemOperand(code_data_container,
+                      CodeDataContainer::kKindSpecificFlagsOffset));
   Tbnz(scratch.W(), Code::kMarkedForDeoptimizationBit,
        if_marked_for_deoptimization);
 }

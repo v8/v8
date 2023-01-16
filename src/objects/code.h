@@ -887,11 +887,6 @@ class CodeLookupResult {
     return code_data_container_;
   }
 
-  // Returns the CodeT object corresponding to the result in question.
-  // The method doesn't try to convert Code result to CodeT, one should use
-  // ToCodeT() instead if the conversion logic is required.
-  CodeT codet() const { return code_data_container(); }
-
   // Helper methods, in case of successful lookup return the result of
   // respective accessor of the Code/CodeDataContainer object found.
   // It's safe use them from GC.
@@ -923,10 +918,10 @@ class CodeLookupResult {
   // check.
   inline Code ToCode() const;
 
-  // Helper method, converts the successful lookup result to CodeT object.
-  // It's not safe to be used from GC because conversion might perform a map
-  // check.
-  inline CodeT ToCodeT() const;
+  // Helper method, converts the successful lookup result to CodeDataContainer
+  // object. It's not safe to be used from GC because conversion might perform a
+  // map check.
+  inline CodeDataContainer ToCodeDataContainer() const;
 
   bool operator==(const CodeLookupResult& other) const {
     return code_ == other.code_ &&
@@ -957,16 +952,19 @@ class Code::OptimizedCodeIterator {
   DISALLOW_GARBAGE_COLLECTION(no_gc)
 };
 
-// Helper functions for converting Code objects to CodeDataContainer and back
-// when V8_EXTERNAL_CODE_SPACE is enabled.
-inline CodeT ToCodeT(Code code);
-inline Handle<CodeT> ToCodeT(Handle<Code> code, Isolate* isolate);
-inline Code FromCodeT(CodeT code);
-inline Code FromCodeT(CodeT code, Isolate* isolate, RelaxedLoadTag);
-inline Code FromCodeT(CodeT code, PtrComprCageBase, RelaxedLoadTag);
-inline Handle<Code> FromCodeT(Handle<CodeT> code, Isolate* isolate);
-inline AbstractCode ToAbstractCode(CodeT code);
-inline Handle<AbstractCode> ToAbstractCode(Handle<CodeT> code,
+// Helper functions for converting Code objects to CodeDataContainer and back.
+inline CodeDataContainer ToCodeDataContainer(Code code);
+inline Handle<CodeDataContainer> ToCodeDataContainer(Handle<Code> code,
+                                                     Isolate* isolate);
+inline Code FromCodeDataContainer(CodeDataContainer code);
+inline Code FromCodeDataContainer(CodeDataContainer code, Isolate* isolate,
+                                  RelaxedLoadTag);
+inline Code FromCodeDataContainer(CodeDataContainer code, PtrComprCageBase,
+                                  RelaxedLoadTag);
+inline Handle<Code> FromCodeDataContainer(Handle<CodeDataContainer> code,
+                                          Isolate* isolate);
+inline AbstractCode ToAbstractCode(CodeDataContainer code);
+inline Handle<AbstractCode> ToAbstractCode(Handle<CodeDataContainer> code,
                                            Isolate* isolate);
 
 // AbstractCode is a helper wrapper around
@@ -1026,14 +1024,14 @@ class AbstractCode : public HeapObject {
   // should work for both regular V8 heap objects and external code space
   // objects.
   inline bool IsCode(PtrComprCageBase cage_base) const;
-  inline bool IsCodeT(PtrComprCageBase cage_base) const;
+  inline bool IsCodeDataContainer(PtrComprCageBase cage_base) const;
   inline bool IsBytecodeArray(PtrComprCageBase cage_base) const;
 
   inline Code ToCode(PtrComprCageBase cage_base);
-  inline CodeT ToCodeT(PtrComprCageBase cage_base);
+  inline CodeDataContainer ToCodeDataContainer(PtrComprCageBase cage_base);
 
   inline Code GetCode();
-  inline CodeT GetCodeT();
+  inline CodeDataContainer GetCodeDataContainer();
   inline BytecodeArray GetBytecodeArray();
 
   // AbstractCode might be represented by both Code and non-Code objects and
@@ -1148,7 +1146,8 @@ class DependentCode : public WeakArrayList {
 
   // The callback is called for all non-cleared entries, and should return true
   // iff the current entry should be cleared.
-  using IterateAndCompactFn = std::function<bool(CodeT, DependencyGroups)>;
+  using IterateAndCompactFn =
+      std::function<bool(CodeDataContainer, DependencyGroups)>;
   void IterateAndCompact(const IterateAndCompactFn& fn);
 
   // Fills the given entry with the last non-cleared entry in this list, and

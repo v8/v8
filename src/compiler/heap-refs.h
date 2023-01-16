@@ -208,9 +208,6 @@ class TinyRef {
 HEAP_BROKER_OBJECT_LIST(V)
 #undef V
 
-using CodeTRef = CodeDataContainerRef;
-using CodeTTinyRef = CodeDataContainerTinyRef;
-
 class V8_EXPORT_PRIVATE ObjectRef {
  public:
   ObjectRef(JSHeapBroker* broker, ObjectData* data, bool check_type = true)
@@ -232,14 +229,6 @@ class V8_EXPORT_PRIVATE ObjectRef {
 #define HEAP_AS_METHOD_DECL(Name) Name##Ref As##Name() const;
   HEAP_BROKER_OBJECT_LIST(HEAP_AS_METHOD_DECL)
 #undef HEAP_AS_METHOD_DECL
-
-  // CodeT is defined as an alias to either CodeDataContainer or Code, depending
-  // on the architecture. We can't put it in HEAP_BROKER_OBJECT_LIST, because
-  // this list already contains CodeDataContainer and Code. Still, defining
-  // IsCodeT and AsCodeT is useful to write code that is independent of
-  // V8_EXTERNAL_CODE_SPACE.
-  bool IsCodeT() const;
-  CodeTRef AsCodeT() const;
 
   bool IsNull() const;
   bool IsNullOrUndefined() const;
@@ -470,7 +459,7 @@ class V8_EXPORT_PRIVATE JSFunctionRef : public JSObjectRef {
   ContextRef context() const;
   NativeContextRef native_context() const;
   SharedFunctionInfoRef shared() const;
-  CodeTRef code() const;
+  CodeDataContainerRef code() const;
 
   bool has_initial_map(CompilationDependencies* dependencies) const;
   bool PrototypeRequiresRuntimeLookup(

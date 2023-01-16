@@ -1468,10 +1468,11 @@ void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Map map) {
 void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
     HeapEntry* entry, SharedFunctionInfo shared) {
   std::unique_ptr<char[]> name = shared.DebugNameCStr();
-  CodeT code = shared.GetCode();
+  CodeDataContainer code = shared.GetCode();
   // Don't try to get the Code object from Code-less embedded builtin.
-  HeapObject maybe_code_obj =
-      code.is_off_heap_trampoline() ? HeapObject::cast(code) : FromCodeT(code);
+  HeapObject maybe_code_obj = code.is_off_heap_trampoline()
+                                  ? HeapObject::cast(code)
+                                  : FromCodeDataContainer(code);
   if (name[0] != '\0') {
     TagObject(maybe_code_obj,
               names_->GetFormatted("(code for %s)", name.get()));
@@ -1542,10 +1543,12 @@ void V8HeapExplorer::ExtractWeakCellReferences(HeapEntry* entry,
                    WeakCell::kUnregisterTokenOffset);
 }
 
-void V8HeapExplorer::TagBuiltinCodeObject(CodeT code, const char* name) {
+void V8HeapExplorer::TagBuiltinCodeObject(CodeDataContainer code,
+                                          const char* name) {
   TagObject(code, names_->GetFormatted("(%s builtin handle)", name));
   if (!code.is_off_heap_trampoline()) {
-    TagObject(FromCodeT(code), names_->GetFormatted("(%s builtin)", name));
+    TagObject(FromCodeDataContainer(code),
+              names_->GetFormatted("(%s builtin)", name));
   }
 }
 
@@ -1972,7 +1975,8 @@ class RootsReferencesExtractor : public RootVisitor {
   void VisitRootPointer(Root root, const char* description,
                         FullObjectSlot object) override {
     if (root == Root::kBuiltins) {
-      explorer_->TagBuiltinCodeObject(CodeT::cast(*object), description);
+      explorer_->TagBuiltinCodeObject(CodeDataContainer::cast(*object),
+                                      description);
     }
     explorer_->SetGcSubrootReference(root, description, visiting_weak_roots_,
                                      *object);
@@ -2003,10 +2007,10 @@ class RootsReferencesExtractor : public RootVisitor {
     // deoptimization literals in running code as stack roots.
     HeapObject value = HeapObject::cast(*p);
     if (!IsCodeSpaceObject(value)) {
-      // When external code space is enabled, the slot might contain a CodeT
-      // object representing an embedded builtin, which doesn't require
-      // additional processing.
-      DCHECK(CodeT::cast(value).is_off_heap_trampoline());
+      // When external code space is enabled, the slot might contain a
+      // CodeDataContainer object representing an embedded builtin, which
+      // doesn't require additional processing.
+      DCHECK(CodeDataContainer::cast(value).is_off_heap_trampoline());
     } else {
       Code code = Code::cast(value);
       if (code.kind() != CodeKind::BASELINE) {

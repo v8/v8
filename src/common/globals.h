@@ -235,11 +235,6 @@ const size_t kShortBuiltinCallsOldSpaceSizeThreshold = size_t{2} * GB;
 #define V8_EXTERNAL_CODE_SPACE_BOOL false
 #endif
 
-// TODO(jgruber): Remove the CodeT alias, rename CodeDataContainer to Code and
-// Code to CodeInstructions (or similar).
-class CodeDataContainer;
-using CodeT = CodeDataContainer;
-
 // V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT controls how V8 sets permissions for
 // executable pages.
 // In particular,

@@ -52,7 +52,7 @@ CodeKinds JSFunction::GetAvailableCodeKinds() const {
   // Check the optimized code cache.
   if (has_feedback_vector() && feedback_vector().has_optimized_code() &&
       !feedback_vector().optimized_code().marked_for_deoptimization()) {
-    CodeT code = feedback_vector().optimized_code();
+    CodeDataContainer code = feedback_vector().optimized_code();
     DCHECK(CodeKindIsOptimizedJSFunction(code.kind()));
     result |= CodeKindToCodeKindFlag(code.kind());
   }

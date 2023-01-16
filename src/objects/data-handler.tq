@@ -6,10 +6,10 @@
 // here, please also update DataHandlerVerify in objects-debug.cc.
 @abstract
 extern class DataHandler extends Struct {
-  // [smi_handler]: A Smi which encodes a handler or CodeT object (we still
-  // use code handlers for accessing lexical environment variables, but soon
-  // only smi handlers will remain). See LoadHandler and StoreHandler for
-  // details about encoding.
+  // [smi_handler]: A Smi which encodes a handler or CodeDataContainer object
+  // (we still use code handlers for accessing lexical environment variables,
+  // but soon only smi handlers will remain). See LoadHandler and StoreHandler
+  // for details about encoding.
   smi_handler: Smi|CodeDataContainer;
 
   // [validity_cell]: A validity Cell that guards prototype chain modifications.

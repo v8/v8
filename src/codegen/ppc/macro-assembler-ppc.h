@@ -716,14 +716,15 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Jump(Register target);
   void Jump(Address target, RelocInfo::Mode rmode, Condition cond = al,
             CRegister cr = cr7);
-  void Jump(Handle<CodeT> code, RelocInfo::Mode rmode, Condition cond = al,
-            CRegister cr = cr7);
+  void Jump(Handle<CodeDataContainer> code, RelocInfo::Mode rmode,
+            Condition cond = al, CRegister cr = cr7);
   void Jump(const ExternalReference& reference);
   void Jump(intptr_t target, RelocInfo::Mode rmode, Condition cond = al,
             CRegister cr = cr7);
   void Call(Register target);
   void Call(Address target, RelocInfo::Mode rmode, Condition cond = al);
-  void Call(Handle<CodeT> code, RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
+  void Call(Handle<CodeDataContainer> code,
+            RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
             Condition cond = al);
   void Call(Label* target);
 
@@ -1723,8 +1724,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
     DecodeField<Field>(reg, reg, rc);
   }
 
-  void TestCodeTIsMarkedForDeoptimization(Register codet, Register scratch1,
-                                          Register scratch2);
+  void TestCodeDataContainerIsMarkedForDeoptimization(
+      Register code_data_container, Register scratch1, Register scratch2);
   Operand ClearedValue() const;
 
  private:

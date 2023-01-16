@@ -149,7 +149,7 @@ class V8_EXPORT_PRIVATE TurboAssembler
   void Call(Register reg) { call(reg); }
   void Call(Operand op) { call(op); }
   void Call(Label* target) { call(target); }
-  void Call(Handle<CodeT> code_object, RelocInfo::Mode rmode);
+  void Call(Handle<CodeDataContainer> code_object, RelocInfo::Mode rmode);
 
   // Load the builtin given by the Smi in |builtin_index| into the same
   // register.
@@ -172,7 +172,7 @@ class V8_EXPORT_PRIVATE TurboAssembler
                                    JumpMode jump_mode = JumpMode::kJump);
 
   void Jump(const ExternalReference& reference);
-  void Jump(Handle<CodeT> code_object, RelocInfo::Mode rmode);
+  void Jump(Handle<CodeDataContainer> code_object, RelocInfo::Mode rmode);
 
   void LoadMap(Register destination, Register object);
 
@@ -559,7 +559,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
     and_(reg, Immediate(mask));
   }
 
-  void TestCodeTIsMarkedForDeoptimization(Register codet);
+  void TestCodeDataContainerIsMarkedForDeoptimization(
+      Register code_data_container);
   Immediate ClearedValue() const;
 
   // Tiering support.

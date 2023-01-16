@@ -1048,10 +1048,6 @@ ObjectData* JSHeapBroker::TryGetOrCreateData(Handle<Object> object,
 HEAP_BROKER_OBJECT_LIST(DEFINE_IS_AND_AS)
 #undef DEFINE_IS_AND_AS
 
-bool ObjectRef::IsCodeT() const { return IsCodeDataContainer(); }
-
-CodeTRef ObjectRef::AsCodeT() const { return AsCodeDataContainer(); }
-
 bool ObjectRef::IsSmi() const { return data()->is_smi(); }
 
 int ObjectRef::AsSmi() const {
@@ -2204,8 +2200,8 @@ BIMODAL_ACCESSOR(JSFunction, SharedFunctionInfo, shared)
 #undef JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP
 #undef JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP_C
 
-CodeTRef JSFunctionRef::code() const {
-  CodeT code = object()->code(kAcquireLoad);
+CodeDataContainerRef JSFunctionRef::code() const {
+  CodeDataContainer code = object()->code(kAcquireLoad);
   return MakeRefAssumeMemoryFence(broker(), code);
 }
 
@@ -2307,14 +2303,14 @@ unsigned CodeRef::GetInlinedBytecodeSize() const {
 }
 
 unsigned CodeDataContainerRef::GetInlinedBytecodeSize() const {
-  CodeDataContainer codet = *object();
-  if (codet.is_off_heap_trampoline()) {
+  CodeDataContainer code_data_container = *object();
+  if (code_data_container.is_off_heap_trampoline()) {
     return 0;
   }
 
-  // Safe to do a relaxed conversion to Code here since CodeT::code field is
-  // modified only by GC and the CodeT was acquire-loaded.
-  Code code = codet.code(kRelaxedLoad);
+  // Safe to do a relaxed conversion to Code here since CodeDataContainer::code
+  // field is modified only by GC and the CodeDataContainer was acquire-loaded.
+  Code code = code_data_container.code(kRelaxedLoad);
   return GetInlinedBytecodeSizeImpl(code);
 }
 

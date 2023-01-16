@@ -226,7 +226,7 @@ int Assembler::deserialization_special_target_size(
   return kSpecialTargetSize;
 }
 
-Handle<CodeT> Assembler::code_target_object_handle_at(Address pc) {
+Handle<CodeDataContainer> Assembler::code_target_object_handle_at(Address pc) {
   return GetCodeTarget(ReadUnalignedValue<int32_t>(pc));
 }
 

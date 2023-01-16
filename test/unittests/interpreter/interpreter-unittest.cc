@@ -4760,11 +4760,11 @@ TEST_F(InterpreterTest, InterpreterWithNativeStack) {
   i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
 
   CHECK(f->shared().HasBytecodeArray());
-  i::CodeT code = f->shared().GetCode();
-  i::Handle<i::CodeT> interpreter_entry_trampoline =
+  i::CodeDataContainer code = f->shared().GetCode();
+  i::Handle<i::CodeDataContainer> interpreter_entry_trampoline =
       BUILTIN_CODE(i_isolate(), InterpreterEntryTrampoline);
 
-  CHECK(code.IsCodeT());
+  CHECK(code.IsCodeDataContainer());
   CHECK(code.is_interpreter_trampoline_builtin());
   CHECK_NE(code.address(), interpreter_entry_trampoline->address());
 }
@@ -4774,24 +4774,24 @@ TEST_F(InterpreterTest, InterpreterGetBytecodeHandler) {
   Interpreter* interpreter = i_isolate()->interpreter();
 
   // Test that single-width bytecode handlers deserializer correctly.
-  CodeT wide_handler =
+  CodeDataContainer wide_handler =
       interpreter->GetBytecodeHandler(Bytecode::kWide, OperandScale::kSingle);
 
   CHECK_EQ(wide_handler.builtin_id(), Builtin::kWideHandler);
 
-  CodeT add_handler =
+  CodeDataContainer add_handler =
       interpreter->GetBytecodeHandler(Bytecode::kAdd, OperandScale::kSingle);
 
   CHECK_EQ(add_handler.builtin_id(), Builtin::kAddHandler);
 
   // Test that double-width bytecode handlers deserializer correctly, including
   // an illegal bytecode handler since there is no Wide.Wide handler.
-  CodeT wide_wide_handler =
+  CodeDataContainer wide_wide_handler =
       interpreter->GetBytecodeHandler(Bytecode::kWide, OperandScale::kDouble);
 
   CHECK_EQ(wide_wide_handler.builtin_id(), Builtin::kIllegalHandler);
 
-  CodeT add_wide_handler =
+  CodeDataContainer add_wide_handler =
       interpreter->GetBytecodeHandler(Bytecode::kAdd, OperandScale::kDouble);
 
   CHECK_EQ(add_wide_handler.builtin_id(), Builtin::kAddWideHandler);
@@ -4984,15 +4984,15 @@ TEST_F(InterpreterTest, InterpreterCollectSourcePositions_GenerateStackTrace) {
 
 TEST_F(InterpreterTest, InterpreterLookupNameOfBytecodeHandler) {
   Interpreter* interpreter = i_isolate()->interpreter();
-  CodeT ldaLookupSlot = interpreter->GetBytecodeHandler(
+  CodeDataContainer ldaLookupSlot = interpreter->GetBytecodeHandler(
       Bytecode::kLdaLookupSlot, OperandScale::kSingle);
   CheckStringEqual("LdaLookupSlotHandler",
                    Builtins::name(ldaLookupSlot.builtin_id()));
-  CodeT wideLdaLookupSlot = interpreter->GetBytecodeHandler(
+  CodeDataContainer wideLdaLookupSlot = interpreter->GetBytecodeHandler(
       Bytecode::kLdaLookupSlot, OperandScale::kDouble);
   CheckStringEqual("LdaLookupSlotWideHandler",
                    Builtins::name(wideLdaLookupSlot.builtin_id()));
-  CodeT extraWideLdaLookupSlot = interpreter->GetBytecodeHandler(
+  CodeDataContainer extraWideLdaLookupSlot = interpreter->GetBytecodeHandler(
       Bytecode::kLdaLookupSlot, OperandScale::kQuadruple);
   CheckStringEqual("LdaLookupSlotExtraWideHandler",
                    Builtins::name(extraWideLdaLookupSlot.builtin_id()));

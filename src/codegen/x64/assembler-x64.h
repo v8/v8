@@ -478,7 +478,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
       Address pc, Address target,
       RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
 
-  inline Handle<CodeT> code_target_object_handle_at(Address pc);
+  inline Handle<CodeDataContainer> code_target_object_handle_at(Address pc);
   inline Handle<HeapObject> compressed_embedded_object_handle_at(Address pc);
 
   // Number of bytes taken up by the branch target in the code.
@@ -827,7 +827,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void near_jmp(intptr_t disp, RelocInfo::Mode rmode);
   void near_j(Condition cc, intptr_t disp, RelocInfo::Mode rmode);
 
-  void call(Handle<CodeT> target,
+  void call(Handle<CodeDataContainer> target,
             RelocInfo::Mode rmode = RelocInfo::CODE_TARGET);
 
   // Call near absolute indirect, address in register
@@ -838,7 +838,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Use a 32-bit signed displacement.
   // Unconditional jump to L
   void jmp(Label* L, Label::Distance distance = Label::kFar);
-  void jmp(Handle<CodeT> target, RelocInfo::Mode rmode);
+  void jmp(Handle<CodeDataContainer> target, RelocInfo::Mode rmode);
 
   // Jump near absolute indirect (r64)
   void jmp(Register adr);
@@ -851,7 +851,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Conditional jumps
   void j(Condition cc, Label* L, Label::Distance distance = Label::kFar);
   void j(Condition cc, Address entry, RelocInfo::Mode rmode);
-  void j(Condition cc, Handle<CodeT> target, RelocInfo::Mode rmode);
+  void j(Condition cc, Handle<CodeDataContainer> target, RelocInfo::Mode rmode);
 
   // Floating-point operations
   void fld(int i);

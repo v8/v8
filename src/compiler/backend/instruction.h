@@ -1192,7 +1192,7 @@ class V8_EXPORT_PRIVATE Constant final {
   }
 
   Handle<HeapObject> ToHeapObject() const;
-  Handle<CodeT> ToCode() const;
+  Handle<CodeDataContainer> ToCode() const;
 
  private:
   Type type_;

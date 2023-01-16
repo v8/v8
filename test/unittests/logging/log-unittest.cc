@@ -1214,7 +1214,8 @@ TEST_F(LogTest, BuiltinsNotLoggedAsLazyCompile) {
     logger.StopLogging();
 
     i::Isolate* i_isolate = logger.i_isolate();
-    i::Handle<i::CodeT> builtin = BUILTIN_CODE(i_isolate, BooleanConstructor);
+    i::Handle<i::CodeDataContainer> builtin =
+        BUILTIN_CODE(i_isolate, BooleanConstructor);
     v8::base::EmbeddedVector<char, 100> buffer;
 
     // Should only be logged as "Builtin" with a name, never as "Function".

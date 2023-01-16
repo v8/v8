@@ -2102,7 +2102,7 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& args) {
     i::Handle<i::WasmInstanceObject> instance(
         i::WasmInstanceObject::cast(data.internal().ref()), i_isolate);
     int func_index = data.function_index();
-    i::Handle<i::CodeT> wrapper =
+    i::Handle<i::CodeDataContainer> wrapper =
         BUILTIN_CODE(i_isolate, WasmReturnPromiseOnSuspend);
     i::Handle<i::JSFunction> result = i::WasmExportedFunction::New(
         i_isolate, instance, func_index,

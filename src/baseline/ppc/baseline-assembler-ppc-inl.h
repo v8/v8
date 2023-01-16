@@ -537,7 +537,8 @@ void BaselineAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
   {
     ScratchRegisterScope temps(this);
     Register scratch = temps.AcquireScratch();
-    __ TestCodeTIsMarkedForDeoptimization(scratch_and_result, scratch, r0);
+    __ TestCodeDataContainerIsMarkedForDeoptimization(scratch_and_result,
+                                                      scratch, r0);
     __ beq(on_result, cr0);
     __ mov(scratch, __ ClearedValue());
     StoreTaggedFieldNoWriteBarrier(

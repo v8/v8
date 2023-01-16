@@ -1093,9 +1093,9 @@ class MarkCompactCollector::RootMarkingVisitor final : public RootVisitor {
     // that heap snapshots accurately describe the roots.
     HeapObject value = HeapObject::cast(*p);
     if (!IsCodeSpaceObject(value)) {
-      // The slot might contain a CodeT object representing an embedded
-      // builtin, which doesn't require additional processing.
-      DCHECK(CodeT::cast(value).is_off_heap_trampoline());
+      // The slot might contain a CodeDataContainer object representing an
+      // embedded builtin, which doesn't require additional processing.
+      DCHECK(CodeDataContainer::cast(value).is_off_heap_trampoline());
     } else {
       Code code = Code::cast(value);
       if (code.kind() != CodeKind::BASELINE) {
@@ -2676,7 +2676,7 @@ void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor,
        it.Advance()) {
     if (it.frame()->is_unoptimized()) return;
     if (it.frame()->is_optimized()) {
-      CodeLookupResult lookup_result = it.frame()->LookupCodeT();
+      CodeLookupResult lookup_result = it.frame()->LookupCodeDataContainer();
       // Embedded builtins can't deoptimize.
       if (lookup_result.IsCodeDataContainer()) return;
       Code code = lookup_result.code();
@@ -3307,14 +3307,16 @@ void MarkCompactCollector::ProcessOldCodeCandidates() {
   SharedFunctionInfo flushing_candidate;
   while (local_weak_objects()->code_flushing_candidates_local.Pop(
       &flushing_candidate)) {
-    CodeT baseline_codet;
+    CodeDataContainer baseline_code_data_container;
     Code baseline_code;
     HeapObject baseline_bytecode_or_interpreter_data;
     if (v8_flags.flush_baseline_code && flushing_candidate.HasBaselineCode()) {
-      baseline_codet =
-          CodeT::cast(flushing_candidate.function_data(kAcquireLoad));
-      // Safe to do a relaxed load here since the CodeT was acquire-loaded.
-      baseline_code = FromCodeT(baseline_codet, isolate(), kRelaxedLoad);
+      baseline_code_data_container = CodeDataContainer::cast(
+          flushing_candidate.function_data(kAcquireLoad));
+      // Safe to do a relaxed load here since the CodeDataContainer was
+      // acquire-loaded.
+      baseline_code = FromCodeDataContainer(baseline_code_data_container,
+                                            isolate(), kRelaxedLoad);
       baseline_bytecode_or_interpreter_data =
           baseline_code.bytecode_or_interpreter_data(isolate());
     }
@@ -3341,10 +3343,11 @@ void MarkCompactCollector::ProcessOldCodeCandidates() {
         // to bailout if there is no bytecode.
         DCHECK(is_bytecode_live);
 
-        // Regardless of whether the CodeT is a CodeDataContainer or the Code
-        // itself, if the Code is live then the CodeT has to be live and will
-        // have been marked via the owning JSFunction.
-        DCHECK(non_atomic_marking_state()->IsBlackOrGrey(baseline_codet));
+        // Regardless of whether the CodeDataContainer is a CodeDataContainer or
+        // the Code itself, if the Code is live then the CodeDataContainer has
+        // to be live and will have been marked via the owning JSFunction.
+        DCHECK(non_atomic_marking_state()->IsBlackOrGrey(
+            baseline_code_data_container));
       } else if (is_bytecode_live || bytecode_already_decompiled) {
         // Reset the function_data field to the BytecodeArray, InterpreterData,
         // or UncompiledData found on the baseline code. We can skip this step

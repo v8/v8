@@ -410,7 +410,7 @@ void BaselineAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
 
   // Is it marked_for_deoptimization? If yes, clear the slot.
   {
-    __ TestCodeTIsMarkedForDeoptimization(scratch_and_result);
+    __ TestCodeDataContainerIsMarkedForDeoptimization(scratch_and_result);
     __ j(equal, on_result, distance);
     __ StoreTaggedField(
         FieldOperand(feedback_vector,

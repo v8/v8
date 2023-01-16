@@ -28,8 +28,9 @@ class CodeReference {
   explicit CodeReference(const CodeDesc* code_desc)
       : kind_(Kind::CODE_DESC), code_desc_(code_desc) {}
   explicit CodeReference(Handle<Code> code) : kind_(Kind::CODE), code_(code) {}
-  explicit CodeReference(Handle<CodeT> codet)
-      : kind_(Kind::CODET), codet_(codet) {}
+  explicit CodeReference(Handle<CodeDataContainer> code_data_container)
+      : kind_(Kind::CODE_DATA_CONTAINER),
+        code_data_container_(code_data_container) {}
 
   Address constant_pool() const;
   Address instruction_start() const;
@@ -43,7 +44,9 @@ class CodeReference {
 
   bool is_null() const { return kind_ == Kind::NONE; }
   bool is_code() const { return kind_ == Kind::CODE; }
-  bool is_codet() const { return kind_ == Kind::CODET; }
+  bool is_code_data_container() const {
+    return kind_ == Kind::CODE_DATA_CONTAINER;
+  }
   bool is_wasm_code() const { return kind_ == Kind::WASM_CODE; }
 
   Handle<Code> as_code() const {
@@ -51,9 +54,9 @@ class CodeReference {
     return code_;
   }
 
-  Handle<CodeT> as_codet() const {
-    DCHECK_EQ(Kind::CODET, kind_);
-    return codet_;
+  Handle<CodeDataContainer> as_code_data_container() const {
+    DCHECK_EQ(Kind::CODE_DATA_CONTAINER, kind_);
+    return code_data_container_;
   }
 
   const wasm::WasmCode* as_wasm_code() const {
@@ -62,13 +65,19 @@ class CodeReference {
   }
 
  private:
-  enum class Kind { NONE, CODE, CODET, WASM_CODE, CODE_DESC } kind_;
+  enum class Kind {
+    NONE,
+    CODE,
+    CODE_DATA_CONTAINER,
+    WASM_CODE,
+    CODE_DESC
+  } kind_;
   union {
     std::nullptr_t null_;
     const wasm::WasmCode* wasm_code_;
     const CodeDesc* code_desc_;
     Handle<Code> code_;
-    Handle<CodeT> codet_;
+    Handle<CodeDataContainer> code_data_container_;
   };
 
   DISALLOW_NEW_AND_DELETE()

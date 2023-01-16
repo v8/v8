@@ -104,7 +104,7 @@ TF_BUILTIN(DebugBreakTrampoline, CodeStubAssembler) {
 
   BIND(&tailcall_to_shared);
   // Tail call into code object on the SharedFunctionInfo.
-  TNode<CodeT> code = GetSharedFunctionInfoCode(shared);
+  TNode<CodeDataContainer> code = GetSharedFunctionInfoCode(shared);
   TailCallJSCode(code, context, function, new_target, arg_count);
 }
 
@@ -1230,7 +1230,7 @@ TF_BUILTIN(AdaptorWithBuiltinExitFrame, CodeStubAssembler) {
       Int32Constant(BuiltinExitFrameConstants::kNumExtraArgsWithoutReceiver));
 
   const bool builtin_exit_frame = true;
-  TNode<CodeT> code = HeapConstant(
+  TNode<CodeDataContainer> code = HeapConstant(
       CodeFactory::CEntry(isolate(), 1, ArgvMode::kStack, builtin_exit_frame));
 
   // Unconditionally push argc, target and new target as extra stack arguments.
@@ -1568,7 +1568,7 @@ TF_BUILTIN(InstantiateAsmJs, CodeStubAssembler) {
   // On failure, tail call back to regular JavaScript by re-calling the given
   // function which has been reset to the compile lazy builtin.
 
-  TNode<CodeT> code = LoadJSFunctionCode(function);
+  TNode<CodeDataContainer> code = LoadJSFunctionCode(function);
   TailCallJSCode(code, context, function, new_target, arg_count);
 }
 

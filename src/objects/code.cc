@@ -204,8 +204,8 @@ void Code::RelocateFromDesc(ByteArray reloc_info, Heap* heap,
       // Rewrite code handles to direct pointers to the first instruction in the
       // code object.
       Handle<HeapObject> p = it.rinfo()->target_object_handle(origin);
-      DCHECK(p->IsCodeT(GetPtrComprCageBaseSlow(*p)));
-      Code code = FromCodeT(CodeT::cast(*p));
+      DCHECK(p->IsCodeDataContainer(GetPtrComprCageBaseSlow(*p)));
+      Code code = FromCodeDataContainer(CodeDataContainer::cast(*p));
       it.rinfo()->set_target_address(code.raw_instruction_start(),
                                      UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
     } else if (RelocInfo::IsNearBuiltinEntry(mode)) {
@@ -531,10 +531,10 @@ void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {
 
 namespace {
 
-template <typename CodeOrCodeT>
+template <typename CodeOrCodeDataContainer>
 inline void DisassembleCodeRange(Isolate* isolate, std::ostream& os,
-                                 CodeOrCodeT code, Address begin, size_t size,
-                                 Address current_pc) {
+                                 CodeOrCodeDataContainer code, Address begin,
+                                 size_t size, Address current_pc) {
   Address end = begin + size;
   AllowHandleAllocation allow_handles;
   DisallowGarbageCollection no_gc;
@@ -544,9 +544,9 @@ inline void DisassembleCodeRange(Isolate* isolate, std::ostream& os,
                        CodeReference(handle(code, isolate)), current_pc);
 }
 
-template <typename CodeOrCodeT>
+template <typename CodeOrCodeDataContainer>
 void Disassemble(const char* name, std::ostream& os, Isolate* isolate,
-                 CodeOrCodeT code, Address current_pc) {
+                 CodeOrCodeDataContainer code, Address current_pc) {
   CodeKind kind = code.kind();
   os << "kind = " << CodeKindToString(kind) << "\n";
   if (name == nullptr && code.is_builtin()) {
@@ -919,11 +919,12 @@ Handle<DependentCode> DependentCode::InsertWeakCode(
     Handle<Code> code) {
   if (entries->length() == entries->capacity()) {
     // We'd have to grow - try to compact first.
-    entries->IterateAndCompact([](CodeT, DependencyGroups) { return false; });
+    entries->IterateAndCompact(
+        [](CodeDataContainer, DependencyGroups) { return false; });
   }
 
-  MaybeObjectHandle code_slot(HeapObjectReference::Weak(ToCodeT(*code)),
-                              isolate);
+  MaybeObjectHandle code_slot(
+      HeapObjectReference::Weak(ToCodeDataContainer(*code)), isolate);
   MaybeObjectHandle group_slot(MaybeObject::FromSmi(Smi::FromInt(groups)),
                                isolate);
   entries = Handle<DependentCode>::cast(
@@ -936,7 +937,7 @@ Handle<DependentCode> DependentCode::New(Isolate* isolate,
                                          Handle<Code> code) {
   Handle<DependentCode> result = Handle<DependentCode>::cast(
       isolate->factory()->NewWeakArrayList(LengthFor(1), AllocationType::kOld));
-  result->Set(0, HeapObjectReference::Weak(ToCodeT(*code)));
+  result->Set(0, HeapObjectReference::Weak(ToCodeDataContainer(*code)));
   result->Set(1, Smi::FromInt(groups));
   return result;
 }
@@ -961,7 +962,7 @@ void DependentCode::IterateAndCompact(const IterateAndCompactFn& fn) {
       continue;
     }
 
-    if (fn(CodeT::cast(obj->GetHeapObjectAssumeWeak()),
+    if (fn(CodeDataContainer::cast(obj->GetHeapObjectAssumeWeak()),
            static_cast<DependencyGroups>(
                Get(i + kGroupsSlotOffset).ToSmi().value()))) {
       len = FillEntryFromBack(i, len);
@@ -978,7 +979,7 @@ bool DependentCode::MarkCodeForDeoptimization(
   DisallowGarbageCollection no_gc;
 
   bool marked_something = false;
-  IterateAndCompact([&](CodeT code, DependencyGroups groups) {
+  IterateAndCompact([&](CodeDataContainer code, DependencyGroups groups) {
     if ((groups & deopt_groups) == 0) return false;
 
     if (!code.marked_for_deoptimization()) {
@@ -1029,7 +1030,7 @@ void Code::SetMarkedForDeoptimization(const char* reason) {
 
 void CodeDataContainer::SetMarkedForDeoptimization(const char* reason) {
   set_marked_for_deoptimization(true);
-  Deoptimizer::TraceMarkForDeoptimization(FromCodeT(*this), reason);
+  Deoptimizer::TraceMarkForDeoptimization(FromCodeDataContainer(*this), reason);
 }
 
 const char* DependentCode::DependencyGroupName(DependencyGroup group) {

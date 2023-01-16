@@ -299,12 +299,12 @@ void Builtins::Generate_JSBuiltinsConstructStub(MacroAssembler* masm) {
   Generate_JSBuiltinsConstructStubHelper(masm);
 }
 
-static void AssertCodeTIsBaseline(MacroAssembler* masm, Register code,
-                                  Register scratch) {
+static void AssertCodeDataContainerIsBaseline(MacroAssembler* masm,
+                                              Register code, Register scratch) {
   DCHECK(!AreAliased(code, scratch));
   // Verify that the code kind is baseline code via the CodeKind.
-  __ Ld_d(scratch, FieldMemOperand(code, CodeT::kFlagsOffset));
-  __ DecodeField<CodeT::KindField>(scratch);
+  __ Ld_d(scratch, FieldMemOperand(code, CodeDataContainer::kFlagsOffset));
+  __ DecodeField<CodeDataContainer::KindField>(scratch);
   __ Assert(eq, AbortReason::kExpectedBaselineData, scratch,
             Operand(static_cast<int>(CodeKind::BASELINE)));
 }
@@ -320,12 +320,12 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
   __ GetObjectType(sfi_data, scratch1, scratch1);
   if (v8_flags.debug_code) {
     Label not_baseline;
-    __ Branch(&not_baseline, ne, scratch1, Operand(CODET_TYPE));
-    AssertCodeTIsBaseline(masm, sfi_data, scratch1);
+    __ Branch(&not_baseline, ne, scratch1, Operand(CODE_DATA_CONTAINER_TYPE));
+    AssertCodeDataContainerIsBaseline(masm, sfi_data, scratch1);
     __ Branch(is_baseline);
     __ bind(&not_baseline);
   } else {
-    __ Branch(is_baseline, eq, scratch1, Operand(CODET_TYPE));
+    __ Branch(is_baseline, eq, scratch1, Operand(CODE_DATA_CONTAINER_TYPE));
   }
   __ Branch(&done, ne, scratch1, Operand(INTERPRETER_DATA_TYPE));
   __ Ld_d(sfi_data,
@@ -648,7 +648,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   // Invoke the function by calling through JS entry trampoline builtin and
   // pop the faked function when we return.
 
-  Handle<CodeT> trampoline_code =
+  Handle<CodeDataContainer> trampoline_code =
       masm->isolate()->builtins()->code_handle(entry_trampoline);
   __ Call(trampoline_code, RelocInfo::CODE_TARGET);
 
@@ -754,9 +754,9 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // s7 is cp. Do not init.
 
     // Invoke the code.
-    Handle<CodeT> builtin = is_construct
-                                ? BUILTIN_CODE(masm->isolate(), Construct)
-                                : masm->isolate()->builtins()->Call();
+    Handle<CodeDataContainer> builtin =
+        is_construct ? BUILTIN_CODE(masm->isolate(), Construct)
+                     : masm->isolate()->builtins()->Call();
     __ Call(builtin, RelocInfo::CODE_TARGET);
 
     // Leave internal frame.
@@ -2012,7 +2012,7 @@ void Generate_AllocateSpaceAndShiftExistingArguments(
 
 // static
 void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
-                                               Handle<CodeT> code) {
+                                               Handle<CodeDataContainer> code) {
   // ----------- S t a t e -------------
   //  -- a1 : target
   //  -- a0 : number of parameters on the stack
@@ -2081,9 +2081,9 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
 }
 
 // static
-void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
-                                                      CallOrConstructMode mode,
-                                                      Handle<CodeT> code) {
+void Builtins::Generate_CallOrConstructForwardVarargs(
+    MacroAssembler* masm, CallOrConstructMode mode,
+    Handle<CodeDataContainer> code) {
   // ----------- S t a t e -------------
   //  -- a0 : the number of arguments
   //  -- a3 : the new.target (for [[Construct]] calls)
@@ -3586,7 +3586,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   if (!is_osr) {
     Label start_with_baseline;
     __ GetObjectType(code_obj, t2, t2);
-    __ Branch(&start_with_baseline, eq, t2, Operand(CODET_TYPE));
+    __ Branch(&start_with_baseline, eq, t2, Operand(CODE_DATA_CONTAINER_TYPE));
 
     // Start with bytecode as there is no baseline code.
     Builtin builtin_id = next_bytecode
@@ -3599,11 +3599,12 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     __ bind(&start_with_baseline);
   } else if (v8_flags.debug_code) {
     __ GetObjectType(code_obj, t2, t2);
-    __ Assert(eq, AbortReason::kExpectedBaselineData, t2, Operand(CODET_TYPE));
+    __ Assert(eq, AbortReason::kExpectedBaselineData, t2,
+              Operand(CODE_DATA_CONTAINER_TYPE));
   }
 
   if (v8_flags.debug_code) {
-    AssertCodeTIsBaseline(masm, code_obj, t2);
+    AssertCodeDataContainerIsBaseline(masm, code_obj, t2);
   }
 
   __ LoadCodeDataContainerCodeNonBuiltin(code_obj, code_obj);

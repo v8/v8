@@ -921,7 +921,7 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
   VerifyPointer(isolate, raw_feedback_cell(isolate));
   CHECK(raw_feedback_cell(isolate).IsFeedbackCell());
   VerifyPointer(isolate, code(isolate));
-  CHECK(code(isolate).IsCodeT());
+  CHECK(code(isolate).IsCodeDataContainer());
   CHECK(map(isolate).is_callable());
   Handle<JSFunction> function(*this, isolate);
   LookupIterator it(isolate, function, isolate->factory()->prototype_string(),
@@ -1546,9 +1546,9 @@ void JSRegExp::JSRegExpVerify(Isolate* isolate) {
       Object latin1_bytecode = arr.get(JSRegExp::kIrregexpLatin1BytecodeIndex);
       Object uc16_bytecode = arr.get(JSRegExp::kIrregexpUC16BytecodeIndex);
 
-      bool is_compiled = latin1_code.IsCodeT();
+      bool is_compiled = latin1_code.IsCodeDataContainer();
       if (is_compiled) {
-        CHECK_EQ(CodeT::cast(latin1_code).builtin_id(),
+        CHECK_EQ(CodeDataContainer::cast(latin1_code).builtin_id(),
                  Builtin::kRegExpExperimentalTrampoline);
         CHECK_EQ(uc16_code, latin1_code);
 
@@ -1580,11 +1580,11 @@ void JSRegExp::JSRegExpVerify(Isolate* isolate) {
       // Code: Compiled irregexp code or trampoline to the interpreter.
       CHECK((one_byte_data.IsSmi() &&
              Smi::ToInt(one_byte_data) == JSRegExp::kUninitializedValue) ||
-            one_byte_data.IsCodeT());
+            one_byte_data.IsCodeDataContainer());
       Object uc16_data = arr.get(JSRegExp::kIrregexpUC16CodeIndex);
       CHECK((uc16_data.IsSmi() &&
              Smi::ToInt(uc16_data) == JSRegExp::kUninitializedValue) ||
-            uc16_data.IsCodeT());
+            uc16_data.IsCodeDataContainer());
 
       Object one_byte_bytecode =
           arr.get(JSRegExp::kIrregexpLatin1BytecodeIndex);
@@ -1855,7 +1855,7 @@ void DataHandler::DataHandlerVerify(Isolate* isolate) {
   CHECK(IsDataHandler());
   VerifyPointer(isolate, smi_handler(isolate));
   CHECK_IMPLIES(!smi_handler().IsSmi(),
-                IsStoreHandler() && smi_handler().IsCodeT());
+                IsStoreHandler() && smi_handler().IsCodeDataContainer());
   VerifyPointer(isolate, validity_cell(isolate));
   CHECK(validity_cell().IsSmi() || validity_cell().IsCell());
   int data_count = data_field_count();

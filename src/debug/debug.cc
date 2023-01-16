@@ -1636,7 +1636,8 @@ void Debug::InstallDebugBreakTrampoline() {
 
   if (!needs_to_use_trampoline) return;
 
-  Handle<CodeT> trampoline = BUILTIN_CODE(isolate_, DebugBreakTrampoline);
+  Handle<CodeDataContainer> trampoline =
+      BUILTIN_CODE(isolate_, DebugBreakTrampoline);
   std::vector<Handle<JSFunction>> needs_compile;
   using AccessorPairWithContext =
       std::pair<Handle<AccessorPair>, Handle<NativeContext>>;

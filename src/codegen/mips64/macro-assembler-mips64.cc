@@ -4326,7 +4326,7 @@ void TurboAssembler::Jump(Address target, RelocInfo::Mode rmode, Condition cond,
   Jump(static_cast<intptr_t>(target), rmode, cond, rs, rt, bd);
 }
 
-void TurboAssembler::Jump(Handle<CodeT> code, RelocInfo::Mode rmode,
+void TurboAssembler::Jump(Handle<CodeDataContainer> code, RelocInfo::Mode rmode,
                           Condition cond, Register rs, const Operand& rt,
                           BranchDelaySlot bd) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
@@ -4399,7 +4399,7 @@ void TurboAssembler::Call(Address target, RelocInfo::Mode rmode, Condition cond,
   Call(t9, cond, rs, rt, bd);
 }
 
-void TurboAssembler::Call(Handle<CodeT> code, RelocInfo::Mode rmode,
+void TurboAssembler::Call(Handle<CodeDataContainer> code, RelocInfo::Mode rmode,
                           Condition cond, Register rs, const Operand& rt,
                           BranchDelaySlot bd) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
@@ -4454,7 +4454,8 @@ void TurboAssembler::CallBuiltin(Builtin builtin) {
       break;
     }
     case BuiltinCallJumpMode::kForMksnapshot: {
-      Handle<CodeT> code = isolate()->builtins()->code_handle(builtin);
+      Handle<CodeDataContainer> code =
+          isolate()->builtins()->code_handle(builtin);
       IndirectLoadConstant(temp, code);
       CallCodeDataContainerObject(temp);
       break;
@@ -4482,7 +4483,8 @@ void TurboAssembler::TailCallBuiltin(Builtin builtin) {
       break;
     }
     case BuiltinCallJumpMode::kForMksnapshot: {
-      Handle<CodeT> code = isolate()->builtins()->code_handle(builtin);
+      Handle<CodeDataContainer> code =
+          isolate()->builtins()->code_handle(builtin);
       IndirectLoadConstant(temp, code);
       JumpCodeDataContainerObject(temp);
       break;
@@ -4919,12 +4921,11 @@ void MacroAssembler::StackOverflowCheck(Register num_args, Register scratch1,
   Branch(stack_overflow, le, scratch1, Operand(scratch2));
 }
 
-void MacroAssembler::TestCodeTIsMarkedForDeoptimizationAndJump(Register codet,
-                                                               Register scratch,
-                                                               Condition cond,
-                                                               Label* target) {
-  Lwu(scratch,
-      FieldMemOperand(codet, CodeDataContainer::kKindSpecificFlagsOffset));
+void MacroAssembler::TestCodeDataContainerIsMarkedForDeoptimizationAndJump(
+    Register code_data_container, Register scratch, Condition cond,
+    Label* target) {
+  Lwu(scratch, FieldMemOperand(code_data_container,
+                               CodeDataContainer::kKindSpecificFlagsOffset));
   And(scratch, scratch, Operand(1 << Code::kMarkedForDeoptimizationBit));
   Branch(target, cond, scratch, Operand(zero_reg));
 }
@@ -5277,7 +5278,8 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   // smarter.
   PrepareCEntryArgs(num_arguments);
   PrepareCEntryFunction(ExternalReference::Create(f));
-  Handle<CodeT> code = CodeFactory::CEntry(isolate(), f->result_size);
+  Handle<CodeDataContainer> code =
+      CodeFactory::CEntry(isolate(), f->result_size);
   Call(code, RelocInfo::CODE_TARGET);
 }
 
@@ -5295,7 +5297,7 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
                                              BranchDelaySlot bd,
                                              bool builtin_exit_frame) {
   PrepareCEntryFunction(builtin);
-  Handle<CodeT> code =
+  Handle<CodeDataContainer> code =
       CodeFactory::CEntry(isolate(), 1, ArgvMode::kStack, builtin_exit_frame);
   Jump(code, RelocInfo::CODE_TARGET, al, zero_reg, Operand(zero_reg), bd);
 }
@@ -6242,8 +6244,8 @@ void TailCallOptimizedCodeSlot(MacroAssembler* masm,
 
   // Check if the optimized code is marked for deopt. If it is, call the
   // runtime to clear it.
-  __ TestCodeTIsMarkedForDeoptimizationAndJump(optimized_code_entry, scratch1,
-                                               ne, &heal_optimized_code_slot);
+  __ TestCodeDataContainerIsMarkedForDeoptimizationAndJump(
+      optimized_code_entry, scratch1, ne, &heal_optimized_code_slot);
 
   // Optimized code is good, get it into the closure and link the closure into
   // the optimized functions list, then tail call the optimized code.

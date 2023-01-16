@@ -255,7 +255,7 @@ class FeedbackVector
   // The `osr_state` contains the osr_urgency and maybe_has_optimized_osr_code.
   inline void reset_osr_state();
 
-  inline CodeT optimized_code() const;
+  inline CodeDataContainer optimized_code() const;
   // Whether maybe_optimized_code contains a cached Code object.
   inline bool has_optimized_code() const;
 
@@ -269,16 +269,16 @@ class FeedbackVector
   inline bool maybe_has_turbofan_code() const;
   inline void set_maybe_has_turbofan_code(bool value);
 
-  void SetOptimizedCode(CodeT code);
+  void SetOptimizedCode(CodeDataContainer code);
   void EvictOptimizedCodeMarkedForDeoptimization(SharedFunctionInfo shared,
                                                  const char* reason);
   void ClearOptimizedCode();
 
   // Optimized OSR'd code is cached in JumpLoop feedback vector slots. The
   // slots either contain a Code object or the ClearedValue.
-  inline base::Optional<CodeT> GetOptimizedOsrCode(Isolate* isolate,
-                                                   FeedbackSlot slot);
-  void SetOptimizedOsrCode(FeedbackSlot slot, CodeT code);
+  inline base::Optional<CodeDataContainer> GetOptimizedOsrCode(
+      Isolate* isolate, FeedbackSlot slot);
+  void SetOptimizedOsrCode(FeedbackSlot slot, CodeDataContainer code);
 
   inline TieringState tiering_state() const;
   void set_tiering_state(TieringState state);

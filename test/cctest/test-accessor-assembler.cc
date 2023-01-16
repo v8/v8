@@ -216,7 +216,7 @@ TEST(TryProbeStubCache) {
     Handle<JSObject> receiver = receivers[index % receivers.size()];
     Handle<Code> handler = handlers[index % handlers.size()];
     stub_cache.Set(*name, receiver->map(),
-                   MaybeObject::FromObject(ToCodeT(*handler)));
+                   MaybeObject::FromObject(ToCodeDataContainer(*handler)));
   }
 
   // Perform some queries.

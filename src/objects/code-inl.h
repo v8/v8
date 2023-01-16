@@ -52,7 +52,7 @@ int AbstractCode::InstructionSize(PtrComprCageBase cage_base) {
   if (InstanceTypeChecker::IsCode(instance_type)) {
     return GetCode().InstructionSize();
   } else if (InstanceTypeChecker::IsCodeDataContainer(instance_type)) {
-    return GetCodeT().InstructionSize();
+    return GetCodeDataContainer().InstructionSize();
   } else {
     DCHECK(InstanceTypeChecker::IsBytecodeArray(instance_type));
     return GetBytecodeArray().length();
@@ -66,11 +66,11 @@ ByteArray AbstractCode::SourcePositionTableInternal(
     DCHECK_NE(GetCode().kind(), CodeKind::BASELINE);
     return GetCode().source_position_table(cage_base);
   } else if (InstanceTypeChecker::IsCodeDataContainer(instance_type)) {
-    CodeT codet = GetCodeT();
-    if (codet.is_off_heap_trampoline()) {
+    CodeDataContainer code_data_container = GetCodeDataContainer();
+    if (code_data_container.is_off_heap_trampoline()) {
       return GetReadOnlyRoots().empty_byte_array();
     }
-    return codet.source_position_table(cage_base);
+    return code_data_container.source_position_table(cage_base);
   } else {
     DCHECK(InstanceTypeChecker::IsBytecodeArray(instance_type));
     return GetBytecodeArray().SourcePositionTable(cage_base);
@@ -83,11 +83,12 @@ ByteArray AbstractCode::SourcePositionTable(PtrComprCageBase cage_base,
   if (InstanceTypeChecker::IsCode(instance_type)) {
     return GetCode().SourcePositionTable(cage_base, sfi);
   } else if (InstanceTypeChecker::IsCodeDataContainer(instance_type)) {
-    CodeT codet = GetCodeT();
-    if (codet.is_off_heap_trampoline()) {
+    CodeDataContainer code_data_container = GetCodeDataContainer();
+    if (code_data_container.is_off_heap_trampoline()) {
       return GetReadOnlyRoots().empty_byte_array();
     }
-    return FromCodeT(codet).SourcePositionTable(cage_base, sfi);
+    return FromCodeDataContainer(code_data_container)
+        .SourcePositionTable(cage_base, sfi);
   } else {
     DCHECK(InstanceTypeChecker::IsBytecodeArray(instance_type));
     return GetBytecodeArray().SourcePositionTable(cage_base);
@@ -99,10 +100,11 @@ int AbstractCode::SizeIncludingMetadata(PtrComprCageBase cage_base) {
   if (InstanceTypeChecker::IsCode(instance_type)) {
     return GetCode().SizeIncludingMetadata(cage_base);
   } else if (InstanceTypeChecker::IsCodeDataContainer(instance_type)) {
-    CodeT codet = GetCodeT();
-    return codet.is_off_heap_trampoline()
+    CodeDataContainer code_data_container = GetCodeDataContainer();
+    return code_data_container.is_off_heap_trampoline()
                ? 0
-               : FromCodeT(codet).SizeIncludingMetadata(cage_base);
+               : FromCodeDataContainer(code_data_container)
+                     .SizeIncludingMetadata(cage_base);
   } else {
     DCHECK(InstanceTypeChecker::IsBytecodeArray(instance_type));
     return GetBytecodeArray().SizeIncludingMetadata();
@@ -114,7 +116,7 @@ Address AbstractCode::InstructionStart(PtrComprCageBase cage_base) {
   if (InstanceTypeChecker::IsCode(instance_type)) {
     return GetCode().InstructionStart();
   } else if (InstanceTypeChecker::IsCodeDataContainer(instance_type)) {
-    return GetCodeT().InstructionStart();
+    return GetCodeDataContainer().InstructionStart();
   } else {
     DCHECK(InstanceTypeChecker::IsBytecodeArray(instance_type));
     return GetBytecodeArray().GetFirstBytecodeAddress();
@@ -126,7 +128,7 @@ Address AbstractCode::InstructionEnd(PtrComprCageBase cage_base) {
   if (InstanceTypeChecker::IsCode(instance_type)) {
     return GetCode().InstructionEnd();
   } else if (InstanceTypeChecker::IsCodeDataContainer(instance_type)) {
-    return GetCodeT().InstructionEnd();
+    return GetCodeDataContainer().InstructionEnd();
   } else {
     DCHECK(InstanceTypeChecker::IsBytecodeArray(instance_type));
     BytecodeArray bytecode_array = GetBytecodeArray();
@@ -140,7 +142,7 @@ bool AbstractCode::contains(Isolate* isolate, Address inner_pointer) {
   if (InstanceTypeChecker::IsCode(instance_type)) {
     return GetCode().contains(isolate, inner_pointer);
   } else if (InstanceTypeChecker::IsCodeDataContainer(instance_type)) {
-    return GetCodeT().contains(isolate, inner_pointer);
+    return GetCodeDataContainer().contains(isolate, inner_pointer);
   } else {
     DCHECK(InstanceTypeChecker::IsBytecodeArray(instance_type));
     return (address() <= inner_pointer) &&
@@ -153,7 +155,7 @@ CodeKind AbstractCode::kind(PtrComprCageBase cage_base) {
   if (InstanceTypeChecker::IsCode(instance_type)) {
     return GetCode().kind();
   } else if (InstanceTypeChecker::IsCodeDataContainer(instance_type)) {
-    return GetCodeT().kind();
+    return GetCodeDataContainer().kind();
   } else {
     DCHECK(InstanceTypeChecker::IsBytecodeArray(instance_type));
     return CodeKind::INTERPRETED_FUNCTION;
@@ -165,7 +167,7 @@ Builtin AbstractCode::builtin_id(PtrComprCageBase cage_base) {
   if (InstanceTypeChecker::IsCode(instance_type)) {
     return GetCode().builtin_id();
   } else if (InstanceTypeChecker::IsCodeDataContainer(instance_type)) {
-    return GetCodeT().builtin_id();
+    return GetCodeDataContainer().builtin_id();
   } else {
     DCHECK(InstanceTypeChecker::IsBytecodeArray(instance_type));
     return Builtin::kNoBuiltinId;
@@ -177,7 +179,7 @@ bool AbstractCode::is_off_heap_trampoline(PtrComprCageBase cage_base) {
   if (InstanceTypeChecker::IsCode(instance_type)) {
     return GetCode().is_off_heap_trampoline();
   } else if (InstanceTypeChecker::IsCodeDataContainer(instance_type)) {
-    return GetCodeT().is_off_heap_trampoline();
+    return GetCodeDataContainer().is_off_heap_trampoline();
   } else {
     DCHECK(InstanceTypeChecker::IsBytecodeArray(instance_type));
     return false;
@@ -190,7 +192,7 @@ HandlerTable::CatchPrediction AbstractCode::GetBuiltinCatchPrediction(
   if (InstanceTypeChecker::IsCode(instance_type)) {
     return GetCode().GetBuiltinCatchPrediction();
   } else if (InstanceTypeChecker::IsCodeDataContainer(instance_type)) {
-    return GetCodeT().GetBuiltinCatchPrediction();
+    return GetCodeDataContainer().GetBuiltinCatchPrediction();
   } else {
     UNREACHABLE();
   }
@@ -200,8 +202,8 @@ bool AbstractCode::IsCode(PtrComprCageBase cage_base) const {
   return HeapObject::IsCode(cage_base);
 }
 
-bool AbstractCode::IsCodeT(PtrComprCageBase cage_base) const {
-  return HeapObject::IsCodeT(cage_base);
+bool AbstractCode::IsCodeDataContainer(PtrComprCageBase cage_base) const {
+  return HeapObject::IsCodeDataContainer(cage_base);
 }
 
 bool AbstractCode::IsBytecodeArray(PtrComprCageBase cage_base) const {
@@ -210,7 +212,9 @@ bool AbstractCode::IsBytecodeArray(PtrComprCageBase cage_base) const {
 
 Code AbstractCode::GetCode() { return Code::cast(*this); }
 
-CodeT AbstractCode::GetCodeT() { return CodeT::cast(*this); }
+CodeDataContainer AbstractCode::GetCodeDataContainer() {
+  return CodeDataContainer::cast(*this);
+}
 
 BytecodeArray AbstractCode::GetBytecodeArray() {
   return BytecodeArray::cast(*this);
@@ -221,20 +225,21 @@ Code AbstractCode::ToCode(PtrComprCageBase cage_base) {
   if (InstanceTypeChecker::IsCode(instance_type)) {
     return GetCode();
   } else if (InstanceTypeChecker::IsCodeDataContainer(instance_type)) {
-    CodeT codet = GetCodeT();
-    DCHECK(!codet.is_off_heap_trampoline());
-    return FromCodeT(codet);
+    CodeDataContainer code_data_container = GetCodeDataContainer();
+    DCHECK(!code_data_container.is_off_heap_trampoline());
+    return FromCodeDataContainer(code_data_container);
   } else {
     UNREACHABLE();
   }
 }
 
-CodeT AbstractCode::ToCodeT(PtrComprCageBase cage_base) {
+CodeDataContainer AbstractCode::ToCodeDataContainer(
+    PtrComprCageBase cage_base) {
   InstanceType instance_type = map(cage_base).instance_type();
   if (InstanceTypeChecker::IsCode(instance_type)) {
-    return i::ToCodeT(GetCode());
+    return i::ToCodeDataContainer(GetCode());
   } else if (InstanceTypeChecker::IsCodeDataContainer(instance_type)) {
-    return GetCodeT();
+    return GetCodeDataContainer();
   } else {
     UNREACHABLE();
   }
@@ -365,30 +370,32 @@ CodeDataContainer Code::GCSafeCodeDataContainer(AcquireLoadTag) const {
 }
 
 // Helper functions for converting Code objects to CodeDataContainer and back.
-inline CodeT ToCodeT(Code code) {
+inline CodeDataContainer ToCodeDataContainer(Code code) {
   return code.code_data_container(kAcquireLoad);
 }
 
-inline Handle<CodeT> ToCodeT(Handle<Code> code, Isolate* isolate) {
-  return handle(ToCodeT(*code), isolate);
+inline Handle<CodeDataContainer> ToCodeDataContainer(Handle<Code> code,
+                                                     Isolate* isolate) {
+  return handle(ToCodeDataContainer(*code), isolate);
 }
 
-inline MaybeHandle<CodeT> ToCodeT(MaybeHandle<Code> maybe_code,
-                                  Isolate* isolate) {
+inline MaybeHandle<CodeDataContainer> ToCodeDataContainer(
+    MaybeHandle<Code> maybe_code, Isolate* isolate) {
   Handle<Code> code;
-  if (maybe_code.ToHandle(&code)) return ToCodeT(code, isolate);
+  if (maybe_code.ToHandle(&code)) return ToCodeDataContainer(code, isolate);
   return {};
 }
 
-inline Code FromCodeT(CodeT code) {
+inline Code FromCodeDataContainer(CodeDataContainer code) {
   DCHECK(!code.is_off_heap_trampoline());
   // Compute the Code object pointer from the code entry point.
   Address ptr = code.code_entry_point() - Code::kHeaderSize + kHeapObjectTag;
   return Code::cast(Object(ptr));
 }
 
-inline Code FromCodeT(CodeT code, PtrComprCageBase code_cage_base,
-                      RelaxedLoadTag tag) {
+inline Code FromCodeDataContainer(CodeDataContainer code,
+                                  PtrComprCageBase code_cage_base,
+                                  RelaxedLoadTag tag) {
   DCHECK(!code.is_off_heap_trampoline());
   // Since the code entry point field is not aligned we can't load it atomically
   // and use for Code object pointer calculation. So, we load and decompress
@@ -396,23 +403,26 @@ inline Code FromCodeT(CodeT code, PtrComprCageBase code_cage_base,
   return code.code(code_cage_base, tag);
 }
 
-inline Code FromCodeT(CodeT code, Isolate* isolate, RelaxedLoadTag tag) {
+inline Code FromCodeDataContainer(CodeDataContainer code, Isolate* isolate,
+                                  RelaxedLoadTag tag) {
 #ifdef V8_EXTERNAL_CODE_SPACE
-  return FromCodeT(code, PtrComprCageBase{isolate->code_cage_base()}, tag);
+  return FromCodeDataContainer(
+      code, PtrComprCageBase{isolate->code_cage_base()}, tag);
 #else
-  return FromCodeT(code, GetPtrComprCageBase(code), tag);
+  return FromCodeDataContainer(code, GetPtrComprCageBase(code), tag);
 #endif  // V8_EXTERNAL_CODE_SPACE
 }
 
-inline Handle<Code> FromCodeT(Handle<CodeT> code, Isolate* isolate) {
-  return handle(FromCodeT(*code), isolate);
+inline Handle<Code> FromCodeDataContainer(Handle<CodeDataContainer> code,
+                                          Isolate* isolate) {
+  return handle(FromCodeDataContainer(*code), isolate);
 }
 
-inline AbstractCode ToAbstractCode(CodeT code) {
+inline AbstractCode ToAbstractCode(CodeDataContainer code) {
   return AbstractCode::cast(code);
 }
 
-inline Handle<AbstractCode> ToAbstractCode(Handle<CodeT> code,
+inline Handle<AbstractCode> ToAbstractCode(Handle<CodeDataContainer> code,
                                            Isolate* isolate) {
   return Handle<AbstractCode>::cast(code);
 }
@@ -474,11 +484,12 @@ AbstractCode CodeLookupResult::ToAbstractCode() const {
 
 Code CodeLookupResult::ToCode() const {
   DCHECK(IsFound());
-  return IsCode() ? code() : FromCodeT(code_data_container());
+  return IsCode() ? code() : FromCodeDataContainer(code_data_container());
 }
 
-CodeT CodeLookupResult::ToCodeT() const {
-  return IsCodeDataContainer() ? code_data_container() : i::ToCodeT(code());
+CodeDataContainer CodeLookupResult::ToCodeDataContainer() const {
+  return IsCodeDataContainer() ? code_data_container()
+                               : i::ToCodeDataContainer(code());
 }
 
 void Code::WipeOutHeader() {
@@ -1445,14 +1456,16 @@ inline bool CodeDataContainer::is_baseline_leave_frame_builtin() const {
 //
 
 #define DEF_PRIMITIVE_FORWARDING_CDC_GETTER(name, type) \
-  type CodeDataContainer::name() const { return FromCodeT(*this).name(); }
+  type CodeDataContainer::name() const {                \
+    return FromCodeDataContainer(*this).name();         \
+  }
 
 #define DEF_FORWARDING_CDC_GETTER(name, type, result_if_off_heap) \
   DEF_GETTER(CodeDataContainer, name, type) {                     \
     if (is_off_heap_trampoline()) {                               \
       return GetReadOnlyRoots().result_if_off_heap();             \
     }                                                             \
-    return FromCodeT(*this).name(cage_base);                      \
+    return FromCodeDataContainer(*this).name(cage_base);          \
   }
 
 DEF_FORWARDING_CDC_GETTER(deoptimization_data, FixedArray, empty_fixed_array)

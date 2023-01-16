@@ -2584,7 +2584,7 @@ void TurboAssembler::Jump(Address target, RelocInfo::Mode rmode, Condition cond,
   Jump(static_cast<intptr_t>(target), rmode, cond, rj, rk);
 }
 
-void TurboAssembler::Jump(Handle<CodeT> code, RelocInfo::Mode rmode,
+void TurboAssembler::Jump(Handle<CodeDataContainer> code, RelocInfo::Mode rmode,
                           Condition cond, Register rj, const Operand& rk) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
   BlockTrampolinePoolScope block_trampoline_pool(this);
@@ -2659,7 +2659,7 @@ void TurboAssembler::Call(Address target, RelocInfo::Mode rmode, Condition cond,
   bind(&skip);
 }
 
-void TurboAssembler::Call(Handle<CodeT> code, RelocInfo::Mode rmode,
+void TurboAssembler::Call(Handle<CodeDataContainer> code, RelocInfo::Mode rmode,
                           Condition cond, Register rj, const Operand& rk) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
   Builtin builtin = Builtin::kNoBuiltinId;
@@ -2718,7 +2718,8 @@ void TurboAssembler::CallBuiltin(Builtin builtin) {
     }
     case BuiltinCallJumpMode::kForMksnapshot: {
       if (options().use_pc_relative_calls_and_jumps_for_mksnapshot) {
-        Handle<CodeT> code = isolate()->builtins()->code_handle(builtin);
+        Handle<CodeDataContainer> code =
+            isolate()->builtins()->code_handle(builtin);
         int32_t code_target_index = AddCodeTarget(code);
         RecordRelocInfo(RelocInfo::RELATIVE_CODE_TARGET);
         bl(code_target_index);
@@ -2754,7 +2755,8 @@ void TurboAssembler::TailCallBuiltin(Builtin builtin) {
     }
     case BuiltinCallJumpMode::kForMksnapshot: {
       if (options().use_pc_relative_calls_and_jumps_for_mksnapshot) {
-        Handle<CodeT> code = isolate()->builtins()->code_handle(builtin);
+        Handle<CodeDataContainer> code =
+            isolate()->builtins()->code_handle(builtin);
         int32_t code_target_index = AddCodeTarget(code);
         RecordRelocInfo(RelocInfo::RELATIVE_CODE_TARGET);
         b(code_target_index);
@@ -3003,12 +3005,11 @@ void MacroAssembler::StackOverflowCheck(Register num_args, Register scratch1,
   Branch(stack_overflow, le, scratch1, Operand(scratch2));
 }
 
-void MacroAssembler::TestCodeTIsMarkedForDeoptimizationAndJump(Register codet,
-                                                               Register scratch,
-                                                               Condition cond,
-                                                               Label* target) {
-  Ld_wu(scratch,
-        FieldMemOperand(codet, CodeDataContainer::kKindSpecificFlagsOffset));
+void MacroAssembler::TestCodeDataContainerIsMarkedForDeoptimizationAndJump(
+    Register code_data_container, Register scratch, Condition cond,
+    Label* target) {
+  Ld_wu(scratch, FieldMemOperand(code_data_container,
+                                 CodeDataContainer::kKindSpecificFlagsOffset));
   And(scratch, scratch, Operand(1 << Code::kMarkedForDeoptimizationBit));
   Branch(target, cond, scratch, Operand(zero_reg));
 }
@@ -3373,7 +3374,8 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   // smarter.
   PrepareCEntryArgs(num_arguments);
   PrepareCEntryFunction(ExternalReference::Create(f));
-  Handle<CodeT> code = CodeFactory::CEntry(isolate(), f->result_size);
+  Handle<CodeDataContainer> code =
+      CodeFactory::CEntry(isolate(), f->result_size);
   Call(code, RelocInfo::CODE_TARGET);
 }
 
@@ -3390,7 +3392,7 @@ void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid) {
 void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
                                              bool builtin_exit_frame) {
   PrepareCEntryFunction(builtin);
-  Handle<CodeT> code =
+  Handle<CodeDataContainer> code =
       CodeFactory::CEntry(isolate(), 1, ArgvMode::kStack, builtin_exit_frame);
   Jump(code, RelocInfo::CODE_TARGET, al, zero_reg, Operand(zero_reg));
 }
@@ -4195,8 +4197,8 @@ void TailCallOptimizedCodeSlot(MacroAssembler* masm,
 
   // Check if the optimized code is marked for deopt. If it is, call the
   // runtime to clear it.
-  __ TestCodeTIsMarkedForDeoptimizationAndJump(optimized_code_entry, a6, ne,
-                                               &heal_optimized_code_slot);
+  __ TestCodeDataContainerIsMarkedForDeoptimizationAndJump(
+      optimized_code_entry, a6, ne, &heal_optimized_code_slot);
 
   // Optimized code is good, get it into the closure and link the closure into
   // the optimized functions list, then tail call the optimized code.

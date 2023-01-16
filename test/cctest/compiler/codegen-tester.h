@@ -77,7 +77,9 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
     return code_.ToHandleChecked();
   }
 
-  Handle<CodeT> GetCodeT() { return ToCodeT(GetCode(), main_isolate()); }
+  Handle<CodeDataContainer> GetCodeDataContainer() {
+    return ToCodeDataContainer(GetCode(), main_isolate());
+  }
 
  protected:
   Address Generate() override {

@@ -189,7 +189,7 @@ void TurboAssembler::Jump(Address target, RelocInfo::Mode rmode, Condition cond,
   Jump(static_cast<intptr_t>(target), rmode, cond, cr);
 }
 
-void TurboAssembler::Jump(Handle<CodeT> code, RelocInfo::Mode rmode,
+void TurboAssembler::Jump(Handle<CodeDataContainer> code, RelocInfo::Mode rmode,
                           Condition cond, CRegister cr) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
   DCHECK_IMPLIES(options().isolate_independent_code,
@@ -252,7 +252,7 @@ void TurboAssembler::Call(Address target, RelocInfo::Mode rmode,
   bctrl();
 }
 
-void TurboAssembler::Call(Handle<CodeT> code, RelocInfo::Mode rmode,
+void TurboAssembler::Call(Handle<CodeDataContainer> code, RelocInfo::Mode rmode,
                           Condition cond) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
   DCHECK(RelocInfo::IsCodeTarget(rmode));
@@ -293,7 +293,8 @@ void TurboAssembler::CallBuiltin(Builtin builtin, Condition cond) {
     }
     case BuiltinCallJumpMode::kForMksnapshot: {
       if (options().use_pc_relative_calls_and_jumps_for_mksnapshot) {
-        Handle<CodeT> code = isolate()->builtins()->code_handle(builtin);
+        Handle<CodeDataContainer> code =
+            isolate()->builtins()->code_handle(builtin);
         int32_t code_target_index = AddCodeTarget(code);
         Call(static_cast<Address>(code_target_index), RelocInfo::CODE_TARGET,
              cond);
@@ -336,7 +337,8 @@ void TurboAssembler::TailCallBuiltin(Builtin builtin, Condition cond,
     }
     case BuiltinCallJumpMode::kForMksnapshot: {
       if (options().use_pc_relative_calls_and_jumps_for_mksnapshot) {
-        Handle<CodeT> code = isolate()->builtins()->code_handle(builtin);
+        Handle<CodeDataContainer> code =
+            isolate()->builtins()->code_handle(builtin);
         int32_t code_target_index = AddCodeTarget(code);
         Jump(static_cast<intptr_t>(code_target_index), RelocInfo::CODE_TARGET,
              cond, cr);
@@ -363,11 +365,11 @@ void TurboAssembler::Drop(Register count, Register scratch) {
   add(sp, sp, scratch);
 }
 
-void MacroAssembler::TestCodeTIsMarkedForDeoptimization(Register codet,
-                                                        Register scratch1,
-                                                        Register scratch2) {
+void MacroAssembler::TestCodeDataContainerIsMarkedForDeoptimization(
+    Register code_data_container, Register scratch1, Register scratch2) {
   LoadS32(scratch1,
-          FieldMemOperand(codet, CodeDataContainer::kKindSpecificFlagsOffset),
+          FieldMemOperand(code_data_container,
+                          CodeDataContainer::kKindSpecificFlagsOffset),
           scratch2);
   TestBit(scratch1, Code::kMarkedForDeoptimizationBit, scratch2);
 }
@@ -2044,8 +2046,8 @@ void TailCallOptimizedCodeSlot(MacroAssembler* masm,
   // runtime to clear it.
   {
     UseScratchRegisterScope temps(masm);
-    __ TestCodeTIsMarkedForDeoptimization(optimized_code_entry, temps.Acquire(),
-                                          scratch);
+    __ TestCodeDataContainerIsMarkedForDeoptimization(optimized_code_entry,
+                                                      temps.Acquire(), scratch);
     __ bne(&heal_optimized_code_slot, cr0);
   }
 
@@ -2185,9 +2187,10 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   mov(r3, Operand(num_arguments));
   Move(r4, ExternalReference::Create(f));
 #if V8_TARGET_ARCH_PPC64
-  Handle<CodeT> code = CodeFactory::CEntry(isolate(), f->result_size);
+  Handle<CodeDataContainer> code =
+      CodeFactory::CEntry(isolate(), f->result_size);
 #else
-  Handle<CodeT> code = CodeFactory::CEntry(isolate(), 1);
+  Handle<CodeDataContainer> code = CodeFactory::CEntry(isolate(), 1);
 #endif
   Call(code, RelocInfo::CODE_TARGET);
 }
@@ -2204,7 +2207,7 @@ void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid) {
 void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
                                              bool builtin_exit_frame) {
   Move(r4, builtin);
-  Handle<CodeT> code =
+  Handle<CodeDataContainer> code =
       CodeFactory::CEntry(isolate(), 1, ArgvMode::kStack, builtin_exit_frame);
   Jump(code, RelocInfo::CODE_TARGET);
 }

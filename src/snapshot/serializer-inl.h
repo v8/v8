@@ -20,7 +20,7 @@ bool Serializer::IsNotMappedSymbol(HeapObject obj) const {
     // Code references anywhere except the CodeDadaContainer objects.
     // In particular, the Code objects should not appear in serializer's
     // identity map. This should be possible once the IsolateData::builtins
-    // table is migrated to contain CodeT references.
+    // table is migrated to contain CodeDataContainer references.
     return obj.ptr() == not_mapped_symbol.ptr();
   }
   return obj == not_mapped_symbol;

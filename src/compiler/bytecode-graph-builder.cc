@@ -2202,7 +2202,7 @@ void BytecodeGraphBuilder::VisitCreateClosure() {
           bytecode_iterator().GetFlag8Operand(2))
           ? AllocationType::kOld
           : AllocationType::kYoung;
-  CodeTRef compile_lazy =
+  CodeDataContainerRef compile_lazy =
       MakeRef(broker(), *BUILTIN_CODE(jsgraph()->isolate(), CompileLazy));
   const Operator* op =
       javascript()->CreateClosure(shared_info, compile_lazy, allocation);

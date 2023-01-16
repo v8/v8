@@ -77,7 +77,9 @@ class RawMachineAssemblerTester : public CallHelper<ReturnType>,
     return code_.ToHandleChecked();
   }
 
-  Handle<CodeT> GetCodeT() { return ToCodeT(GetCode(), isolate_); }
+  Handle<CodeDataContainer> GetCodeDataContainer() {
+    return ToCodeDataContainer(GetCode(), isolate_);
+  }
 
  protected:
   Address Generate() override {

@@ -114,8 +114,8 @@ static void TailCallOptimizedCodeSlot(MacroAssembler* masm,
 
   // Check if the optimized code is marked for deopt. If it is, call the
   // runtime to clear it.
-  __ JumpIfCodeTIsMarkedForDeoptimization(optimized_code_entry, scratch1,
-                                          &heal_optimized_code_slot);
+  __ JumpIfCodeDataContainerIsMarkedForDeoptimization(
+      optimized_code_entry, scratch1, &heal_optimized_code_slot);
 
   // Optimized code is good, get it into the closure and link the closure into
   // the optimized functions list, then tail call the optimized code.
@@ -4448,7 +4448,8 @@ void TurboAssembler::TailCallBuiltin(Builtin builtin) {
     }
     case BuiltinCallJumpMode::kForMksnapshot: {
       if (options().use_pc_relative_calls_and_jumps_for_mksnapshot) {
-        Handle<CodeT> code = isolate()->builtins()->code_handle(builtin);
+        Handle<CodeDataContainer> code =
+            isolate()->builtins()->code_handle(builtin);
         EmbeddedObjectIndex index = AddEmbeddedObject(code);
         DCHECK(is_int32(index));
         RecordRelocInfo(RelocInfo::RELATIVE_CODE_TARGET,
@@ -5733,10 +5734,12 @@ void TurboAssembler::JumpIfSmi(Register value, Label* smi_label) {
   Branch(smi_label, eq, scratch, Operand(zero_reg));
 }
 
-void MacroAssembler::JumpIfCodeTIsMarkedForDeoptimization(
-    Register codet, Register scratch, Label* if_marked_for_deoptimization) {
+void MacroAssembler::JumpIfCodeDataContainerIsMarkedForDeoptimization(
+    Register code_data_container, Register scratch,
+    Label* if_marked_for_deoptimization) {
   LoadTaggedPointerField(
-      scratch, FieldMemOperand(codet, Code::kCodeDataContainerOffset));
+      scratch,
+      FieldMemOperand(code_data_container, Code::kCodeDataContainerOffset));
   Lw(scratch,
      FieldMemOperand(scratch, CodeDataContainer::kKindSpecificFlagsOffset));
   And(scratch, scratch, Operand(1 << Code::kMarkedForDeoptimizationBit));

@@ -37,9 +37,10 @@ DEF_GETTER(CallSiteInfo, code_object, HeapObject) {
 
 void CallSiteInfo::set_code_object(HeapObject code, WriteBarrierMode mode) {
   // The |code_object| field can contain many types of objects, but only Code
-  // values have to be converted to CodeT.
+  // values have to be converted to CodeDataContainer.
   if (IsCodeSpaceObject(code)) {
-    TorqueGeneratedClass::set_code_object(ToCodeT(Code::cast(code)), mode);
+    TorqueGeneratedClass::set_code_object(ToCodeDataContainer(Code::cast(code)),
+                                          mode);
   } else {
     TorqueGeneratedClass::set_code_object(code, mode);
   }

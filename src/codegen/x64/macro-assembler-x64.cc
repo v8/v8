@@ -575,7 +575,8 @@ void TurboAssembler::CallTSANStoreStub(Register address, Register value,
 
   if (isolate()) {
     Builtin builtin = CodeFactory::GetTSANStoreStub(fp_mode, size, order);
-    Handle<CodeT> code_target = isolate()->builtins()->code_handle(builtin);
+    Handle<CodeDataContainer> code_target =
+        isolate()->builtins()->code_handle(builtin);
     Call(code_target, RelocInfo::CODE_TARGET);
   }
 #if V8_ENABLE_WEBASSEMBLY
@@ -616,7 +617,8 @@ void TurboAssembler::CallTSANRelaxedLoadStub(Register address,
 
   if (isolate()) {
     Builtin builtin = CodeFactory::GetTSANRelaxedLoadStub(fp_mode, size);
-    Handle<CodeT> code_target = isolate()->builtins()->code_handle(builtin);
+    Handle<CodeDataContainer> code_target =
+        isolate()->builtins()->code_handle(builtin);
     Call(code_target, RelocInfo::CODE_TARGET);
   }
 #if V8_ENABLE_WEBASSEMBLY
@@ -776,7 +778,8 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   // smarter.
   Move(rax, num_arguments);
   LoadAddress(rbx, ExternalReference::Create(f));
-  Handle<CodeT> code = CodeFactory::CEntry(isolate(), f->result_size);
+  Handle<CodeDataContainer> code =
+      CodeFactory::CEntry(isolate(), f->result_size);
   Call(code, RelocInfo::CODE_TARGET);
 }
 
@@ -804,7 +807,7 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& ext,
   ASM_CODE_COMMENT(this);
   // Set the entry point and jump to the C entry runtime stub.
   LoadAddress(rbx, ext);
-  Handle<CodeT> code =
+  Handle<CodeDataContainer> code =
       CodeFactory::CEntry(isolate(), 1, ArgvMode::kStack, builtin_exit_frame);
   Jump(code, RelocInfo::CODE_TARGET);
 }
@@ -834,8 +837,8 @@ void TailCallOptimizedCodeSlot(MacroAssembler* masm,
 
   // Check if the optimized code is marked for deopt. If it is, call the
   // runtime to clear it.
-  __ AssertCodeT(optimized_code_entry);
-  __ TestCodeTIsMarkedForDeoptimization(optimized_code_entry);
+  __ AssertCodeDataContainer(optimized_code_entry);
+  __ TestCodeDataContainerIsMarkedForDeoptimization(optimized_code_entry);
   __ j(not_zero, &heal_optimized_code_slot);
 
   // Optimized code is good, get it into the closure and link the closure into
@@ -903,7 +906,7 @@ void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
   DCHECK(!AreAliased(optimized_code, closure, scratch1, slot_address));
   DCHECK_EQ(closure, kJSFunctionRegister);
   // Store the optimized code in the closure.
-  AssertCodeT(optimized_code);
+  AssertCodeDataContainer(optimized_code);
   StoreTaggedField(FieldOperand(closure, JSFunction::kCodeOffset),
                    optimized_code);
   // Write barrier clobbers scratch1 below.
@@ -2144,7 +2147,8 @@ void TurboAssembler::Jump(Address destination, RelocInfo::Mode rmode,
   bind(&skip);
 }
 
-void TurboAssembler::Jump(Handle<CodeT> code_object, RelocInfo::Mode rmode) {
+void TurboAssembler::Jump(Handle<CodeDataContainer> code_object,
+                          RelocInfo::Mode rmode) {
   DCHECK_IMPLIES(options().isolate_independent_code,
                  Builtins::IsIsolateIndependentBuiltin(*code_object));
   Builtin builtin = Builtin::kNoBuiltinId;
@@ -2156,8 +2160,8 @@ void TurboAssembler::Jump(Handle<CodeT> code_object, RelocInfo::Mode rmode) {
   jmp(code_object, rmode);
 }
 
-void TurboAssembler::Jump(Handle<CodeT> code_object, RelocInfo::Mode rmode,
-                          Condition cc) {
+void TurboAssembler::Jump(Handle<CodeDataContainer> code_object,
+                          RelocInfo::Mode rmode, Condition cc) {
   DCHECK_IMPLIES(options().isolate_independent_code,
                  Builtins::IsIsolateIndependentBuiltin(*code_object));
   Builtin builtin = Builtin::kNoBuiltinId;
@@ -2193,7 +2197,8 @@ void TurboAssembler::Call(Address destination, RelocInfo::Mode rmode) {
   call(kScratchRegister);
 }
 
-void TurboAssembler::Call(Handle<CodeT> code_object, RelocInfo::Mode rmode) {
+void TurboAssembler::Call(Handle<CodeDataContainer> code_object,
+                          RelocInfo::Mode rmode) {
   DCHECK_IMPLIES(options().isolate_independent_code,
                  Builtins::IsIsolateIndependentBuiltin(*code_object));
   Builtin builtin = Builtin::kNoBuiltinId;
@@ -2244,7 +2249,8 @@ void TurboAssembler::CallBuiltin(Builtin builtin) {
       Call(EntryFromBuiltinAsOperand(builtin));
       break;
     case BuiltinCallJumpMode::kForMksnapshot: {
-      Handle<CodeT> code = isolate()->builtins()->code_handle(builtin);
+      Handle<CodeDataContainer> code =
+          isolate()->builtins()->code_handle(builtin);
       call(code, RelocInfo::CODE_TARGET);
       break;
     }
@@ -2265,7 +2271,8 @@ void TurboAssembler::TailCallBuiltin(Builtin builtin) {
       Jump(EntryFromBuiltinAsOperand(builtin));
       break;
     case BuiltinCallJumpMode::kForMksnapshot: {
-      Handle<CodeT> code = isolate()->builtins()->code_handle(builtin);
+      Handle<CodeDataContainer> code =
+          isolate()->builtins()->code_handle(builtin);
       jmp(code, RelocInfo::CODE_TARGET);
       break;
     }
@@ -2286,7 +2293,8 @@ void TurboAssembler::TailCallBuiltin(Builtin builtin, Condition cc) {
       Jump(EntryFromBuiltinAsOperand(builtin), cc);
       break;
     case BuiltinCallJumpMode::kForMksnapshot: {
-      Handle<CodeT> code = isolate()->builtins()->code_handle(builtin);
+      Handle<CodeDataContainer> code =
+          isolate()->builtins()->code_handle(builtin);
       j(cc, code, RelocInfo::CODE_TARGET);
       break;
     }
@@ -2598,8 +2606,10 @@ void MacroAssembler::CmpInstanceTypeRange(Register map,
   CompareRange(instance_type_out, lower_limit, higher_limit);
 }
 
-void MacroAssembler::TestCodeTIsMarkedForDeoptimization(Register codet) {
-  testl(FieldOperand(codet, CodeDataContainer::kKindSpecificFlagsOffset),
+void MacroAssembler::TestCodeDataContainerIsMarkedForDeoptimization(
+    Register code_data_container) {
+  testl(FieldOperand(code_data_container,
+                     CodeDataContainer::kKindSpecificFlagsOffset),
         Immediate(1 << Code::kMarkedForDeoptimizationBit));
 }
 
@@ -2647,16 +2657,16 @@ void TurboAssembler::AssertSignedBitOfSmiIsZero(Register smi_register) {
   Check(zero, AbortReason::kSignedBitOfSmiIsNotZero);
 }
 
-void TurboAssembler::AssertCodeT(Register object) {
+void TurboAssembler::AssertCodeDataContainer(Register object) {
   if (!v8_flags.debug_code) return;
   ASM_CODE_COMMENT(this);
   testb(object, Immediate(kSmiTagMask));
-  Check(not_equal, AbortReason::kOperandIsNotACodeT);
+  Check(not_equal, AbortReason::kOperandIsNotACodeDataContainer);
   Push(object);
   LoadMap(object, object);
-  CmpInstanceType(object, CODET_TYPE);
+  CmpInstanceType(object, CODE_DATA_CONTAINER_TYPE);
   popq(object);
-  Check(equal, AbortReason::kOperandIsNotACodeT);
+  Check(equal, AbortReason::kOperandIsNotACodeDataContainer);
 }
 
 void MacroAssembler::AssertConstructor(Register object) {

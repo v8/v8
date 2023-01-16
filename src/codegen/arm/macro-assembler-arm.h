@@ -308,8 +308,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Call(Address target, RelocInfo::Mode rmode, Condition cond = al,
             TargetAddressStorageMode mode = CAN_INLINE_TARGET_ADDRESS,
             bool check_constant_pool = true);
-  void Call(Handle<CodeT> code, RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
-            Condition cond = al,
+  void Call(Handle<CodeDataContainer> code,
+            RelocInfo::Mode rmode = RelocInfo::CODE_TARGET, Condition cond = al,
             TargetAddressStorageMode mode = CAN_INLINE_TARGET_ADDRESS,
             bool check_constant_pool = true);
   void Call(Label* target);
@@ -440,7 +440,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                      Register exclusion3 = no_reg);
   void Jump(Register target, Condition cond = al);
   void Jump(Address target, RelocInfo::Mode rmode, Condition cond = al);
-  void Jump(Handle<CodeT> code, RelocInfo::Mode rmode, Condition cond = al);
+  void Jump(Handle<CodeDataContainer> code, RelocInfo::Mode rmode,
+            Condition cond = al);
   void Jump(const ExternalReference& reference);
 
   // Perform a floating-point min or max operation with the
@@ -891,7 +892,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
     DecodeField<Field>(reg, reg);
   }
 
-  void TestCodeTIsMarkedForDeoptimization(Register codet, Register scratch);
+  void TestCodeDataContainerIsMarkedForDeoptimization(
+      Register code_data_container, Register scratch);
   Operand ClearedValue() const;
 
  private:

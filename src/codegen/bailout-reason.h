@@ -54,7 +54,7 @@ namespace internal {
   V(kOperandIsNotAFunction, "Operand is not a function")                       \
   V(kOperandIsNotACallableFunction, "Operand is not a callable function")      \
   V(kOperandIsNotAGeneratorObject, "Operand is not a generator object")        \
-  V(kOperandIsNotACodeT, "Operand is not a CodeT")                             \
+  V(kOperandIsNotACodeDataContainer, "Operand is not a CodeDataContainer")     \
   V(kOperandIsNotASmi, "Operand is not a smi")                                 \
   V(kPromiseAlreadySettled, "Promise already settled")                         \
   V(kReceivedInvalidReturnAddress, "Received invalid return address")          \

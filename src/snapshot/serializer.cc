@@ -130,8 +130,8 @@ void Serializer::SerializeObject(Handle<HeapObject> obj) {
   // indirection and serialize the actual string directly.
   if (obj->IsThinString(isolate())) {
     obj = handle(ThinString::cast(*obj).actual(isolate()), isolate());
-  } else if (obj->IsCodeT(isolate())) {
-    CodeT code = CodeT::cast(*obj);
+  } else if (obj->IsCodeDataContainer(isolate())) {
+    CodeDataContainer code = CodeDataContainer::cast(*obj);
     if (code.kind() == CodeKind::BASELINE) {
       // For now just serialize the BytecodeArray instead of baseline code.
       // TODO(v8:11429,pthier): Handle Baseline code in cases we want to

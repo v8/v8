@@ -464,7 +464,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
 
   // Invoke the function by calling through JS entry trampoline builtin and
   // pop the faked function when we return.
-  Handle<CodeT> trampoline_code =
+  Handle<CodeDataContainer> trampoline_code =
       masm->isolate()->builtins()->code_handle(entry_trampoline);
   __ Call(trampoline_code, RelocInfo::CODE_TARGET);
 
@@ -637,9 +637,9 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ Push(r9);
 
     // Invoke the builtin code.
-    Handle<CodeT> builtin = is_construct
-                                ? BUILTIN_CODE(masm->isolate(), Construct)
-                                : masm->isolate()->builtins()->Call();
+    Handle<CodeDataContainer> builtin =
+        is_construct ? BUILTIN_CODE(masm->isolate(), Construct)
+                     : masm->isolate()->builtins()->Call();
     __ Call(builtin, RelocInfo::CODE_TARGET);
 
     // Exit the internal frame. Notice that this also removes the empty
@@ -664,19 +664,20 @@ void Builtins::Generate_RunMicrotasksTrampoline(MacroAssembler* masm) {
   __ Jump(BUILTIN_CODE(masm->isolate(), RunMicrotasks), RelocInfo::CODE_TARGET);
 }
 
-static void AssertCodeTIsBaselineAllowClobber(MacroAssembler* masm,
-                                              Register code, Register scratch) {
+static void AssertCodeDataContainerIsBaselineAllowClobber(MacroAssembler* masm,
+                                                          Register code,
+                                                          Register scratch) {
   // Verify that the code kind is baseline code via the CodeKind.
-  __ movl(scratch, FieldOperand(code, CodeT::kFlagsOffset));
-  __ DecodeField<CodeT::KindField>(scratch);
+  __ movl(scratch, FieldOperand(code, CodeDataContainer::kFlagsOffset));
+  __ DecodeField<CodeDataContainer::KindField>(scratch);
   __ cmpl(scratch, Immediate(static_cast<int>(CodeKind::BASELINE)));
   __ Assert(equal, AbortReason::kExpectedBaselineData);
 }
 
-static void AssertCodeTIsBaseline(MacroAssembler* masm, Register code,
-                                  Register scratch) {
+static void AssertCodeDataContainerIsBaseline(MacroAssembler* masm,
+                                              Register code, Register scratch) {
   DCHECK(!AreAliased(code, scratch));
-  return AssertCodeTIsBaselineAllowClobber(masm, code, scratch);
+  return AssertCodeDataContainerIsBaselineAllowClobber(masm, code, scratch);
 }
 
 static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
@@ -687,11 +688,11 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
   Label done;
   __ LoadMap(scratch1, sfi_data);
 
-  __ CmpInstanceType(scratch1, CODET_TYPE);
+  __ CmpInstanceType(scratch1, CODE_DATA_CONTAINER_TYPE);
   if (v8_flags.debug_code) {
     Label not_baseline;
     __ j(not_equal, &not_baseline);
-    AssertCodeTIsBaseline(masm, sfi_data, scratch1);
+    AssertCodeDataContainerIsBaseline(masm, sfi_data, scratch1);
     __ j(equal, is_baseline);
     __ bind(&not_baseline);
   } else {
@@ -807,7 +808,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ jmp(&ok);
 
     __ bind(&is_baseline);
-    __ CmpObjectType(rcx, CODET_TYPE, rcx);
+    __ CmpObjectType(rcx, CODE_DATA_CONTAINER_TYPE, rcx);
     __ Assert(equal, AbortReason::kMissingBytecodeArray);
 
     __ bind(&ok);
@@ -2047,7 +2048,7 @@ void Generate_AllocateSpaceAndShiftExistingArguments(
 // static
 // TODO(v8:11615): Observe Code::kMaxArguments in CallOrConstructVarargs
 void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
-                                               Handle<CodeT> code) {
+                                               Handle<CodeDataContainer> code) {
   // ----------- S t a t e -------------
   //  -- rdi    : target
   //  -- rax    : number of parameters on the stack
@@ -2116,9 +2117,9 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
 }
 
 // static
-void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
-                                                      CallOrConstructMode mode,
-                                                      Handle<CodeT> code) {
+void Builtins::Generate_CallOrConstructForwardVarargs(
+    MacroAssembler* masm, CallOrConstructMode mode,
+    Handle<CodeDataContainer> code) {
   // ----------- S t a t e -------------
   //  -- rax : the number of arguments
   //  -- rdx : the new target (for [[Construct]] calls)
@@ -5343,7 +5344,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   // always have baseline code.
   if (!is_osr) {
     Label start_with_baseline;
-    __ CmpObjectType(code_obj, CODET_TYPE, kScratchRegister);
+    __ CmpObjectType(code_obj, CODE_DATA_CONTAINER_TYPE, kScratchRegister);
     __ j(equal, &start_with_baseline);
 
     // Start with bytecode as there is no baseline code.
@@ -5356,12 +5357,12 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     // Start with baseline code.
     __ bind(&start_with_baseline);
   } else if (v8_flags.debug_code) {
-    __ CmpObjectType(code_obj, CODET_TYPE, kScratchRegister);
+    __ CmpObjectType(code_obj, CODE_DATA_CONTAINER_TYPE, kScratchRegister);
     __ Assert(equal, AbortReason::kExpectedBaselineData);
   }
 
   if (v8_flags.debug_code) {
-    AssertCodeTIsBaseline(masm, code_obj, r11);
+    AssertCodeDataContainerIsBaseline(masm, code_obj, r11);
   }
   __ LoadCodeDataContainerCodeNonBuiltin(code_obj, code_obj);
 

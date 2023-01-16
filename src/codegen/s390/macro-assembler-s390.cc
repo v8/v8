@@ -416,7 +416,7 @@ void TurboAssembler::Jump(Address target, RelocInfo::Mode rmode,
   Jump(static_cast<intptr_t>(target), rmode, cond);
 }
 
-void TurboAssembler::Jump(Handle<CodeT> code, RelocInfo::Mode rmode,
+void TurboAssembler::Jump(Handle<CodeDataContainer> code, RelocInfo::Mode rmode,
                           Condition cond) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
   DCHECK_IMPLIES(options().isolate_independent_code,
@@ -469,7 +469,7 @@ void TurboAssembler::Call(Address target, RelocInfo::Mode rmode,
   basr(r14, ip);
 }
 
-void TurboAssembler::Call(Handle<CodeT> code, RelocInfo::Mode rmode,
+void TurboAssembler::Call(Handle<CodeDataContainer> code, RelocInfo::Mode rmode,
                           Condition cond) {
   DCHECK(RelocInfo::IsCodeTarget(rmode) && cond == al);
 
@@ -502,7 +502,8 @@ void TurboAssembler::CallBuiltin(Builtin builtin, Condition cond) {
       Call(ip);
       break;
     case BuiltinCallJumpMode::kForMksnapshot: {
-      Handle<CodeT> code = isolate()->builtins()->code_handle(builtin);
+      Handle<CodeDataContainer> code =
+          isolate()->builtins()->code_handle(builtin);
       call(code, RelocInfo::CODE_TARGET);
       break;
     }
@@ -528,7 +529,8 @@ void TurboAssembler::TailCallBuiltin(Builtin builtin, Condition cond) {
       break;
     case BuiltinCallJumpMode::kForMksnapshot: {
       if (options().use_pc_relative_calls_and_jumps_for_mksnapshot) {
-        Handle<CodeT> code = isolate()->builtins()->code_handle(builtin);
+        Handle<CodeDataContainer> code =
+            isolate()->builtins()->code_handle(builtin);
         jump(code, RelocInfo::RELATIVE_CODE_TARGET, cond);
       } else {
         LoadU64(ip, EntryFromBuiltinAsOperand(builtin));
@@ -557,10 +559,11 @@ void TurboAssembler::Drop(Register count, Register scratch) {
   AddS64(sp, sp, scratch);
 }
 
-void MacroAssembler::TestCodeTIsMarkedForDeoptimization(Register codet,
-                                                        Register scratch) {
+void MacroAssembler::TestCodeDataContainerIsMarkedForDeoptimization(
+    Register code_data_container, Register scratch) {
   LoadS32(scratch,
-          FieldMemOperand(codet, CodeDataContainer::kKindSpecificFlagsOffset));
+          FieldMemOperand(code_data_container,
+                          CodeDataContainer::kKindSpecificFlagsOffset));
   TestBit(scratch, Code::kMarkedForDeoptimizationBit, scratch);
 }
 
@@ -2043,7 +2046,8 @@ void TailCallOptimizedCodeSlot(MacroAssembler* masm,
   // Check if the optimized code is marked for deopt. If it is, call the
   // runtime to clear it.
   {
-    __ TestCodeTIsMarkedForDeoptimization(optimized_code_entry, scratch);
+    __ TestCodeDataContainerIsMarkedForDeoptimization(optimized_code_entry,
+                                                      scratch);
     __ bne(&heal_optimized_code_slot);
   }
 
@@ -2182,9 +2186,10 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   mov(r2, Operand(num_arguments));
   Move(r3, ExternalReference::Create(f));
 #if V8_TARGET_ARCH_S390X
-  Handle<CodeT> code = CodeFactory::CEntry(isolate(), f->result_size);
+  Handle<CodeDataContainer> code =
+      CodeFactory::CEntry(isolate(), f->result_size);
 #else
-  Handle<CodeT> code = CodeFactory::CEntry(isolate(), 1);
+  Handle<CodeDataContainer> code = CodeFactory::CEntry(isolate(), 1);
 #endif
 
   Call(code, RelocInfo::CODE_TARGET);
@@ -2202,7 +2207,7 @@ void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid) {
 void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
                                              bool builtin_exit_frame) {
   Move(r3, builtin);
-  Handle<CodeT> code =
+  Handle<CodeDataContainer> code =
       CodeFactory::CEntry(isolate(), 1, ArgvMode::kStack, builtin_exit_frame);
   Jump(code, RelocInfo::CODE_TARGET);
 }

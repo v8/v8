@@ -188,12 +188,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // it to register use ld_d, it can be used in wasm jump table for concurrent
   // patching.
   void PatchAndJump(Address target);
-  void Jump(Handle<CodeT> code, RelocInfo::Mode rmode, COND_ARGS);
+  void Jump(Handle<CodeDataContainer> code, RelocInfo::Mode rmode, COND_ARGS);
   void Jump(const ExternalReference& reference);
   void Call(Register target, COND_ARGS);
   void Call(Address target, RelocInfo::Mode rmode, COND_ARGS);
-  void Call(Handle<CodeT> code, RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
-            COND_ARGS);
+  void Call(Handle<CodeDataContainer> code,
+            RelocInfo::Mode rmode = RelocInfo::CODE_TARGET, COND_ARGS);
   void Call(Label* target);
 
   // Load the builtin given by the Smi in |builtin_index| into the same
@@ -832,9 +832,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // less efficient form using xor instead of mov is emitted.
   void Swap(Register reg1, Register reg2, Register scratch = no_reg);
 
-  void TestCodeTIsMarkedForDeoptimizationAndJump(Register codet,
-                                                 Register scratch,
-                                                 Condition cond, Label* target);
+  void TestCodeDataContainerIsMarkedForDeoptimizationAndJump(
+      Register code_data_container, Register scratch, Condition cond,
+      Label* target);
   Operand ClearedValue() const;
 
   void PushRoot(RootIndex index) {

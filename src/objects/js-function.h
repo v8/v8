@@ -118,10 +118,12 @@ class JSFunction : public TorqueGeneratedJSFunction<
   // optimized code object, or when reading from the background thread.
   // Storing a builtin doesn't require release semantics because these objects
   // are fully initialized.
-  DECL_ACCESSORS(code, CodeT)
-  DECL_RELEASE_ACQUIRE_ACCESSORS(code, CodeT)
-  // Convenient overloads to avoid unnecessary Code <-> CodeT conversions.
-  // TODO(v8:11880): remove once |code| accessors are migrated to CodeT.
+  DECL_ACCESSORS(code, CodeDataContainer)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(code, CodeDataContainer)
+  // Convenient overloads to avoid unnecessary Code <-> CodeDataContainer
+  // conversions.
+  // TODO(v8:11880): remove once |code| accessors are migrated to
+  // CodeDataContainer.
   inline void set_code(Code code, ReleaseStoreTag,
                        WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 

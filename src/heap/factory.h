@@ -636,13 +636,14 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
                                                        Handle<Map> rtt);
   Handle<WasmCapiFunctionData> NewWasmCapiFunctionData(
       Address call_target, Handle<Foreign> embedder_data,
-      Handle<CodeT> wrapper_code, Handle<Map> rtt,
+      Handle<CodeDataContainer> wrapper_code, Handle<Map> rtt,
       Handle<PodArray<wasm::ValueType>> serialized_sig);
   Handle<WasmExportedFunctionData> NewWasmExportedFunctionData(
-      Handle<CodeT> export_wrapper, Handle<WasmInstanceObject> instance,
-      Address call_target, Handle<Object> ref, int func_index,
-      const wasm::FunctionSig* sig, uint32_t canonical_type_index,
-      int wrapper_budget, Handle<Map> rtt, wasm::Promise promise);
+      Handle<CodeDataContainer> export_wrapper,
+      Handle<WasmInstanceObject> instance, Address call_target,
+      Handle<Object> ref, int func_index, const wasm::FunctionSig* sig,
+      uint32_t canonical_type_index, int wrapper_budget, Handle<Map> rtt,
+      wasm::Promise promise);
   Handle<WasmApiFunctionRef> NewWasmApiFunctionRef(
       Handle<JSReceiver> callable, wasm::Suspend suspend,
       Handle<WasmInstanceObject> instance);
@@ -651,8 +652,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<WasmJSFunctionData> NewWasmJSFunctionData(
       Address opt_call_target, Handle<JSReceiver> callable, int return_count,
       int parameter_count, Handle<PodArray<wasm::ValueType>> serialized_sig,
-      Handle<CodeT> wrapper_code, Handle<Map> rtt, wasm::Suspend suspend,
-      wasm::Promise promise);
+      Handle<CodeDataContainer> wrapper_code, Handle<Map> rtt,
+      wasm::Suspend suspend, wasm::Promise promise);
   Handle<WasmResumeData> NewWasmResumeData(
       Handle<WasmSuspenderObject> suspender, wasm::OnResume on_resume);
   Handle<WasmStruct> NewWasmStruct(const wasm::StructType* type,
@@ -754,8 +755,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   // Allocates a new code object and initializes it as the trampoline to the
   // given off-heap entry point.
-  Handle<CodeT> NewOffHeapTrampolineFor(Handle<CodeT> code,
-                                        Address off_heap_entry);
+  Handle<CodeDataContainer> NewOffHeapTrampolineFor(
+      Handle<CodeDataContainer> code, Address off_heap_entry);
 
   Handle<BytecodeArray> CopyBytecodeArray(Handle<BytecodeArray>);
 
@@ -918,7 +919,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     void PrepareMap();
     void PrepareFeedbackCell();
 
-    V8_WARN_UNUSED_RESULT Handle<JSFunction> BuildRaw(Handle<CodeT> code);
+    V8_WARN_UNUSED_RESULT Handle<JSFunction> BuildRaw(
+        Handle<CodeDataContainer> code);
 
     Isolate* const isolate_;
     Handle<SharedFunctionInfo> sfi_;

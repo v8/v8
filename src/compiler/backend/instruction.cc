@@ -581,11 +581,11 @@ Handle<HeapObject> Constant::ToHeapObject() const {
   return value;
 }
 
-Handle<CodeT> Constant::ToCode() const {
+Handle<CodeDataContainer> Constant::ToCode() const {
   DCHECK_EQ(kHeapObject, type());
-  Handle<CodeT> value(
+  Handle<CodeDataContainer> value(
       reinterpret_cast<Address*>(static_cast<intptr_t>(value_)));
-  DCHECK(value->IsCodeT(GetPtrComprCageBaseSlow(*value)));
+  DCHECK(value->IsCodeDataContainer(GetPtrComprCageBaseSlow(*value)));
   return value;
 }
 

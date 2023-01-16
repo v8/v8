@@ -85,7 +85,7 @@ RUNTIME_FUNCTION(Runtime_InstallBaselineCode) {
                                             &is_compiled_scope);
   {
     DisallowGarbageCollection no_gc;
-    CodeT baseline_code = sfi->baseline_code(kAcquireLoad);
+    CodeDataContainer baseline_code = sfi->baseline_code(kAcquireLoad);
     function->set_code(baseline_code);
     if V8_LIKELY (!v8_flags.log_function_events) return baseline_code;
   }
@@ -250,8 +250,8 @@ bool DeoptExitIsInsideOsrLoop(Isolate* isolate, JSFunction function,
 
 bool TryGetOptimizedOsrCode(Isolate* isolate, FeedbackVector vector,
                             const interpreter::BytecodeArrayIterator& it,
-                            CodeT* code_out) {
-  base::Optional<CodeT> maybe_code =
+                            CodeDataContainer* code_out) {
+  base::Optional<CodeDataContainer> maybe_code =
       vector.GetOptimizedOsrCode(isolate, it.GetSlotOperand(2));
   if (maybe_code.has_value()) {
     *code_out = maybe_code.value();
@@ -289,8 +289,8 @@ void DeoptAllOsrLoopsContainingDeoptExit(Isolate* isolate, JSFunction function,
                                         deopt_exit_offset.ToInt());
 
   FeedbackVector vector = function.feedback_vector();
-  CodeT code;
-  base::SmallVector<CodeT, 8> osr_codes;
+  CodeDataContainer code;
+  base::SmallVector<CodeDataContainer, 8> osr_codes;
   // Visit before the first loop-with-deopt is found
   for (; !it.done(); it.Advance()) {
     // We're only interested in loop ranges.
@@ -414,11 +414,13 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   // the loop should pay for the deoptimization costs.
   const BytecodeOffset osr_offset = optimized_code->osr_offset();
   if (osr_offset.IsNone()) {
-    Deoptimizer::DeoptimizeFunction(*function, ToCodeT(*optimized_code));
+    Deoptimizer::DeoptimizeFunction(*function,
+                                    ToCodeDataContainer(*optimized_code));
     DeoptAllOsrLoopsContainingDeoptExit(isolate, *function, deopt_exit_offset);
   } else if (DeoptExitIsInsideOsrLoop(isolate, *function, deopt_exit_offset,
                                       osr_offset)) {
-    Deoptimizer::DeoptimizeFunction(*function, ToCodeT(*optimized_code));
+    Deoptimizer::DeoptimizeFunction(*function,
+                                    ToCodeDataContainer(*optimized_code));
   }
 
   return ReadOnlyRoots(isolate).undefined_value();
@@ -459,10 +461,11 @@ void GetOsrOffsetAndFunctionForOSR(Isolate* isolate, BytecodeOffset* osr_offset,
   // Determine the frame that triggered the OSR request.
   JavaScriptFrameIterator it(isolate);
   UnoptimizedFrame* frame = UnoptimizedFrame::cast(it.frame());
-  DCHECK_IMPLIES(frame->is_interpreted(),
-                 frame->LookupCodeT().is_interpreter_trampoline_builtin());
+  DCHECK_IMPLIES(
+      frame->is_interpreted(),
+      frame->LookupCodeDataContainer().is_interpreter_trampoline_builtin());
   DCHECK_IMPLIES(frame->is_baseline(),
-                 frame->LookupCodeT().kind() == CodeKind::BASELINE);
+                 frame->LookupCodeDataContainer().kind() == CodeKind::BASELINE);
 
   *osr_offset = BytecodeOffset(frame->GetBytecodeOffset());
   *function = handle(frame->function(), isolate);
@@ -479,7 +482,7 @@ Object CompileOptimizedOSR(Isolate* isolate, Handle<JSFunction> function,
           ? ConcurrencyMode::kConcurrent
           : ConcurrencyMode::kSynchronous;
 
-  Handle<CodeT> result;
+  Handle<CodeDataContainer> result;
   if (!Compiler::CompileOptimizedOSR(isolate, function, osr_offset, mode)
            .ToHandle(&result)) {
     // An empty result can mean one of two things:
@@ -545,7 +548,7 @@ RUNTIME_FUNCTION(Runtime_CompileOptimizedOSRFromMaglev) {
 
   JavaScriptFrameIterator it(isolate);
   MaglevFrame* frame = MaglevFrame::cast(it.frame());
-  DCHECK_EQ(frame->LookupCodeT().kind(), CodeKind::MAGLEV);
+  DCHECK_EQ(frame->LookupCodeDataContainer().kind(), CodeKind::MAGLEV);
   Handle<JSFunction> function = handle(frame->function(), isolate);
 
   // This path is only relevant for tests (all production configurations enable

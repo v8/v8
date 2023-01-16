@@ -1374,7 +1374,7 @@ void V8FileLogger::LogCodeDisassemble(Handle<AbstractCode> code) {
 #endif
     } else if (code->IsCodeDataContainer(cage_base)) {
 #ifdef ENABLE_DISASSEMBLER
-      CodeT::cast(*code).Disassemble(nullptr, stream, isolate_);
+      CodeDataContainer::cast(*code).Disassemble(nullptr, stream, isolate_);
 #endif
     } else {
       BytecodeArray::cast(*code).Disassemble(stream);
@@ -1956,7 +1956,7 @@ EnumerateCompiledFunctions(Heap* heap) {
           Script::cast(function.shared().script()).HasValidSource()) {
         // TODO(v8:13261): use ToAbstractCode() here.
         record(function.shared(),
-               AbstractCode::cast(FromCodeT(function.code())));
+               AbstractCode::cast(FromCodeDataContainer(function.code())));
       }
     }
   }
@@ -2337,7 +2337,7 @@ void ExistingCodeLogger::LogCodeObjects() {
     // AbstactCode is Code|CodeDataContainer|BytecodeArray but we want to log
     // code objects only once, thus we ignore Code objects which will be logged
     // via corresponding CodeDataContainer.
-    if (InstanceTypeChecker::IsCodeT(instance_type) ||
+    if (InstanceTypeChecker::IsCodeDataContainer(instance_type) ||
         InstanceTypeChecker::IsBytecodeArray(instance_type)) {
       LogCodeObject(AbstractCode::cast(obj));
     }
@@ -2347,7 +2347,7 @@ void ExistingCodeLogger::LogCodeObjects() {
 void ExistingCodeLogger::LogBuiltins() {
   DCHECK(isolate_->builtins()->is_initialized());
   // The main "copy" of used builtins are logged by LogCodeObjects() while
-  // iterating CodeT objects.
+  // iterating CodeDataContainer objects.
   // TODO(v8:11880): Log other copies of remapped builtins once we
   // decide to remap them multiple times into the code range (for example
   // for arm64).
@@ -2370,15 +2370,14 @@ void ExistingCodeLogger::LogCompiledFunctions(
     if (shared->HasInterpreterData()) {
       // TODO(v8:13261): use ToAbstractCode() here.
       LogExistingFunction(
-          shared,
-          Handle<AbstractCode>(
-              AbstractCode::cast(FromCodeT(shared->InterpreterTrampoline())),
-              isolate_));
+          shared, Handle<AbstractCode>(AbstractCode::cast(FromCodeDataContainer(
+                                           shared->InterpreterTrampoline())),
+                                       isolate_));
     }
     if (shared->HasBaselineCode()) {
       // TODO(v8:13261): use ToAbstractCode() here.
       LogExistingFunction(shared, Handle<AbstractCode>(
-                                      AbstractCode::cast(FromCodeT(
+                                      AbstractCode::cast(FromCodeDataContainer(
                                           shared->baseline_code(kAcquireLoad))),
                                       isolate_));
     }

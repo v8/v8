@@ -341,7 +341,7 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
   Label done;
 
   __ GetObjectType(sfi_data, scratch1, scratch1);
-  __ Branch(is_baseline, eq, scratch1, Operand(CODET_TYPE));
+  __ Branch(is_baseline, eq, scratch1, Operand(CODE_DATA_CONTAINER_TYPE));
 
   __ Branch(&done, ne, scratch1, Operand(INTERPRETER_DATA_TYPE),
             Label::Distance::kNear);
@@ -3664,7 +3664,8 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     UseScratchRegisterScope temps(masm);
     Register scratch = temps.Acquire();
     __ GetObjectType(code_obj, scratch, scratch);
-    __ Branch(&start_with_baseline, eq, scratch, Operand(CODET_TYPE));
+    __ Branch(&start_with_baseline, eq, scratch,
+              Operand(CODE_DATA_CONTAINER_TYPE));
 
     // Start with bytecode as there is no baseline code.
     Builtin builtin_id = next_bytecode
@@ -3680,7 +3681,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     Register scratch = temps.Acquire();
     __ GetObjectType(code_obj, scratch, scratch);
     __ Assert(eq, AbortReason::kExpectedBaselineData, scratch,
-              Operand(CODET_TYPE));
+              Operand(CODE_DATA_CONTAINER_TYPE));
   }
   if (v8_flags.debug_code) {
     UseScratchRegisterScope temps(masm);

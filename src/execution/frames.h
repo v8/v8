@@ -298,7 +298,7 @@ class StackFrame {
   virtual Type type() const = 0;
 
   // Get the code associated with this frame. The result might be a Code object,
-  // a CodeT object or an empty value.
+  // a CodeDataContainer object or an empty value.
   // This method is used by Isolate::PushStackTraceAndDie() for collecting a
   // stack trace on fatal error and thus it might be called in the middle of GC
   // and should be as safe as possible.
@@ -306,7 +306,7 @@ class StackFrame {
 
   // Search for the code associated with this frame.
   // TODO(v8:11880): rename to LookupCode()
-  V8_EXPORT_PRIVATE CodeLookupResult LookupCodeT() const;
+  V8_EXPORT_PRIVATE CodeLookupResult LookupCodeDataContainer() const;
 
   virtual void Iterate(RootVisitor* v) const = 0;
   void IteratePc(RootVisitor* v, Address* pc_address,
@@ -857,7 +857,7 @@ class OptimizedFrame : public JavaScriptFrame {
   int LookupExceptionHandlerInTable(
       int* data, HandlerTable::CatchPrediction* prediction) override;
 
-  virtual int FindReturnPCForTrampoline(CodeT code,
+  virtual int FindReturnPCForTrampoline(CodeDataContainer code,
                                         int trampoline_pc) const = 0;
 
  protected:
@@ -969,7 +969,8 @@ class MaglevFrame : public OptimizedFrame {
 
   void Iterate(RootVisitor* v) const override;
 
-  int FindReturnPCForTrampoline(CodeT code, int trampoline_pc) const override;
+  int FindReturnPCForTrampoline(CodeDataContainer code,
+                                int trampoline_pc) const override;
 
   BytecodeOffset GetBytecodeOffsetForOSR() const;
 
@@ -988,7 +989,8 @@ class TurbofanFrame : public OptimizedFrame {
 
   void Iterate(RootVisitor* v) const override;
 
-  int FindReturnPCForTrampoline(CodeT code, int trampoline_pc) const override;
+  int FindReturnPCForTrampoline(CodeDataContainer code,
+                                int trampoline_pc) const override;
 
  protected:
   inline explicit TurbofanFrame(StackFrameIteratorBase* iterator);

@@ -2175,8 +2175,9 @@ IGNITION_HANDLER(JumpLoop, InterpreterAssembler) {
       LoadFunctionClosure(), JSFunction::kSharedFunctionInfoOffset);
   TNode<HeapObject> sfi_data =
       LoadObjectField<HeapObject>(sfi, SharedFunctionInfo::kFunctionDataOffset);
-  Branch(InstanceTypeEqual(LoadInstanceType(sfi_data), CODET_TYPE),
-         &maybe_osr_because_baseline, &ok);
+  Branch(
+      InstanceTypeEqual(LoadInstanceType(sfi_data), CODE_DATA_CONTAINER_TYPE),
+      &maybe_osr_because_baseline, &ok);
 
   BIND(&ok);
   // The backward jump can trigger a budget interrupt, which can handle stack

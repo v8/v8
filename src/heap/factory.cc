@@ -1667,8 +1667,8 @@ Handle<WasmInternalFunction> Factory::NewWasmInternalFunction(
 Handle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
     Address opt_call_target, Handle<JSReceiver> callable, int return_count,
     int parameter_count, Handle<PodArray<wasm::ValueType>> serialized_sig,
-    Handle<CodeT> wrapper_code, Handle<Map> rtt, wasm::Suspend suspend,
-    wasm::Promise promise) {
+    Handle<CodeDataContainer> wrapper_code, Handle<Map> rtt,
+    wasm::Suspend suspend, wasm::Promise promise) {
   Handle<WasmApiFunctionRef> ref =
       NewWasmApiFunctionRef(callable, suspend, Handle<WasmInstanceObject>());
   Handle<WasmInternalFunction> internal =
@@ -1700,10 +1700,11 @@ Handle<WasmResumeData> Factory::NewWasmResumeData(
 }
 
 Handle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
-    Handle<CodeT> export_wrapper, Handle<WasmInstanceObject> instance,
-    Address call_target, Handle<Object> ref, int func_index,
-    const wasm::FunctionSig* sig, uint32_t canonical_type_index,
-    int wrapper_budget, Handle<Map> rtt, wasm::Promise promise) {
+    Handle<CodeDataContainer> export_wrapper,
+    Handle<WasmInstanceObject> instance, Address call_target,
+    Handle<Object> ref, int func_index, const wasm::FunctionSig* sig,
+    uint32_t canonical_type_index, int wrapper_budget, Handle<Map> rtt,
+    wasm::Promise promise) {
   Handle<WasmInternalFunction> internal =
       NewWasmInternalFunction(call_target, Handle<HeapObject>::cast(ref), rtt);
   Map map = *wasm_exported_function_data_map();
@@ -1719,8 +1720,8 @@ Handle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
   result.init_sig(isolate(), sig);
   result.set_canonical_type_index(canonical_type_index);
   result.set_wrapper_budget(wrapper_budget);
-  // We can't skip the write barrier because the CodeT (CodeDataContainer)
-  // objects are not immovable.
+  // We can't skip the write barrier because the CodeDataContainer
+  // (CodeDataContainer) objects are not immovable.
   result.set_c_wrapper_code(*BUILTIN_CODE(isolate(), Illegal),
                             UPDATE_WRITE_BARRIER);
   result.set_packed_args_size(0);
@@ -1732,7 +1733,7 @@ Handle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
 
 Handle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
     Address call_target, Handle<Foreign> embedder_data,
-    Handle<CodeT> wrapper_code, Handle<Map> rtt,
+    Handle<CodeDataContainer> wrapper_code, Handle<Map> rtt,
     Handle<PodArray<wasm::ValueType>> serialized_sig) {
   Handle<WasmApiFunctionRef> ref = NewWasmApiFunctionRef(
       Handle<JSReceiver>(), wasm::kNoSuspend, Handle<WasmInstanceObject>());
@@ -2480,8 +2481,8 @@ Handle<DeoptimizationLiteralArray> Factory::NewDeoptimizationLiteralArray(
       NewWeakFixedArray(length, AllocationType::kOld));
 }
 
-Handle<CodeT> Factory::NewOffHeapTrampolineFor(Handle<CodeT> code,
-                                               Address off_heap_entry) {
+Handle<CodeDataContainer> Factory::NewOffHeapTrampolineFor(
+    Handle<CodeDataContainer> code, Address off_heap_entry) {
   CHECK_NOT_NULL(isolate()->embedded_blob_code());
   CHECK_NE(0, isolate()->embedded_blob_code_size());
   CHECK(Builtins::IsIsolateIndependentBuiltin(*code));
@@ -2498,7 +2499,7 @@ Handle<CodeT> Factory::NewOffHeapTrampolineFor(Handle<CodeT> code,
       code->kind_specific_flags(kRelaxedLoad), kRelaxedStore);
   code_data_container->set_code_entry_point(isolate(),
                                             code->code_entry_point());
-  return Handle<CodeT>::cast(code_data_container);
+  return Handle<CodeDataContainer>::cast(code_data_container);
 }
 
 Handle<BytecodeArray> Factory::CopyBytecodeArray(Handle<BytecodeArray> source) {
@@ -4038,7 +4039,7 @@ Handle<JSFunction> Factory::JSFunctionBuilder::Build() {
   PrepareMap();
   PrepareFeedbackCell();
 
-  Handle<CodeT> code = handle(sfi_->GetCode(), isolate_);
+  Handle<CodeDataContainer> code = handle(sfi_->GetCode(), isolate_);
   Handle<JSFunction> result = BuildRaw(code);
 
   if (code->kind() == CodeKind::BASELINE) {
@@ -4050,7 +4051,8 @@ Handle<JSFunction> Factory::JSFunctionBuilder::Build() {
   return result;
 }
 
-Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(Handle<CodeT> code) {
+Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(
+    Handle<CodeDataContainer> code) {
   Isolate* isolate = isolate_;
   Factory* factory = isolate_->factory();
 
