@@ -1513,6 +1513,13 @@ class V8_EXPORT Isolate {
   V8_DEPRECATED("Wasm exceptions are always enabled")
   void SetWasmExceptionsEnabledCallback(WasmExceptionsEnabledCallback callback);
 
+  /**
+   * Register callback to control whehter Wasm GC is enabled.
+   * The callback overwrites the value of the flag.
+   * If the callback returns true, it will also enable Wasm stringrefs.
+   */
+  void SetWasmGCEnabledCallback(WasmGCEnabledCallback callback);
+
   void SetSharedArrayBufferConstructorEnabledCallback(
       SharedArrayBufferConstructorEnabledCallback callback);
 

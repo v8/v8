@@ -2940,6 +2940,31 @@ bool Isolate::IsSharedArrayBufferConstructorEnabled(Handle<Context> context) {
   return false;
 }
 
+bool Isolate::IsWasmGCEnabled(Handle<Context> context) {
+#ifdef V8_ENABLE_WEBASSEMBLY
+  if (wasm_gc_enabled_callback()) {
+    v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
+    return wasm_gc_enabled_callback()(api_context);
+  }
+  return v8_flags.experimental_wasm_gc;
+#else
+  return false;
+#endif
+}
+
+bool Isolate::IsWasmStringRefEnabled(Handle<Context> context) {
+  // If Wasm GC is explicitly enabled via a callback, also enable stringref.
+#ifdef V8_ENABLE_WEBASSEMBLY
+  if (wasm_gc_enabled_callback()) {
+    v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
+    return wasm_gc_enabled_callback()(api_context);
+  }
+  return v8_flags.experimental_wasm_stringref;
+#else
+  return false;
+#endif
+}
+
 Handle<Context> Isolate::GetIncumbentContext() {
   JavaScriptFrameIterator it(this);
 

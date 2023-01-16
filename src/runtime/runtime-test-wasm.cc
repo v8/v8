@@ -494,5 +494,17 @@ RUNTIME_FUNCTION(Runtime_FreezeWasmLazyCompilation) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+// This runtime function enables WebAssembly GC through an embedder
+// callback and thereby bypasses the value in v8_flags.
+RUNTIME_FUNCTION(Runtime_SetWasmGCEnabled) {
+  DCHECK_EQ(1, args.length());
+  bool enable = args.at(0)->BooleanValue(isolate);
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+  WasmGCEnabledCallback enabled = [](v8::Local<v8::Context>) { return true; };
+  WasmGCEnabledCallback disabled = [](v8::Local<v8::Context>) { return false; };
+  v8_isolate->SetWasmGCEnabledCallback(enable ? enabled : disabled);
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 }  // namespace internal
 }  // namespace v8
