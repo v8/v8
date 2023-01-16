@@ -1125,6 +1125,7 @@
   # BUG(chromium:1394659) Skipped until issue is fixed to reduce noise on alerts.
   'wasm/log-code-after-post-message': [SKIP],
   'asm/regress-1395401': [SKIP],
+  'regress/regress-1394663': [SKIP],
 }], # gc_fuzzer or deopt_fuzzer or interrupt_fuzzer
 
 ##############################################################################
