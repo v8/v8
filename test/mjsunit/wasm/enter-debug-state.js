@@ -31,7 +31,7 @@ function check(instance) {
   checkForDebugCode(instance);
 
   for (let i = 0; i < num_functions; ++i) {
-    %WasmTierUpFunction(instance, i);
+    %WasmTierUpFunction(instance.exports['f' + i]);
   }
   checkForDebugCode(instance);
 }

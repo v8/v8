@@ -425,10 +425,14 @@ RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
 
 RUNTIME_FUNCTION(Runtime_WasmTierUpFunction) {
   HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  Handle<WasmInstanceObject> instance = args.at<WasmInstanceObject>(0);
-  int function_index = args.smi_value_at(1);
-  wasm::TierUpNowForTesting(isolate, *instance, function_index);
+  DCHECK_EQ(1, args.length());
+  Handle<JSFunction> function = args.at<JSFunction>(0);
+  CHECK(WasmExportedFunction::IsWasmExportedFunction(*function));
+  Handle<WasmExportedFunction> exp_fun =
+      Handle<WasmExportedFunction>::cast(function);
+  WasmInstanceObject instance = exp_fun->instance();
+  int func_index = exp_fun->function_index();
+  wasm::TierUpNowForTesting(isolate, instance, func_index);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
