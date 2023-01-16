@@ -52,6 +52,10 @@
       'linux-v8-dr': 'release_x64',
     },
     'client.v8': {
+      # PGO
+      'V8 Linux PGO instrumentation - builder' : 'builtins_profiling_x86',
+      'V8 Linux64 PGO instrumentation - builder' : 'builtins_profiling_x64',
+
       # Linux.
       'V8 Linux - builder': 'release_x86_gcmole',
       'V8 Linux - debug builder': 'debug_x86',
@@ -655,7 +659,11 @@
 
     # Torque compare test
     'torque_compare': [
-        'release_bot', 'verify_torque']
+        'release_bot', 'verify_torque'],
+
+    # PGO
+    'builtins_profiling_x86': ['builtins_profiling', 'x86'],
+    'builtins_profiling_x64': ['builtins_profiling', 'x64'],
   },
 
   'mixins': {
@@ -678,6 +686,11 @@
     'asan': {
       'mixins': ['clang', 'v8_enable_test_features'],
       'gn_args': 'is_asan=true',
+    },
+
+    'builtins_profiling': {
+      'mixins' : ['release_bot_reclient'],
+      'gn_args': 'v8_enable_builtins_profiling=true',
     },
 
     'cfi': {
