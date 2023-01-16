@@ -24,6 +24,7 @@
 #include "src/execution/isolate-inl.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/heap/heap.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/instance-type-inl.h"
@@ -321,17 +322,11 @@ void MutableBigInt::Canonicalize(MutableBigInt result) {
   if (to_trim != 0) {
     Heap* heap = result.GetHeap();
     if (!heap->IsLargeObject(result)) {
-      // We do not create a filler for objects in large object space.
-      // TODO(hpayer): We should shrink the large object page if the size
-      // of the object changed significantly.
       int old_size = ALIGN_TO_ALLOCATION_ALIGNMENT(BigInt::SizeFor(old_length));
       int new_size = ALIGN_TO_ALLOCATION_ALIGNMENT(BigInt::SizeFor(new_length));
-      if (!V8_COMPRESS_POINTERS_8GB_BOOL || new_size < old_size) {
-        // A non-zero to_trim already guarantees that the sizes are different,
-        // but their aligned values can be equal.
-        Address new_end = result.address() + new_size;
-        heap->CreateFillerObjectAt(new_end, old_size - new_size);
-      }
+      heap->NotifyObjectSizeChange(result, old_size, new_size,
+                                   ClearRecordedSlots::kNo,
+                                   UpdateInvalidatedObjectSize::kNo);
     }
     result.set_length(new_length, kReleaseStore);
 
@@ -1007,9 +1002,9 @@ MaybeHandle<String> BigInt::ToString(Isolate* isolate, Handle<BigInt> bigint,
     int needed_size =
         ALIGN_TO_ALLOCATION_ALIGNMENT(SeqOneByteString::SizeFor(chars_written));
     if (needed_size < string_size && !isolate->heap()->IsLargeObject(*result)) {
-      Address new_end = result->address() + needed_size;
-      isolate->heap()->CreateFillerObjectAt(new_end,
-                                            (string_size - needed_size));
+      isolate->heap()->NotifyObjectSizeChange(*result, string_size, needed_size,
+                                              ClearRecordedSlots::kNo,
+                                              UpdateInvalidatedObjectSize::kNo);
     }
   }
 #if DEBUG

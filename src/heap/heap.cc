@@ -3896,6 +3896,7 @@ void Heap::NotifyObjectSizeChange(
   old_size = ALIGN_TO_ALLOCATION_ALIGNMENT(old_size);
   new_size = ALIGN_TO_ALLOCATION_ALIGNMENT(new_size);
   DCHECK_LE(new_size, old_size);
+  DCHECK(!IsLargeObject(object));
   if (new_size == old_size) return;
 
   const bool is_main_thread = LocalHeap::Current() == nullptr;
