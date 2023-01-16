@@ -3151,7 +3151,7 @@ TNode<BytecodeArray> CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(
     TNode<CodeDataContainer> code = CAST(var_result.value());
 #ifdef DEBUG
     TNode<Int32T> code_flags =
-        LoadObjectField<Int32T>(code, CodeDataContainer::kFlagsOffset);
+        LoadObjectField<Int16T>(code, CodeDataContainer::kFlagsOffset);
     CSA_DCHECK(this, Word32Equal(
                          DecodeWord32<CodeDataContainer::KindField>(code_flags),
                          Int32Constant(static_cast<int>(CodeKind::BASELINE))));

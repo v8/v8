@@ -39,7 +39,7 @@ static void AssertCodeDataContainerIsBaseline(MacroAssembler* masm,
                                               Register code, Register scratch) {
   DCHECK(!AreAliased(code, scratch));
   // Verify that the code kind is baseline code via the CodeKind.
-  __ LoadU32(scratch, FieldMemOperand(code, CodeDataContainer::kFlagsOffset));
+  __ LoadU16(scratch, FieldMemOperand(code, CodeDataContainer::kFlagsOffset));
   __ DecodeField<CodeDataContainer::KindField>(scratch);
   __ CmpS64(scratch, Operand(static_cast<int>(CodeKind::BASELINE)), r0);
   __ Assert(eq, AbortReason::kExpectedBaselineData);
