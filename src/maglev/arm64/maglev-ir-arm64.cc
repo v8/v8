@@ -376,7 +376,9 @@ void CheckedTruncateFloat64ToInt32::GenerateCode(MaglevAssembler* masm,
                                                  const ProcessingState& state) {
   DoubleRegister input_reg = ToDoubleRegister(input());
   Register result_reg = ToRegister(result()).W();
-  DoubleRegister converted_back = kScratchDoubleReg;
+
+  UseScratchRegisterScope temps(masm);
+  DoubleRegister converted_back = temps.AcquireD();
 
   // Convert the input float64 value to int32.
   __ Fcvtzs(result_reg, input_reg);
@@ -393,7 +395,6 @@ void CheckedTruncateFloat64ToInt32::GenerateCode(MaglevAssembler* masm,
   __ B(&check_done, ne);
 
   // In case of 0, we need to check the high bits for the IEEE -0 pattern.
-  UseScratchRegisterScope temps(masm);
   Register high_word32_of_input = temps.AcquireW();
   __ Umov(high_word32_of_input, input_reg.V2S(), 1);
   __ Cmp(high_word32_of_input, wzr);
@@ -410,7 +411,9 @@ void CheckedTruncateFloat64ToUint32::GenerateCode(
     MaglevAssembler* masm, const ProcessingState& state) {
   DoubleRegister input_reg = ToDoubleRegister(input());
   Register result_reg = ToRegister(result()).W();
-  DoubleRegister converted_back = kScratchDoubleReg;
+
+  UseScratchRegisterScope temps(masm);
+  DoubleRegister converted_back = temps.AcquireD();
 
   // Convert the input float64 value to uint32.
   __ Fcvtzu(result_reg, input_reg);
@@ -427,7 +430,6 @@ void CheckedTruncateFloat64ToUint32::GenerateCode(
   __ B(&check_done, ne);
 
   // In case of 0, we need to check the high bits for the IEEE -0 pattern.
-  UseScratchRegisterScope temps(masm);
   Register high_word32_of_input = temps.AcquireW();
   __ Umov(high_word32_of_input, input_reg.V2S(), 1);
   __ Cmp(high_word32_of_input, wzr);
@@ -815,7 +817,8 @@ void Int32ToNumber::GenerateCode(MaglevAssembler* masm,
       vs,
       [](MaglevAssembler* masm, Register object, Register value,
          ZoneLabelRef done, Int32ToNumber* node) {
-        DoubleRegister double_value = kScratchDoubleReg;
+        UseScratchRegisterScope temps(masm);
+        DoubleRegister double_value = temps.AcquireD();
         __ Scvtf(double_value, value.W());
         __ AllocateHeapNumber(node->register_snapshot(), object, double_value);
         __ B(*done);
@@ -839,7 +842,8 @@ void Uint32ToNumber::GenerateCode(MaglevAssembler* masm,
       hi,
       [](MaglevAssembler* masm, Register object, Register value,
          ZoneLabelRef done, Uint32ToNumber* node) {
-        DoubleRegister double_value = kScratchDoubleReg;
+        UseScratchRegisterScope temps(masm);
+        DoubleRegister double_value = temps.AcquireD();
         __ Ucvtf(double_value, value.W());
         __ AllocateHeapNumber(node->register_snapshot(), object, double_value);
         __ B(*done);

@@ -16,10 +16,6 @@ namespace v8 {
 namespace internal {
 namespace maglev {
 
-constexpr Register kScratchRegister = x16;
-constexpr Register kScratchRegisterW = w16;
-constexpr DoubleRegister kScratchDoubleReg = d30;
-
 constexpr Condition ConditionFor(Operation operation) {
   switch (operation) {
     case Operation::kEqual:

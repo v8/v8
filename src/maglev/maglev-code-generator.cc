@@ -51,12 +51,10 @@ template <typename RegisterT>
 struct RegisterTHelper;
 template <>
 struct RegisterTHelper<Register> {
-  static constexpr Register kScratch = kScratchRegister;
   static constexpr RegList kAllocatableRegisters = kAllocatableGeneralRegisters;
 };
 template <>
 struct RegisterTHelper<DoubleRegister> {
-  static constexpr DoubleRegister kScratch = kScratchDoubleReg;
   static constexpr DoubleRegList kAllocatableRegisters =
       kAllocatableDoubleRegisters;
 };
@@ -95,14 +93,12 @@ struct RegisterTHelper<DoubleRegister> {
 // be emitted at the end, once all the parallel moves are done.
 template <typename RegisterT>
 class ParallelMoveResolver {
-  static constexpr RegisterT kScratchRegT =
-      RegisterTHelper<RegisterT>::kScratch;
-
   static constexpr auto kAllocatableRegistersT =
       RegisterTHelper<RegisterT>::kAllocatableRegisters;
 
  public:
-  explicit ParallelMoveResolver(MaglevAssembler* masm) : masm_(masm) {}
+  explicit ParallelMoveResolver(MaglevAssembler* masm, RegisterT scratch)
+      : masm_(masm), scratch_(scratch) {}
 
   void RecordMove(ValueNode* source_node, compiler::InstructionOperand source,
                   compiler::AllocatedOperand target) {
@@ -135,8 +131,8 @@ class ParallelMoveResolver {
       StartEmitMoveChain(moves_from_stack_slot_.begin()->first);
     }
     for (auto [stack_slot, node] : materializing_stack_slot_moves_) {
-      node->LoadToRegister(masm_, kScratchRegT);
-      __ Move(StackSlot{stack_slot}, kScratchRegT);
+      node->LoadToRegister(masm_, scratch_);
+      __ Move(StackSlot{stack_slot}, scratch_);
     }
   }
 
@@ -292,10 +288,10 @@ class ParallelMoveResolver {
     // chain start.
     if (has_cycle) {
       if (!scratch_has_cycle_start_) {
-        Pop(kScratchRegT);
+        Pop(scratch_);
         scratch_has_cycle_start_ = true;
       }
-      EmitMovesFromSource(kScratchRegT, std::move(targets));
+      EmitMovesFromSource(scratch_, std::move(targets));
       scratch_has_cycle_start_ = false;
       __ RecordComment("--   * End of cycle");
     } else {
@@ -313,9 +309,9 @@ class ParallelMoveResolver {
         __ RecordComment("--   * Cycle");
         DCHECK(!scratch_has_cycle_start_);
         if constexpr (std::is_same_v<ChainStartT, int32_t>) {
-          __ Move(kScratchRegT, StackSlot{chain_start});
+          __ Move(scratch_, StackSlot{chain_start});
         } else {
-          __ Move(kScratchRegT, chain_start);
+          __ Move(scratch_, chain_start);
         }
         scratch_has_cycle_start_ = true;
         return true;
@@ -378,10 +374,10 @@ class ParallelMoveResolver {
       // Otherwise, cache the slot value on the scratch register, clobbering it
       // if necessary.
       if (scratch_has_cycle_start_) {
-        Push(kScratchRegT);
+        Push(scratch_);
         scratch_has_cycle_start_ = false;
       }
-      register_with_slot_value = kScratchRegT;
+      register_with_slot_value = scratch_;
     }
 
     // Now emit moves from that cached register instead of from the stack slot.
@@ -399,6 +395,7 @@ class ParallelMoveResolver {
   MaglevAssembler* masm() const { return masm_; }
 
   MaglevAssembler* const masm_;
+  RegisterT scratch_;
 
   // Keep moves to/from registers and stack slots separate -- there are a fixed
   // number of registers but an infinite number of stack slots, so the register
@@ -475,9 +472,19 @@ class ExceptionHandlerTrampolineBuilder {
             ? deopt_info->top_frame().parent()->as_interpreted()
             : deopt_info->top_frame().as_interpreted();
 
-    // TODO(v8:7700): Handle inlining.
+// TODO(victorgomes): Add a scratch register scope to MaglevAssembler and
+// remove this arch depedent code.
+#ifdef V8_TARGET_ARCH_ARM64
+    UseScratchRegisterScope temps(masm_);
+    Register scratch = temps.AcquireX();
+#elif V8_TARGET_ARCH_X64
+    Register scratch = kScratchRegister;
+#else
+#error "Maglev does not supported this architecture."
+#endif
 
-    ParallelMoveResolver<Register> direct_moves(masm_);
+    // TODO(v8:7700): Handle inlining.
+    ParallelMoveResolver<Register> direct_moves(masm_, scratch);
     MoveVector materialising_moves;
     bool save_accumulator = false;
     RecordMoves(lazy_frame.unit(), catch_block, lazy_frame.frame_state(),
@@ -488,7 +495,7 @@ class ExceptionHandlerTrampolineBuilder {
     EmitMaterialisationsAndPushResults(materialising_moves, save_accumulator);
     __ RecordComment("EmitMoves");
     direct_moves.EmitMoves();
-    EmitPopMaterialisedResults(materialising_moves, save_accumulator);
+    EmitPopMaterialisedResults(materialising_moves, save_accumulator, scratch);
     __ Jump(catch_block->label());
     __ RecordComment("-- Exception handler trampoline END");
   }
@@ -571,21 +578,22 @@ class ExceptionHandlerTrampolineBuilder {
   }
 
   void EmitPopMaterialisedResults(const MoveVector& moves,
-                                  bool save_accumulator) const {
+                                  bool save_accumulator,
+                                  Register scratch) const {
     if (moves.size() == 0) return;
     __ RecordComment("EmitPopMaterialisedResults");
     for (const Move& move : base::Reversed(moves)) {
       const ValueLocation& target = move.target;
       Register target_reg = target.operand().IsAnyRegister()
                                 ? target.AssignedGeneralRegister()
-                                : kScratchRegister;
+                                : scratch;
       if (IsConstantNode(move.source->opcode())) {
         __ MaterialiseValueNode(target_reg, move.source);
       } else {
         __ Pop(target_reg);
       }
-      if (target_reg == kScratchRegister) {
-        __ Move(masm_->ToMemOperand(target.operand()), kScratchRegister);
+      if (target_reg == scratch) {
+        __ Move(masm_->ToMemOperand(target.operand()), scratch);
       }
     }
     if (save_accumulator) __ Pop(kReturnRegister0);
@@ -690,10 +698,24 @@ class MaglevCodeGeneratingNodeProcessor {
 
     int predecessor_id = state.block()->predecessor_id();
 
+// TODO(victorgomes): Add a scratch register scope to MaglevAssembler and
+// remove this arch depedent code.
+#ifdef V8_TARGET_ARCH_ARM64
+    UseScratchRegisterScope temps(masm_);
+    Register scratch = temps.AcquireX();
+    DoubleRegister double_scratch = temps.AcquireD();
+#elif V8_TARGET_ARCH_X64
+    Register scratch = kScratchRegister;
+    DoubleRegister double_scratch = kScratchDoubleReg;
+#else
+#error "Maglev does not supported this architecture."
+#endif
+
     // TODO(leszeks): Move these to fields, to allow their data structure
     // allocations to be reused. Will need some sort of state resetting.
-    ParallelMoveResolver<Register> register_moves(masm_);
-    ParallelMoveResolver<DoubleRegister> double_register_moves(masm_);
+    ParallelMoveResolver<Register> register_moves(masm_, scratch);
+    ParallelMoveResolver<DoubleRegister> double_register_moves(masm_,
+                                                               double_scratch);
 
     // Remember what registers were assigned to by a Phi, to avoid clobbering
     // them with RegisterMoves.
