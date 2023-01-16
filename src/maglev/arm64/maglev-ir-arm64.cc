@@ -1976,55 +1976,40 @@ void LoadDoubleField::GenerateCode(MaglevAssembler* masm,
          FieldMemOperand(tmp, HeapNumber::kValueOffset));
 }
 
-void LoadTaggedElement::SetValueLocationConstraints() {
-  UseRegister(object_input());
+void LoadFixedArrayElement::SetValueLocationConstraints() {
+  UseRegister(elements_input());
   UseRegister(index_input());
   DefineAsRegister(this);
 }
-void LoadTaggedElement::GenerateCode(MaglevAssembler* masm,
-                                     const ProcessingState& state) {
-  Register object = ToRegister(object_input());
+void LoadFixedArrayElement::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  Register elements = ToRegister(elements_input());
   Register index = ToRegister(index_input());
-  UseScratchRegisterScope temps(masm);
-  Register scratch = temps.AcquireX();
-  Register elements = temps.AcquireX();
-  __ AssertNotSmi(object);
   if (v8_flags.debug_code) {
-    __ CompareObjectType(object, scratch, scratch, JS_OBJECT_TYPE);
-    __ Assert(hs, AbortReason::kUnexpectedValue);
-  }
-  __ DecompressAnyTagged(elements,
-                         FieldMemOperand(object, JSObject::kElementsOffset));
-  if (v8_flags.debug_code) {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.AcquireX();
+    __ AssertNotSmi(elements);
     __ CompareObjectType(elements, scratch, scratch, FIXED_ARRAY_TYPE);
     __ Assert(eq, AbortReason::kUnexpectedValue);
   }
-
   __ Add(elements, elements, Operand(index, LSL, kTaggedSizeLog2));
   __ DecompressAnyTagged(ToRegister(result()),
                          FieldMemOperand(elements, FixedArray::kHeaderSize));
 }
 
-void LoadDoubleElement::SetValueLocationConstraints() {
-  UseRegister(object_input());
+void LoadFixedDoubleArrayElement::SetValueLocationConstraints() {
+  UseRegister(elements_input());
   UseRegister(index_input());
   DefineAsRegister(this);
 }
-void LoadDoubleElement::GenerateCode(MaglevAssembler* masm,
-                                     const ProcessingState& state) {
-  Register object = ToRegister(object_input());
+void LoadFixedDoubleArrayElement::GenerateCode(MaglevAssembler* masm,
+                                               const ProcessingState& state) {
+  Register elements = ToRegister(elements_input());
   Register index = ToRegister(index_input());
-  UseScratchRegisterScope temps(masm);
-  Register scratch = temps.AcquireX();
-  Register elements = temps.AcquireX();
-  __ AssertNotSmi(object);
   if (v8_flags.debug_code) {
-    __ CompareObjectType(object, scratch, scratch, JS_OBJECT_TYPE);
-    __ Assert(hs, AbortReason::kUnexpectedValue);
-  }
-  __ DecompressAnyTagged(elements,
-                         FieldMemOperand(object, JSObject::kElementsOffset));
-  if (v8_flags.debug_code) {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.AcquireX();
+    __ AssertNotSmi(elements);
     __ CompareObjectType(elements, scratch, scratch, FIXED_DOUBLE_ARRAY_TYPE);
     __ Assert(eq, AbortReason::kUnexpectedValue);
   }

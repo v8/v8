@@ -2253,7 +2253,10 @@ bool MaglevGraphBuilder::TryBuildElementAccess(
       AddNewNode<CheckJSObjectElementsBounds>({object, index});
     }
     if (IsDoubleElementsKind(elements_kind)) {
-      SetAccumulator(AddNewNode<LoadDoubleElement>({object, index}));
+      auto* elements_array =
+          AddNewNode<LoadTaggedField>({object}, JSObject::kElementsOffset);
+      SetAccumulator(
+          AddNewNode<LoadFixedDoubleArrayElement>({elements_array, index}));
       if (IsHoleyElementsKind(elements_kind)) {
         // TODO(v8:7700): Add a representation for "Float64OrHole" and emit this
         // boxing lazily.
@@ -2301,7 +2304,10 @@ bool MaglevGraphBuilder::TryBuildElementAccess(
           UNREACHABLE();
       }
     } else {
-      SetAccumulator(AddNewNode<LoadTaggedElement>({object, index}));
+      ValueNode* elements_array =
+          AddNewNode<LoadTaggedField>({object}, JSObject::kElementsOffset);
+      SetAccumulator(
+          AddNewNode<LoadFixedArrayElement>({elements_array, index}));
       if (IsHoleyElementsKind(elements_kind)) {
         SetAccumulator(AddNewNode<ConvertHoleToUndefined>(
             {current_interpreter_frame_.accumulator()}));
@@ -2537,7 +2543,7 @@ void MaglevGraphBuilder::VisitLdaModuleVariable() {
     // The actual array index is (-cell_index - 1).
     cell_index = -cell_index - 1;
   }
-  ValueNode* cell = LoadFixedArrayElement(exports_or_imports, cell_index);
+  ValueNode* cell = BuildLoadFixedArrayElement(exports_or_imports, cell_index);
   SetAccumulator(AddNewNode<LoadTaggedField>({cell}, Cell::kValueOffset));
 }
 
@@ -2576,7 +2582,7 @@ void MaglevGraphBuilder::VisitStaModuleVariable() {
       {module}, SourceTextModule::kRegularExportsOffset);
   // The actual array index is (cell_index - 1).
   cell_index -= 1;
-  ValueNode* cell = LoadFixedArrayElement(exports, cell_index);
+  ValueNode* cell = BuildLoadFixedArrayElement(exports, cell_index);
   AddNewNode<StoreTaggedFieldWithWriteBarrier>({cell, GetAccumulatorTagged()},
                                                Cell::kValueOffset);
 }

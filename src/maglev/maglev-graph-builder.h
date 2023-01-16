@@ -934,7 +934,7 @@ class MaglevGraphBuilder {
     return GetFloat64(iterator_.GetRegisterOperand(operand_index));
   }
 
-  ValueNode* LoadFixedArrayElement(ValueNode* node, int index) {
+  ValueNode* BuildLoadFixedArrayElement(ValueNode* node, int index) {
     return AddNewNode<LoadTaggedField>({node},
                                        FixedArray::OffsetOfElementAt(index));
   }

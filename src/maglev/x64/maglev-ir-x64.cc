@@ -801,69 +801,46 @@ void LoadDoubleField::GenerateCode(MaglevAssembler* masm,
            FieldOperand(tmp, HeapNumber::kValueOffset));
 }
 
-void LoadTaggedElement::SetValueLocationConstraints() {
-  UseRegister(object_input());
+void LoadFixedArrayElement::SetValueLocationConstraints() {
+  UseRegister(elements_input());
   UseRegister(index_input());
   DefineAsRegister(this);
 }
-void LoadTaggedElement::GenerateCode(MaglevAssembler* masm,
-                                     const ProcessingState& state) {
-  Register object = ToRegister(object_input());
+void LoadFixedArrayElement::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  Register elements = ToRegister(elements_input());
   Register index = ToRegister(index_input());
   Register result_reg = ToRegister(result());
-  __ AssertNotSmi(object);
   if (v8_flags.debug_code) {
-    __ CmpObjectType(object, JS_OBJECT_TYPE, kScratchRegister);
-    __ Assert(above_equal, AbortReason::kUnexpectedValue);
-  }
-  __ DecompressAnyTagged(kScratchRegister,
-                         FieldOperand(object, JSObject::kElementsOffset));
-  if (v8_flags.debug_code) {
-    __ CmpObjectType(kScratchRegister, FIXED_ARRAY_TYPE, kScratchRegister);
+    __ AssertNotSmi(elements);
+    __ CmpObjectType(elements, FIXED_ARRAY_TYPE, kScratchRegister);
     __ Assert(equal, AbortReason::kUnexpectedValue);
-    // Reload since CmpObjectType clobbered the scratch register.
-    __ DecompressAnyTagged(kScratchRegister,
-                           FieldOperand(object, JSObject::kElementsOffset));
-  }
-  if (v8_flags.debug_code) {
     __ cmpq(index, Immediate(0));
     __ Assert(above_equal, AbortReason::kUnexpectedNegativeValue);
   }
-  __ DecompressAnyTagged(
-      result_reg, FieldOperand(kScratchRegister, index, times_tagged_size,
-                               FixedArray::kHeaderSize));
+  __ DecompressAnyTagged(result_reg,
+                         FieldOperand(elements, index, times_tagged_size,
+                                      FixedArray::kHeaderSize));
 }
 
-void LoadDoubleElement::SetValueLocationConstraints() {
-  UseRegister(object_input());
+void LoadFixedDoubleArrayElement::SetValueLocationConstraints() {
+  UseRegister(elements_input());
   UseRegister(index_input());
   DefineAsRegister(this);
 }
-void LoadDoubleElement::GenerateCode(MaglevAssembler* masm,
-                                     const ProcessingState& state) {
-  Register object = ToRegister(object_input());
+void LoadFixedDoubleArrayElement::GenerateCode(MaglevAssembler* masm,
+                                               const ProcessingState& state) {
+  Register elements = ToRegister(elements_input());
   Register index = ToRegister(index_input());
   DoubleRegister result_reg = ToDoubleRegister(result());
-  __ AssertNotSmi(object);
   if (v8_flags.debug_code) {
-    __ CmpObjectType(object, JS_OBJECT_TYPE, kScratchRegister);
-    __ Assert(above_equal, AbortReason::kUnexpectedValue);
-  }
-  __ DecompressAnyTagged(kScratchRegister,
-                         FieldOperand(object, JSObject::kElementsOffset));
-  if (v8_flags.debug_code) {
-    __ CmpObjectType(kScratchRegister, FIXED_DOUBLE_ARRAY_TYPE,
-                     kScratchRegister);
+    __ AssertNotSmi(elements);
+    __ CmpObjectType(elements, FIXED_DOUBLE_ARRAY_TYPE, kScratchRegister);
     __ Assert(equal, AbortReason::kUnexpectedValue);
-    // Reload since CmpObjectType clobbered the scratch register.
-    __ DecompressAnyTagged(kScratchRegister,
-                           FieldOperand(object, JSObject::kElementsOffset));
-  }
-  if (v8_flags.debug_code) {
     __ cmpq(index, Immediate(0));
     __ Assert(above_equal, AbortReason::kUnexpectedNegativeValue);
   }
-  __ Movsd(result_reg, FieldOperand(kScratchRegister, index, times_8,
+  __ Movsd(result_reg, FieldOperand(elements, index, times_8,
                                     FixedDoubleArray::kHeaderSize));
 }
 

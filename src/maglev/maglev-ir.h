@@ -162,7 +162,8 @@ class CompactInterpreterFrameState;
   V(InitialValue)                            \
   V(LoadTaggedField)                         \
   V(LoadDoubleField)                         \
-  V(LoadTaggedElement)                       \
+  V(LoadFixedArrayElement)                   \
+  V(LoadFixedDoubleArrayElement)             \
   V(LoadSignedIntDataViewElement)            \
   V(LoadDoubleDataViewElement)               \
   V(LoadSignedIntTypedArrayElement)          \
@@ -171,7 +172,6 @@ class CompactInterpreterFrameState;
   V(LoadUnsignedIntTypedArrayElementNoDeopt) \
   V(LoadDoubleTypedArrayElement)             \
   V(LoadDoubleTypedArrayElementNoDeopt)      \
-  V(LoadDoubleElement)                       \
   V(LoadGlobal)                              \
   V(LoadNamedGeneric)                        \
   V(LoadNamedFromSuperGeneric)               \
@@ -4068,19 +4068,20 @@ class LoadDoubleField : public FixedInputValueNodeT<1, LoadDoubleField> {
   const int offset_;
 };
 
-class LoadTaggedElement : public FixedInputValueNodeT<2, LoadTaggedElement> {
-  using Base = FixedInputValueNodeT<2, LoadTaggedElement>;
+class LoadFixedArrayElement
+    : public FixedInputValueNodeT<2, LoadFixedArrayElement> {
+  using Base = FixedInputValueNodeT<2, LoadFixedArrayElement>;
 
  public:
-  explicit LoadTaggedElement(uint64_t bitfield) : Base(bitfield) {}
+  explicit LoadFixedArrayElement(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties = OpProperties::Reading();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kInt32};
 
-  static constexpr int kObjectIndex = 0;
+  static constexpr int kElementsIndex = 0;
   static constexpr int kIndexIndex = 1;
-  Input& object_input() { return input(kObjectIndex); }
+  Input& elements_input() { return input(kElementsIndex); }
   Input& index_input() { return input(kIndexIndex); }
 
   void SetValueLocationConstraints();
@@ -4088,20 +4089,21 @@ class LoadTaggedElement : public FixedInputValueNodeT<2, LoadTaggedElement> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
-class LoadDoubleElement : public FixedInputValueNodeT<2, LoadDoubleElement> {
-  using Base = FixedInputValueNodeT<2, LoadDoubleElement>;
+class LoadFixedDoubleArrayElement
+    : public FixedInputValueNodeT<2, LoadFixedDoubleArrayElement> {
+  using Base = FixedInputValueNodeT<2, LoadFixedDoubleArrayElement>;
 
  public:
-  explicit LoadDoubleElement(uint64_t bitfield) : Base(bitfield) {}
+  explicit LoadFixedDoubleArrayElement(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties =
       OpProperties::Reading() | OpProperties::Float64();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kInt32};
 
-  static constexpr int kObjectIndex = 0;
+  static constexpr int kElementsIndex = 0;
   static constexpr int kIndexIndex = 1;
-  Input& object_input() { return input(kObjectIndex); }
+  Input& elements_input() { return input(kElementsIndex); }
   Input& index_input() { return input(kIndexIndex); }
 
   void SetValueLocationConstraints();
