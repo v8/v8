@@ -616,7 +616,7 @@ template <size_t Bits>
 Handle<TurboshaftType> FloatType<Bits>::AllocateOnHeap(Factory* factory) const {
   float_t min = 0.0f, max = 0.0f;
   constexpr uint32_t padding = 0;
-  if (is_only_nan()) {
+  if (is_only_special_values()) {
     min = std::numeric_limits<float_t>::infinity();
     max = -std::numeric_limits<float_t>::infinity();
     return factory->NewTurboshaftFloat64RangeType(
