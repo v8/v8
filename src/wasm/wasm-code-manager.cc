@@ -836,6 +836,8 @@ void NativeModule::ReserveCodeTableForTesting(uint32_t max_functions) {
       JumpTableAssembler::SizeForNumberOfSlots(max_functions),
       single_code_space_region);
   code_space_data_[0].jump_table = main_jump_table_;
+  CodeSpaceWriteScope code_space_write_scope(this);
+  InitializeJumpTableForLazyCompilation(max_functions);
 }
 
 void NativeModule::LogWasmCodes(Isolate* isolate, Script script) {
@@ -956,6 +958,34 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
   return PublishCodeLocked(std::move(new_code));
 }
 
+void NativeModule::InitializeJumpTableForLazyCompilation(
+    uint32_t num_wasm_functions) {
+  if (!num_wasm_functions) return;
+  allocation_mutex_.AssertHeld();
+  DCHECK(CodeSpaceWriteScope::IsInScope());
+
+  DCHECK_NULL(lazy_compile_table_);
+  lazy_compile_table_ = CreateEmptyJumpTableLocked(
+      JumpTableAssembler::SizeForNumberOfLazyFunctions(num_wasm_functions));
+
+  DCHECK_EQ(1, code_space_data_.size());
+  const CodeSpaceData& code_space_data = code_space_data_[0];
+  DCHECK_NOT_NULL(code_space_data.jump_table);
+  DCHECK_NOT_NULL(code_space_data.far_jump_table);
+
+  Address compile_lazy_address =
+      code_space_data.far_jump_table->instruction_start() +
+      JumpTableAssembler::FarJumpSlotIndexToOffset(WasmCode::kWasmCompileLazy);
+
+  JumpTableAssembler::GenerateLazyCompileTable(
+      lazy_compile_table_->instruction_start(), num_wasm_functions,
+      module_->num_imported_functions, compile_lazy_address);
+
+  JumpTableAssembler::InitializeJumpsToLazyCompileTable(
+      code_space_data.jump_table->instruction_start(), num_wasm_functions,
+      lazy_compile_table_->instruction_start());
+}
+
 void NativeModule::UseLazyStubLocked(uint32_t func_index) {
   allocation_mutex_.AssertHeld();
   DCHECK_LE(module_->num_imported_functions, func_index);
@@ -965,19 +995,7 @@ void NativeModule::UseLazyStubLocked(uint32_t func_index) {
   // scope instead.
   DCHECK(CodeSpaceWriteScope::IsInScope());
 
-  if (!lazy_compile_table_) {
-    uint32_t num_slots = module_->num_declared_functions;
-    WasmCodeRefScope code_ref_scope;
-    lazy_compile_table_ = CreateEmptyJumpTableLocked(
-        JumpTableAssembler::SizeForNumberOfLazyFunctions(num_slots));
-    Address compile_lazy_address = GetNearRuntimeStubEntry(
-        WasmCode::kWasmCompileLazy,
-        FindJumpTablesForRegionLocked(
-            base::AddressRegionOf(lazy_compile_table_->instructions())));
-    JumpTableAssembler::GenerateLazyCompileTable(
-        lazy_compile_table_->instruction_start(), num_slots,
-        module_->num_imported_functions, compile_lazy_address);
-  }
+  DCHECK_NOT_NULL(lazy_compile_table_);
 
   // Add jump table entry for jump to the lazy compile stub.
   uint32_t slot_index = declared_function_index(module(), func_index);
@@ -1461,9 +1479,7 @@ void NativeModule::AddCodeSpaceLocked(base::AddressRegion region) {
   code_space_data_.push_back(CodeSpaceData{region, jump_table, far_jump_table});
 
   if (is_first_code_space) {
-    for (uint32_t i = 0; i < num_wasm_functions; ++i) {
-      UseLazyStubLocked(module_->num_imported_functions + i);
-    }
+    InitializeJumpTableForLazyCompilation(num_wasm_functions);
   }
 
   if (jump_table && !is_first_code_space) {

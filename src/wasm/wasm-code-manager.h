@@ -637,6 +637,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Adds anonymous code for testing purposes.
   WasmCode* AddCodeForTesting(Handle<Code> code);
 
+  // Allocates and initializes the {lazy_compile_table_} and initializes the
+  // first jump table with jumps to the {lazy_compile_table_}.
+  void InitializeJumpTableForLazyCompilation(uint32_t num_wasm_functions);
+
   // Use {UseLazyStubLocked} to setup lazy compilation per function. It will use
   // the existing {WasmCode::kWasmCompileLazy} runtime stub and populate the
   // jump table with trampolines accordingly.

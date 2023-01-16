@@ -10,6 +10,43 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+void JumpTableAssembler::InitializeJumpsToLazyCompileTable(
+    Address base, uint32_t num_slots, Address lazy_compile_table_start) {
+  uint32_t jump_table_size = SizeForNumberOfSlots(num_slots);
+  JumpTableAssembler jtasm(base, jump_table_size + 256);
+
+  for (uint32_t slot_index = 0; slot_index < num_slots; ++slot_index) {
+    // Make sure we write at the correct offset.
+    int slot_offset =
+        static_cast<int>(JumpTableAssembler::JumpSlotIndexToOffset(slot_index));
+
+    jtasm.SkipUntil(slot_offset);
+
+    Address target =
+        lazy_compile_table_start +
+        JumpTableAssembler::LazyCompileSlotIndexToOffset(slot_index);
+
+    int offset_before_emit = jtasm.pc_offset();
+    // This function initializes the first jump table with jumps to the lazy
+    // compile table. Both get allocated in the constructor of the
+    // {NativeModule}, so they both should end up in the initial code space.
+    // Jumps within one code space can always be near jumps, so the following
+    // call to {EmitJumpSlot} should always succeed. If the call fails, then
+    // either the jump table allocation was changed incorrectly so that the lazy
+    // compile table was not within near-jump distance of the jump table
+    // anymore (e.g. the initial code space was too small to fit both tables),
+    // or the code space was allocated larger than the maximum near-jump
+    // distance.
+    CHECK(jtasm.EmitJumpSlot(target));
+    int written_bytes = jtasm.pc_offset() - offset_before_emit;
+    // We write nops here instead of skipping to avoid partial instructions in
+    // the jump table. Partial instructions can cause problems for the
+    // disassembler.
+    jtasm.NopBytes(kJumpTableSlotSize - written_bytes);
+  }
+  FlushInstructionCache(base, jump_table_size);
+}
+
 // The implementation is compact enough to implement it inline here. If it gets
 // much bigger, we might want to split it in a separate file per architecture.
 #if V8_TARGET_ARCH_X64
@@ -54,8 +91,12 @@ void JumpTableAssembler::PatchFarJumpSlot(Address slot, Address target) {
 }
 
 void JumpTableAssembler::NopBytes(int bytes) {
-  DCHECK_LE(0, bytes);
-  Nop(bytes);
+  if (bytes) Nop(bytes);
+}
+
+void JumpTableAssembler::SkipUntil(int offset) {
+  DCHECK_GE(offset, pc_offset());
+  pc_ += offset - pc_offset();
 }
 
 #elif V8_TARGET_ARCH_IA32
@@ -80,8 +121,12 @@ void JumpTableAssembler::PatchFarJumpSlot(Address slot, Address target) {
 }
 
 void JumpTableAssembler::NopBytes(int bytes) {
-  DCHECK_LE(0, bytes);
-  Nop(bytes);
+  if (bytes) Nop(bytes);
+}
+
+void JumpTableAssembler::SkipUntil(int offset) {
+  DCHECK_GE(offset, pc_offset());
+  pc_ += offset - pc_offset();
 }
 
 #elif V8_TARGET_ARCH_ARM
@@ -127,6 +172,12 @@ void JumpTableAssembler::NopBytes(int bytes) {
   for (; bytes > 0; bytes -= kInstrSize) {
     nop();
   }
+}
+
+void JumpTableAssembler::SkipUntil(int offset) {
+  // On this platform the jump table is not zapped with valid instructions, so
+  // skipping over bytes is not allowed.
+  DCHECK_EQ(offset, pc_offset());
 }
 
 #elif V8_TARGET_ARCH_ARM64
@@ -212,6 +263,12 @@ void JumpTableAssembler::NopBytes(int bytes) {
   }
 }
 
+void JumpTableAssembler::SkipUntil(int offset) {
+  // On this platform the jump table is not zapped with valid instructions, so
+  // skipping over bytes is not allowed.
+  DCHECK_EQ(offset, pc_offset());
+}
+
 #elif V8_TARGET_ARCH_S390X
 void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
                                                  Address lazy_compile_target) {
@@ -259,6 +316,12 @@ void JumpTableAssembler::NopBytes(int bytes) {
   }
 }
 
+void JumpTableAssembler::SkipUntil(int offset) {
+  // On this platform the jump table is not zapped with valid instructions, so
+  // skipping over bytes is not allowed.
+  DCHECK_EQ(offset, pc_offset());
+}
+
 #elif V8_TARGET_ARCH_MIPS64
 void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
                                                  Address lazy_compile_target) {
@@ -294,6 +357,12 @@ void JumpTableAssembler::NopBytes(int bytes) {
   }
 }
 
+void JumpTableAssembler::SkipUntil(int offset) {
+  // On this platform the jump table is not zapped with valid instructions, so
+  // skipping over bytes is not allowed.
+  DCHECK_EQ(offset, pc_offset());
+}
+
 #elif V8_TARGET_ARCH_LOONG64
 void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
                                                  Address lazy_compile_target) {
@@ -322,6 +391,12 @@ void JumpTableAssembler::NopBytes(int bytes) {
   for (; bytes > 0; bytes -= kInstrSize) {
     nop();
   }
+}
+
+void JumpTableAssembler::SkipUntil(int offset) {
+  // On this platform the jump table is not zapped with valid instructions, so
+  // skipping over bytes is not allowed.
+  DCHECK_EQ(offset, pc_offset());
 }
 
 #elif V8_TARGET_ARCH_PPC64
@@ -380,6 +455,12 @@ void JumpTableAssembler::NopBytes(int bytes) {
   }
 }
 
+void JumpTableAssembler::SkipUntil(int offset) {
+  // On this platform the jump table is not zapped with valid instructions, so
+  // skipping over bytes is not allowed.
+  DCHECK_EQ(offset, pc_offset());
+}
+
 #elif V8_TARGET_ARCH_RISCV64
 void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
                                                  Address lazy_compile_target) {
@@ -420,6 +501,12 @@ void JumpTableAssembler::NopBytes(int bytes) {
   }
 }
 
+void JumpTableAssembler::SkipUntil(int offset) {
+  // On this platform the jump table is not zapped with valid instructions, so
+  // skipping over bytes is not allowed.
+  DCHECK_EQ(offset, pc_offset());
+}
+
 #elif V8_TARGET_ARCH_RISCV32
 void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
                                                  Address lazy_compile_target) {
@@ -458,6 +545,12 @@ void JumpTableAssembler::NopBytes(int bytes) {
   for (; bytes > 0; bytes -= kInstrSize) {
     nop();
   }
+}
+
+void JumpTableAssembler::SkipUntil(int offset) {
+  // On this platform the jump table is not zapped with valid instructions, so
+  // skipping over bytes is not allowed.
+  DCHECK_EQ(offset, pc_offset());
 }
 
 #else
