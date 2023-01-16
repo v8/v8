@@ -391,14 +391,6 @@ void MaglevAssembler::Prologue(Graph* graph) {
     Register flags = rcx;
     Register feedback_vector = r9;
 
-    // Load the feedback vector.
-    LoadTaggedPointerField(
-        feedback_vector,
-        FieldOperand(kJSFunctionRegister, JSFunction::kFeedbackCellOffset));
-    LoadTaggedPointerField(feedback_vector,
-                           FieldOperand(feedback_vector, Cell::kValueOffset));
-    AssertFeedbackVector(feedback_vector);
-
     DeferredCodeInfo* deferred_flags_need_processing = PushDeferredCode(
         [](MaglevAssembler* masm, Register flags, Register feedback_vector) {
           ASM_CODE_COMMENT_STRING(masm, "Optimized marker check");
@@ -410,6 +402,8 @@ void MaglevAssembler::Prologue(Graph* graph) {
         },
         flags, feedback_vector);
 
+    Move(feedback_vector,
+         compilation_info()->toplevel_compilation_unit()->feedback().object());
     LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
         flags, feedback_vector, CodeKind::MAGLEV,
         &deferred_flags_need_processing->deferred_code_label);
