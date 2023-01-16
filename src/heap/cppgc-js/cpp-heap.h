@@ -146,6 +146,8 @@ class V8_EXPORT_PRIVATE CppHeap final
   bool FinishConcurrentMarkingIfNeeded();
   void WriteBarrier(JSObject);
 
+  bool ShouldFinalizeIncrementalMarking() const;
+
   // StatsCollector::AllocationObserver interface.
   void AllocatedObjectSizeIncreased(size_t) final;
   void AllocatedObjectSizeDecreased(size_t) final;

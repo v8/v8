@@ -43,20 +43,6 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
   bool Trace(double deadline);
   bool IsRemoteTracingDone();
 
-  bool ShouldFinalizeIncrementalMarking() {
-    // Covers cases where no remote tracer is in use or the flags for
-    // incremental marking have been disabled.
-    if (!SupportsIncrementalEmbedderSteps()) return true;
-
-    return IsRemoteTracingDone() && embedder_worklist_empty_;
-  }
-
-  bool SupportsIncrementalEmbedderSteps() const {
-    if (!InUse()) return false;
-
-    return v8_flags.cppheap_incremental_marking;
-  }
-
   void SetEmbedderWorklistEmpty(bool is_empty) {
     embedder_worklist_empty_ = is_empty;
   }

@@ -4,6 +4,7 @@
 
 #include "src/heap/incremental-marking.h"
 
+#include "src/base/logging.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/handles/global-handles.h"
@@ -548,8 +549,9 @@ void IncrementalMarking::UpdateMarkedBytesAfterScavenge(
 void IncrementalMarking::EmbedderStep(double expected_duration_ms,
                                       double* duration_ms) {
   DCHECK(IsMarking());
-  if (!heap_->local_embedder_heap_tracer()
-           ->SupportsIncrementalEmbedderSteps()) {
+  auto* cpp_heap = CppHeap::From(heap_->cpp_heap());
+  DCHECK_NOT_NULL(cpp_heap);
+  if (!cpp_heap->incremental_marking_supported()) {
     *duration_ms = 0.0;
     return;
   }
@@ -799,13 +801,12 @@ void IncrementalMarking::AdvanceOnAllocation() {
 bool IncrementalMarking::ShouldFinalize() const {
   DCHECK(IsMarking());
 
+  const auto* cpp_heap = CppHeap::From(heap_->cpp_heap());
   return heap()
              ->mark_compact_collector()
              ->local_marking_worklists()
              ->IsEmpty() &&
-         heap()
-             ->local_embedder_heap_tracer()
-             ->ShouldFinalizeIncrementalMarking();
+         (!cpp_heap || cpp_heap->ShouldFinalizeIncrementalMarking());
 }
 
 size_t IncrementalMarking::StepSizeToKeepUpWithAllocations() {
@@ -947,7 +948,7 @@ void IncrementalMarking::Step(double max_step_size_in_ms,
   // processed on their own. For small graphs, helping is not necessary.
   std::tie(v8_bytes_processed, std::ignore) =
       major_collector_->ProcessMarkingWorklist(bytes_to_process);
-  if (heap_->local_embedder_heap_tracer()->InUse()) {
+  if (heap_->cpp_heap()) {
     embedder_deadline =
         std::min(max_step_size_in_ms,
                  static_cast<double>(bytes_to_process) / marking_speed);

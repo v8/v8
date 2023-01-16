@@ -735,6 +735,10 @@ bool CppHeap::IsTracingDone() const {
   return !TracingInitialized() || marking_done_;
 }
 
+bool CppHeap::ShouldFinalizeIncrementalMarking() const {
+  return !incremental_marking_supported() || IsTracingDone();
+}
+
 void CppHeap::EnterFinalPause(cppgc::EmbedderStackState stack_state) {
   CHECK(!in_disallow_gc_scope());
   // Enter atomic pause even if tracing is not initialized. This is needed to

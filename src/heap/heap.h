@@ -2015,10 +2015,6 @@ class Heap {
 
   bool ShouldStressCompaction() const;
 
-  bool UseGlobalMemoryScheduling() const {
-    return v8_flags.global_gc_scheduling && local_embedder_heap_tracer();
-  }
-
   base::Optional<size_t> GlobalMemoryAvailable();
 
   void RecomputeLimits(GarbageCollector collector);
