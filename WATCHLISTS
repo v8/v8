@@ -101,6 +101,9 @@
                   '|test/unittests/heap/cppgc/' \
                   '|test/unittests/heap/cppgc-js/',
     },
+    'trap-handler': {
+      'filepath': 'src/trap-handler/',
+    },
   },
 
   'WATCHLISTS': {
@@ -166,6 +169,12 @@
     ],
     'cppgc': [
       'oilpan-reviews+v8@chromium.org',
+    ],
+    'trap-handler': [
+      'ahaas@chromium.org',
+      'clemensb@chromium.org',
+      'mark@chromium.org',
+      'mseaborn@chromium.org',
     ],
   },
 }
