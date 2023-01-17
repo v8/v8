@@ -415,7 +415,7 @@ namespace internal {
   F(RegExpExecTreatMatchAtEndAsFailure, 4, 1)                    \
   F(RegExpExperimentalOneshotExec, 4, 1)                         \
   F(RegExpExperimentalOneshotExecTreatMatchAtEndAsFailure, 4, 1) \
-  F(RegExpExecMultiple, 4, 1)                                    \
+  F(RegExpExecMultiple, 3, 1)                                    \
   F(RegExpInitializeAndCompile, 3, 1)                            \
   F(RegExpReplaceRT, 3, 1)                                       \
   F(RegExpSplit, 3, 1)                                           \
