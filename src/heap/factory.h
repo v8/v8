@@ -932,8 +932,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     friend class Factory;
   };
 
-  // Allows creation of Code objects. It provides two build methods, one of
-  // which tries to gracefully handle allocation failure.
+  // Allows creation of InstructionStream objects. It provides two build
+  // methods, one of which tries to gracefully handle allocation failure.
   class V8_EXPORT_PRIVATE CodeBuilder final {
    public:
     CodeBuilder(Isolate* isolate, const CodeDesc& desc, CodeKind kind);
@@ -944,14 +944,14 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
     // Builds a new code object (fully initialized). All header fields of the
     // returned object are immutable and the code object is write protected.
-    V8_WARN_UNUSED_RESULT Handle<Code> Build();
+    V8_WARN_UNUSED_RESULT Handle<InstructionStream> Build();
     // Like Build, builds a new code object. May return an empty handle if the
     // allocation fails.
-    V8_WARN_UNUSED_RESULT MaybeHandle<Code> TryBuild();
+    V8_WARN_UNUSED_RESULT MaybeHandle<InstructionStream> TryBuild();
 
     // Sets the self-reference object in which a reference to the code object is
-    // stored. This allows generated code to reference its own Code object by
-    // using this handle.
+    // stored. This allows generated code to reference its own InstructionStream
+    // object by using this handle.
     CodeBuilder& set_self_reference(Handle<Object> self_reference) {
       DCHECK(!self_reference.is_null());
       self_reference_ = self_reference;
@@ -1032,9 +1032,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     inline bool CompiledWithConcurrentBaseline() const;
 
    private:
-    MaybeHandle<Code> BuildInternal(bool retry_allocation_or_fail);
-    MaybeHandle<Code> AllocateCode(bool retry_allocation_or_fail);
-    MaybeHandle<Code> AllocateConcurrentSparkplugCode(
+    MaybeHandle<InstructionStream> BuildInternal(bool retry_allocation_or_fail);
+    MaybeHandle<InstructionStream> AllocateCode(bool retry_allocation_or_fail);
+    MaybeHandle<InstructionStream> AllocateConcurrentSparkplugCode(
         bool retry_allocation_or_fail);
 
     Isolate* const isolate_;

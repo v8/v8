@@ -485,7 +485,7 @@ class Heap {
   V8_EXPORT_PRIVATE static void EphemeronKeyWriteBarrierFromCode(
       Address raw_object, Address address, Isolate* isolate);
   V8_EXPORT_PRIVATE static void GenerationalBarrierForCodeSlow(
-      Code host, RelocInfo* rinfo, HeapObject value);
+      InstructionStream host, RelocInfo* rinfo, HeapObject value);
   V8_EXPORT_PRIVATE static bool PageFlagsAreConsistent(HeapObject object);
 
   // Notifies the heap that is ok to start marking or other activities that
@@ -1147,7 +1147,7 @@ class Heap {
 
   // Invalidates references in the given {code} object that are referenced
   // transitively from the deoptimization data. Mutates write-protected code.
-  void InvalidateCodeDeoptimizationData(Code code);
+  void InvalidateCodeDeoptimizationData(InstructionStream code);
 
   void DeoptMarkedAllocationSites();
 
@@ -1279,7 +1279,8 @@ class Heap {
   size_t NumberOfDetachedContexts();
 
   // ===========================================================================
-  // Code statistics. ==========================================================
+  // Code statistics.
+  // ==========================================================
   // ===========================================================================
 
   // Collect code (Code and BytecodeArray objects) statistics.
@@ -1566,7 +1567,7 @@ class Heap {
 
   // Returns true if {addr} is contained within {code} and false otherwise.
   // Mostly useful for debugging.
-  bool GcSafeCodeContains(Code code, Address addr);
+  bool GcSafeCodeContains(InstructionStream code, Address addr);
 
   // Casts a heap object to a code object and checks if the inner_pointer is
   // within the object.
@@ -1636,7 +1637,7 @@ class Heap {
     return result;
   }
 
-  void RegisterCodeObject(Handle<Code> code);
+  void RegisterCodeObject(Handle<InstructionStream> code);
 
   static const char* GarbageCollectionReasonToString(
       GarbageCollectionReason gc_reason);
@@ -1896,8 +1897,8 @@ class Heap {
   // Actual GC. ================================================================
   // ===========================================================================
 
-  // Code that should be run before and after each GC.  Includes some
-  // reporting/verification activities when compiled with DEBUG set.
+  // Code that should be run before and after each GC.  Includes
+  // some reporting/verification activities when compiled with DEBUG set.
   void GarbageCollectionPrologue(GarbageCollectionReason gc_reason,
                                  const v8::GCCallbackFlags gc_callback_flags);
   void GarbageCollectionPrologueInSafepoint();
@@ -2586,21 +2587,20 @@ class V8_EXPORT_PRIVATE V8_NODISCARD
   V8_NOINLINE ~CodePageCollectionMemoryModificationScopeForTesting();
 };
 
-// The CodePageHeaderModificationScope enables write access to Code space page
-// headers.
-// On most of the configurations it's a no-op because Code space page headers
-// are configured as writable and permissions are never changed.
-// However, on MacOS on ARM64 ("Apple M1"/Apple Silicon) the situation is
-// different. In order to be able to use fast W^X permissions switching
-// machinery (APRR/MAP_JIT) it's necessary to configure executable memory as
-// readable writable executable (RWX). Also, on MacOS on ARM64 reconfiguration
-// of RWX page permissions to anything else is prohibited.
+// The CodePageHeaderModificationScope enables write access to Code
+// space page headers. On most of the configurations it's a no-op because
+// Code space page headers are configured as writable and
+// permissions are never changed. However, on MacOS on ARM64 ("Apple M1"/Apple
+// Silicon) the situation is different. In order to be able to use fast W^X
+// permissions switching machinery (APRR/MAP_JIT) it's necessary to configure
+// executable memory as readable writable executable (RWX). Also, on MacOS on
+// ARM64 reconfiguration of RWX page permissions to anything else is prohibited.
 // So, in order to be able to allocate large code pages over freed regular
-// code pages and vice versa we have to allocate Code page headers as RWX too
-// and switch them to writable mode when it's necessary to modify the code page
-// header.
-// The scope can be used from any thread and affects only current thread, see
-// RwxMemoryWriteScope for details about semantics of the scope.
+// code pages and vice versa we have to allocate Code page headers
+// as RWX too and switch them to writable mode when it's necessary to modify the
+// code page header. The scope can be used from any thread and affects only
+// current thread, see RwxMemoryWriteScope for details about semantics of the
+// scope.
 #if V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT
 using CodePageHeaderModificationScope = RwxMemoryWriteScope;
 #else
@@ -2615,7 +2615,7 @@ using CodePageHeaderModificationScope = NopRwxMemoryWriteScope;
 class V8_NODISCARD CodePageMemoryModificationScope {
  public:
   explicit inline CodePageMemoryModificationScope(BasicMemoryChunk* chunk);
-  explicit inline CodePageMemoryModificationScope(Code object);
+  explicit inline CodePageMemoryModificationScope(InstructionStream object);
   inline ~CodePageMemoryModificationScope();
 
  private:

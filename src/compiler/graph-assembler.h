@@ -134,30 +134,30 @@ class Reducer;
   V(Uint64Div)                               \
   V(Uint64Mod)
 
-#define JSGRAPH_SINGLETON_CONSTANT_LIST(V)      \
-  V(AllocateInOldGenerationStub, Code)          \
-  V(AllocateInYoungGenerationStub, Code)        \
-  V(AllocateRegularInOldGenerationStub, Code)   \
-  V(AllocateRegularInYoungGenerationStub, Code) \
-  V(BigIntMap, Map)                             \
-  V(BooleanMap, Map)                            \
-  V(EmptyString, String)                        \
-  V(ExternalObjectMap, Map)                     \
-  V(False, Boolean)                             \
-  V(FixedArrayMap, Map)                         \
-  V(FixedDoubleArrayMap, Map)                   \
-  V(WeakFixedArrayMap, Map)                     \
-  V(HeapNumberMap, Map)                         \
-  V(MinusOne, Number)                           \
-  V(NaN, Number)                                \
-  V(NoContext, Object)                          \
-  V(Null, Oddball)                              \
-  V(One, Number)                                \
-  V(TheHole, Oddball)                           \
-  V(ToNumberBuiltin, Code)                      \
-  V(PlainPrimitiveToNumberBuiltin, Code)        \
-  V(True, Boolean)                              \
-  V(Undefined, Oddball)                         \
+#define JSGRAPH_SINGLETON_CONSTANT_LIST(V)                   \
+  V(AllocateInOldGenerationStub, InstructionStream)          \
+  V(AllocateInYoungGenerationStub, InstructionStream)        \
+  V(AllocateRegularInOldGenerationStub, InstructionStream)   \
+  V(AllocateRegularInYoungGenerationStub, InstructionStream) \
+  V(BigIntMap, Map)                                          \
+  V(BooleanMap, Map)                                         \
+  V(EmptyString, String)                                     \
+  V(ExternalObjectMap, Map)                                  \
+  V(False, Boolean)                                          \
+  V(FixedArrayMap, Map)                                      \
+  V(FixedDoubleArrayMap, Map)                                \
+  V(WeakFixedArrayMap, Map)                                  \
+  V(HeapNumberMap, Map)                                      \
+  V(MinusOne, Number)                                        \
+  V(NaN, Number)                                             \
+  V(NoContext, Object)                                       \
+  V(Null, Oddball)                                           \
+  V(One, Number)                                             \
+  V(TheHole, Oddball)                                        \
+  V(ToNumberBuiltin, InstructionStream)                      \
+  V(PlainPrimitiveToNumberBuiltin, InstructionStream)        \
+  V(True, Boolean)                                           \
+  V(Undefined, Oddball)                                      \
   V(Zero, Number)
 
 class GraphAssembler;

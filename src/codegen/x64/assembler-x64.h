@@ -447,12 +447,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Read/Modify the code target in the relative branch/call instruction at pc.
   // On the x64 architecture, we use relative jumps with a 32-bit displacement
-  // to jump to other Code objects in the Code space in the heap.
-  // Jumps to C functions are done indirectly through a 64-bit register holding
-  // the absolute address of the target.
-  // These functions convert between absolute Addresses of Code objects and
-  // the relative displacements stored in the code.
-  // The isolate argument is unused (and may be nullptr) when skipping flushing.
+  // to jump to other InstructionStream objects in the InstructionStream space
+  // in the heap. Jumps to C functions are done indirectly through a 64-bit
+  // register holding the absolute address of the target. These functions
+  // convert between absolute Addresses of InstructionStream objects and the
+  // relative displacements stored in the code. The isolate argument is unused
+  // (and may be nullptr) when skipping flushing.
   static inline Address target_address_at(Address pc, Address constant_pool);
   static inline void set_target_address_at(
       Address pc, Address constant_pool, Address target,
@@ -467,7 +467,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // This sets the branch destination (which is in the instruction on x64).
   // This is for calls and branches within generated code.
   inline static void deserialization_set_special_target_at(
-      Address instruction_payload, Code code, Address target);
+      Address instruction_payload, InstructionStream code, Address target);
 
   // Get the size of the special target encoded at 'instruction_payload'.
   inline static int deserialization_special_target_size(
@@ -505,7 +505,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   enum LeadingOpcode { k0F = 0x1, k0F38 = 0x2, k0F3A = 0x3 };
 
   // ---------------------------------------------------------------------------
-  // Code generation
+  // InstructionStream generation
   //
   // Function names correspond one-to-one to x64 instruction mnemonics.
   // Unless specified otherwise, instructions operate on 64-bit operands.
@@ -2130,7 +2130,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     WriteUnalignedValue(addr_at(pos), x);
   }
 
-  // Code emission.
+  // InstructionStream emission.
   V8_NOINLINE V8_PRESERVE_MOST void GrowBuffer();
 
   template <typename T>

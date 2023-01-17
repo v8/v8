@@ -576,7 +576,7 @@ bool RegExpImpl::CompileIrregexp(Isolate* isolate, Handle<JSRegExp> re,
   Handle<FixedArray> data =
       Handle<FixedArray>(FixedArray::cast(re->data()), isolate);
   if (compile_data.compilation_target == RegExpCompilationTarget::kNative) {
-    Code code = Code::cast(*compile_data.code);
+    InstructionStream code = InstructionStream::cast(*compile_data.code);
     data->set(JSRegExp::code_index(is_one_byte), ToCodeDataContainer(code));
 
     // Reset bytecode to uninitialized. In case we use tier-up we know that
@@ -1021,7 +1021,8 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
         data->compilation_target == RegExpCompilationTarget::kNative) {
       CodeTracer::Scope trace_scope(isolate->GetCodeTracer());
       OFStream os(trace_scope.file());
-      Handle<Code> c = Handle<Code>::cast(result.code);
+      Handle<InstructionStream> c =
+          Handle<InstructionStream>::cast(result.code);
       auto pattern_cstring = pattern->ToCString();
       c->Disassemble(pattern_cstring.get(), os, isolate);
     }

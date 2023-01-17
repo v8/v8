@@ -161,7 +161,7 @@ void BreakLocation::AllAtCurrentStatement(
   int offset = summary.code_offset();
   Handle<AbstractCode> abstract_code = summary.abstract_code();
   PtrComprCageBase cage_base = GetPtrComprCageBase(*debug_info);
-  if (abstract_code->IsCode(cage_base)) offset = offset - 1;
+  if (abstract_code->IsInstructionStream(cage_base)) offset = offset - 1;
   int statement_position;
   {
     BreakIterator it(debug_info);
@@ -1941,7 +1941,8 @@ bool Debug::FindSharedFunctionInfosIntersectingRange(
     for (const auto& candidate : candidates) {
       IsCompiledScope is_compiled_scope(candidate->is_compiled_scope(isolate_));
       if (!is_compiled_scope.is_compiled()) {
-        // Code that cannot be compiled lazily are internal and not debuggable.
+        // InstructionStream that cannot be compiled lazily are internal and not
+        // debuggable.
         DCHECK(candidate->allows_lazy_compilation());
         if (!Compiler::Compile(isolate_, candidate, Compiler::CLEAR_EXCEPTION,
                                &is_compiled_scope)) {
@@ -2006,7 +2007,8 @@ Handle<Object> Debug::FindInnermostContainingFunctionInfo(Handle<Script> script,
     }
     // If not, compile to reveal inner functions.
     HandleScope scope(isolate_);
-    // Code that cannot be compiled lazily are internal and not debuggable.
+    // InstructionStream that cannot be compiled lazily are internal and not
+    // debuggable.
     DCHECK(shared.allows_lazy_compilation());
     if (!Compiler::Compile(isolate_, handle(shared, isolate_),
                            Compiler::CLEAR_EXCEPTION, &is_compiled_scope)) {

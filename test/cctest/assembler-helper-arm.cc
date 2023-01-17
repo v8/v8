@@ -10,8 +10,8 @@
 namespace v8 {
 namespace internal {
 
-Handle<Code> AssembleCodeImpl(Isolate* isolate,
-                              std::function<void(MacroAssembler&)> assemble) {
+Handle<InstructionStream> AssembleCodeImpl(
+    Isolate* isolate, std::function<void(MacroAssembler&)> assemble) {
   MacroAssembler assm(isolate, CodeObjectRequired::kYes);
 
   assemble(assm);
@@ -19,7 +19,7 @@ Handle<Code> AssembleCodeImpl(Isolate* isolate,
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   if (v8_flags.print_code) {
     code->Print();

@@ -65,13 +65,14 @@ class MaglevSafepointEntry : public SafepointEntryBase {
   uint32_t tagged_register_indexes_ = 0;
 };
 
-// A wrapper class for accessing the safepoint table embedded into the Code
-// object.
+// A wrapper class for accessing the safepoint table embedded into the
+// InstructionStream object.
 class MaglevSafepointTable {
  public:
   // The isolate and pc arguments are used for figuring out whether pc
   // belongs to the embedded or un-embedded code blob.
-  explicit MaglevSafepointTable(Isolate* isolate, Address pc, Code code);
+  explicit MaglevSafepointTable(Isolate* isolate, Address pc,
+                                InstructionStream code);
   explicit MaglevSafepointTable(Isolate* isolate, Address pc,
                                 CodeDataContainer code);
   MaglevSafepointTable(const MaglevSafepointTable&) = delete;

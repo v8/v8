@@ -71,7 +71,8 @@ bool IsReadOnlyHeapObjectForCompiler(PtrComprCageBase cage_base,
   // TODO(jgruber): Remove this compiler-specific predicate and use the plain
   // heap predicate instead. This would involve removing the special cases for
   // builtins.
-  return (object.IsCode(cage_base) && Code::cast(object).is_builtin()) ||
+  return (object.IsInstructionStream(cage_base) &&
+          InstructionStream::cast(object).is_builtin()) ||
          ReadOnlyHeap::Contains(object);
 }
 
@@ -2286,7 +2287,7 @@ std::ostream& operator<<(std::ostream& os, const ObjectRef& ref) {
 
 namespace {
 
-unsigned GetInlinedBytecodeSizeImpl(Code code) {
+unsigned GetInlinedBytecodeSizeImpl(InstructionStream code) {
   unsigned value = code.inlined_bytecode_size();
   if (value > 0) {
     // Don't report inlined bytecode size if the code object was already
@@ -2298,7 +2299,7 @@ unsigned GetInlinedBytecodeSizeImpl(Code code) {
 
 }  // namespace
 
-unsigned CodeRef::GetInlinedBytecodeSize() const {
+unsigned InstructionStreamRef::GetInlinedBytecodeSize() const {
   return GetInlinedBytecodeSizeImpl(*object());
 }
 
@@ -2308,9 +2309,10 @@ unsigned CodeDataContainerRef::GetInlinedBytecodeSize() const {
     return 0;
   }
 
-  // Safe to do a relaxed conversion to Code here since CodeDataContainer::code
-  // field is modified only by GC and the CodeDataContainer was acquire-loaded.
-  Code code = code_data_container.code(kRelaxedLoad);
+  // Safe to do a relaxed conversion to InstructionStream here since
+  // CodeDataContainer::code field is modified only by GC and the
+  // CodeDataContainer was acquire-loaded.
+  InstructionStream code = code_data_container.instruction_stream(kRelaxedLoad);
   return GetInlinedBytecodeSizeImpl(code);
 }
 

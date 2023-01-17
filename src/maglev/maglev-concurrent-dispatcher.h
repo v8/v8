@@ -25,7 +25,7 @@ class MaglevCompilationInfo;
 // that should still be addressed soon:
 // - Full tracing support through --trace-opt.
 // - Concurrent codegen.
-// - Concurrent Code object creation (optional?).
+// - Concurrent InstructionStream object creation (optional?).
 // - Test support for concurrency (see %FinalizeOptimization).
 
 // Exports needed functionality without exposing implementation details.

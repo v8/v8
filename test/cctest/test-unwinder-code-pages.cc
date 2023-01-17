@@ -301,7 +301,7 @@ TEST(Unwind_CodeObjectPCInMiddle_Success_CodePagesAPI) {
   // --no-maglev.
   if (!code_data_container.is_optimized_code()) return;
 
-  Code code = FromCodeDataContainer(code_data_container);
+  InstructionStream code = FromCodeDataContainer(code_data_container);
   // We don't want the offset too early or it could be the `push rbp`
   // instruction (which is not at the start of generated code, because the lazy
   // deopt check happens before frame setup).
@@ -673,7 +673,7 @@ TEST(PCIsInV8_LargeCodeObject_CodePagesAPI) {
   desc.unwinding_info = nullptr;
   desc.unwinding_info_size = 0;
   desc.origin = nullptr;
-  Handle<Code> foo_code =
+  Handle<InstructionStream> foo_code =
       Factory::CodeBuilder(i_isolate, desc, CodeKind::WASM_FUNCTION).Build();
 
   CHECK(i_isolate->heap()->InSpace(*foo_code, CODE_LO_SPACE));

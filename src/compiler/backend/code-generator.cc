@@ -411,7 +411,7 @@ void CodeGenerator::AssembleCode() {
   unwinding_info_writer_.Finish(tasm()->pc_offset());
 
   // Final alignment before starting on the metadata section.
-  tasm()->Align(Code::kMetadataAlignment);
+  tasm()->Align(InstructionStream::kMetadataAlignment);
 
   safepoints()->Emit(tasm(), frame()->GetTotalFrameSlotCount());
 
@@ -467,10 +467,10 @@ base::OwnedVector<byte> CodeGenerator::GetProtectedInstructionsData() {
 #endif  // V8_ENABLE_WEBASSEMBLY
 }
 
-MaybeHandle<Code> CodeGenerator::FinalizeCode() {
+MaybeHandle<InstructionStream> CodeGenerator::FinalizeCode() {
   if (result_ != kSuccess) {
     tasm()->AbortedCodeGeneration();
-    return MaybeHandle<Code>();
+    return MaybeHandle<InstructionStream>();
   }
 
   // Allocate the source position table.
@@ -494,7 +494,7 @@ MaybeHandle<Code> CodeGenerator::FinalizeCode() {
     unwinding_info_writer_.eh_frame_writer()->GetEhFrame(&desc);
   }
 
-  MaybeHandle<Code> maybe_code =
+  MaybeHandle<InstructionStream> maybe_code =
       Factory::CodeBuilder(isolate(), desc, info()->code_kind())
           .set_builtin(info()->builtin())
           .set_inlined_bytecode_size(info()->inlined_bytecode_size())
@@ -506,10 +506,10 @@ MaybeHandle<Code> CodeGenerator::FinalizeCode() {
           .set_osr_offset(info()->osr_offset())
           .TryBuild();
 
-  Handle<Code> code;
+  Handle<InstructionStream> code;
   if (!maybe_code.ToHandle(&code)) {
     tasm()->AbortedCodeGeneration();
-    return MaybeHandle<Code>();
+    return MaybeHandle<InstructionStream>();
   }
 
   LOG_CODE_EVENT(isolate(), CodeLinePosInfoRecordEvent(

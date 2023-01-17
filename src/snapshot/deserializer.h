@@ -82,7 +82,7 @@ class Deserializer : public SerializerDeserializer {
   const std::vector<Handle<AllocationSite>>& new_allocation_sites() const {
     return new_allocation_sites_;
   }
-  const std::vector<Handle<Code>>& new_code_objects() const {
+  const std::vector<Handle<InstructionStream>>& new_code_objects() const {
     return new_code_objects_;
   }
   const std::vector<Handle<Map>>& new_maps() const { return new_maps_; }
@@ -254,7 +254,7 @@ class Deserializer : public SerializerDeserializer {
   HotObjectsList hot_objects_;
   std::vector<Handle<Map>> new_maps_;
   std::vector<Handle<AllocationSite>> new_allocation_sites_;
-  std::vector<Handle<Code>> new_code_objects_;
+  std::vector<Handle<InstructionStream>> new_code_objects_;
   std::vector<Handle<AccessorInfo>> accessor_infos_;
   std::vector<Handle<CallHandlerInfo>> call_handler_infos_;
   std::vector<Handle<Script>> new_scripts_;

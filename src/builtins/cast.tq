@@ -30,8 +30,8 @@ macro IsCell(o: HeapObject): bool {
 }
 
 @export
-macro IsCode(o: HeapObject): bool {
-  return Is<Code>(o);
+macro IsInstructionStream(o: HeapObject): bool {
+  return Is<InstructionStream>(o);
 }
 
 @export

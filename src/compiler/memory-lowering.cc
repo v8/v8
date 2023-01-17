@@ -167,9 +167,10 @@ Reduction MemoryLowering::ReduceAllocateRaw(
   if (v8_flags.single_generation && allocation_type == AllocationType::kYoung) {
     allocation_type = AllocationType::kOld;
   }
-  // Code objects may have a maximum size smaller than kMaxHeapObjectSize due to
-  // guard pages. If we need to support allocating code here we would need to
-  // call MemoryChunkLayout::MaxRegularCodeObjectSize() at runtime.
+  // InstructionStream objects may have a maximum size smaller than
+  // kMaxHeapObjectSize due to guard pages. If we need to support allocating
+  // code here we would need to call
+  // MemoryChunkLayout::MaxRegularCodeObjectSize() at runtime.
   DCHECK_NE(allocation_type, AllocationType::kCode);
   Node* value;
   Node* size = node->InputAt(0);

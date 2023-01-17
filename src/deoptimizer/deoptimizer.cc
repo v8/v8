@@ -340,8 +340,9 @@ void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
 
   // Mark all code, then deoptimize.
   {
-    Code::OptimizedCodeIterator it(isolate);
-    for (Code code = it.Next(); !code.is_null(); code = it.Next()) {
+    InstructionStream::OptimizedCodeIterator it(isolate);
+    for (InstructionStream code = it.Next(); !code.is_null();
+         code = it.Next()) {
       code.set_marked_for_deoptimization(true);
     }
   }
@@ -385,8 +386,9 @@ void Deoptimizer::DeoptimizeAllOptimizedCodeWithFunction(
   // Mark all code that inlines this function, then deoptimize.
   bool any_marked = false;
   {
-    Code::OptimizedCodeIterator it(isolate);
-    for (Code code = it.Next(); !code.is_null(); code = it.Next()) {
+    InstructionStream::OptimizedCodeIterator it(isolate);
+    for (InstructionStream code = it.Next(); !code.is_null();
+         code = it.Next()) {
       if (code.Inlines(*function)) {
         code.set_marked_for_deoptimization(true);
         any_marked = true;
@@ -500,17 +502,17 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
   }
 }
 
-Code Deoptimizer::FindOptimizedCode() {
+InstructionStream Deoptimizer::FindOptimizedCode() {
   CodeLookupResult lookup_result = isolate_->FindCodeObject(from_);
-  return lookup_result.code();
+  return lookup_result.instruction_stream();
 }
 
 Handle<JSFunction> Deoptimizer::function() const {
   return Handle<JSFunction>(function_, isolate());
 }
 
-Handle<Code> Deoptimizer::compiled_code() const {
-  return Handle<Code>(compiled_code_, isolate());
+Handle<InstructionStream> Deoptimizer::compiled_code() const {
+  return Handle<InstructionStream>(compiled_code_, isolate());
 }
 
 Deoptimizer::~Deoptimizer() {
@@ -626,7 +628,8 @@ void Deoptimizer::TraceDeoptEnd(double deopt_duration) {
 }
 
 // static
-void Deoptimizer::TraceMarkForDeoptimization(Code code, const char* reason) {
+void Deoptimizer::TraceMarkForDeoptimization(InstructionStream code,
+                                             const char* reason) {
   if (!v8_flags.trace_deopt && !v8_flags.log_deopt) return;
 
   DisallowGarbageCollection no_gc;
@@ -1940,7 +1943,8 @@ unsigned Deoptimizer::ComputeIncomingArgumentSize(SharedFunctionInfo shared) {
   return parameter_slots * kSystemPointerSize;
 }
 
-Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(Code code, Address pc) {
+Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(InstructionStream code,
+                                                 Address pc) {
   CHECK(code.InstructionStart() <= pc && pc <= code.InstructionEnd());
   SourcePosition last_position = SourcePosition::Unknown();
   DeoptimizeReason last_reason = DeoptimizeReason::kUnknown;

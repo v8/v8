@@ -38,14 +38,14 @@ FunctionTester::FunctionTester(Graph* graph, int param_count)
   CompileGraph(graph);
 }
 
-FunctionTester::FunctionTester(Handle<Code> code, int param_count)
+FunctionTester::FunctionTester(Handle<InstructionStream> code, int param_count)
     : isolate(main_isolate()),
       canonical(isolate),
       function((v8_flags.allow_natives_syntax = true,
                 NewFunction(BuildFunction(param_count).c_str()))),
       flags_(0) {
   CHECK(!code.is_null());
-  CHECK(code->IsCode());
+  CHECK(code->IsInstructionStream());
   Compile(function);
   function->set_code(ToCodeDataContainer(*code), kReleaseStore);
 }
@@ -62,7 +62,8 @@ FunctionTester::FunctionTester(Handle<CodeDataContainer> code, int param_count)
   function->set_code(*code, kReleaseStore);
 }
 
-FunctionTester::FunctionTester(Handle<Code> code) : FunctionTester(code, 0) {}
+FunctionTester::FunctionTester(Handle<InstructionStream> code)
+    : FunctionTester(code, 0) {}
 
 void FunctionTester::CheckThrows(Handle<Object> a) {
   TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
@@ -168,7 +169,7 @@ Handle<JSFunction> FunctionTester::CompileGraph(Graph* graph) {
                                 CodeKind::TURBOFAN);
 
   auto call_descriptor = Linkage::ComputeIncoming(&zone, &info);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Pipeline::GenerateCodeForTesting(&info, isolate, call_descriptor, graph,
                                        AssemblerOptions::Default(isolate))
           .ToHandleChecked();

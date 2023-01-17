@@ -15,7 +15,7 @@
 namespace v8 {
 namespace internal {
 
-class Code;
+class InstructionStream;
 class OptimizedCompilationInfo;
 class Script;
 class SharedFunctionInfo;
@@ -79,12 +79,13 @@ class SourcePosition final {
   }
 
   // Assumes that the code object is optimized
-  std::vector<SourcePositionInfo> InliningStack(Handle<Code> code) const;
+  std::vector<SourcePositionInfo> InliningStack(
+      Handle<InstructionStream> code) const;
   std::vector<SourcePositionInfo> InliningStack(
       OptimizedCompilationInfo* cinfo) const;
-  SourcePositionInfo FirstInfo(Handle<Code> code) const;
+  SourcePositionInfo FirstInfo(Handle<InstructionStream> code) const;
 
-  void Print(std::ostream& out, Code code) const;
+  void Print(std::ostream& out, InstructionStream code) const;
   void PrintJson(std::ostream& out) const;
 
   int ScriptOffset() const {

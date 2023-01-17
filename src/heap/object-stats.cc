@@ -101,12 +101,12 @@ class FieldStatsCollector : public ObjectVisitorWithCageBases {
     *tagged_fields_count_ += 1;
   }
 
-  void VisitCodeTarget(Code host, RelocInfo* rinfo) override {
-    // Code target is most likely encoded as a relative 32-bit offset and not
-    // as a full tagged value, so there's nothing to count.
+  void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo) override {
+    // InstructionStream target is most likely encoded as a relative 32-bit
+    // offset and not as a full tagged value, so there's nothing to count.
   }
 
-  void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
+  void VisitEmbeddedPointer(InstructionStream host, RelocInfo* rinfo) override {
     *tagged_fields_count_ += 1;
   }
 
@@ -429,7 +429,7 @@ class ObjectStatsCollectorImpl {
   // Details.
   void RecordVirtualAllocationSiteDetails(AllocationSite site);
   void RecordVirtualBytecodeArrayDetails(BytecodeArray bytecode);
-  void RecordVirtualCodeDetails(Code code);
+  void RecordVirtualCodeDetails(InstructionStream code);
   void RecordVirtualContext(Context context);
   void RecordVirtualFeedbackVectorDetails(FeedbackVector vector);
   void RecordVirtualFixedArrayDetails(FixedArray array);
@@ -753,8 +753,8 @@ void ObjectStatsCollectorImpl::CollectStatistics(
         RecordVirtualMapDetails(Map::cast(obj));
       } else if (InstanceTypeChecker::IsBytecodeArray(instance_type)) {
         RecordVirtualBytecodeArrayDetails(BytecodeArray::cast(obj));
-      } else if (InstanceTypeChecker::IsCode(instance_type)) {
-        RecordVirtualCodeDetails(Code::cast(obj));
+      } else if (InstanceTypeChecker::IsInstructionStream(instance_type)) {
+        RecordVirtualCodeDetails(InstructionStream::cast(obj));
       } else if (InstanceTypeChecker::IsFunctionTemplateInfo(instance_type)) {
         RecordVirtualFunctionTemplateInfoDetails(
             FunctionTemplateInfo::cast(obj));
@@ -1031,7 +1031,8 @@ ObjectStats::VirtualInstanceType CodeKindToVirtualInstanceType(CodeKind kind) {
 
 }  // namespace
 
-void ObjectStatsCollectorImpl::RecordVirtualCodeDetails(Code code) {
+void ObjectStatsCollectorImpl::RecordVirtualCodeDetails(
+    InstructionStream code) {
   RecordSimpleVirtualObjectStats(HeapObject(), code,
                                  CodeKindToVirtualInstanceType(code.kind()));
   RecordSimpleVirtualObjectStats(code, code.relocation_info(),

@@ -120,7 +120,7 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
     if (SerializeReadOnlyObjectReference(raw, &sink_)) return;
 
     instance_type = raw.map().instance_type();
-    CHECK(!InstanceTypeChecker::IsCode(instance_type));
+    CHECK(!InstanceTypeChecker::IsInstructionStream(instance_type));
 
     if (ElideObject(raw)) {
       AllowGarbageCollection allow_gc;
@@ -267,7 +267,7 @@ void CreateInterpreterDataForDeserializedCode(Isolate* isolate,
     DCHECK(shared_info.HasBytecodeArray());
     Handle<SharedFunctionInfo> info = handle(shared_info, isolate);
 
-    Handle<Code> code =
+    Handle<InstructionStream> code =
         Builtins::CreateInterpreterEntryTrampolineForProfiling(isolate);
 
     Handle<InterpreterData> interpreter_data =

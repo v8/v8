@@ -175,8 +175,8 @@ class Builtins {
   static bool IsCpp(Builtin builtin);
 
   // True, iff the given code object is a builtin. Note that this does not
-  // necessarily mean that its kind is Code::BUILTIN.
-  static bool IsBuiltin(const Code code);
+  // necessarily mean that its kind is InstructionStream::BUILTIN.
+  static bool IsBuiltin(const InstructionStream code);
 
   // As above, but safe to access off the main thread since the check is done
   // by handle location. Similar to Heap::IsRootHandle.
@@ -232,7 +232,7 @@ class Builtins {
   // function.
   // TODO(delphick): Come up with a better name since it may not generate an
   // executable trampoline.
-  static Handle<Code> GenerateOffHeapTrampolineFor(
+  static Handle<InstructionStream> GenerateOffHeapTrampolineFor(
       Isolate* isolate, Address off_heap_entry, int32_t kind_specific_flags,
       bool generate_jump_to_instruction_stream);
 
@@ -241,12 +241,12 @@ class Builtins {
   static Handle<ByteArray> GenerateOffHeapTrampolineRelocInfo(Isolate* isolate);
 
   // Creates a copy of InterpreterEntryTrampolineForProfiling in the code space.
-  static Handle<Code> CreateInterpreterEntryTrampolineForProfiling(
+  static Handle<InstructionStream> CreateInterpreterEntryTrampolineForProfiling(
       Isolate* isolate);
 
   // Only builtins with JS linkage should ever need to be called via their
-  // trampoline Code object. The remaining builtins have non-executable Code
-  // objects.
+  // trampoline InstructionStream object. The remaining builtins have
+  // non-executable InstructionStream objects.
   static bool CodeObjectIsExecutable(Builtin builtin);
 
   static bool IsJSEntryVariant(Builtin builtin) {
@@ -336,8 +336,8 @@ class Builtins {
 };
 
 V8_INLINE constexpr bool IsInterpreterTrampolineBuiltin(Builtin builtin_id) {
-  // Check for kNoBuiltinId first to abort early when the current Code object
-  // is not a builtin.
+  // Check for kNoBuiltinId first to abort early when the current
+  // InstructionStream object is not a builtin.
   return builtin_id != Builtin::kNoBuiltinId &&
          (builtin_id == Builtin::kInterpreterEntryTrampoline ||
           builtin_id == Builtin::kInterpreterEnterAtBytecode ||
@@ -345,8 +345,8 @@ V8_INLINE constexpr bool IsInterpreterTrampolineBuiltin(Builtin builtin_id) {
 }
 
 V8_INLINE constexpr bool IsBaselineTrampolineBuiltin(Builtin builtin_id) {
-  // Check for kNoBuiltinId first to abort early when the current Code object
-  // is not a builtin.
+  // Check for kNoBuiltinId first to abort early when the current
+  // InstructionStream object is not a builtin.
   return builtin_id != Builtin::kNoBuiltinId &&
          (builtin_id == Builtin::kBaselineOutOfLinePrologue ||
           builtin_id == Builtin::kBaselineOutOfLinePrologueDeopt ||

@@ -59,18 +59,18 @@ class CodeAssemblerTester {
     return state_.raw_assembler_.get();
   }
 
-  Handle<Code> GenerateCode() {
+  Handle<InstructionStream> GenerateCode() {
     return GenerateCode(AssemblerOptions::Default(scope_.isolate()));
   }
 
-  Handle<Code> GenerateCode(const AssemblerOptions& options) {
+  Handle<InstructionStream> GenerateCode(const AssemblerOptions& options) {
     if (state_.InsideBlock()) {
       CodeAssembler(&state_).Unreachable();
     }
     return CodeAssembler::GenerateCode(&state_, options, nullptr);
   }
 
-  Handle<Code> GenerateCodeCloseAndEscape() {
+  Handle<InstructionStream> GenerateCodeCloseAndEscape() {
     return scope_.CloseAndEscape(GenerateCode());
   }
 

@@ -159,7 +159,7 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   // produce the actual code object. If an error occurs during either phase,
   // FinalizeCode returns an empty MaybeHandle.
   void AssembleCode();  // Does not need to run on main thread.
-  MaybeHandle<Code> FinalizeCode();
+  MaybeHandle<InstructionStream> FinalizeCode();
 
   base::OwnedVector<byte> GetSourcePositionTable();
   base::OwnedVector<byte> GetProtectedInstructionsData();
@@ -466,8 +466,8 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   // with function size. {jump_deoptimization_entry_labels_} is an optimization
   // to that effect, which extracts the (potentially large) instruction
   // sequence for the final jump to the deoptimization entry into a single spot
-  // per Code object. All deopt exits can then near-call to this label. Note:
-  // not used on all architectures.
+  // per InstructionStream object. All deopt exits can then near-call to this
+  // label. Note: not used on all architectures.
   Label jump_deoptimization_entry_labels_[kDeoptimizeKindCount];
 
   // The maximal combined height of all frames produced upon deoptimization, and

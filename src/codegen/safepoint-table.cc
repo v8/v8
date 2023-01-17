@@ -20,7 +20,8 @@
 namespace v8 {
 namespace internal {
 
-SafepointTable::SafepointTable(Isolate* isolate, Address pc, Code code)
+SafepointTable::SafepointTable(Isolate* isolate, Address pc,
+                               InstructionStream code)
     : SafepointTable(code.InstructionStart(isolate, pc),
                      code.SafepointTableAddress()) {}
 
@@ -169,7 +170,7 @@ void SafepointTableBuilder::Emit(Assembler* assembler, int tagged_slots_size) {
 #endif
 
   // Make sure the safepoint table is properly aligned. Pad with nops.
-  assembler->Align(Code::kMetadataAlignment);
+  assembler->Align(InstructionStream::kMetadataAlignment);
   assembler->RecordComment(";;; Safepoint table.");
   set_safepoint_table_offset(assembler->pc_offset());
 

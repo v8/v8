@@ -150,7 +150,7 @@ class BytecodeGraphTester {
     CanonicalHandleScope canonical(isolate_);
     compilation_info.ReopenHandlesInNewHandleScope(isolate_);
 
-    Handle<Code> code =
+    Handle<InstructionStream> code =
         Pipeline::GenerateCodeForTesting(&compilation_info, isolate_)
             .ToHandleChecked();
     function->set_code(*code, kReleaseStore);

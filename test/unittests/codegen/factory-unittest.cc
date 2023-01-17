@@ -32,7 +32,7 @@ TEST_F(FactoryCodeBuilderTest, Factory_CodeBuilder) {
   desc.unwinding_info = nullptr;
   desc.unwinding_info_size = 0;
   desc.origin = nullptr;
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(i_isolate(), desc, CodeKind::WASM_FUNCTION).Build();
 
   CHECK(i_isolate()->heap()->InSpace(*code, CODE_LO_SPACE));
@@ -77,7 +77,7 @@ TEST_F(FactoryCodeBuilderOOMTest, Factory_CodeBuilder_BuildOOM) {
   desc.instr_size = kInstructionSize;
   desc.buffer = instructions.get();
 
-  const Handle<Code> code =
+  const Handle<InstructionStream> code =
       Factory::CodeBuilder(i_isolate(), desc, CodeKind::WASM_FUNCTION).Build();
 
   CHECK(!code.is_null());
@@ -90,7 +90,7 @@ TEST_F(FactoryCodeBuilderOOMTest, Factory_CodeBuilder_TryBuildOOM) {
   desc.instr_size = kInstructionSize;
   desc.buffer = instructions.get();
 
-  const MaybeHandle<Code> code =
+  const MaybeHandle<InstructionStream> code =
       Factory::CodeBuilder(i_isolate(), desc, CodeKind::WASM_FUNCTION)
           .TryBuild();
 

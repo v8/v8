@@ -30,9 +30,8 @@ V8_EXPORT_PRIVATE void Heap_CombinedGenerationalAndSharedBarrierSlow(
 V8_EXPORT_PRIVATE void Heap_CombinedGenerationalAndSharedEphemeronBarrierSlow(
     EphemeronHashTable table, Address slot, HeapObject value);
 
-V8_EXPORT_PRIVATE void Heap_GenerationalBarrierForCodeSlow(Code host,
-                                                           RelocInfo* rinfo,
-                                                           HeapObject object);
+V8_EXPORT_PRIVATE void Heap_GenerationalBarrierForCodeSlow(
+    InstructionStream host, RelocInfo* rinfo, HeapObject object);
 
 V8_EXPORT_PRIVATE void Heap_GenerationalEphemeronKeyBarrierSlow(
     Heap* heap, HeapObject table, Address slot);
@@ -118,24 +117,25 @@ inline void CombinedWriteBarrierInternal(HeapObject host, HeapObjectSlot slot,
   // Marking barrier: mark value & record slots when marking is on.
   if (V8_UNLIKELY(is_marking)) {
     // CodePageHeaderModificationScope is not required because the only case
-    // when a Code value is stored somewhere is during creation of a new Code
-    // object which is then stored to CodeDataContainer's code field and this
-    // case is already guarded by CodePageMemoryModificationScope.
+    // when a InstructionStream value is stored somewhere is during creation of
+    // a new InstructionStream object which is then stored to
+    // CodeDataContainer's code field and this case is already guarded by
+    // CodePageMemoryModificationScope.
     WriteBarrier::MarkingSlow(host, HeapObjectSlot(slot), value);
   }
 }
 
 }  // namespace heap_internals
 
-inline void WriteBarrierForCode(Code host, RelocInfo* rinfo, Object value,
-                                WriteBarrierMode mode) {
+inline void WriteBarrierForCode(InstructionStream host, RelocInfo* rinfo,
+                                Object value, WriteBarrierMode mode) {
   DCHECK(!HasWeakHeapObjectTag(value));
   if (!value.IsHeapObject()) return;
   WriteBarrierForCode(host, rinfo, HeapObject::cast(value));
 }
 
-inline void WriteBarrierForCode(Code host, RelocInfo* rinfo, HeapObject value,
-                                WriteBarrierMode mode) {
+inline void WriteBarrierForCode(InstructionStream host, RelocInfo* rinfo,
+                                HeapObject value, WriteBarrierMode mode) {
   if (mode == SKIP_WRITE_BARRIER) {
     SLOW_DCHECK(!WriteBarrier::IsRequired(host, value));
     return;
@@ -200,14 +200,15 @@ inline void CombinedEphemeronWriteBarrier(EphemeronHashTable host,
 
   // Marking barrier: mark value & record slots when marking is on.
   if (is_marking) {
-    // Currently Code values are never stored in EphemeronTables. If this ever
-    // changes then the CodePageHeaderModificationScope might be required here.
+    // Currently InstructionStream values are never stored in EphemeronTables.
+    // If this ever changes then the CodePageHeaderModificationScope might be
+    // required here.
     DCHECK(!IsCodeSpaceObject(heap_object_value));
     WriteBarrier::MarkingSlow(host, HeapObjectSlot(slot), heap_object_value);
   }
 }
 
-inline void GenerationalBarrierForCode(Code host, RelocInfo* rinfo,
+inline void GenerationalBarrierForCode(InstructionStream host, RelocInfo* rinfo,
                                        HeapObject object) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return;
   heap_internals::MemoryChunk* object_chunk =
@@ -260,8 +261,9 @@ void WriteBarrier::Marking(HeapObject host, ObjectSlot slot, Object value) {
   DCHECK(!HasWeakHeapObjectTag(value));
   if (!value.IsHeapObject()) return;
   HeapObject value_heap_object = HeapObject::cast(value);
-  // Currently this marking barrier is never used for Code values. If this ever
-  // changes then the CodePageHeaderModificationScope might be required here.
+  // Currently this marking barrier is never used for InstructionStream values.
+  // If this ever changes then the CodePageHeaderModificationScope might be
+  // required here.
   DCHECK(!IsCodeSpaceObject(value_heap_object));
   Marking(host, HeapObjectSlot(slot), value_heap_object);
 }
@@ -271,8 +273,9 @@ void WriteBarrier::Marking(HeapObject host, MaybeObjectSlot slot,
   HeapObject value_heap_object;
   if (!value->GetHeapObject(&value_heap_object)) return;
   // This barrier is called from generated code and from C++ code.
-  // There must be no stores of Code values from generated code and all stores
-  // of Code values in C++ must be handled by CombinedWriteBarrierInternal().
+  // There must be no stores of InstructionStream values from generated code and
+  // all stores of InstructionStream values in C++ must be handled by
+  // CombinedWriteBarrierInternal().
   DCHECK(!IsCodeSpaceObject(value_heap_object));
   Marking(host, HeapObjectSlot(slot), value_heap_object);
 }
@@ -283,12 +286,14 @@ void WriteBarrier::Marking(HeapObject host, HeapObjectSlot slot,
   MarkingSlow(host, slot, value);
 }
 
-void WriteBarrier::Marking(Code host, RelocInfo* reloc_info, HeapObject value) {
+void WriteBarrier::Marking(InstructionStream host, RelocInfo* reloc_info,
+                           HeapObject value) {
   if (!IsMarking(host)) return;
   MarkingSlow(host, reloc_info, value);
 }
 
-void WriteBarrier::Shared(Code host, RelocInfo* reloc_info, HeapObject value) {
+void WriteBarrier::Shared(InstructionStream host, RelocInfo* reloc_info,
+                          HeapObject value) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return;
 
   heap_internals::MemoryChunk* value_chunk =

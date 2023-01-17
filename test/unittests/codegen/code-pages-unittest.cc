@@ -153,7 +153,7 @@ TEST_F(CodePagesTest, OptimizedCodeWithCodeRange) {
   // We don't produce optimized code when run with --no-turbofan and
   // --no-maglev.
   if (!code_data_container.is_optimized_code()) return;
-  Code foo_code = FromCodeDataContainer(code_data_container);
+  InstructionStream foo_code = FromCodeDataContainer(code_data_container);
 
   EXPECT_TRUE(i_isolate()->heap()->InSpace(foo_code, CODE_SPACE));
 
@@ -203,7 +203,7 @@ TEST_F(CodePagesTest, OptimizedCodeWithCodePages) {
       // We don't produce optimized code when run with --no-turbofan and
       // --no-maglev.
       if (!code_data_container.is_optimized_code()) return;
-      Code foo_code = FromCodeDataContainer(code_data_container);
+      InstructionStream foo_code = FromCodeDataContainer(code_data_container);
 
       EXPECT_TRUE(i_isolate()->heap()->InSpace(foo_code, CODE_SPACE));
 
@@ -292,7 +292,7 @@ TEST_F(CodePagesTest, LargeCodeObject) {
 
   {
     HandleScope scope(i_isolate());
-    Handle<Code> foo_code =
+    Handle<InstructionStream> foo_code =
         Factory::CodeBuilder(i_isolate(), desc, CodeKind::WASM_FUNCTION)
             .Build();
 
@@ -418,7 +418,7 @@ TEST_F(CodePagesTest, LargeCodeObjectWithSignalHandler) {
 
   {
     HandleScope scope(i_isolate());
-    Handle<Code> foo_code =
+    Handle<InstructionStream> foo_code =
         Factory::CodeBuilder(i_isolate(), desc, CodeKind::WASM_FUNCTION)
             .Build();
 
@@ -493,7 +493,7 @@ TEST_F(CodePagesTest, Sorted) {
   };
   {
     HandleScope outer_scope(i_isolate());
-    Handle<Code> code1, code3;
+    Handle<InstructionStream> code1, code3;
     Address code2_address;
 
     code1 = Factory::CodeBuilder(i_isolate(), desc, CodeKind::WASM_FUNCTION)
@@ -505,7 +505,7 @@ TEST_F(CodePagesTest, Sorted) {
 
       // Create three large code objects, we'll delete the middle one and check
       // everything is still sorted.
-      Handle<Code> code2 =
+      Handle<InstructionStream> code2 =
           Factory::CodeBuilder(i_isolate(), desc, CodeKind::WASM_FUNCTION)
               .Build();
       EXPECT_TRUE(i_isolate()->heap()->InSpace(*code2, CODE_LO_SPACE));

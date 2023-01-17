@@ -179,8 +179,8 @@ VisitorId Map::GetVisitorId(Map map) {
     case MAP_TYPE:
       return kVisitMap;
 
-    case CODE_TYPE:
-      return kVisitCode;
+    case INSTRUCTION_STREAM_TYPE:
+      return kVisitInstructionStream;
 
     case CELL_TYPE:
       return kVisitCell;

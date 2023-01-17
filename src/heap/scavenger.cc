@@ -63,17 +63,20 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
 
   V8_INLINE void VisitCodePointer(HeapObject host, CodeObjectSlot slot) final {
     CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-    // Code slots never appear in new space because CodeDataContainers, the
-    // only object that can contain code pointers, are always allocated in
-    // the old space.
+    // InstructionStream slots never appear in new space because
+    // CodeDataContainers, the only object that can contain code pointers, are
+    // always allocated in the old space.
     UNREACHABLE();
   }
 
-  V8_INLINE void VisitCodeTarget(Code host, RelocInfo* rinfo) final {
-    Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+  V8_INLINE void VisitCodeTarget(InstructionStream host,
+                                 RelocInfo* rinfo) final {
+    InstructionStream target =
+        InstructionStream::GetCodeFromTargetAddress(rinfo->target_address());
     HandleSlot(host, FullHeapObjectSlot(&target), target);
   }
-  V8_INLINE void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) final {
+  V8_INLINE void VisitEmbeddedPointer(InstructionStream host,
+                                      RelocInfo* rinfo) final {
     PtrComprCageBase cage_base = host.main_cage_base();
     HeapObject heap_object = rinfo->target_object(cage_base);
     HandleSlot(host, FullHeapObjectSlot(&heap_object), heap_object);
@@ -137,9 +140,9 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
                MarkCompactCollector::IsOnEvacuationCandidate(target)) {
       // We should never try to record off-heap slots.
       DCHECK((std::is_same<THeapObjectSlot, HeapObjectSlot>::value));
-      // Code slots never appear in new space because CodeDataContainers, the
-      // only object that can contain code pointers, are always allocated in
-      // the old space.
+      // InstructionStream slots never appear in new space because
+      // CodeDataContainers, the only object that can contain code pointers, are
+      // always allocated in the old space.
       DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
                      !MemoryChunk::FromHeapObject(target)->IsFlagSet(
                          MemoryChunk::IS_EXECUTABLE));

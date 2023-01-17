@@ -98,7 +98,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   // Create a pre-tenured empty AccessorPair.
   Handle<AccessorPair> NewAccessorPair();
 
-  // Creates a new CodeDataContainer for a Code object.
+  // Creates a new CodeDataContainer for a InstructionStream object.
   Handle<CodeDataContainer> NewCodeDataContainer(int flags,
                                                  AllocationType allocation);
 

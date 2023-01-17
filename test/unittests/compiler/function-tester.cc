@@ -52,7 +52,7 @@ FunctionTester::FunctionTester(Isolate* isolate, Graph* graph, int param_count)
   CompileGraph(graph);
 }
 
-FunctionTester::FunctionTester(Isolate* isolate, Handle<Code> code,
+FunctionTester::FunctionTester(Isolate* isolate, Handle<InstructionStream> code,
                                int param_count)
     : isolate(isolate),
       canonical(isolate),
@@ -64,7 +64,7 @@ FunctionTester::FunctionTester(Isolate* isolate, Handle<Code> code,
   function->set_code(ToCodeDataContainer(*code), kReleaseStore);
 }
 
-FunctionTester::FunctionTester(Isolate* isolate, Handle<Code> code)
+FunctionTester::FunctionTester(Isolate* isolate, Handle<InstructionStream> code)
     : FunctionTester(isolate, code, 0) {}
 
 void FunctionTester::CheckThrows(Handle<Object> a) {
@@ -162,7 +162,7 @@ Handle<JSFunction> FunctionTester::CompileGraph(Graph* graph) {
                                 CodeKind::TURBOFAN);
 
   auto call_descriptor = Linkage::ComputeIncoming(&zone, &info);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Pipeline::GenerateCodeForTesting(&info, isolate, call_descriptor, graph,
                                        AssemblerOptions::Default(isolate))
           .ToHandleChecked();

@@ -33,7 +33,7 @@ struct CodeOrCodeDataContainerOps {
   int code_comments_size() const { return code->code_comments_size(); }
 };
 
-using CodeOps = CodeOrCodeDataContainerOps<Code>;
+using CodeOps = CodeOrCodeDataContainerOps<InstructionStream>;
 using CodeDataContainerOps = CodeOrCodeDataContainerOps<CodeDataContainer>;
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -96,8 +96,8 @@ struct CodeDescOps {
   ret CodeReference::method() const {                               \
     DCHECK(!is_null());                                             \
     switch (kind_) {                                                \
-      case Kind::CODE:                                              \
-        return CodeOps{code_}.method();                             \
+      case Kind::INSTRUCTION_STREAM:                                \
+        return CodeOps{instruction_stream_}.method();               \
       case Kind::CODE_DATA_CONTAINER:                               \
         return CodeDataContainerOps{code_data_container_}.method(); \
       case Kind::WASM_CODE:                                         \

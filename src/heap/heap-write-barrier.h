@@ -14,7 +14,7 @@ namespace v8 {
 namespace internal {
 
 class ArrayBufferExtension;
-class Code;
+class InstructionStream;
 class DescriptorArray;
 class EphemeronHashTable;
 class FixedArray;
@@ -29,9 +29,10 @@ class RelocInfo;
 // object-macros.h.
 
 // Combined write barriers.
-void WriteBarrierForCode(Code host, RelocInfo* rinfo, Object value,
+void WriteBarrierForCode(InstructionStream host, RelocInfo* rinfo, Object value,
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-void WriteBarrierForCode(Code host, RelocInfo* rinfo, HeapObject value,
+void WriteBarrierForCode(InstructionStream host, RelocInfo* rinfo,
+                         HeapObject value,
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
 void CombinedWriteBarrier(HeapObject object, ObjectSlot slot, Object value,
@@ -43,7 +44,8 @@ void CombinedEphemeronWriteBarrier(EphemeronHashTable object, ObjectSlot slot,
                                    Object value, WriteBarrierMode mode);
 
 // Generational write barrier.
-void GenerationalBarrierForCode(Code host, RelocInfo* rinfo, HeapObject object);
+void GenerationalBarrierForCode(InstructionStream host, RelocInfo* rinfo,
+                                HeapObject object);
 
 inline bool IsReadOnlyHeapObject(HeapObject object);
 
@@ -53,11 +55,13 @@ class V8_EXPORT_PRIVATE WriteBarrier {
   static inline void Marking(HeapObject host, HeapObjectSlot, HeapObject value);
   static inline void Marking(HeapObject host, MaybeObjectSlot,
                              MaybeObject value);
-  static inline void Marking(Code host, RelocInfo*, HeapObject value);
+  static inline void Marking(InstructionStream host, RelocInfo*,
+                             HeapObject value);
   static inline void Marking(JSArrayBuffer host, ArrayBufferExtension*);
   static inline void Marking(DescriptorArray, int number_of_own_descriptors);
 
-  static inline void Shared(Code host, RelocInfo*, HeapObject value);
+  static inline void Shared(InstructionStream host, RelocInfo*,
+                            HeapObject value);
 
   // It is invoked from generated code and has to take raw addresses.
   static int MarkingFromCode(Address raw_host, Address raw_slot);
@@ -89,7 +93,7 @@ class V8_EXPORT_PRIVATE WriteBarrier {
  private:
   static inline bool IsMarking(HeapObject object);
 
-  static void MarkingSlow(Code host, RelocInfo*, HeapObject value);
+  static void MarkingSlow(InstructionStream host, RelocInfo*, HeapObject value);
   static void MarkingSlow(JSArrayBuffer host, ArrayBufferExtension*);
   static void MarkingSlow(DescriptorArray, int number_of_own_descriptors);
   static void MarkingSlowFromGlobalHandle(HeapObject value);
@@ -101,7 +105,7 @@ class V8_EXPORT_PRIVATE WriteBarrier {
                                                            size_t argc,
                                                            void** values);
 
-  static void SharedSlow(Code host, RelocInfo*, HeapObject value);
+  static void SharedSlow(InstructionStream host, RelocInfo*, HeapObject value);
 
   friend class Heap;
 };

@@ -162,14 +162,14 @@ bool CodeAssembler::Word32ShiftIsSafe() const {
 }
 
 // static
-Handle<Code> CodeAssembler::GenerateCode(
+Handle<InstructionStream> CodeAssembler::GenerateCode(
     CodeAssemblerState* state, const AssemblerOptions& options,
     const ProfileDataFromFile* profile_data) {
   DCHECK(!state->code_generated_);
 
   RawMachineAssembler* rasm = state->raw_assembler_.get();
 
-  Handle<Code> code;
+  Handle<InstructionStream> code;
   Graph* graph = rasm->ExportForOptimization();
 
   code = Pipeline::GenerateCodeForCodeStub(

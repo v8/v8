@@ -126,7 +126,8 @@ RUNTIME_FUNCTION(Runtime_CompileOptimized) {
   }
 
   // As a pre- and post-condition of CompileOptimized, the function *must* be
-  // compiled, i.e. the installed Code object must not be CompileLazy.
+  // compiled, i.e. the installed InstructionStream object must not be
+  // CompileLazy.
   IsCompiledScope is_compiled_scope(function->shared(), isolate);
   DCHECK(is_compiled_scope.is_compiled());
 
@@ -368,7 +369,7 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   Handle<JSFunction> function = deoptimizer->function();
   // For OSR the optimized code isn't installed on the function, so get the
   // code object from deoptimizer.
-  Handle<Code> optimized_code = deoptimizer->compiled_code();
+  Handle<InstructionStream> optimized_code = deoptimizer->compiled_code();
   const DeoptimizeKind deopt_kind = deoptimizer->deopt_kind();
   const DeoptimizeReason deopt_reason =
       deoptimizer->GetDeoptInfo().deopt_reason;
@@ -395,8 +396,8 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
-  // Some eager deopts also don't invalidate Code (e.g. when preparing for OSR
-  // from Maglev to Turbofan).
+  // Some eager deopts also don't invalidate InstructionStream (e.g. when
+  // preparing for OSR from Maglev to Turbofan).
   if (IsDeoptimizationWithoutCodeInvalidation(deopt_reason)) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
@@ -567,7 +568,8 @@ RUNTIME_FUNCTION(Runtime_CompileOptimizedOSRFromMaglev) {
     //
     // We solve this synchronous OSR case by bailing out early to Ignition, and
     // letting it handle OSR. How do we trigger the early bailout? Returning
-    // any non-null Code from this function triggers the deopt in JumpLoop.
+    // any non-null InstructionStream from this function triggers the deopt in
+    // JumpLoop.
     return function->code();
   }
 

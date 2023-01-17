@@ -534,8 +534,9 @@ void WasmFunctionWrapper::Init(CallDescriptor* call_descriptor,
   graph()->SetEnd(graph()->NewNode(common()->End(1), r));
 }
 
-Handle<Code> WasmFunctionWrapper::GetWrapperCode(Isolate* isolate) {
-  Handle<Code> code;
+Handle<InstructionStream> WasmFunctionWrapper::GetWrapperCode(
+    Isolate* isolate) {
+  Handle<InstructionStream> code;
   if (!code_.ToHandle(&code)) {
     auto call_descriptor = compiler::Linkage::GetSimplifiedCDescriptor(
         zone(), signature_, CallDescriptor::kInitializeRootRegister);

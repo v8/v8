@@ -111,7 +111,7 @@ enum class RefSerializationKind {
   BACKGROUND_SERIALIZED(BigInt)                                               \
   NEVER_SERIALIZED(CallHandlerInfo)                                           \
   NEVER_SERIALIZED(Cell)                                                      \
-  NEVER_SERIALIZED(Code)                                                      \
+  NEVER_SERIALIZED(InstructionStream)                                         \
   NEVER_SERIALIZED(CodeDataContainer)                                         \
   NEVER_SERIALIZED(Context)                                                   \
   NEVER_SERIALIZED(DescriptorArray)                                           \
@@ -1010,11 +1010,11 @@ class JSGlobalProxyRef : public JSObjectRef {
   Handle<JSGlobalProxy> object() const;
 };
 
-class CodeRef : public HeapObjectRef {
+class InstructionStreamRef : public HeapObjectRef {
  public:
-  DEFINE_REF_CONSTRUCTOR(Code, HeapObjectRef)
+  DEFINE_REF_CONSTRUCTOR(InstructionStream, HeapObjectRef)
 
-  Handle<Code> object() const;
+  Handle<InstructionStream> object() const;
 
   unsigned GetInlinedBytecodeSize() const;
 };

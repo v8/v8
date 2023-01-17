@@ -327,11 +327,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadCodeDataContainerEntry(Register destination,
                                   Register code_data_container_object);
   // Load code entry point from the CodeDataContainer object and compute
-  // Code object pointer out of it. Must not be used for CodeDataContainers
-  // corresponding to builtins, because their entry points values point to
-  // the embedded instruction stream in .text section.
-  void LoadCodeDataContainerCodeNonBuiltin(Register destination,
-                                           Register code_data_container_object);
+  // InstructionStream object pointer out of it. Must not be used for
+  // CodeDataContainers corresponding to builtins, because their entry points
+  // values point to the embedded instruction stream in .text section.
+  void LoadCodeDataContainerInstructionStreamNonBuiltin(
+      Register destination, Register code_data_container_object);
   void CallCodeDataContainerObject(Register code_data_container_object);
   void JumpCodeDataContainerObject(Register code_data_container_object,
                                    JumpMode jump_mode = JumpMode::kJump);
@@ -912,7 +912,7 @@ struct MoveCycleState {
   VfpRegList scratch_v_reglist = 0;
   // Available scratch registers during the move cycle resolution scope.
   base::Optional<UseScratchRegisterScope> temps;
-  // Code of the scratch register picked by {MoveToTempLocation}.
+  // InstructionStream of the scratch register picked by {MoveToTempLocation}.
   int scratch_reg_code = -1;
 };
 

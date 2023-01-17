@@ -387,9 +387,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   CodeAssembler(const CodeAssembler&) = delete;
   CodeAssembler& operator=(const CodeAssembler&) = delete;
 
-  static Handle<Code> GenerateCode(CodeAssemblerState* state,
-                                   const AssemblerOptions& options,
-                                   const ProfileDataFromFile* profile_data);
+  static Handle<InstructionStream> GenerateCode(
+      CodeAssemblerState* state, const AssemblerOptions& options,
+      const ProfileDataFromFile* profile_data);
   bool Is64() const;
   bool Is32() const;
   bool IsFloat64RoundUpSupported() const;

@@ -57,7 +57,7 @@ Handle<CodeDataContainer> CreateDummyCode(Isolate* isolate) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   return ToCodeDataContainer(code, isolate);
 }
@@ -299,7 +299,7 @@ TEST_F(DisasmX64Test, DisasmX64) {
 
   CodeDesc desc;
   assm.GetCode(isolate(), &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate(), desc, CodeKind::FOR_TESTING).Build();
   USE(code);
 #ifdef OBJECT_PRINT

@@ -1423,7 +1423,7 @@ namespace {
 
 void RecordStats(CodeDataContainer code_data_container, Counters* counters) {
   if (code_data_container.is_off_heap_trampoline()) return;
-  Code code = FromCodeDataContainer(code_data_container);
+  InstructionStream code = FromCodeDataContainer(code_data_container);
   counters->wasm_generated_code_size()->Increment(code.raw_body_size());
   counters->wasm_reloc_size()->Increment(code.relocation_info().length());
 }

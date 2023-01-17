@@ -115,16 +115,16 @@ class PendingDependencies final {
 
   void Register(Handle<HeapObject> object,
                 DependentCode::DependencyGroup group) {
-    // Code, which are per-local Isolate, cannot depend on objects in the shared
-    // heap. Shared heap dependencies are designed to never invalidate
-    // assumptions. E.g., maps for shared structs do not have transitions or
-    // change the shape of their fields. See
+    // InstructionStream, which are per-local Isolate, cannot depend on objects
+    // in the shared heap. Shared heap dependencies are designed to never
+    // invalidate assumptions. E.g., maps for shared structs do not have
+    // transitions or change the shape of their fields. See
     // DependentCode::DeoptimizeDependencyGroups for corresponding DCHECK.
     if (object->InSharedWritableHeap()) return;
     deps_[object] |= group;
   }
 
-  void InstallAll(Isolate* isolate, Handle<Code> code) {
+  void InstallAll(Isolate* isolate, Handle<InstructionStream> code) {
     if (V8_UNLIKELY(v8_flags.predictable)) {
       InstallAllPredictable(isolate, code);
       return;
@@ -139,7 +139,7 @@ class PendingDependencies final {
     }
   }
 
-  void InstallAllPredictable(Isolate* isolate, Handle<Code> code) {
+  void InstallAllPredictable(Isolate* isolate, Handle<InstructionStream> code) {
     CHECK(v8_flags.predictable);
     // First, guarantee predictable iteration order.
     using HandleAndGroup =
@@ -1189,7 +1189,7 @@ V8_INLINE void TraceInvalidCompilationDependency(
   PrintF("Compilation aborted due to invalid dependency: %s\n", d->ToString());
 }
 
-bool CompilationDependencies::Commit(Handle<Code> code) {
+bool CompilationDependencies::Commit(Handle<InstructionStream> code) {
   if (!PrepareInstall()) return false;
 
   {

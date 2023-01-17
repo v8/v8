@@ -210,8 +210,8 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {
       WasmExceptionPackage::cast(*this).WasmExceptionPackagePrint(os);
       break;
 #endif  // V8_ENABLE_WEBASSEMBLY
-    case CODE_TYPE:
-      Code::cast(*this).CodePrint(os);
+    case INSTRUCTION_STREAM_TYPE:
+      InstructionStream::cast(*this).InstructionStreamPrint(os);
       break;
     case CODE_DATA_CONTAINER_TYPE:
       CodeDataContainer::cast(*this).CodeDataContainerPrint(os);
@@ -1792,8 +1792,8 @@ void PropertyCell::PropertyCellPrint(std::ostream& os) {
   os << "\n";
 }
 
-void Code::CodePrint(std::ostream& os) {
-  PrintHeader(os, "Code");
+void InstructionStream::InstructionStreamPrint(std::ostream& os) {
+  PrintHeader(os, "InstructionStream");
   os << "\n - code_data_container: "
      << Brief(code_data_container(kAcquireLoad));
   if (is_builtin()) {
@@ -1812,7 +1812,7 @@ void CodeDataContainer::CodeDataContainerPrint(std::ostream& os) {
     os << "\n - builtin: " << Builtins::name(builtin_id());
   }
   os << "\n - is_off_heap_trampoline: " << is_off_heap_trampoline();
-  os << "\n - code: " << Brief(raw_code());
+  os << "\n - instruction_stream: " << Brief(raw_instruction_stream());
   os << "\n - code_entry_point: "
      << reinterpret_cast<void*>(code_entry_point());
   os << "\n - kind_specific_flags: " << kind_specific_flags(kRelaxedLoad);
@@ -3052,13 +3052,14 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {
         i::CodeDataContainer::cast(lookup_result.code_data_container());
     code.Disassemble(nullptr, os, isolate, address);
   } else {
-    lookup_result.code().Disassemble(nullptr, os, isolate, address);
+    lookup_result.instruction_stream().Disassemble(nullptr, os, isolate,
+                                                   address);
   }
 #else   // ENABLE_DISASSEMBLER
   if (lookup_result.IsCodeDataContainer()) {
     lookup_result.code_data_container().Print();
   } else {
-    lookup_result.code().Print();
+    lookup_result.instruction_stream().Print();
   }
 #endif  // ENABLE_DISASSEMBLER
 }

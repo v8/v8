@@ -118,7 +118,7 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   Handle<BytecodeArray> bytecode_array() const { return bytecode_array_; }
   bool has_bytecode_array() const { return !bytecode_array_.is_null(); }
   Handle<JSFunction> closure() const { return closure_; }
-  Handle<Code> code() const { return code_; }
+  Handle<InstructionStream> code() const { return code_; }
   CodeKind code_kind() const { return code_kind_; }
   Builtin builtin() const { return builtin_; }
   void set_builtin(Builtin builtin) { builtin_ = builtin; }
@@ -129,9 +129,9 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   }
   compiler::NodeObserver* node_observer() const { return node_observer_; }
 
-  // Code getters and setters.
+  // InstructionStream getters and setters.
 
-  void SetCode(Handle<Code> code);
+  void SetCode(Handle<InstructionStream> code);
 
 #if V8_ENABLE_WEBASSEMBLY
   void SetWasmCompilationResult(std::unique_ptr<wasm::WasmCompilationResult>);
@@ -260,7 +260,7 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   Handle<JSFunction> closure_;
 
   // The compiled code.
-  Handle<Code> code_;
+  Handle<InstructionStream> code_;
 
   // Basic block profiling support.
   BasicBlockProfilerData* profiler_data_ = nullptr;

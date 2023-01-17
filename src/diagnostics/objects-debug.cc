@@ -243,8 +243,8 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       TransitionArray::cast(*this).TransitionArrayVerify(isolate);
       break;
 
-    case CODE_TYPE:
-      Code::cast(*this).CodeVerify(isolate);
+    case INSTRUCTION_STREAM_TYPE:
+      InstructionStream::cast(*this).InstructionStreamVerify(isolate);
       break;
     case JS_API_OBJECT_TYPE:
     case JS_ARRAY_ITERATOR_PROTOTYPE_TYPE:
@@ -335,7 +335,7 @@ void HeapObject::VerifyHeapPointer(Isolate* isolate, Object p) {
   // If you crashed here and {isolate->is_shared()}, there is a bug causing the
   // host of {p} to point to a non-shared object.
   CHECK(IsValidHeapObject(isolate->heap(), HeapObject::cast(p)));
-  CHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !p.IsCode());
+  CHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !p.IsInstructionStream());
 }
 
 // static
@@ -343,7 +343,7 @@ void HeapObject::VerifyCodePointer(Isolate* isolate, Object p) {
   CHECK(p.IsHeapObject());
   CHECK(IsValidCodeObject(isolate->heap(), HeapObject::cast(p)));
   PtrComprCageBase cage_base(isolate);
-  CHECK(HeapObject::cast(p).IsCode(cage_base));
+  CHECK(HeapObject::cast(p).IsInstructionStream(cage_base));
 }
 
 void Symbol::SymbolVerify(Isolate* isolate) {
@@ -1091,36 +1091,38 @@ void PropertyCell::PropertyCellVerify(Isolate* isolate) {
 
 void CodeDataContainer::CodeDataContainerVerify(Isolate* isolate) {
   CHECK(IsCodeDataContainer());
-  if (raw_code() != Smi::zero()) {
-    Code code = this->code();
+  if (raw_instruction_stream() != Smi::zero()) {
+    InstructionStream code = this->instruction_stream();
     CHECK_EQ(code.kind(), kind());
     CHECK_EQ(code.builtin_id(), builtin_id());
     // When v8_flags.interpreted_frames_native_stack is enabled each
     // interpreted function gets its own copy of the
-    // InterpreterEntryTrampoline. Thus, there could be Code'ful builtins.
+    // InterpreterEntryTrampoline. Thus, there could be InstructionStream'ful
+    // builtins.
     CHECK_IMPLIES(isolate->embedded_blob_code() && is_off_heap_trampoline(),
                   builtin_id() == Builtin::kInterpreterEntryTrampoline);
     CHECK_EQ(code.code_data_container(kAcquireLoad), *this);
 
-    // Ensure the cached code entry point corresponds to the Code object
-    // associated with this CodeDataContainer.
+    // Ensure the cached code entry point corresponds to the InstructionStream
+    // object associated with this CodeDataContainer.
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
     if (V8_SHORT_BUILTIN_CALLS_BOOL) {
       if (code.InstructionStart() == code_entry_point()) {
         // Most common case, all good.
       } else {
         // When shared pointer compression cage is enabled and it has the
-        // embedded code blob copy then the Code::InstructionStart() might
-        // return the address of the remapped builtin regardless of whether
-        // the builtins copy existed when the code_entry_point value was
-        // cached in the CodeDataContainer (see
-        // Code::OffHeapInstructionStart()).  So, do a reverse Code object
-        // lookup via code_entry_point value to ensure it corresponds to the
-        // same Code object associated with this CodeDataContainer.
+        // embedded code blob copy then the
+        // InstructionStream::InstructionStart() might return the address of the
+        // remapped builtin regardless of whether the builtins copy existed when
+        // the code_entry_point value was cached in the CodeDataContainer (see
+        // InstructionStream::OffHeapInstructionStart()).  So, do a reverse
+        // InstructionStream object lookup via code_entry_point value to ensure
+        // it corresponds to the same InstructionStream object associated with
+        // this CodeDataContainer.
         CodeLookupResult lookup_result =
             isolate->heap()->GcSafeFindCodeForInnerPointer(code_entry_point());
         CHECK(lookup_result.IsFound());
-        CHECK_EQ(lookup_result.ToCode(), code);
+        CHECK_EQ(lookup_result.ToInstructionStream(), code);
       }
     } else {
       CHECK_EQ(code.InstructionStart(), code_entry_point());
@@ -1131,9 +1133,10 @@ void CodeDataContainer::CodeDataContainerVerify(Isolate* isolate) {
   }
 }
 
-void Code::CodeVerify(Isolate* isolate) {
-  CHECK(IsAligned(InstructionSize(),
-                  static_cast<unsigned>(Code::kMetadataAlignment)));
+void InstructionStream::InstructionStreamVerify(Isolate* isolate) {
+  CHECK(
+      IsAligned(InstructionSize(),
+                static_cast<unsigned>(InstructionStream::kMetadataAlignment)));
   CHECK_EQ(safepoint_table_offset(), 0);
   CHECK_LE(safepoint_table_offset(), handler_table_offset());
   CHECK_LE(handler_table_offset(), constant_pool_offset());
@@ -1147,11 +1150,11 @@ void Code::CodeVerify(Isolate* isolate) {
 #endif  // !defined(_MSC_VER) || defined(__clang__)
   CHECK_IMPLIES(!ReadOnlyHeap::Contains(*this),
                 IsAligned(raw_instruction_start(), kCodeAlignment));
-  CHECK_EQ(*this, code_data_container(kAcquireLoad).code());
+  CHECK_EQ(*this, code_data_container(kAcquireLoad).instruction_stream());
   // TODO(delphick): Refactor Factory::CodeBuilder::BuildInternal, so that the
   // following CHECK works builtin trampolines. It currently fails because
-  // CodeVerify is called halfway through constructing the trampoline and so not
-  // everything is set up.
+  // InstructionStreamVerify is called halfway through constructing the
+  // trampoline and so not everything is set up.
   // CHECK_EQ(ReadOnlyHeap::Contains(*this), !IsExecutable());
   relocation_info().ObjectVerify(isolate);
   CHECK(V8_ENABLE_THIRD_PARTY_HEAP_BOOL ||
@@ -1577,7 +1580,8 @@ void JSRegExp::JSRegExpVerify(Isolate* isolate) {
       FixedArray arr = FixedArray::cast(data());
       Object one_byte_data = arr.get(JSRegExp::kIrregexpLatin1CodeIndex);
       // Smi : Not compiled yet (-1).
-      // Code: Compiled irregexp code or trampoline to the interpreter.
+      // InstructionStream: Compiled irregexp code or trampoline to the
+      // interpreter.
       CHECK((one_byte_data.IsSmi() &&
              Smi::ToInt(one_byte_data) == JSRegExp::kUninitializedValue) ||
             one_byte_data.IsCodeDataContainer());

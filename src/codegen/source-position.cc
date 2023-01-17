@@ -60,7 +60,7 @@ std::vector<SourcePositionInfo> SourcePosition::InliningStack(
 }
 
 std::vector<SourcePositionInfo> SourcePosition::InliningStack(
-    Handle<Code> code) const {
+    Handle<InstructionStream> code) const {
   Isolate* isolate = code->GetIsolate();
   DeoptimizationData deopt_data =
       DeoptimizationData::cast(code->deoptimization_data());
@@ -79,7 +79,8 @@ std::vector<SourcePositionInfo> SourcePosition::InliningStack(
   return stack;
 }
 
-SourcePositionInfo SourcePosition::FirstInfo(Handle<Code> code) const {
+SourcePositionInfo SourcePosition::FirstInfo(
+    Handle<InstructionStream> code) const {
   DisallowGarbageCollection no_gc;
   Isolate* isolate = code->GetIsolate();
   DeoptimizationData deopt_data =
@@ -127,7 +128,7 @@ void SourcePosition::PrintJson(std::ostream& out) const {
   }
 }
 
-void SourcePosition::Print(std::ostream& out, Code code) const {
+void SourcePosition::Print(std::ostream& out, InstructionStream code) const {
   DeoptimizationData deopt_data =
       DeoptimizationData::cast(code.deoptimization_data());
   if (!isInlined()) {

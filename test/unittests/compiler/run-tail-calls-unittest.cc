@@ -21,7 +21,8 @@ namespace {
 
 // Function that takes a number of pointer-sized integer arguments, calculates a
 // weighted sum of them and returns it.
-Handle<Code> BuildCallee(Isolate* isolate, CallDescriptor* call_descriptor) {
+Handle<InstructionStream> BuildCallee(Isolate* isolate,
+                                      CallDescriptor* call_descriptor) {
   CodeAssemblerTester tester(isolate, call_descriptor, "callee");
   CodeStubAssembler assembler(tester.state());
   int param_slots = static_cast<int>(call_descriptor->ParameterSlotCount());
@@ -37,8 +38,9 @@ Handle<Code> BuildCallee(Isolate* isolate, CallDescriptor* call_descriptor) {
 
 // Function that tail-calls another function with a number of pointer-sized
 // integer arguments.
-Handle<Code> BuildCaller(Isolate* isolate, CallDescriptor* call_descriptor,
-                         CallDescriptor* callee_descriptor) {
+Handle<InstructionStream> BuildCaller(Isolate* isolate,
+                                      CallDescriptor* call_descriptor,
+                                      CallDescriptor* callee_descriptor) {
   CodeAssemblerTester tester(isolate, call_descriptor, "caller");
   CodeStubAssembler assembler(tester.state());
   std::vector<Node*> params;
@@ -57,9 +59,9 @@ Handle<Code> BuildCaller(Isolate* isolate, CallDescriptor* call_descriptor,
 }
 
 // Setup function, which calls "caller".
-Handle<Code> BuildSetupFunction(Isolate* isolate,
-                                CallDescriptor* caller_descriptor,
-                                CallDescriptor* callee_descriptor) {
+Handle<InstructionStream> BuildSetupFunction(
+    Isolate* isolate, CallDescriptor* caller_descriptor,
+    CallDescriptor* callee_descriptor) {
   CodeAssemblerTester tester(isolate, JSParameterCount(0));
   CodeStubAssembler assembler(tester.state());
   std::vector<Node*> params;
@@ -120,7 +122,7 @@ class RunTailCallsTest : public TestWithContextAndZone {
         CreateDescriptorForStackArguments(zone(), n);
     CallDescriptor* callee_descriptor =
         CreateDescriptorForStackArguments(zone(), m);
-    Handle<Code> setup =
+    Handle<InstructionStream> setup =
         BuildSetupFunction(isolate, caller_descriptor, callee_descriptor);
     FunctionTester ft(isolate, setup, 0);
     Handle<Object> result = ft.Call().ToHandleChecked();

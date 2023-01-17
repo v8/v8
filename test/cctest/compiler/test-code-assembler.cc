@@ -474,7 +474,7 @@ TEST(TestCodeAssemblerCodeComment) {
   m.Comment("Comment1");
   m.Return(m.SmiConstant(1));
 
-  Handle<Code> code = asm_tester.GenerateCode();
+  Handle<InstructionStream> code = asm_tester.GenerateCode();
   CHECK_NE(code->code_comments(), kNullAddress);
   CodeCommentsIterator it(code->code_comments(), code->code_comments_size());
   CHECK(it.HasCurrent());

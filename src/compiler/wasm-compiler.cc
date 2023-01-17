@@ -8312,11 +8312,9 @@ wasm::WasmCode* CompileWasmJSFastCallWrapper(wasm::NativeModule* native_module,
   }
 }
 
-MaybeHandle<Code> CompileWasmToJSWrapper(Isolate* isolate,
-                                         const wasm::FunctionSig* sig,
-                                         WasmImportCallKind kind,
-                                         int expected_arity,
-                                         wasm::Suspend suspend) {
+MaybeHandle<InstructionStream> CompileWasmToJSWrapper(
+    Isolate* isolate, const wasm::FunctionSig* sig, WasmImportCallKind kind,
+    int expected_arity, wasm::Suspend suspend) {
   std::unique_ptr<Zone> zone = std::make_unique<Zone>(
       isolate->allocator(), ZONE_NAME, kCompressGraphZone);
 
@@ -8359,15 +8357,15 @@ MaybeHandle<Code> CompileWasmToJSWrapper(Isolate* isolate,
   if (job->ExecuteJob(isolate->counters()->runtime_call_stats()) ==
           CompilationJob::FAILED ||
       job->FinalizeJob(isolate) == CompilationJob::FAILED) {
-    return Handle<Code>();
+    return Handle<InstructionStream>();
   }
-  Handle<Code> code = job->compilation_info()->code();
+  Handle<InstructionStream> code = job->compilation_info()->code();
   return code;
 }
 
-MaybeHandle<Code> CompileJSToJSWrapper(Isolate* isolate,
-                                       const wasm::FunctionSig* sig,
-                                       const wasm::WasmModule* module) {
+MaybeHandle<InstructionStream> CompileJSToJSWrapper(
+    Isolate* isolate, const wasm::FunctionSig* sig,
+    const wasm::WasmModule* module) {
   std::unique_ptr<Zone> zone = std::make_unique<Zone>(
       isolate->allocator(), ZONE_NAME, kCompressGraphZone);
   Graph* graph = zone->New<Graph>(zone.get());
@@ -8409,7 +8407,7 @@ MaybeHandle<Code> CompileJSToJSWrapper(Isolate* isolate,
       job->FinalizeJob(isolate) == CompilationJob::FAILED) {
     return {};
   }
-  Handle<Code> code = job->compilation_info()->code();
+  Handle<InstructionStream> code = job->compilation_info()->code();
 
   return code;
 }

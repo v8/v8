@@ -644,7 +644,7 @@ void InstallInterpreterTrampolineCopy(Isolate* isolate,
   Handle<BytecodeArray> bytecode_array(shared_info->GetBytecodeArray(isolate),
                                        isolate);
 
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Builtins::CreateInterpreterEntryTrampolineForProfiling(isolate);
 
   Handle<InterpreterData> interpreter_data =
@@ -1177,7 +1177,8 @@ void RecordMaglevFunctionCompilation(Isolate* isolate,
                                      Handle<JSFunction> function) {
   PtrComprCageBase cage_base(isolate);
   // TODO(v8:13261): We should be able to pass a CodeDataContainer AbstractCode
-  // in here, but LinuxPerfJitLogger only supports Code AbstractCode.
+  // in here, but LinuxPerfJitLogger only supports InstructionStream
+  // AbstractCode.
   Handle<AbstractCode> abstract_code(
       AbstractCode::cast(FromCodeDataContainer(function->code(cage_base))),
       isolate);
@@ -1731,13 +1732,16 @@ class MergeAssumptionChecker final : public ObjectVisitor {
   }
 
   // The object graph for a newly compiled Script shouldn't yet contain any
-  // Code. If any of these functions are called, then that would indicate that
-  // the graph was not disjoint from the rest of the heap as expected.
+  // InstructionStream. If any of these functions are called, then that would
+  // indicate that the graph was not disjoint from the rest of the heap as
+  // expected.
   void VisitCodePointer(HeapObject host, CodeObjectSlot slot) override {
     UNREACHABLE();
   }
-  void VisitCodeTarget(Code host, RelocInfo* rinfo) override { UNREACHABLE(); }
-  void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
+  void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo) override {
+    UNREACHABLE();
+  }
+  void VisitEmbeddedPointer(InstructionStream host, RelocInfo* rinfo) override {
     UNREACHABLE();
   }
 
@@ -2637,7 +2641,7 @@ bool Compiler::CompileSharedWithBaseline(Isolate* isolate,
   }
 
   CompilerTracer::TraceStartBaselineCompile(isolate, shared);
-  Handle<Code> code;
+  Handle<InstructionStream> code;
   base::TimeDelta time_taken;
   {
     ScopedTimer timer(&time_taken);
@@ -3929,7 +3933,7 @@ void Compiler::FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
   // 2) The function may have already been optimized by OSR.  Simply continue.
   //    Except when OSR already disabled optimization for some reason.
   // 3) The code may have already been invalidated due to dependency change.
-  // 4) Code generation may have failed.
+  // 4) InstructionStream generation may have failed.
   if (job->state() == CompilationJob::State::kReadyToFinalize) {
     if (shared->optimization_disabled()) {
       job->RetryOptimization(BailoutReason::kOptimizationDisabled);
@@ -3991,8 +3995,8 @@ void Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
   ResetTieringState(*function, osr_offset);
 
   if (status == CompilationJob::SUCCEEDED) {
-    // Note the finalized Code object has already been installed on the
-    // function by MaglevCompilationJob::FinalizeJobImpl.
+    // Note the finalized InstructionStream object has already been installed on
+    // the function by MaglevCompilationJob::FinalizeJobImpl.
 
     OptimizedCodeCache::Insert(isolate, *function, BytecodeOffset::None(),
                                function->code(),

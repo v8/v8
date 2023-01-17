@@ -2052,7 +2052,8 @@ void Generate_AllocateSpaceAndShiftExistingArguments(
 }  // namespace
 
 // static
-// TODO(v8:11615): Observe Code::kMaxArguments in CallOrConstructVarargs
+// TODO(v8:11615): Observe InstructionStream::kMaxArguments in
+// CallOrConstructVarargs
 void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
                                                Handle<CodeDataContainer> code) {
   // ----------- S t a t e -------------
@@ -2683,8 +2684,8 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
   Label jump_to_optimized_code;
   {
     // If maybe_target_code is not null, no need to call into runtime. A
-    // precondition here is: if maybe_target_code is a Code object, it must NOT
-    // be marked_for_deoptimization (callers must ensure this).
+    // precondition here is: if maybe_target_code is a InstructionStream object,
+    // it must NOT be marked_for_deoptimization (callers must ensure this).
     __ cmp(maybe_target_code, Immediate(0));
     __ j(not_equal, &jump_to_optimized_code, Label::kNear);
   }
@@ -2727,11 +2728,13 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
     __ leave();
   }
 
-  __ LoadCodeDataContainerCodeNonBuiltin(eax, eax);
+  __ LoadCodeDataContainerInstructionStreamNonBuiltin(eax, eax);
 
   // Load deoptimization data from the code object.
-  __ mov(ecx, Operand(eax, Code::kDeoptimizationDataOrInterpreterDataOffset -
-                               kHeapObjectTag));
+  __ mov(ecx,
+         Operand(eax,
+                 InstructionStream::kDeoptimizationDataOrInterpreterDataOffset -
+                     kHeapObjectTag));
 
   // Load the OSR entrypoint offset from the deoptimization data.
   __ mov(ecx, Operand(ecx, FixedArray::OffsetOfElementAt(
@@ -2740,7 +2743,8 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
   __ SmiUntag(ecx);
 
   // Compute the target address = code_obj + header_size + osr_offset
-  __ lea(eax, Operand(eax, ecx, times_1, Code::kHeaderSize - kHeapObjectTag));
+  __ lea(eax, Operand(eax, ecx, times_1,
+                      InstructionStream::kHeaderSize - kHeapObjectTag));
 
   Generate_OSREntry(masm, eax);
 }
@@ -4035,7 +4039,8 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   __ mov(Operand(esp, 0 * kSystemPointerSize), eax);  // Function.
   __ mov(Operand(esp, 1 * kSystemPointerSize),
          Immediate(static_cast<int>(deopt_kind)));
-  __ mov(Operand(esp, 2 * kSystemPointerSize), ecx);  // Code address or 0.
+  __ mov(Operand(esp, 2 * kSystemPointerSize),
+         ecx);  // InstructionStream address or 0.
   __ mov(Operand(esp, 3 * kSystemPointerSize), edx);  // Fp-to-sp delta.
   __ Move(Operand(esp, 4 * kSystemPointerSize),
           Immediate(ExternalReference::isolate_address(masm->isolate())));
@@ -4197,7 +4202,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   Register closure = eax;
   __ mov(closure, MemOperand(ebp, StandardFrameConstants::kFunctionOffset));
 
-  // Get the Code object from the shared function info.
+  // Get the InstructionStream object from the shared function info.
   Register code_obj = esi;
   __ mov(code_obj,
          FieldOperand(closure, JSFunction::kSharedFunctionInfoOffset));
@@ -4230,7 +4235,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   if (v8_flags.debug_code) {
     AssertCodeDataContainerIsBaseline(masm, code_obj, ecx);
   }
-  __ LoadCodeDataContainerCodeNonBuiltin(code_obj, code_obj);
+  __ LoadCodeDataContainerInstructionStreamNonBuiltin(code_obj, code_obj);
 
   // Load the feedback vector.
   Register feedback_vector = ecx;
@@ -4296,8 +4301,8 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
            kInterpreterBytecodeArrayRegister);
     __ CallCFunction(get_baseline_pc, 3);
   }
-  __ lea(code_obj,
-         FieldOperand(code_obj, kReturnRegister0, times_1, Code::kHeaderSize));
+  __ lea(code_obj, FieldOperand(code_obj, kReturnRegister0, times_1,
+                                InstructionStream::kHeaderSize));
   __ pop(kInterpreterAccumulatorRegister);
 
   if (is_osr) {

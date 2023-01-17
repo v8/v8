@@ -162,8 +162,8 @@ UNINITIALIZED_TEST(SharedPtrComprCageImpliesSharedReadOnlyHeap) {
   // Spot check that some read-only roots are the same.
   CHECK_EQ(ReadOnlyRoots(i_isolate1).the_hole_value(),
            ReadOnlyRoots(i_isolate2).the_hole_value());
-  CHECK_EQ(ReadOnlyRoots(i_isolate1).code_map(),
-           ReadOnlyRoots(i_isolate2).code_map());
+  CHECK_EQ(ReadOnlyRoots(i_isolate1).instruction_stream_map(),
+           ReadOnlyRoots(i_isolate2).instruction_stream_map());
   CHECK_EQ(ReadOnlyRoots(i_isolate1).exception(),
            ReadOnlyRoots(i_isolate2).exception());
 

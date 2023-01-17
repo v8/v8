@@ -821,9 +821,9 @@ ReadOnlyRoots HeapObject::GetReadOnlyRoots(PtrComprCageBase cage_base) const {
 }
 
 Map HeapObject::map() const {
-  // This method is never used for objects located in code space (Code and
-  // free space fillers) and thus it is fine to use auto-computed cage base
-  // value.
+  // This method is never used for objects located in code space
+  // (InstructionStream and free space fillers) and thus it is fine to use
+  // auto-computed cage base value.
   DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !IsCodeSpaceObject(*this));
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return HeapObject::map(cage_base);
@@ -930,9 +930,9 @@ ObjectSlot HeapObject::map_slot() const {
 }
 
 MapWord HeapObject::map_word(RelaxedLoadTag tag) const {
-  // This method is never used for objects located in code space (Code and
-  // free space fillers) and thus it is fine to use auto-computed cage base
-  // value.
+  // This method is never used for objects located in code space
+  // (InstructionStream and free space fillers) and thus it is fine to use
+  // auto-computed cage base value.
   DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !IsCodeSpaceObject(*this));
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return HeapObject::map_word(cage_base, tag);
@@ -953,9 +953,9 @@ void HeapObject::set_map_word_forwarded(HeapObject target_object,
 }
 
 MapWord HeapObject::map_word(AcquireLoadTag tag) const {
-  // This method is never used for objects located in code space (Code and
-  // free space fillers) and thus it is fine to use auto-computed cage base
-  // value.
+  // This method is never used for objects located in code space
+  // (InstructionStream and free space fillers) and thus it is fine to use
+  // auto-computed cage base value.
   DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !IsCodeSpaceObject(*this));
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return HeapObject::map_word(cage_base, tag);

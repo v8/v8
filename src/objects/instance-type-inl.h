@@ -80,7 +80,7 @@ V8_INLINE constexpr bool IsThinString(InstanceType instance_type) {
 }
 
 V8_INLINE constexpr bool IsAbstractCode(InstanceType instance_type) {
-  return IsBytecodeArray(instance_type) || IsCode(instance_type) ||
+  return IsBytecodeArray(instance_type) || IsInstructionStream(instance_type) ||
          IsCodeDataContainer(instance_type);
 }
 

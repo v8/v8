@@ -216,7 +216,8 @@ class MainMarkingVisitor final
   template <typename TSlot>
   void RecordSlot(HeapObject object, TSlot slot, HeapObject target);
 
-  void RecordRelocSlot(Code host, RelocInfo* rinfo, HeapObject target);
+  void RecordRelocSlot(InstructionStream host, RelocInfo* rinfo,
+                       HeapObject target);
 
   MarkingState* marking_state() { return marking_state_; }
 
@@ -389,12 +390,14 @@ class MarkCompactCollector final : public CollectorBase {
 
   static V8_EXPORT_PRIVATE bool IsMapOrForwarded(Map map);
 
-  static bool ShouldRecordRelocSlot(Code host, RelocInfo* rinfo,
+  static bool ShouldRecordRelocSlot(InstructionStream host, RelocInfo* rinfo,
                                     HeapObject target);
-  static RecordRelocSlotInfo ProcessRelocInfo(Code host, RelocInfo* rinfo,
+  static RecordRelocSlotInfo ProcessRelocInfo(InstructionStream host,
+                                              RelocInfo* rinfo,
                                               HeapObject target);
 
-  static void RecordRelocSlot(Code host, RelocInfo* rinfo, HeapObject target);
+  static void RecordRelocSlot(InstructionStream host, RelocInfo* rinfo,
+                              HeapObject target);
   V8_INLINE static void RecordSlot(HeapObject object, ObjectSlot slot,
                                    HeapObject target);
   V8_INLINE static void RecordSlot(HeapObject object, HeapObjectSlot slot,

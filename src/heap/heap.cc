@@ -158,8 +158,8 @@ void Heap_CombinedGenerationalAndSharedEphemeronBarrierSlow(
   Heap::CombinedGenerationalAndSharedEphemeronBarrierSlow(table, slot, value);
 }
 
-void Heap_GenerationalBarrierForCodeSlow(Code host, RelocInfo* rinfo,
-                                         HeapObject object) {
+void Heap_GenerationalBarrierForCodeSlow(InstructionStream host,
+                                         RelocInfo* rinfo, HeapObject object) {
   Heap::GenerationalBarrierForCodeSlow(host, rinfo, object);
 }
 
@@ -1190,7 +1190,7 @@ void Heap::PublishPendingAllocations() {
   code_lo_space_->ResetPendingObject();
 }
 
-void Heap::InvalidateCodeDeoptimizationData(Code code) {
+void Heap::InvalidateCodeDeoptimizationData(InstructionStream code) {
   CodePageMemoryModificationScope modification_scope(code);
   code.set_deoptimization_data(ReadOnlyRoots(this).empty_fixed_array());
 }
@@ -3304,10 +3304,10 @@ class LeftTrimmerVerifierRootVisitor : public RootVisitor {
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end) override {
     for (FullObjectSlot p = start; p < end; ++p) {
-      // V8_EXTERNAL_CODE_SPACE specific: we might be comparing Code object
-      // with non-Code object here and it might produce false positives because
-      // operator== for tagged values compares only lower 32 bits when pointer
-      // compression is enabled.
+      // V8_EXTERNAL_CODE_SPACE specific: we might be comparing
+      // InstructionStream object with non-InstructionStream object here and it
+      // might produce false positives because operator== for tagged values
+      // compares only lower 32 bits when pointer compression is enabled.
       DCHECK_NE((*p).ptr(), to_check_.ptr());
     }
   }
@@ -4519,7 +4519,7 @@ void Heap::ZapCodeObject(Address start_address, int size_in_bytes) {
 #endif
 }
 
-void Heap::RegisterCodeObject(Handle<Code> code) {
+void Heap::RegisterCodeObject(Handle<InstructionStream> code) {
   Address addr = code->address();
   if (!V8_ENABLE_THIRD_PARTY_HEAP_BOOL && code_space()->Contains(addr)) {
     MemoryChunk::FromHeapObject(*code)
@@ -4591,7 +4591,7 @@ class ClearStaleLeftTrimmedHandlesVisitor : public RootVisitor {
   }
 
   // The pointer compression cage base value used for decompression of all
-  // tagged values except references to Code objects.
+  // tagged values except references to InstructionStream objects.
   PtrComprCageBase cage_base() const {
 #if V8_COMPRESS_POINTERS
     return cage_base_;
@@ -5303,8 +5303,8 @@ double Heap::PercentToGlobalMemoryLimit() {
 // started as soon as the embedder does not allocate with high throughput
 // anymore.
 Heap::IncrementalMarkingLimit Heap::IncrementalMarkingLimitReached() {
-  // Code using an AlwaysAllocateScope assumes that the GC state does not
-  // change; that implies that no marking steps must be performed.
+  // InstructionStream using an AlwaysAllocateScope assumes that the GC state
+  // does not change; that implies that no marking steps must be performed.
   if (!incremental_marking()->CanBeStarted() || always_allocate()) {
     // Incremental marking is disabled or it is too early to start.
     return IncrementalMarkingLimit::kNoLimit;
@@ -6332,11 +6332,12 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
       }
     }
 
-    void VisitCodeTarget(Code host, RelocInfo* rinfo) final {
-      Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+    void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo) final {
+      InstructionStream target =
+          InstructionStream::GetCodeFromTargetAddress(rinfo->target_address());
       MarkHeapObject(target);
     }
-    void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) final {
+    void VisitEmbeddedPointer(InstructionStream host, RelocInfo* rinfo) final {
       MarkHeapObject(rinfo->target_object(cage_base()));
     }
 
@@ -6813,7 +6814,7 @@ bool Heap::AllowedToBeMigrated(Map map, HeapObject obj, AllocationSpace dst) {
     case OLD_SPACE:
       return dst == OLD_SPACE;
     case CODE_SPACE:
-      return dst == CODE_SPACE && type == CODE_TYPE;
+      return dst == CODE_SPACE && type == INSTRUCTION_STREAM_TYPE;
     case SHARED_SPACE:
       return dst == SHARED_SPACE;
     case LO_SPACE:
@@ -6851,15 +6852,15 @@ Map Heap::GcSafeMapOfCodeSpaceObject(HeapObject object) {
 
 CodeLookupResult Heap::GcSafeCastToCode(HeapObject object,
                                         Address inner_pointer) {
-  Code code = Code::unchecked_cast(object);
+  InstructionStream code = InstructionStream::unchecked_cast(object);
   DCHECK(!code.is_null());
   DCHECK(GcSafeCodeContains(code, inner_pointer));
   return CodeLookupResult{code};
 }
 
-bool Heap::GcSafeCodeContains(Code code, Address addr) {
+bool Heap::GcSafeCodeContains(InstructionStream code, Address addr) {
   Map map = GcSafeMapOfCodeSpaceObject(code);
-  DCHECK(map == ReadOnlyRoots(this).code_map());
+  DCHECK(map == ReadOnlyRoots(this).instruction_stream_map());
   Builtin maybe_builtin =
       OffHeapInstructionStream::TryLookupCode(isolate(), addr);
   if (Builtins::IsBuiltinId(maybe_builtin) &&
@@ -6945,8 +6946,8 @@ CodeLookupResult Heap::GcSafeFindCodeForInnerPointerForPrinting(
     ReadOnlyHeapObjectIterator iterator(isolate()->read_only_heap());
     for (HeapObject object = iterator.Next(); !object.is_null();
          object = iterator.Next()) {
-      if (!object.IsCode()) continue;
-      Code code = Code::cast(object);
+      if (!object.IsInstructionStream()) continue;
+      InstructionStream code = InstructionStream::cast(object);
       if (inner_pointer >= code.address() &&
           inner_pointer < code.address() + code.Size()) {
         return CodeLookupResult{code};
@@ -7138,8 +7139,8 @@ void Heap::WriteBarrierForRange(HeapObject object, TSlot start_slot,
   }
 }
 
-void Heap::GenerationalBarrierForCodeSlow(Code host, RelocInfo* rinfo,
-                                          HeapObject object) {
+void Heap::GenerationalBarrierForCodeSlow(InstructionStream host,
+                                          RelocInfo* rinfo, HeapObject object) {
   DCHECK(InYoungGeneration(object));
   const MarkCompactCollector::RecordRelocSlotInfo info =
       MarkCompactCollector::ProcessRelocInfo(host, rinfo, object);

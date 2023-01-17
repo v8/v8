@@ -100,7 +100,7 @@ Factory::CodeBuilder::CodeBuilder(LocalIsolate* local_isolate,
       kind_(kind),
       position_table_(isolate_->factory()->empty_byte_array()) {}
 
-MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
+MaybeHandle<InstructionStream> Factory::CodeBuilder::BuildInternal(
     bool retry_allocation_or_fail) {
   const auto factory = isolate_->factory();
   // Allocate objects needed for code initialization.
@@ -143,22 +143,22 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     isolate_->heap()->SetBasicBlockProfilingData(new_list);
   }
 
-  static_assert(Code::kOnHeapBodyIsContiguous);
+  static_assert(InstructionStream::kOnHeapBodyIsContiguous);
   Heap* heap = isolate_->heap();
   CodePageCollectionMemoryModificationScope code_allocation(heap);
 
-  Handle<Code> code;
+  Handle<InstructionStream> code;
   if (CompiledWithConcurrentBaseline()) {
     if (!AllocateConcurrentSparkplugCode(retry_allocation_or_fail)
              .ToHandle(&code)) {
-      return MaybeHandle<Code>();
+      return MaybeHandle<InstructionStream>();
     }
   } else if (!AllocateCode(retry_allocation_or_fail).ToHandle(&code)) {
-    return MaybeHandle<Code>();
+    return MaybeHandle<InstructionStream>();
   }
 
   {
-    Code raw_code = *code;
+    InstructionStream raw_code = *code;
     DisallowGarbageCollection no_gc;
 
     raw_code.set_raw_instruction_size(code_desc_.instruction_size());
@@ -190,7 +190,7 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
         code_desc_.unwinding_info_offset_relative());
 
     // Allow self references to created code object by patching the handle to
-    // point to the newly allocated Code object.
+    // point to the newly allocated InstructionStream object.
     Handle<Object> self_reference;
     if (self_reference_.ToHandle(&self_reference)) {
       DCHECK(self_reference->IsOddball());
@@ -257,7 +257,7 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
 }
 
 // TODO(victorgomes): Unify the two AllocateCodes
-MaybeHandle<Code> Factory::CodeBuilder::AllocateCode(
+MaybeHandle<InstructionStream> Factory::CodeBuilder::AllocateCode(
     bool retry_allocation_or_fail) {
   Heap* heap = isolate_->heap();
   HeapAllocator* allocator = heap->allocator();
@@ -265,7 +265,7 @@ MaybeHandle<Code> Factory::CodeBuilder::AllocateCode(
   AllocationType allocation_type = V8_EXTERNAL_CODE_SPACE_BOOL || is_executable_
                                        ? AllocationType::kCode
                                        : AllocationType::kReadOnly;
-  const int object_size = Code::SizeFor(code_desc_.body_size());
+  const int object_size = InstructionStream::SizeFor(code_desc_.body_size());
   if (retry_allocation_or_fail) {
     result = allocator->AllocateRawWith<HeapAllocator::kRetryOrFail>(
         object_size, allocation_type, AllocationOrigin::kRuntime);
@@ -273,15 +273,16 @@ MaybeHandle<Code> Factory::CodeBuilder::AllocateCode(
     result = allocator->AllocateRawWith<HeapAllocator::kLightRetry>(
         object_size, allocation_type, AllocationOrigin::kRuntime);
     // Return an empty handle if we cannot allocate the code object.
-    if (result.is_null()) return MaybeHandle<Code>();
+    if (result.is_null()) return MaybeHandle<InstructionStream>();
   }
 
   // The code object has not been fully initialized yet.  We rely on the
   // fact that no allocation will happen from this point on.
   DisallowGarbageCollection no_gc;
-  result.set_map_after_allocation(*isolate_->factory()->code_map(),
-                                  SKIP_WRITE_BARRIER);
-  Handle<Code> code = handle(Code::cast(result), isolate_);
+  result.set_map_after_allocation(
+      *isolate_->factory()->instruction_stream_map(), SKIP_WRITE_BARRIER);
+  Handle<InstructionStream> code =
+      handle(InstructionStream::cast(result), isolate_);
   if (is_executable_) {
     DCHECK(IsAligned(code->address(), kCodeAlignment));
     DCHECK_IMPLIES(
@@ -291,34 +292,36 @@ MaybeHandle<Code> Factory::CodeBuilder::AllocateCode(
   return code;
 }
 
-MaybeHandle<Code> Factory::CodeBuilder::AllocateConcurrentSparkplugCode(
+MaybeHandle<InstructionStream>
+Factory::CodeBuilder::AllocateConcurrentSparkplugCode(
     bool retry_allocation_or_fail) {
   LocalHeap* heap = local_isolate_->heap();
   AllocationType allocation_type = V8_EXTERNAL_CODE_SPACE_BOOL || is_executable_
                                        ? AllocationType::kCode
                                        : AllocationType::kReadOnly;
-  const int object_size = Code::SizeFor(code_desc_.body_size());
+  const int object_size = InstructionStream::SizeFor(code_desc_.body_size());
   HeapObject result;
   if (!heap->AllocateRaw(object_size, allocation_type).To(&result)) {
-    return MaybeHandle<Code>();
+    return MaybeHandle<InstructionStream>();
   }
   CHECK(!result.is_null());
 
   // The code object has not been fully initialized yet.  We rely on the
   // fact that no allocation will happen from this point on.
   DisallowGarbageCollection no_gc;
-  result.set_map_after_allocation(*local_isolate_->factory()->code_map(),
-                                  SKIP_WRITE_BARRIER);
-  Handle<Code> code = handle(Code::cast(result), local_isolate_);
+  result.set_map_after_allocation(
+      *local_isolate_->factory()->instruction_stream_map(), SKIP_WRITE_BARRIER);
+  Handle<InstructionStream> code =
+      handle(InstructionStream::cast(result), local_isolate_);
   DCHECK_IMPLIES(is_executable_, IsAligned(code->address(), kCodeAlignment));
   return code;
 }
 
-MaybeHandle<Code> Factory::CodeBuilder::TryBuild() {
+MaybeHandle<InstructionStream> Factory::CodeBuilder::TryBuild() {
   return BuildInternal(false);
 }
 
-Handle<Code> Factory::CodeBuilder::Build() {
+Handle<InstructionStream> Factory::CodeBuilder::Build() {
   return BuildInternal(true).ToHandleChecked();
 }
 
@@ -3194,8 +3197,8 @@ MaybeHandle<JSBoundFunction> Factory::NewJSBoundFunction(
     Handle<JSReceiver> target_function, Handle<Object> bound_this,
     base::Vector<Handle<Object>> bound_args) {
   DCHECK(target_function->IsCallable());
-  static_assert(Code::kMaxArguments <= FixedArray::kMaxLength);
-  if (bound_args.length() >= Code::kMaxArguments) {
+  static_assert(InstructionStream::kMaxArguments <= FixedArray::kMaxLength);
+  if (bound_args.length() >= InstructionStream::kMaxArguments) {
     THROW_NEW_ERROR(isolate(),
                     NewRangeError(MessageTemplate::kTooManyArguments),
                     JSBoundFunction);
@@ -3362,13 +3365,13 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForApiFunction(
 
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForBuiltin(
     MaybeHandle<String> maybe_name, Builtin builtin, FunctionKind kind) {
-  Handle<SharedFunctionInfo> shared =
-      NewSharedFunctionInfo(maybe_name, MaybeHandle<Code>(), builtin, kind);
+  Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo(
+      maybe_name, MaybeHandle<InstructionStream>(), builtin, kind);
   return shared;
 }
 
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForWebSnapshot() {
-  return NewSharedFunctionInfo(empty_string(), MaybeHandle<Code>(),
+  return NewSharedFunctionInfo(empty_string(), MaybeHandle<InstructionStream>(),
                                Builtin::kNoBuiltinId,
                                FunctionKind::kNormalFunction);
 }

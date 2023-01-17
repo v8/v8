@@ -40,7 +40,7 @@ class MarkingBarrier {
   V8_EXPORT_PRIVATE static void PublishAll(Heap* heap);
 
   void Write(HeapObject host, HeapObjectSlot, HeapObject value);
-  void Write(Code host, RelocInfo*, HeapObject value);
+  void Write(InstructionStream host, RelocInfo*, HeapObject value);
   void Write(JSArrayBuffer host, ArrayBufferExtension*);
   void Write(DescriptorArray, int number_of_own_descriptors);
   // Only usable when there's no valid JS host object for this write, e.g., when
@@ -66,7 +66,8 @@ class MarkingBarrier {
 
   inline bool WhiteToGreyAndPush(HeapObject value);
 
-  void RecordRelocSlot(Code host, RelocInfo* rinfo, HeapObject target);
+  void RecordRelocSlot(InstructionStream host, RelocInfo* rinfo,
+                       HeapObject target);
 
   bool IsCurrentMarkingBarrier(HeapObject verification_candidate);
 

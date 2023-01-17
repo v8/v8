@@ -84,7 +84,7 @@ Handle<CodeDataContainer> FactoryBase<Impl>::NewCodeDataContainer(
   DisallowGarbageCollection no_gc;
   data_container.set_kind_specific_flags(flags, kRelaxedStore);
   Isolate* isolate_for_sandbox = impl()->isolate_for_sandbox();
-  data_container.set_raw_code(Smi::zero(), SKIP_WRITE_BARRIER);
+  data_container.set_raw_instruction_stream(Smi::zero(), SKIP_WRITE_BARRIER);
   data_container.init_code_entry_point(isolate_for_sandbox, kNullAddress);
   data_container.clear_padding();
   return handle(data_container, isolate());
@@ -321,9 +321,9 @@ template <typename Impl>
 Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfoForLiteral(
     FunctionLiteral* literal, Handle<Script> script, bool is_toplevel) {
   FunctionKind kind = literal->kind();
-  Handle<SharedFunctionInfo> shared =
-      NewSharedFunctionInfo(literal->GetName(isolate()), MaybeHandle<Code>(),
-                            Builtin::kCompileLazy, kind);
+  Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo(
+      literal->GetName(isolate()), MaybeHandle<InstructionStream>(),
+      Builtin::kCompileLazy, kind);
   SharedFunctionInfo::InitFromFunctionLiteral(isolate(), shared, literal,
                                               is_toplevel);
   shared->SetScript(read_only_roots(), *script, literal->function_literal_id(),
@@ -426,8 +426,8 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
     // If we pass function_data then we shouldn't pass a builtin index, and
     // the function_data should not be code with a builtin.
     DCHECK(!Builtins::IsBuiltinId(builtin));
-    DCHECK_IMPLIES(function_data->IsCode(),
-                   !Code::cast(*function_data).is_builtin());
+    DCHECK_IMPLIES(function_data->IsInstructionStream(),
+                   !InstructionStream::cast(*function_data).is_builtin());
     raw.set_function_data(*function_data, kReleaseStore);
   } else if (Builtins::IsBuiltinId(builtin)) {
     raw.set_builtin_id(builtin);

@@ -133,7 +133,7 @@ TEST(TestConcurrentSharedFunctionInfo) {
   Handle<SharedFunctionInfo> f_sfi(f->shared(), isolate);
   DCHECK(f_sfi->HasBytecodeArray());
   OptimizedCompilationInfo f_info(&zone, isolate, f_sfi, f, CodeKind::TURBOFAN);
-  Handle<Code> f_code =
+  Handle<InstructionStream> f_code =
       Pipeline::GenerateCodeForTesting(&f_info, isolate).ToHandleChecked();
   f->set_code(*f_code, kReleaseStore);
   IsCompiledScope compiled_scope_f(*f_sfi, isolate);

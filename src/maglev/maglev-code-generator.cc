@@ -1232,7 +1232,7 @@ void MaglevCodeGenerator::Assemble() {
   EmitMetadata();
 }
 
-MaybeHandle<Code> MaglevCodeGenerator::Generate(Isolate* isolate) {
+MaybeHandle<InstructionStream> MaglevCodeGenerator::Generate(Isolate* isolate) {
   return BuildCodeObject(isolate);
 }
 
@@ -1268,8 +1268,9 @@ void MaglevCodeGenerator::EmitDeopts() {
   // Deoptimization exits must be as small as possible, since their count grows
   // with function size. These labels are an optimization which extracts the
   // (potentially large) instruction sequence for the final jump to the
-  // deoptimization entry into a single spot per Code object. All deopt exits
-  // can then near-call to this label. Note: not used on all architectures.
+  // deoptimization entry into a single spot per InstructionStream object. All
+  // deopt exits can then near-call to this label. Note: not used on all
+  // architectures.
   Label eager_deopt_entry;
   Label lazy_deopt_entry;
   __ MaybeEmitDeoptBuiltinsCall(
@@ -1340,7 +1341,7 @@ void MaglevCodeGenerator::EmitExceptionHandlerTrampolines() {
 
 void MaglevCodeGenerator::EmitMetadata() {
   // Final alignment before starting on the metadata section.
-  masm()->Align(Code::kMetadataAlignment);
+  masm()->Align(InstructionStream::kMetadataAlignment);
 
   safepoint_table_builder_.Emit(masm());
 
@@ -1353,7 +1354,8 @@ void MaglevCodeGenerator::EmitMetadata() {
   }
 }
 
-MaybeHandle<Code> MaglevCodeGenerator::BuildCodeObject(Isolate* isolate) {
+MaybeHandle<InstructionStream> MaglevCodeGenerator::BuildCodeObject(
+    Isolate* isolate) {
   CodeDesc desc;
   masm()->GetCode(isolate, &desc, &safepoint_table_builder_,
                   handler_table_offset_);

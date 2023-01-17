@@ -311,7 +311,7 @@ bool IsInterpreterFramePc(Isolate* isolate, Address pc,
     }
     CodeLookupResult interpreter_entry_trampoline =
         isolate->heap()->GcSafeFindCodeForInnerPointer(pc);
-    return interpreter_entry_trampoline.code()
+    return interpreter_entry_trampoline.instruction_stream()
         .is_interpreter_trampoline_builtin();
   } else {
     return false;
@@ -571,8 +571,8 @@ CodeLookupResult StackFrame::LookupCodeDataContainer() const {
   CodeLookupResult result = GetContainingCode(isolate(), pc());
   if (DEBUG_BOOL) {
     CHECK(result.IsFound());
-    if (result.IsCode()) {
-      Code code = result.code();
+    if (result.IsInstructionStream()) {
+      InstructionStream code = result.instruction_stream();
       CHECK_GE(pc(), code.InstructionStart(isolate(), pc()));
       CHECK_LT(pc(), code.InstructionEnd(isolate(), pc()));
     } else {
@@ -594,7 +594,7 @@ void StackFrame::IteratePc(RootVisitor* v, Address* pc_address,
     v->VisitRunningCode(FullObjectSlot(&code));
     return;
   }
-  Code holder = lookup_result.code();
+  InstructionStream holder = lookup_result.instruction_stream();
   Address old_pc = ReadPC(pc_address);
   DCHECK(ReadOnlyHeap::Contains(holder) ||
          holder.GetHeap()->GcSafeCodeContains(holder, old_pc));
@@ -602,7 +602,7 @@ void StackFrame::IteratePc(RootVisitor* v, Address* pc_address,
   Object code = holder;
   v->VisitRunningCode(FullObjectSlot(&code));
   if (code == holder) return;
-  holder = Code::unchecked_cast(code);
+  holder = InstructionStream::unchecked_cast(code);
   Address pc = holder.InstructionStart(isolate_, old_pc) + pc_offset;
   // TODO(v8:10026): avoid replacing a signed pointer.
   PointerAuthentication::ReplacePC(pc_address, pc, kSystemPointerSize);
@@ -631,7 +631,7 @@ inline StackFrame::Type ComputeBuiltinFrameType(CodeOrCodeDataContainer code) {
     return StackFrame::BASELINE;
   }
   if (code.is_turbofanned()) {
-    // TODO(bmeurer): We treat frames for BUILTIN Code objects as
+    // TODO(bmeurer): We treat frames for BUILTIN InstructionStream objects as
     // OptimizedFrame for now (all the builtins with JavaScript
     // linkage are actually generated with TurboFan currently, so
     // this is sound).
@@ -709,7 +709,7 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
             return ComputeBuiltinFrameType(
                 CodeDataContainer::cast(lookup_result.code_data_container()));
           }
-          return ComputeBuiltinFrameType(lookup_result.code());
+          return ComputeBuiltinFrameType(lookup_result.instruction_stream());
         }
         case CodeKind::BASELINE:
           return BASELINE;
@@ -740,7 +740,7 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
           return WASM_TO_JS_FUNCTION;
         case CodeKind::WASM_FUNCTION:
         case CodeKind::WASM_TO_CAPI_FUNCTION:
-          // Never appear as on-heap {Code} objects.
+          // Never appear as on-heap {InstructionStream} objects.
           UNREACHABLE();
 #endif  // V8_ENABLE_WEBASSEMBLY
         default:
@@ -1092,10 +1092,10 @@ void VisitSpillSlot(Isolate* isolate, RootVisitor* v,
   // FullMaybeObjectSlots here.
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {
     // When external code space is enabled the spill slot could contain both
-    // Code and non-Code references, which have different cage bases. So
-    // unconditional decompression of the value might corrupt Code pointers.
-    // However, given that
-    // 1) the Code pointers are never compressed by design (because
+    // InstructionStream and non-InstructionStream references, which have
+    // different cage bases. So unconditional decompression of the value might
+    // corrupt InstructionStream pointers. However, given that 1) the
+    // InstructionStream pointers are never compressed by design (because
     //    otherwise we wouldn't know which cage base to apply for
     //    decompression, see respective DCHECKs in
     //    RelocInfo::target_object()),
@@ -1104,7 +1104,7 @@ void VisitSpillSlot(Isolate* isolate, RootVisitor* v,
     // we can avoid updating upper part of the spill slot if it already
     // contains full value.
     // TODO(v8:11880): Remove this special handling by enforcing builtins
-    // to use CodeTs instead of Code objects.
+    // to use CodeTs instead of InstructionStream objects.
     Address value = *spill_slot.location();
     if (!HAS_SMI_TAG(value) && value <= 0xffffffff) {
       // We don't need to update smi values or full pointers.
@@ -1551,8 +1551,8 @@ HeapObject TurbofanStubWithContextFrame::unchecked_code() const {
   if (code_lookup.IsCodeDataContainer()) {
     return code_lookup.code_data_container();
   }
-  if (code_lookup.IsCode()) {
-    return code_lookup.code();
+  if (code_lookup.IsInstructionStream()) {
+    return code_lookup.instruction_stream();
   }
   return {};
 }
@@ -1649,8 +1649,8 @@ HeapObject StubFrame::unchecked_code() const {
   if (code_lookup.IsCodeDataContainer()) {
     return code_lookup.code_data_container();
   }
-  if (code_lookup.IsCode()) {
-    return code_lookup.code();
+  if (code_lookup.IsInstructionStream()) {
+    return code_lookup.instruction_stream();
   }
   return {};
 }
@@ -2451,12 +2451,12 @@ void InterpretedFrame::PatchBytecodeArray(BytecodeArray bytecode_array) {
 }
 
 int BaselineFrame::GetBytecodeOffset() const {
-  Code code = LookupCodeDataContainer().code();
+  InstructionStream code = LookupCodeDataContainer().instruction_stream();
   return code.GetBytecodeOffsetForBaselinePC(this->pc(), GetBytecodeArray());
 }
 
 intptr_t BaselineFrame::GetPCForBytecodeOffset(int bytecode_offset) const {
-  Code code = LookupCodeDataContainer().code();
+  InstructionStream code = LookupCodeDataContainer().instruction_stream();
   return code.GetBaselineStartPCForBytecodeOffset(bytecode_offset,
                                                   GetBytecodeArray());
 }
@@ -2984,7 +2984,8 @@ InnerPointerToCodeCache::GetCacheEntry(Address inner_pointer) {
     // the code has been computed.
     entry->code =
         isolate_->heap()->GcSafeFindCodeForInnerPointer(inner_pointer);
-    if (entry->code.IsCode() && entry->code.code().is_maglevved()) {
+    if (entry->code.IsInstructionStream() &&
+        entry->code.instruction_stream().is_maglevved()) {
       entry->maglev_safepoint_entry.Reset();
     } else {
       entry->safepoint_entry.Reset();

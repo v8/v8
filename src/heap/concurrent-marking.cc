@@ -226,13 +226,13 @@ class ConcurrentMarkingVisitorUtility {
       slot_snapshot_->add(slot, tag);
     }
 
-    void VisitCodeTarget(Code host, RelocInfo* rinfo) final {
+    void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo) final {
       // This should never happen, because snapshotting is performed only on
       // some String subclasses.
       UNREACHABLE();
     }
 
-    void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) final {
+    void VisitEmbeddedPointer(InstructionStream host, RelocInfo* rinfo) final {
       // This should never happen, because snapshotting is performed only on
       // some String subclasses.
       UNREACHABLE();
@@ -563,7 +563,8 @@ class ConcurrentMarkingVisitor final
     return size;
   }
 
-  void RecordRelocSlot(Code host, RelocInfo* rinfo, HeapObject target) {
+  void RecordRelocSlot(InstructionStream host, RelocInfo* rinfo,
+                       HeapObject target) {
     if (!MarkCompactCollector::ShouldRecordRelocSlot(host, rinfo, target))
       return;
 
@@ -768,7 +769,8 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
     bool is_per_context_mode = local_marking_worklists.IsPerContextMode();
     bool done = false;
     CodePageHeaderModificationScope rwx_write_scope(
-        "Marking a Code object requires write access to the Code page header");
+        "Marking a InstructionStream object requires write access to the "
+        "Code page header");
     while (!done) {
       size_t current_marked_bytes = 0;
       int objects_processed = 0;
@@ -874,7 +876,8 @@ void ConcurrentMarking::RunMinor(JobDelegate* delegate) {
     TimedScope scope(&time_ms);
     bool done = false;
     CodePageHeaderModificationScope rwx_write_scope(
-        "Marking a Code object requires write access to the Code page header");
+        "Marking a InstructionStream object requires write access to the "
+        "Code page header");
     while (!done) {
       size_t current_marked_bytes = 0;
       int objects_processed = 0;

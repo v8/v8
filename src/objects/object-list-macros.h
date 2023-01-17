@@ -92,7 +92,7 @@ class ZoneForwardList;
   V(Callable)                                   \
   V(Cell)                                       \
   V(ClassBoilerplate)                           \
-  V(Code)                                       \
+  V(InstructionStream)                          \
   V(CodeDataContainer)                          \
   V(CompilationCacheTable)                      \
   V(ConsString)                                 \

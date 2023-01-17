@@ -323,8 +323,9 @@ class UpdateTypedSlotHelper {
   template <typename Callback>
   static SlotCallbackResult UpdateCodeEntry(Address entry_address,
                                             Callback callback) {
-    Code code = Code::GetObjectFromEntryAddress(entry_address);
-    Code old_code = code;
+    InstructionStream code =
+        InstructionStream::GetObjectFromEntryAddress(entry_address);
+    InstructionStream old_code = code;
     SlotCallbackResult result = callback(FullMaybeObjectSlot(&code));
     DCHECK(!HasWeakHeapObjectTag(code));
     if (code != old_code) {
@@ -339,12 +340,14 @@ class UpdateTypedSlotHelper {
   static SlotCallbackResult UpdateCodeTarget(RelocInfo* rinfo,
                                              Callback callback) {
     DCHECK(RelocInfo::IsCodeTargetMode(rinfo->rmode()));
-    Code old_target = Code::GetCodeFromTargetAddress(rinfo->target_address());
-    Code new_target = old_target;
+    InstructionStream old_target =
+        InstructionStream::GetCodeFromTargetAddress(rinfo->target_address());
+    InstructionStream new_target = old_target;
     SlotCallbackResult result = callback(FullMaybeObjectSlot(&new_target));
     DCHECK(!HasWeakHeapObjectTag(new_target));
     if (new_target != old_target) {
-      rinfo->set_target_address(Code::cast(new_target).raw_instruction_start());
+      rinfo->set_target_address(
+          InstructionStream::cast(new_target).raw_instruction_start());
     }
     return result;
   }

@@ -157,7 +157,7 @@ Object JSRegExp::code(bool is_latin1) const {
   return value;
 }
 
-void JSRegExp::set_code(bool is_latin1, Handle<Code> code) {
+void JSRegExp::set_code(bool is_latin1, Handle<InstructionStream> code) {
   SetDataAt(code_index(is_latin1), ToCodeDataContainer(*code));
 }
 

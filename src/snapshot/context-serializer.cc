@@ -18,8 +18,8 @@ namespace internal {
 namespace {
 
 // During serialization, puts the native context into a state understood by the
-// serializer (e.g. by clearing lists of Code objects).  After serialization,
-// the original state is restored.
+// serializer (e.g. by clearing lists of InstructionStream objects).  After
+// serialization, the original state is restored.
 class V8_NODISCARD SanitizeNativeContextScope final {
  public:
   SanitizeNativeContextScope(Isolate* isolate, NativeContext native_context,
@@ -194,9 +194,9 @@ bool ContextSerializer::ShouldBeInTheStartupObjectCache(HeapObject o) {
   // contain a unique ID, and deserializing several context snapshots containing
   // script would cause dupes.
   return o.IsName() || o.IsScript() || o.IsSharedFunctionInfo() ||
-         o.IsHeapNumber() || o.IsCodeDataContainer() || o.IsCode() ||
-         o.IsScopeInfo() || o.IsAccessorInfo() || o.IsTemplateInfo() ||
-         o.IsClassPositions() ||
+         o.IsHeapNumber() || o.IsCodeDataContainer() ||
+         o.IsInstructionStream() || o.IsScopeInfo() || o.IsAccessorInfo() ||
+         o.IsTemplateInfo() || o.IsClassPositions() ||
          o.map() == ReadOnlyRoots(isolate()).fixed_cow_array_map();
 }
 

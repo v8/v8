@@ -72,7 +72,7 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
 
   void GenerateCode() { Generate(); }
 
-  Handle<Code> GetCode() {
+  Handle<InstructionStream> GetCode() {
     Generate();
     return code_.ToHandleChecked();
   }
@@ -98,7 +98,7 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
 
  private:
   CodeKind kind_ = CodeKind::FOR_TESTING;
-  MaybeHandle<Code> code_;
+  MaybeHandle<InstructionStream> code_;
 };
 
 template <typename ReturnType>

@@ -120,18 +120,18 @@ class JSFunction : public TorqueGeneratedJSFunction<
   // are fully initialized.
   DECL_ACCESSORS(code, CodeDataContainer)
   DECL_RELEASE_ACQUIRE_ACCESSORS(code, CodeDataContainer)
-  // Convenient overloads to avoid unnecessary Code <-> CodeDataContainer
-  // conversions.
+  // Convenient overloads to avoid unnecessary InstructionStream <->
+  // CodeDataContainer conversions.
   // TODO(v8:11880): remove once |code| accessors are migrated to
   // CodeDataContainer.
-  inline void set_code(Code code, ReleaseStoreTag,
+  inline void set_code(InstructionStream code, ReleaseStoreTag,
                        WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Returns the address of the function code's instruction start.
   inline Address code_entry_point() const;
 
   // Get the abstract code associated with the function, which will either be
-  // a Code object or a BytecodeArray.
+  // a InstructionStream object or a BytecodeArray.
   template <typename IsolateT>
   inline AbstractCode abstract_code(IsolateT* isolate);
 

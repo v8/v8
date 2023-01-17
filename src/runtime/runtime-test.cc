@@ -686,7 +686,8 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
     USE(unused_result);
 
     // Finalize again to finish the queued job. The next call into
-    // Runtime::kCompileOptimizedOSR will pick up the cached Code object.
+    // Runtime::kCompileOptimizedOSR will pick up the cached InstructionStream
+    // object.
     FinalizeOptimization(isolate);
   }
 
@@ -1667,9 +1668,9 @@ RUNTIME_FUNCTION(Runtime_EnableCodeLoggingForTesting) {
     void CodeMovingGCEvent() final {}
     void CodeDisableOptEvent(Handle<AbstractCode> code,
                              Handle<SharedFunctionInfo> shared) final {}
-    void CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind, Address pc,
-                        int fp_to_sp_delta) final {}
-    void CodeDependencyChangeEvent(Handle<Code> code,
+    void CodeDeoptEvent(Handle<InstructionStream> code, DeoptimizeKind kind,
+                        Address pc, int fp_to_sp_delta) final {}
+    void CodeDependencyChangeEvent(Handle<InstructionStream> code,
                                    Handle<SharedFunctionInfo> shared,
                                    const char* reason) final {}
     void WeakCodeClearEvent() final {}

@@ -4086,15 +4086,15 @@ TEST(WeakReference) {
       shared_function, feedback_cell_array,
       handle(i::JSFunction::cast(*obj).raw_feedback_cell(), i_isolate));
 
-  // Create a Code.
+  // Create a InstructionStream.
   i::Assembler assm(i::AssemblerOptions{});
   assm.nop();  // supported on all architectures
   i::CodeDesc desc;
   assm.GetCode(i_isolate, &desc);
-  i::Handle<i::Code> code =
+  i::Handle<i::InstructionStream> code =
       i::Factory::CodeBuilder(i_isolate, desc, i::CodeKind::FOR_TESTING)
           .Build();
-  CHECK(code->IsCode());
+  CHECK(code->IsInstructionStream());
 
   // Manually inlined version of FeedbackVector::SetOptimizedCode (needed due
   // to the FOR_TESTING code kind).

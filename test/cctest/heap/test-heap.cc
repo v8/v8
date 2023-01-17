@@ -185,8 +185,9 @@ static void CheckNumber(Isolate* isolate, double value, const char* string) {
   CHECK(String::cast(*print_string).IsOneByteEqualTo(base::CStrVector(string)));
 }
 
-void CheckEmbeddedObjectsAreEqual(Isolate* isolate, Handle<Code> lhs,
-                                  Handle<Code> rhs) {
+void CheckEmbeddedObjectsAreEqual(Isolate* isolate,
+                                  Handle<InstructionStream> lhs,
+                                  Handle<InstructionStream> rhs) {
   int mode_mask = RelocInfo::ModeMask(RelocInfo::FULL_EMBEDDED_OBJECT);
   PtrComprCageBase cage_base(isolate);
   RelocIterator lhs_it(*lhs, mode_mask);
@@ -213,25 +214,25 @@ static void CheckFindCodeObject(Isolate* isolate) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  CHECK(code->IsCode(cage_base));
+  CHECK(code->IsInstructionStream(cage_base));
 
   HeapObject obj = HeapObject::cast(*code);
   Address obj_addr = obj.address();
 
   for (int i = 0; i < obj.Size(cage_base); i += kTaggedSize) {
     CodeLookupResult lookup_result = isolate->FindCodeObject(obj_addr + i);
-    CHECK_EQ(*code, lookup_result.code());
+    CHECK_EQ(*code, lookup_result.instruction_stream());
   }
 
-  Handle<Code> copy =
+  Handle<InstructionStream> copy =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   HeapObject obj_copy = HeapObject::cast(*copy);
   CodeLookupResult not_right = isolate->FindCodeObject(
       obj_copy.address() + obj_copy.Size(cage_base) / 2);
-  CHECK_NE(not_right.code(), *code);
-  CHECK_EQ(not_right.code(), *copy);
+  CHECK_NE(not_right.instruction_stream(), *code);
+  CHECK_EQ(not_right.instruction_stream(), *copy);
 }
 
 
@@ -1026,10 +1027,10 @@ static int ObjectsFoundInHeap(Heap* heap, Handle<Object> objs[], int size) {
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
     for (int i = 0; i < size; i++) {
-      // V8_EXTERNAL_CODE_SPACE specific: we might be comparing Code object
-      // with non-Code object here and it might produce false positives because
-      // operator== for tagged values compares only lower 32 bits when pointer
-      // compression is enabled.
+      // V8_EXTERNAL_CODE_SPACE specific: we might be comparing
+      // InstructionStream object with non-InstructionStream object here and it
+      // might produce false positives because operator== for tagged values
+      // compares only lower 32 bits when pointer compression is enabled.
       if (objs[i]->ptr() == obj.ptr()) {
         found_count++;
       }
@@ -4317,7 +4318,7 @@ TEST(CellsInOptimizedCodeAreWeak) {
 
   if (!isolate->use_optimizer()) return;
   HandleScope outer_scope(heap->isolate());
-  Handle<Code> code;
+  Handle<InstructionStream> code;
   {
     LocalContext context;
     HandleScope scope(heap->isolate());
@@ -4366,7 +4367,7 @@ TEST(ObjectsInOptimizedCodeAreWeak) {
 
   if (!isolate->use_optimizer()) return;
   HandleScope outer_scope(heap->isolate());
-  Handle<Code> code;
+  Handle<InstructionStream> code;
   {
     LocalContext context;
     HandleScope scope(heap->isolate());
@@ -4413,7 +4414,7 @@ TEST(NewSpaceObjectsInOptimizedCode) {
 
   if (!isolate->use_optimizer()) return;
   HandleScope outer_scope(isolate);
-  Handle<Code> code;
+  Handle<InstructionStream> code;
   {
     LocalContext context;
     HandleScope scope(isolate);
@@ -4478,7 +4479,7 @@ TEST(ObjectsInEagerlyDeoptimizedCodeAreWeak) {
 
   if (!isolate->use_optimizer()) return;
   HandleScope outer_scope(heap->isolate());
-  Handle<Code> code;
+  Handle<InstructionStream> code;
   {
     LocalContext context;
     HandleScope scope(heap->isolate());
@@ -4516,7 +4517,7 @@ TEST(ObjectsInEagerlyDeoptimizedCodeAreWeak) {
   CHECK(code->embedded_objects_cleared());
 }
 
-static Handle<Code> DummyOptimizedCode(Isolate* isolate) {
+static Handle<InstructionStream> DummyOptimizedCode(Isolate* isolate) {
   i::byte buffer[i::Assembler::kDefaultBufferSize];
   MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,
                       ExternalAssemblerBuffer(buffer, sizeof(buffer)));
@@ -4532,10 +4533,11 @@ static Handle<Code> DummyOptimizedCode(Isolate* isolate) {
 #endif
   masm.Drop(2);
   masm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, CodeKind::TURBOFAN)
-                          .set_self_reference(masm.CodeObject())
-                          .Build();
-  CHECK(code->IsCode());
+  Handle<InstructionStream> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::TURBOFAN)
+          .set_self_reference(masm.CodeObject())
+          .Build();
+  CHECK(code->IsInstructionStream());
   return code;
 }
 
@@ -5300,7 +5302,7 @@ TEST(PreprocessStackTrace) {
       Object::GetProperty(isolate, exception, key).ToHandleChecked();
   Handle<Object> code =
       Object::GetElement(isolate, stack_trace, 3).ToHandleChecked();
-  CHECK(code->IsCode());
+  CHECK(code->IsInstructionStream());
 
   CcTest::CollectAllAvailableGarbage();
 
@@ -5313,7 +5315,7 @@ TEST(PreprocessStackTrace) {
   for (int i = 0; i < array_length; i++) {
     Handle<Object> element =
         Object::GetElement(isolate, stack_trace, i).ToHandleChecked();
-    CHECK(!element->IsCode());
+    CHECK(!element->IsInstructionStream());
   }
 }
 
@@ -6999,7 +7001,7 @@ TEST(CodeObjectRegistry) {
   Heap* heap = isolate->heap();
   CodePageCollectionMemoryModificationScopeForTesting code_scope(heap);
 
-  Handle<Code> code1;
+  Handle<InstructionStream> code1;
   HandleScope outer_scope(heap->isolate());
   Address code2_address;
   {
@@ -7007,7 +7009,7 @@ TEST(CodeObjectRegistry) {
     CHECK(HeapTester::CodeEnsureLinearAllocationArea(
         heap, MemoryChunkLayout::MaxRegularCodeObjectSize()));
     code1 = DummyOptimizedCode(isolate);
-    Handle<Code> code2 = DummyOptimizedCode(isolate);
+    Handle<InstructionStream> code2 = DummyOptimizedCode(isolate);
     code2_address = code2->address();
 
     CHECK_EQ(MemoryChunk::FromHeapObject(*code1),
@@ -7292,7 +7294,7 @@ TEST(Regress10900) {
   {
     CodePageCollectionMemoryModificationScopeForTesting code_scope(
         isolate->heap());
-    Handle<Code> code;
+    Handle<InstructionStream> code;
     for (int i = 0; i < 100; i++) {
       // Generate multiple code pages.
       code = Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();

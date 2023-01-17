@@ -107,7 +107,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
     return shared_old_space_allocator_.get();
   }
 
-  void RegisterCodeObject(Handle<Code> code) {
+  void RegisterCodeObject(Handle<InstructionStream> code) {
     heap()->RegisterCodeObject(code);
   }
 

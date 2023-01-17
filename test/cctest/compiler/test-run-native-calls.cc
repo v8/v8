@@ -248,10 +248,11 @@ Handle<CodeDataContainer> CompileGraph(const char* name,
   Isolate* isolate = CcTest::InitIsolateOnce();
   OptimizedCompilationInfo info(base::ArrayVector("testing"), graph->zone(),
                                 CodeKind::FOR_TESTING);
-  Handle<Code> code = Pipeline::GenerateCodeForTesting(
-                          &info, isolate, call_descriptor, graph,
-                          AssemblerOptions::Default(isolate), schedule)
-                          .ToHandleChecked();
+  Handle<InstructionStream> code =
+      Pipeline::GenerateCodeForTesting(&info, isolate, call_descriptor, graph,
+                                       AssemblerOptions::Default(isolate),
+                                       schedule)
+          .ToHandleChecked();
 #ifdef ENABLE_DISASSEMBLER
   if (v8_flags.print_opt_code) {
     StdoutStream os;

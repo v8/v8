@@ -2308,13 +2308,13 @@ void TurboAssembler::LoadCodeDataContainerEntry(
                                  CodeDataContainer::kCodeEntryPointOffset));
 }
 
-void TurboAssembler::LoadCodeDataContainerCodeNonBuiltin(
+void TurboAssembler::LoadCodeDataContainerInstructionStreamNonBuiltin(
     Register destination, Register code_data_container_object) {
   ASM_CODE_COMMENT(this);
-  // Compute the Code object pointer from the code entry point.
+  // Compute the InstructionStream object pointer from the code entry point.
   movq(destination, FieldOperand(code_data_container_object,
                                  CodeDataContainer::kCodeEntryPointOffset));
-  subq(destination, Immediate(Code::kHeaderSize - kHeapObjectTag));
+  subq(destination, Immediate(InstructionStream::kHeaderSize - kHeapObjectTag));
 }
 
 void TurboAssembler::CallCodeDataContainerObject(
@@ -2610,7 +2610,7 @@ void MacroAssembler::TestCodeDataContainerIsMarkedForDeoptimization(
     Register code_data_container) {
   testl(FieldOperand(code_data_container,
                      CodeDataContainer::kKindSpecificFlagsOffset),
-        Immediate(1 << Code::kMarkedForDeoptimizationBit));
+        Immediate(1 << InstructionStream::kMarkedForDeoptimizationBit));
 }
 
 Immediate MacroAssembler::ClearedValue() const {
@@ -3391,11 +3391,12 @@ void TurboAssembler::ComputeCodeStartAddress(Register dst) {
 //    2. test kMarkedForDeoptimizationBit in those flags; and
 //    3. if it is not zero then it jumps to the builtin.
 void TurboAssembler::BailoutIfDeoptimized(Register scratch) {
-  int offset = Code::kCodeDataContainerOffset - Code::kHeaderSize;
+  int offset = InstructionStream::kCodeDataContainerOffset -
+               InstructionStream::kHeaderSize;
   LoadTaggedPointerField(scratch,
                          Operand(kJavaScriptCallCodeStartRegister, offset));
   testl(FieldOperand(scratch, CodeDataContainer::kKindSpecificFlagsOffset),
-        Immediate(1 << Code::kMarkedForDeoptimizationBit));
+        Immediate(1 << InstructionStream::kMarkedForDeoptimizationBit));
   Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
        RelocInfo::CODE_TARGET, not_zero);
 }

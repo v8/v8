@@ -43,7 +43,7 @@ uint32_t BuiltinsConstantsTableBuilder::AddObject(Handle<Object> object) {
 
   // All code objects should be loaded through the root register or use
   // pc-relative addressing.
-  DCHECK(!object->IsCode());
+  DCHECK(!object->IsInstructionStream());
 #endif
 
   auto find_result = map_.FindOrInsert(object);
@@ -73,7 +73,7 @@ void CheckPreconditionsForPatching(Isolate* isolate,
 }  // namespace
 
 void BuiltinsConstantsTableBuilder::PatchSelfReference(
-    Handle<Object> self_reference, Handle<Code> code_object) {
+    Handle<Object> self_reference, Handle<InstructionStream> code_object) {
   CheckPreconditionsForPatching(isolate_, code_object);
   DCHECK(self_reference->IsOddball());
   DCHECK(Oddball::cast(*self_reference).kind() ==
@@ -81,7 +81,7 @@ void BuiltinsConstantsTableBuilder::PatchSelfReference(
 
   uint32_t key;
   if (map_.Delete(self_reference, &key)) {
-    DCHECK(code_object->IsCode());
+    DCHECK(code_object->IsInstructionStream());
     map_.Insert(code_object, key);
   }
 }
@@ -115,12 +115,13 @@ void BuiltinsConstantsTableBuilder::Finalize() {
   for (auto it = it_scope.begin(); it != it_scope.end(); ++it) {
     uint32_t index = *it.entry();
     Object value = it.key();
-    if (value.IsCode() && Code::cast(value).kind() == CodeKind::BUILTIN) {
+    if (value.IsInstructionStream() &&
+        InstructionStream::cast(value).kind() == CodeKind::BUILTIN) {
       // Replace placeholder code objects with the real builtin.
       // See also: SetupIsolateDelegate::PopulateWithPlaceholders.
       // TODO(jgruber): Deduplicate placeholders and their corresponding
       // builtin.
-      value = builtins->code(Code::cast(value).builtin_id());
+      value = builtins->code(InstructionStream::cast(value).builtin_id());
     }
     DCHECK(value.IsHeapObject());
     table->set(index, value);

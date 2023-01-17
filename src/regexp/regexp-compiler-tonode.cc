@@ -134,7 +134,8 @@ bool RegExpClassRanges::is_standard(Zone* zone) {
 UnicodeRangeSplitter::UnicodeRangeSplitter(ZoneList<CharacterRange>* base) {
   // The unicode range splitter categorizes given character ranges into:
   // - Code points from the BMP representable by one code unit.
-  // - Code points outside the BMP that need to be split into surrogate pairs.
+  // - Code points outside the BMP that need to be split into
+  // surrogate pairs.
   // - Lone lead surrogates.
   // - Lone trail surrogates.
   // Lone surrogates are valid code points, even though no actual characters.

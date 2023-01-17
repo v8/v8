@@ -2046,7 +2046,8 @@ void Generate_AllocateSpaceAndShiftExistingArguments(
 }  // namespace
 
 // static
-// TODO(v8:11615): Observe Code::kMaxArguments in CallOrConstructVarargs
+// TODO(v8:11615): Observe InstructionStream::kMaxArguments in
+// CallOrConstructVarargs
 void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
                                                Handle<CodeDataContainer> code) {
   // ----------- S t a t e -------------
@@ -2621,8 +2622,8 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
   Label jump_to_optimized_code;
   {
     // If maybe_target_code is not null, no need to call into runtime. A
-    // precondition here is: if maybe_target_code is a Code object, it must NOT
-    // be marked_for_deoptimization (callers must ensure this).
+    // precondition here is: if maybe_target_code is a InstructionStream object,
+    // it must NOT be marked_for_deoptimization (callers must ensure this).
     __ testq(maybe_target_code, maybe_target_code);
     __ j(not_equal, &jump_to_optimized_code, Label::kNear);
   }
@@ -2673,13 +2674,14 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
     __ leave();
   }
 
-  __ LoadCodeDataContainerCodeNonBuiltin(rax, rax);
+  __ LoadCodeDataContainerInstructionStreamNonBuiltin(rax, rax);
 
   // Load deoptimization data from the code object.
   const TaggedRegister deopt_data(rbx);
   __ LoadTaggedPointerField(
       deopt_data,
-      FieldOperand(rax, Code::kDeoptimizationDataOrInterpreterDataOffset));
+      FieldOperand(
+          rax, InstructionStream::kDeoptimizationDataOrInterpreterDataOffset));
 
   // Load the OSR entrypoint offset from the deoptimization data.
   __ SmiUntagField(
@@ -2688,7 +2690,7 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
                                    DeoptimizationData::kOsrPcOffsetIndex)));
 
   // Compute the target address = code_obj + header_size + osr_offset
-  __ leaq(rax, FieldOperand(rax, rbx, times_1, Code::kHeaderSize));
+  __ leaq(rax, FieldOperand(rax, rbx, times_1, InstructionStream::kHeaderSize));
 
   Generate_OSREntry(masm, rax);
 }
@@ -2772,13 +2774,14 @@ void Builtins::Generate_MaglevOutOfLinePrologue(MacroAssembler* masm) {
   // before deoptimizing.
   {
     static constexpr int kCodeStartToCodeDataContainerOffset =
-        Code::kCodeDataContainerOffset - Code::kHeaderSize;
+        InstructionStream::kCodeDataContainerOffset -
+        InstructionStream::kHeaderSize;
     __ LoadTaggedPointerField(scratch0,
                               Operand(kJavaScriptCallCodeStartRegister,
                                       kCodeStartToCodeDataContainerOffset));
     __ testl(
         FieldOperand(scratch0, CodeDataContainer::kKindSpecificFlagsOffset),
-        Immediate(1 << Code::kMarkedForDeoptimizationBit));
+        Immediate(1 << InstructionStream::kMarkedForDeoptimizationBit));
     __ j(not_zero, &deoptimize);
   }
 
@@ -5330,7 +5333,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   Register closure = rdi;
   __ movq(closure, MemOperand(rbp, StandardFrameConstants::kFunctionOffset));
 
-  // Get the Code object from the shared function info.
+  // Get the InstructionStream object from the shared function info.
   Register code_obj = rbx;
   TaggedRegister shared_function_info(code_obj);
   __ LoadTaggedPointerField(
@@ -5364,7 +5367,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   if (v8_flags.debug_code) {
     AssertCodeDataContainerIsBaseline(masm, code_obj, r11);
   }
-  __ LoadCodeDataContainerCodeNonBuiltin(code_obj, code_obj);
+  __ LoadCodeDataContainerInstructionStreamNonBuiltin(code_obj, code_obj);
 
   // Load the feedback vector.
   Register feedback_vector = r11;
@@ -5431,8 +5434,8 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     __ movq(arg_reg_3, kInterpreterBytecodeArrayRegister);
     __ CallCFunction(get_baseline_pc, 3);
   }
-  __ leaq(code_obj,
-          FieldOperand(code_obj, kReturnRegister0, times_1, Code::kHeaderSize));
+  __ leaq(code_obj, FieldOperand(code_obj, kReturnRegister0, times_1,
+                                 InstructionStream::kHeaderSize));
   __ popq(kInterpreterAccumulatorRegister);
 
   if (is_osr) {

@@ -112,7 +112,7 @@ MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitCodePointerImpl(
 
 template <typename ConcreteVisitor, typename MarkingState>
 void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitEmbeddedPointer(
-    Code host, RelocInfo* rinfo) {
+    InstructionStream host, RelocInfo* rinfo) {
   DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));
   HeapObject object =
       rinfo->target_object(ObjectVisitorWithCageBases::cage_base());
@@ -132,9 +132,10 @@ void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitEmbeddedPointer(
 
 template <typename ConcreteVisitor, typename MarkingState>
 void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitCodeTarget(
-    Code host, RelocInfo* rinfo) {
+    InstructionStream host, RelocInfo* rinfo) {
   DCHECK(RelocInfo::IsCodeTargetMode(rinfo->rmode()));
-  Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+  InstructionStream target =
+      InstructionStream::GetCodeFromTargetAddress(rinfo->target_address());
 
   if (!ShouldMarkObject(target)) return;
   MarkObject(host, target);
@@ -213,13 +214,14 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitSharedFunctionInfo(
         CodeDataContainer::cast(shared_info.function_data(kAcquireLoad));
     // Safe to do a relaxed load here since the CodeDataContainer was
     // acquire-loaded.
-    Code baseline_code = FromCodeDataContainer(
+    InstructionStream baseline_code = FromCodeDataContainer(
         baseline_code_data_container,
         ObjectVisitorWithCageBases::code_cage_base(), kRelaxedLoad);
     // Visit the bytecode hanging off baseline code.
-    VisitPointer(baseline_code,
-                 baseline_code.RawField(
-                     Code::kDeoptimizationDataOrInterpreterDataOffset));
+    VisitPointer(
+        baseline_code,
+        baseline_code.RawField(
+            InstructionStream::kDeoptimizationDataOrInterpreterDataOffset));
     local_weak_objects_->code_flushing_candidates_local.Push(shared_info);
   } else {
     // In other cases, record as a flushing candidate since we have old

@@ -442,8 +442,8 @@ class ReadOnlySpaceObjectIterator : public ObjectIterator {
       cur_addr_ += ALIGN_TO_ALLOCATION_ALIGNMENT(obj_size);
       DCHECK_LE(cur_addr_, cur_end_);
       if (!obj.IsFreeSpaceOrFiller()) {
-        if (obj.IsCode()) {
-          DCHECK(Code::cast(obj).is_builtin());
+        if (obj.IsInstructionStream()) {
+          DCHECK(InstructionStream::cast(obj).is_builtin());
           DCHECK_CODEOBJECT_SIZE(obj_size, space_);
         } else {
           DCHECK_OBJECT_SIZE(obj_size);

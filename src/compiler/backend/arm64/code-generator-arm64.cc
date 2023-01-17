@@ -3376,8 +3376,8 @@ void CodeGenerator::PrepareForDeoptimizationExits(
       false, false,
       static_cast<int>(exits->size()) * Deoptimizer::kLazyDeoptExitSize);
 
-  // Check which deopt kinds exist in this Code object, to avoid emitting jumps
-  // to unused entries.
+  // Check which deopt kinds exist in this InstructionStream object, to avoid
+  // emitting jumps to unused entries.
   bool saw_deopt_kind[kDeoptimizeKindCount] = {false};
   for (auto exit : *exits) {
     saw_deopt_kind[static_cast<int>(exit->kind())] = true;

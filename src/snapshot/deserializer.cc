@@ -489,12 +489,12 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
     }
   }
 
-  if (InstanceTypeChecker::IsCode(instance_type)) {
+  if (InstanceTypeChecker::IsInstructionStream(instance_type)) {
     // We flush all code pages after deserializing the startup snapshot.
     // Hence we only remember each individual code object when deserializing
     // user code.
     if (deserializing_user_code()) {
-      new_code_objects_.push_back(Handle<Code>::cast(obj));
+      new_code_objects_.push_back(Handle<InstructionStream>::cast(obj));
     }
   } else if (InstanceTypeChecker::IsCodeDataContainer(instance_type)) {
     auto code_data_container = CodeDataContainer::cast(raw_obj);
@@ -506,8 +506,8 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
       code_data_container.SetEntryPointForOffHeapBuiltin(main_thread_isolate(),
                                                          entry);
     } else {
-      code_data_container.UpdateCodeEntryPoint(main_thread_isolate(),
-                                               code_data_container.code());
+      code_data_container.UpdateCodeEntryPoint(
+          main_thread_isolate(), code_data_container.instruction_stream());
     }
   } else if (InstanceTypeChecker::IsMap(instance_type)) {
     if (v8_flags.log_maps) {
@@ -686,7 +686,7 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
   PostProcessNewObject(map, obj, space);
 
 #ifdef DEBUG
-  if (obj->IsCode(cage_base)) {
+  if (obj->IsInstructionStream(cage_base)) {
     DCHECK(space == SnapshotSpace::kCode ||
            space == SnapshotSpace::kReadOnlyHeap);
   } else {
@@ -737,11 +737,11 @@ class DeserializerRelocInfoVisitor {
     DCHECK_EQ(current_object_, objects_->size());
   }
 
-  void VisitCodeTarget(Code host, RelocInfo* rinfo);
-  void VisitEmbeddedPointer(Code host, RelocInfo* rinfo);
-  void VisitExternalReference(Code host, RelocInfo* rinfo);
-  void VisitInternalReference(Code host, RelocInfo* rinfo);
-  void VisitOffHeapTarget(Code host, RelocInfo* rinfo);
+  void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo);
+  void VisitEmbeddedPointer(InstructionStream host, RelocInfo* rinfo);
+  void VisitExternalReference(InstructionStream host, RelocInfo* rinfo);
+  void VisitInternalReference(InstructionStream host, RelocInfo* rinfo);
+  void VisitOffHeapTarget(InstructionStream host, RelocInfo* rinfo);
 
  private:
   Isolate* isolate() { return deserializer_->isolate(); }
@@ -752,21 +752,22 @@ class DeserializerRelocInfoVisitor {
   int current_object_;
 };
 
-void DeserializerRelocInfoVisitor::VisitCodeTarget(Code host,
+void DeserializerRelocInfoVisitor::VisitCodeTarget(InstructionStream host,
                                                    RelocInfo* rinfo) {
   HeapObject object = *objects_->at(current_object_++);
-  rinfo->set_target_address(Code::cast(object).raw_instruction_start());
+  rinfo->set_target_address(
+      InstructionStream::cast(object).raw_instruction_start());
 }
 
-void DeserializerRelocInfoVisitor::VisitEmbeddedPointer(Code host,
+void DeserializerRelocInfoVisitor::VisitEmbeddedPointer(InstructionStream host,
                                                         RelocInfo* rinfo) {
   HeapObject object = *objects_->at(current_object_++);
   // Embedded object reference must be a strong one.
   rinfo->set_target_object(isolate()->heap(), object);
 }
 
-void DeserializerRelocInfoVisitor::VisitExternalReference(Code host,
-                                                          RelocInfo* rinfo) {
+void DeserializerRelocInfoVisitor::VisitExternalReference(
+    InstructionStream host, RelocInfo* rinfo) {
   byte data = source().Get();
   CHECK_EQ(data, Deserializer<Isolate>::kExternalReference);
 
@@ -781,8 +782,8 @@ void DeserializerRelocInfoVisitor::VisitExternalReference(Code host,
   }
 }
 
-void DeserializerRelocInfoVisitor::VisitInternalReference(Code host,
-                                                          RelocInfo* rinfo) {
+void DeserializerRelocInfoVisitor::VisitInternalReference(
+    InstructionStream host, RelocInfo* rinfo) {
   byte data = source().Get();
   CHECK_EQ(data, Deserializer<Isolate>::kInternalReference);
 
@@ -791,7 +792,7 @@ void DeserializerRelocInfoVisitor::VisitInternalReference(Code host,
   // TODO(jgruber,v8:11036): We are being permissive for this DCHECK, but
   // consider using raw_instruction_size() instead of raw_body_size() in the
   // future.
-  static_assert(Code::kOnHeapBodyIsContiguous);
+  static_assert(InstructionStream::kOnHeapBodyIsContiguous);
   DCHECK_LT(static_cast<unsigned>(target_offset),
             static_cast<unsigned>(host.raw_body_size()));
   Address target = host.entry() + target_offset;
@@ -799,7 +800,7 @@ void DeserializerRelocInfoVisitor::VisitInternalReference(Code host,
       rinfo->pc(), target, rinfo->rmode());
 }
 
-void DeserializerRelocInfoVisitor::VisitOffHeapTarget(Code host,
+void DeserializerRelocInfoVisitor::VisitOffHeapTarget(InstructionStream host,
                                                       RelocInfo* rinfo) {
   // Currently we don't serialize code that contains near builtin entries.
   DCHECK_NE(rinfo->rmode(), RelocInfo::NEAR_BUILTIN_ENTRY);
@@ -1200,16 +1201,17 @@ int Deserializer<IsolateT>::ReadCodeBody(byte data,
 
   {
     DisallowGarbageCollection no_gc;
-    Code code = Code::cast(*slot_accessor.object());
+    InstructionStream code = InstructionStream::cast(*slot_accessor.object());
 
     // First deserialize the code itself.
-    source_.CopyRaw(reinterpret_cast<void*>(code.address() + Code::kDataStart),
-                    size_in_bytes);
+    source_.CopyRaw(
+        reinterpret_cast<void*>(code.address() + InstructionStream::kDataStart),
+        size_in_bytes);
   }
 
   // Then deserialize the code header
   ReadData(slot_accessor.object(), HeapObject::kHeaderSize / kTaggedSize,
-           Code::kDataStart / kTaggedSize);
+           InstructionStream::kDataStart / kTaggedSize);
 
   // Then deserialize the pre-serialized RelocInfo objects.
   std::vector<Handle<HeapObject>> preserialized_objects;
@@ -1228,19 +1230,21 @@ int Deserializer<IsolateT>::ReadCodeBody(byte data,
   {
     DisallowGarbageCollection no_gc;
 
-    Code code = Code::cast(*slot_accessor.object());
+    InstructionStream code = InstructionStream::cast(*slot_accessor.object());
     if (V8_EXTERNAL_CODE_SPACE_BOOL) {
       code.set_main_cage_base(isolate()->cage_base(), kRelaxedStore);
     }
     DeserializerRelocInfoVisitor visitor(this, &preserialized_objects);
-    for (RelocIterator it(code, Code::BodyDescriptor::kRelocModeMask);
+    for (RelocIterator it(code,
+                          InstructionStream::BodyDescriptor::kRelocModeMask);
          !it.done(); it.next()) {
       it.rinfo()->Visit(&visitor);
     }
   }
 
   // Advance to the end of the code object.
-  return (int{Code::kDataStart} - HeapObject::kHeaderSize) / kTaggedSize +
+  return (int{InstructionStream::kDataStart} - HeapObject::kHeaderSize) /
+             kTaggedSize +
          size_in_tagged;
 }
 

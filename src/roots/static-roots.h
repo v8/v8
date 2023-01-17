@@ -42,7 +42,7 @@ struct kStaticReadOnlyRoot {
   static constexpr Tagged_t one_byte_internalized_string_map = 0x2f3d;
   static constexpr Tagged_t scope_info_map = 0x2ab5;
   static constexpr Tagged_t shared_function_info_map = 0x3d05;
-  static constexpr Tagged_t code_map = 0x3825;
+  static constexpr Tagged_t instruction_stream_map = 0x3825;
   static constexpr Tagged_t cell_map = 0x384d;
   static constexpr Tagged_t global_property_cell_map = 0x387d;
   static constexpr Tagged_t foreign_map = 0x2ba5;
@@ -788,7 +788,7 @@ static constexpr std::array<Tagged_t, 737> StaticReadOnlyRootsPointerTable = {
     kStaticReadOnlyRoot::one_byte_internalized_string_map,
     kStaticReadOnlyRoot::scope_info_map,
     kStaticReadOnlyRoot::shared_function_info_map,
-    kStaticReadOnlyRoot::code_map,
+    kStaticReadOnlyRoot::instruction_stream_map,
     kStaticReadOnlyRoot::cell_map,
     kStaticReadOnlyRoot::global_property_cell_map,
     kStaticReadOnlyRoot::foreign_map,

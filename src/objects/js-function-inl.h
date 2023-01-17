@@ -82,7 +82,8 @@ void JSFunction::set_code(CodeDataContainer value, ReleaseStoreTag,
 }
 RELEASE_ACQUIRE_ACCESSORS(JSFunction, context, Context, kContextOffset)
 
-void JSFunction::set_code(Code code, ReleaseStoreTag, WriteBarrierMode mode) {
+void JSFunction::set_code(InstructionStream code, ReleaseStoreTag,
+                          WriteBarrierMode mode) {
   set_code(ToCodeDataContainer(code), kReleaseStore, mode);
 }
 
@@ -230,8 +231,8 @@ bool JSFunction::ShouldFlushBaselineCode(
   if (!IsBaselineCodeFlushingEnabled(code_flush_mode)) return false;
   // Do a raw read for shared and code fields here since this function may be
   // called on a concurrent thread. JSFunction itself should be fully
-  // initialized here but the SharedFunctionInfo, Code objects may not be
-  // initialized. We read using acquire loads to defend against that.
+  // initialized here but the SharedFunctionInfo, InstructionStream objects may
+  // not be initialized. We read using acquire loads to defend against that.
   Object maybe_shared = ACQUIRE_READ_FIELD(*this, kSharedFunctionInfoOffset);
   if (!maybe_shared.IsSharedFunctionInfo()) return false;
 
@@ -250,8 +251,8 @@ bool JSFunction::ShouldFlushBaselineCode(
 bool JSFunction::NeedsResetDueToFlushedBytecode() {
   // Do a raw read for shared and code fields here since this function may be
   // called on a concurrent thread. JSFunction itself should be fully
-  // initialized here but the SharedFunctionInfo, Code objects may not be
-  // initialized. We read using acquire loads to defend against that.
+  // initialized here but the SharedFunctionInfo, InstructionStream objects may
+  // not be initialized. We read using acquire loads to defend against that.
   Object maybe_shared = ACQUIRE_READ_FIELD(*this, kSharedFunctionInfoOffset);
   if (!maybe_shared.IsSharedFunctionInfo()) return false;
 

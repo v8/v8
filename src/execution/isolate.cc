@@ -181,12 +181,13 @@ uint32_t DefaultEmbeddedBlobDataSize() {
 
 namespace {
 // These variables provide access to the current embedded blob without requiring
-// an isolate instance. This is needed e.g. by Code::InstructionStart, which may
-// not have access to an isolate but still needs to access the embedded blob.
-// The variables are initialized by each isolate in Init(). Writes and reads are
-// relaxed since we can guarantee that the current thread has initialized these
-// variables before accessing them. Different threads may race, but this is fine
-// since they all attempt to set the same values of the blob pointer and size.
+// an isolate instance. This is needed e.g. by
+// InstructionStream::InstructionStart, which may not have access to an isolate
+// but still needs to access the embedded blob. The variables are initialized by
+// each isolate in Init(). Writes and reads are relaxed since we can guarantee
+// that the current thread has initialized these variables before accessing
+// them. Different threads may race, but this is fine since they all attempt to
+// set the same values of the blob pointer and size.
 
 std::atomic<const uint8_t*> current_embedded_blob_code_(nullptr);
 std::atomic<uint32_t> current_embedded_blob_code_size_(0);
@@ -2000,7 +2001,8 @@ Object Isolate::UnwindAndFindHandler() {
       CHECK(frame->is_java_script());
 
       if (frame->is_turbofan()) {
-        Code code = frame->LookupCodeDataContainer().code();
+        InstructionStream code =
+            frame->LookupCodeDataContainer().instruction_stream();
         // The debugger triggers lazy deopt for the "to-be-restarted" frame
         // immediately when the CDP event arrives while paused.
         CHECK(code.marked_for_deoptimization());
@@ -2052,7 +2054,8 @@ Object Isolate::UnwindAndFindHandler() {
       case StackFrame::C_WASM_ENTRY: {
         StackHandler* handler = frame->top_handler();
         thread_local_top()->handler_ = handler->next_address();
-        Code code = frame->LookupCodeDataContainer().code();
+        InstructionStream code =
+            frame->LookupCodeDataContainer().instruction_stream();
         HandlerTable table(code);
         Address instruction_start = code.InstructionStart(this, frame->pc());
         int return_offset = static_cast<int>(frame->pc() - instruction_start);
@@ -2198,7 +2201,8 @@ Object Isolate::UnwindAndFindHandler() {
 
         if (frame->is_baseline()) {
           BaselineFrame* sp_frame = BaselineFrame::cast(js_frame);
-          Code code = sp_frame->LookupCodeDataContainer().code();
+          InstructionStream code =
+              sp_frame->LookupCodeDataContainer().instruction_stream();
           DCHECK(!code.is_off_heap_trampoline());
           intptr_t pc_offset = sp_frame->GetPCForBytecodeOffset(offset);
           // Patch the context register directly on the frame, so that we don't
@@ -4822,7 +4826,7 @@ bool Isolate::use_optimizer() {
 
 void Isolate::IncreaseTotalRegexpCodeGenerated(Handle<HeapObject> code) {
   PtrComprCageBase cage_base(this);
-  DCHECK(code->IsCode(cage_base) || code->IsByteArray(cage_base));
+  DCHECK(code->IsInstructionStream(cage_base) || code->IsByteArray(cage_base));
   total_regexp_code_generated_ += code->Size(cage_base);
 }
 

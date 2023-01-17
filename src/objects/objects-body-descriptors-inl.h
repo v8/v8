@@ -357,10 +357,10 @@ class JSFunction::BodyDescriptor final : public BodyDescriptorBase {
     int header_size = JSFunction::GetHeaderSize(map.has_prototype_slot());
     DCHECK_GE(object_size, header_size);
     IteratePointers(obj, kStartOffset, kCodeOffset, v);
-    // Code field is treated as a custom weak pointer. This field is visited as
-    // a weak pointer if the Code is baseline code and the bytecode array
-    // corresponding to this function is old. In the rest of the cases this
-    // field is treated as strong pointer.
+    // Code field is treated as a custom weak pointer. This field
+    // is visited as a weak pointer if the Code is baseline code
+    // and the bytecode array corresponding to this function is old. In the rest
+    // of the cases this field is treated as strong pointer.
     IterateCustomWeakPointer(obj, kCodeOffset, v);
     // Iterate rest of the header fields
     DCHECK_GE(header_size, kCodeOffset);
@@ -937,7 +937,7 @@ class CoverageInfo::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
-class Code::BodyDescriptor final : public BodyDescriptorBase {
+class InstructionStream::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static_assert(kRelocationInfoOffset + kTaggedSize ==
                 kDeoptimizationDataOrInterpreterDataOffset);
@@ -966,7 +966,7 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
     // GC does not visit data/code in the header and in the body directly.
     IteratePointers(obj, kRelocationInfoOffset, kDataStart, v);
 
-    RelocIterator it(Code::cast(obj), kRelocModeMask);
+    RelocIterator it(InstructionStream::cast(obj), kRelocModeMask);
     v->VisitRelocInfo(&it);
   }
 
@@ -977,7 +977,7 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
   }
 
   static inline int SizeOf(Map map, HeapObject object) {
-    return Code::unchecked_cast(object).CodeSize();
+    return InstructionStream::unchecked_cast(object).CodeSize();
   }
 };
 
@@ -1063,7 +1063,7 @@ class CodeDataContainer::BodyDescriptor final : public BodyDescriptorBase {
         static_cast<int>(HeapObject::kHeaderSize) ==
         static_cast<int>(CodeDataContainer::kPointerFieldsStrongEndOffset));
 
-    v->VisitCodePointer(obj, obj.RawCodeField(kCodeOffset));
+    v->VisitCodePointer(obj, obj.RawCodeField(kInstructionStreamOffset));
   }
 
   static inline int SizeOf(Map map, HeapObject object) {
@@ -1334,8 +1334,8 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
       return CALL_APPLY(Foreign);
     case MAP_TYPE:
       return CALL_APPLY(Map);
-    case CODE_TYPE:
-      return CALL_APPLY(Code);
+    case INSTRUCTION_STREAM_TYPE:
+      return CALL_APPLY(InstructionStream);
     case CELL_TYPE:
       return CALL_APPLY(Cell);
     case PROPERTY_CELL_TYPE:

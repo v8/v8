@@ -43,7 +43,7 @@ class Deoptimizer : public Malloced {
     const int deopt_id;
   };
 
-  static DeoptInfo GetDeoptInfo(Code code, Address from);
+  static DeoptInfo GetDeoptInfo(InstructionStream code, Address from);
   DeoptInfo GetDeoptInfo() const {
     return Deoptimizer::GetDeoptInfo(compiled_code_, from_);
   }
@@ -55,7 +55,7 @@ class Deoptimizer : public Malloced {
   static const char* MessageFor(DeoptimizeKind kind);
 
   Handle<JSFunction> function() const;
-  Handle<Code> compiled_code() const;
+  Handle<InstructionStream> compiled_code() const;
   DeoptimizeKind deopt_kind() const { return deopt_kind_; }
 
   // Where the deopt exit occurred *in the outermost frame*, i.e in the
@@ -115,7 +115,7 @@ class Deoptimizer : public Malloced {
   static bool IsDeoptimizationEntry(Isolate* isolate, Address addr,
                                     DeoptimizeKind* type_out);
 
-  // Code generation support.
+  // InstructionStream generation support.
   static int input_offset() { return offsetof(Deoptimizer, input_); }
   static int output_count_offset() {
     return offsetof(Deoptimizer, output_count_);
@@ -140,7 +140,8 @@ class Deoptimizer : public Malloced {
   V8_EXPORT_PRIVATE static const int kLazyDeoptExitSize;
 
   // Tracing.
-  static void TraceMarkForDeoptimization(Code code, const char* reason);
+  static void TraceMarkForDeoptimization(InstructionStream code,
+                                         const char* reason);
   static void TraceEvictFromOptimizedCodeCache(SharedFunctionInfo sfi,
                                                const char* reason);
 
@@ -150,7 +151,7 @@ class Deoptimizer : public Malloced {
 
   Deoptimizer(Isolate* isolate, JSFunction function, DeoptimizeKind kind,
               Address from, int fp_to_sp_delta);
-  Code FindOptimizedCode();
+  InstructionStream FindOptimizedCode();
   void DeleteFrameDescriptions();
 
   void DoComputeOutputFrames();
@@ -180,10 +181,10 @@ class Deoptimizer : public Malloced {
 
   static void MarkAllCodeForContext(NativeContext native_context);
   static void DeoptimizeMarkedCodeForContext(NativeContext native_context);
-  // Searches the list of known deoptimizing code for a Code object
+  // Searches the list of known deoptimizing code for a InstructionStream object
   // containing the given address (which is supposedly faster than
   // searching all code objects).
-  Code FindDeoptimizingCode(Address addr);
+  InstructionStream FindDeoptimizingCode(Address addr);
 
   // Tracing.
   bool tracing_enabled() const { return trace_scope_ != nullptr; }
@@ -206,7 +207,7 @@ class Deoptimizer : public Malloced {
 
   Isolate* isolate_;
   JSFunction function_;
-  Code compiled_code_;
+  InstructionStream compiled_code_;
   unsigned deopt_exit_index_;
   BytecodeOffset bytecode_offset_in_outermost_frame_ = BytecodeOffset::None();
   DeoptimizeKind deopt_kind_;

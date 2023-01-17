@@ -337,7 +337,8 @@ void BaselineCompiler::GenerateCode() {
   }
 }
 
-MaybeHandle<Code> BaselineCompiler::Build(LocalIsolate* local_isolate) {
+MaybeHandle<InstructionStream> BaselineCompiler::Build(
+    LocalIsolate* local_isolate) {
   CodeDesc desc;
   __ GetCode(local_isolate->GetMainThreadIsolateUnsafe(), &desc);
 

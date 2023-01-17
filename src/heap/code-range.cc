@@ -105,10 +105,10 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
 
   // When V8_EXTERNAL_CODE_SPACE_BOOL is enabled the allocatable region must
   // not cross the 4Gb boundary and thus the default compression scheme of
-  // truncating the Code pointers to 32-bits still works. It's achieved by
-  // specifying base_alignment parameter.
-  // Note that the alignment is calculated before adjusting the requested size
-  // for GetWritableReservedAreaSize(). The reasons are:
+  // truncating the InstructionStream pointers to 32-bits still works. It's
+  // achieved by specifying base_alignment parameter. Note that the alignment is
+  // calculated before adjusting the requested size for
+  // GetWritableReservedAreaSize(). The reasons are:
   //  - this extra page is used by breakpad on Windows and it's allowed to cross
   //    the 4Gb boundary,
   //  - rounding up the adjusted size would result in requresting unnecessarily

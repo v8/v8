@@ -125,9 +125,10 @@ void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function) {
   MaybeTailCallOptimizedCodeSlot(function, CAST(feedback_cell_value));
   Goto(&maybe_use_sfi_code);
 
-  // At this point we have a candidate Code object. It's *not* a cached
-  // optimized Code object (we'd have tail-called it above). A usual case would
-  // be the InterpreterEntryTrampoline to start executing existing bytecode.
+  // At this point we have a candidate InstructionStream object. It's *not* a
+  // cached optimized InstructionStream object (we'd have tail-called it above).
+  // A usual case would be the InterpreterEntryTrampoline to start executing
+  // existing bytecode.
   BIND(&maybe_use_sfi_code);
   Label tailcall_code(this), baseline(this);
   TVARIABLE(CodeDataContainer, code);

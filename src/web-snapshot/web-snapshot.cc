@@ -2879,8 +2879,8 @@ Handle<JSFunction> WebSnapshotDeserializer::CreateJSFunction(
   // TODO(v8:11525): Deduplicate the SFIs for class methods.
   FunctionKind kind = FunctionFlagsToFunctionKind(flags);
   Handle<SharedFunctionInfo> shared = factory()->NewSharedFunctionInfo(
-      factory()->empty_string(), MaybeHandle<Code>(), Builtin::kCompileLazy,
-      kind);
+      factory()->empty_string(), MaybeHandle<InstructionStream>(),
+      Builtin::kCompileLazy, kind);
   Handle<UncompiledData> uncompiled_data =
       factory()->NewUncompiledDataWithoutPreparseData(
           roots_.empty_string_handle(), start_position,

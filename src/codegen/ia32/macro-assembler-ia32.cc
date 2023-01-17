@@ -710,7 +710,7 @@ void MacroAssembler::TestCodeDataContainerIsMarkedForDeoptimization(
     Register code_data_container) {
   test(FieldOperand(code_data_container,
                     CodeDataContainer::kKindSpecificFlagsOffset),
-       Immediate(1 << Code::kMarkedForDeoptimizationBit));
+       Immediate(1 << InstructionStream::kMarkedForDeoptimizationBit));
 }
 
 Immediate MacroAssembler::ClearedValue() const {
@@ -2058,13 +2058,13 @@ void TurboAssembler::LoadCodeDataContainerEntry(
                                 CodeDataContainer::kCodeEntryPointOffset));
 }
 
-void TurboAssembler::LoadCodeDataContainerCodeNonBuiltin(
+void TurboAssembler::LoadCodeDataContainerInstructionStreamNonBuiltin(
     Register destination, Register code_data_container_object) {
   ASM_CODE_COMMENT(this);
-  // Compute the Code object pointer from the code entry point.
+  // Compute the InstructionStream object pointer from the code entry point.
   mov(destination, FieldOperand(code_data_container_object,
                                 CodeDataContainer::kCodeEntryPointOffset));
-  sub(destination, Immediate(Code::kHeaderSize - kHeapObjectTag));
+  sub(destination, Immediate(InstructionStream::kHeaderSize - kHeapObjectTag));
 }
 
 void TurboAssembler::CallCodeDataContainerObject(

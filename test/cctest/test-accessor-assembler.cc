@@ -41,7 +41,7 @@ void TestStubCacheOffsetCalculation(StubCache::Table table) {
     m.Return(m.SmiTag(result));
   }
 
-  Handle<Code> code = data.GenerateCode();
+  Handle<InstructionStream> code = data.GenerateCode();
   FunctionTester ft(code, kNumParams);
 
   Factory* factory = isolate->factory();
@@ -59,16 +59,11 @@ void TestStubCacheOffsetCalculation(StubCache::Table table) {
   };
 
   Handle<Map> maps[] = {
-      factory->cell_map(),
-      Map::Create(isolate, 0),
-      factory->meta_map(),
-      factory->code_map(),
-      Map::Create(isolate, 0),
-      factory->hash_table_map(),
-      factory->symbol_map(),
-      factory->string_map(),
-      Map::Create(isolate, 0),
-      factory->sloppy_arguments_elements_map(),
+      factory->cell_map(),     Map::Create(isolate, 0),
+      factory->meta_map(),     factory->instruction_stream_map(),
+      Map::Create(isolate, 0), factory->hash_table_map(),
+      factory->symbol_map(),   factory->string_map(),
+      Map::Create(isolate, 0), factory->sloppy_arguments_elements_map(),
   };
 
   for (size_t name_index = 0; name_index < arraysize(names); name_index++) {
@@ -105,7 +100,7 @@ TEST(StubCacheSecondaryOffset) {
 
 namespace {
 
-Handle<Code> CreateCodeOfKind(CodeKind kind) {
+Handle<InstructionStream> CreateCodeOfKind(CodeKind kind) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   CodeAssemblerTester data(isolate, kind);
   CodeStubAssembler m(data.state());
@@ -152,12 +147,12 @@ TEST(TryProbeStubCache) {
     m.Return(m.BooleanConstant(false));
   }
 
-  Handle<Code> code = data.GenerateCode();
+  Handle<InstructionStream> code = data.GenerateCode();
   FunctionTester ft(code, kNumParams);
 
   std::vector<Handle<Name>> names;
   std::vector<Handle<JSObject>> receivers;
-  std::vector<Handle<Code>> handlers;
+  std::vector<Handle<InstructionStream>> handlers;
 
   base::RandomNumberGenerator rand_gen(v8_flags.random_seed);
 
@@ -214,7 +209,7 @@ TEST(TryProbeStubCache) {
     int index = rand_gen.NextInt();
     Handle<Name> name = names[index % names.size()];
     Handle<JSObject> receiver = receivers[index % receivers.size()];
-    Handle<Code> handler = handlers[index % handlers.size()];
+    Handle<InstructionStream> handler = handlers[index % handlers.size()];
     stub_cache.Set(*name, receiver->map(),
                    MaybeObject::FromObject(ToCodeDataContainer(*handler)));
   }

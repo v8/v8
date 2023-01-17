@@ -866,7 +866,7 @@ CompilationEnv NativeModule::CreateCompilationEnv() const {
           compilation_state()->dynamic_tiering()};
 }
 
-WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
+WasmCode* NativeModule::AddCodeForTesting(Handle<InstructionStream> code) {
   CodeSpaceWriteScope code_space_write_scope(this);
   const size_t relocation_size = code->relocation_size();
   base::OwnedVector<byte> reloc_info;
@@ -883,18 +883,19 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
                                source_pos_table->length());
   }
   CHECK(!code->is_off_heap_trampoline());
-  static_assert(Code::kOnHeapBodyIsContiguous);
+  static_assert(InstructionStream::kOnHeapBodyIsContiguous);
   base::Vector<const byte> instructions(
       reinterpret_cast<byte*>(code->raw_body_start()),
       static_cast<size_t>(code->raw_body_size()));
   const int stack_slots = code->stack_slots();
 
-  // Metadata offsets in Code objects are relative to the start of the metadata
-  // section, whereas WasmCode expects offsets relative to InstructionStart.
+  // Metadata offsets in InstructionStream objects are relative to the start of
+  // the metadata section, whereas WasmCode expects offsets relative to
+  // InstructionStart.
   const int base_offset = code->raw_instruction_size();
   // TODO(jgruber,v8:8758): Remove this translation. It exists only because
-  // Code objects contains real offsets but WasmCode expects an offset of 0 to
-  // mean 'empty'.
+  // InstructionStream objects contains real offsets but WasmCode expects an
+  // offset of 0 to mean 'empty'.
   const int safepoint_table_offset =
       code->has_safepoint_table() ? base_offset + code->safepoint_table_offset()
                                   : 0;
@@ -2117,8 +2118,8 @@ void NativeModule::SampleCodeSize(Counters* counters) const {
   int code_size_mb = static_cast<int>(code_size / MB);
   counters->wasm_module_code_size_mb()->AddSample(code_size_mb);
   // If this is a wasm module of >= 2MB, also sample the freed code size,
-  // absolute and relative. Code GC does not happen on asm.js modules, and
-  // small modules will never trigger GC anyway.
+  // absolute and relative. Code GC does not happen on asm.js
+  // modules, and small modules will never trigger GC anyway.
   size_t generated_size = code_allocator_.generated_code_size();
   if (generated_size >= 2 * MB && module()->origin == kWasmOrigin) {
     size_t freed_size = code_allocator_.freed_code_size();

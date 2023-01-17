@@ -433,7 +433,7 @@ MaybeHandle<CodeDataContainer> MaglevCompiler::GenerateCode(
       compilation_info->code_generator();
   DCHECK_NOT_NULL(code_generator);
 
-  Handle<Code> code;
+  Handle<InstructionStream> code;
   if (!code_generator->Generate(isolate).ToHandle(&code)) {
     compilation_info->toplevel_compilation_unit()
         ->shared_function_info()

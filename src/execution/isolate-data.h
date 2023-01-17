@@ -243,8 +243,9 @@ class IsolateData final {
   ThreadLocalTop thread_local_top_;
 
   // The entry points for builtins. This corresponds to
-  // Code::InstructionStart() for each Code object in the builtins table below.
-  // The entry table is in IsolateData for easy access through kRootRegister.
+  // InstructionStream::InstructionStart() for each InstructionStream object in
+  // the builtins table below. The entry table is in IsolateData for easy access
+  // through kRootRegister.
   Address builtin_entry_table_[Builtins::kBuiltinCount] = {};
 
   // The entries in this array are tagged pointers to CodeDataContainer objects.

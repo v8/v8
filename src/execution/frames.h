@@ -297,8 +297,8 @@ class StackFrame {
   // Get the type of this frame.
   virtual Type type() const = 0;
 
-  // Get the code associated with this frame. The result might be a Code object,
-  // a CodeDataContainer object or an empty value.
+  // Get the code associated with this frame. The result might be a
+  // InstructionStream object, a CodeDataContainer object or an empty value.
   // This method is used by Isolate::PushStackTraceAndDie() for collecting a
   // stack trace on fatal error and thus it might be called in the middle of GC
   // and should be as safe as possible.

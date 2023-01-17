@@ -23,10 +23,11 @@ class FunctionTester {
 
   FunctionTester(Isolate* i_isolate, Graph* graph, int param_count);
 
-  FunctionTester(Isolate* i_isolate, Handle<Code> code, int param_count);
+  FunctionTester(Isolate* i_isolate, Handle<InstructionStream> code,
+                 int param_count);
 
   // Assumes VoidDescriptor call interface.
-  explicit FunctionTester(Isolate* i_isolate, Handle<Code> code);
+  explicit FunctionTester(Isolate* i_isolate, Handle<InstructionStream> code);
 
   Isolate* isolate;
   CanonicalHandleScope canonical;

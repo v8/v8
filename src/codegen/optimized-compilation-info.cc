@@ -169,7 +169,7 @@ StackFrame::Type OptimizedCompilationInfo::GetOutputStackFrameType() const {
   }
 }
 
-void OptimizedCompilationInfo::SetCode(Handle<Code> code) {
+void OptimizedCompilationInfo::SetCode(Handle<InstructionStream> code) {
   DCHECK_EQ(code->kind(), code_kind());
   code_ = code;
 }

@@ -277,9 +277,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // This sets the branch destination. 'location' here can be either the pc of
   // an immediate branch or the address of an entry in the constant pool.
   // This is for calls and branches within generated code.
-  inline static void deserialization_set_special_target_at(Address location,
-                                                           Code code,
-                                                           Address target);
+  inline static void deserialization_set_special_target_at(
+      Address location, InstructionStream code, Address target);
 
   // Get the size of the special target encoded at 'location'.
   inline static int deserialization_special_target_size(Address location);
@@ -780,12 +779,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void clz(const Register& rd, const Register& rn);
   void cls(const Register& rd, const Register& rn);
 
-  // Pointer Authentication Code for Instruction address, using key B, with
-  // address in x17 and modifier in x16 [Armv8.3].
+  // Pointer Authentication InstructionStream for Instruction address, using key
+  // B, with address in x17 and modifier in x16 [Armv8.3].
   void pacib1716();
 
-  // Pointer Authentication Code for Instruction address, using key B, with
-  // address in LR and modifier in SP [Armv8.3].
+  // Pointer Authentication InstructionStream for Instruction address, using key
+  // B, with address in LR and modifier in SP [Armv8.3].
   void pacibsp();
 
   // Authenticate Instruction address, using key B, with address in x17 and
@@ -2088,7 +2087,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     dc64(data);
   }
 
-  // Code generation helpers --------------------------------------------------
+  // InstructionStream generation helpers
+  // --------------------------------------------------
 
   Instruction* pc() const { return Instruction::Cast(pc_); }
 
@@ -2663,7 +2663,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   std::deque<int> internal_reference_positions_;
 
  protected:
-  // Code generation
+  // InstructionStream generation
   // The relocation writer's position is at least kGap bytes below the end of
   // the generated instructions. This is so that multi-instruction sequences do
   // not have to check for overflow. The same is true for writes of large

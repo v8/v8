@@ -15,7 +15,7 @@ namespace internal {
 class Assembler;
 class ByteArray;
 class BytecodeArray;
-class Code;
+class InstructionStream;
 class CodeDataContainer;
 
 namespace wasm {
@@ -30,8 +30,9 @@ class WasmCode;
 //    Layout looks as follows:
 //      [ range-start , range-end , handler-offset , handler-data ]
 // 2) Based on return addresses: Used for turbofanned code. Stored directly in
-//    the instruction stream of the {Code} object. Contains one entry per
-//    call-site that could throw an exception. Layout looks as follows:
+//    the instruction stream of the {InstructionStream} object. Contains one
+//    entry per call-site that could throw an exception. Layout looks as
+//    follows:
 //      [ return-address-offset , handler-offset ]
 class V8_EXPORT_PRIVATE HandlerTable {
  public:
@@ -54,7 +55,7 @@ class V8_EXPORT_PRIVATE HandlerTable {
   enum EncodingMode { kRangeBasedEncoding, kReturnAddressBasedEncoding };
 
   // Constructors for the various encodings.
-  explicit HandlerTable(Code code);
+  explicit HandlerTable(InstructionStream code);
   explicit HandlerTable(CodeDataContainer code);
   explicit HandlerTable(ByteArray byte_array);
 #if V8_ENABLE_WEBASSEMBLY
@@ -121,8 +122,8 @@ class V8_EXPORT_PRIVATE HandlerTable {
 #endif
 
   // Direct pointer into the encoded data. This pointer potentially points into
-  // objects on the GC heap (either {ByteArray} or {Code}) and could become
-  // stale during a collection. Hence we disallow any allocation.
+  // objects on the GC heap (either {ByteArray} or {InstructionStream}) and
+  // could become stale during a collection. Hence we disallow any allocation.
   const Address raw_encoded_data_;
   DISALLOW_GARBAGE_COLLECTION(no_gc_)
 

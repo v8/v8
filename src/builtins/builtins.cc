@@ -285,7 +285,7 @@ Address Builtins::CppEntryOf(Builtin builtin) {
 }
 
 // static
-bool Builtins::IsBuiltin(const Code code) {
+bool Builtins::IsBuiltin(const InstructionStream code) {
   return Builtins::IsBuiltinId(code.builtin_id());
 }
 
@@ -399,7 +399,7 @@ constexpr int OffHeapTrampolineGenerator::kBufferSize;
 }  // namespace
 
 // static
-Handle<Code> Builtins::GenerateOffHeapTrampolineFor(
+Handle<InstructionStream> Builtins::GenerateOffHeapTrampolineFor(
     Isolate* isolate, Address off_heap_entry, int32_t kind_specific_flags,
     bool generate_jump_to_instruction_stream) {
   DCHECK_NOT_NULL(isolate->embedded_blob_code());
@@ -429,14 +429,14 @@ Handle<ByteArray> Builtins::GenerateOffHeapTrampolineRelocInfo(
 
   Handle<ByteArray> reloc_info = isolate->factory()->NewByteArray(
       desc.reloc_size, AllocationType::kReadOnly);
-  Code::CopyRelocInfoToByteArray(*reloc_info, desc);
+  InstructionStream::CopyRelocInfoToByteArray(*reloc_info, desc);
 
   return reloc_info;
 }
 
 // static
-Handle<Code> Builtins::CreateInterpreterEntryTrampolineForProfiling(
-    Isolate* isolate) {
+Handle<InstructionStream>
+Builtins::CreateInterpreterEntryTrampolineForProfiling(Isolate* isolate) {
   DCHECK_NOT_NULL(isolate->embedded_blob_code());
   DCHECK_NE(0, isolate->embedded_blob_code_size());
 
@@ -525,18 +525,19 @@ bool Builtins::AllowDynamicFunction(Isolate* isolate, Handle<JSFunction> target,
 // static
 bool Builtins::CodeObjectIsExecutable(Builtin builtin) {
   // If the runtime/optimized code always knows when executing a given builtin
-  // that it is a builtin, then that builtin does not need an executable Code
-  // object. Such Code objects can go in read_only_space (and can even be
-  // smaller with no branch instruction), thus saving memory.
+  // that it is a builtin, then that builtin does not need an executable
+  // InstructionStream object. Such InstructionStream objects can go in
+  // read_only_space (and can even be smaller with no branch instruction), thus
+  // saving memory.
 
-  // Builtins with JS linkage will always have executable Code objects since
-  // they can be called directly from jitted code with no way of determining
-  // that they are builtins at generation time. E.g.
+  // Builtins with JS linkage will always have executable InstructionStream
+  // objects since they can be called directly from jitted code with no way of
+  // determining that they are builtins at generation time. E.g.
   //   f = Array.of;
   //   f(1, 2, 3);
   // TODO(delphick): This is probably too loose but for now Wasm can call any JS
-  // linkage builtin via its Code object. Once Wasm is fixed this can either be
-  // tighted or removed completely.
+  // linkage builtin via its InstructionStream object. Once Wasm is fixed this
+  // can either be tighted or removed completely.
   if (Builtins::KindOf(builtin) != BCH && HasJSLinkage(builtin)) {
     return true;
   }

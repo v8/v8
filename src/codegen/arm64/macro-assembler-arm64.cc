@@ -2360,13 +2360,14 @@ void TurboAssembler::LoadCodeDataContainerEntry(
                                    CodeDataContainer::kCodeEntryPointOffset));
 }
 
-void TurboAssembler::LoadCodeDataContainerCodeNonBuiltin(
+void TurboAssembler::LoadCodeDataContainerInstructionStreamNonBuiltin(
     Register destination, Register code_data_container_object) {
   ASM_CODE_COMMENT(this);
-  // Compute the Code object pointer from the code entry point.
+  // Compute the InstructionStream object pointer from the code entry point.
   Ldr(destination, FieldMemOperand(code_data_container_object,
                                    CodeDataContainer::kCodeEntryPointOffset));
-  Sub(destination, destination, Immediate(Code::kHeaderSize - kHeapObjectTag));
+  Sub(destination, destination,
+      Immediate(InstructionStream::kHeaderSize - kHeapObjectTag));
 }
 
 void TurboAssembler::CallCodeDataContainerObject(
@@ -2396,9 +2397,9 @@ void TurboAssembler::StoreReturnAddressAndCall(Register target) {
   // This generates the final instruction sequence for calls to C functions
   // once an exit frame has been constructed.
   //
-  // Note that this assumes the caller code (i.e. the Code object currently
-  // being generated) is immovable or that the callee function cannot trigger
-  // GC, since the callee function will return to it.
+  // Note that this assumes the caller code (i.e. the InstructionStream object
+  // currently being generated) is immovable or that the callee function cannot
+  // trigger GC, since the callee function will return to it.
 
   UseScratchRegisterScope temps(this);
   temps.Exclude(x16, x17);
@@ -2447,13 +2448,15 @@ bool TurboAssembler::IsNearCallOffset(int64_t offset) {
 void TurboAssembler::BailoutIfDeoptimized() {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.AcquireX();
-  int offset = Code::kCodeDataContainerOffset - Code::kHeaderSize;
+  int offset = InstructionStream::kCodeDataContainerOffset -
+               InstructionStream::kHeaderSize;
   LoadTaggedPointerField(scratch,
                          MemOperand(kJavaScriptCallCodeStartRegister, offset));
   Ldr(scratch.W(),
       FieldMemOperand(scratch, CodeDataContainer::kKindSpecificFlagsOffset));
   Label not_deoptimized;
-  Tbz(scratch.W(), Code::kMarkedForDeoptimizationBit, &not_deoptimized);
+  Tbz(scratch.W(), InstructionStream::kMarkedForDeoptimizationBit,
+      &not_deoptimized);
   Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
        RelocInfo::CODE_TARGET);
   Bind(&not_deoptimized);
@@ -2691,7 +2694,7 @@ void MacroAssembler::JumpIfCodeDataContainerIsMarkedForDeoptimization(
   Ldr(scratch.W(),
       FieldMemOperand(code_data_container,
                       CodeDataContainer::kKindSpecificFlagsOffset));
-  Tbnz(scratch.W(), Code::kMarkedForDeoptimizationBit,
+  Tbnz(scratch.W(), InstructionStream::kMarkedForDeoptimizationBit,
        if_marked_for_deoptimization);
 }
 

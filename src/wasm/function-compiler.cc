@@ -253,7 +253,7 @@ Handle<CodeDataContainer> JSToWasmWrapperCompilationUnit::Finalize() {
 
   CompilationJob::Status status = job_->FinalizeJob(isolate_);
   CHECK_EQ(status, CompilationJob::SUCCEEDED);
-  Handle<Code> code = job_->compilation_info()->code();
+  Handle<InstructionStream> code = job_->compilation_info()->code();
   if (isolate_->v8_file_logger()->is_listening_to_code_events() ||
       isolate_->is_profiling()) {
     Handle<String> name = isolate_->factory()->NewStringFromAsciiChecked(

@@ -99,7 +99,7 @@ Builtin OffHeapInstructionStream::TryLookupCode(Isolate* isolate,
     // When shared pointer compression cage is enabled and it has the embedded
     // code blob copy then it could have been used regardless of whether the
     // isolate uses it or knows about it or not (see
-    // Code::OffHeapInstructionStart()).
+    // InstructionStream::OffHeapInstructionStart()).
     // So, this blob has to be checked too.
     CodeRange* code_range = CodeRange::GetProcessWideCodeRange();
     if (code_range && code_range->embedded_blob_code_copy() != nullptr) {
@@ -179,7 +179,8 @@ void OffHeapInstructionStream::FreeOffHeapOffHeapInstructionStream(
 
 namespace {
 
-bool BuiltinAliasesOffHeapTrampolineRegister(Isolate* isolate, Code code) {
+bool BuiltinAliasesOffHeapTrampolineRegister(Isolate* isolate,
+                                             InstructionStream code) {
   DCHECK(Builtins::IsIsolateIndependent(code.builtin_id()));
   switch (Builtins::KindOf(code.builtin_id())) {
     case Builtins::CPP:
@@ -219,7 +220,8 @@ void FinalizeEmbeddedCodeTargets(Isolate* isolate, EmbeddedData* blob) {
   static_assert(Builtins::kAllBuiltinsAreIsolateIndependent);
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
-    Code code = FromCodeDataContainer(isolate->builtins()->code(builtin));
+    InstructionStream code =
+        FromCodeDataContainer(isolate->builtins()->code(builtin));
     RelocIterator on_heap_it(code, kRelocMask);
     RelocIterator off_heap_it(blob, code, kRelocMask);
 
@@ -230,13 +232,14 @@ void FinalizeEmbeddedCodeTargets(Isolate* isolate, EmbeddedData* blob) {
     // On these platforms we emit relative builtin-to-builtin
     // jumps for isolate independent builtins in the snapshot. This fixes up the
     // relative jumps to the right offsets in the snapshot.
-    // See also: Code::IsIsolateIndependent.
+    // See also: InstructionStream::IsIsolateIndependent.
     while (!on_heap_it.done()) {
       DCHECK(!off_heap_it.done());
 
       RelocInfo* rinfo = on_heap_it.rinfo();
       DCHECK_EQ(rinfo->rmode(), off_heap_it.rinfo()->rmode());
-      Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+      InstructionStream target =
+          InstructionStream::GetCodeFromTargetAddress(rinfo->target_address());
       CHECK(Builtins::IsIsolateIndependentBuiltin(target));
 
       // Do not emit write-barrier for off-heap writes.
@@ -258,14 +261,14 @@ void FinalizeEmbeddedCodeTargets(Isolate* isolate, EmbeddedData* blob) {
 }
 
 void EnsureRelocatable(CodeDataContainer code_data_container) {
-  Code code = FromCodeDataContainer(code_data_container);
+  InstructionStream code = FromCodeDataContainer(code_data_container);
   if (code.relocation_size() == 0) return;
 
   // On some architectures (arm) the builtin might have a non-empty reloc
   // info containing a CONST_POOL entry. These entries don't have to be
-  // updated when Code object is relocated, so it's safe to drop the reloc
-  // info alltogether. If it wasn't the case then we'd have to store it
-  // in the metadata.
+  // updated when InstructionStream object is relocated, so it's safe to drop
+  // the reloc info alltogether. If it wasn't the case then we'd have to store
+  // it in the metadata.
   for (RelocIterator it(code); !it.done(); it.next()) {
     CHECK_EQ(it.rinfo()->rmode(), RelocInfo::CONST_POOL);
   }
@@ -286,7 +289,7 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
   static_assert(Builtins::kAllBuiltinsAreIsolateIndependent);
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
-    Code code = FromCodeDataContainer(builtins->code(builtin));
+    InstructionStream code = FromCodeDataContainer(builtins->code(builtin));
 
     // Sanity-check that the given builtin is isolate-independent and does not
     // use the trampoline register in its calling convention.
@@ -345,7 +348,8 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
   uint8_t* const blob_code = new uint8_t[blob_code_size]();
 
   // Allocate space for the data section, value-initialized to 0.
-  static_assert(IsAligned(FixedDataSize(), Code::kMetadataAlignment));
+  static_assert(
+      IsAligned(FixedDataSize(), InstructionStream::kMetadataAlignment));
   const uint32_t blob_data_size = FixedDataSize() + raw_data_size;
   uint8_t* const blob_data = new uint8_t[blob_data_size]();
 
@@ -371,7 +375,7 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
   static_assert(Builtins::kAllBuiltinsAreIsolateIndependent);
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
-    Code code = FromCodeDataContainer(builtins->code(builtin));
+    InstructionStream code = FromCodeDataContainer(builtins->code(builtin));
     uint32_t offset =
         layout_descriptions[static_cast<int>(builtin)].metadata_offset;
     uint8_t* dst = raw_metadata_start + offset;
@@ -389,7 +393,7 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
   static_assert(Builtins::kAllBuiltinsAreIsolateIndependent);
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
-    Code code = FromCodeDataContainer(builtins->code(builtin));
+    InstructionStream code = FromCodeDataContainer(builtins->code(builtin));
     uint32_t offset =
         layout_descriptions[static_cast<int>(builtin)].instruction_offset;
     uint8_t* dst = raw_code_start + offset;
@@ -425,7 +429,7 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
   if (DEBUG_BOOL) {
     for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
          ++builtin) {
-      Code code = FromCodeDataContainer(builtins->code(builtin));
+      InstructionStream code = FromCodeDataContainer(builtins->code(builtin));
 
       CHECK_EQ(d.InstructionSizeOfBuiltin(builtin), code.InstructionSize());
       CHECK_EQ(d.MetadataSizeOfBuiltin(builtin), code.MetadataSize());

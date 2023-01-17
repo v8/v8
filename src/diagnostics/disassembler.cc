@@ -382,9 +382,9 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
       const CodeReference& host = code;
       Address constant_pool =
           host.is_null() ? kNullAddress : host.constant_pool();
-      Code code_pointer;
-      if (host.is_code()) {
-        code_pointer = *host.as_code();
+      InstructionStream code_pointer;
+      if (host.is_instruction_stream()) {
+        code_pointer = *host.as_instruction_stream();
       }
 
       RelocInfo relocinfo(pcs[i], rmodes[i], datas[i], code_pointer,
@@ -404,7 +404,7 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
     // by IsInConstantPool() below.
     if (pcs.empty() && !code.is_null() && !decoding_constant_pool) {
       RelocInfo dummy_rinfo(reinterpret_cast<Address>(prev_pc),
-                            RelocInfo::NO_INFO, 0, Code());
+                            RelocInfo::NO_INFO, 0, InstructionStream());
       if (dummy_rinfo.IsInConstantPool()) {
         Address constant_pool_entry_address =
             dummy_rinfo.constant_pool_entry_address();

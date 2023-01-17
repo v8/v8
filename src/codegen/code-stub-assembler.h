@@ -834,21 +834,23 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   void FastCheck(TNode<BoolT> condition);
 
-  // TODO(v8:11880): remove once Code::bytecode_or_interpreter_data field
-  // is cached in or moved to CodeDataContainer.
-  TNode<Code> FromCodeDataContainerNonBuiltin(TNode<CodeDataContainer> code) {
-    // Compute the Code object pointer from the code entry point.
+  // TODO(v8:11880): remove once InstructionStream::bytecode_or_interpreter_data
+  // field is cached in or moved to CodeDataContainer.
+  TNode<InstructionStream> FromCodeDataContainerNonBuiltin(
+      TNode<CodeDataContainer> code) {
+    // Compute the InstructionStream object pointer from the code entry point.
     TNode<RawPtrT> code_entry = Load<RawPtrT>(
         code, IntPtrConstant(CodeDataContainer::kCodeEntryPointOffset -
                              kHeapObjectTag));
     TNode<Object> o = BitcastWordToTagged(IntPtrSub(
-        code_entry, IntPtrConstant(Code::kHeaderSize - kHeapObjectTag)));
+        code_entry,
+        IntPtrConstant(InstructionStream::kHeaderSize - kHeapObjectTag)));
     return CAST(o);
   }
 
-  TNode<CodeDataContainer> ToCodeDataContainer(TNode<Code> code) {
-    return LoadObjectField<CodeDataContainer>(code,
-                                              Code::kCodeDataContainerOffset);
+  TNode<CodeDataContainer> ToCodeDataContainer(TNode<InstructionStream> code) {
+    return LoadObjectField<CodeDataContainer>(
+        code, InstructionStream::kCodeDataContainerOffset);
   }
 
   TNode<RawPtrT> GetCodeEntry(TNode<CodeDataContainer> code);
@@ -857,7 +859,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // The following Call wrappers call an object according to the semantics that
   // one finds in the EcmaScript spec, operating on an Callable (e.g. a
-  // JSFunction or proxy) rather than a Code object.
+  // JSFunction or proxy) rather than a InstructionStream object.
   template <class... TArgs>
   TNode<Object> Call(TNode<Context> context, TNode<Object> callable,
                      TNode<JSReceiver> receiver, TArgs... args) {
