@@ -118,7 +118,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   __ LoadU64(closure, MemOperand(fp, StandardFrameConstants::kFunctionOffset),
              r0);
 
-  // Get the Code object from the shared function info.
+  // Get the InstructionStream object from the shared function info.
   Register code_obj = r9;
   __ LoadTaggedPointerField(
       code_obj, FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset),
@@ -151,7 +151,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   if (v8_flags.debug_code) {
     AssertCodeDataContainerIsBaseline(masm, code_obj, r6);
   }
-  __ LoadCodeDataContainerCodeNonBuiltin(code_obj, code_obj);
+  __ LoadCodeDataContainerInstructionStreamNonBuiltin(code_obj, code_obj);
 
   // Load the feedback vector.
   Register feedback_vector = r5;
@@ -232,9 +232,11 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   if (is_osr) {
     Register scratch = ip;
     ResetBytecodeAge(masm, kInterpreterBytecodeArrayRegister, scratch);
-    Generate_OSREntry(masm, code_obj, Code::kHeaderSize - kHeapObjectTag);
+    Generate_OSREntry(masm, code_obj,
+                      InstructionStream::kHeaderSize - kHeapObjectTag);
   } else {
-    __ AddS64(code_obj, code_obj, Operand(Code::kHeaderSize - kHeapObjectTag));
+    __ AddS64(code_obj, code_obj,
+              Operand(InstructionStream::kHeaderSize - kHeapObjectTag));
     __ Jump(code_obj);
   }
   __ Trap();  // Unreachable.
@@ -381,8 +383,8 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
   Label jump_to_optimized_code;
   {
     // If maybe_target_code is not null, no need to call into runtime. A
-    // precondition here is: if maybe_target_code is a Code object, it must NOT
-    // be marked_for_deoptimization (callers must ensure this).
+    // precondition here is: if maybe_target_code is a InstructionStream object,
+    // it must NOT be marked_for_deoptimization (callers must ensure this).
     __ CmpSmiLiteral(maybe_target_code, Smi::zero(), r0);
     __ bne(&jump_to_optimized_code);
   }
@@ -425,17 +427,21 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
     __ LeaveFrame(StackFrame::STUB);
   }
 
-  __ LoadCodeDataContainerCodeNonBuiltin(r3, r3);
+  __ LoadCodeDataContainerInstructionStreamNonBuiltin(r3, r3);
 
   // Load deoptimization data from the code object.
   // <deopt_data> = <code>[#deoptimization_data_offset]
   __ LoadTaggedPointerField(
-      r4, FieldMemOperand(r3, Code::kDeoptimizationDataOrInterpreterDataOffset),
+      r4,
+      FieldMemOperand(
+          r3, InstructionStream::kDeoptimizationDataOrInterpreterDataOffset),
       r0);
 
   {
     ConstantPoolUnavailableScope constant_pool_unavailable(masm);
-    __ addi(r3, r3, Operand(Code::kHeaderSize - kHeapObjectTag));  // Code start
+    __ addi(r3, r3,
+            Operand(InstructionStream::kHeaderSize -
+                    kHeapObjectTag));  // InstructionStream start
 
     if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
       __ LoadConstantPoolPointerRegisterFromCodeTargetAddress(r3);
@@ -2217,7 +2223,8 @@ void Generate_AllocateSpaceAndShiftExistingArguments(
 }  // namespace
 
 // static
-// TODO(v8:11615): Observe Code::kMaxArguments in CallOrConstructVarargs
+// TODO(v8:11615): Observe InstructionStream::kMaxArguments in
+// CallOrConstructVarargs
 void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
                                                Handle<CodeDataContainer> code) {
   // ----------- S t a t e -------------

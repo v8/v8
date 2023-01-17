@@ -564,7 +564,7 @@ void MacroAssembler::TestCodeDataContainerIsMarkedForDeoptimization(
   LoadS32(scratch,
           FieldMemOperand(code_data_container,
                           CodeDataContainer::kKindSpecificFlagsOffset));
-  TestBit(scratch, Code::kMarkedForDeoptimizationBit, scratch);
+  TestBit(scratch, InstructionStream::kMarkedForDeoptimizationBit, scratch);
 }
 
 Operand MacroAssembler::ClearedValue() const {
@@ -4984,14 +4984,15 @@ void TurboAssembler::LoadCodeDataContainerEntry(
                           CodeDataContainer::kCodeEntryPointOffset));
 }
 
-void TurboAssembler::LoadCodeDataContainerCodeNonBuiltin(
+void TurboAssembler::LoadCodeDataContainerInstructionStreamNonBuiltin(
     Register destination, Register code_data_container_object) {
   ASM_CODE_COMMENT(this);
-  // Compute the Code object pointer from the code entry point.
+  // Compute the InstructionStream object pointer from the code entry point.
   LoadU64(destination,
           FieldMemOperand(code_data_container_object,
                           CodeDataContainer::kCodeEntryPointOffset));
-  SubS64(destination, destination, Operand(Code::kHeaderSize - kHeapObjectTag));
+  SubS64(destination, destination,
+         Operand(InstructionStream::kHeaderSize - kHeapObjectTag));
 }
 
 void TurboAssembler::CallCodeDataContainerObject(
@@ -5015,9 +5016,9 @@ void TurboAssembler::StoreReturnAddressAndCall(Register target) {
   // This generates the final instruction sequence for calls to C functions
   // once an exit frame has been constructed.
   //
-  // Note that this assumes the caller code (i.e. the Code object currently
-  // being generated) is immovable or that the callee function cannot trigger
-  // GC, since the callee function will return to it.
+  // Note that this assumes the caller code (i.e. the InstructionStream object
+  // currently being generated) is immovable or that the callee function cannot
+  // trigger GC, since the callee function will return to it.
 
   Label return_label;
   larl(r14, &return_label);  // Generate the return addr of call later.

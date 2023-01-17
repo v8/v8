@@ -371,7 +371,7 @@ void MacroAssembler::TestCodeDataContainerIsMarkedForDeoptimization(
           FieldMemOperand(code_data_container,
                           CodeDataContainer::kKindSpecificFlagsOffset),
           scratch2);
-  TestBit(scratch1, Code::kMarkedForDeoptimizationBit, scratch2);
+  TestBit(scratch1, InstructionStream::kMarkedForDeoptimizationBit, scratch2);
 }
 
 Operand MacroAssembler::ClearedValue() const {
@@ -1207,13 +1207,15 @@ void TurboAssembler::ShiftRightAlgPair(Register dst_low, Register dst_high,
 void TurboAssembler::LoadConstantPoolPointerRegisterFromCodeTargetAddress(
     Register code_target_address) {
   // Builtins do not use the constant pool (see is_constant_pool_available).
-  static_assert(Code::kOnHeapBodyIsContiguous);
+  static_assert(InstructionStream::kOnHeapBodyIsContiguous);
 
   lwz(r0, MemOperand(code_target_address,
-                     Code::kInstructionSizeOffset - Code::kHeaderSize));
+                     InstructionStream::kInstructionSizeOffset -
+                         InstructionStream::kHeaderSize));
   lwz(kConstantPoolRegister,
       MemOperand(code_target_address,
-                 Code::kConstantPoolOffsetOffset - Code::kHeaderSize));
+                 InstructionStream::kConstantPoolOffsetOffset -
+                     InstructionStream::kHeaderSize));
   add(kConstantPoolRegister, kConstantPoolRegister, code_target_address);
   add(kConstantPoolRegister, kConstantPoolRegister, r0);
 }
@@ -1233,7 +1235,7 @@ void TurboAssembler::ComputeCodeStartAddress(Register dst) {
 void TurboAssembler::LoadConstantPoolPointerRegister() {
   //
   // Builtins do not use the constant pool (see is_constant_pool_available).
-  static_assert(Code::kOnHeapBodyIsContiguous);
+  static_assert(InstructionStream::kOnHeapBodyIsContiguous);
 
   LoadPC(kConstantPoolRegister);
   int32_t delta = -pc_offset() + 4;
@@ -4908,15 +4910,16 @@ void TurboAssembler::LoadCodeDataContainerEntry(
           r0);
 }
 
-void TurboAssembler::LoadCodeDataContainerCodeNonBuiltin(
+void TurboAssembler::LoadCodeDataContainerInstructionStreamNonBuiltin(
     Register destination, Register code_data_container_object) {
   ASM_CODE_COMMENT(this);
-  // Compute the Code object pointer from the code entry point.
+  // Compute the InstructionStream object pointer from the code entry point.
   LoadU64(destination,
           FieldMemOperand(code_data_container_object,
                           CodeDataContainer::kCodeEntryPointOffset),
           r0);
-  SubS64(destination, destination, Operand(Code::kHeaderSize - kHeapObjectTag));
+  SubS64(destination, destination,
+         Operand(InstructionStream::kHeaderSize - kHeapObjectTag));
 }
 
 void TurboAssembler::CallCodeDataContainerObject(
@@ -4940,9 +4943,9 @@ void TurboAssembler::StoreReturnAddressAndCall(Register target) {
   // This generates the final instruction sequence for calls to C functions
   // once an exit frame has been constructed.
   //
-  // Note that this assumes the caller code (i.e. the Code object currently
-  // being generated) is immovable or that the callee function cannot trigger
-  // GC, since the callee function will return to it.
+  // Note that this assumes the caller code (i.e. the InstructionStream object
+  // currently being generated) is immovable or that the callee function cannot
+  // trigger GC, since the callee function will return to it.
 
   static constexpr int after_call_offset = 5 * kInstrSize;
   Label start_call;

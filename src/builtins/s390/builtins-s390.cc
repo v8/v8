@@ -118,7 +118,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   Register closure = r3;
   __ LoadU64(closure, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
 
-  // Get the Code object from the shared function info.
+  // Get the InstructionStream object from the shared function info.
   Register code_obj = r8;
   __ LoadTaggedPointerField(
       code_obj,
@@ -151,7 +151,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   if (v8_flags.debug_code) {
     AssertCodeDataContainerIsBaseline(masm, code_obj, r5);
   }
-  __ LoadCodeDataContainerCodeNonBuiltin(code_obj, code_obj);
+  __ LoadCodeDataContainerInstructionStreamNonBuiltin(code_obj, code_obj);
 
   // Load the feedback vector.
   Register feedback_vector = r4;
@@ -229,9 +229,11 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     // TODO(pthier): Separate baseline Sparkplug from TF arming and don't
     // disarm Sparkplug here.
     ResetBytecodeAge(masm, kInterpreterBytecodeArrayRegister, r1);
-    Generate_OSREntry(masm, code_obj, Code::kHeaderSize - kHeapObjectTag);
+    Generate_OSREntry(masm, code_obj,
+                      InstructionStream::kHeaderSize - kHeapObjectTag);
   } else {
-    __ AddS64(code_obj, code_obj, Operand(Code::kHeaderSize - kHeapObjectTag));
+    __ AddS64(code_obj, code_obj,
+              Operand(InstructionStream::kHeaderSize - kHeapObjectTag));
     __ Jump(code_obj);
   }
   __ Trap();  // Unreachable.
@@ -270,8 +272,8 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
   Label jump_to_optimized_code;
   {
     // If maybe_target_code is not null, no need to call into runtime. A
-    // precondition here is: if maybe_target_code is a Code object, it must NOT
-    // be marked_for_deoptimization (callers must ensure this).
+    // precondition here is: if maybe_target_code is a InstructionStream object,
+    // it must NOT be marked_for_deoptimization (callers must ensure this).
     __ CmpSmiLiteral(maybe_target_code, Smi::zero(), r0);
     __ bne(&jump_to_optimized_code);
   }
@@ -314,13 +316,14 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
     __ LeaveFrame(StackFrame::STUB);
   }
 
-  __ LoadCodeDataContainerCodeNonBuiltin(r2, r2);
+  __ LoadCodeDataContainerInstructionStreamNonBuiltin(r2, r2);
 
   // Load deoptimization data from the code object.
   // <deopt_data> = <code>[#deoptimization_data_offset]
   __ LoadTaggedPointerField(
       r3,
-      FieldMemOperand(r2, Code::kDeoptimizationDataOrInterpreterDataOffset));
+      FieldMemOperand(
+          r2, InstructionStream::kDeoptimizationDataOrInterpreterDataOffset));
 
   // Load the OSR entrypoint offset from the deoptimization data.
   // <osr_offset> = <deopt_data>[#header_size + #osr_pc_offset]
@@ -331,7 +334,7 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
   // Compute the target address = code_obj + header_size + osr_offset
   // <entry_addr> = <code_obj> + #header_size + <osr_offset>
   __ AddS64(r2, r3);
-  Generate_OSREntry(masm, r2, Code::kHeaderSize - kHeapObjectTag);
+  Generate_OSREntry(masm, r2, InstructionStream::kHeaderSize - kHeapObjectTag);
 }
 
 }  // namespace
@@ -2220,7 +2223,8 @@ void Generate_AllocateSpaceAndShiftExistingArguments(
 }  // namespace
 
 // static
-// TODO(v8:11615): Observe Code::kMaxArguments in CallOrConstructVarargs
+// TODO(v8:11615): Observe InstructionStream::kMaxArguments in
+// CallOrConstructVarargs
 void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
                                                Handle<CodeDataContainer> code) {
   // ----------- S t a t e -------------

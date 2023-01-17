@@ -1133,12 +1133,13 @@ void CodeGenerator::BailoutIfDeoptimized() {
     __ Assert(eq, AbortReason::kWrongFunctionCodeStart);
   }
 
-  int offset = Code::kCodeDataContainerOffset - Code::kHeaderSize;
+  int offset = InstructionStream::kCodeDataContainerOffset -
+               InstructionStream::kHeaderSize;
   __ LoadTaggedPointerField(
       ip, MemOperand(kJavaScriptCallCodeStartRegister, offset), r0);
   __ LoadS32(ip,
            FieldMemOperand(ip, CodeDataContainer::kKindSpecificFlagsOffset));
-  __ TestBit(ip, Code::kMarkedForDeoptimizationBit);
+  __ TestBit(ip, InstructionStream::kMarkedForDeoptimizationBit);
   __ Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
           RelocInfo::CODE_TARGET, ne);
 }
