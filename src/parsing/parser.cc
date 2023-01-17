@@ -2646,8 +2646,12 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     function_name = ast_value_factory()->empty_string();
   }
 
+  // This is true if we get here through CreateDynamicFunction.
+  bool params_need_validation = parameters_end_pos_ != kNoSourcePosition;
+
   FunctionLiteral::EagerCompileHint eager_compile_hint =
-      function_state_->next_function_is_likely_called() || is_wrapped
+      function_state_->next_function_is_likely_called() || is_wrapped ||
+              params_need_validation
           ? FunctionLiteral::kShouldEagerCompile
           : default_eager_compile_hint();
 
