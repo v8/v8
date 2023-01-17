@@ -1157,6 +1157,9 @@
   'harmony/futex': [SKIP],
   'typedarray-growablesharedarraybuffer-atomics': [SKIP],
 
+  # Tests using a shared heap are inherently non-deterministic.
+  'shared-memory/*': [SKIP],
+
   # BUG(v8:7166).
   'd8/enable-tracing': [SKIP],
 
