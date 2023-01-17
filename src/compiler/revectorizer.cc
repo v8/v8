@@ -24,7 +24,6 @@ namespace compiler {
 
 namespace {
 
-#ifdef DEBUG
 // Currently, only Load/ProtectedLoad/LoadTransfrom are supported.
 // TODO(jiepan): add support for UnalignedLoad, LoadLane
 bool IsSupportedLoad(const Node* node) {
@@ -35,6 +34,8 @@ bool IsSupportedLoad(const Node* node) {
   }
   return false;
 }
+
+#ifdef DEBUG
 bool IsSupportedLoad(const ZoneVector<Node*>& node_group) {
   for (auto node : node_group) {
     if (!IsSupportedLoad(node)) return false;
@@ -145,6 +146,58 @@ bool AllSameOperator(const ZoneVector<Node*>& node_group) {
     }
   }
   return true;
+}
+
+class EffectChainIterator {
+ public:
+  explicit EffectChainIterator(Node* node) : node_(node) {}
+
+  Node* Advance() {
+    prev_ = node_;
+    node_ = EffectInputOf(node_);
+    return node_;
+  }
+
+  Node* Prev() { return prev_; }
+
+  Node* Next() { return EffectInputOf(node_); }
+
+  void Set(Node* node) {
+    DCHECK_NOT_NULL(prev_);
+    node_ = node;
+    prev_ = nullptr;
+  }
+
+  Node* operator*() { return node_; }
+
+ private:
+  Node* EffectInputOf(Node* node) {
+    DCHECK(IsSupportedLoad(node));
+    return node->InputAt(2);
+  }
+
+  Node* node_;
+  Node* prev_;
+};
+
+void ReplaceEffectInput(Node* target, Node* value) {
+  DCHECK(IsSupportedLoad(target));
+  DCHECK(IsSupportedLoad(value));
+  target->ReplaceInput(2, value);
+}
+
+void Swap(EffectChainIterator& dest, EffectChainIterator& src) {
+  DCHECK_NE(dest.Prev(), nullptr);
+  DCHECK_NE(src.Prev(), nullptr);
+  ReplaceEffectInput(dest.Prev(), *src);
+  ReplaceEffectInput(src.Prev(), *dest);
+  Node* temp = dest.Next();
+  ReplaceEffectInput(*dest, src.Next());
+  ReplaceEffectInput(*src, temp);
+
+  temp = *dest;
+  dest.Set(*src);
+  src.Set(temp);
 }
 
 }  // anonymous namespace
@@ -285,12 +338,39 @@ void SLPTree::ClearStack() {
   on_stack_.clear();
 }
 
+// Try to connect the nodes in |loads| by effect edges. This allows us to build
+// |PackNode| without breaking effect dependency:
+// Before: [Load1]->...->[Load2]->...->[Load3]->...->[Load4]
+// After:  [Load1]->[Load2]->[Load3]->[Load4]
+void SLPTree::TryReduceLoadChain(const ZoneVector<Node*>& loads) {
+  ZoneSet<Node*> visited(zone());
+  for (Node* load : loads) {
+    if (visited.find(load) != visited.end()) continue;
+    visited.insert(load);
+
+    EffectChainIterator dest(load);
+    EffectChainIterator it(dest.Next());
+    while (SameBasicBlock(*it, load) && IsSupportedLoad(*it)) {
+      if (std::find(loads.begin(), loads.end(), *it) != loads.end()) {
+        visited.insert(*it);
+        dest.Advance();
+        if (*dest != *it) {
+          Swap(dest, it);
+        }
+      }
+      it.Advance();
+    }
+  }
+}
+
 bool SLPTree::IsSideEffectFreeLoad(const ZoneVector<Node*>& node_group) {
   DCHECK(IsSupportedLoad(node_group));
   DCHECK_EQ(node_group.size(), 2);
   TRACE("Enter IsSideEffectFreeLoad (%d %s, %d %s)\n", node_group[0]->id(),
         node_group[0]->op()->mnemonic(), node_group[1]->id(),
         node_group[1]->op()->mnemonic());
+
+  TryReduceLoadChain(node_group);
 
   std::stack<Node*> to_visit;
   std::unordered_set<Node*> visited;

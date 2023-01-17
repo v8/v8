@@ -127,6 +127,7 @@ class SLPTree : public NON_EXPORTED_BASE(ZoneObject) {
   bool CanBePacked(const ZoneVector<Node*>& node_group);
 
   Graph* graph() const { return graph_; }
+  Zone* zone() const { return zone_; }
 
   // Node stack operations.
   void PopStack();
@@ -136,6 +137,7 @@ class SLPTree : public NON_EXPORTED_BASE(ZoneObject) {
   bool AllOnStack(const ZoneVector<Node*>& node_group);
   bool StackTopIsPhi();
 
+  void TryReduceLoadChain(const ZoneVector<Node*>& loads);
   bool IsSideEffectFreeLoad(const ZoneVector<Node*>& node_group);
   bool SameBasicBlock(Node* node0, Node* node1) {
     return scheduler_->SameBasicBlock(node0, node1);
