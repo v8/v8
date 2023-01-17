@@ -89,6 +89,10 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
       const TNode<RawPtrT> search_ptr, const TNode<IntPtrT> start_position);
 
  protected:
+  void StringEqual_FastLoop(TNode<String> lhs, TNode<Word32T> lhs_instance_type,
+                            TNode<String> rhs, TNode<Word32T> rhs_instance_type,
+                            TNode<IntPtrT> byte_length, Label* if_equal,
+                            Label* if_not_equal);
   void StringEqual_Loop(TNode<String> lhs, TNode<Word32T> lhs_instance_type,
                         MachineType lhs_type, TNode<String> rhs,
                         TNode<Word32T> rhs_instance_type, MachineType rhs_type,
