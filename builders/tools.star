@@ -21,7 +21,7 @@ v8_builder(
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     executable = "recipe:v8/compilator",
     properties = {
-        "default_targets": ["d8"],
+        "default_targets": ["d8_pgo"],
         "builder_group": "client.v8",
     },
     use_goma = GOMA.NO,
@@ -35,7 +35,7 @@ v8_builder(
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     executable = "recipe:v8/compilator",
     properties = {
-        "default_targets": ["d8"],
+        "default_targets": ["d8_pgo"],
         "builder_group": "client.v8",
     },
     use_goma = GOMA.NO,
