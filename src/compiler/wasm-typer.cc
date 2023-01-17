@@ -68,42 +68,6 @@ Reduction WasmTyper::Reduce(Node* node) {
       break;
     }
     case IrOpcode::kAssertNotNull: {
-      {
-        Node* object = NodeProperties::GetValueInput(node, 0);
-        Node* effect = NodeProperties::GetEffectInput(node);
-        Node* control = NodeProperties::GetControlInput(node);
-
-        // Optimize the common pattern where a TypeCast is followed by an
-        // AssertNotNull: Reverse the order of these operations, as this will
-        // unlock more optimizations later.
-        // We are implementing this in the typer so we can retype the nodes.
-        while (control->opcode() == IrOpcode::kWasmTypeCast &&
-               effect == object && control == object &&
-               !NodeProperties::GetType(object).AsWasm().type.is_bottom()) {
-          Node* initial_object = NodeProperties::GetValueInput(object, 0);
-          Node* previous_control = NodeProperties::GetControlInput(object);
-          Node* previous_effect = NodeProperties::GetEffectInput(object);
-          ReplaceWithValue(node, object);
-          node->ReplaceInput(NodeProperties::FirstValueIndex(node),
-                             initial_object);
-          node->ReplaceInput(NodeProperties::FirstEffectIndex(node),
-                             previous_effect);
-          node->ReplaceInput(NodeProperties::FirstControlIndex(node),
-                             previous_control);
-          object->ReplaceInput(NodeProperties::FirstValueIndex(object), node);
-          object->ReplaceInput(NodeProperties::FirstEffectIndex(object), node);
-          object->ReplaceInput(NodeProperties::FirstControlIndex(object), node);
-          Revisit(node);
-          Revisit(object);
-          object = initial_object;
-          control = previous_control;
-          effect = previous_effect;
-          // We untype the node, because its new input might have a type not
-          // compatible with its current type.
-          NodeProperties::RemoveType(node);
-        }
-      }
-
       if (!AllInputsTyped(node)) return NoChange();
       TypeInModule object_type =
           NodeProperties::GetType(NodeProperties::GetValueInput(node, 0))
