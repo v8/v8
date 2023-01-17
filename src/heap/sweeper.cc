@@ -286,7 +286,7 @@ void Sweeper::StartSweeperTasks() {
 #endif  // DEBUG
   }
   if (promoted_pages_for_iteration_count_ > 0) {
-    promoted_page_iteation_in_progress_.store(true, std::memory_order_relaxed);
+    promoted_page_iteration_in_progress_.store(true, std::memory_order_release);
   }
   if (v8_flags.concurrent_sweeping && sweeping_in_progress_ &&
       !heap_->delay_sweeper_tasks_for_testing_) {
@@ -877,7 +877,7 @@ void Sweeper::RawIteratePromotedPageForRememberedSets(
 }
 
 bool Sweeper::IsIteratingPromotedPages() const {
-  return promoted_page_iteation_in_progress_.load(std::memory_order_relaxed);
+  return promoted_page_iteration_in_progress_.load(std::memory_order_acquire);
 }
 
 void Sweeper::WaitForPromotedPagesIteration() {
@@ -894,7 +894,7 @@ void Sweeper::NotifyPromotedPagesIterationFinished() {
   DCHECK_EQ(iterated_promoted_pages_count_,
             promoted_pages_for_iteration_count_);
   base::MutexGuard guard(&promoted_pages_iteration_notification_mutex_);
-  promoted_page_iteation_in_progress_.store(false, std::memory_order_relaxed);
+  promoted_page_iteration_in_progress_.store(false, std::memory_order_release);
   promoted_pages_iteration_notification_variable_.NotifyAll();
 }
 
