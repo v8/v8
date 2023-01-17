@@ -97,8 +97,8 @@ class ParallelMoveResolver {
       RegisterTHelper<RegisterT>::kAllocatableRegisters;
 
  public:
-  explicit ParallelMoveResolver(MaglevAssembler* masm, RegisterT scratch)
-      : masm_(masm), scratch_(scratch) {}
+  explicit ParallelMoveResolver(MaglevAssembler* masm)
+      : masm_(masm), scratch_(RegisterT::no_reg()) {}
 
   void RecordMove(ValueNode* source_node, compiler::InstructionOperand source,
                   compiler::AllocatedOperand target) {
@@ -115,7 +115,9 @@ class ParallelMoveResolver {
     RecordMoveToRegister(source_node, source, target_reg);
   }
 
-  void EmitMoves() {
+  void EmitMoves(RegisterT scratch) {
+    DCHECK(!scratch_.is_valid());
+    scratch_ = scratch;
     for (RegisterT reg : kAllocatableRegistersT) {
       StartEmitMoveChain(reg);
       ValueNode* materializing_register_move =
@@ -472,6 +474,17 @@ class ExceptionHandlerTrampolineBuilder {
             ? deopt_info->top_frame().parent()->as_interpreted()
             : deopt_info->top_frame().as_interpreted();
 
+    // TODO(v8:7700): Handle inlining.
+    ParallelMoveResolver<Register> direct_moves(masm_);
+    MoveVector materialising_moves;
+    bool save_accumulator = false;
+    RecordMoves(lazy_frame.unit(), catch_block, lazy_frame.frame_state(),
+                &direct_moves, &materialising_moves, &save_accumulator);
+    __ BindJumpTarget(&handler_info->trampoline_entry);
+    __ RecordComment("-- Exception handler trampoline START");
+    EmitMaterialisationsAndPushResults(materialising_moves, save_accumulator);
+
+    __ RecordComment("EmitMoves");
 // TODO(victorgomes): Add a scratch register scope to MaglevAssembler and
 // remove this arch depedent code.
 #ifdef V8_TARGET_ARCH_ARM64
@@ -482,19 +495,7 @@ class ExceptionHandlerTrampolineBuilder {
 #else
 #error "Maglev does not supported this architecture."
 #endif
-
-    // TODO(v8:7700): Handle inlining.
-    ParallelMoveResolver<Register> direct_moves(masm_, scratch);
-    MoveVector materialising_moves;
-    bool save_accumulator = false;
-    RecordMoves(lazy_frame.unit(), catch_block, lazy_frame.frame_state(),
-                &direct_moves, &materialising_moves, &save_accumulator);
-
-    __ BindJumpTarget(&handler_info->trampoline_entry);
-    __ RecordComment("-- Exception handler trampoline START");
-    EmitMaterialisationsAndPushResults(materialising_moves, save_accumulator);
-    __ RecordComment("EmitMoves");
-    direct_moves.EmitMoves();
+    direct_moves.EmitMoves(scratch);
     EmitPopMaterialisedResults(materialising_moves, save_accumulator, scratch);
     __ Jump(catch_block->label());
     __ RecordComment("-- Exception handler trampoline END");
@@ -713,9 +714,8 @@ class MaglevCodeGeneratingNodeProcessor {
 
     // TODO(leszeks): Move these to fields, to allow their data structure
     // allocations to be reused. Will need some sort of state resetting.
-    ParallelMoveResolver<Register> register_moves(masm_, scratch);
-    ParallelMoveResolver<DoubleRegister> double_register_moves(masm_,
-                                                               double_scratch);
+    ParallelMoveResolver<Register> register_moves(masm_);
+    ParallelMoveResolver<DoubleRegister> double_register_moves(masm_);
 
     // Remember what registers were assigned to by a Phi, to avoid clobbering
     // them with RegisterMoves.
@@ -777,7 +777,7 @@ class MaglevCodeGeneratingNodeProcessor {
           }
         });
 
-    register_moves.EmitMoves();
+    register_moves.EmitMoves(scratch);
 
     __ RecordComment("--   Double gap moves:");
 
@@ -797,7 +797,7 @@ class MaglevCodeGeneratingNodeProcessor {
           }
         });
 
-    double_register_moves.EmitMoves();
+    double_register_moves.EmitMoves(double_scratch);
   }
 
   Isolate* isolate() const { return masm_->isolate(); }
