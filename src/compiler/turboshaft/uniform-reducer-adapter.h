@@ -11,8 +11,9 @@ namespace v8::internal::compiler::turboshaft {
 
 // UniformReducerAdapater allows to handle all operations uniformly during a
 // reduction by wiring all ReduceXyz calls through a single ReduceOperation
-// method. This is how to use it (MyReducer can then be used in a ReducerStack
-// like any other reducer):
+// method. Similarly, all ReduceInputGraphXyz are forwarded to
+// ReduceInputGraphOperation. This is how to use it (MyReducer can then be used
+// in a ReducerStack like any other reducer):
 //
 // template <typename Next>
 // class MyReducerImpl : public Next {
@@ -22,16 +23,21 @@ namespace v8::internal::compiler::turboshaft {
 //   explicit MyReducerImpl(const std::tuple<Args...>& args)
 //       : Next(args) { /* ... */ }
 //
+//   template <typename Op, typename Continuation>
+//   OpIndex ReduceInputGraphOperation(OpIndex ig_index, const Op& op) {
+//     /* ... */
+//     // Forward to Next reducer.
+//     OpIndex index = Continuation{this}.ReduceInputGraph(ig_index, op);
+//     /* ... */
+//     return index;
+//   }
+//
 //   template <Opcode opcode, typename Continuation, typename... Args>
 //   OpIndex ReduceOperation(Args... args) {
-//
 //     /* ... */
-//
 //     // Forward to Next reducer.
 //     OpIndex index = Continuation{this}.Reduce(args...);
-//
 //     /* ... */
-//
 //     return index;
 //   }
 //
@@ -49,20 +55,27 @@ class UniformReducerAdapter : public Impl<Next> {
   explicit UniformReducerAdapter(const std::tuple<Args...>& args)
       : Impl<Next>(args) {}
 
-#define REDUCE(op)                                                         \
-  struct Reduce##op##Continuation final {                                  \
-    explicit Reduce##op##Continuation(Next* _this) : this_(_this) {}       \
-    template <typename... Args>                                            \
-    OpIndex Reduce(Args... args) const {                                   \
-      return this_->Reduce##op(args...);                                   \
-    }                                                                      \
-    Next* this_;                                                           \
-  };                                                                       \
-  template <typename... Args>                                              \
-  OpIndex Reduce##op(Args... args) {                                       \
-    return Impl<Next>::template ReduceOperation<Opcode::k##op,             \
-                                                Reduce##op##Continuation>( \
-        args...);                                                          \
+#define REDUCE(op)                                                          \
+  struct Reduce##op##Continuation final {                                   \
+    explicit Reduce##op##Continuation(Next* _this) : this_(_this) {}        \
+    OpIndex ReduceInputGraph(OpIndex ig_index, const op##Op& operation) {   \
+      return this_->ReduceInputGraph##op(ig_index, operation);              \
+    }                                                                       \
+    template <typename... Args>                                             \
+    OpIndex Reduce(Args... args) const {                                    \
+      return this_->Reduce##op(args...);                                    \
+    }                                                                       \
+    Next* this_;                                                            \
+  };                                                                        \
+  OpIndex ReduceInputGraph##op(OpIndex ig_index, const op##Op& operation) { \
+    return Impl<Next>::template ReduceInputGraphOperation<                  \
+        op##Op, Reduce##op##Continuation>(ig_index, operation);             \
+  }                                                                         \
+  template <typename... Args>                                               \
+  OpIndex Reduce##op(Args... args) {                                        \
+    return Impl<Next>::template ReduceOperation<Opcode::k##op,              \
+                                                Reduce##op##Continuation>(  \
+        args...);                                                           \
   }
   TURBOSHAFT_OPERATION_LIST(REDUCE)
 #undef REDUCE

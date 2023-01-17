@@ -20,6 +20,11 @@ class TypedOptimizationsReducerImpl : public Next {
   explicit TypedOptimizationsReducerImpl(const std::tuple<Args...>& args)
       : Next(args), types_(Asm().output_graph().operation_types()) {}
 
+  template <typename Op, typename Continuation>
+  OpIndex ReduceInputGraphOperation(OpIndex ig_index, const Op& op) {
+    return Continuation{this}.ReduceInputGraph(ig_index, op);
+  }
+
   template <Opcode opcode, typename Continuation, typename... Args>
   OpIndex ReduceOperation(Args... args) {
     OpIndex index = Continuation{this}.Reduce(args...);

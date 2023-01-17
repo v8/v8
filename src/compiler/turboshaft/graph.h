@@ -536,6 +536,14 @@ class Graph {
   }
 
   OpIndex Index(const Operation& op) const { return operations_.Index(op); }
+  BlockIndex BlockOf(OpIndex index) const {
+    auto it = std::upper_bound(
+        bound_blocks_.begin(), bound_blocks_.end(), index,
+        [](OpIndex value, const Block* b) { return value < b->begin_; });
+    DCHECK_NE(it, bound_blocks_.begin());
+    --it;
+    return (*it)->index();
+  }
 
   OpIndex NextIndex(const OpIndex idx) const { return operations_.Next(idx); }
   OpIndex PreviousIndex(const OpIndex idx) const {

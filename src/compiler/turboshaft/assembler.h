@@ -82,10 +82,13 @@ class ReducerBase;
 template <class Next>
 class ReducerBaseForwarder : public Next {
  public:
-#define EMIT_OP(Name)                                    \
-  template <class... Args>                               \
-  OpIndex Reduce##Name(Args... args) {                   \
-    return this->Asm().template Emit<Name##Op>(args...); \
+#define EMIT_OP(Name)                                                    \
+  OpIndex ReduceInputGraph##Name(OpIndex ig_index, const Name##Op& op) { \
+    return this->Asm().AssembleOutputGraph##Name(op);                    \
+  }                                                                      \
+  template <class... Args>                                               \
+  OpIndex Reduce##Name(Args... args) {                                   \
+    return this->Asm().template Emit<Name##Op>(args...);                 \
   }
   TURBOSHAFT_OPERATION_LIST(EMIT_OP)
 #undef EMIT_OP
@@ -116,15 +119,6 @@ class ReducerBase : public ReducerBaseForwarder<Next> {
 
   void RemoveLast(OpIndex index_of_last_operation) {
     Asm().output_graph().RemoveLast();
-  }
-
-  bool ShouldEliminateOperation(OpIndex index, const Operation& op) {
-    return op.saturated_use_count == 0;
-  }
-
-  bool ShouldEliminateBranch(OpIndex index, const BranchOp& op,
-                             BlockIndex& goto_block) {
-    return false;
   }
 
   // Get, GetPredecessorValue, Set and NewFreshVariable should be overwritten by

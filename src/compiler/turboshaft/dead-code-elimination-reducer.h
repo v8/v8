@@ -13,6 +13,7 @@
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/turboshaft/uniform-reducer-adapter.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -419,12 +420,12 @@ class DeadCodeAnalysis {
 };
 
 template <class Next>
-class DeadCodeEliminationReducer : public Next {
+class DeadCodeEliminationReducerImpl : public Next {
  public:
   using Next::Asm;
 
   template <class... Args>
-  explicit DeadCodeEliminationReducer(const std::tuple<Args...>& args)
+  explicit DeadCodeEliminationReducerImpl(const std::tuple<Args...>& args)
       : Next(args),
         branch_rewrite_targets_(Asm().phase_zone()),
         analyzer_(Asm().modifiable_input_graph(), Asm().phase_zone()) {}
@@ -437,17 +438,24 @@ class DeadCodeEliminationReducer : public Next {
     Next::Analyze();
   }
 
-  bool ShouldEliminateOperation(OpIndex index, const Operation& op) {
-    DCHECK(!op.Is<BranchOp>());
-    return (*liveness_)[index] == OperationState::kDead;
+  template <typename Op, typename Continuation>
+  OpIndex ReduceInputGraphOperation(OpIndex ig_index, const Op& op) {
+    if constexpr (std::is_same_v<Op, BranchOp>) {
+      auto it = branch_rewrite_targets_.find(ig_index.id());
+      if (it != branch_rewrite_targets_.end()) {
+        BlockIndex goto_target = it->second;
+        Asm().Goto(Asm().MapToNewGraph(goto_target));
+        return OpIndex::Invalid();
+      }
+    } else if ((*liveness_)[ig_index] == OperationState::kDead) {
+      return OpIndex::Invalid();
+    }
+    return Continuation{this}.ReduceInputGraph(ig_index, op);
   }
 
-  bool ShouldEliminateBranch(OpIndex index, const BranchOp& op,
-                             BlockIndex& goto_target) {
-    auto it = branch_rewrite_targets_.find(index.id());
-    if (it == branch_rewrite_targets_.end()) return false;
-    goto_target = it->second;
-    return true;
+  template <Opcode opcode, typename Continuation, typename... Args>
+  OpIndex ReduceOperation(const Args&... args) {
+    return Continuation{this}.Reduce(args...);
   }
 
  private:
@@ -455,6 +463,10 @@ class DeadCodeEliminationReducer : public Next {
   ZoneMap<uint32_t, BlockIndex> branch_rewrite_targets_;
   DeadCodeAnalysis analyzer_;
 };
+
+template <typename Next>
+using DeadCodeEliminationReducer =
+    UniformReducerAdapter<DeadCodeEliminationReducerImpl, Next>;
 
 }  // namespace v8::internal::compiler::turboshaft
 
