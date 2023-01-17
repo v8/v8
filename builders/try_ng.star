@@ -490,7 +490,8 @@ trybot_pair(
     total_timeout = 7200,
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Mac"},
-    use_goma = GOMA.DEFAULT,
+    use_goma = GOMA.NO,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -510,7 +511,8 @@ trybot_pair(
     total_timeout = 7200,
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Mac"},
-    use_goma = GOMA.DEFAULT,
+    use_goma = GOMA.NO,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -518,7 +520,8 @@ trybot_pair(
     total_timeout = 7200,
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Mac"},
-    use_goma = GOMA.DEFAULT,
+    use_goma = GOMA.NO,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -527,7 +530,8 @@ trybot_pair(
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Mac"},
-    use_goma = GOMA.DEFAULT,
+    use_goma = GOMA.NO,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -537,7 +541,8 @@ trybot_pair(
     # TODO(https://crbug.com/v8/13008): Promote to blocking after M110.
     cq_branch_properties = CQ.OPTIONAL,
     dimensions = {"os": "Mac"},
-    use_goma = GOMA.DEFAULT,
+    use_goma = GOMA.NO,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -545,7 +550,8 @@ trybot_pair(
     total_timeout = 7200,
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Mac"},
-    use_goma = GOMA.DEFAULT,
+    use_goma = GOMA.NO,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -553,7 +559,8 @@ trybot_pair(
     total_timeout = 7200,
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Mac"},
-    use_goma = GOMA.DEFAULT,
+    use_goma = GOMA.NO,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -561,7 +568,8 @@ trybot_pair(
     total_timeout = 7200,
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Mac"},
-    use_goma = GOMA.DEFAULT,
+    use_goma = GOMA.NO,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -569,7 +577,8 @@ trybot_pair(
     total_timeout = 7200,
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Mac"},
-    use_goma = GOMA.DEFAULT,
+    use_goma = GOMA.NO,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -577,7 +586,8 @@ trybot_pair(
     total_timeout = 7200,
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Mac"},
-    use_goma = GOMA.DEFAULT,
+    use_goma = GOMA.NO,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -585,7 +595,8 @@ trybot_pair(
     total_timeout = 7200,
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Mac"},
-    use_goma = GOMA.DEFAULT,
+    use_goma = GOMA.NO,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
