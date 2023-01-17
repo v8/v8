@@ -73,6 +73,7 @@ Address V8HeapCompressionScheme::DecompressTaggedPointer(
     TOnHeapAddress on_heap_addr, Tagged_t raw_value) {
 #if defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE) && \
     !defined(V8_COMPRESS_POINTERS_DONT_USE_GLOBAL_BASE)
+  V8_ASSUME((base_ & kPtrComprCageBaseMask) == base_);
   byte* cage_base = reinterpret_cast<byte*>(V8_ASSUME_ALIGNED(
       reinterpret_cast<void*>(base_), kPtrComprCageBaseAlignment));
   // For V8_ASSUME_ALIGNED to be considered for optimizations the following
