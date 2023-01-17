@@ -42,13 +42,13 @@ class MockStreamingProcessor : public StreamingProcessor {
   bool ProcessModuleHeader(base::Vector<const uint8_t> bytes,
                            uint32_t offset) override {
     Decoder decoder(bytes.begin(), bytes.end());
-    NoTracer no_tracer;
-    uint32_t magic_word = decoder.consume_u32("wasm magic", no_tracer);
+    uint32_t magic_word = decoder.consume_u32("wasm magic", ITracer::NoTrace);
     if (decoder.failed() || magic_word != kWasmMagic) {
       result_->error = WasmError(0, "expected wasm magic");
       return false;
     }
-    uint32_t magic_version = decoder.consume_u32("wasm version", no_tracer);
+    uint32_t magic_version =
+        decoder.consume_u32("wasm version", ITracer::NoTrace);
     if (decoder.failed() || magic_version != kWasmVersion) {
       result_->error = WasmError(4, "expected wasm version");
       return false;

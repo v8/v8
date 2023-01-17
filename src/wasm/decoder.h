@@ -38,6 +38,48 @@ namespace wasm {
 // A {DecodeResult} only stores the failure / success status, but no data.
 using DecodeResult = VoidResult;
 
+struct WasmFunction;
+
+class ITracer {
+ public:
+  static constexpr ITracer* NoTrace = nullptr;
+
+  // Hooks for extracting byte offsets of things.
+  virtual void TypeOffset(uint32_t offset) = 0;
+  virtual void ImportOffset(uint32_t offset) = 0;
+  virtual void ImportsDone() = 0;
+  virtual void TableOffset(uint32_t offset) = 0;
+  virtual void MemoryOffset(uint32_t offset) = 0;
+  virtual void TagOffset(uint32_t offset) = 0;
+  virtual void GlobalOffset(uint32_t offset) = 0;
+  virtual void StartOffset(uint32_t offset) = 0;
+  virtual void ElementOffset(uint32_t offset) = 0;
+  virtual void DataOffset(uint32_t offset) = 0;
+
+  // Hooks for annotated hex dumps.
+  virtual void Bytes(const byte* start, uint32_t count) = 0;
+
+  virtual void Description(const char* desc) = 0;
+  virtual void Description(const char* desc, size_t length) = 0;
+  virtual void Description(uint32_t number) = 0;
+  virtual void Description(ValueType type) = 0;
+  virtual void Description(HeapType type) = 0;
+  virtual void Description(const FunctionSig* sig) = 0;
+
+  virtual void NextLine() = 0;
+  virtual void NextLineIfFull() = 0;
+  virtual void NextLineIfNonEmpty() = 0;
+
+  virtual void InitializerExpression(const byte* start, const byte* end,
+                                     ValueType expected_type) = 0;
+  virtual void FunctionBody(const WasmFunction* func, const byte* start) = 0;
+  virtual void FunctionName(uint32_t func_index) = 0;
+  virtual void NameSection(const byte* start, const byte* end,
+                           uint32_t offset) = 0;
+
+  virtual ~ITracer() = default;
+};
+
 // A helper utility to decode bytes, integers, fields, varints, etc, from
 // a buffer of bytes.
 class Decoder {
@@ -189,10 +231,11 @@ class Decoder {
   uint8_t consume_u8(const char* name = "uint8_t") {
     return consume_little_endian<uint8_t, kTrace>(name);
   }
-  template <class Tracer>
-  uint8_t consume_u8(const char* name, Tracer& tracer) {
-    tracer.Bytes(pc_, sizeof(uint8_t));
-    tracer.Description(name);
+  uint8_t consume_u8(const char* name, ITracer* tracer) {
+    if (tracer) {
+      tracer->Bytes(pc_, sizeof(uint8_t));
+      tracer->Description(name);
+    }
     return consume_little_endian<uint8_t, kNoTrace>(name);
   }
 
@@ -202,10 +245,11 @@ class Decoder {
   }
 
   // Reads a single 32-bit unsigned integer (little endian) and advances {pc_}.
-  template <class Tracer>
-  uint32_t consume_u32(const char* name, Tracer& tracer) {
-    tracer.Bytes(pc_, sizeof(uint32_t));
-    tracer.Description(name);
+  uint32_t consume_u32(const char* name, ITracer* tracer) {
+    if (tracer) {
+      tracer->Bytes(pc_, sizeof(uint32_t));
+      tracer->Description(name);
+    }
     return consume_little_endian<uint32_t, kNoTrace>(name);
   }
 
@@ -217,13 +261,14 @@ class Decoder {
     pc_ += length;
     return result;
   }
-  template <class Tracer>
-  uint32_t consume_u32v(const char* name, Tracer& tracer) {
+  uint32_t consume_u32v(const char* name, ITracer* tracer) {
     uint32_t length = 0;
     uint32_t result =
         read_leb<uint32_t, FullValidationTag, kNoTrace>(pc_, &length, name);
-    tracer.Bytes(pc_, length);
-    tracer.Description(name);
+    if (tracer) {
+      tracer->Bytes(pc_, length);
+      tracer->Description(name);
+    }
     pc_ += length;
     return result;
   }
@@ -238,13 +283,14 @@ class Decoder {
   }
 
   // Reads a LEB128 variable-length unsigned 64-bit integer and advances {pc_}.
-  template <class Tracer>
-  uint64_t consume_u64v(const char* name, Tracer& tracer) {
+  uint64_t consume_u64v(const char* name, ITracer* tracer) {
     uint32_t length = 0;
     uint64_t result =
         read_leb<uint64_t, FullValidationTag, kNoTrace>(pc_, &length, name);
-    tracer.Bytes(pc_, length);
-    tracer.Description(name);
+    if (tracer) {
+      tracer->Bytes(pc_, length);
+      tracer->Description(name);
+    }
     pc_ += length;
     return result;
   }
@@ -268,10 +314,11 @@ class Decoder {
       pc_ = end_;
     }
   }
-  template <class Tracer>
-  void consume_bytes(uint32_t size, const char* name, Tracer& tracer) {
-    tracer.Bytes(pc_, size);
-    tracer.Description(name);
+  void consume_bytes(uint32_t size, const char* name, ITracer* tracer) {
+    if (tracer) {
+      tracer->Bytes(pc_, size);
+      tracer->Description(name);
+    }
     consume_bytes(size, nullptr);
   }
 

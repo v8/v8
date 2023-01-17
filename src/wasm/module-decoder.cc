@@ -69,18 +69,15 @@ const char* SectionName(SectionCode code) {
   }
 }
 
-// Ideally we'd just say:
-//     using ModuleDecoderImpl = ModuleDecoderTemplate<NoTracer>
-// but that doesn't work with the forward declaration in the header file.
-class ModuleDecoderImpl : public ModuleDecoderTemplate<NoTracer> {
+// TODO(mliedtke): Convert ModuleDecoderBase to ModuleDecoder[Impl] and get rid
+// of this additional subclass. Then move the implementation from the impl
+// header to the cc as it isn't a template any more.
+class ModuleDecoderImpl : public ModuleDecoderBase {
  public:
   ModuleDecoderImpl(WasmFeatures enabled_features,
                     base::Vector<const uint8_t> wire_bytes, ModuleOrigin origin)
-      : ModuleDecoderTemplate<NoTracer>(enabled_features, wire_bytes, origin,
-                                        no_tracer_) {}
-
- private:
-  NoTracer no_tracer_;
+      : ModuleDecoderBase(enabled_features, wire_bytes, origin,
+                          ITracer::NoTrace) {}
 };
 
 ModuleResult DecodeWasmModule(
@@ -187,8 +184,8 @@ size_t ModuleDecoder::IdentifyUnknownSection(ModuleDecoder* decoder,
                                              SectionCode* result) {
   if (!decoder->ok()) return 0;
   decoder->impl_->Reset(bytes, offset);
-  NoTracer no_tracer;
-  *result = IdentifyUnknownSectionInternal(decoder->impl_.get(), no_tracer);
+  *result =
+      IdentifyUnknownSectionInternal(decoder->impl_.get(), ITracer::NoTrace);
   return decoder->impl_->pc() - bytes.begin();
 }
 
@@ -318,8 +315,7 @@ bool FindNameSection(Decoder* decoder) {
   static constexpr int kModuleHeaderSize = 8;
   decoder->consume_bytes(kModuleHeaderSize, "module header");
 
-  NoTracer no_tracer;
-  WasmSectionIterator section_iter(decoder, no_tracer);
+  WasmSectionIterator section_iter(decoder, ITracer::NoTrace);
 
   while (decoder->ok() && section_iter.more() &&
          section_iter.section_code() != kNameSectionCode) {

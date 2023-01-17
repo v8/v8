@@ -149,7 +149,7 @@ class InstructionStatistics {
           << static_cast<double>(total_size) / count;
       out << std::setw(kSpacing) << " ";
       out << std::fixed << std::setprecision(1) << std::setw(8)
-          << 100.0 * total_size / this->total_code_size_ << "%\n";
+          << 100.0 * total_size / total_code_size_ << "%\n";
     };
     for (const Entry& e : sorted) {
       PrintLine(WasmOpcodes::OpcodeName(e.opcode), e.count, e.total_size);
@@ -358,12 +358,10 @@ class ExtendedFunctionDis : public FunctionBodyDisassembler {
 // e.g.:
 //     0x01, 0x70, 0x00,  // table count 1: funcref no maximum
 class HexDumpModuleDis;
-class DumpingModuleDecoder : public ModuleDecoderTemplate<HexDumpModuleDis> {
+class DumpingModuleDecoder : public ModuleDecoderBase {
  public:
-  DumpingModuleDecoder(ModuleWireBytes wire_bytes, HexDumpModuleDis* module_dis)
-      : ModuleDecoderTemplate<HexDumpModuleDis>(WasmFeatures::All(),
-                                                wire_bytes.module_bytes(),
-                                                kWasmOrigin, *module_dis) {}
+  DumpingModuleDecoder(ModuleWireBytes wire_bytes,
+                       HexDumpModuleDis* module_dis);
 
   void onFirstError() override {
     // Pretend we've reached the end of the section, but contrary to the
@@ -372,7 +370,8 @@ class DumpingModuleDecoder : public ModuleDecoderTemplate<HexDumpModuleDis> {
     end_ = pc_;
   }
 };
-class HexDumpModuleDis {
+
+class HexDumpModuleDis : public ITracer {
  public:
   HexDumpModuleDis(MultiLineStringBuilder& out, const WasmModule* module,
                    NamesProvider* names, const ModuleWireBytes wire_bytes,
@@ -417,7 +416,7 @@ class HexDumpModuleDis {
   }
 
   // Tracer hooks.
-  void Bytes(const byte* start, uint32_t count) {
+  void Bytes(const byte* start, uint32_t count) override {
     if (count > kMaxBytesPerLine) {
       DCHECK_EQ(queue_, nullptr);
       queue_ = start;
@@ -431,38 +430,38 @@ class HexDumpModuleDis {
     total_bytes_ += count;
   }
 
-  void Description(const char* desc) { description_ << desc; }
-  void Description(const char* desc, size_t length) {
+  void Description(const char* desc) override { description_ << desc; }
+  void Description(const char* desc, size_t length) override {
     description_.write(desc, length);
   }
-  void Description(uint32_t number) {
+  void Description(uint32_t number) override {
     if (description_.length() != 0) description_ << " ";
     description_ << number;
   }
-  void Description(ValueType type) {
+  void Description(ValueType type) override {
     if (description_.length() != 0) description_ << " ";
     names_->PrintValueType(description_, type);
   }
-  void Description(HeapType type) {
+  void Description(HeapType type) override {
     if (description_.length() != 0) description_ << " ";
     names_->PrintHeapType(description_, type);
   }
-  void Description(const FunctionSig* sig) {
+  void Description(const FunctionSig* sig) override {
     PrintSignatureOneLine(description_, sig, 0 /* ignored */, names_, false);
   }
-  void FunctionName(uint32_t func_index) {
+  void FunctionName(uint32_t func_index) override {
     description_ << func_index << " ";
     names_->PrintFunctionName(description_, func_index,
                               NamesProvider::kDevTools);
   }
 
-  void NextLineIfFull() {
+  void NextLineIfFull() override {
     if (queue_ || line_bytes_ >= kPadBytes) NextLine();
   }
-  void NextLineIfNonEmpty() {
+  void NextLineIfNonEmpty() override {
     if (queue_ || line_bytes_ > 0) NextLine();
   }
-  void NextLine() {
+  void NextLine() override {
     if (queue_) {
       // Print queued hex bytes first, unless there have also been unqueued
       // bytes.
@@ -517,45 +516,45 @@ class HexDumpModuleDis {
 
   // We don't care about offsets, but we can use these hooks to provide
   // helpful indexing comments in long lists.
-  void TypeOffset(uint32_t offset) {
+  void TypeOffset(uint32_t offset) override {
     if (!module_ || module_->types.size() > 3) {
       description_ << "type #" << next_type_index_ << " ";
       names_->PrintTypeName(description_, next_type_index_);
       next_type_index_++;
     }
   }
-  void ImportOffset(uint32_t offset) {
+  void ImportOffset(uint32_t offset) override {
     description_ << "import #" << next_import_index_++;
     NextLine();
   }
-  void ImportsDone() {
+  void ImportsDone() override {
     const WasmModule* module = decoder_->shared_module().get();
     next_table_index_ = static_cast<uint32_t>(module->tables.size());
     next_global_index_ = static_cast<uint32_t>(module->globals.size());
     next_tag_index_ = static_cast<uint32_t>(module->tags.size());
   }
-  void TableOffset(uint32_t offset) {
+  void TableOffset(uint32_t offset) override {
     if (!module_ || module_->tables.size() > 3) {
       description_ << "table #" << next_table_index_++;
     }
   }
-  void MemoryOffset(uint32_t offset) {}
-  void TagOffset(uint32_t offset) {
+  void MemoryOffset(uint32_t offset) override {}
+  void TagOffset(uint32_t offset) override {
     if (!module_ || module_->tags.size() > 3) {
       description_ << "tag #" << next_tag_index_++ << ":";
     }
   }
-  void GlobalOffset(uint32_t offset) {
+  void GlobalOffset(uint32_t offset) override {
     description_ << "global #" << next_global_index_++ << ":";
   }
-  void StartOffset(uint32_t offset) {}
-  void ElementOffset(uint32_t offset) {
+  void StartOffset(uint32_t offset) override {}
+  void ElementOffset(uint32_t offset) override {
     if (!module_ || module_->elem_segments.size() > 3) {
       description_ << "segment #" << next_segment_index_++;
       NextLine();
     }
   }
-  void DataOffset(uint32_t offset) {
+  void DataOffset(uint32_t offset) override {
     if (!module_ || module_->data_segments.size() > 3) {
       description_ << "data segment #" << next_data_segment_index_++;
       NextLine();
@@ -565,7 +564,7 @@ class HexDumpModuleDis {
   // The following two hooks give us an opportunity to call the hex-dumping
   // function body disassembler for initializers and functions.
   void InitializerExpression(const byte* start, const byte* end,
-                             ValueType expected_type) {
+                             ValueType expected_type) override {
     WasmFeatures detected;
     auto sig = FixedSizeSignature<ValueType>::Returns(expected_type);
     uint32_t offset = decoder_->pc_offset();
@@ -577,7 +576,7 @@ class HexDumpModuleDis {
     total_bytes_ += static_cast<size_t>(end - start);
   }
 
-  void FunctionBody(const WasmFunction* func, const byte* start) {
+  void FunctionBody(const WasmFunction* func, const byte* start) override {
     const byte* end = start + func->code.length();
     WasmFeatures detected;
     uint32_t offset = static_cast<uint32_t>(start - decoder_->start());
@@ -591,20 +590,21 @@ class HexDumpModuleDis {
 
   // We have to do extra work for the name section here, because the regular
   // decoder mostly just skips over it.
-  void NameSection(const byte* start, const byte* end, uint32_t offset) {
+  void NameSection(const byte* start, const byte* end,
+                   uint32_t offset) override {
     Decoder decoder(start, end, offset);
     while (decoder.ok() && decoder.more()) {
-      uint8_t name_type = decoder.consume_u8("name type: ", *this);
+      uint8_t name_type = decoder.consume_u8("name type: ", this);
       Description(NameTypeName(name_type));
       NextLine();
-      uint32_t payload_length = decoder.consume_u32v("payload length:", *this);
+      uint32_t payload_length = decoder.consume_u32v("payload length:", this);
       Description(payload_length);
       NextLine();
       if (!decoder.checkAvailable(payload_length)) break;
       switch (name_type) {
         case kModuleCode:
           consume_string(&decoder, unibrow::Utf8Variant::kLossyUtf8,
-                         "module name", *this);
+                         "module name", this);
           break;
         case kFunctionCode:
         case kTypeCode:
@@ -642,34 +642,34 @@ class HexDumpModuleDis {
   }
 
   void DumpNameMap(Decoder& decoder) {
-    uint32_t count = decoder.consume_u32v("names count", *this);
+    uint32_t count = decoder.consume_u32v("names count", this);
     Description(count);
     NextLine();
     for (uint32_t i = 0; i < count; i++) {
-      uint32_t index = decoder.consume_u32v("index", *this);
+      uint32_t index = decoder.consume_u32v("index", this);
       Description(index);
       Description(" ");
-      consume_string(&decoder, unibrow::Utf8Variant::kLossyUtf8, "name", *this);
+      consume_string(&decoder, unibrow::Utf8Variant::kLossyUtf8, "name", this);
       if (!decoder.ok()) break;
     }
   }
 
   void DumpIndirectNameMap(Decoder& decoder) {
-    uint32_t outer_count = decoder.consume_u32v("outer count", *this);
+    uint32_t outer_count = decoder.consume_u32v("outer count", this);
     Description(outer_count);
     NextLine();
     for (uint32_t i = 0; i < outer_count; i++) {
-      uint32_t outer_index = decoder.consume_u32v("outer index", *this);
+      uint32_t outer_index = decoder.consume_u32v("outer index", this);
       Description(outer_index);
-      uint32_t inner_count = decoder.consume_u32v(" inner count", *this);
+      uint32_t inner_count = decoder.consume_u32v(" inner count", this);
       Description(inner_count);
       NextLine();
       for (uint32_t j = 0; j < inner_count; j++) {
-        uint32_t inner_index = decoder.consume_u32v("inner index", *this);
+        uint32_t inner_index = decoder.consume_u32v("inner index", this);
         Description(inner_index);
         Description(" ");
         consume_string(&decoder, unibrow::Utf8Variant::kLossyUtf8, "name",
-                       *this);
+                       this);
         if (!decoder.ok()) break;
       }
       if (!decoder.ok()) break;
@@ -773,8 +773,7 @@ class FormatConverter {
     // 18 = kMinNameLength + strlen(" section: ").
     out_ << std::setw(18) << std::left << "Module size: ";
     out_ << std::setw(digits) << std::right << module_size << " bytes\n";
-    NoTracer no_tracer;
-    for (WasmSectionIterator it(&decoder, no_tracer); it.more();
+    for (WasmSectionIterator it(&decoder, ITracer::NoTrace); it.more();
          it.advance(true)) {
       const char* name = SectionName(it.section_code());
       size_t name_len = strlen(name);
@@ -796,8 +795,7 @@ class FormatConverter {
     Decoder decoder(raw_bytes());
     out_.write(reinterpret_cast<const char*>(decoder.pc()), kModuleHeaderSize);
     decoder.consume_bytes(kModuleHeaderSize);
-    NoTracer no_tracer;
-    for (WasmSectionIterator it(&decoder, no_tracer); it.more();
+    for (WasmSectionIterator it(&decoder, ITracer::NoTrace); it.more();
          it.advance(true)) {
       if (it.section_code() == kNameSectionCode) continue;
       out_.write(reinterpret_cast<const char*>(it.section_start()),
@@ -1053,6 +1051,11 @@ class FormatConverter {
   std::shared_ptr<WasmModule> module_;
   std::unique_ptr<NamesProvider> names_provider_;
 };
+
+DumpingModuleDecoder::DumpingModuleDecoder(ModuleWireBytes wire_bytes,
+                                           HexDumpModuleDis* module_dis)
+    : ModuleDecoderBase(WasmFeatures::All(), wire_bytes.module_bytes(),
+                        kWasmOrigin, module_dis) {}
 
 }  // namespace wasm
 }  // namespace internal

@@ -566,7 +566,7 @@ uint32_t FunctionBodyDisassembler::PrintImmediatesAndGetLength(
 ////////////////////////////////////////////////////////////////////////////////
 // OffsetsProvider.
 
-class OffsetsProvider {
+class OffsetsProvider : public ITracer {
  public:
   OffsetsProvider() = default;
 
@@ -583,50 +583,58 @@ class OffsetsProvider {
     element_offsets_.reserve(module->elem_segments.size());
     data_offsets_.reserve(module->data_segments.size());
 
-    using OffsetsCollectingDecoder = ModuleDecoderTemplate<OffsetsProvider>;
-    OffsetsCollectingDecoder decoder{WasmFeatures::All(), wire_bytes,
-                                     kWasmOrigin, *this};
+    ModuleDecoderBase decoder{WasmFeatures::All(), wire_bytes, kWasmOrigin,
+                              this};
     constexpr bool kNoVerifyFunctions = false;
     decoder.DecodeModule(kNoVerifyFunctions);
 
     enabled_ = true;
   }
 
-  void TypeOffset(uint32_t offset) { type_offsets_.push_back(offset); }
+  void TypeOffset(uint32_t offset) override { type_offsets_.push_back(offset); }
 
-  void ImportOffset(uint32_t offset) { import_offsets_.push_back(offset); }
+  void ImportOffset(uint32_t offset) override {
+    import_offsets_.push_back(offset);
+  }
 
-  void TableOffset(uint32_t offset) { table_offsets_.push_back(offset); }
+  void TableOffset(uint32_t offset) override {
+    table_offsets_.push_back(offset);
+  }
 
-  void MemoryOffset(uint32_t offset) { memory_offset_ = offset; }
+  void MemoryOffset(uint32_t offset) override { memory_offset_ = offset; }
 
-  void TagOffset(uint32_t offset) { tag_offsets_.push_back(offset); }
+  void TagOffset(uint32_t offset) override { tag_offsets_.push_back(offset); }
 
-  void GlobalOffset(uint32_t offset) { global_offsets_.push_back(offset); }
+  void GlobalOffset(uint32_t offset) override {
+    global_offsets_.push_back(offset);
+  }
 
-  void StartOffset(uint32_t offset) { start_offset_ = offset; }
+  void StartOffset(uint32_t offset) override { start_offset_ = offset; }
 
-  void ElementOffset(uint32_t offset) { element_offsets_.push_back(offset); }
+  void ElementOffset(uint32_t offset) override {
+    element_offsets_.push_back(offset);
+  }
 
-  void DataOffset(uint32_t offset) { data_offsets_.push_back(offset); }
+  void DataOffset(uint32_t offset) override { data_offsets_.push_back(offset); }
 
   // Unused by this tracer:
-  void ImportsDone() {}
-  void Bytes(const byte* start, uint32_t count) {}
-  void Description(const char* desc) {}
-  void Description(const char* desc, size_t length) {}
-  void Description(uint32_t number) {}
-  void Description(ValueType type) {}
-  void Description(HeapType type) {}
-  void Description(const FunctionSig* sig) {}
-  void NextLine() {}
-  void NextLineIfFull() {}
-  void NextLineIfNonEmpty() {}
+  void ImportsDone() override {}
+  void Bytes(const byte* start, uint32_t count) override {}
+  void Description(const char* desc) override {}
+  void Description(const char* desc, size_t length) override {}
+  void Description(uint32_t number) override {}
+  void Description(ValueType type) override {}
+  void Description(HeapType type) override {}
+  void Description(const FunctionSig* sig) override {}
+  void NextLine() override {}
+  void NextLineIfFull() override {}
+  void NextLineIfNonEmpty() override {}
   void InitializerExpression(const byte* start, const byte* end,
-                             ValueType expected_type) {}
-  void FunctionBody(const WasmFunction* func, const byte* start) {}
-  void FunctionName(uint32_t func_index) {}
-  void NameSection(const byte* start, const byte* end, uint32_t offset) {}
+                             ValueType expected_type) override {}
+  void FunctionBody(const WasmFunction* func, const byte* start) override {}
+  void FunctionName(uint32_t func_index) override {}
+  void NameSection(const byte* start, const byte* end,
+                   uint32_t offset) override {}
 
 #define GETTER(name)                       \
   uint32_t name##_offset(uint32_t index) { \
