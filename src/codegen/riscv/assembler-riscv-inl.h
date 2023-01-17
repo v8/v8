@@ -235,14 +235,14 @@ Address RelocInfo::target_internal_reference_address() {
   return pc_;
 }
 
-Handle<Code> Assembler::relative_code_target_object_handle_at(
+Handle<CodeDataContainer> Assembler::relative_code_target_object_handle_at(
     Address pc) const {
   Instr instr1 = Assembler::instr_at(pc);
   Instr instr2 = Assembler::instr_at(pc + kInstrSize);
   DCHECK(IsAuipc(instr1));
   DCHECK(IsJalr(instr2));
   int32_t code_target_index = BrachlongOffset(instr1, instr2);
-  return Handle<Code>::cast(GetEmbeddedObject(code_target_index));
+  return Handle<CodeDataContainer>::cast(GetEmbeddedObject(code_target_index));
 }
 
 Builtin Assembler::target_builtin_at(Address pc) {
