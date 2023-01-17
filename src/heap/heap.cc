@@ -39,6 +39,7 @@
 #include "src/handles/traced-handles.h"
 #include "src/heap/array-buffer-sweeper.h"
 #include "src/heap/base/stack.h"
+#include "src/heap/base/worklist.h"
 #include "src/heap/basic-memory-chunk.h"
 #include "src/heap/code-object-registry.h"
 #include "src/heap/code-range.h"
@@ -5720,6 +5721,9 @@ void Heap::InitializeOncePerProcess() {
   HeapAllocator::InitializeOncePerProcess();
 #endif
   MemoryAllocator::InitializeOncePerProcess();
+  if (v8_flags.predictable) {
+    ::heap::base::WorklistBase::EnforcePredictableOrder();
+  }
 }
 
 void Heap::PrintMaxMarkingLimitReached() {
