@@ -34,6 +34,7 @@ class Graph final : public ZoneObject {
         float_(zone),
         external_references_(zone),
         parameters_(zone),
+        register_inputs_(),
         constants_(zone) {}
 
   BasicBlock* operator[](int i) { return blocks_[i]; }
@@ -83,6 +84,7 @@ class Graph final : public ZoneObject {
     return external_references_;
   }
   ZoneVector<InitialValue*>& parameters() { return parameters_; }
+  RegList& register_inputs() { return register_inputs_; }
   compiler::ZoneRefMap<compiler::ObjectRef, Constant*>& constants() {
     return constants_;
   }
@@ -104,6 +106,7 @@ class Graph final : public ZoneObject {
   ZoneMap<double, Float64Constant*> float_;
   ZoneMap<Address, ExternalConstant*> external_references_;
   ZoneVector<InitialValue*> parameters_;
+  RegList register_inputs_;
   compiler::ZoneRefMap<compiler::ObjectRef, Constant*> constants_;
   Float64Constant* nan_ = nullptr;
 };

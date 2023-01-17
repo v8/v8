@@ -974,6 +974,8 @@ class MaglevFrame : public OptimizedFrame {
 
   BytecodeOffset GetBytecodeOffsetForOSR() const;
 
+  static intptr_t StackGuardFrameSize(int register_input_count);
+
  protected:
   inline explicit MaglevFrame(StackFrameIteratorBase* iterator);
 

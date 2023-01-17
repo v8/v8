@@ -3033,13 +3033,8 @@ class RegisterInput : public FixedInputValueNodeT<0, RegisterInput> {
   using Base = FixedInputValueNodeT<0, RegisterInput>;
 
  public:
-  static constexpr RegList kAllowedRegisters = {
-      kJavaScriptCallNewTargetRegister};
-
   explicit RegisterInput(uint64_t bitfield, Register input)
-      : Base(bitfield), input_(input) {
-    DCHECK(kAllowedRegisters.has(input));
-  }
+      : Base(bitfield), input_(input) {}
 
   Register input() const { return input_; }
 

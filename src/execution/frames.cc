@@ -1458,41 +1458,26 @@ void MaglevFrame::Iterate(RootVisitor* v) const {
                 maglev_safepoint_entry.num_tagged_slots() +
                 maglev_safepoint_entry.num_untagged_slots());
 
-  // Check that our frame size is big enough for our spill slots and pushed
-  // registers.
-  intptr_t actual_frame_size = static_cast<intptr_t>(fp() - sp());
-  intptr_t expected_frame_size_excl_outgoing_params =
-      StandardFrameConstants::kFixedFrameSizeFromFp +
-      (spill_slot_count + maglev_safepoint_entry.num_pushed_registers()) *
-          kSystemPointerSize;
-  if (actual_frame_size < expected_frame_size_excl_outgoing_params) {
-    // If the frame size is smaller than the expected size, then we must be in
-    // the stack guard in the prologue of the maglev function. This means that
-    // we've set up the frame header, but not the spill slots yet.
-
+  // Check if we are calling the stack guard in the prologue.
+  if (maglev_safepoint_entry.is_stack_guard_call()) {
+    // We don't have a complete frame in this case.
+    uint32_t register_input_count =
+        maglev_safepoint_entry.register_input_count();
     if (v8_flags.maglev_ool_prologue) {
       // DCHECK the frame setup under the above assumption. The
       // MaglevOutOfLinePrologue builtin creates an INTERNAL frame for the
       // StackGuardWithGap call (where extra slots and args are), so the MAGLEV
       // frame itself is exactly kFixedFrameSizeFromFp.
-      DCHECK_EQ(actual_frame_size,
+      DCHECK_EQ(static_cast<intptr_t>(fp() - sp()),
                 StandardFrameConstants::kFixedFrameSizeFromFp);
-      DCHECK_EQ(isolate()->c_function(),
-                Runtime::FunctionForId(Runtime::kStackGuardWithGap)->entry);
-      DCHECK_EQ(maglev_safepoint_entry.num_pushed_registers(), 0);
     } else {
-      // DCHECK the frame setup under the above assumption. Include one extra
-      // slot for the single argument into StackGuardWithGap, and another for
-      // the saved new.target register.
-      DCHECK_EQ(actual_frame_size,
-                StandardFrameConstants::kFixedFrameSizeFromFp +
-                    2 * kSystemPointerSize);
-      DCHECK_EQ(isolate()->c_function(),
-                Runtime::FunctionForId(Runtime::kStackGuardWithGap)->entry);
-      DCHECK_EQ(maglev_safepoint_entry.num_pushed_registers(), 0);
+      // DCHECK the frame setup under the above assumption.
+      DCHECK_EQ(static_cast<intptr_t>(fp() - sp()),
+                MaglevFrame::StackGuardFrameSize(register_input_count));
     }
     spill_slot_count = 0;
-    tagged_slot_count = 0;
+    // We visit the saved register inputs as if they were tagged slots.
+    tagged_slot_count = register_input_count;
   }
 
   // Visit the outgoing parameters if they are tagged.
@@ -1508,7 +1493,8 @@ void MaglevFrame::Iterate(RootVisitor* v) const {
   // a call. These are distinct from normal spill slots and live between the
   // normal spill slots and the pushed parameters. Some of these are tagged,
   // as indicated by the tagged register indexes, and should be visited too.
-  if (maglev_safepoint_entry.num_pushed_registers() > 0) {
+  if (!maglev_safepoint_entry.is_stack_guard_call() &&
+      maglev_safepoint_entry.num_pushed_registers() > 0) {
     FullObjectSlot pushed_register_base =
         frame_header_base - spill_slot_count - 1;
     uint32_t tagged_register_indexes =

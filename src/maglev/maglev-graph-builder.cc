@@ -285,10 +285,8 @@ void MaglevGraphBuilder::BuildRegisterFrameInitialization() {
     for (; register_index < new_target_index; register_index++) {
       StoreRegister(interpreter::Register(register_index), undefined_value);
     }
-    StoreRegister(
-        new_target_or_generator_register,
-        // TODO(leszeks): Expose in Graph.
-        AddNewNode<RegisterInput>({}, kJavaScriptCallNewTargetRegister));
+    StoreRegister(new_target_or_generator_register,
+                  GetRegisterInput(kJavaScriptCallNewTargetRegister));
     register_index++;
   }
   for (; register_index < register_count(); register_index++) {

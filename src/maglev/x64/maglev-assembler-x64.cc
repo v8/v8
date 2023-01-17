@@ -438,18 +438,21 @@ void MaglevAssembler::Prologue(Graph* graph) {
     ZoneLabelRef deferred_call_stack_guard_return(this);
     JumpToDeferredIf(
         below_equal,
-        [](MaglevAssembler* masm, ZoneLabelRef done, int max_stack_size) {
+        [](MaglevAssembler* masm, ZoneLabelRef done, RegList register_inputs,
+           int max_stack_size) {
           ASM_CODE_COMMENT_STRING(masm, "Stack/interrupt call");
-          // Save any registers that can be referenced by RegisterInput.
-          // TODO(leszeks): Only push those that are used by the graph.
-          __ PushAll(RegisterInput::kAllowedRegisters);
+          __ PushAll(register_inputs);
           // Push the frame size
           __ Push(Immediate(Smi::FromInt(max_stack_size)));
           __ CallRuntime(Runtime::kStackGuardWithGap, 1);
-          __ PopAll(RegisterInput::kAllowedRegisters);
+          auto safepoint =
+              masm->safepoint_table_builder()->DefineSafepoint(masm);
+          safepoint.DefineStackGuardSafepoint(register_inputs.Count());
+          __ PopAll(register_inputs);
           __ jmp(*done);
         },
-        deferred_call_stack_guard_return, max_stack_size);
+        deferred_call_stack_guard_return, graph->register_inputs(),
+        max_stack_size);
     bind(*deferred_call_stack_guard_return);
   }
 

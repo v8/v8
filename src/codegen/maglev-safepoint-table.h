@@ -21,6 +21,7 @@ class MaglevSafepointEntry : public SafepointEntryBase {
  public:
   static constexpr int kNoDeoptIndex = -1;
   static constexpr int kNoTrampolinePC = -1;
+  static constexpr uint8_t kStackGuardCallSentinel = 255;
 
   MaglevSafepointEntry() = default;
 
@@ -48,6 +49,14 @@ class MaglevSafepointEntry : public SafepointEntryBase {
   uint32_t num_untagged_slots() const { return num_untagged_slots_; }
   uint8_t num_pushed_registers() const { return num_pushed_registers_; }
   uint32_t tagged_register_indexes() const { return tagged_register_indexes_; }
+
+  bool is_stack_guard_call() const {
+    return num_pushed_registers_ == kStackGuardCallSentinel;
+  }
+  uint32_t register_input_count() const {
+    DCHECK(is_stack_guard_call());
+    return tagged_register_indexes_;
+  }
 
  private:
   uint32_t num_tagged_slots_ = 0;
@@ -206,6 +215,12 @@ class MaglevSafepointTableBuilder : public SafepointTableBuilderBase {
     }
     void SetNumPushedRegisters(uint8_t num_registers) {
       entry_->num_pushed_registers = num_registers;
+    }
+
+    void DefineStackGuardSafepoint(int register_input_count) {
+      entry_->num_pushed_registers =
+          MaglevSafepointEntry::kStackGuardCallSentinel;
+      entry_->tagged_register_indexes = register_input_count;
     }
 
    private:

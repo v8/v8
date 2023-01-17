@@ -350,6 +350,10 @@ struct CopyForDeferredHelper<EagerDeoptInfo*>
 template <>
 struct CopyForDeferredHelper<ZoneLabelRef>
     : public CopyForDeferredByValue<ZoneLabelRef> {};
+// RegList are copied by value.
+template <>
+struct CopyForDeferredHelper<RegList> : public CopyForDeferredByValue<RegList> {
+};
 // Register snapshots are copied by value.
 template <>
 struct CopyForDeferredHelper<RegisterSnapshot>

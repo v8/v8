@@ -663,6 +663,12 @@ class MaglevGraphBuilder {
     return it->second;
   }
 
+  ValueNode* GetRegisterInput(Register reg) {
+    DCHECK(!graph_->register_inputs().has(reg));
+    graph_->register_inputs().set(reg);
+    return AddNewNode<RegisterInput>({}, reg);
+  }
+
 #define DEFINE_IS_ROOT_OBJECT(type, name, CamelName)               \
   bool Is##CamelName(ValueNode* value) const {                     \
     if (RootConstant* constant = value->TryCast<RootConstant>()) { \
