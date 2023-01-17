@@ -601,7 +601,8 @@ size_t OverheadPerCodeSpace(uint32_t num_declared_functions) {
   return overhead;
 }
 
-// Returns an estimate how much code space should be reserved.
+// Returns an estimate how much code space should be reserved. This can be
+// smaller than the passed-in {code_size_estimate}, see comments in the code.
 size_t ReservationSize(size_t code_size_estimate, int num_declared_functions,
                        size_t total_reserved) {
   size_t overhead = OverheadPerCodeSpace(num_declared_functions);
@@ -610,6 +611,13 @@ size_t ReservationSize(size_t code_size_estimate, int num_declared_functions,
   //   a) needed size + overhead (this is the minimum needed)
   //   b) 2 * overhead (to not waste too much space by overhead)
   //   c) 1/4 of current total reservation size (to grow exponentially)
+  // For the minimum size we only take the overhead into account and not the
+  // code space estimate, for two reasons:
+  //  - The code space estimate is only an estimate; we might actually need less
+  //    space later.
+  //  - When called at module construction time we pass the estimate for all
+  //    code in the module; this can still be split up into multiple spaces
+  //    later.
   size_t minimum_size = 2 * overhead;
   size_t suggested_size =
       std::max(std::max(RoundUp<kCodeAlignment>(code_size_estimate) + overhead,
@@ -667,6 +675,14 @@ base::Vector<byte> WasmCodeAllocator::AllocateForCodeInRegion(
     for (auto& vmem : owned_code_space_) total_reserved += vmem.size();
     size_t reserve_size = ReservationSize(
         size, native_module->module()->num_declared_functions, total_reserved);
+    if (reserve_size < size) {
+      auto oom_detail = base::FormattedString{}
+                        << "cannot reserve space for " << size
+                        << "bytes of code (maximum reservation size is "
+                        << reserve_size << ")";
+      V8::FatalProcessOutOfMemory(nullptr, "Grow wasm code space",
+                                  oom_detail.PrintToArray().data());
+    }
     VirtualMemory new_mem =
         code_manager->TryAllocate(reserve_size, reinterpret_cast<void*>(hint));
     if (!new_mem.IsReserved()) {
@@ -685,7 +701,8 @@ base::Vector<byte> WasmCodeAllocator::AllocateForCodeInRegion(
     native_module->AddCodeSpaceLocked(new_region);
 
     code_space = free_code_space_.Allocate(size);
-    DCHECK(!code_space.is_empty());
+    CHECK(!code_space.is_empty());
+
     async_counters_->wasm_module_num_code_spaces()->AddSample(
         static_cast<int>(owned_code_space_.size()));
   }
