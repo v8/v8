@@ -108,7 +108,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '68e6038b5350cba18c341cc7c572170af5c5b20c',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '396e12289d599701b56773025d37195280af15a2',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '8eddf3535ded778e4167c235263f99b4890d3ccf',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'a1adda97a812bf8fce5501cb770fe04b0fff38e7',
   'buildtools/clang_format/script':
@@ -275,7 +275,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'dca2b915e29ee8d0bb25cd44a84b32e67c8cabd0',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '9f2d7801df4c3c0241f3ddfcf1d52195074a4886',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'c042194eaa0ec0874b062f404ba80c7a935a8625',
   'tools/luci-go': {
       'packages': [
         {
