@@ -9,7 +9,6 @@
 #include "src/execution/vm-state-inl.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/concurrent-marking.h"
-#include "src/heap/embedder-tracing.h"
 #include "src/heap/gc-idle-time-handler.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
@@ -316,13 +315,13 @@ void IncrementalMarking::StartMarkingMajor() {
   isolate()->external_pointer_table().StartCompactingIfNeeded();
 #endif  // V8_COMPRESS_POINTERS
 
-  {
+  if (heap_->cpp_heap()) {
     TRACE_GC(heap()->tracer(),
              GCTracer::Scope::MC_INCREMENTAL_EMBEDDER_PROLOGUE);
     // PrepareForTrace should be called before visitor initialization in
-    // StartMarking. It is only used with CppHeap.
-    heap_->local_embedder_heap_tracer()->PrepareForTrace(
-        LocalEmbedderHeapTracer::CollectionType::kMajor);
+    // StartMarking.
+    CppHeap::From(heap_->cpp_heap())
+        ->InitializeTracing(CppHeap::CollectionType::kMajor);
   }
 
   major_collector_->StartMarking();
@@ -353,12 +352,12 @@ void IncrementalMarking::StartMarkingMajor() {
     isolate()->PrintWithTimestamp("[IncrementalMarking] Running\n");
   }
 
-  {
-    // TracePrologue may call back into V8 in corner cases, requiring that
+  if (heap()->cpp_heap()) {
+    // StartTracing may call back into V8 in corner cases, requiring that
     // marking (including write barriers) is fully set up.
     TRACE_GC(heap()->tracer(),
              GCTracer::Scope::MC_INCREMENTAL_EMBEDDER_PROLOGUE);
-    heap_->local_embedder_heap_tracer()->TracePrologue();
+    CppHeap::From(heap()->cpp_heap())->StartTracing();
   }
 
   heap_->InvokeIncrementalMarkingEpilogueCallbacks();

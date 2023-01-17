@@ -27,7 +27,6 @@
 #include "src/heap/basic-memory-chunk.h"
 #include "src/heap/code-object-registry.h"
 #include "src/heap/concurrent-allocator.h"
-#include "src/heap/embedder-tracing.h"
 #include "src/heap/evacuation-allocator-inl.h"
 #include "src/heap/evacuation-verifier-inl.h"
 #include "src/heap/gc-tracer-inl.h"
@@ -438,6 +437,14 @@ void CollectorBase::StartSweepNewSpace() {
   }
 }
 
+bool CollectorBase::IsCppHeapMarkingFinished() const {
+  const auto* cpp_heap = CppHeap::From(heap_->cpp_heap());
+  if (!cpp_heap) return true;
+
+  return cpp_heap->IsTracingDone() &&
+         local_marking_worklists()->IsWrapperEmpty();
+}
+
 void CollectorBase::SweepLargeSpace(LargeObjectSpace* space) {
   auto* marking_state = heap()->non_atomic_marking_state();
   PtrComprCageBase cage_base(heap()->isolate());
@@ -592,8 +599,7 @@ void MarkCompactCollector::StartMarking() {
   local_weak_objects_ = std::make_unique<WeakObjects::Local>(weak_objects());
   marking_visitor_ = std::make_unique<MarkingVisitor>(
       marking_state(), local_marking_worklists(), local_weak_objects_.get(),
-      heap_, epoch(), code_flush_mode(),
-      heap_->local_embedder_heap_tracer()->InUse(),
+      heap_, epoch(), code_flush_mode(), heap_->cpp_heap(),
       heap_->ShouldCurrentGCKeepAgesUnchanged());
 // Marking bits are cleared by the sweeper.
 #ifdef VERIFY_HEAP
@@ -910,20 +916,20 @@ void MarkCompactCollector::Prepare() {
   DCHECK(!heap_->memory_allocator()->unmapper()->IsRunning());
 
   if (!heap()->incremental_marking()->IsMarking()) {
-    {
+    if (heap()->cpp_heap()) {
       TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_EMBEDDER_PROLOGUE);
-      // PrepareForTrace should be called before visitor initialization in
+      // InitializeTracing should be called before visitor initialization in
       // StartMarking.
-      heap_->local_embedder_heap_tracer()->PrepareForTrace(
-          LocalEmbedderHeapTracer::CollectionType::kMajor);
+      CppHeap::From(heap()->cpp_heap())
+          ->InitializeTracing(CppHeap::CollectionType::kMajor);
     }
     StartCompaction(StartCompactionMode::kAtomic);
     StartMarking();
-    {
+    if (heap()->cpp_heap()) {
       TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_EMBEDDER_PROLOGUE);
-      // TracePrologue immediately starts marking which requires V8 worklists to
+      // StartTracing immediately starts marking which requires V8 worklists to
       // be set up.
-      heap_->local_embedder_heap_tracer()->TracePrologue();
+      CppHeap::From(heap()->cpp_heap())->StartTracing();
     }
 #ifdef V8_COMPRESS_POINTERS
     heap_->isolate()->external_pointer_table().StartCompactingIfNeeded();
@@ -2116,20 +2122,6 @@ void MarkCompactCollector::MarkRoots(RootVisitor* root_visitor) {
           ProcessTopOptimizedFrame(&client_custom_root_body_visitor, client);
         });
   }
-
-  if (!heap_->cpp_heap() && heap_->local_embedder_heap_tracer()->InUse()) {
-    // Conservative global handle scanning is necessary for keeping
-    // v8::TracedReference alive from the stack.
-    //
-    // TODO(v8:v8:13207): Remove as this is not required when using `CppHeap`.
-    auto& stack = heap()->stack();
-    if (heap_->IsGCWithStack()) {
-      ConservativeTracedHandlesMarkingVisitor conservative_marker(
-          *heap_, *local_marking_worklists_,
-          cppgc::internal::CollectionType::kMajor);
-      stack.IteratePointers(&conservative_marker);
-    }
-  }
 }
 
 #ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_MB
@@ -2421,8 +2413,7 @@ bool MarkCompactCollector::MarkTransitiveClosureUntilFixpoint() {
   } while (another_ephemeron_iteration_main_thread ||
            heap()->concurrent_marking()->another_ephemeron_iteration() ||
            !local_marking_worklists()->IsEmpty() ||
-           !local_marking_worklists()->IsWrapperEmpty() ||
-           !heap()->local_embedder_heap_tracer()->IsRemoteTracingDone());
+           !IsCppHeapMarkingFinished());
 
   return true;
 }
@@ -2538,9 +2529,8 @@ void MarkCompactCollector::MarkTransitiveClosureLinear() {
     // for work_to_do are not sufficient for determining if another iteration
     // is necessary.
 
-    work_to_do = !local_marking_worklists()->IsEmpty() ||
-                 !local_marking_worklists()->IsWrapperEmpty() ||
-                 !heap()->local_embedder_heap_tracer()->IsRemoteTracingDone();
+    work_to_do =
+        !local_marking_worklists()->IsEmpty() || !IsCppHeapMarkingFinished();
     CHECK(local_weak_objects()
               ->discovered_ephemerons_local.IsLocalAndGlobalEmpty());
   }
@@ -2559,14 +2549,11 @@ void MarkCompactCollector::MarkTransitiveClosureLinear() {
 }
 
 void MarkCompactCollector::PerformWrapperTracing() {
-  if (heap_->local_embedder_heap_tracer()->InUse()) {
-    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_EMBEDDER_TRACING);
-    if (local_marking_worklists()->PublishWrapper()) {
-      DCHECK(local_marking_worklists()->IsWrapperEmpty());
-    }
-    heap_->local_embedder_heap_tracer()->Trace(
-        std::numeric_limits<double>::infinity());
-  }
+  auto* cpp_heap = CppHeap::From(heap_->cpp_heap());
+  if (!cpp_heap) return;
+
+  TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_EMBEDDER_TRACING);
+  cpp_heap->AdvanceTracing(std::numeric_limits<double>::infinity());
 }
 
 std::pair<size_t, size_t> MarkCompactCollector::ProcessMarkingWorklist(
@@ -2819,7 +2806,10 @@ void MarkCompactCollector::MarkLiveObjects() {
   state_ = MARK_LIVE_OBJECTS;
 #endif
 
-  heap_->local_embedder_heap_tracer()->EnterFinalPause();
+  if (heap_->cpp_heap()) {
+    CppHeap::From(heap_->cpp_heap())
+        ->EnterFinalPause(heap_->embedder_stack_state_);
+  }
 
   RootMarkingVisitor root_visitor(this);
 
@@ -2868,7 +2858,7 @@ void MarkCompactCollector::MarkLiveObjects() {
         local_weak_objects()->current_ephemerons_local.IsLocalAndGlobalEmpty());
     CHECK(local_weak_objects()
               ->discovered_ephemerons_local.IsLocalAndGlobalEmpty());
-    CHECK(heap()->local_embedder_heap_tracer()->IsRemoteTracingDone());
+    CHECK(IsCppHeapMarkingFinished());
     VerifyEphemeronMarking();
   }
 
@@ -5818,15 +5808,12 @@ void MinorMarkCompactCollector::SweepArrayBufferExtensions() {
 }
 
 void MinorMarkCompactCollector::PerformWrapperTracing() {
-  if (!heap_->local_embedder_heap_tracer()->InUse()) return;
-  // TODO(v8:v8:13207): DCHECK instead of bailing out as only CppHeap is
-  // supported.
-  if (!local_marking_worklists()->PublishWrapper()) return;
-  DCHECK_NOT_NULL(CppHeap::From(heap_->cpp_heap()));
+  auto* cpp_heap = CppHeap::From(heap_->cpp_heap());
+  if (!cpp_heap) return;
+
   DCHECK(CppHeap::From(heap_->cpp_heap())->generational_gc_supported());
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_EMBEDDER_TRACING);
-  heap_->local_embedder_heap_tracer()->Trace(
-      std::numeric_limits<double>::infinity());
+  cpp_heap->AdvanceTracing(std::numeric_limits<double>::infinity());
 }
 
 // static
@@ -6002,20 +5989,20 @@ void MinorMarkCompactCollector::Prepare() {
 
   // Probably requires more.
   if (!heap()->incremental_marking()->IsMarking()) {
-    {
+    if (heap()->cpp_heap()) {
       TRACE_GC(heap()->tracer(),
                GCTracer::Scope::MINOR_MC_MARK_EMBEDDER_PROLOGUE);
-      // PrepareForTrace should be called before visitor initialization in
+      // InitializeTracing should be called before visitor initialization in
       // StartMarking.
-      heap_->local_embedder_heap_tracer()->PrepareForTrace(
-          LocalEmbedderHeapTracer::CollectionType::kMinor);
+      CppHeap::From(heap()->cpp_heap())
+          ->InitializeTracing(CppHeap::CollectionType::kMinor);
     }
     StartMarking();
-    {
+    if (heap()->cpp_heap()) {
       TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_EMBEDDER_PROLOGUE);
-      // TracePrologue immediately starts marking which requires V8 worklists to
+      // StartTracing immediately starts marking which requires V8 worklists to
       // be set up.
-      heap_->local_embedder_heap_tracer()->TracePrologue();
+      CppHeap::From(heap()->cpp_heap())->StartTracing();
     }
   }
 
@@ -6470,7 +6457,10 @@ void MinorMarkCompactCollector::MarkRootSetInParallel(
 
   // CppGC starts parallel marking tasks that will trace TracedReferences. Start
   // if after marking of traced handles.
-  heap_->local_embedder_heap_tracer()->EnterFinalPause();
+  if (heap_->cpp_heap()) {
+    CppHeap::From(heap_->cpp_heap())
+        ->EnterFinalPause(heap_->embedder_stack_state_);
+  }
 
   // Add tasks and run in parallel.
   {
@@ -6560,8 +6550,7 @@ void MinorMarkCompactCollector::DrainMarkingWorklist() {
       DCHECK(!non_atomic_marking_state()->IsWhite(object));
       main_marking_visitor_->Visit(object);
     }
-  } while (!local_marking_worklists_->IsWrapperEmpty() ||
-           !heap()->local_embedder_heap_tracer()->IsRemoteTracingDone());
+  } while (!IsCppHeapMarkingFinished());
   DCHECK(local_marking_worklists_->IsEmpty());
 }
 

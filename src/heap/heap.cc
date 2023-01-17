@@ -49,7 +49,6 @@
 #include "src/heap/concurrent-allocator.h"
 #include "src/heap/concurrent-marking.h"
 #include "src/heap/cppgc-js/cpp-heap.h"
-#include "src/heap/embedder-tracing.h"
 #include "src/heap/evacuation-verifier-inl.h"
 #include "src/heap/finalization-registry-cleanup-task.h"
 #include "src/heap/gc-idle-time-handler.h"
@@ -541,7 +540,7 @@ void Heap::SetGCState(HeapState state) {
 }
 
 bool Heap::IsGCWithStack() const {
-  return local_embedder_heap_tracer()->embedder_stack_state() ==
+  return embedder_stack_state_ ==
          cppgc::EmbedderStackState::kMayContainHeapPointers;
 }
 
@@ -2296,15 +2295,18 @@ size_t Heap::PerformGarbageCollection(GarbageCollector collector,
         isolate_->global_handles()->InvokeFirstPassWeakCallbacks();
   }
 
-  if (collector == GarbageCollector::MARK_COMPACTOR ||
-      collector == GarbageCollector::MINOR_MARK_COMPACTOR) {
+  if (cpp_heap() && (collector == GarbageCollector::MARK_COMPACTOR ||
+                     collector == GarbageCollector::MINOR_MARK_COMPACTOR)) {
     // TraceEpilogue may trigger operations that invalidate global handles. It
     // has to be called *after* all other operations that potentially touch and
     // reset global handles. It is also still part of the main garbage
     // collection pause and thus needs to be called *before* any operation that
     // can potentially trigger recursive garbage
     TRACE_GC(tracer(), GCTracer::Scope::HEAP_EMBEDDER_TRACING_EPILOGUE);
-    local_embedder_heap_tracer()->TraceEpilogue();
+    // Resetting to state unknown as there may be follow up garbage collections
+    // triggered from callbacks that have a different stack state.
+    embedder_stack_state_ = cppgc::EmbedderStackState::kMayContainHeapPointers;
+    CppHeap::From(cpp_heap())->TraceEpilogue();
   }
 
   RecomputeLimits(collector);
@@ -2484,7 +2486,6 @@ void Heap::RecomputeLimits(GarbageCollector collector) {
       this, max_old_generation_size(), v8_gc_speed, v8_mutator_speed);
   double global_growing_factor = 0;
   if (use_global_memory_scheduling) {
-    DCHECK_NOT_NULL(local_embedder_heap_tracer());
     double embedder_gc_speed = tracer()->EmbedderSpeedInBytesPerMillisecond();
     double embedder_speed =
         tracer()->CurrentEmbedderAllocationThroughputInBytesPerMillisecond();
@@ -3703,7 +3704,6 @@ bool Heap::HasLowOldGenerationAllocationRate() {
 bool Heap::HasLowEmbedderAllocationRate() {
   if (!v8_flags.global_gc_scheduling) return true;
 
-  DCHECK_NOT_NULL(local_embedder_heap_tracer());
   double mu = ComputeMutatorUtilization(
       "Embedder",
       tracer()->CurrentEmbedderAllocationThroughputInBytesPerMillisecond(),
@@ -5368,8 +5368,7 @@ Heap::IncrementalMarkingLimit Heap::IncrementalMarkingLimitReached() {
   if (old_generation_space_available > NewSpaceCapacity() &&
       (!global_memory_available ||
        global_memory_available > NewSpaceCapacity())) {
-    if (local_embedder_heap_tracer()->InUse() &&
-        !old_generation_size_configured_ && gc_count_ == 0) {
+    if (cpp_heap() && !old_generation_size_configured_ && gc_count_ == 0) {
       // At this point the embedder memory is above the activation
       // threshold. No GC happened so far and it's thus unlikely to get a
       // configured heap any time soon. Start a memory reducer in this case
@@ -5621,7 +5620,6 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
     live_object_stats_.reset(new ObjectStats(this));
     dead_object_stats_.reset(new ObjectStats(this));
   }
-  local_embedder_heap_tracer_.reset(new LocalEmbedderHeapTracer(isolate()));
   if (Heap::AllocationTrackerForDebugging::IsNeeded()) {
     allocation_tracker_for_debugging_ =
         std::make_unique<Heap::AllocationTrackerForDebugging>(this);
@@ -5812,12 +5810,10 @@ void Heap::AttachCppHeap(v8::CppHeap* cpp_heap) {
   CHECK(!incremental_marking()->IsMarking());
   CppHeap::From(cpp_heap)->AttachIsolate(isolate());
   cpp_heap_ = cpp_heap;
-  local_embedder_heap_tracer()->SetCppHeap(CppHeap::From(cpp_heap));
 }
 
 void Heap::DetachCppHeap() {
   CppHeap::From(cpp_heap_)->DetachIsolate();
-  local_embedder_heap_tracer()->SetCppHeap(nullptr);
   cpp_heap_ = nullptr;
 }
 
@@ -5967,7 +5963,6 @@ void Heap::TearDown() {
   live_object_stats_.reset();
   dead_object_stats_.reset();
 
-  local_embedder_heap_tracer_.reset();
   embedder_roots_handler_ = nullptr;
 
   if (cpp_heap_) {
@@ -7363,30 +7358,23 @@ void Heap::DrainSweepingWorklistForSpace(AllocationSpace space) {
 
 EmbedderStackStateScope::EmbedderStackStateScope(Heap* heap, Origin origin,
                                                  StackState stack_state)
-    : local_tracer_(heap->local_embedder_heap_tracer()),
-      old_stack_state_(local_tracer_->embedder_stack_state_) {
+    : heap_(heap), old_stack_state_(heap_->embedder_stack_state_) {
   if (origin == kImplicitThroughTask && heap->overriden_stack_state()) {
     stack_state = *heap->overriden_stack_state();
   }
 
-  local_tracer_->embedder_stack_state_ = stack_state;
+  heap_->embedder_stack_state_ = stack_state;
 }
 
 // static
 EmbedderStackStateScope EmbedderStackStateScope::ExplicitScopeForTesting(
-    LocalEmbedderHeapTracer* local_tracer, StackState stack_state) {
-  return EmbedderStackStateScope(local_tracer, stack_state);
-}
-
-EmbedderStackStateScope::EmbedderStackStateScope(
-    LocalEmbedderHeapTracer* local_tracer, StackState stack_state)
-    : local_tracer_(local_tracer),
-      old_stack_state_(local_tracer_->embedder_stack_state_) {
-  local_tracer_->embedder_stack_state_ = stack_state;
+    Heap* heap, StackState stack_state) {
+  return EmbedderStackStateScope(heap, Origin::kExplicitInvocation,
+                                 stack_state);
 }
 
 EmbedderStackStateScope::~EmbedderStackStateScope() {
-  local_tracer_->embedder_stack_state_ = old_stack_state_;
+  heap_->embedder_stack_state_ = old_stack_state_;
 }
 
 CppClassNamesAsHeapObjectNameScope::CppClassNamesAsHeapObjectNameScope(

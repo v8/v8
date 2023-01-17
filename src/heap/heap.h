@@ -107,7 +107,6 @@ class HeapStats;
 class Isolate;
 class JSFinalizationRegistry;
 class LinearAllocationArea;
-class LocalEmbedderHeapTracer;
 class LocalHeap;
 class MemoryAllocator;
 class MemoryChunk;
@@ -1150,14 +1149,6 @@ class Heap {
   void InvalidateCodeDeoptimizationData(InstructionStream code);
 
   void DeoptMarkedAllocationSites();
-
-  // ===========================================================================
-  // Embedder heap tracer support. =============================================
-  // ===========================================================================
-
-  LocalEmbedderHeapTracer* local_embedder_heap_tracer() const {
-    return local_embedder_heap_tracer_.get();
-  }
 
   // ===========================================================================
   // Unified heap (C++) support. ===============================================
@@ -2301,7 +2292,6 @@ class Heap {
   std::unique_ptr<AllocationObserver> scavenge_task_observer_;
   std::unique_ptr<AllocationObserver> minor_mc_task_observer_;
   std::unique_ptr<AllocationObserver> stress_concurrent_allocation_observer_;
-  std::unique_ptr<LocalEmbedderHeapTracer> local_embedder_heap_tracer_;
   std::unique_ptr<AllocationTrackerForDebugging>
       allocation_tracker_for_debugging_;
 
@@ -2320,6 +2310,9 @@ class Heap {
   v8::CppHeap* cpp_heap_ = nullptr;
 
   EmbedderRootsHandler* embedder_roots_handler_ = nullptr;
+
+  cppgc::EmbedderStackState embedder_stack_state_ =
+      cppgc::EmbedderStackState::kMayContainHeapPointers;
 
   StrongRootsEntry* strong_roots_head_ = nullptr;
   base::Mutex strong_roots_mutex_;
@@ -2424,6 +2417,7 @@ class Heap {
   friend class ConcurrentAllocator;
   friend class ConcurrentMarking;
   friend class ConservativeTracedHandlesMarkingVisitor;
+  friend class EmbedderStackStateScope;
   friend class EvacuateVisitorBase;
   friend class GCCallbacksScope;
   friend class GCTracer;
@@ -2779,16 +2773,13 @@ class V8_EXPORT_PRIVATE V8_NODISCARD EmbedderStackStateScope final {
 
   // Only used for testing where the Origin is always an explicit invocation.
   static EmbedderStackStateScope ExplicitScopeForTesting(
-      LocalEmbedderHeapTracer* local_tracer, StackState stack_state);
+      Heap* heap, StackState stack_state);
 
   EmbedderStackStateScope(Heap* heap, Origin origin, StackState stack_state);
   ~EmbedderStackStateScope();
 
  private:
-  EmbedderStackStateScope(LocalEmbedderHeapTracer* local_tracer,
-                          StackState stack_state);
-
-  LocalEmbedderHeapTracer* const local_tracer_;
+  Heap* const heap_;
   const StackState old_stack_state_;
 };
 
@@ -2796,8 +2787,7 @@ class V8_NODISCARD DisableConservativeStackScanningScopeForTesting {
  public:
   explicit inline DisableConservativeStackScanningScopeForTesting(Heap* heap)
       : embedder_scope_(EmbedderStackStateScope::ExplicitScopeForTesting(
-            heap->local_embedder_heap_tracer(),
-            cppgc::EmbedderStackState::kNoHeapPointers)) {}
+            heap, cppgc::EmbedderStackState::kNoHeapPointers)) {}
 
  private:
   EmbedderStackStateScope embedder_scope_;

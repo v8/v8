@@ -301,6 +301,8 @@ class CollectorBase {
   void StartSweepNewSpace();
   void SweepLargeSpace(LargeObjectSpace* space);
 
+  bool IsCppHeapMarkingFinished() const;
+
   Heap* heap_;
   GarbageCollector garbage_collector_;
   MarkingWorklists marking_worklists_;

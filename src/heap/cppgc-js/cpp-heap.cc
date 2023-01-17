@@ -526,6 +526,7 @@ void CppHeap::AttachIsolate(Isolate* isolate) {
   CHECK(!in_detached_testing_mode_);
   CHECK_NULL(isolate_);
   isolate_ = isolate;
+  heap_ = isolate->heap();
   static_cast<CppgcPlatformAdapter*>(platform())
       ->SetIsolate(reinterpret_cast<v8::Isolate*>(isolate_));
   if (isolate_->heap_profiler()) {
@@ -562,6 +563,7 @@ void CppHeap::DetachIsolate() {
   }
   SetMetricRecorder(nullptr);
   isolate_ = nullptr;
+  heap_ = nullptr;
   // Any future garbage collections will ignore the V8->C++ references.
   oom_handler().SetCustomHandler(nullptr);
   // Enter no GC scope.
@@ -657,6 +659,14 @@ void CppHeap::InitializeTracing(CollectionType collection_type,
   }
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 
+  if (gc_flags == GarbageCollectionFlagValues::kNoFlags) {
+    if (heap()->is_current_gc_forced()) {
+      gc_flags |= CppHeap::GarbageCollectionFlagValues::kForced;
+    }
+    if (heap()->ShouldReduceMemory()) {
+      gc_flags |= CppHeap::GarbageCollectionFlagValues::kReduceMemory;
+    }
+  }
   current_gc_flags_ = gc_flags;
 
   const cppgc::internal::MarkingConfig marking_config{

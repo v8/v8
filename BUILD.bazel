@@ -1450,8 +1450,6 @@ filegroup(
         "src/heap/cppgc-js/unified-heap-marking-visitor.h",
         "src/heap/cppgc-js/wrappable-info.h",
         "src/heap/cppgc-js/wrappable-info-inl.h",
-        "src/heap/embedder-tracing.cc",
-        "src/heap/embedder-tracing.h",
         "src/heap/evacuation-verifier.cc",
         "src/heap/evacuation-verifier.h",
         "src/heap/evacuation-verifier-inl.h",
