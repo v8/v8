@@ -112,7 +112,7 @@ enum class RefSerializationKind {
   NEVER_SERIALIZED(CallHandlerInfo)                                           \
   NEVER_SERIALIZED(Cell)                                                      \
   NEVER_SERIALIZED(InstructionStream)                                         \
-  NEVER_SERIALIZED(CodeDataContainer)                                         \
+  NEVER_SERIALIZED(Code)                                                      \
   NEVER_SERIALIZED(Context)                                                   \
   NEVER_SERIALIZED(DescriptorArray)                                           \
   NEVER_SERIALIZED(FeedbackCell)                                              \
@@ -459,7 +459,7 @@ class V8_EXPORT_PRIVATE JSFunctionRef : public JSObjectRef {
   ContextRef context() const;
   NativeContextRef native_context() const;
   SharedFunctionInfoRef shared() const;
-  CodeDataContainerRef code() const;
+  CodeRef code() const;
 
   bool has_initial_map(CompilationDependencies* dependencies) const;
   bool PrototypeRequiresRuntimeLookup(
@@ -1019,11 +1019,11 @@ class InstructionStreamRef : public HeapObjectRef {
   unsigned GetInlinedBytecodeSize() const;
 };
 
-class CodeDataContainerRef : public HeapObjectRef {
+class CodeRef : public HeapObjectRef {
  public:
-  DEFINE_REF_CONSTRUCTOR(CodeDataContainer, HeapObjectRef)
+  DEFINE_REF_CONSTRUCTOR(Code, HeapObjectRef)
 
-  Handle<CodeDataContainer> object() const;
+  Handle<Code> object() const;
 
   unsigned GetInlinedBytecodeSize() const;
 };

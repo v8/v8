@@ -35,14 +35,14 @@ OBJECT_CONSTRUCTORS_IMPL(DeoptimizationData, FixedArray)
 TQ_OBJECT_CONSTRUCTORS_IMPL(BytecodeArray)
 OBJECT_CONSTRUCTORS_IMPL(AbstractCode, HeapObject)
 OBJECT_CONSTRUCTORS_IMPL(DependentCode, WeakArrayList)
-OBJECT_CONSTRUCTORS_IMPL(CodeDataContainer, HeapObject)
-NEVER_READ_ONLY_SPACE_IMPL(CodeDataContainer)
+OBJECT_CONSTRUCTORS_IMPL(Code, HeapObject)
+NEVER_READ_ONLY_SPACE_IMPL(Code)
 
 NEVER_READ_ONLY_SPACE_IMPL(AbstractCode)
 
 CAST_ACCESSOR(AbstractCode)
 CAST_ACCESSOR(InstructionStream)
-CAST_ACCESSOR(CodeDataContainer)
+CAST_ACCESSOR(Code)
 CAST_ACCESSOR(DependentCode)
 CAST_ACCESSOR(DeoptimizationData)
 CAST_ACCESSOR(DeoptimizationLiteralArray)
@@ -51,8 +51,8 @@ int AbstractCode::InstructionSize(PtrComprCageBase cage_base) {
   InstanceType instance_type = map(cage_base).instance_type();
   if (InstanceTypeChecker::IsInstructionStream(instance_type)) {
     return GetInstructionStream().InstructionSize();
-  } else if (InstanceTypeChecker::IsCodeDataContainer(instance_type)) {
-    return GetCodeDataContainer().InstructionSize();
+  } else if (InstanceTypeChecker::IsCode(instance_type)) {
+    return GetCode().InstructionSize();
   } else {
     DCHECK(InstanceTypeChecker::IsBytecodeArray(instance_type));
     return GetBytecodeArray().length();
@@ -65,12 +65,12 @@ ByteArray AbstractCode::SourcePositionTableInternal(
   if (InstanceTypeChecker::IsInstructionStream(instance_type)) {
     DCHECK_NE(GetInstructionStream().kind(), CodeKind::BASELINE);
     return GetInstructionStream().source_position_table(cage_base);
-  } else if (InstanceTypeChecker::IsCodeDataContainer(instance_type)) {
-    CodeDataContainer code_data_container = GetCodeDataContainer();
-    if (code_data_container.is_off_heap_trampoline()) {
+  } else if (InstanceTypeChecker::IsCode(instance_type)) {
+    Code code = GetCode();
+    if (code.is_off_heap_trampoline()) {
       return GetReadOnlyRoots().empty_byte_array();
     }
-    return code_data_container.source_position_table(cage_base);
+    return code.source_position_table(cage_base);
   } else {
     DCHECK(InstanceTypeChecker::IsBytecodeArray(instance_type));
     return GetBytecodeArray().SourcePositionTable(cage_base);
@@ -82,13 +82,12 @@ ByteArray AbstractCode::SourcePositionTable(PtrComprCageBase cage_base,
   InstanceType instance_type = map(cage_base).instance_type();
   if (InstanceTypeChecker::IsInstructionStream(instance_type)) {
     return GetInstructionStream().SourcePositionTable(cage_base, sfi);
-  } else if (InstanceTypeChecker::IsCodeDataContainer(instance_type)) {
-    CodeDataContainer code_data_container = GetCodeDataContainer();
-    if (code_data_container.is_off_heap_trampoline()) {
+  } else if (InstanceTypeChecker::IsCode(instance_type)) {
+    Code code = GetCode();
+    if (code.is_off_heap_trampoline()) {
       return GetReadOnlyRoots().empty_byte_array();
     }
-    return FromCodeDataContainer(code_data_container)
-        .SourcePositionTable(cage_base, sfi);
+    return FromCode(code).SourcePositionTable(cage_base, sfi);
   } else {
     DCHECK(InstanceTypeChecker::IsBytecodeArray(instance_type));
     return GetBytecodeArray().SourcePositionTable(cage_base);
@@ -99,12 +98,11 @@ int AbstractCode::SizeIncludingMetadata(PtrComprCageBase cage_base) {
   InstanceType instance_type = map(cage_base).instance_type();
   if (InstanceTypeChecker::IsInstructionStream(instance_type)) {
     return GetInstructionStream().SizeIncludingMetadata(cage_base);
-  } else if (InstanceTypeChecker::IsCodeDataContainer(instance_type)) {
-    CodeDataContainer code_data_container = GetCodeDataContainer();
-    return code_data_container.is_off_heap_trampoline()
+  } else if (InstanceTypeChecker::IsCode(instance_type)) {
+    Code code = GetCode();
+    return code.is_off_heap_trampoline()
                ? 0
-               : FromCodeDataContainer(code_data_container)
-                     .SizeIncludingMetadata(cage_base);
+               : FromCode(code).SizeIncludingMetadata(cage_base);
   } else {
     DCHECK(InstanceTypeChecker::IsBytecodeArray(instance_type));
     return GetBytecodeArray().SizeIncludingMetadata();
@@ -115,8 +113,8 @@ Address AbstractCode::InstructionStart(PtrComprCageBase cage_base) {
   InstanceType instance_type = map(cage_base).instance_type();
   if (InstanceTypeChecker::IsInstructionStream(instance_type)) {
     return GetInstructionStream().InstructionStart();
-  } else if (InstanceTypeChecker::IsCodeDataContainer(instance_type)) {
-    return GetCodeDataContainer().InstructionStart();
+  } else if (InstanceTypeChecker::IsCode(instance_type)) {
+    return GetCode().InstructionStart();
   } else {
     DCHECK(InstanceTypeChecker::IsBytecodeArray(instance_type));
     return GetBytecodeArray().GetFirstBytecodeAddress();
@@ -127,8 +125,8 @@ Address AbstractCode::InstructionEnd(PtrComprCageBase cage_base) {
   InstanceType instance_type = map(cage_base).instance_type();
   if (InstanceTypeChecker::IsInstructionStream(instance_type)) {
     return GetInstructionStream().InstructionEnd();
-  } else if (InstanceTypeChecker::IsCodeDataContainer(instance_type)) {
-    return GetCodeDataContainer().InstructionEnd();
+  } else if (InstanceTypeChecker::IsCode(instance_type)) {
+    return GetCode().InstructionEnd();
   } else {
     DCHECK(InstanceTypeChecker::IsBytecodeArray(instance_type));
     BytecodeArray bytecode_array = GetBytecodeArray();
@@ -141,8 +139,8 @@ bool AbstractCode::contains(Isolate* isolate, Address inner_pointer) {
   InstanceType instance_type = map(cage_base).instance_type();
   if (InstanceTypeChecker::IsInstructionStream(instance_type)) {
     return GetInstructionStream().contains(isolate, inner_pointer);
-  } else if (InstanceTypeChecker::IsCodeDataContainer(instance_type)) {
-    return GetCodeDataContainer().contains(isolate, inner_pointer);
+  } else if (InstanceTypeChecker::IsCode(instance_type)) {
+    return GetCode().contains(isolate, inner_pointer);
   } else {
     DCHECK(InstanceTypeChecker::IsBytecodeArray(instance_type));
     return (address() <= inner_pointer) &&
@@ -154,8 +152,8 @@ CodeKind AbstractCode::kind(PtrComprCageBase cage_base) {
   InstanceType instance_type = map(cage_base).instance_type();
   if (InstanceTypeChecker::IsInstructionStream(instance_type)) {
     return GetInstructionStream().kind();
-  } else if (InstanceTypeChecker::IsCodeDataContainer(instance_type)) {
-    return GetCodeDataContainer().kind();
+  } else if (InstanceTypeChecker::IsCode(instance_type)) {
+    return GetCode().kind();
   } else {
     DCHECK(InstanceTypeChecker::IsBytecodeArray(instance_type));
     return CodeKind::INTERPRETED_FUNCTION;
@@ -166,8 +164,8 @@ Builtin AbstractCode::builtin_id(PtrComprCageBase cage_base) {
   InstanceType instance_type = map(cage_base).instance_type();
   if (InstanceTypeChecker::IsInstructionStream(instance_type)) {
     return GetInstructionStream().builtin_id();
-  } else if (InstanceTypeChecker::IsCodeDataContainer(instance_type)) {
-    return GetCodeDataContainer().builtin_id();
+  } else if (InstanceTypeChecker::IsCode(instance_type)) {
+    return GetCode().builtin_id();
   } else {
     DCHECK(InstanceTypeChecker::IsBytecodeArray(instance_type));
     return Builtin::kNoBuiltinId;
@@ -178,8 +176,8 @@ bool AbstractCode::is_off_heap_trampoline(PtrComprCageBase cage_base) {
   InstanceType instance_type = map(cage_base).instance_type();
   if (InstanceTypeChecker::IsInstructionStream(instance_type)) {
     return GetInstructionStream().is_off_heap_trampoline();
-  } else if (InstanceTypeChecker::IsCodeDataContainer(instance_type)) {
-    return GetCodeDataContainer().is_off_heap_trampoline();
+  } else if (InstanceTypeChecker::IsCode(instance_type)) {
+    return GetCode().is_off_heap_trampoline();
   } else {
     DCHECK(InstanceTypeChecker::IsBytecodeArray(instance_type));
     return false;
@@ -191,8 +189,8 @@ HandlerTable::CatchPrediction AbstractCode::GetBuiltinCatchPrediction(
   InstanceType instance_type = map(cage_base).instance_type();
   if (InstanceTypeChecker::IsInstructionStream(instance_type)) {
     return GetInstructionStream().GetBuiltinCatchPrediction();
-  } else if (InstanceTypeChecker::IsCodeDataContainer(instance_type)) {
-    return GetCodeDataContainer().GetBuiltinCatchPrediction();
+  } else if (InstanceTypeChecker::IsCode(instance_type)) {
+    return GetCode().GetBuiltinCatchPrediction();
   } else {
     UNREACHABLE();
   }
@@ -202,8 +200,8 @@ bool AbstractCode::IsInstructionStream(PtrComprCageBase cage_base) const {
   return HeapObject::IsInstructionStream(cage_base);
 }
 
-bool AbstractCode::IsCodeDataContainer(PtrComprCageBase cage_base) const {
-  return HeapObject::IsCodeDataContainer(cage_base);
+bool AbstractCode::IsCode(PtrComprCageBase cage_base) const {
+  return HeapObject::IsCode(cage_base);
 }
 
 bool AbstractCode::IsBytecodeArray(PtrComprCageBase cage_base) const {
@@ -214,9 +212,7 @@ InstructionStream AbstractCode::GetInstructionStream() {
   return InstructionStream::cast(*this);
 }
 
-CodeDataContainer AbstractCode::GetCodeDataContainer() {
-  return CodeDataContainer::cast(*this);
-}
+Code AbstractCode::GetCode() { return Code::cast(*this); }
 
 BytecodeArray AbstractCode::GetBytecodeArray() {
   return BytecodeArray::cast(*this);
@@ -227,22 +223,21 @@ InstructionStream AbstractCode::ToInstructionStream(
   InstanceType instance_type = map(cage_base).instance_type();
   if (InstanceTypeChecker::IsInstructionStream(instance_type)) {
     return GetInstructionStream();
-  } else if (InstanceTypeChecker::IsCodeDataContainer(instance_type)) {
-    CodeDataContainer code_data_container = GetCodeDataContainer();
-    DCHECK(!code_data_container.is_off_heap_trampoline());
-    return FromCodeDataContainer(code_data_container);
+  } else if (InstanceTypeChecker::IsCode(instance_type)) {
+    Code code = GetCode();
+    DCHECK(!code.is_off_heap_trampoline());
+    return FromCode(code);
   } else {
     UNREACHABLE();
   }
 }
 
-CodeDataContainer AbstractCode::ToCodeDataContainer(
-    PtrComprCageBase cage_base) {
+Code AbstractCode::ToCode(PtrComprCageBase cage_base) {
   InstanceType instance_type = map(cage_base).instance_type();
   if (InstanceTypeChecker::IsInstructionStream(instance_type)) {
-    return i::ToCodeDataContainer(GetInstructionStream());
-  } else if (InstanceTypeChecker::IsCodeDataContainer(instance_type)) {
-    return GetCodeDataContainer();
+    return i::ToCode(GetInstructionStream());
+  } else if (InstanceTypeChecker::IsCode(instance_type)) {
+    return GetCode();
   } else {
     UNREACHABLE();
   }
@@ -330,9 +325,8 @@ CODE_ACCESSORS_CHECKED2(bytecode_offset_table, ByteArray, kPositionTableOffset,
                         kind() == CodeKind::BASELINE &&
                             !ObjectInYoungGeneration(value))
 
-// Concurrent marker needs to access kind specific flags in code data container.
-RELEASE_ACQUIRE_CODE_ACCESSORS(code_data_container, CodeDataContainer,
-                               kCodeDataContainerOffset)
+// Concurrent marker needs to access kind specific flags in code.
+RELEASE_ACQUIRE_CODE_ACCESSORS(code, Code, kCodeOffset)
 #undef CODE_ACCESSORS
 #undef CODE_ACCESSORS_CHECKED2
 #undef RELEASE_ACQUIRE_CODE_ACCESSORS
@@ -366,37 +360,31 @@ void InstructionStream::set_main_cage_base(Address cage_base, RelaxedStoreTag) {
 #endif
 }
 
-CodeDataContainer InstructionStream::GCSafeCodeDataContainer(
-    AcquireLoadTag) const {
+Code InstructionStream::GCSafeCode(AcquireLoadTag) const {
   PtrComprCageBase cage_base = main_cage_base(kRelaxedLoad);
   HeapObject object =
-      TaggedField<HeapObject, kCodeDataContainerOffset>::Acquire_Load(cage_base,
-                                                                      *this);
+      TaggedField<HeapObject, kCodeOffset>::Acquire_Load(cage_base, *this);
   DCHECK(!ObjectInYoungGeneration(object));
-  CodeDataContainer code_data_container =
-      ForwardingAddress(CodeDataContainer::unchecked_cast(object));
-  return code_data_container;
+  Code code = ForwardingAddress(Code::unchecked_cast(object));
+  return code;
 }
 
 // Helper functions for converting InstructionStream objects to
-// CodeDataContainer and back.
-inline CodeDataContainer ToCodeDataContainer(InstructionStream code) {
-  return code.code_data_container(kAcquireLoad);
+// Code and back.
+inline Code ToCode(InstructionStream code) { return code.code(kAcquireLoad); }
+
+inline Handle<Code> ToCode(Handle<InstructionStream> code, Isolate* isolate) {
+  return handle(ToCode(*code), isolate);
 }
 
-inline Handle<CodeDataContainer> ToCodeDataContainer(
-    Handle<InstructionStream> code, Isolate* isolate) {
-  return handle(ToCodeDataContainer(*code), isolate);
-}
-
-inline MaybeHandle<CodeDataContainer> ToCodeDataContainer(
-    MaybeHandle<InstructionStream> maybe_code, Isolate* isolate) {
+inline MaybeHandle<Code> ToCode(MaybeHandle<InstructionStream> maybe_code,
+                                Isolate* isolate) {
   Handle<InstructionStream> code;
-  if (maybe_code.ToHandle(&code)) return ToCodeDataContainer(code, isolate);
+  if (maybe_code.ToHandle(&code)) return ToCode(code, isolate);
   return {};
 }
 
-inline InstructionStream FromCodeDataContainer(CodeDataContainer code) {
+inline InstructionStream FromCode(Code code) {
   DCHECK(!code.is_off_heap_trampoline());
   // Compute the InstructionStream object pointer from the code entry point.
   Address ptr =
@@ -404,9 +392,8 @@ inline InstructionStream FromCodeDataContainer(CodeDataContainer code) {
   return InstructionStream::cast(Object(ptr));
 }
 
-inline InstructionStream FromCodeDataContainer(CodeDataContainer code,
-                                               PtrComprCageBase code_cage_base,
-                                               RelaxedLoadTag tag) {
+inline InstructionStream FromCode(Code code, PtrComprCageBase code_cage_base,
+                                  RelaxedLoadTag tag) {
   DCHECK(!code.is_off_heap_trampoline());
   // Since the code entry point field is not aligned we can't load it atomically
   // and use for InstructionStream object pointer calculation. So, we load and
@@ -414,36 +401,33 @@ inline InstructionStream FromCodeDataContainer(CodeDataContainer code,
   return code.instruction_stream(code_cage_base, tag);
 }
 
-inline InstructionStream FromCodeDataContainer(CodeDataContainer code,
-                                               Isolate* isolate,
-                                               RelaxedLoadTag tag) {
+inline InstructionStream FromCode(Code code, Isolate* isolate,
+                                  RelaxedLoadTag tag) {
 #ifdef V8_EXTERNAL_CODE_SPACE
-  return FromCodeDataContainer(
-      code, PtrComprCageBase{isolate->code_cage_base()}, tag);
+  return FromCode(code, PtrComprCageBase{isolate->code_cage_base()}, tag);
 #else
-  return FromCodeDataContainer(code, GetPtrComprCageBase(code), tag);
+  return FromCode(code, GetPtrComprCageBase(code), tag);
 #endif  // V8_EXTERNAL_CODE_SPACE
 }
 
-inline Handle<InstructionStream> FromCodeDataContainer(
-    Handle<CodeDataContainer> code, Isolate* isolate) {
-  return handle(FromCodeDataContainer(*code), isolate);
+inline Handle<InstructionStream> FromCode(Handle<Code> code, Isolate* isolate) {
+  return handle(FromCode(*code), isolate);
 }
 
-inline AbstractCode ToAbstractCode(CodeDataContainer code) {
+inline AbstractCode ToAbstractCode(Code code) {
   return AbstractCode::cast(code);
 }
 
-inline Handle<AbstractCode> ToAbstractCode(Handle<CodeDataContainer> code,
+inline Handle<AbstractCode> ToAbstractCode(Handle<Code> code,
                                            Isolate* isolate) {
   return Handle<AbstractCode>::cast(code);
 }
 
-#define CODE_LOOKUP_RESULT_FWD_ACCESSOR(name, Type)              \
-  Type CodeLookupResult::name() const {                          \
-    DCHECK(IsFound());                                           \
-    return IsInstructionStream() ? instruction_stream().name()   \
-                                 : code_data_container().name(); \
+#define CODE_LOOKUP_RESULT_FWD_ACCESSOR(name, Type)            \
+  Type CodeLookupResult::name() const {                        \
+    DCHECK(IsFound());                                         \
+    return IsInstructionStream() ? instruction_stream().name() \
+                                 : code().name();              \
   }
 
 CODE_LOOKUP_RESULT_FWD_ACCESSOR(kind, CodeKind)
@@ -465,8 +449,8 @@ CODE_LOOKUP_RESULT_FWD_ACCESSOR(GetBuiltinCatchPrediction,
 int CodeLookupResult::GetOffsetFromInstructionStart(Isolate* isolate,
                                                     Address pc) const {
   DCHECK(IsFound());
-  if (IsCodeDataContainer()) {
-    return code_data_container().GetOffsetFromInstructionStart(isolate, pc);
+  if (IsCode()) {
+    return code().GetOffsetFromInstructionStart(isolate, pc);
   }
   return instruction_stream().GetOffsetFromInstructionStart(isolate, pc);
 }
@@ -474,8 +458,8 @@ int CodeLookupResult::GetOffsetFromInstructionStart(Isolate* isolate,
 SafepointEntry CodeLookupResult::GetSafepointEntry(Isolate* isolate,
                                                    Address pc) const {
   DCHECK(IsFound());
-  if (IsCodeDataContainer()) {
-    return code_data_container().GetSafepointEntry(isolate, pc);
+  if (IsCode()) {
+    return code().GetSafepointEntry(isolate, pc);
   }
   return instruction_stream().GetSafepointEntry(isolate, pc);
 }
@@ -483,27 +467,25 @@ SafepointEntry CodeLookupResult::GetSafepointEntry(Isolate* isolate,
 MaglevSafepointEntry CodeLookupResult::GetMaglevSafepointEntry(
     Isolate* isolate, Address pc) const {
   DCHECK(IsFound());
-  if (IsCodeDataContainer()) {
-    return code_data_container().GetMaglevSafepointEntry(isolate, pc);
+  if (IsCode()) {
+    return code().GetMaglevSafepointEntry(isolate, pc);
   }
   return instruction_stream().GetMaglevSafepointEntry(isolate, pc);
 }
 
 AbstractCode CodeLookupResult::ToAbstractCode() const {
   DCHECK(IsFound());
-  return IsCodeDataContainer() ? AbstractCode::cast(code_data_container())
-                               : AbstractCode::cast(instruction_stream());
+  return IsCode() ? AbstractCode::cast(code())
+                  : AbstractCode::cast(instruction_stream());
 }
 
 InstructionStream CodeLookupResult::ToInstructionStream() const {
   DCHECK(IsFound());
-  return IsInstructionStream() ? instruction_stream()
-                               : FromCodeDataContainer(code_data_container());
+  return IsInstructionStream() ? instruction_stream() : FromCode(code());
 }
 
-CodeDataContainer CodeLookupResult::ToCodeDataContainer() const {
-  return IsCodeDataContainer() ? code_data_container()
-                               : i::ToCodeDataContainer(instruction_stream());
+Code CodeLookupResult::ToCode() const {
+  return IsCode() ? code() : i::ToCode(instruction_stream());
 }
 
 void InstructionStream::WipeOutHeader() {
@@ -511,7 +493,7 @@ void InstructionStream::WipeOutHeader() {
   WRITE_FIELD(*this, kDeoptimizationDataOrInterpreterDataOffset,
               Smi::FromInt(0));
   WRITE_FIELD(*this, kPositionTableOffset, Smi::FromInt(0));
-  WRITE_FIELD(*this, kCodeDataContainerOffset, Smi::FromInt(0));
+  WRITE_FIELD(*this, kCodeOffset, Smi::FromInt(0));
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {
     set_main_cage_base(kNullAddress, kRelaxedStore);
   }
@@ -558,7 +540,7 @@ int InstructionStream::InstructionSize() const {
              : raw_instruction_size();
 }
 
-int CodeDataContainer::InstructionSize() const {
+int Code::InstructionSize() const {
   return V8_UNLIKELY(is_off_heap_trampoline())
              ? OffHeapInstructionSize(*this, builtin_id())
              : instruction_stream().raw_instruction_size();
@@ -584,7 +566,7 @@ Address InstructionStream::InstructionEnd() const {
              : raw_instruction_end();
 }
 
-Address CodeDataContainer::InstructionEnd() const {
+Address Code::InstructionEnd() const {
   return V8_UNLIKELY(is_off_heap_trampoline())
              ? i::OffHeapInstructionEnd(*this, builtin_id())
              : instruction_stream().raw_instruction_end();
@@ -601,8 +583,7 @@ Address InstructionStream::InstructionStart(Isolate* isolate,
              : raw_instruction_start();
 }
 
-Address CodeDataContainer::InstructionStart(Isolate* isolate,
-                                            Address pc) const {
+Address Code::InstructionStart(Isolate* isolate, Address pc) const {
   return V8_UNLIKELY(is_off_heap_trampoline())
              ? OffHeapInstructionStart(isolate, pc)
              : raw_instruction_start();
@@ -614,7 +595,7 @@ Address InstructionStream::InstructionEnd(Isolate* isolate, Address pc) const {
              : raw_instruction_end();
 }
 
-Address CodeDataContainer::InstructionEnd(Isolate* isolate, Address pc) const {
+Address Code::InstructionEnd(Isolate* isolate, Address pc) const {
   return V8_UNLIKELY(is_off_heap_trampoline())
              ? OffHeapInstructionEnd(isolate, pc)
              : instruction_stream().raw_instruction_end();
@@ -628,8 +609,7 @@ int InstructionStream::GetOffsetFromInstructionStart(Isolate* isolate,
   return static_cast<int>(offset);
 }
 
-int CodeDataContainer::GetOffsetFromInstructionStart(Isolate* isolate,
-                                                     Address pc) const {
+int Code::GetOffsetFromInstructionStart(Isolate* isolate, Address pc) const {
   Address instruction_start = InstructionStart(isolate, pc);
   Address offset = pc - instruction_start;
   DCHECK_LE(offset, InstructionSize());
@@ -674,21 +654,19 @@ bool InstructionStream::has_safepoint_table() const {
   return safepoint_table_size() > 0;
 }
 
-Address CodeDataContainer::SafepointTableAddress() const {
+Address Code::SafepointTableAddress() const {
   return V8_UNLIKELY(is_off_heap_trampoline())
              ? OffHeapSafepointTableAddress(*this, builtin_id())
              : instruction_stream().raw_safepoint_table_address();
 }
 
-int CodeDataContainer::safepoint_table_size() const {
+int Code::safepoint_table_size() const {
   return V8_UNLIKELY(is_off_heap_trampoline())
              ? OffHeapSafepointTableSize(*this, builtin_id())
              : instruction_stream().safepoint_table_size();
 }
 
-bool CodeDataContainer::has_safepoint_table() const {
-  return safepoint_table_size() > 0;
-}
+bool Code::has_safepoint_table() const { return safepoint_table_size() > 0; }
 
 Address InstructionStream::raw_handler_table_address() const {
   return raw_metadata_start() + handler_table_offset();
@@ -709,21 +687,19 @@ bool InstructionStream::has_handler_table() const {
   return handler_table_size() > 0;
 }
 
-Address CodeDataContainer::HandlerTableAddress() const {
+Address Code::HandlerTableAddress() const {
   return V8_UNLIKELY(is_off_heap_trampoline())
              ? OffHeapHandlerTableAddress(*this, builtin_id())
              : instruction_stream().raw_handler_table_address();
 }
 
-int CodeDataContainer::handler_table_size() const {
+int Code::handler_table_size() const {
   return V8_UNLIKELY(is_off_heap_trampoline())
              ? OffHeapHandlerTableSize(*this, builtin_id())
              : instruction_stream().handler_table_size();
 }
 
-bool CodeDataContainer::has_handler_table() const {
-  return handler_table_size() > 0;
-}
+bool Code::has_handler_table() const { return handler_table_size() > 0; }
 
 int InstructionStream::constant_pool_size() const {
   const int size = code_comments_offset() - constant_pool_offset();
@@ -739,15 +715,13 @@ bool InstructionStream::has_constant_pool() const {
   return constant_pool_size() > 0;
 }
 
-int CodeDataContainer::constant_pool_size() const {
+int Code::constant_pool_size() const {
   return V8_UNLIKELY(is_off_heap_trampoline())
              ? OffHeapConstantPoolSize(*this, builtin_id())
              : instruction_stream().constant_pool_size();
 }
 
-bool CodeDataContainer::has_constant_pool() const {
-  return constant_pool_size() > 0;
-}
+bool Code::has_constant_pool() const { return constant_pool_size() > 0; }
 
 ByteArray InstructionStream::unchecked_relocation_info() const {
   PtrComprCageBase cage_base = main_cage_base(kRelaxedLoad);
@@ -767,19 +741,19 @@ int InstructionStream::relocation_size() const {
   return unchecked_relocation_info().length();
 }
 
-byte* CodeDataContainer::relocation_start() const {
+byte* Code::relocation_start() const {
   return V8_UNLIKELY(is_off_heap_trampoline())
              ? nullptr  // Off heap trampolines do not have reloc info.
              : instruction_stream().relocation_start();
 }
 
-byte* CodeDataContainer::relocation_end() const {
+byte* Code::relocation_end() const {
   return V8_UNLIKELY(is_off_heap_trampoline())
              ? nullptr  // Off heap trampolines do not have reloc info.
              : instruction_stream().relocation_end();
 }
 
-int CodeDataContainer::relocation_size() const {
+int Code::relocation_size() const {
   return V8_UNLIKELY(is_off_heap_trampoline())
              ? 0  // Off heap trampolines do not have reloc info.
              : instruction_stream().relocation_size();
@@ -796,7 +770,7 @@ bool InstructionStream::contains(Isolate* isolate, Address inner_pointer) {
          (inner_pointer < address() + CodeSize());
 }
 
-bool CodeDataContainer::contains(Isolate* isolate, Address inner_pointer) {
+bool Code::contains(Isolate* isolate, Address inner_pointer) {
   if (is_off_heap_trampoline()) {
     return OffHeapBuiltinContains(isolate, inner_pointer);
   }
@@ -913,7 +887,7 @@ inline bool InstructionStream::is_baseline_leave_frame_builtin() const {
 }
 
 // Note, must be in sync with InstructionStream::checks_tiering_state().
-inline bool CodeDataContainer::checks_tiering_state() const {
+inline bool Code::checks_tiering_state() const {
   bool checks_state = (builtin_id() == Builtin::kCompileLazy ||
                        builtin_id() == Builtin::kInterpreterEntryTrampoline ||
                        CodeKindCanTierUp(kind()));
@@ -921,7 +895,7 @@ inline bool CodeDataContainer::checks_tiering_state() const {
          (CodeKindCanDeoptimize(kind()) && marked_for_deoptimization());
 }
 
-// Note, must be in sync with CodeDataContainer::checks_tiering_state().
+// Note, must be in sync with Code::checks_tiering_state().
 inline bool InstructionStream::checks_tiering_state() const {
   bool checks_state = (builtin_id() == Builtin::kCompileLazy ||
                        builtin_id() == Builtin::kInterpreterEntryTrampoline ||
@@ -944,7 +918,7 @@ inline bool InstructionStream::has_tagged_outgoing_params() const {
 #endif
 }
 
-inline bool CodeDataContainer::has_tagged_outgoing_params() const {
+inline bool Code::has_tagged_outgoing_params() const {
 #if V8_ENABLE_WEBASSEMBLY
   return CodeKindHasTaggedOutgoingParams(kind()) &&
          builtin_id() != Builtin::kWasmCompileLazy;
@@ -958,7 +932,7 @@ inline bool InstructionStream::is_turbofanned() const {
   return IsTurbofannedField::decode(flags);
 }
 
-inline bool CodeDataContainer::is_turbofanned() const {
+inline bool Code::is_turbofanned() const {
   return IsTurbofannedField::decode(flags(kRelaxedLoad));
 }
 
@@ -966,17 +940,15 @@ bool InstructionStream::is_maglevved() const {
   return kind() == CodeKind::MAGLEV;
 }
 
-inline bool CodeDataContainer::is_maglevved() const {
-  return kind() == CodeKind::MAGLEV;
-}
+inline bool Code::is_maglevved() const { return kind() == CodeKind::MAGLEV; }
 
-inline bool CodeDataContainer::can_have_weak_objects() const {
+inline bool Code::can_have_weak_objects() const {
   DCHECK(CodeKindIsOptimizedJSFunction(kind()));
   int32_t flags = kind_specific_flags(kRelaxedLoad);
   return InstructionStream::CanHaveWeakObjectsField::decode(flags);
 }
 
-inline void CodeDataContainer::set_can_have_weak_objects(bool value) {
+inline void Code::set_can_have_weak_objects(bool value) {
   DCHECK(CodeKindIsOptimizedJSFunction(kind()));
   int32_t previous = kind_specific_flags(kRelaxedLoad);
   int32_t updated =
@@ -986,23 +958,23 @@ inline void CodeDataContainer::set_can_have_weak_objects(bool value) {
 
 inline bool InstructionStream::can_have_weak_objects() const {
   DCHECK(CodeKindIsOptimizedJSFunction(kind()));
-  CodeDataContainer container = code_data_container(kAcquireLoad);
+  Code container = code(kAcquireLoad);
   return container.can_have_weak_objects();
 }
 
 inline void InstructionStream::set_can_have_weak_objects(bool value) {
   DCHECK(CodeKindIsOptimizedJSFunction(kind()));
-  CodeDataContainer container = code_data_container(kAcquireLoad);
+  Code container = code(kAcquireLoad);
   container.set_can_have_weak_objects(value);
 }
 
-inline bool CodeDataContainer::is_promise_rejection() const {
+inline bool Code::is_promise_rejection() const {
   DCHECK_EQ(kind(), CodeKind::BUILTIN);
   int32_t flags = kind_specific_flags(kRelaxedLoad);
   return InstructionStream::IsPromiseRejectionField::decode(flags);
 }
 
-inline void CodeDataContainer::set_is_promise_rejection(bool value) {
+inline void Code::set_is_promise_rejection(bool value) {
   DCHECK_EQ(kind(), CodeKind::BUILTIN);
   int32_t previous = kind_specific_flags(kRelaxedLoad);
   int32_t updated =
@@ -1012,13 +984,13 @@ inline void CodeDataContainer::set_is_promise_rejection(bool value) {
 
 inline bool InstructionStream::is_promise_rejection() const {
   DCHECK_EQ(kind(), CodeKind::BUILTIN);
-  CodeDataContainer container = code_data_container(kAcquireLoad);
+  Code container = code(kAcquireLoad);
   return container.is_promise_rejection();
 }
 
 inline void InstructionStream::set_is_promise_rejection(bool value) {
   DCHECK_EQ(kind(), CodeKind::BUILTIN);
-  CodeDataContainer container = code_data_container(kAcquireLoad);
+  Code container = code(kAcquireLoad);
   container.set_is_promise_rejection(value);
 }
 
@@ -1030,8 +1002,7 @@ InstructionStream::GetBuiltinCatchPrediction() const {
   return HandlerTable::UNCAUGHT;
 }
 
-inline HandlerTable::CatchPrediction
-CodeDataContainer::GetBuiltinCatchPrediction() const {
+inline HandlerTable::CatchPrediction Code::GetBuiltinCatchPrediction() const {
   if (is_promise_rejection()) return HandlerTable::PROMISE;
   return HandlerTable::UNCAUGHT;
 }
@@ -1076,7 +1047,7 @@ bool InstructionStream::uses_safepoint_table() const {
   return is_turbofanned() || is_maglevved() || is_wasm_code();
 }
 
-bool CodeDataContainer::uses_safepoint_table() const {
+bool Code::uses_safepoint_table() const {
   return is_turbofanned() || is_maglevved() || is_wasm_code();
 }
 
@@ -1087,13 +1058,13 @@ int InstructionStream::stack_slots() const {
   return slots;
 }
 
-int CodeDataContainer::stack_slots() const {
+int Code::stack_slots() const {
   return V8_UNLIKELY(is_off_heap_trampoline())
              ? OffHeapStackSlots(*this, builtin_id())
              : instruction_stream().stack_slots();
 }
 
-bool CodeDataContainer::marked_for_deoptimization() const {
+bool Code::marked_for_deoptimization() const {
   DCHECK(CodeKindCanDeoptimize(kind()));
   int32_t flags = kind_specific_flags(kRelaxedLoad);
   return InstructionStream::MarkedForDeoptimizationField::decode(flags);
@@ -1101,10 +1072,10 @@ bool CodeDataContainer::marked_for_deoptimization() const {
 
 bool InstructionStream::marked_for_deoptimization() const {
   DCHECK(CodeKindCanDeoptimize(kind()));
-  return code_data_container(kAcquireLoad).marked_for_deoptimization();
+  return code(kAcquireLoad).marked_for_deoptimization();
 }
 
-void CodeDataContainer::set_marked_for_deoptimization(bool flag) {
+void Code::set_marked_for_deoptimization(bool flag) {
   DCHECK(CodeKindCanDeoptimize(kind()));
   DCHECK_IMPLIES(flag, AllowDeoptimization::IsAllowed(GetIsolate()));
   int32_t previous = kind_specific_flags(kRelaxedLoad);
@@ -1114,20 +1085,19 @@ void CodeDataContainer::set_marked_for_deoptimization(bool flag) {
 }
 
 void InstructionStream::set_marked_for_deoptimization(bool flag) {
-  code_data_container(kAcquireLoad).set_marked_for_deoptimization(flag);
+  code(kAcquireLoad).set_marked_for_deoptimization(flag);
 }
 
 bool InstructionStream::embedded_objects_cleared() const {
   DCHECK(CodeKindIsOptimizedJSFunction(kind()));
-  int32_t flags =
-      code_data_container(kAcquireLoad).kind_specific_flags(kRelaxedLoad);
+  int32_t flags = code(kAcquireLoad).kind_specific_flags(kRelaxedLoad);
   return EmbeddedObjectsClearedField::decode(flags);
 }
 
 void InstructionStream::set_embedded_objects_cleared(bool flag) {
   DCHECK(CodeKindIsOptimizedJSFunction(kind()));
   DCHECK_IMPLIES(flag, marked_for_deoptimization());
-  CodeDataContainer container = code_data_container(kAcquireLoad);
+  Code container = code(kAcquireLoad);
   int32_t previous = container.kind_specific_flags(kRelaxedLoad);
   int32_t updated = EmbeddedObjectsClearedField::update(previous, flag);
   container.set_kind_specific_flags(updated, kRelaxedStore);
@@ -1141,9 +1111,7 @@ bool InstructionStream::is_wasm_code() const {
   return kind() == CodeKind::WASM_FUNCTION;
 }
 
-bool CodeDataContainer::is_wasm_code() const {
-  return kind() == CodeKind::WASM_FUNCTION;
-}
+bool Code::is_wasm_code() const { return kind() == CodeKind::WASM_FUNCTION; }
 
 int InstructionStream::constant_pool_offset() const {
   if (!V8_EMBEDDED_CONSTANT_POOL_BOOL) {
@@ -1174,7 +1142,7 @@ Address InstructionStream::constant_pool() const {
              : raw_constant_pool();
 }
 
-Address CodeDataContainer::constant_pool() const {
+Address Code::constant_pool() const {
   if (!has_constant_pool()) return kNullAddress;
   return V8_UNLIKELY(is_off_heap_trampoline())
              ? OffHeapConstantPoolAddress(*this, builtin_id())
@@ -1200,21 +1168,19 @@ bool InstructionStream::has_code_comments() const {
   return code_comments_size() > 0;
 }
 
-Address CodeDataContainer::code_comments() const {
+Address Code::code_comments() const {
   return V8_UNLIKELY(is_off_heap_trampoline())
              ? OffHeapCodeCommentsAddress(*this, builtin_id())
              : instruction_stream().code_comments();
 }
 
-int CodeDataContainer::code_comments_size() const {
+int Code::code_comments_size() const {
   return V8_UNLIKELY(is_off_heap_trampoline())
              ? OffHeapCodeCommentsSize(*this, builtin_id())
              : instruction_stream().code_comments_size();
 }
 
-bool CodeDataContainer::has_code_comments() const {
-  return code_comments_size() > 0;
-}
+bool Code::has_code_comments() const { return code_comments_size() > 0; }
 
 Address InstructionStream::raw_unwinding_info_start() const {
   return raw_metadata_start() + unwinding_info_offset();
@@ -1241,19 +1207,19 @@ bool InstructionStream::has_unwinding_info() const {
   return unwinding_info_size() > 0;
 }
 
-Address CodeDataContainer::unwinding_info_start() const {
+Address Code::unwinding_info_start() const {
   return V8_UNLIKELY(is_off_heap_trampoline())
              ? OffHeapUnwindingInfoAddress(*this, builtin_id())
              : instruction_stream().raw_unwinding_info_start();
 }
 
-Address CodeDataContainer::unwinding_info_end() const {
+Address Code::unwinding_info_end() const {
   return V8_UNLIKELY(is_off_heap_trampoline())
              ? OffHeapMetadataEnd(*this, builtin_id())
              : instruction_stream().raw_metadata_end();
 }
 
-int CodeDataContainer::unwinding_info_size() const {
+int Code::unwinding_info_size() const {
   return V8_UNLIKELY(is_off_heap_trampoline())
              ? OffHeapUnwindingInfoSize(*this, builtin_id())
              : instruction_stream().unwinding_info_size();
@@ -1262,9 +1228,7 @@ int CodeDataContainer::unwinding_info_size() const {
   return static_cast<int>(unwinding_info_end() - unwinding_info_start());
 }
 
-bool CodeDataContainer::has_unwinding_info() const {
-  return unwinding_info_size() > 0;
-}
+bool Code::has_unwinding_info() const { return unwinding_info_size() > 0; }
 
 InstructionStream InstructionStream::GetCodeFromTargetAddress(Address address) {
   {
@@ -1330,38 +1294,34 @@ bool InstructionStream::IsExecutable() {
 
 // This field has to have relaxed atomic accessors because it is accessed in the
 // concurrent marker.
-static_assert(FIELD_SIZE(CodeDataContainer::kKindSpecificFlagsOffset) ==
-              kInt32Size);
-RELAXED_INT32_ACCESSORS(CodeDataContainer, kind_specific_flags,
-                        kKindSpecificFlagsOffset)
+static_assert(FIELD_SIZE(Code::kKindSpecificFlagsOffset) == kInt32Size);
+RELAXED_INT32_ACCESSORS(Code, kind_specific_flags, kKindSpecificFlagsOffset)
 
-Object CodeDataContainer::raw_instruction_stream() const {
+Object Code::raw_instruction_stream() const {
   PtrComprCageBase cage_base = code_cage_base();
-  return CodeDataContainer::raw_instruction_stream(cage_base);
+  return Code::raw_instruction_stream(cage_base);
 }
 
-Object CodeDataContainer::raw_instruction_stream(
-    PtrComprCageBase cage_base) const {
+Object Code::raw_instruction_stream(PtrComprCageBase cage_base) const {
   return ExternalCodeField<Object>::load(cage_base, *this);
 }
 
-void CodeDataContainer::set_raw_instruction_stream(Object value,
-                                                   WriteBarrierMode mode) {
+void Code::set_raw_instruction_stream(Object value, WriteBarrierMode mode) {
   ExternalCodeField<Object>::Release_Store(*this, value);
   CONDITIONAL_WRITE_BARRIER(*this, kInstructionStreamOffset, value, mode);
 }
 
-Object CodeDataContainer::raw_instruction_stream(RelaxedLoadTag tag) const {
+Object Code::raw_instruction_stream(RelaxedLoadTag tag) const {
   PtrComprCageBase cage_base = code_cage_base();
-  return CodeDataContainer::raw_instruction_stream(cage_base, tag);
+  return Code::raw_instruction_stream(cage_base, tag);
 }
 
-Object CodeDataContainer::raw_instruction_stream(PtrComprCageBase cage_base,
-                                                 RelaxedLoadTag) const {
+Object Code::raw_instruction_stream(PtrComprCageBase cage_base,
+                                    RelaxedLoadTag) const {
   return ExternalCodeField<Object>::Relaxed_Load(cage_base, *this);
 }
 
-PtrComprCageBase CodeDataContainer::code_cage_base() const {
+PtrComprCageBase Code::code_cage_base() const {
 #ifdef V8_EXTERNAL_CODE_SPACE
   Isolate* isolate = GetIsolateFromWritableObject(*this);
   return PtrComprCageBase(isolate->code_cage_base());
@@ -1370,75 +1330,68 @@ PtrComprCageBase CodeDataContainer::code_cage_base() const {
 #endif
 }
 
-InstructionStream CodeDataContainer::instruction_stream() const {
+InstructionStream Code::instruction_stream() const {
   PtrComprCageBase cage_base = code_cage_base();
-  return CodeDataContainer::instruction_stream(cage_base);
+  return Code::instruction_stream(cage_base);
 }
-InstructionStream CodeDataContainer::instruction_stream(
-    PtrComprCageBase cage_base) const {
+InstructionStream Code::instruction_stream(PtrComprCageBase cage_base) const {
   DCHECK(!is_off_heap_trampoline());
   return ExternalCodeField<InstructionStream>::load(cage_base, *this);
 }
 
-InstructionStream CodeDataContainer::instruction_stream(
-    RelaxedLoadTag tag) const {
+InstructionStream Code::instruction_stream(RelaxedLoadTag tag) const {
   PtrComprCageBase cage_base = code_cage_base();
-  return CodeDataContainer::instruction_stream(cage_base, tag);
+  return Code::instruction_stream(cage_base, tag);
 }
 
-InstructionStream CodeDataContainer::instruction_stream(
-    PtrComprCageBase cage_base, RelaxedLoadTag tag) const {
+InstructionStream Code::instruction_stream(PtrComprCageBase cage_base,
+                                           RelaxedLoadTag tag) const {
   DCHECK(!is_off_heap_trampoline());
   return ExternalCodeField<InstructionStream>::Relaxed_Load(cage_base, *this);
 }
 
-DEF_GETTER(CodeDataContainer, code_entry_point, Address) {
+DEF_GETTER(Code, code_entry_point, Address) {
   return ReadField<Address>(kCodeEntryPointOffset);
 }
 
-void CodeDataContainer::init_code_entry_point(Isolate* isolate, Address value) {
+void Code::init_code_entry_point(Isolate* isolate, Address value) {
   set_code_entry_point(isolate, value);
 }
 
-void CodeDataContainer::set_code_entry_point(Isolate* isolate, Address value) {
+void Code::set_code_entry_point(Isolate* isolate, Address value) {
   WriteField<Address>(kCodeEntryPointOffset, value);
 }
 
-void CodeDataContainer::SetCodeAndEntryPoint(Isolate* isolate_for_sandbox,
-                                             InstructionStream code,
-                                             WriteBarrierMode mode) {
+void Code::SetCodeAndEntryPoint(Isolate* isolate_for_sandbox,
+                                InstructionStream code, WriteBarrierMode mode) {
   set_raw_instruction_stream(code, mode);
   set_code_entry_point(isolate_for_sandbox, code.InstructionStart());
 }
 
-void CodeDataContainer::SetEntryPointForOffHeapBuiltin(
-    Isolate* isolate_for_sandbox, Address entry) {
+void Code::SetEntryPointForOffHeapBuiltin(Isolate* isolate_for_sandbox,
+                                          Address entry) {
   DCHECK(is_off_heap_trampoline());
   set_code_entry_point(isolate_for_sandbox, entry);
 }
 
-void CodeDataContainer::UpdateCodeEntryPoint(Isolate* isolate_for_sandbox,
-                                             InstructionStream code) {
+void Code::UpdateCodeEntryPoint(Isolate* isolate_for_sandbox,
+                                InstructionStream code) {
   DCHECK_EQ(raw_instruction_stream(), code);
   set_code_entry_point(isolate_for_sandbox, code.InstructionStart());
 }
 
-Address CodeDataContainer::InstructionStart() const {
-  return code_entry_point();
-}
+Address Code::InstructionStart() const { return code_entry_point(); }
 
-Address CodeDataContainer::raw_instruction_start() const {
-  return code_entry_point();
-}
+Address Code::raw_instruction_start() const { return code_entry_point(); }
 
-Address CodeDataContainer::entry() const { return code_entry_point(); }
+Address Code::entry() const { return code_entry_point(); }
 
-void CodeDataContainer::clear_padding() {
+void Code::clear_padding() {
   memset(reinterpret_cast<void*>(address() + kUnalignedSize), 0,
          kSize - kUnalignedSize);
 }
 
-RELAXED_UINT16_ACCESSORS(CodeDataContainer, flags, kFlagsOffset)
+RELAXED_UINT16_ACCESSORS(Code, flags, kFlagsOffset)
 
 // Ensure builtin_id field fits into int16_t, so that we can rely on sign
 // extension to convert int16_t{-1} to kNoBuiltinId.
@@ -1446,9 +1399,8 @@ RELAXED_UINT16_ACCESSORS(CodeDataContainer, flags, kFlagsOffset)
 static_assert(static_cast<int>(Builtin::kNoBuiltinId) == -1);
 static_assert(Builtins::kBuiltinCount < std::numeric_limits<int16_t>::max());
 
-void CodeDataContainer::initialize_flags(CodeKind kind, Builtin builtin_id,
-                                         bool is_turbofanned,
-                                         bool is_off_heap_trampoline) {
+void Code::initialize_flags(CodeKind kind, Builtin builtin_id,
+                            bool is_turbofanned, bool is_off_heap_trampoline) {
   uint16_t value = KindField::encode(kind) |
                    IsTurbofannedField::encode(is_turbofanned) |
                    IsOffHeapTrampoline::encode(is_off_heap_trampoline);
@@ -1457,11 +1409,9 @@ void CodeDataContainer::initialize_flags(CodeKind kind, Builtin builtin_id,
   WriteField<int16_t>(kBuiltinIdOffset, static_cast<int16_t>(builtin_id));
 }
 
-CodeKind CodeDataContainer::kind() const {
-  return KindField::decode(flags(kRelaxedLoad));
-}
+CodeKind Code::kind() const { return KindField::decode(flags(kRelaxedLoad)); }
 
-Builtin CodeDataContainer::builtin_id() const {
+Builtin Code::builtin_id() const {
   // Rely on sign-extension when converting int16_t to int to preserve
   // kNoBuiltinId value.
   static_assert(static_cast<int>(static_cast<int16_t>(Builtin::kNoBuiltinId)) ==
@@ -1470,33 +1420,31 @@ Builtin CodeDataContainer::builtin_id() const {
   return static_cast<Builtin>(value);
 }
 
-bool CodeDataContainer::is_builtin() const {
-  return builtin_id() != Builtin::kNoBuiltinId;
-}
+bool Code::is_builtin() const { return builtin_id() != Builtin::kNoBuiltinId; }
 
-bool CodeDataContainer::is_off_heap_trampoline() const {
+bool Code::is_off_heap_trampoline() const {
   return IsOffHeapTrampoline::decode(flags(kRelaxedLoad));
 }
 
-void CodeDataContainer::set_is_off_heap_trampoline_for_hash(bool value) {
+void Code::set_is_off_heap_trampoline_for_hash(bool value) {
   uint16_t flags_value = flags(kRelaxedLoad);
   flags_value = IsOffHeapTrampoline::update(flags_value, value);
   set_flags(flags_value, kRelaxedStore);
 }
 
-bool CodeDataContainer::is_optimized_code() const {
+bool Code::is_optimized_code() const {
   return CodeKindIsOptimizedJSFunction(kind());
 }
 
-inline bool CodeDataContainer::is_interpreter_trampoline_builtin() const {
+inline bool Code::is_interpreter_trampoline_builtin() const {
   return IsInterpreterTrampolineBuiltin(builtin_id());
 }
 
-inline bool CodeDataContainer::is_baseline_trampoline_builtin() const {
+inline bool Code::is_baseline_trampoline_builtin() const {
   return IsBaselineTrampolineBuiltin(builtin_id());
 }
 
-inline bool CodeDataContainer::is_baseline_leave_frame_builtin() const {
+inline bool Code::is_baseline_leave_frame_builtin() const {
   return builtin_id() == Builtin::kBaselineLeaveFrame;
 }
 
@@ -1506,16 +1454,14 @@ inline bool CodeDataContainer::is_baseline_leave_frame_builtin() const {
 //
 
 #define DEF_PRIMITIVE_FORWARDING_CDC_GETTER(name, type) \
-  type CodeDataContainer::name() const {                \
-    return FromCodeDataContainer(*this).name();         \
-  }
+  type Code::name() const { return FromCode(*this).name(); }
 
 #define DEF_FORWARDING_CDC_GETTER(name, type, result_if_off_heap) \
-  DEF_GETTER(CodeDataContainer, name, type) {                     \
+  DEF_GETTER(Code, name, type) {                                  \
     if (is_off_heap_trampoline()) {                               \
       return GetReadOnlyRoots().result_if_off_heap();             \
     }                                                             \
-    return FromCodeDataContainer(*this).name(cage_base);          \
+    return FromCode(*this).name(cage_base);                       \
   }
 
 DEF_FORWARDING_CDC_GETTER(deoptimization_data, FixedArray, empty_fixed_array)

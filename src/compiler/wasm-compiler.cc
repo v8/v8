@@ -3032,7 +3032,7 @@ Node* WasmGraphBuilder::BuildCallRef(const wasm::FunctionSig* sig,
         wasm::ObjectAccess::ToTagged(WasmInternalFunction::kCodeOffset));
     Node* call_target = gasm_->LoadFromObject(
         MachineType::Pointer(), wrapper_code,
-        wasm::ObjectAccess::ToTagged(CodeDataContainer::kCodeEntryPointOffset));
+        wasm::ObjectAccess::ToTagged(Code::kCodeEntryPointOffset));
     gasm_->Goto(&end_label, call_target);
   }
 
@@ -8412,9 +8412,8 @@ MaybeHandle<InstructionStream> CompileJSToJSWrapper(
   return code;
 }
 
-Handle<CodeDataContainer> CompileCWasmEntry(Isolate* isolate,
-                                            const wasm::FunctionSig* sig,
-                                            const wasm::WasmModule* module) {
+Handle<Code> CompileCWasmEntry(Isolate* isolate, const wasm::FunctionSig* sig,
+                               const wasm::WasmModule* module) {
   std::unique_ptr<Zone> zone = std::make_unique<Zone>(
       isolate->allocator(), ZONE_NAME, kCompressGraphZone);
   Graph* graph = zone->New<Graph>(zone.get());
@@ -8463,7 +8462,7 @@ Handle<CodeDataContainer> CompileCWasmEntry(Isolate* isolate,
            CompilationJob::FAILED);
   CHECK_NE(job->FinalizeJob(isolate), CompilationJob::FAILED);
 
-  return ToCodeDataContainer(job->compilation_info()->code(), isolate);
+  return ToCode(job->compilation_info()->code(), isolate);
 }
 
 namespace {

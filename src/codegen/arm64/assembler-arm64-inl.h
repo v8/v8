@@ -485,15 +485,15 @@ Tagged_t Assembler::target_compressed_address_at(Address pc,
   return Memory<Tagged_t>(target_pointer_address_at(pc));
 }
 
-Handle<CodeDataContainer> Assembler::code_target_object_handle_at(Address pc) {
+Handle<Code> Assembler::code_target_object_handle_at(Address pc) {
   Instruction* instr = reinterpret_cast<Instruction*>(pc);
   if (instr->IsLdrLiteralX()) {
-    return Handle<CodeDataContainer>(reinterpret_cast<Address*>(
+    return Handle<Code>(reinterpret_cast<Address*>(
         Assembler::target_address_at(pc, 0 /* unused */)));
   } else {
     DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
     DCHECK_EQ(instr->ImmPCOffset() % kInstrSize, 0);
-    return Handle<CodeDataContainer>::cast(
+    return Handle<Code>::cast(
         GetEmbeddedObject(instr->ImmPCOffset() >> kInstrSizeLog2));
   }
 }
@@ -662,7 +662,7 @@ HeapObject RelocInfo::target_object(PtrComprCageBase cage_base) {
     Object obj(V8HeapCompressionScheme::DecompressTaggedPointer(cage_base,
                                                                 compressed));
     // Embedding of compressed InstructionStream objects must not happen when
-    // external code space is enabled, because CodeDataContainers must be used
+    // external code space is enabled, because Codes must be used
     // instead.
     DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
                    !IsCodeSpaceObject(HeapObject::cast(obj)));

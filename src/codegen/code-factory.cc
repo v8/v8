@@ -14,15 +14,13 @@ namespace v8 {
 namespace internal {
 
 // static
-Handle<CodeDataContainer> CodeFactory::RuntimeCEntry(Isolate* isolate,
-                                                     int result_size) {
+Handle<Code> CodeFactory::RuntimeCEntry(Isolate* isolate, int result_size) {
   return CodeFactory::CEntry(isolate, result_size);
 }
 
 // static
-Handle<CodeDataContainer> CodeFactory::CEntry(Isolate* isolate, int result_size,
-                                              ArgvMode argv_mode,
-                                              bool builtin_exit_frame) {
+Handle<Code> CodeFactory::CEntry(Isolate* isolate, int result_size,
+                                 ArgvMode argv_mode, bool builtin_exit_frame) {
   // Aliases for readability below.
   const int rs = result_size;
   const ArgvMode am = argv_mode;
@@ -256,7 +254,7 @@ Callable CodeFactory::InterpreterPushArgsThenConstruct(
 
 // static
 Callable CodeFactory::InterpreterCEntry(Isolate* isolate, int result_size) {
-  Handle<CodeDataContainer> code =
+  Handle<Code> code =
       CodeFactory::CEntry(isolate, result_size, ArgvMode::kRegister);
   if (result_size == 1) {
     return Callable(code, InterpreterCEntry1Descriptor{});

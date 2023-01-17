@@ -14,7 +14,7 @@
 namespace v8 {
 namespace internal {
 
-class CodeDataContainer;
+class Code;
 
 #define ROOT_ID_LIST(V)                                 \
   V(kStringTable, "(Internalized strings)")             \

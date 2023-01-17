@@ -217,7 +217,7 @@ void TestReturnMultipleValues(MachineType type, int min_count, int max_count) {
       }
       mt.Return(ToInt32(&mt, type, ret));
 #ifdef ENABLE_DISASSEMBLER
-      Handle<InstructionStream> code2 = mt.GetCode();
+      Handle<InstructionStream> code2 = mt.GetInstructionStream();
       if (v8_flags.print_code) {
         StdoutStream os;
         code2->Disassemble("multi_value_call", os, handles.main_isolate());

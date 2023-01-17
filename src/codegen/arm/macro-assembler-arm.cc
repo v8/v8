@@ -161,7 +161,7 @@ void TurboAssembler::Jump(Address target, RelocInfo::Mode rmode,
   Jump(static_cast<intptr_t>(target), rmode, cond);
 }
 
-void TurboAssembler::Jump(Handle<CodeDataContainer> code, RelocInfo::Mode rmode,
+void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
                           Condition cond) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
   DCHECK_IMPLIES(options().isolate_independent_code,
@@ -225,7 +225,7 @@ void TurboAssembler::Call(Address target, RelocInfo::Mode rmode, Condition cond,
   }
 }
 
-void TurboAssembler::Call(Handle<CodeDataContainer> code, RelocInfo::Mode rmode,
+void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
                           Condition cond, TargetAddressStorageMode mode,
                           bool check_constant_pool) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
@@ -294,8 +294,7 @@ void TurboAssembler::CallBuiltin(Builtin builtin, Condition cond) {
       break;
     case BuiltinCallJumpMode::kForMksnapshot: {
       if (options().use_pc_relative_calls_and_jumps_for_mksnapshot) {
-        Handle<CodeDataContainer> code =
-            isolate()->builtins()->code_handle(builtin);
+        Handle<Code> code = isolate()->builtins()->code_handle(builtin);
         int32_t code_target_index = AddCodeTarget(code);
         bl(code_target_index * kInstrSize, cond,
            RelocInfo::RELATIVE_CODE_TARGET);
@@ -327,8 +326,7 @@ void TurboAssembler::TailCallBuiltin(Builtin builtin, Condition cond) {
       break;
     case BuiltinCallJumpMode::kForMksnapshot: {
       if (options().use_pc_relative_calls_and_jumps_for_mksnapshot) {
-        Handle<CodeDataContainer> code =
-            isolate()->builtins()->code_handle(builtin);
+        Handle<Code> code = isolate()->builtins()->code_handle(builtin);
         int32_t code_target_index = AddCodeTarget(code);
         b(code_target_index * kInstrSize, cond,
           RelocInfo::RELATIVE_CODE_TARGET);
@@ -341,38 +339,31 @@ void TurboAssembler::TailCallBuiltin(Builtin builtin, Condition cond) {
   }
 }
 
-void TurboAssembler::LoadCodeDataContainerEntry(
-    Register destination, Register code_data_container_object) {
+void TurboAssembler::LoadCodeEntry(Register destination, Register code_object) {
   ASM_CODE_COMMENT(this);
-  ldr(destination, FieldMemOperand(code_data_container_object,
-                                   CodeDataContainer::kCodeEntryPointOffset));
+  ldr(destination, FieldMemOperand(code_object, Code::kCodeEntryPointOffset));
 }
 
-void TurboAssembler::LoadCodeDataContainerInstructionStreamNonBuiltin(
-    Register destination, Register code_data_container_object) {
+void TurboAssembler::LoadCodeInstructionStreamNonBuiltin(Register destination,
+                                                         Register code_object) {
   ASM_CODE_COMMENT(this);
   // Compute the InstructionStream object pointer from the code entry point.
-  ldr(destination, FieldMemOperand(code_data_container_object,
-                                   CodeDataContainer::kCodeEntryPointOffset));
+  ldr(destination, FieldMemOperand(code_object, Code::kCodeEntryPointOffset));
   sub(destination, destination,
       Operand(InstructionStream::kHeaderSize - kHeapObjectTag));
 }
 
-void TurboAssembler::CallCodeDataContainerObject(
-    Register code_data_container_object) {
+void TurboAssembler::CallCodeObject(Register code_object) {
   ASM_CODE_COMMENT(this);
-  LoadCodeDataContainerEntry(code_data_container_object,
-                             code_data_container_object);
-  Call(code_data_container_object);
+  LoadCodeEntry(code_object, code_object);
+  Call(code_object);
 }
 
-void TurboAssembler::JumpCodeDataContainerObject(
-    Register code_data_container_object, JumpMode jump_mode) {
+void TurboAssembler::JumpCodeObject(Register code_object, JumpMode jump_mode) {
   ASM_CODE_COMMENT(this);
   DCHECK_EQ(JumpMode::kJump, jump_mode);
-  LoadCodeDataContainerEntry(code_data_container_object,
-                             code_data_container_object);
-  Jump(code_data_container_object);
+  LoadCodeEntry(code_object, code_object);
+  Jump(code_object);
 }
 
 void TurboAssembler::StoreReturnAddressAndCall(Register target) {
@@ -405,10 +396,9 @@ void TurboAssembler::Drop(Register count, Condition cond) {
   add(sp, sp, Operand(count, LSL, kPointerSizeLog2), LeaveCC, cond);
 }
 
-void MacroAssembler::TestCodeDataContainerIsMarkedForDeoptimization(
-    Register code_data_container, Register scratch) {
-  ldr(scratch, FieldMemOperand(code_data_container,
-                               CodeDataContainer::kKindSpecificFlagsOffset));
+void MacroAssembler::TestCodeIsMarkedForDeoptimization(Register code,
+                                                       Register scratch) {
+  ldr(scratch, FieldMemOperand(code, Code::kKindSpecificFlagsOffset));
   tst(scratch, Operand(1 << InstructionStream::kMarkedForDeoptimizationBit));
 }
 
@@ -1709,10 +1699,10 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
   ldr(code, FieldMemOperand(function, JSFunction::kCodeOffset));
   switch (type) {
     case InvokeType::kCall:
-      CallCodeDataContainerObject(code);
+      CallCodeObject(code);
       break;
     case InvokeType::kJump:
-      JumpCodeDataContainerObject(code);
+      JumpCodeObject(code);
       break;
   }
   b(&done);
@@ -1933,8 +1923,7 @@ void TailCallOptimizedCodeSlot(MacroAssembler* masm,
   // runtime to clear it.
   {
     UseScratchRegisterScope temps(masm);
-    __ TestCodeDataContainerIsMarkedForDeoptimization(optimized_code_entry,
-                                                      temps.Acquire());
+    __ TestCodeIsMarkedForDeoptimization(optimized_code_entry, temps.Acquire());
     __ b(ne, &heal_optimized_code_slot);
   }
 
@@ -1942,7 +1931,7 @@ void TailCallOptimizedCodeSlot(MacroAssembler* masm,
   // into the optimized functions list, then tail call the optimized code.
   __ ReplaceClosureCodeWithOptimizedCode(optimized_code_entry, closure);
   static_assert(kJavaScriptCallCodeStartRegister == r2, "ABI mismatch");
-  __ LoadCodeDataContainerEntry(r2, optimized_code_entry);
+  __ LoadCodeEntry(r2, optimized_code_entry);
   __ Jump(r2);
 
   // Optimized code slot contains deoptimized code or code is cleared and
@@ -2001,7 +1990,7 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
     SmiUntag(kJavaScriptCallArgCountRegister);
   }
   static_assert(kJavaScriptCallCodeStartRegister == r2, "ABI mismatch");
-  JumpCodeDataContainerObject(r2);
+  JumpCodeObject(r2);
 }
 
 // Read off the flags in the feedback vector and check if there
@@ -2062,8 +2051,7 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   // smarter.
   mov(r0, Operand(num_arguments));
   Move(r1, ExternalReference::Create(f));
-  Handle<CodeDataContainer> code =
-      CodeFactory::CEntry(isolate(), f->result_size);
+  Handle<Code> code = CodeFactory::CEntry(isolate(), f->result_size);
   Call(code, RelocInfo::CODE_TARGET);
 }
 
@@ -2088,7 +2076,7 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
   DCHECK_EQ(builtin.address() & 1, 1);
 #endif
   Move(r1, builtin);
-  Handle<CodeDataContainer> code =
+  Handle<Code> code =
       CodeFactory::CEntry(isolate(), 1, ArgvMode::kStack, builtin_exit_frame);
   Jump(code, RelocInfo::CODE_TARGET);
 }

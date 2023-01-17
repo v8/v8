@@ -111,15 +111,14 @@ Builtin BuiltinIndexFromBytecode(Bytecode bytecode,
 
 }  // namespace
 
-CodeDataContainer Interpreter::GetBytecodeHandler(Bytecode bytecode,
-                                                  OperandScale operand_scale) {
+Code Interpreter::GetBytecodeHandler(Bytecode bytecode,
+                                     OperandScale operand_scale) {
   Builtin builtin = BuiltinIndexFromBytecode(bytecode, operand_scale);
   return isolate_->builtins()->code(builtin);
 }
 
 void Interpreter::SetBytecodeHandler(Bytecode bytecode,
-                                     OperandScale operand_scale,
-                                     CodeDataContainer handler) {
+                                     OperandScale operand_scale, Code handler) {
   DCHECK(handler.is_off_heap_trampoline());
   DCHECK(handler.kind() == CodeKind::BYTECODE_HANDLER);
   size_t index = GetDispatchTableIndex(bytecode, operand_scale);
@@ -341,17 +340,16 @@ void Interpreter::Initialize() {
 
   // Set the interpreter entry trampoline entry point now that builtins are
   // initialized.
-  Handle<CodeDataContainer> code =
-      BUILTIN_CODE(isolate_, InterpreterEntryTrampoline);
+  Handle<Code> code = BUILTIN_CODE(isolate_, InterpreterEntryTrampoline);
   DCHECK(builtins->is_initialized());
   DCHECK(code->is_off_heap_trampoline() ||
-         isolate_->heap()->IsImmovable(FromCodeDataContainer(*code)));
+         isolate_->heap()->IsImmovable(FromCode(*code)));
   interpreter_entry_trampoline_instruction_start_ = code->InstructionStart();
 
   // Initialize the dispatch table.
   ForEachBytecode([=](Bytecode bytecode, OperandScale operand_scale) {
     Builtin builtin = BuiltinIndexFromBytecode(bytecode, operand_scale);
-    CodeDataContainer handler = builtins->code(builtin);
+    Code handler = builtins->code(builtin);
     if (Bytecodes::BytecodeHasHandler(bytecode, operand_scale)) {
 #ifdef DEBUG
       std::string builtin_name(Builtins::name(builtin));

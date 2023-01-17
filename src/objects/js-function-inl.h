@@ -69,12 +69,10 @@ AbstractCode JSFunction::abstract_code(IsolateT* isolate) {
 
 int JSFunction::length() { return shared().length(); }
 
-ACCESSORS_RELAXED(JSFunction, code, CodeDataContainer, kCodeOffset)
-RELEASE_ACQUIRE_GETTER_CHECKED(JSFunction, code, CodeDataContainer, kCodeOffset,
-                               true)
-void JSFunction::set_code(CodeDataContainer value, ReleaseStoreTag,
-                          WriteBarrierMode mode) {
-  TaggedField<CodeDataContainer, kCodeOffset>::Release_Store(*this, value);
+ACCESSORS_RELAXED(JSFunction, code, Code, kCodeOffset)
+RELEASE_ACQUIRE_GETTER_CHECKED(JSFunction, code, Code, kCodeOffset, true)
+void JSFunction::set_code(Code value, ReleaseStoreTag, WriteBarrierMode mode) {
+  TaggedField<Code, kCodeOffset>::Release_Store(*this, value);
   CONDITIONAL_WRITE_BARRIER(*this, kCodeOffset, value, mode);
   if (V8_UNLIKELY(v8_flags.log_function_events && has_feedback_vector())) {
     feedback_vector().set_log_next_execution(true);
@@ -84,11 +82,11 @@ RELEASE_ACQUIRE_ACCESSORS(JSFunction, context, Context, kContextOffset)
 
 void JSFunction::set_code(InstructionStream code, ReleaseStoreTag,
                           WriteBarrierMode mode) {
-  set_code(ToCodeDataContainer(code), kReleaseStore, mode);
+  set_code(ToCode(code), kReleaseStore, mode);
 }
 
 Address JSFunction::code_entry_point() const {
-  return CodeDataContainer::cast(code()).code_entry_point();
+  return Code::cast(code()).code_entry_point();
 }
 
 // TODO(ishell): Why relaxed read but release store?
@@ -240,8 +238,8 @@ bool JSFunction::ShouldFlushBaselineCode(
   // code field. We don't use release stores when copying code pointers from
   // SFI / FV to JSFunction but it is safe in practice.
   Object maybe_code = ACQUIRE_READ_FIELD(*this, kCodeOffset);
-  if (!maybe_code.IsCodeDataContainer()) return false;
-  CodeDataContainer code = CodeDataContainer::cast(maybe_code);
+  if (!maybe_code.IsCode()) return false;
+  Code code = Code::cast(maybe_code);
   if (code.kind() != CodeKind::BASELINE) return false;
 
   SharedFunctionInfo shared = SharedFunctionInfo::cast(maybe_shared);
@@ -257,8 +255,8 @@ bool JSFunction::NeedsResetDueToFlushedBytecode() {
   if (!maybe_shared.IsSharedFunctionInfo()) return false;
 
   Object maybe_code = ACQUIRE_READ_FIELD(*this, kCodeOffset);
-  if (!maybe_code.IsCodeDataContainer()) return false;
-  CodeDataContainer code = CodeDataContainer::cast(maybe_code);
+  if (!maybe_code.IsCode()) return false;
+  Code code = Code::cast(maybe_code);
 
   SharedFunctionInfo shared = SharedFunctionInfo::cast(maybe_shared);
   return !shared.is_compiled() && code.builtin_id() != Builtin::kCompileLazy;

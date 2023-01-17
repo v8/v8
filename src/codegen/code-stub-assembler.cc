@@ -3145,19 +3145,19 @@ TNode<BytecodeArray> CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(
   Label check_for_interpreter_data(this, &var_result);
   Label done(this, &var_result);
 
-  GotoIfNot(HasInstanceType(var_result.value(), CODE_DATA_CONTAINER_TYPE),
+  GotoIfNot(HasInstanceType(var_result.value(), CODE_TYPE),
             &check_for_interpreter_data);
   {
-    TNode<CodeDataContainer> code = CAST(var_result.value());
+    TNode<Code> code = CAST(var_result.value());
 #ifdef DEBUG
     TNode<Int32T> code_flags =
-        LoadObjectField<Int16T>(code, CodeDataContainer::kFlagsOffset);
-    CSA_DCHECK(this, Word32Equal(
-                         DecodeWord32<CodeDataContainer::KindField>(code_flags),
-                         Int32Constant(static_cast<int>(CodeKind::BASELINE))));
+        LoadObjectField<Int16T>(code, Code::kFlagsOffset);
+    CSA_DCHECK(
+        this, Word32Equal(DecodeWord32<Code::KindField>(code_flags),
+                          Int32Constant(static_cast<int>(CodeKind::BASELINE))));
 #endif  // DEBUG
     TNode<HeapObject> baseline_data = LoadObjectField<HeapObject>(
-        FromCodeDataContainerNonBuiltin(code),
+        FromCodeNonBuiltin(code),
         InstructionStream::kDeoptimizationDataOrInterpreterDataOffset);
     var_result = baseline_data;
   }
@@ -15463,7 +15463,7 @@ TNode<BoolT> CodeStubAssembler::NeedsAnyPromiseHooks(TNode<Uint32T> flags) {
   return Word32NotEqual(flags, Int32Constant(0));
 }
 
-TNode<CodeDataContainer> CodeStubAssembler::LoadBuiltin(TNode<Smi> builtin_id) {
+TNode<Code> CodeStubAssembler::LoadBuiltin(TNode<Smi> builtin_id) {
   CSA_DCHECK(this, SmiBelow(builtin_id, SmiConstant(Builtins::kBuiltinCount)));
 
   TNode<IntPtrT> offset =
@@ -15475,13 +15475,13 @@ TNode<CodeDataContainer> CodeStubAssembler::LoadBuiltin(TNode<Smi> builtin_id) {
   return CAST(BitcastWordToTagged(Load<RawPtrT>(table, offset)));
 }
 
-TNode<CodeDataContainer> CodeStubAssembler::GetSharedFunctionInfoCode(
+TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
     TNode<SharedFunctionInfo> shared_info, TVariable<Uint16T>* data_type_out,
     Label* if_compile_lazy) {
   TNode<Object> sfi_data =
       LoadObjectField(shared_info, SharedFunctionInfo::kFunctionDataOffset);
 
-  TVARIABLE(CodeDataContainer, sfi_code);
+  TVARIABLE(Code, sfi_code);
 
   Label done(this);
   Label check_instance_type(this);
@@ -15507,7 +15507,7 @@ TNode<CodeDataContainer> CodeStubAssembler::GetSharedFunctionInfoCode(
 
   int32_t case_values[] = {
     BYTECODE_ARRAY_TYPE,
-    CODE_DATA_CONTAINER_TYPE,
+    CODE_TYPE,
     UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE,
     UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE,
     UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_WITH_JOB_TYPE,
@@ -15557,7 +15557,7 @@ TNode<CodeDataContainer> CodeStubAssembler::GetSharedFunctionInfoCode(
   // IsBaselineData: Execute baseline code
   BIND(&check_is_baseline_data);
   {
-    TNode<CodeDataContainer> baseline_code = CAST(sfi_data);
+    TNode<Code> baseline_code = CAST(sfi_data);
     sfi_code = baseline_code;
     Goto(&done);
   }
@@ -15579,7 +15579,7 @@ TNode<CodeDataContainer> CodeStubAssembler::GetSharedFunctionInfoCode(
   CSA_DCHECK(this,
              Word32Equal(data_type, Int32Constant(INTERPRETER_DATA_TYPE)));
   {
-    TNode<CodeDataContainer> trampoline =
+    TNode<Code> trampoline =
         LoadInterpreterDataInterpreterTrampoline(CAST(sfi_data));
     sfi_code = trampoline;
   }
@@ -15607,22 +15607,20 @@ TNode<CodeDataContainer> CodeStubAssembler::GetSharedFunctionInfoCode(
   return sfi_code.value();
 }
 
-TNode<RawPtrT> CodeStubAssembler::GetCodeEntry(TNode<CodeDataContainer> code) {
-  return LoadObjectField<RawPtrT>(
-      code, IntPtrConstant(CodeDataContainer::kCodeEntryPointOffset));
+TNode<RawPtrT> CodeStubAssembler::GetCodeEntry(TNode<Code> code) {
+  return LoadObjectField<RawPtrT>(code,
+                                  IntPtrConstant(Code::kCodeEntryPointOffset));
 }
 
-TNode<BoolT> CodeStubAssembler::IsMarkedForDeoptimization(
-    TNode<CodeDataContainer> code_data_container) {
+TNode<BoolT> CodeStubAssembler::IsMarkedForDeoptimization(TNode<Code> code) {
   return IsSetWord32<InstructionStream::MarkedForDeoptimizationField>(
-      LoadObjectField<Int32T>(code_data_container,
-                              CodeDataContainer::kKindSpecificFlagsOffset));
+      LoadObjectField<Int32T>(code, Code::kKindSpecificFlagsOffset));
 }
 
 TNode<JSFunction> CodeStubAssembler::AllocateFunctionWithMapAndContext(
     TNode<Map> map, TNode<SharedFunctionInfo> shared_info,
     TNode<Context> context) {
-  const TNode<CodeDataContainer> code = GetSharedFunctionInfoCode(shared_info);
+  const TNode<Code> code = GetSharedFunctionInfoCode(shared_info);
 
   // TODO(ishell): All the callers of this function pass map loaded from
   // Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX. So we can remove

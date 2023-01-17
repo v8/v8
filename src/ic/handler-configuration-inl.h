@@ -154,7 +154,7 @@ Handle<Smi> StoreHandler::StoreInterceptor(Isolate* isolate) {
   return handle(Smi::FromInt(config), isolate);
 }
 
-Handle<CodeDataContainer> StoreHandler::StoreSloppyArgumentsBuiltin(
+Handle<Code> StoreHandler::StoreSloppyArgumentsBuiltin(
     Isolate* isolate, KeyedAccessStoreMode mode) {
   switch (mode) {
     case STANDARD_STORE:
@@ -173,8 +173,8 @@ Handle<CodeDataContainer> StoreHandler::StoreSloppyArgumentsBuiltin(
   }
 }
 
-Handle<CodeDataContainer> StoreHandler::StoreFastElementBuiltin(
-    Isolate* isolate, KeyedAccessStoreMode mode) {
+Handle<Code> StoreHandler::StoreFastElementBuiltin(Isolate* isolate,
+                                                   KeyedAccessStoreMode mode) {
   switch (mode) {
     case STANDARD_STORE:
       return BUILTIN_CODE(isolate, StoreFastElementIC_Standard);
@@ -190,7 +190,7 @@ Handle<CodeDataContainer> StoreHandler::StoreFastElementBuiltin(
   }
 }
 
-Handle<CodeDataContainer> StoreHandler::ElementsTransitionAndStoreBuiltin(
+Handle<Code> StoreHandler::ElementsTransitionAndStoreBuiltin(
     Isolate* isolate, KeyedAccessStoreMode mode) {
   switch (mode) {
     case STANDARD_STORE:

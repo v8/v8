@@ -852,7 +852,7 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject object) {
     return AddEntry(object, HeapEntry::kBigInt, "bigint");
 
   } else if (InstanceTypeChecker::IsInstructionStream(instance_type) ||
-             InstanceTypeChecker::IsCodeDataContainer(instance_type)) {
+             InstanceTypeChecker::IsCode(instance_type)) {
     return AddEntry(object, HeapEntry::kCode, "");
 
   } else if (InstanceTypeChecker::IsSharedFunctionInfo(instance_type)) {
@@ -951,7 +951,7 @@ HeapEntry::Type V8HeapExplorer::GetSystemEntryType(HeapObject object) {
       InstanceTypeChecker::IsArrayBoilerplateDescription(type) ||
       InstanceTypeChecker::IsBytecodeArray(type) ||
       InstanceTypeChecker::IsClosureFeedbackCellArray(type) ||
-      InstanceTypeChecker::IsCodeDataContainer(type) ||
+      InstanceTypeChecker::IsCode(type) ||
       InstanceTypeChecker::IsFeedbackCell(type) ||
       InstanceTypeChecker::IsFeedbackMetadata(type) ||
       InstanceTypeChecker::IsFeedbackVector(type) ||
@@ -1469,12 +1469,11 @@ void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Map map) {
 void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
     HeapEntry* entry, SharedFunctionInfo shared) {
   std::unique_ptr<char[]> name = shared.DebugNameCStr();
-  CodeDataContainer code = shared.GetCode();
+  Code code = shared.GetCode();
   // Don't try to get the InstructionStream object from InstructionStream-less
   // embedded builtin.
-  HeapObject maybe_code_obj = code.is_off_heap_trampoline()
-                                  ? HeapObject::cast(code)
-                                  : FromCodeDataContainer(code);
+  HeapObject maybe_code_obj =
+      code.is_off_heap_trampoline() ? HeapObject::cast(code) : FromCode(code);
   if (name[0] != '\0') {
     TagObject(maybe_code_obj,
               names_->GetFormatted("(code for %s)", name.get()));
@@ -1545,12 +1544,10 @@ void V8HeapExplorer::ExtractWeakCellReferences(HeapEntry* entry,
                    WeakCell::kUnregisterTokenOffset);
 }
 
-void V8HeapExplorer::TagBuiltinCodeObject(CodeDataContainer code,
-                                          const char* name) {
+void V8HeapExplorer::TagBuiltinCodeObject(Code code, const char* name) {
   TagObject(code, names_->GetFormatted("(%s builtin handle)", name));
   if (!code.is_off_heap_trampoline()) {
-    TagObject(FromCodeDataContainer(code),
-              names_->GetFormatted("(%s builtin)", name));
+    TagObject(FromCode(code), names_->GetFormatted("(%s builtin)", name));
   }
 }
 
@@ -1979,8 +1976,7 @@ class RootsReferencesExtractor : public RootVisitor {
   void VisitRootPointer(Root root, const char* description,
                         FullObjectSlot object) override {
     if (root == Root::kBuiltins) {
-      explorer_->TagBuiltinCodeObject(CodeDataContainer::cast(*object),
-                                      description);
+      explorer_->TagBuiltinCodeObject(Code::cast(*object), description);
     }
     explorer_->SetGcSubrootReference(root, description, visiting_weak_roots_,
                                      *object);
@@ -2012,9 +2008,9 @@ class RootsReferencesExtractor : public RootVisitor {
     HeapObject value = HeapObject::cast(*p);
     if (!IsCodeSpaceObject(value)) {
       // When external code space is enabled, the slot might contain a
-      // CodeDataContainer object representing an embedded builtin, which
+      // Code object representing an embedded builtin, which
       // doesn't require additional processing.
-      DCHECK(CodeDataContainer::cast(value).is_off_heap_trampoline());
+      DCHECK(Code::cast(value).is_off_heap_trampoline());
     } else {
       InstructionStream code = InstructionStream::cast(value);
       if (code.kind() != CodeKind::BASELINE) {

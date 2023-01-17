@@ -68,7 +68,7 @@ void SharedFunctionInfo::Init(ReadOnlyRoots ro_roots, int unique_id) {
   clear_padding();
 }
 
-CodeDataContainer SharedFunctionInfo::GetCode() const {
+Code SharedFunctionInfo::GetCode() const {
   // ======
   // NOTE: This chain of checks MUST be kept in sync with the equivalent CSA
   // GetSharedFunctionInfoCode method in code-stub-assembler.cc.
@@ -86,10 +86,10 @@ CodeDataContainer SharedFunctionInfo::GetCode() const {
     DCHECK(HasBytecodeArray());
     return isolate->builtins()->code(Builtin::kInterpreterEntryTrampoline);
   }
-  if (data.IsCodeDataContainer()) {
+  if (data.IsCode()) {
     // Having baseline Code means we are a compiled, baseline function.
     DCHECK(HasBaselineCode());
-    return CodeDataContainer::cast(data);
+    return Code::cast(data);
   }
 #if V8_ENABLE_WEBASSEMBLY
   if (data.IsAsmWasmData()) {
@@ -128,8 +128,8 @@ CodeDataContainer SharedFunctionInfo::GetCode() const {
     return isolate->builtins()->code(Builtin::kHandleApiCall);
   }
   if (data.IsInterpreterData()) {
-    CodeDataContainer code = InterpreterTrampoline();
-    DCHECK(code.IsCodeDataContainer());
+    Code code = InterpreterTrampoline();
+    DCHECK(code.IsCode());
     DCHECK(code.is_interpreter_trampoline_builtin());
     return code;
   }

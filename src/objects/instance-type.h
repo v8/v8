@@ -310,7 +310,7 @@ INSTANCE_TYPE_CHECKERS(IS_TYPE_FUNCTION_DECL)
   V(_, CellMap, cell_map, Cell)                                                \
   V(_, WeakCellMap, weak_cell_map, WeakCell)                                   \
   V(_, InstructionStreamMap, instruction_stream_map, InstructionStream)        \
-  V(_, CodeDataContainerMap, code_data_container_map, CodeDataContainer)       \
+  V(_, CodeMap, code_map, Code)                                                \
   V(_, CoverageInfoMap, coverage_info_map, CoverageInfo)                       \
   V(_, DebugInfoMap, debug_info_map, DebugInfo)                                \
   V(_, FreeSpaceMap, free_space_map, FreeSpace)                                \

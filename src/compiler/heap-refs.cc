@@ -2201,8 +2201,8 @@ BIMODAL_ACCESSOR(JSFunction, SharedFunctionInfo, shared)
 #undef JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP
 #undef JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP_C
 
-CodeDataContainerRef JSFunctionRef::code() const {
-  CodeDataContainer code = object()->code(kAcquireLoad);
+CodeRef JSFunctionRef::code() const {
+  Code code = object()->code(kAcquireLoad);
   return MakeRefAssumeMemoryFence(broker(), code);
 }
 
@@ -2303,17 +2303,16 @@ unsigned InstructionStreamRef::GetInlinedBytecodeSize() const {
   return GetInlinedBytecodeSizeImpl(*object());
 }
 
-unsigned CodeDataContainerRef::GetInlinedBytecodeSize() const {
-  CodeDataContainer code_data_container = *object();
-  if (code_data_container.is_off_heap_trampoline()) {
+unsigned CodeRef::GetInlinedBytecodeSize() const {
+  Code code = *object();
+  if (code.is_off_heap_trampoline()) {
     return 0;
   }
 
   // Safe to do a relaxed conversion to InstructionStream here since
-  // CodeDataContainer::code field is modified only by GC and the
-  // CodeDataContainer was acquire-loaded.
-  InstructionStream code = code_data_container.instruction_stream(kRelaxedLoad);
-  return GetInlinedBytecodeSizeImpl(code);
+  // Code::instruction_stream field is modified only by GC and the
+  // Code was acquire-loaded.
+  return GetInlinedBytecodeSizeImpl(code.instruction_stream(kRelaxedLoad));
 }
 
 #undef BIMODAL_ACCESSOR

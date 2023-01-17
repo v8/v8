@@ -326,12 +326,11 @@ Object OptimizeFunctionOnNextCall(RuntimeArguments& args, Isolate* isolate,
   // function has.
   if (!function->is_compiled()) {
     DCHECK(function->shared().HasBytecodeArray());
-    CodeDataContainer code_data_container =
-        *BUILTIN_CODE(isolate, InterpreterEntryTrampoline);
+    Code code = *BUILTIN_CODE(isolate, InterpreterEntryTrampoline);
     if (function->shared().HasBaselineCode()) {
-      code_data_container = function->shared().baseline_code(kAcquireLoad);
+      code = function->shared().baseline_code(kAcquireLoad);
     }
-    function->set_code(code_data_container);
+    function->set_code(code);
   }
 
   TraceManualRecompile(*function, target_kind, concurrency_mode);
@@ -405,10 +404,10 @@ RUNTIME_FUNCTION(Runtime_BenchMaglev) {
   Handle<JSFunction> function = args.at<JSFunction>(0);
   int count = args.smi_value_at(1);
 
-  Handle<CodeDataContainer> code_data_container;
+  Handle<Code> code;
   base::ElapsedTimer timer;
   timer.Start();
-  code_data_container = Maglev::Compile(isolate, function).ToHandleChecked();
+  code = Maglev::Compile(isolate, function).ToHandleChecked();
   for (int i = 1; i < count; ++i) {
     HandleScope handle_scope(isolate);
     Maglev::Compile(isolate, function);
@@ -416,7 +415,7 @@ RUNTIME_FUNCTION(Runtime_BenchMaglev) {
   PrintF("Maglev compile time: %g ms!\n",
          timer.Elapsed().InMillisecondsF() / count);
 
-  function->set_code(*code_data_container);
+  function->set_code(*code);
 
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -790,7 +789,7 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   }
 
   if (function->HasAttachedOptimizedCode()) {
-    CodeDataContainer code = function->code();
+    Code code = function->code();
     if (code.marked_for_deoptimization()) {
       status |= static_cast<int>(OptimizationStatus::kMarkedForDeoptimization);
     } else {
@@ -1438,7 +1437,7 @@ RUNTIME_FUNCTION(Runtime_RegexpHasNativeCode) {
   bool is_latin1 = Oddball::cast(args[1]).ToBool(isolate);
   bool result;
   if (regexp.type_tag() == JSRegExp::IRREGEXP) {
-    result = regexp.code(is_latin1).IsCodeDataContainer();
+    result = regexp.code(is_latin1).IsCode();
   } else {
     result = false;
   }

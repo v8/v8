@@ -26,7 +26,7 @@ namespace internal {
 
 class ByteArray;
 class BytecodeArray;
-class CodeDataContainer;
+class Code;
 class CodeDesc;
 class ObjectIterator;
 class SafepointScope;
@@ -41,13 +41,13 @@ class Register;
 
 #include "torque-generated/src/objects/code-tq.inc"
 
-// CodeDataContainer is a container for all mutable fields associated with its
+// Code is a container for all mutable fields associated with its
 // referencing {InstructionStream} object. Since {InstructionStream} objects
 // reside on write-protected pages within the heap, its header fields need to be
 // immutable. There always is a 1-to-1 relation between {InstructionStream} and
-// {CodeDataContainer}, the referencing field
-// {InstructionStream::code_data_container} itself is immutable.
-class CodeDataContainer : public HeapObject {
+// {Code}, the referencing field
+// {InstructionStream::code} itself is immutable.
+class Code : public HeapObject {
  public:
   NEVER_READ_ONLY_SPACE
   DECL_RELAXED_INT32_ACCESSORS(kind_specific_flags)
@@ -77,7 +77,7 @@ class CodeDataContainer : public HeapObject {
   // all the other objects are allocated. This helper method returns code cage
   // base value which is used for decompressing the reference to respective
   // InstructionStream. It loads the Isolate from the page header (since the
-  // CodeDataContainer objects are always writable) and then the code cage base
+  // Code objects are always writable) and then the code cage base
   // value from there.
   inline PtrComprCageBase code_cage_base() const;
 
@@ -232,11 +232,11 @@ class CodeDataContainer : public HeapObject {
                                      Address current_pc = kNullAddress);
 #endif  // ENABLE_DISASSEMBLER
 
-  DECL_CAST(CodeDataContainer)
+  DECL_CAST(Code)
 
   // Dispatched behavior.
-  DECL_PRINTER(CodeDataContainer)
-  DECL_VERIFIER(CodeDataContainer)
+  DECL_PRINTER(Code)
+  DECL_VERIFIER(Code)
 
 // Layout description.
 #define CODE_DATA_FIELDS(V)                                 \
@@ -279,7 +279,7 @@ class CodeDataContainer : public HeapObject {
 #undef FLAGS_BIT_FIELDS
   static_assert(FLAGS_BIT_FIELDS_Ranges::kBitsCount == 6);
   static_assert(FLAGS_BIT_FIELDS_Ranges::kBitsCount <=
-                FIELD_SIZE(CodeDataContainer::kFlagsOffset) * kBitsPerByte);
+                FIELD_SIZE(Code::kFlagsOffset) * kBitsPerByte);
 
  private:
   DECL_ACCESSORS(raw_instruction_stream, Object)
@@ -300,7 +300,7 @@ class CodeDataContainer : public HeapObject {
   friend FactoryBase<LocalFactory>;
   friend Isolate;
 
-  OBJECT_CONSTRUCTORS(CodeDataContainer, HeapObject);
+  OBJECT_CONSTRUCTORS(Code, HeapObject);
 };
 
 // InstructionStream describes objects with on-the-fly generated machine code.
@@ -491,8 +491,8 @@ class InstructionStream : public HeapObject {
   inline ByteArray SourcePositionTable(PtrComprCageBase cage_base,
                                        SharedFunctionInfo sfi) const;
 
-  // [code_data_container]: A container indirection for all mutable fields.
-  DECL_RELEASE_ACQUIRE_ACCESSORS(code_data_container, CodeDataContainer)
+  // [code]: A container indirection for all mutable fields.
+  DECL_RELEASE_ACQUIRE_ACCESSORS(code, Code)
 
   // Unchecked accessors to be used during GC.
   inline ByteArray unchecked_relocation_info() const;
@@ -711,7 +711,7 @@ class InstructionStream : public HeapObject {
   V(kRelocationInfoOffset, kTaggedSize)                                       \
   V(kDeoptimizationDataOrInterpreterDataOffset, kTaggedSize)                  \
   V(kPositionTableOffset, kTaggedSize)                                        \
-  V(kCodeDataContainerOffset, kTaggedSize)                                    \
+  V(kCodeOffset, kTaggedSize)                                                 \
   /* Data or code not directly visited by GC directly starts here. */         \
   /* The serializer needs to copy bytes starting from here verbatim. */       \
   /* Objects embedded into code is visited via reloc info. */                 \
@@ -796,8 +796,7 @@ class InstructionStream : public HeapObject {
 #undef CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS
   static_assert(CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS_Ranges::kBitsCount == 4);
   static_assert(CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS_Ranges::kBitsCount <=
-                FIELD_SIZE(CodeDataContainer::kKindSpecificFlagsOffset) *
-                    kBitsPerByte);
+                FIELD_SIZE(Code::kKindSpecificFlagsOffset) * kBitsPerByte);
 
   // The {marked_for_deoptimization} field is accessed from generated code.
   static const int kMarkedForDeoptimizationBit =
@@ -811,7 +810,7 @@ class InstructionStream : public HeapObject {
   friend class RelocIterator;
   friend class EvacuateVisitorBase;
 
-  inline CodeDataContainer GCSafeCodeDataContainer(AcquireLoadTag) const;
+  inline Code GCSafeCode(AcquireLoadTag) const;
 
   bool is_promise_rejection() const;
 
@@ -829,7 +828,7 @@ class InstructionStream : public HeapObject {
   OBJECT_CONSTRUCTORS(InstructionStream, HeapObject);
 };
 
-// TODO(v8:11880): move these functions to CodeDataContainer once they are no
+// TODO(v8:11880): move these functions to Code once they are no
 // longer used from InstructionStream.
 V8_EXPORT_PRIVATE Address OffHeapInstructionStart(HeapObject code,
                                                   Builtin builtin);
@@ -870,7 +869,7 @@ V8_EXPORT_PRIVATE int OffHeapStackSlots(HeapObject code, Builtin builtin);
 //  code() will
 //    return the respective InstructionStream object),
 //  - the pc corresponds to an embedded builtin (in which case the
-//    code_data_container() will return the CodeDataContainer object
+//    code() will return the Code object
 //    corresponding to the builtin).
 class CodeLookupResult {
  public:
@@ -882,27 +881,24 @@ class CodeLookupResult {
       : instruction_stream_(code) {}
 
   // An embedded builtin was found.
-  explicit CodeLookupResult(CodeDataContainer code_data_container)
-      : code_data_container_(code_data_container) {}
+  explicit CodeLookupResult(Code code) : code_(code) {}
 
-  bool IsFound() const {
-    return IsInstructionStream() || IsCodeDataContainer();
-  }
+  bool IsFound() const { return IsInstructionStream() || IsCode(); }
   bool IsInstructionStream() const { return !instruction_stream_.is_null(); }
-  bool IsCodeDataContainer() const { return !code_data_container_.is_null(); }
+  bool IsCode() const { return !code_.is_null(); }
 
   InstructionStream instruction_stream() const {
     DCHECK(IsInstructionStream());
     return instruction_stream_;
   }
 
-  CodeDataContainer code_data_container() const {
-    DCHECK(IsCodeDataContainer());
-    return code_data_container_;
+  Code code() const {
+    DCHECK(IsCode());
+    return code_;
   }
 
   // Helper methods, in case of successful lookup return the result of
-  // respective accessor of the InstructionStream/CodeDataContainer object
+  // respective accessor of the InstructionStream/Code object
   // found. It's safe use them from GC.
   inline CodeKind kind() const;
   inline Builtin builtin_id() const;
@@ -932,14 +928,14 @@ class CodeLookupResult {
   // map check.
   inline InstructionStream ToInstructionStream() const;
 
-  // Helper method, converts the successful lookup result to CodeDataContainer
+  // Helper method, converts the successful lookup result to Code
   // object. It's not safe to be used from GC because conversion might perform a
   // map check.
-  inline CodeDataContainer ToCodeDataContainer() const;
+  inline Code ToCode() const;
 
   bool operator==(const CodeLookupResult& other) const {
     return instruction_stream_ == other.instruction_stream_ &&
-           code_data_container_ == other.code_data_container_;
+           code_ == other.code_;
   }
   bool operator!=(const CodeLookupResult& other) const {
     return !operator==(other);
@@ -947,7 +943,7 @@ class CodeLookupResult {
 
  private:
   InstructionStream instruction_stream_;
-  CodeDataContainer code_data_container_;
+  Code code_;
 };
 
 class InstructionStream::OptimizedCodeIterator {
@@ -967,27 +963,20 @@ class InstructionStream::OptimizedCodeIterator {
 };
 
 // Helper functions for converting InstructionStream objects to
-// CodeDataContainer and back.
-inline CodeDataContainer ToCodeDataContainer(InstructionStream code);
-inline Handle<CodeDataContainer> ToCodeDataContainer(
-    Handle<InstructionStream> code, Isolate* isolate);
-inline InstructionStream FromCodeDataContainer(CodeDataContainer code);
-inline InstructionStream FromCodeDataContainer(CodeDataContainer code,
-                                               Isolate* isolate,
-                                               RelaxedLoadTag);
-inline InstructionStream FromCodeDataContainer(CodeDataContainer code,
-                                               PtrComprCageBase,
-                                               RelaxedLoadTag);
-inline Handle<InstructionStream> FromCodeDataContainer(
-    Handle<CodeDataContainer> code, Isolate* isolate);
-inline AbstractCode ToAbstractCode(CodeDataContainer code);
-inline Handle<AbstractCode> ToAbstractCode(Handle<CodeDataContainer> code,
-                                           Isolate* isolate);
+// Code and back.
+inline Code ToCode(InstructionStream code);
+inline Handle<Code> ToCode(Handle<InstructionStream> code, Isolate* isolate);
+inline InstructionStream FromCode(Code code);
+inline InstructionStream FromCode(Code code, Isolate* isolate, RelaxedLoadTag);
+inline InstructionStream FromCode(Code code, PtrComprCageBase, RelaxedLoadTag);
+inline Handle<InstructionStream> FromCode(Handle<Code> code, Isolate* isolate);
+inline AbstractCode ToAbstractCode(Code code);
+inline Handle<AbstractCode> ToAbstractCode(Handle<Code> code, Isolate* isolate);
 
 // AbstractCode is a helper wrapper around
-// {InstructionStream|CodeDataContainer|BytecodeArray}.  Note that the same
+// {InstructionStream|Code|BytecodeArray}.  Note that the same
 // abstract code can be represented either by InstructionStream object or by
-// respective CodeDataContainer object.
+// respective Code object.
 class AbstractCode : public HeapObject {
  public:
   NEVER_READ_ONLY_SPACE
@@ -1041,14 +1030,14 @@ class AbstractCode : public HeapObject {
   // should work for both regular V8 heap objects and external code space
   // objects.
   inline bool IsInstructionStream(PtrComprCageBase cage_base) const;
-  inline bool IsCodeDataContainer(PtrComprCageBase cage_base) const;
+  inline bool IsCode(PtrComprCageBase cage_base) const;
   inline bool IsBytecodeArray(PtrComprCageBase cage_base) const;
 
   inline InstructionStream ToInstructionStream(PtrComprCageBase cage_base);
-  inline CodeDataContainer ToCodeDataContainer(PtrComprCageBase cage_base);
+  inline Code ToCode(PtrComprCageBase cage_base);
 
   inline InstructionStream GetInstructionStream();
-  inline CodeDataContainer GetCodeDataContainer();
+  inline Code GetCode();
   inline BytecodeArray GetBytecodeArray();
 
   // AbstractCode might be represented by both InstructionStream and
@@ -1163,8 +1152,7 @@ class DependentCode : public WeakArrayList {
 
   // The callback is called for all non-cleared entries, and should return true
   // iff the current entry should be cleared.
-  using IterateAndCompactFn =
-      std::function<bool(CodeDataContainer, DependencyGroups)>;
+  using IterateAndCompactFn = std::function<bool(Code, DependencyGroups)>;
   void IterateAndCompact(const IterateAndCompactFn& fn);
 
   // Fills the given entry with the last non-cleared entry in this list, and

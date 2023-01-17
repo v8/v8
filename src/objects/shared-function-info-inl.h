@@ -559,7 +559,7 @@ DEF_GETTER(SharedFunctionInfo, HasBytecodeArray, bool) {
       HeapObject::cast(data).map(cage_base).instance_type();
   return InstanceTypeChecker::IsBytecodeArray(instance_type) ||
          InstanceTypeChecker::IsInterpreterData(instance_type) ||
-         InstanceTypeChecker::IsCodeDataContainer(instance_type);
+         InstanceTypeChecker::IsCode(instance_type);
 }
 
 template <typename IsolateT>
@@ -578,8 +578,8 @@ BytecodeArray SharedFunctionInfo::GetBytecodeArray(IsolateT* isolate) const {
 
 BytecodeArray SharedFunctionInfo::GetActiveBytecodeArray() const {
   Object data = function_data(kAcquireLoad);
-  if (data.IsCodeDataContainer()) {
-    CodeDataContainer baseline_code = CodeDataContainer::cast(data);
+  if (data.IsCode()) {
+    Code baseline_code = Code::cast(data);
     data = baseline_code.bytecode_or_interpreter_data();
   }
   if (data.IsBytecodeArray()) {
@@ -623,8 +623,8 @@ bool SharedFunctionInfo::ShouldFlushCode(
   // check if it is old. Note, this is done this way since this function can be
   // called by the concurrent marker.
   Object data = function_data(kAcquireLoad);
-  if (data.IsCodeDataContainer()) {
-    CodeDataContainer baseline_code = CodeDataContainer::cast(data);
+  if (data.IsCode()) {
+    Code baseline_code = Code::cast(data);
     DCHECK_EQ(baseline_code.kind(), CodeKind::BASELINE);
     // If baseline code flushing isn't enabled and we have baseline data on SFI
     // we cannot flush baseline / bytecode.
@@ -644,15 +644,15 @@ bool SharedFunctionInfo::ShouldFlushCode(
   return bytecode.IsOld();
 }
 
-DEF_GETTER(SharedFunctionInfo, InterpreterTrampoline, CodeDataContainer) {
+DEF_GETTER(SharedFunctionInfo, InterpreterTrampoline, Code) {
   DCHECK(HasInterpreterData(cage_base));
   return interpreter_data(cage_base).interpreter_trampoline(cage_base);
 }
 
 DEF_GETTER(SharedFunctionInfo, HasInterpreterData, bool) {
   Object data = function_data(cage_base, kAcquireLoad);
-  if (data.IsCodeDataContainer(cage_base)) {
-    CodeDataContainer baseline_code = CodeDataContainer::cast(data);
+  if (data.IsCode(cage_base)) {
+    Code baseline_code = Code::cast(data);
     DCHECK_EQ(baseline_code.kind(), CodeKind::BASELINE);
     data = baseline_code.bytecode_or_interpreter_data(cage_base);
   }
@@ -662,8 +662,8 @@ DEF_GETTER(SharedFunctionInfo, HasInterpreterData, bool) {
 DEF_GETTER(SharedFunctionInfo, interpreter_data, InterpreterData) {
   DCHECK(HasInterpreterData(cage_base));
   Object data = function_data(cage_base, kAcquireLoad);
-  if (data.IsCodeDataContainer(cage_base)) {
-    CodeDataContainer baseline_code = CodeDataContainer::cast(data);
+  if (data.IsCode(cage_base)) {
+    Code baseline_code = Code::cast(data);
     DCHECK_EQ(baseline_code.kind(), CodeKind::BASELINE);
     data = baseline_code.bytecode_or_interpreter_data(cage_base);
   }
@@ -679,19 +679,19 @@ void SharedFunctionInfo::set_interpreter_data(
 
 DEF_GETTER(SharedFunctionInfo, HasBaselineCode, bool) {
   Object data = function_data(cage_base, kAcquireLoad);
-  if (data.IsCodeDataContainer(cage_base)) {
-    DCHECK_EQ(CodeDataContainer::cast(data).kind(), CodeKind::BASELINE);
+  if (data.IsCode(cage_base)) {
+    DCHECK_EQ(Code::cast(data).kind(), CodeKind::BASELINE);
     return true;
   }
   return false;
 }
 
-DEF_ACQUIRE_GETTER(SharedFunctionInfo, baseline_code, CodeDataContainer) {
+DEF_ACQUIRE_GETTER(SharedFunctionInfo, baseline_code, Code) {
   DCHECK(HasBaselineCode(cage_base));
-  return CodeDataContainer::cast(function_data(cage_base, kAcquireLoad));
+  return Code::cast(function_data(cage_base, kAcquireLoad));
 }
 
-void SharedFunctionInfo::set_baseline_code(CodeDataContainer baseline_code,
+void SharedFunctionInfo::set_baseline_code(Code baseline_code,
                                            ReleaseStoreTag tag,
                                            WriteBarrierMode mode) {
   DCHECK_EQ(baseline_code.kind(), CodeKind::BASELINE);

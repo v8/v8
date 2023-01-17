@@ -114,13 +114,11 @@ CompilationJob::Status MaglevCompilationJob::ExecuteJobImpl(
 }
 
 CompilationJob::Status MaglevCompilationJob::FinalizeJobImpl(Isolate* isolate) {
-  Handle<CodeDataContainer> code_data_container;
-  if (!maglev::MaglevCompiler::GenerateCode(isolate, info())
-           .ToHandle(&code_data_container)) {
+  Handle<Code> code;
+  if (!maglev::MaglevCompiler::GenerateCode(isolate, info()).ToHandle(&code)) {
     return CompilationJob::FAILED;
   }
-  info()->toplevel_compilation_unit()->function().object()->set_code(
-      *code_data_container);
+  info()->toplevel_compilation_unit()->function().object()->set_code(*code);
   return CompilationJob::SUCCEEDED;
 }
 

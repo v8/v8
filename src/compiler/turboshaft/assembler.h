@@ -33,7 +33,7 @@ enum class Builtin : int32_t;
 
 namespace v8::internal::compiler::turboshaft {
 
-Handle<CodeDataContainer> BuiltinCodeHandle(Builtin builtin, Isolate* isolate);
+Handle<Code> BuiltinCodeHandle(Builtin builtin, Isolate* isolate);
 
 // Forward declarations
 template <class Assembler>

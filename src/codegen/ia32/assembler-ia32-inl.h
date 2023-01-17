@@ -166,7 +166,7 @@ void Assembler::emit(uint32_t x, RelocInfo::Mode rmode) {
   emit(x);
 }
 
-void Assembler::emit(Handle<CodeDataContainer> code, RelocInfo::Mode rmode) {
+void Assembler::emit(Handle<Code> code, RelocInfo::Mode rmode) {
   emit(code.address(), rmode);
 }
 

@@ -104,9 +104,9 @@ Handle<InstructionStream> BuildSetupFunction(
   params.push_back(__ Parameter<Object>(1));
   // The parameters of the teardown function are the results of the test
   // function.
-  params.push_back(__ HeapConstant(ToCodeDataContainer(
-      BuildTeardownFunction(isolate, teardown_call_descriptor, results),
-      isolate)));
+  params.push_back(__ HeapConstant(
+      ToCode(BuildTeardownFunction(isolate, teardown_call_descriptor, results),
+             isolate)));
   // First allocate the FixedArray which will hold the final results. Here we
   // should take care of all allocations, meaning we allocate HeapNumbers and
   // FixedArrays representing Simd128 values.
@@ -175,7 +175,7 @@ Handle<InstructionStream> BuildSetupFunction(
           tester.raw_assembler_for_testing()->common()->Call(
               test_call_descriptor),
           static_cast<int>(params.size()), params.data())));
-  return tester.GenerateCodeCloseAndEscape();
+  return tester.GenerateInstructionStreamCloseAndEscape();
 }
 
 // Build the `teardown` function. It takes a FixedArray as argument, fills it
@@ -265,7 +265,7 @@ Handle<InstructionStream> BuildTeardownFunction(
     }
   }
   __ Return(result_array);
-  return tester.GenerateCodeCloseAndEscape();
+  return tester.GenerateInstructionStreamCloseAndEscape();
 }
 
 // Print the content of `value`, representing the register or stack slot
@@ -747,8 +747,8 @@ class TestEnvironment : public HandleAndZoneScope {
       // return value will be freed along with it. Copy the result into
       // state_out.
       FunctionTester ft(setup, 2);
-      Handle<FixedArray> result = ft.CallChecked<FixedArray>(
-          ToCodeDataContainer(test, main_isolate()), state_in);
+      Handle<FixedArray> result =
+          ft.CallChecked<FixedArray>(ToCode(test, main_isolate()), state_in);
       CHECK_EQ(result->length(), state_in->length());
       result->CopyTo(0, *state_out, 0, result->length());
     }

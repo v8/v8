@@ -262,7 +262,7 @@ class FullMarkingVerifier : public MarkingVerifier {
   void VerifyCodePointer(CodeObjectSlot slot) override {
     Object maybe_code = slot.load(code_cage_base());
     HeapObject code;
-    // The slot might contain smi during CodeDataContainer creation, so skip it.
+    // The slot might contain smi during Code creation, so skip it.
     if (maybe_code.GetHeapObject(&code)) {
       VerifyHeapObjectImpl(code);
     }
@@ -1096,9 +1096,9 @@ class MarkCompactCollector::RootMarkingVisitor final : public RootVisitor {
     // that heap snapshots accurately describe the roots.
     HeapObject value = HeapObject::cast(*p);
     if (!IsCodeSpaceObject(value)) {
-      // The slot might contain a CodeDataContainer object representing an
+      // The slot might contain a Code object representing an
       // embedded builtin, which doesn't require additional processing.
-      DCHECK(CodeDataContainer::cast(value).is_off_heap_trampoline());
+      DCHECK(Code::cast(value).is_off_heap_trampoline());
     } else {
       InstructionStream code = InstructionStream::cast(value);
       if (code.kind() != CodeKind::BASELINE) {
@@ -2691,9 +2691,9 @@ void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor,
        it.Advance()) {
     if (it.frame()->is_unoptimized()) return;
     if (it.frame()->is_optimized()) {
-      CodeLookupResult lookup_result = it.frame()->LookupCodeDataContainer();
+      CodeLookupResult lookup_result = it.frame()->LookupCode();
       // Embedded builtins can't deoptimize.
-      if (lookup_result.IsCodeDataContainer()) return;
+      if (lookup_result.IsCode()) return;
       InstructionStream code = lookup_result.instruction_stream();
       if (!code.CanDeoptAt(isolate, it.frame()->pc())) {
         PtrComprCageBase cage_base(isolate);
@@ -3323,18 +3323,17 @@ void MarkCompactCollector::ProcessOldCodeCandidates() {
   SharedFunctionInfo flushing_candidate;
   while (local_weak_objects()->code_flushing_candidates_local.Pop(
       &flushing_candidate)) {
-    CodeDataContainer baseline_code_data_container;
-    InstructionStream baseline_code;
+    Code baseline_code;
+    InstructionStream baseline_istream;
     HeapObject baseline_bytecode_or_interpreter_data;
     if (v8_flags.flush_baseline_code && flushing_candidate.HasBaselineCode()) {
-      baseline_code_data_container = CodeDataContainer::cast(
-          flushing_candidate.function_data(kAcquireLoad));
-      // Safe to do a relaxed load here since the CodeDataContainer was
+      baseline_code =
+          Code::cast(flushing_candidate.function_data(kAcquireLoad));
+      // Safe to do a relaxed load here since the Code was
       // acquire-loaded.
-      baseline_code = FromCodeDataContainer(baseline_code_data_container,
-                                            isolate(), kRelaxedLoad);
+      baseline_istream = FromCode(baseline_code, isolate(), kRelaxedLoad);
       baseline_bytecode_or_interpreter_data =
-          baseline_code.bytecode_or_interpreter_data(isolate());
+          baseline_istream.bytecode_or_interpreter_data(isolate());
     }
     // During flushing a BytecodeArray is transformed into an UncompiledData in
     // place. Seeing an UncompiledData here implies that another
@@ -3344,13 +3343,13 @@ void MarkCompactCollector::ProcessOldCodeCandidates() {
     bool bytecode_already_decompiled =
         flushing_candidate.function_data(isolate(), kAcquireLoad)
             .IsUncompiledData(isolate()) ||
-        (!baseline_code.is_null() &&
+        (!baseline_istream.is_null() &&
          baseline_bytecode_or_interpreter_data.IsUncompiledData(isolate()));
     bool is_bytecode_live = !bytecode_already_decompiled &&
                             non_atomic_marking_state()->IsBlackOrGrey(
                                 flushing_candidate.GetBytecodeArray(isolate()));
-    if (!baseline_code.is_null()) {
-      if (non_atomic_marking_state()->IsBlackOrGrey(baseline_code)) {
+    if (!baseline_istream.is_null()) {
+      if (non_atomic_marking_state()->IsBlackOrGrey(baseline_istream)) {
         // Currently baseline code holds bytecode array strongly and it is
         // always ensured that bytecode is live if baseline code is live. Hence
         // baseline code can safely load bytecode array without any additional
@@ -3359,12 +3358,11 @@ void MarkCompactCollector::ProcessOldCodeCandidates() {
         // to bailout if there is no bytecode.
         DCHECK(is_bytecode_live);
 
-        // Regardless of whether the CodeDataContainer is a CodeDataContainer or
+        // Regardless of whether the Code is a Code or
         // the InstructionStream itself, if the InstructionStream is live then
-        // the CodeDataContainer has to be live and will have been marked via
+        // the Code has to be live and will have been marked via
         // the owning JSFunction.
-        DCHECK(non_atomic_marking_state()->IsBlackOrGrey(
-            baseline_code_data_container));
+        DCHECK(non_atomic_marking_state()->IsBlackOrGrey(baseline_code));
       } else if (is_bytecode_live || bytecode_already_decompiled) {
         // Reset the function_data field to the BytecodeArray, InterpreterData,
         // or UncompiledData found on the baseline code. We can skip this step
@@ -3991,13 +3989,12 @@ static inline void UpdateStrongCodeSlot(HeapObject host,
     UpdateSlot<access_mode, HeapObjectReferenceType::STRONG>(cage_base, slot,
                                                              obj, heap_obj);
 
-    CodeDataContainer code_data_container =
-        CodeDataContainer::cast(HeapObject::FromAddress(
-            slot.address() - CodeDataContainer::kInstructionStreamOffset));
-    InstructionStream code =
-        code_data_container.instruction_stream(code_cage_base);
+    Code code = Code::cast(HeapObject::FromAddress(
+        slot.address() - Code::kInstructionStreamOffset));
+    InstructionStream instruction_stream =
+        code.instruction_stream(code_cage_base);
     Isolate* isolate_for_sandbox = GetIsolateForSandbox(host);
-    code_data_container.UpdateCodeEntryPoint(isolate_for_sandbox, code);
+    code.UpdateCodeEntryPoint(isolate_for_sandbox, instruction_stream);
   }
 }
 
@@ -5205,8 +5202,8 @@ class RememberedSetUpdatingItem : public UpdatingItem {
           chunk_,
           [=](MaybeObjectSlot slot) {
             HeapObject host = HeapObject::FromAddress(
-                slot.address() - CodeDataContainer::kInstructionStreamOffset);
-            DCHECK(host.IsCodeDataContainer(cage_base));
+                slot.address() - Code::kInstructionStreamOffset);
+            DCHECK(host.IsCode(cage_base));
             UpdateStrongCodeSlot<AccessMode::NON_ATOMIC>(
                 host, cage_base, code_cage_base,
                 CodeObjectSlot(slot.address()));
@@ -5692,7 +5689,7 @@ class YoungGenerationMarkingVerifier : public MarkingVerifier {
   }
   void VerifyCodePointer(CodeObjectSlot slot) override {
     // Code slots never appear in new space because
-    // CodeDataContainers, the only object that can contain code pointers, are
+    // Code objects, the only object that can contain code pointers, are
     // always allocated in the old space.
     UNREACHABLE();
   }

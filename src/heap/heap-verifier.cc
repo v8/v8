@@ -101,7 +101,7 @@ void VerifyPointersVisitor::VisitCodePointer(HeapObject host,
                                              CodeObjectSlot slot) {
   Object maybe_code = slot.load(code_cage_base());
   HeapObject code;
-  // The slot might contain smi during CodeDataContainer creation.
+  // The slot might contain smi during Code creation.
   if (maybe_code.GetHeapObject(&code)) {
     VerifyCodeObjectImpl(code);
   } else {

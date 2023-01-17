@@ -149,7 +149,7 @@ class V8_EXPORT_PRIVATE TurboAssembler
   void Call(Register reg) { call(reg); }
   void Call(Operand op) { call(op); }
   void Call(Label* target) { call(target); }
-  void Call(Handle<CodeDataContainer> code_object, RelocInfo::Mode rmode);
+  void Call(Handle<Code> code_object, RelocInfo::Mode rmode);
 
   // Load the builtin given by the Smi in |builtin_index| into the same
   // register.
@@ -158,21 +158,20 @@ class V8_EXPORT_PRIVATE TurboAssembler
   void CallBuiltin(Builtin builtin);
   void TailCallBuiltin(Builtin builtin);
 
-  // Load the code entry point from the CodeDataContainer object.
-  void LoadCodeDataContainerEntry(Register destination,
-                                  Register code_data_container_object);
-  // Load code entry point from the CodeDataContainer object and compute
+  // Load the code entry point from the Code object.
+  void LoadCodeEntry(Register destination, Register code_object);
+  // Load code entry point from the Code object and compute
   // InstructionStream object pointer out of it. Must not be used for
-  // CodeDataContainers corresponding to builtins, because their entry points
+  // Codes corresponding to builtins, because their entry points
   // values point to the embedded instruction stream in .text section.
-  void LoadCodeDataContainerInstructionStreamNonBuiltin(
-      Register destination, Register code_data_container_object);
-  void CallCodeDataContainerObject(Register code_data_container_object);
-  void JumpCodeDataContainerObject(Register code_data_container_object,
-                                   JumpMode jump_mode = JumpMode::kJump);
+  void LoadCodeInstructionStreamNonBuiltin(Register destination,
+                                           Register code_object);
+  void CallCodeObject(Register code_object);
+  void JumpCodeObject(Register code_object,
+                      JumpMode jump_mode = JumpMode::kJump);
 
   void Jump(const ExternalReference& reference);
-  void Jump(Handle<CodeDataContainer> code_object, RelocInfo::Mode rmode);
+  void Jump(Handle<Code> code_object, RelocInfo::Mode rmode);
 
   void LoadMap(Register destination, Register object);
 
@@ -559,8 +558,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
     and_(reg, Immediate(mask));
   }
 
-  void TestCodeDataContainerIsMarkedForDeoptimization(
-      Register code_data_container);
+  void TestCodeIsMarkedForDeoptimization(Register code);
   Immediate ClearedValue() const;
 
   // Tiering support.

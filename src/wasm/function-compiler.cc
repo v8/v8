@@ -246,7 +246,7 @@ void JSToWasmWrapperCompilationUnit::Execute() {
   }
 }
 
-Handle<CodeDataContainer> JSToWasmWrapperCompilationUnit::Finalize() {
+Handle<Code> JSToWasmWrapperCompilationUnit::Finalize() {
   if (use_generic_wrapper_) {
     return isolate_->builtins()->code_handle(Builtin::kGenericJSToWasmWrapper);
   }
@@ -261,12 +261,11 @@ Handle<CodeDataContainer> JSToWasmWrapperCompilationUnit::Finalize() {
     PROFILE(isolate_, CodeCreateEvent(LogEventListener::CodeTag::kStub,
                                       Handle<AbstractCode>::cast(code), name));
   }
-  return ToCodeDataContainer(code, isolate_);
+  return ToCode(code, isolate_);
 }
 
 // static
-Handle<CodeDataContainer>
-JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
+Handle<Code> JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
     Isolate* isolate, const FunctionSig* sig, uint32_t canonical_sig_index,
     const WasmModule* module, bool is_import) {
   // Run the compilation unit synchronously.
@@ -279,8 +278,7 @@ JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
 }
 
 // static
-Handle<CodeDataContainer>
-JSToWasmWrapperCompilationUnit::CompileSpecificJSToWasmWrapper(
+Handle<Code> JSToWasmWrapperCompilationUnit::CompileSpecificJSToWasmWrapper(
     Isolate* isolate, const FunctionSig* sig, uint32_t canonical_sig_index,
     const WasmModule* module) {
   // Run the compilation unit synchronously.

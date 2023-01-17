@@ -83,8 +83,7 @@ MaybeHandle<Object> DefineAccessorProperty(Isolate* isolate,
         InstantiateFunction(isolate,
                             Handle<FunctionTemplateInfo>::cast(getter)),
         Object);
-    Handle<CodeDataContainer> trampoline =
-        BUILTIN_CODE(isolate, DebugBreakTrampoline);
+    Handle<Code> trampoline = BUILTIN_CODE(isolate, DebugBreakTrampoline);
     Handle<JSFunction>::cast(getter)->set_code(*trampoline);
   }
   if (setter->IsFunctionTemplateInfo() &&
@@ -94,8 +93,7 @@ MaybeHandle<Object> DefineAccessorProperty(Isolate* isolate,
         InstantiateFunction(isolate,
                             Handle<FunctionTemplateInfo>::cast(setter)),
         Object);
-    Handle<CodeDataContainer> trampoline =
-        BUILTIN_CODE(isolate, DebugBreakTrampoline);
+    Handle<Code> trampoline = BUILTIN_CODE(isolate, DebugBreakTrampoline);
     Handle<JSFunction>::cast(setter)->set_code(*trampoline);
   }
   RETURN_ON_EXCEPTION(

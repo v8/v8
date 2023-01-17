@@ -264,7 +264,7 @@ void AssemblerBase::RequestHeapNumber(HeapNumberRequest request) {
   heap_number_requests_.push_front(request);
 }
 
-int AssemblerBase::AddCodeTarget(Handle<CodeDataContainer> target) {
+int AssemblerBase::AddCodeTarget(Handle<Code> target) {
   int current = static_cast<int>(code_targets_.size());
   if (current > 0 && !target.is_null() &&
       code_targets_.back().address() == target.address()) {
@@ -276,8 +276,7 @@ int AssemblerBase::AddCodeTarget(Handle<CodeDataContainer> target) {
   }
 }
 
-Handle<CodeDataContainer> AssemblerBase::GetCodeTarget(
-    intptr_t code_target_index) const {
+Handle<Code> AssemblerBase::GetCodeTarget(intptr_t code_target_index) const {
   DCHECK_LT(static_cast<size_t>(code_target_index), code_targets_.size());
   return code_targets_[code_target_index];
 }

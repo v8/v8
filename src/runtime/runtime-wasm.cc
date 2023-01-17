@@ -288,8 +288,7 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateFeedbackVector) {
 
 namespace {
 void ReplaceWrapper(Isolate* isolate, Handle<WasmInstanceObject> instance,
-                    int function_index,
-                    Handle<CodeDataContainer> wrapper_code) {
+                    int function_index, Handle<Code> wrapper_code) {
   Handle<WasmInternalFunction> internal =
       WasmInstanceObject::GetWasmInternalFunction(isolate, instance,
                                                   function_index)
@@ -331,7 +330,7 @@ RUNTIME_FUNCTION(Runtime_WasmCompileWrapper) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
-  Handle<CodeDataContainer> wrapper_code =
+  Handle<Code> wrapper_code =
       wasm::JSToWasmWrapperCompilationUnit::CompileSpecificJSToWasmWrapper(
           isolate, sig, canonical_sig_index, module);
 

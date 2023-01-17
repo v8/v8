@@ -10,7 +10,7 @@ extern class PreparseData extends HeapObject {
 
 extern class InterpreterData extends Struct {
   bytecode_array: BytecodeArray;
-  interpreter_trampoline: CodeDataContainer;
+  interpreter_trampoline: Code;
 }
 
 type FunctionKind extends uint8 constexpr 'FunctionKind';

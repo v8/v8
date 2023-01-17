@@ -1024,9 +1024,9 @@ void Assembler::call(Label* L) {
   }
 }
 
-void Assembler::call(Handle<CodeDataContainer> target, RelocInfo::Mode rmode) {
+void Assembler::call(Handle<Code> target, RelocInfo::Mode rmode) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
-  DCHECK(FromCodeDataContainer(*target).IsExecutable());
+  DCHECK(FromCode(*target).IsExecutable());
   EnsureSpace ensure_space(this);
   // 1110 1000 #32-bit disp.
   emit(0xE8);
@@ -1437,8 +1437,7 @@ void Assembler::j(Condition cc, Address entry, RelocInfo::Mode rmode) {
   emitl(static_cast<int32_t>(entry));
 }
 
-void Assembler::j(Condition cc, Handle<CodeDataContainer> target,
-                  RelocInfo::Mode rmode) {
+void Assembler::j(Condition cc, Handle<Code> target, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
   DCHECK(is_uint4(cc));
   // 0000 1111 1000 tttn #32-bit disp.
@@ -1517,7 +1516,7 @@ void Assembler::jmp(Label* L, Label::Distance distance) {
   }
 }
 
-void Assembler::jmp(Handle<CodeDataContainer> target, RelocInfo::Mode rmode) {
+void Assembler::jmp(Handle<Code> target, RelocInfo::Mode rmode) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
   EnsureSpace ensure_space(this);
   // 1110 1001 #32-bit disp.

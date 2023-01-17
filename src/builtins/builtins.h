@@ -138,19 +138,17 @@ class Builtins {
   }
 
   // Convenience wrappers.
-  Handle<CodeDataContainer> CallFunction(
-      ConvertReceiverMode = ConvertReceiverMode::kAny);
-  Handle<CodeDataContainer> Call(
-      ConvertReceiverMode = ConvertReceiverMode::kAny);
-  Handle<CodeDataContainer> NonPrimitiveToPrimitive(
+  Handle<Code> CallFunction(ConvertReceiverMode = ConvertReceiverMode::kAny);
+  Handle<Code> Call(ConvertReceiverMode = ConvertReceiverMode::kAny);
+  Handle<Code> NonPrimitiveToPrimitive(
       ToPrimitiveHint hint = ToPrimitiveHint::kDefault);
-  Handle<CodeDataContainer> OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint);
+  Handle<Code> OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint);
 
   // Used by CreateOffHeapTrampolines in isolate.cc.
-  void set_code(Builtin builtin, CodeDataContainer code);
+  void set_code(Builtin builtin, Code code);
 
-  V8_EXPORT_PRIVATE CodeDataContainer code(Builtin builtin);
-  V8_EXPORT_PRIVATE Handle<CodeDataContainer> code_handle(Builtin builtin);
+  V8_EXPORT_PRIVATE Code code(Builtin builtin);
+  V8_EXPORT_PRIVATE Handle<Code> code_handle(Builtin builtin);
 
   static CallInterfaceDescriptor CallInterfaceDescriptorFor(Builtin builtin);
   V8_EXPORT_PRIVATE static Callable CallableFor(Isolate* isolate,
@@ -194,8 +192,8 @@ class Builtins {
   }
 
   // True, iff the given code object is a builtin with off-heap embedded code.
-  template <typename CodeOrCodeDataContainer>
-  static bool IsIsolateIndependentBuiltin(CodeOrCodeDataContainer code) {
+  template <typename CodeOrCode>
+  static bool IsIsolateIndependentBuiltin(CodeOrCode code) {
     Builtin builtin = code.builtin_id();
     return Builtins::IsBuiltinId(builtin) &&
            Builtins::IsIsolateIndependent(builtin);
@@ -289,10 +287,10 @@ class Builtins {
 
   enum class CallOrConstructMode { kCall, kConstruct };
   static void Generate_CallOrConstructVarargs(MacroAssembler* masm,
-                                              Handle<CodeDataContainer> code);
-  static void Generate_CallOrConstructForwardVarargs(
-      MacroAssembler* masm, CallOrConstructMode mode,
-      Handle<CodeDataContainer> code);
+                                              Handle<Code> code);
+  static void Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
+                                                     CallOrConstructMode mode,
+                                                     Handle<Code> code);
 
   enum class InterpreterEntryTrampolineMode {
     // The version of InterpreterEntryTrampoline used by default.

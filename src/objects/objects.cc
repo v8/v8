@@ -2029,9 +2029,9 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       os << ">";
       break;
     }
-    case CODE_DATA_CONTAINER_TYPE: {
-      CodeDataContainer code = CodeDataContainer::cast(*this);
-      os << "<CodeDataContainer " << CodeKindToString(code.kind());
+    case CODE_TYPE: {
+      Code code = Code::cast(*this);
+      os << "<Code " << CodeKindToString(code.kind());
       if (code.is_builtin()) {
         os << " " << Builtins::name(code.builtin_id());
       }

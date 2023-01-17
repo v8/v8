@@ -284,8 +284,8 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       break;
     case FILLER_TYPE:
       break;
-    case CODE_DATA_CONTAINER_TYPE:
-      CodeDataContainer::cast(*this).CodeDataContainerVerify(isolate);
+    case CODE_TYPE:
+      Code::cast(*this).CodeVerify(isolate);
       break;
 
 #define MAKE_TORQUE_CASE(Name, TYPE)         \
@@ -921,7 +921,7 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
   VerifyPointer(isolate, raw_feedback_cell(isolate));
   CHECK(raw_feedback_cell(isolate).IsFeedbackCell());
   VerifyPointer(isolate, code(isolate));
-  CHECK(code(isolate).IsCodeDataContainer());
+  CHECK(code(isolate).IsCode());
   CHECK(map(isolate).is_callable());
   Handle<JSFunction> function(*this, isolate);
   LookupIterator it(isolate, function, isolate->factory()->prototype_string(),
@@ -1089,8 +1089,8 @@ void PropertyCell::PropertyCellVerify(Isolate* isolate) {
   CheckDataIsCompatible(property_details(), value());
 }
 
-void CodeDataContainer::CodeDataContainerVerify(Isolate* isolate) {
-  CHECK(IsCodeDataContainer());
+void Code::CodeVerify(Isolate* isolate) {
+  CHECK(IsCode());
   if (raw_instruction_stream() != Smi::zero()) {
     InstructionStream code = this->instruction_stream();
     CHECK_EQ(code.kind(), kind());
@@ -1101,10 +1101,10 @@ void CodeDataContainer::CodeDataContainerVerify(Isolate* isolate) {
     // builtins.
     CHECK_IMPLIES(isolate->embedded_blob_code() && is_off_heap_trampoline(),
                   builtin_id() == Builtin::kInterpreterEntryTrampoline);
-    CHECK_EQ(code.code_data_container(kAcquireLoad), *this);
+    CHECK_EQ(code.code(kAcquireLoad), *this);
 
     // Ensure the cached code entry point corresponds to the InstructionStream
-    // object associated with this CodeDataContainer.
+    // object associated with this Code.
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
     if (V8_SHORT_BUILTIN_CALLS_BOOL) {
       if (code.InstructionStart() == code_entry_point()) {
@@ -1114,11 +1114,11 @@ void CodeDataContainer::CodeDataContainerVerify(Isolate* isolate) {
         // embedded code blob copy then the
         // InstructionStream::InstructionStart() might return the address of the
         // remapped builtin regardless of whether the builtins copy existed when
-        // the code_entry_point value was cached in the CodeDataContainer (see
+        // the code_entry_point value was cached in the Code (see
         // InstructionStream::OffHeapInstructionStart()).  So, do a reverse
         // InstructionStream object lookup via code_entry_point value to ensure
         // it corresponds to the same InstructionStream object associated with
-        // this CodeDataContainer.
+        // this Code.
         CodeLookupResult lookup_result =
             isolate->heap()->GcSafeFindCodeForInnerPointer(code_entry_point());
         CHECK(lookup_result.IsFound());
@@ -1150,7 +1150,7 @@ void InstructionStream::InstructionStreamVerify(Isolate* isolate) {
 #endif  // !defined(_MSC_VER) || defined(__clang__)
   CHECK_IMPLIES(!ReadOnlyHeap::Contains(*this),
                 IsAligned(raw_instruction_start(), kCodeAlignment));
-  CHECK_EQ(*this, code_data_container(kAcquireLoad).instruction_stream());
+  CHECK_EQ(*this, code(kAcquireLoad).instruction_stream());
   // TODO(delphick): Refactor Factory::CodeBuilder::BuildInternal, so that the
   // following CHECK works builtin trampolines. It currently fails because
   // InstructionStreamVerify is called halfway through constructing the
@@ -1549,9 +1549,9 @@ void JSRegExp::JSRegExpVerify(Isolate* isolate) {
       Object latin1_bytecode = arr.get(JSRegExp::kIrregexpLatin1BytecodeIndex);
       Object uc16_bytecode = arr.get(JSRegExp::kIrregexpUC16BytecodeIndex);
 
-      bool is_compiled = latin1_code.IsCodeDataContainer();
+      bool is_compiled = latin1_code.IsCode();
       if (is_compiled) {
-        CHECK_EQ(CodeDataContainer::cast(latin1_code).builtin_id(),
+        CHECK_EQ(Code::cast(latin1_code).builtin_id(),
                  Builtin::kRegExpExperimentalTrampoline);
         CHECK_EQ(uc16_code, latin1_code);
 
@@ -1584,11 +1584,11 @@ void JSRegExp::JSRegExpVerify(Isolate* isolate) {
       // interpreter.
       CHECK((one_byte_data.IsSmi() &&
              Smi::ToInt(one_byte_data) == JSRegExp::kUninitializedValue) ||
-            one_byte_data.IsCodeDataContainer());
+            one_byte_data.IsCode());
       Object uc16_data = arr.get(JSRegExp::kIrregexpUC16CodeIndex);
       CHECK((uc16_data.IsSmi() &&
              Smi::ToInt(uc16_data) == JSRegExp::kUninitializedValue) ||
-            uc16_data.IsCodeDataContainer());
+            uc16_data.IsCode());
 
       Object one_byte_bytecode =
           arr.get(JSRegExp::kIrregexpLatin1BytecodeIndex);
@@ -1859,7 +1859,7 @@ void DataHandler::DataHandlerVerify(Isolate* isolate) {
   CHECK(IsDataHandler());
   VerifyPointer(isolate, smi_handler(isolate));
   CHECK_IMPLIES(!smi_handler().IsSmi(),
-                IsStoreHandler() && smi_handler().IsCodeDataContainer());
+                IsStoreHandler() && smi_handler().IsCode());
   VerifyPointer(isolate, validity_cell(isolate));
   CHECK(validity_cell().IsSmi() || validity_cell().IsCell());
   int data_count = data_field_count();

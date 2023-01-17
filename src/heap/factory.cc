@@ -110,16 +110,16 @@ MaybeHandle<InstructionStream> Factory::CodeBuilder::BuildInternal(
                                                     AllocationType::kOld)
           : factory->NewByteArray(code_desc_.reloc_size, AllocationType::kOld);
 
-  Handle<CodeDataContainer> data_container;
+  Handle<Code> data_container;
   if (CompiledWithConcurrentBaseline()) {
-    data_container = local_isolate_->factory()->NewCodeDataContainer(
-        0, AllocationType::kOld);
+    data_container =
+        local_isolate_->factory()->NewCode(0, AllocationType::kOld);
   } else {
     AllocationType allocation_type =
         V8_EXTERNAL_CODE_SPACE_BOOL || is_executable_
             ? AllocationType::kOld
             : AllocationType::kReadOnly;
-    data_container = factory->NewCodeDataContainer(0, allocation_type);
+    data_container = factory->NewCode(0, allocation_type);
   }
 
   static constexpr bool kIsNotOffHeapTrampoline = false;
@@ -172,7 +172,7 @@ MaybeHandle<InstructionStream> Factory::CodeBuilder::BuildInternal(
     // passing IsPendingAllocation).
     raw_code.set_inlined_bytecode_size(inlined_bytecode_size_);
     raw_code.set_osr_offset(osr_offset_);
-    raw_code.set_code_data_container(*data_container, kReleaseStore);
+    raw_code.set_code(*data_container, kReleaseStore);
     if (kind_ == CodeKind::BASELINE) {
       raw_code.set_bytecode_or_interpreter_data(*interpreter_data_);
       raw_code.set_bytecode_offset_table(*position_table_);
@@ -1670,8 +1670,8 @@ Handle<WasmInternalFunction> Factory::NewWasmInternalFunction(
 Handle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
     Address opt_call_target, Handle<JSReceiver> callable, int return_count,
     int parameter_count, Handle<PodArray<wasm::ValueType>> serialized_sig,
-    Handle<CodeDataContainer> wrapper_code, Handle<Map> rtt,
-    wasm::Suspend suspend, wasm::Promise promise) {
+    Handle<Code> wrapper_code, Handle<Map> rtt, wasm::Suspend suspend,
+    wasm::Promise promise) {
   Handle<WasmApiFunctionRef> ref =
       NewWasmApiFunctionRef(callable, suspend, Handle<WasmInstanceObject>());
   Handle<WasmInternalFunction> internal =
@@ -1703,11 +1703,10 @@ Handle<WasmResumeData> Factory::NewWasmResumeData(
 }
 
 Handle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
-    Handle<CodeDataContainer> export_wrapper,
-    Handle<WasmInstanceObject> instance, Address call_target,
-    Handle<Object> ref, int func_index, const wasm::FunctionSig* sig,
-    uint32_t canonical_type_index, int wrapper_budget, Handle<Map> rtt,
-    wasm::Promise promise) {
+    Handle<Code> export_wrapper, Handle<WasmInstanceObject> instance,
+    Address call_target, Handle<Object> ref, int func_index,
+    const wasm::FunctionSig* sig, uint32_t canonical_type_index,
+    int wrapper_budget, Handle<Map> rtt, wasm::Promise promise) {
   Handle<WasmInternalFunction> internal =
       NewWasmInternalFunction(call_target, Handle<HeapObject>::cast(ref), rtt);
   Map map = *wasm_exported_function_data_map();
@@ -1723,8 +1722,7 @@ Handle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
   result.init_sig(isolate(), sig);
   result.set_canonical_type_index(canonical_type_index);
   result.set_wrapper_budget(wrapper_budget);
-  // We can't skip the write barrier because the CodeDataContainer
-  // (CodeDataContainer) objects are not immovable.
+  // We can't skip the write barrier because Code objects are not immovable.
   result.set_c_wrapper_code(*BUILTIN_CODE(isolate(), Illegal),
                             UPDATE_WRITE_BARRIER);
   result.set_packed_args_size(0);
@@ -1736,7 +1734,7 @@ Handle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
 
 Handle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
     Address call_target, Handle<Foreign> embedder_data,
-    Handle<CodeDataContainer> wrapper_code, Handle<Map> rtt,
+    Handle<Code> wrapper_code, Handle<Map> rtt,
     Handle<PodArray<wasm::ValueType>> serialized_sig) {
   Handle<WasmApiFunctionRef> ref = NewWasmApiFunctionRef(
       Handle<JSReceiver>(), wasm::kNoSuspend, Handle<WasmInstanceObject>());
@@ -2484,25 +2482,24 @@ Handle<DeoptimizationLiteralArray> Factory::NewDeoptimizationLiteralArray(
       NewWeakFixedArray(length, AllocationType::kOld));
 }
 
-Handle<CodeDataContainer> Factory::NewOffHeapTrampolineFor(
-    Handle<CodeDataContainer> code, Address off_heap_entry) {
+Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
+                                              Address off_heap_entry) {
   CHECK_NOT_NULL(isolate()->embedded_blob_code());
   CHECK_NE(0, isolate()->embedded_blob_code_size());
   CHECK(Builtins::IsIsolateIndependentBuiltin(*code));
 
   const int no_flags = 0;
-  Handle<CodeDataContainer> code_data_container =
-      NewCodeDataContainer(no_flags, AllocationType::kOld);
+  Handle<Code> off_heap_trampoline = NewCode(no_flags, AllocationType::kOld);
 
   const bool set_is_off_heap_trampoline = true;
-  code_data_container->initialize_flags(code->kind(), code->builtin_id(),
+  off_heap_trampoline->initialize_flags(code->kind(), code->builtin_id(),
                                         code->is_turbofanned(),
                                         set_is_off_heap_trampoline);
-  code_data_container->set_kind_specific_flags(
+  off_heap_trampoline->set_kind_specific_flags(
       code->kind_specific_flags(kRelaxedLoad), kRelaxedStore);
-  code_data_container->set_code_entry_point(isolate(),
+  off_heap_trampoline->set_code_entry_point(isolate(),
                                             code->code_entry_point());
-  return Handle<CodeDataContainer>::cast(code_data_container);
+  return Handle<Code>::cast(off_heap_trampoline);
 }
 
 Handle<BytecodeArray> Factory::CopyBytecodeArray(Handle<BytecodeArray> source) {
@@ -4042,7 +4039,7 @@ Handle<JSFunction> Factory::JSFunctionBuilder::Build() {
   PrepareMap();
   PrepareFeedbackCell();
 
-  Handle<CodeDataContainer> code = handle(sfi_->GetCode(), isolate_);
+  Handle<Code> code = handle(sfi_->GetCode(), isolate_);
   Handle<JSFunction> result = BuildRaw(code);
 
   if (code->kind() == CodeKind::BASELINE) {
@@ -4054,8 +4051,7 @@ Handle<JSFunction> Factory::JSFunctionBuilder::Build() {
   return result;
 }
 
-Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(
-    Handle<CodeDataContainer> code) {
+Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(Handle<Code> code) {
   Isolate* isolate = isolate_;
   Factory* factory = isolate_->factory();
 

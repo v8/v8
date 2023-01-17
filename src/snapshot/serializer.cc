@@ -130,8 +130,8 @@ void Serializer::SerializeObject(Handle<HeapObject> obj) {
   // indirection and serialize the actual string directly.
   if (obj->IsThinString(isolate())) {
     obj = handle(ThinString::cast(*obj).actual(isolate()), isolate());
-  } else if (obj->IsCodeDataContainer(isolate())) {
-    CodeDataContainer code = CodeDataContainer::cast(*obj);
+  } else if (obj->IsCode(isolate())) {
+    Code code = Code::cast(*obj);
     if (code.kind() == CodeKind::BASELINE) {
       // For now just serialize the BytecodeArray instead of baseline code.
       // TODO(v8:11429,pthier): Handle Baseline code in cases we want to
@@ -942,7 +942,7 @@ void Serializer::ObjectSerializer::VisitCodePointer(HeapObject host,
   Object contents = slot.load(code_cage_base);
   if (contents.IsSmi()) {
     // The contents of the CodeObjectSlot being a Smi means that the host
-    // CodeDataContainer corresponds to Code-less embedded builtin
+    // Code corresponds to Code-less embedded builtin
     // trampoline, the value will be serialized as a Smi.
     DCHECK_EQ(contents, Smi::zero());
     return;
@@ -1120,7 +1120,7 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
         (InstanceTypeChecker::IsJSObject(instance_type) &&
          JSObject::cast(host).GetEmbedderFieldCount() > 0) ||
         // See ObjectSerializer::OutputRawData().
-        InstanceTypeChecker::IsCodeDataContainer(instance_type));
+        InstanceTypeChecker::IsCode(instance_type));
   }
 }
 
@@ -1218,14 +1218,14 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
           sink_, object_start, base, bytes_to_output,
           DescriptorArray::kRawNumberOfMarkedDescriptorsOffset,
           sizeof(field_value), field_value);
-    } else if (object_->IsCodeDataContainer(cage_base)) {
+    } else if (object_->IsCode(cage_base)) {
       // code_entry_point field contains a raw value that will be recomputed
       // after deserialization, so write zeros to keep the snapshot
       // deterministic.
       static byte field_value[kSystemPointerSize] = {0};
       OutputRawWithCustomField(sink_, object_start, base, bytes_to_output,
-                               CodeDataContainer::kCodeEntryPointOffset,
-                               sizeof(field_value), field_value);
+                               Code::kCodeEntryPointOffset, sizeof(field_value),
+                               field_value);
     } else if (object_->IsSeqString()) {
       // SeqStrings may contain padding. Serialize the padding bytes as 0s to
       // make the snapshot content deterministic.

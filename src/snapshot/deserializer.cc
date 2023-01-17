@@ -496,18 +496,15 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
     if (deserializing_user_code()) {
       new_code_objects_.push_back(Handle<InstructionStream>::cast(obj));
     }
-  } else if (InstanceTypeChecker::IsCodeDataContainer(instance_type)) {
-    auto code_data_container = CodeDataContainer::cast(raw_obj);
-    code_data_container.init_code_entry_point(main_thread_isolate(),
-                                              kNullAddress);
-    if (code_data_container.is_off_heap_trampoline()) {
-      Address entry = OffHeapInstructionStart(code_data_container,
-                                              code_data_container.builtin_id());
-      code_data_container.SetEntryPointForOffHeapBuiltin(main_thread_isolate(),
-                                                         entry);
+  } else if (InstanceTypeChecker::IsCode(instance_type)) {
+    auto code = Code::cast(raw_obj);
+    code.init_code_entry_point(main_thread_isolate(), kNullAddress);
+    if (code.is_off_heap_trampoline()) {
+      Address entry = OffHeapInstructionStart(code, code.builtin_id());
+      code.SetEntryPointForOffHeapBuiltin(main_thread_isolate(), entry);
     } else {
-      code_data_container.UpdateCodeEntryPoint(
-          main_thread_isolate(), code_data_container.instruction_stream());
+      code.UpdateCodeEntryPoint(main_thread_isolate(),
+                                code.instruction_stream());
     }
   } else if (InstanceTypeChecker::IsMap(instance_type)) {
     if (v8_flags.log_maps) {

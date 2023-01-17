@@ -221,7 +221,7 @@ class YoungGenerationMarkingVisitorBase
                                   CodeObjectSlot slot) override {
     CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
     // InstructionStream slots never appear in new space because
-    // CodeDataContainers, the only object that can contain code pointers, are
+    // Code objects, the only object that can contain code pointers, are
     // always allocated in the old space.
     UNREACHABLE();
   }

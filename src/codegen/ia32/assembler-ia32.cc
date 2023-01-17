@@ -1640,7 +1640,7 @@ void Assembler::call(Operand adr) {
   emit_operand(edx, adr);
 }
 
-void Assembler::call(Handle<CodeDataContainer> code, RelocInfo::Mode rmode) {
+void Assembler::call(Handle<Code> code, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
   DCHECK(RelocInfo::IsCodeTarget(rmode));
   EMIT(0xE8);
@@ -1710,7 +1710,7 @@ void Assembler::jmp(Operand adr) {
   emit_operand(esp, adr);
 }
 
-void Assembler::jmp(Handle<CodeDataContainer> code, RelocInfo::Mode rmode) {
+void Assembler::jmp(Handle<Code> code, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
   DCHECK(RelocInfo::IsCodeTarget(rmode));
   EMIT(0xE9);
@@ -1770,8 +1770,7 @@ void Assembler::j(Condition cc, byte* entry, RelocInfo::Mode rmode) {
   emit(entry - (pc_ + sizeof(int32_t)), rmode);
 }
 
-void Assembler::j(Condition cc, Handle<CodeDataContainer> code,
-                  RelocInfo::Mode rmode) {
+void Assembler::j(Condition cc, Handle<Code> code, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
   // 0000 1111 1000 tttn #32-bit disp
   EMIT(0x0F);

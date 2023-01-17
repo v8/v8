@@ -25,8 +25,7 @@ SafepointTable::SafepointTable(Isolate* isolate, Address pc,
     : SafepointTable(code.InstructionStart(isolate, pc),
                      code.SafepointTableAddress()) {}
 
-SafepointTable::SafepointTable(Isolate* isolate, Address pc,
-                               CodeDataContainer code)
+SafepointTable::SafepointTable(Isolate* isolate, Address pc, Code code)
     : SafepointTable(code.InstructionStart(isolate, pc),
                      code.SafepointTableAddress()) {}
 

@@ -868,7 +868,7 @@ using JavaScriptArguments = Arguments<ArgumentsType::kJS>;
 class Assembler;
 class ClassScope;
 class InstructionStream;
-class CodeDataContainer;
+class Code;
 class CodeSpace;
 class Context;
 class DeclarationScope;

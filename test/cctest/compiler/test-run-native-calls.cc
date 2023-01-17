@@ -241,10 +241,8 @@ class Int32Signature : public MachineSignature {
   }
 };
 
-Handle<CodeDataContainer> CompileGraph(const char* name,
-                                       CallDescriptor* call_descriptor,
-                                       Graph* graph,
-                                       Schedule* schedule = nullptr) {
+Handle<Code> CompileGraph(const char* name, CallDescriptor* call_descriptor,
+                          Graph* graph, Schedule* schedule = nullptr) {
   Isolate* isolate = CcTest::InitIsolateOnce();
   OptimizedCompilationInfo info(base::ArrayVector("testing"), graph->zone(),
                                 CodeKind::FOR_TESTING);
@@ -259,11 +257,11 @@ Handle<CodeDataContainer> CompileGraph(const char* name,
     code->Disassemble(name, os, isolate);
   }
 #endif
-  return ToCodeDataContainer(code, isolate);
+  return ToCode(code, isolate);
 }
 
-Handle<CodeDataContainer> WrapWithCFunction(Handle<CodeDataContainer> inner,
-                                            CallDescriptor* call_descriptor) {
+Handle<Code> WrapWithCFunction(Handle<Code> inner,
+                               CallDescriptor* call_descriptor) {
   Zone zone(inner->GetIsolate()->allocator(), ZONE_NAME, kCompressGraphZone);
   int param_count = static_cast<int>(call_descriptor->ParameterCount());
   GraphAndBuilders caller(&zone);
@@ -427,7 +425,7 @@ class Computer {
     CHECK_LE(num_params, kMaxParamCount);
     Isolate* isolate = CcTest::InitIsolateOnce();
     HandleScope scope(isolate);
-    Handle<CodeDataContainer> inner;
+    Handle<Code> inner;
     {
       // Build the graph for the computation.
       Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
@@ -442,7 +440,7 @@ class Computer {
 
     {
       // constant mode.
-      Handle<CodeDataContainer> wrapper;
+      Handle<Code> wrapper;
       {
         // Wrap the above code with a callable function that passes constants.
         Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
@@ -476,7 +474,7 @@ class Computer {
 
     {
       // buffer mode.
-      Handle<CodeDataContainer> wrapper;
+      Handle<Code> wrapper;
       {
         // Wrap the above code with a callable function that loads from {input}.
         Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
@@ -536,9 +534,8 @@ static void TestInt32Sub(CallDescriptor* desc) {
     b.graph()->SetEnd(ret);
   }
 
-  Handle<CodeDataContainer> inner_code =
-      CompileGraph("Int32Sub", desc, inner.graph());
-  Handle<CodeDataContainer> wrapper = WrapWithCFunction(inner_code, desc);
+  Handle<Code> inner_code = CompileGraph("Int32Sub", desc, inner.graph());
+  Handle<Code> wrapper = WrapWithCFunction(inner_code, desc);
   MachineSignature* msig = desc->GetMachineSignature(&zone);
   CodeRunner<int32_t> runnable(isolate, wrapper,
                                CSignature::FromMachine(&zone, msig));
@@ -560,7 +557,7 @@ static void CopyTwentyInt32(CallDescriptor* desc) {
   int32_t output[kNumParams];
   Isolate* isolate = CcTest::InitIsolateOnce();
   HandleScope scope(isolate);
-  Handle<CodeDataContainer> inner;
+  Handle<Code> inner;
   {
     // Writes all parameters into the output buffer.
     Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
@@ -577,7 +574,7 @@ static void CopyTwentyInt32(CallDescriptor* desc) {
   }
 
   CSignatureOf<int32_t> csig;
-  Handle<CodeDataContainer> wrapper;
+  Handle<Code> wrapper;
   {
     // Loads parameters from the input buffer and calls the above code.
     Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
@@ -943,7 +940,7 @@ TEST(Float64Select_stack_params_return_reg) {
 template <typename CType, int which>
 static void Build_Select_With_Call(CallDescriptor* desc,
                                    RawMachineAssembler* raw) {
-  Handle<CodeDataContainer> inner;
+  Handle<Code> inner;
   int num_params = ParamCount(desc);
   CHECK_LE(num_params, kMaxParamCount);
   {
@@ -955,7 +952,7 @@ static void Build_Select_With_Call(CallDescriptor* desc,
     r.Return(r.Parameter(which));
     inner = CompileGraph("Select-indirection", desc, &graph, r.ExportForTest());
     CHECK(!inner.is_null());
-    CHECK(inner->IsCodeDataContainer());
+    CHECK(inner->IsCode());
   }
 
   {
@@ -1042,7 +1039,7 @@ void MixedParamTest(int start) {
     MachineSignature* sig = builder.Build();
     CallDescriptor* desc = config.Create(&zone, sig);
 
-    Handle<CodeDataContainer> select;
+    Handle<Code> select;
     {
       // build the select.
       Zone select_zone(&allocator, ZONE_NAME, kCompressGraphZone);
@@ -1054,7 +1051,7 @@ void MixedParamTest(int start) {
 
     {
       // call the select.
-      Handle<CodeDataContainer> wrapper;
+      Handle<Code> wrapper;
       int32_t expected_ret;
       char bytes[kDoubleSize];
       alignas(8) char output[kDoubleSize];
@@ -1161,7 +1158,7 @@ void TestStackSlot(MachineType slot_type, T expected) {
 
   // Create inner function g. g has lots of parameters so that they are passed
   // over the stack.
-  Handle<CodeDataContainer> inner;
+  Handle<Code> inner;
   Graph graph(&zone);
   RawMachineAssembler g(isolate, &graph, desc);
 

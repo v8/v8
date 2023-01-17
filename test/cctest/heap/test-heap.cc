@@ -4188,8 +4188,7 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
     CHECK_EQ(dependency.length(), DependentCode::kSlotsPerEntry);
     MaybeObject code = dependency.Get(0 + DependentCode::kCodeSlotOffset);
     CHECK(code->IsWeak());
-    CHECK_EQ(bar_handle->code(),
-             CodeDataContainer::cast(code->GetHeapObjectAssumeWeak()));
+    CHECK_EQ(bar_handle->code(), Code::cast(code->GetHeapObjectAssumeWeak()));
     Smi groups = dependency.Get(0 + DependentCode::kGroupsSlotOffset).ToSmi();
     CHECK_EQ(static_cast<DependentCode::DependencyGroups>(groups.value()),
              DependentCode::kAllocationSiteTransitionChangedGroup |
@@ -4342,7 +4341,7 @@ TEST(CellsInOptimizedCodeAreWeak) {
         *v8::Local<v8::Function>::Cast(CcTest::global()
                                            ->Get(context.local(), v8_str("bar"))
                                            .ToLocalChecked())));
-    code = handle(FromCodeDataContainer(bar->code()), isolate);
+    code = handle(FromCode(bar->code()), isolate);
     code = scope.CloseAndEscape(code);
   }
 
@@ -4389,7 +4388,7 @@ TEST(ObjectsInOptimizedCodeAreWeak) {
         *v8::Local<v8::Function>::Cast(CcTest::global()
                                            ->Get(context.local(), v8_str("bar"))
                                            .ToLocalChecked())));
-    code = handle(FromCodeDataContainer(bar->code()), isolate);
+    code = handle(FromCode(bar->code()), isolate);
     code = scope.CloseAndEscape(code);
   }
 
@@ -4455,7 +4454,7 @@ TEST(NewSpaceObjectsInOptimizedCode) {
     HeapVerifier::VerifyHeap(CcTest::heap());
 #endif
     CHECK(!bar->code().marked_for_deoptimization());
-    code = handle(FromCodeDataContainer(bar->code()), isolate);
+    code = handle(FromCode(bar->code()), isolate);
     code = scope.CloseAndEscape(code);
   }
 
@@ -4502,7 +4501,7 @@ TEST(ObjectsInEagerlyDeoptimizedCodeAreWeak) {
         *v8::Local<v8::Function>::Cast(CcTest::global()
                                            ->Get(context.local(), v8_str("bar"))
                                            .ToLocalChecked())));
-    code = handle(FromCodeDataContainer(bar->code()), isolate);
+    code = handle(FromCode(bar->code()), isolate);
     code = scope.CloseAndEscape(code);
   }
 

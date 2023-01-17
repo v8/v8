@@ -13,7 +13,7 @@ namespace v8 {
 namespace internal {
 
 class InstructionStream;
-class CodeDataContainer;
+class Code;
 class CodeDesc;
 
 namespace wasm {
@@ -29,9 +29,7 @@ class CodeReference {
       : kind_(Kind::CODE_DESC), code_desc_(code_desc) {}
   explicit CodeReference(Handle<InstructionStream> code)
       : kind_(Kind::INSTRUCTION_STREAM), instruction_stream_(code) {}
-  explicit CodeReference(Handle<CodeDataContainer> code_data_container)
-      : kind_(Kind::CODE_DATA_CONTAINER),
-        code_data_container_(code_data_container) {}
+  explicit CodeReference(Handle<Code> code) : kind_(Kind::CODE), code_(code) {}
 
   Address constant_pool() const;
   Address instruction_start() const;
@@ -47,9 +45,7 @@ class CodeReference {
   bool is_instruction_stream() const {
     return kind_ == Kind::INSTRUCTION_STREAM;
   }
-  bool is_code_data_container() const {
-    return kind_ == Kind::CODE_DATA_CONTAINER;
-  }
+  bool is_code() const { return kind_ == Kind::CODE; }
   bool is_wasm_code() const { return kind_ == Kind::WASM_CODE; }
 
   Handle<InstructionStream> as_instruction_stream() const {
@@ -57,9 +53,9 @@ class CodeReference {
     return instruction_stream_;
   }
 
-  Handle<CodeDataContainer> as_code_data_container() const {
-    DCHECK_EQ(Kind::CODE_DATA_CONTAINER, kind_);
-    return code_data_container_;
+  Handle<Code> as_code() const {
+    DCHECK_EQ(Kind::CODE, kind_);
+    return code_;
   }
 
   const wasm::WasmCode* as_wasm_code() const {
@@ -71,7 +67,7 @@ class CodeReference {
   enum class Kind {
     NONE,
     INSTRUCTION_STREAM,
-    CODE_DATA_CONTAINER,
+    CODE,
     WASM_CODE,
     CODE_DESC
   } kind_;
@@ -80,7 +76,7 @@ class CodeReference {
     const wasm::WasmCode* wasm_code_;
     const CodeDesc* code_desc_;
     Handle<InstructionStream> instruction_stream_;
-    Handle<CodeDataContainer> code_data_container_;
+    Handle<Code> code_;
   };
 
   DISALLOW_NEW_AND_DELETE()

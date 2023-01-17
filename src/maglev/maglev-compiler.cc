@@ -427,7 +427,7 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
 }
 
 // static
-MaybeHandle<CodeDataContainer> MaglevCompiler::GenerateCode(
+MaybeHandle<Code> MaglevCompiler::GenerateCode(
     Isolate* isolate, MaglevCompilationInfo* compilation_info) {
   MaglevCodeGenerator* const code_generator =
       compilation_info->code_generator();
@@ -453,7 +453,7 @@ MaybeHandle<CodeDataContainer> MaglevCompiler::GenerateCode(
     code->Print();
   }
 
-  return ToCodeDataContainer(code, isolate);
+  return ToCode(code, isolate);
 }
 
 }  // namespace maglev

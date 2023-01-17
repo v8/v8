@@ -746,7 +746,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void call(Address entry, RelocInfo::Mode rmode);
   void call(Register reg) { call(Operand(reg)); }
   void call(Operand adr);
-  void call(Handle<CodeDataContainer> code, RelocInfo::Mode rmode);
+  void call(Handle<Code> code, RelocInfo::Mode rmode);
   void wasm_call(Address address, RelocInfo::Mode rmode);
 
   // Jumps
@@ -755,7 +755,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void jmp(Address entry, RelocInfo::Mode rmode);
   void jmp(Register reg) { jmp(Operand(reg)); }
   void jmp(Operand adr);
-  void jmp(Handle<CodeDataContainer> code, RelocInfo::Mode rmode);
+  void jmp(Handle<Code> code, RelocInfo::Mode rmode);
   // Unconditional jump relative to the current address. Low-level routine,
   // use with caution!
   void jmp_rel(int offset);
@@ -763,7 +763,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Conditional jumps
   void j(Condition cc, Label* L, Label::Distance distance = Label::kFar);
   void j(Condition cc, byte* entry, RelocInfo::Mode rmode);
-  void j(Condition cc, Handle<CodeDataContainer> code,
+  void j(Condition cc, Handle<Code> code,
          RelocInfo::Mode rmode = RelocInfo::CODE_TARGET);
 
   // Floating-point operations
@@ -1688,7 +1688,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   inline void emit(uint32_t x);
   inline void emit(Handle<HeapObject> handle);
   inline void emit(uint32_t x, RelocInfo::Mode rmode);
-  inline void emit(Handle<CodeDataContainer> code, RelocInfo::Mode rmode);
+  inline void emit(Handle<Code> code, RelocInfo::Mode rmode);
   inline void emit(const Immediate& x);
   inline void emit_b(Immediate x);
   inline void emit_w(const Immediate& x);

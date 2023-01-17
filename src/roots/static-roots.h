@@ -65,7 +65,7 @@ struct kStaticReadOnlyRoot {
   static constexpr Tagged_t bigint_map = 0x2d5d;
   static constexpr Tagged_t object_boilerplate_description_map = 0x3bed;
   static constexpr Tagged_t bytecode_array_map = 0x320d;
-  static constexpr Tagged_t code_data_container_map = 0x3d7d;
+  static constexpr Tagged_t code_map = 0x3d7d;
   static constexpr Tagged_t coverage_info_map = 0x3c15;
   static constexpr Tagged_t fixed_double_array_map = 0x3195;
   static constexpr Tagged_t global_dictionary_map = 0x3a85;
@@ -811,7 +811,7 @@ static constexpr std::array<Tagged_t, 737> StaticReadOnlyRootsPointerTable = {
     kStaticReadOnlyRoot::bigint_map,
     kStaticReadOnlyRoot::object_boilerplate_description_map,
     kStaticReadOnlyRoot::bytecode_array_map,
-    kStaticReadOnlyRoot::code_data_container_map,
+    kStaticReadOnlyRoot::code_map,
     kStaticReadOnlyRoot::coverage_info_map,
     kStaticReadOnlyRoot::fixed_double_array_map,
     kStaticReadOnlyRoot::global_dictionary_map,

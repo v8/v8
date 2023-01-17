@@ -943,8 +943,8 @@ class InstructionStream::BodyDescriptor final : public BodyDescriptorBase {
                 kDeoptimizationDataOrInterpreterDataOffset);
   static_assert(kDeoptimizationDataOrInterpreterDataOffset + kTaggedSize ==
                 kPositionTableOffset);
-  static_assert(kPositionTableOffset + kTaggedSize == kCodeDataContainerOffset);
-  static_assert(kCodeDataContainerOffset + kTaggedSize == kDataStart);
+  static_assert(kPositionTableOffset + kTaggedSize == kCodeOffset);
+  static_assert(kCodeOffset + kTaggedSize == kDataStart);
 
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {
     // Slots in code can't be invalid because we never trim code objects.
@@ -1048,27 +1048,24 @@ class NativeContext::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
-class CodeDataContainer::BodyDescriptor final : public BodyDescriptorBase {
+class Code::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {
     return offset >= HeapObject::kHeaderSize &&
-           offset <= CodeDataContainer::kPointerFieldsStrongEndOffset;
+           offset <= Code::kPointerFieldsStrongEndOffset;
   }
 
   template <typename ObjectVisitor>
   static inline void IterateBody(Map map, HeapObject obj, int object_size,
                                  ObjectVisitor* v) {
     // No strong pointers to iterate.
-    static_assert(
-        static_cast<int>(HeapObject::kHeaderSize) ==
-        static_cast<int>(CodeDataContainer::kPointerFieldsStrongEndOffset));
+    static_assert(static_cast<int>(HeapObject::kHeaderSize) ==
+                  static_cast<int>(Code::kPointerFieldsStrongEndOffset));
 
     v->VisitCodePointer(obj, obj.RawCodeField(kInstructionStreamOffset));
   }
 
-  static inline int SizeOf(Map map, HeapObject object) {
-    return CodeDataContainer::kSize;
-  }
+  static inline int SizeOf(Map map, HeapObject object) { return Code::kSize; }
 };
 
 class EmbedderDataArray::BodyDescriptor final : public BodyDescriptorBase {
@@ -1352,8 +1349,8 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
       return CALL_APPLY(SmallOrderedHashTable<SmallOrderedNameDictionary>);
     case SWISS_NAME_DICTIONARY_TYPE:
       return CALL_APPLY(SwissNameDictionary);
-    case CODE_DATA_CONTAINER_TYPE:
-      return CALL_APPLY(CodeDataContainer);
+    case CODE_TYPE:
+      return CALL_APPLY(Code);
     case PREPARSE_DATA_TYPE:
       return CALL_APPLY(PreparseData);
     case HEAP_NUMBER_TYPE:

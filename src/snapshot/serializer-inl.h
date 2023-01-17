@@ -21,7 +21,7 @@ bool Serializer::IsNotMappedSymbol(HeapObject obj) const {
     // InstructionStream references anywhere except the CodeDadaContainer
     // objects. In particular, the InstructionStream objects should not appear
     // in serializer's identity map. This should be possible once the
-    // IsolateData::builtins table is migrated to contain CodeDataContainer
+    // IsolateData::builtins table is migrated to contain Code
     // references.
     return obj.ptr() == not_mapped_symbol.ptr();
   }

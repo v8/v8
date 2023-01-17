@@ -44,7 +44,7 @@ TEST(TestConstexpr1) {
     m.TestConstexpr1();
     m.Return(m.UndefinedConstant());
   }
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), kNumParams);
   ft.Call();
 }
 
@@ -57,7 +57,7 @@ TEST(TestConstexprIf) {
     m.TestConstexprIf();
     m.Return(m.UndefinedConstant());
   }
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), kNumParams);
   ft.Call();
 }
 
@@ -70,7 +70,7 @@ TEST(TestConstexprReturn) {
     m.TestConstexprReturn();
     m.Return(m.UndefinedConstant());
   }
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), kNumParams);
   ft.Call();
 }
 
@@ -80,7 +80,7 @@ TEST(TestGotoLabel) {
   CodeAssemblerTester asm_tester(isolate, JSParameterCount(kNumParams));
   TestTorqueAssembler m(asm_tester.state());
   { m.Return(m.TestGotoLabel()); }
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), kNumParams);
   ft.CheckCall(ft.true_value());
 }
 
@@ -90,7 +90,7 @@ TEST(TestGotoLabelWithOneParameter) {
   CodeAssemblerTester asm_tester(isolate, JSParameterCount(kNumParams));
   TestTorqueAssembler m(asm_tester.state());
   { m.Return(m.TestGotoLabelWithOneParameter()); }
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), kNumParams);
   ft.CheckCall(ft.true_value());
 }
 
@@ -100,7 +100,7 @@ TEST(TestGotoLabelWithTwoParameters) {
   CodeAssemblerTester asm_tester(isolate, JSParameterCount(kNumParams));
   TestTorqueAssembler m(asm_tester.state());
   { m.Return(m.TestGotoLabelWithTwoParameters()); }
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), kNumParams);
   ft.CheckCall(ft.true_value());
 }
 
@@ -110,7 +110,7 @@ TEST(TestPartiallyUnusedLabel) {
   CodeAssemblerTester asm_tester(isolate, JSParameterCount(kNumParams));
   TestTorqueAssembler m(asm_tester.state());
   { m.Return(m.TestPartiallyUnusedLabel()); }
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), kNumParams);
   ft.CheckCall(ft.true_value());
 }
 
@@ -123,7 +123,7 @@ TEST(TestBuiltinSpecialization) {
     m.TestBuiltinSpecialization();
     m.Return(m.UndefinedConstant());
   }
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), kNumParams);
   ft.Call();
 }
 
@@ -136,7 +136,7 @@ TEST(TestMacroSpecialization) {
     m.TestMacroSpecialization();
     m.Return(m.UndefinedConstant());
   }
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), kNumParams);
   ft.Call();
 }
 
@@ -149,7 +149,7 @@ TEST(TestFunctionPointers) {
     auto context = m.GetJSContextParameter();
     m.Return(m.TestFunctionPointers(context));
   }
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), kNumParams);
   ft.CheckCall(ft.true_value());
 }
 
@@ -162,7 +162,7 @@ TEST(TestTernaryOperator) {
     TNode<Smi> arg = m.Parameter<Smi>(1);
     m.Return(m.TestTernaryOperator(arg));
   }
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), kNumParams);
   Handle<Object> result1 =
       ft.Call(Handle<Smi>(Smi::FromInt(-5), isolate)).ToHandleChecked();
   CHECK_EQ(-15, Handle<Smi>::cast(result1)->value());
@@ -180,7 +180,7 @@ TEST(TestFunctionPointerToGeneric) {
     m.TestFunctionPointerToGeneric();
     m.Return(m.UndefinedConstant());
   }
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), kNumParams);
   ft.Call();
 }
 
@@ -195,7 +195,7 @@ TEST(TestUnsafeCast) {
     m.Return(m.TestUnsafeCast(m.UncheckedCast<Context>(temp),
                               m.UncheckedCast<Number>(n)));
   }
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), kNumParams);
   ft.CheckCall(ft.true_value());
 }
 
@@ -208,7 +208,7 @@ TEST(TestHexLiteral) {
     m.TestHexLiteral();
     m.Return(m.UndefinedConstant());
   }
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), kNumParams);
   ft.Call();
 }
 
@@ -221,7 +221,7 @@ TEST(TestModuleConstBindings) {
     m.TestModuleConstBindings();
     m.Return(m.UndefinedConstant());
   }
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), kNumParams);
   ft.Call();
 }
 
@@ -234,7 +234,7 @@ TEST(TestLocalConstBindings) {
     m.TestLocalConstBindings();
     m.Return(m.UndefinedConstant());
   }
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), kNumParams);
   ft.Call();
 }
 
@@ -247,7 +247,7 @@ TEST(TestForLoop) {
     m.TestForLoop();
     m.Return(m.UndefinedConstant());
   }
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), kNumParams);
   ft.Call();
 }
 
@@ -264,7 +264,7 @@ TEST(TestTypeswitch) {
     m.TestTypeswitch(m.UncheckedCast<Context>(m.HeapConstant(context)));
     m.Return(m.UndefinedConstant());
   }
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), kNumParams);
   ft.Call();
 }
 
@@ -281,7 +281,7 @@ TEST(TestGenericOverload) {
     m.TestGenericOverload(m.UncheckedCast<Context>(m.HeapConstant(context)));
     m.Return(m.UndefinedConstant());
   }
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), kNumParams);
   ft.Call();
 }
 
@@ -298,7 +298,7 @@ TEST(TestEquality) {
     m.TestEquality(m.UncheckedCast<Context>(m.HeapConstant(context)));
     m.Return(m.UndefinedConstant());
   }
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), kNumParams);
   ft.Call();
 }
 
@@ -311,7 +311,7 @@ TEST(TestLogicalOperators) {
     m.TestLogicalOperators();
     m.Return(m.UndefinedConstant());
   }
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), kNumParams);
   ft.Call();
 }
 
@@ -327,7 +327,7 @@ TEST(TestOtherwiseAndLabels) {
     m.TestForwardLabel();
     m.Return(m.UndefinedConstant());
   }
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), kNumParams);
   ft.Call();
 }
 
@@ -347,7 +347,7 @@ TEST(TestCatch1) {
     CSA_DCHECK(&m, m.TaggedEqual(result, m.SmiConstant(1)));
     m.Return(m.UndefinedConstant());
   }
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), kNumParams);
   ft.Call();
 }
 
@@ -367,7 +367,7 @@ TEST(TestCatch2) {
     CSA_DCHECK(&m, m.TaggedEqual(result, m.SmiConstant(2)));
     m.Return(m.UndefinedConstant());
   }
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), kNumParams);
   ft.Call();
 }
 
@@ -387,7 +387,7 @@ TEST(TestCatch3) {
     CSA_DCHECK(&m, m.TaggedEqual(result, m.SmiConstant(2)));
     m.Return(m.UndefinedConstant());
   }
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), kNumParams);
   ft.Call();
 }
 
@@ -404,7 +404,7 @@ TEST(TestLookup) {
     m.TestQualifiedAccess(m.UncheckedCast<Context>(m.HeapConstant(context)));
     m.Return(m.UndefinedConstant());
   }
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), kNumParams);
   ft.Call();
 }
 
@@ -420,7 +420,7 @@ TEST(TestFrame1) {
     m.TestFrame1(m.UncheckedCast<Context>(m.HeapConstant(context)));
     m.Return(m.UndefinedConstant());
   }
-  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), 0);
   ft.Call();
 }
 
@@ -436,7 +436,7 @@ TEST(TestNew) {
     m.TestNew(m.UncheckedCast<Context>(m.HeapConstant(context)));
     m.Return(m.UndefinedConstant());
   }
-  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), 0);
   ft.Call();
 }
 
@@ -452,7 +452,7 @@ TEST(TestStructConstructor) {
     m.TestStructConstructor(m.UncheckedCast<Context>(m.HeapConstant(context)));
     m.Return(m.UndefinedConstant());
   }
-  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), 0);
   ft.Call();
 }
 
@@ -468,7 +468,7 @@ TEST(TestInternalClass) {
     m.TestInternalClass(m.UncheckedCast<Context>(m.HeapConstant(context)));
     m.Return(m.UndefinedConstant());
   }
-  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), 0);
   ft.Call();
 }
 
@@ -485,7 +485,7 @@ TEST(TestNewFixedArrayFromSpread) {
         m.UncheckedCast<Context>(m.HeapConstant(context)));
     m.Return(m.UndefinedConstant());
   }
-  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), 0);
   ft.Call();
 }
 
@@ -499,7 +499,7 @@ TEST(TestReferences) {
     m.TestReferences();
     m.Return(m.UndefinedConstant());
   }
-  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), 0);
   ft.Call();
 }
 
@@ -513,7 +513,7 @@ TEST(TestSlices) {
     m.TestSlices();
     m.Return(m.UndefinedConstant());
   }
-  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), 0);
   ft.Call();
 }
 
@@ -529,7 +529,7 @@ TEST(TestSliceEnumeration) {
     m.TestSliceEnumeration(m.UncheckedCast<Context>(m.HeapConstant(context)));
     m.Return(m.UndefinedConstant());
   }
-  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), 0);
   ft.Call();
 }
 
@@ -543,7 +543,7 @@ TEST(TestStaticAssert) {
     m.TestStaticAssert();
     m.Return(m.UndefinedConstant());
   }
-  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), 0);
   ft.Call();
 }
 
@@ -560,7 +560,7 @@ TEST(TestLoadEliminationFixed) {
         m.UncheckedCast<Context>(m.HeapConstant(context)));
     m.Return(m.UndefinedConstant());
   }
-  asm_tester.GenerateCode();
+  asm_tester.GenerateInstructionStream();
 }
 
 TEST(TestLoadEliminationVariable) {
@@ -576,7 +576,7 @@ TEST(TestLoadEliminationVariable) {
         m.UncheckedCast<Context>(m.HeapConstant(context)));
     m.Return(m.UndefinedConstant());
   }
-  asm_tester.GenerateCode();
+  asm_tester.GenerateInstructionStream();
 }
 
 TEST(TestRedundantArrayElementCheck) {
@@ -591,7 +591,7 @@ TEST(TestRedundantArrayElementCheck) {
     m.Return(m.TestRedundantArrayElementCheck(
         m.UncheckedCast<Context>(m.HeapConstant(context))));
   }
-  asm_tester.GenerateCode();
+  asm_tester.GenerateInstructionStream();
 }
 
 TEST(TestRedundantSmiCheck) {
@@ -606,7 +606,7 @@ TEST(TestRedundantSmiCheck) {
     m.Return(m.TestRedundantSmiCheck(
         m.UncheckedCast<Context>(m.HeapConstant(context))));
   }
-  asm_tester.GenerateCode();
+  asm_tester.GenerateInstructionStream();
 }
 
 TEST(TestGenericStruct1) {
@@ -619,7 +619,7 @@ TEST(TestGenericStruct1) {
     m.TestGenericStruct1();
     m.Return(m.UndefinedConstant());
   }
-  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), 0);
   ft.Call();
 }
 
@@ -630,7 +630,7 @@ TEST(TestGenericStruct2) {
   CodeAssemblerTester asm_tester(isolate);
   TestTorqueAssembler m(asm_tester.state());
   { m.Return(m.TestGenericStruct2().snd.fst); }
-  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), 0);
   ft.Call();
 }
 
@@ -649,7 +649,7 @@ TEST(TestBranchOnBoolOptimization) {
         m.UncheckedParameter<Smi>(0));
     m.Return(m.UndefinedConstant());
   }
-  asm_tester.GenerateCode();
+  asm_tester.GenerateInstructionStream();
 }
 
 TEST(TestBitFieldLoad) {
@@ -677,7 +677,7 @@ TEST(TestBitFieldLoad) {
     m.TestBitFieldLoad(val, expected_a, expected_b, expected_c, expected_d);
     m.Return(m.UndefinedConstant());
   }
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), kNumParams);
 
   // Test every possible bit combination for this 8-bit value.
   for (int a = 0; a <= 1; ++a) {
@@ -707,7 +707,7 @@ TEST(TestBitFieldStore) {
     m.TestBitFieldStore(val);
     m.Return(m.UndefinedConstant());
   }
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), kNumParams);
 
   // Test every possible bit combination for this 8-bit value.
   for (int i = 0; i < 256; ++i) {
@@ -738,7 +738,7 @@ TEST(TestBitFieldInit) {
     m.TestBitFieldInit(a, b, c, d);
     m.Return(m.UndefinedConstant());
   }
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), kNumParams);
 
   // Test every possible bit combination for this 8-bit value.
   for (int a = 0; a <= 1; ++a) {
@@ -769,7 +769,7 @@ TEST(TestBitFieldUintptrOps) {
     m.TestBitFieldUintptrOps(val2, val3);
     m.Return(m.UndefinedConstant());
   }
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), kNumParams);
 
   // Construct the expected test values.
   int val2 = 3 | (61 << 5);
@@ -794,7 +794,7 @@ TEST(TestBitFieldMultipleFlags) {
     m.TestBitFieldMultipleFlags(a, b, c);
     m.Return(m.UndefinedConstant());
   }
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), kNumParams);
   // No need to call it; we just checked StaticAsserts during compilation.
 }
 
@@ -812,7 +812,7 @@ TEST(TestTestParentFrameArguments) {
         m.UncheckedCast<Context>(m.HeapConstant(context)));
     m.Return(m.UndefinedConstant());
   }
-  asm_tester.GenerateCode();
+  asm_tester.GenerateInstructionStream();
 }
 
 TEST(TestFullyGeneratedClassFromCpp) {
@@ -823,7 +823,7 @@ TEST(TestFullyGeneratedClassFromCpp) {
   CodeAssemblerTester asm_tester(isolate, JSParameterCount(kNumParams));
   TestTorqueAssembler m(asm_tester.state());
   { m.Return(m.TestFullyGeneratedClassFromCpp()); }
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), kNumParams);
   Handle<ExportedSubClass> result =
       Handle<ExportedSubClass>::cast(ft.Call().ToHandleChecked());
   CHECK_EQ(result->c_field(), 7);
@@ -842,7 +842,7 @@ TEST(TestFullyGeneratedClassWithElements) {
     m.TestFullyGeneratedClassWithElements();
     m.Return(m.UndefinedConstant());
   }
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), kNumParams);
   ft.Call();
 }
 
@@ -860,7 +860,7 @@ TEST(TestGeneratedCastOperators) {
         m.UncheckedCast<Context>(m.HeapConstant(context)));
     m.Return(m.UndefinedConstant());
   }
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), kNumParams);
   ft.Call();
 }
 
@@ -877,7 +877,7 @@ TEST(TestNewPretenured) {
     m.TestNewPretenured(m.UncheckedCast<Context>(m.HeapConstant(context)));
     m.Return(m.UndefinedConstant());
   }
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), kNumParams);
   ft.Call();
 }
 
@@ -892,7 +892,7 @@ TEST(TestWord8Phi) {
     m.TestWord8Phi();
     m.Return(m.UndefinedConstant());
   }
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), kNumParams);
   ft.Call();
 }
 
@@ -909,7 +909,7 @@ TEST(TestOffHeapSlice) {
                        m.IntPtrConstant(data.size()));
     m.Return(m.UndefinedConstant());
   }
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), kNumParams);
   ft.Call();
 }
 
@@ -927,7 +927,7 @@ TEST(TestCallMultiReturnBuiltin) {
         m.UncheckedCast<Context>(m.HeapConstant(context)));
     m.Return(m.UndefinedConstant());
   }
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), kNumParams);
   ft.Call();
 }
 
@@ -946,7 +946,7 @@ TEST(TestRunLazyTwice) {
     m.Return(m.TestRunLazyTwice(lazy));
   }
   CHECK_EQ(lazyNumber, 5);
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), kNumParams);
   Handle<Object> result = ft.Call().ToHandleChecked();
   CHECK_EQ(7, Handle<Smi>::cast(result)->value());
 }
@@ -962,7 +962,7 @@ TEST(TestCreateLazyNodeFromTorque) {
     m.TestCreateLazyNodeFromTorque();
     m.Return(m.UndefinedConstant());
   }
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), kNumParams);
   ft.Call();
 }
 

@@ -441,42 +441,37 @@ size_t Isolate::HashIsolateForEmbeddedBlob() {
   // Hash data sections of builtin code objects.
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
-    CodeDataContainer code_data_container = builtins()->code(builtin);
+    Code code = builtins()->code(builtin);
 
-    DCHECK(Internals::HasHeapObjectTag(code_data_container.ptr()));
-    uint8_t* const code_ptr =
-        reinterpret_cast<uint8_t*>(code_data_container.address());
+    DCHECK(Internals::HasHeapObjectTag(code.ptr()));
+    uint8_t* const code_ptr = reinterpret_cast<uint8_t*>(code.address());
 
     // These static asserts ensure we don't miss relevant fields. We don't
     // hash code cage base and code entry point. Other data fields must
     // remain the same.
-    static_assert(CodeDataContainer::kCodePointerFieldsStrongEndOffset ==
-                  CodeDataContainer::kCodeEntryPointOffset);
+    static_assert(Code::kCodePointerFieldsStrongEndOffset ==
+                  Code::kCodeEntryPointOffset);
 
-    static_assert(CodeDataContainer::kCodeEntryPointOffsetEnd + 1 ==
-                  CodeDataContainer::kFlagsOffset);
-    static_assert(CodeDataContainer::kFlagsOffsetEnd + 1 ==
-                  CodeDataContainer::kBuiltinIdOffset);
-    static_assert(CodeDataContainer::kBuiltinIdOffsetEnd + 1 ==
-                  CodeDataContainer::kKindSpecificFlagsOffset);
-    static_assert(CodeDataContainer::kKindSpecificFlagsOffsetEnd + 1 ==
-                  CodeDataContainer::kUnalignedSize);
-    constexpr int kStartOffset = CodeDataContainer::kFlagsOffset;
+    static_assert(Code::kCodeEntryPointOffsetEnd + 1 == Code::kFlagsOffset);
+    static_assert(Code::kFlagsOffsetEnd + 1 == Code::kBuiltinIdOffset);
+    static_assert(Code::kBuiltinIdOffsetEnd + 1 ==
+                  Code::kKindSpecificFlagsOffset);
+    static_assert(Code::kKindSpecificFlagsOffsetEnd + 1 ==
+                  Code::kUnalignedSize);
+    constexpr int kStartOffset = Code::kFlagsOffset;
 
     // |is_off_heap_trampoline| is false during builtins compilation (since
     // the builtins are not trampolines yet) but it's true for off-heap
     // builtin trampolines. The rest of the data fields should be the same.
     // So we temporarily set |is_off_heap_trampoline| to true during hash
     // computation.
-    bool is_off_heap_trampoline_sav =
-        code_data_container.is_off_heap_trampoline();
-    code_data_container.set_is_off_heap_trampoline_for_hash(true);
+    bool is_off_heap_trampoline_sav = code.is_off_heap_trampoline();
+    code.set_is_off_heap_trampoline_for_hash(true);
 
-    for (int j = kStartOffset; j < CodeDataContainer::kUnalignedSize; j++) {
+    for (int j = kStartOffset; j < Code::kUnalignedSize; j++) {
       hash = base::hash_combine(hash, size_t{code_ptr[j]});
     }
-    code_data_container.set_is_off_heap_trampoline_for_hash(
-        is_off_heap_trampoline_sav);
+    code.set_is_off_heap_trampoline_for_hash(is_off_heap_trampoline_sav);
   }
 
   // The builtins constants table is also tightly tied to embedded builtins.
@@ -775,7 +770,7 @@ class CallSiteBuilder {
 
     Handle<Object> receiver(combinator->native_context().promise_function(),
                             isolate_);
-    Handle<CodeDataContainer> code(combinator->code(), isolate_);
+    Handle<Code> code(combinator->code(), isolate_);
 
     // TODO(mmarchini) save Promises list from the Promise combinator
     Handle<FixedArray> parameters = isolate_->factory()->empty_fixed_array();
@@ -2001,8 +1996,7 @@ Object Isolate::UnwindAndFindHandler() {
       CHECK(frame->is_java_script());
 
       if (frame->is_turbofan()) {
-        InstructionStream code =
-            frame->LookupCodeDataContainer().instruction_stream();
+        InstructionStream code = frame->LookupCode().instruction_stream();
         // The debugger triggers lazy deopt for the "to-be-restarted" frame
         // immediately when the CDP event arrives while paused.
         CHECK(code.marked_for_deoptimization());
@@ -2025,7 +2019,7 @@ Object Isolate::UnwindAndFindHandler() {
       DCHECK(!frame->is_maglev());
 
       debug()->clear_restart_frame();
-      CodeDataContainer code = *BUILTIN_CODE(this, RestartFrameTrampoline);
+      Code code = *BUILTIN_CODE(this, RestartFrameTrampoline);
       return FoundHandler(Context(), code.InstructionStart(), 0,
                           code.constant_pool(), kNullAddress, frame->fp(),
                           visited_frames);
@@ -2041,8 +2035,7 @@ Object Isolate::UnwindAndFindHandler() {
         thread_local_top()->handler_ = handler->next_address();
 
         // Gather information from the handler.
-        CodeDataContainer code =
-            frame->LookupCodeDataContainer().code_data_container();
+        Code code = frame->LookupCode().code();
         HandlerTable table(code);
         return FoundHandler(Context(), code.InstructionStart(this, frame->pc()),
                             table.LookupReturn(0), code.constant_pool(),
@@ -2054,8 +2047,7 @@ Object Isolate::UnwindAndFindHandler() {
       case StackFrame::C_WASM_ENTRY: {
         StackHandler* handler = frame->top_handler();
         thread_local_top()->handler_ = handler->next_address();
-        InstructionStream code =
-            frame->LookupCodeDataContainer().instruction_stream();
+        InstructionStream code = frame->LookupCode().instruction_stream();
         HandlerTable table(code);
         Address instruction_start = code.InstructionStart(this, frame->pc());
         int return_offset = static_cast<int>(frame->pc() - instruction_start);
@@ -2115,8 +2107,7 @@ Object Isolate::UnwindAndFindHandler() {
         int offset = opt_frame->LookupExceptionHandlerInTable(nullptr, nullptr);
         if (offset < 0) break;
         // The code might be an optimized code or a turbofanned builtin.
-        CodeDataContainer code =
-            frame->LookupCodeDataContainer().ToCodeDataContainer();
+        Code code = frame->LookupCode().ToCode();
         // Compute the stack pointer from the frame pointer. This ensures
         // that argument slots on the stack are dropped as returning would.
         Address return_sp = frame->fp() +
@@ -2150,8 +2141,7 @@ Object Isolate::UnwindAndFindHandler() {
 
         // The code might be a dynamically generated stub or a turbofanned
         // embedded builtin.
-        CodeDataContainer code =
-            stub_frame->LookupCodeDataContainer().ToCodeDataContainer();
+        Code code = stub_frame->LookupCode().ToCode();
         if (code.kind() != CodeKind::BUILTIN || !code.is_turbofanned() ||
             !code.has_handler_table()) {
           break;
@@ -2201,8 +2191,7 @@ Object Isolate::UnwindAndFindHandler() {
 
         if (frame->is_baseline()) {
           BaselineFrame* sp_frame = BaselineFrame::cast(js_frame);
-          InstructionStream code =
-              sp_frame->LookupCodeDataContainer().instruction_stream();
+          InstructionStream code = sp_frame->LookupCode().instruction_stream();
           DCHECK(!code.is_off_heap_trampoline());
           intptr_t pc_offset = sp_frame->GetPCForBytecodeOffset(offset);
           // Patch the context register directly on the frame, so that we don't
@@ -2215,8 +2204,7 @@ Object Isolate::UnwindAndFindHandler() {
           InterpretedFrame::cast(js_frame)->PatchBytecodeOffset(
               static_cast<int>(offset));
 
-          CodeDataContainer code =
-              *BUILTIN_CODE(this, InterpreterEnterAtBytecode);
+          Code code = *BUILTIN_CODE(this, InterpreterEnterAtBytecode);
           // We subtract a frame from visited_frames because otherwise the
           // shadow stack will drop the underlying interpreter entry trampoline
           // in which the handler runs.
@@ -2248,8 +2236,7 @@ Object Isolate::UnwindAndFindHandler() {
 
         // Reconstruct the stack pointer from the frame pointer.
         Address return_sp = js_frame->fp() - js_frame->GetSPToFPDelta();
-        CodeDataContainer code =
-            js_frame->LookupCodeDataContainer().code_data_container();
+        Code code = js_frame->LookupCode().code();
         return FoundHandler(Context(), code.InstructionStart(), 0,
                             code.constant_pool(), return_sp, frame->fp(),
                             visited_frames);
@@ -2266,9 +2253,8 @@ Object Isolate::UnwindAndFindHandler() {
       USE(removed);
       // If there were any materialized objects, the code should be
       // marked for deopt.
-      DCHECK_IMPLIES(removed, frame->LookupCodeDataContainer()
-                                  .ToCodeDataContainer()
-                                  .marked_for_deoptimization());
+      DCHECK_IMPLIES(removed,
+                     frame->LookupCode().ToCode().marked_for_deoptimization());
     }
   }
 
@@ -2367,7 +2353,7 @@ Isolate::CatchType Isolate::PredictExceptionCatcher() {
       }
 
       case StackFrame::STUB: {
-        CodeLookupResult code = frame->LookupCodeDataContainer();
+        CodeLookupResult code = frame->LookupCode();
         if (code.kind() != CodeKind::BUILTIN || !code.has_handler_table() ||
             !code.is_turbofanned()) {
           break;
@@ -2379,7 +2365,7 @@ Isolate::CatchType Isolate::PredictExceptionCatcher() {
       }
 
       case StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH: {
-        CodeLookupResult code = frame->LookupCodeDataContainer();
+        CodeLookupResult code = frame->LookupCode();
         CatchType prediction = ToCatchType(code.GetBuiltinCatchPrediction());
         if (prediction != NOT_CAUGHT) return prediction;
         break;
@@ -2846,7 +2832,7 @@ Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
     if (frame->is_java_script()) {
       catch_prediction = PredictException(JavaScriptFrame::cast(frame));
     } else if (frame->type() == StackFrame::STUB) {
-      CodeLookupResult code = frame->LookupCodeDataContainer();
+      CodeLookupResult code = frame->LookupCode();
       if (code.kind() != CodeKind::BUILTIN || !code.has_handler_table() ||
           !code.is_turbofanned()) {
         continue;
@@ -3921,9 +3907,8 @@ void CreateOffHeapTrampolines(Isolate* isolate) {
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
     Address instruction_start = d.InstructionStartOfBuiltin(builtin);
-    Handle<CodeDataContainer> trampoline =
-        isolate->factory()->NewOffHeapTrampolineFor(
-            builtins->code_handle(builtin), instruction_start);
+    Handle<Code> trampoline = isolate->factory()->NewOffHeapTrampolineFor(
+        builtins->code_handle(builtin), instruction_start);
 
     // From this point onwards, the old builtin code object is unreachable and
     // will be collected by the next GC.

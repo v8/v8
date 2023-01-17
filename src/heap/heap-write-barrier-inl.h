@@ -119,7 +119,7 @@ inline void CombinedWriteBarrierInternal(HeapObject host, HeapObjectSlot slot,
     // CodePageHeaderModificationScope is not required because the only case
     // when a InstructionStream value is stored somewhere is during creation of
     // a new InstructionStream object which is then stored to
-    // CodeDataContainer's code field and this case is already guarded by
+    // Code's code field and this case is already guarded by
     // CodePageMemoryModificationScope.
     WriteBarrier::MarkingSlow(host, HeapObjectSlot(slot), value);
   }

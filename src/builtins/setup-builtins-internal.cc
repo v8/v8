@@ -215,7 +215,7 @@ InstructionStream BuildWithCodeStubAssemblerCS(
 void SetupIsolateDelegate::AddBuiltin(Builtins* builtins, Builtin builtin,
                                       InstructionStream code) {
   DCHECK_EQ(builtin, code.builtin_id());
-  builtins->set_code(builtin, ToCodeDataContainer(code));
+  builtins->set_code(builtin, ToCode(code));
 }
 
 // static
@@ -246,7 +246,7 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
   PtrComprCageBase cage_base(isolate);
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
-    InstructionStream code = FromCodeDataContainer(builtins->code(builtin));
+    InstructionStream code = FromCode(builtins->code(builtin));
     isolate->heap()->UnprotectAndRegisterMemoryChunk(
         code, UnprotectMemoryOrigin::kMainThread);
     bool flush_icache = false;
@@ -258,16 +258,16 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
         DCHECK_IMPLIES(RelocInfo::IsRelativeCodeTarget(rinfo->rmode()),
                        Builtins::IsIsolateIndependent(target.builtin_id()));
         if (!target.is_builtin()) continue;
-        CodeDataContainer new_target = builtins->code(target.builtin_id());
+        Code new_target = builtins->code(target.builtin_id());
         rinfo->set_target_address(new_target.raw_instruction_start(),
                                   UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
       } else {
         DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));
         Object object = rinfo->target_object(cage_base);
-        if (!object.IsCodeDataContainer(cage_base)) continue;
-        CodeDataContainer target = CodeDataContainer::cast(object);
+        if (!object.IsCode(cage_base)) continue;
+        Code target = Code::cast(object);
         if (!target.is_builtin()) continue;
-        CodeDataContainer new_target = builtins->code(target.builtin_id());
+        Code new_target = builtins->code(target.builtin_id());
         rinfo->set_target_object(isolate->heap(), new_target,
                                  UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
       }

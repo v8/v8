@@ -1374,9 +1374,9 @@ void V8FileLogger::LogCodeDisassemble(Handle<AbstractCode> code) {
 #ifdef ENABLE_DISASSEMBLER
       InstructionStream::cast(*code).Disassemble(nullptr, stream, isolate_);
 #endif
-    } else if (code->IsCodeDataContainer(cage_base)) {
+    } else if (code->IsCode(cage_base)) {
 #ifdef ENABLE_DISASSEMBLER
-      CodeDataContainer::cast(*code).Disassemble(nullptr, stream, isolate_);
+      Code::cast(*code).Disassemble(nullptr, stream, isolate_);
 #endif
     } else {
       BytecodeArray::cast(*code).Disassemble(stream);
@@ -1960,7 +1960,7 @@ EnumerateCompiledFunctions(Heap* heap) {
           Script::cast(function.shared().script()).HasValidSource()) {
         // TODO(v8:13261): use ToAbstractCode() here.
         record(function.shared(),
-               AbstractCode::cast(FromCodeDataContainer(function.code())));
+               AbstractCode::cast(FromCode(function.code())));
       }
     }
   }
@@ -2338,10 +2338,10 @@ void ExistingCodeLogger::LogCodeObjects() {
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
     InstanceType instance_type = obj.map(cage_base).instance_type();
-    // AbstactCode is InstructionStream|CodeDataContainer|BytecodeArray but we
+    // AbstactCode is InstructionStream|Code|BytecodeArray but we
     // want to log code objects only once, thus we ignore InstructionStream
-    // objects which will be logged via corresponding CodeDataContainer.
-    if (InstanceTypeChecker::IsCodeDataContainer(instance_type) ||
+    // objects which will be logged via corresponding Code.
+    if (InstanceTypeChecker::IsCode(instance_type) ||
         InstanceTypeChecker::IsBytecodeArray(instance_type)) {
       LogCodeObject(AbstractCode::cast(obj));
     }
@@ -2351,7 +2351,7 @@ void ExistingCodeLogger::LogCodeObjects() {
 void ExistingCodeLogger::LogBuiltins() {
   DCHECK(isolate_->builtins()->is_initialized());
   // The main "copy" of used builtins are logged by LogCodeObjects() while
-  // iterating CodeDataContainer objects.
+  // iterating Code objects.
   // TODO(v8:11880): Log other copies of remapped builtins once we
   // decide to remap them multiple times into the code range (for example
   // for arm64).
@@ -2374,16 +2374,18 @@ void ExistingCodeLogger::LogCompiledFunctions(
     if (shared->HasInterpreterData()) {
       // TODO(v8:13261): use ToAbstractCode() here.
       LogExistingFunction(
-          shared, Handle<AbstractCode>(AbstractCode::cast(FromCodeDataContainer(
-                                           shared->InterpreterTrampoline())),
-                                       isolate_));
+          shared,
+          Handle<AbstractCode>(
+              AbstractCode::cast(FromCode(shared->InterpreterTrampoline())),
+              isolate_));
     }
     if (shared->HasBaselineCode()) {
       // TODO(v8:13261): use ToAbstractCode() here.
-      LogExistingFunction(shared, Handle<AbstractCode>(
-                                      AbstractCode::cast(FromCodeDataContainer(
-                                          shared->baseline_code(kAcquireLoad))),
-                                      isolate_));
+      LogExistingFunction(
+          shared,
+          Handle<AbstractCode>(
+              AbstractCode::cast(FromCode(shared->baseline_code(kAcquireLoad))),
+              isolate_));
     }
     // Can't use .is_identical_to() because AbstractCode might be both
     // InstructionStream and non-InstructionStream object and regular tagged

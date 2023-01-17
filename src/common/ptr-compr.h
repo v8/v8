@@ -13,7 +13,7 @@ namespace v8::internal {
 // This is just a collection of compression scheme related functions. Having
 // such a class allows plugging different decompression scheme in certain
 // places by introducing another CompressionScheme class with a customized
-// implementation. This is useful, for example, for CodeDataContainer::code
+// implementation. This is useful, for example, for Code::code
 // field (see CodeObjectSlot).
 class V8HeapCompressionScheme {
  public:
@@ -61,7 +61,7 @@ class V8HeapCompressionScheme {
 #ifdef V8_EXTERNAL_CODE_SPACE
 
 // Compression scheme used for fields containing InstructionStream objects
-// (namely for the CodeDataContainer::code field). Same as
+// (namely for the Code::code field). Same as
 // V8HeapCompressionScheme but with a different base value.
 class ExternalCodeCompressionScheme {
  public:

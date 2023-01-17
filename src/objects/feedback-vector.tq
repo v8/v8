@@ -45,7 +45,7 @@ extern class FeedbackVector extends HeapObject {
   shared_function_info: SharedFunctionInfo;
   closure_feedback_cell_array: ClosureFeedbackCellArray;
   parent_feedback_cell: FeedbackCell;
-  maybe_optimized_code: Weak<CodeDataContainer>;
+  maybe_optimized_code: Weak<Code>;
   @cppRelaxedLoad raw_feedback_slots[length]: MaybeObject;
 }
 

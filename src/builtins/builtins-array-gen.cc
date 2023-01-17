@@ -1808,7 +1808,7 @@ TF_BUILTIN(ArrayConstructor, ArrayBuiltinsAssembler) {
 void ArrayBuiltinsAssembler::TailCallArrayConstructorStub(
     const Callable& callable, TNode<Context> context, TNode<JSFunction> target,
     TNode<HeapObject> allocation_site_or_undefined, TNode<Int32T> argc) {
-  TNode<CodeDataContainer> code = HeapConstant(callable.code());
+  TNode<Code> code = HeapConstant(callable.code());
 
   // We are going to call here ArrayNoArgumentsConstructor or
   // ArraySingleArgumentsConstructor which in addition to the register arguments

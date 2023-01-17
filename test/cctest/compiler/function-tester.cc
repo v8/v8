@@ -47,17 +47,17 @@ FunctionTester::FunctionTester(Handle<InstructionStream> code, int param_count)
   CHECK(!code.is_null());
   CHECK(code->IsInstructionStream());
   Compile(function);
-  function->set_code(ToCodeDataContainer(*code), kReleaseStore);
+  function->set_code(ToCode(*code), kReleaseStore);
 }
 
-FunctionTester::FunctionTester(Handle<CodeDataContainer> code, int param_count)
+FunctionTester::FunctionTester(Handle<Code> code, int param_count)
     : isolate(main_isolate()),
       canonical(isolate),
       function((v8_flags.allow_natives_syntax = true,
                 NewFunction(BuildFunction(param_count).c_str()))),
       flags_(0) {
   CHECK(!code.is_null());
-  CHECK(code->IsCodeDataContainer());
+  CHECK(code->IsCode());
   Compile(function);
   function->set_code(*code, kReleaseStore);
 }

@@ -523,9 +523,9 @@ void LoadHandler::PrintHandler(Object handler, std::ostream& os) {
     os << "LoadHandler(Smi)(";
     PrintSmiLoadHandler(raw_handler, os);
     os << ")";
-  } else if (handler.IsCodeDataContainer()) {
+  } else if (handler.IsCode()) {
     os << "LoadHandler(Code)("
-       << Builtins::name(CodeDataContainer::cast(handler).builtin_id()) << ")";
+       << Builtins::name(Code::cast(handler).builtin_id()) << ")";
   } else if (handler.IsSymbol()) {
     os << "LoadHandler(Symbol)(" << Brief(Symbol::cast(handler)) << ")";
   } else if (handler.IsLoadHandler()) {
@@ -566,9 +566,8 @@ void StoreHandler::PrintHandler(Object handler, std::ostream& os) {
   } else if (handler.IsStoreHandler()) {
     os << "StoreHandler(";
     StoreHandler store_handler = StoreHandler::cast(handler);
-    if (store_handler.smi_handler().IsCodeDataContainer()) {
-      CodeDataContainer code =
-          CodeDataContainer::cast(store_handler.smi_handler());
+    if (store_handler.smi_handler().IsCode()) {
+      Code code = Code::cast(store_handler.smi_handler());
       os << "builtin = ";
       code.ShortPrint(os);
     } else {

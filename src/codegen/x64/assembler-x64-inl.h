@@ -226,7 +226,7 @@ int Assembler::deserialization_special_target_size(
   return kSpecialTargetSize;
 }
 
-Handle<CodeDataContainer> Assembler::code_target_object_handle_at(Address pc) {
+Handle<Code> Assembler::code_target_object_handle_at(Address pc) {
   return GetCodeTarget(ReadUnalignedValue<int32_t>(pc));
 }
 
@@ -286,7 +286,7 @@ HeapObject RelocInfo::target_object(PtrComprCageBase cage_base) {
     Object obj(V8HeapCompressionScheme::DecompressTaggedPointer(cage_base,
                                                                 compressed));
     // Embedding of compressed InstructionStream objects must not happen when
-    // external code space is enabled, because CodeDataContainers must be used
+    // external code space is enabled, because Codes must be used
     // instead.
     DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
                    !IsCodeSpaceObject(HeapObject::cast(obj)));

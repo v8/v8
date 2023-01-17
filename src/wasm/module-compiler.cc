@@ -1424,11 +1424,13 @@ void TierUpNowForTesting(Isolate* isolate, WasmInstanceObject instance,
 
 namespace {
 
-void RecordStats(CodeDataContainer code_data_container, Counters* counters) {
-  if (code_data_container.is_off_heap_trampoline()) return;
-  InstructionStream code = FromCodeDataContainer(code_data_container);
-  counters->wasm_generated_code_size()->Increment(code.raw_body_size());
-  counters->wasm_reloc_size()->Increment(code.relocation_info().length());
+void RecordStats(Code code, Counters* counters) {
+  if (code.is_off_heap_trampoline()) return;
+  InstructionStream instruction_stream = FromCode(code);
+  counters->wasm_generated_code_size()->Increment(
+      instruction_stream.raw_body_size());
+  counters->wasm_reloc_size()->Increment(
+      instruction_stream.relocation_info().length());
 }
 
 enum CompilationExecutionResult : int8_t { kNoMoreUnits, kYield };
@@ -3341,7 +3343,7 @@ void CompilationStateImpl::FinalizeJSToWasmWrappers(Isolate* isolate,
   CodePageCollectionMemoryModificationScope modification_scope(isolate->heap());
   for (auto& unit : js_to_wasm_wrapper_units_) {
     DCHECK_EQ(isolate, unit->isolate());
-    Handle<CodeDataContainer> code = unit->Finalize();
+    Handle<Code> code = unit->Finalize();
     uint32_t index =
         GetExportWrapperIndex(unit->canonical_sig_index(), unit->is_import());
     isolate->heap()->js_to_wasm_wrappers().Set(index,
@@ -3803,7 +3805,7 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module) {
     JSToWasmWrapperKey key = pair.first;
     JSToWasmWrapperCompilationUnit* unit = pair.second.get();
     DCHECK_EQ(isolate, unit->isolate());
-    Handle<CodeDataContainer> code = unit->Finalize();
+    Handle<Code> code = unit->Finalize();
     int wrapper_index = GetExportWrapperIndex(key.second, key.first);
     isolate->heap()->js_to_wasm_wrappers().Set(
         wrapper_index, HeapObjectReference::Strong(*code));

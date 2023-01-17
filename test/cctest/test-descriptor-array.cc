@@ -150,7 +150,8 @@ Handle<JSFunction> CreateCsaDescriptorArrayLookup(Isolate* isolate) {
   }
 
   {
-    compiler::FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+    compiler::FunctionTester ft(asm_tester.GenerateInstructionStream(),
+                                kNumParams);
     // Copy function value to a handle created in the outer handle scope.
     result_function.PatchValue(*ft.function);
   }
@@ -201,7 +202,8 @@ Handle<JSFunction> CreateCsaTransitionArrayLookup(Isolate* isolate) {
   }
 
   {
-    compiler::FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+    compiler::FunctionTester ft(asm_tester.GenerateInstructionStream(),
+                                kNumParams);
     // Copy function value to a handle created in the outer handle scope.
     result_function.PatchValue(*ft.function);
   }

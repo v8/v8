@@ -74,13 +74,12 @@ Handle<AccessorPair> FactoryBase<Impl>::NewAccessorPair() {
 }
 
 template <typename Impl>
-Handle<CodeDataContainer> FactoryBase<Impl>::NewCodeDataContainer(
-    int flags, AllocationType allocation) {
-  Map map = read_only_roots().code_data_container_map();
+Handle<Code> FactoryBase<Impl>::NewCode(int flags, AllocationType allocation) {
+  Map map = read_only_roots().code_map();
   int size = map.instance_size();
   DCHECK_NE(allocation, AllocationType::kYoung);
-  CodeDataContainer data_container = CodeDataContainer::cast(
-      AllocateRawWithImmortalMap(size, allocation, map));
+  Code data_container =
+      Code::cast(AllocateRawWithImmortalMap(size, allocation, map));
   DisallowGarbageCollection no_gc;
   data_container.set_kind_specific_flags(flags, kRelaxedStore);
   Isolate* isolate_for_sandbox = impl()->isolate_for_sandbox();

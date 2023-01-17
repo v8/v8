@@ -121,7 +121,7 @@ const char* Builtins::Lookup(Address pc) {
   return nullptr;
 }
 
-Handle<CodeDataContainer> Builtins::CallFunction(ConvertReceiverMode mode) {
+Handle<Code> Builtins::CallFunction(ConvertReceiverMode mode) {
   switch (mode) {
     case ConvertReceiverMode::kNullOrUndefined:
       return code_handle(Builtin::kCallFunction_ReceiverIsNullOrUndefined);
@@ -133,7 +133,7 @@ Handle<CodeDataContainer> Builtins::CallFunction(ConvertReceiverMode mode) {
   UNREACHABLE();
 }
 
-Handle<CodeDataContainer> Builtins::Call(ConvertReceiverMode mode) {
+Handle<Code> Builtins::Call(ConvertReceiverMode mode) {
   switch (mode) {
     case ConvertReceiverMode::kNullOrUndefined:
       return code_handle(Builtin::kCall_ReceiverIsNullOrUndefined);
@@ -145,8 +145,7 @@ Handle<CodeDataContainer> Builtins::Call(ConvertReceiverMode mode) {
   UNREACHABLE();
 }
 
-Handle<CodeDataContainer> Builtins::NonPrimitiveToPrimitive(
-    ToPrimitiveHint hint) {
+Handle<Code> Builtins::NonPrimitiveToPrimitive(ToPrimitiveHint hint) {
   switch (hint) {
     case ToPrimitiveHint::kDefault:
       return code_handle(Builtin::kNonPrimitiveToPrimitive_Default);
@@ -158,8 +157,7 @@ Handle<CodeDataContainer> Builtins::NonPrimitiveToPrimitive(
   UNREACHABLE();
 }
 
-Handle<CodeDataContainer> Builtins::OrdinaryToPrimitive(
-    OrdinaryToPrimitiveHint hint) {
+Handle<Code> Builtins::OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint) {
   switch (hint) {
     case OrdinaryToPrimitiveHint::kNumber:
       return code_handle(Builtin::kOrdinaryToPrimitive_Number);
@@ -181,21 +179,21 @@ FullObjectSlot Builtins::builtin_tier0_slot(Builtin builtin) {
   return FullObjectSlot(location);
 }
 
-void Builtins::set_code(Builtin builtin, CodeDataContainer code) {
+void Builtins::set_code(Builtin builtin, Code code) {
   DCHECK_EQ(builtin, code.builtin_id());
   DCHECK(Internals::HasHeapObjectTag(code.ptr()));
   // The given builtin may be uninitialized thus we cannot check its type here.
   isolate_->builtin_table()[Builtins::ToInt(builtin)] = code.ptr();
 }
 
-CodeDataContainer Builtins::code(Builtin builtin) {
+Code Builtins::code(Builtin builtin) {
   Address ptr = isolate_->builtin_table()[Builtins::ToInt(builtin)];
-  return CodeDataContainer::cast(Object(ptr));
+  return Code::cast(Object(ptr));
 }
 
-Handle<CodeDataContainer> Builtins::code_handle(Builtin builtin) {
+Handle<Code> Builtins::code_handle(Builtin builtin) {
   Address* location = &isolate_->builtin_table()[Builtins::ToInt(builtin)];
-  return Handle<CodeDataContainer>(location);
+  return Handle<Code>(location);
 }
 
 // static
@@ -231,7 +229,7 @@ CallInterfaceDescriptor Builtins::CallInterfaceDescriptorFor(Builtin builtin) {
 
 // static
 Callable Builtins::CallableFor(Isolate* isolate, Builtin builtin) {
-  Handle<CodeDataContainer> code = isolate->builtins()->code_handle(builtin);
+  Handle<Code> code = isolate->builtins()->code_handle(builtin);
   return Callable{code, CallInterfaceDescriptorFor(builtin)};
 }
 
@@ -258,7 +256,7 @@ void Builtins::PrintBuiltinCode() {
                      base::CStrVector(v8_flags.print_builtin_code_filter))) {
       CodeTracer::Scope trace_scope(isolate_->GetCodeTracer());
       OFStream os(trace_scope.file());
-      CodeDataContainer builtin_code = code(builtin);
+      Code builtin_code = code(builtin);
       builtin_code.Disassemble(builtin_name, os, isolate_);
       os << "\n";
     }
@@ -272,7 +270,7 @@ void Builtins::PrintBuiltinSize() {
        ++builtin) {
     const char* builtin_name = name(builtin);
     const char* kind = KindNameOf(builtin);
-    CodeDataContainer code = Builtins::code(builtin);
+    Code code = Builtins::code(builtin);
     PrintF(stdout, "%s Builtin, %s, %d\n", kind, builtin_name,
            code.InstructionSize());
   }
@@ -333,7 +331,7 @@ void Builtins::EmitCodeCreateEvents(Isolate* isolate) {
   int i = 0;
   HandleScope scope(isolate);
   for (; i < ToInt(Builtin::kFirstBytecodeHandler); i++) {
-    Handle<CodeDataContainer> builtin_code(&builtins[i]);
+    Handle<Code> builtin_code(&builtins[i]);
     Handle<AbstractCode> code = ToAbstractCode(builtin_code, isolate);
     PROFILE(isolate, CodeCreateEvent(LogEventListener::CodeTag::kBuiltin, code,
                                      Builtins::name(FromInt(i))));
@@ -341,7 +339,7 @@ void Builtins::EmitCodeCreateEvents(Isolate* isolate) {
 
   static_assert(kLastBytecodeHandlerPlusOne == kBuiltinCount);
   for (; i < kBuiltinCount; i++) {
-    Handle<CodeDataContainer> builtin_code(&builtins[i]);
+    Handle<Code> builtin_code(&builtins[i]);
     Handle<AbstractCode> code = ToAbstractCode(builtin_code, isolate);
     interpreter::Bytecode bytecode =
         builtin_metadata[i].data.bytecode_and_scale.bytecode;

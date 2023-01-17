@@ -20,7 +20,7 @@ MaglevSafepointTable::MaglevSafepointTable(Isolate* isolate, Address pc,
 }
 
 MaglevSafepointTable::MaglevSafepointTable(Isolate* isolate, Address pc,
-                                           CodeDataContainer code)
+                                           Code code)
     : MaglevSafepointTable(code.InstructionStart(isolate, pc),
                            code.SafepointTableAddress()) {
   DCHECK(code.is_maglevved());

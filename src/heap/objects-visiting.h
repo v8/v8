@@ -22,7 +22,7 @@ namespace internal {
   V(CallHandlerInfo)                    \
   V(Cell)                               \
   V(InstructionStream)                  \
-  V(CodeDataContainer)                  \
+  V(Code)                               \
   V(CoverageInfo)                       \
   V(DataHandler)                        \
   V(EmbedderDataArray)                  \

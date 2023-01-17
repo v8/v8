@@ -148,13 +148,13 @@ void FeedbackVector::set_maybe_has_optimized_osr_code(bool value) {
   set_osr_state(MaybeHasOptimizedOsrCodeBit::update(osr_state(), value));
 }
 
-CodeDataContainer FeedbackVector::optimized_code() const {
+Code FeedbackVector::optimized_code() const {
   MaybeObject slot = maybe_optimized_code(kAcquireLoad);
   DCHECK(slot->IsWeakOrCleared());
   HeapObject heap_object;
-  CodeDataContainer code;
+  Code code;
   if (slot->GetHeapObject(&heap_object)) {
-    code = CodeDataContainer::cast(heap_object);
+    code = Code::cast(heap_object);
   }
   // It is possible that the maybe_optimized_code slot is cleared but the flags
   // haven't been updated yet. We update them when we execute the function next
@@ -202,21 +202,20 @@ void FeedbackVector::set_log_next_execution(bool value) {
   set_flags(LogNextExecutionBit::update(flags(), value));
 }
 
-base::Optional<CodeDataContainer> FeedbackVector::GetOptimizedOsrCode(
-    Isolate* isolate, FeedbackSlot slot) {
+base::Optional<Code> FeedbackVector::GetOptimizedOsrCode(Isolate* isolate,
+                                                         FeedbackSlot slot) {
   MaybeObject maybe_code = Get(isolate, slot);
   if (maybe_code->IsCleared()) return {};
 
-  CodeDataContainer code_data_container =
-      CodeDataContainer::cast(maybe_code->GetHeapObject());
-  if (code_data_container.marked_for_deoptimization()) {
+  Code code = Code::cast(maybe_code->GetHeapObject());
+  if (code.marked_for_deoptimization()) {
     // Clear the cached Code object if deoptimized.
     // TODO(jgruber): Add tracing.
     Set(slot, HeapObjectReference::ClearedValue(isolate));
     return {};
   }
 
-  return code_data_container;
+  return code;
 }
 
 // Conversion from an integer index to either a slot or an ic slot.

@@ -33,7 +33,7 @@ Handle<InstructionStream> BuildCallee(Isolate* isolate,
     sum = __ Signed(__ IntPtrAdd(sum, product));
   }
   __ Return(sum);
-  return tester.GenerateCodeCloseAndEscape();
+  return tester.GenerateInstructionStreamCloseAndEscape();
 }
 
 // Function that tail-calls another function with a number of pointer-sized
@@ -45,8 +45,7 @@ Handle<InstructionStream> BuildCaller(Isolate* isolate,
   CodeStubAssembler assembler(tester.state());
   std::vector<Node*> params;
   // The first parameter is always the callee.
-  Handle<CodeDataContainer> code =
-      ToCodeDataContainer(BuildCallee(isolate, callee_descriptor), isolate);
+  Handle<Code> code = ToCode(BuildCallee(isolate, callee_descriptor), isolate);
   params.push_back(__ HeapConstant(code));
   int param_slots = static_cast<int>(callee_descriptor->ParameterSlotCount());
   for (int i = 0; i < param_slots; ++i) {
@@ -55,7 +54,7 @@ Handle<InstructionStream> BuildCaller(Isolate* isolate,
   DCHECK_EQ(param_slots + 1, params.size());
   tester.raw_assembler_for_testing()->TailCallN(callee_descriptor,
                                                 param_slots + 1, params.data());
-  return tester.GenerateCodeCloseAndEscape();
+  return tester.GenerateInstructionStreamCloseAndEscape();
 }
 
 // Setup function, which calls "caller".
@@ -66,7 +65,7 @@ Handle<InstructionStream> BuildSetupFunction(
   CodeStubAssembler assembler(tester.state());
   std::vector<Node*> params;
   // The first parameter is always the callee.
-  Handle<CodeDataContainer> code = ToCodeDataContainer(
+  Handle<Code> code = ToCode(
       BuildCaller(isolate, caller_descriptor, callee_descriptor), isolate);
   params.push_back(__ HeapConstant(code));
   // Set up arguments for "Caller".
@@ -81,7 +80,7 @@ Handle<InstructionStream> BuildSetupFunction(
       __ UncheckedCast<IntPtrT>(tester.raw_assembler_for_testing()->CallN(
           caller_descriptor, param_slots + 1, params.data()));
   __ Return(__ SmiTag(intptr_result));
-  return tester.GenerateCodeCloseAndEscape();
+  return tester.GenerateInstructionStreamCloseAndEscape();
 }
 
 CallDescriptor* CreateDescriptorForStackArguments(Zone* zone, int param_slots) {

@@ -56,10 +56,8 @@ class CodeRunner : public CallHelper<T> {
   CodeRunner(Isolate* isolate, Handle<InstructionStream> code,
              MachineSignature* csig)
       : CallHelper<T>(isolate, csig), code_(code) {}
-  CodeRunner(Isolate* isolate, Handle<CodeDataContainer> code,
-             MachineSignature* csig)
-      : CallHelper<T>(isolate, csig),
-        code_(FromCodeDataContainer(*code), isolate) {}
+  CodeRunner(Isolate* isolate, Handle<Code> code, MachineSignature* csig)
+      : CallHelper<T>(isolate, csig), code_(FromCode(*code), isolate) {}
   ~CodeRunner() override = default;
 
   Address Generate() override { return code_->entry(); }

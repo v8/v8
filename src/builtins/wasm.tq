@@ -505,7 +505,7 @@ builtin WasmI64AtomicWait(
 // Type feedback collection support for `call_ref`.
 
 extern macro GetCodeEntry(InstructionStream): RawPtr;
-extern macro GetCodeEntry(CodeDataContainer): RawPtr;
+extern macro GetCodeEntry(Code): RawPtr;
 
 struct TargetAndInstance {
   target: RawPtr;

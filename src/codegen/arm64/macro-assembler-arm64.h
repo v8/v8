@@ -974,14 +974,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void Jump(Register target, Condition cond = al);
   void Jump(Address target, RelocInfo::Mode rmode, Condition cond = al);
-  void Jump(Handle<CodeDataContainer> code, RelocInfo::Mode rmode,
-            Condition cond = al);
+  void Jump(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al);
   void Jump(const ExternalReference& reference);
 
   void Call(Register target);
   void Call(Address target, RelocInfo::Mode rmode);
-  void Call(Handle<CodeDataContainer> code,
-            RelocInfo::Mode rmode = RelocInfo::CODE_TARGET);
+  void Call(Handle<Code> code, RelocInfo::Mode rmode = RelocInfo::CODE_TARGET);
   void Call(ExternalReference target);
 
   // Generate an indirect call (for when a direct call's range is not adequate).
@@ -996,18 +994,17 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void CallBuiltin(Builtin builtin);
   void TailCallBuiltin(Builtin builtin, Condition cond = al);
 
-  // Load code entry point from the CodeDataContainer object.
-  void LoadCodeDataContainerEntry(Register destination,
-                                  Register code_data_container_object);
-  // Load code entry point from the CodeDataContainer object and compute
+  // Load code entry point from the Code object.
+  void LoadCodeEntry(Register destination, Register code_object);
+  // Load code entry point from the Code object and compute
   // InstructionStream object pointer out of it. Must not be used for
-  // CodeDataContainers corresponding to builtins, because their entry points
+  // Codes corresponding to builtins, because their entry points
   // values point to the embedded instruction stream in .text section.
-  void LoadCodeDataContainerInstructionStreamNonBuiltin(
-      Register destination, Register code_data_container_object);
-  void CallCodeDataContainerObject(Register code_data_container_object);
-  void JumpCodeDataContainerObject(Register code_data_container_object,
-                                   JumpMode jump_mode = JumpMode::kJump);
+  void LoadCodeInstructionStreamNonBuiltin(Register destination,
+                                           Register code_object);
+  void CallCodeObject(Register code_object);
+  void JumpCodeObject(Register code_object,
+                      JumpMode jump_mode = JumpMode::kJump);
 
   // Generates an instruction sequence s.t. the return address points to the
   // instruction following the call.
@@ -1899,9 +1896,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
     DecodeField<Field>(reg, reg);
   }
 
-  void JumpIfCodeDataContainerIsMarkedForDeoptimization(
-      Register code_data_container, Register scratch,
-      Label* if_marked_for_deoptimization);
+  void JumpIfCodeIsMarkedForDeoptimization(Register code, Register scratch,
+                                           Label* if_marked_for_deoptimization);
   Operand ClearedValue() const;
 
   Operand ReceiverOperand(const Register arg_count);
@@ -1910,9 +1906,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   inline void JumpIfNotSmi(Register value, Label* not_smi_label);
 
-  // Abort execution if argument is not a CodeDataContainer, enabled via
+  // Abort execution if argument is not a Code, enabled via
   // --debug-code.
-  void AssertCodeDataContainer(Register object) NOOP_UNLESS_DEBUG_CODE
+  void AssertCode(Register object) NOOP_UNLESS_DEBUG_CODE
 
       // Abort execution if argument is not a Constructor, enabled via
       // --debug-code.

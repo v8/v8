@@ -33,7 +33,7 @@ extern class JSFunction extends JSFunctionOrBoundFunctionOrWrappedFunction {
   shared_function_info: SharedFunctionInfo;
   context: Context;
   feedback_cell: FeedbackCell;
-  code: CodeDataContainer;
+  code: Code;
   // Space for the following field may or may not be allocated.
   prototype_or_initial_map: JSReceiver|Map;
 }

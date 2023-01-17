@@ -23,7 +23,7 @@ HandlerTable::HandlerTable(InstructionStream code)
     : HandlerTable(code.HandlerTableAddress(), code.handler_table_size(),
                    kReturnAddressBasedEncoding) {}
 
-HandlerTable::HandlerTable(CodeDataContainer code)
+HandlerTable::HandlerTable(Code code)
     : HandlerTable(code.HandlerTableAddress(), code.handler_table_size(),
                    kReturnAddressBasedEncoding) {}
 

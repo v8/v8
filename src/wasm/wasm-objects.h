@@ -615,7 +615,7 @@ class WasmExportedFunction : public JSFunction {
 
   V8_EXPORT_PRIVATE static Handle<WasmExportedFunction> New(
       Isolate* isolate, Handle<WasmInstanceObject> instance, int func_index,
-      int arity, Handle<CodeDataContainer> export_wrapper);
+      int arity, Handle<Code> export_wrapper);
 
   Address GetWasmCallTarget();
 
@@ -780,7 +780,7 @@ class WasmJSFunctionData
     : public TorqueGeneratedWasmJSFunctionData<WasmJSFunctionData,
                                                WasmFunctionData> {
  public:
-  DECL_ACCESSORS(wasm_to_js_wrapper_code, CodeDataContainer)
+  DECL_ACCESSORS(wasm_to_js_wrapper_code, Code)
 
   // Dispatched behavior.
   DECL_PRINTER(WasmJSFunctionData)

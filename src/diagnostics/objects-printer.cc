@@ -213,8 +213,8 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {
     case INSTRUCTION_STREAM_TYPE:
       InstructionStream::cast(*this).InstructionStreamPrint(os);
       break;
-    case CODE_DATA_CONTAINER_TYPE:
-      CodeDataContainer::cast(*this).CodeDataContainerPrint(os);
+    case CODE_TYPE:
+      Code::cast(*this).CodePrint(os);
       break;
     case JS_SET_KEY_VALUE_ITERATOR_TYPE:
     case JS_SET_VALUE_ITERATOR_TYPE:
@@ -1794,8 +1794,7 @@ void PropertyCell::PropertyCellPrint(std::ostream& os) {
 
 void InstructionStream::InstructionStreamPrint(std::ostream& os) {
   PrintHeader(os, "InstructionStream");
-  os << "\n - code_data_container: "
-     << Brief(code_data_container(kAcquireLoad));
+  os << "\n - code: " << Brief(code(kAcquireLoad));
   if (is_builtin()) {
     os << "\n - builtin_id: " << Builtins::name(builtin_id());
   }
@@ -1805,8 +1804,8 @@ void InstructionStream::InstructionStreamPrint(std::ostream& os) {
 #endif
 }
 
-void CodeDataContainer::CodeDataContainerPrint(std::ostream& os) {
-  PrintHeader(os, "CodeDataContainer");
+void Code::CodePrint(std::ostream& os) {
+  PrintHeader(os, "Code");
   os << "\n - kind: " << CodeKindToString(kind());
   if (is_builtin()) {
     os << "\n - builtin: " << Builtins::name(builtin_id());
@@ -3047,17 +3046,16 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {
 
 #ifdef ENABLE_DISASSEMBLER
   i::StdoutStream os;
-  if (lookup_result.IsCodeDataContainer()) {
-    i::CodeDataContainer code =
-        i::CodeDataContainer::cast(lookup_result.code_data_container());
+  if (lookup_result.IsCode()) {
+    i::Code code = i::Code::cast(lookup_result.code());
     code.Disassemble(nullptr, os, isolate, address);
   } else {
     lookup_result.instruction_stream().Disassemble(nullptr, os, isolate,
                                                    address);
   }
 #else   // ENABLE_DISASSEMBLER
-  if (lookup_result.IsCodeDataContainer()) {
-    lookup_result.code_data_container().Print();
+  if (lookup_result.IsCode()) {
+    lookup_result.code().Print();
   } else {
     lookup_result.instruction_stream().Print();
   }

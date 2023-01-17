@@ -64,7 +64,7 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
   V8_INLINE void VisitCodePointer(HeapObject host, CodeObjectSlot slot) final {
     CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
     // InstructionStream slots never appear in new space because
-    // CodeDataContainers, the only object that can contain code pointers, are
+    // Code objects, the only object that can contain code pointers, are
     // always allocated in the old space.
     UNREACHABLE();
   }
@@ -141,7 +141,7 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
       // We should never try to record off-heap slots.
       DCHECK((std::is_same<THeapObjectSlot, HeapObjectSlot>::value));
       // InstructionStream slots never appear in new space because
-      // CodeDataContainers, the only object that can contain code pointers, are
+      // Code objects, the only object that can contain code pointers, are
       // always allocated in the old space.
       DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
                      !MemoryChunk::FromHeapObject(target)->IsFlagSet(

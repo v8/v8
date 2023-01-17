@@ -107,7 +107,7 @@ void FullEvacuationVerifier::VerifyPointers(MaybeObjectSlot start,
 void FullEvacuationVerifier::VerifyCodePointer(CodeObjectSlot slot) {
   Object maybe_code = slot.load(code_cage_base());
   HeapObject code;
-  // The slot might contain smi during CodeDataContainer creation, so skip it.
+  // The slot might contain smi during Code creation, so skip it.
   if (maybe_code.GetHeapObject(&code)) {
     VerifyHeapObjectImpl(code);
   }
@@ -153,7 +153,7 @@ void YoungGenerationEvacuationVerifier::VerifyPointers(MaybeObjectSlot start,
 void YoungGenerationEvacuationVerifier::VerifyCodePointer(CodeObjectSlot slot) {
   Object maybe_code = slot.load(code_cage_base());
   HeapObject code;
-  // The slot might contain smi during CodeDataContainer creation, so skip it.
+  // The slot might contain smi during Code creation, so skip it.
   if (maybe_code.GetHeapObject(&code)) {
     VerifyHeapObjectImpl(code);
   }

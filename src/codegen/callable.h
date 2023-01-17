@@ -16,14 +16,14 @@ class InstructionStream;
 // Associates a body of code with an interface descriptor.
 class Callable final {
  public:
-  Callable(Handle<CodeDataContainer> code, CallInterfaceDescriptor descriptor)
+  Callable(Handle<Code> code, CallInterfaceDescriptor descriptor)
       : code_(code), descriptor_(descriptor) {}
 
-  Handle<CodeDataContainer> code() const { return code_; }
+  Handle<Code> code() const { return code_; }
   CallInterfaceDescriptor descriptor() const { return descriptor_; }
 
  private:
-  const Handle<CodeDataContainer> code_;
+  const Handle<Code> code_;
   const CallInterfaceDescriptor descriptor_;
 };
 

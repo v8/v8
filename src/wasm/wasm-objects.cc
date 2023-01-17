@@ -1358,10 +1358,10 @@ WasmInstanceObject::GetOrCreateWasmInternalFunction(
 
   MaybeObject entry = isolate->heap()->js_to_wasm_wrappers().Get(wrapper_index);
 
-  Handle<CodeDataContainer> wrapper;
-  // {entry} can be cleared, {undefined}, or a ready {CodeDataContainer}.
-  if (entry.IsStrongOrWeak() && entry.GetHeapObject().IsCodeDataContainer()) {
-    wrapper = handle(CodeDataContainer::cast(entry.GetHeapObject()), isolate);
+  Handle<Code> wrapper;
+  // {entry} can be cleared, {undefined}, or a ready {Code}.
+  if (entry.IsStrongOrWeak() && entry.GetHeapObject().IsCode()) {
+    wrapper = handle(Code::cast(entry.GetHeapObject()), isolate);
   } else {
     // The wrapper may not exist yet if no function in the exports section has
     // this signature. We compile it and store the wrapper in the module for
@@ -1857,7 +1857,7 @@ uint32_t WasmExceptionPackage::GetEncodedSize(const wasm::WasmTagSig* sig) {
 bool WasmExportedFunction::IsWasmExportedFunction(Object object) {
   if (!object.IsJSFunction()) return false;
   JSFunction js_function = JSFunction::cast(object);
-  CodeDataContainer code = js_function.code();
+  Code code = js_function.code();
   if (CodeKind::JS_TO_WASM_FUNCTION != code.kind() &&
       code.builtin_id() != Builtin::kGenericJSToWasmWrapper &&
       code.builtin_id() != Builtin::kWasmReturnPromiseOnSuspend) {
@@ -1917,7 +1917,7 @@ int WasmExportedFunction::function_index() {
 
 Handle<WasmExportedFunction> WasmExportedFunction::New(
     Isolate* isolate, Handle<WasmInstanceObject> instance, int func_index,
-    int arity, Handle<CodeDataContainer> export_wrapper) {
+    int arity, Handle<Code> export_wrapper) {
   DCHECK(
       CodeKind::JS_TO_WASM_FUNCTION == export_wrapper->kind() ||
       (export_wrapper->is_builtin() &&
@@ -2053,7 +2053,7 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
   }
   // TODO(wasm): Think about caching and sharing the JS-to-JS wrappers per
   // signature instead of compiling a new one for every instantiation.
-  Handle<CodeDataContainer> wrapper_code = ToCodeDataContainer(
+  Handle<Code> wrapper_code = ToCode(
       compiler::CompileJSToJSWrapper(isolate, sig, nullptr).ToHandleChecked(),
       isolate);
 
@@ -2087,11 +2087,11 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
     }
     // TODO(wasm): Think about caching and sharing the wasm-to-JS wrappers per
     // signature instead of compiling a new one for every instantiation.
-    Handle<CodeDataContainer> wasm_to_js_wrapper_code =
-        ToCodeDataContainer(compiler::CompileWasmToJSWrapper(
-                                isolate, sig, kind, expected_arity, suspend)
-                                .ToHandleChecked(),
-                            isolate);
+    Handle<Code> wasm_to_js_wrapper_code =
+        ToCode(compiler::CompileWasmToJSWrapper(isolate, sig, kind,
+                                                expected_arity, suspend)
+                   .ToHandleChecked(),
+               isolate);
     function_data->internal().set_code(*wasm_to_js_wrapper_code);
   }
 

@@ -1000,7 +1000,7 @@ Node* CodeAssembler::CallRuntimeImpl(
     Runtime::FunctionId function, TNode<Object> context,
     std::initializer_list<TNode<Object>> args) {
   int result_size = Runtime::FunctionForId(function)->result_size;
-  TNode<CodeDataContainer> centry =
+  TNode<Code> centry =
       HeapConstant(CodeFactory::RuntimeCEntry(isolate(), result_size));
   constexpr size_t kMaxNumArgs = 6;
   DCHECK_GE(kMaxNumArgs, args.size());
@@ -1033,7 +1033,7 @@ void CodeAssembler::TailCallRuntimeImpl(
     Runtime::FunctionId function, TNode<Int32T> arity, TNode<Object> context,
     std::initializer_list<TNode<Object>> args) {
   int result_size = Runtime::FunctionForId(function)->result_size;
-  TNode<CodeDataContainer> centry =
+  TNode<Code> centry =
       HeapConstant(CodeFactory::RuntimeCEntry(isolate(), result_size));
   constexpr size_t kMaxNumArgs = 6;
   DCHECK_GE(kMaxNumArgs, args.size());
@@ -1089,8 +1089,7 @@ Node* CodeAssembler::CallStubN(StubCallMode call_mode,
 }
 
 void CodeAssembler::TailCallStubImpl(const CallInterfaceDescriptor& descriptor,
-                                     TNode<CodeDataContainer> target,
-                                     TNode<Object> context,
+                                     TNode<Code> target, TNode<Object> context,
                                      std::initializer_list<Node*> args) {
   constexpr size_t kMaxNumArgs = 11;
   DCHECK_GE(kMaxNumArgs, args.size());
@@ -1195,8 +1194,7 @@ template V8_EXPORT_PRIVATE void CodeAssembler::TailCallBytecodeDispatch(
     TNode<Object>, TNode<IntPtrT>, TNode<BytecodeArray>,
     TNode<ExternalReference>);
 
-void CodeAssembler::TailCallJSCode(TNode<CodeDataContainer> code,
-                                   TNode<Context> context,
+void CodeAssembler::TailCallJSCode(TNode<Code> code, TNode<Context> context,
                                    TNode<JSFunction> function,
                                    TNode<Object> new_target,
                                    TNode<Int32T> arg_count) {

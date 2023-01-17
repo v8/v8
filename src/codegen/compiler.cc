@@ -652,7 +652,7 @@ void InstallInterpreterTrampolineCopy(Isolate* isolate,
           INTERPRETER_DATA_TYPE, AllocationType::kOld));
 
   interpreter_data->set_bytecode_array(*bytecode_array);
-  interpreter_data->set_interpreter_trampoline(ToCodeDataContainer(*code));
+  interpreter_data->set_interpreter_trampoline(ToCode(*code));
 
   shared_info->set_interpreter_data(*interpreter_data);
 
@@ -922,7 +922,7 @@ bool FinalizeDeferredUnoptimizedCompilationJobs(
 // A wrapper to access the optimized code cache slots on the feedback vector.
 class OptimizedCodeCache : public AllStatic {
  public:
-  static V8_WARN_UNUSED_RESULT MaybeHandle<CodeDataContainer> Get(
+  static V8_WARN_UNUSED_RESULT MaybeHandle<Code> Get(
       Isolate* isolate, Handle<JSFunction> function, BytecodeOffset osr_offset,
       CodeKind code_kind) {
     if (!CodeKindIsStoredInOptimizedCodeCache(code_kind)) return {};
@@ -932,13 +932,13 @@ class OptimizedCodeCache : public AllStatic {
     SharedFunctionInfo shared = function->shared();
     RCS_SCOPE(isolate, RuntimeCallCounterId::kCompileGetFromOptimizedCodeMap);
 
-    CodeDataContainer code;
+    Code code;
     FeedbackVector feedback_vector = function->feedback_vector();
     if (IsOSR(osr_offset)) {
       Handle<BytecodeArray> bytecode(shared.GetBytecodeArray(isolate), isolate);
       interpreter::BytecodeArrayIterator it(bytecode, osr_offset.ToInt());
       DCHECK_EQ(it.current_bytecode(), interpreter::Bytecode::kJumpLoop);
-      base::Optional<CodeDataContainer> maybe_code =
+      base::Optional<Code> maybe_code =
           feedback_vector.GetOptimizedOsrCode(isolate, it.GetSlotOperand(2));
       if (maybe_code.has_value()) code = maybe_code.value();
     } else {
@@ -961,7 +961,7 @@ class OptimizedCodeCache : public AllStatic {
   }
 
   static void Insert(Isolate* isolate, JSFunction function,
-                     BytecodeOffset osr_offset, CodeDataContainer code,
+                     BytecodeOffset osr_offset, Code code,
                      bool is_function_context_specializing) {
     const CodeKind kind = code.kind();
     if (!CodeKindIsStoredInOptimizedCodeCache(kind)) return;
@@ -1052,7 +1052,7 @@ bool CompileTurbofan_NotConcurrent(Isolate* isolate,
   DCHECK(!isolate->has_pending_exception());
   OptimizedCodeCache::Insert(isolate, *compilation_info->closure(),
                              compilation_info->osr_offset(),
-                             ToCodeDataContainer(*compilation_info->code()),
+                             ToCode(*compilation_info->code()),
                              compilation_info->function_context_specializing());
   job->RecordFunctionCompilation(LogEventListener::CodeTag::kFunction, isolate);
   return true;
@@ -1128,10 +1128,11 @@ bool ShouldOptimize(CodeKind code_kind, Handle<SharedFunctionInfo> shared) {
   }
 }
 
-MaybeHandle<CodeDataContainer> CompileTurbofan(
-    Isolate* isolate, Handle<JSFunction> function,
-    Handle<SharedFunctionInfo> shared, ConcurrencyMode mode,
-    BytecodeOffset osr_offset, CompileResultBehavior result_behavior) {
+MaybeHandle<Code> CompileTurbofan(Isolate* isolate, Handle<JSFunction> function,
+                                  Handle<SharedFunctionInfo> shared,
+                                  ConcurrencyMode mode,
+                                  BytecodeOffset osr_offset,
+                                  CompileResultBehavior result_behavior) {
   VMState<COMPILER> state(isolate);
   TimerEventScope<TimerEventOptimizeCode> optimize_code_timer(isolate);
   RCS_SCOPE(isolate, RuntimeCallCounterId::kOptimizeCode);
@@ -1163,7 +1164,7 @@ MaybeHandle<CodeDataContainer> CompileTurbofan(
   } else {
     DCHECK(IsSynchronous(mode));
     if (CompileTurbofan_NotConcurrent(isolate, job.get())) {
-      return ToCodeDataContainer(job->compilation_info()->code(), isolate);
+      return ToCode(job->compilation_info()->code(), isolate);
     }
   }
 
@@ -1176,12 +1177,11 @@ MaybeHandle<CodeDataContainer> CompileTurbofan(
 void RecordMaglevFunctionCompilation(Isolate* isolate,
                                      Handle<JSFunction> function) {
   PtrComprCageBase cage_base(isolate);
-  // TODO(v8:13261): We should be able to pass a CodeDataContainer AbstractCode
+  // TODO(v8:13261): We should be able to pass a Code AbstractCode
   // in here, but LinuxPerfJitLogger only supports InstructionStream
   // AbstractCode.
   Handle<AbstractCode> abstract_code(
-      AbstractCode::cast(FromCodeDataContainer(function->code(cage_base))),
-      isolate);
+      AbstractCode::cast(FromCode(function->code(cage_base))), isolate);
   Handle<SharedFunctionInfo> shared(function->shared(cage_base), isolate);
   Handle<Script> script(Script::cast(shared->script(cage_base)), isolate);
   Handle<FeedbackVector> feedback_vector(function->feedback_vector(cage_base),
@@ -1197,9 +1197,9 @@ void RecordMaglevFunctionCompilation(Isolate* isolate,
 }
 #endif  // V8_ENABLE_MAGLEV
 
-MaybeHandle<CodeDataContainer> CompileMaglev(
-    Isolate* isolate, Handle<JSFunction> function, ConcurrencyMode mode,
-    BytecodeOffset osr_offset, CompileResultBehavior result_behavior) {
+MaybeHandle<Code> CompileMaglev(Isolate* isolate, Handle<JSFunction> function,
+                                ConcurrencyMode mode, BytecodeOffset osr_offset,
+                                CompileResultBehavior result_behavior) {
 #ifdef V8_ENABLE_MAGLEV
   DCHECK(v8_flags.maglev);
   // TODO(v8:7700): Add missing support.
@@ -1267,7 +1267,7 @@ MaybeHandle<CodeDataContainer> CompileMaglev(
 #endif  // V8_ENABLE_MAGLEV
 }
 
-MaybeHandle<CodeDataContainer> GetOrCompileOptimized(
+MaybeHandle<Code> GetOrCompileOptimized(
     Isolate* isolate, Handle<JSFunction> function, ConcurrencyMode mode,
     CodeKind code_kind, BytecodeOffset osr_offset = BytecodeOffset::None(),
     CompileResultBehavior result_behavior = CompileResultBehavior::kDefault) {
@@ -1297,7 +1297,7 @@ MaybeHandle<CodeDataContainer> GetOrCompileOptimized(
   // turbo_filter.
   if (!ShouldOptimize(code_kind, shared)) return {};
 
-  Handle<CodeDataContainer> cached_code;
+  Handle<Code> cached_code;
   if (OptimizedCodeCache::Get(isolate, function, osr_offset, code_kind)
           .ToHandle(&cached_code)) {
     return cached_code;
@@ -2568,7 +2568,7 @@ bool Compiler::Compile(Isolate* isolate, Handle<JSFunction> function,
   }
 
   DCHECK(is_compiled_scope->is_compiled());
-  Handle<CodeDataContainer> code = handle(shared_info->GetCode(), isolate);
+  Handle<Code> code = handle(shared_info->GetCode(), isolate);
 
   // Initialize the feedback cell for this JSFunction and reset the interrupt
   // budget for feedback vector allocation even if there is a closure feedback
@@ -2597,7 +2597,7 @@ bool Compiler::Compile(Isolate* isolate, Handle<JSFunction> function,
                                                   concurrency_mode, code_kind);
     }
 
-    Handle<CodeDataContainer> maybe_code;
+    Handle<Code> maybe_code;
     if (GetOrCompileOptimized(isolate, function, concurrency_mode, code_kind)
             .ToHandle(&maybe_code)) {
       code = maybe_code;
@@ -2650,7 +2650,7 @@ bool Compiler::CompileSharedWithBaseline(Isolate* isolate,
       // report these somehow, or silently ignore them?
       return false;
     }
-    shared->set_baseline_code(ToCodeDataContainer(*code), kReleaseStore);
+    shared->set_baseline_code(ToCode(*code), kReleaseStore);
   }
   double time_taken_ms = time_taken.InMillisecondsF();
 
@@ -2678,7 +2678,7 @@ bool Compiler::CompileBaseline(Isolate* isolate, Handle<JSFunction> function,
   // Baseline code needs a feedback vector.
   JSFunction::EnsureFeedbackVector(isolate, function, is_compiled_scope);
 
-  CodeDataContainer baseline_code = shared->baseline_code(kAcquireLoad);
+  Code baseline_code = shared->baseline_code(kAcquireLoad);
   DCHECK_EQ(baseline_code.kind(), CodeKind::BASELINE);
   function->set_code(baseline_code);
   return true;
@@ -2722,7 +2722,7 @@ void Compiler::CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
                                                 code_kind);
   }
 
-  Handle<CodeDataContainer> code;
+  Handle<Code> code;
   if (GetOrCompileOptimized(isolate, function, mode, code_kind)
           .ToHandle(&code)) {
     function->set_code(*code, kReleaseStore);
@@ -3856,9 +3856,10 @@ template Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
     FunctionLiteral* literal, Handle<Script> script, LocalIsolate* isolate);
 
 // static
-MaybeHandle<CodeDataContainer> Compiler::CompileOptimizedOSR(
-    Isolate* isolate, Handle<JSFunction> function, BytecodeOffset osr_offset,
-    ConcurrencyMode mode) {
+MaybeHandle<Code> Compiler::CompileOptimizedOSR(Isolate* isolate,
+                                                Handle<JSFunction> function,
+                                                BytecodeOffset osr_offset,
+                                                ConcurrencyMode mode) {
   DCHECK(IsOSR(osr_offset));
 
   if (V8_UNLIKELY(isolate->serializer_enabled())) return {};
@@ -3881,7 +3882,7 @@ MaybeHandle<CodeDataContainer> Compiler::CompileOptimizedOSR(
   function->feedback_vector().reset_osr_urgency();
 
   CompilerTracer::TraceOptimizeOSRStarted(isolate, function, osr_offset, mode);
-  MaybeHandle<CodeDataContainer> result = GetOrCompileOptimized(
+  MaybeHandle<Code> result = GetOrCompileOptimized(
       isolate, function, mode, CodeKind::TURBOFAN, osr_offset);
 
   if (result.is_null()) {
@@ -3945,8 +3946,7 @@ void Compiler::FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
         ResetTieringState(*function, osr_offset);
         OptimizedCodeCache::Insert(
             isolate, *compilation_info->closure(),
-            compilation_info->osr_offset(),
-            ToCodeDataContainer(*compilation_info->code()),
+            compilation_info->osr_offset(), ToCode(*compilation_info->code()),
             compilation_info->function_context_specializing());
         CompilerTracer::TraceCompletedJob(isolate, compilation_info);
         if (IsOSR(osr_offset)) {
@@ -4036,7 +4036,7 @@ void Compiler::PostInstantiation(Handle<JSFunction> function) {
       // deoptimized code just before installing it on the funciton.
       function->feedback_vector().EvictOptimizedCodeMarkedForDeoptimization(
           *shared, "new function from shared function info");
-      CodeDataContainer code = function->feedback_vector().optimized_code();
+      Code code = function->feedback_vector().optimized_code();
       if (!code.is_null()) {
         // Caching of optimized code enabled and optimized code found.
         DCHECK(!code.marked_for_deoptimization());

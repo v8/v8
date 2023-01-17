@@ -248,7 +248,7 @@ class IsolateData final {
   // through kRootRegister.
   Address builtin_entry_table_[Builtins::kBuiltinCount] = {};
 
-  // The entries in this array are tagged pointers to CodeDataContainer objects.
+  // The entries in this array are tagged pointers to Code objects.
   Address builtin_table_[Builtins::kBuiltinCount] = {};
 
   LinearAllocationArea new_allocation_info_;

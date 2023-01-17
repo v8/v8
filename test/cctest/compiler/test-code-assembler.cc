@@ -52,7 +52,7 @@ TEST(SimpleSmiReturn) {
   CodeAssemblerTester asm_tester(isolate);
   CodeAssembler m(asm_tester.state());
   m.Return(SmiTag(&m, m.IntPtrConstant(37)));
-  FunctionTester ft(asm_tester.GenerateCode());
+  FunctionTester ft(asm_tester.GenerateInstructionStream());
   CHECK_EQ(37, ft.CallChecked<Smi>()->value());
 }
 
@@ -63,7 +63,7 @@ TEST(SimpleIntPtrReturn) {
   int test;
   m.Return(m.BitcastWordToTagged(
       m.IntPtrConstant(reinterpret_cast<intptr_t>(&test))));
-  FunctionTester ft(asm_tester.GenerateCode());
+  FunctionTester ft(asm_tester.GenerateInstructionStream());
   MaybeHandle<Object> result = ft.Call();
   CHECK_EQ(reinterpret_cast<Address>(&test), result.ToHandleChecked()->ptr());
 }
@@ -73,7 +73,7 @@ TEST(SimpleDoubleReturn) {
   CodeAssemblerTester asm_tester(isolate);
   CodeAssembler m(asm_tester.state());
   m.Return(m.NumberConstant(0.5));
-  FunctionTester ft(asm_tester.GenerateCode());
+  FunctionTester ft(asm_tester.GenerateInstructionStream());
   CHECK_EQ(0.5, ft.CallChecked<HeapNumber>()->value());
 }
 
@@ -85,7 +85,7 @@ TEST(SimpleCallRuntime1Arg) {
       m.HeapConstant(Handle<Context>(isolate->native_context()));
   TNode<Smi> b = SmiTag(&m, m.IntPtrConstant(0));
   m.Return(m.CallRuntime(Runtime::kIsSmi, context, b));
-  FunctionTester ft(asm_tester.GenerateCode());
+  FunctionTester ft(asm_tester.GenerateInstructionStream());
   CHECK(ft.CallChecked<Oddball>().is_identical_to(
       isolate->factory()->true_value()));
 }
@@ -98,7 +98,7 @@ TEST(SimpleTailCallRuntime1Arg) {
       m.HeapConstant(Handle<Context>(isolate->native_context()));
   TNode<Smi> b = SmiTag(&m, m.IntPtrConstant(0));
   m.TailCallRuntime(Runtime::kIsSmi, context, b);
-  FunctionTester ft(asm_tester.GenerateCode());
+  FunctionTester ft(asm_tester.GenerateInstructionStream());
   CHECK(ft.CallChecked<Oddball>().is_identical_to(
       isolate->factory()->true_value()));
 }
@@ -112,7 +112,7 @@ TEST(SimpleCallRuntime2Arg) {
   TNode<Smi> a = SmiTag(&m, m.IntPtrConstant(2));
   TNode<Smi> b = SmiTag(&m, m.IntPtrConstant(4));
   m.Return(m.CallRuntime(Runtime::kAdd, context, a, b));
-  FunctionTester ft(asm_tester.GenerateCode());
+  FunctionTester ft(asm_tester.GenerateInstructionStream());
   CHECK_EQ(6, ft.CallChecked<Smi>()->value());
 }
 
@@ -125,7 +125,7 @@ TEST(SimpleTailCallRuntime2Arg) {
   TNode<Smi> a = SmiTag(&m, m.IntPtrConstant(2));
   TNode<Smi> b = SmiTag(&m, m.IntPtrConstant(4));
   m.TailCallRuntime(Runtime::kAdd, context, a, b);
-  FunctionTester ft(asm_tester.GenerateCode());
+  FunctionTester ft(asm_tester.GenerateInstructionStream());
   CHECK_EQ(6, ft.CallChecked<Smi>()->value());
 }
 
@@ -160,7 +160,7 @@ TEST(SimpleCallJSFunction0Arg) {
     TNode<Object> result = m.CallJS(callable, context, function, receiver);
     m.Return(result);
   }
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), kNumParams);
 
   Handle<JSFunction> sum = CreateSumAllArgumentsFunction(&ft);
   MaybeHandle<Object> result = ft.Call(sum);
@@ -183,7 +183,7 @@ TEST(SimpleCallJSFunction1Arg) {
     TNode<Object> result = m.CallJS(callable, context, function, receiver, a);
     m.Return(result);
   }
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), kNumParams);
 
   Handle<JSFunction> sum = CreateSumAllArgumentsFunction(&ft);
   MaybeHandle<Object> result = ft.Call(sum);
@@ -208,7 +208,7 @@ TEST(SimpleCallJSFunction2Arg) {
         m.CallJS(callable, context, function, receiver, a, b);
     m.Return(result);
   }
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), kNumParams);
 
   Handle<JSFunction> sum = CreateSumAllArgumentsFunction(&ft);
   MaybeHandle<Object> result = ft.Call(sum);
@@ -342,7 +342,7 @@ TEST(SplitEdgeBranchMerge) {
   m.Bind(&l1);
   m.Goto(&merge);
   m.Bind(&merge);
-  USE(asm_tester.GenerateCode());
+  USE(asm_tester.GenerateInstructionStream());
 }
 
 TEST(SplitEdgeSwitchMerge) {
@@ -360,7 +360,7 @@ TEST(SplitEdgeSwitchMerge) {
   m.Bind(&l2);
   m.Goto(&default_label);
   m.Bind(&default_label);
-  USE(asm_tester.GenerateCode());
+  USE(asm_tester.GenerateInstructionStream());
 }
 
 TEST(TestToConstant) {
@@ -409,7 +409,7 @@ TEST(DeferredCodePhiHints) {
       m.Goto(&loop);
     }
   }
-  CHECK(!asm_tester.GenerateCode().is_null());
+  CHECK(!asm_tester.GenerateInstructionStream().is_null());
 }
 
 TEST(TestOutOfScopeVariable) {
@@ -437,7 +437,7 @@ TEST(TestOutOfScopeVariable) {
     m.Goto(&block1);
   }
   m.Bind(&block1);
-  CHECK(!asm_tester.GenerateCode().is_null());
+  CHECK(!asm_tester.GenerateInstructionStream().is_null());
 }
 
 TEST(ExceptionHandler) {
@@ -459,7 +459,7 @@ TEST(ExceptionHandler) {
   m.Bind(&exception);
   m.Return(var.value());
 
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  FunctionTester ft(asm_tester.GenerateInstructionStream(), kNumParams);
   CHECK_EQ(2, ft.CallChecked<Smi>()->value());
 }
 
@@ -474,7 +474,7 @@ TEST(TestCodeAssemblerCodeComment) {
   m.Comment("Comment1");
   m.Return(m.SmiConstant(1));
 
-  Handle<InstructionStream> code = asm_tester.GenerateCode();
+  Handle<InstructionStream> code = asm_tester.GenerateInstructionStream();
   CHECK_NE(code->code_comments(), kNullAddress);
   CodeCommentsIterator it(code->code_comments(), code->code_comments_size());
   CHECK(it.HasCurrent());
@@ -492,7 +492,7 @@ TEST(StaticAssert) {
   CodeAssemblerTester asm_tester(isolate);
   CodeAssembler m(asm_tester.state());
   m.StaticAssert(m.ReinterpretCast<BoolT>(m.Int32Constant(1)));
-  USE(asm_tester.GenerateCode());
+  USE(asm_tester.GenerateInstructionStream());
 }
 
 }  // namespace compiler

@@ -41,7 +41,7 @@ void TestStubCacheOffsetCalculation(StubCache::Table table) {
     m.Return(m.SmiTag(result));
   }
 
-  Handle<InstructionStream> code = data.GenerateCode();
+  Handle<InstructionStream> code = data.GenerateInstructionStream();
   FunctionTester ft(code, kNumParams);
 
   Factory* factory = isolate->factory();
@@ -105,7 +105,7 @@ Handle<InstructionStream> CreateCodeOfKind(CodeKind kind) {
   CodeAssemblerTester data(isolate, kind);
   CodeStubAssembler m(data.state());
   m.Return(m.UndefinedConstant());
-  return data.GenerateCodeCloseAndEscape();
+  return data.GenerateInstructionStreamCloseAndEscape();
 }
 
 }  // namespace
@@ -147,7 +147,7 @@ TEST(TryProbeStubCache) {
     m.Return(m.BooleanConstant(false));
   }
 
-  Handle<InstructionStream> code = data.GenerateCode();
+  Handle<InstructionStream> code = data.GenerateInstructionStream();
   FunctionTester ft(code, kNumParams);
 
   std::vector<Handle<Name>> names;
@@ -211,7 +211,7 @@ TEST(TryProbeStubCache) {
     Handle<JSObject> receiver = receivers[index % receivers.size()];
     Handle<InstructionStream> handler = handlers[index % handlers.size()];
     stub_cache.Set(*name, receiver->map(),
-                   MaybeObject::FromObject(ToCodeDataContainer(*handler)));
+                   MaybeObject::FromObject(ToCode(*handler)));
   }
 
   // Perform some queries.

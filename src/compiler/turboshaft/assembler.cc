@@ -9,7 +9,7 @@
 
 namespace v8::internal::compiler::turboshaft {
 
-Handle<CodeDataContainer> BuiltinCodeHandle(Builtin builtin, Isolate* isolate) {
+Handle<Code> BuiltinCodeHandle(Builtin builtin, Isolate* isolate) {
   return isolate->builtins()->code_handle(builtin);
 }
 

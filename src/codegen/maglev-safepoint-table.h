@@ -73,8 +73,7 @@ class MaglevSafepointTable {
   // belongs to the embedded or un-embedded code blob.
   explicit MaglevSafepointTable(Isolate* isolate, Address pc,
                                 InstructionStream code);
-  explicit MaglevSafepointTable(Isolate* isolate, Address pc,
-                                CodeDataContainer code);
+  explicit MaglevSafepointTable(Isolate* isolate, Address pc, Code code);
   MaglevSafepointTable(const MaglevSafepointTable&) = delete;
   MaglevSafepointTable& operator=(const MaglevSafepointTable&) = delete;
 
