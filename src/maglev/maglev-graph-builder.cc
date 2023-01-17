@@ -4008,11 +4008,13 @@ bool MaglevGraphBuilder::TryBuildFastInstanceOf(
     ValueNode* callable_node;
     if (callable_node_if_not_constant) {
       // Check that {callable_node_if_not_constant} is actually {callable}.
-      AddNewNode<CheckValue>({callable_node_if_not_constant}, callable);
+      BuildCheckValue(callable_node_if_not_constant, callable);
       callable_node = callable_node_if_not_constant;
     } else {
       callable_node = GetConstant(callable);
     }
+    BuildCheckMaps(callable_node,
+                   base::VectorOf(access_info.lookup_start_object_maps()));
 
     // Call @@hasInstance
     CallArguments args(ConvertReceiverMode::kNotNullOrUndefined,
