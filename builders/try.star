@@ -22,6 +22,26 @@ def try_builder(
         **kwargs
     )
 
+def presubmit_builder(project, timeout = 8 * 60):
+    try_builder(
+        name = "%s_presubmit" % project,
+        bucket = "try",
+        cq_properties = CQ.BLOCK_NO_REUSE,
+        cq_branch_properties = CQ.BLOCK_NO_REUSE,
+        executable = "recipe:run_presubmit",
+        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+        execution_timeout = timeout + 2 * 60,
+        properties = {"runhooks": True, "timeout": timeout},
+        priority = 25,
+
+        # TODO(https://crbug.com/1401307): Remove this exception once bug is
+        # resolved.
+        experiments = {"luci.buildbucket.omit_python2": 0},
+    )
+
+presubmit_builder("v8")
+presubmit_builder("crossbench", timeout = 900)
+
 try_builder(
     name = "v8_android_arm_compile_rel",
     bucket = "try",
@@ -227,22 +247,6 @@ try_builder(
     gclient_vars = [GCLIENT_VARS.ITTAPI],
     use_goma = GOMA.NO,
     use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
-)
-
-try_builder(
-    name = "v8_presubmit",
-    bucket = "try",
-    cq_properties = CQ.BLOCK_NO_REUSE,
-    cq_branch_properties = CQ.BLOCK_NO_REUSE,
-    executable = "recipe:run_presubmit",
-    dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-    execution_timeout = 1200,
-    properties = {"runhooks": True, "timeout": 900},
-    priority = 25,
-
-    # TODO(https://crbug.com/1401307): Remove this exception once bug is
-    # resolved.
-    experiments = {"luci.buildbucket.omit_python2": 0},
 )
 
 try_builder(

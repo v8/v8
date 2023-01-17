@@ -20,7 +20,7 @@ luci.cq_group(
     ],
     verifiers = [
         luci.cq_tryjob_verifier(
-            builder = "v8_presubmit",
+            builder = "crossbench_presubmit",
             disable_reuse = True,
         ),
     ],
