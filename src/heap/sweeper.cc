@@ -854,7 +854,7 @@ void Sweeper::RawIteratePromotedPageForRememberedSets(
                 ->bitmap(chunk)
                 ->AllBitsClearInRange(chunk->AddressToMarkbitIndex(free_start),
                                       chunk->AddressToMarkbitIndex(free_end)));
-        ZapCode(free_start, size);
+        AtomicZapBlock(free_start, size);
         heap_->CreateFillerObjectAtSweeper(free_start, static_cast<int>(size));
       }
       Map map = object.map(cage_base, kAcquireLoad);
@@ -868,7 +868,7 @@ void Sweeper::RawIteratePromotedPageForRememberedSets(
           heap_->non_atomic_marking_state()->bitmap(chunk)->AllBitsClearInRange(
               chunk->AddressToMarkbitIndex(free_start),
               chunk->AddressToMarkbitIndex(chunk->area_end())));
-      ZapCode(free_start, size);
+      AtomicZapBlock(free_start, size);
       heap_->CreateFillerObjectAtSweeper(free_start, static_cast<int>(size));
     }
   }
@@ -1048,9 +1048,9 @@ void Sweeper::AddNewSpacePage(Page* page) {
 }
 
 void Sweeper::AddPromotedPageForIteration(MemoryChunk* chunk) {
+  DCHECK(!heap_->ShouldReduceMemory());
   DCHECK(chunk->owner_identity() == OLD_SPACE ||
          chunk->owner_identity() == LO_SPACE);
-  base::MutexGuard guard(&promoted_pages_iteration_mutex_);
   DCHECK_IMPLIES(v8_flags.concurrent_sweeping,
                  !job_handle_ || !job_handle_->IsValid());
   DCHECK_GE(chunk->area_size(),
@@ -1066,16 +1066,9 @@ void Sweeper::AddPromotedPageForIteration(MemoryChunk* chunk) {
   DCHECK_EQ(Page::ConcurrentSweepingState::kDone,
             chunk->concurrent_sweeping_state());
   chunk->set_concurrent_sweeping_state(Page::ConcurrentSweepingState::kPending);
-  if (heap_->ShouldReduceMemory()) {
-    // For memory reducing GCs, iterate pages immediately to avoid delaying
-    // array buffer sweeping.
-    RawIteratePromotedPageForRememberedSets(
-        chunk, &local_pretenuring_feedback_,
-        &snapshot_old_to_new_remembered_sets_);
-  } else {
-    sweeping_list_for_promoted_page_iteration_.push_back(chunk);
-    promoted_pages_for_iteration_count_++;
-  }
+  base::MutexGuard guard(&promoted_pages_iteration_mutex_);
+  sweeping_list_for_promoted_page_iteration_.push_back(chunk);
+  promoted_pages_for_iteration_count_++;
 }
 
 void Sweeper::AddPageImpl(AllocationSpace space, Page* page,

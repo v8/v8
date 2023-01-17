@@ -6677,7 +6677,18 @@ bool YoungGenerationEvacuator::RawEvacuatePage(MemoryChunk* chunk,
   NonAtomicMarkingState* marking_state = heap_->non_atomic_marking_state();
   *live_bytes = marking_state->live_bytes(chunk);
   DCHECK_EQ(kPageNewToOld, ComputeEvacuationMode(chunk));
-  sweeper_->AddPromotedPageForIteration(chunk);
+  if (heap()->ShouldReduceMemory()) {
+    // For memory reducing GCs, iterate pages immediately to avoid delaying
+    // array buffer sweeping.
+    LiveObjectVisitor::VisitBlackObjectsNoFail(chunk, marking_state,
+                                               &new_to_old_page_visitor_);
+    if (!chunk->IsLargePage() && heap()->ShouldZapGarbage()) {
+      heap_->minor_mark_compact_collector()->MakeIterable(
+          static_cast<Page*>(chunk), FreeSpaceTreatmentMode::kZapFreeSpace);
+    }
+  } else {
+    sweeper_->AddPromotedPageForIteration(chunk);
+  }
   new_to_old_page_visitor_.account_moved_bytes(
       marking_state->live_bytes(chunk));
 
