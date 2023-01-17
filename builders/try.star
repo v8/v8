@@ -236,8 +236,8 @@ try_builder(
     cq_branch_properties = CQ.BLOCK_NO_REUSE,
     executable = "recipe:run_presubmit",
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-    execution_timeout = 600,
-    properties = {"runhooks": True},
+    execution_timeout = 1200,
+    properties = {"runhooks": True, "timeout": 900},
     priority = 25,
 
     # TODO(https://crbug.com/1401307): Remove this exception once bug is
