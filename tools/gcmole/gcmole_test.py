@@ -8,14 +8,17 @@ from pathlib import Path
 import collections
 import os
 import re
+import shutil
+import subprocess
+import sys
 import tempfile
 import textwrap
 import unittest
 
 import gcmole
 
-TESTDATA_PATH = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), 'testdata', 'v8')
+GCMOLE_PATH = Path(__file__).parent.absolute()
+TESTDATA_PATH = GCMOLE_PATH / 'testdata' / 'v8'
 
 Options = collections.namedtuple(
     'Options', ['v8_root_dir', 'v8_target_cpu', 'shard_count', 'shard_index',
@@ -23,19 +26,19 @@ Options = collections.namedtuple(
 
 
 def abs_test_file(f):
-  return Path(os.path.join(TESTDATA_PATH, f))
+  return TESTDATA_PATH / f
 
 
 class FilesTest(unittest.TestCase):
 
   def testFileList_for_testing(self):
-    options = Options(Path(TESTDATA_PATH), 'x64', 1, 0, True)
+    options = Options(TESTDATA_PATH, 'x64', 1, 0, True)
     self.assertEqual(
         gcmole.build_file_list(options),
         list(map(abs_test_file, ['tools/gcmole/gcmole-test.cc'])))
 
   def testFileList_x64(self):
-    options = Options(Path(TESTDATA_PATH), 'x64', 1, 0, False)
+    options = Options(TESTDATA_PATH, 'x64', 1, 0, False)
     expected = [
         'file1.cc',
         'file2.cc',
@@ -51,7 +54,7 @@ class FilesTest(unittest.TestCase):
         list(map(abs_test_file, expected)))
 
   def testFileList_x64_shard0(self):
-    options = Options(Path(TESTDATA_PATH), 'x64', 2, 0, False)
+    options = Options(TESTDATA_PATH, 'x64', 2, 0, False)
     expected = [
         'file1.cc',
         'x64/file1.cc',
@@ -63,7 +66,7 @@ class FilesTest(unittest.TestCase):
         list(map(abs_test_file, expected)))
 
   def testFileList_x64_shard1(self):
-    options = Options(Path(TESTDATA_PATH), 'x64', 2, 1, False)
+    options = Options(TESTDATA_PATH, 'x64', 2, 1, False)
     expected = [
         'file2.cc',
         'x64/file2.cc',
@@ -75,7 +78,7 @@ class FilesTest(unittest.TestCase):
         list(map(abs_test_file, expected)))
 
   def testFileList_arm(self):
-    options = Options(Path(TESTDATA_PATH), 'arm', 1, 0, False)
+    options = Options(TESTDATA_PATH, 'arm', 1, 0, False)
     expected = [
         'file1.cc',
         'file2.cc',
@@ -401,6 +404,30 @@ class SuspectCollectorTest(unittest.TestCase):
 
     with open(temp_dir / 'gccauses') as f:
       self.assertEqual(f.read().strip(), gccauses_expected)
+
+
+class ArgsTest(unittest.TestCase):
+
+  def testArgs(self):
+    """Test argument retrieval using a fake v8 file system and build dir."""
+    with tempfile.TemporaryDirectory('gcmole_args_test') as temp_dir:
+      temp_dir = Path(temp_dir)
+      temp_out = temp_dir / 'out'
+      temp_gcmole = temp_dir / 'tools' / 'gcmole' / 'gcmole_args.py'
+
+      shutil.copytree(abs_test_file('out'), temp_out)
+      os.makedirs(temp_gcmole.parent)
+      shutil.copy(GCMOLE_PATH / 'gcmole_args.py', temp_gcmole)
+
+      # Simulate a ninja call relative to the build dir.
+      subprocess.check_call([sys.executable, temp_gcmole], cwd=temp_out)
+
+      with open(temp_dir / 'out' / 'v8_gcmole.args') as f:
+        self.assertEqual(f.read().split(), [
+            '-DUSE_GLIB=1', '-DV8_TARGET_ARCH_X64', '-I.', '-Iout/gen',
+            '-Iinclude', '-Iout/gen/include'
+        ])
+
 
 if __name__ == '__main__':
   unittest.main()

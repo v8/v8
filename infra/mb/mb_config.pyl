@@ -63,7 +63,7 @@
       'V8 Linux - noi18n - debug builder': 'debug_x86_no_i18n',
       'V8 Linux - verify csa - builder': 'release_x86_verify_csa',
       # Linux64.
-      'V8 Linux64 - builder': 'release_x64',
+      'V8 Linux64 - builder': 'release_x64_gcmole',
       'V8 Linux64 - builder (goma cache silo)': 'release_x64',
       'V8 Linux64 - builder (reclient)': 'release_x64_reclient',
       'V8 Linux64 - builder (reclient compare)': 'release_x64_reclient',
@@ -187,7 +187,7 @@
       'V8 Arm - builder': 'release_arm',
       'V8 Arm - debug builder': 'debug_arm',
       'V8 Android Arm - builder': 'release_android_arm',
-      'V8 Linux - arm - sim - builder': 'release_simulate_arm',
+      'V8 Linux - arm - sim - builder': 'release_simulate_arm_gcmole',
       'V8 Linux - arm - sim - debug builder': 'debug_simulate_arm',
       'V8 Linux - arm - sim - lite - builder': 'release_simulate_arm_lite',
       'V8 Linux - arm - sim - lite - debug builder': 'debug_simulate_arm_lite',
@@ -195,7 +195,7 @@
       'V8 Android Arm64 - builder': 'release_android_arm64',
       'V8 Android Arm64 - debug builder': 'debug_android_arm64',
       'V8 Arm64 - builder': 'release_arm64_hard_float',
-      'V8 Linux - arm64 - sim - builder': 'release_simulate_arm64',
+      'V8 Linux - arm64 - sim - builder': 'release_simulate_arm64_gcmole',
       'V8 Linux - arm64 - sim - debug builder': 'debug_simulate_arm64',
       'V8 Linux - arm64 - sim - gc stress - builder': 'debug_simulate_arm64',
       # Mips.
@@ -247,7 +247,7 @@
       'v8_linux64_nodcheck_compile_rel': 'release_x64',
       'v8_linux64_perfetto_compile_dbg': 'debug_x64_perfetto',
       'v8_linux64_no_pointer_compression_compile_rel': 'release_x64_no_pointer_compression',
-      'v8_linux64_compile_rel': 'release_x64_test_features_trybot',
+      'v8_linux64_compile_rel': 'release_x64_test_features_gcmole_trybot',
       'v8_linux64_no_sandbox_compile_rel': 'release_x64_no_sandbox',
       'v8_linux64_predictable_compile_rel': 'release_x64_predictable',
       'v8_linux64_shared_compile_rel': 'release_x64_shared_verify_heap',
@@ -290,13 +290,13 @@
       'v8_mac64_compile_dbg': 'debug_x64',
       'v8_mac64_noopt_compile_dbg': 'full_debug_x64',
       'v8_mac64_asan_compile_rel': 'release_x64_asan_no_lsan',
-      'v8_linux_arm_compile_rel': 'release_simulate_arm_trybot',
+      'v8_linux_arm_compile_rel': 'release_simulate_arm_gcmole_trybot',
       'v8_linux_arm_lite_compile_dbg': 'debug_simulate_arm_lite',
       'v8_linux_arm_lite_compile_rel': 'release_simulate_arm_lite_trybot',
       'v8_linux_arm_compile_dbg': 'debug_simulate_arm',
       'v8_linux_arm_armv8a_rel': 'release_simulate_arm_trybot',
       'v8_linux_arm_armv8a_dbg': 'debug_simulate_arm',
-      'v8_linux_arm64_compile_rel': 'release_simulate_arm64_trybot',
+      'v8_linux_arm64_compile_rel': 'release_simulate_arm64_gcmole_trybot',
       'v8_linux_arm64_cfi_compile_rel' : 'release_simulate_arm64_cfi',
       'v8_linux_arm64_compile_dbg': 'debug_simulate_arm64',
       'v8_linux_arm64_gc_stress_compile_dbg': 'debug_simulate_arm64',
@@ -403,18 +403,24 @@
       'debug_bot', 'simulate_arm64', 'asan', 'lsan'],
 
     # Release configs for simulators.
-    'release_simulate_arm': [
-      'release_bot', 'simulate_arm'],
+    'release_simulate_arm_gcmole': [
+      'release_bot', 'simulate_arm', 'gcmole'],
     'release_simulate_arm_lite': [
       'release_bot', 'simulate_arm', 'v8_enable_lite_mode'],
-    'release_simulate_arm_trybot': [
-      'release_trybot', 'simulate_arm'],
+    'release_simulate_arm_gcmole_trybot': [
+      'release_trybot', 'simulate_arm', 'gcmole'],
     'release_simulate_arm_lite_trybot': [
       'release_trybot', 'simulate_arm', 'v8_enable_lite_mode'],
+    'release_simulate_arm_trybot': [
+      'release_trybot', 'simulate_arm'],
     'release_simulate_arm64': [
       'release_bot', 'simulate_arm64'],
     'release_simulate_arm64_cfi': [
       'release_bot', 'simulate_arm64', 'v8_control_flow_integrity'],
+    'release_simulate_arm64_gcmole': [
+      'release_bot', 'simulate_arm64', 'gcmole'],
+    'release_simulate_arm64_gcmole_trybot': [
+      'release_trybot', 'simulate_arm64', 'gcmole'],
     'release_simulate_arm64_no_pointer_compression': [
       'release_bot', 'simulate_arm64', 'no_sandbox', 'dcheck_always_on',
       'v8_enable_slow_dchecks', 'v8_disable_pointer_compression'],
@@ -511,6 +517,8 @@
     'release_x64_fuzzilli': [
       'release_bot', 'x64', 'dcheck_always_on', 'v8_enable_slow_dchecks',
       'v8_verify_heap', 'v8_verify_csa', 'fuzzilli'],
+    'release_x64_gcmole': [
+      'release_bot', 'x64', 'gcmole'],
     'release_x64_msvc': [
       'release_bot_no_goma', 'x64', 'minimal_symbols', 'msvc'],
     'release_x64_correctness_fuzzer' : [
@@ -543,6 +551,8 @@
       'release_bot', 'x64', 'no_sandbox'],
     'release_x64_trybot': [
       'release_trybot', 'x64'],
+    'release_x64_test_features_gcmole_trybot': [
+      'release_trybot', 'x64', 'v8_enable_test_features', 'gcmole'],
     'release_x64_test_features_trybot': [
       'release_trybot', 'x64', 'v8_enable_test_features'],
     'release_x64_tsan': [

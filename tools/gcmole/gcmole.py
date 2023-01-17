@@ -25,17 +25,8 @@ import threading
 import queue
 
 
-ArchCfg = collections.namedtuple(
-    "ArchCfg", ["name", "cpu", "triple", "arch_define", "arch_options"])
-
-# TODO(cbruni): use gn desc by default for platform-specific settings
-OPTIONS_64BIT = [
-    "-DV8_COMPRESS_POINTERS",
-    "-DV8_COMPRESS_POINTERS_IN_SHARED_CAGE",
-    "-DV8_EXTERNAL_CODE_SPACE",
-    "-DV8_SHORT_BUILTIN_CALLS",
-    "-DV8_SHARED_RO_HEAP",
-]
+ArchCfg = collections.namedtuple("ArchCfg",
+                                 ["name", "cpu", "triple", "arch_options"])
 
 ARCHITECTURES = {
     "ia32":
@@ -43,7 +34,6 @@ ARCHITECTURES = {
             name="ia32",
             cpu="x86",
             triple="i586-unknown-linux",
-            arch_define="V8_TARGET_ARCH_IA32",
             arch_options=["-m32"],
         ),
     "arm":
@@ -51,24 +41,19 @@ ARCHITECTURES = {
             name="arm",
             cpu="arm",
             triple="i586-unknown-linux",
-            arch_define="V8_TARGET_ARCH_ARM",
             arch_options=["-m32"],
         ),
-    # TODO(cbruni): Use detailed settings:
-    #   arch_options = OPTIONS_64BIT + [ "-DV8_WIN64_UNWINDING_INFO" ]
     "x64":
         ArchCfg(
             name="x64",
             cpu="x64",
             triple="x86_64-unknown-linux",
-            arch_define="V8_TARGET_ARCH_X64",
             arch_options=[]),
     "arm64":
         ArchCfg(
             name="arm64",
             cpu="arm64",
             triple="x86_64-unknown-linux",
-            arch_define="V8_TARGET_ARCH_ARM64",
             arch_options=[],
         ),
 }
@@ -90,6 +75,9 @@ def fatal(format):
 
 
 def make_clang_command_line(plugin, plugin_args, options):
+  with open(options.v8_build_dir / 'v8_gcmole.args') as f:
+    generated_args = f.read().strip().split()
+
   arch_cfg = ARCHITECTURES[options.v8_target_cpu]
   prefixed_plugin_args = []
   if plugin_args:
@@ -101,7 +89,6 @@ def make_clang_command_line(plugin, plugin_args, options):
           arg,
       ]
   log("Using generated files in {}", options.v8_build_dir / 'gen')
-  icu_src_dir = options.v8_root_dir / 'third_party/icu/source'
   return ([
       options.clang_bin_dir / "clang++",
       "-std=c++17",
@@ -121,17 +108,8 @@ def make_clang_command_line(plugin, plugin_args, options):
       arch_cfg.triple,
       "-fno-exceptions",
       "-Wno-everything",
-      "-D",
-      arch_cfg.arch_define,
-      "-DV8_ENABLE_WEBASSEMBLY",
       "-DV8_GC_MOLE",
-      "-DV8_INTL_SUPPORT",
-      "-I{}".format(options.v8_root_dir),
-      "-I{}".format(options.v8_root_dir / 'include'),
-      "-I{}".format(options.v8_build_dir / 'gen'),
-      "-I{}".format(icu_src_dir / 'common'),
-      "-I{}".format(icu_src_dir / 'i18n'),
-  ] + arch_cfg.arch_options)
+  ] + generated_args + arch_cfg.arch_options)
 
 
 def invoke_clang_plugin_for_file(filename, cmd_line, verbose):

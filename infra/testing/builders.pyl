@@ -181,21 +181,6 @@
         'shards': 4,
       },
       {'name': 'gcmole_v3', 'variant': 'ia32', 'shards': 4},
-      {'name': 'gcmole_v3', 'variant': 'x64', 'shards': 4},
-      {'name': 'gcmole_v3', 'variant': 'arm', 'shards': 4},
-      {'name': 'gcmole_v3', 'variant': 'arm64', 'shards': 4},
-      {
-        'name': 'gcmole_v2',
-        'variant': 'x64',
-        'suffix': 'test single host',
-        'test_args': ['--test-run'],
-      },
-      {
-        'name': 'gcmole_v3',
-        'variant': 'x64',
-        'suffix': 'test multi host',
-        'test_args': ['--test-run'],
-      },
     ],
   },
   'v8_linux_optional_rel': {
@@ -345,6 +330,7 @@
       {'name': 'test262', 'variant': 'default', 'shards': 2},
       {'name': 'v8testing', 'shards': 10},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 10},
+      {'name': 'gcmole_v3', 'variant': 'arm', 'shards': 4},
     ],
   },
   ##############################################################################
@@ -627,6 +613,20 @@
       {'name': 'v8testing', 'variant': 'stress_instruction_scheduling'},
       # Maglev -- move to extra once more architectures are supported.
       {'name': 'mjsunit', 'variant': 'maglev'},
+      # GCMole.
+      {'name': 'gcmole_v3', 'variant': 'x64', 'shards': 4},
+      {
+        'name': 'gcmole_v2',
+        'variant': 'x64',
+        'suffix': 'test single host',
+        'test_args': ['--test-run'],
+      },
+      {
+        'name': 'gcmole_v3',
+        'variant': 'x64',
+        'suffix': 'test multi host',
+        'test_args': ['--test-run'],
+      },
     ],
   },
   'v8_linux64_predictable_rel': {
@@ -749,6 +749,7 @@
       {'name': 'test262', 'variant': 'default', 'shards': 4},
       {'name': 'v8testing', 'shards': 14},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 14},
+      {'name': 'gcmole_v3', 'variant': 'arm64', 'shards': 4},
     ],
   },
   'v8_linux_arm64_cfi_rel': {
@@ -1099,21 +1100,6 @@
         'shards': 2
       },
       {'name': 'gcmole_v3', 'variant': 'ia32', 'shards': 4},
-      {'name': 'gcmole_v3', 'variant': 'x64', 'shards': 4},
-      {'name': 'gcmole_v3', 'variant': 'arm', 'shards': 4},
-      {'name': 'gcmole_v3', 'variant': 'arm64', 'shards': 4},
-      {
-        'name': 'gcmole_v2',
-        'variant': 'x64',
-        'suffix': 'test single host',
-        'test_args': ['--test-run'],
-      },
-      {
-        'name': 'gcmole_v3',
-        'variant': 'x64',
-        'suffix': 'test multi host',
-        'test_args': ['--test-run'],
-      },
     ],
   },
   'V8 Linux - arm64 - sim - CFI': {
@@ -1348,6 +1334,20 @@
         'name': 'v8testing',
         'suffix': 'noavx',
         'test_args': ['--extra-flags', '--noenable-avx']
+      },
+      # GCMole.
+      {'name': 'gcmole_v3', 'variant': 'x64', 'shards': 4},
+      {
+        'name': 'gcmole_v2',
+        'variant': 'x64',
+        'suffix': 'test single host',
+        'test_args': ['--test-run'],
+      },
+      {
+        'name': 'gcmole_v3',
+        'variant': 'x64',
+        'suffix': 'test multi host',
+        'test_args': ['--test-run'],
       },
     ],
   },
@@ -2068,6 +2068,8 @@
         'test_args': ['--novfp3'],
         'shards': 6
       },
+      # GCMole.
+      {'name': 'gcmole_v3', 'variant': 'arm', 'shards': 4},
     ],
   },
   'V8 Linux - arm - sim - debug': {
@@ -2149,6 +2151,7 @@
       {'name': 'test262', 'variant': 'default', 'shards': 2},
       {'name': 'v8testing', 'shards': 3},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 2},
+      {'name': 'gcmole_v3', 'variant': 'arm64', 'shards': 4},
     ],
   },
   'V8 Linux - arm64 - sim - debug': {

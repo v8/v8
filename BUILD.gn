@@ -4503,7 +4503,11 @@ group("v8_tracing") {
 }
 
 v8_source_set("v8_base_without_compiler") {
-  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+  # Only targets in this file and gcmole can depend on this.
+  visibility = [
+    ":*",
+    "tools/gcmole/:*",
+  ]
 
   # Split static libraries on windows into two.
   split_count = 2

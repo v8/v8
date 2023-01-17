@@ -8,6 +8,7 @@ if (v8_gcmole) {
   group("v8_gcmole_files") {
     testonly = true
     data_deps = [
+      ":v8_gcmole_args",
       "../../:v8_dump_build_config",
       "../../:v8_generated_cc_files",
     ]
@@ -29,6 +30,7 @@ if (v8_gcmole) {
       "../../test/cctest/",
       "../../test/common/",
       "../../testing/gtest/include/gtest/gtest_prod.h",
+      "../../third_party/glibc/",
       "../../third_party/googletest/src/googletest/include/gtest/gtest_prod.h",
       "../../third_party/icu/source/common/",
       "../../third_party/icu/source/i18n/",
@@ -43,5 +45,16 @@ if (v8_gcmole) {
       # into v8/tools/gcmole/gcmole_tools.
       "gcmole-tools/",
     ]
+  }
+
+  # Only prepare gcmole args if gcmole is activated by a gn arg.
+  action("v8_gcmole_args") {
+    script = "gcmole_args.py"
+    outputs = [ "$root_out_dir/v8_gcmole.args" ]
+
+    # We use an arbitrary v8 target as proxy for calculating globally used
+    # gcmole plugin arguments. Should be a target that's early in the chain
+    # and that enables icu.
+    deps = [ "../../:v8_base_without_compiler" ]
   }
 }
