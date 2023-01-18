@@ -101,7 +101,8 @@ trybot_pair(
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-    use_goma = GOMA.DEFAULT,
+    use_goma = GOMA.NO,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -142,7 +143,8 @@ trybot_pair(
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-    use_goma = GOMA.DEFAULT,
+    use_goma = GOMA.NO,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -236,7 +238,8 @@ trybot_pair(
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-    use_goma = GOMA.DEFAULT,
+    use_goma = GOMA.NO,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -252,7 +255,8 @@ trybot_pair(
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-    use_goma = GOMA.DEFAULT,
+    use_goma = GOMA.NO,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -271,7 +275,8 @@ trybot_pair(
         "test/unittests/heap/.+",
     ),
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-    use_goma = GOMA.DEFAULT,
+    use_goma = GOMA.NO,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -280,7 +285,8 @@ trybot_pair(
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     gclient_vars = [GCLIENT_VARS.GCMOLE],
-    use_goma = GOMA.DEFAULT,
+    use_goma = GOMA.NO,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -320,7 +326,8 @@ trybot_pair(
     name = "v8_linux64_tsan_rel",
     cq_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-    use_goma = GOMA.DEFAULT,
+    use_goma = GOMA.NO,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -338,7 +345,8 @@ trybot_pair(
         "src/compiler/heap-refs.(h|cc)",
     ),
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-    use_goma = GOMA.DEFAULT,
+    use_goma = GOMA.NO,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -362,7 +370,8 @@ trybot_pair(
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-    use_goma = GOMA.DEFAULT,
+    use_goma = GOMA.NO,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -387,7 +396,8 @@ trybot_pair(
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     gclient_vars = [GCLIENT_VARS.GCMOLE],
-    use_goma = GOMA.DEFAULT,
+    use_goma = GOMA.NO,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -420,7 +430,8 @@ trybot_pair(
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     gclient_vars = [GCLIENT_VARS.GCMOLE],
-    use_goma = GOMA.DEFAULT,
+    use_goma = GOMA.NO,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -451,7 +462,8 @@ trybot_pair(
     name = "v8_linux_noi18n_rel",
     cq_properties = CQ.on_files(".*intl.*", ".*test262.*"),
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-    use_goma = GOMA.DEFAULT,
+    use_goma = GOMA.NO,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
@@ -460,7 +472,8 @@ trybot_pair(
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     gclient_vars = [GCLIENT_VARS.GCMOLE],
-    use_goma = GOMA.DEFAULT,
+    use_goma = GOMA.NO,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 trybot_pair(
