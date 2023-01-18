@@ -1172,6 +1172,7 @@
   'regress/regress-1212404': [SKIP],
   'regress/regress-1221035': [SKIP],
   'regress/regress-1232620': [SKIP],
+  'regress/regress-1353555': [SKIP],
   'regress/regress-crbug-1237153': [SKIP],
   'regress/wasm/regress-1067621': [SKIP],
 
