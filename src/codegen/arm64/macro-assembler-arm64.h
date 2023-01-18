@@ -565,27 +565,27 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Calls Abort(msg) if the condition cond is not satisfied.
   // Use --debug_code to enable.
-  void Assert(Condition cond, AbortReason reason) NOOP_UNLESS_DEBUG_CODE
+  void Assert(Condition cond, AbortReason reason) NOOP_UNLESS_DEBUG_CODE;
 
-      // Like Assert(), but without condition.
-      // Use --debug_code to enable.
-      void AssertUnreachable(AbortReason reason) NOOP_UNLESS_DEBUG_CODE
+  // Like Assert(), but without condition.
+  // Use --debug_code to enable.
+  void AssertUnreachable(AbortReason reason) NOOP_UNLESS_DEBUG_CODE;
 
-      void AssertSmi(Register object,
-                     AbortReason reason = AbortReason::kOperandIsNotASmi)
-          NOOP_UNLESS_DEBUG_CODE
+  void AssertSmi(Register object,
+                 AbortReason reason = AbortReason::kOperandIsNotASmi)
+      NOOP_UNLESS_DEBUG_CODE;
 
-      // Abort execution if argument is a smi, enabled via --debug-code.
-      void AssertNotSmi(Register object,
-                        AbortReason reason = AbortReason::kOperandIsASmi)
-          NOOP_UNLESS_DEBUG_CODE
+  // Abort execution if argument is a smi, enabled via --debug-code.
+  void AssertNotSmi(Register object,
+                    AbortReason reason = AbortReason::kOperandIsASmi)
+      NOOP_UNLESS_DEBUG_CODE;
 
-      // Abort execution if a 64 bit register containing a 32 bit payload does
-      // not have zeros in the top 32 bits, enabled via --debug-code.
-      void AssertZeroExtended(Register int32_register) NOOP_UNLESS_DEBUG_CODE
+  // Abort execution if a 64 bit register containing a 32 bit payload does
+  // not have zeros in the top 32 bits, enabled via --debug-code.
+  void AssertZeroExtended(Register int32_register) NOOP_UNLESS_DEBUG_CODE;
 
-      // Like Assert(), but always enabled.
-      void Check(Condition cond, AbortReason reason);
+  // Like Assert(), but always enabled.
+  void Check(Condition cond, AbortReason reason);
 
   // Functions performing a check on a known or potential smi. Returns
   // a condition that is satisfied if the check is successful.
@@ -709,7 +709,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                     const VRegister& fm, Condition cond);
 
   // Emits a runtime assert that the stack pointer is aligned.
-  void AssertSpAligned() NOOP_UNLESS_DEBUG_CODE
+  void AssertSpAligned() NOOP_UNLESS_DEBUG_CODE;
 
   // Copy slot_count stack slots from the stack offset specified by src to
   // the stack offset specified by dst. The offsets and count are expressed in
@@ -793,7 +793,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Abort execution if argument is not a positive or zero integer, enabled via
   // --debug-code.
-  void AssertPositiveOrZero(Register value) NOOP_UNLESS_DEBUG_CODE
+  void AssertPositiveOrZero(Register value) NOOP_UNLESS_DEBUG_CODE;
 
 #define DECLARE_FUNCTION(FN, REGTYPE, REG, OP) \
   inline void FN(const REGTYPE REG, const MemOperand& addr);
@@ -1164,7 +1164,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     ucvtf(vd, vn, fbits);
   }
 
-  void AssertFPCRState(Register fpcr = NoReg) NOOP_UNLESS_DEBUG_CODE
+  void AssertFPCRState(Register fpcr = NoReg) NOOP_UNLESS_DEBUG_CODE;
   void CanonicalizeNaN(const VRegister& dst, const VRegister& src);
   void CanonicalizeNaN(const VRegister& reg) { CanonicalizeNaN(reg, reg); }
 
@@ -1872,7 +1872,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // Tiering support.
   inline void AssertFeedbackVector(Register object);
   void AssertFeedbackVector(Register object,
-                            Register scratch) NOOP_UNLESS_DEBUG_CODE
+                            Register scratch) NOOP_UNLESS_DEBUG_CODE;
   void ReplaceClosureCodeWithOptimizedCode(Register optimized_code,
                                            Register closure);
   void GenerateTailCallToReturnedCode(Runtime::FunctionId function_id);
@@ -1908,36 +1908,35 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   // Abort execution if argument is not a Code, enabled via
   // --debug-code.
-  void AssertCode(Register object) NOOP_UNLESS_DEBUG_CODE
+  void AssertCode(Register object) NOOP_UNLESS_DEBUG_CODE;
 
-      // Abort execution if argument is not a Constructor, enabled via
-      // --debug-code.
-      void AssertConstructor(Register object) NOOP_UNLESS_DEBUG_CODE
+  // Abort execution if argument is not a Constructor, enabled via
+  // --debug-code.
+  void AssertConstructor(Register object) NOOP_UNLESS_DEBUG_CODE;
 
-      // Abort execution if argument is not a JSFunction, enabled via
-      // --debug-code.
-      void AssertFunction(Register object) NOOP_UNLESS_DEBUG_CODE
+  // Abort execution if argument is not a JSFunction, enabled via
+  // --debug-code.
+  void AssertFunction(Register object) NOOP_UNLESS_DEBUG_CODE;
 
-      // Abort execution if argument is not a callable JSFunction, enabled via
-      // --debug-code.
-      void AssertCallableFunction(Register object) NOOP_UNLESS_DEBUG_CODE
+  // Abort execution if argument is not a callable JSFunction, enabled via
+  // --debug-code.
+  void AssertCallableFunction(Register object) NOOP_UNLESS_DEBUG_CODE;
 
-      // Abort execution if argument is not a JSGeneratorObject (or subclass),
-      // enabled via --debug-code.
-      void AssertGeneratorObject(Register object) NOOP_UNLESS_DEBUG_CODE
+  // Abort execution if argument is not a JSGeneratorObject (or subclass),
+  // enabled via --debug-code.
+  void AssertGeneratorObject(Register object) NOOP_UNLESS_DEBUG_CODE;
 
-      // Abort execution if argument is not a JSBoundFunction,
-      // enabled via --debug-code.
-      void AssertBoundFunction(Register object) NOOP_UNLESS_DEBUG_CODE
+  // Abort execution if argument is not a JSBoundFunction,
+  // enabled via --debug-code.
+  void AssertBoundFunction(Register object) NOOP_UNLESS_DEBUG_CODE;
 
-      // Abort execution if argument is not undefined or an AllocationSite,
-      // enabled via --debug-code.
-      void AssertUndefinedOrAllocationSite(Register object)
-          NOOP_UNLESS_DEBUG_CODE
+  // Abort execution if argument is not undefined or an AllocationSite,
+  // enabled via --debug-code.
+  void AssertUndefinedOrAllocationSite(Register object) NOOP_UNLESS_DEBUG_CODE;
 
-      // ---- Calling / Jumping helpers ----
+  // ---- Calling / Jumping helpers ----
 
-      void CallRuntime(const Runtime::Function* f, int num_arguments);
+  void CallRuntime(const Runtime::Function* f, int num_arguments);
 
   // Convenience function: Same as above, but takes the fid instead.
   void CallRuntime(Runtime::FunctionId fid, int num_arguments) {
