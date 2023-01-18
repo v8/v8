@@ -60,7 +60,7 @@ TEST(0) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<InstructionStream> code =
+  Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
   code->Print();
@@ -96,7 +96,7 @@ TEST(1) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<InstructionStream> code =
+  Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
   code->Print();
@@ -144,7 +144,7 @@ TEST(2) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<InstructionStream> code =
+  Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
   code->Print();
@@ -213,7 +213,7 @@ TEST(3) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<InstructionStream> code =
+  Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
   code->Print();
@@ -328,7 +328,7 @@ TEST(4) {
     Object code = isolate->heap()->CreateCode(
         desc,
         CodeKind::FOR_TESTING,
-        Handle<InstructionStream>())->ToObjectChecked();
+        Handle<Code>())->ToObjectChecked();
     CHECK(code->IsCode());
 #ifdef DEBUG
     Code::cast(code)->Print();
@@ -388,7 +388,7 @@ TEST(5) {
     Object code = isolate->heap()->CreateCode(
         desc,
         CodeKind::FOR_TESTING,
-        Handle<InstructionStream>())->ToObjectChecked();
+        Handle<Code>())->ToObjectChecked();
     CHECK(code->IsCode());
 #ifdef DEBUG
     Code::cast(code)->Print();
@@ -423,7 +423,7 @@ TEST(6) {
     Object code = isolate->heap()->CreateCode(
         desc,
         CodeKind::FOR_TESTING,
-        Handle<InstructionStream>())->ToObjectChecked();
+        Handle<Code>())->ToObjectChecked();
     CHECK(code->IsCode());
 #ifdef DEBUG
     Code::cast(code)->Print();
@@ -498,7 +498,7 @@ static void TestRoundingMode(VCVTTypes types,
     Object code = isolate->heap()->CreateCode(
         desc,
         CodeKind::FOR_TESTING,
-        Handle<InstructionStream>())->ToObjectChecked();
+        Handle<Code>())->ToObjectChecked();
     CHECK(code->IsCode());
 #ifdef DEBUG
     Code::cast(code)->Print();
@@ -685,7 +685,7 @@ TEST(8) {
     Object code = isolate->heap()->CreateCode(
         desc,
         CodeKind::FOR_TESTING,
-        Handle<InstructionStream>())->ToObjectChecked();
+        Handle<Code>())->ToObjectChecked();
     CHECK(code->IsCode());
 #ifdef DEBUG
     Code::cast(code)->Print();
@@ -800,7 +800,7 @@ TEST(9) {
     Object code = isolate->heap()->CreateCode(
         desc,
         CodeKind::FOR_TESTING,
-        Handle<InstructionStream>())->ToObjectChecked();
+        Handle<Code>())->ToObjectChecked();
     CHECK(code->IsCode());
 #ifdef DEBUG
     Code::cast(code)->Print();
@@ -911,7 +911,7 @@ TEST(10) {
     Object code = isolate->heap()->CreateCode(
         desc,
         CodeKind::FOR_TESTING,
-        Handle<InstructionStream>())->ToObjectChecked();
+        Handle<Code>())->ToObjectChecked();
     CHECK(code->IsCode());
 #ifdef DEBUG
     Code::cast(code)->Print();
@@ -1008,7 +1008,7 @@ TEST(11) {
   Object code = isolate->heap()->CreateCode(
       desc,
       CodeKind::FOR_TESTING,
-      Handle<InstructionStream>())->ToObjectChecked();
+      Handle<Code>())->ToObjectChecked();
   CHECK(code->IsCode());
 #ifdef DEBUG
   Code::cast(code)->Print();
@@ -1072,7 +1072,7 @@ TEST(WordSizedVectorInstructions) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<InstructionStream> code =
+  Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
   code->Print();
