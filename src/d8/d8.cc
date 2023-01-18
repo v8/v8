@@ -465,6 +465,7 @@ CounterCollection* Shell::counters_ = &local_counters_;
 base::LazyMutex Shell::context_mutex_;
 const base::TimeTicks Shell::kInitialTicks = base::TimeTicks::Now();
 Global<Function> Shell::stringify_function_;
+base::Mutex Shell::profiler_end_callback_lock_;
 std::map<Isolate*, std::pair<Global<Function>, Global<Context>>>
     Shell::profiler_end_callback_;
 base::LazyMutex Shell::workers_mutex_;
@@ -2523,12 +2524,14 @@ void Shell::ProfilerSetOnProfileEndListener(
     isolate->ThrowError("The OnProfileEnd listener has to be a function");
     return;
   }
+  base::MutexGuard lock_guard(&profiler_end_callback_lock_);
   profiler_end_callback_[isolate] =
       std::make_pair(Global<Function>(isolate, args[0].As<Function>()),
                      Global<Context>(isolate, isolate->GetCurrentContext()));
 }
 
 bool Shell::HasOnProfileEndListener(Isolate* isolate) {
+  base::MutexGuard lock_guard(&profiler_end_callback_lock_);
   return profiler_end_callback_.find(isolate) != profiler_end_callback_.end();
 }
 
@@ -2536,7 +2539,10 @@ void Shell::ResetOnProfileEndListener(Isolate* isolate) {
   // If the inspector is enabled, then the installed console is not the
   // D8Console.
   if (options.enable_inspector) return;
-  profiler_end_callback_.erase(isolate);
+  {
+    base::MutexGuard lock_guard(&profiler_end_callback_lock_);
+    profiler_end_callback_.erase(isolate);
+  }
 
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   D8Console* console =
@@ -2559,11 +2565,16 @@ void Shell::ProfilerTriggerSample(
 
 void Shell::TriggerOnProfileEndListener(Isolate* isolate, std::string profile) {
   CHECK(HasOnProfileEndListener(isolate));
+  Local<Function> callback;
+  Local<Context> context;
   Local<Value> argv[1] = {
       String::NewFromUtf8(isolate, profile.c_str()).ToLocalChecked()};
-  auto& callback_pair = profiler_end_callback_[isolate];
-  Local<Function> callback = callback_pair.first.Get(isolate);
-  Local<Context> context = callback_pair.second.Get(isolate);
+  {
+    base::MutexGuard lock_guard(&profiler_end_callback_lock_);
+    auto& callback_pair = profiler_end_callback_[isolate];
+    callback = callback_pair.first.Get(isolate);
+    context = callback_pair.second.Get(isolate);
+  }
   TryCatch try_catch(isolate);
   try_catch.SetVerbose(true);
   USE(callback->Call(context, Undefined(isolate), 1, argv));
