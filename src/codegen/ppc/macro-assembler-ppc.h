@@ -716,15 +716,14 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Jump(Register target);
   void Jump(Address target, RelocInfo::Mode rmode, Condition cond = al,
             CRegister cr = cr7);
-  void Jump(Handle<CodeDataContainer> code, RelocInfo::Mode rmode,
-            Condition cond = al, CRegister cr = cr7);
+  void Jump(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al,
+            CRegister cr = cr7);
   void Jump(const ExternalReference& reference);
   void Jump(intptr_t target, RelocInfo::Mode rmode, Condition cond = al,
             CRegister cr = cr7);
   void Call(Register target);
   void Call(Address target, RelocInfo::Mode rmode, Condition cond = al);
-  void Call(Handle<CodeDataContainer> code,
-            RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
+  void Call(Handle<Code> code, RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
             Condition cond = al);
   void Call(Label* target);
 
@@ -734,18 +733,17 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadEntryFromBuiltin(Builtin builtin, Register destination);
   MemOperand EntryFromBuiltinAsOperand(Builtin builtin);
 
-  // Load the code entry point from the CodeDataContainer object.
-  void LoadCodeDataContainerEntry(Register destination,
-                                  Register code_data_container_object);
-  // Load code entry point from the CodeDataContainer object and compute
+  // Load the code entry point from the Code object.
+  void LoadCodeEntry(Register destination, Register code_object);
+  // Load code entry point from the Code object and compute
   // InstructionStream object pointer out of it. Must not be used for
-  // CodeDataContainers corresponding to builtins, because their entry points
+  // Codes corresponding to builtins, because their entry points
   // values point to the embedded instruction stream in .text section.
-  void LoadCodeDataContainerInstructionStreamNonBuiltin(
-      Register destination, Register code_data_container_object);
-  void CallCodeDataContainerObject(Register code_data_container_object);
-  void JumpCodeDataContainerObject(Register code_data_container_object,
-                                   JumpMode jump_mode = JumpMode::kJump);
+  void LoadCodeInstructionStreamNonBuiltin(Register destination,
+                                           Register code_object);
+  void CallCodeObject(Register code_object);
+  void JumpCodeObject(Register code_object,
+                      JumpMode jump_mode = JumpMode::kJump);
 
   void CallBuiltinByIndex(Register builtin_index);
   void CallForDeoptimization(Builtin target, int deopt_id, Label* exit,
@@ -1724,8 +1722,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
     DecodeField<Field>(reg, reg, rc);
   }
 
-  void TestCodeDataContainerIsMarkedForDeoptimization(
-      Register code_data_container, Register scratch1, Register scratch2);
+  void TestCodeIsMarkedForDeoptimization(Register code, Register scratch1,
+                                         Register scratch2);
   Operand ClearedValue() const;
 
  private:

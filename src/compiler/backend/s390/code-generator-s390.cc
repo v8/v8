@@ -1122,7 +1122,7 @@ void CodeGenerator::AssembleCodeStartRegisterCheck() {
 // jumps to the CompileLazyDeoptimizedCode builtin. In order to do this we need
 // to:
 //    1. read from memory the word that contains that bit, which can be found in
-//       the flags in the referenced {CodeDataContainer} object;
+//       the flags in the referenced {Code} object;
 //    2. test kMarkedForDeoptimizationBit in those flags; and
 //    3. if it is not zero then it jumps to the builtin.
 void CodeGenerator::BailoutIfDeoptimized() {
@@ -1133,12 +1133,10 @@ void CodeGenerator::BailoutIfDeoptimized() {
     __ Assert(eq, AbortReason::kWrongFunctionCodeStart);
   }
 
-  int offset = InstructionStream::kCodeDataContainerOffset -
-               InstructionStream::kHeaderSize;
+  int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
   __ LoadTaggedPointerField(
       ip, MemOperand(kJavaScriptCallCodeStartRegister, offset), r0);
-  __ LoadS32(ip,
-           FieldMemOperand(ip, CodeDataContainer::kKindSpecificFlagsOffset));
+  __ LoadS32(ip, FieldMemOperand(ip, Code::kKindSpecificFlagsOffset));
   __ TestBit(ip, InstructionStream::kMarkedForDeoptimizationBit);
   __ Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
           RelocInfo::CODE_TARGET, ne);
@@ -1164,7 +1162,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         DCHECK_IMPLIES(
             instr->HasCallDescriptorFlag(CallDescriptor::kFixedTargetRegister),
             reg == kJavaScriptCallCodeStartRegister);
-        __ CallCodeDataContainerObject(reg);
+        __ CallCodeObject(reg);
       } else {
         __ Call(i.InputCode(0), RelocInfo::CODE_TARGET);
       }
@@ -1216,7 +1214,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         DCHECK_IMPLIES(
             instr->HasCallDescriptorFlag(CallDescriptor::kFixedTargetRegister),
             reg == kJavaScriptCallCodeStartRegister);
-        __ JumpCodeDataContainerObject(reg);
+        __ JumpCodeObject(reg);
       } else {
         // We cannot use the constant pool to load the target since
         // we've already restored the caller's frame.
@@ -1250,7 +1248,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       static_assert(kJavaScriptCallCodeStartRegister == r4, "ABI mismatch");
       __ LoadTaggedPointerField(r4,
                                 FieldMemOperand(func, JSFunction::kCodeOffset));
-      __ CallCodeDataContainerObject(r4);
+      __ CallCodeObject(r4);
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
       break;

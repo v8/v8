@@ -416,7 +416,7 @@ void TurboAssembler::Jump(Address target, RelocInfo::Mode rmode,
   Jump(static_cast<intptr_t>(target), rmode, cond);
 }
 
-void TurboAssembler::Jump(Handle<CodeDataContainer> code, RelocInfo::Mode rmode,
+void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
                           Condition cond) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
   DCHECK_IMPLIES(options().isolate_independent_code,
@@ -469,7 +469,7 @@ void TurboAssembler::Call(Address target, RelocInfo::Mode rmode,
   basr(r14, ip);
 }
 
-void TurboAssembler::Call(Handle<CodeDataContainer> code, RelocInfo::Mode rmode,
+void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
                           Condition cond) {
   DCHECK(RelocInfo::IsCodeTarget(rmode) && cond == al);
 
@@ -502,8 +502,7 @@ void TurboAssembler::CallBuiltin(Builtin builtin, Condition cond) {
       Call(ip);
       break;
     case BuiltinCallJumpMode::kForMksnapshot: {
-      Handle<CodeDataContainer> code =
-          isolate()->builtins()->code_handle(builtin);
+      Handle<Code> code = isolate()->builtins()->code_handle(builtin);
       call(code, RelocInfo::CODE_TARGET);
       break;
     }
@@ -529,8 +528,7 @@ void TurboAssembler::TailCallBuiltin(Builtin builtin, Condition cond) {
       break;
     case BuiltinCallJumpMode::kForMksnapshot: {
       if (options().use_pc_relative_calls_and_jumps_for_mksnapshot) {
-        Handle<CodeDataContainer> code =
-            isolate()->builtins()->code_handle(builtin);
+        Handle<Code> code = isolate()->builtins()->code_handle(builtin);
         jump(code, RelocInfo::RELATIVE_CODE_TARGET, cond);
       } else {
         LoadU64(ip, EntryFromBuiltinAsOperand(builtin));
@@ -559,11 +557,9 @@ void TurboAssembler::Drop(Register count, Register scratch) {
   AddS64(sp, sp, scratch);
 }
 
-void MacroAssembler::TestCodeDataContainerIsMarkedForDeoptimization(
-    Register code_data_container, Register scratch) {
-  LoadS32(scratch,
-          FieldMemOperand(code_data_container,
-                          CodeDataContainer::kKindSpecificFlagsOffset));
+void MacroAssembler::TestCodeIsMarkedForDeoptimization(Register code,
+                                                       Register scratch) {
+  LoadS32(scratch, FieldMemOperand(code, Code::kKindSpecificFlagsOffset));
   TestBit(scratch, InstructionStream::kMarkedForDeoptimizationBit, scratch);
 }
 
@@ -1835,10 +1831,10 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
                          FieldMemOperand(function, JSFunction::kCodeOffset));
   switch (type) {
     case InvokeType::kCall:
-      CallCodeDataContainerObject(code);
+      CallCodeObject(code);
       break;
     case InvokeType::kJump:
-      JumpCodeDataContainerObject(code);
+      JumpCodeObject(code);
       break;
   }
   // Continue here if InvokePrologue does handle the invocation due to
@@ -2046,8 +2042,7 @@ void TailCallOptimizedCodeSlot(MacroAssembler* masm,
   // Check if the optimized code is marked for deopt. If it is, call the
   // runtime to clear it.
   {
-    __ TestCodeDataContainerIsMarkedForDeoptimization(optimized_code_entry,
-                                                      scratch);
+    __ TestCodeIsMarkedForDeoptimization(optimized_code_entry, scratch);
     __ bne(&heal_optimized_code_slot);
   }
 
@@ -2056,7 +2051,7 @@ void TailCallOptimizedCodeSlot(MacroAssembler* masm,
   __ ReplaceClosureCodeWithOptimizedCode(optimized_code_entry, closure, scratch,
                                          r7);
   static_assert(kJavaScriptCallCodeStartRegister == r4, "ABI mismatch");
-  __ LoadCodeDataContainerEntry(r4, optimized_code_entry);
+  __ LoadCodeEntry(r4, optimized_code_entry);
   __ Jump(r4);
 
   // Optimized code slot contains deoptimized code or code is cleared and
@@ -2122,7 +2117,7 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
     SmiUntag(kJavaScriptCallArgCountRegister);
   }
   static_assert(kJavaScriptCallCodeStartRegister == r4, "ABI mismatch");
-  JumpCodeDataContainerObject(r4);
+  JumpCodeObject(r4);
 }
 
 // Read off the flags in the feedback vector and check if there
@@ -2186,10 +2181,9 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   mov(r2, Operand(num_arguments));
   Move(r3, ExternalReference::Create(f));
 #if V8_TARGET_ARCH_S390X
-  Handle<CodeDataContainer> code =
-      CodeFactory::CEntry(isolate(), f->result_size);
+  Handle<Code> code = CodeFactory::CEntry(isolate(), f->result_size);
 #else
-  Handle<CodeDataContainer> code = CodeFactory::CEntry(isolate(), 1);
+  Handle<Code> code = CodeFactory::CEntry(isolate(), 1);
 #endif
 
   Call(code, RelocInfo::CODE_TARGET);
@@ -2207,7 +2201,7 @@ void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid) {
 void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
                                              bool builtin_exit_frame) {
   Move(r3, builtin);
-  Handle<CodeDataContainer> code =
+  Handle<Code> code =
       CodeFactory::CEntry(isolate(), 1, ArgvMode::kStack, builtin_exit_frame);
   Jump(code, RelocInfo::CODE_TARGET);
 }
@@ -4976,40 +4970,33 @@ MemOperand TurboAssembler::EntryFromBuiltinAsOperand(Builtin builtin) {
                     IsolateData::BuiltinEntrySlotOffset(builtin));
 }
 
-void TurboAssembler::LoadCodeDataContainerEntry(
-    Register destination, Register code_data_container_object) {
+void TurboAssembler::LoadCodeEntry(Register destination, Register code_object) {
   ASM_CODE_COMMENT(this);
   LoadU64(destination,
-          FieldMemOperand(code_data_container_object,
-                          CodeDataContainer::kCodeEntryPointOffset));
+          FieldMemOperand(code_object, Code::kCodeEntryPointOffset));
 }
 
-void TurboAssembler::LoadCodeDataContainerInstructionStreamNonBuiltin(
-    Register destination, Register code_data_container_object) {
+void TurboAssembler::LoadCodeInstructionStreamNonBuiltin(Register destination,
+                                                         Register code_object) {
   ASM_CODE_COMMENT(this);
   // Compute the InstructionStream object pointer from the code entry point.
   LoadU64(destination,
-          FieldMemOperand(code_data_container_object,
-                          CodeDataContainer::kCodeEntryPointOffset));
+          FieldMemOperand(code_object, Code::kCodeEntryPointOffset));
   SubS64(destination, destination,
          Operand(InstructionStream::kHeaderSize - kHeapObjectTag));
 }
 
-void TurboAssembler::CallCodeDataContainerObject(
-    Register code_data_container_object) {
+void TurboAssembler::CallCodeObject(Register code_object) {
   ASM_CODE_COMMENT(this);
-  LoadCodeDataContainerEntry(code_data_container_object,
-                             code_data_container_object);
-  Call(code_data_container_object);
+  LoadCodeEntry(code_object, code_object);
+  Call(code_object);
 }
 
-void TurboAssembler::JumpCodeDataContainerObject(
-    Register code_data_container_object, JumpMode jump_mode) {
+void TurboAssembler::JumpCodeObject(Register code_object, JumpMode jump_mode) {
   ASM_CODE_COMMENT(this);
   DCHECK_EQ(JumpMode::kJump, jump_mode);
-  LoadCodeDataContainerEntry(code_data_container_object,
-                             code_data_container_object);
-  Jump(code_data_container_object);
+  LoadCodeEntry(code_object, code_object);
+  Jump(code_object);
 }
 
 void TurboAssembler::StoreReturnAddressAndCall(Register target) {
