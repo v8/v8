@@ -4086,19 +4086,19 @@ TEST(WeakReference) {
       shared_function, feedback_cell_array,
       handle(i::JSFunction::cast(*obj).raw_feedback_cell(), i_isolate));
 
-  // Create a InstructionStream.
+  // Create a Code object.
   i::Assembler assm(i::AssemblerOptions{});
   assm.nop();  // supported on all architectures
   i::CodeDesc desc;
   assm.GetCode(i_isolate, &desc);
-  i::Handle<i::InstructionStream> code =
+  i::Handle<i::Code> code =
       i::Factory::CodeBuilder(i_isolate, desc, i::CodeKind::FOR_TESTING)
           .Build();
-  CHECK(code->IsInstructionStream());
+  CHECK(code->IsCode());
 
   // Manually inlined version of FeedbackVector::SetOptimizedCode (needed due
   // to the FOR_TESTING code kind).
-  fv->set_maybe_optimized_code(i::HeapObjectReference::Weak(ToCode(*code)),
+  fv->set_maybe_optimized_code(i::HeapObjectReference::Weak(*code),
                                v8::kReleaseStore);
   fv->set_flags(
       i::FeedbackVector::MaybeHasTurbofanCodeBit::encode(true) |

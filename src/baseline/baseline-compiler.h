@@ -58,7 +58,7 @@ class BaselineCompiler {
                             Handle<BytecodeArray> bytecode);
 
   void GenerateCode();
-  MaybeHandle<InstructionStream> Build(LocalIsolate* local_isolate);
+  MaybeHandle<Code> Build(LocalIsolate* local_isolate);
   static int EstimateInstructionSize(BytecodeArray bytecode);
 
  private:

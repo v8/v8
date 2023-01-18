@@ -360,8 +360,8 @@ class PipelineData {
   bool verify_graph() const { return verify_graph_; }
   void set_verify_graph(bool value) { verify_graph_ = value; }
 
-  MaybeHandle<InstructionStream> code() { return code_; }
-  void set_code(MaybeHandle<InstructionStream> code) {
+  MaybeHandle<Code> code() { return code_; }
+  void set_code(MaybeHandle<Code> code) {
     DCHECK(code_.is_null());
     code_ = code;
   }
@@ -655,7 +655,7 @@ class PipelineData {
   bool verify_graph_ = false;
   int start_source_position_ = kNoSourcePosition;
   base::Optional<OsrHelper> osr_helper_;
-  MaybeHandle<InstructionStream> code_;
+  MaybeHandle<Code> code_;
   CodeGenerator* code_generator_ = nullptr;
   Typer* typer_ = nullptr;
   Typer::Flags typer_flags_ = Typer::kNoFlags;
@@ -750,15 +750,15 @@ class PipelineImpl final {
   void AssembleCode(Linkage* linkage);
 
   // Step D. Run the code finalization pass.
-  MaybeHandle<InstructionStream> FinalizeCode(bool retire_broker = true);
+  MaybeHandle<Code> FinalizeCode(bool retire_broker = true);
 
   // Step E. Install any code dependencies.
-  bool CommitDependencies(Handle<InstructionStream> code);
+  bool CommitDependencies(Handle<Code> code);
 
   void VerifyGeneratedCodeIsIdempotent();
   void RunPrintAndVerify(const char* phase, bool untyped = false);
   bool SelectInstructionsAndAssemble(CallDescriptor* call_descriptor);
-  MaybeHandle<InstructionStream> GenerateCode(CallDescriptor* call_descriptor);
+  MaybeHandle<Code> GenerateCode(CallDescriptor* call_descriptor);
   void AllocateRegistersForTopTier(const RegisterConfiguration* config,
                                    CallDescriptor* call_descriptor,
                                    bool run_verifier);
@@ -945,7 +945,7 @@ void PrintParticipatingSource(OptimizedCompilationInfo* info,
 }
 
 // Print the code after compiling it.
-void PrintCode(Isolate* isolate, Handle<InstructionStream> code,
+void PrintCode(Isolate* isolate, Handle<Code> code,
                OptimizedCompilationInfo* info) {
   if (v8_flags.print_opt_source && info->IsOptimizing()) {
     PrintParticipatingSource(info, isolate);
@@ -1145,7 +1145,7 @@ class PipelineCompilationJob final : public TurbofanCompilationJob {
   // Registers weak object to optimized code dependencies.
   void RegisterWeakObjectsInOptimizedCode(Isolate* isolate,
                                           Handle<NativeContext> context,
-                                          Handle<InstructionStream> code);
+                                          Handle<Code> code);
 
  private:
   Zone zone_;
@@ -1286,8 +1286,8 @@ PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl(
   // phases happening during PrepareJob.
   PipelineJobScope scope(&data_, isolate->counters()->runtime_call_stats());
   RCS_SCOPE(isolate, RuntimeCallCounterId::kOptimizeFinalizePipelineJob);
-  MaybeHandle<InstructionStream> maybe_code = pipeline_.FinalizeCode();
-  Handle<InstructionStream> code;
+  MaybeHandle<Code> maybe_code = pipeline_.FinalizeCode();
+  Handle<Code> code;
   if (!maybe_code.ToHandle(&code)) {
     if (compilation_info()->bailout_reason() == BailoutReason::kNoReason) {
       return AbortOptimization(BailoutReason::kCodeGenerationFailed);
@@ -1305,18 +1305,18 @@ PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl(
 }
 
 void PipelineCompilationJob::RegisterWeakObjectsInOptimizedCode(
-    Isolate* isolate, Handle<NativeContext> context,
-    Handle<InstructionStream> code) {
+    Isolate* isolate, Handle<NativeContext> context, Handle<Code> code) {
+  Handle<InstructionStream> istream(code->instruction_stream(), isolate);
   std::vector<Handle<Map>> maps;
   DCHECK(code->is_optimized_code());
   {
     DisallowGarbageCollection no_gc;
     PtrComprCageBase cage_base(isolate);
     int const mode_mask = RelocInfo::EmbeddedObjectModeMask();
-    for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
+    for (RelocIterator it(*istream, mode_mask); !it.done(); it.next()) {
       DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
       HeapObject target_object = it.rinfo()->target_object(cage_base);
-      if (code->IsWeakObjectInOptimizedCode(target_object)) {
+      if (istream->IsWeakObjectInOptimizedCode(target_object)) {
         if (target_object.IsMap(cage_base)) {
           maps.push_back(handle(Map::cast(target_object), isolate));
         }
@@ -2917,7 +2917,7 @@ CompilationJob::Status WasmHeapStubCompilationJob::ExecuteJobImpl(
 
 CompilationJob::Status WasmHeapStubCompilationJob::FinalizeJobImpl(
     Isolate* isolate) {
-  Handle<InstructionStream> code;
+  Handle<Code> code;
   if (!pipeline_.FinalizeCode(call_descriptor_).ToHandle(&code)) {
     V8::FatalProcessOutOfMemory(isolate,
                                 "WasmHeapStubCompilationJob::FinalizeJobImpl");
@@ -3247,7 +3247,7 @@ int HashGraphForPGO(Graph* graph) {
 
 }  // namespace
 
-MaybeHandle<InstructionStream> Pipeline::GenerateCodeForCodeStub(
+MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
     Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
     JSGraph* jsgraph, SourcePositionTable* source_positions, CodeKind kind,
     const char* debug_name, Builtin builtin, const AssemblerOptions& options,
@@ -3742,7 +3742,7 @@ void Pipeline::GenerateCodeForWasmFunction(
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 // static
-MaybeHandle<InstructionStream> Pipeline::GenerateCodeForTesting(
+MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
     OptimizedCompilationInfo* info, Isolate* isolate,
     std::unique_ptr<JSHeapBroker>* out_broker) {
   ZoneStats zone_stats(isolate->allocator());
@@ -3765,10 +3765,9 @@ MaybeHandle<InstructionStream> Pipeline::GenerateCodeForTesting(
   {
     LocalIsolateScope local_isolate_scope(data.broker(), info,
                                           isolate->main_thread_local_isolate());
-    if (!pipeline.CreateGraph()) return MaybeHandle<InstructionStream>();
+    if (!pipeline.CreateGraph()) return {};
     // We selectively Unpark inside OptimizeGraph.
-    if (!pipeline.OptimizeGraph(&linkage))
-      return MaybeHandle<InstructionStream>();
+    if (!pipeline.OptimizeGraph(&linkage)) return {};
 
     pipeline.AssembleCode(&linkage);
   }
@@ -3782,17 +3781,17 @@ MaybeHandle<InstructionStream> Pipeline::GenerateCodeForTesting(
         info->DetachPersistentHandles(), info->DetachCanonicalHandles());
   }
 
-  Handle<InstructionStream> code;
+  Handle<Code> code;
   if (pipeline.FinalizeCode(will_retire_broker).ToHandle(&code) &&
       pipeline.CommitDependencies(code)) {
     if (!will_retire_broker) *out_broker = data.ReleaseBroker();
     return code;
   }
-  return MaybeHandle<InstructionStream>();
+  return {};
 }
 
 // static
-MaybeHandle<InstructionStream> Pipeline::GenerateCodeForTesting(
+MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
     OptimizedCompilationInfo* info, Isolate* isolate,
     CallDescriptor* call_descriptor, Graph* graph,
     const AssemblerOptions& options, Schedule* schedule) {
@@ -3824,12 +3823,12 @@ MaybeHandle<InstructionStream> Pipeline::GenerateCodeForTesting(
     pipeline.ComputeScheduledGraph();
   }
 
-  Handle<InstructionStream> code;
+  Handle<Code> code;
   if (pipeline.GenerateCode(call_descriptor).ToHandle(&code) &&
       pipeline.CommitDependencies(code)) {
     return code;
   }
-  return MaybeHandle<InstructionStream>();
+  return {};
 }
 
 // static
@@ -4112,7 +4111,7 @@ void PipelineImpl::AssembleCode(Linkage* linkage) {
   data->EndPhaseKind();
 }
 
-MaybeHandle<InstructionStream> PipelineImpl::FinalizeCode(bool retire_broker) {
+MaybeHandle<Code> PipelineImpl::FinalizeCode(bool retire_broker) {
   PipelineData* data = this->data_;
   data->BeginPhaseKind("V8.TFFinalizeCode");
   if (data->broker() && retire_broker) {
@@ -4120,8 +4119,8 @@ MaybeHandle<InstructionStream> PipelineImpl::FinalizeCode(bool retire_broker) {
   }
   Run<FinalizeCodePhase>();
 
-  MaybeHandle<InstructionStream> maybe_code = data->code();
-  Handle<InstructionStream> code;
+  MaybeHandle<Code> maybe_code = data->code();
+  Handle<Code> code;
   if (!maybe_code.ToHandle(&code)) {
     return maybe_code;
   }
@@ -4176,15 +4175,14 @@ bool PipelineImpl::SelectInstructionsAndAssemble(
   return true;
 }
 
-MaybeHandle<InstructionStream> PipelineImpl::GenerateCode(
-    CallDescriptor* call_descriptor) {
+MaybeHandle<Code> PipelineImpl::GenerateCode(CallDescriptor* call_descriptor) {
   if (!SelectInstructionsAndAssemble(call_descriptor)) {
-    return MaybeHandle<InstructionStream>();
+    return MaybeHandle<Code>();
   }
   return FinalizeCode();
 }
 
-bool PipelineImpl::CommitDependencies(Handle<InstructionStream> code) {
+bool PipelineImpl::CommitDependencies(Handle<Code> code) {
   return data_->dependencies() == nullptr ||
          data_->dependencies()->Commit(code);
 }

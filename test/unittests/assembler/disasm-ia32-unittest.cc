@@ -978,7 +978,7 @@ TEST_F(DisasmIa320Test, DisasmIa320) {
 
   CodeDesc desc;
   assm.GetCode(isolate(), &desc);
-  Handle<InstructionStream> code =
+  Handle<Code> code =
       Factory::CodeBuilder(isolate(), desc, CodeKind::FOR_TESTING).Build();
   USE(code);
 #ifdef OBJECT_PRINT

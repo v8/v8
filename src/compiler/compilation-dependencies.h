@@ -31,7 +31,7 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
  public:
   CompilationDependencies(JSHeapBroker* broker, Zone* zone);
 
-  V8_WARN_UNUSED_RESULT bool Commit(Handle<InstructionStream> code);
+  V8_WARN_UNUSED_RESULT bool Commit(Handle<Code> code);
 
   // Return the initial map of {function} and record the assumption that it
   // stays the initial map.

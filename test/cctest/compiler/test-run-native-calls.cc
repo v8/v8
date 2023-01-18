@@ -246,18 +246,17 @@ Handle<Code> CompileGraph(const char* name, CallDescriptor* call_descriptor,
   Isolate* isolate = CcTest::InitIsolateOnce();
   OptimizedCompilationInfo info(base::ArrayVector("testing"), graph->zone(),
                                 CodeKind::FOR_TESTING);
-  Handle<InstructionStream> code =
-      Pipeline::GenerateCodeForTesting(&info, isolate, call_descriptor, graph,
-                                       AssemblerOptions::Default(isolate),
-                                       schedule)
-          .ToHandleChecked();
+  Handle<Code> code = Pipeline::GenerateCodeForTesting(
+                          &info, isolate, call_descriptor, graph,
+                          AssemblerOptions::Default(isolate), schedule)
+                          .ToHandleChecked();
 #ifdef ENABLE_DISASSEMBLER
   if (v8_flags.print_opt_code) {
     StdoutStream os;
     code->Disassemble(name, os, isolate);
   }
 #endif
-  return ToCode(code, isolate);
+  return code;
 }
 
 Handle<Code> WrapWithCFunction(Handle<Code> inner,

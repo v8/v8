@@ -267,7 +267,7 @@ void CreateInterpreterDataForDeserializedCode(Isolate* isolate,
     DCHECK(shared_info.HasBytecodeArray());
     Handle<SharedFunctionInfo> info = handle(shared_info, isolate);
 
-    Handle<InstructionStream> code =
+    Handle<Code> code =
         Builtins::CreateInterpreterEntryTrampolineForProfiling(isolate);
 
     Handle<InterpreterData> interpreter_data =
@@ -275,7 +275,7 @@ void CreateInterpreterDataForDeserializedCode(Isolate* isolate,
             INTERPRETER_DATA_TYPE, AllocationType::kOld));
 
     interpreter_data->set_bytecode_array(info->GetBytecodeArray(isolate));
-    interpreter_data->set_interpreter_trampoline(ToCode(*code));
+    interpreter_data->set_interpreter_trampoline(*code);
     if (info->HasBaselineCode()) {
       FromCode(info->baseline_code(kAcquireLoad))
           .set_bytecode_or_interpreter_data(*interpreter_data);
@@ -284,7 +284,8 @@ void CreateInterpreterDataForDeserializedCode(Isolate* isolate,
     }
 
     if (!log_code_creation) continue;
-    Handle<AbstractCode> abstract_code = Handle<AbstractCode>::cast(code);
+    Handle<InstructionStream> istream(code->instruction_stream(), isolate);
+    Handle<AbstractCode> abstract_code = Handle<AbstractCode>::cast(istream);
     Script::InitLineEnds(isolate, script);
     int line_num = script->GetLineNumber(info->StartPosition()) + 1;
     int column_num = script->GetColumnNumber(info->StartPosition()) + 1;

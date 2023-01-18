@@ -433,6 +433,7 @@ class V8_EXPORT_PRIVATE RelocIterator : public Malloced {
   // Relocation information with mode k is included in the
   // iteration iff bit k of mode_mask is set.
   explicit RelocIterator(InstructionStream code, int mode_mask = -1);
+  explicit RelocIterator(Code code, int mode_mask = -1);
   explicit RelocIterator(InstructionStream code, ByteArray relocation_info,
                          int mode_mask);
   explicit RelocIterator(EmbeddedData* embedded_data, InstructionStream code,

@@ -8312,9 +8312,11 @@ wasm::WasmCode* CompileWasmJSFastCallWrapper(wasm::NativeModule* native_module,
   }
 }
 
-MaybeHandle<InstructionStream> CompileWasmToJSWrapper(
-    Isolate* isolate, const wasm::FunctionSig* sig, WasmImportCallKind kind,
-    int expected_arity, wasm::Suspend suspend) {
+MaybeHandle<Code> CompileWasmToJSWrapper(Isolate* isolate,
+                                         const wasm::FunctionSig* sig,
+                                         WasmImportCallKind kind,
+                                         int expected_arity,
+                                         wasm::Suspend suspend) {
   std::unique_ptr<Zone> zone = std::make_unique<Zone>(
       isolate->allocator(), ZONE_NAME, kCompressGraphZone);
 
@@ -8357,15 +8359,14 @@ MaybeHandle<InstructionStream> CompileWasmToJSWrapper(
   if (job->ExecuteJob(isolate->counters()->runtime_call_stats()) ==
           CompilationJob::FAILED ||
       job->FinalizeJob(isolate) == CompilationJob::FAILED) {
-    return Handle<InstructionStream>();
+    return {};
   }
-  Handle<InstructionStream> code = job->compilation_info()->code();
-  return code;
+  return job->compilation_info()->code();
 }
 
-MaybeHandle<InstructionStream> CompileJSToJSWrapper(
-    Isolate* isolate, const wasm::FunctionSig* sig,
-    const wasm::WasmModule* module) {
+MaybeHandle<Code> CompileJSToJSWrapper(Isolate* isolate,
+                                       const wasm::FunctionSig* sig,
+                                       const wasm::WasmModule* module) {
   std::unique_ptr<Zone> zone = std::make_unique<Zone>(
       isolate->allocator(), ZONE_NAME, kCompressGraphZone);
   Graph* graph = zone->New<Graph>(zone.get());
@@ -8407,9 +8408,7 @@ MaybeHandle<InstructionStream> CompileJSToJSWrapper(
       job->FinalizeJob(isolate) == CompilationJob::FAILED) {
     return {};
   }
-  Handle<InstructionStream> code = job->compilation_info()->code();
-
-  return code;
+  return job->compilation_info()->code();
 }
 
 Handle<Code> CompileCWasmEntry(Isolate* isolate, const wasm::FunctionSig* sig,
@@ -8462,7 +8461,7 @@ Handle<Code> CompileCWasmEntry(Isolate* isolate, const wasm::FunctionSig* sig,
            CompilationJob::FAILED);
   CHECK_NE(job->FinalizeJob(isolate), CompilationJob::FAILED);
 
-  return ToCode(job->compilation_info()->code(), isolate);
+  return job->compilation_info()->code();
 }
 
 namespace {

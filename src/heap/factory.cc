@@ -100,7 +100,7 @@ Factory::CodeBuilder::CodeBuilder(LocalIsolate* local_isolate,
       kind_(kind),
       position_table_(isolate_->factory()->empty_byte_array()) {}
 
-MaybeHandle<InstructionStream> Factory::CodeBuilder::BuildInternal(
+MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     bool retry_allocation_or_fail) {
   const auto factory = isolate_->factory();
   // Allocate objects needed for code initialization.
@@ -110,22 +110,21 @@ MaybeHandle<InstructionStream> Factory::CodeBuilder::BuildInternal(
                                                     AllocationType::kOld)
           : factory->NewByteArray(code_desc_.reloc_size, AllocationType::kOld);
 
-  Handle<Code> data_container;
+  Handle<Code> code;
   if (CompiledWithConcurrentBaseline()) {
-    data_container =
-        local_isolate_->factory()->NewCode(0, AllocationType::kOld);
+    code = local_isolate_->factory()->NewCode(0, AllocationType::kOld);
   } else {
     AllocationType allocation_type =
         V8_EXTERNAL_CODE_SPACE_BOOL || is_executable_
             ? AllocationType::kOld
             : AllocationType::kReadOnly;
-    data_container = factory->NewCode(0, allocation_type);
+    code = factory->NewCode(0, allocation_type);
   }
 
   static constexpr bool kIsNotOffHeapTrampoline = false;
-  data_container->initialize_flags(kind_, builtin_, is_turbofanned_,
-                                   kIsNotOffHeapTrampoline);
-  data_container->set_kind_specific_flags(kind_specific_flags_, kRelaxedStore);
+  code->initialize_flags(kind_, builtin_, is_turbofanned_,
+                         kIsNotOffHeapTrampoline);
+  code->set_kind_specific_flags(kind_specific_flags_, kRelaxedStore);
 
   // Basic block profiling data for builtins is stored in the JS heap rather
   // than in separately-allocated C++ objects. Allocate that data now if
@@ -147,46 +146,47 @@ MaybeHandle<InstructionStream> Factory::CodeBuilder::BuildInternal(
   Heap* heap = isolate_->heap();
   CodePageCollectionMemoryModificationScope code_allocation(heap);
 
-  Handle<InstructionStream> code;
+  Handle<InstructionStream> instruction_stream;
   if (CompiledWithConcurrentBaseline()) {
-    if (!AllocateConcurrentSparkplugCode(retry_allocation_or_fail)
-             .ToHandle(&code)) {
-      return MaybeHandle<InstructionStream>();
+    if (!AllocateConcurrentSparkplugInstructionStream(retry_allocation_or_fail)
+             .ToHandle(&instruction_stream)) {
+      return {};
     }
-  } else if (!AllocateCode(retry_allocation_or_fail).ToHandle(&code)) {
-    return MaybeHandle<InstructionStream>();
+  } else if (!AllocateInstructionStream(retry_allocation_or_fail)
+                  .ToHandle(&instruction_stream)) {
+    return {};
   }
 
   {
-    InstructionStream raw_code = *code;
+    InstructionStream raw_istream = *instruction_stream;
     DisallowGarbageCollection no_gc;
 
-    raw_code.set_raw_instruction_size(code_desc_.instruction_size());
-    raw_code.set_raw_metadata_size(code_desc_.metadata_size());
-    raw_code.set_relocation_info(*reloc_info);
-    raw_code.initialize_flags(kind_, is_turbofanned_, stack_slots_,
-                              kIsNotOffHeapTrampoline);
-    raw_code.set_builtin_id(builtin_);
+    raw_istream.set_raw_instruction_size(code_desc_.instruction_size());
+    raw_istream.set_raw_metadata_size(code_desc_.metadata_size());
+    raw_istream.set_relocation_info(*reloc_info);
+    raw_istream.initialize_flags(kind_, is_turbofanned_, stack_slots_,
+                                 kIsNotOffHeapTrampoline);
+    raw_istream.set_builtin_id(builtin_);
     // This might impact direct concurrent reads from TF if we are resetting
     // this field. We currently assume it's immutable thus a relaxed read (after
     // passing IsPendingAllocation).
-    raw_code.set_inlined_bytecode_size(inlined_bytecode_size_);
-    raw_code.set_osr_offset(osr_offset_);
-    raw_code.set_code(*data_container, kReleaseStore);
+    raw_istream.set_inlined_bytecode_size(inlined_bytecode_size_);
+    raw_istream.set_osr_offset(osr_offset_);
+    raw_istream.set_code(*code, kReleaseStore);
     if (kind_ == CodeKind::BASELINE) {
-      raw_code.set_bytecode_or_interpreter_data(*interpreter_data_);
-      raw_code.set_bytecode_offset_table(*position_table_);
+      raw_istream.set_bytecode_or_interpreter_data(*interpreter_data_);
+      raw_istream.set_bytecode_offset_table(*position_table_);
     } else {
-      raw_code.set_deoptimization_data(*deoptimization_data_);
-      raw_code.set_source_position_table(*position_table_);
+      raw_istream.set_deoptimization_data(*deoptimization_data_);
+      raw_istream.set_source_position_table(*position_table_);
     }
-    raw_code.set_handler_table_offset(
+    raw_istream.set_handler_table_offset(
         code_desc_.handler_table_offset_relative());
-    raw_code.set_constant_pool_offset(
+    raw_istream.set_constant_pool_offset(
         code_desc_.constant_pool_offset_relative());
-    raw_code.set_code_comments_offset(
+    raw_istream.set_code_comments_offset(
         code_desc_.code_comments_offset_relative());
-    raw_code.set_unwinding_info_offset(
+    raw_istream.set_unwinding_info_offset(
         code_desc_.unwinding_info_offset_relative());
 
     // Allow self references to created code object by patching the handle to
@@ -199,9 +199,9 @@ MaybeHandle<InstructionStream> Factory::CodeBuilder::BuildInternal(
       DCHECK_NE(kind_, CodeKind::BASELINE);
       if (isolate_->IsGeneratingEmbeddedBuiltins()) {
         isolate_->builtins_constants_table_builder()->PatchSelfReference(
-            self_reference, code);
+            self_reference, instruction_stream);
       }
-      self_reference.PatchValue(*code);
+      self_reference.PatchValue(*instruction_stream);
     }
 
     // Likewise, any references to the basic block counters marker need to be
@@ -218,16 +218,18 @@ MaybeHandle<InstructionStream> Factory::CodeBuilder::BuildInternal(
     // like a handle) that are dereferenced during the copy to point directly
     // to the actual heap objects. These pointers can include references to
     // the code object itself, through the self_reference parameter.
-    raw_code.CopyFromNoFlush(*reloc_info, heap, code_desc_);
+    raw_istream.CopyFromNoFlush(*reloc_info, heap, code_desc_);
 
-    raw_code.clear_padding();
+    raw_istream.clear_padding();
 
     if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-      raw_code.set_main_cage_base(isolate_->cage_base(), kRelaxedStore);
+      raw_istream.set_main_cage_base(isolate_->cage_base(), kRelaxedStore);
     }
-    data_container->SetCodeAndEntryPoint(isolate_, raw_code);
+    code->SetInstructionStreamAndEntryPoint(isolate_, raw_istream);
 #ifdef VERIFY_HEAP
-    if (v8_flags.verify_heap) HeapObject::VerifyCodePointer(isolate_, raw_code);
+    if (v8_flags.verify_heap) {
+      HeapObject::VerifyCodePointer(isolate_, raw_istream);
+    }
 #endif
 
     // Flush the instruction cache before changing the permissions.
@@ -235,13 +237,13 @@ MaybeHandle<InstructionStream> Factory::CodeBuilder::BuildInternal(
     // some older ARM kernels there is a bug which causes an access error on
     // cache flush instructions to trigger access error on non-writable memory.
     // See https://bugs.chromium.org/p/v8/issues/detail?id=8157
-    raw_code.FlushICache();
+    raw_istream.FlushICache();
   }
 
-  if (profiler_data_ && v8_flags.turbo_profiling_verbose) {
+  if (V8_UNLIKELY(profiler_data_ && v8_flags.turbo_profiling_verbose)) {
 #ifdef ENABLE_DISASSEMBLER
     std::ostringstream os;
-    code->Disassemble(nullptr, os, isolate_);
+    instruction_stream->Disassemble(nullptr, os, isolate_);
     if (!on_heap_profiler_data.is_null()) {
       Handle<String> disassembly =
           isolate_->factory()->NewStringFromAsciiChecked(os.str().c_str(),
@@ -257,7 +259,7 @@ MaybeHandle<InstructionStream> Factory::CodeBuilder::BuildInternal(
 }
 
 // TODO(victorgomes): Unify the two AllocateCodes
-MaybeHandle<InstructionStream> Factory::CodeBuilder::AllocateCode(
+MaybeHandle<InstructionStream> Factory::CodeBuilder::AllocateInstructionStream(
     bool retry_allocation_or_fail) {
   Heap* heap = isolate_->heap();
   HeapAllocator* allocator = heap->allocator();
@@ -293,7 +295,7 @@ MaybeHandle<InstructionStream> Factory::CodeBuilder::AllocateCode(
 }
 
 MaybeHandle<InstructionStream>
-Factory::CodeBuilder::AllocateConcurrentSparkplugCode(
+Factory::CodeBuilder::AllocateConcurrentSparkplugInstructionStream(
     bool retry_allocation_or_fail) {
   LocalHeap* heap = local_isolate_->heap();
   AllocationType allocation_type = V8_EXTERNAL_CODE_SPACE_BOOL || is_executable_
@@ -317,11 +319,11 @@ Factory::CodeBuilder::AllocateConcurrentSparkplugCode(
   return code;
 }
 
-MaybeHandle<InstructionStream> Factory::CodeBuilder::TryBuild() {
+MaybeHandle<Code> Factory::CodeBuilder::TryBuild() {
   return BuildInternal(false);
 }
 
-Handle<InstructionStream> Factory::CodeBuilder::Build() {
+Handle<Code> Factory::CodeBuilder::Build() {
   return BuildInternal(true).ToHandleChecked();
 }
 

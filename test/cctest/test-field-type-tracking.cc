@@ -605,7 +605,7 @@ struct CRFTData {
   Handle<FieldType> type;
 };
 
-Handle<InstructionStream> CreateDummyOptimizedCode(Isolate* isolate) {
+Handle<Code> CreateDummyOptimizedCode(Isolate* isolate) {
   byte buffer[1];
   CodeDesc desc;
   desc.buffer = buffer;
@@ -618,9 +618,9 @@ Handle<InstructionStream> CreateDummyOptimizedCode(Isolate* isolate) {
 
 static void CheckCodeObjectForDeopt(const CRFTData& from,
                                     const CRFTData& expected,
-                                    Handle<InstructionStream> code_field_type,
-                                    Handle<InstructionStream> code_field_repr,
-                                    Handle<InstructionStream> code_field_const,
+                                    Handle<Code> code_field_type,
+                                    Handle<Code> code_field_repr,
+                                    Handle<Code> code_field_const,
                                     bool expected_deopt) {
   if (!from.type->Equals(*expected.type)) {
     CHECK_EQ(expected_deopt, code_field_type->marked_for_deoptimization());
@@ -705,10 +705,9 @@ void TestGeneralizeField(int detach_property_at_index, int property_index,
 
   // Create dummy optimized code object to test correct dependencies
   // on the field owner.
-  Handle<InstructionStream> code_field_type = CreateDummyOptimizedCode(isolate);
-  Handle<InstructionStream> code_field_repr = CreateDummyOptimizedCode(isolate);
-  Handle<InstructionStream> code_field_const =
-      CreateDummyOptimizedCode(isolate);
+  Handle<Code> code_field_type = CreateDummyOptimizedCode(isolate);
+  Handle<Code> code_field_repr = CreateDummyOptimizedCode(isolate);
+  Handle<Code> code_field_const = CreateDummyOptimizedCode(isolate);
   Handle<Map> field_owner(
       map->FindFieldOwner(isolate, InternalIndex(property_index)), isolate);
   DependentCode::InstallDependency(isolate, code_field_type, field_owner,
@@ -1084,12 +1083,10 @@ void TestReconfigureDataFieldAttribute_GeneralizeField(
 
   // Create dummy optimized code object to test correct dependencies
   // on the field owner.
-  Handle<InstructionStream> code_field_type = CreateDummyOptimizedCode(isolate);
-  Handle<InstructionStream> code_field_repr = CreateDummyOptimizedCode(isolate);
-  Handle<InstructionStream> code_field_const =
-      CreateDummyOptimizedCode(isolate);
-  Handle<InstructionStream> code_src_field_const =
-      CreateDummyOptimizedCode(isolate);
+  Handle<Code> code_field_type = CreateDummyOptimizedCode(isolate);
+  Handle<Code> code_field_repr = CreateDummyOptimizedCode(isolate);
+  Handle<Code> code_field_const = CreateDummyOptimizedCode(isolate);
+  Handle<Code> code_src_field_const = CreateDummyOptimizedCode(isolate);
   {
     Handle<Map> field_owner(
         map->FindFieldOwner(isolate, InternalIndex(kSplitProp)), isolate);
@@ -1785,10 +1782,9 @@ static void TestReconfigureElementsKind_GeneralizeFieldInPlace(
 
   // Create dummy optimized code object to test correct dependencies
   // on the field owner.
-  Handle<InstructionStream> code_field_type = CreateDummyOptimizedCode(isolate);
-  Handle<InstructionStream> code_field_repr = CreateDummyOptimizedCode(isolate);
-  Handle<InstructionStream> code_field_const =
-      CreateDummyOptimizedCode(isolate);
+  Handle<Code> code_field_type = CreateDummyOptimizedCode(isolate);
+  Handle<Code> code_field_repr = CreateDummyOptimizedCode(isolate);
+  Handle<Code> code_field_const = CreateDummyOptimizedCode(isolate);
   Handle<Map> field_owner(
       map->FindFieldOwner(isolate, InternalIndex(kDiffProp)), isolate);
   DependentCode::InstallDependency(isolate, code_field_type, field_owner,
@@ -1823,7 +1819,7 @@ static void TestReconfigureElementsKind_GeneralizeFieldInPlace(
   CHECK_EQ(IsGeneralizableTo(to.constness, from.constness),
            !code_field_const->marked_for_deoptimization());
   CheckCodeObjectForDeopt(from, expected, code_field_type, code_field_repr,
-                          Handle<InstructionStream>(), false);
+                          Handle<Code>(), false);
 
   CHECK(!new_map->is_deprecated());
   CHECK(expectations.Check(*new_map));

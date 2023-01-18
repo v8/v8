@@ -253,15 +253,17 @@ Handle<Code> JSToWasmWrapperCompilationUnit::Finalize() {
 
   CompilationJob::Status status = job_->FinalizeJob(isolate_);
   CHECK_EQ(status, CompilationJob::SUCCEEDED);
-  Handle<InstructionStream> code = job_->compilation_info()->code();
+  Handle<Code> code = job_->compilation_info()->code();
   if (isolate_->v8_file_logger()->is_listening_to_code_events() ||
       isolate_->is_profiling()) {
     Handle<String> name = isolate_->factory()->NewStringFromAsciiChecked(
         job_->compilation_info()->GetDebugName().get());
-    PROFILE(isolate_, CodeCreateEvent(LogEventListener::CodeTag::kStub,
-                                      Handle<AbstractCode>::cast(code), name));
+    Handle<InstructionStream> istream(code->instruction_stream(), isolate_);
+    PROFILE(isolate_,
+            CodeCreateEvent(LogEventListener::CodeTag::kStub,
+                            Handle<AbstractCode>::cast(istream), name));
   }
-  return ToCode(code, isolate_);
+  return code;
 }
 
 // static

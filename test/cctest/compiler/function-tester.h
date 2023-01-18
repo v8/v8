@@ -30,6 +30,7 @@ class FunctionTester : public InitializedHandleScope {
 
   // Assumes VoidDescriptor call interface.
   explicit FunctionTester(Handle<InstructionStream> code);
+  explicit FunctionTester(Handle<Code> code);
 
   Isolate* isolate;
   CanonicalHandleScope canonical;

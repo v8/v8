@@ -319,7 +319,7 @@ void Compiler::LogFunctionCompilation(Isolate* isolate,
                                       Handle<AbstractCode> abstract_code,
                                       CodeKind kind, double time_taken_ms) {
   DCHECK_NE(*abstract_code,
-            ToAbstractCode(*BUILTIN_CODE(isolate, CompileLazy)));
+            AbstractCode::cast(*BUILTIN_CODE(isolate, CompileLazy)));
 
   // Log the code generation. If source information is available include
   // script name and line number. Check explicitly whether logging is
@@ -458,7 +458,7 @@ void LogUnoptimizedCompilation(Isolate* isolate,
 #if V8_ENABLE_WEBASSEMBLY
     DCHECK(shared->HasAsmWasmData());
     abstract_code =
-        ToAbstractCode(BUILTIN_CODE(isolate, InstantiateAsmJs), isolate);
+        Handle<AbstractCode>::cast(BUILTIN_CODE(isolate, InstantiateAsmJs));
 #else
     UNREACHABLE();
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -594,8 +594,9 @@ void TurbofanCompilationJob::RecordCompilationStats(ConcurrencyMode mode,
 
 void TurbofanCompilationJob::RecordFunctionCompilation(
     LogEventListener::CodeTag code_type, Isolate* isolate) const {
-  Handle<AbstractCode> abstract_code =
-      Handle<AbstractCode>::cast(compilation_info()->code());
+  Handle<InstructionStream> istream(
+      compilation_info()->code()->instruction_stream(), isolate);
+  Handle<AbstractCode> abstract_code = Handle<AbstractCode>::cast(istream);
 
   double time_taken_ms = time_taken_to_prepare_.InMillisecondsF() +
                          time_taken_to_execute_.InMillisecondsF() +
@@ -644,7 +645,7 @@ void InstallInterpreterTrampolineCopy(Isolate* isolate,
   Handle<BytecodeArray> bytecode_array(shared_info->GetBytecodeArray(isolate),
                                        isolate);
 
-  Handle<InstructionStream> code =
+  Handle<Code> code =
       Builtins::CreateInterpreterEntryTrampolineForProfiling(isolate);
 
   Handle<InterpreterData> interpreter_data =
@@ -652,12 +653,13 @@ void InstallInterpreterTrampolineCopy(Isolate* isolate,
           INTERPRETER_DATA_TYPE, AllocationType::kOld));
 
   interpreter_data->set_bytecode_array(*bytecode_array);
-  interpreter_data->set_interpreter_trampoline(ToCode(*code));
+  interpreter_data->set_interpreter_trampoline(*code);
 
   shared_info->set_interpreter_data(*interpreter_data);
 
   Handle<Script> script(Script::cast(shared_info->script()), isolate);
-  Handle<AbstractCode> abstract_code = Handle<AbstractCode>::cast(code);
+  Handle<InstructionStream> istream(code->instruction_stream(), isolate);
+  Handle<AbstractCode> abstract_code = Handle<AbstractCode>::cast(istream);
   int line_num =
       Script::GetLineNumber(script, shared_info->StartPosition()) + 1;
   int column_num =
@@ -1052,7 +1054,7 @@ bool CompileTurbofan_NotConcurrent(Isolate* isolate,
   DCHECK(!isolate->has_pending_exception());
   OptimizedCodeCache::Insert(isolate, *compilation_info->closure(),
                              compilation_info->osr_offset(),
-                             ToCode(*compilation_info->code()),
+                             *compilation_info->code(),
                              compilation_info->function_context_specializing());
   job->RecordFunctionCompilation(LogEventListener::CodeTag::kFunction, isolate);
   return true;
@@ -1164,7 +1166,7 @@ MaybeHandle<Code> CompileTurbofan(Isolate* isolate, Handle<JSFunction> function,
   } else {
     DCHECK(IsSynchronous(mode));
     if (CompileTurbofan_NotConcurrent(isolate, job.get())) {
-      return ToCode(job->compilation_info()->code(), isolate);
+      return job->compilation_info()->code();
     }
   }
 
@@ -2641,7 +2643,7 @@ bool Compiler::CompileSharedWithBaseline(Isolate* isolate,
   }
 
   CompilerTracer::TraceStartBaselineCompile(isolate, shared);
-  Handle<InstructionStream> code;
+  Handle<Code> code;
   base::TimeDelta time_taken;
   {
     ScopedTimer timer(&time_taken);
@@ -2650,18 +2652,19 @@ bool Compiler::CompileSharedWithBaseline(Isolate* isolate,
       // report these somehow, or silently ignore them?
       return false;
     }
-    shared->set_baseline_code(ToCode(*code), kReleaseStore);
+    shared->set_baseline_code(*code, kReleaseStore);
   }
   double time_taken_ms = time_taken.InMillisecondsF();
 
   CompilerTracer::TraceFinishBaselineCompile(isolate, shared, time_taken_ms);
 
   if (shared->script().IsScript()) {
+    Handle<InstructionStream> istream(code->instruction_stream(), isolate);
     LogFunctionCompilation(isolate, LogEventListener::CodeTag::kFunction,
                            handle(Script::cast(shared->script()), isolate),
                            shared, Handle<FeedbackVector>(),
-                           Handle<AbstractCode>::cast(code), CodeKind::BASELINE,
-                           time_taken_ms);
+                           Handle<AbstractCode>::cast(istream),
+                           CodeKind::BASELINE, time_taken_ms);
   }
   return true;
 }
@@ -3946,7 +3949,7 @@ void Compiler::FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
         ResetTieringState(*function, osr_offset);
         OptimizedCodeCache::Insert(
             isolate, *compilation_info->closure(),
-            compilation_info->osr_offset(), ToCode(*compilation_info->code()),
+            compilation_info->osr_offset(), *compilation_info->code(),
             compilation_info->function_context_specializing());
         CompilerTracer::TraceCompletedJob(isolate, compilation_info);
         if (IsOSR(osr_offset)) {

@@ -65,7 +65,7 @@ TEST_F(MacroAssemblerArm64Test, EmbeddedObj) {
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
-  Handle<InstructionStream> code =
+  Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
   StdoutStream os;

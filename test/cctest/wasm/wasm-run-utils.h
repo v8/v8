@@ -340,14 +340,14 @@ class WasmFunctionWrapper : private compiler::GraphAndBuilders {
                                        common()->HeapConstant(instance));
   }
 
-  Handle<InstructionStream> GetWrapperCode(Isolate* isolate = nullptr);
+  Handle<Code> GetWrapperCode(Isolate* isolate = nullptr);
 
   Signature<MachineType>* signature() const { return signature_; }
 
  private:
   Node* inner_code_node_;
   Node* context_address_;
-  MaybeHandle<InstructionStream> code_;
+  MaybeHandle<Code> code_;
   Signature<MachineType>* signature_;
 };
 
@@ -523,7 +523,7 @@ class WasmRunnerBase : public InitializedHandleScope {
     }
   }
 
-  Handle<InstructionStream> GetWrapperCode() {
+  Handle<Code> GetWrapperCode() {
     return wrapper_.GetWrapperCode(main_isolate());
   }
 
@@ -610,7 +610,7 @@ class WasmRunner : public WasmRunnerBase {
 
     wrapper_.SetInnerCode(builder_.GetFunctionCode(main_fn_index_));
     wrapper_.SetInstance(builder_.instance_object());
-    Handle<InstructionStream> wrapper_code = GetWrapperCode();
+    Handle<Code> wrapper_code = GetWrapperCode();
     compiler::CodeRunner<int32_t> runner(main_isolate(), wrapper_code,
                                          wrapper_.signature());
     int32_t result;

@@ -217,7 +217,7 @@ TEST_P(TurboAssemblerTestMoveObjectAndSlot, MoveObjectAndSlot) {
       CodeDesc desc;
       tasm.GetCode(nullptr, &desc);
       if (v8_flags.print_code) {
-        Handle<InstructionStream> code =
+        Handle<Code> code =
             Factory::CodeBuilder(isolate(), desc, CodeKind::FOR_TESTING)
                 .Build();
         StdoutStream os;

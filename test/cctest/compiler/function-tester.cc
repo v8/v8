@@ -65,6 +65,8 @@ FunctionTester::FunctionTester(Handle<Code> code, int param_count)
 FunctionTester::FunctionTester(Handle<InstructionStream> code)
     : FunctionTester(code, 0) {}
 
+FunctionTester::FunctionTester(Handle<Code> code) : FunctionTester(code, 0) {}
+
 void FunctionTester::CheckThrows(Handle<Object> a) {
   TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
   MaybeHandle<Object> no_result = Call(a);
@@ -169,7 +171,7 @@ Handle<JSFunction> FunctionTester::CompileGraph(Graph* graph) {
                                 CodeKind::TURBOFAN);
 
   auto call_descriptor = Linkage::ComputeIncoming(&zone, &info);
-  Handle<InstructionStream> code =
+  Handle<Code> code =
       Pipeline::GenerateCodeForTesting(&info, isolate, call_descriptor, graph,
                                        AssemblerOptions::Default(isolate))
           .ToHandleChecked();

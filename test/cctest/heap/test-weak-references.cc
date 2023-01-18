@@ -53,9 +53,8 @@ TEST(WeakReferencesBasic) {
     assm.nop();  // supported on all architectures
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code = ToCode(
-        Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build(),
-        isolate);
+    Handle<Code> code =
+        Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
     CHECK(code->IsCode());
 
     lh->set_data1(HeapObjectReference::Weak(*code));

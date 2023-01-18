@@ -292,21 +292,23 @@ TEST_F(CodePagesTest, LargeCodeObject) {
 
   {
     HandleScope scope(i_isolate());
-    Handle<InstructionStream> foo_code =
+    Handle<Code> foo_code =
         Factory::CodeBuilder(i_isolate(), desc, CodeKind::WASM_FUNCTION)
             .Build();
+    Handle<InstructionStream> foo_istream(foo_code->instruction_stream(),
+                                          i_isolate());
 
-    EXPECT_TRUE(i_isolate()->heap()->InSpace(*foo_code, CODE_LO_SPACE));
+    EXPECT_TRUE(i_isolate()->heap()->InSpace(*foo_istream, CODE_LO_SPACE));
 
     std::vector<MemoryRange>* pages = i_isolate()->GetCodePages();
 
     if (i_isolate()->RequiresCodeRange()) {
-      EXPECT_TRUE(PagesContainsAddress(pages, foo_code->address()));
+      EXPECT_TRUE(PagesContainsAddress(pages, foo_istream->address()));
     } else {
-      EXPECT_TRUE(PagesHasExactPage(pages, foo_code->address()));
+      EXPECT_TRUE(PagesHasExactPage(pages, foo_istream->address()));
     }
 
-    stale_code_address = foo_code->address();
+    stale_code_address = foo_istream->address();
   }
 
   // Delete the large code object.
@@ -418,11 +420,13 @@ TEST_F(CodePagesTest, LargeCodeObjectWithSignalHandler) {
 
   {
     HandleScope scope(i_isolate());
-    Handle<InstructionStream> foo_code =
+    Handle<Code> foo_code =
         Factory::CodeBuilder(i_isolate(), desc, CodeKind::WASM_FUNCTION)
             .Build();
+    Handle<InstructionStream> foo_istream(foo_code->instruction_stream(),
+                                          i_isolate());
 
-    EXPECT_TRUE(i_isolate()->heap()->InSpace(*foo_code, CODE_LO_SPACE));
+    EXPECT_TRUE(i_isolate()->heap()->InSpace(*foo_istream, CODE_LO_SPACE));
 
     // Do a synchronous sample to ensure that we capture the state with the
     // extra code page.
@@ -433,12 +437,12 @@ TEST_F(CodePagesTest, LargeCodeObjectWithSignalHandler) {
     std::vector<MemoryRange> pages =
         SamplingThread::DoSynchronousSample(isolate());
     if (i_isolate()->RequiresCodeRange()) {
-      EXPECT_TRUE(PagesContainsAddress(&pages, foo_code->address()));
+      EXPECT_TRUE(PagesContainsAddress(&pages, foo_istream->address()));
     } else {
-      EXPECT_TRUE(PagesHasExactPage(&pages, foo_code->address()));
+      EXPECT_TRUE(PagesHasExactPage(&pages, foo_istream->address()));
     }
 
-    stale_code_address = foo_code->address();
+    stale_code_address = foo_istream->address();
   }
 
   // Start async sampling again to detect threading issues.
@@ -496,8 +500,11 @@ TEST_F(CodePagesTest, Sorted) {
     Handle<InstructionStream> code1, code3;
     Address code2_address;
 
-    code1 = Factory::CodeBuilder(i_isolate(), desc, CodeKind::WASM_FUNCTION)
-                .Build();
+    code1 =
+        handle(Factory::CodeBuilder(i_isolate(), desc, CodeKind::WASM_FUNCTION)
+                   .Build()
+                   ->instruction_stream(),
+               i_isolate());
     EXPECT_TRUE(i_isolate()->heap()->InSpace(*code1, CODE_LO_SPACE));
 
     {
@@ -505,12 +512,17 @@ TEST_F(CodePagesTest, Sorted) {
 
       // Create three large code objects, we'll delete the middle one and check
       // everything is still sorted.
-      Handle<InstructionStream> code2 =
+      Handle<InstructionStream> code2 = handle(
           Factory::CodeBuilder(i_isolate(), desc, CodeKind::WASM_FUNCTION)
-              .Build();
+              .Build()
+              ->instruction_stream(),
+          i_isolate());
       EXPECT_TRUE(i_isolate()->heap()->InSpace(*code2, CODE_LO_SPACE));
-      code3 = Factory::CodeBuilder(i_isolate(), desc, CodeKind::WASM_FUNCTION)
-                  .Build();
+      code3 = handle(
+          Factory::CodeBuilder(i_isolate(), desc, CodeKind::WASM_FUNCTION)
+              .Build()
+              ->instruction_stream(),
+          i_isolate());
       EXPECT_TRUE(i_isolate()->heap()->InSpace(*code3, CODE_LO_SPACE));
 
       code2_address = code2->address();

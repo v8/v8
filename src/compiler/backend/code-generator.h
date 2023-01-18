@@ -159,7 +159,7 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   // produce the actual code object. If an error occurs during either phase,
   // FinalizeCode returns an empty MaybeHandle.
   void AssembleCode();  // Does not need to run on main thread.
-  MaybeHandle<InstructionStream> FinalizeCode();
+  MaybeHandle<Code> FinalizeCode();
 
   base::OwnedVector<byte> GetSourcePositionTable();
   base::OwnedVector<byte> GetProtectedInstructionsData();

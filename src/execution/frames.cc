@@ -618,8 +618,8 @@ void StackFrame::SetReturnAddressLocationResolver(
 
 namespace {
 
-template <typename CodeOrCode>
-inline StackFrame::Type ComputeBuiltinFrameType(CodeOrCode code) {
+template <typename CodeOrInstructionStream>
+inline StackFrame::Type ComputeBuiltinFrameType(CodeOrInstructionStream code) {
   if (code.is_interpreter_trampoline_builtin() ||
       // Frames for baseline entry trampolines on the stack are still
       // interpreted frames.
@@ -2211,10 +2211,9 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
           it->kind() ==
               TranslatedFrame::kJavaScriptBuiltinContinuationWithCatch) {
         code_offset = 0;
-        abstract_code = ToAbstractCode(
-            isolate()->builtins()->code_handle(
-                Builtins::GetBuiltinFromBytecodeOffset(it->bytecode_offset())),
-            isolate());
+        abstract_code =
+            Handle<AbstractCode>::cast(isolate()->builtins()->code_handle(
+                Builtins::GetBuiltinFromBytecodeOffset(it->bytecode_offset())));
       } else {
         DCHECK_EQ(it->kind(), TranslatedFrame::kUnoptimizedFunction);
         code_offset = it->bytecode_offset().ToInt();

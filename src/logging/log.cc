@@ -1958,7 +1958,6 @@ EnumerateCompiledFunctions(Heap* heap) {
       // only on a type feedback vector. We should make this mroe precise.
       if (function.HasAttachedOptimizedCode() &&
           Script::cast(function.shared().script()).HasValidSource()) {
-        // TODO(v8:13261): use ToAbstractCode() here.
         record(function.shared(),
                AbstractCode::cast(FromCode(function.code())));
       }
@@ -2372,7 +2371,6 @@ void ExistingCodeLogger::LogCompiledFunctions(
       SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate_, shared);
     }
     if (shared->HasInterpreterData()) {
-      // TODO(v8:13261): use ToAbstractCode() here.
       LogExistingFunction(
           shared,
           Handle<AbstractCode>(
@@ -2380,7 +2378,6 @@ void ExistingCodeLogger::LogCompiledFunctions(
               isolate_));
     }
     if (shared->HasBaselineCode()) {
-      // TODO(v8:13261): use ToAbstractCode() here.
       LogExistingFunction(
           shared,
           Handle<AbstractCode>(
@@ -2390,7 +2387,8 @@ void ExistingCodeLogger::LogCompiledFunctions(
     // Can't use .is_identical_to() because AbstractCode might be both
     // InstructionStream and non-InstructionStream object and regular tagged
     // comparison or compressed values might not be correct.
-    if (*pair.second == ToAbstractCode(*BUILTIN_CODE(isolate_, CompileLazy))) {
+    if (*pair.second ==
+        AbstractCode::cast(*BUILTIN_CODE(isolate_, CompileLazy))) {
       continue;
     }
     LogExistingFunction(pair.first, pair.second);

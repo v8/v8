@@ -200,7 +200,7 @@ AbstractCode SharedFunctionInfo::abstract_code(IsolateT* isolate) {
   if (HasBytecodeArray(isolate)) {
     return AbstractCode::cast(GetBytecodeArray(isolate));
   } else {
-    return ToAbstractCode(GetCode());
+    return AbstractCode::cast(GetCode());
   }
 }
 

@@ -41,7 +41,7 @@ void TestStubCacheOffsetCalculation(StubCache::Table table) {
     m.Return(m.SmiTag(result));
   }
 
-  Handle<InstructionStream> code = data.GenerateInstructionStream();
+  Handle<Code> code = data.GenerateCode();
   FunctionTester ft(code, kNumParams);
 
   Factory* factory = isolate->factory();
@@ -100,12 +100,12 @@ TEST(StubCacheSecondaryOffset) {
 
 namespace {
 
-Handle<InstructionStream> CreateCodeOfKind(CodeKind kind) {
+Handle<Code> CreateCodeOfKind(CodeKind kind) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   CodeAssemblerTester data(isolate, kind);
   CodeStubAssembler m(data.state());
   m.Return(m.UndefinedConstant());
-  return data.GenerateInstructionStreamCloseAndEscape();
+  return data.GenerateCodeCloseAndEscape();
 }
 
 }  // namespace
@@ -147,12 +147,12 @@ TEST(TryProbeStubCache) {
     m.Return(m.BooleanConstant(false));
   }
 
-  Handle<InstructionStream> code = data.GenerateInstructionStream();
+  Handle<Code> code = data.GenerateCode();
   FunctionTester ft(code, kNumParams);
 
   std::vector<Handle<Name>> names;
   std::vector<Handle<JSObject>> receivers;
-  std::vector<Handle<InstructionStream>> handlers;
+  std::vector<Handle<Code>> handlers;
 
   base::RandomNumberGenerator rand_gen(v8_flags.random_seed);
 
@@ -209,9 +209,8 @@ TEST(TryProbeStubCache) {
     int index = rand_gen.NextInt();
     Handle<Name> name = names[index % names.size()];
     Handle<JSObject> receiver = receivers[index % receivers.size()];
-    Handle<InstructionStream> handler = handlers[index % handlers.size()];
-    stub_cache.Set(*name, receiver->map(),
-                   MaybeObject::FromObject(ToCode(*handler)));
+    Handle<Code> handler = handlers[index % handlers.size()];
+    stub_cache.Set(*name, receiver->map(), MaybeObject::FromObject(*handler));
   }
 
   // Perform some queries.

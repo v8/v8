@@ -62,7 +62,7 @@ TEST(AssemblerIa320) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<InstructionStream> code =
+  Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
@@ -100,7 +100,7 @@ TEST(AssemblerIa321) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<InstructionStream> code =
+  Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
@@ -141,7 +141,7 @@ TEST(AssemblerIa322) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<InstructionStream> code =
+  Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
@@ -170,7 +170,7 @@ TEST(AssemblerIa323) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<InstructionStream> code =
+  Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
@@ -199,7 +199,7 @@ TEST(AssemblerIa324) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<InstructionStream> code =
+  Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
@@ -227,7 +227,7 @@ TEST(AssemblerIa325) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<InstructionStream> code =
+  Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   auto f = GeneratedCode<F0>::FromCode(*code);
   int res = f.Call();
@@ -260,7 +260,7 @@ TEST(AssemblerIa326) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<InstructionStream> code =
+  Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
@@ -292,7 +292,7 @@ TEST(AssemblerIa328) {
   __ ret(0);
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<InstructionStream> code =
+  Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
@@ -375,9 +375,9 @@ TEST(AssemblerMultiByteNop) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<InstructionStream> code =
+  Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  CHECK(code->IsInstructionStream());
+  CHECK(code->IsCode());
 
   auto f = GeneratedCode<F0>::FromCode(*code);
   int res = f.Call();
@@ -426,7 +426,7 @@ void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& args) {
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
 
-  Handle<InstructionStream> code =
+  Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
   auto f = GeneratedCode<F0>::FromCode(*code);
@@ -491,7 +491,7 @@ TEST(AssemblerIa32Extractps) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<InstructionStream> code =
+  Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
@@ -531,7 +531,7 @@ TEST(AssemblerIa32SSE) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<InstructionStream> code =
+  Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
@@ -564,7 +564,7 @@ TEST(AssemblerIa32SSE3) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<InstructionStream> code =
+  Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
@@ -792,7 +792,7 @@ TEST(AssemblerX64FMA_sd) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<InstructionStream> code =
+  Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
@@ -1021,7 +1021,7 @@ TEST(AssemblerX64FMA_ss) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<InstructionStream> code =
+  Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
@@ -1129,7 +1129,7 @@ TEST(AssemblerIa32BMI1) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<InstructionStream> code =
+  Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
@@ -1177,7 +1177,7 @@ TEST(AssemblerIa32LZCNT) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<InstructionStream> code =
+  Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
@@ -1225,7 +1225,7 @@ TEST(AssemblerIa32POPCNT) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<InstructionStream> code =
+  Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
@@ -1371,7 +1371,7 @@ TEST(AssemblerIa32BMI2) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<InstructionStream> code =
+  Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
@@ -1415,7 +1415,7 @@ TEST(AssemblerIa32JumpTables1) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<InstructionStream> code =
+  Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
@@ -1463,7 +1463,7 @@ TEST(AssemblerIa32JumpTables2) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<InstructionStream> code =
+  Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
@@ -1506,7 +1506,7 @@ TEST(Regress621926) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<InstructionStream> code =
+  Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
 #ifdef OBJECT_PRINT

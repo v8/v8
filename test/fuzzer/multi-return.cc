@@ -239,16 +239,17 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
   OptimizedCompilationInfo info(base::ArrayVector("testing"), &zone,
                                 CodeKind::FOR_TESTING);
-  Handle<InstructionStream> code =
+  Handle<Code> code =
       Pipeline::GenerateCodeForTesting(&info, i_isolate, desc, callee.graph(),
                                        AssemblerOptions::Default(i_isolate),
                                        callee.ExportForTest())
           .ToHandleChecked();
+  Handle<InstructionStream> istream(code->instruction_stream(), i_isolate);
 
   std::shared_ptr<wasm::NativeModule> module =
       AllocateNativeModule(i_isolate, code->raw_instruction_size());
   wasm::WasmCodeRefScope wasm_code_ref_scope;
-  byte* code_start = module->AddCodeForTesting(code)->instructions().begin();
+  byte* code_start = module->AddCodeForTesting(istream)->instructions().begin();
   // Generate wrapper.
   int expect = 0;
 
@@ -285,7 +286,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   // Call the wrapper.
   OptimizedCompilationInfo wrapper_info(base::ArrayVector("wrapper"), &zone,
                                         CodeKind::FOR_TESTING);
-  Handle<InstructionStream> wrapper_code =
+  Handle<Code> wrapper_code =
       Pipeline::GenerateCodeForTesting(
           &wrapper_info, i_isolate, wrapper_desc, caller.graph(),
           AssemblerOptions::Default(i_isolate), caller.ExportForTest())

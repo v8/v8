@@ -433,7 +433,7 @@ MaybeHandle<Code> MaglevCompiler::GenerateCode(
       compilation_info->code_generator();
   DCHECK_NOT_NULL(code_generator);
 
-  Handle<InstructionStream> code;
+  Handle<Code> code;
   if (!code_generator->Generate(isolate).ToHandle(&code)) {
     compilation_info->toplevel_compilation_unit()
         ->shared_function_info()
@@ -453,7 +453,7 @@ MaybeHandle<Code> MaglevCompiler::GenerateCode(
     code->Print();
   }
 
-  return ToCode(code, isolate);
+  return code;
 }
 
 }  // namespace maglev

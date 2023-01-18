@@ -299,6 +299,13 @@ bool Builtins::IsBuiltinHandle(Handle<HeapObject> maybe_code,
 }
 
 // static
+bool Builtins::IsIsolateIndependentBuiltin(Code code) {
+  Builtin builtin = code.builtin_id();
+  return Builtins::IsBuiltinId(builtin) &&
+         Builtins::IsIsolateIndependent(builtin);
+}
+
+// static
 void Builtins::InitializeIsolateDataTables(Isolate* isolate) {
   EmbeddedData embedded_data = EmbeddedData::FromBlob(isolate);
   IsolateData* isolate_data = isolate->isolate_data();
@@ -332,7 +339,7 @@ void Builtins::EmitCodeCreateEvents(Isolate* isolate) {
   HandleScope scope(isolate);
   for (; i < ToInt(Builtin::kFirstBytecodeHandler); i++) {
     Handle<Code> builtin_code(&builtins[i]);
-    Handle<AbstractCode> code = ToAbstractCode(builtin_code, isolate);
+    Handle<AbstractCode> code = Handle<AbstractCode>::cast(builtin_code);
     PROFILE(isolate, CodeCreateEvent(LogEventListener::CodeTag::kBuiltin, code,
                                      Builtins::name(FromInt(i))));
   }
@@ -340,7 +347,7 @@ void Builtins::EmitCodeCreateEvents(Isolate* isolate) {
   static_assert(kLastBytecodeHandlerPlusOne == kBuiltinCount);
   for (; i < kBuiltinCount; i++) {
     Handle<Code> builtin_code(&builtins[i]);
-    Handle<AbstractCode> code = ToAbstractCode(builtin_code, isolate);
+    Handle<AbstractCode> code = Handle<AbstractCode>::cast(builtin_code);
     interpreter::Bytecode bytecode =
         builtin_metadata[i].data.bytecode_and_scale.bytecode;
     interpreter::OperandScale scale =
@@ -397,7 +404,7 @@ constexpr int OffHeapTrampolineGenerator::kBufferSize;
 }  // namespace
 
 // static
-Handle<InstructionStream> Builtins::GenerateOffHeapTrampolineFor(
+Handle<Code> Builtins::GenerateOffHeapTrampolineFor(
     Isolate* isolate, Address off_heap_entry, int32_t kind_specific_flags,
     bool generate_jump_to_instruction_stream) {
   DCHECK_NOT_NULL(isolate->embedded_blob_code());
@@ -433,8 +440,8 @@ Handle<ByteArray> Builtins::GenerateOffHeapTrampolineRelocInfo(
 }
 
 // static
-Handle<InstructionStream>
-Builtins::CreateInterpreterEntryTrampolineForProfiling(Isolate* isolate) {
+Handle<Code> Builtins::CreateInterpreterEntryTrampolineForProfiling(
+    Isolate* isolate) {
   DCHECK_NOT_NULL(isolate->embedded_blob_code());
   DCHECK_NE(0, isolate->embedded_blob_code_size());
 

@@ -2053,9 +2053,8 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
   }
   // TODO(wasm): Think about caching and sharing the JS-to-JS wrappers per
   // signature instead of compiling a new one for every instantiation.
-  Handle<Code> wrapper_code = ToCode(
-      compiler::CompileJSToJSWrapper(isolate, sig, nullptr).ToHandleChecked(),
-      isolate);
+  Handle<Code> wrapper_code =
+      compiler::CompileJSToJSWrapper(isolate, sig, nullptr).ToHandleChecked();
 
   // WasmJSFunctions use on-heap Code objects as call targets, so we can't
   // cache the target address, unless the WasmJSFunction wraps a
@@ -2088,10 +2087,9 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
     // TODO(wasm): Think about caching and sharing the wasm-to-JS wrappers per
     // signature instead of compiling a new one for every instantiation.
     Handle<Code> wasm_to_js_wrapper_code =
-        ToCode(compiler::CompileWasmToJSWrapper(isolate, sig, kind,
-                                                expected_arity, suspend)
-                   .ToHandleChecked(),
-               isolate);
+        compiler::CompileWasmToJSWrapper(isolate, sig, kind, expected_arity,
+                                         suspend)
+            .ToHandleChecked();
     function_data->internal().set_code(*wasm_to_js_wrapper_code);
   }
 

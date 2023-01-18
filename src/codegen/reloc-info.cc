@@ -256,6 +256,11 @@ void RelocIterator::next() {
 RelocIterator::RelocIterator(InstructionStream code, int mode_mask)
     : RelocIterator(code, code.unchecked_relocation_info(), mode_mask) {}
 
+RelocIterator::RelocIterator(Code code, int mode_mask)
+    : RelocIterator(code.instruction_stream(),
+                    code.instruction_stream().unchecked_relocation_info(),
+                    mode_mask) {}
+
 RelocIterator::RelocIterator(InstructionStream code, ByteArray relocation_info,
                              int mode_mask)
     : RelocIterator(code, code.raw_instruction_start(), code.constant_pool(),

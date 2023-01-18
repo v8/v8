@@ -53,7 +53,7 @@ class BaselineCompilerTask {
     compiler.GenerateCode();
     maybe_code_ = local_isolate->heap()->NewPersistentMaybeHandle(
         compiler.Build(local_isolate));
-    Handle<InstructionStream> code;
+    Handle<Code> code;
     if (maybe_code_.ToHandle(&code)) {
       local_isolate->heap()->RegisterCodeObject(code);
     }
@@ -63,7 +63,7 @@ class BaselineCompilerTask {
   // Executed in the main thread.
   void Install(Isolate* isolate) {
     shared_function_info_->set_is_sparkplug_compiling(false);
-    Handle<InstructionStream> code;
+    Handle<Code> code;
     if (!maybe_code_.ToHandle(&code)) return;
     if (v8_flags.print_code) {
       code->Print();
@@ -74,7 +74,7 @@ class BaselineCompilerTask {
       return;
     }
 
-    shared_function_info_->set_baseline_code(ToCode(*code), kReleaseStore);
+    shared_function_info_->set_baseline_code(*code, kReleaseStore);
     if (v8_flags.trace_baseline_concurrent_compilation) {
       CodeTracer::Scope scope(isolate->GetCodeTracer());
       std::stringstream ss;
@@ -96,7 +96,7 @@ class BaselineCompilerTask {
  private:
   Handle<SharedFunctionInfo> shared_function_info_;
   Handle<BytecodeArray> bytecode_;
-  MaybeHandle<InstructionStream> maybe_code_;
+  MaybeHandle<Code> maybe_code_;
   double time_taken_ms_;
 };
 

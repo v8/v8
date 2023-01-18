@@ -21,8 +21,7 @@ namespace {
 
 // Function that takes a number of pointer-sized integer arguments, calculates a
 // weighted sum of them and returns it.
-Handle<InstructionStream> BuildCallee(Isolate* isolate,
-                                      CallDescriptor* call_descriptor) {
+Handle<Code> BuildCallee(Isolate* isolate, CallDescriptor* call_descriptor) {
   CodeAssemblerTester tester(isolate, call_descriptor, "callee");
   CodeStubAssembler assembler(tester.state());
   int param_slots = static_cast<int>(call_descriptor->ParameterSlotCount());
@@ -33,19 +32,18 @@ Handle<InstructionStream> BuildCallee(Isolate* isolate,
     sum = __ Signed(__ IntPtrAdd(sum, product));
   }
   __ Return(sum);
-  return tester.GenerateInstructionStreamCloseAndEscape();
+  return tester.GenerateCodeCloseAndEscape();
 }
 
 // Function that tail-calls another function with a number of pointer-sized
 // integer arguments.
-Handle<InstructionStream> BuildCaller(Isolate* isolate,
-                                      CallDescriptor* call_descriptor,
-                                      CallDescriptor* callee_descriptor) {
+Handle<Code> BuildCaller(Isolate* isolate, CallDescriptor* call_descriptor,
+                         CallDescriptor* callee_descriptor) {
   CodeAssemblerTester tester(isolate, call_descriptor, "caller");
   CodeStubAssembler assembler(tester.state());
   std::vector<Node*> params;
   // The first parameter is always the callee.
-  Handle<Code> code = ToCode(BuildCallee(isolate, callee_descriptor), isolate);
+  Handle<Code> code = BuildCallee(isolate, callee_descriptor);
   params.push_back(__ HeapConstant(code));
   int param_slots = static_cast<int>(callee_descriptor->ParameterSlotCount());
   for (int i = 0; i < param_slots; ++i) {
@@ -54,19 +52,19 @@ Handle<InstructionStream> BuildCaller(Isolate* isolate,
   DCHECK_EQ(param_slots + 1, params.size());
   tester.raw_assembler_for_testing()->TailCallN(callee_descriptor,
                                                 param_slots + 1, params.data());
-  return tester.GenerateInstructionStreamCloseAndEscape();
+  return tester.GenerateCodeCloseAndEscape();
 }
 
 // Setup function, which calls "caller".
-Handle<InstructionStream> BuildSetupFunction(
-    Isolate* isolate, CallDescriptor* caller_descriptor,
-    CallDescriptor* callee_descriptor) {
+Handle<Code> BuildSetupFunction(Isolate* isolate,
+                                CallDescriptor* caller_descriptor,
+                                CallDescriptor* callee_descriptor) {
   CodeAssemblerTester tester(isolate, JSParameterCount(0));
   CodeStubAssembler assembler(tester.state());
   std::vector<Node*> params;
   // The first parameter is always the callee.
-  Handle<Code> code = ToCode(
-      BuildCaller(isolate, caller_descriptor, callee_descriptor), isolate);
+  Handle<Code> code =
+      BuildCaller(isolate, caller_descriptor, callee_descriptor);
   params.push_back(__ HeapConstant(code));
   // Set up arguments for "Caller".
   int param_slots = static_cast<int>(caller_descriptor->ParameterSlotCount());
@@ -80,7 +78,7 @@ Handle<InstructionStream> BuildSetupFunction(
       __ UncheckedCast<IntPtrT>(tester.raw_assembler_for_testing()->CallN(
           caller_descriptor, param_slots + 1, params.data()));
   __ Return(__ SmiTag(intptr_result));
-  return tester.GenerateInstructionStreamCloseAndEscape();
+  return tester.GenerateCodeCloseAndEscape();
 }
 
 CallDescriptor* CreateDescriptorForStackArguments(Zone* zone, int param_slots) {
@@ -121,7 +119,7 @@ class RunTailCallsTest : public TestWithContextAndZone {
         CreateDescriptorForStackArguments(zone(), n);
     CallDescriptor* callee_descriptor =
         CreateDescriptorForStackArguments(zone(), m);
-    Handle<InstructionStream> setup =
+    Handle<Code> setup =
         BuildSetupFunction(isolate, caller_descriptor, callee_descriptor);
     FunctionTester ft(isolate, setup, 0);
     Handle<Object> result = ft.Call().ToHandleChecked();

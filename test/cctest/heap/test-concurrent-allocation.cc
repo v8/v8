@@ -508,8 +508,11 @@ UNINITIALIZED_TEST(ConcurrentRecordRelocSlot) {
 #endif
       CodeDesc desc;
       masm.GetCode(i_isolate, &desc);
-      Handle<InstructionStream> code_handle =
-          Factory::CodeBuilder(i_isolate, desc, CodeKind::FOR_TESTING).Build();
+      Handle<InstructionStream> code_handle(
+          Factory::CodeBuilder(i_isolate, desc, CodeKind::FOR_TESTING)
+              .Build()
+              ->instruction_stream(),
+          i_isolate);
       heap::AbandonCurrentlyFreeMemory(heap->old_space());
       Handle<HeapNumber> value_handle(
           i_isolate->factory()->NewHeapNumber<AllocationType::kOld>(1.1));

@@ -26,7 +26,7 @@ class MaglevCodeGenerator final {
 
   void Assemble();
 
-  MaybeHandle<InstructionStream> Generate(Isolate* isolate);
+  MaybeHandle<Code> Generate(Isolate* isolate);
 
  private:
   void EmitCode();
@@ -35,7 +35,7 @@ class MaglevCodeGenerator final {
   void EmitExceptionHandlerTrampolines();
   void EmitMetadata();
 
-  MaybeHandle<InstructionStream> BuildCodeObject(Isolate* isolate);
+  MaybeHandle<Code> BuildCodeObject(Isolate* isolate);
   Handle<DeoptimizationData> GenerateDeoptimizationData(Isolate* isolate);
 
   int stack_slot_count() const { return code_gen_state_.stack_slots(); }

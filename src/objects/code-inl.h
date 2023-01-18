@@ -410,19 +410,6 @@ inline InstructionStream FromCode(Code code, Isolate* isolate,
 #endif  // V8_EXTERNAL_CODE_SPACE
 }
 
-inline Handle<InstructionStream> FromCode(Handle<Code> code, Isolate* isolate) {
-  return handle(FromCode(*code), isolate);
-}
-
-inline AbstractCode ToAbstractCode(Code code) {
-  return AbstractCode::cast(code);
-}
-
-inline Handle<AbstractCode> ToAbstractCode(Handle<Code> code,
-                                           Isolate* isolate) {
-  return Handle<AbstractCode>::cast(code);
-}
-
 #define CODE_LOOKUP_RESULT_FWD_ACCESSOR(name, Type)            \
   Type CodeLookupResult::name() const {                        \
     DCHECK(IsFound());                                         \
@@ -1362,8 +1349,9 @@ void Code::set_code_entry_point(Isolate* isolate, Address value) {
   WriteField<Address>(kCodeEntryPointOffset, value);
 }
 
-void Code::SetCodeAndEntryPoint(Isolate* isolate_for_sandbox,
-                                InstructionStream code, WriteBarrierMode mode) {
+void Code::SetInstructionStreamAndEntryPoint(Isolate* isolate_for_sandbox,
+                                             InstructionStream code,
+                                             WriteBarrierMode mode) {
   set_raw_instruction_stream(code, mode);
   set_code_entry_point(isolate_for_sandbox, code.InstructionStart());
 }
@@ -1383,6 +1371,15 @@ void Code::UpdateCodeEntryPoint(Isolate* isolate_for_sandbox,
 Address Code::InstructionStart() const { return code_entry_point(); }
 
 Address Code::raw_instruction_start() const { return code_entry_point(); }
+Address Code::raw_instruction_end() const {
+  return instruction_stream().raw_instruction_end();
+}
+int Code::raw_instruction_size() const {
+  return instruction_stream().raw_instruction_size();
+}
+Address Code::raw_body_size() const {
+  return instruction_stream().raw_body_size();
+}
 
 Address Code::entry() const { return code_entry_point(); }
 

@@ -142,15 +142,17 @@ std::unique_ptr<TurbofanCompilationJob> NewJSToWasmCompilationJob(
     const wasm::WasmModule* module, bool is_import,
     const wasm::WasmFeatures& enabled_features);
 
-MaybeHandle<InstructionStream> CompileWasmToJSWrapper(
-    Isolate* isolate, const wasm::FunctionSig* sig, WasmImportCallKind kind,
-    int expected_arity, wasm::Suspend suspend);
+MaybeHandle<Code> CompileWasmToJSWrapper(Isolate* isolate,
+                                         const wasm::FunctionSig* sig,
+                                         WasmImportCallKind kind,
+                                         int expected_arity,
+                                         wasm::Suspend suspend);
 
 // Compiles a stub with JS linkage that serves as an adapter for function
 // objects constructed via {WebAssembly.Function}. It performs a round-trip
 // simulating a JS-to-Wasm-to-JS coercion of parameter and return values.
-MaybeHandle<InstructionStream> CompileJSToJSWrapper(
-    Isolate*, const wasm::FunctionSig*, const wasm::WasmModule* module);
+MaybeHandle<Code> CompileJSToJSWrapper(Isolate*, const wasm::FunctionSig*,
+                                       const wasm::WasmModule* module);
 
 enum CWasmEntryParameters {
   kCodeEntry,

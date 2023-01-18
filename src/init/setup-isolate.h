@@ -12,7 +12,7 @@ namespace internal {
 
 class Builtins;
 enum class Builtin : int32_t;
-class InstructionStream;
+class Code;
 class Heap;
 class Isolate;
 
@@ -39,8 +39,7 @@ class V8_EXPORT_PRIVATE SetupIsolateDelegate {
 
  protected:
   static void SetupBuiltinsInternal(Isolate* isolate);
-  static void AddBuiltin(Builtins* builtins, Builtin builtin,
-                         InstructionStream code);
+  static void AddBuiltin(Builtins* builtins, Builtin builtin, Code code);
   static void PopulateWithPlaceholders(Isolate* isolate);
   static void ReplacePlaceholders(Isolate* isolate);
 

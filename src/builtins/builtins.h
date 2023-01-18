@@ -192,12 +192,7 @@ class Builtins {
   }
 
   // True, iff the given code object is a builtin with off-heap embedded code.
-  template <typename CodeOrCode>
-  static bool IsIsolateIndependentBuiltin(CodeOrCode code) {
-    Builtin builtin = code.builtin_id();
-    return Builtins::IsBuiltinId(builtin) &&
-           Builtins::IsIsolateIndependent(builtin);
-  }
+  static bool IsIsolateIndependentBuiltin(Code code);
 
   static void InitializeIsolateDataTables(Isolate* isolate);
 
@@ -230,7 +225,7 @@ class Builtins {
   // function.
   // TODO(delphick): Come up with a better name since it may not generate an
   // executable trampoline.
-  static Handle<InstructionStream> GenerateOffHeapTrampolineFor(
+  static Handle<Code> GenerateOffHeapTrampolineFor(
       Isolate* isolate, Address off_heap_entry, int32_t kind_specific_flags,
       bool generate_jump_to_instruction_stream);
 
@@ -239,7 +234,7 @@ class Builtins {
   static Handle<ByteArray> GenerateOffHeapTrampolineRelocInfo(Isolate* isolate);
 
   // Creates a copy of InterpreterEntryTrampolineForProfiling in the code space.
-  static Handle<InstructionStream> CreateInterpreterEntryTrampolineForProfiling(
+  static Handle<Code> CreateInterpreterEntryTrampolineForProfiling(
       Isolate* isolate);
 
   // Only builtins with JS linkage should ever need to be called via their

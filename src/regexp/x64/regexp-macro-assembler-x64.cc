@@ -1098,13 +1098,13 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   CodeDesc code_desc;
   Isolate* isolate = this->isolate();
   masm_.GetCode(isolate, &code_desc);
-  Handle<InstructionStream> code =
-      Factory::CodeBuilder(isolate, code_desc, CodeKind::REGEXP)
-          .set_self_reference(masm_.CodeObject())
-          .Build();
+  Handle<Code> code = Factory::CodeBuilder(isolate, code_desc, CodeKind::REGEXP)
+                          .set_self_reference(masm_.CodeObject())
+                          .Build();
+  Handle<InstructionStream> istream(code->instruction_stream(), isolate);
   PROFILE(isolate,
-          RegExpCodeCreateEvent(Handle<AbstractCode>::cast(code), source));
-  return Handle<HeapObject>::cast(code);
+          RegExpCodeCreateEvent(Handle<AbstractCode>::cast(istream), source));
+  return Handle<HeapObject>::cast(istream);
 }
 
 void RegExpMacroAssemblerX64::GoTo(Label* to) { BranchOrBacktrack(to); }

@@ -10,14 +10,14 @@
 namespace v8 {
 namespace internal {
 
-class InstructionStream;
+class Code;
 class SharedFunctionInfo;
 class MacroAssembler;
 
 bool CanCompileWithBaseline(Isolate* isolate, SharedFunctionInfo shared);
 
-MaybeHandle<InstructionStream> GenerateBaselineCode(
-    Isolate* isolate, Handle<SharedFunctionInfo> shared);
+MaybeHandle<Code> GenerateBaselineCode(Isolate* isolate,
+                                       Handle<SharedFunctionInfo> shared);
 
 void EmitReturnBaseline(MacroAssembler* masm);
 

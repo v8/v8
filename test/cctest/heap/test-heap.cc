@@ -214,8 +214,11 @@ static void CheckFindCodeObject(Isolate* isolate) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<InstructionStream> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
+  Handle<InstructionStream> code(
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING)
+          .Build()
+          ->instruction_stream(),
+      isolate);
   CHECK(code->IsInstructionStream(cage_base));
 
   HeapObject obj = HeapObject::cast(*code);
@@ -226,8 +229,11 @@ static void CheckFindCodeObject(Isolate* isolate) {
     CHECK_EQ(*code, lookup_result.instruction_stream());
   }
 
-  Handle<InstructionStream> copy =
-      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
+  Handle<InstructionStream> copy(
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING)
+          .Build()
+          ->instruction_stream(),
+      isolate);
   HeapObject obj_copy = HeapObject::cast(*copy);
   CodeLookupResult not_right = isolate->FindCodeObject(
       obj_copy.address() + obj_copy.Size(cage_base) / 2);
@@ -4532,10 +4538,12 @@ static Handle<InstructionStream> DummyOptimizedCode(Isolate* isolate) {
 #endif
   masm.Drop(2);
   masm.GetCode(isolate, &desc);
-  Handle<InstructionStream> code =
+  Handle<InstructionStream> code(
       Factory::CodeBuilder(isolate, desc, CodeKind::TURBOFAN)
           .set_self_reference(masm.CodeObject())
-          .Build();
+          .Build()
+          ->instruction_stream(),
+      isolate);
   CHECK(code->IsInstructionStream());
   return code;
 }
@@ -7293,7 +7301,7 @@ TEST(Regress10900) {
   {
     CodePageCollectionMemoryModificationScopeForTesting code_scope(
         isolate->heap());
-    Handle<InstructionStream> code;
+    Handle<Code> code;
     for (int i = 0; i < 100; i++) {
       // Generate multiple code pages.
       code = Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();

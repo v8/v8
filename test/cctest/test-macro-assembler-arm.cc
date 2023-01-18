@@ -146,7 +146,7 @@ TEST(ExtractLane) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
-  Handle<InstructionStream> code =
+  Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
   StdoutStream os;
@@ -277,7 +277,7 @@ TEST(ReplaceLane) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
-  Handle<InstructionStream> code =
+  Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
   StdoutStream os;

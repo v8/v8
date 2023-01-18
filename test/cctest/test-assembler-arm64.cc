@@ -131,7 +131,7 @@ static void InitializeVM() {
   std::unique_ptr<PrintDisassembler> pdis;                                    \
   RegisterDump core;                                                          \
   HandleScope handle_scope(isolate);                                          \
-  Handle<InstructionStream> code;                                             \
+  Handle<Code> code;                                                          \
   if (i::v8_flags.trace_sim) {                                                \
     pdis.reset(new PrintDisassembler(stdout));                                \
     decoder->PrependVisitor(pdis.get());                                      \
@@ -156,7 +156,8 @@ static void InitializeVM() {
   RESET();                                                                     \
   START_AFTER_RESET();
 
-#define RUN() simulator.RunFrom(reinterpret_cast<Instruction*>(code->entry()))
+#define RUN() \
+  simulator.RunFrom(reinterpret_cast<Instruction*>(code->code_entry_point()))
 
 #define END()                                                                  \
   __ Debug("End test.", __LINE__, TRACE_DISABLE | LOG_ALL);                    \
@@ -181,7 +182,7 @@ static void InitializeVM() {
   MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes, \
                       owned_buf->CreateView());                        \
   HandleScope handle_scope(isolate);                                   \
-  Handle<InstructionStream> code;                                      \
+  Handle<Code> code;                                                   \
   RegisterDump core;
 
 #define RESET()                                                \

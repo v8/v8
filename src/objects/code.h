@@ -41,12 +41,11 @@ class Register;
 
 #include "torque-generated/src/objects/code-tq.inc"
 
-// Code is a container for all mutable fields associated with its
-// referencing {InstructionStream} object. Since {InstructionStream} objects
-// reside on write-protected pages within the heap, its header fields need to be
-// immutable. There always is a 1-to-1 relation between {InstructionStream} and
-// {Code}, the referencing field
-// {InstructionStream::code} itself is immutable.
+// Code is a container for data fields related to its associated
+// {InstructionStream} object. Since {InstructionStream} objects reside on
+// write-protected pages within the heap, its header fields need to be
+// immutable.  Every InstructionStream object has an associated Code object,
+// but not every Code object has an InstructionStream (e.g. for builtins).
 class Code : public HeapObject {
  public:
   NEVER_READ_ONLY_SPACE
@@ -81,10 +80,10 @@ class Code : public HeapObject {
   // value from there.
   inline PtrComprCageBase code_cage_base() const;
 
-  // Cached value of code().InstructionStart().
+  // Cached value of instruction_stream().InstructionStart().
   DECL_GETTER(code_entry_point, Address)
 
-  inline void SetCodeAndEntryPoint(
+  inline void SetInstructionStreamAndEntryPoint(
       Isolate* isolate_for_sandbox, InstructionStream code,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void SetEntryPointForOffHeapBuiltin(Isolate* isolate_for_sandbox,
@@ -107,6 +106,13 @@ class Code : public HeapObject {
   // Alias for code_entry_point to make it API compatible with
   // InstructionStream.
   inline Address raw_instruction_start() const;
+
+  // More aliases for InstructionStream functions.
+  // TODO(jgruber): Once all are migrated, put these declarations in a decent
+  // order.
+  inline Address raw_instruction_end() const;
+  inline int raw_instruction_size() const;
+  inline Address raw_body_size() const;
 
   // Alias for code_entry_point to make it API compatible with
   // InstructionStream.
@@ -303,7 +309,8 @@ class Code : public HeapObject {
   OBJECT_CONSTRUCTORS(Code, HeapObject);
 };
 
-// InstructionStream describes objects with on-the-fly generated machine code.
+// InstructionStream contains the instruction stream for V8-generated code
+// objects.
 class InstructionStream : public HeapObject {
  public:
   NEVER_READ_ONLY_SPACE
@@ -969,9 +976,6 @@ inline Handle<Code> ToCode(Handle<InstructionStream> code, Isolate* isolate);
 inline InstructionStream FromCode(Code code);
 inline InstructionStream FromCode(Code code, Isolate* isolate, RelaxedLoadTag);
 inline InstructionStream FromCode(Code code, PtrComprCageBase, RelaxedLoadTag);
-inline Handle<InstructionStream> FromCode(Handle<Code> code, Isolate* isolate);
-inline AbstractCode ToAbstractCode(Code code);
-inline Handle<AbstractCode> ToAbstractCode(Handle<Code> code, Isolate* isolate);
 
 // AbstractCode is a helper wrapper around
 // {InstructionStream|Code|BytecodeArray}.  Note that the same
@@ -1110,9 +1114,10 @@ class DependentCode : public WeakArrayList {
 
   // Register a dependency of {code} on {object}, of the kinds given by
   // {groups}.
-  V8_EXPORT_PRIVATE static void InstallDependency(
-      Isolate* isolate, Handle<InstructionStream> code,
-      Handle<HeapObject> object, DependencyGroups groups);
+  V8_EXPORT_PRIVATE static void InstallDependency(Isolate* isolate,
+                                                  Handle<Code> code,
+                                                  Handle<HeapObject> object,
+                                                  DependencyGroups groups);
 
   template <typename ObjectT>
   static void DeoptimizeDependencyGroups(Isolate* isolate, ObjectT object,
@@ -1139,12 +1144,10 @@ class DependentCode : public WeakArrayList {
   static void SetDependentCode(Handle<HeapObject> object,
                                Handle<DependentCode> dep);
 
-  static Handle<DependentCode> New(Isolate* isolate, DependencyGroups groups,
-                                   Handle<InstructionStream> code);
   static Handle<DependentCode> InsertWeakCode(Isolate* isolate,
                                               Handle<DependentCode> entries,
                                               DependencyGroups groups,
-                                              Handle<InstructionStream> code);
+                                              Handle<Code> code);
 
   bool MarkCodeForDeoptimization(DependencyGroups deopt_groups);
 

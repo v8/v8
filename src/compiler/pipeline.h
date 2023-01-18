@@ -75,7 +75,7 @@ class Pipeline : public AllStatic {
       SourcePositionTable* source_positions = nullptr);
 
   // Run the pipeline on a machine graph and generate code.
-  static MaybeHandle<InstructionStream> GenerateCodeForCodeStub(
+  static MaybeHandle<Code> GenerateCodeForCodeStub(
       Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
       JSGraph* jsgraph, SourcePositionTable* source_positions, CodeKind kind,
       const char* debug_name, Builtin builtin, const AssemblerOptions& options,
@@ -88,17 +88,16 @@ class Pipeline : public AllStatic {
   // Run the pipeline on JavaScript bytecode and generate code.  If requested,
   // hands out the heap broker on success, transferring its ownership to the
   // caller.
-  V8_EXPORT_PRIVATE static MaybeHandle<InstructionStream>
-  GenerateCodeForTesting(OptimizedCompilationInfo* info, Isolate* isolate,
-                         std::unique_ptr<JSHeapBroker>* out_broker = nullptr);
+  V8_EXPORT_PRIVATE static MaybeHandle<Code> GenerateCodeForTesting(
+      OptimizedCompilationInfo* info, Isolate* isolate,
+      std::unique_ptr<JSHeapBroker>* out_broker = nullptr);
 
   // Run the pipeline on a machine graph and generate code. If {schedule} is
   // {nullptr}, then compute a new schedule for code generation.
-  V8_EXPORT_PRIVATE static MaybeHandle<InstructionStream>
-  GenerateCodeForTesting(OptimizedCompilationInfo* info, Isolate* isolate,
-                         CallDescriptor* call_descriptor, Graph* graph,
-                         const AssemblerOptions& options,
-                         Schedule* schedule = nullptr);
+  V8_EXPORT_PRIVATE static MaybeHandle<Code> GenerateCodeForTesting(
+      OptimizedCompilationInfo* info, Isolate* isolate,
+      CallDescriptor* call_descriptor, Graph* graph,
+      const AssemblerOptions& options, Schedule* schedule = nullptr);
 
   // Run just the register allocator phases.
   V8_EXPORT_PRIVATE static void AllocateRegistersForTesting(

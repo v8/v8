@@ -383,7 +383,9 @@ bool InstructionStream::IsIsolateIndependent(Isolate* isolate) {
       InstructionStream target =
           InstructionStream::GetCodeFromTargetAddress(target_address);
       CHECK(target.IsInstructionStream());
-      if (Builtins::IsIsolateIndependentBuiltin(target)) continue;
+      if (Builtins::IsIsolateIndependentBuiltin(target.code(kAcquireLoad))) {
+        continue;
+      }
     }
     return false;
   }
@@ -533,10 +535,10 @@ void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {
 
 namespace {
 
-template <typename CodeOrCode>
+template <typename CodeOrInstructionStream>
 inline void DisassembleCodeRange(Isolate* isolate, std::ostream& os,
-                                 CodeOrCode code, Address begin, size_t size,
-                                 Address current_pc) {
+                                 CodeOrInstructionStream code, Address begin,
+                                 size_t size, Address current_pc) {
   Address end = begin + size;
   AllowHandleAllocation allow_handles;
   DisallowGarbageCollection no_gc;
@@ -546,9 +548,9 @@ inline void DisassembleCodeRange(Isolate* isolate, std::ostream& os,
                        CodeReference(handle(code, isolate)), current_pc);
 }
 
-template <typename CodeOrCode>
+template <typename CodeOrInstructionStream>
 void Disassemble(const char* name, std::ostream& os, Isolate* isolate,
-                 CodeOrCode code, Address current_pc) {
+                 CodeOrInstructionStream code, Address current_pc) {
   CodeKind kind = code.kind();
   os << "kind = " << CodeKindToString(kind) << "\n";
   if (name == nullptr && code.is_builtin()) {
@@ -897,13 +899,12 @@ void PrintDependencyGroups(DependentCode::DependencyGroups groups) {
 
 }  // namespace
 
-void DependentCode::InstallDependency(Isolate* isolate,
-                                      Handle<InstructionStream> code,
+void DependentCode::InstallDependency(Isolate* isolate, Handle<Code> code,
                                       Handle<HeapObject> object,
                                       DependencyGroups groups) {
   if (V8_UNLIKELY(v8_flags.trace_compilation_dependencies)) {
-    StdoutStream{} << "Installing dependency of [" << code->GetHeapObject()
-                   << "] on [" << object << "] in groups [";
+    StdoutStream{} << "Installing dependency of [" << code << "] on [" << object
+                   << "] in groups [";
     PrintDependencyGroups(groups);
     StdoutStream{} << "]\n";
   }
@@ -920,29 +921,18 @@ void DependentCode::InstallDependency(Isolate* isolate,
 
 Handle<DependentCode> DependentCode::InsertWeakCode(
     Isolate* isolate, Handle<DependentCode> entries, DependencyGroups groups,
-    Handle<InstructionStream> code) {
+    Handle<Code> code) {
   if (entries->length() == entries->capacity()) {
     // We'd have to grow - try to compact first.
     entries->IterateAndCompact([](Code, DependencyGroups) { return false; });
   }
 
-  MaybeObjectHandle code_slot(HeapObjectReference::Weak(ToCode(*code)),
-                              isolate);
+  MaybeObjectHandle code_slot(HeapObjectReference::Weak(*code), isolate);
   MaybeObjectHandle group_slot(MaybeObject::FromSmi(Smi::FromInt(groups)),
                                isolate);
   entries = Handle<DependentCode>::cast(
       WeakArrayList::AddToEnd(isolate, entries, code_slot, group_slot));
   return entries;
-}
-
-Handle<DependentCode> DependentCode::New(Isolate* isolate,
-                                         DependencyGroups groups,
-                                         Handle<InstructionStream> code) {
-  Handle<DependentCode> result = Handle<DependentCode>::cast(
-      isolate->factory()->NewWeakArrayList(LengthFor(1), AllocationType::kOld));
-  result->Set(0, HeapObjectReference::Weak(ToCode(*code)));
-  result->Set(1, Smi::FromInt(groups));
-  return result;
 }
 
 void DependentCode::IterateAndCompact(const IterateAndCompactFn& fn) {

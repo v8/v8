@@ -73,22 +73,24 @@ class RawMachineAssemblerTester : public CallHelper<ReturnType>,
   void GenerateCode() { Generate(); }
 
   Handle<InstructionStream> GetInstructionStream() {
-    Generate();
-    return instruction_stream_.ToHandleChecked();
+    return handle(GetCode()->instruction_stream(), isolate_);
   }
 
-  Handle<Code> GetCode() { return ToCode(GetCode(), isolate_); }
+  Handle<Code> GetCode() {
+    Generate();
+    return code_.ToHandleChecked();
+  }
 
  protected:
   Address Generate() override {
-    if (instruction_stream_.is_null()) {
+    if (code_.is_null()) {
       Schedule* schedule = ExportForTest();
       OptimizedCompilationInfo info(base::ArrayVector("testing"), zone_, kind_);
-      instruction_stream_ = Pipeline::GenerateCodeForTesting(
+      code_ = Pipeline::GenerateCodeForTesting(
           &info, isolate_, call_descriptor(), graph(),
           AssemblerOptions::Default(isolate_), schedule);
     }
-    return instruction_stream_.ToHandleChecked()->entry();
+    return code_.ToHandleChecked()->instruction_stream().entry();
   }
 
   Zone* zone() { return zone_; }
@@ -97,7 +99,7 @@ class RawMachineAssemblerTester : public CallHelper<ReturnType>,
   Isolate* isolate_;
   Zone* zone_;
   CodeKind kind_ = CodeKind::FOR_TESTING;
-  MaybeHandle<InstructionStream> instruction_stream_;
+  MaybeHandle<Code> code_;
 };
 
 template <typename ReturnType>

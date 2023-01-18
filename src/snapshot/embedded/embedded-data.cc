@@ -239,7 +239,7 @@ void FinalizeEmbeddedCodeTargets(Isolate* isolate, EmbeddedData* blob) {
       DCHECK_EQ(rinfo->rmode(), off_heap_it.rinfo()->rmode());
       InstructionStream target =
           InstructionStream::GetCodeFromTargetAddress(rinfo->target_address());
-      CHECK(Builtins::IsIsolateIndependentBuiltin(target));
+      CHECK(Builtins::IsIsolateIndependentBuiltin(target.code(kAcquireLoad)));
 
       // Do not emit write-barrier for off-heap writes.
       off_heap_it.rinfo()->set_off_heap_target_address(

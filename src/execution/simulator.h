@@ -110,8 +110,7 @@ class GeneratedCode {
     return GeneratedCode(isolate, reinterpret_cast<Signature*>(buffer));
   }
 
-  template <typename CodeOrCode>
-  static GeneratedCode FromCode(CodeOrCode code) {
+  static GeneratedCode FromCode(Code code) {
     return FromAddress(code.GetIsolate(), code.entry());
   }
 

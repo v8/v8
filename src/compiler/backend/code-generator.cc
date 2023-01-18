@@ -467,10 +467,10 @@ base::OwnedVector<byte> CodeGenerator::GetProtectedInstructionsData() {
 #endif  // V8_ENABLE_WEBASSEMBLY
 }
 
-MaybeHandle<InstructionStream> CodeGenerator::FinalizeCode() {
+MaybeHandle<Code> CodeGenerator::FinalizeCode() {
   if (result_ != kSuccess) {
     tasm()->AbortedCodeGeneration();
-    return MaybeHandle<InstructionStream>();
+    return {};
   }
 
   // Allocate the source position table.
@@ -494,7 +494,7 @@ MaybeHandle<InstructionStream> CodeGenerator::FinalizeCode() {
     unwinding_info_writer_.eh_frame_writer()->GetEhFrame(&desc);
   }
 
-  MaybeHandle<InstructionStream> maybe_code =
+  MaybeHandle<Code> maybe_code =
       Factory::CodeBuilder(isolate(), desc, info()->code_kind())
           .set_builtin(info()->builtin())
           .set_inlined_bytecode_size(info()->inlined_bytecode_size())
@@ -506,10 +506,10 @@ MaybeHandle<InstructionStream> CodeGenerator::FinalizeCode() {
           .set_osr_offset(info()->osr_offset())
           .TryBuild();
 
-  Handle<InstructionStream> code;
+  Handle<Code> code;
   if (!maybe_code.ToHandle(&code)) {
     tasm()->AbortedCodeGeneration();
-    return MaybeHandle<InstructionStream>();
+    return {};
   }
 
   LOG_CODE_EVENT(isolate(), CodeLinePosInfoRecordEvent(
