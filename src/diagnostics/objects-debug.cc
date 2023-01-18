@@ -447,7 +447,7 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
       if (details.location() == PropertyLocation::kField) {
         DCHECK_EQ(PropertyKind::kData, details.kind());
         Representation r = details.representation();
-        FieldIndex index = FieldIndex::ForDescriptor(map(), i);
+        FieldIndex index = FieldIndex::ForDetails(map(), details);
         if (COMPRESS_POINTERS_BOOL && index.is_inobject()) {
           VerifyObjectField(isolate, index.offset());
         }
@@ -1258,7 +1258,7 @@ void JSSharedStruct::JSSharedStructVerify(Isolate* isolate) {
     CHECK_EQ(PropertyKind::kData, details.kind());
     CHECK_EQ(PropertyLocation::kField, details.location());
     CHECK(details.representation().IsTagged());
-    FieldIndex field_index = FieldIndex::ForDescriptor(struct_map, i);
+    FieldIndex field_index = FieldIndex::ForDetails(struct_map, details);
     CHECK(RawFastPropertyAt(field_index).IsShared());
   }
 }

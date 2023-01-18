@@ -6375,7 +6375,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           Handle<Name> key = Handle<Name>(descs->GetKey(i), isolate());
           // If the property is already there we skip it.
           if (PropertyAlreadyExists(isolate(), to, key)) continue;
-          FieldIndex index = FieldIndex::ForDescriptor(from->map(), i);
+          FieldIndex index = FieldIndex::ForDetails(from->map(), details);
           Handle<Object> value = JSObject::FastPropertyAt(
               isolate(), from, details.representation(), index);
           JSObject::AddProperty(isolate(), to, key, value,

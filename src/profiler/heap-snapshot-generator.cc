@@ -1829,7 +1829,8 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject js_obj,
           }
 
           Name k = descs.GetKey(i);
-          FieldIndex field_index = FieldIndex::ForDescriptor(js_obj.map(), i);
+          FieldIndex field_index =
+              FieldIndex::ForDetails(js_obj.map(), details);
           Object value = js_obj.RawFastPropertyAt(field_index);
           int field_offset =
               field_index.is_inobject() ? field_index.offset() : -1;

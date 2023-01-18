@@ -321,7 +321,7 @@ bool JSObject::PrintProperties(std::ostream& os) {
       PropertyDetails details = descs.GetDetails(i);
       switch (details.location()) {
         case PropertyLocation::kField: {
-          FieldIndex field_index = FieldIndex::ForDescriptor(map(), i);
+          FieldIndex field_index = FieldIndex::ForDetails(map(), details);
           os << Brief(RawFastPropertyAt(field_index));
           break;
         }

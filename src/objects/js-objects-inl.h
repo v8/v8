@@ -453,7 +453,7 @@ void JSObject::WriteToField(InternalIndex descriptor, PropertyDetails details,
   DCHECK_EQ(PropertyLocation::kField, details.location());
   DCHECK_EQ(PropertyKind::kData, details.kind());
   DisallowGarbageCollection no_gc;
-  FieldIndex index = FieldIndex::ForDescriptor(map(), descriptor);
+  FieldIndex index = FieldIndex::ForDetails(map(), details);
   if (details.representation().IsDouble()) {
     // Manipulating the signaling NaN used for the hole and uninitialized
     // double field sentinel in C++, e.g. with base::bit_cast or

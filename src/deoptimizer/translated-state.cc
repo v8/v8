@@ -7,6 +7,7 @@
 #include <iomanip>
 
 #include "src/base/memory.h"
+#include "src/common/assert-scope.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/deoptimizer/materialized-object-store.h"
 #include "src/deoptimizer/translation-opcode.h"
@@ -1904,17 +1905,20 @@ void TranslatedState::EnsurePropertiesAllocatedAndMarked(
   properties_slot->mark_allocated();
   properties_slot->set_storage(object_storage);
 
+  DisallowGarbageCollection no_gc;
+  auto raw_map = *map;
+  auto raw_object_storage = *object_storage;
+
   // Set markers for out-of-object properties.
-  Handle<DescriptorArray> descriptors(map->instance_descriptors(isolate()),
-                                      isolate());
+  DescriptorArray descriptors = map->instance_descriptors(isolate());
   for (InternalIndex i : map->IterateOwnDescriptors()) {
-    FieldIndex index = FieldIndex::ForDescriptor(*map, i);
-    Representation representation = descriptors->GetDetails(i).representation();
+    FieldIndex index = FieldIndex::ForDescriptor(raw_map, i);
+    Representation representation = descriptors.GetDetails(i).representation();
     if (!index.is_inobject() &&
         (representation.IsDouble() || representation.IsHeapObject())) {
       int outobject_index = index.outobject_array_index();
       int array_index = outobject_index * kTaggedSize;
-      object_storage->set(array_index, kStoreHeapObject);
+      raw_object_storage.set(array_index, kStoreHeapObject);
     }
   }
 }
@@ -1926,8 +1930,10 @@ Handle<ByteArray> TranslatedState::AllocateStorageFor(TranslatedValue* slot) {
   // does not visit them.
   Handle<ByteArray> object_storage =
       isolate()->factory()->NewByteArray(allocate_size, AllocationType::kOld);
+  DisallowGarbageCollection no_gc;
+  auto raw_object_storage = *object_storage;
   for (int i = 0; i < object_storage->length(); i++) {
-    object_storage->set(i, kStoreTagged);
+    raw_object_storage.set(i, kStoreTagged);
   }
   return object_storage;
 }
@@ -1938,19 +1944,22 @@ void TranslatedState::EnsureJSObjectAllocated(TranslatedValue* slot,
   CHECK_EQ(map->instance_size(), slot->GetChildrenCount() * kTaggedSize);
 
   Handle<ByteArray> object_storage = AllocateStorageFor(slot);
+
   // Now we handle the interesting (JSObject) case.
-  Handle<DescriptorArray> descriptors(map->instance_descriptors(isolate()),
-                                      isolate());
+  DisallowGarbageCollection no_gc;
+  auto raw_map = *map;
+  auto raw_object_storage = *object_storage;
+  DescriptorArray descriptors = map->instance_descriptors(isolate());
 
   // Set markers for in-object properties.
-  for (InternalIndex i : map->IterateOwnDescriptors()) {
-    FieldIndex index = FieldIndex::ForDescriptor(*map, i);
-    Representation representation = descriptors->GetDetails(i).representation();
+  for (InternalIndex i : raw_map.IterateOwnDescriptors()) {
+    FieldIndex index = FieldIndex::ForDescriptor(raw_map, i);
+    Representation representation = descriptors.GetDetails(i).representation();
     if (index.is_inobject() &&
         (representation.IsDouble() || representation.IsHeapObject())) {
       CHECK_GE(index.index(), FixedArray::kHeaderSize / kTaggedSize);
       int array_index = index.index() * kTaggedSize - FixedArray::kHeaderSize;
-      object_storage->set(array_index, kStoreHeapObject);
+      raw_object_storage.set(array_index, kStoreHeapObject);
     }
   }
   slot->set_storage(object_storage);
