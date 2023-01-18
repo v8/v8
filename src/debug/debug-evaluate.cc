@@ -802,6 +802,7 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kStringPrototypeFontsize:
     case Builtin::kStringPrototypeIncludes:
     case Builtin::kStringPrototypeIndexOf:
+    case Builtin::kStringPrototypeIsWellFormed:
     case Builtin::kStringPrototypeItalics:
     case Builtin::kStringPrototypeLastIndexOf:
     case Builtin::kStringPrototypeLink:
@@ -823,6 +824,7 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kStringPrototypeToLowerCase:
     case Builtin::kStringPrototypeToUpperCase:
 #endif
+    case Builtin::kStringPrototypeToWellFormed:
     case Builtin::kStringPrototypeTrim:
     case Builtin::kStringPrototypeTrimEnd:
     case Builtin::kStringPrototypeTrimStart:

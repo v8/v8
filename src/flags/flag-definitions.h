@@ -241,8 +241,7 @@ DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
   V(harmony_rab_gsab,                                           \
     "harmony ResizableArrayBuffer / GrowableSharedArrayBuffer") \
   V(harmony_rab_gsab_transfer, "harmony ArrayBuffer.transfer")  \
-  V(harmony_array_grouping, "harmony array grouping")           \
-  V(harmony_string_is_well_formed, "harmony String#{is,to}WellFormed")
+  V(harmony_array_grouping, "harmony array grouping")
 
 DEFINE_IMPLICATION(harmony_rab_gsab_transfer, harmony_rab_gsab)
 
@@ -258,7 +257,8 @@ DEFINE_IMPLICATION(harmony_rab_gsab_transfer, harmony_rab_gsab)
   V(harmony_atomics, "harmony atomics")                               \
   V(harmony_import_assertions, "harmony import assertions")           \
   V(harmony_symbol_as_weakmap_key, "harmony symbols as weakmap keys") \
-  V(harmony_change_array_by_copy, "harmony change-Array-by-copy")
+  V(harmony_change_array_by_copy, "harmony change-Array-by-copy")     \
+  V(harmony_string_is_well_formed, "harmony String#{is,to}WellFormed")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_SHIPPING(V) \
