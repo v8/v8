@@ -1844,7 +1844,8 @@ bool MaglevGraphBuilder::TryBuildStoreField(
     if (original_map.UnusedPropertyFields() == 0) {
       return false;
     }
-  } else if (access_info.IsFastDataConstant()) {
+  } else if (access_info.IsFastDataConstant() &&
+             access_mode == compiler::AccessMode::kStore) {
     // TODO(verwaest): Deoptimize instead.
     return false;
   }
