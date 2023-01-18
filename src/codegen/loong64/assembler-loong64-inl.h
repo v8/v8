@@ -137,7 +137,7 @@ Address RelocInfo::target_internal_reference_address() {
   return pc_;
 }
 
-Handle<CodeDataContainer> Assembler::relative_code_target_object_handle_at(
+Handle<Code> Assembler::relative_code_target_object_handle_at(
     Address pc) const {
   Instr instr = Assembler::instr_at(pc);
   int32_t code_target_index = instr & kImm26Mask;
