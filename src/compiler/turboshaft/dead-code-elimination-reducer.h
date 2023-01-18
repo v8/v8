@@ -28,23 +28,12 @@ namespace v8::internal::compiler::turboshaft {
 //   1) The operation has the `is_required_when_unused` property
 //   2) Any of its outputs is live (is used in a live operation).
 //
-// We introduce the concept of `weak live` which only differs from (strong)
-// liveness on how it impacts the ControlState, but is otherwise identical. On
-// operation is weak live if
-//
-//   Any of its outputs is weak live (is used in a weak live operation) and the
-//   operation is not (strong) live.
-//
-// If the operation is neither strong nor weak live, the operation is dead and
-// can be eliminated.
+// If the operation is not live, it is dead and can be eliminated.
 //
 // ControlState describes to which block we could jump immediately without
 // changing the program semantics. That is missing any side effects, required
-// control flow or any strong(!) live operations. This information is then used
+// control flow or any live operations. This information is then used
 // at BranchOps to rewrite them to a GotoOp towards the corresponding block.
-// Weak live operations thus are not eliminated but allow control flow to be
-// rewritten around them. By marking stack checks (and all operations that they
-// depend on) as weak live, this allows otherwise empty loops to be eliminated.
 // From the output control state(s) c after an operation, the control state c'
 // before the operation is computed as follows:
 //
@@ -54,7 +43,7 @@ namespace v8::internal::compiler::turboshaft {
 //
 // And if c' = Bi, then the BranchOp can be rewritten into GotoOp(Bi).
 //
-//                           | NotEliminatable  if Op is strong live
+//                           | NotEliminatable  if Op is live
 //            c' = [Op](c) = {
 //                           | c                otherwise
 //
@@ -64,9 +53,9 @@ namespace v8::internal::compiler::turboshaft {
 //
 // Where Merge is an imaginary operation at the start of every merge block. This
 // is the important part for the analysis. If block `Merge i` does not have any
-// strong live phi operations, then we don't necessarily need to distinguish the
+// live phi operations, then we don't necessarily need to distinguish the
 // control flow paths going into that block and if we further don't encounter
-// any (strong) live operations along any of the paths leading to `Merge i`
+// any live operations along any of the paths leading to `Merge i`
 // starting at some BranchOp, we can skip both branches and eliminate the
 // control flow entirely by rewriting the BranchOp into a GotoOp(Bi). Notice
 // that if the control state already describes a potential Goto-target Bk, then
@@ -158,26 +147,17 @@ struct OperationState {
   //
   //   Live
   //    |
-  // WeakLive
-  //    |
   //   Dead
   //
-  // Describes the liveness state of an operation. We use the notion of weak
-  // liveness to express that an operation needs to be kept if we cannot
-  // eliminate (jump over) the entire basic block. In other words: A weak live
-  // operation will not be eliminated, but it doesn't prevent the propagation of
-  // the control state to allow to jump over the block if it contains no
-  // (strong) live operations. This will be useful to eliminate loops that are
-  // kept alive only by the contained stack checks.
+  // Describes the liveness state of an operation.
   enum Liveness : uint8_t {
     kDead,
-    kWeakLive,
     kLive,
   };
 
   static Liveness LeastUpperBound(Liveness lhs, Liveness rhs) {
-    static_assert(kLive > kWeakLive && kWeakLive > kDead);
-    return std::max(lhs, rhs);
+    static_assert(kDead == 0 && kLive == 1);
+    return static_cast<Liveness>(lhs | rhs);
   }
 };
 
@@ -186,8 +166,6 @@ inline std::ostream& operator<<(std::ostream& stream,
   switch (liveness) {
     case OperationState::kDead:
       return stream << "Dead";
-    case OperationState::kWeakLive:
-      return stream << "WeakLive";
     case OperationState::kLive:
       return stream << "Live";
   }
@@ -278,7 +256,7 @@ class DeadCodeAnalysis {
       if (op.Is<BranchOp>()) {
         if (control_state != ControlState::NotEliminatable()) {
           // Branch is still dead.
-          op_state = OperationState::kWeakLive;
+          DCHECK_EQ(op_state, OperationState::kDead);
           // If we know a target block we can rewrite into a goto.
           if (control_state.kind == ControlState::kBlock) {
             BlockIndex target = control_state.block;
@@ -297,8 +275,10 @@ class DeadCodeAnalysis {
         // Operation is already recognized as dead by a previous analysis.
         DCHECK_EQ(op_state, OperationState::kDead);
       } else if (op.Is<GotoOp>()) {
-        // Gotos are WeakLive.
-        op_state = OperationState::kWeakLive;
+        // We mark Gotos as live, but they do not influence operation or control
+        // state, so we skip them here.
+        liveness_[index] = OperationState::kLive;
+        continue;
       } else if (op.Properties().is_required_when_unused) {
         op_state = OperationState::kLive;
       } else if (op.Is<PhiOp>()) {
@@ -339,7 +319,7 @@ class DeadCodeAnalysis {
       // If everything is still dead. We don't need to update anything.
       if (op_state == OperationState::kDead) continue;
 
-      // We have a (possibly weak) live operation.
+      // We have a live operation.
       if constexpr (trace_analysis) {
         std::cout << " " << op_state << " <== " << liveness_[index] << "\n";
       }
