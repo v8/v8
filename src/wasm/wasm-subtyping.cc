@@ -540,7 +540,7 @@ HeapType::Representation CommonAncestorWithGeneric(HeapType heap1,
       }
     case HeapType::kNoFunc:
       return (heap2 == HeapType::kNoFunc || heap2 == HeapType::kFunc ||
-              module2->has_signature(heap2.ref_index()))
+              (heap2.is_index() && module2->has_signature(heap2.ref_index())))
                  ? heap2.representation()
                  : HeapType::kBottom;
     case HeapType::kNoExtern:

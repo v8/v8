@@ -424,6 +424,7 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     UNION(kWasmStringViewIter, kWasmAnyRef, kWasmBottom);
     UNION(kWasmStringViewWtf8, kWasmAnyRef, kWasmBottom);
     UNION(kWasmStringViewWtf16, kWasmAnyRef, kWasmBottom);
+    UNION(kWasmNullFuncRef, kWasmEqRef, kWasmBottom);
 
     INTERSECTION(kWasmExternRef, kWasmEqRef, kWasmBottom);
     INTERSECTION(kWasmExternRef, kWasmStructRef, kWasmBottom);
