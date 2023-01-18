@@ -1744,9 +1744,11 @@ void HandleInterruptsAndTiering(MaglevAssembler* masm, ZoneLabelRef done,
       SaveRegisterStateForCall save_register_state(masm,
                                                    node->register_snapshot());
       Register function = scratch0;
-      __ Move(kContextRegister, masm->native_context().object());
       __ Ldr(function, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
       __ Push(function);
+      // Move into kContextRegister after the load into scratch0, just in case
+      // scratch0 happens to be kContextRegister.
+      __ Move(kContextRegister, masm->native_context().object());
       __ CallRuntime(Runtime::kBytecodeBudgetInterruptWithStackCheck_Maglev, 1);
       save_register_state.DefineSafepointWithLazyDeopt(node->lazy_deopt_info());
     }
@@ -1792,9 +1794,11 @@ void HandleInterruptsAndTiering(MaglevAssembler* masm, ZoneLabelRef done,
       SaveRegisterStateForCall save_register_state(masm,
                                                    node->register_snapshot());
       Register function = scratch0;
-      __ Move(kContextRegister, masm->native_context().object());
       __ Ldr(function, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
       __ Push(function);
+      // Move into kContextRegister after the load into scratch0, just in case
+      // scratch0 happens to be kContextRegister.
+      __ Move(kContextRegister, masm->native_context().object());
       // Note: must not cause a lazy deopt!
       __ CallRuntime(Runtime::kBytecodeBudgetInterrupt_Maglev, 1);
       save_register_state.DefineSafepoint();
