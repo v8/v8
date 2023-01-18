@@ -918,7 +918,7 @@ void CppHeap::ReportBufferedAllocationSizeIfPossible() {
                          std::memory_order_relaxed);
     allocated_size_ += bytes_to_report;
 
-    if (v8_flags.global_gc_scheduling && v8_flags.incremental_marking) {
+    if (v8_flags.incremental_marking) {
       if (allocated_size_ > allocated_size_limit_for_check_) {
         Heap* heap = isolate_->heap();
         heap->StartIncrementalMarkingIfAllocationLimitIsReached(

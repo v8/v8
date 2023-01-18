@@ -2476,8 +2476,6 @@ void Heap::RecomputeLimits(GarbageCollector collector) {
     return;
   }
 
-  const bool use_global_memory_scheduling = v8_flags.global_gc_scheduling;
-
   double v8_gc_speed =
       tracer()->CombinedMarkCompactSpeedInBytesPerMillisecond();
   double v8_mutator_speed =
@@ -2485,19 +2483,16 @@ void Heap::RecomputeLimits(GarbageCollector collector) {
   double v8_growing_factor = MemoryController<V8HeapTrait>::GrowingFactor(
       this, max_old_generation_size(), v8_gc_speed, v8_mutator_speed);
   double global_growing_factor = 0;
-  if (use_global_memory_scheduling) {
-    double embedder_gc_speed = tracer()->EmbedderSpeedInBytesPerMillisecond();
-    double embedder_speed =
-        tracer()->CurrentEmbedderAllocationThroughputInBytesPerMillisecond();
-    double embedder_growing_factor =
-        (embedder_gc_speed > 0 && embedder_speed > 0)
-            ? MemoryController<GlobalMemoryTrait>::GrowingFactor(
-                  this, max_global_memory_size_, embedder_gc_speed,
-                  embedder_speed)
-            : 0;
-    global_growing_factor =
-        std::max(v8_growing_factor, embedder_growing_factor);
-  }
+  double embedder_gc_speed = tracer()->EmbedderSpeedInBytesPerMillisecond();
+  double embedder_speed =
+      tracer()->CurrentEmbedderAllocationThroughputInBytesPerMillisecond();
+  double embedder_growing_factor =
+      (embedder_gc_speed > 0 && embedder_speed > 0)
+          ? MemoryController<GlobalMemoryTrait>::GrowingFactor(
+                this, max_global_memory_size_, embedder_gc_speed,
+                embedder_speed)
+          : 0;
+  global_growing_factor = std::max(v8_growing_factor, embedder_growing_factor);
 
   size_t old_gen_size = OldGenerationSizeOfObjects();
   size_t new_space_capacity = NewSpaceCapacity();
@@ -2511,14 +2506,12 @@ void Heap::RecomputeLimits(GarbageCollector collector) {
             this, old_gen_size, min_old_generation_size_,
             max_old_generation_size(), new_space_capacity, v8_growing_factor,
             mode));
-    if (use_global_memory_scheduling) {
-      DCHECK_GT(global_growing_factor, 0);
-      global_allocation_limit_ =
-          MemoryController<GlobalMemoryTrait>::CalculateAllocationLimit(
-              this, GlobalSizeOfObjects(), min_global_memory_size_,
-              max_global_memory_size_, new_space_capacity,
-              global_growing_factor, mode);
-    }
+    DCHECK_GT(global_growing_factor, 0);
+    global_allocation_limit_ =
+        MemoryController<GlobalMemoryTrait>::CalculateAllocationLimit(
+            this, GlobalSizeOfObjects(), min_global_memory_size_,
+            max_global_memory_size_, new_space_capacity, global_growing_factor,
+            mode);
     CheckIneffectiveMarkCompact(
         old_gen_size, tracer()->AverageMarkCompactMutatorUtilization());
   } else if (HasLowYoungGenerationAllocationRate() &&
@@ -2531,16 +2524,14 @@ void Heap::RecomputeLimits(GarbageCollector collector) {
     if (new_old_generation_limit < old_generation_allocation_limit()) {
       set_old_generation_allocation_limit(new_old_generation_limit);
     }
-    if (use_global_memory_scheduling) {
-      DCHECK_GT(global_growing_factor, 0);
-      size_t new_global_limit =
-          MemoryController<GlobalMemoryTrait>::CalculateAllocationLimit(
-              this, GlobalSizeOfObjects(), min_global_memory_size_,
-              max_global_memory_size_, new_space_capacity,
-              global_growing_factor, mode);
-      if (new_global_limit < global_allocation_limit_) {
-        global_allocation_limit_ = new_global_limit;
-      }
+    DCHECK_GT(global_growing_factor, 0);
+    size_t new_global_limit =
+        MemoryController<GlobalMemoryTrait>::CalculateAllocationLimit(
+            this, GlobalSizeOfObjects(), min_global_memory_size_,
+            max_global_memory_size_, new_space_capacity, global_growing_factor,
+            mode);
+    if (new_global_limit < global_allocation_limit_) {
+      global_allocation_limit_ = new_global_limit;
     }
   }
 }
@@ -3134,14 +3125,12 @@ void Heap::ConfigureInitialOldGenerationSize() {
     } else {
       old_generation_size_configured_ = true;
     }
-    if (v8_flags.global_gc_scheduling) {
-      const size_t new_global_memory_limit = std::max(
-          GlobalSizeOfObjects() + minimum_growing_step,
-          static_cast<size_t>(static_cast<double>(global_allocation_limit_) *
-                              (tracer()->AverageSurvivalRatio() / 100)));
-      if (new_global_memory_limit < global_allocation_limit_) {
-        global_allocation_limit_ = new_global_memory_limit;
-      }
+    const size_t new_global_memory_limit = std::max(
+        GlobalSizeOfObjects() + minimum_growing_step,
+        static_cast<size_t>(static_cast<double>(global_allocation_limit_) *
+                            (tracer()->AverageSurvivalRatio() / 100)));
+    if (new_global_memory_limit < global_allocation_limit_) {
+      global_allocation_limit_ = new_global_memory_limit;
     }
   }
 }
@@ -3702,8 +3691,6 @@ bool Heap::HasLowOldGenerationAllocationRate() {
 }
 
 bool Heap::HasLowEmbedderAllocationRate() {
-  if (!v8_flags.global_gc_scheduling) return true;
-
   double mu = ComputeMutatorUtilization(
       "Embedder",
       tracer()->CurrentEmbedderAllocationThroughputInBytesPerMillisecond(),
@@ -5268,8 +5255,6 @@ Heap::HeapGrowingMode Heap::CurrentHeapGrowingMode() {
 }
 
 base::Optional<size_t> Heap::GlobalMemoryAvailable() {
-  if (!v8_flags.global_gc_scheduling) return {};
-
   size_t global_size = GlobalSizeOfObjects();
 
   if (global_size < global_allocation_limit_)
