@@ -8,9 +8,8 @@ const {session, contextGroup, Protocol} = InspectorTest.start(
 session.setupScriptMap();
 
 function logPause(msg) {
-  const top_frame = msg.params.callFrames[0];
   const reason = msg.params.reason;
-  const url = session.getCallFrameUrl(top_frame);
+  const url = session.getPausedUrl(msg);
   InspectorTest.log(`Paused at ${url} with reason "${reason}".`);
 };
 
