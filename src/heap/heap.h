@@ -2633,17 +2633,6 @@ class V8_NODISCARD IgnoreLocalGCRequests {
   Heap* heap_;
 };
 
-// TODO(v8:13493): This class will move to src/heap/base/stack.h once its
-// implementation no longer needs access to V8 flags.
-class V8_EXPORT_PRIVATE V8_NODISCARD SaveStackContextScope {
- public:
-  explicit SaveStackContextScope(::heap::base::Stack* stack);
-  ~SaveStackContextScope();
-
- protected:
-  ::heap::base::Stack* stack_;
-};
-
 // Space iterator for iterating over all the paged spaces of the heap: Map
 // space, old space and code space. Returns each space in turn, and null when it
 // is done.
@@ -2695,7 +2684,6 @@ class V8_EXPORT_PRIVATE HeapObjectIterator {
   SpaceIterator* space_iterator_;
   // Object iterator for the space currently being iterated.
   std::unique_ptr<ObjectIterator> object_iterator_;
-  SaveStackContextScope stack_context_scope_;
 
   DISALLOW_GARBAGE_COLLECTION(no_heap_allocation_)
 };

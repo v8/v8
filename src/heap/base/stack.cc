@@ -6,18 +6,21 @@
 
 #include <limits>
 
+#include "src/base/platform/platform.h"
 #include "src/base/sanitizer/asan.h"
 #include "src/base/sanitizer/msan.h"
 #include "src/base/sanitizer/tsan.h"
 
 namespace heap::base {
 
-Stack::Stack(const void* stack_start) : stack_start_(stack_start) {}
-
-void Stack::SetStackStart(const void* stack_start) {
-  DCHECK(!context_);
-  stack_start_ = stack_start;
-}
+// Function with architecture-specific implementation:
+// Pushes all callee-saved registers to the stack and invokes the callback,
+// passing the supplied pointers (stack and argument) and the intended stack
+// marker.
+using IterateStackCallback = void (*)(const Stack*, StackVisitor*, const void*);
+extern "C" void PushAllRegistersAndIterateStack(const Stack* stack,
+                                                StackVisitor* visitor,
+                                                IterateStackCallback callback);
 
 bool Stack::IsOnStack(const void* slot) const {
   DCHECK_NOT_NULL(stack_start_);
@@ -141,96 +144,61 @@ void IteratePointersInStack(StackVisitor* visitor, const void* top,
 
 }  // namespace
 
-void Stack::IteratePointers(StackVisitor* visitor) const {
-  DCHECK_NOT_NULL(stack_start_);
-  DCHECK(context_);
-  DCHECK_NOT_NULL(context_->stack_marker);
-
+// static
+void Stack::IteratePointersImpl(const Stack* stack, StackVisitor* visitor,
+                                const void* stack_end) {
 #ifdef V8_USE_ADDRESS_SANITIZER
   const void* asan_fake_stack = __asan_get_current_fake_stack();
 #else
   const void* asan_fake_stack = nullptr;
 #endif  // V8_USE_ADDRESS_SANITIZER
 
-  // Iterate through the registers.
-  for (intptr_t value : context_->registers) {
-    const void* address = reinterpret_cast<const void*>(value);
-    MSAN_MEMORY_IS_INITIALIZED(&address, sizeof(address));
-    if (address == nullptr) continue;
-    visitor->VisitPointer(address);
-    IterateAsanFakeFrameIfNecessary(visitor, asan_fake_stack, stack_start_,
-                                    context_->stack_marker, address);
-  }
-
   // Iterate through the stack.
   // All supported platforms should have their stack aligned to at least
   // sizeof(void*).
   constexpr size_t kMinStackAlignment = sizeof(void*);
-  CHECK_EQ(0u, reinterpret_cast<uintptr_t>(context_->stack_marker) &
-                   (kMinStackAlignment - 1));
-  IteratePointersInStack(
-      visitor, reinterpret_cast<const void* const*>(context_->stack_marker),
-      stack_start_, asan_fake_stack);
+  CHECK_EQ(0u,
+           reinterpret_cast<uintptr_t>(stack_end) & (kMinStackAlignment - 1));
+  IteratePointersInStack(visitor,
+                         reinterpret_cast<const void* const*>(stack_end),
+                         stack->stack_start_, asan_fake_stack);
 
-  for (const auto& stack : inactive_stacks_) {
-    IteratePointersInStack(visitor, stack.top, stack.start, asan_fake_stack);
+  for (const auto& segment : stack->inactive_stacks_) {
+    IteratePointersInStack(visitor, segment.top, segment.start,
+                           asan_fake_stack);
   }
 
   IterateUnsafeStackIfNecessary(visitor);
 }
 
-namespace {
-// Function with architecture-specific implementation:
-// Saves all callee-saved registers in the specified buffer.
-extern "C" void SaveCalleeSavedRegisters(intptr_t* buffer);
+void Stack::IteratePointers(StackVisitor* visitor) const {
+  // TODO(v8:13493): Remove the implication as soon as IsOnCurrentStack is
+  // compatible with stack switching.
+  DCHECK_IMPLIES(!wasm_stack_switching_, IsOnCurrentStack(stack_start_));
+  PushAllRegistersAndIterateStack(this, visitor, &IteratePointersImpl);
+  // No need to deal with callee-saved registers as they will be kept alive by
+  // the regular conservative stack iteration.
+  // TODO(chromium:1056170): Add support for SIMD and/or filtering.
+  IterateUnsafeStackIfNecessary(visitor);
+}
+
+void Stack::IteratePointersUnsafe(StackVisitor* visitor,
+                                  const void* stack_end) const {
+  DCHECK_NOT_NULL(stack_start_);
+  DCHECK_NOT_NULL(stack_end);
+  DCHECK_GE(stack_start_, stack_end);
+  IteratePointersImpl(this, visitor, stack_end);
+}
 
 #ifdef DEBUG
-
-bool IsOnCurrentStack(const void* ptr) {
+// static
+bool Stack::IsOnCurrentStack(const void* ptr) {
   DCHECK_NOT_NULL(ptr);
   const void* current_stack_start = v8::base::Stack::GetStackStart();
   const void* current_stack_top = v8::base::Stack::GetCurrentStackPosition();
   return ptr <= current_stack_start && ptr >= current_stack_top;
 }
-
 #endif  // DEBUG
-
-}  // namespace
-
-void Stack::SaveContext(bool check_invariant) {
-  // TODO(v8:13493): Remove the method's parameter and the implication as soon
-  // as IsOnCurrentStack is compatible with stack switching.
-  DCHECK_IMPLIES(check_invariant, IsOnCurrentStack(stack_start_));
-  // Contexts can be nested but the marker and the registers are only saved on
-  // the first invocation.
-  if (context_) {
-    ++context_->nesting_counter;
-    return;
-  }
-  // Allocate the context and set the marker.
-  const void* stack_top = v8::base::Stack::GetCurrentStackPosition();
-  DCHECK_NOT_NULL(stack_top);
-  context_ = std::make_unique<Context>(stack_top);
-  // TODO(v8:13493): Remove the implication as soon as IsValidMarker is
-  // compatible with stack switching.
-  DCHECK_IMPLIES(check_invariant, stack_top <= stack_start_);
-  context_->stack_marker = stack_top;
-  // Save the registers.
-  SaveCalleeSavedRegisters(context_->registers.data());
-}
-
-void Stack::ClearContext(bool check_invariant) {
-  // TODO(v8:13493): Remove the method's parameter and the implication as soon
-  // as IsOnCurrentStack is compatible with stack switching.
-  DCHECK_IMPLIES(check_invariant, IsOnCurrentStack(stack_start_));
-  DCHECK(context_);
-  // Skip clearing the context if that was a nested invocation.
-  if (context_->nesting_counter > 0) {
-    --context_->nesting_counter;
-    return;
-  }
-  context_.reset();
-}
 
 void Stack::AddStackSegment(const void* start, const void* top) {
   DCHECK_LE(top, start);

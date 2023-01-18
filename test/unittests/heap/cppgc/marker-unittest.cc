@@ -29,9 +29,7 @@ class MarkerTest : public testing::TestWithHeap {
     const MarkingConfig config = {CollectionType::kMajor, stack_state};
     auto* heap = Heap::From(GetHeap());
     InitializeMarker(*heap, GetPlatformHandle().get(), config);
-    heap->stack()->SaveContext();
     marker_->FinishMarking(stack_state);
-    heap->stack()->ClearContext();
     // Pretend do finish sweeping as StatsCollector verifies that Notify*
     // methods are called in the right order.
     heap->stats_collector()->NotifySweepingCompleted(
@@ -252,9 +250,7 @@ TEST_F(MarkerTest, InConstructionObjectIsEventuallyMarkedEmptyStack) {
         marker->Visitor().Trace(member);
       });
   EXPECT_FALSE(HeapObjectHeader::FromObject(object).IsMarked());
-  Heap::From(GetHeap())->stack()->SaveContext();
   marker()->FinishMarking(StackState::kMayContainHeapPointers);
-  Heap::From(GetHeap())->stack()->ClearContext();
   EXPECT_TRUE(HeapObjectHeader::FromObject(object).IsMarked());
 }
 
@@ -263,14 +259,11 @@ TEST_F(MarkerTest, InConstructionObjectIsEventuallyMarkedNonEmptyStack) {
                                        StackState::kMayContainHeapPointers};
   InitializeMarker(*Heap::From(GetHeap()), GetPlatformHandle().get(), config);
   MakeGarbageCollected<GCedWithCallback>(
-      GetAllocationHandle(), [stack = Heap::From(GetHeap())->stack(),
-                              marker = marker()](GCedWithCallback* obj) {
+      GetAllocationHandle(), [marker = marker()](GCedWithCallback* obj) {
         Member<GCedWithCallback> member(obj);
         marker->Visitor().Trace(member);
         EXPECT_FALSE(HeapObjectHeader::FromObject(obj).IsMarked());
-        stack->SaveContext();
         marker->FinishMarking(StackState::kMayContainHeapPointers);
-        stack->ClearContext();
         EXPECT_TRUE(HeapObjectHeader::FromObject(obj).IsMarked());
       });
 }
@@ -327,9 +320,7 @@ TEST_F(MarkerTest,
   RegisterInConstructionObject(GetAllocationHandle(), marker()->Visitor(),
                                storage);
   EXPECT_FALSE(HeapObjectHeader::FromObject(storage.object()).IsMarked());
-  Heap::From(GetHeap())->stack()->SaveContext();
   marker()->FinishMarking(StackState::kMayContainHeapPointers);
-  Heap::From(GetHeap())->stack()->ClearContext();
   EXPECT_TRUE(HeapObjectHeader::FromObject(storage.object()).IsMarked());
 }
 
@@ -409,9 +400,7 @@ class IncrementalMarkingTest : public testing::TestWithHeap {
   }
 
   void FinishMarking() {
-    Heap::From(GetHeap())->stack()->SaveContext();
     GetMarkerRef()->FinishMarking(StackState::kMayContainHeapPointers);
-    Heap::From(GetHeap())->stack()->ClearContext();
     // Pretend do finish sweeping as StatsCollector verifies that Notify*
     // methods are called in the right order.
     GetMarkerRef().reset();

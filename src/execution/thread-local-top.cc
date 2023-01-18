@@ -44,10 +44,13 @@ void ThreadLocalTop::Initialize(Isolate* isolate) {
   Clear();
   isolate_ = isolate;
   thread_id_ = ThreadId::Current();
-  stack_.SetStackStart(base::Stack::GetStackStart());
 #if V8_ENABLE_WEBASSEMBLY
+  stack_.SetStackStart(base::Stack::GetStackStart(),
+                       v8_flags.experimental_wasm_stack_switching);
   thread_in_wasm_flag_address_ = reinterpret_cast<Address>(
       trap_handler::GetThreadInWasmThreadLocalAddress());
+#else
+  stack_.SetStackStart(base::Stack::GetStackStart(), false);
 #endif  // V8_ENABLE_WEBASSEMBLY
 #ifdef USE_SIMULATOR
   simulator_ = Simulator::current(isolate);

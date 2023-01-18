@@ -6873,27 +6873,33 @@ UNINITIALIZED_TEST(RestoreHeapLimit) {
       reinterpret_cast<Isolate*>(v8::Isolate::New(create_params));
   Heap* heap = isolate->heap();
   Factory* factory = isolate->factory();
-  OutOfMemoryState state;
-  state.heap = heap;
-  state.oom_triggered = false;
-  heap->AddNearHeapLimitCallback(NearHeapLimitCallback, &state);
-  heap->AutomaticallyRestoreInitialHeapLimit(0.5);
-  const int kFixedArrayLength = 1000000;
+
   {
-    HandleScope handle_scope(isolate);
-    while (!state.oom_triggered) {
-      factory->NewFixedArray(kFixedArrayLength);
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
+
+    OutOfMemoryState state;
+    state.heap = heap;
+    state.oom_triggered = false;
+    heap->AddNearHeapLimitCallback(NearHeapLimitCallback, &state);
+    heap->AutomaticallyRestoreInitialHeapLimit(0.5);
+    const int kFixedArrayLength = 1000000;
+    {
+      HandleScope handle_scope(isolate);
+      while (!state.oom_triggered) {
+        factory->NewFixedArray(kFixedArrayLength);
+      }
     }
-  }
-  heap->MemoryPressureNotification(MemoryPressureLevel::kCritical, true);
-  state.oom_triggered = false;
-  {
-    HandleScope handle_scope(isolate);
-    while (!state.oom_triggered) {
-      factory->NewFixedArray(kFixedArrayLength);
+    heap->MemoryPressureNotification(MemoryPressureLevel::kCritical, true);
+    state.oom_triggered = false;
+    {
+      HandleScope handle_scope(isolate);
+      while (!state.oom_triggered) {
+        factory->NewFixedArray(kFixedArrayLength);
+      }
     }
+    CHECK_EQ(state.current_heap_limit, state.initial_heap_limit);
   }
-  CHECK_EQ(state.current_heap_limit, state.initial_heap_limit);
+
   reinterpret_cast<v8::Isolate*>(isolate)->Dispose();
 }
 

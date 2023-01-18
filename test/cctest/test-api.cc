@@ -29110,6 +29110,9 @@ TEST(TriggerMainThreadMetricsEvent) {
   using v8::Local;
   using v8::MaybeLocal;
 
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
+
   // Set up isolate and context.
   v8::Isolate* iso = CcTest::isolate();
   i::Isolate* i_iso = reinterpret_cast<i::Isolate*>(iso);

@@ -1685,7 +1685,22 @@ bool Heap::CollectGarbage(AllocationSpace space,
     DevToolsTraceEventScope devtools_trace_event_scope(
         this, IsYoungGenerationCollector(collector) ? "MinorGC" : "MajorGC",
         GarbageCollectionReasonToString(gc_reason));
-    SaveStackContextScope stack_context_scope(&stack());
+
+    if (cpp_heap()) {
+      if (collector == GarbageCollector::MARK_COMPACTOR ||
+          (collector == GarbageCollector::MINOR_MARK_COMPACTOR &&
+           CppHeap::From(cpp_heap())->generational_gc_supported())) {
+        // CppHeap needs a stack marker at the top of all entry points to allow
+        // deterministic passes over the stack. E.g., a verifier that should
+        // only find a subset of references of the marker.
+        //
+        // TODO(chromium:1056170): Consider adding a component that keeps track
+        // of relevant GC stack regions where interesting pointers can be found.
+        static_cast<v8::internal::CppHeap*>(cpp_heap())
+            ->SetStackEndOfCurrentGC(
+                v8::base::Stack::GetCurrentStackPosition());
+      }
+    }
 
     GarbageCollectionPrologue(gc_reason, gc_callback_flags);
     {
@@ -2395,8 +2410,6 @@ void Heap::PerformSharedGarbageCollection(Isolate* initiator,
   tracer()->StartObservablePause();
   DCHECK(incremental_marking_->IsStopped());
   DCHECK_NOT_NULL(isolate()->global_safepoint());
-
-  SaveStackContextScope stack_context_scope(&stack());
 
   isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
     client->heap()->FreeSharedLinearAllocationAreas();
@@ -5809,7 +5822,12 @@ const cppgc::EmbedderStackState* Heap::overriden_stack_state() const {
 }
 
 void Heap::SetStackStart(void* stack_start) {
-  stack().SetStackStart(stack_start);
+#if V8_ENABLE_WEBASSEMBLY
+  stack().SetStackStart(stack_start,
+                        v8_flags.experimental_wasm_stack_switching);
+#else
+  stack().SetStackStart(stack_start, false);
+#endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 ::heap::base::Stack& Heap::stack() {
@@ -6391,8 +6409,7 @@ HeapObjectIterator::HeapObjectIterator(
       filtering_(filtering),
       filter_(nullptr),
       space_iterator_(nullptr),
-      object_iterator_(nullptr),
-      stack_context_scope_(&heap->stack()) {
+      object_iterator_(nullptr) {
   heap_->MakeHeapIterable();
   // Start the iteration.
   space_iterator_ = new SpaceIterator(heap_);
@@ -7370,29 +7387,6 @@ CppClassNamesAsHeapObjectNameScope::CppClassNamesAsHeapObjectNameScope(
 
 CppClassNamesAsHeapObjectNameScope::~CppClassNamesAsHeapObjectNameScope() =
     default;
-
-SaveStackContextScope::SaveStackContextScope(::heap::base::Stack* stack)
-    : stack_(stack) {
-#if V8_ENABLE_WEBASSEMBLY
-  // TODO(v8:13493): Do not check the stack context invariant if WASM stack
-  // switching is enabled. This will be removed as soon as context saving
-  // becomes compatible with stack switching.
-  stack_->SaveContext(!v8_flags.experimental_wasm_stack_switching);
-#else
-  stack_->SaveContext();
-#endif  // V8_ENABLE_WEBASSEMBLY
-}
-
-SaveStackContextScope::~SaveStackContextScope() {
-#if V8_ENABLE_WEBASSEMBLY
-  // TODO(v8:13493): Do not check the stack context invariant if WASM stack
-  // switching is enabled. This will be removed as soon as context saving
-  // becomes compatible with stack switching.
-  stack_->ClearContext(!v8_flags.experimental_wasm_stack_switching);
-#else
-  stack_->ClearContext();
-#endif  // V8_ENABLE_WEBASSEMBLY
-}
 
 }  // namespace internal
 }  // namespace v8

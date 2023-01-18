@@ -3075,8 +3075,7 @@ void Isolate::RecordStackSwitchForScanning() {
                                  .get()
                                  .get();
   current = WasmContinuationObject::cast(current).parent();
-  thread_local_top()->stack_.SetStackStart(
-      reinterpret_cast<void*>(stack->base()));
+  heap()->SetStackStart(reinterpret_cast<void*>(stack->base()));
   // We don't need to add all inactive stacks. Only the ones in the active chain
   // may contain cpp heap pointers.
   while (!current.IsUndefined()) {
@@ -3372,9 +3371,12 @@ void Isolate::Delete(Isolate* isolate) {
   Isolate* saved_isolate = isolate->TryGetCurrent();
   SetIsolateThreadLocals(isolate, nullptr);
   isolate->set_thread_id(ThreadId::Current());
-  isolate->thread_local_top()->stack_ =
-      saved_isolate ? std::move(saved_isolate->thread_local_top()->stack_)
-                    : ::heap::base::Stack(base::Stack::GetStackStart());
+  if (saved_isolate) {
+    isolate->thread_local_top()->stack_ =
+        std::move(saved_isolate->thread_local_top()->stack_);
+  } else {
+    isolate->heap()->SetStackStart(base::Stack::GetStackStart());
+  }
 
   bool owns_shared_isolate = isolate->owns_shared_isolate_;
   Isolate* maybe_shared_isolate = isolate->shared_isolate_;
