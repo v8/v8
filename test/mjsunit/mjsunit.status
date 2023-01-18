@@ -989,6 +989,7 @@
   # multiple isolates, as dynamic tiering relies on a array shared
   # in the module, that can be modified by all instances.
   'wasm/wasm-dynamic-tiering': [SKIP],
+  'wasm/code-flushing': [SKIP],
 
   # The test relies on precise switching of code kinds of wasm functions. With
   # multiple isolates that share the wasm functions, the precise switching is

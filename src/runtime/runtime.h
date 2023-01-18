@@ -654,6 +654,7 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_WASM_TEST(F, I) \
   F(DeserializeWasmModule, 2, 1)           \
   F(DisallowWasmCodegen, 1, 1)             \
+  F(FlushWasmCode, 0, 1)                   \
   F(FreezeWasmLazyCompilation, 1, 1)       \
   F(GetWasmExceptionTagId, 2, 1)           \
   F(GetWasmExceptionValues, 1, 1)          \
@@ -662,6 +663,7 @@ namespace internal {
   F(IsLiftoffFunction, 1, 1)               \
   F(IsTurboFanFunction, 1, 1)              \
   F(IsWasmDebugFunction, 1, 1)             \
+  F(IsUncompiledWasmFunction, 1, 1)        \
   F(IsThreadInWasm, 0, 1)                  \
   F(IsWasmCode, 1, 1)                      \
   F(IsWasmTrapHandlerEnabled, 0, 1)        \

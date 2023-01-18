@@ -893,6 +893,14 @@ Handle<WasmModuleObject> WasmEngine::ImportNativeModule(
   return module_object;
 }
 
+void WasmEngine::FlushCode() {
+  for (auto& entry : native_modules_) {
+    NativeModule* native_module = entry.first;
+    native_module->RemoveCompiledCode(
+        NativeModule::RemoveFilter::kRemoveLiftoffCode);
+  }
+}
+
 std::shared_ptr<CompilationStatistics>
 WasmEngine::GetOrCreateTurboStatistics() {
   base::MutexGuard guard(&mutex_);

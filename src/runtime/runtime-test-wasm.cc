@@ -489,6 +489,19 @@ RUNTIME_FUNCTION(Runtime_IsTurboFanFunction) {
   return isolate->heap()->ToBoolean(code && code->is_turbofan());
 }
 
+RUNTIME_FUNCTION(Runtime_IsUncompiledWasmFunction) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  Handle<JSFunction> function = args.at<JSFunction>(0);
+  CHECK(WasmExportedFunction::IsWasmExportedFunction(*function));
+  Handle<WasmExportedFunction> exp_fun =
+      Handle<WasmExportedFunction>::cast(function);
+  wasm::NativeModule* native_module =
+      exp_fun->instance().module_object().native_module();
+  uint32_t func_index = exp_fun->function_index();
+  return isolate->heap()->ToBoolean(!native_module->HasCode(func_index));
+}
+
 RUNTIME_FUNCTION(Runtime_FreezeWasmLazyCompilation) {
   DCHECK_EQ(1, args.length());
   DisallowGarbageCollection no_gc;
@@ -507,6 +520,11 @@ RUNTIME_FUNCTION(Runtime_SetWasmGCEnabled) {
   WasmGCEnabledCallback enabled = [](v8::Local<v8::Context>) { return true; };
   WasmGCEnabledCallback disabled = [](v8::Local<v8::Context>) { return false; };
   v8_isolate->SetWasmGCEnabledCallback(enable ? enabled : disabled);
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_FlushWasmCode) {
+  wasm::GetWasmEngine()->FlushCode();
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

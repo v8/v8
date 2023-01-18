@@ -220,6 +220,8 @@ class V8_EXPORT_PRIVATE WasmEngine {
       Isolate* isolate, std::shared_ptr<NativeModule> shared_module,
       base::Vector<const char> source_url);
 
+  void FlushCode();
+
   AccountingAllocator* allocator() { return &allocator_; }
 
   // Compilation statistics for TurboFan compilations. Returns a shared_ptr

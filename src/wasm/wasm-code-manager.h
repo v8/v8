@@ -794,6 +794,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   enum class RemoveFilter {
     kRemoveDebugCode,
     kRemoveNonDebugCode,
+    kRemoveLiftoffCode,
     kRemoveAllCode,
   };
   // Remove all compiled code from the {NativeModule} and replace it with

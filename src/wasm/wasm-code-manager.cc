@@ -2230,6 +2230,10 @@ bool ShouldRemoveCode(WasmCode* code, NativeModule::RemoveFilter filter) {
       code->for_debugging()) {
     return false;
   }
+  if (filter == NativeModule::RemoveFilter::kRemoveLiftoffCode &&
+      !code->is_liftoff()) {
+    return false;
+  }
   return true;
 }
 }  // namespace
