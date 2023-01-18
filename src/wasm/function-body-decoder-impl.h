@@ -4178,7 +4178,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     ValueType index_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
     Value index = Peek(0, 0, index_type);
     Value result = CreateValue(kWasmS128);
-    if (V8_LIKELY(!CheckStaticallyOutOfBounds(type.size(), imm.offset))) {
+    uintptr_t op_size =
+        transform == LoadTransformationKind::kExtend ? 8 : type.size();
+    if (V8_LIKELY(!CheckStaticallyOutOfBounds(op_size, imm.offset))) {
       CALL_INTERFACE_IF_OK_AND_REACHABLE(LoadTransform, type, transform, imm,
                                          index, &result);
     }
