@@ -1682,8 +1682,8 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
   Label jump_to_optimized_code;
   {
     // If maybe_target_code is not null, no need to call into runtime. A
-    // precondition here is: if maybe_target_code is a Code object, it must NOT
-    // be marked_for_deoptimization (callers must ensure this).
+    // precondition here is: if maybe_target_code is a InstructionStream object,
+    // it must NOT be marked_for_deoptimization (callers must ensure this).
     __ Branch(&jump_to_optimized_code, ne, maybe_target_code,
               Operand(Smi::zero()));
   }
@@ -1722,13 +1722,15 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
     __ LeaveFrame(StackFrame::STUB);
   }
 
-  __ LoadCodeDataContainerCodeNonBuiltin(a0, a0);
+  __ LoadCodeDataContainerInstructionStreamNonBuiltin(a0, a0);
 
   // Load deoptimization data from the code object.
   // <deopt_data> = <code>[#deoptimization_data_offset]
-  __ Ld_d(a1, MemOperand(maybe_target_code,
-                         Code::kDeoptimizationDataOrInterpreterDataOffset -
-                             kHeapObjectTag));
+  __ Ld_d(
+      a1,
+      MemOperand(maybe_target_code,
+                 InstructionStream::kDeoptimizationDataOrInterpreterDataOffset -
+                     kHeapObjectTag));
 
   // Load the OSR entrypoint offset from the deoptimization data.
   // <osr_offset> = <deopt_data>[#header_size + #osr_pc_offset]
@@ -1740,7 +1742,7 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
   // <entry_addr> = <code_obj> + #header_size + <osr_offset>
   __ Add_d(maybe_target_code, maybe_target_code, a1);
   Generate_OSREntry(masm, maybe_target_code,
-                    Operand(Code::kHeaderSize - kHeapObjectTag));
+                    Operand(InstructionStream::kHeaderSize - kHeapObjectTag));
 }
 }  // namespace
 
@@ -3334,8 +3336,8 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
 
 void Builtins::Generate_DirectCEntry(MacroAssembler* masm) {
   // The sole purpose of DirectCEntry is for movable callers (e.g. any general
-  // purpose Code object) to be able to call into C functions that may trigger
-  // GC and thus move the caller.
+  // purpose InstructionStream object) to be able to call into C functions that
+  // may trigger GC and thus move the caller.
   //
   // DirectCEntry places the return address on the stack (updated by the GC),
   // making the call GC safe. The irregexp backend relies on this.
@@ -3574,7 +3576,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   Register closure = a1;
   __ Ld_d(closure, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
 
-  // Get the Code object from the shared function info.
+  // Get the InstructionStream object from the shared function info.
   Register code_obj = s1;
   __ Ld_d(code_obj,
           FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
@@ -3607,7 +3609,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     AssertCodeDataContainerIsBaseline(masm, code_obj, t2);
   }
 
-  __ LoadCodeDataContainerCodeNonBuiltin(code_obj, code_obj);
+  __ LoadCodeDataContainerInstructionStreamNonBuiltin(code_obj, code_obj);
 
   // Replace BytecodeOffset with the feedback vector.
   Register feedback_vector = a2;
@@ -3685,9 +3687,10 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
             MemOperand(fp, InterpreterFrameConstants::kBytecodeArrayFromFp));
     ResetBytecodeAge(masm, kInterpreterBytecodeArrayRegister);
     Generate_OSREntry(masm, code_obj,
-                      Operand(Code::kHeaderSize - kHeapObjectTag));
+                      Operand(InstructionStream::kHeaderSize - kHeapObjectTag));
   } else {
-    __ Add_d(code_obj, code_obj, Code::kHeaderSize - kHeapObjectTag);
+    __ Add_d(code_obj, code_obj,
+             InstructionStream::kHeaderSize - kHeapObjectTag);
     __ Jump(code_obj);
   }
   __ Trap();  // Unreachable.

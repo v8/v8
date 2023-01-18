@@ -4519,9 +4519,9 @@ void TurboAssembler::StoreReturnAddressAndCall(Register target) {
   // This generates the final instruction sequence for calls to C functions
   // once an exit frame has been constructed.
   //
-  // Note that this assumes the caller code (i.e. the Code object currently
-  // being generated) is immovable or that the callee function cannot trigger
-  // GC, since the callee function will return to it.
+  // Note that this assumes the caller code (i.e. the InstructionStream object
+  // currently being generated) is immovable or that the callee function cannot
+  // trigger GC, since the callee function will return to it.
 
   // Compute the return address in lr to return to after the jump below. The pc
   // is already at '+ 8' from the current instruction; but return is after three
@@ -4926,7 +4926,8 @@ void MacroAssembler::TestCodeDataContainerIsMarkedForDeoptimizationAndJump(
     Label* target) {
   Lwu(scratch, FieldMemOperand(code_data_container,
                                CodeDataContainer::kKindSpecificFlagsOffset));
-  And(scratch, scratch, Operand(1 << Code::kMarkedForDeoptimizationBit));
+  And(scratch, scratch,
+      Operand(1 << InstructionStream::kMarkedForDeoptimizationBit));
   Branch(target, cond, scratch, Operand(zero_reg));
 }
 
@@ -6195,13 +6196,14 @@ void TurboAssembler::LoadCodeDataContainerEntry(
                                   CodeDataContainer::kCodeEntryPointOffset));
 }
 
-void TurboAssembler::LoadCodeDataContainerCodeNonBuiltin(
+void TurboAssembler::LoadCodeDataContainerInstructionStreamNonBuiltin(
     Register destination, Register code_data_container_object) {
   ASM_CODE_COMMENT(this);
-  // Compute the Code object pointer from the code entry point.
+  // Compute the InstructionStream object pointer from the code entry point.
   Ld(destination, FieldMemOperand(code_data_container_object,
                                   CodeDataContainer::kCodeEntryPointOffset));
-  Dsubu(destination, destination, Operand(Code::kHeaderSize - kHeapObjectTag));
+  Dsubu(destination, destination,
+        Operand(InstructionStream::kHeaderSize - kHeapObjectTag));
 }
 
 void TurboAssembler::CallCodeDataContainerObject(

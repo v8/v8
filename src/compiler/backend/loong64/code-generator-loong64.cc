@@ -536,11 +536,13 @@ void CodeGenerator::AssembleCodeStartRegisterCheck() {
 void CodeGenerator::BailoutIfDeoptimized() {
   UseScratchRegisterScope temps(tasm());
   Register scratch = temps.Acquire();
-  int offset = Code::kCodeDataContainerOffset - Code::kHeaderSize;
+  int offset = InstructionStream::kCodeDataContainerOffset -
+               InstructionStream::kHeaderSize;
   __ Ld_d(scratch, MemOperand(kJavaScriptCallCodeStartRegister, offset));
   __ Ld_w(scratch, FieldMemOperand(
                        scratch, CodeDataContainer::kKindSpecificFlagsOffset));
-  __ And(scratch, scratch, Operand(1 << Code::kMarkedForDeoptimizationBit));
+  __ And(scratch, scratch,
+         Operand(1 << InstructionStream::kMarkedForDeoptimizationBit));
   __ Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
           RelocInfo::CODE_TARGET, ne, scratch, Operand(zero_reg));
 }
