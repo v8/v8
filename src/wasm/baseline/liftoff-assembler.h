@@ -249,7 +249,7 @@ class LiftoffAssembler : public TurboAssembler {
 
     // TODO(jkummerow): Wrap all accesses to {stack_state} in accessors that
     // check {frozen}.
-    base::SmallVector<VarState, 8> stack_state;
+    base::SmallVector<VarState, 16> stack_state;
     LiftoffRegList used_registers;
     uint32_t register_use_count[kAfterMaxLiftoffRegCode] = {0};
     LiftoffRegList last_spilled_regs;
