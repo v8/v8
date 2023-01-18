@@ -1338,7 +1338,10 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     }
 
     BIND(&if_proxy);
-    HandleStoreToProxy(p, CAST(holder), miss, support_elements);
+    {
+      CSA_DCHECK(this, BoolConstant(!p->IsDefineKeyedOwn()));
+      HandleStoreToProxy(p, CAST(holder), miss, support_elements);
+    }
 
     BIND(&if_interceptor);
     {

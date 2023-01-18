@@ -2114,8 +2114,10 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
       Handle<JSProxy> holder = lookup->GetHolder<JSProxy>();
 
       // IsDefineNamedOwnIC() is true when we are defining public fields on a
-      // Proxy. In that case use the slow stub to invoke the define trap.
-      if (IsDefineNamedOwnIC()) {
+      // Proxy. IsDefineKeyedOwnIC() is true when we are defining computed
+      // fields in a Proxy. In these cases use the slow stub to invoke the
+      // define trap.
+      if (IsDefineNamedOwnIC() || IsDefineKeyedOwnIC()) {
         TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
         return MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
       }
