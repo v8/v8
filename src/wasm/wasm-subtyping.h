@@ -49,14 +49,14 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool EquivalentTypes(ValueType type1,
 // For heap types, the following subtyping rules hold:
 // - The abstract heap types form the following type hierarchies:
 //
-//             any              func         extern
-//              |                |             |
-//             eq              nofunc       noextern
-//          /   |   \
-//       i31  array  struct
-//          \   |   /
-//           \  |  /
-//            none
+//                   any               func         extern
+//               /        \             |             |
+//             eq          \          nofunc       noextern
+//          /   |   \       \
+//       i31  array  struct  string
+//          \___|______|_____/
+//                  |
+//                 none
 //
 // - All functions are subtypes of func.
 // - All structs are subtypes of struct.
@@ -147,6 +147,7 @@ inline std::ostream& operator<<(std::ostream& oss, TypeInModule type) {
              << reinterpret_cast<intptr_t>(type.module);
 }
 
+// Returns {kWasmBottom} if the union of {type1} and {type2} is not defined.
 V8_EXPORT_PRIVATE TypeInModule Union(ValueType type1, ValueType type2,
                                      const WasmModule* module1,
                                      const WasmModule* module2);

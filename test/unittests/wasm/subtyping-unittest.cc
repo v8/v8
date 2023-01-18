@@ -170,12 +170,13 @@ TEST_F(WasmSubtypingTest, Subtyping) {
 #define DISTINCT(index1, index2)                           \
   EXPECT_FALSE(EquivalentTypes(ValueType::RefNull(index1), \
                                ValueType::RefNull(index2), module1, module));
-// Union always expresses the result in terms of module1.
-#define UNION(type1, type2, type_result)          \
-  EXPECT_EQ(Union(type1, type2, module1, module), \
-            TypeInModule(type_result, module1))
-// Intersection might return either module, so we have a version which checks
-// the module and one which deos not.
+// For union and intersection, we have a version that also checks the module,
+// and one that does not.
+#define UNION(type1, type2, type_result) \
+  EXPECT_EQ(Union(type1, type2, module1, module).type, type_result)
+#define UNION_M(type1, type2, type_result, module_result) \
+  EXPECT_EQ(Union(type1, type2, module1, module),         \
+            TypeInModule(type_result, module_result))
 #define INTERSECTION(type1, type2, type_result) \
   EXPECT_EQ(Intersection(type1, type2, module1, module).type, type_result)
 #define INTERSECTION_M(type1, type2, type_result, module_result) \
@@ -409,6 +410,20 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     UNION(kWasmAnyRef, kWasmNullRef, kWasmAnyRef);
     UNION(kWasmExternRef, kWasmNullExternRef, kWasmExternRef);
     UNION(kWasmFuncRef, kWasmNullFuncRef, kWasmFuncRef);
+    UNION(kWasmFuncRef, kWasmStructRef, kWasmBottom);
+    UNION(kWasmFuncRef, kWasmArrayRef, kWasmBottom);
+    UNION(kWasmFuncRef, kWasmAnyRef, kWasmBottom);
+    UNION(kWasmFuncRef, kWasmEqRef, kWasmBottom);
+    UNION(kWasmStringRef, kWasmAnyRef, kWasmAnyRef);
+    UNION(kWasmStringRef, kWasmStructRef, kWasmAnyRef);
+    UNION(kWasmStringRef, kWasmArrayRef, kWasmAnyRef);
+    UNION(kWasmStringRef, kWasmFuncRef, kWasmBottom);
+    UNION(kWasmStringViewIter, kWasmStringRef, kWasmBottom);
+    UNION(kWasmStringViewWtf8, kWasmStringRef, kWasmBottom);
+    UNION(kWasmStringViewWtf16, kWasmStringRef, kWasmBottom);
+    UNION(kWasmStringViewIter, kWasmAnyRef, kWasmBottom);
+    UNION(kWasmStringViewWtf8, kWasmAnyRef, kWasmBottom);
+    UNION(kWasmStringViewWtf16, kWasmAnyRef, kWasmBottom);
 
     INTERSECTION(kWasmExternRef, kWasmEqRef, kWasmBottom);
     INTERSECTION(kWasmExternRef, kWasmStructRef, kWasmBottom);
@@ -457,11 +472,15 @@ TEST_F(WasmSubtypingTest, Subtyping) {
 
     // Abstract vs indexed types.
     UNION(kWasmFuncRef, function_type, kWasmFuncRef);
+    UNION(kWasmFuncRef, struct_type, kWasmBottom);
+    UNION(kWasmFuncRef, array_type, kWasmBottom);
     INTERSECTION(kWasmFuncRef, struct_type, kWasmBottom);
     INTERSECTION(kWasmFuncRef, array_type, kWasmBottom);
-    INTERSECTION(kWasmFuncRef, function_type, function_type);
+    INTERSECTION_M(kWasmFuncRef, function_type, function_type, module);
 
     UNION(kWasmNullFuncRef, function_type, function_type.AsNullable());
+    UNION(kWasmNullFuncRef, struct_type, kWasmBottom);
+    UNION(kWasmNullFuncRef, array_type, kWasmBottom);
     INTERSECTION(kWasmNullFuncRef, struct_type, kWasmBottom);
     INTERSECTION(kWasmNullFuncRef, struct_type.AsNullable(), kWasmBottom);
     INTERSECTION(kWasmNullFuncRef, array_type, kWasmBottom);
@@ -478,7 +497,8 @@ TEST_F(WasmSubtypingTest, Subtyping) {
 
     UNION(kWasmStructRef, struct_type, kWasmStructRef);
     UNION(kWasmStructRef, array_type, kWasmEqRef);
-    INTERSECTION(kWasmStructRef, struct_type, struct_type);
+    UNION(kWasmStructRef, function_type, kWasmBottom);
+    INTERSECTION_M(kWasmStructRef, struct_type, struct_type, module);
     INTERSECTION(kWasmStructRef, array_type, kWasmBottom);
     INTERSECTION(kWasmStructRef, function_type, kWasmBottom);
 
@@ -490,16 +510,21 @@ TEST_F(WasmSubtypingTest, Subtyping) {
 
     UNION(kWasmArrayRef, struct_type, kWasmEqRef);
     UNION(kWasmArrayRef, array_type, kWasmArrayRef);
+    UNION(kWasmArrayRef, function_type, kWasmBottom);
     INTERSECTION(kWasmArrayRef, struct_type, kWasmBottom);
-    INTERSECTION(kWasmArrayRef, array_type, array_type);
+    INTERSECTION_M(kWasmArrayRef, array_type, array_type, module);
     INTERSECTION(kWasmArrayRef, function_type, kWasmBottom);
 
-    UNION(kWasmNullRef, struct_type, struct_type.AsNullable());
-    UNION(kWasmNullRef, array_type, array_type.AsNullable());
-    UNION(kWasmNullRef, function_type, function_type.AsNullable());
+    UNION_M(kWasmNullRef, struct_type, struct_type.AsNullable(), module);
+    UNION_M(kWasmNullRef, array_type, array_type.AsNullable(), module);
+    UNION(kWasmNullRef, function_type, kWasmBottom);
     INTERSECTION(kWasmNullRef, struct_type, kWasmBottom);
     INTERSECTION(kWasmNullRef, array_type, kWasmBottom);
     INTERSECTION(kWasmNullRef, function_type, kWasmBottom);
+
+    UNION(struct_type, kWasmStringRef, kWasmAnyRef);
+    UNION(array_type, kWasmStringRef, kWasmAnyRef);
+    UNION(function_type, kWasmStringRef, kWasmBottom);
 
     // Indexed types of different kinds.
     UNION(struct_type, array_type, kWasmEqRef.AsNonNull());
@@ -516,11 +541,11 @@ TEST_F(WasmSubtypingTest, Subtyping) {
 
     // Concrete types of the same kind.
     // Subtyping relation.
-    UNION(refNull(4), ref(1), refNull(1));
+    UNION_M(refNull(4), ref(1), refNull(1), module1);
     INTERSECTION_M(refNull(4), ref(1), ref(4), module1);
     INTERSECTION_M(refNull(1), refNull(4), refNull(4), module);
     // Common ancestor.
-    UNION(ref(4), ref(31), ref(1));
+    UNION_M(ref(4), ref(31), ref(1), module1);
     INTERSECTION(ref(4), ref(31), kWasmBottom);
     // No common ancestor.
     UNION(ref(6), refNull(2), kWasmArrayRef.AsNullable());
@@ -538,6 +563,7 @@ TEST_F(WasmSubtypingTest, Subtyping) {
 #undef IDENTICAL
 #undef DISTINCT
 #undef UNION
+#undef UNION_M
 #undef INTERSECTION
 #undef INTERSECTION_M
 }
