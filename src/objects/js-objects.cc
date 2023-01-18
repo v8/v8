@@ -3102,8 +3102,7 @@ void MigrateFastToFast(Isolate* isolate, Handle<JSObject> object,
     // Check if we still have space in the {object}, in which case we
     // can also simply set the map (modulo a special case for mutable
     // double boxes).
-    FieldIndex index =
-        FieldIndex::ForDescriptor(isolate, *new_map, new_map->LastAdded());
+    FieldIndex index = FieldIndex::ForDetails(*new_map, details);
     if (index.is_inobject() || index.outobject_array_index() <
                                    object->property_array(isolate).length()) {
       // Allocate HeapNumbers for double fields.
@@ -3311,7 +3310,7 @@ void MigrateFastToSlow(Isolate* isolate, Handle<JSObject> object,
     Handle<Name> key(descs->GetKey(isolate, i), isolate);
     Handle<Object> value;
     if (details.location() == PropertyLocation::kField) {
-      FieldIndex index = FieldIndex::ForDescriptor(isolate, *map, i);
+      FieldIndex index = FieldIndex::ForDetails(*map, details);
       if (details.kind() == PropertyKind::kData) {
         value = handle(object->RawFastPropertyAt(isolate, index), isolate);
         if (details.representation().IsDouble()) {
@@ -4731,7 +4730,7 @@ Object JSObject::SlowReverseLookup(Object value) {
       PropertyDetails details = descs.GetDetails(i);
       if (details.location() == PropertyLocation::kField) {
         DCHECK_EQ(PropertyKind::kData, details.kind());
-        FieldIndex field_index = FieldIndex::ForDescriptor(map(), i);
+        FieldIndex field_index = FieldIndex::ForDetails(map(), details);
         Object property = RawFastPropertyAt(field_index);
         if (field_index.is_double()) {
           DCHECK(property.IsHeapNumber());

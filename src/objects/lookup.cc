@@ -885,7 +885,7 @@ Handle<Object> LookupIterator::FetchValue(
     DCHECK_EQ(PropertyKind::kData, property_details_.kind());
     Handle<JSObject> holder = GetHolder<JSObject>();
     FieldIndex field_index =
-        FieldIndex::ForDescriptor(holder->map(isolate_), descriptor_number());
+        FieldIndex::ForDetails(holder->map(isolate_), property_details_);
     if (allocation_policy == AllocationPolicy::kAllocationDisallowed &&
         field_index.is_inobject() && field_index.is_double()) {
       return isolate_->factory()->undefined_value();
@@ -913,7 +913,7 @@ bool LookupIterator::CanStayConst(Object value) const {
   }
   Handle<JSObject> holder = GetHolder<JSObject>();
   FieldIndex field_index =
-      FieldIndex::ForDescriptor(holder->map(isolate_), descriptor_number());
+      FieldIndex::ForDetails(holder->map(isolate_), property_details_);
   if (property_details_.representation().IsDouble()) {
     if (!value.IsNumber(isolate_)) return false;
     uint64_t bits;
@@ -983,7 +983,7 @@ FieldIndex LookupIterator::GetFieldIndex() const {
   DCHECK(holder_->HasFastProperties(isolate_));
   DCHECK_EQ(PropertyLocation::kField, property_details_.location());
   DCHECK(!IsElement(*holder_));
-  return FieldIndex::ForDescriptor(holder_->map(isolate_), descriptor_number());
+  return FieldIndex::ForDetails(holder_->map(isolate_), property_details_);
 }
 
 Handle<PropertyCell> LookupIterator::GetPropertyCell() const {
@@ -1015,7 +1015,7 @@ Handle<Object> LookupIterator::GetDataValue(SeqCstAccessTag tag) const {
     DCHECK_EQ(PropertyKind::kData, property_details_.kind());
     Handle<JSSharedStruct> holder = GetHolder<JSSharedStruct>();
     FieldIndex field_index =
-        FieldIndex::ForDescriptor(holder->map(isolate_), descriptor_number());
+        FieldIndex::ForDetails(holder->map(isolate_), property_details_);
     return JSObject::FastPropertyAt(
         isolate_, holder, property_details_.representation(), field_index, tag);
   }

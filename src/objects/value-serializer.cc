@@ -652,7 +652,7 @@ Maybe<bool> ValueSerializer::WriteJSObject(Handle<JSObject> object) {
     if (V8_LIKELY(!map_changed &&
                   details.location() == PropertyLocation::kField)) {
       DCHECK_EQ(PropertyKind::kData, details.kind());
-      FieldIndex field_index = FieldIndex::ForDescriptor(*map, i);
+      FieldIndex field_index = FieldIndex::ForDetails(*map, details);
       value = JSObject::FastPropertyAt(isolate_, object,
                                        details.representation(), field_index);
     } else {
