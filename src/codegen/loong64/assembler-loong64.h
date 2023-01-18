@@ -824,7 +824,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void CheckTrampolinePool();
 
   // Get the code target object for a pc-relative call or jump.
-  V8_INLINE Handle<CodeDataContainer> relative_code_target_object_handle_at(
+  V8_INLINE Handle<Code> relative_code_target_object_handle_at(
       Address pc_) const;
 
   inline int UnboundLabelsCount() { return unbound_labels_count_; }
