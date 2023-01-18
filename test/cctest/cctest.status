@@ -92,9 +92,6 @@
   'test-code-stub-assembler/PopAndReturnFromJSBuiltinWithStackParameters' : [FAIL],
   'test-code-stub-assembler/PopAndReturnFromTFCBuiltinWithStackParameters' : [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=13646
-  'test-debug-helper/GetObjectProperties': [SKIP],
-
   # Slow tests.
   'test-api/InternalFieldsSubclassing': [PASS, SLOW],
   'test-debug/CallFunctionInDebugger': [PASS, ['mode == debug', SLOW]],
