@@ -4645,22 +4645,52 @@ void MaglevGraphBuilder::VisitForInPrepare() {
   compiler::FeedbackSource feedback_source{feedback(), slot};
   // TODO(v8:7700): Use feedback and create fast path.
   ValueNode* context = GetContext();
-  interpreter::Register cache_type = iterator_.GetRegisterOperand(0);
-  // This move needs to happen before ForInPrepare to avoid lazy deopt extending
-  // the lifetime of the {cache_type} register.
-  MoveNodeBetweenRegisters(interpreter::Register::virtual_accumulator(),
-                           cache_type);
-  ForInPrepare* result =
-      AddNewNode<ForInPrepare>({context, enumerator}, feedback_source);
-  // No need to set the accumulator.
-  DCHECK(!GetOutLiveness()->AccumulatorIsLive());
-  // The result is output in registers |cache_info_triple| to
-  // |cache_info_triple + 2|, with the registers holding cache_type,
-  // cache_array, and cache_length respectively.
-  auto cache_array_and_length =
-      std::make_pair(interpreter::Register{cache_type.index() + 1},
-                     interpreter::Register{cache_type.index() + 2});
-  StoreRegisterPair(cache_array_and_length, result);
+  interpreter::Register cache_type_reg = iterator_.GetRegisterOperand(0);
+  interpreter::Register cache_array_reg{cache_type_reg.index() + 1};
+  interpreter::Register cache_length_reg{cache_type_reg.index() + 2};
+
+  ForInHint hint = broker()->GetFeedbackForForIn(feedback_source);
+
+  switch (hint) {
+    case ForInHint::kNone:
+    case ForInHint::kEnumCacheKeysAndIndices:
+    case ForInHint::kEnumCacheKeys: {
+      BuildCheckMaps(enumerator,
+                     base::VectorOf({MakeRefAssumeMemoryFence(
+                         broker(), local_isolate()->factory()->meta_map())}));
+
+      auto* descriptor_array = AddNewNode<LoadTaggedField>(
+          {enumerator}, Map::kInstanceDescriptorsOffset);
+      auto* enum_cache = AddNewNode<LoadTaggedField>(
+          {descriptor_array}, DescriptorArray::kEnumCacheOffset);
+      auto* cache_array =
+          AddNewNode<LoadTaggedField>({enum_cache}, EnumCache::kKeysOffset);
+
+      auto* cache_length = AddNewNode<LoadEnumCacheLength>({enumerator});
+
+      MoveNodeBetweenRegisters(interpreter::Register::virtual_accumulator(),
+                               cache_type_reg);
+      StoreRegister(cache_array_reg, cache_array);
+      StoreRegister(cache_length_reg, cache_length);
+      break;
+    }
+    case ForInHint::kAny: {
+      // This move needs to happen before ForInPrepare to avoid lazy deopt
+      // extending the lifetime of the {cache_type} register.
+      MoveNodeBetweenRegisters(interpreter::Register::virtual_accumulator(),
+                               cache_type_reg);
+      ForInPrepare* result =
+          AddNewNode<ForInPrepare>({context, enumerator}, feedback_source);
+      // No need to set the accumulator.
+      DCHECK(!GetOutLiveness()->AccumulatorIsLive());
+      // The result is output in registers |cache_info_triple| to
+      // |cache_info_triple + 2|, with the registers holding cache_type,
+      // cache_array, and cache_length respectively. Cache type is already set
+      // above, so store the remaining two now.
+      StoreRegisterPair({cache_array_reg, cache_length_reg}, result);
+      break;
+    }
+  }
 }
 
 void MaglevGraphBuilder::VisitForInContinue() {
@@ -4674,7 +4704,6 @@ void MaglevGraphBuilder::VisitForInContinue() {
 void MaglevGraphBuilder::VisitForInNext() {
   // ForInNext <receiver> <index> <cache_info_pair>
   ValueNode* receiver = LoadRegisterTagged(0);
-  ValueNode* index = LoadRegisterTagged(1);
   interpreter::Register cache_type_reg, cache_array_reg;
   std::tie(cache_type_reg, cache_array_reg) =
       iterator_.GetRegisterPairOperand(2);
@@ -4682,17 +4711,35 @@ void MaglevGraphBuilder::VisitForInNext() {
   ValueNode* cache_array = GetTaggedValue(cache_array_reg);
   FeedbackSlot slot = GetSlotOperand(3);
   compiler::FeedbackSource feedback_source{feedback(), slot};
-  ValueNode* context = GetContext();
-  SetAccumulator(AddNewNode<ForInNext>(
-      {context, receiver, cache_array, cache_type, index}, feedback_source));
+
+  ForInHint hint = broker()->GetFeedbackForForIn(feedback_source);
+
+  switch (hint) {
+    case ForInHint::kNone:
+    case ForInHint::kEnumCacheKeysAndIndices:
+    case ForInHint::kEnumCacheKeys: {
+      ValueNode* index = LoadRegisterInt32(1);
+      // Ensure that the expected map still matches that of the {receiver}.
+      auto* receiver_map =
+          AddNewNode<LoadTaggedField>({receiver}, HeapObject::kMapOffset);
+      AddNewNode<CheckDynamicValue>({receiver_map, cache_type});
+      SetAccumulator(AddNewNode<LoadFixedArrayElement>({cache_array, index}));
+      break;
+    }
+    case ForInHint::kAny: {
+      ValueNode* index = LoadRegisterTagged(1);
+      ValueNode* context = GetContext();
+      SetAccumulator(AddNewNode<ForInNext>(
+          {context, receiver, cache_array, cache_type, index},
+          feedback_source));
+      break;
+    };
+  }
 }
 
 void MaglevGraphBuilder::VisitForInStep() {
-  // TODO(victorgomes): We should be able to assert that Register(0)
-  // contains an Smi.
   ValueNode* index = LoadRegisterInt32(0);
-  ValueNode* one = GetInt32Constant(1);
-  SetAccumulator(AddNewNode<Int32NodeFor<Operation::kAdd>>({index, one}));
+  SetAccumulator(AddNewNode<Int32NodeFor<Operation::kIncrement>>({index}));
 }
 
 void MaglevGraphBuilder::VisitSetPendingMessage() {

@@ -2640,6 +2640,18 @@ void TurboAssembler::AssertSignedBitOfSmiIsZero(Register smi_register) {
   Check(zero, AbortReason::kSignedBitOfSmiIsNotZero);
 }
 
+void TurboAssembler::AssertMap(Register object) {
+  if (!v8_flags.debug_code) return;
+  ASM_CODE_COMMENT(this);
+  testb(object, Immediate(kSmiTagMask));
+  Check(not_equal, AbortReason::kOperandIsNotAMap);
+  Push(object);
+  LoadMap(object, object);
+  CmpInstanceType(object, MAP_TYPE);
+  popq(object);
+  Check(equal, AbortReason::kOperandIsNotAMap);
+}
+
 void TurboAssembler::AssertCode(Register object) {
   if (!v8_flags.debug_code) return;
   ASM_CODE_COMMENT(this);

@@ -1906,6 +1906,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   inline void JumpIfNotSmi(Register value, Label* not_smi_label);
 
+  // Abort execution if argument is not a Map, enabled via
+  // --debug-code.
+  void AssertMap(Register object) NOOP_UNLESS_DEBUG_CODE;
+
   // Abort execution if argument is not a Code, enabled via
   // --debug-code.
   void AssertCode(Register object) NOOP_UNLESS_DEBUG_CODE;

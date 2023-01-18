@@ -172,6 +172,7 @@ class CompactInterpreterFrameState;
   V(LoadUnsignedIntTypedArrayElementNoDeopt) \
   V(LoadDoubleTypedArrayElement)             \
   V(LoadDoubleTypedArrayElementNoDeopt)      \
+  V(LoadEnumCacheLength)                     \
   V(LoadGlobal)                              \
   V(LoadNamedGeneric)                        \
   V(LoadNamedFromSuperGeneric)               \
@@ -4574,6 +4575,26 @@ class SetNamedGeneric : public FixedInputValueNodeT<3, SetNamedGeneric> {
  private:
   const compiler::NameRef name_;
   const compiler::FeedbackSource feedback_;
+};
+
+class LoadEnumCacheLength
+    : public FixedInputValueNodeT<1, LoadEnumCacheLength> {
+  using Base = FixedInputValueNodeT<1, LoadEnumCacheLength>;
+
+ public:
+  explicit LoadEnumCacheLength(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::Reading() | OpProperties::Int32();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
+  static constexpr int kMapInput = 0;
+  Input& map_input() { return input(kMapInput); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
 class StringAt : public FixedInputValueNodeT<2, StringAt> {

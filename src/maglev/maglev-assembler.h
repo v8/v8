@@ -98,6 +98,18 @@ class MaglevAssembler : public MacroAssembler {
                               int element_size);
   inline void LoadUnsignedField(Register result, MemOperand operand,
                                 int element_size);
+  template <typename BitField>
+  inline void LoadBitField(Register result, MemOperand operand) {
+    // Pick a load with the right size, which makes sure to read the whole
+    // field.
+    static constexpr int load_size =
+        RoundUp<8>(BitField::kSize + BitField::kShift) / 8;
+    // TODO(leszeks): If the shift is 8 or 16, we could have loaded from a
+    // shifted address instead.
+    LoadUnsignedField(result, operand, load_size);
+    DecodeField<BitField>(result);
+  }
+
   inline void StoreField(MemOperand operand, Register value, int element_size);
   inline void ReverseByteOrder(Register value, int element_size);
 

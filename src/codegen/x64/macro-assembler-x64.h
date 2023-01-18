@@ -472,6 +472,10 @@ class V8_EXPORT_PRIVATE TurboAssembler
   // Always use unsigned comparisons: above and below, not less and greater.
   void CmpInstanceType(Register map, InstanceType type);
 
+  // Abort execution if argument is not a Map, enabled via
+  // --debug-code.
+  void AssertMap(Register object) NOOP_UNLESS_DEBUG_CODE;
+
   // Abort execution if argument is not a Code, enabled via
   // --debug-code.
   void AssertCode(Register object) NOOP_UNLESS_DEBUG_CODE;
