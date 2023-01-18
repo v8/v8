@@ -193,7 +193,6 @@ struct V8_EXPORT_PRIVATE AssemblerOptions {
   bool emit_code_comments = v8_flags.code_comments;
 
   static AssemblerOptions Default(Isolate* isolate);
-  static AssemblerOptions DefaultForOffHeapTrampoline(Isolate* isolate);
 };
 
 class AssemblerBuffer {

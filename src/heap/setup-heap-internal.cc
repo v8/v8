@@ -982,11 +982,6 @@ void Heap::CreateInitialReadOnlyObjects() {
   Handle<ScopeInfo> shadow_realm_scope_info =
       ScopeInfo::CreateForShadowRealmNativeContext(isolate());
   set_shadow_realm_scope_info(*shadow_realm_scope_info);
-
-  // Canonical off-heap trampoline data.
-  auto reloc_info = Builtins::GenerateOffHeapTrampolineRelocInfo(isolate_);
-  set_off_heap_trampoline_relocation_info(*reloc_info);
-  StaticRootsEnsureAllocatedSize(*reloc_info, 4 * kTaggedSize);
 }
 
 void Heap::CreateInitialMutableObjects() {

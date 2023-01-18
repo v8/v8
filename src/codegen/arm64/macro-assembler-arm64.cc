@@ -2213,7 +2213,6 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode) {
     return;
   }
 
-  DCHECK(FromCode(*code).IsExecutable());
   DCHECK(RelocInfo::IsCodeTarget(rmode));
 
   if (CanUseNearCallOrJump(rmode)) {

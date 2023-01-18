@@ -538,7 +538,6 @@ KNOWN_OBJECTS = {
   ("read_only_space", 0x082c9): "EmptyFunctionScopeInfo",
   ("read_only_space", 0x082ed): "NativeScopeInfo",
   ("read_only_space", 0x08305): "ShadowRealmScopeInfo",
-  ("read_only_space", 0x0831d): "OffHeapTrampolineRelocationInfo",
   ("old_space", 0x0426d): "ArgumentsIteratorAccessor",
   ("old_space", 0x04285): "ArrayLengthAccessor",
   ("old_space", 0x0429d): "BoundFunctionLengthAccessor",

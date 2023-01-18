@@ -175,7 +175,6 @@ struct kStaticReadOnlyRoot {
   static constexpr Tagged_t single_character_string_table = 0x4035;
   static constexpr Tagged_t self_reference_marker = 0x7c55;
   static constexpr Tagged_t basic_block_counters_marker = 0x7c95;
-  static constexpr Tagged_t off_heap_trampoline_relocation_info = 0x831d;
   static constexpr Tagged_t global_this_binding_scope_info = 0x82a9;
   static constexpr Tagged_t empty_function_scope_info = 0x82c9;
   static constexpr Tagged_t native_scope_info = 0x82ed;
@@ -767,7 +766,7 @@ struct kStaticReadOnlyRoot {
   static constexpr Tagged_t store_handler3_map = 0x2a71;
 };
 
-static constexpr std::array<Tagged_t, 737> StaticReadOnlyRootsPointerTable = {
+static constexpr std::array<Tagged_t, 736> StaticReadOnlyRootsPointerTable = {
     kStaticReadOnlyRoot::free_space_map,
     kStaticReadOnlyRoot::one_pointer_filler_map,
     kStaticReadOnlyRoot::two_pointer_filler_map,
@@ -918,7 +917,6 @@ static constexpr std::array<Tagged_t, 737> StaticReadOnlyRootsPointerTable = {
     kStaticReadOnlyRoot::single_character_string_table,
     kStaticReadOnlyRoot::self_reference_marker,
     kStaticReadOnlyRoot::basic_block_counters_marker,
-    kStaticReadOnlyRoot::off_heap_trampoline_relocation_info,
     kStaticReadOnlyRoot::global_this_binding_scope_info,
     kStaticReadOnlyRoot::empty_function_scope_info,
     kStaticReadOnlyRoot::native_scope_info,

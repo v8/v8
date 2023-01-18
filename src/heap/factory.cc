@@ -114,11 +114,7 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
   if (CompiledWithConcurrentBaseline()) {
     code = local_isolate_->factory()->NewCode(0, AllocationType::kOld);
   } else {
-    AllocationType allocation_type =
-        V8_EXTERNAL_CODE_SPACE_BOOL || is_executable_
-            ? AllocationType::kOld
-            : AllocationType::kReadOnly;
-    code = factory->NewCode(0, allocation_type);
+    code = factory->NewCode(0, AllocationType::kOld);
   }
 
   static constexpr bool kIsNotOffHeapTrampoline = false;
@@ -264,9 +260,7 @@ MaybeHandle<InstructionStream> Factory::CodeBuilder::AllocateInstructionStream(
   Heap* heap = isolate_->heap();
   HeapAllocator* allocator = heap->allocator();
   HeapObject result;
-  AllocationType allocation_type = V8_EXTERNAL_CODE_SPACE_BOOL || is_executable_
-                                       ? AllocationType::kCode
-                                       : AllocationType::kReadOnly;
+  const AllocationType allocation_type = AllocationType::kCode;
   const int object_size = InstructionStream::SizeFor(code_desc_.body_size());
   if (retry_allocation_or_fail) {
     result = allocator->AllocateRawWith<HeapAllocator::kRetryOrFail>(
@@ -285,12 +279,10 @@ MaybeHandle<InstructionStream> Factory::CodeBuilder::AllocateInstructionStream(
       *isolate_->factory()->instruction_stream_map(), SKIP_WRITE_BARRIER);
   Handle<InstructionStream> code =
       handle(InstructionStream::cast(result), isolate_);
-  if (is_executable_) {
-    DCHECK(IsAligned(code->address(), kCodeAlignment));
-    DCHECK_IMPLIES(
-        !V8_ENABLE_THIRD_PARTY_HEAP_BOOL && !heap->code_region().is_empty(),
-        heap->code_region().contains(code->address()));
-  }
+  DCHECK(IsAligned(code->address(), kCodeAlignment));
+  DCHECK_IMPLIES(
+      !V8_ENABLE_THIRD_PARTY_HEAP_BOOL && !heap->code_region().is_empty(),
+      heap->code_region().contains(code->address()));
   return code;
 }
 
@@ -298,12 +290,9 @@ MaybeHandle<InstructionStream>
 Factory::CodeBuilder::AllocateConcurrentSparkplugInstructionStream(
     bool retry_allocation_or_fail) {
   LocalHeap* heap = local_isolate_->heap();
-  AllocationType allocation_type = V8_EXTERNAL_CODE_SPACE_BOOL || is_executable_
-                                       ? AllocationType::kCode
-                                       : AllocationType::kReadOnly;
   const int object_size = InstructionStream::SizeFor(code_desc_.body_size());
   HeapObject result;
-  if (!heap->AllocateRaw(object_size, allocation_type).To(&result)) {
+  if (!heap->AllocateRaw(object_size, AllocationType::kCode).To(&result)) {
     return MaybeHandle<InstructionStream>();
   }
   CHECK(!result.is_null());
@@ -315,7 +304,7 @@ Factory::CodeBuilder::AllocateConcurrentSparkplugInstructionStream(
       *local_isolate_->factory()->instruction_stream_map(), SKIP_WRITE_BARRIER);
   Handle<InstructionStream> code =
       handle(InstructionStream::cast(result), local_isolate_);
-  DCHECK_IMPLIES(is_executable_, IsAligned(code->address(), kCodeAlignment));
+  DCHECK(IsAligned(code->address(), kCodeAlignment));
   return code;
 }
 

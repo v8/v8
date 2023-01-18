@@ -1151,11 +1151,6 @@ void InstructionStream::InstructionStreamVerify(Isolate* isolate) {
   CHECK_IMPLIES(!ReadOnlyHeap::Contains(*this),
                 IsAligned(raw_instruction_start(), kCodeAlignment));
   CHECK_EQ(*this, code(kAcquireLoad).instruction_stream());
-  // TODO(delphick): Refactor Factory::CodeBuilder::BuildInternal, so that the
-  // following CHECK works builtin trampolines. It currently fails because
-  // InstructionStreamVerify is called halfway through constructing the
-  // trampoline and so not everything is set up.
-  // CHECK_EQ(ReadOnlyHeap::Contains(*this), !IsExecutable());
   relocation_info().ObjectVerify(isolate);
   CHECK(V8_ENABLE_THIRD_PARTY_HEAP_BOOL ||
         CodeSize() <= MemoryChunkLayout::MaxRegularCodeObjectSize() ||

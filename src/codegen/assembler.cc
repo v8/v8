@@ -85,15 +85,6 @@ AssemblerOptions AssemblerOptions::Default(Isolate* isolate) {
   return options;
 }
 
-AssemblerOptions AssemblerOptions::DefaultForOffHeapTrampoline(
-    Isolate* isolate) {
-  AssemblerOptions options = AssemblerOptions::Default(isolate);
-  // Off-heap trampolines may not contain any metadata since their metadata
-  // offsets refer to the off-heap metadata area.
-  options.emit_code_comments = false;
-  return options;
-}
-
 namespace {
 
 class DefaultAssemblerBuffer : public AssemblerBuffer {

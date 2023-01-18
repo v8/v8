@@ -1274,11 +1274,6 @@ bool InstructionStream::IsWeakObjectInDeoptimizationLiteralArray(
              HeapObject::cast(object));
 }
 
-bool InstructionStream::IsExecutable() {
-  return !Builtins::IsBuiltinId(builtin_id()) || !is_off_heap_trampoline() ||
-         Builtins::CodeObjectIsExecutable(builtin_id());
-}
-
 // This field has to have relaxed atomic accessors because it is accessed in the
 // concurrent marker.
 static_assert(FIELD_SIZE(Code::kKindSpecificFlagsOffset) == kInt32Size);

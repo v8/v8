@@ -1026,7 +1026,6 @@ void Assembler::call(Label* L) {
 
 void Assembler::call(Handle<Code> target, RelocInfo::Mode rmode) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
-  DCHECK(FromCode(*target).IsExecutable());
   EnsureSpace ensure_space(this);
   // 1110 1000 #32-bit disp.
   emit(0xE8);

@@ -359,86 +359,6 @@ void Builtins::EmitCodeCreateEvents(Isolate* isolate) {
   }
 }
 
-namespace {
-enum TrampolineType { kAbort, kJump };
-
-class OffHeapTrampolineGenerator {
- public:
-  explicit OffHeapTrampolineGenerator(Isolate* isolate)
-      : isolate_(isolate),
-        masm_(isolate, AssemblerOptions::DefaultForOffHeapTrampoline(isolate),
-              CodeObjectRequired::kYes,
-              ExternalAssemblerBuffer(buffer_, kBufferSize)) {}
-
-  CodeDesc Generate(Address off_heap_entry, TrampolineType type) {
-    // Generate replacement code that simply tail-calls the off-heap code.
-    DCHECK(!masm_.has_frame());
-    {
-      FrameScope scope(&masm_, StackFrame::NO_FRAME_TYPE);
-      if (type == TrampolineType::kJump) {
-        masm_.CodeEntry();
-        masm_.JumpToOffHeapInstructionStream(off_heap_entry);
-      } else {
-        DCHECK_EQ(type, TrampolineType::kAbort);
-        masm_.Trap();
-      }
-    }
-
-    CodeDesc desc;
-    masm_.GetCode(isolate_, &desc);
-    return desc;
-  }
-
-  Handle<HeapObject> CodeObject() { return masm_.CodeObject(); }
-
- private:
-  Isolate* isolate_;
-  // Enough to fit the single jmp.
-  static constexpr int kBufferSize = 256;
-  byte buffer_[kBufferSize];
-  MacroAssembler masm_;
-};
-
-constexpr int OffHeapTrampolineGenerator::kBufferSize;
-
-}  // namespace
-
-// static
-Handle<Code> Builtins::GenerateOffHeapTrampolineFor(
-    Isolate* isolate, Address off_heap_entry, int32_t kind_specific_flags,
-    bool generate_jump_to_instruction_stream) {
-  DCHECK_NOT_NULL(isolate->embedded_blob_code());
-  DCHECK_NE(0, isolate->embedded_blob_code_size());
-
-  OffHeapTrampolineGenerator generator(isolate);
-
-  CodeDesc desc =
-      generator.Generate(off_heap_entry, generate_jump_to_instruction_stream
-                                             ? TrampolineType::kJump
-                                             : TrampolineType::kAbort);
-
-  return Factory::CodeBuilder(isolate, desc, CodeKind::BUILTIN)
-      .set_kind_specific_flags(kind_specific_flags)
-      .set_self_reference(generator.CodeObject())
-      .set_is_executable(generate_jump_to_instruction_stream)
-      .Build();
-}
-
-// static
-Handle<ByteArray> Builtins::GenerateOffHeapTrampolineRelocInfo(
-    Isolate* isolate) {
-  OffHeapTrampolineGenerator generator(isolate);
-  // Generate a jump to a dummy address as we're not actually interested in the
-  // generated instruction stream.
-  CodeDesc desc = generator.Generate(kNullAddress, TrampolineType::kJump);
-
-  Handle<ByteArray> reloc_info = isolate->factory()->NewByteArray(
-      desc.reloc_size, AllocationType::kReadOnly);
-  InstructionStream::CopyRelocInfoToByteArray(*reloc_info, desc);
-
-  return reloc_info;
-}
-
 // static
 Handle<Code> Builtins::CreateInterpreterEntryTrampolineForProfiling(
     Isolate* isolate) {
@@ -482,7 +402,6 @@ Handle<Code> Builtins::CreateInterpreterEntryTrampolineForProfiling(
       .set_kind_specific_flags(kind_specific_flags)
       // Mimic the InterpreterEntryTrampoline.
       .set_builtin(Builtin::kInterpreterEntryTrampoline)
-      .set_is_executable(true)
       .Build();
 }
 
@@ -525,65 +444,6 @@ bool Builtins::AllowDynamicFunction(Isolate* isolate, Handle<JSFunction> target,
   }
   if (*responsible_context == target->context()) return true;
   return isolate->MayAccess(responsible_context, target_global_proxy);
-}
-
-// static
-bool Builtins::CodeObjectIsExecutable(Builtin builtin) {
-  // If the runtime/optimized code always knows when executing a given builtin
-  // that it is a builtin, then that builtin does not need an executable
-  // InstructionStream object. Such InstructionStream objects can go in
-  // read_only_space (and can even be smaller with no branch instruction), thus
-  // saving memory.
-
-  // Builtins with JS linkage will always have executable InstructionStream
-  // objects since they can be called directly from jitted code with no way of
-  // determining that they are builtins at generation time. E.g.
-  //   f = Array.of;
-  //   f(1, 2, 3);
-  // TODO(delphick): This is probably too loose but for now Wasm can call any JS
-  // linkage builtin via its InstructionStream object. Once Wasm is fixed this
-  // can either be tighted or removed completely.
-  if (Builtins::KindOf(builtin) != BCH && HasJSLinkage(builtin)) {
-    return true;
-  }
-
-  // There are some other non-TF builtins that also have JS linkage like
-  // InterpreterEntryTrampoline which are explicitly allow-listed below.
-  // TODO(delphick): Some of these builtins do not fit with the above, but
-  // currently cause problems if they're not executable. This list should be
-  // pared down as much as possible.
-  switch (builtin) {
-    case Builtin::kInterpreterEntryTrampoline:
-    case Builtin::kCompileLazy:
-    case Builtin::kCompileLazyDeoptimizedCode:
-    case Builtin::kCallFunction_ReceiverIsNullOrUndefined:
-    case Builtin::kCallFunction_ReceiverIsNotNullOrUndefined:
-    case Builtin::kCallFunction_ReceiverIsAny:
-    case Builtin::kCallBoundFunction:
-    case Builtin::kCall_ReceiverIsNullOrUndefined:
-    case Builtin::kCall_ReceiverIsNotNullOrUndefined:
-    case Builtin::kCall_ReceiverIsAny:
-    case Builtin::kHandleApiCall:
-    case Builtin::kInstantiateAsmJs:
-#if V8_ENABLE_WEBASSEMBLY
-    case Builtin::kGenericJSToWasmWrapper:
-    case Builtin::kWasmReturnPromiseOnSuspend:
-#endif  // V8_ENABLE_WEBASSEMBLY
-
-    // TODO(delphick): Remove this when calls to it have the trampoline inlined
-    // or are converted to use kCallBuiltinPointer.
-    case Builtin::kCEntry_Return1_ArgvOnStack_NoBuiltinExit:
-      return true;
-    default:
-#if V8_TARGET_ARCH_MIPS64
-      // TODO(Loongson): Move non-JS linkage builtins code objects into RO_SPACE
-      // caused MIPS platform to crash, and we need some time to handle it. Now
-      // disable this change temporarily on MIPS platform.
-      return true;
-#else
-      return false;
-#endif  // V8_TARGET_ARCH_MIPS64
-  }
 }
 
 Builtin ExampleBuiltinForTorqueFunctionPointerType(

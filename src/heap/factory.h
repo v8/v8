@@ -1007,12 +1007,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       return *this;
     }
 
-    CodeBuilder& set_is_executable(bool executable) {
-      DCHECK_EQ(kind_, CodeKind::BUILTIN);
-      is_executable_ = executable;
-      return *this;
-    }
-
     CodeBuilder& set_kind_specific_flags(int32_t flags) {
       kind_specific_flags_ = flags;
       return *this;
@@ -1054,7 +1048,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
         DeoptimizationData::Empty(isolate_);
     Handle<HeapObject> interpreter_data_;
     BasicBlockProfilerData* profiler_data_ = nullptr;
-    bool is_executable_ = true;
     bool is_turbofanned_ = false;
     int stack_slots_ = 0;
   };

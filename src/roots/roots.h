@@ -218,9 +218,6 @@ class Symbol;
   V(HeapObject, self_reference_marker, SelfReferenceMarker)                    \
   /* Marker for basic-block usage counters array during code-generation */     \
   V(Oddball, basic_block_counters_marker, BasicBlockCountersMarker)            \
-  /* Canonical off-heap trampoline data */                                     \
-  V(ByteArray, off_heap_trampoline_relocation_info,                            \
-    OffHeapTrampolineRelocationInfo)                                           \
   /* Canonical scope infos */                                                  \
   V(ScopeInfo, global_this_binding_scope_info, GlobalThisBindingScopeInfo)     \
   V(ScopeInfo, empty_function_scope_info, EmptyFunctionScopeInfo)              \
