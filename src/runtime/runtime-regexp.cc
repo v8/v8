@@ -1217,10 +1217,7 @@ static Object SearchRegExpMultiple(Isolate* isolate, Handle<String> subject,
   RegExpGlobalCache global_cache(regexp, subject, isolate);
   if (global_cache.HasException()) return ReadOnlyRoots(isolate).exception();
 
-  Handle<FixedArray> result_elements =
-      isolate->factory()->NewFixedArrayWithHoles(16);
-
-  FixedArrayBuilder builder(result_elements);
+  FixedArrayBuilder builder = FixedArrayBuilder::Lazy(isolate);
 
   // Position to search from.
   int match_start = -1;
