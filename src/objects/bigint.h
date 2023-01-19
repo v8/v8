@@ -278,6 +278,12 @@ class BigInt : public BigIntBase {
   static MaybeHandle<String> ToString(Isolate* isolate, Handle<BigInt> bigint,
                                       int radix = 10,
                                       ShouldThrow should_throw = kThrowOnError);
+  // Like the above, but adapted for the needs of producing error messages:
+  // doesn't care about termination requests, and returns a default string
+  // for inputs beyond a relatively low upper bound.
+  static Handle<String> NoSideEffectsToString(Isolate* isolate,
+                                              Handle<BigInt> bigint);
+
   // "The Number value for x", see:
   // https://tc39.github.io/ecma262/#sec-ecmascript-language-types-number-type
   // Returns a Smi or HeapNumber.

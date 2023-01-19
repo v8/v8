@@ -487,14 +487,7 @@ MaybeHandle<String> Object::NoSideEffectsToMaybeString(Isolate* isolate,
     } while (currInput->IsJSProxy());
     return NoSideEffectsToString(isolate, currInput);
   } else if (input->IsBigInt()) {
-    MaybeHandle<String> maybe_string =
-        BigInt::ToString(isolate, Handle<BigInt>::cast(input), 10, kDontThrow);
-    Handle<String> result;
-    if (maybe_string.ToHandle(&result)) return result;
-    // BigInt-to-String conversion can fail on 32-bit platforms where
-    // String::kMaxLength is too small to fit this BigInt.
-    return isolate->factory()->NewStringFromStaticChars(
-        "<a very large BigInt>");
+    return BigInt::NoSideEffectsToString(isolate, Handle<BigInt>::cast(input));
   } else if (input->IsFunction()) {
     // -- F u n c t i o n
     Handle<String> fun_str;

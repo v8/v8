@@ -922,6 +922,26 @@ ComparisonResult BigInt::CompareToDouble(Handle<BigInt> x, double y) {
   return ComparisonResult::kEqual;
 }
 
+namespace {
+
+void RightTrimString(Isolate* isolate, Handle<SeqOneByteString> string,
+                     int chars_allocated, int chars_written) {
+  DCHECK_LE(chars_written, chars_allocated);
+  if (chars_written == chars_allocated) return;
+  string->set_length(chars_written, kReleaseStore);
+  int string_size =
+      ALIGN_TO_ALLOCATION_ALIGNMENT(SeqOneByteString::SizeFor(chars_allocated));
+  int needed_size =
+      ALIGN_TO_ALLOCATION_ALIGNMENT(SeqOneByteString::SizeFor(chars_written));
+  if (needed_size < string_size && !isolate->heap()->IsLargeObject(*string)) {
+    isolate->heap()->NotifyObjectSizeChange(*string, string_size, needed_size,
+                                            ClearRecordedSlots::kNo,
+                                            UpdateInvalidatedObjectSize::kNo);
+  }
+}
+
+}  // namespace
+
 MaybeHandle<String> BigInt::ToString(Isolate* isolate, Handle<BigInt> bigint,
                                      int radix, ShouldThrow should_throw) {
   if (bigint->is_zero()) {
@@ -995,18 +1015,7 @@ MaybeHandle<String> BigInt::ToString(Isolate* isolate, Handle<BigInt> bigint,
 
   // Right-trim any over-allocation (which can happen due to conservative
   // estimates).
-  if (chars_written < chars_allocated) {
-    result->set_length(chars_written, kReleaseStore);
-    int string_size = ALIGN_TO_ALLOCATION_ALIGNMENT(
-        SeqOneByteString::SizeFor(chars_allocated));
-    int needed_size =
-        ALIGN_TO_ALLOCATION_ALIGNMENT(SeqOneByteString::SizeFor(chars_written));
-    if (needed_size < string_size && !isolate->heap()->IsLargeObject(*result)) {
-      isolate->heap()->NotifyObjectSizeChange(*result, string_size, needed_size,
-                                              ClearRecordedSlots::kNo,
-                                              UpdateInvalidatedObjectSize::kNo);
-    }
-  }
+  RightTrimString(isolate, result, chars_allocated, chars_written);
 #if DEBUG
   // Verify that all characters have been written.
   DCHECK(result->length() == chars_written);
@@ -1016,6 +1025,37 @@ MaybeHandle<String> BigInt::ToString(Isolate* isolate, Handle<BigInt> bigint,
     DCHECK_NE(chars[i], bigint::kStringZapValue);
   }
 #endif
+  return result;
+}
+
+Handle<String> BigInt::NoSideEffectsToString(Isolate* isolate,
+                                             Handle<BigInt> bigint) {
+  if (bigint->is_zero()) {
+    return isolate->factory()->zero_string();
+  }
+  // The threshold is chosen such that the operation will be fast enough to
+  // not need interrupt checks. This function is meant for producing human-
+  // readable error messages, so super-long results aren't useful anyway.
+  if (bigint->length() > 100) {
+    return isolate->factory()->NewStringFromStaticChars(
+        "<a very large BigInt>");
+  }
+
+  int chars_allocated =
+      bigint::ToStringResultLength(GetDigits(bigint), 10, bigint->sign());
+  DCHECK_LE(chars_allocated, String::kMaxLength);
+  Handle<SeqOneByteString> result = isolate->factory()
+                                        ->NewRawOneByteString(chars_allocated)
+                                        .ToHandleChecked();
+  int chars_written = chars_allocated;
+  DisallowGarbageCollection no_gc;
+  char* characters = reinterpret_cast<char*>(result->GetChars(no_gc));
+  std::unique_ptr<bigint::Processor, bigint::Processor::Destroyer>
+      non_interruptible_processor(
+          bigint::Processor::New(new bigint::Platform()));
+  non_interruptible_processor->ToString(characters, &chars_written,
+                                        GetDigits(bigint), 10, bigint->sign());
+  RightTrimString(isolate, result, chars_allocated, chars_written);
   return result;
 }
 
