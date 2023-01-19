@@ -13,6 +13,9 @@ namespace internal {
 #define MESSAGE_TEMPLATES(T)                                                   \
   /* Error */                                                                  \
   T(None, "")                                                                  \
+  T(ConflictingPrivateName,                                                    \
+    "Operation is ambiguous because there are more than one private name"      \
+    "'%' on the object")                                                       \
   T(CyclicProto, "Cyclic __proto__ value")                                     \
   T(Debugger, "Debugger: %")                                                   \
   T(DebuggerLoading, "Error loading debugger")                                 \
@@ -149,6 +152,7 @@ namespace internal {
   T(NonObjectAssertOption, "The 'assert' option must be an object")            \
   T(NonObjectInInstanceOfCheck,                                                \
     "Right-hand side of 'instanceof' is not an object")                        \
+  T(NonObjectPrivateNameAccess, "Cannot access private name % from %")         \
   T(NonObjectPropertyLoad, "Cannot read properties of %")                      \
   T(NonObjectPropertyLoadWithProperty,                                         \
     "Cannot read properties of % (reading '%')")                               \

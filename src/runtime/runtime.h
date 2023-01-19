@@ -319,6 +319,7 @@ namespace internal {
   F(GetOwnPropertyDescriptor, 2, 1)                                    \
   F(GetOwnPropertyDescriptorObject, 2, 1)                              \
   F(GetOwnPropertyKeys, 2, 1)                                          \
+  F(GetPrivateMember, 2, 1)                                            \
   F(GetProperty, -1 /* [2, 3] */, 1)                                   \
   F(HasFastPackedElements, 1, 1)                                       \
   F(HasInPrototypeChain, 2, 1)                                         \
@@ -360,6 +361,7 @@ namespace internal {
   F(ToObject, 1, 1)                                                    \
   F(ToString, 1, 1)                                                    \
   F(TryMigrateInstance, 1, 1)                                          \
+  F(SetPrivateMember, 3, 1)                                            \
   F(SwissTableAdd, 4, 1)                                               \
   F(SwissTableAllocate, 1, 1)                                          \
   F(SwissTableDelete, 2, 1)                                            \
@@ -877,6 +879,29 @@ class Runtime : public AllStatic {
                     Handle<Object> key,
                     Handle<Object> receiver = Handle<Object>(),
                     bool* is_found = nullptr);
+
+  // Look up for a private member with a name matching "desc" and return its
+  // value. "desc" should be a #-prefixed string, in the case of private fields,
+  // it should match the description of the private name symbol. Throw an error
+  // if the found private member is an accessor without a getter, or there is no
+  // matching private member, or there are more than one matching private member
+  // (which would be ambiguous). If the found private member is an accessor with
+  // a getter, the getter will be called to set the value.
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
+  GetPrivateMember(Isolate* isolate, Handle<JSReceiver> receiver,
+                   Handle<String> desc);
+
+  // Look up for a private member with a name matching "desc" and set it to
+  // "value". "desc" should be a #-prefixed string, in the case of private
+  // fields, it should match the description of the private name symbol. Throw
+  // an error if the found private member is a private method, or an accessor
+  // without a setter, or there is no matching private member, or there are more
+  // than one matching private member (which would be ambiguous).
+  // If the found private member is an accessor with a setter, the setter will
+  // be called to set the value.
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
+  SetPrivateMember(Isolate* isolate, Handle<JSReceiver> receiver,
+                   Handle<String> desc, Handle<Object> value);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> HasProperty(
       Isolate* isolate, Handle<Object> object, Handle<Object> key);

@@ -3638,8 +3638,15 @@ void BytecodeGenerator::BuildVariableLoad(Variable* variable,
                                           feedback_index(slot), depth);
           break;
         }
-        default:
+        default: {
+          // Normally, private names should not be looked up dynamically,
+          // but we make an exception in debug-evaluate, in that case the
+          // lookup will be done in %SetPrivateMember() and %GetPrivateMember()
+          // calls, not here.
+          DCHECK(!variable->raw_name()->IsPrivateName());
           builder()->LoadLookupSlot(variable->raw_name(), typeof_mode);
+          break;
+        }
       }
       break;
     }
@@ -3944,6 +3951,14 @@ BytecodeGenerator::AssignmentLhsData::PrivateMethodOrAccessor(
 }
 // static
 BytecodeGenerator::AssignmentLhsData
+BytecodeGenerator::AssignmentLhsData::PrivateDebugEvaluate(AssignType type,
+                                                           Property* property,
+                                                           Register object) {
+  return AssignmentLhsData(type, property, RegisterList(), object, Register(),
+                           nullptr, nullptr);
+}
+// static
+BytecodeGenerator::AssignmentLhsData
 BytecodeGenerator::AssignmentLhsData::KeyedSuperProperty(
     RegisterList super_property_args) {
   return AssignmentLhsData(KEYED_SUPER_PROPERTY, nullptr, super_property_args,
@@ -3983,6 +3998,13 @@ BytecodeGenerator::AssignmentLhsData BytecodeGenerator::PrepareAssignmentLhs(
       Register key = VisitForRegisterValue(property->key());
       return AssignmentLhsData::PrivateMethodOrAccessor(assign_type, property,
                                                         object, key);
+    }
+    case PRIVATE_DEBUG_DYNAMIC: {
+      AccumulatorPreservingScope scope(this, accumulator_preserving_mode);
+      Register object = VisitForRegisterValue(property->obj());
+      // Do not visit the key here, instead we will look them up at run time.
+      return AssignmentLhsData::PrivateDebugEvaluate(assign_type, property,
+                                                     object);
     }
     case NAMED_SUPER_PROPERTY: {
       AccumulatorPreservingScope scope(this, accumulator_preserving_mode);
@@ -4560,6 +4582,16 @@ void BytecodeGenerator::BuildAssignment(
       }
       break;
     }
+    case PRIVATE_DEBUG_DYNAMIC: {
+      Register value = register_allocator()->NewRegister();
+      builder()->StoreAccumulatorInRegister(value);
+      Property* property = lhs_data.expr()->AsProperty();
+      BuildPrivateDebugDynamicSet(property, lhs_data.object(), value);
+      if (!execution_result()->IsEffect()) {
+        builder()->LoadAccumulatorWithRegister(value);
+      }
+      break;
+    }
   }
 }
 
@@ -4629,6 +4661,11 @@ void BytecodeGenerator::VisitCompoundAssignment(CompoundAssignment* expr) {
       BuildPrivateBrandCheck(property, lhs_data.object());
       BuildInvalidPropertyAccess(MessageTemplate::kInvalidPrivateGetterAccess,
                                  lhs_data.expr()->AsProperty());
+      break;
+    }
+    case PRIVATE_DEBUG_DYNAMIC: {
+      Property* property = lhs_data.expr()->AsProperty();
+      BuildPrivateDebugDynamicGet(property, lhs_data.object());
       break;
     }
   }
@@ -5143,7 +5180,39 @@ void BytecodeGenerator::VisitPropertyLoad(Register obj, Property* property) {
       VisitForAccumulatorValue(property->key());
       break;
     }
+    case PRIVATE_DEBUG_DYNAMIC: {
+      BuildPrivateDebugDynamicGet(property, obj);
+      break;
+    }
   }
+}
+
+void BytecodeGenerator::BuildPrivateDebugDynamicGet(Property* property,
+                                                    Register obj) {
+  RegisterAllocationScope scope(this);
+  RegisterList args = register_allocator()->NewRegisterList(2);
+
+  Variable* private_name = property->key()->AsVariableProxy()->var();
+  builder()
+      ->MoveRegister(obj, args[0])
+      .LoadLiteral(private_name->raw_name())
+      .StoreAccumulatorInRegister(args[1])
+      .CallRuntime(Runtime::kGetPrivateMember, args);
+}
+
+void BytecodeGenerator::BuildPrivateDebugDynamicSet(Property* property,
+                                                    Register obj,
+                                                    Register value) {
+  RegisterAllocationScope scope(this);
+  RegisterList args = register_allocator()->NewRegisterList(3);
+
+  Variable* private_name = property->key()->AsVariableProxy()->var();
+  builder()
+      ->MoveRegister(obj, args[0])
+      .LoadLiteral(private_name->raw_name())
+      .StoreAccumulatorInRegister(args[1])
+      .MoveRegister(value, args[2])
+      .CallRuntime(Runtime::kSetPrivateMember, args);
 }
 
 void BytecodeGenerator::BuildPrivateGetterAccess(Register object,
@@ -6081,6 +6150,11 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
       BuildPrivateGetterAccess(object, key);
       break;
     }
+    case PRIVATE_DEBUG_DYNAMIC: {
+      object = VisitForRegisterValue(property->obj());
+      BuildPrivateDebugDynamicGet(property, object);
+      break;
+    }
   }
 
   // Save result for postfix expressions.
@@ -6159,6 +6233,12 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
       if (!execution_result()->IsEffect()) {
         builder()->LoadAccumulatorWithRegister(value);
       }
+      break;
+    }
+    case PRIVATE_DEBUG_DYNAMIC: {
+      Register value = register_allocator()->NewRegister();
+      builder()->StoreAccumulatorInRegister(value);
+      BuildPrivateDebugDynamicSet(property, object, value);
       break;
     }
   }

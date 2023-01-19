@@ -305,6 +305,8 @@ class ParserBase {
   // The current Zone, which might be the main zone or a temporary Zone.
   Zone* zone() const { return zone_; }
 
+  V8_INLINE bool IsExtraordinaryPrivateNameAccessAllowed() const;
+
  protected:
   friend class v8::internal::ExpressionScope<ParserTypes<Impl>>;
   friend class v8::internal::ExpressionParsingScope<ParserTypes<Impl>>;
@@ -1760,6 +1762,39 @@ typename ParserBase<Impl>::IdentifierT ParserBase<Impl>::ParsePropertyName() {
 }
 
 template <typename Impl>
+bool ParserBase<Impl>::IsExtraordinaryPrivateNameAccessAllowed() const {
+  if (flags().parsing_while_debugging() != ParsingWhileDebugging::kYes &&
+      !flags().is_repl_mode()) {
+    return false;
+  }
+  Scope* current_scope = scope();
+  while (current_scope != nullptr) {
+    switch (current_scope->scope_type()) {
+      case CLASS_SCOPE:
+      case CATCH_SCOPE:
+      case BLOCK_SCOPE:
+      case WITH_SCOPE:
+      case SHADOW_REALM_SCOPE:
+        return false;
+      // Top-level scopes.
+      case SCRIPT_SCOPE:
+      case MODULE_SCOPE:
+        return true;
+      // Top-level wrapper function scopes.
+      case FUNCTION_SCOPE:
+        return function_literal_id_ == kFunctionLiteralIdTopLevel;
+      // Used by debug-evaluate. If the outer scope is top-level,
+      // extraordinary private name access is allowed.
+      case EVAL_SCOPE:
+        current_scope = current_scope->outer_scope();
+        DCHECK_NOT_NULL(current_scope);
+        break;
+    }
+  }
+  UNREACHABLE();
+}
+
+template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
 ParserBase<Impl>::ParsePropertyOrPrivatePropertyName() {
   int pos = position();
@@ -1780,7 +1815,10 @@ ParserBase<Impl>::ParsePropertyOrPrivatePropertyName() {
     PrivateNameScopeIterator private_name_scope_iter(scope());
     // Parse the identifier so that we can display it in the error message
     name = impl()->GetIdentifier();
-    if (private_name_scope_iter.Done()) {
+    // In debug-evaluate, we relax the private name resolution to enable
+    // evaluation of obj.#member outside the class bodies in top-level scopes.
+    if (private_name_scope_iter.Done() &&
+        !IsExtraordinaryPrivateNameAccessAllowed()) {
       impl()->ReportMessageAt(Scanner::Location(pos, pos + 1),
                               MessageTemplate::kInvalidPrivateFieldResolution,
                               impl()->GetRawNameFromIdentifier(name));

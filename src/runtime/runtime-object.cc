@@ -1491,6 +1491,231 @@ RUNTIME_FUNCTION(Runtime_GetOwnPropertyDescriptorObject) {
   return *desc.ToPropertyDescriptorObject(isolate);
 }
 
+enum class PrivateMemberType {
+  kPrivateField,
+  kPrivateAccessor,
+  kPrivateMethod,
+};
+
+struct PrivateMember {
+  PrivateMemberType type;
+  // It's the class constructor for static methods/accessors,
+  // the brand symbol for instance methods/accessors,
+  // and the private name symbol for fields.
+  Handle<Object> brand_or_field_symbol;
+  Handle<Object> value;
+};
+
+namespace {
+void CollectPrivateMethodsAndAccessorsFromContext(
+    Isolate* isolate, Handle<Context> context, Handle<String> desc,
+    Handle<Object> brand, IsStaticFlag is_static_flag,
+    std::vector<PrivateMember>* results) {
+  Handle<ScopeInfo> scope_info(context->scope_info(), isolate);
+  VariableLookupResult lookup_result;
+  int context_index = scope_info->ContextSlotIndex(desc, &lookup_result);
+  if (context_index == -1 ||
+      !IsPrivateMethodOrAccessorVariableMode(lookup_result.mode) ||
+      lookup_result.is_static_flag != is_static_flag) {
+    return;
+  }
+
+  Handle<Object> slot_value(context->get(context_index), isolate);
+  DCHECK_IMPLIES(lookup_result.mode == VariableMode::kPrivateMethod,
+                 slot_value->IsJSFunction());
+  DCHECK_IMPLIES(lookup_result.mode != VariableMode::kPrivateMethod,
+                 slot_value->IsAccessorPair());
+  results->push_back({
+      lookup_result.mode == VariableMode::kPrivateMethod
+          ? PrivateMemberType::kPrivateMethod
+          : PrivateMemberType::kPrivateAccessor,
+      brand,
+      slot_value,
+  });
+}
+
+Maybe<bool> CollectPrivateMembersFromReceiver(
+    Isolate* isolate, Handle<JSReceiver> receiver, Handle<String> desc,
+    std::vector<PrivateMember>* results) {
+  PropertyFilter key_filter =
+      static_cast<PropertyFilter>(PropertyFilter::PRIVATE_NAMES_ONLY);
+  Handle<FixedArray> keys;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, keys,
+      KeyAccumulator::GetKeys(isolate, receiver, KeyCollectionMode::kOwnOnly,
+                              key_filter, GetKeysConversion::kConvertToString),
+      Nothing<bool>());
+
+  if (receiver->IsJSFunction()) {
+    Handle<JSFunction> func(JSFunction::cast(*receiver), isolate);
+    Handle<SharedFunctionInfo> shared(func->shared(), isolate);
+    if (shared->is_class_constructor() &&
+        shared->has_static_private_methods_or_accessors()) {
+      Handle<Context> recevier_context(JSFunction::cast(*receiver).context(),
+                                       isolate);
+      CollectPrivateMethodsAndAccessorsFromContext(
+          isolate, recevier_context, desc, func, IsStaticFlag::kStatic,
+          results);
+    }
+  }
+
+  for (int i = 0; i < keys->length(); ++i) {
+    Handle<Object> obj_key(keys->get(i), isolate);
+    Handle<Symbol> symbol(Symbol::cast(*obj_key), isolate);
+    CHECK(symbol->is_private_name());
+    Handle<Object> value;
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, value, Object::GetProperty(isolate, receiver, symbol),
+        Nothing<bool>());
+
+    if (symbol->is_private_brand()) {
+      Handle<Context> value_context(Context::cast(*value), isolate);
+      CollectPrivateMethodsAndAccessorsFromContext(
+          isolate, value_context, desc, symbol, IsStaticFlag::kNotStatic,
+          results);
+    } else {
+      Handle<String> symbol_desc(String::cast(symbol->description()), isolate);
+      if (symbol_desc->Equals(*desc)) {
+        results->push_back({
+            PrivateMemberType::kPrivateField,
+            symbol,
+            value,
+        });
+      }
+    }
+  }
+
+  return Just(true);
+}
+
+Maybe<bool> FindPrivateMembersFromReceiver(Isolate* isolate,
+                                           Handle<JSReceiver> receiver,
+                                           Handle<String> desc,
+                                           MessageTemplate not_found_message,
+                                           PrivateMember* result) {
+  std::vector<PrivateMember> results;
+  MAYBE_RETURN(
+      CollectPrivateMembersFromReceiver(isolate, receiver, desc, &results),
+      Nothing<bool>());
+
+  if (results.size() == 0) {
+    THROW_NEW_ERROR_RETURN_VALUE(isolate, NewError(not_found_message, desc),
+                                 Nothing<bool>());
+  } else if (results.size() > 1) {
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate, NewError(MessageTemplate::kConflictingPrivateName, desc),
+        Nothing<bool>());
+  }
+
+  *result = results[0];
+  return Just(true);
+}
+}  // namespace
+
+MaybeHandle<Object> Runtime::GetPrivateMember(Isolate* isolate,
+                                              Handle<JSReceiver> receiver,
+                                              Handle<String> desc) {
+  PrivateMember result;
+  MAYBE_RETURN_NULL(FindPrivateMembersFromReceiver(
+      isolate, receiver, desc, MessageTemplate::kInvalidPrivateMemberRead,
+      &result));
+
+  switch (result.type) {
+    case PrivateMemberType::kPrivateField:
+    case PrivateMemberType::kPrivateMethod: {
+      return result.value;
+    }
+    case PrivateMemberType::kPrivateAccessor: {
+      // The accessors are collected from the contexts, so there is no need to
+      // perform brand checks.
+      Handle<AccessorPair> pair = Handle<AccessorPair>::cast(result.value);
+      if (pair->getter().IsNull()) {
+        THROW_NEW_ERROR(
+            isolate,
+            NewError(MessageTemplate::kInvalidPrivateGetterAccess, desc),
+            Object);
+      }
+      DCHECK(pair->getter().IsJSFunction());
+      Handle<JSFunction> getter(JSFunction::cast(pair->getter()), isolate);
+      return Execution::Call(isolate, getter, receiver, 0, nullptr);
+    }
+  }
+}
+
+MaybeHandle<Object> Runtime::SetPrivateMember(Isolate* isolate,
+                                              Handle<JSReceiver> receiver,
+                                              Handle<String> desc,
+                                              Handle<Object> value) {
+  PrivateMember result;
+  MAYBE_RETURN_NULL(FindPrivateMembersFromReceiver(
+      isolate, receiver, desc, MessageTemplate::kInvalidPrivateMemberRead,
+      &result));
+
+  switch (result.type) {
+    case PrivateMemberType::kPrivateField: {
+      Handle<Symbol> symbol =
+          Handle<Symbol>::cast(result.brand_or_field_symbol);
+      return Object::SetProperty(isolate, receiver, symbol, value,
+                                 StoreOrigin::kMaybeKeyed);
+    }
+    case PrivateMemberType::kPrivateMethod: {
+      THROW_NEW_ERROR(
+          isolate, NewError(MessageTemplate::kInvalidPrivateMethodWrite, desc),
+          Object);
+    }
+    case PrivateMemberType::kPrivateAccessor: {
+      // The accessors are collected from the contexts, so there is no need to
+      // perform brand checks.
+      Handle<AccessorPair> pair = Handle<AccessorPair>::cast(result.value);
+      if (pair->setter().IsNull()) {
+        THROW_NEW_ERROR(
+            isolate,
+            NewError(MessageTemplate::kInvalidPrivateSetterAccess, desc),
+            Object);
+      }
+      DCHECK(pair->setter().IsJSFunction());
+      Handle<Object> argv[] = {value};
+      Handle<JSFunction> setter(JSFunction::cast(pair->setter()), isolate);
+      return Execution::Call(isolate, setter, receiver, arraysize(argv), argv);
+    }
+  }
+}
+
+RUNTIME_FUNCTION(Runtime_GetPrivateMember) {
+  HandleScope scope(isolate);
+  // TODO(chromium:1381806) support specifying scopes, or selecting the right
+  // one from the conflicting names.
+  DCHECK_EQ(args.length(), 2);
+  Handle<Object> receiver = args.at<Object>(0);
+  Handle<String> desc = args.at<String>(1);
+  if (receiver->IsNullOrUndefined(isolate)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kNonObjectPrivateNameAccess,
+                              desc, receiver));
+  }
+  RETURN_RESULT_OR_FAILURE(
+      isolate, Runtime::GetPrivateMember(
+                   isolate, Handle<JSReceiver>::cast(receiver), desc));
+}
+
+RUNTIME_FUNCTION(Runtime_SetPrivateMember) {
+  HandleScope scope(isolate);
+  // TODO(chromium:1381806) support specifying scopes, or selecting the right
+  // one from the conflicting names.
+  DCHECK_EQ(args.length(), 3);
+  Handle<Object> receiver = args.at<Object>(0);
+  Handle<String> desc = args.at<String>(1);
+  if (receiver->IsNullOrUndefined(isolate)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kNonObjectPrivateNameAccess,
+                              desc, receiver));
+  }
+  Handle<Object> value = args.at<Object>(2);
+  RETURN_RESULT_OR_FAILURE(
+      isolate, Runtime::SetPrivateMember(
+                   isolate, Handle<JSReceiver>::cast(receiver), desc, value));
+}
+
 RUNTIME_FUNCTION(Runtime_LoadPrivateSetter) {
   HandleScope scope(isolate);
   DCHECK_EQ(args.length(), 1);
