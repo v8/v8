@@ -36,30 +36,30 @@ MemoryReducer::TimerTask::TimerTask(MemoryReducer* memory_reducer)
 
 void MemoryReducer::TimerTask::RunInternal() {
   Heap* heap = memory_reducer_->heap();
-  Event event;
-  double time_ms = heap->MonotonicallyIncreasingTimeInMs();
+  const double time_ms = heap->MonotonicallyIncreasingTimeInMs();
   heap->tracer()->SampleAllocation(time_ms, heap->NewSpaceAllocationCounter(),
                                    heap->OldGenerationAllocationCounter(),
                                    heap->EmbedderAllocationCounter());
-  bool low_allocation_rate = heap->HasLowAllocationRate();
-  bool optimize_for_memory = heap->ShouldOptimizeForMemoryUsage();
+  const bool low_allocation_rate = heap->HasLowAllocationRate();
+  const bool optimize_for_memory = heap->ShouldOptimizeForMemoryUsage();
   if (v8_flags.trace_gc_verbose) {
     heap->isolate()->PrintWithTimestamp(
         "Memory reducer: %s, %s\n",
         low_allocation_rate ? "low alloc" : "high alloc",
         optimize_for_memory ? "background" : "foreground");
   }
-  event.type = kTimer;
-  event.time_ms = time_ms;
-  // The memory reducer will start incremental markig if
+  // The memory reducer will start incremental marking if
   // 1) mutator is likely idle: js call rate is low and allocation rate is low.
   // 2) mutator is in background: optimize for memory flag is set.
-  event.should_start_incremental_gc =
-      low_allocation_rate || optimize_for_memory;
-  event.can_start_incremental_gc =
+  const Event event{
+      kTimer,
+      time_ms,
+      heap->CommittedOldGenerationMemory(),
+      false,
+      low_allocation_rate || optimize_for_memory,
       heap->incremental_marking()->IsStopped() &&
-      (heap->incremental_marking()->CanBeStarted() || optimize_for_memory);
-  event.committed_memory = heap->CommittedOldGenerationMemory();
+          (heap->incremental_marking()->CanBeStarted() || optimize_for_memory),
+  };
   memory_reducer_->NotifyTimer(event);
 }
 
@@ -96,10 +96,21 @@ void MemoryReducer::NotifyTimer(const Event& event) {
   }
 }
 
+void MemoryReducer::NotifyMarkCompact(size_t committed_memory_before) {
+  const size_t committed_memory = heap()->CommittedOldGenerationMemory();
 
-void MemoryReducer::NotifyMarkCompact(const Event& event) {
-  DCHECK_EQ(kMarkCompact, event.type);
-  Action old_action = state_.action;
+  // Trigger one more GC if
+  // - this GC decreased committed memory,
+  // - there is high fragmentation,
+  const MemoryReducer::Event event{
+      MemoryReducer::kMarkCompact,
+      heap()->MonotonicallyIncreasingTimeInMs(),
+      committed_memory,
+      (committed_memory_before > committed_memory + MB) ||
+          heap()->HasHighFragmentation(),
+      false,
+      false};
+  const Action old_action = state_.action;
   state_ = Step(state_, event);
   if (old_action != kWait && state_.action == kWait) {
     // If we are transitioning to the WAIT state, start the timer.
@@ -114,16 +125,20 @@ void MemoryReducer::NotifyMarkCompact(const Event& event) {
   }
 }
 
-void MemoryReducer::NotifyPossibleGarbage(const Event& event) {
-  DCHECK_EQ(kPossibleGarbage, event.type);
-  Action old_action = state_.action;
+void MemoryReducer::NotifyPossibleGarbage() {
+  const MemoryReducer::Event event{MemoryReducer::kPossibleGarbage,
+                                   heap()->MonotonicallyIncreasingTimeInMs(),
+                                   0,
+                                   0,
+                                   false,
+                                   false};
+  const Action old_action = state_.action;
   state_ = Step(state_, event);
   if (old_action != kWait && state_.action == kWait) {
     // If we are transitioning to the WAIT state, start the timer.
     ScheduleTimer(state_.next_gc_start_ms - event.time_ms);
   }
 }
-
 
 bool MemoryReducer::WatchdogGC(const State& state, const Event& event) {
   return state.last_gc_time_ms != 0 &&
@@ -184,9 +199,7 @@ MemoryReducer::State MemoryReducer::Step(const State& state,
                        event.time_ms, 0);
       }
     case kRun:
-      if (event.type != kMarkCompact) {
-        return state;
-      } else {
+      if (event.type == kMarkCompact) {
         if (state.started_gcs < kMaxNumberOfGCs &&
             (event.next_gc_likely_to_collect_more || state.started_gcs == 1)) {
           return State(kWait, state.started_gcs, event.time_ms + kShortDelayMs,
@@ -195,6 +208,8 @@ MemoryReducer::State MemoryReducer::Step(const State& state,
           return State(kDone, kMaxNumberOfGCs, 0.0, event.time_ms,
                        event.committed_memory);
         }
+      } else {
+        return state;
       }
   }
   UNREACHABLE();

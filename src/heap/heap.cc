@@ -1747,27 +1747,12 @@ bool Heap::CollectGarbage(AllocationSpace space,
     }
 
     if (collector == GarbageCollector::MARK_COMPACTOR) {
-      // Calculate used memory first, then committed memory. Following code
-      // assumes that committed >= used, which might not hold when this is
-      // calculated in the wrong order and background threads allocate
-      // in-between.
-      size_t used_memory_after = OldGenerationSizeOfObjects();
-      size_t committed_memory_after = CommittedOldGenerationMemory();
       if (memory_reducer_ != nullptr) {
-        MemoryReducer::Event event;
-        event.type = MemoryReducer::kMarkCompact;
-        event.time_ms = MonotonicallyIncreasingTimeInMs();
-        // Trigger one more GC if
-        // - this GC decreased committed memory,
-        // - there is high fragmentation,
-        event.next_gc_likely_to_collect_more =
-            (committed_memory_before > committed_memory_after + MB) ||
-            HasHighFragmentation(used_memory_after, committed_memory_after);
-        event.committed_memory = committed_memory_after;
-        memory_reducer_->NotifyMarkCompact(event);
+        memory_reducer_->NotifyMarkCompact(committed_memory_before);
       }
       if (initial_max_old_generation_size_ < max_old_generation_size() &&
-          used_memory_after < initial_max_old_generation_size_threshold_) {
+          OldGenerationSizeOfObjects() <
+              initial_max_old_generation_size_threshold_) {
         set_max_old_generation_size(initial_max_old_generation_size_);
       }
     }
@@ -1842,10 +1827,7 @@ int Heap::NotifyContextDisposed(bool dependant_context) {
     old_generation_size_configured_ = false;
     set_old_generation_allocation_limit(initial_old_generation_size_);
     if (memory_reducer_ != nullptr) {
-      MemoryReducer::Event event;
-      event.type = MemoryReducer::kPossibleGarbage;
-      event.time_ms = MonotonicallyIncreasingTimeInMs();
-      memory_reducer_->NotifyPossibleGarbage(event);
+      memory_reducer_->NotifyPossibleGarbage();
     }
   }
   isolate()->AbortConcurrentOptimization(BlockingBehavior::kDontBlock);
@@ -1971,10 +1953,7 @@ void Heap::StartIncrementalMarkingIfAllocationLimitIsReached(
         // This is a fallback case where no appropriate limits have been
         // configured yet.
         if (memory_reducer() != nullptr) {
-          MemoryReducer::Event event;
-          event.type = MemoryReducer::kPossibleGarbage;
-          event.time_ms = MonotonicallyIncreasingTimeInMs();
-          memory_reducer()->NotifyPossibleGarbage(event);
+          memory_reducer()->NotifyPossibleGarbage();
         }
         break;
       case IncrementalMarkingLimit::kNoLimit:
@@ -3747,16 +3726,17 @@ void Heap::CheckIneffectiveMarkCompact(size_t old_generation_size,
 }
 
 bool Heap::HasHighFragmentation() {
-  size_t used = OldGenerationSizeOfObjects();
-  size_t committed = CommittedOldGenerationMemory();
-  return HasHighFragmentation(used, committed);
-}
+  const size_t used = OldGenerationSizeOfObjects();
+  const size_t committed = CommittedOldGenerationMemory();
 
-bool Heap::HasHighFragmentation(size_t used, size_t committed) {
-  const size_t kSlack = 16 * MB;
+  // Background thread allocation could result in committed memory being less
+  // than used memory in some situations.
+  if (committed < used) return false;
+
+  constexpr size_t kSlack = 16 * MB;
+
   // Fragmentation is high if committed > 2 * used + kSlack.
   // Rewrite the expression to avoid overflow.
-  DCHECK_GE(committed, used);
   return committed - used > used + kSlack;
 }
 
@@ -3776,10 +3756,7 @@ void Heap::ActivateMemoryReducerIfNeeded() {
   const int kMinCommittedMemory = 7 * Page::kPageSize;
   if (ms_count_ == 0 && CommittedMemory() > kMinCommittedMemory &&
       isolate()->IsIsolateInBackground()) {
-    MemoryReducer::Event event;
-    event.type = MemoryReducer::kPossibleGarbage;
-    event.time_ms = MonotonicallyIncreasingTimeInMs();
-    memory_reducer_->NotifyPossibleGarbage(event);
+    memory_reducer_->NotifyPossibleGarbage();
   }
 }
 
@@ -5790,10 +5767,7 @@ void Heap::NotifyOldGenerationExpansion(AllocationSpace space,
       OldGenerationCapacity() >= old_generation_capacity_after_bootstrap_ +
                                      kMemoryReducerActivationThreshold &&
       v8_flags.memory_reducer_for_small_heaps) {
-    MemoryReducer::Event event;
-    event.type = MemoryReducer::kPossibleGarbage;
-    event.time_ms = MonotonicallyIncreasingTimeInMs();
-    memory_reducer()->NotifyPossibleGarbage(event);
+    memory_reducer()->NotifyPossibleGarbage();
   }
 }
 

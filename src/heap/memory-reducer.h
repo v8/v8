@@ -118,9 +118,8 @@ class V8_EXPORT_PRIVATE MemoryReducer {
   MemoryReducer(const MemoryReducer&) = delete;
   MemoryReducer& operator=(const MemoryReducer&) = delete;
   // Callbacks.
-  void NotifyMarkCompact(const Event& event);
-  void NotifyPossibleGarbage(const Event& event);
-  void NotifyBackgroundIdleNotification(const Event& event);
+  void NotifyMarkCompact(size_t committed_memory_before);
+  void NotifyPossibleGarbage();
   // The step function that computes the next state from the current state and
   // the incoming event.
   static State Step(const State& state, const Event& event);
