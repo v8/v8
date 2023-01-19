@@ -19,6 +19,7 @@
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/ic/handler-configuration.h"
 #include "src/interpreter/bytecode-flags.h"
+#include "src/maglev/maglev-assembler-inl.h"
 #include "src/maglev/maglev-code-gen-state.h"
 #include "src/maglev/maglev-compilation-unit.h"
 #include "src/maglev/maglev-graph-labeller.h"
@@ -27,7 +28,6 @@
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir-inl.h"
 #include "src/maglev/maglev-ir.h"
-#include "src/maglev/x64/maglev-assembler-x64-inl.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/js-array-buffer.h"
@@ -597,9 +597,9 @@ void CheckedInternalizedString::SetValueLocationConstraints() {
 }
 void CheckedInternalizedString::GenerateCode(MaglevAssembler* masm,
                                              const ProcessingState& state) {
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register map_tmp = temps.Acquire();
   Register object = ToRegister(object_input());
-  RegList temps = general_temporaries();
-  Register map_tmp = temps.PopFirst();
 
   if (check_type_ == CheckType::kOmitHeapObjectCheck) {
     __ AssertNotSmi(object);
@@ -677,7 +677,8 @@ void CheckedObjectToIndex::GenerateCode(MaglevAssembler* masm,
 
         // Heap Number.
         {
-          DoubleRegister number_value = node->double_temporaries().first();
+          MaglevAssembler::ScratchRegisterScope temps(masm);
+          DoubleRegister number_value = temps.AcquireDouble();
           DoubleRegister converted_back = kScratchDoubleReg;
           // Load the heap number value into a double register.
           __ Movsd(number_value,
@@ -752,11 +753,9 @@ void BuiltinStringFromCharCode::GenerateCode(MaglevAssembler* masm,
               Immediate(char_code & 0xFFFF));
     }
   } else {
+    MaglevAssembler::ScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
     Register char_code = ToRegister(code_input());
-    // We only need a scratch here if {char_code} alias with {result}.
-    // TODO(victorgomes): Add a constraint in the register allocator for this
-    // use case?
-    Register scratch = general_temporaries().PopFirst();
     __ StringFromCharCode(register_snapshot(), nullptr, result_string,
                           char_code, scratch);
   }
@@ -775,9 +774,10 @@ void BuiltinStringPrototypeCharCodeAt::SetValueLocationConstraints() {
 
 void BuiltinStringPrototypeCharCodeAt::GenerateCode(
     MaglevAssembler* masm, const ProcessingState& state) {
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
   Register string = ToRegister(string_input());
   Register index = ToRegister(index_input());
-  Register scratch = general_temporaries().PopFirst();
   ZoneLabelRef done(masm);
   RegisterSnapshot save_registers = register_snapshot();
   __ StringCharCodeAt(save_registers, ToRegister(result()), string, index,
@@ -792,7 +792,8 @@ void LoadDoubleField::SetValueLocationConstraints() {
 }
 void LoadDoubleField::GenerateCode(MaglevAssembler* masm,
                                    const ProcessingState& state) {
-  Register tmp = general_temporaries().PopFirst();
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register tmp = temps.Acquire();
   Register object = ToRegister(object_input());
   __ AssertNotSmi(object);
   __ DecompressAnyTagged(tmp, FieldOperand(object, offset()));
@@ -861,7 +862,8 @@ void LoadSignedIntDataViewElement::GenerateCode(MaglevAssembler* masm,
   Register object = ToRegister(object_input());
   Register index = ToRegister(index_input());
   Register result_reg = ToRegister(result());
-  Register data_pointer = general_temporaries().PopFirst();
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register data_pointer = temps.Acquire();
 
   __ AssertNotSmi(object);
   if (v8_flags.debug_code) {
@@ -917,7 +919,8 @@ void StoreSignedIntDataViewElement::GenerateCode(MaglevAssembler* masm,
   Register object = ToRegister(object_input());
   Register index = ToRegister(index_input());
   Register value = ToRegister(value_input());
-  Register data_pointer = general_temporaries().PopFirst();
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register data_pointer = temps.Acquire();
 
   __ AssertNotSmi(object);
   if (v8_flags.debug_code) {
@@ -968,7 +971,8 @@ void LoadDoubleDataViewElement::GenerateCode(MaglevAssembler* masm,
   Register object = ToRegister(object_input());
   Register index = ToRegister(index_input());
   DoubleRegister result_reg = ToDoubleRegister(result());
-  Register data_pointer = general_temporaries().PopFirst();
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register data_pointer = temps.Acquire();
 
   __ AssertNotSmi(object);
   if (v8_flags.debug_code) {
@@ -1026,7 +1030,8 @@ void StoreDoubleDataViewElement::GenerateCode(MaglevAssembler* masm,
   Register object = ToRegister(object_input());
   Register index = ToRegister(index_input());
   DoubleRegister value = ToDoubleRegister(value_input());
-  Register data_pointer = general_temporaries().PopFirst();
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register data_pointer = temps.Acquire();
 
   __ AssertNotSmi(object);
   if (v8_flags.debug_code) {
@@ -1149,7 +1154,8 @@ void GenerateTypedArrayLoad(MaglevAssembler* masm, NodeT* node, Register object,
     Register object = ToRegister(object_input());                        \
     Register index = ToRegister(index_input());                          \
     ResultReg result_reg = ToResultReg(result());                        \
-    Register scratch = general_temporaries().PopFirst();                 \
+    MaglevAssembler::ScratchRegisterScope temps(masm);                   \
+    Register scratch = temps.Acquire();                                  \
                                                                          \
     GenerateTypedArrayLoad<check_detached>(                              \
         masm, this, object, index, result_reg, scratch, elements_kind_); \
@@ -1178,7 +1184,8 @@ void StoreDoubleField::SetValueLocationConstraints() {
 }
 void StoreDoubleField::GenerateCode(MaglevAssembler* masm,
                                     const ProcessingState& state) {
-  Register tmp = general_temporaries().PopFirst();
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register tmp = temps.Acquire();
   Register object = ToRegister(object_input());
   DoubleRegister value = ToDoubleRegister(value_input());
 
@@ -1373,7 +1380,8 @@ void Int32MultiplyWithOverflow::GenerateCode(MaglevAssembler* masm,
   Register right = ToRegister(right_input());
   DCHECK_EQ(result, ToRegister(left_input()));
 
-  Register saved_left = general_temporaries().first();
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register saved_left = temps.Acquire();
   __ movl(saved_left, result);
   // TODO(leszeks): peephole optimise multiplication by a constant.
   __ imull(result, right);
@@ -1430,8 +1438,6 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
   //     else
   //       lhs % rhs
 
-  DCHECK(general_temporaries().has(rax));
-  DCHECK(general_temporaries().has(rdx));
   Register lhs = ToRegister(left_input());
   Register rhs = ToRegister(right_input());
 
@@ -1520,8 +1526,6 @@ void Int32DivideWithOverflow::SetValueLocationConstraints() {
 
 void Int32DivideWithOverflow::GenerateCode(MaglevAssembler* masm,
                                            const ProcessingState& state) {
-  DCHECK(general_temporaries().has(rax));
-  DCHECK(general_temporaries().has(rdx));
   Register left = ToRegister(left_input());
   Register right = ToRegister(right_input());
   __ movl(rax, left);
@@ -2134,7 +2138,8 @@ void SetPendingMessage::GenerateCode(MaglevAssembler* masm,
     __ Move(return_value, pending_message_operand);
     __ movq(pending_message_operand, new_message);
   } else {
-    Register scratch = general_temporaries().PopFirst();
+    MaglevAssembler::ScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
     __ Move(scratch, pending_message_operand);
     __ movq(pending_message_operand, new_message);
     __ Move(return_value, scratch);
@@ -2150,7 +2155,8 @@ void TestUndetectable::GenerateCode(MaglevAssembler* masm,
                                     const ProcessingState& state) {
   Register object = ToRegister(value());
   Register return_value = ToRegister(result());
-  Register scratch = general_temporaries().PopFirst();
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
 
   Label return_false, done;
   __ JumpIfSmi(object, &return_false, Label::kNear);
@@ -2452,8 +2458,9 @@ void ConvertReceiver::SetValueLocationConstraints() {
 void ConvertReceiver::GenerateCode(MaglevAssembler* masm,
                                    const ProcessingState& state) {
   Label convert_to_object, done;
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
   Register receiver = ToRegister(receiver_input());
-  Register scratch = general_temporaries().first();
   __ JumpIfSmi(receiver, &convert_to_object, Label::kNear);
   static_assert(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
   __ CmpObjectType(receiver, FIRST_JS_RECEIVER_TYPE, scratch);
@@ -2486,7 +2493,8 @@ void IncreaseInterruptBudget::SetValueLocationConstraints() {
 }
 void IncreaseInterruptBudget::GenerateCode(MaglevAssembler* masm,
                                            const ProcessingState& state) {
-  Register scratch = general_temporaries().first();
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
   __ movq(scratch, MemOperand(rbp, StandardFrameConstants::kFunctionOffset));
   __ LoadTaggedPointerField(
       scratch, FieldOperand(scratch, JSFunction::kFeedbackCellOffset));
@@ -2595,7 +2603,8 @@ void ReduceInterruptBudget::SetValueLocationConstraints() {
 }
 void ReduceInterruptBudget::GenerateCode(MaglevAssembler* masm,
                                          const ProcessingState& state) {
-  Register scratch = general_temporaries().first();
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
   __ movq(scratch, MemOperand(rbp, StandardFrameConstants::kFunctionOffset));
   __ LoadTaggedPointerField(
       scratch, FieldOperand(scratch, JSFunction::kFeedbackCellOffset));

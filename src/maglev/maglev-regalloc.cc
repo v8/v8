@@ -1672,6 +1672,11 @@ void StraightForwardRegisterAllocator::AssignFixedTemporaries(
           << "Fixed Double Temporaries: " << fixed_temporaries << "\n";
     }
   }
+
+  // After allocating the specific/fixed temporary registers, we empty the node
+  // set, so that it is used to allocate only the arbitrary/available temporary
+  // register that is going to be inserted in the scratch scope.
+  node->temporaries<RegisterT>() = {};
 }
 
 void StraightForwardRegisterAllocator::AssignFixedTemporaries(NodeBase* node) {
@@ -1687,6 +1692,7 @@ void StraightForwardRegisterAllocator::AssignArbitraryTemporaries(
 
   DCHECK_GT(num_temporaries_needed, 0);
   RegListBase<RegisterT> temporaries = node->temporaries<RegisterT>();
+  DCHECK(temporaries.is_empty());
   int remaining_temporaries_needed = num_temporaries_needed;
 
   for (RegisterT reg : registers.unblocked_free()) {

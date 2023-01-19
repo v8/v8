@@ -10,17 +10,10 @@
 #include "src/execution/isolate-inl.h"
 #include "src/heap/local-heap.h"
 #include "src/heap/parked-scope.h"
+#include "src/maglev/maglev-assembler-inl.h"
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-ir-inl.h"
-
-#ifdef V8_TARGET_ARCH_ARM64
-#include "src/maglev/arm64/maglev-assembler-arm64-inl.h"
-#elif V8_TARGET_ARCH_X64
-#include "src/maglev/x64/maglev-assembler-x64-inl.h"
-#else
-#error "Maglev does not supported this architecture."
-#endif
 
 namespace v8 {
 namespace internal {
@@ -1499,9 +1492,10 @@ void GeneratorRestoreRegister::SetValueLocationConstraints() {
 }
 void GeneratorRestoreRegister::GenerateCode(MaglevAssembler* masm,
                                             const ProcessingState& state) {
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register temp = temps.Acquire();
   Register array = ToRegister(array_input());
   Register result_reg = ToRegister(result());
-  Register temp = general_temporaries().PopFirst();
 
   // The input and the output can alias, if that happen we use a temporary
   // register and a move at the end.
@@ -1512,7 +1506,7 @@ void GeneratorRestoreRegister::GenerateCode(MaglevAssembler* masm,
       value, FieldMemOperand(array, FixedArray::OffsetOfElementAt(index())));
 
   // And trashs it with StaleRegisterConstant.
-  Register scratch = general_temporaries().PopFirst();
+  Register scratch = temps.Acquire();
   __ LoadRoot(scratch, RootIndex::kStaleRegister);
   __ StoreTaggedField(
       FieldMemOperand(array, FixedArray::OffsetOfElementAt(index())), scratch);
@@ -1605,10 +1599,11 @@ void StringAt::SetValueLocationConstraints() {
 }
 void StringAt::GenerateCode(MaglevAssembler* masm,
                             const ProcessingState& state) {
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
   Register result_string = ToRegister(result());
   Register string = ToRegister(string_input());
   Register index = ToRegister(index_input());
-  Register scratch = general_temporaries().PopFirst();
   Register char_code = string;
 
   ZoneLabelRef done(masm);
@@ -1942,7 +1937,8 @@ void CallKnownJSFunction::SetValueLocationConstraints() {
 
 void CallKnownJSFunction::GenerateCode(MaglevAssembler* masm,
                                        const ProcessingState& state) {
-  Register scratch = general_temporaries().PopFirst();
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
   int actual_parameter_count = num_args() + 1;
   if (actual_parameter_count < expected_parameter_count_) {
     int number_of_undefineds =
@@ -2396,8 +2392,9 @@ void JumpLoopPrologue::SetValueLocationConstraints() {
 void JumpLoopPrologue::GenerateCode(MaglevAssembler* masm,
                                     const ProcessingState& state) {
   if (!v8_flags.use_osr) return;
-  Register scratch0 = general_temporaries().PopFirst();
-  Register scratch1 = general_temporaries().PopFirst();
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register scratch0 = temps.Acquire();
+  Register scratch1 = temps.Acquire();
 
   const Register osr_state = scratch1;
   __ Move(scratch0, unit_->feedback().object());
@@ -2496,7 +2493,8 @@ void Switch::SetValueLocationConstraints() {
   set_temporaries_needed(1);
 }
 void Switch::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
-  Register scratch = general_temporaries().PopFirst();
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
   std::unique_ptr<Label*[]> labels = std::make_unique<Label*[]>(size());
   for (int i = 0; i < size(); i++) {
     BasicBlock* block = (targets())[i].block_ptr();

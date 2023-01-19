@@ -20,6 +20,7 @@
 #include "src/deoptimizer/translation-array.h"
 #include "src/execution/frame-constants.h"
 #include "src/interpreter/bytecode-register.h"
+#include "src/maglev/maglev-assembler-inl.h"
 #include "src/maglev/maglev-code-gen-state.h"
 #include "src/maglev/maglev-compilation-unit.h"
 #include "src/maglev/maglev-graph-labeller.h"
@@ -30,14 +31,6 @@
 #include "src/maglev/maglev-regalloc-data.h"
 #include "src/objects/code-inl.h"
 #include "src/utils/identity-map.h"
-
-#ifdef V8_TARGET_ARCH_ARM64
-#include "src/maglev/arm64/maglev-assembler-arm64-inl.h"
-#elif V8_TARGET_ARCH_X64
-#include "src/maglev/x64/maglev-assembler-x64-inl.h"
-#else
-#error "Maglev does not supported this architecture."
-#endif
 
 namespace v8 {
 namespace internal {
@@ -663,6 +656,11 @@ class MaglevCodeGeneratingNodeProcessor {
         }
       }
     }
+
+    MaglevAssembler::ScratchRegisterScope scratch_scope(masm());
+    scratch_scope.Include(node->general_temporaries());
+    scratch_scope.IncludeDouble(node->double_temporaries());
+
     node->GenerateCode(masm(), state);
 
     if (std::is_base_of<ValueNode, NodeT>::value) {
