@@ -1960,6 +1960,13 @@ bool MaglevGraphBuilder::TryBuildPropertyLoad(
                           current_interpreter_frame_.accumulator(),
                           access_info);
       return true;
+    case compiler::PropertyAccessInfo::kFunctionLength:
+      DCHECK_EQ(receiver, lookup_start_object);
+      SetAccumulator(AddNewNode<FunctionLength>({receiver}));
+      RecordKnownProperty(lookup_start_object, name,
+                          current_interpreter_frame_.accumulator(),
+                          access_info);
+      return true;
   }
 }
 

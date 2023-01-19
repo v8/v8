@@ -162,6 +162,12 @@ PropertyAccessInfo PropertyAccessInfo::StringLength(Zone* zone,
 }
 
 // static
+PropertyAccessInfo PropertyAccessInfo::FunctionLength(Zone* zone,
+                                                      MapRef receiver_map) {
+  return PropertyAccessInfo(zone, kFunctionLength, {}, {{receiver_map}, zone});
+}
+
+// static
 PropertyAccessInfo PropertyAccessInfo::DictionaryProtoDataConstant(
     Zone* zone, MapRef receiver_map, JSObjectRef holder,
     InternalIndex dictionary_index, NameRef name) {
@@ -343,7 +349,8 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
     }
 
     case kNotFound:
-    case kStringLength: {
+    case kStringLength:
+    case kFunctionLength: {
       DCHECK(unrecorded_dependencies_.empty());
       DCHECK(that->unrecorded_dependencies_.empty());
       AppendVector(&lookup_start_object_maps_, that->lookup_start_object_maps_);
@@ -1039,6 +1046,14 @@ PropertyAccessInfo AccessInfoFactory::LookupSpecialFieldAccessor(
     if (Name::Equals(isolate(), name.object(),
                      isolate()->factory()->length_string())) {
       return PropertyAccessInfo::StringLength(zone(), map);
+    }
+    return Invalid();
+  }
+  // Check for JSFunction::length field accessor.
+  if (map.object()->IsJSFunctionMap()) {
+    if (Name::Equals(isolate(), name.object(),
+                     isolate()->factory()->length_string())) {
+      return PropertyAccessInfo::FunctionLength(zone(), map);
     }
     return Invalid();
   }
