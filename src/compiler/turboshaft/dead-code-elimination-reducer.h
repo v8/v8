@@ -400,13 +400,15 @@ class DeadCodeAnalysis {
 };
 
 template <class Next>
-class DeadCodeEliminationReducerImpl : public Next {
+class DeadCodeEliminationReducer
+    : public UniformReducerAdapter<DeadCodeEliminationReducer, Next> {
  public:
+  using Adapter = UniformReducerAdapter<DeadCodeEliminationReducer, Next>;
   using Next::Asm;
 
   template <class... Args>
-  explicit DeadCodeEliminationReducerImpl(const std::tuple<Args...>& args)
-      : Next(args),
+  explicit DeadCodeEliminationReducer(const std::tuple<Args...>& args)
+      : Adapter(args),
         branch_rewrite_targets_(Asm().phase_zone()),
         analyzer_(Asm().modifiable_input_graph(), Asm().phase_zone()) {}
 
@@ -418,16 +420,19 @@ class DeadCodeEliminationReducerImpl : public Next {
     Next::Analyze();
   }
 
+  OpIndex ReduceInputGraphBranch(OpIndex ig_index, const BranchOp& branch) {
+    auto it = branch_rewrite_targets_.find(ig_index.id());
+    if (it != branch_rewrite_targets_.end()) {
+      BlockIndex goto_target = it->second;
+      Asm().Goto(Asm().MapToNewGraph(goto_target));
+      return OpIndex::Invalid();
+    }
+    return Next::ReduceInputGraphBranch(ig_index, branch);
+  }
+
   template <typename Op, typename Continuation>
   OpIndex ReduceInputGraphOperation(OpIndex ig_index, const Op& op) {
-    if constexpr (std::is_same_v<Op, BranchOp>) {
-      auto it = branch_rewrite_targets_.find(ig_index.id());
-      if (it != branch_rewrite_targets_.end()) {
-        BlockIndex goto_target = it->second;
-        Asm().Goto(Asm().MapToNewGraph(goto_target));
-        return OpIndex::Invalid();
-      }
-    } else if ((*liveness_)[ig_index] == OperationState::kDead) {
+    if ((*liveness_)[ig_index] == OperationState::kDead) {
       return OpIndex::Invalid();
     }
     return Continuation{this}.ReduceInputGraph(ig_index, op);
@@ -443,10 +448,6 @@ class DeadCodeEliminationReducerImpl : public Next {
   ZoneMap<uint32_t, BlockIndex> branch_rewrite_targets_;
   DeadCodeAnalysis analyzer_;
 };
-
-template <typename Next>
-using DeadCodeEliminationReducer =
-    UniformReducerAdapter<DeadCodeEliminationReducerImpl, Next>;
 
 }  // namespace v8::internal::compiler::turboshaft
 

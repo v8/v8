@@ -13,71 +13,73 @@
 namespace v8::internal::compiler::turboshaft {
 
 template <typename Next>
-class TypedOptimizationsReducerImpl : public Next {
+class TypedOptimizationsReducer
+    : public UniformReducerAdapter<TypedOptimizationsReducer, Next> {
  public:
+  using Adapter = UniformReducerAdapter<TypedOptimizationsReducer, Next>;
   using Next::Asm;
+
   template <typename... Args>
-  explicit TypedOptimizationsReducerImpl(const std::tuple<Args...>& args)
-      : Next(args), types_(Asm().output_graph().operation_types()) {}
+  explicit TypedOptimizationsReducer(const std::tuple<Args...>& args)
+      : Adapter(args), types_(Asm().output_graph().operation_types()) {}
 
   template <typename Op, typename Continuation>
   OpIndex ReduceInputGraphOperation(OpIndex ig_index, const Op& op) {
     return Continuation{this}.ReduceInputGraph(ig_index, op);
   }
 
+  OpIndex ReduceConstant(ConstantOp::Kind kind, ConstantOp::Storage storage) {
+    return Next::ReduceConstant(kind, storage);
+  }
+
   template <Opcode opcode, typename Continuation, typename... Args>
   OpIndex ReduceOperation(Args... args) {
     OpIndex index = Continuation{this}.Reduce(args...);
     if (!index.valid()) return index;
+    Type type = GetType(index);
+    if (type.IsInvalid()) return index;
 
-    if constexpr (opcode == Opcode::kConstant) {
-      return index;
-    } else {
-      Type type = GetType(index);
-      if (type.IsInvalid()) return index;
-
-      switch (type.kind()) {
-        case Type::Kind::kWord32: {
-          auto w32 = type.AsWord32();
-          if (auto c = w32.try_get_constant()) {
-            return Asm().Word32Constant(*c);
-          }
-          break;
+    switch (type.kind()) {
+      case Type::Kind::kWord32: {
+        auto w32 = type.AsWord32();
+        if (auto c = w32.try_get_constant()) {
+          return Asm().Word32Constant(*c);
         }
-        case Type::Kind::kWord64: {
-          auto w64 = type.AsWord64();
-          if (auto c = w64.try_get_constant()) {
-            return Asm().Word64Constant(*c);
-          }
-          break;
-        }
-        case Type::Kind::kFloat32: {
-          auto f32 = type.AsFloat32();
-          if (f32.is_only_nan()) {
-            return Asm().Float32Constant(nan_v<32>);
-          }
-          if (auto c = f32.try_get_constant()) {
-            return Asm().Float32Constant(*c);
-          }
-          break;
-        }
-        case Type::Kind::kFloat64: {
-          auto f64 = type.AsFloat64();
-          if (f64.is_only_nan()) {
-            return Asm().Float64Constant(nan_v<64>);
-          }
-          if (auto c = f64.try_get_constant()) {
-            return Asm().Float64Constant(*c);
-          }
-          break;
-        }
-        default:
-          break;
+        break;
       }
-
-      // Keep unchanged.
-      return index;
+      case Type::Kind::kWord64: {
+        auto w64 = type.AsWord64();
+        if (auto c = w64.try_get_constant()) {
+          return Asm().Word64Constant(*c);
+        }
+        break;
+      }
+      case Type::Kind::kFloat32: {
+        auto f32 = type.AsFloat32();
+        if (f32.is_only_nan()) {
+          return Asm().Float32Constant(nan_v<32>);
+        }
+        if (auto c = f32.try_get_constant()) {
+          return Asm().Float32Constant(*c);
+        }
+        break;
+      }
+      case Type::Kind::kFloat64: {
+        auto f64 = type.AsFloat64();
+        if (f64.is_only_nan()) {
+          return Asm().Float64Constant(nan_v<64>);
+        }
+        if (auto c = f64.try_get_constant()) {
+          return Asm().Float64Constant(*c);
+        }
+        break;
+      }
+      default:
+        break;
     }
+
+    // Keep unchanged.
+    return index;
   }
 
   Type GetType(const OpIndex index) { return types_[index]; }
@@ -85,10 +87,6 @@ class TypedOptimizationsReducerImpl : public Next {
  private:
   GrowingSidetable<Type>& types_;
 };
-
-template <typename Next>
-using TypedOptimizationsReducer =
-    UniformReducerAdapter<TypedOptimizationsReducerImpl, Next>;
 
 }  // namespace v8::internal::compiler::turboshaft
 
