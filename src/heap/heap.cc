@@ -5813,9 +5813,7 @@ void Heap::SetStackStart(void* stack_start) {
 #endif  // V8_ENABLE_WEBASSEMBLY
 }
 
-::heap::base::Stack& Heap::stack() {
-  return isolate_->thread_local_top()->stack_;
-}
+::heap::base::Stack& Heap::stack() { return isolate_->stack(); }
 
 void Heap::StartTearDown() {
   // Finish any ongoing sweeping to avoid stray background tasks still accessing

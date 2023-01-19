@@ -37,7 +37,6 @@ void ThreadLocalTop::Clear() {
   current_embedder_state_ = nullptr;
   failed_access_check_callback_ = nullptr;
   thread_in_wasm_flag_address_ = kNullAddress;
-  stack_ = ::heap::base::Stack();
 }
 
 void ThreadLocalTop::Initialize(Isolate* isolate) {
@@ -45,12 +44,8 @@ void ThreadLocalTop::Initialize(Isolate* isolate) {
   isolate_ = isolate;
   thread_id_ = ThreadId::Current();
 #if V8_ENABLE_WEBASSEMBLY
-  stack_.SetStackStart(base::Stack::GetStackStart(),
-                       v8_flags.experimental_wasm_stack_switching);
   thread_in_wasm_flag_address_ = reinterpret_cast<Address>(
       trap_handler::GetThreadInWasmThreadLocalAddress());
-#else
-  stack_.SetStackStart(base::Stack::GetStackStart(), false);
 #endif  // V8_ENABLE_WEBASSEMBLY
 #ifdef USE_SIMULATOR
   simulator_ = Simulator::current(isolate);
