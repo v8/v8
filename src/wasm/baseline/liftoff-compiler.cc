@@ -6492,7 +6492,7 @@ class LiftoffCompiler {
 
     CallRuntimeStub(
         WasmCode::kWasmStringNewWtf8,
-        MakeSig::Returns(kRef).Params(kI32, kI32, kSmiKind, kSmiKind),
+        MakeSig::Returns(kRefNull).Params(kI32, kI32, kSmiKind, kSmiKind),
         {
             __ cache_state()->stack_state.end()[-2],  // offset
             __ cache_state()->stack_state.end()[-1],  // size
@@ -6624,6 +6624,8 @@ class LiftoffCompiler {
       case unibrow::Utf8Variant::kWtf8:
         stub_id = WasmCode::kWasmStringMeasureWtf8;
         break;
+      case unibrow::Utf8Variant::kUtf8NoTrap:
+        UNREACHABLE();
     }
     CallRuntimeStub(stub_id, MakeSig::Returns(kI32).Params(kRef),
                     {

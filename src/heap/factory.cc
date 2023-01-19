@@ -696,7 +696,9 @@ MaybeHandle<String> NewStringFromBytes(Isolate* isolate, PeekBytes peek_bytes,
                                        MessageTemplate message) {
   Decoder decoder(peek_bytes());
   if (decoder.is_invalid()) {
-    ThrowInvalidEncodedStringBytes(isolate, message);
+    if (message != MessageTemplate::kNone) {
+      ThrowInvalidEncodedStringBytes(isolate, message);
+    }
     return MaybeHandle<String>();
   }
 
@@ -746,6 +748,9 @@ MaybeHandle<String> NewStringFromUtf8Variant(Isolate* isolate,
       return NewStringFromBytes<StrictUtf8Decoder>(
           isolate, peek_bytes, allocation,
           MessageTemplate::kWasmTrapStringInvalidUtf8);
+    case unibrow::Utf8Variant::kUtf8NoTrap:
+      return NewStringFromBytes<StrictUtf8Decoder>(
+          isolate, peek_bytes, allocation, MessageTemplate::kNone);
     case unibrow::Utf8Variant::kWtf8:
       return NewStringFromBytes<Wtf8Decoder>(
           isolate, peek_bytes, allocation,

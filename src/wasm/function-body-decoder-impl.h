@@ -2243,6 +2243,7 @@ class WasmDecoder : public Decoder {
           case kExprArrayLen:
             return length;
           case kExprStringNewUtf8:
+          case kExprStringNewUtf8Try:
           case kExprStringNewLossyUtf8:
           case kExprStringNewWtf8:
           case kExprStringEncodeUtf8:
@@ -2493,6 +2494,7 @@ class WasmDecoder : public Decoder {
           case kExprStringViewIterNext:
             return { 1, 1 };
           case kExprStringNewUtf8:
+          case kExprStringNewUtf8Try:
           case kExprStringNewLossyUtf8:
           case kExprStringNewWtf8:
           case kExprStringNewWtf16:
@@ -5721,12 +5723,14 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   int DecodeStringNewWtf8(unibrow::Utf8Variant variant,
                           uint32_t opcode_length) {
     NON_CONST_ONLY
+    bool null_on_invalid = variant == unibrow::Utf8Variant::kUtf8NoTrap;
     MemoryIndexImmediate memory(this, this->pc_ + opcode_length, validate);
     if (!this->Validate(this->pc_ + opcode_length, memory)) return 0;
     ValueType addr_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
     Value offset = Peek(1, 0, addr_type);
     Value size = Peek(0, 1, kWasmI32);
-    Value result = CreateValue(ValueType::Ref(HeapType::kString));
+    Value result = CreateValue(ValueType::RefMaybeNull(
+        HeapType::kString, null_on_invalid ? kNullable : kNonNullable));
     CALL_INTERFACE_IF_OK_AND_REACHABLE(StringNewWtf8, memory, variant, offset,
                                        size, &result);
     Drop(2);
@@ -5822,6 +5826,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     switch (opcode) {
       case kExprStringNewUtf8:
         return DecodeStringNewWtf8(unibrow::Utf8Variant::kUtf8, opcode_length);
+      case kExprStringNewUtf8Try:
+        return DecodeStringNewWtf8(unibrow::Utf8Variant::kUtf8NoTrap,
+                                   opcode_length);
       case kExprStringNewLossyUtf8:
         return DecodeStringNewWtf8(unibrow::Utf8Variant::kLossyUtf8,
                                    opcode_length);

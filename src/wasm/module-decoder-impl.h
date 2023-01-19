@@ -95,6 +95,8 @@ inline WireBytesRef consume_string(Decoder* decoder,
             decoder->errorf(string_start, "%s: no valid WTF-8 string", name);
           }
           break;
+        case unibrow::Utf8Variant::kUtf8NoTrap:
+          UNREACHABLE();
       }
     }
   }

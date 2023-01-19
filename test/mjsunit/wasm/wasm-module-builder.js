@@ -550,6 +550,7 @@ let kExprStringNewLossyUtf8 = 0x8b;
 let kExprStringNewWtf8 = 0x8c;
 let kExprStringEncodeLossyUtf8 = 0x8d;
 let kExprStringEncodeWtf8 = 0x8e;
+let kExprStringNewUtf8Try = 0x8f;
 let kExprStringAsWtf8 = 0x90;
 let kExprStringViewWtf8Advance = 0x91;
 let kExprStringViewWtf8EncodeUtf8 = 0x92;

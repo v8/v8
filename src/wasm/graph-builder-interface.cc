@@ -1617,6 +1617,8 @@ class WasmGraphBuildingInterface {
             result, builder_->StringMeasureWtf8(
                         str.node, NullCheckFor(str.type), decoder->position()));
         break;
+      case unibrow::Utf8Variant::kUtf8NoTrap:
+        UNREACHABLE();
     }
   }
 

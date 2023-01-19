@@ -77,6 +77,11 @@ let kSig_w_zi = makeSig([kWasmStringViewIter, kWasmI32],
       kExprLocalGet, 0, kExprLocalGet, 1,
       ...GCInstr(kExprStringNewUtf8), 0
     ]);
+  builder.addFunction("string.new_utf8_try", kSig_w_ii)
+    .addBody([
+      kExprLocalGet, 0, kExprLocalGet, 1,
+      ...GCInstr(kExprStringNewUtf8Try), 0
+    ]);
   builder.addFunction("string.new_lossy_utf8", kSig_w_ii)
     .addBody([
       kExprLocalGet, 0, kExprLocalGet, 1,

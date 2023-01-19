@@ -946,8 +946,16 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8) {
 
   const base::Vector<const uint8_t> bytes{instance.memory_start() + offset,
                                           size};
-  RETURN_RESULT_OR_TRAP(
-      isolate->factory()->NewStringFromUtf8(bytes, utf8_variant));
+  MaybeHandle<v8::internal::String> result_string =
+      isolate->factory()->NewStringFromUtf8(bytes, utf8_variant);
+  if (utf8_variant == unibrow::Utf8Variant::kUtf8NoTrap) {
+    DCHECK(!isolate->has_pending_exception());
+    if (result_string.is_null()) {
+      return *isolate->factory()->null_value();
+    }
+    return *result_string.ToHandleChecked();
+  }
+  RETURN_RESULT_OR_TRAP(result_string);
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8Array) {
