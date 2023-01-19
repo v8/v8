@@ -988,7 +988,7 @@ StringTransitionStrategy Factory::ComputeInternalizationStrategyForString(
   if (!internalized_map->is_null()) {
     return StringTransitionStrategy::kInPlace;
   }
-  if (InstanceTypeChecker::IsInternalizedString(map.instance_type())) {
+  if (InstanceTypeChecker::IsInternalizedString(map)) {
     return StringTransitionStrategy::kAlreadyTransitioned;
   }
   return StringTransitionStrategy::kCopy;
@@ -2640,7 +2640,7 @@ Handle<JSObject> Factory::NewJSObjectFromMap(
     Handle<AllocationSite> allocation_site) {
   // JSFunctions should be allocated using AllocateFunction to be
   // properly initialized.
-  DCHECK(!InstanceTypeChecker::IsJSFunction((map->instance_type())));
+  DCHECK(!InstanceTypeChecker::IsJSFunction(*map));
 
   // Both types of global objects should be allocated using
   // AllocateGlobalObject to be properly initialized.
@@ -4049,7 +4049,7 @@ Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(Handle<Code> code) {
   Handle<Map> map = maybe_map_.ToHandleChecked();
   Handle<FeedbackCell> feedback_cell = maybe_feedback_cell_.ToHandleChecked();
 
-  DCHECK(InstanceTypeChecker::IsJSFunction(map->instance_type()));
+  DCHECK(InstanceTypeChecker::IsJSFunction(*map));
 
   // Allocation.
   JSFunction function = JSFunction::cast(factory->New(map, allocation_type_));

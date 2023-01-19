@@ -48,87 +48,87 @@ CAST_ACCESSOR(DeoptimizationData)
 CAST_ACCESSOR(DeoptimizationLiteralArray)
 
 int AbstractCode::InstructionSize(PtrComprCageBase cage_base) {
-  InstanceType instance_type = map(cage_base).instance_type();
-  if (InstanceTypeChecker::IsInstructionStream(instance_type)) {
+  Map map_object = map(cage_base);
+  if (InstanceTypeChecker::IsInstructionStream(map_object)) {
     return GetInstructionStream().InstructionSize();
-  } else if (InstanceTypeChecker::IsCode(instance_type)) {
+  } else if (InstanceTypeChecker::IsCode(map_object)) {
     return GetCode().InstructionSize();
   } else {
-    DCHECK(InstanceTypeChecker::IsBytecodeArray(instance_type));
+    DCHECK(InstanceTypeChecker::IsBytecodeArray(map_object));
     return GetBytecodeArray().length();
   }
 }
 
 ByteArray AbstractCode::SourcePositionTableInternal(
     PtrComprCageBase cage_base) {
-  InstanceType instance_type = map(cage_base).instance_type();
-  if (InstanceTypeChecker::IsInstructionStream(instance_type)) {
+  Map map_object = map(cage_base);
+  if (InstanceTypeChecker::IsInstructionStream(map_object)) {
     DCHECK_NE(GetInstructionStream().kind(), CodeKind::BASELINE);
     return GetInstructionStream().source_position_table(cage_base);
-  } else if (InstanceTypeChecker::IsCode(instance_type)) {
+  } else if (InstanceTypeChecker::IsCode(map_object)) {
     Code code = GetCode();
     if (code.is_off_heap_trampoline()) {
       return GetReadOnlyRoots().empty_byte_array();
     }
     return code.source_position_table(cage_base);
   } else {
-    DCHECK(InstanceTypeChecker::IsBytecodeArray(instance_type));
+    DCHECK(InstanceTypeChecker::IsBytecodeArray(map_object));
     return GetBytecodeArray().SourcePositionTable(cage_base);
   }
 }
 
 ByteArray AbstractCode::SourcePositionTable(PtrComprCageBase cage_base,
                                             SharedFunctionInfo sfi) {
-  InstanceType instance_type = map(cage_base).instance_type();
-  if (InstanceTypeChecker::IsInstructionStream(instance_type)) {
+  Map map_object = map(cage_base);
+  if (InstanceTypeChecker::IsInstructionStream(map_object)) {
     return GetInstructionStream().SourcePositionTable(cage_base, sfi);
-  } else if (InstanceTypeChecker::IsCode(instance_type)) {
+  } else if (InstanceTypeChecker::IsCode(map_object)) {
     Code code = GetCode();
     if (code.is_off_heap_trampoline()) {
       return GetReadOnlyRoots().empty_byte_array();
     }
     return FromCode(code).SourcePositionTable(cage_base, sfi);
   } else {
-    DCHECK(InstanceTypeChecker::IsBytecodeArray(instance_type));
+    DCHECK(InstanceTypeChecker::IsBytecodeArray(map_object));
     return GetBytecodeArray().SourcePositionTable(cage_base);
   }
 }
 
 int AbstractCode::SizeIncludingMetadata(PtrComprCageBase cage_base) {
-  InstanceType instance_type = map(cage_base).instance_type();
-  if (InstanceTypeChecker::IsInstructionStream(instance_type)) {
+  Map map_object = map(cage_base);
+  if (InstanceTypeChecker::IsInstructionStream(map_object)) {
     return GetInstructionStream().SizeIncludingMetadata(cage_base);
-  } else if (InstanceTypeChecker::IsCode(instance_type)) {
+  } else if (InstanceTypeChecker::IsCode(map_object)) {
     Code code = GetCode();
     return code.is_off_heap_trampoline()
                ? 0
                : FromCode(code).SizeIncludingMetadata(cage_base);
   } else {
-    DCHECK(InstanceTypeChecker::IsBytecodeArray(instance_type));
+    DCHECK(InstanceTypeChecker::IsBytecodeArray(map_object));
     return GetBytecodeArray().SizeIncludingMetadata();
   }
 }
 
 Address AbstractCode::InstructionStart(PtrComprCageBase cage_base) {
-  InstanceType instance_type = map(cage_base).instance_type();
-  if (InstanceTypeChecker::IsInstructionStream(instance_type)) {
+  Map map_object = map(cage_base);
+  if (InstanceTypeChecker::IsInstructionStream(map_object)) {
     return GetInstructionStream().InstructionStart();
-  } else if (InstanceTypeChecker::IsCode(instance_type)) {
+  } else if (InstanceTypeChecker::IsCode(map_object)) {
     return GetCode().InstructionStart();
   } else {
-    DCHECK(InstanceTypeChecker::IsBytecodeArray(instance_type));
+    DCHECK(InstanceTypeChecker::IsBytecodeArray(map_object));
     return GetBytecodeArray().GetFirstBytecodeAddress();
   }
 }
 
 Address AbstractCode::InstructionEnd(PtrComprCageBase cage_base) {
-  InstanceType instance_type = map(cage_base).instance_type();
-  if (InstanceTypeChecker::IsInstructionStream(instance_type)) {
+  Map map_object = map(cage_base);
+  if (InstanceTypeChecker::IsInstructionStream(map_object)) {
     return GetInstructionStream().InstructionEnd();
-  } else if (InstanceTypeChecker::IsCode(instance_type)) {
+  } else if (InstanceTypeChecker::IsCode(map_object)) {
     return GetCode().InstructionEnd();
   } else {
-    DCHECK(InstanceTypeChecker::IsBytecodeArray(instance_type));
+    DCHECK(InstanceTypeChecker::IsBytecodeArray(map_object));
     BytecodeArray bytecode_array = GetBytecodeArray();
     return bytecode_array.GetFirstBytecodeAddress() + bytecode_array.length();
   }
@@ -136,60 +136,60 @@ Address AbstractCode::InstructionEnd(PtrComprCageBase cage_base) {
 
 bool AbstractCode::contains(Isolate* isolate, Address inner_pointer) {
   PtrComprCageBase cage_base(isolate);
-  InstanceType instance_type = map(cage_base).instance_type();
-  if (InstanceTypeChecker::IsInstructionStream(instance_type)) {
+  Map map_object = map(cage_base);
+  if (InstanceTypeChecker::IsInstructionStream(map_object)) {
     return GetInstructionStream().contains(isolate, inner_pointer);
-  } else if (InstanceTypeChecker::IsCode(instance_type)) {
+  } else if (InstanceTypeChecker::IsCode(map_object)) {
     return GetCode().contains(isolate, inner_pointer);
   } else {
-    DCHECK(InstanceTypeChecker::IsBytecodeArray(instance_type));
+    DCHECK(InstanceTypeChecker::IsBytecodeArray(map_object));
     return (address() <= inner_pointer) &&
            (inner_pointer <= address() + Size(cage_base));
   }
 }
 
 CodeKind AbstractCode::kind(PtrComprCageBase cage_base) {
-  InstanceType instance_type = map(cage_base).instance_type();
-  if (InstanceTypeChecker::IsInstructionStream(instance_type)) {
+  Map map_object = map(cage_base);
+  if (InstanceTypeChecker::IsInstructionStream(map_object)) {
     return GetInstructionStream().kind();
-  } else if (InstanceTypeChecker::IsCode(instance_type)) {
+  } else if (InstanceTypeChecker::IsCode(map_object)) {
     return GetCode().kind();
   } else {
-    DCHECK(InstanceTypeChecker::IsBytecodeArray(instance_type));
+    DCHECK(InstanceTypeChecker::IsBytecodeArray(map_object));
     return CodeKind::INTERPRETED_FUNCTION;
   }
 }
 
 Builtin AbstractCode::builtin_id(PtrComprCageBase cage_base) {
-  InstanceType instance_type = map(cage_base).instance_type();
-  if (InstanceTypeChecker::IsInstructionStream(instance_type)) {
+  Map map_object = map(cage_base);
+  if (InstanceTypeChecker::IsInstructionStream(map_object)) {
     return GetInstructionStream().builtin_id();
-  } else if (InstanceTypeChecker::IsCode(instance_type)) {
+  } else if (InstanceTypeChecker::IsCode(map_object)) {
     return GetCode().builtin_id();
   } else {
-    DCHECK(InstanceTypeChecker::IsBytecodeArray(instance_type));
+    DCHECK(InstanceTypeChecker::IsBytecodeArray(map_object));
     return Builtin::kNoBuiltinId;
   }
 }
 
 bool AbstractCode::is_off_heap_trampoline(PtrComprCageBase cage_base) {
-  InstanceType instance_type = map(cage_base).instance_type();
-  if (InstanceTypeChecker::IsInstructionStream(instance_type)) {
+  Map map_object = map(cage_base);
+  if (InstanceTypeChecker::IsInstructionStream(map_object)) {
     return GetInstructionStream().is_off_heap_trampoline();
-  } else if (InstanceTypeChecker::IsCode(instance_type)) {
+  } else if (InstanceTypeChecker::IsCode(map_object)) {
     return GetCode().is_off_heap_trampoline();
   } else {
-    DCHECK(InstanceTypeChecker::IsBytecodeArray(instance_type));
+    DCHECK(InstanceTypeChecker::IsBytecodeArray(map_object));
     return false;
   }
 }
 
 HandlerTable::CatchPrediction AbstractCode::GetBuiltinCatchPrediction(
     PtrComprCageBase cage_base) {
-  InstanceType instance_type = map(cage_base).instance_type();
-  if (InstanceTypeChecker::IsInstructionStream(instance_type)) {
+  Map map_object = map(cage_base);
+  if (InstanceTypeChecker::IsInstructionStream(map_object)) {
     return GetInstructionStream().GetBuiltinCatchPrediction();
-  } else if (InstanceTypeChecker::IsCode(instance_type)) {
+  } else if (InstanceTypeChecker::IsCode(map_object)) {
     return GetCode().GetBuiltinCatchPrediction();
   } else {
     UNREACHABLE();
@@ -220,10 +220,10 @@ BytecodeArray AbstractCode::GetBytecodeArray() {
 
 InstructionStream AbstractCode::ToInstructionStream(
     PtrComprCageBase cage_base) {
-  InstanceType instance_type = map(cage_base).instance_type();
-  if (InstanceTypeChecker::IsInstructionStream(instance_type)) {
+  Map map_object = map(cage_base);
+  if (InstanceTypeChecker::IsInstructionStream(map_object)) {
     return GetInstructionStream();
-  } else if (InstanceTypeChecker::IsCode(instance_type)) {
+  } else if (InstanceTypeChecker::IsCode(map_object)) {
     Code code = GetCode();
     DCHECK(!code.is_off_heap_trampoline());
     return FromCode(code);
@@ -233,10 +233,10 @@ InstructionStream AbstractCode::ToInstructionStream(
 }
 
 Code AbstractCode::ToCode(PtrComprCageBase cage_base) {
-  InstanceType instance_type = map(cage_base).instance_type();
-  if (InstanceTypeChecker::IsInstructionStream(instance_type)) {
+  Map map_object = map(cage_base);
+  if (InstanceTypeChecker::IsInstructionStream(map_object)) {
     return i::ToCode(GetInstructionStream());
-  } else if (InstanceTypeChecker::IsCode(instance_type)) {
+  } else if (InstanceTypeChecker::IsCode(map_object)) {
     return GetCode();
   } else {
     UNREACHABLE();
@@ -1253,14 +1253,13 @@ bool InstructionStream::IsWeakObject(HeapObject object) {
 }
 
 bool InstructionStream::IsWeakObjectInOptimizedCode(HeapObject object) {
-  Map map = object.map(kAcquireLoad);
-  InstanceType instance_type = map.instance_type();
-  if (InstanceTypeChecker::IsMap(instance_type)) {
+  Map map_object = object.map(kAcquireLoad);
+  if (InstanceTypeChecker::IsMap(map_object)) {
     return Map::cast(object).CanTransition();
   }
-  return InstanceTypeChecker::IsPropertyCell(instance_type) ||
-         InstanceTypeChecker::IsJSReceiver(instance_type) ||
-         InstanceTypeChecker::IsContext(instance_type);
+  return InstanceTypeChecker::IsPropertyCell(map_object) ||
+         InstanceTypeChecker::IsJSReceiver(map_object) ||
+         InstanceTypeChecker::IsContext(map_object);
 }
 
 bool InstructionStream::IsWeakObjectInDeoptimizationLiteralArray(

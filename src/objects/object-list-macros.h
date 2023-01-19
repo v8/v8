@@ -363,17 +363,17 @@ class ZoneForwardList;
   HEAP_OBJECT_TEMPLATE_TYPE_LIST(V) \
   HEAP_OBJECT_SPECIALIZED_TYPE_LIST(V)
 
-#define ODDBALL_LIST(V)                 \
-  V(Undefined, undefined_value)         \
-  V(Null, null_value)                   \
-  V(TheHole, the_hole_value)            \
-  V(Exception, exception)               \
-  V(Uninitialized, uninitialized_value) \
-  V(True, true_value)                   \
-  V(False, false_value)                 \
-  V(ArgumentsMarker, arguments_marker)  \
-  V(OptimizedOut, optimized_out)        \
-  V(StaleRegister, stale_register)
+#define ODDBALL_LIST(V)                                     \
+  V(Undefined, undefined_value, UndefinedValue)             \
+  V(Null, null_value, NullValue)                            \
+  V(TheHole, the_hole_value, TheHoleValue)                  \
+  V(Exception, exception, Exception)                        \
+  V(Uninitialized, uninitialized_value, UninitializedValue) \
+  V(True, true_value, TrueValue)                            \
+  V(False, false_value, FalseValue)                         \
+  V(ArgumentsMarker, arguments_marker, ArgumentsMarker)     \
+  V(OptimizedOut, optimized_out, OptimizedOut)              \
+  V(StaleRegister, stale_register, StaleRegister)
 
 }  // namespace internal
 }  // namespace v8

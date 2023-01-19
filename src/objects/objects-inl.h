@@ -101,7 +101,7 @@ IS_TYPE_FUNCTION_DEF(HashTableBase)
 IS_TYPE_FUNCTION_DEF(SmallOrderedHashTable)
 #undef IS_TYPE_FUNCTION_DEF
 
-#define IS_TYPE_FUNCTION_DEF(Type, Value)                        \
+#define IS_TYPE_FUNCTION_DEF(Type, Value, _)                     \
   bool Object::Is##Type(Isolate* isolate) const {                \
     return Is##Type(ReadOnlyRoots(isolate));                     \
   }                                                              \
@@ -125,14 +125,14 @@ ODDBALL_LIST(IS_TYPE_FUNCTION_DEF)
 #undef IS_TYPE_FUNCTION_DEF
 
 #if V8_STATIC_ROOTS_BOOL
-#define IS_TYPE_FUNCTION_DEF(Type, Value)                                  \
+#define IS_TYPE_FUNCTION_DEF(Type, Value, CamelName)                       \
   bool Object::Is##Type(ReadOnlyRoots roots) const {                       \
     SLOW_DCHECK(CheckObjectComparisonAllowed(ptr(), roots.Value().ptr())); \
     return V8HeapCompressionScheme::CompressTagged(ptr()) ==               \
-           kStaticReadOnlyRoot::Value;                                     \
+           StaticReadOnlyRoot::k##CamelName;                               \
   }
 #else
-#define IS_TYPE_FUNCTION_DEF(Type, Value)            \
+#define IS_TYPE_FUNCTION_DEF(Type, Value, _)         \
   bool Object::Is##Type(ReadOnlyRoots roots) const { \
     return (*this) == roots.Value();                 \
   }

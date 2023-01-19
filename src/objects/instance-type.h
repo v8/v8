@@ -285,8 +285,9 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   INSTANCE_TYPE_CHECKERS_CUSTOM(V)
 
 namespace InstanceTypeChecker {
-#define IS_TYPE_FUNCTION_DECL(Type, ...) \
-  V8_INLINE constexpr bool Is##Type(InstanceType instance_type);
+#define IS_TYPE_FUNCTION_DECL(Type, ...)                         \
+  V8_INLINE constexpr bool Is##Type(InstanceType instance_type); \
+  V8_INLINE bool Is##Type(Map map);
 
 INSTANCE_TYPE_CHECKERS(IS_TYPE_FUNCTION_DECL)
 

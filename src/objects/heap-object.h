@@ -105,13 +105,13 @@ class HeapObject : public Object {
 
 // Oddball checks are faster when they are raw pointer comparisons, so the
 // isolate/read-only roots overloads should be preferred where possible.
-#define IS_TYPE_FUNCTION_DECL(Type, Value)              \
+#define IS_TYPE_FUNCTION_DECL(Type, Value, _)           \
   V8_INLINE bool Is##Type(Isolate* isolate) const;      \
   V8_INLINE bool Is##Type(LocalIsolate* isolate) const; \
   V8_INLINE bool Is##Type(ReadOnlyRoots roots) const;   \
   V8_INLINE bool Is##Type() const;
   ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
-  IS_TYPE_FUNCTION_DECL(NullOrUndefined, /* unused */)
+  IS_TYPE_FUNCTION_DECL(NullOrUndefined, , /* unused */)
 #undef IS_TYPE_FUNCTION_DECL
 
 #define DECL_STRUCT_PREDICATE(NAME, Name, name) \

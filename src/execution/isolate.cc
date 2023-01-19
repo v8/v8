@@ -4174,8 +4174,8 @@ void Isolate::VerifyStaticRoots() {
   }
 
   idx = RootIndex::kFirstReadOnlyRoot;
-#define CHECK_NAME(_1, name_, _2)                                         \
-  CHECK_WITH_MSG(kStaticReadOnlyRoot::name_ ==                            \
+#define CHECK_NAME(_1, _2, CamelName)                                     \
+  CHECK_WITH_MSG(StaticReadOnlyRoot::k##CamelName ==                      \
                      V8HeapCompressionScheme::CompressTagged(roots[idx]), \
                  STATIC_ROOTS_FAILED_MSG);                                \
   ++idx;
