@@ -120,6 +120,8 @@ class HeapEntry {
     kSymbol = v8::HeapGraphNode::kSymbol,
     kBigInt = v8::HeapGraphNode::kBigInt,
     kObjectShape = v8::HeapGraphNode::kObjectShape,
+    kWasmObject = v8::HeapGraphNode::kWasmObject,
+    kNumTypes,
   };
 
   HeapEntry(HeapSnapshot* snapshot, int index, Type type, const char* name,
@@ -189,7 +191,8 @@ class HeapEntry {
   V8_INLINE std::vector<HeapGraphEdge*>::iterator children_end() const;
   const char* TypeAsString() const;
 
-  unsigned type_: 4;
+  static_assert(kNumTypes <= 1 << 4);
+  unsigned type_ : 4;
   unsigned index_ : 28;  // Supports up to ~250M objects.
   union {
     // The count is used during the snapshot build phase,
@@ -465,6 +468,11 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
                                    Object callback_obj, int field_offset = -1);
   void ExtractElementReferences(JSObject js_obj, HeapEntry* entry);
   void ExtractInternalReferences(JSObject js_obj, HeapEntry* entry);
+
+#if V8_ENABLE_WEBASSEMBLY
+  void ExtractWasmStructReferences(WasmStruct obj, HeapEntry* entry);
+  void ExtractWasmArrayReferences(WasmArray obj, HeapEntry* entry);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   bool IsEssentialObject(Object object);
   bool IsEssentialHiddenReference(Object parent, int field_offset);

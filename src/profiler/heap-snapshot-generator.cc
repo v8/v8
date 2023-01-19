@@ -41,6 +41,12 @@
 #include "src/profiler/heap-snapshot-generator-inl.h"
 #include "src/profiler/output-stream-writer.h"
 
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/names-provider.h"
+#include "src/wasm/string-builder.h"
+#include "src/wasm/wasm-objects.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 namespace v8 {
 namespace internal {
 
@@ -385,6 +391,8 @@ const char* HeapEntry::TypeAsString() const {
       return "/bigint/";
     case kObjectShape:
       return "/object shape/";
+    case kWasmObject:
+      return "/wasm object/";
     default: return "???";
   }
 }
@@ -873,6 +881,23 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject object) {
   } else if (InstanceTypeChecker::IsHeapNumber(instance_type)) {
     return AddEntry(object, HeapEntry::kHeapNumber, "heap number");
   }
+#if V8_ENABLE_WEBASSEMBLY
+  if (InstanceTypeChecker::IsWasmObject(instance_type)) {
+    WasmTypeInfo info = object.map().wasm_type_info();
+    wasm::NamesProvider* names =
+        info.instance().module_object().native_module()->GetNamesProvider();
+    wasm::StringBuilder sb;
+    if (InstanceTypeChecker::IsWasmStruct(instance_type)) {
+      sb << "wasm struct / ";
+    } else {
+      sb << "wasm array / ";
+    }
+    names->PrintTypeName(sb, info.type_index());
+    sb << '\0';
+    const char* name = names_->GetCopy(sb.start());
+    return AddEntry(object, HeapEntry::kWasmObject, name);
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
   return AddEntry(object, GetSystemEntryType(object),
                   GetSystemEntryName(object));
 }
@@ -1192,6 +1217,12 @@ void V8HeapExplorer::ExtractReferences(HeapEntry* entry, HeapObject obj) {
     ExtractBytecodeArrayReferences(entry, BytecodeArray::cast(obj));
   } else if (obj.IsScopeInfo()) {
     ExtractScopeInfoReferences(entry, ScopeInfo::cast(obj));
+#if V8_ENABLE_WEBASSEMBLY
+  } else if (obj.IsWasmStruct()) {
+    ExtractWasmStructReferences(WasmStruct::cast(obj), entry);
+  } else if (obj.IsWasmArray()) {
+    ExtractWasmArrayReferences(WasmArray::cast(obj), entry);
+#endif  // V8_ENABLE_WEBASSEMBLY
   }
 }
 
@@ -1935,6 +1966,39 @@ void V8HeapExplorer::ExtractInternalReferences(JSObject js_obj,
     SetInternalReference(entry, i, o, js_obj.GetEmbedderFieldOffset(i));
   }
 }
+
+#if V8_ENABLE_WEBASSEMBLY
+
+void V8HeapExplorer::ExtractWasmStructReferences(WasmStruct obj,
+                                                 HeapEntry* entry) {
+  wasm::StructType* type = obj.type();
+  WasmTypeInfo info = obj.map().wasm_type_info();
+  wasm::NamesProvider* names =
+      info.instance().module_object().native_module()->GetNamesProvider();
+  for (uint32_t i = 0; i < type->field_count(); i++) {
+    if (!type->field(i).is_reference()) continue;
+    wasm::StringBuilder sb;
+    names->PrintFieldName(sb, info.type_index(), i);
+    sb << '\0';
+    const char* field_name = names_->GetCopy(sb.start());
+    int field_offset = type->field_offset(i);
+    Object value = obj.RawField(field_offset).load(entry->isolate());
+    HeapEntry* value_entry = GetEntry(value);
+    entry->SetNamedReference(HeapGraphEdge::kProperty, field_name, value_entry,
+                             generator_);
+    MarkVisitedField(WasmStruct::kHeaderSize + field_offset);
+  }
+}
+void V8HeapExplorer::ExtractWasmArrayReferences(WasmArray obj,
+                                                HeapEntry* entry) {
+  if (!obj.type()->element_type().is_reference()) return;
+  for (uint32_t i = 0; i < obj.length(); i++) {
+    SetElementReference(entry, i, obj.ElementSlot(i).load(entry->isolate()));
+    MarkVisitedField(obj.element_offset(i));
+  }
+}
+
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 JSFunction V8HeapExplorer::GetConstructor(Isolate* isolate,
                                           JSReceiver receiver) {
@@ -3001,7 +3065,8 @@ void HeapSnapshotJSONSerializer::SerializeSnapshot() {
             JSON_S("sliced string") ","
             JSON_S("symbol") ","
             JSON_S("bigint") ","
-            JSON_S("object shape")) ","
+            JSON_S("object shape") ","
+            JSON_S("wasm object")) ","
         JSON_S("string") ","
         JSON_S("number") ","
         JSON_S("number") ","
