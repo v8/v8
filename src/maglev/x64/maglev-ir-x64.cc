@@ -2108,6 +2108,36 @@ void CheckedFloat64Unbox::GenerateCode(MaglevAssembler* masm,
   __ bind(&done);
 }
 
+namespace {
+
+void EmitTruncateNumberToInt32(MaglevAssembler* masm, Register value,
+                               Register result_reg, Label* not_a_number) {
+  Label is_not_smi, done;
+  // Check if Smi.
+  __ JumpIfNotSmi(value, &is_not_smi, Label::kNear);
+  // If Smi, convert to Int32.
+  __ SmiToInt32(value);
+  __ jmp(&done, Label::kNear);
+  __ bind(&is_not_smi);
+  if (not_a_number != nullptr) {
+    // Check if HeapNumber, deopt otherwise.
+    __ CompareRoot(FieldOperand(value, HeapObject::kMapOffset),
+                   RootIndex::kHeapNumberMap);
+    __ RecordComment("-- Jump to eager deopt");
+    __ JumpIf(not_equal, not_a_number);
+  } else if (v8_flags.debug_code) {
+    __ CompareRoot(FieldOperand(value, HeapObject::kMapOffset),
+                   RootIndex::kHeapNumberMap);
+    __ Assert(equal, AbortReason::kUnexpectedValue);
+  }
+  auto double_value = kScratchDoubleReg;
+  __ Movsd(double_value, FieldOperand(value, HeapNumber::kValueOffset));
+  __ TruncateDoubleToInt32(result_reg, double_value);
+  __ bind(&done);
+}
+
+}  // namespace
+
 void CheckedTruncateNumberToInt32::SetValueLocationConstraints() {
   UseRegister(input());
   DefineSameAsFirst(this);
@@ -2117,21 +2147,20 @@ void CheckedTruncateNumberToInt32::GenerateCode(MaglevAssembler* masm,
   Register value = ToRegister(input());
   Register result_reg = ToRegister(result());
   DCHECK_EQ(value, result_reg);
-  Label is_not_smi, done;
-  // Check if Smi.
-  __ JumpIfNotSmi(value, &is_not_smi, Label::kNear);
-  // If Smi, convert to Int32.
-  __ SmiToInt32(value);
-  __ jmp(&done, Label::kNear);
-  __ bind(&is_not_smi);
-  // Check if HeapNumber, deopt otherwise.
-  __ CompareRoot(FieldOperand(value, HeapObject::kMapOffset),
-                 RootIndex::kHeapNumberMap);
-  __ EmitEagerDeoptIf(not_equal, DeoptimizeReason::kNotANumber, this);
-  auto double_value = kScratchDoubleReg;
-  __ Movsd(double_value, FieldOperand(value, HeapNumber::kValueOffset));
-  __ TruncateDoubleToInt32(result_reg, double_value);
-  __ bind(&done);
+  Label* deopt_label = __ GetDeoptLabel(this, DeoptimizeReason::kNotANumber);
+  EmitTruncateNumberToInt32(masm, value, result_reg, deopt_label);
+}
+
+void TruncateNumberToInt32::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineSameAsFirst(this);
+}
+void TruncateNumberToInt32::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  Register value = ToRegister(input());
+  Register result_reg = ToRegister(result());
+  DCHECK_EQ(value, result_reg);
+  EmitTruncateNumberToInt32(masm, value, result_reg, nullptr);
 }
 
 void SetPendingMessage::SetValueLocationConstraints() {

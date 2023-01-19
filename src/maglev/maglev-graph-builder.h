@@ -767,23 +767,35 @@ class MaglevGraphBuilder {
           return GetInt32Constant(constant->value().value());
         }
         NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
-        if (node_info->int32_alternative == nullptr) {
-          NodeType old_type;
-          EnsureType(value, NodeType::kNumber, &old_type);
-          if (NodeTypeIsSmi(old_type)) {
-            node_info->int32_alternative = AddNewNode<UnsafeSmiUntag>({value});
-          } else {
-            // TODO(leszeks): Cache this value somehow.
-            // TODO(leszeks): Add a non-checked version for when the node has a
-            // known Number NodeType.
-            return AddNewNode<CheckedTruncateNumberToInt32>({value});
-          }
+        if (node_info->int32_alternative != nullptr) {
+          return node_info->int32_alternative;
         }
-        return node_info->int32_alternative;
+        if (node_info->truncated_int32_alternative != nullptr) {
+          return node_info->truncated_int32_alternative;
+        }
+        NodeType old_type;
+        EnsureType(value, NodeType::kNumber, &old_type);
+        if (NodeTypeIsSmi(old_type)) {
+          node_info->int32_alternative = AddNewNode<UnsafeSmiUntag>({value});
+          return node_info->int32_alternative;
+        }
+        if (NodeTypeIsNumber(old_type)) {
+          node_info->truncated_int32_alternative =
+              AddNewNode<TruncateNumberToInt32>({value});
+        } else {
+          node_info->truncated_int32_alternative =
+              AddNewNode<CheckedTruncateNumberToInt32>({value});
+        }
+        return node_info->truncated_int32_alternative;
       }
-      case ValueRepresentation::kFloat64:
-        // TODO(leszeks): Cache this value somehow.
-        return AddNewNode<TruncateFloat64ToInt32>({value});
+      case ValueRepresentation::kFloat64: {
+        NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
+        if (node_info->truncated_int32_alternative == nullptr) {
+          node_info->truncated_int32_alternative =
+              AddNewNode<TruncateFloat64ToInt32>({value});
+        }
+        return node_info->truncated_int32_alternative;
+      }
       case ValueRepresentation::kInt32:
         // Already good.
         return value;

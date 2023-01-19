@@ -441,16 +441,11 @@ void CheckedTruncateFloat64ToUint32::GenerateCode(
   __ bind(&check_done);
 }
 
-void CheckedTruncateNumberToInt32::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineAsRegister(this);
-  set_double_temporaries_needed(1);
-}
-void CheckedTruncateNumberToInt32::GenerateCode(MaglevAssembler* masm,
-                                                const ProcessingState& state) {
+namespace {
+
+void EmitTruncateNumberToInt32(MaglevAssembler* masm, Register value,
+                               Register result_reg, Label* not_a_number) {
   MaglevAssembler::ScratchRegisterScope temps(masm);
-  Register value = ToRegister(input());
-  Register result_reg = ToRegister(result());
   Label is_not_smi, done;
   // Check if Smi.
   __ JumpIfNotSmi(value, &is_not_smi);
@@ -458,15 +453,49 @@ void CheckedTruncateNumberToInt32::GenerateCode(MaglevAssembler* masm,
   __ SmiToInt32(result_reg, value);
   __ B(&done);
   __ bind(&is_not_smi);
-  // Check if HeapNumber, deopt otherwise.
-  Register scratch = temps.Acquire().W();
-  __ Ldr(scratch, FieldMemOperand(value, HeapObject::kMapOffset));
-  __ CompareRoot(scratch, RootIndex::kHeapNumberMap);
-  __ EmitEagerDeoptIf(ne, DeoptimizeReason::kNotANumber, this);
+  if (not_a_number != nullptr) {
+    // Check if HeapNumber, deopt otherwise.
+    Register scratch = temps.Acquire().W();
+    __ Ldr(scratch, FieldMemOperand(value, HeapObject::kMapOffset));
+    __ CompareRoot(scratch, RootIndex::kHeapNumberMap);
+    __ RecordComment("-- Jump to eager deopt");
+    __ JumpIf(ne, not_a_number);
+  } else if (v8_flags.debug_code) {
+    Register scratch = temps.Acquire().W();
+    __ Ldr(scratch, FieldMemOperand(value, HeapObject::kMapOffset));
+    __ CompareRoot(scratch, RootIndex::kHeapNumberMap);
+    __ Assert(eq, AbortReason::kUnexpectedValue);
+  }
   DoubleRegister double_value = temps.AcquireDouble();
   __ Ldr(double_value, FieldMemOperand(value, HeapNumber::kValueOffset));
   __ TruncateDoubleToInt32(result_reg, double_value);
   __ bind(&done);
+}
+
+}  // namespace
+
+void CheckedTruncateNumberToInt32::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineAsRegister(this);
+}
+void CheckedTruncateNumberToInt32::GenerateCode(MaglevAssembler* masm,
+                                                const ProcessingState& state) {
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register value = ToRegister(input());
+  Register result_reg = ToRegister(result());
+  Label* deopt_label = __ GetDeoptLabel(this, DeoptimizeReason::kNotANumber);
+  EmitTruncateNumberToInt32(masm, value, result_reg, deopt_label);
+}
+
+void TruncateNumberToInt32::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineAsRegister(this);
+}
+void TruncateNumberToInt32::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  Register value = ToRegister(input());
+  Register result_reg = ToRegister(result());
+  EmitTruncateNumberToInt32(masm, value, result_reg, nullptr);
 }
 
 void CheckMaps::SetValueLocationConstraints() { UseRegister(receiver_input()); }

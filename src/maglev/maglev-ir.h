@@ -199,6 +199,7 @@ class CompactInterpreterFrameState;
   V(ChangeUint32ToFloat64)                   \
   V(CheckedTruncateFloat64ToInt32)           \
   V(CheckedTruncateFloat64ToUint32)          \
+  V(TruncateNumberToInt32)                   \
   V(TruncateUint32ToInt32)                   \
   V(TruncateFloat64ToInt32)                  \
   V(Int32ToNumber)                           \
@@ -2526,6 +2527,24 @@ class CheckedTruncateNumberToInt32
 
   static constexpr OpProperties kProperties =
       OpProperties::EagerDeopt() | OpProperties::Int32();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
+  Input& input() { return Node::input(0); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class TruncateNumberToInt32
+    : public FixedInputValueNodeT<1, TruncateNumberToInt32> {
+  using Base = FixedInputValueNodeT<1, TruncateNumberToInt32>;
+
+ public:
+  explicit TruncateNumberToInt32(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::Int32();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 

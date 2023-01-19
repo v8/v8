@@ -119,6 +119,7 @@ struct NodeInfo {
   ValueNode* tagged_alternative = nullptr;
   ValueNode* int32_alternative = nullptr;
   ValueNode* float64_alternative = nullptr;
+  ValueNode* truncated_int32_alternative = nullptr;
 
   bool is_empty() {
     return type == NodeType::kUnknown && tagged_alternative == nullptr &&
@@ -146,6 +147,10 @@ struct NodeInfo {
     float64_alternative = float64_alternative == other.float64_alternative
                               ? float64_alternative
                               : nullptr;
+    truncated_int32_alternative =
+        truncated_int32_alternative == other.truncated_int32_alternative
+            ? truncated_int32_alternative
+            : nullptr;
   }
 };
 
