@@ -114,6 +114,7 @@
   'test-serialize/SnapshotCompression': [PASS, HEAVY],
   'test-serialize/StartupSerializerOnceRunScript': [PASS, HEAVY],
   'test-serialize/StartupSerializerTwiceRunScript': [PASS, HEAVY],
+  'test-serialize/StaticRootsPredictableSnapshot': [PASS, HEAVY],
   'test-strings/StringOOMNewStringFromOneByte': [PASS, HEAVY],
   'test-strings/StringOOMNewStringFromUtf8': [PASS, HEAVY],
   'test-strings/Traverse': [PASS, HEAVY],
@@ -300,6 +301,7 @@
   'test-serialize/StartupSerializerOnce': [SKIP],
   'test-serialize/StartupSerializerOnceRunScript': [SKIP],
   'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
+  'test-serialize/StaticRootsPredictableSnapshot': [SKIP],
   'test-serialize/StartupSerializerTwice': [SKIP],
 
 }],  # 'system == windows and arch == x64 and mode == debug'
@@ -780,6 +782,7 @@
   'test-serialize/StartupSerializerOnceRunScript': [SKIP],
   'test-serialize/StartupSerializerTwice': [SKIP],
   'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
+  'test-serialize/StaticRootsPredictableSnapshot': [SKIP],
   'test-serialize/WeakArraySerializationInSnapshot': [SKIP],
   'test-typedarrays/SpeciesConstructor': [SKIP],
   'test-typedarrays/SpeciesConstructorAccessor': [SKIP],

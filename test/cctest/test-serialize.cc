@@ -5298,5 +5298,36 @@ UNINITIALIZED_TEST(BreakPointAccessorContextSnapshot) {
   FreeCurrentEmbeddedBlob();
 }
 
+// These two flags are preconditions for static roots to work. We don't check
+// for V8_STATIC_ROOTS_BOOL since the test targets mksnapshot built without
+// static roots, to be able to generate the static-roots.h file.
+#if defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE) && defined(V8_SHARED_RO_HEAP)
+UNINITIALIZED_TEST(StaticRootsPredictableSnapshot) {
+  if (v8_flags.random_seed == 0) {
+    return;
+  }
+
+  v8::Isolate* isolate1 = TestSerializer::NewIsolateInitialized();
+  StartupBlobs blobs1 = Serialize(isolate1);
+  isolate1->Dispose();
+
+  v8::Isolate* isolate2 = TestSerializer::NewIsolateInitialized();
+  StartupBlobs blobs2 = Serialize(isolate2);
+  isolate2->Dispose();
+
+  // We want to ensure that setup-heap-internal.cc creates a predictable heap.
+  // For static roots it would be sufficient to check that the root pointers
+  // relative to the cage base are identical. However, we can't test this, since
+  // when we create two isolates in the same process, the offsets will actually
+  // be different.
+  CHECK_EQ(blobs1.read_only, blobs2.read_only);
+
+  blobs1.Dispose();
+  blobs2.Dispose();
+  FreeCurrentEmbeddedBlob();
+}
+#endif  // defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE) &&
+        // defined(V8_SHARED_RO_HEAP)
+
 }  // namespace internal
 }  // namespace v8
