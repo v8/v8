@@ -100,9 +100,6 @@
   'test-strings/StringOOM*': [PASS, ['mode == debug', SKIP]],
   'test-serialize/CustomSnapshotDataBlobImmortalImmovableRoots': [PASS, ['mode == debug', SKIP]],
 
-  # Slow, and fails flakily on Mac debug: https://crbug.com/v8/13598.
-  'test-serialize/CreateIsolateFromReadOnlySnapshot': [PASS, SLOW, ['system == macos and mode == debug', SKIP]],
-
   # Tests that need to run sequentially (e.g. due to memory consumption).
   'test-accessors/HandleScopePop': [PASS, HEAVY],
   'test-api/FastApiCalls': [PASS, HEAVY],
@@ -305,8 +302,6 @@
   'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
   'test-serialize/StartupSerializerTwice': [SKIP],
 
-  # Test too slow with ASan
-  'test-serialize/CreateIsolateFromReadOnlySnapshot': [SKIP],
 }],  # 'system == windows and arch == x64 and mode == debug'
 
 ##############################################################################
