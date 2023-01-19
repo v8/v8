@@ -88,7 +88,9 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
     // - with lazy validation,
     // - with PGO (which compiles some functions eagerly), or
     // - with compilation hints (which also compiles some functions eagerly).
-    // TODO(clemensb): Add a proper check.
+    DCHECK(!v8_flags.wasm_lazy_compilation || v8_flags.wasm_lazy_validation ||
+           v8_flags.experimental_wasm_pgo_from_file ||
+           v8_flags.experimental_wasm_compilation_hints);
     if (ValidateFunctionBody(env->enabled_features, env->module, detected,
                              func_body)
             .failed()) {
