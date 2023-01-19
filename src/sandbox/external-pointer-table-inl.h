@@ -159,7 +159,9 @@ void ExternalPointerTable::Mark(ExternalPointerHandle handle,
   // values would not be the same. This scenario is unproblematic though as the
   // new entry will already be marked as alive as it has just been allocated.
   DCHECK(handle == kNullExternalPointerHandle ||
-         handle == *reinterpret_cast<ExternalPointerHandle*>(handle_location));
+         handle ==
+             base::AsAtomic32::Acquire_Load(
+                 reinterpret_cast<ExternalPointerHandle*>(handle_location)));
 
   uint32_t index = HandleToIndex(handle);
 
