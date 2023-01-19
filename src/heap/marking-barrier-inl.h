@@ -16,7 +16,9 @@ namespace internal {
 void MarkingBarrier::MarkValue(HeapObject host, HeapObject value) {
   DCHECK(IsCurrentMarkingBarrier(host));
   DCHECK(is_activated_ || shared_heap_worklist_.has_value());
-  DCHECK(!marking_state_.IsImpossible(value));
+
+  DCHECK_IMPLIES(!value.InSharedWritableHeap() || is_shared_space_isolate_,
+                 !marking_state_.IsImpossible(value));
 
   // Host may have an impossible markbit pattern if manual allocation folding
   // is performed and host happens to be the last word of an allocated region.
