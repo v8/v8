@@ -5167,10 +5167,10 @@ void CodeGenerator::PopTempStackSlots() {
   }
 }
 
-void CodeGenerator::MoveToTempLocation(InstructionOperand* source) {
+void CodeGenerator::MoveToTempLocation(InstructionOperand* source,
+                                       MachineRepresentation rep) {
   // Must be kept in sync with {MoveTempLocationTo}.
   DCHECK(!source->IsImmediate());
-  auto rep = LocationOperand::cast(source)->representation();
   if ((IsFloatingPoint(rep) &&
        !move_cycle_.pending_double_scratch_register_use) ||
       (!IsFloatingPoint(rep) && !move_cycle_.pending_scratch_register_use)) {

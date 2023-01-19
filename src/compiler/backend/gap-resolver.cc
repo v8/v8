@@ -110,11 +110,11 @@ void GapResolver::PerformCycle(const std::vector<MoveOperands*>& cycle) {
   // {SetPendingMove}, which marks the registers needed for the given moves.
   // {MoveToTempLocation} will then choose the location accordingly.
   MachineRepresentation rep =
-      LocationOperand::cast(move1->source()).representation();
+      LocationOperand::cast(move1->destination()).representation();
   for (size_t i = 0; i < cycle.size() - 1; ++i) {
     assembler_->SetPendingMove(cycle[i]);
   }
-  assembler_->MoveToTempLocation(&move1->source());
+  assembler_->MoveToTempLocation(&move1->source(), rep);
   InstructionOperand destination = move1->destination();
   move1->Eliminate();
   for (size_t i = 0; i < cycle.size() - 1; ++i) {

@@ -378,7 +378,8 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   AllocatedOperand Push(InstructionOperand* src) final;
   void Pop(InstructionOperand* src, MachineRepresentation rep) final;
   void PopTempStackSlots() final;
-  void MoveToTempLocation(InstructionOperand* src) final;
+  void MoveToTempLocation(InstructionOperand* src,
+                          MachineRepresentation rep) final;
   void MoveTempLocationTo(InstructionOperand* dst,
                           MachineRepresentation rep) final;
   void SetPendingMove(MoveOperands* move) final;
