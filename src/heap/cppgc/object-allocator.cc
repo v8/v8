@@ -113,22 +113,23 @@ ObjectAllocator::ObjectAllocator(RawHeap& heap, PageBackend& page_backend,
       oom_handler_(oom_handler),
       garbage_collector_(garbage_collector) {}
 
-void* ObjectAllocator::OutOfLineAllocate(NormalPageSpace& space, size_t size,
-                                         AlignVal alignment,
-                                         GCInfoIndex gcinfo) {
-  void* memory = OutOfLineAllocateImpl(space, size, alignment, gcinfo);
+void ObjectAllocator::OutOfLineAllocateGCSafePoint(NormalPageSpace& space,
+                                                   size_t size,
+                                                   AlignVal alignment,
+                                                   GCInfoIndex gcinfo,
+                                                   void** object) {
+  *object = OutOfLineAllocateImpl(space, size, alignment, gcinfo);
   stats_collector_.NotifySafePointForConservativeCollection();
   if (prefinalizer_handler_.IsInvokingPreFinalizers()) {
     // Objects allocated during pre finalizers should be allocated as black
     // since marking is already done. Atomics are not needed because there is
     // no concurrent marking in the background.
-    HeapObjectHeader::FromObject(memory).MarkNonAtomic();
+    HeapObjectHeader::FromObject(*object).MarkNonAtomic();
     // Resetting the allocation buffer forces all further allocations in pre
     // finalizers to go through this slow path.
     ReplaceLinearAllocationBuffer(space, stats_collector_, nullptr, 0);
     prefinalizer_handler_.NotifyAllocationInPrefinalizer(size);
   }
-  return memory;
 }
 
 void* ObjectAllocator::OutOfLineAllocateImpl(NormalPageSpace& space,
