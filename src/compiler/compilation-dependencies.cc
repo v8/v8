@@ -154,7 +154,7 @@ class PendingDependencies final {
     // With deduplication done we no longer rely on the object address for
     // hashing.
     AllowGarbageCollection yes_gc;
-    for (const auto& o_and_g : deps_) {
+    for (const auto& o_and_g : entries) {
       DependentCode::InstallDependency(isolate, code, o_and_g.first,
                                        o_and_g.second);
     }
