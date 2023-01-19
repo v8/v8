@@ -2004,13 +2004,14 @@ void LoadFixedArrayElement::GenerateCode(MaglevAssembler* masm,
     __ CompareObjectType(elements, scratch, scratch, FIXED_ARRAY_TYPE);
     __ Assert(eq, AbortReason::kUnexpectedValue);
   }
-  __ Add(elements, elements, Operand(index, LSL, kTaggedSizeLog2));
-  __ DecompressAnyTagged(ToRegister(result()),
-                         FieldMemOperand(elements, FixedArray::kHeaderSize));
+  Register result_reg = ToRegister(result());
+  __ Add(result_reg, elements, Operand(index, LSL, kTaggedSizeLog2));
+  __ DecompressAnyTagged(result_reg,
+                         FieldMemOperand(result_reg, FixedArray::kHeaderSize));
 }
 
 void LoadFixedDoubleArrayElement::SetValueLocationConstraints() {
-  UseRegister(elements_input());
+  UseAndClobberRegister(elements_input());
   UseRegister(index_input());
   DefineAsRegister(this);
 }
