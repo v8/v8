@@ -766,11 +766,14 @@ void JSReceiver::initialize_properties(Isolate* isolate) {
 }
 
 DEF_GETTER(JSReceiver, HasFastProperties, bool) {
-  DCHECK(raw_properties_or_hash(cage_base).IsSmi() ||
-         ((raw_properties_or_hash(cage_base).IsGlobalDictionary(cage_base) ||
-           raw_properties_or_hash(cage_base).IsNameDictionary(cage_base) ||
-           raw_properties_or_hash(cage_base).IsSwissNameDictionary(
-               cage_base)) == map(cage_base).is_dictionary_map()));
+  Object raw_properties_or_hash_obj =
+      raw_properties_or_hash(cage_base, kRelaxedLoad);
+  DCHECK(raw_properties_or_hash_obj.IsSmi() ||
+         ((raw_properties_or_hash_obj.IsGlobalDictionary(cage_base) ||
+           raw_properties_or_hash_obj.IsNameDictionary(cage_base) ||
+           raw_properties_or_hash_obj.IsSwissNameDictionary(cage_base)) ==
+          map(cage_base).is_dictionary_map()));
+  USE(raw_properties_or_hash_obj);
   return !map(cage_base).is_dictionary_map();
 }
 
