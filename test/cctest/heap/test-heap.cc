@@ -6982,7 +6982,7 @@ HEAP_TEST(MemoryReducerActivationForSmallHeaps) {
   LocalContext env;
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
-  CHECK_EQ(heap->memory_reducer()->state_.action, MemoryReducer::Action::kDone);
+  CHECK_EQ(heap->memory_reducer()->state_.id(), MemoryReducer::kDone);
   HandleScope scope(isolate);
   const size_t kActivationThreshold = 1 * MB;
   size_t initial_capacity = heap->OldGenerationCapacity();
@@ -6990,7 +6990,7 @@ HEAP_TEST(MemoryReducerActivationForSmallHeaps) {
          initial_capacity + kActivationThreshold) {
     isolate->factory()->NewFixedArray(1 * KB, AllocationType::kOld);
   }
-  CHECK_EQ(heap->memory_reducer()->state_.action, MemoryReducer::Action::kWait);
+  CHECK_EQ(heap->memory_reducer()->state_.id(), MemoryReducer::kWait);
 }
 
 TEST(AllocateExternalBackingStore) {
