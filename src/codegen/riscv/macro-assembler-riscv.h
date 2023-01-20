@@ -273,29 +273,28 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     return rmode != RelocInfo::EXTERNAL_REFERENCE;
   }
   void PatchAndJump(Address target);
-  void Jump(Handle<CodeDataContainer> code, RelocInfo::Mode rmode, COND_ARGS);
+  void Jump(Handle<Code> code, RelocInfo::Mode rmode, COND_ARGS);
   void Jump(const ExternalReference& reference);
   void Call(Register target, COND_ARGS);
   void Call(Address target, RelocInfo::Mode rmode, COND_ARGS);
-  void Call(Handle<CodeDataContainer> code,
-            RelocInfo::Mode rmode = RelocInfo::CODE_TARGET, COND_ARGS);
+  void Call(Handle<Code> code, RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
+            COND_ARGS);
   void Call(Label* target);
   void LoadAddress(
       Register dst, Label* target,
       RelocInfo::Mode rmode = RelocInfo::INTERNAL_REFERENCE_ENCODED);
 
-  // Load the code entry point from the CodeDataContainer object.
-  void LoadCodeDataContainerEntry(Register destination,
-                                  Register code_data_container_object);
-  // Load code entry point from the CodeDataContainer object and compute
-  // Code object pointer out of it. Must not be used for CodeDataContainers
+  // Load the code entry point from the Code object.
+  void LoadCodeEntry(Register destination, Register code_object);
+  // Load code entry point from the Code object and compute
+  // InstructionStream object pointer out of it. Must not be used for Code
   // corresponding to builtins, because their entry points values point to
   // the embedded instruction stream in .text section.
-  void LoadCodeDataContainerCodeNonBuiltin(Register destination,
-                                           Register code_data_container_object);
-  void CallCodeDataContainerObject(Register code_data_container_object);
-  void JumpCodeDataContainerObject(Register code_data_container_object,
-                                   JumpMode jump_mode = JumpMode::kJump);
+  void LoadCodeInstructionStreamNonBuiltin(Register destination,
+                                           Register code_object);
+  void CallCodeObject(Register code_object);
+  void JumpCodeObject(Register code_object,
+                      JumpMode jump_mode = JumpMode::kJump);
 
   // Load the builtin given by the Smi in |builtin| into the same
   // register.
@@ -1483,9 +1482,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
                                        ArgumentsCountType type,
                                        ArgumentsCountMode mode,
                                        Register scratch = no_reg);
-  void JumpIfCodeDataContainerIsMarkedForDeoptimization(
-      Register code_data_container, Register scratch,
-      Label* if_marked_for_deoptimization);
+  void JumpIfCodeIsMarkedForDeoptimization(Register code, Register scratch,
+                                           Label* if_marked_for_deoptimization);
   Operand ClearedValue() const;
 
   // Jump if the register contains a non-smi.
