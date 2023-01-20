@@ -376,6 +376,9 @@ size_t Heap::OldGenerationCapacity() {
        space = spaces.Next()) {
     total += space->Capacity();
   }
+  if (shared_lo_space_) {
+    total += shared_lo_space_->SizeOfObjects();
+  }
   return total + lo_space_->SizeOfObjects() + code_lo_space_->SizeOfObjects();
 }
 
@@ -387,6 +390,9 @@ size_t Heap::CommittedOldGenerationMemory() {
   for (PagedSpace* space = spaces.Next(); space != nullptr;
        space = spaces.Next()) {
     total += space->CommittedMemory();
+  }
+  if (shared_lo_space_) {
+    total += shared_lo_space_->Size();
   }
   return total + lo_space_->Size() + code_lo_space_->Size();
 }
@@ -5109,6 +5115,9 @@ size_t Heap::OldGenerationSizeOfObjects() {
   for (PagedSpace* space = spaces.Next(); space != nullptr;
        space = spaces.Next()) {
     total += space->SizeOfObjects();
+  }
+  if (shared_lo_space_) {
+    total += shared_lo_space_->SizeOfObjects();
   }
   return total + lo_space_->SizeOfObjects() + code_lo_space_->SizeOfObjects();
 }
