@@ -392,7 +392,7 @@ void V8InspectorSessionImpl::dispatchProtocolMessage(StringView message) {
   }
   v8_crdtp::Dispatchable dispatchable(cbor);
   if (!dispatchable.ok()) {
-    if (dispatchable.HasCallId()) {
+    if (!dispatchable.HasCallId()) {
       m_channel->sendNotification(serializeForFrontend(
           v8_crdtp::CreateErrorNotification(dispatchable.DispatchError())));
     } else {
