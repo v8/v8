@@ -22,12 +22,16 @@ def try_builder(
         **kwargs
     )
 
-def presubmit_builder(project, timeout = 8 * 60):
+def presubmit_builder(
+        project,
+        cq_properties = CQ.NONE,
+        cq_branch_properties = CQ.NONE,
+        timeout = 8 * 60):
     try_builder(
         name = "%s_presubmit" % project,
         bucket = "try",
-        cq_properties = CQ.BLOCK_NO_REUSE,
-        cq_branch_properties = CQ.BLOCK_NO_REUSE,
+        cq_properties = cq_properties,
+        cq_branch_properties = cq_branch_properties,
         executable = "recipe:run_presubmit",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         execution_timeout = timeout + 2 * 60,
@@ -39,7 +43,11 @@ def presubmit_builder(project, timeout = 8 * 60):
         experiments = {"luci.buildbucket.omit_python2": 0},
     )
 
-presubmit_builder("v8")
+presubmit_builder(
+    "v8",
+    cq_properties = CQ.BLOCK_NO_REUSE,
+    cq_branch_properties = CQ.BLOCK_NO_REUSE,
+)
 presubmit_builder("crossbench", timeout = 900)
 
 try_builder(
