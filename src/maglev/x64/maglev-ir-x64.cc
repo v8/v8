@@ -1342,8 +1342,9 @@ void FunctionLength::GenerateCode(MaglevAssembler* masm,
   __ LoadTaggedPointerField(
       kScratchRegister,
       FieldOperand(object, JSFunction::kSharedFunctionInfoOffset));
-  __ movl(ToRegister(result()),
-          FieldOperand(kScratchRegister, SharedFunctionInfo::kLengthOffset));
+  __ LoadSignedField(
+      ToRegister(result()),
+      FieldMemOperand(kScratchRegister, SharedFunctionInfo::kLengthOffset), 2);
 }
 
 void Int32AddWithOverflow::SetValueLocationConstraints() {

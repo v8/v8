@@ -2493,8 +2493,9 @@ void FunctionLength::GenerateCode(MaglevAssembler* masm,
   Register shared = temps.AcquireX();
   __ LoadTaggedPointerField(
       shared, FieldMemOperand(object, JSFunction::kSharedFunctionInfoOffset));
-  __ Ldr(ToRegister(result()).W(),
-         FieldMemOperand(shared, SharedFunctionInfo::kLengthOffset));
+  __ LoadSignedField(ToRegister(result()).W(),
+                     FieldMemOperand(shared, SharedFunctionInfo::kLengthOffset),
+                     2);
 }
 
 void TestUndetectable::SetValueLocationConstraints() {
