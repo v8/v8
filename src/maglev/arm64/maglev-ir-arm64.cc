@@ -580,6 +580,7 @@ void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
 
   // Use general temporaries to be able to send to deferred code.
   Register object_map = temps.Acquire();
+  Register scratch = temps.Acquire();
   __ LoadMap(object_map, object);
 
   size_t map_count = maps().size();
@@ -587,7 +588,7 @@ void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
     ZoneLabelRef continue_label(masm);
     Handle<Map> map_handle = maps().at(i);
     {
-      Register map = temps.Acquire();
+      Register map = scratch;
       __ Move(map, map_handle);
       __ CmpTagged(object_map, map);
     }
@@ -597,9 +598,7 @@ void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
           ne,
           [](MaglevAssembler* masm, ZoneLabelRef continue_label,
              ZoneLabelRef done, Register object, Register object_map,
-             int map_index, CheckMapsWithMigration* node) {
-            MaglevAssembler::ScratchRegisterScope temps(masm);
-            Register scratch = temps.Acquire();
+             Register scratch, int map_index, CheckMapsWithMigration* node) {
             // If the map is not deprecated, we fail the map check, continue to
             // the next one.
             __ Ldr(scratch.W(),
@@ -653,7 +652,7 @@ void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
           (last_map ? ZoneLabelRef::UnsafeFromLabelPointer(masm->GetDeoptLabel(
                           this, DeoptimizeReason::kWrongMap))
                     : continue_label),
-          done, object, object_map, i, this);
+          done, object, object_map, scratch, i, this);
     } else if (last_map) {
       // If it is the last map and it is not a migration target, we should deopt
       // if the check fails.
