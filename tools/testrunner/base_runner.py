@@ -528,8 +528,7 @@ class BaseTestRunner(object):
       if self.options.verbose:
         print('>>> Loading test suite: %s' % name)
       suite = testsuite.TestSuite.Load(
-          ctx, os.path.join(self.options.test_root, name), test_config,
-          self.framework_name)
+          ctx, os.path.join(self.options.test_root, name), test_config)
 
       if self._is_testsuite_supported(suite):
         tests = suite.load_tests_from_disk(variables)
@@ -659,17 +658,21 @@ class BaseTestRunner(object):
     return [] # pragma: no cover
 
   def _create_test_config(self):
+    shard_id, shard_count = self.options.shard_info
     timeout = self.build_config.timeout_scalefactor(
         self.options.timeout * self.mode_options.timeout_scalefactor)
     return TestConfig(
         command_prefix=self.options.command_prefix,
         extra_flags=self.options.extra_flags,
+        framework_name=self.framework_name,
         isolates=self.options.isolates,
         mode_flags=self.mode_options.flags + self._runner_flags(),
         no_harness=self.options.no_harness,
         noi18n=self.build_config.no_i18n,
         random_seed=self.options.random_seed,
         run_skipped=self.options.run_skipped,
+        shard_count=shard_count,
+        shard_id=shard_id,
         shell_dir=self.outdir,
         timeout=timeout,
         verbose=self.options.verbose,

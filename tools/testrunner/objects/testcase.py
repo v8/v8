@@ -79,7 +79,7 @@ def read_file(file):
 
 class TestCase(object):
 
-  def __init__(self, suite, path, name, test_config, framework_name):
+  def __init__(self, suite, path, name):
     self.suite = suite        # TestSuite object
 
     self.path = path          # string, e.g. 'div-mod', 'test-api/foo'
@@ -95,9 +95,6 @@ class TestCase(object):
     self.processor = DuckProcessor()
     self.procid = '%s/%s' % (self.suite.name, self.name) # unique id
     self.keep_output = False # Can output of this test be dropped
-
-    # Test config contains information needed to build the command.
-    self._test_config = test_config
     self._random_seed = None # Overrides test config value if not None
 
     # Outcomes
@@ -106,8 +103,6 @@ class TestCase(object):
     self._checked_flag_contradictions = False
     self._statusfile_flags = None
     self.expected_failure_reason = None
-
-    self.framework_name = framework_name
 
     self._prepare_outcomes()
 
@@ -272,9 +267,25 @@ class TestCase(object):
     return self._expected_outcomes
 
   @property
+  def test_config(self):
+    return self.suite.test_config
+
+  @property
+  def framework_name(self):
+    return self.test_config.framework_name
+
+  @property
+  def shard_id(self):
+    return self.test_config.shard_id
+
+  @property
+  def shard_count(self):
+    return self.test_config.shard_count
+
+  @property
   def do_skip(self):
     return (statusfile.SKIP in self._statusfile_outcomes and
-            not self.suite.test_config.run_skipped)
+            not self.test_config.run_skipped)
 
   @property
   def is_heavy(self):
@@ -357,10 +368,10 @@ class TestCase(object):
 
   @property
   def random_seed(self):
-    return self._random_seed or self._test_config.random_seed
+    return self._random_seed or self.test_config.random_seed
 
   def _get_extra_flags(self):
-    return self._test_config.extra_flags
+    return self.test_config.extra_flags
 
   def _get_variant_flags(self):
     return self.variant_flags
@@ -373,7 +384,7 @@ class TestCase(object):
     return self._statusfile_flags
 
   def _get_mode_flags(self):
-    return self._test_config.mode_flags
+    return self.test_config.mode_flags
 
   def _get_source_flags(self):
     return []
@@ -385,7 +396,7 @@ class TestCase(object):
     return []
 
   def _get_timeout(self, params):
-    timeout = self._test_config.timeout
+    timeout = self.test_config.timeout
     if "--jitless" in params:
       timeout *= 2
     if "--no-turbofan" in params:
@@ -406,12 +417,12 @@ class TestCase(object):
 
   def _create_cmd(self, ctx, shell, params, env, timeout):
     return ctx.command(
-        cmd_prefix=self._test_config.command_prefix,
-        shell=os.path.abspath(os.path.join(self._test_config.shell_dir, shell)),
+        cmd_prefix=self.test_config.command_prefix,
+        shell=os.path.abspath(os.path.join(self.test_config.shell_dir, shell)),
         args=params,
         env=env,
         timeout=timeout,
-        verbose=self._test_config.verbose,
+        verbose=self.test_config.verbose,
         resources_func=self._get_resources,
         handle_sigterm=True,
     )

@@ -21,9 +21,7 @@ class TestCaseTest(unittest.TestCase):
     test = TestCase(
         suite=FakeSuite(),
         path='far/away',
-        name='parent',
-        test_config=None,
-        framework_name='none')
+        name='parent')
     self.assertEqual(test.rdb_test_id, 'fakeSuite/parent')
     # provide by DuckProcessor
     self.assertEqual(test.processor.name, None)

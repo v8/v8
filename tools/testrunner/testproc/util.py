@@ -56,15 +56,17 @@ def kill_processes_linux():
 
 def base_test_record(test, result, run):
   record = {
-      'name': test.full_name,
-      'flags': result.cmd.args,
-      'run': run + 1,
       'expected': test.expected_outcomes,
+      'flags': result.cmd.args,
+      'framework_name': test.framework_name,
+      'name': test.full_name,
       'random_seed': test.random_seed,
+      'run': run + 1,
+      'shard_id': test.shard_id,
+      'shard_count': test.shard_count,
       'target_name': test.get_shell(),
       'variant': test.variant,
       'variant_flags': test.variant_flags,
-      'framework_name': test.framework_name,
   }
   if result.output:
     record.update(
