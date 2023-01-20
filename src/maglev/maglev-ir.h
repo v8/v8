@@ -277,7 +277,8 @@ class CompactInterpreterFrameState;
   V(BranchIfInt32Compare)           \
   V(BranchIfFloat64Compare)         \
   V(BranchIfUndefinedOrNull)        \
-  V(BranchIfJSReceiver)
+  V(BranchIfJSReceiver)             \
+  V(BranchIfTypeOf)
 
 #define CONDITIONAL_CONTROL_NODE_LIST(V) \
   V(Switch)                              \
@@ -2712,7 +2713,7 @@ class TestTypeOf : public FixedInputValueNodeT<1, TestTypeOf> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
  private:
   interpreter::TestTypeOfFlags::LiteralFlag literal_;
@@ -5995,6 +5996,30 @@ class BranchIfReferenceCompare
 
  private:
   Operation operation_;
+};
+
+class BranchIfTypeOf : public BranchControlNodeT<1, BranchIfTypeOf> {
+  using Base = BranchControlNodeT<1, BranchIfTypeOf>;
+
+ public:
+  static constexpr int kValueIndex = 0;
+  Input& value_input() { return NodeBase::input(kValueIndex); }
+
+  explicit BranchIfTypeOf(uint64_t bitfield,
+                          interpreter::TestTypeOfFlags::LiteralFlag literal,
+                          BasicBlockRef* if_true_refs,
+                          BasicBlockRef* if_false_refs)
+      : Base(bitfield, if_true_refs, if_false_refs), literal_(literal) {}
+
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  interpreter::TestTypeOfFlags::LiteralFlag literal_;
 };
 
 }  // namespace maglev

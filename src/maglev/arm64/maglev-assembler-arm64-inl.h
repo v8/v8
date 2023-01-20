@@ -320,23 +320,6 @@ inline Condition MaglevAssembler::IsRootConstant(Input input,
   return eq;
 }
 
-void MaglevAssembler::Branch(Condition condition, BasicBlock* if_true,
-                             BasicBlock* if_false, BasicBlock* next_block) {
-  // We don't have any branch probability information, so try to jump
-  // over whatever the next block emitted is.
-  if (if_false == next_block) {
-    // Jump over the false block if true, otherwise fall through into it.
-    JumpIf(condition, if_true->label());
-  } else {
-    // Jump to the false block if true.
-    JumpIf(NegateCondition(condition), if_false->label());
-    // Jump to the true block if it's not the next block.
-    if (if_true != next_block) {
-      Jump(if_true->label());
-    }
-  }
-}
-
 inline MemOperand MaglevAssembler::StackSlotOperand(StackSlot slot) {
   return MemOperand(fp, slot.index);
 }
@@ -521,14 +504,15 @@ inline void MaglevAssembler::CompareInt32(Register src1, Register src2) {
   Cmp(src1.W(), src2.W());
 }
 
-inline void MaglevAssembler::Jump(Label* target) { B(target); }
+inline void MaglevAssembler::Jump(Label* target, Label::Distance) { B(target); }
 
-inline void MaglevAssembler::JumpIf(Condition cond, Label* target) {
+inline void MaglevAssembler::JumpIf(Condition cond, Label* target,
+                                    Label::Distance) {
   b(target, cond);
 }
 
 inline void MaglevAssembler::JumpIfTaggedEqual(Register r1, Register r2,
-                                               Label* target) {
+                                               Label* target, Label::Distance) {
   CmpTagged(r1, r2);
   b(target, eq);
 }

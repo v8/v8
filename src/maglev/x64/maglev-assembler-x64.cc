@@ -4,6 +4,7 @@
 
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/common/globals.h"
+#include "src/interpreter/bytecode-flags.h"
 #include "src/maglev/maglev-assembler-inl.h"
 #include "src/maglev/maglev-graph.h"
 #include "src/objects/heap-number.h"
@@ -342,6 +343,121 @@ void MaglevAssembler::ToBoolean(Register value, ZoneLabelRef is_true,
   if (!fallthrough_when_true) {
     jmp(*is_true);
   }
+}
+
+void MaglevAssembler::TestTypeOf(
+    Register object, interpreter::TestTypeOfFlags::LiteralFlag literal,
+    Label* is_true, Label::Distance true_distance, bool fallthrough_when_true,
+    Label* is_false, Label::Distance false_distance,
+    bool fallthrough_when_false) {
+  // If both true and false are fallthroughs, we don't have to do anything.
+  if (fallthrough_when_true && fallthrough_when_false) return;
+
+  // IMPORTANT: Note that `object` could be a register that aliases registers in
+  // the ScratchRegisterScope. Make sure that all reads of `object` are before
+  // any writes to scratch registers
+  using LiteralFlag = interpreter::TestTypeOfFlags::LiteralFlag;
+  switch (literal) {
+    case LiteralFlag::kNumber:
+      JumpIfSmi(object, is_true, true_distance);
+      CompareRoot(FieldOperand(object, HeapObject::kMapOffset),
+                  RootIndex::kHeapNumberMap);
+      Branch(equal, is_true, true_distance, fallthrough_when_true, is_false,
+             false_distance, fallthrough_when_false);
+      return;
+    case LiteralFlag::kString: {
+      MaglevAssembler::ScratchRegisterScope temps(this);
+      Register scratch = temps.Acquire();
+      JumpIfSmi(object, is_false, false_distance);
+      LoadMap(scratch, object);
+      cmpw(FieldOperand(scratch, Map::kInstanceTypeOffset),
+           Immediate(LAST_STRING_TYPE));
+      Branch(less_equal, is_true, true_distance, fallthrough_when_true,
+             is_false, false_distance, fallthrough_when_false);
+      return;
+    }
+    case LiteralFlag::kSymbol: {
+      MaglevAssembler::ScratchRegisterScope temps(this);
+      Register scratch = temps.Acquire();
+      JumpIfSmi(object, is_false, false_distance);
+      LoadMap(scratch, object);
+      cmpw(FieldOperand(scratch, Map::kInstanceTypeOffset),
+           Immediate(SYMBOL_TYPE));
+      Branch(equal, is_true, true_distance, fallthrough_when_true, is_false,
+             false_distance, fallthrough_when_false);
+      return;
+    }
+    case LiteralFlag::kBoolean:
+      CompareRoot(object, RootIndex::kTrueValue);
+      JumpIf(equal, is_true, true_distance);
+      CompareRoot(object, RootIndex::kFalseValue);
+      Branch(equal, is_true, true_distance, fallthrough_when_true, is_false,
+             false_distance, fallthrough_when_false);
+      return;
+    case LiteralFlag::kBigInt: {
+      MaglevAssembler::ScratchRegisterScope temps(this);
+      Register scratch = temps.Acquire();
+      JumpIfSmi(object, is_false, false_distance);
+      LoadMap(scratch, object);
+      cmpw(FieldOperand(scratch, Map::kInstanceTypeOffset),
+           Immediate(BIGINT_TYPE));
+      Branch(equal, is_true, true_distance, fallthrough_when_true, is_false,
+             false_distance, fallthrough_when_false);
+      return;
+    }
+    case LiteralFlag::kUndefined: {
+      JumpIfSmi(object, is_false, false_distance);
+      // Check it has the undetectable bit set and it is not null.
+      LoadMap(kScratchRegister, object);
+      testl(FieldOperand(kScratchRegister, Map::kBitFieldOffset),
+            Immediate(Map::Bits1::IsUndetectableBit::kMask));
+      JumpIf(zero, is_false, false_distance);
+      CompareRoot(object, RootIndex::kNullValue);
+      Branch(not_equal, is_true, true_distance, fallthrough_when_true, is_false,
+             false_distance, fallthrough_when_false);
+      return;
+    }
+    case LiteralFlag::kFunction: {
+      MaglevAssembler::ScratchRegisterScope temps(this);
+      Register scratch = temps.Acquire();
+      JumpIfSmi(object, is_false, false_distance);
+      // Check if callable bit is set and not undetectable.
+      LoadMap(scratch, object);
+      movl(scratch, FieldOperand(scratch, Map::kBitFieldOffset));
+      andl(scratch, Immediate(Map::Bits1::IsUndetectableBit::kMask |
+                              Map::Bits1::IsCallableBit::kMask));
+      cmpl(scratch, Immediate(Map::Bits1::IsCallableBit::kMask));
+      Branch(equal, is_true, true_distance, fallthrough_when_true, is_false,
+             false_distance, fallthrough_when_false);
+      return;
+    }
+    case LiteralFlag::kObject: {
+      MaglevAssembler::ScratchRegisterScope temps(this);
+      Register scratch = temps.Acquire();
+      JumpIfSmi(object, is_false, false_distance);
+      // If the object is null then return true.
+      CompareRoot(object, RootIndex::kNullValue);
+      JumpIf(equal, is_true, true_distance);
+      // Check if the object is a receiver type,
+      LoadMap(scratch, object);
+      cmpw(FieldOperand(scratch, Map::kInstanceTypeOffset),
+           Immediate(FIRST_JS_RECEIVER_TYPE));
+      JumpIf(less, is_false, false_distance);
+      // ... and is not undefined (undetectable) nor callable.
+      testl(FieldOperand(scratch, Map::kBitFieldOffset),
+            Immediate(Map::Bits1::IsUndetectableBit::kMask |
+                      Map::Bits1::IsCallableBit::kMask));
+      Branch(equal, is_true, true_distance, fallthrough_when_true, is_false,
+             false_distance, fallthrough_when_false);
+      return;
+    }
+    case LiteralFlag::kOther:
+      if (!fallthrough_when_false) {
+        Jump(is_false, false_distance);
+      }
+      return;
+  }
+  UNREACHABLE();
 }
 
 void MaglevAssembler::TruncateDoubleToInt32(Register dst, DoubleRegister src) {

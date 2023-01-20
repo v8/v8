@@ -1392,9 +1392,10 @@ class MaglevGraphBuilder {
   template <Operation kOperation>
   void VisitBinarySmiOperation();
 
-  template <typename CompareControlNode>
-  bool TryBuildCompareOperation(Operation operation, ValueNode* left,
-                                ValueNode* right);
+  template <typename BranchControlNodeT, typename... Args>
+  bool TryBuildBranchFor(std::initializer_list<ValueNode*> control_inputs,
+                         Args&&... args);
+
   template <Operation kOperation>
   void VisitCompareOperation();
 

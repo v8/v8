@@ -8,6 +8,7 @@
 #include "src/codegen/machine-type.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/flags/flags.h"
+#include "src/interpreter/bytecode-flags.h"
 #include "src/maglev/maglev-code-gen-state.h"
 #include "src/maglev/maglev-ir.h"
 
@@ -90,6 +91,11 @@ class MaglevAssembler : public MacroAssembler {
 
   inline void Branch(Condition condition, BasicBlock* if_true,
                      BasicBlock* if_false, BasicBlock* next_block);
+  inline void Branch(Condition condition, Label* if_true,
+                     Label::Distance true_distance, bool fallthrough_when_true,
+                     Label* if_false, Label::Distance false_distance,
+                     bool fallthrough_when_false);
+
   Register FromAnyToRegister(const Input& input, Register scratch);
 
   inline void LoadBoundedSizeFromObject(Register result, Register object,
@@ -130,6 +136,11 @@ class MaglevAssembler : public MacroAssembler {
 
   void ToBoolean(Register value, ZoneLabelRef is_true, ZoneLabelRef is_false,
                  bool fallthrough_when_true);
+  void TestTypeOf(Register object,
+                  interpreter::TestTypeOfFlags::LiteralFlag literal,
+                  Label* if_true, Label::Distance true_distance,
+                  bool fallthrough_when_true, Label* if_false,
+                  Label::Distance false_distance, bool fallthrough_when_false);
 
   inline void DoubleToInt64Repr(Register dst, DoubleRegister src);
   void TruncateDoubleToInt32(Register dst, DoubleRegister src);
@@ -186,9 +197,11 @@ class MaglevAssembler : public MacroAssembler {
   inline void CompareInt32(Register reg, int32_t imm);
   inline void CompareInt32(Register src1, Register src2);
 
-  inline void Jump(Label* target);
-  inline void JumpIf(Condition cond, Label* target);
-  inline void JumpIfTaggedEqual(Register r1, Register r2, Label* target);
+  inline void Jump(Label* target, Label::Distance distance = Label::kFar);
+  inline void JumpIf(Condition cond, Label* target,
+                     Label::Distance distance = Label::kFar);
+  inline void JumpIfTaggedEqual(Register r1, Register r2, Label* target,
+                                Label::Distance distance = Label::kFar);
 
   // TODO(victorgomes): Import baseline Pop(T...) methods.
   inline void Pop(Register dst);

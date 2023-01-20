@@ -792,10 +792,9 @@ void MaglevGraphBuilder::VisitBinarySmiOperation() {
   BuildGenericBinarySmiOperationNode<kOperation>();
 }
 
-template <typename CompareControlNode>
-bool MaglevGraphBuilder::TryBuildCompareOperation(Operation operation,
-                                                  ValueNode* left,
-                                                  ValueNode* right) {
+template <typename BranchControlNodeT, typename... Args>
+bool MaglevGraphBuilder::TryBuildBranchFor(
+    std::initializer_list<ValueNode*> control_inputs, Args&&... args) {
   // Don't emit the shortcut branch if the next bytecode is a merge target.
   if (IsOffsetAMergePoint(next_offset())) return false;
 
@@ -833,8 +832,8 @@ bool MaglevGraphBuilder::TryBuildCompareOperation(Operation operation,
       return false;
   }
 
-  BasicBlock* block = FinishBlock<CompareControlNode>(
-      {left, right}, operation, &jump_targets_[true_offset],
+  BasicBlock* block = FinishBlock<BranchControlNodeT>(
+      control_inputs, std::forward<Args>(args)..., &jump_targets_[true_offset],
       &jump_targets_[false_offset]);
   if (true_offset == iterator_.GetJumpTargetOffset()) {
     block->control_node()
@@ -863,8 +862,7 @@ void MaglevGraphBuilder::VisitCompareOperation() {
     case CompareOperationHint::kSignedSmall: {
       ValueNode* left = LoadRegisterInt32(0);
       ValueNode* right = GetAccumulatorInt32();
-      if (TryBuildCompareOperation<BranchIfInt32Compare>(kOperation, left,
-                                                         right)) {
+      if (TryBuildBranchFor<BranchIfInt32Compare>({left, right}, kOperation)) {
         return;
       }
       SetAccumulator(AddNewNode<Int32NodeFor<kOperation>>({left, right}));
@@ -873,8 +871,8 @@ void MaglevGraphBuilder::VisitCompareOperation() {
     case CompareOperationHint::kNumber: {
       ValueNode* left = LoadRegisterFloat64(0);
       ValueNode* right = GetAccumulatorFloat64();
-      if (TryBuildCompareOperation<BranchIfFloat64Compare>(kOperation, left,
-                                                           right)) {
+      if (TryBuildBranchFor<BranchIfFloat64Compare>({left, right},
+                                                    kOperation)) {
         return;
       }
       SetAccumulator(AddNewNode<Float64NodeFor<kOperation>>({left, right}));
@@ -893,8 +891,8 @@ void MaglevGraphBuilder::VisitCompareOperation() {
         right =
             GetInternalizedString(interpreter::Register::virtual_accumulator());
       }
-      if (TryBuildCompareOperation<BranchIfReferenceCompare>(kOperation, left,
-                                                             right)) {
+      if (TryBuildBranchFor<BranchIfReferenceCompare>({left, right},
+                                                      kOperation)) {
         return;
       }
       SetAccumulator(AddNewNode<TaggedEqual>({left, right}));
@@ -907,8 +905,8 @@ void MaglevGraphBuilder::VisitCompareOperation() {
       ValueNode* right = GetAccumulatorTagged();
       BuildCheckSymbol(left);
       BuildCheckSymbol(right);
-      if (TryBuildCompareOperation<BranchIfReferenceCompare>(kOperation, left,
-                                                             right)) {
+      if (TryBuildBranchFor<BranchIfReferenceCompare>({left, right},
+                                                      kOperation)) {
         return;
       }
       SetAccumulator(AddNewNode<TaggedEqual>({left, right}));
@@ -1137,8 +1135,8 @@ void MaglevGraphBuilder::VisitTestReferenceEqual() {
     SetAccumulator(GetRootConstant(RootIndex::kTrueValue));
     return;
   }
-  if (TryBuildCompareOperation<BranchIfReferenceCompare>(
-          Operation::kStrictEqual, lhs, rhs)) {
+  if (TryBuildBranchFor<BranchIfReferenceCompare>({lhs, rhs},
+                                                  Operation::kStrictEqual)) {
     return;
   }
   SetAccumulator(AddNewNode<TaggedEqual>({lhs, rhs}));
@@ -1180,7 +1178,9 @@ void MaglevGraphBuilder::VisitTestTypeOf() {
     return;
   }
   ValueNode* value = GetAccumulatorTagged();
-  // TODO(victorgomes): Add fast path for constants.
+  if (TryBuildBranchFor<BranchIfTypeOf>({value}, literal)) {
+    return;
+  }
   SetAccumulator(AddNewNode<TestTypeOf>({value}, literal));
 }
 

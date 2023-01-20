@@ -10,6 +10,7 @@
 #include "src/execution/isolate-inl.h"
 #include "src/heap/local-heap.h"
 #include "src/heap/parked-scope.h"
+#include "src/interpreter/bytecode-flags.h"
 #include "src/maglev/maglev-assembler-inl.h"
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph-processor.h"
@@ -1673,6 +1674,31 @@ void TestInstanceOf::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
+void TestTypeOf::SetValueLocationConstraints() {
+  UseRegister(value());
+  DefineAsRegister(this);
+}
+void TestTypeOf::GenerateCode(MaglevAssembler* masm,
+                              const ProcessingState& state) {
+  Register object = ToRegister(value());
+  // Use return register as temporary if needed. Be careful: {object} and
+  // {scratch} could alias (which means that {object} should be considered dead
+  // once {scratch} has been written to).
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  temps.Include(ToRegister(result()));
+
+  Label is_true, is_false, done;
+  __ TestTypeOf(object, literal_, &is_true, Label::kNear, true, &is_false,
+                Label::kNear, false);
+  // Fallthrough into true.
+  __ bind(&is_true);
+  __ LoadRoot(ToRegister(result()), RootIndex::kTrueValue);
+  __ Jump(&done, Label::kNear);
+  __ bind(&is_false);
+  __ LoadRoot(ToRegister(result()), RootIndex::kFalseValue);
+  __ bind(&done);
+}
+
 void ToBoolean::SetValueLocationConstraints() {
   UseRegister(value());
   DefineAsRegister(this);
@@ -2487,6 +2513,19 @@ void BranchIfUndefinedOrNull::GenerateCode(MaglevAssembler* masm,
   }
 }
 
+void BranchIfTypeOf::SetValueLocationConstraints() {
+  UseRegister(value_input());
+  // One temporary for TestTypeOf.
+  set_temporaries_needed(1);
+}
+void BranchIfTypeOf::GenerateCode(MaglevAssembler* masm,
+                                  const ProcessingState& state) {
+  Register value = ToRegister(value_input());
+  __ TestTypeOf(value, literal_, if_true()->label(), Label::kFar,
+                if_true() == state.next_block(), if_false()->label(),
+                Label::kFar, if_false() == state.next_block());
+}
+
 void Switch::SetValueLocationConstraints() {
   UseAndClobberRegister(value());
   // TODO(victorgomes): Create a arch-agnostic scratch register scope.
@@ -2749,6 +2788,11 @@ void CallRuntime::PrintParams(std::ostream& os,
   os << "(" << Runtime::FunctionForId(function_id())->name << ")";
 }
 
+void TestTypeOf::PrintParams(std::ostream& os,
+                             MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << interpreter::TestTypeOfFlags::ToString(literal_) << ")";
+}
+
 void IncreaseInterruptBudget::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
   os << "(" << amount() << ")";
@@ -2787,6 +2831,11 @@ void BranchIfInt32Compare::PrintParams(
 void BranchIfReferenceCompare::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
   os << "(" << operation_ << ")";
+}
+
+void BranchIfTypeOf::PrintParams(std::ostream& os,
+                                 MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << interpreter::TestTypeOfFlags::ToString(literal_) << ")";
 }
 
 }  // namespace maglev

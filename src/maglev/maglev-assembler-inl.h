@@ -206,6 +206,36 @@ inline void MaglevAssembler::JumpToDeferredIf(Condition cond,
   JumpIf(cond, &deferred_code->deferred_code_label);
 }
 
+inline void MaglevAssembler::Branch(Condition condition, BasicBlock* if_true,
+                                    BasicBlock* if_false,
+                                    BasicBlock* next_block) {
+  Branch(condition, if_true->label(), Label::kFar, if_true == next_block,
+         if_false->label(), Label::kFar, if_false == next_block);
+}
+
+inline void MaglevAssembler::Branch(Condition condition, Label* if_true,
+                                    Label::Distance true_distance,
+                                    bool fallthrough_when_true, Label* if_false,
+                                    Label::Distance false_distance,
+                                    bool fallthrough_when_false) {
+  if (fallthrough_when_false) {
+    if (fallthrough_when_true) {
+      // If both paths are a fallthrough, do nothing.
+      DCHECK_EQ(if_true, if_false);
+      return;
+    }
+    // Jump over the false block if true, otherwise fall through into it.
+    JumpIf(condition, if_true, true_distance);
+  } else {
+    // Jump to the false block if true.
+    JumpIf(NegateCondition(condition), if_false, false_distance);
+    // Jump to the true block if it's not the next block.
+    if (!fallthrough_when_true) {
+      Jump(if_true, true_distance);
+    }
+  }
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8
