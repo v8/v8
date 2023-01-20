@@ -38,33 +38,40 @@ void TranslationArrayPrintSingleFrame(
   disasm::NameConverter converter;
 
   TranslationOpcode opcode = iterator.NextOpcode();
-  DCHECK_EQ(TranslationOpcode::BEGIN, opcode);
+  DCHECK(TranslationOpcodeIsBegin(opcode));
   iterator.NextOperand();  // Skip the lookback distance.
   int frame_count = iterator.NextOperand();
   int jsframe_count = iterator.NextOperand();
-  int update_feedback_count = iterator.NextOperand();
   os << "  " << TranslationOpcodeToString(opcode)
      << " {frame count=" << frame_count << ", js frame count=" << jsframe_count
-     << ", update_feedback_count=" << update_feedback_count << "}\n";
+     << "}\n";
 
   while (iterator.HasNextOpcode()) {
     opcode = iterator.NextOpcode();
-    if (opcode == TranslationOpcode::BEGIN) break;
+    if (TranslationOpcodeIsBegin(opcode)) break;
 
     os << std::setw(31) << "    " << TranslationOpcodeToString(opcode) << " ";
 
     switch (opcode) {
-      case TranslationOpcode::BEGIN:
+      case TranslationOpcode::BEGIN_WITH_FEEDBACK:
+      case TranslationOpcode::BEGIN_WITHOUT_FEEDBACK:
       case TranslationOpcode::MATCH_PREVIOUS_TRANSLATION:
         UNREACHABLE();
 
-      case TranslationOpcode::INTERPRETED_FRAME: {
-        DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 5);
+      case TranslationOpcode::INTERPRETED_FRAME_WITH_RETURN:
+      case TranslationOpcode::INTERPRETED_FRAME_WITHOUT_RETURN: {
         int bytecode_offset = iterator.NextOperand();
         int shared_info_id = iterator.NextOperand();
         unsigned height = iterator.NextOperand();
-        int return_value_offset = iterator.NextOperand();
-        int return_value_count = iterator.NextOperand();
+        int return_value_offset = 0;
+        int return_value_count = 0;
+        if (opcode == TranslationOpcode::INTERPRETED_FRAME_WITH_RETURN) {
+          DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 5);
+          return_value_offset = iterator.NextOperand();
+          return_value_count = iterator.NextOperand();
+        } else {
+          DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 3);
+        }
         Object shared_info = literal_array.get(shared_info_id);
         os << "{bytecode_offset=" << bytecode_offset << ", function="
            << SharedFunctionInfo::cast(shared_info).DebugNameCStr().get()
@@ -786,13 +793,18 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
     DeoptimizationLiteralArray literal_array, Address fp, FILE* trace_file) {
   TranslationOpcode opcode = iterator->NextOpcode();
   switch (opcode) {
-    case TranslationOpcode::INTERPRETED_FRAME: {
+    case TranslationOpcode::INTERPRETED_FRAME_WITH_RETURN:
+    case TranslationOpcode::INTERPRETED_FRAME_WITHOUT_RETURN: {
       BytecodeOffset bytecode_offset = BytecodeOffset(iterator->NextOperand());
       SharedFunctionInfo shared_info =
           SharedFunctionInfo::cast(literal_array.get(iterator->NextOperand()));
       int height = iterator->NextOperand();
-      int return_value_offset = iterator->NextOperand();
-      int return_value_count = iterator->NextOperand();
+      int return_value_offset = 0;
+      int return_value_count = 0;
+      if (opcode == TranslationOpcode::INTERPRETED_FRAME_WITH_RETURN) {
+        return_value_offset = iterator->NextOperand();
+        return_value_count = iterator->NextOperand();
+      }
       if (trace_file != nullptr) {
         std::unique_ptr<char[]> name = shared_info.DebugNameCStr();
         PrintF(trace_file, "  reading input frame %s", name.get());
@@ -910,7 +922,8 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
           bytecode_offset, shared_info, height);
     }
     case TranslationOpcode::UPDATE_FEEDBACK:
-    case TranslationOpcode::BEGIN:
+    case TranslationOpcode::BEGIN_WITH_FEEDBACK:
+    case TranslationOpcode::BEGIN_WITHOUT_FEEDBACK:
     case TranslationOpcode::DUPLICATED_OBJECT:
     case TranslationOpcode::ARGUMENTS_ELEMENTS:
     case TranslationOpcode::ARGUMENTS_LENGTH:
@@ -1031,8 +1044,10 @@ int TranslatedState::CreateNextTranslatedValue(
 
   TranslationOpcode opcode = iterator->NextOpcode();
   switch (opcode) {
-    case TranslationOpcode::BEGIN:
-    case TranslationOpcode::INTERPRETED_FRAME:
+    case TranslationOpcode::BEGIN_WITH_FEEDBACK:
+    case TranslationOpcode::BEGIN_WITHOUT_FEEDBACK:
+    case TranslationOpcode::INTERPRETED_FRAME_WITH_RETURN:
+    case TranslationOpcode::INTERPRETED_FRAME_WITHOUT_RETURN:
     case TranslationOpcode::INLINED_EXTRA_ARGUMENTS:
     case TranslationOpcode::CONSTRUCT_STUB_FRAME:
     case TranslationOpcode::JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME:
@@ -1454,16 +1469,13 @@ void TranslatedState::Init(Isolate* isolate, Address input_frame_pointer,
 
   // Read out the 'header' translation.
   TranslationOpcode opcode = iterator->NextOpcode();
-  CHECK_EQ(opcode, TranslationOpcode::BEGIN);
+  CHECK(TranslationOpcodeIsBegin(opcode));
   iterator->NextOperand();  // Skip the lookback distance.
   int count = iterator->NextOperand();
   frames_.reserve(count);
   iterator->NextOperand();  // Drop JS frames count.
-  int update_feedback_count = iterator->NextOperand();
-  CHECK_GE(update_feedback_count, 0);
-  CHECK_LE(update_feedback_count, 1);
 
-  if (update_feedback_count == 1) {
+  if (opcode == TranslationOpcode::BEGIN_WITH_FEEDBACK) {
     ReadUpdateFeedback(iterator, literal_array, trace_file);
   }
 
@@ -1516,7 +1528,7 @@ void TranslatedState::Init(Isolate* isolate, Address input_frame_pointer,
   }
 
   CHECK(!iterator->HasNextOpcode() ||
-        iterator->NextOpcode() == TranslationOpcode::BEGIN);
+        TranslationOpcodeIsBegin(iterator->NextOpcode()));
 }
 
 void TranslatedState::Prepare(Address stack_frame_pointer) {

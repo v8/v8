@@ -869,11 +869,10 @@ class MaglevTranslationArrayBuilder {
   void BuildEagerDeopt(EagerDeoptInfo* deopt_info) {
     int frame_count = GetFrameCount(deopt_info->top_frame());
     int jsframe_count = frame_count;
-    int update_feedback_count =
-        deopt_info->feedback_to_update().IsValid() ? 1 : 0;
     deopt_info->set_translation_index(
-        translation_array_builder_->BeginTranslation(frame_count, jsframe_count,
-                                                     update_feedback_count));
+        translation_array_builder_->BeginTranslation(
+            frame_count, jsframe_count,
+            deopt_info->feedback_to_update().IsValid()));
     if (deopt_info->feedback_to_update().IsValid()) {
       translation_array_builder_->AddUpdateFeedback(
           GetDeoptLiteral(*deopt_info->feedback_to_update().vector),
@@ -887,11 +886,10 @@ class MaglevTranslationArrayBuilder {
   void BuildLazyDeopt(LazyDeoptInfo* deopt_info) {
     int frame_count = GetFrameCount(deopt_info->top_frame());
     int jsframe_count = frame_count;
-    int update_feedback_count =
-        deopt_info->feedback_to_update().IsValid() ? 1 : 0;
     deopt_info->set_translation_index(
-        translation_array_builder_->BeginTranslation(frame_count, jsframe_count,
-                                                     update_feedback_count));
+        translation_array_builder_->BeginTranslation(
+            frame_count, jsframe_count,
+            deopt_info->feedback_to_update().IsValid()));
     if (deopt_info->feedback_to_update().IsValid()) {
       translation_array_builder_->AddUpdateFeedback(
           GetDeoptLiteral(*deopt_info->feedback_to_update().vector),

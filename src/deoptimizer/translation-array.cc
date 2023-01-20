@@ -54,8 +54,8 @@ TranslationArrayIterator::TranslationArrayIterator(TranslationArray buffer,
   DCHECK(index >= 0 && index < buffer.length());
   // Starting at a location other than a BEGIN would make
   // MATCH_PREVIOUS_TRANSLATION instructions not work.
-  DCHECK_EQ(buffer_.GetDataStartAddress()[index],
-            static_cast<byte>(TranslationOpcode::BEGIN));
+  DCHECK(TranslationOpcodeIsBegin(
+      static_cast<TranslationOpcode>(buffer_.GetDataStartAddress()[index])));
 }
 
 int32_t TranslationArrayIterator::NextOperand() {
@@ -116,7 +116,7 @@ TranslationOpcode TranslationArrayIterator::NextOpcode() {
       static_cast<TranslationOpcode>(buffer_.get(index_++));
   DCHECK_LE(index_, buffer_.length());
   DCHECK_LT(static_cast<uint32_t>(opcode), kNumTranslationOpcodes);
-  if (opcode == TranslationOpcode::BEGIN) {
+  if (TranslationOpcodeIsBegin(opcode)) {
     int temp_index = index_;
     // The first argument for BEGIN is the distance, in bytes, since the
     // previous BEGIN, or zero to indicate that MATCH_PREVIOUS_TRANSLATION will
@@ -125,8 +125,8 @@ TranslationOpcode TranslationArrayIterator::NextOpcode() {
         base::VLQDecodeUnsigned(buffer_.GetDataStartAddress(), &temp_index);
     if (lookback_distance) {
       previous_index_ = index_ - 1 - lookback_distance;
-      DCHECK_EQ(buffer_.get(previous_index_),
-                static_cast<byte>(TranslationOpcode::BEGIN));
+      DCHECK(TranslationOpcodeIsBegin(
+          static_cast<TranslationOpcode>(buffer_.get(previous_index_))));
       // The previous BEGIN should specify zero as its lookback distance,
       // meaning it won't use MATCH_PREVIOUS_TRANSLATION.
       DCHECK_EQ(buffer_.get(previous_index_ + 1), 0);
@@ -225,8 +225,9 @@ void TranslationArrayBuilder::AddRawToContentsForCompression(
 }
 
 template <typename... T>
-void TranslationArrayBuilder::AddRawBegin(T... operands) {
-  auto opcode = TranslationOpcode::BEGIN;
+void TranslationArrayBuilder::AddRawBegin(bool update_feedback, T... operands) {
+  auto opcode = update_feedback ? TranslationOpcode::BEGIN_WITH_FEEDBACK
+                                : TranslationOpcode::BEGIN_WITHOUT_FEEDBACK;
   if (V8_UNLIKELY(v8_flags.turbo_compress_translation_arrays)) {
     AddRawToContentsForCompression(opcode, operands...);
   } else {
@@ -241,7 +242,7 @@ void TranslationArrayBuilder::AddRawBegin(T... operands) {
 
 int TranslationArrayBuilder::BeginTranslation(int frame_count,
                                               int jsframe_count,
-                                              int update_feedback_count) {
+                                              bool update_feedback) {
   FinishPendingInstructionIfNeeded();
   int start_index = Size();
   int distance_from_last_start = 0;
@@ -273,9 +274,8 @@ int TranslationArrayBuilder::BeginTranslation(int frame_count,
 
   // BEGIN instructions can't be replaced by MATCH_PREVIOUS_TRANSLATION, so
   // use a special helper function rather than calling Add().
-  AddRawBegin(UnsignedOperand(distance_from_last_start),
-              SignedOperand(frame_count), SignedOperand(jsframe_count),
-              SignedOperand(update_feedback_count));
+  AddRawBegin(update_feedback, UnsignedOperand(distance_from_last_start),
+              SignedOperand(frame_count), SignedOperand(jsframe_count));
   return start_index;
 }
 
@@ -429,10 +429,17 @@ void TranslationArrayBuilder::BeginInlinedExtraArguments(int literal_id,
 void TranslationArrayBuilder::BeginInterpretedFrame(
     BytecodeOffset bytecode_offset, int literal_id, unsigned height,
     int return_value_offset, int return_value_count) {
-  auto opcode = TranslationOpcode::INTERPRETED_FRAME;
-  Add(opcode, SignedOperand(bytecode_offset.ToInt()), SignedOperand(literal_id),
-      SignedOperand(height), SignedOperand(return_value_offset),
-      SignedOperand(return_value_count));
+  if (return_value_count == 0) {
+    DCHECK_EQ(return_value_offset, 0);
+    auto opcode = TranslationOpcode::INTERPRETED_FRAME_WITHOUT_RETURN;
+    Add(opcode, SignedOperand(bytecode_offset.ToInt()),
+        SignedOperand(literal_id), SignedOperand(height));
+  } else {
+    auto opcode = TranslationOpcode::INTERPRETED_FRAME_WITH_RETURN;
+    Add(opcode, SignedOperand(bytecode_offset.ToInt()),
+        SignedOperand(literal_id), SignedOperand(height),
+        SignedOperand(return_value_offset), SignedOperand(return_value_count));
+  }
 }
 
 void TranslationArrayBuilder::ArgumentsElements(CreateArgumentsType type) {

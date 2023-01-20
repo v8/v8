@@ -1129,10 +1129,10 @@ DeoptimizationExit* CodeGenerator::BuildTranslation(
   FrameStateDescriptor* const descriptor = entry.descriptor();
   frame_state_offset++;
 
-  const int update_feedback_count = entry.feedback().IsValid() ? 1 : 0;
   const int translation_index = translations_.BeginTranslation(
       static_cast<int>(descriptor->GetFrameCount()),
-      static_cast<int>(descriptor->GetJSFrameCount()), update_feedback_count);
+      static_cast<int>(descriptor->GetJSFrameCount()),
+      entry.feedback().IsValid());
   if (entry.feedback().IsValid()) {
     DeoptimizationLiteral literal =
         DeoptimizationLiteral(entry.feedback().vector);

@@ -75,7 +75,7 @@ class TranslationArrayBuilder {
   Handle<TranslationArray> ToTranslationArray(Factory* factory);
 
   int BeginTranslation(int frame_count, int jsframe_count,
-                       int update_feedback_count);
+                       bool update_feedback);
 
   void BeginInterpretedFrame(BytecodeOffset bytecode_offset, int literal_id,
                              unsigned height, int return_value_offset,
@@ -162,7 +162,7 @@ class TranslationArrayBuilder {
   // Adds a BEGIN instruction to contents_ or contents_for_compression_, but
   // does not update other state. Used by BeginTranslation.
   template <typename... T>
-  void AddRawBegin(T... operands);
+  void AddRawBegin(bool update_feedback, T... operands);
 
   int Size() const {
     return V8_UNLIKELY(v8_flags.turbo_compress_translation_arrays)
