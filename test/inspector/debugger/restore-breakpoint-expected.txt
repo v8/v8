@@ -44,6 +44,31 @@ bad();
 #boo();
 }
 
+Running test: testInsertNewLineWithLongCommentBefore
+/////////////////////////////////////////////////////////////////////////////...
+function foo() {
+boo();
+#boo();
+}
+/////////////////////////////////////////////////////////////////////////////...
+function foo() {
+boo();
+
+#boo();
+}
+
+Running test: testSameSourceBreakAfterReturnWithWhitespace
+function baz() {
+}
+
+function foo() {
+return 1;#                              }
+function baz() {
+}
+
+function foo() {
+return 1;#                              }
+
 Running test: testSameSourceDuplicateLinesDifferentPrefix
 function foo() {
 boo();

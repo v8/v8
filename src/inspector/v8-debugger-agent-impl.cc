@@ -195,8 +195,11 @@ std::unique_ptr<protocol::DictionaryValue> breakpointHint(
   }
 
   auto hintObject = protocol::DictionaryValue::create();
+  String16 rawHint = script.source(actualOffset, kBreakpointHintMaxLength);
+  std::pair<size_t, size_t> offsetAndLength =
+      rawHint.getTrimmedOffsetAndLength();
   String16 hint =
-      script.source(actualOffset, kBreakpointHintMaxLength).stripWhiteSpace();
+      rawHint.substring(offsetAndLength.first, offsetAndLength.second);
   for (size_t i = 0; i < hint.length(); ++i) {
     if (hint[i] == '\r' || hint[i] == '\n' || hint[i] == ';') {
       hint = hint.substring(0, i);
@@ -210,7 +213,7 @@ std::unique_ptr<protocol::DictionaryValue> breakpointHint(
   // time, we will keep the breakpoint at the same location (so that
   // breakpoints do not slide around on reloads without any edits).
   if (breakpointOffset <= actualOffset) {
-    size_t length = actualOffset - breakpointOffset;
+    size_t length = actualOffset - breakpointOffset + offsetAndLength.first;
     String16 prefix = script.source(breakpointOffset, length);
     int crc32 = computeCrc32(prefix);
     hintObject->setInteger(DebuggerAgentState::breakpointHintPrefixHash, crc32);
@@ -276,7 +279,7 @@ void adjustBreakpointLocation(const V8DebuggerScript& script,
   }
   size_t bestMatch;
   if (nextMatch == String16::kNotFound ||
-      nextMatch > kBreakpointHintMaxSearchOffset) {
+      nextMatch > offset + kBreakpointHintMaxSearchOffset) {
     bestMatch = prevMatch;
   } else if (prevMatch == String16::kNotFound) {
     bestMatch = nextMatch;

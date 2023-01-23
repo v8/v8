@@ -29,6 +29,20 @@ InspectorTest.runTestSuite([
     test(source, source, {lineNumber: 3, columnNumber: 0}, next);
   },
 
+  function testInsertNewLineWithLongCommentBefore(next) {
+    var longComment = '/'.repeat(1e3);
+    var source = `${longComment}\nfunction foo() {\nboo();\nboo();\n}`;
+    var newSource = `${longComment}\nfunction foo() {\nboo();\n\nboo();\n}`;
+    test(source, newSource, {lineNumber: 3, columnNumber: 0}, next);
+  },
+
+  function testSameSourceBreakAfterReturnWithWhitespace(next) {
+    var whitespace = ' '.repeat(30);
+    var source =
+        `function baz() {\n}\n\nfunction foo() {\nreturn 1;${whitespace}}`;
+    test(source, source, {lineNumber: 4, columnNumber: 9}, next);
+  },
+
   function testSameSourceDuplicateLinesDifferentPrefix(next) {
     var source = 'function foo() {\nboo();\n// something\nboo();\n}';
     var newSource = 'function foo() {\nboo();\n// somethinX\nboo();\n}';
