@@ -239,6 +239,10 @@ Maybe<bool> JSReceiver::CheckPrivateNameStore(LookupIterator* it,
     RETURN_FAILURE(isolate, GetShouldThrow(isolate, Nothing<ShouldThrow>()),
                    NewTypeError(MessageTemplate::kInvalidPrivateMemberWrite,
                                 name_string, it->GetReceiver()));
+  } else if (it->GetReceiver()->IsAlwaysSharedSpaceJSObject()) {
+    RETURN_FAILURE(
+        isolate, kThrowOnError,
+        NewTypeError(MessageTemplate::kDefineDisallowed, name_string));
   }
   return Just(true);
 }
@@ -1751,7 +1755,8 @@ Maybe<bool> JSReceiver::AddPrivateField(LookupIterator* it,
                                         Handle<Object> value,
                                         Maybe<ShouldThrow> should_throw) {
   Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(it->GetReceiver());
-  Isolate* isolate = receiver->GetIsolate();
+  DCHECK(!receiver->IsAlwaysSharedSpaceJSObject());
+  Isolate* isolate = it->isolate();
   DCHECK(it->GetName()->IsPrivateName());
   Handle<Symbol> symbol = Handle<Symbol>::cast(it->GetName());
 

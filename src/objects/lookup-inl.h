@@ -214,8 +214,8 @@ bool LookupIterator::ExtendingNonExtensible(Handle<JSReceiver> receiver) {
   // Shared objects have fixed layout. No properties may be added to them, not
   // even private symbols.
   return !receiver->map(isolate_).is_extensible() &&
-         (IsElement() ||
-          (!name_->IsPrivate(isolate_) || receiver->InSharedWritableHeap()));
+         (IsElement() || (!name_->IsPrivate(isolate_) ||
+                          receiver->IsAlwaysSharedSpaceJSObject()));
 }
 
 bool LookupIterator::IsCacheableTransition() {

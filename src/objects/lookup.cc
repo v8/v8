@@ -571,6 +571,7 @@ void LookupIterator::PrepareTransitionToDataProperty(
   DCHECK_IMPLIES(receiver->IsJSProxy(isolate_), name()->IsPrivate(isolate_));
   DCHECK_IMPLIES(!receiver.is_identical_to(GetStoreTarget<JSReceiver>()),
                  name()->IsPrivateName());
+  DCHECK(!receiver->IsAlwaysSharedSpaceJSObject());
   if (state_ == TRANSITION) return;
 
   if (!IsElement() && name()->IsPrivate(isolate_)) {
