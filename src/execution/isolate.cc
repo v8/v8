@@ -4500,7 +4500,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
                                                can_rehash);
       startup_deserializer.DeserializeIntoIsolate();
     }
-    if (DEBUG_BOOL || create_heap_objects) VerifyStaticRoots();
+    if (DEBUG_BOOL) VerifyStaticRoots();
     load_stub_cache_->Initialize();
     store_stub_cache_->Initialize();
     interpreter_->Initialize();

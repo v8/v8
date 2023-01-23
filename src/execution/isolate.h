@@ -2046,9 +2046,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // Returns either `TheHole` or `StringSet`.
   Object LocalsBlockListCacheGet(Handle<ScopeInfo> scope_info);
 
- private:
   void VerifyStaticRoots();
 
+ private:
   explicit Isolate(std::unique_ptr<IsolateAllocator> isolate_allocator,
                    bool is_shared);
   ~Isolate();

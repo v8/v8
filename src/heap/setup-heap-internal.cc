@@ -91,6 +91,7 @@ bool SetupIsolateDelegate::SetupHeapInternal(Isolate* isolate) {
   auto heap = isolate->heap();
   if (!isolate->read_only_heap()->roots_init_complete()) {
     if (!heap->CreateReadOnlyHeapObjects()) return false;
+    isolate->VerifyStaticRoots();
     isolate->read_only_heap()->OnCreateRootsComplete(isolate);
   }
 #ifdef DEBUG
