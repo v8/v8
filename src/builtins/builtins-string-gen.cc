@@ -1093,19 +1093,38 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
   RequireObjectCoercible(context, receiver, "String.prototype.replace");
 
   // Redirect to replacer method if {search[@@replace]} is not undefined.
+  {
+    Label next(this);
+    Label check_for_replace(this);
 
-  MaybeCallFunctionAtSymbol(
-      context, search, receiver, isolate()->factory()->replace_symbol(),
-      DescriptorIndexNameValue{JSRegExp::kSymbolReplaceFunctionDescriptorIndex,
-                               RootIndex::kreplace_symbol,
-                               Context::REGEXP_REPLACE_FUNCTION_INDEX},
-      [=]() {
-        Return(CallBuiltin(Builtin::kRegExpReplace, context, search, receiver,
-                           replace));
-      },
-      [=](TNode<Object> fn) {
-        Return(Call(context, fn, search, receiver, replace));
-      });
+    // The protector guarantees that that the Number and String wrapper
+    // prototypes do not contain Symbol.replace (aka. @@replace).
+    GotoIf(IsNumberStringPrototypeNoReplaceProtectorCellInvalid(),
+           &check_for_replace);
+    // Smi is safe thanks to the protector.
+    GotoIf(TaggedIsSmi(search), &next);
+    // String is safe thanks to the protector.
+    GotoIf(IsString(CAST(search)), &next);
+    // HeapNumber is safe thanks to the protector.
+    Branch(IsHeapNumber(CAST(search)), &next, &check_for_replace);
+
+    BIND(&check_for_replace);
+    MaybeCallFunctionAtSymbol(
+        context, search, receiver, isolate()->factory()->replace_symbol(),
+        DescriptorIndexNameValue{
+            JSRegExp::kSymbolReplaceFunctionDescriptorIndex,
+            RootIndex::kreplace_symbol, Context::REGEXP_REPLACE_FUNCTION_INDEX},
+        [=]() {
+          Return(CallBuiltin(Builtin::kRegExpReplace, context, search, receiver,
+                             replace));
+        },
+        [=](TNode<Object> fn) {
+          Return(Call(context, fn, search, receiver, replace));
+        });
+    Goto(&next);
+
+    BIND(&next);
+  }
 
   // Convert {receiver} and {search} to strings.
 

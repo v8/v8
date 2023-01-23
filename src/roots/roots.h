@@ -256,6 +256,8 @@ class Symbol;
   V(PropertyCell, promise_then_protector, PromiseThenProtector)                \
   V(PropertyCell, set_iterator_protector, SetIteratorProtector)                \
   V(PropertyCell, string_iterator_protector, StringIteratorProtector)          \
+  V(PropertyCell, number_string_prototype_no_replace_protector,                \
+    NumberStringPrototypeNoReplaceProtector)                                   \
   /* Caches */                                                                 \
   V(FixedArray, string_split_cache, StringSplitCache)                          \
   V(FixedArray, regexp_multiple_cache, RegExpMultipleCache)                    \

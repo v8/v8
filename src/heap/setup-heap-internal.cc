@@ -1063,6 +1063,7 @@ void Heap::CreateInitialMutableObjects() {
   set_set_iterator_protector(*factory->NewProtector());
   set_string_iterator_protector(*factory->NewProtector());
   set_string_length_protector(*factory->NewProtector());
+  set_number_string_prototype_no_replace_protector(*factory->NewProtector());
   set_typed_array_species_protector(*factory->NewProtector());
 
   set_serialized_objects(roots.empty_fixed_array());

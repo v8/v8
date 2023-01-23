@@ -5174,6 +5174,8 @@ Maybe<bool> JSObject::SetPrototype(Isolate* isolate, Handle<JSObject> object,
   isolate->UpdateNoElementsProtectorOnSetPrototype(real_receiver);
   isolate->UpdateTypedArraySpeciesLookupChainProtectorOnSetPrototype(
       real_receiver);
+  isolate->UpdateNumberStringPrototypeNoReplaceProtectorOnSetPrototype(
+      real_receiver);
 
   Handle<Map> new_map =
       Map::TransitionToPrototype(isolate, map, Handle<HeapObject>::cast(value));
