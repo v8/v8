@@ -3595,11 +3595,6 @@ class RepresentationSelector {
                      MachineRepresentation::kTaggedPointer);
         return;
       }
-      case IrOpcode::kFunctionLength: {
-        VisitUnop<T>(node, UseInfo::AnyTagged(),
-                     MachineRepresentation::kWord32);
-        return;
-      }
       case IrOpcode::kCheckBounds:
         return VisitCheckBounds<T>(node, lowering);
       case IrOpcode::kCheckHeapObject: {

@@ -2481,22 +2481,6 @@ void StringLength::GenerateCode(MaglevAssembler* masm,
          FieldMemOperand(object, String::kLengthOffset));
 }
 
-void FunctionLength::SetValueLocationConstraints() {
-  UseRegister(object_input());
-  DefineAsRegister(this);
-}
-void FunctionLength::GenerateCode(MaglevAssembler* masm,
-                                  const ProcessingState& state) {
-  Register object = ToRegister(object_input());
-  __ AssertFunction(object);
-  UseScratchRegisterScope temps(masm);
-  Register shared = temps.AcquireX();
-  __ LoadTaggedPointerField(
-      shared, FieldMemOperand(object, JSFunction::kSharedFunctionInfoOffset));
-  __ Ldr(ToRegister(result()).W(),
-         FieldMemOperand(shared, SharedFunctionInfo::kLengthOffset));
-}
-
 void TestUndetectable::SetValueLocationConstraints() {
   UseRegister(value());
   DefineAsRegister(this);

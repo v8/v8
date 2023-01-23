@@ -211,7 +211,6 @@ class CompactInterpreterFrameState;
   V(SetPendingMessage)                       \
   V(StringAt)                                \
   V(StringLength)                            \
-  V(FunctionLength)                          \
   V(ToBoolean)                               \
   V(ToBooleanLogicalNot)                     \
   V(TaggedEqual)                             \
@@ -4655,25 +4654,6 @@ class StringLength : public FixedInputValueNodeT<1, StringLength> {
   Input& object_input() { return input(kObjectIndex); }
 
   int MaxCallStackArgs() const;
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
-};
-
-class FunctionLength : public FixedInputValueNodeT<1, FunctionLength> {
-  using Base = FixedInputValueNodeT<1, FunctionLength>;
-
- public:
-  explicit FunctionLength(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties =
-      OpProperties::Reading() | OpProperties::Int32();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
-
-  static constexpr int kObjectIndex = 0;
-  Input& object_input() { return input(kObjectIndex); }
-
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}

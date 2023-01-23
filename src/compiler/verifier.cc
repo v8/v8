@@ -1227,10 +1227,6 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckValueInputIs(node, 2, Type::SignedSmall());
       CheckTypeIs(node, Type::String());
       break;
-    case IrOpcode::kFunctionLength:
-      CheckValueInputIs(node, 0, Type::Any());
-      CheckTypeIs(node, TypeCache::Get()->kArgumentsLengthType);
-      break;
     case IrOpcode::kReferenceEqual:
       CheckTypeIs(node, Type::Boolean());
       break;

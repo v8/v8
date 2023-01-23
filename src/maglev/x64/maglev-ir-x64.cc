@@ -1331,21 +1331,6 @@ void StringLength::GenerateCode(MaglevAssembler* masm,
   __ movl(ToRegister(result()), FieldOperand(object, String::kLengthOffset));
 }
 
-void FunctionLength::SetValueLocationConstraints() {
-  UseRegister(object_input());
-  DefineAsRegister(this);
-}
-void FunctionLength::GenerateCode(MaglevAssembler* masm,
-                                  const ProcessingState& state) {
-  Register object = ToRegister(object_input());
-  __ AssertFunction(object);
-  __ LoadTaggedPointerField(
-      kScratchRegister,
-      FieldOperand(object, JSFunction::kSharedFunctionInfoOffset));
-  __ movl(ToRegister(result()),
-          FieldOperand(kScratchRegister, SharedFunctionInfo::kLengthOffset));
-}
-
 void Int32AddWithOverflow::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());
