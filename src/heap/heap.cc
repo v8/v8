@@ -4894,6 +4894,13 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
       max_semi_space_size_ =
           SemiSpaceSizeFromYoungGenerationSize(young_generation_size);
     }
+    if (v8_flags.minor_mc) {
+      // The conditions above this one assume a new space implementation
+      // consisting of two equally sized semi spaces. If MinorMC is used, new
+      // space contains only a single space. Thus max size can be doubled
+      // without regressing memory.
+      max_semi_space_size_ *= 2;
+    }
     if (v8_flags.stress_compaction) {
       // This will cause more frequent GCs when stressing.
       max_semi_space_size_ = MB;
