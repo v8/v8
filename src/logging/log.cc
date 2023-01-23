@@ -971,7 +971,7 @@ class Profiler : public base::Thread {
   // Inserts collected profiling data into buffer.
   void Insert(TickSample* sample) {
     if (Succ(head_) == static_cast<int>(base::Acquire_Load(&tail_))) {
-      overflow_ = true;
+      base::Relaxed_Store(&overflow_, true);
     } else {
       buffer_[head_] = *sample;
       head_ = Succ(head_);
@@ -986,10 +986,10 @@ class Profiler : public base::Thread {
   bool Remove(TickSample* sample) {
     buffer_semaphore_.Wait();  // Wait for an element.
     *sample = buffer_[base::Relaxed_Load(&tail_)];
-    bool result = overflow_;
+    bool result = base::Relaxed_Load(&overflow_);
     base::Release_Store(
         &tail_, static_cast<base::Atomic32>(Succ(base::Relaxed_Load(&tail_))));
-    overflow_ = false;
+    base::Relaxed_Store(&overflow_, false);
     return result;
   }
 
@@ -1003,7 +1003,7 @@ class Profiler : public base::Thread {
   TickSample buffer_[kBufferSize];  // Buffer storage.
   int head_;                        // Index to the buffer head.
   base::Atomic32 tail_;             // Index to the buffer tail.
-  bool overflow_;  // Tell whether a buffer overflow has occurred.
+  base::Atomic32 overflow_;  // Tell whether a buffer overflow has occurred.
   // Semaphore used for buffer synchronization.
   base::Semaphore buffer_semaphore_;
 
@@ -1069,9 +1069,9 @@ Profiler::Profiler(Isolate* isolate)
     : base::Thread(Options("v8:Profiler")),
       isolate_(isolate),
       head_(0),
-      overflow_(false),
       buffer_semaphore_(0) {
   base::Relaxed_Store(&tail_, 0);
+  base::Relaxed_Store(&overflow_, false);
   base::Relaxed_Store(&running_, 0);
 }
 
