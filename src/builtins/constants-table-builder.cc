@@ -115,13 +115,12 @@ void BuiltinsConstantsTableBuilder::Finalize() {
   for (auto it = it_scope.begin(); it != it_scope.end(); ++it) {
     uint32_t index = *it.entry();
     Object value = it.key();
-    if (value.IsInstructionStream() &&
-        InstructionStream::cast(value).kind() == CodeKind::BUILTIN) {
+    if (value.IsCode() && Code::cast(value).kind() == CodeKind::BUILTIN) {
       // Replace placeholder code objects with the real builtin.
       // See also: SetupIsolateDelegate::PopulateWithPlaceholders.
       // TODO(jgruber): Deduplicate placeholders and their corresponding
       // builtin.
-      value = builtins->code(InstructionStream::cast(value).builtin_id());
+      value = builtins->code(Code::cast(value).builtin_id());
     }
     DCHECK(value.IsHeapObject());
     table->set(index, value);

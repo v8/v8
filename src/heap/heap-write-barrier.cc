@@ -173,10 +173,11 @@ bool WriteBarrier::IsImmortalImmovableHeapObject(HeapObject object) {
   // immovable. Objects on a page that can get compacted are movable and can be
   // filtered out.
   if (!chunk->IsFlagSet(MemoryChunk::NEVER_EVACUATE)) return false;
-  // Now we know the object is immovable, check whether it is also immortal.
-  // Builtins are roots and therefore always kept alive by the GC.
-  return object.IsInstructionStream() &&
-         InstructionStream::cast(object).is_builtin();
+  // Builtins don't have InstructionStream objects (instead, they point
+  // directly into off-heap code streams).
+  DCHECK_IMPLIES(object.IsInstructionStream(),
+                 !InstructionStream::cast(object).is_builtin());
+  return false;
 }
 #endif
 

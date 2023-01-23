@@ -49,9 +49,7 @@ CAST_ACCESSOR(DeoptimizationLiteralArray)
 
 int AbstractCode::InstructionSize(PtrComprCageBase cage_base) {
   Map map_object = map(cage_base);
-  if (InstanceTypeChecker::IsInstructionStream(map_object)) {
-    return GetInstructionStream().InstructionSize();
-  } else if (InstanceTypeChecker::IsCode(map_object)) {
+  if (InstanceTypeChecker::IsCode(map_object)) {
     return GetCode().InstructionSize();
   } else {
     DCHECK(InstanceTypeChecker::IsBytecodeArray(map_object));
@@ -62,10 +60,7 @@ int AbstractCode::InstructionSize(PtrComprCageBase cage_base) {
 ByteArray AbstractCode::SourcePositionTableInternal(
     PtrComprCageBase cage_base) {
   Map map_object = map(cage_base);
-  if (InstanceTypeChecker::IsInstructionStream(map_object)) {
-    DCHECK_NE(GetInstructionStream().kind(), CodeKind::BASELINE);
-    return GetInstructionStream().source_position_table(cage_base);
-  } else if (InstanceTypeChecker::IsCode(map_object)) {
+  if (InstanceTypeChecker::IsCode(map_object)) {
     Code code = GetCode();
     if (code.is_off_heap_trampoline()) {
       return GetReadOnlyRoots().empty_byte_array();
@@ -80,14 +75,8 @@ ByteArray AbstractCode::SourcePositionTableInternal(
 ByteArray AbstractCode::SourcePositionTable(PtrComprCageBase cage_base,
                                             SharedFunctionInfo sfi) {
   Map map_object = map(cage_base);
-  if (InstanceTypeChecker::IsInstructionStream(map_object)) {
-    return GetInstructionStream().SourcePositionTable(cage_base, sfi);
-  } else if (InstanceTypeChecker::IsCode(map_object)) {
-    Code code = GetCode();
-    if (code.is_off_heap_trampoline()) {
-      return GetReadOnlyRoots().empty_byte_array();
-    }
-    return FromCode(code).SourcePositionTable(cage_base, sfi);
+  if (InstanceTypeChecker::IsCode(map_object)) {
+    return GetCode().SourcePositionTable(cage_base, sfi);
   } else {
     DCHECK(InstanceTypeChecker::IsBytecodeArray(map_object));
     return GetBytecodeArray().SourcePositionTable(cage_base);
@@ -96,9 +85,7 @@ ByteArray AbstractCode::SourcePositionTable(PtrComprCageBase cage_base,
 
 int AbstractCode::SizeIncludingMetadata(PtrComprCageBase cage_base) {
   Map map_object = map(cage_base);
-  if (InstanceTypeChecker::IsInstructionStream(map_object)) {
-    return GetInstructionStream().SizeIncludingMetadata(cage_base);
-  } else if (InstanceTypeChecker::IsCode(map_object)) {
+  if (InstanceTypeChecker::IsCode(map_object)) {
     Code code = GetCode();
     return code.is_off_heap_trampoline()
                ? 0
@@ -111,9 +98,7 @@ int AbstractCode::SizeIncludingMetadata(PtrComprCageBase cage_base) {
 
 Address AbstractCode::InstructionStart(PtrComprCageBase cage_base) {
   Map map_object = map(cage_base);
-  if (InstanceTypeChecker::IsInstructionStream(map_object)) {
-    return GetInstructionStream().InstructionStart();
-  } else if (InstanceTypeChecker::IsCode(map_object)) {
+  if (InstanceTypeChecker::IsCode(map_object)) {
     return GetCode().InstructionStart();
   } else {
     DCHECK(InstanceTypeChecker::IsBytecodeArray(map_object));
@@ -123,9 +108,7 @@ Address AbstractCode::InstructionStart(PtrComprCageBase cage_base) {
 
 Address AbstractCode::InstructionEnd(PtrComprCageBase cage_base) {
   Map map_object = map(cage_base);
-  if (InstanceTypeChecker::IsInstructionStream(map_object)) {
-    return GetInstructionStream().InstructionEnd();
-  } else if (InstanceTypeChecker::IsCode(map_object)) {
+  if (InstanceTypeChecker::IsCode(map_object)) {
     return GetCode().InstructionEnd();
   } else {
     DCHECK(InstanceTypeChecker::IsBytecodeArray(map_object));
@@ -137,9 +120,7 @@ Address AbstractCode::InstructionEnd(PtrComprCageBase cage_base) {
 bool AbstractCode::contains(Isolate* isolate, Address inner_pointer) {
   PtrComprCageBase cage_base(isolate);
   Map map_object = map(cage_base);
-  if (InstanceTypeChecker::IsInstructionStream(map_object)) {
-    return GetInstructionStream().contains(isolate, inner_pointer);
-  } else if (InstanceTypeChecker::IsCode(map_object)) {
+  if (InstanceTypeChecker::IsCode(map_object)) {
     return GetCode().contains(isolate, inner_pointer);
   } else {
     DCHECK(InstanceTypeChecker::IsBytecodeArray(map_object));
@@ -150,9 +131,7 @@ bool AbstractCode::contains(Isolate* isolate, Address inner_pointer) {
 
 CodeKind AbstractCode::kind(PtrComprCageBase cage_base) {
   Map map_object = map(cage_base);
-  if (InstanceTypeChecker::IsInstructionStream(map_object)) {
-    return GetInstructionStream().kind();
-  } else if (InstanceTypeChecker::IsCode(map_object)) {
+  if (InstanceTypeChecker::IsCode(map_object)) {
     return GetCode().kind();
   } else {
     DCHECK(InstanceTypeChecker::IsBytecodeArray(map_object));
@@ -162,9 +141,7 @@ CodeKind AbstractCode::kind(PtrComprCageBase cage_base) {
 
 Builtin AbstractCode::builtin_id(PtrComprCageBase cage_base) {
   Map map_object = map(cage_base);
-  if (InstanceTypeChecker::IsInstructionStream(map_object)) {
-    return GetInstructionStream().builtin_id();
-  } else if (InstanceTypeChecker::IsCode(map_object)) {
+  if (InstanceTypeChecker::IsCode(map_object)) {
     return GetCode().builtin_id();
   } else {
     DCHECK(InstanceTypeChecker::IsBytecodeArray(map_object));
@@ -174,9 +151,7 @@ Builtin AbstractCode::builtin_id(PtrComprCageBase cage_base) {
 
 bool AbstractCode::is_off_heap_trampoline(PtrComprCageBase cage_base) {
   Map map_object = map(cage_base);
-  if (InstanceTypeChecker::IsInstructionStream(map_object)) {
-    return GetInstructionStream().is_off_heap_trampoline();
-  } else if (InstanceTypeChecker::IsCode(map_object)) {
+  if (InstanceTypeChecker::IsCode(map_object)) {
     return GetCode().is_off_heap_trampoline();
   } else {
     DCHECK(InstanceTypeChecker::IsBytecodeArray(map_object));
@@ -187,17 +162,11 @@ bool AbstractCode::is_off_heap_trampoline(PtrComprCageBase cage_base) {
 HandlerTable::CatchPrediction AbstractCode::GetBuiltinCatchPrediction(
     PtrComprCageBase cage_base) {
   Map map_object = map(cage_base);
-  if (InstanceTypeChecker::IsInstructionStream(map_object)) {
-    return GetInstructionStream().GetBuiltinCatchPrediction();
-  } else if (InstanceTypeChecker::IsCode(map_object)) {
+  if (InstanceTypeChecker::IsCode(map_object)) {
     return GetCode().GetBuiltinCatchPrediction();
   } else {
     UNREACHABLE();
   }
-}
-
-bool AbstractCode::IsInstructionStream(PtrComprCageBase cage_base) const {
-  return HeapObject::IsInstructionStream(cage_base);
 }
 
 bool AbstractCode::IsCode(PtrComprCageBase cage_base) const {
@@ -208,39 +177,10 @@ bool AbstractCode::IsBytecodeArray(PtrComprCageBase cage_base) const {
   return HeapObject::IsBytecodeArray(cage_base);
 }
 
-InstructionStream AbstractCode::GetInstructionStream() {
-  return InstructionStream::cast(*this);
-}
-
 Code AbstractCode::GetCode() { return Code::cast(*this); }
 
 BytecodeArray AbstractCode::GetBytecodeArray() {
   return BytecodeArray::cast(*this);
-}
-
-InstructionStream AbstractCode::ToInstructionStream(
-    PtrComprCageBase cage_base) {
-  Map map_object = map(cage_base);
-  if (InstanceTypeChecker::IsInstructionStream(map_object)) {
-    return GetInstructionStream();
-  } else if (InstanceTypeChecker::IsCode(map_object)) {
-    Code code = GetCode();
-    DCHECK(!code.is_off_heap_trampoline());
-    return FromCode(code);
-  } else {
-    UNREACHABLE();
-  }
-}
-
-Code AbstractCode::ToCode(PtrComprCageBase cage_base) {
-  Map map_object = map(cage_base);
-  if (InstanceTypeChecker::IsInstructionStream(map_object)) {
-    return i::ToCode(GetInstructionStream());
-  } else if (InstanceTypeChecker::IsCode(map_object)) {
-    return GetCode();
-  } else {
-    UNREACHABLE();
-  }
 }
 
 OBJECT_CONSTRUCTORS_IMPL(InstructionStream, HeapObject)
@@ -327,10 +267,22 @@ CODE_ACCESSORS_CHECKED2(bytecode_offset_table, ByteArray, kPositionTableOffset,
 
 // Concurrent marker needs to access kind specific flags in code.
 RELEASE_ACQUIRE_CODE_ACCESSORS(code, Code, kCodeOffset)
+RELEASE_ACQUIRE_CODE_ACCESSORS(raw_code, HeapObject, kCodeOffset)
 #undef CODE_ACCESSORS
 #undef CODE_ACCESSORS_CHECKED2
 #undef RELEASE_ACQUIRE_CODE_ACCESSORS
 #undef RELEASE_ACQUIRE_CODE_ACCESSORS_CHECKED2
+
+Code InstructionStream::GcSafeCode(AcquireLoadTag tag) {
+  HeapObject heap_obj = raw_code(tag);
+  // Currently this function is only expected to be called from MARK_COMPACT.
+  SLOW_DCHECK(GetIsolate()->heap()->gc_state() == Heap::MARK_COMPACT);
+  MapWord map_word = heap_obj.map_word(kRelaxedLoad);
+  if (map_word.IsForwardingAddress()) {
+    heap_obj = map_word.ToForwardingAddress(heap_obj);
+  }
+  return Code::cast(heap_obj);
+}
 
 PtrComprCageBase InstructionStream::main_cage_base() const {
 #ifdef V8_EXTERNAL_CODE_SPACE
@@ -463,7 +415,7 @@ MaglevSafepointEntry CodeLookupResult::GetMaglevSafepointEntry(
 AbstractCode CodeLookupResult::ToAbstractCode() const {
   DCHECK(IsFound());
   return IsCode() ? AbstractCode::cast(code())
-                  : AbstractCode::cast(instruction_stream());
+                  : AbstractCode::cast(instruction_stream().code(kAcquireLoad));
 }
 
 InstructionStream CodeLookupResult::ToInstructionStream() const {
@@ -497,6 +449,14 @@ void InstructionStream::clear_padding() {
   size_t trailing_padding_size =
       CodeSize() - InstructionStream::kHeaderSize - raw_body_size();
   memset(reinterpret_cast<void*>(raw_body_end()), 0, trailing_padding_size);
+}
+
+ByteArray Code::SourcePositionTable(PtrComprCageBase cage_base,
+                                    SharedFunctionInfo sfi) const {
+  if (is_off_heap_trampoline()) {
+    return GetReadOnlyRoots().empty_byte_array();
+  }
+  return instruction_stream().SourcePositionTable(cage_base, sfi);
 }
 
 ByteArray InstructionStream::SourcePositionTable(PtrComprCageBase cage_base,

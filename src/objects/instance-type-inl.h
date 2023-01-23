@@ -146,8 +146,7 @@ V8_INLINE bool IsThinString(Map map_object) {
 }
 
 V8_INLINE constexpr bool IsAbstractCode(InstanceType instance_type) {
-  return IsBytecodeArray(instance_type) || IsInstructionStream(instance_type) ||
-         IsCode(instance_type);
+  return IsBytecodeArray(instance_type) || IsCode(instance_type);
 }
 
 V8_INLINE bool IsAbstractCode(Map map_object) {

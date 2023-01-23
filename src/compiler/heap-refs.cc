@@ -65,17 +65,6 @@ enum ObjectDataKind {
 
 namespace {
 
-bool IsReadOnlyHeapObjectForCompiler(PtrComprCageBase cage_base,
-                                     HeapObject object) {
-  DisallowGarbageCollection no_gc;
-  // TODO(jgruber): Remove this compiler-specific predicate and use the plain
-  // heap predicate instead. This would involve removing the special cases for
-  // builtins.
-  return (object.IsInstructionStream(cage_base) &&
-          InstructionStream::cast(object).is_builtin()) ||
-         ReadOnlyHeap::Contains(object);
-}
-
 bool Is64() { return kSystemPointerSize == 8; }
 
 }  // namespace
@@ -113,10 +102,9 @@ class ObjectData : public ZoneObject {
                   kind == kUnserializedReadOnlyHeapObject || kind == kSmi ||
                       kind == kNeverSerializedHeapObject ||
                       kind == kBackgroundSerializedHeapObject);
-    CHECK_IMPLIES(
-        kind == kUnserializedReadOnlyHeapObject,
-        object->IsHeapObject() && IsReadOnlyHeapObjectForCompiler(
-                                      isolate, HeapObject::cast(*object)));
+    CHECK_IMPLIES(kind == kUnserializedReadOnlyHeapObject,
+                  object->IsHeapObject() &&
+                      ReadOnlyHeap::Contains(HeapObject::cast(*object)));
   }
 
 #define DECLARE_IS(Name) bool Is##Name() const;
@@ -1015,7 +1003,7 @@ ObjectData* JSHeapBroker::TryGetOrCreateData(Handle<Object> object,
     return nullptr;
   }
 
-  if (IsReadOnlyHeapObjectForCompiler(isolate(), HeapObject::cast(*object))) {
+  if (ReadOnlyHeap::Contains(HeapObject::cast(*object))) {
     entry = refs_->LookupOrInsert(object.address());
     return zone()->New<ObjectData>(this, &entry->value, object,
                                    kUnserializedReadOnlyHeapObject);

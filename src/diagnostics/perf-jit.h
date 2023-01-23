@@ -76,12 +76,11 @@ class LinuxPerfJitLogger : public CodeEventLogger {
 
   void LogWriteBytes(const char* bytes, int size);
   void LogWriteHeader();
-  void LogWriteDebugInfo(Handle<InstructionStream> code,
-                         Handle<SharedFunctionInfo> shared);
+  void LogWriteDebugInfo(Handle<Code> code, Handle<SharedFunctionInfo> shared);
 #if V8_ENABLE_WEBASSEMBLY
   void LogWriteDebugInfo(const wasm::WasmCode* code);
 #endif  // V8_ENABLE_WEBASSEMBLY
-  void LogWriteUnwindingInfo(InstructionStream code);
+  void LogWriteUnwindingInfo(Code code);
 
   static const uint32_t kElfMachIA32 = 3;
   static const uint32_t kElfMachX64 = 62;

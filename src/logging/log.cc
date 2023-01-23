@@ -1327,7 +1327,7 @@ void V8FileLogger::LogSourceCodeInformation(Handle<AbstractCode> code,
   if (hasInlined) {
     PodArray<InliningPosition> inlining_positions =
         DeoptimizationData::cast(
-            Handle<InstructionStream>::cast(code)->deoptimization_data())
+            Handle<Code>::cast(code)->deoptimization_data())
             .InliningPositions();
     for (int i = 0; i < inlining_positions.length(); i++) {
       InliningPosition inlining_pos = inlining_positions.get(i);
@@ -1348,7 +1348,7 @@ void V8FileLogger::LogSourceCodeInformation(Handle<AbstractCode> code,
   msg << V8FileLogger::kNext;
   if (hasInlined) {
     DeoptimizationData deopt_data = DeoptimizationData::cast(
-        Handle<InstructionStream>::cast(code)->deoptimization_data());
+        Handle<Code>::cast(code)->deoptimization_data());
     msg << std::hex;
     for (int i = 0; i <= maxInlinedId; i++) {
       msg << "S"
@@ -1370,11 +1370,7 @@ void V8FileLogger::LogCodeDisassemble(Handle<AbstractCode> code) {
       << V8FileLogger::kNext;
   {
     std::ostringstream stream;
-    if (code->IsInstructionStream(cage_base)) {
-#ifdef ENABLE_DISASSEMBLER
-      InstructionStream::cast(*code).Disassemble(nullptr, stream, isolate_);
-#endif
-    } else if (code->IsCode(cage_base)) {
+    if (code->IsCode(cage_base)) {
 #ifdef ENABLE_DISASSEMBLER
       Code::cast(*code).Disassemble(nullptr, stream, isolate_);
 #endif
@@ -1955,11 +1951,10 @@ EnumerateCompiledFunctions(Heap* heap) {
       JSFunction function = JSFunction::cast(obj);
       // TODO(jarin) This leaves out deoptimized code that might still be on the
       // stack. Also note that we will not log optimized code objects that are
-      // only on a type feedback vector. We should make this mroe precise.
+      // only on a type feedback vector. We should make this more precise.
       if (function.HasAttachedOptimizedCode() &&
           Script::cast(function.shared().script()).HasValidSource()) {
-        record(function.shared(),
-               AbstractCode::cast(FromCode(function.code())));
+        record(function.shared(), AbstractCode::cast(function.code()));
       }
     }
   }
@@ -2337,9 +2332,6 @@ void ExistingCodeLogger::LogCodeObjects() {
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
     InstanceType instance_type = obj.map(cage_base).instance_type();
-    // AbstactCode is InstructionStream|Code|BytecodeArray but we
-    // want to log code objects only once, thus we ignore InstructionStream
-    // objects which will be logged via corresponding Code.
     if (InstanceTypeChecker::IsCode(instance_type) ||
         InstanceTypeChecker::IsBytecodeArray(instance_type)) {
       LogCodeObject(AbstractCode::cast(obj));
@@ -2374,21 +2366,15 @@ void ExistingCodeLogger::LogCompiledFunctions(
       LogExistingFunction(
           shared,
           Handle<AbstractCode>(
-              AbstractCode::cast(FromCode(shared->InterpreterTrampoline())),
-              isolate_));
+              AbstractCode::cast(shared->InterpreterTrampoline()), isolate_));
     }
     if (shared->HasBaselineCode()) {
       LogExistingFunction(
-          shared,
-          Handle<AbstractCode>(
-              AbstractCode::cast(FromCode(shared->baseline_code(kAcquireLoad))),
-              isolate_));
+          shared, Handle<AbstractCode>(
+                      AbstractCode::cast(shared->baseline_code(kAcquireLoad)),
+                      isolate_));
     }
-    // Can't use .is_identical_to() because AbstractCode might be both
-    // InstructionStream and non-InstructionStream object and regular tagged
-    // comparison or compressed values might not be correct.
-    if (*pair.second ==
-        AbstractCode::cast(*BUILTIN_CODE(isolate_, CompileLazy))) {
+    if (pair.second.is_identical_to(BUILTIN_CODE(isolate_, CompileLazy))) {
       continue;
     }
     LogExistingFunction(pair.first, pair.second);

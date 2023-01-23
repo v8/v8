@@ -284,8 +284,7 @@ void CreateInterpreterDataForDeserializedCode(Isolate* isolate,
     }
 
     if (!log_code_creation) continue;
-    Handle<InstructionStream> istream(code->instruction_stream(), isolate);
-    Handle<AbstractCode> abstract_code = Handle<AbstractCode>::cast(istream);
+    Handle<AbstractCode> abstract_code = Handle<AbstractCode>::cast(code);
     Script::InitLineEnds(isolate, script);
     int line_num = script->GetLineNumber(info->StartPosition()) + 1;
     int column_num = script->GetColumnNumber(info->StartPosition()) + 1;

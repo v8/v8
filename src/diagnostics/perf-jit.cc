@@ -231,11 +231,8 @@ void LinuxPerfJitLogger::LogRecordedBuffer(
   if (perf_output_handle_ == nullptr) return;
 
   // We only support non-interpreted functions.
-  if (!abstract_code->IsInstructionStream(isolate_)) return;
-  Handle<InstructionStream> code =
-      Handle<InstructionStream>::cast(abstract_code);
-  DCHECK(code->raw_instruction_start() ==
-         code->address() + InstructionStream::kHeaderSize);
+  if (!abstract_code->IsCode(isolate_)) return;
+  Handle<Code> code = Handle<Code>::cast(abstract_code);
 
   // Debug info has to be emitted first.
   Handle<SharedFunctionInfo> shared;
@@ -322,12 +319,12 @@ base::Vector<const char> GetScriptName(Object maybeScript,
 
 }  // namespace
 
-SourcePositionInfo GetSourcePositionInfo(Handle<InstructionStream> code,
+SourcePositionInfo GetSourcePositionInfo(Isolate* isolate, Handle<Code> code,
                                          Handle<SharedFunctionInfo> function,
                                          SourcePosition pos) {
   DisallowGarbageCollection disallow;
   if (code->is_turbofanned()) {
-    return pos.FirstInfo(code);
+    return pos.FirstInfo(isolate, code);
   } else {
     return SourcePositionInfo(pos, function);
   }
@@ -335,7 +332,7 @@ SourcePositionInfo GetSourcePositionInfo(Handle<InstructionStream> code,
 
 }  // namespace
 
-void LinuxPerfJitLogger::LogWriteDebugInfo(Handle<InstructionStream> code,
+void LinuxPerfJitLogger::LogWriteDebugInfo(Handle<Code> code,
                                            Handle<SharedFunctionInfo> shared) {
   // Line ends of all scripts have been initialized prior to this.
   DisallowGarbageCollection no_gc;
@@ -355,8 +352,8 @@ void LinuxPerfJitLogger::LogWriteDebugInfo(Handle<InstructionStream> code,
   std::vector<base::Vector<const char>> script_names;
   for (SourcePositionTableIterator iterator(source_position_table);
        !iterator.done(); iterator.Advance()) {
-    SourcePositionInfo info(
-        GetSourcePositionInfo(code, shared, iterator.source_position()));
+    SourcePositionInfo info(GetSourcePositionInfo(isolate_, code, shared,
+                                                  iterator.source_position()));
     Object current_script = *info.script;
     if (current_script != last_script) {
       std::unique_ptr<char[]> name_storage;
@@ -390,8 +387,8 @@ void LinuxPerfJitLogger::LogWriteDebugInfo(Handle<InstructionStream> code,
   int script_names_index = 0;
   for (SourcePositionTableIterator iterator(source_position_table);
        !iterator.done(); iterator.Advance()) {
-    SourcePositionInfo info(
-        GetSourcePositionInfo(code, shared, iterator.source_position()));
+    SourcePositionInfo info(GetSourcePositionInfo(isolate_, code, shared,
+                                                  iterator.source_position()));
     PerfJitDebugEntry entry;
     // The entry point of the function will be placed straight after the ELF
     // header when processed by "perf inject". Adjust the position addresses
@@ -486,7 +483,7 @@ void LinuxPerfJitLogger::LogWriteDebugInfo(const wasm::WasmCode* code) {
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-void LinuxPerfJitLogger::LogWriteUnwindingInfo(InstructionStream code) {
+void LinuxPerfJitLogger::LogWriteUnwindingInfo(Code code) {
   PerfJitCodeUnwindingInfo unwinding_info_header;
   unwinding_info_header.event_ = PerfJitCodeLoad::kUnwindingInfo;
   unwinding_info_header.time_stamp_ = GetTimestamp();

@@ -170,6 +170,9 @@ class Code : public HeapObject {
   DECL_GETTER(source_position_table, ByteArray)
   DECL_GETTER(bytecode_offset_table, ByteArray)
 
+  inline ByteArray SourcePositionTable(PtrComprCageBase cage_base,
+                                       SharedFunctionInfo sfi) const;
+
   // Returns true if pc is inside this object's instructions.
   inline bool contains(Isolate* isolate, Address pc);
 
@@ -500,6 +503,9 @@ class InstructionStream : public HeapObject {
 
   // [code]: A container indirection for all mutable fields.
   DECL_RELEASE_ACQUIRE_ACCESSORS(code, Code)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(raw_code, HeapObject)
+  // As above but safe to use during GC.
+  inline Code GcSafeCode(AcquireLoadTag);
 
   // Unchecked accessors to be used during GC.
   inline ByteArray unchecked_relocation_info() const;
@@ -973,10 +979,7 @@ inline InstructionStream FromCode(Code code);
 inline InstructionStream FromCode(Code code, Isolate* isolate, RelaxedLoadTag);
 inline InstructionStream FromCode(Code code, PtrComprCageBase, RelaxedLoadTag);
 
-// AbstractCode is a helper wrapper around
-// {InstructionStream|Code|BytecodeArray}.  Note that the same
-// abstract code can be represented either by InstructionStream object or by
-// respective Code object.
+// AbstractCode is a helper wrapper around {Code|BytecodeArray}.
 class AbstractCode : public HeapObject {
  public:
   NEVER_READ_ONLY_SPACE
@@ -1025,30 +1028,11 @@ class AbstractCode : public HeapObject {
 
   DECL_CAST(AbstractCode)
 
-  // The following predicates don't have the parameterless versions on
-  // purpose - in order to avoid the expensive cage base computation that
-  // should work for both regular V8 heap objects and external code space
-  // objects.
-  inline bool IsInstructionStream(PtrComprCageBase cage_base) const;
   inline bool IsCode(PtrComprCageBase cage_base) const;
   inline bool IsBytecodeArray(PtrComprCageBase cage_base) const;
 
-  inline InstructionStream ToInstructionStream(PtrComprCageBase cage_base);
-  inline Code ToCode(PtrComprCageBase cage_base);
-
-  inline InstructionStream GetInstructionStream();
   inline Code GetCode();
   inline BytecodeArray GetBytecodeArray();
-
-  // AbstractCode might be represented by both InstructionStream and
-  // non-InstructionStream objects and thus regular comparison of tagged values
-  // might not be correct. SafeEquals() must be used instead.
-  constexpr bool operator==(AbstractCode other) const {
-    return SafeEquals(other);
-  }
-  constexpr bool operator!=(AbstractCode other) const {
-    return !SafeEquals(other);
-  }
 
  private:
   inline ByteArray SourcePositionTableInternal(PtrComprCageBase cage_base);

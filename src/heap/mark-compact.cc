@@ -1649,7 +1649,12 @@ class ProfilingMigrationObserver final : public MigrationObserver {
 
   inline void Move(AllocationSpace dest, HeapObject src, HeapObject dst,
                    int size) final {
-    if (dest == CODE_SPACE || (dest == OLD_SPACE && dst.IsBytecodeArray())) {
+    if (dest == CODE_SPACE) {
+      Code src_code = InstructionStream::cast(src).GcSafeCode(kAcquireLoad);
+      Code dst_code = InstructionStream::cast(dst).GcSafeCode(kAcquireLoad);
+      PROFILE(heap_->isolate(), CodeMoveEvent(AbstractCode::cast(src_code),
+                                              AbstractCode::cast(dst_code)));
+    } else if (dest == OLD_SPACE && dst.IsBytecodeArray()) {
       PROFILE(heap_->isolate(),
               CodeMoveEvent(AbstractCode::cast(src), AbstractCode::cast(dst)));
     }

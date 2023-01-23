@@ -1051,7 +1051,7 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
           .Build();
   Handle<InstructionStream> istream(code->instruction_stream(), isolate());
   PROFILE(masm_->isolate(),
-          RegExpCodeCreateEvent(Handle<AbstractCode>::cast(istream), source));
+          RegExpCodeCreateEvent(Handle<AbstractCode>::cast(code), source));
   return Handle<HeapObject>::cast(istream);
 }
 

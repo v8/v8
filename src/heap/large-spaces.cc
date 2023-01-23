@@ -392,6 +392,7 @@ void LargeObjectSpace::Verify(Isolate* isolate,
         object.IsFixedArray(cage_base) ||                         //
         object.IsFixedDoubleArray(cage_base) ||                   //
         object.IsFreeSpace(cage_base) ||                          //
+        object.IsInstructionStream(cage_base) ||                  //
         object.IsPreparseData(cage_base) ||                       //
         object.IsPropertyArray(cage_base) ||                      //
         object.IsScopeInfo() ||                                   //

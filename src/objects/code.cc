@@ -298,7 +298,7 @@ int AbstractCode::SourcePosition(PtrComprCageBase cage_base, int offset) {
 
   ByteArray source_position_table = ByteArray::cast(maybe_table);
   // Subtract one because the current PC is one instruction after the call site.
-  if (IsInstructionStream(cage_base)) offset--;
+  if (IsCode(cage_base)) offset--;
   int position = 0;
   for (SourcePositionTableIterator iterator(
            source_position_table, SourcePositionTableIterator::kJavaScriptOnly,

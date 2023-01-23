@@ -78,12 +78,12 @@ class SourcePosition final {
     return ExternalFileIdField::decode(value_);
   }
 
-  // Assumes that the code object is optimized
-  std::vector<SourcePositionInfo> InliningStack(
-      Handle<InstructionStream> code) const;
+  // Assumes that the code object is optimized.
+  std::vector<SourcePositionInfo> InliningStack(Isolate* isolate,
+                                                Code code) const;
   std::vector<SourcePositionInfo> InliningStack(
       OptimizedCompilationInfo* cinfo) const;
-  SourcePositionInfo FirstInfo(Handle<InstructionStream> code) const;
+  SourcePositionInfo FirstInfo(Isolate* isolate, Handle<Code> code) const;
 
   void Print(std::ostream& out, InstructionStream code) const;
   void PrintJson(std::ostream& out) const;
