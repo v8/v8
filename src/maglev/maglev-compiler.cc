@@ -451,7 +451,6 @@ MaybeHandle<Code> MaglevCompiler::GenerateCode(
 
   if (v8_flags.print_maglev_code) {
     code->Print();
-    code->instruction_stream().Print();
   }
 
   return code;
