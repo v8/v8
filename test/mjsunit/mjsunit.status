@@ -1847,4 +1847,9 @@
   'wasm/bigint-opt': [SKIP],
 }], # variant == always_sparkplug
 
+['tsan and mode == debug', {
+  'wasm/memory64': [PASS, SLOW],
+  'wasm/huge-memory': [PASS, SLOW],
+}]
+
 ]
