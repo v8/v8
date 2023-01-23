@@ -2284,6 +2284,13 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
       IsStoreInArrayLiteralIC());
 
   if (receiver_map->IsJSProxyMap()) {
+    // DefineKeyedOwnIC, which is used to define computed fields in instances,
+    // should be handled by the slow stub.
+    if (IsDefineKeyedOwnIC()) {
+      TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_SlowStub);
+      return StoreHandler::StoreSlow(isolate(), store_mode);
+    }
+
     return StoreHandler::StoreProxy(isolate());
   }
 
