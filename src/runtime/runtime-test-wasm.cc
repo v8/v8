@@ -528,5 +528,13 @@ RUNTIME_FUNCTION(Runtime_FlushWasmCode) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_WasmCompiledExportWrappersCount) {
+  int count = isolate->counters()
+                  ->wasm_compiled_export_wrapper()
+                  ->GetInternalPointer()
+                  ->load();
+  return Smi::FromInt(count);
+}
+
 }  // namespace internal
 }  // namespace v8

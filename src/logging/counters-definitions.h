@@ -343,7 +343,8 @@ namespace internal {
   SC(lo_space_bytes_used, V8.MemoryLoSpaceBytesUsed)                           \
   SC(wasm_generated_code_size, V8.WasmGeneratedCodeBytes)                      \
   SC(wasm_reloc_size, V8.WasmRelocBytes)                                       \
-  SC(wasm_lazily_compiled_functions, V8.WasmLazilyCompiledFunctions)
+  SC(wasm_lazily_compiled_functions, V8.WasmLazilyCompiledFunctions)           \
+  SC(wasm_compiled_export_wrapper, V8.WasmCompiledExportWrappers)
 
 // List of counters that can be incremented from generated code. We need them in
 // a separate list to be able to relocate them.

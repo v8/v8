@@ -1628,6 +1628,19 @@ int AddExportWrapperUnits(Isolate* isolate, NativeModule* native_module,
     uint32_t canonical_type_index =
         native_module->module()
             ->isorecursive_canonical_type_ids[function.sig_index];
+    int wrapper_index =
+        GetExportWrapperIndex(canonical_type_index, function.imported);
+    if (wrapper_index < isolate->heap()->js_to_wasm_wrappers().length()) {
+      MaybeObject existing_wrapper =
+          isolate->heap()->js_to_wasm_wrappers().Get(wrapper_index);
+      if (existing_wrapper.IsStrongOrWeak() &&
+          !existing_wrapper.GetHeapObject().IsUndefined()) {
+        // Skip wrapper compilation as the wrapper is already cached.
+        // Note that this does not guarantee that the wrapper is still cached
+        // at the moment at which the WasmInternalFunction is instantiated.
+        continue;
+      }
+    }
     JSToWasmWrapperKey key(function.imported, canonical_type_index);
     if (keys.insert(key).second) {
       auto unit = std::make_shared<JSToWasmWrapperCompilationUnit>(
@@ -1943,7 +1956,6 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
     // {cached_native_module} instead.
     module.reset();
     native_module.reset();
-    CompileJsToWasmWrappers(isolate, cached_native_module->module());
     return cached_native_module;
   }
 
@@ -3343,12 +3355,18 @@ void CompilationStateImpl::FinalizeJSToWasmWrappers(Isolate* isolate,
   CodePageCollectionMemoryModificationScope modification_scope(isolate->heap());
   for (auto& unit : js_to_wasm_wrapper_units_) {
     DCHECK_EQ(isolate, unit->isolate());
+    // Note: The code is either the compiled signature-specific wrapper or the
+    // generic wrapper built-in.
     Handle<Code> code = unit->Finalize();
     uint32_t index =
         GetExportWrapperIndex(unit->canonical_sig_index(), unit->is_import());
     isolate->heap()->js_to_wasm_wrappers().Set(index,
                                                MaybeObject::FromObject(*code));
-    RecordStats(*code, isolate->counters());
+    if (!code->is_builtin()) {
+      // Do not increase code stats for non-jitted wrappers.
+      RecordStats(*code, isolate->counters());
+      isolate->counters()->wasm_compiled_export_wrapper()->Increment(1);
+    }
   }
 }
 
@@ -3760,7 +3778,7 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module) {
         module->isorecursive_canonical_type_ids[function.sig_index];
     int wrapper_index =
         GetExportWrapperIndex(canonical_type_index, function.imported);
-    auto existing_wrapper =
+    MaybeObject existing_wrapper =
         isolate->heap()->js_to_wasm_wrappers().Get(wrapper_index);
     if (existing_wrapper.IsStrongOrWeak() &&
         !existing_wrapper.GetHeapObject().IsUndefined()) {
@@ -3809,7 +3827,11 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module) {
     int wrapper_index = GetExportWrapperIndex(key.second, key.first);
     isolate->heap()->js_to_wasm_wrappers().Set(
         wrapper_index, HeapObjectReference::Strong(*code));
-    RecordStats(*code, isolate->counters());
+    if (!code->is_builtin()) {
+      // Do not increase code stats for non-jitted wrappers.
+      RecordStats(*code, isolate->counters());
+      isolate->counters()->wasm_compiled_export_wrapper()->Increment(1);
+    }
   }
 }
 
