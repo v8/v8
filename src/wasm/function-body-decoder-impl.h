@@ -1475,10 +1475,12 @@ class WasmDecoder : public Decoder {
   }
 
   bool Validate(const byte* pc, TagIndexImmediate& imm) {
-    if (!VALIDATE(imm.index < module_->tags.size())) {
+    size_t num_tags = module_->tags.size();
+    if (!VALIDATE(imm.index < num_tags)) {
       DecodeError(pc, "Invalid tag index: %u", imm.index);
       return false;
     }
+    V8_ASSUME(imm.index < num_tags);
     imm.tag = &module_->tags[imm.index];
     return true;
   }
@@ -1486,10 +1488,12 @@ class WasmDecoder : public Decoder {
   bool Validate(const byte* pc, GlobalIndexImmediate& imm) {
     // We compare with the current size of the globals vector. This is important
     // if we are decoding a constant expression in the global section.
-    if (!VALIDATE(imm.index < module_->globals.size())) {
+    size_t num_globals = module_->globals.size();
+    if (!VALIDATE(imm.index < num_globals)) {
       DecodeError(pc, "Invalid global index: %u", imm.index);
       return false;
     }
+    V8_ASSUME(imm.index < num_globals);
     imm.global = &module_->globals[imm.index];
 
     if constexpr (decoding_mode == kConstantExpression) {
@@ -1557,10 +1561,12 @@ class WasmDecoder : public Decoder {
   }
 
   bool Validate(const byte* pc, CallFunctionImmediate& imm) {
-    if (!VALIDATE(imm.index < module_->functions.size())) {
+    size_t num_functions = module_->functions.size();
+    if (!VALIDATE(imm.index < num_functions)) {
       DecodeError(pc, "function index #%u is out of bounds", imm.index);
       return false;
     }
+    V8_ASSUME(imm.index < num_functions);
     imm.sig = module_->functions[imm.index].sig;
     return true;
   }
@@ -1738,6 +1744,9 @@ class WasmDecoder : public Decoder {
   bool Validate(const byte* pc, TableCopyImmediate& imm) {
     if (!ValidateTable(pc, imm.table_src)) return false;
     if (!ValidateTable(pc + imm.table_src.length, imm.table_dst)) return false;
+    size_t num_tables = module_->tables.size();
+    V8_ASSUME(imm.table_src.index < num_tables);
+    V8_ASSUME(imm.table_dst.index < num_tables);
     ValueType src_type = module_->tables[imm.table_src.index].type;
     if (!VALIDATE(IsSubtypeOf(
             src_type, module_->tables[imm.table_dst.index].type, module_))) {
@@ -1762,18 +1771,22 @@ class WasmDecoder : public Decoder {
     if (imm.index > 0 || imm.length > 1) {
       this->detected_->Add(kFeature_reftypes);
     }
-    if (!VALIDATE(imm.index < module_->tables.size())) {
+    size_t num_tables = module_->tables.size();
+    if (!VALIDATE(imm.index < num_tables)) {
       DecodeError(pc, "invalid table index: %u", imm.index);
       return false;
     }
+    V8_ASSUME(imm.index < num_tables);
     return true;
   }
 
   bool ValidateElementSegment(const byte* pc, IndexImmediate& imm) {
-    if (!VALIDATE(imm.index < module_->elem_segments.size())) {
+    size_t num_elem_segments = module_->elem_segments.size();
+    if (!VALIDATE(imm.index < num_elem_segments)) {
       DecodeError(pc, "invalid element segment index: %u", imm.index);
       return false;
     }
+    V8_ASSUME(imm.index < num_elem_segments);
     return true;
   }
 
@@ -1802,10 +1815,12 @@ class WasmDecoder : public Decoder {
   }
 
   bool ValidateFunction(const byte* pc, IndexImmediate& imm) {
-    if (!VALIDATE(imm.index < module_->functions.size())) {
+    size_t num_functions = module_->functions.size();
+    if (!VALIDATE(imm.index < num_functions)) {
       DecodeError(pc, "function index #%u is out of bounds", imm.index);
       return false;
     }
+    V8_ASSUME(imm.index < num_functions);
     if (decoding_mode == kFunctionBody &&
         !VALIDATE(module_->functions[imm.index].declared)) {
       DecodeError(pc, "undeclared reference to function #%u", imm.index);

@@ -586,6 +586,8 @@ struct V8_EXPORT_PRIVATE WasmModule {
   }
   const FunctionSig* signature(uint32_t index) const {
     DCHECK(has_signature(index));
+    size_t num_types = types.size();
+    V8_ASSUME(index < num_types);
     return types[index].function_sig;
   }
 
@@ -599,6 +601,8 @@ struct V8_EXPORT_PRIVATE WasmModule {
   }
   const StructType* struct_type(uint32_t index) const {
     DCHECK(has_struct(index));
+    size_t num_types = types.size();
+    V8_ASSUME(index < num_types);
     return types[index].struct_type;
   }
 
@@ -612,11 +616,14 @@ struct V8_EXPORT_PRIVATE WasmModule {
   }
   const ArrayType* array_type(uint32_t index) const {
     DCHECK(has_array(index));
+    size_t num_types = types.size();
+    V8_ASSUME(index < num_types);
     return types[index].array_type;
   }
 
   uint32_t supertype(uint32_t index) const {
-    DCHECK(index < types.size());
+    size_t num_types = types.size();
+    V8_ASSUME(index < num_types);
     return types[index].supertype;
   }
   bool has_supertype(uint32_t index) const {
