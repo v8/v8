@@ -6,7 +6,6 @@
 
 #include <limits>
 
-#include "src/base/platform/platform.h"
 #include "src/base/sanitizer/asan.h"
 #include "src/base/sanitizer/msan.h"
 #include "src/base/sanitizer/tsan.h"
@@ -182,12 +181,11 @@ void Stack::IteratePointers(StackVisitor* visitor) const {
   IterateUnsafeStackIfNecessary(visitor);
 }
 
-void Stack::IteratePointersUnsafe(StackVisitor* visitor,
-                                  const void* stack_end) const {
+void Stack::IteratePointersUntilMarker(StackVisitor* visitor) const {
   DCHECK_NOT_NULL(stack_start_);
-  DCHECK_NOT_NULL(stack_end);
-  DCHECK_GE(stack_start_, stack_end);
-  IteratePointersImpl(this, visitor, stack_end);
+  DCHECK_NOT_NULL(stack_marker_);
+  DCHECK_GE(stack_start_, stack_marker_);
+  IteratePointersImpl(this, visitor, stack_marker_);
 }
 
 #ifdef DEBUG

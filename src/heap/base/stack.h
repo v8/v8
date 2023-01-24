@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "src/base/macros.h"
+#include "src/base/platform/platform.h"
 
 namespace heap::base {
 
@@ -48,18 +49,23 @@ class V8_EXPORT_PRIVATE Stack final {
   // `visitor`.
   void IteratePointers(StackVisitor* visitor) const;
 
-  // Word-aligned iteration of the stack, starting at `stack_end`. Slot values
-  // are passed on to `visitor`. This is intended to be used with verifiers that
-  // only visit a subset of the stack of IteratePointers().
+  // Word-aligned iteration of the stack, starting at the `stack_marker_`. Slot
+  // values are passed on to `visitor`. This is intended to be used with
+  // verifiers that only visit a subset of the stack of IteratePointers().
   //
   // **Ignores:**
   // - Callee-saved registers.
   // - SafeStack.
-  void IteratePointersUnsafe(StackVisitor* visitor,
-                             const void* stack_end) const;
+  void IteratePointersUntilMarker(StackVisitor* visitor) const;
 
   void AddStackSegment(const void* start, const void* top);
   void ClearStackSegments();
+
+  // This method should be inlined, to set the marker at the current frame's
+  // stack top.
+  V8_INLINE void SetMarkerToCurrentStackPosition() {
+    stack_marker_ = v8::base::Stack::GetCurrentStackPosition();
+  }
 
  private:
 #ifdef DEBUG
@@ -70,6 +76,10 @@ class V8_EXPORT_PRIVATE Stack final {
                                   const void* stack_end);
 
   const void* stack_start_;
+
+  // Marker that signals end of the interesting stack region in which on-heap
+  // pointers can be found.
+  const void* stack_marker_;
 
   // TODO(v8:13493): This is for suppressing the check that we are in the
   // correct stack, in the case of  WASM stack switching. It will be removed as

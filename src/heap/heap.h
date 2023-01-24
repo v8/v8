@@ -171,6 +171,7 @@ enum class SkipRoot {
   kUnserializable,
   kWeak,
   kConservativeStack,
+  kTopOfStack,
 };
 
 enum UnprotectMemoryOrigin {
@@ -1037,8 +1038,6 @@ class Heap {
   void IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options);
   void IterateRootsIncludingClients(RootVisitor* v,
                                     base::EnumSet<SkipRoot> options);
-  void IterateRootsFromStackIncludingClients(RootVisitor* v,
-                                             StackState stack_state);
 
   // Iterates over entries in the smi roots list.  Only interesting to the
   // serializer/deserializer, since GC does not care about smis.
@@ -1047,7 +1046,11 @@ class Heap {
   void IterateWeakRoots(RootVisitor* v, base::EnumSet<SkipRoot> options);
   void IterateWeakGlobalHandles(RootVisitor* v);
   void IterateBuiltins(RootVisitor* v);
-  void IterateStackRoots(RootVisitor* v, StackState stack_state);
+
+  enum class ScanStackMode { kNone, kFromMarker, kComplete };
+  void IterateStackRoots(RootVisitor* v, ScanStackMode stack_mode);
+  void IterateStackRootsIncludingClients(RootVisitor* v,
+                                         ScanStackMode stack_mode);
 
   // ===========================================================================
   // Remembered set API. =======================================================
