@@ -597,7 +597,7 @@ static bool AddOneReceiverMapIfMissing(
 }
 
 bool IC::UpdateMegaDOMIC(const MaybeObjectHandle& handler, Handle<Name> name) {
-  if (!v8_flags.enable_mega_dom_ic) return false;
+  if (!v8_flags.mega_dom_ic) return false;
 
   // TODO(gsathya): Enable fuzzing once this feature is more stable.
   if (v8_flags.fuzzing) return false;
