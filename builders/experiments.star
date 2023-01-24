@@ -18,7 +18,6 @@ def experiment_builder(**kwargs):
     if "builder_group" not in properties:
         properties["builder_group"] = "client.v8"
     experiments = kwargs.pop("experiments", {})
-    experiments["luci.buildbucket.omit_python2"] = 100
     experiments["v8.resultdb"] = 100
     return v8_builder(
         bucket = bucket,

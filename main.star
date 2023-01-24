@@ -22,7 +22,7 @@ V8_SERVICE_ACCOUNTS = [V8_TRY_ACCOUNT, V8_CI_ACCOUNT, V8_PGO_ACCOUNT]
 
 luci.builder.defaults.experiments.set(
     {
-        # Omit python2 for some builds.
+        # Omit python2 for all builds.
         "luci.buildbucket.omit_python2": 100,
     },
 )

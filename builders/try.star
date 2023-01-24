@@ -37,10 +37,6 @@ def presubmit_builder(
         execution_timeout = timeout + 2 * 60,
         properties = {"runhooks": True, "timeout": timeout},
         priority = 25,
-
-        # TODO(https://crbug.com/1401307): Remove this exception once bug is
-        # resolved.
-        experiments = {"luci.buildbucket.omit_python2": 0},
     )
 
 presubmit_builder(
