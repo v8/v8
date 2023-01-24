@@ -237,10 +237,8 @@ DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
 #endif
 
 // Features that are complete (but still behind the --harmony flag).
-#define HARMONY_STAGED_BASE(V)                                  \
-  V(harmony_rab_gsab,                                           \
-    "harmony ResizableArrayBuffer / GrowableSharedArrayBuffer") \
-  V(harmony_rab_gsab_transfer, "harmony ArrayBuffer.transfer")  \
+#define HARMONY_STAGED_BASE(V)                                 \
+  V(harmony_rab_gsab_transfer, "harmony ArrayBuffer.transfer") \
   V(harmony_array_grouping, "harmony array grouping")
 
 DEFINE_IMPLICATION(harmony_rab_gsab_transfer, harmony_rab_gsab)
@@ -252,13 +250,15 @@ DEFINE_IMPLICATION(harmony_rab_gsab_transfer, harmony_rab_gsab)
 #endif
 
 // Features that are shipping (turned on by default, but internal flag remains).
-#define HARMONY_SHIPPING_BASE(V)                                      \
-  V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")           \
-  V(harmony_atomics, "harmony atomics")                               \
-  V(harmony_import_assertions, "harmony import assertions")           \
-  V(harmony_symbol_as_weakmap_key, "harmony symbols as weakmap keys") \
-  V(harmony_change_array_by_copy, "harmony change-Array-by-copy")     \
-  V(harmony_string_is_well_formed, "harmony String#{is,to}WellFormed")
+#define HARMONY_SHIPPING_BASE(V)                                       \
+  V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")            \
+  V(harmony_atomics, "harmony atomics")                                \
+  V(harmony_import_assertions, "harmony import assertions")            \
+  V(harmony_symbol_as_weakmap_key, "harmony symbols as weakmap keys")  \
+  V(harmony_change_array_by_copy, "harmony change-Array-by-copy")      \
+  V(harmony_string_is_well_formed, "harmony String#{is,to}WellFormed") \
+  V(harmony_rab_gsab,                                                  \
+    "harmony ResizableArrayBuffer / GrowableSharedArrayBuffer")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_SHIPPING(V) \
