@@ -4033,6 +4033,21 @@ Handle<ArrayList> ArrayList::Add(Isolate* isolate, Handle<ArrayList> array,
   return array;
 }
 
+Handle<ArrayList> ArrayList::Add(Isolate* isolate, Handle<ArrayList> array,
+                                 Smi obj1) {
+  int length = array->Length();
+  array = EnsureSpace(isolate, array, length + 1);
+  // Check that GC didn't remove elements from the array.
+  DCHECK_EQ(array->Length(), length);
+  {
+    DisallowGarbageCollection no_gc;
+    ArrayList raw_array = *array;
+    raw_array.Set(length, obj1);
+    raw_array.SetLength(length + 1);
+  }
+  return array;
+}
+
 // static
 Handle<ArrayList> ArrayList::Add(Isolate* isolate, Handle<ArrayList> array,
                                  Handle<Object> obj1, Handle<Object> obj2) {

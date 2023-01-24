@@ -467,6 +467,9 @@ class ArrayList : public TorqueGeneratedArrayList<ArrayList, FixedArray> {
                                                  Handle<Object> obj2);
   V8_EXPORT_PRIVATE static Handle<ArrayList> Add(Isolate* isolate,
                                                  Handle<ArrayList> array,
+                                                 Smi obj1);
+  V8_EXPORT_PRIVATE static Handle<ArrayList> Add(Isolate* isolate,
+                                                 Handle<ArrayList> array,
                                                  Handle<Object> obj1, Smi obj2,
                                                  Smi obj3, Smi obj4);
   static Handle<ArrayList> New(Isolate* isolate, int size);

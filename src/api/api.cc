@@ -2317,6 +2317,31 @@ Local<Value> Script::GetResourceName() {
       i::handle(i::Script::cast(sfi.script()).name(), i_isolate));
 }
 
+std::vector<int> Script::GetProducedCompileHints() const {
+  i::DisallowGarbageCollection no_gc;
+  i::Handle<i::JSFunction> func = Utils::OpenHandle(this);
+  i::Isolate* i_isolate = func->GetIsolate();
+  i::SharedFunctionInfo sfi = (*func).shared();
+  CHECK(sfi.script().IsScript());
+  i::Script script = i::Script::cast(sfi.script());
+  i::Object maybe_array_list = script.compiled_lazy_function_positions();
+  std::vector<int> result;
+  if (!maybe_array_list.IsUndefined(i_isolate)) {
+    i::ArrayList array_list = i::ArrayList::cast(maybe_array_list);
+    result.reserve(array_list.Length());
+    for (int i = 0; i < array_list.Length(); ++i) {
+      i::Object item = array_list.Get(i);
+      CHECK(item.IsSmi());
+      result.push_back(i::Smi::ToInt(item));
+    }
+    // Clear the data; the embedder can still request more data later, but it'll
+    // have to keep track of the original data itself.
+    script.set_compiled_lazy_function_positions(
+        i::ReadOnlyRoots(i_isolate).undefined_value());
+  }
+  return result;
+}
+
 // static
 Local<PrimitiveArray> PrimitiveArray::New(Isolate* v8_isolate, int length) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
@@ -2723,9 +2748,10 @@ MaybeLocal<Script> ScriptCompiler::Compile(Local<Context> context,
 MaybeLocal<Module> ScriptCompiler::CompileModule(
     Isolate* v8_isolate, Source* source, CompileOptions options,
     NoCacheReason no_cache_reason) {
-  Utils::ApiCheck(options == kNoCompileOptions || options == kConsumeCodeCache,
-                  "v8::ScriptCompiler::CompileModule",
-                  "Invalid CompileOptions");
+  Utils::ApiCheck(
+      options == kNoCompileOptions || options == kConsumeCodeCache ||
+          options == kProduceCompileHints,
+      "v8::ScriptCompiler::CompileModule", "Invalid CompileOptions");
   Utils::ApiCheck(source->GetResourceOptions().IsModule(),
                   "v8::ScriptCompiler::CompileModule",
                   "Invalid ScriptOrigin: is_module must be true");
@@ -2860,7 +2886,8 @@ void ScriptCompiler::ScriptStreamingTask::Run() { data_->task->Run(); }
 ScriptCompiler::ScriptStreamingTask* ScriptCompiler::StartStreaming(
     Isolate* v8_isolate, StreamedSource* source, v8::ScriptType type,
     CompileOptions options) {
-  Utils::ApiCheck(options == kNoCompileOptions || options == kEagerCompile,
+  Utils::ApiCheck(options == kNoCompileOptions || options == kEagerCompile ||
+                      options == kProduceCompileHints,
                   "v8::ScriptCompiler::StartStreaming",
                   "Invalid CompileOptions");
   if (!i::v8_flags.script_streaming) return nullptr;

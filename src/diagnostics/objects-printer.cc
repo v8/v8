@@ -2356,6 +2356,8 @@ void Script::ScriptPrint(std::ostream& os) {
   os << "\n - source_mapping_url: " << Brief(source_mapping_url());
   os << "\n - host_defined_options: " << Brief(host_defined_options());
   os << "\n - compilation type: " << compilation_type();
+  os << "\n - compiled lazy function positions: "
+     << compiled_lazy_function_positions();
   bool is_wasm = false;
 #if V8_ENABLE_WEBASSEMBLY
   if ((is_wasm = (type() == TYPE_WASM))) {

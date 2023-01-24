@@ -1596,6 +1596,9 @@ BackgroundCompileTask::BackgroundCompileTask(
       start_position_(0),
       end_position_(0),
       function_literal_id_(kFunctionLiteralIdTopLevel) {
+  if (options == ScriptCompiler::CompileOptions::kProduceCompileHints) {
+    flags_.set_produce_compile_hints(true);
+  }
   DCHECK(is_streaming_compilation());
 }
 
@@ -2536,6 +2539,21 @@ bool Compiler::Compile(Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
     CompileAllWithBaseline(isolate, finalize_unoptimized_compilation_data_list);
   }
 
+  if (script->produce_compile_hints()) {
+    // Log lazy funtion compilation.
+    Handle<ArrayList> list;
+    if (script->compiled_lazy_function_positions().IsUndefined()) {
+      constexpr int kInitialLazyFunctionPositionListSize = 100;
+      list = ArrayList::New(isolate, kInitialLazyFunctionPositionListSize);
+    } else {
+      list = handle(ArrayList::cast(script->compiled_lazy_function_positions()),
+                    isolate);
+    }
+    list = ArrayList::Add(isolate, list,
+                          Smi::FromInt(shared_info->StartPosition()));
+    script->set_compiled_lazy_function_positions(*list);
+  }
+
   DCHECK(!isolate->has_pending_exception());
   DCHECK(is_compiled_scope->is_compiled());
   return true;
@@ -3336,7 +3354,8 @@ bool CanBackgroundCompile(const ScriptDetails& script_details,
   // modules is supported.
   return !script_details.origin_options.IsModule() && !extension &&
          script_details.repl_mode == REPLMode::kNo &&
-         compile_options == ScriptCompiler::kNoCompileOptions &&
+         (compile_options == ScriptCompiler::kNoCompileOptions ||
+          compile_options == ScriptCompiler::kProduceCompileHints) &&
          natives == NOT_NATIVES_CODE;
 }
 
@@ -3422,16 +3441,14 @@ MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
     ScriptCompiler::NoCacheReason no_cache_reason, NativesFlag natives) {
   ScriptCompileTimerScope compile_timer(isolate, no_cache_reason);
 
-  if (compile_options == ScriptCompiler::kNoCompileOptions ||
-      compile_options == ScriptCompiler::kEagerCompile) {
-    DCHECK_NULL(cached_data);
-    DCHECK_NULL(deserialize_task);
-  } else {
-    DCHECK_EQ(compile_options, ScriptCompiler::kConsumeCodeCache);
+  if (compile_options == ScriptCompiler::kConsumeCodeCache) {
     // Have to have exactly one of cached_data or deserialize_task.
     DCHECK(cached_data || deserialize_task);
     DCHECK(!(cached_data && deserialize_task));
     DCHECK_NULL(extension);
+  } else {
+    DCHECK_NULL(cached_data);
+    DCHECK_NULL(deserialize_task);
   }
 
   if (V8_UNLIKELY(
@@ -3573,6 +3590,11 @@ MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
       isolate->ReportPendingMessages();
     }
   }
+  Handle<SharedFunctionInfo> result;
+  if (compile_options == ScriptCompiler::CompileOptions::kProduceCompileHints &&
+      maybe_result.ToHandle(&result)) {
+    Script::cast(result->script()).set_produce_compile_hints(true);
+  }
 
   return maybe_result;
 }
@@ -3632,12 +3654,10 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
   Isolate* isolate = context->GetIsolate();
   ScriptCompileTimerScope compile_timer(isolate, no_cache_reason);
 
-  if (compile_options == ScriptCompiler::kNoCompileOptions ||
-      compile_options == ScriptCompiler::kEagerCompile) {
-    DCHECK_NULL(cached_data);
-  } else {
-    DCHECK(compile_options == ScriptCompiler::kConsumeCodeCache);
+  if (compile_options == ScriptCompiler::kConsumeCodeCache) {
     DCHECK(cached_data);
+  } else {
+    DCHECK_NULL(cached_data);
   }
 
   LanguageMode language_mode = construct_language_mode(v8_flags.use_strict);
@@ -3763,6 +3783,10 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
 
     Handle<SharedFunctionInfo> result;
     if (maybe_result.ToHandle(&result)) {
+      if (task->flags().produce_compile_hints()) {
+        Script::cast(result->script()).set_produce_compile_hints(true);
+      }
+
       // Add compiled code to the isolate cache.
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                    "V8.StreamingFinalization.AddToCache");
