@@ -4534,8 +4534,7 @@ namespace {
 template <class Evacuator>
 size_t CreateAndExecuteEvacuationTasks(
     Heap* heap,
-    std::vector<std::pair<ParallelWorkItem, MemoryChunk*>> evacuation_items,
-    MigrationObserver* migration_observer) {
+    std::vector<std::pair<ParallelWorkItem, MemoryChunk*>> evacuation_items) {
   base::Optional<ProfilingMigrationObserver> profiling_observer;
   if (heap->isolate()->log_object_relocation()) {
     profiling_observer.emplace(heap);
@@ -4546,9 +4545,6 @@ size_t CreateAndExecuteEvacuationTasks(
     auto evacuator = std::make_unique<Evacuator>(heap);
     if (profiling_observer) {
       evacuator->AddObserver(&profiling_observer.value());
-    }
-    if (migration_observer) {
-      evacuator->AddObserver(migration_observer);
     }
     evacuators.push_back(std::move(evacuator));
   }
@@ -4686,7 +4682,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
                  evacuation_items.size());
 
     wanted_num_tasks = CreateAndExecuteEvacuationTasks<FullEvacuator>(
-        heap(), std::move(evacuation_items), nullptr);
+        heap(), std::move(evacuation_items));
   }
 
   const size_t aborted_pages = PostProcessAbortedEvacuationCandidates();
@@ -5832,28 +5828,6 @@ bool MinorMarkCompactCollector::IsUnmarkedYoungHeapObject(Heap* heap,
          collector->non_atomic_marking_state()->IsWhite(heap_object);
 }
 
-class YoungGenerationMigrationObserver final : public MigrationObserver {
- public:
-  YoungGenerationMigrationObserver(Heap* heap,
-                                   MarkCompactCollector* mark_compact_collector)
-      : MigrationObserver(heap),
-        mark_compact_collector_(mark_compact_collector) {}
-
-  inline void Move(AllocationSpace dest, HeapObject src, HeapObject dst,
-                   int size) final {
-    // Migrate color to old generation marking in case the object survived
-    // young generation garbage collection.
-    if (heap_->incremental_marking()->IsMarking()) {
-      DCHECK(heap_->atomic_marking_state()->IsWhite(dst));
-      heap_->incremental_marking()->TransferColor(src, dst);
-    }
-  }
-
- protected:
-  base::Mutex mutex_;
-  MarkCompactCollector* mark_compact_collector_;
-};
-
 class YoungGenerationRecordMigratedSlotVisitor final
     : public RecordMigratedSlotVisitor {
  public:
@@ -6739,12 +6713,10 @@ void MinorMarkCompactCollector::EvacuatePagesInParallel() {
   }
   if (evacuation_items.empty()) return;
 
-  YoungGenerationMigrationObserver observer(heap(),
-                                            heap()->mark_compact_collector());
   const auto pages_count = evacuation_items.size();
   const auto wanted_num_tasks =
       CreateAndExecuteEvacuationTasks<YoungGenerationEvacuator>(
-          heap(), std::move(evacuation_items), &observer);
+          heap(), std::move(evacuation_items));
 
   if (v8_flags.trace_evacuation) {
     TraceEvacuation(isolate(), pages_count, wanted_num_tasks, live_bytes, 0);
