@@ -6388,21 +6388,25 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   // We do not inline these functions because doing so causes a large binary
   // size increase. Not inlining them should not create a performance
   // degradation, because their invocations are guarded by V8_LIKELY.
-  V8_NOINLINE void PopTypeError(int index, Value val, const char* expected) {
+  V8_NOINLINE V8_PRESERVE_MOST void PopTypeError(int index, Value val,
+                                                 const char* expected) {
     this->DecodeError(val.pc(), "%s[%d] expected %s, found %s of type %s",
                       SafeOpcodeNameAt(this->pc_), index, expected,
                       SafeOpcodeNameAt(val.pc()), val.type.name().c_str());
   }
 
-  V8_NOINLINE void PopTypeError(int index, Value val, std::string expected) {
+  V8_NOINLINE V8_PRESERVE_MOST void PopTypeError(int index, Value val,
+                                                 std::string expected) {
     PopTypeError(index, val, expected.c_str());
   }
 
-  V8_NOINLINE void PopTypeError(int index, Value val, ValueType expected) {
+  V8_NOINLINE V8_PRESERVE_MOST void PopTypeError(int index, Value val,
+                                                 ValueType expected) {
     PopTypeError(index, val, ("type " + expected.name()).c_str());
   }
 
-  V8_NOINLINE void NotEnoughArgumentsError(int needed, int actual) {
+  V8_NOINLINE V8_PRESERVE_MOST void NotEnoughArgumentsError(int needed,
+                                                            int actual) {
     DCHECK_LT(0, needed);
     DCHECK_LE(0, actual);
     DCHECK_LT(actual, needed);
