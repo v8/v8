@@ -2226,26 +2226,6 @@ MaybeLocal<Value> Script::Run(Local<Context> context,
 #endif
   auto fun = i::Handle<i::JSFunction>::cast(Utils::OpenHandle(this));
 
-  // TODO(crbug.com/1193459): remove once ablation study is completed
-  base::ElapsedTimer timer;
-  base::TimeDelta delta;
-  if (i::v8_flags.script_delay > 0) {
-    delta = v8::base::TimeDelta::FromMillisecondsD(i::v8_flags.script_delay);
-  }
-  if (i::v8_flags.script_delay_once > 0 && !i_isolate->did_run_script_delay()) {
-    delta =
-        v8::base::TimeDelta::FromMillisecondsD(i::v8_flags.script_delay_once);
-    i_isolate->set_did_run_script_delay(true);
-  }
-  if (i::v8_flags.script_delay_fraction > 0.0) {
-    timer.Start();
-  } else if (delta.InMicroseconds() > 0) {
-    timer.Start();
-    while (timer.Elapsed() < delta) {
-      // Busy wait.
-    }
-  }
-
   if (V8_UNLIKELY(i::v8_flags.experimental_web_snapshots)) {
     i::Handle<i::HeapObject> maybe_script =
         handle(fun->shared().script(), i_isolate);
@@ -2269,15 +2249,6 @@ MaybeLocal<Value> Script::Run(Local<Context> context,
   Local<Value> result;
   has_pending_exception = !ToLocal<Value>(
       i::Execution::CallScript(i_isolate, fun, receiver, options), &result);
-
-  if (i::v8_flags.script_delay_fraction > 0.0) {
-    delta = v8::base::TimeDelta::FromMillisecondsD(
-        timer.Elapsed().InMillisecondsF() * i::v8_flags.script_delay_fraction);
-    timer.Restart();
-    while (timer.Elapsed() < delta) {
-      // Busy wait.
-    }
-  }
 
   RETURN_ON_FAILED_EXECUTION(Value);
   RETURN_ESCAPED(result);
