@@ -513,7 +513,7 @@ class Decoder {
     TRACE_IF(trace, "  +%u  %-20s: ", pc_offset(),
              implicit_cast<const char*>(name));
     // Fast path for single-byte integers.
-    if ((!ValidationTag::validate || V8_LIKELY(pc < end_)) && !(*pc & 0x80)) {
+    if (V8_LIKELY((!ValidationTag::validate || pc < end_) && !(*pc & 0x80))) {
       TRACE_IF(trace, "%02x ", *pc);
       *length = 1;
       IntType result = *pc;
