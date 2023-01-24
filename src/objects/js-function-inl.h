@@ -238,6 +238,11 @@ bool JSFunction::ShouldFlushBaselineCode(
   // code field. We don't use release stores when copying code pointers from
   // SFI / FV to JSFunction but it is safe in practice.
   Object maybe_code = ACQUIRE_READ_FIELD(*this, kCodeOffset);
+#ifdef THREAD_SANITIZER
+  // This is needed because TSAN does not process the memory fence
+  // emitted after page initialization.
+  BasicMemoryChunk::FromAddress(maybe_code.ptr())->SynchronizedHeapLoad();
+#endif
   if (!maybe_code.IsCode()) return false;
   Code code = Code::cast(maybe_code);
   if (code.kind() != CodeKind::BASELINE) return false;
