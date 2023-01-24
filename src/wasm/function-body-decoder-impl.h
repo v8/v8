@@ -2653,6 +2653,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     interface().FinishFunction(this);
     if (this->failed()) return TraceFailed();
 
+    DCHECK(stack_.empty());
     TRACE("wasm-decode ok\n\n");
     return true;
   }

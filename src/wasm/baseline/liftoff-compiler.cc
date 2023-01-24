@@ -1214,6 +1214,13 @@ class LiftoffCompiler {
             ? decoder->read_prefixed_opcode<Decoder::FullValidationTag>(
                   decoder->pc())
             : opcode));
+
+    if (!has_outstanding_op() && !decoder->control_at(0)->reachable()) {
+      // Decoder stack and liftoff stack have to be in sync if current code
+      // path is reachable.
+      DCHECK_EQ(decoder->stack_size() + __ num_locals(),
+                __ cache_state()->stack_state.size());
+    }
   }
 
   void EmitBreakpoint(FullDecoder* decoder) {
@@ -7185,6 +7192,7 @@ class LiftoffCompiler {
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
 
     LiftoffRegister result_reg(kReturnRegister0);
+    __ DropValues(2);
     __ PushRegister(kI32, result_reg);
   }
 
@@ -7210,6 +7218,7 @@ class LiftoffCompiler {
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
 
     LiftoffRegister result_reg(kReturnRegister0);
+    __ DropValues(2);
     __ PushRegister(kI32, result_reg);
   }
 
@@ -7235,6 +7244,7 @@ class LiftoffCompiler {
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
 
     LiftoffRegister result_reg(kReturnRegister0);
+    __ DropValues(2);
     __ PushRegister(kRef, result_reg);
   }
 
