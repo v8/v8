@@ -4065,15 +4065,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
   // Peeks arguments as required by signature.
   V8_INLINE ArgVector PeekArgs(const FunctionSig* sig, int depth = 0) {
-    int count = static_cast<int>(sig->parameter_count());
-    if (count == 0) return {};
-    EnsureStackArguments(depth + count);
-    ArgVector args(stack_value(depth + count), count);
-    for (int i = 0; i < count; i++) {
-      ValidateArgType(args, i, sig->GetParam(i));
-    }
-    return args;
+    return PeekArgs(
+        base::VectorOf(sig->parameters().begin(), sig->parameter_count()),
+        depth);
   }
+
   // Drops a number of stack elements equal to the {sig}'s parameter count (0 if
   // {sig} is null), or all of them if less are present.
   V8_INLINE void DropArgs(const FunctionSig* sig) {
@@ -4097,10 +4093,12 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     Drop(static_cast<int>(type->field_count()));
   }
 
-  V8_INLINE ArgVector PeekArgs(base::Vector<ValueType> arg_types) {
+  V8_INLINE ArgVector PeekArgs(base::Vector<const ValueType> arg_types,
+                               int depth = 0) {
     int size = static_cast<int>(arg_types.size());
-    EnsureStackArguments(size);
-    ArgVector args(stack_value(size), arg_types.size());
+    if (size == 0) return {};
+    EnsureStackArguments(size + depth);
+    ArgVector args(stack_value(size + depth), arg_types.size());
     for (int i = 0; i < size; i++) {
       ValidateArgType(args, i, arg_types[i]);
     }
