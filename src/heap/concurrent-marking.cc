@@ -625,6 +625,12 @@ FixedArray ConcurrentMarkingVisitor::Cast(HeapObject object) {
   return FixedArray::unchecked_cast(object);
 }
 
+// FixedDoubleArray can become a free space during left trimming.
+template <>
+FixedDoubleArray ConcurrentMarkingVisitor::Cast(HeapObject object) {
+  return FixedDoubleArray::unchecked_cast(object);
+}
+
 // The Deserializer changes the map from StrongDescriptorArray to
 // DescriptorArray
 template <>
