@@ -464,6 +464,7 @@
 
   # noi18n is required for Intl
   'regress/regress-crbug-1052647': [PASS,FAIL],
+  'regress/regress-1409058': [SKIP],
 
   # Temporal intl tests won't work in no_i18n
   'temporal/function-exist': [FAIL],
