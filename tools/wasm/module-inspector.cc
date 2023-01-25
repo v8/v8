@@ -358,7 +358,7 @@ class ExtendedFunctionDis : public FunctionBodyDisassembler {
 // e.g.:
 //     0x01, 0x70, 0x00,  // table count 1: funcref no maximum
 class HexDumpModuleDis;
-class DumpingModuleDecoder : public ModuleDecoderBase {
+class DumpingModuleDecoder : public ModuleDecoderImpl {
  public:
   DumpingModuleDecoder(ModuleWireBytes wire_bytes,
                        HexDumpModuleDis* module_dis);
@@ -1054,7 +1054,7 @@ class FormatConverter {
 
 DumpingModuleDecoder::DumpingModuleDecoder(ModuleWireBytes wire_bytes,
                                            HexDumpModuleDis* module_dis)
-    : ModuleDecoderBase(WasmFeatures::All(), wire_bytes.module_bytes(),
+    : ModuleDecoderImpl(WasmFeatures::All(), wire_bytes.module_bytes(),
                         kWasmOrigin, module_dis) {}
 
 }  // namespace wasm

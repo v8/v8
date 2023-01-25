@@ -272,11 +272,11 @@ class WasmSectionIterator {
 };
 
 // The main logic for decoding the bytes of a module.
-class ModuleDecoderBase : public Decoder {
+class ModuleDecoderImpl : public Decoder {
  public:
-  ModuleDecoderBase(WasmFeatures enabled_features,
+  ModuleDecoderImpl(WasmFeatures enabled_features,
                     base::Vector<const uint8_t> wire_bytes, ModuleOrigin origin,
-                    ITracer* tracer)
+                    ITracer* tracer = ITracer::NoTrace)
       : Decoder(wire_bytes),
         enabled_features_(enabled_features),
         module_(std::make_shared<WasmModule>(origin)),
@@ -2392,12 +2392,12 @@ class ModuleDecoderBase : public Decoder {
   // We store next_ordered_section_ as uint8_t instead of SectionCode so that
   // we can increment it. This static_assert should make sure that SectionCode
   // does not get bigger than uint8_t accidentally.
-  static_assert(sizeof(ModuleDecoderBase::next_ordered_section_) ==
+  static_assert(sizeof(ModuleDecoderImpl::next_ordered_section_) ==
                     sizeof(SectionCode),
                 "type mismatch");
   uint32_t seen_unordered_sections_ = 0;
   static_assert(kBitsPerByte *
-                        sizeof(ModuleDecoderBase::seen_unordered_sections_) >
+                        sizeof(ModuleDecoderImpl::seen_unordered_sections_) >
                     kLastKnownModuleSection,
                 "not enough bits");
   AccountingAllocator allocator_;

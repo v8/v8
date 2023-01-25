@@ -583,7 +583,7 @@ class OffsetsProvider : public ITracer {
     element_offsets_.reserve(module->elem_segments.size());
     data_offsets_.reserve(module->data_segments.size());
 
-    ModuleDecoderBase decoder{WasmFeatures::All(), wire_bytes, kWasmOrigin,
+    ModuleDecoderImpl decoder{WasmFeatures::All(), wire_bytes, kWasmOrigin,
                               this};
     constexpr bool kNoVerifyFunctions = false;
     decoder.DecodeModule(kNoVerifyFunctions);

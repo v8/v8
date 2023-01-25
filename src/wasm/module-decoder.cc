@@ -69,17 +69,6 @@ const char* SectionName(SectionCode code) {
   }
 }
 
-// TODO(mliedtke): Convert ModuleDecoderBase to ModuleDecoder[Impl] and get rid
-// of this additional subclass. Then move the implementation from the impl
-// header to the cc as it isn't a template any more.
-class ModuleDecoderImpl : public ModuleDecoderBase {
- public:
-  ModuleDecoderImpl(WasmFeatures enabled_features,
-                    base::Vector<const uint8_t> wire_bytes, ModuleOrigin origin)
-      : ModuleDecoderBase(enabled_features, wire_bytes, origin,
-                          ITracer::NoTrace) {}
-};
-
 ModuleResult DecodeWasmModule(
     WasmFeatures enabled_features, base::Vector<const uint8_t> wire_bytes,
     bool validate_functions, ModuleOrigin origin, Counters* counters,
