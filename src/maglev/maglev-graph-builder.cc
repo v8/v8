@@ -2968,6 +2968,17 @@ ValueNode* MaglevGraphBuilder::TryBuildInlinedCall(
     return nullptr;
   }
   if (function.code().object()->kind() == CodeKind::TURBOFAN) return nullptr;
+
+  // TODO(victorgomes): Support NewTarget/RegisterInput in inlined functions.
+  compiler::BytecodeArrayRef bytecode = function.shared().GetBytecodeArray();
+  if (bytecode.incoming_new_target_or_generator_register().is_valid()) {
+    return nullptr;
+  }
+  // TODO(victorgomes): Support exception handler inside inlined functions.
+  if (bytecode.handler_table_size() > 0) {
+    return nullptr;
+  }
+
   if (v8_flags.trace_maglev_inlining) {
     std::cout << "  inlining " << function.shared() << std::endl;
   }
