@@ -6242,6 +6242,15 @@ Node* WasmGraphBuilder::StringViewIterSlice(Node* view, CheckForNull null_check,
                             Operator::kEliminatable, view, codepoints);
 }
 
+Node* WasmGraphBuilder::StringCompare(Node* lhs, CheckForNull null_check_lhs,
+                                      Node* rhs, CheckForNull null_check_rhs,
+                                      wasm::WasmCodePosition position) {
+  if (null_check_lhs == kWithNullCheck) lhs = AssertNotNull(lhs, position);
+  if (null_check_rhs == kWithNullCheck) rhs = AssertNotNull(rhs, position);
+  return gasm_->BuildChangeSmiToInt32(gasm_->CallBuiltin(
+      Builtin::kWasmStringCompare, Operator::kEliminatable, lhs, rhs));
+}
+
 Node* WasmGraphBuilder::I31New(Node* input) {
   if constexpr (SmiValuesAre31Bits()) {
     return gasm_->Word32Shl(input, gasm_->BuildSmiShiftBitsConstant32());

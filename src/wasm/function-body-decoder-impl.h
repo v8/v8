@@ -1174,7 +1174,8 @@ struct ControlBase : public PcForErrors<ValidationTag::full_validation> {
   F(StringViewIterRewind, const Value& view, const Value& codepoints,          \
     Value* result)                                                             \
   F(StringViewIterSlice, const Value& view, const Value& codepoints,           \
-    Value* result)
+    Value* result)                                                             \
+  F(StringCompare, const Value& lhs, const Value& rhs, Value* result)
 
 // This is a global constant invalid instruction trace, to be pointed at by
 // the current instruction trace pointer in the default case
@@ -2305,6 +2306,7 @@ class WasmDecoder : public Decoder {
           case kExprStringViewIterSlice:
           case kExprStringNewWtf16Array:
           case kExprStringEncodeWtf16Array:
+          case kExprStringCompare:
             return length;
           default:
             // This is unreachable except for malformed modules.
@@ -2519,6 +2521,7 @@ class WasmDecoder : public Decoder {
           case kExprStringViewIterAdvance:
           case kExprStringViewIterRewind:
           case kExprStringViewIterSlice:
+          case kExprStringCompare:
             return { 2, 1 };
           case kExprStringNewUtf8Array:
           case kExprStringNewLossyUtf8Array:
@@ -6137,6 +6140,16 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         Push(result);
         return opcode_length;
       }
+      case kExprStringCompare: {
+        NON_CONST_ONLY
+        Value lhs = Peek(1, 0, kWasmStringRef);
+        Value rhs = Peek(0, 1, kWasmStringRef);
+        Value result = CreateValue(kWasmI32);
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(StringCompare, lhs, rhs, &result);
+        Drop(2);
+        Push(result);
+        return opcode_length;
+      }
       default:
         this->DecodeError("invalid stringref opcode: %x", opcode);
         return 0;
@@ -6346,6 +6359,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   }
 
   V8_INLINE Value CreateValue(ValueType type) { return Value{this->pc_, type}; }
+
   V8_INLINE void Push(Value value) {
     DCHECK_NE(kWasmVoid, value.type);
     // {stack_.EnsureMoreCapacity} should have been called before, either in the

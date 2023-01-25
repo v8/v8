@@ -1354,5 +1354,24 @@ RUNTIME_FUNCTION(Runtime_WasmStringViewWtf8Slice) {
               .ToHandleChecked();
 }
 
+RUNTIME_FUNCTION(Runtime_WasmStringCompare) {
+  ClearThreadInWasmScope flag_scope(isolate);
+  DCHECK_EQ(2, args.length());
+  HandleScope scope(isolate);
+  Handle<String> lhs(String::cast(args[0]), isolate);
+  Handle<String> rhs(String::cast(args[1]), isolate);
+  ComparisonResult result = String::Compare(isolate, lhs, rhs);
+  switch (result) {
+    case ComparisonResult::kEqual:
+      return Smi::FromInt(0);
+    case ComparisonResult::kGreaterThan:
+      return Smi::FromInt(1);
+    case ComparisonResult::kLessThan:
+      return Smi::FromInt(-1);
+    case ComparisonResult::kUndefined:
+      UNREACHABLE();
+  }
+}
+
 }  // namespace internal
 }  // namespace v8

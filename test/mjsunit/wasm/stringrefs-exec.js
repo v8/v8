@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-stringref
+// Flags: --experimental-wasm-stringref --experimental-wasm-typed-funcref
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -1210,5 +1210,69 @@ function makeWtf16TestDataSegment() {
   assertThrows(() => instance.exports.rewind_null(),
                WebAssembly.RuntimeError, "dereferencing a null pointer");
   assertThrows(() => instance.exports.slice_null(),
+               WebAssembly.RuntimeError, "dereferencing a null pointer");
+})();
+
+(function TestStringCompare() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+
+  builder.addFunction("compare",
+                      makeSig([kWasmStringRef, kWasmStringRef], [kWasmI32]))
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      ...GCInstr(kExprStringCompare)
+    ]);
+
+  let instance = builder.instantiate();
+  for (let lhs of interestingStrings) {
+    for (let rhs of interestingStrings) {
+      print(`"${lhs}" <=> "${rhs}"`);
+      const expected = lhs < rhs ? -1 : lhs > rhs ? 1 : 0;
+      assertEquals(expected, instance.exports.compare(lhs, rhs));
+    }
+  }
+
+  assertThrows(() => instance.exports.compare(null, "abc"),
+               WebAssembly.RuntimeError, "dereferencing a null pointer");
+  assertThrows(() => instance.exports.compare("abc", null),
+               WebAssembly.RuntimeError, "dereferencing a null pointer");
+})();
+
+(function TestStringCompareNullCheckStaticType() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+
+  // Use a mix of nullable and non-nullable input types to the compare.
+  builder.addFunction("compareLhsNullable",
+                      makeSig([kWasmStringRef, kWasmStringRef], [kWasmI32]))
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0,
+      kExprRefAsNonNull,
+      kExprLocalGet, 1,
+      ...GCInstr(kExprStringCompare)
+    ]);
+
+  builder.addFunction("compareRhsNullable",
+                      makeSig([kWasmStringRef, kWasmStringRef], [kWasmI32]))
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprRefAsNonNull,
+      ...GCInstr(kExprStringCompare)
+    ]);
+
+  let instance = builder.instantiate();
+  assertThrows(() => instance.exports.compareLhsNullable(null, "abc"),
+               WebAssembly.RuntimeError, "dereferencing a null pointer");
+  assertThrows(() => instance.exports.compareLhsNullable("abc", null),
+               WebAssembly.RuntimeError, "dereferencing a null pointer");
+  assertThrows(() => instance.exports.compareRhsNullable(null, "abc"),
+               WebAssembly.RuntimeError, "dereferencing a null pointer");
+  assertThrows(() => instance.exports.compareRhsNullable("abc", null),
                WebAssembly.RuntimeError, "dereferencing a null pointer");
 })();

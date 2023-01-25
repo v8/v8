@@ -1790,6 +1790,13 @@ class WasmGraphBuildingInterface {
                                codepoints.node, decoder->position()));
   }
 
+  void StringCompare(FullDecoder* decoder, const Value& lhs, const Value& rhs,
+                     Value* result) {
+    SetAndTypeNode(result, builder_->StringCompare(
+                               lhs.node, NullCheckFor(lhs.type), rhs.node,
+                               NullCheckFor(rhs.type), decoder->position()));
+  }
+
   void Forward(FullDecoder* decoder, const Value& from, Value* to) {
     if (from.type == to->type) {
       to->node = from.node;

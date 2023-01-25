@@ -7248,6 +7248,30 @@ class LiftoffCompiler {
     __ PushRegister(kRef, result_reg);
   }
 
+  void StringCompare(FullDecoder* decoder, const Value& lhs, const Value& rhs,
+                     Value* result) {
+    LiftoffRegList pinned;
+    LiftoffRegister rhs_reg = pinned.set(
+        __ LoadToRegister(__ cache_state()->stack_state.end()[-1], pinned));
+    MaybeEmitNullCheck(decoder, rhs_reg.gp(), pinned, rhs.type);
+    LiftoffAssembler::VarState rhs_var(kRef, rhs_reg, 0);
+
+    LiftoffRegister lhs_reg = pinned.set(
+        __ LoadToRegister(__ cache_state()->stack_state.end()[-2], pinned));
+    MaybeEmitNullCheck(decoder, lhs_reg.gp(), pinned, lhs.type);
+    LiftoffAssembler::VarState lhs_var(kRef, lhs_reg, 0);
+
+    CallRuntimeStub(WasmCode::kWasmStringCompare,
+                    MakeSig::Returns(kSmiKind).Params(kRef, kRef),
+                    {lhs_var, rhs_var}, decoder->position());
+    RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
+
+    LiftoffRegister result_reg(kReturnRegister0);
+    __ DropValue(2);
+    __ SmiToInt32(kReturnRegister0);
+    __ PushRegister(kRef, result_reg);
+  }
+
   void Forward(FullDecoder* decoder, const Value& from, Value* to) {
     // Nothing to do here.
   }
