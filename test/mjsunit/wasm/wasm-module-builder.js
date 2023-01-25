@@ -576,6 +576,7 @@ let kExprStringNewLossyUtf8Array = 0xb4;
 let kExprStringNewWtf8Array = 0xb5;
 let kExprStringEncodeLossyUtf8Array = 0xb6;
 let kExprStringEncodeWtf8Array = 0xb7;
+let kExprStringNewUtf8ArrayTry = 0xb8;
 
 // Numeric opcodes.
 let kExprI32SConvertSatF32 = 0x00;

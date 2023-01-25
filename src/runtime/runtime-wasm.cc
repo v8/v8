@@ -971,8 +971,16 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8Array) {
          static_cast<uint32_t>(unibrow::Utf8Variant::kLastUtf8Variant));
   auto utf8_variant = static_cast<unibrow::Utf8Variant>(utf8_variant_value);
 
-  RETURN_RESULT_OR_TRAP(
-      isolate->factory()->NewStringFromUtf8(array, start, end, utf8_variant));
+  MaybeHandle<v8::internal::String> result_string =
+      isolate->factory()->NewStringFromUtf8(array, start, end, utf8_variant);
+  if (utf8_variant == unibrow::Utf8Variant::kUtf8NoTrap) {
+    DCHECK(!isolate->has_pending_exception());
+    if (result_string.is_null()) {
+      return *isolate->factory()->null_value();
+    }
+    return *result_string.ToHandleChecked();
+  }
+  RETURN_RESULT_OR_TRAP(result_string);
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringNewWtf16) {

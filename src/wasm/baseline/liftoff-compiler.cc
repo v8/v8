@@ -6530,15 +6530,16 @@ class LiftoffCompiler {
     LoadSmi(variant_reg, static_cast<int32_t>(variant));
     LiftoffAssembler::VarState variant_var(kSmiKind, variant_reg, 0);
 
-    CallRuntimeStub(WasmCode::kWasmStringNewWtf8Array,
-                    MakeSig::Returns(kRef).Params(kI32, kI32, kRef, kSmiKind),
-                    {
-                        __ cache_state()->stack_state.end()[-2],  // start
-                        __ cache_state()->stack_state.end()[-1],  // end
-                        array_var,
-                        variant_var,
-                    },
-                    decoder->position());
+    CallRuntimeStub(
+        WasmCode::kWasmStringNewWtf8Array,
+        MakeSig::Returns(kRefNull).Params(kI32, kI32, kRef, kSmiKind),
+        {
+            __ cache_state()->stack_state.end()[-2],  // start
+            __ cache_state()->stack_state.end()[-1],  // end
+            array_var,
+            variant_var,
+        },
+        decoder->position());
     __ cache_state()->stack_state.pop_back(3);
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
 

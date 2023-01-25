@@ -2283,6 +2283,7 @@ class WasmDecoder : public Decoder {
           case kExprStringMeasureUtf8:
           case kExprStringMeasureWtf8:
           case kExprStringNewUtf8Array:
+          case kExprStringNewUtf8ArrayTry:
           case kExprStringNewLossyUtf8Array:
           case kExprStringNewWtf8Array:
           case kExprStringEncodeUtf8Array:
@@ -2524,6 +2525,7 @@ class WasmDecoder : public Decoder {
           case kExprStringCompare:
             return { 2, 1 };
           case kExprStringNewUtf8Array:
+          case kExprStringNewUtf8ArrayTry:
           case kExprStringNewLossyUtf8Array:
           case kExprStringNewWtf8Array:
           case kExprStringNewWtf16Array:
@@ -5810,7 +5812,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     Value array = PeekPackedArray(2, 0, kWasmI8, WasmArrayAccess::kRead);
     Value start = Peek(1, 1, kWasmI32);
     Value end = Peek(0, 2, kWasmI32);
-    Value result = CreateValue(ValueType::Ref(HeapType::kString));
+    bool null_on_invalid = variant == unibrow::Utf8Variant::kUtf8NoTrap;
+    Value result = CreateValue(ValueType::RefMaybeNull(
+        HeapType::kString, null_on_invalid ? kNullable : kNonNullable));
     CALL_INTERFACE_IF_OK_AND_REACHABLE(StringNewWtf8Array, variant, array,
                                        start, end, &result);
     Drop(3);
@@ -6093,6 +6097,10 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       case kExprStringNewUtf8Array:
         CHECK_PROTOTYPE_OPCODE(gc);
         return DecodeStringNewWtf8Array(unibrow::Utf8Variant::kUtf8,
+                                        opcode_length);
+      case kExprStringNewUtf8ArrayTry:
+        CHECK_PROTOTYPE_OPCODE(gc);
+        return DecodeStringNewWtf8Array(unibrow::Utf8Variant::kUtf8NoTrap,
                                         opcode_length);
       case kExprStringNewLossyUtf8Array:
         CHECK_PROTOTYPE_OPCODE(gc);

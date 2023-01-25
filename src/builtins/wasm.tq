@@ -41,7 +41,7 @@ extern runtime WasmArrayNewSegment(
 extern runtime WasmStringNewWtf8(
     Context, WasmInstanceObject, Smi, Smi, Number, Number): String|Null;
 extern runtime WasmStringNewWtf8Array(
-    Context, Smi, WasmArray, Smi, Smi): String;
+    Context, Smi, WasmArray, Smi, Smi): String|Null;
 extern runtime WasmStringNewWtf16(
     Context, WasmInstanceObject, Smi, Number, Number): String;
 extern runtime WasmStringNewWtf16Array(Context, WasmArray, Smi, Smi): String;
@@ -811,7 +811,8 @@ builtin WasmStringNewWtf8(
       WasmUint32ToNumber(offset), WasmUint32ToNumber(size));
 }
 builtin WasmStringNewWtf8Array(
-    start: uint32, end: uint32, array: WasmArray, utf8Variant: Smi): String {
+    start: uint32, end: uint32, array: WasmArray, utf8Variant: Smi): String|
+    Null {
   const context = LoadContextFromFrame();
   try {
     if (array.length < end) goto OffsetOutOfRange;

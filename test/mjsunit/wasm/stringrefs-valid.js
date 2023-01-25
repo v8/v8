@@ -258,7 +258,14 @@ let kSig_w_zi = makeSig([kWasmStringViewIter, kWasmI32],
       kExprRefNull, i8_array,
       kExprI32Const, 0,
       kExprI32Const, 0,
-      ...GCInstr(kExprStringNewWtf8Array)
+      ...GCInstr(kExprStringNewUtf8Array)
+    ]);
+  builder.addFunction("string.new_utf8_array_try", kSig_w_v)
+    .addBody([
+      kExprRefNull, i8_array,
+      kExprI32Const, 0,
+      kExprI32Const, 0,
+      ...GCInstr(kExprStringNewUtf8ArrayTry)
     ]);
   builder.addFunction("string.new_lossy_utf8_array", kSig_w_v)
     .addBody([

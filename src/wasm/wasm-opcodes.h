@@ -771,7 +771,8 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig);
   V(StringNewLossyUtf8Array, 0xfbb4, _, "string.new_lossy_utf8_array")         \
   V(StringNewWtf8Array, 0xfbb5, _, "string.new_wtf8_array")                    \
   V(StringEncodeLossyUtf8Array, 0xfbb6, _, "string.encode_lossy_utf8_array")   \
-  V(StringEncodeWtf8Array, 0xfbb7, _, "string.encode_wtf8_array")
+  V(StringEncodeWtf8Array, 0xfbb7, _, "string.encode_wtf8_array")              \
+  V(StringNewUtf8ArrayTry, 0xfbb8, _, "string.new_utf8_array_try")
 
 // All opcodes.
 #define FOREACH_OPCODE(V)            \
