@@ -88,8 +88,11 @@ class MaglevGraphBuilder {
 
   void StartPrologue();
   void SetArgument(int i, ValueNode* value);
+  void InitializeRegister(interpreter::Register reg,
+                          ValueNode* value = nullptr);
   ValueNode* GetTaggedArgument(int i);
-  void BuildRegisterFrameInitialization();
+  void BuildRegisterFrameInitialization(ValueNode* context = nullptr,
+                                        ValueNode* closure = nullptr);
   void BuildMergeStates();
   BasicBlock* EndPrologue();
 

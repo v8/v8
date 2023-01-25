@@ -264,15 +264,16 @@ ValueNode* MaglevGraphBuilder::GetTaggedArgument(int i) {
   return GetTaggedValue(reg);
 }
 
-void MaglevGraphBuilder::BuildRegisterFrameInitialization() {
-  // TODO(leszeks): Extract out a separate "incoming context/closure" nodes,
-  // to be able to read in the machine register but also use the frame-spilled
-  // slot.
-  interpreter::Register regs[] = {interpreter::Register::current_context(),
-                                  interpreter::Register::function_closure()};
-  for (interpreter::Register& reg : regs) {
-    current_interpreter_frame_.set(reg, AddNewNode<InitialValue>({}, reg));
-  }
+void MaglevGraphBuilder::InitializeRegister(interpreter::Register reg,
+                                            ValueNode* value) {
+  current_interpreter_frame_.set(
+      reg, value ? value : AddNewNode<InitialValue>({}, reg));
+}
+
+void MaglevGraphBuilder::BuildRegisterFrameInitialization(ValueNode* context,
+                                                          ValueNode* closure) {
+  InitializeRegister(interpreter::Register::current_context(), context);
+  InitializeRegister(interpreter::Register::function_closure(), closure);
 
   interpreter::Register new_target_or_generator_register =
       bytecode().incoming_new_target_or_generator_register();
@@ -3007,9 +3008,8 @@ ValueNode* MaglevGraphBuilder::TryBuildInlinedCall(
     if (arg_value == nullptr) arg_value = undefined_constant;
     inner_graph_builder.SetArgument(i, arg_value);
   }
-  // TODO(leszeks): Also correctly set up the closure and context slots, instead
-  // of using InitialValue.
-  inner_graph_builder.BuildRegisterFrameInitialization();
+  inner_graph_builder.BuildRegisterFrameInitialization(GetContext(),
+                                                       GetConstant(function));
   inner_graph_builder.BuildMergeStates();
   BasicBlock* inlined_prologue = inner_graph_builder.EndPrologue();
 
