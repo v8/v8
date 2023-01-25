@@ -23,16 +23,11 @@ namespace v8::internal::compiler::turboshaft {
 
 class DetectReentranceScope {
  public:
-  explicit DetectReentranceScope(bool* flag)
-      : is_reentrant_(*flag), flag_(flag) {
-    *flag_ = true;
-  }
-  ~DetectReentranceScope() { *flag_ = is_reentrant_; }
-  bool IsReentrant() const { return is_reentrant_; }
+  explicit DetectReentranceScope(bool* flag) : set_flag_(flag, true) {}
+  bool IsReentrant() const { return set_flag_.old_value(); }
 
  private:
-  bool is_reentrant_;
-  bool* flag_;
+  ScopedModification<bool> set_flag_;
 };
 
 struct AssertTypesReducerArgs {

@@ -154,7 +154,6 @@ class GraphVisitor {
         current_input_block_(nullptr),
         block_mapping_(input_graph.block_count(), nullptr, phase_zone),
         op_mapping_(input_graph.op_id_count(), OpIndex::Invalid(), phase_zone),
-        visiting_cloned_block_(false),
         blocks_needing_variables(phase_zone),
         old_opindex_to_variables(input_graph.op_id_count(), phase_zone) {
     output_graph_.Reset();
@@ -212,17 +211,12 @@ class GraphVisitor {
   Graph& modifiable_input_graph() const { return input_graph_; }
 
   // Visits and emits {input_block} right now (ie, in the current block).
-  void CloneAndInlineBlock(const Block* input_block, bool direct_input = true) {
+  void CloneAndInlineBlock(const Block* input_block) {
     // Computing which input of Phi operations to use when visiting
     // {input_block} (since {input_block} doesn't really have predecessors
     // anymore).
-    if (direct_input) {
-      added_block_phi_input_ = input_block->GetPredecessorIndex(
-          assembler().current_block()->Origin());
-    } else {
-      added_block_phi_input_ = input_block->GetAnyPredecessorIndex(
-          assembler().current_block()->Origin(), phase_zone_);
-    }
+    int added_block_phi_input =
+        input_block->GetPredecessorIndex(assembler().current_block()->Origin());
 
     // There is no guarantees that {input_block} will be entirely removed just
     // because it's cloned/inlined, since it's possible that it has predecessors
@@ -237,11 +231,18 @@ class GraphVisitor {
     // still properly be done (in OptimizationPhase::ReducePhi).
     assembler().current_block()->SetOrigin(input_block);
 
-    visiting_cloned_block_ = true;
+    ScopedModification<bool> set_true(&current_block_needs_variables_, true);
     for (OpIndex index : input_graph().OperationIndices(*input_block)) {
-      if (!VisitOp<false>(index, input_block)) break;
+      if (const PhiOp* phi =
+              input_graph().Get(index).template TryCast<PhiOp>()) {
+        // This Phi has been cloned/inlined, and has thus now a single
+        // predecessor, and shouldn't be a Phi anymore.
+        CreateOldToNewMapping(index,
+                              MapToNewGraph(phi->input(added_block_phi_input)));
+      } else {
+        if (!VisitOp<false>(index, input_block)) break;
+      }
     }
-    visiting_cloned_block_ = false;
   }
 
   template <bool can_be_invalid = false>
@@ -456,11 +457,6 @@ class GraphVisitor {
                                         op.input(PhiOp::kLoopPhiBackEdgeIndex));
     }
 
-    if (visiting_cloned_block_) {
-      // This Phi has been cloned/inlined, and has thus now a single
-      // predecessor, and shouldn't be a Phi anymore.
-      return MapToNewGraph(op.input(added_block_phi_input_));
-    }
     base::Vector<const OpIndex> old_inputs = op.inputs();
     base::SmallVector<OpIndex, 8> new_inputs;
     int predecessor_count = assembler().current_block()->PredecessorCount();
@@ -744,7 +740,7 @@ class GraphVisitor {
   }
 
   void CreateOldToNewMapping(OpIndex old_index, OpIndex new_index) {
-    if (visiting_cloned_block_ || current_block_needs_variables_) {
+    if (current_block_needs_variables_) {
       MaybeVariable var = GetVariableFor(old_index);
       if (!var.has_value()) {
         base::Optional<RegisterRepresentation> rep =
@@ -815,14 +811,6 @@ class GraphVisitor {
   // Mappings from the old graph to the new graph.
   ZoneVector<Block*> block_mapping_;
   ZoneVector<OpIndex> op_mapping_;
-
-  // {visiting_cloned_block_} is set to true when cloning a block, which impacts
-  // how Phis are reduced, and how mappings from old to new OpIndex are
-  // maintained.
-  bool visiting_cloned_block_ = false;
-  // When visiting a cloned block, the {added_block_phi_input_}th of Phis is
-  // used to replace those Phis.
-  int added_block_phi_input_;
 
   // {current_block_needs_variables_} is set to true if the current block should
   // use Variables to map old to new OpIndex rather than just {op_mapping}. This

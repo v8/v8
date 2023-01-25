@@ -324,12 +324,10 @@ class BranchEliminationReducer : public Next {
       // The destination block in the old graph ends with a Return
       // and the old destination is a merge block, so we can directly
       // inline the destination block in place of the Goto.
-      // We pass `false` to `direct_input` here, as we're looking one
-      // block ahead of the current one.
       // TODO(nicohartmann@): Temporarily disable this "optimization" because it
       // prevents dead code elimination in some cases. Reevaluate this and
       // reenable if phases have been reordered properly.
-      // Asm().CloneAndInlineBlock(old_dst, false);
+      // Asm().CloneAndInlineBlock(old_dst);
       // return OpIndex::Invalid();
     }
 
