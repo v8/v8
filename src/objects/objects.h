@@ -262,10 +262,10 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
 // Result of an abstract relational comparison of x and y, implemented according
 // to ES6 section 7.2.11 Abstract Relational Comparison.
 enum class ComparisonResult {
-  kLessThan,     // x < y
-  kEqual,        // x = y
-  kGreaterThan,  // x > y
-  kUndefined     // at least one of x or y was undefined or NaN
+  kLessThan = -1,    // x < y
+  kEqual = 0,        // x = y
+  kGreaterThan = 1,  // x > y
+  kUndefined = 2     // at least one of x or y was undefined or NaN
 };
 
 // (Returns false whenever {result} is kUndefined.)

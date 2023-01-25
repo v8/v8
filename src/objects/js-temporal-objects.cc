@@ -3106,16 +3106,8 @@ MaybeHandle<JSTemporalZonedDateTime> SystemZonedDateTime(
 }
 
 int CompareResultToSign(ComparisonResult r) {
-  switch (r) {
-    case ComparisonResult::kEqual:
-      return 0;
-    case ComparisonResult::kLessThan:
-      return -1;
-    case ComparisonResult::kGreaterThan:
-      return 1;
-    case ComparisonResult::kUndefined:
-      UNREACHABLE();
-  }
+  DCHECK_NE(r, ComparisonResult::kUndefined);
+  return static_cast<int>(r);
 }
 
 // #sec-temporal-formattimezoneoffsetstring

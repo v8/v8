@@ -1369,16 +1369,8 @@ RUNTIME_FUNCTION(Runtime_WasmStringCompare) {
   Handle<String> lhs(String::cast(args[0]), isolate);
   Handle<String> rhs(String::cast(args[1]), isolate);
   ComparisonResult result = String::Compare(isolate, lhs, rhs);
-  switch (result) {
-    case ComparisonResult::kEqual:
-      return Smi::FromInt(0);
-    case ComparisonResult::kGreaterThan:
-      return Smi::FromInt(1);
-    case ComparisonResult::kLessThan:
-      return Smi::FromInt(-1);
-    case ComparisonResult::kUndefined:
-      UNREACHABLE();
-  }
+  DCHECK_NE(result, ComparisonResult::kUndefined);
+  return Smi::FromInt(static_cast<int>(result));
 }
 
 }  // namespace internal
