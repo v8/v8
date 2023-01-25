@@ -32,6 +32,5 @@
   [0.1, "--turbo-force-mid-tier-regalloc"],
   [0.0001, "--simulate-errors"],
   [0.1, "--minor-mc"],
-  [0.1, "--shared-string-table"],
-  [0.1, "--shared-string-table-using-shared-space"]
+  [0.1, "--shared-string-table"]
 ]
