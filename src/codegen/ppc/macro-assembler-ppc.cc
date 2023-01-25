@@ -3572,6 +3572,23 @@ MEM_OP_PREFIXED_LIST(MEM_OP_PREFIXED_FUNCTION)
 #undef MEM_OP_PREFIXED_LIST
 #undef MEM_OP_PREFIXED_FUNCTION
 
+#define MEM_OP_SIMD_LIST(V)     \
+  V(LoadSimd128, lxvx)          \
+  V(StoreSimd128, stxvx)        \
+  V(LoadSimd128Uint64, lxsdx)   \
+  V(LoadSimd128Uint32, lxsiwzx) \
+  V(LoadSimd128Uint16, lxsihzx) \
+  V(LoadSimd128Uint8, lxsibzx)
+
+#define MEM_OP_SIMD_FUNCTION(name, rr_op)                               \
+  void TurboAssembler::name(Simd128Register reg, const MemOperand& mem, \
+                            Register scratch) {                         \
+    GenerateMemoryOperationRR(reg, mem, rr_op);                         \
+  }
+MEM_OP_SIMD_LIST(MEM_OP_SIMD_FUNCTION)
+#undef MEM_OP_SIMD_LIST
+#undef MEM_OP_SIMD_FUNCTION
+
 void TurboAssembler::LoadS8(Register dst, const MemOperand& mem,
                             Register scratch) {
   LoadU8(dst, mem, scratch);
@@ -3938,16 +3955,6 @@ void TurboAssembler::I64x2ExtMulHighI32x4U(Simd128Register dst,
   vor(dst, scratch, scratch);
 }
 #undef EXT_MUL
-
-void TurboAssembler::LoadSimd128(Simd128Register dst, const MemOperand& mem,
-                                 Register scratch) {
-  GenerateMemoryOperationRR(dst, mem, lxvx);
-}
-
-void TurboAssembler::StoreSimd128(Simd128Register src, const MemOperand& mem,
-                                  Register scratch) {
-  GenerateMemoryOperationRR(src, mem, stxvx);
-}
 
 void TurboAssembler::LoadSimd128LE(Simd128Register dst, const MemOperand& mem,
                                    Register scratch) {
@@ -4636,6 +4643,43 @@ void TurboAssembler::I32x4TruncSatF64x2UZero(Simd128Register dst,
   vxor(dst, dst, dst);
   vinsertd(dst, scratch, Operand(lane_number));
 }
+
+#if V8_TARGET_BIG_ENDIAN
+#define MAYBE_REVERSE_BYTES(reg, instr) instr(reg, reg);
+#else
+#define MAYBE_REVERSE_BYTES(reg, instr)
+#endif
+void TurboAssembler::LoadLane64LE(Simd128Register dst, const MemOperand& mem,
+                                  int lane, Register scratch1,
+                                  Simd128Register scratch2) {
+  constexpr int lane_width_in_bytes = 8;
+  LoadSimd128Uint64(scratch2, mem, scratch1);
+  MAYBE_REVERSE_BYTES(scratch2, xxbrd)
+  vinsertd(dst, scratch2, Operand((1 - lane) * lane_width_in_bytes));
+}
+void TurboAssembler::LoadLane32LE(Simd128Register dst, const MemOperand& mem,
+                                  int lane, Register scratch1,
+                                  Simd128Register scratch2) {
+  constexpr int lane_width_in_bytes = 4;
+  LoadSimd128Uint32(scratch2, mem, scratch1);
+  MAYBE_REVERSE_BYTES(scratch2, xxbrw)
+  vinsertw(dst, scratch2, Operand((3 - lane) * lane_width_in_bytes));
+}
+void TurboAssembler::LoadLane16LE(Simd128Register dst, const MemOperand& mem,
+                                  int lane, Register scratch1,
+                                  Simd128Register scratch2) {
+  constexpr int lane_width_in_bytes = 2;
+  LoadSimd128Uint16(scratch2, mem, scratch1);
+  MAYBE_REVERSE_BYTES(scratch2, xxbrh)
+  vinserth(dst, scratch2, Operand((7 - lane) * lane_width_in_bytes));
+}
+void TurboAssembler::LoadLane8LE(Simd128Register dst, const MemOperand& mem,
+                                 int lane, Register scratch1,
+                                 Simd128Register scratch2) {
+  LoadSimd128Uint8(scratch2, mem, scratch1);
+  vinsertb(dst, scratch2, Operand((15 - lane)));
+}
+#undef MAYBE_REVERSE_BYTES
 
 void TurboAssembler::V128AnyTrue(Register dst, Simd128Register src,
                                  Register scratch1, Register scratch2,

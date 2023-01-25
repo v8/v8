@@ -1344,6 +1344,22 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                      Register scratch);
   void StoreSimd128LE(Simd128Register src, const MemOperand& mem,
                       Register scratch1, Simd128Register scratch2);
+  void LoadSimd128Uint64(Simd128Register reg, const MemOperand& mem,
+                         Register scratch);
+  void LoadSimd128Uint32(Simd128Register reg, const MemOperand& mem,
+                         Register scratch);
+  void LoadSimd128Uint16(Simd128Register reg, const MemOperand& mem,
+                         Register scratch);
+  void LoadSimd128Uint8(Simd128Register reg, const MemOperand& mem,
+                        Register scratch);
+  void LoadLane64LE(Simd128Register dst, const MemOperand& mem, int lane,
+                    Register scratch1, Simd128Register scratch2);
+  void LoadLane32LE(Simd128Register dst, const MemOperand& mem, int lane,
+                    Register scratch1, Simd128Register scratch2);
+  void LoadLane16LE(Simd128Register dst, const MemOperand& mem, int lane,
+                    Register scratch1, Simd128Register scratch2);
+  void LoadLane8LE(Simd128Register dst, const MemOperand& mem, int lane,
+                   Register scratch1, Simd128Register scratch2);
   void F64x2Splat(Simd128Register dst, DoubleRegister src, Register scratch);
   void F32x4Splat(Simd128Register dst, DoubleRegister src,
                   DoubleRegister scratch1, Register scratch2);
