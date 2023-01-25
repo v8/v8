@@ -732,20 +732,20 @@ void Heap::CreateInitialReadOnlyObjects() {
   // For static roots we need the r/o space to have identical layout on all
   // compile targets. Varying objects are padded to their biggest size.
   auto StaticRootsEnsureAllocatedSize = [&](HeapObject obj, int required) {
-#ifdef V8_STATIC_ROOTS_BOOL
-    if (required == obj.Size()) return;
-    CHECK_LT(obj.Size(), required);
-    int filler_size = required - obj.Size();
+    if (V8_STATIC_ROOTS_BOOL || v8_flags.static_roots_src) {
+      if (required == obj.Size()) return;
+      CHECK_LT(obj.Size(), required);
+      int filler_size = required - obj.Size();
 
-    HeapObject filler =
-        allocator()->AllocateRawWith<HeapAllocator::kRetryOrFail>(
-            filler_size, AllocationType::kReadOnly, AllocationOrigin::kRuntime,
-            AllocationAlignment::kTaggedAligned);
-    CreateFillerObjectAt(filler.address(), filler_size,
-                         ClearFreedMemoryMode::kClearFreedMemory);
+      HeapObject filler =
+          allocator()->AllocateRawWith<HeapAllocator::kRetryOrFail>(
+              filler_size, AllocationType::kReadOnly,
+              AllocationOrigin::kRuntime, AllocationAlignment::kTaggedAligned);
+      CreateFillerObjectAt(filler.address(), filler_size,
+                           ClearFreedMemoryMode::kClearFreedMemory);
 
-    CHECK_EQ(filler.address() + filler.Size(), obj.address() + required);
-#endif
+      CHECK_EQ(filler.address() + filler.Size(), obj.address() + required);
+    }
   };
 
   // The -0 value must be set before NewNumber works.

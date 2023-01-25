@@ -59,11 +59,11 @@ void StaticRootsTableGen::write(Isolate* isolate, const char* file) {
   const auto size = static_cast<int>(RootIndex::kReadOnlyRootsCount);
   {
     std::map<Tagged_t, std::list<std::string>> sorted_roots;
-#define ADD_ROOT(_, value, CamelName)                                    \
-  {                                                                      \
-    Tagged_t ptr =                                                       \
-        V8HeapCompressionScheme::CompressTagged(ro_roots.value().ptr()); \
-    sorted_roots[ptr].push_back(#CamelName);                             \
+#define ADD_ROOT(_, value, CamelName)                       \
+  {                                                         \
+    Tagged_t ptr = V8HeapCompressionScheme::CompressTagged( \
+        ro_roots.unchecked_##value().ptr());                \
+    sorted_roots[ptr].push_back(#CamelName);                \
   }
     READ_ONLY_ROOT_LIST(ADD_ROOT)
 #undef ADD_ROOT
