@@ -199,10 +199,10 @@ class Expression : public AstNode {
     kTest
   };
 
-  // True iff the expression is a valid reference expression.
+  // True if the expression is a valid reference expression.
   bool IsValidReferenceExpression() const;
 
-  // True iff the expression is a private name.
+  // True if the expression is a private name.
   bool IsPrivateName() const;
 
   // Helpers for ToBoolean conversion.
@@ -214,31 +214,31 @@ class Expression : public AstNode {
   // names because [] for string objects is handled only by keyed ICs.
   bool IsPropertyName() const;
 
-  // True iff the expression is a class or function expression without
+  // True if the expression is a class or function expression without
   // a syntactic name.
   bool IsAnonymousFunctionDefinition() const;
 
-  // True iff the expression is a concise method definition.
+  // True if the expression is a concise method definition.
   bool IsConciseMethodDefinition() const;
 
-  // True iff the expression is an accessor function definition.
+  // True if the expression is an accessor function definition.
   bool IsAccessorFunctionDefinition() const;
 
-  // True iff the expression is a literal represented as a smi.
+  // True if the expression is a literal represented as a smi.
   bool IsSmiLiteral() const;
 
-  // True iff the expression is a literal represented as a number.
+  // True if the expression is a literal represented as a number.
   V8_EXPORT_PRIVATE bool IsNumberLiteral() const;
 
-  // True iff the expression is a string literal.
+  // True if the expression is a string literal.
   bool IsStringLiteral() const;
 
-  // True iff the expression is the null literal.
+  // True if the expression is the null literal.
   bool IsNullLiteral() const;
 
   bool IsBooleanLiteral() const;
 
-  // True iff the expression is the hole literal.
+  // True if the expression is the hole literal.
   bool IsTheHoleLiteral() const;
 
   // True if we can prove that the expression is the undefined literal. Note
