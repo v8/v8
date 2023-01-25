@@ -1816,6 +1816,9 @@ void Code::CodePrint(std::ostream& os) {
      << reinterpret_cast<void*>(code_entry_point());
   os << "\n - kind_specific_flags: " << kind_specific_flags(kRelaxedLoad);
   os << "\n";
+  if (!is_off_heap_trampoline()) {
+    instruction_stream().Print(os);
+  }
 }
 
 void Foreign::ForeignPrint(std::ostream& os) {
