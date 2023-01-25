@@ -224,7 +224,6 @@ DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
   V(harmony_temporal, "Temporal")                                              \
   V(harmony_shadow_realm, "harmony ShadowRealm")                               \
   V(harmony_struct, "harmony structs, shared structs, and shared arrays")      \
-  V(harmony_regexp_unicode_sets, "harmony RegExp Unicode Sets")                \
   V(harmony_json_parse_with_source, "harmony json parse with source")
 
 #ifdef V8_INTL_SUPPORT
@@ -237,8 +236,9 @@ DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
 #endif
 
 // Features that are complete (but still behind the --harmony flag).
-#define HARMONY_STAGED_BASE(V)                                 \
-  V(harmony_rab_gsab_transfer, "harmony ArrayBuffer.transfer") \
+#define HARMONY_STAGED_BASE(V)                                  \
+  V(harmony_regexp_unicode_sets, "harmony RegExp Unicode Sets") \
+  V(harmony_rab_gsab_transfer, "harmony ArrayBuffer.transfer")  \
   V(harmony_array_grouping, "harmony array grouping")
 
 DEFINE_IMPLICATION(harmony_rab_gsab_transfer, harmony_rab_gsab)
