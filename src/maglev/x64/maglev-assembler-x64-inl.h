@@ -385,6 +385,11 @@ inline void MaglevAssembler::LoadByte(Register dst, MemOperand src) {
   movzxbl(dst, src);
 }
 
+inline void MaglevAssembler::CompareTagged(Register reg,
+                                           Handle<HeapObject> obj) {
+  Cmp(reg, obj);
+}
+
 inline void MaglevAssembler::CompareInt32(Register reg, int32_t imm) {
   cmpl(reg, Immediate(imm));
 }
@@ -400,6 +405,16 @@ inline void MaglevAssembler::Jump(Label* target, Label::Distance distance) {
 inline void MaglevAssembler::JumpIf(Condition cond, Label* target,
                                     Label::Distance distance) {
   j(cond, target, distance);
+}
+
+inline void MaglevAssembler::JumpIfEqual(Label* target,
+                                         Label::Distance distance) {
+  j(equal, target, distance);
+}
+
+inline void MaglevAssembler::JumpIfNotEqual(Label* target,
+                                            Label::Distance distance) {
+  j(not_equal, target, distance);
 }
 
 inline void MaglevAssembler::JumpIfTaggedEqual(Register r1, Register r2,

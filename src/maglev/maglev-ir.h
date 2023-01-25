@@ -16,6 +16,7 @@
 #include "src/codegen/source-position.h"
 #include "src/common/globals.h"
 #include "src/common/operation.h"
+#include "src/compiler/access-info.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/feedback-source.h"
 #include "src/compiler/heap-refs.h"
@@ -160,6 +161,7 @@ class CompactInterpreterFrameState;
   V(GetSecondReturnedValue)                  \
   V(GetTemplateObject)                       \
   V(InitialValue)                            \
+  V(LoadPolymorphicTaggedField)              \
   V(LoadTaggedField)                         \
   V(LoadDoubleField)                         \
   V(LoadFixedArrayElement)                   \
@@ -4033,6 +4035,31 @@ class BuiltinStringPrototypeCharCodeAt
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class LoadPolymorphicTaggedField
+    : public FixedInputValueNodeT<1, LoadPolymorphicTaggedField> {
+  using Base = FixedInputValueNodeT<1, LoadPolymorphicTaggedField>;
+
+ public:
+  explicit LoadPolymorphicTaggedField(
+      uint64_t bitfield, ZoneVector<compiler::PropertyAccessInfo>&& access_info)
+      : Base(bitfield), access_infos_(access_info) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::Reading() | OpProperties::EagerDeopt();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
+  static constexpr int kObjectIndex = 0;
+  Input& object_input() { return input(kObjectIndex); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  ZoneVector<compiler::PropertyAccessInfo> access_infos_;
 };
 
 class LoadTaggedField : public FixedInputValueNodeT<1, LoadTaggedField> {

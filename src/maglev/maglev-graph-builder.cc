@@ -2091,8 +2091,51 @@ bool MaglevGraphBuilder::TryBuildNamedAccess(
     return TryBuildPropertyAccess(receiver, lookup_start_object,
                                   feedback.name(), access_info, access_mode);
   } else {
-    // TODO(victorgomes): polymorphic case.
-    return false;
+    // TODO(victorgomes): Support more generic polymorphic case.
+
+    // Only support polymorphic load at the moment.
+    if (access_mode != compiler::AccessMode::kLoad) {
+      return false;
+    }
+
+    // Check if we support the polymorphic load.
+    for (compiler::PropertyAccessInfo access_info : access_infos) {
+      switch (access_info.kind()) {
+        case compiler::PropertyAccessInfo::kNotFound:
+        case compiler::PropertyAccessInfo::kModuleExport:
+          break;
+        case compiler::PropertyAccessInfo::kDataField:
+        case compiler::PropertyAccessInfo::kFastDataConstant:
+          if (access_info.field_index().is_double()) {
+            return false;
+          }
+          break;
+        default:
+          // TODO(victorgomes): Support other access.
+          return false;
+      }
+
+      // TODO(victorgomes): Support map migration.
+      for (compiler::MapRef map : access_info.lookup_start_object_maps()) {
+        if (map.is_migration_target()) {
+          return false;
+        }
+      }
+    }
+
+    // Add compilation dependencies if needed.
+    for (compiler::PropertyAccessInfo access_info : access_infos) {
+      if (access_info.holder().has_value() &&
+          !access_info.HasDictionaryHolder()) {
+        broker()->dependencies()->DependOnStablePrototypeChains(
+            access_info.lookup_start_object_maps(), kStartAtPrototype,
+            access_info.holder().value());
+      }
+    }
+
+    SetAccumulator(AddNewNode<LoadPolymorphicTaggedField>(
+        {lookup_start_object}, std::move(access_infos)));
+    return true;
   }
 }
 

@@ -496,6 +496,14 @@ inline void MaglevAssembler::LoadByte(Register dst, MemOperand src) {
   Ldrb(dst, src);
 }
 
+inline void MaglevAssembler::CompareTagged(Register reg,
+                                           Handle<HeapObject> obj) {
+  ScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  Move(scratch, obj);
+  Cmp(reg, scratch);
+}
+
 inline void MaglevAssembler::CompareInt32(Register reg, int32_t imm) {
   Cmp(reg.W(), Immediate(imm));
 }
@@ -509,6 +517,16 @@ inline void MaglevAssembler::Jump(Label* target, Label::Distance) { B(target); }
 inline void MaglevAssembler::JumpIf(Condition cond, Label* target,
                                     Label::Distance) {
   b(target, cond);
+}
+
+inline void MaglevAssembler::JumpIfEqual(Label* target,
+                                         Label::Distance distance) {
+  b(target, eq);
+}
+
+inline void MaglevAssembler::JumpIfNotEqual(Label* target,
+                                            Label::Distance distance) {
+  b(target, ne);
 }
 
 inline void MaglevAssembler::JumpIfTaggedEqual(Register r1, Register r2,
