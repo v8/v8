@@ -198,9 +198,17 @@ TEST(CodeEvents) {
                                     comment_code, "comment");
   profiler_listener.CodeCreateEvent(i::LogEventListener::CodeTag::kBuiltin,
                                     comment2_code, "comment2");
-  profiler_listener.CodeMoveEvent(*comment2_code, *moved_code);
 
   PtrComprCageBase cage_base(isolate);
+  if (comment2_code->IsBytecodeArray(cage_base)) {
+    profiler_listener.BytecodeMoveEvent(comment2_code->GetBytecodeArray(),
+                                        moved_code->GetBytecodeArray());
+  } else {
+    profiler_listener.CodeMoveEvent(
+        comment2_code->GetCode().instruction_stream(),
+        moved_code->GetCode().instruction_stream());
+  }
+
   // Enqueue a tick event to enable code events processing.
   EnqueueTickSampleEvent(processor, aaa_code->InstructionStart(cage_base));
 

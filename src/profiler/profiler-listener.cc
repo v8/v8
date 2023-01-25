@@ -297,13 +297,22 @@ void ProfilerListener::RegExpCodeCreateEvent(Handle<AbstractCode> code,
   DispatchCodeEvent(evt_rec);
 }
 
-void ProfilerListener::CodeMoveEvent(AbstractCode from, AbstractCode to) {
+void ProfilerListener::CodeMoveEvent(InstructionStream from,
+                                     InstructionStream to) {
   DisallowGarbageCollection no_gc;
   CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeMove);
   CodeMoveEventRecord* rec = &evt_rec.CodeMoveEventRecord_;
-  PtrComprCageBase cage_base(isolate_);
-  rec->from_instruction_start = from.InstructionStart(cage_base);
-  rec->to_instruction_start = to.InstructionStart(cage_base);
+  rec->from_instruction_start = from.InstructionStart();
+  rec->to_instruction_start = to.InstructionStart();
+  DispatchCodeEvent(evt_rec);
+}
+
+void ProfilerListener::BytecodeMoveEvent(BytecodeArray from, BytecodeArray to) {
+  DisallowGarbageCollection no_gc;
+  CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeMove);
+  CodeMoveEventRecord* rec = &evt_rec.CodeMoveEventRecord_;
+  rec->from_instruction_start = from.GetFirstBytecodeAddress();
+  rec->to_instruction_start = to.GetFirstBytecodeAddress();
   DispatchCodeEvent(evt_rec);
 }
 

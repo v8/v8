@@ -29,7 +29,10 @@ class CodeAddressMap : public CodeEventLogger {
     isolate_->v8_file_logger()->RemoveLogEventListener(this);
   }
 
-  void CodeMoveEvent(AbstractCode from, AbstractCode to) override {
+  void CodeMoveEvent(InstructionStream from, InstructionStream to) override {
+    address_to_name_map_.Move(from.address(), to.address());
+  }
+  void BytecodeMoveEvent(BytecodeArray from, BytecodeArray to) override {
     address_to_name_map_.Move(from.address(), to.address());
   }
 

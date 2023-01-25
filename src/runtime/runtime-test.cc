@@ -1661,7 +1661,8 @@ RUNTIME_FUNCTION(Runtime_EnableCodeLoggingForTesting) {
     void SetterCallbackEvent(Handle<Name> name, Address entry_point) final {}
     void RegExpCodeCreateEvent(Handle<AbstractCode> code,
                                Handle<String> source) final {}
-    void CodeMoveEvent(AbstractCode from, AbstractCode to) final {}
+    void CodeMoveEvent(InstructionStream from, InstructionStream to) final {}
+    void BytecodeMoveEvent(BytecodeArray from, BytecodeArray to) final {}
     void SharedFunctionInfoMoveEvent(Address from, Address to) final {}
     void NativeContextMoveEvent(Address from, Address to) final {}
     void CodeMovingGCEvent() final {}

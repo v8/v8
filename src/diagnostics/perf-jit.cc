@@ -518,12 +518,6 @@ void LinuxPerfJitLogger::LogWriteUnwindingInfo(Code code) {
   LogWriteBytes(padding_bytes, static_cast<int>(padding_size));
 }
 
-void LinuxPerfJitLogger::CodeMoveEvent(AbstractCode from, AbstractCode to) {
-  // We may receive a CodeMove event if a BytecodeArray object moves. Otherwise
-  // code relocation is not supported.
-  CHECK(from.IsBytecodeArray(isolate_));
-}
-
 void LinuxPerfJitLogger::LogWriteBytes(const char* bytes, int size) {
   size_t rv = fwrite(bytes, 1, size, perf_output_handle_);
   DCHECK(static_cast<size_t>(size) == rv);

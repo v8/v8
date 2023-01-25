@@ -332,7 +332,8 @@ class LinuxPerfBasicLogger : public CodeEventLogger {
   explicit LinuxPerfBasicLogger(Isolate* isolate);
   ~LinuxPerfBasicLogger() override;
 
-  void CodeMoveEvent(AbstractCode from, AbstractCode to) override {}
+  void CodeMoveEvent(InstructionStream from, InstructionStream to) override {}
+  void BytecodeMoveEvent(BytecodeArray from, BytecodeArray to) override {}
   void CodeDisableOptEvent(Handle<AbstractCode> code,
                            Handle<SharedFunctionInfo> shared) override {}
 
@@ -587,22 +588,38 @@ void ExternalLogEventListener::RegExpCodeCreateEvent(Handle<AbstractCode> code,
   code_event_handler_->Handle(reinterpret_cast<v8::CodeEvent*>(&code_event));
 }
 
-void ExternalLogEventListener::CodeMoveEvent(AbstractCode from,
-                                             AbstractCode to) {
-  PtrComprCageBase cage_base(isolate_);
-  CodeEvent code_event;
-  code_event.previous_code_start_address =
-      static_cast<uintptr_t>(from.InstructionStart(cage_base));
-  code_event.code_start_address =
-      static_cast<uintptr_t>(to.InstructionStart(cage_base));
-  code_event.code_size = static_cast<size_t>(to.InstructionSize(cage_base));
-  code_event.function_name = isolate_->factory()->empty_string();
-  code_event.script_name = isolate_->factory()->empty_string();
-  code_event.script_line = 0;
-  code_event.script_column = 0;
-  code_event.code_type = v8::CodeEventType::kRelocationType;
-  code_event.comment = "";
+namespace {
 
+void InitializeCodeEvent(Isolate* isolate, CodeEvent* event,
+                         Address previous_code_start_address,
+                         Address code_start_address, int code_size) {
+  event->previous_code_start_address =
+      static_cast<uintptr_t>(previous_code_start_address);
+  event->code_start_address = static_cast<uintptr_t>(code_start_address);
+  event->code_size = static_cast<size_t>(code_size);
+  event->function_name = isolate->factory()->empty_string();
+  event->script_name = isolate->factory()->empty_string();
+  event->script_line = 0;
+  event->script_column = 0;
+  event->code_type = v8::CodeEventType::kRelocationType;
+  event->comment = "";
+}
+
+}  // namespace
+
+void ExternalLogEventListener::CodeMoveEvent(InstructionStream from,
+                                             InstructionStream to) {
+  CodeEvent code_event;
+  InitializeCodeEvent(isolate_, &code_event, from.InstructionStart(),
+                      to.InstructionStart(), to.InstructionSize());
+  code_event_handler_->Handle(reinterpret_cast<v8::CodeEvent*>(&code_event));
+}
+
+void ExternalLogEventListener::BytecodeMoveEvent(BytecodeArray from,
+                                                 BytecodeArray to) {
+  CodeEvent code_event;
+  InitializeCodeEvent(isolate_, &code_event, from.GetFirstBytecodeAddress(),
+                      to.GetFirstBytecodeAddress(), to.length());
   code_event_handler_->Handle(reinterpret_cast<v8::CodeEvent*>(&code_event));
 }
 
@@ -612,7 +629,8 @@ class LowLevelLogger : public CodeEventLogger {
   LowLevelLogger(Isolate* isolate, const char* file_name);
   ~LowLevelLogger() override;
 
-  void CodeMoveEvent(AbstractCode from, AbstractCode to) override;
+  void CodeMoveEvent(InstructionStream from, InstructionStream to) override;
+  void BytecodeMoveEvent(BytecodeArray from, BytecodeArray to) override;
   void CodeDisableOptEvent(Handle<AbstractCode> code,
                            Handle<SharedFunctionInfo> shared) override {}
   void SnapshotPositionEvent(HeapObject obj, int pos);
@@ -738,11 +756,18 @@ void LowLevelLogger::LogRecordedBuffer(const wasm::WasmCode* code,
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-void LowLevelLogger::CodeMoveEvent(AbstractCode from, AbstractCode to) {
-  PtrComprCageBase cage_base(isolate_);
+void LowLevelLogger::CodeMoveEvent(InstructionStream from,
+                                   InstructionStream to) {
   CodeMoveStruct event;
-  event.from_address = from.InstructionStart(cage_base);
-  event.to_address = to.InstructionStart(cage_base);
+  event.from_address = from.InstructionStart();
+  event.to_address = to.InstructionStart();
+  LogWriteStruct(event);
+}
+
+void LowLevelLogger::BytecodeMoveEvent(BytecodeArray from, BytecodeArray to) {
+  CodeMoveStruct event;
+  event.from_address = from.GetFirstBytecodeAddress();
+  event.to_address = to.GetFirstBytecodeAddress();
   LogWriteStruct(event);
 }
 
@@ -762,7 +787,8 @@ class JitLogger : public CodeEventLogger {
  public:
   JitLogger(Isolate* isolate, JitCodeEventHandler code_event_handler);
 
-  void CodeMoveEvent(AbstractCode from, AbstractCode to) override;
+  void CodeMoveEvent(InstructionStream from, InstructionStream to) override;
+  void BytecodeMoveEvent(BytecodeArray from, BytecodeArray to) override;
   void CodeDisableOptEvent(Handle<AbstractCode> code,
                            Handle<SharedFunctionInfo> shared) override {}
   void AddCodeLinePosInfoEvent(void* jit_handler_data, int pc_offset,
@@ -867,19 +893,29 @@ void JitLogger::LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-void JitLogger::CodeMoveEvent(AbstractCode from, AbstractCode to) {
+void JitLogger::CodeMoveEvent(InstructionStream from, InstructionStream to) {
   base::MutexGuard guard(&logger_mutex_);
 
-  PtrComprCageBase cage_base(isolate_);
   JitCodeEvent event;
   event.type = JitCodeEvent::CODE_MOVED;
-  event.code_type = from.IsInstructionStream(cage_base)
-                        ? JitCodeEvent::JIT_CODE
-                        : JitCodeEvent::BYTE_CODE;
-  event.code_start = reinterpret_cast<void*>(from.InstructionStart(cage_base));
-  event.code_len = from.InstructionSize(cage_base);
-  event.new_code_start =
-      reinterpret_cast<void*>(to.InstructionStart(cage_base));
+  event.code_type = JitCodeEvent::JIT_CODE;
+  event.code_start = reinterpret_cast<void*>(from.InstructionStart());
+  event.code_len = from.InstructionSize();
+  event.new_code_start = reinterpret_cast<void*>(to.InstructionStart());
+  event.isolate = reinterpret_cast<v8::Isolate*>(isolate_);
+
+  code_event_handler_(&event);
+}
+
+void JitLogger::BytecodeMoveEvent(BytecodeArray from, BytecodeArray to) {
+  base::MutexGuard guard(&logger_mutex_);
+
+  JitCodeEvent event;
+  event.type = JitCodeEvent::CODE_MOVED;
+  event.code_type = JitCodeEvent::BYTE_CODE;
+  event.code_start = reinterpret_cast<void*>(from.GetFirstBytecodeAddress());
+  event.code_len = from.length();
+  event.new_code_start = reinterpret_cast<void*>(to.GetFirstBytecodeAddress());
   event.isolate = reinterpret_cast<v8::Isolate*>(isolate_);
 
   code_event_handler_(&event);
@@ -1540,11 +1576,16 @@ void V8FileLogger::RegExpCodeCreateEvent(Handle<AbstractCode> code,
   msg.WriteToLogFile();
 }
 
-void V8FileLogger::CodeMoveEvent(AbstractCode from, AbstractCode to) {
+void V8FileLogger::CodeMoveEvent(InstructionStream from, InstructionStream to) {
   if (!is_listening_to_code_events()) return;
-  PtrComprCageBase cage_base(isolate_);
-  MoveEventInternal(Event::kCodeMove, from.InstructionStart(cage_base),
-                    to.InstructionStart(cage_base));
+  MoveEventInternal(Event::kCodeMove, from.InstructionStart(),
+                    to.InstructionStart());
+}
+
+void V8FileLogger::BytecodeMoveEvent(BytecodeArray from, BytecodeArray to) {
+  if (!is_listening_to_code_events()) return;
+  MoveEventInternal(Event::kCodeMove, from.GetFirstBytecodeAddress(),
+                    to.GetFirstBytecodeAddress());
 }
 
 void V8FileLogger::SharedFunctionInfoMoveEvent(Address from, Address to) {

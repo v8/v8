@@ -1649,14 +1649,15 @@ class ProfilingMigrationObserver final : public MigrationObserver {
 
   inline void Move(AllocationSpace dest, HeapObject src, HeapObject dst,
                    int size) final {
+    // Note this method is called in a concurrent setting. The current object
+    // (src and dst) is somewhat safe to access without precautions, but other
+    // objects may be subject to concurrent modification.
     if (dest == CODE_SPACE) {
-      Code src_code = InstructionStream::cast(src).GcSafeCode(kAcquireLoad);
-      Code dst_code = InstructionStream::cast(dst).GcSafeCode(kAcquireLoad);
-      PROFILE(heap_->isolate(), CodeMoveEvent(AbstractCode::cast(src_code),
-                                              AbstractCode::cast(dst_code)));
+      PROFILE(heap_->isolate(), CodeMoveEvent(InstructionStream::cast(src),
+                                              InstructionStream::cast(dst)));
     } else if (dest == OLD_SPACE && dst.IsBytecodeArray()) {
-      PROFILE(heap_->isolate(),
-              CodeMoveEvent(AbstractCode::cast(src), AbstractCode::cast(dst)));
+      PROFILE(heap_->isolate(), BytecodeMoveEvent(BytecodeArray::cast(src),
+                                                  BytecodeArray::cast(dst)));
     }
     heap_->OnMoveEvent(src, dst, size);
   }
