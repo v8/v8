@@ -2210,7 +2210,8 @@ bool MaglevGraphBuilder::TryBuildElementAccessOnString(
 
   ValueNode* length = AddNewNode<StringLength>({object});
   ValueNode* index = GetInt32ElementIndex(index_object);
-  AddNewNode<CheckInt32Condition>({index, length}, AssertCondition::kBelow,
+  AddNewNode<CheckInt32Condition>({index, length},
+                                  AssertCondition::kUnsignedLessThan,
                                   DeoptimizeReason::kOutOfBounds);
 
   SetAccumulator(AddNewNode<StringAt>({object, index}));
@@ -3098,7 +3099,8 @@ ValueNode* MaglevGraphBuilder::TryReduceStringPrototypeCharCodeAt(
   BuildCheckString(receiver);
   // And index is below length.
   ValueNode* length = AddNewNode<StringLength>({receiver});
-  AddNewNode<CheckInt32Condition>({index, length}, AssertCondition::kBelow,
+  AddNewNode<CheckInt32Condition>({index, length},
+                                  AssertCondition::kUnsignedLessThan,
                                   DeoptimizeReason::kOutOfBounds);
   return AddNewNode<BuiltinStringPrototypeCharCodeAt>({receiver, index});
 }
@@ -4997,7 +4999,7 @@ void MaglevGraphBuilder::VisitResumeGenerator() {
     ValueNode* register_size = GetInt32Constant(
         parameter_count_without_receiver() + registers.register_count());
     AddNewNode<AssertInt32>(
-        {register_size, array_length}, AssertCondition::kLessOrEqual,
+        {register_size, array_length}, AssertCondition::kLessThanEqual,
         AbortReason::kInvalidParametersAndRegistersInGenerator);
   }
 

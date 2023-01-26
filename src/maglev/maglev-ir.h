@@ -3496,16 +3496,16 @@ class CreateClosure : public FixedInputValueNodeT<1, CreateClosure> {
 };
 
 #define ASSERT_CONDITION(V) \
-  V(Less)                   \
-  V(LessOrEqual)            \
-  V(Greater)                \
-  V(GeaterOrEqual)          \
-  V(Below)                  \
-  V(BelowOrEqual)           \
-  V(Above)                  \
-  V(AboveOrEqual)           \
   V(Equal)                  \
-  V(NotEqual)
+  V(NotEqual)               \
+  V(LessThan)               \
+  V(LessThanEqual)          \
+  V(GreaterThan)            \
+  V(GreaterThanEqual)       \
+  V(UnsignedLessThan)       \
+  V(UnsignedLessThanEqual)  \
+  V(UnsignedGreaterThan)    \
+  V(UnsignedGreaterThanEqual)
 
 enum class AssertCondition {
 #define D(Name) k##Name,

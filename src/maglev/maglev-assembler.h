@@ -426,6 +426,16 @@ inline bool AnyMapIsHeapNumber(const ZoneHandleSet<Map>& maps) {
                      [](Handle<Map> map) { return map->IsHeapNumberMap(); });
 }
 
+inline Condition ToCondition(AssertCondition cond) {
+  switch (cond) {
+#define CASE(Name)               \
+  case AssertCondition::k##Name: \
+    return k##Name;
+    ASSERT_CONDITION(CASE)
+#undef CASE
+  }
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8

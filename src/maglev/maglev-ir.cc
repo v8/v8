@@ -769,8 +769,7 @@ void CheckUint32IsSmi::GenerateCode(MaglevAssembler* masm,
   Register reg = ToRegister(input());
   // Perform an unsigned comparison against Smi::kMaxValue.
   __ Cmp(reg, Smi::kMaxValue);
-  __ EmitEagerDeoptIf(ToCondition(AssertCondition::kAbove),
-                      DeoptimizeReason::kNotASmi, this);
+  __ EmitEagerDeoptIf(kUnsignedGreaterThan, DeoptimizeReason::kNotASmi, this);
 }
 
 void CheckedSmiUntag::SetValueLocationConstraints() {
