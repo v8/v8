@@ -422,6 +422,8 @@ class AssemblerOpInterface {
                                 FloatRepresentation::Float32())
   DECL_SINGLE_REP_BINOP_NO_KIND(Float64Equal, Equal,
                                 FloatRepresentation::Float64())
+  DECL_SINGLE_REP_BINOP_NO_KIND(TaggedEqual, Equal,
+                                RegisterRepresentation::Tagged())
   OpIndex Equal(OpIndex left, OpIndex right, RegisterRepresentation rep) {
     return stack().ReduceEqual(left, right, rep);
   }
@@ -621,6 +623,19 @@ class AssemblerOpInterface {
   OpIndex BitcastWordToTagged(OpIndex word) {
     return TaggedBitcast(word, RegisterRepresentation::PointerSized(),
                          RegisterRepresentation::Tagged());
+  }
+
+  OpIndex Check(OpIndex input, OpIndex frame_state, CheckOp::Kind kind,
+                FeedbackSource feedback) {
+    return stack().ReduceCheck(input, frame_state, kind, feedback);
+  }
+
+  OpIndex IsSmiTagged(OpIndex input) {
+    return stack().ReduceIsSmiTagged(input);
+  }
+
+  OpIndex ConvertToObject(OpIndex input, ConvertToObjectOp::Kind kind) {
+    return stack().ReduceConvertToObject(input, kind);
   }
 
   OpIndex Word32Constant(uint32_t value) {
@@ -929,6 +944,21 @@ class AssemblerOpInterface {
                        const DeoptimizeParameters* parameters) {
     stack().ReduceDeoptimizeIf(condition, frame_state, true, parameters);
   }
+  void DeoptimizeIf(OpIndex condition, OpIndex frame_state,
+                    DeoptimizeReason reason, const FeedbackSource& feedback) {
+    Zone* zone = stack().output_graph().graph_zone();
+    const DeoptimizeParameters* params =
+        zone->New<DeoptimizeParameters>(reason, feedback);
+    DeoptimizeIf(condition, frame_state, params);
+  }
+  void DeoptimizeIfNot(OpIndex condition, OpIndex frame_state,
+                       DeoptimizeReason reason,
+                       const FeedbackSource& feedback) {
+    Zone* zone = stack().output_graph().graph_zone();
+    const DeoptimizeParameters* params =
+        zone->New<DeoptimizeParameters>(reason, feedback);
+    DeoptimizeIfNot(condition, frame_state, params);
+  }
   void Deoptimize(OpIndex frame_state, const DeoptimizeParameters* parameters) {
     stack().ReduceDeoptimize(frame_state, parameters);
   }
@@ -1039,6 +1069,8 @@ class Assembler
         Stack(reducer_args) {
     SupportedOperations::Initialize();
   }
+
+  bool Is64() const { return kSystemPointerSize == sizeof(int64_t); }
 
   Block* NewLoopHeader() { return this->output_graph().NewLoopHeader(); }
   Block* NewBlock() { return this->output_graph().NewBlock(); }

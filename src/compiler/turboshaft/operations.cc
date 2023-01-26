@@ -595,6 +595,20 @@ void SwitchOp::PrintOptions(std::ostream& os) const {
   os << " default: " << default_case << "]";
 }
 
+std::ostream& operator<<(std::ostream& os, CheckOp::Kind kind) {
+  switch (kind) {
+    case CheckOp::Kind::kCheckBigInt:
+      return os << "CheckBigInt";
+  }
+}
+
+std::ostream& operator<<(std::ostream& os, ConvertToObjectOp::Kind kind) {
+  switch (kind) {
+    case ConvertToObjectOp::Kind::kInt64ToBigInt64:
+      return os << "Int64ToBigInt64";
+  }
+}
+
 std::string Operation::ToString() const {
   std::stringstream ss;
   ss << *this;

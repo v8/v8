@@ -549,6 +549,9 @@ Node* ScheduleBuilder::ProcessOperation(const EqualOp& op) {
     case RegisterRepresentation::Float64():
       o = machine.Float64Equal();
       break;
+    case RegisterRepresentation::Tagged():
+      o = machine.WordEqual();
+      break;
     default:
       UNREACHABLE();
   }
@@ -839,6 +842,21 @@ Node* ScheduleBuilder::ProcessOperation(const TaggedBitcastOp& op) {
     UNIMPLEMENTED();
   }
   return AddNode(o, {GetNode(op.input())});
+}
+Node* ScheduleBuilder::ProcessOperation(const CheckOp& op) {
+  // This should have been lowered before already.
+  UNREACHABLE();
+}
+Node* ScheduleBuilder::ProcessOperation(const ConvertToObjectOp& op) {
+  // This should have been lowered before already.
+  UNREACHABLE();
+}
+Node* ScheduleBuilder::ProcessOperation(const IsSmiTaggedOp& op) {
+  return AddNode(machine.Word32Equal(),
+                 {AddNode(machine.Word32And(),
+                          {GetNode(op.input()),
+                           AddNode(common.Int32Constant(kSmiTagMask), {})}),
+                  AddNode(common.Int32Constant(kSmiTag), {})});
 }
 Node* ScheduleBuilder::ProcessOperation(const SelectOp& op) {
   // If there is a Select, then it should only be one that is supported by the

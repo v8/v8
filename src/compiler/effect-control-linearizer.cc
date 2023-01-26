@@ -84,7 +84,6 @@ class EffectControlLinearizer {
   Node* LowerCheckReceiver(Node* node, Node* frame_state);
   Node* LowerCheckReceiverOrNullOrUndefined(Node* node, Node* frame_state);
   Node* LowerCheckString(Node* node, Node* frame_state);
-  Node* LowerCheckBigInt(Node* node, Node* frame_state);
   Node* LowerCheckedBigIntToBigInt64(Node* node, Node* frame_state);
   Node* LowerCheckSymbol(Node* node, Node* frame_state);
   void LowerCheckIf(Node* node, Node* frame_state);
@@ -119,6 +118,7 @@ class EffectControlLinearizer {
   Node* LowerCheckedTaggedToFloat64(Node* node, Node* frame_state);
   Node* LowerCheckedTaggedToTaggedSigned(Node* node, Node* frame_state);
   Node* LowerCheckedTaggedToTaggedPointer(Node* node, Node* frame_state);
+  Node* LowerCheckBigInt(Node* node, Node* frame_state);
   Node* LowerChangeInt64ToBigInt(Node* node);
   Node* LowerChangeUint64ToBigInt(Node* node);
   Node* LowerTruncateBigIntToWord64(Node* node);
@@ -908,7 +908,9 @@ void EffectControlLinearizer::ProcessNode(Node* node, Node** frame_state) {
     // effect that is passed. The frame state is preserved for lowering.
     DCHECK_EQ(RegionObservability::kObservable, region_observability_);
     *frame_state = NodeProperties::GetFrameStateInput(node);
-    return;
+    if (!v8_flags.turboshaft) return;
+    // We keep checkpoints to allow Turboshaft's graph builder to recompute the
+    // correct FrameStates for nodes.
   }
 
   if (node->opcode() == IrOpcode::kStoreField) {
@@ -1022,9 +1024,6 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kCheckedUint64ToInt64:
       result = LowerCheckedUint64ToInt64(node, frame_state);
       break;
-    case IrOpcode::kCheckBigInt:
-      result = LowerCheckBigInt(node, frame_state);
-      break;
     case IrOpcode::kCheckedBigIntToBigInt64:
       result = LowerCheckedBigIntToBigInt64(node, frame_state);
       break;
@@ -1128,8 +1127,21 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kCheckedTaggedToTaggedPointer:
       result = LowerCheckedTaggedToTaggedPointer(node, frame_state);
       break;
+    case IrOpcode::kCheckBigInt:
+      if (v8_flags.turboshaft) return false;
+      result = LowerCheckBigInt(node, frame_state);
+      break;
     case IrOpcode::kChangeInt64ToBigInt:
-      result = LowerChangeInt64ToBigInt(node);
+      if (v8_flags.turboshaft) {
+        DCHECK(machine()->Is64());
+        // ChangeInt64ToBigInt is allocting when lowered, so we must fix its
+        // position in the effect chain such that it is non-floating after ECL
+        // and cannot mess up when rescheduling (e.g. in Turboshaft's graph
+        // builder).
+        result = gasm()->Chained(node->op(), node->InputAt(0));
+      } else {
+        result = LowerChangeInt64ToBigInt(node);
+      }
       break;
     case IrOpcode::kChangeUint64ToBigInt:
       result = LowerChangeUint64ToBigInt(node);
@@ -2970,6 +2982,7 @@ Node* EffectControlLinearizer::LowerCheckedTaggedToTaggedPointer(
 }
 
 Node* EffectControlLinearizer::LowerCheckBigInt(Node* node, Node* frame_state) {
+  DCHECK(!v8_flags.turboshaft);
   Node* value = node->InputAt(0);
   const CheckParameters& params = CheckParametersOf(node->op());
 
@@ -3141,6 +3154,7 @@ Node* EffectControlLinearizer::LowerCheckedInt64Mod(Node* node,
 }
 
 Node* EffectControlLinearizer::LowerChangeInt64ToBigInt(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   DCHECK(machine()->Is64());
 
   auto done = __ MakeLabel(MachineRepresentation::kTagged);

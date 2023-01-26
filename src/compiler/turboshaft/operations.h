@@ -111,7 +111,10 @@ class Graph;
   V(Tuple)                           \
   V(Projection)                      \
   V(StaticAssert)                    \
-  V(CheckTurboshaftTypeOf)
+  V(CheckTurboshaftTypeOf)           \
+  V(Check)                           \
+  V(IsSmiTagged)                     \
+  V(ConvertToObject)
 
 enum class Opcode : uint8_t {
 #define ENUM_CONSTANT(Name) k##Name,
@@ -848,7 +851,8 @@ struct EqualOp : FixedArityOperationT<2, EqualOp> {
     DCHECK(rep == any_of(RegisterRepresentation::Word32(),
                          RegisterRepresentation::Word64(),
                          RegisterRepresentation::Float32(),
-                         RegisterRepresentation::Float64()));
+                         RegisterRepresentation::Float64(),
+                         RegisterRepresentation::Tagged()));
   }
   auto options() const { return std::tuple{rep}; }
 };
@@ -2113,6 +2117,62 @@ struct CheckTurboshaftTypeOfOp
       : Base(input), rep(rep), type(std::move(type)), successful(successful) {}
   auto options() const { return std::tuple{rep, type, successful}; }
 };
+
+struct CheckOp : FixedArityOperationT<2, CheckOp> {
+  enum class Kind {
+    kCheckBigInt,
+  };
+  Kind kind;
+  FeedbackSource feedback;
+
+  static constexpr OpProperties properties = OpProperties::CanAbort();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  OpIndex input() const { return Base::input(0); }
+  OpIndex frame_state() const { return Base::input(1); }
+
+  CheckOp(OpIndex input, OpIndex frame_state, Kind kind,
+          FeedbackSource feedback)
+      : Base(input, frame_state), kind(kind), feedback(feedback) {}
+  auto options() const { return std::tuple{kind, feedback}; }
+};
+std::ostream& operator<<(std::ostream& os, CheckOp::Kind kind);
+
+struct IsSmiTaggedOp : FixedArityOperationT<1, IsSmiTaggedOp> {
+  static constexpr OpProperties properties = OpProperties::PureNoAllocation();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Word32()>();
+  }
+
+  OpIndex input() const { return Base::input(0); }
+
+  explicit IsSmiTaggedOp(OpIndex input) : Base(input) {}
+  auto options() const { return std::tuple{}; }
+};
+
+struct ConvertToObjectOp : FixedArityOperationT<1, ConvertToObjectOp> {
+  enum class Kind {
+    kInt64ToBigInt64,
+  };
+  Kind kind;
+
+  static constexpr OpProperties properties = OpProperties::PureMayAllocate();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    switch (kind) {
+      case Kind::kInt64ToBigInt64:
+        return RepVector<RegisterRepresentation::Tagged()>();
+    }
+  }
+
+  OpIndex input() const { return Base::input(0); }
+
+  explicit ConvertToObjectOp(OpIndex input, Kind kind)
+      : Base(input), kind(kind) {}
+  auto options() const { return std::tuple{kind}; }
+};
+std::ostream& operator<<(std::ostream& os, ConvertToObjectOp::Kind kind);
 
 #define OPERATION_PROPERTIES_CASE(Name) Name##Op::PropertiesIfStatic(),
 static constexpr base::Optional<OpProperties>

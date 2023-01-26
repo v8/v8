@@ -89,6 +89,7 @@
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/late-escape-analysis-reducer.h"
+#include "src/compiler/turboshaft/machine-lowering-reducer.h"
 #include "src/compiler/turboshaft/machine-optimization-reducer.h"
 #include "src/compiler/turboshaft/memory-optimization.h"
 #include "src/compiler/turboshaft/optimization-phase.h"
@@ -2109,6 +2110,19 @@ struct BuildTurboshaftPhase {
   }
 };
 
+struct TurboshaftMachineLoweringPhase {
+  DECL_PIPELINE_PHASE_CONSTANTS(TurboshaftMachineLowering)
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    turboshaft::OptimizationPhase<turboshaft::MachineLoweringReducer,
+                                  turboshaft::VariableReducer>::
+        Run(data->isolate(), &data->turboshaft_graph(), temp_zone,
+            data->node_origins(),
+            std::tuple{turboshaft::MachineLoweringReducerArgs{
+                data->isolate()->factory()}});
+  }
+};
+
 struct OptimizeTurboshaftPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(OptimizeTurboshaft)
 
@@ -3146,6 +3160,10 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
     }
 
     Run<PrintTurboshaftGraphPhase>(BuildTurboshaftPhase::phase_name());
+
+    Run<TurboshaftMachineLoweringPhase>();
+    Run<PrintTurboshaftGraphPhase>(
+        TurboshaftMachineLoweringPhase::phase_name());
 
     Run<LateOptimizationPhase>();
     Run<PrintTurboshaftGraphPhase>(LateOptimizationPhase::phase_name());

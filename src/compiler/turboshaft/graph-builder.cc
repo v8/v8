@@ -8,6 +8,7 @@
 #include <numeric>
 #include <string_view>
 
+#include "src/base/container-utils.h"
 #include "src/base/logging.h"
 #include "src/base/optional.h"
 #include "src/base/safe_conversions.h"
@@ -49,8 +50,12 @@ struct GraphBuilder {
   SourcePositionTable* source_positions;
   NodeOriginTable* origins;
 
+  struct BlockData {
+    Block* block;
+    OpIndex exit_frame_state;
+  };
   NodeAuxData<OpIndex> op_mapping{phase_zone};
-  ZoneVector<Block*> block_mapping{schedule.RpoBlockCount(), phase_zone};
+  ZoneVector<BlockData> block_mapping{schedule.RpoBlockCount(), phase_zone};
 
   base::Optional<BailoutReason> Run();
 
@@ -61,7 +66,7 @@ struct GraphBuilder {
     return result;
   }
   Block* Map(BasicBlock* block) {
-    Block* result = block_mapping[block->rpo_number()];
+    Block* result = block_mapping[block->rpo_number()].block;
     DCHECK_NOT_NULL(result);
     return result;
   }
@@ -151,6 +156,7 @@ struct GraphBuilder {
   }
   OpIndex Process(Node* node, BasicBlock* block,
                   const base::SmallVector<int, 16>& predecessor_permutation,
+                  OpIndex& dominating_frame_state,
                   base::Optional<BailoutReason>* bailout,
                   bool is_final_control = false);
 
@@ -172,10 +178,12 @@ struct GraphBuilder {
 
 base::Optional<BailoutReason> GraphBuilder::Run() {
   for (BasicBlock* block : *schedule.rpo_order()) {
-    block_mapping[block->rpo_number()] = block->IsLoopHeader()
-                                             ? assembler.NewLoopHeader()
-                                             : assembler.NewBlock();
+    block_mapping[block->rpo_number()] = {block->IsLoopHeader()
+                                              ? assembler.NewLoopHeader()
+                                              : assembler.NewBlock(),
+                                          OpIndex::Invalid()};
   }
+
   for (BasicBlock* block : *schedule.rpo_order()) {
     Block* target_block = Map(block);
     if (!assembler.Bind(target_block)) continue;
@@ -194,6 +202,22 @@ base::Optional<BailoutReason> GraphBuilder::Run() {
                        predecessors[j]->rpo_number();
               });
 
+    // Compute the dominating frame state. If all predecessors deliver the same
+    // FrameState, we use this. Otherwise we rely on a new Checkpoint before any
+    // operation that needs a FrameState.
+    OpIndex dominating_frame_state = OpIndex::Invalid();
+    if (!predecessors.empty()) {
+      dominating_frame_state =
+          block_mapping[predecessors[0]->rpo_number()].exit_frame_state;
+      for (size_t i = 1; i < predecessors.size(); ++i) {
+        if (dominating_frame_state !=
+            block_mapping[predecessors[i]->rpo_number()].exit_frame_state) {
+          dominating_frame_state = OpIndex::Invalid();
+          break;
+        }
+      }
+    }
+
     base::Optional<BailoutReason> bailout = base::nullopt;
     for (Node* node : *block->nodes()) {
       if (V8_UNLIKELY(node->InputCount() >=
@@ -201,7 +225,8 @@ base::Optional<BailoutReason> GraphBuilder::Run() {
                           decltype(Operation::input_count)>::max()})) {
         return BailoutReason::kTooManyArguments;
       }
-      OpIndex i = Process(node, block, predecessor_permutation, &bailout);
+      OpIndex i = Process(node, block, predecessor_permutation,
+                          dominating_frame_state, &bailout);
       if (V8_UNLIKELY(bailout)) return bailout;
       op_mapping.Set(node, i);
     }
@@ -211,7 +236,8 @@ base::Optional<BailoutReason> GraphBuilder::Run() {
                           decltype(Operation::input_count)>::max()})) {
         return BailoutReason::kTooManyArguments;
       }
-      OpIndex i = Process(node, block, predecessor_permutation, &bailout, true);
+      OpIndex i = Process(node, block, predecessor_permutation,
+                          dominating_frame_state, &bailout, true);
       if (V8_UNLIKELY(bailout)) return bailout;
       op_mapping.Set(node, i);
     }
@@ -238,6 +264,9 @@ base::Optional<BailoutReason> GraphBuilder::Run() {
         UNREACHABLE();
     }
     DCHECK_NULL(assembler.current_block());
+
+    block_mapping[block->rpo_number()].exit_frame_state =
+        dominating_frame_state;
   }
 
   if (source_positions->IsEnabled()) {
@@ -263,7 +292,8 @@ base::Optional<BailoutReason> GraphBuilder::Run() {
 OpIndex GraphBuilder::Process(
     Node* node, BasicBlock* block,
     const base::SmallVector<int, 16>& predecessor_permutation,
-    base::Optional<BailoutReason>* bailout, bool is_final_control) {
+    OpIndex& dominating_frame_state, base::Optional<BailoutReason>* bailout,
+    bool is_final_control) {
   assembler.SetCurrentOrigin(OpIndex::EncodeTurbofanNodeId(node->id()));
   const Operator* op = node->op();
   Operator::Opcode opcode = op->opcode();
@@ -284,6 +314,12 @@ OpIndex GraphBuilder::Process(
     case IrOpcode::kEffectPhi:
     case IrOpcode::kTerminate:
       return OpIndex::Invalid();
+
+    case IrOpcode::kCheckpoint: {
+      // Preserve the frame state from this checkpoint for following nodes.
+      dominating_frame_state = Map(NodeProperties::GetFrameStateInput(node));
+      return OpIndex::Invalid();
+    }
 
     case IrOpcode::kIfException: {
       return assembler.LoadException();
@@ -631,6 +667,15 @@ OpIndex GraphBuilder::Process(
       return assembler.TaggedBitcast(Map(node->InputAt(0)),
                                      RegisterRepresentation::PointerSized(),
                                      RegisterRepresentation::Tagged());
+
+    case IrOpcode::kCheckBigInt:
+      DCHECK(dominating_frame_state.valid());
+      return assembler.Check(Map(node->InputAt(0)), dominating_frame_state,
+                             CheckOp::Kind::kCheckBigInt,
+                             CheckParametersOf(op).feedback());
+    case IrOpcode::kChangeInt64ToBigInt:
+      return assembler.ConvertToObject(
+          Map(node->InputAt(0)), ConvertToObjectOp::Kind::kInt64ToBigInt64);
 
     case IrOpcode::kSelect: {
       OpIndex cond = Map(node->InputAt(0));

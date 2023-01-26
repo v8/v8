@@ -2917,6 +2917,7 @@ filegroup(
         "src/compiler/turboshaft/late-escape-analysis-reducer.h",
         "src/compiler/turboshaft/late-escape-analysis-reducer.cc",
         "src/compiler/turboshaft/layered-hash-map.h",
+        "src/compiler/turboshaft/machine-lowering-reducer.h",
         "src/compiler/turboshaft/machine-optimization-reducer.h",
         "src/compiler/turboshaft/memory-optimization.cc",
         "src/compiler/turboshaft/memory-optimization.h",

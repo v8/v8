@@ -3000,6 +3000,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/index.h",
     "src/compiler/turboshaft/late-escape-analysis-reducer.h",
     "src/compiler/turboshaft/layered-hash-map.h",
+    "src/compiler/turboshaft/machine-lowering-reducer.h",
     "src/compiler/turboshaft/machine-optimization-reducer.h",
     "src/compiler/turboshaft/memory-optimization.h",
     "src/compiler/turboshaft/operation-matching.h",
