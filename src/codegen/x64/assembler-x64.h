@@ -88,6 +88,22 @@ enum Condition : uint8_t {
   not_zero = not_equal,
   sign = negative,
   not_sign = positive,
+
+  // Unified cross-platform condition names/aliases.
+  kEqual = equal,
+  kNotEqual = not_equal,
+  kLessThan = less,
+  kGreaterThan = greater,
+  kLessThanEqual = less_equal,
+  kGreaterThanEqual = greater_equal,
+  kUnsignedLessThan = below,
+  kUnsignedGreaterThan = above,
+  kUnsignedLessThanEqual = below_equal,
+  kUnsignedGreaterThanEqual = above_equal,
+  kOverflow = overflow,
+  kNoOverflow = no_overflow,
+  kZero = equal,
+  kNotZero = not_equal,
 };
 
 // Returns the equivalent of !cc.

@@ -318,7 +318,23 @@ enum Condition : uint8_t {
   gt = 12,  // Signed greater than
   le = 13,  // Signed less than or equal
   al = 14,  // Always executed
-  nv = 15   // Behaves as always/al.
+  nv = 15,  // Behaves as always/al.
+
+  // Unified cross-platform condition names/aliases.
+  kEqual = eq,
+  kNotEqual = ne,
+  kLessThan = lt,
+  kGreaterThan = gt,
+  kLessThanEqual = le,
+  kGreaterThanEqual = ge,
+  kUnsignedLessThan = lo,
+  kUnsignedGreaterThan = hi,
+  kUnsignedLessThanEqual = ls,
+  kUnsignedGreaterThanEqual = hs,
+  kOverflow = vs,
+  kNoOverflow = vc,
+  kZero = eq,
+  kNotZero = ne,
 };
 
 inline Condition NegateCondition(Condition cond) {

@@ -441,6 +441,22 @@ enum Condition {  // Any value < 0 is considered no_condition.
   uge = Ugreater_equal,
   ule = Uless_equal,
   ugt = Ugreater,
+
+  // Unified cross-platform condition names/aliases.
+  kEqual = equal,
+  kNotEqual = not_equal,
+  kLessThan = less,
+  kGreaterThan = greater,
+  kLessThanEqual = less_equal,
+  kGreaterThanEqual = greater_equal,
+  kUnsignedLessThan = Uless,
+  kUnsignedGreaterThan = Ugreater,
+  kUnsignedLessThanEqual = Uless_equal,
+  kUnsignedGreaterThanEqual = Ugreater_equal,
+  kOverflow = overflow,
+  kNoOverflow = no_overflow,
+  kZero = equal,
+  kNotZero = not_equal,
 };
 
 // Returns the equivalent of !cc.

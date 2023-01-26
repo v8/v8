@@ -129,7 +129,23 @@ enum Condition {
   ordered = 7,
   overflow = 8,  // Summary overflow
   nooverflow = 9,
-  al = 10  // Always.
+  al = 10,  // Always.
+
+  // Unified cross-platform condition names/aliases.
+  kEqual = eq,
+  kNotEqual = ne,
+  kLessThan = lt,
+  kGreaterThan = gt,
+  kLessThanEqual = le,
+  kGreaterThanEqual = ge,
+  kUnsignedLessThan = lt,
+  kUnsignedGreaterThan = gt,
+  kUnsignedLessThanEqual = le,
+  kUnsignedGreaterThanEqual = ge,
+  kOverflow = overflow,
+  kNoOverflow = nooverflow,
+  kZero = eq,
+  kNotZero = ne,
 };
 
 inline Condition NegateCondition(Condition cond) {

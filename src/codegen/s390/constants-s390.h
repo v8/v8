@@ -101,7 +101,23 @@ enum Condition {
   mask0xC = 12,
   mask0xD = 13,
   mask0xE = 14,
-  mask0xF = 15
+  mask0xF = 15,
+
+  // Unified cross-platform condition names/aliases.
+  kEqual = eq,
+  kNotEqual = ne,
+  kLessThan = lt,
+  kGreaterThan = gt,
+  kLessThanEqual = le,
+  kGreaterThanEqual = ge,
+  kUnsignedLessThan = lt,
+  kUnsignedGreaterThan = gt,
+  kUnsignedLessThanEqual = le,
+  kUnsignedGreaterThanEqual = ge,
+  kOverflow = overflow,
+  kNoOverflow = nooverflow,
+  kZero = eq,
+  kNotZero = ne,
 };
 
 inline Condition NegateCondition(Condition cond) {
