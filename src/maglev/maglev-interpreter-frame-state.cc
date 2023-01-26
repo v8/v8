@@ -106,9 +106,14 @@ MergePointInterpreterFrameState* MergePointInterpreterFrameState::NewForLoop(
         }
         ++i;
       });
-  // TODO(v8:7700): Add contexts into assignment analysis.
-  frame_state.context(info) = state->NewLoopPhi(
-      info.zone(), interpreter::Register::current_context(), merge_offset);
+  frame_state.context(info) = nullptr;
+  if (state->is_resumable_loop_) {
+    // While contexts are always the same at specific locations, resumable loops
+    // do have different nodes to set the context across resume points. Create a
+    // phi for them.
+    frame_state.context(info) = state->NewLoopPhi(
+        info.zone(), interpreter::Register::current_context(), merge_offset);
+  }
   frame_state.ForEachLocal(
       info, [&](ValueNode*& entry, interpreter::Register reg) {
         entry = nullptr;
