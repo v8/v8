@@ -225,9 +225,9 @@ class V8_TRIVIAL_ABI RawPointer final {
 };
 
 #if defined(CPPGC_POINTER_COMPRESSION)
-using MemberStorage = CompressedPointer;
+using DefaultMemberStorage = CompressedPointer;
 #else   // !defined(CPPGC_POINTER_COMPRESSION)
-using MemberStorage = RawPointer;
+using DefaultMemberStorage = RawPointer;
 #endif  // !defined(CPPGC_POINTER_COMPRESSION)
 
 }  // namespace internal

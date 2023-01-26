@@ -70,6 +70,7 @@ class V8_EXPORT WriteBarrier final {
   static V8_INLINE Type GetWriteBarrierType(const void* slot, const void* value,
                                             Params& params);
   // Returns the required write barrier for a given `slot` and `value`.
+  template <typename MemberStorage>
   static V8_INLINE Type GetWriteBarrierType(const void* slot, MemberStorage,
                                             Params& params);
   // Returns the required write barrier for a given `slot`.
@@ -171,7 +172,8 @@ class V8_EXPORT WriteBarrierTypeForCagedHeapPolicy final {
     return ValueModeDispatch<value_mode>::Get(slot, value, params, callback);
   }
 
-  template <WriteBarrier::ValueMode value_mode, typename HeapHandleCallback>
+  template <WriteBarrier::ValueMode value_mode, typename HeapHandleCallback,
+            typename MemberStorage>
   static V8_INLINE WriteBarrier::Type Get(const void* slot, MemberStorage value,
                                           WriteBarrier::Params& params,
                                           HeapHandleCallback callback) {
@@ -215,7 +217,7 @@ class V8_EXPORT WriteBarrierTypeForCagedHeapPolicy final {
 template <>
 struct WriteBarrierTypeForCagedHeapPolicy::ValueModeDispatch<
     WriteBarrier::ValueMode::kValuePresent> {
-  template <typename HeapHandleCallback>
+  template <typename HeapHandleCallback, typename MemberStorage>
   static V8_INLINE WriteBarrier::Type Get(const void* slot,
                                           MemberStorage storage,
                                           WriteBarrier::Params& params,
@@ -313,11 +315,9 @@ class V8_EXPORT WriteBarrierTypeForNonCagedHeapPolicy final {
   }
 
   template <WriteBarrier::ValueMode value_mode, typename HeapHandleCallback>
-  static V8_INLINE WriteBarrier::Type Get(const void* slot, MemberStorage value,
+  static V8_INLINE WriteBarrier::Type Get(const void* slot, RawPointer value,
                                           WriteBarrier::Params& params,
                                           HeapHandleCallback callback) {
-    // `MemberStorage` will always be `RawPointer` for non-caged heap builds.
-    // Just convert to `void*` in this case.
     return ValueModeDispatch<value_mode>::Get(slot, value.Load(), params,
                                               callback);
   }
@@ -391,6 +391,7 @@ WriteBarrier::Type WriteBarrier::GetWriteBarrierType(
 }
 
 // static
+template <typename MemberStorage>
 WriteBarrier::Type WriteBarrier::GetWriteBarrierType(
     const void* slot, MemberStorage value, WriteBarrier::Params& params) {
   return WriteBarrierTypePolicy::Get<ValueMode::kValuePresent>(slot, value,

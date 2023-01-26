@@ -45,6 +45,7 @@ struct DijkstraWriteBarrierPolicy {
 #endif  // !CPPGC_SLIM_WRITE_BARRIER
   }
 
+  template <typename MemberStorage>
   V8_INLINE static void AssigningBarrier(const void* slot,
                                          MemberStorage storage) {
 #ifdef CPPGC_SLIM_WRITE_BARRIER
@@ -79,6 +80,7 @@ struct DijkstraWriteBarrierPolicy {
 struct NoWriteBarrierPolicy {
   V8_INLINE static void InitializingBarrier(const void*, const void*) {}
   V8_INLINE static void AssigningBarrier(const void*, const void*) {}
+  template <typename MemberStorage>
   V8_INLINE static void AssigningBarrier(const void*, MemberStorage) {}
 };
 
@@ -207,7 +209,8 @@ template <typename T, typename WeaknessPolicy,
           typename CheckingPolicy = DefaultPersistentCheckingPolicy>
 class BasicPersistent;
 template <typename T, typename WeaknessTag, typename WriteBarrierPolicy,
-          typename CheckingPolicy = DefaultMemberCheckingPolicy>
+          typename CheckingPolicy = DefaultMemberCheckingPolicy,
+          typename StorageType = DefaultMemberStorage>
 class BasicMember;
 
 }  // namespace internal

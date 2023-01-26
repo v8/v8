@@ -297,7 +297,7 @@ class CppGCMemberPrinter(object):
 
   def to_string(self):
     pointer = gdb.parse_and_eval(
-        "_cppgc_internal_Print_Member((cppgc::internal::MemberBase*){})".format(
+        "_cppgc_internal_Uncompress_Member((void*){})".format(
             self.val.address))
     return "{}Member<{}> pointing to {}".format(
         '' if self.category is None else self.category, self.pointee_type,
