@@ -38,32 +38,6 @@ class BaselineAssembler::ScratchRegisterScope {
   UseScratchRegisterScope wrapped_scope_;
 };
 
-// TODO(v8:11461): Unify condition names in the MacroAssembler.
-enum class Condition : uint32_t {
-  kEqual = eq,
-  kNotEqual = ne,
-
-  kLessThan = lt,
-  kGreaterThan = gt,
-  kLessThanEqual = le,
-  kGreaterThanEqual = ge,
-
-  kUnsignedLessThan = lo,
-  kUnsignedGreaterThan = hi,
-  kUnsignedLessThanEqual = ls,
-  kUnsignedGreaterThanEqual = hs,
-
-  kOverflow = vs,
-  kNoOverflow = vc,
-
-  kZero = eq,
-  kNotZero = ne,
-};
-
-inline internal::Condition AsMasmCondition(Condition cond) {
-  return static_cast<internal::Condition>(cond);
-}
-
 namespace detail {
 
 #ifdef DEBUG
@@ -125,19 +99,19 @@ void BaselineAssembler::JumpIfImmediate(Condition cc, Register left, int right,
 
 void BaselineAssembler::TestAndBranch(Register value, int mask, Condition cc,
                                       Label* target, Label::Distance) {
-  if (cc == Condition::kZero) {
+  if (cc == kZero) {
     __ TestAndBranchIfAllClear(value, mask, target);
-  } else if (cc == Condition::kNotZero) {
+  } else if (cc == kNotZero) {
     __ TestAndBranchIfAnySet(value, mask, target);
   } else {
     __ Tst(value, Immediate(mask));
-    __ B(AsMasmCondition(cc), target);
+    __ B(cc, target);
   }
 }
 
 void BaselineAssembler::JumpIf(Condition cc, Register lhs, const Operand& rhs,
                                Label* target, Label::Distance) {
-  __ CompareAndBranch(lhs, rhs, AsMasmCondition(cc), target);
+  __ CompareAndBranch(lhs, rhs, cc, target);
 }
 void BaselineAssembler::JumpIfObjectType(Condition cc, Register object,
                                          InstanceType instance_type,
@@ -173,14 +147,14 @@ void BaselineAssembler::JumpIfPointer(Condition cc, Register value,
 void BaselineAssembler::JumpIfSmi(Condition cc, Register value, Smi smi,
                                   Label* target, Label::Distance distance) {
   __ AssertSmi(value);
-  __ CompareTaggedAndBranch(value, smi, AsMasmCondition(cc), target);
+  __ CompareTaggedAndBranch(value, smi, cc, target);
 }
 
 void BaselineAssembler::JumpIfSmi(Condition cc, Register lhs, Register rhs,
                                   Label* target, Label::Distance) {
   __ AssertSmi(lhs);
   __ AssertSmi(rhs);
-  __ CompareTaggedAndBranch(lhs, rhs, AsMasmCondition(cc), target);
+  __ CompareTaggedAndBranch(lhs, rhs, cc, target);
 }
 void BaselineAssembler::JumpIfTagged(Condition cc, Register value,
                                      MemOperand operand, Label* target,
@@ -188,7 +162,7 @@ void BaselineAssembler::JumpIfTagged(Condition cc, Register value,
   ScratchRegisterScope temps(this);
   Register tmp = temps.AcquireScratch();
   __ Ldr(tmp, operand);
-  __ CompareTaggedAndBranch(value, tmp, AsMasmCondition(cc), target);
+  __ CompareTaggedAndBranch(value, tmp, cc, target);
 }
 void BaselineAssembler::JumpIfTagged(Condition cc, MemOperand operand,
                                      Register value, Label* target,
@@ -196,7 +170,7 @@ void BaselineAssembler::JumpIfTagged(Condition cc, MemOperand operand,
   ScratchRegisterScope temps(this);
   Register tmp = temps.AcquireScratch();
   __ Ldr(tmp, operand);
-  __ CompareTaggedAndBranch(tmp, value, AsMasmCondition(cc), target);
+  __ CompareTaggedAndBranch(tmp, value, cc, target);
 }
 void BaselineAssembler::JumpIfByte(Condition cc, Register value, int32_t byte,
                                    Label* target, Label::Distance) {
@@ -601,7 +575,7 @@ void BaselineAssembler::Switch(Register reg, int case_value_base,
   ScratchRegisterScope scope(this);
   Register temp = scope.AcquireScratch();
   Label table;
-  JumpIf(Condition::kUnsignedGreaterThanEqual, reg, num_labels, &fallthrough);
+  JumpIf(kUnsignedGreaterThanEqual, reg, num_labels, &fallthrough);
   __ Adr(temp, &table);
   int entry_size_log2 = 2;
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
@@ -666,7 +640,7 @@ void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
   // If actual is bigger than formal, then we should use it to free up the stack
   // arguments.
   Label corrected_args_count;
-  __ JumpIf(Condition::kGreaterThanEqual, params_size, actual_params_size,
+  __ JumpIf(kGreaterThanEqual, params_size, actual_params_size,
             &corrected_args_count);
   __ masm()->Mov(params_size, actual_params_size);
   __ Bind(&corrected_args_count);

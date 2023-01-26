@@ -46,32 +46,6 @@ class BaselineAssembler::ScratchRegisterScope {
   int registers_used_;
 };
 
-// TODO(v8:11461): Unify condition names in the MacroAssembler.
-enum class Condition : uint32_t {
-  kEqual = equal,
-  kNotEqual = not_equal,
-
-  kLessThan = less,
-  kGreaterThan = greater,
-  kLessThanEqual = less_equal,
-  kGreaterThanEqual = greater_equal,
-
-  kUnsignedLessThan = below,
-  kUnsignedGreaterThan = above,
-  kUnsignedLessThanEqual = below_equal,
-  kUnsignedGreaterThanEqual = above_equal,
-
-  kOverflow = overflow,
-  kNoOverflow = no_overflow,
-
-  kZero = zero,
-  kNotZero = not_zero,
-};
-
-inline internal::Condition AsMasmCondition(Condition cond) {
-  return static_cast<internal::Condition>(cond);
-}
-
 namespace detail {
 
 #define __ masm_->
@@ -130,13 +104,13 @@ void BaselineAssembler::TestAndBranch(Register value, int mask, Condition cc,
   } else {
     __ testl(value, Immediate(mask));
   }
-  __ j(AsMasmCondition(cc), target, distance);
+  __ j(cc, target, distance);
 }
 
 void BaselineAssembler::JumpIf(Condition cc, Register lhs, const Operand& rhs,
                                Label* target, Label::Distance distance) {
   __ cmpq(lhs, rhs);
-  __ j(AsMasmCondition(cc), target, distance);
+  __ j(cc, target, distance);
 }
 void BaselineAssembler::JumpIfObjectType(Condition cc, Register object,
                                          InstanceType instance_type,
@@ -144,7 +118,7 @@ void BaselineAssembler::JumpIfObjectType(Condition cc, Register object,
                                          Label::Distance distance) {
   __ AssertNotSmi(object);
   __ CmpObjectType(object, instance_type, map);
-  __ j(AsMasmCondition(cc), target, distance);
+  __ j(cc, target, distance);
 }
 void BaselineAssembler::JumpIfInstanceType(Condition cc, Register map,
                                            InstanceType instance_type,
@@ -156,30 +130,30 @@ void BaselineAssembler::JumpIfInstanceType(Condition cc, Register map,
     __ Assert(equal, AbortReason::kUnexpectedValue);
   }
   __ CmpInstanceType(map, instance_type);
-  __ j(AsMasmCondition(cc), target, distance);
+  __ j(cc, target, distance);
 }
 void BaselineAssembler::JumpIfPointer(Condition cc, Register value,
                                       MemOperand operand, Label* target,
                                       Label::Distance distance) {
   __ cmpq(value, operand);
-  __ j(AsMasmCondition(cc), target, distance);
+  __ j(cc, target, distance);
 }
 void BaselineAssembler::JumpIfSmi(Condition cc, Register lhs, Smi smi,
                                   Label* target, Label::Distance distance) {
   __ SmiCompare(lhs, smi);
-  __ j(AsMasmCondition(cc), target, distance);
+  __ j(cc, target, distance);
 }
 void BaselineAssembler::JumpIfSmi(Condition cc, Register lhs, Register rhs,
                                   Label* target, Label::Distance distance) {
   __ SmiCompare(lhs, rhs);
-  __ j(AsMasmCondition(cc), target, distance);
+  __ j(cc, target, distance);
 }
 
 void BaselineAssembler::JumpIfImmediate(Condition cc, Register left, int right,
                                         Label* target,
                                         Label::Distance distance) {
   __ cmpq(left, Immediate(right));
-  __ j(AsMasmCondition(cc), target, distance);
+  __ j(cc, target, distance);
 }
 
 // cmp_tagged
@@ -187,18 +161,18 @@ void BaselineAssembler::JumpIfTagged(Condition cc, Register value,
                                      MemOperand operand, Label* target,
                                      Label::Distance distance) {
   __ cmp_tagged(value, operand);
-  __ j(AsMasmCondition(cc), target, distance);
+  __ j(cc, target, distance);
 }
 void BaselineAssembler::JumpIfTagged(Condition cc, MemOperand operand,
                                      Register value, Label* target,
                                      Label::Distance distance) {
   __ cmp_tagged(operand, value);
-  __ j(AsMasmCondition(cc), target, distance);
+  __ j(cc, target, distance);
 }
 void BaselineAssembler::JumpIfByte(Condition cc, Register value, int32_t byte,
                                    Label* target, Label::Distance distance) {
   __ cmpb(value, Immediate(byte));
-  __ j(AsMasmCondition(cc), target, distance);
+  __ j(cc, target, distance);
 }
 
 void BaselineAssembler::Move(interpreter::Register output, Register source) {

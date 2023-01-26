@@ -17,8 +17,6 @@ namespace v8 {
 namespace internal {
 namespace baseline {
 
-enum class Condition : uint32_t;
-
 class BaselineAssembler {
  public:
   class ScratchRegisterScope;

@@ -49,85 +49,24 @@ class BaselineAssembler::ScratchRegisterScope {
   int registers_used_;
 };
 
-// TODO(v8:11429,leszeks): Unify condition names in the MacroAssembler.
-enum class Condition : uint32_t {
-  kEqual,
-  kNotEqual,
-
-  kLessThan,
-  kGreaterThan,
-  kLessThanEqual,
-  kGreaterThanEqual,
-
-  kUnsignedLessThan,
-  kUnsignedGreaterThan,
-  kUnsignedLessThanEqual,
-  kUnsignedGreaterThanEqual,
-
-  kOverflow,
-  kNoOverflow,
-
-  kZero,
-  kNotZero
-};
-
-inline internal::Condition AsMasmCondition(Condition cond) {
-  static_assert(sizeof(internal::Condition) == sizeof(Condition));
-  switch (cond) {
-    case Condition::kEqual:
-      return eq;
-    case Condition::kNotEqual:
-      return ne;
-    case Condition::kLessThan:
-      return lt;
-    case Condition::kGreaterThan:
-      return gt;
-    case Condition::kLessThanEqual:
-      return le;
-    case Condition::kGreaterThanEqual:
-      return ge;
-
-    case Condition::kUnsignedLessThan:
-      return lt;
-    case Condition::kUnsignedGreaterThan:
-      return gt;
-    case Condition::kUnsignedLessThanEqual:
-      return le;
-    case Condition::kUnsignedGreaterThanEqual:
-      return ge;
-
-    case Condition::kOverflow:
-      return overflow;
-    case Condition::kNoOverflow:
-      return nooverflow;
-
-    case Condition::kZero:
-      return eq;
-    case Condition::kNotZero:
-      return ne;
-    default:
-      UNREACHABLE();
-  }
-}
-
 inline bool IsSignedCondition(Condition cond) {
   switch (cond) {
-    case Condition::kEqual:
-    case Condition::kNotEqual:
-    case Condition::kLessThan:
-    case Condition::kGreaterThan:
-    case Condition::kLessThanEqual:
-    case Condition::kGreaterThanEqual:
-    case Condition::kOverflow:
-    case Condition::kNoOverflow:
-    case Condition::kZero:
-    case Condition::kNotZero:
+    case kEqual:
+    case kNotEqual:
+    case kLessThan:
+    case kGreaterThan:
+    case kLessThanEqual:
+    case kGreaterThanEqual:
+    case kOverflow:
+    case kNoOverflow:
+    case kZero:
+    case kNotZero:
       return true;
 
-    case Condition::kUnsignedLessThan:
-    case Condition::kUnsignedGreaterThan:
-    case Condition::kUnsignedLessThanEqual:
-    case Condition::kUnsignedGreaterThanEqual:
+    case kUnsignedLessThan:
+    case kUnsignedGreaterThan:
+    case kUnsignedLessThanEqual:
+    case kUnsignedGreaterThanEqual:
       return false;
 
     default:
@@ -155,7 +94,7 @@ static void JumpIfHelper(MacroAssembler* assm, Condition cc, Register lhs,
       __ CmpU32(lhs, rhs);
     }
   }
-  __ b(AsMasmCondition(cc), target);
+  __ b(cc, target);
 }
 #undef __
 
@@ -221,7 +160,7 @@ void BaselineAssembler::TestAndBranch(Register value, int mask, Condition cc,
                                       Label* target, Label::Distance) {
   ASM_CODE_COMMENT(masm_);
   __ AndU64(r0, value, Operand(mask), ip, SetRC);
-  __ b(AsMasmCondition(cc), target, cr0);
+  __ b(cc, target, cr0);
 }
 
 void BaselineAssembler::JumpIf(Condition cc, Register lhs, const Operand& rhs,
@@ -232,7 +171,7 @@ void BaselineAssembler::JumpIf(Condition cc, Register lhs, const Operand& rhs,
   } else {
     __ CmpU64(lhs, rhs, r0);
   }
-  __ b(AsMasmCondition(cc), target);
+  __ b(cc, target);
 }
 
 void BaselineAssembler::JumpIfObjectType(Condition cc, Register object,
@@ -674,8 +613,7 @@ void BaselineAssembler::Switch(Register reg, int case_value_base,
   }
 
   // Mostly copied from code-generator-arm.cc
-  JumpIf(Condition::kUnsignedGreaterThanEqual, reg, Operand(num_labels),
-         &fallthrough);
+  JumpIf(kUnsignedGreaterThanEqual, reg, Operand(num_labels), &fallthrough);
   // Ensure to emit the constant pool first if necessary.
   int entry_size_log2 = 3;
   __ ShiftLeftU32(reg, reg, Operand(entry_size_log2));
@@ -737,8 +675,8 @@ void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
   // If actual is bigger than formal, then we should use it to free up the stack
   // arguments.
   Label corrected_args_count;
-  JumpIfHelper(__ masm(), Condition::kGreaterThanEqual, params_size,
-               actual_params_size, &corrected_args_count);
+  JumpIfHelper(__ masm(), kGreaterThanEqual, params_size, actual_params_size,
+               &corrected_args_count);
   __ masm()->mr(params_size, actual_params_size);
   __ Bind(&corrected_args_count);
 

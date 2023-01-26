@@ -2482,8 +2482,8 @@ void AttemptOnStackReplacement(MaglevAssembler* masm,
     __ LoadByte(scratch0,
                 FieldMemOperand(scratch0, FeedbackVector::kOsrStateOffset));
     __ DecodeField<FeedbackVector::OsrUrgencyBits>(scratch0);
-    basm.JumpIfByte(baseline::Condition::kUnsignedLessThanEqual, scratch0,
-                    loop_depth, *no_code_for_osr, Label::kNear);
+    basm.JumpIfByte(kUnsignedLessThanEqual, scratch0, loop_depth,
+                    *no_code_for_osr, Label::kNear);
 
     // The osr_urgency exceeds the current loop_depth, signaling an OSR
     // request. Call into runtime to compile.

@@ -39,35 +39,6 @@ class BaselineAssembler::ScratchRegisterScope {
   UseScratchRegisterScope wrapped_scope_;
 };
 
-// TODO(v8:11429,leszeks): Unify condition names in the MacroAssembler.
-enum class Condition : uint32_t {
-  kEqual = static_cast<uint32_t>(eq),
-  kNotEqual = static_cast<uint32_t>(ne),
-
-  kLessThan = static_cast<uint32_t>(lt),
-  kGreaterThan = static_cast<uint32_t>(gt),
-  kLessThanEqual = static_cast<uint32_t>(le),
-  kGreaterThanEqual = static_cast<uint32_t>(ge),
-
-  kUnsignedLessThan = static_cast<uint32_t>(lo),
-  kUnsignedGreaterThan = static_cast<uint32_t>(hi),
-  kUnsignedLessThanEqual = static_cast<uint32_t>(ls),
-  kUnsignedGreaterThanEqual = static_cast<uint32_t>(hs),
-
-  kOverflow = static_cast<uint32_t>(vs),
-  kNoOverflow = static_cast<uint32_t>(vc),
-
-  kZero = static_cast<uint32_t>(eq),
-  kNotZero = static_cast<uint32_t>(ne),
-};
-
-inline internal::Condition AsMasmCondition(Condition cond) {
-  // This is important for arm, where the internal::Condition where each value
-  // represents an encoded bit field value.
-  static_assert(sizeof(internal::Condition) == sizeof(Condition));
-  return static_cast<internal::Condition>(cond);
-}
-
 namespace detail {
 
 #ifdef DEBUG
@@ -132,13 +103,13 @@ void BaselineAssembler::JumpIfNotSmi(Register value, Label* target,
 void BaselineAssembler::TestAndBranch(Register value, int mask, Condition cc,
                                       Label* target, Label::Distance) {
   __ tst(value, Operand(mask));
-  __ b(AsMasmCondition(cc), target);
+  __ b(cc, target);
 }
 
 void BaselineAssembler::JumpIf(Condition cc, Register lhs, const Operand& rhs,
                                Label* target, Label::Distance) {
   __ cmp(lhs, Operand(rhs));
-  __ b(AsMasmCondition(cc), target);
+  __ b(cc, target);
 }
 void BaselineAssembler::JumpIfObjectType(Condition cc, Register object,
                                          InstanceType instance_type,
@@ -536,8 +507,7 @@ void BaselineAssembler::Switch(Register reg, int case_value_base,
 
   // Mostly copied from code-generator-arm.cc
   ScratchRegisterScope scope(this);
-  JumpIf(Condition::kUnsignedGreaterThanEqual, reg, Operand(num_labels),
-         &fallthrough);
+  JumpIf(kUnsignedGreaterThanEqual, reg, Operand(num_labels), &fallthrough);
   // Ensure to emit the constant pool first if necessary.
   __ CheckConstPool(true, true);
   __ BlockConstPoolFor(num_labels);
@@ -591,8 +561,8 @@ void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
   // If actual is bigger than formal, then we should use it to free up the stack
   // arguments.
   Label corrected_args_count;
-  __ JumpIf(Condition::kGreaterThanEqual, params_size,
-            Operand(actual_params_size), &corrected_args_count);
+  __ JumpIf(kGreaterThanEqual, params_size, Operand(actual_params_size),
+            &corrected_args_count);
   __ masm()->mov(params_size, actual_params_size);
   __ Bind(&corrected_args_count);
 
