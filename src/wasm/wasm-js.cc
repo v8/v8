@@ -2261,55 +2261,15 @@ void WebAssemblyTableGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
 namespace {
 void WasmObjectToJSReturnValue(v8::ReturnValue<v8::Value>& return_value,
                                i::Handle<i::Object> value,
-                               i::wasm::HeapType::Representation repr,
-                               const i::wasm::WasmModule* module,
-                               i::Isolate* isolate,
+                               i::wasm::HeapType type, i::Isolate* isolate,
                                ScheduledErrorThrower* thrower) {
-  switch (repr) {
-    case i::wasm::HeapType::kExtern:
-    case i::wasm::HeapType::kString:
-    case i::wasm::HeapType::kI31:
-      return_value.Set(Utils::ToLocal(value));
-      return;
-    case i::wasm::HeapType::kFunc: {
-      if (!value->IsNull()) {
-        DCHECK(value->IsWasmInternalFunction());
-        value =
-            handle(i::Handle<i::WasmInternalFunction>::cast(value)->external(),
-                   isolate);
-      }
-      return_value.Set(Utils::ToLocal(value));
-      return;
-    }
-    case i::wasm::HeapType::kStringViewWtf8:
-      thrower->TypeError("stringview_wtf8 has no JS representation");
-      return;
-    case i::wasm::HeapType::kStringViewWtf16:
-      thrower->TypeError("stringview_wtf16 has no JS representation");
-      return;
-    case i::wasm::HeapType::kStringViewIter:
-      thrower->TypeError("stringview_iter has no JS representation");
-      return;
-    case i::wasm::HeapType::kBottom:
-      UNREACHABLE();
-    case i::wasm::HeapType::kStruct:
-    case i::wasm::HeapType::kArray:
-    case i::wasm::HeapType::kEq:
-    case i::wasm::HeapType::kAny: {
-      return_value.Set(Utils::ToLocal(value));
-      return;
-    }
-    default:
-      if (module->has_signature(repr)) {
-        if (!value->IsNull()) {
-          DCHECK(value->IsWasmInternalFunction());
-          value = handle(
-              i::Handle<i::WasmInternalFunction>::cast(value)->external(),
-              isolate);
-        }
-      }
-      return_value.Set(Utils::ToLocal(value));
-      return;
+  const char* error_message = nullptr;
+  i::MaybeHandle<i::Object> maybe_result =
+      i::wasm::WasmToJSObject(isolate, value, type, &error_message);
+  if (maybe_result.is_null()) {
+    thrower->TypeError("%s", error_message);
+  } else {
+    return_value.Set(Utils::ToLocal(maybe_result.ToHandleChecked()));
   }
 }
 }  // namespace
@@ -2349,12 +2309,7 @@ void WebAssemblyTableGet(const v8::FunctionCallbackInfo<v8::Value>& args) {
       i::WasmTableObject::Get(i_isolate, receiver, index);
 
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
-  const i::wasm::WasmModule* module =
-      receiver->instance().IsWasmInstanceObject()
-          ? i::WasmInstanceObject::cast(receiver->instance()).module()
-          : nullptr;
-  WasmObjectToJSReturnValue(return_value, result,
-                            receiver->type().heap_representation(), module,
+  WasmObjectToJSReturnValue(return_value, result, receiver->type().heap_type(),
                             i_isolate, &thrower);
 }
 
@@ -2722,13 +2677,9 @@ void WebAssemblyGlobalGetValueCommon(
       break;
     case i::wasm::kRef:
     case i::wasm::kRefNull: {
-      const i::wasm::WasmModule* module =
-          receiver->instance().IsWasmInstanceObject()
-              ? i::WasmInstanceObject::cast(receiver->instance()).module()
-              : nullptr;
       WasmObjectToJSReturnValue(return_value, receiver->GetRef(),
-                                receiver->type().heap_representation(), module,
-                                i_isolate, &thrower);
+                                receiver->type().heap_type(), i_isolate,
+                                &thrower);
       break;
     }
     case i::wasm::kRtt:

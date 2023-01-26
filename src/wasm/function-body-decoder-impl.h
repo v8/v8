@@ -970,6 +970,7 @@ struct ControlBase : public PcForErrors<ValidationTag::full_validation> {
   F(S128Const, Simd128Immediate& imm, Value* result)                           \
   F(GlobalGet, Value* result, const GlobalIndexImmediate& imm)                 \
   F(DoReturn, uint32_t drop_values)                                            \
+  F(UnOp, WasmOpcode opcode, const Value& value, Value* result)                \
   F(BinOp, WasmOpcode opcode, const Value& lhs, const Value& rhs,              \
     Value* result)                                                             \
   F(RefNull, ValueType type, Value* result)                                    \
@@ -1000,7 +1001,6 @@ struct ControlBase : public PcForErrors<ValidationTag::full_validation> {
   F(FallThruTo, Control* c)                                                    \
   F(PopControl, Control* block)                                                \
   /* Instructions: */                                                          \
-  F(UnOp, WasmOpcode opcode, const Value& value, Value* result)                \
   F(RefAsNonNull, const Value& arg, Value* result)                             \
   F(Drop)                                                                      \
   F(LocalGet, Value* result, const IndexImmediate& imm)                        \
@@ -5708,7 +5708,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         return opcode_length + branch_depth.length;
       }
       case kExprExternInternalize: {
-        NON_CONST_ONLY
         Value extern_val = Peek(0, 0, kWasmExternRef);
         ValueType intern_type = ValueType::RefMaybeNull(
             HeapType::kAny, Nullability(extern_val.type.is_nullable()));
@@ -5720,7 +5719,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         return opcode_length;
       }
       case kExprExternExternalize: {
-        NON_CONST_ONLY
         Value val = Peek(0, 0, kWasmAnyRef);
         ValueType extern_type = ValueType::RefMaybeNull(
             HeapType::kExtern, Nullability(val.type.is_nullable()));

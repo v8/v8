@@ -370,6 +370,12 @@ class InitExprInterface {
     UNIMPLEMENTED();
   }
 
+  void UnOp(FullDecoder* decoder, WasmOpcode opcode, const Value& value,
+            Value* result) {
+    // TODO(12089): Implement.
+    UNIMPLEMENTED();
+  }
+
   void RefNull(FullDecoder* decoder, ValueType type, Value* result) {
     os_ << "kExprRefNull, " << HeapTypeToJSByteEncoding(type.heap_type())
         << ", ";

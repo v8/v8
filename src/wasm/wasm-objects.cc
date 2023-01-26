@@ -2415,6 +2415,49 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, const WasmModule* module,
   return JSToWasmObject(isolate, value, expected_canonical, error_message);
 }
 
+MaybeHandle<Object> WasmToJSObject(Isolate* isolate, Handle<Object> value,
+                                   HeapType type, const char** error_message) {
+  switch (type.representation()) {
+    case i::wasm::HeapType::kExtern:
+    case i::wasm::HeapType::kString:
+    case i::wasm::HeapType::kI31:
+    case i::wasm::HeapType::kStruct:
+    case i::wasm::HeapType::kArray:
+    case i::wasm::HeapType::kEq:
+    case i::wasm::HeapType::kAny:
+      return value;
+    case i::wasm::HeapType::kFunc: {
+      if (!value->IsNull()) {
+        DCHECK(value->IsWasmInternalFunction());
+        return handle(
+            i::Handle<i::WasmInternalFunction>::cast(value)->external(),
+            isolate);
+      } else {
+        return value;
+      }
+    }
+    case i::wasm::HeapType::kStringViewWtf8:
+      *error_message = "stringview_wtf8 has no JS representation";
+      return {};
+    case i::wasm::HeapType::kStringViewWtf16:
+      *error_message = "stringview_wtf16 has no JS representation";
+      return {};
+    case i::wasm::HeapType::kStringViewIter:
+      *error_message = "stringview_iter has no JS representation";
+      return {};
+    case i::wasm::HeapType::kBottom:
+      UNREACHABLE();
+    default:
+      if (value->IsWasmInternalFunction()) {
+        return handle(
+            i::Handle<i::WasmInternalFunction>::cast(value)->external(),
+            isolate);
+      } else {
+        return value;
+      }
+  }
+}
+
 }  // namespace wasm
 
 }  // namespace internal

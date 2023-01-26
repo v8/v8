@@ -42,6 +42,33 @@ void ConstantExpressionInterface::S128Const(FullDecoder* decoder,
   result->runtime_value = WasmValue(imm.value, kWasmS128);
 }
 
+void ConstantExpressionInterface::UnOp(FullDecoder* decoder, WasmOpcode opcode,
+                                       const Value& input, Value* result) {
+  if (!generate_value()) return;
+  switch (opcode) {
+    case kExprExternExternalize: {
+      const char* error_message = nullptr;
+      result->runtime_value = WasmValue(
+          WasmToJSObject(isolate_, input.runtime_value.to_ref(),
+                         input.type.heap_type(), &error_message)
+              .ToHandleChecked(),
+          ValueType::RefMaybeNull(HeapType::kExtern, input.type.nullability()));
+      break;
+    }
+    case kExprExternInternalize: {
+      const char* error_message = nullptr;
+      result->runtime_value = WasmValue(
+          JSToWasmObject(isolate_, input.runtime_value.to_ref(), kWasmAnyRef,
+                         &error_message)
+              .ToHandleChecked(),
+          ValueType::RefMaybeNull(HeapType::kAny, input.type.nullability()));
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
+}
+
 void ConstantExpressionInterface::BinOp(FullDecoder* decoder, WasmOpcode opcode,
                                         const Value& lhs, const Value& rhs,
                                         Value* result) {
