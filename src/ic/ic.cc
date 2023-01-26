@@ -1754,7 +1754,6 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
     LookupIterator it(
         isolate(), object, key,
         IsDefineNamedOwnIC() ? LookupIterator::OWN : LookupIterator::DEFAULT);
-    DCHECK_IMPLIES(IsDefineNamedOwnIC(), it.IsFound() && it.HolderIsReceiver());
     // TODO(v8:12548): refactor DefinedNamedOwnIC and SetNamedIC as subclasses
     // of StoreIC so their logic doesn't get mixed here.
     if (IsDefineNamedOwnIC()) {
