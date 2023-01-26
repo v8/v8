@@ -2158,6 +2158,16 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     return NoChange();
   }
 
+  // Do not optimize AccessMode::kDefine for typed arrays.
+  if (access_mode == AccessMode::kDefine) {
+    for (const ElementAccessInfo& access_info : access_infos) {
+      if (IsTypedArrayOrRabGsabTypedArrayElementsKind(
+              access_info.elements_kind())) {
+        return NoChange();
+      }
+    }
+  }
+
   // For holey stores or growing stores, we need to check that the prototype
   // chain contains no setters for elements, and we need to guard those checks
   // via code dependencies on the relevant prototype maps.
@@ -3486,6 +3496,9 @@ JSNativeContextSpecialization::
          IsRabGsabTypedArrayElementsKind(elements_kind));
   DCHECK_IMPLIES(IsRabGsabTypedArrayElementsKind(elements_kind),
                  v8_flags.turbo_rab_gsab);
+  // AccessMode::kDefine is not handled here. Optimization should be skipped by
+  // caller.
+  DCHECK(keyed_mode.access_mode() != AccessMode::kDefine);
 
   Node* buffer_or_receiver = receiver;
   Node* length;
