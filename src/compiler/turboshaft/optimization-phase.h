@@ -317,10 +317,15 @@ class GraphVisitor {
           *base::Reversed(input_graph().operations(*input_block)).begin();
       if (auto* final_goto = last_op.TryCast<GotoOp>()) {
         if (final_goto->destination->IsLoop()) {
-          Block* new_loop = MapToNewGraph(final_goto->destination->index());
-          DCHECK(new_loop->IsLoop());
-          if (new_loop->IsLoop() && new_loop->PredecessorCount() == 1) {
-            output_graph_.TurnLoopIntoMerge(new_loop);
+          if (input_block->index() > final_goto->destination->index()) {
+            Block* new_loop = MapToNewGraph(final_goto->destination->index());
+            DCHECK(new_loop->IsLoop());
+            if (new_loop->IsLoop() && new_loop->PredecessorCount() == 1) {
+              output_graph_.TurnLoopIntoMerge(new_loop);
+            }
+          } else {
+            // We have a forward jump to a loop, rather than a backedge. We
+            // don't need to do anything.
           }
         }
       }
