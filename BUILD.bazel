@@ -147,7 +147,10 @@ v8_flag(name = "v8_enable_verify_predictable")
 
 v8_flag(name = "v8_enable_test_features")
 
-v8_flag(name = "v8_enable_turbofan")
+v8_flag(
+    name = "v8_enable_turbofan",
+    default = True,
+)
 
 v8_flag(
     name = "v8_enable_webassembly",
