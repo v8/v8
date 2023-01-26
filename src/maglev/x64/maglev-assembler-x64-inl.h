@@ -407,21 +407,11 @@ inline void MaglevAssembler::JumpIf(Condition cond, Label* target,
   j(cond, target, distance);
 }
 
-inline void MaglevAssembler::JumpIfEqual(Label* target,
-                                         Label::Distance distance) {
-  j(equal, target, distance);
-}
-
-inline void MaglevAssembler::JumpIfNotEqual(Label* target,
+void MaglevAssembler::CompareInt32AndJumpIf(Register r1, Register r2,
+                                            Condition cond, Label* target,
                                             Label::Distance distance) {
-  j(not_equal, target, distance);
-}
-
-inline void MaglevAssembler::JumpIfTaggedEqual(Register r1, Register r2,
-                                               Label* target,
-                                               Label::Distance distance) {
-  cmp_tagged(r1, r2);
-  j(equal, target, distance);
+  CompareInt32(r1, r2);
+  JumpIf(cond, target, distance);
 }
 
 inline void MaglevAssembler::LoadHeapNumberValue(DoubleRegister result,

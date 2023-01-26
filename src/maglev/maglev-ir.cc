@@ -753,6 +753,16 @@ void GapMove::GenerateCode(MaglevAssembler* masm,
   }
 }
 
+void AssertInt32::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+}
+void AssertInt32::GenerateCode(MaglevAssembler* masm,
+                               const ProcessingState& state) {
+  __ CompareInt32(ToRegister(left_input()), ToRegister(right_input()));
+  __ Check(ToCondition(condition_), reason_);
+}
+
 void CheckUint32IsSmi::SetValueLocationConstraints() { UseRegister(input()); }
 void CheckUint32IsSmi::GenerateCode(MaglevAssembler* masm,
                                     const ProcessingState& state) {
@@ -890,6 +900,48 @@ void GetIterator::GenerateCode(MaglevAssembler* masm,
   __ CallBuiltin(Builtin::kGetIteratorWithFeedback);
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
+
+template <class Derived, Operation kOperation>
+void Int32CompareNode<Derived, kOperation>::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsRegister(this);
+}
+
+template <class Derived, Operation kOperation>
+void Int32CompareNode<Derived, kOperation>::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
+  Register result = ToRegister(this->result());
+  Label is_true, end;
+  __ CompareInt32AndJumpIf(ToRegister(left_input()), ToRegister(right_input()),
+                           ConditionFor(kOperation), &is_true,
+                           Label::Distance::kNear);
+  // TODO(leszeks): Investigate loading existing materialisations of roots here,
+  // if available.
+  __ LoadRoot(result, RootIndex::kFalseValue);
+  __ jmp(&end);
+  {
+    __ bind(&is_true);
+    __ LoadRoot(result, RootIndex::kTrueValue);
+  }
+  __ bind(&end);
+}
+
+#define DEF_OPERATION(Name)                               \
+  void Name::SetValueLocationConstraints() {              \
+    Base::SetValueLocationConstraints();                  \
+  }                                                       \
+  void Name::GenerateCode(MaglevAssembler* masm,          \
+                          const ProcessingState& state) { \
+    Base::GenerateCode(masm, state);                      \
+  }
+DEF_OPERATION(Int32Equal)
+DEF_OPERATION(Int32StrictEqual)
+DEF_OPERATION(Int32LessThan)
+DEF_OPERATION(Int32LessThanOrEqual)
+DEF_OPERATION(Int32GreaterThan)
+DEF_OPERATION(Int32GreaterThanOrEqual)
+#undef DEF_OPERATION
 
 void LoadDoubleField::SetValueLocationConstraints() {
   UseRegister(object_input());
@@ -1749,7 +1801,8 @@ void TaggedEqual::SetValueLocationConstraints() {
 void TaggedEqual::GenerateCode(MaglevAssembler* masm,
                                const ProcessingState& state) {
   Label done, if_equal;
-  __ JumpIfTaggedEqual(ToRegister(lhs()), ToRegister(rhs()), &if_equal);
+  __ CmpTagged(ToRegister(lhs()), ToRegister(rhs()));
+  __ JumpIf(kEqual, &if_equal, Label::Distance::kNear);
   __ LoadRoot(ToRegister(result()), RootIndex::kFalseValue);
   __ Jump(&done);
   __ bind(&if_equal);
@@ -1765,7 +1818,8 @@ void TaggedNotEqual::SetValueLocationConstraints() {
 void TaggedNotEqual::GenerateCode(MaglevAssembler* masm,
                                   const ProcessingState& state) {
   Label done, if_equal;
-  __ JumpIfTaggedEqual(ToRegister(lhs()), ToRegister(rhs()), &if_equal);
+  __ CmpTagged(ToRegister(lhs()), ToRegister(rhs()));
+  __ JumpIf(kEqual, &if_equal, Label::Distance::kNear);
   __ LoadRoot(ToRegister(result()), RootIndex::kTrueValue);
   __ Jump(&done);
   __ bind(&if_equal);
@@ -2509,7 +2563,7 @@ void AttemptOnStackReplacement(MaglevAssembler* masm,
     // execution in Maglev, OSR code will be picked up once it exists and is
     // cached on the feedback vector.
     __ Cmp(maybe_target_code, 0);
-    __ JumpIf(ToCondition(AssertCondition::kEqual), *no_code_for_osr);
+    __ JumpIf(kEqual, *no_code_for_osr);
   }
 
   __ bind(&deopt);
@@ -2558,10 +2612,9 @@ void JumpLoopPrologue::GenerateCode(MaglevAssembler* masm,
                 FeedbackVector::kMaxOsrUrgency);
   __ CompareInt32(osr_state, loop_depth_);
   ZoneLabelRef no_code_for_osr(masm);
-  __ JumpToDeferredIf(ToCondition(AssertCondition::kAbove),
-                      AttemptOnStackReplacement, no_code_for_osr, this,
-                      scratch0, scratch1, loop_depth_, feedback_slot_,
-                      osr_offset_);
+  __ JumpToDeferredIf(kUnsignedGreaterThan, AttemptOnStackReplacement,
+                      no_code_for_osr, this, scratch0, scratch1, loop_depth_,
+                      feedback_slot_, osr_offset_);
   __ bind(*no_code_for_osr);
 }
 

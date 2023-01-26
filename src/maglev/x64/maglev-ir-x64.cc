@@ -2,35 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/base/bits.h"
 #include "src/base/logging.h"
-#include "src/builtins/builtins-constructor.h"
 #include "src/codegen/interface-descriptors-inl.h"
-#include "src/codegen/interface-descriptors.h"
-#include "src/codegen/maglev-safepoint-table.h"
-#include "src/codegen/register.h"
-#include "src/codegen/reglist.h"
-#include "src/codegen/x64/assembler-x64.h"
+#include "src/codegen/x64/assembler-x64-inl.h"
 #include "src/codegen/x64/register-x64.h"
-#include "src/common/globals.h"
-#include "src/compiler/backend/instruction.h"
-#include "src/compiler/feedback-source.h"
-#include "src/compiler/js-heap-broker.h"
-#include "src/deoptimizer/deoptimize-reason.h"
-#include "src/ic/handler-configuration.h"
-#include "src/interpreter/bytecode-flags.h"
 #include "src/maglev/maglev-assembler-inl.h"
-#include "src/maglev/maglev-code-gen-state.h"
-#include "src/maglev/maglev-compilation-unit.h"
-#include "src/maglev/maglev-graph-labeller.h"
-#include "src/maglev/maglev-graph-printer.h"
 #include "src/maglev/maglev-graph-processor.h"
-#include "src/maglev/maglev-interpreter-frame-state.h"
+#include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-ir-inl.h"
-#include "src/maglev/maglev-ir.h"
-#include "src/objects/elements-kind.h"
-#include "src/objects/instance-type.h"
-#include "src/objects/js-array-buffer.h"
+#include "src/objects/feedback-cell.h"
+#include "src/objects/js-function.h"
 
 namespace v8 {
 namespace internal {
@@ -210,16 +191,6 @@ void CreateEmptyObjectLiteral::GenerateCode(MaglevAssembler* masm,
     int offset = map().GetInObjectPropertyOffset(i);
     __ StoreTaggedField(FieldOperand(object, offset), kScratchRegister);
   }
-}
-
-void AssertInt32::SetValueLocationConstraints() {
-  UseRegister(left_input());
-  UseRegister(right_input());
-}
-void AssertInt32::GenerateCode(MaglevAssembler* masm,
-                               const ProcessingState& state) {
-  __ cmpl(ToRegister(left_input()), ToRegister(right_input()));
-  __ Check(ToCondition(condition_), reason_);
 }
 
 void CheckMaps::SetValueLocationConstraints() { UseRegister(receiver_input()); }
@@ -1705,50 +1676,6 @@ void Int32BitwiseNot::GenerateCode(MaglevAssembler* masm,
   Register value = ToRegister(value_input());
   __ notl(value);
 }
-
-template <class Derived, Operation kOperation>
-void Int32CompareNode<Derived, kOperation>::SetValueLocationConstraints() {
-  UseRegister(left_input());
-  UseRegister(right_input());
-  DefineAsRegister(this);
-}
-
-template <class Derived, Operation kOperation>
-void Int32CompareNode<Derived, kOperation>::GenerateCode(
-    MaglevAssembler* masm, const ProcessingState& state) {
-  Register left = ToRegister(left_input());
-  Register right = ToRegister(right_input());
-  Register result = ToRegister(this->result());
-  Label is_true, end;
-  __ cmpl(left, right);
-  // TODO(leszeks): Investigate using cmov here.
-  __ j(ConditionFor(kOperation), &is_true);
-  // TODO(leszeks): Investigate loading existing materialisations of roots here,
-  // if available.
-  __ LoadRoot(result, RootIndex::kFalseValue);
-  __ jmp(&end);
-  {
-    __ bind(&is_true);
-    __ LoadRoot(result, RootIndex::kTrueValue);
-  }
-  __ bind(&end);
-}
-
-#define DEF_OPERATION(Name)                               \
-  void Name::SetValueLocationConstraints() {              \
-    Base::SetValueLocationConstraints();                  \
-  }                                                       \
-  void Name::GenerateCode(MaglevAssembler* masm,          \
-                          const ProcessingState& state) { \
-    Base::GenerateCode(masm, state);                      \
-  }
-DEF_OPERATION(Int32Equal)
-DEF_OPERATION(Int32StrictEqual)
-DEF_OPERATION(Int32LessThan)
-DEF_OPERATION(Int32LessThanOrEqual)
-DEF_OPERATION(Int32GreaterThan)
-DEF_OPERATION(Int32GreaterThanOrEqual)
-#undef DEF_OPERATION
 
 void Float64Add::SetValueLocationConstraints() {
   UseRegister(left_input());

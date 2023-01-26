@@ -202,12 +202,10 @@ class MaglevAssembler : public MacroAssembler {
   inline void Jump(Label* target, Label::Distance distance = Label::kFar);
   inline void JumpIf(Condition cond, Label* target,
                      Label::Distance distance = Label::kFar);
-  inline void JumpIfEqual(Label* target,
-                          Label::Distance distance = Label::kFar);
-  inline void JumpIfNotEqual(Label* target,
-                             Label::Distance distance = Label::kFar);
-  inline void JumpIfTaggedEqual(Register r1, Register r2, Label* target,
-                                Label::Distance distance = Label::kFar);
+
+  inline void CompareInt32AndJumpIf(Register r1, Register r2, Condition cond,
+                                    Label* target,
+                                    Label::Distance distance = Label::kFar);
 
   inline void SmiToDouble(DoubleRegister result, Register smi);
 

@@ -184,16 +184,6 @@ void ToString::GenerateCode(MaglevAssembler* masm,
   __ bind(&done);
 }
 
-void AssertInt32::SetValueLocationConstraints() {
-  UseRegister(left_input());
-  UseRegister(right_input());
-}
-void AssertInt32::GenerateCode(MaglevAssembler* masm,
-                               const ProcessingState& state) {
-  __ Cmp(ToRegister(left_input()).W(), ToRegister(right_input()).W());
-  __ Check(ToCondition(condition_), reason_);
-}
-
 void CheckJSObjectElementsBounds::SetValueLocationConstraints() {
   UseRegister(receiver_input());
   set_temporaries_needed(1);
@@ -1177,49 +1167,6 @@ void Int32BitwiseNot::GenerateCode(MaglevAssembler* masm,
   Register out = ToRegister(result()).W();
   __ mvn(out, value);
 }
-
-template <class Derived, Operation kOperation>
-void Int32CompareNode<Derived, kOperation>::SetValueLocationConstraints() {
-  UseRegister(left_input());
-  UseRegister(right_input());
-  DefineAsRegister(this);
-}
-
-template <class Derived, Operation kOperation>
-void Int32CompareNode<Derived, kOperation>::GenerateCode(
-    MaglevAssembler* masm, const ProcessingState& state) {
-  Register left = ToRegister(left_input()).W();
-  Register right = ToRegister(right_input()).W();
-  Register result = ToRegister(this->result());
-  Label is_true, end;
-  // TODO(leszeks): Investigate using cmov here.
-  __ CompareAndBranch(left, right, ConditionFor(kOperation), &is_true);
-  // TODO(leszeks): Investigate loading existing materialisations of roots here,
-  // if available.
-  __ LoadRoot(result, RootIndex::kFalseValue);
-  __ Jump(&end);
-  {
-    __ bind(&is_true);
-    __ LoadRoot(result, RootIndex::kTrueValue);
-  }
-  __ bind(&end);
-}
-
-#define DEF_OPERATION(Name)                               \
-  void Name::SetValueLocationConstraints() {              \
-    Base::SetValueLocationConstraints();                  \
-  }                                                       \
-  void Name::GenerateCode(MaglevAssembler* masm,          \
-                          const ProcessingState& state) { \
-    Base::GenerateCode(masm, state);                      \
-  }
-DEF_OPERATION(Int32Equal)
-DEF_OPERATION(Int32StrictEqual)
-DEF_OPERATION(Int32LessThan)
-DEF_OPERATION(Int32LessThanOrEqual)
-DEF_OPERATION(Int32GreaterThan)
-DEF_OPERATION(Int32GreaterThanOrEqual)
-#undef DEF_OPERATION
 
 void Float64Add::SetValueLocationConstraints() {
   UseRegister(left_input());

@@ -48,10 +48,10 @@ void MaglevAssembler::CheckMaps(ZoneVector<compiler::MapRef> const& maps,
     }
     CompareTagged(map, it->object());
     if (it == maps.end() - 1) {
-      JumpIfNotEqual(no_match);
+      JumpIf(kNotEqual, no_match);
       // Fallthrough...
     } else {
-      JumpIfEqual(&done);
+      JumpIf(kEqual, &done);
     }
   }
   // Bind number case here if one of the maps is HeapNumber.
