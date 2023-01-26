@@ -3462,6 +3462,7 @@ v8_torque(
 
 py_binary(
     name = "code_generator",
+    python_version = "PY3",
     srcs = [
         "third_party/inspector_protocol/code_generator.py",
         "third_party/inspector_protocol/pdl.py",
