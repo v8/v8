@@ -1805,7 +1805,8 @@ struct EarlyOptimizationPhase {
     SimplifiedOperatorReducer simple_reducer(&graph_reducer, data->jsgraph(),
                                              data->broker(),
                                              BranchSemantics::kMachine);
-    RedundancyElimination redundancy_elimination(&graph_reducer, temp_zone);
+    RedundancyElimination redundancy_elimination(&graph_reducer,
+                                                 data->jsgraph(), temp_zone);
     ValueNumberingReducer value_numbering(temp_zone, data->graph()->zone());
     MachineOperatorReducer machine_reducer(
         &graph_reducer, data->jsgraph(),
@@ -1920,7 +1921,8 @@ struct LoadEliminationPhase {
         &graph_reducer, data->jsgraph(), temp_zone, BranchElimination::kEARLY);
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common(), temp_zone);
-    RedundancyElimination redundancy_elimination(&graph_reducer, temp_zone);
+    RedundancyElimination redundancy_elimination(&graph_reducer,
+                                                 data->jsgraph(), temp_zone);
     LoadElimination load_elimination(&graph_reducer, data->jsgraph(),
                                      temp_zone);
     CheckpointElimination checkpoint_elimination(&graph_reducer);

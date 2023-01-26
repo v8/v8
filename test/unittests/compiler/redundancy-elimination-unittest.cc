@@ -6,6 +6,7 @@
 
 #include "src/codegen/tick-counter.h"
 #include "src/compiler/feedback-source.h"
+#include "src/compiler/js-graph.h"
 #include "test/unittests/compiler/graph-reducer-unittest.h"
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/compiler/node-test-utils.h"
@@ -22,8 +23,12 @@ class RedundancyEliminationTest : public GraphTest {
  public:
   explicit RedundancyEliminationTest(int num_parameters = 4)
       : GraphTest(num_parameters),
-        reducer_(&editor_, zone()),
-        simplified_(zone()) {
+        javascript_(zone()),
+        simplified_(zone()),
+        machine_(zone()),
+        jsgraph_(isolate(), graph(), common(), &javascript_, &simplified_,
+                 &machine_),
+        reducer_(&editor_, &jsgraph_, zone()) {
     // Initialize the {reducer_} state for the Start node.
     reducer_.Reduce(graph()->start());
 
@@ -51,8 +56,11 @@ class RedundancyEliminationTest : public GraphTest {
   NiceMock<MockAdvancedReducerEditor> editor_;
   std::vector<FeedbackSource> vector_slot_pairs_;
   FeedbackSource feedback2_;
-  RedundancyElimination reducer_;
+  JSOperatorBuilder javascript_;
   SimplifiedOperatorBuilder simplified_;
+  MachineOperatorBuilder machine_;
+  JSGraph jsgraph_;
+  RedundancyElimination reducer_;
 };
 
 namespace {
