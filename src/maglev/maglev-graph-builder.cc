@@ -1428,7 +1428,7 @@ bool MaglevGraphBuilder::EnsureType(ValueNode* node, NodeType type,
   NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(node);
   if (old_type) *old_type = known_info->type;
   if (NodeTypeIs(known_info->type, type)) return true;
-  known_info->type = CombineType(known_info->type, static_type);
+  known_info->type = CombineType(known_info->type, type);
   return false;
 }
 
