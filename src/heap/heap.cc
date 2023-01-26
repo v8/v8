@@ -1299,7 +1299,6 @@ void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
 
   if (v8_flags.print_global_handles) isolate_->global_handles()->Print();
   if (v8_flags.print_handles) PrintHandles();
-  if (v8_flags.code_stats) ReportCodeStatistics("After GC");
   if (v8_flags.check_handle_count) CheckHandleCount();
 #endif
 
@@ -1378,6 +1377,7 @@ void Heap::GarbageCollectionEpilogue(GarbageCollector collector) {
 
 #ifdef DEBUG
   ReportStatisticsAfterGC();
+  if (v8_flags.code_stats) ReportCodeStatistics("After GC");
 #endif  // DEBUG
 
   last_gc_time_ = MonotonicallyIncreasingTimeInMs();
