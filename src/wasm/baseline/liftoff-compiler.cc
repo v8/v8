@@ -7268,8 +7268,23 @@ class LiftoffCompiler {
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
 
     LiftoffRegister result_reg(kReturnRegister0);
-    __ DropValue(2);
+    __ DropValues(2);
     __ SmiToInt32(kReturnRegister0);
+    __ PushRegister(kI32, result_reg);
+  }
+
+  void StringFromCodePoint(FullDecoder* decoder, const Value& code_point,
+                           Value* result) {
+    LiftoffAssembler::VarState& codepoint_var =
+        __ cache_state()->stack_state.end()[-1];
+
+    CallRuntimeStub(WasmCode::kWasmStringFromCodePoint,
+                    MakeSig::Returns(kRef).Params(kI32), {codepoint_var},
+                    decoder->position());
+    RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
+
+    LiftoffRegister result_reg(kReturnRegister0);
+    __ DropValues(1);
     __ PushRegister(kRef, result_reg);
   }
 

@@ -1276,3 +1276,23 @@ function makeWtf16TestDataSegment() {
   assertThrows(() => instance.exports.compareRhsNullable("abc", null),
                WebAssembly.RuntimeError, "dereferencing a null pointer");
 })();
+
+(function TestStringFromCodePoint() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addFunction("asString", kSig_w_i)
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0,
+      ...GCInstr(kExprStringFromCodePoint),
+    ]);
+
+  let instance = builder.instantiate();
+  for (let char of "Az1#\n\ucccc\ud800\udc00") {
+    assertEquals(char, instance.exports.asString(char.codePointAt(0)));
+  }
+  for (let codePoint of [0x110000, 0xFFFFFFFF, -1]) {
+    assertThrows(() => instance.exports.asString(codePoint),
+                 WebAssembly.RuntimeError, /Invalid code point [0-9]+/);
+  }
+})();

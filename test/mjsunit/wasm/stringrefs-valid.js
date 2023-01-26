@@ -40,6 +40,7 @@ for (let [name, code] of [['string', kStringRefCode],
     b => b.addFunction(undefined, kSig_v_v).addLocals(code, 1).addBody([]));
 }
 
+let kSig_w_i = makeSig([kWasmI32], [kWasmStringRef]);
 let kSig_w_ii = makeSig([kWasmI32, kWasmI32], [kWasmStringRef]);
 let kSig_w_v = makeSig([], [kWasmStringRef]);
 let kSig_i_w = makeSig([kWasmStringRef], [kWasmI32]);
@@ -248,6 +249,12 @@ let kSig_w_zi = makeSig([kWasmStringViewIter, kWasmI32],
     .addBody([
       kExprLocalGet, 0, kExprLocalGet, 1,
       ...GCInstr(kExprStringViewIterSlice)
+    ]);
+
+  builder.addFunction("string.from_code_point", kSig_w_i)
+    .addBody([
+      kExprLocalGet, 0,
+      ...GCInstr(kExprStringFromCodePoint)
     ]);
 
   let i8_array = builder.addArray(kWasmI8, true);

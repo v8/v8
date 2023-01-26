@@ -1175,7 +1175,8 @@ struct ControlBase : public PcForErrors<ValidationTag::full_validation> {
     Value* result)                                                             \
   F(StringViewIterSlice, const Value& view, const Value& codepoints,           \
     Value* result)                                                             \
-  F(StringCompare, const Value& lhs, const Value& rhs, Value* result)
+  F(StringCompare, const Value& lhs, const Value& rhs, Value* result)          \
+  F(StringFromCodePoint, const Value& code_point, Value* result)
 
 // This is a global constant invalid instruction trace, to be pointed at by
 // the current instruction trace pointer in the default case
@@ -2308,6 +2309,7 @@ class WasmDecoder : public Decoder {
           case kExprStringNewWtf16Array:
           case kExprStringEncodeWtf16Array:
           case kExprStringCompare:
+          case kExprStringFromCodePoint:
             return length;
           default:
             // This is unreachable except for malformed modules.
@@ -2510,6 +2512,7 @@ class WasmDecoder : public Decoder {
           case kExprStringAsIter:
           case kExprStringViewWtf16Length:
           case kExprStringViewIterNext:
+          case kExprStringFromCodePoint:
             return { 1, 1 };
           case kExprStringNewUtf8:
           case kExprStringNewUtf8Try:
@@ -6153,6 +6156,16 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         Value result = CreateValue(kWasmI32);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StringCompare, lhs, rhs, &result);
         Drop(2);
+        Push(result);
+        return opcode_length;
+      }
+      case kExprStringFromCodePoint: {
+        NON_CONST_ONLY
+        Value code_point = Peek(0, 0, kWasmI32);
+        Value result = CreateValue(kWasmStringRef);
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(StringFromCodePoint, code_point,
+                                           &result);
+        Drop(1);
         Push(result);
         return opcode_length;
       }

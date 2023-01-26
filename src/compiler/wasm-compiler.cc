@@ -6251,6 +6251,11 @@ Node* WasmGraphBuilder::StringCompare(Node* lhs, CheckForNull null_check_lhs,
       Builtin::kWasmStringCompare, Operator::kEliminatable, lhs, rhs));
 }
 
+Node* WasmGraphBuilder::StringFromCodePoint(Node* code_point) {
+  return gasm_->CallBuiltin(Builtin::kWasmStringFromCodePoint,
+                            Operator::kEliminatable, code_point);
+}
+
 Node* WasmGraphBuilder::I31New(Node* input) {
   if constexpr (SmiValuesAre31Bits()) {
     return gasm_->Word32Shl(input, gasm_->BuildSmiShiftBitsConstant32());

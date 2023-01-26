@@ -149,6 +149,7 @@ struct WasmModule;
   V(WasmStringViewIterRewind)            \
   V(WasmStringViewIterSlice)             \
   V(WasmStringCompare)                   \
+  V(WasmStringFromCodePoint)             \
   V(WasmExternInternalize)
 
 // Sorted, disjoint and non-overlapping memory regions. A region is of the
