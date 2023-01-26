@@ -424,6 +424,17 @@ inline void MaglevAssembler::JumpIfTaggedEqual(Register r1, Register r2,
   j(equal, target, distance);
 }
 
+inline void MaglevAssembler::LoadHeapNumberValue(DoubleRegister result,
+                                                 Register heap_number) {
+  Movsd(result, FieldOperand(heap_number, HeapNumber::kValueOffset));
+}
+
+inline void MaglevAssembler::SmiToDouble(DoubleRegister result, Register smi) {
+  AssertSmi(smi);
+  SmiUntag(smi);
+  Cvtlsi2sd(result, smi);
+}
+
 inline void MaglevAssembler::Pop(Register dst) { MacroAssembler::Pop(dst); }
 
 template <typename NodeT>

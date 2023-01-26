@@ -891,6 +891,22 @@ void GetIterator::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
+void LoadDoubleField::SetValueLocationConstraints() {
+  UseRegister(object_input());
+  DefineAsRegister(this);
+  set_temporaries_needed(1);
+}
+void LoadDoubleField::GenerateCode(MaglevAssembler* masm,
+                                   const ProcessingState& state) {
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register tmp = temps.Acquire();
+  Register object = ToRegister(object_input());
+  __ AssertNotSmi(object);
+  __ DecompressAnyTagged(tmp, FieldMemOperand(object, offset()));
+  __ AssertNotSmi(tmp);
+  __ LoadHeapNumberValue(ToDoubleRegister(result()), tmp);
+}
+
 void LoadTaggedField::SetValueLocationConstraints() {
   UseRegister(object_input());
   DefineAsRegister(this);
@@ -914,40 +930,18 @@ void LoadPolymorphicTaggedField::GenerateCode(MaglevAssembler* masm,
   Register result_reg = ToRegister(result());
   Register object = ToRegister(object_input());
   Register object_map = temps.Acquire();
+
   Label done;
   Label is_number;
 
   Condition is_smi = __ CheckSmi(object);
   __ JumpIf(is_smi, &is_number);
   __ LoadMap(object_map, object);
-  for (compiler::PropertyAccessInfo access_info : access_infos_) {
+
+  for (const compiler::PropertyAccessInfo& access_info : access_infos_) {
     Label next;
-    Label do_load;
-
-    // Check if {object_map} one of the lookup_start_object_maps.
-    bool has_heap_number_map = false;
-    auto& maps = access_info.lookup_start_object_maps();
-    for (auto it = maps.begin(); it != maps.end(); ++it) {
-      if (it->IsHeapNumberMap()) {
-        has_heap_number_map = true;
-      }
-      __ CompareTagged(object_map, it->object());
-      if (it == maps.end() - 1) {
-        __ JumpIfNotEqual(&next);
-        // Fallthrough to {do_load}.
-      } else {
-        __ JumpIfEqual(&do_load);
-        __ Jump(&next);
-      }
-    }
-
-    // Bind number case here if one of the maps is HeapNumber.
-    if (has_heap_number_map && !is_number.is_bound()) {
-      __ bind(&is_number);
-    }
-
-    // Do the load based on the PropertyAccess kind.
-    __ bind(&do_load);
+    __ CheckMaps(access_info.lookup_start_object_maps(), object_map, &is_number,
+                 &next);
     switch (access_info.kind()) {
       case compiler::PropertyAccessInfo::kNotFound:
         __ LoadRoot(result_reg, RootIndex::kUndefinedValue);
@@ -962,36 +956,60 @@ void LoadPolymorphicTaggedField::GenerateCode(MaglevAssembler* masm,
       }
       case compiler::PropertyAccessInfo::kDataField:
       case compiler::PropertyAccessInfo::kFastDataConstant: {
-        // TODO(victorgomes): Support ConstantDataFields.
-        Register load_source = object;
-        // Resolve property holder.
-        if (access_info.holder().has_value()) {
-          load_source = object_map;  // Reuse scratch.
-          __ Move(load_source, access_info.holder().value().object());
-        }
-        FieldIndex field_index = access_info.field_index();
-        if (!field_index.is_inobject()) {
-          Register load_source_object = load_source;
-          if (load_source == object) {
-            load_source = object_map;  // Reuse scratch.
-          }
-          // The field is in the property array, first load it from there.
-          __ AssertNotSmi(load_source_object);
-          __ DecompressAnyTagged(
-              load_source,
-              FieldMemOperand(load_source_object,
-                              JSReceiver::kPropertiesOrHashOffset));
-        }
-        __ AssertNotSmi(load_source);
-        __ DecompressAnyTagged(
-            result_reg, FieldMemOperand(load_source, field_index.offset()));
-
+        __ LoadDataField(access_info, result_reg, object, object_map);
         break;
       }
       default:
         UNREACHABLE();
     }
+    __ Jump(&done);
+    __ bind(&next);
+  }
 
+  // A HeapNumberMap was not found, we should eager deopt here in case of a
+  // number.
+  if (!is_number.is_bound()) {
+    __ bind(&is_number);
+  }
+
+  // No map matched!
+  __ EmitEagerDeopt(this, DeoptimizeReason::kWrongMap);
+  __ bind(&done);
+}
+
+void LoadPolymorphicDoubleField::SetValueLocationConstraints() {
+  UseRegister(object_input());
+  DefineAsRegister(this);
+  set_temporaries_needed(1);
+}
+void LoadPolymorphicDoubleField::GenerateCode(MaglevAssembler* masm,
+                                              const ProcessingState& state) {
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register object = ToRegister(object_input());
+  Register scratch = temps.Acquire();
+
+  Label done;
+  Label is_number;
+
+  Condition is_smi = __ CheckSmi(object);
+  __ JumpIf(is_smi, &is_number);
+  __ LoadMap(scratch, object);
+
+  for (const compiler::PropertyAccessInfo& access_info : access_infos_) {
+    Label next;
+    __ CheckMaps(access_info.lookup_start_object_maps(), scratch, &is_number,
+                 &next);
+    __ LoadDataField(access_info, scratch, object, scratch);
+    switch (access_info.field_representation().kind()) {
+      case Representation::kSmi:
+        __ SmiToDouble(ToDoubleRegister(result()), scratch);
+        break;
+      case Representation::kDouble:
+        __ LoadHeapNumberValue(ToDoubleRegister(result()), scratch);
+        break;
+      default:
+        UNREACHABLE();
+    }
     __ Jump(&done);
     __ bind(&next);
   }

@@ -209,6 +209,8 @@ class MaglevAssembler : public MacroAssembler {
   inline void JumpIfTaggedEqual(Register r1, Register r2, Label* target,
                                 Label::Distance distance = Label::kFar);
 
+  inline void SmiToDouble(DoubleRegister result, Register smi);
+
   // TODO(victorgomes): Import baseline Pop(T...) methods.
   inline void Pop(Register dst);
   using MacroAssembler::Pop;
@@ -223,6 +225,14 @@ class MaglevAssembler : public MacroAssembler {
   inline void FinishCode();
 
   inline void AssertStackSizeCorrect();
+
+  inline void LoadHeapNumberValue(DoubleRegister result, Register heap_number);
+
+  void CheckMaps(ZoneVector<compiler::MapRef> const& maps, Register map,
+                 Label* is_number, Label* no_match);
+
+  void LoadDataField(const compiler::PropertyAccessInfo& access_info,
+                     Register result, Register object, Register scratch);
 
   void MaybeEmitDeoptBuiltinsCall(size_t eager_deopt_count,
                                   Label* eager_deopt_entry,

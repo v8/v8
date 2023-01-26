@@ -161,6 +161,7 @@ class CompactInterpreterFrameState;
   V(GetSecondReturnedValue)                  \
   V(GetTemplateObject)                       \
   V(InitialValue)                            \
+  V(LoadPolymorphicDoubleField)              \
   V(LoadPolymorphicTaggedField)              \
   V(LoadTaggedField)                         \
   V(LoadDoubleField)                         \
@@ -4048,6 +4049,32 @@ class LoadPolymorphicTaggedField
 
   static constexpr OpProperties kProperties =
       OpProperties::Reading() | OpProperties::EagerDeopt();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
+  static constexpr int kObjectIndex = 0;
+  Input& object_input() { return input(kObjectIndex); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  ZoneVector<compiler::PropertyAccessInfo> access_infos_;
+};
+
+class LoadPolymorphicDoubleField
+    : public FixedInputValueNodeT<1, LoadPolymorphicDoubleField> {
+  using Base = FixedInputValueNodeT<1, LoadPolymorphicDoubleField>;
+
+ public:
+  explicit LoadPolymorphicDoubleField(
+      uint64_t bitfield, ZoneVector<compiler::PropertyAccessInfo>&& access_info)
+      : Base(bitfield), access_infos_(access_info) {}
+
+  static constexpr OpProperties kProperties = OpProperties::Reading() |
+                                              OpProperties::EagerDeopt() |
+                                              OpProperties::Float64();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 

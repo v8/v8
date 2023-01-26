@@ -785,23 +785,6 @@ void BuiltinStringPrototypeCharCodeAt::GenerateCode(
   __ bind(*done);
 }
 
-void LoadDoubleField::SetValueLocationConstraints() {
-  UseRegister(object_input());
-  DefineAsRegister(this);
-  set_temporaries_needed(1);
-}
-void LoadDoubleField::GenerateCode(MaglevAssembler* masm,
-                                   const ProcessingState& state) {
-  MaglevAssembler::ScratchRegisterScope temps(masm);
-  Register tmp = temps.Acquire();
-  Register object = ToRegister(object_input());
-  __ AssertNotSmi(object);
-  __ DecompressAnyTagged(tmp, FieldOperand(object, offset()));
-  __ AssertNotSmi(tmp);
-  __ Movsd(ToDoubleRegister(result()),
-           FieldOperand(tmp, HeapNumber::kValueOffset));
-}
-
 void LoadFixedArrayElement::SetValueLocationConstraints() {
   UseRegister(elements_input());
   UseRegister(index_input());

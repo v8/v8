@@ -2000,22 +2000,6 @@ DEF_OPERATION(LoadDoubleTypedArrayElementNoDeopt, DoubleRegister,
               ToDoubleRegister, /*check_detached*/ false)
 #undef DEF_OPERATION
 
-void LoadDoubleField::SetValueLocationConstraints() {
-  UseRegister(object_input());
-  DefineAsRegister(this);
-}
-void LoadDoubleField::GenerateCode(MaglevAssembler* masm,
-                                   const ProcessingState& state) {
-  MaglevAssembler::ScratchRegisterScope temps(masm);
-  Register tmp = temps.Acquire();
-  Register object = ToRegister(object_input());
-  __ AssertNotSmi(object);
-  __ DecompressAnyTagged(tmp, FieldMemOperand(object, offset()));
-  __ AssertNotSmi(tmp);
-  __ Ldr(ToDoubleRegister(result()),
-         FieldMemOperand(tmp, HeapNumber::kValueOffset));
-}
-
 void LoadFixedArrayElement::SetValueLocationConstraints() {
   UseRegister(elements_input());
   UseRegister(index_input());

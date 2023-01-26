@@ -535,6 +535,17 @@ inline void MaglevAssembler::JumpIfTaggedEqual(Register r1, Register r2,
   b(target, eq);
 }
 
+inline void MaglevAssembler::LoadHeapNumberValue(DoubleRegister result,
+                                                 Register heap_number) {
+  Ldr(result, FieldMemOperand(heap_number, HeapNumber::kValueOffset));
+}
+
+inline void MaglevAssembler::SmiToDouble(DoubleRegister result, Register smi) {
+  AssertSmi(smi);
+  SmiUntag(smi);
+  Scvtf(result, smi.W());
+}
+
 inline void MaglevAssembler::Pop(Register dst) { Pop(dst, padreg); }
 
 inline void MaglevAssembler::AssertStackSizeCorrect() {
