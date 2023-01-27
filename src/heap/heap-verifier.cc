@@ -295,8 +295,6 @@ void HeapVerification::Verify() {
 
   heap()->MakeHeapIterable();
 
-  heap()->array_buffer_sweeper()->EnsureFinished();
-
   VerifyPointersVisitor visitor(heap());
   heap()->IterateRoots(&visitor,
                        base::EnumSet<SkipRoot>{SkipRoot::kConservativeStack});

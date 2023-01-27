@@ -7,11 +7,11 @@
 
 #include <map>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "src/base/optional.h"
 #include "src/base/platform/condition-variable.h"
-#include "src/base/platform/semaphore.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/heap/gc-tracer.h"
@@ -39,6 +39,10 @@ class Sweeper {
   using SweptList = std::vector<Page*>;
   using CachedOldToNewRememberedSets =
       std::unordered_map<MemoryChunk*, SlotSet*>;
+
+  enum FreeListRebuildingMode { REBUILD_FREE_LIST, IGNORE_FREE_LIST };
+  enum AddPageMode { REGULAR, READD_TEMPORARY_REMOVED_PAGE };
+  enum class SweepingMode { kEagerDuringGC, kLazyOrConcurrent };
 
   // Pauses the sweeper tasks.
   class V8_NODISCARD PauseScope final {
@@ -80,9 +84,52 @@ class Sweeper {
     bool sweeping_in_progress_;
   };
 
-  enum FreeListRebuildingMode { REBUILD_FREE_LIST, IGNORE_FREE_LIST };
-  enum AddPageMode { REGULAR, READD_TEMPORARY_REMOVED_PAGE };
-  enum class SweepingMode { kEagerDuringGC, kLazyOrConcurrent };
+  // LocalSweeper holds local data structures required for sweeping and is used
+  // to initiate sweeping and promoted page iteration on multiple threads. Each
+  // thread should holds its own LocalSweeper. Once sweeping is done, all
+  // LocalSweepers should be finalized on the main thread.
+  //
+  // LocalSweeper is not thread-safe and should not be concurrently by several
+  // threads. The exceptions to this rule are allocations during parallel
+  // evacuation and from concurrent allocators. In practice the data structures
+  // in LocalSweeper are only actively used for new space sweeping. Since
+  // parallel evacuators and concurrent allocators never try to allocate in new
+  // space, they will never contribute to new space sweeping and thus can use
+  // the main thread's local sweeper without risk of data races.
+  class LocalSweeper final {
+   public:
+    explicit LocalSweeper(Sweeper* sweeper)
+        : sweeper_(sweeper),
+          pretenuring_handler_(sweeper_->pretenuring_handler_),
+          pretenuring_feedback_(PretenuringHandler::kInitialFeedbackCapacity) {
+      DCHECK_NOT_NULL(sweeper_);
+    }
+    ~LocalSweeper() { DCHECK(IsEmpty()); }
+
+    int ParallelSweepSpace(AllocationSpace identity, SweepingMode sweeping_mode,
+                           int required_freed_bytes, int max_pages = 0);
+    void ContributeAndWaitForPromotedPagesIteration();
+    void Finalize();
+
+    bool IsEmpty() const {
+      return pretenuring_feedback_.empty() &&
+             old_to_new_remembered_sets_.empty();
+    }
+
+   private:
+    int ParallelSweepPage(Page* page, AllocationSpace identity,
+                          SweepingMode sweeping_mode);
+
+    void ParallelIteratePromotedPagesForRememberedSets();
+    void ParallelIteratePromotedPageForRememberedSets(MemoryChunk* chunk);
+
+    Sweeper* const sweeper_;
+    PretenuringHandler* const pretenuring_handler_;
+    PretenuringHandler::PretenuringFeedbackMap pretenuring_feedback_;
+    CachedOldToNewRememberedSets old_to_new_remembered_sets_;
+
+    friend class Sweeper;
+  };
 
   explicit Sweeper(Heap* heap);
   ~Sweeper();
@@ -97,27 +144,8 @@ class Sweeper {
 
   int ParallelSweepSpace(AllocationSpace identity, SweepingMode sweeping_mode,
                          int required_freed_bytes, int max_pages = 0);
-  int ParallelSweepPage(
-      Page* page, AllocationSpace identity,
-      PretenuringHandler::PretenuringFeedbackMap* local_pretenuring_feedback,
-      SweepingMode sweeping_mode);
 
   void EnsurePageIsSwept(Page* page);
-
-  int RawSweep(
-      Page* p, FreeSpaceTreatmentMode free_space_treatment_mode,
-      SweepingMode sweeping_mode, const base::MutexGuard& page_guard,
-      PretenuringHandler::PretenuringFeedbackMap* local_pretenuring_feedback);
-
-  void ParallelIteratePromotedPagesForRememberedSets();
-  void ParallelIteratePromotedPageForRememberedSets(
-      MemoryChunk* chunk,
-      PretenuringHandler::PretenuringFeedbackMap* local_pretenuring_feedback,
-      CachedOldToNewRememberedSets* snapshot_old_to_new_remembered_sets);
-  void RawIteratePromotedPageForRememberedSets(
-      MemoryChunk* chunk,
-      PretenuringHandler::PretenuringFeedbackMap* local_pretenuring_feedback,
-      CachedOldToNewRememberedSets* snapshot_old_to_new_remembered_sets);
 
   // After calling this function sweeping is considered to be in progress
   // and the main thread can sweep lazily, but the background sweeper tasks
@@ -138,14 +166,24 @@ class Sweeper {
   GCTracer::Scope::ScopeId GetTracingScopeForCompleteYoungSweep();
 
   bool IsIteratingPromotedPages() const;
-  void WaitForPromotedPagesIteration();
+  void ContributeAndWaitForPromotedPagesIteration();
 
  private:
   NonAtomicMarkingState* marking_state() const { return marking_state_; }
 
+  int RawSweep(
+      Page* p, FreeSpaceTreatmentMode free_space_treatment_mode,
+      SweepingMode sweeping_mode, const base::MutexGuard& page_guard,
+      PretenuringHandler::PretenuringFeedbackMap* local_pretenuring_feedback);
+
+  void RawIteratePromotedPageForRememberedSets(
+      MemoryChunk* chunk,
+      PretenuringHandler::PretenuringFeedbackMap* pretenuring_feedback,
+      CachedOldToNewRememberedSets* old_to_new_remembered_sets);
+
   void AddPageImpl(AllocationSpace space, Page* page, AddPageMode mode);
 
-  void MergePretenuringFeedbackAndRememberedSets();
+  void FinalizeLocalSweepers();
 
   class ConcurrentSweeper;
   class SweeperJob;
@@ -222,6 +260,8 @@ class Sweeper {
 
   void SnapshotPageSets();
 
+  void AddSweptPage(Page* page, AllocationSpace identity);
+
   Heap* const heap_;
   NonAtomicMarkingState* const marking_state_;
   std::unique_ptr<JobHandle> job_handle_;
@@ -238,9 +278,8 @@ class Sweeper {
   bool should_reduce_memory_;
   bool should_sweep_non_new_spaces_ = false;
   PretenuringHandler* const pretenuring_handler_;
-  PretenuringHandler::PretenuringFeedbackMap local_pretenuring_feedback_;
   base::Optional<GarbageCollector> current_new_space_collector_;
-  CachedOldToNewRememberedSets snapshot_old_to_new_remembered_sets_;
+  LocalSweeper main_thread_local_sweeper_;
 
   // The following fields are used for maintaining an order between iterating
   // promoted pages and sweeping array buffer extensions.

@@ -11,6 +11,7 @@
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
+#include "src/heap/remembered-set.h"
 #include "src/objects/js-array-buffer.h"
 #include "src/tasks/cancelable-task.h"
 #include "src/tasks/task-utils.h"
@@ -98,7 +99,8 @@ struct ArrayBufferSweeper::SweepingJob final {
   friend class ArrayBufferSweeper;
 };
 
-ArrayBufferSweeper::ArrayBufferSweeper(Heap* heap) : heap_(heap) {}
+ArrayBufferSweeper::ArrayBufferSweeper(Heap* heap)
+    : heap_(heap), local_sweeper_(heap_->sweeper()) {}
 
 ArrayBufferSweeper::~ArrayBufferSweeper() {
   EnsureFinished();
@@ -148,6 +150,7 @@ void ArrayBufferSweeper::FinishIfDone() {
 
 void ArrayBufferSweeper::RequestSweep(SweepingType type) {
   DCHECK(!sweeping_in_progress());
+  DCHECK(local_sweeper_.IsEmpty());
 
   if (young_.IsEmpty() && (old_.IsEmpty() || type == SweepingType::kYoung))
     return;
@@ -161,7 +164,7 @@ void ArrayBufferSweeper::RequestSweep(SweepingType type) {
               ? GCTracer::Scope::BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP
               : GCTracer::Scope::BACKGROUND_FULL_ARRAY_BUFFER_SWEEP;
       TRACE_GC_EPOCH(heap_->tracer(), scope_id, ThreadKind::kBackground);
-      heap_->sweeper()->WaitForPromotedPagesIteration();
+      local_sweeper_.ContributeAndWaitForPromotedPagesIteration();
       base::MutexGuard guard(&sweeping_mutex_);
       job_->Sweep();
       job_finished_.NotifyAll();
@@ -169,7 +172,7 @@ void ArrayBufferSweeper::RequestSweep(SweepingType type) {
     job_->id_ = task->id();
     V8::GetCurrentPlatform()->CallOnWorkerThread(std::move(task));
   } else {
-    heap_->sweeper()->WaitForPromotedPagesIteration();
+    local_sweeper_.ContributeAndWaitForPromotedPagesIteration();
     job_->Sweep();
     Finalize();
   }
@@ -201,6 +204,9 @@ void ArrayBufferSweeper::Finalize() {
   const size_t freed_bytes =
       job_->freed_bytes_.exchange(0, std::memory_order_relaxed);
   DecrementExternalMemoryCounters(freed_bytes);
+
+  local_sweeper_.Finalize();
+
   job_.reset();
   DCHECK(!sweeping_in_progress());
 }
