@@ -4044,8 +4044,11 @@ class LoadPolymorphicTaggedField
 
  public:
   explicit LoadPolymorphicTaggedField(
-      uint64_t bitfield, ZoneVector<compiler::PropertyAccessInfo>&& access_info)
-      : Base(bitfield), access_infos_(access_info) {}
+      uint64_t bitfield, Representation field_representation,
+      ZoneVector<compiler::PropertyAccessInfo>&& access_info)
+      : Base(bitfield),
+        field_representation_(field_representation),
+        access_infos_(access_info) {}
 
   static constexpr OpProperties kProperties = OpProperties::Reading() |
                                               OpProperties::EagerDeopt() |
@@ -4056,12 +4059,15 @@ class LoadPolymorphicTaggedField
   static constexpr int kObjectIndex = 0;
   Input& object_input() { return input(kObjectIndex); }
 
+  Representation field_representation() const { return field_representation_; }
+
   int MaxCallStackArgs() const { return 0; }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 
  private:
+  Representation field_representation_;
   ZoneVector<compiler::PropertyAccessInfo> access_infos_;
 };
 

@@ -1397,6 +1397,18 @@ NodeType StaticTypeForNode(ValueNode* node) {
       }
       return NodeType::kHeapObjectWithKnownMap;
     }
+    case Opcode::kLoadPolymorphicTaggedField: {
+      Representation field_representation =
+          node->Cast<LoadPolymorphicTaggedField>()->field_representation();
+      switch (field_representation.kind()) {
+        case Representation::kSmi:
+          return NodeType::kSmi;
+        case Representation::kHeapObject:
+          return NodeType::kAnyHeapObject;
+        default:
+          return NodeType::kUnknown;
+      }
+    }
     case Opcode::kToNumberOrNumeric:
       if (node->Cast<ToNumberOrNumeric>()->mode() ==
           Object::Conversion::kToNumber) {
@@ -2140,7 +2152,7 @@ bool MaglevGraphBuilder::TryBuildNamedAccess(
           {lookup_start_object}, std::move(access_infos)));
     } else {
       SetAccumulator(AddNewNode<LoadPolymorphicTaggedField>(
-          {lookup_start_object}, std::move(access_infos)));
+          {lookup_start_object}, field_repr, std::move(access_infos)));
     }
 
     return true;
