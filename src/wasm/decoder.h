@@ -528,8 +528,14 @@ class Decoder {
       return result;
     }
     IntType result;
+    // Do not pass {length} to the slow path, because clang assumes that the
+    // pointer might be stored and the value clobbered later.
+    // TODO(clemensb): Return value+length from the slow path once
+    // https://reviews.llvm.org/D141020 is available.
+    uint32_t unaliased_length;
     read_leb_slowpath<IntType, ValidationTag, trace, size_in_bits>(
-        pc, length, name, &result);
+        pc, &unaliased_length, name, &result);
+    *length = unaliased_length;
     return result;
   }
 

@@ -772,8 +772,8 @@ class LoadType {
       : val_(val) {}
 
   constexpr LoadTypeValue value() const { return val_; }
-  constexpr unsigned size_log_2() const { return kLoadSizeLog2[val_]; }
-  constexpr unsigned size() const { return 1 << size_log_2(); }
+  constexpr uint8_t size_log_2() const { return kLoadSizeLog2[val_]; }
+  constexpr uint8_t size() const { return kLoadSize[val_]; }
   constexpr ValueType value_type() const { return kValueType[val_]; }
   constexpr MachineType mem_type() const { return kMemType[val_]; }
 
@@ -800,6 +800,15 @@ class LoadType {
 
  private:
   const LoadTypeValue val_;
+
+  static constexpr uint8_t kLoadSize[] = {
+  // MSVC wants a static_cast here.
+#define LOAD_SIZE(_, __, memtype) \
+  static_cast<uint8_t>(           \
+      ElementSizeInBytes(MachineType::memtype().representation())),
+      FOREACH_LOAD_TYPE(LOAD_SIZE)
+#undef LOAD_SIZE
+  };
 
   static constexpr uint8_t kLoadSizeLog2[] = {
   // MSVC wants a static_cast here.

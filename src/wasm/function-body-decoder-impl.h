@@ -4255,7 +4255,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   bool CheckStaticallyOutOfBounds(uintptr_t size, uintptr_t offset) {
     const bool statically_oob = !base::IsInBounds<uintptr_t>(
         offset, size, this->module_->max_memory_size);
-    if (statically_oob) {
+    if (V8_UNLIKELY(statically_oob)) {
       CALL_INTERFACE_IF_OK_AND_REACHABLE(Trap, TrapReason::kTrapMemOutOfBounds);
       SetSucceedingCodeDynamicallyUnreachable();
     }

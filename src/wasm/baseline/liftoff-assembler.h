@@ -582,7 +582,7 @@ class LiftoffAssembler : public TurboAssembler {
   }
 
   void PushConstant(ValueKind kind, int32_t i32_const) {
-    DCHECK(kind == kI32 || kind == kI64);
+    V8_ASSUME(kind == kI32 || kind == kI64);
     cache_state_.stack_state.emplace_back(kind, i32_const,
                                           NextSpillOffset(kind));
   }
