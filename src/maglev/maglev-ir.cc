@@ -974,6 +974,7 @@ void LoadPolymorphicTaggedField::SetValueLocationConstraints() {
   UseRegister(object_input());
   DefineAsRegister(this);
   set_temporaries_needed(1);
+  set_double_temporaries_needed(1);
 }
 void LoadPolymorphicTaggedField::GenerateCode(MaglevAssembler* masm,
                                               const ProcessingState& state) {
@@ -1008,6 +1009,12 @@ void LoadPolymorphicTaggedField::GenerateCode(MaglevAssembler* masm,
       case compiler::PropertyAccessInfo::kDataField:
       case compiler::PropertyAccessInfo::kFastDataConstant: {
         __ LoadDataField(access_info, result_reg, object, object_map);
+        if (access_info.field_index().is_double()) {
+          DoubleRegister double_scratch = temps.AcquireDouble();
+          __ LoadHeapNumberValue(double_scratch, result_reg);
+          __ AllocateHeapNumber(register_snapshot(), result_reg,
+                                double_scratch);
+        }
         break;
       }
       default:
