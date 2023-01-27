@@ -2120,7 +2120,8 @@ struct CheckTurboshaftTypeOfOp
 
 struct CheckOp : FixedArityOperationT<2, CheckOp> {
   enum class Kind {
-    kCheckBigInt,
+    kCheckBigInt,       // Checks if a tagged input is a BigInt object
+    kBigIntIsBigInt64,  // Checks if a BigInt input is in BigInt64 range
   };
   Kind kind;
   FeedbackSource feedback;
@@ -2155,15 +2156,13 @@ struct IsSmiTaggedOp : FixedArityOperationT<1, IsSmiTaggedOp> {
 struct ConvertToObjectOp : FixedArityOperationT<1, ConvertToObjectOp> {
   enum class Kind {
     kInt64ToBigInt64,
+    kUint64ToBigInt64,
   };
   Kind kind;
 
   static constexpr OpProperties properties = OpProperties::PureMayAllocate();
   base::Vector<const RegisterRepresentation> outputs_rep() const {
-    switch (kind) {
-      case Kind::kInt64ToBigInt64:
-        return RepVector<RegisterRepresentation::Tagged()>();
-    }
+    return RepVector<RegisterRepresentation::Tagged()>();
   }
 
   OpIndex input() const { return Base::input(0); }

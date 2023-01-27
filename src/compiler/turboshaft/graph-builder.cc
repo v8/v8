@@ -673,9 +673,16 @@ OpIndex GraphBuilder::Process(
       return assembler.Check(Map(node->InputAt(0)), dominating_frame_state,
                              CheckOp::Kind::kCheckBigInt,
                              CheckParametersOf(op).feedback());
+    case IrOpcode::kCheckedBigIntToBigInt64:
+      return assembler.Check(Map(node->InputAt(0)), dominating_frame_state,
+                             CheckOp::Kind::kBigIntIsBigInt64,
+                             CheckParametersOf(op).feedback());
     case IrOpcode::kChangeInt64ToBigInt:
       return assembler.ConvertToObject(
           Map(node->InputAt(0)), ConvertToObjectOp::Kind::kInt64ToBigInt64);
+    case IrOpcode::kChangeUint64ToBigInt:
+      return assembler.ConvertToObject(
+          Map(node->InputAt(0)), ConvertToObjectOp::Kind::kUint64ToBigInt64);
 
     case IrOpcode::kSelect: {
       OpIndex cond = Map(node->InputAt(0));

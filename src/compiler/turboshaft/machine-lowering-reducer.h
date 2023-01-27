@@ -9,6 +9,7 @@
 #include "src/compiler/access-builder.h"
 #include "src/compiler/globals.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/optimization-phase.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/objects/bigint.h"
@@ -50,6 +51,55 @@ class MachineLoweringReducer : public Next {
                               DeoptimizeReason::kWrongInstanceType, feedback);
         return input;
       }
+      case CheckOp::Kind::kBigIntIsBigInt64: {
+        DCHECK(Asm().Is64());
+
+        Block* non_zero_block = Asm().NewBlock();
+        Block* done_block = Asm().NewBlock();
+        Block* maybe_out_of_range_block = Asm().NewBlock();
+
+        OpIndex bitfield = LoadField(input, AccessBuilder::ForBigIntBitfield());
+        Asm().Branch(Asm().Word32Equal(bitfield, Asm().Word32Constant(0)),
+                     done_block, non_zero_block);
+
+        if (Asm().Bind(non_zero_block)) {
+          // Length must be 1.
+          OpIndex length_field = Asm().Word32BitwiseAnd(
+              bitfield, Asm().Word32Constant(BigInt::LengthBits::kMask));
+          Asm().DeoptimizeIfNot(
+              Asm().Word32Equal(length_field,
+                                Asm().Word32Constant(
+                                    uint32_t{1} << BigInt::LengthBits::kShift)),
+              frame_state, DeoptimizeReason::kNotABigInt64, feedback);
+
+          // Check if it fits in 64 bit signed int.
+          OpIndex lsd = LoadField(
+              input, AccessBuilder::ForBigIntLeastSignificantDigit64());
+          OpIndex magnitude_check = Asm().Uint64LessThanOrEqual(
+              lsd, Asm().Word64Constant(std::numeric_limits<int64_t>::max()));
+          Asm().Branch(magnitude_check, done_block, maybe_out_of_range_block);
+
+          if (Asm().Bind(maybe_out_of_range_block)) {
+            // The BigInt probably doesn't fit into signed int64. The only
+            // exception is int64_t::min. We check for this.
+            OpIndex sign = Asm().Word32BitwiseAnd(
+                bitfield, Asm().Word32Constant(BigInt::SignBits::kMask));
+            OpIndex sign_check = Asm().Word32Equal(
+                sign, Asm().Word32Constant(BigInt::SignBits::kMask));
+            Asm().DeoptimizeIfNot(sign_check, frame_state,
+                                  DeoptimizeReason::kNotABigInt64, feedback);
+
+            OpIndex min_check = Asm().Word64Equal(
+                lsd, Asm().Word64Constant(std::numeric_limits<int64_t>::min()));
+            Asm().DeoptimizeIfNot(min_check, frame_state,
+                                  DeoptimizeReason::kNotABigInt64, feedback);
+            Asm().Goto(done_block);
+          }
+        }
+
+        Asm().BindReachable(done_block);
+        return input;
+      }
     }
 
     UNREACHABLE();
@@ -63,7 +113,7 @@ class MachineLoweringReducer : public Next {
         // BigInts with value 0 must be of size 0 (canonical form).
         Block* non_zero_block = Asm().NewBlock();
         Block* zero_block = Asm().NewBlock();
-        Block* merge_block = Asm().NewBlock();
+        Block* done_block = Asm().NewBlock();
 
         Variable result =
             Asm().NewFreshVariable(RegisterRepresentation::Tagged());
@@ -74,7 +124,7 @@ class MachineLoweringReducer : public Next {
         if (Asm().Bind(zero_block)) {
           Asm().Set(result, BuildAllocateBigInt(OpIndex::Invalid(),
                                                 OpIndex::Invalid()));
-          Asm().Goto(merge_block);
+          Asm().Goto(done_block);
         }
 
         if (Asm().Bind(non_zero_block)) {
@@ -92,10 +142,41 @@ class MachineLoweringReducer : public Next {
           OpIndex absolute_value = Asm().Word64Sub(
               Asm().Word64BitwiseXor(input, sign_mask), sign_mask);
           Asm().Set(result, BuildAllocateBigInt(bitfield, absolute_value));
-          Asm().Goto(merge_block);
+          Asm().Goto(done_block);
         }
 
-        Asm().BindReachable(merge_block);
+        Asm().BindReachable(done_block);
+        return Asm().Get(result);
+      }
+      case ConvertToObjectOp::Kind::kUint64ToBigInt64: {
+        DCHECK(Asm().Is64());
+
+        // BigInts with value 0 must be of size 0 (canonical form).
+        Block* non_zero_block = Asm().NewBlock();
+        Block* zero_block = Asm().NewBlock();
+        Block* done_block = Asm().NewBlock();
+
+        Variable result =
+            Asm().NewFreshVariable(RegisterRepresentation::Tagged());
+
+        Asm().Branch(
+            Asm().Word64Equal(input, Asm().Word64Constant(uint64_t{0})),
+            zero_block, non_zero_block);
+
+        if (Asm().Bind(zero_block)) {
+          Asm().Set(result, BuildAllocateBigInt(OpIndex::Invalid(),
+                                                OpIndex::Invalid()));
+          Asm().Goto(done_block);
+        }
+
+        if (Asm().Bind(non_zero_block)) {
+          const auto bitfield = BigInt::LengthBits::encode(1);
+          Asm().Set(result,
+                    BuildAllocateBigInt(Asm().Word32Constant(bitfield), input));
+          Asm().Goto(done_block);
+        }
+
+        Asm().BindReachable(done_block);
         return Asm().Get(result);
       }
     }

@@ -599,6 +599,8 @@ std::ostream& operator<<(std::ostream& os, CheckOp::Kind kind) {
   switch (kind) {
     case CheckOp::Kind::kCheckBigInt:
       return os << "CheckBigInt";
+    case CheckOp::Kind::kBigIntIsBigInt64:
+      return os << "BigIntIsBigInt64";
   }
 }
 
@@ -606,6 +608,8 @@ std::ostream& operator<<(std::ostream& os, ConvertToObjectOp::Kind kind) {
   switch (kind) {
     case ConvertToObjectOp::Kind::kInt64ToBigInt64:
       return os << "Int64ToBigInt64";
+    case ConvertToObjectOp::Kind::kUint64ToBigInt64:
+      return os << "Uint64ToBigInt64";
   }
 }
 

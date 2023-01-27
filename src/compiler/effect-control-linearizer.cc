@@ -1025,6 +1025,7 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerCheckedUint64ToInt64(node, frame_state);
       break;
     case IrOpcode::kCheckedBigIntToBigInt64:
+      if (v8_flags.turboshaft) return false;
       result = LowerCheckedBigIntToBigInt64(node, frame_state);
       break;
     case IrOpcode::kCheckInternalizedString:
@@ -1144,7 +1145,16 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       }
       break;
     case IrOpcode::kChangeUint64ToBigInt:
-      result = LowerChangeUint64ToBigInt(node);
+      if (v8_flags.turboshaft) {
+        DCHECK(machine()->Is64());
+        // ChangeUint64ToBigInt is allocting when lowered, so we must fix its
+        // position in the effect chain such that it is non-floating after ECL
+        // and cannot mess up when rescheduling (e.g. in Turboshaft's graph
+        // builder).
+        result = gasm()->Chained(node->op(), node->InputAt(0));
+      } else {
+        result = LowerChangeUint64ToBigInt(node);
+      }
       break;
     case IrOpcode::kTruncateBigIntToWord64:
       result = LowerTruncateBigIntToWord64(node);
@@ -3002,6 +3012,7 @@ Node* EffectControlLinearizer::LowerCheckBigInt(Node* node, Node* frame_state) {
 
 Node* EffectControlLinearizer::LowerCheckedBigIntToBigInt64(Node* node,
                                                             Node* frame_state) {
+  DCHECK(!v8_flags.turboshaft);
   DCHECK(machine()->Is64());
 
   auto done = __ MakeLabel();
@@ -3181,6 +3192,7 @@ Node* EffectControlLinearizer::LowerChangeInt64ToBigInt(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerChangeUint64ToBigInt(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
   DCHECK(machine()->Is64());
 
   auto done = __ MakeLabel(MachineRepresentation::kTagged);
